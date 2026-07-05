@@ -301,6 +301,12 @@ function buildPlannerSearchParams() {
 }
 
 function syncPlannerStateToUrl() {
+	// Wiki deep-link focus in progress -> the opened URL must stay untouched (see
+	// suppressPlannerUrlSyncForWikiDeeplink in js/app/wiki-deeplink.js).
+	if (typeof isWikiDeeplinkUrlSyncSuppressed === "function" && isWikiDeeplinkUrlSyncSuppressed()) {
+		return;
+	}
+
 	if (!window.history || typeof window.history.replaceState !== "function") {
 		return;
 	}

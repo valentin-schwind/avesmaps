@@ -32,6 +32,22 @@ const WIKI_DEEPLINK_PARAM_ROUTING = {
 // Kept in sync with the strip list in share-link.js so a shared ?s= code never re-embeds a deep-link param.
 const WIKI_DEEPLINK_PARAM_NAMES = Object.keys(WIKI_DEEPLINK_PARAM_ROUTING);
 
+// The deep-link focus itself must not rewrite the URL: the operator's contract is that
+// https://avesmaps.de/?strasse=... stays EXACTLY as opened (no visible jump to the toggle
+// params). The focus helpers (focusSpotlightPath, selectSpotlightSearchEntry) call
+// syncPlannerStateToUrl synchronously and via short async follow-ups, so the planner URL
+// write is suppressed for a short window around each deep-link focus. Later USER
+// interactions sync normally (and keep the wiki params via mergeWikiDeeplinkParams).
+let wikiDeeplinkUrlSyncSuppressedUntil = 0;
+
+function suppressPlannerUrlSyncForWikiDeeplink() {
+	wikiDeeplinkUrlSyncSuppressedUntil = Date.now() + 2000;
+}
+
+function isWikiDeeplinkUrlSyncSuppressed() {
+	return Date.now() < wikiDeeplinkUrlSyncSuppressedUntil;
+}
+
 // Read the deep-link params up front (INITIAL_SEARCH_PARAMS is captured synchronously in config.js before
 // the planner rewrites the URL). Returns the first present {param, kinds, pageName} or null.
 function readWikiDeeplinkRequest() {
@@ -185,6 +201,7 @@ function focusWholeWikiDeeplinkPath(targetKey) {
 			bounds = extendSpotlightBounds(bounds, getSpotlightPathBounds(path));
 		});
 	}
+	suppressPlannerUrlSyncForWikiDeeplink();
 	focusSpotlightPath({
 		kind: "path",
 		subtype: matchedSubtype,
@@ -255,6 +272,7 @@ function resolveWikiDeeplinkViaMapSearch(request) {
 			}
 			chosen = chosen || resolvedEntries[0];
 			if (chosen && typeof selectSpotlightSearchEntry === "function") {
+				suppressPlannerUrlSyncForWikiDeeplink();
 				selectSpotlightSearchEntry(chosen);
 			}
 		})
@@ -284,6 +302,7 @@ function applyWikiDeeplinkFromUrl() {
 		// Reuse the spotlight focus router: it centers + opens the popup for locations, switches to the
 		// political layer and polls the region infobox for territories, and highlights the segment for paths
 		// (paths have no popup -- expected).
+		suppressPlannerUrlSyncForWikiDeeplink();
 		selectSpotlightSearchEntry(entry);
 		return;
 	}
