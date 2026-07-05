@@ -50,6 +50,29 @@
 			return dir === "forward" || dir === "reverse" ? dir : null;
 		}
 
+		function riversToggledOn() {
+			const toggle = document.querySelector("#toggleRivers");
+			return !toggle || toggle.checked;
+		}
+
+		// Arrows must ride the SAME display spline as the rendered river line
+		// (getPathVisualLatLngCoordinates -> Catmull-Rom): walking the raw vertices puts the
+		// arrows visibly off the line in curves. Cached per feature and invalidated when the
+		// geometry object is replaced (applyPathFeatureResponse assigns a fresh one on edits).
+		const smoothedCache = new WeakMap();
+		function displayCoordinatesFor(path, rawCoordinates) {
+			if (typeof smoothLineCoordinatesForDisplay !== "function" || typeof VISUAL_LINE_CATMULL_ROM_CONFIG === "undefined") {
+				return rawCoordinates;
+			}
+			const cached = smoothedCache.get(path);
+			if (cached && cached.source === rawCoordinates) {
+				return cached.smoothed;
+			}
+			const smoothed = smoothLineCoordinatesForDisplay(rawCoordinates, VISUAL_LINE_CATMULL_ROM_CONFIG);
+			smoothedCache.set(path, { source: rawCoordinates, smoothed });
+			return smoothed;
+		}
+
 		function drawArrow(x, y, angle, viewWidth, viewHeight) {
 			if (x < -20 || y < -20 || x > viewWidth + 20 || y > viewHeight + 20) {
 				return;
@@ -88,7 +111,8 @@
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
 			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-			if (!Array.isArray(pathData) || map.getZoom() < ARROW_MIN_ZOOM) {
+			// Coupled to the rivers' edit-mode visibility: no arrows while rivers are hidden.
+			if (!Array.isArray(pathData) || map.getZoom() < ARROW_MIN_ZOOM || !riversToggledOn()) {
 				return;
 			}
 
@@ -100,12 +124,19 @@
 				if (!dir) {
 					return;
 				}
+				// Per-path visibility: if the river's rendered line exists but is NOT on the map
+				// (display modes, per-path rules), its arrows disappear with it.
+				const renderedLine = Array.isArray(path._pathLines) ? path._pathLines[0] : null;
+				if (renderedLine && !map.hasLayer(renderedLine)) {
+					return;
+				}
 				const rawCoordinates = path.geometry?.coordinates;
 				if (!Array.isArray(rawCoordinates) || rawCoordinates.length < 2) {
 					return;
 				}
+				const displayCoordinates = displayCoordinatesFor(path, rawCoordinates);
 				// Walk in FLOW direction: reverse-drawn rivers are walked back-to-front.
-				const coordinates = dir === "forward" ? rawCoordinates : [...rawCoordinates].reverse();
+				const coordinates = dir === "forward" ? displayCoordinates : [...displayCoordinates].reverse();
 				let carried = 0;
 				let previousPoint = map.latLngToContainerPoint(L.latLng(coordinates[0][1], coordinates[0][0]));
 				for (let i = 1; i < coordinates.length; i++) {
@@ -140,6 +171,20 @@
 			const scale = map.getZoomScale(event.zoom);
 			const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 			L.DomUtil.setTransform(canvas, offset, scale);
+		});
+
+		// Redraw when the rivers toggle flips (defer past syncPathVisibility's own handler)
+		// and when river polylines get added/removed by display-mode switches (debounced).
+		document.querySelector("#toggleRivers")?.addEventListener("change", () => {
+			window.setTimeout(redraw, 0);
+		});
+		let layerRedrawTimer = null;
+		map.on("layeradd layerremove", (event) => {
+			if (!(event.layer instanceof L.Polyline)) {
+				return;
+			}
+			window.clearTimeout(layerRedrawTimer);
+			layerRedrawTimer = window.setTimeout(redraw, 120);
 		});
 
 		window.avesmapsRedrawRiverFlowArrows = redraw;
