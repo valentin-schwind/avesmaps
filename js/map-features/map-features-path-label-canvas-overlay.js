@@ -19,6 +19,23 @@
 		return; // SVG-Fallback aktiv -> kein Canvas-Overlay
 	}
 
+	// Kanal A (Way-Labels): wiki-zugewiesene Wege werden als Ganzes beschriftet (Endpunkt-Verkettung
+	// über Segmente, Label alle ~WAY_LABEL_SCREEN_INTERVAL_PX Bildschirm-Pixel) statt pro Segment.
+	// Escape-Hatch: ?waylabels=0 schaltet zurück auf reines Kanal-B-Verhalten (auch für zugewiesene
+	// Wege -- alte per-Segment/show_label-Logik, wie vor diesem Feature).
+	const wayLabelsEnabled = (() => {
+		try { return new URLSearchParams(window.location.search).get("waylabels") !== "0"; } catch (e) { return true; }
+	})();
+	// Ziel-Bildschirm-Abstand (px) zwischen zwei Way-Label-Wiederholungen entlang einer Kette; tunbar
+	// via ?waylabelinterval=NNN für Live-Vergleich ohne Deploy.
+	const WAY_LABEL_SCREEN_INTERVAL_PX = (() => {
+		try {
+			const raw = new URLSearchParams(window.location.search).get("waylabelinterval");
+			const parsed = Number(raw);
+			return Number.isFinite(parsed) && parsed > 0 ? parsed : 600;
+		} catch (e) { return 600; }
+	})();
+
 	if (!map.getPane(PANE)) {
 		map.createPane(PANE);
 		const pane = map.getPane(PANE);
@@ -133,6 +150,12 @@
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		pathData.forEach((path) => {
+			// Kanal B: wiki-zugewiesene Wege werden jetzt als Ganzes über Kanal A beschriftet (unten) --
+			// show_label wird für sie ignoriert (kein Doppel-Label). Unzugewiesene Segmente bleiben
+			// unverändert beim bisherigen per-Segment-Verhalten.
+			if (wayLabelsEnabled && path?.properties?.wiki_path?.wiki_key) {
+				return;
+			}
 			if (!isPathLabelVisibleAtCurrentZoom(path)) {
 				return;
 			}
@@ -184,6 +207,161 @@
 			const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
 			drawGlyphsAlong(pts, chars, widths, ls, halo, style.fill, perp);
 		});
+
+		// Kanal A: wiki-zugewiesene Wege als GANZES beschriften (Endpunkt-Verkettung über Segmente,
+		// Label alle ~WAY_LABEL_SCREEN_INTERVAL_PX Bildschirm-Pixel entlang jeder Kette). show_label wird
+		// hier bewusst ignoriert (siehe Kanal-B-Skip oben). Escape: ?waylabels=0.
+		if (wayLabelsEnabled
+			&& typeof isWayLabelEligible === "function"
+			&& typeof buildWayLabelChains === "function"
+			&& typeof computeWayLabelIntervalOffsets === "function"
+			&& typeof getPathGeomBounds === "function") {
+			const viewportBounds = map.getBounds().pad(0.25); // gleiches Polster wie currentPathVisibilityContext()
+			const wayGroups = new Map(); // wiki_key -> { name, pathsById: Map<public_id, path> }
+			pathData.forEach((path) => {
+				if (!isWayLabelEligible(path)) {
+					return;
+				}
+				const geomBounds = getPathGeomBounds(path);
+				if (!geomBounds || !viewportBounds.intersects(geomBounds)) {
+					return;
+				}
+				const wikiKey = path.properties.wiki_path.wiki_key;
+				if (!wayGroups.has(wikiKey)) {
+					const wikiName = String(path.properties.wiki_path.name || "").trim();
+					wayGroups.set(wikiKey, { name: wikiName || getPathDisplayName(path), pathsById: new Map() });
+				}
+				const publicId = path.properties?.public_id || path.id;
+				wayGroups.get(wikiKey).pathsById.set(publicId, path);
+			});
+
+			const acceptedWayLabelBoxes = []; // Selbstkollision: {x1,y1,x2,y2} bereits platzierter Way-Labels
+			const boxesOverlap = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
+
+			wayGroups.forEach((group) => {
+				const segments = Array.from(group.pathsById.values()).map((p) => ({
+					id: p.properties?.public_id || p.id,
+					coordinates: p.geometry.coordinates,
+				}));
+				const chains = buildWayLabelChains(segments);
+				chains.forEach((chain) => {
+					// Kette zur geglätteten Bildschirm-Polyline zusammensetzen: pro Eintrag die (geglättete)
+					// Label-Leitlinie desselben Helfers wie Kanal B, bei reversed umgedreht, dieselbe
+					// Projektion (map.latLngToContainerPoint) wie im per-Segment-Zweig oben; doppelte
+					// Gelenkpunkte zwischen Segmenten werden übersprungen.
+					let pts = [];
+					chain.forEach((entry) => {
+						const path = group.pathsById.get(entry.id);
+						let latlngs = getPathLabelVisualLatLngCoordinates(path.geometry.coordinates);
+						if (!Array.isArray(latlngs) || latlngs.length < 2) {
+							return;
+						}
+						if (entry.reversed) {
+							latlngs = latlngs.slice().reverse();
+						}
+						const segPts = latlngs.map(([lat, lng]) => map.latLngToContainerPoint(L.latLng(lat, lng)));
+						if (pts.length && segPts.length) {
+							pts.push(...segPts.slice(1)); // gemeinsamer Gelenkpunkt nicht doppelt
+						} else {
+							pts.push(...segPts);
+						}
+					});
+					if (pts.length < 2) {
+						return;
+					}
+					// Lesbarkeit: ganze Kette links -> rechts (wie beim per-Segment-Zweig, nur auf Kettenebene).
+					if (pts[pts.length - 1].x < pts[0].x) {
+						pts = pts.slice().reverse();
+					}
+
+					const firstPath = group.pathsById.get(chain[0].id);
+					const subtype = normalizePathSubtype(firstPath.properties?.feature_subtype || firstPath.properties?.name);
+					const isRiver = subtype === "Flussweg" || subtype === "Seeweg";
+					const style = getPathLabelStyle(firstPath);
+					const fontSize = parseFloat(style.fontSize) || 11;
+					const ls = parseFloat(style.letterSpacing) || 0;
+
+					const cumAtPts = [0]; // kumulierte Distanz je Punkt in pts (einmal pro Kette berechnet)
+					for (let i = 1; i < pts.length; i += 1) {
+						cumAtPts.push(cumAtPts[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+					}
+					const totalLen = cumAtPts[cumAtPts.length - 1];
+					if (totalLen < 1) {
+						return;
+					}
+
+					ctx.font = `${style.fontWeight || "400"} ${fontSize}px ${style.fontFamily}`;
+					const chars = [...group.name];
+					const widths = chars.map((c) => ctx.measureText(c).width);
+					const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
+
+					let halo = { glow: null, blur: 0, strokeW: 0 };
+					if (typeof getLabelHaloParams === "function") {
+						const hp = getLabelHaloParams(
+							isRiver ? PATH_LABEL_RIVER_HALO_STRENGTH : PATH_LABEL_ROAD_HALO_STRENGTH,
+							isRiver ? PATH_LABEL_RIVER_HALO_SHARPNESS : PATH_LABEL_ROAD_HALO_SHARPNESS
+						);
+						if (hp.glow) {
+							halo = { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
+						}
+					}
+					const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
+
+					// Punkt bei kumulierter Distanz `d` entlang der (bereits projizierten) Kettenpunkte pts
+					// interpolieren -- Grundlage sowohl fürs Fenster-Slicing als auch die Kollisions-BBox.
+					const sampleAt = (d) => {
+						let remaining = Math.max(0, Math.min(d, totalLen));
+						for (let i = 1; i < pts.length; i += 1) {
+							const segLen = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+							if (remaining <= segLen || i === pts.length - 1) {
+								const t = segLen > 0 ? remaining / (segLen || 1) : 0;
+								return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t };
+							}
+							remaining -= segLen;
+						}
+						return pts[0];
+					};
+
+					const offsets = computeWayLabelIntervalOffsets(totalLen, WAY_LABEL_SCREEN_INTERVAL_PX, textLen);
+					offsets.forEach((centerOffset) => {
+						const halfWindow = textLen / 2 + 4; // etwas Luft über die reine Textbreite hinaus
+						const windowStart = Math.max(0, centerOffset - halfWindow);
+						const windowEnd = Math.min(totalLen, centerOffset + halfWindow);
+						// drawGlyphsAlong zentriert IMMER auf dem übergebenen Punkte-Array (dist = (total-textLen)/2)
+						// -- für mehrere Platzierungen entlang derselben Kette wird deshalb, wie beim per-Segment-
+						// Zweig, ein Fenster (Sub-Polyline) um den Ziel-Offset ausgeschnitten und UNVERÄNDERT mit
+						// derselben Signatur an drawGlyphsAlong übergeben (kein neuer Parameter erfunden).
+						const windowPts = [sampleAt(windowStart)];
+						for (let i = 0; i < pts.length; i += 1) {
+							// Zwischenpunkte der Original-Polyline im Fenster mit übernehmen, damit Kurven
+							// (nicht nur Start/Ende) erhalten bleiben.
+							if (cumAtPts[i] > windowStart && cumAtPts[i] < windowEnd) {
+								windowPts.push(pts[i]);
+							}
+						}
+						windowPts.push(sampleAt(windowEnd));
+						if (windowPts.length < 2) {
+							return;
+						}
+						// Selbstkollision: BBox aus Fenster-Start/-Mitte/-Ende ± Schriftgröße (nur Kanal-A-Labels
+						// nehmen daran teil).
+						const mid = sampleAt(centerOffset);
+						const pad = fontSize;
+						const xs = [windowPts[0].x, mid.x, windowPts[windowPts.length - 1].x];
+						const ys = [windowPts[0].y, mid.y, windowPts[windowPts.length - 1].y];
+						const box = {
+							x1: Math.min(...xs) - pad, y1: Math.min(...ys) - pad,
+							x2: Math.max(...xs) + pad, y2: Math.max(...ys) + pad,
+						};
+						if (acceptedWayLabelBoxes.some((accepted) => boxesOverlap(accepted, box))) {
+							return;
+						}
+						acceptedWayLabelBoxes.push(box);
+						drawGlyphsAlong(windowPts, chars, widths, ls, halo, style.fill, perp);
+					});
+				});
+			});
+		}
 
 		// Kraftlinien-Namen -- nur im Modus „Kraftlinien". Text liegt auf der (geraden) Mittellinie, leicht
 		// darüber versetzt (wie früher SVG-dy -10), mit dezentem weichem Halo für Lesbarkeit.

@@ -13,6 +13,11 @@ function populatePathEditForm(path) {
 	document.getElementById("path-edit-autoname").checked = true;
 	document.getElementById("path-edit-autoname").disabled = false;
 	document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
+	const showLabelField = document.getElementById("path-edit-show-label")?.closest("label");
+	if (showLabelField) {
+		const hasWikiWay = typeof pathWikiCurrentAssignment === "function" && Boolean(pathWikiCurrentAssignment());
+		showLabelField.hidden = hasWikiWay; // Way-Labels beschriften zugewiesene Wege automatisch
+	}
 	syncPathTransportOptions({ path });
 	syncPathAutoNameControls();
 	if (typeof renderPathWikiReference === "function") {
@@ -41,6 +46,10 @@ function populatePathEditFormFromLastSettings(path) {
 	document.getElementById("path-edit-autoname").checked = autoNameEnabled;
 	document.getElementById("path-edit-autoname").disabled = false;
 	document.getElementById("path-edit-show-label").checked = showLabelEnabled;
+	const showLabelFieldFromLastSettings = document.getElementById("path-edit-show-label")?.closest("label");
+	if (showLabelFieldFromLastSettings) {
+		showLabelFieldFromLastSettings.hidden = false; // neuer Pfad -- noch keine Wiki-Zuweisung
+	}
 	syncPathTransportOptions({
 		path: {
 			properties: {
