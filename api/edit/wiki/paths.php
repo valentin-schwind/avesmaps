@@ -121,6 +121,11 @@ try {
             'limit' => (int) ($_GET['limit'] ?? 500),
         ]),
         'search' => avesmapsWikiPathSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
+        'verlauf_cases' => avesmapsWikiPathVerlaufListCases($pdo, $config, [
+            'cursor' => (int) ($_GET['cursor'] ?? 0),
+            'limit' => (int) ($_GET['limit'] ?? 20),
+            'step_runtime' => (int) ($_GET['step_runtime'] ?? 15),
+        ]),
         default => null,
     };
 
