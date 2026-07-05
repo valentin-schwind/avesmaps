@@ -125,6 +125,64 @@ function spotlightEntryWikiKeys(entry) {
 	return keys;
 }
 
+// Deep-link path focus: highlight the WHOLE named road/river, not just one segment.
+// A Reichsstraße/Fluss is many map_features path segments sharing a name (and, once wiki-linked, the same
+// properties.wiki_path). But only the ONE labeled segment (properties.show_label) survives
+// buildSpotlightPathEntries' label/visibility filter, so the spotlight path bundle -- and thus the generic
+// "first wiki_url match wins" resolve -- covers a single segment. Here we gather ALL segments of the way
+// from the unfiltered global `pathData` and feed the complete list through the SAME focusSpotlightPath
+// highlight path. We take the UNION of two matchers so we are robust to how the server stamped the data:
+//   (a) wiki_url: every segment whose properties.wiki_path.wiki_url page-segment equals the target
+//       (avesmapsWikiPathAssign stamps wiki_path onto all same-name segments, so this alone usually covers
+//        the road), and
+//   (b) display name: every segment whose normalized display name equals the target -- catches continuation
+//       segments in case a wiki_url is not present on all of them.
+// The subtype is anchored from the matches so a road and a like-named river never merge.
+function subtypeOfPath(path) {
+	return typeof normalizePathSubtype === "function"
+		? normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name)
+		: "";
+}
+
+function focusWholeWikiDeeplinkPath(targetKey) {
+	if (typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length) {
+		return false;
+	}
+	const nameKey = (path) => normalizeWikiDeeplinkKey(typeof getPathDisplayName === "function" ? getPathDisplayName(path) : (path?.properties?.display_name || path?.properties?.name || ""));
+	const wikiHits = pathData.filter((path) => wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey);
+	// Anchor the subtype on the wiki_url hits (most reliable); fall back to the first name hit.
+	const anchor = wikiHits[0] || pathData.find((path) => nameKey(path) === targetKey) || null;
+	if (!anchor) {
+		return false;
+	}
+	const matchedSubtype = subtypeOfPath(anchor);
+	const segments = pathData.filter((path) => {
+		if (subtypeOfPath(path) !== matchedSubtype) {
+			return false;
+		}
+		return wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey || nameKey(path) === targetKey;
+	});
+	if (!segments.length || typeof focusSpotlightPath !== "function") {
+		return false;
+	}
+	// Synthesize a spotlight-path entry carrying the COMPLETE segment set, then reuse focusSpotlightPath:
+	// it enables the paths layer, syncs visibility/labels/URL, highlights every segment via
+	// highlightSpotlightPaths, and fits the combined bounds. No highlight logic is re-invented here.
+	let bounds = null;
+	if (typeof getSpotlightPathBounds === "function" && typeof extendSpotlightBounds === "function") {
+		segments.forEach((path) => {
+			bounds = extendSpotlightBounds(bounds, getSpotlightPathBounds(path));
+		});
+	}
+	focusSpotlightPath({
+		kind: "path",
+		subtype: matchedSubtype,
+		paths: segments,
+		bounds,
+	});
+	return true;
+}
+
 // Find a hydrated spotlight entry whose stored wiki_url matches `targetKey`, preferring the kinds in order.
 function findWikiDeeplinkSpotlightEntry(targetKey, kinds) {
 	if (!targetKey || typeof getSpotlightSearchEntries !== "function") {
@@ -200,6 +258,16 @@ function applyWikiDeeplinkFromUrl() {
 		return;
 	}
 	const targetKey = normalizeWikiDeeplinkKey(request.pageName);
+	// Path params (?strasse/?fluss) highlight the ENTIRE named way: gather all its segments from the
+	// unfiltered pathData (the spotlight bundle only holds the one labeled segment). Only paths route here.
+	if (request.kinds.length === 1 && request.kinds[0] === "path") {
+		if (focusWholeWikiDeeplinkPath(targetKey)) {
+			return;
+		}
+		// Not hydrated / no client segment -> our API (map-search path result resolves to the bundle).
+		resolveWikiDeeplinkViaMapSearch(request);
+		return;
+	}
 	const entry = findWikiDeeplinkSpotlightEntry(targetKey, request.kinds);
 	if (entry && typeof selectSpotlightSearchEntry === "function") {
 		// Reuse the spotlight focus router: it centers + opens the popup for locations, switches to the
