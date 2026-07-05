@@ -4,16 +4,16 @@
 
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
-let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing | cases (Verlauf-Fälle)
+let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing | cases (verlauf cases)
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 
-// Verlauf-Fälle (Task 6): eigene Liste + Ladezustand, getrennt von pathSyncData (match-Liste).
-let verlaufCases = []; // flache Liste aller geladenen Fälle (offen + zurückgestellt + archiviert)
-let verlaufCasesLoaded = false; // mind. einmal fertig durchgescannt
-let verlaufCasesLoading = false; // Lade-Guard gegen Doppelstart
-let verlaufCasesScanned = 0; // Fortschritt: geprüfte Wege
-let verlaufCasesBusy = false; // Guard für Einzel-/Bulk-Aktionen (defer/archive/apply/apply-clean)
+// Verlauf cases (Task 6): own list + load state, kept separate from pathSyncData (the match list).
+let verlaufCases = []; // flat list of all loaded cases (open + deferred + archived)
+let verlaufCasesLoaded = false; // scanned through to completion at least once
+let verlaufCasesLoading = false; // load guard against a double start
+let verlaufCasesScanned = 0; // progress: ways checked
+let verlaufCasesBusy = false; // guard for single-/bulk actions (defer/archive/apply/apply-clean)
 
 const VERLAUF_CASE_TYPE_LABELS = {
 	verlauf_changed: "Verlauf geändert",
@@ -234,8 +234,8 @@ function renderPathSyncList() {
 	renderTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentOptions(), pathContinentFilter, "Kontinent");
 }
 
-// Sequentieller Cursor-Scan über ?action=verlauf_cases. NIEMALS parallel (STRATO) — eine Anfrage
-// nach der anderen, jede Seite direkt ins Rendering übernommen (Fortschritt sichtbar).
+// Sequential cursor scan over ?action=verlauf_cases. NEVER parallel (STRATO) -- one request after
+// another, each page rendered immediately (so progress is visible).
 async function loadVerlaufCases() {
 	if (verlaufCasesLoading) {
 		return;
@@ -249,12 +249,12 @@ async function loadVerlaufCases() {
 		let complete = false;
 		let stallCount = 0;
 		while (!complete) {
-			const page = await pathSyncGet(`?action=verlauf_cases&cursor=${cursor}&limit=200`);
+			const page = await pathSyncGet(`?action=verlauf_cases&cursor=${cursor}&limit=50`);
 			if (!page || page.ok !== true) {
 				throw new Error(apiErrorMessage(page, "Unerwartete Antwort"));
 			}
 			verlaufCases = verlaufCases.concat(page.cases || []);
-			verlaufCasesScanned = Number(page.scanned) || verlaufCasesScanned;
+			verlaufCasesScanned += Number(page.scanned) || 0;
 			complete = Boolean(page.complete);
 			const nextCursor = Number(page.next_cursor) || cursor;
 			// Server exhausted its time budget without advancing (STRATO under load): back off
@@ -295,8 +295,8 @@ async function loadVerlaufCases() {
 	}
 }
 
-// Case-Sortierung innerhalb einer Gruppe: neueste zuerst ist nicht bekannt (kein Timestamp im
-// Case), daher stabil nach Name.
+// Case ordering within a group: "newest first" is unknowable (no timestamp on the case), so sort
+// stably by name.
 function verlaufCasesByStatus(status) {
 	return verlaufCases.filter((c) => c.status === status).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
@@ -305,8 +305,8 @@ function verlaufKindLabel(kind) {
 	return kind === "fluss" ? "Fluss" : "Straße";
 }
 
-// Chips für die Flags eines Falls: fehlende Orte, unroutbare Etappen (mit Grund), Konflikte
-// (Segmentname + fremd/Owner) und Backtrack-Hinweis. Nur nicht-leere Gruppen werden gerendert.
+// Chips for a case's flags: missing stations, unroutable hops (with reason), conflicts
+// (segment name + foreign/owner) and the backtrack hint. Only non-empty groups are rendered.
 // Reuses .region-sync__cand--conflict (existing "problem chip" styling) — no new CSS needed.
 function renderVerlaufCaseFlags(flags) {
 	if (!flags) {
@@ -338,7 +338,7 @@ function renderVerlaufCaseFlags(flags) {
 	return chips.join(" ");
 }
 
-// Rendert einen einzelnen Verlauf-Fall (Name+Link, Kind-Badge, Flags, adds/removes, Aktionen).
+// Renders a single verlauf case (name+link, kind badge, flags, adds/removes, actions).
 // Layout + classes reuse the existing tree-item/region-sync/wiki-sync-case styling (no new CSS
 // in this task — only review-path-sync.js is in scope).
 function renderVerlaufCase(caseEntry) {
@@ -382,8 +382,8 @@ function renderVerlaufCase(caseEntry) {
 	);
 }
 
-// Gruppiert offene Fälle nach Typ (feste Reihenfolge/Überschriften) + <details> für
-// Zurückgestellt/Archiviert (Muster: renderWikiSyncCases() in review-wiki-sync-cases.js).
+// Groups open cases by type (fixed order/headings) + <details> for deferred/archived
+// (pattern: renderWikiSyncCases() in review-wiki-sync-cases.js).
 function renderVerlaufCaseList() {
 	const list = pathSyncElement("path-sync-list");
 	if (!list) {
@@ -446,8 +446,8 @@ function findVerlaufCase(wikiKey) {
 	return verlaufCases.find((c) => String(c.wiki_key) === String(wikiKey)) || null;
 }
 
-// Übernehmen: Dry-Run-Preview -> confirm mit Zählern -> scharfe Anwendung. Nach Erfolg wird der
-// Fall lokal entfernt (er ist server-seitig kein offener Fall mehr) + Statusmeldung.
+// Apply: dry-run preview -> confirm with counters -> real apply. On success the case is removed
+// locally (server-side it is no longer an open case) + a status message.
 async function applyVerlaufCase(wikiKey) {
 	if (verlaufCasesBusy || !wikiKey) {
 		return;
@@ -479,7 +479,19 @@ async function applyVerlaufCase(wikiKey) {
 		}
 		verlaufCases = verlaufCases.filter((c) => String(c.wiki_key) !== String(wikiKey));
 		if (status) {
-			status.textContent = `„${name}" übernommen: ${result.adds_applied || 0} zugewiesen, ${result.removes_applied || 0} gelöst, ${result.restamped || 0} Kurs-Stempel aktualisiert.`;
+			// Surface failed adds / skipped conflicts (owner re-touched a segment since compute) so a
+			// partial apply is not reported as a full success.
+			const addsFailed = Number(result.adds_failed) || 0;
+			const skippedConflicts = Number(result.skipped_conflicts) || 0;
+			const problemParts = [];
+			if (addsFailed) {
+				problemParts.push(`${addsFailed} fehlgeschlagen`);
+			}
+			if (skippedConflicts) {
+				problemParts.push(`${skippedConflicts} Konflikt übersprungen`);
+			}
+			const problemSuffix = problemParts.length ? ` (${problemParts.join(", ")})` : "";
+			status.textContent = `„${name}" übernommen: ${result.adds_applied || 0} zugewiesen, ${result.removes_applied || 0} gelöst, ${result.restamped || 0} Kurs-Stempel aktualisiert.${problemSuffix}`;
 		}
 		renderVerlaufCaseList();
 	} catch (error) {
@@ -491,7 +503,7 @@ async function applyVerlaufCase(wikiKey) {
 	}
 }
 
-// Zurückstellen/Archivieren/Wieder öffnen: kein confirm, direkte POST + lokaler Statuswechsel.
+// Defer/archive/reopen: no confirm, a direct POST + a local status change.
 async function setVerlaufCaseStatus(wikiKey, action) {
 	if (verlaufCasesBusy || !wikiKey) {
 		return;
@@ -520,8 +532,8 @@ async function setVerlaufCaseStatus(wikiKey, action) {
 	}
 }
 
-// „Alle unstrittigen übernehmen": confirm mit Zähler -> sequentieller Cursor-Loop über
-// apply_verlauf_cases_clean (NIE parallel) -> vollständiger Re-Scan danach.
+// "Apply all uncontested": confirm with a counter -> sequential cursor loop over
+// apply_verlauf_cases_clean (NEVER parallel) -> a full re-scan afterwards.
 async function applyAllCleanVerlaufCases() {
 	if (verlaufCasesBusy) {
 		return;
@@ -540,13 +552,16 @@ async function applyAllCleanVerlaufCases() {
 		let complete = false;
 		let totalApplied = 0;
 		let totalSkipped = 0;
+		let totalFailed = 0;
 		let stallCount = 0;
 		while (!complete) {
 			const page = await pathSyncPost({ action: "apply_verlauf_cases_clean", dry_run: false, confirm: "apply", cursor, limit: 50 });
 			if (!page || page.ok !== true) {
 				throw new Error(apiErrorMessage(page, "Unerwartete Antwort"));
 			}
-			totalApplied += Array.isArray(page.applied_cases) ? page.applied_cases.length : 0;
+			const appliedCases = Array.isArray(page.applied_cases) ? page.applied_cases : [];
+			totalApplied += appliedCases.length;
+			totalFailed += appliedCases.reduce((sum, c) => sum + (Number(c && c.adds_failed) || 0), 0);
 			totalSkipped += Number(page.skipped_not_clean) || 0;
 			complete = Boolean(page.complete);
 			const nextCursor = Number(page.next_cursor) || cursor;
@@ -570,7 +585,7 @@ async function applyAllCleanVerlaufCases() {
 			}
 		}
 		if (status) {
-			status.textContent = `Unstrittige Fälle übernommen: ${totalApplied}${totalSkipped ? `, ${totalSkipped} übersprungen` : ""}.`;
+			status.textContent = `Unstrittige Fälle übernommen: ${totalApplied}${totalSkipped ? `, ${totalSkipped} übersprungen` : ""}${totalFailed ? `, ${totalFailed} fehlgeschlagen` : ""}.`;
 		}
 		await loadVerlaufCases();
 	} catch (error) {
