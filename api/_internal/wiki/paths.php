@@ -729,10 +729,10 @@ function avesmapsWikiPathMatch(PDO $pdo, array $options = []): array {
 }
 
 // Der Wiki-Datensatz, der an ein Path-Feature geheftet wird (properties.wiki_path).
-// $assignMeta traegt Provenienz fuer den Verlauf-Sync (Task 5+): 'source' unterscheidet
-// Owner-kuratierte Segmente (Default 'editor') von sync-geschriebenen ('verlauf-sync');
-// 'course_hash'/'course_hops' pinnen den Verlauf-Stand zum Zeitpunkt der Zuweisung (nur
-// server-seitig gesetzt, s. api/edit/wiki/paths.php -- ueber HTTP NICHT annehmbar).
+// $assignMeta carries provenance for the verlauf sync (Task 5+): 'source' distinguishes
+// owner-curated segments (default 'editor') from sync-written ones ('verlauf-sync');
+// 'course_hash'/'course_hops' pin the course state at assignment time (set server-side only,
+// see api/edit/wiki/paths.php -- NOT acceptable over HTTP).
 function avesmapsWikiPathBuildAssignObject(array $stagingRow, array $assignMeta = []): array {
     $object = [
         'wiki_key' => (string) ($stagingRow['wiki_key'] ?? ''),

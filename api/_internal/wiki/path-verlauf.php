@@ -935,9 +935,11 @@ function avesmapsWikiPathVerlaufRecomputeCase(PDO $pdo, string $wikiKey, array $
 // else -- especially wiki_path.source (an owner-curated keep stays owner-curated; the hash records
 // which course the segment currently traces, not its provenance) and the name column (untouched).
 // One shared map revision for the whole batch; each change is audited (undo-restorable). $restamps
-// = [public_id => [hop label, ...]] as produced by avesmapsWikiPathVerlaufPlanWrites. Returns the
-// list of public_ids actually written.
-function avesmapsWikiPathVerlaufRestampKeeps(PDO $pdo, string $stagingHash, array $restamps, int $userId): array {
+// = [public_id => [hop label, ...]] as produced by avesmapsWikiPathVerlaufPlanWrites. $wikiKey is
+// this way's key -- a concurrent reassignment that moved a segment to another way must not receive a
+// foreign course_hash, so a row whose CURRENT wiki_path.wiki_key no longer matches is skipped.
+// Returns the list of public_ids actually written.
+function avesmapsWikiPathVerlaufRestampKeeps(PDO $pdo, string $stagingHash, array $restamps, int $userId, string $wikiKey): array {
     if ($restamps === []) {
         return [];
     }
@@ -959,8 +961,9 @@ function avesmapsWikiPathVerlaufRestampKeeps(PDO $pdo, string $stagingHash, arra
         }
         $props = avesmapsWikiSyncDecodeJson($current['properties_json'] ?? null);
         $wikiPath = is_array($props['wiki_path'] ?? null) ? $props['wiki_path'] : null;
-        // Only restamp a segment that still carries a wiki_path (owner may have unassigned it).
-        if ($wikiPath === null) {
+        // Only restamp a segment that still carries a wiki_path (owner may have unassigned it) AND
+        // still belongs to this way (a concurrent reassignment must not get a foreign hash stamp).
+        if ($wikiPath === null || (string) ($wikiPath['wiki_key'] ?? '') !== $wikiKey) {
             continue;
         }
         $hops = array_values(array_map('strval', $restamps[$publicId]));
@@ -988,18 +991,23 @@ function avesmapsWikiPathVerlaufRestampKeeps(PDO $pdo, string $stagingHash, arra
     return $restamped;
 }
 
-// Reads the CURRENT wiki_path.source of a single segment right before a remove write (owner may have
-// touched it between compute and write). Returns '' when the row is gone / carries no wiki_path.
-function avesmapsWikiPathVerlaufCurrentSource(PDO $pdo, string $publicId): string {
+// Reads the CURRENT wiki_path.source AND wiki_key of a single segment right before a remove write
+// (owner may have re-touched or reassigned it between compute and write). Both come out '' when the
+// row is gone / carries no wiki_path. The caller clears only when source is still 'verlauf-sync' AND
+// wiki_key still equals this way's key (a concurrent reassignment must not be cleared by this way).
+function avesmapsWikiPathVerlaufCurrentAssignment(PDO $pdo, string $publicId): array {
     $statement = $pdo->prepare("SELECT properties_json FROM map_features WHERE public_id = :p AND is_active = 1 AND feature_type = 'path' LIMIT 1");
     $statement->execute(['p' => $publicId]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
     if ($row === false) {
-        return '';
+        return ['source' => '', 'wiki_key' => ''];
     }
     $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
     $wikiPath = is_array($props['wiki_path'] ?? null) ? $props['wiki_path'] : [];
-    return (string) ($wikiPath['source'] ?? '');
+    return [
+        'source' => (string) ($wikiPath['source'] ?? ''),
+        'wiki_key' => (string) ($wikiPath['wiki_key'] ?? ''),
+    ];
 }
 
 // Applies a single verlauf-sync case (POST apply_verlauf_case). ALWAYS recomputes server-side.
@@ -1043,8 +1051,8 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
 //
 // STALENESS NOTE (shared-state handoff): reusing the batch-start $assignments across applied cases is
 // SAFE even though an earlier case in the same run may have written segments $assignments does not yet
-// reflect, because (a) removes are gated by a LIVE per-row wiki_path.source re-read (step 4 /
-// avesmapsWikiPathVerlaufCurrentSource) immediately before each clear, so a segment an earlier case
+// reflect, because (a) removes are gated by a LIVE per-row wiki_path.source/wiki_key re-read (step 4 /
+// avesmapsWikiPathVerlaufCurrentAssignment) immediately before each clear, so a segment an earlier case
 // turned into a verlauf-sync member is judged on its real current source, not the stale snapshot; and
 // (b) any segment an earlier case wrote is in the caller's $claimedThisRun set, and a later case whose
 // adds overlap it is skipped WHOLE (skipped_not_clean) before ever reaching this function -- so stale
@@ -1123,7 +1131,10 @@ function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, 
         if ($publicId === '') {
             continue;
         }
-        if (avesmapsWikiPathVerlaufCurrentSource($pdo, $publicId) !== 'verlauf-sync') {
+        // Owner may have flipped the source or reassigned the segment to another way since compute:
+        // clear only a row still owned by verlauf-sync AND still on this way (else skipped_conflicts).
+        $currentAssignment = avesmapsWikiPathVerlaufCurrentAssignment($pdo, $publicId);
+        if ($currentAssignment['source'] !== 'verlauf-sync' || $currentAssignment['wiki_key'] !== $wikiKey) {
             $skippedConflicts++;
             continue;
         }
@@ -1136,8 +1147,8 @@ function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, 
         }
     }
 
-    // Step 5: restamp keeps whose stored course drifted (source/name preserved).
-    $restamped = avesmapsWikiPathVerlaufRestampKeeps($pdo, $stagingHash, $plan['restamps'], $userId);
+    // Step 5: restamp keeps whose stored course drifted (source/name preserved; foreign-key rows skipped).
+    $restamped = avesmapsWikiPathVerlaufRestampKeeps($pdo, $stagingHash, $plan['restamps'], $userId, $wikiKey);
 
     // Step 6: a successful sync clears any deferred/archived decision for this way (Task 4 pattern:
     // deleting the row falls the case back to its live-computed open state, which is now quiet).
@@ -1251,7 +1262,7 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
             continue;
         }
 
-        // Cross-case dedupe (Falle: deduplicate Soll sets against each other BEFORE writing). If an
+        // Cross-case dedupe (trap: deduplicate Soll sets against each other BEFORE writing). If an
         // earlier applied case in this run claimed any of this case's add ids, skip the whole case --
         // writing a partial course would silently drop segments; it resurfaces on the next scan.
         $conflictWithEarlier = false;
