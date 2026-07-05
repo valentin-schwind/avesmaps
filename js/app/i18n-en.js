@@ -52,6 +52,8 @@ window.AVESMAPS_I18N_EN = {
 	"planner.journey.via": "via",
 	"planner.leg.offroad": "Rough terrain",
 	"planner.leg.via": "via",
+	"planner.flow.downstream": "downstream",
+	"planner.flow.upstream": "upstream",
 	"planner.leg.from": "from",
 	"planner.leg.to": "to",
 	"planner.leg.in": "in",

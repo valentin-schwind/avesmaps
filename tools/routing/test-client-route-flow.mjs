@@ -40,6 +40,9 @@ const getRouteSegmentUpstreamFactor = new Function(`${extractFunction(nodeSource
 const resolveRouteSegmentFlowFactor = new Function(
 	`${extractFunction(nodeSource, "getRouteSegmentUpstreamFactor")}; ${extractFunction(nodeSource, "resolveRouteSegmentFlowFactor")}; return resolveRouteSegmentFlowFactor;`
 )();
+const resolveRouteSegmentFlowState = new Function(
+	`${extractFunction(nodeSource, "resolveRouteSegmentFlowState")}; return resolveRouteSegmentFlowState;`
+)();
 
 // --- getRiverFlowTimeFactors ---
 assert.equal(getRiverFlowTimeFactors({ flow: { dir: "forward" } }, "Weg"), null, "non-river ignored");
@@ -114,6 +117,48 @@ assert.equal(
 	),
 	1.5,
 	"falls back to derived factor when flow_time_factor is non-numeric"
+);
+
+// --- resolveRouteSegmentFlowState ---
+// Plan display state (downstream/upstream/unknown) for the leg labels and the
+// aggregation split. The label must never contradict the time actually charged.
+assert.equal(resolveRouteSegmentFlowState(riverSegment({ dir: "forward" }), forwardTraversal, "Seeweg"), null, "state: non-river null");
+assert.equal(resolveRouteSegmentFlowState(riverSegment(undefined), forwardTraversal, "Flussweg"), null, "state: no flow null");
+assert.equal(resolveRouteSegmentFlowState(riverSegment({ dir: "forward" }), forwardTraversal, "Flussweg"), "downstream", "state: forward dir, forward traversal");
+assert.equal(resolveRouteSegmentFlowState(riverSegment({ dir: "forward" }), reverseTraversal, "Flussweg"), "upstream", "state: forward dir, reversed traversal");
+assert.equal(resolveRouteSegmentFlowState(riverSegment({ dir: "reverse" }), forwardTraversal, "Flussweg"), "upstream", "state: reverse dir, forward traversal");
+assert.equal(resolveRouteSegmentFlowState(riverSegment({ dir: "forward" }), null, "Flussweg"), null, "state: no orientation null");
+assert.equal(
+	resolveRouteSegmentFlowState({ properties: { flow_time_factor: 1.5 } }, null, "Flussweg"),
+	"upstream",
+	"state: explicit penalized factor means upstream"
+);
+assert.equal(
+	resolveRouteSegmentFlowState(
+		{ properties: { flow_time_factor: 1, flow: { dir: "forward" } }, geometry: { coordinates: coords } },
+		forwardTraversal,
+		"Flussweg"
+	),
+	"downstream",
+	"state: explicit neutral factor + downstream orientation stays downstream"
+);
+assert.equal(
+	resolveRouteSegmentFlowState(
+		{ properties: { flow_time_factor: 1, flow: { dir: "forward" } }, geometry: { coordinates: coords } },
+		reverseTraversal,
+		"Flussweg"
+	),
+	null,
+	"state: explicit neutral factor overrides a derived upstream verdict (label must match charged time)"
+);
+assert.equal(
+	resolveRouteSegmentFlowState(
+		{ properties: { flow_time_factor: 0, flow: { dir: "forward" } }, geometry: { coordinates: coords } },
+		reverseTraversal,
+		"Flussweg"
+	),
+	"upstream",
+	"state: invalid explicit factor falls back to the derived verdict"
 );
 
 console.log("test-client-route-flow: all assertions passed");

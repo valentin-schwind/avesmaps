@@ -187,7 +187,12 @@ function cleanRoutePlanNoiseEntries(entries) {
 		// (sonst versteckt sie sich z.B. unter "Flussweg").
 		const entryIsSynthetic = entry.type === SYNTHETIC_ROUTE_TYPE;
 		const openIsSynthetic = !!open && open.type === SYNTHETIC_ROUTE_TYPE;
-		if (open && entryIsSynthetic !== openIsSynthetic) {
+		// Fluss-Etappen mit unterschiedlicher Stroemung (abwaerts/aufwaerts/unbekannt) bleiben
+		// getrennte Anzeige-Etappen -- der Grenz-Lauf darf den Aggregations-Split aus
+		// buildRoutePlanEntries nicht wieder verkleben. Land<->Fluss verschmilzt wie bisher.
+		const riverFlowBreak = !!open && open.type === "Flussweg" && entry.type === "Flussweg"
+			&& (open.flowState || null) !== (entry.flowState || null);
+		if (open && (entryIsSynthetic !== openIsSynthetic || riverFlowBreak)) {
 			result.push(open);
 			open = null;
 		}
@@ -216,8 +221,12 @@ function cleanRoutePlanNoiseEntries(entries) {
 
 	if (open) {
 		// Schluss-Etappe endet (degeneriert) an einer Kreuzung -> in die letzte echte Etappe
-		// absorbieren, statt "... -> Kreuzung" anzuzeigen.
-		if (isRoutePlanMarkerName(open.endName) && result.length > 0) {
+		// absorbieren, statt "... -> Kreuzung" anzuzeigen. AUSSER die Stroemung unterscheidet
+		// sich (Fluss<->Fluss): dann bleibt der Abschnitt eigenstaendig.
+		const lastEntry = result.length > 0 ? result[result.length - 1] : null;
+		const tailRiverFlowBreak = !!lastEntry && lastEntry.type === "Flussweg" && open.type === "Flussweg"
+			&& (lastEntry.flowState || null) !== (open.flowState || null);
+		if (isRoutePlanMarkerName(open.endName) && result.length > 0 && !tailRiverFlowBreak) {
 			const last = result[result.length - 1];
 			last.distance += open.distance;
 			last.travelTime += open.travelTime;
@@ -283,6 +292,10 @@ function buildRoutePlanEntries(routeNames, segments) {
 		// the derived flow.dir + orientation factor (client-engine segments).
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR
 			* resolveRouteSegmentFlowFactor(segment, orientation, type);
+		// Stroemungszustand der Etappe (flussabwaerts/-aufwaerts/unbekannt) fuer Label und
+		// Aggregations-Split: Abschnitte mit unterschiedlicher Stroemung duerfen nicht zu
+		// EINEM Wasser-Aggregat verschmelzen (z. B. Flusswechsel abwaerts -> aufwaerts).
+		const flowState = resolveRouteSegmentFlowState(segment, orientation, type);
 		// Namen aus der Segment-Geometrie (orientiert) -> stimmen immer mit der gehighlighteten Linie
 		// ueberein. Fallback auf die Server-Knotenlabels nur, wenn keine Orientierung vorliegt.
 		const startName = orientation
@@ -297,7 +310,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 		if (isWaterRoute) {
 			const startsAtExplicitWaypoint = isRoutePlanExplicitWaypoint(startName, explicitWaypointNames);
-			if (aggregateEntry && (aggregateEntry.aggregateKey !== type || aggregateEntry.transport !== transport || startsAtExplicitWaypoint)) {
+			if (aggregateEntry && (aggregateEntry.aggregateKey !== type || aggregateEntry.transport !== transport || aggregateEntry.flowState !== flowState || startsAtExplicitWaypoint)) {
 				flushAggregateEntry();
 			}
 
@@ -306,6 +319,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 					aggregateKey: type,
 					transport,
 					type,
+					flowState,
 					startName,
 					endName,
 					segmentLabel: "",
@@ -334,6 +348,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 		flushAggregateEntry();
 		entries.push({
 			type,
+			flowState: null,
 			startName,
 			endName,
 			segmentLabel: "",
@@ -395,10 +410,14 @@ function showRoutePlan(routeNames, segments) {
 		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
 			? ` ${tr("planner.leg.via", "über")} <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
 			: "";
+		// Stroemungsvermerk je Fluss-Etappe; Etappen ohne bekannte Richtung bleiben wie bisher.
+		const flowSuffix = entry.type === "Flussweg" && entry.flowState
+			? ` (${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")})`
+			: "";
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${flowSuffix}${labelSuffix}
 			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")})
 			${tr("planner.leg.from", "von")} <strong>${formattedStartName}</strong>
 			${tr("planner.leg.to", "bis")} <strong>${formattedEndName}</strong>

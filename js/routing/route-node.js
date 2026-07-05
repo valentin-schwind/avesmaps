@@ -203,3 +203,37 @@ function resolveRouteSegmentFlowFactor(segment, orientation, type) {
 	}
 	return getRouteSegmentUpstreamFactor(segment, orientation, type);
 }
+
+// Flow STATE of a displayed route segment for the plan labels and the aggregation split:
+// 'downstream' | 'upstream' | null (unknown). A factor alone cannot distinguish downstream
+// from unknown, so flow.dir + traversal orientation decides; an explicit server-shipped
+// flow_time_factor > 1 is authoritative for upstream, and an explicit NEUTRAL factor
+// downgrades a derived upstream verdict to unknown -- the label must never contradict the
+// time actually charged.
+function resolveRouteSegmentFlowState(segment, orientation, type) {
+	if (type !== "Flussweg") {
+		return null;
+	}
+	const explicit = Number(segment?.properties?.flow_time_factor);
+	const hasExplicit = Number.isFinite(explicit) && explicit > 0;
+	if (hasExplicit && explicit > 1) {
+		return "upstream";
+	}
+	const dir = segment?.properties?.flow?.dir;
+	if (dir !== "forward" && dir !== "reverse") {
+		return null;
+	}
+	const coordinates = segment?.geometry?.coordinates;
+	if (!Array.isArray(coordinates) || coordinates.length < 2 || !orientation || !Array.isArray(orientation.start)) {
+		return null;
+	}
+	const first = coordinates[0];
+	const traversedForward = Array.isArray(first)
+		&& Number(orientation.start[0]) === Number(first[0])
+		&& Number(orientation.start[1]) === Number(first[1]);
+	const upstream = traversedForward ? dir === "reverse" : dir === "forward";
+	if (upstream) {
+		return hasExplicit ? null : "upstream";
+	}
+	return "downstream";
+}
