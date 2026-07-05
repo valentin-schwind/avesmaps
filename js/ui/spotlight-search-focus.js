@@ -107,12 +107,16 @@ function focusSpotlightRegionBounds(bounds, minZoom, maxZoom) {
 	const hasMin = minZoom !== null && minZoom !== undefined && Number.isFinite(Number(minZoom));
 	const hasMax = maxZoom !== null && maxZoom !== undefined && Number.isFinite(Number(maxZoom));
 	const cap = hasMax ? Number(maxZoom) : 4;
-	map.fitBounds(bounds.pad(0.12), { padding: [54, 54], maxZoom: cap });
-	let targetZoom = map.getZoom();
-	if (hasMin && targetZoom < Number(minZoom)) targetZoom = Number(minZoom);
-	if (hasMax && targetZoom > Number(maxZoom)) targetZoom = Number(maxZoom);
-	if (targetZoom !== map.getZoom()) {
+	const padded = bounds.pad(0.12);
+	// Band clamping must not read map.getZoom() after an animated fitBounds (stale mid-animation,
+	// race-dependent result). Compute fitBounds' own target via getBoundsZoom (same padding: 2x54px)
+	// and clamp THAT into the display band; only a band-min raise needs an explicit setView.
+	const fitZoom = Math.min(map.getBoundsZoom(padded, false, L.point(108, 108)), cap);
+	const targetZoom = hasMin ? Math.max(fitZoom, Number(minZoom)) : fitZoom;
+	if (targetZoom !== fitZoom) {
 		map.setView(bounds.getCenter(), targetZoom);
+	} else {
+		map.fitBounds(padded, { padding: [54, 54], maxZoom: cap });
 	}
 }
 
@@ -195,14 +199,15 @@ function focusSpotlightBounds(bounds, preferredZoom) {
 		return;
 	}
 
+	// fitBounds only: zoom out far enough for the whole bbox, zoom in at most to preferredZoom
+	// (fitBounds' maxZoom cap). Deliberately NO corrective setView afterwards: map.getZoom() is
+	// stale while fitBounds animates, so a "raise to preferredZoom" follow-up forces zoom 5 onto
+	// long ways whenever no zoom animation runs after it (small viewports take the pan branch,
+	// large zoom deltas reset synchronously) -- the bbox then never fits the screen.
 	map.fitBounds(bounds.pad(0.16), {
 		padding: [54, 54],
 		maxZoom: preferredZoom,
 	});
-
-	if (map.getZoom() < preferredZoom) {
-		map.setView(bounds.getCenter(), preferredZoom);
-	}
 }
 
 function highlightSpotlightPaths(paths) {
