@@ -7,7 +7,13 @@
 // Also covers the deep-link focus suppression window (suppressPlannerUrlSyncForWikiDeeplink /
 // isWikiDeeplinkUrlSyncSuppressed in js/app/wiki-deeplink.js): the deep-link focus itself must
 // not trigger a syncPlannerStateToUrl write at all, so the opened URL stays byte-for-byte as
-// opened (no visible jump to the toggle params). Run:
+// opened (no visible jump to the toggle params).
+//
+// Also covers pathMatchesDeeplinkTarget's channel semantics (js/app/wiki-deeplink.js): a
+// wiki_url match is exact way identity (avesmapsWikiPathAssign stamps it onto every segment of
+// a way regardless of subtype) and must never be subtype-filtered, or a mixed-subtype way
+// (Reichsstrasse with Pfad/Gebirgspass pieces) collapses to the anchor segment's subtype. The
+// subtype anchor guards only the fallback name channel (road vs. like-named river). Run:
 //     node tools/paths/test-wiki-deeplink-url-preserve.mjs
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -55,6 +61,20 @@ function makeSuppressionSandbox(nowFn) {
 		return { suppressPlannerUrlSyncForWikiDeeplink, isWikiDeeplinkUrlSyncSuppressed };
 	`);
 	return factory({ now: nowFn });
+}
+
+// Sandbox for pathMatchesDeeplinkTarget's channel semantics. `subtypeOfPath` is injected as a
+// parameter (its real implementation depends on the browser-global normalizePathSubtype/pathData),
+// resolving each path's subtype from a name->subtype lookup keyed by properties.display_name.
+function makeDeeplinkMatchSandbox(subtypeByName) {
+	const factory = new Function("subtypeOfPath", `
+		${extractFunction(wikiDeeplinkSource, "normalizeWikiDeeplinkKey")}
+		${extractFunction(wikiDeeplinkSource, "wikiUrlToDeeplinkKey")}
+		${extractFunction(wikiDeeplinkSource, "exactPathNameKey")}
+		${extractFunction(wikiDeeplinkSource, "pathMatchesDeeplinkTarget")}
+		return { pathMatchesDeeplinkTarget, normalizeWikiDeeplinkKey };
+	`);
+	return factory((path) => subtypeByName[path?.properties?.display_name || ""] || "Weg");
 }
 
 let passed = 0;
@@ -121,4 +141,25 @@ check("suppression expires after the window", () => {
 	assert.equal(sandbox.isWikiDeeplinkUrlSyncSuppressed(), false);
 });
 
-console.log(`${passed}/8 passed`);
+check("wiki_url match ignores the anchor subtype (mixed-subtype way stays whole)", () => {
+	const sandbox = makeDeeplinkMatchSandbox({ "Pfadstück": "Pfad" });
+	const key = sandbox.normalizeWikiDeeplinkKey("Reichsstraße_3");
+	const path = { properties: { display_name: "Pfadstück", wiki_path: { wiki_url: "https://de.wiki-aventurica.de/wiki/Reichsstra%C3%9Fe_3" } } };
+	assert.equal(sandbox.pathMatchesDeeplinkTarget(path, key, "Reichsstrasse"), true);
+});
+
+check("name match still requires the anchor subtype (road never merges with like-named river)", () => {
+	const sandbox = makeDeeplinkMatchSandbox({ "Reichsstraße 3": "Flussweg" });
+	const key = sandbox.normalizeWikiDeeplinkKey("Reichsstraße_3");
+	const path = { properties: { display_name: "Reichsstraße 3" } };
+	assert.equal(sandbox.pathMatchesDeeplinkTarget(path, key, "Reichsstrasse"), false);
+});
+
+check("name match passes with matching subtype and exact name", () => {
+	const sandbox = makeDeeplinkMatchSandbox({ "Reichsstraße 3": "Reichsstrasse" });
+	const key = sandbox.normalizeWikiDeeplinkKey("Reichsstraße_3");
+	const path = { properties: { display_name: "Reichsstraße 3" } };
+	assert.equal(sandbox.pathMatchesDeeplinkTarget(path, key, "Reichsstrasse"), true);
+});
+
+console.log(`${passed}/11 passed`);

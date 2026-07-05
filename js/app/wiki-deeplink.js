@@ -156,7 +156,11 @@ function spotlightEntryWikiKeys(entry) {
 //       EQUAL to the requested page. We deliberately do NOT use getPathDisplayName here -- its
 //       `name.replace(/-\d+$/,"")` fallback strips the trailing number, which would make "Reichsstraße 1"
 //       and "Reichsstraße 2" collide. No prefix/substring, no number-less spotlight group key.
-// The subtype is anchored from the matches so a road and a like-named river never merge.
+// The subtype anchor guards ONLY the name channel (b), so a road and a like-named river never merge on a
+// bare name coincidence. Channel (a) is exact way identity -- avesmapsWikiPathAssign stamps one wiki_path
+// onto every segment of a way regardless of its per-segment subtype (a Reichsstraße can carry a few Pfad/
+// Gebirgspass pieces) -- so a wiki_url hit is never subtype-filtered, or a mixed-subtype way would collapse
+// to whichever subtype the (arbitrary, first-in-pathData) anchor segment happens to be.
 function subtypeOfPath(path) {
 	return typeof normalizePathSubtype === "function"
 		? normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name)
@@ -170,9 +174,14 @@ function exactPathNameKey(path) {
 	return normalizeWikiDeeplinkKey(rawName);
 }
 
-function pathMatchesDeeplinkTarget(path, targetKey) {
-	return wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey
-		|| exactPathNameKey(path) === targetKey;
+function pathMatchesDeeplinkTarget(path, targetKey, anchorSubtype) {
+	// A wiki_url hit IS the way identity (assign stamps it) -- never subtype-filter it, or a
+	// mixed-subtype way (Reichsstrasse with Pfad/Gebirgspass pieces) collapses to the anchor's
+	// subtype. The subtype anchor only guards the NAME channel (road vs. like-named river).
+	if (wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey) {
+		return true;
+	}
+	return subtypeOfPath(path) === anchorSubtype && exactPathNameKey(path) === targetKey;
 }
 
 function focusWholeWikiDeeplinkPath(targetKey) {
@@ -187,7 +196,7 @@ function focusWholeWikiDeeplinkPath(targetKey) {
 		return false;
 	}
 	const matchedSubtype = subtypeOfPath(anchor);
-	const segments = pathData.filter((path) => subtypeOfPath(path) === matchedSubtype && pathMatchesDeeplinkTarget(path, targetKey));
+	const segments = pathData.filter((path) => pathMatchesDeeplinkTarget(path, targetKey, matchedSubtype));
 	if (!segments.length || typeof focusSpotlightPath !== "function") {
 		return false;
 	}
