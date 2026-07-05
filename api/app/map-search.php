@@ -271,18 +271,23 @@ function avesmapsBuildSearchEntry(array $row): ?array {
     }
 
     if ($featureType === 'path') {
-        // Suchbar, wenn das Karten-Label aktiviert ist (show_label) ODER der Weg explizit per "Wege"-WikiSync
-        // verlinkt ist. Der Wege-Link wird als properties.wiki_path-Objekt im properties_json gespeichert
-        // (api/_internal/wiki/paths.php). ACHTUNG: das top-level wiki_url ist ein angereicherter Namens-Match
-        // gegen wiki_sync_pages (map-features.php) und steht NICHT im rohen properties_json -> nicht darauf
-        // pruefen. Ungenannte Roh-Segmente ("Pfad-N": kein wiki_path, kein show_label) bleiben draussen.
-        $hasMapLabel = avesmapsReadSearchBoolean($properties['show_label'] ?? false);
-        $isWikiLinked = !empty($properties['wiki_path']);
-        if (!$hasMapLabel && !$isWikiLinked) {
+        // Spotlight-Policy (Betreiber-Entscheid 2026-07-05): NUR wiki-verlinkte Wege sind suchbar.
+        // Der Wege-Link ist das properties.wiki_path-Objekt (api/_internal/wiki/paths.php); show_label
+        // zaehlt NICHT mehr (Generik-Namen wie "Reichsstrasse-4903" standen sonst in der Suche).
+        // ACHTUNG: das top-level wiki_url ist ein angereicherter Namens-Match gegen wiki_sync_pages
+        // (map-features.php) und steht NICHT im rohen properties_json -> nicht darauf pruefen.
+        $wikiPath = is_array($properties['wiki_path'] ?? null) ? $properties['wiki_path'] : [];
+        if ($wikiPath === []) {
             return null;
         }
 
-        $displayName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? $name), 160);
+        // R1: der Wiki-Weg benennt den Weg. Altbestaende koennen noch Random-Segmentnamen tragen
+        // (z.B. "Reichsstrasse-16" -> Wiki "Reichsstraße 2"); Anzeige + Gruppierung nutzen daher
+        // den Wiki-Namen, damit alle Segmente eines Wegs EINE Suchgruppe mit echtem Namen bilden.
+        $displayName = avesmapsNormalizeSingleLine((string) ($wikiPath['name'] ?? ''), 160);
+        if ($displayName === '') {
+            $displayName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? $name), 160);
+        }
         if ($displayName === '') {
             return null;
         }

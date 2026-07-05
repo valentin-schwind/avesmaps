@@ -143,10 +143,10 @@ function spotlightEntryWikiKeys(entry) {
 
 // Deep-link path focus: highlight the WHOLE named road/river, not just one segment.
 // A Reichsstraße/Fluss is many map_features path segments sharing a name (and, once wiki-linked, the same
-// properties.wiki_path). But only the ONE labeled segment (properties.show_label) survives
-// buildSpotlightPathEntries' label/visibility filter, so the spotlight path bundle -- and thus the generic
-// "first wiki_url match wins" resolve -- covers a single segment. Here we gather ALL segments of the way
-// from the unfiltered global `pathData` and feed the complete list through the SAME focusSpotlightPath
+// properties.wiki_path). The spotlight path bundle groups the wiki-linked segments of a way; this resolver
+// works on the unfiltered global `pathData` instead, so it also finds ways whose segments are not (fully)
+// wiki-linked yet via the exact name match, and stays number-exact. We gather ALL segments of the way
+// and feed the complete list through the SAME focusSpotlightPath
 // highlight path (which fits the map to the combined bounds of every segment we pass).
 //
 // Matching is EXACT and number-sensitive so "Reichsstraße 1" never collects "Reichsstraße 2":

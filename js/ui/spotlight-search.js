@@ -572,17 +572,25 @@ function buildSpotlightRegionEntries() {
 }
 
 function buildSpotlightPathEntries() {
+	// Spotlight-Policy (Betreiber-Entscheid 2026-07-05): NUR wiki-verlinkte Wege sind suchbar --
+	// show_label zaehlt nicht mehr (sonst standen Generik-Namen wie "Reichsstrasse-4903" in der
+	// Suche). Gruppiert wird ueber die Weg-Identitaet wiki_key mit dem Wiki-Namen als Anzeige
+	// (Altbestaende koennen noch Random-Segmentnamen tragen), und die Gruppe enthaelt ALLE
+	// Segmente des Wegs -- Auswahl highlightet/zoomt damit den ganzen Weg, nicht nur die
+	// gelabelten Teilstuecke.
 	const pathGroups = new Map();
 	pathData
-		.filter((path) => shouldPathNameBeDisplayed(path) && shouldShowPathOnMap(path))
+		.filter((path) => !!path?.properties?.wiki_path)
 		.forEach((path) => {
-			const displayName = String(getPathDisplayName(path) || "").trim();
+			const wikiPath = path.properties.wiki_path;
+			const displayName = String(wikiPath.name || getPathDisplayName(path) || "").trim();
 			if (!displayName) {
 				return;
 			}
 
 			const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-			const groupKey = getSpotlightPathGroupKey(displayName, subtype);
+			const wikiKey = String(wikiPath.wiki_key || "").trim();
+			const groupKey = wikiKey !== "" ? `wiki:${wikiKey}` : getSpotlightPathGroupKey(displayName, subtype);
 			if (!pathGroups.has(groupKey)) {
 				pathGroups.set(groupKey, {
 					id: `path:${groupKey}`,
@@ -593,7 +601,7 @@ function buildSpotlightPathEntries() {
 					publicIds: [],
 					paths: [],
 					bounds: null,
-					aliases: [subtype],
+					aliases: [subtype, wikiPath.wiki_url],
 				});
 			}
 
