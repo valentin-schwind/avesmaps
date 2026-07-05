@@ -148,8 +148,12 @@ function handleSpotlightDocumentClick(event) {
 		return;
 	}
 
+	// A detached target means the click hit UI that its own handler just removed from the DOM
+	// (e.g. a result button: selectSpotlightSearchEntry -> closeSpotlightSearch empties the result
+	// list BEFORE this document-level handler runs, so closest() can no longer see the overlay).
+	// Treating that as an "outside" click wiped the just-drawn path highlight in the same tick.
 	const target = event.target instanceof Element ? event.target : null;
-	if (target?.closest("#spotlight-search-overlay, #map-context-menu")) {
+	if (!target || !target.isConnected || target.closest("#spotlight-search-overlay, #map-context-menu")) {
 		return;
 	}
 
@@ -188,6 +192,9 @@ function handleSpotlightResultClick(event) {
 	const resultIndex = Number(button.dataset.spotlightResultIndex);
 	const entry = spotlightRenderedEntries[resultIndex];
 	if (entry) {
+		// Consume the click: it must not bubble to handleSpotlightDocumentClick, which would
+		// clear the selection (and the path highlight) right after this handler drew it.
+		event.stopPropagation();
 		selectSpotlightSearchEntry(entry);
 	}
 }
