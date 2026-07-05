@@ -197,6 +197,8 @@ function renderPathSyncList() {
 	renderTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentOptions(), pathContinentFilter, "Kontinent");
 }
 
+// Bulk-Zuordnung (mehrere Segmente per wiki_key). Backend liefert hier bewusst KEIN segments_updated;
+// lokale pathData zieht stattdessen ueber Reload/Live-Updates nach (loadPathWikiSync + normaler Map-Refresh).
 async function assignPathWiki(wikiKey) {
 	if (pathSyncBusy || !wikiKey) {
 		return;
@@ -316,6 +318,9 @@ async function assignPathWikiToTarget(wikiKey, publicId) {
 		if (result && result.ok) {
 			if (typeof showFeedbackToast === "function") {
 				showFeedbackToast(`„${result.wiki_name}" → „${result.target_name}" verknüpft (${result.applied} Abschnitte).`, "success");
+			}
+			if (typeof applyWikiPathSegmentsUpdate === "function") {
+				applyWikiPathSegmentsUpdate(result.segments_updated);
 			}
 			if (typeof loadChangeLog === "function") {
 				loadChangeLog();

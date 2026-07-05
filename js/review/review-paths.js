@@ -4,7 +4,7 @@ function populatePathEditForm(path) {
 		return;
 	}
 
-	const pathSubtype = normalizePathSubtype(path.properties?.name || path.properties?.feature_subtype || "Weg");
+	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name || "Weg");
 	pathEditFeature = path;
 	document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
 	void acquireFeatureSoftLock(document.getElementById("path-edit-public-id").value);
