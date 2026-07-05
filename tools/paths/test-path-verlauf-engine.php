@@ -69,6 +69,7 @@ check('adds are s2,s3', array_column($case['adds'], 'public_id'), ['s2', 's3']);
 check('remove s9', array_column($case['removes'], 'public_id'), ['s9']);
 check('clean', $case['clean'], true);
 check('add hop labels', $case['adds'][0]['hops'], ['Punin → Ragath']);
+check('add names from router segments', array_column($case['adds'], 'name'), ['Reichsstraße 12', 'Reichsstraße 12']);
 check('keeps s1 with hop', $case['keeps'], [['public_id' => 's1', 'hops' => ['Punin → Ragath']]]);
 
 // unchanged hash => null

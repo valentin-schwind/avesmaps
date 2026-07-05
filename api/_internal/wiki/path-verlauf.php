@@ -373,6 +373,7 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
     // Rule 7: Soll = union of routable hops' segment public_ids, with the hop labels that justify
     // each segment (course_hops / adds[].hops / keeps[].hops).
     $sollHops = [];             // public_id => [hop label, ...] (insertion order preserved)
+    $sollNames = [];            // public_id => router-provided segment name (first non-empty wins)
     $hopSegmentIds = [];        // per hop index => [public_id, ...] (for backtrack detection)
     $anyUnroutable = false;
     for ($i = 0; $i < count($matchedChain) - 1; $i++) {
@@ -423,6 +424,12 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
             if (!in_array($label, $sollHops[$publicId], true)) {
                 $sollHops[$publicId][] = $label;
             }
+            if (($sollNames[$publicId] ?? '') === '') {
+                $segmentName = (string) ($segment['name'] ?? '');
+                if ($segmentName !== '') {
+                    $sollNames[$publicId] = $segmentName;
+                }
+            }
         }
         $hopSegmentIds[$i] = $thisHopIds;
     }
@@ -465,7 +472,14 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
             ];
             continue;
         }
-        $adds[] = ['public_id' => (string) $publicId, 'name' => (string) ($foreign['name'] ?? ''), 'hops' => $hops];
+        // Prefer the router's own segment name (rule 7 data); fall back to the current
+        // assignment index for completeness (e.g. a foreign-owned segment we skipped above,
+        // or a router result that omitted the name).
+        $addName = $sollNames[$publicId] ?? '';
+        if ($addName === '') {
+            $addName = (string) ($foreign['name'] ?? '');
+        }
+        $adds[] = ['public_id' => (string) $publicId, 'name' => $addName, 'hops' => $hops];
     }
 
     $removes = [];
