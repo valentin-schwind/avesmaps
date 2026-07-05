@@ -84,6 +84,28 @@ function connectDetachedGraphComponents(graph, routeOptions) {
     }
 }
 
+// Normalized river-flow time factors for a path feature (properties.flow, spec §2/§4).
+// Null unless routeType is Flussweg and flow.dir is valid. forwardFactor applies to the
+// start->end edge (stored drawing order), backwardFactor to end->start; the upstream
+// direction costs time * factor, downstream keeps the plain time. Mirrors the server's
+// avesmapsRouteClientNormalizeFlow (api/_internal/routing/client-graph.php).
+function getRiverFlowTimeFactors(properties, routeType) {
+    if (routeType !== "Flussweg") {
+        return null;
+    }
+    const flow = properties?.flow;
+    const dir = flow?.dir;
+    if (dir !== "forward" && dir !== "reverse") {
+        return null;
+    }
+    const rawFactor = Number(flow?.factor);
+    const factor = Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 1.5;
+    return {
+        forwardFactor: dir === "reverse" ? factor : 1,
+        backwardFactor: dir === "forward" ? factor : 1,
+    };
+}
+
 function addRegularPathToGraph(graph, pathFeature, routeOptions) {
     const { geometry: { coordinates }, properties } = pathFeature;
     const startNode = getLocationAtPathEndpoint(coordinates[0]);
@@ -104,9 +126,25 @@ function addRegularPathToGraph(graph, pathFeature, routeOptions) {
             console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
             return;
         }
-        const connection = { distance, time: distance / speed, routeType, id: properties.id, transportOption };
-        addGraphConnection(graph, startNode.name, endNode.name, connection);
-        addGraphConnection(graph, endNode.name, startNode.name, connection);
+        const baseTime = distance / speed;
+        const flowFactors = getRiverFlowTimeFactors(properties, routeType);
+        if (!flowFactors) {
+            // No known flow direction: symmetric shared connection, exactly today's behaviour.
+            const connection = { distance, time: baseTime, routeType, id: properties.id, transportOption };
+            addGraphConnection(graph, startNode.name, endNode.name, connection);
+            addGraphConnection(graph, endNode.name, startNode.name, connection);
+            return;
+        }
+        // Asymmetric river edge (spec §4): the start->end edge follows the stored drawing
+        // order; upstream legs cost time * factor, downstream stays the plain time.
+        addGraphConnection(graph, startNode.name, endNode.name, {
+            distance, time: baseTime * flowFactors.forwardFactor, routeType, id: properties.id,
+            transportOption, flowTimeFactor: flowFactors.forwardFactor,
+        });
+        addGraphConnection(graph, endNode.name, startNode.name, {
+            distance, time: baseTime * flowFactors.backwardFactor, routeType, id: properties.id,
+            transportOption, flowTimeFactor: flowFactors.backwardFactor,
+        });
     }
 }
 
