@@ -205,8 +205,22 @@ function createPowerlineLayer(powerline) {
 		lineCap: "round",
 		lineJoin: "round",
 	});
-	const layers = [labelLine];
-	const interactiveLines = [];
+	// Breite, unsichtbare Hit-Linie auf der Basisgeometrie: die sichtbaren Straenge sind nur 1,5px
+	// breit und wabern animiert -> kaum treffbar (Forum-Feedback). Die Hit-Linie faengt Klicks
+	// stabil entlang der ganzen Linie ein; die Kern-Straenge bleiben zusaetzlich interaktiv.
+	const hitLine = L.polyline(latLngs, {
+		pane: "powerlinesPane",
+		className: "powerline powerline--hit",
+		color: "#000",
+		opacity: 0,
+		weight: 22,
+		interactive: true,
+		lineCap: "round",
+		lineJoin: "round",
+	});
+	hitLine._powerlineHitLine = true;
+	const layers = [labelLine, hitLine];
+	const interactiveLines = [hitLine];
 	getPowerlineRenderStyles().forEach(({ strandIndex, ...style }) => {
 		const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex, powerlineAnimationTimeSeconds), {
 			pane: "powerlinesPane",
@@ -263,6 +277,10 @@ function refreshPowerlineLayers(timeSeconds = powerlineAnimationTimeSeconds) {
 		powerline._layerGroup.eachLayer((layer) => {
 			if (layer === powerline._labelLine) {
 				layer.setLatLngs?.(getReadablePowerlineLabelLatLngCoordinates(latLngs));
+				return;
+			}
+			if (layer._powerlineHitLine) {
+				layer.setLatLngs?.(latLngs);
 				return;
 			}
 			const strandIndex = layer._powerlineStrandIndex || 0;

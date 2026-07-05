@@ -21,6 +21,12 @@
 	cursor: pointer;
 }
 
+/* Unsichtbare breite Klick-Flaeche entlang der Basisgeometrie (Straenge allein sind zu duenn/wabern). */
+.powerline--hit {
+	stroke: transparent;
+	cursor: pointer;
+}
+
 .powerline--strike-2 {
 	animation-delay: -0.45s;
 }
