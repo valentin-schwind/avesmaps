@@ -837,7 +837,8 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
 // R1-Namen (nach einem Sync tragen alle Segmente eines Wegs den kanonischen Wiki-Namen); ein
 // Alt-Buendel mit uneinheitlichen Namen muss zuerst per Entfernen aufgeloest werden (das raeumt
 // auch wiki_key-Geister). Mit Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
-function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0): array {
+// Mit single_segment:true wird NUR das Ziel-Segment erfasst (kein Namens-Gruppen-Match).
+function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0, bool $singleSegment = false): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
     $publicId = trim($publicId);
@@ -882,6 +883,12 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     $revision = null;
     $segmentsUpdated = [];
     foreach ($paths as $p) {
+        // single_segment: chirurgisches Umhaengen NUR des Ziel-Segments -- noetig, wenn sein
+        // Name mit der Kanon-Gruppe eines ANDEREN Wegs kollidiert (der Namens-Match wuerde
+        // sonst den fremden Weg mit umstempeln).
+        if ($singleSegment && (string) $p['public_id'] !== $publicId) {
+            continue;
+        }
         if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
             continue;
         }

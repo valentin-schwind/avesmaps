@@ -64,7 +64,8 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 (string) ($payload['public_id'] ?? ''),
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
-                (int) ($user['id'] ?? 0)
+                (int) ($user['id'] ?? 0),
+                ($payload['single_segment'] ?? false) === true
             ),
             default => null,
         };
