@@ -204,6 +204,13 @@ function avesmapsWikiPathVerlaufBackfillSource(PDO $pdo, bool $dryRun, int $user
 // wrong Dijkstra shortcut from silently pulling a long unrelated chain into the target set.
 const AVESMAPS_WIKI_PATH_VERLAUF_MAX_HOP_SEGMENTS = 15;
 
+// Foreign-town guard passage radius (map units): a hop segment whose geometry comes this close
+// to a town's point counts as passing THROUGH that town (towns often sit on a spur beside the
+// through-line, so route-node names alone miss them - the Alfenmohn case on Reichsstrasse 3).
+const AVESMAPS_WIKI_PATH_VERLAUF_TOWN_RADIUS = 1.5;
+// Spatial-hash cell size for the town prefilter; must stay well above the radius.
+const AVESMAPS_WIKI_PATH_VERLAUF_TOWN_GRID = 8.0;
+
 // UTF-8-aware lowercasing for case-insensitive station matching (spec: mb_strtolower, UTF-8).
 // Falls back to strtolower when the mbstring extension is not loaded, so the standalone engine
 // test (tools/paths/test-path-verlauf-engine.php, plain `php`) stays runnable; production always
@@ -363,6 +370,22 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
         $stationKeys[avesmapsWikiPathVerlaufLower($station)] = true;
     }
 
+    // Spatial hash over the foreign-town coordinates (grid prefilter keeps the per-vertex
+    // proximity check O(1); town entries without coordinates stay via-name-only).
+    $townGrid = [];
+    foreach ($townLookup as $townKey => $townEntry) {
+        if (!is_array($townEntry) || isset($stationKeys[$townKey])) {
+            continue;
+        }
+        $townX = $townEntry['x'] ?? null;
+        $townY = $townEntry['y'] ?? null;
+        if (!is_numeric($townX) || !is_numeric($townY)) {
+            continue;
+        }
+        $cell = (int) floor(((float) $townX) / AVESMAPS_WIKI_PATH_VERLAUF_TOWN_GRID) . ':' . (int) floor(((float) $townY) / AVESMAPS_WIKI_PATH_VERLAUF_TOWN_GRID);
+        $townGrid[$cell][] = ['name' => (string) ($townEntry['name'] ?? $townKey), 'x' => (float) $townX, 'y' => (float) $townY];
+    }
+
     $flags = [
         'missing_stations' => $missingStations,
         'unroutable_hops' => [],
@@ -438,13 +461,42 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
         }
 
         // Foreign-town guard: the hop must not pass THROUGH a town the wiki chain does not
-        // list (routing "fastest" otherwise drags the way over foreign corridors).
+        // list (routing "fastest" otherwise drags the way over foreign corridors). Two
+        // detectors: route-node names (towns the graph splits at) and geometry proximity
+        // (towns on a spur beside the through-line never appear as route nodes).
         if ($townLookup !== []) {
             $foreignTowns = [];
             foreach ((is_array($result['via'] ?? null) ? $result['via'] : []) as $viaName) {
                 $viaKey = avesmapsWikiPathVerlaufLower((string) $viaName);
                 if (isset($townLookup[$viaKey]) && !isset($stationKeys[$viaKey]) && !in_array((string) $viaName, $foreignTowns, true)) {
                     $foreignTowns[] = (string) $viaName;
+                }
+            }
+            if ($townGrid !== []) {
+                foreach ($segments as $segment) {
+                    $coordinates = $segment['geometry']['coordinates'] ?? null;
+                    if (!is_array($coordinates)) {
+                        continue;
+                    }
+                    foreach ($coordinates as $coordinate) {
+                        if (!is_array($coordinate) || !is_numeric($coordinate[0] ?? null) || !is_numeric($coordinate[1] ?? null)) {
+                            continue;
+                        }
+                        $x = (float) $coordinate[0];
+                        $y = (float) $coordinate[1];
+                        $cellX = (int) floor($x / AVESMAPS_WIKI_PATH_VERLAUF_TOWN_GRID);
+                        $cellY = (int) floor($y / AVESMAPS_WIKI_PATH_VERLAUF_TOWN_GRID);
+                        for ($dx = -1; $dx <= 1; $dx++) {
+                            for ($dy = -1; $dy <= 1; $dy++) {
+                                foreach (($townGrid[($cellX + $dx) . ':' . ($cellY + $dy)] ?? []) as $town) {
+                                    if (hypot($x - $town['x'], $y - $town['y']) <= AVESMAPS_WIKI_PATH_VERLAUF_TOWN_RADIUS
+                                        && !in_array($town['name'], $foreignTowns, true)) {
+                                        $foreignTowns[] = $town['name'];
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             if ($foreignTowns !== []) {
@@ -768,7 +820,13 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
                 }
                 $locationLookup[avesmapsWikiPathVerlaufLower($name)] = $name;
                 if (in_array(strtolower((string) ($location['subtype'] ?? '')), ['metropole', 'grossstadt', 'stadt', 'kleinstadt'], true)) {
-                    $townLookup[avesmapsWikiPathVerlaufLower($name)] = true;
+                    // Point geometry [x, y]; the coordinates feed the guard's proximity detector.
+                    $coordinates = $location['geometry']['coordinates'] ?? null;
+                    $townLookup[avesmapsWikiPathVerlaufLower($name)] = [
+                        'name' => $name,
+                        'x' => is_array($coordinates) && is_numeric($coordinates[0] ?? null) ? (float) $coordinates[0] : null,
+                        'y' => is_array($coordinates) && is_numeric($coordinates[1] ?? null) ? (float) $coordinates[1] : null,
+                    ];
                 }
             }
         }

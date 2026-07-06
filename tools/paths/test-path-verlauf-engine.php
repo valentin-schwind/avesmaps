@@ -217,7 +217,14 @@ $ftAssignments = [
     ],
 ];
 $ftLookup = ['punin' => 'Punin', 'ragath' => 'Ragath', 'kuslik' => 'Kuslik'];
-$ftTowns = ['winhall' => true, 'kuslik' => true, 'punin' => true, 'ragath' => true];
+// Town lookup carries coordinates: the guard checks BOTH route nodes and geometry proximity
+// (a road can pass through a town without splitting at its node - Alfenmohn case).
+$ftTowns = [
+    'winhall' => ['name' => 'Winhall', 'x' => 500.0, 'y' => 500.0],
+    'kuslik' => ['name' => 'Kuslik', 'x' => 300.0, 'y' => 300.0],
+    'punin' => ['name' => 'Punin', 'x' => 100.0, 'y' => 100.0],
+    'ragath' => ['name' => 'Ragath', 'x' => 200.0, 'y' => 200.0],
+];
 
 $ftRoutes = [
     'Punin|Ragath' => ['found' => true, 'reason' => '', 'segments' => [['public_id' => 's1', 'name' => 'Teststraße'], ['public_id' => 's2', 'name' => 'Teststraße']], 'via' => ['Kreuzung-7', 'Winhall']],
@@ -245,6 +252,25 @@ check('chain-listed via keeps hops routable', count($case['adds']) >= 1, true);
 // BC: omitting the town lookup keeps the old behaviour (no foreign_town flags at all).
 $case = avesmapsWikiPathVerlaufComputeCase($ftStaging, $ftAssignments, $ftLookup, $ftRouter);
 check('no town lookup => guard off', $case['flags']['unroutable_hops'], []);
+
+// Geometry proximity: the hop does NOT touch the town's node, but a segment passes within
+// the town radius (Alfenmohn case: town sits on a spur beside the through-line).
+$ftRoutes3 = [
+    'Punin|Ragath' => ['found' => true, 'reason' => '', 'segments' => [
+        ['public_id' => 's1', 'name' => 'Teststraße', 'geometry' => ['type' => 'LineString', 'coordinates' => [[100, 100], [499.2, 500.8], [200, 200]]]],
+    ], 'via' => ['Kreuzung-9']],
+    'Ragath|Kuslik' => ['found' => true, 'reason' => '', 'segments' => [
+        ['public_id' => 's3', 'name' => 'Teststraße', 'geometry' => ['type' => 'LineString', 'coordinates' => [[200, 200], [250, 250], [300, 300]]]],
+    ], 'via' => []],
+];
+$ftRouter3 = static fn(string $f, string $t): array => $ftRoutes3[$f . '|' . $t] ?? ['found' => false, 'reason' => 'no_route', 'segments' => []];
+$case = avesmapsWikiPathVerlaufComputeCase($ftStaging, $ftAssignments, $ftLookup, $ftRouter3, $ftTowns);
+check('geometry passage flags foreign town', $case['flags']['unroutable_hops'][0]['reason'] ?? '', 'foreign_town');
+check('geometry passage names the town', $case['flags']['unroutable_hops'][0]['towns'] ?? [], ['Winhall']);
+check('geometry passage flags only that hop', count($case['flags']['unroutable_hops']), 1);
+// Chain endpoints (Ragath/Kuslik at the segment ends) never count as passage even though
+// their coordinates lie on the geometry.
+check('second hop stays routable', in_array('s3', array_column($case['adds'], 'public_id'), true), true);
 
 echo $failures === 0 ? "{$total}/{$total} passed\n" : "{$failures}/{$total} FAILED\n";
 exit($failures === 0 ? 0 : 1);
