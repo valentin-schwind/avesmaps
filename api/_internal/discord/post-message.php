@@ -23,6 +23,8 @@ function avesmapsDiscordPostMessage(string $botToken, string $channelId, array $
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 8,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_HTTPHEADER => [
             'Authorization: Bot ' . $botToken,
             'Content-Type: application/json',
