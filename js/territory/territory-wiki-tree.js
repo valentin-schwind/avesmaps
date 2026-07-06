@@ -521,11 +521,18 @@
 			matched = matched.filter((row) => doesRowMatchSearch(row, search));
 			needsAncestorExpansion = true;
 		}
-		// „Platziert"/„Fehlt": Treffer nach eigener Karten-Geometrie filtern, aber Vorfahren behalten,
-		// damit z.B. ein platziertes Elternteil mit fehlendem Kind (oder umgekehrt) sichtbar bleibt.
+		// „Platziert"/„Fehlt": nach AGGREGIERTER Karten-Abdeckung filtern (Gebiet ODER Untergebiete auf der
+		// Karte = platziert), nicht nur nach eigener Geometrie — sonst landet ein Container mit platzierten
+		// Kindern fälschlich unter „Fehlt", obwohl sein Coverage-Punkt „vorhanden" zeigt. Die Abdeckung
+		// kommt (wie der Punkt) aus computeCoverageByKey; ohne coverageByKey = Fallback auf eigene Geometrie.
 		if (mapStatus === "placed" || mapStatus === "missing") {
 			const wantPlaced = mapStatus === "placed";
-			matched = matched.filter((row) => isRowAssignedToMap(row) === wantPlaced);
+			const coverageByKey = filters.coverageByKey && typeof filters.coverageByKey.get === "function" ? filters.coverageByKey : null;
+			const rowHasCoverage = (row) => {
+				const status = coverageByKey ? coverageByKey.get(normalizeText(row?.wiki_key)) : null;
+				return status ? Boolean(status.hasAnyCoverage) : isRowAssignedToMap(row);
+			};
+			matched = matched.filter((row) => rowHasCoverage(row) === wantPlaced);
 			needsAncestorExpansion = true;
 		}
 		// „Nur Flächenländer": promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden.

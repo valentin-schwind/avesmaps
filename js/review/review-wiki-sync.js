@@ -375,31 +375,39 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const baseRows = treeModule
 			.filterRows(rows, { search, time, flaechenlaenderOnly })
 			.filter((row) => row && row.continent === "Aventurien");
-		const isPlaced =
-			typeof treeModule.isRowAssignedToMap === "function"
-				? treeModule.isRowAssignedToMap
-				: (row) => Boolean(row && row.map_assigned) || Number((row && row.map_geometry_count) || 0) > 0;
+		// Aggregierte Karten-Abdeckung EINMAL über den Basisbaum: DIESELBE Quelle speist Coverage-Punkt,
+		// Reiter-Zähler UND Reiter-Filter (Platziert/Fehlt) — so kann ein Gebiet nie einen „vorhanden"-Punkt
+		// zeigen und trotzdem unter „Fehlt" stehen (Container mit platzierten Kindern = platziert). „Alle"
+		// zählt die im Baum sichtbaren Gebiete (buildTree blendet Modell-Rauschen wie Kirchen/Lücken aus).
+		const coverageByKey = typeof treeModule.computeCoverageByKey === "function"
+			? treeModule.computeCoverageByKey(treeModule.buildTree(baseRows).root)
+			: null;
+		let allCount = 0;
 		let placedCount = 0;
-		for (const row of baseRows) {
-			if (isPlaced(row)) {
-				placedCount += 1;
+		if (coverageByKey) {
+			coverageByKey.forEach((status) => {
+				allCount += 1;
+				if (status && status.hasAnyCoverage) placedCount += 1;
+			});
+		} else {
+			const isPlaced =
+				typeof treeModule.isRowAssignedToMap === "function"
+					? treeModule.isRowAssignedToMap
+					: (row) => Boolean(row && row.map_assigned) || Number((row && row.map_geometry_count) || 0) > 0;
+			allCount = baseRows.length;
+			for (const row of baseRows) {
+				if (isPlaced(row)) placedCount += 1;
 			}
 		}
-		renderWikiSyncTerritoryMapStatusTabs(baseRows.length, placedCount, baseRows.length - placedCount);
+		renderWikiSyncTerritoryMapStatusTabs(allCount, placedCount, allCount - placedCount);
 		// Anzuzeigende Menge nach Karten-Status; Vorfahren bleiben dank filterRows erhalten.
 		const filteredRows =
 			wikiSyncTerritoryMapStatus === "placed" || wikiSyncTerritoryMapStatus === "missing"
 				? treeModule
-						.filterRows(rows, { search, time, flaechenlaenderOnly, mapStatus: wikiSyncTerritoryMapStatus })
+						.filterRows(rows, { search, time, flaechenlaenderOnly, mapStatus: wikiSyncTerritoryMapStatus, coverageByKey })
 						.filter((row) => row && row.continent === "Aventurien")
 				: baseRows;
 		const treeResult = treeModule.buildTree(filteredRows);
-		// Coverage-Status (grüner Punkt) über die VOLLE Basismenge (mapStatus-unabhängig) vorberechnen,
-		// damit ein Gebiet in allen drei Reitern (Alle/Platziert/Fehlt) denselben Punkt zeigt. Ohne das
-		// aggregierte der Punkt nur über die im Reiter sichtbaren Kinder → gleiches Gebiet, andere Farbe.
-		const coverageByKey = typeof treeModule.computeCoverageByKey === "function"
-			? treeModule.computeCoverageByKey(treeModule.buildTree(baseRows).root)
-			: null;
 		// Summary identisch zum Sync-Monitor: alle Knoten gesamt, sichtbare Wurzeln (Aventurien+heute = 53).
 		wikiSyncTerritorySummary = {
 			territory_count: Array.isArray(rows) ? rows.length : 0,
