@@ -176,11 +176,12 @@ function refreshPathLayerPopup(path) {
 		return;
 	}
 
-	const popupMarkup = createPathPopupMarkup(path);
-	const options = pathHasWiki(path) ? { className: "settlement-popup", minWidth: 320, maxWidth: 400 } : undefined;
-	path._pathLines.forEach((line) => {
-		line.bindPopup(popupMarkup, options);
-	});
+	// Popup wird NICHT mehr per bindPopup automatisch geoeffnet, sondern manuell im click-Handler (siehe
+	// createPathLayer). Grund: der Klick-Schiedsrichter (docs/click-arbiter-coordination.md) muss den Weg-Popup
+	// unterdruecken koennen, wenn eine Siedlung auf dem Weg liegt -- ein bindPopup-Auto-Open liesse sich nicht
+	// abbrechen (Leaflet feuert alle click-Listener). Wir merken uns nur Markup + Optionen am Pfad.
+	path._popupMarkup = createPathPopupMarkup(path);
+	path._popupOptions = pathHasWiki(path) ? { className: "settlement-popup", minWidth: 320, maxWidth: 400 } : {};
 }
 
 function createPathLayer(path) {
@@ -230,9 +231,9 @@ function createPathLayer(path) {
 			line.on("dblclick", (event) => handleEditablePathDoubleClick(path, event));
 		});
 	}
-	// Zuordnungs-Pick: im „Ziel wählen"-Modus faengt ein Klick das Segment ab (statt Popup).
 	path._pathLines.forEach((line) => {
 		line.on("click", (event) => {
+			// Zuordnungs-Pick: im „Ziel wählen"-Modus faengt ein Klick das Segment ab (statt Popup).
 			if (window.__pathAssignPending && typeof handlePathWikiAssignmentPick === "function" && handlePathWikiAssignmentPick(path)) {
 				L.DomEvent.stopPropagation(event);
 				if (typeof map !== "undefined") {
@@ -244,6 +245,22 @@ function createPathLayer(path) {
 						}
 					}, 0);
 				}
+				return;
+			}
+			// Klick-Schiedsrichter: liegt eine Siedlung auf diesem Weg, gewinnt sie den Klick (Priorität
+			// Siedlung > Straße/Fluss). Der Weg-Popup wird dann NICHT geoeffnet. Siehe
+			// docs/click-arbiter-coordination.md. Im Edit-Modus ist der Global undefined -> kein Effekt.
+			if (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
+					&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
+				L.DomEvent.stop(event);
+				return;
+			}
+			// Sonst den Weg-Popup manuell oeffnen (bindPopup-Ersatz, damit der Schiedsrichter ihn unterdruecken kann).
+			if (path._popupMarkup && typeof map !== "undefined") {
+				L.popup(path._popupOptions || {})
+					.setLatLng(event.latlng)
+					.setContent(path._popupMarkup)
+					.openOn(map);
 			}
 		});
 	});

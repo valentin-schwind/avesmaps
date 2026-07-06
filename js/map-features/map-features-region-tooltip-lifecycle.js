@@ -2,6 +2,14 @@ let regionSingleClickTimer = null;
 
 function bindRegionCompactTooltip(polygon, regionEntry) {
 	polygon.on("click", (event) => {
+		// Klick-Schiedsrichter: liegt eine Siedlung auf dieser Region, gewinnt sie den Klick
+		// (Priorität Siedlung > Region). Siehe docs/click-arbiter-coordination.md. Im Edit-Modus
+		// ist der Global undefined -> kein Effekt (dort sind Siedlungen ohnehin DOM-Marker obenauf).
+		if (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
+				&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
+			L.DomEvent.stop(event);
+			return;
+		}
 		L.DomEvent.stop(event);
 
 		if (!IS_EDIT_MODE) {

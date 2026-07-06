@@ -51,6 +51,8 @@ const locationCanvasLayer = {
 		map.on("mousemove", this._onMouseMove, this);
 		this._reset();
 		this._ready = true;
+		// Click arbiter: roads/regions/territories call this first and defer to a settlement here.
+		window.avesmapsTryOpenLocationAtContainerPoint = (containerPoint) => this._tryOpenAtContainerPoint(containerPoint);
 	},
 
 	setEntries(entries) {
@@ -187,10 +189,17 @@ const locationCanvasLayer = {
 	},
 
 	_onClick(event) {
-		if (!this._ready || !this._entries.length) {
-			return;
+		this._tryOpenAtContainerPoint(event.containerPoint);
+	},
+
+	// Shared settlement hit-test = the click "arbiter" (see docs/click-arbiter-coordination.md): opens
+	// the settlement whose marker sits under `point` and returns TRUE, else FALSE. Lower-priority layers
+	// (Strasse/Fluss, Region, Herrschaftsgebiet) call this FIRST via window.avesmapsTryOpenLocationAt-
+	// ContainerPoint and defer when it wins. Priority: Siedlung > Strasse/Fluss > Region > Gebiet.
+	_tryOpenAtContainerPoint(point) {
+		if (!this._ready || !this._entries.length || !point) {
+			return false;
 		}
-		const point = event.containerPoint;
 		let hit = null;
 		let hitDistance = Infinity;
 		for (const item of this._entries) {
@@ -206,7 +215,7 @@ const locationCanvasLayer = {
 			}
 		}
 		if (!hit) {
-			return;
+			return false;
 		}
 		const entry = hit.entry;
 		entry._canvasPromoted = true;
@@ -230,6 +239,7 @@ const locationCanvasLayer = {
 			this._redraw();
 		});
 		entry.marker.openPopup();
+		return true;
 	},
 
 	// Hover-Cursor fuer die Canvas-Siedlungen: das Canvas-Pane ist pointer-events:none (Klicks laufen ueber den

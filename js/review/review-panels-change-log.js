@@ -152,7 +152,14 @@ function focusPathFeature(path) {
 	}
 
 	map.fitBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: Math.max(map.getZoom(), 4) });
-	path._pathLines[1]?.openPopup(latLngs[Math.floor(latLngs.length / 2)]);
+	// Weg-Popups sind nicht mehr per bindPopup gebunden (Klick-Schiedsrichter, siehe path-rendering.js) ->
+	// hier manuell in der Weg-Mitte oeffnen. refreshPathLayerPopup hat _popupMarkup bereits gesetzt.
+	if (path._popupMarkup) {
+		L.popup(path._popupOptions || {})
+			.setLatLng(latLngs[Math.floor(latLngs.length / 2)])
+			.setContent(path._popupMarkup)
+			.openOn(map);
+	}
 	return true;
 }
 
