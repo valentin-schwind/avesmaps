@@ -41,7 +41,6 @@ infrastructure:
 | `api/discord/interactions.php` | **Single** public endpoint for all Discord interactions (PING, autocomplete, command). Verifies the signature, routes by interaction type, returns the Discord response envelope. |
 | `api/_internal/discord/signature.php` | Ed25519 request-signature verification. |
 | `api/_internal/discord/responses.php` | Builders for autocomplete choices, command embeds, and the `/hilfe` embed. |
-| `api/_internal/search/map-search-core.php` | Search core reused by **both** the bot and the public search endpoint (see §5). Neutral location because the app tier uses it too — it does **not** belong under `_internal/discord/`. |
 | `api/discord/register-commands.php` | One-off command (re)registration against the Discord API. **CLI / token-gated, never a plain public endpoint** (see §7). |
 | `api/config.local.php` (gitignored) | Real secrets (see §6). |
 | `config/api.config.example.php` | Adds a documented, empty `discord` config block. |
@@ -57,7 +56,7 @@ directories.
 User types  /karte suche:Gareth
   → Discord → POST interactions.php   (type 4 = APPLICATION_COMMAND_AUTOCOMPLETE)
   → verify signature
-  → run search core with the partial query, limit 25
+  → call GET /api/app/map-search.php?q=<partial>&limit=25
   → respond (type 8) with choices:
         name  = "Gareth (Metropole)"
         value = "<kind>:<public_id>"     e.g. "location:abc123"
@@ -91,27 +90,21 @@ User picks a choice / presses enter
 Static embed: title, one-line description, links (map, route planner, Wiki
 Aventurica), and 2–3 usage tips. No DB access. Reply public.
 
-## 5. Search integration (reuse, don't reinvent)
+## 5. Search integration — reuse the existing endpoint as-is
 
-- **Source of truth:** the search logic already living in
-  `api/app/map-search.php` (`avesmapsBuildMapSearchResults` and friends). It
-  covers **all** object kinds — locations, labels, regions, **Herrschaftsgebiete**,
-  paths — and already returns `public_id`, `name`, `type_label`, which is
-  everything Phase 1 needs.
-- **Refactor:** extract those pure functions into a neutral shared include
-  `api/_internal/search/map-search-core.php` (it is reused by the app tier too,
-  so it does **not** live under `_internal/discord/`), and have **both**
-  `api/app/map-search.php` and the bot include it. One source of truth, **no
-  internal HTTP hop, no CORS question**. `map-search.php` keeps its current
-  external behaviour byte-for-byte.
-- **Load — measure, don't pre-optimize:** the current search core loads the full
-  `map_features` table per call. The STRATO worker-saturation incident was about
-  *looping the political layer*, not human-paced typing. Phase 1 therefore ships
-  **without a cache**; we take **one** probe measurement of endpoint latency under
-  a realistic autocomplete burst and add a `map_revision`-keyed cache **only if
-  the measurement shows a real problem**. (If we ever do, the stable
-  `GET /api/locations/` — which already returns `public_id` + `map_revision` — is
-  the natural cache source for the locations portion.)
+**Don't reinvent the wheel — just offer the functions we already have.** The API
+is still growing; the bot stays a thin wrapper and grows with it.
+
+- The bot adds **no** search logic and refactors **nothing**. It calls the
+  existing **`GET /api/app/map-search.php?q=<text>&limit=<n>`** with a server-side
+  HTTP request and maps the JSON to Discord.
+- That endpoint already covers all object kinds and returns `public_id`, `name`,
+  `type_label` — everything Phase 1 needs. Both the autocomplete step and the
+  final command answer hit the same endpoint; there is **zero** new domain code.
+- **No cache.** Deliberately thin. If a single latency probe ever shows the
+  endpoint is too heavy under Discord use, we optimize *then* — not now.
+- If we later want to drop the local HTTP hop, we can extract the search core
+  into a shared include at that point. **Not** part of Phase 1.
 
 ### Linking rule (`?place=` first)
 
