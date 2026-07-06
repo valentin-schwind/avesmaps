@@ -218,6 +218,12 @@ const AVESMAPS_WIKI_PATH_VERLAUF_TRACE_SUBTYPE_PENALTY = 25.0;
 // Places that lie ON the line are simply passed through - they are not corridor errors.
 // Returns ['found', 'segments' => [['public_id','geometry']], 'via' => [interior node names]].
 function avesmapsWikiPathVerlaufTraceHop(array $graph, string $fromName, string $toName, int $maxSegments = AVESMAPS_WIKI_PATH_VERLAUF_MAX_HOP_SEGMENTS): array {
+    // The graph builder returns a wrapper ['graph' => adjacency, 'statistics' => ...]; accept
+    // both shapes (the bare adjacency is what the fixtures pass). Indexing the wrapper made
+    // every production trace fail instantly and fall back to Dijkstra + foreign-town block.
+    if (!isset($graph[$fromName]) && is_array($graph['graph'] ?? null)) {
+        $graph = $graph['graph'];
+    }
     $fail = ['found' => false, 'reason' => 'no_route', 'segments' => [], 'via' => []];
     if ($fromName === $toName || !isset($graph[$fromName])) {
         return $fail;

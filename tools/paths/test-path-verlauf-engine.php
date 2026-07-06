@@ -299,6 +299,13 @@ check('trace follows the straight line', array_column($trace['segments'], 'publi
 check('trace via lists interior nodes', $trace['via'], ['J', 'K']);
 check('trace unreachable', avesmapsWikiPathVerlaufTraceHop($traceGraph, 'A', 'Nirgendwo')['found'], false);
 
+// Regression: the production graph builder returns a WRAPPER ['graph' => adjacency,
+// 'statistics' => ...]; the tracer must unwrap it (indexing the wrapper made every live
+// trace fail instantly and fall back to Dijkstra + foreign-town block).
+$wrapped = ['graph' => $traceGraph, 'statistics' => ['nodes' => 5]];
+$trace = avesmapsWikiPathVerlaufTraceHop($wrapped, 'A', 'B');
+check('trace unwraps builder wrapper', array_column($trace['segments'], 'public_id'), ['seg-aj', 'seg-jk', 'seg-kb']);
+
 // Synthetic edges never participate.
 $traceGraph2 = $traceGraph;
 $addBoth2 = static function (array $conn) use (&$traceGraph2): void {
