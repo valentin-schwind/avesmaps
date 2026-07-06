@@ -202,5 +202,49 @@ check('hash-only no adds', $plan['adds'], []);
 check('hash-only no removes', $plan['removes'], []);
 check('hash-only restamps only stale keep', $plan['restamps'], ['s1' => ['A → B']]);
 
+// --- Foreign-town guard (owner rule 2026-07-06: a hop route may not pass through a town
+// --- that the wiki chain does not list; Reichsstrasse 3 detoured via Alfenmohn/Winhall) ---
+
+$ftStaging = ['id' => 9, 'wiki_key' => 'ft1', 'name' => 'Teststraße', 'kind' => 'strasse', 'wiki_url' => 'https://x/wiki/T', 'verlauf' => 'Punin → Ragath → Kuslik'];
+$ftAssignments = [
+    'byWikiKey' => ['ft1' => [
+        's1' => ['public_id' => 's1', 'name' => 'Teststraße', 'source' => 'verlauf-sync', 'course_hash' => 'oldhash', 'course_hops' => []],
+        's9' => ['public_id' => 's9', 'name' => 'Teststraße', 'source' => 'verlauf-sync', 'course_hash' => 'oldhash', 'course_hops' => []],
+    ]],
+    'byPublicId' => [
+        's1' => ['wiki_key' => 'ft1', 'name' => 'Teststraße', 'source' => 'verlauf-sync'],
+        's9' => ['wiki_key' => 'ft1', 'name' => 'Teststraße', 'source' => 'verlauf-sync'],
+    ],
+];
+$ftLookup = ['punin' => 'Punin', 'ragath' => 'Ragath', 'kuslik' => 'Kuslik'];
+$ftTowns = ['winhall' => true, 'kuslik' => true, 'punin' => true, 'ragath' => true];
+
+$ftRoutes = [
+    'Punin|Ragath' => ['found' => true, 'reason' => '', 'segments' => [['public_id' => 's1', 'name' => 'Teststraße'], ['public_id' => 's2', 'name' => 'Teststraße']], 'via' => ['Kreuzung-7', 'Winhall']],
+    'Ragath|Kuslik' => ['found' => true, 'reason' => '', 'segments' => [['public_id' => 's3', 'name' => 'Teststraße']], 'via' => ['Dorfhausen']],
+];
+$ftRouter = static fn(string $f, string $t): array => $ftRoutes[$f . '|' . $t] ?? ['found' => false, 'reason' => 'no_route', 'segments' => []];
+
+$case = avesmapsWikiPathVerlaufComputeCase($ftStaging, $ftAssignments, $ftLookup, $ftRouter, $ftTowns);
+check('foreign town flags exactly one hop', count($case['flags']['unroutable_hops']), 1);
+check('foreign town reason', $case['flags']['unroutable_hops'][0]['reason'], 'foreign_town');
+check('foreign town names listed', $case['flags']['unroutable_hops'][0]['towns'], ['Winhall']);
+check('foreign-town hop segments not added', in_array('s2', array_column($case['adds'], 'public_id'), true), false);
+check('village via never flags', in_array('s3', array_column($case['adds'], 'public_id'), true), true);
+check('removes suppressed while foreign-town hop open', $case['removes'], []);
+check('foreign-town case not clean', $case['clean'], false);
+
+// A via town that IS a wiki chain station is allowed (chain membership beats town status).
+$ftRoutes2 = $ftRoutes;
+$ftRoutes2['Punin|Ragath'] = ['found' => true, 'reason' => '', 'segments' => [['public_id' => 's1', 'name' => 'Teststraße'], ['public_id' => 's2', 'name' => 'Teststraße']], 'via' => ['Kuslik']];
+$ftRouter2 = static fn(string $f, string $t): array => $ftRoutes2[$f . '|' . $t] ?? ['found' => false, 'reason' => 'no_route', 'segments' => []];
+$case = avesmapsWikiPathVerlaufComputeCase($ftStaging, $ftAssignments, $ftLookup, $ftRouter2, $ftTowns);
+check('chain-listed via town allowed', $case['flags']['unroutable_hops'], []);
+check('chain-listed via keeps hops routable', count($case['adds']) >= 1, true);
+
+// BC: omitting the town lookup keeps the old behaviour (no foreign_town flags at all).
+$case = avesmapsWikiPathVerlaufComputeCase($ftStaging, $ftAssignments, $ftLookup, $ftRouter);
+check('no town lookup => guard off', $case['flags']['unroutable_hops'], []);
+
 echo $failures === 0 ? "{$total}/{$total} passed\n" : "{$failures}/{$total} FAILED\n";
 exit($failures === 0 ? 0 : 1);

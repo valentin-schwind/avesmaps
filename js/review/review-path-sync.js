@@ -26,6 +26,7 @@ const VERLAUF_HOP_REASON_LABELS = {
 	no_route: "keine Route",
 	synthetic_gap: "künstliche Lücke",
 	detour: "Umweg",
+	foreign_town: "führt durch fremde Stadt",
 };
 const VERLAUF_CONFLICT_LABELS = {
 	foreign: "fremd",
@@ -395,7 +396,11 @@ function renderVerlaufCaseFlags(flags) {
 	}
 	const unroutableHops = Array.isArray(flags.unroutable_hops) ? flags.unroutable_hops : [];
 	unroutableHops.forEach((hop) => {
-		const reason = VERLAUF_HOP_REASON_LABELS[hop && hop.reason] || (hop && hop.reason) || "";
+		let reason = VERLAUF_HOP_REASON_LABELS[hop && hop.reason] || (hop && hop.reason) || "";
+		const viaTowns = Array.isArray(hop && hop.towns) ? hop.towns : [];
+		if (viaTowns.length) {
+			reason += ": " + viaTowns.join(", ");
+		}
 		chips.push(
 			`<span class="region-sync__cand region-sync__cand--conflict">Nicht routbar: ${pathSyncEscapeText((hop && hop.from) || "?")} → ${pathSyncEscapeText((hop && hop.to) || "?")}${reason ? ` (${pathSyncEscapeText(reason)})` : ""}</span>`
 		);

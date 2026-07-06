@@ -304,10 +304,16 @@ function avesmapsWikiPathVerlaufStoredHash(array $currentSegments): string {
 // null when nothing is actionable / the way is not verlauf-syncable.
 //
 //   $router(string $fromName, string $toName): array -> ['found'=>bool, 'reason'=>string,
-//       'segments'=>[['public_id'=>string, 'name'=>string], ...]]  (synthetic Querfeldein already
-//       post-filtered out by the caller in avesmapsWikiPathVerlaufListCases).
+//       'segments'=>[['public_id'=>string, 'name'=>string], ...], 'via'=>[node names between the
+//       endpoints]]  (synthetic Querfeldein already post-filtered out by the caller in
+//       avesmapsWikiPathVerlaufListCases).
 //   $locationLookup[mb_strtolower(name)] => canonicalName  (case-insensitive station match).
-function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignments, array $locationLookup, callable $router): ?array {
+//   $townLookup[mb_strtolower(name)] => true for settlements of rank kleinstadt and above.
+//       When non-empty, a hop whose route passes THROUGH such a town that the wiki chain does
+//       not list is unroutable (reason 'foreign_town') -- owner rule 2026-07-06: assignment may
+//       only run on routes between the wiki-listed cities (Reichsstrasse 3 detoured via
+//       Alfenmohn/Winhall corridors otherwise).
+function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignments, array $locationLookup, callable $router, array $townLookup = []): ?array {
     $wikiKey = (string) ($stagingRow['wiki_key'] ?? '');
     $verlauf = (string) ($stagingRow['verlauf'] ?? '');
     $stagingHash = avesmapsWikiPathCourseHash($verlauf);
@@ -348,6 +354,13 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
             continue;
         }
         $matchedChain[] = (string) $canonical;
+    }
+
+    // Foreign-town guard whitelist: every wiki-listed station (matched or not) is a
+    // legitimate through-town; everything else of town rank flags the hop.
+    $stationKeys = [];
+    foreach ($stations as $station) {
+        $stationKeys[avesmapsWikiPathVerlaufLower($station)] = true;
     }
 
     $flags = [
@@ -422,6 +435,23 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
             $flags['unroutable_hops'][] = ['from' => $fromName, 'to' => $toName, 'reason' => 'detour'];
             $anyUnroutable = true;
             continue;
+        }
+
+        // Foreign-town guard: the hop must not pass THROUGH a town the wiki chain does not
+        // list (routing "fastest" otherwise drags the way over foreign corridors).
+        if ($townLookup !== []) {
+            $foreignTowns = [];
+            foreach ((is_array($result['via'] ?? null) ? $result['via'] : []) as $viaName) {
+                $viaKey = avesmapsWikiPathVerlaufLower((string) $viaName);
+                if (isset($townLookup[$viaKey]) && !isset($stationKeys[$viaKey]) && !in_array((string) $viaName, $foreignTowns, true)) {
+                    $foreignTowns[] = (string) $viaName;
+                }
+            }
+            if ($foreignTowns !== []) {
+                $flags['unroutable_hops'][] = ['from' => $fromName, 'to' => $toName, 'reason' => 'foreign_town', 'towns' => $foreignTowns];
+                $anyUnroutable = true;
+                continue;
+            }
         }
 
         $thisHopIds = [];
@@ -711,9 +741,10 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
     $mapData = null;
     $networkData = null;
     $locationLookup = null;
+    $townLookup = null;    // lowered name => true for kleinstadt and above (foreign-town guard)
     $routersByKind = [];   // kind => callable
 
-    $router = static function (string $kind) use ($config, &$mapData, &$networkData, &$locationLookup, &$routersByKind): callable {
+    $router = static function (string $kind) use ($config, &$mapData, &$networkData, &$locationLookup, &$townLookup, &$routersByKind): callable {
         if (isset($routersByKind[$kind])) {
             return $routersByKind[$kind];
         }
@@ -729,10 +760,15 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
         $networkData ??= avesmapsBuildRouteNetworkData($mapData);
         if ($locationLookup === null) {
             $locationLookup = [];
+            $townLookup = [];
             foreach ($networkData['locations'] as $location) {
                 $name = (string) ($location['name'] ?? '');
-                if ($name !== '') {
-                    $locationLookup[avesmapsWikiPathVerlaufLower($name)] = $name;
+                if ($name === '') {
+                    continue;
+                }
+                $locationLookup[avesmapsWikiPathVerlaufLower($name)] = $name;
+                if (in_array(strtolower((string) ($location['subtype'] ?? '')), ['metropole', 'grossstadt', 'stadt', 'kleinstadt'], true)) {
+                    $townLookup[avesmapsWikiPathVerlaufLower($name)] = true;
                 }
             }
         }
@@ -743,7 +779,10 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
                 return ['found' => false, 'reason' => 'no_route', 'segments' => []];
             }
             $segments = avesmapsBuildClientRouteDiagnosticSegments(is_array($result['segments'] ?? null) ? $result['segments'] : []);
-            return ['found' => true, 'reason' => '', 'segments' => $segments];
+            // node_ids are graph node NAMES; the intermediate ones feed the foreign-town guard.
+            $nodeIds = is_array($result['node_ids'] ?? null) ? $result['node_ids'] : [];
+            $via = array_map('strval', array_slice($nodeIds, 1, max(0, count($nodeIds) - 2)));
+            return ['found' => true, 'reason' => '', 'segments' => $segments, 'via' => $via];
         };
         $routersByKind[$kind] = $kindRouter;
         return $kindRouter;
@@ -752,8 +791,11 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
     $lookup = static function () use (&$locationLookup): array {
         return $locationLookup ?? [];
     };
+    $towns = static function () use (&$townLookup): array {
+        return $townLookup ?? [];
+    };
 
-    return ['router' => $router, 'lookup' => $lookup];
+    return ['router' => $router, 'lookup' => $lookup, 'towns' => $towns];
 }
 
 // Batch-fills missing adds[].name across a set of cases from map_features in ONE bounded IN-query.
@@ -835,6 +877,7 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
     $routingContext = avesmapsWikiPathVerlaufBuildRoutingContext($config);
     $buildRouter = $routingContext['router'];
     $lookup = $routingContext['lookup'];
+    $towns = $routingContext['towns'];
 
     $select = $pdo->prepare(
         'SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . '
@@ -879,7 +922,7 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
 
         $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
         $router = $buildRouter($kind);
-        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router);
+        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router, $towns());
         if ($case !== null) {
             $statusRow = $statusByWikiKey[$wikiKey] ?? null;
             $case['status'] = $statusRow !== null && (string) $statusRow['course_hash'] === (string) $case['staging_hash']
@@ -925,9 +968,10 @@ function avesmapsWikiPathVerlaufRecomputeCase(PDO $pdo, string $wikiKey, array $
     $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
     $buildRouter = $routingContext['router'];
     $lookup = $routingContext['lookup'];
+    $towns = $routingContext['towns'];
     $router = $buildRouter($kind);
 
-    return avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router);
+    return avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router, $towns());
 }
 
 // Restamps the `keeps` of a case in place: sets wiki_path.course_hash = staging_hash and
@@ -1216,6 +1260,7 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
     $routingContext = avesmapsWikiPathVerlaufBuildRoutingContext($config);
     $buildRouter = $routingContext['router'];
     $lookup = $routingContext['lookup'];
+    $towns = $routingContext['towns'];
 
     $select = $pdo->prepare(
         'SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . '
@@ -1261,7 +1306,7 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
 
         $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
         $router = $buildRouter($kind);
-        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router);
+        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router, $towns());
         if ($case === null) {
             continue;
         }
