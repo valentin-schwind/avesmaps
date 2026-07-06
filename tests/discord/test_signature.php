@@ -21,5 +21,6 @@ t_ok(avesmapsDiscordVerifySignature($publicKeyHex, $signatureHex, $timestamp, $b
 t_ok(avesmapsDiscordVerifySignature($publicKeyHex, $signatureHex, $timestamp, $body . 'x') === false, 'tampered body fails');
 t_ok(avesmapsDiscordVerifySignature($publicKeyHex, 'zz', $timestamp, $body) === false, 'bad hex fails');
 t_ok(avesmapsDiscordVerifySignature('', $signatureHex, $timestamp, $body) === false, 'empty key fails');
+t_ok(avesmapsDiscordVerifySignature($publicKeyHex, bin2hex('ab'), $timestamp, $body) === false, 'wrong-length signature (valid hex) fails closed');
 
 t_done();
