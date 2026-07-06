@@ -59,4 +59,36 @@ $closeBody = json_encode(['type' => 2, 'data' => ['name' => 'erledigt', 'options
 $close = avesmapsDiscordProcessRequest($closeBody, $sig3, $ts3, $config, $faq, $deps);
 t_ok(str_contains($close['body']['data']['content'], 'erledigt'), 'close -> confirmation');
 
+// Failure paths: insert throws, post throws, malformed JSON.
+$submitBody2 = json_encode(['type' => 5, 'data' => ['custom_id' => AVESMAPS_DISCORD_BUG_MODAL_ID, 'components' => [
+    ['type' => 1, 'components' => [['type' => 4, 'custom_id' => 'title', 'value' => 'Absturz']]],
+    ['type' => 1, 'components' => [['type' => 4, 'custom_id' => 'description', 'value' => 'Hängt']]],
+]], 'user' => ['username' => 'u', 'id' => '1']], JSON_UNESCAPED_UNICODE);
+
+$depsInsertThrows = [
+    'post' => static fn(string $c, array $m): array => ['ok' => true, 'message_id' => 'm1'],
+    'insert' => static function (array $case): int { throw new RuntimeException('db down'); },
+    'close' => static fn(int $id, string $by): bool => true,
+];
+[$tsI, $sigI] = $sign($submitBody2);
+$insertThrows = avesmapsDiscordProcessRequest($submitBody2, $sigI, $tsI, $config, $faq, $depsInsertThrows);
+t_eq($insertThrows['status'], 200, 'insert throws -> 200');
+t_ok(isset($insertThrows['body']['data']['content']), 'insert throws -> content present');
+t_ok(!str_contains((string) ($insertThrows['body']['data']['content'] ?? ''), 'Fall #'), 'insert throws -> soft error, not a confirmation');
+
+$depsPostThrows = [
+    'post' => static function (string $c, array $m): array { throw new RuntimeException('discord unreachable'); },
+    'insert' => static fn(array $case): int => 99,
+    'close' => static fn(int $id, string $by): bool => true,
+];
+[$tsP, $sigP] = $sign($submitBody2);
+$postThrows = avesmapsDiscordProcessRequest($submitBody2, $sigP, $tsP, $config, $faq, $depsPostThrows);
+t_eq($postThrows['status'], 200, 'post throws -> 200');
+t_ok(str_contains($postThrows['body']['data']['content'], 'Fall #99'), 'post throws -> confirmation still returned');
+
+$malformedBody = '{not valid json';
+[$tsM, $sigM] = $sign($malformedBody);
+$malformed = avesmapsDiscordProcessRequest($malformedBody, $sigM, $tsM, $config, $faq, $deps);
+t_eq($malformed['status'], 400, 'malformed json -> 400');
+
 t_done();

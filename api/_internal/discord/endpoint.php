@@ -44,10 +44,14 @@ function avesmapsDiscordProcessRequest(
         }
 
         // Best-effort channel post; the case is already stored either way.
-        $deps['post'](
-            (string) $result['channel_id'],
-            avesmapsDiscordCaseEmbedMessage((string) $result['kind'], $caseId, (array) $result['values'], (string) $result['reporter'])
-        );
+        try {
+            $deps['post'](
+                (string) $result['channel_id'],
+                avesmapsDiscordCaseEmbedMessage((string) $result['kind'], $caseId, (array) $result['values'], (string) $result['reporter'])
+            );
+        } catch (\Throwable $e) {
+            // best-effort: the case is already stored; ignore post failure
+        }
 
         return ['status' => 200, 'body' => avesmapsDiscordCaseConfirmResponse((string) $result['kind'], $caseId)];
     }
