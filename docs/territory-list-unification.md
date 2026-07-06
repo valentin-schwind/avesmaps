@@ -34,9 +34,22 @@ Shared module = `js/territory/territory-wiki-tree.js` (used by #2, #3, #4).
    and the truth (#1 `coverage()` in `wiki-sync-monitor.html`) classify by
    **aggregated** coverage (own OR children on the map). A container whose
    children are placed showed a covered dot but sat under „Fehlt".
-   **Fix:** `filterRows()` mapStatus now honors an optional `coverageByKey` and
-   classifies by aggregated `hasAnyCoverage`; `renderWikiSyncTerritoryTree()`
-   computes coverage once and feeds the **same** map to dot + counts + filter.
+   **Fix A (00e2872f):** `filterRows()` mapStatus now honors an optional
+   `coverageByKey` and classifies by aggregated `hasAnyCoverage`;
+   `renderWikiSyncTerritoryTree()` computes coverage once and feeds the **same**
+   map to dot + counts + filter.
+   **Fix B (this commit) — cross-continent ancestor drag.** A *fully covered*
+   Aventurien territory could still appear in „Fehlt": e.g. Alanfanisches Imperium
+   (own geometry + placed children, coverage `all`, full dot) was dragged in by its
+   child „Vizekönigreich Uthuria" (continent `Uthuria`, not on the map). Cause: the
+   `continent === "Aventurien"` filter ran **outside** `filterRows`, so the
+   non-Aventurien child stayed in the set through `expandRowsWithAncestors`, which
+   re-added its Aventurien parent as a path ancestor via `affiliation_path`; the
+   outer filter then removed only the child, not the re-added parent. Fix: pass
+   `continent: "Aventurien"` **into** `filterRows`, so non-Aventurien rows drop as a
+   structural filter *before* ancestor expansion. Verified live on the deployed
+   module (Alanfanisches Imperium leaves „Fehlt"; missing count 209 → 208, nothing
+   else changes).
 
 2. **Continent filter — still divergent (NOT yet changed).**
    #1 uses `contSel.has(effVal(n,'continent') || 'Aventurien')` — empty continent

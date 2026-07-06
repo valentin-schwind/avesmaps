@@ -373,7 +373,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const flaechenlaenderOnly = getWikiSyncTerritoryFlaechenlandOnly();
 		// Basismenge (Such-/Zeit-/Flächenland-Filter, ohne Karten-Status) — Grundlage für die Tab-Zähler.
 		const baseRows = treeModule
-			.filterRows(rows, { search, time, flaechenlaenderOnly })
+			.filterRows(rows, { search, time, flaechenlaenderOnly, continent: "Aventurien" })
 			.filter((row) => row && row.continent === "Aventurien");
 		// Aggregierte Karten-Abdeckung EINMAL über den Basisbaum: DIESELBE Quelle speist Coverage-Punkt,
 		// Reiter-Zähler UND Reiter-Filter (Platziert/Fehlt) — so kann ein Gebiet nie einen „vorhanden"-Punkt
@@ -404,7 +404,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const filteredRows =
 			wikiSyncTerritoryMapStatus === "placed" || wikiSyncTerritoryMapStatus === "missing"
 				? treeModule
-						.filterRows(rows, { search, time, flaechenlaenderOnly, mapStatus: wikiSyncTerritoryMapStatus, coverageByKey })
+						.filterRows(rows, { search, time, flaechenlaenderOnly, mapStatus: wikiSyncTerritoryMapStatus, coverageByKey, continent: "Aventurien" })
 						.filter((row) => row && row.continent === "Aventurien")
 				: baseRows;
 		const treeResult = treeModule.buildTree(filteredRows);
