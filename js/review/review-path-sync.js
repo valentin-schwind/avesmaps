@@ -367,7 +367,9 @@ async function loadVerlaufCases() {
 	} finally {
 		verlaufCasesLoading = false;
 		if (pathSyncView === "cases") {
-			renderVerlaufCaseList();
+			// Full re-render (not just the list): the tab badge counts open cases and would
+			// otherwise stay at its pre-scan value. Safe: verlaufCasesLoaded gates re-triggering.
+			renderPathSyncList();
 		}
 	}
 }
