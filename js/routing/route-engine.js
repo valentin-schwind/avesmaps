@@ -242,6 +242,11 @@ function buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex) 
 
 function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 	const subtype = normalizePathSubtype(serverSegment?.subtype || serverSegment?.route_type || "Weg");
+	// Resolve the real feature name (e.g. "Der Große Fluss") for the plan's "über ..."-label;
+	// the synthetic `name: subtype` would otherwise leak as a meaningless "über Flussweg".
+	const localPath = typeof findPathByPublicId === "function" && serverSegment?.public_id
+		? findPathByPublicId(String(serverSegment.public_id))
+		: null;
 	return {
 		type: "Feature",
 		geometry: {
@@ -251,6 +256,7 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 		properties: {
 			id: getServerSegmentId(serverSegment) || "",
 			name: subtype,
+			display_name: String(localPath?.properties?.display_name || localPath?.properties?.original_name || ""),
 			feature_subtype: subtype,
 			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || getTransportOption(subtype),
 			synthetic: Boolean(serverSegment?.synthetic),
