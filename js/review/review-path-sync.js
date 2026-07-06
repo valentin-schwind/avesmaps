@@ -416,6 +416,16 @@ function renderVerlaufCaseFlags(flags) {
 	if (backtrackHops.length) {
 		chips.push(`<span class="region-sync__cand region-sync__cand--conflict">Rückwärts: ${backtrackHops.map(pathSyncEscapeText).join(", ")}</span>`);
 	}
+	// Info only: towns the drawn line passes through although the wiki box does not list them
+	// (traced hops; owner rule says they belong to the road).
+	const passageTowns = Array.isArray(flags.passage_towns) ? flags.passage_towns : [];
+	passageTowns.forEach((passage) => {
+		const towns = Array.isArray(passage && passage.towns) ? passage.towns : [];
+		if (!towns.length) return;
+		chips.push(
+			`<span class="region-sync__cand">Durchfahrt: ${towns.map(pathSyncEscapeText).join(", ")} (${pathSyncEscapeText((passage && passage.from) || "?")} → ${pathSyncEscapeText((passage && passage.to) || "?")})</span>`
+		);
+	});
 	return chips.join(" ");
 }
 

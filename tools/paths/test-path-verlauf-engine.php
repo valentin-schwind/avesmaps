@@ -272,5 +272,62 @@ check('geometry passage flags only that hop', count($case['flags']['unroutable_h
 // their coordinates lie on the geometry.
 check('second hop stays routable', in_array('s3', array_column($case['adds'], 'public_id'), true), true);
 
+// --- Line tracer: follow the drawn road (minimal bend), not the fastest corridor ---
+
+// Fixture graph in client-graph adjacency shape. Main line A-J-K-B runs straight along y=0;
+// at junction J a branch turns 90 degrees to X and continues diagonally to B (fewer edges,
+// i.e. a time-Dijkstra shortcut). The tracer must stay on the straight line through K.
+// The J-K connection is stored in REVERSED drawing order (from=K) to prove orientation handling.
+function traceConn(string $id, string $publicId, string $from, string $to, array $coords, string $type = 'Reichsstrasse', bool $synthetic = false): array {
+    return ['id' => $id, 'path_id' => $id, 'public_id' => $publicId, 'from' => $from, 'to' => $to,
+        'route_type' => $type, 'geometry' => ['type' => 'LineString', 'coordinates' => $coords], 'synthetic' => $synthetic];
+}
+$traceGraph = [];
+$addBoth = static function (array $conn) use (&$traceGraph): void {
+    $traceGraph[$conn['from']][$conn['to']][] = $conn;
+    $traceGraph[$conn['to']][$conn['from']][] = $conn;
+};
+$addBoth(traceConn('e1', 'seg-aj', 'A', 'J', [[0, 0], [10, 0]]));
+$addBoth(traceConn('e2', 'seg-jk', 'K', 'J', [[20, 0], [10, 0]]));       // stored reversed
+$addBoth(traceConn('e3', 'seg-kb', 'K', 'B', [[20, 0], [30, 0]]));
+$addBoth(traceConn('e4', 'seg-jx', 'J', 'X', [[10, 0], [10, 10]], 'Weg'));
+$addBoth(traceConn('e5', 'seg-xb', 'X', 'B', [[10, 10], [30, 0]], 'Weg'));
+
+$trace = avesmapsWikiPathVerlaufTraceHop($traceGraph, 'A', 'B');
+check('trace found', $trace['found'], true);
+check('trace follows the straight line', array_column($trace['segments'], 'public_id'), ['seg-aj', 'seg-jk', 'seg-kb']);
+check('trace via lists interior nodes', $trace['via'], ['J', 'K']);
+check('trace unreachable', avesmapsWikiPathVerlaufTraceHop($traceGraph, 'A', 'Nirgendwo')['found'], false);
+
+// Synthetic edges never participate.
+$traceGraph2 = $traceGraph;
+$addBoth2 = static function (array $conn) use (&$traceGraph2): void {
+    $traceGraph2[$conn['from']][$conn['to']][] = $conn;
+    $traceGraph2[$conn['to']][$conn['from']][] = $conn;
+};
+$addBoth2(traceConn('e6', '', 'A', 'B', [[0, 0], [30, 0]], 'Querfeldein', true));
+$trace = avesmapsWikiPathVerlaufTraceHop($traceGraph2, 'A', 'B');
+check('trace skips synthetic edges', array_column($trace['segments'], 'public_id'), ['seg-aj', 'seg-jk', 'seg-kb']);
+
+// --- ComputeCase: traced hops downgrade foreign towns to passage info (owner rule: places ON
+// the drawn line belong to the road; only the Dijkstra fallback keeps the hard guard) ---
+
+$ftRoutes4 = [
+    'Punin|Ragath' => ['found' => true, 'reason' => '', 'method' => 'trace', 'segments' => [
+        ['public_id' => 's1', 'name' => 'Teststraße', 'geometry' => ['type' => 'LineString', 'coordinates' => [[100, 100], [499.2, 500.8], [200, 200]]]],
+    ], 'via' => ['Winhall']],
+    'Ragath|Kuslik' => ['found' => true, 'reason' => '', 'method' => 'trace', 'segments' => [
+        ['public_id' => 's3', 'name' => 'Teststraße', 'geometry' => ['type' => 'LineString', 'coordinates' => [[200, 200], [250, 250], [300, 300]]]],
+    ], 'via' => []],
+];
+$ftRouter4 = static fn(string $f, string $t): array => $ftRoutes4[$f . '|' . $t] ?? ['found' => false, 'reason' => 'no_route', 'segments' => []];
+$case = avesmapsWikiPathVerlaufComputeCase($ftStaging, $ftAssignments, $ftLookup, $ftRouter4, $ftTowns);
+check('traced hop has no unroutable flag', $case['flags']['unroutable_hops'], []);
+check('traced hop reports passage info', $case['flags']['passage_towns'][0]['towns'] ?? [], ['Winhall']);
+// s1 is already assigned in the fixture => it lands in keeps (Soll includes the traced hop).
+check('traced hop segments enter the Soll', in_array('s1', array_column($case['keeps'], 'public_id'), true), true);
+check('traced hop new segments become adds', in_array('s3', array_column($case['adds'], 'public_id'), true), true);
+check('passage info does not block clean', $case['clean'], true);
+
 echo $failures === 0 ? "{$total}/{$total} passed\n" : "{$failures}/{$total} FAILED\n";
 exit($failures === 0 ? 0 : 1);

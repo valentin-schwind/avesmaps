@@ -204,6 +204,141 @@ function avesmapsWikiPathVerlaufBackfillSource(PDO $pdo, bool $dryRun, int $user
 // wrong Dijkstra shortcut from silently pulling a long unrelated chain into the target set.
 const AVESMAPS_WIKI_PATH_VERLAUF_MAX_HOP_SEGMENTS = 15;
 
+// Line-tracer bounds: max graph edges per traced hop (a slice-split road produces several edges
+// per map segment), state-expansion safety cap, and the soft cost for changing the path subtype
+// mid-trace (staying on the same kind of road is part of "following the drawn line").
+const AVESMAPS_WIKI_PATH_VERLAUF_TRACE_MAX_EDGES = 40;
+const AVESMAPS_WIKI_PATH_VERLAUF_TRACE_MAX_STATES = 4000;
+const AVESMAPS_WIKI_PATH_VERLAUF_TRACE_SUBTYPE_PENALTY = 25.0;
+
+// Follows the DRAWN road from one wiki station to the next (owner model: "sich an der
+// Kanon-Strasse entlanghangeln"): Dijkstra over accumulated BEND degrees instead of travel
+// time, so continuing straight on the same line is nearly free while turning off onto a
+// different road costs its deflection angle (+ a soft penalty when the subtype changes).
+// Places that lie ON the line are simply passed through - they are not corridor errors.
+// Returns ['found', 'segments' => [['public_id','geometry']], 'via' => [interior node names]].
+function avesmapsWikiPathVerlaufTraceHop(array $graph, string $fromName, string $toName, int $maxSegments = AVESMAPS_WIKI_PATH_VERLAUF_MAX_HOP_SEGMENTS): array {
+    $fail = ['found' => false, 'reason' => 'no_route', 'segments' => [], 'via' => []];
+    if ($fromName === $toName || !isset($graph[$fromName])) {
+        return $fail;
+    }
+
+    // Heading (degrees) of the first/last step of a connection traversed $from -> neighbour;
+    // stored orientation may be either way, so reverse the coordinates when needed.
+    $orient = static function (array $connection, string $travelFrom): ?array {
+        $coordinates = $connection['geometry']['coordinates'] ?? null;
+        if (!is_array($coordinates) || count($coordinates) < 2) {
+            return null;
+        }
+        if ((string) ($connection['from'] ?? '') !== $travelFrom) {
+            $coordinates = array_reverse($coordinates);
+        }
+        $first = null;
+        $last = null;
+        for ($i = 1, $n = count($coordinates); $i < $n; $i++) {
+            $dx = (float) $coordinates[$i][0] - (float) $coordinates[$i - 1][0];
+            $dy = (float) $coordinates[$i][1] - (float) $coordinates[$i - 1][1];
+            if ($dx === 0.0 && $dy === 0.0) {
+                continue;
+            }
+            $heading = rad2deg(atan2($dy, $dx));
+            $first ??= $heading;
+            $last = $heading;
+        }
+
+        return $first === null ? null : ['depart' => $first, 'arrive' => $last];
+    };
+    $bend = static function (float $a, float $b): float {
+        $delta = fmod(abs($a - $b), 360.0);
+
+        return $delta > 180.0 ? 360.0 - $delta : $delta;
+    };
+
+    $queue = new SplPriorityQueue();
+    $states = [];
+    $stateCount = 0;
+    $pushArms = static function (string $node, ?string $prevKey, float $baseCost, ?float $arriveHeading, ?string $prevType, int $edges, array $ids) use (&$graph, &$states, &$queue, $orient, $bend, $maxSegments): void {
+        foreach ($graph[$node] ?? [] as $neighbour => $connections) {
+            foreach ((is_array($connections) ? $connections : []) as $connection) {
+                if (!empty($connection['synthetic']) || (string) ($connection['public_id'] ?? '') === '') {
+                    continue;
+                }
+                $headings = $orient($connection, $node);
+                if ($headings === null) {
+                    continue;
+                }
+                $publicId = (string) $connection['public_id'];
+                $nextIds = $ids;
+                $nextIds[$publicId] = true;
+                if (count($nextIds) > $maxSegments || $edges + 1 > AVESMAPS_WIKI_PATH_VERLAUF_TRACE_MAX_EDGES) {
+                    continue;
+                }
+                $cost = $baseCost + 0.1; // per-edge epsilon: prefer fewer edges on straight ties
+                if ($arriveHeading !== null) {
+                    $turn = $bend($arriveHeading, (float) $headings['depart']);
+                    if ($turn > 179.0) {
+                        continue; // hard U-turn back over the junction never follows the line
+                    }
+                    $cost += $turn;
+                }
+                if ($prevType !== null && (string) ($connection['route_type'] ?? '') !== $prevType) {
+                    $cost += AVESMAPS_WIKI_PATH_VERLAUF_TRACE_SUBTYPE_PENALTY;
+                }
+                $stateKey = (string) ($connection['id'] ?? $publicId) . '|' . $node . '>' . (string) $neighbour;
+                if (isset($states[$stateKey]) && $states[$stateKey]['cost'] <= $cost) {
+                    continue;
+                }
+                $states[$stateKey] = [
+                    'cost' => $cost, 'settled' => false, 'prev' => $prevKey, 'node' => (string) $neighbour,
+                    'arrive' => (float) $headings['arrive'], 'type' => (string) ($connection['route_type'] ?? ''),
+                    'edges' => $edges + 1, 'ids' => $nextIds, 'public_id' => $publicId,
+                    'geometry' => $connection['geometry'] ?? null, 'from_node' => $node,
+                ];
+                $queue->insert($stateKey, -$cost);
+            }
+        }
+    };
+
+    $pushArms($fromName, null, 0.0, null, null, 0, []);
+    $goalKey = null;
+    while (!$queue->isEmpty() && $stateCount < AVESMAPS_WIKI_PATH_VERLAUF_TRACE_MAX_STATES) {
+        $stateKey = $queue->extract();
+        $state = $states[$stateKey] ?? null;
+        if ($state === null || $state['settled']) {
+            continue;
+        }
+        $states[$stateKey]['settled'] = true;
+        $stateCount++;
+        if ($state['node'] === $toName) {
+            $goalKey = $stateKey;
+            break;
+        }
+        $pushArms($state['node'], $stateKey, $state['cost'], $state['arrive'], $state['type'], $state['edges'], $state['ids']);
+    }
+    if ($goalKey === null) {
+        return $fail;
+    }
+
+    $orderedStates = [];
+    for ($key = $goalKey; $key !== null; $key = $states[$key]['prev']) {
+        array_unshift($orderedStates, $states[$key]);
+    }
+    $segments = [];
+    $seenIds = [];
+    $via = [];
+    foreach ($orderedStates as $index => $state) {
+        if (!isset($seenIds[$state['public_id']])) {
+            $seenIds[$state['public_id']] = true;
+            $segments[] = ['public_id' => $state['public_id'], 'geometry' => $state['geometry']];
+        }
+        if ($index < count($orderedStates) - 1) {
+            $via[] = $state['node'];
+        }
+    }
+
+    return ['found' => true, 'reason' => '', 'segments' => $segments, 'via' => $via];
+}
+
 // Foreign-town guard passage radius (map units): a hop segment whose geometry comes this close
 // to a town's point counts as passing THROUGH that town (towns often sit on a spur beside the
 // through-line, so route-node names alone miss them - the Alfenmohn case on Reichsstrasse 3).
@@ -391,6 +526,9 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
         'unroutable_hops' => [],
         'conflicts' => [],
         'backtrack_hops' => [],
+        // Info only (owner rule): towns the DRAWN line passes through on a traced hop belong
+        // to the road even when the wiki box does not list them. Never affects clean.
+        'passage_towns' => [],
     ];
 
     $baseCase = [
@@ -500,9 +638,15 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
                 }
             }
             if ($foreignTowns !== []) {
-                $flags['unroutable_hops'][] = ['from' => $fromName, 'to' => $toName, 'reason' => 'foreign_town', 'towns' => $foreignTowns];
-                $anyUnroutable = true;
-                continue;
+                if ((string) ($result['method'] ?? 'dijkstra') === 'trace') {
+                    // Traced hop = we followed the drawn road itself; towns on the line are
+                    // legitimate passage (owner rule), reported as info, never a failure.
+                    $flags['passage_towns'][] = ['from' => $fromName, 'to' => $toName, 'towns' => $foreignTowns];
+                } else {
+                    $flags['unroutable_hops'][] = ['from' => $fromName, 'to' => $toName, 'reason' => 'foreign_town', 'towns' => $foreignTowns];
+                    $anyUnroutable = true;
+                    continue;
+                }
             }
         }
 
@@ -831,7 +975,17 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
             }
         }
         $graph = avesmapsBuildClientCompatibleRouteGraph($networkData, $request);
-        $kindRouter = static function (string $from, string $to) use ($graph, $request): array {
+        $kindRouter = static function (string $from, string $to) use ($graph, $request, $kind): array {
+            // Roads: follow the DRAWN line first (owner model "an der Kanon-Strasse
+            // entlanghangeln") - places on the line are passage, not corridor errors.
+            // Rivers deliberately keep pure Dijkstra: the flow-direction derivation
+            // depends on its traversal semantics, and rivers are their own corridor.
+            if ($kind !== 'fluss') {
+                $trace = avesmapsWikiPathVerlaufTraceHop($graph, $from, $to);
+                if (!empty($trace['found'])) {
+                    return ['found' => true, 'reason' => '', 'method' => 'trace', 'segments' => $trace['segments'], 'via' => $trace['via']];
+                }
+            }
             $result = avesmapsFindClientCompatibleRoute($graph, $from, $to, $request);
             if (empty($result['found'])) {
                 return ['found' => false, 'reason' => 'no_route', 'segments' => []];
@@ -840,7 +994,7 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
             // node_ids are graph node NAMES; the intermediate ones feed the foreign-town guard.
             $nodeIds = is_array($result['node_ids'] ?? null) ? $result['node_ids'] : [];
             $via = array_map('strval', array_slice($nodeIds, 1, max(0, count($nodeIds) - 2)));
-            return ['found' => true, 'reason' => '', 'segments' => $segments, 'via' => $via];
+            return ['found' => true, 'reason' => '', 'method' => 'dijkstra', 'segments' => $segments, 'via' => $via];
         };
         $routersByKind[$kind] = $kindRouter;
         return $kindRouter;
