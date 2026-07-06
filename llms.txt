@@ -10,7 +10,7 @@ The application is aimed at people who want to plan travel routes in Aventurien.
 
 Route computation is based on the Dijkstra algorithm on a weighted graph. The graph is built from GeoJSON data for locations and paths. Depending on the setting, the application optimizes for distance or travel time. Optionally a transfer penalty for transport changes is taken into account.
 
-Routes and planner settings can be shared via URL parameters.
+Routes and planner settings can be shared via URL parameters. Map objects can be deep-linked by Wiki Aventurica page name: `?siedlung=` / `?staat=` / `?region=` / `?strasse=` / `?fluss=` (e.g. `https://avesmaps.de/?strasse=Reichsstraße_1` zooms to and highlights the whole road).
 
 ## Important resources
 

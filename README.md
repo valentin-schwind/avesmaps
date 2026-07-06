@@ -106,6 +106,27 @@ The state of the route planner can be saved and shared via query parameters in t
 
 This way a fully configured route can be shared easily by copying the URL from the browser and passing it on.
 
+## Deep links to map objects (wiki page names)
+
+Every map object that is linked to a [Wiki Aventurica](https://de.wiki-aventurica.de/) article can be opened directly via URL. The parameter name mirrors the wiki infobox type, the value is the wiki page name (spaces as underscores, umlauts may be URL-encoded or written as-is):
+
+| Parameter | Object type | Example |
+|---|---|---|
+| `?siedlung=` | settlement | `https://avesmaps.de/?siedlung=Gareth` |
+| `?staat=` | political territory | `https://avesmaps.de/?staat=Fürstentum_Kosch` |
+| `?region=` | landscape/region | `https://avesmaps.de/?region=Nordmarken` |
+| `?strasse=` | road | `https://avesmaps.de/?strasse=Reichsstraße_1` |
+| `?fluss=` | river | `https://avesmaps.de/?fluss=Letta` |
+
+Behavior:
+
+- the map opens, zooms to the object and highlights it — roads and rivers are highlighted **as a whole**, across all of their segments
+- the URL stays exactly as opened (no rewrite to planner parameters), so the link remains stable for sharing
+- use one parameter per link
+- resolution matches the wiki page name against the `wiki_url` stored with each object; if no stored link matches, a name search is used as fallback
+
+Wiki Aventurica embeds these links in its infobox templates via `{{PAGENAMEE}}`, so every settlement, territory, region, road and river article links straight to its place on the map.
+
 ## Location reports via PHP and SQL
 
 The file `api/report-location.php` accepts new location reports as JSON and stores them in the table `location_reports`.
