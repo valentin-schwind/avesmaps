@@ -1,189 +1,206 @@
-# Avesmaps Discord Bot — Phase 1 design
+# Avesmaps Discord Bot — Phase 1 design (feedback loop)
 
 - **Date:** 2026-07-06
 - **Status:** Draft (awaiting owner review)
-- **Phase 1 theme:** a **Help & Feedback bot** — get the bot live, answer FAQs
-  interactively, and let users file bugs / improvement ideas into a Discord
-  channel. Map search is deliberately **deferred** to a later phase.
+- **Phase 1 theme:** close the community **feedback loop** — take in bugs, ideas
+  and questions, **store** them, and produce a **daily AI-triaged report** that
+  helps the team solve the cases. Map search stays deferred.
 
 ## 1. Context & goal
 
-The Avesmaps community now has a Discord server. We want a **custom Avesmaps
-bot** that is a *thin adapter over what we already have* — it adds Discord UX, no
-new domain logic. Generic community management (welcome / roles / moderation) is
-handled by off-the-shelf bots (MEE6, Carl-bot, …) and is **not** built here.
+The Avesmaps community has a Discord server. We want a custom bot that is a thin
+adapter over what we already have. Generic community management (welcome / roles /
+moderation) stays with off-the-shelf bots and is **not** built here.
 
-Owner priorities (2026-07-06), in order, map to Phase 1 like this:
+The owner's core wish (2026-07-06): not just *receive* feedback but *close the
+loop* — collect it, keep track, and get daily help solving it. That means two
+cooperating parts plus a small store:
 
-| # | Owner wish | In the bot |
-|---|---|---|
-| 1 | **Channel & bot aufsetzen** | Stand up the **infrastructure**: HTTP-interactions endpoint, signature verification, command registration, deploy → a working bot in the channel. The foundation; comes first. |
-| 2 | **FAQs / Bugs / Verbesserungen** | `/faq` reuses the 7 existing Q&A; `/bug` + `/idee` collect input via a **modal** and post it to a feedback channel. |
-| 3 | **Interaktive Hilfe** | `/hilfe` is a clickable **select-menu** hub, not a static text wall. |
+- **Part A — PHP intake bot** (STRATO, HTTP interactions): `/hilfe` (FAQ),
+  `/bug`, `/idee`, `/frage` post into the matching channel **and** write each case
+  into a small MySQL table. `/erledigt` marks a case solved.
+- **Part B — scheduled Claude triage routine** (daily): reads the **open** cases,
+  groups them, spots duplicates, proposes solutions / answers (questions →
+  FAQ candidates), and posts a **report** into the report channel.
 
-**Map search (`/karte`) is out of Phase 1** (moved to a future phase, §10).
+**Phasing:** Part A = **Phase 1a**, Part B = **Phase 1b**. 1a is a working,
+testable bot on its own; 1b consumes 1a's endpoints.
 
-## 2. Hosting & architecture decision
+**Reversal noted:** an earlier decision was "no backend" for feedback. Tracking +
+reporting require persistence, so we now add a small MySQL table. This is a
+conscious, owner-approved reversal.
 
-- The bot runs as a **Discord HTTP-Interactions endpoint in PHP on STRATO** —
-  Discord POSTs each interaction to our HTTPS endpoint, which answers within 3 s.
-  **No persistent process, no new server, no new cost.** Everything Phase 1 needs
-  — slash commands, message components (select menu / buttons), modals, and
-  *posting* a message to a channel (a plain REST call with the bot token) — works
-  over HTTP. No Gateway connection is required.
-- Reuses `api/_internal/bootstrap.php` helpers (`avesmapsLoadApiConfig`,
-  `avesmapsJsonResponse`, `avesmapsReadJsonRequest`).
+## 2. Architecture
 
-## 3. Files
+```
+Discord user
+   │  /hilfe /bug /idee /frage /erledigt        (HTTP interactions)
+   ▼
+api/discord/interactions.php  ──►  posts embed into bug/idea/faq channel (bot token)
+   │                            └►  INSERT / UPDATE row in `discord_cases` (MySQL)
+   │
+   ├─ api/discord/cases-export.php   GET, app-token gated  → open cases as JSON
+   └─ api/discord/report-post.php    POST, app-token gated → posts a report to the
+                                       report channel (bot token stays on STRATO)
+        ▲                                   ▲
+        │ (reads open cases)                │ (posts the report)
+   Scheduled Claude triage routine (daily) ─┘
+```
 
-| Path | Responsibility |
+The bot token lives **only** on STRATO. Part B never sees it — it authenticates
+to the two app endpoints with a separate `app_token` and lets STRATO do the
+Discord POST. No STRATO cron is needed: the Claude routine is the scheduler.
+
+Everything in Part A is HTTP-interactions + REST (commands, components, modals,
+channel POST) — **no Gateway, no persistent process.**
+
+## 3. Commands
+
+| Command | Effect |
 |---|---|
-| `api/discord/interactions.php` | **Single** public endpoint for all Discord interactions. Verifies the signature, routes by type (PING / command / component / modal-submit), returns the response envelope. |
-| `api/_internal/discord/signature.php` | Ed25519 request-signature verification. |
-| `api/_internal/discord/faq.php` | Loads the FAQ data (from `faq.de.json`) and looks up answers. |
-| `api/_internal/discord/responses.php` | Builders: `/hilfe` embed + select menu, `/bug` & `/idee` modal definitions, the feedback embed, and ephemeral confirmations. |
-| `api/_internal/discord/post-message.php` | Posts a message to a channel via the Discord REST API using the bot token. |
-| `api/discord/register-commands.php` | One-off (re)registration of `/hilfe`, `/bug`, `/idee`. **CLI / token-gated, never a plain public endpoint** (§7). |
-| `api/discord/faq.de.json` | The FAQ content (seeded from the 7 existing site Q&A; owner-editable). |
-| `api/config.local.php` (gitignored) | Real secrets + channel id (§6). |
-| `config/api.config.example.php` | Documented empty `discord` block. |
+| `/hilfe` | Interactive help: an ephemeral card with a select menu of the 7 FAQ + buttons to open the bug/idea/question modals. |
+| `/bug` | Opens a modal; on submit → embed into the **bugs** channel + a `bug` row in `discord_cases`. |
+| `/idee` | Opens a modal; on submit → embed into the **ideen** channel + an `idea` row. |
+| `/frage` | Opens a modal; on submit → embed into the **fragen/FAQ** channel + a `question` row. |
+| `/erledigt` | Takes a case number; marks that case `solved` in the store and confirms (ephemeral). Team-facing. |
 
-`api/_internal/discord/` is `.htaccess`-denied like the other `_internal` dirs.
+`/erledigt` (a command) is how cases close, because a ✅ **reaction** would require
+a Gateway connection we deliberately don't run.
 
-## 4. Interaction flows
+## 4. Data model — `discord_cases`
 
-### 4.1 `/hilfe` — interactive help hub
+Inline `CREATE TABLE IF NOT EXISTS` (the project's self-healing DDL pattern, AGENTS §5), run on first use by the store module:
 
-```
-/hilfe   (type 2 command)
-  → embed "Avesmaps-Hilfe" + a string-select menu listing the FAQ topics,
-    plus buttons  [🐞 Bug melden]  [💡 Idee einreichen]
-User picks a topic   (type 3 message-component)
-  → reply (ephemeral) with that topic's answer
-User clicks a button (type 3)
-  → open the corresponding modal (same as /bug or /idee below)
-```
-
-### 4.2 `/faq` — quick FAQ
-
-Same select-menu as `/hilfe` without the hub framing (a shortcut). May simply be
-an alias that reuses the `/hilfe` builder. (If we want to stay minimal we ship
-only `/hilfe` and drop `/faq` — decided in planning.)
-
-### 4.3 `/bug` and `/idee` — file feedback
-
-```
-/bug   (type 2 command)         [/idee is identical with 💡 wording]
-  → respond with a MODAL (response type 9) with fields:
-      • "Titel / Kurzfassung"   (short,     required)
-      • "Beschreibung"          (paragraph, required)
-      • "Wo? URL oder Ort"      (short,     optional)
-User submits the modal   (type 5 modal-submit)
-  → post a formatted embed to the configured feedback channel
-    (POST /channels/{id}/messages with the bot token) — includes the reporter's
-    Discord username and the field contents
-  → reply to the user (ephemeral): "Danke! Dein Bug wurde weitergegeben. 🐞"
+```sql
+CREATE TABLE IF NOT EXISTS discord_cases (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    kind ENUM('bug','idea','question') NOT NULL,
+    title VARCHAR(300) NOT NULL,
+    body TEXT NOT NULL,
+    location VARCHAR(500) NULL,
+    reporter VARCHAR(190) NOT NULL,
+    reporter_id VARCHAR(40) NULL,
+    channel_id VARCHAR(40) NULL,
+    message_id VARCHAR(40) NULL,
+    status ENUM('open','solved') NOT NULL DEFAULT 'open',
+    created_at DATETIME NOT NULL,
+    solved_at DATETIME NULL,
+    solved_by VARCHAR(190) NULL,
+    INDEX idx_status_created (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-- **Destination = a Discord channel** (owner decision 2026-07-06). No backend, no
-  mail. The community + mods see everything in Discord and can discuss/upvote.
-  Backend integration is an easy later add (§10).
-- Bug and idea post into **two separate channels** (`bug_channel_id`,
-  `idea_channel_id`) — owner decision 2026-07-06. Real ids live in
-  `config.local.php`, never in the repo.
+The case `id` is the human-facing case number ("Fall #42") shown in the channel
+embed and used by `/erledigt`.
 
-## 5. FAQ content (reuse, don't reinvent)
+## 5. Channels & config
 
-- `index.html` already carries **7 German FAQ Q&A** (JSON-LD `FAQPage` +
-  a visible `<dl>`, coupled byte-for-byte): *Was ist Avesmaps? · Was ist
-  Aventurien? · Reiserouten planen? · Politische Grenzen? · Kostenlos? · Routen
-  teilen? · Offiziell?*
-- The bot serves these from its own small `api/discord/faq.de.json`, seeded from
-  those answers. The site stays untouched.
-- **Known minor duplication:** this is a third copy of the FAQ text. Accepted for
-  Phase 1 (7 short, low-churn entries). Unifying site + bot onto one source is a
-  possible later cleanup, **not** now.
+Four channels (owner-created; ids are not secret but live only in
+`config.local.php`, never the repo):
 
-## 6. Config & secrets
+- bugs `1523681334248079432`, ideen `1523681441177669722`,
+  fragen/FAQ `1523685730470330509`, report `1523690349816447157`.
 
 ```php
 'discord' => [
-    'public_key'          => '…',  // NOT secret — verify signatures
-    'application_id'      => '…',  // NOT secret
-    'bot_token'       => '…',  // SECRET — config.local.php only, never committed
-    'bug_channel_id'  => '…',  // channel that /bug posts into
-    'idea_channel_id' => '…',  // channel that /idee posts into
+    'public_key'        => '…',  // NOT secret — verify signatures
+    'application_id'    => '…',  // NOT secret
+    'bot_token'         => '…',  // SECRET — STRATO only
+    'app_token'         => '…',  // SECRET — gates cases-export.php + report-post.php
+    'bug_channel_id'    => '…',
+    'idea_channel_id'   => '…',
+    'faq_channel_id'    => '…',
+    'report_channel_id' => '…',
+    'guild_id'          => '',   // optional: instant slash-command registration
 ],
 ```
 
-- Real values live in `api/config.local.php` (already gitignored).
-- Known non-secret values for this app: Application ID `1523674862038683689`,
-  Public Key `7281e27c…1026c3`.
-- The **bot token, the invite link, and channel ids never enter the repo.**
+## 6. Intake flow (all three kinds)
 
-## 7. Discord contract & security
+```
+/bug  (or /idee, /frage, or the /hilfe buttons)
+  → modal: Titel / Kurzfassung (required), Beschreibung (required), Wo? (optional)
+User submits (MODAL_SUBMIT)
+  → INSERT into discord_cases -> new case id
+  → build embed "🐞 Fall #<id>: <title>" (+ body, Wo?, Von: <reporter>)
+  → POST embed to the kind's channel (bot token)
+  → ephemeral: "Danke! Dein Bug wurde als Fall #<id> aufgenommen. 🐞"
+```
 
-- **Signature:** every request carries `X-Signature-Ed25519` and
-  `X-Signature-Timestamp`. Verify `timestamp + raw_body` against the application
-  public key with `sodium_crypto_sign_verify_detached` **before** parsing.
-  Invalid → HTTP 401.
-- **PING:** interaction type 1 → `{ "type": 1 }` (PONG).
-- **Interaction types handled:** 1 PING, 2 APPLICATION_COMMAND, 3
-  MESSAGE_COMPONENT, 5 MODAL_SUBMIT.
-- **Response types used:** 1 PONG, 4 CHANNEL_MESSAGE_WITH_SOURCE (with the
-  `EPHEMERAL` flag for confirmations/answers), 9 MODAL.
-- **Channel post:** `POST /channels/{id}/messages` with `Authorization: Bot
-  <token>`. Needs the bot to be in the server with **Send Messages** in that
-  channel.
-- **Timing:** all responses are synchronous and well under 3 s; no deferral.
-- **`register-commands.php`:** registers the command definitions via the Discord
-  REST API using the bot token. **Not** a plain public URL — run from CLI or gate
-  behind a one-off secret + `.htaccess`.
-- ⚠️ **Risk to verify in planning:** `ext-sodium` must be enabled on STRATO (PHP
-  8 normally bundles it). Probe once; if absent, add a userland Ed25519 verifier.
+The store INSERT and the channel POST are the endpoint's two side effects; the
+router stays pure and returns a `submit_case` decision the endpoint executes.
 
-## 8. Testing
+## 7. Case close flow
 
-- **Pure functions** get small PHP test scripts (run with `php`):
-  - signature verification (valid + invalid cases),
-  - FAQ lookup (topic id → correct answer; unknown id → safe fallback),
-  - `/hilfe` embed + select-menu builder,
-  - modal definition builder,
-  - feedback-embed builder (fields + reporter → correct embed JSON).
-- **Endpoint smoke test:** Discord's "Save" ping (must return PONG); a documented,
-  correctly-signed `/bug` → modal → modal-submit round-trip.
-- **Open item:** confirm a local PHP CLI on the Windows dev box; else run tests
-  against a scratch PHP or on the server. Decide in planning.
+```
+/erledigt nummer:<id>     (team)
+  → UPDATE discord_cases SET status='solved', solved_at=…, solved_by=<user> WHERE id=<id> AND status='open'
+  → ephemeral: "Fall #<id> als erledigt markiert. ✅"  (or "nicht gefunden / schon erledigt")
+```
 
-## 9. Owner prerequisites (🔧 DU — copyable steps come in the plan)
+## 8. App endpoints for Part B (token-gated)
 
-1. ✅ Discord server + channel created.
-2. ✅ Discord **Application** "Avesmaps" created; Application ID + Public Key noted.
-3. Create a dedicated **feedback channel** (e.g. `#bugs-und-ideen`) and copy its
-   **Channel ID** (enable Developer Mode → right-click channel → Copy ID).
-4. In the app's **Bot** tab, copy the **Bot Token**.
-5. Put App ID / Public Key / Bot Token / feedback channel id into
-   `api/config.local.php`.
-6. Invite the bot to the server with the `applications.commands` scope **and** a
-   bot permission that includes **Send Messages** in the feedback channel.
-7. After deploy, set the app's **Interactions Endpoint URL** to
-   `https://avesmaps.de/api/discord/interactions.php` (Discord verifies it with a
-   signed PING).
-8. Run the command registration once.
+- `GET api/discord/cases-export.php` — requires `app_token` (header
+  `X-Avesmaps-Token` or `?token=`). Returns `{ ok:true, cases:[ open cases with
+  id, kind, title, body, location, reporter, created_at ] }`.
+- `POST api/discord/report-post.php` — requires `app_token`. Body: `{ content?:
+  string, embeds?: array }`. Posts it to `report_channel_id` via the bot token.
+  Returns `{ ok:true, status:int }`. This is what lets Part B post without ever
+  holding the bot token.
 
-## 10. Out of scope for Phase 1 (future phases)
+Both live in the public `api/discord/` dir but are useless without the
+`app_token`. They are the **only** app-token surface.
 
-- **Phase 2 — map search (`/karte`):** live-autocomplete over the existing
-  `GET /api/app/map-search.php` (as-is, no refactor, no cache); reply embed + an
-  **"Auf der Karte öffnen"** link `https://avesmaps.de/?place=<public_id>`
-  (`buildPlaceShareUrl` → `applyPlaceFocusFromUrl`, chain location → label →
-  region). Open detail: confirm `?place=` focuses **paths** and **political
-  territories**; if not, fall back to the wiki deep-link params
-  (`?strasse=` / `?fluss=` / `?staat=` / `?region=`) for those kinds. *(This was
-  the original Phase-1 research; preserved here.)*
-- **Phase 3 — routes:** `/route <von> <nach>` over `POST /api/route/`.
-- **Phase 4 — notifications:** a STRATO cron "what's new" digest posted to a
-  channel via a webhook.
-- **Phase 5 — polish:** optional backend integration for feedback (store/mail in
-  addition to the channel post), coat-of-arms images in embeds (gated to
-  `public_domain`), and unifying the site + bot FAQ onto one source.
+## 9. Part B — scheduled Claude triage routine (Phase 1b)
+
+- **What it does, daily:** `GET cases-export.php` → for the open cases: group by
+  theme, flag likely duplicates, for bugs propose a probable cause / fix pointer,
+  for questions draft an answer and mark FAQ-worthy ones, for ideas cluster and
+  note effort. Compose a concise **German** report. `POST report-post.php` to drop
+  it into the report channel.
+- **How it runs:** a scheduled **Claude Code routine** (recommended — runs in the
+  owner's Claude environment; can go beyond text and propose FAQ entries or fix
+  PRs). Alternative: a PHP cron calling the Claude API (separate per-token API
+  cost). Runtime is finalized at the start of Phase 1b.
+- **Secrets for the routine:** only the `app_token` and the site base URL — **not**
+  the Discord bot token. Stored in the routine's own config, never in the repo.
+- **Reliability:** if the routine skips a day, no report is posted that day; cases
+  remain in the store and appear in the next run. Acceptable for a hobby project.
+
+## 10. Security
+
+- **Interactions:** Ed25519 signature verified before any parsing (`ext-sodium`);
+  invalid → 401. PING → PONG.
+- **App endpoints:** constant-time `app_token` comparison (`hash_equals`); missing/
+  wrong → 401. No token in query logs where avoidable (prefer the header).
+- **Bot token** only on STRATO. **`register-commands.php`** is CLI-only.
+- `api/_internal/discord/**` stays `.htaccess`-denied (used via PHP include).
+
+## 11. Testing
+
+- Pure functions (signature, FAQ, all builders, router incl. `/frage` `/erledigt`
+  and `submit_case`/`close_case`, report-post payload, token check) → PHP test
+  scripts, run locally with `php -d extension=sodium -d extension=curl`.
+- The store (`discord_cases`) is tested against a **SQLite** PDO in-memory handle
+  (the module takes a `PDO`, so tests inject SQLite; production injects MySQL) —
+  keeps DB tests hermetic and local, no MySQL needed. DDL uses portable columns;
+  a MySQL-only `ENUM`/`ENGINE` variant is applied only on MySQL (detected via
+  `PDO::ATTR_DRIVER_NAME`).
+- Endpoints (`cases-export`, `report-post`, `interactions`) keep logic in
+  injectable functions so the token gate + dispatch are unit-tested; the live
+  Discord POST is exercised by the Phase-1a smoke test.
+
+## 12. Owner prerequisites (🔧 DU)
+
+1. ✅ Server, app, four channels created; App ID + Public Key known; bot token stashed.
+2. Fill `api/config.local.php` `discord` block: bot token, a fresh random
+   `app_token`, the four channel ids, optional `guild_id`.
+3. Deploy, set Interactions Endpoint URL, register commands (Phase 1a).
+4. Phase 1b: set up the scheduled Claude routine with the `app_token` + base URL.
+
+## 13. Out of scope (future phases)
+
+- **Map search (`/karte`)** — autocomplete over `GET /api/app/map-search.php`
+  as-is → `?place=<public_id>` links. Research preserved from the earlier draft.
+- **Routes** (`/route` over `POST /api/route/`), coat-of-arms embeds, unifying the
+  site + bot FAQ onto one source.
