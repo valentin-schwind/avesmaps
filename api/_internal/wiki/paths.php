@@ -42,7 +42,7 @@ function avesmapsWikiPathEnsureTables(PDO $pdo): void {
             continent VARCHAR(120) NULL,
             lage VARCHAR(500) NULL,
             laenge VARCHAR(120) NULL,
-            verlauf VARCHAR(1000) NULL,
+            verlauf TEXT NULL,
             description TEXT NULL,
             synonyms_json JSON NULL,
             source_categories_json JSON NULL,
@@ -86,6 +86,18 @@ function avesmapsWikiPathEnsureTables(PDO $pdo): void {
             KEY idx_wiki_path_queue_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+
+    // Self-healing migration: verlauf was VARCHAR(1000) until 2026-07-05 and silently
+    // truncated long routes (Reichsstrasse 3 lost everything past station 30). The
+    // metadata probe is one light SELECT per request on this low-traffic editor
+    // endpoint; the ALTER itself runs exactly once.
+    $columnType = $pdo->query(
+        "SELECT DATA_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . AVESMAPS_WIKI_PATH_STAGING_TABLE . "' AND COLUMN_NAME = 'verlauf'"
+    )->fetchColumn();
+    if ($columnType === 'varchar') {
+        $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' MODIFY verlauf TEXT NULL');
+    }
 }
 
 function avesmapsWikiPathBuildStatus(PDO $pdo): array {
@@ -331,6 +343,84 @@ function avesmapsWikiPathCrawlStep(PDO $pdo, string $runId, array $options = [])
     ];
 }
 
+// Extracts the ordered ON-ROUTE stations from a Verlauf field. Wiki route boxes are
+// structured tables: the FIRST positional param of a row template is the station on
+// THIS way; later params are branch/crossing targets of FOREIGN ways (owner report
+// 2026-07-05: Reichsstrasse 3 routed via Winhall because crossing targets leaked into
+// the chain). River rows add tributaries that are rivers, not stations. Rules per row
+// template (name folded, "Straßenquerung" -> "strassenquerung"):
+//   - zufluss* / zusammenfluss / flussquerung / anschluss: contributes NO station
+//     (tributary, source rivers, crossed river on road pages, connecting road)
+//   - strassenquerung / flussmuendung: the on-route place is positional param 2
+//     (param 1 is the crossing road resp. the sea)
+//   - every other row template (strasse, fluss, kreuzung, abzweigung*, pass, hafen,
+//     unknown): positional param 1
+// Named params (Zwei=j) never contribute. Fields without any template fall back to
+// the previous behaviour (every [[link]] in order) so plain-prose Verlauf keep working.
+function avesmapsWikiPathExtractVerlaufStations(string $verlaufRaw): array {
+    $stations = [];
+    $pushStationFromParam = static function (string $paramText) use (&$stations): void {
+        if (preg_match('/\[\[([^\]]+)\]\]/u', $paramText, $linkMatch) !== 1) {
+            return;
+        }
+        $parts = explode('|', (string) $linkMatch[1]);
+        $station = trim((string) end($parts));
+        if ($station !== '' && !str_contains($station, ':')) {
+            $stations[] = $station;
+        }
+    };
+
+    if (strpos($verlaufRaw, '{{') === false) {
+        // Plain-prose Verlauf (no route-row templates): keep the legacy all-links parse.
+        if (preg_match_all('/\[\[([^\]]+)\]\]/u', $verlaufRaw, $vm) >= 1) {
+            foreach ($vm[1] as $linkText) {
+                $pushStationFromParam('[[' . (string) $linkText . ']]');
+            }
+        }
+
+        return array_values(array_unique($stations));
+    }
+
+    preg_match_all('/\{\{\s*([^{}|]+?)\s*(\|(?:[^{}]|\{\{[^{}]*\}\})*)?\}\}/us', $verlaufRaw, $rows, PREG_SET_ORDER);
+    foreach ($rows as $row) {
+        $templateName = str_replace(
+            ["\u{00DF}", "\u{00E4}", "\u{00F6}", "\u{00FC}", ' '],
+            ['ss', 'ae', 'oe', 'ue', ''],
+            mb_strtolower(trim((string) $row[1]), 'UTF-8')
+        );
+        if (str_starts_with($templateName, 'zufluss')
+            || $templateName === 'zusammenfluss'
+            || $templateName === 'flussquerung'
+            || $templateName === 'anschluss') {
+            continue;
+        }
+        $wantedPosition = ($templateName === 'strassenquerung' || $templateName === 'flussmuendung') ? 2 : 1;
+
+        // Split the param body on TOP-LEVEL pipes only: pipes inside [[links]] and
+        // nested {{templates}} are masked first, then restored per param.
+        $body = (string) ($row[2] ?? '');
+        $masked = preg_replace_callback(
+            '/\[\[[^\]]*\]\]|\{\{[^{}]*\}\}/us',
+            static fn(array $m): string => str_replace('|', "\x01", $m[0]),
+            $body
+        ) ?? $body;
+        $position = 0;
+        foreach (array_slice(explode('|', $masked), 1) as $param) {
+            $param = str_replace("\x01", '|', $param);
+            if (preg_match('/^\s*[\w\x{00C0}-\x{017F}]+\s*=/u', $param) === 1) {
+                continue; // named param (Zwei=j)
+            }
+            $position++;
+            if ($position === $wantedPosition) {
+                $pushStationFromParam($param);
+                break;
+            }
+        }
+    }
+
+    return array_values(array_unique($stations));
+}
+
 // Parst eine Wiki-Seite mit {{Infobox Fluss}} ODER {{Infobox Straße}} in einen Staging-Record.
 function avesmapsWikiPathParsePage(string $title, string $wikitext, string $canonicalTitle = '', string $source = '', string $categories = ''): array {
     $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
@@ -357,19 +447,12 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
     $lage = $field(['regionen', 'region', 'lage']);
     $laenge = $field(['lange', 'langen', 'lenge']);
 
-    // Verlauf: geordnete Stationen aus den [[Links]] der Verlauf-Templatekette.
+    // Verlauf: geordnete ON-ROUTE-Stationen der Verlauf-Templatekette (template-aware,
+    // s. avesmapsWikiPathExtractVerlaufStations — Abzweig-/Kreuzungs-Ziele fremder Wege
+    // und Nebenfluesse duerfen NIE in die Kette).
     $verlaufRaw = avesmapsWikiSyncMonitorField($norm, ['verlauf']);
-    $stations = [];
-    if (preg_match_all('/\[\[([^\]]+)\]\]/u', $verlaufRaw, $vm) >= 1) {
-        foreach ($vm[1] as $linkText) {
-            $parts = explode('|', (string) $linkText);
-            $station = trim((string) end($parts));
-            if ($station !== '' && !str_contains($station, ':')) {
-                $stations[] = $station;
-            }
-        }
-    }
-    $verlauf = mb_substr(implode(' → ', array_slice(array_values(array_unique($stations)), 0, 30)), 0, 1000, 'UTF-8');
+    $stations = avesmapsWikiPathExtractVerlaufStations($verlaufRaw);
+    $verlauf = mb_substr(implode(' → ', array_slice($stations, 0, 60)), 0, 4000, 'UTF-8');
 
     $navHints = '';
     if (preg_match_all('/\{\{\s*(Nav\s+[^}|]+|Aventurien|Myranor|G[üu]ldenland|Gueldenland|Rakshazar|Riesland|Tharun|Uthuria|Lahmaria)\b/iu', $wikitext, $navMatches) >= 1) {
