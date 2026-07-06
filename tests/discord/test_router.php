@@ -52,4 +52,31 @@ t_eq($close['type'], 'close_case', '/erledigt -> close_case');
 t_eq($close['case_id'], 42, 'close case id');
 t_eq($close['closed_by'], 'chef', 'closed_by captured');
 
+// idea kind: command, button, and modal submit -> idea channel (was untested)
+t_eq(avesmapsDiscordRouteInteraction(['type' => 2, 'data' => ['name' => 'idee']], $faq, $config)['response']['data']['custom_id'], AVESMAPS_DISCORD_IDEA_MODAL_ID, '/idee -> idea modal');
+t_eq(avesmapsDiscordRouteInteraction(['type' => 3, 'data' => ['custom_id' => AVESMAPS_DISCORD_IDEA_BUTTON_ID]], $faq, $config)['response']['data']['custom_id'], AVESMAPS_DISCORD_IDEA_MODAL_ID, 'idea button -> idea modal');
+$ideaSubmit = avesmapsDiscordRouteInteraction(['type' => 5, 'data' => ['custom_id' => AVESMAPS_DISCORD_IDEA_MODAL_ID, 'components' => []], 'user' => ['username' => 'u', 'id' => '1']], $faq, $config);
+t_eq($ideaSubmit['type'], 'submit_case', 'idea submit -> submit_case');
+t_eq($ideaSubmit['kind'], 'idea', 'idea submit kind');
+t_eq($ideaSubmit['channel_id'], '222', 'idea submit -> idea channel');
+
+// fallback branches: each returns an ephemeral respond carrying a content message
+foreach ([
+    ['type' => 2, 'data' => ['name' => 'bogus']],
+    ['type' => 3, 'data' => ['custom_id' => 'bogus']],
+    ['type' => 5, 'data' => ['custom_id' => 'bogus', 'components' => []]],
+    ['type' => 4],
+] as $i => $unknown) {
+    $r = avesmapsDiscordRouteInteraction($unknown, $faq, $config);
+    t_eq($r['type'], 'respond', "fallback #{$i} -> respond");
+    t_ok(isset($r['response']['data']['content']), "fallback #{$i} -> content message");
+}
+
+// FAQ id not found -> unknown-answer (a content message, not an embed)
+$noFaq = avesmapsDiscordRouteInteraction(['type' => 3, 'data' => ['custom_id' => AVESMAPS_DISCORD_HELP_SELECT_ID, 'values' => ['does-not-exist']]], $faq, $config);
+t_ok(isset($noFaq['response']['data']['content']), 'unknown FAQ id -> unknown-answer content');
+
+// reporter fallback when no user is present
+t_eq(avesmapsDiscordRouteInteraction(['type' => 5, 'data' => ['custom_id' => AVESMAPS_DISCORD_BUG_MODAL_ID, 'components' => []]], $faq, $config)['reporter'], 'Unbekannt', 'missing user -> reporter Unbekannt');
+
 t_done();
