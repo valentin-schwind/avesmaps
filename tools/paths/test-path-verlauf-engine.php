@@ -299,6 +299,34 @@ check('trace follows the straight line', array_column($trace['segments'], 'publi
 check('trace via lists interior nodes', $trace['via'], ['J', 'K']);
 check('trace unreachable', avesmapsWikiPathVerlaufTraceHop($traceGraph, 'A', 'Nirgendwo')['found'], false);
 
+// --- Gap snapping (owner decision 2026-07-06: "ignore the gap"): locations dock onto
+// nearby line vertices, hairline path-endpoint rifts get welded - assignment context only ---
+
+$snapNetwork = [
+    'locations' => [
+        ['name' => 'Elenvina', 'geometry' => ['type' => 'Point', 'coordinates' => [10.0005, 20.0]]],
+        ['name' => 'Zinnen', 'geometry' => ['type' => 'Point', 'coordinates' => [30.0, 22.8]]],
+        ['name' => 'Fernab', 'geometry' => ['type' => 'Point', 'coordinates' => [50.0, 30.0]]],
+    ],
+    'paths' => [
+        // endpoint misses Elenvina by 0.0005; interior vertex misses Zinnen by 2.8; nothing near Fernab (4.0 off)
+        ['name' => 'L1', 'geometry' => ['type' => 'LineString', 'coordinates' => [[10.0, 20.0], [30.0, 20.0], [50.0, 26.0]]]],
+        // hairline rift far from any location: L2 start is 0.03 away from L4 start
+        ['name' => 'L2', 'geometry' => ['type' => 'LineString', 'coordinates' => [[70.0, 20.03], [60.0, 20.0]]]],
+        ['name' => 'L4', 'geometry' => ['type' => 'LineString', 'coordinates' => [[70.0, 20.0], [75.0, 20.0]]]],
+        // clearly separate endpoints (0.5 apart, no location nearby) must NOT be welded
+        ['name' => 'L3', 'geometry' => ['type' => 'LineString', 'coordinates' => [[80.0, 20.5], [80.0, 10.0]]]],
+        ['name' => 'L5', 'geometry' => ['type' => 'LineString', 'coordinates' => [[80.0, 20.0], [85.0, 20.0]]]],
+    ],
+];
+$snapped = avesmapsWikiPathVerlaufSnapNetworkGaps($snapNetwork);
+check('snap docks hairline location', $snapped['paths'][0]['geometry']['coordinates'][0], [10.0005, 20.0]);
+check('snap docks nearby location onto interior vertex', $snapped['paths'][0]['geometry']['coordinates'][1], [30.0, 22.8]);
+check('snap leaves far location alone', $snapped['paths'][0]['geometry']['coordinates'][2], [50.0, 26.0]);
+check('snap welds hairline endpoints', $snapped['paths'][1]['geometry']['coordinates'][0] === $snapped['paths'][2]['geometry']['coordinates'][0], true);
+check('snap keeps separate endpoints apart', $snapped['paths'][3]['geometry']['coordinates'][0], [80.0, 20.5]);
+check('snap does not mutate the input', $snapNetwork['paths'][0]['geometry']['coordinates'][1], [30.0, 20.0]);
+
 // Regression: the production graph builder returns a WRAPPER ['graph' => adjacency,
 // 'statistics' => ...]; the tracer must unwrap it (indexing the wrapper made every live
 // trace fail instantly and fall back to Dijkstra + foreign-town block).

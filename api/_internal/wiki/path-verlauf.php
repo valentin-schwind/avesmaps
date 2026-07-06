@@ -345,6 +345,116 @@ function avesmapsWikiPathVerlaufTraceHop(array $graph, string $fromName, string 
     return ['found' => true, 'reason' => '', 'segments' => $segments, 'via' => $via];
 }
 
+// Assignment-context gap snapping (owner decision 2026-07-06, "ignore the gap"): the routing
+// COPY of the network pulls path vertices within DOCK_RADIUS exactly onto a nearby location
+// point (covers hairline rifts like Elenvina at 0.00054 units AND places drawn beside their
+// road like Zinnen am Ratsforst at 2.77) and welds path endpoints within WELD_RADIUS of each
+// other (pure float-drift rifts between two drawn lines). Stored geometry, the public route
+// planner and both live routing engines stay untouched; the global synthetic Querfeldein
+// bridges (median length ~172 units) remain excluded from course computation.
+const AVESMAPS_WIKI_PATH_VERLAUF_DOCK_RADIUS = 3.5;
+const AVESMAPS_WIKI_PATH_VERLAUF_WELD_RADIUS = 0.05;
+
+function avesmapsWikiPathVerlaufSnapNetworkGaps(array $networkData): array {
+    $locations = is_array($networkData['locations'] ?? null) ? $networkData['locations'] : [];
+    $paths = is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [];
+    $cellSize = 8.0; // spatial-hash cell, must stay >= DOCK_RADIUS
+
+    $locationGrid = [];
+    foreach ($locations as $location) {
+        $point = $location['geometry']['coordinates'] ?? null;
+        if (!is_array($point) || !is_numeric($point[0] ?? null) || !is_numeric($point[1] ?? null)) {
+            continue;
+        }
+        $x = (float) $point[0];
+        $y = (float) $point[1];
+        $locationGrid[((int) floor($x / $cellSize)) . ':' . ((int) floor($y / $cellSize))][] = [$x, $y];
+    }
+    $nearestLocation = static function (float $x, float $y) use ($locationGrid, $cellSize): ?array {
+        $cellX = (int) floor($x / $cellSize);
+        $cellY = (int) floor($y / $cellSize);
+        $best = null;
+        $bestDistance = AVESMAPS_WIKI_PATH_VERLAUF_DOCK_RADIUS;
+        for ($dx = -1; $dx <= 1; $dx++) {
+            for ($dy = -1; $dy <= 1; $dy++) {
+                foreach ($locationGrid[($cellX + $dx) . ':' . ($cellY + $dy)] ?? [] as $point) {
+                    $distance = hypot($x - $point[0], $y - $point[1]);
+                    if ($distance <= $bestDistance) {
+                        $bestDistance = $distance;
+                        $best = $point;
+                    }
+                }
+            }
+        }
+
+        return $best;
+    };
+
+    // Pass 1 (dock): per path, pull for each nearby location only the NEAREST vertex onto the
+    // location point (one junction per place, no degenerate duplicate vertices).
+    foreach ($paths as $pathIndex => $path) {
+        $coordinates = $path['geometry']['coordinates'] ?? null;
+        if (!is_array($coordinates)) {
+            continue;
+        }
+        $bestByLocation = [];
+        foreach ($coordinates as $vertexIndex => $coordinate) {
+            if (!is_array($coordinate) || !is_numeric($coordinate[0] ?? null) || !is_numeric($coordinate[1] ?? null)) {
+                continue;
+            }
+            $location = $nearestLocation((float) $coordinate[0], (float) $coordinate[1]);
+            if ($location === null) {
+                continue;
+            }
+            $locationKey = $location[0] . ':' . $location[1];
+            $distance = hypot((float) $coordinate[0] - $location[0], (float) $coordinate[1] - $location[1]);
+            if (!isset($bestByLocation[$locationKey]) || $distance < $bestByLocation[$locationKey]['distance']) {
+                $bestByLocation[$locationKey] = ['index' => $vertexIndex, 'distance' => $distance, 'point' => $location];
+            }
+        }
+        foreach ($bestByLocation as $dock) {
+            $paths[$pathIndex]['geometry']['coordinates'][$dock['index']] = [$dock['point'][0], $dock['point'][1]];
+        }
+    }
+
+    // Pass 2 (weld): unify path ENDPOINTS within WELD_RADIUS (first endpoint seen wins).
+    $endpointGrid = [];
+    $weldCell = 1.0;
+    $canonical = static function (float $x, float $y) use (&$endpointGrid, $weldCell): array {
+        $cellX = (int) floor($x / $weldCell);
+        $cellY = (int) floor($y / $weldCell);
+        for ($dx = -1; $dx <= 1; $dx++) {
+            for ($dy = -1; $dy <= 1; $dy++) {
+                foreach ($endpointGrid[($cellX + $dx) . ':' . ($cellY + $dy)] ?? [] as $point) {
+                    if (hypot($x - $point[0], $y - $point[1]) <= AVESMAPS_WIKI_PATH_VERLAUF_WELD_RADIUS) {
+                        return $point;
+                    }
+                }
+            }
+        }
+        $endpointGrid[$cellX . ':' . $cellY][] = [$x, $y];
+
+        return [$x, $y];
+    };
+    foreach ($paths as $pathIndex => $path) {
+        $coordinates = $path['geometry']['coordinates'] ?? null;
+        if (!is_array($coordinates) || count($coordinates) < 2) {
+            continue;
+        }
+        foreach ([0, count($coordinates) - 1] as $endIndex) {
+            $coordinate = $coordinates[$endIndex];
+            if (!is_array($coordinate) || !is_numeric($coordinate[0] ?? null) || !is_numeric($coordinate[1] ?? null)) {
+                continue;
+            }
+            $paths[$pathIndex]['geometry']['coordinates'][$endIndex] = $canonical((float) $coordinate[0], (float) $coordinate[1]);
+        }
+    }
+
+    $networkData['paths'] = $paths;
+
+    return $networkData;
+}
+
 // Foreign-town guard passage radius (map units): a hop segment whose geometry comes this close
 // to a town's point counts as passing THROUGH that town (towns often sit on a spur beside the
 // through-line, so route-node names alone miss them - the Alfenmohn case on Reichsstrasse 3).
@@ -943,10 +1053,11 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
     $mapData = null;
     $networkData = null;
     $locationLookup = null;
-    $townLookup = null;    // lowered name => true for kleinstadt and above (foreign-town guard)
+    $townLookup = null;    // lowered name => town entry for kleinstadt and above (foreign-town guard)
     $routersByKind = [];   // kind => callable
+    $connectedByKind = []; // kind => [lowered node name => true] for nodes with >=1 REAL edge
 
-    $router = static function (string $kind) use ($config, &$mapData, &$networkData, &$locationLookup, &$townLookup, &$routersByKind): callable {
+    $router = static function (string $kind) use ($config, &$mapData, &$networkData, &$locationLookup, &$townLookup, &$routersByKind, &$connectedByKind): callable {
         if (isset($routersByKind[$kind])) {
             return $routersByKind[$kind];
         }
@@ -959,7 +1070,11 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
         ];
         $request = avesmapsNormalizeRouteRequest($rawRequest);
         $mapData ??= avesmapsLoadRouteMapData($config);
-        $networkData ??= avesmapsBuildRouteNetworkData($mapData);
+        if ($networkData === null) {
+            // Gap snapping on the routing copy only (dock places onto nearby lines, weld
+            // hairline rifts) - owner decision 2026-07-06, see the snap function's comment.
+            $networkData = avesmapsWikiPathVerlaufSnapNetworkGaps(avesmapsBuildRouteNetworkData($mapData));
+        }
         if ($locationLookup === null) {
             $locationLookup = [];
             $townLookup = [];
@@ -981,6 +1096,22 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
             }
         }
         $graph = avesmapsBuildClientCompatibleRouteGraph($networkData, $request);
+        // Nodes reachable over at least one REAL (non-synthetic) edge in THIS kind's network.
+        // Stations whose place has no real edge get dropped from the kind's location lookup so
+        // the chain bridges across them (they surface as missing stations - map-care hint).
+        $adjacency = is_array($graph['graph'] ?? null) ? $graph['graph'] : $graph;
+        $connected = [];
+        foreach ($adjacency as $node => $arms) {
+            foreach ((is_array($arms) ? $arms : []) as $connections) {
+                foreach ((is_array($connections) ? $connections : []) as $connection) {
+                    if (empty($connection['synthetic'])) {
+                        $connected[avesmapsWikiPathVerlaufLower((string) $node)] = true;
+                        continue 3;
+                    }
+                }
+            }
+        }
+        $connectedByKind[$kind] = $connected;
         $kindRouter = static function (string $from, string $to) use ($graph, $request, $kind): array {
             // Roads: follow the DRAWN line first (owner model "an der Kanon-Strasse
             // entlanghangeln") - places on the line are passage, not corridor errors.
@@ -1006,8 +1137,16 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
         return $kindRouter;
     };
 
-    $lookup = static function () use (&$locationLookup): array {
-        return $locationLookup ?? [];
+    $lookup = static function (string $kind = '') use (&$locationLookup, &$connectedByKind, $router): array {
+        $base = $locationLookup ?? [];
+        if ($kind === '') {
+            return $base;
+        }
+        if (!isset($connectedByKind[$kind])) {
+            $router($kind); // builds the graph (memoized) and with it the connectivity set
+        }
+
+        return array_intersect_key($base, $connectedByKind[$kind] ?? []);
     };
     $towns = static function () use (&$townLookup): array {
         return $townLookup ?? [];
@@ -1140,7 +1279,7 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
 
         $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
         $router = $buildRouter($kind);
-        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router, $towns());
+        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup($kind), $router, $towns());
         if ($case !== null) {
             $statusRow = $statusByWikiKey[$wikiKey] ?? null;
             $case['status'] = $statusRow !== null && (string) $statusRow['course_hash'] === (string) $case['staging_hash']
@@ -1189,7 +1328,7 @@ function avesmapsWikiPathVerlaufRecomputeCase(PDO $pdo, string $wikiKey, array $
     $towns = $routingContext['towns'];
     $router = $buildRouter($kind);
 
-    return avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router, $towns());
+    return avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup($kind), $router, $towns());
 }
 
 // Restamps the `keeps` of a case in place: sets wiki_path.course_hash = staging_hash and
@@ -1524,7 +1663,7 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
 
         $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
         $router = $buildRouter($kind);
-        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router, $towns());
+        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup($kind), $router, $towns());
         if ($case === null) {
             continue;
         }
