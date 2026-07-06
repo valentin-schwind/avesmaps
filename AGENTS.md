@@ -164,6 +164,15 @@ is the default, English is opt-in. Therefore:
 - **Git:** small, verified commits **directly to `master`**; push triggers a
   ~1–2 min auto-deploy. Verify the remote SHA after pushing. Conventional-commit
   prefixes (`feat/fix/chore/docs/perf/refactor`, plus the repo's custom `ui:`).
+- **Shared working tree — never `git add -A`:** multiple agent sessions share
+  this one checkout and `.git`, and other sessions may have **live uncommitted
+  work** in the tree right now. Never `git add -A`, `git add .`, or `git commit
+  -a` — that sweeps another session's half-finished files into your commit under
+  your message and mangles their history. Always `git status` first, identify
+  changes that aren't yours, and stage **only the files you yourself touched**,
+  by explicit path. Leave foreign modified/untracked files alone (that session
+  will commit them). If a push is rejected, `fetch` + `rebase origin/master`
+  (autostash) + retry — never force-push.
 - **STRATO caution:** never loop expensive endpoints (e.g. the political layer) —
   it saturated PHP workers once and looked like a DB outage. Probe with a single
   request.
