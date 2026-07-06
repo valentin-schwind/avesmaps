@@ -88,8 +88,9 @@ User submits the modal   (type 5 modal-submit)
 - **Destination = a Discord channel** (owner decision 2026-07-06). No backend, no
   mail. The community + mods see everything in Discord and can discuss/upvote.
   Backend integration is an easy later add (§10).
-- Bug vs. idea can share one channel (distinguished by embed colour/title) or use
-  two channel ids — see §6.
+- Bug and idea post into **two separate channels** (`bug_channel_id`,
+  `idea_channel_id`) — owner decision 2026-07-06. Real ids live in
+  `config.local.php`, never in the repo.
 
 ## 5. FAQ content (reuse, don't reinvent)
 
@@ -109,9 +110,9 @@ User submits the modal   (type 5 modal-submit)
 'discord' => [
     'public_key'          => '…',  // NOT secret — verify signatures
     'application_id'      => '…',  // NOT secret
-    'bot_token'           => '…',  // SECRET — config.local.php only, never committed
-    'feedback_channel_id' => '…',  // channel that /bug and /idee post into
-    // optional: 'idea_channel_id' to split ideas from bugs; defaults to feedback_channel_id
+    'bot_token'       => '…',  // SECRET — config.local.php only, never committed
+    'bug_channel_id'  => '…',  // channel that /bug posts into
+    'idea_channel_id' => '…',  // channel that /idee posts into
 ],
 ```
 
