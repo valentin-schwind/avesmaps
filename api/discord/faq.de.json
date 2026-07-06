@@ -1,0 +1,9 @@
+[
+    { "id": "was-ist-avesmaps", "q": "Was ist Avesmaps?", "a": "Avesmaps ist eine kostenlose, interaktive Aventurien-Karte und ein Routenplaner für das Pen-and-Paper-Rollenspiel Das Schwarze Auge (DSA)." },
+    { "id": "was-ist-aventurien", "q": "Was ist Aventurien?", "a": "Aventurien ist der zentrale Kontinent der Spielwelt Dere aus Das Schwarze Auge (englisch \"The Dark Eye\")." },
+    { "id": "reiserouten-planen", "q": "Kann ich mit Avesmaps Reiserouten planen?", "a": "Ja. Avesmaps plant Routen über mehrere Wegpunkte, wahlweise die schnellste oder kürzeste Strecke, über Land-, Fluss- und Seewege." },
+    { "id": "politische-grenzen", "q": "Zeigt Avesmaps die politischen Grenzen der Reiche?", "a": "Ja. Eine optionale politische Karte zeigt Herrschaftsgebiete und Reichsgrenzen, die sich ein- und ausblenden lassen." },
+    { "id": "kostenlos", "q": "Ist Avesmaps kostenlos?", "a": "Ja. Avesmaps ist ein kostenloses, nicht-kommerzielles Fanprojekt." },
+    { "id": "routen-teilen", "q": "Kann ich geplante Routen teilen?", "a": "Ja. Routen und Einstellungen sind in der URL kodiert und lassen sich per Link weitergeben." },
+    { "id": "offiziell", "q": "Ist Avesmaps offiziell?", "a": "Nein. Avesmaps ist ein inoffizielles Fanprojekt ohne Verbindung zu Ulisses Spiele." }
+]
