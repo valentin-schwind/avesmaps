@@ -878,6 +878,11 @@ document.addEventListener("click", (event) => {
 	const viewBtn = event.target.closest("[data-path-view]");
 	if (viewBtn) {
 		pathSyncView = viewBtn.dataset.pathView || "assigned";
+		// Owner wish 2026-07-06: CLICKING the Konflikte tab always recomputes (a running scan
+		// keeps going; renderPathSyncList's own trigger only covers the very first activation).
+		if (pathSyncView === "cases" && !verlaufCasesLoading) {
+			verlaufCasesLoaded = false;
+		}
 		renderPathSyncList();
 		return;
 	}
