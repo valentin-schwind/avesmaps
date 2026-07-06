@@ -410,15 +410,16 @@ function showRoutePlan(routeNames, segments) {
 		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
 			? ` ${tr("planner.leg.via", "über")} <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
 			: "";
-		// Stroemungsvermerk je Fluss-Etappe; Etappen ohne bekannte Richtung bleiben wie bisher.
-		const flowSuffix = entry.type === "Flussweg" && entry.flowState
-			? ` (${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")})`
+		// Stroemungsvermerk je Fluss-Etappe, in der Meilen-Klammer ("42.81 Meilen flussaufwärts",
+		// Owner-Wording); Etappen ohne bekannte Richtung bleiben wie bisher.
+		const flowWord = entry.type === "Flussweg" && entry.flowState
+			? ` ${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")}`
 			: "";
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${flowSuffix}${labelSuffix}
-			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")})
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}
+			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} <strong>${formattedStartName}</strong>
 			${tr("planner.leg.to", "bis")} <strong>${formattedEndName}</strong>
 			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(entry.travelTime / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})
