@@ -158,9 +158,11 @@ function renderPathSyncList() {
 		return;
 	}
 
-	// Toggle-Tabs (Alle / Platziert / Fehlt / Verlauf-Fälle) — im eigenen Container unter dem
-	// Suchfeld. „Platziert" = matched + mehrteilig. Tab-Zähler kontinent-bewusst (sonst stimmen
-	// sie nicht mit der gefilterten Liste überein). Verlauf-Fälle zählen offene Fälle (eigener Scan).
+	// Toggle-Tabs (Alle / Platziert / Fehlt / Konflikte / Flussrichtung unbekannt) — im eigenen
+	// Container unter dem Suchfeld. „Platziert" = matched + mehrteilig. Tab-Zähler kontinent-
+	// bewusst (sonst stimmen sie nicht mit der gefilterten Liste überein). Konflikte zählen
+	// offene Verlauf-Fälle (eigener Scan); Flussrichtung zählt Wege/Segmente ohne flow.dir
+	// (client-seitig aus pathData, kein Endpoint nötig).
 	const assignedCount =
 		((pathSyncData && pathSyncData.matched) || []).filter(pathContinentMatch).length +
 		((pathSyncData && pathSyncData.ambiguous) || []).filter(pathContinentMatch).length;
@@ -174,7 +176,8 @@ function renderPathSyncList() {
 			tab("all", "Alle", assignedCount + missingCount) +
 			tab("assigned", "Platziert", assignedCount) +
 			tab("missing", "Fehlt", missingCount) +
-			tab("cases", "Verlauf-Fälle", openCasesCount);
+			tab("cases", "Konflikte", openCasesCount) +
+			tab("flow", "Flussrichtung unbekannt", flowUnknownGroups().length);
 	}
 
 	if (pathSyncView === "cases") {
@@ -182,6 +185,11 @@ function renderPathSyncList() {
 		if (!verlaufCasesLoaded && !verlaufCasesLoading) {
 			void loadVerlaufCases();
 		}
+		return;
+	}
+
+	if (pathSyncView === "flow") {
+		renderFlowUnknownList(list);
 		return;
 	}
 
@@ -232,6 +240,74 @@ function renderPathSyncList() {
 	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
 	renderTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeOptions(), pathTypeFilter);
 	renderTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentOptions(), pathContinentFilter, "Kontinent");
+}
+
+// „Flussrichtung unbekannt": alle Flussweg-Segmente ohne flow.dir, gruppiert nach Weg
+// (wiki_key, sonst Anzeigename -- unbenannte/unzugeordnete Segmente stehen damit einzeln).
+// Rationale (Owner): ohne Richtung fehlt meist auch die Wiki-Zuordnung -- Arbeitsliste fuer
+// Editoren. Client-seitig aus pathData, kein Endpoint.
+function flowUnknownGroups() {
+	if (typeof pathData === "undefined" || !Array.isArray(pathData)) {
+		return [];
+	}
+	const groups = new Map();
+	pathData.forEach((path) => {
+		if (normalizePathSubtype(path.properties?.feature_subtype) !== "Flussweg") {
+			return;
+		}
+		const dir = path.properties?.flow?.dir;
+		if (dir === "forward" || dir === "reverse") {
+			return;
+		}
+		const wikiKey = String(path.properties?.wiki_path?.wiki_key || "");
+		const displayName = String(path.properties?.display_name || path.properties?.original_name || path.properties?.name || "Flussweg");
+		const key = wikiKey !== "" ? "wiki:" + wikiKey : "name:" + displayName;
+		if (!groups.has(key)) {
+			groups.set(key, {
+				name: wikiKey !== "" ? String(path.properties?.wiki_path?.name || displayName) : displayName,
+				wikiKey,
+				segments: [],
+			});
+		}
+		groups.get(key).segments.push({
+			public_id: String(path.properties?.public_id || ""),
+			name: String(path.properties?.name || ""),
+		});
+	});
+	const rows = [...groups.values()];
+	// Unzugeordnete zuerst (brauchen eine Zuweisung), dann nach Segmentanzahl, dann Name.
+	rows.sort((a, b) => {
+		const aUnassigned = a.wikiKey === "" ? 0 : 1;
+		const bUnassigned = b.wikiKey === "" ? 0 : 1;
+		return (aUnassigned - bUnassigned) || (b.segments.length - a.segments.length) || a.name.localeCompare(b.name);
+	});
+	return rows;
+}
+
+function renderFlowUnknownList(list) {
+	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
+	const rows = flowUnknownGroups().filter((row) =>
+		filterValue === "" || row.name.toLowerCase().includes(filterValue) || row.wikiKey.includes(filterValue)
+	);
+	const chip = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr(p.public_id)}">${pathSyncEscapeText(p.name || "Segment")}</button>`;
+	const items = rows
+		.map((row) => {
+			const hint = row.wikiKey === ""
+				? "keine Wiki-Zuordnung"
+				: `Wiki: ${pathSyncEscapeText(row.wikiKey)}`;
+			const segChips = `<span class="region-sync__map">${row.segments.slice(0, 40).map(chip).join(" ")}</span>`;
+			const meta = `${row.segments.length} Segment${row.segments.length === 1 ? "" : "e"} ohne Richtung · ${hint} ${segChips}`;
+			return (
+				'<div class="tree-item region-sync__item">' +
+				'<span class="drag-handle" aria-hidden="true"></span>' +
+				`<span class="tree-item-name">${pathSyncEscapeText(row.name)}</span>` +
+				`<span class="tree-item-meta">${meta}</span>` +
+				'<span class="tree-map-status" aria-hidden="true"></span>' +
+				"</div>"
+			);
+		})
+		.join("");
+	list.innerHTML = items || '<p class="review-panel__status">Alle Flüsse haben eine Richtung.</p>';
 }
 
 // Sequential cursor scan over ?action=verlauf_cases. NEVER parallel (STRATO) -- one request after
@@ -402,9 +478,11 @@ function renderVerlaufCaseList() {
 		`<span class="wiki-sync-panel__summary">${openCases.length} offen · ${deferredCases.length} zurückgestellt · ${archivedCases.length} archiviert</span>` +
 		`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="rescan">Neu berechnen</button>` +
 		"</div>" +
-		'<div class="wiki-sync-panel__actions">' +
-		`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="apply-clean"${cleanOpenCount ? "" : " disabled"}>Alle unstrittigen übernehmen (${cleanOpenCount})</button>` +
-		"</div>";
+		(cleanOpenCount
+			? '<div class="wiki-sync-panel__actions">' +
+				`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="apply-clean">Alle unstrittigen übernehmen (${cleanOpenCount})</button>` +
+				"</div>"
+			: "");
 
 	if (verlaufCasesLoading && verlaufCases.length === 0) {
 		list.innerHTML = topBar + '<p class="review-panel__status">Verläufe werden geprüft …</p>';
