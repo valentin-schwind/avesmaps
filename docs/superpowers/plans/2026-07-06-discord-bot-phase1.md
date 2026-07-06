@@ -17,7 +17,7 @@ Spec: `docs/superpowers/specs/2026-07-06-discord-bot-phase1-design.md`.
 - **No new dependencies.** `sodium`, `curl`, `pdo_sqlite` (tests) are stock extensions, loaded locally via CLI flags.
 - **Secrets:** bot token, `app_token`, channel ids, guild id → **only** `api/config.local.php` (gitignored, deploy-excluded). App ID `1523674862038683689` and Public Key `7281e27c…1026c3` are not secret.
 - **Shared working tree:** stage only the exact paths in each commit step. Never `git add -A`.
-- **Test runner (local):** `php -d extension=sodium -d extension=curl -d extension=pdo_sqlite <file>`. Tests under `tests/` (not deployed). Code under `api/` (deploy ships `api/` wholesale).
+- **Test runner (local):** `php -d extension=sodium -d extension=curl -d extension=pdo_sqlite -d extension=mbstring <file>`. mbstring is required by the response builders' `mb_strlen`/`mb_substr` (correct for German/emoji, matching the existing codebase's mbstring use in `map-search.php`; guaranteed present on STRATO). Tests under `tests/` (not deployed). Code under `api/` (deploy ships `api/` wholesale).
 - **Discord API base:** `https://discord.com/api/v10`.
 - **Case store DB is injected as a `PDO`** (production: MySQL via `avesmapsCreatePdo`; tests: `new PDO('sqlite::memory:')`). No time/`date()` inside pure functions — timestamps are passed in.
 - **Commit trailer:** every commit ends with `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
