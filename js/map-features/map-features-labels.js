@@ -359,9 +359,10 @@ function createLabelMarkerEntry(label) {
 				showType: true,
 				showDescription: false,
 				showWikiLink: false,
-				// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button).
+				// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button). wikiParam "region"
+				// deckt sich mit dem Deep-Link-Parameter fuer Landschaften/Regionen (js/app/wiki-deeplink.js).
 				actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
-					+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId)].filter(Boolean)),
+					+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
 			}),
 			{ className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true }
 		);

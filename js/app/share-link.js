@@ -46,12 +46,14 @@ function currentShareQuery() {
 	}
 	const params = new URLSearchParams(window.location.search);
 	// Editor-/Debug-Flags gehören nicht in einen geteilten Link (öffentliche Ansicht). Ebenso die
-	// Wiki-Deep-Link-Parameter (?siedlung/?staat/?region/?strasse/?fluss) -- sie fokussieren beim
-	// Laden ein Objekt und sollen nicht in einen später geteilten ?s=-Code einwandern.
+	// Wiki-Deep-Link-Parameter (?siedlung/?staat/?region/?strasse/?fluss) und der ältere
+	// ?place=<publicId>-Fokus-Parameter (js/map-features/map-features-share-pin.js) -- sie
+	// fokussieren beim Laden ein Objekt und sollen nicht in einen später geteilten ?s=-Code einwandern
+	// (ein Kurzlink-Code darf keinen Fokus-Parameter re-embedden).
 	const wikiDeeplinkParams = typeof WIKI_DEEPLINK_PARAM_NAMES !== "undefined"
 		? WIKI_DEEPLINK_PARAM_NAMES
 		: ["siedlung", "staat", "region", "strasse", "fluss"];
-	["s", "edit", "debugMap", "serverrouting", "clientrouting", "lang", ...wikiDeeplinkParams].forEach((key) => params.delete(key));
+	["s", "edit", "debugMap", "serverrouting", "clientrouting", "lang", "place", ...wikiDeeplinkParams].forEach((key) => params.delete(key));
 	return params.toString();
 }
 

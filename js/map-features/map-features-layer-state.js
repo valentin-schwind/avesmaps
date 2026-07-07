@@ -192,15 +192,18 @@ function copyRoutingModeFlags(searchParams) {
 	});
 }
 
-// Wiki deep-link params (?siedlung/?staat/?region/?strasse/?fluss, js/app/wiki-deeplink.js)
-// are read-only entry points: no UI state carries them, so the rebuilt query would silently
-// drop them and the URL would visibly "jump" to the toggle params right after the deep link
-// resolves. Re-merge them from the CURRENT url; the ?s= share-code strip list keeps them out
-// of share links independently.
+// Wiki deep-link params (?siedlung/?staat/?region/?strasse/?fluss, js/app/wiki-deeplink.js) AND
+// the older ?place=<publicId> share-link param (js/map-features/map-features-share-pin.js,
+// js/routing/routing.js applyPlaceFocusFromUrl) are read-only entry points: no UI state carries
+// them, so the rebuilt query would silently drop them and the URL would visibly "jump" to the
+// toggle params right after the deep link / place link resolves. Re-merge them from the CURRENT
+// url; the ?s= share-code strip list keeps them out of share links independently. "place" is
+// deliberately NOT added to WIKI_DEEPLINK_PARAM_NAMES (js/app/wiki-deeplink.js) -- that array
+// drives deep-link RESOLUTION routing and must stay exactly the 5 wiki params.
 function mergeWikiDeeplinkParams(searchParams, locationSearch) {
 	const paramNames = typeof WIKI_DEEPLINK_PARAM_NAMES !== "undefined" && Array.isArray(WIKI_DEEPLINK_PARAM_NAMES)
-		? WIKI_DEEPLINK_PARAM_NAMES
-		: ["siedlung", "staat", "region", "strasse", "fluss"];
+		? WIKI_DEEPLINK_PARAM_NAMES.concat(["place"])
+		: ["siedlung", "staat", "region", "strasse", "fluss", "place"];
 	let currentParams;
 	try {
 		currentParams = new URLSearchParams(String(locationSearch || ""));

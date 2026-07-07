@@ -316,6 +316,11 @@ function applyPlaceFocusFromUrl() {
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(PLACE_FOCUS_PUBLIC_ID) : null;
 	if (!entry) {
+		// ?place= links must keep their URL exactly like the wiki deep-links (js/app/wiki-deeplink.js):
+		// suppress the next syncPlannerStateToUrl writes around the focus hand-off, whichever branch below.
+		if (typeof suppressPlannerUrlSyncForWikiDeeplink === "function") {
+			suppressPlannerUrlSyncForWikiDeeplink();
+		}
 		// Kein Ort -> Label (Landschaft/Region) versuchen: hinfliegen + Infobox öffnen.
 		if (focusSharedLabelFromUrl(PLACE_FOCUS_PUBLIC_ID)) {
 			return;
@@ -325,6 +330,11 @@ function applyPlaceFocusFromUrl() {
 			focusRegionPlace(PLACE_FOCUS_PUBLIC_ID);
 		}
 		return;
+	}
+	// ?place= links must keep their URL exactly like the wiki deep-links (js/app/wiki-deeplink.js):
+	// suppress the syncPlannerStateToUrl call below (and any other sync a marker/category toggle triggers).
+	if (typeof suppressPlannerUrlSyncForWikiDeeplink === "function") {
+		suppressPlannerUrlSyncForWikiDeeplink();
 	}
 	// setView (synchron) statt flyTo: läuft als letzte View-Operation des Ladens und wird
 	// nicht vom Overview-fitBounds überfahren. Marker einblenden + Popup öffnen.
@@ -742,7 +752,12 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "share-place-link") {
 		const publicId = this.dataset.publicId;
 		if (publicId) {
-			void sharePlaceLinkWithFeedback(publicId);
+			// wikiUrl/wikiParam kommen aus data-Attributen (sharePlaceActionButtonMarkup, js/ui/popups.js):
+			// buildPlaceShareLink bevorzugt dann den Wiki-Deep-Link-Parameter statt ?place=<publicId>.
+			void sharePlaceLinkWithFeedback(publicId, {
+				wikiUrl: this.dataset.wikiUrl || "",
+				wikiParam: this.dataset.wikiParam || "",
+			});
 		}
 		return;
 	}
@@ -1059,8 +1074,11 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 		}));
 	}
 	// Ausgeklappt: "Link teilen" + "Bewertung schreiben" wie in der normalen Marker-Infobox.
+	// wikiParam "siedlung" -- deckt sich mit dem Deep-Link-Parameter fuer Siedlungen (js/app/wiki-deeplink.js).
 	if (expanded && markerEntry && markerEntry.publicId) {
-		const shareButton = typeof sharePlaceActionButtonMarkup === "function" ? sharePlaceActionButtonMarkup(markerEntry.publicId) : "";
+		const shareButton = typeof sharePlaceActionButtonMarkup === "function"
+			? sharePlaceActionButtonMarkup(markerEntry.publicId, { wikiUrl: markerEntry.location?.wikiUrl || "", wikiParam: "siedlung" })
+			: "";
 		if (shareButton) {
 			buttons.push(shareButton);
 		}

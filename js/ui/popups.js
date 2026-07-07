@@ -11,9 +11,14 @@ function locationPopupActionsMarkup(actionButtons = []) {
 	return `<div class="location-popup__actions">${actionButtons.join("")}</div>`;
 }
 
-// "Link teilen": kopiert einen direkten ?place=<publicId>-Link auf diese Stelle (Siedlung/Region),
-// der beim Öffnen hinfliegt und die Infobox triggert. Sichtbar in beiden Modi.
-function sharePlaceActionButtonMarkup(publicId) {
+// "Link teilen": kopiert einen direkten Link auf diese Stelle (Siedlung/Region), der beim
+// Öffnen hinfliegt und die Infobox triggert. Sichtbar in beiden Modi. Hat das Objekt einen
+// verknüpften Wiki-Artikel, bevorzugt buildPlaceShareLink (map-features-share-pin.js) den
+// dokumentierten Deep-Link-Parameter (?siedlung/?staat/?region/?strasse/?fluss) statt
+// ?place=<publicId> -- wikiUrl/wikiParam werden dafür als data-Attribute mitgegeben (der
+// Klick-Handler in routing.js liest sie zurück). Ohne wikiUrl bleibt der bisherige
+// ?place=<publicId>-Link unverändert.
+function sharePlaceActionButtonMarkup(publicId, { wikiUrl = "", wikiParam = "" } = {}) {
 	if (!publicId) {
 		return "";
 	}
@@ -22,6 +27,8 @@ function sharePlaceActionButtonMarkup(publicId) {
 		attributes: {
 			"data-popup-action": "share-place-link",
 			"data-public-id": publicId,
+			"data-wiki-url": wikiUrl || undefined,
+			"data-wiki-param": wikiUrl ? wikiParam : undefined,
 		},
 	});
 }
@@ -211,7 +218,8 @@ function locationActionsMarkup(name, publicId, location = null) {
 	// Reihenfolge: "Reiseziel hinzufügen", "Link teilen", "Bewertung schreiben".
 	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
-	const shareButton = sharePlaceActionButtonMarkup(publicId);
+	// wikiParam "siedlung" -- deckt sich mit dem Deep-Link-Parameter fuer Siedlungen (js/app/wiki-deeplink.js).
+	const shareButton = sharePlaceActionButtonMarkup(publicId, { wikiUrl: location?.wikiUrl || "", wikiParam: "siedlung" });
 	if (shareButton) {
 		actionButtons.push(shareButton);
 	}

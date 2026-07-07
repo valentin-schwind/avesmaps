@@ -93,18 +93,37 @@ function copyCurrentUrlToClipboard() {
 	return copyTextToClipboard(window.location.href);
 }
 
-// Direkter Teil-Link auf eine konkrete Stelle (Siedlung/Region) per ?place=<publicId>.
-// Sauberer Public-Link (ohne edit/Planner-State); beim Öffnen fliegt die Karte hin und
-// triggert die Infobox (applyPlaceFocusFromUrl).
-function buildPlaceShareUrl(publicId) {
-	return `${window.location.origin}${window.location.pathname}?place=${encodeURIComponent(publicId)}`;
+// Direkter Teil-Link auf eine konkrete Stelle (Siedlung/Region). Wenn das Objekt einen
+// verknuepften Wiki-Artikel hat, wird der DOKUMENTIERTE Deep-Link-Parameter genutzt
+// (?siedlung/?staat/?region/?strasse/?fluss, js/app/wiki-deeplink.js) statt ?place=<publicId> --
+// harmonisiert "Link teilen" mit den Wiki-Deep-Links (gleicher Ziel-Artikel -> gleicher Link-Kanal).
+// Ohne Wiki-Url (oder ohne wikiParam-Option) bleibt der bisherige ?place=<publicId>-Link
+// unveraendert (Rueckwaertskompatibilitaet fuer bestehende Aufrufer).
+//
+// Pure Teil-Funktion (nur die Query-String-Logik, kein window.location-Zugriff) fuer die
+// Unit-Tests unter tools/paths/test-share-link-builder.mjs.
+function buildShareLinkPath(publicId, wikiUrl, wikiParam) {
+	const rawWikiUrl = String(wikiUrl || "").trim();
+	if (rawWikiUrl && wikiParam) {
+		const wikiMatch = /\/wiki\/([^?#]+)/i.exec(rawWikiUrl);
+		if (wikiMatch && wikiMatch[1]) {
+			return `${encodeURIComponent(wikiParam)}=${wikiMatch[1]}`;
+		}
+	}
+	return `place=${encodeURIComponent(publicId)}`;
 }
 
-async function sharePlaceLinkWithFeedback(publicId) {
+// { wikiUrl, wikiParam } optional: wenn beide gesetzt sind UND wikiUrl einen "/wiki/<Page>"-Pfad
+// enthaelt, gewinnt der Wiki-Deep-Link; sonst (keine Optionen, kein Treffer) der ?place=-Fallback.
+function buildPlaceShareLink(publicId, { wikiUrl, wikiParam } = {}) {
+	return `${window.location.origin}${window.location.pathname}?${buildShareLinkPath(publicId, wikiUrl, wikiParam)}`;
+}
+
+async function sharePlaceLinkWithFeedback(publicId, shareLinkOptions = {}) {
 	if (!publicId) {
 		return false;
 	}
-	const url = buildPlaceShareUrl(publicId);
+	const url = buildPlaceShareLink(publicId, shareLinkOptions);
 	const didCopy = await copyTextToClipboard(url);
 	showFeedbackToast(
 		didCopy ? tr("toast.share.placeCopied", "Link zu dieser Stelle in die Zwischenablage kopiert.") : tr("toast.share.copyFailed", "Link konnte nicht automatisch kopiert werden."),

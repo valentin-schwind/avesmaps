@@ -1,8 +1,11 @@
 // Unit test (Node, no build) for mergeWikiDeeplinkParams in
 // js/map-features/map-features-layer-state.js: the planner URL sync rebuilds the
 // query from UI state; this helper re-merges the 5 read-only wiki deep-link params
-// (?siedlung/?staat/?region/?strasse/?fluss) from the CURRENT url so a deep link
-// never visibly "jumps" to the toggle params.
+// (?siedlung/?staat/?region/?strasse/?fluss) PLUS the older ?place=<publicId> share-link
+// param (js/map-features/map-features-share-pin.js) from the CURRENT url so a deep link /
+// place link never visibly "jumps" to the toggle params. "place" is merged locally by this
+// function and is NOT part of WIKI_DEEPLINK_PARAM_NAMES (that array drives deep-link
+// RESOLUTION routing in js/app/wiki-deeplink.js and must stay exactly the 5 wiki params).
 //
 // Also covers the deep-link focus suppression window (suppressPlannerUrlSyncForWikiDeeplink /
 // isWikiDeeplinkUrlSyncSuppressed in js/app/wiki-deeplink.js): the deep-link focus itself must
@@ -100,6 +103,20 @@ check("preserves all five params", () => {
 	);
 });
 
+check("preserves ?place=<uuid> from the current url", () => {
+	const params = new URLSearchParams("togglePaths=1");
+	mergeWikiDeeplinkParams(params, "?place=3f6a1c9e-9b2d-4e2a-8c3f-1a2b3c4d5e6f&togglePaths=1");
+	assert.equal(params.get("place"), "3f6a1c9e-9b2d-4e2a-8c3f-1a2b3c4d5e6f");
+	assert.equal(params.get("togglePaths"), "1");
+});
+
+check("ignores an empty place=", () => {
+	const params = new URLSearchParams("mapLayerMode=politisch");
+	mergeWikiDeeplinkParams(params, "?place=&mapLayerMode=politisch");
+	assert.equal(params.get("place"), null);
+	assert.equal(params.get("mapLayerMode"), "politisch");
+});
+
 check("ignores empty values and unrelated params", () => {
 	const params = new URLSearchParams("mapLayerMode=politisch");
 	mergeWikiDeeplinkParams(params, "?strasse=&edit=1&s=XYZ");
@@ -162,4 +179,4 @@ check("name match passes with matching subtype and exact name", () => {
 	assert.equal(sandbox.pathMatchesDeeplinkTarget(path, key, "Reichsstrasse"), true);
 });
 
-console.log(`${passed}/11 passed`);
+console.log(`${passed}/13 passed`);
