@@ -60,6 +60,88 @@ function attachTypeFilter(toggleId, menuId, state, getOptions, applyFilter, labe
 	rebuild();
 }
 
+// ===== Einwertiger „Quelle"-Filter: Single-Select-Dropdown mit Radios =====
+// Wie der Typ-Filter, aber genau EIN Wert (Keine/Wiki/Andere). state = { value: "" } (Referenz;
+// "" = Alle). options ist FEST (nicht aus den Daten abgeleitet). Der Toggle ist nur ein Trichter-
+// Icon, solange „Alle" aktiv ist, und zeigt erst bei Auswahl das Label -> spart Platz im Menueband.
+const SOURCE_FILTER_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v5l-4 2v-7z"/></svg>';
+
+function renderRadioFilter(toggleId, menuId, options, state, label = "Quelle") {
+	const menu = document.getElementById(menuId);
+	if (menu) {
+		const parts = [
+			`<label class="type-filter__opt"><input type="radio" name="${escapeHtml(menuId)}" value="__all__"${!state.value ? " checked" : ""} /><span class="type-filter__label">Alle</span></label>`,
+		];
+		for (const opt of options) {
+			parts.push(
+				`<label class="type-filter__opt"><input type="radio" name="${escapeHtml(menuId)}" value="${escapeHtml(opt.value)}"${state.value === opt.value ? " checked" : ""} /><span class="type-filter__label">${escapeHtml(opt.label)}</span>${opt.count != null ? `<span class="type-filter__count">${opt.count}</span>` : ""}</label>`
+			);
+		}
+		menu.innerHTML = parts.join("");
+	}
+	const toggle = document.getElementById(toggleId);
+	if (toggle) {
+		const chosen = state.value ? (options.find((opt) => opt.value === state.value)?.label || state.value) : "";
+		toggle.innerHTML = chosen ? `${escapeHtml(label)}: ${escapeHtml(chosen)} ▾` : `${SOURCE_FILTER_ICON} ▾`;
+		toggle.title = chosen ? `${label}: ${chosen}` : label;
+		toggle.setAttribute("aria-label", chosen ? `${label}: ${chosen}` : label);
+	}
+}
+
+function attachRadioFilter(toggleId, menuId, state, options, applyFilter, label = "Quelle") {
+	const toggle = document.getElementById(toggleId);
+	const menu = document.getElementById(menuId);
+	if (!toggle || !menu) {
+		return;
+	}
+	const rebuild = () => renderRadioFilter(toggleId, menuId, options, state, label);
+	toggle.addEventListener("click", (event) => {
+		event.stopPropagation();
+		menu.hidden = !menu.hidden;
+		if (!menu.hidden) {
+			rebuild();
+		}
+	});
+	document.addEventListener("click", (event) => {
+		if (!menu.hidden && event.target !== toggle && !menu.contains(event.target)) {
+			menu.hidden = true;
+		}
+	});
+	menu.addEventListener("change", (event) => {
+		const radio = event.target;
+		if (!radio || radio.type !== "radio") {
+			return;
+		}
+		state.value = radio.value === "__all__" ? "" : radio.value;
+		rebuild();
+		menu.hidden = true;
+		applyFilter();
+	});
+	rebuild();
+}
+
+// Ableitung der Quelle-Kategorie einer Listen-Zeile: Wiki hat Vorrang, dann eine externe Quelle,
+// sonst keine. Tolerant gegenueber den verschiedenen Feldnamen der Listen (flach / verschachtelt).
+const SOURCE_FILTER_OPTIONS = [
+	{ value: "wiki", label: "Wiki" },
+	{ value: "andere", label: "Andere" },
+	{ value: "keine", label: "Keine" },
+];
+
+function getItemSourceCategory(row) {
+	if (!row || typeof row !== "object") {
+		return "keine";
+	}
+	if (row.wiki_url || row.wiki_key || row.wikiUrl) {
+		return "wiki";
+	}
+	const other = row.other_source ?? row.otherSource;
+	if (row.other_source_url || (other && typeof other === "object" && other.url)) {
+		return "andere";
+	}
+	return "keine";
+}
+
 function escapeHtml(value) {
 	return String(value)
 		.replace(/&/g, "&amp;")

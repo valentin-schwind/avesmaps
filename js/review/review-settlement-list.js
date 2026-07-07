@@ -7,6 +7,7 @@ const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
 let settlementListView = "all"; // "all" | "onmap" | "wiki"
 const settlementTypeFilter = new Set(); // ausgewählte Ortsgrößen (leer = alle)
 const settlementContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+const settlementSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
 
 // Kontinent eines Eintrags; leer -> Aventurien (On-Map-Orte tragen 'Aventurien', Wiki-only ihren Wert).
 function settlementItemContinent(item) {
@@ -182,9 +183,13 @@ function renderSettlementList() {
 	if (settlementTypeFilter.size > 0) {
 		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
 	}
+	if (settlementSourceFilter.value) {
+		items = items.filter((item) => getItemSourceCategory(item) === settlementSourceFilter.value);
+	}
 	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
 	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");
+	renderRadioFilter("settlement-source-filter-toggle", "settlement-source-filter-menu", SOURCE_FILTER_OPTIONS, settlementSourceFilter, "Quelle");
 
 	// Toggle-Buttons (gegenseitig exklusiv, einer aktiv) — in eigenem Container unter dem
 	// Suchfeld, NICHT in der scrollbaren Liste.
@@ -465,5 +470,6 @@ document.addEventListener("dragend", () => {
 
 attachTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeFilter, settlementTypeOptions, renderSettlementList);
 attachTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentFilter, settlementContinentOptions, renderSettlementList, "Kontinent");
+attachRadioFilter("settlement-source-filter-toggle", "settlement-source-filter-menu", settlementSourceFilter, SOURCE_FILTER_OPTIONS, renderSettlementList, "Quelle");
 
 window.loadSettlementList = loadSettlementList;

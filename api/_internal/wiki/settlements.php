@@ -1103,6 +1103,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'is_nodix' => !empty($props['is_nodix']),
             'is_ruined' => !empty($props['is_ruined']),
             'wiki_url' => $connected ? (string) ($ws['wiki_url'] ?? '') : (string) ($props['wiki_url'] ?? ''),
+            'other_source' => is_array($props['other_source'] ?? null) ? $props['other_source'] : null,
         ];
     }
 
