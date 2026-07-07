@@ -132,7 +132,7 @@ function getItemSourceCategory(row) {
 	if (!row || typeof row !== "object") {
 		return "keine";
 	}
-	if (row.wiki_url || row.wiki_key || row.wikiUrl) {
+	if (row.wiki_url || row.wiki_key || row.wikiUrl || row.wiki_id || row.wikiId) {
 		return "wiki";
 	}
 	const other = row.other_source ?? row.otherSource;

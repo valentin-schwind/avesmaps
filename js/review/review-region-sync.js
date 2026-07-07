@@ -8,6 +8,7 @@ let regionSyncData = null;
 let regionSyncView = "missing"; // missing | matched | ambiguous
 const regionTypeFilter = new Set(); // ausgewählte Arten (leer = alle)
 const regionContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+const regionSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
 
 // Kontinent einer Region; leer -> Aventurien (wie der Herrschaftsgebiete-Dialog: continent || 'Aventurien').
 function regionRowContinent(row) {
@@ -116,6 +117,36 @@ async function loadRegionWikiSync() {
 	}
 }
 
+// Map-Labels OHNE Wiki-Region (Quelle "Andere"/"Keine") -- client-seitig aus labelData. Erscheinen
+// nur in der "Alle"-Ansicht und dienen dem Quelle-Filter (row-Form kompatibel zum bestehenden Render).
+function regionMapOnlyRows() {
+	if (typeof labelData === "undefined" || !Array.isArray(labelData)) {
+		return [];
+	}
+	const rows = [];
+	labelData.forEach((label) => {
+		if (label.wikiRegion && label.wikiRegion.wiki_key) {
+			return;
+		}
+		const name = String(label.text || "").trim();
+		if (name === "") {
+			return;
+		}
+		rows.push({
+			name,
+			wiki_key: "",
+			wiki_url: "",
+			other_source: (label.otherSource && label.otherSource.url) ? label.otherSource : null,
+			art: "",
+			region_parent: "",
+			continent: "Aventurien",
+			map_only: true,
+			label: { public_id: String(label.publicId || ""), name, subtype: String(label.labelType || label.subtype || "") },
+		});
+	});
+	return rows;
+}
+
 function regionSyncCurrentRows() {
 	if (!regionSyncData) {
 		return [];
@@ -130,7 +161,7 @@ function regionSyncCurrentRows() {
 	if (regionSyncView === "matched") {
 		return matched.concat(ambiguous);
 	}
-	return missing.concat(matched, ambiguous); // "all"
+	return missing.concat(matched, ambiguous, regionMapOnlyRows()); // "all"
 }
 
 function renderRegionSyncList() {
@@ -142,6 +173,9 @@ function renderRegionSyncList() {
 	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = regionSyncCurrentRows().filter((row) => {
 		if (!regionContinentMatch(row)) {
+			return false;
+		}
+		if (regionSourceFilter.value && getItemSourceCategory(row) !== regionSourceFilter.value) {
 			return false;
 		}
 		if (regionTypeFilter.size > 0 && !regionTypeFilter.has((String(row.art || "").trim()) || "(ohne Art)")) {
@@ -166,7 +200,7 @@ function renderRegionSyncList() {
 		const tab = (view, label, count) =>
 			`<button type="button" data-region-view="${view}" class="region-sync__viewtab${regionSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
 		tabsHost.innerHTML =
-			tab("all", "Alle", missingCount + matchedCount + ambiguousCount) +
+			tab("all", "Alle", missingCount + matchedCount + ambiguousCount + regionMapOnlyRows().filter(regionContinentMatch).length) +
 			tab("matched", "Platziert", matchedCount + ambiguousCount) +
 			tab("missing", "Fehlt", missingCount);
 	}
@@ -185,6 +219,10 @@ function renderRegionSyncList() {
 			if (row.wiki_url) {
 				const wikiLink = `<a class="region-sync__link" href="${regionSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
+			} else if (row.other_source && row.other_source.url) {
+				const otherLabel = row.other_source.label || "Andere Quelle";
+				const otherLink = `<a class="region-sync__link" href="${regionSyncEscapeAttr(row.other_source.url)}" target="_blank" rel="noopener">${regionSyncEscapeText(otherLabel)} ↗</a>`;
+				metaHtml = metaHtml ? `${metaHtml} · ${otherLink}` : otherLink;
 			}
 			// Mehrfach-Kandidaten weiterhin anzeigen (alle Kandidaten anklickbar).
 			if (row.label) {
@@ -400,5 +438,6 @@ document.addEventListener("input", (event) => {
 
 attachTypeFilter("region-type-filter-toggle", "region-type-filter-menu", regionTypeFilter, regionTypeOptions, renderRegionSyncList);
 attachTypeFilter("region-continent-filter-toggle", "region-continent-filter-menu", regionContinentFilter, regionContinentOptions, renderRegionSyncList, "Kontinent");
+attachRadioFilter("region-source-filter-toggle", "region-source-filter-menu", regionSourceFilter, SOURCE_FILTER_OPTIONS, renderRegionSyncList, "Quelle");
 
 window.loadRegionWikiSync = loadRegionWikiSync;

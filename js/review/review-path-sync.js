@@ -7,6 +7,7 @@ let pathSyncData = null;
 let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing | cases (verlauf cases)
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+const pathSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
 
 // Verlauf cases (Task 6): own list + load state, kept separate from pathSyncData (the match list).
 let verlaufCases = []; // flat list of all loaded cases (open + deferred + archived)
@@ -138,6 +139,44 @@ async function loadPathWikiSync() {
 	}
 }
 
+// Map-Wege OHNE Wiki-Zuordnung (Quelle "Andere"/"Keine") -- client-seitig aus pathData, nach Namen
+// gruppiert. Erscheinen nur in der "Alle"-Ansicht und dienen dem Quelle-Filter.
+function pathMapOnlyRows() {
+	if (typeof pathData === "undefined" || !Array.isArray(pathData)) {
+		return [];
+	}
+	const groups = new Map();
+	pathData.forEach((path) => {
+		const props = path.properties || {};
+		if (props.wiki_path && props.wiki_path.wiki_key) {
+			return;
+		}
+		const name = String(props.display_name || props.name || "").trim();
+		if (name === "" || name.startsWith("Kreuzung")) {
+			return;
+		}
+		const subtype = normalizePathSubtype(props.feature_subtype || props.name);
+		if (!groups.has(name)) {
+			groups.set(name, {
+				name,
+				wiki_key: "",
+				wiki_url: "",
+				other_source: null,
+				kind: (subtype === "Flussweg" || subtype === "Seeweg") ? "fluss" : "strasse",
+				continent: "Aventurien",
+				map_only: true,
+				paths: [],
+			});
+		}
+		const group = groups.get(name);
+		group.paths.push({ public_id: String(props.public_id || ""), name: String(props.name || "") });
+		if (!group.other_source && props.other_source && props.other_source.url) {
+			group.other_source = props.other_source;
+		}
+	});
+	return [...groups.values()];
+}
+
 function pathSyncCurrentRows() {
 	if (!pathSyncData) {
 		return [];
@@ -148,7 +187,7 @@ function pathSyncCurrentRows() {
 		return missing;
 	}
 	// „Platziert" = matched (1 Segment) + mehrteilig (mehrere) zusammengelegt.
-	const rows = pathSyncView === "all" ? assigned.concat(missing) : assigned;
+	const rows = pathSyncView === "all" ? assigned.concat(missing, pathMapOnlyRows()) : assigned;
 	rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 	return rows;
 }
@@ -174,7 +213,7 @@ function renderPathSyncList() {
 		const tab = (view, label, count) =>
 			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
 		tabsHost.innerHTML =
-			tab("all", "Alle", assignedCount + missingCount) +
+			tab("all", "Alle", assignedCount + missingCount + pathMapOnlyRows().filter(pathContinentMatch).length) +
 			tab("assigned", "Platziert", assignedCount) +
 			tab("missing", "Fehlt", missingCount) +
 			tab("cases", "Konflikte", openCasesCount) +
@@ -200,6 +239,9 @@ function renderPathSyncList() {
 		if (!pathContinentMatch(row)) {
 			return false;
 		}
+		if (pathSourceFilter.value && getItemSourceCategory(row) !== pathSourceFilter.value) {
+			return false;
+		}
 		if (pathTypeFilter.size > 0 && !pathTypeFilter.has(pathRowType(row))) {
 			return false;
 		}
@@ -212,6 +254,23 @@ function renderPathSyncList() {
 	const candidate = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr((p && p.public_id) || "")}">${pathSyncEscapeText(p.name)}</button>`;
 	const items = rows
 		.map((row) => {
+			if (row.map_only) {
+				const parts = [];
+				if (row.other_source && row.other_source.url) {
+					const label = row.other_source.label || "Andere Quelle";
+					parts.push(`<a class="region-sync__link" href="${pathSyncEscapeAttr(row.other_source.url)}" target="_blank" rel="noopener">${pathSyncEscapeText(label)} ↗</a>`);
+				}
+				const segChips = row.paths.length ? `${row.paths.length} Segment${row.paths.length === 1 ? "" : "e"}: ${row.paths.slice(0, 40).map(candidate).join(" ")}` : "";
+				const metaInner = parts.join(" · ") + `<span class="region-sync__map">${segChips}</span>`;
+				return (
+					'<div class="tree-item region-sync__item">' +
+					'<span class="drag-handle" aria-hidden="true"></span>' +
+					`<span class="tree-item-name">${pathSyncEscapeText(row.name)}</span>` +
+					`<span class="tree-item-meta">${metaInner}</span>` +
+					'<span class="tree-map-status tree-map-status--all" aria-hidden="true"></span>' +
+					'</div>'
+				);
+			}
 			const segs = row.path ? [row.path] : (row.paths || []);
 			const onMap = segs.length > 0; // grüner Punkt = auf Karte (hat Segmente)
 			const metaParts = [row.kind, row.art, row.lage].filter(Boolean).map(pathSyncEscapeText);
@@ -929,5 +988,6 @@ document.addEventListener("input", (event) => {
 
 attachTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeFilter, pathTypeOptions, renderPathSyncList);
 attachTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentFilter, pathContinentOptions, renderPathSyncList, "Kontinent");
+attachRadioFilter("path-source-filter-toggle", "path-source-filter-menu", pathSourceFilter, SOURCE_FILTER_OPTIONS, renderPathSyncList, "Quelle");
 
 window.loadPathWikiSync = loadPathWikiSync;
