@@ -606,6 +606,41 @@
 		return { kind: "none", label: "Gebiet und Untergebiete fehlen auf der Karte" };
 	}
 
+	// „Platziert"/„Fehlt"-Ansicht: den VOLLEN Basisbaum auf die Äste zurechtstutzen, die einen Ziel-Knoten
+	// enthalten (fehlt = unabgedeckt, platziert = abgedeckt). Alle Vorfahren eines Ziels bleiben als
+	// navigierbarer Pfad erhalten; ein Ast komplett ohne Ziel fällt weg. Ersetzt das fragile
+	// „flach filtern → Ahnen expandieren → neu bauen": weil der Basisbaum Zeit-/Kontinent-/Flächenland-Filter
+	// schon trägt, kann kein durchgesickerter (abgedeckter/aufgelöster/kontinentfremder) Knoten je als
+	// kinderlose Sackgasse in „Fehlt" landen, und keine Kette reißt. Der Coverage-Punkt bleibt korrekt, weil
+	// er weiter aus coverageByKey (voller Baum) kommt, nicht aus dem gestutzten Teilbaum.
+	function pruneTreeToMapStatus(root, coverageByKey, mapStatus) {
+		const wantPlaced = mapStatus === "placed";
+		const isTarget = (node) => {
+			const status = (coverageByKey && typeof coverageByKey.get === "function" && coverageByKey.get(node.id)) || getTreeCoverageStatus(node);
+			return wantPlaced ? Boolean(status.hasAnyCoverage) : !status.hasAnyCoverage;
+		};
+		const cloneKept = (node, parent) => {
+			const clone = { id: node.id, label: node.label, kind: node.kind, row: node.row, parent, children: [], childMap: new Map() };
+			for (const child of Array.isArray(node.children) ? node.children : []) {
+				const keptChild = cloneKept(child, clone);
+				if (keptChild) {
+					clone.children.push(keptChild);
+					clone.childMap.set(keptChild.id, keptChild);
+				}
+			}
+			return (clone.children.length > 0 || isTarget(node)) ? clone : null;
+		};
+		const prunedRoot = { id: root.id, label: root.label, kind: root.kind, row: root.row, parent: null, children: [], childMap: new Map() };
+		for (const child of Array.isArray(root.children) ? root.children : []) {
+			const keptChild = cloneKept(child, prunedRoot);
+			if (keptChild) {
+				prunedRoot.children.push(keptChild);
+				prunedRoot.childMap.set(keptChild.id, keptChild);
+			}
+		}
+		return prunedRoot;
+	}
+
 	function getNodePath(node) {
 		const path = [];
 		let current = node;
@@ -990,6 +1025,7 @@
 		getTreeCoverageStatus,
 		getTreeMapStatus,
 		computeCoverageByKey,
+		pruneTreeToMapStatus,
 		isTreeNodeAssignedToMap,
 		isRowAssignedToMap,
 		isFlaechenlandRow,

@@ -375,12 +375,11 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const baseRows = treeModule
 			.filterRows(rows, { search, time, flaechenlaenderOnly, continent: "Aventurien" })
 			.filter((row) => row && row.continent === "Aventurien");
-		// Aggregierte Karten-Abdeckung EINMAL über den Basisbaum: DIESELBE Quelle speist Coverage-Punkt,
-		// Reiter-Zähler UND Reiter-Filter (Platziert/Fehlt) — so kann ein Gebiet nie einen „vorhanden"-Punkt
-		// zeigen und trotzdem unter „Fehlt" stehen (Container mit platzierten Kindern = platziert). „Alle"
-		// zählt die im Baum sichtbaren Gebiete (buildTree blendet Modell-Rauschen wie Kirchen/Lücken aus).
+		// Basisbaum EINMAL bauen: er trägt Such-/Zeit-/Kontinent-/Flächenland-Filter bereits und speist
+		// Coverage-Punkt, Zähler UND die Reiter-Ansicht aus DERSELBEN Quelle.
+		const baseTree = treeModule.buildTree(baseRows);
 		const coverageByKey = typeof treeModule.computeCoverageByKey === "function"
-			? treeModule.computeCoverageByKey(treeModule.buildTree(baseRows).root)
+			? treeModule.computeCoverageByKey(baseTree.root)
 			: null;
 		let allCount = 0;
 		let placedCount = 0;
@@ -400,14 +399,16 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 			}
 		}
 		renderWikiSyncTerritoryMapStatusTabs(allCount, placedCount, allCount - placedCount);
-		// Anzuzeigende Menge nach Karten-Status; Vorfahren bleiben dank filterRows erhalten.
-		const filteredRows =
-			wikiSyncTerritoryMapStatus === "placed" || wikiSyncTerritoryMapStatus === "missing"
-				? treeModule
-						.filterRows(rows, { search, time, flaechenlaenderOnly, mapStatus: wikiSyncTerritoryMapStatus, coverageByKey, continent: "Aventurien" })
-						.filter((row) => row && row.continent === "Aventurien")
-				: baseRows;
-		const treeResult = treeModule.buildTree(filteredRows);
+		// „Platziert"/„Fehlt": den Basisbaum auf die Äste mit passenden Ziel-Knoten stutzen (Vorfahren als
+		// navigierbarer Pfad bleiben) statt flach zu filtern + Ahnen zu re-expandieren. So landet kein
+		// durchgesickerter (abgedeckter/aufgelöster/kontinentfremder) Knoten je als Sackgasse in „Fehlt".
+		const treeResult =
+			(wikiSyncTerritoryMapStatus === "placed" || wikiSyncTerritoryMapStatus === "missing")
+				&& typeof treeModule.pruneTreeToMapStatus === "function"
+				? { root: treeModule.pruneTreeToMapStatus(baseTree.root, coverageByKey, wikiSyncTerritoryMapStatus) }
+				: baseTree;
+		const countVisibleNodes = (node) => (Array.isArray(node && node.children) ? node.children : []).reduce((sum, child) => sum + 1 + countVisibleNodes(child), 0);
+		const visibleRowCount = countVisibleNodes(treeResult.root);
 		// Summary identisch zum Sync-Monitor: alle Knoten gesamt, sichtbare Wurzeln (Aventurien+heute = 53).
 		wikiSyncTerritorySummary = {
 			territory_count: Array.isArray(rows) ? rows.length : 0,
@@ -418,7 +419,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 			container: treeElement,
 			root: treeResult.root,
 			coverageByKey,
-			rowCount: filteredRows.length,
+			rowCount: visibleRowCount,
 			totalRowCount: rows.length,
 			searchText: wikiSyncTerritoryFilterQuery,
 			itemClassName: "wiki-sync-territory-tree__item",
@@ -427,7 +428,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 			},
 		});
 
-		if (filteredRows.length < 1) {
+		if (visibleRowCount < 1) {
 			treeElement.innerHTML = "";
 			const emptyElement = document.createElement("p");
 			emptyElement.className = "political-territory-parent-tree__empty";
