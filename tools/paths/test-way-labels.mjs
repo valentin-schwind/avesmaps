@@ -13,6 +13,10 @@
 //     junction pass-through pairing.
 //   - computeWayLabelIntervalOffsets(totalLenPx, intervalPx, textLenPx): center offsets
 //     (px along the chain) for placing repeated labels at a fixed screen interval.
+//   - wayLabelHitTest(register, point): pure hit-test over the click-placement register built
+//     by the canvas overlay's redraw() (Task 16, clickable way-name labels). Returns the LAST
+//     entry (of possibly several) whose rect contains {x,y} -- "last" because later entries were
+//     drawn on top in the same redraw pass -- else null.
 //
 // Run: node tools/paths/test-way-labels.mjs
 import { readFileSync } from "node:fs";
@@ -66,9 +70,10 @@ const sandbox = new Function(`
 	${extractFunction(wayLabelsSource, "wayLabelArmDirection")}
 	${extractFunction(wayLabelsSource, "buildWayLabelChains")}
 	${extractFunction(wayLabelsSource, "computeWayLabelIntervalOffsets")}
-	return { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets };
+	${extractFunction(wayLabelsSource, "wayLabelHitTest")}
+	return { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets, wayLabelHitTest };
 `)();
-const { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets } = sandbox;
+const { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets, wayLabelHitTest } = sandbox;
 
 // Euclidean distance -- used by assertChainsWellFormed to check end-to-start connectivity
 // against the SAME tolerance buildWayLabelChains itself bridges with in phase 2 (default eps=7,
@@ -366,4 +371,43 @@ check("closed ring of 4 segments -> terminates, every segment used exactly once,
 	assert.equal(chains[0].length, 4, "all four segments end up in that one chain");
 });
 
-console.log(`${passed}/18 passed`);
+check("wayLabelHitTest: point inside a single rect -> that entry", () => {
+	const register = [
+		{ left: 10, top: 10, right: 50, bottom: 30, wikiKey: "letta", name: "Letta" },
+	];
+	const hit = wayLabelHitTest(register, { x: 20, y: 20 });
+	assert.equal(hit && hit.wikiKey, "letta");
+});
+
+check("wayLabelHitTest: point outside every rect -> null", () => {
+	const register = [
+		{ left: 10, top: 10, right: 50, bottom: 30, wikiKey: "letta", name: "Letta" },
+	];
+	assert.equal(wayLabelHitTest(register, { x: 200, y: 200 }), null);
+});
+
+check("wayLabelHitTest: empty register -> null", () => {
+	assert.equal(wayLabelHitTest([], { x: 20, y: 20 }), null);
+	assert.equal(wayLabelHitTest(undefined, { x: 20, y: 20 }), null);
+});
+
+check("wayLabelHitTest: overlapping rects -> LAST entry wins (drawn on top)", () => {
+	const register = [
+		{ left: 0, top: 0, right: 100, bottom: 100, wikiKey: "unten", name: "Unten" },
+		{ left: 40, top: 40, right: 60, bottom: 60, wikiKey: "oben", name: "Oben" },
+	];
+	// Point inside BOTH rects -> the later (topmost-drawn) entry must win.
+	assert.equal(wayLabelHitTest(register, { x: 50, y: 50 }).wikiKey, "oben");
+	// Point inside only the first (bottom) rect -> that one wins.
+	assert.equal(wayLabelHitTest(register, { x: 10, y: 10 }).wikiKey, "unten");
+});
+
+check("wayLabelHitTest: rect boundary is inclusive on all four edges", () => {
+	const register = [{ left: 10, top: 10, right: 50, bottom: 30, wikiKey: "kante", name: "Kante" }];
+	assert.equal(wayLabelHitTest(register, { x: 10, y: 20 }).wikiKey, "kante", "left edge");
+	assert.equal(wayLabelHitTest(register, { x: 50, y: 20 }).wikiKey, "kante", "right edge");
+	assert.equal(wayLabelHitTest(register, { x: 30, y: 10 }).wikiKey, "kante", "top edge");
+	assert.equal(wayLabelHitTest(register, { x: 30, y: 30 }).wikiKey, "kante", "bottom edge");
+});
+
+console.log(`${passed}/23 passed`);

@@ -35,6 +35,10 @@
 			return Number.isFinite(parsed) && parsed > 0 ? parsed : 600;
 		} catch (e) { return 600; }
 	})();
+	// Klickbare Way-Labels (Task 16): Polster (Container-px) um die reine Textbreite fuer die
+	// Klick-/Hover-Trefferflaeche -- etwas grosszuegiger als die Selbstkollisions-BBox (die nur
+	// fontSize polstert), damit ein Fluss-/Strassenname auch knapp daneben noch trifft.
+	const WAY_LABEL_CLICK_PAD = 6;
 
 	if (!map.getPane(PANE)) {
 		map.createPane(PANE);
@@ -53,6 +57,12 @@
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
 	let canvasTopLeftLatLng = null;
+	// Klickbare Way-Labels (Task 16): Platzierungs-Register fuer Kanal A, bei JEDEM redraw() neu
+	// aufgebaut (siehe dort) -- ein Eintrag pro tatsaechlich gezeichneter Label-Platzierung. Bleibt
+	// leer, wenn Way-Labels aus (?waylabels=0) oder das Canvas-Overlay selbst aus ist (dann läuft
+	// redraw() gar nicht/early-returnt). Reiner Treffer-Test: wayLabelHitTest in
+	// map-features-way-labels.js (extractFunction-getestet, tools/paths/test-way-labels.mjs).
+	let wayLabelClickRegister = [];
 
 	// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
 	// rotiert). textAlign/textBaseline werden in redraw() gesetzt; Halo = weicher Schatten + scharfe Kontur.
@@ -122,6 +132,11 @@
 	}
 
 	function redraw() {
+		// Klickbare Way-Labels (Task 16): Register IMMER zuerst leeren -- auch wenn redraw() gleich
+		// darunter frueh returnt (Canvas aus, mitten in der CSS-Zoom-Animation, keine pathData). So
+		// bleibt nie eine Klickflaeche eines VORHERIGEN Frames stehen, wenn in diesem Frame gar nichts
+		// (neu) gezeichnet wird.
+		wayLabelClickRegister = [];
 		if (!canvasEnabled() || !map.getPane(PANE) || cssZoomActive) {
 			return;
 		}
@@ -221,7 +236,7 @@
 			const wayLabelEligibilityCtx = typeof buildWayLabelEligibilityContext === "function"
 				? buildWayLabelEligibilityContext()
 				: {};
-			const wayGroups = new Map(); // wiki_key -> { name, pathsById: Map<public_id, path> }
+			const wayGroups = new Map(); // wiki_key -> { name, wikiUrl, pathsById: Map<public_id, path> }
 			pathData.forEach((path) => {
 				if (!isWayLabelEligible(path, wayLabelEligibilityCtx)) {
 					return;
@@ -233,7 +248,14 @@
 				const wikiKey = path.properties.wiki_path.wiki_key;
 				if (!wayGroups.has(wikiKey)) {
 					const wikiName = String(path.properties.wiki_path.name || "").trim();
-					wayGroups.set(wikiKey, { name: wikiName || getPathDisplayName(path), pathsById: new Map() });
+					// wiki_url kommt vom ERSTEN Segment der Gruppe (alle Segmente DESSELBEN Wegs teilen
+					// denselben wiki_path -> beliebiges Segment reicht) -- Grundlage fuer den Klick-Popup-
+					// Link (Task 16, "Link teilen" + "Wiki ↗").
+					wayGroups.set(wikiKey, {
+						name: wikiName || getPathDisplayName(path),
+						wikiUrl: String(path.properties.wiki_path.wiki_url || "").trim(),
+						pathsById: new Map(),
+					});
 				}
 				const publicId = path.properties?.public_id || path.id;
 				wayGroups.get(wikiKey).pathsById.set(publicId, path);
@@ -242,7 +264,7 @@
 			const acceptedWayLabelBoxes = []; // Selbstkollision: {x1,y1,x2,y2} bereits platzierter Way-Labels
 			const boxesOverlap = (a, b) => a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
 
-			wayGroups.forEach((group) => {
+			wayGroups.forEach((group, wikiKey) => {
 				const segments = Array.from(group.pathsById.values()).map((p) => ({
 					id: p.properties?.public_id || p.id,
 					coordinates: p.geometry.coordinates,
@@ -369,6 +391,21 @@
 						}
 						acceptedWayLabelBoxes.push(box);
 						drawGlyphsAlong(windowPts, chars, widths, ls, halo, style.fill, perp);
+						// Klick-Register (Task 16): eigene, etwas grosszuegigere Trefferflaeche als die reine
+						// Selbstkollisions-Box (WAY_LABEL_CLICK_PAD statt fontSize) -- Textbreite bleibt gleich,
+						// nur ein bisschen mehr "Fingerspielraum" ums Label. Anker = Bildschirmmitte der
+						// Platzierung, zurueckprojiziert auf eine LatLng (ueberlebt den naechsten redraw/pan).
+						wayLabelClickRegister.push({
+							left: Math.min(...xs) - WAY_LABEL_CLICK_PAD,
+							top: Math.min(...ys) - WAY_LABEL_CLICK_PAD,
+							right: Math.max(...xs) + WAY_LABEL_CLICK_PAD,
+							bottom: Math.max(...ys) + WAY_LABEL_CLICK_PAD,
+							wikiKey,
+							name: group.name,
+							wikiUrl: group.wikiUrl,
+							subtype,
+							anchorLatLng: map.containerPointToLatLng([mid.x, mid.y]),
+						});
 					});
 				});
 			});
@@ -417,6 +454,99 @@
 			});
 		}
 	}
+
+	// Klickbare Way-Labels (Task 16): Popup-Markup fuer einen Register-Treffer -- Wegname, "Wiki ↗"
+	// (falls verlinkt) und die "Link teilen"-Leiste (Task-13-Bausteine, wie Orts-/Wege-Popups).
+	// Gleiche Bausteine/Klassen wie pathWikiInfoboxMarkup (map-features-path-rendering.js) und
+	// createRegionWikiInfoBoxMarkup (map-features-region-info-markup.js) -> geerbte
+	// .settlement-popup/.region-info-box-Optik ohne eigenes CSS. wikiParam nach Subtyp: Flussweg/
+	// Seeweg -> "fluss", sonst "strasse" (js/app/wiki-deeplink.js). KEIN ?place=-Fallback: eine
+	// Way-Label-Kette hat keine eigene public_id (applyPlaceFocusFromUrl kennt ohnehin keine Wege,
+	// siehe pathWikiInfoboxMarkup) -> ohne wikiUrl kein Teilen-Button, aber der Popup-Kopf bleibt.
+	function wayLabelPopupMarkup(entry) {
+		const name = String(entry.name || "").trim() || "Weg";
+		const wikiUrl = String(entry.wikiUrl || "").trim();
+		const wikiLink = wikiUrl
+			? `<a class="region-info-box__link" href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
+			: "";
+		const wikiParam = (entry.subtype === "Flussweg" || entry.subtype === "Seeweg") ? "fluss" : "strasse";
+		const shareButton = wikiUrl && typeof sharePlaceActionButtonMarkup === "function"
+			? sharePlaceActionButtonMarkup(entry.wikiKey, { wikiUrl, wikiParam })
+			: "";
+		const shareMarkup = shareButton && typeof locationPopupActionsMarkup === "function"
+			? locationPopupActionsMarkup([shareButton])
+			: "";
+		if (typeof locationPopupMarkup !== "function") {
+			// Sollte nie passieren (js/ui/popups.js laedt vor diesem Overlay) -- minimaler Fallback ohne
+			// die geteilten Popup-Klassen, damit ein Klick nie in einer stillen Exception endet.
+			return `<div class="location-popup"><div class="location-popup__name">${escapeHtml(name)}</div>${wikiLink}${shareMarkup}</div>`;
+		}
+		return locationPopupMarkup({
+			name,
+			locationTypeLabel: wikiParam === "fluss" ? "Fluss" : "Straße",
+			showHeaderIcon: false,
+			showDescription: false,
+			showWikiLink: false,
+			showType: true,
+			actionsMarkup: wikiLink + shareMarkup,
+		});
+	}
+
+	// Klick-Schiedsrichter (docs/click-arbiter-coordination.md): Way-Labels sind die NIEDRIGSTPRIORE
+	// Klickflaeche (unter Siedlung/Region/Gebiet -- ein Weg-Name-Label liegt nie ÜBER einem
+	// interaktiven Vektor-Layer, weil das Label-Pane pointer-events:none ist). Der Map-Klick feuert
+	// deshalb NUR, wenn kein interaktiver Layer (Strasse/Fluss-Linie mit bubblingMouseEvents:false,
+	// Region mit L.DomEvent.stop) den Klick vorher abgefangen hat -- siehe Verifikation im Report.
+	// Trotzdem zuerst den Siedlungs-Arbiter fragen: eine Siedlung kann RÄUMLICH auf/neben einem
+	// Way-Label-Text liegen (beide sind reine Karten-Klicks, keine DOM-Ueberlappung im Sinne von
+	// Leaflets Ziel-Kette), und Siedlung gewinnt per Prioritaet immer.
+	map.on("click", (event) => {
+		if (!wayLabelsEnabled || !wayLabelClickRegister.length) {
+			return;
+		}
+		if (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
+				&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
+			return; // Siedlung gewinnt (Prioritaet Siedlung > Strasse/Fluss > Region > Gebiet)
+		}
+		const hit = wayLabelHitTest(wayLabelClickRegister, event.containerPoint);
+		if (!hit) {
+			return;
+		}
+		L.popup({ className: "settlement-popup", minWidth: 260, maxWidth: 360 })
+			.setLatLng(hit.anchorLatLng)
+			.setContent(wayLabelPopupMarkup(hit))
+			.openOn(map);
+	});
+
+	// Cursor-Feedback (billig, throttled): Way-Label-Text signalisiert per Finger-Cursor, dass er
+	// klickbar ist -- gleiches Muster wie locationCanvasLayer._onMouseMove. Kein Redraw, keine
+	// Neuberechnung pro Frame: nur ein Treffer-Test auf dem ohnehin vorhandenen Register, hoechstens
+	// alle 100ms (Perf-Grundsatz: nichts Teures pro Frame).
+	let wayLabelCursorActive = false;
+	let wayLabelLastCursorCheck = 0;
+	map.on("mousemove", (event) => {
+		if (!wayLabelsEnabled || !wayLabelClickRegister.length) {
+			return;
+		}
+		const now = Date.now();
+		if (now - wayLabelLastCursorCheck < 100) {
+			return;
+		}
+		wayLabelLastCursorCheck = now;
+		const over = Boolean(wayLabelHitTest(wayLabelClickRegister, event.containerPoint));
+		if (over === wayLabelCursorActive) {
+			return;
+		}
+		wayLabelCursorActive = over;
+		// Nur setzen/zuruecksetzen, wenn NICHTS anderes gerade den Cursor beansprucht (z. B. Leaflets
+		// grab/grabbing beim Draggen) -- auf "" zuruecksetzen wuerde einen aktiven Griff-Cursor sonst
+		// mitten im Drag ueberschreiben.
+		if (over) {
+			map.getContainer().style.cursor = "pointer";
+		} else if (map.getContainer().style.cursor === "pointer") {
+			map.getContainer().style.cursor = "";
+		}
+	});
 
 	// Zoom-Animation wie beim Grenzen-Overlay: CSS-Zoom -> Canvas weich mitskalieren (nicht neu zeichnen);
 	// flyTo/setView (kein zoomanim) -> pro Frame neu zeichnen.

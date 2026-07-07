@@ -327,6 +327,33 @@ function computeWayLabelIntervalOffsets(totalLenPx, intervalPx, textLenPx) {
 	return offsets;
 }
 
+// Klickbare Way-Labels (Task 16): reiner Treffer-Test über das Platzierungs-Register, das der
+// Canvas-Overlay (map-features-path-label-canvas-overlay.js) bei jedem redraw() für Kanal A neu
+// aufbaut -- ein Eintrag pro gezeichneter Label-Platzierung: {left, top, right, bottom
+// (Container-px, ~6px gepolstert), wikiKey, name, wikiUrl, subtype, anchorLatLng}. point = {x, y}
+// (Container-px, z. B. aus dem Leaflet-Click-Event event.containerPoint). Gibt den LETZTEN
+// Eintrag zurück, dessen Rechteck point enthält (letzter = zuletzt gezeichnet = liegt bei
+// überlappenden Labels oben), sonst null. Rand ist einschließlich (<=/>=), damit die gepolsterte
+// Kante selbst noch zählt. Pur -- kein DOM/Leaflet-Zugriff, daher extractFunction-testbar
+// (tools/paths/test-way-labels.mjs).
+function wayLabelHitTest(register, point) {
+	if (!Array.isArray(register) || !register.length || !point) {
+		return null;
+	}
+	const x = Number(point.x);
+	const y = Number(point.y);
+	for (let i = register.length - 1; i >= 0; i -= 1) {
+		const entry = register[i];
+		if (!entry) {
+			continue;
+		}
+		if (x >= entry.left && x <= entry.right && y >= entry.top && y <= entry.bottom) {
+			return entry;
+		}
+	}
+	return null;
+}
+
 // PERF: baut EINMAL pro Redraw die Werte, die isWayLabelEligible sonst pro Pfad neu abfragen würde
 // (getSelectedMapLayerMode()/jQuery-Toggle-Lookup/map.getZoom() -- bei ~5000 Pfaden pro Redraw sonst
 // ~5000-faches Neu-Abfragen derselben Werte). Gleiches Muster wie currentPathVisibilityContext()
