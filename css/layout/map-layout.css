@@ -89,3 +89,9 @@ body {
 .map-data-status[hidden] {
 	display: none !important;
 }
+
+.map-data-status a {
+	pointer-events: auto;
+	color: inherit;
+	text-decoration: underline;
+}

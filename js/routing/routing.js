@@ -217,7 +217,15 @@ function updateMapDataStatus(data) {
 	const revisionText = mapDataSourceStatus.revision === null || mapDataSourceStatus.revision === undefined ? "-" : mapDataSourceStatus.revision;
 
 	$("#map-data-status")
-		.text(`Map: ${mapDataSourceStatus.label} | Rev ${revisionText} | ${mapDataSourceStatus.featureCount.toLocaleString("de-DE")} Features`)
+		.text(`Map: ${mapDataSourceStatus.label} | Rev ${revisionText} | ${mapDataSourceStatus.featureCount.toLocaleString("de-DE")} Features | `)
+		.append(
+			$("<a>", {
+				href: "https://avesmaps.de/html/editor-handbuch.html",
+				target: "_blank",
+				rel: "noopener",
+				text: "Tutorial",
+			})
+		)
 		.prop("hidden", false);
 }
 
