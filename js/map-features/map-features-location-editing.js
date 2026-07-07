@@ -280,28 +280,6 @@ async function deleteLocationMarker(markerEntry) {
 	}
 }
 
-// Opens a marker popup so Leaflet's autoPan can push it fully into view even right at the image
-// edge. setMaxBounds() binds _panInsideMaxBounds to every moveend; that handler snaps the map back
-// inside the image bounds and thereby undoes the popup's autoPan -> a location placed at the top
-// map edge opens its popup partly off-screen. We drop maxBounds just around openPopup() so autoPan
-// may pan past the edge, then restore it immediately. autoPan towards the top/left edge always pans
-// by a negative offset, which Leaflet applies synchronously (non-animated _resetView), so the pan
-// (and its moveend) completes inside openPopup() while maxBounds is still null -> no snap-back. The
-// map stays nudged past the edge (popup visible) until the user's next drag/zoom clamps it back.
-function openMarkerPopupInView(marker) {
-	const savedMaxBounds = map.options.maxBounds;
-	if (!savedMaxBounds) {
-		marker.openPopup();
-		return;
-	}
-	map.options.maxBounds = null;
-	try {
-		marker.openPopup();
-	} finally {
-		map.options.maxBounds = savedMaxBounds;
-	}
-}
-
 function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 	const locationType = feature.feature_subtype === CROSSING_LOCATION_TYPE || String(feature.name || "").startsWith("Kreuzung")
 		? CROSSING_LOCATION_TYPE
@@ -330,7 +308,7 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 	syncLocationMarkerVisibility();
 	refreshPlannerAfterFeatureChange();
 	if (openPopup) {
-		openMarkerPopupInView(markerEntry.marker);
+		markerEntry.marker.openPopup();
 	}
 }
 
@@ -382,7 +360,7 @@ function addCreatedCrossingMarker(feature) {
 	locationMarkers.push(markerEntry);
 	syncLocationMarkerVisibility();
 	refreshPlannerAfterFeatureChange();
-	openMarkerPopupInView(markerEntry.marker);
+	markerEntry.marker.openPopup();
 }
 
 async function createCrossingFeatureAt(latlng) {

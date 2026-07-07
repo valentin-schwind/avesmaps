@@ -70,6 +70,49 @@ map.on("click", () => {
         clearRegionGeometryEdit();
     }
 });
+
+// Keep marker/label/region infoboxes readable at the image edge. Leaflet's popup autoPan pans the
+// map to reveal a popup that would otherwise open off-screen, but setMaxBounds() binds
+// _panInsideMaxBounds to every moveend, which snaps the map back inside the image bounds and thereby
+// cancels that autoPan -- the popup visibly slides up, then the map slides back down and hides it.
+// autoPan pans by an offset that fits inside the viewport, so Leaflet applies it *animated*: its
+// moveend (which would clamp back) fires only after this popupopen handler has run. So while a popup
+// is open we drop maxBounds -> the autoPan is no longer reverted, and we restore the bound as soon
+// as the user moves the map themselves (their move then clamps back naturally) or the popup closes.
+function keepPopupReadableDespiteMaxBounds(event) {
+    const popup = event.popup;
+    if (!popup || !popup.options || popup.options.autoPan === false) {
+        return;
+    }
+    const savedMaxBounds = map.options.maxBounds;
+    if (!savedMaxBounds) {
+        return;
+    }
+    map.options.maxBounds = null;
+
+    const detach = () => {
+        map.off("dragstart", onUserMove);
+        map.off("zoomstart", onUserMove);
+        map.off("popupclose", onPopupClose);
+    };
+    const onUserMove = () => {
+        map.options.maxBounds = savedMaxBounds;
+        detach();
+    };
+    const onPopupClose = (closeEvent) => {
+        if (closeEvent.popup !== popup) {
+            return;
+        }
+        map.options.maxBounds = savedMaxBounds;
+        map.panInsideBounds(savedMaxBounds, { animate: true });
+        detach();
+    };
+    map.on("dragstart", onUserMove);
+    map.on("zoomstart", onUserMove);
+    map.on("popupclose", onPopupClose);
+}
+map.on("popupopen", keepPopupReadableDespiteMaxBounds);
+
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
         ensurePowerlineAnimationLoop();
