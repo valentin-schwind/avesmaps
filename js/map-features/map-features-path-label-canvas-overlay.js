@@ -501,6 +501,9 @@
 	// Way-Label-Text liegen (beide sind reine Karten-Klicks, keine DOM-Ueberlappung im Sinne von
 	// Leaflets Ziel-Kette), und Siedlung gewinnt per Prioritaet immer.
 	map.on("click", (event) => {
+		if (cssZoomActive) {
+			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
+		}
 		if (!wayLabelsEnabled || !wayLabelClickRegister.length) {
 			return;
 		}
@@ -525,7 +528,22 @@
 	let wayLabelCursorActive = false;
 	let wayLabelLastCursorCheck = 0;
 	map.on("mousemove", (event) => {
-		if (!wayLabelsEnabled || !wayLabelClickRegister.length) {
+		if (cssZoomActive) {
+			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
+		}
+		if (!wayLabelsEnabled) {
+			return;
+		}
+		if (!wayLabelClickRegister.length) {
+			// Leeres Register (Zoom unter minZoom, Toggle aus, keine Daten): einen noch aktiven
+			// pointer-Cursor SOFORT zuruecksetzen statt nur frueh rauszuspringen -- sonst klebt der
+			// Finger-Cursor bis zum naechsten Treffer-Test mit wieder gefuelltem Register.
+			if (wayLabelCursorActive) {
+				wayLabelCursorActive = false;
+				if (map.getContainer().style.cursor === "pointer") {
+					map.getContainer().style.cursor = "";
+				}
+			}
 			return;
 		}
 		const now = Date.now();
