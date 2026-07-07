@@ -468,8 +468,10 @@ document.addEventListener("dragend", () => {
 	settlementDragClass = "";
 });
 
-attachTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeFilter, settlementTypeOptions, renderSettlementList);
-attachTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentFilter, settlementContinentOptions, renderSettlementList, "Kontinent");
-attachRadioFilter("settlement-source-filter-toggle", "settlement-source-filter-menu", settlementSourceFilter, SOURCE_FILTER_OPTIONS, renderSettlementList, "Quelle");
+attachFilterMenu("settlement-filter-toggle", "settlement-filter-menu", [
+	{ menuId: "settlement-type-filter-menu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
+	{ menuId: "settlement-continent-filter-menu", kind: "multi", state: settlementContinentFilter, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilter.size === 1 && settlementContinentFilter.has("Aventurien")) },
+	{ menuId: "settlement-source-filter-menu", kind: "single", state: settlementSourceFilter, options: SOURCE_FILTER_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
+], renderSettlementList, "Filter");
 
 window.loadSettlementList = loadSettlementList;

@@ -436,8 +436,10 @@ document.addEventListener("input", (event) => {
 	}
 });
 
-attachTypeFilter("region-type-filter-toggle", "region-type-filter-menu", regionTypeFilter, regionTypeOptions, renderRegionSyncList);
-attachTypeFilter("region-continent-filter-toggle", "region-continent-filter-menu", regionContinentFilter, regionContinentOptions, renderRegionSyncList, "Kontinent");
-attachRadioFilter("region-source-filter-toggle", "region-source-filter-menu", regionSourceFilter, SOURCE_FILTER_OPTIONS, renderRegionSyncList, "Quelle");
+attachFilterMenu("region-filter-toggle", "region-filter-menu", [
+	{ menuId: "region-type-filter-menu", kind: "multi", state: regionTypeFilter, getOptions: regionTypeOptions, label: "Typ", isActive: () => regionTypeFilter.size > 0 },
+	{ menuId: "region-continent-filter-menu", kind: "multi", state: regionContinentFilter, getOptions: regionContinentOptions, label: "Kontinent", isActive: () => !(regionContinentFilter.size === 1 && regionContinentFilter.has("Aventurien")) },
+	{ menuId: "region-source-filter-menu", kind: "single", state: regionSourceFilter, options: SOURCE_FILTER_OPTIONS, label: "Quelle", isActive: () => Boolean(regionSourceFilter.value) },
+], renderRegionSyncList, "Filter");
 
 window.loadRegionWikiSync = loadRegionWikiSync;

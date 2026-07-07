@@ -120,6 +120,73 @@ function attachRadioFilter(toggleId, menuId, state, options, applyFilter, label 
 	rebuild();
 }
 
+// Kombiniertes Filter-Dropdown: EIN Trichter-Toggle oeffnet ein Panel mit mehreren Abschnitten
+// (Typ/Kontinent = Checkboxen, Quelle = Radios), per Trenner getrennt. Der Zaehler am Trichter zeigt,
+// wie viele Abschnitte vom Default abweichen. Rendert die Abschnitte ueber die vorhandenen
+// render*Filter (ohne eigenen Toggle) und routet Change-Events pro Abschnitt an dessen State.
+// sections = [{ menuId, kind: "multi"|"single", state, getOptions?, options?, label, isActive() }]
+function attachFilterMenu(toggleId, panelId, sections, applyFilter, label = "Filter") {
+	const toggle = document.getElementById(toggleId);
+	const panel = document.getElementById(panelId);
+	if (!toggle || !panel) {
+		return () => {};
+	}
+	const rebuild = () => {
+		let active = 0;
+		sections.forEach((section) => {
+			if (section.kind === "single") {
+				renderRadioFilter("", section.menuId, section.options || SOURCE_FILTER_OPTIONS, section.state, section.label);
+			} else {
+				renderTypeFilter("", section.menuId, section.getOptions(), section.state, section.label);
+			}
+			if (section.isActive()) {
+				active += 1;
+			}
+		});
+		toggle.innerHTML = `${SOURCE_FILTER_ICON} ${escapeHtml(label)}${active > 0 ? ` <span class="type-filter__count">${active}</span>` : ""} ▾`;
+		toggle.title = active > 0 ? `${label} (${active})` : label;
+		toggle.setAttribute("aria-label", toggle.title);
+	};
+	toggle.addEventListener("click", (event) => {
+		event.stopPropagation();
+		panel.hidden = !panel.hidden;
+		if (!panel.hidden) {
+			rebuild();
+		}
+	});
+	document.addEventListener("click", (event) => {
+		if (!panel.hidden && !toggle.contains(event.target) && !panel.contains(event.target)) {
+			panel.hidden = true;
+		}
+	});
+	panel.addEventListener("change", (event) => {
+		const input = event.target;
+		if (!input || (input.type !== "checkbox" && input.type !== "radio")) {
+			return;
+		}
+		const section = sections.find((entry) => {
+			const container = document.getElementById(entry.menuId);
+			return container && container.contains(input);
+		});
+		if (!section) {
+			return;
+		}
+		if (section.kind === "single") {
+			section.state.value = input.value === "__all__" ? "" : input.value;
+		} else if (input.value === "__all__") {
+			section.state.clear();
+		} else if (input.checked) {
+			section.state.add(input.value);
+		} else {
+			section.state.delete(input.value);
+		}
+		rebuild();
+		applyFilter();
+	});
+	rebuild();
+	return rebuild;
+}
+
 // Ableitung der Quelle-Kategorie einer Listen-Zeile: Wiki hat Vorrang, dann eine externe Quelle,
 // sonst keine. Tolerant gegenueber den verschiedenen Feldnamen der Listen (flach / verschachtelt).
 const SOURCE_FILTER_OPTIONS = [
