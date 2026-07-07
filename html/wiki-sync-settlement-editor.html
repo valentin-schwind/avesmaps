@@ -34,6 +34,18 @@
   input[type=search] { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; flex:1; }
   #seTree, #seList, #seDetailBody { flex:1 1 auto; overflow:auto; min-height:0; background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px; }
   .dt-empty { color:var(--mut); padding:6px; }
+  /* Territorien-Baum (LINKS): read-only Filterbaum mit Tri-State-Checkboxen. */
+  #seTree ul { list-style:none; margin:0; padding-left:16px; }
+  #seTree > ul.tree-root { padding-left:0; }
+  #seTree li.tree-node { margin:1px 0; }
+  #seTree .tree-row { display:flex; align-items:center; gap:5px; padding:2px 3px; border-radius:4px; cursor:default; }
+  #seTree .tree-row:hover { background:#f3ebdf; }
+  #seTree .tree-row.filtered-out { display:none; }
+  #seTree .tree-toggle { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; flex:0 0 auto; cursor:pointer; color:var(--mut); font-size:10px; user-select:none; }
+  #seTree .tree-toggle.leaf { visibility:hidden; }
+  #seTree .tree-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #seTree input[type=checkbox] { flex:0 0 auto; cursor:pointer; }
+  #seTree ul.tree-children[hidden] { display:none; }
   /* Kontinent-Dropdown rechts in der Statuszeile (Muster #contDD/#contBtn/#contMenu). */
   .dropdown2 { position:relative; }
   .ddbtn { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:5px; }
@@ -82,10 +94,252 @@
     <div id="seDetailBody"><div class="dt-empty">In der Mitte eine Siedlung anklicken, um Details zu sehen.</div></div>
   </div>
 </div>
+<!-- Pure descendant-union helper (tri-state -> territory containment filter); cache-bust like
+     the editor HTML itself since this iframe document is fetched with ?v=Date.now() by its host. -->
+<script src="/js/map-features/map-features-settlement-territory-assign.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
+// Same curated model-tree endpoint as territory-wiki-tree.js / review-wiki-sync.js
+// (js/territory/territory-wiki-tree.js DEFAULT_API_URL is the read-only wiki-browser
+// mirror; the actual hierarchy source is this authed model_tree action). Hierarchy is
+// built ONLY from parent_wiki_key here (KERN-INVARIANTE) -- never affiliation_path.
+const TERRITORY_MODEL_TREE_API = "/api/edit/wiki/sync-monitor.php?action=model_tree";
 function $(id){ return document.getElementById(id); }
-async function boot(){ /* subsequent phases fill this: tree, list, detail */ }
+
+// settlementTree = { byKey: Map<wiki_key, node>, roots: node[] }; node = { wiki_key,
+// parent_wiki_key, name, children: node[] }. childrenByParent mirrors byKey's parent
+// links as parent_wiki_key -> [child wiki_key, ...] for the pure descendantWikiKeys()
+// helper (js/map-features/map-features-settlement-territory-assign.js).
+let settlementTree = { byKey: new Map(), roots: [] };
+let childrenByParent = new Map();
+// Explicitly checked territory wiki_keys (tri-state "gewaehlt"). Ancestors of a checked
+// node render checked-by-inheritance; the set itself only ever holds explicit picks.
+const checkedTerritoryKeys = new Set();
+
+// Same structural hiding as territory-wiki-tree.js isModelNodeHidden(): aussortiert
+// (excluded) und Luecken (Eltern nicht im Modell). Church-status filtering is skipped
+// here (model_tree rows don't need it for this read-only filter tree; the sibling's
+// affiliation_raw/status based church check is a wiki-browser-endpoint.php artifact
+// that doesn't apply to model_tree's own affiliation_raw field the same way -- kept
+// deliberately minimal for this phase).
+function isSettlementTreeNodeHidden(row) {
+	if (!row) return false;
+	if (row.excluded === true || row.excluded === 1) return true;
+	if (row.parent_wiki_key && row.parent_in_model === false) return true;
+	return false;
+}
+
+// Baut settlementTree + childrenByParent ausschliesslich ueber parent_wiki_key (nie
+// affiliation_path). Wurzeln = Knoten ohne (bekannten) parent_wiki_key.
+function buildSettlementTerritoryTree(nodes) {
+	const byKey = new Map();
+	const parentByKey = new Map();
+	const order = [];
+	for (const row of Array.isArray(nodes) ? nodes : []) {
+		const wikiKey = String(row && row.wiki_key || "").trim();
+		if (!wikiKey || isSettlementTreeNodeHidden(row)) continue;
+		if (byKey.has(wikiKey)) continue; // model_tree already dedupes by wiki_key; defensive only
+		const node = { wiki_key: wikiKey, parent_wiki_key: null, name: String(row.name || wikiKey).trim() || wikiKey, children: [] };
+		byKey.set(wikiKey, node);
+		parentByKey.set(wikiKey, String(row.parent_wiki_key || "").trim() || null);
+		order.push(node);
+	}
+	const nextChildrenByParent = new Map();
+	const roots = [];
+	for (const node of order) {
+		const parentKey = parentByKey.get(node.wiki_key);
+		const parentNode = parentKey && byKey.has(parentKey) ? byKey.get(parentKey) : null;
+		if (parentNode) {
+			node.parent_wiki_key = parentKey;
+			parentNode.children.push(node);
+			if (!nextChildrenByParent.has(parentKey)) nextChildrenByParent.set(parentKey, []);
+			nextChildrenByParent.get(parentKey).push(node.wiki_key);
+		} else {
+			roots.push(node);
+		}
+	}
+	for (const node of order) {
+		node.children.sort((a, b) => a.name.localeCompare(b.name, "de"));
+	}
+	roots.sort((a, b) => a.name.localeCompare(b.name, "de"));
+	return { tree: { byKey, roots }, childrenByParent: nextChildrenByParent };
+}
+
+async function loadSettlementTree() {
+	const container = $("seTree");
+	if (container) container.textContent = "Lade Territorien…";
+	try {
+		const requestUrl = new URL(TERRITORY_MODEL_TREE_API, window.location.href);
+		requestUrl.searchParams.set("_", String(Date.now()));
+		const response = await fetch(requestUrl.toString(), {
+			method: "GET",
+			credentials: "same-origin",
+			cache: "no-store",
+			headers: { Accept: "application/json", "Cache-Control": "no-cache", Pragma: "no-cache" },
+		});
+		const payload = await response.json();
+		if (!response.ok || !payload || payload.ok !== true) {
+			throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		}
+		const built = buildSettlementTerritoryTree(payload.nodes || []);
+		settlementTree = built.tree;
+		childrenByParent = built.childrenByParent;
+		renderSettlementTree();
+	} catch (error) {
+		if (container) container.textContent = "Territorien konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
+	}
+}
+
+// Ahnen-Kette (root-first ausgeschlossen, nur die Eltern) eines Knotens ueber
+// parent_wiki_key -- fuer den Tri-State-Ancestor-Check ("ist ein Vorfahre angehakt?").
+function getAncestorKeys(wikiKey) {
+	const ancestors = [];
+	let cursor = settlementTree.byKey.get(wikiKey) || null;
+	const guard = new Set();
+	while (cursor && cursor.parent_wiki_key && !guard.has(cursor.parent_wiki_key)) {
+		guard.add(cursor.parent_wiki_key);
+		ancestors.push(cursor.parent_wiki_key);
+		cursor = settlementTree.byKey.get(cursor.parent_wiki_key) || null;
+	}
+	return ancestors;
+}
+
+// Tri-State pro Knoten: "checked" (selbst oder ein Vorfahre angehakt), "indeterminate"
+// (nicht checked, aber mind. ein Nachfahre angehakt), sonst "unchecked".
+function getNodeTriState(wikiKey) {
+	if (checkedTerritoryKeys.has(wikiKey)) return "checked";
+	if (getAncestorKeys(wikiKey).some((key) => checkedTerritoryKeys.has(key))) return "checked";
+	const descendants = window.AvesmapsSettlementAssign.descendantWikiKeys([wikiKey], childrenByParent);
+	descendants.delete(wikiKey);
+	for (const descendantKey of descendants) {
+		if (checkedTerritoryKeys.has(descendantKey)) return "indeterminate";
+	}
+	return "unchecked";
+}
+
+function refreshAllTriStates() {
+	const container = $("seTree");
+	if (!container) return;
+	for (const checkbox of container.querySelectorAll("input[type=checkbox][data-wiki-key]")) {
+		const wikiKey = checkbox.dataset.wikiKey;
+		const state = getNodeTriState(wikiKey);
+		checkbox.checked = state === "checked";
+		checkbox.indeterminate = state === "indeterminate";
+	}
+}
+
+function onTerritoryCheckboxToggle(wikiKey, checked) {
+	if (checked) checkedTerritoryKeys.add(wikiKey);
+	else checkedTerritoryKeys.delete(wikiKey);
+	refreshAllTriStates();
+	// NOTE: wiring this selection into the middle settlement list is a LATER task (the
+	// list does not exist yet). Consumers can read the current selection via
+	// window.settlementEditorGetSelectedTerritoryKeys().
+}
+
+function buildTerritoryTreeNodeElement(node) {
+	const listItem = document.createElement("li");
+	listItem.className = "tree-node";
+	const row = document.createElement("div");
+	row.className = "tree-row";
+	row.dataset.name = node.name.toLowerCase();
+
+	const hasChildren = node.children.length > 0;
+	const toggle = document.createElement("span");
+	toggle.className = hasChildren ? "tree-toggle" : "tree-toggle leaf";
+	toggle.textContent = hasChildren ? "▾" : "";
+	toggle.setAttribute("aria-hidden", "true");
+	row.appendChild(toggle);
+
+	const checkbox = document.createElement("input");
+	checkbox.type = "checkbox";
+	checkbox.dataset.wikiKey = node.wiki_key;
+	checkbox.title = "Nach diesem Territorium (und Untergebieten) filtern";
+	checkbox.addEventListener("change", () => onTerritoryCheckboxToggle(node.wiki_key, checkbox.checked));
+	row.appendChild(checkbox);
+
+	const name = document.createElement("span");
+	name.className = "tree-name";
+	name.textContent = node.name;
+	name.title = node.name;
+	row.appendChild(name);
+
+	listItem.appendChild(row);
+
+	let childrenList = null;
+	if (hasChildren) {
+		childrenList = document.createElement("ul");
+		childrenList.className = "tree-children";
+		for (const child of node.children) childrenList.appendChild(buildTerritoryTreeNodeElement(child));
+		listItem.appendChild(childrenList);
+		toggle.addEventListener("click", () => {
+			const collapsed = childrenList.hasAttribute("hidden");
+			if (collapsed) childrenList.removeAttribute("hidden");
+			else childrenList.setAttribute("hidden", "");
+			toggle.textContent = collapsed ? "▾" : "▸";
+		});
+	}
+	return listItem;
+}
+
+function renderSettlementTree() {
+	const container = $("seTree");
+	if (!container) return;
+	container.innerHTML = "";
+	if (settlementTree.roots.length === 0) {
+		container.textContent = "Keine Territorien geladen.";
+		return;
+	}
+	const rootList = document.createElement("ul");
+	rootList.className = "tree-root";
+	for (const rootNode of settlementTree.roots) rootList.appendChild(buildTerritoryTreeNodeElement(rootNode));
+	container.appendChild(rootList);
+	refreshAllTriStates();
+	applyTerritoryTreeSearchFilter();
+}
+
+// Filtert sichtbare Zeilen per Namens-Substring (case-insensitive); Baumstruktur bleibt
+// stehen (kein Neuaufbau), nur .filtered-out toggeln. Vorfahren eines Treffers bleiben
+// sichtbar, damit der Treffer im Kontext auffindbar ist.
+function applyTerritoryTreeSearchFilter() {
+	const container = $("seTree");
+	const searchInput = $("seTreeSearch");
+	if (!container || !searchInput) return;
+	const query = searchInput.value.trim().toLowerCase();
+	const rows = container.querySelectorAll(".tree-row");
+	if (!query) {
+		for (const row of rows) row.classList.remove("filtered-out");
+		return;
+	}
+	for (const row of rows) {
+		const matches = row.dataset.name.includes(query);
+		row.classList.toggle("filtered-out", !matches);
+		if (matches) {
+			// Vorfahren-<ul class=tree-children hidden> aufklappen + sichtbar halten, damit ein
+			// Treffer in einem eingeklappten Ast nicht unsichtbar bleibt.
+			let ancestorList = row.closest("li.tree-node").parentElement;
+			while (ancestorList && ancestorList.classList && ancestorList.classList.contains("tree-children")) {
+				ancestorList.removeAttribute("hidden");
+				const parentRow = ancestorList.closest("li.tree-node").querySelector(":scope > .tree-row");
+				if (parentRow) parentRow.classList.remove("filtered-out");
+				const parentToggle = parentRow ? parentRow.querySelector(".tree-toggle") : null;
+				if (parentToggle && !parentToggle.classList.contains("leaf")) parentToggle.textContent = "▾";
+				ancestorList = ancestorList.closest("li.tree-node") ? ancestorList.closest("li.tree-node").parentElement : null;
+			}
+		}
+	}
+}
+
+// Exposed for the LATER middle-list filter task: current explicit selection (copy, not
+// the live Set) so callers can't accidentally mutate tree state from outside.
+window.settlementEditorGetSelectedTerritoryKeys = () => new Set(checkedTerritoryKeys);
+
+async function boot() {
+	const treeSearchInput = $("seTreeSearch");
+	if (treeSearchInput) treeSearchInput.addEventListener("input", applyTerritoryTreeSearchFilter);
+	await loadSettlementTree();
+	/* subsequent phases fill the rest: settlement list, detail panel */
+}
 boot();
 </script>
 </body>
