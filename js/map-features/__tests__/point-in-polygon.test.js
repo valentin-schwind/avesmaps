@@ -1,0 +1,12 @@
+const assert = require("assert");
+const { pointInPolygon, pointInGeometry } = require("../map-features-point-in-polygon.js");
+const square = [[[0,0],[10,0],[10,10],[0,10],[0,0]]];
+const withHole = [[[0,0],[10,0],[10,10],[0,10],[0,0]], [[3,3],[7,3],[7,7],[3,7],[3,3]]];
+assert.strictEqual(pointInPolygon([5,5], square), true, "center inside");
+assert.strictEqual(pointInPolygon([15,5], square), false, "outside");
+assert.strictEqual(pointInPolygon([5,5], withHole), false, "in hole => outside");
+assert.strictEqual(pointInPolygon([1,1], withHole), true, "in ring, not in hole");
+const multi = { type: "MultiPolygon", coordinates: [square, [[[20,20],[30,20],[30,30],[20,30],[20,20]]]] };
+assert.strictEqual(pointInGeometry([25,25], multi), true, "second polygon");
+assert.strictEqual(pointInGeometry([15,15], multi), false, "between polygons");
+console.log("PIP tests passed");
