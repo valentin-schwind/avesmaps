@@ -303,30 +303,24 @@ function buildPlannerSearchParams() {
 	return searchParams;
 }
 
+// Owner decision 2026-07-06: the address bar must stay EXACTLY what the user opened (`/`, a wiki
+// deep-link, a `?place=` link, an old settings link, or a `?s=` short link) -- settings/toggles are
+// deliberately no longer mirrored into the URL. Sharing happens exclusively through explicit
+// channels: the short-link button (creates `?s=<code>`, see js/app/share-link.js), the "Link teilen"
+// buttons, and the wiki deep-links. This function therefore no longer touches
+// window.history/location at all; it only persists the current planner state to localStorage while
+// in edit mode, so a reload in edit mode restores the same filters (see
+// getInitialPlannerSearchParams). Inbound query params are still READ on load
+// (applyPlannerStateFromUrl) for backward compatibility with old links that carry them.
 function syncPlannerStateToUrl() {
-	// Wiki deep-link focus in progress -> the opened URL must stay untouched (see
-	// suppressPlannerUrlSyncForWikiDeeplink in js/app/wiki-deeplink.js).
-	if (typeof isWikiDeeplinkUrlSyncSuppressed === "function" && isWikiDeeplinkUrlSyncSuppressed()) {
+	if (!IS_EDIT_MODE) {
 		return;
 	}
 
-	if (!window.history || typeof window.history.replaceState !== "function") {
-		return;
-	}
-
-	const searchParams = buildPlannerSearchParams();
-	if (window.avesmapsActiveLang === "en") {
-		searchParams.set("lang", "en");
-	}
-	const queryString = searchParams.toString();
-	const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`;
-
-	window.history.replaceState(window.history.state, "", nextUrl);
-	if (IS_EDIT_MODE) {
-		try {
-			window.localStorage?.setItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY, queryString);
-		} catch (error) {
-			console.warn("Editmode-Filter konnten nicht gespeichert werden:", error);
-		}
+	const queryString = buildPlannerSearchParams().toString();
+	try {
+		window.localStorage?.setItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY, queryString);
+	} catch (error) {
+		console.warn("Editmode-Filter konnten nicht gespeichert werden:", error);
 	}
 }

@@ -36,20 +36,20 @@ const SHARE_LINK_ENDPOINT = "/api/app/share-link.php";
 })();
 
 function currentShareQuery() {
-	// Sicherstellen, dass die URL den aktuellen Zustand widerspiegelt.
-	if (typeof syncPlannerStateToUrl === "function") {
-		try {
-			syncPlannerStateToUrl();
-		} catch (error) {
-			/* egal */
-		}
-	}
-	const params = new URLSearchParams(window.location.search);
+	// Die Adressleiste spiegelt den Planer-Zustand seit der Owner-Entscheidung 2026-07-06 NICHT mehr
+	// (js/map-features/map-features-layer-state.js syncPlannerStateToUrl schreibt die URL nicht mehr).
+	// Die Abfrage-Parameter daher direkt aus dem Planer-Zustand aufbauen statt aus window.location.search
+	// zu lesen (das wäre jetzt der unveränderten, ggf. leeren geöffneten URL).
+	const params = typeof buildPlannerSearchParams === "function"
+		? buildPlannerSearchParams()
+		: new URLSearchParams(window.location.search);
 	// Editor-/Debug-Flags gehören nicht in einen geteilten Link (öffentliche Ansicht). Ebenso die
 	// Wiki-Deep-Link-Parameter (?siedlung/?staat/?region/?strasse/?fluss) und der ältere
 	// ?place=<publicId>-Fokus-Parameter (js/map-features/map-features-share-pin.js) -- sie
 	// fokussieren beim Laden ein Objekt und sollen nicht in einen später geteilten ?s=-Code einwandern
-	// (ein Kurzlink-Code darf keinen Fokus-Parameter re-embedden).
+	// (ein Kurzlink-Code darf keinen Fokus-Parameter re-embedden). "lang" wird ebenfalls nie geteilt
+	// (buildPlannerSearchParams setzt es ohnehin nicht -- das kam frueher nur ueber syncPlannerStateToUrl
+	// in die Adressleiste -- der Delete bleibt als Sicherheitsnetz bestehen).
 	const wikiDeeplinkParams = typeof WIKI_DEEPLINK_PARAM_NAMES !== "undefined"
 		? WIKI_DEEPLINK_PARAM_NAMES
 		: ["siedlung", "staat", "region", "strasse", "fluss"];
