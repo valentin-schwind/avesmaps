@@ -79,6 +79,48 @@
   .se-row-l2.warn { color:var(--warn); }
   .se-empty, .se-loading, .se-error { color:var(--mut); padding:6px; }
   .se-error { color:var(--bad); }
+  /* Siedlungs-Detailpanel (RECHTS): Wappen-Block oben, dann Gruppen "Identitaet" /
+     "Lage & Zugehoerigkeit" / "Wiki & Quelle". dt-* Klassen mirroren bewusst den
+     Territoriumseditor (html/wiki-sync-monitor.html), damit die Optik konsistent bleibt. */
+  .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
+  .dt-wappen { width:56px; height:56px; flex:0 0 56px; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:6px; }
+  .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
+  .dt-wappen-placeholder { width:56px; height:56px; flex:0 0 56px; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:18px; background:#f1eadd; border:1px solid var(--line); border-radius:6px; }
+  .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:#fff9f4; font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
+  .dt-wappen-box:hover .dt-wappen-edit, .dt-wappen-box:focus-within .dt-wappen-edit { display:flex; }
+  .dt-coat-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:6px; }
+  .dt-coat-info { flex:1; min-width:0; }
+  .dt-coat-info .dt-title { font-size:13px; font-weight:bold; color:#3f3428; }
+  .dt-coat-info .dt-sub { color:var(--mut); font-size:11px; margin-top:2px; }
+  .dt-grp { font-size:11px; font-weight:bold; color:var(--mut); border-top:1px solid var(--line); padding-top:6px; margin-top:8px; }
+  .dt-grp:first-of-type { border-top:none; margin-top:0; }
+  .dt-grid { display:grid; grid-template-columns:minmax(90px,0.35fr) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
+  .dt-grid .k { color:#6a5543; font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
+  .dt-grid > div:not(.k) { padding:5px 0; color:#2f251c; min-width:0; overflow-wrap:anywhere; }
+  .dt-badge { font-size:10px; color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; margin-left:5px; white-space:nowrap; }
+  .dt-link { color:var(--accent); }
+  /* Territorium-Zuordnung: der Kern-Control dieses Editors. */
+  .dt-territory-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border-radius:5px; font-weight:bold; font-size:12px; }
+  .dt-territory-badge.ok { background:#eef5ef; border:1px solid #b8d3b8; color:var(--ok); }
+  .dt-territory-badge.warn { background:#faeeda; border:1px solid #ef9f27; color:#854f0b; }
+  .dt-territory-badge.na { background:#efe6d9; border:1px solid var(--line2); color:var(--mut); }
+  .dt-territory-source { color:var(--mut); font-size:11px; margin-left:2px; }
+  .dt-territory-row { margin-top:4px; padding:4px 6px; background:var(--soft); border:1px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .dt-territory-picker { margin-top:5px; }
+  .dt-territory-picker input[type=search] { width:100%; box-sizing:border-box; font:inherit; padding:3px 6px; border:1px solid var(--line); border-radius:5px; background:var(--soft); }
+  .dt-territory-results { border:1px solid var(--line); border-radius:5px; margin-top:3px; max-height:150px; overflow:auto; background:var(--panel); }
+  .dt-territory-results div { padding:3px 6px; cursor:pointer; font-size:12px; }
+  .dt-territory-results div:hover { background:#e7d6bd; }
+  /* Wappen-Upload-Dialog (Muster wiki-sync-monitor.html #wappenDialog). */
+  .modal { position:fixed; inset:0; background:rgba(47,37,28,.45); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .modal[hidden] { display:none; }
+  .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:360px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
+  .modal-title { font-size:15px; font-weight:bold; color:#3f3428; margin-bottom:2px; }
+  .modal-sub { color:var(--mut); font-size:12px; margin-bottom:10px; }
+  .modal .fld { display:block; font-size:12px; margin-bottom:9px; }
+  .modal .fld input[type=file] { display:block; margin-top:4px; font:inherit; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  .modal-error { color:var(--bad); font-size:12px; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -118,6 +160,20 @@
       <h2 class="listhead">Eigenschaften &amp; Overrides</h2>
     </div>
     <div id="seDetailBody"><div class="dt-empty">In der Mitte eine Siedlung anklicken, um Details zu sehen.</div></div>
+  </div>
+</div>
+<div id="seWappenDialog" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-title">Eigenes Wappen hochladen</div>
+    <div class="modal-sub" id="seWappenFor">—</div>
+    <label class="fld">Bilddatei (PNG / JPG / WebP / GIF, max. 2 MB)
+      <input type="file" id="seWappenFile" accept="image/png,image/jpeg,image/webp,image/gif">
+    </label>
+    <div class="modal-error" id="seWappenError" hidden></div>
+    <div class="modal-actions">
+      <button id="seWappenCancel">Abbrechen</button>
+      <button class="primary" id="seWappenUpload">Hochladen</button>
+    </div>
   </div>
 </div>
 <!-- Pure descendant-union helper (tri-state -> territory containment filter); cache-bust like
@@ -527,12 +583,408 @@ function selectSettlementRow(publicId) {
 	renderSettlementDetail(publicId);
 }
 
-// Phase 6: settlement detail panel (RIGHT column). This is intentionally a stub for now --
-// building #seDetailBody is a later task. Row selection + highlighting already works above;
-// this hook is where the detail phase will fetch/render the "Eigenschaften & Overrides" panel.
-function renderSettlementDetail(publicId) {
-	// no-op for now
+// ===================== RIGHT column: settlement detail panel =====================
+// NOTE on the "Overrides" in this column's header: unlike the territory editor
+// (metadata_overrides_json + effVal(n,k) = override ?? wiki), settlements do NOT have a
+// per-field override mechanism. avesmapsWikiSettlementAssignTo()/ClearAssign() write/delete
+// properties.wiki_settlement WHOLESALE (api/_internal/wiki/settlements.php); update_point
+// (api/_internal/map/features.php) only ever touches the flat top-level name/description/
+// wiki_url/other_source/is_nodix/is_ruined keys and never reads/writes wiki_settlement at
+// all. So wiki_settlement.* fields below (Typ/Einwohner/Oberhaupt/Region/Staat/Lage) are
+// rendered as PLAIN wiki values with a "Wiki" tag -- no old-→new / ↺ reset UI, because
+// there is nothing to reset them TO or FROM. The one field that genuinely has an
+// auto-value-vs-manual-override relationship is Territorium: territory_source is
+// 'raycast' (automatic) or 'manual' (an editor pick beats the next global ray-cast run) --
+// that is the real, single "override" in this data model. It gets its own dedicated
+// dt-territory-* treatment below: a badge for the CURRENT value + a small source label
+// ("manuell"/"Ray-Cast · tiefste Ebene"), not a before/after value diff -- there is only
+// ever one current value here, never a wiki-value-plus-override pair to show side by side.
+let settlementDetailCache = null; // last successfully loaded {publicId, detail}
+let settlementDetailLoadToken = 0; // guards against a stale fetch clobbering a newer selection
+let territoryPickerOpen = false;
+let territoryPickerQuery = "";
+
+function settlementDetailApiUrl(action, params) {
+	const url = new URL(SETTLEMENT_EDITOR_API, window.location.href);
+	url.searchParams.set("action", action);
+	for (const [key, value] of Object.entries(params || {})) url.searchParams.set(key, value);
+	return url.toString();
 }
+
+async function settlementDetailPost(body) {
+	const response = await fetch(SETTLEMENT_EDITOR_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	const payload = await response.json().catch(() => null);
+	if (!response.ok || !payload || payload.ok !== true) {
+		throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+	}
+	return payload;
+}
+
+// Applies a fresh {territory_wiki_key, territory_public_id, territory_source} onto the
+// cached settlementItems row (kept in sync with what the detail panel just wrote) and
+// re-renders the middle list so its ✓/⚠ status + tree-filter membership follow along --
+// task spec point 3 ("update the settlement in the middle list ... re-render the middle list").
+function patchSettlementListItem(publicId, patch) {
+	const item = settlementItems.find((candidate) => candidate.public_id === publicId);
+	if (item) Object.assign(item, patch);
+	renderSettlementMid();
+}
+
+function settlementDetailLoading() {
+	return `<div class="se-loading">Lädt…</div>`;
+}
+
+function settlementDetailErrorHtml(message) {
+	return `<div class="se-error">Fehler: ${settlementEscape(message)}</div>`;
+}
+
+function settlementDetailLoadErrorHtml(message) {
+	return `<div class="se-error">Details konnten nicht geladen werden: ${settlementEscape(message)}</div>`;
+}
+
+async function renderSettlementDetail(publicId) {
+	const body = $("seDetailBody");
+	if (!body) return;
+	if (!publicId) {
+		body.innerHTML = `<div class="dt-empty">In der Mitte eine Siedlung anklicken, um Details zu sehen.</div>`;
+		return;
+	}
+	const token = ++settlementDetailLoadToken;
+	body.innerHTML = settlementDetailLoading();
+	territoryPickerOpen = false;
+	territoryPickerQuery = "";
+	try {
+		const response = await fetch(settlementDetailApiUrl("settlement_detail", { public_id: publicId }), {
+			method: "GET",
+			credentials: "same-origin",
+		});
+		const payload = await response.json();
+		if (!response.ok || !payload || payload.ok !== true) {
+			throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		}
+		if (token !== settlementDetailLoadToken || selectedPublicId !== publicId) return; // a newer selection/reload won the race
+		settlementDetailCache = { publicId, detail: payload.detail };
+		body.innerHTML = buildSettlementDetailHtml(payload.detail);
+	} catch (error) {
+		if (token !== settlementDetailLoadToken || selectedPublicId !== publicId) return;
+		body.innerHTML = settlementDetailLoadErrorHtml(error && error.message ? error.message : String(error));
+	}
+}
+
+// Re-fetches the currently selected settlement's detail (after a write) without touching
+// selection/highlight state.
+async function reloadSettlementDetail() {
+	if (!selectedPublicId) return;
+	await renderSettlementDetail(selectedPublicId);
+}
+
+function settlementCoatImageSrc(coat) {
+	if (!coat || !coat.url) return "";
+	// Own uploads are local URLs already; wiki coats go through the cache proxy (host allowlist),
+	// mirroring settlementCoatImageSrc() in js/review/review-locations.js.
+	return coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
+}
+
+function licenseStatusLabel(status) {
+	if (status === "public_domain") return "Gemeinfrei";
+	if (status === "own") return "Eigener Upload";
+	if (status === "attribution_required") return "Namensnennung nötig";
+	return "Lizenz unbekannt";
+}
+
+function buildSettlementCoatBlockHtml(detail) {
+	const props = detail.properties || {};
+	const coat = props.coat && props.coat.url ? props.coat : null;
+	const ws = props.wiki_settlement || null;
+	const wappenUrl = coat ? coat.url : (ws && ws.wappen_url) || "";
+	const src = coat ? settlementCoatImageSrc(coat) : (wappenUrl ? `/api/app/coat.php?u=${encodeURIComponent(wappenUrl)}` : "");
+	const licenseStatus = coat ? coat.license_status : (wappenUrl ? "unknown" : "");
+	const isDim = wappenUrl && (licenseStatus === "unknown" || !licenseStatus);
+	const imgHtml = src
+		? `<img class="dt-wappen${isDim ? " gray" : ""}" src="${settlementEscape(src)}" alt="">`
+		: `<div class="dt-wappen-placeholder">∅</div>`;
+	const sourceLabel = coat ? (coat.source === "own" ? "eigener Upload" : "Wiki") : (wappenUrl ? "Wiki (nicht übernommen)" : "keins");
+	const licLine = coat
+		? `<div class="dt-sub">Quelle: ${settlementEscape(sourceLabel)} · ${settlementEscape(licenseStatusLabel(licenseStatus))}</div>`
+		: (wappenUrl ? `<div class="dt-sub">Wiki-Wappen vorhanden, aber nicht übernommen.</div>` : `<div class="dt-sub">Kein Wappen hinterlegt.</div>`);
+	// Coat upload has no geometry dependency (settlement-coat-upload.php only needs public_id),
+	// so -- unlike the Territorium control -- it stays enabled for wiki-only settlements too.
+	return (
+		`<div class="dt-coat-row">` +
+		`<div class="dt-wappen-box">${imgHtml}<div class="dt-wappen-edit" data-coat-upload-trigger="1">Bild ändern</div></div>` +
+		`<div class="dt-coat-info"><div class="dt-title">Wappen</div>${licLine}` +
+		`<span class="dt-link" data-coat-upload-trigger="1" style="cursor:pointer">Ersetzen / hochladen</span>` +
+		`</div></div>`
+	);
+}
+
+function buildDetailFieldRow(label, valueHtml, badge) {
+	if (!valueHtml) return "";
+	const badgeHtml = badge ? ` <span class="dt-badge">${settlementEscape(badge)}</span>` : "";
+	return `<div class="k">${settlementEscape(label)}</div><div>${valueHtml}${badgeHtml}</div>`;
+}
+
+function buildIdentityGroupHtml(detail) {
+	const props = detail.properties || {};
+	const ws = props.wiki_settlement || null;
+	const rows = [];
+	rows.push(buildDetailFieldRow("Name", settlementEscape(detail.name || "")));
+	const art = (ws && ws.art) || "";
+	rows.push(buildDetailFieldRow("Typ", art ? settlementEscape(art) : "", art ? "Wiki" : ""));
+	const einwohner = (ws && ws.einwohner) || "";
+	rows.push(buildDetailFieldRow("Einwohner", einwohner ? settlementEscape(einwohner) : "", einwohner ? "Wiki" : ""));
+	const oberhaupt = (ws && ws.oberhaupt) || "";
+	rows.push(buildDetailFieldRow("Oberhaupt", oberhaupt ? settlementEscape(oberhaupt) : "", oberhaupt ? "Wiki" : ""));
+	const filled = rows.filter(Boolean);
+	if (filled.length === 0) return "";
+	return `<div class="dt-grp">Identität</div><div class="dt-grid">${filled.join("")}</div>`;
+}
+
+// Territorium badge + source label + the "ändern"/"Entfernen" controls -- the core control
+// of this editor (see the file-level note above for why this is the one real override).
+function buildTerritoryFieldHtml(detail) {
+	const props = detail.properties || {};
+	const wikiKey = props.territory_wiki_key || null;
+	const source = props.territory_source || null;
+	const onMap = detail.on_map === true;
+
+	if (!onMap) {
+		return (
+			`<div class="k">Territorium</div><div>` +
+			`<span class="dt-territory-badge na">n. v.</span>` +
+			`<div class="dt-sub" style="margin-top:3px">Reiner Wiki-Ort ohne Kartenpunkt — keine geometrische Zuordnung möglich.</div>` +
+			`</div>`
+		);
+	}
+
+	const sourceLabel = source === "manual" ? "manuell" : (source === "raycast" ? "Ray-Cast · tiefste Ebene" : "");
+	let badgeHtml;
+	if (wikiKey) {
+		const name = territoryDisplayName(wikiKey);
+		badgeHtml = `<span class="dt-territory-badge ok">✓ ${settlementEscape(name)}</span>`;
+	} else {
+		badgeHtml = `<span class="dt-territory-badge warn">⚠ nicht zugeordnet</span>`;
+	}
+	const clearBtn = wikiKey ? `<span class="dt-link" data-territory-clear="1" style="cursor:pointer">Entfernen</span>` : "";
+	const pickerHtml = territoryPickerOpen ? buildTerritoryPickerHtml() : "";
+
+	return (
+		`<div class="k">Territorium</div><div>` +
+		`<div class="dt-territory-row">` +
+		`<span>${badgeHtml}${sourceLabel ? `<span class="dt-territory-source">${settlementEscape(sourceLabel)}</span>` : ""}</span>` +
+		`<span><span class="dt-link" data-territory-change="1" style="cursor:pointer">ändern</span>${clearBtn ? " · " + clearBtn : ""}</span>` +
+		`</div>${pickerHtml}</div>`
+	);
+}
+
+// Flat searchable list of every territory in settlementTree.byKey (same tree the LEFT
+// column renders from -- so names always match what's shown/checked there).
+function buildTerritoryPickerHtml() {
+	const query = territoryPickerQuery.trim().toLowerCase();
+	const all = [...settlementTree.byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "de"));
+	const filtered = query ? all.filter((node) => node.name.toLowerCase().includes(query)) : all;
+	const limited = filtered.slice(0, 40);
+	const resultsHtml = limited.length
+		? limited.map((node) => `<div data-territory-pick="${settlementEscape(node.wiki_key)}">${settlementEscape(node.name)}</div>`).join("")
+		: `<div class="dt-empty">Keine Treffer.</div>`;
+	return (
+		`<div class="dt-territory-picker">` +
+		`<input type="search" id="seTerritoryPickerSearch" placeholder="Territorium suchen…" value="${settlementEscape(territoryPickerQuery)}">` +
+		`<div class="dt-territory-results">${resultsHtml}</div>` +
+		`</div>`
+	);
+}
+
+function buildLocationGroupHtml(detail) {
+	const props = detail.properties || {};
+	const ws = props.wiki_settlement || null;
+	const rows = [];
+	rows.push(buildTerritoryFieldHtml(detail));
+	const region = (ws && ws.region) || "";
+	rows.push(buildDetailFieldRow("Region", region ? settlementEscape(region) : "", region ? "Wiki" : ""));
+	const staat = (ws && ws.staat) || "";
+	rows.push(buildDetailFieldRow("Staat", staat ? settlementEscape(staat) : "", staat ? "Wiki" : ""));
+	const lage = (ws && ws.lage) || "";
+	rows.push(buildDetailFieldRow("Lage", lage ? settlementEscape(lage) : "", lage ? "Wiki" : ""));
+	return `<div class="dt-grp">Lage &amp; Zugehörigkeit</div><div class="dt-grid">${rows.filter(Boolean).join("")}</div>`;
+}
+
+function buildWikiSourceGroupHtml(detail) {
+	const props = detail.properties || {};
+	const ws = props.wiki_settlement || null;
+	const wikiUrl = (ws && ws.wiki_url) || props.wiki_url || "";
+	const otherSource = props.other_source && (props.other_source.url || props.other_source.label) ? props.other_source : { url: "", label: "" };
+	const hasWiki = !!wikiUrl;
+
+	const wikiRow = hasWiki
+		? buildDetailFieldRow("Wiki", `<a class="dt-link" href="${settlementEscape(wikiUrl)}" target="_blank" rel="noopener">${settlementEscape(detail.name || "Wiki-Seite")} ↗</a>`)
+		: buildDetailFieldRow("Wiki", `<span class="dt-sub">nicht verknüpft</span>`);
+
+	// "Andere Quelle" ({url,label} at properties.other_source, top-level -- independent of
+	// wiki_settlement) is shown only when there's no wiki entry, mirroring
+	// toggleOtherSourceSection() in js/review/review-other-source.js. READ-ONLY here
+	// (deliberate deviation -- see the report): the only write path for this field is
+	// api/edit/map/features.php's update_point action, a general, destructive
+	// full-object-overwrite (it rewrites name/feature_subtype/is_nodix/is_ruined/
+	// description/wiki_url/other_source together in one UPDATE), and
+	// avesmapsWikiSettlementDetail()'s SQL (api/_internal/wiki/settlements.php:1345-1348)
+	// does not select feature_subtype -- this panel cannot safely round-trip that field, and
+	// a naive save here would either 400 or silently reset the settlement's map icon/type.
+	// Editing "Andere Quelle" remains available via the existing "Ort bearbeiten" dialog
+	// (js/review/review-locations.js openLocationEditDialog), which already has the full
+	// field set loaded.
+	let otherRow = "";
+	if (!hasWiki) {
+		const valueHtml = otherSource.url
+			? `<a class="dt-link" href="${settlementEscape(otherSource.url)}" target="_blank" rel="noopener">${settlementEscape(otherSource.label || otherSource.url)} ↗</a>`
+			: `<span class="dt-sub">keine hinterlegt</span>`;
+		otherRow = buildDetailFieldRow("Andere Quelle", valueHtml);
+	}
+
+	return `<div class="dt-grp">Wiki &amp; Quelle</div><div class="dt-grid">${wikiRow}${otherRow}</div>`;
+}
+
+function buildSettlementDetailHtml(detail) {
+	const coatHtml = buildSettlementCoatBlockHtml(detail);
+	const identityHtml = buildIdentityGroupHtml(detail);
+	const locationHtml = buildLocationGroupHtml(detail);
+	const wikiHtml = buildWikiSourceGroupHtml(detail);
+	return coatHtml + identityHtml + locationHtml + wikiHtml;
+}
+
+// ---- Territorium: assign / clear -------------------------------------------------------
+async function applyTerritoryAssign(wikiKey) {
+	if (!settlementDetailCache || !selectedPublicId) return;
+	// territory_public_id is optional (avesmapsWikiSettlementAssignTerritory stores null when
+	// empty) and this editor's own territory tree (model_tree, api/_internal/wiki/
+	// sync-monitor-tree.php avesmapsWikiSyncMonitorModelTree) is entirely wiki_key-keyed --
+	// it never selects political_territory.public_id -- so there is no public_id available
+	// here to send. wiki_key alone is the load-bearing identity (assign_territory's own
+	// validation only requires wiki_key; see api/_internal/wiki/settlements.php:1388-1390).
+	try {
+		await settlementDetailPost({
+			action: "assign_territory",
+			public_id: selectedPublicId,
+			wiki_key: wikiKey,
+			territory_public_id: "",
+			confirm: "apply",
+			dry_run: false,
+		});
+		patchSettlementListItem(selectedPublicId, { territory_wiki_key: wikiKey, territory_public_id: null, territory_source: "manual" });
+		await reloadSettlementDetail();
+	} catch (error) {
+		const body = $("seDetailBody");
+		if (body) body.insertAdjacentHTML("afterbegin", settlementDetailErrorHtml(error && error.message ? error.message : String(error)));
+	}
+}
+
+async function applyTerritoryClear() {
+	if (!selectedPublicId) return;
+	try {
+		await settlementDetailPost({ action: "clear_territory", public_id: selectedPublicId, confirm: "apply", dry_run: false });
+		patchSettlementListItem(selectedPublicId, { territory_wiki_key: null, territory_public_id: null, territory_source: null });
+		await reloadSettlementDetail();
+	} catch (error) {
+		const body = $("seDetailBody");
+		if (body) body.insertAdjacentHTML("afterbegin", settlementDetailErrorHtml(error && error.message ? error.message : String(error)));
+	}
+}
+
+// ---- Wappen upload dialog (multipart -> settlement-coat-upload.php) -------------------
+const SETTLEMENT_COAT_UPLOAD_API = "/api/edit/wiki/settlement-coat-upload.php";
+
+function openSettlementCoatDialog() {
+	if (!settlementDetailCache) return;
+	const dialog = $("seWappenDialog");
+	const forEl = $("seWappenFor");
+	const fileInput = $("seWappenFile");
+	const errorEl = $("seWappenError");
+	if (forEl) forEl.textContent = `für „${settlementDetailCache.detail.name}“`;
+	if (fileInput) fileInput.value = "";
+	if (errorEl) { errorEl.hidden = true; errorEl.textContent = ""; }
+	if (dialog) dialog.hidden = false;
+}
+
+function closeSettlementCoatDialog() {
+	const dialog = $("seWappenDialog");
+	if (dialog) dialog.hidden = true;
+}
+
+async function uploadSettlementCoat() {
+	const fileInput = $("seWappenFile");
+	const errorEl = $("seWappenError");
+	const file = fileInput && fileInput.files && fileInput.files[0];
+	if (!selectedPublicId || !file) {
+		if (errorEl) { errorEl.textContent = "Bitte eine Bilddatei wählen."; errorEl.hidden = false; }
+		return;
+	}
+	const formData = new FormData();
+	formData.append("public_id", selectedPublicId);
+	formData.append("coat", file);
+	try {
+		const response = await fetch(SETTLEMENT_COAT_UPLOAD_API, { method: "POST", credentials: "same-origin", body: formData });
+		const payload = await response.json().catch(() => null);
+		if (!response.ok || !payload || payload.ok !== true) {
+			throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		}
+		closeSettlementCoatDialog();
+		await reloadSettlementDetail();
+	} catch (error) {
+		if (errorEl) { errorEl.textContent = error && error.message ? error.message : String(error); errorEl.hidden = false; }
+	}
+}
+
+// ---- Delegated event wiring for the detail panel + its dialog -------------------------
+document.addEventListener("click", (event) => {
+	if (event.target.closest && event.target.closest("[data-coat-upload-trigger]")) {
+		openSettlementCoatDialog();
+		return;
+	}
+	if (event.target.closest && event.target.closest("[data-territory-change]")) {
+		territoryPickerOpen = !territoryPickerOpen;
+		territoryPickerQuery = "";
+		if (settlementDetailCache) $("seDetailBody").innerHTML = buildSettlementDetailHtml(settlementDetailCache.detail);
+		return;
+	}
+	if (event.target.closest && event.target.closest("[data-territory-clear]")) {
+		applyTerritoryClear();
+		return;
+	}
+	const pick = event.target.closest ? event.target.closest("[data-territory-pick]") : null;
+	if (pick) {
+		territoryPickerOpen = false;
+		applyTerritoryAssign(pick.dataset.territoryPick);
+		return;
+	}
+});
+
+document.addEventListener("input", (event) => {
+	if (event.target.id === "seTerritoryPickerSearch") {
+		territoryPickerQuery = event.target.value || "";
+		const resultsHost = $("seDetailBody")?.querySelector(".dt-territory-results");
+		if (resultsHost && settlementDetailCache) {
+			// Re-render just the results list (not the whole picker) so the search input keeps focus/caret.
+			const query = territoryPickerQuery.trim().toLowerCase();
+			const all = [...settlementTree.byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "de"));
+			const filtered = query ? all.filter((node) => node.name.toLowerCase().includes(query)) : all;
+			const limited = filtered.slice(0, 40);
+			resultsHost.innerHTML = limited.length
+				? limited.map((node) => `<div data-territory-pick="${settlementEscape(node.wiki_key)}">${settlementEscape(node.name)}</div>`).join("")
+				: `<div class="dt-empty">Keine Treffer.</div>`;
+		}
+	}
+});
+
+$("seWappenCancel")?.addEventListener("click", closeSettlementCoatDialog);
+$("seWappenUpload")?.addEventListener("click", uploadSettlementCoat);
+$("seWappenDialog")?.addEventListener("click", (event) => {
+	if (event.target.id === "seWappenDialog") closeSettlementCoatDialog();
+});
 
 function renderSettlementTabs() {
 	const host = $("seListTabs");
@@ -701,7 +1153,6 @@ async function boot() {
 	const treeSearchInput = $("seTreeSearch");
 	if (treeSearchInput) treeSearchInput.addEventListener("input", applyTerritoryTreeSearchFilter);
 	await Promise.all([loadSettlementTree(), loadSettlementItems()]);
-	/* subsequent phase fills the rest: settlement detail panel (RIGHT column) */
 }
 boot();
 </script>
