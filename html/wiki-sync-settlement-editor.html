@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Siedlungen zuordnen und editieren</title>
+<link rel="stylesheet" href="/css/base/fonts.css">
+<style>
+  :root { --bg:#f4efe7; --panel:#fff9f4; --soft:#fffaf5; --line:#d8c6b2; --line2:#cdb79f; --fg:#3f3428; --mut:#6c5a49; --accent:#0078a8; --accent-hover:#1a9fd4; --warn:#b8860b; --bad:#9d3a2e; --ok:#2e7d32; --font-ui:"Faculty Glyphic","Arial",sans-serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
+  header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+  /* Alle Steuer-Buttons in EINER Zeile, gleich breite Spalten (wie im Territoriumseditor). */
+  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; align-items:stretch; }
+  button { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
+  button:hover { background:#ead9c2; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.primary { background:#565044; border-color:#5f4f40; color:#fff9f4; }
+  button.primary:hover { background:#4a463b; }
+  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:5px 11px; gap:1px; line-height:1.15; }
+  .btn2 .t1 { font-size:13px; font-weight:bold; }
+  .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
+  .btn2.primary .t2 { color:#e9ddcb; }
+  #settlementStatus { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
+  #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #seContDD { flex:0 0 auto; align-self:center; }
+  .cols { display:flex; flex:1 1 auto; min-height:0; }
+  .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; min-width:0; }
+  #seLeft { border-right:1px solid var(--line); max-width:46%; }
+  .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
+  .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:#3f3428; }
+  .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  input[type=search] { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; flex:1; }
+  #seTree, #seList, #seDetailBody { flex:1 1 auto; overflow:auto; min-height:0; background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px; }
+  .dt-empty { color:var(--mut); padding:6px; }
+  /* Kontinent-Dropdown rechts in der Statuszeile (Muster #contDD/#contBtn/#contMenu). */
+  .dropdown2 { position:relative; }
+  .ddbtn { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:5px; }
+  .ddbtn:hover { background:#ead9c2; }
+  .ddcaret { font-size:10px; color:var(--mut); }
+  .dropdown2 .dd-menu[hidden] { display:none; }
+  .dd-menu { position:absolute; z-index:20; top:100%; right:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
+  .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
+</style>
+</head>
+<body>
+<header>
+  <div class="controls">
+    <button class="btn2 primary" id="seAssign" title="Ordnet alle Siedlungen ihrem Territorium per Ray-Cast zu"><span class="t1">Siedlungen zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
+    <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
+    <button class="btn2" id="seLocalizeCoats" title="Lädt gemeinfreie Wappen lokal herunter"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
+  </div>
+</header>
+<div id="settlementStatus">
+  <span id="seStatusText">Bereit.</span>
+  <div id="seContDD" class="dropdown2">
+    <button type="button" id="seContBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span class="ddcaret">▾</span></button>
+    <div class="dd-menu" id="seContMenu" hidden></div>
+  </div>
+</div>
+<div class="cols">
+  <div class="col" id="seLeft">
+    <div class="colhead">
+      <h2 class="listhead">Territorien</h2>
+      <div class="bar"><input type="search" id="seTreeSearch" placeholder="In Territorien suchen…"></div>
+    </div>
+    <div id="seTree"></div>
+  </div>
+  <div class="col" id="seMid">
+    <div class="colhead">
+      <h2 class="listhead">Siedlungen</h2>
+      <div id="seListTabs"></div>
+      <div class="bar" id="seListFilters"></div>
+    </div>
+    <div id="seList"></div>
+  </div>
+  <div class="col" id="seRight">
+    <div class="colhead">
+      <h2 class="listhead">Eigenschaften &amp; Overrides</h2>
+    </div>
+    <div id="seDetailBody"><div class="dt-empty">In der Mitte eine Siedlung anklicken, um Details zu sehen.</div></div>
+  </div>
+</div>
+<script>
+const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
+function $(id){ return document.getElementById(id); }
+async function boot(){ /* subsequent phases fill this: tree, list, detail */ }
+boot();
+</script>
+</body>
+</html>
