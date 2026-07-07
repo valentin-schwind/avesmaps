@@ -6,6 +6,12 @@ const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 const AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY = 100.0;
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE = 'Querfeldein';
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 25.0;
+// Cross-country "Querfeldein" bridges only span SHORT gaps in the path network. If the nearest
+// reachable node of a detached component is farther than this (map units; 1 unit = 3 miles), no
+// bridge is built -> the location stays land-unreachable (e.g. sea-only coastal towns like the
+// Friedhof der Seeschlangen) instead of being force-connected via an absurd trek across the map,
+// and the router returns "no route". Must match the client value SYNTHETIC_ROUTE_MAX_BRIDGE_DISTANCE.
+const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_MAX_BRIDGE_DISTANCE = 15.0;
 
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
@@ -223,6 +229,9 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     foreach ($detachedComponents as $component) {
         $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($component['node_names'], $anchorNodeNames, $locationLookup);
         if (!is_array($nearestConnection)) continue;
+        // Only bridge short gaps; leave far-away components detached (-> "no route") instead of an
+        // absurd cross-country trek for a location with no real land connection.
+        if ((float) $nearestConnection['distance'] > AVESMAPS_ROUTE_CLIENT_SYNTHETIC_MAX_BRIDGE_DISTANCE) continue;
 
         $distance = (float) $nearestConnection['distance'] * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
         $fromLocation = $nearestConnection['from_location'];

@@ -53,6 +53,13 @@ const LOCATION_MARKER_STYLE = { pane: "locationsPane", fillColor: "#F52B25", col
 const MAP_MARKER_STYLE = { pane: "locationsPane", radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
 const SYNTHETIC_ROUTE_TYPE = "Querfeldein";
 const SYNTHETIC_ROUTE_DISTANCE_COST_FACTOR = 25.0;
+// Querfeldein-Brücken (synthetische Verbindungen für sonst getrennte Orte) überbrücken nur KURZE
+// Lücken im Wegenetz. Ist der nächste erreichbare Knoten weiter als dieses Limit entfernt (Karten-
+// Einheiten; 1 Einheit = DISTANCE_SCALING_FACTOR Meilen), wird KEINE Brücke gebaut -> der Ort bleibt
+// über Land unerreichbar (z. B. reine See-/Küstenorte wie der Friedhof der Seeschlangen), statt über
+// eine absurde Querfeldein-Reise quer über die Karte zwangsverbunden zu werden. Der Router meldet dann
+// "keine Route". Muss zum Server-Wert AVESMAPS_ROUTE_CLIENT_SYNTHETIC_MAX_BRIDGE_DISTANCE passen.
+const SYNTHETIC_ROUTE_MAX_BRIDGE_DISTANCE = 15.0;
 const CROSSING_LOCATION_TYPE = "crossing";
 const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
 const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
