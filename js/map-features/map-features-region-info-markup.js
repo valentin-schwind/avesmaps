@@ -81,6 +81,18 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 	const wikiUrl = regionEntry.wikiUrl || f.wiki_url;
+	// "Link teilen" nur bei vorhandenem Wiki-Artikel (kein ?place=-Fallback: focusRegionPlace loest nur
+	// Orts-public_ids auf, nicht das public_id des Gebiets/der Region selbst -- siehe
+	// js/map-features/map-features-region-tooltip-lifecycle.js focusRegionPlace). wikiParam-Diskriminator:
+	// regionEntry.source === "political_territory" fuer politische Territorien, sonst "map_feature" fuer
+	// Landschafts-Regionen (gesetzt in js/map-features/map-features-region-feature-normalization.js:22)
+	// -> "staat" bzw. "region" (js/app/wiki-deeplink.js). Gleiches Markup/Klick-Handling wie Orts-Popups
+	// (Task 13, sharePlaceActionButtonMarkup in js/ui/popups.js).
+	const regionWikiParam = regionEntry.source === "political_territory" ? "staat" : "region";
+	const shareButton = wikiUrl
+		? sharePlaceActionButtonMarkup(regionEntry.publicId, { wikiUrl, wikiParam: regionWikiParam })
+		: "";
+	const shareMarkup = shareButton ? locationPopupActionsMarkup([shareButton]) : "";
 	const wikiRows = [
 		createRegionInfoTextRow(tr("infobox.wikiEntry", "Wiki-Eintrag"), wikiName),
 		createRegionInfoTextRow(tr("infobox.type", "Typ"), type),
@@ -113,6 +125,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
+			${shareMarkup}
 			${wikiSourceCreditMarkup(wikiUrl)}
 		</div>
 	`;

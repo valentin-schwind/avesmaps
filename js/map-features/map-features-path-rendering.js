@@ -21,12 +21,23 @@ function pathWikiInfoboxMarkup(path) {
 	const wikiLink = wiki.wiki_url
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
+	// "Link teilen" nur wenn ein Wiki-Artikel verlinkt ist (Wege sind nicht ueber ?place= aufloesbar --
+	// applyPlaceFocusFromUrl kennt keine Wege). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst
+	// "strasse" (js/app/wiki-deeplink.js). Gleiches Markup/Klick-Handling wie Orts-Popups (Task 13,
+	// sharePlaceActionButtonMarkup in js/ui/popups.js) -> identisches Kopier-/Toast-Verhalten.
+	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const wikiParam = (pathSubtype === "Flussweg" || pathSubtype === "Seeweg") ? "fluss" : "strasse";
+	const shareButton = wiki.wiki_url
+		? sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam })
+		: "";
+	const shareMarkup = shareButton ? locationPopupActionsMarkup([shareButton]) : "";
 	// Kopflos (Name + Typ zeigt der Popup-Kopf schon) + gleiche Klasse wie Siedlungen -> erbt
 	// Trenner/Breite/Padding der .settlement-popup-Styles.
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}</dl>` +
 		wikiLink +
+		shareMarkup +
 		"</div>"
 	);
 }
