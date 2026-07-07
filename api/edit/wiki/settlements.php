@@ -62,11 +62,27 @@ try {
             'bulk_record_coats' => avesmapsWikiSettlementBulkRecordCoats($pdo, !$isApply(), (int) ($payload['limit'] ?? 150)),
             'set_coat' => avesmapsWikiSettlementSetWikiCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             'clear_coat' => avesmapsWikiSettlementClearCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
+            'assign_territory' => avesmapsWikiSettlementAssignTerritory(
+                $pdo,
+                (string) ($payload['public_id'] ?? ''),
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['territory_public_id'] ?? ''),
+                !$isApply(),
+                (int) ($user['id'] ?? 0)
+            ),
+            'bulk_assign_territories' => avesmapsWikiSettlementBulkAssignTerritories(
+                $pdo,
+                is_array($payload['pairs'] ?? null) ? $payload['pairs'] : [],
+                (bool) ($payload['force'] ?? false),
+                !$isApply(),
+                (int) ($payload['limit'] ?? 200)
+            ),
+            'clear_territory' => avesmapsWikiSettlementClearTerritory($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
-        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins', 'bulk_record_coats', 'set_coat', 'clear_coat'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'bulk_assign_territories', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
@@ -91,6 +107,7 @@ try {
         'coat_status' => avesmapsWikiSettlementCoatStatus($pdo),
         'coat_info' => avesmapsWikiSettlementCoatInfo($pdo, (string) ($_GET['public_id'] ?? '')),
         'list_locations' => avesmapsWikiSettlementListLocations($pdo),
+        'settlement_editor_list' => avesmapsWikiSettlementEditorList($pdo),
         'assignment' => avesmapsWikiSettlementGetAssignment($pdo, (string) ($_GET['public_id'] ?? '')),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
         'preview' => ['ok' => true, 'settlement' => avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''))],

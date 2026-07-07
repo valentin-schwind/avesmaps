@@ -1226,3 +1226,241 @@ function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun): 
         'failed' => $failed,
     ];
 }
+
+// ===== Siedlungseditor: Territoriums-Zuweisung (properties.territory_wiki_key etc.) =====
+//
+// Der Client berechnet die Ray-Cast-Zuordnung Ort<->Territorium (Server macht KEINE Geometrie —
+// STRATO-Perf); der Server persistiert nur, was der Client sendet. Vier Actions:
+// - GET  settlement_editor_list: Editor-Liste aller Orte inkl. Territoriums-Feldern.
+// - POST assign_territory: manuelle Einzel-Zuweisung.
+// - POST bulk_assign_territories: Bulk-Anwenden der Ray-Cast-Ergebnisse (chunked wie bulk_connect).
+// - POST clear_territory: Zuweisung eines Orts entfernen.
+
+// Editor-Liste: alle aktiven Orts-Features inkl. Position (aus geometry_json) und den drei
+// Territoriums-Feldern aus properties_json (territory_wiki_key/territory_public_id/territory_source).
+function avesmapsWikiSettlementEditorList(PDO $pdo): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $rows = $pdo->query(
+        "SELECT public_id, name, feature_subtype, geometry_json, properties_json
+         FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>'' ORDER BY name ASC"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $items = [];
+    $onMap = 0;
+    $unassigned = 0;
+    foreach ($rows as $row) {
+        $sub = (string) ($row['feature_subtype'] ?? '');
+        $name = (string) $row['name'];
+        if ($sub === 'kreuzung' || $name === '' || str_starts_with($name, 'Kreuzung')) {
+            continue;
+        }
+
+        $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+
+        $lng = null;
+        $lat = null;
+        $hasPoint = false;
+        $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json'] ?? null);
+        if ($geometry !== []) {
+            try {
+                [$lng, $lat] = avesmapsWikiSyncReadPointCoordinatesFromGeometry($geometry);
+                $hasPoint = true;
+            } catch (Throwable) {
+                $lng = null;
+                $lat = null;
+            }
+        }
+
+        $ws = $props['wiki_settlement'] ?? null;
+        $wikiUrl = is_array($ws) ? (string) ($ws['wiki_url'] ?? '') : '';
+        if ($wikiUrl === '') {
+            $wikiUrl = (string) ($props['wiki_url'] ?? '');
+        }
+        $otherSource = is_array($props['other_source'] ?? null) ? $props['other_source'] : null;
+
+        $sourceCategory = 'keine';
+        if ($wikiUrl !== '' || (is_array($ws) && !empty($ws['title']))) {
+            $sourceCategory = 'wiki';
+        } elseif (is_array($otherSource) && (string) ($otherSource['url'] ?? '') !== '') {
+            $sourceCategory = 'andere';
+        }
+
+        $hasCoat = is_array($props['coat'] ?? null) && (string) ($props['coat']['url'] ?? '') !== '';
+
+        $territoryWikiKey = isset($props['territory_wiki_key']) && $props['territory_wiki_key'] !== null
+            ? (string) $props['territory_wiki_key']
+            : null;
+        $territoryPublicId = isset($props['territory_public_id']) && $props['territory_public_id'] !== null
+            ? (string) $props['territory_public_id']
+            : null;
+        $territorySource = isset($props['territory_source']) && $props['territory_source'] !== null
+            ? (string) $props['territory_source']
+            : null;
+
+        if ($hasPoint) {
+            $onMap++;
+            if ($territoryWikiKey === null) {
+                $unassigned++;
+            }
+        }
+
+        $items[] = [
+            'public_id' => (string) $row['public_id'],
+            'name' => $name,
+            'settlement_class' => $sub,
+            'settlement_label' => avesmapsWikiSettlementClassLabel($sub),
+            'continent' => 'Aventurien', // On-Map-Orte liegen per Definition auf der Aventurien-Karte.
+            'on_map' => $hasPoint,
+            'lng' => $lng,
+            'lat' => $lat,
+            'territory_wiki_key' => $territoryWikiKey,
+            'territory_public_id' => $territoryPublicId,
+            'territory_source' => $territorySource,
+            'source_category' => $sourceCategory,
+            'has_coat' => $hasCoat,
+            'wiki_url' => $wikiUrl !== '' ? $wikiUrl : null,
+            'other_source' => $otherSource,
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'items' => $items,
+        'total' => count($items),
+        'on_map' => $onMap,
+        'unassigned' => $unassigned,
+    ];
+}
+
+// Manuelle Einzel-Zuweisung eines Orts zu einem Territorium (properties.territory_wiki_key +
+// territory_public_id, territory_source='manual'). Gated: Schreiben nur bei dry_run:false.
+function avesmapsWikiSettlementAssignTerritory(PDO $pdo, string $publicId, string $wikiKey, string $territoryPublicId, bool $dryRun, int $userId = 0): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $publicId = trim($publicId);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        return ['ok' => false, 'error' => ['code' => 'missing_wiki_key', 'message' => 'wiki_key is required']];
+    }
+    if ($publicId === '') {
+        throw new RuntimeException('public_id fehlt.');
+    }
+
+    $statement = $pdo->prepare(
+        "SELECT id, properties_json FROM map_features
+         WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1"
+    );
+    $statement->execute(['p' => $publicId]);
+    $target = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$target) {
+        throw new RuntimeException('Ort nicht gefunden: ' . $publicId);
+    }
+
+    if ($dryRun) {
+        return ['ok' => true, 'dry_run' => true, 'applied' => false, 'target_wiki_key' => $wikiKey];
+    }
+
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $target['id']);
+    $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
+    $props['territory_wiki_key'] = $wikiKey;
+    $props['territory_public_id'] = $territoryPublicId !== '' ? $territoryPublicId : null;
+    $props['territory_source'] = 'manual';
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
+        ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
+
+    return ['ok' => true, 'dry_run' => false, 'applied' => true, 'target_wiki_key' => $wikiKey, 'revision' => $revision];
+}
+
+// Bulk-Anwenden der client-seitig berechneten Ray-Cast-Zuordnungen (properties.territory_wiki_key +
+// territory_public_id, territory_source='raycast'). Chunked analog zu bulk_connect: Frontend ruft
+// wiederholt auf, bis remaining=0. Orte mit territory_source='manual' werden übersprungen, außer
+// force=true (Owner-Entscheid: manuelle Zuweisungen nicht versehentlich überschreiben).
+function avesmapsWikiSettlementBulkAssignTerritories(PDO $pdo, array $pairs, bool $force, bool $dryRun, int $limit = 200): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $limit = max(1, min(200, $limit));
+    $batch = array_slice($pairs, 0, $limit);
+    $remaining = max(0, count($pairs) - $limit);
+
+    if ($dryRun) {
+        return ['ok' => true, 'dry_run' => true, 'applied' => 0, 'skipped_manual' => 0, 'remaining' => $remaining];
+    }
+
+    $revision = null;
+    $select = $pdo->prepare(
+        "SELECT id, properties_json FROM map_features
+         WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1"
+    );
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+
+    $applied = 0;
+    $skippedManual = 0;
+    foreach ($batch as $pair) {
+        $publicId = trim((string) ($pair['public_id'] ?? ''));
+        $wikiKey = trim((string) ($pair['wiki_key'] ?? ''));
+        $territoryPublicId = trim((string) ($pair['territory_public_id'] ?? ''));
+        if ($publicId === '' || $wikiKey === '') {
+            continue;
+        }
+
+        $select->execute(['p' => $publicId]);
+        $target = $select->fetch(PDO::FETCH_ASSOC);
+        if (!$target) {
+            continue;
+        }
+
+        $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
+        if (!$force && ($props['territory_source'] ?? null) === 'manual') {
+            $skippedManual++;
+            continue;
+        }
+
+        $props['territory_wiki_key'] = $wikiKey;
+        $props['territory_public_id'] = $territoryPublicId !== '' ? $territoryPublicId : null;
+        $props['territory_source'] = 'raycast';
+        $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
+        $applied++;
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'applied' => $applied,
+        'skipped_manual' => $skippedManual,
+        'remaining' => $remaining,
+    ];
+}
+
+// Entfernt die Territoriums-Zuweisung eines Orts (properties.territory_wiki_key/
+// territory_public_id/territory_source). Gated.
+function avesmapsWikiSettlementClearTerritory(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $publicId = trim($publicId);
+    if ($publicId === '') {
+        throw new RuntimeException('public_id fehlt.');
+    }
+    $statement = $pdo->prepare(
+        "SELECT id, properties_json FROM map_features
+         WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1"
+    );
+    $statement->execute(['p' => $publicId]);
+    $target = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$target) {
+        throw new RuntimeException('Ort nicht gefunden: ' . $publicId);
+    }
+
+    if ($dryRun) {
+        return ['ok' => true, 'dry_run' => true, 'applied' => false];
+    }
+
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $target['id']);
+    $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
+    unset($props['territory_wiki_key'], $props['territory_public_id'], $props['territory_source']);
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
+        ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
+
+    return ['ok' => true, 'dry_run' => false, 'applied' => true, 'revision' => $revision];
+}
