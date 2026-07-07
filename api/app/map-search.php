@@ -105,6 +105,7 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
             )
             SELECT t.public_id,
                    t.name,
+                   t.wiki_url,
                    t.min_zoom,
                    t.max_zoom,
                    MIN(g.min_x) AS min_x,
@@ -115,7 +116,7 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
             JOIN subtree st ON st.root_id = t.id
             JOIN political_territory_geometry g ON g.territory_id = st.node_id AND g.is_active = 1
             WHERE t.is_active = 1 AND t.name IS NOT NULL AND t.name <> \'\'
-            GROUP BY t.id, t.public_id, t.name, t.min_zoom, t.max_zoom'
+            GROUP BY t.id, t.public_id, t.name, t.wiki_url, t.min_zoom, t.max_zoom'
         );
     } catch (Throwable $exception) {
         return [];
@@ -176,7 +177,10 @@ function avesmapsBuildMapSearchResults(array $rows, array $politicalRows, string
             'name' => $name,
             'type_label' => 'Herrschaftsgebiet',
             'feature_subtype' => 'political_territory',
-            'search_texts' => [$name],
+            // Wie bei map_features (s. u.): die gespeicherte Wiki-Seite zaehlt als Suchtext, damit
+            // Deep-Links (?staat=<Seitenname>) auch dann treffen, wenn der DB-Name vom Seitentitel
+            // abweicht (z. B. "Ochsenblut" vs. Wiki-Seite "Baronie_Ochsenblut").
+            'search_texts' => array_values(array_filter([$name, (string) ($politicalRow['wiki_url'] ?? '')])),
         ];
         if (($politicalRow['min_zoom'] ?? null) !== null) {
             $regionFields['min_zoom'] = (int) $politicalRow['min_zoom'];
