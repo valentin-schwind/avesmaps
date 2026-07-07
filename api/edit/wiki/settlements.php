@@ -108,6 +108,7 @@ try {
         'coat_info' => avesmapsWikiSettlementCoatInfo($pdo, (string) ($_GET['public_id'] ?? '')),
         'list_locations' => avesmapsWikiSettlementListLocations($pdo),
         'settlement_editor_list' => avesmapsWikiSettlementEditorList($pdo),
+        'settlement_detail' => avesmapsWikiSettlementDetail($pdo, (string) ($_GET['public_id'] ?? '')),
         'assignment' => avesmapsWikiSettlementGetAssignment($pdo, (string) ($_GET['public_id'] ?? '')),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
         'preview' => ['ok' => true, 'settlement' => avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''))],

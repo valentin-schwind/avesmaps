@@ -1332,6 +1332,53 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
     ];
 }
 
+// Detail view for the editor's right-hand column: full decoded properties_json for one
+// settlement, so the panel can read wiki_settlement/coat/other_source/territory_*/is_nodix/
+// is_ruined/any override fields without the server cherry-picking individual keys.
+function avesmapsWikiSettlementDetail(PDO $pdo, string $publicId): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $publicId = trim($publicId);
+    if ($publicId === '') {
+        return ['ok' => false, 'error' => ['code' => 'missing_public_id', 'message' => 'public_id is required']];
+    }
+
+    $statement = $pdo->prepare(
+        "SELECT public_id, name, geometry_json, properties_json FROM map_features
+         WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1"
+    );
+    $statement->execute(['p' => $publicId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'error' => ['code' => 'not_found', 'message' => 'settlement not found']];
+    }
+
+    $lng = null;
+    $lat = null;
+    $hasPoint = false;
+    $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json'] ?? null);
+    if ($geometry !== []) {
+        try {
+            [$lng, $lat] = avesmapsWikiSyncReadPointCoordinatesFromGeometry($geometry);
+            $hasPoint = true;
+        } catch (Throwable) {
+            $lng = null;
+            $lat = null;
+        }
+    }
+
+    return [
+        'ok' => true,
+        'detail' => [
+            'public_id' => (string) $row['public_id'],
+            'name' => (string) $row['name'],
+            'on_map' => $hasPoint,
+            'lng' => $lng,
+            'lat' => $lat,
+            'properties' => avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null),
+        ],
+    ];
+}
+
 // Manuelle Einzel-Zuweisung eines Orts zu einem Territorium (properties.territory_wiki_key +
 // territory_public_id, territory_source='manual'). Gated: Schreiben nur bei dry_run:false.
 function avesmapsWikiSettlementAssignTerritory(PDO $pdo, string $publicId, string $wikiKey, string $territoryPublicId, bool $dryRun, int $userId = 0): array {
