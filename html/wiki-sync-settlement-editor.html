@@ -121,6 +121,23 @@
   .modal .fld input[type=file] { display:block; margin-top:4px; font:inherit; }
   .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
   .modal-error { color:var(--bad); font-size:12px; margin-top:4px; }
+  /* Zuordnen-Dry-run-Dialog (gleiches Muster wie #seWappenDialog, aber breiter fuer die
+     Zaehler-Kacheln + die Beispielliste). */
+  .modal-box.wide { width:460px; }
+  .modal-counts { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
+  .modal-count { background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
+  .modal-count .n { font-size:17px; font-weight:bold; color:#3f3428; }
+  .modal-count .l { font-size:11px; color:var(--mut); }
+  .modal-count.ok .n { color:var(--ok); }
+  .modal-count.warn .n { color:var(--warn); }
+  .modal-sample-title { font-size:11px; font-weight:bold; color:var(--mut); margin:0 0 4px; }
+  .modal-sample { border:1px solid var(--line); border-radius:6px; max-height:160px; overflow:auto; background:#fff; margin-bottom:10px; }
+  .modal-sample-row { display:flex; align-items:baseline; gap:6px; padding:3px 7px; font-size:11px; border-bottom:1px solid #f1e8da; }
+  .modal-sample-row:last-child { border-bottom:none; }
+  .modal-sample-row .nm { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
+  .modal-sample-row .arw { color:var(--mut); flex:0 0 auto; }
+  .modal-sample-row .tg { color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; text-align:right; }
+  .modal-progress { color:var(--mut); font-size:12px; margin:4px 0 10px; }
 </style>
 </head>
 <body>
@@ -174,6 +191,15 @@
       <button id="seWappenCancel">Abbrechen</button>
       <button class="primary" id="seWappenUpload">Hochladen</button>
     </div>
+  </div>
+</div>
+<div id="seAssignDialog" class="modal" hidden>
+  <div class="modal-box wide">
+    <div class="modal-title">Siedlungen zuordnen</div>
+    <div class="modal-sub" id="seAssignSub">Ray-Cast über alle Siedlungen (global) — Vorschau, noch keine Änderung.</div>
+    <div id="seAssignBody"></div>
+    <div class="modal-error" id="seAssignError" hidden></div>
+    <div class="modal-actions" id="seAssignActions"></div>
   </div>
 </div>
 <!-- Pure descendant-union helper (tri-state -> territory containment filter); cache-bust like
@@ -984,6 +1010,173 @@ $("seWappenCancel")?.addEventListener("click", closeSettlementCoatDialog);
 $("seWappenUpload")?.addEventListener("click", uploadSettlementCoat);
 $("seWappenDialog")?.addEventListener("click", (event) => {
 	if (event.target.id === "seWappenDialog") closeSettlementCoatDialog();
+});
+
+// ===================== Toolbar: "Siedlungen zuordnen" (global ray-cast dry-run + apply) ====
+// Wires the primary toolbar button (§6.3 design doc): compute a client-side dry-run via the
+// parent window's ray-cast engine (window.parent.AvesmapsSettlementAssign -- the engine itself
+// lives in js/map-features/map-features-settlement-territory-assign.js, loaded by index.html,
+// because it needs the live political-territories layer + fetch relative to the app's own
+// origin/paths, not this iframe's). This editor page can also be opened standalone (not as the
+// map's iframe), in which case window.parent === window and the engine is never loaded there --
+// guarded below.
+let seAssignLastSummary = null; // {pairs, assigned, changed, unassigned, skippedManual, sample}
+let seAssignBusy = false;
+
+function seAssignEngine() {
+	const engine = window.parent && window.parent.AvesmapsSettlementAssign;
+	return engine && typeof engine.computeDryRun === "function" && typeof engine.apply === "function" ? engine : null;
+}
+
+function setAssignButtonBusy(busy, label) {
+	const btn = $("seAssign");
+	if (!btn) return;
+	btn.disabled = busy;
+	const t1 = btn.querySelector(".t1");
+	if (t1) t1.textContent = busy ? (label || "Berechne Zuordnung…") : "Siedlungen zuordnen";
+}
+
+function openAssignDialog() {
+	const dialog = $("seAssignDialog");
+	if (dialog) dialog.hidden = false;
+}
+
+function closeAssignDialog() {
+	const dialog = $("seAssignDialog");
+	if (dialog) dialog.hidden = true;
+	seAssignLastSummary = null;
+}
+
+function assignErrorHtml(message) {
+	return settlementEscape(message);
+}
+
+function showAssignError(message) {
+	const errorEl = $("seAssignError");
+	if (errorEl) { errorEl.innerHTML = assignErrorHtml(message); errorEl.hidden = false; }
+}
+
+function clearAssignError() {
+	const errorEl = $("seAssignError");
+	if (errorEl) { errorEl.hidden = true; errorEl.innerHTML = ""; }
+}
+
+// Renders the 4 count tiles + a scrollable sample list (name -> target territory name, resolved
+// via settlementTree.byKey like the rest of this file's territory-name lookups) plus the
+// Übernehmen/Abbrechen actions. The 0-pairs case collapses to a single "Keine Änderungen." message
+// with only a close button (task spec point 4).
+function renderAssignSummary(summary) {
+	const body = $("seAssignBody");
+	const actions = $("seAssignActions");
+	if (!body || !actions) return;
+	clearAssignError();
+
+	if (!summary || !Array.isArray(summary.pairs) || summary.pairs.length === 0) {
+		body.innerHTML = `<div class="dt-empty">Keine Änderungen.</div>`;
+		actions.innerHTML = `<button class="primary" id="seAssignClose">Schließen</button>`;
+		$("seAssignClose")?.addEventListener("click", closeAssignDialog);
+		return;
+	}
+
+	const tiles = [
+		{ cls: "ok", n: summary.assigned || 0, l: "Zugeordnet" },
+		{ cls: "ok", n: summary.changed || 0, l: "Geändert" },
+		{ cls: "warn", n: summary.unassigned || 0, l: "Nicht zugeordnet" },
+		{ cls: "", n: summary.skippedManual || 0, l: "Übersprungen (manuell)" },
+	];
+	const tilesHtml = tiles.map((tile) => `<div class="modal-count ${tile.cls}"><div class="n">${settlementEscape(tile.n)}</div><div class="l">${settlementEscape(tile.l)}</div></div>`).join("");
+
+	const sample = Array.isArray(summary.sample) ? summary.sample : [];
+	const sampleRowsHtml = sample.length
+		? sample.map((row) => {
+			const targetName = row.wiki_key ? territoryDisplayName(row.wiki_key) : "—";
+			return `<div class="modal-sample-row"><span class="nm">${settlementEscape(row.name || row.public_id)}</span><span class="arw">→</span><span class="tg">${settlementEscape(targetName)}</span></div>`;
+		}).join("")
+		: `<div class="modal-sample-row"><span class="nm">Keine Beispiele.</span></div>`;
+
+	body.innerHTML =
+		`<div class="modal-counts">${tilesHtml}</div>` +
+		`<div class="modal-sample-title">Beispiele (${settlementEscape(sample.length)} von ${settlementEscape(summary.pairs.length)} Änderungen)</div>` +
+		`<div class="modal-sample">${sampleRowsHtml}</div>`;
+	actions.innerHTML = `<button id="seAssignCancel">Abbrechen</button><button class="primary" id="seAssignApply">Übernehmen</button>`;
+	$("seAssignCancel")?.addEventListener("click", closeAssignDialog);
+	$("seAssignApply")?.addEventListener("click", runAssignApply);
+}
+
+// Runs the dry-run (guard -> busy state -> parent-engine computeDryRun -> render dialog).
+async function runAssignDryRun() {
+	if (seAssignBusy) return;
+	const engine = seAssignEngine();
+	if (!engine) {
+		setStatusText("Karte nicht bereit — Editor über die Karte öffnen.");
+		return;
+	}
+	seAssignBusy = true;
+	setAssignButtonBusy(true, "Berechne Zuordnung…");
+	setStatusText("Berechne Zuordnung…");
+	try {
+		const summary = await engine.computeDryRun({ scope: "global" });
+		seAssignLastSummary = summary;
+		renderAssignSummary(summary);
+		openAssignDialog();
+		setStatusText("Bereit.");
+	} catch (error) {
+		setStatusText("Zuordnung konnte nicht berechnet werden: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		seAssignBusy = false;
+		setAssignButtonBusy(false);
+	}
+}
+
+// Owner confirms the real bulk write in the dialog ("Übernehmen") -- this is the one place in
+// this task that performs a live, confirmed write (docs/siedlungseditor-design.md §6.3: the
+// agent builds dry-run + apply, but it is the OWNER who clicks it at runtime).
+async function runAssignApply() {
+	if (seAssignBusy || !seAssignLastSummary || !Array.isArray(seAssignLastSummary.pairs) || seAssignLastSummary.pairs.length === 0) return;
+	const engine = seAssignEngine();
+	if (!engine) {
+		showAssignError("Karte nicht bereit — Editor über die Karte öffnen.");
+		return;
+	}
+	seAssignBusy = true;
+	clearAssignError();
+	const actions = $("seAssignActions");
+	const body = $("seAssignBody");
+	if (actions) actions.innerHTML = "";
+	if (body) body.insertAdjacentHTML("beforeend", `<div class="modal-progress" id="seAssignProgress">Übernehme…</div>`);
+	setStatusText("Übernehme Zuordnung…");
+	try {
+		const result = await engine.apply(seAssignLastSummary.pairs, { confirm: "apply" });
+		const applied = (result && Number(result.applied)) || 0;
+		if (body) body.innerHTML = `<div class="dt-empty">${settlementEscape(applied)} Siedlungen zugeordnet.</div>`;
+		if (actions) actions.innerHTML = `<button class="primary" id="seAssignDone">Schließen</button>`;
+		$("seAssignDone")?.addEventListener("click", closeAssignDialog);
+		setStatusText("Bereit.");
+		// Assignments changed -> refresh the middle list so its ✓/⚠ status + tree-filter
+		// membership follow along (mirrors patchSettlementListItem's own re-render call).
+		await loadSettlementItems();
+	} catch (error) {
+		const progressEl = $("seAssignProgress");
+		if (progressEl) progressEl.remove();
+		showAssignError(error && error.message ? error.message : String(error));
+		// Keep the dialog open with its counts/sample so the owner can retry; re-show the actions.
+		if (actions) actions.innerHTML = `<button id="seAssignCancel">Abbrechen</button><button class="primary" id="seAssignApply">Übernehmen</button>`;
+		$("seAssignCancel")?.addEventListener("click", closeAssignDialog);
+		$("seAssignApply")?.addEventListener("click", runAssignApply);
+		setStatusText("Übernehmen fehlgeschlagen.");
+	} finally {
+		seAssignBusy = false;
+	}
+}
+
+function setStatusText(text) {
+	const statusEl = $("seStatusText");
+	if (statusEl) statusEl.textContent = text;
+}
+
+$("seAssign")?.addEventListener("click", runAssignDryRun);
+$("seAssignDialog")?.addEventListener("click", (event) => {
+	if (event.target.id === "seAssignDialog") closeAssignDialog();
 });
 
 function renderSettlementTabs() {
