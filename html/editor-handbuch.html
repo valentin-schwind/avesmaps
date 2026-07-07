@@ -42,6 +42,7 @@
 		.hb-diagram svg { max-width: 100%; height: auto; display: block; }
 		@media (max-width: 820px) { .hb-wrap { grid-template-columns: 1fr; }
 			.hb-toc { position: static; } }
+		.hb-shot img { max-width: 100%; display: block; border: 1px solid var(--hb-line); border-radius: 10px; margin-top: 4px; }
 	</style>
 </head>
 <body>
@@ -71,7 +72,7 @@
 
 				<h3>Die goldenen Regeln</h3>
 				<ul class="hb-steps">
-					<li><strong>Das Wiki Aventurica ist maßgeblich.</strong> Im Zweifel richtet sich die Karte nach dem Wiki, nicht umgekehrt.</li>
+					<li><strong>Das Wiki Aventurica ist unsere Datengrundlage.</strong> Im Zweifel richten wir die Karte nach dem Wiki aus.</li>
 					<li><strong>Kleine, sorgfältige Schritte.</strong> Lieber eine Sache sauber ändern und speichern als viele auf einmal.</li>
 					<li><strong>Im Zweifel fragen</strong> statt raten (Kontakt siehe Abschnitt&nbsp;H).</li>
 					<li><strong>Fremde Arbeit stehen lassen.</strong> Lösche oder überschreibe nichts, was du nicht selbst angelegt hast, ohne Rücksprache.</li>
@@ -98,9 +99,9 @@
 					<li><strong>Das „Editor"-Panel</strong> &ndash; öffnet sich über den Button <strong>„Editor"</strong>. Es hat vier Reiter: <strong>Meldungen</strong>, <strong>Änderungen</strong>, <strong>WikiSync</strong> und <strong>Status</strong>.</li>
 					<li><strong>Das Rechtsklick-Menü</strong> &ndash; ein Rechtsklick auf ein Gebiet öffnet Kontext-Aktionen (z.&nbsp;B. <strong>„Territoriumseditor öffnen"</strong>, Abschnitt&nbsp;D).</li>
 				</ul>
-				<figure class="hb-shot" role="img" aria-label="Screenshot folgt">
-					<div class="hb-shot__placeholder">📷 Screenshot folgt: Editor-Panel mit den vier Reitern</div>
-					<figcaption>Das „Editor"-Panel und seine Reiter.</figcaption>
+				<figure class="hb-shot">
+					<img src="screenshots/02-editor-panel.png" alt="Das Editor-Panel mit den Reitern Meldungen, Aenderungen, WikiSync und Status sowie der Statuszeile mit Tutorial-Link" />
+					<figcaption>Das „Editor"-Panel mit seinen vier Reitern; oben die Statuszeile mit dem „Tutorial"-Link.</figcaption>
 				</figure>
 
 				<h3>Rollen &amp; Rechte</h3>
@@ -152,6 +153,10 @@
 					<li><strong>Neues Label</strong> &ndash; ein Landschafts-/Regionenname auf der Karte.</li>
 					<li><strong>Neues Herrschaftsgebiet</strong> &ndash; ein politisches Gebiet (siehe Abschnitt&nbsp;D).</li>
 				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/03-hinzufuegen.png" alt="Rechtsklick-Menue Hier hinzufuegen mit Untermenue Neuer Ort, Neuer Ort aus dem Wiki, Neue Kreuzung, Neuer Weg, Neues Label, Neues Herrschaftsgebiet" />
+					<figcaption>Rechtsklick &rarr; „Hier hinzufügen" mit allen Anlege-Optionen.</figcaption>
+				</figure>
 
 				<h3>Orte / Siedlungen &ndash; Dialog „Siedlung bearbeiten"</h3>
 				<ul class="hb-steps">
@@ -254,6 +259,10 @@
 					<li><strong>„Link teilen"</strong> in den Popups/Infoboxen von Orten, Wegen und Gebieten kopiert bevorzugt den <em>Wiki-Link</em> (Fallback: Karten-Deep-Link).</li>
 					<li><strong>Spotlight-Suche:</strong> Rechtsklick &rarr; <strong>„Suchen"</strong>. Achtung: Wege sind nur auffindbar, wenn sie wiki-verlinkt sind.</li>
 				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/08-ort-popup.png" alt="Orts-Popup mit Beschreibung, Wiki-Link Mehr hier und Button Link teilen" />
+					<figcaption>Ein Orts-Popup: „Link teilen" kopiert bevorzugt den Wiki-Link.</figcaption>
+				</figure>
 				<figure class="hb-shot" role="img" aria-label="Screenshot folgt">
 					<div class="hb-shot__placeholder">📷 Screenshot folgt: Wiki-Picker mit Suchfeld und Trefferliste</div>
 					<figcaption>Der Wiki-Picker beim Zuweisen einer Wiki-Seite.</figcaption>
@@ -269,6 +278,10 @@
 					<li>Rechtsklick &rarr; <strong>„Grenzen bearbeiten"</strong> für die reine Geometrie.</li>
 					<li>Weitere Rechtsklick-Aktionen: <strong>Verschieben</strong>, <strong>Gebiet zerschneiden</strong>, <strong>Mit anderem vereinigen</strong>, <strong>Von anderem ausschneiden</strong>, <strong>Neues Gebiet herauslösen</strong>, <strong>Löschen</strong>, <strong>Infobox anzeigen</strong>.</li>
 				</ul>
+				<figure class="hb-shot">
+					<img src="screenshots/07-gebiet-menu.png" alt="Gebiets-Kontextmenue mit Grenzen bearbeiten, Territoriumseditor oeffnen, Grenzen berechnen, Verschieben, Gebiet zerschneiden, vereinigen, ausschneiden, herausloesen, Loeschen" />
+					<figcaption>Das Rechtsklick-Menü eines Gebiets.</figcaption>
+				</figure>
 
 				<h3>Im Dialog „Herrschaftsgebiet bearbeiten"</h3>
 				<ul class="hb-steps">
@@ -318,9 +331,9 @@
 						</g>
 					</svg>
 				</div>
-				<figure class="hb-shot" role="img" aria-label="Screenshot folgt">
-					<div class="hb-shot__placeholder">📷 Screenshot folgt: Territoriumseditor mit Hierarchie-Baum</div>
-					<figcaption>Der Territoriumseditor mit Breadcrumb und Unterbaum.</figcaption>
+				<figure class="hb-shot">
+					<img src="screenshots/06-territoriumseditor.png" alt="Der Territoriumseditor mit Hierarchiebaum der Herrschaftsgebiete, Wiki-Verknuepfungen, Gueltigkeit und Breadcrumb-Darstellung" />
+					<figcaption>Der Territoriumseditor: Hierarchie-Baum, Wiki-Verknüpfungen und Breadcrumb.</figcaption>
 				</figure>
 			</section>
 			<section id="e" class="hb-section">
@@ -380,7 +393,7 @@
 
 				<h3>Regeln</h3>
 				<ul class="hb-steps">
-					<li><strong>Das Wiki Aventurica ist maßgeblich.</strong> Im Zweifel richtet sich die Karte nach dem Wiki.</li>
+					<li><strong>Das Wiki Aventurica ist unsere Datengrundlage.</strong> Im Zweifel richten wir uns nach dem Wiki.</li>
 					<li><strong>Kleine, sorgfältige Schritte</strong> &ndash; und nach dem Speichern kurz prüfen.</li>
 					<li><strong>Fremde Arbeit nicht löschen/überschreiben</strong> ohne Rücksprache.</li>
 					<li><strong>Nicht blind massenhaft ändern.</strong></li>
