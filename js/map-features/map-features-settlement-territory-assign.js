@@ -197,10 +197,10 @@ async function settlementAssignFetchJson(path, params = {}) {
  *   one entry per distinct territory, each carrying its GeoJSON feature and area.
  */
 async function loadAllTerritoryGeometry() {
-  const zoomLevels = (typeof window !== "undefined" && Array.isArray(window.POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS))
-    ? window.POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS
+  const zoomLevels = (typeof POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS !== "undefined")
+    ? POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS
     : [0, 1, 2, 3, 4, 5, 6];
-  const layerUrl = (typeof window !== "undefined" && window.POLITICAL_TERRITORIES_API_URL) || "api/app/political-territories.php";
+  const layerUrl = (typeof POLITICAL_TERRITORIES_API_URL !== "undefined" ? POLITICAL_TERRITORIES_API_URL : "api/app/political-territories.php");
 
   const layers = await Promise.all(
     zoomLevels.map((zoom) => settlementAssignFetchJson(layerUrl, {
