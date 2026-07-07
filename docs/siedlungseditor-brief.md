@@ -154,16 +154,36 @@ Suchmasken + Filter wie in den heutigen Änderungen: Typ, Kontinent, Zeit/BF,
 „nur X". Mirror der bestehenden `review-settlement-list.js`- und
 `territory-wiki-tree.js`-Filter.
 
-## 9. Offene Entscheidungen fürs Brainstorming/Mockup
+## 9. Entscheidungen
 
-- Persistenz: `properties_json.territory_wiki_key` vs. eigene Spalte/Tabelle?
-- Tiebreak bei überlappenden Territorien (tiefste Hierarchie vs. kleinste Fläche).
-- Detail-Panel: Gruppierung von Feldern + „Andere Quelle" + Wappen + Overrides.
-- Häkchen-Kaskade-UX (Baronie→Grafschaft Auto-Markierung) genau.
-- Chip-Optik + wo „normale Ansicht wiederherstellen" sitzt.
-- Braucht der Editor **auch** Drag-Zuordnung (wie Territorien) oder rein Ray-Cast?
-- Umfang des Dry-run/Preview vor globalem Apply.
-- Was passiert mit Siedlungen, die in **kein** Territorium fallen (Meer, Lücke)?
+Die vier Architektur-Weichen sind **vom Owner entschieden (2026-07-07)** — diese
+ersetzen alle „im Brainstorming entscheiden"/„festlegen"-Formulierungen weiter oben:
+
+1. **Persistenz:** `properties_json.territory_wiki_key` (kein Schema-Migration,
+   self-healing, wie die bestehenden map-Overrides). Optional zusätzlich
+   `territory_public_id` als stabile Referenz.
+2. **Tiebreak bei verschachtelten Treffern:** **tiefste Hierarchie-Ebene** — das
+   spezifischste enthaltende Territorium (Baronie vor Grafschaft vor Staat),
+   bestimmt über die `parent_wiki_key`-Tiefe. Der Hierarchie-Filter (§5) zeigt die
+   Siedlung dann automatisch auch unter allen Ahnen.
+3. **Nicht-Treffer (Meer/Lücke/außerhalb):** `territory_wiki_key` bleibt **null**;
+   ein eigener Filter/Reiter **„nicht zugeordnet"** macht die Lücken sichtbar
+   (nicht raten, nicht verstecken).
+4. **Korrektur:** **Ray-Cast + manueller Override.** Das Ray-Casting ist die
+   Wahrheit, aber pro Siedlung im Detail-Panel überschreibbar (Territorium-Dropdown
+   bzw. Rechtsklick „diesem Gebiet zuweisen"); der Override schlägt den Auto-Wert.
+   **Kein** volles Drag&Drop im ersten Wurf (YAGNI).
+
+**Noch offen — Mockup/Brainstorming (mit Default-Vorschlag):**
+
+- Detail-Panel-Gruppierung (Default: Identität / Lage & Zugehörigkeit / Wappen /
+  Wiki & Quelle / Overrides).
+- Häkchen-Kaskade genau (Default: Tri-State — Elternknoten „teilweise", Auswahl =
+  Nachfahren-Union).
+- Chip-Optik + Ort von „normale Ansicht wiederherstellen" (Default: Chip in der
+  Kartenecke, Reset im Menüband).
+- Umfang Dry-run/Preview vor globalem Apply (Default: Zusammenfassung
+  zugeordnet/geändert/nicht-zugeordnet, Owner bestätigt den Write).
 
 ## 10. Referenz-Dateien (gegroundet)
 
