@@ -340,7 +340,18 @@
 		const completeRows = getCompleteRowsForAncestorLookup(inputRows);
 		if (completeRows.length <= inputRows.length) return inputRows;
 
-		const rowIndex = buildRowIndex(completeRows);
+		// Ahnen über die ECHTE Modell-Hierarchie (parent_wiki_key) ziehen — dieselbe Kette, die
+		// buildTree() nutzt. Früher lief das über affiliation_path (wiki-basiert, lückenhaft): eine
+		// herausgefilterte, aber PLATZIERTE Zwischen-Ebene (z. B. eine platzierte Baronie zwischen
+		// Herzogtum und noch fehlendem Rittergut) verwaiste ihr Kind → im „Fehlt"-Reiter riss der Ast,
+		// abgedeckte Reiche wurden zu kinderlosen Sackgassen und das fehlende Blatt war nicht mehr
+		// erreichbar. Entlang parent_wiki_key bleibt jeder Vorfahr einer behaltenen Zeile erhalten,
+		// der Ast bleibt vollständig bis zum Blatt aufklappbar.
+		const rowByWikiKey = new Map();
+		for (const row of completeRows) {
+			const key = normalizeText(row && row.wiki_key);
+			if (key && !rowByWikiKey.has(key)) rowByWikiKey.set(key, row);
+		}
 		const expandedRows = [];
 		const includedKeys = new Set();
 		const appendRow = (row) => {
@@ -350,15 +361,17 @@
 			includedKeys.add(key);
 		};
 		for (const row of inputRows) {
-			const ownIdentityKey = rowIdentityKey(row);
-			for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
-				const segmentKey = makeKey(segment);
-				if (!segmentKey) continue;
-				const ancestorRow = rowIndex.get(segmentKey) || null;
-				if (!ancestorRow) continue;
-				const ancestorIdentityKey = rowIdentityKey(ancestorRow);
-				if (!ancestorIdentityKey || ancestorIdentityKey === ownIdentityKey) continue;
+			let cursor = row;
+			let guard = 0;
+			const walkedKeys = new Set();
+			while (cursor && cursor.parent_wiki_key && guard++ < 64) {
+				const parentKey = normalizeText(cursor.parent_wiki_key);
+				if (!parentKey || walkedKeys.has(parentKey)) break;
+				walkedKeys.add(parentKey);
+				const ancestorRow = rowByWikiKey.get(parentKey);
+				if (!ancestorRow) break;
 				appendRow(ancestorRow);
+				cursor = ancestorRow;
 			}
 			appendRow(row);
 		}
