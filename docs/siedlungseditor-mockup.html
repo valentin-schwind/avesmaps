@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Siedlungseditor – Mockup (Referenz, Design v3)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+body{margin:0;padding:20px;background:#e7e0d3;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#3f3428}
+.note{max-width:900px;margin:0 auto 14px;font-size:12px;line-height:1.5;color:#6c5a49;background:#fff9f4;border:1px solid #d8c6b2;border-radius:8px;padding:9px 13px}
+.note b{color:#3f3428}
+.wrap{max-width:900px;margin:0 auto}
+.smw{overflow-x:auto}
+.sme{min-width:760px;background:#f4efe7;color:#3f3428;border:1px solid #d8c6b2;border-radius:12px;font-family:inherit;font-size:12px;line-height:1.4;overflow:hidden}
+.sme *{box-sizing:border-box}
+.sme-title{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:#fff9f4;border-bottom:1px solid #d8c6b2;font-size:13px;font-weight:500}
+.sme-title .l{display:flex;align-items:center;gap:6px}
+.sme-x{color:#6c5a49}
+.sme-tools{display:flex;gap:6px;align-items:stretch;padding:8px 12px;background:#fff9f4;border-bottom:1px solid #d8c6b2}
+.sme-btn{display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:46px;padding:6px 12px;background:#f3ebdf;border:1px solid #b99a78;border-radius:5px;color:#513c2b;text-align:left;white-space:nowrap;cursor:default}
+.sme-btn b{font-weight:500;font-size:13px;display:flex;align-items:center;gap:6px}
+.sme-btn small{font-size:11px;color:#6c5a49}
+.sme-btn.primary{background:#565044;border-color:#5f4f40;color:#fff9f4}
+.sme-btn.primary b{color:#fff9f4}
+.sme-btn.primary small{color:#e9ddcb}
+.sme-btn.on{background:#dfeaf0;border-color:#9cc3d6;color:#0a4c66}
+.sme-btn.on small{color:#2c6f8c}
+.sme-status{flex:1;display:flex;justify-content:flex-end;align-items:center;gap:10px;color:#6c5a49;font-size:12px}
+.sme-dd{padding:5px 9px;background:#f3ebdf;border:1px solid #b99a78;border-radius:5px;color:#513c2b;display:flex;align-items:center;gap:5px;font-size:12px}
+.sme-cols{display:flex;gap:8px;padding:8px}
+.sme-col{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.sme-col.mid{flex:1.05}
+.sme-col.wide{flex:1.4}
+.sme-h{font-size:12px;font-weight:500;display:flex;justify-content:space-between;align-items:baseline}
+.sme-h .s{font-size:10px;color:#6c5a49;font-weight:400}
+.sme-panel{background:#fff;border:1px solid #d8c6b2;border-radius:6px;padding:5px;flex:1}
+.fld{display:flex;align-items:center;gap:5px;padding:5px 8px;background:#fffaf5;border:1px solid #d8c6b2;border-radius:5px;font-size:11px;color:#3f3428;width:100%}
+.fld i{color:#8a7862}
+.fld.mut{color:#8a7862}
+.tr{display:flex;align-items:center;gap:4px;padding:2px 3px;border-radius:4px;white-space:nowrap}
+.tr .cb{color:#6c5a49}
+.tr .tw{color:#8a7862;font-size:13px}
+.tr .cnt{color:#a2917d;font-size:10px;margin-left:auto}
+.n1{padding-left:16px}.n2{padding-left:32px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;color:#6c5a49;padding:2px 1px}
+.legend i{vertical-align:-1px}
+.tabs{display:flex;gap:2px;background:#efe6d9;border:1px solid #d8c6b2;border-radius:6px;padding:2px}
+.tabs span{flex:1;text-align:center;padding:3px 4px;border-radius:4px;font-size:11px;color:#6c5a49;white-space:nowrap}
+.tabs span.on{background:#fff9f4;color:#3f3428;border:1px solid #d8c6b2;font-weight:500}
+.filt{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border:1px solid #b99a78;border-radius:10px;font-size:10px;color:#6c5a49;background:#f3ebdf;white-space:nowrap}
+.chip.warn{background:#faeeda;border-color:#ef9f27;color:#854f0b;font-weight:500}
+.li{padding:4px 5px;border-radius:5px;border:1px solid transparent}
+.li+.li{margin-top:1px}
+.li-1{display:flex;align-items:center;gap:6px}
+.li-1 .nm{font-weight:500}
+.li-ty{font-size:10px;color:#6c5a49;margin-left:auto}
+.li-2{font-size:10px;margin-top:1px;display:flex;align-items:center;gap:4px}
+.li-2.ok{color:#2e7d32}.li-2.warn{color:#a86a0b}
+.li.sel{background:#dfeaf0;border-color:#9cc3d6}
+.coat{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid #d8c6b2;border-radius:6px;background:#fffaf5;margin-bottom:5px}
+.shield{width:34px;height:38px;flex:none;border:1px solid #cdb79f;border-radius:4px;background:#f1eadd;display:flex;align-items:center;justify-content:center;color:#8a7862}
+.coat .ci{font-size:11px}.coat .ci b{font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.pd{background:#2e7d32}
+.grp{font-size:10px;font-weight:500;color:#6c5a49;border-top:1px solid #d8c6b2;padding-top:5px;margin-top:6px}
+.df{display:grid;grid-template-columns:70px 1fr;gap:2px 8px;padding:3px 0;align-items:baseline}
+.dl{color:#6c5a49;font-size:11px}
+.dv{font-size:12px}
+.old{color:#9d3a2e;text-decoration:line-through}
+.new{color:#2e7d32}
+.mut{color:#6c5a49}
+.bdg{font-size:9px;border:1px solid #b99a78;border-radius:8px;padding:0 5px;color:#6c5a49;margin-left:4px;white-space:nowrap}
+.asg{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;background:#eef5ef;border:1px solid #b8d3b8;border-radius:5px;color:#2e7d32;font-weight:500;font-size:12px}
+.sel2{margin-top:3px;padding:4px 6px;background:#fffaf5;border:1px solid #d8c6b2;border-radius:5px;color:#3f3428;font-size:11px;display:flex;align-items:center;justify-content:space-between}
+.link{color:#0078a8;font-size:11px;display:inline-flex;align-items:center;gap:3px}
+.foot{font-size:10px;color:#6c5a49;margin-top:8px;padding-top:5px;border-top:1px solid #d8c6b2;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<div class="note">Statisches <b>Referenz-Mockup</b> — Siedlungseditor (Design v3, 2026-07-07). Nicht interaktiv; nur zur Layout-Orientierung. Grundlage: <code>docs/siedlungseditor-design.md</code> + <code>docs/siedlungseditor-plan.md</code>. Die echte Optik/Palette stammt aus <code>html/wiki-sync-monitor.html</code>.</div>
+<div class="wrap">
+<div class="smw"><div class="sme">
+  <div class="sme-title">
+    <span class="l"><i class="ti ti-map-pin" aria-hidden="true"></i> Siedlungseditor</span>
+    <span class="sme-x"><i class="ti ti-x" aria-hidden="true"></i></span>
+  </div>
+  <div class="sme-tools">
+    <div class="sme-btn primary"><b><i class="ti ti-target" aria-hidden="true"></i> Siedlungen zuordnen</b><small>Ray-Cast über alles</small></div>
+    <div class="sme-btn on"><b><i class="ti ti-eye" aria-hidden="true"></i> Nur Auswahl anzeigen</b><small>auf der Karte</small></div>
+    <div class="sme-btn"><b><i class="ti ti-shield" aria-hidden="true"></i> Wappen lokalisieren</b><small>gemeinfrei laden</small></div>
+    <div class="sme-status">
+      <span><i class="ti ti-circle-check" aria-hidden="true" style="color:#2e7d32"></i> Bereit.</span>
+      <span class="sme-dd">Kontinente <i class="ti ti-chevron-down" aria-hidden="true"></i></span>
+    </div>
+  </div>
+  <div class="sme-cols">
+
+    <div class="sme-col">
+      <div class="sme-h">Territorien <span class="s">Filter · Mehrfachauswahl</span></div>
+      <div class="fld mut"><i class="ti ti-search" aria-hidden="true"></i> In Territorien suchen…</div>
+      <div class="sme-panel">
+        <div class="tr"><i class="ti ti-chevron-down tw" aria-hidden="true"></i><i class="ti ti-square cb" aria-hidden="true"></i> Fürstentum Kosch <span class="cnt">86</span></div>
+        <div class="tr n1"><i class="ti ti-chevron-down tw" aria-hidden="true"></i><i class="ti ti-square cb" aria-hidden="true"></i> Grafschaft Ferdok <span class="cnt">31</span></div>
+        <div class="tr n2"><i class="ti ti-minus tw" aria-hidden="true" style="opacity:0"></i><i class="ti ti-square cb" aria-hidden="true"></i> Baronie Auersbrücke <span class="cnt">7</span></div>
+        <div class="tr n2"><i class="ti ti-minus tw" aria-hidden="true" style="opacity:0"></i><i class="ti ti-square cb" aria-hidden="true"></i> Baronie Angbar <span class="cnt">12</span></div>
+        <div class="tr n1"><i class="ti ti-chevron-right tw" aria-hidden="true"></i><i class="ti ti-square cb" aria-hidden="true"></i> Grafschaft Angbar <span class="cnt">40</span></div>
+        <div class="tr"><i class="ti ti-chevron-right tw" aria-hidden="true"></i><i class="ti ti-square cb" aria-hidden="true"></i> Herzogtum Nordmarken <span class="cnt">154</span></div>
+        <div class="tr"><i class="ti ti-chevron-right tw" aria-hidden="true"></i><i class="ti ti-square cb" aria-hidden="true"></i> Königreich Almada <span class="cnt">98</span></div>
+      </div>
+      <div class="legend">
+        <span><i class="ti ti-square" aria-hidden="true"></i> aus</span>
+        <span style="color:#0078a8"><i class="ti ti-square-check" aria-hidden="true"></i> gewählt</span>
+        <span style="color:#0078a8"><i class="ti ti-square-minus" aria-hidden="true"></i> teilweise (Ahne)</span>
+      </div>
+    </div>
+
+    <div class="sme-col mid">
+      <div class="sme-h">Siedlungen <span class="s">312 gesamt</span></div>
+      <div class="tabs"><span class="on">Alle · 312</span><span>Auf Karte · 289</span><span>Nur Wiki · 23</span></div>
+      <div class="filt">
+        <div class="fld mut" style="flex:1;min-width:90px;width:auto"><i class="ti ti-search" aria-hidden="true"></i> Name suchen…</div>
+        <span class="chip">Typ <i class="ti ti-chevron-down" aria-hidden="true"></i></span>
+        <span class="chip">Quelle <i class="ti ti-chevron-down" aria-hidden="true"></i></span>
+        <span class="chip warn"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Nicht zugeordnet · 18</span>
+      </div>
+      <div class="sme-panel">
+        <div class="li sel">
+          <div class="li-1"><span class="nm">Angbar</span><span class="li-ty">Stadt</span></div>
+          <div class="li-2 ok"><i class="ti ti-check" aria-hidden="true"></i> Fürstentum Kosch</div>
+        </div>
+        <div class="li">
+          <div class="li-1"><span class="nm">Ferdok</span><span class="li-ty">Großstadt</span></div>
+          <div class="li-2 ok"><i class="ti ti-check" aria-hidden="true"></i> Grafschaft Ferdok</div>
+        </div>
+        <div class="li">
+          <div class="li-1"><span class="nm">Auersbrücke</span><span class="li-ty">Stadt</span></div>
+          <div class="li-2 ok"><i class="ti ti-check" aria-hidden="true"></i> Baronie Auersbrücke</div>
+        </div>
+        <div class="li">
+          <div class="li-1"><span class="nm">Nadoret</span><span class="li-ty">Dorf</span></div>
+          <div class="li-2 warn"><i class="ti ti-alert-triangle" aria-hidden="true"></i> nicht zugeordnet</div>
+        </div>
+        <div class="li">
+          <div class="li-1"><span class="nm">Brochenzwerch</span><span class="li-ty">Weiler</span></div>
+          <div class="li-2 warn"><i class="ti ti-alert-triangle" aria-hidden="true"></i> nicht zugeordnet</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sme-col wide">
+      <div class="sme-h">Eigenschaften &amp; Overrides <span class="s">Angbar</span></div>
+      <div class="sme-panel">
+        <div class="coat">
+          <div class="shield"><i class="ti ti-shield" aria-hidden="true" style="font-size:18px"></i></div>
+          <div class="ci">
+            <div><b>Wappen</b> <span class="dot pd" title="gemeinfrei"></span></div>
+            <div class="mut">Quelle: Wiki · gemeinfrei</div>
+            <span class="link">Ersetzen / hochladen</span>
+          </div>
+        </div>
+
+        <div class="grp">Identität</div>
+        <div class="df"><span class="dl">Name</span><span class="dv">Angbar</span></div>
+        <div class="df"><span class="dl">Typ</span><span class="dv">Stadt</span></div>
+        <div class="df"><span class="dl">Einwohner</span><span class="dv"><span class="old">4.900</span> <i class="ti ti-arrow-right mut" aria-hidden="true"></i> <span class="new">5.200</span> <span class="bdg"><i class="ti ti-pencil" aria-hidden="true"></i> manuell</span> <i class="ti ti-rotate mut" aria-hidden="true" title="zurücksetzen"></i></span></div>
+
+        <div class="grp">Lage &amp; Zugehörigkeit</div>
+        <div class="df"><span class="dl">Territorium</span><span class="dv">
+          <span class="asg"><i class="ti ti-check" aria-hidden="true"></i> Fürstentum Kosch</span>
+          <div class="sel2"><span><i class="ti ti-crosshair mut" aria-hidden="true"></i> Ray-Cast · tiefste Ebene</span><span class="link">ändern <i class="ti ti-chevron-down" aria-hidden="true"></i></span></div>
+        </span></div>
+        <div class="df"><span class="dl">Region</span><span class="dv">Kosch <span class="bdg">Wiki</span></span></div>
+        <div class="df"><span class="dl">Staat</span><span class="dv">Kosch <span class="bdg">Wiki</span></span></div>
+
+        <div class="grp">Wiki &amp; Quelle</div>
+        <div class="df"><span class="dl">Wiki</span><span class="dv"><span class="link">Angbar <i class="ti ti-external-link" aria-hidden="true"></i></span></span></div>
+        <div class="df"><span class="dl">Andere Quelle</span><span class="dv"><div class="fld mut">z. B. Aventurischer Bote 42, S. 12</div></span></div>
+
+        <div class="foot"><span><i class="ti ti-pencil" aria-hidden="true"></i> 2 Overrides aktiv</span><span class="link">alle zurücksetzen</span></div>
+      </div>
+    </div>
+
+  </div>
+</div></div>
+</div>
+</body>
+</html>
