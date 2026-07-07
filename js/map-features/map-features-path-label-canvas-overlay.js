@@ -494,6 +494,18 @@
 		});
 	}
 
+	// Findet ein repraesentatives Pfad-Segment zu einem Way-Label-Treffer. Das Klick-Register nimmt nur
+	// wiki-verlinkte Wege auf (Gate: wiki_path.wiki_key), und alle Segmente eines Wegs teilen denselben
+	// wiki_path -> ein beliebiges Segment mit passendem wiki_key liefert dieselbe Infobox wie der Linien-Klick.
+	// null (kein Match / pathData nicht da) -> der Aufrufer faellt auf die Kurzfassung zurueck.
+	function findPathForWayLabelEntry(entry) {
+		const wikiKey = entry && entry.wikiKey;
+		if (!wikiKey || typeof pathData === "undefined" || !Array.isArray(pathData)) {
+			return null;
+		}
+		return pathData.find((path) => path?.properties?.wiki_path?.wiki_key === wikiKey) || null;
+	}
+
 	// Klick-Schiedsrichter (docs/click-arbiter-coordination.md): Way-Labels sind die NIEDRIGSTPRIORE
 	// Klickflaeche (unter Siedlung/Region/Gebiet -- ein Weg-Name-Label liegt nie ÜBER einem
 	// interaktiven Vektor-Layer, weil das Label-Pane pointer-events:none ist). Der Map-Klick feuert
@@ -517,6 +529,28 @@
 		if (!hit) {
 			return;
 		}
+		// Konsistenz (Owner 2026-07-07): ein Klick auf den WEG-NAMEN oeffnet EXAKT denselben Popup wie ein Klick
+		// auf die Weg-/Fluss-Linie -- also die volle Wiki-Infobox (Lage/Laenge/Verlauf/Beschreibung + Quellenzeile
+		// + "Link teilen"), nicht die frueher hier gebaute Kurzfassung. Wir wiederverwenden das vorgefertigte
+		// _popupMarkup/_popupOptions des repraesentativen Segments (identisch zum Linien-Klick in createPathLayer,
+		// map-features-path-rendering.js).
+		const labeledPath = findPathForWayLabelEntry(hit);
+		const markup = labeledPath
+			? (labeledPath._popupMarkup || (typeof createPathPopupMarkup === "function" ? createPathPopupMarkup(labeledPath) : null))
+			: null;
+		if (markup) {
+			const options = labeledPath._popupOptions
+				|| (typeof pathHasWiki === "function" && pathHasWiki(labeledPath)
+					? { className: "settlement-popup", minWidth: 320, maxWidth: 400 }
+					: {});
+			L.popup(options)
+				.setLatLng(hit.anchorLatLng)
+				.setContent(markup)
+				.openOn(map);
+			return;
+		}
+		// Fallback (sollte nicht eintreten: jedes klickbare Label ist ein wiki-verlinkter Weg in pathData) --
+		// Kurz-Popup, damit ein Klick nie ins Leere laeuft.
 		L.popup({ className: "settlement-popup", minWidth: 260, maxWidth: 360 })
 			.setLatLng(hit.anchorLatLng)
 			.setContent(wayLabelPopupMarkup(hit))
