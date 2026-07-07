@@ -54,6 +54,31 @@
   .dropdown2 .dd-menu[hidden] { display:none; }
   .dd-menu { position:absolute; z-index:20; top:100%; right:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
   .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
+  /* Siedlungsliste (MITTE): on_map-Achse als Tab-Leiste + kombinierbare Filterzeile. */
+  #seListTabs { display:flex; gap:2px; background:#efe6d9; border:1px solid var(--line); border-radius:6px; padding:2px; margin-bottom:6px; }
+  #seListTabs button { flex:1; background:transparent; border:none; border-radius:4px; padding:4px 6px; color:var(--mut); font:inherit; font-size:11px; cursor:pointer; white-space:nowrap; }
+  #seListTabs button:hover { background:#e4d7c3; }
+  #seListTabs button.is-active { background:var(--soft); color:var(--fg); border:1px solid var(--line); font-weight:bold; }
+  #seListFilters { flex-wrap:wrap; }
+  #seListFilters input[type=search] { flex:1 1 120px; min-width:90px; }
+  .chip-toggle { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border:1px solid var(--line2); border-radius:12px; font-size:11px; color:var(--mut); background:#f3ebdf; white-space:nowrap; cursor:pointer; }
+  .chip-toggle:hover { background:#ead9c2; }
+  .chip-toggle.warn { background:#faeeda; border-color:#ef9f27; color:#854f0b; font-weight:bold; }
+  .chip-toggle.warn.is-active { background:#f4c869; border-color:#b8860b; color:#4a3300; }
+  #seTreeBypassHint { font-size:10px; color:var(--warn); margin:0 0 6px; padding:3px 6px; background:#faeeda; border:1px solid #ef9f27; border-radius:4px; }
+  #seTreeBypassHint[hidden] { display:none; }
+  /* Siedlungs-Zeilen: zweizeilig, Zeile 2 = Zuordnungsstatus (gruen=zugeordnet, amber=Luecke). */
+  .se-row { display:block; padding:4px 6px; border-radius:5px; border:1px solid transparent; cursor:pointer; }
+  .se-row:hover { background:#f3ebdf; }
+  .se-row.is-selected { background:#dfeaf0; border-color:#9cc3d6; }
+  .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
+  .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .se-row-type { font-size:10px; color:var(--mut); margin-left:auto; white-space:nowrap; }
+  .se-row-l2 { font-size:10px; margin-top:1px; display:flex; align-items:center; gap:4px; }
+  .se-row-l2.ok { color:var(--ok); }
+  .se-row-l2.warn { color:var(--warn); }
+  .se-empty, .se-loading, .se-error { color:var(--mut); padding:6px; }
+  .se-error { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -84,6 +109,7 @@
       <h2 class="listhead">Siedlungen</h2>
       <div id="seListTabs"></div>
       <div class="bar" id="seListFilters"></div>
+      <div id="seTreeBypassHint" hidden>Baum-Auswahl links ist ausgeblendet, solange „Nicht zugeordnet" aktiv ist.</div>
     </div>
     <div id="seList"></div>
   </div>
@@ -185,6 +211,12 @@ async function loadSettlementTree() {
 		settlementTree = built.tree;
 		childrenByParent = built.childrenByParent;
 		renderSettlementTree();
+		// The tree and the settlement list load in parallel (see boot()); if the tree resolves
+		// after the settlement list already rendered, refresh the list's "✓ <territory>" labels
+		// (territoryDisplayName reads settlementTree.byKey) and re-evaluate the tree containment
+		// filter now that ancestor lookups are possible. Harmless no-op if settlementItems is
+		// still empty (loadSettlementItems will render once it resolves).
+		renderSettlementMid();
 	} catch (error) {
 		if (container) container.textContent = "Territorien konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
 	}
@@ -232,9 +264,8 @@ function onTerritoryCheckboxToggle(wikiKey, checked) {
 	if (checked) checkedTerritoryKeys.add(wikiKey);
 	else checkedTerritoryKeys.delete(wikiKey);
 	refreshAllTriStates();
-	// NOTE: wiring this selection into the middle settlement list is a LATER task (the
-	// list does not exist yet). Consumers can read the current selection via
-	// window.settlementEditorGetSelectedTerritoryKeys().
+	// Tree selection changed -> re-run the middle list's containment filter (Phase 4.3 wiring).
+	renderSettlementMid();
 }
 
 function buildTerritoryTreeNodeElement(node) {
@@ -334,11 +365,343 @@ function applyTerritoryTreeSearchFilter() {
 // the live Set) so callers can't accidentally mutate tree state from outside.
 window.settlementEditorGetSelectedTerritoryKeys = () => new Set(checkedTerritoryKeys);
 
+// ===================== MIDDLE column: settlement list =====================
+// Mirrors the filter idioms of js/review/review-settlement-list.js (settlementListView tabs,
+// type/continent/source filters) but is a lightweight, self-contained reimplementation --
+// this editor is a separate iframe document and cannot import that file's module state.
+
+let settlementItems = []; // raw items from settlement_editor_list
+let settlementListView = "all"; // "all" | "onmap" | "wiki" (on_map axis, mirrors the sibling's tri-tab)
+let selectedPublicId = null;
+const settlementSearchState = { value: "" };
+const settlementTypeFilter = new Set(); // selected settlement_label values (empty = all)
+const settlementContinentFilterMid = new Set(["Aventurien"]); // default: only Aventurien, like the sibling list
+const settlementSourceFilter = { value: "" }; // "" = all | "wiki" | "andere" | "keine"
+let unassignedOnly = false; // the amber "Nicht zugeordnet" chip -- bypasses the tree filter when on
+
+// Kontinent eines Eintrags; leer -> Aventurien (mirrors settlementItemContinent in the sibling list).
+function settlementItemContinent(item) {
+	return String(item && item.continent || "").trim() || "Aventurien";
+}
+
+// A "real gap": placed on the map but with no territory assignment at all (§3.2 design:
+// pure wiki-only settlements are never ray-castable and therefore never count as a gap).
+function isSettlementGap(item) {
+	return item && item.on_map === true && (item.territory_wiki_key === null || item.territory_wiki_key === undefined);
+}
+
+// Tree containment check for one item: visible iff its territory (or an ancestor of it, walked
+// via the editor's own getAncestorKeys/parent_wiki_key helper -- NEVER affiliation_path) is one
+// of the explicitly checked tree nodes. Mirrors docs/siedlungseditor-design.md §5 (descendant
+// union), computed here from the settlement side: "is my territory in checked-or-a-descendant
+// of checked?" is equivalent to "is one of (myTerritory, ancestors-of-myTerritory) checked?".
+function settlementMatchesTreeSelection(item) {
+	if (checkedTerritoryKeys.size === 0) return true;
+	const wikiKey = item.territory_wiki_key;
+	if (!wikiKey) return false; // unassigned settlements have no territory to match against
+	if (checkedTerritoryKeys.has(wikiKey)) return true;
+	return getAncestorKeys(wikiKey).some((key) => checkedTerritoryKeys.has(key));
+}
+
+function settlementSearchMatch(item) {
+	const query = settlementSearchState.value.trim().toLowerCase();
+	if (!query) return true;
+	return String(item.name || "").toLowerCase().includes(query);
+}
+
+function settlementViewMatch(item) {
+	if (settlementListView === "onmap") return item.on_map === true;
+	if (settlementListView === "wiki") return item.on_map !== true;
+	return true;
+}
+
+// Basismenge fuer Typ-/Quelle-Zaehler: Kontinent + View-Tab + Suche, aber OHNE Typ/Quelle/Chip/Baum
+// selbst (jeder Filter zaehlt seine Optionen relativ zu "allem was OHNE diesen einen Filter uebrig
+// bleibt", wie im Territorium-Vorbild review-settlement-list.js settlementBaseFilteredItems()).
+function settlementBaseFilteredItems() {
+	return settlementItems.filter(
+		(item) => settlementContinentFilterMid.has(settlementItemContinent(item)) && settlementViewMatch(item) && settlementSearchMatch(item)
+	);
+}
+
+function settlementTypeOptions() {
+	const order = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude"];
+	const byLabel = new Map();
+	for (const item of settlementBaseFilteredItems()) {
+		const label = item.settlement_label || "—";
+		if (!byLabel.has(label)) byLabel.set(label, { value: label, label, count: 0, order: order.indexOf(item.settlement_class || "") });
+		byLabel.get(label).count += 1;
+	}
+	return [...byLabel.values()].sort((a, b) => (a.order < 0 ? 99 : a.order) - (b.order < 0 ? 99 : b.order) || a.label.localeCompare(b.label, "de"));
+}
+
+const SETTLEMENT_SOURCE_OPTIONS = [
+	{ value: "wiki", label: "Wiki" },
+	{ value: "andere", label: "Andere" },
+	{ value: "keine", label: "Keine" },
+];
+
+// Full per-item visibility predicate (task spec §7): continent + on_map-tab + search + type +
+// source are always applied; the LAST axis is either the "Nicht zugeordnet" chip (which
+// deliberately bypasses the tree selection) or the tree containment filter.
+function isSettlementVisible(item) {
+	if (!settlementContinentFilterMid.has(settlementItemContinent(item))) return false;
+	if (!settlementViewMatch(item)) return false;
+	if (!settlementSearchMatch(item)) return false;
+	if (settlementTypeFilter.size > 0 && !settlementTypeFilter.has(item.settlement_label || "—")) return false;
+	if (settlementSourceFilter.value && item.source_category !== settlementSourceFilter.value) return false;
+	if (unassignedOnly) return isSettlementGap(item);
+	return settlementMatchesTreeSelection(item);
+}
+
+// Live count of gaps under the OTHER active filters (continent/view/search/type/source), used as
+// the chip's "(N)" -- independent of unassignedOnly itself and independent of the tree selection
+// (the chip's whole point is to bypass the tree), per task spec point 5.
+function settlementGapCountUnderOtherFilters() {
+	let count = 0;
+	for (const item of settlementItems) {
+		if (!settlementContinentFilterMid.has(settlementItemContinent(item))) continue;
+		if (!settlementViewMatch(item)) continue;
+		if (!settlementSearchMatch(item)) continue;
+		if (settlementTypeFilter.size > 0 && !settlementTypeFilter.has(item.settlement_label || "—")) continue;
+		if (settlementSourceFilter.value && item.source_category !== settlementSourceFilter.value) continue;
+		if (isSettlementGap(item)) count += 1;
+	}
+	return count;
+}
+
+function settlementEscape(value) {
+	const holder = document.createElement("div");
+	holder.textContent = value === null || value === undefined ? "" : String(value);
+	return holder.innerHTML;
+}
+
+// Territory display name for a settlement's assignment line: prefer the tree's own name lookup
+// (same tree the LEFT column renders from) so the label matches what's checked there; fall back
+// to the raw wiki_key if the tree hasn't loaded it (e.g. race, or a stale/removed key).
+function territoryDisplayName(wikiKey) {
+	const node = settlementTree.byKey.get(wikiKey);
+	return (node && node.name) || wikiKey;
+}
+
+function renderSettlementRowElement(item) {
+	const row = document.createElement("div");
+	row.className = "se-row" + (item.public_id === selectedPublicId ? " is-selected" : "");
+	row.dataset.publicId = item.public_id;
+
+	const line1 = document.createElement("div");
+	line1.className = "se-row-l1";
+	const name = document.createElement("span");
+	name.className = "se-row-name";
+	name.textContent = item.name;
+	name.title = item.name;
+	line1.appendChild(name);
+	if (item.settlement_label) {
+		const type = document.createElement("span");
+		type.className = "se-row-type";
+		type.textContent = item.settlement_label;
+		line1.appendChild(type);
+	}
+	row.appendChild(line1);
+
+	const line2 = document.createElement("div");
+	if (item.territory_wiki_key) {
+		line2.className = "se-row-l2 ok";
+		line2.textContent = "✓ " + territoryDisplayName(item.territory_wiki_key);
+	} else {
+		line2.className = "se-row-l2 warn";
+		line2.textContent = "⚠ nicht zugeordnet";
+	}
+	row.appendChild(line2);
+
+	row.addEventListener("click", () => selectSettlementRow(item.public_id));
+	return row;
+}
+
+function selectSettlementRow(publicId) {
+	selectedPublicId = publicId;
+	const list = $("seList");
+	if (list) {
+		for (const row of list.querySelectorAll(".se-row")) row.classList.toggle("is-selected", row.dataset.publicId === publicId);
+	}
+	renderSettlementDetail(publicId);
+}
+
+// Phase 6: settlement detail panel (RIGHT column). This is intentionally a stub for now --
+// building #seDetailBody is a later task. Row selection + highlighting already works above;
+// this hook is where the detail phase will fetch/render the "Eigenschaften & Overrides" panel.
+function renderSettlementDetail(publicId) {
+	// no-op for now
+}
+
+function renderSettlementTabs() {
+	const host = $("seListTabs");
+	if (!host) return;
+	const continentScoped = settlementItems.filter((item) => settlementContinentFilterMid.has(settlementItemContinent(item)));
+	const onMapCount = continentScoped.filter((item) => item.on_map).length;
+	const wikiCount = continentScoped.length - onMapCount;
+	const tab = (view, label, count) =>
+		`<button type="button" data-settlement-view="${view}" class="${settlementListView === view ? "is-active" : ""}">${label} (${count})</button>`;
+	host.innerHTML = tab("all", "Alle", continentScoped.length) + tab("onmap", "Auf Karte", onMapCount) + tab("wiki", "Nur Wiki", wikiCount);
+}
+
+function renderSettlementFilters() {
+	const host = $("seListFilters");
+	if (!host) return;
+	// Preserve focus/caret across the innerHTML rebuild below: the search input is re-created on
+	// every render (unlike the sibling list's static <input>), so a re-render triggered by an
+	// unrelated event (e.g. a tree checkbox toggle) while the user is mid-typing must not drop
+	// keyboard focus or the cursor position.
+	const searchHadFocus = document.activeElement && document.activeElement.id === "seListSearch";
+	const searchSelectionStart = searchHadFocus ? document.activeElement.selectionStart : null;
+	const searchSelectionEnd = searchHadFocus ? document.activeElement.selectionEnd : null;
+	// Same reasoning for open dropdown menus: don't snap them shut on an unrelated re-render.
+	const typeMenuWasOpen = $("seTypeMenu") && !$("seTypeMenu").hidden;
+	const sourceMenuWasOpen = $("seSourceMenu") && !$("seSourceMenu").hidden;
+	const typeOptions = settlementTypeOptions();
+	const typeLabel = settlementTypeFilter.size === 0 ? "Typ" : `Typ (${settlementTypeFilter.size})`;
+	const typeMenu = [`<label><input type="checkbox" value="__all__"${settlementTypeFilter.size === 0 ? " checked" : ""} data-type-all> Alle</label>`]
+		.concat(typeOptions.map((opt) => `<label><input type="checkbox" value="${settlementEscape(opt.value)}"${settlementTypeFilter.has(opt.value) ? " checked" : ""} data-type-opt> ${settlementEscape(opt.label)} (${opt.count})</label>`))
+		.join("");
+	const sourceLabel = settlementSourceFilter.value ? "Quelle: " + (SETTLEMENT_SOURCE_OPTIONS.find((o) => o.value === settlementSourceFilter.value)?.label || settlementSourceFilter.value) : "Quelle";
+	const sourceMenu = [`<label><input type="radio" name="seSourceFilter" value="__all__"${!settlementSourceFilter.value ? " checked" : ""} data-source-all> Alle</label>`]
+		.concat(SETTLEMENT_SOURCE_OPTIONS.map((opt) => `<label><input type="radio" name="seSourceFilter" value="${opt.value}"${settlementSourceFilter.value === opt.value ? " checked" : ""} data-source-opt> ${settlementEscape(opt.label)}</label>`))
+		.join("");
+	const gapCount = settlementGapCountUnderOtherFilters();
+
+	host.innerHTML =
+		`<input type="search" id="seListSearch" placeholder="Name suchen…" value="${settlementEscape(settlementSearchState.value)}">` +
+		`<div class="dropdown2" id="seTypeDD"><button type="button" class="ddbtn" id="seTypeBtn">${settlementEscape(typeLabel)} <span class="ddcaret">▾</span></button><div class="dd-menu" id="seTypeMenu" hidden>${typeMenu}</div></div>` +
+		`<div class="dropdown2" id="seSourceDD"><button type="button" class="ddbtn" id="seSourceBtn">${settlementEscape(sourceLabel)} <span class="ddcaret">▾</span></button><div class="dd-menu" id="seSourceMenu" hidden>${sourceMenu}</div></div>` +
+		`<span class="chip-toggle warn${unassignedOnly ? " is-active" : ""}" id="seUnassignedChip" title="Nur auf der Karte platzierte Siedlungen ohne Territorium; blendet die Baum-Auswahl links aus">⚠ Nicht zugeordnet (${gapCount})</span>`;
+
+	if (typeMenuWasOpen) $("seTypeMenu").hidden = false;
+	if (sourceMenuWasOpen) $("seSourceMenu").hidden = false;
+	if (searchHadFocus) {
+		const searchInput = $("seListSearch");
+		if (searchInput) {
+			searchInput.focus();
+			searchInput.setSelectionRange(searchSelectionStart, searchSelectionEnd);
+		}
+	}
+
+	$("seListSearch")?.addEventListener("input", (event) => {
+		settlementSearchState.value = event.target.value || "";
+		renderSettlementMid();
+	});
+	$("seTypeBtn")?.addEventListener("click", (event) => {
+		event.stopPropagation();
+		const menu = $("seTypeMenu");
+		if (menu) menu.hidden = !menu.hidden;
+	});
+	$("seSourceBtn")?.addEventListener("click", (event) => {
+		event.stopPropagation();
+		const menu = $("seSourceMenu");
+		if (menu) menu.hidden = !menu.hidden;
+	});
+	$("seTypeMenu")?.addEventListener("change", (event) => {
+		const target = event.target;
+		if (target.matches("[data-type-all]")) settlementTypeFilter.clear();
+		else if (target.matches("[data-type-opt]")) {
+			if (target.checked) settlementTypeFilter.add(target.value);
+			else settlementTypeFilter.delete(target.value);
+		}
+		renderSettlementMid();
+	});
+	$("seSourceMenu")?.addEventListener("change", (event) => {
+		const target = event.target;
+		if (target.matches("[data-source-all]")) settlementSourceFilter.value = "";
+		else if (target.matches("[data-source-opt]")) settlementSourceFilter.value = target.value;
+		renderSettlementMid();
+	});
+	$("seUnassignedChip")?.addEventListener("click", () => {
+		unassignedOnly = !unassignedOnly;
+		renderSettlementMid();
+	});
+}
+
+// Full render: tabs (with their own continent-scoped counts) + filter bar (dropdowns rebuilt with
+// fresh option counts, matching the sibling list's "re-render filter menus on every list render"
+// pattern) + the row list itself, driven by isSettlementVisible().
+function renderSettlementMid() {
+	const list = $("seList");
+	if (!list) return;
+	renderSettlementTabs();
+	renderSettlementFilters();
+
+	const bypassHint = $("seTreeBypassHint");
+	if (bypassHint) bypassHint.hidden = !(unassignedOnly && checkedTerritoryKeys.size > 0);
+
+	const visible = settlementItems.filter(isSettlementVisible);
+	list.innerHTML = "";
+	if (visible.length === 0) {
+		const empty = document.createElement("div");
+		empty.className = "se-empty";
+		empty.textContent = "Keine Treffer.";
+		list.appendChild(empty);
+		return;
+	}
+	const fragment = document.createDocumentFragment();
+	for (const item of visible) fragment.appendChild(renderSettlementRowElement(item));
+	list.appendChild(fragment);
+}
+
+async function loadSettlementItems() {
+	const list = $("seList");
+	if (list) {
+		list.innerHTML = "";
+		const loading = document.createElement("div");
+		loading.className = "se-loading";
+		loading.textContent = "Lädt…";
+		list.appendChild(loading);
+	}
+	try {
+		const requestUrl = new URL(SETTLEMENT_EDITOR_API, window.location.href);
+		requestUrl.searchParams.set("action", "settlement_editor_list");
+		const response = await fetch(requestUrl.toString(), { method: "GET", credentials: "same-origin" });
+		const payload = await response.json();
+		if (!response.ok || !payload || payload.ok !== true) {
+			throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		}
+		settlementItems = Array.isArray(payload.items) ? payload.items : [];
+		renderSettlementMid();
+	} catch (error) {
+		if (list) {
+			list.innerHTML = "";
+			const errorEl = document.createElement("div");
+			errorEl.className = "se-error";
+			errorEl.textContent = "Siedlungen konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
+			list.appendChild(errorEl);
+		}
+	}
+}
+
+// Delegated click handler for the tab bar (elements are re-created on every render).
+document.addEventListener("click", (event) => {
+	const viewTab = event.target.closest ? event.target.closest("[data-settlement-view]") : null;
+	if (viewTab) {
+		settlementListView = viewTab.dataset.settlementView || "all";
+		renderSettlementMid();
+	}
+});
+// Close open dropdown menus on outside click. Uses closest() against the button (not strict
+// target equality) because a click on the button's own <span class=ddcaret> child would
+// otherwise be seen as "outside" and re-close the menu the button's own handler just opened.
+document.addEventListener("click", (event) => {
+	for (const [btnId, menuId] of [["seTypeBtn", "seTypeMenu"], ["seSourceBtn", "seSourceMenu"]]) {
+		const menu = $(menuId);
+		const btn = $(btnId);
+		if (!menu || menu.hidden || !btn) continue;
+		const insideButton = event.target.closest ? event.target.closest(`#${btnId}`) : false;
+		if (!insideButton && !menu.contains(event.target)) menu.hidden = true;
+	}
+});
+
 async function boot() {
 	const treeSearchInput = $("seTreeSearch");
 	if (treeSearchInput) treeSearchInput.addEventListener("input", applyTerritoryTreeSearchFilter);
-	await loadSettlementTree();
-	/* subsequent phases fill the rest: settlement list, detail panel */
+	await Promise.all([loadSettlementTree(), loadSettlementItems()]);
+	/* subsequent phase fills the rest: settlement detail panel (RIGHT column) */
 }
 boot();
 </script>
