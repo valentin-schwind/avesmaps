@@ -37,6 +37,7 @@ function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $
         )),
         'originalName' => $originalName,
         'displayName' => $displayName,
+        'otherSource' => is_array($display['otherSource'] ?? null) ? $display['otherSource'] : null,
         'coatOfArmsUrl' => trim((string) ($display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '')),
         'zoomMin' => avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $territory['min_zoom'] ?? null),
         'zoomMax' => avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $territory['max_zoom'] ?? null),

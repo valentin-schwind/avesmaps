@@ -968,6 +968,7 @@ function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
                 ?? $rawDisplay['coat_of_arms_url']
                 ?? ''
             )),
+            'otherSource' => is_array($rawDisplay['otherSource'] ?? null) ? $rawDisplay['otherSource'] : null,
             'color' => trim((string) ($rawDisplay['color'] ?? '')),
             'opacity' => is_numeric($opacity) ? (float) $opacity : null,
             'zoomMin' => avesmapsPoliticalNullableInt($rawDisplay['zoomMin'] ?? $rawDisplay['zoom_min'] ?? null),
