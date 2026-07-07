@@ -475,3 +475,53 @@ attachFilterMenu("settlement-filter-toggle", "settlement-filter-menu", [
 ], renderSettlementList, "Filter");
 
 window.loadSettlementList = loadSettlementList;
+
+// Inline-Dialog fuer den Siedlungseditor — im Stil des Herrschaftsgebiet-Sync-Editors
+// (gleiche CSS-Klassen wie der politische Territoriumseditor-Overlay), siehe
+// openAvesmapsSyncEditorOverlay() in review-wiki-sync.js. Kein Deep-Link-Parameter noetig
+// und kein Tree-Refresh beim Schliessen (Siedlungseditor hat keinen Eltern-Baum).
+window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditorOverlay || function openAvesmapsSettlementEditorOverlay() {
+	const overlayId = "avesmaps-settlement-editor-overlay";
+	// Cache-Buster: das Tool-HTML laedt sonst gecacht (kein ?v=) -> immer frisch holen.
+	const buildSettlementEditorSrc = () => "/html/wiki-sync-settlement-editor.html?v=" + Date.now();
+	let overlay = document.getElementById(overlayId);
+	if (overlay) {
+		overlay.hidden = false;
+		document.body.style.overflow = "hidden";
+		return;
+	}
+	overlay = document.createElement("div");
+	overlay.id = overlayId;
+	overlay.className = "political-territory-editor-overlay";
+	overlay.style.zIndex = "1500";
+	const dialog = document.createElement("div");
+	dialog.className = "political-territory-editor-dialog";
+	dialog.style.width = "min(1400px, calc(100vw - 24px))";
+	dialog.style.height = "min(880px, calc(100vh - 24px))";
+	const header = document.createElement("div");
+	header.className = "political-territory-editor-dialog__header";
+	const headingEl = document.createElement("h2");
+	headingEl.textContent = "Siedlungen synchronisieren und editieren";
+	const closeButton = document.createElement("button");
+	closeButton.type = "button";
+	closeButton.className = "political-territory-editor-dialog__close";
+	closeButton.setAttribute("aria-label", "Schließen");
+	closeButton.textContent = "✕";
+	const closeOverlay = () => {
+		overlay.hidden = true;
+		document.body.style.overflow = "";
+	};
+	closeButton.addEventListener("click", closeOverlay);
+	header.appendChild(headingEl);
+	header.appendChild(closeButton);
+	const frame = document.createElement("iframe");
+	frame.className = "political-territory-editor-dialog__frame";
+	frame.src = buildSettlementEditorSrc();
+	frame.title = "Siedlungseditor";
+	dialog.appendChild(header);
+	dialog.appendChild(frame);
+	overlay.appendChild(dialog);
+	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+	document.body.appendChild(overlay);
+	document.body.style.overflow = "hidden";
+};
