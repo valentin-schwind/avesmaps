@@ -133,8 +133,13 @@ function focusSpotlightRegion(entry) {
 	}
 }
 
-// Öffnet die Region-Infobox sobald ein Polygon mit passender public_id/territory_public_id
-// gerendert ist (pollt ~bis 4.5s, deckt den async Layer-Reload nach dem Ebenen-Wechsel ab).
+// Öffnet die Region-Infobox, sobald ein Polygon mit passender public_id/territory_public_id gerendert ist --
+// und HÄLT sie offen, bis die politische Ebene zur Ruhe kommt. Grund: nach dem Ebenen-Wechsel + Flug lädt die
+// Ebene mehrfach asynchron neu (jedes moveend -> schedulePoliticalTerritoryLayerReload), und jeder Reload ruft
+// clearRenderedRegionLayers() -> closeRegionCompactTooltip(). Ein einmaliges Öffnen beim ersten Treffer risse
+// ein späterer Reload wieder weg (Infobox "poppt kurz auf und verschwindet"). Also erneut öffnen, solange die
+// Ziel-Infobox nicht steht; aufhören, wenn sie ~1,2 s ohne Teardown offen blieb, der Nutzer zu einem ANDEREN
+// Gebiet gewechselt ist (fremde Infobox offen -> nicht dazwischenfunken), oder nach einem harten Zeitlimit.
 let spotlightRegionInfoboxPollTimer = null;
 
 function openSpotlightRegionInfobox(publicId) {
@@ -142,29 +147,56 @@ function openSpotlightRegionInfobox(publicId) {
 		window.clearInterval(spotlightRegionInfoboxPollTimer);
 		spotlightRegionInfoboxPollTimer = null;
 	}
-	let attempts = 0;
-	const tryOpen = () => {
+	const targetId = String(publicId);
+	const startedAt = Date.now();
+	let stableSince = 0;
+	const stop = () => {
+		if (spotlightRegionInfoboxPollTimer) {
+			window.clearInterval(spotlightRegionInfoboxPollTimer);
+			spotlightRegionInfoboxPollTimer = null;
+		}
+	};
+	const findTargetEntry = () => {
 		const polys = Array.isArray(regionPolygons) ? regionPolygons : [];
 		const match = polys.find((polygon) => {
 			const re = polygon && polygon._regionEntry;
 			return re && (re.publicId === publicId || re.territoryPublicId === publicId);
 		});
-		if (match && match._regionEntry && typeof openRegionCompactTooltip === "function") {
-			openRegionCompactTooltip(match._regionEntry);
-			return true;
-		}
-		return false;
+		return match ? match._regionEntry : null;
 	};
-	if (tryOpen()) {
-		return;
-	}
-	spotlightRegionInfoboxPollTimer = window.setInterval(() => {
-		attempts += 1;
-		if (tryOpen() || attempts > 30) {
-			window.clearInterval(spotlightRegionInfoboxPollTimer);
-			spotlightRegionInfoboxPollTimer = null;
+	const shownPublicId = () => {
+		const re = typeof activeRegionInfoTooltipEntry !== "undefined" ? activeRegionInfoTooltipEntry : null;
+		return re ? String(re.publicId || re.territoryPublicId || "") : "";
+	};
+	const tick = () => {
+		if (Date.now() - startedAt > 8000) { // Sicherheitsnetz: nie unbegrenzt pinnen.
+			stop();
+			return;
 		}
-	}, 150);
+		const shown = shownPublicId();
+		// Nutzer hat ein anderes Gebiet geöffnet -> Pinnen aufgeben, ihm nicht die Infobox überschreiben.
+		if (shown && shown !== targetId) {
+			stop();
+			return;
+		}
+		// Ziel-Infobox steht (und ist real auf der Karte): erst nach einer ruhigen Phase ohne Reload aufhören.
+		if (shown === targetId && activeRegionInfoTooltip) {
+			if (!stableSince) {
+				stableSince = Date.now();
+			} else if (Date.now() - stableSince > 1200) {
+				stop();
+			}
+			return;
+		}
+		// Steht (noch) nicht: sobald das Polygon gerendert ist, (erneut) öffnen; Ruhe-Timer zurücksetzen.
+		stableSince = 0;
+		const entry = findTargetEntry();
+		if (entry && typeof openRegionCompactTooltip === "function") {
+			openRegionCompactTooltip(entry);
+		}
+	};
+	spotlightRegionInfoboxPollTimer = window.setInterval(tick, 150);
+	tick();
 }
 
 function focusSpotlightPath(entry) {
