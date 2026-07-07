@@ -50,6 +50,18 @@ Shared module = `js/territory/territory-wiki-tree.js` (used by #2, #3, #4).
    structural filter *before* ancestor expansion. Verified live on the deployed
    module (Alanfanisches Imperium leaves „Fehlt"; missing count 209 → 208, nothing
    else changes).
+   **Fix C (9493ce72) — broken branch to the missing leaf.** In „Fehlt" a still-missing
+   leaf (e.g. Rittergut Altprein) sits under a PLACED intermediate (a placed Baronie)
+   that is filtered out of the missing set. `expandRowsWithAncestors` rebuilt ancestors
+   via `affiliation_path` (wiki-based, partial) while the tree is built from
+   `parent_wiki_key`, so the chain broke: the leaf orphaned to the top level and its
+   covered ancestors (Herzogtum, Kaiserreich) showed as childless dead-ends — the path
+   down to the actual missing leaf was not navigable. Fix: walk the real `parent_wiki_key`
+   chain over the complete row cache, pulling every ancestor of a kept row into the set
+   so `buildTree` reconstructs the full, expandable branch. Only affects the WikiSync tab
+   (full row cache present); other callers hit the existing early-return. Verified live:
+   Herzogtum Nordmarken 0 → 3 children, full path Kaiserreich → Nordmarken → … → Rittergut
+   Altprein reachable; orphan roots 148 → 115.
 
 2. **Continent filter — still divergent (NOT yet changed).**
    #1 uses `contSel.has(effVal(n,'continent') || 'Aventurien')` — empty continent
