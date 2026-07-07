@@ -119,6 +119,17 @@ Behavior:
 
 Wiki Aventurica embeds these links in its infobox templates via `{{PAGENAMEE}}`, so every settlement, territory, region, road and river article links straight to its place on the map.
 
+### How the community can help (linking TODO)
+
+The map ↔ wiki linking lives from complete data — roughly a third of all path segments are linked so far. Things anyone can help with:
+
+- **Report unlinked roads and rivers:** if a deep link (`?strasse=…`, `?fluss=…`) misses or only highlights part of a way, the object is probably not (fully) linked yet — report it and it gets assigned.
+- **Maintain the `Verlauf` field in Wiki Aventurica articles:** the map derives a way's course from the stations linked there (`[[Ortsname]]` in reading order). Completing or correcting a course in the wiki directly improves the automatic assignment on the map.
+- **Report missing places:** if a wiki course names a settlement that does not exist on the map yet, it cannot be used as a routing station — such places are worth reporting (or adding via the map's report form).
+- **Try the deep links** from wiki infoboxes and in the community — every miss is a useful data point.
+
+Reports are welcome via the report form on the map (Hinweise dialog), the Discord community, or GitHub issues.
+
 ## Location reports via PHP and SQL
 
 The file `api/report-location.php` accepts new location reports as JSON and stores them in the table `location_reports`.
