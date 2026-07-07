@@ -17,7 +17,7 @@ The live version runs at [https://avesmaps.de/](https://avesmaps.de/).
 - distinguish between the shortest and the fastest route
 - include land, river and sea paths with different means of transport
 - optionally minimize transfers with a penalty weighting
-- copy the current URL to share routes and settings directly
+- share routes and views via short links, and link map objects directly by wiki page name
 
 ## How the routes are computed
 
