@@ -916,6 +916,23 @@ function avesmapsReadOptionalWikiUrl(mixed $value): string {
     return avesmapsNormalizeOptionalUrl((string) $value, 500, 'Der Wiki-Aventurica-Link');
 }
 
+// Optional non-wiki source: a { url, label } object stored in properties.other_source. Returns
+// null when no usable URL was supplied (empty url -> the field is treated as unset). The url must
+// be an absolute http(s) link (same rule as the wiki link); label is a free-form single line.
+function avesmapsReadOptionalOtherSource(mixed $value): ?array {
+    if (!is_array($value)) {
+        return null;
+    }
+    $url = avesmapsNormalizeOptionalUrl((string) ($value['url'] ?? ''), 500, 'Der Quellen-Link');
+    if ($url === '') {
+        return null;
+    }
+    return [
+        'url' => $url,
+        'label' => avesmapsNormalizeSingleLine((string) ($value['label'] ?? ''), 255),
+    ];
+}
+
 function avesmapsFetchEditableFeature(PDO $pdo, string $publicId): array {
     $statement = $pdo->prepare(
         'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, revision
@@ -1121,6 +1138,12 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             unset($properties['wiki_url']);
         } else {
             $properties['wiki_url'] = $wikiUrl;
+        }
+        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
+        if ($otherSource === null) {
+            unset($properties['other_source']);
+        } else {
+            $properties['other_source'] = $otherSource;
         }
 
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
@@ -1548,6 +1571,12 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $properties['show_label'] = $showLabel;
         $properties['transport_domain'] = $transportDomain;
         $properties['allowed_transports'] = $allowedTransports;
+        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
+        if ($otherSource === null) {
+            unset($properties['other_source']);
+        } else {
+            $properties['other_source'] = $otherSource;
+        }
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
@@ -1770,6 +1799,12 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
                 unset($properties['wiki_region']);
             }
         }
+        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
+        if ($otherSource === null) {
+            unset($properties['other_source']);
+        } else {
+            $properties['other_source'] = $otherSource;
+        }
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);
@@ -1951,6 +1986,12 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
         } else {
             $properties['wiki_url'] = $wikiUrl;
         }
+        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
+        if ($otherSource === null) {
+            unset($properties['other_source']);
+        } else {
+            $properties['other_source'] = $otherSource;
+        }
         $style = avesmapsDecodeJsonColumnForEdit($feature['style_json'] ?? null);
         $style['fill'] = $color;
         $style['stroke'] = $color;
@@ -2129,6 +2170,7 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'location_type_label' => avesmapsLocationSubtypeLabel($subtype),
         'description' => (string) ($properties['description'] ?? ''),
         'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
+        'other_source' => $properties['other_source'] ?? null,
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
         'lat' => $lat,

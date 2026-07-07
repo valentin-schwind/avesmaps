@@ -142,6 +142,26 @@ function readFeatureWikiUrl(properties = {}) {
 	return String(properties.wiki_url || properties["data-report-wiki-url"] || "").trim();
 }
 
+// Reads the optional non-wiki source ({ url, label }) from a feature's properties. Returns null
+// when no usable URL is present, so callers can treat "no other source" uniformly.
+function readFeatureOtherSource(properties = {}) {
+	if (!properties || typeof properties !== "object") {
+		return null;
+	}
+
+	const source = properties.other_source;
+	if (!source || typeof source !== "object") {
+		return null;
+	}
+
+	const url = String(source.url || "").trim();
+	if (!url) {
+		return null;
+	}
+
+	return { url, label: String(source.label || "").trim() };
+}
+
 function assetIconMarkup(sourcePath, className = "route-overview-icon") {
 	const versionedSourcePath = escapeHtml(withAssetVersion(sourcePath));
 	const safeClassName = escapeHtml(className);

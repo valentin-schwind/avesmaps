@@ -13,6 +13,7 @@ function normalizeLabelFeature(feature) {
 		isNodix: Boolean(properties.is_nodix ?? feature.is_nodix),
 		revision: Number(properties.revision ?? feature.revision) || null,
 		wikiRegion: properties.wiki_region && typeof properties.wiki_region === "object" ? properties.wiki_region : null,
+		otherSource: readFeatureOtherSource(properties),
 		coordinates: [Number(lat), Number(lng)],
 	};
 }

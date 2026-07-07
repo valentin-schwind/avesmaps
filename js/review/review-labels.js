@@ -33,6 +33,9 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	if (typeof setLabelWikiRegion === "function") {
 		setLabelWikiRegion(label.wikiRegion || null);
 	}
+	if (typeof writeOtherSourceToForm === "function") {
+		writeOtherSourceToForm("label-edit", label.otherSource);
+	}
 	syncLabelZoomRangeOutputs();
 	syncLabelSliderRowsFromNumbers();
 	syncLabelPriorityOutput();
@@ -187,6 +190,7 @@ function buildLabelEditPayload(formElement) {
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
 		wiki_region: typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null,
+		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },
 	};
 
 	if (action === "create_label") {

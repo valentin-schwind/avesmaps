@@ -28,6 +28,7 @@ function normalizeRegionFeature(feature) {
 		opacity,
 		wikiUrl: properties.wiki_url || "",
 		wikiId: properties.wiki_id || null,
+		otherSource: readFeatureOtherSource(properties),
 		wikiName: properties.wiki_name || "",
 		wikiType: normalizeRegionParentheticalSpacing(properties.wiki_type || properties.territory_type || properties.feature_subtype || ""),
 		status: properties.status || "",

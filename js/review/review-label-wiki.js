@@ -101,6 +101,9 @@ function renderLabelWikiReference() {
 			button.disabled = !hasWikiRegion;
 		}
 	});
+	if (typeof toggleOtherSourceSection === "function") {
+		toggleOtherSourceSection("label-edit", hasWikiRegion);
+	}
 
 	const wiki = currentLabelWikiRegion;
 	if (!wiki) {

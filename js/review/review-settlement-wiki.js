@@ -53,6 +53,10 @@ function renderSettlementWikiReference() {
 		}
 	});
 	const publicId = settlementWikiCurrentPublicId();
+	if (typeof toggleOtherSourceSection === "function") {
+		// Show "Andere Quelle" only for a saved place that has no wiki settlement linked.
+		toggleOtherSourceSection("location-edit", !(publicId && !hasAssignment));
+	}
 	if (!publicId) {
 		// Neuer Ort ohne gespeicherte ID: erst speichern, dann verbinden.
 		list.innerHTML = '<div class="label-wiki-reference__empty">Ort zuerst speichern, dann verbinden.</div>';

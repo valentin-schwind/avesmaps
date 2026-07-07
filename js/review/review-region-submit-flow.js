@@ -34,6 +34,7 @@ function buildRegionEditPayload(formElement) {
 		color: String(formData.get("color") || "#888888").trim(),
 		opacity: Number.parseInt(String(formData.get("opacity") || "33"), 10) / 100,
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
+		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("region-edit") : { url: "", label: "" },
 	};
 }
 

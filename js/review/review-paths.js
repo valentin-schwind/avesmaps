@@ -23,6 +23,9 @@ function populatePathEditForm(path) {
 	if (typeof renderPathWikiReference === "function") {
 		renderPathWikiReference();
 	}
+	if (typeof writeOtherSourceToForm === "function") {
+		writeOtherSourceToForm("path-edit", path.properties?.other_source);
+	}
 	if (typeof renderPathFlowSection === "function") {
 		renderPathFlowSection();
 	}
@@ -63,6 +66,12 @@ function populatePathEditFormFromLastSettings(path) {
 		resetToDefault: !allowedTransports,
 	});
 	syncPathAutoNameControls({ forceName: true });
+	if (typeof writeOtherSourceToForm === "function") {
+		writeOtherSourceToForm("path-edit", path?.properties?.other_source);
+	}
+	if (typeof toggleOtherSourceSection === "function") {
+		toggleOtherSourceSection("path-edit", typeof pathWikiCurrentAssignment === "function" && Boolean(pathWikiCurrentAssignment()));
+	}
 	if (typeof renderPathFlowSection === "function") {
 		renderPathFlowSection();
 	}
@@ -128,6 +137,7 @@ function buildPathEditPayload(formElement) {
 		show_label: formData.get("show_label") === "on",
 		transport_domain: getDefaultTransportDomainForPathSubtype(featureSubtype),
 		allowed_transports: Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value),
+		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("path-edit") : { url: "", label: "" },
 	};
 }
 

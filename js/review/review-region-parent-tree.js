@@ -568,6 +568,10 @@ function renderRegionWikiReference(region) {
 			: escapeHtml(displayValue);
 		return `<dt>${escapeHtml(label)}</dt><dd>${valueMarkup}</dd>`;
 	}).join("");
+	if (typeof toggleOtherSourceSection === "function") {
+		const hasWiki = Boolean(wikiUrl) || Boolean(region.wikiId || region.wiki_id);
+		toggleOtherSourceSection("region-edit", hasWiki);
+	}
 }
 
 function buildWikiReferencePeriod(region) {

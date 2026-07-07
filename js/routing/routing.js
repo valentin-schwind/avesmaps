@@ -71,6 +71,7 @@ const prepareLocationData = (data) => {
 				locationTypeLabel: isCrossing ? "Kreuzung" : feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
 				description: feature.properties.description || "",
 				wikiUrl: readFeatureWikiUrl(feature.properties),
+				otherSource: readFeatureOtherSource(feature.properties),
 				wikiSettlement: feature.properties.wiki_settlement || null,
 				coat: feature.properties.coat || null,
 				isNodix: Boolean(feature.properties.is_nodix),

@@ -114,6 +114,9 @@ function renderPathWikiReference() {
 	// Der Typ-Sync-Button ist nur aktiv, wenn ein Wiki-Weg zugeordnet ist. (Der Namens-Sync-
 	// Button ist weg: R1 -- der Name IST immer der Wiki-Name, solange die Zuordnung besteht.)
 	const hasWikiPath = Boolean(pathWikiCurrentAssignment());
+	if (typeof toggleOtherSourceSection === "function") {
+		toggleOtherSourceSection("path-edit", hasWikiPath);
+	}
 	["path-edit-wiki-sync-type"].forEach((id) => {
 		const button = pathWikiElement(id);
 		if (button) {

@@ -178,6 +178,9 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf");
 	document.getElementById("location-edit-description").value = presetDescription || "";
 	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
+	if (typeof writeOtherSourceToForm === "function") {
+		writeOtherSourceToForm("location-edit", location.otherSource);
+	}
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
@@ -219,6 +222,7 @@ function buildLocationEditPayload(formElement) {
 		feature_subtype: String(formData.get("feature_subtype") || "").trim(),
 		description: String(formData.get("description") || "").trim(),
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
+		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("location-edit") : { url: "", label: "" },
 		is_nodix: formData.get("is_nodix") === "on",
 		is_ruined: formData.get("is_ruined") === "on",
 	};

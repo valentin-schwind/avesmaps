@@ -22,6 +22,9 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	document.getElementById("region-edit-color").value = region.color || "#888888";
 	document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
 	document.getElementById("region-edit-wiki-url").value = region.wikiUrl || "";
+	if (typeof writeOtherSourceToForm === "function") {
+		writeOtherSourceToForm("region-edit", region.otherSource || region.other_source);
+	}
 	document.getElementById("region-edit-coat-url").value = region.coatOfArmsUrl || "";
 	document.getElementById("region-edit-min-zoom").value = region.minZoom ?? "";
 	document.getElementById("region-edit-max-zoom").value = region.maxZoom ?? "";
