@@ -125,8 +125,8 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
-			${shareMarkup}
 			${wikiSourceCreditMarkup(wikiUrl)}
+			${shareMarkup}
 		</div>
 	`;
 }

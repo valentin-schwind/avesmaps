@@ -18,9 +18,9 @@ function pathWikiInfoboxMarkup(path) {
 	rows += row("Länge", wiki.laenge);
 	rows += row("Verlauf", wiki.verlauf);
 	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
-	const wikiLink = wiki.wiki_url
-		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
-		: "";
+	// Standard-Quellenzeile („Informationen aus dem Wiki Aventurica. Mehr hier ↗") wie in den
+	// Siedlungs-/Label-Popups; „Link teilen" sitzt IMMER darunter (Owner-Vorgabe 2026-07-06).
+	const wikiLink = wiki.wiki_url ? wikiSourceCreditMarkup(wiki.wiki_url) : "";
 	// "Link teilen" nur wenn ein Wiki-Artikel verlinkt ist (Wege sind nicht ueber ?place= aufloesbar --
 	// applyPlaceFocusFromUrl kennt keine Wege). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst
 	// "strasse" (js/app/wiki-deeplink.js). Gleiches Markup/Klick-Handling wie Orts-Popups (Task 13,

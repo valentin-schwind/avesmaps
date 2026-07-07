@@ -466,9 +466,11 @@
 	function wayLabelPopupMarkup(entry) {
 		const name = String(entry.name || "").trim() || "Weg";
 		const wikiUrl = String(entry.wikiUrl || "").trim();
-		const wikiLink = wikiUrl
-			? `<a class="region-info-box__link" href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
-			: "";
+		// Standard-Quellenzeile („Informationen aus dem Wiki Aventurica. Mehr hier ↗") wie in den
+		// Siedlungs-/Wege-Popups; „Link teilen" sitzt IMMER darunter (Owner-Vorgabe 2026-07-06).
+		const wikiLink = wikiUrl && typeof wikiSourceCreditMarkup === "function"
+			? wikiSourceCreditMarkup(wikiUrl)
+			: (wikiUrl ? `<a class="region-info-box__link" href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>` : "");
 		const wikiParam = (entry.subtype === "Flussweg" || entry.subtype === "Seeweg") ? "fluss" : "strasse";
 		const shareButton = wikiUrl && typeof sharePlaceActionButtonMarkup === "function"
 			? sharePlaceActionButtonMarkup(entry.wikiKey, { wikiUrl, wikiParam })
