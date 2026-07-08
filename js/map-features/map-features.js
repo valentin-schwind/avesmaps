@@ -169,7 +169,10 @@ function showFeedbackToast(message, type = "info") {
 
 // Normalisiert den Knotennamen
 const normalizeNodeName = (name) => {
-	if (typeof name === "string") return name.replace(/Kreuzung-\d+/i, "Kreuzung");
+	// Kreuzungen und die synthetischen Wegpunkt-Anbindungspunkte (__wp_anchor_N, ein Punkt AUF einem
+	// Weg) sind nur etappeninterne Stützpunkte -> auf "Kreuzung" normalisieren, damit der Grenz-Lauf
+	// sie in der Etappenliste absorbiert statt einen internen Namen anzuzeigen.
+	if (typeof name === "string") return name.replace(/Kreuzung-\d+/i, "Kreuzung").replace(/__wp_anchor_\d+/i, "Kreuzung");
 	console.warn("Ungültiger Name in normalizeNodeName:", name);
 	return name || "";
 };

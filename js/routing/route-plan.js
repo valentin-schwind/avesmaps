@@ -415,10 +415,15 @@ function showRoutePlan(routeNames, segments) {
 		const flowWord = entry.type === "Flussweg" && entry.flowState
 			? ` ${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")}`
 			: "";
+		// Hinweis an einer langen Querfeldein-Etappe (Luftlinie über der Schwelle): rein visuell.
+		const longOffroadHint = entry.type === SYNTHETIC_ROUTE_TYPE
+			&& entry.distance > SYNTHETIC_ROUTE_LONG_LEG_WARN_DISTANCE * DISTANCE_SCALING_FACTOR
+			? ` <span class="route-plan-entry__offroad-hint" style="opacity:.7;font-size:.85em;font-style:italic;">${tr("planner.leg.offroadLong", "lange Querfeldein-Strecke")}</span>`
+			: "";
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}${longOffroadHint}
 			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} <strong>${formattedStartName}</strong>
 			${tr("planner.leg.to", "bis")} <strong>${formattedEndName}</strong>
