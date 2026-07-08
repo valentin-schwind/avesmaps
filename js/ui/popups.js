@@ -106,9 +106,9 @@ function handleSourcePopupOpen(event) {
 	fetchFeatureSources(entityType, entityId).then((sources) => {
 		const list = window.buildSourceListMarkup(wikiUrl, sources, {
 			officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
-			wikiLabel: tr("popup.wiki", "Wiki"),
+			wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
 		});
-		span.innerHTML = list ? `${tr("popup.sources", "Quelle(n)")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
+		span.innerHTML = list ? `${tr("popup.sources", "Quellen")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
 	});
 }
 
@@ -127,7 +127,7 @@ function wireFeatureSourcePopups(map) {
 // entityType/entityPublicId drive the lazy fetch; escapeHtml is the project-global from utils.js.
 function featureSourcesPlaceholderMarkup(entityType, entityPublicId, wikiUrl, linkClass) {
 	const sync = wikiUrl
-		? `${tr("popup.sources", "Quelle(n)")}: ${window.buildSourceListMarkup(wikiUrl, [], { linkClass, wikiLabel: tr("popup.wiki", "Wiki") })}`
+		? `${tr("popup.sources", "Quellen")}: ${window.buildSourceListMarkup(wikiUrl, [], { linkClass, wikiLabel: tr("popup.wiki", "Wiki Aventurica") })}`
 		: tr("popup.noSource", "Keine Quelle gefunden");
 	return `<div class="feature-sources" data-entity-type="${escapeHtml(entityType)}" data-entity-id="${escapeHtml(String(entityPublicId || ""))}" data-wiki-url="${escapeHtml(String(wikiUrl || ""))}">${sync}</div>`;
 }
