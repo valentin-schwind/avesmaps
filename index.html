@@ -378,6 +378,17 @@
 
 					<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
 					<div class="wiki-sync-panel__actions">
+						<!-- Owner decision 2026-07-07 ("Ersetzen"): the editor-open button takes the
+						     prominent tab spot that "🚨 Syncen" used to occupy. Syncen + the "Letzte
+						     Sync" indicator move into the editor's own toolbar (see
+						     html/wiki-sync-settlement-editor.html #seSyncen / #seSyncedInfo). -->
+						<button type="button" id="settlement-editor-open" class="wiki-sync-panel__start" title="Öffnet den Siedlungseditor (enthält jetzt auch Syncen + Zuletzt gesynct).">🔗 WikiSync &amp; Editor</button>
+					</div>
+					<!-- Kept hidden, NOT removed: startWikiSyncKindSync/renderWikiSyncKindProgress/
+					     refreshWikiSyncKindSyncedStatus (js/review/review-wiki-sync.js) still target
+					     these exact ids and must never null-deref. The visible trigger now lives in
+					     the editor toolbar and calls window.parent.startWikiSyncKindSync("settlement"). -->
+					<div class="wiki-sync-panel__actions" hidden>
 						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 						<span id="wiki-sync-sync-settlement-synced" class="wiki-sync-panel__summary" hidden></span>
 					</div>
@@ -406,7 +417,6 @@
 							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
 								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div></div></div>
-								<button type="button" id="settlement-editor-open" class="type-filter__toggle">🔗 WikiSync &amp; Editor</button>
 							</div>
 							<div id="settlement-list-tabs" class="region-sync__viewtabs settlement-list__tabs"></div>
 							<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>

@@ -170,6 +170,11 @@
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Siedlungen ihrem Territorium per Ray-Cast zu"><span class="t1">Siedlungen zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seLocalizeCoats" title="Lädt gemeinfreie Wappen lokal herunter"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
+    <!-- Owner decision 2026-07-07 ("Ersetzen"): moved in from the tab's prominent spot
+         (index.html #wiki-sync-sync-settlement, now hidden there). Triggers the SAME
+         parent-window sync machinery via window.parent.startWikiSyncKindSync("settlement")
+         -- see js/review/review-wiki-sync.js. -->
+    <button class="btn2" id="seSyncen" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
   </div>
 </header>
 <div id="settlementStatus">
@@ -240,6 +245,10 @@ const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
 // mirror; the actual hierarchy source is this authed model_tree action). Hierarchy is
 // built ONLY from parent_wiki_key here (KERN-INVARIANTE) -- never affiliation_path.
 const TERRITORY_MODEL_TREE_API = "/api/edit/wiki/sync-monitor.php?action=model_tree";
+// Same endpoint the main app's WIKI_SYNC_DUMP_API_URL points at (js/config.js). Only
+// GET ?action=last_synced is used here (read-only, no lock) to fill #seSyncedInfo with
+// the REAL synced.settlement value -- see fetchSettlementLastSynced/refreshSeSyncedInfo.
+const WIKI_SYNC_DUMP_API = "/api/edit/wiki/dump.php";
 function $(id){ return document.getElementById(id); }
 
 // settlementTree = { byKey: Map<wiki_key, node>, roots: node[] }; node = { wiki_key,
@@ -1394,6 +1403,114 @@ function setStatusText(text) {
 	if (statusEl) statusEl.textContent = text;
 }
 
+// ===================== Toolbar: "🚨 Syncen" + "Letzte Sync" (moved in from the tab's
+// prominent spot, owner decision 2026-07-07 "Ersetzen") ============================
+// The button itself only ever delegates to the parent window's existing sync machinery
+// (js/review/review-wiki-sync.js startWikiSyncKindSync/runWikiSyncKindSyncLoop/
+// renderWikiSyncKindProgress) -- this editor does NOT duplicate the sync_kind loop.
+// #seSyncedInfo instead fetches the REAL last-sync value itself (GET dump.php
+// ?action=last_synced) so it works even though this editor is a separate document/
+// iframe from the tab whose hidden #wiki-sync-sync-settlement-synced span the parent
+// machinery updates.
+let seSyncenRunning = false;
+let seSyncedInfoPollTimer = null;
+
+// Mirrors formatWikiSyncKindSyncedText in js/review/review-wiki-sync.js (MySQL DATETIME
+// "YYYY-MM-DD HH:MM:SS" -> de-DE locale string via the same space->"T" parse trick).
+function formatSettlementLastSyncedText(raw) {
+	const trimmed = String(raw || "").trim();
+	if (trimmed === "") {
+		return "Letzte Sync: unbekannt";
+	}
+	const parsed = new Date(trimmed.replace(" ", "T"));
+	if (Number.isNaN(parsed.getTime())) {
+		return `Letzte Sync: ${trimmed}`;
+	}
+	return `Letzte Sync: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
+}
+
+// Read-only, no lock (same GET the main tab's refreshWikiSyncKindSyncedStatus uses).
+// Returns the settlement.completed_at DATETIME string, or null if never synced.
+async function fetchSettlementLastSynced() {
+	const requestUrl = new URL(WIKI_SYNC_DUMP_API, window.location.href);
+	requestUrl.searchParams.set("action", "last_synced");
+	requestUrl.searchParams.set("_", String(Date.now()));
+	const response = await fetch(requestUrl.toString(), {
+		method: "GET",
+		credentials: "same-origin",
+		cache: "no-store",
+		headers: { Accept: "application/json", "Cache-Control": "no-cache", Pragma: "no-cache" },
+	});
+	const payload = await response.json().catch(() => null);
+	if (!response.ok || !payload || payload.ok !== true) {
+		throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+	}
+	return (payload.synced && payload.synced.settlement) || null;
+}
+
+async function refreshSeSyncedInfo() {
+	const infoEl = $("seSyncedInfo");
+	if (!infoEl) return;
+	try {
+		const raw = await fetchSettlementLastSynced();
+		infoEl.textContent = formatSettlementLastSyncedText(raw);
+	} catch (error) {
+		console.warn("Letzte-Sync-Status konnte nicht geladen werden:", error);
+		infoEl.textContent = "Letzte Sync: Fehler beim Laden";
+	}
+}
+
+function setSeSyncenBusy(isBusy) {
+	seSyncenRunning = isBusy;
+	const button = $("seSyncen");
+	if (!button) return;
+	button.disabled = isBusy;
+	const t1 = button.querySelector(".t1");
+	if (t1) t1.textContent = isBusy ? "Synchronisiert..." : "🚨 Syncen";
+}
+
+// Delegates to the SAME machinery the tab's (now-hidden) "🚨 Syncen" button drove --
+// window.parent.startWikiSyncKindSync("settlement") in js/review/review-wiki-sync.js --
+// so there is exactly one sync_kind client loop in the app, not a second copy here.
+async function handleSeSyncenClick() {
+	if (seSyncenRunning) return;
+	let parentWindow;
+	try {
+		parentWindow = window.parent;
+	} catch (error) {
+		parentWindow = null;
+	}
+	if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncKindSync !== "function") {
+		setStatusText("Syncen ist nur im eingebetteten Editor verfügbar (nicht standalone geöffnet).");
+		return;
+	}
+
+	setSeSyncenBusy(true);
+	setStatusText("Syncen (settlement) läuft …");
+	// Poll #seSyncedInfo every few seconds while the parent's sync loop runs, since that
+	// loop lives in the OTHER document and can't call back into this iframe directly.
+	if (seSyncedInfoPollTimer) clearInterval(seSyncedInfoPollTimer);
+	seSyncedInfoPollTimer = setInterval(() => { void refreshSeSyncedInfo(); }, 4000);
+
+	try {
+		await parentWindow.startWikiSyncKindSync("settlement");
+		setStatusText("Syncen (settlement) abgeschlossen.");
+	} catch (error) {
+		setStatusText("Syncen (settlement) fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		setSeSyncenBusy(false);
+		if (seSyncedInfoPollTimer) {
+			clearInterval(seSyncedInfoPollTimer);
+			seSyncedInfoPollTimer = null;
+		}
+		// One more fetch shortly after the loop settles, in case the server's
+		// completed_at write lands just after our last poll tick.
+		setTimeout(() => { void refreshSeSyncedInfo(); }, 1500);
+	}
+}
+
+$("seSyncen")?.addEventListener("click", handleSeSyncenClick);
+
 $("seAssign")?.addEventListener("click", runAssignDryRun);
 $("seAssignDialog")?.addEventListener("click", (event) => {
 	if (event.target.id === "seAssignDialog") closeAssignDialog();
@@ -1677,6 +1794,10 @@ function wireTerritoryFilterBar() {
 
 async function boot() {
 	wireTerritoryFilterBar();
+	// Best-effort, independent of the tree/list load below: fills #seSyncedInfo with the
+	// REAL synced.settlement value from the server (task spec "make it work" -- previously
+	// the tab's own "Letzte Sync" label was reported broken by the owner).
+	void refreshSeSyncedInfo();
 	await Promise.all([loadSettlementTree(), loadSettlementItems()]);
 }
 boot();
