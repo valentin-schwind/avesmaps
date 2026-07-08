@@ -363,7 +363,11 @@ function buildSettlementTerritoryTree(nodes) {
 			coat_of_arms_url: String(row.coat_of_arms_url || "").trim() || null,
 			license_status: String(row.license_status || "").trim() || null,
 			founded_start_bf: row.founded_start_bf === null || row.founded_start_bf === undefined ? null : Number(row.founded_start_bf),
-			dissolved_end_bf: row.dissolved_end_bf === null || row.dissolved_end_bf === undefined ? null : Number(row.dissolved_end_bf),
+			// 9999 = ONGOING_BF sentinel ("besteht bis heute"); model_tree passes it RAW (it is NOT
+			// normalized server-side), so fold it to null here -- exactly like normDissolved() in
+			// wiki-sync-monitor.html. Without this the "heute" time filter treats still-valid territories
+			// as dissolved and hides them (only own-nodes with a genuinely null dissolution survive).
+			dissolved_end_bf: (row.dissolved_end_bf === null || row.dissolved_end_bf === undefined || Number(row.dissolved_end_bf) === 9999) ? null : Number(row.dissolved_end_bf),
 			source_origin: String(row.source_origin || "").trim().toLowerCase(),
 			is_own_node: row.is_own_node === true,
 			map_assigned: row.map_assigned === true || Number(row.map_geometry_count || 0) > 0,
@@ -526,9 +530,9 @@ function settlementWappenThumb(node) {
 function settlementFmtBf(year) {
 	return year < 0 ? Math.abs(year) + " v.BF" : year + " BF";
 }
-// Zeitraum-Label (Muster periodFromBf/periodLabel in wiki-sync-monitor.html). model_tree already
-// normalizes the ONGOING_BF=9999 sentinel to null server-side (api/_internal/wiki/sync-monitor-tree.php),
-// so no extra "besteht"-sentinel handling is needed here -- dissolved_end_bf===null already means "heute".
+// Zeitraum-Label (Muster periodFromBf/periodLabel in wiki-sync-monitor.html). dissolved_end_bf is
+// folded to null in buildSettlementTerritoryTree (the ONGOING_BF=9999 sentinel -- model_tree does NOT
+// normalize it server-side, contrary to an earlier note here), so null already means "besteht bis heute".
 function settlementPeriodLabel(node) {
 	const founded = node.founded_start_bf, dissolved = node.dissolved_end_bf;
 	let text = "";
