@@ -246,8 +246,20 @@ function $(id){ return document.getElementById(id); }
 // parent_wiki_key, name, children: node[] }. childrenByParent mirrors byKey's parent
 // links as parent_wiki_key -> [child wiki_key, ...] for the pure descendantWikiKeys()
 // helper (js/map-features/map-features-settlement-territory-assign.js).
+//
+// settlementTree/childrenByParent are the FILTERED (isSettlementTreeNodeHidden-applied)
+// structures and stay render-only. Selection/ancestor/descendant/label lookups must NOT
+// use them directly: a settlement's territory chain can pass through an off-map/off-model
+// ancestor that the render filter hides, which would silently break containment matching
+// against a checked, visible, higher-level ancestor. fullParentByKey/fullChildrenByParent/
+// fullNameByKey are the COMPLETE (unfiltered) counterparts built from every model_tree row
+// in buildSettlementTerritoryTree and are what getAncestorKeys/getNodeTriState/
+// territoryDisplayName walk instead.
 let settlementTree = { byKey: new Map(), roots: [] };
 let childrenByParent = new Map();
+let fullParentByKey = new Map();
+let fullChildrenByParent = new Map();
+let fullNameByKey = new Map();
 // Explicitly checked territory wiki_keys (tri-state "gewaehlt"). Ancestors of a checked
 // node render checked-by-inheritance; the set itself only ever holds explicit picks.
 const checkedTerritoryKeys = new Set();
@@ -276,13 +288,35 @@ function isSettlementTreeNodeHidden(row) {
 
 // Baut settlementTree + childrenByParent ausschliesslich ueber parent_wiki_key (nie
 // affiliation_path). Wurzeln = Knoten ohne (bekannten) parent_wiki_key.
+//
+// Also builds COMPLETE (unfiltered) lookup maps over every row -- fullParentByKey,
+// fullChildrenByParent, fullNameByKey -- alongside the FILTERED render tree. The filtered
+// byKey/roots/children below stay exactly as before (isSettlementTreeNodeHidden still skips
+// hidden rows there, so rendering is unaffected); the full maps exist purely so ancestor/
+// descendant/name lookups can see across a hidden (off-map/off-model) intermediate
+// territory instead of the chain silently breaking at it.
 function buildSettlementTerritoryTree(nodes) {
 	const byKey = new Map();
 	const parentByKey = new Map();
 	const order = [];
+	const nextFullParentByKey = new Map();
+	const nextFullChildrenByParent = new Map();
+	const nextFullNameByKey = new Map();
 	for (const row of Array.isArray(nodes) ? nodes : []) {
 		const wikiKey = String(row && row.wiki_key || "").trim();
-		if (!wikiKey || isSettlementTreeNodeHidden(row)) continue;
+		if (!wikiKey) continue;
+		// Full maps: every row, regardless of isSettlementTreeNodeHidden. Built before the
+		// filtered-skip below so hidden intermediates still contribute their parent/children/name.
+		if (!nextFullParentByKey.has(wikiKey)) {
+			const fullParentKey = String(row.parent_wiki_key || "").trim() || null;
+			nextFullParentByKey.set(wikiKey, fullParentKey);
+			if (fullParentKey) {
+				if (!nextFullChildrenByParent.has(fullParentKey)) nextFullChildrenByParent.set(fullParentKey, []);
+				nextFullChildrenByParent.get(fullParentKey).push(wikiKey);
+			}
+			nextFullNameByKey.set(wikiKey, String(row.name || wikiKey).trim() || wikiKey);
+		}
+		if (isSettlementTreeNodeHidden(row)) continue;
 		if (byKey.has(wikiKey)) continue; // model_tree already dedupes by wiki_key; defensive only
 		// Keep the raw model_tree fields needed for the rich row (coat/coverage/BF-period) and the
 		// filter bar (BF interval, Flaechenland, Quelle) directly on the node -- no API change, this
@@ -325,7 +359,13 @@ function buildSettlementTerritoryTree(nodes) {
 		node.children.sort((a, b) => a.name.localeCompare(b.name, "de"));
 	}
 	roots.sort((a, b) => a.name.localeCompare(b.name, "de"));
-	return { tree: { byKey, roots }, childrenByParent: nextChildrenByParent };
+	return {
+		tree: { byKey, roots },
+		childrenByParent: nextChildrenByParent,
+		fullParentByKey: nextFullParentByKey,
+		fullChildrenByParent: nextFullChildrenByParent,
+		fullNameByKey: nextFullNameByKey,
+	};
 }
 
 async function loadSettlementTree() {
@@ -347,12 +387,15 @@ async function loadSettlementTree() {
 		const built = buildSettlementTerritoryTree(payload.nodes || []);
 		settlementTree = built.tree;
 		childrenByParent = built.childrenByParent;
+		fullParentByKey = built.fullParentByKey;
+		fullChildrenByParent = built.fullChildrenByParent;
+		fullNameByKey = built.fullNameByKey;
 		renderSettlementTree();
 		// The tree and the settlement list load in parallel (see boot()); if the tree resolves
 		// after the settlement list already rendered, refresh the list's "✓ <territory>" labels
-		// (territoryDisplayName reads settlementTree.byKey) and re-evaluate the tree containment
-		// filter now that ancestor lookups are possible. Harmless no-op if settlementItems is
-		// still empty (loadSettlementItems will render once it resolves).
+		// (territoryDisplayName reads fullNameByKey, falling back to settlementTree.byKey) and
+		// re-evaluate the tree containment filter now that ancestor lookups are possible. Harmless
+		// no-op if settlementItems is still empty (loadSettlementItems will render once it resolves).
 		renderSettlementMid();
 	} catch (error) {
 		if (container) container.textContent = "Territorien konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
@@ -361,14 +404,21 @@ async function loadSettlementTree() {
 
 // Ahnen-Kette (root-first ausgeschlossen, nur die Eltern) eines Knotens ueber
 // parent_wiki_key -- fuer den Tri-State-Ancestor-Check ("ist ein Vorfahre angehakt?").
+//
+// Walks fullParentByKey (the COMPLETE, unfiltered map), not settlementTree.byKey (the
+// render-filtered tree): a settlement's territory chain can pass through an off-map/
+// off-model ancestor that isSettlementTreeNodeHidden hides from the render tree, and
+// settlementTree.byKey simply has no entry for that key -- walking it would silently
+// truncate the ancestor chain right there, so settlementMatchesTreeSelection would never
+// match a checked, visible, higher-level ancestor across that gap.
 function getAncestorKeys(wikiKey) {
 	const ancestors = [];
-	let cursor = settlementTree.byKey.get(wikiKey) || null;
+	let cursorKey = fullParentByKey.has(wikiKey) ? fullParentByKey.get(wikiKey) : null;
 	const guard = new Set();
-	while (cursor && cursor.parent_wiki_key && !guard.has(cursor.parent_wiki_key)) {
-		guard.add(cursor.parent_wiki_key);
-		ancestors.push(cursor.parent_wiki_key);
-		cursor = settlementTree.byKey.get(cursor.parent_wiki_key) || null;
+	while (cursorKey && !guard.has(cursorKey)) {
+		guard.add(cursorKey);
+		ancestors.push(cursorKey);
+		cursorKey = fullParentByKey.has(cursorKey) ? fullParentByKey.get(cursorKey) : null;
 	}
 	return ancestors;
 }
@@ -378,7 +428,11 @@ function getAncestorKeys(wikiKey) {
 function getNodeTriState(wikiKey) {
 	if (checkedTerritoryKeys.has(wikiKey)) return "checked";
 	if (getAncestorKeys(wikiKey).some((key) => checkedTerritoryKeys.has(key))) return "checked";
-	const descendants = window.AvesmapsSettlementAssign.descendantWikiKeys([wikiKey], childrenByParent);
+	// Full (unfiltered) children map, not the render-filtered childrenByParent: the
+	// indeterminate state must reflect the complete hierarchy, same reasoning as
+	// getAncestorKeys above -- a checked descendant past a hidden intermediate must still
+	// register here.
+	const descendants = window.AvesmapsSettlementAssign.descendantWikiKeys([wikiKey], fullChildrenByParent);
 	descendants.delete(wikiKey);
 	for (const descendantKey of descendants) {
 		if (checkedTerritoryKeys.has(descendantKey)) return "indeterminate";
@@ -722,10 +776,14 @@ function settlementEscape(value) {
 
 // Territory display name for a settlement's assignment line: prefer the tree's own name lookup
 // (same tree the LEFT column renders from) so the label matches what's checked there; fall back
-// to the raw wiki_key if the tree hasn't loaded it (e.g. race, or a stale/removed key).
+// to fullNameByKey (the COMPLETE, unfiltered name map) for a settlement assigned to an off-map/
+// off-model territory that isSettlementTreeNodeHidden keeps out of the render tree -- otherwise
+// it would show the raw wiki_key instead of the real name; final fallback is the raw wiki_key
+// itself if the tree hasn't loaded it at all yet (e.g. race, or a stale/removed key).
 function territoryDisplayName(wikiKey) {
 	const node = settlementTree.byKey.get(wikiKey);
-	return (node && node.name) || wikiKey;
+	if (node && node.name) return node.name;
+	return fullNameByKey.get(wikiKey) || wikiKey;
 }
 
 function renderSettlementRowElement(item) {
