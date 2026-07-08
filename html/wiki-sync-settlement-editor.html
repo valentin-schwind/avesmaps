@@ -305,18 +305,18 @@ const checkedTerritoryKeys = new Set();
 // that doesn't apply to model_tree's own affiliation_raw field the same way -- kept
 // deliberately minimal for this phase).
 //
-// Base visibility ("in model AND on map", always on -- owner requirement): a territory only
-// enters this tree at all if it (a) isn't aussortiert, (b) has its parent in the model OR has no
-// parent (a root -- a node whose own parent got filtered out structurally becomes a root further
-// down in buildSettlementTerritoryTree, same as before), AND (c) actually has geometry on the map
-// (map_assigned || map_geometry_count>0). (c) is new versus the previous phase; a territory that
-// exists only in the curated hierarchy but was never drawn on the map is not useful to filter
-// settlements by here, so it is hidden entirely (not just visually dimmed).
+// Base visibility -- matches the Hierarchiemodell tree's nodeHidden (wiki-sync-monitor.html) so this
+// tree lists the SAME territories (owner requirement "diesselbe Liste wie Hierarchiemodell"): a
+// territory enters this tree if it (a) isn't aussortiert (excluded) and (b) has its parent in the
+// model OR has no parent (a root -- a node whose own parent got filtered out structurally becomes a
+// root further down in buildSettlementTerritoryTree). Territories WITHOUT map geometry are shown too:
+// the previous map-assigned gate diverged from the Hierarchiemodell and made the Quelle filter's
+// "alle"/"wiki" surface only own-nodes (the crawled hierarchy is largely un-drawn). Coverage stays
+// visible per node via covCircle, so geometry-less territories still read as "nicht auf der Karte".
 function isSettlementTreeNodeHidden(row) {
 	if (!row) return false;
 	if (row.excluded === true || row.excluded === 1) return true;
 	if (row.parent_wiki_key && row.parent_in_model === false) return true;
-	if (!(row.map_assigned === true || Number(row.map_geometry_count || 0) > 0)) return true;
 	return false;
 }
 
