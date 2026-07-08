@@ -37,8 +37,8 @@
 
 	const CSS = `
 #transport-options{position:relative;}
-.tsi-info-btn{position:absolute;top:4px;right:6px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0;padding:0;border:0;background:transparent;color:inherit;cursor:pointer;line-height:0;}
-.tsi-info-btn:hover{color:#0078a8;}
+.tsi-info-btn{position:absolute;top:4px;right:6px;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0;padding:0;border:0;background:transparent;color:#9c8570;cursor:pointer;line-height:0;}
+.tsi-info-btn:hover{color:#6a5543;}
 .tsi-overlay{position:fixed;inset:0;z-index:5000;background:rgba(38,28,16,.5);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto;}
 .tsi-overlay[hidden]{display:none;}
 .tsi-dialog{width:100%;max-width:600px;background:#fff9f4;border:1px solid #d1bda3;border-radius:12px;color:#3f3428;box-shadow:0 12px 44px rgba(0,0,0,.32);}
