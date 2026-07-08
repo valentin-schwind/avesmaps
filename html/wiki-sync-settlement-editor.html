@@ -51,6 +51,25 @@
   #seTree .tree-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #seTree input[type=checkbox] { flex:0 0 auto; cursor:pointer; }
   #seTree ul.tree-children[hidden] { display:none; }
+  /* Angereicherte Zeile (Muster html/wiki-sync-monitor.html buildTreeNode/covCircle/wappenThumb):
+     Abdeckungs-Kreis (Geometrie auf der Karte) + Wappen-Thumb + Name + BF-Zeitraum. Klassen 1:1
+     aus dem Territoriumseditor uebernommen, damit die Optik zwischen beiden Editoren konsistent bleibt. */
+  .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid #6a7f3a; border-radius:50%; background:var(--soft); box-sizing:border-box; color:#6a7f3a; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .cov.all { background:currentColor; }
+  .cov.own-only::before, .cov.children-only::before { content:""; position:absolute; top:1px; bottom:1px; background:currentColor; }
+  .cov.children-only::before { left:1px; right:50%; border-radius:999px 0 0 999px; }
+  .cov.own-only::before { left:50%; right:1px; border-radius:0 999px 999px 0; }
+  .wp { width:15px; height:15px; flex:0 0 15px; object-fit:contain; vertical-align:middle; border-radius:2px; background:#fff; }
+  .wp.pd { box-shadow:0 0 0 1.5px #6a7f3a; }
+  .wp.gray { filter:grayscale(1); opacity:.45; }
+  #seTree .tree-row .nm { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .count { color:var(--mut); font-size:11px; }
+  /* Filterleiste ueber dem Baum (Muster .timefilter aus wiki-sync-monitor.html). */
+  .timefilter { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-bottom:6px; }
+  .timefilter input[type=number] { width:60px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 5px; font:inherit; }
+  .timefilter input:disabled { opacity:.4; }
+  .timefilter select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 5px; font:inherit; }
+  .timefilter label { display:inline-flex; align-items:center; gap:3px; }
   /* Kontinent-Dropdown rechts in der Statuszeile (Muster #contDD/#contBtn/#contMenu). */
   .dropdown2 { position:relative; }
   .ddbtn { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:5px; }
@@ -165,6 +184,10 @@
     <div class="colhead">
       <h2 class="listhead">Territorien</h2>
       <div class="bar"><input type="search" id="seTreeSearch" placeholder="In Territorien suchen…"></div>
+      <div class="timefilter">Zeige nur: <input type="number" id="seTimeFrom" placeholder="von"> – <input type="number" id="seTimeTo" placeholder="bis"> BF <label><input type="checkbox" id="seTimeToday"> heute</label>
+        <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="seFlaech"> nur Flächenländer</label>
+        <label>Quelle: <select id="seSourceOrigin"><option value="alle">alle</option><option value="eigene">eigene</option><option value="wiki">wiki</option></select></label>
+      </div>
     </div>
     <div id="seTree"></div>
   </div>
@@ -235,10 +258,19 @@ const checkedTerritoryKeys = new Set();
 // affiliation_raw/status based church check is a wiki-browser-endpoint.php artifact
 // that doesn't apply to model_tree's own affiliation_raw field the same way -- kept
 // deliberately minimal for this phase).
+//
+// Base visibility ("in model AND on map", always on -- owner requirement): a territory only
+// enters this tree at all if it (a) isn't aussortiert, (b) has its parent in the model OR has no
+// parent (a root -- a node whose own parent got filtered out structurally becomes a root further
+// down in buildSettlementTerritoryTree, same as before), AND (c) actually has geometry on the map
+// (map_assigned || map_geometry_count>0). (c) is new versus the previous phase; a territory that
+// exists only in the curated hierarchy but was never drawn on the map is not useful to filter
+// settlements by here, so it is hidden entirely (not just visually dimmed).
 function isSettlementTreeNodeHidden(row) {
 	if (!row) return false;
 	if (row.excluded === true || row.excluded === 1) return true;
 	if (row.parent_wiki_key && row.parent_in_model === false) return true;
+	if (!(row.map_assigned === true || Number(row.map_geometry_count || 0) > 0)) return true;
 	return false;
 }
 
@@ -252,7 +284,25 @@ function buildSettlementTerritoryTree(nodes) {
 		const wikiKey = String(row && row.wiki_key || "").trim();
 		if (!wikiKey || isSettlementTreeNodeHidden(row)) continue;
 		if (byKey.has(wikiKey)) continue; // model_tree already dedupes by wiki_key; defensive only
-		const node = { wiki_key: wikiKey, parent_wiki_key: null, name: String(row.name || wikiKey).trim() || wikiKey, children: [] };
+		// Keep the raw model_tree fields needed for the rich row (coat/coverage/BF-period) and the
+		// filter bar (BF interval, Flaechenland, Quelle) directly on the node -- no API change, this
+		// is the same row the tree was already built from (task spec point 1).
+		const node = {
+			wiki_key: wikiKey,
+			parent_wiki_key: null,
+			name: String(row.name || wikiKey).trim() || wikiKey,
+			children: [],
+			coat_of_arms_url: String(row.coat_of_arms_url || "").trim() || null,
+			license_status: String(row.license_status || "").trim() || null,
+			founded_start_bf: row.founded_start_bf === null || row.founded_start_bf === undefined ? null : Number(row.founded_start_bf),
+			dissolved_end_bf: row.dissolved_end_bf === null || row.dissolved_end_bf === undefined ? null : Number(row.dissolved_end_bf),
+			source_origin: String(row.source_origin || "").trim().toLowerCase(),
+			is_own_node: row.is_own_node === true,
+			map_assigned: row.map_assigned === true || Number(row.map_geometry_count || 0) > 0,
+			map_geometry_count: Number(row.map_geometry_count || 0),
+			parent_in_model: row.parent_in_model !== false,
+			excluded: row.excluded === true || row.excluded === 1,
+		};
 		byKey.set(wikiKey, node);
 		parentByKey.set(wikiKey, String(row.parent_wiki_key || "").trim() || null);
 		order.push(node);
@@ -355,12 +405,98 @@ function onTerritoryCheckboxToggle(wikiKey, checked) {
 	renderSettlementMid();
 }
 
+// ---- Rich-row render helpers (ported from html/wiki-sync-monitor.html) ----------------
+// Ported near-verbatim from covCircle()/wappenThumb()/licClass() in the territory editor
+// (html/wiki-sync-monitor.html ~lines 495-517), with ONE simplification: the territory editor's
+// coverage() is a full recursive aggregation over the whole (potentially deep) hierarchy,
+// distinguishing "own+all descendants on map" (all) from "own only" / "descendants only" /
+// "none". This tree is a read-only FILTER helper (not the editing surface), so a faithful but
+// cheap per-node approximation is used instead: "own" coverage = the node itself is on the map
+// (map_assigned/map_geometry_count>0, computed once in buildSettlementTerritoryTree above). Since
+// this tree's base visibility filter (isSettlementTreeNodeHidden) already hides every node that
+// isn't on the map, EVERY node that reaches this renderer has own===true -- so the dot always
+// renders as the solid "all" kind here. The own/none distinction is kept (not hardcoded to "all")
+// so the dot's meaning/CSS stays identical to the territory editor's if the base filter is ever
+// relaxed later (e.g. an "auch nicht auf der Karte zeigen" toggle); today it is a green dot on
+// every visible row, which matches the base filter's own guarantee ("in model AND on map").
+const SETTLEMENT_COV_LABEL = { all: "Gebiet auf der Karte", none: "nicht auf der Karte" };
+function settlementCovCircle(node) {
+	const kind = node.map_assigned ? "all" : "none";
+	return `<span class="cov ${kind}" title="${SETTLEMENT_COV_LABEL[kind]}"></span>`;
+}
+function settlementLicClass(node) {
+	const status = node.license_status;
+	if (status === "public_domain") return "pd";
+	if (!status || status === "unknown") return "gray";
+	return "";
+}
+function settlementWappenThumb(node) {
+	if (!node.coat_of_arms_url) return "";
+	return `<img class="wp ${settlementLicClass(node)}" src="${settlementEscape(node.coat_of_arms_url)}" alt="" loading="lazy" draggable="false" title="Wappen">`;
+}
+// BF-Jahr formatieren (Muster fmtBF in wiki-sync-monitor.html): negativ = v.BF.
+function settlementFmtBf(year) {
+	return year < 0 ? Math.abs(year) + " v.BF" : year + " BF";
+}
+// Zeitraum-Label (Muster periodFromBf/periodLabel in wiki-sync-monitor.html). model_tree already
+// normalizes the ONGOING_BF=9999 sentinel to null server-side (api/_internal/wiki/sync-monitor-tree.php),
+// so no extra "besteht"-sentinel handling is needed here -- dissolved_end_bf===null already means "heute".
+function settlementPeriodLabel(node) {
+	const founded = node.founded_start_bf, dissolved = node.dissolved_end_bf;
+	let text = "";
+	if (founded != null && dissolved != null) {
+		const lo = Math.min(founded, dissolved), hi = Math.max(founded, dissolved);
+		text = settlementFmtBf(lo) + "–" + settlementFmtBf(hi);
+	} else if (founded != null) {
+		text = settlementFmtBf(founded) + "–heute";
+	} else if (dissolved != null) {
+		text = "bis " + settlementFmtBf(dissolved);
+	}
+	return text ? ` <span class="count" title="Zeitraum (von/bis)">· ${text}</span>` : "";
+}
+
+// ---- Filter bar state (BF interval / Flaechenland / Quelle) -- combined with the search filter,
+// applied on top of the already-built DOM tree (same .filtered-out mechanism as the search filter
+// below), never by rebuilding settlementTree itself (tri-state + descendant-union selection must
+// keep seeing the FULL tree structure regardless of what's currently hidden by these filters). ----
+const settlementTreeTimeFilter = { mode: "off", from: -Infinity, to: Infinity }; // "off" | "today" | "range"
+let settlementTreeFlaechenlandOnly = false;
+let settlementTreeSourceFilter = "alle"; // "alle" | "eigene" | "wiki"
+
+// "Nur Flaechenlaender": promotete Siedlungen (source_origin reichsstadt/freiestadt/siedlung) sind
+// korrekt Territorien, aber keine Flaechenlaender (Reiche/Grafschaften/Baronien) -- optional
+// ausblenden. Ported verbatim from isFlaechenland() in wiki-sync-monitor.html.
+const SETTLEMENT_PROMOTED_ORIGINS = new Set(["reichsstadt", "freiestadt", "siedlung"]);
+function settlementIsFlaechenland(node) {
+	return !SETTLEMENT_PROMOTED_ORIGINS.has(String(node && node.source_origin || "").toLowerCase());
+}
+
+// Zeitfilter-Praedikat (Muster visibleByTime in wiki-sync-monitor.html): Intervall-Ueberlappung von
+// [founded, dissolved] mit [from,to]; "heute" = nur laufende (kein Auflösungsjahr) Territorien.
+function settlementVisibleByTime(node, timeState) {
+	if (timeState.mode === "off") return true;
+	const founded = node.founded_start_bf, dissolved = node.dissolved_end_bf, ongoing = dissolved == null;
+	if (timeState.mode === "today") return ongoing;
+	if (founded == null && dissolved == null) return true; // Knoten ohne Zeitdaten nicht verstecken
+	const start = founded == null ? -Infinity : founded;
+	const end = ongoing ? Infinity : dissolved;
+	return start <= timeState.to && end >= timeState.from;
+}
+
+// Quelle: eigene (is_own_node===true) / wiki (is_own_node!==true) / alle (beide).
+function settlementMatchesSourceFilter(node) {
+	if (settlementTreeSourceFilter === "eigene") return node.is_own_node === true;
+	if (settlementTreeSourceFilter === "wiki") return node.is_own_node !== true;
+	return true;
+}
+
 function buildTerritoryTreeNodeElement(node) {
 	const listItem = document.createElement("li");
 	listItem.className = "tree-node";
 	const row = document.createElement("div");
 	row.className = "tree-row";
 	row.dataset.name = node.name.toLowerCase();
+	row.dataset.wikiKey = node.wiki_key; // lookup key for the combined filter predicate (BF/Flaechenland/Quelle)
 
 	const hasChildren = node.children.length > 0;
 	const toggle = document.createElement("span");
@@ -376,9 +512,16 @@ function buildTerritoryTreeNodeElement(node) {
 	checkbox.addEventListener("change", () => onTerritoryCheckboxToggle(node.wiki_key, checkbox.checked));
 	row.appendChild(checkbox);
 
+	// Rich name cell: coverage dot + wappen thumb + name + BF period (task spec point 2), all
+	// prepended before the plain-text name span so the checkbox remains the leading filter control.
+	const covDot = settlementCovCircle(node);
+	const wappen = settlementWappenThumb(node);
+	if (covDot) row.insertAdjacentHTML("beforeend", covDot);
+	if (wappen) row.insertAdjacentHTML("beforeend", wappen);
+
 	const name = document.createElement("span");
-	name.className = "tree-name";
-	name.textContent = node.name;
+	name.className = "tree-name nm";
+	name.innerHTML = settlementEscape(node.name) + settlementPeriodLabel(node);
 	name.title = node.name;
 	row.appendChild(name);
 
@@ -416,21 +559,35 @@ function renderSettlementTree() {
 	applyTerritoryTreeSearchFilter();
 }
 
-// Filtert sichtbare Zeilen per Namens-Substring (case-insensitive); Baumstruktur bleibt
-// stehen (kein Neuaufbau), nur .filtered-out toggeln. Vorfahren eines Treffers bleiben
-// sichtbar, damit der Treffer im Kontext auffindbar ist.
+// Combined per-row visibility predicate: search substring AND BF-interval AND Flaechenland AND
+// Quelle. (The base "in model AND on map" filter already ran structurally in
+// buildSettlementTerritoryTree/isSettlementTreeNodeHidden -- every node reaching this function
+// already passed that gate, so it is not re-checked here.)
+function settlementTreeNodeMatchesFilters(node, query) {
+	if (query && !node.name.toLowerCase().includes(query)) return false;
+	if (!settlementVisibleByTime(node, settlementTreeTimeFilter)) return false;
+	if (settlementTreeFlaechenlandOnly && !settlementIsFlaechenland(node)) return false;
+	if (!settlementMatchesSourceFilter(node)) return false;
+	return true;
+}
+
+// Filtert sichtbare Zeilen per Namens-Substring + BF-Zeitraum + Flaechenland + Quelle (kombiniert,
+// UND-verknuepft); Baumstruktur bleibt stehen (kein Neuaufbau), nur .filtered-out toggeln.
+// Vorfahren eines Treffers bleiben sichtbar, damit der Treffer im Kontext auffindbar ist.
 function applyTerritoryTreeSearchFilter() {
 	const container = $("seTree");
 	const searchInput = $("seTreeSearch");
 	if (!container || !searchInput) return;
 	const query = searchInput.value.trim().toLowerCase();
+	const noFiltersActive = !query && settlementTreeTimeFilter.mode === "off" && !settlementTreeFlaechenlandOnly && settlementTreeSourceFilter === "alle";
 	const rows = container.querySelectorAll(".tree-row");
-	if (!query) {
+	if (noFiltersActive) {
 		for (const row of rows) row.classList.remove("filtered-out");
 		return;
 	}
 	for (const row of rows) {
-		const matches = row.dataset.name.includes(query);
+		const node = settlementTree.byKey.get(row.dataset.wikiKey);
+		const matches = !!node && settlementTreeNodeMatchesFilters(node, query);
 		row.classList.toggle("filtered-out", !matches);
 		if (matches) {
 			// Vorfahren-<ul class=tree-children hidden> aufklappen + sichtbar halten, damit ein
@@ -1410,9 +1567,58 @@ document.addEventListener("click", (event) => {
 	}
 });
 
-async function boot() {
+// BF-Zeitfilter anwenden (Muster applyTime in wiki-sync-monitor.html): "heute"-Haekchen deaktiviert
+// die von/bis-Felder und schaltet auf mode="today"; sonst range, wenn mind. eines gesetzt ist.
+function applySettlementTreeTimeFilter() {
+	const todayBox = $("seTimeToday");
+	const fromInput = $("seTimeFrom");
+	const toInput = $("seTimeTo");
+	if (!todayBox || !fromInput || !toInput) return;
+	const today = todayBox.checked;
+	fromInput.disabled = today;
+	toInput.disabled = today;
+	if (today) {
+		settlementTreeTimeFilter.mode = "today";
+	} else {
+		const from = parseInt(fromInput.value, 10), to = parseInt(toInput.value, 10);
+		if (!isNaN(from) || !isNaN(to)) {
+			settlementTreeTimeFilter.mode = "range";
+			settlementTreeTimeFilter.from = isNaN(from) ? -Infinity : from;
+			settlementTreeTimeFilter.to = isNaN(to) ? Infinity : to;
+		} else {
+			settlementTreeTimeFilter.mode = "off";
+		}
+	}
+	applyTerritoryTreeSearchFilter();
+}
+
+function wireTerritoryFilterBar() {
 	const treeSearchInput = $("seTreeSearch");
 	if (treeSearchInput) treeSearchInput.addEventListener("input", applyTerritoryTreeSearchFilter);
+	for (const id of ["seTimeFrom", "seTimeTo"]) {
+		const input = $(id);
+		if (input) input.addEventListener("input", applySettlementTreeTimeFilter);
+	}
+	const todayBox = $("seTimeToday");
+	if (todayBox) todayBox.addEventListener("change", applySettlementTreeTimeFilter);
+	const flaechBox = $("seFlaech");
+	if (flaechBox) {
+		flaechBox.addEventListener("change", () => {
+			settlementTreeFlaechenlandOnly = flaechBox.checked;
+			applyTerritoryTreeSearchFilter();
+		});
+	}
+	const sourceSelect = $("seSourceOrigin");
+	if (sourceSelect) {
+		sourceSelect.addEventListener("change", () => {
+			settlementTreeSourceFilter = sourceSelect.value || "alle";
+			applyTerritoryTreeSearchFilter();
+		});
+	}
+}
+
+async function boot() {
+	wireTerritoryFilterBar();
 	await Promise.all([loadSettlementTree(), loadSettlementItems()]);
 }
 boot();
