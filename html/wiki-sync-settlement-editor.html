@@ -177,8 +177,6 @@
     width:100%; box-sizing:border-box; font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:5px; background:var(--soft); color:var(--fg);
   }
   .dt-edit-grid textarea { resize:vertical; min-height:44px; }
-  .dt-edit-grid .dt-edit-other-row { display:flex; gap:5px; }
-  .dt-edit-grid .dt-edit-other-row input { flex:1 1 0; min-width:0; }
   .dt-edit-checkrow { display:flex; align-items:center; gap:6px; padding:3px 0; }
   .dt-edit-checkrow input[type=checkbox] { flex:0 0 auto; cursor:pointer; }
   .dt-edit-actions { display:flex; align-items:center; gap:8px; margin-top:8px; }
@@ -263,6 +261,10 @@
 <!-- Pure descendant-union helper (tri-state -> territory containment filter); cache-bust like
      the editor HTML itself since this iframe document is fetched with ?v=Date.now() by its host. -->
 <script src="/js/map-features/map-features-settlement-territory-assign.js"></script>
+<!-- Shared multi-source editor widget (mountFeatureSourceEditor / renderFeatureSourceEditorHtml);
+     same-origin absolute path like the sibling script above since this iframe document is fetched
+     with ?v=Date.now() by its host, not through index.html's own asset-versioning pass. -->
+<script src="/js/review/review-feature-sources.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
 // Same curated model-tree endpoint as territory-wiki-tree.js / review-wiki-sync.js
@@ -933,11 +935,12 @@ function selectSettlementRow(item, rowKey) {
 // properties.wiki_settlement WHOLESALE (api/_internal/wiki/settlements.php); update_point
 // (api/_internal/map/features.php) only ever touches the flat top-level name/feature_subtype/
 // description/wiki_url/other_source/is_nodix/is_ruined keys and never reads/writes
-// wiki_settlement at all. buildSettlementEditFormHtml() below makes exactly those flat fields
-// EDITABLE for on-map settlements (name/Typ/Beschreibung/Wiki-URL/Andere Quelle/Nodix/Ruine),
-// saved via update_point through the SAME payload shape as js/review/review-locations.js's
-// buildLocationEditPayload() (the single-settlement "Ort bearbeiten" dialog). wiki_settlement.*
-// fields (Einwohner/Oberhaupt/Region/Staat/Lage, plus the "Wiki-Siedlung" link) have NO
+// wiki_settlement at all. buildSettlementEditFormHtml() below makes most of those flat fields
+// EDITABLE for on-map settlements (name/Typ/Beschreibung/Nodix/Ruine); Wiki-URL is shown but
+// readonly, and Andere Quelle/other_source is no longer part of this form or its save payload at
+// all (T3: replaced by the "Quellen" mount point for the shared multi-source editor, whose
+// server-side takeover owns other_source going forward -- see buildSettlementSavePayload below).
+// wiki_settlement.* fields (Einwohner/Oberhaupt/Region/Staat/Lage, plus the "Wiki-Siedlung" link) have NO
 // write/override slot at all and stay PLAIN read-only wiki values with a "Wiki" tag -- no
 // old-→new / ↺ reset UI, because there is nothing to reset them TO or FROM. The one field that
 // genuinely has an auto-value-vs-manual-override relationship is Territorium: territory_source is
@@ -1021,6 +1024,13 @@ async function renderSettlementDetail(publicId) {
 		if (token !== settlementDetailLoadToken || selectedPublicId !== publicId) return; // a newer selection/reload won the race
 		settlementDetailCache = { publicId, detail: payload.detail };
 		body.innerHTML = buildSettlementDetailHtml(payload.detail);
+		// Mount the shared multi-source editor into its container (only present for an
+		// on-map settlement's edit form -- see otherSourceRow in buildSettlementEditFormHtml).
+		// Guarded on selectedPublicId too since a newer selection could have cleared it while
+		// this fetch was in flight (mirrors the race guard above).
+		if (typeof mountFeatureSourceEditor === "function" && $("dtFeatureSources") && selectedPublicId) {
+			mountFeatureSourceEditor($("dtFeatureSources"), "settlement", () => selectedPublicId, { escape: settlementEscape });
+		}
 	} catch (error) {
 		if (token !== settlementDetailLoadToken || selectedPublicId !== publicId) return;
 		body.innerHTML = settlementDetailLoadErrorHtml(error && error.message ? error.message : String(error));
@@ -1143,21 +1153,28 @@ function buildSettlementTypeSelectHtml(detail) {
 }
 
 // Editable identity + description + wiki/source + options form for an ON-MAP settlement. Every
-// flat top-level field update_point can write is represented here (Name/Typ/Beschreibung/Wiki-URL/
-// Andere Quelle/Nodix/Ruine); read-only wiki_settlement.* rows (Einwohner/Oberhaupt, no write slot)
-// are appended below the editable rows in the SAME "Identität" group, same as the previous layout.
+// flat top-level field update_point can write is represented here (Name/Typ/Beschreibung/Nodix/
+// Ruine); Wiki-URL stays in the save payload but is now read-only in the UI, and the old "Andere
+// Quelle" single-URL/label pair is replaced by the "Quellen" mount point for the shared multi-source
+// editor (see otherSourceRow below and the mountFeatureSourceEditor call in renderSettlementDetail).
+// Read-only wiki_settlement.* rows (Einwohner/Oberhaupt, no write slot) are appended below the
+// editable rows in the SAME "Identität" group, same as the previous layout.
 function buildSettlementEditFormHtml(detail) {
 	const props = detail.properties || {};
-	const otherSource = props.other_source && (props.other_source.url || props.other_source.label) ? props.other_source : { url: "", label: "" };
 	const nameRow = `<div class="k">Name</div><div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
 	const typeRow = `<div class="k">Typ</div><div>${buildSettlementTypeSelectHtml(detail)}</div>`;
 	const descRow = `<div class="k">Beschreibung</div><div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
-	const wikiUrlRow = `<div class="k">Wiki-URL</div><div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}"></div>`;
-	const otherSourceRow =
-		`<div class="k">Andere Quelle</div><div class="dt-edit-other-row">` +
-		`<input type="url" id="dtEditOtherSourceUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(otherSource.url || "")}">` +
-		`<input type="text" id="dtEditOtherSourceLabel" maxlength="255" placeholder="Linktext" value="${settlementEscape(otherSource.label || "")}">` +
-		`</div>`;
+	// Wiki-URL is now read-only here: the shared source editor (mounted below via
+	// mountFeatureSourceEditor) owns the write path for this field's identity/takeover
+	// semantics. The input (and its value) stay in the DOM/save-payload -- update_point
+	// still requires wiki_url on every save, omitting it would unset properties.wiki_url.
+	const wikiUrlRow = `<div class="k">Wiki-URL</div><div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}" readonly></div>`;
+	// "Andere Quelle" replaced by the shared multi-source editor mount point (T3): the
+	// takeover on the server folds any legacy other_source into the fs_source catalog on
+	// first list/add/remove, so this container renders the full add/remove-capable list
+	// instead of the old single-URL/label pair. Mounted after buildSettlementDetailHtml's
+	// result is written into #seDetailBody -- see renderSettlementDetail below.
+	const otherSourceRow = `<div class="k">Quellen</div><div id="dtFeatureSources"></div>`;
 	const nodixRow =
 		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsNodix"${props.is_nodix ? " checked" : ""}> Ort ist ein Nodix</label></div>`;
 	const ruinedRow =
@@ -1247,8 +1264,8 @@ function buildLocationGroupHtml(detail) {
 // DIFFERENT field from the editable properties.wiki_url in the Identität form above: this one is
 // written wholesale by the WikiSync flow (avesmapsWikiSettlementDetail's wiki_settlement object,
 // parsed from {{Infobox Siedlung}}) and has no per-field override slot, same as Einwohner/Oberhaupt.
-// "Andere Quelle" moved into the editable Identität form above (properties.other_source IS one of
-// update_point's flat fields, so it no longer needs to stay read-only here).
+// "Andere Quelle" no longer has any UI here at all -- as of T3 it's superseded by the "Quellen"
+// mount point in the editable Identität form above (shared multi-source editor).
 function buildWikiSourceGroupHtml(detail) {
 	const props = detail.properties || {};
 	const ws = props.wiki_settlement || null;
@@ -1333,12 +1350,15 @@ function setSettlementEditMsg(message, kind) {
 	el.className = "dt-edit-msg" + (kind ? " " + kind : "");
 }
 
-// Builds the update_point payload EXACTLY like buildLocationEditPayload() in
-// js/review/review-locations.js (the single-settlement "Ort bearbeiten" dialog) so both editors
-// send the identical shape. feature_subtype is ALWAYS read from the Typ <select>'s current value
-// and always included -- update_point defaults a missing feature_subtype to 'dorf' and would
-// silently reset the settlement's type/icon, so this field must never be omitted (task's #1
-// correctness risk).
+// Builds the update_point payload. Previously matched buildLocationEditPayload() in
+// js/review/review-locations.js (the single-settlement "Ort bearbeiten" dialog) field-for-field;
+// as of T3 the two have intentionally diverged on other_source -- this editor now OMITS it (the
+// shared multi-source editor + its server-side takeover own that field here, see otherSourceRow /
+// mountFeatureSourceEditor above), while review-locations.js still reads/sends it via
+// readOtherSourceFromForm() until its own dialog is migrated (tracked separately). feature_subtype
+// is ALWAYS read from the Typ <select>'s current value and always included -- update_point defaults
+// a missing feature_subtype to 'dorf' and would silently reset the settlement's type/icon, so this
+// field must never be omitted (task's #1 correctness risk).
 function buildSettlementSavePayload() {
 	const typeSelect = $("dtEditType");
 	return {
@@ -1347,11 +1367,13 @@ function buildSettlementSavePayload() {
 		name: String($("dtEditName")?.value || "").trim(),
 		feature_subtype: String((typeSelect && typeSelect.value) || "dorf").trim(),
 		description: String($("dtEditDescription")?.value || "").trim(),
+		// dtEditWikiUrl is now readonly (see buildSettlementEditFormHtml) but its value must
+		// still be sent -- update_point requires wiki_url on every save and would otherwise
+		// unset properties.wiki_url. other_source is intentionally OMITTED here (T3): the
+		// shared multi-source editor + its server-side takeover now own that field, so
+		// re-sending the old {url,label} pair on every save would clobber whatever the
+		// takeover just folded into the fs_source catalog.
 		wiki_url: String($("dtEditWikiUrl")?.value || "").trim(),
-		other_source: {
-			url: String($("dtEditOtherSourceUrl")?.value || "").trim(),
-			label: String($("dtEditOtherSourceLabel")?.value || "").trim(),
-		},
 		is_nodix: Boolean($("dtEditIsNodix")?.checked),
 		is_ruined: Boolean($("dtEditIsRuined")?.checked),
 	};
