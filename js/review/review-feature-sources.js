@@ -46,7 +46,7 @@ function renderFeatureSourceWikiRow(wikiUrl, escape, tr) {
     '<div class="fs-row fs-row--wiki" data-fs-readonly="wiki">' +
     '<a class="fs-row__link" href="' + escape(wikiUrl) + '" target="_blank" rel="noopener">' +
     escape(label) + " ↗</a>" +
-    '<span class="fs-row__badge fs-row__badge--readonly">' + escape(tr("sources.readonly", "read-only")) + "</span>" +
+    '<span class="fs-row__badge fs-row__badge--readonly">' + escape(tr("sources.readonly", "fest")) + "</span>" +
     "</div>"
   );
 }
