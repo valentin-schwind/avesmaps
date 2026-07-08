@@ -547,6 +547,17 @@ async function refreshWikiSyncKindSyncedStatus() {
 			syncedElement.textContent = formatWikiSyncKindSyncedText({ completed_at: raw });
 			syncedElement.hidden = false;
 		});
+		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
+		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
+		// verdrahten (der Territorien-Sync laeuft im Iframe-Editor, nicht ueber startWikiSyncKindSync).
+		[["settlement-editor-synced", synced && synced.settlement], ["wiki-sync-territory-synced", synced && synced.territory]].forEach(([id, raw]) => {
+			const el = document.getElementById(id);
+			if (!el || !raw) {
+				return;
+			}
+			el.textContent = formatWikiSyncKindSyncedText({ completed_at: raw });
+			el.hidden = false;
+		});
 	} catch (error) {
 		console.warn("WikiDump Zuletzt-gesynct-Status konnte nicht geladen werden:", error);
 	}
