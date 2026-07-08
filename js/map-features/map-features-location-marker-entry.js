@@ -53,7 +53,9 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 		isRuined: markerEntry.location.isRuined,
 		showType: true,
 		showDescription: !hasWikiSettlement,
-		showWikiLink: !hasWikiSettlement,
+		// Der alte Wiki-Credit ("Informationen aus dem Wiki Aventurica. Mehr hier ↗") entfällt -- die
+		// neue Quell-Zeile (featureSourcesPlaceholderMarkup) zeigt den Wiki-Link jetzt als "Quellen: …".
+		showWikiLink: false,
 		// Infobox zuerst, Aktions-Buttons, dann der Bewertungs-Bereich.
 		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + reviewsSlot,
 	});
@@ -62,17 +64,18 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 function refreshLocationMarkerPopup(markerEntry) {
 	markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
 	markerEntry.iconZoomLevel = map.getZoom();
-	const hasWikiSettlement = markerEntry.locationType !== CROSSING_LOCATION_TYPE
-		&& Boolean(markerEntry.location.wikiSettlement && markerEntry.location.wikiSettlement.title);
+	// Alle Nicht-Kreuzungs-Popups nutzen die settlement-popup-Optik (feste Breite + voll-breite Trenner
+	// über Daten-Infobox, Quell-Zeile und Aktionen). Kreuzungen bleiben schlicht.
+	const isCrossingPopup = markerEntry.locationType === CROSSING_LOCATION_TYPE;
 	const maxHeight = locationMarkerPopupMaxHeight();
 	// Popup-Inhalt LAZY binden (Leaflet akzeptiert eine Content-Funktion): das HTML entsteht erst beim
 	// Öffnen. Vorher wurde es hier für JEDEN Marker beim Start gebaut (~3000 × Infobox/Buttons/Bewertungs-
 	// Markup) und beim Öffnen via popupopen ohnehin neu gesetzt -> reiner Startup-Ballast.
 	markerEntry.marker.bindPopup(
 		() => buildLocationMarkerPopupHtml(markerEntry),
-		hasWikiSettlement
-			? { minWidth: 320, maxWidth: 400, maxHeight, className: "settlement-popup" }
-			: { maxHeight }
+		isCrossingPopup
+			? { maxHeight }
+			: { minWidth: 320, maxWidth: 400, maxHeight, className: "settlement-popup" }
 	);
 	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
 	// (Ort bereits Wegpunkt? -> "Reiseziel entfernen"). Nur EINMAL pro Marker binden.
