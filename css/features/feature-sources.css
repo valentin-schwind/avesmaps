@@ -1,0 +1,109 @@
+/* Shared multi-source editor widget (mountFeatureSourceEditor / renderFeatureSourceEditorHtml,
+   js/review/review-feature-sources.js). Used in the Siedlungseditor detail panel and (phase 2)
+   the on-map "…-edit" dialogs. Explicit colors (no CSS vars) so it renders identically in the
+   parent document AND inside the settlement/territory editor iframes (different var scopes). */
+.fs-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.fs-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+	font-size: 12px;
+}
+.fs-row + .fs-row {
+	border-top: 1px solid rgba(141, 121, 98, 0.18);
+}
+.fs-row__link {
+	color: #1452f7;
+	text-decoration: none;
+	font-weight: bold;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.fs-row__link:hover,
+.fs-row__link:focus-visible {
+	text-decoration: underline;
+}
+.fs-row__badge {
+	font-size: 10px;
+	color: #6c5a49;
+	background: #f0e7da;
+	border: 1px solid #ddcdb8;
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
+.fs-row__badge--readonly {
+	background: transparent;
+	border-style: dashed;
+}
+.fs-row__remove {
+	margin-left: auto;
+	border: 1px solid #d8b3a3;
+	background: #f7ece7;
+	color: #9d3a2e;
+	border-radius: 999px;
+	width: 20px;
+	height: 20px;
+	line-height: 1;
+	cursor: pointer;
+	font-size: 12px;
+}
+.fs-row__remove:hover,
+.fs-row__remove:focus-visible {
+	background: #f0dcd4;
+	outline: none;
+}
+.fs-row--add {
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 4px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(141, 121, 98, 0.28);
+}
+.fs-add-url {
+	flex: 1 1 100%;
+}
+.fs-add-label {
+	flex: 1 1 120px;
+}
+.fs-row--add input[type="text"],
+.fs-row--add input[type="url"],
+.fs-add-type {
+	background: #fffaf5;
+	border: 1px solid #d8c6b2;
+	border-radius: 5px;
+	padding: 4px 6px;
+	font: inherit;
+	font-size: 12px;
+	color: #3f3428;
+}
+.fs-add-official-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: #6c5a49;
+	white-space: nowrap;
+}
+.fs-row__add {
+	border: 1px solid #8caee6;
+	background: #e7f0ff;
+	color: #17468f;
+	border-radius: 999px;
+	padding: 4px 12px;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	font-weight: bold;
+}
+.fs-row__add:hover,
+.fs-row__add:focus-visible {
+	background: #d8e7ff;
+	outline: none;
+}
