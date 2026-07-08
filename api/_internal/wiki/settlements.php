@@ -1424,7 +1424,7 @@ function avesmapsWikiSettlementDetail(PDO $pdo, string $publicId): array {
     }
 
     $statement = $pdo->prepare(
-        "SELECT public_id, name, geometry_json, properties_json FROM map_features
+        "SELECT public_id, name, feature_subtype, geometry_json, properties_json FROM map_features
          WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1"
     );
     $statement->execute(['p' => $publicId]);
@@ -1452,6 +1452,11 @@ function avesmapsWikiSettlementDetail(PDO $pdo, string $publicId): array {
         'detail' => [
             'public_id' => (string) $row['public_id'],
             'name' => (string) $row['name'],
+            // Authoritative current subtype (mirrors the map_features column, not just whatever
+            // properties.feature_subtype/settlement_class happen to hold) -- the round-trip value
+            // the editable Typ <select> preselects and the value ALWAYS re-sent on save so
+            // update_point's feature_subtype (default 'dorf') never resets the settlement's type.
+            'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),
             'on_map' => $hasPoint,
             'lng' => $lng,
             'lat' => $lat,

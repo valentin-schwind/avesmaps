@@ -170,6 +170,21 @@
   .modal-sample-row .arw { color:var(--mut); flex:0 0 auto; }
   .modal-sample-row .tg { color:var(--mut); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; text-align:right; }
   .modal-progress { color:var(--mut); font-size:12px; margin:4px 0 10px; }
+  /* On-map settlement editable detail form (dt-edit-*): reuses the panel's existing .dt-grp/.dt-grid
+     layout (label in .k, control in the value column) -- no parallel styling system, just the
+     input/textarea/checkbox look the rest of the app already uses via var(--soft)/var(--line). */
+  .dt-edit-grid input[type=text], .dt-edit-grid input[type=url], .dt-edit-grid select, .dt-edit-grid textarea {
+    width:100%; box-sizing:border-box; font:inherit; padding:4px 6px; border:1px solid var(--line); border-radius:5px; background:var(--soft); color:var(--fg);
+  }
+  .dt-edit-grid textarea { resize:vertical; min-height:44px; }
+  .dt-edit-grid .dt-edit-other-row { display:flex; gap:5px; }
+  .dt-edit-grid .dt-edit-other-row input { flex:1 1 0; min-width:0; }
+  .dt-edit-checkrow { display:flex; align-items:center; gap:6px; padding:3px 0; }
+  .dt-edit-checkrow input[type=checkbox] { flex:0 0 auto; cursor:pointer; }
+  .dt-edit-actions { display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .dt-edit-msg { font-size:11px; }
+  .dt-edit-msg.ok { color:var(--ok); }
+  .dt-edit-msg.bad { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -689,7 +704,13 @@ window.settlementEditorGetSelectedTerritoryKeys = () => new Set(checkedTerritory
 
 let settlementItems = []; // raw items from settlement_editor_list
 let settlementListView = "all"; // "all" | "onmap" | "wiki" (on_map axis, mirrors the sibling's tri-tab)
-let selectedPublicId = null;
+let selectedPublicId = null; // real map_features public_id -- ONLY ever set for on-map rows; every
+	// write path below (territory assign/clear, coat upload, save) keys off this, so it must stay
+	// null for a wiki-only selection or those POSTs would fire with an empty/wrong public_id.
+let selectedRowKey = null; // selection/highlight key for EITHER kind of row -- rowSelectionKey(item)
+	// for on-map rows equals selectedPublicId; for wiki-only rows it is the synthetic "wiki:<name>"
+	// key from rowSelectionKey() below. Kept separate from selectedPublicId so the two kinds can
+	// never cross-match (an on-map public_id can never collide with a "wiki:" prefixed string).
 const settlementSearchState = { value: "" };
 const settlementTypeFilter = new Set(); // selected settlement_label values (empty = all)
 const settlementContinentFilterMid = new Set(["Aventurien"]); // default: only Aventurien, like the sibling list
@@ -766,6 +787,18 @@ function settlementTypeOptions() {
 	return [...byLabel.values()].sort((a, b) => (a.order < 0 ? 99 : a.order) - (b.order < 0 ? 99 : b.order) || a.label.localeCompare(b.label, "de"));
 }
 
+// Editable Typ <select> options for the on-map detail form below -- SAME value/order/label set as
+// index.html's single-settlement "Ort bearbeiten" dialog (#location-edit-type), so both editors
+// offer identical choices for feature_subtype.
+const SETTLEMENT_EDIT_TYPE_OPTIONS = [
+	{ value: "dorf", label: "Dorf" },
+	{ value: "gebaeude", label: "Besondere Bauwerke/Stätten" },
+	{ value: "kleinstadt", label: "Kleine Stadt" },
+	{ value: "stadt", label: "Stadt" },
+	{ value: "grossstadt", label: "Grosse Stadt" },
+	{ value: "metropole", label: "Metropole" },
+];
+
 const SETTLEMENT_SOURCE_OPTIONS = [
 	{ value: "wiki", label: "Wiki" },
 	{ value: "andere", label: "Andere" },
@@ -819,9 +852,21 @@ function territoryDisplayName(wikiKey) {
 	return fullNameByKey.get(wikiKey) || wikiKey;
 }
 
+// Stable selection/highlight key for one item: on-map rows key off their real public_id (unique,
+// stable); wiki-only rows (public_id === '', no map feature yet) get a synthetic "wiki:<name>" key
+// instead of '' so distinct wiki-only rows don't all collapse onto (and multi-highlight under) the
+// same empty key. The "wiki:" prefix also makes collision with a real (UUID-shaped) public_id
+// impossible, so the two kinds can never be mistaken for one another downstream.
+function rowSelectionKey(item) {
+	if (item && item.public_id) return item.public_id;
+	return "wiki:" + String((item && item.name) || "");
+}
+
 function renderSettlementRowElement(item) {
 	const row = document.createElement("div");
-	row.className = "se-row" + (item.public_id && item.public_id === selectedPublicId ? " is-selected" : "");
+	const rowKey = rowSelectionKey(item);
+	row.className = "se-row" + (rowKey === selectedRowKey ? " is-selected" : "");
+	row.dataset.rowKey = rowKey;
 	row.dataset.publicId = item.public_id;
 
 	const line1 = document.createElement("div");
@@ -853,19 +898,28 @@ function renderSettlementRowElement(item) {
 	}
 	row.appendChild(line2);
 
-	// Wiki-only ("Fehlt") rows have no public_id / no map feature yet -> not selectable until placed
-	// (their read-only detail comes in Batch 10 B1); guarding the click keeps '' from selecting them all.
-	if (item.public_id) row.addEventListener("click", () => selectSettlementRow(item.public_id));
+	// Both on-map and wiki-only rows are selectable (rowKey isolates the two kinds); the row keeps
+	// the raw item around on the DOM-free closure below so a wiki-only click never needs a
+	// public_id-keyed fetch at all.
+	row.addEventListener("click", () => selectSettlementRow(item, rowKey));
 	return row;
 }
 
-function selectSettlementRow(publicId) {
-	selectedPublicId = publicId;
+function selectSettlementRow(item, rowKey) {
+	selectedRowKey = rowKey;
+	// selectedPublicId stays the single source of truth for every write path (territory/coat/save)
+	// -- explicitly null it out for a wiki-only row (item.public_id === "") so no stale on-map
+	// selection can leak into those POSTs after switching to a "Fehlt" row.
+	selectedPublicId = item && item.public_id ? item.public_id : null;
 	const list = $("seList");
 	if (list) {
-		for (const row of list.querySelectorAll(".se-row")) row.classList.toggle("is-selected", row.dataset.publicId === publicId);
+		for (const row of list.querySelectorAll(".se-row")) row.classList.toggle("is-selected", row.dataset.rowKey === rowKey);
 	}
-	renderSettlementDetail(publicId);
+	if (selectedPublicId) {
+		renderSettlementDetail(selectedPublicId);
+	} else {
+		renderWikiOnlySettlementDetail(item);
+	}
 }
 
 // ===================== RIGHT column: settlement detail panel =====================
@@ -873,17 +927,25 @@ function selectSettlementRow(publicId) {
 // (metadata_overrides_json + effVal(n,k) = override ?? wiki), settlements do NOT have a
 // per-field override mechanism. avesmapsWikiSettlementAssignTo()/ClearAssign() write/delete
 // properties.wiki_settlement WHOLESALE (api/_internal/wiki/settlements.php); update_point
-// (api/_internal/map/features.php) only ever touches the flat top-level name/description/
-// wiki_url/other_source/is_nodix/is_ruined keys and never reads/writes wiki_settlement at
-// all. So wiki_settlement.* fields below (Typ/Einwohner/Oberhaupt/Region/Staat/Lage) are
-// rendered as PLAIN wiki values with a "Wiki" tag -- no old-→new / ↺ reset UI, because
-// there is nothing to reset them TO or FROM. The one field that genuinely has an
-// auto-value-vs-manual-override relationship is Territorium: territory_source is
+// (api/_internal/map/features.php) only ever touches the flat top-level name/feature_subtype/
+// description/wiki_url/other_source/is_nodix/is_ruined keys and never reads/writes
+// wiki_settlement at all. buildSettlementEditFormHtml() below makes exactly those flat fields
+// EDITABLE for on-map settlements (name/Typ/Beschreibung/Wiki-URL/Andere Quelle/Nodix/Ruine),
+// saved via update_point through the SAME payload shape as js/review/review-locations.js's
+// buildLocationEditPayload() (the single-settlement "Ort bearbeiten" dialog). wiki_settlement.*
+// fields (Einwohner/Oberhaupt/Region/Staat/Lage, plus the "Wiki-Siedlung" link) have NO
+// write/override slot at all and stay PLAIN read-only wiki values with a "Wiki" tag -- no
+// old-→new / ↺ reset UI, because there is nothing to reset them TO or FROM. The one field that
+// genuinely has an auto-value-vs-manual-override relationship is Territorium: territory_source is
 // 'raycast' (automatic) or 'manual' (an editor pick beats the next global ray-cast run) --
 // that is the real, single "override" in this data model. It gets its own dedicated
 // dt-territory-* treatment below: a badge for the CURRENT value + a small source label
 // ("manuell"/"Ray-Cast · tiefste Ebene"), not a before/after value diff -- there is only
 // ever one current value here, never a wiki-value-plus-override pair to show side by side.
+//
+// Wiki-only ("Fehlt") settlements have no map_features row / public_id at all, so update_point
+// cannot apply to them -- selecting one instead renders a read-only note straight from the list
+// item (renderWikiOnlySettlementDetail below), no fetch, no editable fields, no territory control.
 let settlementDetailCache = null; // last successfully loaded {publicId, detail}
 let settlementDetailLoadToken = 0; // guards against a stale fetch clobbering a newer selection
 let territoryPickerOpen = false;
@@ -968,6 +1030,41 @@ async function reloadSettlementDetail() {
 	await renderSettlementDetail(selectedPublicId);
 }
 
+// ---- Wiki-only ("Fehlt") detail: read-only, built straight from the list ITEM -- no
+// settlement_detail fetch (there is no map_features row / public_id to fetch by yet) and no
+// update_point write path (that action requires an existing point feature). Selecting a wiki-only
+// row never issues a network request; this is a pure client-side render off already-loaded data.
+function buildWikiOnlySettlementDetailHtml(item) {
+	const rows = [];
+	rows.push(buildDetailFieldRow("Name", settlementEscape(item.name || "")));
+	rows.push(buildDetailFieldRow("Typ", item.settlement_label ? settlementEscape(item.settlement_label) : ""));
+	rows.push(buildDetailFieldRow("Kontinent", settlementEscape(settlementItemContinent(item))));
+	rows.push(
+		buildDetailFieldRow(
+			"Wiki-Link",
+			item.wiki_url
+				? `<a class="dt-link" href="${settlementEscape(item.wiki_url)}" target="_blank" rel="noopener">${settlementEscape(item.name || "Wiki-Seite")} ↗</a>`
+				: `<span class="dt-sub">nicht verknüpft</span>`
+		)
+	);
+	rows.push(buildDetailFieldRow("Ruine", item.is_ruined ? "Ja" : "Nein"));
+	return (
+		`<div class="dt-grp">Eigenschaften</div><div class="dt-grid">${rows.filter(Boolean).join("")}</div>` +
+		`<div class="dt-sub" style="margin-top:10px">Nur im Wiki — noch nicht auf der Karte platziert. Zum Bearbeiten zuerst auf der Karte platzieren.</div>`
+	);
+}
+
+// Synchronous, network-free render for a wiki-only row selection -- mirrors renderSettlementDetail's
+// shape (clears the cache/picker state that only ever applies to on-map details) but never fetches.
+function renderWikiOnlySettlementDetail(item) {
+	const body = $("seDetailBody");
+	if (!body) return;
+	settlementDetailCache = null;
+	territoryPickerOpen = false;
+	territoryPickerQuery = "";
+	body.innerHTML = buildWikiOnlySettlementDetailHtml(item || {});
+}
+
 function settlementCoatImageSrc(coat) {
 	if (!coat || !coat.url) return "";
 	// Own uploads are local URLs already; wiki coats go through the cache proxy (host allowlist),
@@ -1014,20 +1111,63 @@ function buildDetailFieldRow(label, valueHtml, badge) {
 	return `<div class="k">${settlementEscape(label)}</div><div>${valueHtml}${badgeHtml}</div>`;
 }
 
-function buildIdentityGroupHtml(detail) {
+// Read-only wiki-tagged sub-rows (Einwohner/Oberhaupt) that stay exactly as before -- these come
+// from wiki_settlement.*, which has NO override/write slot at all (see the file-level comment near
+// the top of this section), so they are never part of the editable form below.
+function buildIdentityWikiRowsHtml(detail) {
 	const props = detail.properties || {};
 	const ws = props.wiki_settlement || null;
 	const rows = [];
-	rows.push(buildDetailFieldRow("Name", settlementEscape(detail.name || "")));
-	const art = (ws && ws.art) || "";
-	rows.push(buildDetailFieldRow("Typ", art ? settlementEscape(art) : "", art ? "Wiki" : ""));
 	const einwohner = (ws && ws.einwohner) || "";
 	rows.push(buildDetailFieldRow("Einwohner", einwohner ? settlementEscape(einwohner) : "", einwohner ? "Wiki" : ""));
 	const oberhaupt = (ws && ws.oberhaupt) || "";
 	rows.push(buildDetailFieldRow("Oberhaupt", oberhaupt ? settlementEscape(oberhaupt) : "", oberhaupt ? "Wiki" : ""));
-	const filled = rows.filter(Boolean);
-	if (filled.length === 0) return "";
-	return `<div class="dt-grp">Identität</div><div class="dt-grid">${filled.join("")}</div>`;
+	return rows.filter(Boolean).join("");
+}
+
+// Editable "Typ" <select> options -- current value preselected from detail.feature_subtype (the
+// authoritative map_features column added in Part A of this task), falling back to
+// properties.settlement_class, then 'dorf' (update_point's own default), matching the task's
+// explicit fallback order so the preselect can never land on an unmapped/blank option.
+function buildSettlementTypeSelectHtml(detail) {
+	const props = detail.properties || {};
+	const current = String(detail.feature_subtype || props.settlement_class || "dorf");
+	const optionsHtml = SETTLEMENT_EDIT_TYPE_OPTIONS.map(
+		(opt) => `<option value="${settlementEscape(opt.value)}"${opt.value === current ? " selected" : ""}>${settlementEscape(opt.label)}</option>`
+	).join("");
+	return `<select id="dtEditType" name="feature_subtype">${optionsHtml}</select>`;
+}
+
+// Editable identity + description + wiki/source + options form for an ON-MAP settlement. Every
+// flat top-level field update_point can write is represented here (Name/Typ/Beschreibung/Wiki-URL/
+// Andere Quelle/Nodix/Ruine); read-only wiki_settlement.* rows (Einwohner/Oberhaupt, no write slot)
+// are appended below the editable rows in the SAME "Identität" group, same as the previous layout.
+function buildSettlementEditFormHtml(detail) {
+	const props = detail.properties || {};
+	const otherSource = props.other_source && (props.other_source.url || props.other_source.label) ? props.other_source : { url: "", label: "" };
+	const nameRow = `<div class="k">Name</div><div><input type="text" id="dtEditName" maxlength="160" value="${settlementEscape(detail.name || "")}"></div>`;
+	const typeRow = `<div class="k">Typ</div><div>${buildSettlementTypeSelectHtml(detail)}</div>`;
+	const descRow = `<div class="k">Beschreibung</div><div><textarea id="dtEditDescription" maxlength="2000">${settlementEscape(props.description || "")}</textarea></div>`;
+	const wikiUrlRow = `<div class="k">Wiki-URL</div><div><input type="text" id="dtEditWikiUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(props.wiki_url || "")}"></div>`;
+	const otherSourceRow =
+		`<div class="k">Andere Quelle</div><div class="dt-edit-other-row">` +
+		`<input type="url" id="dtEditOtherSourceUrl" maxlength="500" placeholder="https://…" value="${settlementEscape(otherSource.url || "")}">` +
+		`<input type="text" id="dtEditOtherSourceLabel" maxlength="255" placeholder="Linktext" value="${settlementEscape(otherSource.label || "")}">` +
+		`</div>`;
+	const nodixRow =
+		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsNodix"${props.is_nodix ? " checked" : ""}> Ort ist ein Nodix</label></div>`;
+	const ruinedRow =
+		`<div class="k"></div><div><label class="dt-edit-checkrow"><input type="checkbox" id="dtEditIsRuined"${props.is_ruined ? " checked" : ""}> Ruine / zerstört</label></div>`;
+	const wikiRowsHtml = buildIdentityWikiRowsHtml(detail);
+	const actionsHtml =
+		`<div class="k"></div><div><div class="dt-edit-actions">` +
+		`<button type="button" class="primary" id="dtEditSave">Speichern</button>` +
+		`<span class="dt-edit-msg" id="dtEditMsg"></span>` +
+		`</div></div>`;
+	return (
+		`<div class="dt-grp">Identität</div>` +
+		`<div class="dt-grid dt-edit-grid">${nameRow}${typeRow}${descRow}${wikiUrlRow}${otherSourceRow}${nodixRow}${ruinedRow}${wikiRowsHtml}${actionsHtml}</div>`
+	);
 }
 
 // Territorium badge + source label + the "ändern"/"Entfernen" controls -- the core control
@@ -1099,44 +1239,26 @@ function buildLocationGroupHtml(detail) {
 	return `<div class="dt-grp">Lage &amp; Zugehörigkeit</div><div class="dt-grid">${rows.filter(Boolean).join("")}</div>`;
 }
 
+// Read-only "which wiki page is this settlement synced from" line -- wiki_settlement.wiki_url is a
+// DIFFERENT field from the editable properties.wiki_url in the Identität form above: this one is
+// written wholesale by the WikiSync flow (avesmapsWikiSettlementDetail's wiki_settlement object,
+// parsed from {{Infobox Siedlung}}) and has no per-field override slot, same as Einwohner/Oberhaupt.
+// "Andere Quelle" moved into the editable Identität form above (properties.other_source IS one of
+// update_point's flat fields, so it no longer needs to stay read-only here).
 function buildWikiSourceGroupHtml(detail) {
 	const props = detail.properties || {};
 	const ws = props.wiki_settlement || null;
-	const wikiUrl = (ws && ws.wiki_url) || props.wiki_url || "";
-	const otherSource = props.other_source && (props.other_source.url || props.other_source.label) ? props.other_source : { url: "", label: "" };
-	const hasWiki = !!wikiUrl;
-
-	const wikiRow = hasWiki
-		? buildDetailFieldRow("Wiki", `<a class="dt-link" href="${settlementEscape(wikiUrl)}" target="_blank" rel="noopener">${settlementEscape(detail.name || "Wiki-Seite")} ↗</a>`)
-		: buildDetailFieldRow("Wiki", `<span class="dt-sub">nicht verknüpft</span>`);
-
-	// "Andere Quelle" ({url,label} at properties.other_source, top-level -- independent of
-	// wiki_settlement) is shown only when there's no wiki entry, mirroring
-	// toggleOtherSourceSection() in js/review/review-other-source.js. READ-ONLY here
-	// (deliberate deviation -- see the report): the only write path for this field is
-	// api/edit/map/features.php's update_point action, a general, destructive
-	// full-object-overwrite (it rewrites name/feature_subtype/is_nodix/is_ruined/
-	// description/wiki_url/other_source together in one UPDATE), and
-	// avesmapsWikiSettlementDetail()'s SQL (api/_internal/wiki/settlements.php:1345-1348)
-	// does not select feature_subtype -- this panel cannot safely round-trip that field, and
-	// a naive save here would either 400 or silently reset the settlement's map icon/type.
-	// Editing "Andere Quelle" remains available via the existing "Ort bearbeiten" dialog
-	// (js/review/review-locations.js openLocationEditDialog), which already has the full
-	// field set loaded.
-	let otherRow = "";
-	if (!hasWiki) {
-		const valueHtml = otherSource.url
-			? `<a class="dt-link" href="${settlementEscape(otherSource.url)}" target="_blank" rel="noopener">${settlementEscape(otherSource.label || otherSource.url)} ↗</a>`
-			: `<span class="dt-sub">keine hinterlegt</span>`;
-		otherRow = buildDetailFieldRow("Andere Quelle", valueHtml);
-	}
-
-	return `<div class="dt-grp">Wiki &amp; Quelle</div><div class="dt-grid">${wikiRow}${otherRow}</div>`;
+	const wikiSettlementUrl = (ws && ws.wiki_url) || "";
+	const wikiRow = wikiSettlementUrl
+		? buildDetailFieldRow("Wiki-Siedlung", `<a class="dt-link" href="${settlementEscape(wikiSettlementUrl)}" target="_blank" rel="noopener">${settlementEscape(detail.name || "Wiki-Seite")} ↗</a>`, "Wiki")
+		: "";
+	if (!wikiRow) return "";
+	return `<div class="dt-grp">Wiki-Verknüpfung</div><div class="dt-grid">${wikiRow}</div>`;
 }
 
 function buildSettlementDetailHtml(detail) {
 	const coatHtml = buildSettlementCoatBlockHtml(detail);
-	const identityHtml = buildIdentityGroupHtml(detail);
+	const identityHtml = buildSettlementEditFormHtml(detail);
 	const locationHtml = buildLocationGroupHtml(detail);
 	const wikiHtml = buildWikiSourceGroupHtml(detail);
 	return coatHtml + identityHtml + locationHtml + wikiHtml;
@@ -1177,6 +1299,87 @@ async function applyTerritoryClear() {
 	} catch (error) {
 		const body = $("seDetailBody");
 		if (body) body.insertAdjacentHTML("afterbegin", settlementDetailErrorHtml(error && error.message ? error.message : String(error)));
+	}
+}
+
+// ---- Save the editable Identität form (Name/Typ/Beschreibung/Wiki-URL/Andere Quelle/Nodix/Ruine)
+// via update_point -- a DIFFERENT endpoint (/api/edit/map/features.php, not
+// SETTLEMENT_EDITOR_API=/api/edit/wiki/settlements.php), so settlementDetailPost (hardcoded to the
+// wiki/settlements.php URL) isn't reusable here; this is its map/features.php sibling. ------------
+const MAP_FEATURES_EDIT_API = "/api/edit/map/features.php";
+
+async function mapFeaturesEditPost(body) {
+	const response = await fetch(MAP_FEATURES_EDIT_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	const payload = await response.json().catch(() => null);
+	if (!response.ok || !payload || payload.ok !== true) {
+		throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+	}
+	return payload;
+}
+
+function setSettlementEditMsg(message, kind) {
+	const el = $("dtEditMsg");
+	if (!el) return;
+	el.textContent = message || "";
+	el.className = "dt-edit-msg" + (kind ? " " + kind : "");
+}
+
+// Builds the update_point payload EXACTLY like buildLocationEditPayload() in
+// js/review/review-locations.js (the single-settlement "Ort bearbeiten" dialog) so both editors
+// send the identical shape. feature_subtype is ALWAYS read from the Typ <select>'s current value
+// and always included -- update_point defaults a missing feature_subtype to 'dorf' and would
+// silently reset the settlement's type/icon, so this field must never be omitted (task's #1
+// correctness risk).
+function buildSettlementSavePayload() {
+	const typeSelect = $("dtEditType");
+	return {
+		action: "update_point",
+		public_id: selectedPublicId,
+		name: String($("dtEditName")?.value || "").trim(),
+		feature_subtype: String((typeSelect && typeSelect.value) || "dorf").trim(),
+		description: String($("dtEditDescription")?.value || "").trim(),
+		wiki_url: String($("dtEditWikiUrl")?.value || "").trim(),
+		other_source: {
+			url: String($("dtEditOtherSourceUrl")?.value || "").trim(),
+			label: String($("dtEditOtherSourceLabel")?.value || "").trim(),
+		},
+		is_nodix: Boolean($("dtEditIsNodix")?.checked),
+		is_ruined: Boolean($("dtEditIsRuined")?.checked),
+	};
+}
+
+async function saveSettlementEditForm() {
+	if (!selectedPublicId) return;
+	const saveButton = $("dtEditSave");
+	if (saveButton) saveButton.disabled = true;
+	setSettlementEditMsg("Speichert…", "");
+	try {
+		const payload = buildSettlementSavePayload();
+		const result = await mapFeaturesEditPost(payload);
+		const feature = result && result.feature ? result.feature : {};
+		// Keep the middle list's row (name/type badge/assignment line) in sync immediately, mirroring
+		// the pattern applyTerritoryAssign/Clear already use for their own patchSettlementListItem calls.
+		patchSettlementListItem(selectedPublicId, {
+			name: payload.name,
+			settlement_class: payload.feature_subtype,
+			settlement_label: feature.location_type_label || "",
+		});
+		// reloadSettlementDetail() rebuilds #seDetailBody's innerHTML from the freshly-saved server
+		// state -- that rebuilt form (now showing the saved values) IS the success confirmation,
+		// same convention as applyTerritoryAssign/Clear/uploadSettlementCoat below (none of them show
+		// a separate "saved" toast either); #dtEditMsg/#dtEditSave are destroyed by that rebuild, so
+		// there is nothing left to show a message on or re-enable past this point.
+		await reloadSettlementDetail();
+	} catch (error) {
+		// On error the panel does NOT reload, so #dtEditMsg/#dtEditSave are still the same live
+		// nodes referenced above -- safe to update/re-enable here.
+		setSettlementEditMsg(error && error.message ? error.message : String(error), "bad");
+		if (saveButton) saveButton.disabled = false;
 	}
 }
 
@@ -1226,6 +1429,12 @@ async function uploadSettlementCoat() {
 
 // ---- Delegated event wiring for the detail panel + its dialog -------------------------
 document.addEventListener("click", (event) => {
+	// #dtEditSave is rebuilt on every detail render (like the coat/territory controls below), so it
+	// is wired via this same delegated handler rather than a one-time addEventListener.
+	if (event.target.closest && event.target.closest("#dtEditSave")) {
+		void saveSettlementEditForm();
+		return;
+	}
 	if (event.target.closest && event.target.closest("[data-coat-upload-trigger]")) {
 		openSettlementCoatDialog();
 		return;
