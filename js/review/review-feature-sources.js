@@ -93,7 +93,10 @@ function renderFeatureSourceEditorHtml(state, opts) {
   const sourceRows = sources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
   const addRow = renderFeatureSourceAddRow(escape, tr);
 
-  return '<div class="fs-editor">' + wikiRow + sourceRows + addRow + "</div>";
+  // Reviewer/editor guidance shown above the source list (all mount surfaces).
+  const hint = '<div class="fs-hint">' + escape(tr("sources.hint",
+    "Tragt bei Quellen immer den Namen der Quelle und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.")) + "</div>";
+  return '<div class="fs-editor">' + hint + wikiRow + sourceRows + addRow + "</div>";
 }
 
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
