@@ -1237,7 +1237,12 @@ function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun): 
 // - POST clear_territory: Zuweisung eines Orts entfernen.
 
 // Editor-Liste: alle aktiven Orts-Features inkl. Position (aus geometry_json) und den drei
-// Territoriums-Feldern aus properties_json (territory_wiki_key/territory_public_id/territory_source).
+// Territoriums-Feldern aus properties_json (territory_wiki_key/territory_public_id/territory_source)
+// PLUS die wiki-only Siedlungen aus der Registry (wiki_sync_pages), die (noch) nicht auf der Karte
+// liegen — analog zu avesmapsWikiSettlementListLocations (state full/empty + half), aber mit den
+// Territoriums-Feldern der Editor-Zeile statt state/connected/region/wiki_title. Ohne diese Union
+// zeigte der Editor nur die ~2475 Karten-Orte, waehrend der WikiSync-Tab (list_locations) korrekt
+// 4741 (2475 on-map + 2266 „Fehlt") auswies.
 function avesmapsWikiSettlementEditorList(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $rows = $pdo->query(
@@ -1246,6 +1251,7 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
     )->fetchAll(PDO::FETCH_ASSOC);
 
     $items = [];
+    $mapKeys = [];
     $onMap = 0;
     $unassigned = 0;
     foreach ($rows as $row) {
@@ -1256,6 +1262,13 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         }
 
         $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+
+        // Angeglichen an avesmapsWikiSettlementListLocations: derselbe Match-Key (Umlaut-/ß-Faltung),
+        // damit die Registry-Union unten dieselbe „liegt auf der Karte"-Entscheidung trifft.
+        $mk = avesmapsWikiSyncCreateMatchKey($name);
+        if ($mk !== '') {
+            $mapKeys[$mk] = true;
+        }
 
         $lng = null;
         $lat = null;
@@ -1275,6 +1288,15 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         $wikiUrl = is_array($ws) ? (string) ($ws['wiki_url'] ?? '') : '';
         if ($wikiUrl === '') {
             $wikiUrl = (string) ($props['wiki_url'] ?? '');
+        }
+        // Manuell verlinkte Wiki-Siedlung ebenfalls als „liegt auf der Karte" werten (siehe
+        // list_locations): sonst bleibt ihr Registry-Eintrag unten als wiki-only stehen, wenn der
+        // Karten-Name vom Wiki-Titel abweicht.
+        if (is_array($ws) && !empty($ws['title'])) {
+            $wsKey = avesmapsWikiSyncCreateMatchKey((string) $ws['title']);
+            if ($wsKey !== '') {
+                $mapKeys[$wsKey] = true;
+            }
         }
         $otherSource = is_array($props['other_source'] ?? null) ? $props['other_source'] : null;
 
@@ -1320,8 +1342,66 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             'has_coat' => $hasCoat,
             'wiki_url' => $wikiUrl !== '' ? $wikiUrl : null,
             'other_source' => $otherSource,
+            'is_ruined' => !empty($props['is_ruined']),
+            'building_type' => (string) ($props['building_type'] ?? ''),
         ];
     }
+
+    // Wiki-only Siedlungen (Siedlungs-Klassen + Bauwerke) aus der Registry, die (noch) nicht auf der
+    // Karte liegen — identische Quelle/Filter/Ausschluss/Dedup wie avesmapsWikiSettlementListLocations.
+    $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
+    $regRows = $pdo->query(
+        'SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url FROM '
+        . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC'
+    )->fetchAll(PDO::FETCH_ASSOC);
+    $seen = [];
+    $wikiOnly = 0;
+    foreach ($regRows as $r) {
+        $cls = (string) ($r['settlement_class'] ?? '');
+        if (!in_array($cls, $settlementClasses, true)) {
+            continue;
+        }
+        // Wege/lineare Infrastruktur (Strassen etc.) nicht als Siedlung/Staette listen -- auch wenn
+        // sie der Bauwerks-Crawl frueher faelschlich als gebaeude eingetragen hat.
+        if (avesmapsWikiSettlementIsExcludedBuildingType((string) ($r['building_type'] ?? ''))) {
+            continue;
+        }
+        $title = (string) $r['title'];
+        if ($title === '') {
+            continue;
+        }
+        $bk = avesmapsWikiSyncCreateMatchKey($title);
+        if ($bk === '' || isset($mapKeys[$bk]) || isset($seen[$bk])) {
+            continue;
+        }
+        $seen[$bk] = true;
+        $wikiOnly++;
+
+        $items[] = [
+            'public_id' => '',
+            'name' => $title,
+            'settlement_class' => $cls,
+            'settlement_label' => avesmapsWikiSettlementClassLabel($cls),
+            // Alle Kontinente zurueckgeben -> der Kontinent-Dropdown im Editor filtert (Default
+            // Aventurien). Leerer Kontinent (noch nicht per Backfill nachgetragen) zaehlt clientseitig
+            // als Aventurien (siehe list_locations).
+            'continent' => (string) ($r['continent'] ?? ''),
+            'on_map' => false,
+            'lng' => null,
+            'lat' => null,
+            'territory_wiki_key' => null,
+            'territory_public_id' => null,
+            'territory_source' => null,
+            'source_category' => 'wiki',
+            'has_coat' => (string) ($r['coat_url'] ?? '') !== '',
+            'wiki_url' => (string) ($r['wiki_url'] ?? '') !== '' ? (string) $r['wiki_url'] : null,
+            'other_source' => null,
+            'is_ruined' => !empty($r['is_ruined']),
+            'building_type' => (string) ($r['building_type'] ?? ''),
+        ];
+    }
+
+    usort($items, static fn($a, $b) => strcasecmp($a['name'], $b['name']));
 
     return [
         'ok' => true,
@@ -1329,6 +1409,7 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         'total' => count($items),
         'on_map' => $onMap,
         'unassigned' => $unassigned,
+        'wiki_only' => $wikiOnly,
     ];
 }
 
