@@ -181,7 +181,7 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	// never mutates `entry`/locationData), so clearing it (window.avesmapsSettlementMapFilterIds =
 	// null) makes this function fall through to the exact same result it would have produced had
 	// the filter never existed -- full, exact restoration.
-	if (typeof window.avesmapsSettlementMapFilterIds !== "undefined" && window.avesmapsSettlementMapFilterIds) {
+	if (IS_EDIT_MODE && typeof window.avesmapsSettlementMapFilterIds !== "undefined" && window.avesmapsSettlementMapFilterIds) {
 		return Boolean(entry.publicId) && window.avesmapsSettlementMapFilterIds.has(entry.publicId);
 	}
 	// Per "Nächsten Ort finden"/Suche temporaer angepinnter Marker bleibt sichtbar, auch wenn seine
