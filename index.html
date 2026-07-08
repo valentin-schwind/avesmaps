@@ -1189,7 +1189,7 @@
 				<button id="searchButton" data-i18n="planner.search" title="Reiseroute suchen" data-i18n-title="planner.search.title">Suche</button>
 			</div>
 			<div id="transport-options">
-				<label data-i18n="planner.transport.heading">Transportmittel</label>
+				<label><span data-i18n="planner.transport.heading">Transportmittel</span><button type="button" id="transport-info-btn" class="tsi-info-btn" aria-label="Reisegeschwindigkeiten und Wegtypen anzeigen" title="Reisegeschwindigkeiten und Wegtypen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button></label>
 				<div></div>
 				<label class="transport-filter-label" title="Landreisen erlauben" data-i18n-title="planner.transport.filter.land.title"
 					><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.webp" data-source-src="icons/landweg.webp" alt="" /> <span data-i18n="planner.transport.filter.land">Land</span></label
@@ -1455,6 +1455,7 @@
 		<script src="js/routing/route-render.js"></script>
 		<script src="js/routing/route-graph-routing.js"></script>
 		<script src="js/routing/routing.js"></script>
+		<script src="js/routing/transport-speed-info.js"></script>
 		<script src="js/ui/spotlight-search.js"></script>
 		<script src="js/ui/spotlight-search-focus.js"></script>
 		<script src="js/app/bootstrap.js"></script>
