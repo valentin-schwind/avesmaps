@@ -921,6 +921,30 @@
 	border-top: 1px solid rgba(141, 121, 98, 0.35);
 }
 
+/* Quell-Zeile (Multi-source #1): eigener Abschnitt mit Trenner DARÜBER. Der frühere
+   .wiki-source-credit hatte diesen border-top; der neue .feature-sources-Platzhalter hatte gar
+   keine CSS -> Trenner fehlte. Basis = dezenter inset-Trenner (gilt in jedem Popup/Tooltip),
+   im Siedlungs-/Label-Popup voll-breit wie Daten-Infobox und Aktionen. */
+.feature-sources {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(141, 121, 98, 0.28);
+	font-size: 12px;
+	color: #6b5a44;
+}
+.settlement-popup .feature-sources {
+	margin: 11px -14px 0;
+	padding: 11px 14px 0;
+	border-top: 1px solid rgba(141, 121, 98, 0.35);
+}
+/* No-Wiki-Fall: die Quell-Zeile ist direkter Vorgänger der Aktionen -> deren Trenner kommt sonst
+   über die region-info-box-Regel, die hier nicht greift; also hier setzen. */
+.settlement-popup .feature-sources + .location-popup__actions {
+	margin: 11px -14px 0;
+	padding: 11px 14px 0;
+	border-top: 1px solid rgba(141, 121, 98, 0.35);
+}
+
 /* Mobil: Infobox-Popups (Siedlung UND Landschaft -> beide nutzen settlement-popup) fast die
    volle Bildschirmbreite statt Deckel bei 400px (viel Rand auf schmalen Geraeten -> "schmal").
    Leaflet setzt die Breite inline auf .leaflet-popup-content -> nur mit !important zu schlagen. */

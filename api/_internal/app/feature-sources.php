@@ -34,8 +34,11 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     );
 }
 
-// The single read used by the public endpoint. ONE parameterized query, only approved links,
-// official-first then insertion order (matches the infobox display order in the spec).
+// The read used by the public endpoint: approved catalog links PLUS the element's legacy single
+// properties.other_source (settlements/regions/paths keep that field per the owner decision),
+// merged and deduped by URL (catalog wins). Official-first then insertion order. This makes the
+// existing "Andere Quelle" show without any migration; if it is later also added to the catalog,
+// the dedup prevents a double entry.
 function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entityPublicId): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
@@ -47,11 +50,41 @@ function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entity
           ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
     );
     $statement->execute(['t' => $entityType, 'id' => $entityPublicId]);
-    $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    return array_map(static fn(array $r): array => [
+    $catalog = array_map(static fn(array $r): array => [
         'url' => (string) $r['url'],
         'label' => (string) $r['label'],
         'type' => (string) $r['source_type'],
         'official' => (int) $r['is_official'] === 1,
-    ], $rows);
+    ], $statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
+
+    // Legacy "Andere Quelle": settlement/region/path live in map_features.properties.other_source.
+    $legacy = null;
+    if (in_array($entityType, ['settlement', 'region', 'path'], true)) {
+        $lookup = $pdo->prepare(
+            "SELECT properties_json FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1"
+        );
+        $lookup->execute(['id' => $entityPublicId]);
+        $props = json_decode((string) ($lookup->fetchColumn() ?: ''), true);
+        $other = is_array($props) ? ($props['other_source'] ?? null) : null;
+        $otherUrl = is_array($other) ? trim((string) ($other['url'] ?? '')) : '';
+        if ($otherUrl !== '') {
+            $legacy = [
+                'url' => $otherUrl,
+                'label' => is_array($other) ? trim((string) ($other['label'] ?? '')) : '',
+                'type' => 'sonstiges',
+                'official' => false,
+            ];
+        }
+    }
+
+    if ($legacy === null) {
+        return $catalog;
+    }
+    foreach ($catalog as $existing) {
+        if ($existing['url'] === $legacy['url']) {
+            return $catalog; // already curated in the catalog -> don't show it twice
+        }
+    }
+    $catalog[] = $legacy;
+    return $catalog;
 }
