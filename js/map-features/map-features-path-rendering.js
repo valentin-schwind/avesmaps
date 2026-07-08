@@ -18,9 +18,12 @@ function pathWikiInfoboxMarkup(path) {
 	rows += row("Länge", wiki.laenge);
 	rows += row("Verlauf", wiki.verlauf);
 	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
-	// Standard-Quellenzeile („Informationen aus dem Wiki Aventurica. Mehr hier ↗") wie in den
-	// Siedlungs-/Label-Popups; „Link teilen" sitzt IMMER darunter (Owner-Vorgabe 2026-07-06).
-	const wikiLink = wiki.wiki_url ? wikiSourceCreditMarkup(wiki.wiki_url) : "";
+	// Multi-source system (#1): paths get a source line for the FIRST time here (previously the
+	// wiki credit only rendered when a wiki article was linked at all). The popupopen handler
+	// (js/ui/popups.js) lazily fetches the full approved-source list for this placeholder.
+	const sourceMarkup = typeof featureSourcesPlaceholderMarkup === "function"
+		? featureSourcesPlaceholderMarkup("path", getPathPublicId(path), wiki.wiki_url || "", "location-popup__wiki-link")
+		: "";
 	// "Link teilen" nur wenn ein Wiki-Artikel verlinkt ist (Wege sind nicht ueber ?place= aufloesbar --
 	// applyPlaceFocusFromUrl kennt keine Wege). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst
 	// "strasse" (js/app/wiki-deeplink.js). Gleiches Markup/Klick-Handling wie Orts-Popups (Task 13,
@@ -36,7 +39,7 @@ function pathWikiInfoboxMarkup(path) {
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}</dl>` +
-		wikiLink +
+		sourceMarkup +
 		shareMarkup +
 		"</div>"
 	);
@@ -86,7 +89,7 @@ function createPathPopupMarkup(path) {
 					"data-public-id": getPathPublicId(path),
 				},
 			}),
-		]) : "") + (pathHasWiki(path) ? pathWikiInfoboxMarkup(path) : ""),
+		]) : "") + pathWikiInfoboxMarkup(path),
 	});
 }
 

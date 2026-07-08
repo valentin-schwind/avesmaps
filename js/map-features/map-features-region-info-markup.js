@@ -125,7 +125,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
-			${wikiSourceCreditMarkup(wikiUrl)}
+			${typeof featureSourcesPlaceholderMarkup === "function" ? featureSourcesPlaceholderMarkup("territory", regionEntry.publicId, wikiUrl || "", "region-info-box__link") : ""}
 			${shareMarkup}
 		</div>
 	`;

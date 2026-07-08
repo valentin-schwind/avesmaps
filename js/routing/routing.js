@@ -1131,7 +1131,12 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			showType: true,
 			showDescription: false,
 			showWikiLink: false,
-			actionsMarkup: settlementWikiInfoboxMarkup(markerEntry.location) + actionsBar + reviewsSlot,
+			actionsMarkup: settlementWikiInfoboxMarkup(
+				markerEntry.location,
+				typeof featureSourcesPlaceholderMarkup === "function"
+					? featureSourcesPlaceholderMarkup("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
+					: ""
+			) + actionsBar + reviewsSlot,
 		});
 	}
 

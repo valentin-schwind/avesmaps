@@ -113,6 +113,10 @@ function keepPopupReadableDespiteMaxBounds(event) {
 }
 map.on("popupopen", keepPopupReadableDespiteMaxBounds);
 
+// Multi-source system (#1): lazy per-popup source list across settlements/regions/paths/
+// territories (js/ui/popups.js). Must be called AFTER map exists (load-order constraint).
+wireFeatureSourcePopups(map);
+
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
         ensurePowerlineAnimationLoop();

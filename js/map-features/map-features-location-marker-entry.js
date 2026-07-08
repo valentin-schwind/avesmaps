@@ -20,14 +20,15 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 
 	const wikiSettlement = markerEntry.location.wikiSettlement;
 	const hasWikiSettlement = Boolean(wikiSettlement && wikiSettlement.title);
-	// Ohne Wiki-Eintrag: eine hinterlegte "Andere Quelle" (externer Link, z. B. Briefspiel) anzeigen;
-	// nur wenn es GAR KEINE Quelle gibt, "Keine Quelle gefunden".
-	const otherSourceMarkup = typeof otherSourceCreditMarkup === "function"
-		? otherSourceCreditMarkup(markerEntry.location.otherSource, "location-popup__wiki-link")
+	// Multi-source system (#1): ONE placeholder covers the wiki/other-source either-or that used to
+	// live here -- the popupopen handler (js/ui/popups.js) lazily fetches the full approved-source
+	// list and replaces this synchronous wiki-only/no-source fallback.
+	const settlementSourceMarkup = typeof featureSourcesPlaceholderMarkup === "function"
+		? featureSourcesPlaceholderMarkup("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
 		: "";
 	const settlementInfobox = hasWikiSettlement
-		? settlementWikiInfoboxMarkup(markerEntry.location)
-		: (otherSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`);
+		? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
+		: (settlementSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`);
 	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
 	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
@@ -125,7 +126,7 @@ function settlementFirstSentence(text) {
 // Infobox aus dem verbundenen Wiki-Siedlungs-Datensatz. Gleiche Struktur/Klassen wie die
 // Herrschaftsgebiete-/Label-Infobox (.region-info-box) -> erbt deren Styles/Abstaende. Wappen
 // nur bei nachweislich freier Lizenz (derzeit ausgeblendet, wie bei Regionen/Wegen).
-function settlementWikiInfoboxMarkup(location) {
+function settlementWikiInfoboxMarkup(location, sourceMarkup = "") {
 	const wiki = location.wikiSettlement || {};
 	const name = wiki.name || location.name || "";
 	const art = String(wiki.art || "").trim();
@@ -144,13 +145,14 @@ function settlementWikiInfoboxMarkup(location) {
 		rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
 	}
 	rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
-	const wikiLink = wikiSourceCreditMarkup(wiki.wiki_url);
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
+	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht den fertigen
+	// featureSourcesPlaceholderMarkup-Platzhalter durch (Multi-source system #1).
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}</dl>` +
-		wikiLink +
+		sourceMarkup +
 		"</div>"
 	);
 }

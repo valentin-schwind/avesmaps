@@ -104,6 +104,9 @@ window.AVESMAPS_I18N_EN = {
 	"popup.otherSource": "Other source",
 	"popup.wikiSourceCredit": "Information from the Wiki Aventurica.",
 	"popup.wikiSourceMore": "More here",
+	"popup.sources": "Source(s)",
+	"popup.officialSource": "official source",
+	"popup.wiki": "Wiki",
 
 	// --- location popup chrome ---
 	"popup.shareLink": "🔗 Share link",

@@ -78,6 +78,60 @@ function featureSourceCreditMarkup(wikiUrl, otherSource, linkClass = "region-inf
 	return wikiSourceCreditMarkup(wikiUrl, linkClass) || otherSourceCreditMarkup(otherSource, linkClass);
 }
 
+// Multi-source system (#1): lazy per-popup source fetch. Keeps the big map-features payload
+// untouched -- each popup fetches its own approved-source list only when opened.
+async function fetchFeatureSources(entityType, entityPublicId) {
+	try {
+		const url = `/api/app/feature-sources.php?entity_type=${encodeURIComponent(entityType)}&entity_public_id=${encodeURIComponent(entityPublicId)}`;
+		const response = await fetch(url, { credentials: "same-origin" });
+		const payload = await response.json();
+		return payload && payload.ok && Array.isArray(payload.sources) ? payload.sources : [];
+	} catch (error) {
+		return [];
+	}
+}
+
+// One handler for ALL element types (settlement/region/path/territory popups AND the territory
+// hover tooltip -- see wireFeatureSourcePopups): find the placeholder the builders emit, fetch its
+// catalog sources, and replace the (sync wiki-only) content with the full list.
+function handleSourcePopupOpen(event) {
+	const overlay = event && (event.popup || event.tooltip);
+	const root = overlay && typeof overlay.getElement === "function" ? overlay.getElement() : null;
+	const span = root ? root.querySelector(".feature-sources[data-entity-type][data-entity-id]") : null;
+	if (!span || span.dataset.sourcesLoaded === "1") {
+		return;
+	}
+	span.dataset.sourcesLoaded = "1";
+	const entityType = span.dataset.entityType, entityId = span.dataset.entityId, wikiUrl = span.dataset.wikiUrl || "";
+	fetchFeatureSources(entityType, entityId).then((sources) => {
+		const list = window.buildSourceListMarkup(wikiUrl, sources, {
+			officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
+			wikiLabel: tr("popup.wiki", "Wiki"),
+		});
+		span.innerHTML = list ? `${tr("popup.sources", "Quelle(n)")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
+	});
+}
+
+// Called from bootstrap AFTER map exists (load-order constraint, see AGENTS.md §3/CLAUDE.md).
+// Listens on BOTH popupopen (settlement/region-label/path popups) and tooltipopen (the territory
+// hover/click infobox uses L.tooltip, not L.popup -- Leaflet fires a separate event for it).
+function wireFeatureSourcePopups(map) {
+	if (map && typeof map.on === "function") {
+		map.on("popupopen", handleSourcePopupOpen);
+		map.on("tooltipopen", handleSourcePopupOpen);
+	}
+}
+
+// The placeholder every builder emits: shows the wiki link synchronously (or the "no source"
+// fallback), then the popupopen/tooltipopen handler swaps in the full source list once fetched.
+// entityType/entityPublicId drive the lazy fetch; escapeHtml is the project-global from utils.js.
+function featureSourcesPlaceholderMarkup(entityType, entityPublicId, wikiUrl, linkClass) {
+	const sync = wikiUrl
+		? `${tr("popup.sources", "Quelle(n)")}: ${window.buildSourceListMarkup(wikiUrl, [], { linkClass, wikiLabel: tr("popup.wiki", "Wiki") })}`
+		: tr("popup.noSource", "Keine Quelle gefunden");
+	return `<div class="feature-sources" data-entity-type="${escapeHtml(entityType)}" data-entity-id="${escapeHtml(String(entityPublicId || ""))}" data-wiki-url="${escapeHtml(String(wikiUrl || ""))}">${sync}</div>`;
+}
+
 function locationIconMarkup(locationType, locationTypeLabel) {
 	const iconPath = LOCATION_ICON_PATHS[locationType] || LOCATION_ICON_PATHS.dorf;
 	const altText = `${locationTypeLabel}-Icon`;
@@ -461,6 +515,12 @@ function labelPopupMarkup(entry) {
 	// Kopflose Infobox (Name + Typ zeigt der Popup-Kopf bereits -> kein Doppel-Titel); Infobox oben,
 	// Aktions-Buttons darunter — wie Siedlungs-/Weg-Popup.
 	const wikiInfobox = hasWiki && typeof labelWikiInfoboxMarkup === "function" ? labelWikiInfoboxMarkup(entry.label, { headless: true }) : "";
+	// Multi-source system (#1): without a wiki region, labelWikiInfoboxMarkup never runs (no rows to
+	// show) -- still surface a source placeholder so the edit popup covers non-wiki labels too, same
+	// as the settlement/path popups.
+	const sourceMarkup = !hasWiki && typeof featureSourcesPlaceholderMarkup === "function"
+		? featureSourcesPlaceholderMarkup("region", entry.label.publicId, "", "region-info-box__link")
+		: "";
 	const typeLabel = (hasWiki && entry.label.wikiRegion.art) ? entry.label.wikiRegion.art : tr("popup.labelTypeRegion", "Region");
 	return locationPopupMarkup({
 		name: entry.label.text || tr("popup.labelNameFallback", "Label"),
@@ -470,7 +530,7 @@ function labelPopupMarkup(entry) {
 		showType: hasWiki,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: wikiInfobox + labelActionsMarkup(entry.label.publicId),
+		actionsMarkup: wikiInfobox + sourceMarkup + labelActionsMarkup(entry.label.publicId),
 	});
 }
 
