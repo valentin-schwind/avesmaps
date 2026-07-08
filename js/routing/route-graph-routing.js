@@ -68,12 +68,6 @@ function connectDetachedGraphComponents(graph, routeOptions) {
         if (!nearestConnection) {
             return;
         }
-        // Only bridge SHORT gaps. If the nearest reachable node is farther than the limit, leave the
-        // component detached (-> "no route") instead of inventing an absurd cross-country trek across
-        // the map for a location that has no real land connection (e.g. sea-only coastal towns).
-        if (nearestConnection.distance > SYNTHETIC_ROUTE_MAX_BRIDGE_DISTANCE) {
-            return;
-        }
 
         addSyntheticGraphConnection(
             graph,

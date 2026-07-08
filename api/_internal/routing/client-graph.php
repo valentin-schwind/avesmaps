@@ -6,12 +6,10 @@ const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 const AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY = 100.0;
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE = 'Querfeldein';
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 25.0;
-// Cross-country "Querfeldein" bridges only span SHORT gaps in the path network. If the nearest
-// reachable node of a detached component is farther than this (map units; 1 unit = 3 miles), no
-// bridge is built -> the location stays land-unreachable (e.g. sea-only coastal towns like the
-// Friedhof der Seeschlangen) instead of being force-connected via an absurd trek across the map,
-// and the router returns "no route". Must match the client value SYNTHETIC_ROUTE_MAX_BRIDGE_DISTANCE.
-const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_MAX_BRIDGE_DISTANCE = 15.0;
+// Land path subtypes a stranded travel waypoint may be anchored to (see
+// avesmapsConnectClientRouteWaypointsToNearestLandPath). Flussweg/Seeweg are excluded on purpose:
+// you can trek cross-country to a road, not "to a river".
+const AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad'];
 
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
@@ -63,6 +61,11 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     }
 
     $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request);
+    // Anchor each travel waypoint that has no land-path edge to the nearest point ON a land path
+    // (short Querfeldein leg + a split of that path), so an isolated place like the Friedhof der
+    // Seeschlangen reaches the road network by the shortest cross-country hop instead of the far
+    // component bridge. Runs after the bridges so the graph is already connected.
+    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $locations, $request);
 
     return [
         'graph' => $graph,
@@ -229,9 +232,6 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     foreach ($detachedComponents as $component) {
         $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($component['node_names'], $anchorNodeNames, $locationLookup);
         if (!is_array($nearestConnection)) continue;
-        // Only bridge short gaps; leave far-away components detached (-> "no route") instead of an
-        // absurd cross-country trek for a location with no real land connection.
-        if ((float) $nearestConnection['distance'] > AVESMAPS_ROUTE_CLIENT_SYNTHETIC_MAX_BRIDGE_DISTANCE) continue;
 
         $distance = (float) $nearestConnection['distance'] * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
         $fromLocation = $nearestConnection['from_location'];
@@ -264,6 +264,191 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     }
 
     return $syntheticConnectionCount;
+}
+
+// ===== Waypoint anchoring to the nearest land path (Meldung #39 follow-up) =====
+
+// For each travel waypoint (from/to/via) that has no land-path edge, splits the nearest land path at
+// the point closest to the waypoint and adds a short Querfeldein edge to it. So an isolated place
+// (e.g. a sea-only town) reaches the road network by the SHORTEST cross-country hop instead of the
+// far component bridge. No-op when land/Querfeldein travel is disabled.
+function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, array $locations, array $request): void {
+    if (!avesmapsIsClientRouteDomainEnabled(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request)) {
+        return;
+    }
+    $syntheticTransport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
+    $syntheticSpeed = $syntheticTransport !== null ? (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$syntheticTransport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null) : null;
+    if ($syntheticTransport === null || !is_numeric($syntheticSpeed) || (float) $syntheticSpeed <= 0.0) {
+        return;
+    }
+    $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
+
+    $waypointNames = [];
+    $rawWaypoints = array_merge(
+        [(string) ($request['from'] ?? ''), (string) ($request['to'] ?? '')],
+        is_array($request['via'] ?? null) ? array_map('strval', $request['via']) : []
+    );
+    foreach ($rawWaypoints as $rawName) {
+        $name = trim($rawName);
+        if ($name !== '' && !in_array($name, $waypointNames, true)) {
+            $waypointNames[] = $name;
+        }
+    }
+
+    foreach ($waypointNames as $waypointIndex => $name) {
+        if (!isset($graph[$name])) continue;
+        if (avesmapsClientNodeHasLandPathEdge($graph, $name)) continue;
+        $location = $locationLookup[$name] ?? null;
+        if (!is_array($location)) continue;
+        $anchor = avesmapsFindNearestClientLandPathAnchor($graph, (float) $location['route_x'], (float) $location['route_y']);
+        if ($anchor === null) continue;
+        avesmapsAnchorClientWaypointToLandPath($graph, $name, (float) $location['route_x'], (float) $location['route_y'], $anchor, (string) $syntheticTransport, (float) $syntheticSpeed, (int) $waypointIndex);
+    }
+}
+
+function avesmapsClientNodeHasLandPathEdge(array $graph, string $nodeName): bool {
+    foreach (is_array($graph[$nodeName] ?? null) ? $graph[$nodeName] : [] as $connections) {
+        foreach (is_array($connections) ? $connections : [] as $connection) {
+            if (is_array($connection) && in_array((string) ($connection['route_type'] ?? ''), AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES, true)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// Projects (px,py) onto every land-path edge and returns the closest hit (edge + projected point).
+function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float $py): ?array {
+    $best = null;
+    foreach ($graph as $fromName => $edges) {
+        if (!is_array($edges)) continue;
+        foreach ($edges as $toName => $connections) {
+            if (!is_array($connections)) continue;
+            foreach ($connections as $connection) {
+                if (!is_array($connection)) continue;
+                if (!in_array((string) ($connection['route_type'] ?? ''), AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES, true)) continue;
+                $coordinates = $connection['geometry']['coordinates'] ?? null;
+                if (!is_array($coordinates)) continue;
+                $count = count($coordinates);
+                for ($i = 0; $i < $count - 1; $i++) {
+                    $projection = avesmapsRouteProjectPointOnSegment(
+                        $px, $py,
+                        (float) ($coordinates[$i][0] ?? 0.0), (float) ($coordinates[$i][1] ?? 0.0),
+                        (float) ($coordinates[$i + 1][0] ?? 0.0), (float) ($coordinates[$i + 1][1] ?? 0.0)
+                    );
+                    if ($best === null || $projection['distance'] < $best['distance']) {
+                        $best = [
+                            'from' => (string) $fromName,
+                            'to' => (string) $toName,
+                            'connection' => $connection,
+                            'segment_index' => $i,
+                            't' => $projection['t'],
+                            'proj_x' => $projection['x'],
+                            'proj_y' => $projection['y'],
+                            'distance' => $projection['distance'],
+                        ];
+                    }
+                }
+            }
+        }
+    }
+    return $best;
+}
+
+function avesmapsRouteProjectPointOnSegment(float $px, float $py, float $ax, float $ay, float $bx, float $by): array {
+    $dx = $bx - $ax;
+    $dy = $by - $ay;
+    $lengthSquared = $dx * $dx + $dy * $dy;
+    $t = $lengthSquared > 0.0 ? max(0.0, min(1.0, (($px - $ax) * $dx + ($py - $ay) * $dy) / $lengthSquared)) : 0.0;
+    $projX = $ax + $t * $dx;
+    $projY = $ay + $t * $dy;
+    return ['x' => $projX, 'y' => $projY, 't' => $t, 'distance' => hypot($px - $projX, $py - $projY)];
+}
+
+// Splits the anchor path at the projected point P (unless P is an existing endpoint) and bridges the
+// waypoint to P with a Querfeldein edge. Sub-path edges are shared objects in both directions, like
+// the regular symmetric slice edges.
+function avesmapsAnchorClientWaypointToLandPath(array &$graph, string $waypointName, float $wx, float $wy, array $anchor, string $syntheticTransport, float $syntheticSpeed, int $waypointIndex): void {
+    $original = $anchor['connection'];
+    $coordinates = $original['geometry']['coordinates'] ?? [];
+    if (!is_array($coordinates) || count($coordinates) < 2) return;
+    $count = count($coordinates);
+    $i = (int) $anchor['segment_index'];
+    $t = (float) $anchor['t'];
+    $projX = (float) $anchor['proj_x'];
+    $projY = (float) $anchor['proj_y'];
+    $fromName = (string) $anchor['from'];
+    $toName = (string) $anchor['to'];
+    $epsilon = 1e-7;
+
+    if ($i === 0 && $t <= $epsilon) {
+        $anchorNodeName = $fromName;               // P == path start node
+    } elseif ($i === $count - 2 && $t >= 1.0 - $epsilon) {
+        $anchorNodeName = $toName;                  // P == path end node
+    } else {
+        $anchorNodeName = '__wp_anchor_' . $waypointIndex;
+        $graph[$anchorNodeName] ??= [];
+
+        $sliceFrom = array_slice($coordinates, 0, $i + 1);
+        if ($t > $epsilon) { $sliceFrom[] = [$projX, $projY]; }
+        $sliceTo = [];
+        if ($t < 1.0 - $epsilon) { $sliceTo[] = [$projX, $projY]; }
+        $sliceTo = array_merge($sliceTo, array_slice($coordinates, $i + 1));
+
+        if (count($sliceFrom) >= 2) {
+            $connectionFrom = avesmapsBuildClientRouteSubPathConnection($original, $fromName, $anchorNodeName, $sliceFrom, 'wp-slice-' . $waypointIndex . '-a');
+            avesmapsAddClientCompatibleGraphConnection($graph, $fromName, $anchorNodeName, $connectionFrom);
+            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $fromName, $connectionFrom);
+        }
+        if (count($sliceTo) >= 2) {
+            $connectionTo = avesmapsBuildClientRouteSubPathConnection($original, $anchorNodeName, $toName, $sliceTo, 'wp-slice-' . $waypointIndex . '-b');
+            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $toName, $connectionTo);
+            avesmapsAddClientCompatibleGraphConnection($graph, $toName, $anchorNodeName, $connectionTo);
+        }
+    }
+
+    if ($anchorNodeName === $waypointName) return;
+
+    $airDistance = hypot($wx - $projX, $wy - $projY);
+    $cost = $airDistance * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
+    $connectionId = 'synthetic-' . $waypointName . '->' . $anchorNodeName;
+    $syntheticConnection = [
+        'distance' => $cost,
+        'time' => $cost / $syntheticSpeed,
+        'route_type' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
+        'transport_option' => $syntheticTransport,
+        'id' => $connectionId,
+        'path_id' => $connectionId,
+        'feature_id' => '',
+        'public_id' => '',
+        'from' => $waypointName,
+        'to' => $anchorNodeName,
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[$wx, $wy], [$projX, $projY]]],
+        'synthetic' => true,
+    ];
+    avesmapsAddClientCompatibleGraphConnection($graph, $waypointName, $anchorNodeName, $syntheticConnection);
+    avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $waypointName, $syntheticConnection);
+}
+
+function avesmapsBuildClientRouteSubPathConnection(array $original, string $from, string $to, array $coordinates, string $connectionId): array {
+    $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
+    $originalDistance = (float) ($original['distance'] ?? 0.0);
+    $originalTime = (float) ($original['time'] ?? 0.0);
+    $speed = $originalTime > 0.0 ? $originalDistance / $originalTime : 0.0;
+    return [
+        'distance' => $distance,
+        'time' => $speed > 0.0 ? $distance / $speed : $originalTime,
+        'route_type' => (string) ($original['route_type'] ?? ''),
+        'transport_option' => (string) ($original['transport_option'] ?? ''),
+        'id' => $connectionId,
+        'path_id' => $connectionId,
+        'feature_id' => (string) ($original['feature_id'] ?? ''),
+        'public_id' => (string) ($original['public_id'] ?? ''),
+        'from' => $from,
+        'to' => $to,
+        'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
+        'synthetic' => false,
+    ];
 }
 
 function avesmapsFindClientCompatibleGraphComponents(array $graph): array {
