@@ -1802,9 +1802,19 @@ function toggleMapFilter() {
 	if (seMapFilterOn) {
 		engine.clearMapFilter();
 		seMapFilterOn = false;
+		setStatusText("Karte zeigt wieder alle Siedlungen.");
 	} else {
-		engine.setMapFilter(seCurrentFilteredPublicIds());
+		const ids = seCurrentFilteredPublicIds();
+		// setMapFilter returns false if it refused (map not ready / not in edit mode); don't flip the
+		// button state in that case, or it would falsely read "Alles anzeigen" while nothing filtered.
+		if (engine.setMapFilter(ids) === false) {
+			setStatusText("Karten-Filter nicht möglich — Karte noch nicht bereit.");
+			return;
+		}
 		seMapFilterOn = true;
+		setStatusText(ids.length
+			? `Karte auf ${ids.length} Siedlung${ids.length === 1 ? "" : "en"} der Auswahl gefiltert — auf allen Zoomstufen sichtbar, bis „Alles anzeigen“. (Verdeckt der Editor die Karte, kurz schließen.)`
+			: "Die aktuelle Auswahl enthält keine platzierten Siedlungen (nur „Fehlt“/Wiki-only) — die Karte zeigt daher keine. Filter/Tab wechseln.");
 	}
 	renderMapFilterButtonState();
 }
