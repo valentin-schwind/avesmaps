@@ -108,6 +108,7 @@
   .se-row-l2 { font-size:10px; margin-top:1px; display:flex; align-items:center; gap:4px; }
   .se-row-l2.ok { color:var(--ok); }
   .se-row-l2.warn { color:var(--warn); }
+  .se-row-l2.mut { color:var(--mut); }
   .se-empty, .se-loading, .se-error { color:var(--mut); padding:6px; }
   .se-error { color:var(--bad); }
   /* Siedlungs-Detailpanel (RECHTS): Wappen-Block oben, dann Gruppen "Identitaet" /
@@ -820,7 +821,7 @@ function territoryDisplayName(wikiKey) {
 
 function renderSettlementRowElement(item) {
 	const row = document.createElement("div");
-	row.className = "se-row" + (item.public_id === selectedPublicId ? " is-selected" : "");
+	row.className = "se-row" + (item.public_id && item.public_id === selectedPublicId ? " is-selected" : "");
 	row.dataset.publicId = item.public_id;
 
 	const line1 = document.createElement("div");
@@ -839,7 +840,11 @@ function renderSettlementRowElement(item) {
 	row.appendChild(line1);
 
 	const line2 = document.createElement("div");
-	if (item.territory_wiki_key) {
+	if (item.on_map !== true) {
+		// Wiki-only ("Fehlt"): not placed on the map yet, so there is no territory to assign.
+		line2.className = "se-row-l2 mut";
+		line2.textContent = "○ nur Wiki (nicht platziert)";
+	} else if (item.territory_wiki_key) {
 		line2.className = "se-row-l2 ok";
 		line2.textContent = "✓ " + territoryDisplayName(item.territory_wiki_key);
 	} else {
@@ -848,7 +853,9 @@ function renderSettlementRowElement(item) {
 	}
 	row.appendChild(line2);
 
-	row.addEventListener("click", () => selectSettlementRow(item.public_id));
+	// Wiki-only ("Fehlt") rows have no public_id / no map feature yet -> not selectable until placed
+	// (their read-only detail comes in Batch 10 B1); guarding the click keeps '' from selecting them all.
+	if (item.public_id) row.addEventListener("click", () => selectSettlementRow(item.public_id));
 	return row;
 }
 
@@ -1603,7 +1610,7 @@ function renderSettlementTabs() {
 	const wikiCount = continentScoped.length - onMapCount;
 	const tab = (view, label, count) =>
 		`<button type="button" data-settlement-view="${view}" class="${settlementListView === view ? "is-active" : ""}">${label} (${count})</button>`;
-	host.innerHTML = tab("all", "Alle", continentScoped.length) + tab("onmap", "Auf Karte", onMapCount) + tab("wiki", "Nur Wiki", wikiCount);
+	host.innerHTML = tab("all", "Alle", continentScoped.length) + tab("onmap", "Platziert", onMapCount) + tab("wiki", "Fehlt", wikiCount);
 }
 
 // ===== Combined "Filter ▾" dropdown (Typ/Kontinent/Quelle), ported from the WikiSync tab's
