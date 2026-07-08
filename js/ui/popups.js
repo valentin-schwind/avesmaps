@@ -60,6 +60,24 @@ function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
 	return wikiSourceCreditMarkup(wikiUrlOverride, "location-popup__wiki-link");
 }
 
+// Quellenangabe für eine "Andere Quelle" (externer Nicht-Wiki-Link, z. B. ein Briefspiel-Beitrag).
+// Wird in Infoboxen angezeigt, wenn KEIN Wiki-Eintrag vorhanden ist. Rendert nichts ohne gültige URL.
+// Erwartet das bereits normalisierte { url, label }-Objekt (readFeatureOtherSource) oder null.
+function otherSourceCreditMarkup(otherSource, linkClass = "region-info-box__link") {
+	const url = String(otherSource?.url || "").trim();
+	if (!url) {
+		return "";
+	}
+	const label = String(otherSource?.label || "").trim() || tr("popup.otherSource", "Andere Quelle");
+	return `<div class="wiki-source-credit"><a class="${escapeHtml(linkClass)}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}<span class="wiki-source-credit__arrow" aria-hidden="true"> &#8599;</span></a></div>`;
+}
+
+// Quellen-Zeile für eine Infobox: bevorzugt den Wiki-Link, fällt auf die "Andere Quelle" zurück.
+// Leerer String, wenn weder Wiki noch andere Quelle vorhanden ist.
+function featureSourceCreditMarkup(wikiUrl, otherSource, linkClass = "region-info-box__link") {
+	return wikiSourceCreditMarkup(wikiUrl, linkClass) || otherSourceCreditMarkup(otherSource, linkClass);
+}
+
 function locationIconMarkup(locationType, locationTypeLabel) {
 	const iconPath = LOCATION_ICON_PATHS[locationType] || LOCATION_ICON_PATHS.dorf;
 	const altText = `${locationTypeLabel}-Icon`;

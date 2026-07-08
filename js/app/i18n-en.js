@@ -100,6 +100,8 @@ window.AVESMAPS_I18N_EN = {
 	// --- location marker popup ---
 	"locationType.crossing": "Crossing",
 	"popup.noWikiEntry": "No wiki entry found",
+	"popup.noSource": "No source found",
+	"popup.otherSource": "Other source",
 	"popup.wikiSourceCredit": "Information from the Wiki Aventurica.",
 	"popup.wikiSourceMore": "More here",
 

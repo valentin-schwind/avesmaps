@@ -20,9 +20,14 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 
 	const wikiSettlement = markerEntry.location.wikiSettlement;
 	const hasWikiSettlement = Boolean(wikiSettlement && wikiSettlement.title);
+	// Ohne Wiki-Eintrag: eine hinterlegte "Andere Quelle" (externer Link, z. B. Briefspiel) anzeigen;
+	// nur wenn es GAR KEINE Quelle gibt, "Keine Quelle gefunden".
+	const otherSourceMarkup = typeof otherSourceCreditMarkup === "function"
+		? otherSourceCreditMarkup(markerEntry.location.otherSource, "location-popup__wiki-link")
+		: "";
 	const settlementInfobox = hasWikiSettlement
 		? settlementWikiInfoboxMarkup(markerEntry.location)
-		: `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noWikiEntry", "Kein Wiki-Eintrag gefunden"))}</div>`;
+		: (otherSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`);
 	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
 	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
