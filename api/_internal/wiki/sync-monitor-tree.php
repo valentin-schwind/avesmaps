@@ -150,9 +150,20 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             }
         }
 
+        $overrides = (static function () use ($row): array {
+            $d = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
+            return is_array($d) ? $d : [];
+        })();
+
         $nodes[] = [
             'wiki_key' => (string) $row['wiki_key'],
-            'name' => $row['name'] !== null ? (string) $row['name'] : (string) $row['wiki_key'],
+            // Name-Aufloesung: Staging-Name, sonst (eigene Knoten) der Name aus dem Override,
+            // sonst der wiki_key als letzter Fallback (spiegelt $nameOf weiter unten).
+            'name' => ($row['name'] !== null && trim((string) $row['name']) !== '')
+                ? (string) $row['name']
+                : ((isset($overrides['name']) && trim((string) $overrides['name']) !== '')
+                    ? trim((string) $overrides['name'])
+                    : (string) $row['wiki_key']),
             'type' => (string) ($row['type'] ?? ''),
             // Eigene Knoten haben keinen Staging-Kontinent -> Default Aventurien, sonst filtert der
             // Editor-Kontinentfilter (Default Aventurien) sie raus. Override gewinnt im Frontend.
@@ -197,10 +208,7 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'trade_goods' => (string) ($row['trade_goods'] ?? ''),
             'geographic' => (string) ($row['geographic'] ?? ''),
             'blazon' => (string) ($row['blazon'] ?? ''),
-            'overrides' => (static function () use ($row): array {
-                $d = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
-                return is_array($d) ? $d : [];
-            })(),
+            'overrides' => $overrides,
             'map_geometry_count' => (int) ($row['map_geometry_count'] ?? 0),
             'map_assigned' => ((int) ($row['map_geometry_count'] ?? 0)) > 0,
         ];
