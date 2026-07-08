@@ -174,14 +174,14 @@
 <body>
 <header>
   <div class="controls">
+    <!-- Owner decision 2026-07-08: "🚨 Syncen" is the dangerous action -> brown (primary)
+         background + leftmost. Moved in from the tab's prominent spot (index.html
+         #wiki-sync-sync-settlement, now hidden there); triggers the SAME parent-window sync
+         machinery via window.parent.startWikiSyncKindSync("settlement") -- see review-wiki-sync.js. -->
+    <button class="btn2 primary" id="seSyncen" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Siedlungen ihrem Territorium per Ray-Cast zu"><span class="t1">Siedlungen zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seLocalizeCoats" title="Lädt gemeinfreie Wappen lokal herunter"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
-    <!-- Owner decision 2026-07-07 ("Ersetzen"): moved in from the tab's prominent spot
-         (index.html #wiki-sync-sync-settlement, now hidden there). Triggers the SAME
-         parent-window sync machinery via window.parent.startWikiSyncKindSync("settlement")
-         -- see js/review/review-wiki-sync.js. -->
-    <button class="btn2" id="seSyncen" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
   </div>
 </header>
 
