@@ -29,7 +29,6 @@
   .btn2.is-active .t2 { color:#e9ddcb; }
   #settlementStatus { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
   #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #seContDD { flex:0 0 auto; align-self:center; }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
   .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; min-width:0; }
   #seLeft { border-right:1px solid var(--line); max-width:46%; }
@@ -70,14 +69,22 @@
   .timefilter input:disabled { opacity:.4; }
   .timefilter select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 5px; font:inherit; }
   .timefilter label { display:inline-flex; align-items:center; gap:3px; }
-  /* Kontinent-Dropdown rechts in der Statuszeile (Muster #contDD/#contBtn/#contMenu). */
-  .dropdown2 { position:relative; }
-  .ddbtn { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:5px; }
-  .ddbtn:hover { background:#ead9c2; }
-  .ddcaret { font-size:10px; color:var(--mut); }
-  .dropdown2 .dd-menu[hidden] { display:none; }
-  .dd-menu { position:absolute; z-index:20; top:100%; right:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
-  .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
+  /* Typ/Kontinent/Quelle combined "Filter ▾" dropdown, ported 1:1 from the WikiSync tab's
+     .type-filter* rules (css/features/review-panel.css) so the middle-column filter mask looks
+     identical to js/review/review-settlement-list.js's attachFilterMenu(...) panel. The old
+     per-filter #seContDD/#seTypeDD/#seSourceDD .dropdown2/.ddbtn/.dd-menu rules are gone -- this
+     is now the only filter-dropdown pattern in the document. */
+  .type-filter { position:relative; flex:0 0 auto; display:flex; }
+  .type-filter__toggle { padding:8px 10px; font-size:12px; border:1px solid var(--line2); border-radius:8px; background:var(--soft); color:#5a4a3a; cursor:pointer; white-space:nowrap; font:inherit; }
+  .type-filter__toggle:hover { background:#f3e8db; }
+  .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:#fff; border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+  .type-filter__menu[hidden] { display:none; }
+  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:12px; color:#3a2c20; cursor:pointer; border-radius:4px; }
+  .type-filter__opt:hover { background:#f5eadc; }
+  .type-filter__label { flex:1 1 auto; min-width:0; }
+  .type-filter__count { color:#8a7a68; font-size:11px; }
+  .type-filter__section-title { font-size:11px; font-weight:600; color:#8a7a68; padding:4px 6px 2px; }
+  .type-filter__section + .type-filter__section { border-top:1px solid #ead9c6; margin-top:4px; padding-top:2px; }
   /* Siedlungsliste (MITTE): on_map-Achse als Tab-Leiste + kombinierbare Filterzeile. */
   #seListTabs { display:flex; gap:2px; background:#efe6d9; border:1px solid var(--line); border-radius:6px; padding:2px; margin-bottom:6px; }
   #seListTabs button { flex:1; background:transparent; border:none; border-radius:4px; padding:4px 6px; color:var(--mut); font:inherit; font-size:11px; cursor:pointer; white-space:nowrap; }
@@ -177,12 +184,14 @@
     <button class="btn2" id="seSyncen" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
   </div>
 </header>
+
+<!-- Owner decision (Phase: filter-mask alignment): the old header "Kontinente" dropdown
+     (#seContDD/#seContBtn/#seContMenu) was a stub with no JS wiring anywhere in this file --
+     it never filtered anything. Removed rather than wired, because the Kontinent filter now has
+     a real, working control inside the middle column's "Filter ▾" menu (#seContinentFilterMenu
+     below), which already drives settlementContinentFilterMid end-to-end. -->
 <div id="settlementStatus">
   <span id="seStatusText">Bereit.</span>
-  <div id="seContDD" class="dropdown2">
-    <button type="button" id="seContBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span class="ddcaret">▾</span></button>
-    <div class="dd-menu" id="seContMenu" hidden></div>
-  </div>
 </div>
 <div class="cols">
   <div class="col" id="seLeft">
@@ -689,6 +698,20 @@ let unassignedOnly = false; // the amber "Nicht zugeordnet" chip -- bypasses the
 // Kontinent eines Eintrags; leer -> Aventurien (mirrors settlementItemContinent in the sibling list).
 function settlementItemContinent(item) {
 	return String(item && item.continent || "").trim() || "Aventurien";
+}
+
+// Kontinent-Filter-Optionen: distinct Kontinente (Aventurien zuerst), Zaehler aus ALLEN Eintraegen --
+// mirrors settlementContinentOptions() in js/review/review-settlement-list.js exactly (counts are
+// deliberately NOT scoped by view/search/type/source: Kontinent is the outermost facet).
+function settlementContinentOptions() {
+	const byContinent = new Map();
+	for (const item of settlementItems) {
+		const continent = settlementItemContinent(item);
+		if (!byContinent.has(continent)) byContinent.set(continent, { value: continent, label: continent, count: 0 });
+		byContinent.get(continent).count += 1;
+	}
+	return [...byContinent.values()].sort((a, b) =>
+		/aventurien/i.test(a.value) ? -1 : /aventurien/i.test(b.value) ? 1 : a.label.localeCompare(b.label, "de"));
 }
 
 // A "real gap": placed on the map but with no territory assignment at all (§3.2 design:
@@ -1583,6 +1606,90 @@ function renderSettlementTabs() {
 	host.innerHTML = tab("all", "Alle", continentScoped.length) + tab("onmap", "Auf Karte", onMapCount) + tab("wiki", "Nur Wiki", wikiCount);
 }
 
+// ===== Combined "Filter ▾" dropdown (Typ/Kontinent/Quelle), ported from the WikiSync tab's
+// attachFilterMenu(...) pattern (js/app/utils.js) -- ONE toggle opens a panel with three labeled
+// sections instead of the old three-separate-dropdowns look, and the panel's markup/CSS classes
+// (.type-filter__menu/__section/__section-title/__opt/__label/__count) are 1:1 the tab's, so the
+// two look identical. Re-implemented locally (not imported) because this file is a standalone
+// iframe document with no access to the parent's module state -- same reasoning as the rest of
+// this section's pre-existing local reimplementations.
+const SETTLEMENT_FILTER_SECTIONS = [
+	{ menuId: "seTypeFilterMenu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
+	{ menuId: "seContinentFilterMenu", kind: "multi", state: settlementContinentFilterMid, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilterMid.size === 1 && settlementContinentFilterMid.has("Aventurien")) },
+	{ menuId: "seSourceFilterMenu", kind: "single", state: settlementSourceFilter, options: SETTLEMENT_SOURCE_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
+];
+
+// Renders one multi-checkbox section's option list (Typ/Kontinent) into its menu container.
+function renderSettlementCheckboxSection(section) {
+	const menu = $(section.menuId);
+	if (!menu) return;
+	const options = section.getOptions();
+	const parts = [`<label class="type-filter__opt"><input type="checkbox" value="__all__"${section.state.size === 0 ? " checked" : ""} data-filter-all><span class="type-filter__label">Alle</span></label>`];
+	for (const opt of options) {
+		parts.push(
+			`<label class="type-filter__opt"><input type="checkbox" value="${settlementEscape(opt.value)}"${section.state.has(opt.value) ? " checked" : ""} data-filter-opt><span class="type-filter__label">${settlementEscape(opt.label)}</span><span class="type-filter__count">${opt.count}</span></label>`
+		);
+	}
+	menu.innerHTML = parts.join("");
+}
+
+// Renders the single-radio section's option list (Quelle) into its menu container.
+function renderSettlementRadioSection(section) {
+	const menu = $(section.menuId);
+	if (!menu) return;
+	const parts = [`<label class="type-filter__opt"><input type="radio" name="${section.menuId}" value="__all__"${!section.state.value ? " checked" : ""} data-filter-all><span class="type-filter__label">Alle</span></label>`];
+	for (const opt of section.options) {
+		parts.push(
+			`<label class="type-filter__opt"><input type="radio" name="${section.menuId}" value="${settlementEscape(opt.value)}"${section.state.value === opt.value ? " checked" : ""} data-filter-opt><span class="type-filter__label">${settlementEscape(opt.label)}</span></label>`
+		);
+	}
+	menu.innerHTML = parts.join("");
+}
+
+function renderSettlementFilterSections() {
+	let activeCount = 0;
+	for (const section of SETTLEMENT_FILTER_SECTIONS) {
+		if (section.kind === "single") renderSettlementRadioSection(section);
+		else renderSettlementCheckboxSection(section);
+		if (section.isActive()) activeCount += 1;
+	}
+	const toggle = $("seFilterToggle");
+	if (toggle) {
+		toggle.textContent = activeCount > 0 ? `Filter (${activeCount}) ▾` : "Filter ▾";
+		toggle.title = activeCount > 0 ? `Filter (${activeCount} aktiv)` : "Filter";
+	}
+}
+
+// One delegated change handler for all three sections' checkboxes/radios, attached to the panel
+// element. Unlike the tab's static #settlement-filter-menu (written once in index.html), #seFilterMenu
+// here is torn down and rebuilt inside #seListFilters's innerHTML on every renderSettlementFilters()
+// call, so each call gets a fresh node -- the dataset guard is just defensive, not load-bearing.
+// Re-queries $(entry.menuId) live at event time, so it always resolves against the current node.
+function wireSettlementFilterPanel() {
+	const panel = $("seFilterMenu");
+	if (!panel || panel.dataset.wired) return;
+	panel.dataset.wired = "1";
+	panel.addEventListener("change", (event) => {
+		const input = event.target;
+		if (!input || (input.type !== "checkbox" && input.type !== "radio")) return;
+		const section = SETTLEMENT_FILTER_SECTIONS.find((entry) => {
+			const container = $(entry.menuId);
+			return container && container.contains(input);
+		});
+		if (!section) return;
+		if (section.kind === "single") {
+			section.state.value = input.value === "__all__" ? "" : input.value;
+		} else if (input.value === "__all__") {
+			section.state.clear();
+		} else if (input.checked) {
+			section.state.add(input.value);
+		} else {
+			section.state.delete(input.value);
+		}
+		renderSettlementMid();
+	});
+}
+
 function renderSettlementFilters() {
 	const host = $("seListFilters");
 	if (!host) return;
@@ -1593,28 +1700,25 @@ function renderSettlementFilters() {
 	const searchHadFocus = document.activeElement && document.activeElement.id === "seListSearch";
 	const searchSelectionStart = searchHadFocus ? document.activeElement.selectionStart : null;
 	const searchSelectionEnd = searchHadFocus ? document.activeElement.selectionEnd : null;
-	// Same reasoning for open dropdown menus: don't snap them shut on an unrelated re-render.
-	const typeMenuWasOpen = $("seTypeMenu") && !$("seTypeMenu").hidden;
-	const sourceMenuWasOpen = $("seSourceMenu") && !$("seSourceMenu").hidden;
-	const typeOptions = settlementTypeOptions();
-	const typeLabel = settlementTypeFilter.size === 0 ? "Typ" : `Typ (${settlementTypeFilter.size})`;
-	const typeMenu = [`<label><input type="checkbox" value="__all__"${settlementTypeFilter.size === 0 ? " checked" : ""} data-type-all> Alle</label>`]
-		.concat(typeOptions.map((opt) => `<label><input type="checkbox" value="${settlementEscape(opt.value)}"${settlementTypeFilter.has(opt.value) ? " checked" : ""} data-type-opt> ${settlementEscape(opt.label)} (${opt.count})</label>`))
-		.join("");
-	const sourceLabel = settlementSourceFilter.value ? "Quelle: " + (SETTLEMENT_SOURCE_OPTIONS.find((o) => o.value === settlementSourceFilter.value)?.label || settlementSourceFilter.value) : "Quelle";
-	const sourceMenu = [`<label><input type="radio" name="seSourceFilter" value="__all__"${!settlementSourceFilter.value ? " checked" : ""} data-source-all> Alle</label>`]
-		.concat(SETTLEMENT_SOURCE_OPTIONS.map((opt) => `<label><input type="radio" name="seSourceFilter" value="${opt.value}"${settlementSourceFilter.value === opt.value ? " checked" : ""} data-source-opt> ${settlementEscape(opt.label)}</label>`))
-		.join("");
+	// Same reasoning for the open filter panel: don't snap it shut on an unrelated re-render.
+	const filterMenuWasOpen = $("seFilterMenu") && !$("seFilterMenu").hidden;
 	const gapCount = settlementGapCountUnderOtherFilters();
 
 	host.innerHTML =
 		`<input type="search" id="seListSearch" placeholder="Name suchen…" value="${settlementEscape(settlementSearchState.value)}">` +
-		`<div class="dropdown2" id="seTypeDD"><button type="button" class="ddbtn" id="seTypeBtn">${settlementEscape(typeLabel)} <span class="ddcaret">▾</span></button><div class="dd-menu" id="seTypeMenu" hidden>${typeMenu}</div></div>` +
-		`<div class="dropdown2" id="seSourceDD"><button type="button" class="ddbtn" id="seSourceBtn">${settlementEscape(sourceLabel)} <span class="ddcaret">▾</span></button><div class="dd-menu" id="seSourceMenu" hidden>${sourceMenu}</div></div>` +
+		`<div class="type-filter">` +
+		`<button type="button" id="seFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button>` +
+		`<div id="seFilterMenu" class="type-filter__menu" hidden>` +
+		`<div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="seTypeFilterMenu"></div></div>` +
+		`<div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="seContinentFilterMenu"></div></div>` +
+		`<div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="seSourceFilterMenu"></div></div>` +
+		`</div></div>` +
 		`<span class="chip-toggle warn${unassignedOnly ? " is-active" : ""}" id="seUnassignedChip" title="Nur auf der Karte platzierte Siedlungen ohne Territorium; blendet die Baum-Auswahl links aus">⚠ Nicht zugeordnet (${gapCount})</span>`;
 
-	if (typeMenuWasOpen) $("seTypeMenu").hidden = false;
-	if (sourceMenuWasOpen) $("seSourceMenu").hidden = false;
+	renderSettlementFilterSections();
+	wireSettlementFilterPanel();
+
+	if (filterMenuWasOpen) $("seFilterMenu").hidden = false;
 	if (searchHadFocus) {
 		const searchInput = $("seListSearch");
 		if (searchInput) {
@@ -1627,30 +1731,10 @@ function renderSettlementFilters() {
 		settlementSearchState.value = event.target.value || "";
 		renderSettlementMid();
 	});
-	$("seTypeBtn")?.addEventListener("click", (event) => {
+	$("seFilterToggle")?.addEventListener("click", (event) => {
 		event.stopPropagation();
-		const menu = $("seTypeMenu");
+		const menu = $("seFilterMenu");
 		if (menu) menu.hidden = !menu.hidden;
-	});
-	$("seSourceBtn")?.addEventListener("click", (event) => {
-		event.stopPropagation();
-		const menu = $("seSourceMenu");
-		if (menu) menu.hidden = !menu.hidden;
-	});
-	$("seTypeMenu")?.addEventListener("change", (event) => {
-		const target = event.target;
-		if (target.matches("[data-type-all]")) settlementTypeFilter.clear();
-		else if (target.matches("[data-type-opt]")) {
-			if (target.checked) settlementTypeFilter.add(target.value);
-			else settlementTypeFilter.delete(target.value);
-		}
-		renderSettlementMid();
-	});
-	$("seSourceMenu")?.addEventListener("change", (event) => {
-		const target = event.target;
-		if (target.matches("[data-source-all]")) settlementSourceFilter.value = "";
-		else if (target.matches("[data-source-opt]")) settlementSourceFilter.value = target.value;
-		renderSettlementMid();
 	});
 	$("seUnassignedChip")?.addEventListener("click", () => {
 		unassignedOnly = !unassignedOnly;
@@ -1729,17 +1813,15 @@ document.addEventListener("click", (event) => {
 		renderSettlementMid();
 	}
 });
-// Close open dropdown menus on outside click. Uses closest() against the button (not strict
-// target equality) because a click on the button's own <span class=ddcaret> child would
-// otherwise be seen as "outside" and re-close the menu the button's own handler just opened.
+// Close the open filter panel on outside click. Uses closest() against the button (not strict
+// target equality) because a click on the toggle's own "▾" text/child would otherwise be seen as
+// "outside" and re-close the menu the button's own handler just opened.
 document.addEventListener("click", (event) => {
-	for (const [btnId, menuId] of [["seTypeBtn", "seTypeMenu"], ["seSourceBtn", "seSourceMenu"]]) {
-		const menu = $(menuId);
-		const btn = $(btnId);
-		if (!menu || menu.hidden || !btn) continue;
-		const insideButton = event.target.closest ? event.target.closest(`#${btnId}`) : false;
-		if (!insideButton && !menu.contains(event.target)) menu.hidden = true;
-	}
+	const menu = $("seFilterMenu");
+	const btn = $("seFilterToggle");
+	if (!menu || menu.hidden || !btn) return;
+	const insideButton = event.target.closest ? event.target.closest("#seFilterToggle") : false;
+	if (!insideButton && !menu.contains(event.target)) menu.hidden = true;
 });
 
 // BF-Zeitfilter anwenden (Muster applyTime in wiki-sync-monitor.html): "heute"-Haekchen deaktiviert
