@@ -2001,7 +2001,17 @@ function renderSettlementMid() {
 	// toggle-on time, so search/type/source/chip/tree changes are reflected on the map too.
 	if (typeof seMapFilterOn !== "undefined" && seMapFilterOn && typeof seMapFilterEngine === "function") {
 		const engine = seMapFilterEngine();
-		if (engine) engine.setMapFilter(visible.map((item) => item.public_id).filter(Boolean));
+		if (engine) {
+			// If something on the map cleared the filter out from under us (a settlement-size toggle or the
+			// on-map chip), reflect that here instead of resurrecting it on this render -- keep our button in
+			// sync. window.parent.avesmapsSettlementMapFilterIds is null once cleared, a (maybe empty) Set otherwise.
+			if (!(window.parent && window.parent.avesmapsSettlementMapFilterIds)) {
+				seMapFilterOn = false;
+				renderMapFilterButtonState();
+			} else {
+				engine.setMapFilter(visible.map((item) => item.public_id).filter(Boolean));
+			}
+		}
 	}
 }
 

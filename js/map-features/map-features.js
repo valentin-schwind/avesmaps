@@ -12,6 +12,12 @@ const REGION_EDIT_EDGE_HIT_TOLERANCE_PX = 22;
 let recentRegionOverlapSelection = null;
 
 $(".location-toggle").on("click", function () {
+	// A settlement-size toggle click means the owner wants normal type-based visibility back, so drop
+	// any active Siedlungseditor "Nur Auswahl anzeigen" filter -- it otherwise overrides these toggles
+	// entirely (shouldShowLocationMarker consults the filter Set before any type check).
+	if (typeof clearMapFilter === "function" && window.avesmapsSettlementMapFilterIds) {
+		clearMapFilter();
+	}
 	setVisibleLocationTypesThrough(String(this.dataset.locationType || ""), { syncUrl: true });
 });
 $(".location-toggle").on("mouseenter focus", function () {
