@@ -40,6 +40,15 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilit
 		return false;
 	}
 
+	// Siedlungseditor "Nur Auswahl anzeigen" (edit-mode-only): when the settlement map filter is active,
+	// label EXACTLY the in-filter settlements at every zoom -- mirrors the early-return in
+	// shouldShowLocationMarker (map-features-location-marker-rendering.js) so the filtered places stay
+	// identifiable even when their size would normally suppress the label. Clearing the filter (null)
+	// falls through to the unchanged rules below -- exact restoration, same as the marker path.
+	if (IS_EDIT_MODE && typeof window.avesmapsSettlementMapFilterIds !== "undefined" && window.avesmapsSettlementMapFilterIds) {
+		return Boolean(entry.publicId) && window.avesmapsSettlementMapFilterIds.has(entry.publicId);
+	}
+
 	// Politische Ansicht: Hauptstadt-Namen der angezeigten Gebiete immer labeln (passend zu
 	// shouldShowLocationMarker -> Standard-Siedlungsanzeige im political-Modus). Der Aufrufer prueft die
 	// Viewport-Grenzen, daher hier nur true.
