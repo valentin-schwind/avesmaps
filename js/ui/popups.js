@@ -91,6 +91,32 @@ async function fetchFeatureSources(entityType, entityPublicId) {
 	}
 }
 
+// Session cache of the last fetched source list per entity. The settlement/label/path popups bind
+// their content as a FUNCTION (see map-features-location-marker-entry.js), which Leaflet re-invokes
+// on every _updateContent -- e.g. the autoPan/layout pass right after opening. That regenerates the
+// synchronous wiki-only placeholder and would otherwise revert the async-swapped full list. Rendering
+// the placeholder from this cache makes the list survive those regenerations.
+const featureSourceCache = new Map();
+const featureSourceCacheKey = (entityType, entityId) => `${entityType}:${entityId}`;
+
+// Apply a fetched source list to whatever ".feature-sources" span for this entity is CURRENTLY in
+// the DOM -- the span captured at popupopen may already have been detached by a content regeneration
+// mid-fetch, so we re-query instead of writing to the stale reference. Also caches for future renders.
+function applyFeatureSourceList(entityType, entityId, wikiUrl, sources) {
+	featureSourceCache.set(featureSourceCacheKey(entityType, entityId), sources);
+	const list = window.buildSourceListMarkup(wikiUrl, sources, {
+		officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
+		wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
+	});
+	const html = list ? `${tr("popup.sources", "Quellen")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
+	const esc = (value) => (window.CSS && CSS.escape ? CSS.escape(String(value)) : String(value).replace(/["\\]/g, "\\$&"));
+	const selector = `.feature-sources[data-entity-type="${esc(entityType)}"][data-entity-id="${esc(entityId)}"]`;
+	document.querySelectorAll(selector).forEach((el) => {
+		el.dataset.sourcesLoaded = "1";
+		el.innerHTML = html;
+	});
+}
+
 // One handler for ALL element types (settlement/region/path/territory popups AND the territory
 // hover tooltip -- see wireFeatureSourcePopups): find the placeholder the builders emit, fetch its
 // catalog sources, and replace the (sync wiki-only) content with the full list.
@@ -103,13 +129,7 @@ function handleSourcePopupOpen(event) {
 	}
 	span.dataset.sourcesLoaded = "1";
 	const entityType = span.dataset.entityType, entityId = span.dataset.entityId, wikiUrl = span.dataset.wikiUrl || "";
-	fetchFeatureSources(entityType, entityId).then((sources) => {
-		const list = window.buildSourceListMarkup(wikiUrl, sources, {
-			officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
-			wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
-		});
-		span.innerHTML = list ? `${tr("popup.sources", "Quellen")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
-	});
+	fetchFeatureSources(entityType, entityId).then((sources) => applyFeatureSourceList(entityType, entityId, wikiUrl, sources));
 }
 
 // Called from bootstrap AFTER map exists (load-order constraint, see AGENTS.md §3/CLAUDE.md).
@@ -126,9 +146,23 @@ function wireFeatureSourcePopups(map) {
 // fallback), then the popupopen/tooltipopen handler swaps in the full source list once fetched.
 // entityType/entityPublicId drive the lazy fetch; escapeHtml is the project-global from utils.js.
 function featureSourcesPlaceholderMarkup(entityType, entityPublicId, wikiUrl, linkClass) {
-	const sync = wikiUrl
-		? `${tr("popup.sources", "Quellen")}: ${window.buildSourceListMarkup(wikiUrl, [], { linkClass, wikiLabel: tr("popup.wiki", "Wiki Aventurica") })}`
-		: tr("popup.noSource", "Keine Quelle gefunden");
+	// If this entity's sources were already fetched earlier this session, render the FULL list up
+	// front so a Leaflet content regeneration (function content re-invoked on autoPan/layout) keeps
+	// showing it instead of reverting to the wiki-only line. No data-sources-loaded flag here -- the
+	// popupopen handler still re-fetches on open so the list stays fresh.
+	const cached = featureSourceCache.get(featureSourceCacheKey(entityType, entityPublicId));
+	let sync;
+	if (cached) {
+		const list = window.buildSourceListMarkup(wikiUrl, cached, {
+			officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
+			wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
+		});
+		sync = list ? `${tr("popup.sources", "Quellen")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
+	} else {
+		sync = wikiUrl
+			? `${tr("popup.sources", "Quellen")}: ${window.buildSourceListMarkup(wikiUrl, [], { linkClass, wikiLabel: tr("popup.wiki", "Wiki Aventurica") })}`
+			: tr("popup.noSource", "Keine Quelle gefunden");
+	}
 	return `<div class="feature-sources" data-entity-type="${escapeHtml(entityType)}" data-entity-id="${escapeHtml(String(entityPublicId || ""))}" data-wiki-url="${escapeHtml(String(wikiUrl || ""))}">${sync}</div>`;
 }
 
