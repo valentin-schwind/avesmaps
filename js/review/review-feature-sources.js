@@ -70,7 +70,7 @@ function renderFeatureSourceAddRow(escape, tr) {
   return (
     '<div class="fs-row fs-row--add" data-fs-add>' +
     '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
-    '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Linktext")) + '">' +
+    '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '">' +
     '<select class="fs-add-type">' + options + "</select>" +
     '<label class="fs-add-official-label">' +
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
