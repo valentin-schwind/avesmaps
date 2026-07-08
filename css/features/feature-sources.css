@@ -18,6 +18,8 @@
 	border-top: 1px solid rgba(141, 121, 98, 0.18);
 }
 .fs-row__link {
+	flex: 1 1 auto;
+	min-width: 0;
 	color: #1452f7;
 	text-decoration: none;
 	font-weight: bold;
@@ -30,6 +32,7 @@
 	text-decoration: underline;
 }
 .fs-row__badge {
+	flex-shrink: 0;
 	font-size: 10px;
 	color: #6c5a49;
 	background: #f0e7da;
@@ -43,14 +46,16 @@
 	border-style: dashed;
 }
 .fs-row__remove {
-	margin-left: auto;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	border: 1px solid #d8b3a3;
 	background: #f7ece7;
 	color: #9d3a2e;
 	border-radius: 999px;
 	width: 20px;
 	height: 20px;
-	line-height: 1;
 	cursor: pointer;
 	font-size: 12px;
 }
@@ -62,9 +67,11 @@
 .fs-row--add {
 	flex-wrap: wrap;
 	gap: 6px;
-	margin-top: 4px;
-	padding-top: 8px;
-	border-top: 1px solid rgba(141, 121, 98, 0.28);
+	margin-top: 8px;
+	padding: 10px;
+	border: 1px solid #d8c6b2;
+	border-radius: 8px;
+	background: #faf5ee;
 }
 .fs-add-url {
 	flex: 1 1 100%;
