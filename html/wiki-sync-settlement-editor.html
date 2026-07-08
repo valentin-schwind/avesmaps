@@ -22,6 +22,11 @@
   .btn2 .t1 { font-size:13px; font-weight:bold; }
   .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
   .btn2.primary .t2 { color:#e9ddcb; }
+  /* "Nur Auswahl anzeigen" Zwei-Zustands-Toggle (§7 design doc): ON = wie .primary eingefaerbt, damit
+     der aktive Kartenfilter im Menueband sofort auffaellt (gleiche Konvention wie .chip-toggle.is-active). */
+  .btn2.is-active { background:#565044; border-color:#5f4f40; color:#fff9f4; }
+  .btn2.is-active:hover { background:#4a463b; }
+  .btn2.is-active .t2 { color:#e9ddcb; }
   #settlementStatus { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
   #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #seContDD { flex:0 0 auto; align-self:center; }
@@ -1179,6 +1184,62 @@ $("seAssignDialog")?.addEventListener("click", (event) => {
 	if (event.target.id === "seAssignDialog") closeAssignDialog();
 });
 
+// ===================== Toolbar: "Nur Auswahl anzeigen" (edit-mode-only map filter, §7 design doc) ====
+// Two-state toggle (owner-specified design, see docs/siedlungseditor-design.md §7 + the ledger's Phase-8
+// note): OFF shows "Nur Auswahl anzeigen" and engages the parent map's filter with the middle column's
+// CURRENTLY VISIBLE settlements (isSettlementVisible -- the same predicate that drives renderSettlementMid);
+// ON shows "Alles anzeigen" and clears it. The actual filtering runs in the PARENT window (index.html) via
+// window.parent.AvesmapsSettlementAssign.setMapFilter/clearMapFilter (map-features-settlement-territory-
+// assign.js) -- this iframe only computes WHICH public_ids currently match and calls across the boundary.
+let seMapFilterOn = false;
+
+// Guarded lookup, mirrors seAssignEngine() above: standalone-opened (non-iframe) pages have no
+// window.parent.AvesmapsSettlementAssign, so every call site below no-ops rather than throwing.
+function seMapFilterEngine() {
+	const engine = window.parent && window.parent.AvesmapsSettlementAssign;
+	return engine && typeof engine.setMapFilter === "function" && typeof engine.clearMapFilter === "function" ? engine : null;
+}
+
+// Current middle-column filter result as a public_id array -- exactly the settlements the owner sees
+// listed right now (continent + tab + search + type + source + chip/tree axis all already applied by
+// isSettlementVisible), so "Nur Auswahl anzeigen" always mirrors what's on screen in the middle list.
+function seCurrentFilteredPublicIds() {
+	return settlementItems.filter(isSettlementVisible).map((item) => item.public_id).filter(Boolean);
+}
+
+function renderMapFilterButtonState() {
+	const btn = $("seFilterMap");
+	if (!btn) return;
+	const t1 = btn.querySelector(".t1");
+	if (t1) t1.textContent = seMapFilterOn ? "Alles anzeigen" : "Nur Auswahl anzeigen";
+	btn.classList.toggle("is-active", seMapFilterOn);
+	btn.title = seMapFilterOn
+		? "Zeigt auf der Live-Karte wieder alle Siedlungen"
+		: "Zeigt auf der Live-Karte nur die aktuelle Auswahl";
+}
+
+function toggleMapFilter() {
+	const engine = seMapFilterEngine();
+	if (!engine) {
+		setStatusText("Karte nicht bereit — Editor über die Karte öffnen.");
+		return;
+	}
+	if (seMapFilterOn) {
+		engine.clearMapFilter();
+		seMapFilterOn = false;
+	} else {
+		engine.setMapFilter(seCurrentFilteredPublicIds());
+		seMapFilterOn = true;
+	}
+	renderMapFilterButtonState();
+}
+
+$("seFilterMap")?.addEventListener("click", toggleMapFilter);
+
+// Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
+// map's filter on every render (see its own tail call below) -- covers every list-filter change
+// (search/type/source/chip/tree) in one place, without wrapping/reassigning the function.
+
 function renderSettlementTabs() {
 	const host = $("seListTabs");
 	if (!host) return;
@@ -1284,11 +1345,18 @@ function renderSettlementMid() {
 		empty.className = "se-empty";
 		empty.textContent = "Keine Treffer.";
 		list.appendChild(empty);
-		return;
+	} else {
+		const fragment = document.createDocumentFragment();
+		for (const item of visible) fragment.appendChild(renderSettlementRowElement(item));
+		list.appendChild(fragment);
 	}
-	const fragment = document.createDocumentFragment();
-	for (const item of visible) fragment.appendChild(renderSettlementRowElement(item));
-	list.appendChild(fragment);
+	// While "Nur Auswahl anzeigen" is ON, keep the parent map's filter in lockstep with this list's
+	// own filter result (§7 design doc nice-to-have) -- re-narrow on every render rather than only at
+	// toggle-on time, so search/type/source/chip/tree changes are reflected on the map too.
+	if (typeof seMapFilterOn !== "undefined" && seMapFilterOn && typeof seMapFilterEngine === "function") {
+		const engine = seMapFilterEngine();
+		if (engine) engine.setMapFilter(visible.map((item) => item.public_id).filter(Boolean));
+	}
 }
 
 async function loadSettlementItems() {

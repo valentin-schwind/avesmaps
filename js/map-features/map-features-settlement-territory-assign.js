@@ -460,6 +460,122 @@ async function apply(pairs, { confirm } = {}) {
   return { ok: true, applied, remaining };
 }
 
+// ===================== "Nur Auswahl anzeigen" map filter (§7 design doc) =====================
+// Edit-mode-only, fully-reversible view filter over the LIVE parent map's settlement markers, so
+// the owner can visually confirm the Siedlungseditor's current middle-column selection while
+// assigning territories. Runs in the PARENT window (index.html), never in the iframe -- the
+// editor toolbar calls these via window.parent.AvesmapsSettlementAssign (see
+// html/wiki-sync-settlement-editor.html #seFilterMap).
+//
+// REVERSIBILITY / NO-LEAK ARGUMENT (see task report for the full trace):
+// The hook this filter uses is a single global read in shouldShowLocationMarker()
+// (map-features-location-marker-rendering.js): "if window.avesmapsSettlementMapFilterIds is set,
+// show ONLY markers whose publicId is in it; otherwise fall through to the normal rules". Setting
+// the filter therefore does not capture/mutate any of the normal-rule STATE (toggle checkboxes,
+// window.politicalDisplayedCapitalPublicIds, locationData, entry.location, ...) -- it only adds a
+// higher-priority check in front of it. clearMapFilter() sets the variable back to null/undefined
+// and re-runs the SAME syncLocationMarkerVisibility() pass the map already runs on every
+// moveend/zoomend/toggle-change; that pass re-evaluates shouldShowLocationMarker for every marker
+// from the untouched underlying state, which is byte-for-byte what the map would show had the
+// filter never been engaged. There is nothing left to "restore" beyond re-running that sync,
+// because nothing but this one variable was ever written.
+// This also cannot leak into the public view: (1) canvas markers -- which DO bypass
+// shouldShowLocationMarker's per-item DOM add/remove -- are unconditionally OFF in edit mode
+// (syncLocationMarkerVisibility: `canvasOn = ... && !IS_EDIT_MODE`), so in edit mode every
+// settlement marker's visibility is governed by this exact DOM path; (2) setMapFilter() itself
+// refuses to engage unless IS_EDIT_MODE is true, so a stray call from a non-edit context is a
+// silent no-op rather than a public-view mutation.
+const SETTLEMENT_MAP_FILTER_CHIP_ID = "avesmapsSettlementMapFilterChip";
+
+/**
+ * Builds (once) and shows the corner chip that signals "filtered view active" and itself acts as
+ * a restore control (click -> clearMapFilter()). Idempotent -- calling this again while the chip
+ * already exists just re-shows/updates it rather than creating a duplicate element.
+ */
+function showSettlementMapFilterChip() {
+  if (typeof document === "undefined") return;
+  let chip = document.getElementById(SETTLEMENT_MAP_FILTER_CHIP_ID);
+  if (!chip) {
+    chip = document.createElement("div");
+    chip.id = SETTLEMENT_MAP_FILTER_CHIP_ID;
+    chip.title = "Klicken, um die volle Kartenansicht wiederherzustellen";
+    chip.textContent = "Gefilterte Ansicht aktiv ✕";
+    Object.assign(chip.style, {
+      position: "fixed",
+      top: "12px",
+      right: "12px",
+      zIndex: "1450", // matches .feedback-toast's z-index (css/components/feedback-toast.css) -- above map panes, below modal overlays
+      padding: "6px 12px",
+      borderRadius: "14px",
+      background: "rgba(184, 134, 11, 0.95)", // --warn accent (matches the editor's warn-chip palette)
+      color: "#fff9f4",
+      font: "bold 12px/1.3 \"Faculty Glyphic\", Arial, sans-serif",
+      boxShadow: "0 6px 18px rgba(0, 0, 0, 0.24)",
+      cursor: "pointer",
+      userSelect: "none",
+    });
+    chip.addEventListener("click", () => clearMapFilter());
+    document.body.appendChild(chip);
+  }
+  chip.style.display = "block";
+}
+
+/**
+ * Removes the corner chip if present. Safe to call when it does not exist (idempotent).
+ */
+function hideSettlementMapFilterChip() {
+  if (typeof document === "undefined") return;
+  const chip = document.getElementById(SETTLEMENT_MAP_FILTER_CHIP_ID);
+  if (chip) chip.remove();
+}
+
+/**
+ * Engages the edit-mode-only "show only these settlements" map filter. Idempotent/re-callable:
+ * calling it again with a new `publicIds` set (e.g. the middle-column filter changed while the
+ * toggle is ON) simply re-narrows the same live filter -- there is nothing to "re-capture" because
+ * the underlying visibility rules are never touched (see the reversibility note above), only
+ * consulted through the one guard variable.
+ *
+ * Refuses to engage outside edit mode (guards against an accidental/foreign call ever touching the
+ * public map): a no-op there, not a partial or silent mutation.
+ *
+ * @param {Iterable<string>} publicIds - settlement public_id values to keep visible; every other
+ *   settlement marker is hidden from view until clearMapFilter() runs.
+ * @returns {boolean} true if the filter was engaged, false if refused (not in edit mode, or no map).
+ */
+function setMapFilter(publicIds) {
+  if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+    console.warn("settlement-assign: setMapFilter refused outside edit mode (no public-view leak).");
+    return false;
+  }
+  if (typeof syncLocationMarkerVisibility !== "function") {
+    console.warn("settlement-assign: setMapFilter found no syncLocationMarkerVisibility -- map not ready.");
+    return false;
+  }
+  const idSet = new Set(Array.from(publicIds || [], (id) => String(id)));
+  window.avesmapsSettlementMapFilterIds = idSet;
+  syncLocationMarkerVisibility(); // re-evaluates every marker; shouldShowLocationMarker now consults the filter first
+  showSettlementMapFilterChip();
+  return true;
+}
+
+/**
+ * Fully restores normal marker visibility (clears the one guard variable this filter ever wrote)
+ * and removes the chip. Idempotent: safe to call when no filter is active (e.g. the editor overlay
+ * was closed without the owner explicitly toggling off) -- clearing an already-null filter and
+ * re-running the sync is a harmless no-op re-render, and removing an absent chip is a no-op.
+ *
+ * @returns {boolean} true (always succeeds; there is no state that can make a restore fail).
+ */
+function clearMapFilter() {
+  window.avesmapsSettlementMapFilterIds = null;
+  if (typeof syncLocationMarkerVisibility === "function") {
+    syncLocationMarkerVisibility(); // same full re-evaluation pass -- restores exactly what the untouched rules produce
+  }
+  hideSettlementMapFilterChip();
+  return true;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { descendantWikiKeys, pickDeepestTerritory, geometryArea, polygonArea };
 }
@@ -471,5 +587,7 @@ if (typeof window !== "undefined") {
     buildTerritoryMeta,
     computeDryRun,
     apply,
+    setMapFilter,
+    clearMapFilter,
   });
 }

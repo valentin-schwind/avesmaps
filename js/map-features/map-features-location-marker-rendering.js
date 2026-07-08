@@ -174,6 +174,16 @@ function createLocationVisibilityContext() {
 }
 
 function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), visibilityContext = null) {
+	// Siedlungseditor "Nur Auswahl anzeigen" (edit-mode-only, see
+	// map-features-settlement-territory-assign.js setMapFilter/clearMapFilter): when a filter
+	// Set is active, ONLY markers whose publicId is in it are shown -- takes priority over every
+	// other visibility rule below. This is a pure read of a temporary global (never persisted,
+	// never mutates `entry`/locationData), so clearing it (window.avesmapsSettlementMapFilterIds =
+	// null) makes this function fall through to the exact same result it would have produced had
+	// the filter never existed -- full, exact restoration.
+	if (typeof window.avesmapsSettlementMapFilterIds !== "undefined" && window.avesmapsSettlementMapFilterIds) {
+		return Boolean(entry.publicId) && window.avesmapsSettlementMapFilterIds.has(entry.publicId);
+	}
 	// Per "Nächsten Ort finden"/Suche temporaer angepinnter Marker bleibt sichtbar, auch wenn seine
 	// Ortsgroesse nicht eingeblendet ist — bis die zugehoerige Infobox geschlossen wird.
 	if (typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry) {
