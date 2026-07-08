@@ -86,9 +86,12 @@ const locationCanvasLayer = {
 				leyR: leyNode ? Math.max(5, (core + contour) * 1.7) : 0,
 			};
 		});
-		this._canvas.style.transition = "opacity 200ms ease-in";
-		this._canvas.style.opacity = "1";
-		this._redraw();
+		// Groesse/Position IMMER frisch aus dem aktuellen Kartenzustand ziehen (nicht nur neu zeichnen):
+		// beim ersten -- kontaktlosen -- Datenload kann der Canvas aus init() noch mit falscher Groesse/
+		// Position stehen (die Karte war beim init evtl. nicht final vermessen) -> Marker unsichtbar bis zum
+		// ersten Pan. _reset() = setPosition + getSize + Opacity + Redraw, also erscheinen die Marker auch
+		// ohne Interaktion. (_entries ist oben bereits gesetzt.)
+		this._reset();
 	},
 
 	_reset() {
