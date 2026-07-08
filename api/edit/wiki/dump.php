@@ -396,6 +396,17 @@ try {
 
                 avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_' . $syncKind);
                 if ($conflictDone) {
+                    // Whole settlement sync chain (staging + conflict-gen) is done: stamp
+                    // the location run the cases key to, so "Letzte Sync" (which reads the
+                    // newest completed LOCATION run's completed_at, see
+                    // avesmapsWikiDumpSyncKindLastSynced) reflects THIS sync rather than
+                    // the first-ever one avesmapsWikiDumpSettlementCaseRunId reused.
+                    $syncCompletedRunId = (int) ($conflictStep['run_id'] ?? 0);
+                    if ($syncCompletedRunId > 0) {
+                        $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')
+                            ->execute(['id' => $syncCompletedRunId]);
+                    }
+
                     // Whole chain (staging + conflict-gen) done -> hand the lock back.
                     avesmapsWikiDumpLockRelease($pdo, $lockUserId);
                     $lockHeldByThisRequest = false;
