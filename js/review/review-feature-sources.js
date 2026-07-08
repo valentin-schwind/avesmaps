@@ -133,6 +133,9 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return; // keep the prior render on any failure -- never blank the widget
     }
     containerEl.innerHTML = renderFeatureSourceEditorHtml(data, opts);
+    // Return the server payload so a caller can react to it (e.g. the "Ort bearbeiten" dialog
+    // reads data.revision to refresh its optimistic-locking token after the list's takeover).
+    return data;
   }
 
   function readAddRowValues() {

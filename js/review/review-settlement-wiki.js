@@ -53,10 +53,9 @@ function renderSettlementWikiReference() {
 		}
 	});
 	const publicId = settlementWikiCurrentPublicId();
-	if (typeof toggleOtherSourceSection === "function") {
-		// Show "Andere Quelle" only for a saved place that has no wiki settlement linked.
-		toggleOtherSourceSection("location-edit", !(publicId && !hasAssignment));
-	}
+	// The old "Andere Quelle" section this used to toggle is gone -- the shared multi-source editor
+	// (mounted in review-locations.js) now renders the Wiki row and catalog sources together, so
+	// there is no wiki-vs-other-source visibility to reconcile here anymore (multi-source #2).
 	if (!publicId) {
 		// Neuer Ort ohne gespeicherte ID: erst speichern, dann verbinden.
 		list.innerHTML = '<div class="label-wiki-reference__empty">Ort zuerst speichern, dann verbinden.</div>';

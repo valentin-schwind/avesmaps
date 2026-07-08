@@ -178,9 +178,10 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf");
 	document.getElementById("location-edit-description").value = presetDescription || "";
 	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
-	if (typeof writeOtherSourceToForm === "function") {
-		writeOtherSourceToForm("location-edit", location.otherSource);
-	}
+	// Shared multi-source editor (multi-source #2): replaces the old "Andere Quelle" single
+	// url/label pair. The server-side takeover now owns other_source, so this dialog no longer
+	// reads or writes it here or in buildLocationEditPayload (see mountLocationEditFeatureSources).
+	mountLocationEditFeatureSources();
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
@@ -211,6 +212,42 @@ function openLocationEditDialog(options = {}) {
 	setLocationEditDialogOpen(true);
 }
 
+// Mounts the shared multi-source editor into the "Ort bearbeiten" dialog (multi-source #2). The
+// dialog markup is static -- unlike the settlement editor, which rebuilds its panel and so gets a
+// fresh mount node for free -- so we clone-replace the container first: mountFeatureSourceEditor
+// binds one click listener per call, and re-opening the dialog would otherwise stack duplicate
+// listeners (and leave the previous feature's rows on screen). A place with no saved public_id has
+// no feature to attach sources to, so the container just stays empty until it is first saved.
+function mountLocationEditFeatureSources() {
+	const container = document.getElementById("location-edit-feature-sources");
+	if (!container) {
+		return;
+	}
+	const fresh = container.cloneNode(false); // drops the previous mount's listener + rendered rows
+	container.replaceWith(fresh);
+	const publicId = document.getElementById("location-edit-public-id")?.value || "";
+	if (!publicId || typeof mountFeatureSourceEditor !== "function") {
+		return;
+	}
+	const markerEntry = locationEditMarkerEntry;
+	void Promise.resolve(
+		mountFeatureSourceEditor(
+			fresh,
+			"settlement",
+			() => document.getElementById("location-edit-public-id")?.value || "",
+			{ escape: escapeHtml }
+		)
+	).then((data) => {
+		// The initial "list" runs the server-side other_source takeover, which bumps the feature's
+		// revision. Refresh the marker's cached token so the next save's expected_revision matches
+		// (same discipline as selectSettlementWikiResult/removeSettlementWiki) -- otherwise editing a
+		// place that still carries a legacy other_source would 409 just from opening this dialog.
+		if (data && typeof data.revision === "number" && markerEntry && markerEntry.location) {
+			markerEntry.location.revision = data.revision;
+		}
+	});
+}
+
 function buildLocationEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const publicId = String(formData.get("public_id") || "").trim();
@@ -221,8 +258,11 @@ function buildLocationEditPayload(formElement) {
 		name: String(formData.get("name") || "").trim(),
 		feature_subtype: String(formData.get("feature_subtype") || "").trim(),
 		description: String(formData.get("description") || "").trim(),
+		// wiki_url stays in the payload (update_point requires it -- omitting would unset
+		// properties.wiki_url). other_source is intentionally NOT sent anymore (multi-source #2):
+		// the shared editor + its server-side takeover own that field now, so re-sending the old
+		// {url,label} pair on every save would clobber whatever the takeover just consolidated.
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
-		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("location-edit") : { url: "", label: "" },
 		is_nodix: formData.get("is_nodix") === "on",
 		is_ruined: formData.get("is_ruined") === "on",
 	};

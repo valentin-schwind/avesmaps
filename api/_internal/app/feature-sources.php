@@ -167,7 +167,29 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
         'source_id' => (int) $r['source_id'], 'url' => (string) $r['url'], 'label' => (string) $r['label'],
         'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
     ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
-    return ['ok' => true, 'sources' => $sources, 'wiki_url' => avesmapsFeatureSourcesReadWikiUrl($pdo, $entityType, $publicId)];
+    return [
+        'ok' => true,
+        'sources' => $sources,
+        'wiki_url' => avesmapsFeatureSourcesReadWikiUrl($pdo, $entityType, $publicId),
+        // Post-takeover map_features.revision so an editor that guards its save with
+        // expected_revision can refresh its cached token -- the takeover above bumps the
+        // revision when it consolidates a legacy other_source (null for territory: no map row).
+        'revision' => avesmapsFeatureSourcesReadRevision($pdo, $entityType, $publicId),
+    ];
+}
+
+// Current optimistic-locking token (map_features.revision) for settlement/region/path; null for
+// territory (no map_features row). Read AFTER the takeover in the list response so a caller learns
+// the bumped value rather than a stale one.
+function avesmapsFeatureSourcesReadRevision(PDO $pdo, string $entityType, string $publicId): ?int
+{
+    if ($entityType === 'territory') {
+        return null;
+    }
+    $s = $pdo->prepare("SELECT revision FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1");
+    $s->execute(['id' => $publicId]);
+    $value = $s->fetchColumn();
+    return $value === false ? null : (int) $value;
 }
 
 // Der feste Wiki-Link (read-only): settlement/region/path aus properties.wiki_url; territory aus political_territory.wiki_url.

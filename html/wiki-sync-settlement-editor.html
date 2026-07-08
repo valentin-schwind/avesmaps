@@ -1351,12 +1351,11 @@ function setSettlementEditMsg(message, kind) {
 	el.className = "dt-edit-msg" + (kind ? " " + kind : "");
 }
 
-// Builds the update_point payload. Previously matched buildLocationEditPayload() in
-// js/review/review-locations.js (the single-settlement "Ort bearbeiten" dialog) field-for-field;
-// as of T3 the two have intentionally diverged on other_source -- this editor now OMITS it (the
-// shared multi-source editor + its server-side takeover own that field here, see otherSourceRow /
-// mountFeatureSourceEditor above), while review-locations.js still reads/sends it via
-// readOtherSourceFromForm() until its own dialog is migrated (tracked separately). feature_subtype
+// Builds the update_point payload. Matches buildLocationEditPayload() in
+// js/review/review-locations.js (the single-settlement "Ort bearbeiten" dialog): both editors now
+// OMIT other_source -- the shared multi-source editor + its server-side takeover own that field
+// (see otherSourceRow / mountFeatureSourceEditor above), so neither re-sends the old {url,label}
+// pair on save (re-sending it would clobber whatever the takeover just consolidated). feature_subtype
 // is ALWAYS read from the Typ <select>'s current value and always included -- update_point defaults
 // a missing feature_subtype to 'dorf' and would silently reset the settlement's type/icon, so this
 // field must never be omitted (task's #1 correctness risk).
