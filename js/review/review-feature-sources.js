@@ -93,9 +93,11 @@ function renderFeatureSourceEditorHtml(state, opts) {
   const sourceRows = sources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
   const addRow = renderFeatureSourceAddRow(escape, tr);
 
-  // Reviewer/editor guidance shown above the source list (all mount surfaces).
-  const hint = '<div class="fs-hint">' + escape(tr("sources.hint",
-    "Tragt bei Quellen immer den Namen der Quelle und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.")) + "</div>";
+  // Reviewer/editor guidance shown above the source list (all mount surfaces). The copy carries an
+  // intentional <strong> emphasis and is trusted developer/i18n text (never user input), so it is
+  // inserted as HTML rather than escaped.
+  const hint = '<div class="fs-hint">' + tr("sources.hint",
+    "Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.") + "</div>";
   return '<div class="fs-editor">' + hint + wikiRow + sourceRows + addRow + "</div>";
 }
 
