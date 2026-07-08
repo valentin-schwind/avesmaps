@@ -68,7 +68,7 @@ function setWikiSyncTerritoriesRunning(isRunning) {
 	const buttonElement = document.getElementById("wiki-sync-territories");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync & Editor";
+		buttonElement.textContent = isRunning ? "Synchronisiert..." : "Territorien Syncen & Editieren";
 	}
 
 	const progressElement = document.getElementById("wiki-sync-territories-progress");
@@ -1150,7 +1150,7 @@ function syncWikiSyncActionButtonLabels() {
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
 	if (territoriesButtonElement) {
-		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "WikiSync & Editor";
+		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "Territorien Syncen & Editieren";
 	}
 }
 
