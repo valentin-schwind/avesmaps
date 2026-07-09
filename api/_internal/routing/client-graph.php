@@ -11,6 +11,12 @@ const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 25.0;
 // you can trek cross-country to a road, not "to a river".
 const AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad'];
 
+// Sea routes mark a waypoint as water-bound (island / open-sea place). There is no coastline geometry
+// in the data (insel/meer/kueste are label points only), so a Seeweg edge is the reliable signal that
+// reaching this node requires crossing open water. Such nodes are NOT anchored to a land path: their
+// only legitimate connection is by ship, so with sea travel disabled they stay unreachable by design.
+const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
+
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
     'lightWalker' => ['Reichsstrasse' => 5.5, 'Strasse' => 5.0, 'Weg' => 4.5, 'Pfad' => 4.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.5, 'Querfeldein' => 1.7],
@@ -268,10 +274,11 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
 
 // ===== Waypoint anchoring to the nearest land path (Meldung #39 follow-up) =====
 
-// For each travel waypoint (from/to/via) that has no land-path edge, splits the nearest land path at
-// the point closest to the waypoint and adds a short Querfeldein edge to it. So an isolated place
-// (e.g. a sea-only town) reaches the road network by the SHORTEST cross-country hop instead of the
-// far component bridge. No-op when land/Querfeldein travel is disabled.
+// For each travel waypoint (from/to/via) that has no land-path edge AND no sea-route edge, splits the
+// nearest land path at the point closest to the waypoint and adds a short Querfeldein edge to it. So a
+// truly landlocked isolated place reaches the road network by the SHORTEST cross-country hop instead of
+// the far component bridge. Water-bound nodes (any Seeweg edge) are skipped: trekking cross-country to
+// them would cross open water, so they stay reachable only by ship. No-op when Querfeldein is disabled.
 function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, array $locations, array $request): void {
     if (!avesmapsIsClientRouteDomainEnabled(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request)) {
         return;
@@ -298,6 +305,7 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
     foreach ($waypointNames as $waypointIndex => $name) {
         if (!isset($graph[$name])) continue;
         if (avesmapsClientNodeHasLandPathEdge($graph, $name)) continue;
+        if (avesmapsClientNodeHasSeaRouteEdge($graph, $name)) continue;
         $location = $locationLookup[$name] ?? null;
         if (!is_array($location)) continue;
         $anchor = avesmapsFindNearestClientLandPathAnchor($graph, (float) $location['route_x'], (float) $location['route_y']);
@@ -310,6 +318,19 @@ function avesmapsClientNodeHasLandPathEdge(array $graph, string $nodeName): bool
     foreach (is_array($graph[$nodeName] ?? null) ? $graph[$nodeName] : [] as $connections) {
         foreach (is_array($connections) ? $connections : [] as $connection) {
             if (is_array($connection) && in_array((string) ($connection['route_type'] ?? ''), AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES, true)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// True when the node touches a sea route, i.e. it is an island / open-sea place reachable only by ship.
+// Used to refuse a land-Querfeldein anchor that would otherwise fabricate a cross-water trek.
+function avesmapsClientNodeHasSeaRouteEdge(array $graph, string $nodeName): bool {
+    foreach (is_array($graph[$nodeName] ?? null) ? $graph[$nodeName] : [] as $connections) {
+        foreach (is_array($connections) ? $connections : [] as $connection) {
+            if (is_array($connection) && in_array((string) ($connection['route_type'] ?? ''), AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES, true)) {
                 return true;
             }
         }
