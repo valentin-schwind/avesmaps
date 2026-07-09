@@ -179,7 +179,7 @@ const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const MAP_TILE_STYLES = {
-	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.jpg" },
+	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 	politics: { label: "Politics", url: "./tiles/politics/{z}/map_{x}_{y}.webp", maxNativeZoom: 4 },
 };
