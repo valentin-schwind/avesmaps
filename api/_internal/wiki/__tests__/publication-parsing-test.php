@@ -42,4 +42,10 @@ assert($info['f_shop_pid']==='12017' && $info['pdf_shop_id']==='109956');
 assert(avesmapsWikiMapArtToSourceType('Abenteuer')==='abenteuer');
 assert(avesmapsWikiMapArtToSourceType('Regionalspielhilfe')==='regionalspielhilfe');
 assert(avesmapsWikiMapArtToSourceType('Unbekanntes Dings')==='sonstiges');
+// Whitespace/newline-tolerant Produkt-infobox guard (real dump wikitext is not always "{{Infobox Produkt" exactly).
+$infoDoubleSpace = avesmapsWikiParseProductInfobox("{{Infobox  Produkt\n|Titel=Doppelter Leerraum\n}}"); // double space after "Infobox"
+assert($infoDoubleSpace !== null && $infoDoubleSpace['title']==='Doppelter Leerraum');
+$infoNewline = avesmapsWikiParseProductInfobox("{{Infobox\nProdukt\n|Titel=Zeilenumbruch\n}}"); // newline between "Infobox" and "Produkt"
+assert($infoNewline !== null && $infoNewline['title']==='Zeilenumbruch');
+assert(avesmapsWikiParseProductInfobox("{{Infobox Ort\n|Name=X\n}}") === null); // genuinely different infobox -> still null
 echo "infobox ok\n";

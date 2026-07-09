@@ -168,12 +168,17 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
 // Parses a publication wiki page's {{Infobox Produkt}} block. Reuses
 // avesmapsWikiSyncMonitorExtractInfoboxBlock() (which is NOT name-filtered -- it returns
 // whatever {{Infobox ...}} block it finds first) and GUARDS on the block actually being an
-// "Infobox Produkt"; returns null for pages with no infobox or a different infobox type.
+// "Infobox Produkt" via avesmapsWikiSyncMonitorInfoboxName() + avesmapsWikiSyncMonitorFieldKey()
+// -- the same whitespace/newline-tolerant name match dump-entity-scan.php/paths.php/regions.php
+// use, NOT a literal string-prefix check, so irregularly-spaced real wikitext like
+// "{{Infobox  Produkt" (double space) or "{{Infobox\nProdukt" (newline) still match; returns null
+// for pages with no infobox or a genuinely different infobox type.
 // f_shop_pid/pdf_shop_id are not direct template params -- they're regexed out of the
 // Direktlinks/Download param values ({{F-Shop|PID=…}} / {{PDF-Shop|ID=…}}).
 function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
     $block = avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext);
-    if ($block === '' || !str_starts_with($block, '{{Infobox Produkt')) {
+    $infoboxKey = avesmapsWikiSyncMonitorFieldKey(avesmapsWikiSyncMonitorInfoboxName($block));
+    if ($block === '' || $infoboxKey !== 'produkt') {
         return null;
     }
     $params = avesmapsWikiSyncMonitorParseTemplateParams($block);
