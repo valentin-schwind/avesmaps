@@ -1,6 +1,6 @@
 # Wiki-Publikationsquellen — Bulk-Lookup (Design-Spec)
 
-> Status: Entwurf zum Gegenlesen (2026-07-09). Danach → Umsetzungsplan → Instruction für eine neue Session.
+> Status: **Umgesetzt** (Build komplett 2026-07-09 via `docs/wiki-publikations-quellen-instruction.md`; Owner-Deploy + Sync-Smoke + Wording-Freigabe stehen noch aus).
 > Sprache: Design-Doc auf Deutsch; Code/Tabellen/Spalten/`error.code` bleiben Englisch.
 
 ## 1. Ziel

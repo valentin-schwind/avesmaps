@@ -113,7 +113,7 @@ DDL in PHP** (self-healing pattern), partially mirrored in `sql/`. Key tables:
 - `map_features` — locations, crossings, paths, rivers, regions, labels (+ `map_revision`, `map_audit_log`, `map_feature_locks`, `editor_presence`).
 - `political_territory` + `political_territory_wiki` + `political_territory_geometry` (+ `_geometry_audit_log`, `_derived_geometry`, `_claim`) — territory hierarchy via `parent_id`, GeoJSON Polygon/MultiPolygon, BF-year timeline (`valid_from_bf`/`valid_to_bf`, `9999` = open/never-dissolved sentinel).
 - `location_reports` / `map_reports`, `map_reviews`, `map_share_links`.
-- `sources` + `feature_sources` — multi-source system (shipped): shared source catalog (`url`/`url_hash`=SHA256, `label`, `source_type`, `is_official`) linked to elements (`entity_type` ∈ settlement|region|path|territory, `entity_public_id`, `status`). Public read `GET /api/app/feature-sources.php`; editor write `POST /api/edit/map/feature-sources.php` (capability `edit`, dedup by `url_hash`, atomic `other_source` takeover). Wiki-publication bulk lookup + provenance (`origin` wiki/manual/community) planned — see §11.
+- `sources` + `feature_sources` — multi-source system (shipped): shared source catalog (`url`/`url_hash`=SHA256, `label`, `source_type`, `is_official`) linked to elements (`entity_type` ∈ settlement|region|path|territory, `entity_public_id`, `status`). Public read `GET /api/app/feature-sources.php`; editor write `POST /api/edit/map/feature-sources.php` (capability `edit`, dedup by `url_hash`, atomic `other_source` takeover). Wiki-publication bulk lookup + provenance **shipped**: `feature_sources` gains `origin` (wiki_publication|manual|community), `reference_kind`, `pages`, `note` (+ `status='suppressed'` tombstone); a resumable `publication_sources` dump-sync phase parses `{{Infobox Produkt}}` + `==Publikationen==` into `wiki_publication_catalog`/`wiki_entity_publication` staging, and an **owner-triggered `sync_publications` action** reconciles them override-safely into the wiki layer (writes/deletes ONLY `origin='wiki_publication'`, manual/suppressed untouched, idempotent by `wiki_key`). Sources travel in the `map-features` payload (shared `source_catalog` + per-entity refs, rendered synchronously — no lazy per-popup fetch). See §11.
 - WikiSync staging: `wiki_sync_runs/pages/cases`, `wiki_*_staging/queue`, `political_territory_wiki_test`, `wiki_territory_model`, `wiki_redirect_alias`.
 
 **Coordinate convention:** GeoJSON stores `[x, y]`; Leaflet `L.CRS.Simple` uses
@@ -217,7 +217,7 @@ Authoritative docs (being translated to English in M8):
 - `docs/repository-data-policy.md` — what may/may not enter the repo.
 - `docs/map-features-rest-architecture.md` — structure of the map-features layer.
 - `docs/quellen-system-design.md`, `docs/quellen-system-2-editor-design.md` — multi-source system (infobox display + editor management).
-- `docs/wiki-publikations-quellen-design.md` — planned Wiki publication-source bulk lookup (sources shipped in the map payload; wiki/manual/community provenance; manual overrides preserved).
+- `docs/wiki-publikations-quellen-design.md` — Wiki publication-source bulk lookup (**shipped**; sources travel in the map payload; wiki/manual/community provenance; manual/suppressed overrides preserved). Implementation instruction: `docs/wiki-publikations-quellen-instruction.md`.
 - `docs/political-territory-editor.md` — editor architecture.
 - `docs/stylized-map-tiles.md` — tile pipeline.
 - `docs/political-territory-global-display-and-derived-boundaries-{plan,progress}.md`,
