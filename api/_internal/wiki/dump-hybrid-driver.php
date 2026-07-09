@@ -47,11 +47,13 @@ declare(strict_types=1);
  * heavy endpoint server-side).
  *
  * THE GATE (progress.md "H4c GATE WIRING", AUTHORITATIVE): the read_step
- * advance action runs phase 6 with dryRun=TRUE -- it writes ONLY the sandbox
- * state table + the alias table, NOTHING sharp. A SEPARATE `apply` action runs
- * phase 6 with dryRun=FALSE (the sole sharp real-*_staging write), which the
- * owner triggers ONLY after the H5 compare-test is green. The two are DISTINCT
- * actions, never folded together.
+ * advance action runs phase 6 with dryRun=TRUE -- across the read pass it writes
+ * ONLY sandbox/staging tables (the hybrid state table, the alias table, and the
+ * publication_sources catalog + entity-ref staging tables), NOTHING sharp. A
+ * SEPARATE `apply` action runs phase 6 with dryRun=FALSE (the sole sharp
+ * real-*_staging write; it ALSO drives the publication_sources reconcile into
+ * feature_sources), which the owner triggers ONLY after the H5 compare-test is
+ * green. The two are DISTINCT actions, never folded together.
  *
  * ALIAS PERSISTENCE (design report §4 option a, brief item 4): H4a's
  * avesmapsWikiDumpCollectRedirectTitleAliases() is a PURE collector that stores

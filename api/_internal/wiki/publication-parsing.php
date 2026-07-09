@@ -218,7 +218,7 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
 // wiki's own `?action=raw` API on 2026-07-09, which is a template-*definition* read, explicitly
 // allowed by operator policy (NOT an HTML content crawl of article pages):
 //
-// F-Shop -- https://de.wiki-aventurica.de/wiki/Vorlage:F-Shop?action=raw (belief date 2026-07-09).
+// F-Shop -- https://de.wiki-aventurica.de/wiki/Vorlage:F-Shop?action=raw (verification date 2026-07-09).
 // Raw wikitext (verbatim):
 //   {{#if:{{{PID|}}}|[https://www.f-shop.de/search?sSearch={{{PID}}} F-Shop] {{Vorlagenhilfehinweis|F-Shop}}
 //   |{{#if:{{{ID|}}}|[https://www.f-shop.de/detail/index/sArticle/{{{ID}}} F-Shop] {{Vorlagenhilfehinweis|F-Shop}}}}}}
@@ -229,7 +229,7 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
 // detail page -- that is what the template itself renders for a PID, so it is the proven pattern
 // even though "canonical" here means "what the wiki links to", not "shortest possible URL".
 //
-// PDF-Shop -- https://de.wiki-aventurica.de/wiki/Vorlage:PDF-Shop?action=raw (belief date 2026-07-09).
+// PDF-Shop -- https://de.wiki-aventurica.de/wiki/Vorlage:PDF-Shop?action=raw (verification date 2026-07-09).
 // Raw wikitext (verbatim, relevant branch):
 //   {{#if:{{#dplreplace:{{{ID|}}}|\D}}|[https://www.ulisses-ebooks.de/product/{{{ID}}} PDF-Shop] ...|...}}
 // The literal template target is https://www.ulisses-ebooks.de/product/<ID> (no locale segment, no
