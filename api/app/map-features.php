@@ -50,6 +50,14 @@ try {
     $query = avesmapsBuildMapFeaturesQuery($_GET);
     $statement = $pdo->prepare($query['sql']);
     $statement->execute($query['params']);
+    $rows = $statement->fetchAll();
+
+    // Fix #2 parity: fold each element's un-taken-over properties.other_source ("Andere Quelle") into
+    // the shared catalog + refs, so a legacy source that was never opened in the editor (and so never
+    // migrated into feature_sources) still renders. Mutates $sourceCatalog/$featureSourceRefs in place
+    // before serialization -- restoring the parity the removed lazy per-popup read (avesmapsReadFeatureSources)
+    // used to provide, without touching any JS.
+    avesmapsMapFeaturesMergeLegacyOtherSources($rows, $sourceCatalog, $featureSourceRefs);
 
     // Kompression (#1): diese Antwort wird vom Server nicht komprimiert (gemessen: content-encoding none)
     // -> hier explizit gzip, wenn der Client es akzeptiert. ~14 MB JSON -> ~1,5-2,5 MB.
@@ -59,7 +67,7 @@ try {
         'type' => 'FeatureCollection',
         'features' => array_map(
             static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes),
-            $statement->fetchAll()
+            $rows
         ),
         // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
@@ -392,6 +400,85 @@ function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
         $refs[$key][] = $ref;
     }
     return $refs;
+}
+
+// Fix #2 parity: settlement/region/path elements can still carry a legacy single
+// properties.other_source ("Andere Quelle") that was never opened in the editor and so never taken
+// over into the feature_sources catalog. The removed lazy read (avesmapsReadFeatureSources) merged
+// it into the displayed source list; the synchronous payload path reads ONLY the feature_sources
+// table, so this restores parity by synthesizing that un-taken-over other_source as a normal catalog
+// entry + a per-feature ref. The synthetic id is a NON-numeric string ("os:<public_id>") so it can
+// never collide with a real integer sources.id and stays a string key in the (object)-serialized map;
+// the JS resolver (resolveFeatureSourceList) then resolves it exactly like any other
+// {url,label,official,type} source. Deduped by URL against the element's already-approved links
+// (replicating avesmapsReadFeatureSources): a source that WAS taken over is never shown twice.
+// Territory has no map_features row, so only these three feature types are in scope. Mutates the
+// two shared maps in place.
+//
+// @param list<array<string,mixed>> $rows this payload's raw map_features rows
+// @param array<int|string,array<string,mixed>> $catalog shared source catalog, keyed by source id (mutated)
+// @param array<string,list<array<string,mixed>>> $refs per-entity refs, keyed "<entity_type>:<public_id>" (mutated)
+function avesmapsMapFeaturesMergeLegacyOtherSources(array $rows, array &$catalog, array &$refs): void {
+    // feature_type -> the entity_type the JS resolver / feature_sources rows are keyed by.
+    $entityTypeByFeatureType = ['location' => 'settlement', 'label' => 'region', 'path' => 'path'];
+
+    foreach ($rows as $row) {
+        if ((int) ($row['is_active'] ?? 1) !== 1) {
+            continue; // deleted tombstone -> no source line
+        }
+        $entityType = $entityTypeByFeatureType[(string) ($row['feature_type'] ?? '')] ?? '';
+        if ($entityType === '') {
+            continue; // crossing/river/etc. -- no other_source display surface
+        }
+
+        // Cheap substring gate before the JSON decode: skips the ~all rows with no legacy field
+        // (mirrors the LIKE pre-filters elsewhere; keeps the hot ~14 MB payload decode-once).
+        $rawProps = $row['properties_json'] ?? null;
+        if (!is_string($rawProps) || strpos($rawProps, '"other_source"') === false) {
+            continue;
+        }
+
+        $properties = avesmapsDecodeJsonColumn($rawProps);
+        $other = $properties['other_source'] ?? null;
+        $url = is_array($other) ? trim((string) ($other['url'] ?? '')) : '';
+        if ($url === '') {
+            continue; // present but empty/malformed -> nothing to show
+        }
+
+        $publicId = (string) ($row['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        $refKey = $entityType . ':' . $publicId;
+
+        // Dedup (replicating avesmapsReadFeatureSources): skip when this url is ALREADY an approved
+        // feature_sources link for the element (it was taken over into the catalog) -> never twice.
+        $alreadyLinked = false;
+        foreach ($refs[$refKey] ?? [] as $ref) {
+            $sourceId = $ref['source_id'] ?? null;
+            $entry = ($sourceId !== null && isset($catalog[$sourceId])) ? $catalog[$sourceId] : null;
+            if (is_array($entry) && (string) ($entry['url'] ?? '') === $url) {
+                $alreadyLinked = true;
+                break;
+            }
+        }
+        if ($alreadyLinked) {
+            continue;
+        }
+
+        // Synthetic id: a NON-numeric string, so it never collides with a real integer sources.id
+        // and PHP keeps it a string key (not int-cast) in the (object)-serialized catalog map.
+        $syntheticId = 'os:' . $publicId;
+        $catalog[$syntheticId] = [
+            'url' => $url,
+            'label' => is_array($other) ? trim((string) ($other['label'] ?? '')) : '',
+            'type' => 'sonstiges',
+            'official' => false,
+        ];
+        // Append last: other_source is non-official and buildSourceListMarkup groups official-first,
+        // so it renders after the curated sources -- matching the old "legacy appended after catalog".
+        $refs[$refKey][] = ['source_id' => $syntheticId];
+    }
 }
 
 function avesmapsLoadWikiSyncLocationLinks(PDO $pdo): array {

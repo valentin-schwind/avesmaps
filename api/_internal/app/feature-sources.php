@@ -270,6 +270,14 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     avesmapsEnsureFeatureSourceTables($pdo);
     $sourceId = avesmapsFeatureSourceUpsert($pdo, $url, $label, $type, $official, $userId);
     avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId);
+    // Cache invalidation (Fix #1): a new source link changes the element's rendered source list,
+    // which rides in the ETag-cached map-features payload (W/"mf-<map_revision>-..."). Bump the SAME
+    // global map_revision counter ordinary editor edits use so warm-cache clients don't keep a stale
+    // 304. avesmapsNextMapRevision is available because api/edit/map/feature-sources.php loads
+    // api/_internal/map/features.php (the same reason the other_source takeover below can call it).
+    // The trailing list-for-edit's takeover only bumps when it consolidates a legacy other_source,
+    // which in the normal editor flow already happened during the initial `list` -> single bump here.
+    avesmapsNextMapRevision($pdo);
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId); // Takeover passiert hier drin
 }
 
@@ -300,5 +308,9 @@ function avesmapsRemoveFeatureSource(PDO $pdo, string $entityType, string $publi
             ->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
     }
 
+    // Cache invalidation (Fix #1): suppress OR hard-delete both change the element's rendered
+    // source list -> bump the same global map_revision counter (ETag seed) ordinary edits use, so
+    // warm-cache clients don't keep a stale 304. Same avesmapsNextMapRevision reuse as the add path.
+    avesmapsNextMapRevision($pdo);
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
 }

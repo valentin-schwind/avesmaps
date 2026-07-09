@@ -373,9 +373,12 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
     foreach ($source($dumpPath, max(0, $cursor)) as $page) {
         $pagesScanned++;
 
-        $isArticle = (int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null;
-        if ($isArticle) {
-            $info = avesmapsWikiParseProductInfobox((string) ($page['wikitext'] ?? ''));
+        $wikitext = (string) ($page['wikitext'] ?? '');
+        // Cheap pre-filter before the regex-heavy parse: only a page whose wikitext mentions
+        // "Produkt" can carry an {{Infobox Produkt}} (mirrors the refs step's 'Publikationen'
+        // gate below). Skips the parser on the vast majority of ns0 articles that are not products.
+        if (stripos($wikitext, 'Produkt') !== false && (int) ($page['ns'] ?? 0) === 0 && ($page['redirect'] ?? null) === null) {
+            $info = avesmapsWikiParseProductInfobox($wikitext);
             if (is_array($info)) {
                 $pageTitle = (string) ($page['title'] ?? '');
                 $wikiKey = avesmapsPublicationCatalogWikiKeyForTitle($pageTitle);
@@ -750,6 +753,18 @@ function avesmapsPublicationReconcileStep(PDO $pdo, int $segment, int $lastId, i
         }
 
         if (microtime(true) >= $deadline) {
+            // Cache invalidation (Fix #1): this step wrote to feature_sources, which feeds the
+            // ETag-cached map-features payload (W/"mf-<map_revision>-...") -- so bump the SAME
+            // global map_revision counter ordinary editor edits use, or warm-cache clients keep
+            // 304-ing the pre-publication payload. Reused via avesmapsWikiSyncNextMapRevision
+            // (loaded in this runtime by the dump endpoint's locations.php chain). BOTH reconcile
+            // drivers -- the sync_publications action AND the apply pipeline -- funnel through this
+            // function, so this one spot covers both. Bumping per changed step (not only on the
+            // final done=true) means a multi-step run whose LAST step is a no-op still invalidates,
+            // while a genuinely no-op step/run never bumps (no needless cache churn).
+            if ($linksAdded + $linksRemoved + $linksUpdated > 0) {
+                avesmapsWikiSyncNextMapRevision($pdo);
+            }
             // Time budget hit: resume from exactly here next step.
             return [
                 'done' => $currentSegment >= count($segments),
@@ -761,6 +776,13 @@ function avesmapsPublicationReconcileStep(PDO $pdo, int $segment, int $lastId, i
                 'processed' => $processed,
             ];
         }
+    }
+
+    // Cache invalidation (Fix #1): final step -- same rationale as the deadline branch above. Bump
+    // map_revision once iff this step actually changed feature_sources, so warm-cache clients drop
+    // their stale 304 and re-fetch the payload that now carries the publication sources.
+    if ($linksAdded + $linksRemoved + $linksUpdated > 0) {
+        avesmapsWikiSyncNextMapRevision($pdo);
     }
 
     return [
