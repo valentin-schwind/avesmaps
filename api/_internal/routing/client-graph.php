@@ -17,6 +17,12 @@ const AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES = ['Reichsstrasse', 'Strasse', 'Weg'
 // only legitimate connection is by ship, so with sea travel disabled they stay unreachable by design.
 const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 
+// A component bridge whose BOTH ends touch a sea route and that spans more than this airline distance
+// (route units, before the x25 cost factor) is treated as a strait / bay-mouth crossing and refused:
+// land-only routing then reports "no route" instead of a cross-water Querfeldein between two coasts.
+// Below the threshold a coastal data-gap still bridges; a bridge with an inland end is never affected.
+const AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE = 20.0;
+
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
     'lightWalker' => ['Reichsstrasse' => 5.5, 'Strasse' => 5.0, 'Weg' => 4.5, 'Pfad' => 4.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.5, 'Querfeldein' => 1.7],
@@ -250,9 +256,19 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
         $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($detachedNodeNames, $anchorNodeNames, $locationLookup);
         if (!is_array($nearestConnection)) continue;
 
-        $distance = (float) $nearestConnection['distance'] * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
         $fromLocation = $nearestConnection['from_location'];
         $toLocation = $nearestConnection['to_location'];
+        $rawDistance = (float) $nearestConnection['distance'];
+        // Both ends coastal + a long gap = a strait/bay-mouth crossing (e.g. Mura<->Bilhen): refuse it so
+        // land-only routing says "no route" instead of walking across open water. A shorter coastal gap,
+        // or a bridge with an inland (non-sea) endpoint (a landlocked/jungle component), stays bridged --
+        // so a bay you can drive around is unaffected (that is one connected component, not a bridge).
+        if ($rawDistance > AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE
+            && isset($seaBoundLocationNames[(string) $fromLocation['name']])
+            && isset($seaBoundLocationNames[(string) $toLocation['name']])) {
+            continue;
+        }
+        $distance = $rawDistance * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
         $connectionId = 'synthetic-' . $fromLocation['name'] . '->' . $toLocation['name'];
         $connection = [
             'distance' => $distance,
