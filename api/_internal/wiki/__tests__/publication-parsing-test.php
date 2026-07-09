@@ -49,3 +49,9 @@ $infoNewline = avesmapsWikiParseProductInfobox("{{Infobox\nProdukt\n|Titel=Zeile
 assert($infoNewline !== null && $infoNewline['title']==='Zeilenumbruch');
 assert(avesmapsWikiParseProductInfobox("{{Infobox Ort\n|Name=X\n}}") === null); // genuinely different infobox -> still null
 echo "infobox ok\n";
+
+$u = avesmapsWikiBuildPublicationUrl('12017', '109956'); assert($u['has_link'] === true); // F-Shop wins over PDF-Shop
+$u = avesmapsWikiBuildPublicationUrl('12017', null); assert($u['chosen_url'] === 'https://www.f-shop.de/search?sSearch=12017' && $u['has_link'] === true); // F-Shop-only: pattern proven from Vorlage:F-Shop raw wikitext (PID branch), see comment in publication-parsing.php
+$u = avesmapsWikiBuildPublicationUrl(null, '109956'); assert($u['chosen_url'] === 'https://www.ulisses-ebooks.de/de/product/109956/');
+$u = avesmapsWikiBuildPublicationUrl(null, null); assert($u['chosen_url'] === '' && $u['has_link'] === false);
+echo "url ok\n";

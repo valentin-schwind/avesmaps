@@ -208,3 +208,47 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         'pdf_shop_id' => $pdfShopId,
     ];
 }
+
+// Builds the canonical "buy" URL for a publication from its F-Shop/PDF-Shop template IDs
+// (avesmapsWikiParseProductInfobox()'s f_shop_pid/pdf_shop_id). Link hierarchy (first hit wins,
+// per docs/wiki-publikations-quellen-design.md §5): F-Shop -> PDF-Shop -> no link (empty
+// chosen_url, has_link=false; the caller renders the publication as a name-only source).
+//
+// URL patterns are BELEGT (proven from the live template source), not guessed -- fetched via the
+// wiki's own `?action=raw` API on 2026-07-09, which is a template-*definition* read, explicitly
+// allowed by operator policy (NOT an HTML content crawl of article pages):
+//
+// F-Shop -- https://de.wiki-aventurica.de/wiki/Vorlage:F-Shop?action=raw (belief date 2026-07-09).
+// Raw wikitext (verbatim):
+//   {{#if:{{{PID|}}}|[https://www.f-shop.de/search?sSearch={{{PID}}} F-Shop] {{Vorlagenhilfehinweis|F-Shop}}
+//   |{{#if:{{{ID|}}}|[https://www.f-shop.de/detail/index/sArticle/{{{ID}}} F-Shop] {{Vorlagenhilfehinweis|F-Shop}}}}}}
+// Two branches: a PID branch (search URL) and an ID branch (detail-page URL). This function only
+// ever receives a PID -- avesmapsWikiParseProductInfobox() regexes exclusively `{{F-Shop|PID=...}}`
+// out of the Direktlinks param, never a bare `ID=` -- so only the PID branch applies:
+// https://www.f-shop.de/search?sSearch=<PID>. Note this is a search-results URL, not a per-product
+// detail page -- that is what the template itself renders for a PID, so it is the proven pattern
+// even though "canonical" here means "what the wiki links to", not "shortest possible URL".
+//
+// PDF-Shop -- https://de.wiki-aventurica.de/wiki/Vorlage:PDF-Shop?action=raw (belief date 2026-07-09).
+// Raw wikitext (verbatim, relevant branch):
+//   {{#if:{{#dplreplace:{{{ID|}}}|\D}}|[https://www.ulisses-ebooks.de/product/{{{ID}}} PDF-Shop] ...|...}}
+// The literal template target is https://www.ulisses-ebooks.de/product/<ID> (no locale segment, no
+// trailing slash). Per the task brief this function instead emits the already-confirmed,
+// community-observed pattern https://www.ulisses-ebooks.de/de/product/<ID>/ -- verified against a
+// real browser URL for an existing catalog entry (".../product/100144/..."): the shop adds the
+// /de/ locale segment and a trailing slash once the bare template link is actually followed
+// (locale redirect + canonicalization), so that is the URL a buyer actually lands on. Kept exactly
+// as mandated by the brief (see .superpowers/sdd/task-3-brief.md Step 1/2).
+function avesmapsWikiBuildPublicationUrl(?string $fShopPid, ?string $pdfShopId): array {
+    $fShopPid = trim((string) $fShopPid);
+    $pdfShopId = trim((string) $pdfShopId);
+
+    if ($fShopPid !== '') {
+        return ['chosen_url' => 'https://www.f-shop.de/search?sSearch=' . rawurlencode($fShopPid), 'has_link' => true];
+    }
+    if ($pdfShopId !== '') {
+        return ['chosen_url' => 'https://www.ulisses-ebooks.de/de/product/' . rawurlencode($pdfShopId) . '/', 'has_link' => true];
+    }
+
+    return ['chosen_url' => '', 'has_link' => false];
+}
