@@ -654,46 +654,63 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 	return lastRun;
 }
 
-// "Dump holen": ONE user-visible operation chaining three backend steps in strict
+// "Dump holen": ONE user-visible operation chaining four backend steps in strict
 // sequence -- each step only runs if the previous one succeeded:
 //   1. fetch_dump   -- re-download the dump file from the wiki (server-fetch).
 //   2. start_read + read_step loop -- the sandbox-safe scan (dryRun=true the whole
 //      way; writes ONLY wiki_dump_hybrid_state/wiki_dump_title_alias).
 //   3. cleanup_state -- ONLY after a successful scan: delete every OTHER dump_read
 //      run's sandbox rows so exactly one dump's state remains.
+//   4. sync_publications loop (runWikiSyncPublicationsSyncLoop) -- the SHARP
+//      reconcile of wiki publication sources into feature_sources
+//      (origin=wiki_publication only; manual/suppressed sources are untouched).
+//      Folded in here so "Dump holen" is ONE action instead of two -- this used
+//      to be a separate "Publikationsquellen übernehmen" button; the owner asked
+//      to fold it in. The reconcile itself stays override-safe and idempotent.
 // If fetch fails, the scan never runs. If the scan fails, cleanup never runs (so a
 // failed/partial run's rows stay around rather than silently vanishing, and the
 // previous good run -- if any -- is untouched since it is still "the newest
-// completed run" until a NEW run completes).
+// completed run" until a NEW run completes). If cleanup fails, the publication
+// reconcile never runs either.
 async function startWikiSyncDumpRead() {
 	if (isWikiSyncDumpRunning) {
 		return;
 	}
-	if (!window.confirm("Dump holen lädt den kompletten Wiki-Dump neu und holt Weiterleitungen + Kontinente online — das dauert einige Minuten. Jetzt starten?")) {
+	if (!window.confirm("Dump holen lädt den kompletten Wiki-Dump neu, holt Weiterleitungen + Kontinente online und übernimmt danach die Publikationsquellen scharf in die Quellen (feature_sources) — manuelle/unterdrückte Quellen bleiben unangetastet. Das dauert einige Minuten. Jetzt starten?")) {
 		return;
 	}
 	isWikiSyncDumpRunning = true;
 
 	try {
-		// Step 1/3: server-fetch (re-download from the wiki).
+		// Step 1/4: server-fetch (re-download from the wiki).
 		setWikiSyncDumpButtonsDisabled(true, "Lädt Dump herunter...");
 		setWikiSyncStatus("Dump wird vom Wiki heruntergeladen …", "pending");
 		await submitWikiSyncDumpAction("fetch_dump");
 
-		// Step 2/3: the sandbox-safe scan loop (dryRun=true throughout).
+		// Step 2/4: the sandbox-safe scan loop (dryRun=true throughout).
 		setWikiSyncDumpButtonsDisabled(true, "Liest Dump...");
 		setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
 		await runWikiSyncDumpLoop("read_step");
 
-		// Step 3/3: prune old sandbox state now that this scan succeeded. A cleanup
+		// Step 3/4: prune old sandbox state now that this scan succeeded. A cleanup
 		// failure is reported but does NOT roll back the scan that already completed
 		// (the scan's own success is real and independent of housekeeping).
 		setWikiSyncDumpButtonsDisabled(true, "Räumt alte Dump-Stände auf...");
 		setWikiSyncStatus("Alte Dump-Stände werden aufgeräumt …", "pending");
 		await submitWikiSyncDumpAction("cleanup_state");
 
-		setWikiSyncStatus("Dump geholt (Sandbox). Die einzelnen Tabs koennen jetzt per Syncen uebernommen werden.", "success");
-		showFeedbackToast("Dump geholt: heruntergeladen, gelesen (Sandbox) und aufgeräumt.", "success");
+		// Step 4/4: reconcile the wiki publication sources into feature_sources now
+		// that this dump's scan is the newest completed run. A failure here surfaces
+		// via the same catch block below (steps 1-3 already succeeded and are not
+		// rolled back).
+		setWikiSyncDumpButtonsDisabled(true, "Übernimmt Publikationsquellen...");
+		setWikiSyncStatus("Publikationsquellen werden übernommen …", "pending");
+		const publicationsResult = await runWikiSyncPublicationsSyncLoop();
+		const totals = (publicationsResult && publicationsResult.totals) || { added: 0, removed: 0, updated: 0, processed: 0 };
+		const note = ` (+${Number(totals.added || 0)} / ~${Number(totals.updated || 0)} / -${Number(totals.removed || 0)})`;
+
+		setWikiSyncStatus(`Dump geholt und Publikationsquellen übernommen.${note}`, "success");
+		showFeedbackToast(`Dump geholt und Publikationsquellen übernommen.${note}`, "success");
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
 		await refreshWikiSyncDumpFetchedStatus();
@@ -949,17 +966,17 @@ async function startWikiSyncKindSync(kind) {
 }
 
 // ===========================================================================
-// Publikationsquellen übernehmen (Wave 2, owner-getriggert): the SHARP reconcile
-// of the wiki publication sources built during "Dump holen" into feature_sources
-// (origin='wiki_publication'). Cross-kind: ONE central button drives the backend
-// `sync_publications` action via the SAME one-POST-per-step client loop the dump
-// read / per-kind Syncen use (runWikiSyncDumpLoop pattern). It reconciles all four
-// entity types (territory/settlement/region/path) over a (segment, id high-water)
-// cursor; the override guarantee (never touch a manual/community/suppressed source)
-// lives entirely in the backend diff. Backend: api/edit/wiki/dump.php (sync_publications).
+// Publikationsquellen übernehmen (Wave 2): the SHARP reconcile of the wiki
+// publication sources built during "Dump holen" into feature_sources
+// (origin='wiki_publication'). Cross-kind: folded into "Dump holen" as its
+// step 4/4 (see startWikiSyncDumpRead) rather than a separate trigger, driving
+// the backend `sync_publications` action via the SAME one-POST-per-step client
+// loop the dump read / per-kind Syncen use (runWikiSyncDumpLoop pattern). It
+// reconciles all four entity types (territory/settlement/region/path) over a
+// (segment, id high-water) cursor; the override guarantee (never touch a
+// manual/community/suppressed source) lives entirely in the backend diff.
+// Backend: api/edit/wiki/dump.php (sync_publications).
 // ===========================================================================
-
-let isWikiSyncPublicationsSyncRunning = false;
 
 // Render the central publication-reconcile progress bar + status line from a step
 // response. The step returns per-step link deltas; `totals` carries the run-summed
@@ -1035,42 +1052,6 @@ async function runWikiSyncPublicationsSyncLoop() {
 		lastResult.totals = totals;
 	}
 	return lastResult;
-}
-
-// Click handler for the central "Publikationsquellen übernehmen" button. Confirms first
-// (it writes sharp feature_sources), runs the loop, then reports the run-summed deltas.
-async function startWikiSyncPublicationsSync() {
-	if (isWikiSyncPublicationsSyncRunning) {
-		return;
-	}
-	if (!window.confirm("Publikationsquellen aus dem zuletzt gelesenen Dump scharf in die Quellen übernehmen? Manuelle Quellen bleiben unangetastet (nur Wiki-Publikationsquellen werden abgeglichen).")) {
-		return;
-	}
-	isWikiSyncPublicationsSyncRunning = true;
-	const button = document.getElementById("wiki-sync-sync-publications");
-	if (button) {
-		button.disabled = true;
-		button.textContent = "Übernimmt Publikationsquellen...";
-	}
-	setWikiSyncStatus("Publikationsquellen werden übernommen …", "pending");
-
-	try {
-		const result = await runWikiSyncPublicationsSyncLoop();
-		const totals = (result && result.totals) || { added: 0, removed: 0, updated: 0, processed: 0 };
-		const note = ` (+${Number(totals.added || 0)} / ~${Number(totals.updated || 0)} / -${Number(totals.removed || 0)})`;
-		setWikiSyncStatus(`Publikationsquellen übernommen.${note}`, "success");
-		showFeedbackToast(`Publikationsquellen übernommen.${note}`, "success");
-	} catch (error) {
-		console.error("Publikationsquellen übernehmen fehlgeschlagen:", error);
-		setWikiSyncStatus(error.message || "Publikationsquellen übernehmen fehlgeschlagen.", "error");
-		showFeedbackToast(error.message || "Publikationsquellen übernehmen fehlgeschlagen.", "warning");
-	} finally {
-		isWikiSyncPublicationsSyncRunning = false;
-		if (button) {
-			button.disabled = false;
-			button.textContent = "📚 Publikationsquellen übernehmen";
-		}
-	}
 }
 
 // --- Inline credential prompt (O1) -------------------------------------------

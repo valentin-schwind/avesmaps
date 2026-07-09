@@ -333,17 +333,15 @@
 				     "Syncen" buttons below drive sync_kind for each kind. -->
 				<div class="wiki-sync-dump-central">
 					<div class="wiki-sync-panel__actions wiki-sync-dump-actions">
-						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Lädt den Wiki-Dump neu herunter, liest ihn ein (Sandbox, schreibt nichts Scharfes) und räumt danach alte Dump-Stände auf.">📥 Dump holen</button>
+						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Lädt den Wiki-Dump neu herunter, liest ihn ein (Sandbox, schreibt nichts Scharfes), räumt danach alte Dump-Stände auf und übernimmt die Publikationsquellen scharf in die Quellen (feature_sources) — manuelle/unterdrückte Quellen bleiben unangetastet.">📥 Dump holen</button>
 						<span id="wiki-sync-dump-fetched-status" class="wiki-sync-panel__summary" hidden></span>
 					</div>
 					<progress id="wiki-sync-dump-progress" class="wiki-sync-progress" max="6" value="0" hidden></progress>
 					<p id="wiki-sync-dump-status" class="wiki-sync-panel__summary" role="status" aria-live="polite" hidden></p>
-					<!-- Owner-triggered SHARP reconcile of the wiki publication sources built during "Dump holen"
-					     into feature_sources (origin=wiki_publication). Cross-kind (reconciles all four entity
-					     types), so it lives in the central block next to "Dump holen", not a per-tab section. -->
-					<div class="wiki-sync-panel__actions wiki-sync-dump-actions">
-						<button id="wiki-sync-sync-publications" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die im zuletzt gelesenen Dump gefundenen Publikationsquellen scharf in die Quellen (feature_sources, nur origin=wiki_publication). Owner-Aktion; überschreibt keine manuellen Quellen.">📚 Publikationsquellen übernehmen</button>
-					</div>
+					<!-- SHARP reconcile of the wiki publication sources into feature_sources
+					     (origin=wiki_publication) is now step 4/4 of "Dump holen" above -- folded in,
+					     no separate trigger. This progress bar + status line are driven by that same
+					     step (runWikiSyncPublicationsSyncLoop in startWikiSyncDumpRead), reused unchanged. -->
 					<progress id="wiki-sync-sync-publications-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="4" value="0" hidden></progress>
 					<p id="wiki-sync-sync-publications-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
 				</div>

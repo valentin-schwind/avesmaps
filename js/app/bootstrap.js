@@ -267,8 +267,6 @@ $("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
 $("#wiki-sync-sync-settlement").on("click", () => startWikiSyncKindSync("settlement"));
 $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
 $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
-// Publikationsquellen (Wave 2, owner-getriggert): sharp reconcile into feature_sources (sync_publications).
-$("#wiki-sync-sync-publications").on("click", () => startWikiSyncPublicationsSync());
 $("#wiki-sync-dump-credentials-form").on("submit", (event) => {
     event.preventDefault();
     void submitWikiSyncDumpCredentials();
