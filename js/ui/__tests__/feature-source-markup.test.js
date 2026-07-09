@@ -17,4 +17,16 @@ assert.ok(out.includes("popup-source-official"), "official star");
 // empty -> empty string
 assert.strictEqual(buildSourceListMarkup("", [], {}), "", "empty");
 
+// Wiki-publication sources (Task 5): url-less source = plain text (no <a>), pages shown as "S. …",
+// mention marked, official-first + *. (require lines from the brief snippet are already at the top.)
+const html = buildSourceListMarkup("https://wiki/x", [
+  { url:"https://f-shop/1", label:"Efferds Wogen", official:true, type:"regionalspielhilfe", pages:"54", reference_kind:"ausfuehrlich" },
+  { url:"", label:"Im Bann des Diamanten", official:true, type:"regionalspielhilfe", pages:"40, 145", reference_kind:"ausfuehrlich" },
+  { url:"https://x/2", label:"Historia Aventurica", official:false, type:"quellenband", pages:"176", reference_kind:"erwaehnung", note:"Zerstörung" },
+], { wikiLabel:"Wiki Aventurica" });
+assert.ok(html.includes("Efferds Wogen") && html.includes("S. 54"));
+assert.ok(html.includes("Im Bann des Diamanten") && !/href="[^"]*Diamanten/.test(html)); // url-los = kein Link
+assert.ok(html.includes("Wiki Aventurica"));
+console.log("markup ok");
+
 console.log("feature-source-markup tests passed");
