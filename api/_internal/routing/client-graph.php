@@ -66,12 +66,17 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $path, $pathIndex, $request);
     }
 
-    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request);
-    // Anchor each travel waypoint that has no land-path edge to the nearest point ON a land path
-    // (short Querfeldein leg + a split of that path), so an isolated place like the Friedhof der
-    // Seeschlangen reaches the road network by the shortest cross-country hop instead of the far
-    // component bridge. Runs after the bridges so the graph is already connected.
-    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $locations, $request);
+    // Sea-bound location names come from the RAW paths (before the domain filter drops Seewege), so a
+    // water-bound place (island / open sea) is recognised even in a land-only request. Both synthetic
+    // land bridges below refuse a water-locked node: crossing open water on foot is never a land route.
+    $seaBoundLocationNames = avesmapsCollectClientSeaBoundLocationNames($networkData, $locations, $locationCoordinateIndex);
+
+    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request, $seaBoundLocationNames);
+    // Anchor each travel waypoint that has no land-path edge to the nearest point ON a land path (short
+    // Querfeldein leg + a split of that path), so a truly landlocked isolated place reaches the road
+    // network by the shortest cross-country hop instead of the far component bridge. Runs after the
+    // bridges so the graph is already connected.
+    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $locations, $request, $seaBoundLocationNames);
 
     return [
         'graph' => $graph,
@@ -213,7 +218,7 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
     avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $reverseConnection);
 }
 
-function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request): int {
+function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request, array $seaBoundLocationNames): int {
     // Synthetic "Querfeldein" bridges are only legitimate when cross-country travel is enabled
     // (Querfeldein maps to the land domain). With land/synthetic disabled -- e.g. "nur ueber Fluss"
     // -- do NOT bridge the disconnected river components: a route impossible on rivers alone must
@@ -231,12 +236,18 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     if ($transportOption === null || !is_numeric($speed) || (float) $speed <= 0.0) return 0;
 
     $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
-    $anchorNodeNames = $components[0]['node_names'];
+    // Water-locked nodes (touch a Seeweg, have no land-path edge) are never valid bridge endpoints:
+    // a synthetic land bridge to/from them would cross open water. Dropping them leaves a purely
+    // water-bound component (e.g. an island town with sea disabled) unbridged -> unreachable by land.
+    $anchorNodeNames = avesmapsFilterOutClientWaterLockedNodes($graph, $components[0]['node_names'], $seaBoundLocationNames);
     $detachedComponents = array_slice($components, 1);
     $syntheticConnectionCount = 0;
 
     foreach ($detachedComponents as $component) {
-        $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($component['node_names'], $anchorNodeNames, $locationLookup);
+        if ($anchorNodeNames === []) break;
+        $detachedNodeNames = avesmapsFilterOutClientWaterLockedNodes($graph, $component['node_names'], $seaBoundLocationNames);
+        if ($detachedNodeNames === []) continue;
+        $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($detachedNodeNames, $anchorNodeNames, $locationLookup);
         if (!is_array($nearestConnection)) continue;
 
         $distance = (float) $nearestConnection['distance'] * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
@@ -279,7 +290,7 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
 // truly landlocked isolated place reaches the road network by the SHORTEST cross-country hop instead of
 // the far component bridge. Water-bound nodes (any Seeweg edge) are skipped: trekking cross-country to
 // them would cross open water, so they stay reachable only by ship. No-op when Querfeldein is disabled.
-function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, array $locations, array $request): void {
+function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, array $locations, array $request, array $seaBoundLocationNames): void {
     if (!avesmapsIsClientRouteDomainEnabled(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request)) {
         return;
     }
@@ -305,7 +316,7 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
     foreach ($waypointNames as $waypointIndex => $name) {
         if (!isset($graph[$name])) continue;
         if (avesmapsClientNodeHasLandPathEdge($graph, $name)) continue;
-        if (avesmapsClientNodeHasSeaRouteEdge($graph, $name)) continue;
+        if (isset($seaBoundLocationNames[$name])) continue;
         $location = $locationLookup[$name] ?? null;
         if (!is_array($location)) continue;
         $anchor = avesmapsFindNearestClientLandPathAnchor($graph, (float) $location['route_x'], (float) $location['route_y']);
@@ -325,17 +336,51 @@ function avesmapsClientNodeHasLandPathEdge(array $graph, string $nodeName): bool
     return false;
 }
 
-// True when the node touches a sea route, i.e. it is an island / open-sea place reachable only by ship.
-// Used to refuse a land-Querfeldein anchor that would otherwise fabricate a cross-water trek.
-function avesmapsClientNodeHasSeaRouteEdge(array $graph, string $nodeName): bool {
-    foreach (is_array($graph[$nodeName] ?? null) ? $graph[$nodeName] : [] as $connections) {
-        foreach (is_array($connections) ? $connections : [] as $connection) {
-            if (is_array($connection) && in_array((string) ($connection['route_type'] ?? ''), AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES, true)) {
-                return true;
+// A node is water-locked when it touches a Seeweg (sea-bound) but has no land-path edge in the built
+// graph: it can only be reached by ship. Such nodes must never be a synthetic land-bridge endpoint.
+function avesmapsClientNodeIsWaterLocked(array $graph, array $seaBoundLocationNames, string $nodeName): bool {
+    return isset($seaBoundLocationNames[$nodeName]) && !avesmapsClientNodeHasLandPathEdge($graph, $nodeName);
+}
+
+// Drops water-locked nodes from a node-name list and reindexes it (empty -> no land bridge possible).
+function avesmapsFilterOutClientWaterLockedNodes(array $graph, array $nodeNames, array $seaBoundLocationNames): array {
+    $kept = [];
+    foreach ($nodeNames as $nodeName) {
+        if (!avesmapsClientNodeIsWaterLocked($graph, $seaBoundLocationNames, (string) $nodeName)) {
+            $kept[] = $nodeName;
+        }
+    }
+    return $kept;
+}
+
+// Location names a Seeweg touches (endpoint or on-route vertex), computed from the RAW network data
+// BEFORE the transport-domain filter drops disabled edges. This is how a water-bound place (island /
+// open sea) is recognised even in a land-only request, where the built graph carries no Seeweg edge at
+// all. Mirrors the graph's node matching: endpoint tolerance for the two ends, round-5 index interior.
+function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $locations, array $locationCoordinateIndex): array {
+    $seaBound = [];
+    foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
+        if (!is_array($path)) continue;
+        $routeType = avesmapsNormalizeClientRouteSubtype((string) ($path['subtype'] ?? $path['name'] ?? ''));
+        if (!in_array($routeType, AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES, true)) continue;
+        $coordinates = avesmapsReadRoutePathLineCoordinates($path['geometry'] ?? null);
+        $count = count($coordinates);
+        if ($count < 2) continue;
+        foreach ([$coordinates[0], $coordinates[$count - 1]] as $endpoint) {
+            $location = avesmapsFindClientLocationAtPathEndpoint($locations, $endpoint);
+            if (is_array($location)) $seaBound[(string) $location['name']] = true;
+        }
+        for ($i = 1; $i < $count - 1; $i++) {
+            $vertexX = filter_var($coordinates[$i][0] ?? null, FILTER_VALIDATE_FLOAT);
+            $vertexY = filter_var($coordinates[$i][1] ?? null, FILTER_VALIDATE_FLOAT);
+            if ($vertexX === false || $vertexY === false) continue;
+            $coordinateKey = sprintf('%.5f:%.5f', (float) $vertexX, (float) $vertexY);
+            if (isset($locationCoordinateIndex[$coordinateKey])) {
+                $seaBound[(string) $locationCoordinateIndex[$coordinateKey]['name']] = true;
             }
         }
     }
-    return false;
+    return $seaBound;
 }
 
 // Projects (px,py) onto every land-path edge and returns the closest hit (edge + projected point).
