@@ -171,7 +171,7 @@ function createPowerlinePopupMarkup(powerline) {
 		showType: true,
 		actionsMarkup: IS_EDIT_MODE ? locationPopupActionsMarkup([
 			popupActionButtonMarkup({
-				label: "Details bearbeiten",
+				label: "Bearbeiten",
 				attributes: {
 					"data-popup-action": "edit-powerline-details",
 					"data-public-id": getPowerlinePublicId(powerline),

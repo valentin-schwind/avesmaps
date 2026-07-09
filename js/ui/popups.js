@@ -340,7 +340,7 @@ function locationActionsMarkup(name, publicId, location = null) {
 		);
 		actionButtons.push(
 			popupActionButtonMarkup({
-				label: "Details bearbeiten",
+				label: "Bearbeiten",
 				attributes: {
 					"data-popup-action": "edit-location-details",
 					"data-location-name": name,
@@ -433,7 +433,7 @@ function labelActionsMarkup(publicId) {
 			},
 		}),
 		popupActionButtonMarkup({
-			label: "Details bearbeiten",
+			label: "Bearbeiten",
 			attributes: {
 				"data-popup-action": "edit-label-details",
 				"data-public-id": publicId,

@@ -569,7 +569,7 @@ async function duplicateLabelEntry(entry) {
 		entry.marker.closePopup();
 		pendingLabelMoveAfterEditEntry = duplicatedLabelEntry;
 		openLabelEditDialog({ labelEntry: duplicatedLabelEntry });
-		showFeedbackToast("Label dupliziert. Details bearbeiten, danach verschieben.", "success");
+		showFeedbackToast("Label dupliziert. Bearbeiten, danach verschieben.", "success");
 	} catch (error) {
 		console.error("Label konnte nicht dupliziert werden:", error);
 		showFeedbackToast(error.message || "Label konnte nicht dupliziert werden.", "warning");

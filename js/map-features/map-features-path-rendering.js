@@ -68,7 +68,7 @@ function createPathPopupMarkup(path) {
 				},
 			})] : []),
 			popupActionButtonMarkup({
-				label: "Details bearbeiten",
+				label: "Bearbeiten",
 				attributes: {
 					"data-popup-action": "edit-path-details",
 					"data-public-id": getPathPublicId(path),
