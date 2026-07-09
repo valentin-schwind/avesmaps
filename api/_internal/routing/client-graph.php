@@ -17,10 +17,11 @@ const AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES = ['Reichsstrasse', 'Strasse', 'Weg'
 // only legitimate connection is by ship, so with sea travel disabled they stay unreachable by design.
 const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 
-// A component bridge whose BOTH ends touch a sea route and that spans more than this airline distance
-// (route units, before the x25 cost factor) is treated as a strait / bay-mouth crossing and refused:
-// land-only routing then reports "no route" instead of a cross-water Querfeldein between two coasts.
-// Below the threshold a coastal data-gap still bridges; a bridge with an inland end is never affected.
+// A detached component that has a sea connection (contains a node touching a Seeweg) and sits farther
+// than this airline distance (route units, before the x25 cost factor) from the mainland is an island /
+// peninsula reachable by ship: bridging it over land fabricates a cross-water Querfeldein, so it is
+// refused and land-only routing reports "no route". Below the threshold a coastal data-gap still
+// bridges; a component with no sea node at all (a genuinely landlocked/jungle area) always bridges.
 const AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE = 20.0;
 
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
@@ -259,13 +260,15 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
         $fromLocation = $nearestConnection['from_location'];
         $toLocation = $nearestConnection['to_location'];
         $rawDistance = (float) $nearestConnection['distance'];
-        // Both ends coastal + a long gap = a strait/bay-mouth crossing (e.g. Mura<->Bilhen): refuse it so
-        // land-only routing says "no route" instead of walking across open water. A shorter coastal gap,
-        // or a bridge with an inland (non-sea) endpoint (a landlocked/jungle component), stays bridged --
-        // so a bay you can drive around is unaffected (that is one connected component, not a bridge).
+        // A sea-connected detached component reached only by a long land bridge is an island/peninsula
+        // whose real link is the sea (e.g. Orrehjal, reached via Lysvik): refuse the bridge so land-only
+        // routing says "no route" instead of a 130u cross-water Querfeldein. It is the COMPONENT's sea
+        // connection that matters, not the bridge endpoints -- the nearest node can be inland while the
+        // component still has a port elsewhere. A short gap (coastal data-gap) or a component with no sea
+        // node at all (a genuinely landlocked/jungle area) still bridges; a bay you can drive around is
+        // one connected component, not a bridge, so it is untouched.
         if ($rawDistance > AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE
-            && isset($seaBoundLocationNames[(string) $fromLocation['name']])
-            && isset($seaBoundLocationNames[(string) $toLocation['name']])) {
+            && avesmapsClientComponentIsSeaConnected($component['node_names'], $seaBoundLocationNames)) {
             continue;
         }
         $distance = $rawDistance * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
@@ -356,6 +359,17 @@ function avesmapsClientNodeHasLandPathEdge(array $graph, string $nodeName): bool
 // graph: it can only be reached by ship. Such nodes must never be a synthetic land-bridge endpoint.
 function avesmapsClientNodeIsWaterLocked(array $graph, array $seaBoundLocationNames, string $nodeName): bool {
     return isset($seaBoundLocationNames[$nodeName]) && !avesmapsClientNodeHasLandPathEdge($graph, $nodeName);
+}
+
+// True when any node of a component touches a sea route -- the component has a Seeanbindung and is an
+// island/peninsula rather than a landlocked inland area. Used to refuse a long land bridge to it.
+function avesmapsClientComponentIsSeaConnected(array $nodeNames, array $seaBoundLocationNames): bool {
+    foreach ($nodeNames as $nodeName) {
+        if (isset($seaBoundLocationNames[(string) $nodeName])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Drops water-locked nodes from a node-name list and reindexes it (empty -> no land bridge possible).
