@@ -114,6 +114,11 @@ const AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP = 'online_continent_map';
 const AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES = 'redirect_aliases';
 const AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT = 'wikitext_collect';
 const AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT = 'parse_and_upsert';
+// Wiki-publication-sources sync (Task 4): build the publication catalog + entity refs from the
+// dump (sandbox staging tables), then -- ONLY on the sharp path (dryRun=false) -- reconcile them
+// into production feature_sources. Ordered right AFTER redirect_aliases (which it needs, to
+// resolve publication link titles via wiki_redirect_alias). See publication-sync.php.
+const AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES = 'publication_sources';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
 /**
@@ -160,6 +165,16 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
         // resumable phase keeps its own cursor key regardless of position.
         AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT,
         AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES,
+        // Task 4: publication_sources runs RIGHT AFTER redirect_aliases -- its only
+        // dependency (it resolves publication link titles via wiki_redirect_alias) -- and
+        // BEFORE continent_map / parse_and_upsert, so parse_and_upsert stays the terminal
+        // sharp phase (THE GATE contract unchanged). It is independent of continent_map and
+        // parse_and_upsert (its reconcile reads LIVE entities + its own staging, not the
+        // territory/settlement staging those build). Under read_step (dryRun) it builds ONLY
+        // the sandbox staging tables (wiki_publication_catalog + wiki_entity_publication); the
+        // sharp production reconcile into feature_sources is gated behind dryRun=false in the
+        // dispatch, mirroring parse_and_upsert. Resumable via its own stage marker + cursor.
+        AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES,
         AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT,
     ];
@@ -181,6 +196,10 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
         AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES => 'dump_cursor', // the existing Pass-A field name
         AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT => 'wikitext_cursor',
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT => 'parse_cursor',
+        // The dump page cursor for the publication_sources catalog/refs sub-stages. Its OTHER
+        // sub-state (publication_stage, pub_recon_segment, pub_recon_last_id) + counters ride in
+        // stats_json via the step's 'stats_patch' (merged by avesmapsWikiDumpHybridAdvanceReadStep).
+        AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES => 'publication_cursor',
     ];
 }
 
@@ -309,6 +328,8 @@ function avesmapsWikiDumpHybridPhaseMessage(string $phase, bool $completed): str
             return 'Wikitext wird aus dem Dump gesammelt.';
         case AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT:
             return 'Datensaetze werden geparst (Probelauf).';
+        case AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES:
+            return 'Publikationsquellen werden aus dem Dump abgeglichen.';
         default:
             return 'Dump-Read laeuft.';
     }
@@ -727,6 +748,17 @@ function avesmapsWikiDumpHybridAdvanceReadStep(
         $stepFns
     );
 
+    // Additive persistence seam: a phase step may carry EXTRA run-scoped sub-state / counters
+    // (beyond its single cursor key) by returning a 'stats_patch' map, merged into $stats BEFORE
+    // the pure transition below so it lands in stats_json. No pre-Task-4 step returns this key,
+    // so every other phase is byte-for-byte unchanged. Used by publication_sources for its
+    // stage marker + reconcile sub-cursor + {publications, entity_refs, links_*, no_link} counters.
+    if (isset($stepResult['stats_patch']) && is_array($stepResult['stats_patch'])) {
+        foreach ($stepResult['stats_patch'] as $patchKey => $patchValue) {
+            $stats[(string) $patchKey] = $patchValue;
+        }
+    }
+
     // PURE transition -> next persisted state.
     $next = avesmapsWikiDumpHybridComputeNextState($phase, $stats, $stepResult);
     $message = avesmapsWikiDumpHybridPhaseMessage($next['phase'], $next['done']);
@@ -858,6 +890,28 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
                 'dry_run' => (bool) ($r['dry_run'] ?? $dryRun),
             ];
 
+        case AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES:
+            // Build the publication catalog + entity refs from the dump (sandbox staging), then --
+            // ONLY when $dryRun is false (the sharp apply path, mirroring parse_and_upsert) --
+            // reconcile them into production feature_sources. Under read_step ($dryRun=true) the
+            // phase completes after the refs sub-stage, so the dry scan writes NOTHING sharp.
+            // userId=0 -> NULL created_by (a system-driven sync). Extra sub-state + counters are
+            // carried back to stats_json via 'stats_patch'.
+            $r = avesmapsPublicationSyncPhaseStep($pdo, $runId, $stats, $dumpPath, $dryRun, 0);
+            return [
+                'done' => (bool) ($r['done'] ?? false),
+                'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),
+                'stats_patch' => is_array($r['stats_patch'] ?? null) ? $r['stats_patch'] : [],
+                'stage' => (string) ($r['stage'] ?? ''),
+                'publications' => (int) ($r['publications'] ?? 0),
+                'entity_refs' => (int) ($r['entity_refs'] ?? 0),
+                'links_added' => (int) ($r['links_added'] ?? 0),
+                'links_removed' => (int) ($r['links_removed'] ?? 0),
+                'links_updated' => (int) ($r['links_updated'] ?? 0),
+                'no_link' => (int) ($r['no_link'] ?? 0),
+                'processed_this_step' => (int) ($r['processed_this_step'] ?? 0),
+            ];
+
         default:
             throw new RuntimeException('Die Dump-Read-Phase ist unbekannt: ' . $phase);
     }
@@ -883,7 +937,12 @@ function avesmapsWikiDumpHybridProgressEnvelope(array $public, ?array $stepResul
     ];
 
     if (is_array($stepResult)) {
-        foreach (['pages_scanned', 'found_this_step', 'written', 'processed_this_step', 'kept', 'title_count', 'title_aliases_written', 'dry_run'] as $key) {
+        foreach ([
+            'pages_scanned', 'found_this_step', 'written', 'processed_this_step', 'kept', 'title_count',
+            'title_aliases_written', 'dry_run',
+            // publication_sources counters (Task 4): run totals surfaced per step.
+            'stage', 'publications', 'entity_refs', 'links_added', 'links_removed', 'links_updated', 'no_link',
+        ] as $key) {
             if (array_key_exists($key, $stepResult)) {
                 $progress[$key] = $stepResult[$key];
             }

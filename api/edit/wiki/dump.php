@@ -110,6 +110,13 @@ require __DIR__ . '/../../_internal/wiki/dump-hybrid-driver.php';
 // settlements ALSO get their conflict cases written. STAGING-only (+ territory
 // model / wiki_sync_cases) -- never map_features or live political_territory.
 require __DIR__ . '/../../_internal/wiki/dump-sync-kind.php';
+// Wiki-publication-sources sync (Task 4): the publication_sources phase's dispatch case (in
+// dump-hybrid-driver.php) calls these -- the pure/DB reconcile library, the pure wikitext
+// parsers it consumes, and the shared feature_sources catalog helpers the reconcile writes
+// through. All three are function-definitions-only on include (no side effects).
+require_once __DIR__ . '/../../_internal/app/feature-sources.php';
+require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
+require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.

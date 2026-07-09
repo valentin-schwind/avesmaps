@@ -465,7 +465,7 @@ let isWikiSyncDumpRunning = false;
 let lastWikiSyncDumpCredentialsUsername = "";
 let wikiSyncDumpCredentialsResolver = null;
 
-// Human-readable German labels for the 6 work phases (dump-hybrid-driver.php phase constants).
+// Human-readable German labels for the 7 work phases (dump-hybrid-driver.php phase constants).
 const WIKI_SYNC_DUMP_PHASE_LABELS = {
 	online_class_map: "Online-Klassen-Karte",
 	online_building_map: "Online-Bauwerks-Karte",
@@ -473,6 +473,7 @@ const WIKI_SYNC_DUMP_PHASE_LABELS = {
 	redirect_aliases: "Weiterleitungen",
 	wikitext_collect: "Wikitext sammeln",
 	parse_and_upsert: "Parsen und schreiben",
+	publication_sources: "Publikationsquellen",
 	completed: "Abgeschlossen",
 };
 
