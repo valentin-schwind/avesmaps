@@ -14,7 +14,10 @@ declare(strict_types=1);
 // Two staging tables (identity = wiki_key, same convention as the other WikiSync staging tables):
 //   wiki_publication_catalog: one row per publication wiki page ({{Infobox Produkt}}).
 //   wiki_entity_publication:  map-element <-> publication references (reference kind/pages/note
-//     parsed from a "==Publikationen==" section), identity = (entity_wiki_key, publication_wiki_key).
+//     parsed from a "==Publikationen==" section), identity =
+//     (entity_type, entity_wiki_key, publication_wiki_key). entity_type is part of the identity
+//     because a same-named settlement and region/path share the SAME plain slug (a city and its
+//     surrounding region both "X" -> both slug "x"); without it their refs would cross-contaminate.
 //
 // The publication_sources sync phase (avesmapsPublicationSyncPhaseStep, driven by
 // dump-hybrid-driver.php) runs three resumable sub-stages: (1) build catalog, (2) build entity
@@ -42,13 +45,45 @@ function avesmapsEnsurePublicationStagingTables(PDO $pdo): void
         "CREATE TABLE IF NOT EXISTS wiki_entity_publication (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
             entity_wiki_key VARCHAR(190),
+            entity_type VARCHAR(16) NOT NULL DEFAULT '',
             publication_wiki_key VARCHAR(190),
             reference_kind VARCHAR(16),
             pages VARCHAR(120) NULL,
             note VARCHAR(200) NULL,
-            UNIQUE KEY uq (entity_wiki_key, publication_wiki_key)
+            UNIQUE KEY uq (entity_type, entity_wiki_key, publication_wiki_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // Self-healing migration for pre-Fix-2 tables (entity_type added after the initial Task-4
+    // schema). Territory keys are 'wiki:'-prefixed (disjoint), but a same-named settlement and
+    // its surrounding region/path share the SAME plain slug -- keying refs by entity_wiki_key
+    // ALONE would cross-contaminate them (the reconcile would apply a settlement's publication
+    // sources to the same-named region). entity_type closes that leak. Rebuilt staging has no
+    // production data to preserve, so widening the UNIQUE index from 2-col to 3-col is safe.
+    $columnExists = static function (PDO $pdo, string $table, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $table . "' AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    if (!$columnExists($pdo, 'wiki_entity_publication', 'entity_type')) {
+        $pdo->exec("ALTER TABLE wiki_entity_publication ADD COLUMN entity_type VARCHAR(16) NOT NULL DEFAULT '' AFTER entity_wiki_key");
+        // Widen the identity to (entity_type, entity_wiki_key, publication_wiki_key): drop the old
+        // 2-col unique, add the 3-col one. Both are try/catch-guarded because MySQL throws on a
+        // DROP of a missing index (a hand-migrated table) and on an ADD of a duplicate key name
+        // (a prior partial migration) -- both are "already in the desired state", not real errors.
+        try {
+            $pdo->exec('ALTER TABLE wiki_entity_publication DROP INDEX uq');
+        } catch (Throwable) {
+            // The old 2-col unique was absent -- nothing to drop.
+        }
+        try {
+            $pdo->exec('ALTER TABLE wiki_entity_publication ADD UNIQUE KEY uq (entity_type, entity_wiki_key, publication_wiki_key)');
+        } catch (Throwable) {
+            // The 3-col unique already exists -- nothing to add.
+        }
+    }
 }
 
 // ===========================================================================
@@ -406,8 +441,8 @@ function avesmapsPublicationBuildEntityRefsStep(PDO $pdo, string $dumpPath, int 
 
     $upsert = $pdo->prepare(
         'INSERT INTO wiki_entity_publication
-            (entity_wiki_key, publication_wiki_key, reference_kind, pages, note)
-         VALUES (:ewk, :pwk, :rk, :pg, :nt)
+            (entity_type, entity_wiki_key, publication_wiki_key, reference_kind, pages, note)
+         VALUES (:et, :ewk, :pwk, :rk, :pg, :nt)
          ON DUPLICATE KEY UPDATE reference_kind = VALUES(reference_kind), pages = VALUES(pages), note = VALUES(note)'
     );
 
@@ -426,6 +461,9 @@ function avesmapsPublicationBuildEntityRefsStep(PDO $pdo, string $dumpPath, int 
             if ($publications !== []) {
                 $entityRef = avesmapsPublicationEntityRefForPage($page);
                 $entityWikiKey = (string) $entityRef['entity_wiki_key'];
+                // entity_type is part of the ref identity (see avesmapsEnsurePublicationStagingTables):
+                // it disambiguates a same-named settlement from its region/path (same plain slug).
+                $entityType = (string) $entityRef['entity_type'];
                 if ($entityWikiKey !== '') {
                     $seen = [];
                     foreach ($publications as $publication) {
@@ -435,6 +473,7 @@ function avesmapsPublicationBuildEntityRefsStep(PDO $pdo, string $dumpPath, int 
                         }
                         $seen[$publicationKey] = true;
                         $upsert->execute([
+                            'et' => mb_substr($entityType, 0, 16, 'UTF-8'),
                             'ewk' => mb_substr($entityWikiKey, 0, 190, 'UTF-8'),
                             'pwk' => mb_substr($publicationKey, 0, 190, 'UTF-8'),
                             'rk' => $publication['reference_kind'] ?? null,
@@ -472,24 +511,29 @@ function avesmapsPublicationBuildEntityRefsStep(PDO $pdo, string $dumpPath, int 
  * the shared `sources` catalog (URL-less when the publication has no shop link -- keyed by
  * its wiki_key, per the avesmapsFeatureSourceUpsert URL-less contract) and return
  * [{source_id, reference_kind, pages, note}] for the diff. Publications are OFFICIAL sources.
+ * The refs are looked up by the full (entity_type, entity_wiki_key) identity so a same-named
+ * settlement and region/path never share links (see avesmapsEnsurePublicationStagingTables).
  *
  * @return list<array{source_id:int, reference_kind:?string, pages:?string, note:?string}>
  */
-function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityWikiKey, int $userId): array
+function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, string $entityWikiKey, int $userId): array
 {
-    if ($entityWikiKey === '') {
+    if ($entityType === '' || $entityWikiKey === '') {
         return [];
     }
 
+    // Filter by BOTH entity_type AND entity_wiki_key: a same-named settlement and region/path
+    // share the plain slug, so keying on entity_wiki_key alone would leak one's publication
+    // sources onto the other. The (entity_type, entity_wiki_key) pair is the true per-entity key.
     $statement = $pdo->prepare(
         'SELECT c.wiki_key AS publication_wiki_key, c.title, c.source_type, c.chosen_url, c.has_link,
                 r.reference_kind, r.pages, r.note
            FROM wiki_entity_publication r
            JOIN wiki_publication_catalog c ON c.wiki_key = r.publication_wiki_key
-          WHERE r.entity_wiki_key = :ewk
+          WHERE r.entity_type = :type AND r.entity_wiki_key = :ewk
           ORDER BY c.title ASC, c.wiki_key ASC'
     );
-    $statement->execute(['ewk' => $entityWikiKey]);
+    $statement->execute(['type' => $entityType, 'ewk' => $entityWikiKey]);
 
     $desired = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
@@ -540,7 +584,7 @@ function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string
     $currentStatement->execute(['t' => $entityType, 'id' => $entityPublicId]);
     $current = $currentStatement->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    $desired = avesmapsPublicationDesiredLinksForEntity($pdo, $entityWikiKey, $userId);
+    $desired = avesmapsPublicationDesiredLinksForEntity($pdo, $entityType, $entityWikiKey, $userId);
     $diff = avesmapsPublicationDiffLinks($current, $desired);
 
     foreach ($diff['add'] as $row) {
@@ -580,11 +624,11 @@ function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string
 // ===========================================================================
 
 /**
- * The stable reconcile segment order. entity_wiki_key is the sole identity in
- * wiki_entity_publication; territory keys are 'wiki:'-prefixed (disjoint from the plain
- * settlement/region/path slugs), so the segments never cross-match at the territory
- * boundary. (Same-named settlement/region/path pages CAN share a plain slug -- see the
- * concern noted in the task-4 report.)
+ * The stable reconcile segment order. The segment IS the entity_type, which the reconcile
+ * threads into the ref lookup (avesmapsPublicationDesiredLinksForEntity filters on both
+ * entity_type AND entity_wiki_key). Territory keys are additionally 'wiki:'-prefixed
+ * (disjoint from the plain slugs); the entity_type filter also keeps a same-named
+ * settlement/region/path -- which DO share a plain slug -- from cross-matching.
  *
  * @return list<string>
  */

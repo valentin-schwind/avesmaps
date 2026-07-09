@@ -948,6 +948,131 @@ async function startWikiSyncKindSync(kind) {
 	}
 }
 
+// ===========================================================================
+// Publikationsquellen übernehmen (Wave 2, owner-getriggert): the SHARP reconcile
+// of the wiki publication sources built during "Dump holen" into feature_sources
+// (origin='wiki_publication'). Cross-kind: ONE central button drives the backend
+// `sync_publications` action via the SAME one-POST-per-step client loop the dump
+// read / per-kind Syncen use (runWikiSyncDumpLoop pattern). It reconciles all four
+// entity types (territory/settlement/region/path) over a (segment, id high-water)
+// cursor; the override guarantee (never touch a manual/community/suppressed source)
+// lives entirely in the backend diff. Backend: api/edit/wiki/dump.php (sync_publications).
+// ===========================================================================
+
+let isWikiSyncPublicationsSyncRunning = false;
+
+// Render the central publication-reconcile progress bar + status line from a step
+// response. The step returns per-step link deltas; `totals` carries the run-summed
+// counters the loop accumulates (each step starts its counters at 0, like the
+// settlement conflict-gen phase). The 4 segments drive the coarse progress bar.
+function renderWikiSyncPublicationsProgress(step, done, totals) {
+	const progressElement = document.getElementById("wiki-sync-sync-publications-progress");
+	const statusElement = document.getElementById("wiki-sync-sync-publications-status");
+	const segment = Number(step?.segment ?? 0);
+	const totalSegments = Number(step?.progress?.total ?? 4);
+
+	if (progressElement) {
+		progressElement.hidden = done;
+		progressElement.max = Number.isFinite(totalSegments) && totalSegments > 0 ? totalSegments : 4;
+		progressElement.value = done ? progressElement.max : Math.min(Math.max(segment, 0), progressElement.max);
+	}
+	if (statusElement) {
+		statusElement.hidden = false;
+		if (done) {
+			statusElement.textContent = `Fertig: +${totals.added} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt (${totals.processed} Einträge geprüft).`;
+		} else {
+			const shown = Math.min(segment + 1, totalSegments);
+			statusElement.textContent = `Übernahme läuft … Segment ${shown}/${totalSegments} (${totals.processed} Einträge geprüft)`;
+		}
+	}
+}
+
+// Drive `sync_publications` to completion: loop the action once per step, advancing
+// the server-returned (segment, cursor) high-water mark and SUMMING the per-step link
+// deltas until done. Mirrors runWikiSyncKindSyncLoop (bounded step ceiling; stops
+// cleanly on the 409 pipeline lock). Reads staging + live DB only (no dump reopen).
+async function runWikiSyncPublicationsSyncLoop() {
+	let segment = 0;
+	let cursor = 0;
+	let done = false;
+	let safetyCounter = 0;
+	let lastResult = null;
+	const totals = { added: 0, removed: 0, updated: 0, processed: 0 };
+	// Four segments, each drained in id-high-water batches; a generous ceiling still
+	// bounds the loop so a backend bug can never spin forever (STRATO).
+	const MAX_STEPS = 4000;
+
+	while (!done) {
+		if (safetyCounter > MAX_STEPS) {
+			throw new Error("Publikationsquellen-Übernahme wurde nach zu vielen Teilschritten angehalten.");
+		}
+		safetyCounter += 1;
+
+		let stepResult;
+		try {
+			stepResult = await submitWikiSyncDumpAction("sync_publications", { segment, cursor });
+		} catch (error) {
+			if (error && error.dumpLocked) {
+				// Another editor holds the dump pipeline: stop immediately (do NOT retry).
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				throw error;
+			}
+			throw error;
+		}
+
+		lastResult = stepResult;
+		segment = Number(stepResult.segment ?? segment);
+		cursor = Number(stepResult.cursor ?? cursor);
+		totals.added += Number(stepResult.links_added ?? 0);
+		totals.removed += Number(stepResult.links_removed ?? 0);
+		totals.updated += Number(stepResult.links_updated ?? 0);
+		totals.processed += Number(stepResult.processed ?? 0);
+		done = stepResult.done === true;
+		renderWikiSyncPublicationsProgress(stepResult, done, totals);
+	}
+
+	if (lastResult && typeof lastResult === "object") {
+		lastResult.totals = totals;
+	}
+	return lastResult;
+}
+
+// Click handler for the central "Publikationsquellen übernehmen" button. Confirms first
+// (it writes sharp feature_sources), runs the loop, then reports the run-summed deltas.
+async function startWikiSyncPublicationsSync() {
+	if (isWikiSyncPublicationsSyncRunning) {
+		return;
+	}
+	if (!window.confirm("Publikationsquellen aus dem zuletzt gelesenen Dump scharf in die Quellen übernehmen? Manuelle Quellen bleiben unangetastet (nur Wiki-Publikationsquellen werden abgeglichen).")) {
+		return;
+	}
+	isWikiSyncPublicationsSyncRunning = true;
+	const button = document.getElementById("wiki-sync-sync-publications");
+	if (button) {
+		button.disabled = true;
+		button.textContent = "Übernimmt Publikationsquellen...";
+	}
+	setWikiSyncStatus("Publikationsquellen werden übernommen …", "pending");
+
+	try {
+		const result = await runWikiSyncPublicationsSyncLoop();
+		const totals = (result && result.totals) || { added: 0, removed: 0, updated: 0, processed: 0 };
+		const note = ` (+${Number(totals.added || 0)} / ~${Number(totals.updated || 0)} / -${Number(totals.removed || 0)})`;
+		setWikiSyncStatus(`Publikationsquellen übernommen.${note}`, "success");
+		showFeedbackToast(`Publikationsquellen übernommen.${note}`, "success");
+	} catch (error) {
+		console.error("Publikationsquellen übernehmen fehlgeschlagen:", error);
+		setWikiSyncStatus(error.message || "Publikationsquellen übernehmen fehlgeschlagen.", "error");
+		showFeedbackToast(error.message || "Publikationsquellen übernehmen fehlgeschlagen.", "warning");
+	} finally {
+		isWikiSyncPublicationsSyncRunning = false;
+		if (button) {
+			button.disabled = false;
+			button.textContent = "📚 Publikationsquellen übernehmen";
+		}
+	}
+}
+
 // --- Inline credential prompt (O1) -------------------------------------------
 // Copies the #wiki-sync-resolve-overlay dialog pattern. Resolves to true once the
 // credentials are stored server-side (set_dump_credentials), false if cancelled.
