@@ -337,9 +337,14 @@ function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float 
                         (float) ($coordinates[$i + 1][0] ?? 0.0), (float) ($coordinates[$i + 1][1] ?? 0.0)
                     );
                     if ($best === null || $projection['distance'] < $best['distance']) {
+                        // Use the connection's STORED orientation (from/to match coordinates[0]/[last]),
+                        // NOT the graph iteration keys: edges are stored in both directions with the same
+                        // object, so the outer/inner keys can be the reverse of the geometry. Splitting
+                        // with the reversed name would attach the sub-edges to the wrong endpoints and the
+                        // drawn leg would jump to the far node (a gap between the anchor and the path).
                         $best = [
-                            'from' => (string) $fromName,
-                            'to' => (string) $toName,
+                            'from' => (string) ($connection['from'] ?? $fromName),
+                            'to' => (string) ($connection['to'] ?? $toName),
                             'connection' => $connection,
                             'segment_index' => $i,
                             't' => $projection['t'],
