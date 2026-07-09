@@ -116,13 +116,24 @@ Läuft als zusätzliche Phase im Dump+Sync (neben settlements/regions/paths/terr
 Manueller Add (`origin='manual'`) bleibt; manuelles Entfernen einer Wiki-Quelle bleibt entfernt (Tombstone);
 manuelle Edits gewinnen.
 
-## 8. Anzeige & Editor (ERWEITERN)
+## 8. Anzeige (Owner-Entscheidung „B": Quellen mit der Karte, kein Nachladen)
 
-- `avesmapsReadFeatureSources` (public read) zusätzlich `reference_kind/pages/note` je Quelle liefern.
-- `buildSourceListMarkup`: `pages` anzeigen (z. B. „S. 40, 145"), Erwähnungen dezent markieren, **url-lose Quelle
-  als Klartext** (kein Link).
-- `review-feature-sources.js`: Typ-Dropdown auf die 8er-Taxonomie; Wiki-abgeleitete Quellen als eigene
-  („automatisch")-Gruppe zeigen, Entfernen = Suppression. Hinweisbox bleibt.
+**Quellen kommen mit der `map-features`-Payload** — kein lazy Pro-Popup-Fetch mehr → **kein Flash, keine
+Pro-Popup-DB-Abfrage**. Umsetzung mit **geteiltem Katalog**, damit die Payload nicht aufbläht:
+- Ein `sources`-Katalog **einmal** in der `map-features`-Antwort: `{ id: {url,label,type,official} }` (nur
+  tatsächlich verlinkte Quellen; Publikationen werden vielfach geteilt → nur einige hundert Einträge).
+- Je Feature nur schlanke Referenzen: `[{source_id, reference_kind, pages, note}]` (nur `status='approved'`).
+- Die Popup-Builder rendern die Quellzeile **synchron** aus diesen Daten (offiziell-zuerst, `*`, „S. 40, 145",
+  Erwähnungen markiert, url-lose Quelle als **Klartext** ohne Link).
+- **Entfällt:** der Platzhalter-+-Nachlade-Pfad in `popups.js` (`featureSourcesPlaceholderMarkup`,
+  `handleSourcePopupOpen`, `fetchFeatureSources`, `featureSourceCache`, `applyFeatureSourceList`).
+- `map-features.php` liefert Katalog + Referenzen mit (eine zusätzliche Query/JOIN bei der Hydration;
+  **reale Payload-Zunahme vor dem Festzurren messen**).
+- `buildSourceListMarkup` bleibt der gemeinsame Renderer (jetzt synchron aus der Payload gefüttert).
+- `GET /api/app/feature-sources.php` bleibt für den **Editor** (dort weiter bedarfsgesteuert), nicht mehr für die Karten-Anzeige.
+
+**Editor:** `review-feature-sources.js` — Typ-Dropdown auf die 8er-Taxonomie; Wiki-abgeleitete Quellen als eigene
+(„automatisch")-Gruppe, Entfernen = Suppression. Hinweisbox bleibt.
 
 **Reuse-Map (erweitern vs. neu):**
 
@@ -132,7 +143,7 @@ manuelle Edits gewinnen.
 | `avesmapsFeatureSourceUpsert`/`…Link` (+origin) | `wiki_entity_publication` |
 | Dump-Reader + `…ExtractInfoboxBlock`/`ParseTemplateParams` | — |
 | `wiki_sync_runs` (+Phase) | — |
-| `avesmapsReadFeatureSources` + `buildSourceListMarkup` | — |
+| `map-features.php` (+Quell-Katalog/Referenzen), `buildSourceListMarkup`, `avesmapsReadFeatureSources` (nur Editor) | — |
 | `review-feature-sources.js` | — |
 
 ## 9. Community-Slot (RESERVIERT — eigene Fast-Follow-Instruction)
