@@ -40,6 +40,13 @@ try {
 
     $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
     $buildingTypes = avesmapsLoadWikiSyncBuildingTypes($pdo);
+    // Multi-source system: load the approved source catalog + per-entity references ONCE (two
+    // collect-queries, no N+1) so the map renders every element's sources synchronously from this
+    // payload -- no lazy per-popup fetch. The catalog is shared/deduped (one entry per source);
+    // refs point into it by source_id and cover all four entity types (settlement/region/path/
+    // territory), including territory which has no map_features row.
+    $sourceCatalog = avesmapsLoadFeatureSourceCatalog($pdo);
+    $featureSourceRefs = avesmapsLoadFeatureSourceRefs($pdo);
     $query = avesmapsBuildMapFeaturesQuery($_GET);
     $statement = $pdo->prepare($query['sql']);
     $statement->execute($query['params']);
@@ -54,6 +61,10 @@ try {
             static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes),
             $statement->fetchAll()
         ),
+        // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
+        // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
+        'source_catalog' => (object) $sourceCatalog,
+        'feature_sources' => (object) $featureSourceRefs,
     ]);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
@@ -312,6 +323,75 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
         $map[$title] = ['type' => (string) $row['building_type'], 'ruined' => !empty($row['is_ruined'])];
     }
     return $map;
+}
+
+// Shared catalog of every source that is actually linked to at least one element with an approved
+// link: { <source_id> => {url,label,type,official} }. One collect-query (EXISTS), deduped to one row
+// per source so a source used by many elements is serialized once. Try/catch -> [] when the tables
+// do not exist yet (fresh DB): the hot map-features path never runs DDL (see AGENTS.md perf notes).
+function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT s.id, s.url, s.label, s.source_type, s.is_official
+               FROM sources s
+              WHERE EXISTS (
+                    SELECT 1 FROM feature_sources fs
+                     WHERE fs.source_id = s.id AND fs.status = 'approved'
+              )"
+        );
+    } catch (Throwable $error) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+    $catalog = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $catalog[(int) $row['id']] = [
+            'url' => (string) $row['url'],
+            'label' => (string) $row['label'],
+            'type' => (string) $row['source_type'],
+            'official' => (int) $row['is_official'] === 1,
+        ];
+    }
+    return $catalog;
+}
+
+// Per-entity approved source references grouped in PHP (no N+1): { "<entity_type>:<public_id>" =>
+// [ {source_id[, reference_kind][, pages][, note]} ] }. Ordered official-first then insertion order
+// so buildSourceListMarkup keeps a stable within-group order. Null/empty detail fields are omitted
+// to keep the payload compact. Try/catch -> [] (tables or the Task-1 detail columns may be absent).
+function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT fs.entity_type, fs.entity_public_id, fs.source_id, fs.reference_kind, fs.pages, fs.note
+               FROM feature_sources fs
+               JOIN sources s ON s.id = fs.source_id
+              WHERE fs.status = 'approved'
+              ORDER BY fs.entity_type, fs.entity_public_id, s.is_official DESC, s.created_at ASC, s.id ASC"
+        );
+    } catch (Throwable $error) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+    $refs = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $key = (string) $row['entity_type'] . ':' . (string) $row['entity_public_id'];
+        $ref = ['source_id' => (int) $row['source_id']];
+        if (($row['reference_kind'] ?? '') !== '') {
+            $ref['reference_kind'] = (string) $row['reference_kind'];
+        }
+        if (($row['pages'] ?? '') !== '') {
+            $ref['pages'] = (string) $row['pages'];
+        }
+        if (($row['note'] ?? '') !== '') {
+            $ref['note'] = (string) $row['note'];
+        }
+        $refs[$key][] = $ref;
+    }
+    return $refs;
 }
 
 function avesmapsLoadWikiSyncLocationLinks(PDO $pdo): array {
