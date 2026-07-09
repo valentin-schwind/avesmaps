@@ -277,16 +277,19 @@ function resolveServerRouteDisplaySegment(serverSegment, nodeIds, segmentIndex) 
 		return null;
 	}
 
-	if (serverSegment?.synthetic || edgeId.startsWith("synthetic-")) {
-		return buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex);
-	}
-
-	// Prefer the geometry the server sent for THIS segment (a slice for split sub-edges). Resolving
-	// by feature_id alone would return the whole parent path -- drawn once per sub-edge, inflating
-	// the distance and collapsing the stage list.
+	// Prefer the geometry the server sent for THIS segment (a slice for split sub-edges, or the
+	// straight line for a synthetic Querfeldein edge). Resolving by feature_id would return the whole
+	// parent path -- drawn once per sub-edge, inflating the distance and collapsing the stage list --
+	// and the synthetic location lookup fails for waypoint-anchor split nodes (__wp_anchor_N are not
+	// real locations), so the Querfeldein leg would not be drawn at all. buildServerGeometryRouteSegment
+	// carries synthetic=true, so the leg still renders dashed.
 	const serverSegmentCoordinates = Array.isArray(serverSegment?.geometry?.coordinates) ? serverSegment.geometry.coordinates : [];
 	if (serverSegmentCoordinates.length >= 2) {
 		return buildServerGeometryRouteSegment(serverSegment, serverSegmentCoordinates);
+	}
+
+	if (serverSegment?.synthetic || edgeId.startsWith("synthetic-")) {
+		return buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex);
 	}
 
 	const featureId = String(serverSegment?.feature_id || "");
