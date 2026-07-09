@@ -515,6 +515,13 @@
 	// Way-Label-Text liegen (beide sind reine Karten-Klicks, keine DOM-Ueberlappung im Sinne von
 	// Leaflets Ziel-Kette), und Siedlung gewinnt per Prioritaet immer.
 	map.on("click", (event) => {
+		// Im Karten-Editor (?edit=1) sind Weg-/Fluss-Labels bewusst NICHT klickbar: ein Klick oder
+		// Doppelklick am Label soll den Pfad DARUNTER treffen (Stuetzpunkt setzen), nicht das
+		// Label-Popup oeffnen. Das Label-Pane ist ohnehin pointer-events:none -- dieser Map-Klick-
+		// Schiedsrichter ist der einzige interaktive Rest, also im Edit-Mode still.
+		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+			return;
+		}
 		if (cssZoomActive) {
 			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
 		}
@@ -564,6 +571,10 @@
 	let wayLabelCursorActive = false;
 	let wayLabelLastCursorCheck = 0;
 	map.on("mousemove", (event) => {
+		// Kein „klickbares Label"-Cursor-Feedback im Karten-Editor (siehe click-Handler oben).
+		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+			return;
+		}
 		if (cssZoomActive) {
 			return; // Register haelt waehrend der CSS-Zoom-Animation veraltete Vor-Zoom-Container-px (redraw pausiert)
 		}
