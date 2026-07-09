@@ -204,15 +204,18 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsEnsureFeatureSourceTables($pdo);
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
-        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official
+        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, fs.origin
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
           ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
     );
     $stmt->execute(['t' => $entityType, 'id' => $publicId]);
+    // 'origin' lets the editor UI (review-feature-sources.js) group wiki-derived rows
+    // ('wiki_publication') under their own "automatisch" heading, separate from manual/community.
     $sources = array_map(static fn(array $r): array => [
         'source_id' => (int) $r['source_id'], 'url' => (string) $r['url'], 'label' => (string) $r['label'],
         'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
+        'origin' => (string) $r['origin'],
     ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     return [
         'ok' => true,
@@ -261,10 +264,32 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId); // Takeover passiert hier drin
 }
 
+// Removing a link is a SUPPRESSION for a wiki-derived row and a hard DELETE for everything else.
+// A wiki-origin row is tombstoned (status='suppressed') instead of deleted so the next WikiSync
+// publication reconcile's pure diff (avesmapsPublicationDiffLinks, api/_internal/wiki/publication-sync.php)
+// sees status !== 'approved' and never re-adds it. Manual/community rows keep the prior hard-delete
+// behaviour unchanged. The branch is keyed off the existing row's own origin (looked up by the
+// entity_type+entity_public_id+source_id triple), not off any client-supplied flag.
 function avesmapsRemoveFeatureSource(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
-    $pdo->prepare("DELETE FROM feature_sources WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid")
-        ->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
+
+    $originStmt = $pdo->prepare(
+        "SELECT origin FROM feature_sources
+          WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid LIMIT 1"
+    );
+    $originStmt->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
+    $origin = $originStmt->fetchColumn();
+
+    if ($origin === 'wiki_publication') {
+        $pdo->prepare(
+            "UPDATE feature_sources SET status = 'suppressed'
+              WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid"
+        )->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
+    } else {
+        $pdo->prepare("DELETE FROM feature_sources WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid")
+            ->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
+    }
+
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
 }

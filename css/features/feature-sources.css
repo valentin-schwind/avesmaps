@@ -28,6 +28,19 @@
 .fs-row + .fs-row {
 	border-top: 1px solid rgba(141, 121, 98, 0.18);
 }
+/* Sub-group for sources auto-populated by the WikiSync publication reconcile
+   (origin === "wiki_publication", js/review/review-feature-sources.js). */
+.fs-group-heading {
+	font-size: 10px;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #8a7358;
+	padding: 6px 0 2px;
+}
+.fs-group--wiki-auto .fs-row:first-of-type {
+	border-top: none;
+}
 .fs-row__link {
 	flex: 1 1 auto;
 	min-width: 0;

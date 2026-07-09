@@ -4,15 +4,39 @@
 // wired to POST /api/edit/map/feature-sources.php. Used by every edit surface (settlement,
 // region, path, territory editors) via the shared entity_type/entity_public_id contract.
 //
+// Catalog sources split into two groups: rows with origin === "wiki_publication" (populated by
+// the WikiSync publication reconcile) render under an "Aus dem Wiki (automatisch)" heading;
+// manual/community rows render below as before. Both use the identical remove control -- the
+// server (not this renderer) decides whether a remove is a suppression (wiki-origin, tombstoned
+// so the next sync doesn't re-add it) or a hard delete (manual/community), keyed off the row's
+// origin (api/_internal/app/feature-sources.php:avesmapsRemoveFeatureSource).
+//
 // renderFeatureSourceEditorHtml(state, opts) is pure/DOM-free so it is Node-testable
 // (mirrors js/map-features/map-features-point-in-polygon.js's module/window export pattern).
 
 const FEATURE_SOURCE_API_URL = "/api/edit/map/feature-sources.php";
-const FEATURE_SOURCE_TYPES = ["regionalband", "abenteuer", "briefspiel", "sonstiges"];
+// 8-value taxonomy -- must mirror the PHP whitelist in avesmapsFeatureSourceUpsert
+// (api/_internal/app/feature-sources.php). Order here is the dropdown order. "regionalband"
+// (the old 4-value enum) is retired; featureSourceTypeLabel() below still falls back to
+// "Sonstiges" for that or any other legacy/unknown stored value, so old rows keep rendering.
+const FEATURE_SOURCE_TYPES = [
+  "regionalspielhilfe",
+  "abenteuer",
+  "aventurischer_bote",
+  "quellenband",
+  "roman",
+  "briefspiel",
+  "regelbuch",
+  "sonstiges",
+];
 const FEATURE_SOURCE_TYPE_LABELS = {
-  regionalband: "Regionalband",
+  regionalspielhilfe: "Regionalspielhilfe",
   abenteuer: "Abenteuer",
+  aventurischer_bote: "Aventurischer Bote",
+  quellenband: "Quellenband",
+  roman: "Roman",
   briefspiel: "Briefspiel",
+  regelbuch: "Regelbuch",
   sonstiges: "Sonstiges",
 };
 
@@ -63,6 +87,21 @@ function renderFeatureSourceRow(source, escape, tr) {
   );
 }
 
+// Sources auto-populated by the WikiSync publication reconcile (origin === "wiki_publication")
+// render together under their own heading so editors can tell "the wiki put this here" apart
+// from what they curated by hand. No rows -> no heading (never render an empty group). Each row
+// uses the same renderFeatureSourceRow as the manual list -- the remove button is identical;
+// only the server-side interpretation of "remove" differs by origin.
+function renderFeatureSourceWikiAutoGroup(wikiAutoSources, escape, tr) {
+  if (!wikiAutoSources.length) {
+    return "";
+  }
+  const heading =
+    '<div class="fs-group-heading">' + escape(tr("sources.wikiAuto", "Aus dem Wiki (automatisch)")) + "</div>";
+  const rows = wikiAutoSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
+  return '<div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto">' + heading + rows + "</div>";
+}
+
 function renderFeatureSourceAddRow(escape, tr) {
   const options = FEATURE_SOURCE_TYPES.map(
     (type) => '<option value="' + escape(type) + '">' + escape(featureSourceTypeLabel(type)) + "</option>"
@@ -80,7 +119,9 @@ function renderFeatureSourceAddRow(escape, tr) {
   );
 }
 
-// Pure render: state = { wiki_url, sources:[{source_id,url,label,type,official}] }.
+// Pure render: state = { wiki_url, sources:[{source_id,url,label,type,official,origin}] }.
+// origin is optional for backward compatibility (older cached responses/tests without it are
+// treated as non-wiki, i.e. rendered in the manual/community group).
 // opts = { escape, tr } (both injectable; defaults are DOM-free so this runs under Node).
 function renderFeatureSourceEditorHtml(state, opts) {
   const options = opts || {};
@@ -89,8 +130,14 @@ function renderFeatureSourceEditorHtml(state, opts) {
   const safeState = state || {};
   const sources = Array.isArray(safeState.sources) ? safeState.sources : [];
 
+  // Split into "wiki-automatic" (origin === "wiki_publication") vs everything else
+  // (manual/community rows, and legacy rows with no origin field yet) so they render as two groups.
+  const wikiAutoSources = sources.filter((source) => source && source.origin === "wiki_publication");
+  const otherSources = sources.filter((source) => !(source && source.origin === "wiki_publication"));
+
   const wikiRow = renderFeatureSourceWikiRow(safeState.wiki_url, escape, tr);
-  const sourceRows = sources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
+  const wikiAutoGroup = renderFeatureSourceWikiAutoGroup(wikiAutoSources, escape, tr);
+  const sourceRows = otherSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
   const addRow = renderFeatureSourceAddRow(escape, tr);
 
   // Reviewer/editor guidance shown above the source list (all mount surfaces). The copy carries an
@@ -98,7 +145,7 @@ function renderFeatureSourceEditorHtml(state, opts) {
   // inserted as HTML rather than escaped.
   const hint = '<div class="fs-hint">' + tr("sources.hint",
     "Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.") + "</div>";
-  return '<div class="fs-editor">' + hint + wikiRow + sourceRows + addRow + "</div>";
+  return '<div class="fs-editor">' + hint + wikiRow + wikiAutoGroup + sourceRows + addRow + "</div>";
 }
 
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
