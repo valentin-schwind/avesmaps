@@ -88,12 +88,13 @@
 					<li>Danach siehst du oben deinen Namen und deine Rolle sowie den Button <strong>„Abmelden"</strong>; darunter läuft die Karte im Bearbeiten-Modus.</li>
 				</ol>
 
+				<p class="hb-todo"><strong>Browser-Tipp:</strong> Arbeite mit einem Browser <em>ohne</em> aggressive Werbe-/Skriptblocker. Viele Adblocker (z.&nbsp;B. in Vivaldi) bremsen den Editor spürbar aus.</p>
 				<h3>Orientierung</h3>
 				<p>Im Bearbeiten-Modus hast du drei zentrale Werkzeuge:</p>
 				<ul class="hb-steps">
-					<li><strong>Die Karte</strong> selbst &ndash; hier klickst und ziehst du, um Features zu bearbeiten (Abschnitt&nbsp;B).</li>
+					<li><strong>Die Karte</strong> selbst &ndash; hier klickst und ziehst du an den Features (Abschnitt&nbsp;B). Der Haupteinstieg dafür ist das Rechtsklick-Menü.</li>
 					<li><strong>Das „Editor"-Panel</strong> &ndash; öffnet sich über den Button <strong>„Editor"</strong>. Es hat vier Reiter: <strong>Meldungen</strong>, <strong>Änderungen</strong>, <strong>WikiSync</strong> und <strong>Status</strong>.</li>
-					<li><strong>Das Rechtsklick-Menü</strong> &ndash; ein Rechtsklick auf ein Gebiet öffnet Kontext-Aktionen (z.&nbsp;B. <strong>„Territoriumseditor öffnen"</strong>, Abschnitt&nbsp;D).</li>
+					<li><strong>Das Rechtsklick-Menü</strong> &ndash; praktisch alle Bearbeitungen starten hier: Rechtsklick auf die Karte (Neues anlegen) oder auf ein Feature bzw. Gebiet (<strong>„Bearbeiten"</strong>, <strong>„Territoriumseditor öffnen"</strong> …, Abschnitt&nbsp;D). „Die Karte bearbeiten" und das Rechtsklick-Menü sind im Kern dasselbe.</li>
 				</ul>
 				<figure class="hb-shot">
 					<img src="screenshots/02-editor-panel.png" alt="Das Editor-Panel mit den Reitern Meldungen, Aenderungen, WikiSync und Status sowie der Statuszeile mit Tutorial-Link" />
@@ -109,11 +110,11 @@
 				</ul>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rollen und ihre Rechte">
-						<text x="250" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="var(--hb-fg)">Bearbeiten</text>
-						<text x="410" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="var(--hb-fg)">Prüfen</text>
-						<text x="565" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="var(--hb-fg)">Verwalten</text>
+						<text x="250" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#000">Bearbeiten</text>
+						<text x="410" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#000">Prüfen</text>
+						<text x="565" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#000">Verwalten</text>
 						<line x1="16" y1="40" x2="624" y2="40" stroke="var(--hb-line)" stroke-width="1.5" />
-						<g font-size="15" fill="var(--hb-fg)" font-weight="600">
+						<g font-size="15" fill="#000" font-weight="600">
 							<text x="16" y="78">reviewer</text>
 							<text x="16" y="123">editor</text>
 							<text x="16" y="168">admin</text>
@@ -154,35 +155,38 @@
 					<figcaption>Rechtsklick &rarr; „Hier hinzufügen" mit allen Anlege-Optionen.</figcaption>
 				</figure>
 
-				<h3>Orte / Siedlungen &ndash; Dialog „Siedlung bearbeiten"</h3>
+				<h3>Orte / Siedlungen</h3>
+				<p>Ein Klick auf die Siedlung öffnet ihr Popup. Dort kannst du sie <strong>verschieben</strong> (einfach auf der Karte ziehen) oder über <strong>„Bearbeiten"</strong> den Bearbeiten-Dialog öffnen:</p>
 				<ul class="hb-steps">
-					<li><strong>Identität:</strong> <em>Ortsname</em> und <em>Ortsgröße</em> (Dorf, Besondere Bauwerke/Stätten, Kleine Stadt, Stadt, Grosse Stadt, Metropole).</li>
-					<li><strong>Wiki-Siedlung:</strong> <strong>„Zuweisen"</strong> / <strong>„Entfernen"</strong>; das ↻ neben Name/Größe übernimmt den Wert aus der verbundenen Wiki-Siedlung.</li>
+					<li><strong>Identität:</strong> <em>Ortsname</em> und <em>Ortsgröße</em> (Dorf, Kleine Stadt, Stadt, Große Stadt, Metropole, Besondere Bauwerke/Stätten).</li>
+					<li><strong>Wiki-Siedlung:</strong> <strong>„Ändern"</strong> / <strong>„Entfernen"</strong>; das ↻ neben Name/Größe übernimmt den Wert aus der verbundenen Wiki-Siedlung.</li>
 					<li><strong>Wappen:</strong> <strong>„Übernehmen"</strong> (aus dem Wiki), <strong>„Eigenes hochladen"</strong> oder <strong>„Entfernen"</strong>.</li>
 					<li><strong>Optionen:</strong> „Ort ist ein Nodix", „Ruine/zerstört".</li>
-					<li>Mit <strong>„Speichern"</strong> bestätigen. <strong>Verschieben:</strong> den Ort einfach auf der Karte ziehen.</li>
+					<li>Mit <strong>„Speichern"</strong> bestätigen.</li>
 				</ul>
 
-				<h3>Wege / Flüsse / Straßen &ndash; Dialog „Weg bearbeiten"</h3>
+				<h3>Wege / Flüsse / Straßen</h3>
+				<p>Ein Klick auf den Weg öffnet sein Popup mit <strong>„Bearbeiten"</strong> und <strong>„Verlauf bearbeiten"</strong>. „Bearbeiten" öffnet den Dialog:</p>
 				<ul class="hb-steps">
-					<li><strong>Wegname</strong>, <strong>„Auto-Name"</strong> und <strong>„Weg anzeigen"</strong> (Name an der Linie zeigen).</li>
-					<li><strong>Wegtyp:</strong> Reichsstrasse, Strasse, Weg, Pfad, Gebirgspass, Wuestenpfad, Flussweg, Seeweg.</li>
-					<li><strong>Erlaubte Transportmittel</strong> (Karawane, Zu Fuss, Kutsche, Reiter, Flusssegler …) &ndash; steuert das Routing.</li>
+					<li><strong>Wegname</strong>, <strong>„Auto-Name"</strong> und die Checkbox <strong>„Weg anzeigen"</strong> (blendet den Namen an der Linie ein).</li>
+					<li><strong>Wegtyp:</strong> Reichsstraße, Straße, Weg, Pfad, Gebirgspass, Wüstenpfad, Flussweg, Seeweg.</li>
+					<li><strong>Erlaubte Transportmittel</strong> (Karawane, Zu Fuß, Kutsche, Reiter, Flusssegler …) &ndash; steuert das Routing.</li>
 					<li><strong>Wiki-Weg:</strong> „Zuweisen" / „Entfernen" (siehe Abschnitt&nbsp;C). Der Bereich „Strömung" &rarr; Abschnitt&nbsp;G.</li>
-					<li><strong>Geometrie:</strong> Knoten ziehen; <em>Doppelklick auf die Linie fügt einen Knoten hinzu, Doppelklick auf einen Knoten löscht ihn</em>.</li>
+					<li><strong>Geometrie/Verlauf:</strong> <em>nicht</em> im Bearbeiten-Dialog, sondern über <strong>„Verlauf bearbeiten"</strong> (Popup bzw. Rechtsklick) &ndash; Knoten ziehen; Doppelklick auf die Linie fügt einen Knoten hinzu, Doppelklick auf einen Knoten löscht ihn.</li>
 				</ul>
 				<figure class="hb-shot">
-					<img src="screenshots/04-verlaufeditieren.png" alt="Ausgewaehlter Weg Reichsstrasse 1 mit sichtbaren Knotenpunkten und dem Popup mit Details bearbeiten, Verlauf bearbeiten, Weg loeschen" />
-					<figcaption>Ein ausgewählter Weg mit seinen Knotenpunkten und dem Popup („Details bearbeiten" / „Verlauf bearbeiten").</figcaption>
+					<img src="screenshots/04-verlaufeditieren.png" alt="Ausgewaehlter Weg Reichsstrasse 1 mit sichtbaren Knotenpunkten und dem Popup mit Bearbeiten, Verlauf bearbeiten, Weg loeschen" />
+					<figcaption>Ein ausgewählter Weg mit seinen Knotenpunkten und dem Popup („Bearbeiten" / „Verlauf bearbeiten").</figcaption>
 				</figure>
 
-				<h3>Kraftlinien &ndash; Dialog „Kraftlinie bearbeiten"</h3>
+				<h3>Kraftlinien</h3>
 				<ul class="hb-steps">
-					<li><strong>Name</strong> und „Name auf der Karte anzeigen".</li>
+					<li><strong>Name</strong> und <strong>„Name auf der Karte anzeigen"</strong>.</li>
 					<li><strong>„Speichern"</strong> oder <strong>„Löschen"</strong>.</li>
 				</ul>
 
-				<h3>Labels (Landschafts-/Regionennamen) &ndash; Dialog „Region bearbeiten"</h3>
+				<h3>Labels (Landschafts-/Regionennamen)</h3>
+				<p>Ein Klick auf das Label bietet <strong>„Verschieben"</strong> (auf der Karte ziehen) und <strong>„Bearbeiten"</strong>. Im Bearbeiten-Dialog:</p>
 				<ul class="hb-steps">
 					<li><strong>Text</strong> und <strong>Kategorie</strong> (Region, Fluss, Meer, Gebirge, Wald, Wüste, See, Insel …).</li>
 					<li><strong>Darstellung:</strong> Größe, Rotation, „Sichtbar ab/bis Zoom", Priorität.</li>
@@ -190,10 +194,11 @@
 				</ul>
 
 				<h3>Speichern &amp; nachvollziehen</h3>
-				<p>Jede Änderung ist sofort live. Im Reiter <strong>„Änderungen"</strong> siehst du das Audit-Log: wer was wann geändert hat.</p>
+				<p>Jede Änderung ist sofort live. Im Reiter <strong>„Änderungen"</strong> siehst du das Audit-Log: wer was wann geändert hat &ndash; und kannst Aktionen von dort auch <strong>rückgängig machen</strong>.</p>
+				<p class="hb-todo"><strong>Vorsicht mit Strg+Z:</strong> Das macht die jeweils letzte Aktion rückgängig &ndash; und zwar global, also auch die <em>anderer Editoren</em>. Wenn du gezielt <em>deine</em> Änderung zurücknehmen willst, nutz lieber den Reiter „Änderungen".</p>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 92" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ablauf einer Bearbeitung">
-						<g font-size="12" text-anchor="middle" fill="var(--hb-fg)">
+						<g font-size="12" text-anchor="middle" fill="#000">
 							<g>
 								<rect x="4" y="26" width="112" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
 								<text x="60" y="51">Rechtsklick</text>
@@ -235,20 +240,20 @@
 
 				<h3>Siedlung ↔ Wiki</h3>
 				<ol class="hb-steps">
-					<li>Im Dialog <strong>„Siedlung bearbeiten"</strong>, Bereich <strong>„Wiki-Siedlung"</strong>, auf <strong>„Zuweisen"</strong> klicken.</li>
+					<li>Im <strong>Bearbeiten</strong>-Dialog der Siedlung, Bereich <strong>„Wiki-Siedlung"</strong>, auf <strong>„Zuweisen"</strong> (bzw. <strong>„Ändern"</strong>) klicken.</li>
 					<li>Im Feld <em>„Siedlung suchen …"</em> die passende Wiki-Seite wählen.</li>
 					<li>Mit dem ↻ neben Name/Größe die Werte aus dem Wiki übernehmen. <strong>„Entfernen"</strong> löst die Verbindung wieder.</li>
 				</ol>
 
 				<h3>Weg / Fluss / Straße ↔ Wiki</h3>
 				<ol class="hb-steps">
-					<li>Im Dialog <strong>„Weg bearbeiten"</strong>, Bereich <strong>„Wiki-Weg"</strong>, auf <strong>„Zuweisen"</strong> klicken und unter <em>„Fluss/Straße suchen …"</em> wählen.</li>
+					<li>Im <strong>Bearbeiten</strong>-Dialog des Wegs, Bereich <strong>„Wiki-Weg"</strong>, auf <strong>„Zuweisen"</strong> klicken und unter <em>„Fluss/Straße suchen …"</em> wählen.</li>
 					<li><strong>Namensregel:</strong> Zuweisen/Ändern setzt den exakten Wiki-Namen für die <em>ganze Namensgruppe</em>; <strong>„Entfernen"</strong> wirkt weg-weit (räumt auch Geister-Segmente).</li>
 					<li>Für lange Straßen mit vielen Segmenten gibt es ein Bulk-Verfahren &rarr; Abschnitt&nbsp;G.</li>
 				</ol>
 
 				<h3>Label / Landschaft ↔ Wiki</h3>
-				<p>Im Dialog <strong>„Region bearbeiten"</strong>, Bereich <strong>„Wiki-Landschaft"</strong>: <strong>„Zuweisen"</strong> / <strong>„Sync"</strong> / <strong>„Entfernen"</strong>, Suche <em>„Region/Landschaft suchen …"</em>.</p>
+				<p>Im <strong>Bearbeiten</strong>-Dialog des Labels, Bereich <strong>„Wiki-Landschaft"</strong>: <strong>„Zuweisen"</strong> / <strong>„Sync"</strong> / <strong>„Entfernen"</strong>, Suche <em>„Region/Landschaft suchen …"</em>.</p>
 
 				<h3>„Link teilen" &amp; Suche</h3>
 				<ul class="hb-steps">
@@ -275,7 +280,7 @@
 					<figcaption>Das Rechtsklick-Menü eines Gebiets.</figcaption>
 				</figure>
 
-				<h3>Im Dialog „Herrschaftsgebiet bearbeiten"</h3>
+				<h3>Eigenschaften &amp; Hierarchie</h3>
 				<ul class="hb-steps">
 					<li><strong>Wiki-Referenz</strong> setzen/ändern (Button „Wiki-Referenz ändern").</li>
 					<li><strong>Parent/Hierarchie:</strong> den Baum durchsuchen und das Gebiet zuordnen (per Ziehen). „Zuweisung aufheben" löst die Zuordnung.</li>
@@ -293,7 +298,7 @@
 				</ul>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Territorien-Hierarchie">
-						<g font-size="13" text-anchor="middle" fill="var(--hb-fg)">
+						<g font-size="13" text-anchor="middle" fill="#000">
 							<g>
 								<rect x="260" y="10" width="120" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-accent)" stroke-width="2" />
 								<text x="320" y="34">Reich</text>
@@ -368,7 +373,7 @@
 				<p class="hb-lead">Fortgeschrittene Abläufe. Du brauchst sie nicht täglich &ndash; aber gut zu wissen, dass es sie gibt.</p>
 
 				<h3>Flussrichtung</h3>
-				<p>Im Dialog <strong>„Weg bearbeiten"</strong>, Bereich <strong>„Strömung"</strong>:</p>
+				<p>Im <strong>Bearbeiten</strong>-Dialog des Wegs, Bereich <strong>„Strömung"</strong>:</p>
 				<ul class="hb-steps">
 					<li>Aktueller Stand: <em>„Richtung: unbekannt / …"</em>.</li>
 					<li><strong>„Richtung festlegen"</strong> setzt die Fließrichtung; <strong>„Richtung vervollständigen"</strong> ergänzt fehlende Teilstücke ankerbewusst.</li>
@@ -376,7 +381,7 @@
 				</ul>
 
 				<h3>Weg-Namen-Labels</h3>
-				<p>Über <strong>„Weg anzeigen"</strong> und <strong>„Auto-Name"</strong> im Weg-Dialog steuerst du, ob und wie ein Weg-/Flussname entlang der Linie erscheint.</p>
+				<p>Über die Checkbox <strong>„Weg anzeigen"</strong> und <strong>„Auto-Name"</strong> im Bearbeiten-Dialog des Wegs steuerst du, ob und wie ein Weg-/Flussname entlang der Linie erscheint.</p>
 
 				<h3>Straßen-Wiki-Zuweisung (Bulk)</h3>
 				<p>Lange Straßen/Flüsse bestehen aus vielen Segmenten. Man hängt alle an <em>einen</em> Wiki-Weg und prüft die Kette gegen den Wiki-<code>Verlauf</code> (Ortsfolge). Das ist ein eigenes, sorgfältiges Verfahren &ndash; im Zweifel vorher abstimmen.</p>
