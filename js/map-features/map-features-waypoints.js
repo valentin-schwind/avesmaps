@@ -317,10 +317,12 @@ function createWaypointMarkup(waypointId) {
 	return `
 		<div class="waypoint-container" data-waypoint-id="${escapeHtml(waypointId)}">
 			${waypointDragHandleMarkup()}
-			<!-- type="search" (not text): Chrome ignores autocomplete="off" and classifies a text
-			     field with a place-name value as an address, popping its address autofill over our own
-			     suggestion list. A search field is not address-classified -- same as the spotlight box. -->
-			<input type="search" id="${escapeHtml(inputId)}" class="waypoint-input" placeholder="${escapeHtml(tr("waypoint.searchPlaceholder", "Suche Ort..."))}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="list" />
+			<!-- Chrome ignores autocomplete="off" for address autofill and pops its saved-address
+			     dropdown over our own suggestion list. type="search" alone is not enough on every Chrome
+			     profile, so we also use autocomplete="new-password": that puts the field in Chrome's
+			     PASSWORD category, which never offers address suggestions (the one value Chrome honours).
+			     On a search field this shows no password UI. data-*-ignore keeps password managers off. -->
+			<input type="search" id="${escapeHtml(inputId)}" class="waypoint-input" placeholder="${escapeHtml(tr("waypoint.searchPlaceholder", "Suche Ort..."))}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="list" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" />
 			<button type="button" class="remove-waypoint" aria-label="Reiseziel entfernen" title="Reiseziel entfernen">✕</button>
 		</div>`;
 }
