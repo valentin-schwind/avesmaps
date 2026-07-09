@@ -32,6 +32,31 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
             KEY idx_feature_lookup (entity_type, entity_public_id, status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // Self-healing column-adds (project idiom, see wiki/settlements.php:22-55): provenance +
+    // reference-detail columns for the wiki-publication-sources feature. `status` already exists;
+    // the new allowed value 'suppressed' (manual removal of a wiki-origin link, tombstoned so a
+    // later reconcile does not resurrect it) is an application-level convention, no DDL needed.
+    $columnExists = static function (PDO $pdo, string $table, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = '" . $table . "'
+               AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    $addColumn = static function (string $column, string $definition) use ($pdo, $columnExists): void {
+        if (!$columnExists($pdo, 'feature_sources', $column)) {
+            $pdo->exec('ALTER TABLE feature_sources ADD COLUMN ' . $column . ' ' . $definition);
+        }
+    };
+    // Who established this link: 'manual' (editor, default) vs 'wiki_publication' (reconcile) etc.
+    $addColumn('origin', "VARCHAR(24) NOT NULL DEFAULT 'manual'");
+    // How the source refers to the entity (e.g. wiki "Seite"/"Kapitel"), free-form pages/note.
+    $addColumn('reference_kind', 'VARCHAR(16) NULL');
+    $addColumn('pages', 'VARCHAR(120) NULL');
+    $addColumn('note', 'VARCHAR(200) NULL');
 }
 
 // The read used by the public endpoint: approved catalog links PLUS the element's legacy single
@@ -90,11 +115,14 @@ function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entity
 }
 
 // Dedup-Upsert einer Katalog-Quelle (url_hash = Identität). Gibt die sources.id zurück.
-function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId): int
+// $wikiKey: set only for URL-less publication sources (a wiki catalog entry without a shop
+// link); the call contract is a URL-less source ALWAYS passes $wikiKey, otherwise leave it empty.
+function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = ''): int
 {
-    $allowed = ['regionalband', 'abenteuer', 'briefspiel', 'sonstiges'];
+    $allowed = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
     $type = in_array($type, $allowed, true) ? $type : 'sonstiges';
-    $hash = hash('sha256', $url);
+    // URL-less identity: synthesize the hash from the stable wiki key instead of the (missing) URL.
+    $hash = ($url === '' && $wikiKey !== '') ? hash('sha256', 'wikipub:' . $wikiKey) : hash('sha256', $url);
     $pdo->prepare(
         "INSERT INTO sources (url, url_hash, label, source_type, is_official, created_by)
          VALUES (:u, :h, :l, :t, :o, :cb)
@@ -104,13 +132,32 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
     return (int) $pdo->query('SELECT id FROM sources WHERE url_hash = ' . $pdo->quote($hash))->fetchColumn();
 }
 
-// Verknüpfung Element <-> Quelle (idempotent).
-function avesmapsFeatureSourceLink(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId): void
+// Element <-> source link (idempotent). $origin/$refKind/$pages/$note are for the future
+// wiki-publication reconcile task; existing callers (editor) omit them and keep origin='manual'
+// with empty reference fields, unchanged from before.
+// Re-linking updates reference_kind/pages/note but NEVER overwrites an origin already set to
+// 'manual' (a wiki reconcile must not demote a manual row), and never touches status (so it can
+// never resurrect a 'suppressed' row).
+function avesmapsFeatureSourceLink(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId, string $origin = 'manual', ?string $refKind = null, ?string $pages = null, ?string $note = null): void
 {
     $pdo->prepare(
-        "INSERT IGNORE INTO feature_sources (entity_type, entity_public_id, source_id, status, created_by)
-         VALUES (:t, :id, :sid, 'approved', :cb)"
-    )->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId, 'cb' => $userId > 0 ? $userId : null]);
+        "INSERT INTO feature_sources (entity_type, entity_public_id, source_id, status, created_by, origin, reference_kind, pages, note)
+         VALUES (:t, :id, :sid, 'approved', :cb, :o, :rk, :pg, :nt)
+         ON DUPLICATE KEY UPDATE
+             reference_kind = VALUES(reference_kind),
+             pages = VALUES(pages),
+             note = VALUES(note),
+             origin = IF(feature_sources.origin = 'manual', feature_sources.origin, VALUES(origin))"
+    )->execute([
+        't' => $entityType,
+        'id' => $publicId,
+        'sid' => $sourceId,
+        'cb' => $userId > 0 ? $userId : null,
+        'o' => $origin,
+        'rk' => $refKind,
+        'pg' => $pages,
+        'nt' => $note,
+    ]);
 }
 
 // ATOMAR + verlustfrei: legacy properties.other_source -> Katalog + Verknüpfung, DANN Feld leeren.
