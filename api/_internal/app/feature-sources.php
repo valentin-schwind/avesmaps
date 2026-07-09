@@ -135,9 +135,17 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
 // Element <-> source link (idempotent). $origin/$refKind/$pages/$note are for the future
 // wiki-publication reconcile task; existing callers (editor) omit them and keep origin='manual'
 // with empty reference fields, unchanged from before.
-// Re-linking updates reference_kind/pages/note but NEVER overwrites an origin already set to
-// 'manual' (a wiki reconcile must not demote a manual row), and never touches status (so it can
-// never resurrect a 'suppressed' row).
+// Re-linking (ON DUPLICATE KEY UPDATE) always refreshes reference_kind/pages/note. origin/status
+// follow a two-caller contract:
+//   - $origin='manual' (editor add/re-add, avesmapsAddFeatureSource): manual ALWAYS wins -- origin
+//     is forced to 'manual' and status is resurrected to 'approved', even over an existing
+//     'suppressed' wiki-origin tombstone, so a manual re-add of a previously-suppressed URL
+//     becomes visible again instead of silently staying hidden (status='approved' reads).
+//   - $origin='wiki_publication' (wiki reconcile, avesmapsPublicationReconcileEntity in
+//     api/_internal/wiki/publication-sync.php): never demotes an existing 'manual' origin, and
+//     never touches/resurrects status -- a 'suppressed' tombstone stays suppressed. (The
+//     reconcile's diff already excludes suppressed rows from add/update; this is a second,
+//     SQL-level guarantee of the same invariant.)
 function avesmapsFeatureSourceLink(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId, string $origin = 'manual', ?string $refKind = null, ?string $pages = null, ?string $note = null): void
 {
     $pdo->prepare(
@@ -147,7 +155,8 @@ function avesmapsFeatureSourceLink(PDO $pdo, string $entityType, string $publicI
              reference_kind = VALUES(reference_kind),
              pages = VALUES(pages),
              note = VALUES(note),
-             origin = IF(feature_sources.origin = 'manual', feature_sources.origin, VALUES(origin))"
+             origin = IF(VALUES(origin) = 'manual' OR feature_sources.origin = 'manual', 'manual', VALUES(origin)),
+             status = IF(VALUES(origin) = 'manual', 'approved', feature_sources.status)"
     )->execute([
         't' => $entityType,
         'id' => $publicId,
