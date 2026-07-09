@@ -64,13 +64,29 @@
 	font-size: 11.5px;
 }
 
-/* Liste der letzten Bewertungen. Gescrollt wird das gesamte Popup (Leaflet maxHeight),
-   daher hier KEIN eigener Scroll -> kein verschachteltes Scrollen. */
+/* Liste der letzten Bewertungen: eigener, begrenzter Scrollbereich, damit die Infobox bei
+   vielen Bewertungen nicht ins Unendliche waechst. Der Kopf (Name, Schnitt, Buttons) bleibt
+   stehen, nur diese Liste scrollt. overscroll-behavior verhindert, dass am Listenende die
+   Karte/Seite mitscrollt. */
 .location-reviews__list {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	max-height: 300px;
+	overflow-y: auto;
 	overflow-x: hidden;
+	overscroll-behavior: contain;
+	padding-right: 4px;
+}
+.location-reviews__list::-webkit-scrollbar {
+	width: 7px;
+}
+.location-reviews__list::-webkit-scrollbar-thumb {
+	background: rgba(141, 121, 98, 0.4);
+	border-radius: 4px;
+}
+.location-reviews__list::-webkit-scrollbar-thumb:hover {
+	background: rgba(141, 121, 98, 0.6);
 }
 
 .location-reviews__item {
