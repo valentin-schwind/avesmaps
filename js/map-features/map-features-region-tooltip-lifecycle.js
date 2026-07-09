@@ -316,12 +316,9 @@ function enrichRegionTooltipWithWikiDetail(regionEntry, tooltip) {
 			regionEntry.detail = data;
 			tooltip.setContent(createRegionCompactTooltipMarkup(regionEntry));
 			applyRegionTooltipVerticalFlip(tooltip);
-			// setContent re-renders the tooltip wholesale -> a fresh, un-hydrated .feature-sources
-			// placeholder replaces any already-loaded source list. Re-run the source hydration on the
-			// new DOM (tooltipopen won't fire again for this single-open tooltip).
-			if (typeof handleSourcePopupOpen === "function") {
-				handleSourcePopupOpen({ tooltip });
-			}
+			// setContent re-renders the tooltip wholesale, but createRegionCompactTooltipMarkup rebuilds
+			// the territory source line synchronously from the payload (renderFeatureSourceLine) -- no
+			// re-hydration needed after the detail fetch swaps the content.
 		})
 		.catch(() => {});
 }

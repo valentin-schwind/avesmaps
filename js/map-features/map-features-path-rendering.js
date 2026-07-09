@@ -18,11 +18,11 @@ function pathWikiInfoboxMarkup(path) {
 	rows += row("Länge", wiki.laenge);
 	rows += row("Verlauf", wiki.verlauf);
 	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
-	// Multi-source system (#1): paths get a source line for the FIRST time here (previously the
-	// wiki credit only rendered when a wiki article was linked at all). The popupopen handler
-	// (js/ui/popups.js) lazily fetches the full approved-source list for this placeholder.
-	const sourceMarkup = typeof featureSourcesPlaceholderMarkup === "function"
-		? featureSourcesPlaceholderMarkup("path", getPathPublicId(path), wiki.wiki_url || "", "location-popup__wiki-link")
+	// Multi-source system: paths get a source line for the FIRST time here (previously the wiki
+	// credit only rendered when a wiki article was linked at all). Rendered synchronously from the
+	// map-features payload (renderFeatureSourceLine in js/ui/popups.js resolves approved sources).
+	const sourceMarkup = typeof renderFeatureSourceLine === "function"
+		? renderFeatureSourceLine("path", getPathPublicId(path), wiki.wiki_url || "", "location-popup__wiki-link")
 		: "";
 	// "Link teilen" nur wenn ein Wiki-Artikel verlinkt ist (Wege sind nicht ueber ?place= aufloesbar --
 	// applyPlaceFocusFromUrl kennt keine Wege). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst

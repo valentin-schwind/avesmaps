@@ -312,11 +312,11 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	rows += row(tr("infobox.language", "Sprache"), wiki.sprache);
 	rows += row(tr("infobox.vegetation", "Vegetation"), wiki.vegetation);
 	rows += row(tr("infobox.description", "Beschreibung"), typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
-	// Multi-source system (#1): ONE placeholder covers the wiki credit line that used to render
-	// unconditionally here -- the popupopen handler (js/ui/popups.js) lazily fetches the full
-	// approved-source list for this element and replaces the synchronous wiki-only fallback.
-	const sourceMarkup = typeof featureSourcesPlaceholderMarkup === "function"
-		? featureSourcesPlaceholderMarkup("region", label.publicId, wiki.wiki_url || "", "region-info-box__link")
+	// Multi-source system: ONE source line covers the wiki credit line that used to render
+	// unconditionally here -- rendered synchronously from the map-features payload
+	// (renderFeatureSourceLine in js/ui/popups.js resolves this element's approved sources).
+	const sourceMarkup = typeof renderFeatureSourceLine === "function"
+		? renderFeatureSourceLine("region", label.publicId, wiki.wiki_url || "", "region-info-box__link")
 		: "";
 
 	const header = headless ? "" : (
@@ -367,8 +367,8 @@ function createLabelMarkerEntry(label) {
 				showWikiLink: false,
 				// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button). wikiParam "region"
 				// deckt sich mit dem Deep-Link-Parameter fuer Landschaften/Regionen (js/app/wiki-deeplink.js).
-				// labelWikiInfoboxMarkup now emits a featureSourcesPlaceholderMarkup source line
-				// instead of the old unconditional wiki credit (multi-source system #1).
+				// labelWikiInfoboxMarkup now emits a synchronous renderFeatureSourceLine source line
+				// instead of the old unconditional wiki credit (multi-source system).
 				actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
 					+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
 			}),

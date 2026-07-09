@@ -403,6 +403,11 @@ const routeDataRequest = loadRouteData();
 routeDataRequest
 	.then((data) => {
 		updateMapDataStatus(data);
+		// Multi-source system: stash the shared source catalog + per-entity references from the
+		// payload so every popup/infobox renders its sources synchronously (resolveFeatureSourceList
+		// in js/ui/popups.js). No lazy per-popup fetch.
+		window.__sourceCatalog = (data && data.source_catalog) || {};
+		window.__featureSourceRefs = (data && data.feature_sources) || {};
 		prepareLocationData(data);
 		preparePowerlineData(data);
 		preparePathData(data);
@@ -1133,8 +1138,8 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			showWikiLink: false,
 			actionsMarkup: settlementWikiInfoboxMarkup(
 				markerEntry.location,
-				typeof featureSourcesPlaceholderMarkup === "function"
-					? featureSourcesPlaceholderMarkup("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
+				typeof renderFeatureSourceLine === "function"
+					? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
 					: ""
 			) + actionsBar + reviewsSlot,
 		});

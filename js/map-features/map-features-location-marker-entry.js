@@ -20,11 +20,11 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 
 	const wikiSettlement = markerEntry.location.wikiSettlement;
 	const hasWikiSettlement = Boolean(wikiSettlement && wikiSettlement.title);
-	// Multi-source system (#1): ONE placeholder covers the wiki/other-source either-or that used to
-	// live here -- the popupopen handler (js/ui/popups.js) lazily fetches the full approved-source
-	// list and replaces this synchronous wiki-only/no-source fallback.
-	const settlementSourceMarkup = typeof featureSourcesPlaceholderMarkup === "function"
-		? featureSourcesPlaceholderMarkup("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
+	// Multi-source system: ONE source line covers the wiki/other-source either-or that used to live
+	// here -- rendered synchronously from the map-features payload (renderFeatureSourceLine in
+	// js/ui/popups.js resolves this element's approved sources; no lazy fetch, no flash).
+	const settlementSourceMarkup = typeof renderFeatureSourceLine === "function"
+		? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
 		: "";
 	const settlementInfobox = hasWikiSettlement
 		? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
@@ -54,7 +54,7 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 		showType: true,
 		showDescription: !hasWikiSettlement,
 		// Der alte Wiki-Credit ("Informationen aus dem Wiki Aventurica. Mehr hier ↗") entfällt -- die
-		// neue Quell-Zeile (featureSourcesPlaceholderMarkup) zeigt den Wiki-Link jetzt als "Quellen: …".
+		// neue Quell-Zeile (renderFeatureSourceLine) zeigt den Wiki-Link jetzt als "Quellen: …".
 		showWikiLink: false,
 		// Infobox zuerst, Aktions-Buttons, dann der Bewertungs-Bereich.
 		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + reviewsSlot,
@@ -150,8 +150,8 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "") {
 	rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
-	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht den fertigen
-	// featureSourcesPlaceholderMarkup-Platzhalter durch (Multi-source system #1).
+	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht die fertige
+	// renderFeatureSourceLine-Quell-Zeile durch (Multi-source system).
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}</dl>` +

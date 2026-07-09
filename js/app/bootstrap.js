@@ -113,9 +113,8 @@ function keepPopupReadableDespiteMaxBounds(event) {
 }
 map.on("popupopen", keepPopupReadableDespiteMaxBounds);
 
-// Multi-source system (#1): lazy per-popup source list across settlements/regions/paths/
-// territories (js/ui/popups.js). Must be called AFTER map exists (load-order constraint).
-wireFeatureSourcePopups(map);
+// Multi-source system: popups/infoboxes render their sources synchronously from the map-features
+// payload (renderFeatureSourceLine in js/ui/popups.js), so no popupopen/tooltipopen wiring is needed.
 
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
