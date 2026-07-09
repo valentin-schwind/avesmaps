@@ -117,6 +117,14 @@
 	box-sizing: border-box;
 }
 
+/* The input is type="search" (to dodge Chrome's address autofill); hide the native clear button
+   so it doesn't duplicate the row's own remove-waypoint "✕". */
+#waypoints .waypoint-input::-webkit-search-cancel-button {
+	-webkit-appearance: none;
+	appearance: none;
+	display: none;
+}
+
 #waypoints .waypoint-container:focus-within .waypoint-input {
 	border-color: #b99878;
 	box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px rgba(255, 216, 88, 0.18);
