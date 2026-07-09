@@ -1,0 +1,205 @@
+<?php
+
+declare(strict_types=1);
+
+// Pure, DB-free wikitext parsers for the wiki-publication-sources feature (see
+// docs/wiki-publikations-quellen-design.md). These take raw wikitext strings and return plain
+// arrays -- no PDO, no HTTP, no dump reads. The Task-4 sync phase feeds real dump wikitext
+// into these and writes the results into wiki_publication_catalog / wiki_entity_publication
+// (see api/_internal/wiki/publication-sync.php for the staging schema).
+//
+// Reuses the existing infobox/template-param helpers instead of re-parsing wikitext templates:
+// avesmapsWikiSyncMonitorExtractInfoboxBlock() brace-matches the FIRST {{Infobox ...}} block
+// (not name-filtered), avesmapsWikiSyncMonitorParseTemplateParams() splits it into raw,
+// case-preserved |key=value params, and avesmapsWikiSyncMonitorFieldKey() folds a label to a
+// lowercase/umlaut-stripped comparison key (used here for subsection-heading and Art matching).
+require_once __DIR__ . '/sync-monitor-parsing.php';
+
+// Parses a page/note fragment that trails a publication wikilink on an entity's
+// "==Publikationen==" line, e.g. "Seite 54", "Seiten 40, '''145'''", or
+// "Seite 176 <small>(Zerstörung)</small>". Bold markup ('''...''') is stripped as pure
+// formatting noise. A <small>(...)</small> aside -- or, failing that, a bare (...) aside -- is
+// pulled out as the free-text `note` (parens stripped). Every remaining digit run becomes one
+// page number, normalized into a comma-space-joined list ("40, 145"); no digits left -> pages=null.
+function avesmapsWikiParsePageRef(string $text): array {
+    $clean = str_replace("'''", '', $text);
+
+    $note = null;
+    if (preg_match('/<small>\s*(.*?)\s*<\/small>/isu', $clean, $smallMatch) === 1) {
+        $inner = trim((string) $smallMatch[1]);
+        if (preg_match('/^\((.*)\)$/su', $inner, $parenMatch) === 1) {
+            $inner = trim((string) $parenMatch[1]);
+        }
+        $note = $inner !== '' ? $inner : null;
+        $clean = trim((string) preg_replace('/<small>.*?<\/small>/isu', ' ', $clean));
+    } elseif (preg_match('/\(([^()]*)\)/u', $clean, $parenMatch) === 1) {
+        $inner = trim((string) $parenMatch[1]);
+        $note = $inner !== '' ? $inner : null;
+        $clean = trim((string) preg_replace('/\([^()]*\)/u', ' ', $clean, 1));
+    }
+
+    $pages = null;
+    if (preg_match_all('/\d+/u', $clean, $numberMatches) > 0) {
+        $pages = implode(', ', $numberMatches[0]);
+    }
+
+    return ['pages' => $pages, 'note' => $note];
+}
+
+// Maps a "===Subsection===" heading under "==Publikationen==" to a reference_kind, or null for
+// subsections that are ignored entirely (Elektronische Quellen/Bildquellen) or unrecognized.
+// Matches tolerantly via avesmapsWikiSyncMonitorFieldKey() (lowercase + umlaut-folded + non-
+// alnum-stripped), since real headings carry trailing words ("Ausführliche QUELLEN").
+function avesmapsWikiPublicationSectionKind(string $heading): ?string {
+    $key = avesmapsWikiSyncMonitorFieldKey($heading);
+    if ($key === '' || str_starts_with($key, 'elektronisch') || str_starts_with($key, 'bildquell')) {
+        return null;
+    }
+    if (str_starts_with($key, 'ausfuhrlich')) {
+        return 'ausfuehrlich';
+    }
+    if (str_starts_with($key, 'erganzend')) {
+        return 'ergaenzend';
+    }
+    if (str_starts_with($key, 'erwahnung')) {
+        return 'erwaehnung';
+    }
+
+    return null;
+}
+
+// Parses an entity wiki page's "==Publikationen==" section into a flat reference list. Each
+// "===Subsection===" determines the reference_kind for its "*[[Title]] Seite …" bullet lines
+// (Elektronische Quellen/Bildquellen and unrecognized subsections are skipped entirely); the
+// title is the first wikilink target on the line, the remainder feeds avesmapsWikiParsePageRef().
+function avesmapsWikiParsePublicationsSection(string $wikitext): array {
+    if (preg_match('/^==\s*Publikationen\s*==\s*$/imu', $wikitext, $headingMatch, PREG_OFFSET_CAPTURE) !== 1) {
+        return [];
+    }
+    $bodyStart = $headingMatch[0][1] + strlen((string) $headingMatch[0][0]);
+    $body = substr($wikitext, $bodyStart);
+    // Bound the section at the next level-2 heading ("==Xyz=="), NOT at a level-3
+    // "===Xyz===" subsection heading -- the [^=] right after "==" rules the latter out.
+    if (preg_match('/^==[^=].*$/mu', $body, $nextSectionMatch, PREG_OFFSET_CAPTURE) === 1) {
+        $body = substr($body, 0, $nextSectionMatch[0][1]);
+    }
+
+    $out = [];
+    if (preg_match_all('/^===\s*(.+?)\s*===\s*$/mu', $body, $subsectionMatches, PREG_OFFSET_CAPTURE) < 1) {
+        return $out;
+    }
+    $subsectionCount = count($subsectionMatches[0]);
+    for ($i = 0; $i < $subsectionCount; $i++) {
+        $kind = avesmapsWikiPublicationSectionKind((string) $subsectionMatches[1][$i][0]);
+        $chunkStart = $subsectionMatches[0][$i][1] + strlen((string) $subsectionMatches[0][$i][0]);
+        $chunkEnd = $i + 1 < $subsectionCount ? $subsectionMatches[0][$i + 1][1] : strlen($body);
+        if ($kind === null) {
+            continue; // ignored/unrecognized subsection (Elektronische Quellen, Bildquellen, …)
+        }
+        $chunk = substr($body, $chunkStart, $chunkEnd - $chunkStart);
+        foreach (preg_split('/\R/u', $chunk) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] !== '*') {
+                continue;
+            }
+            if (preg_match('/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]\s*(.*)$/u', $line, $lineMatch) !== 1) {
+                continue; // no wikilink on this bullet -- nothing to key a title off
+            }
+            $title = trim((string) $lineMatch[1]);
+            if ($title === '') {
+                continue;
+            }
+            $ref = avesmapsWikiParsePageRef((string) $lineMatch[2]);
+            $out[] = [
+                'title' => $title,
+                'reference_kind' => $kind,
+                'pages' => $ref['pages'],
+                'note' => $ref['note'],
+            ];
+        }
+    }
+
+    return $out;
+}
+
+// Maps a publication's `Art` (and optionally `Unterkategorie`) infobox param to the 8-value
+// source_type taxonomy (see api/_internal/app/feature-sources.php's whitelist). STARTER table
+// only, per the brief -- covers the values named in the design doc. Fuzzy substring match (both
+// directions) handles compound/qualified Art values (e.g. "Kaufabenteuer (limitiert)"); unknown
+// -> 'sonstiges'.
+// FOLLOW-UP (owner-triggered, not this task): pull the real `Art` value set from a dump run
+// (SELECT DISTINCT-equivalent over publication pages during the Task-4 sync) and extend this
+// table with anything that's still falling through to 'sonstiges'.
+function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''): string {
+    static $table = [
+        'abenteuer' => 'abenteuer',
+        'kaufabenteuer' => 'abenteuer',
+        'soloabenteuer' => 'abenteuer',
+        'gruppenabenteuer' => 'abenteuer',
+        'regionalspielhilfe' => 'regionalspielhilfe',
+        'quellenband' => 'quellenband',
+        'roman' => 'roman',
+        'regelband' => 'regelbuch',
+        'regelwerk' => 'regelbuch',
+        'basisregelwerk' => 'regelbuch',
+        'briefspiel' => 'briefspiel',
+        'aventurischerbote' => 'aventurischer_bote',
+    ];
+
+    $key = avesmapsWikiSyncMonitorFieldKey($art);
+    if ($key === '') {
+        $key = avesmapsWikiSyncMonitorFieldKey($unterkategorie);
+    }
+    if ($key === '') {
+        return 'sonstiges';
+    }
+    if (isset($table[$key])) {
+        return $table[$key];
+    }
+    foreach ($table as $needle => $sourceType) {
+        if (str_contains($key, $needle) || str_contains($needle, $key)) {
+            return $sourceType;
+        }
+    }
+
+    return 'sonstiges';
+}
+
+// Parses a publication wiki page's {{Infobox Produkt}} block. Reuses
+// avesmapsWikiSyncMonitorExtractInfoboxBlock() (which is NOT name-filtered -- it returns
+// whatever {{Infobox ...}} block it finds first) and GUARDS on the block actually being an
+// "Infobox Produkt"; returns null for pages with no infobox or a different infobox type.
+// f_shop_pid/pdf_shop_id are not direct template params -- they're regexed out of the
+// Direktlinks/Download param values ({{F-Shop|PID=…}} / {{PDF-Shop|ID=…}}).
+function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
+    $block = avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext);
+    if ($block === '' || !str_starts_with($block, '{{Infobox Produkt')) {
+        return null;
+    }
+    $params = avesmapsWikiSyncMonitorParseTemplateParams($block);
+
+    $title = trim((string) ($params['Titel'] ?? ''));
+    $art = trim((string) ($params['Art'] ?? ''));
+    $isbn = trim((string) ($params['ISBN'] ?? ''));
+    $unterkategorie = trim((string) ($params['Unterkategorie'] ?? ''));
+    $direktlinks = (string) ($params['Direktlinks'] ?? '');
+    $download = (string) ($params['Download'] ?? '');
+
+    $fShopPid = null;
+    if (preg_match('/\{\{\s*F-Shop\s*\|\s*PID\s*=\s*([^|}\s]+)/iu', $direktlinks, $pidMatch) === 1) {
+        $fShopPid = trim((string) $pidMatch[1]);
+    }
+    $pdfShopId = null;
+    if (preg_match('/\{\{\s*PDF-Shop\s*\|\s*ID\s*=\s*([^|}\s]+)/iu', $download, $idMatch) === 1) {
+        $pdfShopId = trim((string) $idMatch[1]);
+    }
+
+    return [
+        'title' => $title,
+        'art' => $art,
+        'source_type' => avesmapsWikiMapArtToSourceType($art, $unterkategorie),
+        'isbn' => $isbn,
+        'f_shop_pid' => $fShopPid,
+        'pdf_shop_id' => $pdfShopId,
+    ];
+}
