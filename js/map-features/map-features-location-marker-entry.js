@@ -86,8 +86,11 @@ function refreshLocationMarkerPopup(markerEntry) {
 		// Edit-Modus ab (Canvas-Marker sind dort aus), die NICHT ueber den Canvas-Arbiter bzw. das
 		// programmatische Oeffnen laufen (dort greift die Interception schon vor openPopup).
 		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowLocationInInfopanel === "function") {
-			window.setTimeout(function () { try { markerEntry.marker.closePopup(); if (typeof map !== "undefined" && map) { map.closePopup(); } } catch (error) { /* noop */ } }, 0);
+			var _popup = markerEntry.marker.getPopup();
+			var _popupEl = _popup && typeof _popup.getElement === "function" ? _popup.getElement() : null;
+			if (_popupEl) { _popupEl.style.display = "none"; } // sofort unsichtbar -> kein Flash, unabhaengig vom Schliessen
 			window.avesmapsShowLocationInInfopanel(markerEntry);
+			window.setTimeout(function () { try { markerEntry.marker.closePopup(); if (typeof map !== "undefined" && map) { map.closePopup(); } } catch (error) { /* noop */ } }, 0);
 			return;
 		}
 			// maxHeight an die aktuelle Kartenhöhe anpassen -> Popup scrollt statt am Rand abzuschneiden.
