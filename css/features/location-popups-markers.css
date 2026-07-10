@@ -74,6 +74,20 @@
 	margin: 8px 0;
 	background: #d8c9b3;
 }
+/* Schlanke Karten-Popups (find-nearest + Wegpunkt-Hover): genau EIN Trenner unter dem Kopf, voll von
+   Rand zu Rand (Owner: durchgehende Linien). Die zusaetzliche .feature-sources-Trennlinie (region-sync.css)
+   entfaellt hier -- sonst stehen zwei Linien direkt untereinander (Doppellinie). */
+.slim-location-popup .location-popup__divider,
+.waypoint-hover-popup .location-popup__divider {
+	margin-left: -10px;
+	margin-right: -10px;
+}
+.slim-location-popup .feature-sources,
+.waypoint-hover-popup .feature-sources {
+	margin-top: 6px;
+	padding-top: 0;
+	border-top: none;
+}
 
 /* Route-Wegpunkt-Popup traegt zusaetzlich die Klasse settlement-popup (siehe routing.js) und erbt
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen

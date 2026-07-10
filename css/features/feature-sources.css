@@ -202,12 +202,10 @@
 .fs-src-pub {
 	display: flex;
 	align-items: center;
-	flex-wrap: nowrap;
-	gap: 7px;
+	flex-wrap: wrap;
+	gap: 7px 6px;
 	margin-top: 9px;
 	color: #6c5a49;
-	overflow-x: auto;
-	scrollbar-width: thin;
 }
 .fs-src-pub > * {
 	flex: 0 0 auto;
