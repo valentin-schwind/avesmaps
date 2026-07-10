@@ -30,6 +30,10 @@
 .mail-inbox__reply textarea { width: 100%; min-height: 90px; font: inherit; padding: 8px; border: 1px solid #cbb79c; border-radius: 8px; resize: vertical; }
 .mail-inbox__reply-actions { display: flex; gap: 8px; align-items: center; }
 .mail-inbox__status { color: #8a7355; font-size: 12px; }
+.mail-inbox__images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.mail-inbox__thumb { max-width: 120px; max-height: 120px; object-fit: cover; border: 1px solid #e7d8c6; border-radius: 8px; background: #fbf6ee; cursor: zoom-in; }
+.mail-inbox__lightbox { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(20, 14, 8, 0.82); cursor: zoom-out; }
+.mail-inbox__lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 
 @media (max-width: 520px) {
 	/* Mobile: the outer .wiki-sync-panel__tab-panel.is-active is the SINGLE scroll container

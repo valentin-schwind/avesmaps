@@ -17,6 +17,22 @@
 
     function fmtDate(s) { const d = new Date(s); return isNaN(d) ? (s || "") : d.toLocaleString("de-DE"); }
 
+    // Full-screen image viewer. Built entirely via createElement (no innerHTML); the src is
+    // our own auth-gated, same-origin image endpoint, so the session cookie is sent with it.
+    function openLightbox(src, alt) {
+        const overlay = document.createElement("div");
+        overlay.className = "mail-inbox__lightbox";
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = alt || "";
+        overlay.appendChild(img);
+        function close() { overlay.remove(); document.removeEventListener("keydown", onKey); }
+        function onKey(e) { if (e.key === "Escape") close(); }
+        overlay.addEventListener("click", close);
+        document.addEventListener("keydown", onKey);
+        document.body.appendChild(overlay);
+    }
+
     function renderInbox(messages) {
         const el = listEl(); if (!el) return;
         el.textContent = "";
@@ -69,6 +85,22 @@
         head.textContent = ((msg.replyTo || msg.fromEmail) || "") + " · " + (msg.subject || "(kein Betreff)");
         const body = document.createElement("div"); body.className = "mail-inbox__body"; body.textContent = msg.text || "(kein Textinhalt)";
         el.append(head, body);
+
+        if (msg.images && msg.images.length) {
+            const gallery = document.createElement("div"); gallery.className = "mail-inbox__images";
+            msg.images.forEach((im) => {
+                const src = API + "?action=image&uid=" + encodeURIComponent(msg.uid) + "&part=" + encodeURIComponent(im.part);
+                const thumb = document.createElement("img");
+                thumb.className = "mail-inbox__thumb";
+                thumb.src = src;
+                thumb.alt = im.filename || "Bild";
+                thumb.title = "Zum Vergrößern klicken";
+                thumb.loading = "lazy";
+                thumb.addEventListener("click", () => openLightbox(src, im.filename || ""));
+                gallery.appendChild(thumb);
+            });
+            el.appendChild(gallery);
+        }
 
         const replyTarget = msg.replyTo || msg.fromEmail;
         if (!replyTarget) { const n = document.createElement("div"); n.className = "mail-inbox__status"; n.textContent = "Keine Absenderadresse — Antwort nicht möglich."; el.appendChild(n); return; }

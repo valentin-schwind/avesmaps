@@ -165,3 +165,86 @@ function avesmapsImapFetchText($imap, int $uid): string {
     }
     return trim(avesmapsImapWalkParts($imap, $uid, $structure->parts, ''));
 }
+
+// --- Inline/attached image support ---------------------------------------------------
+// We surface only image parts embedded IN the message (attachments / inline cid: parts),
+// served from our own auth-gated endpoint — never remote URLs (those would be tracking
+// pixels). Raster types only; SVG is excluded on purpose (an SVG opened directly could
+// execute script). The mimetype is always taken from the server-parsed MIME structure.
+
+// Skip inline images larger than this (encoded size) to bound per-request memory on STRATO.
+const AVESMAPS_IMAP_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
+
+function avesmapsImapImageSubtypeToMime(string $subtype): string {
+    return match (strtoupper(trim($subtype))) {
+        'JPEG', 'JPG', 'PJPEG' => 'image/jpeg',
+        'PNG' => 'image/png',
+        'GIF' => 'image/gif',
+        'WEBP' => 'image/webp',
+        'BMP' => 'image/bmp',
+        default => '',
+    };
+}
+
+function avesmapsImapPartFilename($part): string {
+    $name = '';
+    foreach ((array) ($part->dparameters ?? []) as $p) {
+        if (strtolower((string) ($p->attribute ?? '')) === 'filename') { $name = (string) ($p->value ?? ''); }
+    }
+    if ($name === '') {
+        foreach ((array) ($part->parameters ?? []) as $p) {
+            if (strtolower((string) ($p->attribute ?? '')) === 'name') { $name = (string) ($p->value ?? ''); }
+        }
+    }
+    return $name === '' ? '' : avesmapsImapDecodeMime($name);
+}
+
+function avesmapsImapWalkImages($imap, int $uid, array $parts, string $prefix, array &$out): void {
+    foreach ($parts as $index => $part) {
+        $section = ($prefix === '' ? '' : $prefix . '.') . ($index + 1);
+        if (!empty($part->parts)) {
+            avesmapsImapWalkImages($imap, $uid, $part->parts, $section, $out);
+            continue;
+        }
+        if ((int) ($part->type ?? 0) !== 5) { continue; } // 5 = image
+        $mime = avesmapsImapImageSubtypeToMime((string) ($part->subtype ?? ''));
+        if ($mime === '') { continue; } // unsupported / unsafe image subtype
+        if ((int) ($part->bytes ?? 0) > AVESMAPS_IMAP_IMAGE_MAX_BYTES) { continue; } // bound memory
+        $out[] = [
+            'part' => $section,
+            'mimetype' => $mime,
+            'filename' => avesmapsImapPartFilename($part),
+            'encoding' => (int) ($part->encoding ?? 0),
+        ];
+    }
+}
+
+function avesmapsImapCollectImages($imap, int $uid): array {
+    $structure = @imap_fetchstructure($imap, $uid, FT_UID);
+    if ($structure === false) { return []; }
+    $out = [];
+    if (!empty($structure->parts)) {
+        avesmapsImapWalkImages($imap, $uid, $structure->parts, '', $out);
+    } elseif ((int) ($structure->type ?? 0) === 5) {
+        $mime = avesmapsImapImageSubtypeToMime((string) ($structure->subtype ?? ''));
+        if ($mime !== '' && (int) ($structure->bytes ?? 0) <= AVESMAPS_IMAP_IMAGE_MAX_BYTES) {
+            $out[] = ['part' => '1', 'mimetype' => $mime, 'filename' => avesmapsImapPartFilename($structure), 'encoding' => (int) ($structure->encoding ?? 0)];
+        }
+    }
+    return $out;
+}
+
+function avesmapsImapFetchImage($imap, int $uid, string $section): ?array {
+    // Only serve a section this message actually exposes as a supported image part; the
+    // mimetype comes from the server-parsed structure, never from client input.
+    foreach (avesmapsImapCollectImages($imap, $uid) as $img) {
+        if ($img['part'] === $section) {
+            $raw = @imap_fetchbody($imap, $uid, $section, FT_UID);
+            if (!is_string($raw) || $raw === '') { return null; }
+            if ($img['encoding'] === 3) { $raw = (string) base64_decode($raw, false); }
+            elseif ($img['encoding'] === 4) { $raw = quoted_printable_decode($raw); }
+            return ['mimetype' => $img['mimetype'], 'bytes' => $raw, 'filename' => $img['filename']];
+        }
+    }
+    return null;
+}

@@ -8,6 +8,7 @@ require __DIR__ . '/../../_internal/mail/imap.php';
 require __DIR__ . '/../../_internal/mail/mailer.php';
 
 const AVESMAPS_MAIL_INBOX_LIMIT = 40;
+const AVESMAPS_MAIL_IMAGE_MAX = 12;
 
 try {
     $user = avesmapsRequireUserWithCapability('edit');
@@ -76,6 +77,27 @@ try {
                 'deliveryStatus' => $deliveryStatus,
             ]);
         }
+        if ($action === 'image') {
+            $uid = (int) ($_GET['uid'] ?? 0);
+            $section = (string) ($_GET['part'] ?? '');
+            if ($uid <= 0 || preg_match('/^[0-9]+(\.[0-9]+)*$/', $section) !== 1) {
+                avesmapsErrorResponse(400, 'invalid_request', 'A valid uid and part are required.');
+            }
+            $image = avesmapsImapFetchImage($imap, $uid, $section);
+            if ($image === null) {
+                avesmapsErrorResponse(404, 'not_found', 'Image part not found.');
+            }
+            // Binary response (not the JSON envelope): mimetype is server-determined and
+            // whitelisted to raster types; nosniff prevents the browser re-typing it.
+            $safeName = (string) preg_replace('/[^A-Za-z0-9._-]+/', '_', $image['filename']);
+            header('Content-Type: ' . $image['mimetype']);
+            header('X-Content-Type-Options: nosniff');
+            header('Content-Disposition: inline' . ($safeName !== '' ? '; filename="' . $safeName . '"' : ''));
+            header('Content-Length: ' . strlen($image['bytes']));
+            header('Cache-Control: private, max-age=300');
+            echo $image['bytes'];
+            exit;
+        }
         if ($action === 'ping') {
             avesmapsJsonResponse(200, ['ok' => true, 'count' => imap_num_msg($imap)]);
         }
@@ -93,6 +115,10 @@ try {
                 'replyTo' => ((string) ($meta['replyToEmail'] ?? '')) !== '' ? (string) $meta['replyToEmail'] : (string) $meta['fromEmail'],
                 'subject' => $meta['subject'],
                 'text' => $text,
+                'images' => array_map(
+                    static fn($img) => ['part' => $img['part'], 'mimetype' => $img['mimetype'], 'filename' => $img['filename']],
+                    array_slice(avesmapsImapCollectImages($imap, $uid), 0, AVESMAPS_MAIL_IMAGE_MAX)
+                ),
                 'answered' => $reply !== null,
                 'replyId' => $reply['id'] ?? null,
             ]]);
