@@ -178,6 +178,7 @@ const POLITICAL_HOVER_FILL_OPACITY = 0.22;
 const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-search.php" : "");
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
+const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") === "true";
 const MAP_TILE_STYLES = {
 	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
