@@ -8,6 +8,7 @@
     let sentLoaded = false;
     let sentLoadPromise = null;
     let openUid = null;
+    let openItemEl = null;
 
     function api(action, opts, query) {
         let url = API + "?action=" + encodeURIComponent(action);
@@ -36,6 +37,7 @@
     function renderInbox(messages) {
         const el = listEl(); if (!el) return;
         el.textContent = "";
+        openUid = null; openItemEl = null;
         if (!messages || !messages.length) { el.textContent = "Keine Nachrichten."; return; }
         messages.forEach((m) => {
             const item = document.createElement("button");
@@ -53,33 +55,45 @@
                 meta.appendChild(b);
             }
             item.append(from, subj, meta);
-            item.addEventListener("click", () => openMessage(m));
+            item.addEventListener("click", () => openMessage(m, item));
             el.appendChild(item);
         });
     }
 
     function closeDetail() {
-        const el = detailEl(); if (!el) return;
-        el.hidden = true;
-        el.textContent = "";
+        const inline = document.getElementById("mail-inline-detail");
+        if (inline) { inline.remove(); }
+        if (openItemEl) { openItemEl.classList.remove("is-open"); openItemEl = null; }
         openUid = null;
     }
 
-    function openMessage(m) {
-        const el = detailEl(); if (!el) return;
-        // Second click on the already-open mail collapses everything under the divider.
-        if (openUid === m.uid && !el.hidden) { closeDetail(); return; }
+    // The detail expands INLINE, directly under the clicked list entry (accordion), so it
+    // never slides to the bottom of the list. A second click on the open mail collapses it.
+    function openMessage(m, itemEl) {
+        if (openUid === m.uid) { closeDetail(); return; }
+        closeDetail();
         openUid = m.uid;
-        el.hidden = false; el.textContent = "Lade …";
+        const detail = document.createElement("div");
+        detail.id = "mail-inline-detail";
+        detail.className = "mail-inbox__detail";
+        detail.textContent = "Lade …";
+        if (itemEl && typeof itemEl.after === "function") {
+            itemEl.after(detail);
+            itemEl.classList.add("is-open");
+            openItemEl = itemEl;
+        } else {
+            const l = listEl(); if (l) { l.appendChild(detail); }
+        }
         api("message", null, { uid: m.uid }).then((res) => {
             if (openUid !== m.uid) { return; }
-            if (!res || !res.ok) { el.textContent = "Konnte Nachricht nicht laden."; return; }
-            renderDetail(res.message);
-        }).catch(() => { if (openUid === m.uid) { el.textContent = "Fehler beim Laden."; } });
+            if (!res || !res.ok) { detail.textContent = "Konnte Nachricht nicht laden."; return; }
+            renderDetail(res.message, detail);
+        }).catch(() => { if (openUid === m.uid) { detail.textContent = "Fehler beim Laden."; } });
     }
 
-    function renderDetail(msg) {
-        const el = detailEl(); if (!el) return;
+    function renderDetail(msg, el) {
+        if (!el) { el = detailEl(); }
+        if (!el) return;
         el.textContent = "";
         const head = document.createElement("div"); head.className = "mail-inbox__meta";
         head.textContent = ((msg.replyTo || msg.fromEmail) || "") + " · " + (msg.subject || "(kein Betreff)");

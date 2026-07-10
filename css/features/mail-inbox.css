@@ -18,13 +18,15 @@
 .mail-inbox__item { text-align: left; border: 1px solid #e7d8c6; border-radius: 8px; background: #fbf6ee; padding: 8px 10px; cursor: pointer; appearance: none; -webkit-appearance: none; font: inherit; }
 .mail-inbox__item:hover { border-color: #cbb79c; }
 .mail-inbox__item.is-highlighted { border-color: #1baf7a; box-shadow: 0 0 0 2px rgba(27, 175, 122, 0.28); }
+.mail-inbox__item.is-open { border-color: #cbb79c; background: #f4ebdd; }
 .mail-inbox__item.is-unread .mail-inbox__from { font-weight: 700; }
 .mail-inbox__from { color: #5a4a3a; }
 .mail-inbox__subject { color: #6b5a46; }
 .mail-inbox__meta { color: #8a7355; font-size: 12px; }
 .mail-inbox__badge { display: inline-block; margin-left: 6px; font-size: 11px; color: #1baf7a; cursor: pointer; }
 .mail-inbox__badge:hover { text-decoration: underline; }
-.mail-inbox__detail { margin-top: 10px; border-top: 1px solid #e7d8c6; padding-top: 10px; }
+/* Inline detail card that expands directly under the clicked list entry (accordion). */
+.mail-inbox__detail { border: 1px solid #cbb79c; border-radius: 8px; background: #fdfaf5; padding: 10px 12px; }
 .mail-inbox__body { white-space: pre-wrap; word-break: break-word; color: #4a3f33; }
 .mail-inbox__reply { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .mail-inbox__reply textarea { width: 100%; min-height: 90px; font: inherit; padding: 8px; border: 1px solid #cbb79c; border-radius: 8px; resize: vertical; }
