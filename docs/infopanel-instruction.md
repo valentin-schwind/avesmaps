@@ -38,9 +38,12 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
    Bewertungs-`max-height` wird im Panel-Modus **überschrieben**). Kopf +
    Wegpunkt-Tabs bleiben stehen. **„Bewertung schreiben"** sitzt **unten** bei den
    Bewertungen (nicht in der oberen Aktionszeile).
-9. **„Abenteuer in Gareth"** (sortierbar, mit „mehr"-Button) = **späterer
-   Daten-Schritt** (Phase 6). Im Panel-Kern zunächst nicht enthalten; im Mockup
-   nur Platzhalter.
+9. **Zusatz-Abschnitte** = **spätere Daten-Schritte** (Phase 6), im Mockup nur
+   Platzhalter, im Panel-Kern zunächst nicht enthalten:
+   - **„Bekannte Persönlichkeiten"** — einzeiliger **waagrechter Scroller**
+     (Avatar/Initialen + Name + Rolle), sitzt **über** den Abenteuern.
+   - **„Abenteuer in Gareth"** — sortierbar (neueste/Art/alphabetisch) mit
+     „mehr"-Button.
 
 ---
 
@@ -156,10 +159,12 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
   ?infopanel=true`.
 - **Deploy-Check:** beide Panels nebeneinander bedienbar, keine Überlappung.
 
-### Phase 6 — „Abenteuer in Gareth" (Daten, später)
-- Datenquelle je Ort (Wiki `…/Ort/Abenteuer`), analog zum Publikations-Lookup.
-  Abschnitt mit Sortierung (neueste/Art/alphabetisch) + „mehr"-Button. Bis zur
-  Datenanbindung Platzhalter.
+### Phase 6 — Zusatz-Abschnitte (Daten, später)
+- **Bekannte Persönlichkeiten:** je Ort (Wiki-Personen), einzeiliger waagrechter
+  Scroller (Avatar/Initialen + Name + Rolle), **über** den Abenteuern.
+- **Abenteuer in Gareth:** Datenquelle je Ort (Wiki `…/Ort/Abenteuer`), analog
+  zum Publikations-Lookup; Sortierung (neueste/Art/alphabetisch) + „mehr"-Button.
+- Bis zur Datenanbindung jeweils Platzhalter.
 
 ### Danach (eigener Owner-Schritt, NICHT Teil dieses Plans)
 - Reduktion der schwebenden Popup-Inhalte auf ein Minimum, sobald das Panel steht.
