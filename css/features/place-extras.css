@@ -105,7 +105,44 @@
 	display: none;
 }
 .avesmaps-adv__row {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
 	line-height: 1.3;
+}
+/* Cover im DIN-A4-Hochformat (210:297 -> 50x71). Platzhalter = Parchment-Box mit Icon;
+   echtes Cover (.has-img) fuellt die Box randlos (object-fit: cover). */
+.avesmaps-adv__cover {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 50px;
+	height: 71px;
+	background: #ece3cb;
+	border: 1px solid rgba(120, 100, 70, 0.38);
+	border-radius: 3px;
+	overflow: hidden;
+	color: #a3926c;
+	text-decoration: none;
+	transition: border-color 0.12s ease;
+}
+.avesmaps-adv__row:hover .avesmaps-adv__cover {
+	border-color: #c9a227;
+}
+.avesmaps-adv__cover.has-img {
+	background: #f3ecda;
+}
+.avesmaps-adv__cover-img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+.avesmaps-adv__body {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding-top: 1px;
 }
 .avesmaps-adv__title {
 	font-size: 12.5px;

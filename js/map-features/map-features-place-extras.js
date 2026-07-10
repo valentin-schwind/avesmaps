@@ -32,6 +32,8 @@ var AVESMAPS_PLACEHOLDER_CITYMAPS = [
 ];
 
 var AVESMAPS_CITYMAP_THUMB_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>';
+// Platzhalter-Icon fuer das Abenteuer-Cover (A4), solange kein echtes Cover-Bild (a.cover) vorliegt.
+var AVESMAPS_ADV_COVER_PH_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 16 5-4 4 3 3-2 4 3"/></svg>';
 
 // Datenzugriff: echte Payload-Daten bevorzugen, sonst Platzhalter (Demo). So bleibt der Tausch trivial.
 function getPlaceAdventures(location) {
@@ -92,9 +94,16 @@ function buildPlaceAdventuresMarkup(location) {
 		if (a.edition) { metaParts.push(a.edition); }
 		if (a.yearLabel) { metaParts.push(a.yearLabel); }
 		var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
+		// Cover im DIN-A4-Hochformat: echtes Bild (a.cover) wenn vorhanden, sonst A4-Platzhalter mit Icon.
+		var coverInner = a.cover
+			? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
+			: AVESMAPS_ADV_COVER_PH_SVG;
 		return '<div class="avesmaps-adv__row" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
+			+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">' + coverInner + '</a>'
+			+ '<div class="avesmaps-adv__body">'
 			+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 			+ '<div class="avesmaps-adv__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>'
+			+ '</div>'
 			+ '</div>';
 	}).join("");
 	var moreCount = Math.max(0, list.length - 3);
