@@ -213,7 +213,7 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsEnsureFeatureSourceTables($pdo);
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
-        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, fs.origin
+        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, fs.origin, fs.pages
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
           ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
@@ -221,10 +221,11 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     $stmt->execute(['t' => $entityType, 'id' => $publicId]);
     // 'origin' lets the editor UI (review-feature-sources.js) group wiki-derived rows
     // ('wiki_publication') under their own "automatisch" heading, separate from manual/community.
+    // 'pages' surfaces a source's page citation so the editor row can show it (e.g. "S. 12").
     $sources = array_map(static fn(array $r): array => [
         'source_id' => (int) $r['source_id'], 'url' => (string) $r['url'], 'label' => (string) $r['label'],
         'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
-        'origin' => (string) $r['origin'],
+        'origin' => (string) $r['origin'], 'pages' => (string) ($r['pages'] ?? ''),
     ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     return [
         'ok' => true,
@@ -265,11 +266,15 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
     return is_array($props) ? trim((string) ($props['wiki_url'] ?? '')) : '';
 }
 
-function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId): array
+function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = ''): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     $sourceId = avesmapsFeatureSourceUpsert($pdo, $url, $label, $type, $official, $userId);
-    avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId);
+    // Manual add: origin stays 'manual', no reference_kind; an optional free-form page citation is
+    // stored so the popup renders "… S. <pages>" on the direct-sources line (buildSourceListMarkup).
+    // Capped to the feature_sources.pages column width (120).
+    $pagesValue = trim($pages);
+    avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId, 'manual', null, $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null);
     // Cache invalidation (Fix #1): a new source link changes the element's rendered source list,
     // which rides in the ETag-cached map-features payload (W/"mf-<map_revision>-..."). Bump the SAME
     // global map_revision counter ordinary editor edits use so warm-cache clients don't keep a stale

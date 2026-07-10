@@ -54,7 +54,8 @@ try {
             $label = (string) ($payload['label'] ?? '');
             $type = (string) ($payload['source_type'] ?? 'sonstiges');
             $official = (bool) ($payload['is_official'] ?? false);
-            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId);
+            $pages = trim((string) ($payload['pages'] ?? ''));
+            return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages);
         })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);

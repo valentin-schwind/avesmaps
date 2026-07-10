@@ -77,11 +77,13 @@ function renderFeatureSourceWikiRow(wikiUrl, escape, tr) {
 
 function renderFeatureSourceRow(source, escape, tr) {
   const officialMark = source.official ? " *" : "";
+  const pages = source.pages ? '<span class="fs-row__pages">S. ' + escape(source.pages) + "</span>" : "";
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
     escape(source.label || source.url) + " ↗</a>" +
     '<span class="fs-row__badge">' + escape(featureSourceTypeLabel(source.type)) + officialMark + "</span>" +
+    pages +
     '<button type="button" class="fs-row__remove" data-remove-source-id="' + escape(source.source_id) + '">✕</button>' +
     "</div>"
   );
@@ -110,6 +112,7 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<div class="fs-row fs-row--add" data-fs-add>' +
     '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
     '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '">' +
+    '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pages", "Seite(n)")) + '">' +
     '<select class="fs-add-type">' + options + "</select>" +
     '<label class="fs-add-official-label">' +
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
@@ -190,11 +193,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const labelInput = containerEl.querySelector(".fs-add-label");
     const typeSelect = containerEl.querySelector(".fs-add-type");
     const officialInput = containerEl.querySelector(".fs-add-official");
+    const pagesInput = containerEl.querySelector(".fs-add-pages");
     return {
       url: String((urlInput && urlInput.value) || "").trim(),
       label: String((labelInput && labelInput.value) || "").trim(),
       source_type: String((typeSelect && typeSelect.value) || "sonstiges"),
       is_official: Boolean(officialInput && officialInput.checked),
+      pages: String((pagesInput && pagesInput.value) || "").trim(),
     };
   }
 

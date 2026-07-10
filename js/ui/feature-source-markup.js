@@ -1,50 +1,156 @@
-// Pure, DOM-free source-line renderer. Order: official (with *), then the auto Wiki source, then
-// the rest. Injectable escape/labels keep it Node-testable (no browser tr()/DOM). Empty in -> "".
-// A source with a URL renders as a link; a URL-less publication source (a wiki catalog entry with
-// no shop link) renders as plain text. Optional per-source `pages` -> " S. …"; `reference_kind`
-// === 'erwaehnung' -> a subtle marker (the entity is only mentioned, not covered in detail).
+// Pure, DOM-free source renderer for map popups/infoboxes. Two zones, each rendered ONLY when it
+// has content:
+//   Line 1 "Quelle(n):" — the Wiki-Aventurica page link + any hand-added (non-wiki-publication)
+//     sources; always visible. Label is "Quelle:" for one item, "Quellen:" for several.
+//   Line 2 "Publikationen (N):" — the wiki-reconciled publications, split into two collapsible tabs
+//     (Offizielle = substantive references, Erwaehnungen = reference_kind 'erwaehnung'), each shown
+//     as a Titel/Typ/Seiten table. A source counts as a wiki publication iff it carries a
+//     reference_kind; everything else (manual / community / legacy other_source) is a direct source.
+// Empty input (no wiki link, no sources) returns "" so the caller renders nothing.
+// Injectable `escape` keeps it Node-testable. Tab expand/collapse uses a browser-only inline handler
+// (avesmapsToggleSourceTab), which is re-render-safe: it survives Leaflet popup re-renders
+// (autopan/zoom) because the handler lives on the element, not on a document-level listener.
+
+var FEATURE_SOURCE_TYPE_LABELS = {
+  regionalspielhilfe: "Regionalspielhilfe",
+  abenteuer: "Abenteuer",
+  aventurischer_bote: "Aventurischer Bote",
+  quellenband: "Quellenband",
+  roman: "Roman",
+  briefspiel: "Briefspiel",
+  regelbuch: "Regelbuch",
+  sonstiges: "Sonstiges",
+};
+
 function buildSourceListMarkup(wikiUrl, sources, opts) {
   opts = opts || {};
-  const linkClass = opts.linkClass || "popup-source-link";
-  const wikiLabel = opts.wikiLabel || "Wiki";
-  const officialTooltip = opts.officialTooltip || "offizielle Quelle";
-  const mentionTooltip = opts.mentionTooltip || "nur Erwähnung";
-  const esc = opts.escape || ((s) => String(s == null ? "" : s).replace(/[&<>"]/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])));
-  const officialStar = (official) => official
-    ? `<span class="popup-source-official" title="${esc(officialTooltip)}">*</span>`
-    : "";
-  // " S. <pages>" appended after the label when a source cites specific pages.
-  const pagesSuffix = (pages) => {
-    const value = String(pages == null ? "" : pages).trim();
-    return value ? ` S. ${esc(value)}` : "";
+  var wikiLabel = opts.wikiLabel || "Wiki";
+  var officialTooltip = opts.officialTooltip || "offizielle Quelle";
+  var esc = opts.escape || function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
   };
-  // Subtle marker when the source only mentions the entity (reference_kind 'erwaehnung') instead of
-  // covering it in detail. The free-form `note` becomes the tooltip when present.
-  const mentionMarker = (source) => {
-    if (source.reference_kind !== "erwaehnung") {
-      return "";
-    }
-    const title = String(source.note == null ? "" : source.note).trim() || mentionTooltip;
-    return `<span class="popup-source-mention" title="${esc(title)}">°</span>`;
+  var typeLabel = function (t) {
+    var key = String(t == null ? "" : t).trim();
+    return key ? (FEATURE_SOURCE_TYPE_LABELS[key] || key) : "";
   };
-  const renderSource = (source, official) => {
-    const label = esc(source.label || source.url || "");
-    const inner = `${label}${officialStar(official)}${pagesSuffix(source.pages)}${mentionMarker(source)}`;
-    // URL-less publication source -> plain text (no link); otherwise a link with the ↗ affordance.
-    if (source.url) {
-      return `<a class="${esc(linkClass)}" href="${esc(source.url)}" target="_blank" rel="noopener">${inner} ↗</a>`;
-    }
-    return `<span class="popup-source-text">${inner}</span>`;
+  var star = function (official) {
+    return official ? '<span class="fs-src-star" title="' + esc(officialTooltip) + '">*</span>' : "";
   };
-  const list = Array.isArray(sources) ? sources.filter((s) => s && (s.label || s.url)) : [];
-  const parts = [];
-  for (const s of list.filter((s) => s.official)) parts.push(renderSource(s, true));
+  var typeTag = function (t) {
+    var label = typeLabel(t);
+    return label ? '<span class="fs-src-type">' + esc(label) + "</span>" : "";
+  };
+  // Line-1 page citation for a direct/own source (e.g. a manually added publication). The tabbed
+  // publication table has its own "Seiten" column, so this "S. …" form is only for line 1.
+  var pagesInline = function (p) {
+    var value = String(p == null ? "" : p).trim();
+    return value ? '<span class="fs-src-pages">S. ' + esc(value) + "</span>" : "";
+  };
+  var link = function (url, inner) {
+    return '<a class="fs-src-a" href="' + esc(url) + '" target="_blank" rel="noopener">' + inner + ' <span class="fs-src-ext" aria-hidden="true">↗</span></a>';
+  };
+
+  var list = Array.isArray(sources) ? sources.filter(function (s) { return s && (s.label || s.url); }) : [];
+  // A wiki publication carries a reference_kind; anything without one is a direct/own source.
+  var publications = list.filter(function (s) { return s.reference_kind; });
+  var direct = list.filter(function (s) { return !s.reference_kind; });
+
+  var blocks = [];
+
+  // ----- Line 1: Quelle(n) — the wiki page link + direct/own sources -----
+  var items = [];
   if (wikiUrl) {
-    parts.push(`<a class="${esc(linkClass)}" href="${esc(wikiUrl)}" target="_blank" rel="noopener">${esc(wikiLabel)} ↗</a>`);
+    items.push(link(wikiUrl, esc(wikiLabel)));
   }
-  for (const s of list.filter((s) => !s.official)) parts.push(renderSource(s, false));
-  return parts.join("  ");
+  direct.forEach(function (s) {
+    var label = esc(s.label || s.url || "");
+    var meta = typeTag(s.type) + pagesInline(s.pages);
+    if (s.url) {
+      items.push(link(s.url, label + star(s.official)) + meta);
+    } else {
+      items.push('<span class="fs-src-plain">' + label + star(s.official) + "</span>" + meta);
+    }
+  });
+  if (items.length) {
+    var lbl = items.length > 1 ? "Quellen" : "Quelle";
+    blocks.push('<div class="fs-src-direct">' + lbl + ": " + items.join('<span class="fs-src-sep">·</span>') + "</div>");
+  }
+
+  // ----- Line 2: Publikationen — collapsible tabbed Titel/Typ/Seiten table -----
+  if (publications.length) {
+    var off = publications.filter(function (s) { return s.reference_kind !== "erwaehnung"; });
+    var erw = publications.filter(function (s) { return s.reference_kind === "erwaehnung"; });
+    var tab = function (key, name, n) {
+      return '<span class="fs-src-tab" data-fs-tab="' + key + '" role="button" tabindex="0"' +
+        ' onclick="avesmapsToggleSourceTab(this)" onkeydown="avesmapsSourceTabKeydown(event,this)">' +
+        name + ' <span class="fs-src-n">' + n + "</span></span>";
+    };
+    var tabs = [];
+    if (off.length) tabs.push(tab("off", "Offizielle", off.length));
+    if (erw.length) tabs.push(tab("erw", "Erwähnungen", erw.length));
+
+    var table = function (rows, key) {
+      var body = rows.map(function (s) {
+        var label = esc(s.label || s.url || "");
+        var titleCell = s.url ? link(s.url, label) : '<span class="fs-src-plain">' + label + "</span>";
+        var pages = esc(String(s.pages == null ? "" : s.pages).trim());
+        return "<tr><td>" + titleCell + '</td><td class="fs-src-c-type">' + esc(typeLabel(s.type)) +
+          '</td><td class="fs-src-c-pages">' + pages + "</td></tr>";
+      }).join("");
+      return '<table class="fs-src-table" data-fs-panel="' + key + '" hidden>' +
+        '<colgroup><col class="fs-src-col-title"><col class="fs-src-col-type"><col class="fs-src-col-pages"></colgroup>' +
+        '<thead><tr><th>Titel</th><th>Typ</th><th class="fs-src-th-r">Seiten</th></tr></thead><tbody>' + body + "</tbody></table>";
+    };
+    var tables = "";
+    if (off.length) tables += table(off, "off");
+    if (erw.length) tables += table(erw, "erw");
+
+    blocks.push('<div class="fs-src-pub"><span class="fs-src-publabel">Publikationen <span class="fs-src-total">(' +
+      publications.length + ")</span>:</span>" + tabs.join("") + "</div>");
+    blocks.push('<div class="fs-src-tablewrap" hidden>' + tables + "</div>");
+  }
+
+  if (!blocks.length) return "";
+  return '<div class="fs-src">' + blocks.join("") + "</div>";
 }
-if (typeof module !== "undefined" && module.exports) module.exports = { buildSourceListMarkup };
-if (typeof window !== "undefined") window.buildSourceListMarkup = buildSourceListMarkup;
+
+// Browser-only: toggle one publication tab's table open, or collapse it if the tab was already
+// active. Scoped to the clicked tab's own .fs-src block, so multiple open popups never interfere.
+function avesmapsToggleSourceTab(tabEl) {
+  if (!tabEl || !tabEl.closest) return;
+  var block = tabEl.closest(".fs-src");
+  if (!block) return;
+  var key = tabEl.getAttribute("data-fs-tab");
+  var wrap = block.querySelector(".fs-src-tablewrap");
+  var wasActive = tabEl.classList.contains("is-active");
+  var tabs = block.querySelectorAll(".fs-src-tab");
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove("is-active");
+  if (wasActive) {
+    if (wrap) wrap.hidden = true;
+    return;
+  }
+  tabEl.classList.add("is-active");
+  var tables = block.querySelectorAll(".fs-src-table");
+  for (var j = 0; j < tables.length; j++) {
+    tables[j].hidden = tables[j].getAttribute("data-fs-panel") !== key;
+  }
+  if (wrap) wrap.hidden = false;
+}
+
+function avesmapsSourceTabKeydown(event, tabEl) {
+  if (event && (event.key === "Enter" || event.key === " " || event.key === "Spacebar")) {
+    event.preventDefault();
+    avesmapsToggleSourceTab(tabEl);
+  }
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_TYPE_LABELS: FEATURE_SOURCE_TYPE_LABELS };
+}
+if (typeof window !== "undefined") {
+  window.buildSourceListMarkup = buildSourceListMarkup;
+  window.avesmapsToggleSourceTab = avesmapsToggleSourceTab;
+  window.avesmapsSourceTabKeydown = avesmapsSourceTabKeydown;
+}

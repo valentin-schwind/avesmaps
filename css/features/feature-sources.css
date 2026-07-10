@@ -66,6 +66,12 @@
 	background: transparent;
 	border-style: dashed;
 }
+.fs-row__pages {
+	flex-shrink: 0;
+	font-size: 11px;
+	color: #6c5a49;
+	white-space: nowrap;
+}
 .fs-row__remove {
 	flex-shrink: 0;
 	display: inline-flex;
@@ -99,6 +105,9 @@
 }
 .fs-add-label {
 	flex: 1 1 120px;
+}
+.fs-add-pages {
+	flex: 0 1 80px;
 }
 .fs-row--add input[type="text"],
 .fs-row--add input[type="url"],
@@ -134,4 +143,154 @@
 .fs-row__add:focus-visible {
 	background: #d8e7ff;
 	outline: none;
+}
+
+/* Popup/infobox source block (buildSourceListMarkup, js/ui/feature-source-markup.js). Line 1 is the
+   Wiki page link + hand-added sources; line 2 the wiki publications as collapsible Offizielle/
+   Erwähnungen tabs over a Titel/Typ/Seiten table. Explicit colors to match the beige map popups. */
+.fs-src {
+	font-size: 12px;
+	color: #3f3428;
+	line-height: 1.5;
+}
+.fs-src-a {
+	color: #216b5e;
+	text-decoration: none;
+	font-weight: 700;
+}
+.fs-src-a:hover,
+.fs-src-a:focus-visible {
+	text-decoration: underline;
+}
+.fs-src-ext {
+	font-weight: 400;
+}
+.fs-src-plain {
+	color: #3f3428;
+}
+.fs-src-star {
+	color: #b8862b;
+	margin-left: 1px;
+}
+.fs-src-direct {
+	line-height: 1.7;
+}
+.fs-src-sep {
+	color: #b3a186;
+	margin: 0 6px;
+}
+.fs-src-type {
+	display: inline-block;
+	margin-left: 6px;
+	font-size: 10.5px;
+	color: #6c5a49;
+	background: #f0e7da;
+	border: 1px solid #ddcdb8;
+	border-radius: 999px;
+	padding: 0 7px;
+	white-space: nowrap;
+	vertical-align: 1px;
+}
+.fs-src-pages {
+	margin-left: 6px;
+	font-size: 11px;
+	color: #8a7358;
+	white-space: nowrap;
+}
+.fs-src-pub {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 7px;
+	margin-top: 9px;
+	color: #6c5a49;
+}
+.fs-src-total {
+	color: #8a7358;
+}
+.fs-src-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 10px;
+	font-size: 11.5px;
+	color: #6c5a49;
+	background: #faf5ee;
+	border: 1px solid #d8c6b2;
+	border-radius: 999px;
+	cursor: pointer;
+	user-select: none;
+}
+.fs-src-tab:hover,
+.fs-src-tab:focus-visible {
+	background: #f0e7da;
+	outline: none;
+}
+.fs-src-tab .fs-src-n {
+	color: #8a7358;
+}
+.fs-src-tab.is-active {
+	background: #e4efe9;
+	border-color: #b6d2c6;
+	color: #1c5a4d;
+	font-weight: 700;
+}
+.fs-src-tab.is-active .fs-src-n {
+	color: #1c5a4d;
+}
+.fs-src-tablewrap {
+	margin-top: 9px;
+	max-height: 230px;
+	overflow-y: auto;
+	border: 1px solid rgba(141, 121, 98, 0.28);
+	border-radius: 7px;
+	background: #fffaf5;
+}
+.fs-src-table {
+	width: 100%;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+.fs-src-col-title {
+	width: 44%;
+}
+.fs-src-col-type {
+	width: 27%;
+}
+.fs-src-col-pages {
+	width: 29%;
+}
+.fs-src-table th {
+	font-size: 10px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #8a7358;
+	text-align: left;
+	padding: 5px 9px;
+	border-bottom: 1px solid rgba(141, 121, 98, 0.28);
+	position: sticky;
+	top: 0;
+	background: #fffaf5;
+}
+.fs-src-table th.fs-src-th-r {
+	text-align: right;
+}
+.fs-src-table td {
+	padding: 6px 9px;
+	vertical-align: top;
+	line-height: 1.4;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+.fs-src-table tbody tr + tr td {
+	border-top: 1px solid rgba(141, 121, 98, 0.18);
+}
+.fs-src-c-type {
+	color: #6c5a49;
+	font-size: 11px;
+}
+.fs-src-c-pages {
+	text-align: right;
+	color: #8a7358;
 }

@@ -124,8 +124,12 @@ function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass)
 		wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
 		mentionTooltip: tr("popup.sourceMention", "nur Erwähnung"),
 	});
-	const inner = list ? `${tr("popup.sources", "Quellen")}: ${list}` : tr("popup.noSource", "Keine Quelle gefunden");
-	return `<div class="feature-sources">${inner}</div>`;
+	// buildSourceListMarkup now owns the "Quelle(n):" / "Publikationen:" labels; an element with no
+	// wiki link and no sources renders nothing at all (no empty "Keine Quelle gefunden" placeholder).
+	if (!list) {
+		return "";
+	}
+	return `<div class="feature-sources">${list}</div>`;
 }
 if (typeof window !== "undefined") {
 	window.resolveFeatureSourceList = resolveFeatureSourceList;

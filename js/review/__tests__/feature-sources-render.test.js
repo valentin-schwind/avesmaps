@@ -64,4 +64,14 @@ const legacyTypeHtml = renderFeatureSourceEditorHtml(
 assert.ok(!/undefined/.test(legacyTypeHtml), "legacy type never renders literal undefined");
 assert.ok(legacyTypeHtml.includes('<span class="fs-row__badge">Sonstiges</span>'), "legacy type badge falls back to Sonstiges");
 
+// Manual sources can carry a page citation: the add form offers a "Seite(n)" input, and a stored
+// source with a `pages` value renders it (e.g. "S. 12") in its row.
+assert.ok(emptyHtml.includes('class="fs-add-pages"'), "add form has a pages input");
+const pagesRowHtml = renderFeatureSourceEditorHtml(
+  { wiki_url: "", sources: [
+    { source_id: 14, url: "https://vali/almanach", label: "Vali's Almanach", type: "quellenband", official: true, origin: "manual", pages: "12" } ] },
+  { escape: (s) => String(s == null ? "" : s) }
+);
+assert.ok(pagesRowHtml.includes("S. 12"), "source row shows its page citation");
+
 console.log("feature-sources-render tests passed");
