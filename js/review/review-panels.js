@@ -257,9 +257,11 @@ function focusReviewRatingLocation(publicId) {
 		showFeedbackToast("Der Ort ist auf der Karte nicht (mehr) vorhanden.", "warning");
 		return;
 	}
-	// Heranzoomen (animiert, flyTo -- Owner) und die normale Infobox oeffnen (temporaerer Marker, falls
-	// die Groesse nicht eingeblendet ist). Nie herauszoomen: mindestens Stufe 5.
-	map.flyTo(entry.marker.getLatLng(), Math.max(map.getZoom(), 5));
+	// Heranzoomen (hartes setView statt flyTo): der direkt folgende panTo aus openLocationPopupByPublicId
+	// bricht eine flyTo-Animation ab (map._stop -> cancelAnimFrame), sodass Zoomstufe 5 nie erreicht wird.
+	// Die normale Infobox oeffnen (temporaerer Marker, falls die Groesse nicht eingeblendet ist). Nie
+	// herauszoomen: mindestens Stufe 5.
+	map.setView(entry.marker.getLatLng(), Math.max(map.getZoom(), 5));
 	if (typeof openLocationPopupByPublicId === "function") {
 		openLocationPopupByPublicId(publicId);
 	}
@@ -340,6 +342,17 @@ function startReviewReportsPolling() {
 
 	reviewReportsPollTimerId = window.setInterval(() => {
 		if (activeReviewReportId) {
+			return;
+		}
+		// Nicht neu laden, waehrend der Nutzer die Liste gerade benutzt (Mauszeiger ueber der Meldungs-
+		// oder Bewertungsliste) -- der Re-Render macht innerHTML="" und reisst die Scrollposition auf 0
+		// (die Liste ist selbst der Scroll-Container). Der naechste Tick aktualisiert, sobald der Zeiger
+		// die Liste verlaesst.
+		const overList = ["review-report-list", "review-ratings-list"].some((id) => {
+			const el = document.getElementById(id);
+			return el && typeof el.matches === "function" && el.matches(":hover");
+		});
+		if (overList) {
 			return;
 		}
 		void loadReviewReports();
