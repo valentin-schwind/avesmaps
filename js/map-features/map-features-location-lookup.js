@@ -136,6 +136,9 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	if (typeof buildSlimLocationPopupHtml !== "function") {
 		return openLocationPopupForMarkerEntry(markerEntry);
 	}
+	// Evtl. noch offenen temporaeren Marker eines vorherigen Treffers aufraeumen.
+	clearNearestLookupPinnedMarker();
+
 	let latlng = null;
 	if (markerEntry.marker && typeof markerEntry.marker.getLatLng === "function") {
 		latlng = markerEntry.marker.getLatLng();
@@ -145,11 +148,50 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	if (!latlng) {
 		return false;
 	}
-	const popup = L.popup({ autoClose: true, closeOnClick: true, closeButton: true, className: "slim-location-popup", maxHeight: locationMarkerPopupMaxHeight(), maxWidth: 320, offset: [0, -6] })
+
+	// Ort-Marker sichtbar machen, solange das Popup offen ist -- UNABHAENGIG vom Gebaeude-Toggle (Owner):
+	// ist der Ort nur ein Canvas-Dot oder ausgeblendet, als temporaeren DOM-Marker anpinnen (wie beim
+	// gebundenen Popup). So sitzt zudem ein echter Marker GENAU auf dem Ziel-Vertex, auf den die Spitze zeigt.
+	const canvasMarkersOn = typeof LOCATION_CANVAS_MARKERS_ENABLED !== "undefined"
+		&& LOCATION_CANVAS_MARKERS_ENABLED
+		&& typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE;
+	const renderedOnCanvas = canvasMarkersOn
+		&& typeof LOCATION_CANVAS_TYPES !== "undefined"
+		&& LOCATION_CANVAS_TYPES.has(markerEntry.locationType)
+		&& !markerEntry._canvasPromoted;
+	const isShownAsDomMarker = typeof shouldShowLocationMarker === "function"
+		&& shouldShowLocationMarker(markerEntry)
+		&& !renderedOnCanvas;
+	const isTemporary = Boolean(markerEntry.marker) && !isShownAsDomMarker;
+	if (isTemporary) {
+		nearestLookupPinnedMarkerEntry = markerEntry;
+		const zoomLevel = map.getZoom();
+		if (markerEntry.iconZoomLevel !== zoomLevel && typeof createLocationMarkerIcon === "function") {
+			markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType, zoomLevel));
+			markerEntry.iconZoomLevel = zoomLevel;
+		}
+		if (!map.hasLayer(markerEntry.marker)) {
+			map.addLayer(markerEntry.marker);
+		}
+		if (typeof markerEntry.marker.bringToFront === "function") {
+			markerEntry.marker.bringToFront();
+		}
+	}
+
+	// Auf den Ort zentrieren; autoPan des Popups AUS (sonst Race/Crash direkt nach dem animierten panTo).
+	try { map.panTo(latlng); } catch (error) { /* noop */ }
+
+	// Eigenes schlankes Popup mit STANDARD-Offset -> die Spitze zeigt genau auf das Ziel-Vertex-Zentrum.
+	const popup = L.popup({ autoClose: true, closeOnClick: true, closeButton: true, className: "slim-location-popup", maxHeight: locationMarkerPopupMaxHeight(), maxWidth: 320, autoPan: false })
 		.setLatLng(latlng)
 		.setContent(buildSlimLocationPopupHtml(markerEntry));
 	map.openPopup(popup);
-	try { map.panTo(latlng); } catch (error) { /* noop */ }
+
+	// Beim Schliessen des Popups den temporaeren Marker wieder entfernen (gemeinsamer popupclose-Handler).
+	if (isTemporary) {
+		nearestLookupTempPopup = popup;
+		ensureNearestLookupPopupCloseHandler();
+	}
 	return true;
 }
 
