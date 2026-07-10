@@ -32,12 +32,21 @@ if ($requestMethod === 'POST') {
 $currentUser = avesmapsCurrentUser();
 $isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
 
-// Ansichts-Flags von der /edit/-URL in den Karten-iframe durchreichen (der iframe laedt sonst nur
-// ?debugMap=1&edit=1). So aktiviert z. B. /edit/?infopanel=true den Infopanel-Modus AUCH im Editor,
-// damit Editor-Panel und Infobox koexistieren.
+// ALLE URL-Parameter von /edit/ an den Karten-iframe durchreichen (der iframe laedt sonst nur
+// ?debugMap=1&edit=1). So laedt z. B. /edit/?route=...&infopanel=true die Route UND zeigt im Editor das
+// Info-Panel (mit Auto-Open) samt Editor-Tab. Die ROHE Query nehmen (nicht $_GET), damit mehrfache
+// route=-Parameter erhalten bleiben; debugMap/edit/_v werden fest gesetzt und daher herausgefiltert.
+$rawQuery = (string) ($_SERVER['QUERY_STRING'] ?? '');
+$forwarded = array_filter(explode('&', $rawQuery), static function (string $pair): bool {
+    if ($pair === '') {
+        return false;
+    }
+    $name = strtolower(explode('=', $pair, 2)[0]);
+    return !in_array($name, ['debugmap', 'edit', '_v'], true);
+});
 $mapIframeQuery = 'debugMap=1&edit=1';
-if (isset($_GET['infopanel']) && $_GET['infopanel'] === 'true') {
-    $mapIframeQuery .= '&infopanel=true';
+if ($forwarded) {
+    $mapIframeQuery .= '&' . implode('&', $forwarded);
 }
 // Cache-Bust: index.html ist ungestampt -> der iframe wuerde sonst potenziell eine veraltete Fassung
 // (und damit alte CSS/JS-Verweise) aus dem Browser-Cache laden. filemtime(index.html) aendert sich bei
