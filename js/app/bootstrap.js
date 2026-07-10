@@ -219,6 +219,7 @@ if (IS_EDIT_MODE) {
     void loadChangeLog();
     void sendEditorPresenceHeartbeat();
     startEditorPresenceHeartbeat();
+    startReviewReportsPolling();
 } else {
     document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");
@@ -231,6 +232,9 @@ window.addEventListener("beforeunload", () => {
     activeFeatureLocks.forEach((timerId) => window.clearInterval(timerId));
     if (editorPresenceTimerId) {
         window.clearInterval(editorPresenceTimerId);
+    }
+    if (reviewReportsPollTimerId) {
+        window.clearInterval(reviewReportsPollTimerId);
     }
 });
 $("#review-panel-refresh").on("click", () => refreshActiveEditorPanel());

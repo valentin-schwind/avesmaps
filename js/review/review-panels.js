@@ -328,6 +328,23 @@ function startEditorPresenceHeartbeat() {
 	}, 30000);
 }
 
+// Community reports arrive from other users while the editor stays open; without this the review
+// list only refreshed on F5, the manual refresh button, or after an action. Poll periodically, but
+// skip while the user is mid-review (a report's edit dialog is open -> activeReviewReportId set) so
+// the list never re-renders under them; the next tick refreshes once that dialog is closed.
+function startReviewReportsPolling() {
+	if (!IS_EDIT_MODE || reviewReportsPollTimerId) {
+		return;
+	}
+
+	reviewReportsPollTimerId = window.setInterval(() => {
+		if (activeReviewReportId) {
+			return;
+		}
+		void loadReviewReports();
+	}, 45000);
+}
+
 function renderEditorPresenceUsers() {
 	const listElement = document.getElementById("presence-user-list");
 	if (!listElement) {
