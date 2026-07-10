@@ -1,0 +1,143 @@
+/* Place-Extras (Infopanel Phase 6): die Siedlungs-Abschnitte "Stadtkarten" und
+   "Abenteuer in <Ort>". Bewusst NICHT infopanel-scoped -- die Abschnitte haengt
+   buildLocationMarkerPopupHtml an, also erscheinen sie im schwebenden Popup UND im
+   Panel; beide haben weissen Grund, also passt eine Regelmenge. Optik am
+   Popup-Braun/Gold angelehnt. Markup: js/map-features/map-features-place-extras.js. */
+
+.avesmaps-citymaps,
+.avesmaps-adv {
+	margin-top: 12px;
+	padding-top: 11px;
+	border-top: 1px solid rgba(120, 100, 70, 0.28);
+}
+
+.avesmaps-citymaps__head,
+.avesmaps-adv__head {
+	font-size: 13px;
+	font-weight: 700;
+	color: #3a2e1f;
+}
+
+/* ---- Stadtkarten ---- */
+.avesmaps-citymaps__note {
+	font-size: 10.5px;
+	font-weight: 400;
+	color: #b5651d;
+}
+.avesmaps-citymaps__scroll {
+	display: flex;
+	gap: 10px;
+	margin-top: 9px;
+	padding-bottom: 4px;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+.avesmaps-citymaps__card {
+	flex: 0 0 auto;
+	width: 116px;
+	text-decoration: none;
+}
+.avesmaps-citymaps__thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 116px;
+	height: 72px;
+	border-radius: 6px;
+	background: #ece3cb;
+	border: 1px solid rgba(120, 100, 70, 0.38);
+	color: #a3926c;
+	transition: border-color 0.12s ease, color 0.12s ease;
+}
+.avesmaps-citymaps__card:hover .avesmaps-citymaps__thumb {
+	border-color: #c9a227;
+	color: #8a7846;
+}
+.avesmaps-citymaps__label {
+	display: block;
+	margin-top: 5px;
+	font-size: 11.5px;
+	line-height: 1.25;
+	color: #3f6fa0;
+}
+
+/* ---- Abenteuer in <Ort> ---- */
+.avesmaps-adv__count {
+	font-weight: 400;
+	font-size: 12px;
+	color: #7a6a52;
+}
+.avesmaps-adv__sorts {
+	margin-top: 3px;
+	font-size: 11px;
+	color: #7a6a52;
+}
+.avesmaps-adv__sort {
+	color: #3f6fa0;
+	cursor: pointer;
+}
+.avesmaps-adv__sort:hover {
+	text-decoration: underline;
+}
+.avesmaps-adv__sort.is-active {
+	color: #4a3c2e;
+	font-weight: 700;
+	cursor: default;
+	text-decoration: none;
+}
+.avesmaps-adv__sortsep {
+	color: #b8a988;
+}
+.avesmaps-adv__placeholder {
+	margin-top: 3px;
+	font-size: 10.5px;
+	color: #b5651d;
+}
+.avesmaps-adv__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 9px;
+}
+/* Standard: nur die ersten 3 zeigen; "mehr" setzt .is-expanded und zeigt alle.
+   Nach dem Sortieren (Re-Append) greift nth-child positionsbasiert automatisch. */
+.avesmaps-adv:not(.is-expanded) .avesmaps-adv__row:nth-child(n + 4) {
+	display: none;
+}
+.avesmaps-adv__row {
+	line-height: 1.3;
+}
+.avesmaps-adv__title {
+	font-size: 12.5px;
+	font-weight: 700;
+	color: #3f6fa0;
+	text-decoration: none;
+}
+.avesmaps-adv__title:hover {
+	text-decoration: underline;
+}
+.avesmaps-adv__meta {
+	font-size: 11px;
+	color: #7a6a52;
+}
+.avesmaps-adv__more {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	margin-top: 9px;
+	padding: 0;
+	appearance: none;
+	border: none;
+	background: transparent;
+	font: inherit;
+	font-size: 12px;
+	color: #3f6fa0;
+	cursor: pointer;
+}
+.avesmaps-adv__more:hover {
+	text-decoration: underline;
+}
+.avesmaps-adv__more-icon {
+	font-size: 10px;
+	line-height: 1;
+}

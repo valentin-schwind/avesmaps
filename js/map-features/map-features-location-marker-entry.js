@@ -43,6 +43,17 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 	const reviewsSlot = markerEntry.publicId
 		? `<div class="location-reviews" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
 		: "";
+	// Place-Extras (Infopanel Phase 6): "Stadtkarten" + "Abenteuer in <Ort>" -- nur bei Wiki-Siedlungen,
+	// aktuell statische Platzhalter (js/map-features/map-features-place-extras.js), spaeter echte Daten.
+	let placeExtrasMarkup = "";
+	if (hasWikiSettlement) {
+		if (typeof buildPlaceCityMapsMarkup === "function") {
+			placeExtrasMarkup += buildPlaceCityMapsMarkup(markerEntry.location);
+		}
+		if (typeof buildPlaceAdventuresMarkup === "function") {
+			placeExtrasMarkup += buildPlaceAdventuresMarkup(markerEntry.location);
+		}
+	}
 	return locationPopupMarkup({
 		name: markerEntry.name,
 		locationType: markerEntry.locationType,
@@ -56,8 +67,8 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 		// Der alte Wiki-Credit ("Informationen aus dem Wiki Aventurica. Mehr hier ↗") entfällt -- die
 		// neue Quell-Zeile (renderFeatureSourceLine) zeigt den Wiki-Link jetzt als "Quellen: …".
 		showWikiLink: false,
-		// Infobox zuerst, Aktions-Buttons, dann der Bewertungs-Bereich.
-		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + reviewsSlot,
+		// Infobox zuerst, Aktions-Buttons, dann Stadtkarten/Abenteuer, dann der Bewertungs-Bereich.
+		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + placeExtrasMarkup + reviewsSlot,
 	});
 }
 
