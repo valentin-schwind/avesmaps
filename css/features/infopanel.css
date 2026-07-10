@@ -3,8 +3,11 @@
    Editor-Panel: .is-hidden + translateX + vertikaler Rand-Tab. Erzeugt wird das
    Panel nur bei gesetztem Flag (js/map-features/map-features-infopanel.js); ohne
    Flag greifen diese Regeln auf nichts. Siehe docs/infopanel-instruction.md.
-   Phase 0: nur Panel-Schale + Rand-Tab + Body. Wegpunkt-Tabs (Phase 4) und die
-   Zoom-/Hinweise-Verschiebung (Phase 3) kommen spaeter. */
+   Farben/Optik sind an den Routenplaner (#search / #toggle-button, route-planner.css +
+   map-layout.css) angeglichen: weisser Grund, gleicher Schatten/Radius -- der eingespeiste
+   Popup-Inhalt ist ohnehin fuer weissen Grund gebaut. Nur an der rechten Kante gespiegelt.
+   Phase 0/1: Panel-Schale + Rand-Tab + Body + eingespeiste Inhalte. Wegpunkt-Tabs (Phase 4)
+   und die Zoom-/Hinweise-Verschiebung (Phase 3) kommen spaeter. */
 
 .avesmaps-infopanel {
 	position: fixed;
@@ -16,12 +19,11 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	background: #f4edda;
-	border: 1px solid rgba(120, 100, 70, 0.4);
-	border-right: none;
-	border-radius: 10px 0 0 10px;
-	box-shadow: -3px 2px 12px rgba(60, 45, 25, 0.22);
-	color: #3a2e1f;
+	background: #fff;
+	border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+	box-shadow: -5px 5px 10px rgba(0, 0, 0, 0.5);
+	color: #4f4134;
+	box-sizing: border-box;
 	transition: transform 0.22s ease;
 }
 .avesmaps-infopanel.is-hidden {
@@ -32,8 +34,7 @@
 	flex: 0 0 auto;
 	display: flex;
 	padding: 0 8px;
-	background: #e9dcc0;
-	border-bottom: 1px solid rgba(120, 100, 70, 0.3);
+	border-bottom: 1px solid #e1d1bf;
 }
 /* Solange keine Wegpunkt-Tabs vorhanden sind (Phase 4), die Leiste ausblenden. */
 .avesmaps-infopanel__tabs:empty {
@@ -47,36 +48,37 @@
 	padding: 12px 14px 14px;
 }
 .avesmaps-infopanel__empty {
-	color: #8a7a68;
+	color: #7c6957;
 	font-size: 12.5px;
 	font-style: italic;
 	line-height: 1.45;
 	padding: 6px 2px;
 }
 
-/* Rand-Tab "Info" an der linken Kante des Panels; runde Ecken aussen (kein rotate).
-   right == Panel-Breite -> sitzt buendig an der linken Panel-Kante. */
+/* Rand-Tab "Info" -- wie der Routenplaner-Toggle (#toggle-button), nur an der rechten Kante
+   gespiegelt: runde Ecken aussen (links), Schatten nach links-unten. right == Panel-Breite ->
+   sitzt buendig an der linken Panel-Kante. */
 .avesmaps-infopanel__handle {
 	position: fixed;
-	top: 34px;
+	top: 30px;
 	right: min(340px, calc(100vw - 64px));
 	z-index: 1081;
-	width: 26px;
-	height: 118px;
+	width: 30px;
+	height: 140px;
 	padding: 0;
 	border: none;
-	background: #6a5a45;
-	color: #f4edda;
-	border-radius: 8px 0 0 8px;
+	background-color: #565044;
+	color: #fff;
+	border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 	writing-mode: vertical-rl;
+	text-orientation: mixed;
 	font-size: 13px;
-	letter-spacing: 0.6px;
 	cursor: pointer;
-	box-shadow: -2px 2px 8px rgba(60, 45, 25, 0.25);
-	transition: right 0.22s ease;
+	box-shadow: -5px 5px 10px rgba(0, 0, 0, 0.5);
+	transition: right 0.22s ease, background-color 0.12s ease;
 }
 .avesmaps-infopanel__handle:hover {
-	background: #7a6851;
+	background-color: #6a604f;
 }
 .avesmaps-infopanel__handle.is-hidden {
 	right: 0;
@@ -84,8 +86,8 @@
 
 /* ---- Eingespeiste Feature-Inhalte (Phase 1) ----
    Die bestehenden Builder liefern .location-popup / .region-info-box unveraendert. Im Panel die
-   schwebende Popup-Kartenoptik neutralisieren -- der Panel-Body ist bereits der Container samt
-   Padding. */
+   schwebende Popup-Kartenoptik neutralisieren -- der Panel-Body (weiss) ist bereits der Container
+   samt Padding. */
 .avesmaps-infopanel .location-popup {
 	max-width: none;
 	padding: 0;
