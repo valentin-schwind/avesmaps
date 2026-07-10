@@ -244,21 +244,32 @@
 	font-size: 1em;
 }
 .avesmaps-infopanel .location-popup__name {
-	font-size: 19px;
+	font-size: 23px;
+	line-height: 1.15;
 }
 .avesmaps-infopanel .location-popup__type {
-	font-size: 13px;
+	font-size: 14px;
 }
 .avesmaps-infopanel .location-popup__description {
 	font-size: 14px;
 }
+/* Grosses "Logo" (Wappen) links, Name/Typ mittig daneben (Owner: ~150x150). Ohne Wappen faellt es auf
+   das Typ-Icon zurueck -- das etwas kleiner halten. */
 .avesmaps-infopanel .location-popup__icon {
-	width: 32px;
-	height: 32px;
+	width: 48px;
+	height: 48px;
 }
 .avesmaps-infopanel .location-popup__icon--coat {
-	width: 40px;
-	height: 40px;
+	width: 130px;
+	height: 130px;
+}
+/* Groesserer Abstand Logo<->Titel + Trenner unter dem Titel (Owner-Vorgabe) -- infopanel-scoped,
+   ohne das schwebende Popup zu aendern. */
+.avesmaps-infopanel .location-popup__header {
+	gap: 12px;
+	padding-bottom: 11px;
+	margin-bottom: 11px;
+	border-bottom: 1px solid #d8c6b2;
 }
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
