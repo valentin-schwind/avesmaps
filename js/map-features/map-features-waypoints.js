@@ -372,6 +372,13 @@ function fillLastEmptyWaypointOrAppend(locationName) {
 		return $();
 	}
 
+	// Nicht denselben Ort zweimal HINTEREINANDER (Owner-Vorgabe): ist der letzte belegte Wegpunkt bereits
+	// dieser Ort, den Add einfach ignorieren (verhindert eine sinnlose A->A-Etappe).
+	const existingWaypointValues = getWaypointInputValues();
+	if (existingWaypointValues.length && existingWaypointValues[existingWaypointValues.length - 1] === normalizedLocationName) {
+		return $();
+	}
+
 	const $lastEmptyInput = getLastEmptyWaypointInput();
 	if ($lastEmptyInput.length) {
 		$lastEmptyInput.val(normalizedLocationName);

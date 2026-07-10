@@ -195,9 +195,27 @@
 			pill.appendChild(remove);
 			tabs.appendChild(pill);
 		});
-		// Leiste nur zeigen, wenn es Wegpunkte gibt; danach die Ueberlauf-Pfeile aktualisieren.
+		// Leiste nur zeigen, wenn es Wegpunkte gibt; ERST die Ueberlauf-Pfeile ein-/ausblenden (das aendert
+		// die Breite der Reiter-Leiste), DANN den aktiven Reiter in den nun finalen Bereich scrollen.
 		tabsbar.style.display = unique.length ? "" : "none";
 		updateTabsNav();
+		scrollActiveTabIntoView();
+	}
+
+	// Den aktiven Reiter in den sichtbaren Bereich der Leiste scrollen (Owner: beim "Reiseziel hinzufügen"
+	// soll der neue, auto-gewaehlte Reiter sichtbar sein, auch wenn er weit rechts liegt).
+	function scrollActiveTabIntoView() {
+		var activeTab = tabs.querySelector(".avesmaps-infopanel__tab.is-active");
+		if (!activeTab) {
+			return;
+		}
+		var tabRect = activeTab.getBoundingClientRect();
+		var barRect = tabs.getBoundingClientRect();
+		if (tabRect.right > barRect.right) {
+			tabs.scrollLeft += (tabRect.right - barRect.right) + 6;
+		} else if (tabRect.left < barRect.left) {
+			tabs.scrollLeft -= (barRect.left - tabRect.left) + 6;
+		}
 	}
 
 	// Tab-Klick: den Wegpunkt (Name) als Ort aufloesen und seine Info ins Panel holen. Ist er kein
