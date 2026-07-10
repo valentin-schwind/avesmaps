@@ -324,6 +324,14 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel .region-info-box__subtitle {
 	font-size: 14px;
 }
+/* Aktionsleiste ("Link teilen" / "Reiseziel") IMMER mit Trenner darueber (Owner) -- einheitlich in
+   allen Typen. Bei Territorien/Regionen/Wegen fehlte er, weil die settlement-scoped +-Regel (region-
+   sync.css) im Panel keinen .settlement-popup-Vorfahren findet. */
+.avesmaps-infopanel .location-popup__actions {
+	margin-top: 11px;
+	padding-top: 11px;
+	border-top: 1px solid rgba(141, 121, 98, 0.35);
+}
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
 .avesmaps-infopanel .location-reviews__list {
