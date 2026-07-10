@@ -36,15 +36,13 @@
 	var handle = document.createElement("button");
 	handle.type = "button";
 	handle.className = "avesmaps-infopanel__handle";
-	handle.textContent = "Info";
+	// "Info" um 180° gedreht (liest von unten nach oben, wie der Editor-Tab). Die Drehung sitzt auf dem
+	// Label-Span, damit die Tab-Form (linke runde Ecken + Schatten) unveraendert bleibt.
+	handle.innerHTML = '<span class="avesmaps-infopanel__handle-label">Info</span>';
 	handle.setAttribute("aria-label", "Infopanel ein- oder ausklappen");
 
 	document.body.appendChild(panel);
 	document.body.appendChild(handle);
-
-	// Platzhalter fuer den Edit-Mode: dort ist "Info" ein DAUERHAFTER Tab (neben "Editor"), also wird
-	// er gezeigt, solange noch kein Feature angeklickt wurde. Im Nicht-Edit-Modus gilt weiter "nie leer".
-	var INFOPANEL_EDIT_PLACEHOLDER = '<div class="avesmaps-infopanel__empty">Klicke einen Ort, Weg oder ein Gebiet auf der Karte an, um die Details hier zu sehen.</div>';
 
 	// Kein Inhalt -> Panel eingeklappt UND Rand-Tab ausgeblendet (nie leer offen). `collapsed` gilt
 	// nur, WENN Inhalt da ist. Der Zustand lebt bewusst nur zur Laufzeit: nach einem Reload ist das
@@ -63,8 +61,10 @@
 		handle.classList.toggle("is-hidden", collapsed);
 		handle.setAttribute("aria-expanded", open ? "true" : "false");
 		// Zoom + "Hinweise" fahren mit der Panel-Kante mit (CSS an dieser Klasse): offen -> ans
-		// Panel-Eck, zu -> unten rechts am Bildschirmrand.
-		document.documentElement.classList.toggle("avesmaps-infopanel-open", open);
+		// Panel-Eck, zu -> unten rechts am Bildschirmrand. Im Edit-Mode belegt der Editor die rechte
+		// Kante dauerhaft -> dann immer ans Panel-Eck, auch wenn das Info-Panel leer/verborgen ist.
+		var editActive = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE);
+		document.documentElement.classList.toggle("avesmaps-infopanel-open", open || editActive);
 	}
 	sync();
 
@@ -187,12 +187,13 @@
 
 	handle.addEventListener("click", function () {
 		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
-			// Edit-Mode: "Info" ist ein DAUERHAFTER Tab (neben "Editor") und holt das Infopanel nach
-			// vorn. Noch kein Feature geklickt -> Platzhalter zeigen (statt leer), damit der Tab immer
-			// wirkt. Zurueck zum Editor geht ueber dessen Tab.
+			// Edit-Mode: "Info" ist ein DAUERHAFTER Tab (neben "Editor"). Ist noch kein Feature
+			// angeklickt und kein Wegpunkt gelistet (kein Inhalt), darf das leere Info-Panel verborgen
+			// BLEIBEN -- es wird nicht mit einem Platzhalter aufgezwungen, damit der Editor sicht- und
+			// klickbar bleibt. Erst ein Feature-/Wegpunkt-Klick fuellt das Panel. Mit Inhalt: nach vorn.
 			if (!hasContent) {
-				body.innerHTML = INFOPANEL_EDIT_PLACEHOLDER;
-				hasContent = true;
+				sendInfopanelToBack();
+				return;
 			}
 			collapsed = false;
 			sync();

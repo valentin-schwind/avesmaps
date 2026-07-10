@@ -144,8 +144,15 @@
 	text-orientation: mixed;
 	font-size: 13px;
 	cursor: pointer;
-	box-shadow: -5px 5px 10px rgba(0, 0, 0, 0.5);
+	/* Schatten faellt NUR nach links (kein vertikaler Versatz) -> der darunter gestapelte Editor-Tab
+	   bekommt keinen Schatten von oben und umgekehrt (kein doppelter/dunkler Uebergang). */
+	box-shadow: -4px 0 9px rgba(0, 0, 0, 0.3);
 	transition: right 0.22s ease, background-color 0.12s ease;
+}
+/* Das Wort "Info" um 180° gedreht (liest von unten wie der Editor-Tab); die Tab-Form bleibt. */
+.avesmaps-infopanel__handle-label {
+	display: inline-block;
+	transform: rotate(180deg);
 }
 .avesmaps-infopanel__handle:hover {
 	background-color: #6a604f;
@@ -218,6 +225,18 @@
    das Infopanel liegt per .--front darueber). */
 .avesmaps-infopanel-mode #review-panel-toggle {
 	top: 180px;
+	height: 140px; /* exakt gleiche Hoehe wie der Info-Tab */
+	/* Gleiche Optik wie der Info-Tab: gleicher Schatten, nur nach links. Der Editor-Tab ist per
+	   transform: rotate(180deg) gedreht -> ein pre-rotate "4px 0" wird post-rotate zu "-4px 0" (faellt
+	   also ebenfalls nach links). Kein vertikaler Versatz -> kein Doppelschatten zum Info-Tab. */
+	box-shadow: 4px 0 9px rgba(0, 0, 0, 0.3);
+}
+/* Einheitlicher Tab-Hover (Owner-Wunsch): Info-Tab, Editor-Tab UND der Routenplaner-Toggle
+   (#toggle-button) hellen beim Hover gleich auf. Global gehalten (nicht an den Infopanel-Mode
+   gebunden), da der Routenplaner-Toggle immer sichtbar ist; alle drei haben denselben Grund (#565044). */
+.review-panel-toggle:hover,
+#toggle-button:hover {
+	background-color: #6a604f;
 }
 /* Editor-Tab an der Panel-Kante halten (auch bei eingeklapptem Editor) -- sonst rutscht er auf
    right:0 und verschwindet unter dem vorn liegenden Infopanel. So bleiben beide Tabs gestapelt
