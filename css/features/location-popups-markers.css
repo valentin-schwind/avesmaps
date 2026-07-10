@@ -103,6 +103,18 @@
 	font-size: 12px;
 	font-weight: normal;
 }
+/* "Beschreibung"-Ueberschrift in der schlanken Infobox (buildSlimLocationPopupHtml). */
+.location-popup__desc-label {
+	margin-top: 8px;
+	font-size: 10.5px;
+	font-weight: 700;
+	color: #7a6a52;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+}
+.location-popup__desc-label + .location-popup__description {
+	margin-top: 1px;
+}
 
 .location-popup__actions {
 	display: flex;

@@ -72,6 +72,52 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 	});
 }
 
+// Schlanke Infobox (Owner-Vorgabe): Kopf (Wappen/Icon, Name, Typ) -> "Beschreibung" + Beschreibungstext
+// -> Quell-Zeile -> Aktionen (Reiseziel hinzufügen/entfernen + Link teilen). OHNE Attribut-Tabelle,
+// Abenteuer, Bewertungen, Stadtkarten. Wird im schwebenden Karten-Popup (Direktklick) UND im Hover-Popup
+// der Wegpunkt-Icons gezeigt. Die Vollansicht bleibt dem rechten Panel vorbehalten.
+function buildSlimLocationPopupHtml(markerEntry) {
+	if (!markerEntry || markerEntry.locationType === CROSSING_LOCATION_TYPE) {
+		return buildLocationMarkerPopupHtml(markerEntry);
+	}
+	const location = markerEntry.location;
+	const wikiSettlement = location.wikiSettlement;
+	let typeLabel = location.locationTypeLabel;
+	if (wikiSettlement && wikiSettlement.building_type) {
+		typeLabel = String(wikiSettlement.building_type);
+		if (wikiSettlement.is_ruined && !/ruine/i.test(typeLabel)) {
+			typeLabel += " (Ruine)";
+		}
+	}
+	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(location.coat) : "";
+	const sourceMarkup = typeof renderFeatureSourceLine === "function"
+		? renderFeatureSourceLine("settlement", markerEntry.publicId, location.wikiUrl, "location-popup__wiki-link")
+		: "";
+	const descBlock = location.description
+		? `<div class="location-popup__desc-label">${escapeHtml(tr("popup.descriptionLabel", "Beschreibung"))}</div>`
+			+ `<div class="location-popup__description">${escapeHtml(location.description)}</div>`
+		: "";
+	const actionButtons = [routeToggleActionButtonMarkup(markerEntry.name)];
+	const shareButton = typeof sharePlaceActionButtonMarkup === "function"
+		? sharePlaceActionButtonMarkup(markerEntry.publicId, { wikiUrl: location.wikiUrl || "", wikiParam: "siedlung" })
+		: "";
+	if (shareButton) {
+		actionButtons.push(shareButton);
+	}
+	return locationPopupMarkup({
+		name: markerEntry.name,
+		locationType: markerEntry.locationType,
+		locationTypeLabel: typeLabel,
+		headerIconMarkup: coatIconMarkup,
+		showType: true,
+		showDescription: false,
+		showDivider: true,
+		showWikiLink: false,
+		// Beschreibung + Quelle + Aktionen als ein Block nach dem Trenner.
+		actionsMarkup: descBlock + sourceMarkup + locationPopupActionsMarkup(actionButtons),
+	});
+}
+
 function refreshLocationMarkerPopup(markerEntry) {
 	markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
 	markerEntry.iconZoomLevel = map.getZoom();
