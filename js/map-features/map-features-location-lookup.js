@@ -198,7 +198,7 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	} catch (error) { /* noop */ }
 
 	// Eigenes schlankes Popup mit STANDARD-Offset -> die Spitze zeigt genau auf das Ziel-Vertex-Zentrum.
-	const popup = L.popup({ autoClose: true, closeOnClick: true, closeButton: true, className: "slim-location-popup", maxHeight: locationMarkerPopupMaxHeight(), maxWidth: 320, autoPan: false })
+	const popup = L.popup({ autoClose: true, closeOnClick: true, closeButton: true, className: "slim-location-popup", maxHeight: locationMarkerPopupMaxHeight(), minWidth: 320, maxWidth: 400, autoPan: false })
 		.setLatLng(latlng)
 		.setContent(buildSlimLocationPopupHtml(markerEntry));
 	map.openPopup(popup);

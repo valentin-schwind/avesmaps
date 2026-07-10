@@ -88,6 +88,23 @@
 	padding-top: 0;
 	border-top: none;
 }
+/* Breite der find-nearest-Box an das normale settlement-popup angleichen (Owner): feste ~400px statt
+   der schmalen .location-popup-Default-Breite (260px). Nur die find-nearest-Box (.slim-location-popup),
+   nicht der kompakte Wegpunkt-Hover. Mobil volle Breite -- wie beim settlement-popup. */
+.slim-location-popup .location-popup {
+	width: min(400px, calc(100vw - 32px));
+	max-width: none;
+	box-sizing: border-box;
+}
+@media (max-width: 760px) {
+	.slim-location-popup .leaflet-popup-content {
+		width: calc(100vw - 28px) !important;
+		max-width: calc(100vw - 28px) !important;
+	}
+	.slim-location-popup .location-popup {
+		width: 100%;
+	}
+}
 
 /* Route-Wegpunkt-Popup traegt zusaetzlich die Klasse settlement-popup (siehe routing.js) und erbt
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
