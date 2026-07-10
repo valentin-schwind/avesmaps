@@ -260,6 +260,21 @@
 		return true;
 	};
 
+	// Auto-Open bei geladener/geteilter Route: den ersten auf einen geladenen Ort aufloesbaren Wegpunkt
+	// im Panel zeigen -> die Breadcrumb-Leiste (alle Wegpunkte) erscheint oben, dieser Wegpunkt aktiv.
+	// Wird nach dem Routen-Laden aufgerufen (routing.js, hasSharedRoute), damit das Infopanel mit den
+	// Wegpunkt-Breadcrumbs automatisch erscheint. Loest kein Wegpunkt auf, passiert nichts (Panel bleibt).
+	window.avesmapsAutoOpenRouteInInfopanel = function () {
+		var names = (typeof getWaypointInputValues === "function") ? getWaypointInputValues() : [];
+		for (var i = 0; i < names.length; i += 1) {
+			var entry = (typeof findLocationMarkerByName === "function") ? findLocationMarkerByName(names[i]) : null;
+			if (entry) {
+				return window.avesmapsShowLocationInInfopanel(entry);
+			}
+		}
+		return false;
+	};
+
 	// Feature-Glue (Phase 1b, Wege/Fluesse): zeigt das vorgefertigte Weg-Popup-Markup
 	// (path._popupMarkup, sonst frisch gebaut) im Panel. Wege haben keine Bewertungen -> nur
 	// anzeigen. false, wenn kein Markup da ist (dann faellt der Aufrufer auf das bisherige Popup

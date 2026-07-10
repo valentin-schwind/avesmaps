@@ -21,8 +21,23 @@ const SHARE_LINK_ENDPOINT = "/api/app/share-link.php";
 		.then((response) => (response.ok ? response.json() : null))
 		.then((data) => {
 			if (data && data.ok && typeof data.query === "string" && data.query) {
-				// Echte Parameter wiederherstellen -> App laedt normal mit dem geteilten Zustand.
-				window.location.replace(`${window.location.pathname}?${data.query}`);
+				// Echte Parameter wiederherstellen -> App laedt normal mit dem geteilten Zustand. Der
+				// Kurzlink-Code speichert nur den Planer-Zustand; Ansichts-/Mode-Flags, die der Nutzer der
+				// Kurzlink-URL vorangestellt hat (z. B. ?infopanel=true), sollen den Redirect ueberleben --
+				// sonst ginge etwa der Infopanel-Modus beim Aufloesen verloren.
+				const restored = new URLSearchParams(data.query);
+				try {
+					const current = new URLSearchParams(window.location.search);
+					["infopanel", "lang", "edit"].forEach((key) => {
+						const value = current.get(key);
+						if (value && !restored.has(key)) {
+							restored.set(key, value);
+						}
+					});
+				} catch (mergeError) {
+					/* egal -- dann eben ohne die vorangestellten Flags */
+				}
+				window.location.replace(`${window.location.pathname}?${restored.toString()}`);
 			} else {
 				// Ungueltiger Code -> s entfernen und normal weiterladen.
 				try {

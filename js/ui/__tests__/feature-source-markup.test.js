@@ -32,10 +32,10 @@ assert.ok(html.includes("Wiki Aventurica") && html.includes("Vali's Almanach"), 
 assert.ok(html.includes("S. 12"), "manual source page shown on line 1");
 assert.ok(!/href="[^"]*Almanach/.test(html), "url-less manual = no link");
 
-// Line 2: publications block with total (3) and two tabs (Offizielle 2, Erwähnungen 1).
+// Line 2: publications block with total (3) and two tabs (Offiziell (2), Erwähnt (1)).
 assert.ok(html.includes("Publikationen") && html.includes("(3)"), "publications total (3)");
-assert.ok(/Offizielle <span class="fs-src-n">2<\/span>/.test(html), "Offizielle count 2");
-assert.ok(/Erwähnungen <span class="fs-src-n">1<\/span>/.test(html), "Erwähnungen count 1");
+assert.ok(/Offiziell <span class="fs-src-n">\(2\)<\/span>/.test(html), "Offiziell count (2)");
+assert.ok(/Erwähnt <span class="fs-src-n">\(1\)<\/span>/.test(html), "Erwähnt count (1)");
 
 // Table: headers Titel/Typ/Seiten, page numbers WITHOUT an "S." prefix, type slugs -> German labels.
 assert.ok(html.includes(">Titel<") && html.includes(">Typ<") && html.includes(">Seiten<"), "table headers");

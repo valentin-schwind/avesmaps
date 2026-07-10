@@ -429,6 +429,13 @@ routeDataRequest
 		} else {
 			focusMapOnActiveTargets();
 		}
+		// Geteilte/geladene Route im Infopanel-Modus -> Panel mit den Wegpunkt-Breadcrumbs automatisch
+		// zeigen (erster aufloesbarer Wegpunkt aktiv). Die Marker sind hier bereits geladen
+		// (prepareLocationData oben), also loest findLocationMarkerByName die Wegpunkte auf.
+		if (hasSharedRoute && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
+			&& typeof window.avesmapsAutoOpenRouteInInfopanel === "function") {
+			window.avesmapsAutoOpenRouteInInfopanel();
+		}
 		startLiveMapUpdates(); applyPlaceFocusFromUrl(); applyWikiDeeplinkFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err))

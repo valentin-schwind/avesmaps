@@ -85,11 +85,11 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     var tab = function (key, name, n) {
       return '<span class="fs-src-tab" data-fs-tab="' + key + '" role="button" tabindex="0"' +
         ' onclick="avesmapsToggleSourceTab(this)" onkeydown="avesmapsSourceTabKeydown(event,this)">' +
-        name + ' <span class="fs-src-n">' + n + "</span></span>";
+        name + ' <span class="fs-src-n">(' + n + ")</span></span>";
     };
     var tabs = [];
-    if (off.length) tabs.push(tab("off", "Offizielle", off.length));
-    if (erw.length) tabs.push(tab("erw", "Erwähnungen", erw.length));
+    if (off.length) tabs.push(tab("off", "Offiziell", off.length));
+    if (erw.length) tabs.push(tab("erw", "Erwähnt", erw.length));
 
     var table = function (rows, key) {
       var body = rows.map(function (s) {
