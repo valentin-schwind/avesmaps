@@ -34,15 +34,43 @@
 	transform: translateX(100%);
 }
 
+/* Wegpunkt-Tabs (Phase 4): eine Leiste aus den aktuellen Wegpunkten; bei vielen -> horizontal
+   scrollbar. Solange keine Wegpunkte da sind, ist die Leiste leer -> per :empty ausgeblendet. */
 .avesmaps-infopanel__tabs {
 	flex: 0 0 auto;
 	display: flex;
 	padding: 0 8px;
 	border-bottom: 1px solid #e1d1bf;
+	overflow-x: auto;
+	scrollbar-width: thin;
 }
-/* Solange keine Wegpunkt-Tabs vorhanden sind (Phase 4), die Leiste ausblenden. */
 .avesmaps-infopanel__tabs:empty {
 	display: none;
+}
+.avesmaps-infopanel__tab {
+	flex: 0 0 auto;
+	appearance: none;
+	border: none;
+	background: transparent;
+	font: inherit;
+	font-size: 13px;
+	padding: 8px 11px;
+	color: #8a7a5f;
+	border-bottom: 2px solid transparent;
+	cursor: pointer;
+	white-space: nowrap;
+	max-width: 130px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: color 0.12s ease, border-color 0.12s ease;
+}
+.avesmaps-infopanel__tab:hover {
+	color: #4f4134;
+}
+.avesmaps-infopanel__tab.is-active {
+	color: #3f3428;
+	font-weight: 700;
+	border-bottom-color: #c9a227;
 }
 
 /* Ein einziger Scrollbereich fuer die gesamte Info-Spalte (Owner-Vorgabe). */

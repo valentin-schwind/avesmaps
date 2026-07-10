@@ -2,8 +2,10 @@
 // popups inside a collapsible right-edge panel (see docs/infopanel-instruction.md). The panel is
 // NEVER shown empty (Owner-Vorgabe): it only opens once it has content, and otherwise collapses --
 // with the edge tab hidden -- so there is no empty-open state. A feature click
-// (avesmapsShowInfopanel) fills and opens it. Fully gated on the flag: without ?infopanel=true
-// nothing is created and the live UI is unchanged.
+// (avesmapsShowInfopanel) fills and opens it. The tab strip mirrors the current route waypoints
+// (Phase 4); the tab of a clicked feature that IS a waypoint is highlighted, and clicking a tab
+// opens that waypoint's info. Fully gated on the flag: without ?infopanel=true nothing is created
+// and the live UI is unchanged.
 (function initInfopanel() {
 	if (typeof IS_INFOPANEL_MODE === "undefined" || !IS_INFOPANEL_MODE) {
 		return;
@@ -21,7 +23,7 @@
 	panel.className = "avesmaps-infopanel";
 	panel.setAttribute("aria-label", "Info");
 
-	// Wegpunkt-Tabs folgen in Phase 4; solange leer -> per CSS (:empty) ausgeblendet.
+	// Wegpunkt-Tabs (Phase 4): aus den aktuellen Wegpunkten gebaut; leer -> per CSS (:empty) aus.
 	var tabs = document.createElement("div");
 	tabs.className = "avesmaps-infopanel__tabs";
 
@@ -45,6 +47,9 @@
 	// Panel ohnehin leer (Inhalt wird nicht persistiert) -> es startet immer zu.
 	var hasContent = false;
 	var collapsed = false;
+	// Name des aktuell angezeigten Features -> markiert den passenden Wegpunkt-Tab als aktiv (leer,
+	// wenn das Feature kein Wegpunkt ist -> transiente Ansicht ohne aktiven Tab).
+	var currentTabActive = "";
 
 	function sync() {
 		var open = hasContent && !collapsed;
@@ -57,6 +62,59 @@
 		document.documentElement.classList.toggle("avesmaps-infopanel-open", open);
 	}
 	sync();
+
+	// Baut die Tab-Leiste aus den AKTUELLEN Wegpunkten (getWaypointInputValues, visuelle Reihenfolge).
+	// Doppelte Namen (z. B. Rundreise A->B->A) werden zusammengefasst. Der Tab, dessen Name dem gerade
+	// angezeigten Feature entspricht, ist aktiv.
+	function renderTabs() {
+		var names = (typeof getWaypointInputValues === "function") ? getWaypointInputValues() : [];
+		var seen = {};
+		tabs.innerHTML = "";
+		names.forEach(function (name) {
+			var key = String(name || "").toLowerCase();
+			if (!name || seen[key]) {
+				return;
+			}
+			seen[key] = true;
+			var tab = document.createElement("button");
+			tab.type = "button";
+			tab.className = "avesmaps-infopanel__tab";
+			tab.textContent = name;
+			tab.title = name;
+			if (name === currentTabActive) {
+				tab.classList.add("is-active");
+			}
+			tab.addEventListener("click", function () {
+				openWaypointInPanel(name);
+			});
+			tabs.appendChild(tab);
+		});
+	}
+
+	// Tab-Klick: den Wegpunkt (Name) als Ort aufloesen und seine Info ins Panel holen. Ist er kein
+	// geladener Ort (z. B. ein reiner Kartenpunkt), passiert nichts (kein Inhalt zum Anzeigen).
+	function openWaypointInPanel(name) {
+		var entry = (typeof findLocationMarkerByName === "function") ? findLocationMarkerByName(name) : null;
+		if (entry && typeof window.avesmapsShowLocationInInfopanel === "function") {
+			window.avesmapsShowLocationInInfopanel(entry);
+		}
+	}
+
+	// Tabs mitziehen, wenn sich die Wegpunkte aendern (hinzufuegen/entfernen/umsortieren -> childList;
+	// Werte-Aenderung -> change). Nur neu bauen, wenn das Panel offen ist -- beim Oeffnen baut
+	// avesmapsShowInfopanel die Tabs ohnehin frisch.
+	var waypointsEl = document.getElementById("waypoints");
+	if (waypointsEl) {
+		var refreshTabsIfOpen = function () {
+			if (hasContent) {
+				renderTabs();
+			}
+		};
+		if (typeof MutationObserver === "function") {
+			new MutationObserver(refreshTabsIfOpen).observe(waypointsEl, { childList: true, subtree: true });
+		}
+		waypointsEl.addEventListener("change", refreshTabsIfOpen);
+	}
 
 	handle.addEventListener("click", function () {
 		if (!hasContent) {
@@ -78,15 +136,18 @@
 		collapsed = true;
 		sync();
 	};
-	// Setzt den Panel-Inhalt (HTML-String eines Feature-Builders) und oeffnet auf. Leerer/kein Inhalt
-	// -> Panel leeren + einklappen (nie leer offen). Gibt das Body-Element zurueck, damit der Aufrufer
-	// z. B. hydrateLocationReviews darauf anwenden kann.
-	window.avesmapsShowInfopanel = function (html) {
+	// Setzt den Panel-Inhalt (HTML-String eines Feature-Builders) und oeffnet auf. `activeName` = Name
+	// des Features -> markiert den passenden Wegpunkt-Tab (leer/weggelassen -> kein aktiver Tab). Leerer/
+	// kein Inhalt -> Panel leeren + einklappen (nie leer offen). Gibt das Body-Element zurueck, damit der
+	// Aufrufer z. B. hydrateLocationReviews darauf anwenden kann.
+	window.avesmapsShowInfopanel = function (html, activeName) {
 		if (typeof html === "string" && html.trim() !== "") {
 			body.innerHTML = html;
 			body.scrollTop = 0;
 			hasContent = true;
 			collapsed = false;
+			currentTabActive = typeof activeName === "string" ? activeName : "";
+			renderTabs();
 		} else {
 			body.innerHTML = "";
 			hasContent = false;
@@ -103,12 +164,12 @@
 	// Panel-Slot nach. Wird vom Klick-Arbiter (Canvas) und vom programmatischen Oeffnen (Suche/
 	// Deeplink) im Infopanel-Modus statt des schwebenden Popups aufgerufen. Existiert nur im
 	// Infopanel-Modus -> die Aufrufer pruefen `typeof ... === "function"` und fallen sonst auf das
-	// bisherige Popup-Verhalten zurueck.
+	// bisherige Popup-Verhalten zurueck. Der Ortsname markiert ggf. seinen Wegpunkt-Tab.
 	window.avesmapsShowLocationInInfopanel = function (markerEntry) {
 		if (!markerEntry || typeof buildLocationMarkerPopupHtml !== "function") {
 			return false;
 		}
-		var panelBody = window.avesmapsShowInfopanel(buildLocationMarkerPopupHtml(markerEntry));
+		var panelBody = window.avesmapsShowInfopanel(buildLocationMarkerPopupHtml(markerEntry), markerEntry.name);
 		if (panelBody && typeof hydrateLocationReviews === "function") {
 			hydrateLocationReviews(panelBody.querySelector(".location-reviews"));
 		}
