@@ -12,6 +12,21 @@
 	--color-border-strong: #cdb79f;
 	--color-button: #565044;
 	--color-button-border: #5f4f40;
+	--color-button-text: #f7ecd3;
+	/* Sekundaerer Button (soft/outline) -- z.B. "Link teilen" */
+	--color-button-soft: #f3ead4;
+	--color-button-soft-text: #5a4a37;
+	--color-button-soft-border: #cbb488;
+	/* Akzent = Wappen-Gold; Links in warmem Gold-Braun (NIE blau) */
+	--color-accent: #c9a227;
+	--color-accent-strong: #a9851a;
+	--color-link: #8a6a1e;
+	/* Trennlinie -- ueberall dieselbe (Infobox + Routenplaner) */
+	--color-divider: rgba(141, 121, 98, 0.35);
+	/* Pills / Tags (z.B. Publikationen) */
+	--color-pill: #f6edd7;
+	--color-pill-border: #d8c39a;
+	--color-pill-text: #6a5327;
 	--color-danger: #9d3a2e;
 	--radius-sm: 5px;
 	--radius-md: 8px;

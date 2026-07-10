@@ -210,6 +210,7 @@ is the default, English is opt-in. Therefore:
 
 Authoritative docs (being translated to English in M8):
 
+- **`docs/design-language.md` — the warm/aventurian design language + token rules (see §12). Read before any CSS/UI work.**
 - `docs/asset-caching-and-versioning.md` — **the deploy/cache gotcha** (see §7).
 - `docs/future-map-architecture.md` — north-star architecture & full data model.
 - `docs/territories.md` — political-territory data model + WikiSync.
@@ -230,3 +231,24 @@ Authoritative docs (being translated to English in M8):
 
 > Spent per-refactor process logs were deleted in M0; do **not** recreate
 > per-split "boundary-check / stable" logs.
+
+## 12. Design language (read before any CSS / UI work)
+
+**One warm, *aventurian* visual language for every surface** — route planner
+(`#search`), infobox (`.avesmaps-infopanel`), dialogs, popups, editor. Warm
+browns + parchment + coat-of-arms gold. **No blue** (it reads as a foreign UI
+kit and is what made the panels diverge).
+
+**Hard rule: never hardcode a colour / radius / divider — always use a token
+from `css/base/tokens.css`.** Need a value with no token? Add the token first,
+then use it. A literal colour written twice is divergence waiting to happen —
+this is exactly how the infobox and route planner drifted apart (1000+ hardcoded
+hex values across 38 CSS files).
+
+- **Buttons** have a hierarchy: main action *filled* (`--color-button`), the rest
+  *soft/outline* (`--color-button-soft`); radius `--radius-md`; no pill shapes.
+- **Group by divider** (`--color-divider` line + heading), **not** by framed
+  boxes; popup/infobox dividers run full-bleed (negative side-margin = padding).
+- **Links** use `--color-link` (gold-brown), never blue.
+- **New components:** reuse the nearest existing one as a template plus the
+  tokens; match the warmth. Full guide: **`docs/design-language.md`**.
