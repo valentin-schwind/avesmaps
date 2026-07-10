@@ -179,7 +179,19 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	}
 
 	// Auf den Ort zentrieren; autoPan des Popups AUS (sonst Race/Crash direkt nach dem animierten panTo).
-	try { map.panTo(latlng); } catch (error) { /* noop */ }
+	// Zoom-Regel (Owner): ist bereits eine Route gefunden/gezeichnet (currentRouteLayer hat Segmente ODER
+	// >= 2 Wegpunkte), die aktuelle Zoomstufe BEIBEHALTEN (Route-Ansicht nicht stoeren); sonst auf
+	// Zoomstufe 5 gehen.
+	const routeIsActive = (typeof currentRouteLayer !== "undefined" && currentRouteLayer
+		&& typeof currentRouteLayer.getLayers === "function" && currentRouteLayer.getLayers().length > 0)
+		|| (typeof getWaypointInputValues === "function" && getWaypointInputValues().length >= 2);
+	try {
+		if (routeIsActive) {
+			map.panTo(latlng);
+		} else {
+			map.setView(latlng, 5);
+		}
+	} catch (error) { /* noop */ }
 
 	// Eigenes schlankes Popup mit STANDARD-Offset -> die Spitze zeigt genau auf das Ziel-Vertex-Zentrum.
 	const popup = L.popup({ autoClose: true, closeOnClick: true, closeButton: true, className: "slim-location-popup", maxHeight: locationMarkerPopupMaxHeight(), maxWidth: 320, autoPan: false })
