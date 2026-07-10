@@ -89,25 +89,52 @@
 	function renderTabs() {
 		var names = (typeof getWaypointInputValues === "function") ? getWaypointInputValues() : [];
 		var seen = {};
-		tabs.innerHTML = "";
+		var unique = [];
 		names.forEach(function (name) {
 			var key = String(name || "").toLowerCase();
 			if (!name || seen[key]) {
 				return;
 			}
 			seen[key] = true;
-			var tab = document.createElement("button");
-			tab.type = "button";
-			tab.className = "avesmaps-infopanel__tab";
-			tab.textContent = name;
-			tab.title = name;
-			if (name === currentTabActive) {
-				tab.classList.add("is-active");
+			unique.push(name);
+		});
+		tabs.innerHTML = "";
+		unique.forEach(function (name, idx) {
+			// Trenner "›" zwischen den Pillen -> macht klar, dass es die Reiseroute ist.
+			if (idx > 0) {
+				var sep = document.createElement("span");
+				sep.className = "avesmaps-infopanel__tab-sep";
+				sep.setAttribute("aria-hidden", "true");
+				sep.textContent = "›";
+				tabs.appendChild(sep);
 			}
-			tab.addEventListener("click", function () {
+			var pill = document.createElement("span");
+			pill.className = "avesmaps-infopanel__tab";
+			if (name === currentTabActive) {
+				pill.classList.add("is-active");
+			}
+			var label = document.createElement("button");
+			label.type = "button";
+			label.className = "avesmaps-infopanel__tab-label";
+			label.textContent = name;
+			label.title = name;
+			label.addEventListener("click", function () {
 				openWaypointInPanel(name);
 			});
-			tabs.appendChild(tab);
+			// Kleines "x": entfernt diesen Wegpunkt aus der Route.
+			var remove = document.createElement("button");
+			remove.type = "button";
+			remove.className = "avesmaps-infopanel__tab-remove";
+			remove.setAttribute("aria-label", "Wegpunkt entfernen");
+			remove.title = "Wegpunkt entfernen";
+			remove.textContent = "✕";
+			remove.addEventListener("click", function (event) {
+				event.stopPropagation();
+				removeWaypointByName(name);
+			});
+			pill.appendChild(label);
+			pill.appendChild(remove);
+			tabs.appendChild(pill);
 		});
 	}
 
@@ -118,6 +145,28 @@
 		if (entry && typeof window.avesmapsShowLocationInInfopanel === "function") {
 			window.avesmapsShowLocationInInfopanel(entry);
 		}
+	}
+
+	// "x" an einer Pille: den ersten Wegpunkt mit diesem Namen aus der Route entfernen (ueber die
+	// bestehende Routenplaner-Logik). Danach die Tabs neu bauen (der #waypoints-Observer feuert zwar
+	// meist selbst, aber beim Leeren des letzten Wegpunkts gibt es keine childList-Mutation).
+	function removeWaypointByName(name) {
+		if (typeof $ === "undefined" || typeof removeWaypointById !== "function") {
+			return;
+		}
+		var waypointId = null;
+		$(".waypoint-input").each(function () {
+			if (waypointId) {
+				return;
+			}
+			if (String($(this).val() || "").trim() === name) {
+				waypointId = $(this).closest(".waypoint-container").attr("data-waypoint-id") || null;
+			}
+		});
+		if (waypointId) {
+			removeWaypointById(waypointId);
+		}
+		renderTabs();
 	}
 
 	// Tabs mitziehen, wenn sich die Wegpunkte aendern (hinzufuegen/entfernen/umsortieren -> childList;

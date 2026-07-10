@@ -34,12 +34,15 @@
 	transform: translateX(100%);
 }
 
-/* Wegpunkt-Tabs (Phase 4): eine Leiste aus den aktuellen Wegpunkten; bei vielen -> horizontal
-   scrollbar. Solange keine Wegpunkte da sind, ist die Leiste leer -> per :empty ausgeblendet. */
+/* Wegpunkt-Tabs (Phase 4): die aktuellen Wegpunkte als Routen-Pillen, per "›" getrennt (= es ist die
+   Reiseroute). Jede Pille traegt ein kleines "x" zum Entfernen des Wegpunkts. Bei vielen -> horizontal
+   scrollbar. Leer -> per :empty ausgeblendet. */
 .avesmaps-infopanel__tabs {
 	flex: 0 0 auto;
 	display: flex;
-	padding: 0 8px;
+	align-items: center;
+	gap: 4px;
+	padding: 8px;
 	border-bottom: 1px solid #e1d1bf;
 	overflow-x: auto;
 	scrollbar-width: thin;
@@ -47,30 +50,64 @@
 .avesmaps-infopanel__tabs:empty {
 	display: none;
 }
+.avesmaps-infopanel__tab-sep {
+	flex: 0 0 auto;
+	color: #a3906c;
+	font-size: 13px;
+	user-select: none;
+}
 .avesmaps-infopanel__tab {
 	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 1px;
+	max-width: 150px;
+	padding: 3px 5px 3px 11px;
+	background: #efe7d6;
+	border: 1px solid #ddcdb4;
+	border-radius: 999px;
+	color: #5a4a37;
+	transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.avesmaps-infopanel__tab.is-active {
+	background: #c9a227;
+	border-color: #b8931f;
+	color: #322813;
+}
+.avesmaps-infopanel__tab-label {
 	appearance: none;
 	border: none;
 	background: transparent;
 	font: inherit;
-	font-size: 13px;
-	padding: 8px 11px;
-	color: #8a7a5f;
-	border-bottom: 2px solid transparent;
+	font-size: 12.5px;
+	color: inherit;
+	padding: 0;
 	cursor: pointer;
 	white-space: nowrap;
-	max-width: 130px;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	transition: color 0.12s ease, border-color 0.12s ease;
+	max-width: 116px;
 }
-.avesmaps-infopanel__tab:hover {
-	color: #4f4134;
-}
-.avesmaps-infopanel__tab.is-active {
-	color: #3f3428;
+.avesmaps-infopanel__tab.is-active .avesmaps-infopanel__tab-label {
 	font-weight: 700;
-	border-bottom-color: #c9a227;
+}
+.avesmaps-infopanel__tab-remove {
+	flex: 0 0 auto;
+	appearance: none;
+	border: none;
+	background: transparent;
+	color: inherit;
+	opacity: 0.55;
+	font-size: 11px;
+	line-height: 1;
+	padding: 2px 4px;
+	border-radius: 999px;
+	cursor: pointer;
+	transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+.avesmaps-infopanel__tab-remove:hover {
+	opacity: 1;
+	background: rgba(0, 0, 0, 0.12);
 }
 
 /* Ein einziger Scrollbereich fuer die gesamte Info-Spalte (Owner-Vorgabe). */
