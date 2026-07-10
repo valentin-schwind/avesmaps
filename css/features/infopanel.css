@@ -3,18 +3,22 @@
    Editor-Panel: .is-hidden + translateX + vertikaler Rand-Tab. Erzeugt wird das
    Panel nur bei gesetztem Flag (js/map-features/map-features-infopanel.js); ohne
    Flag greifen diese Regeln auf nichts. Siehe docs/infopanel-instruction.md.
-   Farben/Optik sind an den Routenplaner (#search / #toggle-button, route-planner.css +
-   map-layout.css) angeglichen: weisser Grund, gleicher Schatten/Radius -- der eingespeiste
-   Popup-Inhalt ist ohnehin fuer weissen Grund gebaut. Nur an der rechten Kante gespiegelt.
-   Phase 0/1: Panel-Schale + Rand-Tab + Body + eingespeiste Inhalte. Wegpunkt-Tabs (Phase 4)
-   und die Zoom-/Hinweise-Verschiebung (Phase 3) kommen spaeter. */
+   Farben/Optik sind an den Routenplaner (#search / #toggle-button) angeglichen: weisser
+   Grund, gleicher Schatten/Radius (an der rechten Kante gespiegelt) -- der eingespeiste
+   Popup-Inhalt ist ohnehin fuer weissen Grund gebaut. */
+
+/* Panel-Breite als Variable (Mode-Klasse liegt auf <html>): Panel, Rand-Tab UND die nach
+   links neben die Panel-Kante gesetzten Karten-Kontrollen (Zoom + "Hinweise") teilen sie sich. */
+.avesmaps-infopanel-mode {
+	--avesmaps-ip-w: min(340px, calc(100vw - 64px));
+}
 
 .avesmaps-infopanel {
 	position: fixed;
 	top: 10px;
 	right: 0;
 	bottom: 14px;
-	width: min(340px, calc(100vw - 64px));
+	width: var(--avesmaps-ip-w);
 	z-index: 1080; /* ueber der Karten-UI (1000), unter dem Editor-Panel (1100) */
 	display: flex;
 	flex-direction: column;
@@ -47,21 +51,14 @@
 	overflow-y: auto;
 	padding: 12px 14px 14px;
 }
-.avesmaps-infopanel__empty {
-	color: #7c6957;
-	font-size: 12.5px;
-	font-style: italic;
-	line-height: 1.45;
-	padding: 6px 2px;
-}
 
 /* Rand-Tab "Info" -- wie der Routenplaner-Toggle (#toggle-button), nur an der rechten Kante
    gespiegelt: runde Ecken aussen (links), Schatten nach links-unten. right == Panel-Breite ->
-   sitzt buendig an der linken Panel-Kante. */
+   sitzt buendig an der linken Panel-Kante. Wird per JS ausgeblendet, wenn das Panel leer ist. */
 .avesmaps-infopanel__handle {
 	position: fixed;
 	top: 30px;
-	right: min(340px, calc(100vw - 64px));
+	right: var(--avesmaps-ip-w);
 	z-index: 1081;
 	width: 30px;
 	height: 140px;
@@ -82,6 +79,30 @@
 }
 .avesmaps-infopanel__handle.is-hidden {
 	right: 0;
+}
+
+/* ---- Zoom + "Hinweise" ans untere LINKE Eck des Panels (Owner-Vorgabe) ----
+   Fixiert links neben der Panel-Kante, damit sie NIE vom rechten Panel verdeckt werden und auch
+   bei eingeklapptem Panel sichtbar bleiben (sie verschieben sich nicht mit dem Einklappen). */
+.avesmaps-infopanel-mode #legal-button {
+	left: auto;
+	right: calc(var(--avesmaps-ip-w) + 12px);
+	bottom: 12px;
+}
+.avesmaps-infopanel-mode .leaflet-control-zoom {
+	position: fixed;
+	left: auto;
+	right: calc(var(--avesmaps-ip-w) + 12px);
+	bottom: 52px; /* ueber dem Hinweise-Knopf */
+	margin: 0;
+	z-index: 1000;
+}
+/* Zoom etwas kompakter (Owner: "gerne kleiner"). */
+.avesmaps-infopanel-mode .leaflet-control-zoom a {
+	width: 26px;
+	height: 26px;
+	line-height: 26px;
+	font-size: 16px;
 }
 
 /* ---- Eingespeiste Feature-Inhalte (Phase 1) ----

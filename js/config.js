@@ -179,6 +179,9 @@ const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") === "true";
+// Mode-Klasse frueh auf <html> -> flag-gebundene CSS (Panel + Zoom/Hinweise-Position) greift,
+// bevor bootstrap.js die Leaflet-Zoom-Control anlegt (kein Springen der Kontrollen).
+if (IS_INFOPANEL_MODE && document.documentElement) { document.documentElement.classList.add("avesmaps-infopanel-mode"); }
 const MAP_TILE_STYLES = {
 	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },

@@ -1,10 +1,9 @@
-// Infopanel (?infopanel=true) -- hosts the feature info that normally appears in
-// floating map popups inside a collapsible right-edge panel (see
-// docs/infopanel-instruction.md). Phase 0: scaffold only -- panel shell, edge tab
-// and collapse mechanic; the public API is stubbed for later phases. Content
-// wiring (settlements/ways/regions), the waypoint tabs and the zoom/hints
-// relocation follow in later phases. Fully gated on the flag: without
-// ?infopanel=true nothing is created and the live UI is unchanged.
+// Infopanel (?infopanel=true) -- hosts the feature info that normally appears in floating map
+// popups inside a collapsible right-edge panel (see docs/infopanel-instruction.md). The panel is
+// NEVER shown empty (Owner-Vorgabe): it only opens once it has content, and otherwise collapses --
+// with the edge tab hidden -- so there is no empty-open state. A feature click
+// (avesmapsShowInfopanel) fills and opens it. Fully gated on the flag: without ?infopanel=true
+// nothing is created and the live UI is unchanged.
 (function initInfopanel() {
 	if (typeof IS_INFOPANEL_MODE === "undefined" || !IS_INFOPANEL_MODE) {
 		return;
@@ -13,25 +12,10 @@
 		return; // schon gebaut
 	}
 
-	// Marker fuer flag-gebundene CSS (z. B. die Kontroll-Verschiebung in Phase 3).
+	// Marker fuer flag-gebundene CSS (Panel-Optik + Zoom-/Hinweise-Verschiebung). Wird zusaetzlich
+	// frueh in js/config.js auf <html> gesetzt (damit die Zoom-Position schon beim Anlegen stimmt);
+	// hier als Sicherheitsnetz auf <body>.
 	document.body.classList.add("avesmaps-infopanel-mode");
-
-	var COLLAPSE_KEY = "avesmaps.infopanel.collapsed";
-	function readCollapsed() {
-		try {
-			var stored = window.localStorage.getItem(COLLAPSE_KEY);
-			return stored === null ? true : stored === "1"; // Default: eingeklappt
-		} catch (error) {
-			return true;
-		}
-	}
-	function writeCollapsed(value) {
-		try {
-			window.localStorage.setItem(COLLAPSE_KEY, value ? "1" : "0");
-		} catch (error) {
-			/* localStorage kann blockiert sein -> Zustand nur zur Laufzeit */
-		}
-	}
 
 	var panel = document.createElement("aside");
 	panel.className = "avesmaps-infopanel";
@@ -43,7 +27,6 @@
 
 	var body = document.createElement("div");
 	body.className = "avesmaps-infopanel__body";
-	body.innerHTML = '<div class="avesmaps-infopanel__empty">Klicke einen Ort, Weg oder ein Gebiet auf der Karte an, um die Details hier zu sehen.</div>';
 
 	panel.appendChild(tabs);
 	panel.appendChild(body);
@@ -57,44 +40,54 @@
 	document.body.appendChild(panel);
 	document.body.appendChild(handle);
 
-	var collapsed = readCollapsed();
-	function syncCollapsed() {
-		panel.classList.toggle("is-hidden", collapsed);
+	// Kein Inhalt -> Panel eingeklappt UND Rand-Tab ausgeblendet (nie leer offen). `collapsed` gilt
+	// nur, WENN Inhalt da ist. Der Zustand lebt bewusst nur zur Laufzeit: nach einem Reload ist das
+	// Panel ohnehin leer (Inhalt wird nicht persistiert) -> es startet immer zu.
+	var hasContent = false;
+	var collapsed = false;
+
+	function sync() {
+		panel.classList.toggle("is-hidden", collapsed || !hasContent);
+		handle.style.display = hasContent ? "" : "none";
 		handle.classList.toggle("is-hidden", collapsed);
-		handle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+		handle.setAttribute("aria-expanded", (!collapsed && hasContent) ? "true" : "false");
 	}
-	syncCollapsed();
+	sync();
 
 	handle.addEventListener("click", function () {
+		if (!hasContent) {
+			return; // ein leeres Panel wird nie geoeffnet
+		}
 		collapsed = !collapsed;
-		writeCollapsed(collapsed);
-		syncCollapsed();
+		sync();
 	});
 
-	// ----- Oeffentliche API (ab Phase 1 vom Klick-Routing genutzt) -----
+	// ----- Oeffentliche API -----
 	window.avesmapsInfopanelExpand = function () {
-		if (collapsed) {
-			collapsed = false;
-			writeCollapsed(false);
-			syncCollapsed();
+		if (!hasContent) {
+			return; // nie leer oeffnen
 		}
+		collapsed = false;
+		sync();
 	};
 	window.avesmapsInfopanelCollapse = function () {
-		if (!collapsed) {
-			collapsed = true;
-			writeCollapsed(true);
-			syncCollapsed();
-		}
+		collapsed = true;
+		sync();
 	};
-	// Setzt den Panel-Inhalt (HTML-String eines Feature-Builders) und klappt auf.
-	// Gibt das Body-Element zurueck, damit der Aufrufer z. B. hydrateLocationReviews
-	// darauf anwenden kann (Phase 1).
+	// Setzt den Panel-Inhalt (HTML-String eines Feature-Builders) und oeffnet auf. Leerer/kein Inhalt
+	// -> Panel leeren + einklappen (nie leer offen). Gibt das Body-Element zurueck, damit der Aufrufer
+	// z. B. hydrateLocationReviews darauf anwenden kann.
 	window.avesmapsShowInfopanel = function (html) {
-		if (typeof html === "string") {
+		if (typeof html === "string" && html.trim() !== "") {
 			body.innerHTML = html;
 			body.scrollTop = 0;
+			hasContent = true;
+			collapsed = false;
+		} else {
+			body.innerHTML = "";
+			hasContent = false;
 		}
-		window.avesmapsInfopanelExpand();
+		sync();
 		return body;
 	};
 	window.avesmapsInfopanelBody = function () {
