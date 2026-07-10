@@ -147,23 +147,26 @@ function hydrateLocationReviews(slotEl) {
 		return;
 	}
 	const editable = reviewIsEditMode();
+	const reviewsName = slotEl.getAttribute("data-reviews-name") || "";
 	const base = editable ? LOCATION_REVIEWS_EDIT_ENDPOINT : LOCATION_REVIEWS_PUBLIC_ENDPOINT;
 	slotEl.innerHTML = `<div class="location-reviews__loading">${tr("review.loading", "Bewertungen werden geladen …")}</div>`;
 	fetch(`${base}?location=${encodeURIComponent(publicId)}&limit=${LOCATION_REVIEWS_FETCH_LIMIT}`, { credentials: "same-origin" })
 		.then((response) => (response.ok ? response.json() : null))
 		.then((data) => {
 			if (!data || data.ok === false) {
-				slotEl.innerHTML = "";
+				// Laden fehlgeschlagen: trotzdem den "Bewertung schreiben"-Button zeigen -- er ist der
+				// einzige Einstieg in den Schreib-Dialog; ihn hier zu loeschen macht Bewerten bei jedem
+				// API-Fehler unmoeglich.
+				slotEl.innerHTML = reviewWriteButtonMarkup(publicId, reviewsName);
 				return;
 			}
 			const reviews = Array.isArray(data.reviews) ? data.reviews : [];
-			const reviewsName = slotEl.getAttribute("data-reviews-name") || "";
 			slotEl.innerHTML = reviewSummaryMarkup(data.average, data.count)
 				+ reviewsListMarkup(reviews, editable)
 				+ reviewWriteButtonMarkup(publicId, reviewsName);
 		})
 		.catch(() => {
-			slotEl.innerHTML = "";
+			slotEl.innerHTML = reviewWriteButtonMarkup(publicId, reviewsName);
 		});
 }
 
