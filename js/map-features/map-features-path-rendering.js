@@ -45,6 +45,17 @@ function pathWikiInfoboxMarkup(path) {
 	);
 }
 
+// Kopf-Icon fuer den Weg-Kopf (Owner: einheitlicher grosser Kopf -- Wege haben kein Wappen, bekommen
+// aber ein Typ-Icon, damit der Kopf nicht leer wirkt). Fluss/Seeweg -> Wellen, sonst Strassen-Symbol.
+// Inline-SVG (kein Asset noetig), fuellt die location-popup__icon-Groesse.
+function pathHeaderIconMarkup(pathType) {
+	const isWater = pathType === "Flussweg" || pathType === "Seeweg";
+	const svg = isWater
+		? '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="#3f6fa0" stroke-width="1.7" stroke-linecap="round"><path d="M3 7q3 -2.4 6 0t6 0 6 0"/><path d="M3 12q3 -2.4 6 0t6 0 6 0"/><path d="M3 17q3 -2.4 6 0t6 0 6 0"/></svg>'
+		: '<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="#7a6647" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 21 11 3"/><path d="M15.5 21 13 3"/><path d="M12 5.5v2.5M12 11v2.5M12 16.5v2.5"/></svg>';
+	return `<span class="location-popup__icon location-popup__icon--path" style="display:inline-flex" aria-hidden="true">${svg}</span>`;
+}
+
 function createPathPopupMarkup(path) {
 	const pathName = getPathDisplayName(path);
 	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
@@ -52,7 +63,8 @@ function createPathPopupMarkup(path) {
 		name: pathName,
 		locationType: "dorf",
 		locationTypeLabel: pathType,
-		showHeaderIcon: false,
+		headerIconMarkup: pathHeaderIconMarkup(pathType),
+		showHeaderIcon: true,
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
