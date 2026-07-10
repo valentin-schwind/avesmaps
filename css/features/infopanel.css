@@ -165,3 +165,21 @@
 	width: auto;
 	padding: 0;
 }
+
+/* ---- Edit-Mode-Koexistenz (Phase 5) ----
+   Infopanel + Editor-Panel (#review-panel) teilen die rechte Kante. Der Editor-Rand-Tab
+   (#review-panel-toggle, existiert nur im Edit-Mode) rueckt UNTER den Info-Tab (top:30), damit beide
+   lesbar gestapelt sind. Ein Klick holt das jeweilige Panel per z-index nach vorn (Editor-Panel = 1100;
+   das Infopanel liegt per .--front darueber). */
+.avesmaps-infopanel-mode #review-panel-toggle {
+	top: 180px;
+}
+/* Editor-Tab an der Panel-Kante halten (auch bei eingeklapptem Editor) -- sonst rutscht er auf
+   right:0 und verschwindet unter dem vorn liegenden Infopanel. So bleiben beide Tabs gestapelt
+   und klickbar. */
+.avesmaps-infopanel-mode #review-panel-toggle.is-hidden {
+	right: var(--avesmaps-ip-w);
+}
+.avesmaps-infopanel.avesmaps-infopanel--front {
+	z-index: 1110;
+}

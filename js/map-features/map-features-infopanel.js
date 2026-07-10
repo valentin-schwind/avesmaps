@@ -63,6 +63,21 @@
 	}
 	sync();
 
+	// Edit-Mode-Koexistenz (Phase 5): Infopanel + Editor-Panel (#review-panel) teilen die rechte
+	// Kante; zwei gestapelte Rand-Tabs (Info oben, "Editor" per CSS darunter). Ein Klick holt das
+	// jeweilige Panel per z-index nach VORN. Das Infopanel bleibt dabei "offen" (nicht eingeklappt),
+	// damit Zoom/Hinweise stabil am Panel-Eck bleiben.
+	function bringInfopanelToFront() { panel.classList.add("avesmaps-infopanel--front"); }
+	function sendInfopanelToBack() { panel.classList.remove("avesmaps-infopanel--front"); }
+	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+		var editorToggle = document.getElementById("review-panel-toggle");
+		if (editorToggle) {
+			// Klick auf "Editor" -> Editor nach vorn (Infopanel dahinter); der Editor-eigene Toggle
+			// (toggleReviewPanel) laeuft unveraendert daneben.
+			editorToggle.addEventListener("click", sendInfopanelToBack);
+		}
+	}
+
 	// Baut die Tab-Leiste aus den AKTUELLEN Wegpunkten (getWaypointInputValues, visuelle Reihenfolge).
 	// Doppelte Namen (z. B. Rundreise A->B->A) werden zusammengefasst. Der Tab, dessen Name dem gerade
 	// angezeigten Feature entspricht, ist aktiv.
@@ -120,6 +135,14 @@
 		if (!hasContent) {
 			return; // ein leeres Panel wird nie geoeffnet
 		}
+		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+			// Edit-Mode: "Info" holt das Infopanel nach vorn (bleibt offen, kein Einklappen) --
+			// zurueck zum Editor geht ueber dessen Tab.
+			collapsed = false;
+			sync();
+			bringInfopanelToFront();
+			return;
+		}
 		collapsed = !collapsed;
 		sync();
 	});
@@ -148,6 +171,7 @@
 			collapsed = false;
 			currentTabActive = typeof activeName === "string" ? activeName : "";
 			renderTabs();
+			bringInfopanelToFront();
 		} else {
 			body.innerHTML = "";
 			hasContent = false;
