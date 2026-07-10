@@ -100,4 +100,21 @@
 	window.avesmapsInfopanelBody = function () {
 		return body;
 	};
+
+	// Feature-Glue (Phase 1, Siedlungen): baut den UNVERAENDERTEN Siedlungs-Popup-HTML
+	// (buildLocationMarkerPopupHtml) und zeigt ihn im Panel; laedt danach die Bewertungen in den
+	// Panel-Slot nach. Wird vom Klick-Arbiter (Canvas) und vom programmatischen Oeffnen (Suche/
+	// Deeplink) im Infopanel-Modus statt des schwebenden Popups aufgerufen. Existiert nur im
+	// Infopanel-Modus -> die Aufrufer pruefen `typeof ... === "function"` und fallen sonst auf das
+	// bisherige Popup-Verhalten zurueck.
+	window.avesmapsShowLocationInInfopanel = function (markerEntry) {
+		if (!markerEntry || typeof buildLocationMarkerPopupHtml !== "function") {
+			return false;
+		}
+		var panelBody = window.avesmapsShowInfopanel(buildLocationMarkerPopupHtml(markerEntry));
+		if (panelBody && typeof hydrateLocationReviews === "function") {
+			hydrateLocationReviews(panelBody.querySelector(".location-reviews"));
+		}
+		return true;
+	};
 })();

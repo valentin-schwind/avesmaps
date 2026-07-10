@@ -221,6 +221,14 @@ const locationCanvasLayer = {
 			return false;
 		}
 		const entry = hit.entry;
+
+		// Infopanel (?infopanel=true): Feature-Info ins rechte Panel statt ins schwebende Popup --
+		// VOR dem DOM-Marker-Promote/openPopup abzweigen (sonst bleibt ein promoteter Marker oder ein
+		// offenes Popup zurueck).
+		if (typeof window.avesmapsShowLocationInInfopanel === "function") {
+			window.avesmapsShowLocationInInfopanel(entry);
+			return true;
+		}
 		entry._canvasPromoted = true;
 		this._redraw();
 		// The DOM marker's icon may be stale -- it was set at the creation zoom and never updated while

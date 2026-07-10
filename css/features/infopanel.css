@@ -81,3 +81,21 @@
 .avesmaps-infopanel__handle.is-hidden {
 	right: 0;
 }
+
+/* ---- Eingespeiste Feature-Inhalte (Phase 1) ----
+   Die bestehenden Builder liefern .location-popup / .region-info-box unveraendert. Im Panel die
+   schwebende Popup-Kartenoptik neutralisieren -- der Panel-Body ist bereits der Container samt
+   Padding. */
+.avesmaps-infopanel .location-popup {
+	max-width: none;
+	padding: 0;
+	background: transparent;
+	border-radius: 0;
+}
+/* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
+   (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
+.avesmaps-infopanel .location-reviews__list {
+	max-height: none;
+	overflow: visible;
+	padding-right: 0;
+}

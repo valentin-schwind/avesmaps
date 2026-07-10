@@ -132,6 +132,16 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	// Evtl. noch offenen temporaeren Marker eines vorherigen Treffers aufraeumen.
 	clearNearestLookupPinnedMarker();
 
+	// Infopanel (?infopanel=true): Feature-Info ins rechte Panel statt ins gebundene Popup;
+	// optional zur Location zentrieren (Such-/Deeplink-Treffer). Pinning + openPopup entfallen.
+	if (typeof window.avesmapsShowLocationInInfopanel === "function") {
+		if (pan) {
+			try { map.panTo(markerEntry.marker.getLatLng()); } catch (error) { /* noop */ }
+		}
+		window.avesmapsShowLocationInInfopanel(markerEntry);
+		return true;
+	}
+
 	// The bound popup needs this marker to exist as a real DOM layer. A marker only counts as a
 	// persistent DOM marker when it is BOTH shown AND not drawn on the canvas overlay -- canvas
 	// markers are default-on for every settlement type, so a "visible" dorf/kleinstadt/... is a
