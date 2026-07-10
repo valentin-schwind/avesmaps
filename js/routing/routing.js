@@ -1087,7 +1087,8 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			attributes: { "data-popup-action": "remove-waypoint", "data-waypoint-id": loc.waypointId },
 		}));
 	}
-	// Ausgeklappt: "Link teilen" + "Bewertung schreiben" wie in der normalen Marker-Infobox.
+	// Ausgeklappt: "Link teilen" wie in der normalen Marker-Infobox. "Bewertung schreiben" sitzt jetzt
+	// unten bei den Bewertungen (js/community/location-reviews.js) -- also hier nicht mehr in der Leiste.
 	// wikiParam "siedlung" -- deckt sich mit dem Deep-Link-Parameter fuer Siedlungen (js/app/wiki-deeplink.js).
 	if (expanded && markerEntry && markerEntry.publicId) {
 		const shareButton = typeof sharePlaceActionButtonMarkup === "function"
@@ -1096,15 +1097,6 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 		if (shareButton) {
 			buttons.push(shareButton);
 		}
-		buttons.push(popupActionButtonMarkup({
-			label: tr("popup.writeReview", "Bewertung schreiben"),
-			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
-			attributes: {
-				"data-popup-action": "write-review",
-				"data-public-id": markerEntry.publicId,
-				"data-location-name": loc.name,
-			},
-		}));
 	}
 	if (hasWiki) {
 		buttons.push(popupActionButtonMarkup({

@@ -28,6 +28,11 @@
 	font-size: 14px;
 }
 
+/* "Bewertung schreiben" sitzt jetzt unten bei den Bewertungen (statt in der Aktionsleiste). */
+.location-reviews__write {
+	margin-top: 12px;
+}
+
 /* ===== Bewertungs-Bereich in der Infobox ===== */
 .location-reviews {
 	margin-top: 10px;

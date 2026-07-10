@@ -300,17 +300,8 @@ function locationActionsMarkup(name, publicId, location = null) {
 		actionButtons.push(shareButton);
 	}
 
-	if (publicId) {
-		actionButtons.push(popupActionButtonMarkup({
-			label: tr("popup.writeReview", "Bewertung schreiben"),
-			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
-			attributes: {
-				"data-popup-action": "write-review",
-				"data-public-id": publicId,
-				"data-location-name": name,
-			},
-		}));
-	}
+	// "Bewertung schreiben" wanderte nach unten zu den Bewertungen (js/community/location-reviews.js,
+	// reviewWriteButtonMarkup) -- daher hier nicht mehr in der Aktionsleiste.
 
 	if (IS_EDIT_MODE && publicId) {
 		actionButtons.push(...pathCreationActionButtonsMarkup(publicId));

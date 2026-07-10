@@ -112,6 +112,26 @@ function reviewsListMarkup(reviews, editable) {
 	return `<div class="location-reviews__list">${reviews.map((review) => reviewItemMarkup(review, editable)).join("")}</div>`;
 }
 
+// "Bewertung schreiben" gehoert unten zu den Bewertungen (Owner-Vorgabe). Reuse des Popup-Action-Buttons
+// (data-popup-action="write-review") -> der bestehende Document-Delegations-Handler (routing.js) oeffnet
+// den Dialog. Wird von locationActionsMarkup + dem Route-Popup ENTFERNT und hier zentral gerendert.
+function reviewWriteButtonMarkup(publicId, name) {
+	if (!publicId || typeof popupActionButtonMarkup !== "function") {
+		return "";
+	}
+	const button = popupActionButtonMarkup({
+		label: tr("popup.writeReview", "Bewertung schreiben"),
+		iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
+		attributes: {
+			"data-popup-action": "write-review",
+			"data-public-id": publicId,
+			"data-location-name": name || "",
+		},
+	});
+	const inner = typeof locationPopupActionsMarkup === "function" ? locationPopupActionsMarkup([button]) : button;
+	return `<div class="location-reviews__write">${inner}</div>`;
+}
+
 function reviewSlotAttrEscape(value) {
 	return String(value).replace(/["\\]/g, "\\$&");
 }
@@ -137,7 +157,10 @@ function hydrateLocationReviews(slotEl) {
 				return;
 			}
 			const reviews = Array.isArray(data.reviews) ? data.reviews : [];
-			slotEl.innerHTML = reviewSummaryMarkup(data.average, data.count) + reviewsListMarkup(reviews, editable);
+			const reviewsName = slotEl.getAttribute("data-reviews-name") || "";
+			slotEl.innerHTML = reviewSummaryMarkup(data.average, data.count)
+				+ reviewsListMarkup(reviews, editable)
+				+ reviewWriteButtonMarkup(publicId, reviewsName);
 		})
 		.catch(() => {
 			slotEl.innerHTML = "";
