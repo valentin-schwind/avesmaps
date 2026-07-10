@@ -224,15 +224,15 @@
 		var entry = (typeof findLocationMarkerByName === "function") ? findLocationMarkerByName(name) : null;
 		if (entry && typeof window.avesmapsShowLocationInInfopanel === "function") {
 			window.avesmapsShowLocationInInfopanel(entry);
-			flyToWaypointOnMap(entry);
+			focusWaypointOnMap(entry);
 		}
 	}
 
-	// Tab-Klick fliegt die Karte zur Stadt (Owner-Vorgabe). Zoom-Regel: gibt es bereits eine Route
-	// (>= 2 Wegpunkte), bleibt die aktuelle Zoomstufe erhalten (die Route-Ansicht nicht stoeren); sonst
-	// immer Zoomstufe 5.
-	function flyToWaypointOnMap(entry) {
-		if (typeof map === "undefined" || !map || typeof map.flyTo !== "function" || !entry || !entry.marker) {
+	// Tab-Klick zentriert die Karte auf die Stadt (hartes setView statt flyTo, Owner-Regel). Zoom-Regel:
+	// gibt es bereits eine Route (>= 2 Wegpunkte), bleibt die aktuelle Zoomstufe erhalten (die
+	// Route-Ansicht nicht stoeren); sonst immer Zoomstufe 5.
+	function focusWaypointOnMap(entry) {
+		if (typeof map === "undefined" || !map || typeof map.setView !== "function" || !entry || !entry.marker) {
 			return;
 		}
 		var latlng = (typeof entry.marker.getLatLng === "function") ? entry.marker.getLatLng() : null;
@@ -241,9 +241,9 @@
 		}
 		var waypointCount = (typeof getWaypointInputValues === "function") ? getWaypointInputValues().length : 0;
 		if (waypointCount >= 2) {
-			map.flyTo(latlng, map.getZoom());
+			map.setView(latlng, map.getZoom());
 		} else {
-			map.flyTo(latlng, 5);
+			map.setView(latlng, 5);
 		}
 	}
 
