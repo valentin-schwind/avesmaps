@@ -315,3 +315,9 @@
 .avesmaps-infopanel.avesmaps-infopanel--front {
 	z-index: 1110;
 }
+/* Editor-Panel auf dieselbe Hoehe wie das Infopanel bringen (Owner-Vorgabe): gleicher unterer Abstand
+   wie die Infobox (bottom:14px). Der Editor endet sonst bei bottom:64px und ist damit kuerzer als die
+   Infobox -- top:10px teilen sich beide ohnehin. */
+.avesmaps-infopanel-mode #review-panel {
+	bottom: 14px;
+}
