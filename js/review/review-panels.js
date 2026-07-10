@@ -257,8 +257,9 @@ function focusReviewRatingLocation(publicId) {
 		showFeedbackToast("Der Ort ist auf der Karte nicht (mehr) vorhanden.", "warning");
 		return;
 	}
-	// Heranzoomen und die normale Infobox oeffnen (temporaerer Marker, falls die Groesse nicht eingeblendet ist).
-	map.setView(entry.marker.getLatLng(), Math.max(map.getZoom(), 5));
+	// Heranzoomen (animiert, flyTo -- Owner) und die normale Infobox oeffnen (temporaerer Marker, falls
+	// die Groesse nicht eingeblendet ist). Nie herauszoomen: mindestens Stufe 5.
+	map.flyTo(entry.marker.getLatLng(), Math.max(map.getZoom(), 5));
 	if (typeof openLocationPopupByPublicId === "function") {
 		openLocationPopupByPublicId(publicId);
 	}
