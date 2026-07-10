@@ -107,18 +107,18 @@
 	scrollbar-width: thin;
 }
 .avesmaps-adv__card {
-	width: 92px;
+	width: 78px;
 	text-align: center;
 	line-height: 1.25;
 }
-/* Cover im DIN-A4-Hochformat (210:297 -> 92x130). Platzhalter = Parchment-Box mit Icon;
+/* Cover im DIN-A4-Hochformat (210:297 -> 78x110). Platzhalter = Parchment-Box mit Icon;
    echtes Cover (.has-img) fuellt die Box randlos (object-fit: cover). */
 .avesmaps-adv__cover {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 92px;
-	height: 130px;
+	width: 78px;
+	height: 110px;
 	margin-bottom: 5px;
 	background: #ece3cb;
 	border: 1px solid rgba(120, 100, 70, 0.38);
@@ -157,4 +157,9 @@
 	margin-top: 1px;
 	font-size: 10.5px;
 	color: #7a6a52;
+}
+/* Abenteuer-Typ (z. B. "Gruppenabenteuer") unter dem Jahr, etwas kleiner/leiser. */
+.avesmaps-adv__type {
+	font-size: 9.5px;
+	color: #9a8a6f;
 }

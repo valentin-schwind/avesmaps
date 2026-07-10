@@ -32,6 +32,15 @@ if ($requestMethod === 'POST') {
 $currentUser = avesmapsCurrentUser();
 $isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
 
+// Ansichts-Flags von der /edit/-URL in den Karten-iframe durchreichen (der iframe laedt sonst nur
+// ?debugMap=1&edit=1). So aktiviert z. B. /edit/?infopanel=true den Infopanel-Modus AUCH im Editor,
+// damit Editor-Panel und Infobox koexistieren.
+$mapIframeQuery = 'debugMap=1&edit=1';
+if (isset($_GET['infopanel']) && $_GET['infopanel'] === 'true') {
+    $mapIframeQuery .= '&infopanel=true';
+}
+$mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES, 'UTF-8');
+
 ?><!DOCTYPE html>
 <html lang="de">
 
@@ -75,7 +84,7 @@ $isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
                     <button type="submit">Abmelden</button>
                 </form>
             </header>
-            <iframe class="edit-shell__map" src="../index.html?debugMap=1&edit=1" title="Avesmaps Karte"></iframe>
+            <iframe class="edit-shell__map" src="<?php echo $mapIframeSrc; ?>" title="Avesmaps Karte"></iframe>
         </main>
     <?php endif; ?>
 </body>

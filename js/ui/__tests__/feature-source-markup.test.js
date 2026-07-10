@@ -32,8 +32,9 @@ assert.ok(html.includes("Wiki Aventurica") && html.includes("Vali's Almanach"), 
 assert.ok(html.includes("S. 12"), "manual source page shown on line 1");
 assert.ok(!/href="[^"]*Almanach/.test(html), "url-less manual = no link");
 
-// Line 2: publications block with total (3) and two tabs (Offiziell (2), Erwähnt (1)).
-assert.ok(html.includes("Publikationen") && html.includes("(3)"), "publications total (3)");
+// Line 2: publications block, label WITHOUT a total, two tabs (Offiziell (2), Erwähnt (1)) in one row.
+assert.ok(html.includes("Publikationen:"), "publications label without total");
+assert.ok(!html.includes('fs-src-total'), "no total count element on Publikationen");
 assert.ok(/Offiziell <span class="fs-src-n">\(2\)<\/span>/.test(html), "Offiziell count (2)");
 assert.ok(/Erwähnt <span class="fs-src-n">\(1\)<\/span>/.test(html), "Erwähnt count (1)");
 

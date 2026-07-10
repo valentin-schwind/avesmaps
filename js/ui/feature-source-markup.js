@@ -107,8 +107,8 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     if (off.length) tables += table(off, "off");
     if (erw.length) tables += table(erw, "erw");
 
-    blocks.push('<div class="fs-src-pub"><span class="fs-src-publabel">Publikationen <span class="fs-src-total">(' +
-      publications.length + ")</span>:</span>" + tabs.join("") + "</div>");
+    blocks.push('<div class="fs-src-pub"><span class="fs-src-publabel">Publikationen:</span>' +
+      tabs.join("") + "</div>");
     blocks.push('<div class="fs-src-tablewrap" hidden>' + tables + "</div>");
   }
 

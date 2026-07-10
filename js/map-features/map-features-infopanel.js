@@ -53,6 +53,10 @@
 	// Name des aktuell angezeigten Features -> markiert den passenden Wegpunkt-Tab als aktiv (leer,
 	// wenn das Feature kein Wegpunkt ist -> transiente Ansicht ohne aktiven Tab).
 	var currentTabActive = "";
+	// Zaehler, der bei JEDEM Feature-Anzeigen (avesmapsShowInfopanel mit Inhalt) steigt. Der Leerklick-
+	// Detektor (unten) vergleicht ihn vor/nach einem Karten-Klick: bleibt er gleich, wurde nichts
+	// getroffen -> Leerklick.
+	var openSeq = 0;
 
 	function sync() {
 		var open = hasContent && !collapsed;
@@ -207,6 +211,54 @@
 		sync();
 	});
 
+	// Leerklick auf die Karte (nichts getroffen) -> Infopanel einklappen. Im Edit-Mode stattdessen den
+	// Editor wieder nach vorn holen (dort ist der Editor die Standardansicht). Erkennung ueber openSeq:
+	// ein Feature-Klick ruft avesmapsShowInfopanel (openSeq steigt). Der Snapshot wird in der CAPTURE-
+	// Phase genommen (vor Leaflets Klick-Handlern) und im setTimeout mit dem Endstand verglichen -> robust
+	// gegen die Reihenfolge der Klick-Handler (Canvas-Arbiter registriert vor uns).
+	var emptyClickBound = false;
+	function bindEmptyMapClick() {
+		if (emptyClickBound || typeof map === "undefined" || !map || typeof map.on !== "function") {
+			return;
+		}
+		emptyClickBound = true;
+		var seqBeforeClick = 0;
+		var container = typeof map.getContainer === "function" ? map.getContainer() : null;
+		if (container) {
+			container.addEventListener("click", function () {
+				seqBeforeClick = openSeq; // vor Leaflets Klick-Handlern (Capture-Phase)
+			}, true);
+		}
+		map.on("click", function () {
+			var snapshot = seqBeforeClick;
+			window.setTimeout(function () {
+				if (openSeq !== snapshot) {
+					return; // ein Feature wurde durch diesen Klick geoeffnet -> kein Leerklick
+				}
+				if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+					sendInfopanelToBack(); // Editor wieder in den Vordergrund
+					return;
+				}
+				collapsed = true;
+				sync();
+			}, 0);
+		});
+	}
+	// `map` entsteht erst spaet in bootstrap.js. Ueblicher Weg: avesmaps:map-ready. ABER dieses Event kann
+	// bereits gefeuert haben, bevor dieses Script parst (z. B. sehr schneller/fehlgeschlagener Datenload
+	// -> map-ready per Microtask vor dem Script) -> zusaetzlich pollen, bis `map` existiert, dann einmalig
+	// binden (der emptyClickBound-Guard verhindert Doppelbindung).
+	document.addEventListener("avesmaps:map-ready", bindEmptyMapClick);
+	(function pollForMap(tries) {
+		if (emptyClickBound) {
+			return;
+		}
+		bindEmptyMapClick();
+		if (!emptyClickBound && tries < 100) {
+			window.setTimeout(function () { pollForMap(tries + 1); }, 120);
+		}
+	})(0);
+
 	// ----- Oeffentliche API -----
 	window.avesmapsInfopanelExpand = function () {
 		if (!hasContent) {
@@ -229,6 +281,7 @@
 			body.scrollTop = 0;
 			hasContent = true;
 			collapsed = false;
+			openSeq += 1;
 			currentTabActive = typeof activeName === "string" ? activeName : "";
 			renderTabs();
 			bringInfopanelToFront();

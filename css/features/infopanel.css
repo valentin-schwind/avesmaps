@@ -53,16 +53,16 @@
 .avesmaps-infopanel__tab-sep {
 	flex: 0 0 auto;
 	color: #a3906c;
-	font-size: 13px;
+	font-size: 15px;
 	user-select: none;
 }
 .avesmaps-infopanel__tab {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
-	gap: 1px;
-	max-width: 150px;
-	padding: 3px 5px 3px 11px;
+	gap: 2px;
+	max-width: 175px;
+	padding: 5px 6px 5px 13px;
 	background: #efe7d6;
 	border: 1px solid #ddcdb4;
 	border-radius: 999px;
@@ -79,14 +79,14 @@
 	border: none;
 	background: transparent;
 	font: inherit;
-	font-size: 12.5px;
+	font-size: 14px;
 	color: inherit;
 	padding: 0;
 	cursor: pointer;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	max-width: 116px;
+	max-width: 135px;
 }
 .avesmaps-infopanel__tab.is-active .avesmaps-infopanel__tab-label {
 	font-weight: 700;
@@ -98,9 +98,9 @@
 	background: transparent;
 	color: inherit;
 	opacity: 0.55;
-	font-size: 11px;
+	font-size: 13px;
 	line-height: 1;
-	padding: 2px 4px;
+	padding: 2px 5px;
 	border-radius: 999px;
 	cursor: pointer;
 	transition: opacity 0.12s ease, background-color 0.12s ease;
@@ -202,6 +202,26 @@
 	padding: 0;
 	background: transparent;
 	border-radius: 0;
+	/* Im Panel ist mehr Platz -> Infobox in normaler Lesegroesse (Owner: font-size: 1em) statt der
+	   kompakten Popup-Groessen. Logo, Name und Text ein Stueck groesser. */
+	font-size: 1em;
+}
+.avesmaps-infopanel .location-popup__name {
+	font-size: 19px;
+}
+.avesmaps-infopanel .location-popup__type {
+	font-size: 13px;
+}
+.avesmaps-infopanel .location-popup__description {
+	font-size: 14px;
+}
+.avesmaps-infopanel .location-popup__icon {
+	width: 32px;
+	height: 32px;
+}
+.avesmaps-infopanel .location-popup__icon--coat {
+	width: 40px;
+	height: 40px;
 }
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */

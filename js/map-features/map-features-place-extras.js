@@ -99,10 +99,12 @@ function buildPlaceAdventuresMarkup(location) {
 			? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
 			: AVESMAPS_ADV_COVER_PH_SVG;
 		var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
+		var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 		return '<div class="avesmaps-adv__card" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
 			+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
 			+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 			+ metaLine
+			+ typeLine
 			+ '</div>';
 	}).join("");
 	return '<div class="avesmaps-adv">'

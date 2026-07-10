@@ -197,13 +197,20 @@
 	color: #8a7358;
 	white-space: nowrap;
 }
+/* "Publikationen:" + die Tabs "Offiziell (n)"/"Erwähnt (n)" bleiben in EINER Zeile (Owner-Vorgabe);
+   passt es nicht, wird horizontal gescrollt statt umzubrechen. */
 .fs-src-pub {
 	display: flex;
 	align-items: center;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: 7px;
 	margin-top: 9px;
 	color: #6c5a49;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+.fs-src-pub > * {
+	flex: 0 0 auto;
 }
 .fs-src-total {
 	color: #8a7358;
