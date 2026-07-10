@@ -111,7 +111,9 @@ function buildSlimLocationPopupHtml(markerEntry) {
 		headerIconMarkup: coatIconMarkup,
 		showType: true,
 		showDescription: false,
-		showDivider: true,
+		// Kopf-Trenner NUR wenn eine Beschreibung folgt -- sonst traegt die durchgehende Linie ueber der
+		// Quelle/den Aktionen die Trennung (verhindert zwei direkt gestapelte Linien = Doppellinie).
+		showDivider: Boolean(descBlock),
 		showWikiLink: false,
 		// Beschreibung + Quelle + Aktionen als ein Block nach dem Trenner.
 		actionsMarkup: descBlock + sourceMarkup + locationPopupActionsMarkup(actionButtons),
