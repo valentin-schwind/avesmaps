@@ -310,6 +310,7 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 	if (openPopup) {
 		markerEntry.marker.openPopup();
 	}
+	return markerEntry;
 }
 
 function applyLiveLocationFeature(feature) {

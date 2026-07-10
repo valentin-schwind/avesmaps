@@ -25,6 +25,7 @@ async function handleLocationEditFormSubmit(event) {
 		const responseFeature = pendingCrossingConversionPublicId === payload.public_id
 			? { ...result.feature, name: result.feature?.name || payload.name }
 			: result.feature;
+		let savedMarkerEntry = locationEditMarkerEntry;
 		if (locationEditMarkerEntry) {
 			applyFeatureResponseToMarker(locationEditMarkerEntry, responseFeature);
 			if (pendingCrossingConversionPublicId === payload.public_id) {
@@ -32,7 +33,14 @@ async function handleLocationEditFormSubmit(event) {
 				syncLocationNameLabelVisibility();
 			}
 		} else {
-			addCreatedLocationMarker(responseFeature);
+			savedMarkerEntry = addCreatedLocationMarker(responseFeature);
+		}
+		// Auto-connect the wiki settlement from the place's wiki link (e.g. inherited from a community
+		// report), so an "anlegen"/save with a wiki URL links its {{Infobox Siedlung}} data without a
+		// manual "Zuweisen". Best-effort; only when a URL is present and nothing is connected yet.
+		if (payload.wiki_url && savedMarkerEntry && !(savedMarkerEntry.location && savedMarkerEntry.location.wikiSettlement)
+			&& typeof autoConnectSettlementWikiByUrl === "function") {
+			await autoConnectSettlementWikiByUrl(savedMarkerEntry.publicId || responseFeature?.public_id || "", payload.wiki_url, savedMarkerEntry);
 		}
 		if (payload.action === "create_point" && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");

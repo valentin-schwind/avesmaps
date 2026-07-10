@@ -216,6 +216,50 @@ async function selectSettlementWikiResult(title) {
 	}
 }
 
+// Derive the wiki page title from a /wiki/<Title> URL (decodes %xx + underscores). "" if none.
+function settlementWikiTitleFromUrl(wikiUrl) {
+	const match = String(wikiUrl || "").match(/\/wiki\/([^?#]+)/);
+	if (!match) {
+		return "";
+	}
+	try {
+		return decodeURIComponent(match[1]).replace(/_/g, " ").trim();
+	} catch (error) {
+		return match[1].replace(/_/g, " ").trim();
+	}
+}
+
+// Auto-connect a place to its wiki settlement straight from its wiki URL (e.g. one inherited from a
+// community report), so a save with a wiki link attaches the {{Infobox Siedlung}} data without a
+// manual "Zuweisen". Best-effort: does nothing when the URL carries no title or assign_to fails, so
+// a save is never blocked. Updates the marker's cached wikiSettlement + revision so the popup shows
+// the connection immediately and the next save's expected_revision still matches.
+async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
+	const title = settlementWikiTitleFromUrl(wikiUrl);
+	if (!publicId || !title) {
+		return false;
+	}
+	try {
+		const result = await settlementWikiPost({ action: "assign_to", title, public_id: publicId, dry_run: false, confirm: "apply" });
+		if (!result || result.ok !== true || !result.settlement) {
+			return false;
+		}
+		if (markerEntry && markerEntry.location) {
+			markerEntry.location.wikiSettlement = result.settlement;
+			markerEntry.location.description = "";
+			if (result.revision) {
+				markerEntry.location.revision = result.revision;
+			}
+			if (typeof refreshLocationMarkerPopup === "function") {
+				refreshLocationMarkerPopup(markerEntry);
+			}
+		}
+		return true;
+	} catch (error) {
+		return false;
+	}
+}
+
 async function removeSettlementWiki() {
 	const publicId = settlementWikiCurrentPublicId();
 	if (!publicId) {
