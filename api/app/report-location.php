@@ -335,7 +335,8 @@ function avesmapsLocationNameExists(PDO $pdo, string $name): bool {
     $featureStatement = $pdo->prepare(
         'SELECT name
         FROM map_features
-        WHERE feature_type = :feature_type'
+        WHERE feature_type = :feature_type
+          AND is_active = 1'
     );
     $featureStatement->execute([
         'feature_type' => 'location',
