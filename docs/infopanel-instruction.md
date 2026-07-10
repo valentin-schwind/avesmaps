@@ -24,11 +24,14 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
    `.region-info-box`/`.location-popup`-Familie. Kein Neubau der Inhalte.
 4. **Persistenz:** Klick auf die **leere Karte schließt das Panel NICHT**. Nur ein
    Klick auf ein **anderes Info-Feature** tauscht den Inhalt. Eingeklappt + Klick
-   auf ein Info-Feature → Panel **klappt automatisch auf**.
-5. **Zoom** (`L.control.zoom`) → **unten LINKS, verkleinert**; **„Hinweise"**
-   (`#legal-button`) ebenfalls **unten links**. So sind beide immer sichtbar —
-   unabhängig davon, ob das rechte Panel ein- oder ausgefahren ist — und werden nie
-   vom Panel verdeckt. Das Panel darf rechts die **volle Höhe** nutzen.
+   auf ein Info-Feature → Panel **klappt automatisch auf**. Das Panel steht **nie
+   leer offen** (Owner): ohne Inhalt ist es eingeklappt und der Rand-Tab
+   ausgeblendet; ein leerer Klick lässt den letzten Inhalt stehen.
+5. **Zoom** (`L.control.zoom`) + **„Hinweise"** (`#legal-button`) → ans **untere
+   linke Eck des Panels** (fixiert, links neben der Panel-Kante über die geteilte
+   Variable `--avesmaps-ip-w`; Zoom über Hinweise, etwas kleiner). Nie vom Panel
+   verdeckt, sichtbar bei ein- UND ausgefahrenem Panel (verschieben sich nicht mit
+   dem Einklappen). Das Panel darf rechts die **volle Höhe** nutzen.
 6. **Wegpunkt-Tabs** oben im Panel (aus `getWaypointInputValues()`); aktiver Tab =
    zuletzt geklicktes Feature. **In v1** enthalten.
 7. **Edit-Mode:** Infopanel **und** Editor als **zwei getrennt einklappbare
@@ -146,11 +149,11 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
 - `avesmapsShowInfopanel` ruft `avesmapsInfopanelExpand()`, wenn eingeklappt.
 - **Deploy-Check:** Panel bleibt bei Leerklick; klappt bei Feature-Klick auf.
 
-### Phase 3 — Zoom + Hinweise nach unten links
-- Zoom `position: "bottomleft"` + CSS-Verkleinerung; „Hinweise" (`#legal-button`)
-  nach unten links; Zoom darüber. Panel darf rechts die volle Höhe nutzen.
-- **Deploy-Check:** Zoom + Hinweise unten links immer sichtbar (Panel ein- UND
-  ausgefahren); kein Overlap mit dem Routenplaner; Zoom funktioniert.
+### Phase 3 — Zoom + Hinweise ans untere linke Panel-Eck (GELIEFERT)
+- Per infopanel-mode-CSS: `.leaflet-control-zoom` `position: fixed` + `#legal-button`
+  auf `right: calc(var(--avesmaps-ip-w) + 12px)` (links neben der Panel-Kante), Zoom
+  über Hinweise, Zoom kompakter. Mode-Klasse früh auf `<html>` (config.js) → kein
+  Springen beim Anlegen der Zoom-Control. Keine Änderung ohne Flag.
 
 ### Phase 4 — Wegpunkt-Tabs
 - Tabs aus `getWaypointInputValues()`; aktiver Tab = geklicktes Feature; Klick auf
