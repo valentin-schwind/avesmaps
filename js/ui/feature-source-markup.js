@@ -11,7 +11,7 @@
 // (avesmapsToggleSourceTab), which is re-render-safe: it survives Leaflet popup re-renders
 // (autopan/zoom) because the handler lives on the element, not on a document-level listener.
 
-var FEATURE_SOURCE_TYPE_LABELS = {
+var FEATURE_SOURCE_MARKUP_TYPE_LABELS = {
   regionalspielhilfe: "Regionalspielhilfe",
   abenteuer: "Abenteuer",
   aventurischer_bote: "Aventurischer Bote",
@@ -33,7 +33,7 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   };
   var typeLabel = function (t) {
     var key = String(t == null ? "" : t).trim();
-    return key ? (FEATURE_SOURCE_TYPE_LABELS[key] || key) : "";
+    return key ? (FEATURE_SOURCE_MARKUP_TYPE_LABELS[key] || key) : "";
   };
   var star = function (official) {
     return official ? '<span class="fs-src-star" title="' + esc(officialTooltip) + '">*</span>' : "";
@@ -147,7 +147,7 @@ function avesmapsSourceTabKeydown(event, tabEl) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_TYPE_LABELS: FEATURE_SOURCE_TYPE_LABELS };
+  module.exports = { buildSourceListMarkup: buildSourceListMarkup, FEATURE_SOURCE_MARKUP_TYPE_LABELS: FEATURE_SOURCE_MARKUP_TYPE_LABELS };
 }
 if (typeof window !== "undefined") {
   window.buildSourceListMarkup = buildSourceListMarkup;
