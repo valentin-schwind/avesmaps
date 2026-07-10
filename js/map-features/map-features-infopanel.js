@@ -47,10 +47,14 @@
 	var collapsed = false;
 
 	function sync() {
-		panel.classList.toggle("is-hidden", collapsed || !hasContent);
+		var open = hasContent && !collapsed;
+		panel.classList.toggle("is-hidden", !open);
 		handle.style.display = hasContent ? "" : "none";
 		handle.classList.toggle("is-hidden", collapsed);
-		handle.setAttribute("aria-expanded", (!collapsed && hasContent) ? "true" : "false");
+		handle.setAttribute("aria-expanded", open ? "true" : "false");
+		// Zoom + "Hinweise" fahren mit der Panel-Kante mit (CSS an dieser Klasse): offen -> ans
+		// Panel-Eck, zu -> unten rechts am Bildschirmrand.
+		document.documentElement.classList.toggle("avesmaps-infopanel-open", open);
 	}
 	sync();
 

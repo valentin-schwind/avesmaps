@@ -81,21 +81,29 @@
 	right: 0;
 }
 
-/* ---- Zoom + "Hinweise" ans untere LINKE Eck des Panels (Owner-Vorgabe) ----
-   Fixiert links neben der Panel-Kante, damit sie NIE vom rechten Panel verdeckt werden und auch
-   bei eingeklapptem Panel sichtbar bleiben (sie verschieben sich nicht mit dem Einklappen). */
+/* ---- Zoom + "Hinweise" fahren mit der Panel-Kante mit (Owner-Vorgabe) ----
+   Panel ZU (kein Inhalt oder eingeklappt): unten rechts am Bildschirmrand. Panel OFFEN
+   (.avesmaps-infopanel-open, per JS auf <html>): sie fahren nach links ans untere linke Panel-Eck
+   (12px neben der Panel-Kante). Gleiche 0.22s-Dauer wie das Panel -> sie gleiten mit. Nie vom
+   Panel verdeckt. */
 .avesmaps-infopanel-mode #legal-button {
 	left: auto;
-	right: calc(var(--avesmaps-ip-w) + 12px);
+	right: 12px;
 	bottom: 12px;
+	transition: right 0.22s ease;
 }
 .avesmaps-infopanel-mode .leaflet-control-zoom {
 	position: fixed;
 	left: auto;
-	right: calc(var(--avesmaps-ip-w) + 12px);
+	right: 12px;
 	bottom: 52px; /* ueber dem Hinweise-Knopf */
 	margin: 0;
 	z-index: 1000;
+	transition: right 0.22s ease;
+}
+.avesmaps-infopanel-mode.avesmaps-infopanel-open #legal-button,
+.avesmaps-infopanel-mode.avesmaps-infopanel-open .leaflet-control-zoom {
+	right: calc(var(--avesmaps-ip-w) + 12px);
 }
 /* Zoom etwas kompakter (Owner: "gerne kleiner"). */
 .avesmaps-infopanel-mode .leaflet-control-zoom a {
