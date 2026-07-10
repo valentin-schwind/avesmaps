@@ -49,6 +49,11 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 
 function openRegionCompactTooltip(regionEntry, options = {}) {
 	closeRegionCompactTooltip();
+	// Infopanel (?infopanel=true): Regions-/Gebiets-Info ins rechte Panel statt in den Hover-Tooltip.
+	if (typeof window.avesmapsShowRegionInInfopanel === "function") {
+		window.avesmapsShowRegionInInfopanel(regionEntry);
+		return;
+	}
 	const tooltip = L.tooltip({
 		direction: "top",
 		offset: [0, -33],

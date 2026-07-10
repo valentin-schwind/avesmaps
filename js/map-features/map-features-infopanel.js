@@ -128,4 +128,34 @@
 		window.avesmapsShowInfopanel(markup);
 		return true;
 	};
+
+	// Feature-Glue (Phase 1c, Regionen/Territorien): zeigt die Regions-/Gebiets-Infobox
+	// (createRegionCompactTooltipMarkup) im Panel und laedt -- wie enrichRegionTooltipWithWikiDetail
+	// fuer den Hover-Tooltip (map-features-region-tooltip-lifecycle.js) -- die reichhaltigen
+	// Wiki-Detailfelder (territory-detail.php) nach und aktualisiert das Panel. Eigener Staleness-
+	// Token, damit ein spaeter geklicktes Gebiet eine noch laufende Antwort nicht ueberschreibt.
+	var regionDetailToken = null;
+	window.avesmapsShowRegionInInfopanel = function (regionEntry) {
+		if (!regionEntry || typeof createRegionCompactTooltipMarkup !== "function") {
+			return false;
+		}
+		window.avesmapsShowInfopanel(createRegionCompactTooltipMarkup(regionEntry));
+		regionDetailToken = regionEntry;
+		var needsDetail = typeof hasRegionWikiInfo === "function" && hasRegionWikiInfo(regionEntry)
+			&& !regionEntry.detail && regionEntry.territoryPublicId;
+		if (needsDetail) {
+			var token = regionEntry;
+			fetch("/api/app/territory-detail.php?territory=" + encodeURIComponent(regionEntry.territoryPublicId), { credentials: "same-origin" })
+				.then(function (response) { return response.ok ? response.json() : null; })
+				.then(function (data) {
+					if (!data || data.ok === false || regionDetailToken !== token) {
+						return; // anderes Gebiet inzwischen angezeigt -> veraltete Antwort verwerfen
+					}
+					regionEntry.detail = data;
+					window.avesmapsShowInfopanel(createRegionCompactTooltipMarkup(regionEntry));
+				})
+				.catch(function () { /* noop */ });
+		}
+		return true;
+	};
 })();

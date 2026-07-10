@@ -130,3 +130,10 @@
 	overflow: visible;
 	padding-right: 0;
 }
+/* Regionen/Territorien: die Mini-Tooltip-Content-Box hat eine feste Breite (280px) + eigenes
+   Padding -> im Panel auf volle Breite ohne Extra-Padding (der Body liefert beides). Wiki-Regionen
+   nutzen ohnehin .region-info-box (wie Siedlungen). */
+.avesmaps-infopanel .region-compact-tooltip__content {
+	width: auto;
+	padding: 0;
+}
