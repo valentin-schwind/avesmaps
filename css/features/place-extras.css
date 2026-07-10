@@ -93,32 +93,33 @@
 	font-size: 10.5px;
 	color: #b5651d;
 }
+/* 2-reihiges, horizontal scrollbares Cover-Grid (wie die Stadtkarten): Karten fuellen 2 Zeilen je
+   Spalte, dann waechst das Grid nach rechts (scrollen). */
 .avesmaps-adv__list {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 9px;
+	display: grid;
+	grid-template-rows: repeat(2, auto);
+	grid-auto-flow: column;
+	grid-auto-columns: max-content;
+	gap: 12px 14px;
+	margin-top: 10px;
+	padding-bottom: 6px;
+	overflow-x: auto;
+	scrollbar-width: thin;
 }
-/* Standard: nur die ersten 3 zeigen; "mehr" setzt .is-expanded und zeigt alle.
-   Nach dem Sortieren (Re-Append) greift nth-child positionsbasiert automatisch. */
-.avesmaps-adv:not(.is-expanded) .avesmaps-adv__row:nth-child(n + 4) {
-	display: none;
+.avesmaps-adv__card {
+	width: 92px;
+	text-align: center;
+	line-height: 1.25;
 }
-.avesmaps-adv__row {
-	display: flex;
-	gap: 10px;
-	align-items: flex-start;
-	line-height: 1.3;
-}
-/* Cover im DIN-A4-Hochformat (210:297 -> 50x71). Platzhalter = Parchment-Box mit Icon;
+/* Cover im DIN-A4-Hochformat (210:297 -> 92x130). Platzhalter = Parchment-Box mit Icon;
    echtes Cover (.has-img) fuellt die Box randlos (object-fit: cover). */
 .avesmaps-adv__cover {
-	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 50px;
-	height: 71px;
+	width: 92px;
+	height: 130px;
+	margin-bottom: 5px;
 	background: #ece3cb;
 	border: 1px solid rgba(120, 100, 70, 0.38);
 	border-radius: 3px;
@@ -127,7 +128,7 @@
 	text-decoration: none;
 	transition: border-color 0.12s ease;
 }
-.avesmaps-adv__row:hover .avesmaps-adv__cover {
+.avesmaps-adv__card:hover .avesmaps-adv__cover {
 	border-color: #c9a227;
 }
 .avesmaps-adv__cover.has-img {
@@ -139,13 +140,12 @@
 	height: 100%;
 	object-fit: cover;
 }
-.avesmaps-adv__body {
-	flex: 1 1 auto;
-	min-width: 0;
-	padding-top: 1px;
-}
 .avesmaps-adv__title {
-	font-size: 12.5px;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	font-size: 11.5px;
 	font-weight: 700;
 	color: #3f6fa0;
 	text-decoration: none;
@@ -154,27 +154,7 @@
 	text-decoration: underline;
 }
 .avesmaps-adv__meta {
-	font-size: 11px;
+	margin-top: 1px;
+	font-size: 10.5px;
 	color: #7a6a52;
-}
-.avesmaps-adv__more {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	margin-top: 9px;
-	padding: 0;
-	appearance: none;
-	border: none;
-	background: transparent;
-	font: inherit;
-	font-size: 12px;
-	color: #3f6fa0;
-	cursor: pointer;
-}
-.avesmaps-adv__more:hover {
-	text-decoration: underline;
-}
-.avesmaps-adv__more-icon {
-	font-size: 10px;
-	line-height: 1;
 }

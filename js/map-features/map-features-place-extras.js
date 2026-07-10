@@ -11,17 +11,20 @@
 // Abschnitte ein (nur fuer Wiki-Siedlungen).
 
 // ---- Platzhalter-Daten (Demo: Gareth; echte Daten von der Wiki-Seite <Ort>/Abenteuer) ----
+// cover: TEMPORAER hotgelinkte Wiki-Aventurica-Thumbnails (Owner-Freigabe fuer die Demo) -- spaeter
+// ersetzt durch echte Payload-Daten (location.adventures[].cover), idealerweise ueber den coat.php-artigen
+// Cache-Proxy statt Hotlink.
 var AVESMAPS_PLACEHOLDER_ADVENTURES = [
-	{ title: "Jagd nach dem Primoptolithen", type: "Soloabenteuer", edition: "", year: 1046, yearLabel: "1046 BF" },
-	{ title: "Siegelbruch", type: "Gruppenabenteuer", edition: "DSA5", year: 1044, yearLabel: "1044 BF" },
-	{ title: "Aus den Augen, aber nicht aus dem Sinn", type: "Gruppenabenteuer", edition: "DSA5", year: 1041, yearLabel: "1041 BF" },
-	{ title: "Feuchte Albträume", type: "Szenario", edition: "DSA5", year: 1040, yearLabel: "1040 BF" },
-	{ title: "Der Schattenmarschall", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1040, yearLabel: "Sommer 1040 BF" },
-	{ title: "Seelanders Eleven", type: "Kurzabenteuer", edition: "DSA5", year: 1040, yearLabel: "etwa 1040 BF" },
-	{ title: "Niobaras Vermächtnis", type: "Gruppenabenteuer", edition: "DSA5", year: 1038, yearLabel: "bis RAH 1038 BF" },
-	{ title: "Steinerne Schwingen", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1038, yearLabel: "1038 BF" },
-	{ title: "Herren der Unterwelt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Anfang 1037 BF" },
-	{ title: "Sturm der Gewalt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Hochsommer ab 1037 BF" },
+	{ title: "Jagd nach dem Primoptolithen", type: "Soloabenteuer", edition: "", year: 1046, yearLabel: "1046 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/c/c5/Jagd_nach_dem_Primoptolithen.jpg/240px-Jagd_nach_dem_Primoptolithen.jpg" },
+	{ title: "Siegelbruch", type: "Gruppenabenteuer", edition: "DSA5", year: 1044, yearLabel: "1044 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/5/55/AB_VA62.jpg/240px-AB_VA62.jpg" },
+	{ title: "Aus den Augen, aber nicht aus dem Sinn", type: "Gruppenabenteuer", edition: "DSA5", year: 1041, yearLabel: "1041 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/a/a0/40_Jahre_und_ein_Schelm.jpg/240px-40_Jahre_und_ein_Schelm.jpg" },
+	{ title: "Feuchte Albträume", type: "Szenario", edition: "DSA5", year: 1040, yearLabel: "1040 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/6/63/Kurtisanen_%26_Bordelle.jpg/240px-Kurtisanen_%26_Bordelle.jpg" },
+	{ title: "Der Schattenmarschall", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1040, yearLabel: "Sommer 1040 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/0/04/AB_A212.jpg/240px-AB_A212.jpg" },
+	{ title: "Seelanders Eleven", type: "Kurzabenteuer", edition: "DSA5", year: 1040, yearLabel: "etwa 1040 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/1/14/AB_KRK1.jpg/240px-AB_KRK1.jpg" },
+	{ title: "Niobaras Vermächtnis", type: "Gruppenabenteuer", edition: "DSA5", year: 1038, yearLabel: "bis RAH 1038 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/3/3a/AB_VA14.jpg/240px-AB_VA14.jpg" },
+	{ title: "Steinerne Schwingen", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1038, yearLabel: "1038 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/e/ea/AB_A201.jpg/240px-AB_A201.jpg" },
+	{ title: "Herren der Unterwelt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Anfang 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
+	{ title: "Sturm der Gewalt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Hochsommer ab 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
 ];
 var AVESMAPS_PLACEHOLDER_ADVENTURES_TOTAL = 57;
 var AVESMAPS_PLACEHOLDER_CITYMAPS = [
@@ -88,28 +91,20 @@ function buildPlaceAdventuresMarkup(location) {
 	}
 	var total = getPlaceAdventuresTotal(location);
 	var placeName = (location && location.name) ? location.name : "diesem Ort";
-	var rows = list.map(function (a) {
-		var metaParts = [];
-		if (a.type) { metaParts.push(a.type); }
-		if (a.edition) { metaParts.push(a.edition); }
-		if (a.yearLabel) { metaParts.push(a.yearLabel); }
+	// Karten: Cover (A4) oben, Titel + Jahr zentriert darunter. Angeordnet als 2-reihiges, horizontal
+	// scrollbares Grid (wie die Stadtkarten) -- Reihenfolge via Sortier-Links (Re-Append im Grid).
+	var cards = list.map(function (a) {
 		var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
-		// Cover im DIN-A4-Hochformat: echtes Bild (a.cover) wenn vorhanden, sonst A4-Platzhalter mit Icon.
 		var coverInner = a.cover
 			? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
 			: AVESMAPS_ADV_COVER_PH_SVG;
-		return '<div class="avesmaps-adv__row" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
-			+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">' + coverInner + '</a>'
-			+ '<div class="avesmaps-adv__body">'
+		var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
+		return '<div class="avesmaps-adv__card" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
+			+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
 			+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
-			+ '<div class="avesmaps-adv__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>'
-			+ '</div>'
+			+ metaLine
 			+ '</div>';
 	}).join("");
-	var moreCount = Math.max(0, list.length - 3);
-	var moreBtn = list.length > 3
-		? '<button type="button" class="avesmaps-adv__more"><span class="avesmaps-adv__more-icon">▾</span><span class="avesmaps-adv__more-label">mehr (' + moreCount + ')</span></button>'
-		: "";
 	return '<div class="avesmaps-adv">'
 		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(placeName) + ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span></div>'
 		+ '<div class="avesmaps-adv__sorts">'
@@ -119,9 +114,8 @@ function buildPlaceAdventuresMarkup(location) {
 		+ '<span class="avesmaps-adv__sortsep"> · </span>'
 		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
 		+ '</div>'
-		+ '<div class="avesmaps-adv__placeholder">Platzhalter · echte Daten folgen</div>'
-		+ '<div class="avesmaps-adv__list">' + rows + '</div>'
-		+ moreBtn
+		+ '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>'
+		+ '<div class="avesmaps-adv__list">' + cards + '</div>'
 		+ '</div>';
 }
 
@@ -144,8 +138,8 @@ function buildPlaceAdventuresMarkup(location) {
 		if (!listEl) {
 			return;
 		}
-		var rows = Array.prototype.slice.call(listEl.querySelectorAll(".avesmaps-adv__row"));
-		rows.sort(function (a, b) {
+		var cards = Array.prototype.slice.call(listEl.querySelectorAll(".avesmaps-adv__card"));
+		cards.sort(function (a, b) {
 			if (mode === "alpha") {
 				return String(a.dataset.title).localeCompare(String(b.dataset.title), "de");
 			}
@@ -154,22 +148,11 @@ function buildPlaceAdventuresMarkup(location) {
 			}
 			return (Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0);
 		});
-		rows.forEach(function (r) { listEl.appendChild(r); });
+		cards.forEach(function (c) { listEl.appendChild(c); });
+		listEl.scrollLeft = 0;
 		var sorts = section.querySelectorAll(".avesmaps-adv__sort");
 		for (var i = 0; i < sorts.length; i += 1) {
 			sorts[i].classList.toggle("is-active", sorts[i] === this);
 		}
-	});
-	$(document).on("click", ".avesmaps-adv__more", function () {
-		var section = $(this).closest(".avesmaps-adv")[0];
-		if (!section) {
-			return;
-		}
-		var expanded = section.classList.toggle("is-expanded");
-		var total = section.querySelectorAll(".avesmaps-adv__row").length;
-		var label = this.querySelector(".avesmaps-adv__more-label");
-		var icon = this.querySelector(".avesmaps-adv__more-icon");
-		if (label) { label.textContent = expanded ? "weniger" : ("mehr (" + Math.max(0, total - 3) + ")"); }
-		if (icon) { icon.textContent = expanded ? "▴" : "▾"; }
 	});
 })();
