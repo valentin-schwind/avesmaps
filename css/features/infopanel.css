@@ -299,6 +299,31 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	padding-left: 14px;
 	padding-right: 14px;
 }
+/* Territorien/Regionen (region-info-box) im Panel auf den grossen Siedlungs-Kopf-Look bringen (Owner:
+   alle Infoboxen einheitlich gross). Basis-Padding/-Breite der Box neutralisieren -- der Panel-Body
+   liefert beides -- und den Kopf gross + randlos wie .location-popup__header ziehen. */
+.avesmaps-infopanel .region-info-box {
+	padding: 0;
+	width: auto;
+	gap: 0;
+}
+.avesmaps-infopanel .region-info-box__header {
+	gap: 12px;
+	margin: 0 -14px 11px;
+	padding: 0 14px 11px;
+	border-bottom: 1px solid #d8c6b2;
+}
+.avesmaps-infopanel .region-info-box__coat {
+	width: 130px;
+	height: 130px;
+}
+.avesmaps-infopanel .region-info-box__title {
+	font-size: 23px;
+	line-height: 1.15;
+}
+.avesmaps-infopanel .region-info-box__subtitle {
+	font-size: 14px;
+}
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
 .avesmaps-infopanel .location-reviews__list {

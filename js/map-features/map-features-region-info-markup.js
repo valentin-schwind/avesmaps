@@ -95,7 +95,6 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const shareMarkup = shareButton ? locationPopupActionsMarkup([shareButton]) : "";
 	const wikiRows = [
 		createRegionInfoTextRow(tr("infobox.wikiEntry", "Wiki-Eintrag"), wikiName),
-		createRegionInfoTextRow(tr("infobox.type", "Typ"), type),
 		createRegionInfoTextRow(tr("infobox.status", "Status"), regionEntry.status || f.status),
 		createRegionContestedRow(regionEntry),
 		createRegionInfoTextRow(tr("infobox.governmentForm", "Herrschaftsform"), f.form_of_government),
@@ -121,7 +120,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				${coatMarkup}
 				<div class="region-info-box__title-group">
 					<strong class="region-info-box__title">${escapeHtml(name)}</strong>
-					<span class="region-info-box__subtitle">${escapeHtml(tr("infobox.wikiData", "Wiki-Daten"))}</span>
+					<span class="region-info-box__subtitle">${escapeHtml(type)}</span>
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
