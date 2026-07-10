@@ -40,8 +40,8 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
    Bewertungen (nicht in der oberen Aktionszeile).
 9. **Zusatz-Abschnitte** = **spätere Daten-Schritte** (Phase 6), im Mockup nur
    Platzhalter, im Panel-Kern zunächst nicht enthalten:
-   - **„Bekannte Persönlichkeiten"** — einzeiliger **waagrechter Scroller**
-     (Avatar/Initialen + Name + Rolle), sitzt **über** den Abenteuern.
+   - **„Stadtkarten"** — waagrechter Streifen mit **Thumbnail-Boxen**, die auf
+     **externe** Stadtkarten-Links verweisen (sitzt zwischen Quellen und Abenteuern).
    - **„Abenteuer in Gareth"** — sortierbar (neueste/Art/alphabetisch) mit
      „mehr"-Button.
 
@@ -87,9 +87,10 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
 - **Panel-Body:** `display:flex; flex-direction:column`. **Wegpunkt-Tabs** als
   sticky Kopf; darunter **ein** scrollender Bereich (`flex:1; overflow-y:auto`).
 - **Inhalts-Reihenfolge** (aus dem Builder-HTML, ggf. per Wrapper zusammengesetzt):
-  Kopf (Wappen/Icon + Name + Typ) → Attribute → Quelle/Publikationen → Aktionen
-  (**ohne** „Bewertung schreiben") → *(Phase 6: Abenteuer)* → Bewertungen (Schnitt
-  + Liste) → **„Bewertung schreiben"** unten.
+  Kopf (Wappen/Icon + Name + Typ) → **Aktionen** (Reiseziel hinzufügen · Link
+  teilen, **ohne** „Bewertung schreiben") → Attribute → Quelle/Publikationen →
+  *(Phase 6: Stadtkarten → Abenteuer)* → Bewertungen (Schnitt + Liste) →
+  **„Bewertung schreiben"** unten.
 - **Zoom neu:** `L.control.zoom({ position: "bottomright" })`; per CSS verkleinern
   (Buttons ~28px). „Hinweise" bleibt `right:12; bottom:12`; Zoom **darüber**
   stapeln (`right:12; bottom:~52`). Panel-Unterkante so setzen, dass sie über
@@ -160,8 +161,8 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
 - **Deploy-Check:** beide Panels nebeneinander bedienbar, keine Überlappung.
 
 ### Phase 6 — Zusatz-Abschnitte (Daten, später)
-- **Bekannte Persönlichkeiten:** je Ort (Wiki-Personen), einzeiliger waagrechter
-  Scroller (Avatar/Initialen + Name + Rolle), **über** den Abenteuern.
+- **Stadtkarten:** waagrechter Streifen mit Thumbnail-Boxen → **externe**
+  Stadtkarten-Links (je Ort). Datenquelle/Kuratierung noch offen.
 - **Abenteuer in Gareth:** Datenquelle je Ort (Wiki `…/Ort/Abenteuer`), analog
   zum Publikations-Lookup; Sortierung (neueste/Art/alphabetisch) + „mehr"-Button.
 - Bis zur Datenanbindung jeweils Platzhalter.
