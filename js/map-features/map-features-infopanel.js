@@ -23,15 +23,47 @@
 	panel.className = "avesmaps-infopanel";
 	panel.setAttribute("aria-label", "Info");
 
-	// Wegpunkt-Tabs (Phase 4): aus den aktuellen Wegpunkten gebaut; leer -> per CSS (:empty) aus.
+	// Wegpunkt-Breadcrumbs (Reiter-Leiste): die Reiter (tabs) plus "‹ ›"-Paginierpfeile in einer Leiste.
+	var tabsbar = document.createElement("div");
+	tabsbar.className = "avesmaps-infopanel__tabsbar";
+	tabsbar.style.display = "none";
+	var tabsPrev = document.createElement("button");
+	tabsPrev.type = "button";
+	tabsPrev.className = "avesmaps-infopanel__tabsnav avesmaps-infopanel__tabsnav--prev";
+	tabsPrev.setAttribute("aria-label", "Vorherige Wegpunkte");
+	tabsPrev.textContent = "‹";
 	var tabs = document.createElement("div");
 	tabs.className = "avesmaps-infopanel__tabs";
+	var tabsNext = document.createElement("button");
+	tabsNext.type = "button";
+	tabsNext.className = "avesmaps-infopanel__tabsnav avesmaps-infopanel__tabsnav--next";
+	tabsNext.setAttribute("aria-label", "Weitere Wegpunkte");
+	tabsNext.textContent = "›";
+	tabsbar.appendChild(tabsPrev);
+	tabsbar.appendChild(tabs);
+	tabsbar.appendChild(tabsNext);
 
 	var body = document.createElement("div");
 	body.className = "avesmaps-infopanel__body";
 
-	panel.appendChild(tabs);
+	panel.appendChild(tabsbar);
 	panel.appendChild(body);
+
+	// "‹ ›" scrollen die Reiter-Leiste; .has-overflow (JS) blendet die Pfeile nur bei Ueberlauf ein.
+	function updateTabsNav() {
+		var overflow = tabs.scrollWidth > tabs.clientWidth + 1;
+		tabsbar.classList.toggle("has-overflow", overflow);
+		tabsPrev.disabled = tabs.scrollLeft <= 0;
+		tabsNext.disabled = tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 1;
+	}
+	tabsPrev.addEventListener("click", function () {
+		tabs.scrollBy({ left: -Math.max(80, tabs.clientWidth * 0.7), behavior: "smooth" });
+	});
+	tabsNext.addEventListener("click", function () {
+		tabs.scrollBy({ left: Math.max(80, tabs.clientWidth * 0.7), behavior: "smooth" });
+	});
+	tabs.addEventListener("scroll", updateTabsNav);
+	window.addEventListener("resize", updateTabsNav);
 
 	var handle = document.createElement("button");
 	handle.type = "button";
@@ -140,6 +172,9 @@
 			pill.appendChild(remove);
 			tabs.appendChild(pill);
 		});
+		// Leiste nur zeigen, wenn es Wegpunkte gibt; danach die Ueberlauf-Pfeile aktualisieren.
+		tabsbar.style.display = unique.length ? "" : "none";
+		updateTabsNav();
 	}
 
 	// Tab-Klick: den Wegpunkt (Name) als Ort aufloesen und seine Info ins Panel holen. Ist er kein
