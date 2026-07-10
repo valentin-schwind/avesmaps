@@ -545,6 +545,12 @@
 		const markup = labeledPath
 			? (labeledPath._popupMarkup || (typeof createPathPopupMarkup === "function" ? createPathPopupMarkup(labeledPath) : null))
 			: null;
+		// Infopanel (?infopanel=true): Weg-Info ins rechte Panel statt ins schwebende Popup
+		// (markup, sonst die Kurzfassung).
+		if (typeof window.avesmapsShowInfopanel === "function") {
+			window.avesmapsShowInfopanel(markup || wayLabelPopupMarkup(hit));
+			return;
+		}
 		if (markup) {
 			const options = labeledPath._popupOptions
 				|| (typeof pathHasWiki === "function" && pathHasWiki(labeledPath)

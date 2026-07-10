@@ -114,4 +114,18 @@
 		}
 		return true;
 	};
+
+	// Feature-Glue (Phase 1b, Wege/Fluesse): zeigt das vorgefertigte Weg-Popup-Markup
+	// (path._popupMarkup, sonst frisch gebaut) im Panel. Wege haben keine Bewertungen -> nur
+	// anzeigen. false, wenn kein Markup da ist (dann faellt der Aufrufer auf das bisherige Popup
+	// zurueck).
+	window.avesmapsShowPathInInfopanel = function (path) {
+		var markup = (path && path._popupMarkup)
+			|| (path && typeof createPathPopupMarkup === "function" ? createPathPopupMarkup(path) : "");
+		if (!markup) {
+			return false;
+		}
+		window.avesmapsShowInfopanel(markup);
+		return true;
+	};
 })();

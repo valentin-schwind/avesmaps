@@ -269,6 +269,10 @@ function createPathLayer(path) {
 				L.DomEvent.stop(event);
 				return;
 			}
+			// Infopanel (?infopanel=true): Weg-/Fluss-Info ins rechte Panel statt ins schwebende Popup.
+			if (typeof window.avesmapsShowPathInInfopanel === "function" && window.avesmapsShowPathInInfopanel(path)) {
+				return;
+			}
 			// Sonst den Weg-Popup manuell oeffnen (bindPopup-Ersatz, damit der Schiedsrichter ihn unterdruecken kann).
 			if (path._popupMarkup && typeof map !== "undefined") {
 				L.popup(path._popupOptions || {})
