@@ -118,6 +118,7 @@ function buildPlaceAdventuresMarkup(location) {
 		+ '</div>'
 		+ '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>'
 		+ '<div class="avesmaps-adv__list">' + cards + '</div>'
+		+ '<button type="button" class="avesmaps-adv__all">Alle anzeigen (' + placeExtrasEscape(total) + ')</button>'
 		+ '</div>';
 }
 
@@ -130,6 +131,44 @@ function buildPlaceAdventuresMarkup(location) {
 	if (typeof $ === "undefined") {
 		return;
 	}
+
+	// Dialog "Alle Abenteuer": modaler Overlay, einmal lazy gebaut und wiederverwendet.
+	function ensureAdventuresDialog() {
+		var overlay = document.getElementById("avesmaps-adv-dialog");
+		if (overlay) {
+			return overlay;
+		}
+		overlay = document.createElement("div");
+		overlay.id = "avesmaps-adv-dialog";
+		overlay.className = "avesmaps-adv-dialog";
+		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
+			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="Schließen">✕</button></div>'
+			+ '<div class="avesmaps-adv-dialog__grid"></div></div>';
+		document.body.appendChild(overlay);
+		var close = function () { overlay.classList.remove("is-open"); };
+		overlay.addEventListener("click", function (e) { if (e.target === overlay) { close(); } });
+		overlay.querySelector(".avesmaps-adv-dialog__close").addEventListener("click", close);
+		document.addEventListener("keydown", function (e) { if (e.key === "Escape") { close(); } });
+		return overlay;
+	}
+	// "Alle anzeigen" -> Dialog mit ALLEN Abenteuer-Karten (aus dem Streifen des Abschnitts geklont, damit
+	// Cover/Titel/Jahr/Typ 1:1 uebernommen werden). Funktioniert in Popup UND Panel (Document-Delegation).
+	$(document).on("click", ".avesmaps-adv__all", function () {
+		var section = $(this).closest(".avesmaps-adv")[0];
+		if (!section) {
+			return;
+		}
+		var overlay = ensureAdventuresDialog();
+		var head = section.querySelector(".avesmaps-adv__head");
+		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : "Abenteuer";
+		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
+		grid.innerHTML = "";
+		var cards = section.querySelectorAll(".avesmaps-adv__card");
+		Array.prototype.forEach.call(cards, function (card) { grid.appendChild(card.cloneNode(true)); });
+		overlay.classList.add("is-open");
+	});
+
 	$(document).on("click", ".avesmaps-adv__sort", function () {
 		var section = $(this).closest(".avesmaps-adv")[0];
 		if (!section) {
