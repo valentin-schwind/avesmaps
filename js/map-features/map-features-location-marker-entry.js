@@ -82,6 +82,14 @@ function refreshLocationMarkerPopup(markerEntry) {
 	if (!markerEntry._routeAwarePopupBound) {
 		markerEntry._routeAwarePopupBound = true;
 		markerEntry.marker.on("popupopen", () => {
+		// Infopanel-Modus: Inhalt ins Panel statt ins schwebende Popup. Deckt die DOM-Marker im
+		// Edit-Modus ab (Canvas-Marker sind dort aus), die NICHT ueber den Canvas-Arbiter bzw. das
+		// programmatische Oeffnen laufen (dort greift die Interception schon vor openPopup).
+		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowLocationInInfopanel === "function") {
+			markerEntry.marker.closePopup();
+			window.avesmapsShowLocationInInfopanel(markerEntry);
+			return;
+		}
 			// maxHeight an die aktuelle Kartenhöhe anpassen -> Popup scrollt statt am Rand abzuschneiden.
 			const popup = markerEntry.marker.getPopup();
 			if (popup && popup.options) {

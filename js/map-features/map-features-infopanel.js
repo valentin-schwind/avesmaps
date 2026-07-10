@@ -42,9 +42,14 @@
 	document.body.appendChild(panel);
 	document.body.appendChild(handle);
 
+	// Platzhalter fuer den Edit-Mode: dort ist "Info" ein DAUERHAFTER Tab (neben "Editor"), also wird
+	// er gezeigt, solange noch kein Feature angeklickt wurde. Im Nicht-Edit-Modus gilt weiter "nie leer".
+	var INFOPANEL_EDIT_PLACEHOLDER = '<div class="avesmaps-infopanel__empty">Klicke einen Ort, Weg oder ein Gebiet auf der Karte an, um die Details hier zu sehen.</div>';
+
 	// Kein Inhalt -> Panel eingeklappt UND Rand-Tab ausgeblendet (nie leer offen). `collapsed` gilt
 	// nur, WENN Inhalt da ist. Der Zustand lebt bewusst nur zur Laufzeit: nach einem Reload ist das
-	// Panel ohnehin leer (Inhalt wird nicht persistiert) -> es startet immer zu.
+	// Panel ohnehin leer (Inhalt wird nicht persistiert) -> es startet immer zu. Ausnahme: im
+	// Edit-Mode ist der Info-Tab immer sichtbar (zweiter Tab neben "Editor").
 	var hasContent = false;
 	var collapsed = false;
 	// Name des aktuell angezeigten Features -> markiert den passenden Wegpunkt-Tab als aktiv (leer,
@@ -54,7 +59,7 @@
 	function sync() {
 		var open = hasContent && !collapsed;
 		panel.classList.toggle("is-hidden", !open);
-		handle.style.display = hasContent ? "" : "none";
+		handle.style.display = (hasContent || (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)) ? "" : "none";
 		handle.classList.toggle("is-hidden", collapsed);
 		handle.setAttribute("aria-expanded", open ? "true" : "false");
 		// Zoom + "Hinweise" fahren mit der Panel-Kante mit (CSS an dieser Klasse): offen -> ans
@@ -132,16 +137,21 @@
 	}
 
 	handle.addEventListener("click", function () {
-		if (!hasContent) {
-			return; // ein leeres Panel wird nie geoeffnet
-		}
 		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
-			// Edit-Mode: "Info" holt das Infopanel nach vorn (bleibt offen, kein Einklappen) --
-			// zurueck zum Editor geht ueber dessen Tab.
+			// Edit-Mode: "Info" ist ein DAUERHAFTER Tab (neben "Editor") und holt das Infopanel nach
+			// vorn. Noch kein Feature geklickt -> Platzhalter zeigen (statt leer), damit der Tab immer
+			// wirkt. Zurueck zum Editor geht ueber dessen Tab.
+			if (!hasContent) {
+				body.innerHTML = INFOPANEL_EDIT_PLACEHOLDER;
+				hasContent = true;
+			}
 			collapsed = false;
 			sync();
 			bringInfopanelToFront();
 			return;
+		}
+		if (!hasContent) {
+			return; // Nicht-Edit: ein leeres Panel wird nie geoeffnet
 		}
 		collapsed = !collapsed;
 		sync();
