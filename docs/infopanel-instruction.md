@@ -34,9 +34,10 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
    dem Einklappen). Das Panel darf rechts die **volle Höhe** nutzen.
 6. **Wegpunkt-Tabs** oben im Panel (aus `getWaypointInputValues()`); aktiver Tab =
    zuletzt geklicktes Feature. **In v1** enthalten.
-7. **Edit-Mode:** Infopanel **und** Editor als **zwei getrennt einklappbare
-   Rand-Panels** nebeneinander rechts (Infopanel links vom Editor). Letzte Phase,
-   damit die öffentliche Karte zuerst live geht.
+7. **Edit-Mode (Owner-Korrektur):** Infopanel und Editor teilen sich die rechte
+   Kante als **zwei gestapelte Rand-Tabs** desselben Slots — „Info" oben, „Editor"
+   darunter (lesbar). Ein Klick holt das jeweilige Panel per **z-index nach vorn**;
+   das Infopanel bleibt dabei offen. (NICHT zwei Panels nebeneinander.)
 8. **Ein durchgehender Scrollbalken** über die ganze Info-Spalte (Panel-Body
    scrollt; die kürzlich in `css/features/location-reviews.css` ergänzte
    Bewertungs-`max-height` wird im Panel-Modus **überschrieben**). Kopf +
@@ -162,11 +163,14 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
   Tabs bei Wegpunkt-Änderung aktualisieren.
 - **Deploy-Check:** Tabs spiegeln die Wegpunkte; Umschalten funktioniert.
 
-### Phase 5 — Edit-Mode-Koexistenz (zwei Panels)
-- Infopanel links neben dem Editor-Panel platzieren (eigener `right`-Offset), beide
-  unabhängig einklappbar, Rand-Tabs gestapelt. Nur relevant bei `?edit=1 &
-  ?infopanel=true`.
-- **Deploy-Check:** beide Panels nebeneinander bedienbar, keine Überlappung.
+### Phase 5 — Edit-Mode-Koexistenz (gestapelte Tabs) (GELIEFERT c81d5f86)
+- Kein Zwei-Panel-Layout. Editor-Rand-Tab (`#review-panel-toggle`) per CSS auf
+  `top:180` unter den Info-Tab (`top:30`), beide an der Panel-Kante
+  (`.is-hidden`-Override, damit der Editor-Tab nicht auf `right:0` unter das
+  vordere Infopanel rutscht). Klick → z-index nach vorn: `.avesmaps-infopanel--front`
+  (z:1110 > Editor 1100) bei Feature/Info-Klick; Editor-Tab-Klick → `sendToBack`.
+  Infopanel bleibt im Edit-Mode offen (Zoom/Hinweise stabil). Nur `?edit=1&infopanel=true`.
+- **Deploy-Check:** beide Tabs lesbar gestapelt + klickbar, Panel springt nach vorn.
 
 ### Phase 6 — Zusatz-Abschnitte (Daten, später)
 - **Stadtkarten:** waagrechter Streifen mit Thumbnail-Boxen → **externe**
