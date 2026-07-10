@@ -86,7 +86,7 @@ function refreshLocationMarkerPopup(markerEntry) {
 		// Edit-Modus ab (Canvas-Marker sind dort aus), die NICHT ueber den Canvas-Arbiter bzw. das
 		// programmatische Oeffnen laufen (dort greift die Interception schon vor openPopup).
 		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowLocationInInfopanel === "function") {
-			markerEntry.marker.closePopup();
+			window.setTimeout(function () { try { markerEntry.marker.closePopup(); if (typeof map !== "undefined" && map) { map.closePopup(); } } catch (error) { /* noop */ } }, 0);
 			window.avesmapsShowLocationInInfopanel(markerEntry);
 			return;
 		}
