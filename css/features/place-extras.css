@@ -1,8 +1,8 @@
 /* Place-Extras (Infopanel Phase 6): die Siedlungs-Abschnitte "Stadtkarten" und
-   "Abenteuer in <Ort>". Bewusst NICHT infopanel-scoped -- die Abschnitte haengt
-   buildLocationMarkerPopupHtml an, also erscheinen sie im schwebenden Popup UND im
-   Panel; beide haben weissen Grund, also passt eine Regelmenge. Optik am
-   Popup-Braun/Gold angelehnt. Markup: js/map-features/map-features-place-extras.js. */
+   "Abenteuer in <Ort>". Werden NUR im Infopanel-Modus gerendert (buildLocationMarkerPopupHtml
+   haengt sie nur bei IS_INFOPANEL_MODE an -- im schwebenden Default-Popup erscheinen sie NICHT).
+   Die randlose Trenner-Variante fuers Panel steht in infopanel.css. Optik am Popup-Braun/Gold
+   angelehnt. Markup: js/map-features/map-features-place-extras.js. */
 
 .avesmaps-citymaps,
 .avesmaps-adv {

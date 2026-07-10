@@ -43,10 +43,12 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 	const reviewsSlot = markerEntry.publicId
 		? `<div class="location-reviews" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
 		: "";
-	// Place-Extras (Infopanel Phase 6): "Stadtkarten" + "Abenteuer in <Ort>" -- nur bei Wiki-Siedlungen,
-	// aktuell statische Platzhalter (js/map-features/map-features-place-extras.js), spaeter echte Daten.
+	// Place-Extras (Infopanel Phase 6): "Stadtkarten" + "Abenteuer in <Ort>" -- nur bei Wiki-Siedlungen UND
+	// nur im Infopanel-Modus (rechtes Panel). Im schwebenden Default-Popup NICHT: "ohne Flag aendert sich
+	// nichts" (infopanel-instruction) + schlanke Optik. Aktuell statische Platzhalter
+	// (js/map-features/map-features-place-extras.js), spaeter echte Daten.
 	let placeExtrasMarkup = "";
-	if (hasWikiSettlement) {
+	if (hasWikiSettlement && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
 		if (typeof buildPlaceCityMapsMarkup === "function") {
 			placeExtrasMarkup += buildPlaceCityMapsMarkup(markerEntry.location);
 		}
