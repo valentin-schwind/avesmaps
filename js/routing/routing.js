@@ -687,7 +687,13 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 			return;
 		}
 
-		if (!openLocationPopupByName(nearestLocation.name)) {
+		// Schlanke Infobox als Karten-Popup am gefundenen Ort zeigen (Owner: "muss wieder die infobox
+		// zeigen"). Marker-Entry robust ueber publicId, sonst ueber den Namen.
+		const nearestEntry = (typeof findLocationMarkerByPublicId === "function" && nearestLocation.publicId
+			? findLocationMarkerByPublicId(nearestLocation.publicId)
+			: null)
+			|| (typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(nearestLocation.name) : null);
+		if (!nearestEntry || !openSlimLocationPopupForMarkerEntry(nearestEntry)) {
 			showFeedbackToast(tr("toast.findNearest.openFailed", "Der nächste Ort konnte nicht geöffnet werden."), "warning");
 		}
 		return;

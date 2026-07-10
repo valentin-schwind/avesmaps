@@ -124,6 +124,35 @@ function openLocationPopupByPublicId(publicId) {
 	return openLocationPopupForMarkerEntry(findLocationMarkerByPublicId(publicId));
 }
 
+// Schlanke Infobox als schwebendes Karten-Popup DIREKT am Ort (Owner-Modell "Karten-Popup, Panel bleibt";
+// u. a. fuer "Nächster Ort finden"). Bewusst ein EIGENES L.popup (nicht das gebundene Marker-Popup), damit
+// die Infopanel-Interception (popupopen -> ins Panel + verstecken) NICHT greift und die schlanke Box
+// wirklich auf der Karte erscheint. Zentriert die Karte auf den Ort. Faellt auf das volle gebundene Popup
+// zurueck, wenn der schlanke Builder fehlt.
+function openSlimLocationPopupForMarkerEntry(markerEntry) {
+	if (!markerEntry || typeof map === "undefined" || !map) {
+		return false;
+	}
+	if (typeof buildSlimLocationPopupHtml !== "function") {
+		return openLocationPopupForMarkerEntry(markerEntry);
+	}
+	let latlng = null;
+	if (markerEntry.marker && typeof markerEntry.marker.getLatLng === "function") {
+		latlng = markerEntry.marker.getLatLng();
+	} else if (markerEntry.location && markerEntry.location.coordinates) {
+		latlng = L.latLng(markerEntry.location.coordinates);
+	}
+	if (!latlng) {
+		return false;
+	}
+	const popup = L.popup({ autoClose: true, closeOnClick: true, closeButton: true, className: "slim-location-popup", maxHeight: locationMarkerPopupMaxHeight(), maxWidth: 320, offset: [0, -6] })
+		.setLatLng(latlng)
+		.setContent(buildSlimLocationPopupHtml(markerEntry));
+	map.openPopup(popup);
+	try { map.panTo(latlng); } catch (error) { /* noop */ }
+	return true;
+}
+
 function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	if (!markerEntry) {
 		return false;
