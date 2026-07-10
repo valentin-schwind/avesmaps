@@ -35,10 +35,20 @@ async function handleLocationEditFormSubmit(event) {
 		} else {
 			savedMarkerEntry = addCreatedLocationMarker(responseFeature);
 		}
-		// Auto-connect the wiki settlement from the place's wiki link (e.g. inherited from a community
-		// report), so an "anlegen"/save with a wiki URL links its {{Infobox Siedlung}} data without a
-		// manual "Zuweisen". Best-effort; only when a URL is present and nothing is connected yet.
-		if (payload.wiki_url && savedMarkerEntry && !(savedMarkerEntry.location && savedMarkerEntry.location.wikiSettlement)
+		// Auto-connect / re-connect the wiki settlement from the place's wiki link (e.g. inherited from a
+		// community report), so a save with a wiki URL links its {{Infobox Siedlung}} data without a manual
+		// "Zuweisen". Runs when the URL resolves to a settlement title that DIFFERS from the one currently
+		// connected -- a brand-new place (nothing connected) OR a corrected URL on an already-connected place
+		// (owner: a changed source must be taken over). It stays off when the URL already matches the
+		// connection (nothing to do); and a manual "Verbindung entfernen" clears the wiki_url field
+		// (removeSettlementWiki), so an unrelated later save does NOT silently re-attach the removed link.
+		const connectedWikiTitle = savedMarkerEntry && savedMarkerEntry.location && savedMarkerEntry.location.wikiSettlement
+			? String(savedMarkerEntry.location.wikiSettlement.title || "")
+			: "";
+		const desiredWikiTitle = typeof settlementWikiTitleFromUrl === "function"
+			? settlementWikiTitleFromUrl(payload.wiki_url)
+			: "";
+		if (desiredWikiTitle && desiredWikiTitle !== connectedWikiTitle && savedMarkerEntry
 			&& typeof autoConnectSettlementWikiByUrl === "function") {
 			await autoConnectSettlementWikiByUrl(savedMarkerEntry.publicId || responseFeature?.public_id || "", payload.wiki_url, savedMarkerEntry);
 		}

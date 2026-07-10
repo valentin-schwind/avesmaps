@@ -246,7 +246,9 @@ async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
 		}
 		if (markerEntry && markerEntry.location) {
 			markerEntry.location.wikiSettlement = result.settlement;
-			markerEntry.location.description = "";
+			// Kein clientseitiges description = "": update_point hat die Beschreibung serverseitig
+			// gespeichert; der volle Popup blendet sie per hasWikiSettlement aus, der Slim-Popup zeigt
+			// sie -- ein clientseitiges Leeren liesse den Slim-Popup vor/nach Reload verschieden rendern.
 			if (result.revision) {
 				markerEntry.location.revision = result.revision;
 			}
@@ -276,6 +278,12 @@ async function removeSettlementWiki() {
 			if (typeof refreshLocationMarkerPopup === "function") {
 				refreshLocationMarkerPopup(entry);
 			}
+		}
+		// Das versteckte wiki_url-Formfeld mitleeren: sonst stellt der Auto-Connect beim naechsten
+		// Speichern die gerade entfernte Verbindung still wieder her (Owner: Entfernen bleibt entfernt).
+		const wikiUrlField = document.getElementById("location-edit-wiki-url");
+		if (wikiUrlField) {
+			wikiUrlField.value = "";
 		}
 		renderSettlementWikiReference();
 		showFeedbackToast?.("Wiki-Verbindung entfernt.", "info");
