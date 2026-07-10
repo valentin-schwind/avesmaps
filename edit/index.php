@@ -39,6 +39,14 @@ $mapIframeQuery = 'debugMap=1&edit=1';
 if (isset($_GET['infopanel']) && $_GET['infopanel'] === 'true') {
     $mapIframeQuery .= '&infopanel=true';
 }
+// Cache-Bust: index.html ist ungestampt -> der iframe wuerde sonst potenziell eine veraltete Fassung
+// (und damit alte CSS/JS-Verweise) aus dem Browser-Cache laden. filemtime(index.html) aendert sich bei
+// jedem Deploy (der Stamping-Schritt schreibt index.html um), sonst nicht -> nach einem Deploy laedt der
+// Editor-iframe automatisch frisch, cacht aber im Normalbetrieb weiter.
+$indexPath = dirname(__DIR__) . '/index.html';
+if (is_file($indexPath)) {
+    $mapIframeQuery .= '&_v=' . filemtime($indexPath);
+}
 $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES, 'UTF-8');
 
 ?><!DOCTYPE html>
