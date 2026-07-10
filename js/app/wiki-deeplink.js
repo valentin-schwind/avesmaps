@@ -55,7 +55,7 @@ function readWikiDeeplinkRequest() {
 		? INITIAL_SEARCH_PARAMS
 		: (() => {
 			try {
-				return new URLSearchParams(window.location.search);
+				return typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search);
 			} catch (error) {
 				return new URLSearchParams("");
 			}

@@ -153,7 +153,7 @@ function enableBlankEditMapStyle() {
         }
     };
 
-    const requestedStyle = new URLSearchParams(window.location.search).get("mapstyle");
+    const requestedStyle = (typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search)).get("mapstyle");
     let storedStyle = "";
     try {
         storedStyle = window.localStorage?.getItem(EDIT_MODE_MAP_STYLE_STORAGE_KEY) || "";

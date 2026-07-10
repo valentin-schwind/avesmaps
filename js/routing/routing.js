@@ -284,7 +284,7 @@ function startLiveMapUpdates() {
 // daher beim Script-Load lesen (synchron, vor dem async Daten-Load) und merken.
 const PLACE_FOCUS_PUBLIC_ID = (function () {
 	try {
-		return new URLSearchParams(window.location.search).get("place") || "";
+		return (typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search)).get("place") || "";
 	} catch (error) {
 		return "";
 	}

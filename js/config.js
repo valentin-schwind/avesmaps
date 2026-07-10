@@ -176,7 +176,15 @@ const POLITICAL_LEAF_BACKGROUND_MIN_ZOOM = (() => {
 const POLITICAL_HOVER_FILL_COLOR = "#ffffff";
 const POLITICAL_HOVER_FILL_OPACITY = 0.22;
 const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-search.php" : "");
-const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
+// Tolerantes URL-Parsing: ein versehentlich mit '?' statt '&' angehaengter Parameter (z. B.
+// "...&mapstyle=old?infopanel=true") wuerde sonst Teil des vorigen Werts, und der Parameter dahinter
+// (hier infopanel) wuerde gar nicht erkannt. Alle '?' im Query wie '&' behandeln -> JEDER Parameter wird
+// erkannt, egal ob der Nutzer '?' oder '&' angehaengt hat. Die Adresszeile bleibt unveraendert (nur das
+// Parsen ist tolerant; Owner-Policy: Adresszeile nie auto-umschreiben).
+window.avesmapsSearchParams = function () {
+	return new URLSearchParams(String(window.location.search || "").replace(/\?/g, "&"));
+};
+const INITIAL_SEARCH_PARAMS = window.avesmapsSearchParams();
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") === "true";
 // Mode-Klasse frueh auf <html> -> flag-gebundene CSS (Panel + Zoom/Hinweise-Position) greift,

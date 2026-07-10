@@ -10,7 +10,7 @@ const SHARE_LINK_ENDPOINT = "/api/app/share-link.php";
 (function resolveShareCodeOnLoad() {
 	let shareCode = "";
 	try {
-		shareCode = new URLSearchParams(window.location.search).get("s") || "";
+		shareCode = (typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search)).get("s") || "";
 	} catch (error) {
 		shareCode = "";
 	}
@@ -27,7 +27,7 @@ const SHARE_LINK_ENDPOINT = "/api/app/share-link.php";
 				// sonst ginge etwa der Infopanel-Modus beim Aufloesen verloren.
 				const restored = new URLSearchParams(data.query);
 				try {
-					const current = new URLSearchParams(window.location.search);
+					const current = typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search);
 					["infopanel", "lang", "edit"].forEach((key) => {
 						const value = current.get(key);
 						if (value && !restored.has(key)) {

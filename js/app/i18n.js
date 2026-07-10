@@ -7,7 +7,7 @@
 
 	function detectLang() {
 		try {
-			var param = new URLSearchParams(window.location.search).get("lang");
+			var param = (typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search)).get("lang");
 			if (param === "en") {
 				return "en";
 			}

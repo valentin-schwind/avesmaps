@@ -151,7 +151,7 @@ function applyPlannerStateFromUrl() {
 }
 
 function getInitialPlannerSearchParams() {
-	const searchParams = new URLSearchParams(window.location.search);
+	const searchParams = typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search);
 	if (!IS_EDIT_MODE || hasPlannerStateSearchParams(searchParams)) {
 		return searchParams;
 	}
@@ -184,7 +184,7 @@ function hasPlannerStateSearchParams(searchParams) {
 }
 
 function copyRoutingModeFlags(searchParams) {
-	const currentSearchParams = new URLSearchParams(window.location.search);
+	const currentSearchParams = typeof window.avesmapsSearchParams === "function" ? window.avesmapsSearchParams() : new URLSearchParams(window.location.search);
 	["serverrouting", "clientrouting"].forEach((paramName) => {
 		if (currentSearchParams.get(paramName) === "1") {
 			searchParams.set(paramName, "1");
