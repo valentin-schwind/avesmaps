@@ -198,6 +198,28 @@
 	right: 0;
 }
 
+/* ---- Rand-Tab-Andocken (Fix fuer schmale Fenster) ----
+   Ist KEIN Panel offen, docken beide Rand-Tabs (Info + Editor) an die rechte BILDSCHIRMkante (right:0) --
+   sonst klebten sie an der linken Panel-Kante (right:var(--ip-w)), die in schmalen Fenstern weit links
+   liegt, sodass sie von den (verborgenen) Panels losgeloest wirkten. Ist ein Panel offen, sitzen sie an
+   dessen linker Kante. Die Klasse `avesmaps-any-panel-open` (JS auf <html>) schaltet um; die 0.22s-
+   right-Transition laesst sie mit der Panel-Kante gleiten. */
+html:not(.avesmaps-any-panel-open) .avesmaps-infopanel__handle,
+html:not(.avesmaps-any-panel-open) .avesmaps-infopanel__handle.is-hidden {
+	right: 0;
+}
+html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
+	right: var(--avesmaps-ip-w);
+}
+.avesmaps-infopanel-mode:not(.avesmaps-any-panel-open) #review-panel-toggle,
+.avesmaps-infopanel-mode:not(.avesmaps-any-panel-open) #review-panel-toggle.is-hidden {
+	right: 0;
+}
+.avesmaps-infopanel-mode.avesmaps-any-panel-open #review-panel-toggle,
+.avesmaps-infopanel-mode.avesmaps-any-panel-open #review-panel-toggle.is-hidden {
+	right: var(--avesmaps-ip-w);
+}
+
 /* ---- Zoom + "Hinweise" fahren mit der Panel-Kante mit (Owner-Vorgabe) ----
    Panel ZU (kein Inhalt oder eingeklappt): unten rechts am Bildschirmrand. Panel OFFEN
    (.avesmaps-infopanel-open, per JS auf <html>): sie fahren nach links ans untere linke Panel-Eck
@@ -306,12 +328,8 @@
 #toggle-button:hover {
 	background-color: #6a604f;
 }
-/* Editor-Tab an der Panel-Kante halten (auch bei eingeklapptem Editor) -- sonst rutscht er auf
-   right:0 und verschwindet unter dem vorn liegenden Infopanel. So bleiben beide Tabs gestapelt
-   und klickbar. */
-.avesmaps-infopanel-mode #review-panel-toggle.is-hidden {
-	right: var(--avesmaps-ip-w);
-}
+/* (Die fruehere .is-hidden-right-Regel fuer den Editor-Tab ist jetzt durch das Rand-Tab-Andocken
+   oben abgeloest -- die Tabs folgen der offenen Panel-Kante bzw. der Bildschirmkante.) */
 .avesmaps-infopanel.avesmaps-infopanel--front {
 	z-index: 1110;
 }

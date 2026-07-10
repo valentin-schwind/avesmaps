@@ -101,6 +101,20 @@
 		// Kante dauerhaft -> dann immer ans Panel-Eck, auch wenn das Info-Panel leer/verborgen ist.
 		var editActive = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE);
 		document.documentElement.classList.toggle("avesmaps-infopanel-open", open || editActive);
+		updateEdgeTabDock();
+	}
+
+	// Rand-Tabs (Info/Editor) docken an die rechte BILDSCHIRMkante, wenn KEIN Panel offen ist. Sonst
+	// klebten sie an der linken Panel-Kante (right:var(--ip-w)) -- die in schmalen Fenstern weit links
+	// liegt -> die Tabs wirkten dann losgeloest von den (verborgenen) Panels. Ist ein Panel offen, sitzen
+	// sie an dessen linker Kante. Klasse `avesmaps-any-panel-open` auf <html>, CSS positioniert danach.
+	function isEditorPanelVisible() {
+		var rp = document.getElementById("review-panel");
+		return !!(rp && !rp.classList.contains("is-hidden") && !rp.hasAttribute("hidden") && getComputedStyle(rp).display !== "none");
+	}
+	function updateEdgeTabDock() {
+		var infoOpen = hasContent && !collapsed;
+		document.documentElement.classList.toggle("avesmaps-any-panel-open", infoOpen || isEditorPanelVisible());
 	}
 	sync();
 
@@ -114,8 +128,17 @@
 		var editorToggle = document.getElementById("review-panel-toggle");
 		if (editorToggle) {
 			// Klick auf "Editor" -> Editor nach vorn (Infopanel dahinter); der Editor-eigene Toggle
-			// (toggleReviewPanel) laeuft unveraendert daneben.
-			editorToggle.addEventListener("click", sendInfopanelToBack);
+			// (toggleReviewPanel) laeuft unveraendert daneben. Danach das Andocken neu bestimmen.
+			editorToggle.addEventListener("click", function () {
+				sendInfopanelToBack();
+				window.setTimeout(updateEdgeTabDock, 0);
+			});
+		}
+		// Editor-Panel-Sichtbarkeit beobachten (toggleReviewPanel setzt #review-panel.is-hidden ohne
+		// sync() zu rufen) -> Rand-Tabs an-/abdocken.
+		var reviewPanelEl = document.getElementById("review-panel");
+		if (reviewPanelEl && typeof MutationObserver === "function") {
+			new MutationObserver(updateEdgeTabDock).observe(reviewPanelEl, { attributes: true, attributeFilter: ["class", "hidden", "style"] });
 		}
 	}
 
