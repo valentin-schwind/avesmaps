@@ -185,8 +185,12 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	const routeIsActive = (typeof currentRouteLayer !== "undefined" && currentRouteLayer
 		&& typeof currentRouteLayer.getLayers === "function" && currentRouteLayer.getLayers().length > 0)
 		|| (typeof getWaypointInputValues === "function" && getWaypointInputValues().length >= 2);
+	// ANIMIERT (flyTo, Owner) statt hartem Umschalten: mit aktiver Route nur pan (Zoom halten), sonst
+	// animiert auf Zoomstufe 5.
 	try {
-		if (routeIsActive) {
+		if (typeof map.flyTo === "function") {
+			map.flyTo(latlng, routeIsActive ? map.getZoom() : 5);
+		} else if (routeIsActive) {
 			map.panTo(latlng);
 		} else {
 			map.setView(latlng, 5);
