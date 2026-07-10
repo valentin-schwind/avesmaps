@@ -74,6 +74,13 @@
 	margin: 8px 0;
 	background: #d8c9b3;
 }
+/* Der weisse "Karten"-Grund ist .leaflet-popup-content-wrapper; die Basis-Regel oben zieht
+   .leaflet-popup-content 10px ein. Fuer randlose Trenner (wie beim settlement-popup) den Content-Margin
+   nullen -> .location-popup sitzt buendig, die -10px-Offsets unten erreichen die echte Kartenkante. */
+.slim-location-popup .leaflet-popup-content,
+.waypoint-hover-popup .leaflet-popup-content {
+	margin: 0;
+}
 /* Schlanke Karten-Popups (find-nearest + Wegpunkt-Hover): JEDER Trenner geht IMMER randlos von Rand
    zu Rand durch (Owner-Regel: nie kurz stoppen). Genau EINE Linie je Section-Grenze -- der Kopf-Trenner
    unter Name/Typ (Builder rendert ihn nur bei vorhandener Beschreibung) sowie je eine Linie ueber

@@ -41,6 +41,14 @@
 	font-size: 12px;
 	color: #4a3c2e;
 }
+/* Im settlement-popup (padding 12px 14px) laeuft der Trenner randlos durch (Owner-Regel: durchgehende
+   Linien) -- wie Daten-Infobox/Quelle/Aktionen. Die Infopanel-Variante steht in infopanel.css. */
+.settlement-popup .location-reviews {
+	margin-left: -14px;
+	margin-right: -14px;
+	padding-left: 14px;
+	padding-right: 14px;
+}
 
 .location-reviews__loading,
 .location-reviews__summary--empty {
