@@ -25,9 +25,10 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
 4. **Persistenz:** Klick auf die **leere Karte schließt das Panel NICHT**. Nur ein
    Klick auf ein **anderes Info-Feature** tauscht den Inhalt. Eingeklappt + Klick
    auf ein Info-Feature → Panel **klappt automatisch auf**.
-5. **Zoom** (`L.control.zoom`) → **unten rechts, verkleinert**; **„Hinweise"**
-   (`#legal-button`, unten rechts) bleibt sichtbar. Das Panel endet **oberhalb**
-   dieses Kontroll-Stapels → weder Zoom noch Hinweise werden je verdeckt.
+5. **Zoom** (`L.control.zoom`) → **unten LINKS, verkleinert**; **„Hinweise"**
+   (`#legal-button`) ebenfalls **unten links**. So sind beide immer sichtbar —
+   unabhängig davon, ob das rechte Panel ein- oder ausgefahren ist — und werden nie
+   vom Panel verdeckt. Das Panel darf rechts die **volle Höhe** nutzen.
 6. **Wegpunkt-Tabs** oben im Panel (aus `getWaypointInputValues()`); aktiver Tab =
    zuletzt geklicktes Feature. **In v1** enthalten.
 7. **Edit-Mode:** Infopanel **und** Editor als **zwei getrennt einklappbare
@@ -79,7 +80,8 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
 
 - **Panel:** `position: fixed; top: 10px; right: 0;` Breite `min(340px,
   calc(100vw - 64px))`, `z-index` unter dem Editor-Panel (z.B. 1080; Editor 1100).
-  Unterkante **oberhalb** des Zoom-/Hinweise-Stapels (siehe Zoom).
+  Unterkante bis nahe an den unteren Rand (z.B. `bottom: 14px`) — die Kontrollen
+  sitzen jetzt unten **links**, das Panel muss nichts mehr freihalten.
   Einklappen: `.is-hidden { transform: translateX(100%) }` + Rand-Tab `.is-hidden { right: 0 }`.
 - **Rand-Tab „Info":** vertikal, an der **linken** Kante des Panels, runde Ecken
   außen, ohne `rotate(180deg)` (siehe Mockup). Klick = ein-/ausklappen. Zustand in
@@ -91,10 +93,12 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
   teilen, **ohne** „Bewertung schreiben") → Attribute → Quelle/Publikationen →
   *(Phase 6: Stadtkarten → Abenteuer)* → Bewertungen (Schnitt + Liste) →
   **„Bewertung schreiben"** unten.
-- **Zoom neu:** `L.control.zoom({ position: "bottomright" })`; per CSS verkleinern
-  (Buttons ~28px). „Hinweise" bleibt `right:12; bottom:12`; Zoom **darüber**
-  stapeln (`right:12; bottom:~52`). Panel-Unterkante so setzen, dass sie über
-  diesem Stapel endet (`bottom` groß genug, z.B. ~`96px`; final beim Bau prüfen).
+- **Zoom neu:** `L.control.zoom({ position: "bottomleft" })`; per CSS verkleinern
+  (Buttons ~28px). „Hinweise" (`#legal-button`) nach **unten links** (`left:12;
+  bottom:12`), Zoom **darüber** (`left:12; bottom:~52`). Panel darf rechts die
+  volle Höhe nutzen. **Achtung:** der Routenplaner (`#search`) sitzt oben links —
+  bei sehr vielen Wegpunkten kann er nach unten reichen; beim Bau prüfen, dass er
+  den Zoom-/Hinweise-Stapel nicht überlappt.
 - **Klick-Routing:** In den Öffnungspunkten (Siedlung/Weg/Region) gilt:
   `if (IS_INFOPANEL_MODE) { avesmapsShowInfopanel(build…()); return; }` **vor** dem
   Öffnen des Popups/Tooltips → das schwebende Popup/Tooltip wird im Panel-Modus
@@ -142,10 +146,11 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
 - `avesmapsShowInfopanel` ruft `avesmapsInfopanelExpand()`, wenn eingeklappt.
 - **Deploy-Check:** Panel bleibt bei Leerklick; klappt bei Feature-Klick auf.
 
-### Phase 3 — Zoom + Hinweise-Layout
-- Zoom `position: "bottomright"` + CSS-Verkleinerung; Hinweise bleibt; Stapel
-  unten rechts. Panel-Unterkante über dem Stapel.
-- **Deploy-Check:** keine Überlappung von Panel/Zoom/Hinweise; Zoom funktioniert.
+### Phase 3 — Zoom + Hinweise nach unten links
+- Zoom `position: "bottomleft"` + CSS-Verkleinerung; „Hinweise" (`#legal-button`)
+  nach unten links; Zoom darüber. Panel darf rechts die volle Höhe nutzen.
+- **Deploy-Check:** Zoom + Hinweise unten links immer sichtbar (Panel ein- UND
+  ausgefahren); kein Overlap mit dem Routenplaner; Zoom funktioniert.
 
 ### Phase 4 — Wegpunkt-Tabs
 - Tabs aus `getWaypointInputValues()`; aktiver Tab = geklicktes Feature; Klick auf
