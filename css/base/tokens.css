@@ -136,6 +136,10 @@
 	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+	/* Button hover lift — warm brown drop, one step stronger for the filled main action. Matches the
+	   route-planner buttons (which still inline these values; migrate them to these tokens later). */
+	--shadow-button-hover: 0 4px 10px rgba(52, 41, 32, 0.14);
+	--shadow-button-hover-strong: 0 5px 12px rgba(52, 41, 32, 0.22);
 
 	--z-map-ui: 1000;
 	--z-dialog: 1450;
@@ -205,4 +209,6 @@
 
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
+	--shadow-button-hover: 0 4px 10px rgba(0, 0, 0, 0.38);
+	--shadow-button-hover-strong: 0 5px 12px rgba(0, 0, 0, 0.5);
 }

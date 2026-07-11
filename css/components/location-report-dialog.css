@@ -293,6 +293,7 @@
 	cursor: pointer;
 	font: inherit;
 	font-weight: bold;
+	transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 
 .location-report-form__button:disabled {
@@ -313,18 +314,44 @@
 	border-color: var(--color-button-border);
 }
 
-.location-report-form__button--secondary:not(:disabled):hover,
-.location-report-form__button--secondary:not(:disabled):focus-visible {
-	border-color: var(--color-button-soft-border);
+/* Button states (design-language): hover = colour shift + 1px lift + warm drop shadow; active drops
+   back flat; focus-visible adds the gold ring composed with the lift shadow (never the ring alone). */
+.location-report-form__button--secondary:not(:disabled):hover {
 	background: var(--color-button-soft-hover);
+	box-shadow: var(--shadow-button-hover);
+	transform: translateY(-1px);
+}
+
+.location-report-form__button--secondary:not(:disabled):focus-visible {
+	background: var(--color-button-soft-hover);
+	box-shadow: var(--focus-ring), var(--shadow-button-hover);
+	transform: translateY(-1px);
 	outline: none;
 }
 
-.location-report-form__button--primary:not(:disabled):hover,
-.location-report-form__button--primary:not(:disabled):focus-visible {
-	border-color: var(--color-button-border);
+.location-report-form__button--secondary:not(:disabled):active {
+	background: var(--color-button-soft-active);
+	box-shadow: none;
+	transform: none;
+}
+
+.location-report-form__button--primary:not(:disabled):hover {
 	background: var(--color-button-hover);
+	box-shadow: var(--shadow-button-hover-strong);
+	transform: translateY(-1px);
+}
+
+.location-report-form__button--primary:not(:disabled):focus-visible {
+	background: var(--color-button-hover);
+	box-shadow: var(--focus-ring), var(--shadow-button-hover-strong);
+	transform: translateY(-1px);
 	outline: none;
+}
+
+.location-report-form__button--primary:not(:disabled):active {
+	background: var(--color-button-active);
+	box-shadow: none;
+	transform: none;
 }
 
 /* Multi-source #3: dynamic source list in the community report form. Add-row (name + link on top,
