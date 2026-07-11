@@ -82,35 +82,36 @@ function bindWaypointHoverPopup(marker, markerEntry) {
 	marker.on("mouseout", scheduleClose);
 }
 
+// Owner-Vorgabe (Bug #10): NUR die echten, vom Nutzer gesetzten Wegpunkte bekommen ein Icon -- NICHT
+// jede Kreuzung oder jeder Durchgangsort der berechneten Route. routeNames ist die KOMPLETTE
+// Graph-Knotenliste (Start/Ziel + alle Kreuzungen + Durchgangsorte, mit Duplikaten an den
+// Segmentgrenzen); ueber sie zu iterieren setzte fruerher ein 28px-Icon auf jeden Knoten. Die echten
+// Wegpunkte stehen in selectedLocations (an allen Aufrufstellen direkt zuvor via
+// collectAndValidateSelectedLocations gefuellt, unveraendert bis hierher). Der letzte Wegpunkt ist das
+// Ziel (pin.webp), alle uebrigen sind waypoint.webp. routeNames/segments werden fuer die Icon-Auswahl
+// nicht mehr gebraucht, bleiben aber in der Signatur (feste Aufrufer-Kette).
 function highlightRouteLocations(routeNames, segments = []) {
 	removeHighlightedRouteNodes();
 	const icons = waypointRouteIcons();
-	routeNames.forEach((name, index) => {
-		const previousIsSea = normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg";
-		const nextIsSea = normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
-		const loc = resolveRouteNodeLocation(name, index, routeNames, segments);
-		if ((previousIsSea || nextIsSea) && (!loc || isCrossingLocation(loc))) {
+	const waypoints = Array.isArray(selectedLocations) ? selectedLocations : [];
+	waypoints.forEach((waypoint, index) => {
+		if (!waypoint || !waypoint.coordinates) {
 			return;
 		}
-
-		if (loc) {
-			// Einzelner Wegpunkt -> waypoint.webp; letzter (Ziel) -> pin.webp.
-			const isDestination = index === routeNames.length - 1;
-			const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(name) : null;
-			const node = L.marker(loc.coordinates, {
-				icon: isDestination ? icons.pin : icons.waypoint,
-				interactive: true,
-				keyboard: false,
-				zIndexOffset: 600,
-			}).addTo(map);
-			// Hover-Infobox nur, wenn der Wegpunkt ein geladener Ort ist (Kreuzungen bleiben ohne Popup).
-			if (markerEntry) {
-				bindWaypointHoverPopup(node, markerEntry);
-			}
-			highlightedRouteNodes.push(node);
-		} else {
-			console.warn(`Location ${name} nicht gefunden.`);
+		// Einzelner Wegpunkt -> waypoint.webp; letzter (Ziel) -> pin.webp.
+		const isDestination = index === waypoints.length - 1;
+		const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(waypoint.name) : null;
+		const node = L.marker(waypoint.coordinates, {
+			icon: isDestination ? icons.pin : icons.waypoint,
+			interactive: true,
+			keyboard: false,
+			zIndexOffset: 600,
+		}).addTo(map);
+		// Hover-Infobox nur, wenn der Wegpunkt ein geladener Ort ist (Kartenpunkte bleiben ohne Popup).
+		if (markerEntry) {
+			bindWaypointHoverPopup(node, markerEntry);
 		}
+		highlightedRouteNodes.push(node);
 	});
 }
 
