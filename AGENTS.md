@@ -249,6 +249,7 @@ hex values across 38 CSS files).
   *soft/outline* (`--color-button-soft`); radius `--radius-md`; no pill shapes.
 - **Group by divider** (`--color-divider` line + heading), **not** by framed
   boxes; popup/infobox dividers run full-bleed (negative side-margin = padding).
-- **Links** use `--color-link` (gold-brown), never blue.
+- **Links** use `--color-link` (gold-brown), never blue; **external links**
+  (off-site) always get a trailing `↗`.
 - **New components:** reuse the nearest existing one as a template plus the
   tokens; match the warmth. Full guide: **`docs/design-language.md`**.

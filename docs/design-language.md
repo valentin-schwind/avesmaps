@@ -112,6 +112,12 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   width or padding change, **measure the line and screenshot it.**
 - **Links** use `--color-link`; **hover** → `--color-link-hover` with a thicker
   underline; **focus** the shared `var(--focus-ring)`. Never blue.
+- **External links carry a trailing `↗`.** Any link that leaves the site (Wiki
+  Aventurica, source URLs, publication links, any off-domain target) **always**
+  gets a trailing `↗` (U+2197) so it's clear it opens elsewhere; in-app /
+  same-site links do **not**. Apply it once — a shared external-link treatment or
+  an auto `a[href^="http"]:not([href*="avesmaps"])::after { content: " ↗"; }` —
+  never hand-typed per link, so it stays consistent everywhere.
 - **Selects / inputs**: `--color-panel` background (flat — never the native grey
   browser control), `--color-border` + `--radius-md`; **hover** →
   `--color-border-strong`; **focus / open** → border-strong + `var(--focus-ring)`;
