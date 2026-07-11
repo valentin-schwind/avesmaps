@@ -14,6 +14,10 @@
 }
 
 .avesmaps-infopanel {
+	/* Horizontales Panel-Padding als EIN Token: der Body UND die randlosen (full-bleed)
+	   Kopf-/Sektions-Margins teilen es -- so laufen die Trenner nie wieder auseinander
+	   (die frueher hartkodierten 14px hingen nach dem --space +2px-Global bei 18px Body-Padding). */
+	--infopanel-pad-x: 18px;
 	position: fixed;
 	top: 10px;
 	right: 0;
@@ -152,7 +156,7 @@
 	flex: 1;
 	overflow-y: auto;
 	overflow-x: hidden;
-	padding: var(--space-12) var(--space-16) var(--space-16);
+	padding: var(--space-12) var(--infopanel-pad-x) var(--space-16);
 }
 /* Feature-Inhalt ist fuers schwebende Popup gebaut und kann eine feste Breite tragen
    (region-info-box = 360px), die das ~340px-Panel sprengt -> horizontaler Scrollbalken.
@@ -290,8 +294,8 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    ohne das schwebende Popup zu aendern. */
 .avesmaps-infopanel .location-popup__header {
 	gap: 12px;
-	padding: 0 14px 11px;
-	margin: 0 -14px 11px;
+	padding: 0 var(--infopanel-pad-x) 11px;
+	margin: 0 calc(-1 * var(--infopanel-pad-x)) 11px;
 	border-bottom: 1px solid var(--color-border);
 }
 /* Alle Abschnitts-Trenner laufen randlos ueber die volle Panel-Breite (Owner-Regel: durchgehende
@@ -303,10 +307,10 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel .location-reviews,
 .avesmaps-infopanel .avesmaps-citymaps,
 .avesmaps-infopanel .avesmaps-adv {
-	margin-left: -14px;
-	margin-right: -14px;
-	padding-left: 14px;
-	padding-right: 14px;
+	margin-left: calc(-1 * var(--infopanel-pad-x));
+	margin-right: calc(-1 * var(--infopanel-pad-x));
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
 }
 /* Territorien/Regionen (region-info-box) im Panel auf den grossen Siedlungs-Kopf-Look bringen (Owner:
    alle Infoboxen einheitlich gross). Basis-Padding/-Breite der Box neutralisieren -- der Panel-Body
@@ -318,8 +322,8 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 }
 .avesmaps-infopanel .region-info-box__header {
 	gap: 12px;
-	margin: 0 -14px 11px;
-	padding: 0 14px 11px;
+	margin: 0 calc(-1 * var(--infopanel-pad-x)) 11px;
+	padding: 0 var(--infopanel-pad-x) 11px;
 	border-bottom: 1px solid var(--color-border);
 }
 .avesmaps-infopanel .region-info-box__coat {
