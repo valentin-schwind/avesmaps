@@ -1,10 +1,13 @@
+/* The computed route is grouped by a full-bleed divider, not a framed box (like
+   the option groups). Negative side-margin = #search padding. */
 #overview {
 	max-height: min(80vh, calc(100dvh - 320px));
 	overflow-y: auto;
-	padding: 10px;
-	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-panel-soft);
+	margin: 0 calc(-1 * var(--space-10));
+	padding: var(--divider-gap-tight) var(--space-10) 0;
+	border: 0;
+	border-top: 1px solid var(--color-divider);
+	background: transparent;
 	box-sizing: border-box;
 }
 

@@ -11,12 +11,6 @@
 	font-family: inherit !important;
 }
 
-.project-summary p {
-	color: var(--color-text);
-	font-size: 12px;
-	line-height: 1.35;
-}
-
 #waypoints {
 	display: grid;
 	gap: 5px;
@@ -235,6 +229,14 @@
 
 #transport-options {
 	grid-template-columns: 90px 210px;
+}
+
+/* The display group (Derographie + settlement toggles) also closes with a divider
+   below it — i.e. between it and the waypoints. Full-bleed via the shared
+   negative side-margin already on .display-options. */
+.display-options {
+	padding-bottom: var(--divider-gap-tight);
+	border-bottom: 1px solid var(--color-divider);
 }
 
 .route-planner-options-panel__title,
