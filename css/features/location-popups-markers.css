@@ -148,7 +148,7 @@
 /* "Beschreibung"-Ueberschrift in der schlanken Infobox (buildSlimLocationPopupHtml). */
 .location-popup__desc-label {
 	margin-top: 8px;
-	font-size: 10.5px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 	color: var(--color-text-muted);
 	text-transform: uppercase;
@@ -172,7 +172,7 @@
 	gap: 6px;
 	padding: 5px 10px;
 	border: 1px solid var(--color-button-soft-border);
-	border-radius: 999px;
+	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
 	color: var(--color-button-soft-text);
 	cursor: pointer;
@@ -188,7 +188,7 @@
 	justify-content: center;
 	color: var(--color-button-text);
 	font-size: 16px;
-	font-weight: 800;
+	font-weight: var(--font-weight-bold);
 	line-height: 1;
 }
 

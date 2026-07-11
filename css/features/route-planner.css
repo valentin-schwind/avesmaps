@@ -46,7 +46,7 @@
 	width: 24px;
 	height: 24px;
 	border: 0;
-	border-radius: 7px;
+	border-radius: var(--radius-md);
 	background: transparent;
 	color: var(--color-text-muted);
 	cursor: pointer;
@@ -77,7 +77,7 @@
 	height: 30px;
 	min-width: 0;
 	border: 0;
-	border-radius: 7px;
+	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	color: var(--color-text);
 	font-size: 15px;
@@ -128,7 +128,7 @@
 	margin-top: 4px;
 	padding: 4px 8px;
 	border: 1px solid var(--color-button-soft-border);
-	border-radius: 7px;
+	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
 	color: var(--color-button-soft-text);
 	cursor: pointer;
@@ -155,7 +155,7 @@
 	   gezeichnet (::before/::after) -> exakt zentriert, unabhaengig von Schriftart-Metriken.
 	   font-size:0 blendet das Text-"+" aus (bleibt fuer Screenreader im DOM). */
 	border: 0;
-	border-radius: 7px;
+	border-radius: var(--radius-md);
 	background: transparent;
 	color: var(--color-text-muted);
 	font-size: 0;
@@ -231,10 +231,12 @@
 	grid-template-columns: 90px 210px;
 }
 
-/* The display group (Derographie + settlement toggles) also closes with a divider
-   below it — i.e. between it and the waypoints. Full-bleed via the shared
-   negative side-margin already on .display-options. */
-.display-options {
+/* Content groups are separated by dividers (that's what they're for). The display
+   group and the route-options group each close with a divider below them: between
+   the display group and the waypoints, and between the route options and the
+   computed route. Full-bleed via the shared negative side-margin. */
+.display-options,
+.route-planner-options-panel {
 	padding-bottom: var(--space-10);
 	border-bottom: 1px solid var(--color-divider);
 }
@@ -271,7 +273,7 @@
 .route-planner-options-panel input[type="number"] {
 	height: 25px;
 	border: 1px solid var(--color-border);
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
@@ -341,7 +343,7 @@
 	padding: 0;
 	margin: 0;
 	border: 1px solid transparent;
-	border-radius: 7px;
+	border-radius: var(--radius-md);
 	background: transparent;
 	box-shadow: none;
 	cursor: pointer;
@@ -462,7 +464,7 @@
 	max-height: 220px;
 	overflow-y: auto;
 	border: 1px solid var(--color-border);
-	border-radius: 9px;
+	border-radius: var(--radius-lg);
 	background: var(--color-panel);
 	box-shadow: 0 12px 26px rgba(52, 41, 32, 0.2);
 }
@@ -526,7 +528,7 @@
 	margin: 0 0 3px;
 	padding: 5px 7px;
 	border: 1px solid transparent;
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	background: transparent;
 	color: inherit;
 	cursor: pointer;
@@ -556,7 +558,7 @@
 	overflow-x: hidden;
 	padding: 4px;
 	border: 1px solid var(--color-border) !important;
-	border-radius: 9px;
+	border-radius: var(--radius-lg);
 	background: var(--color-panel);
 	box-shadow: 0 16px 38px rgba(31, 25, 20, 0.26);
 	color: var(--color-text);
@@ -567,7 +569,7 @@
 	display: block;
 	min-height: 20px;
 	border: 0 !important;
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	background: transparent;
 	color: var(--color-text);
 	font-family: inherit !important;

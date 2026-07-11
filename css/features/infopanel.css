@@ -96,7 +96,7 @@
 	padding: 5px 7px 5px 12px;
 	background: var(--color-panel-muted);
 	border: 1px solid var(--color-border);
-	border-radius: 7px 7px 0 0;
+	border-radius: var(--radius-md) var(--radius-md) 0 0;
 	color: var(--color-text-muted);
 	transition: background-color 0.12s ease, color 0.12s ease;
 }
@@ -138,7 +138,7 @@
 	font-size: 13px;
 	line-height: 1;
 	padding: 2px 4px;
-	border-radius: 4px;
+	border-radius: var(--radius-sm);
 	cursor: pointer;
 	transition: opacity 0.12s ease, background-color 0.12s ease;
 }
