@@ -23,10 +23,10 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-	background: #fff;
+	background: var(--color-panel);
 	border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-	box-shadow: -5px 5px 10px rgba(0, 0, 0, 0.5);
-	color: #4f4134;
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text);
 	box-sizing: border-box;
 	transition: transform 0.22s ease;
 }
@@ -43,7 +43,7 @@
 	display: flex;
 	align-items: stretch;
 	padding: 8px 6px 0;
-	border-bottom: 1px solid #d8c6b2;
+	border-bottom: 1px solid var(--color-border);
 }
 .avesmaps-infopanel__tabs {
 	flex: 1 1 auto;
@@ -67,7 +67,7 @@
 	padding: 0;
 	border: none;
 	background: transparent;
-	color: #7a6647;
+	color: var(--color-text-muted);
 	font-size: 18px;
 	line-height: 1;
 	cursor: pointer;
@@ -76,13 +76,13 @@
 	display: flex;
 }
 .avesmaps-infopanel__tabsnav:disabled {
-	color: #cabfa8;
+	color: var(--color-disabled-text);
 	cursor: default;
 }
 .avesmaps-infopanel__tab-sep {
 	flex: 0 0 auto;
 	align-self: center;
-	color: #b3a186;
+	color: var(--color-text-muted);
 	font-size: 14px;
 	user-select: none;
 }
@@ -94,22 +94,22 @@
 	max-width: 165px;
 	margin-bottom: -1px; /* Unterkante auf die Trennlinie der Leiste setzen */
 	padding: 5px 7px 5px 12px;
-	background: #e7dcc6;
-	border: 1px solid #d8c6b2;
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
 	border-radius: 7px 7px 0 0;
-	color: #6a5a45;
+	color: var(--color-text-muted);
 	transition: background-color 0.12s ease, color 0.12s ease;
 }
 .avesmaps-infopanel__tab:hover {
-	background: #efe6d4;
+	background: var(--color-panel-soft);
 }
 /* Aktiver Reiter: weiss (= Panel-Inhalt), Unterkante weiss -> verdeckt die Trennlinie an seiner Stelle
    (unten offen, verschmilzt mit dem Inhalt). */
 .avesmaps-infopanel__tab.is-active {
-	background: #fff;
-	border-color: #d8c6b2;
-	border-bottom-color: #fff;
-	color: #3a2e1f;
+	background: var(--color-panel);
+	border-color: var(--color-border);
+	border-bottom-color: var(--color-button-text);
+	color: var(--color-text-strong);
 }
 .avesmaps-infopanel__tab-label {
 	appearance: none;
@@ -166,8 +166,8 @@
 	height: 140px;
 	padding: 0;
 	border: none;
-	background-color: #565044;
-	color: #fff;
+	background-color: var(--color-button);
+	color: var(--color-button-text);
 	border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 	writing-mode: vertical-rl;
 	text-orientation: mixed;
@@ -184,7 +184,7 @@
 	transform: rotate(180deg);
 }
 .avesmaps-infopanel__handle:hover {
-	background-color: #6a604f;
+	background-color: var(--color-button-hover);
 }
 .avesmaps-infopanel__handle.is-hidden {
 	right: 0;
@@ -283,7 +283,7 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	gap: 12px;
 	padding: 0 14px 11px;
 	margin: 0 -14px 11px;
-	border-bottom: 1px solid #d8c6b2;
+	border-bottom: 1px solid var(--color-border);
 }
 /* Alle Abschnitts-Trenner laufen randlos ueber die volle Panel-Breite (Owner-Regel: durchgehende
    Linien). Der Body hat 14px horizontales Padding; die eingespeisten .location-popup-Trenner waeren
@@ -311,7 +311,7 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	gap: 12px;
 	margin: 0 -14px 11px;
 	padding: 0 14px 11px;
-	border-bottom: 1px solid #d8c6b2;
+	border-bottom: 1px solid var(--color-border);
 }
 .avesmaps-infopanel .region-info-box__coat {
 	width: 130px;
@@ -330,7 +330,7 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel .location-popup__actions {
 	margin-top: 11px;
 	padding-top: 11px;
-	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	border-top: 1px solid var(--color-divider);
 }
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
@@ -362,10 +362,10 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 }
 /* Einheitlicher Tab-Hover (Owner-Wunsch): Info-Tab, Editor-Tab UND der Routenplaner-Toggle
    (#toggle-button) hellen beim Hover gleich auf. Global gehalten (nicht an den Infopanel-Mode
-   gebunden), da der Routenplaner-Toggle immer sichtbar ist; alle drei haben denselben Grund (#565044). */
+   gebunden), da der Routenplaner-Toggle immer sichtbar ist; alle drei haben denselben Grund (var(--color-button)). */
 .review-panel-toggle:hover,
 #toggle-button:hover {
-	background-color: #6a604f;
+	background-color: var(--color-button-hover);
 }
 /* (Die fruehere .is-hidden-right-Regel fuer den Editor-Tab ist jetzt durch das Rand-Tab-Andocken
    oben abgeloest -- die Tabs folgen der offenen Panel-Kante bzw. der Bildschirmkante.) */

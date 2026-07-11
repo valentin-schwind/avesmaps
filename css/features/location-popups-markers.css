@@ -2,8 +2,8 @@
 	padding: 5px 20px;
 	border: 0 solid #000;
 	border-radius: 5px;
-	background-color: rgba(255, 255, 255, 255);
-	color: #000;
+	background-color: var(--color-panel);
+	color: var(--color-text);
 	font-size: 16px;
 	font-weight: bold;
 	opacity: 1;
@@ -19,8 +19,8 @@
 	padding: 10px;
 	border: 0;
 	border-radius: 12px;
-	background: #fff;
-	color: #000;
+	background: var(--color-panel);
+	color: var(--color-text);
 	font-size: 14px;
 	line-height: 1.35;
 }
@@ -63,7 +63,7 @@
 }
 
 .location-popup__type {
-	color: #5f5548;
+	color: var(--color-text-muted);
 	font-size: 12px;
 	font-weight: normal;
 }
@@ -72,7 +72,7 @@
 .location-popup__divider {
 	height: 1px;
 	margin: 8px 0;
-	background: #d8c9b3;
+	background: var(--color-divider);
 }
 /* Der weisse "Karten"-Grund ist .leaflet-popup-content-wrapper; die Basis-Regel oben zieht
    .leaflet-popup-content 10px ein. Fuer randlose Trenner (wie beim settlement-popup) den Content-Margin
@@ -97,7 +97,7 @@
 	padding-top: 10px;
 	padding-left: 10px;
 	padding-right: 10px;
-	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	border-top: 1px solid var(--color-divider);
 }
 /* Breite der find-nearest-Box an das normale settlement-popup angleichen (Owner): feste ~400px statt
    der schmalen .location-popup-Default-Breite (260px). Nur die find-nearest-Box (.slim-location-popup),
@@ -141,7 +141,7 @@
 
 .location-popup__description {
 	margin-top: 6px;
-	color: #2e2a24;
+	color: var(--color-text);
 	font-size: 12px;
 	font-weight: normal;
 }
@@ -150,7 +150,7 @@
 	margin-top: 8px;
 	font-size: 10.5px;
 	font-weight: 700;
-	color: #7a6a52;
+	color: var(--color-text-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.3px;
 }
@@ -171,10 +171,10 @@
 	align-items: center;
 	gap: 6px;
 	padding: 5px 10px;
-	border: 1px solid #d2b28f;
+	border: 1px solid var(--color-button-soft-border);
 	border-radius: 999px;
-	background: #f3ebdf;
-	color: #513c2b;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 	font: inherit;
 	font-size: 12px;
@@ -186,7 +186,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	color: #17468f;
+	color: var(--color-button-text);
 	font-size: 16px;
 	font-weight: 800;
 	line-height: 1;
@@ -194,39 +194,39 @@
 
 /* ✕-Icon im "Aus Route entfernen"-Button: gedaempftes Rot, passend zum --danger-Button. */
 .location-popup__action-icon--remove {
-	color: #8a3a2a;
+	color: var(--color-danger);
 	font-size: 13px;
 }
 
 .location-popup__action-button:hover,
 .location-popup__action-button:focus-visible {
-	border-color: #ba9368;
-	background: #ead9c2;
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft-hover);
 	outline: none;
 }
 
 .location-popup__action-button--accent {
-	border-color: #8caee6;
-	background: #e7f0ff;
-	color: #17468f;
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
 }
 
 .location-popup__action-button--accent:hover,
 .location-popup__action-button--accent:focus-visible {
-	border-color: #6f93d8;
-	background: #d8e7ff;
+	border-color: var(--color-button-border);
+	background: var(--color-button-hover);
 }
 
 .location-popup__action-button--danger {
-	border-color: #c4a585;
-	background: #ead8c5;
-	color: #644930;
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 }
 
 .location-popup__action-button--danger:hover,
 .location-popup__action-button--danger:focus-visible {
-	border-color: #b48d68;
-	background: #dfc8ad;
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft-hover);
 }
 
 .location-popup__wiki-link {
@@ -234,7 +234,7 @@
 	align-items: center;
 	gap: 4px;
 	margin-top: 6px;
-	color: #1452f7;
+	color: var(--color-link);
 	font-size: 12px;
 	font-weight: bold;
 	text-decoration: none;
@@ -263,7 +263,7 @@
 }
 
 .location-tooltip::before {
-	border-top-color: #fff;
+	border-top-color: var(--color-panel);
 }
 
 .location-tooltip .location-popup {
@@ -431,10 +431,10 @@
 .wiki-source-credit {
 	margin-top: 8px;
 	padding-top: 6px;
-	border-top: 1px solid rgba(90, 68, 40, 0.14);
+	border-top: 1px solid var(--color-divider);
 	font-size: 12px;
 	line-height: 1.4;
-	color: #6b5a44;
+	color: var(--color-text-muted);
 }
 .wiki-source-credit__arrow {
 	white-space: nowrap;
