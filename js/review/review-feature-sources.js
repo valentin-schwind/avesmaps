@@ -242,7 +242,41 @@ async function linkCommunityReportSource(entityPublicId, suggestion) {
     is_official: Boolean(suggestion.is_official),
     pages: String(suggestion.pages || ""),
   });
-  return Boolean(data && data.ok === true);
+  if (!(data && data.ok === true)) {
+    return false;
+  }
+  // Keep the popup's synchronous source globals in sync so the JUST-created place shows its new sources
+  // immediately, WITHOUT a full map-features reload. resolveFeatureSourceList (js/ui/popups.js) reads
+  // window.__sourceCatalog / __featureSourceRefs, which are set only at map-features load -- the new
+  // place was not in that payload, so without this its popup would show just the Wiki line until reload.
+  syncFeatureSourcesToClientCache("settlement", entityPublicId, data.sources);
+  return true;
+}
+
+// Fold an editor feature-source list (each {source_id,url,label,type,official,pages}) into the popup's
+// synchronous source globals so a freshly created/edited feature renders its sources on the next popup
+// open with no map-features reload. Overwrites the entity's ref list with the full server list (the add
+// endpoint returns ALL of the feature's sources), and upserts each into the shared catalog by source_id.
+function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSources) {
+  if (typeof window === "undefined" || !Array.isArray(editorSources) || !entityPublicId) {
+    return;
+  }
+  window.__sourceCatalog = window.__sourceCatalog || {};
+  window.__featureSourceRefs = window.__featureSourceRefs || {};
+  const refs = [];
+  for (const source of editorSources) {
+    if (!source || source.source_id === undefined || source.source_id === null) {
+      continue;
+    }
+    window.__sourceCatalog[source.source_id] = {
+      url: source.url || "",
+      label: source.label || "",
+      official: Boolean(source.official),
+      type: source.type || "",
+    };
+    refs.push({ source_id: source.source_id, pages: source.pages || "" });
+  }
+  window.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
 }
 
 if (typeof window !== "undefined") {

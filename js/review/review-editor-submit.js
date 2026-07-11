@@ -70,10 +70,17 @@ async function handleLocationEditFormSubmit(event) {
 		// QUELLEN section instead of being lost in the description. Best-effort per source; needs id + url.
 		if (payload.action === "create_point" && connectPublicId && Array.isArray(activeReviewReportSourceSuggestions)
 			&& typeof linkCommunityReportSource === "function") {
+			let linkedAnySource = false;
 			for (const suggestion of activeReviewReportSourceSuggestions) {
 				if (suggestion && suggestion.url) {
-					await linkCommunityReportSource(connectPublicId, suggestion);
+					const linked = await linkCommunityReportSource(connectPublicId, suggestion);
+					linkedAnySource = linkedAnySource || linked;
 				}
+			}
+			// Re-render the new place's bound popup so it shows the freshly linked sources without a reload
+			// (linkCommunityReportSource already synced the popup source globals).
+			if (linkedAnySource && savedMarkerEntry && typeof refreshLocationMarkerPopup === "function") {
+				refreshLocationMarkerPopup(savedMarkerEntry);
 			}
 		}
 		activeReviewReportSourceSuggestions = [];
