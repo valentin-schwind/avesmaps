@@ -7,8 +7,8 @@ blue** — it reads as a foreign UI kit and is what made the panels diverge.
 
 ## The one rule
 
-**Never hardcode a colour, radius, or divider. Always use a token from
-`css/base/tokens.css`.** If the value you need has no token yet, add the token
+**Never hardcode a colour, size, radius, spacing, or divider. Always use a token
+from `css/base/tokens.css`.** If the value you need has no token yet, add the token
 first, then use it. A colour written as a literal in two places is divergence
 waiting to happen — it is how the infobox and route planner drifted apart.
 
@@ -16,30 +16,130 @@ waiting to happen — it is how the infobox and route planner drifted apart.
 
 | Group | Tokens |
 |---|---|
-| Surfaces | `--color-page-bg`, `--color-panel` (white card), `--color-panel-soft` (grouped bg), `--color-panel-muted` |
-| Text | `--color-text`, `--color-text-strong`, `--color-text-muted` |
+| Surfaces | `--color-page-bg`, `--color-page-bg-deep` (editor backdrop), `--color-panel` (white card), `--color-panel-soft` (grouped bg), `--color-panel-muted` |
+| Text | `--color-text`, `--color-text-strong`, `--color-text-muted`, `--color-placeholder` |
 | Lines | `--color-border` (hairline), `--color-border-strong`, `--color-divider` (section separator — the *same* everywhere) |
-| Button · primary (filled) | `--color-button`, `--color-button-text`, `--color-button-border` |
-| Button · secondary (soft/outline) | `--color-button-soft`, `--color-button-soft-text`, `--color-button-soft-border` |
-| Accent · links | `--color-accent` (coat gold), `--color-accent-strong`, `--color-link` (gold-brown — links are **never** blue) |
+| Button · primary (filled) | `--color-button`, `--color-button-text`, `--color-button-border`, `--color-button-hover`, `--color-button-active` |
+| Button · secondary (soft/outline) | `--color-button-soft`, `--color-button-soft-text`, `--color-button-soft-border`, `--color-button-soft-hover`, `--color-button-soft-active` |
+| Accent · links | `--color-accent` (coat gold), `--color-accent-strong`, `--color-link` (gold-brown — links are **never** blue), `--color-link-hover` |
 | Pills / tags | `--color-pill`, `--color-pill-border`, `--color-pill-text` |
-| Radius | `--radius-sm` 5px, `--radius-md` 8px (controls/buttons/pills), `--radius-lg` 10px |
+| Interaction · focus/states | `--color-focus` (+ `--focus-ring` recipe), `--color-hover-wash`, `--color-active-wash`, `--color-disabled-bg` / `-text` / `-border` |
+| Typography | `--font-size-caption` … `--font-size-display` (7 rungs), `--leading-tight` / `-snug` / `-normal`, `--font-weight-regular` / `-bold`, `--font-ui` |
+| Spacing | `--space-2` … `--space-24` (9 steps: 2/4/6/8/10/12/16/20/24) |
+| Radius | `--radius-sm` 5px (panel shell), `--radius-md` 8px (all controls), `--radius-lg` 10px (menus/cards) |
+| Icons | `--icon-sm` 16 / `--icon-md` 20 (UI glyphs) · `--icon-lg` 24 / `--icon-xl` 40 / `--icon-2xl` 48 / `--icon-hero` 130 (imagery) |
+| Status · markers · elevation | `--color-danger`, `--color-marker-destination`, `--shadow-panel`, `--shadow-dialog`, `--z-map-ui` / `--z-dialog` / `--z-dialog-high` |
+
+## Themes — light & dark
+
+The palette direction is **C ("Heller / Papier")**: a light, neutral parchment
+with warm taupe-brown controls and a restrained coat-gold. Light is the default
+(`:root`). A full dark theme is defined under `:root[data-theme="dark"]` — the
+same warm family on a deep parchment-brown canvas, cream text, and a gold that
+pops.
+
+Dark is **opt-in**, deliberately *not* `prefers-color-scheme`: the map tiles are
+light, so auto-dark panels would clash over them. Every colour token carries a
+dark value, so components that reference tokens (never literals) get both themes
+in sync from this one file.
+
+## Typography
+
+`--font-ui` is Faculty Glyphic. **Two weights only** — `--font-weight-regular`
+(400) and `--font-weight-bold` (700); never 500 / 600 / 800. Seven size rungs
+with an 11px floor:
+
+| Token | px | Line-height | Use |
+|---|---|---|---|
+| `--font-size-caption` | 11 | snug | section labels (bold + caps), pills, meta |
+| `--font-size-small` | 12 | snug | dense secondary text — distances, counts, options |
+| `--font-size-body` | 13 | snug | default controls — buttons, selects, tabs |
+| `--font-size-reading` | 14 | normal | reading text — infobox type + description, inputs |
+| `--font-size-subhead` | 16 | snug | subheaders |
+| `--font-size-title` | 20 | tight | dialog / panel titles |
+| `--font-size-display` | 22 | tight | infobox hero name |
+
+Line-heights: `--leading-tight` 1.15 (titles/display), `--leading-snug` 1.25
+(controls/labels), `--leading-normal` 1.45 (reading). Nothing renders below 11px —
+the old 9–10.5px micro sizes come up to `--font-size-caption`.
+
+## Spacing & radius
+
+Spacing uses one value-named scale — **2 / 4 / 6 / 8 / 10 / 12 / 16 / 20 / 24**
+(`--space-2` … `--space-24`, where the name is the pixel value). Always reach for
+a step; a stray `7px` or `11px` is how rhythm drifts. Old odd values fold to the
+nearest step. The divider gaps are scale steps: `--divider-gap` = `--space-12`,
+`--divider-gap-tight` = `--space-6`.
+
+Radius has **three** rungs: `--radius-sm` 5px (the mirrored panel shell + the
+tiniest chips), `--radius-md` 8px (**all** controls — buttons, inputs, selects,
+pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
+4/6/7/9px radii fold in — controls to `--radius-md`, floating surfaces to
+`--radius-lg`. No pill / `999px` shapes anywhere.
 
 ## Component rules
 
 - **Button hierarchy.** The main action is *filled* (`--color-button` /
   `--color-button-text`); everything else is *soft/outline* (`--color-button-soft`
   + `--color-button-soft-border`). Radius `--radius-md`. No pill/`999px` shapes.
+- **Button states** (both tiers): **hover** shifts to `--color-button-hover` /
+  `--color-button-soft-hover` with a 1px lift + slightly stronger shadow;
+  **active/pressed** drops to `--color-button-active` / `--color-button-soft-active`
+  with an inset shadow and no lift; **focus-visible** adds the focus ring
+  **composed with** the element's own shadow — `box-shadow: var(--focus-ring),
+  <elevation>`, never `var(--focus-ring)` alone (that would drop the elevation) — a
+  warm gold glow, never the blue UA ring; set `outline: none` alongside it;
+  **disabled** uses
+  `--color-disabled-bg` / `-text` / `-border` with no shadow and
+  `cursor: not-allowed` — use sparingly, prefer keeping actions enabled.
+- **Selection wash.** Hoverable/selectable rows (route entries, combobox options,
+  marker toggles) tint with `--color-hover-wash` (hover) and `--color-active-wash`
+  (selected), plus a `--color-border-strong` edge — not a filled-button look. This
+  replaces the old bright-yellow `rgba(255,216,88,…)` washes.
 - **Group by divider, not by box.** Separate sections with a `--color-divider`
   line + heading — do **not** wrap each section in a framed panel (dense panels
-  like the infobox turn into a box-stack). In popups/infoboxes dividers run
-  edge-to-edge (full-bleed): negative side-margin equal to the container's
-  horizontal padding.
-- **Links** use `--color-link`. Never blue.
-- **Selects / inputs**: warm border (`--color-border`), `--radius-md`, warm bg —
-  never the native grey browser control.
+  like the infobox turn into a box-stack).
+- **`border` vs `divider` are not interchangeable.** `--color-border` is for
+  *control and panel edges* (solid hairline); `--color-divider` is for *section
+  separators inside a panel* (soft). A section line is **always** the divider —
+  the infobox header line uses the divider, not the border.
+- **Divider mechanics (hard rules):** exactly **one** 1px line per section, never
+  doubled; always **full-bleed** — negative side-margin equal to the container's
+  horizontal padding, so the line runs edge to edge; **symmetric** spacing above
+  and below via `--divider-gap` (reading sections, e.g. infobox) or
+  `--divider-gap-tight` (dense control groups, e.g. route planner). After any
+  width or padding change, **measure the line and screenshot it.**
+- **Links** use `--color-link`; **hover** → `--color-link-hover` with a thicker
+  underline; **focus** the shared `var(--focus-ring)`. Never blue.
+- **Selects / inputs**: `--color-panel` background (flat — never the native grey
+  browser control), `--color-border` + `--radius-md`; **hover** →
+  `--color-border-strong`; **focus / open** → border-strong + `var(--focus-ring)`;
+  **disabled** → the disabled tokens; placeholders use `--color-placeholder`.
+  Combobox options tint with the selection wash.
 - **Pills** (publication tags, counts): `--color-pill*`, `--radius-md`.
 - **Panels** stay white with mirrored `--radius-sm` corners + shadow — already good.
+- **Icons — two classes.** *UI glyphs* (add, remove, close, chevron, arrows, drag,
+  zoom) are monochrome, **one consistent outline style**, drawn in `currentColor`
+  so they follow text + theme — they may also take `--color-text-muted` or
+  `--color-accent`, never a new colour; sizes `--icon-sm` (dense inline) /
+  `--icon-md` (standard). Stop mixing CSS shapes and unicode characters — settle on
+  one outline set. *Content imagery* (settlement-type icons, transport icons,
+  region icons, coats of arms) are the **existing full-colour assets** — keep and
+  reuse them **frameless** (no surrounding tile, background, or border — the icon
+  sits directly in its row or header), `object-fit: contain`, decorative ones
+  `pointer-events: none`; they are **never** recoloured to currentColor. Canonical sizes: `--icon-lg` 24
+  (inline / transport), `--icon-xl` 40 (map-display type toggles), `--icon-2xl` 48
+  (infobox type fallback), `--icon-hero` 130 (coat / logo).
+
+## Route & waypoint markers
+
+The waypoint timeline is a drag-grip + a column of connected markers (hollow
+circles in `--color-text-muted` joined by a dotted line) + an input + a remove
+control. The **destination pin** (last waypoint) uses `--color-marker-destination`
+— a heraldic red matching the red map location markers. This red is the *one*
+intentionally saturated accent; everything else stays in the warm-brown / gold
+family. Route legs (`route-plan-entry`) are quiet rows that use the selection wash
+(hover / active), never a framed box.
 
 ## Building something new
 

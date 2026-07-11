@@ -1,39 +1,174 @@
+/* Avesmaps design tokens — the single source of truth for the shared warm,
+   aventurian visual language. Never hardcode a colour, size, radius, spacing, or
+   divider in a component; add or reuse a token here. See docs/design-language.md.
+
+   Palette direction: C ("Heller / Papier") — light neutral parchment, warm
+   taupe-brown controls, restrained coat-gold. No blue anywhere.
+
+   Themes: light is the default (:root). Dark is OPT-IN via
+   :root[data-theme="dark"] — deliberately NOT prefers-color-scheme, because the
+   map tiles are light and auto-dark panels would clash over them. Wiring a
+   toggle is a separate feature; the language only defines the values. */
+
 :root {
 	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
-	--color-page-bg: #f4efe7;
-	--color-page-bg-deep: #2f322c;
-	--color-panel: #fff9f4;
-	--color-panel-soft: #fffaf5;
-	--color-panel-muted: #f8efe4;
-	--color-text: #2f251c;
-	--color-text-strong: #3f3428;
-	--color-text-muted: #6c5a49;
-	--color-border: #d8c6b2;
-	--color-border-strong: #cdb79f;
-	--color-button: #565044;
-	--color-button-border: #5f4f40;
-	--color-button-text: #f7ecd3;
-	/* Sekundaerer Button (soft/outline) -- z.B. "Link teilen" */
-	--color-button-soft: #f3ead4;
-	--color-button-soft-text: #5a4a37;
-	--color-button-soft-border: #cbb488;
-	/* Akzent = Wappen-Gold; Links in warmem Gold-Braun (NIE blau) */
-	--color-accent: #c9a227;
-	--color-accent-strong: #a9851a;
-	--color-link: #8a6a1e;
-	/* Trennlinie -- ueberall dieselbe (Infobox + Routenplaner) */
-	--color-divider: rgba(141, 121, 98, 0.35);
-	/* Pills / Tags (z.B. Publikationen) */
-	--color-pill: #f6edd7;
-	--color-pill-border: #d8c39a;
-	--color-pill-text: #6a5327;
+
+	/* Typography scale — 7 rungs, 11px floor (see "Typography" in the doc) */
+	--font-size-caption: 11px;  /* labels, pills, meta — the floor */
+	--font-size-small: 12px;    /* dense body — the workhorse */
+	--font-size-body: 13px;     /* default controls / body */
+	--font-size-reading: 14px;  /* comfortable reading */
+	--font-size-subhead: 16px;  /* subheaders */
+	--font-size-title: 20px;    /* dialog / panel titles */
+	--font-size-display: 22px;  /* infobox hero name */
+	--leading-tight: 1.15;      /* titles / display */
+	--leading-snug: 1.25;       /* controls / labels */
+	--leading-normal: 1.45;     /* reading body */
+	--font-weight-regular: 400;
+	--font-weight-bold: 700;    /* two weights only — no 500 / 600 / 800 */
+
+	/* Surfaces */
+	--color-page-bg: #f3f0e8;        /* app canvas behind the panels */
+	--color-page-bg-deep: #2b2721;   /* deep surround (editor backdrop) */
+	--color-panel: #fffdf9;          /* white card (infobox, route planner) */
+	--color-panel-soft: #faf6ee;     /* softly grouped background */
+	--color-panel-muted: #f1ece1;    /* muted inset (coat frame, wells) */
+
+	/* Text */
+	--color-text: #2e271e;
+	--color-text-strong: #3c3327;    /* titles, emphasised labels */
+	--color-text-muted: #706557;     /* subtitles, captions, meta */
+	--color-placeholder: #9a8f7e;    /* input placeholder — lighter than muted */
+
+	/* Lines */
+	--color-border: #ddd3c3;         /* hairline around controls */
+	--color-border-strong: #cdbfa8;  /* hover / emphasised control edge */
+	--color-divider: rgba(125, 115, 96, 0.30); /* section separator — same everywhere */
+
+	/* Button · primary (filled) — the one main action per surface */
+	--color-button: #5b5548;
+	--color-button-border: #635b4d;
+	--color-button-text: #f6efe1;
+	--color-button-hover: #6a6353;         /* hover — lighter */
+	--color-button-active: #4c473b;        /* pressed — darker */
+
+	/* Button · secondary (soft / outline) — e.g. "Link teilen" */
+	--color-button-soft: #efe9db;
+	--color-button-soft-text: #564b3b;
+	--color-button-soft-border: #cdbda0;
+	--color-button-soft-hover: #e7ddc9;
+	--color-button-soft-active: #ddd1b9;
+
+	/* Accent = coat-of-arms gold; links in warm gold-brown (NEVER blue) */
+	--color-accent: #bfa03a;
+	--color-accent-strong: #9c7f22;
+	--color-link: #8f7326;
+	--color-link-hover: #6f5a1c;
+
+	/* Pills / tags (e.g. publication sources) */
+	--color-pill: #f3ecd9;
+	--color-pill-border: #d7c7a2;
+	--color-pill-text: #675024;
+
 	--color-danger: #9d3a2e;
-	--radius-sm: 5px;
-	--radius-md: 8px;
-	--radius-lg: 10px;
+	--color-marker-destination: #e33b35; /* route destination pin — heraldic red, matches red map markers */
+
+	/* Interaction & focus (see "Button states" in the doc) */
+	--color-focus: rgba(191, 160, 58, 0.45);      /* gold focus glow */
+	--focus-ring: 0 0 0 3px var(--color-focus);   /* compose with the element's shadow, don't replace it */
+	--color-hover-wash: rgba(191, 160, 58, 0.14); /* row / option hover */
+	--color-active-wash: rgba(191, 160, 58, 0.24);/* selected row */
+	--color-disabled-bg: #ece7dd;
+	--color-disabled-text: #a99f8e;
+	--color-disabled-border: #dcd3c4;
+
+	/* Spacing scale — value-named steps; use a token, never a stray px */
+	--space-2: 2px;
+	--space-4: 4px;
+	--space-6: 6px;
+	--space-8: 8px;
+	--space-10: 10px;
+	--space-12: 12px;
+	--space-16: 16px;
+	--space-20: 20px;
+	--space-24: 24px;
+
+	/* Radius — 3 rungs; the old 4/6/7/9 fold to the nearest (controls → md) */
+	--radius-sm: 5px;   /* mirrored panel shell + tiniest chips */
+	--radius-md: 8px;   /* all controls: buttons, inputs, selects, pills, rows */
+	--radius-lg: 10px;  /* menus, cards, autocomplete */
+
+	/* Divider rhythm — symmetric space above & below a section line (on-scale) */
+	--divider-gap: var(--space-12);       /* reading sections (infobox) */
+	--divider-gap-tight: var(--space-6);  /* dense control groups (route planner) */
+
+	/* Icon sizes — one scale for UI glyphs (sm/md) AND the existing colour
+	   imagery (lg..hero: transport, type toggles, coats) so sizes stop drifting */
+	--icon-sm: 16px;    /* dense inline glyph */
+	--icon-md: 20px;    /* standard UI glyph */
+	--icon-lg: 24px;    /* inline content icon — transport mode */
+	--icon-xl: 40px;    /* map-display type toggle */
+	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
+	--icon-hero: 130px; /* coat / logo hero */
+
+	/* Elevation */
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.16);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.38);
+
 	--z-map-ui: 1000;
 	--z-dialog: 1450;
 	--z-dialog-high: 1460;
+}
+
+/* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,
+   deep parchment-brown canvas, cream text, gold that pops. */
+:root[data-theme="dark"] {
+	--color-page-bg: #23201a;
+	--color-page-bg-deep: #1b1813;
+	--color-panel: #2d2a22;
+	--color-panel-soft: #322e26;
+	--color-panel-muted: #353128;
+
+	--color-text: #ece4d6;
+	--color-text-strong: #f4eee0;
+	--color-text-muted: #b0a794;
+	--color-placeholder: #7c7466;
+
+	--color-border: #494336;
+	--color-border-strong: #575040;
+	--color-divider: rgba(205, 195, 168, 0.20);
+
+	--color-button: #655f52;
+	--color-button-border: #726b5d;
+	--color-button-text: #f6efe1;
+	--color-button-hover: #746d5d;
+	--color-button-active: #575044;
+
+	--color-button-soft: #37332a;
+	--color-button-soft-text: #e8e0cf;
+	--color-button-soft-border: #544d3d;
+	--color-button-soft-hover: #413c30;
+	--color-button-soft-active: #4a4436;
+
+	--color-accent: #cdb35a;
+	--color-accent-strong: #ddc470;
+	--color-link: #d6c07f;
+	--color-link-hover: #e6d190;
+
+	--color-pill: #39331f;
+	--color-pill-border: #564d31;
+	--color-pill-text: #e4d19b;
+
+	--color-danger: #d9705f;
+	--color-marker-destination: #ec5a4e;
+
+	--color-focus: rgba(205, 179, 90, 0.5);
+	--color-hover-wash: rgba(205, 179, 90, 0.16);
+	--color-active-wash: rgba(205, 179, 90, 0.28);
+	--color-disabled-bg: #302c24;
+	--color-disabled-text: #6f685b;
+	--color-disabled-border: #3f3a30;
+
+	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
+	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
 }
