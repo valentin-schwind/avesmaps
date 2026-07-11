@@ -8,8 +8,9 @@
 > Designsprache (`docs/design-language.md`: **kein Blau**; immer Tokens aus
 > `css/base/tokens.css`; gilt ausdrücklich auch für „the editor"). Die Farbwerte
 > hier sind **nicht** maßgeblich — Akzent = Coat-Gold (`--color-accent`), nicht
-> `#0078a8`. Der Editor-Code trägt die blaue Palette noch (offener Migrations-
-> Rückstand, geteilt mit `wiki-sync-monitor.html` + weiteren Editoren).
+> `#0078a8`. Der Editor-Code ist inzwischen entblaut (`--accent` = Gold-Braun,
+> `4a90279c`); die volle Token-Migration der restlichen lokalen Palette
+> (`--bg`/`--panel`/…) steht noch aus.
 > **Grundlage:** `docs/siedlungseditor-brief.md` (gegroundete Datei-/Datenreferenzen,
 > die kniffligen Teile, §9-Owner-Entscheidungen). Diese Spec **ergänzt** den Brief um
 > die im Brainstorming getroffenen UI-/Komponenten-Entscheidungen; der Brief bleibt die

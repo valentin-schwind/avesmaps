@@ -2100,7 +2100,7 @@
 
 /* F: Deep-Link in die Wiki-Sync-Pflege als echter Button. */
 /* Optik exakt wie .wiki-sync-panel__start (brauner Button). color !important, weil links.css
-   a[target=_blank] global #0078a8 !important faerbt. */
+   a[target=_blank] global per !important einfaerbt (--link-color, Gold-Braun). */
 #political-territory-editor-host .info-origin-link {
 	display: inline-flex;
 	align-items: center;

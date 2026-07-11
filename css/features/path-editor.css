@@ -20,6 +20,8 @@
 	background: transparent;
 }
 
+/* Ziehpunkt-Blau ist bewusst: Edit-Feedback ("wird gerade bearbeitet"), kein
+   UI-Chrome und keine Marker-Kodierung -> Designsprache-Ausnahme (Owner 2026-07-11). */
 .path-edit-handle-marker__dot {
 	display: block;
 	box-sizing: border-box;

@@ -1,5 +1,6 @@
 // Vertex-Außenkontur-Blau (s. .path-edit-handle-marker__dot border) — damit die Kanten der
 // gerade editierten Geometrie wieder sichtbar sind (sonst weight 0 durch Stroke-Hide).
+// Blau ist bewusst: Edit-Feedback ("wird gerade bearbeitet"), kein UI-Chrome -> Designsprache-Ausnahme (Owner 2026-07-11).
 const REGION_EDIT_EDGE_COLOR = "#1452f7";
 
 // NOTE: clearRegionGeometryEdit is OVERRIDDEN at runtime by map-features-region-vertex-detach-edit.js

@@ -36,6 +36,8 @@
 .va-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
 .va-row__name { width: 48%; color: #5a4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .va-row__track { flex: 1; height: 8px; background: #efe6d9; border-radius: 4px; overflow: hidden; }
+/* Chart-Serienfarben (#2a78d6 / #4a3aa7 …) sind eine kategoriale Datenpalette,
+   bewusst kein UI-Token -> Designsprache-Ausnahme (Owner 2026-07-11). */
 .va-row__fill { height: 100%; border-radius: 4px; background: #2a78d6; }
 .va-row__val { color: #8a7355; font-size: 12px; min-width: 34px; text-align: right; }
 .va-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

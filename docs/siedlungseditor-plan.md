@@ -13,7 +13,8 @@
 > Die in **Step 1** kopierte Palette (`--accent:#0078a8` u. a.) ist **Blau** und
 > widerspricht der finalisierten Designsprache (`docs/design-language.md`: kein Blau,
 > Tokens aus `css/base/tokens.css`). Nicht als Vorlage übernehmen — Akzent =
-> `--color-accent`. Der Editor-Code trägt die blaue Palette noch (Migrations-Rückstand).
+> `--color-accent`. Das Blau ist inzwischen entfernt (`--accent` Gold-Braun); die
+> volle Token-Migration der lokalen Palette steht noch aus.
 
 **Goal:** Ein neuer Siedlungseditor (3-Spalten-Iframe-Overlay im WikiSync→Siedlungen-Tab),
 der Siedlungen per geometrischem Ray-Cast + manuellem Override ihren Herrschaftsgebieten
