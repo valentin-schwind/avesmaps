@@ -66,6 +66,18 @@
 	background: transparent;
 	border-style: dashed;
 }
+/* Coverage-classification badge on an editor row (only when reference_kind is set). Uses the teal of
+   the active publication tab (.fs-src-tab.is-active) so it visually reads as "this feeds that tab". */
+.fs-row__kind {
+	flex-shrink: 0;
+	font-size: 10px;
+	color: #1c5a4d;
+	background: #e4efe9;
+	border: 1px solid #b6d2c6;
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
 .fs-row__pages {
 	flex-shrink: 0;
 	font-size: 11px;
@@ -111,7 +123,8 @@
 }
 .fs-row--add input[type="text"],
 .fs-row--add input[type="url"],
-.fs-add-type {
+.fs-add-type,
+.fs-add-kind {
 	background: #fffaf5;
 	border: 1px solid #d8c6b2;
 	border-radius: 5px;

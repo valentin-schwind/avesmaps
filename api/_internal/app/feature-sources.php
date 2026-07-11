@@ -213,7 +213,7 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     avesmapsEnsureFeatureSourceTables($pdo);
     avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entityType, $publicId, $userId);
     $stmt = $pdo->prepare(
-        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, fs.origin, fs.pages
+        "SELECT s.id AS source_id, s.url, s.label, s.source_type, s.is_official, fs.origin, fs.reference_kind, fs.pages
            FROM feature_sources fs JOIN sources s ON s.id = fs.source_id
           WHERE fs.entity_type = :t AND fs.entity_public_id = :id AND fs.status = 'approved'
           ORDER BY s.is_official DESC, s.created_at ASC, s.id ASC"
@@ -222,10 +222,14 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
     // 'origin' lets the editor UI (review-feature-sources.js) group wiki-derived rows
     // ('wiki_publication') under their own "automatisch" heading, separate from manual/community.
     // 'pages' surfaces a source's page citation so the editor row can show it (e.g. "S. 12").
+    // 'reference_kind' surfaces a source's coverage classification (ausfuehrlich/ergaenzend/erwaehnung
+    // or '') so the editor row can show + round-trip it, and syncFeatureSourcesToClientCache can fold it
+    // into the popup globals -> a freshly classified source lands in the right tab without a reload.
     $sources = array_map(static fn(array $r): array => [
         'source_id' => (int) $r['source_id'], 'url' => (string) $r['url'], 'label' => (string) $r['label'],
         'type' => (string) $r['source_type'], 'official' => (int) $r['is_official'] === 1,
         'origin' => (string) $r['origin'], 'pages' => (string) ($r['pages'] ?? ''),
+        'reference_kind' => (string) ($r['reference_kind'] ?? ''),
     ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     return [
         'ok' => true,
@@ -266,15 +270,20 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
     return is_array($props) ? trim((string) ($props['wiki_url'] ?? '')) : '';
 }
 
-function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = ''): array
+function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = ''): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     $sourceId = avesmapsFeatureSourceUpsert($pdo, $url, $label, $type, $official, $userId);
-    // Manual add: origin stays 'manual', no reference_kind; an optional free-form page citation is
-    // stored so the popup renders "… S. <pages>" on the direct-sources line (buildSourceListMarkup).
-    // Capped to the feature_sources.pages column width (120).
+    // Manual/community add: origin stays 'manual'. reference_kind is OPTIONAL classification of how the
+    // place is covered in this source -- ausfuehrlich/ergaenzend -> the "Offiziell" publication tab,
+    // erwaehnung -> the "Erwähnt" tab, empty -> the flat "Quelle(n):" line (buildSourceListMarkup splits
+    // purely on reference_kind presence). Stored so an editor- or community-classified source renders in
+    // the matching tab exactly like a wiki-reconciled publication. An optional free-form page citation is
+    // stored alongside. Both capped to their column widths (16 / 120). Unknown kinds fall back to null.
+    $allowedKinds = ['ausfuehrlich', 'ergaenzend', 'erwaehnung'];
+    $refKind = in_array($referenceKind, $allowedKinds, true) ? $referenceKind : null;
     $pagesValue = trim($pages);
-    avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId, 'manual', null, $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null);
+    avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId, 'manual', $refKind, $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null);
     // Cache invalidation (Fix #1): a new source link changes the element's rendered source list,
     // which rides in the ETag-cached map-features payload (W/"mf-<map_revision>-..."). Bump the SAME
     // global map_revision counter ordinary editor edits use so warm-cache clients don't keep a stale

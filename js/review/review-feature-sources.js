@@ -39,6 +39,20 @@ const FEATURE_SOURCE_TYPE_LABELS = {
   regelbuch: "Regelbuch",
   sonstiges: "Sonstiges",
 };
+// Optional coverage classification -- mirrors Wiki Aventurica's ==Publikationen== subsections
+// (Ausführliche/Ergänzende Quellen, Erwähnungen) AND the popup's tab split (feature-source-markup.js):
+// '' -> flat "Quelle(n):" line; ausfuehrlich/ergaenzend -> "Offiziell" tab; erwaehnung -> "Erwähnt" tab.
+// Server whitelist mirror: avesmapsAddFeatureSource (api/_internal/app/feature-sources.php).
+const FEATURE_SOURCE_REFERENCE_KINDS = ["", "ausfuehrlich", "ergaenzend", "erwaehnung"];
+const FEATURE_SOURCE_REFERENCE_KIND_LABELS = {
+  "": "Standardquelle",
+  ausfuehrlich: "Ausführlich",
+  ergaenzend: "Ergänzend",
+  erwaehnung: "Nur Erwähnung",
+};
+function featureSourceReferenceKindLabel(kind) {
+  return FEATURE_SOURCE_REFERENCE_KIND_LABELS[kind || ""] || FEATURE_SOURCE_REFERENCE_KIND_LABELS[""];
+}
 
 // Default HTML-escape (DOM-free -- safe under Node). Callers embedded in the browser may
 // still inject a document-based escaper via opts.escape; both behave identically for markup
@@ -78,11 +92,17 @@ function renderFeatureSourceWikiRow(wikiUrl, escape, tr) {
 function renderFeatureSourceRow(source, escape, tr) {
   const officialMark = source.official ? " *" : "";
   const pages = source.pages ? '<span class="fs-row__pages">S. ' + escape(source.pages) + "</span>" : "";
+  // Coverage classification badge (only when set) -- tells the editor which publication tab this row
+  // renders in on the public popup. Empty reference_kind -> no badge (source shows on the flat line).
+  const kind = source.reference_kind
+    ? '<span class="fs-row__kind">' + escape(featureSourceReferenceKindLabel(source.reference_kind)) + "</span>"
+    : "";
   return (
     '<div class="fs-row" data-source-id="' + escape(source.source_id) + '">' +
     '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
     escape(source.label || source.url) + " ↗</a>" +
     '<span class="fs-row__badge">' + escape(featureSourceTypeLabel(source.type)) + officialMark + "</span>" +
+    kind +
     pages +
     '<button type="button" class="fs-row__remove" data-remove-source-id="' + escape(source.source_id) + '">✕</button>' +
     "</div>"
@@ -108,12 +128,17 @@ function renderFeatureSourceAddRow(escape, tr) {
   const options = FEATURE_SOURCE_TYPES.map(
     (type) => '<option value="' + escape(type) + '">' + escape(featureSourceTypeLabel(type)) + "</option>"
   ).join("");
+  // Coverage classification -> which publication tab the source lands in (empty = flat line).
+  const kindOptions = FEATURE_SOURCE_REFERENCE_KINDS.map(
+    (kind) => '<option value="' + escape(kind) + '">' + escape(featureSourceReferenceKindLabel(kind)) + "</option>"
+  ).join("");
   return (
     '<div class="fs-row fs-row--add" data-fs-add>' +
     '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
     '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '">' +
     '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pages", "Seite(n)")) + '">' +
     '<select class="fs-add-type">' + options + "</select>" +
+    '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select>" +
     '<label class="fs-add-official-label">' +
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
     "</label>" +
@@ -192,12 +217,14 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     const urlInput = containerEl.querySelector(".fs-add-url");
     const labelInput = containerEl.querySelector(".fs-add-label");
     const typeSelect = containerEl.querySelector(".fs-add-type");
+    const kindSelect = containerEl.querySelector(".fs-add-kind");
     const officialInput = containerEl.querySelector(".fs-add-official");
     const pagesInput = containerEl.querySelector(".fs-add-pages");
     return {
       url: String((urlInput && urlInput.value) || "").trim(),
       label: String((labelInput && labelInput.value) || "").trim(),
       source_type: String((typeSelect && typeSelect.value) || "sonstiges"),
+      reference_kind: String((kindSelect && kindSelect.value) || ""),
       is_official: Boolean(officialInput && officialInput.checked),
       pages: String((pagesInput && pagesInput.value) || "").trim(),
     };
@@ -239,6 +266,7 @@ async function linkCommunityReportSource(entityPublicId, suggestion) {
     url: String(suggestion.url || ""),
     label: String(suggestion.label || ""),
     source_type: String(suggestion.source_type || "sonstiges"),
+    reference_kind: String(suggestion.reference_kind || ""),
     is_official: Boolean(suggestion.is_official),
     pages: String(suggestion.pages || ""),
   });
@@ -274,7 +302,7 @@ function syncFeatureSourcesToClientCache(entityType, entityPublicId, editorSourc
       official: Boolean(source.official),
       type: source.type || "",
     };
-    refs.push({ source_id: source.source_id, pages: source.pages || "" });
+    refs.push({ source_id: source.source_id, pages: source.pages || "", reference_kind: source.reference_kind || "" });
   }
   window.__featureSourceRefs[`${entityType}:${entityPublicId}`] = refs;
 }
