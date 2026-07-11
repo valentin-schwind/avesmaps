@@ -6,6 +6,10 @@ function buildLocationReportRequestPayload(formElement) {
 		name: String(formData.get("name") || "").trim(),
 		size: String(formData.get("size") || "").trim(),
 		source: String(formData.get("source") || "").trim(),
+		source_url: String(formData.get("source_url") || "").trim(),
+		pages: String(formData.get("pages") || "").trim(),
+		source_type: String(formData.get("source_type") || "sonstiges").trim(),
+		source_official: formData.get("source_official") === "on",
 		reporter_name: String(formData.get("reporter_name") || "").trim(),
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
 		comment: String(formData.get("comment") || "").trim(),
@@ -72,6 +76,7 @@ function resetLocationEditForm({ preserveWikiSyncFlow = false } = {}) {
 	locationEditMarkerEntry = null;
 	activeReviewReportId = null;
 	activeReviewReportSource = null;
+	activeReviewReportSourceSuggestion = null;
 	pendingCrossingConversionPublicId = null;
 	pendingCrossingConversionName = "";
 	pendingCrossingConversionIsNodix = false;

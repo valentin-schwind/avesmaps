@@ -126,9 +126,60 @@ async function loadReviewReports() {
 
 		reviewReports = Array.isArray(data.reports) ? data.reports : [];
 		renderReviewReports();
+		// Live updates: remember the newest report id and make sure the background poll runs, so a
+		// freshly submitted community report toasts + appears without a manual F5.
+		reviewReportsKnownMaxId = reviewReportsMaxId();
+		ensureReviewReportsPolling();
 	} catch (error) {
 		console.error("Meldungen konnten nicht geladen werden:", error);
 		setReviewPanelStatus(error.message || "Meldungen konnten nicht geladen werden.", "error");
+	}
+}
+
+// ---- Live-Poll fuer neue Community-Meldungen (kein F5 mehr) ----
+// STRATO-schonend: eine kleine Query alle 45s (map_reports/location_reports sind klein), nur im
+// Edit-Modus, nie schneller geloopt. Der Poll toastet NUR echt neue Meldungen (id > zuletzt bekannter)
+// und rendert die Liste neu; der allererste Seed (bekannt = 0) toastet nicht.
+let reviewReportsPollTimer = null;
+let reviewReportsKnownMaxId = 0;
+const REVIEW_REPORTS_POLL_INTERVAL_MS = 45000;
+
+function reviewReportsMaxId() {
+	return (Array.isArray(reviewReports) ? reviewReports : []).reduce((max, report) => Math.max(max, Number(report.id) || 0), 0);
+}
+
+function ensureReviewReportsPolling() {
+	if (reviewReportsPollTimer || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+		return;
+	}
+	reviewReportsPollTimer = window.setInterval(pollReviewReportsForNew, REVIEW_REPORTS_POLL_INTERVAL_MS);
+}
+
+async function pollReviewReportsForNew() {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+		return;
+	}
+	try {
+		const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, { credentials: "same-origin", headers: { Accept: "application/json" } });
+		const data = await response.json().catch(() => null);
+		if (!response.ok || !data || data.ok !== true || !Array.isArray(data.reports)) {
+			return;
+		}
+		const previousMaxId = reviewReportsKnownMaxId;
+		const freshCount = data.reports.filter((report) => (Number(report.id) || 0) > previousMaxId).length;
+		reviewReports = data.reports;
+		reviewReportsKnownMaxId = reviewReportsMaxId();
+		if (freshCount > 0) {
+			renderReviewReports();
+			if (previousMaxId > 0 && typeof showFeedbackToast === "function") {
+				showFeedbackToast(
+					freshCount === 1 ? "Neue Community-Meldung eingegangen." : `${freshCount} neue Community-Meldungen eingegangen.`,
+					"info"
+				);
+			}
+		}
+	} catch (error) {
+		// Polling darf den Editor nie stoeren -- Fehler still schlucken.
 	}
 }
 

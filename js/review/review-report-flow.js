@@ -4,10 +4,28 @@ function openLocationEditDialogFromReport(report, latlng) {
 	activeReviewReportSource = report.report_source || "location_reports";
 	document.getElementById("location-edit-name").value = report.name || "";
 	document.getElementById("location-edit-type").value = normalizeLocationType(report.report_subtype || report.size || "dorf");
-	document.getElementById("location-edit-description").value = [report.comment, report.source ? `Quelle: ${report.source}` : ""]
-		.filter(Boolean)
-		.join("\n\n");
+	// A source WITH a link becomes a real feature_source on "Anlegen" (multi-source #3, shows in the
+	// QUELLEN section, like the manual add flow). A source WITHOUT a link (feature_sources is link-based)
+	// falls back to the old "Quelle: X, S. Y" description line so nothing the reporter typed is lost.
+	const hasSourceLink = Boolean(report.source_url);
+	document.getElementById("location-edit-description").value = [
+		String(report.comment || ""),
+		(!hasSourceLink && report.source)
+			? `Quelle: ${report.source}${report.pages ? `, S. ${report.pages}` : ""}`
+			: "",
+	].filter(Boolean).join("\n\n");
 	document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
+	// Remember the reported source so create_point can link it as a real feature_source once the new
+	// place has a public_id (handleLocationEditFormSubmit).
+	activeReviewReportSourceSuggestion = hasSourceLink
+		? {
+			url: String(report.source_url || ""),
+			label: String(report.source || ""),
+			pages: String(report.pages || ""),
+			source_type: String(report.source_type || "sonstiges"),
+			is_official: Number(report.source_official) === 1 || report.source_official === true,
+		}
+		: null;
 }
 
 function openLabelEditDialogFromReport(report, latlng) {

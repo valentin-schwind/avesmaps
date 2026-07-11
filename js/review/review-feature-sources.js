@@ -223,9 +223,32 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   return renderFromServer("list");
 }
 
+// Multi-source #3: link a community-reported source to a freshly created feature as a catalog source
+// -- the SAME server add path (POST feature-sources.php `add`) the editor's "Hinzufügen" button uses,
+// so an accepted community report's source shows up in the QUELLEN section exactly like a manual one.
+// Best-effort: no publicId/url -> no-op; transport/non-ok failures are swallowed so a create is never
+// broken by this. Returns true only on a confirmed add.
+async function linkCommunityReportSource(entityPublicId, suggestion) {
+  if (!entityPublicId || !suggestion || !suggestion.url) {
+    return false;
+  }
+  const data = await featureSourceFetch({
+    action: "add",
+    entity_type: "settlement",
+    entity_public_id: entityPublicId,
+    url: String(suggestion.url || ""),
+    label: String(suggestion.label || ""),
+    source_type: String(suggestion.source_type || "sonstiges"),
+    is_official: Boolean(suggestion.is_official),
+    pages: String(suggestion.pages || ""),
+  });
+  return Boolean(data && data.ok === true);
+}
+
 if (typeof window !== "undefined") {
   window.renderFeatureSourceEditorHtml = renderFeatureSourceEditorHtml;
   window.mountFeatureSourceEditor = mountFeatureSourceEditor;
+  window.linkCommunityReportSource = linkCommunityReportSource;
 }
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { renderFeatureSourceEditorHtml };

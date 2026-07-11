@@ -547,11 +547,36 @@
 						<input id="location-report-source" name="source" type="text" maxlength="200" required />
 					</label>
 					<label class="location-report-form__field">
+						<span data-i18n="report.sourceUrlLabel">Link zur Quelle (F-Shop, Wiki-Seite der Publikation …)</span>
+						<input id="location-report-source-url" name="source_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+					</label>
+					<label class="location-report-form__field">
+						<span data-i18n="report.pagesLabel">Seite(n) (optional)</span>
+						<input id="location-report-pages" name="pages" type="text" maxlength="120" placeholder="z. B. 142" />
+					</label>
+					<label class="location-report-form__field">
+						<span data-i18n="report.sourceTypeLabel">Art der Quelle</span>
+						<select id="location-report-source-type" name="source_type">
+							<option value="regionalspielhilfe" data-i18n="sources.type.regionalspielhilfe">Regionalspielhilfe</option>
+							<option value="abenteuer" data-i18n="sources.type.abenteuer">Abenteuer</option>
+							<option value="aventurischer_bote" data-i18n="sources.type.aventurischer_bote">Aventurischer Bote</option>
+							<option value="quellenband" data-i18n="sources.type.quellenband">Quellenband</option>
+							<option value="roman" data-i18n="sources.type.roman">Roman</option>
+							<option value="briefspiel" data-i18n="sources.type.briefspiel">Briefspiel</option>
+							<option value="regelbuch" data-i18n="sources.type.regelbuch">Regelbuch</option>
+							<option value="sonstiges" selected data-i18n="sources.type.sonstiges">Sonstiges</option>
+						</select>
+					</label>
+					<label class="location-report-form__field location-report-form__field--inline">
+						<input id="location-report-source-official" name="source_official" type="checkbox" />
+						<span data-i18n="report.sourceOfficialLabel">Offizielle Quelle</span>
+					</label>
+					<label class="location-report-form__field">
 						<span data-i18n="report.reporterNameLabel">Dein Name/Pseudonym (optional)</span>
 						<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />
 					</label>
 					<label class="location-report-form__field">
-						<span data-i18n="report.wikiUrlLabel">Wiki-Link (wenn vorhanden)</span>
+						<span data-i18n="report.wikiUrlLabel">Wiki-Link zum Ort (für die Wiki-Zuweisung)</span>
 						<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
 					</label>
 					<label id="location-report-comment-field" class="location-report-form__field">

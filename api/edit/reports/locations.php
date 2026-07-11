@@ -61,6 +61,10 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             lat,
             lng,
             source,
+            source_url,
+            pages,
+            source_type,
+            source_official,
             wiki_url,
             comment,
             page_url,
@@ -207,6 +211,21 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             KEY idx_map_reports_ip_hash_created_at (ip_hash, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    // Multi-source #3: ensure the community source-suggestion columns exist so the review SELECT can
+    // read them even before the first new-schema report is submitted (report-location.php adds them too).
+    foreach ([
+        'source_url' => 'VARCHAR(500) NULL',
+        'pages' => 'VARCHAR(120) NULL',
+        'source_type' => 'VARCHAR(32) NULL',
+        'source_official' => 'TINYINT(1) NOT NULL DEFAULT 0',
+    ] as $column => $definition) {
+        $quotedColumn = $pdo->quote($column);
+        $columnStatement = $pdo->query("SHOW COLUMNS FROM map_reports LIKE {$quotedColumn}");
+        if ($columnStatement !== false && $columnStatement->fetch() !== false) {
+            continue;
+        }
+        $pdo->exec("ALTER TABLE map_reports ADD COLUMN {$column} {$definition}");
+    }
 }
 
 function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {

@@ -81,6 +81,10 @@ try {
             lat,
             lng,
             source,
+            source_url,
+            pages,
+            source_type,
+            source_official,
             wiki_url,
             comment,
             page_url,
@@ -99,6 +103,10 @@ try {
             :lat,
             :lng,
             :source,
+            :source_url,
+            :pages,
+            :source_type,
+            :source_official,
             :wiki_url,
             :comment,
             :page_url,
@@ -121,6 +129,10 @@ try {
         'lat' => $mapReport['lat'],
         'lng' => $mapReport['lng'],
         'source' => $mapReport['source'],
+        'source_url' => $mapReport['source_url'],
+        'pages' => $mapReport['pages'],
+        'source_type' => $mapReport['source_type'],
+        'source_official' => $mapReport['source_official'] ? 1 : 0,
         'wiki_url' => $mapReport['wiki_url'],
         'comment' => $mapReport['comment'],
         'page_url' => $mapReport['page_url'],
@@ -217,13 +229,24 @@ function avesmapsValidateMapReport(array $payload): array {
     }
     $comment = avesmapsNormalizeMultiline((string) ($payload['comment'] ?? ''), 800);
     $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 300, 'Der Wiki-Link');
+    // Multi-source #3 (community source suggestion): the reporter fills the SAME source fields an
+    // editor fills when adding a place by hand (link / title / pages / type / official). On "Anlegen"
+    // these become a real feature_sources link instead of the source dropping into the description.
+    $sourceUrl = avesmapsNormalizeOptionalUrl((string) ($payload['source_url'] ?? ''), 500, 'Der Link zur Quelle');
+    $pages = avesmapsNormalizeSingleLine((string) ($payload['pages'] ?? ''), 120);
+    $allowedSourceTypes = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
+    $sourceType = strtolower(avesmapsNormalizeSingleLine((string) ($payload['source_type'] ?? 'sonstiges'), 32));
+    if (!in_array($sourceType, $allowedSourceTypes, true)) {
+        $sourceType = 'sonstiges';
+    }
+    $sourceOfficial = filter_var($payload['source_official'] ?? false, FILTER_VALIDATE_BOOLEAN);
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
     $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     if ($lat < 0 || $lat > AVESMAPS_REPORT_MAP_MAX_COORDINATE || $lng < 0 || $lng > AVESMAPS_REPORT_MAP_MAX_COORDINATE) {
         throw new InvalidArgumentException('Die Meldung ist ungueltig.');
     }
 
-    $spamText = implode(' ', [$name, $source, $wikiUrl, $comment, (string) ($payload['reporter_name'] ?? '')]);
+    $spamText = implode(' ', [$name, $source, $sourceUrl, $wikiUrl, $comment, (string) ($payload['reporter_name'] ?? '')]);
     if (avesmapsContainsSpamText($spamText) || avesmapsIsLinkOnlyText($comment)) {
         return [
             'is_spam' => true,
@@ -237,6 +260,10 @@ function avesmapsValidateMapReport(array $payload): array {
         'name' => $name,
         'reporter_name' => avesmapsNormalizeSingleLine((string) ($payload['reporter_name'] ?? ''), 80),
         'source' => $source,
+        'source_url' => $sourceUrl,
+        'pages' => $pages,
+        'source_type' => $sourceType,
+        'source_official' => $sourceOfficial,
         'wiki_url' => $wikiUrl,
         'comment' => $comment,
         'lat' => $lat,
@@ -398,6 +425,11 @@ function avesmapsEnsureMapReportsTable(PDO $pdo): void {
     );
     avesmapsEnsureMapReportColumn($pdo, 'reporter_name', 'VARCHAR(80) NULL AFTER name');
     avesmapsEnsureMapReportColumn($pdo, 'ip_hash', 'CHAR(64) NULL AFTER remote_ip');
+    // Multi-source #3: community source-suggestion fields (mirror the editor's feature-source add row).
+    avesmapsEnsureMapReportColumn($pdo, 'source_url', 'VARCHAR(500) NULL AFTER source');
+    avesmapsEnsureMapReportColumn($pdo, 'pages', 'VARCHAR(120) NULL AFTER source_url');
+    avesmapsEnsureMapReportColumn($pdo, 'source_type', 'VARCHAR(32) NULL AFTER pages');
+    avesmapsEnsureMapReportColumn($pdo, 'source_official', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER source_type');
     avesmapsEnsureMapReportIndex($pdo, 'idx_map_reports_ip_hash_created_at', '(ip_hash, created_at)');
 }
 
