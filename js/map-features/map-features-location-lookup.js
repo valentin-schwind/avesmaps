@@ -145,7 +145,9 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	} else if (markerEntry.location && markerEntry.location.coordinates) {
 		latlng = L.latLng(markerEntry.location.coordinates);
 	}
-	if (!latlng) {
+	// Guard NON-FINITE coords too: a NaN latlng passes the truthy check, but setView/panTo(NaN) leaves the
+	// map centre undefined so the NEXT moveend crashes in Leaflet's _panInsideMaxBounds.
+	if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) {
 		return false;
 	}
 

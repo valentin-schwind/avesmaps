@@ -236,7 +236,9 @@
 			return;
 		}
 		var latlng = (typeof entry.marker.getLatLng === "function") ? entry.marker.getLatLng() : null;
-		if (!latlng) {
+		// Guard NON-FINITE coords too: a NaN latlng passes the truthy check, but setView(NaN) leaves the
+		// map centre undefined so the NEXT moveend crashes in Leaflet's _panInsideMaxBounds (owner's bug).
+		if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) {
 			return;
 		}
 		var waypointCount = (typeof getWaypointInputValues === "function") ? getWaypointInputValues().length : 0;
