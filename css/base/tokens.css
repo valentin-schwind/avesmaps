@@ -121,53 +121,54 @@
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,
-   deep parchment-brown canvas, cream text, gold that pops. */
+   deep parchment-brown canvas, cream text; the gold is lightly desaturated
+   (~12% less than the light gold) so it stays calm on dark instead of shouting. */
 :root[data-theme="dark"] {
-	--color-page-bg: #23201a;
-	--color-page-bg-deep: #1b1813;
-	--color-panel: #2d2a22;
-	--color-panel-soft: #322e26;
-	--color-panel-muted: #353128;
+	--color-page-bg: #211f19;
+	--color-page-bg-deep: #181611;
+	--color-panel: #312e26;
+	--color-panel-soft: #37342b;
+	--color-panel-muted: #39352b;
 
-	--color-text: #ece4d6;
-	--color-text-strong: #f4eee0;
-	--color-text-muted: #b0a794;
-	--color-placeholder: #7c7466;
+	--color-text: #eee7da;
+	--color-text-strong: #f5f0e4;
+	--color-text-muted: #b4a895;
+	--color-placeholder: #7b7467;
 
-	--color-border: #494336;
-	--color-border-strong: #575040;
-	--color-divider: rgba(205, 195, 168, 0.20);
+	--color-border: #514a3c;
+	--color-border-strong: #615a49;
+	--color-divider: rgba(207, 197, 171, 0.24);
 
-	--color-button: #655f52;
-	--color-button-border: #726b5d;
-	--color-button-text: #f6efe1;
-	--color-button-hover: #746d5d;
-	--color-button-active: #575044;
+	--color-button: #6b6456;
+	--color-button-border: #7a7361;
+	--color-button-text: #f5ebd7;
+	--color-button-hover: #797264;
+	--color-button-active: #5d5648;
 
-	--color-button-soft: #37332a;
-	--color-button-soft-text: #e8e0cf;
-	--color-button-soft-border: #544d3d;
-	--color-button-soft-hover: #413c30;
-	--color-button-soft-active: #4a4436;
+	--color-button-soft: #3a362c;
+	--color-button-soft-text: #eae1cf;
+	--color-button-soft-border: #585142;
+	--color-button-soft-hover: #453f32;
+	--color-button-soft-active: #4e4739;
 
-	--color-accent: #cdb35a;
-	--color-accent-strong: #ddc470;
-	--color-link: #d6c07f;
-	--color-link-hover: #e6d190;
+	--color-accent: #cfb767;
+	--color-accent-strong: #dcc77e;
+	--color-link: #d7c38b;
+	--color-link-hover: #e3d39f;
 
-	--color-pill: #39331f;
-	--color-pill-border: #564d31;
-	--color-pill-text: #e4d19b;
+	--color-pill: #3b3522;
+	--color-pill-border: #5c5237;
+	--color-pill-text: #e7d7a5;
 
-	--color-danger: #d9705f;
-	--color-marker-destination: #ec5a4e;
+	--color-danger: #d27566;
+	--color-marker-destination: #e6675b;
 
-	--color-focus: rgba(205, 179, 90, 0.5);
-	--color-hover-wash: rgba(205, 179, 90, 0.16);
-	--color-active-wash: rgba(205, 179, 90, 0.28);
-	--color-disabled-bg: #302c24;
-	--color-disabled-text: #6f685b;
-	--color-disabled-border: #3f3a30;
+	--color-focus: rgba(207, 183, 103, 0.5);
+	--color-hover-wash: rgba(207, 183, 103, 0.18);
+	--color-active-wash: rgba(207, 183, 103, 0.30);
+	--color-disabled-bg: #322f27;
+	--color-disabled-text: #6e685c;
+	--color-disabled-border: #433e33;
 
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);

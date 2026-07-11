@@ -35,8 +35,9 @@ waiting to happen — it is how the infobox and route planner drifted apart.
 The palette direction is **C ("Heller / Papier")**: a light, neutral parchment
 with warm taupe-brown controls and a restrained coat-gold. Light is the default
 (`:root`). A full dark theme is defined under `:root[data-theme="dark"]` — the
-same warm family on a deep parchment-brown canvas, cream text, and a gold that
-pops.
+same warm family on a deep parchment-brown canvas, cream text, and a warm gold
+kept deliberately calm — ~12% desaturated from the light gold so it reads warm on
+dark instead of neon.
 
 Dark is **opt-in**, deliberately *not* `prefers-color-scheme`: the map tiles are
 light, so auto-dark panels would clash over them. Every colour token carries a
