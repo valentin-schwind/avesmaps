@@ -257,6 +257,7 @@ function avesmapsDecodeReportSources(mixed $rawJson, string $legacyLabel = ''): 
                 'label' => $label,
                 'pages' => (string) ($entry['pages'] ?? ''),
                 'type' => (string) ($entry['type'] ?? 'sonstiges'),
+                'reference_kind' => (string) ($entry['reference_kind'] ?? ''),
                 'official' => (bool) ($entry['official'] ?? false),
             ];
         }

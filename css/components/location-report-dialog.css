@@ -358,6 +358,17 @@
 	font-size: 11px;
 }
 
+.report-sources__kind {
+	flex: 0 0 auto;
+	font-size: 10px;
+	color: #1c5a4d;
+	background: #e4efe9;
+	border: 1px solid #b6d2c6;
+	border-radius: 999px;
+	padding: 1px 7px;
+	white-space: nowrap;
+}
+
 .report-sources__remove {
 	flex: 0 0 auto;
 	border: none;
@@ -409,6 +420,10 @@
 
 .report-sources__add-row2 #report-source-type {
 	flex: 1 1 150px;
+}
+
+.report-sources__add-row2 #report-source-kind {
+	flex: 1 1 160px;
 }
 
 .report-sources__official {

@@ -52,6 +52,7 @@ function renderLocationReportSourcesList() {
 				'<div class="report-sources__row">' +
 				linked +
 				`<span class="report-sources__type">${escapeHtml(reportSourceTypeLabel(source.type))}</span>` +
+				(source.reference_kind ? `<span class="report-sources__kind">${escapeHtml(typeof featureSourceReferenceKindLabel === "function" ? featureSourceReferenceKindLabel(source.reference_kind) : source.reference_kind)}</span>` : "") +
 				`<button type="button" class="report-sources__remove" data-remove-report-source="${index}" aria-label="Quelle entfernen">✕</button>` +
 				"</div>"
 			);
@@ -65,12 +66,13 @@ function readLocationReportSourceInputs() {
 		url: String(document.getElementById("report-source-url")?.value || "").trim(),
 		pages: String(document.getElementById("report-source-pages")?.value || "").trim(),
 		type: String(document.getElementById("report-source-type")?.value || "sonstiges"),
+		reference_kind: String(document.getElementById("report-source-kind")?.value || ""),
 		official: Boolean(document.getElementById("report-source-official")?.checked),
 	};
 }
 
 function clearLocationReportSourceInputs() {
-	["report-source-label", "report-source-url", "report-source-pages"].forEach((id) => {
+	["report-source-label", "report-source-url", "report-source-pages", "report-source-kind"].forEach((id) => {
 		const element = document.getElementById(id);
 		if (element) {
 			element.value = "";

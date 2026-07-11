@@ -285,11 +285,19 @@ function avesmapsNormalizeReportSources(mixed $raw): array {
         if (!in_array($type, $allowedTypes, true)) {
             $type = 'sonstiges';
         }
+        // Optional coverage classification -> the popup's publication tab (feature-source-markup.js). The
+        // whitelist mirrors avesmapsAddFeatureSource; unknown/absent stays '' (the source then renders on
+        // the flat "Quelle(n):" line rather than in a tab).
+        $kind = strtolower(avesmapsNormalizeSingleLine((string) ($entry['reference_kind'] ?? ''), 16));
+        if (!in_array($kind, ['ausfuehrlich', 'ergaenzend', 'erwaehnung'], true)) {
+            $kind = '';
+        }
         $normalized[] = [
             'url' => avesmapsNormalizeOptionalUrl((string) ($entry['url'] ?? ''), 500, 'Der Link zur Quelle'),
             'label' => $label,
             'pages' => avesmapsNormalizeSingleLine((string) ($entry['pages'] ?? ''), 120),
             'type' => $type,
+            'reference_kind' => $kind,
             'official' => filter_var($entry['official'] ?? false, FILTER_VALIDATE_BOOLEAN),
         ];
     }

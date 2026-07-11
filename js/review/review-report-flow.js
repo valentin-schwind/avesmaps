@@ -22,6 +22,7 @@ function openLocationEditDialogFromReport(report, latlng) {
 		label: String(source.label || ""),
 		pages: String(source.pages || ""),
 		source_type: String(source.type || "sonstiges"),
+		reference_kind: String(source.reference_kind || ""),
 		is_official: Boolean(source.official),
 	}));
 }
