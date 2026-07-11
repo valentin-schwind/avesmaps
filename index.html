@@ -43,7 +43,7 @@
 		<link rel="stylesheet" href="css/components/region-sync.css?v=20260626-capitals2" />
 		<link rel="stylesheet" href="css/features/feature-sources.css" />
 		<link rel="stylesheet" href="css/components/visitor-analytics.css" />
-		<link rel="stylesheet" href="css/styles.css?v=20260610-metropole-case" />
+		<link rel="stylesheet" href="css/styles.css?v=20260711-theme" />
 		<link rel="stylesheet" href="css/features/loading-bar.css" />
 		<link rel="stylesheet" href="css/features/mail-inbox.css" />
 		<script type="application/ld+json">
@@ -1146,8 +1146,10 @@
 		</div>
 		<div id="search" class="ui-widget">
 			<section class="project-summary" aria-labelledby="project-summary-title">
-				<h1 id="project-summary-title">Avesmaps</h1>
-				<p data-i18n="header.tagline">Dein Routenplaner für Aventurien aus "Das Schwarze Auge" (DSA).</p>
+				<h1 id="project-summary-title" class="project-summary__title">
+					<img src="icons/logo.png" alt="Avesmaps – Aventurien-Routenplaner für Das Schwarze Auge (DSA)" class="project-summary__logo" width="1413" height="433" />
+				</h1>
+				<p class="project-summary__tagline" data-i18n="header.tagline">Dein Routenplaner für Aventurien aus "Das Schwarze Auge" (DSA).</p>
 			</section>
 			<div class="display-options">
 				<label class="display-options__row display-options__select-row"
@@ -1207,11 +1209,7 @@
 			</div>
 
 			<div class="theme-toggle-row">
-				<span class="theme-toggle-row__label">Design</span>
-				<div class="theme-toggle" role="group" aria-label="Farbschema">
-					<button type="button" class="theme-toggle__btn" data-theme-choice="light" aria-pressed="true">Hell</button>
-					<button type="button" class="theme-toggle__btn" data-theme-choice="dark" aria-pressed="false">Dunkel</button>
-				</div>
+				<button type="button" class="theme-toggle-btn" aria-label="Design umschalten" title="Design umschalten">🌙</button>
 			</div>
 
 			<!-- Waypoints -->
@@ -1370,7 +1368,7 @@
 		<script src="js/app/i18n.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
 		<script src="js/app/utils.js"></script>
-		<script src="js/app/theme-toggle.js"></script>
+		<script src="js/app/theme-toggle.js?v=20260711-theme"></script>
 		<script src="js/app/share-link.js"></script>
 		<script src="js/app/wiki-deeplink.js"></script>
 		<script src="js/routing/route-graph-core.js"></script>

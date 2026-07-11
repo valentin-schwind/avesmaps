@@ -12,6 +12,12 @@
 	"use strict";
 	var STORAGE_KEY = "avesmaps-theme";
 
+	/* Keyed by the CURRENT theme; the button shows the TARGET it switches to. */
+	var FACE = {
+		light: { icon: "🌙", label: "Auf dunkles Design umschalten" },
+		dark: { icon: "☀️", label: "Auf helles Design umschalten" }
+	};
+
 	function applyTheme(theme) {
 		var root = document.documentElement;
 		if (theme === "dark") {
@@ -19,13 +25,12 @@
 		} else {
 			root.removeAttribute("data-theme");
 		}
-		// keep the segmented control in sync
-		var buttons = document.querySelectorAll(".theme-toggle__btn");
-		for (var i = 0; i < buttons.length; i++) {
-			buttons[i].setAttribute(
-				"aria-pressed",
-				buttons[i].getAttribute("data-theme-choice") === theme ? "true" : "false"
-			);
+		var btn = document.querySelector(".theme-toggle-btn");
+		if (btn) {
+			var face = FACE[theme] || FACE.light;
+			btn.textContent = face.icon;
+			btn.setAttribute("aria-label", face.label);
+			btn.setAttribute("title", face.label);
 		}
 		// mobile browser chrome colour
 		var meta = document.querySelector('meta[name="theme-color"]');
@@ -42,26 +47,27 @@
 
 	// Delegated click handler so it works no matter where the control sits.
 	document.addEventListener("click", function (event) {
-		var btn = event.target.closest && event.target.closest(".theme-toggle__btn");
+		var btn = event.target.closest && event.target.closest(".theme-toggle-btn");
 		if (!btn) {
 			return;
 		}
-		var theme = btn.getAttribute("data-theme-choice") === "dark" ? "dark" : "light";
+		var next = currentTheme() === "dark" ? "light" : "dark";
 		try {
-			localStorage.setItem(STORAGE_KEY, theme);
+			localStorage.setItem(STORAGE_KEY, next);
 		} catch (e) {
 			/* private mode / storage disabled — theme still applies for this session */
 		}
-		applyTheme(theme);
+		applyTheme(next);
 	});
 
 	// The <head> guard already set data-theme from storage before first paint;
-	// here we just sync the control's pressed state once the DOM is ready.
-	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", function () {
-			applyTheme(currentTheme());
-		});
-	} else {
+	// here we just sync the button's face once the DOM is ready.
+	function init() {
 		applyTheme(currentTheme());
+	}
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", init);
+	} else {
+		init();
 	}
 })();

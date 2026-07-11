@@ -582,55 +582,45 @@
 	width: 170px;
 }
 
-/* Checkboxes and radios follow the warm coat-gold accent — never the native blue. */
+/* Checkboxes and radios follow the warm coat-gold accent — never the native blue.
+   Light uses the stronger gold (--color-accent-strong) for enough contrast on the
+   white panel; dark keeps the calmer accent so it doesn't glare. */
 #search input[type="checkbox"],
 #search input[type="radio"] {
+	accent-color: var(--color-accent-strong);
+}
+:root[data-theme="dark"] #search input[type="checkbox"],
+:root[data-theme="dark"] #search input[type="radio"] {
 	accent-color: var(--color-accent);
 }
 
-/* Light/dark theme switch — a small segmented control; colours come from tokens
-   so it reads correctly in both themes. */
+/* Light/dark theme switch — a single emoji icon button, right-aligned. Shows the
+   theme it switches TO (moon while light, sun while dark). */
 .theme-toggle-row {
 	display: flex;
-	align-items: center;
-	gap: var(--space-8);
+	justify-content: flex-end;
 	padding: var(--space-2) 0 var(--space-6);
-	font-size: var(--font-size-small);
-	color: var(--color-text-muted);
 }
-.theme-toggle-row__label {
-	flex: 0 0 auto;
-}
-.theme-toggle {
+.theme-toggle-btn {
 	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	overflow: hidden;
-}
-.theme-toggle__btn {
-	border: 0;
-	border-left: 1px solid var(--color-border);
 	background: var(--color-panel);
-	color: var(--color-text-muted);
-	font: inherit;
-	font-size: var(--font-size-small);
-	line-height: var(--leading-snug);
-	padding: var(--space-4) var(--space-10);
+	font-size: 16px;
+	line-height: 1;
 	cursor: pointer;
-	transition: background 0.12s ease, color 0.12s ease;
+	transition: background 0.12s ease, border-color 0.12s ease;
 }
-.theme-toggle__btn:first-child {
-	border-left: 0;
-}
-.theme-toggle__btn:hover {
+.theme-toggle-btn:hover {
 	background: var(--color-hover-wash);
+	border-color: var(--color-border-strong);
 }
-.theme-toggle__btn[aria-pressed="true"] {
-	background: var(--color-active-wash);
-	color: var(--color-text-strong);
-	font-weight: var(--font-weight-bold);
-}
-.theme-toggle__btn:focus-visible {
+.theme-toggle-btn:focus-visible {
 	outline: none;
 	box-shadow: var(--focus-ring);
 }

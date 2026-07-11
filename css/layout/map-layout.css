@@ -56,25 +56,35 @@ body {
 	}
 }
 
+/* The header is the Avesmaps logo image (frameless). The H1 + tagline stay in
+   the DOM for SEO/screen readers (H1 alt carries the keyword line); the tagline
+   is visually hidden and the logo replaces the old framed text panel. */
 .project-summary {
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-sm);
-	background-color: var(--color-panel);
-	padding: 10px;
-	line-height: 1.35;
+	padding: var(--space-2) 0 0;
 }
 
-.project-summary h1 {
-	margin: 0 0 6px 0;
-	font-size: 18px;
+.project-summary__title {
+	margin: 0;
+	line-height: 0;
 }
 
-.project-summary p {
-	margin: 0 0 6px 0;
+.project-summary__logo {
+	display: block;
+	width: 100%;
+	height: auto;
 }
 
-.project-summary p:last-child {
-	margin-bottom: 0;
+.project-summary__tagline {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .map-data-status {
