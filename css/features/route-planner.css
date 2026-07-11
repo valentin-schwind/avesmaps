@@ -216,15 +216,20 @@
 	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22), 0 0 0 2px var(--color-focus);
 }
 
+/* Option groups are grouped by a full-bleed divider + heading, not a framed box
+   (design language: group by divider, not by box). The negative side-margin
+   equals the #search padding (10px) so the top line runs edge to edge; the
+   padding restores the content inset. Layout / order / controls unchanged. */
 .display-options,
 #transport-options,
 .route-planner-options-panel {
 	display: grid;
 	gap: 5px;
-	padding: 6px;
-	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-panel-soft);
+	margin: 0 calc(-1 * var(--space-10));
+	padding: var(--divider-gap-tight) var(--space-10) 0;
+	border: 0;
+	border-top: 1px solid var(--color-divider);
+	background: transparent;
 	box-sizing: border-box;
 }
 
@@ -339,7 +344,7 @@
 	box-shadow: none;
 	cursor: pointer;
 	line-height: 1;
-	opacity: 0.22;
+	opacity: 0.3;
 	transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
@@ -363,7 +368,7 @@
 .display-options .location-toggle:hover,
 .display-options .location-toggle:focus-visible {
 	background: transparent;
-	opacity: 0.55;
+	opacity: 0.7;
 	outline: none;
 }
 
@@ -601,30 +606,29 @@
 	top: var(--space-8);
 	right: var(--space-8);
 	z-index: 3;
-	width: 34px;
-	height: 34px;
+	width: 24px;
+	height: 24px;
 	padding: 0;
 	overflow: hidden;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-panel);
+	border: 0;
+	background: transparent;
 	cursor: pointer;
-	transition: border-color 0.12s ease, background 0.12s ease;
+	transition: transform 0.12s ease;
 }
 .theme-toggle-btn:hover {
-	border-color: var(--color-border-strong);
+	transform: scale(1.12);
 }
 .theme-toggle-btn:focus-visible {
 	outline: none;
+	border-radius: var(--radius-md);
 	box-shadow: var(--focus-ring);
 }
 .theme-toggle-ico {
 	position: absolute;
 	left: 50%;
 	top: 50%;
-	width: 19px;
-	height: 19px;
+	width: 21px;
+	height: 21px;
 	transition: transform 0.55s cubic-bezier(0.34, 1.32, 0.5, 1);
 }
 .theme-toggle-ico--sun {

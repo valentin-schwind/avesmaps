@@ -74,17 +74,15 @@ body {
 	height: auto;
 }
 
+/* Tagline under the logo (kept in the DOM for SEO — now also shown). text-wrap:
+   balance evens the two lines so the title "Das Schwarze Auge" isn't split. */
 .project-summary__tagline {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	padding: 0;
-	border: 0;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	clip-path: inset(50%);
-	white-space: nowrap;
+	margin: var(--space-6) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+	text-align: center;
+	text-wrap: balance;
 }
 
 .map-data-status {
