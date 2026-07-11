@@ -74,6 +74,11 @@
 	--color-success: #2f7d3a;             /* status: success (e.g. contact form) */
 	--color-marker-destination: #e33b35; /* route destination pin — heraldic red, matches red map markers */
 
+	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
+	   not a generic yellow; `-muted` is the empty-star track. */
+	--color-star: #e0a528;
+	--color-star-muted: #d9c7a6;
+
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
 
@@ -181,6 +186,11 @@
 	--color-danger: #d27566;
 	--color-success: #7cc48a;
 	--color-marker-destination: #e6675b;
+
+	/* Review stars, dark: the gold stays warm; the empty track darkens so it doesn't glare on the
+	   deep panel (a light beige track would read almost as bright as a filled star). */
+	--color-star: #e6b850;
+	--color-star-muted: #6f6552;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);

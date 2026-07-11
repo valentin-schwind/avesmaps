@@ -5,9 +5,9 @@
 	overflow-x: hidden;
 	padding: 18px;
 	border: 1px solid var(--color-border);
-	border-radius: 12px;
+	border-radius: var(--radius-lg);
 	background: var(--color-panel);
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+	box-shadow: var(--shadow-dialog);
 	color: var(--color-text);
 }
 
@@ -25,19 +25,20 @@
 
 .location-report-dialog__header h2 {
 	margin: 0;
-	font-size: 20px;
+	font-size: var(--font-size-title);
+	color: var(--color-text-strong);
 }
 
 .location-report-dialog__close {
 	border: none;
 	background: transparent;
-	color: #8a7a68;
+	color: var(--color-text-muted);
 	cursor: pointer;
 	font-size: 20px;
 	line-height: 1;
 	width: 30px;
 	height: 30px;
-	border-radius: 8px;
+	border-radius: var(--radius-md);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -45,8 +46,8 @@
 }
 
 .location-report-dialog__close:hover {
-	background: rgba(122, 90, 58, 0.12);
-	color: #5a3b1e;
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
 }
 
 .location-report-dialog__close:disabled {
@@ -63,10 +64,10 @@
 .location-report-dialog__trust-note {
 	margin: -4px 0 4px 0;
 	padding: 10px 12px;
-	border: 1px solid #d9c1a4;
-	border-radius: 10px;
-	background: #f5ecdf;
-	color: #5b4735;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
 	font-size: 12px;
 	line-height: 1.45;
 }
@@ -82,7 +83,7 @@
 }
 
 #location-report-dialog .location-report-dialog__header h2 {
-	font-size: 18px;
+	font-size: var(--font-size-subhead);
 }
 
 #location-report-dialog .location-report-dialog__intro {
@@ -126,8 +127,8 @@
 	gap: 4px;
 	padding: 8px 10px;
 	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: #fff;
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
 }
 
 #location-report-dialog .location-report-form__meta-item {
@@ -160,13 +161,13 @@
 }
 
 .location-report-form__field > span {
-	color: #5a4a3b;
+	color: var(--color-text-strong);
 	font-size: 12px;
 	font-weight: bold;
 }
 
 .location-report-form__field small {
-	color: #806c59;
+	color: var(--color-text-muted);
 	font-size: 11px;
 	font-weight: normal;
 }
@@ -175,9 +176,9 @@
 .location-report-form__field select,
 .location-report-form__field textarea {
 	padding: 9px 10px;
-	border: 1px solid #cdb79f;
-	border-radius: 8px;
-	background: #fff;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
 }
@@ -190,21 +191,21 @@
 .location-report-form__field input:focus,
 .location-report-form__field select:focus,
 .location-report-form__field textarea:focus {
-	border-color: #9b7b58;
-	outline: 2px solid rgba(155, 123, 88, 0.14);
-	outline-offset: 0;
+	border-color: var(--color-border-strong);
+	outline: none;
+	box-shadow: var(--focus-ring);
 }
 
 .location-report-form__field input:disabled,
 .location-report-form__field select:disabled,
 .location-report-form__field textarea:disabled {
-	background: #f3ede7;
+	background: var(--color-disabled-bg);
 	cursor: wait;
 }
 
 .location-report-form__field input[readonly] {
-	background: #f8f2ec;
-	color: #5a4a3b;
+	background: var(--color-panel-muted);
+	color: var(--color-text);
 	cursor: default;
 }
 
@@ -239,7 +240,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	color: #4f4134;
+	color: var(--color-text);
 	font-size: 13px;
 }
 
@@ -258,7 +259,7 @@
 
 .location-report-form__service-note {
 	margin: -2px 0 0 0;
-	color: #8b5d2a;
+	color: var(--color-accent-strong);
 	font-size: 12px;
 	line-height: 1.4;
 }
@@ -266,17 +267,17 @@
 .location-report-form__status {
 	min-height: 1.4em;
 	margin: 0;
-	color: var(--color-button-border);
+	color: var(--color-text-muted);
 	font-size: 12px;
 	line-height: 1.4;
 }
 
 .location-report-form__status[data-status="error"] {
-	color: #8a3a1b;
+	color: var(--color-danger);
 }
 
 .location-report-form__status[data-status="pending"] {
-	color: #6b583f;
+	color: var(--color-text-muted);
 }
 
 .location-report-form__actions {
@@ -287,8 +288,8 @@
 
 .location-report-form__button {
 	padding: 8px 14px;
-	border: 1px solid #c6aa8c;
-	border-radius: 999px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
 	cursor: pointer;
 	font: inherit;
 	font-weight: bold;
@@ -300,19 +301,29 @@
 }
 
 .location-report-form__button--secondary {
-	background: #f3ebdf;
-	color: #513c2b;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	border-color: var(--color-button-soft-border);
 }
 
+/* Primary = the one filled main action (button hierarchy, see docs/design-language.md). */
 .location-report-form__button--primary {
-	background: #e8dac7;
-	color: var(--color-text-strong);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	border-color: var(--color-button-border);
 }
 
-.location-report-form__button:not(:disabled):hover,
-.location-report-form__button:not(:disabled):focus-visible {
-	border-color: #b48d68;
-	background: #ead7bf;
+.location-report-form__button--secondary:not(:disabled):hover,
+.location-report-form__button--secondary:not(:disabled):focus-visible {
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft-hover);
+	outline: none;
+}
+
+.location-report-form__button--primary:not(:disabled):hover,
+.location-report-form__button--primary:not(:disabled):focus-visible {
+	border-color: var(--color-button-border);
+	background: var(--color-button-hover);
 	outline: none;
 }
 
@@ -326,7 +337,7 @@
 }
 
 .report-sources__empty {
-	color: #8b7a66;
+	color: var(--color-text-muted);
 	font-size: 12px;
 	font-style: italic;
 }
@@ -337,8 +348,8 @@
 	gap: 8px;
 	padding: 5px 8px;
 	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: #f6efe4;
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
 	font-size: 13px;
 }
 
@@ -354,17 +365,19 @@
 
 .report-sources__type {
 	flex: 0 0 auto;
-	color: #6b583f;
+	color: var(--color-text-muted);
 	font-size: 11px;
 }
 
+/* Status chip (Erwähnt/Quelle kind) — deliberately kept green: it encodes state, not chrome
+   (design-language: green/orange status stays). */
 .report-sources__kind {
 	flex: 0 0 auto;
 	font-size: 10px;
 	color: #1c5a4d;
 	background: #e4efe9;
 	border: 1px solid #b6d2c6;
-	border-radius: 999px;
+	border-radius: var(--radius-md);
 	padding: 1px 7px;
 	white-space: nowrap;
 }
@@ -373,16 +386,17 @@
 	flex: 0 0 auto;
 	border: none;
 	background: transparent;
-	color: #8a5d3a;
+	color: var(--color-text-muted);
 	cursor: pointer;
 	font-size: 14px;
 	line-height: 1;
 	padding: 2px 5px;
-	border-radius: 6px;
+	border-radius: var(--radius-sm);
 }
 
 .report-sources__remove:hover {
-	background: rgba(122, 90, 58, 0.14);
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
 }
 
 .report-sources__add {
@@ -396,8 +410,8 @@
 .report-sources__add select {
 	padding: 6px 8px;
 	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: #fdfaf5;
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
 }
@@ -430,7 +444,7 @@
 	display: flex;
 	align-items: center;
 	gap: 5px;
-	color: #4f4134;
+	color: var(--color-text);
 	font-size: 13px;
 	white-space: nowrap;
 }

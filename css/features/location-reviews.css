@@ -9,14 +9,14 @@
 	white-space: nowrap;
 }
 .review-star {
-	color: #d9c7a6;
+	color: var(--color-star-muted);
 }
 .review-star--full {
-	color: #e0a528;
+	color: var(--color-star);
 }
 /* Halber Stern: linke Haelfte gold, rechte Haelfte hell (Text-Clip auf das ★-Glyph). */
 .review-star--half {
-	background: linear-gradient(90deg, #e0a528 50%, #d9c7a6 50%);
+	background: linear-gradient(90deg, var(--color-star) 50%, var(--color-star-muted) 50%);
 	-webkit-background-clip: text;
 	background-clip: text;
 	color: transparent;
@@ -24,7 +24,7 @@
 
 /* "★"-Icon im Bewertungs-Button. */
 .location-popup__action-icon--review {
-	color: #e0a528;
+	color: var(--color-star);
 	font-size: 14px;
 }
 
@@ -175,14 +175,14 @@
 	font-size: 26px;
 	line-height: 1;
 	padding: 0 1px;
-	color: #d9c7a6;
+	color: var(--color-star-muted);
 	transition: color 0.1s ease, transform 0.1s ease;
 }
 .review-form__star:hover {
 	transform: scale(1.12);
 }
 .review-form__star.is-active {
-	color: #e0a528;
+	color: var(--color-star);
 }
 .review-form__stars-hint {
 	margin-left: 8px;
