@@ -98,15 +98,17 @@
 	--color-disabled-border: #dcd3c4;
 
 	/* Spacing scale — value-named steps; use a token, never a stray px */
-	--space-2: 2px;
-	--space-4: 4px;
-	--space-6: 6px;
-	--space-8: 8px;
-	--space-10: 10px;
-	--space-12: 12px;
-	--space-16: 16px;
-	--space-20: 20px;
-	--space-24: 24px;
+	/* Owner: alle Spacing-Vars global +2px (mehr Luft überall). Die Namen (2/4/6/…)
+	   bleiben als Skala-Stufen; die WERTE tragen +2. App-weit + reversibel. */
+	--space-2: 4px;
+	--space-4: 6px;
+	--space-6: 8px;
+	--space-8: 10px;
+	--space-10: 12px;
+	--space-12: 14px;
+	--space-16: 18px;
+	--space-20: 22px;
+	--space-24: 26px;
 
 	/* Radius — 3 rungs; the old 4/6/7/9 fold to the nearest (controls → md) */
 	--radius-sm: 5px;   /* mirrored panel shell + tiniest chips */

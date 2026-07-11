@@ -151,7 +151,16 @@
 .avesmaps-infopanel__body {
 	flex: 1;
 	overflow-y: auto;
-	padding: 12px 14px 14px;
+	overflow-x: hidden;
+	padding: var(--space-12) var(--space-16) var(--space-16);
+}
+/* Feature-Inhalt ist fuers schwebende Popup gebaut und kann eine feste Breite tragen
+   (region-info-box = 360px), die das ~340px-Panel sprengt -> horizontaler Scrollbalken.
+   Im Panel fuellt der Inhalt stattdessen die Spalte. */
+.avesmaps-infopanel .region-info-box,
+.avesmaps-infopanel .location-popup {
+	width: auto;
+	max-width: 100%;
 }
 
 /* Rand-Tab "Info" -- wie der Routenplaner-Toggle (#toggle-button), nur an der rechten Kante

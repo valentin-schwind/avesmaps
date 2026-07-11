@@ -13,7 +13,7 @@
 
 .avesmaps-citymaps__head,
 .avesmaps-adv__head {
-	font-size: 13px;
+	font-size: var(--font-size-subhead);
 	font-weight: 700;
 	color: var(--color-text-strong);
 }
