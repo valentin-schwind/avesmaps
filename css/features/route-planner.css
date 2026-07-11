@@ -220,7 +220,7 @@
 	display: grid;
 	gap: 5px;
 	margin: 0 calc(-1 * var(--space-10));
-	padding: var(--divider-gap-tight) var(--space-10) 0;
+	padding: var(--space-12) var(--space-10) var(--space-10);
 	border: 0;
 	border-top: 1px solid var(--color-divider);
 	background: transparent;
@@ -235,7 +235,7 @@
    below it — i.e. between it and the waypoints. Full-bleed via the shared
    negative side-margin already on .display-options. */
 .display-options {
-	padding-bottom: var(--divider-gap-tight);
+	padding-bottom: var(--space-10);
 	border-bottom: 1px solid var(--color-divider);
 }
 
@@ -625,13 +625,13 @@
 #search input[type="checkbox"]:checked::after {
 	content: "";
 	position: absolute;
-	left: 4px;
-	top: 1px;
-	width: 3.5px;
-	height: 7px;
+	left: 50%;
+	top: 45%;
+	width: 3px;
+	height: 6.5px;
 	border: solid var(--color-accent-strong);
 	border-width: 0 2px 2px 0;
-	transform: rotate(45deg);
+	transform: translate(-50%, -50%) rotate(45deg);
 }
 #search input[type="radio"]:checked::after {
 	content: "";
