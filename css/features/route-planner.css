@@ -593,33 +593,69 @@
 	accent-color: var(--color-accent);
 }
 
-/* Light/dark theme switch — a single emoji icon button, right-aligned. Shows the
-   theme it switches TO (moon while light, sun while dark). */
-.theme-toggle-row {
-	display: flex;
-	justify-content: flex-end;
-	padding: var(--space-2) 0 var(--space-6);
-}
+/* Light/dark theme switch — a sun/moon button pinned to the panel's top-right
+   corner. On toggle the active body RISES from below (sunrise / moonrise) while
+   the other one sets; the visible sun also turns slowly for a touch of life. */
 .theme-toggle-btn {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 32px;
-	height: 32px;
+	position: absolute;
+	top: var(--space-8);
+	right: var(--space-8);
+	z-index: 3;
+	width: 34px;
+	height: 34px;
 	padding: 0;
+	overflow: hidden;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	background: var(--color-panel);
-	font-size: 16px;
-	line-height: 1;
+	box-shadow: var(--shadow-panel);
 	cursor: pointer;
-	transition: background 0.12s ease, border-color 0.12s ease;
+	transition: border-color 0.12s ease, background 0.12s ease;
 }
 .theme-toggle-btn:hover {
-	background: var(--color-hover-wash);
 	border-color: var(--color-border-strong);
 }
 .theme-toggle-btn:focus-visible {
 	outline: none;
 	box-shadow: var(--focus-ring);
+}
+.theme-toggle-ico {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 19px;
+	height: 19px;
+	transition: transform 0.55s cubic-bezier(0.34, 1.32, 0.5, 1);
+}
+.theme-toggle-ico--sun {
+	fill: #e6a532;
+	stroke: #e6a532;
+	transform: translate(-50%, -50%); /* light: risen (centred) */
+}
+.theme-toggle-ico--moon {
+	fill: #d8d0bd;
+	transform: translate(-50%, 135%); /* light: below the horizon */
+}
+:root[data-theme="dark"] .theme-toggle-ico--sun {
+	transform: translate(-50%, 135%); /* dark: set */
+}
+:root[data-theme="dark"] .theme-toggle-ico--moon {
+	transform: translate(-50%, -50%); /* dark: risen */
+}
+.theme-toggle-ico--sun g {
+	transform-box: fill-box;
+	transform-origin: center;
+	animation: theme-sun-spin 22s linear infinite;
+}
+@keyframes theme-sun-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.theme-toggle-ico,
+	.theme-toggle-ico--sun g {
+		transition: none;
+		animation: none;
+	}
 }

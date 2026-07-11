@@ -1,6 +1,7 @@
 /* Light/dark theme switch. The colour values for both themes live in
    css/base/tokens.css (:root vs :root[data-theme="dark"]). This module only
-   toggles the data-theme attribute on <html> and remembers the choice.
+   toggles the data-theme attribute on <html> and remembers the choice; the
+   sun/moon rise-from-below animation is pure CSS keyed off data-theme.
 
    Dark is opt-in (never prefers-color-scheme) — the map tiles are light, so
    auto-dark panels would clash over them (see docs/design-language.md).
@@ -11,11 +12,9 @@
 (function () {
 	"use strict";
 	var STORAGE_KEY = "avesmaps-theme";
-
-	/* Keyed by the CURRENT theme; the button shows the TARGET it switches to. */
-	var FACE = {
-		light: { icon: "🌙", label: "Auf dunkles Design umschalten" },
-		dark: { icon: "☀️", label: "Auf helles Design umschalten" }
+	var LABEL = {
+		light: "Auf dunkles Design umschalten",
+		dark: "Auf helles Design umschalten"
 	};
 
 	function applyTheme(theme) {
@@ -27,10 +26,7 @@
 		}
 		var btn = document.querySelector(".theme-toggle-btn");
 		if (btn) {
-			var face = FACE[theme] || FACE.light;
-			btn.textContent = face.icon;
-			btn.setAttribute("aria-label", face.label);
-			btn.setAttribute("title", face.label);
+			btn.setAttribute("aria-label", LABEL[theme] || LABEL.light);
 		}
 		// mobile browser chrome colour
 		var meta = document.querySelector('meta[name="theme-color"]');
@@ -61,7 +57,7 @@
 	});
 
 	// The <head> guard already set data-theme from storage before first paint;
-	// here we just sync the button's face once the DOM is ready.
+	// here we just sync the aria-label once the DOM is ready.
 	function init() {
 		applyTheme(currentTheme());
 	}
