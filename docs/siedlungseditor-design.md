@@ -1,7 +1,15 @@
 # Siedlungseditor — Design-Spec (Brainstorming-Ergebnis 2026-07-07)
 
-> **Status:** Design abgenommen (Mockup v2 gelockt). Nächster Schritt:
-> `superpowers:writing-plans` → `subagent-driven-development`.
+> **Status:** GEBAUT & live — `html/wiki-sync-settlement-editor.html` (~2150 Z.,
+> inkl. Multi-Source-Editor). Dieses Doc ist die historische Design-Spec.
+>
+> ⚠️ **Design-Korrektur (2026-07-11):** Die unten (§2) genannte Palette mit
+> `--accent:#0078a8` ist **Blau** und widerspricht der seither finalisierten
+> Designsprache (`docs/design-language.md`: **kein Blau**; immer Tokens aus
+> `css/base/tokens.css`; gilt ausdrücklich auch für „the editor"). Die Farbwerte
+> hier sind **nicht** maßgeblich — Akzent = Coat-Gold (`--color-accent`), nicht
+> `#0078a8`. Der Editor-Code trägt die blaue Palette noch (offener Migrations-
+> Rückstand, geteilt mit `wiki-sync-monitor.html` + weiteren Editoren).
 > **Grundlage:** `docs/siedlungseditor-brief.md` (gegroundete Datei-/Datenreferenzen,
 > die kniffligen Teile, §9-Owner-Entscheidungen). Diese Spec **ergänzt** den Brief um
 > die im Brainstorming getroffenen UI-/Komponenten-Entscheidungen; der Brief bleibt die
@@ -23,9 +31,10 @@ ordnet sie ihren **Herrschaftsgebieten** zu (per Ray-Casting + manuellem Overrid
 ## 2. Architektur & Einbettung
 
 - **Neue Standalone-Datei** `html/wiki-sync-settlement-editor.html` (Muster:
-  `html/wiki-sync-monitor.html`). Gleiche Pergament-Palette
-  (`--bg:#f4efe7`, `--panel:#fff9f4`, `--line:#d8c6b2`, `--fg:#3f3428`,
-  `--accent:#0078a8`), gleiches `.cols`-Flex-Layout, gleiche `.btn2`-Toolbar.
+  `html/wiki-sync-monitor.html`). Gleiches `.cols`-Flex-Layout + `.btn2`-Toolbar;
+  **Farben nach Designsprache** — `css/base/tokens.css` einbinden, die lokalen
+  `--bg`/`--panel`/`--line`/`--fg`/`--accent` auf die Tokens mappen; **kein Blau**,
+  Akzent = `--color-accent` (Coat-Gold), nicht `#0078a8` (siehe Korrektur oben).
 - **Öffnen:** neuer Button „WikiSync & Editor" im Siedlungen-Tab
   (`index.html:407–411`, `js/review/review-settlement-list.js`), der ein Overlay
   mit `<iframe src="/html/wiki-sync-settlement-editor.html?v=…">` baut — analog

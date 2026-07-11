@@ -30,8 +30,8 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
 5. **Zoom** (`L.control.zoom`) + **„Hinweise"** (`#legal-button`) → ans **untere
    linke Eck des Panels** (fixiert, links neben der Panel-Kante über die geteilte
    Variable `--avesmaps-ip-w`; Zoom über Hinweise, etwas kleiner). Nie vom Panel
-   verdeckt, sichtbar bei ein- UND ausgefahrenem Panel (verschieben sich nicht mit
-   dem Einklappen). Das Panel darf rechts die **volle Höhe** nutzen.
+   verdeckt, sichtbar bei ein- UND ausgefahrenem Panel (bei offenem Panel an der
+   Panel-Kante, bei geschlossenem am rechten Bildschirmrand). Das Panel darf rechts die **volle Höhe** nutzen.
 6. **Wegpunkt-Tabs** oben im Panel (aus `getWaypointInputValues()`); aktiver Tab =
    zuletzt geklicktes Feature. **In v1** enthalten.
 7. **Edit-Mode (Owner-Korrektur):** Infopanel und Editor teilen sich die rechte
@@ -88,7 +88,7 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
   sitzen jetzt unten **links**, das Panel muss nichts mehr freihalten.
   Einklappen: `.is-hidden { transform: translateX(100%) }` + Rand-Tab `.is-hidden { right: 0 }`.
 - **Rand-Tab „Info":** vertikal, an der **linken** Kante des Panels, runde Ecken
-  außen, ohne `rotate(180deg)` (siehe Mockup). Klick = ein-/ausklappen. Zustand in
+  außen, mit `writing-mode: vertical-rl` + `transform: rotate(180deg)` (gebauter Stand, `infopanel.css:172`/`:184`). Klick = ein-/ausklappen. Zustand in
   `localStorage` (eigener Key, analog Editor), damit die Wahl erhalten bleibt.
 - **Panel-Body:** `display:flex; flex-direction:column`. **Wegpunkt-Tabs** als
   sticky Kopf; darunter **ein** scrollender Bereich (`flex:1; overflow-y:auto`).
@@ -97,12 +97,12 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
   teilen, **ohne** „Bewertung schreiben") → Attribute → Quelle/Publikationen →
   *(Phase 6: Stadtkarten → Abenteuer)* → Bewertungen (Schnitt + Liste) →
   **„Bewertung schreiben"** unten.
-- **Zoom neu:** `L.control.zoom({ position: "bottomleft" })`; per CSS verkleinern
-  (Buttons ~28px). „Hinweise" (`#legal-button`) nach **unten links** (`left:12;
-  bottom:12`), Zoom **darüber** (`left:12; bottom:~52`). Panel darf rechts die
-  volle Höhe nutzen. **Achtung:** der Routenplaner (`#search`) sitzt oben links —
-  bei sehr vielen Wegpunkten kann er nach unten reichen; beim Bau prüfen, dass er
-  den Zoom-/Hinweise-Stapel nicht überlappt.
+- **Zoom + Hinweise (Infopanel-Modus):** per Mode-CSS aus ihrer Default-Ecke nach
+  **unten rechts** verlegt + verkleinert (Buttons ~28px): „Hinweise"
+  (`#legal-button`) `right:12; bottom:12`, Zoom **darüber** `right:12; bottom:52`.
+  Bei **offenem** Panel rücken beide an die linke Panel-Kante
+  (`right: calc(var(--avesmaps-ip-w) + 12px)`), damit das Panel sie nicht verdeckt
+  (gebauter Stand `infopanel.css:220–237`). Panel darf rechts die volle Höhe nutzen.
 - **Klick-Routing:** In den Öffnungspunkten (Siedlung/Weg/Region) gilt:
   `if (IS_INFOPANEL_MODE) { avesmapsShowInfopanel(build…()); return; }` **vor** dem
   Öffnen des Popups/Tooltips → das schwebende Popup/Tooltip wird im Panel-Modus

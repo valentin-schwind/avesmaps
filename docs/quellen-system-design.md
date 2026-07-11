@@ -2,6 +2,22 @@
 
 > Datum: 2026-07-08. Sprache: Deutsch (Design-Doc, Owner-Präferenz). Code/Commits/
 > interne API-Messages bleiben Englisch. Betrifft: Siedlungen, Territorien, Regionen, Wege.
+>
+> ⚠️ **Teilweise überholt (Stand 2026-07-11) — maßgeblich sind AGENTS.md §5 +
+> `docs/wiki-publikations-quellen-design.md`.** Das System ist **shipped**; seit dieser
+> Spec haben spätere Owner-Entscheidungen mehreres ersetzt:
+> - **`source_type`:** die 4er-Liste (`regionalband|abenteuer|briefspiel|sonstiges`) wurde
+>   durch die **8er-Taxonomie** ersetzt (`regionalspielhilfe|abenteuer|aventurischer_bote|
+>   quellenband|roman|briefspiel|regelbuch|sonstiges`).
+> - **Quell-Identität:** nicht `url` UNIQUE, sondern **`url_hash`** (SHA256; erlaubt url-lose
+>   Wiki-Quellen).
+> - **Anzeige:** kein Lazy-Fetch pro Popup — Quellen reisen **mit der `map-features`-Payload**
+>   (geteilter Katalog + Referenzen, synchron gerendert; Owner-Entscheidung „B").
+> - **Renderer:** heißt real **`buildSourceListMarkup`** (nicht `featureSourceCreditMarkup`).
+> - **Provenienz:** `origin` (`wiki_publication|manual|community`) + Suppression-Tombstones kamen hinzu.
+>
+> Weiter gültig: Zieltabellen `sources`/`feature_sources`, Wiki-außerhalb-des-Katalogs,
+> Gold-Envelope, Leerfall „Keine Quelle gefunden".
 
 ## Ziel
 

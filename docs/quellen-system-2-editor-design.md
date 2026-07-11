@@ -3,6 +3,11 @@
 > Datum: 2026-07-08. Sprache: Deutsch (Design-Doc). Code/Commits/interne API-Messages Englisch.
 > Baut auf #1 (`docs/quellen-system-design.md`): Tabellen `sources` + `feature_sources`, Lese-Endpoint
 > `GET /api/app/feature-sources.php`, Infobox-Anzeige. #2 fügt das **Bearbeiten** hinzu.
+>
+> ⚠️ **Teilweise überholt (2026-07-11) — maßgeblich AGENTS.md §5.** Das System ist **shipped**.
+> Seither: **`source_type`** = **8er-Taxonomie** (nicht die 4er-Liste in §A); der Schreib-Endpoint
+> ist real **`POST /api/edit/map/feature-sources.php`**; Wiki-abgeleitete Quellen tragen
+> `origin='wiki_publication'`, Entfernen = Suppression. `url_hash` als Identität (§A/§B) gilt weiter.
 
 ## Ziel
 

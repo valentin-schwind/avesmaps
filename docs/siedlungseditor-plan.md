@@ -7,6 +7,13 @@
 > **Sprache:** Plan-Prosa Deutsch; **Code / Bezeichner / Commit-Messages / interne
 > API-`message`s Englisch** (UI-Strings Deutsch). Basis: `docs/siedlungseditor-design.md`
 > (Design) + `docs/siedlungseditor-brief.md` (Grounding).
+>
+> ⚠️ **Status/Design-Korrektur (2026-07-11):** Editor ist **gebaut & live**
+> (`html/wiki-sync-settlement-editor.html`); dieser Plan ist abgearbeitet/historisch.
+> Die in **Step 1** kopierte Palette (`--accent:#0078a8` u. a.) ist **Blau** und
+> widerspricht der finalisierten Designsprache (`docs/design-language.md`: kein Blau,
+> Tokens aus `css/base/tokens.css`). Nicht als Vorlage übernehmen — Akzent =
+> `--color-accent`. Der Editor-Code trägt die blaue Palette noch (Migrations-Rückstand).
 
 **Goal:** Ein neuer Siedlungseditor (3-Spalten-Iframe-Overlay im WikiSync→Siedlungen-Tab),
 der Siedlungen per geometrischem Ray-Cast + manuellem Override ihren Herrschaftsgebieten
@@ -132,7 +139,8 @@ clearMapFilter() : void
   `#seTree` / `#seList` / `#seDetailBody`; globaler `const SETTLEMENT_EDITOR_API =
   "/api/edit/wiki/settlements.php";` und `async function boot()` (Stub).
 
-- [ ] **Step 1: Datei anlegen, Struktur + Palette von `wiki-sync-monitor.html` spiegeln.**
+- [ ] **Step 1: Datei anlegen, Struktur von `wiki-sync-monitor.html` spiegeln.**
+  (⚠️ Palette **nicht** übernehmen — kein Blau, Tokens statt Literale; s. Korrektur oben.)
   Kopiere `<head>` + `:root`-Palette + Basis-CSS (`--bg:#f4efe7; --panel:#fff9f4;
   --line:#d8c6b2; --fg:#3f3428; --mut:#6c5a49; --accent:#0078a8; --warn:#b8860b;
   --bad:#9d3a2e; --ok:#2e7d32;`, Font `Faculty Glyphic`) und das `.cols`/`.col`-Flex-Layout
