@@ -544,6 +544,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .leaflet-popup-scrolled {
 	overflow: auto;
 	}
+/* Avesmaps override: when a popup is tall enough to scroll, Leaflet adds
+   .leaflet-popup-scrolled to the content node and a vertical scrollbar appears at the
+   right edge -- directly under the close button (top:0;right:0), so the two overlap
+   (reported for tall infoboxes such as Zhamorrah). Offset the close button left of the
+   scrollbar. Scoped to scrolled popups only; the content box is untouched, so the
+   full-bleed section dividers stay edge-to-edge. */
+.leaflet-popup:has(.leaflet-popup-content.leaflet-popup-scrolled) a.leaflet-popup-close-button {
+	right: 20px;
+	}
 
 .leaflet-oldie .leaflet-popup-content-wrapper {
 	-ms-zoom: 1;
