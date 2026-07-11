@@ -77,28 +77,22 @@
 /* Der weisse "Karten"-Grund ist .leaflet-popup-content-wrapper; die Basis-Regel oben zieht
    .leaflet-popup-content 10px ein. Fuer randlose Trenner (wie beim settlement-popup) den Content-Margin
    nullen -> .location-popup sitzt buendig, die -10px-Offsets unten erreichen die echte Kartenkante. */
-.slim-location-popup .leaflet-popup-content,
-.waypoint-hover-popup .leaflet-popup-content {
+.slim-location-popup .leaflet-popup-content {
 	margin: 0;
 }
-/* Schlanke Karten-Popups (find-nearest + Wegpunkt-Hover): JEDER Trenner geht IMMER randlos von Rand
-   zu Rand durch (Owner-Regel: nie kurz stoppen). Genau EINE Linie je Section-Grenze -- der Kopf-Trenner
-   unter Name/Typ (Builder rendert ihn nur bei vorhandener Beschreibung) sowie je eine Linie ueber
-   Quelle und Aktionen. Offset -10px = das horizontale Content-Padding der .location-popup. So sieht
-   die Box aus wie das normale settlement-popup (dort -14px bei 14px Padding). */
+/* Schlanke Karten-Popups (find-nearest): JEDER Trenner geht IMMER randlos von Rand zu Rand durch
+   (Owner-Regel: nie kurz stoppen). Genau EINE Linie je Section-Grenze -- der Kopf-Trenner unter
+   Name/Typ (Builder rendert ihn nur bei vorhandener Beschreibung) sowie je eine Linie ueber Quelle und
+   Aktionen. Offset -10px = das horizontale Content-Padding der .location-popup. So sieht die Box aus wie
+   das normale settlement-popup (dort -14px bei 14px Padding). */
 .slim-location-popup .location-popup__divider,
-.waypoint-hover-popup .location-popup__divider,
 .slim-location-popup .feature-sources,
-.waypoint-hover-popup .feature-sources,
-.slim-location-popup .location-popup__actions,
-.waypoint-hover-popup .location-popup__actions {
+.slim-location-popup .location-popup__actions {
 	margin-left: -10px;
 	margin-right: -10px;
 }
 .slim-location-popup .feature-sources,
-.waypoint-hover-popup .feature-sources,
-.slim-location-popup .location-popup__actions,
-.waypoint-hover-popup .location-popup__actions {
+.slim-location-popup .location-popup__actions {
 	margin-top: 10px;
 	padding-top: 10px;
 	padding-left: 10px;
