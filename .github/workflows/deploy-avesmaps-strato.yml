@@ -266,7 +266,7 @@ jobs:
           # in Unterordner). Im Repo existieren sie nicht und keine Seite referenziert sie mehr.
           # Chirurgisches, idempotentes rm -f statt eines gefaehrlichen globalen --delete.
           echo "Retiring orphaned remote files:"
-          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)"
+          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css" "icons/small_webp/ (retired: flattened into icons/)" "js/map-features/map-features-questroute.js (retired: adventures questroute dropped)" "css/features/questroute.css (retired: adventures questroute dropped)"
 
           lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" <<EOF || echo "Retire: some files already gone (non-fatal)."
           set sftp:auto-confirm yes
@@ -276,5 +276,7 @@ jobs:
           rm -f "css/leaflet.css"
           rm -f "css/political-territory-wiki-tree.css"
           rm -r -f "icons/small_webp"
+          rm -f "js/map-features/map-features-questroute.js"
+          rm -f "css/features/questroute.css"
           bye
           EOF
