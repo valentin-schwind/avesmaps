@@ -100,16 +100,11 @@ function buildAdventureCardMarkup(a) {
 		: AVESMAPS_ADV_COVER_PH_SVG;
 	var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
-	// Questroute-Trigger nur bei >= 2 Orten (map-features-questroute.js behandelt den Klick per Delegation).
-	var questLine = (Number(a.placeCount) >= 2 && a.public_id)
-		? '<button type="button" class="avesmaps-adv__questroute" data-adventure-id="' + placeExtrasEscape(a.public_id) + '">Questroute</button>'
-		: "";
 	return '<div class="avesmaps-adv__card" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
 		+ typeLine
-		+ questLine
 		+ '</div>';
 }
 

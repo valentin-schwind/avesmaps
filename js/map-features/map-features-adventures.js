@@ -1,7 +1,8 @@
 // Abenteuer-Feature (Phase 1) -- client catalog + index. Loads the whole approved adventure catalog
 // ONCE (only in infopanel mode) from api/app/adventures.php and builds lookup indices so the settlement
-// infopanel (map-features-place-extras.js) and the questroute (map-features-questroute.js) can query
-// adventures locally (B1 -- no server geometry, no per-popup fetch).
+// infopanel (map-features-place-extras.js) can query adventures locally (B1 -- no server geometry, no
+// per-popup fetch). NB: the wiki "Ort" list order is NOT a quest route -- routes are editor-maintained
+// per settlement (future), decoupled from the beginnt/spielt display.
 //
 // Load order: this file is included AFTER map-features-infopanel.js, so config.js (IS_INFOPANEL_MODE,
 // SQL_MAP_HOSTS), wiki-deeplink.js (normalizeWikiDeeplinkKey/wikiUrlToDeeplinkKey) and place-extras are
@@ -55,7 +56,6 @@ function avesmapsAdventureToRenderShape(adventure) {
 		yearLabel: adventure.bf_label || (adventure.bf_year ? adventure.bf_year + " BF" : ""),
 		cover: adventure.cover_url || "",
 		url: adventure.wiki_url || "",
-		placeCount: Array.isArray(adventure.places) ? adventure.places.length : 0,
 	};
 }
 
@@ -226,7 +226,8 @@ function getAdventuresForPlace(placeRef, opts) {
 	});
 }
 
-// All places of one adventure (in sort_order) -- for the questroute. Returns the raw place objects.
+// All places of one adventure (in sort_order). Returns the raw place objects (general catalog accessor,
+// e.g. for a future editor-defined route). The list order is wiki position, NOT a route.
 function getAdventurePlaces(publicId) {
 	var index = avesmapsAdventureCatalogState.index;
 	if (!index || !publicId) {

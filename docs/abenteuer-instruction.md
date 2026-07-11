@@ -24,8 +24,9 @@ STRATO Shared Hosting.
   Liste nie umsortieren/reorder-dedupen.
 - **Kein Server-Geometrie** — Punkt-in-Polygon/Aggregation nur im Client (STRATO-Perf).
 - **Rendering nur bei `IS_INFOPANEL_MODE`** (`?infopanel=true`).
-- **Adresszeile nie auto-umschreiben** (URL-Policy). Questroute-Wechsel in den Planer = frische Navigation/State;
-  gestrichelte Linie rein clientseitig.
+- **Keine automatische Route aus den Ort-Daten** (Plan-Änderung 2026-07-12): die „Ort"-Liste ist KEINE
+  Routenreihenfolge; die Questroute ist editor-gepflegt (Design §9), keine On-Map-Routendarstellung.
+  „beginnt/spielt" bleibt, entkoppelt von der Route. (Adresszeile weiterhin nie auto-umschreiben, URL-Policy.)
 - **Kein Blau, nur Tokens** aus `css/base/tokens.css` (keine hartkodierten Farben/Radien/Trenner).
 - **STRATO:** schwere Endpoints nie loopen/proben — immer Einzel-Request.
 - **Shared Working Tree:** `git status` zuerst, **nur eigene Dateien per Pfad** stagen, nie `git add -A`.
@@ -48,10 +49,10 @@ STRATO Shared Hosting.
 
 ---
 
-## Phase 1 — Fundament + Siedlungs-Anzeige + Questroute
+## Phase 1 — Fundament + Siedlungs-Anzeige (beginnt/spielt)
 
-**Deliverable:** echte Abenteuerdaten erscheinen im Infopanel einer **Siedlung** (beginnt/spielt), und die
-Questroute funktioniert (Planer bzw. gestrichelte Linie). Territorien-Aggregation kommt in Phase 2.
+**Deliverable:** echte Abenteuerdaten erscheinen im Infopanel einer **Siedlung** (beginnt/spielt).
+Territorien-Aggregation kommt in Phase 2. **(Questroute entfällt — editor-gepflegt, siehe Design §9.)**
 
 ### Task 1.1 — Datenmodell (inline-DDL, self-healing)
 **Files:** Create `api/_internal/app/adventures.php` (Lib mit `avesmapsAdventuresEnsureTables(PDO): void`).
@@ -148,17 +149,12 @@ Klick** einblendet (Delegation-Muster wie die bestehende `.avesmaps-adv__sort`/`
 **Verifikation (Browser):** `?infopanel=true`, Siedlung mit Abenteuern klicken → beginnt-Streifen echt;
 Spoiler-Button gibt spielt-Liste frei; Screenshot hell+dunkel.
 
-### Task 1.7 — Questroute (Planer + gestrichelte Linie + Warnung)
-**Files:** Create `js/map-features/map-features-questroute.js`; CSS `css/features/questroute.css`.
-**Logik (Spec §9):**
-- „Questroute anzeigen"-Button pro Abenteuer (nur bei ≥2 Orten). Klick → Warn-Dialog (Tokens, `--color-scrim`).
-- Nach Bestätigung: alle Orte präzise (settlement/path) ⇒ `resetWaypointInputs([Namen in Wiki-Reihenfolge])`
-  + `updateMapView()` (aus `js/routing/`); mind. ein Gebiet ⇒ **ephemere** `L.polyline`
-  (`dashArray`, eigener Pane/Layer) durch die Repräsentativpunkte, `map.once('click', …)`-Cleanup.
-- Repräsentativpunkt: Siedlung/Weg = Koordinate; Gebiet = Hauptstadt-Koord, sonst `polylabel`-Zentrum der
-  Geometrie, sonst Region-Label-Koord.
-**Verifikation (Browser):** Multi-Ort-Abenteuer → Warnung → (a) präzise: Planer füllt Wegpunkte + Route;
-(b) mit Gebiet: gestrichelte Linie erscheint, verschwindet beim Karten-Klick.
+### Task 1.7 — ENTFALLEN (Plan-Änderung 2026-07-12)
+Die ursprünglich aus der „Ort"-Liste abgeleitete Questroute (Planer-Sprung + gestrichelte Linie) ist
+**verworfen**, weil die „Ort"-Liste die Routenreihenfolge **nicht** abbildet (Design §9). Sie wurde in
+Phase 1 gebaut und wieder **entfernt** (Dateien `map-features-questroute.js` + `css/features/questroute.css`
+gelöscht, Karten-Button + `placeCount` raus). Die Route wird **editor-gepflegt** (Phase 3+, Siedlungsebene);
+`getAdventurePlaces(publicId)` bleibt als Datengrundlage. **Keine On-Map-Routendarstellung** aus Ort-Daten.
 
 ---
 
@@ -184,7 +180,9 @@ verschachtelten Dialog mit Umschalter.
 ## Phase 3 — Editor (C1, iframe-Overlay)
 
 **Deliverable:** Abenteuer anlegen/bearbeiten, Orte zuordnen, Startort markieren, Orte suppress/hinzufügen —
-alles override-fest; Button unter „Dump holen".
+alles override-fest; Button unter „Dump holen". **Zusätzlich (Plan-Änderung 2026-07-12): optionale
+editor-gepflegte Questroute** — je Abenteuer/Siedlung eine **intern definierte Ortsfolge** (NICHT aus der
+„Ort"-Liste), Grundlage für eine spätere bewusste Darstellung. „beginnt/spielt" bleibt davon entkoppelt.
 
 - **3.1** Editor-Seite `html/adventure-editor.html` (self-contained; Muster
   `html/wiki-sync-settlement-editor.html`) + Opener `openAvesmapsAdventureEditorOverlay()` (Muster
@@ -243,6 +241,6 @@ Datum „Abenteuer gesynct: …" erscheint neben dem Button.
 
 ## Self-Review-Abgleich (Spec → Phasen)
 Spec §3/§4 (Rollen/Spoiler) → Task 1.6, 2.3. §5 (Auflösung) → 1.4, 3.3. §6 (Aggregation) → 2.1.
-§7 (Read-API) → 1.3, 1.5. §8 (Anzeige/De-Blue) → 1.6, 2.2, 2.3. §9 (Questroute) → 1.7.
+§7 (Read-API) → 1.3, 1.5. §8 (Anzeige/De-Blue) → 1.6, 2.2, 2.3. §9 (Questroute) → **editor-gepflegt, Phase 3+ (Task 1.7 entfallen)**.
 §10 (Editor/Button) → Phase 3. §11 (Sync/Override/Datum) → Phase 4. §12 (Cover/F-Shop) → Phase 5.
 Alle Spec-Abschnitte sind abgedeckt.

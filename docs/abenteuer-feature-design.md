@@ -62,6 +62,12 @@ die **Reihenfolge trägt sie**:
 > Beispiele (Owner): `Salderkeim, Irberod, Bornwald, Firunen` → Start = **Salderkeim**;
 > `Festum, Bornstraße, …` → Start = **Festum**; `Zorgan, Elburum, …` → Start = **Zorgan**.
 
+> ⚠️ **Klarstellung (Owner, 2026-07-12): Die „Ort"-Liste ist KEINE Quest-/Routenreihenfolge.** Das
+> Bornland-Beispiel `Salderkeim, Irberod, Bornwald, Firunen` bildet die Reihenfolge des Abenteuers
+> **nicht** ab. Erhalten bleibt nur: **erster Ort = „beginnt hier"**; alle weiteren = „spielt hier" (eine
+> **ungeordnete Menge**). „beginnt/spielt" ist **reine Anzeige** und hat **keinen Bezug zur Route**. Die
+> eigentliche **Route ist editor-gepflegt** (§9), wird nicht aus der Liste abgeleitet.
+
 Daraus zwei Attribute je Ort-Zuordnung:
 
 - **`role`**: `start` (erster Ort, „beginnt hier", **spoilerfrei**) | `play` (weitere Orte, „spielt hier", **Spoiler**).
@@ -87,8 +93,9 @@ Drei Sichtbarkeitsstufen, konsistent über alle Flächen:
    - Im **Infopanel**: ein **Button „Spielt hier (Spoiler)"** unter dem „beginnt hier"-Streifen, der
      die Sicht **inline freigibt** (der Klick = Spoiler-Bestätigung; kein Auto-Reveal).
    - Im **„Alle anzeigen"-Dialog**: ein globaler **Umschalter „beginnt hier | spielt hier (Spoiler)"**.
-3. **Questroute (immer Spoiler).** Jede Questroute ist per Definition Spoiler (sie zeigt alle
-   Handlungsorte) → **kurze Warnung** vor Anzeige. Existiert nur, wenn **≥2 Orte** (Start ∪ Play) bekannt sind.
+3. **Questroute (editor-gepflegt, §9).** Die Route wird von Editoren definiert (nicht aus der „Ort"-Liste)
+   und ist von „beginnt/spielt" **entkoppelt**. In **Phase 1 nicht enthalten** (kein Auto-Route, keine
+   On-Map-Routendarstellung).
 
 **Zähler:** Der Kopf „Abenteuer in <Gegend> (N)" zählt die **beginnenden** Abenteuer (Default-Sicht).
 Die „spielt hier"-Menge hat einen eigenen Zähler am Spoiler-Button.
@@ -199,27 +206,26 @@ Ziel: „Königreich Garetien" anklicken → Abenteuer der ganzen Gegend, **entd
 
 ---
 
-## 9. Questroute (Hybrid)
+## 9. Questroute (editor-gepflegt, optional) — Plan-Änderung 2026-07-12
 
-Button „Questroute anzeigen" pro Abenteuer, **nur** wenn ≥2 Orte bekannt. Ablauf:
+> **Verworfen:** die frühere „Hybrid"-Questroute, die die Reise **aus der Wiki-„Ort"-Liste** ableitete
+> (Planer-Sprung mit den Orten als Wegpunkte bzw. ephemere gestrichelte Linie durch die Orte). Grund: die
+> „Ort"-Liste bildet die **Routenreihenfolge nicht** ab (§3.2) — jede daraus abgeleitete Route wäre falsch.
+> In Phase 1 gebaut und **wieder entfernt** (Commit-Historie).
 
-1. **Spoiler-Warnung** (kurz): „zeigt alle Handlungsorte — auch die, an denen es nicht beginnt".
-   *Abbrechen / Route anzeigen*.
-2. **Verzweigung nach Präzision:**
-   - **Alle beteiligten Orte präzise (Siedlungen/Wege, ≥2):** Sprung in den **Routenplaner** mit den
-     Orten als Wegpunkte. Rezept existiert: `resetWaypointInputs([name1, …])` +
-     `updateMapView()`/`updateMapViewServerPrimary()` (Wegpunkte per **Name**, Cap `MAX_SHARED_WAYPOINTS=25`).
-     Reihenfolge = Wiki-Reihenfolge (Start zuerst).
-   - **Mind. ein Gebiet unpräzise:** **ephemere gestrichelte Verbindungslinie** durch die
-     Repräsentativpunkte aller Orte (in Wiki-Reihenfolge), **rein visuell**, **verschwindet beim nächsten
-     Karten-Klick**. Kein Routing, keine Adresszeilen-Änderung (URL-Policy: Adresszeile nie
-     auto-umgeschrieben).
-3. **Repräsentativpunkt eines Gebiets:** Hauptstadt/Sitz-Koordinate (falls bekannt), sonst
-   `polylabel`-Zentrum (Pole of Inaccessibility; Lib vorhanden), sonst Region-Label-Koordinate.
-   Präzise Orte nutzen ihre echte Koordinate.
+**Neues Modell:**
+- Die Questroute ist ein **optionales** Feature, das **explizit von den Editoren auf Siedlungsebene
+  gepflegt** wird. Die Reise-/Ortsfolge wird **intern definiert** (Editor-Daten), **nicht** aus der
+  „Ort"-Liste und **nicht** aus „beginnt/spielt" hergeleitet.
+- **„beginnt hier" / „spielt hier" bleibt** (§3, §4), ist aber **entkoppelt von der Route** — reine
+  Anzeige-Mengen an einer Gegend.
+- **Keine automatischen On-Map-Darstellungen der Route** (kein Planer-Sprung, keine gestrichelte Linie)
+  aus den Ort-Daten. Eine spätere Routen-Darstellung setzt auf **editor-definierten Routendaten** auf,
+  nicht auf der Ort-Liste.
 
-> Randfall (mixed): sobald **ein** Ort ein Gebiet ist, gilt der Gebiets-Modus (gestrichelte Linie) für
-> die **ganze** Questroute — einfachste, robusteste Regel, deckt sich mit der Owner-Formulierung.
+**Konsequenz für die Phasen:** die Route wandert in den **Editor (Phase 3+)**: dort definieren Editoren je
+Abenteuer/Siedlung optional eine Ortsfolge; erst darauf kann (später) eine bewusste Darstellung aufsetzen.
+Der Client-Katalog liefert weiterhin die Orte je Abenteuer (`getAdventurePlaces`) als Datengrundlage.
 
 ---
 
@@ -286,8 +292,9 @@ Neuer Sync-Kind `adventure`:
 ## 13. Phasen (grobe Reihenfolge; Detailplan separat)
 
 1. **Fundament + Anzeige:** Schema (`adventure`, `adventure_place`), Read-API `adventures.php`
-   (Katalog), Client-Index + Einspeisung in die **Siedlungs**-Listen (Platzhalter ersetzt),
-   **Questroute** (Routenplaner + gestrichelte Linie + Warnung). Erste manuell/importierte Testdaten.
+   (Katalog), Client-Index + Einspeisung in die **Siedlungs**-Listen (Platzhalter ersetzt), „beginnt/
+   spielt"-Anzeige + Spoiler. Erste manuell/importierte Testdaten. (Die früher hier geplante Questroute
+   ist **entfallen** → editor-gepflegt, §9.)
 2. **Aggregation:** Territorien/Regionen-Block im Infopanel + **Nested-Dialog** mit Umschalter
    (deepest-wins).
 3. **Editor (C1):** CRUD + Ort-Zuordnung + Start-Markierung + Suppress + Override-Tracking; Button
@@ -325,7 +332,7 @@ Neuer Sync-Kind `adventure`:
 | Dialog-CSS | `css/features/place-extras.css:184` (`.avesmaps-adv-dialog*`) |
 | Namensauflösung | `wiki-deeplink.js` (`normalizeWikiDeeplinkKey`, `applyWikiDeeplinkFromUrl`, map-search-Fallback), `wiki_redirect_alias`, `avesmapsWikiDumpCanonicalWikiKeyForTitle` |
 | Aggregation | `territory_wiki_key` (properties_json, Ray-Cast), `parent_wiki_key`-Baum, `pickDeepestTerritory`/`depthOf` |
-| Questroute | `resetWaypointInputs` + `updateMapView` (`map-features-waypoints.js`, `route-engine.js`), `polylabel` |
+| Questroute | **editor-gepflegt (§9)** — Route aus Editor-Daten (Phase 3+), NICHT aus der „Ort"-Liste; `getAdventurePlaces` liefert die Orte als Grundlage |
 | Editor | `openAvesmapsSettlementEditorOverlay` (`review-settlement-list.js:483`), `html/wiki-sync-settlement-editor.html`-Muster |
 | Sync + Override | `publication-sync.php` (`avesmapsPublicationDiffLinks`), `feature_sources.origin`/`status`-Muster |
 | Button/Last-Sync | `.wiki-sync-dump-central` (`index.html:342`), `dump-sync-kind.php:84/150`, `review-wiki-sync.js:554` |
@@ -334,11 +341,13 @@ Neuer Sync-Kind `adventure`:
 
 ## 16. Invarianten & Fallen
 
-- **Quell-Reihenfolge der „Ort"-Liste bewahren** — sonst falscher Startort (§3.2).
+- **Quell-Reihenfolge der „Ort"-Liste bewahren** — nur zur Start-Erkennung (erster = „beginnt hier"); die
+  Liste ist **keine Routenreihenfolge** (§3.2, §9).
 - **Kein Server-Geometrie** — Aggregation im Client (STRATO).
 - **Nur `?infopanel=true`** rendert Abenteuer (wie der Platzhalter).
-- **Adresszeile nie auto-umschreiben** — Questroute-Wechsel in den Planer als frische Navigation/State,
-  gestrichelte Linie rein clientseitig (URL-Policy).
+- **Keine automatische Route aus den Ort-Daten** — die Questroute ist editor-gepflegt (§9); keine
+  On-Map-Routendarstellung aus der „Ort"-Liste. „beginnt/spielt" ohne Bezug zur Route. (Adresszeile
+  weiterhin nie auto-umschreiben, URL-Policy.)
 - **Kein Blau, nur Tokens** — inkl. De-Blue-Fix von `place-extras.css` (§8.3).
 - **Editor-Assets:** C1 nutzt `?v=Date.now()` → **kein** `ASSET_VERSION`-Bump nötig (anders als der
   Territorien-Inline-Host).
