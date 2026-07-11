@@ -320,6 +320,20 @@ $("#wiki-sync-resolve-wiki-open").on("click", () => openWikiSyncResolveWikiLink(
 $("#wiki-sync-resolve-wiki-url").on("input", () => syncWikiSyncResolveLinkButton());
 $("#location-report-type").on("change", syncLocationReportTypeFields);
 $("#location-report-form").on("submit", handleLocationReportFormSubmit);
+// Multi-source #3: dynamic source list in the community report form (add / remove / Enter-to-add).
+$("#report-source-add-btn").on("click", addLocationReportSourceFromInputs);
+$("#location-report-sources-list").on("click", (event) => {
+	const removeButton = event.target.closest("[data-remove-report-source]");
+	if (removeButton) {
+		removeLocationReportSource(Number(removeButton.getAttribute("data-remove-report-source")));
+	}
+});
+$("#report-source-label, #report-source-url, #report-source-pages").on("keydown", (event) => {
+	if (event.key === "Enter") {
+		event.preventDefault();
+		addLocationReportSourceFromInputs();
+	}
+});
 $("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 $("#wiki-sync-resolve-form").on("submit", handleWikiSyncResolveFormSubmit);
 $("#path-edit-form").on("submit", handlePathEditFormSubmit);

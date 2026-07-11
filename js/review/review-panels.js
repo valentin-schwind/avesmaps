@@ -225,12 +225,16 @@ function renderReviewReports() {
 		`;
 		itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Eintrag";
 		itemElement.querySelector(".review-report__meta").textContent = `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
-		const reportSourceParts = [report.source || "Keine Quelle"];
+		const reportSources = Array.isArray(report.sources) ? report.sources : [];
+		const sourceSummary = reportSources.length
+			? reportSources.map((source) => source.label + (source.pages ? ` (S. ${source.pages})` : "")).filter(Boolean).join("; ")
+			: (report.source || "Keine Quelle");
+		const reportSourceParts = [sourceSummary];
 		if (report.reporter_name) {
 			reportSourceParts.push(`gemeldet von ${report.reporter_name}`);
 		}
 		if (report.wiki_url) {
-			reportSourceParts.push("Wiki-Link vorhanden");
+			reportSourceParts.push("Wiki-Link");
 		}
 		itemElement.querySelector(".review-report__source").textContent = reportSourceParts.join(" · ");
 		if (isCommentReport(report)) {

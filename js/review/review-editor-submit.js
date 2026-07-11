@@ -65,14 +65,18 @@ async function handleLocationEditFormSubmit(event) {
 			&& typeof autoConnectSettlementWikiByTitle === "function") {
 			await autoConnectSettlementWikiByTitle(connectPublicId, payload.name, savedMarkerEntry);
 		}
-		// Multi-source #3: a community report that carried a source LINK becomes a real feature_source on
-		// the freshly created place (same catalog the manual "Quelle hinzufügen" writes to) so it shows in
-		// the QUELLEN section instead of being lost in the description. Best-effort; needs public_id + url.
-		if (payload.action === "create_point" && connectPublicId && activeReviewReportSourceSuggestion
-			&& activeReviewReportSourceSuggestion.url && typeof linkCommunityReportSource === "function") {
-			await linkCommunityReportSource(connectPublicId, activeReviewReportSourceSuggestion);
+		// Multi-source #3: each community-reported source WITH a link becomes a real feature_source on the
+		// freshly created place (same catalog the manual "Quelle hinzufügen" writes to) so they show in the
+		// QUELLEN section instead of being lost in the description. Best-effort per source; needs id + url.
+		if (payload.action === "create_point" && connectPublicId && Array.isArray(activeReviewReportSourceSuggestions)
+			&& typeof linkCommunityReportSource === "function") {
+			for (const suggestion of activeReviewReportSourceSuggestions) {
+				if (suggestion && suggestion.url) {
+					await linkCommunityReportSource(connectPublicId, suggestion);
+				}
+			}
 		}
-		activeReviewReportSourceSuggestion = null;
+		activeReviewReportSourceSuggestions = [];
 		if (payload.action === "create_point" && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");
 			activeReviewReportId = null;

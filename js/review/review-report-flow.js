@@ -4,28 +4,26 @@ function openLocationEditDialogFromReport(report, latlng) {
 	activeReviewReportSource = report.report_source || "location_reports";
 	document.getElementById("location-edit-name").value = report.name || "";
 	document.getElementById("location-edit-type").value = normalizeLocationType(report.report_subtype || report.size || "dorf");
-	// A source WITH a link becomes a real feature_source on "Anlegen" (multi-source #3, shows in the
-	// QUELLEN section, like the manual add flow). A source WITHOUT a link (feature_sources is link-based)
-	// falls back to the old "Quelle: X, S. Y" description line so nothing the reporter typed is lost.
-	const hasSourceLink = Boolean(report.source_url);
+	// report.sources is the full reported list (server-decoded). Sources WITH a link become real
+	// feature_sources on "Anlegen" (multi-source #3, QUELLEN section, like the manual add flow); link-less
+	// sources fall back to "Quelle: X, S. Y" description lines so nothing the reporter typed is lost.
+	const reportSources = Array.isArray(report.sources) ? report.sources : [];
+	const linkedSources = reportSources.filter((source) => source && source.url && source.label);
+	const linklessSources = reportSources.filter((source) => source && source.label && !source.url);
 	document.getElementById("location-edit-description").value = [
 		String(report.comment || ""),
-		(!hasSourceLink && report.source)
-			? `Quelle: ${report.source}${report.pages ? `, S. ${report.pages}` : ""}`
-			: "",
+		...linklessSources.map((source) => `Quelle: ${source.label}${source.pages ? `, S. ${source.pages}` : ""}`),
 	].filter(Boolean).join("\n\n");
 	document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
-	// Remember the reported source so create_point can link it as a real feature_source once the new
-	// place has a public_id (handleLocationEditFormSubmit).
-	activeReviewReportSourceSuggestion = hasSourceLink
-		? {
-			url: String(report.source_url || ""),
-			label: String(report.source || ""),
-			pages: String(report.pages || ""),
-			source_type: String(report.source_type || "sonstiges"),
-			is_official: Number(report.source_official) === 1 || report.source_official === true,
-		}
-		: null;
+	// Remember the linked sources so create_point can attach each as a feature_source once the new place
+	// has a public_id (handleLocationEditFormSubmit).
+	activeReviewReportSourceSuggestions = linkedSources.map((source) => ({
+		url: String(source.url || ""),
+		label: String(source.label || ""),
+		pages: String(source.pages || ""),
+		source_type: String(source.type || "sonstiges"),
+		is_official: Boolean(source.official),
+	}));
 }
 
 function openLabelEditDialogFromReport(report, latlng) {
@@ -99,6 +97,13 @@ async function handleLocationReportFormSubmit(event) {
 	document.getElementById("location-report-page-url").value = window.location.href;
 	document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
 	const payload = buildLocationReportRequestPayload(formElement);
+	// Multi-source #3: at least one source is required (except pure comments). The single required
+	// `source` input is gone -- the list is JS-managed -- so validate it here instead of via reportValidity.
+	if (payload.report_type !== "comment" && (!Array.isArray(payload.sources) || payload.sources.length === 0)) {
+		setLocationReportStatus(tr("report.statusNoSource", "Bitte mindestens eine Quelle angeben (Name genügt)."), "error");
+		document.getElementById("report-source-label")?.focus();
+		return;
+	}
 	if (payload.report_type === "location") {
 		const duplicateLocation = findDuplicateLocationByName(payload.name);
 		if (duplicateLocation) {

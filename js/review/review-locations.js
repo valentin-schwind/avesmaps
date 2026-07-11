@@ -5,11 +5,7 @@ function buildLocationReportRequestPayload(formElement) {
 		report_type: String(formData.get("report_type") || "location").trim(),
 		name: String(formData.get("name") || "").trim(),
 		size: String(formData.get("size") || "").trim(),
-		source: String(formData.get("source") || "").trim(),
-		source_url: String(formData.get("source_url") || "").trim(),
-		pages: String(formData.get("pages") || "").trim(),
-		source_type: String(formData.get("source_type") || "sonstiges").trim(),
-		source_official: formData.get("source_official") === "on",
+		sources: typeof collectLocationReportSources === "function" ? collectLocationReportSources() : [],
 		reporter_name: String(formData.get("reporter_name") || "").trim(),
 		wiki_url: String(formData.get("wiki_url") || "").trim(),
 		comment: String(formData.get("comment") || "").trim(),
@@ -20,6 +16,106 @@ function buildLocationReportRequestPayload(formElement) {
 		elapsed_ms: Math.max(0, Date.now() - Number.parseInt(String(formData.get("opened_at") || "0"), 10)),
 		website: String(formData.get("website") || "").trim(),
 	};
+}
+
+// ---- Multi-source #3: dynamische Quellen-Liste im Community-Melde-Formular ----
+// Der Melder kann mehrere Quellen hinterlegen (Name/Link/Seite/Typ/offiziell je Quelle), clientseitig in
+// locationReportSources gesammelt; beim Absenden gehen sie als `sources`-Array mit und werden beim
+// "Anlegen" einzeln als feature_sources verknuepft (wie im Editor). Kein Server-Write vor dem Absenden.
+let locationReportSources = [];
+
+function reportSourceTypeLabel(type) {
+	return typeof featureSourceTypeLabel === "function" ? featureSourceTypeLabel(type) : String(type || "Sonstiges");
+}
+
+function renderLocationReportSourcesList() {
+	const list = document.getElementById("location-report-sources-list");
+	if (!list) {
+		return;
+	}
+	if (!locationReportSources.length) {
+		list.innerHTML = '<div class="report-sources__empty">Noch keine Quelle hinzugefügt.</div>';
+		return;
+	}
+	list.innerHTML = locationReportSources
+		.map((source, index) => {
+			const parts = [source.label];
+			if (source.pages) {
+				parts.push(`S. ${source.pages}`);
+			}
+			const officialMark = source.official ? " *" : "";
+			const text = escapeHtml(parts.join(", ")) + officialMark;
+			const linked = source.url
+				? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${text} ↗</a>`
+				: `<span>${text}</span>`;
+			return (
+				'<div class="report-sources__row">' +
+				linked +
+				`<span class="report-sources__type">${escapeHtml(reportSourceTypeLabel(source.type))}</span>` +
+				`<button type="button" class="report-sources__remove" data-remove-report-source="${index}" aria-label="Quelle entfernen">✕</button>` +
+				"</div>"
+			);
+		})
+		.join("");
+}
+
+function readLocationReportSourceInputs() {
+	return {
+		label: String(document.getElementById("report-source-label")?.value || "").trim(),
+		url: String(document.getElementById("report-source-url")?.value || "").trim(),
+		pages: String(document.getElementById("report-source-pages")?.value || "").trim(),
+		type: String(document.getElementById("report-source-type")?.value || "sonstiges"),
+		official: Boolean(document.getElementById("report-source-official")?.checked),
+	};
+}
+
+function clearLocationReportSourceInputs() {
+	["report-source-label", "report-source-url", "report-source-pages"].forEach((id) => {
+		const element = document.getElementById(id);
+		if (element) {
+			element.value = "";
+		}
+	});
+	const typeSelect = document.getElementById("report-source-type");
+	if (typeSelect) {
+		typeSelect.value = "sonstiges";
+	}
+	const officialInput = document.getElementById("report-source-official");
+	if (officialInput) {
+		officialInput.checked = false;
+	}
+}
+
+function addLocationReportSourceFromInputs() {
+	const source = readLocationReportSourceInputs();
+	if (!source.label) {
+		return false; // a source needs at least a name
+	}
+	locationReportSources.push(source);
+	renderLocationReportSourcesList();
+	clearLocationReportSourceInputs();
+	document.getElementById("report-source-label")?.focus();
+	return true;
+}
+
+function removeLocationReportSource(index) {
+	if (index >= 0 && index < locationReportSources.length) {
+		locationReportSources.splice(index, 1);
+		renderLocationReportSourcesList();
+	}
+}
+
+// The added rows PLUS a filled-but-not-yet-added row (reporter typed a source and forgot the button), so
+// nothing entered is lost on submit.
+function collectLocationReportSources() {
+	const pending = readLocationReportSourceInputs();
+	return pending.label ? [...locationReportSources, pending] : [...locationReportSources];
+}
+
+function resetLocationReportSources() {
+	locationReportSources = [];
+	clearLocationReportSourceInputs();
+	renderLocationReportSourcesList();
 }
 
 function syncLocationReportTypeFields() {
@@ -54,6 +150,7 @@ function resetLocationReportForm() {
 	}
 
 	formElement.reset();
+	resetLocationReportSources();
 	locationReportLatLng = null;
 	document.getElementById("location-report-coordinates").textContent = "-";
 	document.getElementById("location-report-lat").value = "";
@@ -76,7 +173,7 @@ function resetLocationEditForm({ preserveWikiSyncFlow = false } = {}) {
 	locationEditMarkerEntry = null;
 	activeReviewReportId = null;
 	activeReviewReportSource = null;
-	activeReviewReportSourceSuggestion = null;
+	activeReviewReportSourceSuggestions = [];
 	pendingCrossingConversionPublicId = null;
 	pendingCrossingConversionName = "";
 	pendingCrossingConversionIsNodix = false;

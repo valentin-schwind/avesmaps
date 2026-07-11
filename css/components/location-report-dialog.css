@@ -316,6 +316,119 @@
 	outline: none;
 }
 
+/* Multi-source #3: dynamic source list in the community report form. Add-row (name + link on top,
+   Seite/Typ/offiziell/Button below) followed by a list of added sources as removable rows. */
+.report-sources__list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 6px;
+}
+
+.report-sources__empty {
+	color: #8b7a66;
+	font-size: 12px;
+	font-style: italic;
+}
+
+.report-sources__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	background: #f6efe4;
+	font-size: 13px;
+}
+
+.report-sources__row a,
+.report-sources__row > span:first-child {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-link);
+}
+
+.report-sources__type {
+	flex: 0 0 auto;
+	color: #6b583f;
+	font-size: 11px;
+}
+
+.report-sources__remove {
+	flex: 0 0 auto;
+	border: none;
+	background: transparent;
+	color: #8a5d3a;
+	cursor: pointer;
+	font-size: 14px;
+	line-height: 1;
+	padding: 2px 5px;
+	border-radius: 6px;
+}
+
+.report-sources__remove:hover {
+	background: rgba(122, 90, 58, 0.14);
+}
+
+.report-sources__add {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.report-sources__add input[type="text"],
+.report-sources__add input[type="url"],
+.report-sources__add select {
+	padding: 6px 8px;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	background: #fdfaf5;
+	color: var(--color-text);
+	font: inherit;
+}
+
+.report-sources__add > input {
+	width: 100%;
+}
+
+.report-sources__add-row2 {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.report-sources__add-row2 #report-source-pages {
+	flex: 1 1 90px;
+	min-width: 70px;
+}
+
+.report-sources__add-row2 #report-source-type {
+	flex: 1 1 150px;
+}
+
+.report-sources__official {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	color: #4f4134;
+	font-size: 13px;
+	white-space: nowrap;
+}
+
+.report-sources__official input {
+	width: auto;
+}
+
+.report-sources__add-row2 #report-source-add-btn {
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
 #location-report-comment-field,
 #location-report-service-note,
 #location-report-status,

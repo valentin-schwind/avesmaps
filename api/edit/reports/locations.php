@@ -61,10 +61,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             lat,
             lng,
             source,
-            source_url,
-            pages,
-            source_type,
-            source_official,
+            sources_json,
             wiki_url,
             comment,
             page_url,
@@ -81,6 +78,9 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
     foreach ($mapStatement->fetchAll() as $report) {
         $report['report_source'] = 'map_reports';
         $report['size'] = $report['report_type'] === 'location' ? $report['report_subtype'] : '';
+        // Multi-source #3: expose the source list (array) to the client; drop the raw JSON column.
+        $report['sources'] = avesmapsDecodeReportSources($report['sources_json'] ?? null, (string) ($report['source'] ?? ''));
+        unset($report['sources_json']);
         $reports[] = $report;
     }
 
@@ -112,6 +112,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             $report['report_source'] = 'location_reports';
             $report['report_type'] = 'location';
             $report['report_subtype'] = (string) ($report['size'] ?? 'dorf');
+            $report['sources'] = avesmapsDecodeReportSources(null, (string) ($report['source'] ?? ''));
             $reports[] = $report;
         }
     }
@@ -211,13 +212,10 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             KEY idx_map_reports_ip_hash_created_at (ip_hash, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
-    // Multi-source #3: ensure the community source-suggestion columns exist so the review SELECT can
-    // read them even before the first new-schema report is submitted (report-location.php adds them too).
+    // Multi-source #3: ensure the community source-suggestion column exists so the review SELECT can
+    // read it even before the first new-schema report is submitted (report-location.php adds it too).
     foreach ([
-        'source_url' => 'VARCHAR(500) NULL',
-        'pages' => 'VARCHAR(120) NULL',
-        'source_type' => 'VARCHAR(32) NULL',
-        'source_official' => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'sources_json' => 'TEXT NULL',
     ] as $column => $definition) {
         $quotedColumn = $pdo->quote($column);
         $columnStatement = $pdo->query("SHOW COLUMNS FROM map_reports LIKE {$quotedColumn}");
@@ -237,4 +235,34 @@ function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {
 function avesmapsNormalizeReviewNote(mixed $value): ?string {
     $normalizedValue = avesmapsNormalizeSingleLine((string) ($value ?? ''), 500);
     return $normalizedValue !== '' ? $normalizedValue : null;
+}
+
+// Multi-source #3: decode the stored source list into a clean array for the client. Falls back to a
+// single label-only source from the legacy `source` column when there is no JSON (old reports), so the
+// review UI + "Anlegen" behave uniformly across schema versions.
+function avesmapsDecodeReportSources(mixed $rawJson, string $legacyLabel = ''): array {
+    $decoded = is_string($rawJson) && $rawJson !== '' ? json_decode($rawJson, true) : null;
+    $list = [];
+    if (is_array($decoded)) {
+        foreach ($decoded as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $label = trim((string) ($entry['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+            $list[] = [
+                'url' => (string) ($entry['url'] ?? ''),
+                'label' => $label,
+                'pages' => (string) ($entry['pages'] ?? ''),
+                'type' => (string) ($entry['type'] ?? 'sonstiges'),
+                'official' => (bool) ($entry['official'] ?? false),
+            ];
+        }
+    }
+    if ($list === [] && trim($legacyLabel) !== '') {
+        $list[] = ['url' => '', 'label' => trim($legacyLabel), 'pages' => '', 'type' => 'sonstiges', 'official' => false];
+    }
+    return $list;
 }

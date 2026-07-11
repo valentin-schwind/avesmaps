@@ -542,35 +542,29 @@
 							<option value="metropole" data-i18n="report.sizeOption.metropole">Metropole</option>
 						</select>
 					</label>
-					<label class="location-report-form__field">
-						<span data-i18n="report.sourceLabel">Quelle (Abenteuer, Regionalband, etc.) *</span>
-						<input id="location-report-source" name="source" type="text" maxlength="200" required />
-					</label>
-					<label class="location-report-form__field">
-						<span data-i18n="report.sourceUrlLabel">Link zur Quelle (F-Shop, Wiki-Seite der Publikation …)</span>
-						<input id="location-report-source-url" name="source_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
-					</label>
-					<label class="location-report-form__field">
-						<span data-i18n="report.pagesLabel">Seite(n) (optional)</span>
-						<input id="location-report-pages" name="pages" type="text" maxlength="120" placeholder="z. B. 142" />
-					</label>
-					<label class="location-report-form__field">
-						<span data-i18n="report.sourceTypeLabel">Art der Quelle</span>
-						<select id="location-report-source-type" name="source_type">
-							<option value="regionalspielhilfe" data-i18n="sources.type.regionalspielhilfe">Regionalspielhilfe</option>
-							<option value="abenteuer" data-i18n="sources.type.abenteuer">Abenteuer</option>
-							<option value="aventurischer_bote" data-i18n="sources.type.aventurischer_bote">Aventurischer Bote</option>
-							<option value="quellenband" data-i18n="sources.type.quellenband">Quellenband</option>
-							<option value="roman" data-i18n="sources.type.roman">Roman</option>
-							<option value="briefspiel" data-i18n="sources.type.briefspiel">Briefspiel</option>
-							<option value="regelbuch" data-i18n="sources.type.regelbuch">Regelbuch</option>
-							<option value="sonstiges" selected data-i18n="sources.type.sonstiges">Sonstiges</option>
-						</select>
-					</label>
-					<label class="location-report-form__field location-report-form__field--inline">
-						<input id="location-report-source-official" name="source_official" type="checkbox" />
-						<span data-i18n="report.sourceOfficialLabel">Offizielle Quelle</span>
-					</label>
+					<div class="location-report-form__field report-sources">
+						<span data-i18n="report.sourcesLabel">Quellen * (mind. eine — Regionalband, Abenteuer, …)</span>
+						<div id="location-report-sources-list" class="report-sources__list"></div>
+						<div class="report-sources__add">
+							<input id="report-source-label" type="text" maxlength="200" placeholder="Quellenname (z. B. Die Flusslande)" data-i18n-placeholder="report.sourceNamePlaceholder" />
+							<input id="report-source-url" type="url" inputmode="url" maxlength="500" placeholder="Link (F-Shop / Wiki-Seite) – optional" data-i18n-placeholder="report.sourceUrlPlaceholder" />
+							<div class="report-sources__add-row2">
+								<input id="report-source-pages" type="text" maxlength="120" placeholder="Seite(n)" data-i18n-placeholder="report.pagesPlaceholder" />
+								<select id="report-source-type">
+									<option value="regionalspielhilfe">Regionalspielhilfe</option>
+									<option value="abenteuer">Abenteuer</option>
+									<option value="aventurischer_bote">Aventurischer Bote</option>
+									<option value="quellenband">Quellenband</option>
+									<option value="roman">Roman</option>
+									<option value="briefspiel">Briefspiel</option>
+									<option value="regelbuch">Regelbuch</option>
+									<option value="sonstiges" selected>Sonstiges</option>
+								</select>
+								<label class="report-sources__official"><input id="report-source-official" type="checkbox" /> <span data-i18n="report.sourceOfficialLabel">offiziell</span></label>
+								<button type="button" id="report-source-add-btn" class="location-report-form__button location-report-form__button--secondary" data-i18n="report.sourceAdd">+ Quelle hinzufügen</button>
+							</div>
+						</div>
+					</div>
 					<label class="location-report-form__field">
 						<span data-i18n="report.reporterNameLabel">Dein Name/Pseudonym (optional)</span>
 						<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />
