@@ -18,6 +18,61 @@ const LOCATION_CANVAS_MARKERS_ENABLED = (() => {
 
 const LOCATION_CANVAS_TYPES = new Set(["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"]);
 
+// Active/clicked settlement highlight (Owner: the active location's marker fills gold-yellow). The
+// active id lives in runtime-state (activeLocationPublicId). These helpers set/clear it, repaint the
+// canvas, and toggle a DOM-marker class so BOTH render paths follow. Reading the token (not a hardcode)
+// keeps it theme-correct.
+function getLocationMarkerActiveColor() {
+	try {
+		return getComputedStyle(document.documentElement).getPropertyValue("--color-marker-active").trim() || "#f0b429";
+	} catch (error) {
+		return "#f0b429";
+	}
+}
+
+// DOM markers (edit mode / promoted / temporarily pinned) turn gold via CSS; canvas dots are handled in
+// _redraw. Move the class to the currently-active marker (or remove it everywhere when nothing active).
+function applyActiveLocationMarkerClass() {
+	document.querySelectorAll(".location-visual-marker--active")
+		.forEach((el) => el.classList.remove("location-visual-marker--active"));
+	if (!activeLocationPublicId || typeof locationMarkers === "undefined") {
+		return;
+	}
+	const entry = locationMarkers.find((m) => m && m.publicId === activeLocationPublicId);
+	const el = entry && entry.marker && typeof entry.marker.getElement === "function" ? entry.marker.getElement() : null;
+	if (el) {
+		el.classList.add("location-visual-marker--active");
+	}
+}
+
+function setActiveLocationMarker(entryOrId) {
+	const publicId = typeof entryOrId === "string" ? entryOrId : (entryOrId && entryOrId.publicId) || "";
+	if (!publicId || activeLocationPublicId === publicId) {
+		return;
+	}
+	activeLocationPublicId = publicId;
+	if (typeof locationCanvasLayer !== "undefined" && locationCanvasLayer._ready) {
+		locationCanvasLayer._redraw();
+	}
+	applyActiveLocationMarkerClass();
+}
+
+function clearActiveLocationMarker() {
+	if (!activeLocationPublicId) {
+		return;
+	}
+	activeLocationPublicId = "";
+	if (typeof locationCanvasLayer !== "undefined" && locationCanvasLayer._ready) {
+		locationCanvasLayer._redraw();
+	}
+	applyActiveLocationMarkerClass();
+}
+
+if (typeof window !== "undefined") {
+	window.avesmapsSetActiveLocation = setActiveLocationMarker;
+	window.avesmapsClearActiveLocation = clearActiveLocationMarker;
+}
+
 const locationCanvasLayer = {
 	_map: null,
 	_canvas: null,
@@ -142,6 +197,10 @@ const locationCanvasLayer = {
 		const origin = this._map.containerPointToLayerPoint([0, 0]).round();
 		const TWO_PI = Math.PI * 2;
 		const disc = (x, y, r, color) => { ctx.beginPath(); ctx.arc(x, y, r, 0, TWO_PI); ctx.fillStyle = color; ctx.fill(); };
+		// Active/clicked settlement -> gold-yellow core fill (Owner). Read the token ONCE per redraw (not
+		// per marker) so it follows the theme without hardcoding a hex on the canvas; empty when nothing active.
+		const activeId = typeof activeLocationPublicId !== "undefined" ? activeLocationPublicId : "";
+		const activeGold = activeId ? getLocationMarkerActiveColor() : "";
 		for (const item of this._entries) {
 			if (item.entry._canvasPromoted) {
 				continue;
@@ -149,6 +208,7 @@ const locationCanvasLayer = {
 			const layerPoint = this._map.latLngToLayerPoint(item.latLng);
 			const x = layerPoint.x - origin.x;
 			const y = layerPoint.y - origin.y;
+			const fill = (activeGold && item.entry.publicId && item.entry.publicId === activeId) ? activeGold : item.fill;
 			if (item.leyNode) {
 				// Leuchtender Kraftlinien-Knoten: weicher Schein -> heller Kern -> pinker Punkt.
 				ctx.save();
@@ -167,7 +227,7 @@ const locationCanvasLayer = {
 				// Besondere Staette: gedrehtes Quadrat (Raute) -- Hairline -> weisse Kontur -> Fuellung.
 				this._square(x, y, outer + 1, "rgba(0, 0, 0, 0.55)");
 				this._square(x, y, outer, "#ffffff");
-				this._square(x, y, core, item.fill);
+				this._square(x, y, core, fill);
 				continue;
 			}
 			if (item.isCapital) {
@@ -177,7 +237,7 @@ const locationCanvasLayer = {
 			}
 			disc(x, y, outer + 1, "rgba(0, 0, 0, 0.55)");
 			disc(x, y, outer, "#ffffff");
-			disc(x, y, core, item.fill);
+			disc(x, y, core, fill);
 		}
 	},
 
@@ -192,7 +252,12 @@ const locationCanvasLayer = {
 	},
 
 	_onClick(event) {
-		this._tryOpenAtContainerPoint(event.containerPoint);
+		// A settlement hit sets the active gold marker (in _tryOpen). No settlement here -> deselect: this is
+		// either an empty click or a lower-priority feature (road/region), neither of which is the active
+		// location. (Road/region layers call _tryOpen themselves first, so a settlement still wins.)
+		if (!this._tryOpenAtContainerPoint(event.containerPoint)) {
+			clearActiveLocationMarker();
+		}
 	},
 
 	// Shared settlement hit-test = the click "arbiter" (see docs/click-arbiter-coordination.md): opens
@@ -221,6 +286,10 @@ const locationCanvasLayer = {
 			return false;
 		}
 		const entry = hit.entry;
+
+		// Owner: clicking a settlement makes it the active location -> gold marker fill. Set it here (before
+		// the panel/popup branch) so it applies in BOTH modes; a click resolves to exactly one settlement.
+		setActiveLocationMarker(entry);
 
 		// Infopanel (?infopanel=true): Feature-Info ins rechte Panel statt ins schwebende Popup --
 		// VOR dem DOM-Marker-Promote/openPopup abzweigen (sonst bleibt ein promoteter Marker oder ein

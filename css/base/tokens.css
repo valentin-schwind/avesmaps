@@ -79,6 +79,10 @@
 	--color-star: #e0a528;
 	--color-star-muted: #d9c7a6;
 
+	/* Active/selected map location — the clicked settlement's marker fills gold-yellow (Owner). The
+	   marker sits on the always-light map tiles, so the dark value stays the same warm gold. */
+	--color-marker-active: #f0b429;
+
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
 
@@ -195,6 +199,7 @@
 	   deep panel (a light beige track would read almost as bright as a filled star). */
 	--color-star: #e6b850;
 	--color-star-muted: #6f6552;
+	--color-marker-active: #f0b429;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);

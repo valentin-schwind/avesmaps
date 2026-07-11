@@ -340,6 +340,12 @@
 		0 0 0 calc(var(--accent-ring-width, 3px) + 1px) rgba(0, 0, 0, 0.35);
 }
 
+/* Active/clicked settlement (Owner): the marker core fills gold-yellow. Descendant selector (0,2,0)
+   beats the circle/site base fill; canvas-drawn dots get the same fill in the canvas layer's _redraw. */
+.location-visual-marker--active .location-visual-marker__shape {
+	background: var(--color-marker-active);
+}
+
 .location-visual-marker__shape--crossing {
 	display: block;
 	box-sizing: border-box;

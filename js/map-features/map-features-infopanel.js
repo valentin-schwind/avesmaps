@@ -333,6 +333,11 @@
 				if (openSeq !== snapshot) {
 					return; // ein Feature wurde durch diesen Klick geoeffnet -> kein Leerklick
 				}
+				// Empty click confirmed -> also drop the gold active-marker highlight (belt-and-braces for
+				// non-canvas modes where the canvas _onClick deselect does not run).
+				if (typeof window.avesmapsClearActiveLocation === "function") {
+					window.avesmapsClearActiveLocation();
+				}
 				if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
 					sendInfopanelToBack(); // Editor wieder in den Vordergrund
 					return;
@@ -403,6 +408,11 @@
 	window.avesmapsShowLocationInInfopanel = function (markerEntry) {
 		if (!markerEntry || typeof buildLocationMarkerPopupHtml !== "function") {
 			return false;
+		}
+		// The shown location is the active one -> gold marker fill (covers search / deeplink / breadcrumb
+		// paths that don't go through the canvas click-arbiter). Idempotent if it's already active.
+		if (typeof window.avesmapsSetActiveLocation === "function") {
+			window.avesmapsSetActiveLocation(markerEntry);
 		}
 		var panelBody = window.avesmapsShowInfopanel(buildLocationMarkerPopupHtml(markerEntry), markerEntry.name);
 		if (panelBody && typeof hydrateLocationReviews === "function") {
