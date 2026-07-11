@@ -4,7 +4,7 @@
 @import url("base/base.css");
 @import url("base/utilities.css");
 
-@import url("layout/map-layout.css?v=20260711-theme6");
+@import url("layout/map-layout.css?v=20260711-theme7");
 
 @import url("components/dialog-overlays.css?v=20260607-reviews");
 @import url("components/legal-dialog.css");
@@ -29,7 +29,7 @@
 @import url("features/place-extras.css?v=20260710-5");
 @import url("features/measurement-tool.css");
 @import url("features/route-overview.css?v=20260711-tokens");
-@import url("features/route-planner.css?v=20260711-theme5");
+@import url("features/route-planner.css?v=20260711-theme7");
 @import url("features/route-planner-waypoint-timeline.css?v=20260711-tokens");
 @import url("features/path-editor.css");
 @import url("features/powerlines.css");
