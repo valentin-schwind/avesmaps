@@ -38,14 +38,23 @@ var AVESMAPS_CITYMAP_THUMB_SVG = '<svg viewBox="0 0 24 24" width="26" height="26
 // Platzhalter-Icon fuer das Abenteuer-Cover (A4), solange kein echtes Cover-Bild (a.cover) vorliegt.
 var AVESMAPS_ADV_COVER_PH_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 16 5-4 4 3 3-2 4 3"/></svg>';
 
-// Datenzugriff: echte Payload-Daten bevorzugen, sonst Platzhalter (Demo). So bleibt der Tausch trivial.
+// Datenzugriff (Abenteuer-Feature Phase 1): sobald der Katalog geladen ist (map-features-adventures.js),
+// liefern wir die ECHTEN "beginnt hier"-Abenteuer dieses Orts (leer erlaubt -> Abschnitt entfaellt). Nur
+// solange der Katalog noch nicht bereit ist (oder ausserhalb des Infopanel-Modus) greifen die Platzhalter
+// -- so gibt es keinen leeren Blitz waehrend des Ladens. location.adventures bleibt als Payload-Pfad erhalten.
 function getPlaceAdventures(location) {
+	if (typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady()) {
+		return getAdventuresForPlace(location, { role: "start" });
+	}
 	if (location && Array.isArray(location.adventures)) {
 		return location.adventures;
 	}
 	return AVESMAPS_PLACEHOLDER_ADVENTURES;
 }
 function getPlaceAdventuresTotal(location) {
+	if (typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady()) {
+		return getPlaceAdventures(location).length;
+	}
 	if (location && typeof location.adventuresTotal === "number") {
 		return location.adventuresTotal;
 	}
@@ -83,42 +92,80 @@ function buildPlaceCityMapsMarkup(location) {
 		+ '</div>';
 }
 
-// ---- Abenteuer in <Ort>: sortierbare Liste (neueste/Art/alphabetisch) + "mehr" ----
+// ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt-Streifen, Spoiler UND Dialog ----
+function buildAdventureCardMarkup(a) {
+	var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
+	var coverInner = a.cover
+		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
+		: AVESMAPS_ADV_COVER_PH_SVG;
+	var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
+	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
+	// Questroute-Trigger nur bei >= 2 Orten (map-features-questroute.js behandelt den Klick per Delegation).
+	var questLine = (Number(a.placeCount) >= 2 && a.public_id)
+		? '<button type="button" class="avesmaps-adv__questroute" data-adventure-id="' + placeExtrasEscape(a.public_id) + '">Questroute</button>'
+		: "";
+	return '<div class="avesmaps-adv__card" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
+		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
+		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
+		+ metaLine
+		+ typeLine
+		+ questLine
+		+ '</div>';
+}
+
+// ---- Abenteuer in <Ort>: beginnt-Streifen (Sortierung + "Alle anzeigen") + Spoiler "spielt hier" ----
 function buildPlaceAdventuresMarkup(location) {
-	var list = getPlaceAdventures(location);
-	if (!list || !list.length) {
+	var catalogReady = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
+	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
+	var play = (catalogReady && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "play" }) : [];
+	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
 		return "";
 	}
-	var total = getPlaceAdventuresTotal(location);
 	var placeName = (location && location.name) ? location.name : "diesem Ort";
-	// Karten: Cover (A4) oben, Titel + Jahr zentriert darunter. Angeordnet als 2-reihiges, horizontal
-	// scrollbares Grid (wie die Stadtkarten) -- Reihenfolge via Sortier-Links (Re-Append im Grid).
-	var cards = list.map(function (a) {
-		var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
-		var coverInner = a.cover
-			? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
-			: AVESMAPS_ADV_COVER_PH_SVG;
-		var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
-		var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
-		return '<div class="avesmaps-adv__card" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
-			+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
-			+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
-			+ metaLine
-			+ typeLine
-			+ '</div>';
-	}).join("");
+	var hasBeginnt = beginnt && beginnt.length > 0;
+	var total = hasBeginnt ? getPlaceAdventuresTotal(location) : 0;
+	// Kopf-Zaehler zaehlt die BEGINNENDEN (Default-Sicht, Spec §4); die spielt-Menge hat ihren eigenen Zaehler.
+	var countMarkup = hasBeginnt ? ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>' : "";
+
+	// Sortierzeile + beginnt-Streifen nur, wenn hier ueberhaupt etwas BEGINNT.
+	var beginntBlock = "";
+	if (hasBeginnt) {
+		var noteMarkup = catalogReady ? "" : '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>';
+		beginntBlock =
+			'<div class="avesmaps-adv__sorts">'
+			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
+			+ '<span class="avesmaps-adv__sortsep"> · </span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
+			+ '<span class="avesmaps-adv__sortsep"> · </span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
+			+ '</div>'
+			+ noteMarkup
+			+ '<div class="avesmaps-adv__list">' + beginnt.map(buildAdventureCardMarkup).join("") + '</div>';
+	}
+
+	// Aktionszeile: "Alle anzeigen" (nur bei beginnt) + Spoiler-Button "Spielt hier" (nur bei play).
+	var actions = "";
+	if (hasBeginnt) {
+		actions += '<button type="button" class="avesmaps-adv__all">Alle anzeigen (' + placeExtrasEscape(total) + ')</button>';
+	}
+	if (play && play.length) {
+		actions += '<button type="button" class="avesmaps-adv__spoiler" aria-expanded="false">'
+			+ 'Spielt hier <span class="avesmaps-adv__spoiler-note">(Spoiler)</span> '
+			+ '<span class="avesmaps-adv__spoiler-count">(' + placeExtrasEscape(play.length) + ')</span>'
+			+ '</button>';
+	}
+	var actionsMarkup = actions ? '<div class="avesmaps-adv__actions">' + actions + '</div>' : "";
+
+	// Spoiler-Liste verborgen (der Klick auf den Button IST die Spoiler-Bestaetigung -> inline-Reveal, kein Auto-Reveal).
+	var spoilerListMarkup = (play && play.length)
+		? '<div class="avesmaps-adv__spoiler-list" hidden><div class="avesmaps-adv__list">' + play.map(buildAdventureCardMarkup).join("") + '</div></div>'
+		: "";
+
 	return '<div class="avesmaps-adv">'
-		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(placeName) + ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span></div>'
-		+ '<div class="avesmaps-adv__sorts">'
-		+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
-		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
-		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
-		+ '</div>'
-		+ '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>'
-		+ '<div class="avesmaps-adv__list">' + cards + '</div>'
-		+ '<button type="button" class="avesmaps-adv__all">Alle anzeigen (' + placeExtrasEscape(total) + ')</button>'
+		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(placeName) + countMarkup + '</div>'
+		+ beginntBlock
+		+ actionsMarkup
+		+ spoilerListMarkup
 		+ '</div>';
 }
 
@@ -164,7 +211,9 @@ function buildPlaceAdventuresMarkup(location) {
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : "Abenteuer";
 		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
 		grid.innerHTML = "";
-		var cards = section.querySelectorAll(".avesmaps-adv__card");
+		// Nur die BEGINNENDEN (erster .avesmaps-adv__list) klonen -- die Spoiler-Liste bleibt aussen vor.
+		var beginntList = section.querySelector(".avesmaps-adv__list");
+		var cards = beginntList ? beginntList.querySelectorAll(".avesmaps-adv__card") : [];
 		Array.prototype.forEach.call(cards, function (card) { grid.appendChild(card.cloneNode(true)); });
 		overlay.classList.add("is-open");
 	});
@@ -195,5 +244,25 @@ function buildPlaceAdventuresMarkup(location) {
 		for (var i = 0; i < sorts.length; i += 1) {
 			sorts[i].classList.toggle("is-active", sorts[i] === this);
 		}
+	});
+
+	// Spoiler "Spielt hier": der Klick IST die Spoiler-Bestaetigung -> play-Liste inline ein/ausblenden.
+	$(document).on("click", ".avesmaps-adv__spoiler", function () {
+		var section = $(this).closest(".avesmaps-adv")[0];
+		if (!section) {
+			return;
+		}
+		var spoilerList = section.querySelector(".avesmaps-adv__spoiler-list");
+		if (!spoilerList) {
+			return;
+		}
+		var reveal = spoilerList.hasAttribute("hidden");
+		if (reveal) {
+			spoilerList.removeAttribute("hidden");
+		} else {
+			spoilerList.setAttribute("hidden", "");
+		}
+		this.setAttribute("aria-expanded", reveal ? "true" : "false");
+		this.classList.toggle("is-open", reveal);
 	});
 })();

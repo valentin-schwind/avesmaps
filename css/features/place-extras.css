@@ -181,6 +181,66 @@
 	background: var(--color-button-soft-hover);
 }
 
+/* Aktionszeile unter dem beginnt-Streifen: "Alle anzeigen" + Spoiler-Button, umbrechend. */
+.avesmaps-adv__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+.avesmaps-adv__actions .avesmaps-adv__all {
+	margin-top: 0;
+}
+
+/* "Spielt hier (Spoiler)" -- weicher Button wie "Alle anzeigen" (Radius 6px identisch zum Geschwister;
+   place-extras-Radien sind projektweit noch Pre-Token-Literale). Gibt die play-Liste inline frei. */
+.avesmaps-adv__spoiler {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 5px 12px;
+	appearance: none;
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: 6px;
+	font: inherit;
+	font-size: 12px;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+}
+.avesmaps-adv__spoiler:hover {
+	background: var(--color-button-soft-hover);
+}
+.avesmaps-adv__spoiler-note,
+.avesmaps-adv__spoiler-count {
+	color: var(--color-text-muted);
+}
+.avesmaps-adv__spoiler-list {
+	margin-top: 10px;
+}
+.avesmaps-adv__spoiler-list .avesmaps-adv__list {
+	margin-top: 0;
+}
+
+/* Kleiner "Questroute"-Trigger unter einer Karte (nur bei >= 2 Orten). */
+.avesmaps-adv__questroute {
+	margin-top: 3px;
+	padding: 0;
+	appearance: none;
+	background: transparent;
+	border: none;
+	font: inherit;
+	font-size: 10px;
+	color: var(--color-link);
+	cursor: pointer;
+	text-decoration: none;
+}
+.avesmaps-adv__questroute:hover {
+	text-decoration: underline;
+}
+
 /* ---- Dialog "Alle Abenteuer" (modaler Overlay ueber allem) ---- */
 .avesmaps-adv-dialog {
 	position: fixed;

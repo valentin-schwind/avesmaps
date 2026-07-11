@@ -1,0 +1,68 @@
+/* Abenteuer-Feature (Phase 1) -- Questroute: der Spoiler-Warndialog. Die ephemere gestrichelte Linie
+   selbst wird als Leaflet-Polyline gezeichnet (map-features-questroute.js), Farbe aus --color-link.
+   Nur Tokens (css/base/tokens.css); kein Blau, keine hartkodierten Farben. */
+
+.avesmaps-quest-dialog {
+	position: fixed;
+	inset: 0;
+	z-index: 3200;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: var(--color-scrim);
+}
+.avesmaps-quest-dialog.is-open {
+	display: flex;
+}
+.avesmaps-quest-dialog__box {
+	width: min(420px, 100%);
+	background: var(--color-panel);
+	color: var(--color-text-strong);
+	border-radius: 10px;
+	box-shadow: var(--shadow-dialog);
+	padding: 18px 20px;
+}
+.avesmaps-quest-dialog__title {
+	font-size: 15px;
+	font-weight: 700;
+	margin-bottom: 8px;
+}
+.avesmaps-quest-dialog__text {
+	margin: 0 0 16px;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--color-text);
+}
+.avesmaps-quest-dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+.avesmaps-quest-dialog__cancel,
+.avesmaps-quest-dialog__confirm {
+	appearance: none;
+	font: inherit;
+	font-size: 13px;
+	padding: 7px 14px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+/* soft/outline = Abbrechen; filled = Route anzeigen (Button-Hierarchie der Designsprache). */
+.avesmaps-quest-dialog__cancel {
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	color: var(--color-button-soft-text);
+}
+.avesmaps-quest-dialog__cancel:hover {
+	background: var(--color-button-soft-hover);
+}
+.avesmaps-quest-dialog__confirm {
+	background: var(--color-button);
+	border: 1px solid var(--color-button);
+	color: var(--color-button-text);
+}
+.avesmaps-quest-dialog__confirm:hover {
+	background: var(--color-button-hover);
+	border-color: var(--color-button-hover);
+}
