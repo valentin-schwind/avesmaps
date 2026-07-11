@@ -10,6 +10,14 @@
 		<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 		<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 		<meta name="theme-color" content="#565044" />
+		<script>
+			/* Apply the saved theme before the stylesheet loads (no flash of the wrong theme). */
+			try {
+				if (localStorage.getItem("avesmaps-theme") === "dark") {
+					document.documentElement.setAttribute("data-theme", "dark");
+				}
+			} catch (e) {}
+		</script>
 		<link rel="canonical" href="https://avesmaps.de/" />
 		<link rel="alternate" hreflang="de" href="https://avesmaps.de/" />
 		<link rel="alternate" hreflang="en" href="https://avesmaps.de/?lang=en" />
@@ -1198,6 +1206,14 @@
 				</label>
 			</div>
 
+			<div class="theme-toggle-row">
+				<span class="theme-toggle-row__label">Design</span>
+				<div class="theme-toggle" role="group" aria-label="Farbschema">
+					<button type="button" class="theme-toggle__btn" data-theme-choice="light" aria-pressed="true">Hell</button>
+					<button type="button" class="theme-toggle__btn" data-theme-choice="dark" aria-pressed="false">Dunkel</button>
+				</div>
+			</div>
+
 			<!-- Waypoints -->
 			<div id="waypoints"></div>
 			<div class="input-options">
@@ -1354,6 +1370,7 @@
 		<script src="js/app/i18n.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
 		<script src="js/app/utils.js"></script>
+		<script src="js/app/theme-toggle.js"></script>
 		<script src="js/app/share-link.js"></script>
 		<script src="js/app/wiki-deeplink.js"></script>
 		<script src="js/routing/route-graph-core.js"></script>
