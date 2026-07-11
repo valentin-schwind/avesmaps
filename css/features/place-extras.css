@@ -193,35 +193,80 @@
 	margin-top: 0;
 }
 
-/* "Spielt hier (Spoiler)" -- weicher Button wie "Alle anzeigen" (Radius 6px identisch zum Geschwister;
-   place-extras-Radien sind projektweit noch Pre-Token-Literale). Gibt die play-Liste inline frei. */
-.avesmaps-adv__spoiler {
+/* Umschalter "Beginnt hier | Spielt hier (Spoiler)" unter der Sortierzeile -- kompaktes Segment-Control
+   (Radius 6px identisch zu den Geschwister-Buttons; place-extras-Radien sind projektweit Pre-Token-Literale). */
+.avesmaps-adv__modes,
+.avesmaps-adv-dialog__modes {
 	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	padding: 5px 12px;
-	appearance: none;
-	background: var(--color-button-soft);
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: 6px;
+	overflow: hidden;
+}
+.avesmaps-adv__modes {
+	margin-top: 6px;
+}
+/* Dialog-Steuerzeile (Sortierung + Umschalter) zwischen Kopf und Grid. align-items:flex-start verhindert,
+   dass die Kinder im Flex-Column-Dialog auf volle Breite gestreckt werden (sonst wirkt der Toggle "kaputt"). */
+.avesmaps-adv-dialog__controls {
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: flex-start;
+	padding: 10px 16px 4px;
+}
+.avesmaps-adv-dialog__controls .avesmaps-adv__sorts {
+	margin-top: 0;
+}
+.avesmaps-adv__mode {
+	appearance: none;
+	border: none;
+	background: transparent;
 	font: inherit;
-	font-size: 12px;
+	font-size: 11px;
+	padding: 4px 10px;
 	color: var(--color-button-soft-text);
 	cursor: pointer;
 	transition: background-color 0.12s ease;
 }
-.avesmaps-adv__spoiler:hover {
+.avesmaps-adv__mode + .avesmaps-adv__mode {
+	border-left: 1px solid var(--color-button-soft-border);
+}
+.avesmaps-adv__mode:hover {
 	background: var(--color-button-soft-hover);
 }
-.avesmaps-adv__spoiler-note,
-.avesmaps-adv__spoiler-count {
+.avesmaps-adv__mode.is-active {
+	background: var(--color-button-soft);
+	color: var(--color-text-strong);
+	font-weight: 700;
+	cursor: default;
+}
+.avesmaps-adv__mode-note,
+.avesmaps-adv__mode-count {
 	color: var(--color-text-muted);
 }
-.avesmaps-adv__spoiler-list {
+/* "Hier beginnt kein Abenteuer."-Hinweis (nur wenn beginnt leer, aber gespielt wird). */
+.avesmaps-adv__empty {
 	margin-top: 10px;
+	font-size: 11px;
+	color: var(--color-text-muted);
 }
-.avesmaps-adv__spoiler-list .avesmaps-adv__list {
-	margin-top: 0;
+/* Karten faden beim Umschalten -- im Streifen (.avesmaps-adv__list) UND im Dialog-Grid. spielt-Karten
+   liegen initial per JS display:none + opacity 0; im show-play-Zustand faden sie ein und die beginnt-Karten
+   werden gedimmt (Owner-Wunsch "etwas ausblenden"). */
+.avesmaps-adv__card {
+	transition: opacity 0.28s ease;
+}
+.avesmaps-adv__card.is-play {
+	opacity: 0;
+}
+.avesmaps-adv__list.show-play .avesmaps-adv__card.is-play,
+.avesmaps-adv-dialog__grid.show-play .avesmaps-adv__card.is-play {
+	opacity: 1;
+}
+.avesmaps-adv__list.show-play .avesmaps-adv__card:not(.is-play),
+.avesmaps-adv-dialog__grid.show-play .avesmaps-adv__card:not(.is-play) {
+	opacity: 0.4;
 }
 
 /* ---- Dialog "Alle Abenteuer" (modaler Overlay ueber allem) ---- */

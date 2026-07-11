@@ -92,15 +92,19 @@ function buildPlaceCityMapsMarkup(location) {
 		+ '</div>';
 }
 
-// ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt-Streifen, Spoiler UND Dialog ----
-function buildAdventureCardMarkup(a) {
+// ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt/spielt-Streifen UND Dialog ----
+// isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
+// per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
+function buildAdventureCardMarkup(a, isPlay) {
 	var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	var coverInner = a.cover
 		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
 		: AVESMAPS_ADV_COVER_PH_SVG;
 	var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
-	return '<div class="avesmaps-adv__card" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
+	var extraClass = isPlay ? " is-play" : "";
+	var hiddenStyle = isPlay ? ' style="display:none"' : "";
+	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
@@ -108,7 +112,9 @@ function buildAdventureCardMarkup(a) {
 		+ '</div>';
 }
 
-// ---- Abenteuer in <Ort>: beginnt-Streifen (Sortierung + "Alle anzeigen") + Spoiler "spielt hier" ----
+// ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----
+// Unter der Sortierzeile ein Umschalter "Beginnt hier | Spielt hier (Spoiler)"; "Spielt hier" gibt die
+// verborgenen spielt-Karten IM SELBEN Streifen per Fade frei und scrollt horizontal nach rechts zu ihnen.
 function buildPlaceAdventuresMarkup(location) {
 	var catalogReady = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
 	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
@@ -118,49 +124,48 @@ function buildPlaceAdventuresMarkup(location) {
 	}
 	var placeName = (location && location.name) ? location.name : "diesem Ort";
 	var hasBeginnt = beginnt && beginnt.length > 0;
+	var hasPlay = play && play.length > 0;
 	var total = hasBeginnt ? getPlaceAdventuresTotal(location) : 0;
-	// Kopf-Zaehler zaehlt die BEGINNENDEN (Default-Sicht, Spec §4); die spielt-Menge hat ihren eigenen Zaehler.
-	var countMarkup = hasBeginnt ? ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>' : "";
+	// Kopf-Zaehler NUR, wenn kein Toggle da ist (sonst tragen die Toggle-Segmente die Zaehler).
+	var countMarkup = (hasBeginnt && !hasPlay) ? ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>' : "";
 
-	// Sortierzeile + beginnt-Streifen nur, wenn hier ueberhaupt etwas BEGINNT.
-	var beginntBlock = "";
-	if (hasBeginnt) {
-		var noteMarkup = catalogReady ? "" : '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>';
-		beginntBlock =
-			'<div class="avesmaps-adv__sorts">'
-			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
-			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
-			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
+	// Sortierzeile (sortiert innerhalb der Rolle -- beginnt bleibt vor spielt).
+	var sortsMarkup =
+		'<div class="avesmaps-adv__sorts">'
+		+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
+		+ '<span class="avesmaps-adv__sortsep"> · </span>'
+		+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
+		+ '<span class="avesmaps-adv__sortsep"> · </span>'
+		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
+		+ '</div>';
+
+	// Umschalter unter der Sortierzeile (nur wenn es spielt-Orte gibt). Klick auf "Spielt hier" = Spoiler-Bestaetigung.
+	var togglesMarkup = hasPlay
+		? '<div class="avesmaps-adv__modes" role="tablist" aria-label="Beginnt hier oder Spielt hier">'
+			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">Beginnt hier <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(beginnt.length) + ')</span></button>'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
 			+ '</div>'
-			+ noteMarkup
-			+ '<div class="avesmaps-adv__list">' + beginnt.map(buildAdventureCardMarkup).join("") + '</div>';
-	}
-
-	// Aktionszeile: "Alle anzeigen" (nur bei beginnt) + Spoiler-Button "Spielt hier" (nur bei play).
-	var actions = "";
-	if (hasBeginnt) {
-		actions += '<button type="button" class="avesmaps-adv__all">Alle anzeigen (' + placeExtrasEscape(total) + ')</button>';
-	}
-	if (play && play.length) {
-		actions += '<button type="button" class="avesmaps-adv__spoiler" aria-expanded="false">'
-			+ 'Spielt hier <span class="avesmaps-adv__spoiler-note">(Spoiler)</span> '
-			+ '<span class="avesmaps-adv__spoiler-count">(' + placeExtrasEscape(play.length) + ')</span>'
-			+ '</button>';
-	}
-	var actionsMarkup = actions ? '<div class="avesmaps-adv__actions">' + actions + '</div>' : "";
-
-	// Spoiler-Liste verborgen (der Klick auf den Button IST die Spoiler-Bestaetigung -> inline-Reveal, kein Auto-Reveal).
-	var spoilerListMarkup = (play && play.length)
-		? '<div class="avesmaps-adv__spoiler-list" hidden><div class="avesmaps-adv__list">' + play.map(buildAdventureCardMarkup).join("") + '</div></div>'
 		: "";
+
+	var noteMarkup = (hasBeginnt && !catalogReady) ? '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>' : "";
+	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
+	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>Hier beginnt kein Abenteuer.</div>' : "";
+
+	// EIN Streifen: beginnt-Karten, dann (verborgene) spielt-Karten.
+	var cards = (hasBeginnt ? beginnt.map(function (a) { return buildAdventureCardMarkup(a, false); }).join("") : "")
+		+ (hasPlay ? play.map(function (a) { return buildAdventureCardMarkup(a, true); }).join("") : "");
+	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
+
+	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">Alle anzeigen</button></div>' : "";
 
 	return '<div class="avesmaps-adv">'
 		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(placeName) + countMarkup + '</div>'
-		+ beginntBlock
-		+ actionsMarkup
-		+ spoilerListMarkup
+		+ sortsMarkup
+		+ togglesMarkup
+		+ noteMarkup
+		+ emptyHint
+		+ listMarkup
+		+ alleMarkup
 		+ '</div>';
 }
 
@@ -194,8 +199,39 @@ function buildPlaceAdventuresMarkup(location) {
 		document.addEventListener("keydown", function (e) { if (e.key === "Escape") { close(); } });
 		return overlay;
 	}
-	// "Alle anzeigen" -> Dialog mit ALLEN Abenteuer-Karten (aus dem Streifen des Abschnitts geklont, damit
-	// Cover/Titel/Jahr/Typ 1:1 uebernommen werden). Funktioniert in Popup UND Panel (Document-Delegation).
+	// Dialog-Steuerzeile: Sortier-Links (immer) + Umschalter (nur wenn spielt-Karten da sind) -- gleiche
+	// Optik/Zaehler wie im Streifen. In eine eigene .__controls-Box, damit der Umschalter im Flex-Column-
+	// Dialog nicht auf volle Breite gestreckt wird (CSS align-items:flex-start).
+	function buildDialogControls(overlay, startCount, playCount) {
+		var existing = overlay.querySelector(".avesmaps-adv-dialog__controls");
+		if (existing) {
+			existing.parentNode.removeChild(existing);
+		}
+		var box = overlay.querySelector(".avesmaps-adv-dialog__box");
+		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
+		var controls = document.createElement("div");
+		controls.className = "avesmaps-adv-dialog__controls";
+		var sortsHtml =
+			'<div class="avesmaps-adv__sorts">'
+			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
+			+ '<span class="avesmaps-adv__sortsep"> · </span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
+			+ '<span class="avesmaps-adv__sortsep"> · </span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
+			+ '</div>';
+		var togglesHtml = playCount
+			? '<div class="avesmaps-adv-dialog__modes" role="tablist">'
+				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">Beginnt hier <span class="avesmaps-adv__mode-count">(' + startCount + ')</span></button>'
+				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count">(' + playCount + ')</span></button>'
+				+ '</div>'
+			: "";
+		controls.innerHTML = sortsHtml + togglesHtml;
+		box.insertBefore(controls, grid);
+	}
+
+	// "Alle anzeigen" -> Dialog mit den Abenteuer-Karten (beginnt + spielt, aus dem Streifen geklont). Der
+	// Dialog spiegelt das Streifen-Verhalten: Umschalter oben, "Spielt hier" faded die spielt-Karten ein und
+	// dimmt die beginnt-Karten (Grid, daher ohne Scroll). Funktioniert in Popup UND Panel (Document-Delegation).
 	$(document).on("click", ".avesmaps-adv__all", function () {
 		var section = $(this).closest(".avesmaps-adv")[0];
 		if (!section) {
@@ -204,27 +240,40 @@ function buildPlaceAdventuresMarkup(location) {
 		var overlay = ensureAdventuresDialog();
 		var head = section.querySelector(".avesmaps-adv__head");
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : "Abenteuer";
+		var listEl = section.querySelector(".avesmaps-adv__list");
+		var startCards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card:not(.is-play)") : [];
+		var playCards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card.is-play") : [];
 		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
 		grid.innerHTML = "";
-		// Nur die BEGINNENDEN (erster .avesmaps-adv__list) klonen -- die Spoiler-Liste bleibt aussen vor.
-		var beginntList = section.querySelector(".avesmaps-adv__list");
-		var cards = beginntList ? beginntList.querySelectorAll(".avesmaps-adv__card") : [];
-		Array.prototype.forEach.call(cards, function (card) { grid.appendChild(card.cloneNode(true)); });
+		grid.classList.remove("show-play"); // Dialog startet in der beginnt-Sicht
+		// beginnt-Karten (voll), dann spielt-Karten (verborgen). Inline-Opacity zuruecksetzen (Streifen evtl. gedimmt).
+		Array.prototype.forEach.call(startCards, function (card) {
+			var clone = card.cloneNode(true);
+			clone.style.opacity = "";
+			grid.appendChild(clone);
+		});
+		Array.prototype.forEach.call(playCards, function (card) {
+			var clone = card.cloneNode(true);
+			clone.style.opacity = "";
+			clone.style.display = "none";
+			grid.appendChild(clone);
+		});
+		buildDialogControls(overlay, startCards.length, playCards.length);
 		overlay.classList.add("is-open");
 	});
 
+	// Sortierung -- funktioniert im Streifen (.avesmaps-adv) UND im Dialog (.avesmaps-adv-dialog__box).
 	$(document).on("click", ".avesmaps-adv__sort", function () {
-		var section = $(this).closest(".avesmaps-adv")[0];
-		if (!section) {
+		var container = $(this).closest(".avesmaps-adv, .avesmaps-adv-dialog__box")[0];
+		if (!container) {
 			return;
 		}
 		var mode = this.getAttribute("data-adv-sort");
-		var listEl = section.querySelector(".avesmaps-adv__list");
-		if (!listEl) {
+		var cardBox = container.querySelector(".avesmaps-adv__list, .avesmaps-adv-dialog__grid");
+		if (!cardBox) {
 			return;
 		}
-		var cards = Array.prototype.slice.call(listEl.querySelectorAll(".avesmaps-adv__card"));
-		cards.sort(function (a, b) {
+		var compare = function (a, b) {
 			if (mode === "alpha") {
 				return String(a.dataset.title).localeCompare(String(b.dataset.title), "de");
 			}
@@ -232,32 +281,100 @@ function buildPlaceAdventuresMarkup(location) {
 				return String(a.dataset.type).localeCompare(String(b.dataset.type), "de") || ((Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0));
 			}
 			return (Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0);
-		});
-		cards.forEach(function (c) { listEl.appendChild(c); });
-		listEl.scrollLeft = 0;
-		var sorts = section.querySelectorAll(".avesmaps-adv__sort");
+		};
+		// Innerhalb der Rolle sortieren -- beginnt bleibt VOR spielt (Reihenfolge-Invariante).
+		var startCards = Array.prototype.slice.call(cardBox.querySelectorAll(".avesmaps-adv__card:not(.is-play)")).sort(compare);
+		var playCards = Array.prototype.slice.call(cardBox.querySelectorAll(".avesmaps-adv__card.is-play")).sort(compare);
+		startCards.concat(playCards).forEach(function (c) { cardBox.appendChild(c); });
+		if (!cardBox.classList.contains("show-play")) {
+			cardBox.scrollLeft = 0;
+		}
+		// Aktiv-Zustand nur in der geklickten Sortierzeile (Streifen ODER Dialog).
+		var sortsRow = $(this).closest(".avesmaps-adv__sorts")[0];
+		var sorts = sortsRow ? sortsRow.querySelectorAll(".avesmaps-adv__sort") : [];
 		for (var i = 0; i < sorts.length; i += 1) {
 			sorts[i].classList.toggle("is-active", sorts[i] === this);
 		}
 	});
 
-	// Spoiler "Spielt hier": der Klick IST die Spoiler-Bestaetigung -> play-Liste inline ein/ausblenden.
-	$(document).on("click", ".avesmaps-adv__spoiler", function () {
+	// Kern: beginnt/spielt im SELBEN Karten-Container (Streifen ODER Dialog-Grid) umschalten. Bei "play" die
+	// spielt-Karten per Fade freigeben (JS display + CSS-Opacity) und die beginnt-Karten dimmen (Owner-Wunsch:
+	// "etwas ausblenden"); optional horizontal nach rechts scrollen (nur Streifen). Bei "start" umgekehrt.
+	function applyAdventureMode(cardBox, mode, doScroll) {
+		if (!cardBox) {
+			return;
+		}
+		var playCards = cardBox.querySelectorAll(".avesmaps-adv__card.is-play");
+		var j;
+		if (mode === "play") {
+			for (j = 0; j < playCards.length; j += 1) {
+				playCards[j].style.display = "";
+			}
+			void cardBox.offsetWidth; // Reflow erzwingen, damit die Opacity-Transition greift
+			cardBox.classList.add("show-play");
+			if (doScroll) {
+				var firstPlay = cardBox.querySelector(".avesmaps-adv__card.is-play");
+				var firstCard = cardBox.querySelector(".avesmaps-adv__card");
+				if (firstPlay && firstCard) {
+					var target = firstPlay.offsetLeft - firstCard.offsetLeft;
+					if (typeof cardBox.scrollTo === "function") {
+						cardBox.scrollTo({ left: target, behavior: "smooth" });
+					} else {
+						cardBox.scrollLeft = target;
+					}
+				}
+			}
+		} else {
+			cardBox.classList.remove("show-play");
+			if (doScroll) {
+				if (typeof cardBox.scrollTo === "function") {
+					cardBox.scrollTo({ left: 0, behavior: "smooth" });
+				} else {
+					cardBox.scrollLeft = 0;
+				}
+			}
+			setTimeout(function () {
+				if (!cardBox.classList.contains("show-play")) {
+					for (var k = 0; k < playCards.length; k += 1) {
+						playCards[k].style.display = "none";
+					}
+				}
+			}, 320);
+		}
+	}
+
+	function syncModeButtons(container, mode) {
+		var modes = container.querySelectorAll(".avesmaps-adv__mode");
+		for (var i = 0; i < modes.length; i += 1) {
+			var active = modes[i].getAttribute("data-adv-mode") === mode;
+			modes[i].classList.toggle("is-active", active);
+			modes[i].setAttribute("aria-selected", active ? "true" : "false");
+		}
+	}
+
+	// Streifen-Umschalter (Infopanel/Popup): Buttons + Leer-Hinweis setzen, dann Karten umschalten (mit Scroll).
+	$(document).on("click", ".avesmaps-adv__modes .avesmaps-adv__mode", function () {
 		var section = $(this).closest(".avesmaps-adv")[0];
 		if (!section) {
 			return;
 		}
-		var spoilerList = section.querySelector(".avesmaps-adv__spoiler-list");
-		if (!spoilerList) {
+		var mode = this.getAttribute("data-adv-mode");
+		syncModeButtons(section, mode);
+		var empty = section.querySelector("[data-adv-empty]");
+		if (empty) {
+			empty.style.display = (mode === "play") ? "none" : "";
+		}
+		applyAdventureMode(section.querySelector(".avesmaps-adv__list"), mode, true);
+	});
+
+	// Dialog-Umschalter ("Alle anzeigen"): gleiches Verhalten im Grid, ohne Scroll (Grid bricht um).
+	$(document).on("click", ".avesmaps-adv-dialog__modes .avesmaps-adv__mode", function () {
+		var overlay = document.getElementById("avesmaps-adv-dialog");
+		if (!overlay) {
 			return;
 		}
-		var reveal = spoilerList.hasAttribute("hidden");
-		if (reveal) {
-			spoilerList.removeAttribute("hidden");
-		} else {
-			spoilerList.setAttribute("hidden", "");
-		}
-		this.setAttribute("aria-expanded", reveal ? "true" : "false");
-		this.classList.toggle("is-open", reveal);
+		var mode = this.getAttribute("data-adv-mode");
+		syncModeButtons(overlay, mode);
+		applyAdventureMode(overlay.querySelector(".avesmaps-adv-dialog__grid"), mode, false);
 	});
 })();
