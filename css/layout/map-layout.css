@@ -70,19 +70,21 @@ body {
 
 .project-summary__logo {
 	display: block;
-	width: 100%;
+	width: 85%;
 	height: auto;
+	margin: 0 auto;
 }
 
-/* Tagline under the logo (kept in the DOM for SEO — now also shown). text-wrap:
-   balance evens the two lines so the title "Das Schwarze Auge" isn't split. */
+/* Tagline under the logo (kept in the DOM for SEO — now also shown). One line,
+   full-bleed (negative side-margin = #search padding) for the panel's full width.
+   10.8px is a hair under the 11px floor — owner-chosen for the fit. */
 .project-summary__tagline {
-	margin: var(--space-6) 0 0;
+	margin: var(--space-4) calc(-1 * var(--space-10)) 0;
 	color: var(--color-text-muted);
-	font-size: var(--font-size-small);
+	font-size: 10.8px;
 	line-height: var(--leading-snug);
 	text-align: center;
-	text-wrap: balance;
+	white-space: nowrap;
 }
 
 .map-data-status {
