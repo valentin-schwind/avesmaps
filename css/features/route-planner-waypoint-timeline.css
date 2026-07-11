@@ -36,7 +36,7 @@
 	border: 0;
 	border-radius: 7px;
 	background: transparent !important;
-	color: #7c6957 !important;
+	color: var(--color-text-muted) !important;
 	font-size: 17px !important;
 	font-weight: 700;
 	line-height: 1;
@@ -57,7 +57,7 @@
 	top: 50%;
 	width: 13px;
 	height: 13px;
-	border: 2px solid #565044;
+	border: 2px solid var(--color-text-muted);
 	border-radius: 50%;
 	background: transparent;
 	box-sizing: border-box;
@@ -73,7 +73,7 @@
 	top: calc(50% + 9px);
 	bottom: calc(-5px - 50% + 9px);
 	width: 3px;
-	background-image: radial-gradient(circle, #565044 1.35px, transparent 1.55px);
+	background-image: radial-gradient(circle, var(--color-text-muted) 1.35px, transparent 1.55px);
 	background-repeat: repeat-y;
 	background-size: 3px 7px;
 	pointer-events: none;
@@ -83,7 +83,7 @@
 #waypoints .waypoint-container:last-child::before {
 	width: 14px;
 	height: 14px;
-	border-color: #e33b35;
+	border-color: var(--color-marker-destination);
 	border-radius: 50% 50% 50% 0;
 	transform: translate(-50%, -58%) rotate(-45deg);
 }
@@ -97,7 +97,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #e33b35;
+	background: var(--color-marker-destination);
 	transform: translate(-50%, -82%);
 	z-index: 2;
 	pointer-events: none;
@@ -110,9 +110,9 @@
 	height: 32px;
 	min-width: 0;
 	padding: 0 3px !important;
-	border: 1px solid #d8c6b2;
+	border: 1px solid var(--color-border);
 	border-radius: 8px;
-	background: #ffffff;
+	background: var(--color-panel);
 	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.08);
 	box-sizing: border-box;
 }
@@ -126,8 +126,8 @@
 }
 
 #waypoints .waypoint-container:focus-within .waypoint-input {
-	border-color: #b99878;
-	box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px rgba(255, 216, 88, 0.18);
+	border-color: var(--color-border-strong);
+	box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px var(--color-focus);
 }
 
 #waypoints .remove-waypoint {

@@ -12,7 +12,7 @@
 }
 
 .project-summary p {
-	color: #4f4134;
+	color: var(--color-text);
 	font-size: 12px;
 	line-height: 1.35;
 }
@@ -29,17 +29,17 @@
 	gap: 4px;
 	min-height: 36px;
 	padding: 3px 4px;
-	border: 1px solid #d8c6b2;
+	border: 1px solid var(--color-border);
 	border-radius: 8px;
-	background: #ffffff;
+	background: var(--color-panel);
 	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.08);
 	transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 	box-sizing: border-box;
 }
 
 .waypoint-container:focus-within {
-	border-color: #b99878;
-	box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px rgba(255, 216, 88, 0.18);
+	border-color: var(--color-border-strong);
+	box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px var(--color-focus);
 }
 
 .waypoint-container.is-dragging {
@@ -54,7 +54,7 @@
 	border: 0;
 	border-radius: 7px;
 	background: transparent;
-	color: #7c6957;
+	color: var(--color-text-muted);
 	cursor: pointer;
 	font: inherit;
 	line-height: 1;
@@ -73,8 +73,8 @@
 .waypoint-drag-handle:focus-visible,
 .remove-waypoint:hover,
 .remove-waypoint:focus-visible {
-	background: rgba(255, 216, 88, 0.18);
-	color: #3f3428;
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
 	outline: none;
 }
 
@@ -84,8 +84,8 @@
 	min-width: 0;
 	border: 0;
 	border-radius: 7px;
-	background: #ffffff;
-	color: #2f251c;
+	background: var(--color-panel);
+	color: var(--color-text);
 	font-size: 15px;
 	line-height: 1.2;
 	padding: 0 3px;
@@ -95,7 +95,7 @@
 }
 
 .waypoint-input::placeholder {
-	color: rgba(63, 52, 40, 0.46);
+	color: var(--color-placeholder);
 }
 
 #waypoints,
@@ -113,10 +113,10 @@
 .input-options button,
 #searchButton {
 	min-height: 32px;
-	border: 1px solid #8d7962;
+	border: 1px solid var(--color-button-border);
 	border-radius: 8px;
-	background: #565044;
-	color: #fff;
+	background: var(--color-button);
+	color: var(--color-button-text);
 	cursor: pointer;
 	font: inherit;
 	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.16);
@@ -133,10 +133,10 @@
 	gap: 5px;
 	margin-top: 4px;
 	padding: 4px 8px;
-	border: 1px solid #cbbeaf;
+	border: 1px solid var(--color-button-soft-border);
 	border-radius: 7px;
-	background: #fff9f4;
-	color: #5a4a3a;
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 	font: inherit;
 	font-size: 11.5px;
@@ -144,7 +144,7 @@
 }
 .share-link-button:hover,
 .share-link-button:focus-visible {
-	background: #f3e8db;
+	background: var(--color-button-soft-hover);
 	box-shadow: 0 4px 10px rgba(52, 41, 32, 0.14);
 	outline: none;
 	transform: translateY(-1px);
@@ -163,7 +163,7 @@
 	border: 0;
 	border-radius: 7px;
 	background: transparent;
-	color: #7c6957;
+	color: var(--color-text-muted);
 	font-size: 0;
 	line-height: 1;
 	padding: 0;
@@ -195,8 +195,8 @@
 
 #inputLocation:hover,
 #inputLocation:focus-visible {
-	background: rgba(255, 216, 88, 0.18);
-	color: #3f3428;
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
 	outline: none;
 }
 
@@ -204,7 +204,7 @@
 .input-options button:focus-visible,
 #searchButton:hover,
 #searchButton:focus-visible {
-	background: #6a604f;
+	background: var(--color-button-hover);
 	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22);
 	outline: none;
 	transform: translateY(-1px);
@@ -212,8 +212,8 @@
 
 #searchButton:hover,
 #searchButton:focus-visible {
-	border-color: #7c6957;
-	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22), 0 0 0 2px rgba(255, 216, 88, 0.18);
+	border-color: var(--color-text-muted);
+	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22), 0 0 0 2px var(--color-focus);
 }
 
 .display-options,
@@ -222,9 +222,9 @@
 	display: grid;
 	gap: 5px;
 	padding: 6px;
-	border: 1px solid #e1d1bf;
+	border: 1px solid var(--color-border);
 	border-radius: 8px;
-	background: #fffaf5;
+	background: var(--color-panel-soft);
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 	box-sizing: border-box;
 }
@@ -236,7 +236,7 @@
 .route-planner-options-panel__title,
 .transport-options__title {
 	margin: 0 0 1px;
-	color: #6a5543;
+	color: var(--color-text-muted);
 	font-size: 11px;
 	font-weight: 700;
 	letter-spacing: 0.04em;
@@ -249,7 +249,7 @@
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 5px 8px;
-	color: #4f4134;
+	color: var(--color-text);
 	font-size: 12px;
 	line-height: 1.25;
 }
@@ -264,10 +264,10 @@
 
 .route-planner-options-panel input[type="number"] {
 	height: 25px;
-	border: 1px solid #d8c6b2;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fff;
-	color: #2f251c;
+	background: var(--color-panel);
+	color: var(--color-text);
 	font: inherit;
 	padding: 0 4px;
 	box-sizing: border-box;
@@ -284,7 +284,7 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	color: #4f4134;
+	color: var(--color-text);
 	font-size: 12px;
 	line-height: 1.25;
 }
@@ -408,10 +408,10 @@
 	width: 100%;
 	min-height: 32px;
 	padding: 2px 22px 2px 6px;
-	border: 1px solid #d8c6b2;
+	border: 1px solid var(--color-border);
 	border-radius: 8px;
-	background: #fff;
-	color: #2f251c;
+	background: var(--color-panel);
+	color: var(--color-text);
 	cursor: pointer;
 	font-size: 13px;
 	text-align: left;
@@ -433,8 +433,8 @@
 
 .transport-combobox:hover,
 .transport-combobox:focus-visible {
-	border-color: #b99878;
-	background: #fffdf9;
+	border-color: var(--color-border-strong);
+	background: var(--color-panel);
 	outline: none;
 }
 
@@ -455,9 +455,9 @@
 	max-width: calc(100vw - 16px);
 	max-height: 220px;
 	overflow-y: auto;
-	border: 1px solid #d8c6b2;
+	border: 1px solid var(--color-border);
 	border-radius: 9px;
-	background: #fff;
+	background: var(--color-panel);
 	box-shadow: 0 12px 26px rgba(52, 41, 32, 0.2);
 }
 
@@ -470,7 +470,7 @@
 	padding: 3px 8px;
 	border: 0;
 	background: transparent;
-	color: #2f251c;
+	color: var(--color-text);
 	cursor: pointer;
 	text-align: left;
 	white-space: nowrap;
@@ -484,12 +484,12 @@
 .transport-combobox__option:hover,
 .transport-combobox__option:focus-visible,
 .transport-combobox__option.is-active {
-	background: rgba(255, 216, 88, 0.2);
+	background: var(--color-hover-wash);
 	outline: none;
 }
 
 .transport-combobox__option:disabled {
-	color: #7f766f;
+	color: var(--color-disabled-text);
 	cursor: not-allowed;
 	opacity: 0.45;
 }
@@ -531,14 +531,14 @@
 
 .route-plan-entry:hover,
 .route-plan-entry:focus-visible {
-	border-color: #b99878;
-	background: rgba(255, 216, 88, 0.18);
+	border-color: var(--color-border-strong);
+	background: var(--color-hover-wash);
 	outline: none;
 }
 
 .route-plan-entry.is-active {
-	border-color: #b99878;
-	background: rgba(255, 213, 74, 0.32);
+	border-color: var(--color-border-strong);
+	background: var(--color-active-wash);
 	box-shadow: none;
 }
 
@@ -549,11 +549,11 @@
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding: 4px;
-	border: 1px solid #d8c6b2 !important;
+	border: 1px solid var(--color-border) !important;
 	border-radius: 9px;
-	background: #ffffff;
+	background: var(--color-panel);
 	box-shadow: 0 16px 38px rgba(31, 25, 20, 0.26);
-	color: #2f251c;
+	color: var(--color-text);
 	box-sizing: border-box;
 }
 
@@ -563,7 +563,7 @@
 	border: 0 !important;
 	border-radius: 6px;
 	background: transparent;
-	color: #2f251c;
+	color: var(--color-text);
 	font-family: inherit !important;
 	font-size: 15px;
 	line-height: 1.25;
@@ -574,10 +574,16 @@
 
 .ui-autocomplete .ui-menu-item-wrapper.ui-state-active {
 	margin: 0;
-	background: rgba(255, 216, 88, 0.2);
-	color: #2f251c;
+	background: var(--color-hover-wash);
+	color: var(--color-text);
 }
 
 .transportOptionSelect {
 	width: 170px;
+}
+
+/* Checkboxes and radios follow the warm coat-gold accent — never the native blue. */
+#search input[type="checkbox"],
+#search input[type="radio"] {
+	accent-color: var(--color-accent);
 }
