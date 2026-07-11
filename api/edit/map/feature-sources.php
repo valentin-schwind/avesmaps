@@ -69,6 +69,34 @@ try {
             }
             return avesmapsRemoveFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId);
         })(),
+        '_debug_resolve' => (static function () use ($pdo, $payload): array {
+            // TEMPORARY diagnostic (systematic debugging): reveals WHY publication-link normalization
+            // did/did not fire for a URL. Read-only, capability-gated. REMOVE after diagnosis.
+            $url = trim((string) ($payload['url'] ?? ''));
+            $out = ['url' => $url, 'fn_resolver' => function_exists('avesmapsResolvePublicationIdentityFromUrl')];
+            $out['title'] = function_exists('avesmapsWikiAventuricaPageTitleFromUrl') ? avesmapsWikiAventuricaPageTitleFromUrl($url) : 'FN_MISSING';
+            if (!function_exists('avesmapsWikiSyncMonitorNormalizeTitle')) { @require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php'; }
+            if (!function_exists('avesmapsPoliticalSlug')) { @require_once __DIR__ . '/../../_internal/political/territory.php'; }
+            $out['fn_slug'] = function_exists('avesmapsPoliticalSlug');
+            try {
+                $out['wiki_key'] = function_exists('avesmapsPublicationResolvePublicationKey') ? avesmapsPublicationResolvePublicationKey($pdo, (string) $out['title']) : 'FN_MISSING';
+            } catch (Throwable $e) { $out['wiki_key_err'] = $e->getMessage(); }
+            try {
+                $out['catalog_count'] = (int) $pdo->query('SELECT COUNT(*) FROM wiki_publication_catalog')->fetchColumn();
+                if (!empty($out['wiki_key']) && is_string($out['wiki_key'])) {
+                    $s = $pdo->prepare('SELECT wiki_key, chosen_url, has_link FROM wiki_publication_catalog WHERE wiki_key = :k LIMIT 1');
+                    $s->execute(['k' => $out['wiki_key']]);
+                    $out['catalog_row'] = $s->fetch(PDO::FETCH_ASSOC) ?: null;
+                    $l = $pdo->prepare("SELECT wiki_key FROM wiki_publication_catalog WHERE wiki_key LIKE :p LIMIT 5");
+                    $l->execute(['p' => '%' . str_replace(' ', '-', mb_strtolower((string) $out['title'])) . '%']);
+                    $out['catalog_like'] = $l->fetchAll(PDO::FETCH_COLUMN) ?: [];
+                }
+            } catch (Throwable $e) { $out['catalog_err'] = $e->getMessage(); }
+            try {
+                $out['identity'] = function_exists('avesmapsResolvePublicationIdentityFromUrl') ? avesmapsResolvePublicationIdentityFromUrl($pdo, $url) : 'FN_MISSING';
+            } catch (Throwable $e) { $out['identity_err'] = $e->getMessage(); }
+            return ['ok' => true, 'debug' => $out];
+        })(),
         default => throw new InvalidArgumentException('Die Aktion ist unbekannt.'),
     };
 
