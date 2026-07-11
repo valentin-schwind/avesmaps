@@ -35,22 +35,35 @@ async function handleLocationEditFormSubmit(event) {
 		} else {
 			savedMarkerEntry = addCreatedLocationMarker(responseFeature);
 		}
-		// Auto-connect / re-connect the wiki settlement from the place's wiki link (e.g. inherited from a
-		// community report), so a save with a wiki URL links its {{Infobox Siedlung}} data without a manual
-		// "Zuweisen". Runs when the URL resolves to a settlement title that DIFFERS from the one currently
-		// connected -- a brand-new place (nothing connected) OR a corrected URL on an already-connected place
-		// (owner: a changed source must be taken over). It stays off when the URL already matches the
-		// connection (nothing to do); and a manual "Verbindung entfernen" clears the wiki_url field
-		// (removeSettlementWiki), so an unrelated later save does NOT silently re-attach the removed link.
+		// Auto-connect the place to its wiki settlement so a save attaches the {{Infobox Siedlung}} data
+		// without a manual "Zuweisen". Two paths, in order:
+		//  1) By wiki_url (e.g. inherited from a community report): runs when the URL resolves to a
+		//     settlement title DIFFERENT from the one currently connected -- a brand-new place OR a
+		//     corrected URL on an already-connected one (owner: a changed source must be taken over).
+		//     Stays off when the URL already matches; a manual "Verbindung entfernen" clears the wiki_url
+		//     field (removeSettlementWiki) so an unrelated later save does not silently re-attach it.
+		//  2) By NAME (owner): community reports usually carry only a book source, no wiki link -> path 1
+		//     never fires. When a place is freshly created with NO wiki_url and NOTHING connected yet but
+		//     its name matches a wiki settlement exactly, connect via the name. The server only matches a
+		//     page titled exactly like the place (no fuzzy match), so "Wengenholm 2" stays unconnected.
+		// A failed URL attempt is surfaced (not silent) so the editor knows to assign manually; a failed
+		// name attempt stays quiet (most places have no same-named wiki page -- that is not an error).
 		const connectedWikiTitle = savedMarkerEntry && savedMarkerEntry.location && savedMarkerEntry.location.wikiSettlement
 			? String(savedMarkerEntry.location.wikiSettlement.title || "")
 			: "";
 		const desiredWikiTitle = typeof settlementWikiTitleFromUrl === "function"
 			? settlementWikiTitleFromUrl(payload.wiki_url)
 			: "";
-		if (desiredWikiTitle && desiredWikiTitle !== connectedWikiTitle && savedMarkerEntry
+		const connectPublicId = savedMarkerEntry?.publicId || savedMarkerEntry?.location?.publicId || responseFeature?.public_id || "";
+		if (desiredWikiTitle && desiredWikiTitle !== connectedWikiTitle && connectPublicId
 			&& typeof autoConnectSettlementWikiByUrl === "function") {
-			await autoConnectSettlementWikiByUrl(savedMarkerEntry.publicId || responseFeature?.public_id || "", payload.wiki_url, savedMarkerEntry);
+			const connected = await autoConnectSettlementWikiByUrl(connectPublicId, payload.wiki_url, savedMarkerEntry);
+			if (!connected) {
+				showFeedbackToast?.(`Wiki-Siedlung „${desiredWikiTitle}" konnte nicht automatisch verbunden werden – bitte manuell „Zuweisen".`, "warning");
+			}
+		} else if (!desiredWikiTitle && !connectedWikiTitle && payload.action === "create_point" && payload.name && connectPublicId
+			&& typeof autoConnectSettlementWikiByTitle === "function") {
+			await autoConnectSettlementWikiByTitle(connectPublicId, payload.name, savedMarkerEntry);
 		}
 		if (payload.action === "create_point" && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");

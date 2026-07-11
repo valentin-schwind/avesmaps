@@ -229,13 +229,11 @@ function settlementWikiTitleFromUrl(wikiUrl) {
 	}
 }
 
-// Auto-connect a place to its wiki settlement straight from its wiki URL (e.g. one inherited from a
-// community report), so a save with a wiki link attaches the {{Infobox Siedlung}} data without a
-// manual "Zuweisen". Best-effort: does nothing when the URL carries no title or assign_to fails, so
-// a save is never blocked. Updates the marker's cached wikiSettlement + revision so the popup shows
-// the connection immediately and the next save's expected_revision still matches.
-async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
-	const title = settlementWikiTitleFromUrl(wikiUrl);
+// Core: connect ONE place feature to its wiki settlement by the settlement's exact TITLE (assign_to).
+// Best-effort: returns false when publicId/title is missing or the server finds no {{Infobox Siedlung}}
+// under that title -- never blocks a save. Updates the cached wikiSettlement + revision so the popup
+// shows the connection immediately and the next save's expected_revision still matches.
+async function autoConnectSettlementWikiByTitle(publicId, title, markerEntry) {
 	if (!publicId || !title) {
 		return false;
 	}
@@ -260,6 +258,13 @@ async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
 	} catch (error) {
 		return false;
 	}
+}
+
+// Convenience: connect a place to its wiki settlement straight from its wiki URL (title derived from
+// /wiki/<Title>, e.g. one inherited from a community report), so a save with a wiki link attaches the
+// {{Infobox Siedlung}} data without a manual "Zuweisen".
+async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
+	return autoConnectSettlementWikiByTitle(publicId, settlementWikiTitleFromUrl(wikiUrl), markerEntry);
 }
 
 async function removeSettlementWiki() {

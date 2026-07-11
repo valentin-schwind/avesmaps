@@ -57,6 +57,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             report_type,
             report_subtype,
             name,
+            reporter_name,
             lat,
             lng,
             source,

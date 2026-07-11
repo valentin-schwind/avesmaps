@@ -174,7 +174,14 @@ function renderReviewReports() {
 		`;
 		itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Eintrag";
 		itemElement.querySelector(".review-report__meta").textContent = `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
-		itemElement.querySelector(".review-report__source").textContent = report.source || "Keine Quelle";
+		const reportSourceParts = [report.source || "Keine Quelle"];
+		if (report.reporter_name) {
+			reportSourceParts.push(`gemeldet von ${report.reporter_name}`);
+		}
+		if (report.wiki_url) {
+			reportSourceParts.push("Wiki-Link vorhanden");
+		}
+		itemElement.querySelector(".review-report__source").textContent = reportSourceParts.join(" · ");
 		if (isCommentReport(report)) {
 			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
 		}
