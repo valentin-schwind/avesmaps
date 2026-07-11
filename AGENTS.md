@@ -219,6 +219,7 @@ Authoritative docs (being translated to English in M8):
 - `docs/map-features-rest-architecture.md` — structure of the map-features layer.
 - `docs/quellen-system-design.md`, `docs/quellen-system-2-editor-design.md` — multi-source system (infobox display + editor management).
 - `docs/wiki-publikations-quellen-design.md` — Wiki publication-source bulk lookup (**shipped**; sources travel in the map payload; wiki/manual/community provenance; manual/suppressed overrides preserved). Implementation instruction: `docs/wiki-publikations-quellen-instruction.md`.
+- `docs/abenteuer-feature-design.md` (spec) + `docs/abenteuer-instruction.md` (phased build) — **Adventures feature**: DSA adventures ↔ their ordered places (settlement/territory/region/path) surfaced as infopanel sections + a spoiler-gated questroute. **Phase 1 shipped**: schema `adventure`/`adventure_place` (inline DDL), catalog read `GET /api/app/adventures.php` + wiki-key resolver + client index, settlement "beginnt/spielt (Spoiler)" display, questroute (planner jump / ephemeral dashed line). Phases 2–5 (territory aggregation, editor, override-safe wiki-sync, cover/F-Shop) pending — each its own session.
 - `docs/political-territory-editor.md` — editor architecture.
 - `docs/stylized-map-tiles.md` — tile pipeline.
 - `docs/political-territory-global-display-and-derived-boundaries-{plan,progress}.md`,
