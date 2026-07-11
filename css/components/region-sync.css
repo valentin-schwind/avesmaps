@@ -867,12 +867,12 @@
 	white-space: normal;
 }
 .wikisync-itemlist .tree-item-meta a {
-	color: var(--link-color, #0078a8);
+	color: var(--link-color);
 	text-decoration: none;
 }
 .wikisync-itemlist .tree-item-meta a:hover,
 .wikisync-itemlist .tree-item-meta a:focus-visible {
-	color: var(--link-color-hover, #1a9fd4);
+	color: var(--link-color-hover);
 }
 /* Kandidaten-Chips dürfen in der Meta-Zeile umbrechen. */
 .wikisync-itemlist .tree-item-meta .region-sync__map {
@@ -1025,9 +1025,9 @@
 }
 .capital-list__suggest,
 .capital-list__search-result {
-	border: 1px solid var(--link-color, #0078a8);
-	background: rgba(0, 120, 168, 0.08);
-	color: var(--link-color, #0078a8);
+	border: 1px solid var(--link-color);
+	background: var(--color-hover-wash);
+	color: var(--link-color);
 	border-radius: 4px;
 	padding: 2px 8px;
 	font-size: 12px;
@@ -1036,7 +1036,7 @@
 }
 .capital-list__suggest:hover,
 .capital-list__search-result:hover {
-	background: rgba(0, 120, 168, 0.18);
+	background: var(--color-active-wash);
 }
 .capital-list__ambiguous {
 	font-size: 11px;

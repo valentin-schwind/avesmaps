@@ -43,7 +43,7 @@
 .tsi-overlay[hidden]{display:none;}
 .tsi-dialog{width:100%;max-width:600px;background:#fff9f4;border:1px solid #d1bda3;border-radius:12px;color:#3f3428;box-shadow:0 12px 44px rgba(0,0,0,.32);}
 .tsi-head{display:flex;align-items:center;gap:9px;padding:13px 18px;border-bottom:1px solid #e6d8c6;}
-.tsi-head .tsi-i{font-size:19px;color:#0078a8;line-height:1;}
+.tsi-head .tsi-i{font-size:19px;color:var(--color-accent-strong);line-height:1;}
 .tsi-head h2{margin:0;font-size:18px;font-weight:600;color:#3f3428;}
 .tsi-close{margin-left:auto;border:0;background:transparent;color:#6c5a49;font-size:18px;line-height:1;cursor:pointer;padding:3px 6px;border-radius:6px;}
 .tsi-close:hover{background:#efe3d4;color:#3f3428;}
@@ -67,7 +67,7 @@
 .tsi-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin-right:4px;}
 .tsi-water{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
 .tsi-wcard{flex:1;min-width:230px;background:#fffaf5;border:1px solid #e6d8c6;border-radius:8px;padding:9px 11px;}
-.tsi-wtitle{font-size:12px;font-weight:500;color:#0078a8;margin-bottom:4px;}
+.tsi-wtitle{font-size:12px;font-weight:500;color:var(--color-accent-strong);margin-bottom:4px;}
 .tsi-wmodes{font-size:12.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .tsi-m{display:inline-flex;align-items:center;gap:5px;}
 .tsi-dot{color:#c3b299;}

@@ -41,7 +41,7 @@
 .fs-row__link {
 	flex: 1 1 auto;
 	min-width: 0;
-	color: #1452f7;
+	color: var(--color-link);
 	text-decoration: none;
 	font-weight: bold;
 	overflow: hidden;
@@ -142,9 +142,9 @@
 	white-space: nowrap;
 }
 .fs-row__add {
-	border: 1px solid #8caee6;
-	background: #e7f0ff;
-	color: #17468f;
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
 	border-radius: 999px;
 	padding: 4px 12px;
 	cursor: pointer;

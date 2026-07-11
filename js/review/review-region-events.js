@@ -394,7 +394,7 @@ function askRegionTabCloseChoice() {
 			const button = document.createElement("button");
 			button.type = "button";
 			button.textContent = label;
-			button.style.cssText = "padding:7px 14px;border-radius:6px;cursor:pointer;border:1px solid " + (primary ? "#0078a8" : "#ccc") + ";background:" + (primary ? "#0078a8" : "#f5f5f5") + ";color:" + (primary ? "#fff" : "#222") + ";";
+			button.style.cssText = "padding:7px 14px;border-radius:6px;cursor:pointer;border:1px solid " + (primary ? "var(--color-button-border)" : "var(--color-button-soft-border)") + ";background:" + (primary ? "var(--color-button)" : "var(--color-button-soft)") + ";color:" + (primary ? "var(--color-button-text)" : "var(--color-button-soft-text)") + ";";
 			button.addEventListener("click", () => finish(choice));
 			return button;
 		};

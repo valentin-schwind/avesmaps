@@ -1058,9 +1058,9 @@
 }
 
 .review-report-tooltip {
-	border: 1px solid #1452f7;
-	background: #fff;
-	color: #1f2f5f;
+	border: 1px solid var(--color-accent);
+	background: var(--color-panel);
+	color: var(--color-text-strong);
 	font-weight: 700;
 }
 
