@@ -228,7 +228,10 @@
 }
 
 #transport-options {
-	grid-template-columns: 90px 210px;
+	/* Second column is flexible so col1 + gap + col2 = content width exactly; a
+	   fixed 210px overflowed the gap and pushed the dropdown 5px past the right
+	   inset (asymmetric with the left). The dropdown fills this column (below). */
+	grid-template-columns: 90px minmax(0, 1fr);
 }
 
 /* Content groups are separated by dividers (that's what they're for). The display
@@ -402,6 +405,13 @@
 	position: relative;
 	width: 192px;
 	min-width: 0;
+}
+
+/* In the Transportmittel rows the dropdown must fill its grid cell so its right
+   edge lines up with the panel's right inset — same gap left and right. Scoped to
+   #transport-options so the Derographie select (space-between row) is untouched. */
+#transport-options .transport-select-with-icon {
+	width: 100%;
 }
 
 .transport-native-select {
@@ -621,8 +631,8 @@
 }
 #search input[type="checkbox"]:checked,
 #search input[type="radio"]:checked {
-	background: var(--color-active-wash);
-	border-color: var(--color-accent-strong);
+	background: var(--color-check-fill);
+	border-color: var(--color-check-accent);
 }
 #search input[type="checkbox"]:checked::after {
 	content: "";
@@ -631,7 +641,7 @@
 	top: 45%;
 	width: 3px;
 	height: 6.5px;
-	border: solid var(--color-accent-strong);
+	border: solid var(--color-check-accent);
 	border-width: 0 2px 2px 0;
 	transform: translate(-50%, -50%) rotate(45deg);
 }
@@ -643,7 +653,7 @@
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
-	background: var(--color-accent-strong);
+	background: var(--color-check-accent);
 	transform: translate(-50%, -50%);
 }
 #search input[type="checkbox"]:focus-visible,

@@ -105,3 +105,20 @@ body {
 	color: inherit;
 	text-decoration: underline;
 }
+
+/* Leaflet zoom controls (+/−) follow the theme — Leaflet's default is hardcoded
+   white (#fff) / grey (#ccc), so they stayed light in dark mode. */
+.leaflet-control-zoom a,
+.leaflet-control-zoom a:focus {
+	background-color: var(--color-panel);
+	border-bottom-color: var(--color-border);
+	color: var(--color-text);
+}
+.leaflet-control-zoom a:hover {
+	background-color: var(--color-hover-wash);
+	color: var(--color-text-strong);
+}
+.leaflet-control-zoom a.leaflet-disabled {
+	background-color: var(--color-disabled-bg);
+	color: var(--color-disabled-text);
+}

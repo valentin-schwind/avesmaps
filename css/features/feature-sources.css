@@ -163,11 +163,11 @@
    Erwähnungen tabs over a Titel/Typ/Seiten table. Explicit colors to match the beige map popups. */
 .fs-src {
 	font-size: 12px;
-	color: #3f3428;
+	color: var(--color-text-strong);
 	line-height: 1.5;
 }
 .fs-src-a {
-	color: #216b5e;
+	color: var(--color-link);
 	text-decoration: none;
 	font-weight: 700;
 }
@@ -179,26 +179,26 @@
 	font-weight: 400;
 }
 .fs-src-plain {
-	color: #3f3428;
+	color: var(--color-text-strong);
 }
 .fs-src-star {
-	color: #b8862b;
+	color: var(--color-accent-strong);
 	margin-left: 1px;
 }
 .fs-src-direct {
 	line-height: 1.7;
 }
 .fs-src-sep {
-	color: #b3a186;
+	color: var(--color-text-muted);
 	margin: 0 6px;
 }
 .fs-src-type {
 	display: inline-block;
 	margin-left: 6px;
 	font-size: 10.5px;
-	color: #6c5a49;
-	background: #f0e7da;
-	border: 1px solid #ddcdb8;
+	color: var(--color-text-muted);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
 	border-radius: 999px;
 	padding: 0 7px;
 	white-space: nowrap;
@@ -207,7 +207,7 @@
 .fs-src-pages {
 	margin-left: 6px;
 	font-size: 11px;
-	color: #8a7358;
+	color: var(--color-text-muted);
 	white-space: nowrap;
 }
 /* "Publikationen:" + die Tabs "Offiziell (n)"/"Erwähnt (n)" bleiben in EINER Zeile (Owner-Vorgabe);
@@ -218,13 +218,13 @@
 	flex-wrap: wrap;
 	gap: 7px 6px;
 	margin-top: 9px;
-	color: #6c5a49;
+	color: var(--color-text-muted);
 }
 .fs-src-pub > * {
 	flex: 0 0 auto;
 }
 .fs-src-total {
-	color: #8a7358;
+	color: var(--color-text-muted);
 }
 .fs-src-tab {
 	display: inline-flex;
@@ -232,37 +232,37 @@
 	gap: 5px;
 	padding: 2px 10px;
 	font-size: 11.5px;
-	color: #6c5a49;
-	background: #faf5ee;
-	border: 1px solid #d8c6b2;
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
 	border-radius: 999px;
 	cursor: pointer;
 	user-select: none;
 }
 .fs-src-tab:hover,
 .fs-src-tab:focus-visible {
-	background: #f0e7da;
+	background: var(--color-panel-muted);
 	outline: none;
 }
 .fs-src-tab .fs-src-n {
-	color: #8a7358;
+	color: var(--color-text-muted);
 }
 .fs-src-tab.is-active {
-	background: #e4efe9;
-	border-color: #b6d2c6;
-	color: #1c5a4d;
+	background: var(--color-active-wash);
+	border-color: var(--color-accent-strong);
+	color: var(--color-accent-strong);
 	font-weight: 700;
 }
 .fs-src-tab.is-active .fs-src-n {
-	color: #1c5a4d;
+	color: var(--color-accent-strong);
 }
 .fs-src-tablewrap {
 	margin-top: 9px;
 	max-height: 230px;
 	overflow-y: auto;
-	border: 1px solid rgba(141, 121, 98, 0.28);
+	border: 1px solid var(--color-border);
 	border-radius: 7px;
-	background: #fffaf5;
+	background: var(--color-panel-soft);
 }
 .fs-src-table {
 	width: 100%;
@@ -283,13 +283,13 @@
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.02em;
-	color: #8a7358;
+	color: var(--color-text-muted);
 	text-align: left;
 	padding: 5px 9px;
-	border-bottom: 1px solid rgba(141, 121, 98, 0.28);
+	border-bottom: 1px solid var(--color-divider);
 	position: sticky;
 	top: 0;
-	background: #fffaf5;
+	background: var(--color-panel-soft);
 }
 .fs-src-table th.fs-src-th-r {
 	text-align: right;
@@ -302,13 +302,13 @@
 	overflow-wrap: break-word;
 }
 .fs-src-table tbody tr + tr td {
-	border-top: 1px solid rgba(141, 121, 98, 0.18);
+	border-top: 1px solid var(--color-divider);
 }
 .fs-src-c-type {
-	color: #6c5a49;
+	color: var(--color-text-muted);
 	font-size: 11px;
 }
 .fs-src-c-pages {
 	text-align: right;
-	color: #8a7358;
+	color: var(--color-text-muted);
 }

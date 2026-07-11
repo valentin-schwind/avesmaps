@@ -80,6 +80,14 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
 
 ## Component rules
 
+- **Text colour by role — one token per role, never per element.** Pick a text
+  colour from the element's *role* and use that token everywhere; don't invent a
+  shade for one spot. Primary / content text → `--color-text`; secondary &
+  explanatory prose, captions, meta, table / axis labels → `--color-text-muted`;
+  titles, emphasised labels, inline emphasis → `--color-text-strong`; section /
+  card headings → `--color-accent-strong` (gold). Two colours for the same role in
+  one view is the bug — an intro paragraph darker than a later one, or a table's
+  two header axes drawn differently (the speed-info dialog did both).
 - **Button hierarchy.** The main action is *filled* (`--color-button` /
   `--color-button-text`); everything else is *soft/outline* (`--color-button-soft`
   + `--color-button-soft-border`). Radius `--radius-md`. No pill/`999px` shapes.
@@ -99,7 +107,18 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   replaces the old bright-yellow `rgba(255,216,88,…)` washes.
 - **Group by divider, not by box.** Separate sections with a `--color-divider`
   line + heading — do **not** wrap each section in a framed panel (dense panels
-  like the infobox turn into a box-stack).
+  like the infobox turn into a box-stack). This is a **grouping-style change**
+  (framed box → line + heading), **not a layout restructure**: the controls and
+  their order stay exactly where they are; only the box chrome (bg + border +
+  radius) turns into a divider + heading. E.g. the route planner's
+  Transportmittel / Routenoptionen boxes become divider-grouped *in place*.
+- **Peer sections share one grouping treatment.** Divider-grouping stays the
+  default; cards are the exception for self-contained blocks (menus, autocomplete,
+  the route result, the speed-info travel cards). But within one set of sibling
+  sections, pick **one** treatment for all — never mix carded and bare peers (the
+  speed-info dialog had Fluss-/Meerreise as cards but Landreise bare). And one role
+  uses **one class**, not two (a card title styled by both `.tsi-section` and
+  `.tsi-wtitle` was a duplicate).
 - **`border` vs `divider` are not interchangeable.** `--color-border` is for
   *control and panel edges* (solid hairline); `--color-divider` is for *section
   separators inside a panel* (soft). A section line is **always** the divider —
@@ -110,6 +129,12 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   and below via `--divider-gap` (reading sections, e.g. infobox) or
   `--divider-gap-tight` (dense control groups, e.g. route planner). After any
   width or padding change, **measure the line and screenshot it.**
+- **Symmetric insets — left gap equals right gap.** A control/row sits the same
+  distance from its container's left edge as from the right. Common breakages: a
+  control narrower than its grid cell, or fixed grid tracks whose `gap` makes
+  `col1 + gap + col2` exceed the content width so the last column overflows the
+  right inset. Fix with a flexible track (`minmax(0,1fr)`) and let the control fill
+  it; after any layout change, **measure both insets — they must match.**
 - **Links** use `--color-link`; **hover** → `--color-link-hover` with a thicker
   underline; **focus** the shared `var(--focus-ring)`. Never blue.
 - **External links carry a trailing `↗`.** Any link that leaves the site (Wiki
@@ -118,6 +143,11 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   same-site links do **not**. Apply it once — a shared external-link treatment or
   an auto `a[href^="http"]:not([href*="avesmaps"])::after { content: " ↗"; }` —
   never hand-typed per link, so it stays consistent everywhere.
+- **No blue = UI chrome only.** The no-blue rule covers panels, controls, links and
+  menus. Two deliberate, code-commented exceptions stay and must **not** be
+  "corrected": the *edit-in-progress* handles (path-edit dots,
+  `REGION_EDIT_EDGE_COLOR`) and the analytics chart's categorical data palette
+  (`#2a78d6` / `#4a3aa7`) — they encode state / data, not chrome.
 - **Selects / inputs**: `--color-panel` background (flat — never the native grey
   browser control), `--color-border` + `--radius-md`; **hover** →
   `--color-border-strong`; **focus / open** → border-strong + `var(--focus-ring)`;

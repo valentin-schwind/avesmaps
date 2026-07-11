@@ -14,4 +14,8 @@ body {
 
 * {
 	font-family: "Faculty Glyphic", "Arial", sans-serif !important;
+	/* Faculty Glyphic ships only Regular — a font-weight:700 gets browser-synthesised
+	   (faux-bold), which renders fuzzy / "bleedy". Synthesis off app-wide; emphasis
+	   comes from colour (--color-text-strong / --color-accent-strong), not weight. */
+	font-synthesis-weight: none;
 }

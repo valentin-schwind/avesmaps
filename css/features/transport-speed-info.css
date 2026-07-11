@@ -1,0 +1,277 @@
+/* Travel-speeds & path-types info dialog ("Reisegeschwindigkeiten und Wegtypen"),
+   opened by the ⓘ next to the Transportmittel heading in the route planner.
+   Public, read-only.
+
+   Moved OUT of transport-speed-info.js — styles belong in CSS, not injected by a
+   script (JS-injected <style> causes a design flash and drifts from the tokens).
+   Fully on tokens, with ONE consistent text-colour scheme (this dialog used to
+   invent a different colour per element — the recurring divergence):
+     · reading prose      → --color-text-muted    (intro, rules, card notes)
+     · table axis labels  → --color-text-muted    (BOTH header axes, matched)
+     · section headings   → --color-accent-strong (gold: "Landreise" etc.)
+     · emphasis lead-ins  → --color-text-strong   ("Rast.", "Querfeldein.")
+   Section lines use --color-divider (not --color-border); the speed cells use the
+   functional --color-tier-* tokens. */
+
+#transport-options {
+	position: relative;
+}
+
+.tsi-info-btn {
+	position: absolute;
+	top: var(--space-4);
+	right: var(--space-6);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--icon-sm);
+	height: var(--icon-sm);
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	line-height: 0;
+}
+.tsi-info-btn:hover {
+	color: var(--color-text);
+}
+
+.tsi-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-modal);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: var(--space-24) var(--space-12);
+	overflow: auto;
+	background: var(--color-scrim);
+}
+.tsi-overlay[hidden] {
+	display: none;
+}
+
+.tsi-dialog {
+	width: 100%;
+	max-width: 600px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	color: var(--color-text);
+	box-shadow: var(--shadow-dialog);
+}
+
+.tsi-head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	padding: var(--space-16) var(--space-20);
+	border-bottom: 1px solid var(--color-divider);
+}
+.tsi-head .tsi-i {
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-title);
+	line-height: 1;
+}
+.tsi-head h2 {
+	margin: 0;
+	color: var(--color-text-strong);
+	font-size: var(--font-size-title);
+	font-weight: var(--font-weight-bold);
+}
+.tsi-close {
+	margin-left: auto;
+	padding: var(--space-2) var(--space-6);
+	border: 0;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-title);
+	line-height: 1;
+	cursor: pointer;
+}
+.tsi-close:hover {
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
+}
+
+.tsi-body {
+	padding: var(--space-20);
+}
+
+.tsi-intro {
+	margin: 0 0 var(--space-12);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-body);
+	line-height: var(--leading-normal);
+}
+
+.tsi-scroll {
+	overflow-x: auto;
+}
+
+.tsi-matrix {
+	width: 100%;
+	min-width: 520px;
+	border-collapse: collapse;
+	table-layout: fixed;
+	font-size: var(--font-size-small);
+}
+.tsi-matrix th {
+	padding: var(--space-4) var(--space-2) var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--leading-tight);
+	vertical-align: bottom;
+	text-align: center;
+}
+.tsi-matrix th.tsi-corner {
+	width: 104px;
+	padding-left: var(--space-6);
+	color: var(--color-accent-strong);
+	text-align: left;
+}
+.tsi-modehead {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+}
+.tsi-matrix td {
+	padding: var(--space-4) var(--space-2);
+	border-top: 2px solid var(--color-panel);
+	border-left: 2px solid var(--color-panel);
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+.tsi-matrix td.tsi-rowcell {
+	padding: var(--space-4) var(--space-6);
+	border-top: 1px solid var(--color-border);
+	border-left: 0;
+	text-align: left;
+}
+.tsi-rowhead {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+.tsi-ic {
+	width: var(--icon-sm);
+	height: var(--icon-sm);
+	flex: 0 0 var(--icon-sm);
+	object-fit: contain;
+}
+.tsi-fast {
+	background: var(--color-tier-fast-bg);
+	color: var(--color-tier-fast-text);
+}
+.tsi-mid {
+	background: var(--color-tier-mid-bg);
+	color: var(--color-tier-mid-text);
+}
+.tsi-slow {
+	background: var(--color-tier-slow-bg);
+	color: var(--color-tier-slow-text);
+}
+.tsi-na {
+	color: var(--color-disabled-text);
+}
+
+.tsi-legend {
+	display: flex;
+	gap: var(--space-16);
+	margin: var(--space-8) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+.tsi-legend i {
+	display: inline-block;
+	width: var(--space-10);
+	height: var(--space-10);
+	margin-right: var(--space-4);
+	border-radius: var(--radius-sm);
+	vertical-align: middle;
+}
+
+.tsi-water {
+	display: flex;
+	gap: var(--space-12);
+	margin-top: var(--space-12);
+	flex-wrap: wrap;
+}
+/* One card style for ALL three travel sections (Landreise full-width, Flussreise +
+   Meerreise side by side in .tsi-water). flex:1/min-width only bite inside the flex
+   row; as a block child of .tsi-body the land card is naturally full-width. */
+.tsi-wcard {
+	flex: 1;
+	min-width: 230px;
+	padding: var(--space-10) var(--space-12);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+/* Shared card title (all three cards) — icon + gold label. */
+.tsi-wtitle {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	margin-bottom: var(--space-6);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.02em;
+}
+.tsi-wmodes {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	flex-wrap: wrap;
+	font-size: var(--font-size-small);
+}
+.tsi-m {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-4);
+}
+.tsi-dot {
+	color: var(--color-text-muted);
+}
+.tsi-wnote {
+	margin-top: var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-normal);
+}
+
+.tsi-rules {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-10);
+	margin-top: var(--space-16);
+	padding-top: var(--space-12);
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-normal);
+}
+/* Each rule = icon column + text (bold lead-in + body). */
+.tsi-rule {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-6);
+}
+.tsi-rules b {
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+}
+
+@media (max-width: 520px) {
+	.tsi-water {
+		flex-direction: column;
+	}
+}

@@ -71,13 +71,28 @@
 	--color-pill-text: #675024;
 
 	--color-danger: #9d3a2e;
+	--color-success: #2f7d3a;             /* status: success (e.g. contact form) */
 	--color-marker-destination: #e33b35; /* route destination pin — heraldic red, matches red map markers */
+
+	/* Modal scrim (behind centred dialogs) */
+	--color-scrim: rgba(38, 28, 16, 0.5);
+
+	/* Travel-speed tiers — the functional ampel in the speed-matrix dialog. A data
+	   highlight (not chrome), deliberately identical in both themes. */
+	--color-tier-fast-bg: #e2edcf;
+	--color-tier-fast-text: #27500a;
+	--color-tier-mid-bg: #f6e6c9;
+	--color-tier-mid-text: #6b3d07;
+	--color-tier-slow-bg: #f6dede;
+	--color-tier-slow-text: #791f1f;
 
 	/* Interaction & focus (see "Button states" in the doc) */
 	--color-focus: rgba(191, 160, 58, 0.45);      /* gold focus glow */
 	--focus-ring: 0 0 0 3px var(--color-focus);   /* compose with the element's shadow, don't replace it */
 	--color-hover-wash: rgba(191, 160, 58, 0.14); /* row / option hover */
 	--color-active-wash: rgba(191, 160, 58, 0.24);/* selected row */
+	--color-check-accent: var(--color-accent-strong); /* checkbox/radio checked mark + border */
+	--color-check-fill: var(--color-active-wash);      /* checkbox/radio checked fill */
 	--color-disabled-bg: #ece7dd;
 	--color-disabled-text: #a99f8e;
 	--color-disabled-border: #dcd3c4;
@@ -118,6 +133,7 @@
 	--z-map-ui: 1000;
 	--z-dialog: 1450;
 	--z-dialog-high: 1460;
+	--z-modal: 5000; /* full-screen modal overlay — above autocomplete (1600) */
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,
@@ -161,11 +177,16 @@
 	--color-pill-text: #e7d7a5;
 
 	--color-danger: #d27566;
+	--color-success: #7cc48a;
 	--color-marker-destination: #e6675b;
 
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);
 	--color-active-wash: rgba(207, 183, 103, 0.30);
+	/* Checkbox/radio checked, dark: the gold read as muddy + too yellow (owner). Use a
+	   markedly desaturated gold and a solid subtle fill instead of the translucent wash. */
+	--color-check-accent: #aaa598;
+	--color-check-fill: var(--color-panel-soft);
 	--color-disabled-bg: #322f27;
 	--color-disabled-text: #6e685c;
 	--color-disabled-border: #433e33;

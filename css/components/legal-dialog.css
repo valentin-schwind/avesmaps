@@ -8,7 +8,7 @@
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-lg);
 	background: var(--color-panel);
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+	box-shadow: var(--shadow-dialog);
 	color: var(--color-text);
 }
 
@@ -75,7 +75,7 @@
 }
 
 .legal-dialog__content a {
-	color: #7a1411;
+	color: var(--color-link);
 }
 
 .legal-dialog__group {
@@ -88,7 +88,7 @@
 }
 
 .legal-dialog__note {
-	color: #6f6256;
+	color: var(--color-text-muted);
 	font-size: 12px;
 }
 
@@ -103,7 +103,7 @@
 	padding: 7px 10px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
-	background: rgba(255, 249, 244, 0.94);
+	background: var(--color-panel);
 	color: var(--color-text);
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 	cursor: pointer;
@@ -113,7 +113,7 @@
 
 #legal-button:hover,
 #legal-button:focus-visible {
-	background: rgba(255, 249, 244, 1);
+	background: var(--color-hover-wash);
 	outline: none;
 }
 
@@ -158,7 +158,7 @@
 	padding: 8px 10px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-sm);
-	background: rgba(255, 253, 249, 0.96);
+	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
 }
@@ -177,16 +177,16 @@
 .legal-contact__submit {
 	flex: none;
 	padding: 8px 16px;
-	border: 1px solid var(--color-border-strong);
+	border: 1px solid var(--color-button-border);
 	border-radius: var(--radius-sm);
-	background: #7a1411;
-	color: #fff;
+	background: var(--color-button);
+	color: var(--color-button-text);
 	cursor: pointer;
 	font: inherit;
 }
 
 .legal-contact__submit:hover:not(:disabled) {
-	background: #5f0f0d;
+	background: var(--color-button-hover);
 }
 
 .legal-contact__submit:disabled {
@@ -204,9 +204,9 @@
 }
 
 .legal-contact__status[data-tone="success"] {
-	color: #1d7a3a;
+	color: var(--color-success);
 }
 
 .legal-contact__status[data-tone="error"] {
-	color: #7a1411;
+	color: var(--color-danger);
 }

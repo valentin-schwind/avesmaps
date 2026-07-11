@@ -80,10 +80,10 @@ const ROUTE_ICON_PATHS = {
 	Strasse: "icons/Strasse.webp",
 	Gebirgspfad: "icons/Gebirgspfad.webp",
 	Pfad: "icons/Pfad.webp",
-	Wuestenpfad: "icons/Pfad.webp",
+	Wuestenpfad: "icons/Wueste.webp",
 	Flussweg: "icons/Flusswege.webp",
 	Seeweg: "icons/Meerwege.webp",
-	Querfeldein: "icons/Pfad.webp",
+	Querfeldein: "icons/Querfeldein.webp",
 	Weg: "icons/landweg.webp",
 };
 

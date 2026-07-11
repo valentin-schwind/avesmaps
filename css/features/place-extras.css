@@ -8,21 +8,21 @@
 .avesmaps-adv {
 	margin-top: 12px;
 	padding-top: 11px;
-	border-top: 1px solid rgba(120, 100, 70, 0.28);
+	border-top: 1px solid var(--color-divider);
 }
 
 .avesmaps-citymaps__head,
 .avesmaps-adv__head {
 	font-size: 13px;
 	font-weight: 700;
-	color: #3a2e1f;
+	color: var(--color-text-strong);
 }
 
 /* ---- Stadtkarten ---- */
 .avesmaps-citymaps__note {
 	font-size: 10.5px;
 	font-weight: 400;
-	color: #b5651d;
+	color: var(--color-accent-strong);
 }
 .avesmaps-citymaps__scroll {
 	display: flex;
@@ -44,54 +44,54 @@
 	width: 116px;
 	height: 72px;
 	border-radius: 6px;
-	background: #ece3cb;
-	border: 1px solid rgba(120, 100, 70, 0.38);
-	color: #a3926c;
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
+	color: var(--color-text-muted);
 	transition: border-color 0.12s ease, color 0.12s ease;
 }
 .avesmaps-citymaps__card:hover .avesmaps-citymaps__thumb {
-	border-color: #c9a227;
-	color: #8a7846;
+	border-color: var(--color-accent);
+	color: var(--color-accent-strong);
 }
 .avesmaps-citymaps__label {
 	display: block;
 	margin-top: 5px;
 	font-size: 11.5px;
 	line-height: 1.25;
-	color: #3f6fa0;
+	color: var(--color-link);
 }
 
 /* ---- Abenteuer in <Ort> ---- */
 .avesmaps-adv__count {
 	font-weight: 400;
 	font-size: 12px;
-	color: #7a6a52;
+	color: var(--color-text-muted);
 }
 .avesmaps-adv__sorts {
 	margin-top: 3px;
 	font-size: 11px;
-	color: #7a6a52;
+	color: var(--color-text-muted);
 }
 .avesmaps-adv__sort {
-	color: #3f6fa0;
+	color: var(--color-link);
 	cursor: pointer;
 }
 .avesmaps-adv__sort:hover {
 	text-decoration: underline;
 }
 .avesmaps-adv__sort.is-active {
-	color: #4a3c2e;
+	color: var(--color-text);
 	font-weight: 700;
 	cursor: default;
 	text-decoration: none;
 }
 .avesmaps-adv__sortsep {
-	color: #b8a988;
+	color: var(--color-text-muted);
 }
 .avesmaps-adv__placeholder {
 	margin-top: 3px;
 	font-size: 10.5px;
-	color: #b5651d;
+	color: var(--color-accent-strong);
 }
 /* EINZEILIGer, horizontal scrollbarer Cover-Streifen (Owner-Vorgabe); der vollstaendige Bestand liegt
    hinter "Alle anzeigen" (Dialog). */
@@ -117,19 +117,19 @@
 	width: 78px;
 	height: 110px;
 	margin-bottom: 5px;
-	background: #ece3cb;
-	border: 1px solid rgba(120, 100, 70, 0.38);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
 	border-radius: 3px;
 	overflow: hidden;
-	color: #a3926c;
+	color: var(--color-text-muted);
 	text-decoration: none;
 	transition: border-color 0.12s ease;
 }
 .avesmaps-adv__card:hover .avesmaps-adv__cover {
-	border-color: #c9a227;
+	border-color: var(--color-accent);
 }
 .avesmaps-adv__cover.has-img {
-	background: #f3ecda;
+	background: var(--color-panel-soft);
 }
 .avesmaps-adv__cover-img {
 	display: block;
@@ -144,7 +144,7 @@
 	overflow: hidden;
 	font-size: 11.5px;
 	font-weight: 700;
-	color: #3f6fa0;
+	color: var(--color-link);
 	text-decoration: none;
 }
 .avesmaps-adv__title:hover {
@@ -153,12 +153,12 @@
 .avesmaps-adv__meta {
 	margin-top: 1px;
 	font-size: 10.5px;
-	color: #7a6a52;
+	color: var(--color-text-muted);
 }
 /* Abenteuer-Typ (z. B. "Gruppenabenteuer") unter dem Jahr, etwas kleiner/leiser. */
 .avesmaps-adv__type {
 	font-size: 9.5px;
-	color: #9a8a6f;
+	color: var(--color-text-muted);
 }
 /* "Alle anzeigen" -> oeffnet den Dialog mit allen Abenteuern. */
 .avesmaps-adv__all {
@@ -168,17 +168,17 @@
 	margin-top: 10px;
 	padding: 5px 12px;
 	appearance: none;
-	background: #f3ecda;
-	border: 1px solid #d8c6b2;
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
 	border-radius: 6px;
 	font: inherit;
 	font-size: 12px;
-	color: #5a4a37;
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 	transition: background-color 0.12s ease;
 }
 .avesmaps-adv__all:hover {
-	background: #eaddc4;
+	background: var(--color-button-soft-hover);
 }
 
 /* ---- Dialog "Alle Abenteuer" (modaler Overlay ueber allem) ---- */
@@ -190,7 +190,7 @@
 	align-items: center;
 	justify-content: center;
 	padding: 20px;
-	background: rgba(30, 24, 16, 0.55);
+	background: var(--color-scrim);
 }
 .avesmaps-adv-dialog.is-open {
 	display: flex;
@@ -200,10 +200,10 @@
 	flex-direction: column;
 	width: min(680px, 100%);
 	max-height: min(82vh, 900px);
-	background: #fff;
-	color: #3a2e1f;
+	background: var(--color-panel);
+	color: var(--color-text-strong);
 	border-radius: 10px;
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+	box-shadow: var(--shadow-dialog);
 	overflow: hidden;
 }
 .avesmaps-adv-dialog__head {
@@ -213,7 +213,7 @@
 	justify-content: space-between;
 	gap: 10px;
 	padding: 13px 16px;
-	border-bottom: 1px solid #e2d6bf;
+	border-bottom: 1px solid var(--color-divider);
 	font-size: 15px;
 	font-weight: 700;
 }
@@ -224,13 +224,13 @@
 	background: transparent;
 	font-size: 18px;
 	line-height: 1;
-	color: #6a5a45;
+	color: var(--color-text-muted);
 	cursor: pointer;
 	padding: 3px 7px;
 	border-radius: 5px;
 }
 .avesmaps-adv-dialog__close:hover {
-	background: #f0e7d8;
+	background: var(--color-hover-wash);
 }
 .avesmaps-adv-dialog__grid {
 	display: grid;
