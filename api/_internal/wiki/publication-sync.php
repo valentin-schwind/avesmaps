@@ -274,6 +274,85 @@ function avesmapsPublicationResolvePublicationKey(PDO $pdo, string $title): stri
 }
 
 /**
+ * Extract a Wiki-Aventurica page title from a URL, or '' if the URL is not a wiki-aventurica
+ * article link. Handles the two on-wiki URL shapes: /wiki/<PageName> and /index.php?title=<PageName>.
+ * Underscores -> spaces, percent-decoded, #fragment stripped (mirrors how a [[link]] resolves).
+ * PURE (no DB, no requires) so it can gate the heavier resolve BEFORE any lazy library load.
+ */
+function avesmapsWikiAventuricaPageTitleFromUrl(string $url): string
+{
+    $url = trim($url);
+    if ($url === '' || stripos($url, 'wiki-aventurica.de') === false) {
+        return '';
+    }
+    $parts = parse_url($url);
+    if (!is_array($parts)) {
+        return '';
+    }
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    if (substr($host, -strlen('wiki-aventurica.de')) !== 'wiki-aventurica.de') {
+        return '';
+    }
+    $title = '';
+    if (preg_match('#/wiki/(.+)$#', (string) ($parts['path'] ?? ''), $m) === 1) {
+        $title = $m[1];
+    } elseif (isset($parts['query'])) {
+        parse_str((string) $parts['query'], $q);
+        $title = (string) ($q['title'] ?? '');
+    }
+    if ($title === '') {
+        return '';
+    }
+    $title = str_replace('_', ' ', rawurldecode($title));
+    $title = preg_replace('/#.*$/u', '', $title) ?? $title;
+    return trim($title, " /");
+}
+
+/**
+ * Normalize a community/editor-provided source URL to the wiki-PUBLICATION identity, so a link to a
+ * publication's Wiki-Aventurica ARTICLE merges with the wiki-reconciled row (same source_id) instead
+ * of splitting into a duplicate. Returns the avesmapsFeatureSourceUpsert identity inputs
+ * ['url'=>..., 'wiki_key'=>...] matching exactly what avesmapsPublicationDesiredLinksForEntity uses:
+ *   - has_link=1 publication -> ['url'=>chosen_url, 'wiki_key'=>''] (url_hash identity of the shop link)
+ *   - has_link=0 publication -> ['url'=>'',         'wiki_key'=>wiki_key] (URL-less wikipub: identity)
+ * Returns null (caller keeps the ORIGINAL url) when the URL is not a wiki-aventurica article, or is one
+ * but for a page that is NOT a known publication in wiki_publication_catalog. Fail-safe: any error (e.g.
+ * the wiki staging tables don't exist on a site without WikiSync) also yields null -> no normalization.
+ * The pure title gate runs FIRST so the common (non-wiki) add path never touches the slug/DB chain.
+ */
+function avesmapsResolvePublicationIdentityFromUrl(PDO $pdo, string $url): ?array
+{
+    $title = avesmapsWikiAventuricaPageTitleFromUrl($url);
+    if ($title === '') {
+        return null;
+    }
+    try {
+        // Lazy-load the pure slug chain (only reached for a real wiki-aventurica article URL).
+        if (!function_exists('avesmapsWikiSyncMonitorNormalizeTitle')) {
+            require_once __DIR__ . '/sync-monitor.php';
+        }
+        if (!function_exists('avesmapsPoliticalSlug')) {
+            require_once __DIR__ . '/../political/territory.php';
+        }
+        $wikiKey = avesmapsPublicationResolvePublicationKey($pdo, $title);
+        if ($wikiKey === '') {
+            return null;
+        }
+        $stmt = $pdo->prepare('SELECT chosen_url, has_link FROM wiki_publication_catalog WHERE wiki_key = :k LIMIT 1');
+        $stmt->execute(['k' => $wikiKey]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return null; // staging tables absent / any error -> keep the original URL (no normalization)
+    }
+    if (!is_array($row)) {
+        return null; // the page is not a known publication -> leave the URL as the reporter gave it
+    }
+    return (int) ($row['has_link'] ?? 0) === 1
+        ? ['url' => (string) ($row['chosen_url'] ?? ''), 'wiki_key' => '']
+        : ['url' => '', 'wiki_key' => $wikiKey];
+}
+
+/**
  * Derive (entity_type, entity_wiki_key) for a dump page classified as one of the four
  * publication-bearing entity kinds, by REUSING the SAME DB-free dump handlers the Pass-B /
  * hybrid sync uses -- so the key is byte-identical to what a full sync stored on the LIVE

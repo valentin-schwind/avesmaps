@@ -9,6 +9,10 @@ require __DIR__ . '/../../_internal/auth.php';
 // map-features library, so both are required here (dispatcher stays thin).
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/feature-sources.php';
+// Publication-link normalization (avesmapsResolvePublicationIdentityFromUrl): lets an `add` merge a
+// community/editor link to a publication's wiki article with the wiki-reconciled source (same
+// source_id). Side-effect-free on include; it lazy-loads its own slug chain only for wiki-aventurica URLs.
+require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());

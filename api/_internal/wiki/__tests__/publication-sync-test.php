@@ -114,4 +114,17 @@ assert(avesmapsPublicationReferenceFieldsDiffer(
 ) === true);
 echo "fielddiff ok\n";
 
+// avesmapsWikiAventuricaPageTitleFromUrl: pure URL -> wiki page title (the gate before the DB-backed
+// publication-identity normalization). Only wiki-aventurica /wiki/ + ?title= links resolve; anything
+// else (F-Shop, wrong host, empty) yields '' so the add keeps the reporter's original URL.
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://de.wiki-aventurica.de/wiki/Die_Flusslande') === 'Die Flusslande');
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://de.wiki-aventurica.de/wiki/Kosch_(Regionalspielhilfe)') === 'Kosch (Regionalspielhilfe)');
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://de.wiki-aventurica.de/wiki/Die_Flusslande#Publikationen') === 'Die Flusslande'); // #fragment stripped
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://de.wiki-aventurica.de/index.php?title=Die_Flusslande') === 'Die Flusslande'); // ?title= shape
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://de.wiki-aventurica.de/wiki/G%C3%B6tterwirken') === 'Götterwirken'); // percent-decoded
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://www.f-shop.de/search?sSearch=12017') === ''); // shop link -> no normalization
+assert(avesmapsWikiAventuricaPageTitleFromUrl('https://example.com/wiki/Die_Flusslande') === ''); // wrong host
+assert(avesmapsWikiAventuricaPageTitleFromUrl('') === '');
+echo "urltitle ok\n";
+
 echo "ALL PUBLICATION-SYNC DIFF TESTS PASSED\n";

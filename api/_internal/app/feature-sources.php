@@ -273,7 +273,21 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
 function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId, string $url, string $label, string $type, bool $official, int $userId, string $pages = '', string $referenceKind = ''): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
-    $sourceId = avesmapsFeatureSourceUpsert($pdo, $url, $label, $type, $official, $userId);
+    // Publication-link normalization (dedup): if the URL is a Wiki-Aventurica article for a KNOWN
+    // publication, resolve it to the SAME identity the wiki reconcile uses (chosen_url or URL-less
+    // wiki_key) so a manual/community link and the wiki-reconciled row become ONE feature_source (the
+    // manual row then wins the override) instead of the same book appearing twice. Guarded so the app
+    // layer still works when the wiki lib is not loaded (then: no normalization, prior behavior).
+    $upsertUrl = $url;
+    $upsertWikiKey = '';
+    if (function_exists('avesmapsResolvePublicationIdentityFromUrl')) {
+        $identity = avesmapsResolvePublicationIdentityFromUrl($pdo, $url);
+        if (is_array($identity)) {
+            $upsertUrl = (string) ($identity['url'] ?? '');
+            $upsertWikiKey = (string) ($identity['wiki_key'] ?? '');
+        }
+    }
+    $sourceId = avesmapsFeatureSourceUpsert($pdo, $upsertUrl, $label, $type, $official, $userId, $upsertWikiKey);
     // Manual/community add: origin stays 'manual'. reference_kind is OPTIONAL classification of how the
     // place is covered in this source -- ausfuehrlich/ergaenzend -> the "Offiziell" publication tab,
     // erwaehnung -> the "Erwähnt" tab, empty -> the flat "Quelle(n):" line (buildSourceListMarkup splits
