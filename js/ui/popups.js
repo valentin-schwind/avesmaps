@@ -518,7 +518,10 @@ function settlementTerritoryCoatThumbMarkup(coatUrl) {
 	if (url === "") {
 		return "";
 	}
-	const src = `/api/app/coat.php?u=${encodeURIComponent(url)}`;
+	// Own uploads (/uploads/wappen/*.png) load DIRECTLY; only EXTERNAL wiki coats go through the cache proxy.
+	// coat.php rejects a relative /uploads URL with 400, and territory coats are almost all own uploads --
+	// so proxying them all would break every thumb. Mirrors settlementCoatIconMarkup's own-vs-proxy split.
+	const src = /^https?:\/\//i.test(url) ? `/api/app/coat.php?u=${encodeURIComponent(url)}` : url;
 	return `<img class="location-popup__breadcrumb-coat" src="${escapeHtml(src)}" alt="" aria-hidden="true" />`;
 }
 
