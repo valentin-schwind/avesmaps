@@ -1532,6 +1532,7 @@ async function uploadSettlementImages(files) {
 				throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
 			}
 			uploaded += 1;
+			setProgress(uploaded, list.length);
 		} catch (error) {
 			lastError = error;
 			break;
