@@ -28,6 +28,9 @@
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
+.avesmaps-adv-tree__slabel {
+	margin-right: var(--space-2);
+}
 .avesmaps-adv-tree__sort {
 	color: var(--color-link);
 	cursor: pointer;
@@ -156,7 +159,8 @@
 	margin-top: var(--space-8);
 }
 .avesmaps-adv-tree__frame .avesmaps-adv-tree__frame {
-	margin-left: var(--space-10);
+	margin-left: var(--space-4);
+	margin-right: var(--space-4);
 	background: var(--color-panel-muted);
 }
 .avesmaps-adv-tree__frame.is-hidden {

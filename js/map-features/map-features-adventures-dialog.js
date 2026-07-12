@@ -95,6 +95,7 @@
 
 	function sortsMarkup() {
 		return '<div class="avesmaps-adv-tree__sorts">'
+			+ '<span class="avesmaps-adv-tree__slabel">Sortierung:</span> '
 			+ '<span class="avesmaps-adv-tree__sort is-active" data-adv-tree-sort="year">neueste zuerst</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
 			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="type">nach Art</span>'
@@ -176,7 +177,9 @@
 
 		// Baum + Steuerung EINMAL bauen (Select-Werte/Chip-Zustand bleiben so ueber apply() erhalten).
 		body.innerHTML = renderFrame(tree);
-		controls.innerHTML = sortsMarkup() + modesMarkup() + filtersMarkup(facets);
+		// Reihenfolge (UI-Konvention, Design-Doc): Ansichts-Umschalter -> Filter -> Sortierung.
+		// Filter stehen UEBER der Sortierung (Filter grenzt die Menge ein, Sortierung ordnet den Rest).
+		controls.innerHTML = modesMarkup() + filtersMarkup(facets) + sortsMarkup();
 
 		// Karten je Rahmen sortieren -- start bleibt VOR play (Rollen-Invariante), sortiert innerhalb der Rolle.
 		function compare(a, b) {
