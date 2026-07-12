@@ -121,7 +121,25 @@
 	bottom: 0;
 	padding: 34px 14px 10px;
 	background: linear-gradient(to top, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.34) 42%, rgba(0, 0, 0, 0) 100%);
+	display: flex;
+	align-items: flex-end;
+	gap: 10px;
 	pointer-events: none;
+}
+/* Wappen (Owner): 70x70 im Overlay links vom Titel, wenn vorhanden. Ueberschreibt die 34px-Coat-Icon-Groesse. */
+.info-header__coat {
+	flex: 0 0 auto;
+}
+.info-header__coat img,
+.info-header__coat .location-popup__icon {
+	width: 70px;
+	height: 70px;
+	object-fit: contain;
+	display: block;
+	filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+}
+.info-header__titles {
+	min-width: 0;
 }
 .info-header__title {
 	color: #fff;

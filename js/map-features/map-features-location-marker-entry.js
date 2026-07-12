@@ -83,7 +83,8 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 	// locationPopupMarkup replaces the WHOLE icon+type header, so the political-context line (typeSuffixMarkup)
 	// drops out here -- the "Liegt in" breadcrumb below already carries the territory chain.
 	const settlementHeaderImg = (!floating && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof infoHeaderImageMarkup === "function")
-		? infoHeaderImageMarkup(settlementHeaderImageBasename(markerEntry.locationType), markerEntry.name, typeLabel)
+		? infoHeaderImageMarkup(settlementHeaderImageBasename(markerEntry.locationType), markerEntry.name, typeLabel,
+			typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "")
 		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,

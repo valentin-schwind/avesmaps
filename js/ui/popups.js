@@ -210,10 +210,14 @@ const INFO_HEADER_IMAGE_BY_ART = {
 	tundra: "tundra",
 	ebene: "ebene", talkessel: "ebene", tal: "ebene",
 };
-// Siedlungstyp -> Header-Bild. Aktuell nur die Metropole-Grafik; weitere Groessen folgen (Owner) -> alle
-// fallen vorerst auf "metropole" zurueck.
+// Siedlungstyp -> Header-Bild (eigene Grafik je Groesse). Unbekannte Typen fallen auf "metropole" zurueck.
 const INFO_HEADER_IMAGE_BY_SETTLEMENT = {
 	metropole: "metropole",
+	grossstadt: "grossstadt",
+	stadt: "stadt",
+	kleinstadt: "kleinstadt",
+	dorf: "dorf",
+	gebaeude: "gebaeude",
 };
 
 // art/Bezeichnung -> Header-Bild-Basename: erster Bestandteil vor |,/ ; Umlaute normalisiert.
@@ -242,13 +246,15 @@ function pathHeaderImageBasename(pathSubtype) {
 }
 
 // Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
-// icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art).
-function infoHeaderImageMarkup(imageBasename, title, subtitle) {
+// icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art). coatMarkup
+// (Owner): vorhandenes Wappen liegt 70x70 im Overlay links vom Titel (dekorativ, ueber dem Bild).
+function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup) {
 	const src = `icons/header/${imageBasename}.webp`;
 	const sub = subtitle ? `<div class="info-header__subtitle">${escapeHtml(subtitle)}</div>` : "";
+	const coat = coatMarkup ? `<div class="info-header__coat">${coatMarkup}</div>` : "";
 	return '<div class="info-header">'
 		+ `<img class="info-header__img" src="${escapeHtml(withAssetVersion(src))}" alt="" width="800" height="450" decoding="async">`
-		+ `<div class="info-header__overlay"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div>`
+		+ `<div class="info-header__overlay">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div></div>`
 		+ '</div>';
 }
 

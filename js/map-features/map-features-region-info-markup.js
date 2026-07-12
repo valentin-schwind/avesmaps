@@ -120,7 +120,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// Owner: 16:9 header image + title overlay instead of the coat/icon header. Territories carry a political
 	// type (Baronie/Reich/...) -> no landscape art -> falls back to the generic "region" graphic.
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(regionHeaderImageBasename(regionEntry.wikiArt || regionEntry.art || type), name, type)
+		? infoHeaderImageMarkup(regionHeaderImageBasename(regionEntry.wikiArt || regionEntry.art || type), name, type, coatMarkup)
 		: `<div class="region-info-box__header${hasCoatClass}">${coatMarkup}<div class="region-info-box__title-group"><strong class="region-info-box__title">${escapeHtml(name)}</strong><span class="region-info-box__subtitle">${escapeHtml(type)}</span></div></div>`;
 	return `
 		<div class="region-info-box">
