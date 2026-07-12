@@ -272,6 +272,15 @@
 	margin-left: calc(-1 * var(--infopanel-pad-x));
 	margin-right: calc(-1 * var(--infopanel-pad-x));
 }
+/* ... und die ZELLINHALTE auf denselben linken/rechten Texteinzug wie der uebrige Satz (Quelle/
+   Publikationen/Daten, alle bei --infopanel-pad-x). Der randlose Wrapper sitzt an der Sektionskante,
+   die Standard-9px-Zellpolster liessen den Tabellentext sonst 8px zu weit links stehen (Owner). Minus 1px
+   fuer den Wrapper-Rahmen -> 18px effektiver Einzug, exakt wie der Rest. Nur im Panel. */
+.avesmaps-infopanel .fs-src-table th,
+.avesmaps-infopanel .fs-src-table td {
+	padding-left: calc(var(--infopanel-pad-x) - 1px);
+	padding-right: calc(var(--infopanel-pad-x) - 1px);
+}
 .fs-src-table {
 	width: 100%;
 	border-collapse: collapse;
