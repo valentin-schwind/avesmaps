@@ -5,6 +5,13 @@
    Rahmen = JEDE Ebene gerahmt (inkl. oberstes Reich), warm getoent + eingerueckt (bewusste Kachel-Ausnahme,
    Owner-Regel §8.3), Rang-Pill + "N direkt". Nur Tokens aus css/base/tokens.css -- kein Blau, keine Hardcodes. */
 
+/* Der Nested-Dialog traegt die Filterleiste -> etwas breiter als der flache Siedlungs-Dialog, damit
+   Label + Art-Chips + Divider + Schwierigkeit/Genre + Divider + "nur offiziell" in EINE Zeile passen.
+   Nur der tree-Dialog; der flache #avesmaps-adv-dialog behaelt seine Breite (place-extras.css). */
+.avesmaps-adv-tree-dialog .avesmaps-adv-dialog__box {
+	width: min(760px, 100%);
+}
+
 /* ---- Steuerleiste (Sortierung + Umschalter + Filter) zwischen Kopf und Baum ---- */
 .avesmaps-adv-tree-dialog__controls {
 	flex: 0 0 auto;
