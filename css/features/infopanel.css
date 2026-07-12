@@ -357,6 +357,15 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	padding-top: 11px;
 	border-top: 1px solid var(--color-divider);
 }
+/* Buttons direkt unter dem Kopf (Owner-Reorder "Buttons unter den Titel"): der Kopf hat bereits einen
+   border-bottom-Trenner -> die eigene border-top-Linie der Aktionsleiste waere eine zweite, parallele
+   Linie 11px darunter (Doppel-Trenner). Folgt die Leiste direkt auf den Kopf, ihren Trenner + Extra-
+   Abstand weglassen; der Kopf-Trenner (+ dessen margin-bottom) traegt die Trennung. */
+.avesmaps-infopanel .location-popup__header + .location-popup__actions {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+}
 /* Ein Scrollbalken fuer die gesamte Spalte (Owner-Vorgabe): die popup-eigene Bewertungs-Scrollbox
    (max-height in location-reviews.css) im Panel aufheben, damit die Bewertungen mitfliessen. */
 .avesmaps-infopanel .location-reviews__list {
