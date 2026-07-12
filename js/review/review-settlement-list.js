@@ -525,3 +525,51 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	document.body.appendChild(overlay);
 	document.body.style.overflow = "hidden";
 };
+
+// Abenteuer-Editor overlay (Phase 3 / P2) — same overlay chrome as the settlement editor, own iframe page.
+// Self-contained html/adventure-editor.html loaded with ?v=Date.now() (no ASSET_VERSION). No deep-link
+// param and no tree refresh on close (the adventure editor has no parent tree).
+window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOverlay || function openAvesmapsAdventureEditorOverlay() {
+	const overlayId = "avesmaps-adventure-editor-overlay";
+	const buildSrc = () => "/html/adventure-editor.html?v=" + Date.now();
+	let overlay = document.getElementById(overlayId);
+	if (overlay) {
+		overlay.hidden = false;
+		document.body.style.overflow = "hidden";
+		return;
+	}
+	overlay = document.createElement("div");
+	overlay.id = overlayId;
+	overlay.className = "political-territory-editor-overlay";
+	overlay.style.zIndex = "1500";
+	const dialog = document.createElement("div");
+	dialog.className = "political-territory-editor-dialog";
+	dialog.style.width = "min(1400px, calc(100vw - 24px))";
+	dialog.style.height = "min(880px, calc(100vh - 24px))";
+	const header = document.createElement("div");
+	header.className = "political-territory-editor-dialog__header";
+	const headingEl = document.createElement("h2");
+	headingEl.textContent = "Abenteuer anlegen und editieren";
+	const closeButton = document.createElement("button");
+	closeButton.type = "button";
+	closeButton.className = "political-territory-editor-dialog__close";
+	closeButton.setAttribute("aria-label", "Schließen");
+	closeButton.textContent = "✕";
+	const closeOverlay = () => {
+		overlay.hidden = true;
+		document.body.style.overflow = "";
+	};
+	closeButton.addEventListener("click", closeOverlay);
+	header.appendChild(headingEl);
+	header.appendChild(closeButton);
+	const frame = document.createElement("iframe");
+	frame.className = "political-territory-editor-dialog__frame";
+	frame.src = buildSrc();
+	frame.title = "Abenteuereditor";
+	dialog.appendChild(header);
+	dialog.appendChild(frame);
+	overlay.appendChild(dialog);
+	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+	document.body.appendChild(overlay);
+	document.body.style.overflow = "hidden";
+};

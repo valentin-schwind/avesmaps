@@ -265,6 +265,7 @@ $("#location-report-close, #location-report-cancel").on("click", () => setLocati
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 $("#settlement-editor-open").on("click", () => openAvesmapsSettlementEditorOverlay());
+$("#adventure-editor-open").on("click", () => openAvesmapsAdventureEditorOverlay());
 // WikiDump hybrid read (H4c-f): sandbox read loop + inline cred-prompt.
 $("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
 // Per-kind "Syncen" (Wave 2): one button per tab drives sync_kind for that kind.
