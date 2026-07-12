@@ -145,6 +145,21 @@ function isRoutePlanMarkerName(name) {
 	return normalizeNodeName(name) === "Kreuzung" || String(name || "") === "Markierung";
 }
 
+// An entry's place name as markup: a map link when a real, name-findable location exists (not a
+// "Markierung"/crossing) -- clicking flies there and opens the infobox (openLocationPopupByName);
+// otherwise the plain <strong> text as before. data-place-name carries the RAW name for the lookup;
+// the shown text is the display name (crossings renamed to "Markierung").
+function routePlanPlaceMarkup(name) {
+	const displayName = formatRoutePlanNodeName(name);
+	const linkable = !isRoutePlanMarkerName(name)
+		&& typeof findLocationMarkerByName === "function"
+		&& !!findLocationMarkerByName(name);
+	if (!linkable) {
+		return `<strong>${escapeHtml(displayName)}</strong>`;
+	}
+	return `<button type="button" class="route-plan-entry__place" data-place-name="${escapeHtml(name)}">${escapeHtml(displayName)}</button>`;
+}
+
 function appendRoutePlanLabel(labelSet, segmentLabel) {
 	const label = String(segmentLabel || "").trim();
 	if (label) {
@@ -207,7 +222,14 @@ function cleanRoutePlanNoiseEntries(entries) {
 			open.restTime = (open.restTime || 0) + (entry.restTime || 0);
 			open.segmentIndexes = (open.segmentIndexes || []).concat(entry.segmentIndexes || []);
 			if (entry.segmentLabel) {
-				open.segmentLabel = open.segmentLabel ? `${open.segmentLabel}, ${entry.segmentLabel}` : entry.segmentLabel;
+				// Collect the merged legs' way names but avoid duplicates -- a road crossing many
+				// same-named segments should read "über X", not "über X, X, X" (rivers already
+				// dedupe via the aggregate Set).
+				const mergedLabels = open.segmentLabel ? open.segmentLabel.split(", ") : [];
+				if (!mergedLabels.includes(entry.segmentLabel)) {
+					mergedLabels.push(entry.segmentLabel);
+				}
+				open.segmentLabel = mergedLabels.join(", ");
 			}
 			open.endName = entry.endName;
 		}
@@ -304,7 +326,9 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const endName = orientation
 			? routeSegmentEndpointName(orientation.end, !isWaterRoute)
 			: getRouteNodeDisplayName(String(routeNames[index + 1] || ""), index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
-		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
+		// Wiki way name for ALL named paths (river, sea, road, Reichsstraße ...), no longer rivers
+		// only (owner: "Flüsse und Wege mit Name"). Synthetic air-lines never get a name.
+		const segmentLabel = !isSyntheticSegment && shouldShowRoutePathDisplayName(segment)
 			? getRoutePathDisplayName(segment)
 			: "";
 
@@ -351,7 +375,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 			flowState: null,
 			startName,
 			endName,
-			segmentLabel: "",
+			segmentLabel,
 			distance: segDistance,
 			travelTime: segTravelTime,
 			restTime: 0,
@@ -405,10 +429,12 @@ function showRoutePlan(routeNames, segments) {
 	currentRoutePlanEntries = planEntries;
 
 	planEntries.forEach((entry, entryIndex) => {
-		const formattedStartName = formatRoutePlanNodeName(entry.startName);
-		const formattedEndName = formatRoutePlanNodeName(entry.endName);
-		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
-			? ` ${tr("planner.leg.via", "über")} <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
+		// Places as map links (openLocationPopupByName) instead of static <strong>, where a real
+		// location is findable. The named way/river becomes a link too -> zooms to the leg.
+		const startMarkup = routePlanPlaceMarkup(entry.startName);
+		const endMarkup = routePlanPlaceMarkup(entry.endName);
+		const labelSuffix = entry.segmentLabel
+			? ` ${tr("planner.leg.via", "über")} <button type="button" class="route-plan-entry__label route-plan-entry__waylink" data-route-entry-index="${entryIndex}">${escapeHtml(entry.segmentLabel)}</button>`
 			: "";
 		// Stroemungsvermerk je Fluss-Etappe, in der Meilen-Klammer ("42.81 Meilen flussaufwärts",
 		// Owner-Wording); Etappen ohne bekannte Richtung bleiben wie bisher.
@@ -422,16 +448,39 @@ function showRoutePlan(routeNames, segments) {
 			: "";
 
 		$overview.append(`
-			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
+			<div role="button" tabindex="0" class="route-plan-entry" data-route-entry-index="${entryIndex}">
 			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}${longOffroadHint}
 			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
-			${tr("planner.leg.from", "von")} <strong>${formattedStartName}</strong>
-			${tr("planner.leg.to", "bis")} <strong>${formattedEndName}</strong>
+			${tr("planner.leg.from", "von")} ${startMarkup}
+			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(entry.travelTime / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})
-			</button>
+			</div>
 		`);
 	});
+	// Leg click (empty part of the row) zooms to the leg; role=button -> keyboard too (Enter/Space).
 	$overview.find(".route-plan-entry[data-route-entry-index]").on("click", function () {
+		selectRoutePlanEntry(Number(this.dataset.routeEntryIndex), { zoomToEntry: true });
+	}).on("keydown", function (event) {
+		// Only the row container itself; inner buttons (place/way) handle their own keys.
+		if (event.target !== this) {
+			return;
+		}
+		if (event.key === "Enter" || event.key === " ") {
+			event.preventDefault();
+			selectRoutePlanEntry(Number(this.dataset.routeEntryIndex), { zoomToEntry: true });
+		}
+	});
+	// Place link: fly there + open the infobox (like a map click). stopPropagation so the leg zoom
+	// does NOT also fire.
+	$overview.find(".route-plan-entry__place").on("click", function (event) {
+		event.stopPropagation();
+		if (typeof openLocationPopupByName === "function") {
+			openLocationPopupByName(this.dataset.placeName);
+		}
+	});
+	// Way/river link: zoom to the leg (same action as the leg click, but as a link on the name).
+	$overview.find(".route-plan-entry__waylink").on("click", function (event) {
+		event.stopPropagation();
 		selectRoutePlanEntry(Number(this.dataset.routeEntryIndex), { zoomToEntry: true });
 	});
 

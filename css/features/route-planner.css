@@ -560,6 +560,31 @@
 	box-shadow: none;
 }
 
+/* Clickable places + named ways inside a leg: gold text link (NEVER blue), button reset,
+   underline only on hover -- like the political link in the infobox. Places were <strong>, so the
+   bold weight stays; the leg zoom remains the click on the rest of the row. */
+.route-plan-entry__place,
+.route-plan-entry__waylink {
+	appearance: none;
+	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	font-weight: 700;
+	color: var(--color-link);
+	text-decoration: none;
+	cursor: pointer;
+}
+.route-plan-entry__place:hover,
+.route-plan-entry__waylink:hover,
+.route-plan-entry__place:focus-visible,
+.route-plan-entry__waylink:focus-visible {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+	outline: none;
+}
+
 .ui-autocomplete {
 	z-index: 1600 !important;
 	max-width: calc(100vw - 16px);
