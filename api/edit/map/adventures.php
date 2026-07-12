@@ -80,10 +80,8 @@ try {
         '_debug_region' => (static function () use ($pdo, $payload): array {
             $name = trim((string) ($payload['name'] ?? 'Raschtulswall'));
             $stmt = $pdo->prepare(
-                "SELECT public_id, feature_type, feature_subtype, is_active,
-                        JSON_UNQUOTE(JSON_EXTRACT(properties_json,'$.wiki_url')) AS prop_wiki_url,
-                        JSON_UNQUOTE(JSON_EXTRACT(properties_json,'$.feature_subtype')) AS prop_subtype
-                   FROM map_features WHERE name LIKE :n"
+                "SELECT public_id, feature_type, feature_subtype, is_active, properties_json
+                   FROM map_features WHERE name LIKE :n AND is_active = 1"
             );
             $stmt->execute(['n' => '%' . $name . '%']);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
