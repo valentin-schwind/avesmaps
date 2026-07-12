@@ -258,7 +258,7 @@
 
 /* Change-mode report: element reference line between the focus button and the action buttons. */
 .review-report__change-ref {
-	padding: 2px 10px 4px;
+	padding: 2px 0 4px;
 	font-size: 12px;
 	color: var(--color-text-muted);
 	overflow-wrap: anywhere;
