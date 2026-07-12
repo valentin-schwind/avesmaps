@@ -158,39 +158,48 @@
 			unique.push(name);
 		});
 		tabs.innerHTML = "";
-		unique.forEach(function (name, idx) {
-			// Reise-Linie: gestrichelter Verbinder zwischen den Stationen -> macht die Reiseroute sichtbar
-			// (greift die gestrichelte Routen-Linie auf der Karte auf).
-			if (idx > 0) {
-				var conn = document.createElement("span");
-				conn.className = "avesmaps-infopanel__routeconn";
-				conn.setAttribute("aria-hidden", "true");
-				tabs.appendChild(conn);
-			}
-			// Eine Station: Perle oben, Name (+ "✕") darunter. Aktive Station wird per is-active hervorgehoben.
+		// Reise-Linie: Stationen (hohle Perle + Name) auf einem DURCHGEHENDEN gepunkteten Pfad -- dieselbe
+		// Symbolik wie die Wegpunkte im Routenplaner (#waypoints): gepunktete Linie, hohle Kreise, letzter
+		// Wegpunkt = roter Ziel-Pin. Feste 3 pro Zeile (Owner "Umbruch bei 3", Grid mit gleich breiten
+		// Spalten -> Perlen mittig + gleichmaessig verbunden); jede zweite Zeile laeuft per CSS umgekehrt
+		// (direction:rtl), damit der Pfad ums Eck zur naechsten Zeile schlaengelt. Die GANZE Station ist
+		// klickbar (oeffnet ihre Info) -- fruehere Version: nur der schmale Name war klickbar.
+		var PER_ROW = 3;
+		var destinationName = unique[unique.length - 1];
+		function buildStation(name) {
 			var station = document.createElement("div");
 			station.className = "avesmaps-infopanel__station";
 			if (name === currentTabActive) {
 				station.classList.add("is-active");
 			}
+			if (name === destinationName) {
+				station.classList.add("is-destination");
+			}
+			station.setAttribute("role", "button");
+			station.setAttribute("tabindex", "0");
+			station.title = name;
+			station.addEventListener("click", function () {
+				openWaypointInPanel(name);
+			});
+			station.addEventListener("keydown", function (event) {
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					openWaypointInPanel(name);
+				}
+			});
 			var dot = document.createElement("span");
 			dot.className = "avesmaps-infopanel__station-dot";
 			dot.setAttribute("aria-hidden", "true");
 			var labelrow = document.createElement("span");
 			labelrow.className = "avesmaps-infopanel__station-labelrow";
-			var label = document.createElement("button");
-			label.type = "button";
+			var label = document.createElement("span");
 			label.className = "avesmaps-infopanel__station-label";
 			label.textContent = name;
-			label.title = name;
-			label.addEventListener("click", function () {
-				openWaypointInPanel(name);
-			});
-			// Kleines "x": entfernt diesen Wegpunkt aus der Route (auch die aktive/erste Station).
+			// Kleines "x": entfernt diesen Wegpunkt (stopPropagation, sonst oeffnet der Stations-Klick).
 			var remove = document.createElement("button");
 			remove.type = "button";
 			remove.className = "avesmaps-infopanel__station-remove";
-			remove.setAttribute("aria-label", "Wegpunkt entfernen");
+			remove.setAttribute("aria-label", "Wegpunkt entfernen: " + name);
 			remove.title = "Wegpunkt entfernen";
 			remove.textContent = "✕";
 			remove.addEventListener("click", function (event) {
@@ -201,8 +210,24 @@
 			labelrow.appendChild(remove);
 			station.appendChild(dot);
 			station.appendChild(labelrow);
-			tabs.appendChild(station);
-		});
+			return station;
+		}
+		for (var rowStart = 0, rowIdx = 0; rowStart < unique.length; rowStart += PER_ROW, rowIdx += 1) {
+			var rowNames = unique.slice(rowStart, rowStart + PER_ROW);
+			var rowEl = document.createElement("div");
+			rowEl.className = "avesmaps-infopanel__routeline-row";
+			rowEl.style.setProperty("--cols", String(rowNames.length));
+			if (rowIdx % 2 === 1) {
+				rowEl.classList.add("is-reversed");
+			}
+			if (rowStart + PER_ROW < unique.length) {
+				rowEl.classList.add("has-bend");
+			}
+			rowNames.forEach(function (name) {
+				rowEl.appendChild(buildStation(name));
+			});
+			tabs.appendChild(rowEl);
+		}
 		// Leiste nur zeigen, wenn es Wegpunkte gibt; ERST die Ueberlauf-Pfeile ein-/ausblenden (das aendert
 		// die Breite der Reiter-Leiste), DANN den aktiven Reiter in den nun finalen Bereich scrollen.
 		tabsbar.style.display = unique.length ? "" : "none";
