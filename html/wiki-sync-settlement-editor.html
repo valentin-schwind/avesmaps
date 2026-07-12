@@ -138,7 +138,10 @@
   .dt-img-hint { display:block; font-size:10px; color:var(--mut); margin-top:2px; }
   .dt-img-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:8px; }
   .dt-img-cell { position:relative; aspect-ratio:16/9; border-radius:5px; overflow:hidden; border:1px solid var(--line); }
-  .dt-img-cell img { width:100%; height:100%; object-fit:cover; display:block; }
+  .dt-img-cell img { width:100%; height:100%; object-fit:cover; display:block; -webkit-user-drag:none; user-select:none; }
+  .dt-img-cell--sortable { cursor:grab; }
+  .dt-img-cell--dragging { opacity:0.4; cursor:grabbing; outline:2px solid #bfa03a; outline-offset:-2px; }
+  .dt-img-drag-hint { color:var(--mut); font-size:11px; font-weight:normal; }
   .dt-img-ord { position:absolute; top:2px; left:4px; font-size:10px; font-weight:bold; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.85); }
   .dt-img-del { position:absolute; top:2px; right:2px; width:19px; height:19px; border:0; border-radius:50%; background:rgba(30,22,16,0.62); color:#fff; font-size:13px; line-height:1; cursor:pointer; display:grid; place-items:center; opacity:0; transition:opacity 0.12s; }
   .dt-img-cell:hover .dt-img-del { opacity:1; }
@@ -1305,8 +1308,9 @@ const SETTLEMENT_IMAGES_MAX = 10;
 function buildSettlementImagesBlockHtml(detail) {
 	const props = detail.properties || {};
 	const images = Array.isArray(props.images) ? props.images.filter((u) => typeof u === "string" && u.trim() !== "") : [];
+	const sortable = images.length > 1;
 	const cells = images.map((url, i) =>
-		`<div class="dt-img-cell"><img src="${settlementEscape(url)}" alt="Bild ${i + 1}" loading="lazy">` +
+		`<div class="dt-img-cell${sortable ? " dt-img-cell--sortable" : ""}"${sortable ? ` draggable="true"` : ""} data-img-url="${settlementEscape(url)}"><img src="${settlementEscape(url)}" alt="Bild ${i + 1}" loading="lazy" draggable="false">` +
 		`<span class="dt-img-ord">${i + 1}</span>` +
 		`<button type="button" class="dt-img-del" data-image-delete="${settlementEscape(url)}" title="Bild löschen" aria-label="Bild ${i + 1} löschen">×</button></div>`
 	).join("");
@@ -1314,7 +1318,8 @@ function buildSettlementImagesBlockHtml(detail) {
 	const upload = full
 		? `<div class="dt-img-upload dt-img-upload--full">Maximal ${SETTLEMENT_IMAGES_MAX} Bilder erreicht</div>`
 		: `<div class="dt-img-upload" data-image-upload-trigger="1" role="button" tabindex="0"><span class="dt-img-plus">＋</span>Bild hochladen<span class="dt-img-hint">16:9, wird skaliert &amp; als WebP gespeichert</span></div>`;
-	return `<div class="dt-grp">Bilder <span class="dt-img-count">${images.length} / ${SETTLEMENT_IMAGES_MAX}</span></div>` +
+	const dragHint = sortable ? ` <span class="dt-img-drag-hint">· ziehen zum Sortieren</span>` : "";
+	return `<div class="dt-grp">Bilder <span class="dt-img-count">${images.length} / ${SETTLEMENT_IMAGES_MAX}</span>${dragHint}</div>` +
 		`<div class="dt-img-block">${upload}${cells ? `<div class="dt-img-grid">${cells}</div>` : ""}</div>`;
 }
 
@@ -1561,6 +1566,32 @@ async function deleteSettlementImage(url) {
 	}
 }
 
+async function reorderSettlementImages(order) {
+	if (!selectedPublicId || !Array.isArray(order) || order.length < 2) return;
+	// Skip the POST if the drag ended with the order unchanged vs. the cached detail.
+	const cached = settlementDetailCache && settlementDetailCache.detail && settlementDetailCache.detail.properties
+		&& Array.isArray(settlementDetailCache.detail.properties.images)
+		? settlementDetailCache.detail.properties.images : [];
+	if (cached.length === order.length && cached.every((u, i) => u === order[i])) return;
+	try {
+		const response = await fetch(SETTLEMENT_IMAGES_API, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "reorder", public_id: selectedPublicId, order }),
+		});
+		const payload = await response.json().catch(() => null);
+		if (!response.ok || !payload || payload.ok !== true) {
+			throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		}
+		await reloadSettlementDetail();
+	} catch (error) {
+		await reloadSettlementDetail();
+		const body = $("seDetailBody");
+		if (body) body.insertAdjacentHTML("afterbegin", settlementDetailErrorHtml(error && error.message ? error.message : String(error)));
+	}
+}
+
 // ---- Delegated event wiring for the detail panel + its dialog -------------------------
 document.addEventListener("click", (event) => {
 	// #dtEditSave is rebuilt on every detail render (like the coat/territory controls below), so it
@@ -1599,6 +1630,45 @@ document.addEventListener("click", (event) => {
 		applyTerritoryAssign(pick.dataset.territoryPick);
 		return;
 	}
+});
+
+// ---- Drag & drop reordering of the settlement-image gallery ----------------------------
+// Delegated on document because the grid is rebuilt on every detail render. Only cells that are
+// actually sortable carry .dt-img-cell--sortable + draggable, so the tree editor's own DnD is untouched.
+let seDraggedImageCell = null;
+document.addEventListener("dragstart", (event) => {
+	const cell = event.target.closest ? event.target.closest(".dt-img-cell--sortable") : null;
+	if (!cell || !cell.parentElement || !cell.parentElement.classList.contains("dt-img-grid")) return;
+	seDraggedImageCell = cell;
+	cell.classList.add("dt-img-cell--dragging");
+	if (event.dataTransfer) {
+		event.dataTransfer.effectAllowed = "move";
+		try { event.dataTransfer.setData("text/plain", cell.getAttribute("data-img-url") || ""); } catch (e) { /* older browsers */ }
+	}
+});
+document.addEventListener("dragover", (event) => {
+	if (!seDraggedImageCell) return;
+	const grid = event.target.closest ? event.target.closest(".dt-img-grid") : null;
+	if (!grid || grid !== seDraggedImageCell.parentElement) return;
+	event.preventDefault();
+	if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+	const over = event.target.closest(".dt-img-cell");
+	if (!over || over === seDraggedImageCell) return;
+	const box = over.getBoundingClientRect();
+	const after = (event.clientX - box.left) > box.width / 2;
+	grid.insertBefore(seDraggedImageCell, after ? over.nextSibling : over);
+});
+document.addEventListener("dragend", () => {
+	if (!seDraggedImageCell) return;
+	const grid = seDraggedImageCell.parentElement;
+	seDraggedImageCell.classList.remove("dt-img-cell--dragging");
+	seDraggedImageCell = null;
+	if (!grid) return;
+	// Renumber the badges immediately for snappy feedback; reorderSettlementImages() confirms with a reload.
+	const cells = [...grid.querySelectorAll(".dt-img-cell")];
+	cells.forEach((c, i) => { const ord = c.querySelector(".dt-img-ord"); if (ord) ord.textContent = String(i + 1); });
+	const order = cells.map((c) => c.getAttribute("data-img-url")).filter(Boolean);
+	void reorderSettlementImages(order);
 });
 
 document.addEventListener("input", (event) => {
