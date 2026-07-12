@@ -81,6 +81,9 @@
 	font: inherit;
 	line-height: inherit;
 	vertical-align: baseline;
+	/* Button-Default ist text-align:center -> beim Umbruch (langer Reichsname im schmalen Panel)
+	   zentrierten die Folgezeilen. Linksbuendig, damit die Politik-Zeile sauber unter dem Typ steht. */
+	text-align: left;
 }
 .location-popup__political-link:hover,
 .location-popup__political-link:focus-visible {

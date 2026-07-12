@@ -89,8 +89,10 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		// Der alte Wiki-Credit ("Informationen aus dem Wiki Aventurica. Mehr hier ↗") entfällt -- die
 		// neue Quell-Zeile (renderFeatureSourceLine) zeigt den Wiki-Link jetzt als "Quellen: …".
 		showWikiLink: false,
-		// Infobox zuerst, Aktions-Buttons, dann Stadtkarten/Abenteuer, dann der Bewertungs-Bereich.
-		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + placeExtrasMarkup + reviewsSlot,
+		// Aktions-Buttons DIREKT unter den Kopf (Owner: "Buttons unter den Titel"), dann die Daten-Infobox,
+		// dann Stadtkarten/Abenteuer, dann der Bewertungs-Bereich. In der schlanken Box ist settlementInfobox
+		// leer -> dort stehen die Buttons ohnehin schon oben; im Panel wandern sie jetzt nach oben.
+		actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + settlementInfobox + placeExtrasMarkup + reviewsSlot,
 	});
 }
 

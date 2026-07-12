@@ -326,6 +326,11 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel .region-info-box--settlement {
 	padding-left: var(--infopanel-pad-x);
 	padding-right: var(--infopanel-pad-x);
+	/* Die generische .region-info-box-Regel cappt auf max-width:100% (Territorien-Overflow-Schutz). Das
+	   verhinderte, dass die randlose Siedlungs-Box (margin -18) ihre volle Breite erreicht -> sie rutschte
+	   nur nach links, die rechte Kante blieb 36px kurz (leerer Streifen rechts, Owner). Cap hier aufheben,
+	   damit Daten/Quelle wie Kopf+Buttons bis zur Panel-Kante laufen (kein H-Overflow, gemessen). */
+	max-width: none;
 }
 .avesmaps-infopanel .region-info-box__header {
 	gap: 12px;
