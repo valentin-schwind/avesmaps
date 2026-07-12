@@ -54,7 +54,12 @@ try {
 
     if ($action === 'resolve') {
         require_once __DIR__ . '/../_internal/app/adventure-resolve.php';
-        $result = avesmapsAdventureResolveAll($pdo);
+        try {
+            $result = avesmapsAdventureResolveAll($pdo);
+        } catch (Throwable $resolveError) {
+            // TEMP DEBUG (revert): surface the resolve failure to the operator who triggers it.
+            avesmapsJsonResponse(200, ['ok' => false, 'debug' => $resolveError->getMessage(), 'at' => basename($resolveError->getFile()) . ':' . $resolveError->getLine()]);
+        }
         avesmapsJsonResponse(200, ['ok' => true] + $result);
     }
 
