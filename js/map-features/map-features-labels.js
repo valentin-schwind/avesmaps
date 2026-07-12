@@ -350,8 +350,10 @@ function buildRegionLabelViewPopupHtml(label) {
 		showType: true,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
-			+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
+		// "Link teilen" (Owner) direkt unter dem Kopf, die Landschafts-Infobox (Lage/Staat/Beschreibung +
+		// Quelle) darunter -- gleiche Anordnung wie Siedlung/Territorium/Weg.
+		actionsMarkup: locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean))
+			+ labelWikiInfoboxMarkup(label, { headless: true }),
 	});
 }
 
