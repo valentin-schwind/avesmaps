@@ -296,6 +296,19 @@ body.edit-mode .floating-location-popup .location-popup__actions,
 body.edit-mode .avesmaps-infopanel .location-popup__actions {
 	flex-wrap: wrap;
 }
+/* Owner: exactly 4 tiles per row in the floating box, box stays the normal ~400px width, only the height
+   grows with the extra rows. A 4-column grid packs four equal tiles per row (~87px each -- the same width as
+   view mode's four one-row tiles); the box width stays governed by the rating row (~400px), so it matches
+   the normal box. Scoped to the floating box's MAIN actions (direct child of .location-popup) so the nested
+   rating-row actions ("Bewertung schreiben") stay a single inline row. width:auto lets each tile fill its
+   grid column instead of the fixed 90px. */
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+}
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+	width: auto;
+}
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {
 	flex-direction: column;
