@@ -56,6 +56,9 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             status,
             report_type,
             report_subtype,
+            report_mode,
+            entity_type,
+            entity_public_id,
             name,
             reporter_name,
             lat,
@@ -212,10 +215,13 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             KEY idx_map_reports_ip_hash_created_at (ip_hash, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
-    // Multi-source #3: ensure the community source-suggestion column exists so the review SELECT can
-    // read it even before the first new-schema report is submitted (report-location.php adds it too).
+    // Ensure optional columns exist so the review SELECT can read them even before the first new-schema
+    // report is submitted (report-location.php adds them too; this is the defensive read-side gate).
     foreach ([
-        'sources_json' => 'TEXT NULL',
+        'sources_json'     => 'TEXT NULL',
+        'report_mode'      => "VARCHAR(16) NOT NULL DEFAULT 'new' AFTER report_subtype",
+        'entity_type'      => 'VARCHAR(20) NULL AFTER report_mode',
+        'entity_public_id' => 'VARCHAR(80) NULL AFTER entity_type',
     ] as $column => $definition) {
         $quotedColumn = $pdo->quote($column);
         $columnStatement = $pdo->query("SHOW COLUMNS FROM map_reports LIKE {$quotedColumn}");
