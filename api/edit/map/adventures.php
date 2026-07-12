@@ -76,6 +76,25 @@ try {
             }
             return avesmapsResolveAdventurePlace($pdo, $placeId);
         })(),
+        // TEMP diagnostic (capability-gated, read-only) -- remove after the region-resolve investigation.
+        '_debug_region' => (static function () use ($pdo, $payload): array {
+            $name = trim((string) ($payload['name'] ?? 'Raschtulswall'));
+            $stmt = $pdo->prepare(
+                "SELECT public_id, feature_type, feature_subtype, is_active,
+                        JSON_UNQUOTE(JSON_EXTRACT(properties_json,'$.wiki_url')) AS prop_wiki_url,
+                        JSON_UNQUOTE(JSON_EXTRACT(properties_json,'$.feature_subtype')) AS prop_subtype
+                   FROM map_features WHERE name LIKE :n"
+            );
+            $stmt->execute(['n' => '%' . $name . '%']);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $cand = avesmapsAdventureLoadCandidates($pdo);
+            return [
+                'rows' => $rows,
+                'region_candidate_count' => count($cand['region']),
+                'has_wiki_raschtulswall' => array_key_exists('wiki:raschtulswall', $cand['region']),
+                'sample_region_keys' => array_slice(array_keys($cand['region']), 0, 10),
+            ];
+        })(),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.'),
     };
 
