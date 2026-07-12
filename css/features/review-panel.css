@@ -160,7 +160,9 @@
 .route-plan-summary__time {
 	margin: 0 0 10px;
 	padding: 0 6px 2px;
-	color: #4a392c;
+	/* Token, not a literal: hardcoded #4a392c stayed dark-brown in dark mode and vanished on
+	   the dark panel. --color-text flips with the theme so the metrics stay readable in both. */
+	color: var(--color-text);
 	font-size: 12px;
 	line-height: 1.35;
 }
