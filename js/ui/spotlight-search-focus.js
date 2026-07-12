@@ -139,12 +139,19 @@ function focusSpotlightRegion(entry) {
 		window.avesmapsShowRegionInInfopanel(entry.regionEntry);
 		return;
 	}
-	// Backend/synthetic hit (regionEntry === null) or non-panel mode: resolve by public_id against a
-	// rendered polygon (poll, since the political layer reloads asynchronously after the switch/flight).
 	const publicId = (entry.publicIds && entry.publicIds[0]) || entry.regionEntry?.publicId || entry.regionEntry?.territoryPublicId || "";
-	if (publicId) {
-		openSpotlightRegionInfobox(publicId);
+	if (!publicId) {
+		return;
 	}
+	// Backend/synthetic hit (regionEntry === null): the territory may not render as a polygon at the target
+	// zoom -- or ever (a claim-only "Anspruchsgebiet") -- so the poll below would never find it. In panel
+	// mode, load its info by public_id and open the full infobox directly (territory-detail.php).
+	if (typeof window.avesmapsShowRegionInfopanelById === "function") {
+		window.avesmapsShowRegionInfopanelById(publicId, entry.name || "");
+		return;
+	}
+	// Non-panel mode: poll for the rendered polygon and open the floating tooltip on it.
+	openSpotlightRegionInfobox(publicId);
 }
 
 // Öffnet die Region-Infobox, sobald ein Polygon mit passender public_id/territory_public_id gerendert ist --

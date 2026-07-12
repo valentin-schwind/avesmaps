@@ -258,7 +258,13 @@ function resolveWikiDeeplinkViaMapSearch(request) {
 		decodedPageName = request.pageName;
 	}
 	const searchUrl = new URL(endpoint, window.location.href);
-	searchUrl.searchParams.set("q", decodedPageName.replace(/_/g, " "));
+	// Wiki page names may carry a "(disambiguation)" qualifier the stored LOCAL name lacks -- e.g. the
+	// ?staat= page "Sultanat Fasar (Kalifat)" vs. the stored territory "Sultanat Fasar" -- so a literal
+	// full-text search returns nothing. Strip a single trailing parenthesised qualifier for the query
+	// (the client-side wiki_url match above stays exact and number-sensitive; only this name search needs it).
+	const spacedPageName = decodedPageName.replace(/_/g, " ");
+	const queryName = spacedPageName.replace(/\s*\([^()]*\)\s*$/, "").trim() || spacedPageName;
+	searchUrl.searchParams.set("q", queryName);
 	searchUrl.searchParams.set("limit", "20");
 	fetch(searchUrl.toString(), { headers: { Accept: "application/json" } })
 		.then((response) => (response.ok ? response.json() : null))

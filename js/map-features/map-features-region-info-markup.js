@@ -63,6 +63,9 @@ function hasRegionWikiInfo(regionEntry) {
 		|| regionEntry.wikiDissolvedText
 		|| regionEntry.foundedText
 		|| regionEntry.dissolvedText
+		// Loaded territory-detail (detail.fields) also counts as wiki info -> the full infobox renders even
+		// for a deep-link/synthetic entry that has no rendered polygon and thus no top-level wiki fields.
+		|| (regionEntry.detail && regionEntry.detail.ok && regionEntry.detail.fields)
 	);
 }
 

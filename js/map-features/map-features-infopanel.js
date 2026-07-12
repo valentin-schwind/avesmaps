@@ -587,4 +587,35 @@
 		}
 		return true;
 	};
+
+	// Deep-link/spotlight glue: open a territory in the panel BY public_id when no rendered polygon (and
+	// thus no client regionEntry) exists -- e.g. a territory outside the current zoom band, or a claim-only
+	// "Anspruchsgebiet" that never renders as its own polygon (its poll would never find one). Loads
+	// territory-detail.php and feeds detail.fields into the FULL region infobox (hasRegionWikiInfo honours
+	// .detail). Used by focusSpotlightRegion for backend/synthetic hits (js/ui/spotlight-search-focus.js).
+	window.avesmapsShowRegionInfopanelById = function (territoryPublicId, name) {
+		var id = String(territoryPublicId || "");
+		if (!id || typeof createRegionCompactTooltipMarkup !== "function") {
+			return false;
+		}
+		fetch("/api/app/territory-detail.php?territory=" + encodeURIComponent(id), { credentials: "same-origin" })
+			.then(function (response) { return response.ok ? response.json() : null; })
+			.then(function (data) {
+				if (!data || data.ok === false) {
+					return;
+				}
+				var resolvedName = name || (data.fields && data.fields.name) || "";
+				var regionEntry = {
+					territoryPublicId: id,
+					publicId: id,
+					name: resolvedName,
+					displayName: resolvedName,
+					source: "political_territory",
+					detail: data,
+				};
+				window.avesmapsShowRegionInInfopanel(regionEntry);
+			})
+			.catch(function () { /* noop */ });
+		return true;
+	};
 })();
