@@ -288,6 +288,53 @@ function resolveWikiDeeplinkViaMapSearch(request) {
 		.catch(() => {});
 }
 
+// Flies to + opens the political territory behind a settlement infobox's "political context" link
+// (buildSettlementPoliticalLineMarkup in js/ui/popups.js). Mirrors resolveWikiDeeplinkViaMapSearch:
+// one map-search by the territory name, then hand the best political/region hit to the spotlight focus
+// router -- selectSpotlightSearchEntry activates the political layer, flies there and opens the region
+// infobox (in ?infopanel=true it lands in the right panel). publicId, when present, disambiguates
+// same-named hits; otherwise the first region result wins. Works from ANY layer mode (the router loads
+// what it needs), so the link is consistent whether or not the political layer was already on.
+function avesmapsFocusPoliticalTerritory(name, publicId) {
+	const territoryName = String(name || "").trim();
+	if (territoryName === "") {
+		return;
+	}
+	const endpoint = typeof MAP_SEARCH_API_URL !== "undefined" ? String(MAP_SEARCH_API_URL || "").trim() : "";
+	if (!endpoint || typeof resolveBackendSpotlightEntries !== "function" || typeof selectSpotlightSearchEntry !== "function") {
+		return;
+	}
+	const searchUrl = new URL(endpoint, window.location.href);
+	searchUrl.searchParams.set("q", territoryName);
+	searchUrl.searchParams.set("limit", "20");
+	fetch(searchUrl.toString(), { headers: { Accept: "application/json" } })
+		.then((response) => (response.ok ? response.json() : null))
+		.then((payload) => {
+			const results = Array.isArray(payload?.results) ? payload.results : [];
+			if (!results.length) {
+				return;
+			}
+			const entries = resolveBackendSpotlightEntries(results, []);
+			if (!entries.length) {
+				return;
+			}
+			const wantedId = String(publicId || "").trim();
+			let chosen = null;
+			if (wantedId) {
+				chosen = entries.find((entry) => {
+					const region = entry.regionEntry || {};
+					return String(entry.publicId || region.territoryPublicId || region.publicId || "") === wantedId;
+				});
+			}
+			// Prefer a territory/region hit over a same-named settlement/label.
+			chosen = chosen || entries.find((entry) => entry.kind === "region") || entries[0];
+			if (chosen) {
+				selectSpotlightSearchEntry(chosen);
+			}
+		})
+		.catch(() => {});
+}
+
 // Entry point: called once from the load path (routing.js, after applyPlaceFocusFromUrl) once markers and
 // regions are hydrated. Resolves ?siedlung/?staat/?region/?strasse/?fluss to a map object and focuses it.
 function applyWikiDeeplinkFromUrl() {

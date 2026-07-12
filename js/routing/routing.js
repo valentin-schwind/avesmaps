@@ -73,6 +73,9 @@ const prepareLocationData = (data) => {
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				otherSource: readFeatureOtherSource(feature.properties),
 				wikiSettlement: feature.properties.wiki_settlement || null,
+				// Political context line (resolved server-side in map-features.php): {kind,name,type,
+				// territory_public_id} or absent. Rendered under the settlement type in the infobox.
+				political: feature.properties.political || null,
 				coat: feature.properties.coat || null,
 				isNodix: Boolean(feature.properties.is_nodix),
 				isRuined: Boolean(feature.properties.is_ruined),
@@ -607,8 +610,14 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 	}
 
 	if (action === "share-pin" && contextMenuLatLng) {
-		setSharePin(contextMenuLatLng, { openPopup: true });
-		void copyCurrentUrlToClipboardWithFeedback();
+		// "Stelle markieren und teilen": Pin setzen UND einen Link kopieren, der GENAU diese Stelle
+		// wiederherstellt. Frueher wurde window.location.href kopiert -- das enthaelt den Pin aber nie,
+		// weil die Adresszeile bewusst nicht umgeschrieben wird (URL-Policy). Deshalb hier den expliziten
+		// ?pin=<lat,lng>-Deep-Link kopieren (buildSharePinLink, map-features-share-pin.js).
+		const didSetPin = setSharePin(contextMenuLatLng, { openPopup: true });
+		if (didSetPin) {
+			void copySharePinLinkWithFeedback(contextMenuLatLng);
+		}
 		closeMapContextMenu();
 		focusMapOnActiveTargets();
 		return;
@@ -711,6 +720,20 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		if (clearDistanceMeasurement()) {
 			showFeedbackToast(tr("toast.measure.cleared", "Entfernungsmessung gelöscht."), "success");
 		}
+	}
+});
+
+// Political context link in a settlement infobox (buildSettlementPoliticalLineMarkup): fly to + open the
+// territory it names. Separate delegated handler because it is a text link, not a .location-popup__action-
+// button, and must not inherit that button's styling/dispatch. Works in the floating box AND the panel
+// (document-level delegation).
+$(document).on("click", ".location-popup__political-link", function (event) {
+	event.preventDefault();
+	event.stopPropagation();
+	const territoryName = this.dataset.politicalTerritory || "";
+	const territoryPublicId = this.dataset.politicalPublicId || "";
+	if (territoryName && typeof avesmapsFocusPoliticalTerritory === "function") {
+		avesmapsFocusPoliticalTerritory(territoryName, territoryPublicId);
 	}
 });
 

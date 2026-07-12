@@ -76,6 +76,9 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		wikiUrl: markerEntry.location.wikiUrl,
 		isRuined: markerEntry.location.isRuined,
 		showType: true,
+		// Political context under the type ("Metropole · Hauptstadt des Mittelreichs" / "Stadt · Baronie
+		// Vierok"), a gold link that flies to that region. Resolved server-side; absent -> type stands alone.
+		typeSuffixMarkup: (typeof buildSettlementPoliticalLineMarkup === "function" ? buildSettlementPoliticalLineMarkup(markerEntry.location.political) : ""),
 		showDescription: !hasWikiSettlement,
 		// Der alte Wiki-Credit ("Informationen aus dem Wiki Aventurica. Mehr hier ↗") entfällt -- die
 		// neue Quell-Zeile (renderFeatureSourceLine) zeigt den Wiki-Link jetzt als "Quellen: …".

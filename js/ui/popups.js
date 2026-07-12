@@ -485,6 +485,50 @@ function waypointRemoveActionMarkup(waypointId) {
 	]);
 }
 
+// Political context line under the settlement type: "Hauptstadt des Mittelreichs" (the place is the
+// capital of a broader realm) or "<Rang> <Name>" (the ray-cast territory it sits in), rendered as a
+// gold link that flies to that political region. The data is resolved server-side (map-features.php);
+// the grammar/label is built here so the wording can iterate without a backend redeploy. Returns ""
+// when the place has no resolved political context (the type label then stands alone).
+function buildSettlementPoliticalLineMarkup(political) {
+	if (!political || typeof political !== "object") {
+		return "";
+	}
+	const name = String(political.name || "").trim();
+	if (name === "") {
+		return "";
+	}
+	const publicId = String(political.territory_public_id || "").trim();
+	let label;
+	if (political.kind === "capital") {
+		label = `${tr("popup.capitalPrefix", "Hauptstadt")} ${germanCapitalOfPhrase(name)}`;
+	} else {
+		// "<Rang> <Name>" (e.g. "Baronie Vierok"); avoid "Baronie Baronie Vierok" if the name already
+		// carries the rank.
+		const type = String(political.type || "").trim();
+		label = (type !== "" && !name.toLowerCase().startsWith(type.toLowerCase()))
+			? `${type} ${name}`
+			: name;
+	}
+	return `<button type="button" class="location-popup__political-link" `
+		+ `data-political-territory="${escapeHtml(name)}" data-political-public-id="${escapeHtml(publicId)}">`
+		+ `${escapeHtml(label)}</button>`;
+}
+
+// Best-effort German genitive for "Hauptstadt <…>". Handles the common realm endings well
+// (des Mittelreichs, des Bornlands, der Grafschaft …) and falls back to the always-grammatical
+// "von <Name>" for anything unexpected -- the owner verifies wording live and can refine here.
+function germanCapitalOfPhrase(name) {
+	const n = String(name || "").trim();
+	if (/reich$/i.test(n) || /(land|tum)$/i.test(n)) {
+		return `des ${n}s`;
+	}
+	if (/(ei|ie|schaft|mark)$/i.test(n)) {
+		return `der ${n}`;
+	}
+	return `von ${n}`;
+}
+
 function locationPopupMarkup({
 	name,
 	locationType,
@@ -493,6 +537,7 @@ function locationPopupMarkup({
 	showHeaderIcon = true,
 	compact = false,
 	showType = false,
+	typeSuffixMarkup = "",
 	showDivider = false,
 	showDescription = true,
 	showWikiLink = true,
@@ -509,7 +554,7 @@ function locationPopupMarkup({
 				${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 				<div class="location-popup__title-group">
 					<div class="${nameClassName}">${escapeHtml(name)}</div>
-					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
+					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}${typeSuffixMarkup ? ` · ${typeSuffixMarkup}` : ""}</div>` : ""}
 				</div>
 			</div>
 			${showDivider ? `<div class="location-popup__divider"></div>` : ""}

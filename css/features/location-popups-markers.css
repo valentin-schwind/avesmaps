@@ -68,6 +68,26 @@
 	font-weight: normal;
 }
 
+/* Political context link inside the type line ("Metropole · Hauptstadt des Mittelreichs" / "Stadt ·
+   Baronie Vierok"): a gold text link (button reset) that flies to the political region on click.
+   Never blue (design language); underline only on hover so the type line stays calm. */
+.location-popup__political-link {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-link);
+	cursor: pointer;
+	font: inherit;
+	line-height: inherit;
+	vertical-align: baseline;
+}
+.location-popup__political-link:hover,
+.location-popup__political-link:focus-visible {
+	outline: none;
+	text-decoration: underline;
+}
+
 /* Trenner unter dem Kopf (Name/Typ), wie in der grossen Infobox. */
 .location-popup__divider {
 	height: 1px;

@@ -40,6 +40,12 @@ try {
 
     $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
     $buildingTypes = avesmapsLoadWikiSyncBuildingTypes($pdo);
+    // Settlement -> political context: resolve each place's STORED ray-cast territory assignment
+    // (properties.territory_wiki_key/territory_public_id, written by the Siedlungseditor) into a
+    // ready-to-render political line for the infobox. Loaded ONCE (one small join over the territory
+    // tables), resolved in memory per settlement -> no N+1, no lazy client fetch. See
+    // avesmapsLoadSettlementPoliticalContext.
+    $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo);
     // Multi-source system: load the approved source catalog + per-entity references ONCE (two
     // collect-queries, no N+1) so the map renders every element's sources synchronously from this
     // payload -- no lazy per-popup fetch. The catalog is shared/deduped (one entry per source);
@@ -66,7 +72,7 @@ try {
         'revision' => $revision,
         'type' => 'FeatureCollection',
         'features' => array_map(
-            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes),
+            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext),
             $rows
         ),
         // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
@@ -231,7 +237,7 @@ function avesmapsMapFeaturesRespond(array $payload): never {
     exit;
 }
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = []): array {
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = []): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
             'type' => 'Feature',
@@ -269,6 +275,16 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         if ($wikiTitle !== '' && isset($buildingTypes[$wikiTitle])) {
             $properties['wiki_settlement']['building_type'] = $buildingTypes[$wikiTitle]['type'];
             $properties['wiki_settlement']['is_ruined'] = $buildingTypes[$wikiTitle]['ruined'];
+        }
+    }
+
+    // Political context line (infobox): resolve the stored territory assignment into {kind,name,type,
+    // territory_public_id}. The client renders the label ("Hauptstadt des Mittelreichs" / "Baronie
+    // Vierok") + the fly-to link. Only for real locations; skipped silently if nothing resolves.
+    if ((string) $row['feature_type'] === 'location' && $politicalContext !== []) {
+        $political = avesmapsResolveSettlementPolitical((string) $row['name'], $properties, $politicalContext);
+        if ($political !== null) {
+            $properties['political'] = $political;
         }
     }
 
@@ -331,6 +347,117 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
         $map[$title] = ['type' => (string) $row['building_type'], 'ruined' => !empty($row['is_ruined'])];
     }
     return $map;
+}
+
+// Loads the settlement->political lookup used to build each place's infobox political line. Returns
+// two in-memory maps built from ONE join over the (small) territory tables:
+//   territories: wiki_key => {public_id, name, type, depth}  -- the place's containing territory,
+//                resolved from the stored properties.territory_wiki_key ray-cast assignment.
+//   capitals:    lower(capital_name) => {public_id, name, type, depth, wiki_key}  -- territories a
+//                place is the capital OF; the BROADEST one wins (smallest hierarchy depth = closest
+//                to a root realm) so a place that is capital of both a realm and a sub-territory names
+//                the realm (Gareth -> Mittelreich, not Kaisermark Gareth).
+// political_territory_wiki has UNIQUE(wiki_key) -> name/type/capital_name are unambiguous per key;
+// only public_id has BF-timeline versions, so the most-current era (highest valid_to_bf) wins.
+// Try/catch -> empty maps so a missing table/column can never break the hot map-features payload.
+function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
+    $empty = ['territories' => [], 'capitals' => []];
+    try {
+        $statement = $pdo->query(
+            'SELECT t.public_id, t.wiki_key, t.valid_to_bf,
+                    w.name, w.type, w.capital_name, w.affiliation_path_json
+               FROM political_territory t
+               JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
+              WHERE t.wiki_key IS NOT NULL AND t.wiki_key <> \'\''
+        );
+    } catch (Throwable $error) {
+        return $empty;
+    }
+    if ($statement === false) {
+        return $empty;
+    }
+
+    $territories = [];
+    $bestValidTo = [];
+    $capitals = [];
+
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($wikiKey === '' || $name === '') {
+            continue;
+        }
+        $type = trim((string) ($row['type'] ?? ''));
+        $publicId = trim((string) ($row['public_id'] ?? ''));
+        $validTo = (int) ($row['valid_to_bf'] ?? 0);
+        $path = avesmapsDecodeJsonColumn($row['affiliation_path_json'] ?? null);
+        $depth = is_array($path) ? count($path) : 0;
+
+        // One entry per wiki_key -> keep the most current era's public_id (highest valid_to_bf).
+        if (!isset($territories[$wikiKey]) || $validTo >= ($bestValidTo[$wikiKey] ?? PHP_INT_MIN)) {
+            $territories[$wikiKey] = [
+                'public_id' => $publicId,
+                'name' => $name,
+                'type' => $type,
+                'depth' => $depth,
+            ];
+            $bestValidTo[$wikiKey] = $validTo;
+        }
+
+        // Capital index -> the broadest territory (smallest depth) a place is the capital of.
+        $capitalName = trim((string) ($row['capital_name'] ?? ''));
+        if ($capitalName !== '' && $publicId !== '') {
+            $key = mb_strtolower($capitalName, 'UTF-8');
+            if (!isset($capitals[$key]) || $depth < $capitals[$key]['depth']) {
+                $capitals[$key] = [
+                    'public_id' => $publicId,
+                    'name' => $name,
+                    'type' => $type,
+                    'depth' => $depth,
+                    'wiki_key' => $wikiKey,
+                ];
+            }
+        }
+    }
+
+    return ['territories' => $territories, 'capitals' => $capitals];
+}
+
+// Resolves ONE settlement's political line from the maps built by avesmapsLoadSettlementPoliticalContext.
+// "Hauptstadt bevorzugt": show the capital line only when the place is the capital of a DIFFERENT
+// (broader) territory than the one it merely sits in -- a place that is capital of its OWN barony reads
+// as "Baronie Vierok", not "Hauptstadt der Baronie Vierok". Returns null when nothing resolves (the
+// client then shows a neutral "Lage"). The client builds the display label + fly-to link from this.
+function avesmapsResolveSettlementPolitical(string $settlementName, array $properties, array $context): ?array {
+    $territories = $context['territories'] ?? [];
+    $capitals = $context['capitals'] ?? [];
+
+    $containingWikiKey = trim((string) ($properties['territory_wiki_key'] ?? ''));
+    $containingPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
+    $containing = ($containingWikiKey !== '' && isset($territories[$containingWikiKey]))
+        ? $territories[$containingWikiKey]
+        : null;
+
+    $capitalKey = mb_strtolower(trim($settlementName), 'UTF-8');
+    $capital = ($capitalKey !== '' && isset($capitals[$capitalKey])) ? $capitals[$capitalKey] : null;
+
+    if ($capital !== null && ($containing === null || $capital['wiki_key'] !== $containingWikiKey)) {
+        return [
+            'kind' => 'capital',
+            'name' => $capital['name'],
+            'type' => $capital['type'],
+            'territory_public_id' => $capital['public_id'],
+        ];
+    }
+    if ($containing !== null) {
+        return [
+            'kind' => 'territory',
+            'name' => $containing['name'],
+            'type' => $containing['type'],
+            'territory_public_id' => $containingPublicId !== '' ? $containingPublicId : $containing['public_id'],
+        ];
+    }
+    return null;
 }
 
 // Shared catalog of every source that is actually linked to at least one element with an approved
