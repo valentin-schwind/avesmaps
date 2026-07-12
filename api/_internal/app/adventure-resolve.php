@@ -75,10 +75,15 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
 {
     $candidates = ['settlement' => [], 'territory' => [], 'region' => [], 'path' => []];
 
+    // Landscape regions (e.g. Raschtulswall) are stored as feature_type='label' + feature_subtype='region'
+    // and carry properties.wiki_url just like true region features -- include them so an adventure can be
+    // assigned to a landscape (owner requirement 2026-07-12); otherwise every landscape stays 'unresolved'.
     $mapFeatures = $pdo->query(
-        "SELECT public_id, feature_type, name, properties_json
+        "SELECT public_id, feature_type, feature_subtype, name, properties_json
            FROM map_features
-          WHERE is_active = 1 AND feature_type IN ('location','region','path')"
+          WHERE is_active = 1
+            AND (feature_type IN ('location','region','path')
+                 OR (feature_type = 'label' AND feature_subtype = 'region'))"
     );
     foreach ($mapFeatures as $row) {
         $props = json_decode((string) ($row['properties_json'] ?? ''), true);
@@ -88,6 +93,7 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
         $publicId = (string) $row['public_id'];
         $name = (string) ($row['name'] ?? '');
         $type = (string) $row['feature_type'];
+        $subtype = (string) ($row['feature_subtype'] ?? '');
 
         if ($type === 'location') {
             // A location's wiki link lives in properties.wiki_url (editor) and/or the WikiSync object
@@ -111,7 +117,9 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                     $candidates['settlement'][$key] = $publicId;
                 }
             }
-        } elseif ($type === 'region') {
+        } elseif ($type === 'region' || ($type === 'label' && $subtype === 'region')) {
+            // True region features AND landscape region-labels: both keep the wiki link in
+            // properties.wiki_url; build the region candidate the same way for either.
             $wikiUrl = trim((string) ($props['wiki_url'] ?? ''));
             if ($wikiUrl !== '') {
                 $key = avesmapsPoliticalBuildWikiKey($wikiUrl, $name);
@@ -119,7 +127,7 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                     $candidates['region'][$key] = $publicId;
                 }
             }
-        } else { // path -- properties.wiki_path.wiki_key is a BARE slug (no 'wiki:' prefix)
+        } elseif ($type === 'path') { // path -- properties.wiki_path.wiki_key is a BARE slug (no 'wiki:' prefix)
             $pathKey = is_array($props['wiki_path'] ?? null) ? trim((string) ($props['wiki_path']['wiki_key'] ?? '')) : '';
             if ($pathKey !== '' && !isset($candidates['path'][$pathKey])) {
                 $candidates['path'][$pathKey] = $publicId; // one representative segment per way
