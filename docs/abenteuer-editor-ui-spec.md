@@ -95,6 +95,11 @@ Drei Feldgruppen, jeweils Überschrift mit **durchgehendem Trenner** (`--color-d
 
 ## 6. Rechte Spalte — Orte (der Kern)
 
+> **🔖 Owner-Anforderung (2026-07-12): Regionen sind vollwertige Ort-Ziele** (z. B. Raschtulswall). `region`
+> steht im „Typ"-Dropdown und in der Auflösung (Resolver-Präzedenz settlement→territory→**region**→path);
+> ein region-Ort rendert mit Region-Badge, ein nicht auffindbarer bleibt als benannter `unresolved`-Ort
+> erhalten. (Die *Anzeige* region-zugewiesener Abenteuer auf der Regions-Infobox ist Phase-2-Display.)
+
 Kopf: „Orte (N)" (approved-Zähler) · Invarianten-Hinweis „★ Startorte oben · manuell ordenbar (▲▼)" ·
 rechts der Toggle **„unterdrückte anzeigen (N)"**.
 

@@ -508,6 +508,7 @@ document.getElementById("aeOrteBody").addEventListener("click", async (e) => {
 
 Select an adventure with places. Expected, each verified against a reload:
 - Add "Salderkeim" → row appears, auto-resolved to Siedlung (2 POSTs: `add_place` then `resolve_place`).
+- **Region assignability (owner requirement):** add a region, e.g. "Raschtulswall" → resolves to **Region** (Region badge) or, if not in `map_features`, stays a named `unresolved` place (still assignable). `region` must be selectable in the "Typ" dropdown and render with the Region kind badge.
 - "☆ Start" toggles to "★ Startort" (gold), row gets the gold frame; toggle a **second** row to start too (multiple allowed); untoggling sets it back to play.
 - ▲▼ swaps a row with its neighbour; reload → order persists; first ▲ / last ▼ disabled. A start row can be moved too — nothing auto-reorders.
 - ✕ on a **wiki** place → it vanishes from the list and appears under "unterdrückte anzeigen (N)"; ✕ on a **manual** place → hard-gone (not in tombstones).
