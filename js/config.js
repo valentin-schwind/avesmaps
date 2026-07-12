@@ -326,12 +326,12 @@ const LOCATION_ICON_PATHS = {
 // Realistic settlement illustrations by size (icons/realistic/) -- shown as the floating-box header
 // image instead of the coat of arms (Owner). One per settlement type.
 const LOCATION_REALISTIC_ICON_PATHS = {
-	metropole: "icons/realistic/Metropole_realistic.webp",
-	grossstadt: "icons/realistic/Grossstadt_realistic.webp",
-	stadt: "icons/realistic/Stadt.webp",
-	kleinstadt: "icons/realistic/Kleinstadt.webp",
-	dorf: "icons/realistic/Dorf.webp",
-	gebaeude: "icons/realistic/Gebaeude.webp",
+	metropole: "icons/realistic/metropole.webp",
+	grossstadt: "icons/realistic/grossstadt.webp",
+	stadt: "icons/realistic/stadt.webp",
+	kleinstadt: "icons/realistic/kleinstadt.webp",
+	dorf: "icons/realistic/dorf.webp",
+	gebaeude: "icons/realistic/bauwerk.webp",
 };
 const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
