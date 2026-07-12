@@ -358,115 +358,168 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
     return $map;
 }
 
-// Loads the settlement->political lookup used to build each place's infobox political line. Returns
-// two in-memory maps built from ONE join over the (small) territory tables:
-//   territories: wiki_key => {public_id, name, type, depth}  -- the place's containing territory,
-//                resolved from the stored properties.territory_wiki_key ray-cast assignment.
-//   capitals:    lower(capital_name) => {public_id, name, type, depth, wiki_key}  -- territories a
-//                place is the capital OF; the BROADEST one wins (smallest hierarchy depth = closest
-//                to a root realm) so a place that is capital of both a realm and a sub-territory names
-//                the realm (Gareth -> Mittelreich, not Kaisermark Gareth).
-// political_territory_wiki has UNIQUE(wiki_key) -> name/type/capital_name are unambiguous per key;
-// only public_id has BF-timeline versions, so the most-current era (highest valid_to_bf) wins.
-// Try/catch -> empty maps so a missing table/column can never break the hot map-features payload.
+// Loads the settlement->political lookup used to build each place's infobox political line: an in-memory
+// model of the CURRENT-era territory hierarchy, built from ONE join over the (small) territory tables.
+// avesmapsResolveSettlementPolitical then (a) finds the place's ray-cast containing territory by its
+// stored wiki_key/public_id and (b) walks the parent_id chain up to the root to decide the line.
+//
+// Walking parent_id -- never affiliation_path -- is the project KERN-INVARIANTE: ancestry/depth come only
+// from the maintained parent_id backbone; affiliation_path is stale and must not drive the hierarchy.
+//
+// Shape:
+//   byId:               territory_id => {id, public_id, wiki_key, parent_id, name, type, capital_key}
+//   currentIdByWikiKey: wiki_key => id of the MOST-CURRENT era (highest valid_to_bf); the walk normalizes
+//                       every hop to the current era so a stale BF-era row can never be picked.
+//   idByPublicId:       public_id => id, a seed fallback when a settlement stored only its public_id.
+//
+// political_territory can hold several BF-era rows per wiki_key (different public_id, same wiki_key);
+// parent_id is an int FK to political_territory.id. Try/catch -> [] so a missing table/column can never
+// break the hot map-features payload.
 function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
-    $empty = ['territories' => [], 'capitals' => []];
     try {
         $statement = $pdo->query(
-            'SELECT t.public_id, t.wiki_key, t.valid_to_bf,
-                    w.name, w.type, w.capital_name, w.affiliation_path_json
+            'SELECT t.id, t.public_id, t.wiki_key, t.parent_id, t.valid_to_bf,
+                    w.name, w.type, w.capital_name
                FROM political_territory t
                JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
               WHERE t.wiki_key IS NOT NULL AND t.wiki_key <> \'\''
         );
-    } catch (Throwable $error) {
-        return $empty;
+    } catch (Throwable) {
+        return [];
     }
     if ($statement === false) {
-        return $empty;
+        return [];
     }
 
-    $territories = [];
+    $byId = [];
+    $currentIdByWikiKey = [];
     $bestValidTo = [];
-    $capitals = [];
+    $idByPublicId = [];
 
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $id = (int) ($row['id'] ?? 0);
         $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
         $name = trim((string) ($row['name'] ?? ''));
-        if ($wikiKey === '' || $name === '') {
+        if ($id === 0 || $wikiKey === '' || $name === '') {
             continue;
         }
-        $type = trim((string) ($row['type'] ?? ''));
         $publicId = trim((string) ($row['public_id'] ?? ''));
-        $validTo = (int) ($row['valid_to_bf'] ?? 0);
-        $path = avesmapsDecodeJsonColumn($row['affiliation_path_json'] ?? null);
-        $depth = is_array($path) ? count($path) : 0;
+        $capitalName = trim((string) ($row['capital_name'] ?? ''));
+        $byId[$id] = [
+            'id' => $id,
+            'public_id' => $publicId,
+            'wiki_key' => $wikiKey,
+            'parent_id' => ($row['parent_id'] !== null && $row['parent_id'] !== '') ? (int) $row['parent_id'] : 0,
+            'name' => $name,
+            'type' => trim((string) ($row['type'] ?? '')),
+            'capital_key' => $capitalName !== '' ? avesmapsPoliticalNameKey($capitalName) : '',
+        ];
 
-        // One entry per wiki_key -> keep the most current era's public_id (highest valid_to_bf).
-        if (!isset($territories[$wikiKey]) || $validTo >= ($bestValidTo[$wikiKey] ?? PHP_INT_MIN)) {
-            $territories[$wikiKey] = [
-                'public_id' => $publicId,
-                'name' => $name,
-                'type' => $type,
-                'depth' => $depth,
-            ];
+        // Most-current era per wiki_key (highest valid_to_bf) is the canonical node the walk hops through.
+        $validTo = (int) ($row['valid_to_bf'] ?? 0);
+        if (!isset($currentIdByWikiKey[$wikiKey]) || $validTo >= ($bestValidTo[$wikiKey] ?? PHP_INT_MIN)) {
+            $currentIdByWikiKey[$wikiKey] = $id;
             $bestValidTo[$wikiKey] = $validTo;
         }
+        if ($publicId !== '' && !isset($idByPublicId[$publicId])) {
+            $idByPublicId[$publicId] = $id;
+        }
+    }
 
-        // Capital index -> the broadest territory (smallest depth) a place is the capital of.
-        $capitalName = trim((string) ($row['capital_name'] ?? ''));
-        if ($capitalName !== '' && $publicId !== '') {
-            $key = mb_strtolower($capitalName, 'UTF-8');
-            if (!isset($capitals[$key]) || $depth < $capitals[$key]['depth']) {
-                $capitals[$key] = [
-                    'public_id' => $publicId,
-                    'name' => $name,
-                    'type' => $type,
-                    'depth' => $depth,
-                    'wiki_key' => $wikiKey,
+    if ($byId === []) {
+        return [];
+    }
+    return ['byId' => $byId, 'currentIdByWikiKey' => $currentIdByWikiKey, 'idByPublicId' => $idByPublicId];
+}
+
+// Conservative name-match key for capital<->settlement comparison: lowercased, whitespace-collapsed,
+// German umlauts/ss folded, so an umlaut spelling variant still matches. Kept local and deterministic so
+// the comparison stays predictable (not the heavier WikiSync match-key).
+function avesmapsPoliticalNameKey(string $name): string {
+    $value = mb_strtolower(trim($name), 'UTF-8');
+    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+    return strtr($value, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss']);
+}
+
+// Resolves ONE settlement's political line by walking the parent_id chain of its stored ray-cast
+// containing territory (KERN-INVARIANTE: ancestry from parent_id, never affiliation_path). "Hauptstadt
+// bevorzugt": if a BROADER ANCESTOR of the containing territory names this place as its capital, show the
+// capital line for the broadest such ancestor ("Hauptstadt des Kaiserreichs"); otherwise show the
+// containing territory itself ("Baronie Vierok"). Because the capital match is constrained to the place's
+// OWN ancestry, an unrelated territory that merely shares the place's name can no longer produce a false
+// "Hauptstadt" line. Returns null when nothing resolves (the client then shows a neutral "Lage").
+function avesmapsResolveSettlementPolitical(string $settlementName, array $properties, array $context): ?array {
+    $byId = $context['byId'] ?? [];
+    $currentIdByWikiKey = $context['currentIdByWikiKey'] ?? [];
+    $idByPublicId = $context['idByPublicId'] ?? [];
+    if ($byId === []) {
+        return null;
+    }
+
+    // Seed the walk from the settlement's stored ray-cast assignment: prefer the stable wiki_key, fall
+    // back to public_id, then normalize the seed to the current era's canonical node.
+    $wikiKey = trim((string) ($properties['territory_wiki_key'] ?? ''));
+    $publicId = trim((string) ($properties['territory_public_id'] ?? ''));
+    $seedId = 0;
+    if ($wikiKey !== '' && isset($currentIdByWikiKey[$wikiKey])) {
+        $seedId = (int) $currentIdByWikiKey[$wikiKey];
+    } elseif ($publicId !== '' && isset($idByPublicId[$publicId])) {
+        $seedRow = $byId[$idByPublicId[$publicId]] ?? null;
+        $seedWikiKey = (string) ($seedRow['wiki_key'] ?? '');
+        $seedId = ($seedWikiKey !== '' && isset($currentIdByWikiKey[$seedWikiKey]))
+            ? (int) $currentIdByWikiKey[$seedWikiKey]
+            : (int) $idByPublicId[$publicId];
+    }
+    if ($seedId === 0 || !isset($byId[$seedId])) {
+        return null; // no resolvable containing territory
+    }
+
+    // Build the current-era ancestor chain leaf -> ... -> root (visited-guard against cyclic parent data).
+    $chain = [];
+    $visited = [];
+    $node = $byId[$seedId];
+    while ($node !== null && !isset($visited[$node['wiki_key']])) {
+        $visited[$node['wiki_key']] = true;
+        $chain[] = $node;
+        $parentId = (int) ($node['parent_id'] ?? 0);
+        $parentRow = $parentId !== 0 ? ($byId[$parentId] ?? null) : null;
+        if ($parentRow === null) {
+            $node = null;
+            continue;
+        }
+        $parentWikiKey = (string) ($parentRow['wiki_key'] ?? '');
+        $currentParentId = ($parentWikiKey !== '' && isset($currentIdByWikiKey[$parentWikiKey]))
+            ? (int) $currentIdByWikiKey[$parentWikiKey]
+            : $parentId;
+        $node = $byId[$currentParentId] ?? null;
+    }
+
+    $leaf = $chain[0];
+    $settlementKey = avesmapsPoliticalNameKey($settlementName);
+
+    // Capital line: the BROADEST ancestor (closest to root) -- excluding the leaf itself -- whose capital
+    // matches this place. Iterate from the root end inward so the first hit is the broadest.
+    if ($settlementKey !== '') {
+        for ($i = count($chain) - 1; $i >= 1; $i--) {
+            if (($chain[$i]['capital_key'] ?? '') === $settlementKey) {
+                return [
+                    'kind' => 'capital',
+                    'name' => $chain[$i]['name'],
+                    'type' => $chain[$i]['type'],
+                    'territory_public_id' => $chain[$i]['public_id'],
                 ];
             }
         }
     }
 
-    return ['territories' => $territories, 'capitals' => $capitals];
-}
-
-// Resolves ONE settlement's political line from the maps built by avesmapsLoadSettlementPoliticalContext.
-// "Hauptstadt bevorzugt": show the capital line only when the place is the capital of a DIFFERENT
-// (broader) territory than the one it merely sits in -- a place that is capital of its OWN barony reads
-// as "Baronie Vierok", not "Hauptstadt der Baronie Vierok". Returns null when nothing resolves (the
-// client then shows a neutral "Lage"). The client builds the display label + fly-to link from this.
-function avesmapsResolveSettlementPolitical(string $settlementName, array $properties, array $context): ?array {
-    $territories = $context['territories'] ?? [];
-    $capitals = $context['capitals'] ?? [];
-
-    $containingWikiKey = trim((string) ($properties['territory_wiki_key'] ?? ''));
-    $containingPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
-    $containing = ($containingWikiKey !== '' && isset($territories[$containingWikiKey]))
-        ? $territories[$containingWikiKey]
-        : null;
-
-    $capitalKey = mb_strtolower(trim($settlementName), 'UTF-8');
-    $capital = ($capitalKey !== '' && isset($capitals[$capitalKey])) ? $capitals[$capitalKey] : null;
-
-    if ($capital !== null && ($containing === null || $capital['wiki_key'] !== $containingWikiKey)) {
-        return [
-            'kind' => 'capital',
-            'name' => $capital['name'],
-            'type' => $capital['type'],
-            'territory_public_id' => $capital['public_id'],
-        ];
-    }
-    if ($containing !== null) {
-        return [
-            'kind' => 'territory',
-            'name' => $containing['name'],
-            'type' => $containing['type'],
-            'territory_public_id' => $containingPublicId !== '' ? $containingPublicId : $containing['public_id'],
-        ];
-    }
-    return null;
+    // Otherwise the containing territory it sits in ("Baronie Vierok"). Prefer the settlement's stored
+    // public_id (the exact ray-cast era) over the canonical node's, matching the shipped behavior.
+    return [
+        'kind' => 'territory',
+        'name' => $leaf['name'],
+        'type' => $leaf['type'],
+        'territory_public_id' => $publicId !== '' ? $publicId : $leaf['public_id'],
+    ];
 }
 
 // Shared catalog of every source that is actually linked to at least one element with an approved
