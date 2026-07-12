@@ -302,12 +302,16 @@ function applyChangeSuggestionContext(ctx) {
 	document.getElementById("location-report-entity-id").value = ctx.entityId || "";
 
 	// Category locked + preselected.
-	typeSelect.value = reportType;
-	typeSelect.disabled = true;
+	if (typeSelect) {
+		typeSelect.value = reportType;
+		typeSelect.disabled = true;
+	}
 
 	// Name locked + prefilled.
-	nameInput.value = ctx.name || "";
-	nameInput.readOnly = true;
+	if (nameInput) {
+		nameInput.value = ctx.name || "";
+		nameInput.readOnly = true;
+	}
 
 	// Coordinates + meta.
 	document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(L.latLng(lat, lng));
