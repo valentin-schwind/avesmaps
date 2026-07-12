@@ -166,12 +166,15 @@
 	height: 40px;
 }
 /* Aktions-Button-KACHELN (Owner) -- in der schwebenden Box UND im rechten Panel gleich: quadratische
-   Icon-Kachel, Icon zentriert OBEN, Label zentriert darunter, feste Kachelgroesse; die Leiste bricht bei
-   mehr als einer Reihe um. Forward-kompatibel: neue Buttons (Karten/Abenteuer) werden automatisch Kacheln.
-   Fuellhierarchie (Hauptaktion accent) bleibt. Design-Regel dokumentiert in docs/design-language.md §12. */
+   Icon-Kachel, Icon zentriert OBEN, Label zentriert darunter, feste Kachelgroesse. Forward-kompatibel:
+   neue Buttons (Karten/Abenteuer) werden automatisch Kacheln. Fuellhierarchie (Hauptaktion accent)
+   bleibt. Design-Regel dokumentiert in docs/design-language.md §12. */
 .floating-location-popup .location-popup__actions,
 .avesmaps-infopanel .location-popup__actions {
 	gap: 8px;
+	/* Owner: das Menue bricht NICHT um -- die Kacheln bleiben in EINER Zeile und schrumpfen bei Bedarf
+	   minimal (flex-shrink der Kacheln), statt in eine zweite Reihe zu springen. */
+	flex-wrap: nowrap;
 }
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {
