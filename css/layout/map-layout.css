@@ -115,7 +115,11 @@ body {
 	color: var(--color-text);
 }
 .leaflet-control-zoom a:hover {
-	background-color: var(--color-hover-wash);
+	/* Der Zoom-Control schwebt ueber der KARTE -> das translucente --color-hover-wash allein liess beim
+	   Hover die Karte durchscheinen ("komisch transparent"). Wash UEBER das opake Panel legen statt es zu
+	   ersetzen (background-image-Overlay auf opakem background-color), damit der Button opak bleibt. */
+	background-color: var(--color-panel);
+	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
 	color: var(--color-text-strong);
 }
 .leaflet-control-zoom a.leaflet-disabled {

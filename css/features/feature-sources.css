@@ -264,6 +264,14 @@
 	border-radius: 7px;
 	background: var(--color-panel-soft);
 }
+/* Publikationen-Tabelle im rechten Panel nutzt die volle Infobox-Breite (Owner: nur die Breite der
+   Tabelle anpassen): der Wrapper laeuft randlos ueber das --infopanel-pad-x-Padding der Quellen-Sektion
+   -> die Seiten-Spalte bricht deutlich weniger um. NUR im Panel -- das schmale Karten-Popup und die
+   Offiziell/Erwaehnt-Umschalter bleiben unveraendert. */
+.avesmaps-infopanel .fs-src-tablewrap {
+	margin-left: calc(-1 * var(--infopanel-pad-x));
+	margin-right: calc(-1 * var(--infopanel-pad-x));
+}
 .fs-src-table {
 	width: 100%;
 	border-collapse: collapse;
