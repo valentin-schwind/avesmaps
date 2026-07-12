@@ -157,6 +157,10 @@
 			seen[key] = true;
 			unique.push(name);
 		});
+		// Ausfaden (A, Owner): zeigt das Panel ein Feature, das KEIN Wegpunkt ist (keine aktive Station),
+		// tritt die Reise-Linie zurueck (.is-dimmed) -> klar, dass das Angeschaute nicht zur Route gehoert.
+		// Maus drueber holt sie voll zurueck (CSS); mit aktivem Wegpunkt ist sie ohnehin voll.
+		tabs.classList.toggle("is-dimmed", unique.length > 0 && unique.indexOf(currentTabActive) < 0);
 		tabs.innerHTML = "";
 		// Reise-Linie: Stationen (hohle Perle + Name) auf einem DURCHGEHENDEN gepunkteten Pfad -- dieselbe
 		// Symbolik wie die Wegpunkte im Routenplaner (#waypoints): gepunktete Linie, hohle Kreise, letzter

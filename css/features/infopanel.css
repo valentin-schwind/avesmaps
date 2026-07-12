@@ -60,6 +60,16 @@
 .avesmaps-infopanel__tabs::-webkit-scrollbar {
 	display: none;
 }
+/* Ausfaden (A, Owner): steht im Panel ein Feature, das KEIN aktiver Wegpunkt ist, tritt die Reise-Linie
+   dezent zurueck -> klar, dass das Angeschaute nicht zur Route gehoert. Maus drueber (oder ein aktiver
+   Wegpunkt) holt sie voll zurueck; die Stationen bleiben klickbar. */
+.avesmaps-infopanel__tabs.is-dimmed {
+	opacity: 0.5;
+	transition: opacity 0.2s ease;
+}
+.avesmaps-infopanel__tabs.is-dimmed:hover {
+	opacity: 1;
+}
 /* "‹ ›"-Paginierpfeile: nur sichtbar, wenn die Leiste ueberlaeuft (JS setzt .has-overflow). */
 .avesmaps-infopanel__tabsnav {
 	flex: 0 0 auto;
