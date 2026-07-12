@@ -248,6 +248,13 @@
 .route-waypoint-popup .location-popup {
 	width: min(310px, calc(100vw - 32px));
 }
+/* Full-bleed header divider (Owner: "trenner zwischen den buttons und dem header"). The waypoint box
+   inherits the settlement-popup 14px content padding, so pull the 1px line out to both edges -- same
+   edge-to-edge look as the settlement infobox section dividers (design-language: dividers never stop short). */
+.route-waypoint-popup .location-popup__divider {
+	margin-left: -14px;
+	margin-right: -14px;
+}
 
 .location-popup__description {
 	margin-top: 6px;

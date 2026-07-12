@@ -1119,11 +1119,21 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false } = {}) {
 	// Slim waypoint box: header (name + type) + action buttons only. No Wiki link / infobox here --
 	// that lives in the normal marker popup.
 	const routeTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
+	// Header icon: the SAME realistic settlement illustration (by size) as the normal floating box, so the
+	// waypoint box header matches it -- rendered 50x50 via `.floating-location-popup .location-popup__icon--realistic`
+	// (Owner: "das icon der stadt 50x50"). Empty markup falls back to the default type icon in locationPopupMarkup.
+	const headerIcon = typeof settlementRealisticIconMarkup === "function"
+		? settlementRealisticIconMarkup(loc.locationType, routeTypeLabel)
+		: "";
 	return locationPopupMarkup({
 		name: loc.name,
 		locationType: loc.locationType,
 		locationTypeLabel: routeTypeLabel,
+		headerIconMarkup: headerIcon,
 		showType: Boolean(routeTypeLabel),
+		// Full-bleed divider between the header and the action tiles (Owner: "trenner zwischen den buttons
+		// und dem header"). CSS (.route-waypoint-popup .location-popup__divider) pulls it edge-to-edge.
+		showDivider: Boolean(actionsBar),
 		showDescription: false,
 		showWikiLink: false,
 		isRuined: loc.isRuined,
