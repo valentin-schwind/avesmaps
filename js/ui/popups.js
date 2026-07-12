@@ -247,7 +247,7 @@ function infoHeaderImageMarkup(imageBasename, title, subtitle) {
 	const src = `icons/header/${imageBasename}.webp`;
 	const sub = subtitle ? `<div class="info-header__subtitle">${escapeHtml(subtitle)}</div>` : "";
 	return '<div class="info-header">'
-		+ `<img class="info-header__img" src="${escapeHtml(withAssetVersion(src))}" alt="" loading="lazy" decoding="async">`
+		+ `<img class="info-header__img" src="${escapeHtml(withAssetVersion(src))}" alt="" decoding="async">`
 		+ `<div class="info-header__overlay"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div>`
 		+ '</div>';
 }
