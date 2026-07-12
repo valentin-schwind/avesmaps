@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Abenteuer anlegen und editieren</title>
+<!-- Self-contained editor page (Phase 3 / P2), loaded as an iframe overlay via
+     openAvesmapsAdventureEditorOverlay() with ?v=Date.now() (no ASSET_VERSION). Links the REAL design
+     tokens so the warm/aventurian language is authentic — no hardcoded hex/radius/spacing, no blue. Pure
+     client on the LIVE P1 endpoints (POST /api/edit/map/adventures.php). Layout C: Liste | Stammdaten | Orte. -->
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: var(--font-size-body)/var(--leading-normal) var(--font-ui);
+    color: var(--color-text);
+    background: var(--color-panel);
+    display: flex; flex-direction: column;
+  }
+
+  /* ---- shell ---------------------------------------------------------------------------------- */
+  .ae-header {
+    flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
+    padding: var(--space-10) var(--space-16);
+    background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border);
+  }
+  .ae-header h1 { margin: 0; font-size: var(--font-size-title); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); line-height: var(--leading-tight); }
+  .ae-header .ae-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
+
+  .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
+
+  /* ---- left column: adventure list ------------------------------------------------------------ */
+  .ae-list {
+    flex: 0 0 320px; min-width: 0; display: flex; flex-direction: column;
+    border-right: 1px solid var(--color-border); background: var(--color-panel-soft); padding: var(--space-10);
+  }
+  .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
+  .ae-search {
+    flex: 1 1 auto; min-width: 0; font: inherit; color: var(--color-text);
+    background: var(--color-panel); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: var(--space-4) var(--space-8);
+  }
+  .ae-search::placeholder { color: var(--color-placeholder); }
+  .ae-search:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
+  .ae-list__count { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0 0 var(--space-6); }
+  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
+
+  .ae-item {
+    display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-8); margin-bottom: var(--space-2);
+  }
+  .ae-item:hover { background: var(--color-hover-wash); }
+  .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+  .ae-item__l1 { display: flex; align-items: baseline; gap: var(--space-6); }
+  .ae-item__title { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-item__l2 { display: flex; align-items: center; gap: var(--space-6); margin-top: var(--space-2);
+    font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-item.is-draft .ae-item__title { color: var(--color-text-muted); font-style: italic; }
+  .ae-empty { color: var(--color-text-muted); padding: var(--space-8); }
+
+  /* ---- detail column (layout C: head on top, Stammdaten | Orte side by side) ------------------- */
+  .ae-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .ae-detail__head {
+    flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
+    padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--color-border); min-height: 40px;
+  }
+  .ae-detail__head-main { flex: 1 1 auto; min-width: 0; }
+  .ae-detail__title { margin: 0; font-size: var(--font-size-subhead); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); }
+  .ae-detail__meta { margin-top: var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+
+  .ae-panels { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: row; }
+  .ae-panel { flex: 1 1 50%; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-12) var(--space-16); }
+  .ae-panel--stamm { border-right: 1px solid var(--color-border); }
+  .ae-placeholder { color: var(--color-text-muted); padding: var(--space-16); }
+
+  /* ---- form field groups ---------------------------------------------------------------------- */
+  .ae-grp { margin: 0 0 var(--space-16); }
+  .ae-grp__title {
+    font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
+    font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+    padding-bottom: var(--space-6); margin: 0 0 var(--space-10);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .ae-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-10) var(--space-12); }
+  .ae-field { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+  .ae-field.is-wide { grid-column: 1 / -1; }
+  .ae-field > label { font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; align-items: center; gap: var(--space-6); }
+  .ae-input, .ae-select {
+    font: inherit; color: var(--color-text); background: var(--color-panel);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-8); width: 100%;
+  }
+  .ae-input:focus-visible, .ae-select:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
+  .ae-check { display: flex; align-items: center; gap: var(--space-6); font-size: var(--font-size-small); color: var(--color-text); }
+  .ae-check input { accent-color: var(--color-check-accent); width: 15px; height: 15px; }
+
+  /* ---- badges / pills ------------------------------------------------------------------------- */
+  .pill { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-caption);
+    line-height: 1.3; padding: 1px var(--space-6); border-radius: var(--radius-md); white-space: nowrap;
+    border: 1px solid var(--color-pill-border); background: var(--color-pill); color: var(--color-pill-text); }
+  .pill--kind { border-color: var(--color-border); background: var(--color-panel-muted); color: var(--color-text-muted); }
+  .pill--start { border-color: var(--color-accent-strong); background: var(--color-active-wash);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+  .pill--manual { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong);
+    font-weight: var(--font-weight-bold); }
+  .pill--wiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
+  .pill--unresolved { border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
+  .start-toggle.is-on { background: var(--color-active-wash); border-color: var(--color-accent-strong);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+  .ae-suppressed-wrap[hidden] { display: none; }
+  .badge-manual { font-size: var(--font-size-caption); color: var(--color-accent-strong);
+    border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 var(--space-4);
+    cursor: help; font-weight: var(--font-weight-bold); }
+
+  /* ---- buttons -------------------------------------------------------------------------------- */
+  .btn { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: var(--space-4) var(--space-12);
+    background: var(--color-button-soft); color: var(--color-button-soft-text); border: 1px solid var(--color-button-soft-border); }
+  .btn:hover { background: var(--color-button-soft-hover); }
+  .btn--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
+  .btn--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+  .btn--sm { padding: 2px var(--space-8); font-size: var(--font-size-caption); }
+  .btn--icon { padding: 2px var(--space-6); font-size: var(--font-size-small); }
+  .btn--danger { color: var(--color-danger); border-color: var(--color-border); background: transparent; }
+  .btn--danger:hover { background: rgba(157, 58, 46, 0.10); }
+
+  /* ---- Orte (places) -------------------------------------------------------------------------- */
+  .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
+  .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
+    font-weight: var(--font-weight-bold); color: var(--color-text-muted); }
+  .ae-orte__hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-orte__invariant { font-size: var(--font-size-caption); color: var(--color-accent-strong);
+    display: inline-flex; align-items: center; gap: var(--space-4); }
+  .ae-add { display: flex; gap: var(--space-6); align-items: center; margin-bottom: var(--space-10);
+    padding: var(--space-8); background: var(--color-panel-soft); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); }
+  .ae-add .ae-input { flex: 1 1 auto; }
+  .ae-add .ae-select { flex: 0 0 160px; }
+  .ae-place {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: var(--space-8);
+    padding: var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-panel); margin-bottom: var(--space-6);
+  }
+  .ae-place.is-start { border-color: var(--color-accent-strong); background: var(--color-panel-soft); }
+  .ae-place.is-suppressed { opacity: .6; }
+  .ae-place__order { display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--color-text-muted); }
+  .ae-place__order .ord-num { font-size: var(--font-size-caption); }
+  .ae-place__reorder { display: flex; flex-direction: column; }
+  .ae-place__reorder button { border: 0; background: transparent; cursor: pointer; color: var(--color-text-muted);
+    line-height: 1; padding: 0; font-size: 10px; }
+  .ae-place__reorder button:hover { color: var(--color-text-strong); }
+  .ae-place__reorder button:disabled { opacity: .35; cursor: default; }
+  .ae-place__main { min-width: 0; }
+  .ae-place__name { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-place.is-suppressed .ae-place__name { text-decoration: line-through; }
+  .ae-place__resolved { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-top: 2px;
+    display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+  .ae-place__badges { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 3px; }
+  .ae-place__ctl { display: flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; }
+
+  /* ---- save bar ------------------------------------------------------------------------------- */
+  .ae-savebar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
+    padding: var(--space-8) var(--space-16); border-top: 1px solid var(--color-border); background: var(--color-panel-soft); }
+  .ae-savebar[hidden] { display: none; } /* author display:flex would otherwise beat the hidden attribute */
+  .ae-savebar .ae-spacer { flex: 1 1 auto; }
+  .ae-savebar .saved { font-size: var(--font-size-caption); color: var(--color-success); }
+  .ae-savebar .error { font-size: var(--font-size-caption); color: var(--color-danger); }
+</style>
+</head>
+<body>
+  <div class="ae-header">
+    <h1>Abenteuereditor</h1>
+    <span class="ae-sub" id="aeHeaderSub"></span>
+  </div>
+
+  <div class="ae-body">
+    <aside class="ae-list">
+      <div class="ae-list__top">
+        <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
+        <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
+      </div>
+      <p class="ae-list__count" id="aeListCount">Lädt…</p>
+      <div class="ae-list__scroll" id="aeListScroll"></div>
+    </aside>
+
+    <section class="ae-detail">
+      <div class="ae-detail__head" id="aeDetailHead"></div>
+      <div class="ae-panels">
+        <div class="ae-panel ae-panel--stamm" id="aeStammBody">
+          <p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>
+        </div>
+        <div class="ae-panel ae-panel--orte" id="aeOrteBody">
+          <p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>
+        </div>
+      </div>
+      <div class="ae-savebar" id="aeSaveBar" hidden>
+        <span class="saved" id="aeSaveState"></span>
+        <span class="ae-spacer"></span>
+        <button class="btn" id="aeDiscard">Verwerfen</button>
+        <button class="btn btn--primary" id="aeSave">Stammdaten speichern</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+  const ADVENTURE_EDIT_API = "/api/edit/map/adventures.php";
+
+  // POST helper — mirrors settlementDetailPost: Gold-Contract envelope, surfaces error.message.
+  async function adventurePost(body) {
+    const response = await fetch(ADVENTURE_EDIT_API, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || payload.ok !== true) {
+      throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  function aeEscape(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+</script>
+</body>
+</html>
