@@ -145,6 +145,15 @@
 	margin-top: 6px;
 	padding-top: 0;
 }
+/* "Bewertung schreiben" is a button inside a NESTED .location-popup__actions (reviewWriteButtonMarkup).
+   The slim-popup rule gives every .location-popup__actions a full-bleed divider + side offsets -- but
+   this one sits INLINE in the rating row, so its divider showed up as a stray short line and its -10px
+   margins nudged it. Neutralise it: no divider, no offsets, so the rating row reads as one clean line. */
+.floating-location-popup .location-reviews .location-popup__actions {
+	border-top: none;
+	margin: 0;
+	padding: 0;
+}
 
 /* Route-Wegpunkt-Popup traegt zusaetzlich die Klasse settlement-popup (siehe routing.js) und erbt
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
