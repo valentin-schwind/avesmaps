@@ -356,24 +356,32 @@ function createLabelMarkerEntry(label) {
 		// locationPopupMarkup, Klasse settlement-popup, kopflose region-info-box--settlement),
 		// nur OHNE die Bearbeiten-Buttons. Gleicher Code-Pfad = identische Struktur/Breite/Styles.
 		const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
-		marker.bindPopup(
-			locationPopupMarkup({
-				name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
-				locationTypeLabel: art,
-				showHeaderIcon: false,
-				compact: true,
-				showType: true,
-				showDescription: false,
-				showWikiLink: false,
-				// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button). wikiParam "region"
-				// deckt sich mit dem Deep-Link-Parameter fuer Landschaften/Regionen (js/app/wiki-deeplink.js).
-				// labelWikiInfoboxMarkup now emits a synchronous renderFeatureSourceLine source line
-				// instead of the old unconditional wiki credit (multi-source system).
-				actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
-					+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
-			}),
-			{ className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true }
-		);
+		const regionLabelPopupHtml = locationPopupMarkup({
+			name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
+			locationTypeLabel: art,
+			showHeaderIcon: false,
+			compact: true,
+			showType: true,
+			showDescription: false,
+			showWikiLink: false,
+			// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button). wikiParam "region"
+			// deckt sich mit dem Deep-Link-Parameter fuer Landschaften/Regionen (js/app/wiki-deeplink.js).
+			// labelWikiInfoboxMarkup now emits a synchronous renderFeatureSourceLine source line
+			// instead of the old unconditional wiki credit (multi-source system).
+			actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
+				+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
+		});
+		// Infopanel (now the default): route landscape/Wiki-region label info into the right panel
+		// instead of a floating popup -- same as the other feature types. This label-click path had no
+		// panel guard, so regions kept opening as a floating box. Without panel mode the bound popup stays.
+		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowInfopanel === "function") {
+			marker.on("click", () => {
+				try { map.panTo(label.coordinates); } catch (error) { /* noop */ }
+				window.avesmapsShowInfopanel(regionLabelPopupHtml, label.text || (label.wikiRegion && label.wikiRegion.name) || "");
+			});
+		} else {
+			marker.bindPopup(regionLabelPopupHtml, { className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true });
+		}
 	}
 	syncLabelMarkerVisibility(entry);
 	return entry;
