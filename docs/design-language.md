@@ -165,6 +165,11 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   `--color-border-strong`; **focus / open** → border-strong + `var(--focus-ring)`;
   **disabled** → the disabled tokens; placeholders use `--color-placeholder`.
   Combobox options tint with the selection wash.
+- **Filters above sorting.** In a control bar that carries both, the filter row
+  sits **above** the sort row — filtering narrows the set, sorting orders what
+  remains (standard UI convention). The sort row is prefixed with a muted
+  `Sortierung:` label. The adventures "Alle anzeigen" dialog stacks its controls
+  as view toggle → filter bar → sort row.
 - **Pills** (publication tags, counts): `--color-pill*`, `--radius-md`.
 - **Panels** stay white with mirrored `--radius-sm` corners + shadow — already good.
 - **Icons — two classes.** *UI glyphs* (add, remove, close, chevron, arrows, drag,
