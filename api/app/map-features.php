@@ -193,9 +193,15 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 
 // Schwacher ETag aus Revision + payload-bestimmenden Query-Parametern. Schwach (W/), weil gzip- und
 // Identity-Variante semantisch dieselbe Ressource sind. Stabil pro Revision -> 304 bei Reloads.
+// Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
+// map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
+// via 304 and never see the new field -- exactly what happened when `political` was added. Incrementing
+// this changes every ETag and forces a one-time revalidation miss + reload. See AGENTS.md §7.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 2;
+
 function avesmapsMapFeaturesETag(int $revision, array $queryParams): string {
     $seed = (string) ($queryParams['since_revision'] ?? '') . '|' . (string) ($queryParams['bbox'] ?? '');
-    return 'W/"mf-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
+    return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 
 // Vergleicht If-None-Match (kann Liste sein, "*" oder W/-praefixiert) gegen unseren ETag.
