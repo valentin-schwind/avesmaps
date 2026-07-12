@@ -304,6 +304,7 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 .avesmaps-infopanel .region-info-box--settlement,
 .avesmaps-infopanel .feature-sources,
 .avesmaps-infopanel .location-popup__actions,
+.avesmaps-infopanel .location-popup__breadcrumb,
 .avesmaps-infopanel .location-reviews,
 .avesmaps-infopanel .avesmaps-citymaps,
 .avesmaps-infopanel .avesmaps-adv {
@@ -311,6 +312,35 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	margin-right: calc(-1 * var(--infopanel-pad-x));
 	padding-left: var(--infopanel-pad-x);
 	padding-right: var(--infopanel-pad-x);
+}
+
+/* "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain as its own panel section
+   -- a full-bleed divider above (like Stadtkarten/Abenteuer, via the list above), a subhead label, then the
+   chain. Each level is a gold fly-to link (.location-popup__political-link); "›" separates them (the same
+   route glyph the waypoint tabs use). The chain wraps in the narrow panel; long formal names fall back to
+   the rank type client-side. */
+.avesmaps-infopanel .location-popup__breadcrumb {
+	margin-top: 12px;
+	padding-top: 11px;
+	border-top: 1px solid var(--color-divider);
+}
+.location-popup__breadcrumb-label {
+	margin-bottom: 3px;
+	font-size: var(--font-size-subhead);
+	font-weight: 700;
+	color: var(--color-text-strong);
+}
+.location-popup__breadcrumb-chain {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 6px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+.location-popup__breadcrumb-sep {
+	color: var(--color-text-muted);
+	user-select: none;
 }
 /* Territorien/Regionen (region-info-box) im Panel auf den grossen Siedlungs-Kopf-Look bringen (Owner:
    alle Infoboxen einheitlich gross). Basis-Padding/-Breite der Box neutralisieren -- der Panel-Body

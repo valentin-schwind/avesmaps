@@ -67,6 +67,17 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 			placeExtrasMarkup += buildPlaceAdventuresMarkup(markerEntry.location);
 		}
 	}
+	// "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain as gold fly-to links,
+	// its own labelled section under the action buttons. Infopanel only (like Stadtkarten/Abenteuer) -- the
+	// slim floating box AND the classic on-map popup stay compact (the header political line already carries
+	// the primary relation there). Independent of the wiki settlement: the hierarchy is the stored ray-cast
+	// territory assignment.
+	const breadcrumbMarkup = (!floating
+		&& typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
+		&& typeof buildSettlementHierarchyMarkup === "function"
+		&& markerEntry.location && markerEntry.location.political)
+		? buildSettlementHierarchyMarkup(markerEntry.location.political.hierarchy)
+		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,
 		locationType: markerEntry.locationType,
@@ -92,7 +103,7 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		// Aktions-Buttons DIREKT unter den Kopf (Owner: "Buttons unter den Titel"), dann die Daten-Infobox,
 		// dann Stadtkarten/Abenteuer, dann der Bewertungs-Bereich. In der schlanken Box ist settlementInfobox
 		// leer -> dort stehen die Buttons ohnehin schon oben; im Panel wandern sie jetzt nach oben.
-		actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + settlementInfobox + placeExtrasMarkup + reviewsSlot,
+		actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + breadcrumbMarkup + settlementInfobox + placeExtrasMarkup + reviewsSlot,
 	});
 }
 

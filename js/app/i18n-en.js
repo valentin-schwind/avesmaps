@@ -123,6 +123,11 @@ window.AVESMAPS_I18N_EN = {
 	"popup.removeMarker": "🗑️ Remove marker",
 	"popup.wikiLinkSuffix": "in the Wiki Aventurica",
 	"popup.wikiLinkSuffixArrow": "in the Wiki-Aventurica ↗",
+	// Political context under the settlement type + the "Liegt in" hierarchy breadcrumb.
+	"popup.locationFallback": "Location",
+	"popup.capitalOf": "Capital of",
+	"popup.locatedInShort": "in",
+	"popup.locatedIn": "Located in",
 	"popup.fieldInhabitants": "Inhabitants",
 	"popup.fieldRuler": "Ruler",
 	"popup.fieldPopulation": "Population",

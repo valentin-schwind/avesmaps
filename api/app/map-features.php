@@ -12,7 +12,7 @@ require_once __DIR__ . '/../_internal/wiki/sync.php';
 // MUST be declared BEFORE the try block below: the request handler calls avesmapsMapFeaturesETag while
 // running top-to-bottom, and a top-level const is sequential (defined when reached), not hoisted like a
 // function -- declaring it further down (among the helper functions) left it undefined at call time -> 500.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 2;
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 3;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -497,16 +497,31 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
     $leaf = $chain[0];
     $settlementKey = avesmapsPoliticalNameKey($settlementName);
 
-    // Capital line: the BROADEST ancestor (closest to root) -- excluding the leaf itself -- whose capital
-    // matches this place. Iterate from the root end inward so the first hit is the broadest.
+    // Full leaf -> root hierarchy for the "Liegt in" breadcrumb (Owner Variante A: the leaf is included).
+    // Same parent_id chain (KERN-INVARIANTE), just surfaced as a list; the client renders each level as a
+    // fly-to link and picks a display label from name/type (a long formal name falls back to the type).
+    $hierarchy = [];
+    foreach ($chain as $chainNode) {
+        $hierarchy[] = [
+            'name' => $chainNode['name'],
+            'type' => $chainNode['type'],
+            'territory_public_id' => $chainNode['public_id'],
+        ];
+    }
+
+    // Capital line: the BROADEST level (closest to root) whose capital matches this place -- INCLUDING the
+    // leaf itself (Owner: a place that is the capital of its OWN barony reads "Hauptstadt von Baronie X",
+    // not "in Baronie X"). Iterate from the root end inward so the first hit is the broadest; the match is
+    // still constrained to the place's OWN ancestry chain, so a same-named foreign territory can't leak in.
     if ($settlementKey !== '') {
-        for ($i = count($chain) - 1; $i >= 1; $i--) {
+        for ($i = count($chain) - 1; $i >= 0; $i--) {
             if (($chain[$i]['capital_key'] ?? '') === $settlementKey) {
                 return [
                     'kind' => 'capital',
                     'name' => $chain[$i]['name'],
                     'type' => $chain[$i]['type'],
                     'territory_public_id' => $chain[$i]['public_id'],
+                    'hierarchy' => $hierarchy,
                 ];
             }
         }
@@ -519,6 +534,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
         'name' => $leaf['name'],
         'type' => $leaf['type'],
         'territory_public_id' => $publicId !== '' ? $publicId : $leaf['public_id'],
+        'hierarchy' => $hierarchy,
     ];
 }
 

@@ -308,14 +308,20 @@ function routeToggleActionButtonMarkup(name) {
 	});
 }
 
-function locationActionsMarkup(name, publicId, location = null) {
-	// Reihenfolge: "Reiseziel hinzufügen", "Link teilen", "Bewertung schreiben".
+function locationActionsMarkup(name, publicId, location = null, extraButtons = []) {
+	// Reihenfolge: "Reiseziel hinzufügen", "Link teilen", (Extra-Kacheln z. B. "Abenteuer"), Editier-Aktionen.
 	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
 	// wikiParam "siedlung" -- deckt sich mit dem Deep-Link-Parameter fuer Siedlungen (js/app/wiki-deeplink.js).
 	const shareButton = sharePlaceActionButtonMarkup(publicId, { wikiUrl: location?.wikiUrl || "", wikiParam: "siedlung" });
 	if (shareButton) {
 		actionButtons.push(shareButton);
+	}
+
+	// Kontext-Kacheln, die der Aufrufer beisteuert (z. B. der Floating-Box-"Abenteuer"-Button aus
+	// place-extras.js) -- generisch gehalten, damit dieses UI-Modul keine Feature-Logik kennt.
+	if (extraButtons && extraButtons.length) {
+		actionButtons.push(...extraButtons.filter(Boolean));
 	}
 
 	// "Bewertung schreiben" wanderte nach unten zu den Bewertungen (js/community/location-reviews.js,
@@ -489,63 +495,72 @@ function waypointRemoveActionMarkup(waypointId) {
 	]);
 }
 
-// Political context line under the settlement type: "Hauptstadt des Mittelreichs" (the place is the
-// capital of a broader realm) or "<Rang> <Name>" (the ray-cast territory it sits in), rendered as a
-// gold link that flies to that political region. The data is resolved server-side (map-features.php);
-// the grammar/label is built here so the wording can iterate without a backend redeploy. Returns ""
-// when the place has no resolved political context (the type label then stands alone).
+// Shared display name for a political territory: the proper NAME (which already carries the rank, e.g.
+// "Baronie Vierok") when it is short enough to read inline, otherwise the cleaned rank TYPE ("Kaiserreich")
+// for the over-long formal names like "Heiliges Neues Kaiserreich vom Greifenthron zu Gareth". Used by BOTH
+// the political line and the "Liegt in" breadcrumb so they read consistently. Curated short names
+// ("Mittelreich") arrive later as DATA -- nothing is hardcoded here.
+function settlementTerritoryDisplayName(name, type) {
+	const fullName = String(name || "").trim();
+	if (fullName.length > 0 && fullName.length <= 30) {
+		return fullName;
+	}
+	const cleanType = String(type || "").split(/[(,]/)[0].trim();
+	return cleanType || fullName;
+}
+
+// One fly-to link to a political territory (reused by the political line AND each breadcrumb level): the
+// visible text is the display name, but data-political-territory carries the FULL name so the map-search
+// fly-to resolves it. Shares .location-popup__political-link -> gold styling + the delegated click handler.
+function settlementTerritoryLinkMarkup(node, extraClass) {
+	const nm = String((node && node.name) || "").trim();
+	if (nm === "") {
+		return "";
+	}
+	const pid = String((node && node.territory_public_id) || "").trim();
+	const display = settlementTerritoryDisplayName(nm, node && node.type);
+	const cls = "location-popup__political-link" + (extraClass ? " " + extraClass : "");
+	return `<button type="button" class="${cls}" `
+		+ `data-political-territory="${escapeHtml(nm)}" data-political-public-id="${escapeHtml(pid)}">`
+		+ `${escapeHtml(display)}</button>`;
+}
+
+// Political context line under the settlement type: "Hauptstadt von <Gebiet>" (the place IS the capital of
+// that territory -- the broadest it is the capital of) or "in <Gebiet>" (it just lies in its ray-cast
+// territory). The territory is a gold fly-to link, the prefix plain. Returns "" when nothing resolved.
 function buildSettlementPoliticalLineMarkup(political) {
 	if (!political || typeof political !== "object") {
 		return "";
 	}
-	const name = String(political.name || "").trim();
-	if (name === "") {
+	const link = settlementTerritoryLinkMarkup(political);
+	if (link === "") {
 		return "";
 	}
-	const publicId = String(political.territory_public_id || "").trim();
-	let label;
-	if (political.kind === "capital") {
-		label = `${tr("popup.capitalPrefix", "Hauptstadt")} ${germanCapitalPhrase(name, political.type)}`;
-	} else {
-		// The territory NAME already carries its rank ("Baronie Vierok", "Stadtmark Havena") -> use it
-		// as-is; prepending the type would double the rank word.
-		label = name;
-	}
-	return `<button type="button" class="location-popup__political-link" `
-		+ `data-political-territory="${escapeHtml(name)}" data-political-public-id="${escapeHtml(publicId)}">`
-		+ `${escapeHtml(label)}</button>`;
+	const prefix = political.kind === "capital"
+		? tr("popup.capitalOf", "Hauptstadt von")
+		: tr("popup.locatedInShort", "in");
+	return `${escapeHtml(prefix)} ${link}`;
 }
 
-// Builds the genitive phrase after "Hauptstadt": "des Kaiserreichs", "der Stadtmark Havena", "des
-// Fürstentums Almada", "des Bornlands". Territory NAMES are formal and sometimes very long ("Heiliges
-// Neues Kaiserreich vom Greifenthron zu Gareth") -> for an over-long name fall back to the cleaned rank
-// TYPE ("Kaiserreich") so the line stays short. Best-effort German inflection; the owner refines live.
-function germanCapitalPhrase(name, type) {
-	const fullName = String(name || "").trim();
-	const cleanType = String(type || "").split(/[(,]/)[0].trim();
-	// Prefer the proper name when it is short enough to read inline; otherwise the rank type.
-	const base = (fullName.length > 0 && fullName.length <= 30) ? fullName : (cleanType || fullName);
-	return germanGenitivePhrase(base);
-}
-
-// Prefixes a noun phrase with its genitive article, inflecting the leading (head) noun's -s where
-// needed. Heuristic over the common Aventurian rank words; falls back to the always-grammatical "von".
-function germanGenitivePhrase(phrase) {
-	const value = String(phrase || "").trim();
-	if (value === "") {
+// "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain, each level a gold
+// fly-to link separated by "›", rendered as its own labelled section in the panel infobox. hierarchy =
+// [{name, type, territory_public_id}] from map-features.php (the parent_id walk). Empty -> "" (no section).
+function buildSettlementHierarchyMarkup(hierarchy) {
+	if (!Array.isArray(hierarchy) || hierarchy.length === 0) {
 		return "";
 	}
-	const first = value.split(/\s+/)[0];
-	// Feminine rank words -> "der <phrase>".
-	if (/(ei|ie|schaft|mark|publik|provinz|herrschaft|komturei)$/i.test(first)) {
-		return `der ${value}`;
+	const links = hierarchy
+		.map(function (node) { return settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link"); })
+		.filter(Boolean);
+	if (links.length === 0) {
+		return "";
 	}
-	// Masculine/neuter rank words -> "des <phrase>" with genitive -s on the head noun.
-	if (/(reich|land|tum|at|gau|berg|tal|stein|fels)$/i.test(first)) {
-		const head = /s$/i.test(first) ? first : `${first}s`;
-		return `des ${head}${value.slice(first.length)}`;
-	}
-	return `von ${value}`;
+	const sep = `<span class="location-popup__breadcrumb-sep" aria-hidden="true">›</span>`;
+	const label = tr("popup.locatedIn", "Liegt in");
+	return `<div class="location-popup__breadcrumb">`
+		+ `<div class="location-popup__breadcrumb-label">${escapeHtml(label)}</div>`
+		+ `<div class="location-popup__breadcrumb-chain">${links.join(sep)}</div>`
+		+ `</div>`;
 }
 
 function locationPopupMarkup({
