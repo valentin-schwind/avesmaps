@@ -138,6 +138,13 @@
 	width: 40px;
 	height: 40px;
 }
+/* Floating box: no divider above the rating row (Owner: "trenner in der mitte raus") -- the header
+   divider already separates the box; the rating row sits directly under the route/share actions. */
+.floating-location-popup .location-reviews {
+	border-top: none;
+	margin-top: 6px;
+	padding-top: 0;
+}
 
 /* Route-Wegpunkt-Popup traegt zusaetzlich die Klasse settlement-popup (siehe routing.js) und erbt
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen

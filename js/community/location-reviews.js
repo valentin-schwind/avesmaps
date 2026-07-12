@@ -90,12 +90,13 @@ function reviewSummaryLinkMarkup(average, count) {
 			+ escapeHtml(tr("review.emptySummary", "Noch keine Bewertungen"))
 			+ "</span>";
 	}
-	// Owner: score + stars are PLAIN TEXT; only the count "(5) ›" is the link to the panel's full list.
+	const label = count === 1 ? tr("review.countSingular", "Bewertung") : tr("review.countPlural", "Bewertungen");
+	// Owner: score + stars are PLAIN TEXT; only "(5 Bewertungen) ›" is the link to the panel's full list.
 	return '<span class="location-reviews__summary">'
 		+ `<span class="location-reviews__avg">${escapeHtml(formatReviewAverage(average))}</span>`
 		+ reviewStarsMarkup(average)
 		+ ' <button type="button" class="location-reviews__count-link" data-popup-action="scroll-panel-reviews" title="' + jumpTitle + '">'
-		+ `(${count})<span class="location-reviews__summary-arrow" aria-hidden="true"> ›</span></button>`
+		+ `(${count} ${label})<span class="location-reviews__summary-arrow" aria-hidden="true"> ›</span></button>`
 		+ "</span>";
 }
 
