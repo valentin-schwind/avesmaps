@@ -534,6 +534,8 @@
 								<option value="huegelland" data-i18n="report.typeOption.huegelland">Hügelland</option>
 								<option value="tundra" data-i18n="report.typeOption.tundra">Tundra</option>
 								<option value="kueste" data-i18n="report.typeOption.kueste">Küste</option>
+								<option value="weg" data-i18n="report.typeOption.weg">Weg/Straße</option>
+								<option value="territorium" data-i18n="report.typeOption.territorium">Herrschaftsgebiet</option>
 								<option value="comment" data-i18n="report.typeOption.comment">Kommentar</option>
 							<option value="sonstiges" data-i18n="report.typeOption.sonstiges">Sonstiges</option>
 						</select>
@@ -558,7 +560,7 @@
 					<div class="report-section">
 					<div class="report-section__title" data-i18n="report.sectionSources">Ich habe folgende Quellen</div>
 					<div class="location-report-form__field report-sources">
-						<span data-i18n="report.sourcesLabel">Quellen * (mind. eine — Regionalband, Abenteuer, …)</span>
+						<span id="location-report-sources-label" data-i18n="report.sourcesLabel">Quellen * (mind. eine — Regionalband, Abenteuer, …)</span>
 						<div id="location-report-sources-list" class="report-sources__list"></div>
 						<div class="report-sources__add">
 							<div class="report-sources__add-row1">
@@ -603,6 +605,9 @@
 					<input id="location-report-page-url" name="page_url" type="hidden" />
 					<input id="location-report-client-version" name="client_version" type="hidden" />
 					<input id="location-report-opened-at" name="opened_at" type="hidden" />
+					<input id="location-report-mode" name="report_mode" type="hidden" value="new" />
+					<input id="location-report-entity-type" name="entity_type" type="hidden" />
+					<input id="location-report-entity-id" name="entity_public_id" type="hidden" />
 					<input id="location-report-honeypot" class="location-report-form__honeypot" name="website" type="text" tabindex="-1" autocomplete="off" />
 					<p id="location-report-service-note" class="location-report-form__service-note" hidden>Das Meldeformular ist hier noch nicht mit einem Avesmaps-Server verbunden.</p>
 					<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite"></p>
