@@ -279,6 +279,11 @@
 		// waagerecht, beim Zeilenwechsel ueber 2 rechtwinklige Ecken durch die Luecke (runter -> quer ->
 		// runter). Jede Zeile laeuft L->R (Owner-Wahl gegen den Schlaengel). Neu bei Breitenaenderung.
 		drawRouteLinePath();
+		// Das Panel kann beim Oeffnen kurz 0 breit sein -> der synchrone Aufruf skippt dann (width<10);
+		// nach dem naechsten Layout-Frame nochmal zeichnen. Der ResizeObserver faengt spaetere Aenderungen.
+		if (typeof requestAnimationFrame === "function") {
+			requestAnimationFrame(drawRouteLinePath);
+		}
 		if (!routeLineObserver && typeof ResizeObserver !== "undefined") {
 			routeLineObserver = new ResizeObserver(function () { drawRouteLinePath(); });
 			routeLineObserver.observe(tabs);
