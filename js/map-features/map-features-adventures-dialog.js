@@ -123,12 +123,12 @@
 			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		}
 		if (facets.complexities && facets.complexities.length) {
-			parts.push('<select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">Schwierigkeit</option>'
-				+ facets.complexities.map(function (d) { return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join('') + '</select>');
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">Schwierigkeit</option>'
+				+ facets.complexities.map(function (d) { return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join('') + '</select></span>');
 		}
 		if (facets.genres && facets.genres.length) {
-			parts.push('<select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
-				+ facets.genres.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select>');
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
+				+ facets.genres.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select></span>');
 		}
 		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">nur offiziell</span>');

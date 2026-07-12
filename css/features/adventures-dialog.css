@@ -26,6 +26,7 @@
 	cursor: pointer;
 }
 .avesmaps-adv-tree__sort:hover {
+	color: var(--color-link-hover);
 	text-decoration: underline;
 }
 .avesmaps-adv-tree__sort.is-active {
@@ -72,26 +73,57 @@
 }
 .avesmaps-adv-tree__chip:hover {
 	background: var(--color-hover-wash);
+	border-color: var(--color-border-strong);
 }
+/* aktiver Filter = Selection-Wash (Styleguide: --color-active-wash + --color-border-strong-Kante). */
 .avesmaps-adv-tree__chip.is-active {
 	background: var(--color-active-wash);
-	border-color: var(--color-pill-border);
+	border-color: var(--color-border-strong);
 	color: var(--color-text-strong);
 	font-weight: var(--font-weight-bold);
 }
+
+/* Selects (Schwierigkeit/Genre): flaches Panel-Feld + EIGENER Chevron (Styleguide -- nie der graue
+   OS-Control; ohne Pfeil sieht das native select nicht wie ein Dropdown aus). Chevron als border-Dreieck
+   in currentColor am Wrapper-::after (theme-aware, Muster wie .transport-combobox::after); das native
+   select traegt appearance:none + rechts Platz fuer das Dreieck. */
+.avesmaps-adv-tree__selwrap {
+	position: relative;
+	display: inline-flex;
+	color: var(--color-text-muted);
+}
+.avesmaps-adv-tree__selwrap::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: var(--space-8);
+	width: 0;
+	height: 0;
+	border-right: 4px solid transparent;
+	border-left: 4px solid transparent;
+	border-top: 5px solid currentColor;
+	transform: translateY(-35%);
+	pointer-events: none;
+}
 .avesmaps-adv-tree__fsel {
 	appearance: none;
+	-webkit-appearance: none;
 	font: inherit;
-	font-size: var(--font-size-caption);
-	padding: var(--space-2) var(--space-8);
+	font-size: var(--font-size-small);
+	padding: var(--space-2) var(--space-20) var(--space-2) var(--space-8);
 	border-radius: var(--radius-md);
-	border: 1px solid var(--color-button-soft-border);
+	border: 1px solid var(--color-border);
 	background: var(--color-panel);
-	color: var(--color-button-soft-text);
+	color: var(--color-text);
 	cursor: pointer;
 }
 .avesmaps-adv-tree__fsel:hover {
 	border-color: var(--color-border-strong);
+}
+.avesmaps-adv-tree__fsel:focus-visible {
+	border-color: var(--color-border-strong);
+	box-shadow: var(--focus-ring);
+	outline: none;
 }
 .avesmaps-adv-tree__fdiv {
 	width: 1px;
@@ -117,7 +149,7 @@
 	margin-top: var(--space-8);
 }
 .avesmaps-adv-tree__frame .avesmaps-adv-tree__frame {
-	margin-left: var(--space-16);
+	margin-left: var(--space-10);
 	background: var(--color-panel-muted);
 }
 .avesmaps-adv-tree__frame.is-hidden {
@@ -133,7 +165,8 @@
 	font-size: var(--font-size-caption);
 	letter-spacing: 0.03em;
 	text-transform: uppercase;
-	padding: 1px var(--space-6);
+	padding: var(--space-2) var(--space-6);
+	line-height: var(--leading-tight);
 	border-radius: var(--radius-md);
 	background: var(--color-pill);
 	border: 1px solid var(--color-pill-border);
