@@ -144,6 +144,18 @@ function locationIconMarkup(locationType, locationTypeLabel) {
 	return `<img class="location-popup__icon" src="${escapeHtml(withAssetVersion(iconPath))}" alt="${escapeHtml(altText)}" />`;
 }
 
+// Realistic settlement illustration by size (icons/realistic/) -- the floating-box header image
+// (Owner: "ersetze das wappen durch die stadtgroesse"). Full-colour asset, frameless, decorative.
+function settlementRealisticIconMarkup(locationType, locationTypeLabel) {
+	const path = (typeof LOCATION_REALISTIC_ICON_PATHS !== "undefined" && LOCATION_REALISTIC_ICON_PATHS[locationType])
+		|| (typeof LOCATION_REALISTIC_ICON_PATHS !== "undefined" ? LOCATION_REALISTIC_ICON_PATHS.dorf : "");
+	if (!path) {
+		return "";
+	}
+	const altText = `${locationTypeLabel || ""}`.trim();
+	return `<img class="location-popup__icon location-popup__icon--realistic" src="${escapeHtml(withAssetVersion(path))}" alt="${escapeHtml(altText)}" />`;
+}
+
 // Wappen-Icon (ersetzt das Siedlungs-Icon), wenn ein erlaubtes Wappen vorhanden ist. Das
 // properties.coat wird nur für gemeinfreie Wiki-Wappen oder eigene Uploads gesetzt — die
 // Lizenz-Prüfung passiert also beim Schreiben. Wiki-Wappen über den Cache-Proxy laden.

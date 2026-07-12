@@ -37,8 +37,11 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		: (hasWikiSettlement
 			? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
 			: (settlementSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`));
-	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
-	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
+	// Header icon: the floating box shows the realistic settlement illustration by SIZE (Owner: "ersetze
+	// das wappen durch die stadtgroesse"); everywhere else the coat of arms (only when public-domain/own).
+	const coatIconMarkup = floating
+		? (typeof settlementRealisticIconMarkup === "function" ? settlementRealisticIconMarkup(markerEntry.locationType, markerEntry.location.locationTypeLabel) : "")
+		: (typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "");
 	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
 	let typeLabel = markerEntry.location.locationTypeLabel;
 	if (wikiSettlement && wikiSettlement.building_type) {

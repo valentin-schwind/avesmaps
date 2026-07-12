@@ -130,20 +130,24 @@
 .floating-location-popup .location-popup__name {
 	font-size: 20px;
 }
-.floating-location-popup .location-popup__icon--coat {
-	width: 52px;
-	height: 52px;
+.floating-location-popup .location-popup__icon--realistic {
+	width: 56px;
+	height: 56px;
+	object-fit: contain;
 }
 .floating-location-popup .location-popup__icon {
 	width: 40px;
 	height: 40px;
 }
-/* Floating box: no divider above the rating row (Owner: "trenner in der mitte raus") -- the header
-   divider already separates the box; the rating row sits directly under the route/share actions. */
+/* Floating box: full-bleed divider ABOVE the rating row too (Owner round-2: two clean dividers --
+   header|actions and actions|rating). Same -10px side offset + padding as the slim actions divider so it
+   runs edge to edge; the stray inline divider on the nested "Bewertung schreiben" actions stays killed. */
 .floating-location-popup .location-reviews {
-	border-top: none;
-	margin-top: 6px;
-	padding-top: 0;
+	border-top: 1px solid var(--color-divider);
+	margin-left: -10px;
+	margin-right: -10px;
+	margin-top: 10px;
+	padding: 10px 10px 0;
 }
 /* "Bewertung schreiben" is a button inside a NESTED .location-popup__actions (reviewWriteButtonMarkup).
    The slim-popup rule gives every .location-popup__actions a full-bleed divider + side offsets -- but
