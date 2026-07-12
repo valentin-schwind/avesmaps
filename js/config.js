@@ -186,7 +186,9 @@ window.avesmapsSearchParams = function () {
 };
 const INITIAL_SEARCH_PARAMS = window.avesmapsSearchParams();
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
-const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") === "true";
+// Infopanel is now the DEFAULT experience (owner): feature info lands in the collapsible right-edge
+// panel instead of floating map popups. Opt out with ?infopanel=false (escape hatch / A-B compare).
+const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") !== "false";
 // Mode-Klasse frueh auf <html> -> flag-gebundene CSS (Panel + Zoom/Hinweise-Position) greift,
 // bevor bootstrap.js die Leaflet-Zoom-Control anlegt (kein Springen der Kontrollen).
 if (IS_INFOPANEL_MODE && document.documentElement) { document.documentElement.classList.add("avesmaps-infopanel-mode"); }
