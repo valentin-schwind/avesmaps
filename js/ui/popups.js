@@ -23,7 +23,11 @@ function sharePlaceActionButtonMarkup(publicId, { wikiUrl = "", wikiParam = "" }
 		return "";
 	}
 	return popupActionButtonMarkup({
-		label: tr("popup.shareLink", "🔗 Link teilen"),
+		// 🔗 als eigenes Icon-Element, damit es in der Kachel (flex-column) ZENTRIERT UEBER dem Label steht
+		// -- wie das "+" bei Reiseziel. Das Emoji aus dem Label ziehen (DE/EN tragen es dort im String),
+		// sonst kaeme es in Inline-Buttons doppelt. Regex strippt ein fuehrendes 🔗 samt Leerzeichen.
+		label: tr("popup.shareLink", "🔗 Link teilen").replace(/^\s*🔗\s*/u, ""),
+		iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">🔗</span>',
 		attributes: {
 			"data-popup-action": "share-place-link",
 			"data-public-id": publicId,
