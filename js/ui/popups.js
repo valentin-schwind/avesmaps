@@ -509,10 +509,25 @@ function settlementTerritoryDisplayName(name, shortName) {
 	return String(name || "").trim();
 }
 
+// Small coat-of-arms thumbnail rendered INSIDE a territory link, before the name (decorative: alt="", the
+// name follows). node.coat_url is already public-domain-gated server-side (map-features.php mirrors the
+// territory-detail.php license gate) -- an empty string means no coat / not allowed, so no thumb. Loaded
+// through the same cache proxy as the settlement coat icon + region infobox coats (/api/app/coat.php).
+function settlementTerritoryCoatThumbMarkup(coatUrl) {
+	const url = String(coatUrl || "").trim();
+	if (url === "") {
+		return "";
+	}
+	const src = `/api/app/coat.php?u=${encodeURIComponent(url)}`;
+	return `<img class="location-popup__breadcrumb-coat" src="${escapeHtml(src)}" alt="" aria-hidden="true" />`;
+}
+
 // One fly-to link to a political territory (reused by the political line AND each breadcrumb level): the
 // visible text is the display name, but data-political-territory carries the FULL name so the map-search
 // fly-to resolves it. Shares .location-popup__political-link -> gold styling + the delegated click handler.
-function settlementTerritoryLinkMarkup(node, extraClass) {
+// options.withCoat prepends the gated coat thumbnail (breadcrumb only -- the compact head political line
+// stays text-only).
+function settlementTerritoryLinkMarkup(node, extraClass, options) {
 	const nm = String((node && node.name) || "").trim();
 	if (nm === "") {
 		return "";
@@ -520,9 +535,12 @@ function settlementTerritoryLinkMarkup(node, extraClass) {
 	const pid = String((node && node.territory_public_id) || "").trim();
 	const display = settlementTerritoryDisplayName(nm, node && node.short_name);
 	const cls = "location-popup__political-link" + (extraClass ? " " + extraClass : "");
+	const coatThumb = (options && options.withCoat)
+		? settlementTerritoryCoatThumbMarkup(node && node.coat_url)
+		: "";
 	return `<button type="button" class="${cls}" `
 		+ `data-political-territory="${escapeHtml(nm)}" data-political-public-id="${escapeHtml(pid)}">`
-		+ `${escapeHtml(display)}</button>`;
+		+ `${coatThumb}${escapeHtml(display)}</button>`;
 }
 
 // Political context line under the settlement type: "Hauptstadt von <Gebiet>" (the place IS the capital of
@@ -550,7 +568,7 @@ function buildSettlementHierarchyMarkup(hierarchy) {
 		return "";
 	}
 	const links = hierarchy
-		.map(function (node) { return settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link"); })
+		.map(function (node) { return settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link", { withCoat: true }); })
 		.filter(Boolean);
 	if (links.length === 0) {
 		return "";

@@ -12,7 +12,18 @@ require_once __DIR__ . '/../_internal/wiki/sync.php';
 // MUST be declared BEFORE the try block below: the request handler calls avesmapsMapFeaturesETag while
 // running top-to-bottom, and a top-level const is sequential (defined when reached), not hoisted like a
 // function -- declaring it further down (among the helper functions) left it undefined at call time -> 500.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 4;
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 5;
+
+// Coat-of-arms thumbnail gate for the settlement "Liegt in" breadcrumb. These MIRROR the constants of
+// api/app/territory-detail.php EXACTLY (same staging + model tables, same public-domain-only allow list):
+// the breadcrumb must never surface a coat the canonical territory-detail gate would withhold -- a
+// non-public-domain coat is a NOTICE.md/legal violation. Declared ABOVE the try block for the same reason
+// as the payload version above: avesmapsLoadSettlementPoliticalContext() runs inside the try (top-to-bottom)
+// and reads them, and a top-level const is sequential -- declaring them below would be undefined at call
+// time -> 500. Array const is fine in PHP 8.
+const AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE = 'political_territory_wiki_test'; // = AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE
+const AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE = 'wiki_territory_model';            // = AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE
+const AVESMAPS_MAP_FEATURES_COAT_ALLOWED = ['public_domain'];                     // = AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -382,6 +393,7 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
         // long formal w.name for display when present -- see avesmapsResolveSettlementPolitical.
         $statement = $pdo->query(
             'SELECT t.id, t.public_id, t.wiki_key, t.parent_id, t.valid_to_bf, t.short_name,
+                    t.coat_of_arms_url,
                     w.name, w.type, w.capital_name
                FROM political_territory t
                JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
@@ -393,6 +405,13 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
     if ($statement === false) {
         return [];
     }
+
+    // Coat-gate inputs for the breadcrumb thumbnail (wiki staging coat+license / model overrides), keyed by
+    // wiki_key. Loaded ONCE here (two small full-table scans -> no N+1) and consulted per territory below.
+    // Own try/catch inside so a missing sandbox table simply yields no thumbnails without breaking the line.
+    $coatInputs = avesmapsLoadSettlementCoatGateInputs($pdo);
+    $coatStaging = $coatInputs['staging'];
+    $coatOverrides = $coatInputs['overrides'];
 
     $byId = [];
     $currentIdByWikiKey = [];
@@ -417,6 +436,12 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
             'short_name' => trim((string) ($row['short_name'] ?? '')),
             'type' => trim((string) ($row['type'] ?? '')),
             'capital_key' => $capitalName !== '' ? avesmapsPoliticalNameKey($capitalName) : '',
+            // Public-domain-gated coat URL (or '' when none/not allowed), mirroring territory-detail.php.
+            'coat_url' => avesmapsSettlementTerritoryCoatUrl(
+                trim((string) ($row['coat_of_arms_url'] ?? '')),
+                $coatStaging[$wikiKey] ?? [],
+                $coatOverrides[$wikiKey] ?? []
+            ),
         ];
 
         // Most-current era per wiki_key (highest valid_to_bf) is the canonical node the walk hops through.
@@ -434,6 +459,88 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
         return [];
     }
     return ['byId' => $byId, 'currentIdByWikiKey' => $currentIdByWikiKey, 'idByPublicId' => $idByPublicId];
+}
+
+// Bulk-loads the two coat inputs the public-domain gate consults, keyed by wiki_key: the wiki STAGING row
+// (coat URL + license status) and the MODEL overrides (metadata_overrides_json). These are the SAME two
+// sources api/app/territory-detail.php reads (same table constants). Loaded ONCE -- two small full-table
+// scans, no N+1. Each side has its OWN try/catch so a missing sandbox table simply yields no thumbnails; it
+// never breaks the (core) political line, which does not depend on these tables.
+function avesmapsLoadSettlementCoatGateInputs(PDO $pdo): array {
+    $staging = [];
+    try {
+        $statement = $pdo->query(
+            'SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM '
+            . AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE
+        );
+        foreach (($statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+            $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+            if ($wikiKey === '') {
+                continue;
+            }
+            $staging[$wikiKey] = [
+                'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+                'coat_of_arms_license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
+            ];
+        }
+    } catch (Throwable) {
+        $staging = [];
+    }
+
+    $overrides = [];
+    try {
+        $statement = $pdo->query(
+            'SELECT wiki_key, metadata_overrides_json FROM ' . AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE
+            . ' WHERE metadata_overrides_json IS NOT NULL'
+        );
+        foreach (($statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+            $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+            $json = (string) ($row['metadata_overrides_json'] ?? '');
+            if ($wikiKey === '' || $json === '') {
+                continue;
+            }
+            $decoded = json_decode($json, true);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            // Keep only the two coat keys the gate consults, and only when actually present -- so the
+            // array_key_exists override check below mirrors territory-detail's "override ?? staging" exactly.
+            $coatOverride = [];
+            if (array_key_exists('coat_of_arms_url', $decoded)) {
+                $coatOverride['coat_of_arms_url'] = (string) $decoded['coat_of_arms_url'];
+            }
+            if (array_key_exists('coat_of_arms_license_status', $decoded)) {
+                $coatOverride['coat_of_arms_license_status'] = (string) $decoded['coat_of_arms_license_status'];
+            }
+            if ($coatOverride !== []) {
+                $overrides[$wikiKey] = $coatOverride;
+            }
+        }
+    } catch (Throwable) {
+        $overrides = [];
+    }
+
+    return ['staging' => $staging, 'overrides' => $overrides];
+}
+
+// Effective, public-domain-GATED coat URL for one territory, mirroring api/app/territory-detail.php EXACTLY:
+//   license = override.coat_of_arms_license_status ?? staging.coat_of_arms_license_status
+//   url     = override.coat_of_arms_url ?? political_territory.coat_of_arms_url ?? staging.coat_of_arms_url
+//   allowed = url !== '' AND license IN (public_domain)
+// Returns the URL only when allowed, else '' -- a non-public-domain coat is never emitted (see NOTICE.md).
+function avesmapsSettlementTerritoryCoatUrl(string $ptCoatUrl, array $stagingRow, array $overrides): string {
+    $license = array_key_exists('coat_of_arms_license_status', $overrides)
+        ? (string) $overrides['coat_of_arms_license_status']
+        : (string) ($stagingRow['coat_of_arms_license_status'] ?? '');
+    $license = trim($license);
+
+    $stagingUrl = trim((string) ($stagingRow['coat_of_arms_url'] ?? ''));
+    $effUrl = array_key_exists('coat_of_arms_url', $overrides)
+        ? trim((string) $overrides['coat_of_arms_url'])
+        : ($ptCoatUrl !== '' ? $ptCoatUrl : $stagingUrl);
+
+    $allowed = $effUrl !== '' && in_array($license, AVESMAPS_MAP_FEATURES_COAT_ALLOWED, true);
+    return $allowed ? $effUrl : '';
 }
 
 // Conservative name-match key for capital<->settlement comparison: lowercased, whitespace-collapsed,
@@ -511,6 +618,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
             'short_name' => $chainNode['short_name'] ?? '',
             'type' => $chainNode['type'],
             'territory_public_id' => $chainNode['public_id'],
+            'coat_url' => $chainNode['coat_url'] ?? '',
         ];
     }
 
@@ -527,6 +635,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
                     'short_name' => $chain[$i]['short_name'] ?? '',
                     'type' => $chain[$i]['type'],
                     'territory_public_id' => $chain[$i]['public_id'],
+                    'coat_url' => $chain[$i]['coat_url'] ?? '',
                     'hierarchy' => $hierarchy,
                 ];
             }
@@ -541,6 +650,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
         'short_name' => $leaf['short_name'] ?? '',
         'type' => $leaf['type'],
         'territory_public_id' => $publicId !== '' ? $publicId : $leaf['public_id'],
+        'coat_url' => $leaf['coat_url'] ?? '',
         'hierarchy' => $hierarchy,
     ];
 }

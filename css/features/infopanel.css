@@ -468,6 +468,18 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	color: var(--color-text-muted);
 	user-select: none;
 }
+/* Small public-domain coat thumbnail before a breadcrumb territory name (decorative). Sits inside the gold
+   fly-to link, vertically centred with the name; the link keeps its text baseline so the "›" chain stays
+   aligned. Only shown when the server emits a gated coat_url. object-fit keeps tall/wide coats undistorted. */
+.location-popup__breadcrumb-coat {
+	display: inline-block;
+	width: 15px;
+	height: 15px;
+	margin-right: 4px;
+	vertical-align: -3px;
+	object-fit: contain;
+	border-radius: var(--radius-sm);
+}
 /* Territorien/Regionen (region-info-box) im Panel auf den grossen Siedlungs-Kopf-Look bringen (Owner:
    alle Infoboxen einheitlich gross). Basis-Padding/-Breite der Box neutralisieren -- der Panel-Body
    liefert beides -- und den Kopf gross + randlos wie .location-popup__header ziehen. */
