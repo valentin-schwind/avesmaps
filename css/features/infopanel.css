@@ -314,15 +314,17 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	padding-right: var(--infopanel-pad-x);
 }
 
-/* "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain as its own panel section
-   -- a full-bleed divider above (like Stadtkarten/Abenteuer, via the list above), a subhead label, then the
-   chain. Each level is a gold fly-to link (.location-popup__political-link); "›" separates them (the same
-   route glyph the waypoint tabs use). The chain wraps in the narrow panel; long formal names fall back to
-   the rank type client-side. */
+/* "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain as its own panel section.
+   Divider is BELOW (not above): the buttons' `.location-popup__actions` border-bottom already sits above, so
+   a border-top here would stack a SECOND line with a gap and leave "Liegt in" hanging under both. With the
+   divider below, "Liegt in" tucks into the gap -- between the buttons' divider (above) and its own (below,
+   which also cleanly separates it from the Einwohner/Oberhaupt data). Owner: "Liegt in + Inhalte zwischen die
+   zwei Trenner darüber schieben". Full-bleed via the list above. Each level is a gold fly-to link
+   (.location-popup__political-link); "›" separates them; the chain wraps in the narrow panel. */
 .avesmaps-infopanel .location-popup__breadcrumb {
-	margin-top: 12px;
-	padding-top: 11px;
-	border-top: 1px solid var(--color-divider);
+	margin-bottom: 12px;
+	padding-bottom: 11px;
+	border-bottom: 1px solid var(--color-divider);
 }
 .location-popup__breadcrumb-label {
 	margin-bottom: 3px;
