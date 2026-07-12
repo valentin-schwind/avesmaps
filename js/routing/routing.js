@@ -1123,6 +1123,11 @@ const addTooltip = (loc, {
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
+			// These route-waypoint popups sit exactly on their (route-fitted) waypoint; Leaflet's autoPan
+			// firing mid-flight -- while the location-open pan is still animating -- corrupts the map centre
+			// -> _panInsideMaxBounds NaN crash, whose async rejection aborted the 2nd-waypoint route build
+			// (routing-nan-pan-crash class, uncovered caller). Same guard the marker popup already uses.
+			autoPan: false,
 			// Slim box in the floating-infobox STYLE (owner: same look as the normal floating popup):
 			// floating-location-popup gives the warm panel bg, the larger name/icon and the icon-tile
 			// action buttons; route-waypoint-popup sets the 310px width. No expanded state anymore.
