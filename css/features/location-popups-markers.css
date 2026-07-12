@@ -238,15 +238,10 @@
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
    Infobox -- identisch zum Marker-Popup. Hier nur die Abweichungen. */
 
-/* Buttons je einzeilig (kein interner Text-Umbruch, kein Schrumpfen); die Leiste selbst darf
-   umbrechen -- eingeklappt passen die 2 Buttons in eine Zeile, ausgeklappt (4 Buttons inkl.
-   "Link teilen"/"Bewertung schreiben") brechen sie wie in der normalen Infobox um. */
-.route-waypoint-popup .location-popup__action-button {
-	flex-shrink: 0;
-	white-space: nowrap;
-}
-
-/* Slim waypoint box: 310px instead of the settlement-popup default (400px). No expanded state. */
+/* Slim waypoint box: 310px instead of the settlement-popup default (400px). No expanded state.
+   (No action-button override here: the box carries floating-location-popup, so the buttons ARE the
+   floating icon tiles -- long labels like "Reiseziel entfernen" wrap inside the tile, same as the
+   normal floating infobox. The old nowrap/no-shrink rule was for the retired inline layout.) */
 .route-waypoint-popup .location-popup {
 	width: min(310px, calc(100vw - 32px));
 }
