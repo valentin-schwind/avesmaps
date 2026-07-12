@@ -126,6 +126,9 @@
   .dt-coat-info .dt-sub { color:var(--mut); font-size:11px; margin-top:2px; }
   /* Eigene Header-Bilder: Galerie unter dem Wappen-Block. */
   .dt-img-count { font-weight:normal; color:var(--mut); }
+  /* Copyright-Hinweis fuer Editoren -- Stil bewusst identisch zur "Quellen"-Box (.fs-hint): explizite
+     Farben (keine Tokens), damit es im Editor-iframe ohne Token-Scope korrekt rendert. */
+  .dt-img-notice { font-size:11px; line-height:1.45; color:#6c5a49; background:#fbf4e9; border:1px solid #e6d7c0; border-left:3px solid #c9a24b; border-radius:6px; padding:7px 10px; }
   .dt-img-block { display:flex; flex-direction:column; gap:8px; margin:2px 0 6px; }
   .dt-img-upload { border:1.5px dashed var(--line); border-radius:6px; padding:11px; text-align:center; cursor:pointer; color:var(--mut); font-size:12px; background:rgba(0,0,0,0.02); }
   .dt-img-upload:hover { border-color:#bfa03a; color:#3f3428; }
@@ -1319,8 +1322,9 @@ function buildSettlementImagesBlockHtml(detail) {
 		? `<div class="dt-img-upload dt-img-upload--full">Maximal ${SETTLEMENT_IMAGES_MAX} Bilder erreicht</div>`
 		: `<div class="dt-img-upload" data-image-upload-trigger="1" role="button" tabindex="0"><span class="dt-img-plus">＋</span>Bild hochladen<span class="dt-img-hint">16:9, wird skaliert &amp; als WebP gespeichert</span></div>`;
 	const dragHint = sortable ? ` <span class="dt-img-drag-hint">· ziehen zum Sortieren</span>` : "";
+	const notice = `<div class="dt-img-notice">Bitte <strong>keine urheberrechtlich geschützten Bilder</strong> verwenden — erlaubt sind ausschließlich <strong>KI-generierte</strong> und <strong>absolut 100 % gemeinfreie</strong> Bilder.</div>`;
 	return `<div class="dt-grp">Bilder <span class="dt-img-count">${images.length} / ${SETTLEMENT_IMAGES_MAX}</span>${dragHint}</div>` +
-		`<div class="dt-img-block">${upload}${cells ? `<div class="dt-img-grid">${cells}</div>` : ""}</div>`;
+		`<div class="dt-img-block">${notice}${upload}${cells ? `<div class="dt-img-grid">${cells}</div>` : ""}</div>`;
 }
 
 function buildSettlementDetailHtml(detail) {
