@@ -1123,12 +1123,13 @@ const addTooltip = (loc, {
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
-			// Slim box uses the settlement-popup styles (content margin / divider / padding); the width
-			// is set via CSS (.route-waypoint-popup). No expanded state anymore.
+			// Slim box in the floating-infobox STYLE (owner: same look as the normal floating popup):
+			// floating-location-popup gives the warm panel bg, the larger name/icon and the icon-tile
+			// action buttons; route-waypoint-popup sets the 310px width. No expanded state anymore.
 			minWidth: 310,
 			maxWidth: 400,
 			maxHeight: typeof locationMarkerPopupMaxHeight === "function" ? locationMarkerPopupMaxHeight() : 480,
-			className: "route-waypoint-popup settlement-popup",
+			className: "route-waypoint-popup floating-location-popup settlement-popup",
 		})
 			.setLatLng(loc.coordinates)
 			.setContent(buildRoutePopupHtml(loc, { showRemoveAction }));
