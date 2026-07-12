@@ -336,6 +336,25 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	);
 }
 
+// View-mode region-label popup HTML: name + type + wiki infobox + "Link teilen" (no edit buttons).
+// Shared by the map-click label handler AND the spotlight/deep-link focus (focusSpotlightLabel), so a
+// landscape/region label shows identical content whether opened by click or by a ?region= deep-link.
+// wikiParam "region" matches the landscape/region deep-link parameter (js/app/wiki-deeplink.js).
+function buildRegionLabelViewPopupHtml(label) {
+	const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
+	return locationPopupMarkup({
+		name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
+		locationTypeLabel: art,
+		showHeaderIcon: false,
+		compact: true,
+		showType: true,
+		showDescription: false,
+		showWikiLink: false,
+		actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
+			+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
+	});
+}
+
 function createLabelMarkerEntry(label) {
 	const marker = L.marker(label.coordinates, {
 		icon: createLabelIcon(label),
@@ -352,25 +371,9 @@ function createLabelMarkerEntry(label) {
 			setLabelMoveActive(entry, false);
 		});
 	} else if (labelHasWikiRegion(label)) {
-		// Ansichtsmodus: EXAKT dasselbe Popup wie der Edit-Mode (labelPopupMarkup ->
-		// locationPopupMarkup, Klasse settlement-popup, kopflose region-info-box--settlement),
-		// nur OHNE die Bearbeiten-Buttons. Gleicher Code-Pfad = identische Struktur/Breite/Styles.
-		const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
-		const regionLabelPopupHtml = locationPopupMarkup({
-			name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
-			locationTypeLabel: art,
-			showHeaderIcon: false,
-			compact: true,
-			showType: true,
-			showDescription: false,
-			showWikiLink: false,
-			// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button). wikiParam "region"
-			// deckt sich mit dem Deep-Link-Parameter fuer Landschaften/Regionen (js/app/wiki-deeplink.js).
-			// labelWikiInfoboxMarkup now emits a synchronous renderFeatureSourceLine source line
-			// instead of the old unconditional wiki credit (multi-source system).
-			actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
-				+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
-		});
+		// Ansichtsmodus: dasselbe Popup wie der Edit-Mode, nur OHNE die Bearbeiten-Buttons -- via den
+		// gemeinsamen Builder, den auch der Deep-Link/Spotlight-Fokus (focusSpotlightLabel) nutzt.
+		const regionLabelPopupHtml = buildRegionLabelViewPopupHtml(label);
 		// Infopanel (now the default): route landscape/Wiki-region label info into the right panel
 		// instead of a floating popup -- same as the other feature types. This label-click path had no
 		// panel guard, so regions kept opening as a floating box. Without panel mode the bound popup stays.

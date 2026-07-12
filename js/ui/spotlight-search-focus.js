@@ -94,6 +94,12 @@ function focusSpotlightLabel(entry) {
 	const targetZoom = Math.max(Number(labelEntry.label.minZoom) || 0, Math.min(maxZoom, VISUAL_MAX_ZOOM_LEVEL));
 	map.setView(labelEntry.marker.getLatLng(), targetZoom);
 	syncLabelVisibility();
+	// Infopanel (default): open the landscape/region label's info in the right panel too -- map-click
+	// parity via the shared buildRegionLabelViewPopupHtml. A label without a wiki region has no infobox.
+	if (typeof labelHasWikiRegion === "function" && labelHasWikiRegion(labelEntry.label)
+		&& typeof window.avesmapsShowInfopanel === "function" && typeof buildRegionLabelViewPopupHtml === "function") {
+		window.avesmapsShowInfopanel(buildRegionLabelViewPopupHtml(labelEntry.label), labelEntry.label.text || "");
+	}
 }
 
 // Fliegt zur Region-Bounds, klemmt die Zielzoomstufe aber ins Sichtbarkeits-Band des Gebiets
@@ -125,8 +131,16 @@ function focusSpotlightRegion(entry) {
 	if (entry.bounds?.isValid?.()) {
 		focusSpotlightRegionBounds(entry.bounds, entry.minZoom, entry.maxZoom);
 	}
-	// Highlight: die Infobox des Gebiets öffnen. Per public_id, da die politische Ebene nach dem
-	// Ebenen-Wechsel/Flug asynchron neu laedt -> wir pollen, bis das Polygon gerendert ist.
+	// Infopanel (default): a client-hydrated entry already carries the FULL regionEntry (identical to the
+	// rendered polygon's _regionEntry) -> open the panel directly; no need to wait for the polygon to
+	// re-render after the layer switch. This also covers territories outside the current zoom band whose
+	// polygon never renders (the old poll-only path then showed nothing at all).
+	if (entry.regionEntry && typeof window.avesmapsShowRegionInInfopanel === "function") {
+		window.avesmapsShowRegionInInfopanel(entry.regionEntry);
+		return;
+	}
+	// Backend/synthetic hit (regionEntry === null) or non-panel mode: resolve by public_id against a
+	// rendered polygon (poll, since the political layer reloads asynchronously after the switch/flight).
 	const publicId = (entry.publicIds && entry.publicIds[0]) || entry.regionEntry?.publicId || entry.regionEntry?.territoryPublicId || "";
 	if (publicId) {
 		openSpotlightRegionInfobox(publicId);
@@ -207,6 +221,13 @@ function focusSpotlightPath(entry) {
 	highlightSpotlightPaths(entry.paths || []);
 	if (entry.bounds?.isValid?.()) {
 		focusSpotlightBounds(entry.bounds, getSpotlightPathZoom(entry));
+	}
+	// Infopanel (default): open the way's info in the right panel too -- map-click parity. Every segment
+	// of a way shares name/subtype/wiki_path and createPathPopupMarkup reads only .properties, so the
+	// first segment yields the full way infobox even for a raw deep-link segment without _popupMarkup.
+	const firstPath = (entry.paths && entry.paths[0]) || null;
+	if (firstPath && typeof window.avesmapsShowPathInInfopanel === "function") {
+		window.avesmapsShowPathInInfopanel(firstPath);
 	}
 }
 
