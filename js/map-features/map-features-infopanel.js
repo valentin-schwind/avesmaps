@@ -176,15 +176,11 @@
 			if (Math.abs(a.y - b.y) < 4) {
 				d += " H " + b.x.toFixed(1); // gleiche Zeile -> waagerecht
 			} else {
-				// Zeilenwechsel: Umweg ueber 2 Ecken -- die Querlinie MITTIG in die SICHTBARE Luecke zwischen
-				// den Zeilen legen (gleich weit von Zeilen-Unterkante oben und Zeilen-Oberkante unten). Die
-				// Namen sitzen unter den Perlen, darum nicht die Perlen-Mitte nehmen (Owner: "gleichmaessig";
-				// vorher klebte die Querlinie an Zeile 2).
-				var rowA = dots[j - 1].closest(".avesmaps-infopanel__routeline-row");
-				var rowB = dots[j].closest(".avesmaps-infopanel__routeline-row");
-				var turnY = (rowA && rowB)
-					? ((rowA.getBoundingClientRect().bottom + rowB.getBoundingClientRect().top) / 2 - base.top).toFixed(1)
-					: ((a.y + b.y) / 2).toFixed(1);
+				// Zeilenwechsel: Umweg ueber 2 Ecken -- die Querlinie auf die PERLEN-MITTE zwischen den beiden
+				// Zeilen legen, damit Abstieg (von der oberen Perle) und Aufstieg (zur unteren Perle) GLEICH
+				// LANG sind (Owner: "die vertikalen Verbindungen muessen gleich lang sein"). Genuegend
+				// Zeilenabstand (CSS gap) haelt die Querlinie unter den Namen.
+				var turnY = ((a.y + b.y) / 2).toFixed(1);
 				d += " V " + turnY + " H " + b.x.toFixed(1) + " V " + b.y.toFixed(1);
 			}
 		}

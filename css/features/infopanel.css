@@ -54,7 +54,10 @@
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 26px;
+	/* Grosszuegiger Zeilenabstand: die Reise-Linie legt die waagerechte Umweg-Linie auf die Perlen-MITTE
+	   zwischen den Zeilen (gleich lange senkrechte Stuecke, Owner), und dieser Abstand haelt sie klar unter
+	   den Namen der oberen Zeile. */
+	gap: 34px;
 	overflow: visible;
 	padding: 2px 2px 6px;
 }
