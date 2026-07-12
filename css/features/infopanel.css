@@ -320,6 +320,13 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	width: auto;
 	gap: 0;
 }
+/* The reset above (padding:0) is meant for territory/region boxes. But the settlement attribute table is
+   ALSO in the full-bleed list (margin -18 + padding 18); padding:0 overrode that and pushed its dt/dd 18px
+   left of the header content. Restore the horizontal padding so the attribute rows align with the header. */
+.avesmaps-infopanel .region-info-box--settlement {
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
+}
 .avesmaps-infopanel .region-info-box__header {
 	gap: 12px;
 	margin: 0 calc(-1 * var(--infopanel-pad-x)) 11px;
