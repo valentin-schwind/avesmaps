@@ -130,6 +130,10 @@
   .dt-img-upload { border:1.5px dashed var(--line); border-radius:6px; padding:11px; text-align:center; cursor:pointer; color:var(--mut); font-size:12px; background:rgba(0,0,0,0.02); }
   .dt-img-upload:hover { border-color:#bfa03a; color:#3f3428; }
   .dt-img-upload--full { cursor:default; opacity:0.6; }
+  .dt-img-upload--busy { cursor:default; border-style:solid; border-color:#bfa03a; background:rgba(191,160,58,0.08); }
+  .dt-img-prog-label { color:#3f3428; font-size:12px; margin-bottom:7px; }
+  .dt-img-prog { height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
+  .dt-img-prog span { display:block; height:100%; background:#bfa03a; border-radius:3px; transition:width 0.25s ease; }
   .dt-img-plus { display:block; font-size:18px; color:#9c7f22; line-height:1; margin-bottom:1px; }
   .dt-img-hint { display:block; font-size:10px; color:var(--mut); margin-top:2px; }
   .dt-img-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:8px; }
@@ -1499,6 +1503,17 @@ const SETTLEMENT_IMAGES_API = "/api/edit/wiki/settlement-images.php";
 async function uploadSettlementImages(files) {
 	const list = files ? Array.from(files) : [];
 	if (!selectedPublicId || !list.length) return;
+	// Fortschritts-Balken (Owner): der Upload-Kachel-Inhalt wird waehrend des sequenziellen Uploads durch
+	// "Lade Bild X von Y" + Balken ersetzt. reloadSettlementDetail() baut die Kachel am Ende ohnehin neu.
+	const uploadEl = $("seDetailBody") ? $("seDetailBody").querySelector(".dt-img-upload") : null;
+	const setProgress = (done, total) => {
+		if (!uploadEl) return;
+		uploadEl.classList.add("dt-img-upload--busy");
+		const pct = Math.round((done / total) * 100);
+		uploadEl.innerHTML = `<div class="dt-img-prog-label">Lade Bild ${Math.min(done + 1, total)} von ${total} …</div>`
+			+ `<div class="dt-img-prog"><span style="width:${pct}%"></span></div>`;
+	};
+	setProgress(0, list.length);
 	let uploaded = 0;
 	let lastError = null;
 	for (const file of list) {
