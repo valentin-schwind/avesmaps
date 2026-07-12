@@ -218,6 +218,44 @@ function buildTerritoryAdventuresMarkup(regionEntry) {
 	return buildAdventuresSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
 }
 
+// Floating-Box-Kachel "Abenteuer" (Owner via Design-Session): die schlanke Siedlungs-Box zeigt KEINEN
+// Abenteuer-Streifen -> stattdessen ein Kachel-Button in der Aktionsleiste, der den flachen Dialog oeffnet.
+// Nur wenn der Katalog geladen ist UND die Siedlung ueberhaupt Abenteuer hat (sonst "" -> keine Kachel). Die
+// Kachel-Optik kommt aus location-popups-markers.css (jeder .location-popup__action-button wird dort zur
+// Kachel); der Klick laeuft ueber data-adv-open-place + den Delegation-Handler (public_id -> Ort -> Dialog).
+function buildFloatingAdventuresButtonMarkup(location, publicId) {
+	if (!publicId || typeof popupActionButtonMarkup !== "function") {
+		return "";
+	}
+	// Immer eine Kachel rendern (Owner via Design-Session): fehlen Abenteuer -- oder ist der Katalog noch
+	// nicht geladen -- steht sie deaktiviert da, statt wegzufallen. So bleibt die Aktionsleiste stabil.
+	var ready = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
+	var all = (ready && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "all" }) : [];
+	var hasAdventures = !!(all && all.length);
+	var attributes = { "data-adv-open-place": publicId };
+	if (!hasAdventures) {
+		attributes["aria-disabled"] = "true";
+	}
+	return popupActionButtonMarkup({
+		label: "Abenteuer",
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/abenteuer.webp" alt="" width="20" height="20" />',
+		attributes: attributes,
+	});
+}
+
+// Floating-Box-Kachel "Stadtkarten" (Owner via Design-Session): noch Platzhalter -> immer sichtbar, aber
+// deaktiviert. Kein Klick-Handler; die aria-disabled-Kachel gibt nur einen Ausblick auf das kommende Feature.
+function buildFloatingCityMapsButtonMarkup(publicId) {
+	if (!publicId || typeof popupActionButtonMarkup !== "function") {
+		return "";
+	}
+	return popupActionButtonMarkup({
+		label: "Stadtkarten",
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/stadtkarte.webp" alt="" width="20" height="20" />',
+		attributes: { "aria-disabled": "true", "data-citymaps-placeholder": "true" },
+	});
+}
+
 // ---- Interaktivitaet via Document-Delegation (funktioniert in Popup UND Panel) ----
 (function initPlaceExtrasDelegation() {
 	if (typeof window.__avesmapsPlaceExtrasBound !== "undefined") {
@@ -278,15 +316,14 @@ function buildTerritoryAdventuresMarkup(regionEntry) {
 		box.insertBefore(controls, grid);
 	}
 
-	// "Alle anzeigen" -> Dialog mit den Abenteuer-Karten (beginnt + spielt, aus dem Streifen geklont). Der
-	// Dialog spiegelt das Streifen-Verhalten: Umschalter oben, "Spielt hier" faded die spielt-Karten ein und
-	// dimmt die beginnt-Karten (Grid, daher ohne Scroll). Funktioniert in Popup UND Panel (Document-Delegation).
-	$(document).on("click", ".avesmaps-adv__all", function () {
-		var section = $(this).closest(".avesmaps-adv")[0];
+	// Kern: den flachen Dialog aus einer .avesmaps-adv-SECTION befuellen (Titel + Karten aus dem Streifen klonen)
+	// und oeffnen. Genutzt vom "Alle anzeigen"-Button (Streifen im Panel) UND vom Floating-Box-"Abenteuer"-Button
+	// (der die Section on-demand aus den Ortsdaten baut -> openPlaceAdventuresDialog).
+	function openFlatDialogForSection(section) {
 		if (!section) {
 			return;
 		}
-		var territoryKey = section.getAttribute("data-adv-territory-key"); if (territoryKey && typeof openNestedAdventuresDialog === "function") { openNestedAdventuresDialog(territoryKey, section); return; } var overlay = ensureAdventuresDialog();
+		var overlay = ensureAdventuresDialog();
 		var head = section.querySelector(".avesmaps-adv__head");
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : "Abenteuer";
 		var listEl = section.querySelector(".avesmaps-adv__list");
@@ -309,6 +346,52 @@ function buildTerritoryAdventuresMarkup(regionEntry) {
 		});
 		buildDialogControls(overlay, startCards.length, playCards.length);
 		overlay.classList.add("is-open");
+	}
+
+	// Floating-Box-"Abenteuer"-Button: die schlanke Box rendert KEINEN Abenteuer-Streifen -> den Streifen-Markup
+	// on-demand aus den Ortsdaten bauen (detached, nur als Karten-Quelle) und daraus den flachen Dialog oeffnen.
+	function openPlaceAdventuresDialog(location) {
+		if (!location || typeof buildPlaceAdventuresMarkup !== "function") {
+			return;
+		}
+		var holder = document.createElement("div");
+		holder.innerHTML = buildPlaceAdventuresMarkup(location);
+		var section = holder.querySelector(".avesmaps-adv");
+		if (section) {
+			openFlatDialogForSection(section);
+		}
+	}
+
+	// "Alle anzeigen" -> flacher Dialog (aus dem Streifen geklont); bei einem Territoriums-Block
+	// (data-adv-territory-key) stattdessen der verschachtelte Baum-Dialog. Popup UND Panel.
+	$(document).on("click", ".avesmaps-adv__all", function () {
+		var section = $(this).closest(".avesmaps-adv")[0];
+		if (!section) {
+			return;
+		}
+		var territoryKey = section.getAttribute("data-adv-territory-key");
+		if (territoryKey && typeof openNestedAdventuresDialog === "function") {
+			openNestedAdventuresDialog(territoryKey, section);
+			return;
+		}
+		openFlatDialogForSection(section);
+	});
+
+	// Floating-Box-Kachel "Abenteuer": public_id -> markerEntry -> Ort -> flacher Dialog. Eigener Selektor
+	// (data-adv-open-place, NICHT data-popup-action) -> der zentrale routing.js-Actionhandler hat keinen Fall
+	// dafuer; da er nur stopPropagation (nicht stopImmediatePropagation) nutzt, feuert dieser Handler trotzdem.
+	$(document).on("click", "[data-adv-open-place]", function () {
+		if (this.getAttribute("aria-disabled") === "true") {
+			return; // deaktivierte Kachel (keine Abenteuer / Katalog nicht geladen) -- kein Dialog.
+		}
+		var publicId = this.getAttribute("data-adv-open-place");
+		if (!publicId || typeof findLocationMarkerByPublicId !== "function") {
+			return;
+		}
+		var entry = findLocationMarkerByPublicId(publicId);
+		if (entry && entry.location) {
+			openPlaceAdventuresDialog(entry.location);
+		}
 	});
 
 	// Sortierung -- funktioniert im Streifen (.avesmaps-adv) UND im Dialog (.avesmaps-adv-dialog__box).

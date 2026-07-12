@@ -103,7 +103,16 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		// Aktions-Buttons DIREKT unter den Kopf (Owner: "Buttons unter den Titel"), dann die Daten-Infobox,
 		// dann Stadtkarten/Abenteuer, dann der Bewertungs-Bereich. In der schlanken Box ist settlementInfobox
 		// leer -> dort stehen die Buttons ohnehin schon oben; im Panel wandern sie jetzt nach oben.
-		actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + breadcrumbMarkup + settlementInfobox + placeExtrasMarkup + reviewsSlot,
+		// Floating box (Owner via Design-Session): "Abenteuer"- UND "Stadtkarten"-Kachel-Buttons in die
+		// Aktionsleiste -- NUR in der schlanken Box (das rechte Panel zeigt den Abenteuer-Streifen ohnehin
+		// inline). Beide sind IMMER sichtbar und stehen deaktiviert da, wenn nichts vorliegt (statt wegzufallen).
+		actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location,
+			floating
+				? [
+					typeof buildFloatingAdventuresButtonMarkup === "function" ? buildFloatingAdventuresButtonMarkup(markerEntry.location, markerEntry.publicId) : "",
+					typeof buildFloatingCityMapsButtonMarkup === "function" ? buildFloatingCityMapsButtonMarkup(markerEntry.publicId) : "",
+				]
+				: []) + breadcrumbMarkup + settlementInfobox + placeExtrasMarkup + reviewsSlot,
 	});
 }
 

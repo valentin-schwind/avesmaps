@@ -337,3 +337,20 @@
 	width: 92px;
 	height: 130px;
 }
+
+/* Aufgabe A: deaktivierte Floating-Kachel ("Abenteuer" ohne Abenteuer / "Stadtkarten"-Platzhalter).
+   aria-disabled (nicht [disabled]), damit die Kachel im DOM/Fokus bleibt und der Klick-Handler es prueft;
+   die :hover/:focus-Regeln aus location-popups-markers.css werden per hoeherer Spezifitaet ueberstimmt. */
+.location-popup__action-button[aria-disabled="true"],
+.location-popup__action-button[aria-disabled="true"]:hover,
+.location-popup__action-button[aria-disabled="true"]:focus-visible {
+	background: var(--color-disabled-bg);
+	color: var(--color-disabled-text);
+	border-color: var(--color-disabled-border);
+	cursor: not-allowed;
+	box-shadow: none;
+	transform: none;
+}
+.location-popup__action-button[aria-disabled="true"] .location-popup__action-img {
+	opacity: 0.5;
+}
