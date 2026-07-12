@@ -39,18 +39,15 @@ function renderLocationReportSourcesList() {
 	}
 	list.innerHTML = locationReportSources
 		.map((source, index) => {
-			const parts = [source.label];
-			if (source.pages) {
-				parts.push(`S. ${source.pages}`);
-			}
 			const officialMark = source.official ? " *" : "";
-			const text = escapeHtml(parts.join(", ")) + officialMark;
+			const nameText = escapeHtml(source.label) + officialMark;
 			const linked = source.url
-				? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${text} ↗</a>`
-				: `<span>${text}</span>`;
+				? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${nameText} ↗</a>`
+				: `<span>${nameText}</span>`;
 			return (
 				'<div class="report-sources__row">' +
 				linked +
+				(source.pages ? `<span class="report-sources__pages">S. ${escapeHtml(source.pages)}</span>` : "") +
 				`<span class="report-sources__type">${escapeHtml(reportSourceTypeLabel(source.type))}</span>` +
 				(source.reference_kind ? `<span class="report-sources__kind">${escapeHtml(typeof featureSourceReferenceKindLabel === "function" ? featureSourceReferenceKindLabel(source.reference_kind) : source.reference_kind)}</span>` : "") +
 				`<button type="button" class="report-sources__remove" data-remove-report-source="${index}" aria-label="Quelle entfernen">✕</button>` +

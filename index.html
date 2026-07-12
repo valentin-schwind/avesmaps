@@ -504,12 +504,15 @@
 					Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.
 				</p>
 				<form id="location-report-form" class="location-report-form" novalidate>
+					<div class="report-section">
+					<div class="report-section__title" data-i18n="report.sectionReport">Ich habe folgende Meldung</div>
 					<div class="location-report-form__meta">
 						<div class="location-report-form__meta-item">
 							<span class="location-report-form__meta-label" data-i18n="report.positionLabel">Position</span>
 							<span id="location-report-coordinates" class="location-report-form__meta-value">-</span>
 						</div>
 					</div>
+					<div class="report-section__cols">
 					<label class="location-report-form__field">
 						<span data-i18n="report.typeLabel">Art des Eintrags *</span>
 						<select id="location-report-type" name="report_type" required>
@@ -535,10 +538,6 @@
 							<option value="sonstiges" data-i18n="report.typeOption.sonstiges">Sonstiges</option>
 						</select>
 					</label>
-					<label class="location-report-form__field">
-						<span data-i18n="report.nameLabel">Name des neuen Eintrags *</span>
-						<input id="location-report-name" name="name" type="text" maxlength="80" required />
-					</label>
 					<label id="location-report-size-field" class="location-report-form__field">
 						<span data-i18n="report.sizeLabel">Ortsgröße *</span>
 						<select id="location-report-size" name="size" required>
@@ -550,13 +549,20 @@
 							<option value="metropole" data-i18n="report.sizeOption.metropole">Metropole</option>
 						</select>
 					</label>
+					</div>
+					<label class="location-report-form__field">
+						<span data-i18n="report.nameLabel">Name des neuen Eintrags *</span>
+						<input id="location-report-name" name="name" type="text" maxlength="80" required />
+					</label>
+					</div>
+					<div class="report-section">
+					<div class="report-section__title" data-i18n="report.sectionSources">Ich habe folgende Quellen</div>
 					<div class="location-report-form__field report-sources">
 						<span data-i18n="report.sourcesLabel">Quellen * (mind. eine — Regionalband, Abenteuer, …)</span>
 						<div id="location-report-sources-list" class="report-sources__list"></div>
 						<div class="report-sources__add">
-							<input id="report-source-label" type="text" maxlength="200" placeholder="Quellenname (z. B. Die Flusslande)" data-i18n-placeholder="report.sourceNamePlaceholder" />
-							<input id="report-source-url" type="url" inputmode="url" maxlength="500" placeholder="Link (F-Shop / Wiki-Seite) – optional" data-i18n-placeholder="report.sourceUrlPlaceholder" />
-							<div class="report-sources__add-row2">
+							<div class="report-sources__add-row1">
+								<input id="report-source-label" type="text" maxlength="200" placeholder="Quellenname (z. B. Die Flusslande)" data-i18n-placeholder="report.sourceNamePlaceholder" />
 								<input id="report-source-pages" type="text" maxlength="120" placeholder="Seite(n)" data-i18n-placeholder="report.pagesPlaceholder" />
 								<select id="report-source-type">
 									<option value="regionalspielhilfe">Regionalspielhilfe</option>
@@ -568,23 +574,30 @@
 									<option value="regelbuch">Regelbuch</option>
 									<option value="sonstiges" selected>Sonstiges</option>
 								</select>
-								<select id="report-source-kind" title="Wie wird der Ort in dieser Quelle behandelt? Ausführlich/Ergänzend erscheint im Offiziell-Reiter, Erwähnung im Erwähnt-Reiter."><option value="" selected>Abdeckung: Standardquelle</option><option value="ausfuehrlich">Ausführlich behandelt</option><option value="ergaenzend">Ergänzend</option><option value="erwaehnung">Nur Erwähnung</option></select> <label class="report-sources__official"><input id="report-source-official" type="checkbox" /> <span data-i18n="report.sourceOfficialLabel">offiziell</span></label>
+							</div>
+							<input id="report-source-url" type="url" inputmode="url" maxlength="500" placeholder="Link (F-Shop / Wiki-Seite) – optional" data-i18n-placeholder="report.sourceUrlPlaceholder" />
+							<div class="report-sources__add-row2">
+								<select id="report-source-kind" title="Wie wird der Ort in dieser Quelle behandelt? Ausführlich/Ergänzend erscheint im Offiziell-Reiter, Erwähnung im Erwähnt-Reiter."><option value="" selected>Abdeckung: Standardquelle</option><option value="ausfuehrlich">Ausführliche Quellen</option><option value="ergaenzend">Ergänzende Quellen</option><option value="erwaehnung">Erwähnungen</option></select> <label class="report-sources__official"><input id="report-source-official" type="checkbox" /> <span data-i18n="report.sourceOfficialLabel">offiziell</span></label>
 								<button type="button" id="report-source-add-btn" class="location-report-form__button location-report-form__button--secondary" data-i18n="report.sourceAdd">+ Quelle hinzufügen</button>
 							</div>
 						</div>
 					</div>
+					</div>
+					<div class="report-section">
+					<div class="report-section__title" data-i18n="report.sectionMore">Weiteres</div>
 					<label class="location-report-form__field">
 						<span data-i18n="report.reporterNameLabel">Dein Name/Pseudonym (optional)</span>
 						<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />
 					</label>
 					<label class="location-report-form__field">
-						<span data-i18n="report.wikiUrlLabel">Wiki-Link zum Ort (für die Wiki-Zuweisung)</span>
+						<span data-i18n="report.wikiUrlLabel">Wiki-Aventurica Link (wenn vorhanden)</span>
 						<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
 					</label>
 					<label id="location-report-comment-field" class="location-report-form__field">
 						<span data-i18n="report.commentLabel">Kommentar (zur näheren Beschreibung)</span>
 						<textarea id="location-report-comment" name="comment" rows="4" maxlength="800"></textarea>
 					</label>
+					</div>
 					<input id="location-report-lat" name="lat" type="hidden" />
 					<input id="location-report-lng" name="lng" type="hidden" />
 					<input id="location-report-page-url" name="page_url" type="hidden" />
