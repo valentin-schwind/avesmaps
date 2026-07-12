@@ -324,6 +324,21 @@
 	font-size: 13px;
 }
 
+/* Aventurisches Aktions-Icon als Bild (Owner-Icon-Set img/menu/, z. B. "Link teilen" = Signalhorn):
+   ersetzt das Emoji. Farbige Illustration -> KEIN currentColor. Inline klein; im Kachel-Slot der
+   Floating-Box + im Panel 40x40 (Owner: "40x40 koennte gut klappen"). object-fit haelt das Seitenverhaeltnis. */
+.location-popup__action-img {
+	width: 20px;
+	height: 20px;
+	object-fit: contain;
+	display: block;
+}
+.floating-location-popup .location-popup__action-button .location-popup__action-img,
+.avesmaps-infopanel .location-popup__action-button .location-popup__action-img {
+	width: 40px;
+	height: 40px;
+}
+
 .location-popup__action-button:hover,
 .location-popup__action-button:focus-visible {
 	border-color: var(--color-button-soft-border);
