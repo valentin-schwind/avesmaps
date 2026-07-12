@@ -456,11 +456,23 @@
 	// Wiki-Detailfelder (territory-detail.php) nach und aktualisiert das Panel. Eigener Staleness-
 	// Token, damit ein spaeter geklicktes Gebiet eine noch laufende Antwort nicht ueberschreibt.
 	var regionDetailToken = null;
+	// Regions-/Gebiets-Infobox + (Phase 2.2) angehaengter "Abenteuer in <Gebiet>"-Block. Der Block braucht den
+	// SERVER-wiki_key, der erst mit regionEntry.detail (territory-detail.php) ankommt -> in der ersten (sync)
+	// Runde liefert buildTerritoryAdventuresMarkup "" (kein detail), in der zweiten (nach dem Fetch) die ueber
+	// den politischen Subtree aggregierten Abenteuer. buildTerritoryAdventuresMarkup lebt in place-extras.js
+	// (nur im Infopanel-Modus relevant) -> per typeof-Guard optional.
+	function regionMarkupWithAdventures(regionEntry) {
+		var markup = createRegionCompactTooltipMarkup(regionEntry);
+		if (typeof buildTerritoryAdventuresMarkup === "function") {
+			markup += buildTerritoryAdventuresMarkup(regionEntry);
+		}
+		return markup;
+	}
 	window.avesmapsShowRegionInInfopanel = function (regionEntry) {
 		if (!regionEntry || typeof createRegionCompactTooltipMarkup !== "function") {
 			return false;
 		}
-		window.avesmapsShowInfopanel(createRegionCompactTooltipMarkup(regionEntry));
+		window.avesmapsShowInfopanel(regionMarkupWithAdventures(regionEntry));
 		regionDetailToken = regionEntry;
 		var needsDetail = typeof hasRegionWikiInfo === "function" && hasRegionWikiInfo(regionEntry)
 			&& !regionEntry.detail && regionEntry.territoryPublicId;
@@ -473,7 +485,7 @@
 						return; // anderes Gebiet inzwischen angezeigt -> veraltete Antwort verwerfen
 					}
 					regionEntry.detail = data;
-					window.avesmapsShowInfopanel(createRegionCompactTooltipMarkup(regionEntry));
+					window.avesmapsShowInfopanel(regionMarkupWithAdventures(regionEntry));
 				})
 				.catch(function () { /* noop */ });
 		}

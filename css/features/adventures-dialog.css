@@ -1,0 +1,181 @@
+/* Abenteuer-Feature (Phase 2.3): der verschachtelte "Alle anzeigen"-Dialog fuer Territorien/Regionen.
+   Umsetzung des vom Owner freigegebenen Entwurfs. Ergaenzt nur die Nested-spezifischen Klassen -- Scrim/
+   Box/Head/Close + die Karten-Optik (.avesmaps-adv__card/-cover/-title/-meta) + der .avesmaps-adv__mode-
+   Button kommen aus css/features/place-extras.css (geteilt). Markup: js/map-features/map-features-adventures-dialog.js.
+   Rahmen = JEDE Ebene gerahmt (inkl. oberstes Reich), warm getoent + eingerueckt (bewusste Kachel-Ausnahme,
+   Owner-Regel §8.3), Rang-Pill + "N direkt". Nur Tokens aus css/base/tokens.css -- kein Blau, keine Hardcodes. */
+
+/* ---- Steuerleiste (Sortierung + Umschalter + Filter) zwischen Kopf und Baum ---- */
+.avesmaps-adv-tree-dialog__controls {
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-6);
+	align-items: flex-start;
+	padding: var(--space-8) var(--space-16) var(--space-4);
+	border-bottom: 1px solid var(--color-divider);
+}
+
+/* Sortierzeile (eigene Klassen, damit der flache-Dialog-Sort-Handler nicht hineinfeuert). */
+.avesmaps-adv-tree__sorts {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+.avesmaps-adv-tree__sort {
+	color: var(--color-link);
+	cursor: pointer;
+}
+.avesmaps-adv-tree__sort:hover {
+	text-decoration: underline;
+}
+.avesmaps-adv-tree__sort.is-active {
+	color: var(--color-text);
+	font-weight: var(--font-weight-bold);
+	cursor: default;
+	text-decoration: none;
+}
+.avesmaps-adv-tree__sortsep {
+	color: var(--color-text-muted);
+}
+
+/* Umschalter "Beginnt hier | Spielt hier" -- eigener Container (data-adv-tree-mode), Segment-Optik wie
+   .avesmaps-adv__modes; die Buttons selbst nutzen .avesmaps-adv__mode aus place-extras.css. */
+.avesmaps-adv-tree__modes {
+	display: inline-flex;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+/* Filterleiste: Label + Art-Chips (multi) + Divider + Schwierigkeit-/Genre-Selects + Divider + offiziell-Chip. */
+.avesmaps-adv-tree__filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-4);
+	width: 100%;
+}
+.avesmaps-adv-tree__flabel {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	margin-right: var(--space-2);
+}
+.avesmaps-adv-tree__chip {
+	font-size: var(--font-size-caption);
+	padding: var(--space-2) var(--space-8);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-button-soft-border);
+	background: transparent;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	user-select: none;
+}
+.avesmaps-adv-tree__chip:hover {
+	background: var(--color-hover-wash);
+}
+.avesmaps-adv-tree__chip.is-active {
+	background: var(--color-active-wash);
+	border-color: var(--color-pill-border);
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+}
+.avesmaps-adv-tree__fsel {
+	appearance: none;
+	font: inherit;
+	font-size: var(--font-size-caption);
+	padding: var(--space-2) var(--space-8);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-button-soft-border);
+	background: var(--color-panel);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+}
+.avesmaps-adv-tree__fsel:hover {
+	border-color: var(--color-border-strong);
+}
+.avesmaps-adv-tree__fdiv {
+	width: 1px;
+	align-self: stretch;
+	background: var(--color-divider);
+	margin: var(--space-2) var(--space-2);
+}
+
+/* ---- Baum-Body (scrollbar) ---- */
+.avesmaps-adv-tree-dialog__body {
+	flex: 1 1 auto;
+	padding: var(--space-4) var(--space-16) var(--space-16);
+	overflow-y: auto;
+}
+
+/* Ein Territoriums-Rahmen: warm getoente Kachel (bewusste Ausnahme). Kind-Rahmen ECHT verschachtelt
+   (Box-in-Box) -- eingerueckt + dunkler getoent, so traegt die Umschliessung die Hierarchie. */
+.avesmaps-adv-tree__frame {
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-6) var(--space-8) var(--space-8);
+	margin-top: var(--space-8);
+}
+.avesmaps-adv-tree__frame .avesmaps-adv-tree__frame {
+	margin-left: var(--space-16);
+	background: var(--color-panel-muted);
+}
+.avesmaps-adv-tree__frame.is-hidden {
+	display: none;
+}
+.avesmaps-adv-tree__fhead {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--space-6);
+}
+.avesmaps-adv-tree__pill {
+	font-size: var(--font-size-caption);
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+	padding: 1px var(--space-6);
+	border-radius: var(--radius-md);
+	background: var(--color-pill);
+	border: 1px solid var(--color-pill-border);
+	color: var(--color-pill-text);
+	font-weight: var(--font-weight-bold);
+	white-space: nowrap;
+}
+.avesmaps-adv-tree__fname {
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-strong);
+}
+.avesmaps-adv-tree__direct {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+	margin-left: auto;
+}
+/* Karten je Rahmen: umbrechend (der Dialog hat vertikalen Platz). */
+.avesmaps-adv-tree__cards {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-10);
+	margin-top: var(--space-6);
+}
+/* Rahmen ohne eigene sichtbare Karten (leerer Zwischenknoten): der Karten-Streifen entfaellt (kein Leerraum). */
+.avesmaps-adv-tree__cards:empty {
+	display: none;
+}
+
+/* Karten-Sichtbarkeit im Nested-Dialog: ueber display (Modus) + is-filtered-out (Filter), Fade fuer die
+   start-Dimmung. Die place-extras-Regel .avesmaps-adv__card.is-play{opacity:0} hier hoeher-spezifisch
+   ueberschreiben (wir steuern play NICHT ueber opacity, sondern ueber display). */
+.avesmaps-adv-tree-dialog__body .avesmaps-adv__card.is-play {
+	opacity: 1;
+	display: none;
+}
+.avesmaps-adv-tree-dialog__body .avesmaps-adv__card.is-filtered-out {
+	display: none !important;
+}
+.avesmaps-adv-tree-dialog__body.show-play .avesmaps-adv__card.is-play:not(.is-filtered-out) {
+	display: block;
+}
+.avesmaps-adv-tree-dialog__body.show-play .avesmaps-adv__card:not(.is-play):not(.is-filtered-out) {
+	opacity: 0.4;
+}

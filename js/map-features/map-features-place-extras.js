@@ -95,7 +95,7 @@ function buildPlaceCityMapsMarkup(location) {
 // ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt/spielt-Streifen UND Dialog ----
 // isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
 // per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
-function buildAdventureCardMarkup(a, isPlay) {
+function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	var coverInner = a.cover
 		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
@@ -103,8 +103,8 @@ function buildAdventureCardMarkup(a, isPlay) {
 	var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 	var extraClass = isPlay ? " is-play" : "";
-	var hiddenStyle = isPlay ? ' style="display:none"' : "";
-	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '">'
+	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
+	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
@@ -115,17 +115,22 @@ function buildAdventureCardMarkup(a, isPlay) {
 // ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----
 // Unter der Sortierzeile ein Umschalter "Beginnt hier | Spielt hier (Spoiler)"; "Spielt hier" gibt die
 // verborgenen spielt-Karten IM SELBEN Streifen per Fade frei und scrollt horizontal nach rechts zu ihnen.
-function buildPlaceAdventuresMarkup(location) {
-	var catalogReady = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
-	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
-	var play = (catalogReady && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "play" }) : [];
-	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
-		return "";
-	}
-	var placeName = (location && location.name) ? location.name : "diesem Ort";
+//
+// Kern-Renderer (Phase 2.2): baut den Abschnitt aus fertigen beginnt/spielt-Listen (render shape). Wird von
+// der SIEDLUNG (buildPlaceAdventuresMarkup) UND vom TERRITORIUM/der REGION (buildTerritoryAdventuresMarkup)
+// genutzt -- identisches Markup/identische Klassen, daher greifen Sortierung, Umschalter und "Alle anzeigen"
+// (Document-Delegation weiter unten) fuer beide unveraendert. opts.total = Kopf-Zaehler (Default beginnt.length,
+// fuer die Siedlung ggf. der Payload-/Platzhalter-Gesamtwert); opts.placeholderNote = Platzhalter-Hinweis
+// (nur die Siedlung zeigt ihn, solange der echte Katalog noch nicht geladen ist).
+function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
+	opts = opts || {};
 	var hasBeginnt = beginnt && beginnt.length > 0;
 	var hasPlay = play && play.length > 0;
-	var total = hasBeginnt ? getPlaceAdventuresTotal(location) : 0;
+	if (!hasBeginnt && !hasPlay) {
+		return "";
+	}
+	var name = placeName || "diesem Ort";
+	var total = (opts.total != null) ? opts.total : (hasBeginnt ? beginnt.length : 0);
 	// Kopf-Zaehler NUR, wenn kein Toggle da ist (sonst tragen die Toggle-Segmente die Zaehler).
 	var countMarkup = (hasBeginnt && !hasPlay) ? ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>' : "";
 
@@ -147,7 +152,7 @@ function buildPlaceAdventuresMarkup(location) {
 			+ '</div>'
 		: "";
 
-	var noteMarkup = (hasBeginnt && !catalogReady) ? '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>' : "";
+	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>' : "";
 	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
 	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>Hier beginnt kein Abenteuer.</div>' : "";
 
@@ -158,8 +163,12 @@ function buildPlaceAdventuresMarkup(location) {
 
 	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">Alle anzeigen</button></div>' : "";
 
-	return '<div class="avesmaps-adv">'
-		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(placeName) + countMarkup + '</div>'
+	// data-adv-territory-key markiert den Territoriums-/Regions-Block -> "Alle anzeigen" oeffnet den
+	// datengetriebenen Nested-Dialog (getAdventureTerritoryTree, deepest-wins + Filter) statt des flachen
+	// DOM-Klon-Dialogs der Siedlung. Bei der Siedlung fehlt das Attribut -> flacher Dialog wie bisher.
+	var terrAttr = opts.territoryKey ? ' data-adv-scope="territory" data-adv-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"' : "";
+	return '<div class="avesmaps-adv"' + terrAttr + '>'
+		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(name) + countMarkup + '</div>'
 		+ sortsMarkup
 		+ togglesMarkup
 		+ noteMarkup
@@ -167,6 +176,46 @@ function buildPlaceAdventuresMarkup(location) {
 		+ listMarkup
 		+ alleMarkup
 		+ '</div>';
+}
+
+// Siedlung: die "beginnt hier"/"spielt hier"-Abenteuer dieses Orts (Phase 1). Delegiert an den Kern-Renderer.
+function buildPlaceAdventuresMarkup(location) {
+	var catalogReady = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
+	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
+	var play = (catalogReady && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "play" }) : [];
+	var hasBeginnt = beginnt && beginnt.length > 0;
+	var placeName = (location && location.name) ? location.name : "diesem Ort";
+	return buildAdventuresSectionMarkup(placeName, beginnt, play, {
+		total: hasBeginnt ? getPlaceAdventuresTotal(location) : 0,
+		placeholderNote: hasBeginnt && !catalogReady,
+	});
+}
+
+// Territorium/Region (Phase 2.2): die ueber den politischen Subtree aggregierten "beginnt/spielt"-Abenteuer.
+// Nutzt den SERVER-wiki_key aus der territory-detail.php-Antwort (regionEntry.detail.wiki_key) -- NICHT aus
+// wiki_url client-normalisiert: der Server-Slug (avesmapsPoliticalSlug, ö->oe) und der Client-Normalizer
+// (ö->o) divergieren bei Umlauten, und getAdventuresForTerritory vergleicht gegen die per territory_path
+// emittierten Server-Keys. Leer (kein detail / kein Treffer) -> Abschnitt entfaellt.
+function buildTerritoryAdventuresMarkup(regionEntry) {
+	if (typeof avesmapsAdventureCatalogIsReady !== "function" || !avesmapsAdventureCatalogIsReady()) {
+		return "";
+	}
+	if (typeof getAdventuresForTerritory !== "function") {
+		return "";
+	}
+	var detail = (regionEntry && regionEntry.detail && regionEntry.detail.ok) ? regionEntry.detail : null;
+	var wikiKey = detail ? (detail.wiki_key || "") : "";
+	if (!wikiKey) {
+		return "";
+	}
+	var beginnt = getAdventuresForTerritory(wikiKey, { role: "start" });
+	var play = getAdventuresForTerritory(wikiKey, { role: "play" });
+	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
+		return "";
+	}
+	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || "diesem Gebiet";
+	// territoryKey = der Server-wiki_key, den der Nested-Dialog an getAdventureTerritoryTree weitergibt.
+	return buildAdventuresSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
 }
 
 // ---- Interaktivitaet via Document-Delegation (funktioniert in Popup UND Panel) ----
@@ -237,7 +286,7 @@ function buildPlaceAdventuresMarkup(location) {
 		if (!section) {
 			return;
 		}
-		var overlay = ensureAdventuresDialog();
+		var territoryKey = section.getAttribute("data-adv-territory-key"); if (territoryKey && typeof openNestedAdventuresDialog === "function") { openNestedAdventuresDialog(territoryKey, section); return; } var overlay = ensureAdventuresDialog();
 		var head = section.querySelector(".avesmaps-adv__head");
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : "Abenteuer";
 		var listEl = section.querySelector(".avesmaps-adv__list");
