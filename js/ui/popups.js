@@ -495,18 +495,17 @@ function waypointRemoveActionMarkup(waypointId) {
 	]);
 }
 
-// Shared display name for a political territory: the proper NAME (which already carries the rank, e.g.
-// "Baronie Vierok") when it is short enough to read inline, otherwise the cleaned rank TYPE ("Kaiserreich")
-// for the over-long formal names like "Heiliges Neues Kaiserreich vom Greifenthron zu Gareth". Used by BOTH
-// the political line and the "Liegt in" breadcrumb so they read consistently. Curated short names
-// ("Mittelreich") arrive later as DATA -- nothing is hardcoded here.
-function settlementTerritoryDisplayName(name, type) {
-	const fullName = String(name || "").trim();
-	if (fullName.length > 0 && fullName.length <= 30) {
-		return fullName;
+// Shared display name for a political territory (Owner: "'Kaiserreich' ist unspezifisch"): the CURATED
+// short_name when present ("Mittelreich"), otherwise the FULL political name ("Heiliges Neues Kaiserreich
+// vom Greifenthron zu Gareth") -- never the bare rank type, which loses the territory's identity. short_name
+// is data (political_territory.short_name, editor-curated) -- nothing is hardcoded here; when it gets filled
+// the shorter label flows through automatically. Used by BOTH the political line and the breadcrumb.
+function settlementTerritoryDisplayName(name, shortName) {
+	const short = String(shortName || "").trim();
+	if (short !== "") {
+		return short;
 	}
-	const cleanType = String(type || "").split(/[(,]/)[0].trim();
-	return cleanType || fullName;
+	return String(name || "").trim();
 }
 
 // One fly-to link to a political territory (reused by the political line AND each breadcrumb level): the
@@ -518,7 +517,7 @@ function settlementTerritoryLinkMarkup(node, extraClass) {
 		return "";
 	}
 	const pid = String((node && node.territory_public_id) || "").trim();
-	const display = settlementTerritoryDisplayName(nm, node && node.type);
+	const display = settlementTerritoryDisplayName(nm, node && node.short_name);
 	const cls = "location-popup__political-link" + (extraClass ? " " + extraClass : "");
 	return `<button type="button" class="${cls}" `
 		+ `data-political-territory="${escapeHtml(nm)}" data-political-public-id="${escapeHtml(pid)}">`

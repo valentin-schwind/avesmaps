@@ -12,7 +12,7 @@ require_once __DIR__ . '/../_internal/wiki/sync.php';
 // MUST be declared BEFORE the try block below: the request handler calls avesmapsMapFeaturesETag while
 // running top-to-bottom, and a top-level const is sequential (defined when reached), not hoisted like a
 // function -- declaring it further down (among the helper functions) left it undefined at call time -> 500.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 3;
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 4;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -377,8 +377,11 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
 // break the hot map-features payload.
 function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
     try {
+        // t.short_name = manually curated short/colloquial name ("Mittelreich"); the wiki apply-flow NEVER
+        // writes it (sync-monitor-identity.php), so it is empty until an editor curates it. Preferred over the
+        // long formal w.name for display when present -- see avesmapsResolveSettlementPolitical.
         $statement = $pdo->query(
-            'SELECT t.id, t.public_id, t.wiki_key, t.parent_id, t.valid_to_bf,
+            'SELECT t.id, t.public_id, t.wiki_key, t.parent_id, t.valid_to_bf, t.short_name,
                     w.name, w.type, w.capital_name
                FROM political_territory t
                JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
@@ -411,6 +414,7 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
             'wiki_key' => $wikiKey,
             'parent_id' => ($row['parent_id'] !== null && $row['parent_id'] !== '') ? (int) $row['parent_id'] : 0,
             'name' => $name,
+            'short_name' => trim((string) ($row['short_name'] ?? '')),
             'type' => trim((string) ($row['type'] ?? '')),
             'capital_key' => $capitalName !== '' ? avesmapsPoliticalNameKey($capitalName) : '',
         ];
@@ -499,11 +503,12 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
 
     // Full leaf -> root hierarchy for the "Liegt in" breadcrumb (Owner Variante A: the leaf is included).
     // Same parent_id chain (KERN-INVARIANTE), just surfaced as a list; the client renders each level as a
-    // fly-to link and picks a display label from name/type (a long formal name falls back to the type).
+    // fly-to link and picks the display label from short_name (curated "Mittelreich") else the full name.
     $hierarchy = [];
     foreach ($chain as $chainNode) {
         $hierarchy[] = [
             'name' => $chainNode['name'],
+            'short_name' => $chainNode['short_name'] ?? '',
             'type' => $chainNode['type'],
             'territory_public_id' => $chainNode['public_id'],
         ];
@@ -519,6 +524,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
                 return [
                     'kind' => 'capital',
                     'name' => $chain[$i]['name'],
+                    'short_name' => $chain[$i]['short_name'] ?? '',
                     'type' => $chain[$i]['type'],
                     'territory_public_id' => $chain[$i]['public_id'],
                     'hierarchy' => $hierarchy,
@@ -532,6 +538,7 @@ function avesmapsResolveSettlementPolitical(string $settlementName, array $prope
     return [
         'kind' => 'territory',
         'name' => $leaf['name'],
+        'short_name' => $leaf['short_name'] ?? '',
         'type' => $leaf['type'],
         'territory_public_id' => $publicId !== '' ? $publicId : $leaf['public_id'],
         'hierarchy' => $hierarchy,
