@@ -766,39 +766,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
-	if (action === "toggle-route-popup-detail") {
-		const popupId = this.dataset.routePopupId;
-		const popup = popupId ? routePopupRegistry[popupId] : null;
-		if (popup) {
-			popup._routeExpanded = !popup._routeExpanded;
-			// settlement-popup ist immer gesetzt (gleiche Styles ein-/ausgeklappt); nur die Breite
-			// unterscheidet sich -> per --expanded-Klasse auf 400px (sonst 310px Mini-Box).
-			if (popup._container) {
-				popup._container.classList.toggle("route-waypoint-popup--expanded", popup._routeExpanded);
-			}
-			// Hoehe vor dem Neu-Rendern an die aktuelle Karte anpassen (ausgeklappt + Bewertungen -> scrollbar).
-			if (popup.options && typeof locationMarkerPopupMaxHeight === "function") {
-				popup.options.maxHeight = locationMarkerPopupMaxHeight();
-			}
-			popup.setContent(buildRoutePopupHtml(popup._routeLoc, {
-				expanded: popup._routeExpanded,
-				showRemoveAction: popup._routeShowRemove,
-				popupId,
-			}));
-			if (typeof popup.update === "function") {
-				popup.update();
-			}
-			// Bewertungen im ausgeklappten Popup async nachladen (wie beim Marker-Popup).
-			if (popup._routeExpanded && popup._container && typeof hydrateLocationReviews === "function") {
-				const reviewsEl = popup._container.querySelector(".location-reviews");
-				if (reviewsEl) {
-					hydrateLocationReviews(reviewsEl);
-				}
-			}
-		}
-		return;
-	}
-
 	if (action === "share-place-link") {
 		const publicId = this.dataset.publicId;
 		if (publicId) {
@@ -1085,10 +1052,6 @@ function findDuplicateLocationByName(name, { excludePublicId = "", allowCurrentN
 	}) || null;
 }
 
-// Registry der Routen-Wegpunkt-Popups (fuer den "Mehr/Weniger anzeigen"-Umschalter).
-let routePopupRegistry = {};
-let routePopupCounter = 0;
-
 // Liefert die waypoint-ID, falls der Ort bereits in der Route ist (sonst ""). So weiss die
 // normale Marker-Infobox, ob sie "Reiseziel hinzufügen" oder "Reiseziel entfernen" zeigt.
 function findWaypointIdByLocationName(name) {
@@ -1107,12 +1070,11 @@ function findWaypointIdByLocationName(name) {
 	return foundId;
 }
 
-// Inhalt eines Routen-Wegpunkt-Popups: kompakt (Mini) oder ausgeklappt (volle Siedlungs-Infobox,
-// falls Wiki-Daten vorhanden). Unten "Reiseziel entfernen" + "Mehr/Weniger anzeigen".
-function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, popupId = 0 } = {}) {
+// Content of a route-waypoint popup: slim -- name + type + actions ("Reiseziel entfernen",
+// "Link teilen"). No expandable infobox anymore (owner: the waypoint popup stays slim; the full
+// settlement info is a normal map click away).
+function buildRoutePopupHtml(loc, { showRemoveAction = false } = {}) {
 	const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
-	const wikiSettlement = markerEntry && markerEntry.location ? markerEntry.location.wikiSettlement : null;
-	const hasWiki = Boolean(wikiSettlement && wikiSettlement.title);
 
 	const buttons = [];
 	if (showRemoveAction && loc.waypointId) {
@@ -1123,10 +1085,9 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			attributes: { "data-popup-action": "remove-waypoint", "data-waypoint-id": loc.waypointId },
 		}));
 	}
-	// Ausgeklappt: "Link teilen" wie in der normalen Marker-Infobox. "Bewertung schreiben" sitzt jetzt
-	// unten bei den Bewertungen (js/community/location-reviews.js) -- also hier nicht mehr in der Leiste.
-	// wikiParam "siedlung" -- deckt sich mit dem Deep-Link-Parameter fuer Siedlungen (js/app/wiki-deeplink.js).
-	if (expanded && markerEntry && markerEntry.publicId) {
+	// "Link teilen" like the normal marker infobox -- now always shown (no more expand step).
+	// wikiParam "siedlung" matches the settlement deep-link parameter (js/app/wiki-deeplink.js).
+	if (markerEntry && markerEntry.publicId) {
 		const shareButton = typeof sharePlaceActionButtonMarkup === "function"
 			? sharePlaceActionButtonMarkup(markerEntry.publicId, { wikiUrl: markerEntry.location?.wikiUrl || "", wikiParam: "siedlung" })
 			: "";
@@ -1134,47 +1095,10 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			buttons.push(shareButton);
 		}
 	}
-	if (hasWiki) {
-		buttons.push(popupActionButtonMarkup({
-			label: expanded ? tr("popup.showLess", "Weniger anzeigen") : tr("popup.showMore", "Mehr anzeigen"),
-			iconMarkup: `<span class="location-popup__action-icon" aria-hidden="true">${expanded ? "▴" : "▾"}</span>`,
-			attributes: { "data-popup-action": "toggle-route-popup-detail", "data-route-popup-id": String(popupId) },
-		}));
-	}
 	const actionsBar = buttons.length ? locationPopupActionsMarkup(buttons) : "";
 
-	if (expanded && hasWiki) {
-		const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
-		let typeLabel = markerEntry.location.locationTypeLabel;
-		if (wikiSettlement.building_type) {
-			typeLabel = String(wikiSettlement.building_type);
-			if (wikiSettlement.is_ruined && !/ruine/i.test(typeLabel)) {
-				typeLabel += " (Ruine)";
-			}
-		}
-		// Community-Bewertungen wie im Marker-Popup (async beim Aufklappen geladen, s. Toggle-Handler).
-		const reviewsSlot = markerEntry.publicId
-			? `<div class="location-reviews" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name || loc.name)}"></div>`
-			: "";
-		return locationPopupMarkup({
-			name: loc.name,
-			locationType: loc.locationType,
-			locationTypeLabel: typeLabel,
-			headerIconMarkup: coatIconMarkup,
-			showType: true,
-			showDescription: false,
-			showWikiLink: false,
-			actionsMarkup: settlementWikiInfoboxMarkup(
-				markerEntry.location,
-				typeof renderFeatureSourceLine === "function"
-					? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
-					: ""
-			) + actionsBar + reviewsSlot,
-		});
-	}
-
-	// Compact waypoint box: header (name + type) + action buttons only. The Wiki link is intentionally
-	// NOT shown here -- it only appears when expanded ("Mehr anzeigen") via settlementWikiInfoboxMarkup above.
+	// Slim waypoint box: header (name + type) + action buttons only. No Wiki link / infobox here --
+	// that lives in the normal marker popup.
 	const routeTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
 	return locationPopupMarkup({
 		name: loc.name,
@@ -1196,27 +1120,22 @@ const addTooltip = (loc, {
 	showRemoveAction = false,
 } = {}) => {
 	if (showDescription || showWikiLink) {
-		const popupId = ++routePopupCounter;
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
-			// Mini-Box nutzt settlement-popup-Styles (Content-Margin/Trenner/Padding/feste Breite wie
-			// die grosse Infobox); die Breite wird per CSS pro Zustand gesetzt (310 ein-, 400 ausgeklappt).
+			// Slim box uses the settlement-popup styles (content margin / divider / padding); the width
+			// is set via CSS (.route-waypoint-popup). No expanded state anymore.
 			minWidth: 310,
 			maxWidth: 400,
-			// Hoehe an die Karte koppeln -> ausgeklappt mit Bewertungen scrollt es statt abzuschneiden.
 			maxHeight: typeof locationMarkerPopupMaxHeight === "function" ? locationMarkerPopupMaxHeight() : 480,
 			className: "route-waypoint-popup settlement-popup",
 		})
 			.setLatLng(loc.coordinates)
-			.setContent(buildRoutePopupHtml(loc, { expanded: false, showRemoveAction, popupId }));
-		// _routeLoc VOR addTo setzen, damit das durch addTo ausgeloeste popupopen den Ort-Marker
-		// (handleRouteWaypointPopupOpen) schon zuordnen kann.
+			.setContent(buildRoutePopupHtml(loc, { showRemoveAction }));
+		// _routeLoc set BEFORE addTo so the popupopen fired by addTo can map the place marker
+		// (handleRouteWaypointPopupOpen).
 		popup._routeLoc = loc;
-		popup._routeShowRemove = showRemoveAction;
-		popup._routeExpanded = false;
 		popup.addTo(map);
-		routePopupRegistry[popupId] = popup;
 		activeTooltips.push(popup);
 		return;
 	}
@@ -1250,7 +1169,6 @@ const addTooltip = (loc, {
 function removeAllTooltips() {
 	$.each(activeTooltips, (i, tip) => map.removeLayer(tip));
 	activeTooltips = [];
-	routePopupRegistry = {};
 	clearRouteWaypointTempMarkers();
 }
 

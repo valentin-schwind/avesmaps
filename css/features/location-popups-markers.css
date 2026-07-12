@@ -243,14 +243,9 @@
 	white-space: nowrap;
 }
 
-/* Eingeklappte Mini-Box: 310px statt der settlement-popup-Standardbreite (400px). */
+/* Slim waypoint box: 310px instead of the settlement-popup default (400px). No expanded state. */
 .route-waypoint-popup .location-popup {
 	width: min(310px, calc(100vw - 32px));
-}
-
-/* Ausgeklappt -> volle Infobox-Breite wie das normale settlement-popup (400px). */
-.route-waypoint-popup--expanded .location-popup {
-	width: min(400px, calc(100vw - 32px));
 }
 
 .location-popup__description {
