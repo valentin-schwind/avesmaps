@@ -272,6 +272,23 @@
 	margin-top: 1px;
 }
 
+/* Long German words hyphenate instead of hard-breaking mid-word — flowing text + names
+   across the floating popup, infopanel and slim box (shared classes, kept in sync).
+   hyphens:auto needs <html lang="de"> (set); overflow-wrap:break-word is the fallback
+   where the browser ships no hyphenation dictionary (Electron / in-app webviews) → clean
+   hard break as before, never worse. Prose/names only — not buttons, pills, numbers, or
+   codes; dt labels stay whole. */
+.location-popup__name,
+.location-popup__type,
+.location-popup__description,
+.region-info-box__title,
+.region-info-box__subtitle,
+.region-info-box__row dd {
+	overflow-wrap: break-word;
+	-webkit-hyphens: auto;
+	hyphens: auto;
+}
+
 .location-popup__actions {
 	display: flex;
 	flex-wrap: wrap;

@@ -155,6 +155,13 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   same-site links do **not**. Apply it once — a shared external-link treatment or
   an auto `a[href^="http"]:not([href*="avesmaps"])::after { content: " ↗"; }` —
   never hand-typed per link, so it stays consistent everywhere.
+- **Long words hyphenate — they don't hard-break.** Flowing text and names (settlement
+  name / type / description, territory + region title / subtitle, attribute values) use
+  `hyphens: auto` + `overflow-wrap: break-word`, so long German compounds break at syllable
+  boundaries with a soft hyphen instead of mid-word. Relies on `<html lang="de">` (set).
+  Where the browser ships no hyphenation dictionary (Electron, in-app webviews) it falls
+  back to the clean hard break — never worse than before (pure progressive enhancement).
+  Apply to prose / names only — never buttons, pills, numbers, codes, or `dt` labels.
 - **No blue = UI chrome only.** The no-blue rule covers panels, controls, links and
   menus. Two deliberate, code-commented exceptions stay and must **not** be
   "corrected": the *edit-in-progress* handles (path-edit dots,
