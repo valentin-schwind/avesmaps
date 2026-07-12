@@ -187,6 +187,71 @@ function sharePinPopupIconMarkup() {
 	return `<span class="location-popup__icon location-popup__icon--share-pin">${sharePinVisualMarkup("share-pin-visual--popup", { includeDot: false })}</span>`;
 }
 
+// Info-Header-Grafiken (Owner): 16:9-Landschaftsbild oben in der Infobox, der Titel liegt als Overlay
+// darueber (Banner unten-links + Schatten). Landschaftsregionen per art, Wege per Subtyp, Territorien/
+// Strassen generisch "region", Siedlungen vorerst "metropole" (weitere Siedlungsbilder folgen). Die
+// Basenamen zeigen auf icons/header/<name>.webp.
+const INFO_HEADER_IMAGE_BY_ART = {
+	gebirge: "gebirge", berge: "gebirge", berg: "gebirge", berggruppe: "gebirge", bergkamm: "gebirge",
+	hochland: "gebirge", schlucht: "gebirge", vulkan: "gebirge",
+	berggipfel: "berggipfel",
+	wald: "wald",
+	fluss: "fluss", flusstal: "fluss", wasserfall: "fluss",
+	meer: "meer", golf: "meer", ozean: "meer", meerenge: "meer", meeresteil: "meer", bucht: "meer",
+	see: "see", seenlandschaft: "see",
+	kueste: "kueste", halbinsel: "kueste", klippe: "kueste", sandbank: "kueste",
+	insel: "insel", inselgruppe: "insel",
+	sumpf: "sumpfmoor", moor: "sumpfmoor", marschland: "sumpfmoor",
+	wueste: "wueste",
+	steppe: "steppe", heide: "steppe",
+	huegelland: "huegel", huegel: "huegel",
+	graslandschaft: "graslandschaft", wiese: "graslandschaft",
+	auenlandschaft: "auenlandschaft",
+	tundra: "tundra",
+	ebene: "ebene", talkessel: "ebene", tal: "ebene",
+};
+// Siedlungstyp -> Header-Bild. Aktuell nur die Metropole-Grafik; weitere Groessen folgen (Owner) -> alle
+// fallen vorerst auf "metropole" zurueck.
+const INFO_HEADER_IMAGE_BY_SETTLEMENT = {
+	metropole: "metropole",
+};
+
+// art/Bezeichnung -> Header-Bild-Basename: erster Bestandteil vor |,/ ; Umlaute normalisiert.
+function normalizeInfoHeaderKey(value) {
+	return String(value || "")
+		.split(/[|,/]/)[0]
+		.trim()
+		.toLowerCase()
+		.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+		.replace(/[^a-z]/g, "");
+}
+function regionHeaderImageBasename(art) {
+	return INFO_HEADER_IMAGE_BY_ART[normalizeInfoHeaderKey(art)] || "region";
+}
+function settlementHeaderImageBasename(locationType) {
+	return INFO_HEADER_IMAGE_BY_SETTLEMENT[locationType] || "metropole";
+}
+function pathHeaderImageBasename(pathSubtype) {
+	if (pathSubtype === "Flussweg") {
+		return "fluss";
+	}
+	if (pathSubtype === "Seeweg") {
+		return "meer";
+	}
+	return "region";
+}
+
+// Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
+// icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art).
+function infoHeaderImageMarkup(imageBasename, title, subtitle) {
+	const src = `icons/header/${imageBasename}.webp`;
+	const sub = subtitle ? `<div class="info-header__subtitle">${escapeHtml(subtitle)}</div>` : "";
+	return '<div class="info-header">'
+		+ `<img class="info-header__img" src="${escapeHtml(withAssetVersion(src))}" alt="" loading="lazy" decoding="async">`
+		+ `<div class="info-header__overlay"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div>`
+		+ '</div>';
+}
+
 function getLocationDescriptionText(name, descriptionOverride = "") {
 	if (descriptionOverride) {
 		return descriptionOverride;
@@ -590,6 +655,8 @@ function locationPopupMarkup({
 	locationTypeLabel,
 	headerIconMarkup = "",
 	showHeaderIcon = true,
+	// Owner: 16:9 image header with the title overlaid. When set, it REPLACES the icon+title header.
+	headerImageMarkup = "",
 	compact = false,
 	showType = false,
 	typeSuffixMarkup = "",
@@ -605,13 +672,13 @@ function locationPopupMarkup({
 	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
 	return `
 		<div class="${popupClassName}">
-			<div class="location-popup__header">
+			${headerImageMarkup || `<div class="location-popup__header">
 				${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 				<div class="location-popup__title-group">
 					<div class="${nameClassName}">${escapeHtml(name)}</div>
 					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}${typeSuffixMarkup ? ` · ${typeSuffixMarkup}` : ""}</div>` : ""}
 				</div>
-			</div>
+			</div>`}
 			${showDivider ? `<div class="location-popup__divider"></div>` : ""}
 			${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
 			${actionsMarkup}

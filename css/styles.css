@@ -24,7 +24,7 @@
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css?v=20260711-theme20");
 @import url("features/political-timeline.css");
-@import url("features/location-popups-markers.css?v=20260712-waypointbox1");
+@import url("features/location-popups-markers.css?v=20260712-headerimg1");
 @import url("features/location-reviews.css?v=20260712-floatbox3");
 @import url("features/place-extras.css?v=20260712-adventures6");
 @import url("features/adventures-dialog.css?v=20260712-adv-dialog4");
@@ -36,7 +36,7 @@
 @import url("features/path-editor.css");
 @import url("features/powerlines.css");
 @import url("features/review-panel.css?v=20260712-routecolor1");
-@import url("features/infopanel.css?v=20260712-sharetop1");
+@import url("features/infopanel.css?v=20260712-headerimg1");
 
 /* Einheitlicher Link-Stil — als LETZTES, damit es aeltere per-Klasse-Linkfarben ueberschreibt. */
 @import url("features/links.css?v=20260712-links4");

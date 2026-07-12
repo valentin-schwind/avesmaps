@@ -488,6 +488,16 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	width: auto;
 	gap: 0;
 }
+/* Info-Header-Grafik im Panel: randlos ueber die volle Panel-Breite UND bis an die obere Body-Kante
+   (Body-Padding oben + seitlich aufheben). Titel-Overlay auf das Panel-Padding einruecken, damit der Titel
+   mit den Daten darunter fluchtet. */
+.avesmaps-infopanel .info-header {
+	margin: calc(-1 * var(--space-12)) calc(-1 * var(--infopanel-pad-x)) 12px;
+}
+.avesmaps-infopanel .info-header__overlay {
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
+}
 /* The reset above (padding:0) is meant for territory/region boxes. But the settlement attribute table is
    ALSO in the full-bleed list (margin -18 + padding 18); padding:0 overrode that and pushed its dt/dd 18px
    left of the header content. Restore the horizontal padding so the attribute rows align with the header. */
@@ -531,7 +541,8 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    die obere Trennung); UNTER den Kacheln dagegen einen randlosen Trenner (Owner: "trenner darunter"),
    der die Button-Sektion zwischen Kopf und Daten sauber abrahmt. */
 .avesmaps-infopanel .location-popup__header + .location-popup__actions,
-.avesmaps-infopanel .region-info-box__header + .location-popup__actions {
+.avesmaps-infopanel .region-info-box__header + .location-popup__actions,
+.avesmaps-infopanel .info-header + .location-popup__actions {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;

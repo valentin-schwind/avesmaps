@@ -342,9 +342,15 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 // wikiParam "region" matches the landscape/region deep-link parameter (js/app/wiki-deeplink.js).
 function buildRegionLabelViewPopupHtml(label) {
 	const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
+	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
+	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
+	const headerImg = typeof infoHeaderImageMarkup === "function"
+		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, art)
+		: "";
 	return locationPopupMarkup({
-		name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
+		name: labelName,
 		locationTypeLabel: art,
+		headerImageMarkup: headerImg,
 		showHeaderIcon: false,
 		compact: true,
 		showType: true,

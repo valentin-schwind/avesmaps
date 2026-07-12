@@ -62,10 +62,15 @@ function pathHeaderIconMarkup(pathType) {
 function createPathPopupMarkup(path) {
 	const pathName = getPathDisplayName(path);
 	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	// Owner: 16:9 header image (Flussweg->fluss, Seeweg->meer, else generic region) + title overlay.
+	const headerImg = typeof infoHeaderImageMarkup === "function"
+		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, pathType)
+		: "";
 	return locationPopupMarkup({
 		name: pathName,
 		locationType: "dorf",
 		locationTypeLabel: pathType,
+		headerImageMarkup: headerImg,
 		headerIconMarkup: pathHeaderIconMarkup(pathType),
 		showHeaderIcon: true,
 		showDescription: false,
