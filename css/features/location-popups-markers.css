@@ -117,6 +117,14 @@
 	}
 }
 
+/* Floating box: Leaflet's wrapper + tip take the panel colour so the box is ONE colour in both themes
+   (Owner: no white rim in dark). The .location-popup inside is already --color-panel. */
+.floating-location-popup .leaflet-popup-content-wrapper,
+.floating-location-popup .leaflet-popup-tip {
+	background: var(--color-panel);
+	color: var(--color-text);
+}
+
 /* Floating box (infopanel mode): title + coat/type icon a step larger than the compact popup base
    (Owner: "etwas groesser") -- between the 16px/34px popup base and the 23px/130px panel size. */
 .floating-location-popup .location-popup__name {

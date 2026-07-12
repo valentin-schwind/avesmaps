@@ -86,17 +86,17 @@ function reviewSummaryMarkup(average, count) {
 function reviewSummaryLinkMarkup(average, count) {
 	const jumpTitle = escapeHtml(tr("review.jumpToPanel", "Alle Bewertungen im Panel anzeigen"));
 	if (!count) {
-		return '<button type="button" class="location-reviews__summary location-reviews__summary--empty location-reviews__summary-link" data-popup-action="scroll-panel-reviews" title="' + jumpTitle + '">'
-			+ escapeHtml(tr("review.emptySummary", "Noch keine Bewertungen – sei die erste Stimme!"))
-			+ "</button>";
+		return '<span class="location-reviews__summary location-reviews__summary--empty">'
+			+ escapeHtml(tr("review.emptySummary", "Noch keine Bewertungen"))
+			+ "</span>";
 	}
-	const label = count === 1 ? tr("review.countSingular", "Bewertung") : tr("review.countPlural", "Bewertungen");
-	return '<button type="button" class="location-reviews__summary location-reviews__summary-link" data-popup-action="scroll-panel-reviews" title="' + jumpTitle + '">'
+	// Owner: score + stars are PLAIN TEXT; only the count "(5) ›" is the link to the panel's full list.
+	return '<span class="location-reviews__summary">'
 		+ `<span class="location-reviews__avg">${escapeHtml(formatReviewAverage(average))}</span>`
 		+ reviewStarsMarkup(average)
-		+ `<span class="location-reviews__count">(${count} ${label})</span>`
-		+ '<span class="location-reviews__summary-arrow" aria-hidden="true">›</span>'
-		+ "</button>";
+		+ ' <button type="button" class="location-reviews__count-link" data-popup-action="scroll-panel-reviews" title="' + jumpTitle + '">'
+		+ `(${count})<span class="location-reviews__summary-arrow" aria-hidden="true"> ›</span></button>`
+		+ "</span>";
 }
 
 function reviewItemMarkup(review, editable) {

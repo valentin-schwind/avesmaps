@@ -30,9 +30,13 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 	const settlementSourceMarkup = (typeof renderFeatureSourceLine === "function" && !floating)
 		? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
 		: "";
-	const settlementInfobox = hasWikiSettlement
-		? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup, { floating })
-		: (settlementSourceMarkup || (floating ? "" : `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`));
+	// Floating box (Owner, round 2): drop the ENTIRE attribute table too (no Einwohner/Oberhaupt/
+	// Beschreibung/source) -- the floating box is just header + route/share actions + the rating row.
+	const settlementInfobox = floating
+		? ""
+		: (hasWikiSettlement
+			? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
+			: (settlementSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`));
 	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
 	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
