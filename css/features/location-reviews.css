@@ -77,6 +77,38 @@
 	font-size: 11.5px;
 }
 
+/* Compact summary rendered as a LINK (floating map box -> jump to the panel's full reviews). Button
+   reset + inherits the flex row from .location-reviews__summary; hover underlines the count. */
+.location-reviews__summary-link {
+	border: none;
+	background: transparent;
+	padding: 0;
+	margin: 0 0 6px;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	width: 100%;
+}
+.location-reviews__summary-link:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+	border-radius: var(--radius-sm);
+}
+.location-reviews__summary-link:hover .location-reviews__count,
+.location-reviews__summary-link:focus-visible .location-reviews__count {
+	color: var(--color-link);
+	text-decoration: underline;
+}
+.location-reviews__summary-arrow {
+	color: var(--color-link);
+	font-weight: var(--font-weight-bold);
+	margin-left: 2px;
+}
+.location-reviews__summary-link.location-reviews__summary--empty {
+	font-style: italic;
+	color: var(--color-text-muted);
+}
+
 /* Liste der letzten Bewertungen: eigener, begrenzter Scrollbereich, damit die Infobox bei
    vielen Bewertungen nicht ins Unendliche waechst. Der Kopf (Name, Schnitt, Buttons) bleibt
    stehen, nur diese Liste scrollt. overscroll-behavior verhindert, dass am Listenende die

@@ -211,6 +211,43 @@ function openSlimLocationPopupForMarkerEntry(markerEntry) {
 	return true;
 }
 
+// Floating "slim" box for a DIRECT map click in infopanel mode (Owner: keep seeing WHERE the place is,
+// while the full info lives in the right panel). Its OWN L.popup so the panel-interception (which fires
+// on the bound marker popup) does NOT swallow it. The box uses the slimmed floating variant (no
+// Publikationen, no Stadtkarten/Abenteuer, reviews as a compact summary-link). No re-centre/zoom: the
+// clicked place is already in view. Guarded on finite coords (Leaflet _panInsideMaxBounds crash).
+function openFloatingLocationBoxForMarkerEntry(markerEntry) {
+	if (!markerEntry || typeof map === "undefined" || !map || typeof buildLocationMarkerPopupHtml !== "function") {
+		return false;
+	}
+	let latlng = null;
+	if (markerEntry.marker && typeof markerEntry.marker.getLatLng === "function") {
+		latlng = markerEntry.marker.getLatLng();
+	} else if (markerEntry.location && markerEntry.location.coordinates) {
+		latlng = L.latLng(markerEntry.location.coordinates);
+	}
+	if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) {
+		return false;
+	}
+	const popup = L.popup({
+		autoClose: true, closeOnClick: true, closeButton: true,
+		className: "slim-location-popup floating-location-popup",
+		maxHeight: locationMarkerPopupMaxHeight(), minWidth: 320, maxWidth: 400, autoPan: false,
+	})
+		.setLatLng(latlng)
+		.setContent(buildLocationMarkerPopupHtml(markerEntry, { floating: true }));
+	map.openPopup(popup);
+	// Load the compact reviews (summary-link + write button) into the floating box's slot.
+	if (typeof hydrateLocationReviews === "function") {
+		const el = typeof popup.getElement === "function" ? popup.getElement() : null;
+		const slot = el ? el.querySelector(".location-reviews") : null;
+		if (slot) {
+			hydrateLocationReviews(slot);
+		}
+	}
+	return true;
+}
+
 function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	if (!markerEntry) {
 		return false;

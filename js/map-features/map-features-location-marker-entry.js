@@ -5,7 +5,10 @@
 
 // Baut den HTML-Inhalt des Marker-Popups (frisch erzeugbar, damit der Route-Button
 // "hinzufügen"/"entfernen" den aktuellen Routenzustand widerspiegelt).
-function buildLocationMarkerPopupHtml(markerEntry) {
+function buildLocationMarkerPopupHtml(markerEntry, opts) {
+	// Floating box (infopanel mode): the SAME infobox as the panel but slimmed -- no "Publikationen"
+	// tabs, no Stadtkarten/Abenteuer, reviews as a compact summary-link instead of the full list.
+	const floating = Boolean(opts && opts.floating);
 	if (markerEntry.locationType === CROSSING_LOCATION_TYPE) {
 		return locationPopupMarkup({
 			name: markerEntry.name,
@@ -24,7 +27,7 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 	// here -- rendered synchronously from the map-features payload (renderFeatureSourceLine in
 	// js/ui/popups.js resolves this element's approved sources; no lazy fetch, no flash).
 	const settlementSourceMarkup = typeof renderFeatureSourceLine === "function"
-		? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
+		? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link", { omitPublications: floating })
 		: "";
 	const settlementInfobox = hasWikiSettlement
 		? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
@@ -41,14 +44,14 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 	}
 	// Community-Bewertungen (Durchschnitt + letzte Bewertungen) ganz unten; wird beim Öffnen async geladen.
 	const reviewsSlot = markerEntry.publicId
-		? `<div class="location-reviews" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
+		? `<div class="location-reviews"${floating ? " data-reviews-compact=\"1\"" : ""} data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
 		: "";
 	// Place-Extras (Infopanel Phase 6): "Stadtkarten" + "Abenteuer in <Ort>" -- nur bei Wiki-Siedlungen UND
 	// nur im Infopanel-Modus (rechtes Panel). Im schwebenden Default-Popup NICHT: "ohne Flag aendert sich
 	// nichts" (infopanel-instruction) + schlanke Optik. Aktuell statische Platzhalter
 	// (js/map-features/map-features-place-extras.js), spaeter echte Daten.
 	let placeExtrasMarkup = "";
-	if (hasWikiSettlement && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
+	if (hasWikiSettlement && !floating && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
 		if (typeof buildPlaceCityMapsMarkup === "function") {
 			placeExtrasMarkup += buildPlaceCityMapsMarkup(markerEntry.location);
 		}
@@ -129,35 +132,41 @@ function refreshLocationMarkerPopup(markerEntry) {
 	// über Daten-Infobox, Quell-Zeile und Aktionen). Kreuzungen bleiben schlicht.
 	const isCrossingPopup = markerEntry.locationType === CROSSING_LOCATION_TYPE;
 	const maxHeight = locationMarkerPopupMaxHeight();
+	// In infopanel mode the bound popup is the slim FLOATING box (the panel holds the full info). Lazy
+	// content so the slim variant is built up front -> no full-box flash before the popupopen handler runs.
+	const infopanelMode = typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE;
 	// Popup-Inhalt LAZY binden (Leaflet akzeptiert eine Content-Funktion): das HTML entsteht erst beim
 	// Öffnen. Vorher wurde es hier für JEDEN Marker beim Start gebaut (~3000 × Infobox/Buttons/Bewertungs-
 	// Markup) und beim Öffnen via popupopen ohnehin neu gesetzt -> reiner Startup-Ballast.
 	markerEntry.marker.bindPopup(
-		() => buildLocationMarkerPopupHtml(markerEntry),
+		() => buildLocationMarkerPopupHtml(markerEntry, infopanelMode ? { floating: true } : undefined),
 		isCrossingPopup
 			? { maxHeight }
-			: { minWidth: 320, maxWidth: 400, maxHeight, className: "settlement-popup" }
+			: { minWidth: 320, maxWidth: 400, maxHeight, className: infopanelMode ? "settlement-popup floating-location-popup" : "settlement-popup" }
 	);
 	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
 	// (Ort bereits Wegpunkt? -> "Reiseziel entfernen"). Nur EINMAL pro Marker binden.
 	if (!markerEntry._routeAwarePopupBound) {
 		markerEntry._routeAwarePopupBound = true;
 		markerEntry.marker.on("popupopen", () => {
-		// Infopanel-Modus: Inhalt ins Panel statt ins schwebende Popup. Deckt die DOM-Marker im
-		// Edit-Modus ab (Canvas-Marker sind dort aus), die NICHT ueber den Canvas-Arbiter bzw. das
-		// programmatische Oeffnen laufen (dort greift die Interception schon vor openPopup).
-		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof window.avesmapsShowLocationInInfopanel === "function") {
-			var _popup = markerEntry.marker.getPopup();
-			var _popupEl = _popup && typeof _popup.getElement === "function" ? _popup.getElement() : null;
-			if (_popupEl) { _popupEl.style.display = "none"; } // sofort unsichtbar -> kein Flash, unabhaengig vom Schliessen
-			window.avesmapsShowLocationInInfopanel(markerEntry);
-			window.setTimeout(function () { try { markerEntry.marker.closePopup(); if (typeof map !== "undefined" && map) { map.closePopup(); } } catch (error) { /* noop */ } }, 0);
-			return;
-		}
 			// maxHeight an die aktuelle Kartenhöhe anpassen -> Popup scrollt statt am Rand abzuschneiden.
 			const popup = markerEntry.marker.getPopup();
 			if (popup && popup.options) {
 				popup.options.maxHeight = locationMarkerPopupMaxHeight();
+			}
+			// Infopanel mode: the bound popup IS the slim FLOATING box (already slim from bindPopup, no
+			// flash). Fill the right panel with the FULL info; leave the floating box OPEN on the map (Owner:
+			// keep seeing WHERE the place is). Covers real DOM markers (edit mode); canvas dots go through the
+			// click-arbiter. Reviews here are the compact summary-link variant (data-reviews-compact).
+			if (infopanelMode && typeof window.avesmapsShowLocationInInfopanel === "function") {
+				window.avesmapsShowLocationInInfopanel(markerEntry);
+				if (typeof hydrateLocationReviews === "function") {
+					const floatEl = popup && typeof popup.getElement === "function" ? popup.getElement() : null;
+					if (floatEl) {
+						hydrateLocationReviews(floatEl.querySelector(".location-reviews"));
+					}
+				}
+				return;
 			}
 			markerEntry.marker.setPopupContent(buildLocationMarkerPopupHtml(markerEntry));
 			// Bewertungen async nachladen (Durchschnitt + letzte Bewertungen).

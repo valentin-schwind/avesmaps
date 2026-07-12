@@ -296,6 +296,12 @@ const locationCanvasLayer = {
 		// offenes Popup zurueck).
 		if (typeof window.avesmapsShowLocationInInfopanel === "function") {
 			window.avesmapsShowLocationInInfopanel(entry);
+			// Floating box ALONGSIDE the panel (Owner: keep seeing WHERE the place is). Direct map click
+			// only -- breadcrumb/deeplink/auto-open go through avesmapsShowLocationInInfopanel WITHOUT this
+			// arbiter, so they open the panel only (§6 rule).
+			if (typeof openFloatingLocationBoxForMarkerEntry === "function") {
+				openFloatingLocationBoxForMarkerEntry(entry);
+			}
 			return true;
 		}
 		entry._canvasPromoted = true;

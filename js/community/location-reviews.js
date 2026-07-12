@@ -81,6 +81,24 @@ function reviewSummaryMarkup(average, count) {
 		+ "</div>";
 }
 
+// Compact summary AS A LINK (floating map box, infopanel mode): same score + stars, but a button that
+// expands the right panel and scrolls to its full reviews section. No review list is rendered here.
+function reviewSummaryLinkMarkup(average, count) {
+	const jumpTitle = escapeHtml(tr("review.jumpToPanel", "Alle Bewertungen im Panel anzeigen"));
+	if (!count) {
+		return '<button type="button" class="location-reviews__summary location-reviews__summary--empty location-reviews__summary-link" data-popup-action="scroll-panel-reviews" title="' + jumpTitle + '">'
+			+ escapeHtml(tr("review.emptySummary", "Noch keine Bewertungen – sei die erste Stimme!"))
+			+ "</button>";
+	}
+	const label = count === 1 ? tr("review.countSingular", "Bewertung") : tr("review.countPlural", "Bewertungen");
+	return '<button type="button" class="location-reviews__summary location-reviews__summary-link" data-popup-action="scroll-panel-reviews" title="' + jumpTitle + '">'
+		+ `<span class="location-reviews__avg">${escapeHtml(formatReviewAverage(average))}</span>`
+		+ reviewStarsMarkup(average)
+		+ `<span class="location-reviews__count">(${count} ${label})</span>`
+		+ '<span class="location-reviews__summary-arrow" aria-hidden="true">›</span>'
+		+ "</button>";
+}
+
 function reviewItemMarkup(review, editable) {
 	const author = escapeHtml(review.author || tr("review.anonymousAuthor", "Anonym"));
 	const date = escapeHtml(review.dsa_date || "");
@@ -147,6 +165,10 @@ function hydrateLocationReviews(slotEl) {
 		return;
 	}
 	const editable = reviewIsEditMode();
+	// Compact mode (floating map box in infopanel mode, data-reviews-compact="1"): render only the
+	// rating summary AS A LINK to the panel + the write button -- NO review list (the full list + the
+	// tabs live in the right panel). Keeps the floating box slim while still showing the score.
+	const compact = slotEl.getAttribute("data-reviews-compact") === "1";
 	const reviewsName = slotEl.getAttribute("data-reviews-name") || "";
 	const base = editable ? LOCATION_REVIEWS_EDIT_ENDPOINT : LOCATION_REVIEWS_PUBLIC_ENDPOINT;
 	slotEl.innerHTML = `<div class="location-reviews__loading">${tr("review.loading", "Bewertungen werden geladen …")}</div>`;
@@ -161,6 +183,11 @@ function hydrateLocationReviews(slotEl) {
 				return;
 			}
 			const reviews = Array.isArray(data.reviews) ? data.reviews : [];
+			if (compact) {
+				slotEl.innerHTML = reviewSummaryLinkMarkup(data.average, data.count)
+					+ reviewWriteButtonMarkup(publicId, reviewsName);
+				return;
+			}
 			slotEl.innerHTML = reviewSummaryMarkup(data.average, data.count)
 				+ reviewsListMarkup(reviews, editable)
 				+ reviewWriteButtonMarkup(publicId, reviewsName);
@@ -284,8 +311,30 @@ function moderateReview(action, id, publicId) {
 		.catch(() => showFeedbackToast("Aktion fehlgeschlagen.", "warning"));
 }
 
+// ---- Panel jump (floating box, infopanel mode) ----
+
+// From the floating box's rating-summary link: expand the right panel (if collapsed) and scroll its
+// full reviews section into view. Panel-mode only; a no-op if the panel API isn't present.
+function avesmapsScrollPanelToReviews() {
+	if (typeof window.avesmapsInfopanelExpand === "function") {
+		window.avesmapsInfopanelExpand();
+	}
+	const body = typeof window.avesmapsInfopanelBody === "function" ? window.avesmapsInfopanelBody() : null;
+	const reviews = body ? body.querySelector(".location-reviews") : null;
+	if (reviews && typeof reviews.scrollIntoView === "function") {
+		reviews.scrollIntoView({ behavior: "smooth", block: "start" });
+	}
+}
+if (typeof window !== "undefined") {
+	window.avesmapsScrollPanelToReviews = avesmapsScrollPanelToReviews;
+}
+
 // ---- Wiring ----
 
+$(document).on("click", '[data-popup-action="scroll-panel-reviews"]', function (event) {
+	event.preventDefault();
+	avesmapsScrollPanelToReviews();
+});
 $(document).on("click", "#review-form-stars .review-form__star", function () {
 	updateReviewStarPicker(Number($(this).data("star")) || 0);
 });

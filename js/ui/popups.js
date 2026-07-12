@@ -116,13 +116,15 @@ function resolveFeatureSourceList(entityType, entityPublicId) {
 // Replaces the old lazy placeholder: same wrapper class (.feature-sources, styled in region-sync.css)
 // and same German label/fallback, but the source list is resolved and rendered up front. entityType
 // in {settlement,region,path,territory}; wikiUrl is the fixed Wiki-Aventurica link (may be empty).
-function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass) {
+function renderFeatureSourceLine(entityType, entityPublicId, wikiUrl, linkClass, opts) {
 	const sources = resolveFeatureSourceList(entityType, entityPublicId);
 	const list = window.buildSourceListMarkup(wikiUrl, sources, {
 		linkClass,
 		officialTooltip: tr("popup.officialSource", "offizielle Quelle"),
 		wikiLabel: tr("popup.wiki", "Wiki Aventurica"),
 		mentionTooltip: tr("popup.sourceMention", "nur Erwähnung"),
+		// Floating map box (infopanel mode): drop the "Publikationen" tabs -- they live in the panel only.
+		omitPublications: Boolean(opts && opts.omitPublications),
 	});
 	// buildSourceListMarkup now owns the "Quelle(n):" / "Publikationen:" labels; an element with no
 	// wiki link and no sources renders nothing at all (no empty "Keine Quelle gefunden" placeholder).

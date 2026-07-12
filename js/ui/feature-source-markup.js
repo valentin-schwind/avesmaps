@@ -79,7 +79,9 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   }
 
   // ----- Line 2: Publikationen — collapsible tabbed Titel/Typ/Seiten table -----
-  if (publications.length) {
+  // opts.omitPublications drops this whole block (keeps line 1 "Quelle:") -- used by the floating
+  // map box in infopanel mode, where the publication tabs live only in the right panel.
+  if (publications.length && !opts.omitPublications) {
     var off = publications.filter(function (s) { return s.reference_kind !== "erwaehnung"; });
     var erw = publications.filter(function (s) { return s.reference_kind === "erwaehnung"; });
     var tab = function (key, name, n) {
