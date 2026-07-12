@@ -68,6 +68,7 @@ function avesmapsBuildAdventureIndex(catalog, normalizeKey) {
 		bySettlementKey: {},
 		byTerritoryKey: {},
 		byRegionKey: {},
+		byTerritoryPath: {},
 		byPublicId: {},
 	};
 	function pushEntry(bucket, key, entry) {
@@ -98,6 +99,12 @@ function avesmapsBuildAdventureIndex(catalog, normalizeKey) {
 			} else if (place.target_kind === "region") {
 				pushEntry(index.byRegionKey, normKey, entry);
 			}
+			// Phase 2: index the adventure under EVERY territory in this place's ancestor path, so
+			// byTerritoryPath[T] holds all adventures whose place lies in T's subtree (client aggregates
+			// territory/region adventures without loading the political parent tree).
+			(place.territory_path || []).forEach(function (pathKey) {
+				pushEntry(index.byTerritoryPath, norm(pathKey), entry);
+			});
 		});
 	});
 	return index;
@@ -131,6 +138,9 @@ function avesmapsSelectAdventureEntries(index, ref, role) {
 		collect(index.bySettlementKey[ref.key]);
 		collect(index.byTerritoryKey[ref.key]);
 		collect(index.byRegionKey[ref.key]);
+	}
+	if (ref.territoryKey) {
+		collect(index.byTerritoryPath[ref.territoryKey]); // subtree aggregation (Phase 2)
 	}
 	return collected;
 }
@@ -226,6 +236,24 @@ function getAdventuresForPlace(placeRef, opts) {
 	});
 }
 
+// Adventures aggregated over a TERRITORY/REGION SUBTREE, in render shape (Phase 2). territoryWikiKey = the
+// political territory's wiki_key (server 'wiki:'-form, same axis as the per-place territory_path).
+// opts.role: 'start' (beginnt) | 'play' (spielt) | 'all'. Deduped by adventure.
+function getAdventuresForTerritory(territoryWikiKey, opts) {
+	var index = avesmapsAdventureCatalogState.index;
+	if (!index) {
+		return [];
+	}
+	var role = (opts && opts.role) || "start";
+	var key = avesmapsNormalizeAdventureKey(territoryWikiKey);
+	if (!key) {
+		return [];
+	}
+	return avesmapsSelectAdventureEntries(index, { territoryKey: key }, role).map(function (entry) {
+		return avesmapsAdventureToRenderShape(entry.adv);
+	});
+}
+
 // All places of one adventure (in sort_order). Returns the raw place objects (general catalog accessor,
 // e.g. for a future editor-defined route). The list order is wiki position, NOT a route.
 function getAdventurePlaces(publicId) {
@@ -251,6 +279,7 @@ if (typeof window !== "undefined") {
 	window.avesmapsLoadAdventureCatalog = avesmapsLoadAdventureCatalog;
 	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
 	window.getAdventuresForPlace = getAdventuresForPlace;
+	window.getAdventuresForTerritory = getAdventuresForTerritory;
 	window.getAdventurePlaces = getAdventurePlaces;
 	window.avesmapsAdventureCatalogReady = window.avesmapsAdventureCatalogReady || false;
 	// Kick the single catalog fetch as early as possible when in infopanel mode; the popup opens

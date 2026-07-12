@@ -79,4 +79,38 @@ assert.deepStrictEqual(avesmapsSelectAdventureEntries(null, { publicId: "S1" }, 
 assert.deepStrictEqual(avesmapsSelectAdventureEntries(index, {}, "start"), []);
 console.log("guards ok");
 
+// ---- Phase 2: territory subtree aggregation (byTerritoryPath) ----
+// Each settlement place carries its territory ancestor path (deepest -> root). Aggregation over a
+// clicked territory = all adventures whose place path CONTAINS that territory key.
+const territoryCatalog = [
+	{ public_id: "advX", title: "X", product_type: "gruppenabenteuer", bf_year: 1044, places: [
+		{ role: "start", target_kind: "settlement", target_public_id: "SX", territory_path: ["wiki:baronie-a", "wiki:grafschaft-g", "wiki:mittelreich"] },
+		{ role: "play", target_kind: "settlement", target_public_id: "SP", territory_path: ["wiki:baronie-c", "wiki:grafschaft-h", "wiki:mittelreich"] },
+	] },
+	{ public_id: "advY", title: "Y", product_type: "soloabenteuer", bf_year: 1030, places: [
+		{ role: "start", target_kind: "settlement", target_public_id: "SY", territory_path: ["wiki:baronie-b", "wiki:grafschaft-g", "wiki:mittelreich"] },
+	] },
+];
+const ti = avesmapsBuildAdventureIndex(territoryCatalog);
+const mrKey = avesmapsNormalizeAdventureKey("wiki:mittelreich");
+const gKey = avesmapsNormalizeAdventureKey("wiki:grafschaft-g");
+const aKey = avesmapsNormalizeAdventureKey("wiki:baronie-a");
+
+// Root (Mittelreich): both adventures begin in its subtree; advX also PLAYS there (play place is a MR barony).
+assert.strictEqual(avesmapsSelectAdventureEntries(ti, { territoryKey: mrKey }, "start").length, 2);
+const playMR = avesmapsSelectAdventureEntries(ti, { territoryKey: mrKey }, "play");
+assert.strictEqual(playMR.length, 1);
+assert.strictEqual(playMR[0].adv.public_id, "advX");
+// Mid-level (Grafschaft G): advX (baronie-a) + advY (baronie-b) both under G.
+assert.strictEqual(avesmapsSelectAdventureEntries(ti, { territoryKey: gKey }, "start").length, 2);
+// Leaf (Baronie A): only advX begins there.
+const beginA = avesmapsSelectAdventureEntries(ti, { territoryKey: aKey }, "start");
+assert.strictEqual(beginA.length, 1);
+assert.strictEqual(beginA[0].adv.public_id, "advX");
+// Dedup: an adventure with two places in the same subtree appears ONCE ('all' -> advX + advY).
+assert.strictEqual(avesmapsSelectAdventureEntries(ti, { territoryKey: mrKey }, "all").length, 2);
+// A territory outside any path -> nothing.
+assert.strictEqual(avesmapsSelectAdventureEntries(ti, { territoryKey: avesmapsNormalizeAdventureKey("wiki:andergast") }, "all").length, 0);
+console.log("territory subtree aggregation ok");
+
 console.log("ALL OK");

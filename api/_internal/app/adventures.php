@@ -66,6 +66,21 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
             KEY idx_adventure_place_target_wiki (target_wiki_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // Self-healing column-add (project idiom). Phase 2: per-place territory ancestor path (JSON array of
+    // 'wiki:'-keys, deepest->root) so the CLIENT aggregates territory/region adventures locally WITHOUT
+    // loading the political parent tree (which is edit-mode-only in the frontend). Filled by the resolver
+    // (adventure-resolve.php) from properties.territory_wiki_key + the wiki_territory_model parent tree.
+    $columnExists = static function (PDO $pdo, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'adventure_place' AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    if (!$columnExists($pdo, 'target_territory_path')) {
+        $pdo->exec('ALTER TABLE adventure_place ADD COLUMN target_territory_path JSON NULL');
+    }
 }
 
 function avesmapsAdventuresCount(PDO $pdo): int
@@ -95,7 +110,7 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $placeStatement = $pdo->prepare(
-        "SELECT adventure_id, role, target_kind, target_public_id, target_wiki_key, raw_name, sort_order
+        "SELECT adventure_id, role, target_kind, target_public_id, target_wiki_key, target_territory_path, raw_name, sort_order
            FROM adventure_place
           WHERE status = 'approved' AND adventure_id IN ($placeholders)
           ORDER BY adventure_id ASC, sort_order ASC"
@@ -103,11 +118,19 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
     $placeStatement->execute($ids);
     $placesByAdventure = [];
     foreach ($placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $place) {
+        $territoryPath = [];
+        if (isset($place['target_territory_path']) && $place['target_territory_path'] !== null) {
+            $decodedPath = json_decode((string) $place['target_territory_path'], true);
+            if (is_array($decodedPath)) {
+                $territoryPath = array_values(array_map(static fn($value): string => (string) $value, $decodedPath));
+            }
+        }
         $placesByAdventure[(int) $place['adventure_id']][] = [
             'role' => (string) $place['role'],
             'target_kind' => (string) $place['target_kind'],
             'target_public_id' => $place['target_public_id'] !== null ? (string) $place['target_public_id'] : '',
             'target_wiki_key' => $place['target_wiki_key'] !== null ? (string) $place['target_wiki_key'] : '',
+            'territory_path' => $territoryPath,
             'raw_name' => (string) $place['raw_name'],
             'sort_order' => (int) $place['sort_order'],
         ];

@@ -152,46 +152,129 @@ function avesmapsAdventureResolvePlace(PDO $pdo, string $rawName): array
     return avesmapsAdventureMatchCandidates($rawName, $candidates, $canonical);
 }
 
-// Resolve-all: fill target_* for every place still 'unresolved' (candidate maps loaded once). We key
-// the guard off target_kind='unresolved' rather than origin: a manually CHOSEN target has
-// target_kind != 'unresolved' and is left untouched (that is the override protection), while a
-// bootstrap/wiki placeholder (origin any, target_kind='unresolved') gets resolved. Idempotent -- a
-// second pass finds nothing unresolved. Returns counts.
+// ---- Phase 2: territory ancestor path (for client-side subtree aggregation) ----------------------
+
+// Territory parent tree from wiki_territory_model (the canonical parent_wiki_key map). Ancestors are
+// walked over parent_wiki_key ONLY (KERN-INVARIANTE -- NEVER via affiliation_path). Empty on a fresh DB.
+function avesmapsAdventureLoadTerritoryParentMap(PDO $pdo): array
+{
+    $map = [];
+    try {
+        $rows = $pdo->query('SELECT wiki_key, parent_wiki_key FROM wiki_territory_model');
+        foreach ($rows ?: [] as $row) {
+            $key = trim((string) ($row['wiki_key'] ?? ''));
+            if ($key !== '') {
+                $map[$key] = $row['parent_wiki_key'] !== null ? trim((string) $row['parent_wiki_key']) : '';
+            }
+        }
+    } catch (Throwable $exception) {
+        // wiki_territory_model absent on a fresh DB -> no territory aggregation until it is synced.
+    }
+    return $map;
+}
+
+// Settlement public_id -> its ray-cast deepest territory_wiki_key (map_features.properties_json). Bounded
+// scan of active locations (same cost class as the candidate scan; resolve is not a hot path).
+function avesmapsAdventureLoadSettlementTerritoryKeys(PDO $pdo): array
+{
+    $map = [];
+    $rows = $pdo->query(
+        "SELECT public_id, properties_json FROM map_features WHERE feature_type = 'location' AND is_active = 1"
+    );
+    foreach ($rows ?: [] as $row) {
+        $props = json_decode((string) ($row['properties_json'] ?? ''), true);
+        if (!is_array($props)) {
+            continue;
+        }
+        $territoryKey = isset($props['territory_wiki_key']) ? trim((string) $props['territory_wiki_key']) : '';
+        if ($territoryKey !== '') {
+            $map[(string) $row['public_id']] = $territoryKey;
+        }
+    }
+    return $map;
+}
+
+// Ancestor chain [deepest, parent, ..., root] via parent_wiki_key, cycle-guarded.
+function avesmapsAdventureTerritoryAncestors(string $deepestWikiKey, array $parentMap): array
+{
+    $path = [];
+    $seen = [];
+    $current = trim($deepestWikiKey);
+    while ($current !== '' && !isset($seen[$current])) {
+        $seen[$current] = true;
+        $path[] = $current;
+        $current = isset($parentMap[$current]) ? trim((string) $parentMap[$current]) : '';
+    }
+    return $path;
+}
+
+// Resolve-all: (1) resolve every place still 'unresolved' (manually CHOSEN targets have target_kind !=
+// 'unresolved' and are left untouched = override protection); (2) fill target_territory_path for
+// settlement/territory places (from the deepest territory + parent tree) so the client aggregates
+// territory/region adventures locally. Processes places that are unresolved OR still missing a path;
+// idempotent. Candidate maps + parent tree loaded once (no N+1). Returns counts.
 function avesmapsAdventureResolveAll(PDO $pdo): array
 {
     avesmapsAdventuresEnsureTables($pdo);
     $places = $pdo->query(
-        "SELECT id, raw_name FROM adventure_place WHERE target_kind = 'unresolved' AND status = 'approved'"
+        "SELECT id, raw_name, target_kind, target_public_id, target_wiki_key
+           FROM adventure_place
+          WHERE status = 'approved' AND (target_kind = 'unresolved' OR target_territory_path IS NULL)"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
     if ($places === []) {
-        return ['resolved' => 0, 'unresolved' => 0, 'total' => 0];
+        return ['resolved' => 0, 'unresolved' => 0, 'total' => 0, 'paths' => 0];
     }
 
     $candidates = avesmapsAdventureLoadCandidates($pdo);
+    $parentMap = avesmapsAdventureLoadTerritoryParentMap($pdo);
+    $settlementTerritory = avesmapsAdventureLoadSettlementTerritoryKeys($pdo);
     $update = $pdo->prepare(
         "UPDATE adventure_place
-            SET target_kind = :kind, target_public_id = :pid, target_wiki_key = :wkey
+            SET target_kind = :kind, target_public_id = :pid, target_wiki_key = :wkey, target_territory_path = :path
           WHERE id = :id"
     );
 
     $resolved = 0;
     $stillUnresolved = 0;
+    $paths = 0;
     foreach ($places as $place) {
-        $rawName = (string) $place['raw_name'];
-        $canonical = avesmapsAdventureResolveRedirect($pdo, $rawName);
-        $match = avesmapsAdventureMatchCandidates($rawName, $candidates, $canonical);
-        if ($match['kind'] === 'unresolved') {
-            $stillUnresolved++;
-            continue;
+        if ((string) $place['target_kind'] === 'unresolved') {
+            $rawName = (string) $place['raw_name'];
+            $canonical = avesmapsAdventureResolveRedirect($pdo, $rawName);
+            $match = avesmapsAdventureMatchCandidates($rawName, $candidates, $canonical);
+            $kind = $match['kind'];
+            $publicId = $match['public_id'];
+            $wikiKey = $match['wiki_key'];
+            if ($kind === 'unresolved') {
+                $stillUnresolved++;
+            } else {
+                $resolved++;
+            }
+        } else {
+            $kind = (string) $place['target_kind'];
+            $publicId = $place['target_public_id'] !== null ? (string) $place['target_public_id'] : '';
+            $wikiKey = $place['target_wiki_key'] !== null ? (string) $place['target_wiki_key'] : '';
         }
+
+        $deepestTerritoryKey = '';
+        if ($kind === 'settlement' && $publicId !== '') {
+            $deepestTerritoryKey = $settlementTerritory[$publicId] ?? '';
+        } elseif ($kind === 'territory' && $wikiKey !== '') {
+            $deepestTerritoryKey = $wikiKey;
+        }
+        $path = $deepestTerritoryKey !== '' ? avesmapsAdventureTerritoryAncestors($deepestTerritoryKey, $parentMap) : [];
+        if ($path !== []) {
+            $paths++;
+        }
+
         $update->execute([
-            'kind' => $match['kind'],
-            'pid' => $match['public_id'] !== '' ? $match['public_id'] : null,
-            'wkey' => $match['wiki_key'] !== '' ? $match['wiki_key'] : null,
+            'kind' => $kind,
+            'pid' => $publicId !== '' ? $publicId : null,
+            'wkey' => $wikiKey !== '' ? $wikiKey : null,
+            'path' => json_encode(array_values($path), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'id' => (int) $place['id'],
         ]);
-        $resolved++;
     }
 
-    return ['resolved' => $resolved, 'unresolved' => $stillUnresolved, 'total' => count($places)];
+    return ['resolved' => $resolved, 'unresolved' => $stillUnresolved, 'total' => count($places), 'paths' => $paths];
 }
