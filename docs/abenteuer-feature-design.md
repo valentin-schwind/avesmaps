@@ -143,9 +143,19 @@ und **unabhängig** vom Auflösungserfolg (ein unaufgelöster erster Ort ist tro
 
 Ziel: „Königreich Garetien" anklicken → Abenteuer der ganzen Gegend, **entdupliziert** über die Hierarchie.
 
-- **Datenbasis im Client:** je Siedlung das ray-gecastete tiefste Territorium (`territory_wiki_key` in
-  `map_features.properties_json`) + der `parent_wiki_key`-Baum (bereits geladen). Adventures + Ort-Links
-  kommen aus einem einmaligen `adventures.php`-Katalog-Fetch (§7).
+> ⚠️ **KORREKTUR 2026-07-12 (umgesetzt in Phase 2.1, Commit `71e75e4e`): Die Annahme „Client hat den Baum" war
+> falsch.** Das Frontend hat WEDER `territory_wiki_key` pro Siedlung im map-features-Payload NOCH den
+> `parent_wiki_key`-Baum (der lädt nur im Edit-Mode; `territory-detail.php` liefert keinen Subtree).
+> **Owner-Entscheid: Option A** — der Resolver hängt je Ort die Territoriums-Ahnenkette an
+> (`adventure_place.target_territory_path`, JSON deepest→root, aus `properties.territory_wiki_key` +
+> `wiki_territory_model`-`parent_wiki_key`-Walk, **NIE** affiliation_path); der Katalog liefert `territory_path`
+> pro Ort; der Client-Index `byTerritoryPath` + `getAdventuresForTerritory(wikiKey,{role})` aggregiert den
+> Subtree lokal. Live validiert (Gareth = 4 Ebenen). Der Baum wird also NICHT im Client geladen — die
+> deepest-wins-/Zuordnungs-Semantik unten bleibt gültig, nur die Datenquelle ist jetzt der `territory_path`.
+
+- **Datenbasis im Client (Datenquelle ÜBERHOLT, siehe Korrektur oben):** je Siedlung das tiefste Territorium
+  + dessen `parent_wiki_key`-Kette — **kommt jetzt fertig als `territory_path` pro Ort** aus dem einmaligen
+  `adventures.php`-Katalog-Fetch (§7), kein Baum-Fetch im Client.
 - **Zuordnung eines Abenteuers zu einer Gegend:** über seine **Start-Orte** (Default) bzw. **Spiel-Orte**
   (Spoiler-Sicht):
   - Ort = Siedlung → deren `territory_wiki_key`-Kette liefert alle Vorfahren-Territorien.
