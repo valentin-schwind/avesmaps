@@ -50,12 +50,13 @@
 	border-bottom: 1px solid var(--color-border);
 }
 .avesmaps-infopanel__tabs {
+	position: relative;
 	flex: 1 1 auto;
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 26px;
 	overflow: visible;
-	padding: 2px 2px 4px;
+	padding: 2px 2px 6px;
 }
 .avesmaps-infopanel__tabs::-webkit-scrollbar {
 	display: none;
@@ -168,48 +169,27 @@
    umgekehrt (direction:rtl), damit der Pfad ums Eck zur naechsten Zeile schlaengelt. Ganze Station klickbar. */
 .avesmaps-infopanel__routeline-row {
 	position: relative;
+	z-index: 1;
 	display: grid;
 	grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
 	align-items: start;
 }
-.avesmaps-infopanel__routeline-row.is-reversed {
-	direction: rtl;
-}
-.avesmaps-infopanel__routeline-row.is-reversed > .avesmaps-infopanel__station {
-	direction: ltr;
-}
-/* Durchgehende gepunktete Linie auf Perlen-Hoehe, von der ersten bis zur letzten Perlen-Mitte
-   (Inset = halbe Spaltenbreite = 100%/(cols*2)); die OPAKEN Perlen maskieren sie an ihrer Stelle. */
-.avesmaps-infopanel__routeline-row::before {
-	content: "";
+/* Der durchgehende gepunktete Pfad (waagerecht je Zeile + 2-Ecken-Umweg beim Umbruch, jede Zeile L->R) wird
+   als GEMESSENES SVG hinter die Stationen gezeichnet (drawRouteLinePath) -- der Umweg haengt von den echten
+   Perlen-Positionen ab, das koennen Pseudo-Elemente nicht. Die opaken Perlen maskieren ihn an ihrer Stelle. */
+.avesmaps-infopanel__routeline-svg {
 	position: absolute;
-	top: 7.5px;
-	left: calc(100% / (var(--cols, 3) * 2));
-	right: calc(100% / (var(--cols, 3) * 2));
-	height: 3px;
-	background-image: radial-gradient(circle, var(--color-text-muted) 1.4px, transparent 1.6px);
-	background-repeat: repeat-x;
-	background-size: 7px 3px;
+	inset: 0;
 	z-index: 0;
+	overflow: visible;
+	pointer-events: none;
 }
-/* Senkrechter Eck-Verbinder zur naechsten Zeile (Schlaengel-Umbruch): an der End-Seite der Zeile --
-   rechts bei Vorwaerts-Zeilen (1./3./…), links bei umgekehrten (2./4./…). */
-.avesmaps-infopanel__routeline-row.has-bend::after {
-	content: "";
-	position: absolute;
-	top: 7.5px;
-	height: calc(100% + 16px);
-	width: 3px;
-	background-image: radial-gradient(circle, var(--color-text-muted) 1.4px, transparent 1.6px);
-	background-repeat: repeat-y;
-	background-size: 3px 7px;
-	z-index: 0;
-}
-.avesmaps-infopanel__routeline-row.has-bend:nth-child(odd)::after {
-	right: calc(100% / (var(--cols, 3) * 2));
-}
-.avesmaps-infopanel__routeline-row.has-bend:nth-child(even)::after {
-	left: calc(100% / (var(--cols, 3) * 2));
+.avesmaps-infopanel__routeline-svg path {
+	fill: none;
+	stroke: var(--color-text-muted);
+	stroke-width: 3;
+	stroke-linecap: round;
+	stroke-dasharray: 0.1 7;
 }
 .avesmaps-infopanel__station {
 	position: relative;

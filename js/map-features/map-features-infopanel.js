@@ -85,6 +85,9 @@
 	// Name des aktuell angezeigten Features -> markiert den passenden Wegpunkt-Tab als aktiv (leer,
 	// wenn das Feature kein Wegpunkt ist -> transiente Ansicht ohne aktiven Tab).
 	var currentTabActive = "";
+	// ResizeObserver, der den gemessenen Reise-Linien-SVG-Pfad bei Breitenaenderung des Panels neu zeichnet
+	// (einmalig in renderTabs angehaengt).
+	var routeLineObserver = null;
 	// Zaehler, der bei JEDEM Feature-Anzeigen (avesmapsShowInfopanel mit Inhalt) steigt. Der Leerklick-
 	// Detektor (unten) vergleicht ihn vor/nach einem Karten-Klick: bleibt er gleich, wurde nichts
 	// getroffen -> Leerklick.
@@ -145,6 +148,52 @@
 	// Baut die Tab-Leiste aus den AKTUELLEN Wegpunkten (getWaypointInputValues, visuelle Reihenfolge).
 	// Doppelte Namen (z. B. Rundreise A->B->A) werden zusammengefasst. Der Tab, dessen Name dem gerade
 	// angezeigten Feature entspricht, ist aktiv.
+	// Zeichnet den durchgehenden gepunkteten Reise-Pfad als SVG HINTER die Stationen: verbindet die
+	// Perlen-Mitten in Reihenfolge -- waagerecht innerhalb einer Zeile, beim Zeilenwechsel ueber 2
+	// rechtwinklige Ecken durch die Luecke (runter, quer, runter). Die opaken Perlen maskieren die Linie an
+	// ihrer Stelle. Gemessen (statt CSS), weil der 2-Ecken-Umweg von den echten Perlen-Positionen abhaengt.
+	function drawRouteLinePath() {
+		var old = tabs.querySelector(".avesmaps-infopanel__routeline-svg");
+		if (old && old.parentNode) {
+			old.parentNode.removeChild(old);
+		}
+		var dots = tabs.querySelectorAll(".avesmaps-infopanel__station-dot");
+		var width = tabs.clientWidth;
+		var height = tabs.clientHeight;
+		if (dots.length < 2 || width < 10) {
+			return;
+		}
+		var base = tabs.getBoundingClientRect();
+		var pts = [];
+		for (var i = 0; i < dots.length; i += 1) {
+			var r = dots[i].getBoundingClientRect();
+			pts.push({ x: r.left - base.left + r.width / 2, y: r.top - base.top + r.height / 2 });
+		}
+		var d = "M " + pts[0].x.toFixed(1) + " " + pts[0].y.toFixed(1);
+		for (var j = 1; j < pts.length; j += 1) {
+			var a = pts[j - 1];
+			var b = pts[j];
+			if (Math.abs(a.y - b.y) < 4) {
+				d += " H " + b.x.toFixed(1); // gleiche Zeile -> waagerecht
+			} else {
+				// Zeilenwechsel: runter in die Luecke (dicht ueber die naechste Perle), quer, dann runter.
+				var turnY = (b.y - 11).toFixed(1);
+				d += " V " + turnY + " H " + b.x.toFixed(1) + " V " + b.y.toFixed(1);
+			}
+		}
+		var NS = "http://www.w3.org/2000/svg";
+		var svg = document.createElementNS(NS, "svg");
+		svg.setAttribute("class", "avesmaps-infopanel__routeline-svg");
+		svg.setAttribute("width", width);
+		svg.setAttribute("height", height);
+		svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+		svg.setAttribute("aria-hidden", "true");
+		var path = document.createElementNS(NS, "path");
+		path.setAttribute("d", d);
+		svg.appendChild(path);
+		tabs.insertBefore(svg, tabs.firstChild);
+	}
+
 	function renderTabs() {
 		var names = (typeof getWaypointInputValues === "function") ? getWaypointInputValues() : [];
 		var seen = {};
@@ -216,21 +265,23 @@
 			station.appendChild(labelrow);
 			return station;
 		}
-		for (var rowStart = 0, rowIdx = 0; rowStart < unique.length; rowStart += PER_ROW, rowIdx += 1) {
+		for (var rowStart = 0; rowStart < unique.length; rowStart += PER_ROW) {
 			var rowNames = unique.slice(rowStart, rowStart + PER_ROW);
 			var rowEl = document.createElement("div");
 			rowEl.className = "avesmaps-infopanel__routeline-row";
 			rowEl.style.setProperty("--cols", String(rowNames.length));
-			if (rowIdx % 2 === 1) {
-				rowEl.classList.add("is-reversed");
-			}
-			if (rowStart + PER_ROW < unique.length) {
-				rowEl.classList.add("has-bend");
-			}
 			rowNames.forEach(function (name) {
 				rowEl.appendChild(buildStation(name));
 			});
 			tabs.appendChild(rowEl);
+		}
+		// Den durchgehenden gepunkteten Pfad NACH dem Layout zeichnen (Perlen-Mitten messen): in jeder Zeile
+		// waagerecht, beim Zeilenwechsel ueber 2 rechtwinklige Ecken durch die Luecke (runter -> quer ->
+		// runter). Jede Zeile laeuft L->R (Owner-Wahl gegen den Schlaengel). Neu bei Breitenaenderung.
+		drawRouteLinePath();
+		if (!routeLineObserver && typeof ResizeObserver !== "undefined") {
+			routeLineObserver = new ResizeObserver(function () { drawRouteLinePath(); });
+			routeLineObserver.observe(tabs);
 		}
 		// Leiste nur zeigen, wenn es Wegpunkte gibt; ERST die Ueberlauf-Pfeile ein-/ausblenden (das aendert
 		// die Breite der Reiter-Leiste), DANN den aktiven Reiter in den nun finalen Bereich scrollen.
