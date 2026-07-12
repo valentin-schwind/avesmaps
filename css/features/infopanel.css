@@ -530,7 +530,8 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    Linie darunter (Doppel-Trenner). Oben also KEINEN Trenner (Kopf-Trenner + dessen margin-bottom traegt
    die obere Trennung); UNTER den Kacheln dagegen einen randlosen Trenner (Owner: "trenner darunter"),
    der die Button-Sektion zwischen Kopf und Daten sauber abrahmt. */
-.avesmaps-infopanel .location-popup__header + .location-popup__actions {
+.avesmaps-infopanel .location-popup__header + .location-popup__actions,
+.avesmaps-infopanel .region-info-box__header + .location-popup__actions {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;

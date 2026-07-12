@@ -24,25 +24,28 @@ function pathWikiInfoboxMarkup(path) {
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
 		? renderFeatureSourceLine("path", getPathPublicId(path), wiki.wiki_url || "", "location-popup__wiki-link")
 		: "";
-	// "Link teilen" nur wenn ein Wiki-Artikel verlinkt ist (Wege sind nicht ueber ?place= aufloesbar --
-	// applyPlaceFocusFromUrl kennt keine Wege). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst
-	// "strasse" (js/app/wiki-deeplink.js). Gleiches Markup/Klick-Handling wie Orts-Popups (Task 13,
-	// sharePlaceActionButtonMarkup in js/ui/popups.js) -> identisches Kopier-/Toast-Verhalten.
-	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-	const wikiParam = (pathSubtype === "Flussweg" || pathSubtype === "Seeweg") ? "fluss" : "strasse";
-	const shareButton = wiki.wiki_url
-		? sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam })
-		: "";
-	const shareMarkup = shareButton ? locationPopupActionsMarkup([shareButton]) : "";
 	// Kopflos (Name + Typ zeigt der Popup-Kopf schon) + gleiche Klasse wie Siedlungen -> erbt
-	// Trenner/Breite/Padding der .settlement-popup-Styles.
+	// Trenner/Breite/Padding der .settlement-popup-Styles. Der "Link teilen"-Button lebt (Owner) NICHT mehr
+	// hier am Ende, sondern direkt unter dem Kopf -- createPathPopupMarkup setzt ihn via pathShareMarkup davor.
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}</dl>` +
 		sourceMarkup +
-		shareMarkup +
 		"</div>"
 	);
+}
+
+// "Link teilen"-Leiste eines Weges -- separat, damit createPathPopupMarkup sie (Owner) direkt unter den
+// Kopf setzen kann statt ans Ende der Infobox. Nur bei verlinktem Wiki-Artikel (Wege sind nicht ueber
+// ?place= aufloesbar). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst "strasse" (wiki-deeplink.js).
+function pathShareMarkup(path) {
+	const wiki = (path.properties && path.properties.wiki_path) || {};
+	if (!wiki.wiki_url) {
+		return "";
+	}
+	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const wikiParam = (pathSubtype === "Flussweg" || pathSubtype === "Seeweg") ? "fluss" : "strasse";
+	return locationPopupActionsMarkup([sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam })]);
 }
 
 // Kopf-Icon fuer den Weg-Kopf (Owner: einheitlicher grosser Kopf -- Wege haben kein Wappen, bekommen
@@ -101,7 +104,7 @@ function createPathPopupMarkup(path) {
 					"data-public-id": getPathPublicId(path),
 				},
 			}),
-		]) : "") + pathWikiInfoboxMarkup(path),
+		]) : "") + pathShareMarkup(path) + pathWikiInfoboxMarkup(path),
 	});
 }
 
