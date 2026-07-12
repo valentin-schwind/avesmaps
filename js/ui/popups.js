@@ -501,32 +501,47 @@ function buildSettlementPoliticalLineMarkup(political) {
 	const publicId = String(political.territory_public_id || "").trim();
 	let label;
 	if (political.kind === "capital") {
-		label = `${tr("popup.capitalPrefix", "Hauptstadt")} ${germanCapitalOfPhrase(name)}`;
+		label = `${tr("popup.capitalPrefix", "Hauptstadt")} ${germanCapitalPhrase(name, political.type)}`;
 	} else {
-		// "<Rang> <Name>" (e.g. "Baronie Vierok"); avoid "Baronie Baronie Vierok" if the name already
-		// carries the rank.
-		const type = String(political.type || "").trim();
-		label = (type !== "" && !name.toLowerCase().startsWith(type.toLowerCase()))
-			? `${type} ${name}`
-			: name;
+		// The territory NAME already carries its rank ("Baronie Vierok", "Stadtmark Havena") -> use it
+		// as-is; prepending the type would double the rank word.
+		label = name;
 	}
 	return `<button type="button" class="location-popup__political-link" `
 		+ `data-political-territory="${escapeHtml(name)}" data-political-public-id="${escapeHtml(publicId)}">`
 		+ `${escapeHtml(label)}</button>`;
 }
 
-// Best-effort German genitive for "Hauptstadt <…>". Handles the common realm endings well
-// (des Mittelreichs, des Bornlands, der Grafschaft …) and falls back to the always-grammatical
-// "von <Name>" for anything unexpected -- the owner verifies wording live and can refine here.
-function germanCapitalOfPhrase(name) {
-	const n = String(name || "").trim();
-	if (/reich$/i.test(n) || /(land|tum)$/i.test(n)) {
-		return `des ${n}s`;
+// Builds the genitive phrase after "Hauptstadt": "des Kaiserreichs", "der Stadtmark Havena", "des
+// Fürstentums Almada", "des Bornlands". Territory NAMES are formal and sometimes very long ("Heiliges
+// Neues Kaiserreich vom Greifenthron zu Gareth") -> for an over-long name fall back to the cleaned rank
+// TYPE ("Kaiserreich") so the line stays short. Best-effort German inflection; the owner refines live.
+function germanCapitalPhrase(name, type) {
+	const fullName = String(name || "").trim();
+	const cleanType = String(type || "").split(/[(,]/)[0].trim();
+	// Prefer the proper name when it is short enough to read inline; otherwise the rank type.
+	const base = (fullName.length > 0 && fullName.length <= 30) ? fullName : (cleanType || fullName);
+	return germanGenitivePhrase(base);
+}
+
+// Prefixes a noun phrase with its genitive article, inflecting the leading (head) noun's -s where
+// needed. Heuristic over the common Aventurian rank words; falls back to the always-grammatical "von".
+function germanGenitivePhrase(phrase) {
+	const value = String(phrase || "").trim();
+	if (value === "") {
+		return "";
 	}
-	if (/(ei|ie|schaft|mark)$/i.test(n)) {
-		return `der ${n}`;
+	const first = value.split(/\s+/)[0];
+	// Feminine rank words -> "der <phrase>".
+	if (/(ei|ie|schaft|mark|publik|provinz|herrschaft|komturei)$/i.test(first)) {
+		return `der ${value}`;
 	}
-	return `von ${n}`;
+	// Masculine/neuter rank words -> "des <phrase>" with genitive -s on the head noun.
+	if (/(reich|land|tum|at|gau|berg|tal|stein|fels)$/i.test(first)) {
+		const head = /s$/i.test(first) ? first : `${first}s`;
+		return `des ${head}${value.slice(first.length)}`;
+	}
+	return `von ${value}`;
 }
 
 function locationPopupMarkup({
