@@ -159,31 +159,37 @@
 		});
 		tabs.innerHTML = "";
 		unique.forEach(function (name, idx) {
-			// Trenner "›" zwischen den Pillen -> macht klar, dass es die Reiseroute ist.
+			// Reise-Linie: gestrichelter Verbinder zwischen den Stationen -> macht die Reiseroute sichtbar
+			// (greift die gestrichelte Routen-Linie auf der Karte auf).
 			if (idx > 0) {
-				var sep = document.createElement("span");
-				sep.className = "avesmaps-infopanel__tab-sep";
-				sep.setAttribute("aria-hidden", "true");
-				sep.textContent = "›";
-				tabs.appendChild(sep);
+				var conn = document.createElement("span");
+				conn.className = "avesmaps-infopanel__routeconn";
+				conn.setAttribute("aria-hidden", "true");
+				tabs.appendChild(conn);
 			}
-			var pill = document.createElement("span");
-			pill.className = "avesmaps-infopanel__tab";
+			// Eine Station: Perle oben, Name (+ "✕") darunter. Aktive Station wird per is-active hervorgehoben.
+			var station = document.createElement("div");
+			station.className = "avesmaps-infopanel__station";
 			if (name === currentTabActive) {
-				pill.classList.add("is-active");
+				station.classList.add("is-active");
 			}
+			var dot = document.createElement("span");
+			dot.className = "avesmaps-infopanel__station-dot";
+			dot.setAttribute("aria-hidden", "true");
+			var labelrow = document.createElement("span");
+			labelrow.className = "avesmaps-infopanel__station-labelrow";
 			var label = document.createElement("button");
 			label.type = "button";
-			label.className = "avesmaps-infopanel__tab-label";
+			label.className = "avesmaps-infopanel__station-label";
 			label.textContent = name;
 			label.title = name;
 			label.addEventListener("click", function () {
 				openWaypointInPanel(name);
 			});
-			// Kleines "x": entfernt diesen Wegpunkt aus der Route.
+			// Kleines "x": entfernt diesen Wegpunkt aus der Route (auch die aktive/erste Station).
 			var remove = document.createElement("button");
 			remove.type = "button";
-			remove.className = "avesmaps-infopanel__tab-remove";
+			remove.className = "avesmaps-infopanel__station-remove";
 			remove.setAttribute("aria-label", "Wegpunkt entfernen");
 			remove.title = "Wegpunkt entfernen";
 			remove.textContent = "✕";
@@ -191,9 +197,11 @@
 				event.stopPropagation();
 				removeWaypointByName(name);
 			});
-			pill.appendChild(label);
-			pill.appendChild(remove);
-			tabs.appendChild(pill);
+			labelrow.appendChild(label);
+			labelrow.appendChild(remove);
+			station.appendChild(dot);
+			station.appendChild(labelrow);
+			tabs.appendChild(station);
 		});
 		// Leiste nur zeigen, wenn es Wegpunkte gibt; ERST die Ueberlauf-Pfeile ein-/ausblenden (das aendert
 		// die Breite der Reiter-Leiste), DANN den aktiven Reiter in den nun finalen Bereich scrollen.

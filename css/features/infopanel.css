@@ -52,10 +52,11 @@
 .avesmaps-infopanel__tabs {
 	flex: 1 1 auto;
 	display: flex;
-	align-items: flex-end;
-	gap: 3px;
-	overflow-x: auto;
-	scrollbar-width: none;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	row-gap: 7px;
+	overflow: visible;
+	padding-bottom: 2px;
 }
 .avesmaps-infopanel__tabs::-webkit-scrollbar {
 	display: none;
@@ -149,6 +150,82 @@
 .avesmaps-infopanel__tab-remove:hover {
 	opacity: 1;
 	background: rgba(0, 0, 0, 0.1);
+}
+
+/* ---- Reise-Linie: Wegpunkte als Stationen auf einem gestrichelten Routen-Pfad (Owner-Konzept, ersetzt die
+   Browser-Reiter-Optik). Perle oben, Name darunter; aktive Station = goldene Perle + fetter Name; jede
+   Station traegt ein "✕" (auch die aktive/erste). Der gestrichelte Verbinder waechst zwischen den Perlen;
+   passt nicht alles in eine Zeile, bricht die Leiste um (row-gap) statt zu scrollen. */
+.avesmaps-infopanel__station {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+}
+.avesmaps-infopanel__station-dot {
+	width: 13px;
+	height: 13px;
+	border-radius: 50%;
+	background: var(--color-panel);
+	border: 2px solid var(--color-border-strong);
+	box-sizing: border-box;
+}
+.avesmaps-infopanel__station.is-active .avesmaps-infopanel__station-dot {
+	width: 15px;
+	height: 15px;
+	background: var(--color-link);
+	border: 3px solid var(--color-panel-muted);
+}
+.avesmaps-infopanel__station-labelrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	max-width: 128px;
+}
+.avesmaps-infopanel__station-label {
+	appearance: none;
+	border: none;
+	background: transparent;
+	font: inherit;
+	font-size: 12px;
+	line-height: 1.1;
+	color: var(--color-text-muted);
+	cursor: pointer;
+	padding: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.avesmaps-infopanel__station.is-active .avesmaps-infopanel__station-label {
+	color: var(--color-text-strong);
+	font-weight: 700;
+}
+.avesmaps-infopanel__station-label:hover {
+	color: var(--color-link);
+}
+.avesmaps-infopanel__station-remove {
+	flex: 0 0 auto;
+	appearance: none;
+	border: none;
+	background: transparent;
+	color: var(--color-border-strong);
+	cursor: pointer;
+	font-size: 11px;
+	line-height: 1;
+	padding: 0 1px;
+}
+.avesmaps-infopanel__station-remove:hover {
+	color: var(--color-danger);
+}
+/* Gestrichelter Verbinder zwischen zwei Stationen -- waechst (flex) und liegt auf Perlen-Hoehe. */
+.avesmaps-infopanel__routeconn {
+	flex: 1 1 18px;
+	min-width: 14px;
+	align-self: flex-start;
+	margin-top: 6px;
+	height: 0;
+	border-top: 2px dashed var(--color-border-strong);
 }
 
 /* Ein einziger Scrollbereich fuer die gesamte Info-Spalte (Owner-Vorgabe). */
