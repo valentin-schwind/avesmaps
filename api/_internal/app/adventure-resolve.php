@@ -118,9 +118,14 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                 }
             }
         } elseif ($type === 'region' || ($type === 'label' && $subtype === 'region')) {
-            // True region features AND landscape region-labels: both keep the wiki link in
-            // properties.wiki_url; build the region candidate the same way for either.
+            // Region-labels (Landschaften, e.g. Raschtulswall) keep their wiki link NESTED under
+            // properties.wiki_region.{wiki_url,wiki_key} -- a top-level properties.wiki_url is EMPTY for
+            // every region (that is why regions never resolved). Read the nested link, with a top-level
+            // wiki_url fallback for any true region feature that might carry it directly.
             $wikiUrl = trim((string) ($props['wiki_url'] ?? ''));
+            if ($wikiUrl === '' && isset($props['wiki_region']) && is_array($props['wiki_region'])) {
+                $wikiUrl = trim((string) ($props['wiki_region']['wiki_url'] ?? ''));
+            }
             if ($wikiUrl !== '') {
                 $key = avesmapsPoliticalBuildWikiKey($wikiUrl, $name);
                 if (strncmp($key, 'wiki:', 5) === 0 && !isset($candidates['region'][$key])) {
