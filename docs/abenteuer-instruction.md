@@ -179,6 +179,11 @@ verschachtelten Dialog mit Umschalter.
 
 ## Phase 3 — Editor (C1, iframe-Overlay)
 
+> **P1 (Backend) LIVE** (`ee85439b`). **P2 (Editor-UI) konkrete Spezifikation (Owner-freigegeben
+> 2026-07-12): `docs/abenteuer-editor-ui-spec.md`** — Layout C (3 Spalten), mehrere Startorte, manuelle
+> ▲▼-Reihenfolge, ausgeblendete Grabsteine per Toggle, Editor auf echten Tokens. Referenz-Mockup:
+> `html/adventure-editor-mockup.html`. Die Tasks 3.1–3.4 unten bleiben gültig; die UI-Spec detailliert 3.1.
+
 **Deliverable:** Abenteuer anlegen/bearbeiten, Orte zuordnen, Startort markieren, Orte suppress/hinzufügen —
 alles override-fest; Button unter „Dump holen". **Zusätzlich (Plan-Änderung 2026-07-12): optionale
 editor-gepflegte Questroute** — je Abenteuer/Siedlung eine **intern definierte Ortsfolge** (NICHT aus der
