@@ -154,8 +154,8 @@
 	font-size: 20px;
 }
 .floating-location-popup .location-popup__icon--realistic {
-	width: 56px;
-	height: 56px;
+	width: 50px;
+	height: 50px;
 	object-fit: contain;
 }
 .floating-location-popup .location-popup__icon {
@@ -335,8 +335,8 @@
 }
 .floating-location-popup .location-popup__action-button .location-popup__action-img,
 .avesmaps-infopanel .location-popup__action-button .location-popup__action-img {
-	width: 40px;
-	height: 40px;
+	width: 36px;
+	height: 36px;
 }
 
 .location-popup__action-button:hover,

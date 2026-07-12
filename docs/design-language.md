@@ -106,9 +106,13 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   *and* right panel — the action buttons are **square icon tiles**, not inline
   pills: icon **centred on top**, label **centred below** (`flex-direction: column`
   + centre both axes), fixed size (`width: 90px; min-height: 60px`), label may wrap,
-  the bar wraps to a new row on overflow. Give every icon an **equal fixed slot**
-  (`.location-popup__action-icon` → a centred `26×26` box) so a thin glyph (`+`) and
-  a wide emoji (🔗) read as the same size. Fill hierarchy still holds (main action
+  the bar wraps to a new row on overflow. Icons sit in a centred slot sized to the
+  icon: full-colour **image icons** (the aventurian `img/menu/*.webp` set) render
+  **36×36** (`.location-popup__action-img`); emoji/glyph placeholders keep a smaller
+  box (`.location-popup__action-icon`). The **tile may grow to fit the icon — but keep
+  it moderate** (≈36px icon in the ~90×60 tile); don't oversize the tile chasing a
+  bigger icon. The flex row (`align-items: stretch`) equalises tile heights, so a
+  mixed row (image icon next to a `+`/🔗 placeholder) still lines up. Fill hierarchy still holds (main action
   filled, rest soft); the tile row is framed by dividers (header divider above,
   section divider below). Exception: the inline "Bewertung schreiben" in the rating
   row stays a normal inline button. Impl: `.floating-location-popup` /
