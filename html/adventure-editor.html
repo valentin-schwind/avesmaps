@@ -230,7 +230,18 @@
     return payload;
   }
 
-  function aeEscape(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  // HTML escaper safe for BOTH text and (quoted) attribute context — the values flow into template
+  // strings like value="${aeEscape(v)}" / data-raw="${aeEscape(v)}", so " and ' MUST be encoded too
+  // (textContent->innerHTML would leave quotes raw -> attribute-breakout XSS on e.g. a title with a ").
+  function aeEscape(s) {
+    return (s == null ? "" : String(s))
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/`/g, "&#96;");
+  }
 
   // ============ data layer (P2) ============
   const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne"];
