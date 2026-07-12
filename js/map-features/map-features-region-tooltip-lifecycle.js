@@ -68,6 +68,19 @@ function openRegionCompactTooltip(regionEntry, options = {}) {
 	activeRegionInfoTooltip = tooltip;
 	activeRegionInfoTooltipEntry = regionEntry;
 	tooltip.addTo(map);
+	// Interaktive Klick-Infobox wie ein Leaflet-Popup gegen die Karte isolieren: Popups rufen intern
+	// L.DomEvent.disableClickPropagation, Tooltips NICHT. Ohne das blubbert ein Klick IN der Box (z. B.
+	// die "Publikationen"-Tabs, deren Inline-Handler die Propagation nicht stoppt) bis zum globalen
+	// map.on("click") (bootstrap.js -> closeRegionCompactTooltip) und schliesst die Box, bevor das
+	// Aufklappen sichtbar wird. Nur fuer interaktive Tooltips; Klicks auf den Kartenhintergrund
+	// schliessen die Box weiterhin.
+	if (tooltip.options.interactive) {
+		const tooltipElement = tooltip.getElement();
+		if (tooltipElement) {
+			L.DomEvent.disableClickPropagation(tooltipElement);
+			L.DomEvent.disableScrollPropagation(tooltipElement);
+		}
+	}
 	applyRegionTooltipVerticalFlip(tooltip);
 	enrichRegionTooltipWithWikiDetail(regionEntry, tooltip);
 }
