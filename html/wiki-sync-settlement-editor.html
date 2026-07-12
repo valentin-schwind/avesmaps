@@ -1322,7 +1322,7 @@ function buildSettlementImagesBlockHtml(detail) {
 		? `<div class="dt-img-upload dt-img-upload--full">Maximal ${SETTLEMENT_IMAGES_MAX} Bilder erreicht</div>`
 		: `<div class="dt-img-upload" data-image-upload-trigger="1" role="button" tabindex="0"><span class="dt-img-plus">＋</span>Bild hochladen<span class="dt-img-hint">16:9, wird skaliert &amp; als WebP gespeichert</span></div>`;
 	const dragHint = sortable ? ` <span class="dt-img-drag-hint">· ziehen zum Sortieren</span>` : "";
-	const notice = `<div class="dt-img-notice">Bitte <strong>keine urheberrechtlich geschützten Bilder</strong> verwenden — erlaubt sind ausschließlich <strong>KI-generierte</strong> und <strong>absolut 100 % gemeinfreie</strong> Bilder.</div>`;
+	const notice = `<div class="dt-img-notice">Bitte <strong>keine urheberrechtlich geschützten Bilder</strong> verwenden — erlaubt sind ausschließlich <strong>KI-generierte</strong> und <strong>absolut 100 % gemeinfreie</strong> Bilder. Wir verwenden auch <strong>keine Bilder mit Namensnennung</strong> oder unter sonstigen Lizenzen (CC, GNU, …).</div>`;
 	return `<div class="dt-grp">Bilder <span class="dt-img-count">${images.length} / ${SETTLEMENT_IMAGES_MAX}</span>${dragHint}</div>` +
 		`<div class="dt-img-block">${notice}${upload}${cells ? `<div class="dt-img-grid">${cells}</div>` : ""}</div>`;
 }
