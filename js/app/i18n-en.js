@@ -116,6 +116,7 @@ window.AVESMAPS_I18N_EN = {
 	"popup.removeFromRoute": "Remove destination",
 	"popup.removeFromRouteX": "✕ Remove destination",
 	"popup.writeReview": "Write a review",
+	"popup.suggestChange": "Suggest a change",
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
 	"popup.sharePinName": "Marked spot",
@@ -187,6 +188,12 @@ window.AVESMAPS_I18N_EN = {
 	"report.statusInvalidPosition": "The selected position is invalid.",
 	"report.statusDuplicate": "A location named \"{name}\" already exists.",
 	"report.statusSending": "Sending report...",
+	"report.typeOption.weg": "Path/Road",
+	"report.typeOption.territorium": "Territory",
+	"report.changeTitle": "Suggest a change",
+	"report.changeIntro": "Suggest a change to this element. Describe as precisely as possible what should change. A source helps but is not required.",
+	"report.changeCommentLabel": "What should change? *",
+	"report.changeSourcesLabel": "Sources (optional — regional supplement, adventure, …)",
 
 	// --- location reviews ---
 	"review.dialogTitle": "New review",
