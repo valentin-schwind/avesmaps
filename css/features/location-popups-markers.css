@@ -117,6 +117,20 @@
 	}
 }
 
+/* Floating box (infopanel mode): title + coat/type icon a step larger than the compact popup base
+   (Owner: "etwas groesser") -- between the 16px/34px popup base and the 23px/130px panel size. */
+.floating-location-popup .location-popup__name {
+	font-size: 20px;
+}
+.floating-location-popup .location-popup__icon--coat {
+	width: 52px;
+	height: 52px;
+}
+.floating-location-popup .location-popup__icon {
+	width: 40px;
+	height: 40px;
+}
+
 /* Route-Wegpunkt-Popup traegt zusaetzlich die Klasse settlement-popup (siehe routing.js) und erbt
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
    Infobox -- identisch zum Marker-Popup. Hier nur die Abweichungen. */

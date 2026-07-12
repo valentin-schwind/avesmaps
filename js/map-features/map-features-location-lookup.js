@@ -263,6 +263,11 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 			try { map.panTo(markerEntry.marker.getLatLng()); } catch (error) { /* noop */ }
 		}
 		window.avesmapsShowLocationInInfopanel(markerEntry);
+		// Floating box on the map too (Owner: also when arriving via a shared/deep-link ?siedlung= URL and
+		// via spotlight search -- both route through here; breadcrumb navigation does NOT).
+		if (typeof openFloatingLocationBoxForMarkerEntry === "function") {
+			openFloatingLocationBoxForMarkerEntry(markerEntry);
+		}
 		return true;
 	}
 

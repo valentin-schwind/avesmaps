@@ -184,8 +184,11 @@ function hydrateLocationReviews(slotEl) {
 			}
 			const reviews = Array.isArray(data.reviews) ? data.reviews : [];
 			if (compact) {
-				slotEl.innerHTML = reviewSummaryLinkMarkup(data.average, data.count)
-					+ reviewWriteButtonMarkup(publicId, reviewsName);
+				// Summary-link + "Bewertung schreiben" on ONE row (Owner).
+				slotEl.innerHTML = '<div class="location-reviews__compact-row">'
+					+ reviewSummaryLinkMarkup(data.average, data.count)
+					+ reviewWriteButtonMarkup(publicId, reviewsName)
+					+ "</div>";
 				return;
 			}
 			slotEl.innerHTML = reviewSummaryMarkup(data.average, data.count)

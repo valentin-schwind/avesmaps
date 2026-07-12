@@ -26,12 +26,13 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 	// Multi-source system: ONE source line covers the wiki/other-source either-or that used to live
 	// here -- rendered synchronously from the map-features payload (renderFeatureSourceLine in
 	// js/ui/popups.js resolves this element's approved sources; no lazy fetch, no flash).
-	const settlementSourceMarkup = typeof renderFeatureSourceLine === "function"
-		? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link", { omitPublications: floating })
+	// Floating box (Owner): drop the whole source line ("Quelle: Wiki …") -- it lives in the panel.
+	const settlementSourceMarkup = (typeof renderFeatureSourceLine === "function" && !floating)
+		? renderFeatureSourceLine("settlement", markerEntry.publicId, markerEntry.location.wikiUrl, "location-popup__wiki-link")
 		: "";
 	const settlementInfobox = hasWikiSettlement
-		? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup)
-		: (settlementSourceMarkup || `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`);
+		? settlementWikiInfoboxMarkup(markerEntry.location, settlementSourceMarkup, { floating })
+		: (settlementSourceMarkup || (floating ? "" : `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noSource", "Keine Quelle gefunden"))}</div>`));
 	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
 	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
@@ -210,7 +211,8 @@ function settlementFirstSentence(text) {
 // Infobox aus dem verbundenen Wiki-Siedlungs-Datensatz. Gleiche Struktur/Klassen wie die
 // Herrschaftsgebiete-/Label-Infobox (.region-info-box) -> erbt deren Styles/Abstaende. Wappen
 // nur bei nachweislich freier Lizenz (derzeit ausgeblendet, wie bei Regionen/Wegen).
-function settlementWikiInfoboxMarkup(location, sourceMarkup = "") {
+function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
+	const floating = Boolean(opts && opts.floating);
 	const wiki = location.wikiSettlement || {};
 	const name = wiki.name || location.name || "";
 	const art = String(wiki.art || "").trim();
@@ -228,7 +230,10 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "") {
 	if (wiki.tempel) {
 		rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
 	}
-	rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
+	// Floating box: drop the description row (Owner) -- it's in the panel.
+	if (!floating) {
+		rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
+	}
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht die fertige

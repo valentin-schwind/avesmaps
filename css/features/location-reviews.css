@@ -77,6 +77,21 @@
 	font-size: 11.5px;
 }
 
+/* Floating box: rating summary-link + "Bewertung schreiben" share ONE row (Owner). */
+.location-reviews__compact-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px 10px;
+	flex-wrap: wrap;
+}
+.location-reviews__compact-row .location-reviews__summary {
+	margin-bottom: 0;
+}
+.location-reviews__compact-row .location-reviews__write {
+	margin-top: 0;
+}
+
 /* Compact summary rendered as a LINK (floating map box -> jump to the panel's full reviews). Button
    reset + inherits the flex row from .location-reviews__summary; hover underlines the count. */
 .location-reviews__summary-link {
