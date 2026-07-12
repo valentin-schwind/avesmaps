@@ -239,6 +239,13 @@
 	align-items: center;
 	gap: 3px;
 	max-width: 100%;
+	/* Panel-farbener Halo (auf Name UND "✕" vererbt), damit die gepunktete Reise-Linie dort, wo sie einen
+	   Namen kreuzt (der senkrechte Abzweig unter der letzten Perle einer Zeile), SAUBER um den Text bricht
+	   -- wie die Karten-Labels ueber Wegen/Fluessen. Der Halo liegt ueber dem SVG-Pfad (z-index) und maskiert
+	   die Punkte rund um die Buchstaben. */
+	text-shadow:
+		0 0 4px var(--color-panel), 0 0 4px var(--color-panel),
+		0 0 3px var(--color-panel), 0 0 3px var(--color-panel);
 }
 .avesmaps-infopanel__station-label {
 	font-size: 13.5px;
