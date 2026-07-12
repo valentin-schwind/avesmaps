@@ -446,7 +446,6 @@ routeDataRequest
 		// Datenload erfolgreich war oder nicht (sonst haengt der Balken bei einem Fehler).
 		.finally(() => document.dispatchEvent(new Event("avesmaps:map-ready")));
 
-$("#searchButton").on("click", () => updateMapView());
 $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', () => syncPlannerStateToUrl());
 $("#search").on("input", "#travelHoursPerDay, .waypoint-input", () => syncPlannerStateToUrl());
 

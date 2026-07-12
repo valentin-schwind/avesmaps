@@ -5,8 +5,7 @@
  */
 window.AVESMAPS_I18N_EN = {
 	// --- planner: static chrome (data-i18n) ---
-	"planner.search": "Search",
-	"planner.search.title": "Find route",
+	"planner.addDestination": "Add destination",
 	"planner.addDestination.title": "Add destination",
 	"planner.toggle": "Route planner",
 	"planner.route.fastest": "Fastest route",

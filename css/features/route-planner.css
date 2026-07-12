@@ -100,12 +100,11 @@
 
 .input-options {
 	display: grid;
-	grid-template-columns: 34px minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1fr);
 	gap: 5px;
 }
 
-.input-options button,
-#searchButton {
+.input-options button {
 	min-height: 32px;
 	border: 1px solid var(--color-button-border);
 	border-radius: 8px;
@@ -146,24 +145,20 @@
 
 #inputLocation {
 	position: relative;
-	width: 32px;
-	height: 32px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
 	min-height: 32px;
-	align-self: center;
-	justify-self: center;
-	/* Randlos/ohne Box wie der Wegpunkt-Entfernen-Button (.remove-waypoint). Das "+" wird per CSS
-	   gezeichnet (::before/::after) -> exakt zentriert, unabhaengig von Schriftart-Metriken.
-	   font-size:0 blendet das Text-"+" aus (bleibt fuer Screenreader im DOM). */
-	border: 0;
+	/* Full-width "Ziel hinzufügen" action button (replaces the old icon-only "+" and the removed
+	   "Suche" button). The "+" glyph is still drawn via ::before/::after (crisp, font-metric
+	   independent) but now sits on the LEFT, ahead of the label; the left padding reserves room for
+	   it. Filled-button colours/border/shadow are inherited from `.input-options button`. */
+	padding: 4px 12px 4px 30px;
 	border-radius: var(--radius-md);
-	background: transparent;
-	color: var(--color-text-muted);
-	font-size: 0;
-	line-height: 1;
-	padding: 0;
+	line-height: 1.15;
 	cursor: pointer;
-	box-shadow: none;
-	transition: background 0.12s ease, color 0.12s ease;
 }
 
 #inputLocation::before,
@@ -171,43 +166,36 @@
 	content: "";
 	position: absolute;
 	top: 50%;
-	left: 50%;
+	left: 17px;
 	transform: translate(-50%, -50%);
 	background: currentColor;
 	border-radius: 2px;
 }
 
 #inputLocation::before {
-	width: 18px;
-	height: 3px;
+	width: 12px;
+	height: 2.5px;
 }
 
 #inputLocation::after {
-	width: 3px;
-	height: 18px;
+	width: 2.5px;
+	height: 12px;
 }
 
 #inputLocation:hover,
 #inputLocation:focus-visible {
-	background: var(--color-hover-wash);
-	color: var(--color-text-strong);
-	outline: none;
-}
-
-.input-options button:hover,
-.input-options button:focus-visible,
-#searchButton:hover,
-#searchButton:focus-visible {
 	background: var(--color-button-hover);
 	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22);
 	outline: none;
 	transform: translateY(-1px);
 }
 
-#searchButton:hover,
-#searchButton:focus-visible {
-	border-color: var(--color-text-muted);
-	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22), 0 0 0 2px var(--color-focus);
+.input-options button:hover,
+.input-options button:focus-visible {
+	background: var(--color-button-hover);
+	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22);
+	outline: none;
+	transform: translateY(-1px);
 }
 
 /* Option groups are grouped by a full-bleed divider + heading, not a framed box

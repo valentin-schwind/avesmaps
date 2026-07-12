@@ -247,6 +247,14 @@ function initializeWaypointAutocomplete($input) {
 			scrollWaypointInputIntoView($activeInput);
 			window.requestAnimationFrame(() => fitWaypointAutocompleteMenu($activeInput));
 		},
+		select(event, ui) {
+			// Choosing a suggestion (mouse click or keyboard) commits it as this waypoint and builds the
+			// route right away -- the same effect the removed "Suche" button had. jQuery UI writes
+			// ui.item.value into the field as its default action; we mirror it and defer updateMapView to
+			// the next tick so it reads the committed value.
+			$(event.target).val(ui.item.value);
+			window.setTimeout(() => updateMapView(), 0);
+		},
 	});
 	$input.off("keydown.waypointSearch").on("keydown.waypointSearch", (event) => {
 		if (event.key !== "Enter") {
