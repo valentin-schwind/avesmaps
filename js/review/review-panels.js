@@ -529,6 +529,8 @@ function getReportTypeLabel(report) {
 		suempfe_moore: "Sümpfe/Moore",
 		comment: "Kommentar",
 		sonstiges: "Sonstiges",
+		weg: "Weg/Straße",
+		territorium: "Herrschaftsgebiet",
 	}[reportSubtype] || reportSubtype || "Karteneintrag";
 }
 
