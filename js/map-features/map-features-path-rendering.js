@@ -68,40 +68,59 @@ function createPathPopupMarkup(path) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
-		actionsMarkup: (IS_EDIT_MODE ? locationPopupActionsMarkup([
-			// Fluss-Shortcut: Stroemung direkt am Segment umkehren/festlegen, ohne den
-			// "Weg bearbeiten"-Dialog (weg-weite Wirkung wie die Panel-Buttons).
-			...(pathType === "Flussweg" && typeof pathFlowShortcutLabelFor === "function" ? [popupActionButtonMarkup({
-				label: pathFlowShortcutLabelFor(path),
-				className: "location-popup__action-button--accent",
-				attributes: {
-					"data-popup-action": "flip-river-flow",
-					"data-public-id": getPathPublicId(path),
-				},
-			})] : []),
-			popupActionButtonMarkup({
-				label: "Bearbeiten",
-				attributes: {
-					"data-popup-action": "edit-path-details",
-					"data-public-id": getPathPublicId(path),
-				},
-			}),
-			popupActionButtonMarkup({
-				label: "Verlauf bearbeiten",
-				attributes: {
-					"data-popup-action": "edit-path-geometry",
-					"data-public-id": getPathPublicId(path),
-				},
-			}),
-			popupActionButtonMarkup({
-				label: "Weg löschen",
-				className: "location-popup__action-button--danger",
-				attributes: {
-					"data-popup-action": "delete-path",
-					"data-public-id": getPathPublicId(path),
-				},
-			}),
-		]) : "") + pathWikiInfoboxMarkup(path),
+		actionsMarkup: (function () {
+			const buttons = [];
+			// Community "Änderung vorschlagen" -- paths get a public action band here for the first time.
+			const suggestSpec = typeof buildSuggestChangeButtonSpec === "function"
+				? buildSuggestChangeButtonSpec({
+					entityType: "path",
+					entityId: getPathPublicId(path),
+					name: pathName,
+					reportType: "weg",
+					label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderung vorschlagen") : "Änderung vorschlagen"),
+				})
+				: null;
+			if (suggestSpec) {
+				buttons.push(popupActionButtonMarkup(suggestSpec));
+			}
+			if (IS_EDIT_MODE) {
+				// Fluss-Shortcut: Stroemung direkt am Segment umkehren/festlegen, ohne den
+				// "Weg bearbeiten"-Dialog (weg-weite Wirkung wie die Panel-Buttons).
+				if (pathType === "Flussweg" && typeof pathFlowShortcutLabelFor === "function") {
+					buttons.push(popupActionButtonMarkup({
+						label: pathFlowShortcutLabelFor(path),
+						className: "location-popup__action-button--accent",
+						attributes: {
+							"data-popup-action": "flip-river-flow",
+							"data-public-id": getPathPublicId(path),
+						},
+					}));
+				}
+				buttons.push(popupActionButtonMarkup({
+					label: "Bearbeiten",
+					attributes: {
+						"data-popup-action": "edit-path-details",
+						"data-public-id": getPathPublicId(path),
+					},
+				}));
+				buttons.push(popupActionButtonMarkup({
+					label: "Verlauf bearbeiten",
+					attributes: {
+						"data-popup-action": "edit-path-geometry",
+						"data-public-id": getPathPublicId(path),
+					},
+				}));
+				buttons.push(popupActionButtonMarkup({
+					label: "Weg löschen",
+					className: "location-popup__action-button--danger",
+					attributes: {
+						"data-popup-action": "delete-path",
+						"data-public-id": getPathPublicId(path),
+					},
+				}));
+			}
+			return buttons.length ? locationPopupActionsMarkup(buttons) : "";
+		})() + pathWikiInfoboxMarkup(path),
 	});
 }
 

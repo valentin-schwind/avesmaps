@@ -788,6 +788,21 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "suggest-change") {
+		if (typeof openChangeSuggestionDialog === "function") {
+			openChangeSuggestionDialog({
+				entityType: this.dataset.entityType || "",
+				entityId: this.dataset.entityId || "",
+				name: this.dataset.name || "",
+				reportType: this.dataset.reportType || "sonstiges",
+				size: this.dataset.size || "",
+				lat: this.dataset.lat || "",
+				lng: this.dataset.lng || "",
+			});
+		}
+		return;
+	}
+
 	if (action === "write-review") {
 		const publicId = this.dataset.publicId;
 		const locationName = this.dataset.locationName || "";
