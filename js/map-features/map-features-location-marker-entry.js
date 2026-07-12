@@ -78,10 +78,18 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		&& markerEntry.location && markerEntry.location.political)
 		? buildSettlementHierarchyMarkup(markerEntry.location.political.hierarchy)
 		: "";
+	// Owner: the full (panel) settlement infobox gets the 16:9 header image (Metropole for now; more
+	// settlement graphics to follow); the slim floating box keeps the realistic-size icon. In panel mode
+	// locationPopupMarkup replaces the WHOLE icon+type header, so the political-context line (typeSuffixMarkup)
+	// drops out here -- the "Liegt in" breadcrumb below already carries the territory chain.
+	const settlementHeaderImg = (!floating && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof infoHeaderImageMarkup === "function")
+		? infoHeaderImageMarkup(settlementHeaderImageBasename(markerEntry.locationType), markerEntry.name, typeLabel)
+		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,
 		locationType: markerEntry.locationType,
 		locationTypeLabel: typeLabel,
+		headerImageMarkup: settlementHeaderImg,
 		headerIconMarkup: coatIconMarkup,
 		description: markerEntry.location.description,
 		wikiUrl: markerEntry.location.wikiUrl,
