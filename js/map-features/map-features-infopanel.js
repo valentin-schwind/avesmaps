@@ -49,6 +49,34 @@
 	panel.appendChild(tabsbar);
 	panel.appendChild(body);
 
+	// Lightbox: eigene Header-Bilder (mehrere) per < > durchblaettern. Delegation auf dem Panel-Body, damit
+	// der Handler ueber alle kuenftigen Panel-Inhalte hinweg gilt (body.innerHTML wird je Feature neu gesetzt).
+	body.addEventListener("click", function (event) {
+		var nav = event.target && event.target.closest ? event.target.closest("[data-lb-nav]") : null;
+		if (!nav) {
+			return;
+		}
+		var header = nav.closest(".info-header");
+		if (!header) {
+			return;
+		}
+		var imgs = String(header.getAttribute("data-lb-images") || "").split("|").filter(Boolean);
+		if (imgs.length < 2) {
+			return;
+		}
+		var idx = parseInt(header.getAttribute("data-lb-index") || "0", 10) || 0;
+		idx = (idx + (nav.getAttribute("data-lb-nav") === "next" ? 1 : -1) + imgs.length) % imgs.length;
+		header.setAttribute("data-lb-index", String(idx));
+		var img = header.querySelector(".info-header__img");
+		if (img) {
+			img.setAttribute("src", imgs[idx]);
+		}
+		var dots = header.querySelectorAll(".info-header__dot");
+		for (var i = 0; i < dots.length; i += 1) {
+			dots[i].classList.toggle("is-on", i === idx);
+		}
+	});
+
 	// "‹ ›" scrollen die Reiter-Leiste; .has-overflow (JS) blendet die Pfeile nur bei Ueberlauf ein.
 	function updateTabsNav() {
 		var overflow = tabs.scrollWidth > tabs.clientWidth + 1;

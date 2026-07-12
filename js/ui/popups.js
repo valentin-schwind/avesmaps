@@ -248,13 +248,28 @@ function pathHeaderImageBasename(pathSubtype) {
 // Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
 // icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art). coatMarkup
 // (Owner): vorhandenes Wappen liegt 70x70 im Overlay links vom Titel (dekorativ, ueber dem Bild).
-function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup) {
-	const src = `icons/header/${imageBasename}.webp`;
+function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownImages) {
+	// Eigene Editor-Bilder (properties.images) ueberschreiben das generische Header-Bild; mehrere werden
+	// als Lightbox durchgeblaettert (< > + Dots, JS in map-features-infopanel.js). Ohne eigene Bilder das
+	// generische icons/header/<basename>.webp.
+	const own = Array.isArray(ownImages) ? ownImages.filter((u) => typeof u === "string" && u.trim() !== "") : [];
+	const multi = own.length > 1;
+	const firstSrc = own.length ? own[0] : withAssetVersion(`icons/header/${imageBasename}.webp`);
 	const sub = subtitle ? `<div class="info-header__subtitle">${escapeHtml(subtitle)}</div>` : "";
 	const coat = coatMarkup ? `<div class="info-header__coat">${coatMarkup}</div>` : "";
-	return '<div class="info-header">'
-		+ `<img class="info-header__img" src="${escapeHtml(withAssetVersion(src))}" alt="" width="800" height="450" decoding="async">`
+	const nav = multi
+		? '<button type="button" class="info-header__nav info-header__nav--prev" data-lb-nav="prev" aria-label="Vorheriges Bild">‹</button>'
+			+ '<button type="button" class="info-header__nav info-header__nav--next" data-lb-nav="next" aria-label="Nächstes Bild">›</button>'
+		: "";
+	const dots = multi
+		? `<div class="info-header__dots">${own.map((_, i) => `<span class="info-header__dot${i === 0 ? " is-on" : ""}"></span>`).join("")}</div>`
+		: "";
+	const lbAttrs = own.length ? ` data-lb-images="${escapeHtml(own.join("|"))}" data-lb-index="0"` : "";
+	return `<div class="info-header"${lbAttrs}>`
+		+ `<img class="info-header__img" src="${escapeHtml(firstSrc)}" alt="" width="800" height="450" decoding="async">`
+		+ nav
 		+ `<div class="info-header__overlay">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div></div>`
+		+ dots
 		+ '</div>';
 }
 

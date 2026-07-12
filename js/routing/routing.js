@@ -77,6 +77,8 @@ const prepareLocationData = (data) => {
 				// territory_public_id} or absent. Rendered under the settlement type in the infobox.
 				political: feature.properties.political || null,
 				coat: feature.properties.coat || null,
+				// Eigene Editor-Bilder (Owner) -- ueberschreiben das generische Header-Bild; Lightbox im Infopanel.
+				images: Array.isArray(feature.properties.images) ? feature.properties.images : [],
 				isNodix: Boolean(feature.properties.is_nodix),
 				isRuined: Boolean(feature.properties.is_ruined),
 				revision: Number(feature.properties.revision) || null,

@@ -156,6 +156,54 @@
 	font-weight: 500;
 	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
 }
+/* Lightbox-Navigation (Owner): eigene Bilder mit < > durchblaettern + Dots. Nur bei mehreren Bildern. */
+.info-header__nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 3;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	cursor: pointer;
+	color: #fff;
+	font-size: 19px;
+	line-height: 1;
+	background: rgba(24, 18, 12, 0.46);
+	display: grid;
+	place-items: center;
+	transition: background 0.12s;
+}
+.info-header__nav:hover,
+.info-header__nav:focus-visible { background: rgba(24, 18, 12, 0.74); outline: none; }
+.info-header__nav--prev { left: 8px; }
+.info-header__nav--next { right: 8px; }
+.info-header__dots {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 5px;
+	z-index: 3;
+	display: flex;
+	gap: 5px;
+	justify-content: center;
+	pointer-events: none;
+}
+.info-header__dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.5);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	transition: width 0.15s, background 0.15s;
+}
+.info-header__dot.is-on {
+	width: 15px;
+	border-radius: 3px;
+	background: #fff;
+}
 /* Floating popup (settlement-popup padding 12/14): pull the image to all three top edges. */
 .settlement-popup .info-header,
 .floating-location-popup .info-header {

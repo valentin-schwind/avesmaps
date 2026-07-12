@@ -84,7 +84,8 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 	// drops out here -- the "Liegt in" breadcrumb below already carries the territory chain.
 	const settlementHeaderImg = (!floating && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof infoHeaderImageMarkup === "function")
 		? infoHeaderImageMarkup(settlementHeaderImageBasename(markerEntry.locationType), markerEntry.name, typeLabel,
-			typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "")
+			typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "",
+			markerEntry.location.images)
 		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,
