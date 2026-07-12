@@ -492,11 +492,15 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    (Body-Padding oben + seitlich aufheben). Titel-Overlay auf das Panel-Padding einruecken, damit der Titel
    mit den Daten darunter fluchtet. */
 .avesmaps-infopanel .info-header {
-	margin: calc(-1 * var(--space-12)) calc(-1 * var(--infopanel-pad-x)) 12px;
+	margin: calc(-1 * var(--space-12)) calc(-1 * var(--infopanel-pad-x)) 0;
 }
-.avesmaps-infopanel .info-header__overlay {
+/* Titelzeile unter dem Bild auf das Panel-Padding einruecken (fluchtet mit den Daten darunter); der
+   Trenner zwischen Titel und Buttons kommt aus der Aktionsleisten-Regel weiter unten. */
+.avesmaps-infopanel .info-header__caption {
 	padding-left: var(--infopanel-pad-x);
 	padding-right: var(--infopanel-pad-x);
+	padding-top: 10px;
+	padding-bottom: 11px;
 }
 /* The reset above (padding:0) is meant for territory/region boxes. But the settlement attribute table is
    ALSO in the full-bleed list (margin -18 + padding 18); padding:0 overrode that and pushed its dt/dd 18px
@@ -541,11 +545,21 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    die obere Trennung); UNTER den Kacheln dagegen einen randlosen Trenner (Owner: "trenner darunter"),
    der die Button-Sektion zwischen Kopf und Daten sauber abrahmt. */
 .avesmaps-infopanel .location-popup__header + .location-popup__actions,
-.avesmaps-infopanel .region-info-box__header + .location-popup__actions,
-.avesmaps-infopanel .info-header + .location-popup__actions {
+.avesmaps-infopanel .region-info-box__header + .location-popup__actions {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;
+	padding-bottom: 12px;
+	margin-bottom: 12px;
+	border-bottom: 1px solid var(--color-divider);
+}
+/* Der Bild-Header (.info-header) hat -- anders als die Text-Koepfe oben -- KEINEN eigenen border-bottom.
+   Also traegt hier die Aktionsleiste selbst beide Trenner: einen ZWISCHEN Titel und Kacheln (Owner) und
+   einen darunter, der die Button-Sektion wie bei Regionen/Territorien sauber abrahmt. */
+.avesmaps-infopanel .info-header + .location-popup__actions {
+	margin-top: 0;
+	padding-top: 11px;
+	border-top: 1px solid var(--color-divider);
 	padding-bottom: 12px;
 	margin-bottom: 12px;
 	border-bottom: 1px solid var(--color-divider);

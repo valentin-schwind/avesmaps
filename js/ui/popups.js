@@ -265,11 +265,15 @@ function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownIm
 		? `<div class="info-header__dots">${own.map((_, i) => `<span class="info-header__dot${i === 0 ? " is-on" : ""}"></span>`).join("")}</div>`
 		: "";
 	const lbAttrs = own.length ? ` data-lb-images="${escapeHtml(own.join("|"))}" data-lb-index="0"` : "";
+	// Bild oben (Lightbox-Nav + Dots liegen darauf), Wappen + Titel DARUNTER (Owner: Blick aufs Bild frei
+	// halten -- kein verdeckendes Overlay mehr). Ein Trenner folgt via CSS zwischen Titel und Buttons.
 	return `<div class="info-header"${lbAttrs}>`
+		+ `<div class="info-header__media">`
 		+ `<img class="info-header__img" src="${escapeHtml(firstSrc)}" alt="" width="800" height="450" decoding="async">`
 		+ nav
-		+ `<div class="info-header__overlay">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div></div>`
 		+ dots
+		+ `</div>`
+		+ `<div class="info-header__caption">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div></div>`
 		+ '</div>';
 }
 
