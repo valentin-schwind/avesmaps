@@ -159,6 +159,37 @@
 	width: 40px;
 	height: 40px;
 }
+/* Schwebende Box (Owner-Mockup): die Aktions-Buttons werden quadratische Icon-Kacheln -- Icon oben,
+   Label darunter, beides zentriert (im Mockup fehlte genau die Zentrierung). Feste Kachelgroesse, die
+   Leiste bricht bei mehr als einer Reihe um. Forward-kompatibel: kommen "Karten"/"Abenteuer" als weitere
+   .location-popup__action-button dazu, sind sie automatisch Kacheln. Fuellhierarchie (Hauptaktion accent)
+   bleibt erhalten. */
+.floating-location-popup .location-popup__actions {
+	gap: 8px;
+}
+.floating-location-popup .location-popup__action-button {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	width: 90px;
+	min-height: 60px;
+	padding: 8px 6px;
+	text-align: center;
+	white-space: normal;
+	line-height: 1.15;
+}
+.floating-location-popup .location-popup__action-button .location-popup__action-icon {
+	font-size: 18px;
+}
+/* Bewertungszeile: "Bewertung schreiben" bleibt ein normaler inline-Button, KEINE Kachel. */
+.floating-location-popup .location-reviews .location-popup__action-button {
+	flex-direction: row;
+	width: auto;
+	min-height: 0;
+	padding: 5px 10px;
+	white-space: nowrap;
+}
 /* Floating box: full-bleed divider ABOVE the rating row too (Owner round-2: two clean dividers --
    header|actions and actions|rating). Same -10px side offset + padding as the slim actions divider so it
    runs edge to edge; the stray inline divider on the nested "Bewertung schreiben" actions stays killed. */
