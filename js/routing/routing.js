@@ -751,6 +751,16 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "show-in-panel") {
+		// "Anzeigen": die volle Info dieser Stadt ins rechte Panel holen + ihren Wegpunkt-Tab aktivieren.
+		const placeName = this.dataset.placeName;
+		const entry = placeName && typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(placeName) : null;
+		if (entry && typeof window.avesmapsShowLocationInInfopanel === "function") {
+			window.avesmapsShowLocationInInfopanel(entry);
+		}
+		return;
+	}
+
 	if (action === "remove-waypoint") {
 		const waypointId = this.dataset.waypointId;
 		if (waypointId) {
@@ -1076,6 +1086,16 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false } = {}) {
 	const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
 
 	const buttons = [];
+	// "Anzeigen" (Sextant): oeffnet die VOLLE Info dieser Stadt im rechten Panel + aktiviert ihren
+	// Wegpunkt-Tab (avesmapsShowLocationInInfopanel setzt markerEntry.name als activeName). Nur im
+	// Panel-Modus sinnvoll (ohne Panel gibt es kein Ziel).
+	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
+		buttons.push(popupActionButtonMarkup({
+			label: tr("popup.showInPanel", "Anzeigen"),
+			iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
+			attributes: { "data-popup-action": "show-in-panel", "data-place-name": loc.name },
+		}));
+	}
 	if (showRemoveAction && loc.waypointId) {
 		buttons.push(popupActionButtonMarkup({
 			label: tr("popup.removeFromRoute", "Reiseziel entfernen"),

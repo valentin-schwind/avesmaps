@@ -28,7 +28,7 @@ function sharePlaceActionButtonMarkup(publicId, { wikiUrl = "", wikiParam = "" }
 		// klein, 40px im Kachel-Slot (Floating-Box/Panel). Das Emoji aus dem Label ziehen (DE/EN tragen es dort
 		// im String), sonst stuende es doppelt. Regex strippt ein fuehrendes 🔗 samt Leerzeichen.
 		label: tr("popup.shareLink", "🔗 Link teilen").replace(/^\s*🔗\s*/u, ""),
-		iconMarkup: '<img class="location-popup__action-img" src="img/menu/linkteilen.webp" alt="" width="20" height="20" />',
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/linkteilen.webp?v=2" alt="" width="20" height="20" />',
 		attributes: {
 			"data-popup-action": "share-place-link",
 			"data-public-id": publicId,
