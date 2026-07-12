@@ -288,6 +288,14 @@
 	   minimal (flex-shrink der Kacheln), statt in eine zweite Reihe zu springen. */
 	flex-wrap: nowrap;
 }
+/* Edit mode adds many more actions (Neuer Weg, Neue Kraftlinie, Ort verschieben/loeschen, Bearbeiten, ...)
+   than the handful in view mode -- 9+ fixed-width tiles overflow the single nowrap row and spill out of the
+   box. In edit mode let the tiles WRAP into further rows so they stay inside the box. View mode keeps the
+   one-row layout above (few tiles, Owner: kein Umbruch). */
+body.edit-mode .floating-location-popup .location-popup__actions,
+body.edit-mode .avesmaps-infopanel .location-popup__actions {
+	flex-wrap: wrap;
+}
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {
 	flex-direction: column;
