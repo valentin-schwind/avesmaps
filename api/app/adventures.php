@@ -9,7 +9,8 @@ declare(strict_types=1);
 // touches still-unresolved places). Phase 3 moves editing to the capability-gated editor and can
 // tighten/remove these bootstrap actions. Envelope = gold contract.
 //
-// GET  /api/app/adventures.php                    -> { ok:true, adventures:[ { ..., places:[...] } ] }
+// GET  /api/app/adventures.php                    -> { ok:true, adventures:[ { ..., places:[...] } ],
+//                                                       territory_meta:{ "wiki:...":{name,rank}, ... } }
 // POST /api/app/adventures.php  {action:"seed"}    -> { ok:true, seeded:N }   (empty catalog only)
 // POST /api/app/adventures.php  {action:"resolve"} -> { ok:true, resolved, unresolved, total }
 
@@ -36,7 +37,8 @@ try {
 
     if ($requestMethod === 'GET') {
         $adventures = avesmapsAdventuresReadCatalog($pdo);
-        avesmapsJsonResponse(200, ['ok' => true, 'adventures' => $adventures]);
+        $territoryMeta = avesmapsAdventuresTerritoryMeta($pdo, $adventures);
+        avesmapsJsonResponse(200, ['ok' => true, 'adventures' => $adventures, 'territory_meta' => $territoryMeta]);
     }
 
     // POST: bootstrap actions.

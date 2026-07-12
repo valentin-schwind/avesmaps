@@ -13,7 +13,7 @@
 // and client normalizeWikiDeeplinkKey (ö->o) can diverge on umlauts, so never rely on the key alone for
 // a settlement that has a public_id.
 
-var avesmapsAdventureCatalogState = { loaded: false, loading: null, catalog: [], index: null };
+var avesmapsAdventureCatalogState = { loaded: false, loading: null, catalog: [], index: null, territoryMeta: {} };
 
 // ---- pure core (exported for Node tests; no window/fetch/DOM) -------------------------------------
 
@@ -46,6 +46,9 @@ function avesmapsNormalizeAdventureKey(key) {
 }
 
 // Catalog adventure -> the render shape place-extras already consumes (title/type/year/yearLabel/cover/url).
+// Phase 2.3 adds the facets the "Alle anzeigen" dialog filters on: official (bool), complexity (Spielleiter
+// preferred, else Spieler), genre. Kept on the SAME shape so the settlement strip and the nested dialog read
+// identical cards.
 function avesmapsAdventureToRenderShape(adventure) {
 	return {
 		public_id: adventure.public_id || "",
@@ -56,6 +59,9 @@ function avesmapsAdventureToRenderShape(adventure) {
 		yearLabel: adventure.bf_label || (adventure.bf_year ? adventure.bf_year + " BF" : ""),
 		cover: adventure.cover_url || "",
 		url: adventure.wiki_url || "",
+		official: adventure.is_official === true || adventure.is_official === 1,
+		complexity: adventure.complexity_gm || adventure.complexity_pl || "",
+		genre: adventure.genre || "",
 	};
 }
 
@@ -145,6 +151,176 @@ function avesmapsSelectAdventureEntries(index, ref, role) {
 	return collected;
 }
 
+// ---- Phase 2.3: nested territory tree (deepest-wins) + dialog filter facets ----------------------
+
+// Prettify a raw 'wiki:<slug>' key into a fallback display name -- ONLY used when territory_meta lacks the
+// key (rare: a path node that is not an active political_territory). The slug is diacritic-stripped, so this
+// is best-effort and never preferred over meta.name.
+function avesmapsAdventurePrettifyKey(rawKey) {
+	var bare = String(rawKey || "").replace(/^wiki:/i, "");
+	if (!bare) {
+		return "";
+	}
+	return bare.split(/[-_]+/).filter(Boolean).map(function (word) {
+		return word.charAt(0).toUpperCase() + word.slice(1);
+	}).join(" ");
+}
+
+// Build the nested subtree of adventures under a clicked territory (server 'wiki:'-key), DEEPEST-WINS:
+// each adventure appears once PER ROLE at the deepest territory node of its (role) assignment inside the
+// clicked subtree. Returns { key, name, rank, start:[shape], play:[shape], children:[node] } or null when
+// the key is empty. Comparison runs on the NORMALIZED key axis (same as byTerritoryPath) so server/client
+// umlaut transliteration cancels out; display name+rank come from territoryMeta (keyed by the raw
+// 'wiki:'-key). Pure (no window/DOM) -> Node-testable.
+function avesmapsBuildAdventureTerritoryTree(catalog, territoryMeta, rootKey, normalizeKey) {
+	var norm = typeof normalizeKey === "function" ? normalizeKey : avesmapsNormalizeAdventureKey;
+	var rootNorm = norm(rootKey);
+	if (!rootNorm) {
+		return null;
+	}
+	var metaByNorm = {};
+	var rawByNorm = {};
+	Object.keys(territoryMeta || {}).forEach(function (rawKey) {
+		var n = norm(rawKey);
+		if (!n) {
+			return;
+		}
+		if (!metaByNorm[n]) {
+			metaByNorm[n] = territoryMeta[rawKey];
+		}
+		if (!rawByNorm[n]) {
+			rawByNorm[n] = rawKey;
+		}
+	});
+	// Keep the RAW path key per normalized node so the fallback name (no meta) is readable (the normalized
+	// node key has diacritics/separators stripped). Meta keys already claimed their slots (first-wins).
+	(catalog || []).forEach(function (adventure) {
+		((adventure && adventure.places) || []).forEach(function (place) {
+			(place.territory_path || []).forEach(function (rawKey) {
+				var n = norm(rawKey);
+				if (n && !rawByNorm[n]) {
+					rawByNorm[n] = rawKey;
+				}
+			});
+		});
+	});
+
+	function makeNode(nkey) {
+		if (!rawByNorm[nkey]) {
+			rawByNorm[nkey] = nkey;
+		}
+		return { key: nkey, _childMap: {}, start: [], play: [], children: [] };
+	}
+	function childOf(node, nkey) {
+		if (!node._childMap[nkey]) {
+			var child = makeNode(nkey);
+			node._childMap[nkey] = child;
+			node.children.push(child);
+		}
+		return node._childMap[nkey];
+	}
+	var root = makeNode(rootNorm);
+
+	(catalog || []).forEach(function (adventure) {
+		if (!adventure || !adventure.public_id) {
+			return;
+		}
+		["start", "play"].forEach(function (role) {
+			// Deepest place of this role whose path contains the root -> one placement per (adventure, role).
+			var bestChain = null; // normalized keys, deepest -> root
+			(adventure.places || []).forEach(function (place) {
+				var placeRole = place.role === "start" ? "start" : "play";
+				if (placeRole !== role) {
+					return;
+				}
+				var path = (place.territory_path || []).map(norm); // deepest -> root
+				var rootIdx = path.indexOf(rootNorm);
+				if (rootIdx < 0) {
+					return;
+				}
+				var chain = path.slice(0, rootIdx + 1); // [deepest, ..., root]
+				if (!bestChain || chain.length > bestChain.length) {
+					bestChain = chain;
+				}
+			});
+			if (!bestChain) {
+				return;
+			}
+			var node = root; // walk root -> deepest (skip the last entry, which is the root itself)
+			for (var i = bestChain.length - 2; i >= 0; i -= 1) {
+				node = childOf(node, bestChain[i]);
+			}
+			node[role].push(avesmapsAdventureToRenderShape(adventure));
+		});
+	});
+
+	(function finalize(node) {
+		var meta = metaByNorm[node.key] || null;
+		node.name = (meta && meta.name) || avesmapsAdventurePrettifyKey(rawByNorm[node.key]) || node.key;
+		node.rank = (meta && meta.rank) || "";
+		delete node._childMap;
+		node.children.sort(function (a, b) {
+			var an = (metaByNorm[a.key] && metaByNorm[a.key].name) || a.key;
+			var bn = (metaByNorm[b.key] && metaByNorm[b.key].name) || b.key;
+			return String(an).localeCompare(String(bn), "de");
+		});
+		node.children.forEach(finalize);
+	})(root);
+
+	return root;
+}
+
+// Distinct filter facets present across a set of render shapes (populates the dialog filter bar). Sorted
+// for a stable UI; empty values dropped.
+function avesmapsAdventureFacetOptions(shapes) {
+	var types = {};
+	var complexities = {};
+	var genres = {};
+	(shapes || []).forEach(function (shape) {
+		if (shape.type) {
+			types[shape.type] = true;
+		}
+		if (shape.complexity) {
+			complexities[shape.complexity] = true;
+		}
+		if (shape.genre) {
+			genres[shape.genre] = true;
+		}
+	});
+	function sorted(map) {
+		return Object.keys(map).sort(function (a, b) {
+			return a.localeCompare(b, "de");
+		});
+	}
+	return { types: sorted(types), complexities: sorted(complexities), genres: sorted(genres) };
+}
+
+// Does a render shape pass the active filter? filter = { types:[]|Set, complexity:"", genre:"", officialOnly:bool }.
+// Empty/absent facets are "no constraint". Kept pure so both the tree render and tests share one predicate.
+function avesmapsAdventureMatchesFilter(shape, filter) {
+	if (!filter || !shape) {
+		return true;
+	}
+	var types = filter.types;
+	if (types) {
+		var size = typeof types.size === "number" ? types.size : (types.length || 0);
+		var has = typeof types.has === "function" ? types.has(shape.type) : (typeof types.indexOf === "function" && types.indexOf(shape.type) >= 0);
+		if (size > 0 && !has) {
+			return false;
+		}
+	}
+	if (filter.complexity && shape.complexity !== filter.complexity) {
+		return false;
+	}
+	if (filter.genre && shape.genre !== filter.genre) {
+		return false;
+	}
+	if (filter.officialOnly && !shape.official) {
+		return false;
+	}
+	return true;
+}
+
 // ---- browser wrappers (window API named by the instruction) --------------------------------------
 
 function avesmapsAdventuresEndpointUrl() {
@@ -157,9 +333,10 @@ function avesmapsAdventuresEndpointUrl() {
 	return ""; // e.g. localhost dev without a backend -> ready-empty, place-extras keeps its fallback
 }
 
-function avesmapsApplyAdventureCatalog(catalog) {
+function avesmapsApplyAdventureCatalog(catalog, territoryMeta) {
 	var state = avesmapsAdventureCatalogState;
 	state.catalog = Array.isArray(catalog) ? catalog : [];
+	state.territoryMeta = (territoryMeta && typeof territoryMeta === "object") ? territoryMeta : {};
 	state.index = avesmapsBuildAdventureIndex(state.catalog, avesmapsNormalizeAdventureKey);
 	state.loaded = true;
 	if (typeof window !== "undefined") {
@@ -176,13 +353,13 @@ function avesmapsLoadAdventureCatalog() {
 		return state.loading;
 	}
 	if (typeof window !== "undefined" && Array.isArray(window.AVESMAPS_ADVENTURE_CATALOG)) {
-		avesmapsApplyAdventureCatalog(window.AVESMAPS_ADVENTURE_CATALOG);
+		avesmapsApplyAdventureCatalog(window.AVESMAPS_ADVENTURE_CATALOG, window.AVESMAPS_ADVENTURE_TERRITORY_META);
 		state.loading = Promise.resolve(state.catalog);
 		return state.loading;
 	}
 	var url = avesmapsAdventuresEndpointUrl();
 	if (!url || typeof fetch !== "function") {
-		avesmapsApplyAdventureCatalog([]);
+		avesmapsApplyAdventureCatalog([], {});
 		state.loading = Promise.resolve(state.catalog);
 		return state.loading;
 	}
@@ -190,7 +367,8 @@ function avesmapsLoadAdventureCatalog() {
 		.then(function (response) { return response && response.ok ? response.json() : null; })
 		.then(function (data) {
 			var catalog = data && data.ok && Array.isArray(data.adventures) ? data.adventures : [];
-			avesmapsApplyAdventureCatalog(catalog);
+			var meta = data && data.territory_meta && typeof data.territory_meta === "object" ? data.territory_meta : {};
+			avesmapsApplyAdventureCatalog(catalog, meta);
 			return state.catalog;
 		})
 		.catch(function () {
@@ -254,6 +432,18 @@ function getAdventuresForTerritory(territoryWikiKey, opts) {
 	});
 }
 
+// Nested territory subtree for the "Alle anzeigen" dialog (Phase 2.3): the deepest-wins tree rooted at
+// territoryWikiKey (server 'wiki:'-form, same axis as territory_path). Returns null when the catalog is not
+// ready or the key is empty. Each node carries name+rank (from territory_meta) and its direct start/play
+// adventure render shapes; the dialog renders nested frames + filter bar from it.
+function getAdventureTerritoryTree(territoryWikiKey) {
+	var state = avesmapsAdventureCatalogState;
+	if (!state.index) {
+		return null;
+	}
+	return avesmapsBuildAdventureTerritoryTree(state.catalog, state.territoryMeta || {}, territoryWikiKey, avesmapsNormalizeAdventureKey);
+}
+
 // All places of one adventure (in sort_order). Returns the raw place objects (general catalog accessor,
 // e.g. for a future editor-defined route). The list order is wiki position, NOT a route.
 function getAdventurePlaces(publicId) {
@@ -273,6 +463,10 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsAdventureToRenderShape: avesmapsAdventureToRenderShape,
 		avesmapsBuildAdventureIndex: avesmapsBuildAdventureIndex,
 		avesmapsSelectAdventureEntries: avesmapsSelectAdventureEntries,
+		avesmapsBuildAdventureTerritoryTree: avesmapsBuildAdventureTerritoryTree,
+		avesmapsAdventureFacetOptions: avesmapsAdventureFacetOptions,
+		avesmapsAdventureMatchesFilter: avesmapsAdventureMatchesFilter,
+		avesmapsAdventurePrettifyKey: avesmapsAdventurePrettifyKey,
 	};
 }
 if (typeof window !== "undefined") {
@@ -280,6 +474,7 @@ if (typeof window !== "undefined") {
 	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
 	window.getAdventuresForPlace = getAdventuresForPlace;
 	window.getAdventuresForTerritory = getAdventuresForTerritory;
+	window.getAdventureTerritoryTree = getAdventureTerritoryTree;
 	window.getAdventurePlaces = getAdventurePlaces;
 	window.avesmapsAdventureCatalogReady = window.avesmapsAdventureCatalogReady || false;
 	// Kick the single catalog fetch as early as possible when in infopanel mode; the popup opens

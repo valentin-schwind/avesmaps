@@ -159,6 +159,50 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
     return $adventures;
 }
 
+// Phase 2.3 -- compact { wiki_key => {name, rank} } lookup for the territory keys that appear in any
+// place's territory_path, so the nested "Alle anzeigen" dialog can label each subtree node with its
+// name + rank (political_territory.type) WITHOUT the client loading the political layer. Only the keys
+// actually referenced are shipped (lean payload); keyed by the RAW 'wiki:'-key exactly as stored in
+// territory_path, so the client looks meta up by the same key it walks. First active row per key wins
+// (timeline variants share a wiki_key; Phase-2 aggregation does not depend on the exact variant).
+function avesmapsAdventuresTerritoryMeta(PDO $pdo, array $adventures): array
+{
+    $keys = [];
+    foreach ($adventures as $adventure) {
+        foreach ($adventure['places'] ?? [] as $place) {
+            foreach ($place['territory_path'] ?? [] as $pathKey) {
+                $pathKey = (string) $pathKey;
+                if ($pathKey !== '') {
+                    $keys[$pathKey] = true;
+                }
+            }
+        }
+    }
+    if ($keys === []) {
+        return [];
+    }
+    $keyList = array_keys($keys);
+    $placeholders = implode(',', array_fill(0, count($keyList), '?'));
+    $statement = $pdo->prepare(
+        "SELECT wiki_key, name, type FROM political_territory
+          WHERE is_active = 1 AND wiki_key IN ($placeholders)
+          ORDER BY id ASC"
+    );
+    $statement->execute($keyList);
+    $meta = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $key = (string) ($row['wiki_key'] ?? '');
+        if ($key === '' || isset($meta[$key])) {
+            continue; // first active row per wiki_key wins
+        }
+        $meta[$key] = [
+            'name' => (string) ($row['name'] ?? ''),
+            'rank' => (string) ($row['type'] ?? ''),
+        ];
+    }
+    return $meta;
+}
+
 // ---- Sample/bootstrap data (Task 1.2) -------------------------------------------------------------
 // Six real DSA adventures with ordered "Ort" lists, defined ONCE here (the CLI tool and the endpoint
 // seed action both call avesmapsAdventuresSeedSamples). These are BOOTSTRAP samples so Phase 1 has
