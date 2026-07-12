@@ -378,6 +378,23 @@ function createLabelMarkerEntry(label) {
 			void saveLabelPosition(entry);
 			setLabelMoveActive(entry, false);
 		});
+		// Infopanel (default): in edit mode the floating box carries the EDIT actions, but the right Info
+		// panel stayed EMPTY for regions -- so the "Info" edge-tab dead-ended (hasContent=false) and could
+		// not be reached. Settlements already fill the panel in edit mode (their DOM-marker popupopen routes
+		// to avesmapsShowInfopanel, gated only on IS_INFOPANEL_MODE). Mirror that here: when the label's
+		// editor popup opens, ALSO fill the panel with the read-only region info. The view-mode branch below
+		// is unreachable in edit mode, which is why this wiring was missing.
+		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
+			&& labelHasWikiRegion(label)
+			&& typeof window.avesmapsShowInfopanel === "function"
+			&& typeof buildRegionLabelViewPopupHtml === "function") {
+			marker.on("popupopen", () => {
+				window.avesmapsShowInfopanel(
+					buildRegionLabelViewPopupHtml(label),
+					label.text || (label.wikiRegion && label.wikiRegion.name) || ""
+				);
+			});
+		}
 	} else if (labelHasWikiRegion(label)) {
 		// Ansichtsmodus: dasselbe Popup wie der Edit-Mode, nur OHNE die Bearbeiten-Buttons -- via den
 		// gemeinsamen Builder, den auch der Deep-Link/Spotlight-Fokus (focusSpotlightLabel) nutzt.
