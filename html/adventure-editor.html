@@ -415,8 +415,8 @@
         <input class="ae-input" id="aeAddName" placeholder="Ortsname (Wiki-Titel) hinzufügen …">
         <select class="ae-select" id="aeAddKind" title="Zieltyp — »automatisch« lässt »Auflösen« den Typ bestimmen">
           <option value="unresolved">Typ: automatisch</option>
-          <option value="settlement">settlement</option><option value="territory">territory</option>
-          <option value="region">region</option><option value="path">path</option></select>
+          <option value="settlement">Siedlung</option><option value="territory">Territorium</option>
+          <option value="region">Region</option><option value="path">Weg</option></select>
         <button class="btn btn--primary" data-act="add">+ Ort</button></div>
       <p class="ae-orte__hint" style="margin:0 0 var(--space-8)">★ = beginnt hier (Spoiler-frei) · übrige = spielt hier (Spoiler) · mehrere Startorte möglich · neuer Ort wird automatisch aufgelöst</p>
       ${approved.length ? approved.map((p, i) => placeRow(p, i === 0, i === approved.length - 1)).join("")
