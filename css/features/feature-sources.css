@@ -1,7 +1,8 @@
 /* Shared multi-source editor widget (mountFeatureSourceEditor / renderFeatureSourceEditorHtml,
    js/review/review-feature-sources.js). Used in the Siedlungseditor detail panel and (phase 2)
-   the on-map "…-edit" dialogs. Explicit colors (no CSS vars) so it renders identically in the
-   parent document AND inside the settlement/territory editor iframes (different var scopes). */
+   the on-map "…-edit" dialogs. Fully tokenised: since the stage-4 theme migration the settlement/
+   sync editor iframes link css/base/tokens.css themselves, so the same vars resolve in the parent
+   document and inside the iframes -- and the widget follows light/dark everywhere. */
 .fs-editor {
 	display: flex;
 	flex-direction: column;
@@ -10,10 +11,10 @@
 .fs-hint {
 	font-size: 11px;
 	line-height: 1.45;
-	color: #6c5a49;
-	background: #fbf4e9;
-	border: 1px solid #e6d7c0;
-	border-left: 3px solid #c9a24b;
+	color: var(--color-text-muted);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent);
 	border-radius: 6px;
 	padding: 7px 10px;
 	margin-bottom: 6px;
@@ -26,7 +27,7 @@
 	font-size: 12px;
 }
 .fs-row + .fs-row {
-	border-top: 1px solid rgba(141, 121, 98, 0.18);
+	border-top: 1px solid var(--color-divider);
 }
 /* Sub-group for sources auto-populated by the WikiSync publication reconcile
    (origin === "wiki_publication", js/review/review-feature-sources.js). */
@@ -35,7 +36,7 @@
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.02em;
-	color: #8a7358;
+	color: var(--color-text-muted);
 	padding: 6px 0 2px;
 }
 .fs-row__link {
@@ -55,9 +56,9 @@
 .fs-row__badge {
 	flex-shrink: 0;
 	font-size: 10px;
-	color: #6c5a49;
-	background: #f0e7da;
-	border: 1px solid #ddcdb8;
+	color: var(--color-text-muted);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
 	border-radius: 999px;
 	padding: 1px 7px;
 	white-space: nowrap;
@@ -66,14 +67,15 @@
 	background: transparent;
 	border-style: dashed;
 }
-/* Coverage-classification badge on an editor row (only when reference_kind is set). Uses the teal of
-   the active publication tab (.fs-src-tab.is-active) so it visually reads as "this feeds that tab". */
+/* Coverage-classification badge on an editor row (only when reference_kind is set). Wears the shared
+   publication-pill tokens -- same warm gold family as the active publication tab (.fs-src-tab.is-active),
+   so it still reads as "this feeds that tab", but with the contrast a 10px label needs in both themes. */
 .fs-row__kind {
 	flex-shrink: 0;
 	font-size: 10px;
-	color: #1c5a4d;
-	background: #e4efe9;
-	border: 1px solid #b6d2c6;
+	color: var(--color-pill-text);
+	background: var(--color-pill);
+	border: 1px solid var(--color-pill-border);
 	border-radius: 999px;
 	padding: 1px 7px;
 	white-space: nowrap;
@@ -81,7 +83,7 @@
 .fs-row__pages {
 	flex-shrink: 0;
 	font-size: 11px;
-	color: #6c5a49;
+	color: var(--color-text-muted);
 	white-space: nowrap;
 }
 .fs-row__remove {
@@ -89,9 +91,9 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	border: 1px solid #d8b3a3;
-	background: #f7ece7;
-	color: #9d3a2e;
+	border: 1px solid var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
 	border-radius: 999px;
 	width: 20px;
 	height: 20px;
@@ -100,7 +102,8 @@
 }
 .fs-row__remove:hover,
 .fs-row__remove:focus-visible {
-	background: #f0dcd4;
+	background: var(--color-danger-soft);
+	border-color: var(--color-danger-soft-text);
 	outline: none;
 }
 .fs-row--add {
@@ -108,9 +111,9 @@
 	gap: 6px;
 	margin-top: 8px;
 	padding: 10px;
-	border: 1px solid #d8c6b2;
+	border: 1px solid var(--color-border);
 	border-radius: 8px;
-	background: #faf5ee;
+	background: var(--color-panel-soft);
 }
 .fs-add-url {
 	flex: 1 1 100%;
@@ -125,20 +128,20 @@
 .fs-row--add input[type="url"],
 .fs-add-type,
 .fs-add-kind {
-	background: #fffaf5;
-	border: 1px solid #d8c6b2;
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
 	border-radius: 5px;
 	padding: 4px 6px;
 	font: inherit;
 	font-size: 12px;
-	color: #3f3428;
+	color: var(--color-text-strong);
 }
 .fs-add-official-label {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
 	font-size: 12px;
-	color: #6c5a49;
+	color: var(--color-text-muted);
 	white-space: nowrap;
 }
 .fs-row__add {
