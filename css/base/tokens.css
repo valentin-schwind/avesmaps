@@ -90,6 +90,17 @@
 	--color-danger-soft: #fbeae6;
 	--color-danger-soft-border: #d3a79c;
 	--color-danger-soft-text: #8a2d22;
+	/* Status: warning (amber) — the third status colour next to --color-success/--color-danger,
+	   used by the WikiSync + settlement editors (coverage gaps, attribution-required licences,
+	   values diverging from the wiki). --color-warning is the solid text/border/dot value;
+	   -soft* is the pale filled badge (hint boxes, "Lücke" badges); -strong* is the filled
+	   ACTIVE warn chip. */
+	--color-warning: #b8860b;
+	--color-warning-soft: #faeeda;
+	--color-warning-soft-border: #ef9f27;
+	--color-warning-soft-text: #854f0b;
+	--color-warning-strong: #f4c869;
+	--color-warning-strong-text: #4a3300;
 	--color-marker-destination: #e33b35; /* route destination pin — heraldic red, matches red map markers */
 
 	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
@@ -247,6 +258,12 @@
 	--color-danger-soft: #3f2a26;
 	--color-danger-soft-border: #6b463f;
 	--color-danger-soft-text: #e29c8f;
+	--color-warning: #e0b45c;
+	--color-warning-soft: #3b3122;
+	--color-warning-soft-border: #6d5629;
+	--color-warning-soft-text: #e9c684;
+	--color-warning-strong: #c79a3c;
+	--color-warning-strong-text: #241d14;
 	--color-marker-destination: #e6675b;
 
 	--color-panel-translucent: rgba(49, 46, 38, 0.96);

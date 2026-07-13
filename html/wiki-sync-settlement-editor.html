@@ -5,45 +5,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Avesmaps – Siedlungen zuordnen und editieren</title>
+<script>
+  /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved choice
+     wins, otherwise follow the browser/OS scheme (prefers-color-scheme). Runs before the stylesheet
+     paints so this overlay iframe never flashes the wrong theme, and stays in sync if the OS scheme
+     changes live while no explicit choice is stored. Same guard as html/adventure-editor.html. */
+  (function () {
+    function isDark() {
+      var saved = null;
+      try { saved = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (saved === "dark") { return true; }
+      if (saved === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
 <link rel="stylesheet" href="/css/base/fonts.css">
+<!-- The real design tokens. This iframe is served with ?v=Date.now(), which busts the HTML but NOT
+     its sub-resources, so the token sheet carries its own tag: bump it together with the one in
+     css/styles.css line 2 whenever tokens.css changes. -->
+<link rel="stylesheet" href="/css/base/tokens.css?v=20260713-theme23">
 <style>
-  :root { --bg:#f4efe7; --panel:#fff9f4; --soft:#fffaf5; --line:#d8c6b2; --line2:#cdb79f; --fg:#3f3428; --mut:#6c5a49; --accent:#8f7326; --accent-hover:#6f5a1c; --warn:#b8860b; --bad:#9d3a2e; --ok:#2e7d32; --font-ui:"Faculty Glyphic","Arial",sans-serif; }
+  /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
+     pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
+  :root { --bg:var(--color-page-bg); --panel:var(--color-panel); --soft:var(--color-panel-soft); --line:var(--color-border); --line2:var(--color-border-strong); --fg:var(--color-text-strong); --mut:var(--color-text-muted); --accent:var(--color-link); --accent-hover:var(--color-link-hover); --warn:var(--color-warning); --bad:var(--color-danger); --ok:var(--color-success); --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
   body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
   header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
   /* Alle Steuer-Buttons in EINER Zeile, gleich breite Spalten (wie im Territoriumseditor). */
   .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; align-items:stretch; }
-  button { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
-  button:hover { background:#ead9c2; }
+  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
+  button:hover { background:var(--color-button-soft-hover); }
   button:disabled { opacity:.5; cursor:default; }
-  button.primary { background:#565044; border-color:#5f4f40; color:#fff9f4; }
-  button.primary:hover { background:#4a463b; }
+  button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
+  button.primary:hover { background:var(--color-button-hover); }
   .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:5px 11px; gap:1px; line-height:1.15; }
   .btn2 .t1 { font-size:13px; font-weight:bold; }
   .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
-  .btn2.primary .t2 { color:#e9ddcb; }
+  .btn2.primary .t2 { color:var(--color-on-button-muted); }
   /* "Nur Auswahl anzeigen" Zwei-Zustands-Toggle (§7 design doc): ON = wie .primary eingefaerbt, damit
      der aktive Kartenfilter im Menueband sofort auffaellt (gleiche Konvention wie .chip-toggle.is-active). */
-  .btn2.is-active { background:#565044; border-color:#5f4f40; color:#fff9f4; }
-  .btn2.is-active:hover { background:#4a463b; }
-  .btn2.is-active .t2 { color:#e9ddcb; }
+  .btn2.is-active { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
+  .btn2.is-active:hover { background:var(--color-button-hover); }
+  .btn2.is-active .t2 { color:var(--color-on-button-muted); }
   #settlementStatus { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
   #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
   .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; min-width:0; }
   #seLeft { border-right:1px solid var(--line); max-width:46%; }
   .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
-  .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:#3f3428; }
+  .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:var(--color-text-strong); }
   .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
   input[type=search] { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; flex:1; }
-  #seTree, #seList, #seDetailBody { flex:1 1 auto; overflow:auto; min-height:0; background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px; }
+  #seTree, #seList, #seDetailBody { flex:1 1 auto; overflow:auto; min-height:0; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
   .dt-empty { color:var(--mut); padding:6px; }
   /* Territorien-Baum (LINKS): read-only Filterbaum mit Tri-State-Checkboxen. */
   #seTree ul { list-style:none; margin:0; padding-left:16px; }
   #seTree > ul.tree-root { padding-left:0; }
   #seTree li.tree-node { margin:1px 0; }
   #seTree .tree-row { display:flex; align-items:center; gap:5px; padding:2px 3px; border-radius:4px; cursor:default; }
-  #seTree .tree-row:hover { background:#f3ebdf; }
+  #seTree .tree-row:hover { background:var(--color-hover-wash); }
   #seTree .tree-row.filtered-out { display:none; }
   #seTree .tree-toggle { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; flex:0 0 auto; cursor:pointer; color:var(--mut); font-size:10px; user-select:none; }
   #seTree .tree-toggle.leaf { visibility:hidden; }
@@ -53,13 +84,13 @@
   /* Angereicherte Zeile (Muster html/wiki-sync-monitor.html buildTreeNode/covCircle/wappenThumb):
      Abdeckungs-Kreis (Geometrie auf der Karte) + Wappen-Thumb + Name + BF-Zeitraum. Klassen 1:1
      aus dem Territoriumseditor uebernommen, damit die Optik zwischen beiden Editoren konsistent bleibt. */
-  .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid #6a7f3a; border-radius:50%; background:var(--soft); box-sizing:border-box; color:#6a7f3a; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid var(--color-map-presence); border-radius:50%; background:var(--soft); box-sizing:border-box; color:var(--color-map-presence); overflow:hidden; display:inline-block; vertical-align:middle; }
   .cov.all { background:currentColor; }
   .cov.own-only::before, .cov.children-only::before { content:""; position:absolute; top:1px; bottom:1px; background:currentColor; }
   .cov.children-only::before { left:1px; right:50%; border-radius:999px 0 0 999px; }
   .cov.own-only::before { left:50%; right:1px; border-radius:0 999px 999px 0; }
-  .wp { width:15px; height:15px; flex:0 0 15px; object-fit:contain; vertical-align:middle; border-radius:2px; background:#fff; }
-  .wp.pd { box-shadow:0 0 0 1.5px #6a7f3a; }
+  .wp { width:15px; height:15px; flex:0 0 15px; object-fit:contain; vertical-align:middle; border-radius:2px; background:var(--color-panel); }
+  .wp.pd { box-shadow:0 0 0 1.5px var(--color-map-presence); }
   .wp.gray { filter:grayscale(1); opacity:.45; }
   #seTree .tree-row .nm { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
   .count { color:var(--mut); font-size:11px; }
@@ -75,33 +106,33 @@
      per-filter #seContDD/#seTypeDD/#seSourceDD .dropdown2/.ddbtn/.dd-menu rules are gone -- this
      is now the only filter-dropdown pattern in the document. */
   .type-filter { position:relative; flex:0 0 auto; display:flex; }
-  .type-filter__toggle { padding:8px 10px; font-size:12px; border:1px solid var(--line2); border-radius:8px; background:var(--soft); color:#5a4a3a; cursor:pointer; white-space:nowrap; font:inherit; }
-  .type-filter__toggle:hover { background:#f3e8db; }
-  .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:#fff; border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+  .type-filter__toggle { padding:8px 10px; font-size:12px; border:1px solid var(--line2); border-radius:8px; background:var(--soft); color:var(--color-button-soft-text); cursor:pointer; white-space:nowrap; font:inherit; }
+  .type-filter__toggle:hover { background:var(--color-button-soft-hover); }
+  .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:var(--color-panel); border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
   .type-filter__menu[hidden] { display:none; }
-  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:12px; color:#3a2c20; cursor:pointer; border-radius:4px; }
-  .type-filter__opt:hover { background:#f5eadc; }
+  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:12px; color:var(--color-text); cursor:pointer; border-radius:4px; }
+  .type-filter__opt:hover { background:var(--color-hover-wash); }
   .type-filter__label { flex:1 1 auto; min-width:0; }
-  .type-filter__count { color:#8a7a68; font-size:11px; }
-  .type-filter__section-title { font-size:11px; font-weight:600; color:#8a7a68; padding:4px 6px 2px; }
-  .type-filter__section + .type-filter__section { border-top:1px solid #ead9c6; margin-top:4px; padding-top:2px; }
+  .type-filter__count { color:var(--color-text-muted); font-size:11px; }
+  .type-filter__section-title { font-size:11px; font-weight:600; color:var(--color-text-muted); padding:4px 6px 2px; }
+  .type-filter__section + .type-filter__section { border-top:1px solid var(--color-divider); margin-top:4px; padding-top:2px; }
   /* Siedlungsliste (MITTE): on_map-Achse als Tab-Leiste + kombinierbare Filterzeile. */
-  #seListTabs { display:flex; gap:2px; background:#efe6d9; border:1px solid var(--line); border-radius:6px; padding:2px; margin-bottom:6px; }
+  #seListTabs { display:flex; gap:2px; background:var(--color-panel-muted); border:1px solid var(--line); border-radius:6px; padding:2px; margin-bottom:6px; }
   #seListTabs button { flex:1; background:transparent; border:none; border-radius:4px; padding:4px 6px; color:var(--mut); font:inherit; font-size:11px; cursor:pointer; white-space:nowrap; }
-  #seListTabs button:hover { background:#e4d7c3; }
+  #seListTabs button:hover { background:var(--color-hover-wash); }
   #seListTabs button.is-active { background:var(--soft); color:var(--fg); border:1px solid var(--line); font-weight:bold; }
   #seListFilters { flex-wrap:wrap; }
   #seListFilters input[type=search] { flex:1 1 120px; min-width:90px; }
-  .chip-toggle { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border:1px solid var(--line2); border-radius:12px; font-size:11px; color:var(--mut); background:#f3ebdf; white-space:nowrap; cursor:pointer; }
-  .chip-toggle:hover { background:#ead9c2; }
-  .chip-toggle.warn { background:#faeeda; border-color:#ef9f27; color:#854f0b; font-weight:bold; }
-  .chip-toggle.warn.is-active { background:#f4c869; border-color:#b8860b; color:#4a3300; }
-  #seTreeBypassHint { font-size:10px; color:var(--warn); margin:0 0 6px; padding:3px 6px; background:#faeeda; border:1px solid #ef9f27; border-radius:4px; }
+  .chip-toggle { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border:1px solid var(--line2); border-radius:12px; font-size:11px; color:var(--mut); background:var(--color-button-soft); white-space:nowrap; cursor:pointer; }
+  .chip-toggle:hover { background:var(--color-button-soft-hover); }
+  .chip-toggle.warn { background:var(--color-warning-soft); border-color:var(--color-warning-soft-border); color:var(--color-warning-soft-text); font-weight:bold; }
+  .chip-toggle.warn.is-active { background:var(--color-warning-strong); border-color:var(--color-warning); color:var(--color-warning-strong-text); }
+  #seTreeBypassHint { font-size:10px; color:var(--color-warning-soft-text); margin:0 0 6px; padding:3px 6px; background:var(--color-warning-soft); border:1px solid var(--color-warning-soft-border); border-radius:4px; }
   #seTreeBypassHint[hidden] { display:none; }
   /* Siedlungs-Zeilen: zweizeilig, Zeile 2 = Zuordnungsstatus (gruen=zugeordnet, amber=Luecke). */
   .se-row { display:block; padding:4px 6px; border-radius:5px; border:1px solid transparent; cursor:pointer; }
-  .se-row:hover { background:#f3ebdf; }
-  .se-row.is-selected { background:#dfeaf0; border-color:#9cc3d6; }
+  .se-row:hover { background:var(--color-hover-wash); }
+  .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
   .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
   .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .se-row-type { font-size:10px; color:var(--mut); margin-left:auto; white-space:nowrap; }
@@ -115,64 +146,63 @@
      "Lage & Zugehoerigkeit" / "Wiki & Quelle". dt-* Klassen mirroren bewusst den
      Territoriumseditor (html/wiki-sync-monitor.html), damit die Optik konsistent bleibt. */
   .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
-  .dt-wappen { width:56px; height:56px; flex:0 0 56px; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:6px; }
+  .dt-wappen { width:56px; height:56px; flex:0 0 56px; object-fit:contain; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; }
   .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
-  .dt-wappen-placeholder { width:56px; height:56px; flex:0 0 56px; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:18px; background:#f1eadd; border:1px solid var(--line); border-radius:6px; }
-  .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:#fff9f4; font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
+  .dt-wappen-placeholder { width:56px; height:56px; flex:0 0 56px; display:flex; align-items:center; justify-content:center; color:var(--mut); font-size:18px; background:var(--color-panel-muted); border:1px solid var(--line); border-radius:6px; }
+  .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:var(--color-button-text); font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
   .dt-wappen-box:hover .dt-wappen-edit, .dt-wappen-box:focus-within .dt-wappen-edit { display:flex; }
   .dt-coat-row { display:flex; gap:10px; align-items:flex-start; margin-bottom:6px; }
   .dt-coat-info { flex:1; min-width:0; }
-  .dt-coat-info .dt-title { font-size:13px; font-weight:bold; color:#3f3428; }
+  .dt-coat-info .dt-title { font-size:13px; font-weight:bold; color:var(--color-text-strong); }
   .dt-coat-info .dt-sub { color:var(--mut); font-size:11px; margin-top:2px; }
   /* Eigene Header-Bilder: Galerie unter dem Wappen-Block. */
   .dt-img-count { font-weight:normal; color:var(--mut); }
-  /* Copyright-Hinweis fuer Editoren -- Stil bewusst identisch zur "Quellen"-Box (.fs-hint): explizite
-     Farben (keine Tokens), damit es im Editor-iframe ohne Token-Scope korrekt rendert. */
-  .dt-img-notice { font-size:11px; line-height:1.45; color:#6c5a49; background:#fbf4e9; border:1px solid #e6d7c0; border-left:3px solid #c9a24b; border-radius:6px; padding:7px 10px; }
+  /* Copyright-Hinweis fuer Editoren -- Stil bewusst identisch zur "Quellen"-Box (.fs-hint). */
+  .dt-img-notice { font-size:11px; line-height:1.45; color:var(--color-text-muted); background:var(--color-panel-soft); border:1px solid var(--color-border); border-left:3px solid var(--color-accent); border-radius:6px; padding:7px 10px; }
   .dt-img-block { display:flex; flex-direction:column; gap:8px; margin:2px 0 6px; }
   .dt-img-upload { border:1.5px dashed var(--line); border-radius:6px; padding:11px; text-align:center; cursor:pointer; color:var(--mut); font-size:12px; background:rgba(0,0,0,0.02); }
-  .dt-img-upload:hover { border-color:#bfa03a; color:#3f3428; }
+  .dt-img-upload:hover { border-color:var(--color-accent); color:var(--color-text-strong); }
   .dt-img-upload--full { cursor:default; opacity:0.6; }
-  .dt-img-upload--busy { cursor:default; border-style:solid; border-color:#bfa03a; background:rgba(191,160,58,0.08); }
-  .dt-img-prog-label { color:#3f3428; font-size:12px; margin-bottom:7px; }
+  .dt-img-upload--busy { cursor:default; border-style:solid; border-color:var(--color-accent); background:var(--color-hover-wash); }
+  .dt-img-prog-label { color:var(--color-text-strong); font-size:12px; margin-bottom:7px; }
   .dt-img-prog { height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
-  .dt-img-prog span { display:block; height:100%; background:#bfa03a; border-radius:3px; transition:width 0.25s ease; }
-  .dt-img-plus { display:block; font-size:18px; color:#9c7f22; line-height:1; margin-bottom:1px; }
+  .dt-img-prog span { display:block; height:100%; background:var(--color-accent); border-radius:3px; transition:width 0.25s ease; }
+  .dt-img-plus { display:block; font-size:18px; color:var(--color-accent-strong); line-height:1; margin-bottom:1px; }
   .dt-img-hint { display:block; font-size:10px; color:var(--mut); margin-top:2px; }
   .dt-img-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:8px; }
   .dt-img-cell { position:relative; aspect-ratio:16/9; border-radius:5px; overflow:hidden; border:1px solid var(--line); }
   .dt-img-cell img { width:100%; height:100%; object-fit:cover; display:block; -webkit-user-drag:none; user-select:none; }
   .dt-img-cell--sortable { cursor:grab; }
-  .dt-img-cell--dragging { opacity:0.4; cursor:grabbing; outline:2px solid #bfa03a; outline-offset:-2px; }
+  .dt-img-cell--dragging { opacity:0.4; cursor:grabbing; outline:2px solid var(--color-accent); outline-offset:-2px; }
   .dt-img-drag-hint { color:var(--mut); font-size:11px; font-weight:normal; }
-  .dt-img-ord { position:absolute; top:2px; left:4px; font-size:10px; font-weight:bold; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.85); }
-  .dt-img-del { position:absolute; top:2px; right:2px; width:19px; height:19px; border:0; border-radius:50%; background:rgba(30,22,16,0.62); color:#fff; font-size:13px; line-height:1; cursor:pointer; display:grid; place-items:center; opacity:0; transition:opacity 0.12s; }
+  .dt-img-ord { position:absolute; top:2px; left:4px; font-size:10px; font-weight:bold; color:var(--color-button-text); text-shadow:0 1px 2px rgba(0,0,0,0.85); }
+  .dt-img-del { position:absolute; top:2px; right:2px; width:19px; height:19px; border:0; border-radius:50%; background:rgba(30,22,16,0.62); color:var(--color-button-text); font-size:13px; line-height:1; cursor:pointer; display:grid; place-items:center; opacity:0; transition:opacity 0.12s; }
   .dt-img-cell:hover .dt-img-del { opacity:1; }
-  .dt-img-del:hover { background:#a3452f; }
+  .dt-img-del:hover { background:var(--color-danger); }
   .dt-grp { font-size:11px; font-weight:bold; color:var(--mut); border-top:1px solid var(--line); padding-top:6px; margin-top:8px; }
   .dt-grp:first-of-type { border-top:none; margin-top:0; }
   .dt-grid { display:grid; grid-template-columns:minmax(90px,0.35fr) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
-  .dt-grid .k { color:#6a5543; font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
-  .dt-grid > div:not(.k) { padding:5px 0; color:#2f251c; min-width:0; overflow-wrap:anywhere; }
+  .dt-grid .k { color:var(--color-text-muted); font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
+  .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
   .dt-badge { font-size:10px; color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; margin-left:5px; white-space:nowrap; }
   .dt-link { color:var(--accent); }
   /* Territorium-Zuordnung: der Kern-Control dieses Editors. */
   .dt-territory-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 8px; border-radius:5px; font-weight:bold; font-size:12px; }
-  .dt-territory-badge.ok { background:#eef5ef; border:1px solid #b8d3b8; color:var(--ok); }
-  .dt-territory-badge.warn { background:#faeeda; border:1px solid #ef9f27; color:#854f0b; }
-  .dt-territory-badge.na { background:#efe6d9; border:1px solid var(--line2); color:var(--mut); }
+  .dt-territory-badge.ok { background:var(--color-success-soft); border:1px solid var(--color-success-soft-border); color:var(--ok); }
+  .dt-territory-badge.warn { background:var(--color-warning-soft); border:1px solid var(--color-warning-soft-border); color:var(--color-warning-soft-text); }
+  .dt-territory-badge.na { background:var(--color-panel-muted); border:1px solid var(--line2); color:var(--mut); }
   .dt-territory-source { color:var(--mut); font-size:11px; margin-left:2px; }
   .dt-territory-row { margin-top:4px; padding:4px 6px; background:var(--soft); border:1px solid var(--line); border-radius:5px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
   .dt-territory-picker { margin-top:5px; }
   .dt-territory-picker input[type=search] { width:100%; box-sizing:border-box; font:inherit; padding:3px 6px; border:1px solid var(--line); border-radius:5px; background:var(--soft); }
   .dt-territory-results { border:1px solid var(--line); border-radius:5px; margin-top:3px; max-height:150px; overflow:auto; background:var(--panel); }
   .dt-territory-results div { padding:3px 6px; cursor:pointer; font-size:12px; }
-  .dt-territory-results div:hover { background:#e7d6bd; }
+  .dt-territory-results div:hover { background:var(--color-hover-wash); }
   /* Wappen-Upload-Dialog (Muster wiki-sync-monitor.html #wappenDialog). */
-  .modal { position:fixed; inset:0; background:rgba(47,37,28,.45); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
   .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:360px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
-  .modal-title { font-size:15px; font-weight:bold; color:#3f3428; margin-bottom:2px; }
+  .modal-title { font-size:15px; font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; }
   .modal-sub { color:var(--mut); font-size:12px; margin-bottom:10px; }
   .modal .fld { display:block; font-size:12px; margin-bottom:9px; }
   .modal .fld input[type=file] { display:block; margin-top:4px; font:inherit; }
@@ -183,13 +213,13 @@
   .modal-box.wide { width:460px; }
   .modal-counts { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
   .modal-count { background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
-  .modal-count .n { font-size:17px; font-weight:bold; color:#3f3428; }
+  .modal-count .n { font-size:17px; font-weight:bold; color:var(--color-text-strong); }
   .modal-count .l { font-size:11px; color:var(--mut); }
   .modal-count.ok .n { color:var(--ok); }
   .modal-count.warn .n { color:var(--warn); }
   .modal-sample-title { font-size:11px; font-weight:bold; color:var(--mut); margin:0 0 4px; }
-  .modal-sample { border:1px solid var(--line); border-radius:6px; max-height:160px; overflow:auto; background:#fff; margin-bottom:10px; }
-  .modal-sample-row { display:flex; align-items:baseline; gap:6px; padding:3px 7px; font-size:11px; border-bottom:1px solid #f1e8da; }
+  .modal-sample { border:1px solid var(--line); border-radius:6px; max-height:160px; overflow:auto; background:var(--color-panel); margin-bottom:10px; }
+  .modal-sample-row { display:flex; align-items:baseline; gap:6px; padding:3px 7px; font-size:11px; border-bottom:1px solid var(--color-divider); }
   .modal-sample-row:last-child { border-bottom:none; }
   .modal-sample-row .nm { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1 1 auto; min-width:0; }
   .modal-sample-row .arw { color:var(--mut); flex:0 0 auto; }
