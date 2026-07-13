@@ -248,14 +248,19 @@ function pathHeaderImageBasename(pathSubtype) {
 // Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
 // icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art). coatMarkup
 // (Owner): vorhandenes Wappen liegt 70x70 im Overlay links vom Titel (dekorativ, ueber dem Bild).
-function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownImages) {
+function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownImages, subtitleSuffixMarkup) {
 	// Eigene Editor-Bilder (properties.images) ueberschreiben das generische Header-Bild; mehrere werden
 	// als Lightbox durchgeblaettert (< > + Dots, JS in map-features-infopanel.js). Ohne eigene Bilder das
 	// generische icons/header/<basename>.webp.
 	const own = Array.isArray(ownImages) ? ownImages.filter((u) => typeof u === "string" && u.trim() !== "") : [];
 	const multi = own.length > 1;
 	const firstSrc = own.length ? own[0] : withAssetVersion(`icons/header/${imageBasename}.webp`);
-	const sub = subtitle ? `<div class="info-header__subtitle">${escapeHtml(subtitle)}</div>` : "";
+	// Untertitel = Ortstyp, optional gefolgt von der politischen Kontext-Zeile (Gold-Link, bereits HTML ->
+	// NICHT escapen): "Metropole · Hauptstadt von X". Ohne Suffix nur der Ortstyp.
+	const subParts = [];
+	if (subtitle) subParts.push(escapeHtml(subtitle));
+	if (subtitleSuffixMarkup) subParts.push(subtitleSuffixMarkup);
+	const sub = subParts.length ? `<div class="info-header__subtitle">${subParts.join(" · ")}</div>` : "";
 	const coat = coatMarkup ? `<div class="info-header__coat">${coatMarkup}</div>` : "";
 	const nav = multi
 		? '<button type="button" class="info-header__nav info-header__nav--prev" data-lb-nav="prev" aria-label="Vorheriges Bild">‹</button>'
