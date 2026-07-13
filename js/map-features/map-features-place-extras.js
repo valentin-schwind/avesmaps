@@ -129,7 +129,12 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var coverInner = a.cover
 		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
 		: AVESMAPS_ADV_COVER_PH_SVG;
-	var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
+	// Meta line under the title: the DSA edition (DSA1/2/3…, shown for ~all adventures) plus the BF year when
+	// present (only a few carry one). Edition first so it leads even when a year exists.
+	var metaParts = [];
+	if (a.edition) { metaParts.push(a.edition); }
+	if (a.yearLabel) { metaParts.push(a.yearLabel); }
+	var metaLine = metaParts.length ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 	// Anthology-only adventures ship inside a parent product -> the shop link points there; say why.
 	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">enthalten in: ' + placeExtrasEscape(a.containedIn) + '</div>' : "";
