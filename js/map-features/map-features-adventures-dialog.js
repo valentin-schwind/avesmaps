@@ -114,9 +114,9 @@
 	function filtersMarkup(facets) {
 		var parts = ['<span class="avesmaps-adv-tree__flabel">Filter</span>'];
 		var hasTypes = facets.types && facets.types.length;
-		var hasYear = facets.yearRange && facets.yearRange.max > 0;
-		var hasSel = (facets.editions && facets.editions.length) || (facets.complexities && facets.complexities.length)
-			|| (facets.genres && facets.genres.length) || hasYear;
+		// The Zeitraum (year) range is ALWAYS shown so the control stays discoverable even when the current
+		// subtree happens to have no dated adventures (many adventures across the catalog carry a BF year).
+		var hasSel = true;
 		if (hasTypes) {
 			facets.types.forEach(function (t) {
 				parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + esc(t) + '">' + esc(t) + '</span>');
@@ -137,12 +137,13 @@
 			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
 				+ facets.genres.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select></span>');
 		}
-		if (hasYear) {
-			parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">Jahr</span>'
-				+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + esc(facets.yearRange.min) + '">'
-				+ '<span class="avesmaps-adv-tree__ydash">–</span>'
-				+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + esc(facets.yearRange.max) + '"></span>');
-		}
+		var yr = facets.yearRange || { min: 0, max: 0 };
+		var fromPh = yr.min > 0 ? esc(yr.min) : "von";
+		var toPh = yr.max > 0 ? esc(yr.max) : "bis";
+		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">Zeitraum (BF)</span>'
+			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
+			+ '<span class="avesmaps-adv-tree__ydash">–</span>'
+			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
 		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">nur offiziell</span>');
 		return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
