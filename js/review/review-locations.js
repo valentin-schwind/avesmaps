@@ -15,6 +15,9 @@ function buildLocationReportRequestPayload(formElement) {
 		client_version: String(formData.get("client_version") || "").trim(),
 		elapsed_ms: Math.max(0, Date.now() - Number.parseInt(String(formData.get("opened_at") || "0"), 10)),
 		website: String(formData.get("website") || "").trim(),
+		report_mode: String(formData.get("report_mode") || "new").trim(),
+		entity_type: String(formData.get("entity_type") || "").trim(),
+		entity_public_id: String(formData.get("entity_public_id") || "").trim(),
 	};
 }
 
@@ -150,6 +153,7 @@ function resetLocationReportForm() {
 
 	formElement.reset();
 	resetLocationReportSources();
+	clearChangeSuggestionMode();
 	locationReportLatLng = null;
 	document.getElementById("location-report-coordinates").textContent = "-";
 	document.getElementById("location-report-lat").value = "";
@@ -260,6 +264,127 @@ function openLocationReportDialog(latlng) {
 	updateLocationReportDialogAvailability();
 	populateLocationReportForm(latlng);
 	setLocationReportDialogOpen(true);
+}
+
+// Community "Änderung vorschlagen": open the report form in change mode for an existing element. The
+// category + name are locked and prefilled; for settlements the size stays editable (a size change may be
+// exactly what is proposed). Coordinates default to the element anchor, else the current map centre --
+// they are only a rough locator; entity_public_id authoritatively identifies the element.
+function openChangeSuggestionDialog(ctx) {
+	ctx = ctx || {};
+	resetLocationReportForm();
+	updateLocationReportDialogAvailability();
+	applyChangeSuggestionContext(ctx);
+	setLocationReportDialogOpen(true);
+	// Focus the description (the editable core), not the locked name.
+	document.getElementById("location-report-comment")?.focus();
+}
+
+function applyChangeSuggestionContext(ctx) {
+	let lat = Number.parseFloat(String(ctx.lat));
+	let lng = Number.parseFloat(String(ctx.lng));
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		const centre = (typeof map !== "undefined" && map && typeof map.getCenter === "function") ? map.getCenter() : { lat: 512, lng: 512 };
+		lat = centre.lat;
+		lng = centre.lng;
+	}
+	lat = Math.min(1024, Math.max(0, lat));
+	lng = Math.min(1024, Math.max(0, lng));
+
+	const typeSelect = document.getElementById("location-report-type");
+	const nameInput = document.getElementById("location-report-name");
+	const sizeSelect = document.getElementById("location-report-size");
+	const commentField = document.getElementById("location-report-comment");
+	const reportType = ctx.reportType || "sonstiges";
+
+	document.getElementById("location-report-mode").value = "change";
+	document.getElementById("location-report-entity-type").value = ctx.entityType || "";
+	document.getElementById("location-report-entity-id").value = ctx.entityId || "";
+
+	// Category locked + preselected.
+	if (typeSelect) {
+		typeSelect.value = reportType;
+		typeSelect.disabled = true;
+	}
+
+	// Name locked + prefilled.
+	if (nameInput) {
+		nameInput.value = ctx.name || "";
+		nameInput.readOnly = true;
+	}
+
+	// Coordinates + meta.
+	document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(L.latLng(lat, lng));
+	document.getElementById("location-report-lat").value = lat.toFixed(3);
+	document.getElementById("location-report-lng").value = lng.toFixed(3);
+	document.getElementById("location-report-page-url").value = window.location.href;
+	document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
+	document.getElementById("location-report-opened-at").value = String(Date.now());
+
+	// Size: editable + prefilled for settlements (report_type=location); hidden for other types
+	// (syncLocationReportTypeFields hides it for anything that is not "location").
+	if (reportType === "location" && sizeSelect && typeof sizeSlugFromLocationType === "function") {
+		sizeSelect.value = sizeSlugFromLocationType(ctx.size);
+	}
+	syncLocationReportTypeFields();
+
+	// Description becomes the required core field; sources become optional.
+	if (commentField) {
+		commentField.required = true;
+		const label = commentField.closest(".location-report-form__field")?.querySelector("span");
+		if (label) {
+			label.textContent = tr("report.changeCommentLabel", "Was soll geändert werden? *");
+		}
+	}
+	const sourcesLabel = document.getElementById("location-report-sources-label");
+	if (sourcesLabel) {
+		sourcesLabel.textContent = tr("report.changeSourcesLabel", "Quellen (optional — Regionalband, Abenteuer, …)");
+	}
+
+	// Title + intro reflect the change context.
+	const titleEl = document.getElementById("location-report-title");
+	if (titleEl) {
+		titleEl.textContent = tr("report.changeTitle", "Änderung vorschlagen") + (ctx.name ? " – " + ctx.name : "");
+	}
+	const introEl = document.querySelector(".location-report-dialog__intro");
+	if (introEl) {
+		introEl.textContent = tr("report.changeIntro", "Schlage eine Änderung an diesem Element vor. Beschreibe möglichst genau, was geändert werden soll. Eine Quelle hilft, ist aber nicht zwingend.");
+	}
+}
+
+// Undo everything applyChangeSuggestionContext() changed, so the plain right-click "Hier melden…" is
+// unaffected. form.reset() restores input VALUES but not disabled/readOnly/textContent -- do those here.
+function clearChangeSuggestionMode() {
+	const typeSelect = document.getElementById("location-report-type");
+	const nameInput = document.getElementById("location-report-name");
+	const commentField = document.getElementById("location-report-comment");
+	if (typeSelect) typeSelect.disabled = false;
+	if (nameInput) nameInput.readOnly = false;
+	const modeEl = document.getElementById("location-report-mode");
+	if (modeEl) modeEl.value = "new";
+	const entityTypeEl = document.getElementById("location-report-entity-type");
+	if (entityTypeEl) entityTypeEl.value = "";
+	const entityIdEl = document.getElementById("location-report-entity-id");
+	if (entityIdEl) entityIdEl.value = "";
+	if (commentField) {
+		commentField.required = false;
+		const label = commentField.closest(".location-report-form__field")?.querySelector("span");
+		if (label) {
+			label.textContent = tr("report.commentLabel", "Kommentar (zur näheren Beschreibung)");
+		}
+	}
+	const sourcesLabel = document.getElementById("location-report-sources-label");
+	if (sourcesLabel) {
+		sourcesLabel.textContent = tr("report.sourcesLabel", "Quellen * (mind. eine — Regionalband, Abenteuer, …)");
+	}
+	const titleEl = document.getElementById("location-report-title");
+	if (titleEl) {
+		titleEl.textContent = tr("report.title", "Karteneintrag melden");
+	}
+	const introEl = document.querySelector(".location-report-dialog__intro");
+	if (introEl) {
+		introEl.textContent = tr("report.intro", "Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.");
+	}
 }
 
 function populateLocationEditForm({ markerEntry = null, latlng = null, presetName = "", presetLocationType = "", presetWikiUrl = "", presetDescription = "", presetIsNodix = null } = {}) {

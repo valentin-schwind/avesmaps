@@ -590,8 +590,34 @@
 		if (typeof buildTerritoryAdventuresMarkup === "function") {
 			markup += buildTerritoryAdventuresMarkup(regionEntry);
 		}
+		markup += regionSuggestChangeBandMarkup(regionEntry);
 		return markup;
 	}
+
+	// Community "Änderung vorschlagen" for the region/territory shown in the infopanel. Political
+	// territories (regionEntry.source === "political_territory") map to entity_type "territory" /
+	// report_type "territorium"; geographic regions to "region" / "region". Infopanel-only -- NOT added to
+	// the shared region markup, so the transient hover tooltip stays button-free.
+	function regionSuggestChangeBandMarkup(regionEntry) {
+		if (!regionEntry || typeof buildSuggestChangeButtonSpec !== "function"
+			|| typeof popupActionButtonMarkup !== "function" || typeof locationPopupActionsMarkup !== "function") {
+			return "";
+		}
+		var isTerritory = regionEntry.source === "political_territory";
+		var rawName = regionEntry.displayName || regionEntry.name || "";
+		var name = typeof normalizeRegionParentheticalSpacing === "function"
+			? normalizeRegionParentheticalSpacing(rawName)
+			: rawName;
+		var spec = buildSuggestChangeButtonSpec({
+			entityType: isTerritory ? "territory" : "region",
+			entityId: regionEntry.territoryPublicId || regionEntry.publicId || "",
+			name: name,
+			reportType: isTerritory ? "territorium" : "region",
+			label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderung vorschlagen") : "Änderung vorschlagen"),
+		});
+		return spec ? locationPopupActionsMarkup([popupActionButtonMarkup(spec)]) : "";
+	}
+
 	window.avesmapsShowRegionInInfopanel = function (regionEntry) {
 		if (!regionEntry || typeof createRegionCompactTooltipMarkup !== "function") {
 			return false;

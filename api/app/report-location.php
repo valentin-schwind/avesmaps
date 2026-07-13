@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
+require __DIR__ . '/../_internal/app/report-context.php';
 
 const AVESMAPS_REPORT_TYPES = [
     'location' => ['type' => 'location', 'subtype' => 'dorf'],
@@ -26,6 +27,8 @@ const AVESMAPS_REPORT_TYPES = [
     'suempfe_moore' => ['type' => 'label', 'subtype' => 'suempfe_moore'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
+    'weg' => ['type' => 'path', 'subtype' => 'weg'],
+    'territorium' => ['type' => 'territory', 'subtype' => 'territorium'],
 ];
 const AVESMAPS_LOCATION_SUBTYPES = ['dorf', 'gebaeude', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
 const AVESMAPS_REPORT_MAP_MAX_COORDINATE = 1024.0;
@@ -58,7 +61,7 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapReportsTable($pdo);
-    if ($mapReport['report_type'] === 'location' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
+    if ($mapReport['report_type'] === 'location' && $mapReport['report_mode'] !== 'change' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
         avesmapsErrorResponse(409, 'conflict', 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.');
     }
     if (avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
@@ -67,7 +70,7 @@ try {
             'message' => 'Karteneintrag wurde gemeldet.',
         ]);
     }
-    if (avesmapsIsNearDuplicateReport($pdo, $mapReport)) {
+    if ($mapReport['report_mode'] !== 'change' && avesmapsIsNearDuplicateReport($pdo, $mapReport)) {
         $mapReport['review_note'] = 'Moegliches Duplikat.';
     }
 
@@ -76,6 +79,9 @@ try {
             status,
             report_type,
             report_subtype,
+            report_mode,
+            entity_type,
+            entity_public_id,
             name,
             reporter_name,
             lat,
@@ -95,6 +101,9 @@ try {
             :status,
             :report_type,
             :report_subtype,
+            :report_mode,
+            :entity_type,
+            :entity_public_id,
             :name,
             :reporter_name,
             :lat,
@@ -118,6 +127,9 @@ try {
         'status' => 'neu',
         'report_type' => $mapReport['report_type'],
         'report_subtype' => $mapReport['report_subtype'],
+        'report_mode' => $mapReport['report_mode'],
+        'entity_type' => $mapReport['entity_type'],
+        'entity_public_id' => $mapReport['entity_public_id'],
         'name' => $mapReport['name'],
         'reporter_name' => $mapReport['reporter_name'],
         'lat' => $mapReport['lat'],
@@ -225,7 +237,8 @@ function avesmapsValidateMapReport(array $payload): array {
             $sources = [['url' => '', 'label' => $legacySource, 'pages' => '', 'type' => 'sonstiges', 'official' => false]];
         }
     }
-    if ($sources === [] && $requestedType !== 'comment') {
+    $changeContext = avesmapsNormalizeChangeContext($payload);
+    if ($sources === [] && $requestedType !== 'comment' && $changeContext['mode'] !== 'change') {
         throw new InvalidArgumentException('Bitte mindestens eine Quelle angeben.');
     }
     // `source` stays the (required, indexed) primary label used for dedup + the review list = first source.
@@ -260,6 +273,9 @@ function avesmapsValidateMapReport(array $payload): array {
         'lng' => $lng,
         'page_url' => avesmapsNormalizeOptionalUrl((string) ($payload['page_url'] ?? ''), 500, 'Die Seiten-URL'),
         'client_version' => avesmapsNormalizeSingleLine((string) ($payload['client_version'] ?? ''), 80),
+        'report_mode' => $changeContext['mode'],
+        'entity_type' => $changeContext['entity_type'],
+        'entity_public_id' => $changeContext['entity_public_id'],
     ];
 }
 
@@ -459,6 +475,10 @@ function avesmapsEnsureMapReportsTable(PDO $pdo): void {
     // Multi-source #3: community source-suggestion list as JSON (array of {url,label,pages,type,official}).
     avesmapsEnsureMapReportColumn($pdo, 'sources_json', 'TEXT NULL AFTER source');
     avesmapsEnsureMapReportIndex($pdo, 'idx_map_reports_ip_hash_created_at', '(ip_hash, created_at)');
+    // Community "Änderung vorschlagen": change reports reference an existing element.
+    avesmapsEnsureMapReportColumn($pdo, 'report_mode', "VARCHAR(16) NOT NULL DEFAULT 'new' AFTER report_subtype");
+    avesmapsEnsureMapReportColumn($pdo, 'entity_type', 'VARCHAR(20) NULL AFTER report_mode');
+    avesmapsEnsureMapReportColumn($pdo, 'entity_public_id', 'VARCHAR(80) NULL AFTER entity_type');
 }
 
 function avesmapsEnsureMapReportColumn(PDO $pdo, string $columnName, string $columnDefinition): void {

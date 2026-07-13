@@ -414,6 +414,22 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 		actionButtons.push(shareButton);
 	}
 
+	// Community: "Änderung vorschlagen" -- opens the report form in change mode with this settlement
+	// preselected. Always shown (also for logged-out visitors), before the editor-only actions.
+	const suggestSpec = typeof buildSuggestChangeButtonSpec === "function"
+		? buildSuggestChangeButtonSpec({
+			entityType: "settlement",
+			entityId: publicId,
+			name,
+			reportType: "location",
+			size: location?.locationType || "",
+			label: tr("popup.suggestChange", "Änderung vorschlagen"),
+		})
+		: null;
+	if (suggestSpec) {
+		actionButtons.push(popupActionButtonMarkup(suggestSpec));
+	}
+
 	// Kontext-Kacheln, die der Aufrufer beisteuert (z. B. der Floating-Box-"Abenteuer"-Button aus
 	// place-extras.js) -- generisch gehalten, damit dieses UI-Modul keine Feature-Logik kennt.
 	if (extraButtons && extraButtons.length) {

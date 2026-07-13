@@ -240,6 +240,26 @@ function renderReviewReports() {
 		if (isCommentReport(report)) {
 			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
 		}
+		// Change-mode reports: show what element the change suggestion refers to.
+		if (report.report_mode === "change" && report.entity_type) {
+			const ref = report.entity_public_id
+				? `${report.entity_type} · ${report.entity_public_id}`
+				: report.entity_type;
+			const changeRefElement = document.createElement("div");
+			changeRefElement.className = "review-report__change-ref";
+			// Build purely via DOM to avoid any innerHTML XSS risk.
+			changeRefElement.appendChild(document.createTextNode(`${tr("review.changeRef", "Änderung an")}: `));
+			const nameSpan = document.createElement("span");
+			nameSpan.className = "review-report__change-ref-name";
+			nameSpan.textContent = report.name || "";
+			changeRefElement.appendChild(nameSpan);
+			changeRefElement.appendChild(document.createTextNode(" "));
+			const metaSpan = document.createElement("span");
+			metaSpan.className = "review-report__change-ref-meta";
+			metaSpan.textContent = `(${ref})`;
+			changeRefElement.appendChild(metaSpan);
+			itemElement.querySelector(".review-report__focus").after(changeRefElement);
+		}
 		listElement.appendChild(itemElement);
 	});
 }
