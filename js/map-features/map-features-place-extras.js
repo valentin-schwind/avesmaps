@@ -87,7 +87,7 @@ function buildPlaceCityMapsMarkup(location) {
 			+ '</a>';
 	}).join("");
 	return '<div class="avesmaps-citymaps">'
-		+ '<div class="avesmaps-citymaps__head">Stadtkarten <span class="avesmaps-citymaps__note">· Platzhalter · externe Links</span></div>'
+		+ '<div class="avesmaps-citymaps__head">Kartensammlung <span class="avesmaps-citymaps__note">· Platzhalter · externe Links</span></div>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
 		+ '</div>';
 }
@@ -352,7 +352,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		return "";
 	}
 	return popupActionButtonMarkup({
-		label: "Stadtkarten",
+		label: "Kartensammlung",
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/stadtkarte.webp" alt="" width="20" height="20" />',
 		attributes: { "aria-disabled": "true", "data-citymaps-placeholder": "true" },
 	});
