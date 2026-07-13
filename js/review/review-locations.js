@@ -314,8 +314,11 @@ function applyChangeSuggestionContext(ctx) {
 		nameInput.readOnly = true;
 	}
 
-	// Coordinates + meta.
+	// Position ist im Aenderungsmodus irrelevant (Element via entity_public_id eindeutig) -> Zeile ausblenden.
+	// lat/lng werden trotzdem (aus ctx bzw. Kartenmitte) gefuellt, weil der Endpoint sie noch als Feld erwartet.
 	document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(L.latLng(lat, lng));
+	var changeMetaEl = document.querySelector(".location-report-form__meta");
+	if (changeMetaEl) { changeMetaEl.style.display = "none"; }
 	document.getElementById("location-report-lat").value = lat.toFixed(3);
 	document.getElementById("location-report-lng").value = lng.toFixed(3);
 	document.getElementById("location-report-page-url").value = window.location.href;
@@ -367,6 +370,8 @@ function clearChangeSuggestionMode() {
 	if (entityTypeEl) entityTypeEl.value = "";
 	const entityIdEl = document.getElementById("location-report-entity-id");
 	if (entityIdEl) entityIdEl.value = "";
+	const resetMetaEl = document.querySelector(".location-report-form__meta");
+	if (resetMetaEl) resetMetaEl.style.display = "";
 	if (commentField) {
 		commentField.required = false;
 		const label = commentField.closest(".location-report-form__field")?.querySelector("span");

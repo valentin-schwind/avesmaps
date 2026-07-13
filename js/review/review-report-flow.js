@@ -86,7 +86,10 @@ async function handleLocationReportFormSubmit(event) {
 		return;
 	}
 
-	if (!locationReportLatLng || !isWithinMapBounds(locationReportLatLng)) {
+	// Aenderungsmodus ("Änderung vorschlagen"): das Element ist ueber entity_public_id eindeutig -> die
+	// Neu-Melde-Pruefungen (Position, Quellenpflicht, Duplikat-Name) entfallen, wie schon im Backend.
+	const isChangeMode = (document.getElementById("location-report-mode")?.value || "new") === "change";
+	if (!isChangeMode && (!locationReportLatLng || !isWithinMapBounds(locationReportLatLng))) {
 		setLocationReportStatus(tr("report.statusInvalidPosition", "Die ausgewählte Position ist ungültig."), "error");
 		return;
 	}
@@ -100,12 +103,12 @@ async function handleLocationReportFormSubmit(event) {
 	const payload = buildLocationReportRequestPayload(formElement);
 	// Multi-source #3: at least one source is required (except pure comments). The single required
 	// `source` input is gone -- the list is JS-managed -- so validate it here instead of via reportValidity.
-	if (payload.report_type !== "comment" && (!Array.isArray(payload.sources) || payload.sources.length === 0)) {
+	if (!isChangeMode && payload.report_type !== "comment" && (!Array.isArray(payload.sources) || payload.sources.length === 0)) {
 		setLocationReportStatus(tr("report.statusNoSource", "Bitte mindestens eine Quelle angeben (Name genügt)."), "error");
 		document.getElementById("report-source-label")?.focus();
 		return;
 	}
-	if (payload.report_type === "location") {
+	if (!isChangeMode && payload.report_type === "location") {
 		const duplicateLocation = findDuplicateLocationByName(payload.name);
 		if (duplicateLocation) {
 			setLocationReportStatus(tr("report.statusDuplicate", `Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, { name: duplicateLocation.name }), "error");
