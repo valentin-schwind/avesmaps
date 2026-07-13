@@ -389,8 +389,23 @@
 	border-bottom: 1px solid var(--color-border);
 }
 
-.wiki-sync-dump-actions {
-	margin-bottom: 4px;
+/* Owner: "Dump holen" + "Abenteuereditor" als zwei gleich breite Kacheln nebeneinander (statt zweier
+   Button+Status-Zeilen untereinander). align-items:stretch -> beide Kacheln gleich hoch, auch wenn eine
+   umbricht; white-space:normal, damit "Abenteuereditor" in der schmalen Spalte nie abgeschnitten wird. */
+.wiki-sync-dump-tiles {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	align-items: stretch;
+	gap: 8px;
+	margin: 8px 10px 4px;
+}
+.wiki-sync-dump-tiles .wiki-sync-panel__start {
+	white-space: normal;
+}
+/* Die Status-/"Dump geholt: <date>"-Zeilen laufen jetzt UNTER den Kacheln (Owner) -- horizontaler Rand
+   wie die Kacheln, damit sie damit fluchten (vorher trug den Rand das .wiki-sync-panel__actions-Grid). */
+.wiki-sync-dump-summary {
+	margin: 0 10px 4px;
 }
 
 /* Per-tab "Syncen" progress bar + transient "läuft …" status: both are direct children
