@@ -122,12 +122,20 @@
   .ae-filter__reset:hover { text-decoration: underline; }
 
   .ae-item {
-    display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+    display: flex; align-items: center; gap: var(--space-8); width: 100%; text-align: left; cursor: pointer; font: inherit;
     background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
     padding: var(--space-4) var(--space-8); margin-bottom: 1px; line-height: var(--leading-tight);
   }
   .ae-item:hover { background: var(--color-hover-wash); }
   .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+  .ae-item__thumb {
+    flex: 0 0 auto; width: 32px; height: 45px; border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm); overflow: hidden; background: var(--color-panel-muted);
+    display: flex; align-items: center; justify-content: center; color: var(--color-text-muted);
+  }
+  .ae-item__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ae-item__thumb svg { width: 14px; height: 14px; }
+  .ae-item__text { min-width: 0; flex: 1 1 auto; }
   .ae-item__l1 { display: flex; align-items: baseline; gap: var(--space-6); }
   .ae-item__title { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -424,6 +432,10 @@
   const EMPTY_FILTERS = { type: "", edition: "", yearFrom: "", yearTo: "", cover: "", fshop: "", region: "", ortId: "", ortName: "" };
   const state = { adventures: [], selectedId: null, detail: null, filters: Object.assign({}, EMPTY_FILTERS) };
 
+  // List-thumbnail placeholder (kein Cover) — mirrors AVESMAPS_ADV_COVER_PH_SVG (map-features-place-extras.js),
+  // dieselbe Bild-Silhouette wie im Frontend-Streifen/-Dialog, nur kleiner fuer die dichte Editor-Liste.
+  const AE_COVER_PH_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 16 5-4 4 3 3-2 4 3"/></svg>';
+
   // ---- left list (list action) ----
   async function loadList() {
     try {
@@ -483,9 +495,15 @@
     document.getElementById("aeListScroll").innerHTML = rows.length ? rows.map((a) => {
       const draft = a.status !== "approved";
       const manual = a.origin === "manual" ? ` · <span class="pill pill--manual">manuell</span>` : "";
+      const thumb = a.cover_url
+        ? `<img src="${aeEscape(a.cover_url)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(''))">`
+        : AE_COVER_PH_SVG;
       return `<button class="ae-item${a.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${aeEscape(a.public_id)}">
-        <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
-        <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span></button>`;
+        <span class="ae-item__thumb">${thumb}</span>
+        <span class="ae-item__text">
+          <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
+          <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span>
+        </span></button>`;
     }).join("") : `<p class="ae-empty">Keine Abenteuer.</p>`;
   }
 

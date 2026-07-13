@@ -500,7 +500,7 @@ function avesmapsListAdventuresForEdit(PDO $pdo): array
     // Cover" and "F-Shop ja/nein" list filters; edition backs the DSA-Version filter.
     $rows = $pdo->query(
         "SELECT a.id, a.public_id, a.title, a.product_type, a.edition, a.bf_label, a.bf_year, a.wiki_key,
-                a.origin, a.status,
+                a.origin, a.status, a.cover_url,
                 (a.cover_url IS NOT NULL AND a.cover_url <> '') AS has_cover,
                 (a.fshop_code IS NOT NULL AND a.fshop_code <> '') AS has_fshop,
                 (SELECT COUNT(*) FROM adventure_place p WHERE p.adventure_id = a.id AND p.status = 'approved')
@@ -543,6 +543,7 @@ function avesmapsListAdventuresForEdit(PDO $pdo): array
             'has_fshop' => (int) $row['has_fshop'] === 1,
             'place_count' => (int) $row['place_count'],
             'places' => $placesByAdvId[(int) $row['id']] ?? [],
+            'cover_url' => (string) ($row['cover_url'] ?? ''),
         ];
     }
     return ['adventures' => $adventures, 'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo)];
