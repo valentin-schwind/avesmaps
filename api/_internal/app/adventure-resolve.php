@@ -221,6 +221,55 @@ function avesmapsAdventureTerritoryAncestors(string $deepestWikiKey, array $pare
     return $path;
 }
 
+// Pick-by-public_id completion (P3 autocomplete): the editor already knows the EXACT entity from
+// map-search, so it stores target_kind + target_public_id directly -- name-resolution can fail for
+// non-wiki-linked or name/key-divergent entities (e.g. the settlement "Thalhaus"). This fills the derived
+// target_wiki_key + territory_path FROM the public_id, per kind, so display + Phase-2 aggregation work.
+function avesmapsAdventureCompleteTargetByPublicId(PDO $pdo, string $kind, string $publicId): array
+{
+    $wikiKey = '';
+    $deepestTerritoryKey = '';
+    if ($kind === 'territory') {
+        $stmt = $pdo->prepare('SELECT wiki_key FROM political_territory WHERE public_id = :p LIMIT 1');
+        $stmt->execute(['p' => $publicId]);
+        $wikiKey = trim((string) ($stmt->fetchColumn() ?: ''));
+        $deepestTerritoryKey = $wikiKey;
+    } elseif ($kind === 'settlement' || $kind === 'region' || $kind === 'path') {
+        $stmt = $pdo->prepare('SELECT properties_json FROM map_features WHERE public_id = :p LIMIT 1');
+        $stmt->execute(['p' => $publicId]);
+        $decoded = json_decode((string) ($stmt->fetchColumn() ?: ''), true);
+        $props = is_array($decoded) ? $decoded : [];
+        if ($kind === 'settlement') {
+            $settlement = is_array($props['wiki_settlement'] ?? null) ? $props['wiki_settlement'] : [];
+            $title = trim((string) ($settlement['title'] ?? ''));
+            $wikiUrl = trim((string) ($settlement['wiki_url'] ?? ($props['wiki_url'] ?? '')));
+            if ($title !== '') {
+                $wikiKey = avesmapsAdventureCanonicalKeyForName($title);
+            } elseif ($wikiUrl !== '') {
+                $built = avesmapsPoliticalBuildWikiKey($wikiUrl, '');
+                if (strncmp($built, 'wiki:', 5) === 0) { $wikiKey = $built; }
+            }
+            $deepestTerritoryKey = trim((string) ($props['territory_wiki_key'] ?? ''));
+        } elseif ($kind === 'region') {
+            $wikiRegion = is_array($props['wiki_region'] ?? null) ? $props['wiki_region'] : [];
+            $regionUrl = trim((string) ($wikiRegion['wiki_url'] ?? ''));
+            if ($regionUrl !== '') {
+                $built = avesmapsPoliticalBuildWikiKey($regionUrl, '');
+                if (strncmp($built, 'wiki:', 5) === 0) { $wikiKey = $built; }
+            }
+        } else { // path -- properties.wiki_path.wiki_key is a BARE slug (no 'wiki:' prefix)
+            $wikiPath = is_array($props['wiki_path'] ?? null) ? $props['wiki_path'] : [];
+            $wikiKey = trim((string) ($wikiPath['wiki_key'] ?? ''));
+        }
+    }
+
+    $path = [];
+    if ($deepestTerritoryKey !== '') {
+        $path = avesmapsAdventureTerritoryAncestors($deepestTerritoryKey, avesmapsAdventureLoadTerritoryParentMap($pdo));
+    }
+    return ['wiki_key' => $wikiKey, 'territory_path' => $path];
+}
+
 // Resolve-all: (1) resolve every place still 'unresolved' (manually CHOSEN targets have target_kind !=
 // 'unresolved' and are left untouched = override protection); (2) fill target_territory_path for
 // settlement/territory places (from the deepest territory + parent tree) so the client aggregates

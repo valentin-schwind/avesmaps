@@ -684,7 +684,22 @@ function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $d
         'target_wiki_key' => $targetWikiKey === '' ? null : $targetWikiKey,
         'role' => $role,
     ]);
-    return ['place_id' => (int) $pdo->lastInsertId()];
+    $placeId = (int) $pdo->lastInsertId();
+
+    // P3 pick-by-public_id: when the editor picked an EXACT entity (target_public_id + a real kind) but
+    // sent no wiki_key, backfill the derived target_wiki_key + territory_path FROM the public_id, so the
+    // link is complete even for non-wiki-linked entities (no fragile name-resolution needed).
+    if ($targetPublicId !== '' && $targetWikiKey === ''
+        && in_array($targetKind, ['settlement', 'territory', 'region', 'path'], true)) {
+        $complete = avesmapsAdventureCompleteTargetByPublicId($pdo, $targetKind, $targetPublicId);
+        $pdo->prepare('UPDATE adventure_place SET target_wiki_key = :wk, target_territory_path = :tp WHERE id = :id')
+            ->execute([
+                'wk' => $complete['wiki_key'] !== '' ? $complete['wiki_key'] : null,
+                'tp' => json_encode(array_values($complete['territory_path']), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'id' => $placeId,
+            ]);
+    }
+    return ['place_id' => $placeId];
 }
 
 // Partial-update a place (by id -> 404 if unknown). Only the sent fields are written; origin is always

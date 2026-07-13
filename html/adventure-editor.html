@@ -398,7 +398,7 @@
     const kind = p.target_kind || "unresolved";
     const resolved = kind === "unresolved"
       ? `<span class="pill pill--unresolved">nicht aufgelöst</span> Rohname bleibt erhalten`
-      : `→ ${aeEscape(KIND_LABEL[kind] || kind)} <code>${aeEscape(p.target_wiki_key || p.target_public_id || "")}</code>`;
+      : `→ ${aeEscape(KIND_LABEL[kind] || kind)}${p.target_wiki_key ? ` <code>${aeEscape(p.target_wiki_key)}</code>` : ""}`;
     const origin = p.origin === "manual" ? `<span class="pill pill--manual">manuell</span>` : `<span class="pill pill--wiki">Wiki</span>`;
     return `<div class="ae-place${start ? " is-start" : ""}" data-place-id="${p.id}">
       <div class="ae-place__order"><span class="ord-num">${p.sort_order}</span>
@@ -471,7 +471,7 @@
     if (!state.selectedId) { alert("Erst ein Abenteuer speichern/wählen."); return; }
     // Add paths (button, autocomplete pick, or free-text row) run their own add+resolve+reload (P3).
     if (act === "add" || act === "ac-free") { addPlaceRaw(document.getElementById("aeAddName").value); return; }
-    if (act === "ac-pick") { addPlaceRaw(btn.dataset.name); return; }
+    if (act === "ac-pick") { const it = acItems[Number(btn.dataset.idx)]; if (it) addPickedItem(it); return; }
     const rowEl = btn.closest("[data-place-id]");
     const placeId = rowEl ? Number(rowEl.dataset.placeId) : null;
     try {
@@ -515,7 +515,7 @@
   function renderAc() {
     const ac = document.getElementById("aeAc"); if (!ac) return;
     const rows = acItems.map((it, idx) =>
-      `<div class="ae-ac__item${idx === acActive ? " is-active" : ""}" data-act="ac-pick" data-name="${aeEscape(it.name)}">
+      `<div class="ae-ac__item${idx === acActive ? " is-active" : ""}" data-act="ac-pick" data-idx="${idx}">
         <span class="ae-ac__name">${acHighlight(it.name, acQuery)}</span>
         <span class="pill pill--kind">${aeEscape(it.type_label || it.feature_subtype || "")}</span></div>`).join("");
     const free = `<div class="ae-ac__item ae-ac__free${acActive === -1 ? " is-active" : ""}" data-act="ac-free">
@@ -540,9 +540,6 @@
     acActive = Math.max(-1, Math.min(acItems.length - 1, acActive + delta));
     renderAc();
   }
-  function acCurrentName() {
-    return (acActive >= 0 && acItems[acActive]) ? acItems[acActive].name : document.getElementById("aeAddName").value;
-  }
   async function addPlaceRaw(raw) {
     raw = (raw || "").trim();
     hideAc();
@@ -550,6 +547,31 @@
     try {
       const { place_id } = await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place: { raw_name: raw } });
       try { await adventurePost({ action: "resolve_place", place_id }); } catch (_) { /* best-effort */ }
+      await reloadDetail();
+      const inp = document.getElementById("aeAddName");
+      if (inp) inp.focus();
+    } catch (err) { alert("Fehler: " + err.message); }
+  }
+
+  // Map a map-search hit to an adventure target_kind (powerlines are filtered out upstream).
+  function mapSearchKind(it) {
+    if (it.kind === "location") return "settlement";
+    if (it.kind === "region" && it.feature_subtype === "political_territory") return "territory";
+    if (it.kind === "label" && it.feature_subtype === "region") return "region";
+    if (it.kind === "path") return "path";
+    return "";
+  }
+  // Approach A: a picked suggestion is an EXACT entity -> store target_kind + target_public_id directly
+  // (the backend backfills wiki_key + territory_path from the id). No name-resolution -> works even for
+  // non-wiki-linked entities like "Thalhaus". Unknown kind / no id -> fall back to the name flow.
+  async function addPickedItem(item) {
+    hideAc();
+    if (!state.selectedId || !item) return;
+    const kind = mapSearchKind(item);
+    if (!kind || !item.public_id) { addPlaceRaw(item.name); return; }
+    try {
+      await adventurePost({ action: "add_place", adventure_public_id: state.selectedId,
+        place: { raw_name: item.name, target_kind: kind, target_public_id: item.public_id } });
       await reloadDetail();
       const inp = document.getElementById("aeAddName");
       if (inp) inp.focus();
@@ -568,7 +590,9 @@
     if (e.target.id !== "aeAddName") return;
     if (e.key === "ArrowDown") { e.preventDefault(); acMove(1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); acMove(-1); }
-    else if (e.key === "Enter") { e.preventDefault(); addPlaceRaw(acCurrentName()); }
+    else if (e.key === "Enter") { e.preventDefault();
+      if (acActive >= 0 && acItems[acActive]) addPickedItem(acItems[acActive]);
+      else addPlaceRaw(document.getElementById("aeAddName").value); }
     else if (e.key === "Escape") { hideAc(); }
   });
   document.addEventListener("click", (e) => { if (!e.target.closest(".ae-add")) hideAc(); });
