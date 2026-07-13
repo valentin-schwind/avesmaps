@@ -160,6 +160,13 @@
 	font-size: 9.5px;
 	color: var(--color-text-muted);
 }
+/* "enthalten in: <Mutterprodukt>" -- Anthologie-Abenteuer, deren Shop-Link aufs Sammelprodukt zeigt. */
+.avesmaps-adv__contained {
+	margin-top: 1px;
+	font-size: 9.5px;
+	font-style: italic;
+	color: var(--color-text-muted);
+}
 /* Lizenz-Fußzeile: Cover-Nutzung mit Verweis auf den Ulisses-F-Shop (volle Breite, Trenner statt Rahmen). */
 .avesmaps-adv__credit {
 	margin-top: 10px;

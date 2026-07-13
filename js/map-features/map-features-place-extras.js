@@ -131,6 +131,8 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 		: AVESMAPS_ADV_COVER_PH_SVG;
 	var metaLine = a.yearLabel ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(a.yearLabel) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
+	// Anthology-only adventures ship inside a parent product -> the shop link points there; say why.
+	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">enthalten in: ' + placeExtrasEscape(a.containedIn) + '</div>' : "";
 	var extraClass = isPlay ? " is-play" : "";
 	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
 	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-edition="' + placeExtrasEscape(a.edition || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
@@ -138,6 +140,7 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
 		+ typeLine
+		+ containedLine
 		+ '</div>';
 }
 

@@ -93,7 +93,9 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
         );
         return $stmt !== false && (int) $stmt->fetchColumn() > 0;
     };
-    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)'] as $column => $type) {
+    // contained_in: the parent product an anthology-only adventure ships inside (e.g. "Alter Hass" -> "Im
+    // Namen des Thearchen"). Display note + the reason its shop link points at the parent product.
+    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)', 'contained_in' => 'VARCHAR(300)'] as $column => $type) {
         if (!$adventureColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE adventure ADD COLUMN ' . $column . ' ' . $type . ' NULL');
         }
@@ -164,7 +166,7 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
     $rows = $pdo->query(
         "SELECT id, public_id, title, wiki_url, product_type, edition, bf_year, bf_label,
                 genre, complexity_gm, complexity_pl, is_official, fshop_code, cover_url, series,
-                link_ulisses, link_fshop, isbn
+                link_ulisses, link_fshop, isbn, contained_in
            FROM adventure
           WHERE status = 'approved'
           ORDER BY (bf_year IS NULL), bf_year DESC, title ASC"
@@ -223,6 +225,7 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
             'link_ulisses' => (string) ($row['link_ulisses'] ?? ''),
             'link_fshop' => (string) ($row['link_fshop'] ?? ''),
             'isbn' => (string) ($row['isbn'] ?? ''),
+            'contained_in' => (string) ($row['contained_in'] ?? ''),
             'places' => $placesByAdventure[(int) $row['id']] ?? [],
         ];
     }
@@ -554,7 +557,7 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
     $stmt = $pdo->prepare(
         "SELECT id, public_id, wiki_key, wiki_url, title, product_type, edition, bf_year, bf_label, genre,
                 complexity_gm, complexity_pl, is_official, authors, series, fshop_code, cover_url,
-                link_ulisses, link_fshop, isbn,
+                link_ulisses, link_fshop, isbn, contained_in,
                 field_origins_json, status, origin, created_at, updated_at, synced_at
            FROM adventure WHERE public_id = :pid LIMIT 1"
     );
@@ -614,6 +617,7 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
         'link_ulisses' => (string) ($row['link_ulisses'] ?? ''),
         'link_fshop' => (string) ($row['link_fshop'] ?? ''),
         'isbn' => (string) ($row['isbn'] ?? ''),
+        'contained_in' => (string) ($row['contained_in'] ?? ''),
         'field_origins' => (object) $fieldOrigins,
         'status' => (string) $row['status'],
         'origin' => (string) $row['origin'],
@@ -642,7 +646,7 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
         'title', 'product_type', 'edition', 'bf_year', 'bf_label', 'genre',
         'complexity_gm', 'complexity_pl', 'is_official', 'authors', 'series',
         'fshop_code', 'cover_url', 'wiki_url', 'wiki_key',
-        'link_ulisses', 'link_fshop', 'isbn',
+        'link_ulisses', 'link_fshop', 'isbn', 'contained_in',
     ];
     $normalize = static function (string $field, mixed $raw): int|string|null {
         if ($field === 'bf_year') {
@@ -688,12 +692,12 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
             "INSERT INTO adventure
                 (public_id, title, product_type, edition, bf_year, bf_label, genre, complexity_gm,
                  complexity_pl, is_official, authors, series, fshop_code, cover_url, wiki_url, wiki_key,
-                 link_ulisses, link_fshop, isbn,
+                 link_ulisses, link_fshop, isbn, contained_in,
                  field_origins_json, origin, status)
              VALUES
                 (:public_id, :title, :product_type, :edition, :bf_year, :bf_label, :genre, :complexity_gm,
                  :complexity_pl, :is_official, :authors, :series, :fshop_code, :cover_url, :wiki_url, :wiki_key,
-                 :link_ulisses, :link_fshop, :isbn,
+                 :link_ulisses, :link_fshop, :isbn, :contained_in,
                  :field_origins_json, 'manual', 'approved')"
         )->execute($insertParams);
         return ['public_id' => $publicId, 'created' => true];

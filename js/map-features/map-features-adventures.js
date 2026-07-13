@@ -63,6 +63,7 @@ function avesmapsAdventureToRenderShape(adventure) {
 		linkUlisses: adventure.link_ulisses || "",
 		linkFshop: adventure.link_fshop || "",
 		isbn: adventure.isbn || "",
+		containedIn: adventure.contained_in || "",
 		official: adventure.is_official === true || adventure.is_official === 1,
 		complexity: adventure.complexity_gm || adventure.complexity_pl || "",
 		genre: adventure.genre || "",
