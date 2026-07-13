@@ -937,6 +937,14 @@
 	padding: 11px 14px 0;
 	border-top: 1px solid rgba(141, 121, 98, 0.35);
 }
+/* Siedlungs-Infobox im Panel (Owner): KEIN Trenner ueber "Quelle:" -- die Daten darueber (Einwohner,
+   Oberhaupt, Handelszone ...) stammen ja aus genau dieser Quelle, ein Strich wuerde sie faelschlich
+   abkoppeln. Nur ein kleiner Abstand bleibt. */
+.region-info-box--settlement .feature-sources {
+	border-top: none;
+	margin-top: 4px;
+	padding-top: 0;
+}
 /* No-Wiki-Fall: die Quell-Zeile ist direkter Vorgänger der Aktionen -> deren Trenner kommt sonst
    über die region-info-box-Regel, die hier nicht greift; also hier setzen. */
 .settlement-popup .feature-sources + .location-popup__actions {
