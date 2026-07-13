@@ -290,6 +290,7 @@ function applyChangeSuggestionContext(ctx) {
 	}
 	lat = Math.min(1024, Math.max(0, lat));
 	lng = Math.min(1024, Math.max(0, lng));
+	locationReportLatLng = L.latLng(lat, lng); // Submit-Handler prueft die JS-Variable (review-report-flow.js), sonst "Position ungueltig"
 
 	const typeSelect = document.getElementById("location-report-type");
 	const nameInput = document.getElementById("location-report-name");
