@@ -279,6 +279,10 @@ function renderReviewReports() {
 			metaSpan.textContent = `(${ref})`;
 			changeRefElement.appendChild(metaSpan);
 			itemElement.querySelector(".review-report__focus").after(changeRefElement);
+			// Change reports edit the EXISTING element -> the create button opens the editor: "Bearbeiten".
+			if (isLocationReport(report)) {
+				itemElement.querySelector(".review-report__create").textContent = "Bearbeiten";
+			}
 		}
 		listElement.appendChild(itemElement);
 	});

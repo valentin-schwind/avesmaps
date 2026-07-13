@@ -38,6 +38,33 @@ function openLabelEditDialogFromReport(report, latlng) {
 	syncLabelPriorityOutput();
 }
 
+// Community change report ("Änderung vorschlagen"): open the EXISTING settlement in the editor (loaded by
+// entity_public_id) instead of the create flow, with the reporter's request prefilled at the top of the
+// description. Saving (update_point) then marks the report approved (review-editor-submit.js).
+function openLocationEditDialogFromChangeReport(report) {
+	const markerEntry = typeof findLocationMarkerByPublicId === "function"
+		? findLocationMarkerByPublicId(report.entity_public_id)
+		: null;
+	if (!markerEntry) {
+		showFeedbackToast("Die gemeldete Siedlung wurde nicht gefunden.", "warning");
+		return false;
+	}
+	void editLocationDetails(markerEntry);
+	activeReviewReportId = Number(report.id) || null;
+	activeReviewReportSource = report.report_source || "map_reports";
+	const descEl = document.getElementById("location-edit-description");
+	if (descEl) {
+		const request = String(report.comment || "").trim();
+		const reporter = String(report.reporter_name || "").trim();
+		const posNote = (Number.isFinite(Number(report.lat)) && Number.isFinite(Number(report.lng)))
+			? ` (vorgeschlagene Position: ${Number(report.lat).toFixed(3)}, ${Number(report.lng).toFixed(3)})`
+			: "";
+		const header = `— Community-Änderungswunsch${reporter ? ` von ${reporter}` : ""}${posNote}:`;
+		descEl.value = [header, request, String(descEl.value || "").trim()].filter(Boolean).join("\n");
+	}
+	return true;
+}
+
 async function rejectReviewReport(report) {
 	if (!window.confirm(`${report.name || "Meldung"} wirklich verwerfen?`)) {
 		return;

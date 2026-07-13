@@ -591,7 +591,11 @@ $(document).on("click", ".review-report__create", function (event) {
 		return;
 	}
 	if (isLocationReport(report)) {
-		openLocationEditDialogFromReport(report, latlng);
+		if (report.report_mode === "change" && report.entity_public_id) {
+			openLocationEditDialogFromChangeReport(report);
+		} else {
+			openLocationEditDialogFromReport(report, latlng);
+		}
 		return;
 	}
 

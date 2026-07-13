@@ -84,7 +84,7 @@ async function handleLocationEditFormSubmit(event) {
 			}
 		}
 		activeReviewReportSourceSuggestions = [];
-		if (payload.action === "create_point" && activeReviewReportId) {
+		if ((payload.action === "create_point" || payload.action === "update_point") && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");
 			activeReviewReportId = null;
 			activeReviewReportSource = null;
