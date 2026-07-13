@@ -88,8 +88,28 @@ function restoreReviewPanelState() {
 	syncReviewPanelVisibility();
 }
 
+// Ist das Info-Panel (teilt sich mit dem Editor die rechte Kante) gerade sichtbar? Fuer den No-Slide-
+// Tab-Wechsel: faehrt der Editor auf, waehrend das Info-Panel schon da ist, soll er nicht doppelt reinsliden.
+function isInfopanelVisibleForEditor() {
+	var ip = document.querySelector(".avesmaps-infopanel");
+	return !!(ip && !ip.classList.contains("is-hidden"));
+}
+
 function syncReviewPanelVisibility() {
-	$("#review-panel").toggleClass("is-hidden", isReviewPanelHidden);
+	var panelEl = document.getElementById("review-panel");
+	// Kein Slide beim reinen Tab-Wechsel (Owner): faehrt der Editor gerade auf (war verborgen), waehrend das
+	// Info-Panel die rechte Kante schon belegt, die transform-Transition per Reflow aushebeln -> er erscheint
+	// direkt statt ein zweites Mal reinzusliden. Nur beim OEFFNEN.
+	var openingWhileInfoVisible = panelEl && !isReviewPanelHidden
+		&& panelEl.classList.contains("is-hidden") && isInfopanelVisibleForEditor();
+	if (openingWhileInfoVisible) {
+		panelEl.classList.add("avesmaps-no-slide");
+		panelEl.classList.remove("is-hidden");
+		void panelEl.offsetWidth; // Reflow: is-hidden greift ohne Transition, danach wieder animierbar
+		panelEl.classList.remove("avesmaps-no-slide");
+	} else {
+		$("#review-panel").toggleClass("is-hidden", isReviewPanelHidden);
+	}
 	$("#review-panel-toggle").toggleClass("is-hidden", isReviewPanelHidden);
 	$("#review-panel-toggle").text("Editor");
 }

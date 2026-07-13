@@ -37,6 +37,13 @@
 .avesmaps-infopanel.is-hidden {
 	transform: translateX(100%);
 }
+/* Kein Slide beim reinen Tab-Wechsel (Owner): faehrt das Info-Panel auf, waehrend der Editor die rechte
+   Kante schon belegt, wird die transform-Transition kurz ausgehebelt -> das Panel erscheint direkt statt
+   ein zweites Mal reinzusliden. Das JS (sync / syncReviewPanelVisibility) setzt+entfernt die Klasse um
+   einen erzwungenen Reflow. */
+.avesmaps-infopanel.avesmaps-no-slide {
+	transition: none;
+}
 
 /* Wegpunkt-Breadcrumbs als REITER-Leiste (Browser-Tab-Optik, Owner-Konzept): leicht abgerundete OBERE
    Ecken (keine Voll-Pillen), per "›" getrennt (= Reiseroute), jeder Reiter mit "x". Der AKTIVE Reiter ist

@@ -123,7 +123,18 @@
 
 	function sync() {
 		var open = hasContent && !collapsed;
-		panel.classList.toggle("is-hidden", !open);
+		// Kein Slide beim reinen Tab-Wechsel (Owner): faehrt das Info-Panel gerade auf (war verborgen),
+		// waehrend der Editor die rechte Kante schon belegt, die transform-Transition per Reflow aushebeln
+		// -> das Panel erscheint direkt statt ein zweites Mal reinzusliden. Nur beim OEFFNEN.
+		var openingWhileEditorVisible = open && panel.classList.contains("is-hidden") && isEditorPanelVisible();
+		if (openingWhileEditorVisible) {
+			panel.classList.add("avesmaps-no-slide");
+			panel.classList.remove("is-hidden");
+			void panel.offsetWidth; // Reflow: is-hidden greift ohne Transition, danach wieder animierbar
+			panel.classList.remove("avesmaps-no-slide");
+		} else {
+			panel.classList.toggle("is-hidden", !open);
+		}
 		handle.style.display = (hasContent || (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)) ? "" : "none";
 		handle.classList.toggle("is-hidden", collapsed);
 		handle.setAttribute("aria-expanded", open ? "true" : "false");
