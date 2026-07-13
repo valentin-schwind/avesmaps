@@ -126,6 +126,11 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 	cursor: pointer;
+	/* Cap the width so long options (esp. Genre) don't stretch the row; the open dropdown still shows full. */
+	max-width: 150px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .avesmaps-adv-tree__fsel:hover {
 	border-color: var(--color-border-strong);
@@ -145,7 +150,7 @@
 }
 .avesmaps-adv-tree__ylabel { white-space: nowrap; }
 .avesmaps-adv-tree__yearin {
-	width: 4.5em;
+	width: 5.5em;
 	font: inherit;
 	font-size: var(--font-size-small);
 	padding: var(--space-2) var(--space-6);
@@ -154,6 +159,10 @@
 	background: var(--color-panel);
 	color: var(--color-text);
 }
+/* Hide the number spinners -- they ate ~16px and truncated the 4-digit BF year to "100...". */
+.avesmaps-adv-tree__yearin::-webkit-outer-spin-button,
+.avesmaps-adv-tree__yearin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.avesmaps-adv-tree__yearin { -moz-appearance: textfield; }
 .avesmaps-adv-tree__yearin:hover { border-color: var(--color-border-strong); }
 .avesmaps-adv-tree__yearin:focus-visible {
 	border-color: var(--color-border-strong);
