@@ -357,7 +357,7 @@ window.AVESMAPS_I18N_EN = {
 	"type.gebaeude.singular": "Special building/site",
 
 	// --- header ---
-	"header.tagline": "Your route planner for Aventurien from \"Das Schwarze Auge\" (DSA).",
+	"header.tagline": "Your route planner for Aventurien from \"The Dark Eye\".",
 
 	// --- territory infobox (region info box / mini tooltip) ---
 	"infobox.wikiEntry": "Wiki entry",
