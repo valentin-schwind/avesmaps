@@ -381,9 +381,66 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		document.addEventListener("keydown", function (e) { if (e.key === "Escape") { close(); } });
 		return overlay;
 	}
-	// Dialog-Steuerzeile: Sortier-Links (immer) + Umschalter (nur wenn spielt-Karten da sind) -- gleiche
-	// Optik/Zaehler wie im Streifen. In eine eigene .__controls-Box, damit der Umschalter im Flex-Column-
-	// Dialog nicht auf volle Breite gestreckt wird (CSS align-items:flex-start).
+	// Shape aus den Karten-data-Attributen -> avesmapsAdventureFacetOptions/avesmapsAdventureMatchesFilter
+	// (geteilte, reine Funktionen aus map-features-adventures.js, gleiches Praedikat wie der Nested-Dialog).
+	function cardShapeFromEl(card) {
+		return {
+			type: card.getAttribute("data-type") || "",
+			edition: card.getAttribute("data-edition") || "",
+			year: Number(card.getAttribute("data-year")) || 0,
+			complexity: card.getAttribute("data-complexity") || "",
+			genre: card.getAttribute("data-genre") || "",
+			official: card.getAttribute("data-official") === "1",
+		};
+	}
+	function dialogCardPasses(card, filter) {
+		if (typeof avesmapsAdventureMatchesFilter !== "function") {
+			return true;
+		}
+		return avesmapsAdventureMatchesFilter(cardShapeFromEl(card), filter);
+	}
+
+	// Filterleiste fuer den flachen Dialog -- gleiche Optik/Klassen wie der Nested-Dialog (adventures-dialog.css,
+	// .avesmaps-adv-tree__filters/__chip/__selwrap/__fsel/__yearwrap/__yearin/__fdiv sind NICHT ancestor-scoped,
+	// also visuell wiederverwendbar). Eigene, dialog-lokale State-/Event-Verdrahtung in buildDialogControls
+	// (nicht $(document).on), damit sie den Nested-Dialog (#avesmaps-adv-tree-dialog) nicht beruehrt.
+	function dialogFiltersMarkup(facets) {
+		var parts = ['<span class="avesmaps-adv-tree__flabel">Filter</span>'];
+		if (facets.types && facets.types.length) {
+			facets.types.forEach(function (t) {
+				parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + placeExtrasEscape(t) + '">' + placeExtrasEscape(t) + '</span>');
+			});
+			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
+		}
+		if (facets.editions && facets.editions.length) {
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">DSA-Version</option>'
+				+ facets.editions.map(function (e) { return '<option value="' + placeExtrasEscape(e) + '">' + placeExtrasEscape(e) + '</option>'; }).join('') + '</select></span>');
+		}
+		if (facets.complexities && facets.complexities.length) {
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">Schwierigkeit</option>'
+				+ facets.complexities.map(function (d) { return '<option value="' + placeExtrasEscape(d) + '">' + placeExtrasEscape(d) + '</option>'; }).join('') + '</select></span>');
+		}
+		if (facets.genres && facets.genres.length) {
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
+				+ facets.genres.map(function (g) { return '<option value="' + placeExtrasEscape(g) + '">' + placeExtrasEscape(g) + '</option>'; }).join('') + '</select></span>');
+		}
+		var yr = facets.yearRange || { min: 0, max: 0 };
+		var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : "von";
+		var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : "bis";
+		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">Zeitraum (BF)</span>'
+			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
+			+ '<span class="avesmaps-adv-tree__ydash">–</span>'
+			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
+		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
+		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">nur offiziell</span>');
+		return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
+	}
+
+	// Dialog-Steuerzeile: Umschalter (nur wenn spielt-Karten da sind) + Filterleiste (nur wenn die aktuellen
+	// Karten >=1 Facette hergeben) + Sortier-Links -- gleiche Reihenfolge wie der Nested-Dialog (Umschalter ->
+	// Filter -> Sortierung). In eine eigene .__controls-Box, damit im Flex-Column-Dialog nichts auf volle
+	// Breite gestreckt wird (CSS align-items:flex-start). Filter-Events sind box-lokal (nicht document-delegiert),
+	// damit sie unabhaengig vom geteilten Sortier-/Umschalter-Handler bleiben.
 	function buildDialogControls(overlay, startCount, playCount) {
 		var existing = overlay.querySelector(".avesmaps-adv-dialog__controls");
 		if (existing) {
@@ -403,12 +460,73 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 			+ '</div>';
 		var togglesHtml = playCount
 			? '<div class="avesmaps-adv-dialog__modes" role="tablist">'
-				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">Beginnt hier <span class="avesmaps-adv__mode-count">(' + startCount + ')</span></button>'
-				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count">(' + playCount + ')</span></button>'
+				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">Beginnt hier <span class="avesmaps-adv__mode-count" data-adv-count="start">(' + startCount + ')</span></button>'
+				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
 				+ '</div>'
 			: "";
-		controls.innerHTML = sortsHtml + togglesHtml;
+
+		var cards = grid ? Array.prototype.slice.call(grid.querySelectorAll(".avesmaps-adv__card")) : [];
+		var shapes = cards.map(cardShapeFromEl);
+		var facets = (typeof avesmapsAdventureFacetOptions === "function")
+			? avesmapsAdventureFacetOptions(shapes)
+			: { types: [], complexities: [], genres: [], editions: [] };
+		var filtersHtml = dialogFiltersMarkup(facets);
+
+		controls.innerHTML = togglesHtml + filtersHtml + sortsHtml;
 		box.insertBefore(controls, grid);
+
+		var filterState = { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false };
+
+		function applyFilters() {
+			var visStart = 0;
+			var visPlay = 0;
+			cards.forEach(function (card) {
+				var passes = dialogCardPasses(card, filterState);
+				card.classList.toggle("is-filtered-out", !passes);
+				if (passes) {
+					if (card.classList.contains("is-play")) { visPlay += 1; } else { visStart += 1; }
+				}
+			});
+			var cs = controls.querySelector('[data-adv-count="start"]');
+			var cp = controls.querySelector('[data-adv-count="play"]');
+			if (cs) { cs.textContent = "(" + visStart + ")"; }
+			if (cp) { cp.textContent = "(" + visPlay + ")"; }
+		}
+
+		controls.addEventListener("click", function (e) {
+			var chip = e.target.closest("[data-adv-filter]");
+			if (!chip || !chip.classList.contains("avesmaps-adv-tree__chip")) {
+				return;
+			}
+			var kind = chip.getAttribute("data-adv-filter");
+			if (kind === "official") {
+				filterState.officialOnly = !filterState.officialOnly;
+				chip.classList.toggle("is-active", filterState.officialOnly);
+			} else if (kind === "type") {
+				var v = chip.getAttribute("data-adv-value");
+				if (filterState.types.has(v)) {
+					filterState.types.delete(v);
+					chip.classList.remove("is-active");
+				} else {
+					filterState.types.add(v);
+					chip.classList.add("is-active");
+				}
+			}
+			applyFilters();
+		});
+		controls.addEventListener("change", function (e) {
+			var el = e.target;
+			var kind = el && el.getAttribute ? el.getAttribute("data-adv-filter") : "";
+			if (kind === "complexity") { filterState.complexity = el.value || ""; applyFilters(); }
+			else if (kind === "genre") { filterState.genre = el.value || ""; applyFilters(); }
+			else if (kind === "edition") { filterState.edition = el.value || ""; applyFilters(); }
+		});
+		controls.addEventListener("input", function (e) {
+			var el = e.target;
+			var kind = el && el.getAttribute ? el.getAttribute("data-adv-filter") : "";
+			if (kind === "yearFrom") { filterState.yearFrom = Number(el.value) || 0; applyFilters(); }
+			else if (kind === "yearTo") { filterState.yearTo = Number(el.value) || 0; applyFilters(); }
+		});
 	}
 
 	// Kern: den flachen Dialog aus einer .avesmaps-adv-SECTION befuellen (Titel + Karten aus dem Streifen klonen)

@@ -257,3 +257,9 @@
 .avesmaps-adv-tree-dialog__body.show-play .avesmaps-adv__card:not(.is-play):not(.is-filtered-out) {
 	opacity: 0.4;
 }
+
+/* Flacher Siedlungs-/Wege-/Regions-Dialog (#avesmaps-adv-dialog): dieselbe Filterleiste (Klassen oben),
+   eigene box-lokale Verdrahtung (map-features-place-extras.js, buildDialogControls) statt Baum-State. */
+.avesmaps-adv-dialog__grid .avesmaps-adv__card.is-filtered-out {
+	display: none !important;
+}
