@@ -162,7 +162,11 @@
 
 #legal-button:hover,
 #legal-button:focus-visible {
-	background: var(--color-hover-wash);
+	/* #legal-button schwebt wie der Zoom-Control ueber der KARTE -> das translucente --color-hover-wash
+	   allein liess die Karte durchscheinen ("komisch transparent"). Wash UEBER das opake Panel legen statt
+	   es zu ersetzen (gleiches Muster wie .leaflet-control-zoom a:hover in map-layout.css). */
+	background-color: var(--color-panel);
+	background-image: linear-gradient(var(--color-hover-wash), var(--color-hover-wash));
 	outline: none;
 }
 
