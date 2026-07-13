@@ -410,6 +410,7 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 .location-popup__name,
 .location-popup__type,
 .location-popup__description,
+.location-popup__breadcrumb-link,
 .region-info-box__title,
 .region-info-box__subtitle,
 .region-info-box__row dd {

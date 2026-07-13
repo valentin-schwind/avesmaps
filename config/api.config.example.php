@@ -30,6 +30,7 @@ return [
         'idea_channel_id' => 'replace-with-the-idea-channel-id',
         'faq_channel_id' => 'replace-with-the-faq-channel-id',
         'report_channel_id' => 'replace-with-the-report-channel-id',
+        'feature_channel_id' => 'replace-with-the-new-feature-channel-id',
         // Optional: set guild_id (your server id) for instant command registration.
         'guild_id' => '',
     ],

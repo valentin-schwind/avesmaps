@@ -276,16 +276,20 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	};
 
 	let rows = "";
-	rows += row(tr("popup.fieldInhabitants", "Einwohner"), wiki.einwohner);
-	rows += row(tr("popup.fieldRuler", "Oberhaupt"), wiki.oberhaupt);
-	rows += row(tr("popup.fieldPopulation", "Bevölkerung"), wiki.bevoelkerung);
-	if (wiki.tempel) {
-		rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
-	}
-	// Floating box: drop the description row (Owner) -- it's in the panel.
+	// Reihenfolge (Owner): Beschreibung zuerst, dann Oberhaupt, Einwohner, Handelszone, Verkehrswege;
+	// die selten befuellten Felder (Bevoelkerung ~2%, Tempel ~0%) ans Ende. row() unterdrueckt leere Werte.
+	// Floating box: KEINE Beschreibungszeile (Owner) -- die schlanke Box zeigt sie separat als eigenen Block.
 	if (!floating) {
 		rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
 	}
+	rows += row(tr("popup.fieldRuler", "Oberhaupt"), wiki.oberhaupt);
+	rows += row(tr("popup.fieldInhabitants", "Einwohner"), wiki.einwohner);
+	// Wieder aufgenommen (Owner) -- in ce8e796f "entschlackt", aber projektweit haeufig befuellt
+	// (Handelszone 62%, Verkehrswege 58%); die Daten reisen ohnehin im Payload mit.
+	rows += row(tr("popup.fieldTradeZone", "Handelszone"), wiki.handelszone);
+	rows += row(tr("popup.fieldTrafficRoutes", "Verkehrswege"), wiki.verkehrswege);
+	rows += row(tr("popup.fieldPopulation", "Bevölkerung"), wiki.bevoelkerung);
+	rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht die fertige

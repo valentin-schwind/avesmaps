@@ -1,10 +1,10 @@
 @import url("base/fonts.css");
-@import url("base/tokens.css?v=20260712-markergold1");
+@import url("base/tokens.css?v=20260713-iconxl46");
 @import url("base/reset.css");
 @import url("base/base.css?v=20260711-theme18");
 @import url("base/utilities.css");
 
-@import url("layout/map-layout.css?v=20260713-panelwidth1");
+@import url("layout/map-layout.css?v=20260713-tagline12");
 
 @import url("components/dialog-overlays.css?v=20260607-reviews");
 @import url("components/legal-dialog.css?v=20260711-theme19");
@@ -24,18 +24,18 @@
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css?v=20260711-theme20");
 @import url("features/political-timeline.css");
-@import url("features/location-popups-markers.css?v=20260713-headercaption1");
+@import url("features/location-popups-markers.css?v=20260713-breadcrumbhyphen1");
 @import url("features/location-reviews.css?v=20260712-floatbox3");
 @import url("features/place-extras.css?v=20260712-adventures6");
 @import url("features/adventures-dialog.css?v=20260712-adv-dialog4");
 @import url("features/measurement-tool.css");
 @import url("features/route-overview.css?v=20260711-theme9");
-@import url("features/route-planner.css?v=20260712-ziel-hinzufuegen");
+@import url("features/route-planner.css?v=20260713-iconxl46");
 @import url("features/route-planner-waypoint-timeline.css?v=20260712-ziel-hinzufuegen");
 @import url("features/transport-speed-info.css?v=20260711-theme16");
 @import url("features/path-editor.css");
 @import url("features/powerlines.css");
-@import url("features/review-panel.css?v=20260713-panelwidth1");
+@import url("features/review-panel.css?v=20260713-editortheme1");
 @import url("features/infopanel.css?v=20260713-panelwidth1");
 
 /* Einheitlicher Link-Stil — als LETZTES, damit es aeltere per-Klasse-Linkfarben ueberschreibt. */

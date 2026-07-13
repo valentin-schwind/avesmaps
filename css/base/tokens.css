@@ -72,6 +72,15 @@
 
 	--color-danger: #9d3a2e;
 	--color-success: #2f7d3a;             /* status: success (e.g. contact form) */
+	/* Soft status surfaces — the pale tinted fills for accept/reject buttons and status pills in the
+	   editor (Meldungen, WikiSync). --color-success/-danger above are the solid text colours; these carry
+	   a full bg/border/text set so the buttons follow the theme instead of staying light in dark mode. */
+	--color-success-soft: #eef6e2;
+	--color-success-soft-border: #a9c07f;
+	--color-success-soft-text: #3c5a1c;
+	--color-danger-soft: #fbeae6;
+	--color-danger-soft-border: #d3a79c;
+	--color-danger-soft-text: #8a2d22;
 	--color-marker-destination: #e33b35; /* route destination pin — heraldic red, matches red map markers */
 
 	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
@@ -133,7 +142,7 @@
 	--icon-sm: 16px;    /* dense inline glyph */
 	--icon-md: 20px;    /* standard UI glyph */
 	--icon-lg: 24px;    /* inline content icon — transport mode */
-	--icon-xl: 40px;    /* map-display type toggle */
+	--icon-xl: 46px;    /* map-display type toggle — fills the wider 350px route-planner cell */
 	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
 	--icon-hero: 130px; /* coat / logo hero */
 
@@ -193,6 +202,12 @@
 
 	--color-danger: #d27566;
 	--color-success: #7cc48a;
+	--color-success-soft: #2c3a24;
+	--color-success-soft-border: #4d6b3a;
+	--color-success-soft-text: #9cd39a;
+	--color-danger-soft: #3f2a26;
+	--color-danger-soft-border: #6b463f;
+	--color-danger-soft-text: #e29c8f;
 	--color-marker-destination: #e6675b;
 
 	/* Review stars, dark: the gold stays warm; the empty track darkens so it doesn't glare on the

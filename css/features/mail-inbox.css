@@ -4,9 +4,9 @@
    row sits earlier in the DOM, so reusing .status-subtabs here hijacks that handler and
    breaks the Status sub-tabs. This row just mirrors the shared sub-tab-row styling; the
    Empfangen/Gesendet buttons still use the shared .status-subtab class. */
-.mail-inbox__tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border-bottom: 1px solid #e7d8c6; padding: 4px 12px 0; }
-.mail-inbox__refresh { margin-left: auto; border: 0; background: none; color: #8a7355; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; appearance: none; -webkit-appearance: none; }
-.mail-inbox__refresh:hover { color: #5a4a3a; }
+.mail-inbox__tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border-bottom: 1px solid var(--color-border); padding: 4px 12px 0; }
+.mail-inbox__refresh { margin-left: auto; border: 0; background: none; color: var(--color-text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; appearance: none; -webkit-appearance: none; }
+.mail-inbox__refresh:hover { color: var(--color-text-strong); }
 .mail-inbox__pane { display: none; padding: 8px 12px 12px; }
 /* The active pane is the desktop scroll region (mirrors .review-panel__list): it fills the
    space under the Mails tab row and scrolls its own content (message list + opened detail)
@@ -15,25 +15,25 @@
 .mail-inbox__pane.is-active { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .mail-inbox__pane.is-active > * { flex: 0 0 auto; }
 .mail-inbox__list { display: flex; flex-direction: column; gap: 6px; }
-.mail-inbox__item { text-align: left; border: 1px solid #e7d8c6; border-radius: 8px; background: #fbf6ee; padding: 8px 10px; cursor: pointer; appearance: none; -webkit-appearance: none; font: inherit; }
-.mail-inbox__item:hover { border-color: #cbb79c; }
-.mail-inbox__item.is-highlighted { border-color: #1baf7a; box-shadow: 0 0 0 2px rgba(27, 175, 122, 0.28); }
-.mail-inbox__item.is-open { border-color: #cbb79c; background: #f4ebdd; }
+.mail-inbox__item { text-align: left; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-panel); padding: 8px 10px; cursor: pointer; appearance: none; -webkit-appearance: none; font: inherit; }
+.mail-inbox__item:hover { border-color: var(--color-border-strong); }
+.mail-inbox__item.is-highlighted { border-color: var(--color-success); box-shadow: 0 0 0 2px rgba(27, 175, 122, 0.28); }
+.mail-inbox__item.is-open { border-color: var(--color-border-strong); background: var(--color-panel-muted); }
 .mail-inbox__item.is-unread .mail-inbox__from { font-weight: 700; }
-.mail-inbox__from { color: #5a4a3a; }
-.mail-inbox__subject { color: #6b5a46; }
-.mail-inbox__meta { color: #8a7355; font-size: 12px; }
-.mail-inbox__badge { display: inline-block; margin-left: 6px; font-size: 11px; color: #1baf7a; cursor: pointer; }
+.mail-inbox__from { color: var(--color-text-strong); }
+.mail-inbox__subject { color: var(--color-text-muted); }
+.mail-inbox__meta { color: var(--color-text-muted); font-size: 12px; }
+.mail-inbox__badge { display: inline-block; margin-left: 6px; font-size: 11px; color: var(--color-success); cursor: pointer; }
 .mail-inbox__badge:hover { text-decoration: underline; }
 /* Inline detail card that expands directly under the clicked list entry (accordion). */
-.mail-inbox__detail { border: 1px solid #cbb79c; border-radius: 8px; background: #fdfaf5; padding: 10px 12px; }
-.mail-inbox__body { white-space: pre-wrap; word-break: break-word; color: #4a3f33; }
+.mail-inbox__detail { border: 1px solid var(--color-border-strong); border-radius: 8px; background: var(--color-panel); padding: 10px 12px; }
+.mail-inbox__body { white-space: pre-wrap; word-break: break-word; color: var(--color-text); }
 .mail-inbox__reply { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.mail-inbox__reply textarea { width: 100%; min-height: 90px; font: inherit; padding: 8px; border: 1px solid #cbb79c; border-radius: 8px; resize: vertical; }
+.mail-inbox__reply textarea { width: 100%; min-height: 90px; font: inherit; padding: 8px; border: 1px solid var(--color-border-strong); border-radius: 8px; resize: vertical; }
 .mail-inbox__reply-actions { display: flex; gap: 8px; align-items: center; }
-.mail-inbox__status { color: #8a7355; font-size: 12px; }
+.mail-inbox__status { color: var(--color-text-muted); font-size: 12px; }
 .mail-inbox__images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.mail-inbox__thumb { max-width: 120px; max-height: 120px; object-fit: cover; border: 1px solid #e7d8c6; border-radius: 8px; background: #fbf6ee; cursor: zoom-in; }
+.mail-inbox__thumb { max-width: 120px; max-height: 120px; object-fit: cover; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-panel); cursor: zoom-in; }
 .mail-inbox__lightbox { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(20, 14, 8, 0.82); cursor: zoom-out; }
 .mail-inbox__lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; border-radius: 6px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 

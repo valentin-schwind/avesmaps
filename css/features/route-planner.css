@@ -345,8 +345,8 @@
 
 .display-options .location-toggle__icon {
 	display: block;
-	width: 40px;
-	height: 40px;
+	width: var(--icon-xl);
+	height: var(--icon-xl);
 	object-fit: contain;
 	pointer-events: none;
 	user-select: none;

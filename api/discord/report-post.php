@@ -49,9 +49,26 @@ if ($message === []) {
     exit;
 }
 
+$targets = [
+    'report' => (string) ($discord['report_channel_id'] ?? ''),
+    'feature' => (string) ($discord['feature_channel_id'] ?? ''),
+];
+$target = (string) ($body['target'] ?? 'report');
+if (!array_key_exists($target, $targets)) {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'unknown target']);
+    exit;
+}
+$channelId = $targets[$target];
+if ($channelId === '') {
+    http_response_code(400);
+    echo json_encode(['ok' => false, 'error' => 'target channel not configured']);
+    exit;
+}
+
 $post = avesmapsDiscordPostMessage(
     (string) ($discord['bot_token'] ?? ''),
-    (string) ($discord['report_channel_id'] ?? ''),
+    $channelId,
     $message
 );
 
