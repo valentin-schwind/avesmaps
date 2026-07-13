@@ -77,11 +77,12 @@ body {
 
 /* Tagline under the logo (kept in the DOM for SEO — now also shown). One line,
    full-bleed (negative side-margin = #search padding) for the panel's full width.
-   10.8px is a hair under the 11px floor — owner-chosen for the fit. */
+   Fits at the standard 12px (--font-size-small) now that the panel is 350px wide
+   (was 10.8px, a hair under the floor, to fit the old 320px width). */
 .project-summary__tagline {
 	margin: var(--space-4) calc(-1 * var(--space-10)) 0;
 	color: var(--color-text-muted);
-	font-size: 10.8px;
+	font-size: var(--font-size-small);
 	line-height: var(--leading-snug);
 	text-align: center;
 	white-space: nowrap;
