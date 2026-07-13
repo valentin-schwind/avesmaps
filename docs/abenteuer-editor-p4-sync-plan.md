@@ -1,8 +1,21 @@
 # Abenteuer-Editor — Phase 4 (Dump-Sync + Menüband) Bau-Blueprint
 
-> Status: **gescopt** (Infrastruktur kartiert 2026-07-13). Prosa DE, Bezeichner EN. Ergänzt
-> `docs/abenteuer-instruction.md` §Phase 4 mit den konkreten Nahtstellen. **Bau = eigene fokussierte
-> Session** (Owner-Regel „eine Phase pro Session"); dieses Dokument ist die Vorlage dafür.
+> Status: **GEBAUT 2026-07-13** (Reconcile/Parser/Driver-Kerne unit-getestet; End-to-End braucht einen
+> echten „Dump holen" + „Abenteuer syncen"). Prosa DE, Bezeichner EN.
+>
+> **Wichtige Korrektur zum Blueprint unten:** Die Mechanik spiegelt **Publikationen**, NICHT `sync_kind`.
+> `sync_kind` liest nur die Entity-Sandbox (path/region/settlement/territory) — Abenteuer sind da nicht
+> drin. Umgesetzt wurde: eine **`adventures`-Phase** im Dump-Hybrid-Driver (Staging-Aufbau während „Dump
+> holen", `avesmapsAdventureBuildCatalogStep` → `wiki_adventure_catalog`/`wiki_adventure_place_staging`) +
+> eine **owner-getriggerte `sync_adventures`-Action** (`avesmapsAdventureReconcileStep`, override-sicher).
+> Der „Abenteuer"-Tab-Button hängt an `sync_adventures` (eigener Loop `startWikiSyncAdventuresSync`), NICHT
+> an `startWikiSyncKindSync`. Echte Infobox-Feldnamen: `Ort`/`Art`/`Genre`/`KompM`/`KompSp`/`Regeln`/
+> `Bild={{ProdCover|…}}` (kein BF-Jahr im Infobox). **Cover** nach Wappen-Muster (`adventure-sync.php`
+> `avesmapsAdventureSaveCoverLocal` → `/uploads/questcovers`; Editor-Upload/„neu ziehen" via
+> `api/edit/map/adventure-cover.php`; Frontend Cover→F-Shop + Quellen-Fußzeile). Dateien: `adventure-sync.php`
+> (neu), `publication-parsing.php`, `dump-hybrid-driver.php`, `dump-sync-kind.php`, `dump.php`,
+> `adventures.php`, `adventure-cover.php` (neu), `index.html`, `bootstrap.js`, `review-wiki-sync.js`,
+> `map-features-place-extras.js`, `map-features-adventures.js`, `place-extras.css`, `adventure-editor.html`.
 
 ## Vorabcheck (§4.0) — Ergebnis: **FELD-ERGÄNZUNG, keine Parser-Neuentwicklung**
 
