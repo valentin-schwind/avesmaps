@@ -1308,6 +1308,16 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         }
 
         $hasCoat = is_array($props['coat'] ?? null) && (string) ($props['coat']['url'] ?? '') !== '';
+        $coatUrl = $hasCoat ? (string) ($props['coat']['url'] ?? '') : '';
+        // Editor-list thumbnail + "Bilder N/10" badge/filter source: coat URL + own-image count
+        // (properties.images, uploaded via settlement-images.php). Wiki-only registry rows have no images.
+        $imageList = is_array($props['images'] ?? null) ? $props['images'] : [];
+        $imageCount = 0;
+        foreach ($imageList as $imageUrl) {
+            if (is_string($imageUrl) && trim($imageUrl) !== '') {
+                $imageCount++;
+            }
+        }
 
         $territoryWikiKey = isset($props['territory_wiki_key']) && $props['territory_wiki_key'] !== null
             ? (string) $props['territory_wiki_key']
@@ -1340,6 +1350,8 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             'territory_source' => $territorySource,
             'source_category' => $sourceCategory,
             'has_coat' => $hasCoat,
+            'coat_url' => $coatUrl !== '' ? $coatUrl : null,
+            'image_count' => $imageCount,
             'wiki_url' => $wikiUrl !== '' ? $wikiUrl : null,
             'other_source' => $otherSource,
             'is_ruined' => !empty($props['is_ruined']),
@@ -1394,6 +1406,8 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             'territory_source' => null,
             'source_category' => 'wiki',
             'has_coat' => (string) ($r['coat_url'] ?? '') !== '',
+            'coat_url' => (string) ($r['coat_url'] ?? '') !== '' ? (string) $r['coat_url'] : null,
+            'image_count' => 0,
             'wiki_url' => (string) ($r['wiki_url'] ?? '') !== '' ? (string) $r['wiki_url'] : null,
             'other_source' => null,
             'is_ruined' => !empty($r['is_ruined']),

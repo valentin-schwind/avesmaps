@@ -130,13 +130,17 @@
   #seTreeBypassHint { font-size:10px; color:var(--color-warning-soft-text); margin:0 0 6px; padding:3px 6px; background:var(--color-warning-soft); border:1px solid var(--color-warning-soft-border); border-radius:4px; }
   #seTreeBypassHint[hidden] { display:none; }
   /* Siedlungs-Zeilen: zweizeilig, Zeile 2 = Zuordnungsstatus (gruen=zugeordnet, amber=Luecke). */
-  .se-row { display:block; padding:4px 6px; border-radius:5px; border:1px solid transparent; cursor:pointer; }
+  .se-row { display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:5px; border:1px solid transparent; cursor:pointer; }
   .se-row:hover { background:var(--color-hover-wash); }
   .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
+  .se-row-coat { flex:0 0 auto; width:22px; height:22px; border-radius:3px; object-fit:contain; background:var(--panel); border:1px solid var(--line2); }
+  .se-row-text { flex:1 1 auto; min-width:0; }
   .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
   .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .se-row-type { font-size:10px; color:var(--mut); margin-left:auto; white-space:nowrap; }
   .se-row-l2 { font-size:10px; margin-top:1px; display:flex; align-items:center; gap:4px; }
+  .se-row-terr { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .se-row-imgcount { flex:0 0 auto; margin-left:auto; color:var(--mut); white-space:nowrap; }
   .se-row-l2.ok { color:var(--ok); }
   .se-row-l2.warn { color:var(--warn); }
   .se-row-l2.mut { color:var(--mut); }
@@ -778,6 +782,10 @@ const settlementSearchState = { value: "" };
 const settlementTypeFilter = new Set(); // selected settlement_label values (empty = all)
 const settlementContinentFilterMid = new Set(["Aventurien"]); // default: only Aventurien, like the sibling list
 const settlementSourceFilter = { value: "" }; // "" = all | "wiki" | "andere" | "keine"
+const settlementCoatFilter = { value: "" }; // "" = all | "yes" | "no" (has_coat)
+const settlementImageFilter = { value: "" }; // "" = all | "yes" | "no" (image_count > 0)
+const SETTLEMENT_COAT_OPTIONS = [{ value: "yes", label: "ja" }, { value: "no", label: "nein" }];
+const SETTLEMENT_IMAGE_OPTIONS = [{ value: "yes", label: "ja" }, { value: "no", label: "nein" }];
 let unassignedOnly = false; // the amber "Nicht zugeordnet" chip -- bypasses the tree filter when on
 
 // Kontinent eines Eintrags; leer -> Aventurien (mirrors settlementItemContinent in the sibling list).
@@ -877,6 +885,10 @@ function isSettlementVisible(item) {
 	if (!settlementSearchMatch(item)) return false;
 	if (settlementTypeFilter.size > 0 && !settlementTypeFilter.has(item.settlement_label || "—")) return false;
 	if (settlementSourceFilter.value && item.source_category !== settlementSourceFilter.value) return false;
+	if (settlementCoatFilter.value === "yes" && !item.has_coat) return false;
+	if (settlementCoatFilter.value === "no" && item.has_coat) return false;
+	if (settlementImageFilter.value === "yes" && !(Number(item.image_count) > 0)) return false;
+	if (settlementImageFilter.value === "no" && Number(item.image_count) > 0) return false;
 	if (unassignedOnly) return isSettlementGap(item);
 	return settlementMatchesTreeSelection(item);
 }
@@ -892,6 +904,10 @@ function settlementGapCountUnderOtherFilters() {
 		if (!settlementSearchMatch(item)) continue;
 		if (settlementTypeFilter.size > 0 && !settlementTypeFilter.has(item.settlement_label || "—")) continue;
 		if (settlementSourceFilter.value && item.source_category !== settlementSourceFilter.value) continue;
+		if (settlementCoatFilter.value === "yes" && !item.has_coat) continue;
+		if (settlementCoatFilter.value === "no" && item.has_coat) continue;
+		if (settlementImageFilter.value === "yes" && !(Number(item.image_count) > 0)) continue;
+		if (settlementImageFilter.value === "no" && Number(item.image_count) > 0) continue;
 		if (isSettlementGap(item)) count += 1;
 	}
 	return count;
@@ -932,6 +948,21 @@ function renderSettlementRowElement(item) {
 	row.dataset.rowKey = rowKey;
 	row.dataset.publicId = item.public_id;
 
+	// Wappen-Thumbnail vorne (nur wenn ein Wappen vorhanden ist).
+	if (item.coat_url) {
+		const coat = document.createElement("img");
+		coat.className = "se-row-coat";
+		coat.src = item.coat_url;
+		coat.alt = "";
+		coat.loading = "lazy";
+		coat.draggable = false;
+		coat.title = "Wappen vorhanden";
+		row.appendChild(coat);
+	}
+
+	const textCol = document.createElement("div");
+	textCol.className = "se-row-text";
+
 	const line1 = document.createElement("div");
 	line1.className = "se-row-l1";
 	const name = document.createElement("span");
@@ -945,21 +976,35 @@ function renderSettlementRowElement(item) {
 		type.textContent = item.settlement_label;
 		line1.appendChild(type);
 	}
-	row.appendChild(line1);
+	textCol.appendChild(line1);
 
 	const line2 = document.createElement("div");
+	const terr = document.createElement("span");
+	terr.className = "se-row-terr";
 	if (item.on_map !== true) {
 		// Wiki-only ("Fehlt"): not placed on the map yet, so there is no territory to assign.
 		line2.className = "se-row-l2 mut";
-		line2.textContent = "○ nur Wiki (nicht platziert)";
+		terr.textContent = "○ nur Wiki (nicht platziert)";
 	} else if (item.territory_wiki_key) {
 		line2.className = "se-row-l2 ok";
-		line2.textContent = "✓ " + territoryDisplayName(item.territory_wiki_key);
+		terr.textContent = "✓ " + territoryDisplayName(item.territory_wiki_key);
 	} else {
 		line2.className = "se-row-l2 warn";
-		line2.textContent = "⚠ nicht zugeordnet";
+		terr.textContent = "⚠ nicht zugeordnet";
 	}
-	row.appendChild(line2);
+	line2.appendChild(terr);
+	// Bild-Zähler rechts (nur bei >=1 eigenem Bild -- sonst klebte "0 / 10" an tausenden Zeilen).
+	const imageCount = Number(item.image_count) || 0;
+	if (imageCount > 0) {
+		const badge = document.createElement("span");
+		badge.className = "se-row-imgcount";
+		badge.textContent = "🖼️ " + imageCount + " / " + SETTLEMENT_IMAGES_MAX;
+		badge.title = imageCount + " von " + SETTLEMENT_IMAGES_MAX + " Bildern";
+		line2.appendChild(badge);
+	}
+	textCol.appendChild(line2);
+
+	row.appendChild(textCol);
 
 	// Both on-map and wiki-only rows are selectable (rowKey isolates the two kinds); the row keeps
 	// the raw item around on the DOM-free closure below so a wiki-only click never needs a
@@ -2095,6 +2140,8 @@ const SETTLEMENT_FILTER_SECTIONS = [
 	{ menuId: "seTypeFilterMenu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
 	{ menuId: "seContinentFilterMenu", kind: "multi", state: settlementContinentFilterMid, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilterMid.size === 1 && settlementContinentFilterMid.has("Aventurien")) },
 	{ menuId: "seSourceFilterMenu", kind: "single", state: settlementSourceFilter, options: SETTLEMENT_SOURCE_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
+	{ menuId: "seCoatFilterMenu", kind: "single", state: settlementCoatFilter, options: SETTLEMENT_COAT_OPTIONS, label: "Wappen", isActive: () => Boolean(settlementCoatFilter.value) },
+	{ menuId: "seImageFilterMenu", kind: "single", state: settlementImageFilter, options: SETTLEMENT_IMAGE_OPTIONS, label: "Bilder", isActive: () => Boolean(settlementImageFilter.value) },
 ];
 
 // Renders one multi-checkbox section's option list (Typ/Kontinent) into its menu container.
@@ -2190,6 +2237,8 @@ function renderSettlementFilters() {
 		`<div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="seTypeFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="seContinentFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="seSourceFilterMenu"></div></div>` +
+		`<div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="seCoatFilterMenu"></div></div>` +
+		`<div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="seImageFilterMenu"></div></div>` +
 		`</div></div>` +
 		`<span class="chip-toggle warn${unassignedOnly ? " is-active" : ""}" id="seUnassignedChip" title="Nur auf der Karte platzierte Siedlungen ohne Territorium; blendet die Baum-Auswahl links aus">⚠ Nicht zugeordnet (${gapCount})</span>`;
 
