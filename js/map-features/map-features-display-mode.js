@@ -211,6 +211,12 @@ function setAllLocationTypesVisible(isVisible) {
 // Die Städte werden nur bei includeCities gesetzt (beim Erst-Laden mit Stadt-Parametern im Deep-Link unterdrückt).
 function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+		// Editmode laesst Ortsklassen sonst komplett manuell (Haken steuern alles) -- aber beim Wechsel auf
+		// "Standard" sollen sie trotzdem wie im Frontend ALLE angehen (v.a. Gebaeude/Bauwerke), sonst bleibt
+		// ein zuvor ausgeblendeter Typ im Editor unsichtbar und wird beim Bearbeiten leicht uebersehen.
+		if (mode === "deregraphic" && includeCities && typeof setAllLocationTypesVisible === "function") {
+			setAllLocationTypesVisible(true);
+		}
 		return;
 	}
 	if (mode === "political") {
