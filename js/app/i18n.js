@@ -14,7 +14,13 @@
 			if (param === "de") {
 				return "de";
 			}
-			// No explicit ?lang: follow the browser's primary language (English -> en, otherwise German).
+			// No explicit ?lang: a stored choice (the DE|EN toggle, key "avesmaps-lang") wins over the
+			// browser language; otherwise follow the browser's primary language (English -> en, else German).
+			var stored = null;
+			try { stored = window.localStorage.getItem("avesmaps-lang"); } catch (e) { stored = null; }
+			if (stored === "en" || stored === "de") {
+				return stored;
+			}
 			var primary = String((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
 			return primary.indexOf("en") === 0 ? "en" : "de";
 		} catch (error) {
