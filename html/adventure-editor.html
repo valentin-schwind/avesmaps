@@ -115,6 +115,7 @@
     font-weight: var(--font-weight-bold); }
   .pill--wiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
   .pill--unresolved { border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
+  .pill--nowiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
   .start-toggle.is-on { background: var(--color-active-wash); border-color: var(--color-accent-strong);
     color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
   .ae-suppressed-wrap[hidden] { display: none; }
@@ -398,7 +399,7 @@
     const kind = p.target_kind || "unresolved";
     const resolved = kind === "unresolved"
       ? `<span class="pill pill--unresolved">nicht aufgelöst</span> Rohname bleibt erhalten`
-      : `→ ${aeEscape(KIND_LABEL[kind] || kind)}${p.target_wiki_key ? ` <code>${aeEscape(p.target_wiki_key)}</code>` : ""}`;
+      : `→ ${aeEscape(KIND_LABEL[kind] || kind)}${p.target_wiki_key ? ` <code>${aeEscape(p.target_wiki_key)}</code>` : ` <span class="pill pill--nowiki" title="Dieser Ort ist ein Karteneintrag ohne Wiki-Verknüpfung — völlig in Ordnung.">ohne Wiki-Eintrag</span>`}`;
     const origin = p.origin === "manual" ? `<span class="pill pill--manual">manuell</span>` : `<span class="pill pill--wiki">Wiki</span>`;
     return `<div class="ae-place${start ? " is-start" : ""}" data-place-id="${p.id}">
       <div class="ae-place__order"><span class="ord-num">${p.sort_order}</span>

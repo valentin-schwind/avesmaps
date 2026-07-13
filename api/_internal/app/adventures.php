@@ -687,17 +687,15 @@ function avesmapsAddAdventurePlace(PDO $pdo, string $adventurePublicId, array $d
     $placeId = (int) $pdo->lastInsertId();
 
     // P3 pick-by-public_id: when the editor picked an EXACT entity (target_public_id + a real kind) but
-    // sent no wiki_key, backfill the derived target_wiki_key + territory_path FROM the public_id, so the
-    // link is complete even for non-wiki-linked entities (no fragile name-resolution needed).
+    // sent no wiki_key, look up the entity's wiki_key from its public_id. If it has none (e.g. "Thalhaus"),
+    // leave it NULL -- the editor shows "ohne Wiki-Eintrag", a valid state (no fragile name-resolution).
     if ($targetPublicId !== '' && $targetWikiKey === ''
         && in_array($targetKind, ['settlement', 'territory', 'region', 'path'], true)) {
-        $complete = avesmapsAdventureCompleteTargetByPublicId($pdo, $targetKind, $targetPublicId);
-        $pdo->prepare('UPDATE adventure_place SET target_wiki_key = :wk, target_territory_path = :tp WHERE id = :id')
-            ->execute([
-                'wk' => $complete['wiki_key'] !== '' ? $complete['wiki_key'] : null,
-                'tp' => json_encode(array_values($complete['territory_path']), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-                'id' => $placeId,
-            ]);
+        $derivedKey = avesmapsAdventureWikiKeyByPublicId($pdo, $targetKind, $targetPublicId);
+        if ($derivedKey !== '') {
+            $pdo->prepare('UPDATE adventure_place SET target_wiki_key = :wk WHERE id = :id')
+                ->execute(['wk' => $derivedKey, 'id' => $placeId]);
+        }
     }
     return ['place_id' => $placeId];
 }
