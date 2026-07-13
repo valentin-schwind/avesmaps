@@ -31,6 +31,7 @@
   .ae-header h1 { margin: 0; font-size: var(--font-size-title); color: var(--color-text-strong);
     font-weight: var(--font-weight-bold); line-height: var(--leading-tight); }
   .ae-header .ae-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
+  .ae-header__spacer { flex: 1 1 auto; }
 
   .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
 
@@ -211,7 +212,9 @@
 <body>
   <div class="ae-header">
     <h1>Abenteuereditor</h1>
-    <span class="ae-sub" id="aeHeaderSub"></span>
+    <span class="ae-sub" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
+    <span class="ae-header__spacer"></span>
+    <button class="btn btn--primary" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">🚨 Abenteuer syncen</button>
   </div>
 
   <div class="ae-body">
@@ -245,6 +248,7 @@
 
 <script>
   const ADVENTURE_EDIT_API = "/api/edit/map/adventures.php";
+  const WIKI_SYNC_DUMP_API = "/api/edit/wiki/dump.php";
 
   // POST helper — mirrors settlementDetailPost: Gold-Contract envelope, surfaces error.message.
   async function adventurePost(body) {
@@ -695,6 +699,85 @@
     else if (e.key === "Escape") { hideAc(); }
   });
   document.addEventListener("click", (e) => { if (!e.target.closest(".ae-add")) hideAc(); });
+
+  // ---- Wiki-Sync (adventures) ----
+  // Delegates to window.parent.startWikiSyncAdventuresSync() -- the SAME sync_adventures client
+  // loop the WikiSync ribbon's "Abenteuer" tab drives (js/review/review-wiki-sync.js) -- so there
+  // is exactly one sync_adventures loop in the app, not a second copy here. Mirrors
+  // handleSeSyncenClick/refreshSeSyncedInfo in html/wiki-sync-settlement-editor.html. Requires a
+  // prior "Dump holen" (WikiSync-Menüband) -- an empty staging catalog just yields 0 processed.
+  let aeSyncRunning = false;
+  let aeSyncedInfoPollTimer = null;
+
+  function formatAdventureLastSyncedText(raw) {
+    const trimmed = String(raw || "").trim();
+    if (trimmed === "") return "Letzte Sync: nie";
+    const parsed = new Date(trimmed.replace(" ", "T"));
+    if (Number.isNaN(parsed.getTime())) return `Letzte Sync: ${trimmed}`;
+    return `Letzte Sync: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
+  }
+
+  // Read-only, no lock (same GET the ribbon's own synced-status refresh uses).
+  async function fetchAdventureLastSynced() {
+    const url = new URL(WIKI_SYNC_DUMP_API, window.location.href);
+    url.searchParams.set("action", "last_synced");
+    url.searchParams.set("_", String(Date.now()));
+    const res = await fetch(url.toString(), { method: "GET", credentials: "same-origin", cache: "no-store" });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok || !payload || payload.ok !== true) {
+      throw new Error((payload && payload.error && payload.error.message) || `HTTP ${res.status}`);
+    }
+    return (payload.synced && payload.synced.adventure) || null;
+  }
+
+  async function refreshAeSyncedInfo() {
+    const el = document.getElementById("aeHeaderSub");
+    if (!el) return;
+    try {
+      el.textContent = formatAdventureLastSyncedText(await fetchAdventureLastSynced());
+    } catch (e) {
+      el.textContent = "Letzte Sync: Fehler beim Laden";
+    }
+  }
+
+  function setAeSyncBusy(isBusy) {
+    aeSyncRunning = isBusy;
+    const button = document.getElementById("aeSyncBtn");
+    if (!button) return;
+    button.disabled = isBusy;
+    button.textContent = isBusy ? "Synchronisiert…" : "🚨 Abenteuer syncen";
+  }
+
+  async function handleAeSyncClick() {
+    if (aeSyncRunning) return;
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    const statusEl = document.getElementById("aeHeaderSub");
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncAdventuresSync !== "function") {
+      if (statusEl) statusEl.textContent = "Syncen ist nur im eingebetteten Editor verfügbar.";
+      return;
+    }
+    setAeSyncBusy(true);
+    if (statusEl) statusEl.textContent = "Abenteuer werden übernommen …";
+    // Poll the "Letzte Sync" label while the loop runs in the OTHER document (it can't call
+    // back into this iframe directly); the parent's own ribbon shows the live progress/totals.
+    if (aeSyncedInfoPollTimer) clearInterval(aeSyncedInfoPollTimer);
+    aeSyncedInfoPollTimer = setInterval(() => { void refreshAeSyncedInfo(); }, 4000);
+    try {
+      await parentWindow.startWikiSyncAdventuresSync();
+      if (statusEl) statusEl.textContent = "Sync abgeschlossen.";
+      await loadList(); // new/updated adventures should show up in the left list right away
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+    } finally {
+      setAeSyncBusy(false);
+      if (aeSyncedInfoPollTimer) { clearInterval(aeSyncedInfoPollTimer); aeSyncedInfoPollTimer = null; }
+      setTimeout(() => { void refreshAeSyncedInfo(); }, 1500);
+    }
+  }
+
+  document.getElementById("aeSyncBtn").addEventListener("click", handleAeSyncClick);
+  void refreshAeSyncedInfo();
 
   loadList();
 </script>
