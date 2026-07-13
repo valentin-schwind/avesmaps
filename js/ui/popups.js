@@ -404,7 +404,7 @@ function routeToggleActionButtonMarkup(name) {
 	});
 }
 
-function locationActionsMarkup(name, publicId, location = null, extraButtons = []) {
+function locationActionsMarkup(name, publicId, location = null, extraButtons = [], options = {}) {
 	// Reihenfolge: "Reiseziel hinzufügen", "Link teilen", (Extra-Kacheln z. B. "Abenteuer"), Editier-Aktionen.
 	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
@@ -415,7 +415,10 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 	}
 
 	// Community: "Änderung vorschlagen" -- opens the report form in change mode with this settlement
-	// preselected. Always shown (also for logged-out visitors), before the editor-only actions.
+	// preselected. Shown in the PANEL only (also for logged-out visitors), before the editor-only actions.
+	// NOT in the slim floating box (Owner design call): the floating box holds the 4 quick/discovery tiles
+	// (Reiseziel, Link teilen, Abenteuer, Stadtkarten); this maintenance action lives in the detailed panel,
+	// where an engaged reader is already looking at the data and might notice an error.
 	const suggestSpec = typeof buildSuggestChangeButtonSpec === "function"
 		? buildSuggestChangeButtonSpec({
 			entityType: "settlement",
@@ -426,7 +429,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 			label: tr("popup.suggestChange", "Änderung vorschlagen"),
 		})
 		: null;
-	if (suggestSpec) {
+	if (suggestSpec && !options.floating) {
 		actionButtons.push(popupActionButtonMarkup(suggestSpec));
 	}
 
