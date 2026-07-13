@@ -133,6 +133,29 @@ async function sharePlaceLinkWithFeedback(publicId, shareLinkOptions = {}) {
 	return didCopy;
 }
 
+// Teil-Link auf eine frei markierte Stelle (Rechtsklick -> "Stelle markieren und teilen"). Baut den
+// dokumentierten Pin-Deep-Link (?pin=<lat,lng>, beim Laden gelesen von readSharePinFromUrl in
+// map-features-layer-state.js). Die Adresszeile wird bewusst NIE automatisch umgeschrieben (URL-Policy,
+// Owner 2026-07-06) -- deshalb MUSS der teilbare Link hier explizit erzeugt werden statt window.location.href
+// zu kopieren (das enthielte den Pin nie -> der Grund des gemeldeten "Teilen liefert keinen Parameter"-Bugs).
+// SHARE_PIN_QUERY_PARAM (js/config.js) und formatSharePinQueryValue (map-features-layer-state.js) sind
+// global und zur Klickzeit laengst geladen.
+function buildSharePinLink(latlng) {
+	const params = new URLSearchParams();
+	params.set(SHARE_PIN_QUERY_PARAM, formatSharePinQueryValue(latlng));
+	return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+}
+
+async function copySharePinLinkWithFeedback(latlng) {
+	const url = buildSharePinLink(latlng);
+	const didCopy = await copyTextToClipboard(url);
+	showFeedbackToast(
+		didCopy ? tr("toast.share.pinCopied", "Link zur markierten Stelle in die Zwischenablage kopiert.") : tr("toast.share.copyFailed", "Link konnte nicht automatisch kopiert werden."),
+		didCopy ? "success" : "warning"
+	);
+	return didCopy;
+}
+
 async function copyCurrentUrlToClipboardWithFeedback() {
 	const didCopy = await copyCurrentUrlToClipboard();
 	showFeedbackToast(
