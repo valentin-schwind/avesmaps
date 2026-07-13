@@ -6,13 +6,29 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Avesmaps – Abenteuer anlegen und editieren</title>
 <script>
-  /* Inherit the parent tab's saved theme (same localStorage key/origin) before the
-     stylesheet loads, so this overlay iframe never flashes the wrong theme. */
-  try {
-    if (localStorage.getItem("avesmaps-theme") === "dark") {
-      document.documentElement.setAttribute("data-theme", "dark");
+  /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved choice
+     wins, otherwise follow the browser/OS scheme (prefers-color-scheme). Runs before the stylesheet
+     paints so this overlay iframe never flashes the wrong theme, and stays in sync if the OS scheme
+     changes live while no explicit choice is stored. */
+  (function () {
+    function isDark() {
+      var saved = null;
+      try { saved = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (saved === "dark") { return true; }
+      if (saved === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
     }
-  } catch (e) {}
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
 </script>
 <!-- Self-contained editor page (Phase 3 / P2), loaded as an iframe overlay via
      openAvesmapsAdventureEditorOverlay() with ?v=Date.now() (no ASSET_VERSION). Links the REAL design
@@ -41,12 +57,30 @@
     font-weight: var(--font-weight-bold); line-height: var(--leading-tight); }
   .ae-header .ae-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
   .ae-header__spacer { flex: 1 1 auto; }
+  /* header tiles: "Abenteuer syncen" (primary) + the cover kill-switch toggle */
+  .ae-synctile, .ae-covertoggle {
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--space-2); min-width: 96px; padding: var(--space-4) var(--space-12);
+    font: inherit; line-height: var(--leading-tight); text-align: center; cursor: pointer;
+    border-radius: var(--radius-md); border: 1px solid var(--color-button-border);
+  }
+  .ae-synctile__icon, .ae-covertoggle__icon { font-size: var(--font-size-subhead); }
+  .ae-synctile__label, .ae-covertoggle__label { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
+  .ae-synctile { background: var(--color-button); color: var(--color-button-text); }
+  .ae-synctile:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+  .ae-synctile:disabled { opacity: .6; cursor: default; box-shadow: none; }
+  .ae-covertoggle { background: var(--color-button-soft); color: var(--color-button-soft-text);
+    border-color: var(--color-button-soft-border); }
+  .ae-covertoggle:hover { background: var(--color-button-soft-hover); }
+  .ae-covertoggle:disabled { opacity: .6; cursor: default; }
+  .ae-covertoggle.is-off { background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    border-color: var(--color-danger); color: var(--color-danger); }
 
   .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
 
   /* ---- left column: adventure list ------------------------------------------------------------ */
   .ae-list {
-    flex: 0 0 320px; min-width: 0; display: flex; flex-direction: column;
+    flex: 1 1 0; min-width: 240px; display: flex; flex-direction: column;
     border-right: 1px solid var(--color-border); background: var(--color-panel-soft); padding: var(--space-10);
   }
   .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
@@ -60,23 +94,50 @@
   .ae-list__count { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0 0 var(--space-6); }
   .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
 
+  /* ---- list filters (Typ / DSA-Version / Jahr / Cover / F-Shop / Region / Ort) ----------------- */
+  .ae-filters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-8);
+    margin-bottom: var(--space-8); padding: var(--space-6) var(--space-8); background: var(--color-panel-muted);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  /* label + control on ONE line (space is tight); the control fills the rest of the cell, not full width */
+  .ae-filter { display: flex; flex-direction: row; align-items: center; gap: var(--space-6); min-width: 0; }
+  .ae-filter--wide { grid-column: 1 / -1; }
+  .ae-filter__lbl { flex: 0 0 auto; white-space: nowrap; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-filters .ae-select, .ae-filters .ae-search { flex: 1 1 auto; min-width: 0; width: 100%;
+    padding: var(--space-2) var(--space-6); font-size: var(--font-size-small); }
+  .ae-ac-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
+  .ae-year { display: flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; }
+  .ae-year__in { width: 58px; min-width: 0; font: inherit; font-size: var(--font-size-small); color: var(--color-text);
+    background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-6); }
+  .ae-year__in:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
+  .ae-year span { color: var(--color-text-muted); }
+  .ae-filters .ae-ac { left: 0; right: 0; }
+  .ae-filter__chip { margin-top: var(--space-4); display: flex; align-items: center; gap: var(--space-4); }
+  .ae-filter__chip[hidden] { display: none; }
+  .ae-filter__chipx { border: 0; background: transparent; cursor: pointer; color: var(--color-text-muted);
+    font-size: var(--font-size-small); line-height: 1; padding: 0 2px; }
+  .ae-filter__chipx:hover { color: var(--color-danger); }
+  .ae-filter__reset { grid-column: 1 / -1; justify-self: end; border: 0; background: transparent; cursor: pointer;
+    color: var(--color-link); font-size: var(--font-size-caption); padding: 0; }
+  .ae-filter__reset:hover { text-decoration: underline; }
+
   .ae-item {
     display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
     background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
-    padding: var(--space-6) var(--space-8); margin-bottom: var(--space-2);
+    padding: var(--space-4) var(--space-8); margin-bottom: 1px; line-height: var(--leading-tight);
   }
   .ae-item:hover { background: var(--color-hover-wash); }
   .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-border-strong); }
   .ae-item__l1 { display: flex; align-items: baseline; gap: var(--space-6); }
   .ae-item__title { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ae-item__l2 { display: flex; align-items: center; gap: var(--space-6); margin-top: var(--space-2);
+  .ae-item__l2 { display: flex; align-items: center; gap: var(--space-6); margin-top: 1px;
     font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ae-item.is-draft .ae-item__title { color: var(--color-text-muted); font-style: italic; }
   .ae-empty { color: var(--color-text-muted); padding: var(--space-8); }
 
   /* ---- detail column (layout C: head on top, Stammdaten | Orte side by side) ------------------- */
-  .ae-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .ae-detail { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; }
   .ae-detail__head {
     flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
     padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--color-border); min-height: 40px;
@@ -223,7 +284,15 @@
     <h1>Abenteuereditor</h1>
     <span class="ae-sub" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     <span class="ae-header__spacer"></span>
-    <button class="btn btn--primary" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">🚨 Abenteuer syncen</button>
+    <button type="button" class="ae-covertoggle" id="aeCoversToggle" aria-pressed="false"
+      title="Notfall-Aus: blendet ALLE Abenteuer-Cover im öffentlichen Frontend aus (Platzhalter). Die Bilder bleiben intern gespeichert; dieser Editor zeigt sie weiter.">
+      <span class="ae-covertoggle__icon" aria-hidden="true">🖼️</span>
+      <span class="ae-covertoggle__label" id="aeCoversToggleLabel">Cover: …</span>
+    </button>
+    <button type="button" class="ae-synctile" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
+      <span class="ae-synctile__icon" aria-hidden="true">🚨</span>
+      <span class="ae-synctile__label" id="aeSyncTileLabel">Abenteuer syncen</span>
+    </button>
   </div>
 
   <div class="ae-body">
@@ -231,6 +300,53 @@
       <div class="ae-list__top">
         <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
         <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
+      </div>
+      <div class="ae-filters" id="aeFilters">
+        <div class="ae-filter">
+          <label class="ae-filter__lbl" for="aeFType">Typ</label>
+          <select class="ae-select" id="aeFType"></select>
+        </div>
+        <div class="ae-filter">
+          <label class="ae-filter__lbl" for="aeFEdition">DSA-Version</label>
+          <select class="ae-select" id="aeFEdition"></select>
+        </div>
+        <div class="ae-filter">
+          <label class="ae-filter__lbl" for="aeFCover">Cover</label>
+          <select class="ae-select" id="aeFCover">
+            <option value="">alle</option>
+            <option value="yes">hat Cover</option>
+            <option value="no">fehlt</option>
+          </select>
+        </div>
+        <div class="ae-filter">
+          <label class="ae-filter__lbl" for="aeFShop">F-Shop</label>
+          <select class="ae-select" id="aeFShop">
+            <option value="">alle</option>
+            <option value="yes">ja</option>
+            <option value="no">nein</option>
+          </select>
+        </div>
+        <div class="ae-filter ae-filter--wide">
+          <label class="ae-filter__lbl">Jahr (BF)</label>
+          <div class="ae-year">
+            <input class="ae-year__in" id="aeFYearFrom" type="number" inputmode="numeric" placeholder="von">
+            <span>–</span>
+            <input class="ae-year__in" id="aeFYearTo" type="number" inputmode="numeric" placeholder="bis">
+          </div>
+        </div>
+        <div class="ae-filter ae-filter--wide">
+          <label class="ae-filter__lbl" for="aeFRegion">Region</label>
+          <select class="ae-select" id="aeFRegion"><option value="">alle</option></select>
+        </div>
+        <div class="ae-filter ae-filter--wide">
+          <label class="ae-filter__lbl" for="aeFOrt">Ort (genau)</label>
+          <div class="ae-ac-wrap">
+            <input class="ae-search" id="aeFOrt" type="search" autocomplete="off" placeholder="Ort suchen …">
+            <div class="ae-ac" id="aeFOrtAc" hidden></div>
+          </div>
+          <div class="ae-filter__chip" id="aeFOrtChip" hidden></div>
+        </div>
+        <button type="button" class="ae-filter__reset" id="aeFReset">Filter zurücksetzen</button>
       </div>
       <p class="ae-list__count" id="aeListCount">Lädt…</p>
       <div class="ae-list__scroll" id="aeListScroll"></div>
@@ -289,24 +405,71 @@
 
   // ============ data layer (P2) ============
   const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne"];
+  const PRODUCT_TYPE_LABEL = { gruppenabenteuer: "Gruppenabenteuer", soloabenteuer: "Soloabenteuer",
+    kurzabenteuer: "Kurzabenteuer", szenario: "Szenario", anthologie: "Anthologie", kampagne: "Kampagne" };
   const EDITIONS = ["", "DSA1", "DSA2", "DSA3", "DSA4", "DSA5"];
   const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg", unresolved: "—" };
 
-  const state = { adventures: [], selectedId: null, detail: null };
+  // Left-list filters (all AND-combined with the title search). ortId = an exact target_public_id picked from
+  // the map-search autocomplete; region = a raw_name of a region/territory place (coarse area filter).
+  const EMPTY_FILTERS = { type: "", edition: "", yearFrom: "", yearTo: "", cover: "", fshop: "", region: "", ortId: "", ortName: "" };
+  const state = { adventures: [], selectedId: null, detail: null, filters: Object.assign({}, EMPTY_FILTERS) };
 
   // ---- left list (list action) ----
   async function loadList() {
     try {
-      const { adventures } = await adventurePost({ action: "list" });
-      state.adventures = adventures || [];
+      const res = await adventurePost({ action: "list" });
+      state.adventures = res.adventures || [];
+      if (typeof res.covers_enabled === "boolean") setCoversToggleState(res.covers_enabled);
+      populateRegionFilter();
       renderList();
     } catch (e) {
       document.getElementById("aeListCount").textContent = "Fehler: " + e.message;
     }
   }
-  function renderList() {
+
+  // Cover kill switch (owner "emergency off"). Reflects/flips the GLOBAL public-frontend cover display;
+  // the editor itself always keeps showing covers so admins can moderate. aria-pressed = kill-switch engaged.
+  function setCoversToggleState(enabled) {
+    state.coversEnabled = enabled;
+    const btn = document.getElementById("aeCoversToggle");
+    const label = document.getElementById("aeCoversToggleLabel");
+    if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
+    if (label) label.textContent = enabled ? "Cover: An" : "Cover: AUS";
+  }
+  async function toggleCovers() {
+    const next = !state.coversEnabled;
+    const btn = document.getElementById("aeCoversToggle");
+    if (btn) btn.disabled = true;
+    try {
+      const res = await adventurePost({ action: "set_covers_enabled", enabled: next });
+      setCoversToggleState(typeof res.covers_enabled === "boolean" ? res.covers_enabled : next);
+    } catch (e) {
+      alert("Cover-Umschaltung fehlgeschlagen: " + e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // True when an adventure passes EVERY active filter (AND-combined) plus the title search.
+  function adventureMatchesFilters(a) {
+    const f = state.filters;
     const q = (document.getElementById("aeSearch").value || "").trim().toLowerCase();
-    const rows = state.adventures.filter((a) => !q || (a.title || "").toLowerCase().includes(q));
+    if (q && !((a.title || "").toLowerCase().includes(q))) return false;
+    if (f.type && a.product_type !== f.type) return false;
+    if (f.edition && (a.edition || "") !== f.edition) return false;
+    if (f.yearFrom !== "" && (a.bf_year == null || a.bf_year < Number(f.yearFrom))) return false;
+    if (f.yearTo !== "" && (a.bf_year == null || a.bf_year > Number(f.yearTo))) return false;
+    if (f.cover === "yes" && !a.has_cover) return false;
+    if (f.cover === "no" && a.has_cover) return false;
+    if (f.fshop === "yes" && !a.has_fshop) return false;
+    if (f.fshop === "no" && a.has_fshop) return false;
+    if (f.region && !(a.places || []).some((p) => (p.kind === "region" || p.kind === "territory") && p.name === f.region)) return false;
+    if (f.ortId && !(a.places || []).some((p) => p.public_id && p.public_id === f.ortId)) return false;
+    return true;
+  }
+  function renderList() {
+    const rows = state.adventures.filter(adventureMatchesFilters);
     document.getElementById("aeListCount").textContent = `${rows.length} von ${state.adventures.length}`;
     document.getElementById("aeListScroll").innerHTML = rows.length ? rows.map((a) => {
       const draft = a.status !== "approved";
@@ -315,6 +478,21 @@
         <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
         <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span></button>`;
     }).join("") : `<p class="ae-empty">Keine Abenteuer.</p>`;
+  }
+
+  // Region dropdown = distinct raw_names of region/territory places across all adventures (coarse area filter).
+  function populateRegionFilter() {
+    const names = new Set();
+    state.adventures.forEach((a) => (a.places || []).forEach((p) => {
+      if ((p.kind === "region" || p.kind === "territory") && p.name) names.add(p.name);
+    }));
+    const sel = document.getElementById("aeFRegion");
+    const cur = state.filters.region;
+    sel.innerHTML = ['<option value="">alle</option>'].concat(
+      Array.from(names).sort((x, y) => x.localeCompare(y, "de")).map((n) =>
+        `<option value="${aeEscape(n)}"${n === cur ? " selected" : ""}>${aeEscape(n)}</option>`)
+    ).join("");
+    if (cur && !names.has(cur)) { state.filters.region = ""; sel.value = ""; }
   }
 
   // ---- selection / new ----
@@ -378,6 +556,7 @@
     const v = d || {};
     const o = (d && d.field_origins) || {};
     body.innerHTML = `
+      ${aeCoverGroup(v, o)}
       <div class="ae-grp"><p class="ae-grp__title">Identität</p><div class="ae-fields">
         ${aeField("Titel *", "title", v.title || "", o, { wide: true })}
         ${aeField("Produkttyp", "product_type", v.product_type || "gruppenabenteuer", o, { select: PRODUCT_TYPES })}
@@ -393,7 +572,6 @@
         ${aeField("Komplexität (Spieler)", "complexity_pl", v.complexity_pl || "", o)}
         ${aeField("Autoren", "authors", v.authors || "", o, { wide: true })}
       </div></div>
-      ${aeCoverGroup(v, o)}
       <div class="ae-grp"><p class="ae-grp__title">Wiki &amp; F-Shop</p><div class="ae-fields">
         ${aeField("Wiki-URL", "wiki_url", v.wiki_url || "", o, { wide: true })}
         ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
@@ -568,6 +746,107 @@
   document.getElementById("aeListScroll").addEventListener("click", (e) => {
     const b = e.target.closest(".ae-item"); if (!b) return;
     selectAdventure(b.dataset.id);
+  });
+
+  // ---- list filters: init selects, wire controls, Ort autocomplete ----
+  function initFilterSelects() {
+    document.getElementById("aeFType").innerHTML = ['<option value="">alle Typen</option>'].concat(
+      PRODUCT_TYPES.map((t) => `<option value="${aeEscape(t)}">${aeEscape(PRODUCT_TYPE_LABEL[t] || t)}</option>`)
+    ).join("");
+    document.getElementById("aeFEdition").innerHTML =
+      EDITIONS.map((ed) => `<option value="${aeEscape(ed)}">${ed ? aeEscape(ed) : "alle"}</option>`).join("");
+  }
+  function syncSimpleFilters() {
+    state.filters.type = document.getElementById("aeFType").value;
+    state.filters.edition = document.getElementById("aeFEdition").value;
+    state.filters.yearFrom = document.getElementById("aeFYearFrom").value.trim();
+    state.filters.yearTo = document.getElementById("aeFYearTo").value.trim();
+    state.filters.cover = document.getElementById("aeFCover").value;
+    state.filters.fshop = document.getElementById("aeFShop").value;
+    state.filters.region = document.getElementById("aeFRegion").value;
+    renderList();
+  }
+  function renderOrtChip() {
+    const chip = document.getElementById("aeFOrtChip");
+    if (state.filters.ortId) {
+      chip.hidden = false;
+      chip.innerHTML = `<span class="pill pill--kind">${aeEscape(state.filters.ortName)}</span>`
+        + `<button type="button" class="ae-filter__chipx" id="aeFOrtClear" title="Ort-Filter entfernen">×</button>`;
+    } else { chip.hidden = true; chip.innerHTML = ""; }
+  }
+  initFilterSelects();
+  renderOrtChip();
+  ["aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) =>
+    document.getElementById(id).addEventListener("change", syncSimpleFilters));
+  ["aeFYearFrom", "aeFYearTo"].forEach((id) =>
+    document.getElementById(id).addEventListener("input", syncSimpleFilters));
+  document.getElementById("aeFReset").addEventListener("click", () => {
+    state.filters = Object.assign({}, EMPTY_FILTERS);
+    ["aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) => { document.getElementById(id).value = ""; });
+    document.getElementById("aeFYearFrom").value = "";
+    document.getElementById("aeFYearTo").value = "";
+    document.getElementById("aeFOrt").value = "";
+    renderOrtChip();
+    renderList();
+  });
+  document.getElementById("aeFOrtChip").addEventListener("click", (e) => {
+    if (!e.target.closest("#aeFOrtClear")) return;
+    state.filters.ortId = ""; state.filters.ortName = "";
+    renderOrtChip();
+    renderList();
+  });
+
+  // Ort filter autocomplete — its OWN instance (independent of the place-adding one at aeAddName). A pick sets
+  // an exact target_public_id; the list then keeps only adventures whose approved places include that id.
+  let fOrtItems = [], fOrtActive = -1, fOrtTimer = null, fOrtAbort = null;
+  function fOrtHide() { const ac = document.getElementById("aeFOrtAc"); ac.hidden = true; ac.innerHTML = ""; fOrtItems = []; fOrtActive = -1; }
+  function fOrtRender() {
+    const ac = document.getElementById("aeFOrtAc");
+    if (!fOrtItems.length) { fOrtHide(); return; }
+    ac.innerHTML = fOrtItems.map((it, idx) =>
+      `<div class="ae-ac__item${idx === fOrtActive ? " is-active" : ""}" data-fort-idx="${idx}">
+        <span class="ae-ac__name">${aeEscape(it.name)}</span>
+        <span class="pill pill--kind">${aeEscape(it.type_label || it.feature_subtype || it.kind || "")}</span></div>`).join("");
+    ac.hidden = false;
+  }
+  async function fOrtSearch(q) {
+    if (fOrtAbort) fOrtAbort.abort();
+    fOrtAbort = new AbortController();
+    try {
+      const r = await fetch("/api/app/map-search.php?limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: fOrtAbort.signal });
+      const j = await r.json().catch(() => null);
+      fOrtItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => x.kind !== "powerline" && x.public_id).slice(0, 8);
+    } catch (e) { if (e && e.name === "AbortError") return; fOrtItems = []; }
+    fOrtActive = fOrtItems.length ? 0 : -1;
+    fOrtRender();
+  }
+  function fOrtPick(it) {
+    if (!it || !it.public_id) return;
+    state.filters.ortId = String(it.public_id);
+    state.filters.ortName = it.name || "";
+    fOrtHide();
+    document.getElementById("aeFOrt").value = "";
+    renderOrtChip();
+    renderList();
+  }
+  document.getElementById("aeFOrt").addEventListener("input", (e) => {
+    const q = e.target.value.trim();
+    clearTimeout(fOrtTimer);
+    if (q.length < 2) { fOrtHide(); return; }
+    fOrtTimer = setTimeout(() => fOrtSearch(q), 250);
+  });
+  document.getElementById("aeFOrt").addEventListener("keydown", (e) => {
+    if (document.getElementById("aeFOrtAc").hidden) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); fOrtActive = Math.min(fOrtItems.length - 1, fOrtActive + 1); fOrtRender(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); fOrtActive = Math.max(0, fOrtActive - 1); fOrtRender(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (fOrtItems[fOrtActive]) fOrtPick(fOrtItems[fOrtActive]); }
+    else if (e.key === "Escape") { fOrtHide(); }
+  });
+  document.getElementById("aeFOrt").addEventListener("blur", () => setTimeout(fOrtHide, 150));
+  document.getElementById("aeFOrtAc").addEventListener("mousedown", (e) => {
+    const row = e.target.closest("[data-fort-idx]"); if (!row) return;
+    e.preventDefault();
+    fOrtPick(fOrtItems[Number(row.dataset.fortIdx)]);
   });
 
   document.getElementById("aeOrteBody").addEventListener("click", async (e) => {
@@ -754,7 +1033,8 @@
     const button = document.getElementById("aeSyncBtn");
     if (!button) return;
     button.disabled = isBusy;
-    button.textContent = isBusy ? "Synchronisiert…" : "🚨 Abenteuer syncen";
+    const label = document.getElementById("aeSyncTileLabel");
+    if (label) label.textContent = isBusy ? "Synchronisiert…" : "Abenteuer syncen";
   }
 
   async function handleAeSyncClick() {
@@ -786,6 +1066,7 @@
   }
 
   document.getElementById("aeSyncBtn").addEventListener("click", handleAeSyncClick);
+  document.getElementById("aeCoversToggle").addEventListener("click", toggleCovers);
   void refreshAeSyncedInfo();
 
   loadList();

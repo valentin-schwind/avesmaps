@@ -177,7 +177,9 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 
 	// Licensing footnote: the covers are shown under the Ulisses fan-content permission WITH a reference
 	// to the F-Shop (each cover also links there). Kept as a discreet, full-width credit under the strip.
-	var creditMarkup = '<div class="avesmaps-adv__credit">Cover © Ulisses Spiele — <a href="https://www.f-shop.de/" target="_blank" rel="noopener">im F-Shop ansehen ↗</a></div>';
+	// Suppressed when the cover kill switch is off -- no covers on screen means no Ulisses credit to show.
+	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
+	var creditMarkup = coversOn ? '<div class="avesmaps-adv__credit">Cover © Ulisses Spiele — <a href="https://www.f-shop.de/" target="_blank" rel="noopener">im F-Shop ansehen ↗</a></div>' : "";
 
 	// data-adv-territory-key markiert den Territoriums-/Regions-Block -> "Alle anzeigen" oeffnet den
 	// datengetriebenen Nested-Dialog (getAdventureTerritoryTree, deepest-wins + Filter) statt des flachen

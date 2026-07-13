@@ -13,7 +13,7 @@
 // and client normalizeWikiDeeplinkKey (ö->o) can diverge on umlauts, so never rely on the key alone for
 // a settlement that has a public_id.
 
-var avesmapsAdventureCatalogState = { loaded: false, loading: null, catalog: [], index: null, territoryMeta: {} };
+var avesmapsAdventureCatalogState = { loaded: false, loading: null, catalog: [], index: null, territoryMeta: {}, coversEnabled: true };
 
 // ---- pure core (exported for Node tests; no window/fetch/DOM) -------------------------------------
 
@@ -57,7 +57,7 @@ function avesmapsAdventureToRenderShape(adventure) {
 		edition: adventure.edition || "",
 		year: Number(adventure.bf_year) || 0,
 		yearLabel: adventure.bf_label || (adventure.bf_year ? adventure.bf_year + " BF" : ""),
-		cover: adventure.cover_url || "",
+		cover: avesmapsAdventureCatalogState.coversEnabled === false ? "" : (adventure.cover_url || ""),
 		url: adventure.wiki_url || "",
 		fshop: adventure.fshop_code || "",
 		official: adventure.is_official === true || adventure.is_official === 1,
@@ -334,10 +334,11 @@ function avesmapsAdventuresEndpointUrl() {
 	return ""; // e.g. localhost dev without a backend -> ready-empty, place-extras keeps its fallback
 }
 
-function avesmapsApplyAdventureCatalog(catalog, territoryMeta) {
+function avesmapsApplyAdventureCatalog(catalog, territoryMeta, coversEnabled) {
 	var state = avesmapsAdventureCatalogState;
 	state.catalog = Array.isArray(catalog) ? catalog : [];
 	state.territoryMeta = (territoryMeta && typeof territoryMeta === "object") ? territoryMeta : {};
+	state.coversEnabled = coversEnabled !== false; // default ENABLED; only an explicit false (kill switch) hides covers
 	state.index = avesmapsBuildAdventureIndex(state.catalog, avesmapsNormalizeAdventureKey);
 	state.loaded = true;
 	if (typeof window !== "undefined") {
@@ -354,7 +355,7 @@ function avesmapsLoadAdventureCatalog() {
 		return state.loading;
 	}
 	if (typeof window !== "undefined" && Array.isArray(window.AVESMAPS_ADVENTURE_CATALOG)) {
-		avesmapsApplyAdventureCatalog(window.AVESMAPS_ADVENTURE_CATALOG, window.AVESMAPS_ADVENTURE_TERRITORY_META);
+		avesmapsApplyAdventureCatalog(window.AVESMAPS_ADVENTURE_CATALOG, window.AVESMAPS_ADVENTURE_TERRITORY_META, window.AVESMAPS_ADVENTURE_COVERS_ENABLED);
 		state.loading = Promise.resolve(state.catalog);
 		return state.loading;
 	}
@@ -369,7 +370,8 @@ function avesmapsLoadAdventureCatalog() {
 		.then(function (data) {
 			var catalog = data && data.ok && Array.isArray(data.adventures) ? data.adventures : [];
 			var meta = data && data.territory_meta && typeof data.territory_meta === "object" ? data.territory_meta : {};
-			avesmapsApplyAdventureCatalog(catalog, meta);
+			var coversEnabled = data ? (data.covers_enabled !== false) : true;
+			avesmapsApplyAdventureCatalog(catalog, meta, coversEnabled);
 			return state.catalog;
 		})
 		.catch(function () {
@@ -477,6 +479,9 @@ if (typeof window !== "undefined") {
 	window.getAdventuresForTerritory = getAdventuresForTerritory;
 	window.getAdventureTerritoryTree = getAdventureTerritoryTree;
 	window.getAdventurePlaces = getAdventurePlaces;
+	// Cover kill switch (owner "emergency off"): false -> place-extras drops the "© Ulisses" cover credit
+	// (covers already render as placeholders because the render shape zeroes cover_url when disabled).
+	window.avesmapsAdventuresCoversEnabled = function () { return avesmapsAdventureCatalogState.coversEnabled !== false; };
 	window.avesmapsAdventureCatalogReady = window.avesmapsAdventureCatalogReady || false;
 	// Kick the single catalog fetch as early as possible when in infopanel mode; the popup opens
 	// (user-initiated) generally after this resolves.

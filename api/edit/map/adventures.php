@@ -76,6 +76,9 @@ try {
             }
             return avesmapsResolveAdventurePlace($pdo, $placeId);
         })(),
+        // Global cover kill switch (owner "emergency off"): hides ALL adventure covers on the public
+        // frontend (placeholder shown); the images stay stored and the editor keeps showing them.
+        'set_covers_enabled' => avesmapsSetAdventuresCoversEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.'),
     };
 

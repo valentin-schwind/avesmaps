@@ -38,7 +38,12 @@ try {
     if ($requestMethod === 'GET') {
         $adventures = avesmapsAdventuresReadCatalog($pdo);
         $territoryMeta = avesmapsAdventuresTerritoryMeta($pdo, $adventures);
-        avesmapsJsonResponse(200, ['ok' => true, 'adventures' => $adventures, 'territory_meta' => $territoryMeta]);
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'adventures' => $adventures,
+            'territory_meta' => $territoryMeta,
+            'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo),
+        ]);
     }
 
     // POST: bootstrap actions.

@@ -89,6 +89,55 @@ function avesmapsAdventuresCount(PDO $pdo): int
     return (int) $pdo->query('SELECT COUNT(*) FROM adventure')->fetchColumn();
 }
 
+// ---- global app settings (tiny KV store) -------------------------------------------------------------
+// Self-healing key/value store for runtime-toggleable flags. First user: the cover-display kill switch
+// ('adventure_covers_enabled') -- an owner "emergency off" that hides ALL adventure covers on the PUBLIC
+// frontend (placeholder shown instead) while the images stay stored internally. Only the public render
+// honors it; the capability-gated editor keeps showing covers so admins can moderate.
+const AVESMAPS_ADVENTURE_COVERS_SETTING = 'adventure_covers_enabled';
+
+function avesmapsAppSettingEnsureTable(PDO $pdo): void
+{
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS app_setting (
+            setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+            setting_value VARCHAR(255) NOT NULL,
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+}
+
+function avesmapsAppSettingGet(PDO $pdo, string $key, string $default = ''): string
+{
+    avesmapsAppSettingEnsureTable($pdo);
+    $stmt = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
+    $stmt->execute(['k' => $key]);
+    $value = $stmt->fetchColumn();
+    return $value === false ? $default : (string) $value;
+}
+
+function avesmapsAppSettingSet(PDO $pdo, string $key, string $value): void
+{
+    avesmapsAppSettingEnsureTable($pdo);
+    $stmt = $pdo->prepare(
+        'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+    );
+    $stmt->execute(['k' => $key, 'v' => $value]);
+}
+
+// Cover kill switch. Default ENABLED -- only an explicit stored '0' hides covers on the public frontend.
+function avesmapsAdventuresCoversEnabled(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_COVERS_SETTING, '1') !== '0';
+}
+
+function avesmapsSetAdventuresCoversEnabled(PDO $pdo, bool $enabled): array
+{
+    avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURE_COVERS_SETTING, $enabled ? '1' : '0');
+    return ['covers_enabled' => $enabled];
+}
+
 // The public catalog read (B1 client aggregation): the whole approved catalog in ONE payload so the
 // client can index + aggregate locally. Places travel WITH each adventure, in sort_order (start first);
 // spoiler separation (start vs play) is done in the client, the catalog ships both.
@@ -422,13 +471,37 @@ function avesmapsAdventuresEncodeOrigins(array $origins): string
 function avesmapsListAdventuresForEdit(PDO $pdo): array
 {
     avesmapsAdventuresEnsureTables($pdo);
+    // `id` is fetched only to key the per-adventure places map below -- it is intentionally NOT exposed
+    // in the output (the editor addresses adventures by public_id). has_cover/has_fshop back the "hat/fehlt
+    // Cover" and "F-Shop ja/nein" list filters; edition backs the DSA-Version filter.
     $rows = $pdo->query(
-        "SELECT a.public_id, a.title, a.product_type, a.bf_label, a.bf_year, a.wiki_key, a.origin, a.status,
+        "SELECT a.id, a.public_id, a.title, a.product_type, a.edition, a.bf_label, a.bf_year, a.wiki_key,
+                a.origin, a.status,
+                (a.cover_url IS NOT NULL AND a.cover_url <> '') AS has_cover,
+                (a.fshop_code IS NOT NULL AND a.fshop_code <> '') AS has_fshop,
                 (SELECT COUNT(*) FROM adventure_place p WHERE p.adventure_id = a.id AND p.status = 'approved')
                     AS place_count
            FROM adventure a
           ORDER BY (a.bf_year IS NULL), a.bf_year DESC, a.title ASC"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    // Approved places per adventure -> the editor builds the Region dropdown (kind region/territory) and the
+    // exact-Ort filter (match by target_public_id) from these. raw_name doubles as the display name.
+    $placesByAdvId = [];
+    $placeRows = $pdo->query(
+        "SELECT adventure_id, target_kind, target_public_id, raw_name
+           FROM adventure_place
+          WHERE status = 'approved'
+          ORDER BY sort_order ASC"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($placeRows as $place) {
+        $aid = (int) $place['adventure_id'];
+        $placesByAdvId[$aid][] = [
+            'kind' => (string) $place['target_kind'],
+            'public_id' => $place['target_public_id'] !== null ? (string) $place['target_public_id'] : '',
+            'name' => (string) $place['raw_name'],
+        ];
+    }
 
     $adventures = [];
     foreach ($rows as $row) {
@@ -436,15 +509,19 @@ function avesmapsListAdventuresForEdit(PDO $pdo): array
             'public_id' => (string) $row['public_id'],
             'title' => (string) $row['title'],
             'product_type' => (string) $row['product_type'],
+            'edition' => (string) ($row['edition'] ?? ''),
             'bf_label' => (string) ($row['bf_label'] ?? ''),
             'bf_year' => $row['bf_year'] !== null ? (int) $row['bf_year'] : null,
             'wiki_key' => $row['wiki_key'] !== null ? (string) $row['wiki_key'] : '',
             'origin' => (string) $row['origin'],
             'status' => (string) $row['status'],
+            'has_cover' => (int) $row['has_cover'] === 1,
+            'has_fshop' => (int) $row['has_fshop'] === 1,
             'place_count' => (int) $row['place_count'],
+            'places' => $placesByAdvId[(int) $row['id']] ?? [],
         ];
     }
-    return ['adventures' => $adventures];
+    return ['adventures' => $adventures, 'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo)];
 }
 
 // Editor detail view: one adventure with all business columns + its whole place list (approved AND
