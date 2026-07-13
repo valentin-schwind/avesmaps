@@ -142,7 +142,7 @@
 	--icon-sm: 16px;    /* dense inline glyph */
 	--icon-md: 20px;    /* standard UI glyph */
 	--icon-lg: 24px;    /* inline content icon — transport mode */
-	--icon-xl: 40px;    /* map-display type toggle */
+	--icon-xl: 46px;    /* map-display type toggle — fills the wider 350px route-planner cell */
 	--icon-2xl: 48px;   /* infobox type icon (coat fallback) */
 	--icon-hero: 130px; /* coat / logo hero */
 
