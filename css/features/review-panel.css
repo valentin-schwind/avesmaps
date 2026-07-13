@@ -483,6 +483,70 @@
 	font-size: 11px;
 }
 
+/* Adventure picker (adventures tab): search + scrollable list; double-click a row opens the editor there. */
+.wiki-sync-adv-picker {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	margin: 0 10px 8px;
+}
+.wiki-sync-adv-picker__top {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+.wiki-sync-adv-picker__search {
+	flex: 1 1 auto;
+	min-width: 0;
+	font: inherit;
+	font-size: 12px;
+	color: var(--color-text);
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	padding: 4px 8px;
+}
+.wiki-sync-adv-picker__search:focus-visible {
+	outline: none;
+	border-color: var(--color-border-strong);
+	box-shadow: var(--focus-ring);
+}
+.wiki-sync-adv-picker__scroll {
+	max-height: 260px;
+	overflow-y: auto;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+}
+.wiki-sync-adv-picker__row {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	width: 100%;
+	text-align: left;
+	font: inherit;
+	cursor: pointer;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--color-divider);
+	padding: 5px 9px;
+}
+.wiki-sync-adv-picker__row:last-child { border-bottom: 0; }
+.wiki-sync-adv-picker__row:hover { background: var(--color-hover-wash); }
+.wiki-sync-adv-picker__title {
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--color-text-strong);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.wiki-sync-adv-picker__meta {
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+
 .wiki-sync-panel__filter {
 	display: flex;
 	align-items: stretch;

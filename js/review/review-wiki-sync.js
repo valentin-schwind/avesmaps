@@ -217,6 +217,10 @@ function setWikiSyncPanelTab(tabName) {
 		if (typeof loadPathWikiSync === "function") {
 			void loadPathWikiSync();
 		}
+	} else if (activeWikiSyncPanelTab === "adventures") {
+		if (typeof loadWikiSyncAdventureList === "function") {
+			void loadWikiSyncAdventureList();
+		}
 	} else {
 		renderWikiSyncCases();
 		if (typeof loadSettlementList === "function") {

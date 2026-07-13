@@ -398,7 +398,14 @@
 						</div>
 						<progress id="wiki-sync-sync-adventure-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
 						<p id="wiki-sync-sync-adventure-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
-						<span class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Baut aus dem zuletzt geholten Dump den Abenteuer-Katalog + die geordneten Ort-Listen auf und zieht die Cover nach <code>/uploads/questcovers</code>. Erst „Dump holen", dann hier „Abenteuer Syncen &amp; Editieren".</span>
+						<div class="wiki-sync-adv-picker">
+							<div class="wiki-sync-adv-picker__top">
+								<input type="search" id="wiki-sync-adv-search" class="wiki-sync-adv-picker__search" placeholder="Abenteuer suchen …" autocomplete="off">
+								<span class="wiki-sync-panel__summary" id="wiki-sync-adv-count"></span>
+							</div>
+							<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
+						</div>
 					</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">

@@ -1129,6 +1129,14 @@
   document.getElementById("aeCoversToggle").addEventListener("click", toggleCovers);
   void refreshAeSyncedInfo();
 
+  // Pre-selection from the parent (WikiSync adventure picker): a same-origin postMessage jumps to an
+  // adventure by public_id. selectAdventure fetches the detail by id, so it works even before loadList resolves.
+  window.addEventListener("message", (e) => {
+    if (!e || e.origin !== location.origin || !e.data || typeof e.data.avesmapsAdvSelect !== "string") return;
+    const id = e.data.avesmapsAdvSelect.trim();
+    if (id) selectAdventure(id);
+  });
+
   loadList();
 </script>
 </body>

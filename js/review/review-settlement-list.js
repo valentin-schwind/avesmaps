@@ -529,13 +529,20 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 // Abenteuer-Editor overlay (Phase 3 / P2) — same overlay chrome as the settlement editor, own iframe page.
 // Self-contained html/adventure-editor.html loaded with ?v=Date.now() (no ASSET_VERSION). No deep-link
 // param and no tree refresh on close (the adventure editor has no parent tree).
-window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOverlay || function openAvesmapsAdventureEditorOverlay() {
+window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOverlay || function openAvesmapsAdventureEditorOverlay(selectPublicId) {
 	const overlayId = "avesmaps-adventure-editor-overlay";
 	const buildSrc = () => "/html/adventure-editor.html?v=" + Date.now();
+	// Optional pre-selection: tell the (same-origin) editor iframe to jump to an adventure by public_id.
+	const postSelect = (frame) => {
+		const id = (selectPublicId == null ? "" : String(selectPublicId)).trim();
+		if (!id || !frame || !frame.contentWindow) { return; }
+		try { frame.contentWindow.postMessage({ avesmapsAdvSelect: id }, location.origin); } catch (e) { /* noop */ }
+	};
 	let overlay = document.getElementById(overlayId);
 	if (overlay) {
 		overlay.hidden = false;
 		document.body.style.overflow = "hidden";
+		postSelect(overlay.querySelector("iframe"));
 		return;
 	}
 	overlay = document.createElement("div");
@@ -564,6 +571,7 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
+	frame.addEventListener("load", () => postSelect(frame));
 	frame.src = buildSrc();
 	frame.title = "Abenteuereditor";
 	dialog.appendChild(header);
@@ -572,4 +580,72 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
 	document.body.appendChild(overlay);
 	document.body.style.overflow = "hidden";
+};
+
+// ---- Abenteuer-Liste im WikiSync-"Abenteuer"-Tab (ersetzt den alten Beschreibungstext) ------------------
+// Same catalog the editor uses (POST /api/edit/map/adventures.php {action:list} -> approved + drafts). Lazily
+// loaded when the tab opens (setWikiSyncPanelTab). Double-click a row -> open the editor pre-selected there.
+var avesmapsAdvPickerCache = null; // [{ public_id, title, edition, product_type, status, ... }]
+var avesmapsAdvPickerWired = false;
+
+function avesmapsRenderAdventurePicker() {
+	var scroll = document.getElementById("wiki-sync-adv-scroll");
+	if (!scroll) { return; }
+	var countEl = document.getElementById("wiki-sync-adv-count");
+	var searchEl = document.getElementById("wiki-sync-adv-search");
+	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
+	var all = avesmapsAdvPickerCache || [];
+	var rows = q ? all.filter(function (a) { return (a.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
+	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
+	if (!rows.length) {
+		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Abenteuer.") + '</p>';
+		return;
+	}
+	var esc = typeof escapeHtml === "function" ? escapeHtml : function (s) { return String(s == null ? "" : s); };
+	scroll.innerHTML = rows.map(function (a) {
+		var meta = [a.edition, a.product_type].filter(Boolean).join(" · ");
+		var draft = a.status && a.status !== "approved" ? " · Entwurf" : "";
+		return '<button type="button" class="wiki-sync-adv-picker__row" data-adv-id="' + esc(a.public_id) + '" title="Doppelklick: im Abenteuereditor öffnen">'
+			+ '<span class="wiki-sync-adv-picker__title">' + esc(a.title || "(ohne Titel)") + '</span>'
+			+ '<span class="wiki-sync-adv-picker__meta">' + esc(meta + draft) + '</span>'
+			+ '</button>';
+	}).join("");
+}
+
+function avesmapsWireAdventurePicker() {
+	if (avesmapsAdvPickerWired) { return; }
+	var searchEl = document.getElementById("wiki-sync-adv-search");
+	var scroll = document.getElementById("wiki-sync-adv-scroll");
+	if (!searchEl || !scroll) { return; }
+	avesmapsAdvPickerWired = true;
+	searchEl.addEventListener("input", avesmapsRenderAdventurePicker);
+	scroll.addEventListener("dblclick", function (e) {
+		var row = e.target && e.target.closest ? e.target.closest("[data-adv-id]") : null;
+		if (!row) { return; }
+		var id = row.getAttribute("data-adv-id");
+		if (id && typeof window.openAvesmapsAdventureEditorOverlay === "function") {
+			window.openAvesmapsAdventureEditorOverlay(id);
+		}
+	});
+}
+
+window.loadWikiSyncAdventureList = window.loadWikiSyncAdventureList || function loadWikiSyncAdventureList(force) {
+	avesmapsWireAdventurePicker();
+	if (avesmapsAdvPickerCache && !force) {
+		avesmapsRenderAdventurePicker();
+		return Promise.resolve();
+	}
+	var scroll = document.getElementById("wiki-sync-adv-scroll");
+	return fetch("/api/edit/map/adventures.php", {
+		method: "POST", credentials: "same-origin",
+		headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }),
+	}).then(function (r) { return r.json().catch(function () { return null; }); }).then(function (p) {
+		if (!p || p.ok !== true || !Array.isArray(p.adventures)) {
+			throw new Error((p && p.error && p.error.message) || "Laden fehlgeschlagen");
+		}
+		avesmapsAdvPickerCache = p.adventures;
+		avesmapsRenderAdventurePicker();
+	}).catch(function (e) {
+		if (scroll) { scroll.innerHTML = '<p class="wiki-sync-panel__summary">Fehler: ' + (e && e.message ? e.message : "Laden fehlgeschlagen") + '</p>'; }
+	});
 };
