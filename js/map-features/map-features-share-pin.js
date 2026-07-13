@@ -40,6 +40,7 @@ function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
 	})
 		.bindPopup(sharePinPopupMarkup(), {
 			autoClose: false,
+			className: "floating-location-popup",
 		})
 		.addTo(map);
 
