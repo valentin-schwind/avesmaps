@@ -343,16 +343,14 @@
 				     progress-during-fetch and "Dump geholt: <date>" behaviour keeps working. The per-tab
 				     "Syncen" buttons below drive sync_kind for each kind. -->
 				<div class="wiki-sync-dump-central">
-					<!-- Owner: "Dump holen" + "Abenteuereditor" als zwei Kacheln NEBENEINANDER; die Status-/
-					     "Dump geholt: <date>"-Zeilen laufen DARUNTER (vorher je neben dem Button im 2-Spalten-Grid).
-					     P2-Abenteuereditor: self-contained overlay (iframe, ?v=Date.now()); sein synced-Span bleibt
-					     leer/hidden bis Phase 4 das Abenteuer-Sync-Datum verdrahtet. -->
-					<div class="wiki-sync-dump-tiles">
+					<!-- Owner 2026-07-13: "Abenteuereditor" moved off this shared central row into its own
+					     Abenteuer tab below (it now also carries Syncen + Zuletzt gesynct, like the
+					     Siedlungen/Territorien editor-open buttons) -- only "Dump holen" stays central,
+					     it feeds all kinds. -->
+					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Lädt den Wiki-Dump neu herunter, liest ihn ein (Sandbox, schreibt nichts Scharfes), räumt danach alte Dump-Stände auf und übernimmt die Publikationsquellen scharf in die Quellen (feature_sources) — manuelle/unterdrückte Quellen bleiben unangetastet.">📥 Dump holen</button>
-						<button id="adventure-editor-open" class="wiki-sync-panel__start" type="button" title="Öffnet den Abenteuereditor (anlegen/bearbeiten, Orte zuordnen).">🗺️ Abenteuereditor</button>
 					</div>
 					<span id="wiki-sync-dump-fetched-status" class="wiki-sync-panel__summary wiki-sync-dump-summary" hidden></span>
-					<span id="adventure-editor-synced" class="wiki-sync-panel__summary wiki-sync-dump-summary" hidden></span>
 					<progress id="wiki-sync-dump-progress" class="wiki-sync-progress" max="6" value="0" hidden></progress>
 					<p id="wiki-sync-dump-status" class="wiki-sync-panel__summary" role="status" aria-live="polite" hidden></p>
 					<!-- SHARP reconcile of the wiki publication sources into feature_sources
@@ -387,12 +385,20 @@
 					</div>
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="adventures">
 						<div class="wiki-sync-panel__actions">
+							<button type="button" id="adventure-editor-open" class="wiki-sync-panel__start" title="Öffnet den Abenteuereditor (anlegen/bearbeiten, Orte zuordnen, enthält jetzt auch Syncen + Zuletzt gesynct).">Abenteuer Syncen &amp; Editieren</button><span id="adventure-editor-synced" class="wiki-sync-panel__summary" hidden></span>
+						</div>
+						<!-- Kept hidden, NOT removed: startWikiSyncAdventuresSync/renderWikiSyncKindProgress/
+						     refreshWikiSyncKindSyncedStatus (js/review/review-wiki-sync.js) still target
+						     these exact ids and must never null-deref. The visible trigger now lives in
+						     the editor toolbar (html/adventure-editor.html #aeSyncBtn) and calls
+						     window.parent.startWikiSyncAdventuresSync(). -->
+						<div class="wiki-sync-panel__actions" hidden>
 							<button id="wiki-sync-sync-adventure" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Abenteuer aus dem zuletzt geholten Dump (Katalog + Ort-Listen + Cover) override-sicher in die Abenteuer-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet.">🚨 Syncen</button>
 							<span id="wiki-sync-sync-adventure-synced" class="wiki-sync-panel__summary" hidden></span>
 						</div>
 						<progress id="wiki-sync-sync-adventure-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
 						<p id="wiki-sync-sync-adventure-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
-						<span class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Baut aus dem zuletzt geholten Dump den Abenteuer-Katalog + die geordneten Ort-Listen auf und zieht die Cover nach <code>/uploads/questcovers</code>. Erst „Dump holen", dann hier „Syncen".</span>
+						<span class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Baut aus dem zuletzt geholten Dump den Abenteuer-Katalog + die geordneten Ort-Listen auf und zieht die Cover nach <code>/uploads/questcovers</code>. Erst „Dump holen", dann hier „Abenteuer Syncen &amp; Editieren".</span>
 					</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">

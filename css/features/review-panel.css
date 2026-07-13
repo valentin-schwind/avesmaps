@@ -389,21 +389,14 @@
 	border-bottom: 1px solid var(--color-border);
 }
 
-/* Owner: "Dump holen" + "Abenteuereditor" als zwei gleich breite Kacheln nebeneinander (statt zweier
-   Button+Status-Zeilen untereinander). align-items:stretch -> beide Kacheln gleich hoch, auch wenn eine
-   umbricht; white-space:normal, damit "Abenteuereditor" in der schmalen Spalte nie abgeschnitten wird. */
-.wiki-sync-dump-tiles {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	align-items: stretch;
-	gap: 8px;
+/* "Dump holen" sits alone in the central block now (the "Abenteuereditor" tile moved into its own
+   Abenteuer tab below); the wrapper carries the margin (matching .wiki-sync-dump-summary below it)
+   while the button keeps width:100% of it, same convention as .wiki-sync-panel__actions/-dump-tiles. */
+.wiki-sync-dump-solo {
 	margin: 8px 10px 4px;
 }
-.wiki-sync-dump-tiles .wiki-sync-panel__start {
-	white-space: normal;
-}
-/* Die Status-/"Dump geholt: <date>"-Zeilen laufen jetzt UNTER den Kacheln (Owner) -- horizontaler Rand
-   wie die Kacheln, damit sie damit fluchten (vorher trug den Rand das .wiki-sync-panel__actions-Grid). */
+/* Die Status-/"Dump geholt: <date>"-Zeile läuft jetzt UNTER dem Button -- horizontaler Rand
+   wie der Button, damit sie damit fluchtet (vorher trug den Rand das .wiki-sync-panel__actions-Grid). */
 .wiki-sync-dump-summary {
 	margin: 0 10px 4px;
 }
