@@ -96,9 +96,9 @@ function buildPlaceCityMapsMarkup(location) {
 // isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
 // per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
 // The shop/reference links for an adventure, in click PRIORITY order (Owner): Ulisses e-book -> F-Shop ->
-// Deutsche Nationalbibliothek -> the wiki page. Ulisses + F-Shop are wiki-sourced (link_ulisses/link_fshop,
-// may be empty); the DNB search link is derived from the ISBN (else the title) and is always available; the
-// wiki page is always available. Returns [{ key, label, url }] with only non-empty links, highest first.
+// the wiki page -> Deutsche Nationalbibliothek (DNB LAST). Ulisses + F-Shop are wiki-sourced (link_ulisses/
+// link_fshop, may be empty); the wiki page is always available (so it wins over DNB, which is a mere ISBN/
+// title search fallback and effectively never the cover target). Returns [{ key, label, url }], highest first.
 function advShopLinks(a) {
 	var links = [];
 	var ulisses = (a && a.linkUlisses && String(a.linkUlisses).trim()) || "";
@@ -108,9 +108,9 @@ function advShopLinks(a) {
 	var wikiUrl = (a && a.url && String(a.url).trim()) || (title ? ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(title)) : "");
 	if (ulisses) { links.push({ key: "ulisses", label: "Ulisses eBook", url: ulisses }); }
 	if (fshop) { links.push({ key: "fshop", label: "F-Shop", url: fshop }); }
+	if (wikiUrl) { links.push({ key: "wiki", label: "Wiki Aventurica", url: wikiUrl }); }
 	var dnbQuery = isbn || title;
 	if (dnbQuery) { links.push({ key: "dnb", label: "Dt. Nationalbibliothek", url: "https://portal.dnb.de/opac/simpleSearch?query=" + encodeURIComponent(dnbQuery) }); }
-	if (wikiUrl) { links.push({ key: "wiki", label: "Wiki Aventurica", url: wikiUrl }); }
 	return links;
 }
 // The single best link (highest available priority) the cover click opens. null only when nothing is known.

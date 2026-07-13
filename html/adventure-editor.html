@@ -606,9 +606,9 @@
     const wiki = (v.wiki_url || "").trim() || (title ? "https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(title) : "");
     if (ulisses) links.push({ label: "Ulisses eBook", url: ulisses });
     if (fshop) links.push({ label: "F-Shop", url: fshop });
+    if (wiki) links.push({ label: "Wiki", url: wiki });
     const q = isbn || title;
     if (q) links.push({ label: "DNB", url: "https://portal.dnb.de/opac/simpleSearch?query=" + encodeURIComponent(q) });
-    if (wiki) links.push({ label: "Wiki", url: wiki });
     return links;
   }
   function aeLinksGroup(v, o) {
@@ -616,7 +616,7 @@
     const preview = links.length
       ? links.map((l, i) => `<a class="ae-linkchip${i === 0 ? " is-active" : ""}" href="${aeEscape(l.url)}" target="_blank" rel="noopener" title="${aeEscape(l.url)}">${i === 0 ? "▶ " : ""}${aeEscape(l.label)} ↗</a>`).join("")
       : `<span class="ae-cover__ph">keine Links</span>`;
-    return `<div class="ae-grp"><p class="ae-grp__title">Shop-Links · Klick-Priorität: Ulisses → F-Shop → DNB → Wiki</p>
+    return `<div class="ae-grp"><p class="ae-grp__title">Shop-Links · Klick-Priorität: Ulisses → F-Shop → Wiki → DNB</p>
       <div class="ae-links-preview">${preview}</div>
       <div class="ae-fields">
         ${aeField("Ulisses eBook-URL", "link_ulisses", v.link_ulisses || "", o, { wide: true })}
