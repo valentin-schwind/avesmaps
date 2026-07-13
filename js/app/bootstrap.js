@@ -325,6 +325,7 @@ $("#location-report-type").on("change", syncLocationReportTypeFields);
 $("#location-report-form").on("submit", handleLocationReportFormSubmit);
 // Multi-source #3: dynamic source list in the community report form (add / remove / Enter-to-add).
 $("#report-source-add-btn").on("click", addLocationReportSourceFromInputs);
+$("#location-report-pick-position").on("click", startChangePositionPick);
 $("#location-report-sources-list").on("click", (event) => {
 	const removeButton = event.target.closest("[data-remove-report-source]");
 	if (removeButton) {

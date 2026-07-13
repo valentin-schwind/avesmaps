@@ -314,11 +314,11 @@ function applyChangeSuggestionContext(ctx) {
 		nameInput.readOnly = true;
 	}
 
-	// Position ist im Aenderungsmodus irrelevant (Element via entity_public_id eindeutig) -> Zeile ausblenden.
-	// lat/lng werden trotzdem (aus ctx bzw. Kartenmitte) gefuellt, weil der Endpoint sie noch als Feld erwartet.
+	// Position zeigt die IST-Position des Elements (aus ctx). Nicht Pflicht (report-flow ueberspringt die
+	// Pruefung im Aenderungsmodus), aber via "Neue Position vorschlagen" kann der Nutzer einen neuen Punkt waehlen.
 	document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(L.latLng(lat, lng));
-	var changeMetaEl = document.querySelector(".location-report-form__meta");
-	if (changeMetaEl) { changeMetaEl.style.display = "none"; }
+	const pickPositionBtn = document.getElementById("location-report-pick-position");
+	if (pickPositionBtn) { pickPositionBtn.hidden = false; }
 	document.getElementById("location-report-lat").value = lat.toFixed(3);
 	document.getElementById("location-report-lng").value = lng.toFixed(3);
 	document.getElementById("location-report-page-url").value = window.location.href;
@@ -356,6 +356,37 @@ function applyChangeSuggestionContext(ctx) {
 	}
 }
 
+// "Neue Position vorschlagen" (nur Aenderungsmodus): Dialog kurz ausblenden, Toast, EIN Kartenklick setzt die
+// vorgeschlagene Position, danach kommt der Dialog zurueck. Formularzustand bleibt (nur ausblenden, kein Reset).
+function startChangePositionPick() {
+	$("#location-report-overlay").prop("hidden", true);
+	syncModalDialogBodyState();
+	if (typeof map !== "undefined" && map) {
+		map.off("click", handleChangePositionPick);
+		map.once("click", handleChangePositionPick);
+	}
+	if (typeof showFeedbackToast === "function") {
+		showFeedbackToast("Schlage eine neue Position vor: klicke auf die Karte.", "info");
+	}
+}
+
+function handleChangePositionPick(event) {
+	const latlng = L.latLng(event.latlng);
+	if (typeof isWithinMapBounds === "function" && !isWithinMapBounds(latlng)) {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Diese Position liegt ausserhalb der Karte.", "warning");
+		}
+		map.once("click", handleChangePositionPick); // ausserhalb -> erneut scharf schalten
+		return;
+	}
+	locationReportLatLng = latlng;
+	document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(latlng);
+	document.getElementById("location-report-lat").value = latlng.lat.toFixed(3);
+	document.getElementById("location-report-lng").value = latlng.lng.toFixed(3);
+	$("#location-report-overlay").prop("hidden", false);
+	syncModalDialogBodyState();
+}
+
 // Undo everything applyChangeSuggestionContext() changed, so the plain right-click "Hier melden…" is
 // unaffected. form.reset() restores input VALUES but not disabled/readOnly/textContent -- do those here.
 function clearChangeSuggestionMode() {
@@ -370,8 +401,8 @@ function clearChangeSuggestionMode() {
 	if (entityTypeEl) entityTypeEl.value = "";
 	const entityIdEl = document.getElementById("location-report-entity-id");
 	if (entityIdEl) entityIdEl.value = "";
-	const resetMetaEl = document.querySelector(".location-report-form__meta");
-	if (resetMetaEl) resetMetaEl.style.display = "";
+	const resetPickBtn = document.getElementById("location-report-pick-position");
+	if (resetPickBtn) resetPickBtn.hidden = true;
 	if (commentField) {
 		commentField.required = false;
 		const label = commentField.closest(".location-report-form__field")?.querySelector("span");
