@@ -581,6 +581,11 @@
 		if (!markup) {
 			return false;
 		}
+		// Phase 2 (Wege): the adventures assigned to this path, appended below the path infobox. Renders only
+		// in infopanel mode (the catalog loads only there); "" until the catalog is ready or if none match.
+		if (typeof buildPathAdventuresMarkup === "function") {
+			markup += buildPathAdventuresMarkup(path);
+		}
 		window.avesmapsShowInfopanel(markup);
 		return true;
 	};

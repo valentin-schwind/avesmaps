@@ -360,7 +360,7 @@ function buildRegionLabelViewPopupHtml(label) {
 		// Quelle) darunter -- gleiche Anordnung wie Siedlung/Territorium/Weg.
 		actionsMarkup: locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" }), (function () { var s = typeof buildSuggestChangeButtonSpec === "function" ? buildSuggestChangeButtonSpec({ entityType: "region", entityId: label.publicId, name: labelName, reportType: "region", lat: (label.coordinates && label.coordinates[0]), lng: (label.coordinates && label.coordinates[1]), label: tr("popup.suggestChange", "Änderung vorschlagen") }) : null; return s ? popupActionButtonMarkup(s) : ""; })()].filter(Boolean))
 			+ labelWikiInfoboxMarkup(label, { headless: true }),
-	});
+	}) + (typeof buildRegionAdventuresMarkup === "function" ? buildRegionAdventuresMarkup(label) : "");
 }
 
 function createLabelMarkerEntry(label) {

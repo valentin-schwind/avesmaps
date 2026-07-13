@@ -222,19 +222,75 @@ function buildTerritoryAdventuresMarkup(regionEntry) {
 	if (typeof getAdventuresForTerritory !== "function") {
 		return "";
 	}
+	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || "diesem Gebiet";
+	// Political territory: aggregate over the whole political subtree via the SERVER wiki_key that arrives
+	// with regionEntry.detail (territory-detail.php). Pre-detail render -> no wiki_key yet -> "".
 	var detail = (regionEntry && regionEntry.detail && regionEntry.detail.ok) ? regionEntry.detail : null;
 	var wikiKey = detail ? (detail.wiki_key || "") : "";
-	if (!wikiKey) {
+	if (wikiKey) {
+		var beginnt = getAdventuresForTerritory(wikiKey, { role: "start" });
+		var play = getAdventuresForTerritory(wikiKey, { role: "play" });
+		if ((beginnt && beginnt.length) || (play && play.length)) {
+			// territoryKey = der Server-wiki_key, den der Nested-Dialog an getAdventureTerritoryTree weitergibt.
+			return buildAdventuresSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
+		}
 		return "";
 	}
-	var beginnt = getAdventuresForTerritory(wikiKey, { role: "start" });
-	var play = getAdventuresForTerritory(wikiKey, { role: "play" });
+	// Landscape region rendered as a POLYGON (no political territoryPublicId): adventures assigned DIRECTLY
+	// to this region, matched by its public_id. (Region LABELS go through buildRegionAdventuresMarkup below.)
+	if (!regionEntry || regionEntry.territoryPublicId || typeof getAdventuresForRegion !== "function") {
+		return "";
+	}
+	var rBeginnt = getAdventuresForRegion(regionEntry, { role: "start" });
+	var rPlay = getAdventuresForRegion(regionEntry, { role: "play" });
+	if ((!rBeginnt || !rBeginnt.length) && (!rPlay || !rPlay.length)) {
+		return "";
+	}
+	return buildAdventuresSectionMarkup(name, rBeginnt, rPlay, {});
+}
+
+// Landschafts-Region-LABEL (Phase 2, Regionen): die diesem Label direkt zugeordneten "beginnt/spielt"-
+// Abenteuer, EXAKT ueber label.publicId (= der vom Resolver gespeicherte target_public_id) gematcht -- flacher
+// Streifen wie bei der Siedlung. Angehaengt in buildRegionLabelViewPopupHtml (map-features-labels.js). Regionen
+// sind Blatt-Ziele (kein Subtree) -> kein territoryKey, "Alle anzeigen" oeffnet den flachen Dialog.
+function buildRegionAdventuresMarkup(label) {
+	if (typeof avesmapsAdventureCatalogIsReady !== "function" || !avesmapsAdventureCatalogIsReady()) {
+		return "";
+	}
+	if (typeof getAdventuresForRegion !== "function" || !label) {
+		return "";
+	}
+	var beginnt = getAdventuresForRegion(label, { role: "start" });
+	var play = getAdventuresForRegion(label, { role: "play" });
 	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
 		return "";
 	}
-	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || "diesem Gebiet";
-	// territoryKey = der Server-wiki_key, den der Nested-Dialog an getAdventureTerritoryTree weitergibt.
-	return buildAdventuresSectionMarkup(name, beginnt, play, { territoryKey: wikiKey });
+	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || "dieser Region";
+	return buildAdventuresSectionMarkup(name, beginnt, play, {});
+}
+
+// Weg/Pfad (Phase 2, Wege): die diesem Weg zugeordneten "beginnt/spielt"-Abenteuer. Match primaer ueber die
+// wiki_path-Namensgruppe (robust, da ein Weg aus vielen Segmenten besteht) + Segment-public_id. Flacher
+// Streifen. Angehaengt in avesmapsShowPathInInfopanel (map-features-infopanel.js).
+function buildPathAdventuresMarkup(path) {
+	if (typeof avesmapsAdventureCatalogIsReady !== "function" || !avesmapsAdventureCatalogIsReady()) {
+		return "";
+	}
+	if (typeof getAdventuresForPath !== "function" || !path) {
+		return "";
+	}
+	var wikiPath = (path.properties && path.properties.wiki_path) || null;
+	var ref = {
+		publicId: (typeof getPathPublicId === "function") ? getPathPublicId(path) : (path.public_id || ""),
+		wikiKey: (wikiPath && wikiPath.wiki_key) || "",
+	};
+	var beginnt = getAdventuresForPath(ref, { role: "start" });
+	var play = getAdventuresForPath(ref, { role: "play" });
+	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
+		return "";
+	}
+	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || "diesem Weg");
+	return buildAdventuresSectionMarkup(name, beginnt, play, {});
 }
 
 // Floating-Box-Kachel "Abenteuer" (Owner via Design-Session): die schlanke Siedlungs-Box zeigt KEINEN

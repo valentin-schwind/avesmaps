@@ -113,4 +113,26 @@ assert.strictEqual(avesmapsSelectAdventureEntries(ti, { territoryKey: mrKey }, "
 assert.strictEqual(avesmapsSelectAdventureEntries(ti, { territoryKey: avesmapsNormalizeAdventureKey("wiki:andergast") }, "all").length, 0);
 console.log("territory subtree aggregation ok");
 
+// ---- Phase 2: landscape region (byRegionPublicId + byRegionKey) + path (byPathKey + byPathPublicId) ----
+const regionPathCatalog = [
+	{ public_id: "advR", title: "R", product_type: "gruppenabenteuer", bf_year: 1040, places: [
+		{ role: "start", target_kind: "region", target_public_id: "R1", target_wiki_key: "wiki:raschtulswall" },
+		{ role: "play", target_kind: "path", target_public_id: "P1seg", target_wiki_key: "bornstrasse" },
+	] },
+];
+const rp = avesmapsBuildAdventureIndex(regionPathCatalog);
+// Region: the exact public_id (what the resolver stores = the label's public_id) AND the wiki-key fallback hit.
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { regionPublicId: "R1" }, "start").length, 1);
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { regionKey: avesmapsNormalizeAdventureKey("wiki:raschtulswall") }, "start").length, 1);
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { regionPublicId: "R1" }, "play").length, 0); // it BEGINS here, not plays
+// Dedup across region public_id + key for the same adventure -> once.
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { regionPublicId: "R1", regionKey: avesmapsNormalizeAdventureKey("wiki:raschtulswall") }, "all").length, 1);
+console.log("region index ok");
+// Path: the wiki_path namespace key (UNPREFIXED at source) is the robust axis; the segment public_id also hits.
+const bornKey = avesmapsNormalizeAdventureKey("bornstrasse");
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { pathKey: bornKey }, "play").length, 1);
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { pathPublicId: "P1seg" }, "play").length, 1);
+assert.strictEqual(avesmapsSelectAdventureEntries(rp, { pathKey: bornKey }, "start").length, 0); // it PLAYS here, not begins
+console.log("path index ok");
+
 console.log("ALL OK");

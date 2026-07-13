@@ -75,6 +75,9 @@ function avesmapsBuildAdventureIndex(catalog, normalizeKey) {
 		bySettlementKey: {},
 		byTerritoryKey: {},
 		byRegionKey: {},
+		byRegionPublicId: {},
+		byPathPublicId: {},
+		byPathKey: {},
 		byTerritoryPath: {},
 		byPublicId: {},
 	};
@@ -104,7 +107,15 @@ function avesmapsBuildAdventureIndex(catalog, normalizeKey) {
 			} else if (place.target_kind === "territory") {
 				pushEntry(index.byTerritoryKey, normKey, entry);
 			} else if (place.target_kind === "region") {
+				// Landscape region: match EXACTLY by the region label's map_features public_id (what the
+				// resolver stores as target_public_id); byRegionKey is a best-effort wiki-key fallback.
+				pushEntry(index.byRegionPublicId, place.target_public_id, entry);
 				pushEntry(index.byRegionKey, normKey, entry);
+			} else if (place.target_kind === "path") {
+				// Paths are segmented (many map_features rows share one wiki_path namespace) -> the wiki_key
+				// (UNPREFIXED, normalized) is the robust axis; public_id is a secondary exact match.
+				pushEntry(index.byPathPublicId, place.target_public_id, entry);
+				pushEntry(index.byPathKey, normKey, entry);
 			}
 			// Phase 2: index the adventure under EVERY territory in this place's ancestor path, so
 			// byTerritoryPath[T] holds all adventures whose place lies in T's subtree (client aggregates
@@ -148,6 +159,18 @@ function avesmapsSelectAdventureEntries(index, ref, role) {
 	}
 	if (ref.territoryKey) {
 		collect(index.byTerritoryPath[ref.territoryKey]); // subtree aggregation (Phase 2)
+	}
+	if (ref.regionPublicId) {
+		collect(index.byRegionPublicId[ref.regionPublicId]); // landscape region, exact public_id
+	}
+	if (ref.regionKey) {
+		collect(index.byRegionKey[ref.regionKey]); // landscape region, wiki-key fallback
+	}
+	if (ref.pathPublicId) {
+		collect(index.byPathPublicId[ref.pathPublicId]); // path, exact segment public_id
+	}
+	if (ref.pathKey) {
+		collect(index.byPathKey[ref.pathKey]); // path, wiki_path namespace (robust across segments)
 	}
 	return collected;
 }
@@ -435,6 +458,60 @@ function getAdventuresForTerritory(territoryWikiKey, opts) {
 	});
 }
 
+// Adventures assigned DIRECTLY to a landscape region, in render shape (Phase 2, regions). Regions are leaf
+// targets (no political subtree) -> a flat strip like a settlement. regionRef = the map label / regionEntry
+// (carries .publicId + optionally .wikiRegion.wiki_key). Primary match = the region label's public_id (what
+// the resolver stores as target_public_id, exact, no umlaut divergence); wiki_key is a fallback.
+function getAdventuresForRegion(regionRef, opts) {
+	var index = avesmapsAdventureCatalogState.index;
+	if (!index || !regionRef) {
+		return [];
+	}
+	var role = (opts && opts.role) || "start";
+	var publicId = (typeof regionRef === "string") ? regionRef : (regionRef.publicId || regionRef.public_id || "");
+	var wikiRegion = regionRef.wikiRegion || regionRef.wiki_region || null;
+	var rawKey = (wikiRegion && wikiRegion.wiki_key) || regionRef.wikiKey || regionRef.wiki_key || "";
+	var ref = {};
+	if (publicId) {
+		ref.regionPublicId = publicId;
+	}
+	if (rawKey) {
+		ref.regionKey = avesmapsNormalizeAdventureKey(rawKey);
+	}
+	if (!ref.regionPublicId && !ref.regionKey) {
+		return [];
+	}
+	return avesmapsSelectAdventureEntries(index, ref, role).map(function (entry) {
+		return avesmapsAdventureToRenderShape(entry.adv);
+	});
+}
+
+// Adventures assigned to a path/Weg, in render shape (Phase 2, paths). pathRef = { publicId, wikiKey }. Paths
+// are segmented (one wiki_path namespace spans many segments) -> the wiki_key is the robust match axis; the
+// clicked segment's public_id is a secondary exact match. Flat strip (a path is a leaf target).
+function getAdventuresForPath(pathRef, opts) {
+	var index = avesmapsAdventureCatalogState.index;
+	if (!index || !pathRef) {
+		return [];
+	}
+	var role = (opts && opts.role) || "start";
+	var ref = {};
+	var publicId = pathRef.publicId || pathRef.public_id || "";
+	var rawKey = pathRef.wikiKey || pathRef.wiki_key || "";
+	if (publicId) {
+		ref.pathPublicId = publicId;
+	}
+	if (rawKey) {
+		ref.pathKey = avesmapsNormalizeAdventureKey(rawKey);
+	}
+	if (!ref.pathPublicId && !ref.pathKey) {
+		return [];
+	}
+	return avesmapsSelectAdventureEntries(index, ref, role).map(function (entry) {
+		return avesmapsAdventureToRenderShape(entry.adv);
+	});
+}
+
 // Nested territory subtree for the "Alle anzeigen" dialog (Phase 2.3): the deepest-wins tree rooted at
 // territoryWikiKey (server 'wiki:'-form, same axis as territory_path). Returns null when the catalog is not
 // ready or the key is empty. Each node carries name+rank (from territory_meta) and its direct start/play
@@ -477,6 +554,8 @@ if (typeof window !== "undefined") {
 	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
 	window.getAdventuresForPlace = getAdventuresForPlace;
 	window.getAdventuresForTerritory = getAdventuresForTerritory;
+	window.getAdventuresForRegion = getAdventuresForRegion;
+	window.getAdventuresForPath = getAdventuresForPath;
 	window.getAdventureTerritoryTree = getAdventureTerritoryTree;
 	window.getAdventurePlaces = getAdventurePlaces;
 	// Cover kill switch (owner "emergency off"): false -> place-extras drops the "© Ulisses" cover credit
