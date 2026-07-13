@@ -193,7 +193,7 @@ window.AVESMAPS_I18N_EN = {
 	"report.typeOption.weg": "Path/Road",
 	"report.typeOption.territorium": "Territory",
 	"report.changeTitle": "Suggest a change",
-	"report.changeIntro": "Suggest a change to this element. Describe as precisely as possible what should change. A source helps but is not required.",
+	"report.changeIntro": "Suggest a change to this element. Describe as precisely as possible what should change. A source helps us a lot when reviewing the change.",
 	"report.changeCommentLabel": "What should change? *",
 	"report.changeSourcesLabel": "Sources (optional — regional supplement, adventure, …)",
 

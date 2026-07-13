@@ -354,7 +354,7 @@ function applyChangeSuggestionContext(ctx) {
 	}
 	const introEl = document.querySelector(".location-report-dialog__intro");
 	if (introEl) {
-		introEl.textContent = tr("report.changeIntro", "Schlage eine Änderung an diesem Element vor. Beschreibe möglichst genau, was geändert werden soll. Eine Quelle hilft, ist aber nicht zwingend.");
+		introEl.textContent = tr("report.changeIntro", "Schlage eine Änderung an diesem Element vor. Beschreibe möglichst genau, was geändert werden soll. Eine Quelle hilft uns sehr bei der Überprüfung der Änderung.");
 	}
 }
 
