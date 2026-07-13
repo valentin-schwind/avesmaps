@@ -71,20 +71,69 @@
 
 .legal-dialog__content p {
 	margin: 0 0 10px 0;
+	color: var(--color-text-muted);
 	line-height: 1.45;
+}
+
+/* Consistent role-based colours (same formula as transport-speed-info.css):
+   prose stays muted, the bold lead-in per paragraph gets --color-text-strong,
+   section headings get --color-accent-strong. No per-element one-off colours. */
+.legal-dialog__content p > strong:first-child {
+	color: var(--color-text-strong);
 }
 
 .legal-dialog__content a {
 	color: var(--color-link);
 }
 
+.legal-dialog__content a[target="_blank"]::after {
+	content: " ↗";
+}
+
+/* Discord call-to-action reads as its own callout card, not body prose. */
+.legal-dialog__content p.legal-dialog__discord {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 8px;
+	margin: 0 0 18px 0;
+	padding: 10px 12px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+}
+
+.legal-dialog__content p.legal-dialog__discord > strong:first-child {
+	color: var(--color-accent-strong);
+}
+
 .legal-dialog__group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	margin: 22px 0 8px;
+	padding-top: 14px;
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-accent-strong);
 	font-size: 15px;
+	font-weight: bold;
+	letter-spacing: 0.01em;
+}
+
+.legal-dialog__group::before {
+	content: "";
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: var(--radius-sm);
+	background: var(--color-accent-strong);
 }
 
 .legal-dialog__group:first-child {
 	margin-top: 2px;
+	padding-top: 0;
+	border-top: 0;
 }
 
 .legal-dialog__note {
@@ -105,7 +154,7 @@
 	border-radius: var(--radius-sm);
 	background: var(--color-panel);
 	color: var(--color-text);
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+	box-shadow: var(--shadow-panel);
 	cursor: pointer;
 	z-index: var(--z-map-ui);
 	font-size: 13px;

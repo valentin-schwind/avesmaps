@@ -15,16 +15,16 @@
 
 .region-sync__name {
 	font-weight: 600;
-	color: #3a2c20;
+	color: var(--color-text-strong);
 }
 
 .region-sync__meta {
 	font-size: 12px;
-	color: #6b5a48;
+	color: var(--color-text-muted);
 }
 
 .region-sync__map {
-	color: #2f6b3a;
+	color: var(--color-map-presence-text);
 }
 
 .region-sync__links {
@@ -32,7 +32,7 @@
 }
 
 .region-sync__link {
-	color: #7a5a3a;
+	color: var(--color-accent-brown);
 	text-decoration: none;
 }
 
@@ -47,9 +47,9 @@
 
 /* Landschafts-Picker im Label-Editor (Wiki-Region an Label heften). */
 .label-wiki-reference {
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fffaf5;
+	background: var(--color-panel);
 	padding: 8px 10px;
 }
 
@@ -64,7 +64,7 @@
 
 .label-wiki-reference__title {
 	font-weight: 600;
-	color: #5a4a3a;
+	color: var(--color-button-soft-text);
 }
 
 .label-wiki-reference__buttons {
@@ -75,7 +75,7 @@
 
 .label-wiki-reference__empty {
 	font-size: 12px;
-	color: #8a7a68;
+	color: var(--color-placeholder);
 }
 
 .label-wiki-reference__dl {
@@ -87,18 +87,18 @@
 }
 
 .label-wiki-reference__dl dt {
-	color: #6b5a48;
+	color: var(--color-text-muted);
 }
 
 .label-wiki-reference__dl dd {
 	margin: 0;
-	color: #3a2c20;
+	color: var(--color-text-strong);
 }
 
 .label-wiki-reference__image {
 	max-width: 100%;
 	max-height: 120px;
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 4px;
 	display: block;
 	margin-bottom: 4px;
@@ -107,7 +107,7 @@
 .label-wiki-reference__imagenote,
 .label-wiki-reference__desc {
 	font-size: 12px;
-	color: #6b5a48;
+	color: var(--color-text-muted);
 	margin: 2px 0;
 }
 
@@ -120,7 +120,7 @@
 
 .label-wiki-reference__link {
 	font-size: 12px;
-	color: #7a5a3a;
+	color: var(--color-accent-brown);
 }
 
 .label-wiki-picker-list {
@@ -130,9 +130,9 @@
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fff;
+	background: var(--color-panel);
 	padding: 4px;
 }
 
@@ -144,28 +144,28 @@
 	padding: 6px 8px;
 	border: 1px solid transparent;
 	border-radius: 5px;
-	background: #fffaf5;
+	background: var(--color-panel);
 	cursor: pointer;
 }
 
 .label-wiki-picker-list__item:hover {
-	border-color: #c9b49c;
-	background: #f3e8db;
+	border-color: var(--color-border-strong);
+	background: var(--color-button-soft-hover);
 }
 
 .label-wiki-picker-list__name {
 	font-weight: 600;
-	color: #3a2c20;
+	color: var(--color-text-strong);
 }
 
 .label-wiki-picker-list__meta {
 	font-size: 12px;
-	color: #6b5a48;
+	color: var(--color-text-muted);
 }
 
 .label-wiki-picker-list__empty {
 	font-size: 12px;
-	color: #8a7a68;
+	color: var(--color-placeholder);
 	padding: 6px;
 }
 
@@ -189,7 +189,7 @@
 .label-wiki-infobox__title {
 	font-weight: 700;
 	font-size: 15px;
-	color: #2c2117;
+	color: var(--color-text);
 	margin-bottom: 4px;
 }
 
@@ -202,31 +202,31 @@
 }
 
 .label-wiki-infobox__dl dt {
-	color: #6b5a48;
+	color: var(--color-text-muted);
 }
 
 .label-wiki-infobox__dl dd {
 	margin: 0;
-	color: #2c2117;
+	color: var(--color-text);
 }
 
 .label-wiki-infobox__desc {
 	font-size: 13px;
-	color: #3a2c20;
+	color: var(--color-text-strong);
 	margin: 6px 0 4px;
 	line-height: 1.35;
 }
 
 .label-wiki-infobox__link {
 	font-size: 13px;
-	color: #7a5a3a;
+	color: var(--color-accent-brown);
 }
 
 /* Inline-Picker im Label-Editor (statt separatem Overlay). */
 .label-wiki-picker {
 	margin-top: 6px;
 	padding-top: 6px;
-	border-top: 1px dashed #dccab8;
+	border-top: 1px dashed var(--color-border);
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
@@ -264,10 +264,10 @@
 	font-size: 12px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: #7a5a3a;
+	color: var(--color-accent-brown);
 	margin: 10px 0 2px;
 	padding-top: 8px;
-	border-top: 1px solid #e3d5c4;
+	border-top: 1px solid var(--color-border);
 }
 
 .label-edit-section-title:first-of-type {
@@ -279,24 +279,24 @@
 #label-edit-dialog .location-report-form__field > span {
 	font-size: 12px;
 	font-weight: 600;
-	color: #5a4a3a;
+	color: var(--color-button-soft-text);
 }
 
 #label-edit-dialog .location-report-form__field > span small {
 	font-weight: 400;
-	color: #8a7a68;
+	color: var(--color-placeholder);
 }
 
 #label-edit-dialog input[type="text"],
 #label-edit-dialog input[type="number"],
 #label-edit-dialog input[type="search"],
 #label-edit-dialog select {
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fffaf5;
+	background: var(--color-panel);
 	padding: 6px 8px;
 	font-family: inherit;
-	color: #2c2117;
+	color: var(--color-text);
 }
 
 #label-edit-dialog input[type="text"]:focus,
@@ -304,12 +304,12 @@
 #label-edit-dialog input[type="search"]:focus,
 #label-edit-dialog select:focus {
 	outline: none;
-	border-color: #7a5a3a;
-	box-shadow: 0 0 0 2px rgba(122, 90, 58, 0.18);
+	border-color: var(--color-accent-brown);
+	box-shadow: 0 0 0 2px var(--color-accent-brown-focus);
 }
 
 #label-edit-dialog input[type="range"] {
-	accent-color: #7a5a3a;
+	accent-color: var(--color-accent-brown);
 }
 
 #label-edit-dialog .location-report-form__button--primary {
@@ -318,11 +318,11 @@
 
 /* View-Mode-Popup der Label-Infobox: Pergament-Rahmen wie die Herrschaftsgebiete-Infobox. */
 .label-wiki-infobox-popup .leaflet-popup-content-wrapper {
-	background: rgba(255, 249, 244, 0.98);
-	border: 1px solid #b79d7d;
+	background: var(--color-panel-translucent);
+	border: 1px solid var(--color-border-strong);
 	border-radius: 8px;
-	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
-	color: #3f3428;
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text-strong);
 }
 
 .label-wiki-infobox-popup .leaflet-popup-content {
@@ -330,8 +330,8 @@
 }
 
 .label-wiki-infobox-popup .leaflet-popup-tip {
-	background: rgba(255, 249, 244, 0.98);
-	border: 1px solid #b79d7d;
+	background: var(--color-panel-translucent);
+	border: 1px solid var(--color-border-strong);
 }
 
 .label-wiki-infobox-popup .region-info-box__header {
@@ -342,14 +342,14 @@
 .location-popup .region-info-box {
 	margin-top: 6px;
 	padding-top: 8px;
-	border-top: 1px solid rgba(141, 121, 98, 0.3);
+	border-top: 1px solid var(--color-divider);
 }
 
 /* ===== Listen-Feinschliff (Regionen/Wege): weiß, scrollbar, Territorium-Listen-Optik ===== */
 #region-sync-list,
 #path-sync-list {
-	background: #fff;
-	border: 1px solid #dccab8;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -363,20 +363,20 @@
 	position: sticky;
 	top: 0;
 	z-index: 1;
-	background: #fff;
+	background: var(--color-panel);
 	margin: 0;
 	padding: 6px;
-	border-bottom: 1px solid #eadfce;
+	border-bottom: 1px solid var(--color-border);
 }
 
 #region-sync-list .region-sync__item,
 #path-sync-list .region-sync__item {
 	padding: 6px 8px;
-	border-bottom: 1px solid #f1e8d9;
+	border-bottom: 1px solid var(--color-panel-muted);
 }
 
 .region-sync__handle {
-	color: #b3a18c;
+	color: var(--color-placeholder);
 	margin-right: 4px;
 	cursor: grab;
 	user-select: none;
@@ -387,27 +387,27 @@
 	margin: 1px 3px 1px 0;
 	padding: 1px 7px;
 	font-size: 11px;
-	border: 1px solid #c9b49c;
+	border: 1px solid var(--color-border-strong);
 	border-radius: 10px;
-	background: #fffaf5;
-	color: #5a4a3a;
+	background: var(--color-panel);
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 }
 
 .region-sync__cand:hover {
-	background: #f3e8db;
-	border-color: #7a5a3a;
+	background: var(--color-button-soft-hover);
+	border-color: var(--color-accent-brown);
 }
 
 /* Typ-Konflikt: Label-Subtype passt nicht zur Wiki-Art (Bulk überspringt es). */
 .region-sync__cand--conflict {
-	border-color: #c0392b;
-	color: #a5281b;
-	background: #fdecea;
+	border-color: var(--color-danger);
+	color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
 }
 .region-sync__cand--conflict:hover {
-	border-color: #a5281b;
-	background: #fbded9;
+	border-color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
 }
 
 .path-sync__assign {
@@ -416,16 +416,16 @@
 	font-size: 11px;
 	font-weight: 700;
 	line-height: inherit;
-	border: 1px solid #7a5a3a;
+	border: 1px solid var(--color-accent-brown);
 	border-radius: 10px;
-	background: #7a5a3a;
-	color: #fff;
+	background: var(--color-accent-brown);
+	color: var(--color-accent-brown-text);
 	cursor: pointer;
 	vertical-align: baseline;
 }
 
 .path-sync__assign:hover {
-	background: #5f4429;
+	background: var(--color-accent-brown-hover);
 }
 
 /* Infobox-Popup-Innenabstand (region-info-box selbst hat jetzt padding:0). */
@@ -463,7 +463,7 @@
 .label-edit-zoomrow input[type="range"] {
 	flex: 1 1 auto;
 	min-width: 0;
-	accent-color: #7a5a3a;
+	accent-color: var(--color-accent-brown);
 }
 
 .label-edit-grid .location-report-form__field--checkbox {
@@ -487,13 +487,13 @@
 .label-edit-sliderrow input[type="range"] {
 	flex: 1 1 auto;
 	min-width: 0;
-	accent-color: #7a5a3a;
+	accent-color: var(--color-accent-brown);
 }
 
 /* Abschnitts-Panels im Label-Editor (weisse Karten wie im Territorien-Editor). */
 .label-edit-section {
-	background: #fff;
-	border: 1px solid #e3d5c4;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
 	border-radius: 8px;
 	padding: 8px 10px 10px;
 	display: flex;
@@ -512,7 +512,7 @@
 #label-edit-dialog input[type="number"],
 #label-edit-dialog input[type="search"],
 #label-edit-dialog select {
-	background: #fff;
+	background: var(--color-panel);
 }
 
 /* Schlanke Infobox NUR fuer .location-popup-Region-Boxen (z.B. Weg ohne Wiki).
@@ -535,26 +535,26 @@
 #path-edit-dialog .location-report-form__field > span {
 	font-size: 12px;
 	font-weight: 600;
-	color: #5a4a3a;
+	color: var(--color-button-soft-text);
 }
 
 #path-edit-dialog input[type="text"],
 #path-edit-dialog input[type="search"],
 #path-edit-dialog select {
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fff;
+	background: var(--color-panel);
 	padding: 6px 8px;
 	font-family: inherit;
-	color: #2c2117;
+	color: var(--color-text);
 }
 
 #path-edit-dialog input[type="text"]:focus,
 #path-edit-dialog input[type="search"]:focus,
 #path-edit-dialog select:focus {
 	outline: none;
-	border-color: #7a5a3a;
-	box-shadow: 0 0 0 2px rgba(122, 90, 58, 0.18);
+	border-color: var(--color-accent-brown);
+	box-shadow: 0 0 0 2px var(--color-accent-brown-focus);
 }
 
 #path-edit-dialog .location-report-form__button--primary {
@@ -591,7 +591,7 @@
 .location-popup .region-info-box--settlement + .location-popup__actions {
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: 1px solid rgba(141, 121, 98, 0.3);
+	border-top: 1px solid var(--color-divider);
 }
 
 /* ===== „Ort bearbeiten" optisch wie „Label bearbeiten" (Faculty Glyphic, Panels, weiße Inputs) ===== */
@@ -602,24 +602,24 @@
 #location-edit-dialog .location-report-form__field > span {
 	font-size: 12px;
 	font-weight: 600;
-	color: #5a4a3a;
+	color: var(--color-button-soft-text);
 }
 #location-edit-dialog input[type="text"],
 #location-edit-dialog input[type="search"],
 #location-edit-dialog select {
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fff;
+	background: var(--color-panel);
 	padding: 6px 8px;
 	font-family: inherit;
-	color: #2c2117;
+	color: var(--color-text);
 }
 #location-edit-dialog input[type="text"]:focus,
 #location-edit-dialog input[type="search"]:focus,
 #location-edit-dialog select:focus {
 	outline: none;
-	border-color: #7a5a3a;
-	box-shadow: 0 0 0 2px rgba(122, 90, 58, 0.18);
+	border-color: var(--color-accent-brown);
+	box-shadow: 0 0 0 2px var(--color-accent-brown-focus);
 }
 #location-edit-dialog .location-report-form__button--primary {
 	font-family: "Faculty Glyphic", Arial, sans-serif;
@@ -641,17 +641,17 @@
 	width: 30px;
 	height: 30px;
 	padding: 0;
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fffaf5;
-	color: #7a5a3a;
+	background: var(--color-panel);
+	color: var(--color-accent-brown);
 	font-size: 15px;
 	line-height: 1;
 	cursor: pointer;
 }
 .location-edit-wiki-mini:hover:not(:disabled) {
-	background: #f4ead8;
-	border-color: #7a5a3a;
+	background: var(--color-button-soft-hover);
+	border-color: var(--color-accent-brown);
 }
 .location-edit-wiki-mini:disabled {
 	opacity: 0.4;
@@ -667,23 +667,23 @@
 }
 .wiki-sync-substatus__tab {
 	padding: 4px 10px;
-	border: 1px solid rgba(96, 72, 48, 0.24);
+	border: 1px solid var(--color-border);
 	border-radius: 999px;
-	background: #fff;
+	background: var(--color-panel);
 	font-size: 12px;
-	color: #5a4a3a;
+	color: var(--color-button-soft-text);
 	cursor: pointer;
 }
 .wiki-sync-substatus__tab.is-active {
-	background: #7a5a3a;
-	border-color: #7a5a3a;
-	color: #fff;
+	background: var(--color-accent-brown);
+	border-color: var(--color-accent-brown);
+	color: var(--color-accent-brown-text);
 	font-weight: 600;
 }
 .wiki-sync-substatus__tab:hover:not(.is-active) {
-	background: #9a7a5a;
-	color: #fff;
-	border-color: #7a5a3a;
+	background: var(--color-accent-brown-soft);
+	color: var(--color-accent-brown-text);
+	border-color: var(--color-accent-brown);
 }
 
 /* Case-Liste auf aktiven Status filtern (Sektionen sind bereits getaggt) + kompakter. */
@@ -704,7 +704,7 @@
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0;
-	border-top: 2px solid #e3d5c4;
+	border-top: 2px solid var(--color-border);
 	margin-top: 6px;
 	padding-top: 4px;
 }
@@ -720,11 +720,11 @@
 	font-size: 12px;
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
-	color: #7a5a3a;
+	color: var(--color-accent-brown);
 }
 .wiki-sync-locations-section__summary {
 	font-size: 11px;
-	color: #8a7a68;
+	color: var(--color-placeholder);
 }
 .wiki-sync-locations-filterbar {
 	display: flex;
@@ -756,19 +756,19 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
-	background: #fffaf5;
+	background: var(--color-panel);
 	overflow: hidden;
 	cursor: pointer;
 }
 .settlement-coat__preview:hover {
-	border-color: #7a5a3a;
+	border-color: var(--color-accent-brown);
 }
 .settlement-coat__preview:empty::after {
 	content: "+";
 	font-size: 22px;
-	color: #b3a18c;
+	color: var(--color-placeholder);
 }
 .settlement-coat__preview img {
 	max-width: 100%;
@@ -786,7 +786,7 @@
 .settlement-coat__status {
 	margin: 0 0 6px;
 	font-size: 12px;
-	color: #6b5a48;
+	color: var(--color-text-muted);
 }
 .settlement-coat__actions {
 	display: flex;
@@ -794,8 +794,8 @@
 	flex-wrap: wrap;
 }
 #settlement-list {
-	background: #fff;
-	border: 1px solid #dccab8;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
 	border-radius: 6px;
 	flex: 1 1 auto;
 	min-height: 0;
@@ -816,19 +816,19 @@
 	width: 100%;
 	box-sizing: border-box;
 	padding: 6px 8px;
-	border-bottom: 1px solid #f1e8d9;
+	border-bottom: 1px solid var(--color-panel-muted);
 	cursor: pointer;
-	color: var(--text-strong, #3f3428);
+	color: var(--color-text-strong);
 }
 .wikisync-itemlist .tree-item:hover {
-	background: var(--panel-hover, #f5eadc);
+	background: var(--color-panel-soft);
 }
 .wikisync-itemlist .drag-handle {
 	grid-column: 1;
 	grid-row: 1 / span 2;
 	align-self: center;
 	font-size: 12px;
-	color: #7a6652;
+	color: var(--color-text-muted);
 	letter-spacing: -1px;
 	cursor: grab;
 }
@@ -846,16 +846,16 @@
 	height: 13px;
 	margin-left: 7px;
 	vertical-align: -2px;
-	border: 2px solid #6a7f3a;
+	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
-	background: #fffaf4;
+	background: var(--color-panel);
 	box-sizing: border-box;
 }
 .wikisync-itemlist .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
-	background: linear-gradient(to right, #fffaf4 0 50%, #6a7f3a 50% 100%);
+	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
 }
 .wikisync-itemlist .tree-item:has(.tree-map-status--all) .tree-item-name::after {
-	background: #6a7f3a;
+	background: var(--color-map-presence);
 }
 .wikisync-itemlist .tree-item-meta {
 	grid-column: 2;
@@ -863,7 +863,7 @@
 	font-size: 0.78em;
 	font-weight: 600;
 	line-height: 1.2;
-	color: var(--muted, #8a8173);
+	color: var(--color-text-muted);
 	white-space: normal;
 }
 .wikisync-itemlist .tree-item-meta a {
@@ -888,10 +888,10 @@
 .location-popup__nowiki {
 	margin-top: 6px;
 	padding-top: 6px;
-	border-top: 1px solid rgba(141, 121, 98, 0.25);
+	border-top: 1px solid var(--color-divider);
 	font-size: 12px;
 	font-style: italic;
-	color: #9a8c7a;
+	color: var(--color-placeholder);
 }
 
 /* ===== Siedlungs-Popup (className settlement-popup): gleichmäßige Abstände, breiter,
@@ -911,14 +911,14 @@
 .settlement-popup .region-info-box--settlement {
 	margin: 11px -14px 0;
 	padding: 11px 14px 0;
-	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	border-top: 1px solid var(--color-divider);
 	gap: 6px;
 }
 /* Aktions-Buttons mit gleichem Trenner darunter. */
 .settlement-popup .region-info-box--settlement + .location-popup__actions {
 	margin: 11px -14px 0;
 	padding: 11px 14px 0;
-	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	border-top: 1px solid var(--color-divider);
 }
 
 /* Quell-Zeile (Multi-source #1): eigener Abschnitt mit Trenner DARÜBER. Der frühere
@@ -928,14 +928,14 @@
 .feature-sources {
 	margin-top: 10px;
 	padding-top: 8px;
-	border-top: 1px solid rgba(141, 121, 98, 0.28);
+	border-top: 1px solid var(--color-divider);
 	font-size: 12px;
-	color: #6b5a44;
+	color: var(--color-text-muted);
 }
 .settlement-popup .feature-sources {
 	margin: 11px -14px 0;
 	padding: 11px 14px 0;
-	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	border-top: 1px solid var(--color-divider);
 }
 /* Siedlungs-Infobox im Panel (Owner): KEIN Trenner ueber "Quelle:" -- die Daten darueber (Einwohner,
    Oberhaupt, Handelszone ...) stammen ja aus genau dieser Quelle, ein Strich wuerde sie faelschlich
@@ -950,7 +950,7 @@
 .settlement-popup .feature-sources + .location-popup__actions {
 	margin: 11px -14px 0;
 	padding: 11px 14px 0;
-	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	border-top: 1px solid var(--color-divider);
 }
 
 /* Mobil: Infobox-Popups (Siedlung UND Landschaft -> beide nutzen settlement-popup) fast die
@@ -1002,7 +1002,7 @@
 	gap: 4px;
 	align-items: stretch;
 	padding: 8px 10px;
-	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+	border-bottom: 1px solid var(--color-divider);
 }
 .capital-list__head {
 	display: flex;
@@ -1016,7 +1016,7 @@
 }
 .capital-list__meta {
 	font-size: 12px;
-	color: #777;
+	color: var(--color-text-muted);
 }
 .capital-list__actions {
 	display: flex;
@@ -1049,11 +1049,11 @@
 .capital-list__ambiguous {
 	font-size: 11px;
 	font-style: italic;
-	color: #b8860b;
+	color: var(--color-accent-strong);
 }
 .capital-list__nohint {
 	font-size: 12px;
-	color: #888;
+	color: var(--color-text-muted);
 }
 .capital-list__search {
 	position: relative;

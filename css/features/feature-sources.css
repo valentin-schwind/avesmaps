@@ -154,7 +154,7 @@
 }
 .fs-row__add:hover,
 .fs-row__add:focus-visible {
-	background: #d8e7ff;
+	background: var(--color-button-soft-hover);
 	outline: none;
 }
 

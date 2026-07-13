@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Avesmaps – Abenteuer anlegen und editieren</title>
+<script>
+  /* Inherit the parent tab's saved theme (same localStorage key/origin) before the
+     stylesheet loads, so this overlay iframe never flashes the wrong theme. */
+  try {
+    if (localStorage.getItem("avesmaps-theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+</script>
 <!-- Self-contained editor page (Phase 3 / P2), loaded as an iframe overlay via
      openAvesmapsAdventureEditorOverlay() with ?v=Date.now() (no ASSET_VERSION). Links the REAL design
      tokens so the warm/aventurian language is authentic — no hardcoded hex/radius/spacing, no blue. Pure

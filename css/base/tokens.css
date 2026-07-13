@@ -65,6 +65,15 @@
 	--color-link: #8f7326;
 	--color-link-hover: #6f5a1c;
 
+	/* Secondary accent-brown — the WikiSync/label-path-location edit dialogs' own
+	   accent (links, active tabs, focus rings), distinct from the app-wide
+	   --color-accent-strong gold but from the same warm family. */
+	--color-accent-brown: #7a5a3a;
+	--color-accent-brown-hover: #5f4429;
+	--color-accent-brown-soft: #9a7a5a;
+	--color-accent-brown-text: #fff;
+	--color-accent-brown-focus: rgba(122, 90, 58, 0.18);
+
 	/* Pills / tags (e.g. publication sources) */
 	--color-pill: #f3ecd9;
 	--color-pill-border: #d7c7a2;
@@ -95,6 +104,14 @@
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
 
+	/* Editor dialog overlays (report/edit/wiki-sync/path/powerline/label/region) — a
+	   darker, denser scrim than --color-scrim above. Pinned: same in both themes. */
+	--color-scrim-dialog: rgba(20, 16, 12, 0.56);
+	/* Full-bleed territory editor overlay — stronger still, paired with backdrop blur. */
+	--color-scrim-editor: rgba(20, 16, 12, 0.6);
+	/* Spotlight search overlay — lighter + blurred, keeps the map visible behind it. */
+	--color-scrim-light: rgba(18, 15, 12, 0.34);
+
 	/* Territory-editor sticky header — translucent panel + backdrop-filter blur
 	   so scrolled content shows through faintly. */
 	--color-panel-translucent: rgba(255, 253, 249, 0.96);
@@ -111,6 +128,7 @@
 	/* Territory-editor "on map" presence indicator (tree/legend swatch ring). A
 	   data highlight (not chrome), deliberately identical in both themes. */
 	--color-map-presence: #6a7f3a;
+	--color-map-presence-text: #2f6b3a; /* darker text variant of the above, same pinning rule */
 
 	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
 	   translucent white overlays that sit ONLY on the --color-button solid fill,
@@ -210,6 +228,12 @@
 	--color-accent-strong: #dcc77e;
 	--color-link: #d7c38b;
 	--color-link-hover: #e3d39f;
+
+	--color-accent-brown: #c9a97e;
+	--color-accent-brown-hover: #dcbe97;
+	--color-accent-brown-soft: #a3835c;
+	--color-accent-brown-text: #241d14;
+	--color-accent-brown-focus: rgba(201, 169, 126, 0.25);
 
 	--color-pill: #3b3522;
 	--color-pill-border: #5c5237;

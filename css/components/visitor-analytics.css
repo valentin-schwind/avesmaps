@@ -5,52 +5,52 @@
 .status-subsection.is-active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* The dashboard fills the sub-section and scrolls when taller than the panel. */
 /* Fixed time-range bar above the scroll area, like a real sub-tab row. */
-#visitor-pills { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid #e7d8c6; }
+#visitor-pills { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
 #visitor-pills:empty { display: none; }
 #visitor-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px; }
 .va-pills { display: flex; gap: 6px; margin-bottom: 0; }
-.va-geo-legend { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 8px; font-size: 11px; color: #8a7355; }
+.va-geo-legend { display: flex; align-items: center; gap: 6px; justify-content: center; margin-top: 8px; font-size: 11px; color: var(--color-text-muted); }
 .va-geo-scale { display: flex; gap: 2px; }
 .va-geo-scale i { width: 16px; height: 9px; display: inline-block; }
-.va-geo-clabel { margin-top: 12px; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: #5a4a3a; display: flex; align-items: center; gap: 8px; }
-.va-geo-key { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; color: #8a7355; }
+.va-geo-clabel { margin-top: 12px; margin-bottom: 4px; font-size: 12px; font-weight: 700; color: var(--color-button-soft-text); display: flex; align-items: center; gap: 8px; }
+.va-geo-key { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; color: var(--color-text-muted); }
 .va-geo-key i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 .va-geo-row { display: flex; align-items: center; gap: 10px; margin: 9px 0; }
-.va-geo-name { width: 108px; font-size: 12px; color: #5a4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-geo-name { width: 108px; font-size: 12px; color: var(--color-button-soft-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .va-geo-bars { flex: 1; }
 .va-geo-bar { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
-.va-geo-track { flex: 1; height: 9px; border-radius: 4px; background: #efe6d9; overflow: hidden; }
+.va-geo-track { flex: 1; height: 9px; border-radius: 4px; background: var(--color-panel-muted); overflow: hidden; }
 .va-geo-fill { display: block; height: 100%; border-radius: 4px; }
-.va-geo-val { font-size: 11px; color: #8a7355; width: 30px; text-align: right; }
-.va-chartlegend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 11px; color: #8a7355; }
+.va-geo-val { font-size: 11px; color: var(--color-text-muted); width: 30px; text-align: right; }
+.va-chartlegend { display: flex; gap: 16px; justify-content: center; margin-top: 6px; font-size: 11px; color: var(--color-text-muted); }
 .va-chartlegend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
-.va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid #cdb79f; background: #fffaf5; color: #8a7355; cursor: pointer; }
-.va-pill.is-active { background: #5a4a3a; color: #fffaf5; border-color: #5a4a3a; }
+.va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-panel); color: var(--color-text-muted); cursor: pointer; }
+.va-pill.is-active { background: var(--color-button-soft-text); color: var(--color-panel); border-color: var(--color-button-soft-text); }
 .va-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-.va-kpi { background: #f6efe6; border-radius: 8px; padding: 11px; }
-.va-kpi__label { font-size: 12px; color: #8a7355; }
-.va-kpi__value { font-size: 20px; font-weight: 700; color: #5a4a3a; }
-.va-kpi__trend { font-size: 12px; color: #1d9e75; }
-.va-card { background: #fffaf5; border: 1px solid #cdb79f; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
-.va-card__label { font-size: 13px; font-weight: 700; color: #5a4a3a; margin: 0 0 10px; }
+.va-kpi { background: var(--color-panel-soft); border-radius: 8px; padding: 11px; }
+.va-kpi__label { font-size: 12px; color: var(--color-text-muted); }
+.va-kpi__value { font-size: 20px; font-weight: 700; color: var(--color-button-soft-text); }
+.va-kpi__trend { font-size: 12px; color: var(--color-success); }
+.va-card { background: var(--color-panel); border: 1px solid var(--color-border-strong); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.va-card__label { font-size: 13px; font-weight: 700; color: var(--color-button-soft-text); margin: 0 0 10px; }
 .va-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
-.va-row__name { width: 48%; color: #5a4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.va-row__track { flex: 1; height: 8px; background: #efe6d9; border-radius: 4px; overflow: hidden; }
+.va-row__name { width: 48%; color: var(--color-button-soft-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-row__track { flex: 1; height: 8px; background: var(--color-panel-muted); border-radius: 4px; overflow: hidden; }
 /* Chart-Serienfarben (#2a78d6 / #4a3aa7 …) sind eine kategoriale Datenpalette,
    bewusst kein UI-Token -> Designsprache-Ausnahme (Owner 2026-07-11). */
 .va-row__fill { height: 100%; border-radius: 4px; background: #2a78d6; }
-.va-row__val { color: #8a7355; font-size: 12px; min-width: 34px; text-align: right; }
+.va-row__val { color: var(--color-text-muted); font-size: 12px; min-width: 34px; text-align: right; }
 .va-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.va-storage { font-size: 12px; color: #8a7355; }
-.va-off { padding: 24px 12px; text-align: center; color: #8a7355; font-size: 13px; }
+.va-storage { font-size: 12px; color: var(--color-text-muted); }
+.va-off { padding: 24px 12px; text-align: center; color: var(--color-text-muted); font-size: 13px; }
 .va-feed { display: flex; align-items: center; gap: 8px; margin: 7px 0; font-size: 12px; }
-.va-feed__tag { flex: none; font-size: 10px; font-weight: 700; color: #8a7355; background: #efe6d9; border-radius: 4px; padding: 2px 6px; }
-.va-feed__label { flex: 1; color: #5a4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.va-feed__meta { flex: none; color: #8a7355; font-size: 11px; }
+.va-feed__tag { flex: none; font-size: 10px; font-weight: 700; color: var(--color-text-muted); background: var(--color-panel-muted); border-radius: 4px; padding: 2px 6px; }
+.va-feed__label { flex: 1; color: var(--color-button-soft-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-feed__meta { flex: none; color: var(--color-text-muted); font-size: 11px; }
 .va-more { margin-bottom: 10px; }
-.va-more > summary { display: flex; align-items: center; gap: 8px; padding: 11px 14px; font-size: 14px; font-weight: 700; color: #5a4a3a; cursor: pointer; list-style: none; background: #f1e4d7; border: 1px solid #cdb79f; border-radius: 12px; }
-.va-more > summary:hover { background: #ecdcc9; }
+.va-more > summary { display: flex; align-items: center; gap: 8px; padding: 11px 14px; font-size: 14px; font-weight: 700; color: var(--color-button-soft-text); cursor: pointer; list-style: none; background: var(--color-panel-muted); border: 1px solid var(--color-border-strong); border-radius: 12px; }
+.va-more > summary:hover { background: var(--color-button-soft-hover); }
 .va-more[open] > summary { margin-bottom: 10px; }
 .va-more > summary::-webkit-details-marker { display: none; }
-.va-more > summary::after { content: "\25B8"; margin-left: auto; color: #8a7355; font-size: 12px; }
+.va-more > summary::after { content: "\25B8"; margin-left: auto; color: var(--color-text-muted); font-size: 12px; }
 .va-more[open] > summary::after { content: "\25BE"; }
