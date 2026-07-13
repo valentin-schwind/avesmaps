@@ -63,6 +63,9 @@ function hasRegionWikiInfo(regionEntry) {
 		|| regionEntry.wikiDissolvedText
 		|| regionEntry.foundedText
 		|| regionEntry.dissolvedText
+		// Loaded territory-detail (detail.fields) also counts as wiki info -> the full infobox renders even
+		// for a deep-link/synthetic entry that has no rendered polygon and thus no top-level wiki fields.
+		|| (regionEntry.detail && regionEntry.detail.ok && regionEntry.detail.fields)
 	);
 }
 
@@ -114,18 +117,17 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel)
 	].join("");
 
+	// Owner: 16:9 header image + title overlay instead of the coat/icon header. Territories carry a political
+	// type (Baronie/Reich/...) -> no landscape art -> falls back to the generic "region" graphic.
+	const headerImg = typeof infoHeaderImageMarkup === "function"
+		? infoHeaderImageMarkup(regionHeaderImageBasename(regionEntry.wikiArt || regionEntry.art || type), name, type, coatMarkup)
+		: `<div class="region-info-box__header${hasCoatClass}">${coatMarkup}<div class="region-info-box__title-group"><strong class="region-info-box__title">${escapeHtml(name)}</strong><span class="region-info-box__subtitle">${escapeHtml(type)}</span></div></div>`;
 	return `
 		<div class="region-info-box">
-			<div class="region-info-box__header${hasCoatClass}">
-				${coatMarkup}
-				<div class="region-info-box__title-group">
-					<strong class="region-info-box__title">${escapeHtml(name)}</strong>
-					<span class="region-info-box__subtitle">${escapeHtml(type)}</span>
-				</div>
-			</div>
+			${headerImg}
+			${shareMarkup}
 			<dl class="region-info-box__data">${wikiRows}</dl>
 			${typeof renderFeatureSourceLine === "function" ? renderFeatureSourceLine("territory", regionEntry.territoryPublicId || "", wikiUrl || "", "region-info-box__link") : ""}
-			${shareMarkup}
 		</div>
 	`;
 }

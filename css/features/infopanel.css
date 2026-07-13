@@ -10,7 +10,7 @@
 /* Panel-Breite als Variable (Mode-Klasse liegt auf <html>): Panel, Rand-Tab UND die nach
    links neben die Panel-Kante gesetzten Karten-Kontrollen (Zoom + "Hinweise") teilen sie sich. */
 .avesmaps-infopanel-mode {
-	--avesmaps-ip-w: min(340px, calc(100vw - 64px));
+	--avesmaps-ip-w: min(400px, calc(100vw - 64px));
 }
 
 .avesmaps-infopanel {
@@ -239,6 +239,14 @@
 	align-items: center;
 	gap: 3px;
 	max-width: 100%;
+	/* Panel-farbener Halo (auf Name UND "✕" vererbt), damit die gepunktete Reise-Linie dort, wo sie einen
+	   Namen kreuzt (der senkrechte Abzweig unter der letzten Perle einer Zeile), SAUBER um den Text bricht
+	   -- wie die Karten-Labels ueber Wegen/Fluessen. Der Halo liegt ueber dem SVG-Pfad (z-index) und maskiert
+	   die Punkte rund um die Buchstaben. DICHT aber SCHMAL: mehrere gestapelte Schichten (deckt gut) bei
+	   kleinem Blur (max 4px) -- ein breiter Blur (6-8px) gab einen sichtbaren Schein/„Wolke" um die Namen. */
+	text-shadow:
+		0 0 3px var(--color-panel), 0 0 3px var(--color-panel), 0 0 3px var(--color-panel),
+		0 0 4px var(--color-panel), 0 0 4px var(--color-panel), 0 0 4px var(--color-panel);
 }
 .avesmaps-infopanel__station-label {
 	font-size: 13.5px;
@@ -460,6 +468,18 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	color: var(--color-text-muted);
 	user-select: none;
 }
+/* Small public-domain coat thumbnail before a breadcrumb territory name (decorative). Sits inside the gold
+   fly-to link, vertically centred with the name; the link keeps its text baseline so the "›" chain stays
+   aligned. Only shown when the server emits a gated coat_url. object-fit keeps tall/wide coats undistorted. */
+.location-popup__breadcrumb-coat {
+	display: inline-block;
+	width: 15px;
+	height: 15px;
+	margin-right: 4px;
+	vertical-align: -3px;
+	object-fit: contain;
+	border-radius: var(--radius-sm);
+}
 /* Territorien/Regionen (region-info-box) im Panel auf den grossen Siedlungs-Kopf-Look bringen (Owner:
    alle Infoboxen einheitlich gross). Basis-Padding/-Breite der Box neutralisieren -- der Panel-Body
    liefert beides -- und den Kopf gross + randlos wie .location-popup__header ziehen. */
@@ -467,6 +487,20 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	padding: 0;
 	width: auto;
 	gap: 0;
+}
+/* Info-Header-Grafik im Panel: randlos ueber die volle Panel-Breite UND bis an die obere Body-Kante
+   (Body-Padding oben + seitlich aufheben). Titel-Overlay auf das Panel-Padding einruecken, damit der Titel
+   mit den Daten darunter fluchtet. */
+.avesmaps-infopanel .info-header {
+	margin: calc(-1 * var(--space-12)) calc(-1 * var(--infopanel-pad-x)) 0;
+}
+/* Titelzeile unter dem Bild auf das Panel-Padding einruecken (fluchtet mit den Daten darunter); der
+   Trenner zwischen Titel und Buttons kommt aus der Aktionsleisten-Regel weiter unten. */
+.avesmaps-infopanel .info-header__caption {
+	padding-left: var(--infopanel-pad-x);
+	padding-right: var(--infopanel-pad-x);
+	padding-top: 10px;
+	padding-bottom: 11px;
 }
 /* The reset above (padding:0) is meant for territory/region boxes. But the settlement attribute table is
    ALSO in the full-bleed list (margin -18 + padding 18); padding:0 overrode that and pushed its dt/dd 18px
@@ -510,10 +544,22 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    Linie darunter (Doppel-Trenner). Oben also KEINEN Trenner (Kopf-Trenner + dessen margin-bottom traegt
    die obere Trennung); UNTER den Kacheln dagegen einen randlosen Trenner (Owner: "trenner darunter"),
    der die Button-Sektion zwischen Kopf und Daten sauber abrahmt. */
-.avesmaps-infopanel .location-popup__header + .location-popup__actions {
+.avesmaps-infopanel .location-popup__header + .location-popup__actions,
+.avesmaps-infopanel .region-info-box__header + .location-popup__actions {
 	margin-top: 0;
 	padding-top: 0;
 	border-top: none;
+	padding-bottom: 12px;
+	margin-bottom: 12px;
+	border-bottom: 1px solid var(--color-divider);
+}
+/* Der Bild-Header (.info-header) hat -- anders als die Text-Koepfe oben -- KEINEN eigenen border-bottom.
+   Also traegt hier die Aktionsleiste selbst beide Trenner: einen ZWISCHEN Titel und Kacheln (Owner) und
+   einen darunter, der die Button-Sektion wie bei Regionen/Territorien sauber abrahmt. */
+.avesmaps-infopanel .info-header + .location-popup__actions {
+	margin-top: 0;
+	padding-top: 11px;
+	border-top: 1px solid var(--color-divider);
 	padding-bottom: 12px;
 	margin-bottom: 12px;
 	border-bottom: 1px solid var(--color-divider);

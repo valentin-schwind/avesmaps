@@ -1,10 +1,10 @@
 function getRoutePlannerPanelWidth() {
     const searchElement = document.getElementById("search");
     if (!searchElement) {
-        return 320;
+        return 350;
     }
 
-    return Math.round(searchElement.getBoundingClientRect().width) || 320;
+    return Math.round(searchElement.getBoundingClientRect().width) || 350;
 }
 
 function normalizeHardcodedMapContextMenuIcons() {

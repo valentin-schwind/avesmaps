@@ -342,16 +342,24 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 // wikiParam "region" matches the landscape/region deep-link parameter (js/app/wiki-deeplink.js).
 function buildRegionLabelViewPopupHtml(label) {
 	const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
+	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
+	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
+	const headerImg = typeof infoHeaderImageMarkup === "function"
+		? infoHeaderImageMarkup(regionHeaderImageBasename(art), labelName, art)
+		: "";
 	return locationPopupMarkup({
-		name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
+		name: labelName,
 		locationTypeLabel: art,
+		headerImageMarkup: headerImg,
 		showHeaderIcon: false,
 		compact: true,
 		showType: true,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
-			+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean)),
+		// "Link teilen" (Owner) direkt unter dem Kopf, die Landschafts-Infobox (Lage/Staat/Beschreibung +
+		// Quelle) darunter -- gleiche Anordnung wie Siedlung/Territorium/Weg.
+		actionsMarkup: locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId, { wikiUrl: (label.wikiRegion && label.wikiRegion.wiki_url) || "", wikiParam: "region" })].filter(Boolean))
+			+ labelWikiInfoboxMarkup(label, { headless: true }),
 	});
 }
 
@@ -370,6 +378,23 @@ function createLabelMarkerEntry(label) {
 			void saveLabelPosition(entry);
 			setLabelMoveActive(entry, false);
 		});
+		// Infopanel (default): in edit mode the floating box carries the EDIT actions, but the right Info
+		// panel stayed EMPTY for regions -- so the "Info" edge-tab dead-ended (hasContent=false) and could
+		// not be reached. Settlements already fill the panel in edit mode (their DOM-marker popupopen routes
+		// to avesmapsShowInfopanel, gated only on IS_INFOPANEL_MODE). Mirror that here: when the label's
+		// editor popup opens, ALSO fill the panel with the read-only region info. The view-mode branch below
+		// is unreachable in edit mode, which is why this wiring was missing.
+		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
+			&& labelHasWikiRegion(label)
+			&& typeof window.avesmapsShowInfopanel === "function"
+			&& typeof buildRegionLabelViewPopupHtml === "function") {
+			marker.on("popupopen", () => {
+				window.avesmapsShowInfopanel(
+					buildRegionLabelViewPopupHtml(label),
+					label.text || (label.wikiRegion && label.wikiRegion.name) || ""
+				);
+			});
+		}
 	} else if (labelHasWikiRegion(label)) {
 		// Ansichtsmodus: dasselbe Popup wie der Edit-Mode, nur OHNE die Bearbeiten-Buttons -- via den
 		// gemeinsamen Builder, den auch der Deep-Link/Spotlight-Fokus (focusSpotlightLabel) nutzt.

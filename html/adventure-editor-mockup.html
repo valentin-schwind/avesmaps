@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Abenteuereditor — Mockup (P2)</title>
+<!-- MOCKUP ONLY (Phase 3 / P2 design session). Links the REAL design tokens so the warm/aventurian
+     language is authentic; the final html/adventure-editor.html will link /css/base/tokens.css absolutely.
+     Relative paths so it opens straight from disk (file://) without a server. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: var(--font-size-body)/var(--leading-normal) var(--font-ui);
+    color: var(--color-text);
+    /* Simulate the editor overlay backdrop (the real editor is an iframe inside a centered dialog). */
+    background: var(--color-page-bg-deep);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-16);
+  }
+
+  /* ---- mockup harness (not part of the editor) ------------------------------------------------ */
+  .mock-bar {
+    width: min(1400px, 100%);
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-12);
+    color: var(--color-page-bg);
+    font-size: var(--font-size-small);
+  }
+  .mock-bar strong { color: #fff; font-size: var(--font-size-body); }
+  .mock-seg { display: inline-flex; gap: var(--space-2); background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.16); border-radius: var(--radius-md); padding: var(--space-2); }
+  .mock-seg button {
+    font: inherit; cursor: pointer; border: 0; border-radius: var(--radius-sm);
+    padding: var(--space-4) var(--space-10); background: transparent; color: var(--color-page-bg);
+  }
+  .mock-seg button.is-active { background: var(--color-accent); color: #241d0a; font-weight: var(--font-weight-bold); }
+  .mock-hint { opacity: .8; }
+
+  /* ---- editor dialog shell (mirrors political-territory-editor-dialog, but on tokens) ---------- */
+  .ae-dialog {
+    width: min(1400px, 100%);
+    height: min(860px, calc(100vh - 96px));
+    background: var(--color-panel);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-dialog);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .ae-header {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: var(--space-10);
+    padding: var(--space-10) var(--space-16);
+    background: var(--color-panel-soft);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .ae-header h1 { margin: 0; font-size: var(--font-size-title); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); line-height: var(--leading-tight); }
+  .ae-header .ae-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
+  .ae-header .ae-spacer { flex: 1 1 auto; }
+  .ae-close { border: 1px solid var(--color-border); background: var(--color-panel); color: var(--color-text-muted);
+    width: 30px; height: 30px; border-radius: var(--radius-md); cursor: pointer; font-size: var(--font-size-subhead); }
+  .ae-close:hover { background: var(--color-button-soft-hover); }
+
+  .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
+
+  /* ---- left column: adventure list ------------------------------------------------------------ */
+  .ae-list {
+    flex: 0 0 320px; min-width: 0; display: flex; flex-direction: column;
+    border-right: 1px solid var(--color-border); background: var(--color-panel-soft);
+    padding: var(--space-10);
+  }
+  .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
+  .ae-search {
+    flex: 1 1 auto; min-width: 0; font: inherit; color: var(--color-text);
+    background: var(--color-panel); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: var(--space-4) var(--space-8);
+  }
+  .ae-search::placeholder { color: var(--color-placeholder); }
+  .ae-search:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
+  .ae-list__count { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0 0 var(--space-6); }
+  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
+
+  .ae-item {
+    display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-8); margin-bottom: var(--space-2);
+  }
+  .ae-item:hover { background: var(--color-hover-wash); }
+  .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+  .ae-item__l1 { display: flex; align-items: baseline; gap: var(--space-6); }
+  .ae-item__title { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-item__l2 { display: flex; align-items: center; gap: var(--space-6); margin-top: var(--space-2);
+    font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-item.is-draft .ae-item__title { color: var(--color-text-muted); font-style: italic; }
+
+  /* ---- detail column -------------------------------------------------------------------------- */
+  .ae-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .ae-detail__head {
+    flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
+    padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--color-border);
+  }
+  .ae-detail__head-main { flex: 1 1 auto; min-width: 0; }
+  .ae-detail__title { margin: 0; font-size: var(--font-size-subhead); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); }
+  .ae-detail__meta { margin-top: var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+  .ae-detail__actions { display: flex; gap: var(--space-6); flex: 0 0 auto; }
+
+  .ae-tabs { flex: 0 0 auto; display: flex; gap: var(--space-2); padding: var(--space-6) var(--space-16) 0; }
+  .ae-tab { font: inherit; cursor: pointer; border: 1px solid transparent; border-bottom: none;
+    background: transparent; color: var(--color-text-muted); padding: var(--space-6) var(--space-12);
+    border-radius: var(--radius-md) var(--radius-md) 0 0; }
+  .ae-tab:hover { background: var(--color-hover-wash); }
+  .ae-tab.is-active { background: var(--color-panel-soft); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); border-color: var(--color-border); }
+
+  .ae-panels { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .ae-panel { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--space-12) var(--space-16); }
+
+  /* ---- form field groups ---------------------------------------------------------------------- */
+  .ae-grp { margin: 0 0 var(--space-16); }
+  .ae-grp__title {
+    font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
+    font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+    padding-bottom: var(--space-6); margin: 0 0 var(--space-10);
+    /* full-bleed divider under the group heading (owner rule) */
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .ae-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-10) var(--space-12); }
+  .ae-field { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+  .ae-field.is-wide { grid-column: 1 / -1; }
+  .ae-field > label { font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; align-items: center; gap: var(--space-6); }
+  .ae-input, .ae-select {
+    font: inherit; color: var(--color-text); background: var(--color-panel);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-8); width: 100%;
+  }
+  .ae-input:focus-visible, .ae-select:focus-visible { outline: none; border-color: var(--color-border-strong);
+    box-shadow: var(--focus-ring); }
+  .ae-check { display: flex; align-items: center; gap: var(--space-6); font-size: var(--font-size-small);
+    color: var(--color-text); padding-top: var(--space-16); }
+  .ae-check input { accent-color: var(--color-check-accent); width: 15px; height: 15px; }
+
+  /* ---- badges / pills ------------------------------------------------------------------------- */
+  .pill { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-caption);
+    line-height: 1.3; padding: 1px var(--space-6); border-radius: var(--radius-md); white-space: nowrap;
+    border: 1px solid var(--color-pill-border); background: var(--color-pill); color: var(--color-pill-text); }
+  .pill--kind { border-color: var(--color-border); background: var(--color-panel-muted); color: var(--color-text-muted); }
+  .pill--start { border-color: var(--color-accent-strong); background: var(--color-active-wash);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+  .pill--manual { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong);
+    font-weight: var(--font-weight-bold); }
+  .pill--wiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
+  .pill--unresolved { border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
+  /* Per-row start toggle (owner: MULTIPLE starts allowed → a toggle, not a radio). */
+  .start-toggle.is-on { background: var(--color-active-wash); border-color: var(--color-accent-strong);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+  .ae-suppressed-wrap[hidden] { display: none; }
+  .badge-manual { font-size: var(--font-size-caption); color: var(--color-accent-strong);
+    border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 var(--space-4);
+    cursor: help; font-weight: var(--font-weight-bold); }
+
+  /* ---- buttons -------------------------------------------------------------------------------- */
+  .btn { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: var(--space-4) var(--space-12);
+    background: var(--color-button-soft); color: var(--color-button-soft-text);
+    border: 1px solid var(--color-button-soft-border); }
+  .btn:hover { background: var(--color-button-soft-hover); }
+  .btn--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
+  .btn--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+  .btn--sm { padding: 2px var(--space-8); font-size: var(--font-size-caption); }
+  .btn--icon { padding: 2px var(--space-6); font-size: var(--font-size-small); }
+  .btn--danger { color: var(--color-danger); border-color: var(--color-border); background: transparent; }
+  .btn--danger:hover { background: rgba(157,58,46,.10); }
+
+  /* ---- Orte (places) -------------------------------------------------------------------------- */
+  .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
+  .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
+    font-weight: var(--font-weight-bold); color: var(--color-text-muted); }
+  .ae-orte__hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-orte__invariant { font-size: var(--font-size-caption); color: var(--color-accent-strong);
+    display: inline-flex; align-items: center; gap: var(--space-4); }
+
+  .ae-add { display: flex; gap: var(--space-6); align-items: center; margin-bottom: var(--space-10);
+    padding: var(--space-8); background: var(--color-panel-soft); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); }
+  .ae-add .ae-input { flex: 1 1 auto; }
+  .ae-add .ae-select { flex: 0 0 160px; }
+
+  .ae-place {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center; gap: var(--space-8);
+    padding: var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-panel); margin-bottom: var(--space-6);
+  }
+  .ae-place.is-start { border-color: var(--color-accent-strong); background: var(--color-panel-soft); }
+  .ae-place.is-suppressed { opacity: .6; }
+  .ae-place__order { display: flex; flex-direction: column; align-items: center; gap: 1px;
+    color: var(--color-text-muted); }
+  .ae-place__order .ord-num { font-size: var(--font-size-caption); }
+  .ae-place__reorder { display: flex; flex-direction: column; }
+  .ae-place__reorder button { border: 0; background: transparent; cursor: pointer; color: var(--color-text-muted);
+    line-height: 1; padding: 0; font-size: 10px; }
+  .ae-place__reorder button:hover { color: var(--color-text-strong); }
+  .ae-place__main { min-width: 0; }
+  .ae-place__name { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-place.is-suppressed .ae-place__name { text-decoration: line-through; }
+  .ae-place__resolved { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-top: 2px;
+    display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+  .ae-place__badges { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 3px; }
+  .ae-place__ctl { display: flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; }
+
+  /* ---- save bar ------------------------------------------------------------------------------- */
+  .ae-savebar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
+    padding: var(--space-8) var(--space-16); border-top: 1px solid var(--color-border);
+    background: var(--color-panel-soft); }
+  .ae-savebar .ae-spacer { flex: 1 1 auto; }
+  .ae-savebar .saved { font-size: var(--font-size-caption); color: var(--color-success); }
+
+  /* ============================================================================================= */
+  /*  LAYOUT VARIANTS — same DOM, different arrangement (toggled by the mockup bar)                 */
+  /* ============================================================================================= */
+
+  /* A · Zwei Spalten, Detail gestapelt (Stammdaten oben, Orte darunter, beide sichtbar). */
+  body[data-layout="a"] .ae-tabs { display: none; }
+  body[data-layout="a"] .ae-panels { flex-direction: column; }
+  body[data-layout="a"] .ae-panel { display: block; }
+
+  /* B · Zwei Spalten, Detail als Reiter (Stammdaten | Orte umschaltbar). */
+  body[data-layout="b"] .ae-tabs { display: flex; }
+  body[data-layout="b"] .ae-panels { flex-direction: column; }
+  body[data-layout="b"] .ae-panel { display: none; }
+  body[data-layout="b"] .ae-panels[data-active="stamm"] .ae-panel--stamm { display: block; }
+  body[data-layout="b"] .ae-panels[data-active="orte"] .ae-panel--orte { display: block; }
+
+  /* C · Drei Spalten, Stammdaten und Orte nebeneinander. */
+  body[data-layout="c"] .ae-tabs { display: none; }
+  body[data-layout="c"] .ae-panels { flex-direction: row; }
+  body[data-layout="c"] .ae-panel { display: block; flex: 1 1 50%; }
+  body[data-layout="c"] .ae-panel--stamm { border-right: 1px solid var(--color-border); }
+  body[data-layout="c"] .ae-fields { grid-template-columns: minmax(0, 1fr); }
+</style>
+</head>
+<body data-layout="c">
+
+<div class="mock-bar">
+  <strong>Abenteuereditor · P2-Mockup</strong>
+  <span class="mock-hint">— echte Design-Tokens, kein Blau. Layout wechseln:</span>
+  <div class="mock-seg" id="layoutSeg">
+    <button data-layout="a">A · 2 Spalten, gestapelt</button>
+    <button data-layout="b">B · Detail als Reiter</button>
+    <button data-layout="c" class="is-active">C · 3 Spalten</button>
+  </div>
+  <span class="mock-hint" id="themeHint">· <a href="#" id="themeToggle" style="color:var(--color-page-bg)">Dark umschalten</a></span>
+</div>
+
+<div class="ae-dialog">
+  <!-- Header (im echten Editor die iframe-Kopfzeile des Overlays) -->
+  <div class="ae-header">
+    <h1>Abenteuereditor</h1>
+    <span class="ae-sub">42 Abenteuer · zuletzt gesynct: 09.07.2026</span>
+    <span class="ae-spacer"></span>
+    <button class="ae-close" aria-label="Schließen">✕</button>
+  </div>
+
+  <div class="ae-body">
+    <!-- ============ LINKS: Abenteuer-Liste ============ -->
+    <aside class="ae-list">
+      <div class="ae-list__top">
+        <input class="ae-search" type="search" placeholder="Abenteuer suchen …">
+        <button class="btn btn--primary" title="Neues Abenteuer anlegen">+ Neu</button>
+      </div>
+      <p class="ae-list__count">6 von 42</p>
+      <div class="ae-list__scroll">
+        <button class="ae-item is-selected">
+          <span class="ae-item__l1"><span class="ae-item__title">Der Sturm über Salderkeim</span></span>
+          <span class="ae-item__l2"><span class="pill pill--kind">Gruppenabenteuer</span> 1044 BF · 5 Orte</span>
+        </button>
+        <button class="ae-item">
+          <span class="ae-item__l1"><span class="ae-item__title">Die Verschwörung von Gareth</span></span>
+          <span class="ae-item__l2"><span class="pill pill--kind">Gruppenabenteuer</span> 1029 BF · 3 Orte</span>
+        </button>
+        <button class="ae-item">
+          <span class="ae-item__l1"><span class="ae-item__title">Meister der Dämonen</span></span>
+          <span class="ae-item__l2"><span class="pill pill--kind">Kampagne</span> 1021 BF · 12 Orte</span>
+        </button>
+        <button class="ae-item">
+          <span class="ae-item__l1"><span class="ae-item__title">Der einsame Turm</span></span>
+          <span class="ae-item__l2"><span class="pill pill--kind">Soloabenteuer</span> 1038 BF · 1 Ort</span>
+        </button>
+        <button class="ae-item">
+          <span class="ae-item__l1"><span class="ae-item__title">Zeit der Ernte</span></span>
+          <span class="ae-item__l2"><span class="pill pill--kind">Kurzabenteuer</span> 1045 BF · 2 Orte · <span class="pill pill--manual">manuell</span></span>
+        </button>
+        <button class="ae-item is-draft">
+          <span class="ae-item__l1"><span class="ae-item__title">Namenloser Schrecken</span></span>
+          <span class="ae-item__l2">Entwurf · unterdrückt</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ============ RECHTS: Detail ============ -->
+    <section class="ae-detail">
+      <div class="ae-detail__head">
+        <div class="ae-detail__head-main">
+          <h2 class="ae-detail__title">Der Sturm über Salderkeim</h2>
+          <div class="ae-detail__meta">
+            <span class="pill pill--kind">Gruppenabenteuer</span>
+            <span>DSA5 · Travia 1044 BF</span>
+            <span class="pill pill--wiki">Quelle: Wiki</span>
+            <span>wiki_key: <code>der_sturm_ueber_salderkeim</code></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reiter (nur Variante B sichtbar) -->
+      <nav class="ae-tabs" role="tablist">
+        <button class="ae-tab is-active" data-tab="stamm">Stammdaten</button>
+        <button class="ae-tab" data-tab="orte">Orte (5)</button>
+      </nav>
+
+      <div class="ae-panels" data-active="stamm">
+
+        <!-- ---------- Panel: Stammdaten ---------- -->
+        <div class="ae-panel ae-panel--stamm">
+          <div class="ae-grp">
+            <p class="ae-grp__title">Identität</p>
+            <div class="ae-fields">
+              <div class="ae-field is-wide">
+                <label>Titel *</label>
+                <input class="ae-input" value="Der Sturm über Salderkeim">
+              </div>
+              <div class="ae-field">
+                <label>Produkttyp</label>
+                <select class="ae-select">
+                  <option>gruppenabenteuer</option><option>soloabenteuer</option><option>kurzabenteuer</option>
+                  <option>szenario</option><option>anthologie</option><option>kampagne</option>
+                </select>
+              </div>
+              <div class="ae-field">
+                <label>Regelsystem</label>
+                <select class="ae-select"><option>DSA1</option><option>DSA2</option><option>DSA3</option><option>DSA4</option><option selected>DSA5</option></select>
+              </div>
+              <div class="ae-field">
+                <label class="ae-check"><input type="checkbox" checked> Offizielles Produkt</label>
+              </div>
+              <div class="ae-field">
+                <label>Serie / Reihe</label>
+                <input class="ae-input" value="Bornland-Chronik">
+              </div>
+            </div>
+          </div>
+
+          <div class="ae-grp">
+            <p class="ae-grp__title">Datierung &amp; Einordnung</p>
+            <div class="ae-fields">
+              <div class="ae-field">
+                <label>BF-Jahr</label>
+                <input class="ae-input" type="number" value="1044">
+              </div>
+              <div class="ae-field">
+                <label>BF-Label</label>
+                <input class="ae-input" value="Travia 1044 BF">
+              </div>
+              <div class="ae-field">
+                <label>Genre <span class="badge-manual" title="Manuell gesetzt — ein Wiki-Sync fasst dieses Feld nicht mehr an.">manuell</span></label>
+                <input class="ae-input" value="Krimi / Ermittlung">
+              </div>
+              <div class="ae-field">
+                <label>Komplexität (SL) <span class="badge-manual" title="Manuell gesetzt.">manuell</span></label>
+                <input class="ae-input" value="mittel">
+              </div>
+              <div class="ae-field">
+                <label>Komplexität (Spieler)</label>
+                <input class="ae-input" value="niedrig">
+              </div>
+              <div class="ae-field is-wide">
+                <label>Autoren</label>
+                <input class="ae-input" value="Alrik Antamar, Yolande von Weyden">
+              </div>
+            </div>
+          </div>
+
+          <div class="ae-grp">
+            <p class="ae-grp__title">Wiki &amp; F-Shop</p>
+            <div class="ae-fields">
+              <div class="ae-field is-wide">
+                <label>Wiki-URL</label>
+                <input class="ae-input" value="https://dsa.ulisses-regelwiki.de/wiki/Der_Sturm_über_Salderkeim">
+              </div>
+              <div class="ae-field">
+                <label>F-Shop-Code</label>
+                <input class="ae-input" value="US25313">
+              </div>
+              <div class="ae-field">
+                <label>Cover-URL</label>
+                <input class="ae-input" value="https://…/cover.jpg">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- Panel: Orte ---------- -->
+        <div class="ae-panel ae-panel--orte">
+          <div class="ae-orte__head">
+            <h3>Orte (5)</h3>
+            <span class="ae-orte__invariant" title="Startorte stehen oben. Die Reihenfolge wird nie automatisch umsortiert — nur manuell per ▲▼.">★ Startorte oben · manuell ordenbar (▲▼)</span>
+            <span class="ae-spacer" style="flex:1"></span>
+            <button class="btn btn--sm" id="toggleSuppressed" title="Entfernte (unterdrückte) Wiki-Orte ein-/ausblenden">unterdrückte anzeigen (1)</button>
+          </div>
+
+          <div class="ae-add">
+            <input class="ae-input" placeholder="Ortsname (Wiki-Titel) hinzufügen …">
+            <select class="ae-select" title="Zieltyp (optional — »Auflösen« erkennt ihn sonst automatisch)">
+              <option value="unresolved">Typ: automatisch</option>
+              <option>settlement</option><option>territory</option><option>region</option><option>path</option>
+            </select>
+            <button class="btn btn--primary">+ Ort</button>
+          </div>
+          <p class="ae-orte__hint" style="margin:0 0 var(--space-8)">★ = beginnt hier (Spoiler-frei) · übrige = spielt hier (Spoiler) · mehrere Startorte möglich · neuer Ort wird automatisch aufgelöst</p>
+
+          <!-- Start (settlement, wiki) -->
+          <div class="ae-place is-start">
+            <div class="ae-place__order"><span class="ord-num">1</span>
+              <div class="ae-place__reorder"><button title="hoch" disabled>▲</button><button title="runter">▼</button></div>
+            </div>
+            <div class="ae-place__main">
+              <div class="ae-place__name">Salderkeim</div>
+              <div class="ae-place__resolved">→ Siedlung <code>salderkeim</code></div>
+              <div class="ae-place__badges">
+                <span class="pill pill--start">★ Startort</span>
+                <span class="pill pill--kind">Siedlung</span>
+                <span class="pill pill--wiki">Wiki</span>
+              </div>
+            </div>
+            <div class="ae-place__ctl">
+              <button class="btn btn--sm start-toggle is-on" title="Startort — klicken zum Aufheben">★ Startort</button>
+              <button class="btn btn--icon btn--danger" title="Entfernen">✕</button>
+            </div>
+          </div>
+
+          <!-- play (settlement, wiki) -->
+          <div class="ae-place">
+            <div class="ae-place__order"><span class="ord-num">2</span>
+              <div class="ae-place__reorder"><button title="hoch">▲</button><button title="runter">▼</button></div>
+            </div>
+            <div class="ae-place__main">
+              <div class="ae-place__name">Irberod</div>
+              <div class="ae-place__resolved">→ Siedlung <code>irberod</code></div>
+              <div class="ae-place__badges">
+                <span class="pill pill--kind">Siedlung</span>
+                <span class="pill pill--wiki">Wiki</span>
+              </div>
+            </div>
+            <div class="ae-place__ctl">
+              <button class="btn btn--sm start-toggle" title="Als Startort markieren (mehrere möglich)">☆ Start</button>
+              <button class="btn btn--icon btn--danger" title="Entfernen">✕</button>
+            </div>
+          </div>
+
+          <!-- play (region, wiki) -->
+          <div class="ae-place">
+            <div class="ae-place__order"><span class="ord-num">3</span>
+              <div class="ae-place__reorder"><button title="hoch">▲</button><button title="runter">▼</button></div>
+            </div>
+            <div class="ae-place__main">
+              <div class="ae-place__name">Bornwald</div>
+              <div class="ae-place__resolved">→ Region <code>bornwald</code></div>
+              <div class="ae-place__badges">
+                <span class="pill pill--kind">Region</span>
+                <span class="pill pill--wiki">Wiki</span>
+              </div>
+            </div>
+            <div class="ae-place__ctl">
+              <button class="btn btn--sm start-toggle" title="Als Startort markieren (mehrere möglich)">☆ Start</button>
+              <button class="btn btn--icon btn--danger" title="Entfernen">✕</button>
+            </div>
+          </div>
+
+          <!-- play (path, MANUAL override) -->
+          <div class="ae-place">
+            <div class="ae-place__order"><span class="ord-num">4</span>
+              <div class="ae-place__reorder"><button title="hoch">▲</button><button title="runter">▼</button></div>
+            </div>
+            <div class="ae-place__main">
+              <div class="ae-place__name">Bornstraße</div>
+              <div class="ae-place__resolved">→ Weg <code>bornstrasse</code></div>
+              <div class="ae-place__badges">
+                <span class="pill pill--kind">Weg</span>
+                <span class="pill pill--manual">manuell</span>
+              </div>
+            </div>
+            <div class="ae-place__ctl">
+              <button class="btn btn--sm start-toggle" title="Als Startort markieren (mehrere möglich)">☆ Start</button>
+              <button class="btn btn--icon btn--danger" title="Entfernen">✕</button>
+            </div>
+          </div>
+
+          <!-- play (UNRESOLVED, wiki) -->
+          <div class="ae-place">
+            <div class="ae-place__order"><span class="ord-num">5</span>
+              <div class="ae-place__reorder"><button title="hoch">▲</button><button title="runter" disabled>▼</button></div>
+            </div>
+            <div class="ae-place__main">
+              <div class="ae-place__name">Firunen</div>
+              <div class="ae-place__resolved"><span class="pill pill--unresolved">nicht aufgelöst</span> Rohname bleibt erhalten</div>
+              <div class="ae-place__badges">
+                <span class="pill pill--wiki">Wiki</span>
+              </div>
+            </div>
+            <div class="ae-place__ctl">
+              <button class="btn btn--sm" title="Erneut versuchen aufzulösen">↻ Auflösen</button>
+              <button class="btn btn--sm start-toggle" title="Als Startort markieren (mehrere möglich)">☆ Start</button>
+              <button class="btn btn--icon btn--danger" title="Entfernen">✕</button>
+            </div>
+          </div>
+
+          <!-- suppressed tombstone — hidden by default; the "unterdrückte anzeigen" toggle reveals it -->
+          <div class="ae-suppressed-wrap" hidden>
+          <div class="ae-place is-suppressed">
+            <div class="ae-place__order"><span class="ord-num">—</span></div>
+            <div class="ae-place__main">
+              <div class="ae-place__name">Kosch</div>
+              <div class="ae-place__resolved">Wiki-Ort entfernt · ein Re-Sync fügt ihn nicht wieder hinzu</div>
+              <div class="ae-place__badges">
+                <span class="pill pill--kind">Territorium</span>
+                <span class="pill">unterdrückt</span>
+              </div>
+            </div>
+            <div class="ae-place__ctl">
+              <button class="btn btn--sm" title="Wieder aufnehmen">↺ Zurückholen</button>
+            </div>
+          </div>
+          </div><!-- /.ae-suppressed-wrap -->
+        </div>
+      </div>
+
+      <div class="ae-savebar">
+        <span class="saved">✓ Alle Änderungen gespeichert</span>
+        <span class="ae-spacer"></span>
+        <button class="btn">Verwerfen</button>
+        <button class="btn btn--primary">Stammdaten speichern</button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  // Mockup interactivity only (layout switch + tab switch + dark toggle). No real data flow.
+  const body = document.body;
+  // Allow #a/#b/#c (and #orte) in the URL to preselect a layout — handy for side-by-side review.
+  (function () {
+    const h = (location.hash || "").replace("#", "");
+    if (["a", "b", "c"].includes(h)) {
+      body.dataset.layout = h;
+      document.querySelectorAll("#layoutSeg button").forEach((x) => x.classList.toggle("is-active", x.dataset.layout === h));
+    }
+  })();
+  document.getElementById("layoutSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-layout]"); if (!b) return;
+    body.dataset.layout = b.dataset.layout;
+    document.querySelectorAll("#layoutSeg button").forEach((x) => x.classList.toggle("is-active", x === b));
+  });
+  document.querySelector(".ae-tabs").addEventListener("click", (e) => {
+    const t = e.target.closest(".ae-tab"); if (!t) return;
+    document.querySelectorAll(".ae-tab").forEach((x) => x.classList.toggle("is-active", x === t));
+    document.querySelector(".ae-panels").dataset.active = t.dataset.tab;
+  });
+  document.getElementById("themeToggle").addEventListener("click", (e) => {
+    e.preventDefault();
+    const root = document.documentElement;
+    root.dataset.theme = root.dataset.theme === "dark" ? "" : "dark";
+  });
+  // Grabstein-Toggle (owner: unterdrückte standardmäßig ausgeblendet).
+  document.getElementById("toggleSuppressed").addEventListener("click", (e) => {
+    const wrap = document.querySelector(".ae-suppressed-wrap");
+    const show = wrap.hasAttribute("hidden");
+    wrap.toggleAttribute("hidden", !show);
+    e.target.textContent = (show ? "unterdrückte ausblenden (1)" : "unterdrückte anzeigen (1)");
+  });
+  // Start-Umschalter je Zeile (owner: mehrere Startorte erlaubt → Toggle, kein Radio).
+  document.querySelectorAll(".start-toggle").forEach((b) => b.addEventListener("click", () => {
+    const on = b.classList.toggle("is-on");
+    b.textContent = on ? "★ Startort" : "☆ Start";
+    b.closest(".ae-place").classList.toggle("is-start", on);
+  }));
+</script>
+</body>
+</html>

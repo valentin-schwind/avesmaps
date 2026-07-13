@@ -63,6 +63,20 @@ function selectSpotlightSearchEntry(entry) {
 	}
 }
 
+// Owner: search / deep-link focus should FLY to the target, not jump. A short, bounded duration keeps
+// even a cross-map jump snappy (Leaflet's default auto-duration can run several seconds on long hops).
+// NaN coords are guarded -- an animated pan with a NaN centre corrupts the map centre and crashes the next
+// moveend (routing-nan-pan-crash class); Number.isFinite catches it (NaN is truthy).
+const SPOTLIGHT_FLY_DURATION = 0.75;
+
+function spotlightFlyTo(latLng, zoom) {
+	const target = L.latLng(latLng);
+	if (!target || !Number.isFinite(target.lat) || !Number.isFinite(target.lng)) {
+		return;
+	}
+	map.flyTo(target, zoom, { duration: SPOTLIGHT_FLY_DURATION });
+}
+
 function focusSpotlightLocation(entry) {
 	const markerEntry = entry.locationEntry;
 	if (!markerEntry?.marker) {
@@ -74,7 +88,7 @@ function focusSpotlightLocation(entry) {
 	// nicht eingeblendet ist.
 	const markerLatLng = markerEntry.marker.getLatLng();
 	const preferredZoom = getSpotlightLocationZoom(markerEntry);
-	map.setView(markerLatLng, preferredZoom);
+	spotlightFlyTo(markerLatLng, preferredZoom);
 	window.setTimeout(() => openLocationPopupForMarkerEntry(markerEntry, { pan: false }), 0);
 }
 
@@ -92,7 +106,7 @@ function focusSpotlightLabel(entry) {
 	setSelectedMapLayerMode("deregraphic");
 	const maxZoom = Number.isFinite(Number(labelEntry.label.maxZoom)) ? Number(labelEntry.label.maxZoom) : VISUAL_MAX_ZOOM_LEVEL;
 	const targetZoom = Math.max(Number(labelEntry.label.minZoom) || 0, Math.min(maxZoom, VISUAL_MAX_ZOOM_LEVEL));
-	map.setView(labelEntry.marker.getLatLng(), targetZoom);
+	spotlightFlyTo(labelEntry.marker.getLatLng(), targetZoom);
 	syncLabelVisibility();
 	// Infopanel (default): open the landscape/region label's info in the right panel too -- map-click
 	// parity via the shared buildRegionLabelViewPopupHtml. A label without a wiki region has no infobox.
@@ -120,9 +134,9 @@ function focusSpotlightRegionBounds(bounds, minZoom, maxZoom) {
 	const fitZoom = Math.min(map.getBoundsZoom(padded, false, L.point(108, 108)), cap);
 	const targetZoom = hasMin ? Math.max(fitZoom, Number(minZoom)) : fitZoom;
 	if (targetZoom !== fitZoom) {
-		map.setView(bounds.getCenter(), targetZoom);
+		spotlightFlyTo(bounds.getCenter(), targetZoom);
 	} else {
-		map.fitBounds(padded, { padding: [54, 54], maxZoom: cap });
+		map.flyToBounds(padded, { padding: [54, 54], maxZoom: cap, duration: SPOTLIGHT_FLY_DURATION });
 	}
 }
 
@@ -139,12 +153,19 @@ function focusSpotlightRegion(entry) {
 		window.avesmapsShowRegionInInfopanel(entry.regionEntry);
 		return;
 	}
-	// Backend/synthetic hit (regionEntry === null) or non-panel mode: resolve by public_id against a
-	// rendered polygon (poll, since the political layer reloads asynchronously after the switch/flight).
 	const publicId = (entry.publicIds && entry.publicIds[0]) || entry.regionEntry?.publicId || entry.regionEntry?.territoryPublicId || "";
-	if (publicId) {
-		openSpotlightRegionInfobox(publicId);
+	if (!publicId) {
+		return;
 	}
+	// Backend/synthetic hit (regionEntry === null): the territory may not render as a polygon at the target
+	// zoom -- or ever (a claim-only "Anspruchsgebiet") -- so the poll below would never find it. In panel
+	// mode, load its info by public_id and open the full infobox directly (territory-detail.php).
+	if (typeof window.avesmapsShowRegionInfopanelById === "function") {
+		window.avesmapsShowRegionInfopanelById(publicId, entry.name || "");
+		return;
+	}
+	// Non-panel mode: poll for the rendered polygon and open the floating tooltip on it.
+	openSpotlightRegionInfobox(publicId);
 }
 
 // Öffnet die Region-Infobox, sobald ein Polygon mit passender public_id/territory_public_id gerendert ist --
@@ -252,14 +273,15 @@ function focusSpotlightBounds(bounds, preferredZoom) {
 		return;
 	}
 
-	// fitBounds only: zoom out far enough for the whole bbox, zoom in at most to preferredZoom
-	// (fitBounds' maxZoom cap). Deliberately NO corrective setView afterwards: map.getZoom() is
-	// stale while fitBounds animates, so a "raise to preferredZoom" follow-up forces zoom 5 onto
-	// long ways whenever no zoom animation runs after it (small viewports take the pan branch,
-	// large zoom deltas reset synchronously) -- the bbox then never fits the screen.
-	map.fitBounds(bounds.pad(0.16), {
+	// flyToBounds only (animated): zoom out far enough for the whole bbox, zoom in at most to preferredZoom
+	// (the maxZoom cap). Deliberately NO corrective setView afterwards: map.getZoom() is stale while the
+	// fly animates, so a "raise to preferredZoom" follow-up forces zoom 5 onto long ways whenever no zoom
+	// animation runs after it (small viewports take the pan branch, large zoom deltas reset synchronously)
+	// -- the bbox then never fits the screen.
+	map.flyToBounds(bounds.pad(0.16), {
 		padding: [54, 54],
 		maxZoom: preferredZoom,
+		duration: SPOTLIGHT_FLY_DURATION,
 	});
 }
 

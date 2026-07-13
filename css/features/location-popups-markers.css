@@ -97,6 +97,111 @@
 	margin: 8px 0;
 	background: var(--color-divider);
 }
+
+/* Info-Header-Grafik (Owner): 16:9-Landschaftsbild oben in der Infobox, Titel als Overlay unten-links mit
+   Verlauf + Schatten. Ersetzt den Icon-Kopf. Full-bleed via kontextspezifische Regeln (Panel/Popup unten). */
+/* Bild oben, Wappen + Titel darunter (Owner: kein verdeckendes Overlay mehr). .info-header ist nur
+   noch Container; das 16:9-Cropping lebt jetzt auf .info-header__media. */
+.info-header__media {
+	position: relative;
+	aspect-ratio: 16 / 9;
+	overflow: hidden;
+	background: var(--color-divider);
+}
+.info-header__img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+/* Titelzeile UNTER dem Bild: Wappen links, Titel + Subtitle rechts. Kein gap (Owner) -- die Wappen-
+   Grafiken bringen selbst seitlichen Rand mit. Horizontales Padding + Trenner setzt die Panel-Regel. */
+.info-header__caption {
+	display: flex;
+	align-items: center;
+	padding: 9px 14px 0;
+}
+.info-header__coat {
+	flex: 0 0 auto;
+}
+.info-header__coat img,
+.info-header__coat .location-popup__icon {
+	width: 100px;
+	height: 100px;
+	object-fit: contain;
+	display: block;
+}
+.info-header__titles {
+	min-width: 0;
+}
+.info-header__title {
+	color: var(--color-text);
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+.info-header__subtitle {
+	margin-top: 2px;
+	color: var(--color-text-muted);
+	font-size: 13px;
+	font-weight: 500;
+}
+/* Lightbox-Navigation (Owner): eigene Bilder mit < > durchblaettern + Dots. Nur bei mehreren Bildern. */
+.info-header__nav {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 3;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	cursor: pointer;
+	color: #fff;
+	font-size: 19px;
+	line-height: 1;
+	background: rgba(24, 18, 12, 0.46);
+	display: grid;
+	place-items: center;
+	transition: background 0.12s;
+}
+.info-header__nav:hover,
+.info-header__nav:focus-visible { background: rgba(24, 18, 12, 0.74); outline: none; }
+.info-header__nav--prev { left: 8px; }
+.info-header__nav--next { right: 8px; }
+.info-header__dots {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 5px;
+	z-index: 3;
+	display: flex;
+	gap: 5px;
+	justify-content: center;
+	pointer-events: none;
+}
+.info-header__dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.5);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	transition: width 0.15s, background 0.15s;
+}
+.info-header__dot.is-on {
+	width: 15px;
+	border-radius: 3px;
+	background: #fff;
+}
+/* Floating popup (settlement-popup padding 12/14): pull the image to all three top edges. */
+.settlement-popup .info-header,
+.floating-location-popup .info-header {
+	margin: -12px -14px 11px;
+}
 /* Der weisse "Karten"-Grund ist .leaflet-popup-content-wrapper; die Basis-Regel oben zieht
    .leaflet-popup-content 10px ein. Fuer randlose Trenner (wie beim settlement-popup) den Content-Margin
    nullen -> .location-popup sitzt buendig, die -10px-Offsets unten erreichen die echte Kartenkante. */
@@ -175,6 +280,27 @@
 	/* Owner: das Menue bricht NICHT um -- die Kacheln bleiben in EINER Zeile und schrumpfen bei Bedarf
 	   minimal (flex-shrink der Kacheln), statt in eine zweite Reihe zu springen. */
 	flex-wrap: nowrap;
+}
+/* Edit mode adds many more actions (Neuer Weg, Neue Kraftlinie, Ort verschieben/loeschen, Bearbeiten, ...)
+   than the handful in view mode -- 9+ fixed-width tiles overflow the single nowrap row and spill out of the
+   box. In edit mode let the tiles WRAP into further rows so they stay inside the box. View mode keeps the
+   one-row layout above (few tiles, Owner: kein Umbruch). */
+body.edit-mode .floating-location-popup .location-popup__actions,
+body.edit-mode .avesmaps-infopanel .location-popup__actions {
+	flex-wrap: wrap;
+}
+/* Owner: exactly 4 tiles per row in the floating box, box stays the normal ~400px width, only the height
+   grows with the extra rows. A 4-column grid packs four equal tiles per row (~87px each -- the same width as
+   view mode's four one-row tiles); the box width stays governed by the rating row (~400px), so it matches
+   the normal box. Scoped to the floating box's MAIN actions (direct child of .location-popup) so the nested
+   rating-row actions ("Bewertung schreiben") stay a single inline row. width:auto lets each tile fill its
+   grid column instead of the fixed 90px. */
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+}
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+	width: auto;
 }
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {

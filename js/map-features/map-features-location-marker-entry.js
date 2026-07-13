@@ -78,10 +78,29 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		&& markerEntry.location && markerEntry.location.political)
 		? buildSettlementHierarchyMarkup(markerEntry.location.political.hierarchy)
 		: "";
+	// Owner: the full (panel) settlement infobox gets the 16:9 header image (Metropole for now; more
+	// settlement graphics to follow); the slim floating box keeps the realistic-size icon. In panel mode
+	// locationPopupMarkup replaces the WHOLE icon+type header, so the political-context line (typeSuffixMarkup)
+	// drops out here -- the "Liegt in" breadcrumb below already carries the territory chain.
+	// Politischer Kontext ("Hauptstadt von X" / "in X" als Gold-Fly-to, sonst neutrales "Lage") EINMAL bauen
+	// und BEIDE Kopf-Varianten damit speisen: den Bild-Header-Untertitel (Panel) und die type-Zeile der
+	// schlanken Box (floating). So kehrt die Zeile zurueck, die der Bild-Header sonst verschluckte.
+	const settlementTypeSuffix = (function () {
+		var polLine = (typeof buildSettlementPoliticalLineMarkup === "function")
+			? buildSettlementPoliticalLineMarkup(markerEntry.location.political)
+			: "";
+		return polLine || `<span class="location-popup__political-none">${escapeHtml(tr("popup.locationFallback", "Lage"))}</span>`;
+	})();
+	const settlementHeaderImg = (!floating && typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && typeof infoHeaderImageMarkup === "function")
+		? infoHeaderImageMarkup(settlementHeaderImageBasename(markerEntry.locationType), markerEntry.name, typeLabel,
+			typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "",
+			markerEntry.location.images, settlementTypeSuffix)
+		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,
 		locationType: markerEntry.locationType,
 		locationTypeLabel: typeLabel,
+		headerImageMarkup: settlementHeaderImg,
 		headerIconMarkup: coatIconMarkup,
 		description: markerEntry.location.description,
 		wikiUrl: markerEntry.location.wikiUrl,
@@ -90,12 +109,7 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 		// Political context under the type ("Metropole · Hauptstadt des Kaiserreichs" / "Stadt · Baronie
 		// Vierok"), a gold link that flies to that region. Resolved server-side. When nothing resolves, a
 		// neutral non-link "Lage" placeholder stands in (Owner) so the type never sits alone.
-		typeSuffixMarkup: (function () {
-			var polLine = (typeof buildSettlementPoliticalLineMarkup === "function")
-				? buildSettlementPoliticalLineMarkup(markerEntry.location.political)
-				: "";
-			return polLine || `<span class="location-popup__political-none">${escapeHtml(tr("popup.locationFallback", "Lage"))}</span>`;
-		})(),
+		typeSuffixMarkup: settlementTypeSuffix,
 		showDescription: !hasWikiSettlement,
 		// Der alte Wiki-Credit ("Informationen aus dem Wiki Aventurica. Mehr hier ↗") entfällt -- die
 		// neue Quell-Zeile (renderFeatureSourceLine) zeigt den Wiki-Link jetzt als "Quellen: …".

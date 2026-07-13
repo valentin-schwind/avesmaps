@@ -187,6 +187,101 @@ function sharePinPopupIconMarkup() {
 	return `<span class="location-popup__icon location-popup__icon--share-pin">${sharePinVisualMarkup("share-pin-visual--popup", { includeDot: false })}</span>`;
 }
 
+// Info-Header-Grafiken (Owner): 16:9-Landschaftsbild oben in der Infobox, der Titel liegt als Overlay
+// darueber (Banner unten-links + Schatten). Landschaftsregionen per art, Wege per Subtyp, Territorien/
+// Strassen generisch "region", Siedlungen vorerst "metropole" (weitere Siedlungsbilder folgen). Die
+// Basenamen zeigen auf icons/header/<name>.webp.
+const INFO_HEADER_IMAGE_BY_ART = {
+	gebirge: "gebirge", berge: "gebirge", berg: "gebirge", berggruppe: "gebirge", bergkamm: "gebirge",
+	hochland: "gebirge", schlucht: "gebirge", vulkan: "gebirge",
+	berggipfel: "berggipfel",
+	wald: "wald",
+	fluss: "fluss", flusstal: "fluss", wasserfall: "fluss",
+	meer: "meer", golf: "meer", ozean: "meer", meerenge: "meer", meeresteil: "meer", bucht: "meer",
+	see: "see", seenlandschaft: "see",
+	kueste: "kueste", halbinsel: "kueste", klippe: "kueste", sandbank: "kueste",
+	insel: "insel", inselgruppe: "insel",
+	sumpf: "sumpfmoor", moor: "sumpfmoor", marschland: "sumpfmoor",
+	wueste: "wueste",
+	steppe: "steppe", heide: "steppe",
+	huegelland: "huegel", huegel: "huegel",
+	graslandschaft: "graslandschaft", wiese: "graslandschaft",
+	auenlandschaft: "auenlandschaft",
+	tundra: "tundra",
+	ebene: "ebene", talkessel: "ebene", tal: "ebene",
+};
+// Siedlungstyp -> Header-Bild (eigene Grafik je Groesse). Unbekannte Typen fallen auf "metropole" zurueck.
+const INFO_HEADER_IMAGE_BY_SETTLEMENT = {
+	metropole: "metropole",
+	grossstadt: "grossstadt",
+	stadt: "stadt",
+	kleinstadt: "kleinstadt",
+	dorf: "dorf",
+	gebaeude: "gebaeude",
+};
+
+// art/Bezeichnung -> Header-Bild-Basename: erster Bestandteil vor |,/ ; Umlaute normalisiert.
+function normalizeInfoHeaderKey(value) {
+	return String(value || "")
+		.split(/[|,/]/)[0]
+		.trim()
+		.toLowerCase()
+		.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+		.replace(/[^a-z]/g, "");
+}
+function regionHeaderImageBasename(art) {
+	return INFO_HEADER_IMAGE_BY_ART[normalizeInfoHeaderKey(art)] || "region";
+}
+function settlementHeaderImageBasename(locationType) {
+	return INFO_HEADER_IMAGE_BY_SETTLEMENT[locationType] || "metropole";
+}
+function pathHeaderImageBasename(pathSubtype) {
+	if (pathSubtype === "Flussweg") {
+		return "fluss";
+	}
+	if (pathSubtype === "Seeweg") {
+		return "meer";
+	}
+	return "region";
+}
+
+// Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
+// icons/header/<name>.webp. Ersetzt den bisherigen Icon-Kopf; subtitle optional (Typ/art). coatMarkup
+// (Owner): vorhandenes Wappen liegt 70x70 im Overlay links vom Titel (dekorativ, ueber dem Bild).
+function infoHeaderImageMarkup(imageBasename, title, subtitle, coatMarkup, ownImages, subtitleSuffixMarkup) {
+	// Eigene Editor-Bilder (properties.images) ueberschreiben das generische Header-Bild; mehrere werden
+	// als Lightbox durchgeblaettert (< > + Dots, JS in map-features-infopanel.js). Ohne eigene Bilder das
+	// generische icons/header/<basename>.webp.
+	const own = Array.isArray(ownImages) ? ownImages.filter((u) => typeof u === "string" && u.trim() !== "") : [];
+	const multi = own.length > 1;
+	const firstSrc = own.length ? own[0] : withAssetVersion(`icons/header/${imageBasename}.webp`);
+	// Untertitel = Ortstyp, optional gefolgt von der politischen Kontext-Zeile (Gold-Link, bereits HTML ->
+	// NICHT escapen): "Metropole · Hauptstadt von X". Ohne Suffix nur der Ortstyp.
+	const subParts = [];
+	if (subtitle) subParts.push(escapeHtml(subtitle));
+	if (subtitleSuffixMarkup) subParts.push(subtitleSuffixMarkup);
+	const sub = subParts.length ? `<div class="info-header__subtitle">${subParts.join(" · ")}</div>` : "";
+	const coat = coatMarkup ? `<div class="info-header__coat">${coatMarkup}</div>` : "";
+	const nav = multi
+		? '<button type="button" class="info-header__nav info-header__nav--prev" data-lb-nav="prev" aria-label="Vorheriges Bild">‹</button>'
+			+ '<button type="button" class="info-header__nav info-header__nav--next" data-lb-nav="next" aria-label="Nächstes Bild">›</button>'
+		: "";
+	const dots = multi
+		? `<div class="info-header__dots">${own.map((_, i) => `<span class="info-header__dot${i === 0 ? " is-on" : ""}"></span>`).join("")}</div>`
+		: "";
+	const lbAttrs = own.length ? ` data-lb-images="${escapeHtml(own.join("|"))}" data-lb-index="0"` : "";
+	// Bild oben (Lightbox-Nav + Dots liegen darauf), Wappen + Titel DARUNTER (Owner: Blick aufs Bild frei
+	// halten -- kein verdeckendes Overlay mehr). Ein Trenner folgt via CSS zwischen Titel und Buttons.
+	return `<div class="info-header"${lbAttrs}>`
+		+ `<div class="info-header__media">`
+		+ `<img class="info-header__img" src="${escapeHtml(firstSrc)}" alt="" width="800" height="450" decoding="async">`
+		+ nav
+		+ dots
+		+ `</div>`
+		+ `<div class="info-header__caption">${coat}<div class="info-header__titles"><div class="info-header__title">${escapeHtml(title)}</div>${sub}</div></div>`
+		+ '</div>';
+}
+
 function getLocationDescriptionText(name, descriptionOverride = "") {
 	if (descriptionOverride) {
 		return descriptionOverride;
@@ -525,10 +620,28 @@ function settlementTerritoryDisplayName(name, shortName) {
 	return String(name || "").trim();
 }
 
+// Small coat-of-arms thumbnail rendered INSIDE a territory link, before the name (decorative: alt="", the
+// name follows). node.coat_url is already public-domain-gated server-side (map-features.php mirrors the
+// territory-detail.php license gate) -- an empty string means no coat / not allowed, so no thumb. Loaded
+// through the same cache proxy as the settlement coat icon + region infobox coats (/api/app/coat.php).
+function settlementTerritoryCoatThumbMarkup(coatUrl) {
+	const url = String(coatUrl || "").trim();
+	if (url === "") {
+		return "";
+	}
+	// Own uploads (/uploads/wappen/*.png) load DIRECTLY; only EXTERNAL wiki coats go through the cache proxy.
+	// coat.php rejects a relative /uploads URL with 400, and territory coats are almost all own uploads --
+	// so proxying them all would break every thumb. Mirrors settlementCoatIconMarkup's own-vs-proxy split.
+	const src = /^https?:\/\//i.test(url) ? `/api/app/coat.php?u=${encodeURIComponent(url)}` : url;
+	return `<img class="location-popup__breadcrumb-coat" src="${escapeHtml(src)}" alt="" aria-hidden="true" />`;
+}
+
 // One fly-to link to a political territory (reused by the political line AND each breadcrumb level): the
 // visible text is the display name, but data-political-territory carries the FULL name so the map-search
 // fly-to resolves it. Shares .location-popup__political-link -> gold styling + the delegated click handler.
-function settlementTerritoryLinkMarkup(node, extraClass) {
+// options.withCoat prepends the gated coat thumbnail (breadcrumb only -- the compact head political line
+// stays text-only).
+function settlementTerritoryLinkMarkup(node, extraClass, options) {
 	const nm = String((node && node.name) || "").trim();
 	if (nm === "") {
 		return "";
@@ -536,9 +649,12 @@ function settlementTerritoryLinkMarkup(node, extraClass) {
 	const pid = String((node && node.territory_public_id) || "").trim();
 	const display = settlementTerritoryDisplayName(nm, node && node.short_name);
 	const cls = "location-popup__political-link" + (extraClass ? " " + extraClass : "");
+	const coatThumb = (options && options.withCoat)
+		? settlementTerritoryCoatThumbMarkup(node && node.coat_url)
+		: "";
 	return `<button type="button" class="${cls}" `
 		+ `data-political-territory="${escapeHtml(nm)}" data-political-public-id="${escapeHtml(pid)}">`
-		+ `${escapeHtml(display)}</button>`;
+		+ `${coatThumb}${escapeHtml(display)}</button>`;
 }
 
 // Political context line under the settlement type: "Hauptstadt von <Gebiet>" (the place IS the capital of
@@ -566,7 +682,7 @@ function buildSettlementHierarchyMarkup(hierarchy) {
 		return "";
 	}
 	const links = hierarchy
-		.map(function (node) { return settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link"); })
+		.map(function (node) { return settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link", { withCoat: true }); })
 		.filter(Boolean);
 	if (links.length === 0) {
 		return "";
@@ -585,6 +701,8 @@ function locationPopupMarkup({
 	locationTypeLabel,
 	headerIconMarkup = "",
 	showHeaderIcon = true,
+	// Owner: 16:9 image header with the title overlaid. When set, it REPLACES the icon+title header.
+	headerImageMarkup = "",
 	compact = false,
 	showType = false,
 	typeSuffixMarkup = "",
@@ -600,13 +718,13 @@ function locationPopupMarkup({
 	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
 	return `
 		<div class="${popupClassName}">
-			<div class="location-popup__header">
+			${headerImageMarkup || `<div class="location-popup__header">
 				${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 				<div class="location-popup__title-group">
 					<div class="${nameClassName}">${escapeHtml(name)}</div>
 					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}${typeSuffixMarkup ? ` · ${typeSuffixMarkup}` : ""}</div>` : ""}
 				</div>
-			</div>
+			</div>`}
 			${showDivider ? `<div class="location-popup__divider"></div>` : ""}
 			${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
 			${actionsMarkup}

@@ -11,7 +11,7 @@
 	z-index: 1100;
 	display: flex;
 	flex-direction: column;
-	width: min(340px, calc(100vw - 64px));
+	width: min(400px, calc(100vw - 64px));
 	overflow: hidden;
 	border: 1px solid rgba(96, 72, 48, 0.22);
 	border-radius: 8px 0 0 8px;
@@ -61,7 +61,7 @@
 .review-panel-toggle {
 	position: fixed;
 	top: 30px;
-	right: min(340px, calc(100vw - 64px));
+	right: min(400px, calc(100vw - 64px));
 	z-index: 1020;
 	width: 30px;
 	height: 140px;

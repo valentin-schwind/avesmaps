@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Abenteuer anlegen und editieren</title>
+<!-- Self-contained editor page (Phase 3 / P2), loaded as an iframe overlay via
+     openAvesmapsAdventureEditorOverlay() with ?v=Date.now() (no ASSET_VERSION). Links the REAL design
+     tokens so the warm/aventurian language is authentic — no hardcoded hex/radius/spacing, no blue. Pure
+     client on the LIVE P1 endpoints (POST /api/edit/map/adventures.php). Layout C: Liste | Stammdaten | Orte. -->
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: var(--font-size-body)/var(--leading-normal) var(--font-ui);
+    color: var(--color-text);
+    background: var(--color-panel);
+    display: flex; flex-direction: column;
+  }
+
+  /* ---- shell ---------------------------------------------------------------------------------- */
+  .ae-header {
+    flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
+    padding: var(--space-10) var(--space-16);
+    background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border);
+  }
+  .ae-header h1 { margin: 0; font-size: var(--font-size-title); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); line-height: var(--leading-tight); }
+  .ae-header .ae-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
+
+  .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
+
+  /* ---- left column: adventure list ------------------------------------------------------------ */
+  .ae-list {
+    flex: 0 0 320px; min-width: 0; display: flex; flex-direction: column;
+    border-right: 1px solid var(--color-border); background: var(--color-panel-soft); padding: var(--space-10);
+  }
+  .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
+  .ae-search {
+    flex: 1 1 auto; min-width: 0; font: inherit; color: var(--color-text);
+    background: var(--color-panel); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); padding: var(--space-4) var(--space-8);
+  }
+  .ae-search::placeholder { color: var(--color-placeholder); }
+  .ae-search:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
+  .ae-list__count { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0 0 var(--space-6); }
+  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
+
+  .ae-item {
+    display: block; width: 100%; text-align: left; cursor: pointer; font: inherit;
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-8); margin-bottom: var(--space-2);
+  }
+  .ae-item:hover { background: var(--color-hover-wash); }
+  .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+  .ae-item__l1 { display: flex; align-items: baseline; gap: var(--space-6); }
+  .ae-item__title { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-item__l2 { display: flex; align-items: center; gap: var(--space-6); margin-top: var(--space-2);
+    font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-item.is-draft .ae-item__title { color: var(--color-text-muted); font-style: italic; }
+  .ae-empty { color: var(--color-text-muted); padding: var(--space-8); }
+
+  /* ---- detail column (layout C: head on top, Stammdaten | Orte side by side) ------------------- */
+  .ae-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .ae-detail__head {
+    flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
+    padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--color-border); min-height: 40px;
+  }
+  .ae-detail__head-main { flex: 1 1 auto; min-width: 0; }
+  .ae-detail__title { margin: 0; font-size: var(--font-size-subhead); color: var(--color-text-strong);
+    font-weight: var(--font-weight-bold); }
+  .ae-detail__meta { margin-top: var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+
+  .ae-panels { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: row; }
+  .ae-panel { flex: 1 1 50%; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-12) var(--space-16); }
+  .ae-panel--stamm { border-right: 1px solid var(--color-border); }
+  .ae-placeholder { color: var(--color-text-muted); padding: var(--space-16); }
+
+  /* ---- form field groups ---------------------------------------------------------------------- */
+  .ae-grp { margin: 0 0 var(--space-16); }
+  .ae-grp__title {
+    font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
+    font-weight: var(--font-weight-bold); color: var(--color-text-muted);
+    padding-bottom: var(--space-6); margin: 0 0 var(--space-10);
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .ae-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-10) var(--space-12); }
+  .ae-field { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+  .ae-field.is-wide { grid-column: 1 / -1; }
+  .ae-field > label { font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; align-items: center; gap: var(--space-6); }
+  .ae-input, .ae-select {
+    font: inherit; color: var(--color-text); background: var(--color-panel);
+    border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-8); width: 100%;
+  }
+  .ae-input:focus-visible, .ae-select:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
+  .ae-check { display: flex; align-items: center; gap: var(--space-6); font-size: var(--font-size-small); color: var(--color-text); }
+  .ae-check input { accent-color: var(--color-check-accent); width: 15px; height: 15px; }
+
+  /* ---- badges / pills ------------------------------------------------------------------------- */
+  .pill { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-caption);
+    line-height: 1.3; padding: 1px var(--space-6); border-radius: var(--radius-md); white-space: nowrap;
+    border: 1px solid var(--color-pill-border); background: var(--color-pill); color: var(--color-pill-text); }
+  .pill--kind { border-color: var(--color-border); background: var(--color-panel-muted); color: var(--color-text-muted); }
+  .pill--start { border-color: var(--color-accent-strong); background: var(--color-active-wash);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+  .pill--manual { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong);
+    font-weight: var(--font-weight-bold); }
+  .pill--wiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
+  .pill--unresolved { border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
+  .start-toggle.is-on { background: var(--color-active-wash); border-color: var(--color-accent-strong);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+  .ae-suppressed-wrap[hidden] { display: none; }
+  .badge-manual { font-size: var(--font-size-caption); color: var(--color-accent-strong);
+    border: 1px solid var(--color-accent); border-radius: var(--radius-sm); padding: 0 var(--space-4);
+    cursor: help; font-weight: var(--font-weight-bold); }
+
+  /* ---- buttons -------------------------------------------------------------------------------- */
+  .btn { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: var(--space-4) var(--space-12);
+    background: var(--color-button-soft); color: var(--color-button-soft-text); border: 1px solid var(--color-button-soft-border); }
+  .btn:hover { background: var(--color-button-soft-hover); }
+  .btn--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
+  .btn--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+  .btn--sm { padding: 2px var(--space-8); font-size: var(--font-size-caption); }
+  .btn--icon { padding: 2px var(--space-6); font-size: var(--font-size-small); }
+  .btn--danger { color: var(--color-danger); border-color: var(--color-border); background: transparent; }
+  .btn--danger:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
+
+  /* ---- Orte (places) -------------------------------------------------------------------------- */
+  .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
+  .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
+    font-weight: var(--font-weight-bold); color: var(--color-text-muted); }
+  .ae-orte__hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-orte__invariant { font-size: var(--font-size-caption); color: var(--color-accent-strong);
+    display: inline-flex; align-items: center; gap: var(--space-4); }
+  .ae-add { display: flex; gap: var(--space-6); align-items: center; margin-bottom: var(--space-10);
+    padding: var(--space-8); background: var(--color-panel-soft); border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); }
+  .ae-add .ae-input { flex: 1 1 auto; }
+  .ae-add .ae-select { flex: 0 0 160px; }
+  .ae-place {
+    display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: var(--space-8);
+    padding: var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+    background: var(--color-panel); margin-bottom: var(--space-6);
+  }
+  .ae-place.is-start { border-color: var(--color-accent-strong); background: var(--color-panel-soft); }
+  .ae-place.is-suppressed { opacity: .6; }
+  .ae-place__order { display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--color-text-muted); }
+  .ae-place__order .ord-num { font-size: var(--font-size-caption); }
+  .ae-place__reorder { display: flex; flex-direction: column; }
+  .ae-place__reorder button { border: 0; background: transparent; cursor: pointer; color: var(--color-text-muted);
+    line-height: 1; padding: 0; font-size: 10px; }
+  .ae-place__reorder button:hover { color: var(--color-text-strong); }
+  .ae-place__reorder button:disabled { opacity: .35; cursor: default; }
+  .ae-place__main { min-width: 0; }
+  .ae-place__name { font-weight: var(--font-weight-bold); color: var(--color-text-strong);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-place.is-suppressed .ae-place__name { text-decoration: line-through; }
+  .ae-place__resolved { font-size: var(--font-size-caption); color: var(--color-text-muted); margin-top: 2px;
+    display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
+  .ae-place__badges { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-top: 3px; }
+  .ae-place__ctl { display: flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; }
+
+  /* ---- save bar ------------------------------------------------------------------------------- */
+  .ae-savebar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
+    padding: var(--space-8) var(--space-16); border-top: 1px solid var(--color-border); background: var(--color-panel-soft); }
+  .ae-savebar[hidden] { display: none; } /* author display:flex would otherwise beat the hidden attribute */
+  .ae-savebar .ae-spacer { flex: 1 1 auto; }
+  .ae-savebar .saved { font-size: var(--font-size-caption); color: var(--color-success); }
+  .ae-savebar .error { font-size: var(--font-size-caption); color: var(--color-danger); }
+</style>
+</head>
+<body>
+  <div class="ae-header">
+    <h1>Abenteuereditor</h1>
+    <span class="ae-sub" id="aeHeaderSub"></span>
+  </div>
+
+  <div class="ae-body">
+    <aside class="ae-list">
+      <div class="ae-list__top">
+        <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
+        <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
+      </div>
+      <p class="ae-list__count" id="aeListCount">Lädt…</p>
+      <div class="ae-list__scroll" id="aeListScroll"></div>
+    </aside>
+
+    <section class="ae-detail">
+      <div class="ae-detail__head" id="aeDetailHead"></div>
+      <div class="ae-panels">
+        <div class="ae-panel ae-panel--stamm" id="aeStammBody">
+          <p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>
+        </div>
+        <div class="ae-panel ae-panel--orte" id="aeOrteBody">
+          <p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>
+        </div>
+      </div>
+      <div class="ae-savebar" id="aeSaveBar" hidden>
+        <span class="saved" id="aeSaveState"></span>
+        <span class="ae-spacer"></span>
+        <button class="btn" id="aeDiscard">Verwerfen</button>
+        <button class="btn btn--primary" id="aeSave">Stammdaten speichern</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+  const ADVENTURE_EDIT_API = "/api/edit/map/adventures.php";
+
+  // POST helper — mirrors settlementDetailPost: Gold-Contract envelope, surfaces error.message.
+  async function adventurePost(body) {
+    const response = await fetch(ADVENTURE_EDIT_API, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || payload.ok !== true) {
+      throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  // HTML escaper safe for BOTH text and (quoted) attribute context — the values flow into template
+  // strings like value="${aeEscape(v)}" / data-raw="${aeEscape(v)}", so " and ' MUST be encoded too
+  // (textContent->innerHTML would leave quotes raw -> attribute-breakout XSS on e.g. a title with a ").
+  function aeEscape(s) {
+    return (s == null ? "" : String(s))
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/`/g, "&#96;");
+  }
+
+  // ============ data layer (P2) ============
+  const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne"];
+  const EDITIONS = ["", "DSA1", "DSA2", "DSA3", "DSA4", "DSA5"];
+  const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg", unresolved: "—" };
+
+  const state = { adventures: [], selectedId: null, detail: null };
+
+  // ---- left list (list action) ----
+  async function loadList() {
+    try {
+      const { adventures } = await adventurePost({ action: "list" });
+      state.adventures = adventures || [];
+      renderList();
+    } catch (e) {
+      document.getElementById("aeListCount").textContent = "Fehler: " + e.message;
+    }
+  }
+  function renderList() {
+    const q = (document.getElementById("aeSearch").value || "").trim().toLowerCase();
+    const rows = state.adventures.filter((a) => !q || (a.title || "").toLowerCase().includes(q));
+    document.getElementById("aeListCount").textContent = `${rows.length} von ${state.adventures.length}`;
+    document.getElementById("aeListScroll").innerHTML = rows.length ? rows.map((a) => {
+      const draft = a.status !== "approved";
+      const manual = a.origin === "manual" ? ` · <span class="pill pill--manual">manuell</span>` : "";
+      return `<button class="ae-item${a.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${aeEscape(a.public_id)}">
+        <span class="ae-item__l1"><span class="ae-item__title">${aeEscape(a.title)}</span></span>
+        <span class="ae-item__l2"><span class="pill pill--kind">${aeEscape(a.product_type)}</span> ${aeEscape(a.bf_label || "—")} · ${a.place_count || 0} Orte${manual}</span></button>`;
+    }).join("") : `<p class="ae-empty">Keine Abenteuer.</p>`;
+  }
+
+  // ---- selection / new ----
+  async function selectAdventure(publicId) {
+    state.selectedId = publicId;
+    renderList();
+    try {
+      state.detail = await adventurePost({ action: "detail", public_id: publicId });
+    } catch (e) {
+      document.getElementById("aeStammBody").innerHTML = `<p class="ae-placeholder" style="color:var(--color-danger)">Fehler: ${aeEscape(e.message)}</p>`;
+      return;
+    }
+    renderDetail();
+    renderPlaces();
+  }
+  function newAdventure() {
+    state.selectedId = null;
+    state.detail = null;
+    renderList();
+    renderDetail();
+    renderPlaces();
+  }
+
+  // ---- detail / Stammdaten (detail + upsert_adventure) ----
+  function aeField(label, field, value, origins, opts) {
+    opts = opts || {};
+    const manual = origins && origins[field] === "manual"
+      ? ` <span class="badge-manual" title="Manuell gesetzt — ein Wiki-Sync fasst dieses Feld nicht mehr an.">manuell</span>` : "";
+    if (opts.checkbox) {
+      return `<div class="ae-field${opts.wide ? " is-wide" : ""}"><label class="ae-check"><input type="checkbox" data-field="${field}"${value ? " checked" : ""}> ${aeEscape(label)}${manual}</label></div>`;
+    }
+    let control;
+    if (opts.select) {
+      const cur = value == null ? "" : String(value);
+      control = `<select class="ae-select" data-field="${field}">${opts.select.map((o) =>
+        `<option${o === cur ? " selected" : ""}>${aeEscape(o)}</option>`).join("")}</select>`;
+    } else {
+      control = `<input class="ae-input" data-field="${field}"${opts.number ? ' type="number"' : ""} value="${aeEscape(value)}">`;
+    }
+    return `<div class="ae-field${opts.wide ? " is-wide" : ""}"><label>${aeEscape(label)}${manual}</label>${control}</div>`;
+  }
+  function renderDetail() {
+    const d = state.detail;
+    const head = document.getElementById("aeDetailHead");
+    const body = document.getElementById("aeStammBody");
+    document.getElementById("aeSaveBar").hidden = false;
+    const st = document.getElementById("aeSaveState");
+    st.textContent = ""; st.className = "saved";
+    if (!d) {
+      head.innerHTML = `<div class="ae-detail__head-main"><h2 class="ae-detail__title">Neues Abenteuer</h2>
+        <div class="ae-detail__meta">Noch nicht gespeichert</div></div>`;
+    } else {
+      const originLabel = d.origin === "manual" ? "Manuell" : "Wiki";
+      head.innerHTML = `<div class="ae-detail__head-main">
+        <h2 class="ae-detail__title">${aeEscape(d.title || "—")}</h2>
+        <div class="ae-detail__meta"><span class="pill pill--kind">${aeEscape(d.product_type)}</span>
+          <span>${aeEscape([d.edition, d.bf_label].filter(Boolean).join(" · "))}</span>
+          <span class="pill pill--wiki">Quelle: ${originLabel}</span>
+          ${d.wiki_key ? `<span>wiki_key: <code>${aeEscape(d.wiki_key)}</code></span>` : ""}</div></div>`;
+    }
+    const v = d || {};
+    const o = (d && d.field_origins) || {};
+    body.innerHTML = `
+      <div class="ae-grp"><p class="ae-grp__title">Identität</p><div class="ae-fields">
+        ${aeField("Titel *", "title", v.title || "", o, { wide: true })}
+        ${aeField("Produkttyp", "product_type", v.product_type || "gruppenabenteuer", o, { select: PRODUCT_TYPES })}
+        ${aeField("Regelsystem", "edition", v.edition || "", o, { select: EDITIONS })}
+        ${aeField("Offizielles Produkt", "is_official", v.is_official !== false, o, { checkbox: true })}
+        ${aeField("Serie / Reihe", "series", v.series || "", o)}
+      </div></div>
+      <div class="ae-grp"><p class="ae-grp__title">Datierung &amp; Einordnung</p><div class="ae-fields">
+        ${aeField("BF-Jahr", "bf_year", v.bf_year == null ? "" : v.bf_year, o, { number: true })}
+        ${aeField("BF-Label", "bf_label", v.bf_label || "", o)}
+        ${aeField("Genre", "genre", v.genre || "", o)}
+        ${aeField("Komplexität (SL)", "complexity_gm", v.complexity_gm || "", o)}
+        ${aeField("Komplexität (Spieler)", "complexity_pl", v.complexity_pl || "", o)}
+        ${aeField("Autoren", "authors", v.authors || "", o, { wide: true })}
+      </div></div>
+      <div class="ae-grp"><p class="ae-grp__title">Wiki &amp; F-Shop</p><div class="ae-fields">
+        ${aeField("Wiki-URL", "wiki_url", v.wiki_url || "", o, { wide: true })}
+        ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
+        ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
+      </div></div>`;
+  }
+  function gatherStamm() {
+    const out = {};
+    document.querySelectorAll("#aeStammBody [data-field]").forEach((el) => {
+      out[el.dataset.field] = el.type === "checkbox" ? el.checked : el.value;
+    });
+    if (state.selectedId) out.public_id = state.selectedId;
+    return out;
+  }
+  async function saveStammdaten() {
+    const adventure = gatherStamm();
+    const st = document.getElementById("aeSaveState");
+    if (!adventure.title || !String(adventure.title).trim()) { st.textContent = "Titel fehlt."; st.className = "error"; return; }
+    try {
+      const { public_id } = await adventurePost({ action: "upsert_adventure", adventure });
+      await loadList();
+      await selectAdventure(public_id);
+      const st2 = document.getElementById("aeSaveState");
+      st2.textContent = "✓ gespeichert"; st2.className = "saved";
+    } catch (e) {
+      st.textContent = "Fehler: " + e.message; st.className = "error";
+    }
+  }
+
+  // ---- Orte (places) ----
+  function placeRow(p, isFirst, isLast) {
+    const start = p.role === "start";
+    const kind = p.target_kind || "unresolved";
+    const resolved = kind === "unresolved"
+      ? `<span class="pill pill--unresolved">nicht aufgelöst</span> Rohname bleibt erhalten`
+      : `→ ${aeEscape(KIND_LABEL[kind] || kind)} <code>${aeEscape(p.target_wiki_key || p.target_public_id || "")}</code>`;
+    const origin = p.origin === "manual" ? `<span class="pill pill--manual">manuell</span>` : `<span class="pill pill--wiki">Wiki</span>`;
+    return `<div class="ae-place${start ? " is-start" : ""}" data-place-id="${p.id}">
+      <div class="ae-place__order"><span class="ord-num">${p.sort_order}</span>
+        <div class="ae-place__reorder">
+          <button data-act="up" title="hoch"${isFirst ? " disabled" : ""}>▲</button>
+          <button data-act="down" title="runter"${isLast ? " disabled" : ""}>▼</button></div></div>
+      <div class="ae-place__main">
+        <div class="ae-place__name">${aeEscape(p.raw_name)}</div>
+        <div class="ae-place__resolved">${resolved}</div>
+        <div class="ae-place__badges">${kind !== "unresolved" ? `<span class="pill pill--kind">${aeEscape(KIND_LABEL[kind] || kind)}</span> ` : ""}${origin}</div></div>
+      <div class="ae-place__ctl">
+        ${kind === "unresolved" ? `<button class="btn btn--sm" data-act="resolve" title="Erneut auflösen">↻ Auflösen</button>` : ""}
+        <button class="btn btn--sm start-toggle${start ? " is-on" : ""}" data-act="start" title="Startort umschalten (mehrere möglich)">${start ? "★ Startort" : "☆ Start"}</button>
+        <button class="btn btn--icon btn--danger" data-act="suppress" title="Entfernen">✕</button></div></div>`;
+  }
+  function renderPlaces() {
+    const body = document.getElementById("aeOrteBody");
+    if (!state.detail) { body.innerHTML = `<p class="ae-placeholder">Erst ein Abenteuer speichern, dann Orte zuordnen.</p>`; return; }
+    const all = state.detail.places || [];
+    const approved = all.filter((p) => p.status === "approved");
+    const suppressed = all.filter((p) => p.status === "suppressed");
+    body.innerHTML = `
+      <div class="ae-orte__head"><h3>Orte (${approved.length})</h3>
+        <span class="ae-orte__invariant" title="Startorte oben; nie automatisch umsortieren — nur manuell per ▲▼.">★ Startorte oben · manuell ordenbar (▲▼)</span>
+        <span style="flex:1"></span>
+        ${suppressed.length ? `<button class="btn btn--sm" data-act="toggle-sup">unterdrückte anzeigen (${suppressed.length})</button>` : ""}</div>
+      <div class="ae-add">
+        <input class="ae-input" id="aeAddName" placeholder="Ortsname (Wiki-Titel) hinzufügen …">
+        <select class="ae-select" id="aeAddKind" title="Zieltyp — »automatisch« lässt »Auflösen« den Typ bestimmen">
+          <option value="unresolved">Typ: automatisch</option>
+          <option value="settlement">Siedlung</option><option value="territory">Territorium</option>
+          <option value="region">Region</option><option value="path">Weg</option></select>
+        <button class="btn btn--primary" data-act="add">+ Ort</button></div>
+      <p class="ae-orte__hint" style="margin:0 0 var(--space-8)">★ = beginnt hier (Spoiler-frei) · übrige = spielt hier (Spoiler) · mehrere Startorte möglich · neuer Ort wird automatisch aufgelöst</p>
+      ${approved.length ? approved.map((p, i) => placeRow(p, i === 0, i === approved.length - 1)).join("")
+        : `<p class="ae-orte__hint">Noch keine Orte — oben hinzufügen.</p>`}
+      <div class="ae-suppressed-wrap" hidden>${suppressed.map((p) =>
+        `<div class="ae-place is-suppressed" data-place-id="${p.id}">
+          <div class="ae-place__order"><span class="ord-num">—</span></div>
+          <div class="ae-place__main"><div class="ae-place__name">${aeEscape(p.raw_name)}</div>
+            <div class="ae-place__resolved">Wiki-Ort entfernt · ein Re-Sync fügt ihn nicht wieder hinzu</div>
+            <div class="ae-place__badges"><span class="pill pill--kind">${aeEscape(KIND_LABEL[p.target_kind] || p.target_kind)}</span> <span class="pill">unterdrückt</span></div></div>
+          <div class="ae-place__ctl"><button class="btn btn--sm" data-act="restore" data-raw="${aeEscape(p.raw_name)}" data-kind="${aeEscape(p.target_kind || "")}">↺ Zurückholen</button></div></div>`).join("")}</div>`;
+  }
+
+  async function reloadDetail() {
+    state.detail = await adventurePost({ action: "detail", public_id: state.selectedId });
+    renderDetail();
+    renderPlaces();
+    await loadList();
+  }
+
+  // ---- event wiring ----
+  document.getElementById("aeSearch").addEventListener("input", renderList);
+  document.getElementById("aeNew").addEventListener("click", newAdventure);
+  document.getElementById("aeSave").addEventListener("click", saveStammdaten);
+  document.getElementById("aeDiscard").addEventListener("click", () => { if (state.selectedId) selectAdventure(state.selectedId); else newAdventure(); });
+  document.getElementById("aeListScroll").addEventListener("click", (e) => {
+    const b = e.target.closest(".ae-item"); if (!b) return;
+    selectAdventure(b.dataset.id);
+  });
+
+  document.getElementById("aeOrteBody").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-act]"); if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === "toggle-sup") {
+      const wrap = document.querySelector(".ae-suppressed-wrap");
+      const show = wrap.hasAttribute("hidden");
+      wrap.toggleAttribute("hidden", !show);
+      btn.textContent = show ? btn.textContent.replace("anzeigen", "ausblenden") : btn.textContent.replace("ausblenden", "anzeigen");
+      return;
+    }
+    if (!state.selectedId) { alert("Erst ein Abenteuer speichern/wählen."); return; }
+    const rowEl = btn.closest("[data-place-id]");
+    const placeId = rowEl ? Number(rowEl.dataset.placeId) : null;
+    try {
+      if (act === "add") {
+        const raw = document.getElementById("aeAddName").value.trim(); if (!raw) return;
+        const kind = document.getElementById("aeAddKind").value;
+        const place = { raw_name: raw };
+        if (kind && kind !== "unresolved") place.target_kind = kind;
+        const { place_id } = await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place });
+        try { await adventurePost({ action: "resolve_place", place_id }); } catch (_) { /* auto-resolve best-effort */ }
+      } else if (act === "resolve") {
+        await adventurePost({ action: "resolve_place", place_id: placeId });
+      } else if (act === "start") {
+        const on = btn.classList.contains("is-on");
+        await adventurePost({ action: "set_place", place_id: placeId, place: { role: on ? "play" : "start" } });
+      } else if (act === "suppress") {
+        await adventurePost({ action: "suppress_place", place_id: placeId });
+      } else if (act === "restore") {
+        const place = { raw_name: btn.dataset.raw };
+        if (btn.dataset.kind && btn.dataset.kind !== "unresolved" && btn.dataset.kind !== "") place.target_kind = btn.dataset.kind;
+        await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place });
+      } else if (act === "up" || act === "down") {
+        const approved = (state.detail.places || []).filter((p) => p.status === "approved");
+        const idx = approved.findIndex((p) => p.id === placeId);
+        const swapWith = act === "up" ? approved[idx - 1] : approved[idx + 1];
+        if (!swapWith) return;
+        const cur = approved[idx];
+        await adventurePost({ action: "set_place", place_id: cur.id, place: { sort_order: swapWith.sort_order } });
+        await adventurePost({ action: "set_place", place_id: swapWith.id, place: { sort_order: cur.sort_order } });
+      }
+      await reloadDetail();
+    } catch (err) { alert("Fehler: " + err.message); }
+  });
+
+  loadList();
+</script>
+</body>
+</html>

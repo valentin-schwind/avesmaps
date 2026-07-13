@@ -490,7 +490,8 @@
 			showDescription: false,
 			showWikiLink: false,
 			showType: true,
-			actionsMarkup: wikiLink + shareMarkup,
+			// "Link teilen" (Owner) direkt unter dem Kopf, die Wiki-Quellenzeile darunter.
+			actionsMarkup: shareMarkup + wikiLink,
 		});
 	}
 
