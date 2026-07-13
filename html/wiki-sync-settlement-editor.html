@@ -134,6 +134,7 @@
   .se-row:hover { background:var(--color-hover-wash); }
   .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
   .se-row-coat { flex:0 0 auto; width:22px; height:22px; border-radius:3px; object-fit:contain; background:var(--panel); border:1px solid var(--line2); }
+  .se-row-coat--empty { background:transparent; border-style:dashed; border-color:var(--line); opacity:.5; }
   .se-row-text { flex:1 1 auto; min-width:0; }
   .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
   .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -948,7 +949,7 @@ function renderSettlementRowElement(item) {
 	row.dataset.rowKey = rowKey;
 	row.dataset.publicId = item.public_id;
 
-	// Wappen-Thumbnail vorne (nur wenn ein Wappen vorhanden ist).
+	// Wappen-Thumbnail vorne; ohne Wappen ein leeres Feld, damit die Namen bündig abschließen.
 	if (item.coat_url) {
 		const coat = document.createElement("img");
 		coat.className = "se-row-coat";
@@ -958,6 +959,12 @@ function renderSettlementRowElement(item) {
 		coat.draggable = false;
 		coat.title = "Wappen vorhanden";
 		row.appendChild(coat);
+	} else {
+		const emptyCoat = document.createElement("span");
+		emptyCoat.className = "se-row-coat se-row-coat--empty";
+		emptyCoat.setAttribute("aria-hidden", "true");
+		emptyCoat.title = "Kein Wappen";
+		row.appendChild(emptyCoat);
 	}
 
 	const textCol = document.createElement("div");
