@@ -121,6 +121,12 @@ const AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT = 'parse_and_upsert';
 // into production feature_sources. Ordered right AFTER redirect_aliases (which it needs, to
 // resolve publication link titles via wiki_redirect_alias). See publication-sync.php.
 const AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES = 'publication_sources';
+// Abenteuer (Phase 4): build the adventure catalog + ordered "Ort" place staging from the dump's
+// {{Infobox Produkt}} adventure pages (STAGING ONLY, same infobox scan as publication_sources).
+// The sharp reconcile into the live adventure/adventure_place tables is a SEPARATE owner-triggered
+// action (sync_adventures), NOT part of this phase -- so "Dump holen" only ever stages adventures.
+// See adventure-sync.php.
+const AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES = 'adventures';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
 /**
@@ -177,6 +183,10 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
         // sharp production reconcile into feature_sources is gated behind dryRun=false in the
         // dispatch, mirroring parse_and_upsert. Resumable via its own stage marker + cursor.
         AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES,
+        // Abenteuer staging runs right after publication_sources (same {{Infobox Produkt}} scan,
+        // different payload). STAGING-ONLY, so it is dryRun-agnostic and never a sharp write; the
+        // production reconcile is the owner's sync_adventures action.
+        AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES,
         AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT,
     ];
@@ -202,6 +212,8 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
         // sub-state (publication_stage, pub_recon_segment, pub_recon_last_id) + counters ride in
         // stats_json via the step's 'stats_patch' (merged by avesmapsWikiDumpHybridAdvanceReadStep).
         AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES => 'publication_cursor',
+        // The dump page cursor for the adventure catalog/place staging build.
+        AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES => 'adventure_cursor',
     ];
 }
 
@@ -912,6 +924,19 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
                 'links_updated' => (int) ($r['links_updated'] ?? 0),
                 'no_link' => (int) ($r['no_link'] ?? 0),
                 'processed_this_step' => (int) ($r['processed_this_step'] ?? 0),
+            ];
+
+        case AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES:
+            // Build the adventure catalog + ordered place staging from the dump (STAGING ONLY, both
+            // read_step and apply -- there is no sharp adventure write here; the owner's
+            // sync_adventures action reconciles staging into the live tables). Same dump-page cursor
+            // contract as the publication catalog build.
+            $r = avesmapsAdventureBuildCatalogStep($pdo, $dumpPath, $cursor);
+            return [
+                'done' => (bool) ($r['done'] ?? false),
+                'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),
+                'pages_scanned' => (int) ($r['pages_scanned'] ?? 0),
+                'found_this_step' => (int) ($r['found_this_step'] ?? 0),
             ];
 
         default:

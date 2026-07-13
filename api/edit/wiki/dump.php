@@ -128,6 +128,13 @@ require __DIR__ . '/../../_internal/wiki/dump-sync-kind.php';
 require_once __DIR__ . '/../../_internal/app/feature-sources.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-parsing.php';
 require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
+// Abenteuer (Phase 4): the adventures build phase (dump-hybrid-driver.php) + the owner-triggered
+// sync_adventures reconcile action below need the adventure staging/reconcile lib plus the live
+// adventure tables + name resolver. adventure-resolve.php require_once-pulls adventures.php + the
+// political lib (already loaded above); all three are function-definitions-only on include.
+require_once __DIR__ . '/../../_internal/app/adventures.php';
+require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
+require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
@@ -580,6 +587,55 @@ try {
                     'processed' => (int) ($pubStep['processed'] ?? 0),
                     'segment' => (int) ($pubStep['nextSegment'] ?? $pubSegment),
                     'total' => count(avesmapsPublicationReconcileSegmentOrder()),
+                ],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'sync_adventures':
+            // OWNER-triggered PRODUCTION reconcile of the wiki adventure catalog (built by "Dump holen")
+            // into the live adventure / adventure_place tables. MIRRORS sync_publications: same 'edit'
+            // gate, same single-flight pipeline lock, same one-bounded-step-per-request client loop. It
+            // does NOT reopen the dump -- avesmapsAdventureReconcileStep reads the STAGING tables
+            // (wiki_adventure_catalog / wiki_adventure_place_staging, populated during "Dump holen") and
+            // applies the OVERRIDE-SAFE diff (writes/deletes ONLY origin='wiki' rows; manual/community +
+            // suppressed tombstones untouched) + fetches any new cover into /uploads/questcovers. A REAL
+            // production write, so a second concurrent editor is rejected (409). Resumable via a wiki_key
+            // high-water cursor; one bounded step per call (STRATO: no server-side loop).
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_adventures');
+            $lockHeldByThisRequest = true;
+
+            if (function_exists('avesmapsAdventuresEnsureTables')) {
+                avesmapsAdventuresEnsureTables($pdo);
+            }
+            avesmapsEnsureAdventureStagingTables($pdo);
+
+            $advCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
+            $advStep = avesmapsAdventureReconcileStep($pdo, $advCursor, $lockUserId);
+            $advDone = ($advStep['done'] ?? false) === true;
+
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_adventures');
+            if ($advDone) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
+
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'stage' => 'reconcile',
+                // Echo the advanced wiki_key high-water so the client loop resumes from exactly here.
+                'cursor' => (string) ($advStep['nextCursor'] ?? $advCursor),
+                'done' => $advDone,
+                // Per-STEP deltas (each step starts at 0; the frontend sums them for the run total).
+                'adv_created' => (int) ($advStep['adv_created'] ?? 0),
+                'adv_updated' => (int) ($advStep['adv_updated'] ?? 0),
+                'places_added' => (int) ($advStep['places_added'] ?? 0),
+                'places_removed' => (int) ($advStep['places_removed'] ?? 0),
+                'places_updated' => (int) ($advStep['places_updated'] ?? 0),
+                'covers_fetched' => (int) ($advStep['covers_fetched'] ?? 0),
+                'processed' => (int) ($advStep['processed'] ?? 0),
+                'progress' => [
+                    'processed' => (int) ($advStep['processed'] ?? 0),
+                    'total' => avesmapsAdventureCountCatalog($pdo),
                 ],
             ]);
             // no break -- avesmapsJsonResponse exits.

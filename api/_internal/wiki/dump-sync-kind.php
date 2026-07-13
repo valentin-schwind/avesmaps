@@ -171,6 +171,14 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     $result['region'] = $staleColumnQuery($pdo, AVESMAPS_WIKI_REGION_STAGING_TABLE);
     $result['territory'] = $staleColumnQuery($pdo, AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE);
 
+    // Abenteuer are NOT a task-facing sync_kind (no entity sandbox), but the panel's "Zuletzt gesynct"
+    // label reuses this same map. Fill it from the adventure reconcile timestamp
+    // (avesmapsAdventureLastSynced, loaded by the dump endpoint). Guarded so a context without the
+    // adventure lib still returns the four real kinds unchanged.
+    if (function_exists('avesmapsAdventureLastSynced')) {
+        $result['adventure'] = avesmapsAdventureLastSynced($pdo);
+    }
+
     return $result;
 }
 
