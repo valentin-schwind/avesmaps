@@ -418,6 +418,13 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	-webkit-hyphens: auto;
 	hyphens: auto;
 }
+/* Breadcrumb realm names balance across their (usually two) wrapped lines instead of orphaning a lone
+   word on the last line ("… Greifenthron zu" / "Gareth"). Pure layout — no hyphenation dictionary needed,
+   so it actually renders (unlike hyphens above, which Chrome only triggers when a word overflows).
+   Measured at the real ~315px line width: none [286,42] (orphan) -> balance [158,171] (even). */
+.location-popup__breadcrumb-link {
+	text-wrap: balance;
+}
 
 .location-popup__actions {
 	display: flex;
