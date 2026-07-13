@@ -93,6 +93,31 @@
 	color: var(--color-text-muted);
 }
 
+/* Community-Meldungen: Zaehlung ("X offene Meldungen.") + manueller Refresh-Button in einer Zeile. */
+.review-panel__status-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.review-panel__refresh-btn {
+	flex: none;
+	margin-right: 14px;
+	padding: 1px 9px;
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--color-link);
+	font-size: 15px;
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+.review-panel__refresh-btn:hover {
+	border-color: var(--color-link);
+}
+
 .review-panel__status[data-state="error"] {
 	color: var(--color-danger);
 }

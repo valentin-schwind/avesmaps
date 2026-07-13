@@ -238,6 +238,7 @@ window.addEventListener("beforeunload", () => {
     }
 });
 $("#review-panel-refresh").on("click", () => refreshActiveEditorPanel());
+$("#review-report-refresh").on("click", () => loadReviewReports());
 $(".review-panel__tab").on("click", function () {
     setEditorPanelTab(this.dataset.editorPanelTab || "review");
 });
