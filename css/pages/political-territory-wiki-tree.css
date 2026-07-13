@@ -2,7 +2,7 @@
 	max-height: 30vh;
 	overflow: auto;
 	padding: 8px;
-	background: #fff;
+	background: var(--panel);
 }
 
 .tree-root,
@@ -15,7 +15,7 @@
 .tree-root ul {
 	margin-left: 12px;
 	padding-left: 12px;
-	border-left: 1px solid #e0cdb9;
+	border-left: 1px solid var(--border);
 }
 
 .tree-node {
@@ -41,7 +41,7 @@ details > summary::-webkit-details-marker {
 	width: 16px;
 	height: 16px;
 	flex: 0 0 16px;
-	color: #6c5a49;
+	color: var(--muted);
 }
 
 .tree-toggle::before {
@@ -68,7 +68,7 @@ details[open] > summary .tree-toggle::before {
 	padding: 7px 8px;
 	border-radius: 6px;
 	background: transparent;
-	color: var(--text-strong, #3f3428);
+	color: var(--text-strong);
 	font-weight: 700;
 	cursor: grab;
 	user-select: none;
@@ -76,7 +76,7 @@ details[open] > summary .tree-toggle::before {
 
 .tree-item:hover,
 .tree-item.selected {
-	background: var(--panel-hover, #f5eadc);
+	background: var(--panel-hover);
 }
 
 .tree-item:active {
@@ -106,7 +106,7 @@ details[open] > summary .tree-toggle::before {
 .tree-item-meta {
 	flex: 0 0 auto;
 	font-size: 0.85em;
-	color: var(--muted, #8a8173);
+	color: var(--muted);
 	white-space: nowrap;
 }
 
@@ -144,23 +144,23 @@ details[open] > summary .tree-toggle::before {
 	height: 13px;
 	margin-left: 7px;
 	vertical-align: -2px;
-	border: 2px solid #6a7f3a;
+	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
-	background: #fffaf4;
+	background: var(--panel);
 	box-sizing: border-box;
-	color: #6a7f3a;
+	color: var(--color-map-presence);
 }
 
 #wiki-sync-territory-tree .tree-item:has(.tree-map-status--children-only) .tree-item-name::after {
-	background: linear-gradient(to right, #6a7f3a 0 50%, #fffaf4 50% 100%);
+	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--panel) 50% 100%);
 }
 
 #wiki-sync-territory-tree .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
-	background: linear-gradient(to right, #fffaf4 0 50%, #6a7f3a 50% 100%);
+	background: linear-gradient(to right, var(--panel) 0 50%, var(--color-map-presence) 50% 100%);
 }
 
 #wiki-sync-territory-tree .tree-item:has(.tree-map-status--all) .tree-item-name::after {
-	background: #6a7f3a;
+	background: var(--color-map-presence);
 }
 
 #wiki-sync-territory-tree .tree-item-meta {
@@ -182,11 +182,11 @@ details[open] > summary .tree-toggle::before {
 	width: 13px;
 	height: 13px;
 	flex: 0 0 13px;
-	border: 2px solid #6a7f3a;
+	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
-	background: #fffaf4;
+	background: var(--panel);
 	box-sizing: border-box;
-	color: #6a7f3a;
+	color: var(--color-map-presence);
 	overflow: hidden;
 }
 
@@ -223,7 +223,7 @@ details[open] > summary .tree-toggle::before {
 .tree-separator {
 	margin: 9px 0 6px 0;
 	padding: 0 8px;
-	color: var(--muted-2, #806c59);
+	color: var(--muted-2);
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0.04em;
@@ -236,7 +236,7 @@ details[open] > summary .tree-toggle::before {
 .tree-separator::before,
 .tree-separator::after {
 	content: "---";
-	color: #c6aa8c;
+	color: var(--muted-2);
 }
 
 .tree-separator::before {
@@ -250,6 +250,6 @@ details[open] > summary .tree-toggle::before {
 .drag-handle {
 	flex: 0 0 auto;
 	font-size: 12px;
-	color: #7a6652;
+	color: var(--muted-2);
 	letter-spacing: -1px;
 }

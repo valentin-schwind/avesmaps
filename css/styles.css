@@ -14,11 +14,11 @@
 @import url("components/edit-overlays.css");
 @import url("components/feedback-toast.css");
 @import url("components/location-report-dialog.css?v=20260712-reviewdlg3");
-@import url("components/political-territory-editor-overlay.css");
+@import url("components/political-territory-editor-overlay.css?v=20260713-theme21");
 @import url("components/region-wiki-dialogs.css");
-@import url("components/political-territory-tree.css");
-@import url("components/political-territory-controls.css");
-@import url("components/political-territory-wiki.css");
+@import url("components/political-territory-tree.css?v=20260713-theme21");
+@import url("components/political-territory-controls.css?v=20260713-theme21");
+@import url("components/political-territory-wiki.css?v=20260713-theme21");
 
 @import url("features/map-decorations.css");
 @import url("features/map-scale-band.css");

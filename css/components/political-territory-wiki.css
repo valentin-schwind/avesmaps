@@ -10,17 +10,17 @@
 	height: 44px;
 	object-fit: contain;
 	padding: 3px;
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: var(--radius-sm);
-	background: #fff;
+	background: var(--color-panel);
 }
 
 .political-territory-wiki-reference {
 	padding: 8px 10px;
-	border: 1px solid #dccab8;
+	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	background: #fffaf5;
-	color: #4f4134;
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
 }
 
 .political-territory-wiki-reference__header {
@@ -45,7 +45,7 @@
 }
 
 .political-territory-wiki-reference dt {
-	color: #6a5543;
+	color: var(--color-text-muted);
 	font-weight: bold;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .political-territory-wiki-reference a {
-	color: #235f82;
+	color: var(--color-link);
 }
 
 .political-territory-wiki-picker-list {
@@ -64,9 +64,9 @@
 	max-height: 420px;
 	overflow: auto;
 	padding: 6px;
-	border: 1px solid #cdb79f;
+	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-md);
-	background: #fff;
+	background: var(--color-panel);
 }
 
 .political-territory-wiki-picker-list__item {
@@ -84,7 +84,7 @@
 
 .political-territory-wiki-picker-list__item:hover,
 .political-territory-wiki-picker-list__item:focus-visible {
-	background: #f5eadc;
+	background: var(--color-panel-muted);
 }
 
 .political-territory-wiki-picker-list__name {
@@ -94,7 +94,7 @@
 
 .political-territory-wiki-picker-list__meta,
 .political-territory-wiki-picker-list__empty {
-	color: #7a6756;
+	color: var(--color-text-muted);
 	font-size: 12px;
 	overflow-wrap: anywhere;
 }

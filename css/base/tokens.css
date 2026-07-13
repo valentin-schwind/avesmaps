@@ -95,6 +95,10 @@
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
 
+	/* Territory-editor sticky header — translucent panel + backdrop-filter blur
+	   so scrolled content shows through faintly. */
+	--color-panel-translucent: rgba(255, 253, 249, 0.96);
+
 	/* Travel-speed tiers — the functional ampel in the speed-matrix dialog. A data
 	   highlight (not chrome), deliberately identical in both themes. */
 	--color-tier-fast-bg: #e2edcf;
@@ -103,6 +107,17 @@
 	--color-tier-mid-text: #6b3d07;
 	--color-tier-slow-bg: #f6dede;
 	--color-tier-slow-text: #791f1f;
+
+	/* Territory-editor "on map" presence indicator (tree/legend swatch ring). A
+	   data highlight (not chrome), deliberately identical in both themes. */
+	--color-map-presence: #6a7f3a;
+
+	/* Territory-assignment picker (parent-tree/tabs/breadcrumb "active" rows) —
+	   translucent white overlays that sit ONLY on the --color-button solid fill,
+	   never on a page surface. --color-button stays mid-dark in both themes, so
+	   these are deliberately identical in both (no dark override needed). */
+	--color-on-button-muted: rgba(255, 255, 255, 0.8);    /* secondary/meta text on the fill */
+	--color-on-button-hairline: rgba(255, 255, 255, 0.25); /* faint divider/chip-bg on the fill */
 
 	/* Interaction & focus (see "Button states" in the doc) */
 	--color-focus: rgba(191, 160, 58, 0.45);      /* gold focus glow */
@@ -209,6 +224,8 @@
 	--color-danger-soft-border: #6b463f;
 	--color-danger-soft-text: #e29c8f;
 	--color-marker-destination: #e6675b;
+
+	--color-panel-translucent: rgba(49, 46, 38, 0.96);
 
 	/* Review stars, dark: the gold stays warm; the empty track darkens so it doesn't glare on the
 	   deep panel (a light beige track would read almost as bright as a filled star). */
