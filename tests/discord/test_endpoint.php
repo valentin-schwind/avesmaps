@@ -91,4 +91,33 @@ $malformedBody = '{not valid json';
 $malformed = avesmapsDiscordProcessRequest($malformedBody, $sigM, $tsM, $config, $faq, $deps);
 t_eq($malformed['status'], 400, 'malformed json -> 400');
 
+// /offen: list_open_cases pulls from the open_cases dep and returns a grouped ephemeral overview.
+$openBody = json_encode(['type' => 2, 'data' => ['name' => 'offen'], 'user' => ['username' => 'chef']], JSON_UNESCAPED_UNICODE);
+$depsList = [
+    'post' => static fn(string $c, array $m): array => ['ok' => true, 'message_id' => 'm1'],
+    'insert' => static fn(array $case): int => 1,
+    'close' => static fn(int $id, string $by): bool => true,
+    'open_cases' => static fn(): array => [
+        ['id' => 10, 'kind' => 'bug', 'title' => 'Überlapp'],
+        ['id' => 3, 'kind' => 'idea', 'title' => 'Politik'],
+    ],
+];
+[$tsO, $sigO] = $sign($openBody);
+$openResult = avesmapsDiscordProcessRequest($openBody, $sigO, $tsO, $config, $faq, $depsList);
+t_eq($openResult['status'], 200, '/offen -> 200');
+t_eq($openResult['body']['data']['flags'], AVESMAPS_DISCORD_EPHEMERAL_FLAG, '/offen -> ephemeral');
+t_ok(str_contains($openResult['body']['data']['embeds'][0]['fields'][0]['value'], '#10'), '/offen -> lists case #10');
+
+// open_cases throws -> soft ephemeral error, never a 500 into Discord.
+$depsListThrows = [
+    'post' => static fn(string $c, array $m): array => ['ok' => true, 'message_id' => 'm1'],
+    'insert' => static fn(array $case): int => 1,
+    'close' => static fn(int $id, string $by): bool => true,
+    'open_cases' => static function (): array { throw new RuntimeException('db down'); },
+];
+[$tsOt, $sigOt] = $sign($openBody);
+$openThrows = avesmapsDiscordProcessRequest($openBody, $sigOt, $tsOt, $config, $faq, $depsListThrows);
+t_eq($openThrows['status'], 200, '/offen db down -> 200');
+t_ok(isset($openThrows['body']['data']['content']), '/offen db down -> soft error content');
+
 t_done();

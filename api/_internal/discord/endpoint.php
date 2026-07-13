@@ -67,5 +67,15 @@ function avesmapsDiscordProcessRequest(
         return ['status' => 200, 'body' => avesmapsDiscordCloseConfirmResponse($caseId, $found)];
     }
 
+    if ($type === 'list_open_cases') {
+        try {
+            $cases = (array) $deps['open_cases']();
+        } catch (Throwable) {
+            return ['status' => 200, 'body' => avesmapsDiscordErrorResponse('Konnte die offenen Fälle gerade nicht laden.')];
+        }
+
+        return ['status' => 200, 'body' => avesmapsDiscordOpenCasesResponse($cases)];
+    }
+
     return ['status' => 200, 'body' => $result['response'] ?? avesmapsDiscordErrorResponse('Nicht unterstützt.')];
 }

@@ -173,6 +173,58 @@ function avesmapsDiscordCloseConfirmResponse(int $caseId, bool $found): array {
     ]);
 }
 
+// /offen: ephemeral overview of all open cases, grouped by kind (bug/idea/question) in a fixed
+// display order. Each row is "#<id> · <title>"; one embed field per non-empty group. An unknown
+// kind (legacy rows) is bucketed under "Sonstiges" so nothing is silently dropped. Field values are
+// capped at Discord's 1024-char limit -- a long group is truncated (the full list lives in the daily
+// triage report / cases-export). Empty input -> a short "nichts offen" content message.
+function avesmapsDiscordOpenCasesResponse(array $cases): array {
+    if ($cases === []) {
+        return avesmapsDiscordEphemeralMessage(['content' => 'Aktuell sind keine Fälle offen. 🎉']);
+    }
+
+    $groups = [
+        'bug' => ['emoji' => '🐞', 'label' => 'Bugs', 'lines' => []],
+        'idea' => ['emoji' => '💡', 'label' => 'Ideen', 'lines' => []],
+        'question' => ['emoji' => '❓', 'label' => 'Fragen', 'lines' => []],
+        'other' => ['emoji' => '📌', 'label' => 'Sonstiges', 'lines' => []],
+    ];
+
+    $total = 0;
+    foreach ($cases as $case) {
+        if (!is_array($case)) {
+            continue;
+        }
+        $kind = (string) ($case['kind'] ?? '');
+        $bucket = ($kind === 'bug' || $kind === 'idea' || $kind === 'question') ? $kind : 'other';
+        $id = (int) ($case['id'] ?? 0);
+        $title = trim((string) ($case['title'] ?? ''));
+        $groups[$bucket]['lines'][] = '#' . $id . ' · ' . avesmapsDiscordTruncate($title !== '' ? $title : '(ohne Titel)', 72);
+        $total++;
+    }
+
+    $fields = [];
+    foreach ($groups as $group) {
+        if ($group['lines'] === []) {
+            continue;
+        }
+        $fields[] = [
+            'name' => $group['emoji'] . ' ' . $group['label'] . ' (' . count($group['lines']) . ')',
+            'value' => avesmapsDiscordTruncate(implode("\n", $group['lines']), 1024),
+            'inline' => false,
+        ];
+    }
+
+    return avesmapsDiscordEphemeralMessage([
+        'embeds' => [[
+            'title' => '📋 Offene Fälle (' . $total . ')',
+            'description' => 'Schließen mit `/erledigt nummer:<Nr.>`.',
+            'color' => AVESMAPS_DISCORD_COLOR,
+            'fields' => $fields,
+        ]],
+    ]);
+}
+
 function avesmapsDiscordErrorResponse(string $message): array {
     return avesmapsDiscordEphemeralMessage(['content' => $message]);
 }

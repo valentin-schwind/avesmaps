@@ -8,6 +8,7 @@ function avesmapsDiscordCommandDefinitions(): array {
         ['name' => 'bug', 'description' => 'Einen Fehler auf avesmaps.de melden', 'type' => 1],
         ['name' => 'idee', 'description' => 'Eine Verbesserung für avesmaps.de vorschlagen', 'type' => 1],
         ['name' => 'frage', 'description' => 'Eine Frage zu Avesmaps stellen', 'type' => 1],
+        ['name' => 'offen', 'description' => 'Alle offenen Fälle (Bugs, Ideen, Fragen) anzeigen', 'type' => 1],
         [
             'name' => 'erledigt',
             'description' => 'Einen Fall als erledigt markieren',

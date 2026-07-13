@@ -52,6 +52,10 @@ t_eq($close['type'], 'close_case', '/erledigt -> close_case');
 t_eq($close['case_id'], 42, 'close case id');
 t_eq($close['closed_by'], 'chef', 'closed_by captured');
 
+// /offen -> list_open_cases action (router stays side-effect-free; the DB fetch is the endpoint's job)
+$open = avesmapsDiscordRouteInteraction(['type' => 2, 'data' => ['name' => 'offen']], $faq, $config);
+t_eq($open['type'], 'list_open_cases', '/offen -> list_open_cases');
+
 // idea kind: command, button, and modal submit -> idea channel (was untested)
 t_eq(avesmapsDiscordRouteInteraction(['type' => 2, 'data' => ['name' => 'idee']], $faq, $config)['response']['data']['custom_id'], AVESMAPS_DISCORD_IDEA_MODAL_ID, '/idee -> idea modal');
 t_eq(avesmapsDiscordRouteInteraction(['type' => 3, 'data' => ['custom_id' => AVESMAPS_DISCORD_IDEA_BUTTON_ID]], $faq, $config)['response']['data']['custom_id'], AVESMAPS_DISCORD_IDEA_MODAL_ID, 'idea button -> idea modal');

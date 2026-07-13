@@ -100,6 +100,11 @@ function avesmapsDiscordRouteInteraction(array $interaction, array $faq, array $
                 'closed_by' => avesmapsDiscordExtractReporter($interaction),
             ];
         }
+        if ($name === 'offen') {
+            // Read-only overview; the DB fetch happens in the endpoint (via the open_cases dep),
+            // mirroring how close_case keeps the router side-effect-free.
+            return ['type' => 'list_open_cases'];
+        }
 
         return avesmapsDiscordRespond(avesmapsDiscordErrorResponse('Unbekannter Befehl.'));
     }

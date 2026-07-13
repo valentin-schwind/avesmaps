@@ -53,6 +53,9 @@ $deps = [
     'close' => static function (int $id, string $by) use ($pdoProvider): bool {
         return avesmapsDiscordCloseCase($pdoProvider(), $id, $by, date('Y-m-d H:i:s'));
     },
+    'open_cases' => static function () use ($pdoProvider): array {
+        return avesmapsDiscordOpenCases($pdoProvider());
+    },
 ];
 
 $result = avesmapsDiscordProcessRequest($rawBody, $signature, $timestamp, $discord, $faq, $deps);
