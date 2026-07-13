@@ -178,8 +178,10 @@ $("#toggle-button").off("click").on("click", () => {
     const leftPos = isSearchPanelHidden ? "0px" : `-${panelWidth}px`;
     const btnPos = isSearchPanelHidden ? `${panelWidth}px` : "0px";
 
-    $("#search").stop(true).animate({ left: leftPos }, 500);
-    $("#toggle-button").stop(true).animate({ left: btnPos }, 500);
+    // 220ms = dieselbe Dauer wie die CSS-transform-Slides von Info-Panel + Editor (infopanel.css /
+    // review-panel.css) -- damit fahren alle Panels einheitlich schnell aus/ein.
+    $("#search").stop(true).animate({ left: leftPos }, 220);
+    $("#toggle-button").stop(true).animate({ left: btnPos }, 220);
     isSearchPanelHidden = !isSearchPanelHidden;
 });
 
