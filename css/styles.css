@@ -4,7 +4,7 @@
 @import url("base/base.css?v=20260711-theme18");
 @import url("base/utilities.css");
 
-@import url("layout/map-layout.css?v=20260712-zoomhover1");
+@import url("layout/map-layout.css?v=20260713-panelwidth1");
 
 @import url("components/dialog-overlays.css?v=20260607-reviews");
 @import url("components/legal-dialog.css?v=20260711-theme19");
@@ -35,8 +35,8 @@
 @import url("features/transport-speed-info.css?v=20260711-theme16");
 @import url("features/path-editor.css");
 @import url("features/powerlines.css");
-@import url("features/review-panel.css?v=20260712-routecolor1");
-@import url("features/infopanel.css?v=20260713-headercaption1");
+@import url("features/review-panel.css?v=20260713-panelwidth1");
+@import url("features/infopanel.css?v=20260713-panelwidth1");
 
 /* Einheitlicher Link-Stil — als LETZTES, damit es aeltere per-Klasse-Linkfarben ueberschreibt. */
 @import url("features/links.css?v=20260712-links4");

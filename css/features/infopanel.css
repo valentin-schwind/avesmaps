@@ -10,7 +10,7 @@
 /* Panel-Breite als Variable (Mode-Klasse liegt auf <html>): Panel, Rand-Tab UND die nach
    links neben die Panel-Kante gesetzten Karten-Kontrollen (Zoom + "Hinweise") teilen sie sich. */
 .avesmaps-infopanel-mode {
-	--avesmaps-ip-w: min(340px, calc(100vw - 64px));
+	--avesmaps-ip-w: min(400px, calc(100vw - 64px));
 }
 
 .avesmaps-infopanel {
