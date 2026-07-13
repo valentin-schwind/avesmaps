@@ -64,7 +64,10 @@ try {
     if ($mapReport['report_type'] === 'location' && $mapReport['report_mode'] !== 'change' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
         avesmapsErrorResponse(409, 'conflict', 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.');
     }
-    if (avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
+    // Change reports come from the in-app editor flow on a KNOWN element (entity_public_id) and go to
+    // editor review -> exempt them from the new-location rate limit (an active contributor legitimately
+    // files several in a row; honeypot + spam-word checks still apply).
+    if ($mapReport['report_mode'] !== 'change' && avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
         avesmapsJsonResponse(200, [
             'ok' => true,
             'message' => 'Karteneintrag wurde gemeldet.',
@@ -195,7 +198,9 @@ function avesmapsValidateMapReport(array $payload): array {
     }
 
     $elapsedMilliseconds = filter_var($payload['elapsed_ms'] ?? null, FILTER_VALIDATE_INT);
-    if ($elapsedMilliseconds !== false && $elapsedMilliseconds > 0 && $elapsedMilliseconds < 3000) {
+    // The <3s "too fast = bot" heuristic does not apply to change reports: the in-app position-pick flow can
+    // legitimately submit within seconds (no typing needed for a pure position change).
+    if ($elapsedMilliseconds !== false && $elapsedMilliseconds > 0 && $elapsedMilliseconds < 3000 && ($payload['report_mode'] ?? 'new') !== 'change') {
         return [
             'is_spam' => true,
         ];
