@@ -100,6 +100,10 @@
 	content: "\27F3";
 }
 
+.map-context-menu__item[data-region-context-action="assign-settlements-here"]::before {
+	content: "\2302";
+}
+
 .map-context-menu__item[data-region-context-action="show-info"]::before {
 	content: "\2139";
 }
