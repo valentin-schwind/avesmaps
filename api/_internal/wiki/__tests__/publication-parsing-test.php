@@ -50,6 +50,47 @@ assert($infoNewline !== null && $infoNewline['title']==='Zeilenumbruch');
 assert(avesmapsWikiParseProductInfobox("{{Infobox Ort\n|Name=X\n}}") === null); // genuinely different infobox -> still null
 echo "infobox ok\n";
 
+// --- Adventure fields in {{Infobox Produkt}} (Phase 4 sync) -----------------------------------
+// Real "Siegelbruch" infobox (fetched once via the wiki's action=raw API, the allowed
+// template/definition read -- NOT an HTML crawl). The adventure field NAMES are the ones the live
+// {{Infobox Produkt}} template actually uses (Ort/Art/Genre/KompM/KompSp/Regeln/Bild), NOT the
+// guessed "Komplexität Spielleiter"/"Regelsystem" the plan sketched. Order of the Ort list is
+// STRICT (first = start place). There is NO BF year in the infobox -> not synced.
+$advWt = <<<'WT'
+{{Infobox Produkt
+|Titel=Siegelbruch
+|Bild={{ProdCover|AB VA62.jpg}}
+|Art=Gruppenabenteuer
+|Regeln=DSA5
+|Autoren=[[Christian Nehling]], [[Christoph Trauth]]
+|Cover=
+|Ort=[[Mittelreich]], [[Königreich Garetien]], [[Gareth]], [[Wagenhalt]]
+|Genre=Forschungs- und [[Mysterienabenteuer]]
+|KompM=mittel
+|KompSp=mittel
+|Teil von=[[Dämonenmacht & Sternenkraft]]
+}}
+WT;
+$adv = avesmapsWikiParseProductInfobox($advWt);
+assert($adv !== null && is_array($adv['adventure'] ?? null));
+$a = $adv['adventure'];
+assert($a['product_type'] === 'gruppenabenteuer');
+assert($a['places'] === ['Mittelreich', 'Königreich Garetien', 'Gareth', 'Wagenhalt']); // STRICT order
+assert($a['genre'] === 'Forschungs- und Mysterienabenteuer');   // wikilinks stripped to plain text
+assert($a['complexity_gm'] === 'mittel' && $a['complexity_pl'] === 'mittel'); // KompM / KompSp
+assert($a['edition'] === 'DSA5');                                // Regeln -> edition
+assert($a['cover_file'] === 'AB VA62.jpg');                      // Bild={{ProdCover|...}}
+assert($a['authors'] === 'Christian Nehling, Christoph Trauth');
+assert($a['series'] === 'Dämonenmacht & Sternenkraft');          // Teil von
+// The classifier is only true for adventures/campaigns: a Spielhilfe product carries no payload.
+$nonAdv = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Efferds Wogen\n|Art=Spielhilfe\n}}");
+assert($nonAdv !== null && ($nonAdv['adventure'] ?? null) === null);
+// A campaign IS an adventure for this feature (Art=Kampagne), even though its source_type is not 'abenteuer'.
+$camp = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Das Jahr des Greifen\n|Art=Kampagne\n|Ort=[[Festum]], [[Riva]]\n}}");
+assert($camp !== null && is_array($camp['adventure'] ?? null) && $camp['adventure']['product_type'] === 'kampagne');
+assert($camp['adventure']['places'] === ['Festum', 'Riva']);
+echo "adventure ok\n";
+
 $u = avesmapsWikiBuildPublicationUrl('12017', '109956'); assert($u['has_link'] === true); // F-Shop wins over PDF-Shop
 $u = avesmapsWikiBuildPublicationUrl('12017', null); assert($u['chosen_url'] === 'https://www.f-shop.de/search?sSearch=12017' && $u['has_link'] === true); // F-Shop-only: pattern proven from Vorlage:F-Shop raw wikitext (PID branch), see comment in publication-parsing.php
 $u = avesmapsWikiBuildPublicationUrl(null, '109956'); assert($u['chosen_url'] === 'https://www.ulisses-ebooks.de/de/product/109956/');

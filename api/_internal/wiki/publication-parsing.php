@@ -165,6 +165,86 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
     return 'sonstiges';
 }
 
+// ===========================================================================
+// Adventure fields (Phase 4). A DSA adventure IS an {{Infobox Produkt}} page whose `Art` is an
+// adventure/campaign type. The field NAMES below are the ones the LIVE template actually uses
+// (verified against Vorlage:Infobox Produkt + a real adventure via action=raw, the allowed
+// template/definition read): Ort / Genre / KompM / KompSp / Regeln / Bild -- NOT the guessed
+// "Komplexität Spielleiter"/"Regelsystem". Pure, DB-free (mirrors the publication parsers).
+// ===========================================================================
+
+// True iff a product's `Art` marks it as an adventure or campaign (the two product families that
+// carry an ordered "Ort" place list). Matches any *abenteuer (Gruppen-/Solo-/Kauf-/Kurz-…) plus
+// the bare "Kampagne" (a campaign's source_type is not 'abenteuer', but it IS an adventure here).
+function avesmapsWikiProductIsAdventure(string $art): bool {
+    $key = avesmapsWikiSyncMonitorFieldKey($art);
+    if ($key === '') {
+        return false;
+    }
+    return str_contains($key, 'abenteuer') || $key === 'kampagne';
+}
+
+// Normalize an `Art` value to the adventure.product_type slug (lowercase, umlaut-folded, non-alnum
+// stripped -- the SAME folding the seed data uses: "Gruppenabenteuer" -> "gruppenabenteuer").
+function avesmapsWikiNormalizeAdventureProductType(string $art): string {
+    return avesmapsWikiSyncMonitorFieldKey($art);
+}
+
+// Strip wiki inline markup to plain text: [[Target|Label]] -> Label, [[Target]] -> Target, and
+// drop bold/italic apostrophes. Used for Genre/Autoren/series, which mix plain text and wikilinks.
+function avesmapsWikiStripWikiInlineMarkup(string $text): string {
+    $text = str_replace(["'''", "''"], '', $text);
+    $text = preg_replace('/\[\[(?:[^\]|]*\|)?([^\]|]+)\]\]/u', '$1', $text) ?? $text;
+    return trim((string) preg_replace('/\s+/u', ' ', $text));
+}
+
+// Parse the ordered "Ort" place list: the wikilink TARGETS in source order (STRICT -- the first is
+// the start place, role='start'; NEVER reorder). "[[Mittelreich]], [[Königreich Garetien]], …" ->
+// ['Mittelreich','Königreich Garetien',…]. A bare (non-linked) comma list is a fallback.
+function avesmapsWikiParseAdventurePlaceList(string $ort): array {
+    $out = [];
+    if (preg_match_all('/\[\[\s*([^\]|#]+?)\s*(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/u', $ort, $matches) > 0) {
+        foreach ($matches[1] as $target) {
+            $target = trim((string) $target);
+            if ($target !== '') {
+                $out[] = $target;
+            }
+        }
+        return $out;
+    }
+    // No wikilinks -> treat a plain comma/newline list as raw names (best-effort).
+    foreach (preg_split('/\s*[,;\n]\s*/u', trim($ort)) ?: [] as $name) {
+        $name = trim((string) $name);
+        if ($name !== '') {
+            $out[] = $name;
+        }
+    }
+    return $out;
+}
+
+// Extract the cover image FILE NAME from the `Bild`/`Cover` params. The live template wraps it as
+// {{ProdCover|AB VA62.jpg}} (Bild); `Cover` is usually empty. Also tolerates [[Datei:…]] and a bare
+// filename. Returns '' when no cover is set (space vs underscore is left as-is; the wiki treats them
+// as equal, and avesmapsWikiSyncMonitorCoatOfArmsUrl normalizes them when building the image URL).
+function avesmapsWikiParseProductCoverFile(string $bild, string $cover): string {
+    foreach ([$bild, $cover] as $raw) {
+        $raw = trim($raw);
+        if ($raw === '') {
+            continue;
+        }
+        if (preg_match('/\{\{\s*ProdCover\s*\|\s*(?:[^=|}]+=\s*)?([^|}]+?)\s*\}\}/iu', $raw, $m) === 1) {
+            return trim((string) $m[1]);
+        }
+        if (preg_match('/\[\[\s*(?:Datei|Bild|File|Image)\s*:\s*([^\]|]+)/iu', $raw, $m) === 1) {
+            return trim((string) $m[1]);
+        }
+        if (preg_match('/([^\s|{}\[\]]+\.(?:jpe?g|png|gif|webp))/iu', $raw, $m) === 1) {
+            return trim((string) $m[1]);
+        }
+    }
+    return '';
+}
+
 // Parses a publication wiki page's {{Infobox Produkt}} block. Reuses
 // avesmapsWikiSyncMonitorExtractInfoboxBlock() (which is NOT name-filtered -- it returns
 // whatever {{Infobox ...}} block it finds first) and GUARDS on the block actually being an
@@ -199,6 +279,28 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         $pdfShopId = trim((string) $idMatch[1]);
     }
 
+    // Adventure sub-payload: present ONLY for adventure/campaign products (null otherwise, so the
+    // publication catalog path is byte-for-byte unaffected). The Phase-4 adventure sync reads it;
+    // publications ignore it. bf_year/bf_label are deliberately absent -- the infobox has no BF year.
+    $adventure = null;
+    if (avesmapsWikiProductIsAdventure($art)) {
+        $adventure = [
+            'product_type' => avesmapsWikiNormalizeAdventureProductType($art),
+            'places' => avesmapsWikiParseAdventurePlaceList((string) ($params['Ort'] ?? '')),
+            'genre' => avesmapsWikiStripWikiInlineMarkup((string) ($params['Genre'] ?? '')),
+            'complexity_gm' => trim((string) ($params['KompM'] ?? '')),
+            'complexity_pl' => trim((string) ($params['KompSp'] ?? '')),
+            'edition' => trim((string) ($params['Regeln'] ?? '')),
+            'authors' => avesmapsWikiStripWikiInlineMarkup((string) ($params['Autoren'] ?? '')),
+            'series' => avesmapsWikiStripWikiInlineMarkup(
+                trim((string) ($params['Teil von'] ?? '')) !== ''
+                    ? (string) $params['Teil von']
+                    : (string) ($params['Reihe'] ?? $params['Reihentitel'] ?? '')
+            ),
+            'cover_file' => avesmapsWikiParseProductCoverFile((string) ($params['Bild'] ?? ''), (string) ($params['Cover'] ?? '')),
+        ];
+    }
+
     return [
         'title' => $title,
         'art' => $art,
@@ -206,6 +308,7 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         'isbn' => $isbn,
         'f_shop_pid' => $fShopPid,
         'pdf_shop_id' => $pdfShopId,
+        'adventure' => $adventure,
     ];
 }
 
