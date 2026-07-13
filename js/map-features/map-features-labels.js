@@ -420,7 +420,12 @@ function refreshLabelMarkerPopup(entry) {
 		return;
 	}
 
-	const options = labelHasWikiRegion(entry.label) ? { className: "settlement-popup", minWidth: 320, maxWidth: 400 } : undefined;
+	// "floating-location-popup" is what gates the Kachel/tile action-button CSS (location-popups-markers.css)
+	// -- without it the edit-mode "Label verschieben/Bearbeiten/duplizieren/loeschen" buttons fall back to the
+	// plain old inline style. Needed on BOTH branches: labelActionsMarkup renders regardless of hasWiki.
+	const options = labelHasWikiRegion(entry.label)
+		? { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 }
+		: { className: "floating-location-popup" };
 	entry.marker.bindPopup(labelPopupMarkup(entry), options);
 }
 
