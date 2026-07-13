@@ -137,9 +137,17 @@ try {
     $pdo->prepare('UPDATE adventure SET cover_source = NULL WHERE public_id = :pid')->execute(['pid' => $publicId]);
 
     // Clean up a previous OWN upload (best effort; never touch a wiki-fetched /uploads/questcovers/<slug>).
+    // cover_url is an EDITOR-writable field (a free text input in the editor), so it is NOT trusted as a
+    // filesystem path: reduce it to a basename inside the fixed own-dir and realpath-confine before unlink,
+    // so a crafted "/uploads/questcovers/own/../../.." can never escape the directory (path traversal).
     $previousUrl = (string) ($prevRow['cover_url'] ?? '');
-    if ($previousUrl !== $url && str_starts_with($previousUrl, '/uploads/questcovers/own/')) {
-        @unlink($docroot . $previousUrl);
+    if ($previousUrl !== $url && str_starts_with($previousUrl, '/uploads/questcovers/own/') && !str_contains($previousUrl, '..')) {
+        $prevName = basename((string) parse_url($previousUrl, PHP_URL_PATH));
+        $realDir = realpath($dir);
+        $realCandidate = $prevName !== '' ? realpath($dir . '/' . $prevName) : false;
+        if ($realCandidate !== false && $realDir !== false && str_starts_with($realCandidate, $realDir . DIRECTORY_SEPARATOR)) {
+            @unlink($realCandidate);
+        }
     }
 
     avesmapsWikiSyncNextMapRevision($pdo); // covers travel in the map-features payload -> invalidate
