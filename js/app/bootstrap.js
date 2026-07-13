@@ -272,6 +272,8 @@ $("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
 $("#wiki-sync-sync-settlement").on("click", () => startWikiSyncKindSync("settlement"));
 $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
 $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
+// Abenteuer (Phase 4): its OWN reconcile action (sync_adventures), not a sync_kind -- so its own handler.
+$("#wiki-sync-sync-adventure").on("click", () => startWikiSyncAdventuresSync());
 $("#wiki-sync-dump-credentials-form").on("submit", (event) => {
     event.preventDefault();
     void submitWikiSyncDumpCredentials();

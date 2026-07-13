@@ -195,7 +195,7 @@ window.refreshActiveWikiSyncPanelAfterAssignment = refreshActiveWikiSyncPanelAft
 })();
 
 function setWikiSyncPanelTab(tabName) {
-	activeWikiSyncPanelTab = ["territories", "regions", "paths"].includes(tabName) ? tabName : "locations";
+	activeWikiSyncPanelTab = ["territories", "regions", "paths", "adventures"].includes(tabName) ? tabName : "locations";
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
@@ -551,7 +551,7 @@ async function refreshWikiSyncKindSyncedStatus() {
 		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
 		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
 		// verdrahten (der Territorien-Sync laeuft im Iframe-Editor, nicht ueber startWikiSyncKindSync).
-		[["settlement-editor-synced", synced && synced.settlement], ["wiki-sync-territory-synced", synced && synced.territory]].forEach(([id, raw]) => {
+		[["settlement-editor-synced", synced && synced.settlement], ["wiki-sync-territory-synced", synced && synced.territory], ["wiki-sync-sync-adventure-synced", synced && synced.adventure], ["adventure-editor-synced", synced && synced.adventure]].forEach(([id, raw]) => {
 			const el = document.getElementById(id);
 			if (!el || !raw) {
 				return;
@@ -1052,6 +1052,131 @@ async function runWikiSyncPublicationsSyncLoop() {
 		lastResult.totals = totals;
 	}
 	return lastResult;
+}
+
+// ===========================================================================
+// Abenteuer syncen (Phase 4): the SHARP reconcile of the wiki adventure catalog
+// (built during "Dump holen") into the live adventure/adventure_place tables.
+// UNLIKE publications (folded into "Dump holen"), this is its OWN "Abenteuer"-tab
+// button so the owner can re-run just the adventure reconcile. Drives the backend
+// `sync_adventures` action via the same one-POST-per-step client loop; the override
+// guarantee (never touch a manual/community/suppressed row) lives entirely in the
+// backend diff, and any new cover is fetched into /uploads/questcovers server-side.
+// Backend: api/edit/wiki/dump.php (sync_adventures).
+// ===========================================================================
+
+let isWikiSyncAdventuresRunning = false;
+
+// Render the adventure-reconcile progress bar + status line from a step response.
+// `totals` carries the run-summed counters the loop accumulates (each step's counters
+// start at 0). progress.total is the staging catalog size (the "N Abenteuer geprüft" cap).
+function renderWikiSyncAdventuresProgress(step, done, totals) {
+	const progressElement = document.getElementById("wiki-sync-sync-adventure-progress");
+	const statusElement = document.getElementById("wiki-sync-sync-adventure-status");
+	const processed = Number(totals?.processed ?? 0);
+	const total = Number(step?.progress?.total ?? 0);
+
+	if (progressElement) {
+		progressElement.hidden = done;
+		progressElement.max = Number.isFinite(total) && total > 0 ? total : 1;
+		progressElement.value = done ? progressElement.max : Math.min(Math.max(processed, 0), progressElement.max);
+	}
+	if (statusElement) {
+		statusElement.hidden = false;
+		if (done) {
+			statusElement.textContent = `Fertig: +${totals.created} neu / ~${totals.updated} aktualisiert · Orte +${totals.placesAdded}/-${totals.placesRemoved} · ${totals.coversFetched} Cover geladen (${totals.processed} Abenteuer geprüft).`;
+		} else {
+			statusElement.textContent = `Übernahme läuft … ${processed}${total > 0 ? "/" + total : ""} Abenteuer geprüft`;
+		}
+	}
+}
+
+// Drive `sync_adventures` to completion: loop the action once per step, advancing the
+// server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step deltas
+// until done. Mirrors runWikiSyncPublicationsSyncLoop (bounded step ceiling; stops cleanly
+// on the 409 pipeline lock). Reads staging + live DB only (no dump reopen).
+async function runWikiSyncAdventuresSyncLoop() {
+	let cursor = "";
+	let done = false;
+	let safetyCounter = 0;
+	let lastResult = null;
+	const totals = { created: 0, updated: 0, placesAdded: 0, placesRemoved: 0, placesUpdated: 0, coversFetched: 0, processed: 0 };
+	const MAX_STEPS = 4000;
+
+	while (!done) {
+		if (safetyCounter > MAX_STEPS) {
+			throw new Error("Abenteuer-Übernahme wurde nach zu vielen Teilschritten angehalten.");
+		}
+		safetyCounter += 1;
+
+		let stepResult;
+		try {
+			stepResult = await submitWikiSyncDumpAction("sync_adventures", { cursor });
+		} catch (error) {
+			if (error && error.dumpLocked) {
+				// Another editor holds the dump pipeline: stop immediately (do NOT retry).
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				throw error;
+			}
+			throw error;
+		}
+
+		lastResult = stepResult;
+		cursor = String(stepResult.cursor ?? cursor);
+		totals.created += Number(stepResult.adv_created ?? 0);
+		totals.updated += Number(stepResult.adv_updated ?? 0);
+		totals.placesAdded += Number(stepResult.places_added ?? 0);
+		totals.placesRemoved += Number(stepResult.places_removed ?? 0);
+		totals.placesUpdated += Number(stepResult.places_updated ?? 0);
+		totals.coversFetched += Number(stepResult.covers_fetched ?? 0);
+		totals.processed += Number(stepResult.processed ?? 0);
+		done = stepResult.done === true;
+		renderWikiSyncAdventuresProgress(stepResult, done, totals);
+	}
+
+	if (lastResult && typeof lastResult === "object") {
+		lastResult.totals = totals;
+	}
+	return lastResult;
+}
+
+// The "Abenteuer"-tab "Syncen" button handler: guard against a double-run, disable the
+// button, drive the loop, then refresh the persistent "Zuletzt gesynct" label.
+async function startWikiSyncAdventuresSync() {
+	if (isWikiSyncAdventuresRunning) {
+		return;
+	}
+	isWikiSyncAdventuresRunning = true;
+	const button = document.getElementById("wiki-sync-sync-adventure");
+	if (button) {
+		button.disabled = true;
+	}
+	setWikiSyncStatus("Abenteuer werden übernommen …", "pending");
+
+	try {
+		const result = await runWikiSyncAdventuresSyncLoop();
+		const totals = (result && result.totals) || { created: 0, updated: 0, coversFetched: 0 };
+		const note = ` (+${totals.created} neu / ~${totals.updated} aktualisiert / ${totals.coversFetched} Cover)`;
+		setWikiSyncStatus(`Abenteuer übernommen.${note}`, "success");
+		showFeedbackToast(`Abenteuer übernommen.${note}`, "success");
+		if (typeof refreshWikiSyncKindSyncedStatus === "function") {
+			try {
+				await refreshWikiSyncKindSyncedStatus();
+			} catch (refreshError) {
+				/* best-effort: the persistent label refresh is non-critical */
+			}
+		}
+	} catch (error) {
+		if (!(error && error.dumpLocked)) {
+			setWikiSyncStatus(error.message || "Abenteuer-Übernahme fehlgeschlagen.", "error");
+			showFeedbackToast(error.message || "Abenteuer-Übernahme fehlgeschlagen.", "warning");
+		}
+	} finally {
+		isWikiSyncAdventuresRunning = false;
+		if (button) {
+			button.disabled = false;
+		}
+	}
 }
 
 // --- Inline credential prompt (O1) -------------------------------------------
