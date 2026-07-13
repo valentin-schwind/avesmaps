@@ -3,8 +3,10 @@
    toggles the data-theme attribute on <html> and remembers the choice; the
    sun/moon rise-from-below animation is pure CSS keyed off data-theme.
 
-   Dark is opt-in (never prefers-color-scheme) — the map tiles are light, so
-   auto-dark panels would clash over them (see docs/design-language.md).
+   The default follows the browser/OS colour scheme (prefers-color-scheme); an
+   explicit toggle choice is saved in localStorage and overrides it across sessions
+   (Owner). NOTE: the map tiles are light, so dark panels sit over a light map — a
+   known trade-off accepted when opting into browser-default dark (docs/design-language.md).
 
    NOTE: only token-based components follow the theme today (the anchor panels
    plus the few already-migrated surfaces); components that still hardcode
@@ -65,5 +67,29 @@
 		document.addEventListener("DOMContentLoaded", init);
 	} else {
 		init();
+	}
+
+	// Follow the browser/OS colour scheme LIVE, but only while the user has NOT made an explicit choice
+	// (Owner: default = browser mode; a saved choice persists across sessions and wins). A stored value
+	// short-circuits this, so toggling once pins the theme until the user toggles again.
+	if (window.matchMedia) {
+		var mq = window.matchMedia("(prefers-color-scheme: dark)");
+		var onSchemeChange = function () {
+			var saved = null;
+			try {
+				saved = localStorage.getItem(STORAGE_KEY);
+			} catch (e) {
+				saved = null;
+			}
+			if (saved === "dark" || saved === "light") {
+				return; // explicit choice -> ignore the browser scheme
+			}
+			applyTheme(mq.matches ? "dark" : "light");
+		};
+		if (mq.addEventListener) {
+			mq.addEventListener("change", onSchemeChange);
+		} else if (mq.addListener) {
+			mq.addListener(onSchemeChange);
+		}
 	}
 })();

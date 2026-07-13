@@ -11,9 +11,12 @@
 		<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 		<meta name="theme-color" content="#565044" />
 		<script>
-			/* Apply the saved theme before the stylesheet loads (no flash of the wrong theme). */
+			/* Apply the theme before the stylesheet loads (no flash of the wrong theme): the user's saved
+			   choice wins across sessions; without a saved choice, follow the browser/OS colour scheme
+			   (prefers-color-scheme). */
 			try {
-				if (localStorage.getItem("avesmaps-theme") === "dark") {
+				var savedTheme = localStorage.getItem("avesmaps-theme");
+				if (savedTheme === "dark" || (savedTheme !== "light" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
 					document.documentElement.setAttribute("data-theme", "dark");
 				}
 			} catch (e) {}
@@ -1405,7 +1408,7 @@
 		<script src="js/app/i18n.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
 		<script src="js/app/utils.js"></script>
-		<script src="js/app/theme-toggle.js?v=20260711-theme3"></script>
+		<script src="js/app/theme-toggle.js?v=20260713-browsertheme1"></script>
 		<script src="js/app/lang-toggle.js"></script>
 		<script src="js/app/share-link.js"></script>
 		<script src="js/app/wiki-deeplink.js"></script>
