@@ -81,6 +81,23 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
     if (!$columnExists($pdo, 'target_territory_path')) {
         $pdo->exec('ALTER TABLE adventure_place ADD COLUMN target_territory_path JSON NULL');
     }
+
+    // Shop/reference links: the Ulisses e-book + F-Shop URLs come from the wiki infobox templates
+    // ({{PDF-Shop|ID=}} / {{F-Shop|ID=|PID=}}) -- auto-filled by the sync, override-safe via field_origins_json;
+    // ISBN backs the derived DNB search link. DNB + the wiki page link are computed at render time (from
+    // isbn/title resp. wiki_url) and need no column. Click priority: Ulisses -> F-Shop -> DNB -> Wiki.
+    $adventureColumnExists = static function (PDO $pdo, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'adventure' AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)'] as $column => $type) {
+        if (!$adventureColumnExists($pdo, $column)) {
+            $pdo->exec('ALTER TABLE adventure ADD COLUMN ' . $column . ' ' . $type . ' NULL');
+        }
+    }
 }
 
 function avesmapsAdventuresCount(PDO $pdo): int
@@ -146,7 +163,8 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
     avesmapsAdventuresEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, wiki_url, product_type, edition, bf_year, bf_label,
-                genre, complexity_gm, complexity_pl, is_official, fshop_code, cover_url, series
+                genre, complexity_gm, complexity_pl, is_official, fshop_code, cover_url, series,
+                link_ulisses, link_fshop, isbn
            FROM adventure
           WHERE status = 'approved'
           ORDER BY (bf_year IS NULL), bf_year DESC, title ASC"
@@ -202,6 +220,9 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
             'fshop_code' => (string) ($row['fshop_code'] ?? ''),
             'cover_url' => (string) ($row['cover_url'] ?? ''),
             'series' => (string) ($row['series'] ?? ''),
+            'link_ulisses' => (string) ($row['link_ulisses'] ?? ''),
+            'link_fshop' => (string) ($row['link_fshop'] ?? ''),
+            'isbn' => (string) ($row['isbn'] ?? ''),
             'places' => $placesByAdventure[(int) $row['id']] ?? [],
         ];
     }
@@ -533,6 +554,7 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
     $stmt = $pdo->prepare(
         "SELECT id, public_id, wiki_key, wiki_url, title, product_type, edition, bf_year, bf_label, genre,
                 complexity_gm, complexity_pl, is_official, authors, series, fshop_code, cover_url,
+                link_ulisses, link_fshop, isbn,
                 field_origins_json, status, origin, created_at, updated_at, synced_at
            FROM adventure WHERE public_id = :pid LIMIT 1"
     );
@@ -589,6 +611,9 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
         'series' => (string) ($row['series'] ?? ''),
         'fshop_code' => (string) ($row['fshop_code'] ?? ''),
         'cover_url' => (string) ($row['cover_url'] ?? ''),
+        'link_ulisses' => (string) ($row['link_ulisses'] ?? ''),
+        'link_fshop' => (string) ($row['link_fshop'] ?? ''),
+        'isbn' => (string) ($row['isbn'] ?? ''),
         'field_origins' => (object) $fieldOrigins,
         'status' => (string) $row['status'],
         'origin' => (string) $row['origin'],
@@ -617,6 +642,7 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
         'title', 'product_type', 'edition', 'bf_year', 'bf_label', 'genre',
         'complexity_gm', 'complexity_pl', 'is_official', 'authors', 'series',
         'fshop_code', 'cover_url', 'wiki_url', 'wiki_key',
+        'link_ulisses', 'link_fshop', 'isbn',
     ];
     $normalize = static function (string $field, mixed $raw): int|string|null {
         if ($field === 'bf_year') {
@@ -662,10 +688,12 @@ function avesmapsUpsertAdventure(PDO $pdo, array $data): array
             "INSERT INTO adventure
                 (public_id, title, product_type, edition, bf_year, bf_label, genre, complexity_gm,
                  complexity_pl, is_official, authors, series, fshop_code, cover_url, wiki_url, wiki_key,
+                 link_ulisses, link_fshop, isbn,
                  field_origins_json, origin, status)
              VALUES
                 (:public_id, :title, :product_type, :edition, :bf_year, :bf_label, :genre, :complexity_gm,
                  :complexity_pl, :is_official, :authors, :series, :fshop_code, :cover_url, :wiki_url, :wiki_key,
+                 :link_ulisses, :link_fshop, :isbn,
                  :field_origins_json, 'manual', 'approved')"
         )->execute($insertParams);
         return ['public_id' => $publicId, 'created' => true];

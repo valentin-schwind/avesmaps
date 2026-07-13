@@ -95,20 +95,37 @@ function buildPlaceCityMapsMarkup(location) {
 // ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt/spielt-Streifen UND Dialog ----
 // isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
 // per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
-// The Ulisses F-Shop URL for an adventure (the licensing basis for showing the cover): the F-Shop
-// search by its F-Shop code/PID when present, else by title. '' when neither is known.
-function advFShopUrl(a) {
-	var term = (a && a.fshop && String(a.fshop).trim()) || (a && a.title && String(a.title).trim()) || "";
-	return term ? ("https://www.f-shop.de/search?sSearch=" + encodeURIComponent(term)) : "";
+// The shop/reference links for an adventure, in click PRIORITY order (Owner): Ulisses e-book -> F-Shop ->
+// Deutsche Nationalbibliothek -> the wiki page. Ulisses + F-Shop are wiki-sourced (link_ulisses/link_fshop,
+// may be empty); the DNB search link is derived from the ISBN (else the title) and is always available; the
+// wiki page is always available. Returns [{ key, label, url }] with only non-empty links, highest first.
+function advShopLinks(a) {
+	var links = [];
+	var ulisses = (a && a.linkUlisses && String(a.linkUlisses).trim()) || "";
+	var fshop = (a && a.linkFshop && String(a.linkFshop).trim()) || "";
+	var isbn = (a && a.isbn && String(a.isbn).trim()) || "";
+	var title = (a && a.title && String(a.title).trim()) || "";
+	var wikiUrl = (a && a.url && String(a.url).trim()) || (title ? ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(title)) : "");
+	if (ulisses) { links.push({ key: "ulisses", label: "Ulisses eBook", url: ulisses }); }
+	if (fshop) { links.push({ key: "fshop", label: "F-Shop", url: fshop }); }
+	var dnbQuery = isbn || title;
+	if (dnbQuery) { links.push({ key: "dnb", label: "Dt. Nationalbibliothek", url: "https://portal.dnb.de/opac/simpleSearch?query=" + encodeURIComponent(dnbQuery) }); }
+	if (wikiUrl) { links.push({ key: "wiki", label: "Wiki Aventurica", url: wikiUrl }); }
+	return links;
+}
+// The single best link (highest available priority) the cover click opens. null only when nothing is known.
+function advBestLink(a) {
+	var links = advShopLinks(a);
+	return links.length ? links[0] : null;
 }
 
 function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
-	// The COVER carries the Ulisses/F-Shop reference (licensing) -> it links to the F-Shop; the TITLE
-	// stays the wiki link. Fall back to the wiki on the cover only when there is no usable shop term.
-	var shopUrl = advFShopUrl(a);
-	var coverHref = shopUrl || wikiUrl;
-	var coverTitle = shopUrl ? ("Im Ulisses-F-Shop ansehen: " + (a.title || "")) : (a.title || "");
+	// The COVER opens the highest-priority shop/reference link (Ulisses -> F-Shop -> DNB -> Wiki); the TITLE
+	// stays the wiki page. Fall back to the wiki on the cover only when nothing is known.
+	var best = advBestLink(a);
+	var coverHref = (best && best.url) || wikiUrl;
+	var coverTitle = best ? (best.label + ": " + (a.title || "")) : (a.title || "");
 	var coverInner = a.cover
 		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
 		: AVESMAPS_ADV_COVER_PH_SVG;

@@ -221,6 +221,15 @@
   .ae-cover__state { font-size: var(--font-size-caption); color: var(--color-text-muted); min-height: 1.2em; }
   .ae-cover__state.error { color: var(--color-danger); }
 
+  /* ---- Shop-Links preview chips (Ulisses / F-Shop / DNB / Wiki, priority order) ---------------- */
+  .ae-links-preview { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-bottom: var(--space-10); }
+  .ae-linkchip { display: inline-flex; align-items: center; font-size: var(--font-size-caption);
+    padding: 2px var(--space-8); border-radius: var(--radius-md); border: 1px solid var(--color-border);
+    background: var(--color-panel-muted); color: var(--color-link); text-decoration: none; }
+  .ae-linkchip:hover { border-color: var(--color-border-strong); text-decoration: underline; }
+  .ae-linkchip.is-active { border-color: var(--color-accent-strong); background: var(--color-active-wash);
+    color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+
   /* ---- Orte (places) -------------------------------------------------------------------------- */
   .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
   .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
@@ -576,12 +585,44 @@
         ${aeField("Wiki-URL", "wiki_url", v.wiki_url || "", o, { wide: true })}
         ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
         ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
-      </div></div>`;
+      </div></div>
+      ${aeLinksGroup(v, o)}`;
     // Cover actions (upload / re-fetch) need a saved adventure -> wired after the body is in the DOM.
     const coverFile = document.getElementById("aeCoverFile");
     if (coverFile) coverFile.addEventListener("change", () => aeUploadCover(coverFile));
     const coverRefetch = document.getElementById("aeCoverRefetch");
     if (coverRefetch) coverRefetch.addEventListener("click", aeRefetchCover);
+  }
+
+  // Shop/reference links in click priority (Owner): Ulisses e-book -> F-Shop -> Deutsche Nationalbibliothek
+  // -> the wiki page. Ulisses + F-Shop are stored (link_ulisses/link_fshop, wiki-sync-filled, editable here);
+  // DNB is derived from the ISBN (else the title), the wiki page from wiki_url -> both always available.
+  function aeShopLinks(v) {
+    const links = [];
+    const ulisses = (v.link_ulisses || "").trim();
+    const fshop = (v.link_fshop || "").trim();
+    const isbn = (v.isbn || "").trim();
+    const title = (v.title || "").trim();
+    const wiki = (v.wiki_url || "").trim() || (title ? "https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(title) : "");
+    if (ulisses) links.push({ label: "Ulisses eBook", url: ulisses });
+    if (fshop) links.push({ label: "F-Shop", url: fshop });
+    const q = isbn || title;
+    if (q) links.push({ label: "DNB", url: "https://portal.dnb.de/opac/simpleSearch?query=" + encodeURIComponent(q) });
+    if (wiki) links.push({ label: "Wiki", url: wiki });
+    return links;
+  }
+  function aeLinksGroup(v, o) {
+    const links = aeShopLinks(v);
+    const preview = links.length
+      ? links.map((l, i) => `<a class="ae-linkchip${i === 0 ? " is-active" : ""}" href="${aeEscape(l.url)}" target="_blank" rel="noopener" title="${aeEscape(l.url)}">${i === 0 ? "▶ " : ""}${aeEscape(l.label)} ↗</a>`).join("")
+      : `<span class="ae-cover__ph">keine Links</span>`;
+    return `<div class="ae-grp"><p class="ae-grp__title">Shop-Links · Klick-Priorität: Ulisses → F-Shop → DNB → Wiki</p>
+      <div class="ae-links-preview">${preview}</div>
+      <div class="ae-fields">
+        ${aeField("Ulisses eBook-URL", "link_ulisses", v.link_ulisses || "", o, { wide: true })}
+        ${aeField("F-Shop-URL", "link_fshop", v.link_fshop || "", o, { wide: true })}
+        ${aeField("ISBN (für DNB)", "isbn", v.isbn || "", o)}
+      </div></div>`;
   }
 
   // The "Cover" group: preview + origin badge + "eigenes Cover laden" (upload -> manual override) +
