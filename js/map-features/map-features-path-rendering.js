@@ -35,17 +35,17 @@ function pathWikiInfoboxMarkup(path) {
 	);
 }
 
-// "Link teilen"-Leiste eines Weges -- separat, damit createPathPopupMarkup sie (Owner) direkt unter den
-// Kopf setzen kann statt ans Ende der Infobox. Nur bei verlinktem Wiki-Artikel (Wege sind nicht ueber
-// ?place= aufloesbar). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst "strasse" (wiki-deeplink.js).
-function pathShareMarkup(path) {
+// "Link teilen"-Button eines Weges -- gehoert (Owner) in DASSELBE Kachelband wie "Änderung vorschlagen",
+// direkt unter dem Kopf (nicht als eigenes Band dahinter). Nur bei verlinktem Wiki-Artikel (Wege sind nicht
+// ueber ?place= aufloesbar). wikiParam nach Subtyp: Fluss/Seeweg -> "fluss", sonst "strasse" (wiki-deeplink.js).
+function pathShareButtonMarkup(path) {
 	const wiki = (path.properties && path.properties.wiki_path) || {};
 	if (!wiki.wiki_url) {
 		return "";
 	}
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const wikiParam = (pathSubtype === "Flussweg" || pathSubtype === "Seeweg") ? "fluss" : "strasse";
-	return locationPopupActionsMarkup([sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam })]);
+	return sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam });
 }
 
 // Kopf-Icon fuer den Weg-Kopf (Owner: einheitlicher grosser Kopf -- Wege haben kein Wappen, bekommen
@@ -78,6 +78,9 @@ function createPathPopupMarkup(path) {
 		showType: true,
 		actionsMarkup: (function () {
 			const buttons = [];
+			// "Link teilen" zuerst -> [Link teilen] [Änderung vorschlagen] gemeinsam in EINEM Band unter dem Kopf.
+			const shareButton = pathShareButtonMarkup(path);
+			if (shareButton) { buttons.push(shareButton); }
 			// Community "Änderung vorschlagen" -- paths get a public action band here for the first time.
 			const suggestSpec = typeof buildSuggestChangeButtonSpec === "function"
 				? buildSuggestChangeButtonSpec({
@@ -128,7 +131,7 @@ function createPathPopupMarkup(path) {
 				}));
 			}
 			return buttons.length ? locationPopupActionsMarkup(buttons) : "";
-		})() + pathShareMarkup(path) + pathWikiInfoboxMarkup(path),
+		})() + pathWikiInfoboxMarkup(path),
 	});
 }
 

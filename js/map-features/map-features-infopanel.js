@@ -601,7 +601,9 @@
 		if (typeof buildTerritoryAdventuresMarkup === "function") {
 			markup += buildTerritoryAdventuresMarkup(regionEntry);
 		}
-		markup += regionSuggestChangeBandMarkup(regionEntry);
+		// Wiki-Regionen/Territorien tragen den Button jetzt im Kopf-Band (region-info-markup.js). Nur die
+		// kompakte Mini-Box (ohne Wiki, ohne Aktionsband) bekommt ihn hier unten angehaengt.
+		if (typeof hasRegionWikiInfo === "function" && !hasRegionWikiInfo(regionEntry)) { markup += regionSuggestChangeBandMarkup(regionEntry); }
 		return markup;
 	}
 
