@@ -44,7 +44,8 @@
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
 			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="Schließen">✕</button></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__controls"></div>'
-			+ '<div class="avesmaps-adv-tree-dialog__body avesmaps-adv-tree-dialog__tree"></div></div>';
+			+ '<div class="avesmaps-adv-tree-dialog__body avesmaps-adv-tree-dialog__tree"></div>'
+			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
 		document.body.appendChild(overlay);
 		var close = function () { overlay.classList.remove("is-open"); };
 		overlay.addEventListener("click", function (e) { if (e.target === overlay) { close(); } });
@@ -329,6 +330,11 @@
 				apply();
 			}
 		};
+
+		var creditEl = box.querySelector(".avesmaps-adv-dialog__credit");
+		if (creditEl) {
+			creditEl.innerHTML = (typeof avesmapsAdventureCreditMarkup === "function") ? avesmapsAdventureCreditMarkup() : "";
+		}
 
 		sortCards();
 		apply();

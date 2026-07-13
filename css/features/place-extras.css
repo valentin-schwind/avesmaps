@@ -357,6 +357,18 @@
 	width: 92px;
 	height: 130px;
 }
+/* Lizenz-Fussnote am Fuss des Dialogs (flach UND verschachtelt, geteilte Klasse) -- ausserhalb der
+   scrollbaren Karten-/Baum-Flaeche, damit sie immer sichtbar bleibt, ohne Trenner (wie im Streifen). */
+.avesmaps-adv-dialog__credit {
+	flex: 0 0 auto;
+	padding: 0 16px 14px;
+}
+.avesmaps-adv-dialog__credit:empty {
+	padding: 0;
+}
+.avesmaps-adv-dialog__credit .avesmaps-adv__credit {
+	margin-top: 0;
+}
 
 /* Aufgabe A: deaktivierte Floating-Kachel ("Abenteuer" ohne Abenteuer / "Stadtkarten"-Platzhalter).
    aria-disabled (nicht [disabled]), damit die Kachel im DOM/Fokus bleibt und der Klick-Handler es prueft;

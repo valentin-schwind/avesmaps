@@ -149,6 +149,15 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 		+ '</div>';
 }
 
+// Lizenz-Fussnote (Cover © Ulisses Spiele + F-Shop-Link): geteilt vom Streifen UND beiden "Alle anzeigen"-
+// Dialogen (flacher Siedlungs-Dialog hier + verschachtelter Territorien-Dialog in map-features-adventures-
+// dialog.js), damit die Pflichtangabe ueberall steht, wo Cover zu sehen sind. Suppressed wenn der Cover-
+// Killswitch aus ist -- keine Cover auf dem Schirm heisst kein Ulisses-Credit noetig.
+function avesmapsAdventureCreditMarkup() {
+	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
+	return coversOn ? '<div class="avesmaps-adv__credit">Cover © Ulisses Spiele — <a href="https://www.f-shop.de/" target="_blank" rel="noopener">im F-Shop ansehen ↗</a></div>' : "";
+}
+
 // ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----
 // Unter der Sortierzeile ein Umschalter "Beginnt hier | Spielt hier (Spoiler)"; "Spielt hier" gibt die
 // verborgenen spielt-Karten IM SELBEN Streifen per Fade frei und scrollt horizontal nach rechts zu ihnen.
@@ -202,11 +211,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 
 	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">Alle anzeigen</button></div>' : "";
 
-	// Licensing footnote: the covers are shown under the Ulisses fan-content permission WITH a reference
-	// to the F-Shop (each cover also links there). Kept as a discreet, full-width credit under the strip.
-	// Suppressed when the cover kill switch is off -- no covers on screen means no Ulisses credit to show.
-	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
-	var creditMarkup = coversOn ? '<div class="avesmaps-adv__credit">Cover © Ulisses Spiele — <a href="https://www.f-shop.de/" target="_blank" rel="noopener">im F-Shop ansehen ↗</a></div>' : "";
+	var creditMarkup = avesmapsAdventureCreditMarkup();
 
 	// data-adv-territory-key markiert den Territoriums-/Regions-Block -> "Alle anzeigen" oeffnet den
 	// datengetriebenen Nested-Dialog (getAdventureTerritoryTree, deepest-wins + Filter) statt des flachen
@@ -380,7 +385,8 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
 			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="Schließen">✕</button></div>'
-			+ '<div class="avesmaps-adv-dialog__grid"></div></div>';
+			+ '<div class="avesmaps-adv-dialog__grid"></div>'
+			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
 		document.body.appendChild(overlay);
 		var close = function () { overlay.classList.remove("is-open"); };
 		overlay.addEventListener("click", function (e) { if (e.target === overlay) { close(); } });
@@ -567,6 +573,10 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 			grid.appendChild(clone);
 		});
 		buildDialogControls(overlay, startCards.length, playCards.length);
+		var creditEl = overlay.querySelector(".avesmaps-adv-dialog__credit");
+		if (creditEl) {
+			creditEl.innerHTML = avesmapsAdventureCreditMarkup();
+		}
 		overlay.classList.add("is-open");
 	}
 
