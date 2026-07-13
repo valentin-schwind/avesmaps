@@ -142,9 +142,23 @@
     display: inline-flex; align-items: center; gap: var(--space-4); }
   .ae-add { display: flex; gap: var(--space-6); align-items: center; margin-bottom: var(--space-10);
     padding: var(--space-8); background: var(--color-panel-soft); border: 1px solid var(--color-border);
-    border-radius: var(--radius-md); }
+    border-radius: var(--radius-md); position: relative; }
   .ae-add .ae-input { flex: 1 1 auto; }
-  .ae-add .ae-select { flex: 0 0 160px; }
+  /* P3 Ort-autocomplete dropdown */
+  .ae-ac { position: absolute; left: var(--space-8); right: var(--space-8); top: calc(100% - var(--space-4)); z-index: 30;
+    background: var(--color-panel); border: 1px solid var(--color-border-strong); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-panel); overflow-y: auto; max-height: 320px; }
+  .ae-ac[hidden] { display: none; }
+  .ae-ac__item { display: flex; align-items: center; gap: var(--space-8); padding: var(--space-6) var(--space-10);
+    cursor: pointer; border-bottom: 1px solid var(--color-divider); }
+  .ae-ac__item:last-child { border-bottom: none; }
+  .ae-ac__item.is-active, .ae-ac__item:hover { background: var(--color-hover-wash); }
+  .ae-ac__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--color-text-strong); }
+  .ae-ac__name b { color: var(--color-accent-strong); }
+  .ae-ac__free { color: var(--color-text-muted); font-size: var(--font-size-caption); background: var(--color-panel-soft); }
+  .ae-ac__free .ae-ac__name { color: var(--color-text-muted); }
+  .ae-ac__free .ae-ac__name b { color: var(--color-text); }
   .ae-place {
     display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: var(--space-8);
     padding: var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-md);
@@ -412,12 +426,9 @@
         <span style="flex:1"></span>
         ${suppressed.length ? `<button class="btn btn--sm" data-act="toggle-sup">unterdrückte anzeigen (${suppressed.length})</button>` : ""}</div>
       <div class="ae-add">
-        <input class="ae-input" id="aeAddName" placeholder="Ortsname (Wiki-Titel) hinzufügen …">
-        <select class="ae-select" id="aeAddKind" title="Zieltyp — »automatisch« lässt »Auflösen« den Typ bestimmen">
-          <option value="unresolved">Typ: automatisch</option>
-          <option value="settlement">Siedlung</option><option value="territory">Territorium</option>
-          <option value="region">Region</option><option value="path">Weg</option></select>
-        <button class="btn btn--primary" data-act="add">+ Ort</button></div>
+        <input class="ae-input" id="aeAddName" autocomplete="off" placeholder="Ort suchen oder Wiki-Titel eingeben …">
+        <button class="btn btn--primary" data-act="add">+ Ort</button>
+        <div class="ae-ac" id="aeAc" hidden></div></div>
       <p class="ae-orte__hint" style="margin:0 0 var(--space-8)">★ = beginnt hier (Spoiler-frei) · übrige = spielt hier (Spoiler) · mehrere Startorte möglich · neuer Ort wird automatisch aufgelöst</p>
       ${approved.length ? approved.map((p, i) => placeRow(p, i === 0, i === approved.length - 1)).join("")
         : `<p class="ae-orte__hint">Noch keine Orte — oben hinzufügen.</p>`}
@@ -458,17 +469,13 @@
       return;
     }
     if (!state.selectedId) { alert("Erst ein Abenteuer speichern/wählen."); return; }
+    // Add paths (button, autocomplete pick, or free-text row) run their own add+resolve+reload (P3).
+    if (act === "add" || act === "ac-free") { addPlaceRaw(document.getElementById("aeAddName").value); return; }
+    if (act === "ac-pick") { addPlaceRaw(btn.dataset.name); return; }
     const rowEl = btn.closest("[data-place-id]");
     const placeId = rowEl ? Number(rowEl.dataset.placeId) : null;
     try {
-      if (act === "add") {
-        const raw = document.getElementById("aeAddName").value.trim(); if (!raw) return;
-        const kind = document.getElementById("aeAddKind").value;
-        const place = { raw_name: raw };
-        if (kind && kind !== "unresolved") place.target_kind = kind;
-        const { place_id } = await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place });
-        try { await adventurePost({ action: "resolve_place", place_id }); } catch (_) { /* auto-resolve best-effort */ }
-      } else if (act === "resolve") {
+      if (act === "resolve") {
         await adventurePost({ action: "resolve_place", place_id: placeId });
       } else if (act === "start") {
         const on = btn.classList.contains("is-on");
@@ -491,6 +498,80 @@
       await reloadDetail();
     } catch (err) { alert("Fehler: " + err.message); }
   });
+
+  // ---- P3: Ort-autocomplete (suggestions from the public map-search.php) ----
+  let acItems = [], acActive = -1, acQuery = "", acTimer = null, acAbort = null;
+
+  function hideAc() {
+    const ac = document.getElementById("aeAc");
+    if (ac) { ac.hidden = true; ac.innerHTML = ""; }
+    acItems = []; acActive = -1;
+  }
+  function acHighlight(name, q) {
+    const i = q ? name.toLowerCase().indexOf(q.toLowerCase()) : -1;
+    if (i < 0) return aeEscape(name);
+    return aeEscape(name.slice(0, i)) + "<b>" + aeEscape(name.slice(i, i + q.length)) + "</b>" + aeEscape(name.slice(i + q.length));
+  }
+  function renderAc() {
+    const ac = document.getElementById("aeAc"); if (!ac) return;
+    const rows = acItems.map((it, idx) =>
+      `<div class="ae-ac__item${idx === acActive ? " is-active" : ""}" data-act="ac-pick" data-name="${aeEscape(it.name)}">
+        <span class="ae-ac__name">${acHighlight(it.name, acQuery)}</span>
+        <span class="pill pill--kind">${aeEscape(it.type_label || it.feature_subtype || "")}</span></div>`).join("");
+    const free = `<div class="ae-ac__item ae-ac__free${acActive === -1 ? " is-active" : ""}" data-act="ac-free">
+        <span class="ae-ac__name">„<b>${aeEscape(acQuery)}</b>" als freien Ort hinzufügen</span>
+        <span class="pill">Freitext</span></div>`;
+    ac.innerHTML = rows + free;
+    ac.hidden = false;
+  }
+  async function runAcSearch(q) {
+    if (acAbort) acAbort.abort();
+    acAbort = new AbortController();
+    try {
+      const r = await fetch("/api/app/map-search.php?limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: acAbort.signal });
+      const j = await r.json().catch(() => null);
+      acItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => x.kind !== "powerline").slice(0, 8);
+    } catch (e) { if (e && e.name === "AbortError") return; acItems = []; }
+    acActive = acItems.length ? 0 : -1;
+    renderAc();
+  }
+  function acMove(delta) {
+    const ac = document.getElementById("aeAc"); if (!ac || ac.hidden) return;
+    acActive = Math.max(-1, Math.min(acItems.length - 1, acActive + delta));
+    renderAc();
+  }
+  function acCurrentName() {
+    return (acActive >= 0 && acItems[acActive]) ? acItems[acActive].name : document.getElementById("aeAddName").value;
+  }
+  async function addPlaceRaw(raw) {
+    raw = (raw || "").trim();
+    hideAc();
+    if (!raw || !state.selectedId) return;
+    try {
+      const { place_id } = await adventurePost({ action: "add_place", adventure_public_id: state.selectedId, place: { raw_name: raw } });
+      try { await adventurePost({ action: "resolve_place", place_id }); } catch (_) { /* best-effort */ }
+      await reloadDetail();
+      const inp = document.getElementById("aeAddName");
+      if (inp) inp.focus();
+    } catch (err) { alert("Fehler: " + err.message); }
+  }
+
+  // Delegated on the stable Orte container (its innerHTML is rebuilt on every render).
+  document.getElementById("aeOrteBody").addEventListener("input", (e) => {
+    if (e.target.id !== "aeAddName") return;
+    acQuery = e.target.value.trim();
+    if (acTimer) clearTimeout(acTimer);
+    if (acQuery.length < 2) { hideAc(); return; }
+    acTimer = setTimeout(() => runAcSearch(acQuery), 250);
+  });
+  document.getElementById("aeOrteBody").addEventListener("keydown", (e) => {
+    if (e.target.id !== "aeAddName") return;
+    if (e.key === "ArrowDown") { e.preventDefault(); acMove(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); acMove(-1); }
+    else if (e.key === "Enter") { e.preventDefault(); addPlaceRaw(acCurrentName()); }
+    else if (e.key === "Escape") { hideAc(); }
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".ae-add")) hideAc(); });
 
   loadList();
 </script>
