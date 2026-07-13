@@ -757,7 +757,10 @@
 	overflow: hidden;
 	background: var(--color-panel);
 }
-.lang-toggle__opt {
+/* Prefix mit .lang-toggle (Spezifitaet 0,2,0) MUSS sein: sonst schlaegt die jQuery-UI-Regel
+   `.ui-widget button { font-size: 1em }` (0,1,1) die Schriftgroesse (#search traegt class="ui-widget"),
+   und JEDE font-size hier bliebe wirkungslos -- genau das Symptom "hat keinen Effekt". */
+.lang-toggle .lang-toggle__opt {
 	display: inline-flex;
 	align-items: center;
 	border: 0;
@@ -765,7 +768,7 @@
 	padding: 0 4px;
 	background: transparent;
 	color: var(--color-text-muted);
-	font-size: 9px;
+	font-size: 8px;
 	font-weight: 600;
 	line-height: 1;
 	letter-spacing: 0.03em;
