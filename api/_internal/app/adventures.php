@@ -811,3 +811,33 @@ function avesmapsResolveAdventurePlace(PDO $pdo, int $placeId): array
         'target_wiki_key' => ($row['target_wiki_key'] ?? null) !== null ? (string) $row['target_wiki_key'] : '',
     ];
 }
+
+// Set/override an adventure's cover_url and stamp its per-field origin: 'manual' for an editor upload
+// (a manual cover the wiki sync must never overwrite) or 'wiki' for a re-fetched wiki cover. Merges into
+// field_origins_json (so the reconcile's avesmapsAdventureFieldPlan honours it). Backs the cover endpoint
+// api/edit/map/adventure-cover.php. Returns ['public_id','cover_url','origin']. 404s on an unknown id.
+function avesmapsSetAdventureCoverUrl(PDO $pdo, string $publicId, ?string $coverUrl, string $origin): array
+{
+    avesmapsAdventuresEnsureTables($pdo);
+    $select = $pdo->prepare('SELECT id, field_origins_json FROM adventure WHERE public_id = :pid LIMIT 1');
+    $select->execute(['pid' => $publicId]);
+    $row = $select->fetch(PDO::FETCH_ASSOC);
+    if ($row === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+    }
+
+    $origins = [];
+    if (!empty($row['field_origins_json'])) {
+        $decoded = json_decode((string) $row['field_origins_json'], true);
+        if (is_array($decoded)) {
+            $origins = $decoded;
+        }
+    }
+    $origins['cover_url'] = $origin === 'wiki' ? 'wiki' : 'manual';
+    $normalized = ($coverUrl === null || trim($coverUrl) === '') ? null : trim($coverUrl);
+
+    $pdo->prepare('UPDATE adventure SET cover_url = :u, field_origins_json = :fo WHERE id = :id')
+        ->execute(['u' => $normalized, 'fo' => avesmapsAdventuresEncodeOrigins($origins), 'id' => (int) $row['id']]);
+
+    return ['public_id' => $publicId, 'cover_url' => (string) $normalized, 'origin' => $origins['cover_url']];
+}

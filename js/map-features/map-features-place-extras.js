@@ -95,8 +95,20 @@ function buildPlaceCityMapsMarkup(location) {
 // ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt/spielt-Streifen UND Dialog ----
 // isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
 // per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
+// The Ulisses F-Shop URL for an adventure (the licensing basis for showing the cover): the F-Shop
+// search by its F-Shop code/PID when present, else by title. '' when neither is known.
+function advFShopUrl(a) {
+	var term = (a && a.fshop && String(a.fshop).trim()) || (a && a.title && String(a.title).trim()) || "";
+	return term ? ("https://www.f-shop.de/search?sSearch=" + encodeURIComponent(term)) : "";
+}
+
 function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
-	var url = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
+	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
+	// The COVER carries the Ulisses/F-Shop reference (licensing) -> it links to the F-Shop; the TITLE
+	// stays the wiki link. Fall back to the wiki on the cover only when there is no usable shop term.
+	var shopUrl = advFShopUrl(a);
+	var coverHref = shopUrl || wikiUrl;
+	var coverTitle = shopUrl ? ("Im Ulisses-F-Shop ansehen: " + (a.title || "")) : (a.title || "");
 	var coverInner = a.cover
 		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
 		: AVESMAPS_ADV_COVER_PH_SVG;
@@ -105,8 +117,8 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var extraClass = isPlay ? " is-play" : "";
 	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
 	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
-		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(a.title) + '">' + coverInner + '</a>'
-		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(url) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
+		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
+		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
 		+ typeLine
 		+ '</div>';
@@ -163,6 +175,10 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 
 	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">Alle anzeigen</button></div>' : "";
 
+	// Licensing footnote: the covers are shown under the Ulisses fan-content permission WITH a reference
+	// to the F-Shop (each cover also links there). Kept as a discreet, full-width credit under the strip.
+	var creditMarkup = '<div class="avesmaps-adv__credit">Cover © Ulisses Spiele — <a href="https://www.f-shop.de/" target="_blank" rel="noopener">im F-Shop ansehen ↗</a></div>';
+
 	// data-adv-territory-key markiert den Territoriums-/Regions-Block -> "Alle anzeigen" oeffnet den
 	// datengetriebenen Nested-Dialog (getAdventureTerritoryTree, deepest-wins + Filter) statt des flachen
 	// DOM-Klon-Dialogs der Siedlung. Bei der Siedlung fehlt das Attribut -> flacher Dialog wie bisher.
@@ -175,6 +191,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 		+ emptyHint
 		+ listMarkup
 		+ alleMarkup
+		+ creditMarkup
 		+ '</div>';
 }
 

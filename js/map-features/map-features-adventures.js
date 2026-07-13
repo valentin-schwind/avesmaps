@@ -59,6 +59,7 @@ function avesmapsAdventureToRenderShape(adventure) {
 		yearLabel: adventure.bf_label || (adventure.bf_year ? adventure.bf_year + " BF" : ""),
 		cover: adventure.cover_url || "",
 		url: adventure.wiki_url || "",
+		fshop: adventure.fshop_code || "",
 		official: adventure.is_official === true || adventure.is_official === 1,
 		complexity: adventure.complexity_gm || adventure.complexity_pl || "",
 		genre: adventure.genre || "",

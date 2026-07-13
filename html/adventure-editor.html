@@ -134,6 +134,22 @@
   .btn--danger { color: var(--color-danger); border-color: var(--color-border); background: transparent; }
   .btn--danger:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
 
+  /* ---- Cover-Block (Vorschau + eigenes Cover laden / Wiki-Cover neu ziehen) -------------------- */
+  .ae-cover { display: flex; gap: var(--space-12); align-items: flex-start; }
+  .ae-cover__preview { width: 96px; height: 135px; flex: 0 0 auto; border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm); overflow: hidden; background: var(--color-panel-muted);
+    display: flex; align-items: center; justify-content: center; }
+  .ae-cover__preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ae-cover__ph { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ae-cover__side { display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; flex: 1; }
+  .ae-cover__origin { font-size: var(--font-size-caption); color: var(--color-text-muted);
+    display: flex; align-items: center; gap: var(--space-6); }
+  .ae-cover__url { font-size: var(--font-size-caption); color: var(--color-text-muted); word-break: break-all; }
+  .ae-cover__btns { display: flex; gap: var(--space-6); flex-wrap: wrap; }
+  .ae-cover__btns .btn { font-size: var(--font-size-caption); }
+  .ae-cover__state { font-size: var(--font-size-caption); color: var(--color-text-muted); min-height: 1.2em; }
+  .ae-cover__state.error { color: var(--color-danger); }
+
   /* ---- Orte (places) -------------------------------------------------------------------------- */
   .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
   .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
@@ -364,11 +380,93 @@
         ${aeField("Komplexität (Spieler)", "complexity_pl", v.complexity_pl || "", o)}
         ${aeField("Autoren", "authors", v.authors || "", o, { wide: true })}
       </div></div>
+      ${aeCoverGroup(v, o)}
       <div class="ae-grp"><p class="ae-grp__title">Wiki &amp; F-Shop</p><div class="ae-fields">
         ${aeField("Wiki-URL", "wiki_url", v.wiki_url || "", o, { wide: true })}
         ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
         ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
       </div></div>`;
+    // Cover actions (upload / re-fetch) need a saved adventure -> wired after the body is in the DOM.
+    const coverFile = document.getElementById("aeCoverFile");
+    if (coverFile) coverFile.addEventListener("change", () => aeUploadCover(coverFile));
+    const coverRefetch = document.getElementById("aeCoverRefetch");
+    if (coverRefetch) coverRefetch.addEventListener("click", aeRefetchCover);
+  }
+
+  // The "Cover" group: preview + origin badge + "eigenes Cover laden" (upload -> manual override) +
+  // "Wiki-Cover neu ziehen" (re-pull from staging -> wiki origin). The plain "Cover-URL" field in the
+  // "Wiki & F-Shop" group stays as a fallback. bf_year etc. are unaffected.
+  function aeCoverGroup(v, o) {
+    const coverUrl = v.cover_url || "";
+    const origin = o && o.cover_url;
+    const badge = origin === "manual"
+      ? `<span class="pill pill--manual">manuell</span>`
+      : (origin === "wiki" ? `<span class="pill pill--wiki">Wiki-Sync</span>` : "—");
+    const preview = coverUrl
+      ? `<img src="${aeEscape(coverUrl)}" alt="Cover" onerror="this.replaceWith(document.createTextNode(''))">`
+      : `<span class="ae-cover__ph">kein Cover</span>`;
+    const refetch = v.wiki_key
+      ? `<button type="button" class="btn btn--sm" id="aeCoverRefetch">Wiki-Cover neu ziehen</button>`
+      : "";
+    return `<div class="ae-grp"><p class="ae-grp__title">Cover</p>
+      <div class="ae-cover">
+        <div class="ae-cover__preview">${preview}</div>
+        <div class="ae-cover__side">
+          <div class="ae-cover__origin">Herkunft: ${badge}</div>
+          <div class="ae-cover__url">${coverUrl ? aeEscape(coverUrl) : "—"}</div>
+          <div class="ae-cover__btns">
+            <label class="btn btn--sm" for="aeCoverFile" style="cursor:pointer">Eigenes Cover laden…</label>
+            <input type="file" id="aeCoverFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            ${refetch}
+          </div>
+          <div class="ae-cover__state" id="aeCoverState"></div>
+        </div>
+      </div></div>`;
+  }
+
+  // POST a FormData (multipart upload OR the refetch form) to the cover endpoint; throws on a non-ok body.
+  const ADVENTURE_COVER_API = "/api/edit/map/adventure-cover.php";
+  async function aeCoverPost(formData) {
+    const res = await fetch(ADVENTURE_COVER_API, { method: "POST", credentials: "same-origin", body: formData });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok || !payload || payload.ok !== true) {
+      throw new Error((payload && payload.error && payload.error.message) || `HTTP ${res.status}`);
+    }
+    return payload;
+  }
+  function aeCoverState(text, isError) {
+    const el = document.getElementById("aeCoverState");
+    if (el) { el.textContent = text; el.className = "ae-cover__state" + (isError ? " error" : ""); }
+  }
+  async function aeUploadCover(input) {
+    if (!state.selectedId) { aeCoverState("Bitte zuerst das Abenteuer speichern.", true); input.value = ""; return; }
+    const file = input.files && input.files[0];
+    if (!file) return;
+    aeCoverState("Cover wird hochgeladen …", false);
+    try {
+      const fd = new FormData();
+      fd.append("public_id", state.selectedId);
+      fd.append("cover", file);
+      await aeCoverPost(fd);
+      await selectAdventure(state.selectedId); // re-render detail with the new cover
+    } catch (e) {
+      aeCoverState("Fehler: " + e.message, true);
+    } finally {
+      input.value = "";
+    }
+  }
+  async function aeRefetchCover() {
+    if (!state.selectedId) { aeCoverState("Bitte zuerst das Abenteuer speichern.", true); return; }
+    aeCoverState("Wiki-Cover wird gezogen …", false);
+    try {
+      const fd = new FormData();
+      fd.append("public_id", state.selectedId);
+      fd.append("mode", "refetch");
+      await aeCoverPost(fd);
+      await selectAdventure(state.selectedId);
+    } catch (e) {
+      aeCoverState("Fehler: " + e.message, true);
+    }
   }
   function gatherStamm() {
     const out = {};

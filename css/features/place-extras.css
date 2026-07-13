@@ -160,6 +160,21 @@
 	font-size: 9.5px;
 	color: var(--color-text-muted);
 }
+/* Lizenz-Fußzeile: Cover-Nutzung mit Verweis auf den Ulisses-F-Shop (volle Breite, Trenner statt Rahmen). */
+.avesmaps-adv__credit {
+	margin-top: 10px;
+	padding-top: 6px;
+	border-top: 1px solid var(--color-divider);
+	font-size: 10.5px;
+	color: var(--color-text-muted);
+}
+.avesmaps-adv__credit a {
+	color: var(--color-link);
+	text-decoration: none;
+}
+.avesmaps-adv__credit a:hover {
+	text-decoration: underline;
+}
 /* "Alle anzeigen" -> oeffnet den Dialog mit allen Abenteuern. */
 .avesmaps-adv__all {
 	display: inline-flex;
