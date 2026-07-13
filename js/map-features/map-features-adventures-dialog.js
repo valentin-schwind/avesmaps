@@ -114,7 +114,9 @@
 	function filtersMarkup(facets) {
 		var parts = ['<span class="avesmaps-adv-tree__flabel">Filter</span>'];
 		var hasTypes = facets.types && facets.types.length;
-		var hasSel = (facets.complexities && facets.complexities.length) || (facets.genres && facets.genres.length);
+		var hasYear = facets.yearRange && facets.yearRange.max > 0;
+		var hasSel = (facets.editions && facets.editions.length) || (facets.complexities && facets.complexities.length)
+			|| (facets.genres && facets.genres.length) || hasYear;
 		if (hasTypes) {
 			facets.types.forEach(function (t) {
 				parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + esc(t) + '">' + esc(t) + '</span>');
@@ -123,6 +125,10 @@
 		if (hasTypes && hasSel) {
 			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		}
+		if (facets.editions && facets.editions.length) {
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">DSA-Version</option>'
+				+ facets.editions.map(function (e) { return '<option value="' + esc(e) + '">' + esc(e) + '</option>'; }).join('') + '</select></span>');
+		}
 		if (facets.complexities && facets.complexities.length) {
 			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">Schwierigkeit</option>'
 				+ facets.complexities.map(function (d) { return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join('') + '</select></span>');
@@ -130,6 +136,12 @@
 		if (facets.genres && facets.genres.length) {
 			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
 				+ facets.genres.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select></span>');
+		}
+		if (hasYear) {
+			parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">Jahr</span>'
+				+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + esc(facets.yearRange.min) + '">'
+				+ '<span class="avesmaps-adv-tree__ydash">–</span>'
+				+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + esc(facets.yearRange.max) + '"></span>');
 		}
 		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">nur offiziell</span>');
@@ -143,6 +155,8 @@
 		}
 		return avesmapsAdventureMatchesFilter({
 			type: card.getAttribute("data-type") || "",
+			edition: card.getAttribute("data-edition") || "",
+			year: Number(card.getAttribute("data-year")) || 0,
 			complexity: card.getAttribute("data-complexity") || "",
 			genre: card.getAttribute("data-genre") || "",
 			official: card.getAttribute("data-official") === "1",
@@ -171,7 +185,7 @@
 			? avesmapsAdventureFacetOptions(allShapes)
 			: { types: [], complexities: [], genres: [] };
 
-		var state = { mode: "start", sort: "year", filter: { types: new Set(), complexity: "", genre: "", officialOnly: false } };
+		var state = { mode: "start", sort: "year", filter: { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false } };
 		var controls = box.querySelector(".avesmaps-adv-tree-dialog__controls");
 		var body = box.querySelector(".avesmaps-adv-tree-dialog__body");
 
@@ -289,6 +303,21 @@
 				apply();
 			} else if (kind === "genre") {
 				state.filter.genre = el.value || "";
+				apply();
+			} else if (kind === "edition") {
+				state.filter.edition = el.value || "";
+				apply();
+			}
+		};
+		// Year range filters live-update as you type (number inputs fire 'input', not 'change').
+		box.oninput = function (e) {
+			var el = e.target;
+			var kind = el && el.getAttribute ? el.getAttribute("data-adv-filter") : "";
+			if (kind === "yearFrom") {
+				state.filter.yearFrom = Number(el.value) || 0;
+				apply();
+			} else if (kind === "yearTo") {
+				state.filter.yearTo = Number(el.value) || 0;
 				apply();
 			}
 		};

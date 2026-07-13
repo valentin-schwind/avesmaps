@@ -303,6 +303,9 @@ function avesmapsAdventureFacetOptions(shapes) {
 	var types = {};
 	var complexities = {};
 	var genres = {};
+	var editions = {};
+	var minYear = 0;
+	var maxYear = 0;
 	(shapes || []).forEach(function (shape) {
 		if (shape.type) {
 			types[shape.type] = true;
@@ -313,17 +316,29 @@ function avesmapsAdventureFacetOptions(shapes) {
 		if (shape.genre) {
 			genres[shape.genre] = true;
 		}
+		if (shape.edition) {
+			editions[shape.edition] = true;
+		}
+		var y = Number(shape.year) || 0;
+		if (y > 0) {
+			if (minYear === 0 || y < minYear) { minYear = y; }
+			if (y > maxYear) { maxYear = y; }
+		}
 	});
 	function sorted(map) {
 		return Object.keys(map).sort(function (a, b) {
 			return a.localeCompare(b, "de");
 		});
 	}
-	return { types: sorted(types), complexities: sorted(complexities), genres: sorted(genres) };
+	return {
+		types: sorted(types), complexities: sorted(complexities), genres: sorted(genres),
+		editions: sorted(editions), yearRange: { min: minYear, max: maxYear },
+	};
 }
 
-// Does a render shape pass the active filter? filter = { types:[]|Set, complexity:"", genre:"", officialOnly:bool }.
-// Empty/absent facets are "no constraint". Kept pure so both the tree render and tests share one predicate.
+// Does a render shape pass the active filter? filter = { types:[]|Set, complexity:"", genre:"", edition:"",
+// yearFrom:0, yearTo:0, officialOnly:bool }. Empty/absent facets are "no constraint" (a year of 0 = undated ->
+// excluded once a year bound is set). Kept pure so both the tree render and tests share one predicate.
 function avesmapsAdventureMatchesFilter(shape, filter) {
 	if (!filter || !shape) {
 		return true;
@@ -340,6 +355,16 @@ function avesmapsAdventureMatchesFilter(shape, filter) {
 		return false;
 	}
 	if (filter.genre && shape.genre !== filter.genre) {
+		return false;
+	}
+	if (filter.edition && shape.edition !== filter.edition) {
+		return false;
+	}
+	var year = Number(shape.year) || 0;
+	if (filter.yearFrom && (!year || year < filter.yearFrom)) {
+		return false;
+	}
+	if (filter.yearTo && (!year || year > filter.yearTo)) {
 		return false;
 	}
 	if (filter.officialOnly && !shape.official) {

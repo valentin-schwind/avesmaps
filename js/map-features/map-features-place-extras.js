@@ -133,7 +133,7 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 	var extraClass = isPlay ? " is-play" : "";
 	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
-	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
+	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-edition="' + placeExtrasEscape(a.edition || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine

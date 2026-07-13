@@ -135,6 +135,31 @@
 	box-shadow: var(--focus-ring);
 	outline: none;
 }
+/* Year range (Jahr von–bis): two small number fields, styled like the selects (flat panel field). */
+.avesmaps-adv-tree__yearwrap {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-4);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+.avesmaps-adv-tree__ylabel { white-space: nowrap; }
+.avesmaps-adv-tree__yearin {
+	width: 4.5em;
+	font: inherit;
+	font-size: var(--font-size-small);
+	padding: var(--space-2) var(--space-6);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-border);
+	background: var(--color-panel);
+	color: var(--color-text);
+}
+.avesmaps-adv-tree__yearin:hover { border-color: var(--color-border-strong); }
+.avesmaps-adv-tree__yearin:focus-visible {
+	border-color: var(--color-border-strong);
+	box-shadow: var(--focus-ring);
+	outline: none;
+}
 .avesmaps-adv-tree__fdiv {
 	width: 1px;
 	align-self: stretch;

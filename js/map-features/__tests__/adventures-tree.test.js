@@ -128,4 +128,25 @@ assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[1], { officialOnly: tru
 assert.strictEqual(avesmapsAdventureMatchesFilter(shapes[0], { officialOnly: true }), true);
 console.log("filter predicate ok");
 
+// ---- edition (DSA-Version) + year facets/filters (Owner: overview dialog) ----
+const yShapes = [
+	avesmapsAdventureToRenderShape({ public_id: "e1", title: "A", edition: "DSA5", bf_year: 1040 }),
+	avesmapsAdventureToRenderShape({ public_id: "e2", title: "B", edition: "DSA4", bf_year: 1020 }),
+	avesmapsAdventureToRenderShape({ public_id: "e3", title: "C", edition: "DSA5" }), // undated -> year 0
+];
+const yf = avesmapsAdventureFacetOptions(yShapes);
+assert.deepStrictEqual(yf.editions, ["DSA4", "DSA5"]);           // distinct + sorted
+assert.deepStrictEqual(yf.yearRange, { min: 1020, max: 1040 }); // undated ignored
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { edition: "DSA5" }), true);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[1], { edition: "DSA5" }), false);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { yearFrom: 1030 }), true);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[1], { yearFrom: 1030 }), false);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { yearTo: 1030 }), false);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[1], { yearTo: 1030 }), true);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[0], { yearFrom: 1000, yearTo: 1050 }), true);
+// undated (year 0) is excluded once a year bound is set, included when none
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[2], { yearFrom: 1000 }), false);
+assert.strictEqual(avesmapsAdventureMatchesFilter(yShapes[2], {}), true);
+console.log("edition + year filter ok");
+
 console.log("ALL OK");
