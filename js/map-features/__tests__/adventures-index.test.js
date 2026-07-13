@@ -1,6 +1,7 @@
 const assert = require("assert");
 const {
 	avesmapsAdventureProductTypeLabel,
+	avesmapsAdventureEditionSortKey,
 	avesmapsNormalizeAdventureKey,
 	avesmapsAdventureToRenderShape,
 	avesmapsBuildAdventureIndex,
@@ -134,5 +135,19 @@ assert.strictEqual(avesmapsSelectAdventureEntries(rp, { pathKey: bornKey }, "pla
 assert.strictEqual(avesmapsSelectAdventureEntries(rp, { pathPublicId: "P1seg" }, "play").length, 1);
 assert.strictEqual(avesmapsSelectAdventureEntries(rp, { pathKey: bornKey }, "start").length, 0); // it PLAYS here, not begins
 console.log("path index ok");
+
+// ---- edition sort key ("nach Edition": DSA1 < … < DSA5 < non-DSA < empty; full string as tiebreak) ----
+assert.strictEqual(avesmapsAdventureEditionSortKey("DSA1"), 1);
+assert.strictEqual(avesmapsAdventureEditionSortKey("DSA5"), 5);
+assert.strictEqual(avesmapsAdventureEditionSortKey("DSA3.5"), 3.5);
+assert.strictEqual(avesmapsAdventureEditionSortKey("DSA4.1 Basis"), 4.1);
+assert.strictEqual(avesmapsAdventureEditionSortKey("DSA1-Ausbau"), 1);
+assert.strictEqual(avesmapsAdventureEditionSortKey("DSA4 / DSA5"), 4); // first edition wins
+assert.strictEqual(avesmapsAdventureEditionSortKey("Aventuria 2.0"), 98); // non-DSA ruleset
+assert.strictEqual(avesmapsAdventureEditionSortKey(""), 99); // no edition sorts last
+const edSorted = ["DSA5", "", "DSA1", "DSA4.1", "Aventuria 2.0", "DSA4"]
+	.sort((a, b) => avesmapsAdventureEditionSortKey(a) - avesmapsAdventureEditionSortKey(b) || a.localeCompare(b, "de"));
+assert.deepStrictEqual(edSorted, ["DSA1", "DSA4", "DSA4.1", "DSA5", "Aventuria 2.0", ""]);
+console.log("edition sort key ok");
 
 console.log("ALL OK");

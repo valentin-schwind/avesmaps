@@ -31,6 +31,19 @@ function avesmapsAdventureProductTypeLabel(productType) {
 	return labels[key] || (productType ? String(productType) : "");
 }
 
+// Sort key for the DSA edition so a "nach Edition" sort groups DSA1 < DSA2 < … < DSA5 < non-DSA rules <
+// (no edition). Extracts the FIRST DSA<n>(.<m>) number ("DSA4.1 Basis" -> 4.1, "DSA1-Ausbau" -> 1, "DSA4 /
+// DSA5" -> 4); a non-DSA ruleset (Aventuria, regelfrei, …) sorts at 98, an empty edition last at 99. Owner:
+// the edition roughly approximates an adventure's era, so it is the more meaningful primary sort than title.
+function avesmapsAdventureEditionSortKey(edition) {
+	var s = String(edition == null ? "" : edition).trim();
+	if (!s) {
+		return 99;
+	}
+	var m = s.match(/DSA\s*(\d+(?:\.\d+)?)/i);
+	return m ? parseFloat(m[1]) : 98;
+}
+
 // Normalize a stored wiki key ('wiki:<slug>') OR a page name into the client comparison key: strip the
 // 'wiki:' prefix, then apply the deeplink normalizer (NFD diacritic strip, lowercase, drop non-alnum).
 function avesmapsNormalizeAdventureKey(key) {
@@ -568,6 +581,7 @@ function getAdventurePlaces(publicId) {
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsAdventureProductTypeLabel: avesmapsAdventureProductTypeLabel,
+		avesmapsAdventureEditionSortKey: avesmapsAdventureEditionSortKey,
 		avesmapsNormalizeAdventureKey: avesmapsNormalizeAdventureKey,
 		avesmapsAdventureToRenderShape: avesmapsAdventureToRenderShape,
 		avesmapsBuildAdventureIndex: avesmapsBuildAdventureIndex,
@@ -581,6 +595,7 @@ if (typeof module !== "undefined" && module.exports) {
 if (typeof window !== "undefined") {
 	window.avesmapsLoadAdventureCatalog = avesmapsLoadAdventureCatalog;
 	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
+	window.avesmapsAdventureEditionSortKey = avesmapsAdventureEditionSortKey;
 	window.getAdventuresForPlace = getAdventuresForPlace;
 	window.getAdventuresForTerritory = getAdventuresForTerritory;
 	window.getAdventuresForRegion = getAdventuresForRegion;

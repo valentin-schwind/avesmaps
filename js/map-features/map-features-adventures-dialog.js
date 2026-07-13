@@ -100,6 +100,8 @@
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
 			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="type">nach Art</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="edition">nach Edition</span>'
+			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
 			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="alpha">alphabetisch</span>'
 			+ '</div>';
 	}
@@ -204,6 +206,11 @@
 			if (state.sort === "type") {
 				return String(a.getAttribute("data-type")).localeCompare(String(b.getAttribute("data-type")), "de")
 					|| ((Number(b.getAttribute("data-year")) || 0) - (Number(a.getAttribute("data-year")) || 0));
+			}
+			if (state.sort === "edition") {
+				var ek = typeof avesmapsAdventureEditionSortKey === "function"
+					? (avesmapsAdventureEditionSortKey(a.getAttribute("data-edition")) - avesmapsAdventureEditionSortKey(b.getAttribute("data-edition"))) : 0;
+				return ek || String(a.getAttribute("data-title")).localeCompare(String(b.getAttribute("data-title")), "de");
 			}
 			return (Number(b.getAttribute("data-year")) || 0) - (Number(a.getAttribute("data-year")) || 0);
 		}

@@ -178,6 +178,8 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 		+ '<span class="avesmaps-adv__sortsep"> · </span>'
 		+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
 		+ '<span class="avesmaps-adv__sortsep"> · </span>'
+		+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">nach Edition</span>'
+		+ '<span class="avesmaps-adv__sortsep"> · </span>'
 		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
 		+ '</div>';
 
@@ -461,6 +463,8 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
 			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">nach Edition</span>'
+			+ '<span class="avesmaps-adv__sortsep"> · </span>'
 			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
 			+ '</div>';
 		var togglesHtml = playCount
@@ -629,6 +633,11 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 			}
 			if (mode === "type") {
 				return String(a.dataset.type).localeCompare(String(b.dataset.type), "de") || ((Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0));
+			}
+			if (mode === "edition") {
+				var ek = typeof avesmapsAdventureEditionSortKey === "function"
+					? (avesmapsAdventureEditionSortKey(a.dataset.edition) - avesmapsAdventureEditionSortKey(b.dataset.edition)) : 0;
+				return ek || String(a.dataset.title).localeCompare(String(b.dataset.title), "de");
 			}
 			return (Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0);
 		};
