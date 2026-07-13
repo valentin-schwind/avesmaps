@@ -84,6 +84,12 @@ async function handleLocationEditFormSubmit(event) {
 			}
 		}
 		activeReviewReportSourceSuggestions = [];
+		// Change report proposed a new position -> apply it via move_point (update_point does not carry position).
+		if (pendingChangeReportMove && payload.action === "update_point" && typeof saveMovedLocationMarker === "function") {
+			const changeMove = pendingChangeReportMove;
+			pendingChangeReportMove = null;
+			await saveMovedLocationMarker(changeMove.markerEntry, changeMove.latlng);
+		}
 		if ((payload.action === "create_point" || payload.action === "update_point") && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");
 			activeReviewReportId = null;

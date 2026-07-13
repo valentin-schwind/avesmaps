@@ -39,8 +39,11 @@ function openLabelEditDialogFromReport(report, latlng) {
 }
 
 // Community change report ("Änderung vorschlagen"): open the EXISTING settlement in the editor (loaded by
-// entity_public_id) instead of the create flow, with the reporter's request prefilled at the top of the
-// description. Saving (update_point) then marks the report approved (review-editor-submit.js).
+// entity_public_id) with the reporter's proposed values prefilled, the changed fields red-outlined, and the
+// proposed position remembered as a pending move (move_point on save -- update_point does NOT carry position).
+// Saving then applies details + the move and marks the report approved (review-editor-submit.js).
+let pendingChangeReportMove = null;
+
 function openLocationEditDialogFromChangeReport(report) {
 	const markerEntry = typeof findLocationMarkerByPublicId === "function"
 		? findLocationMarkerByPublicId(report.entity_public_id)
@@ -52,17 +55,69 @@ function openLocationEditDialogFromChangeReport(report) {
 	void editLocationDetails(markerEntry);
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "map_reports";
+	pendingChangeReportMove = null;
+	const changed = [];
+
+	// Free-text request -> prepend to the description so the editor sees it.
 	const descEl = document.getElementById("location-edit-description");
-	if (descEl) {
-		const request = String(report.comment || "").trim();
+	const request = String(report.comment || "").trim();
+	if (descEl && request) {
 		const reporter = String(report.reporter_name || "").trim();
-		const posNote = (Number.isFinite(Number(report.lat)) && Number.isFinite(Number(report.lng)))
-			? ` (vorgeschlagene Position: ${Number(report.lat).toFixed(3)}, ${Number(report.lng).toFixed(3)})`
-			: "";
-		const header = `— Community-Änderungswunsch${reporter ? ` von ${reporter}` : ""}${posNote}:`;
+		const header = `— Community-Änderungswunsch${reporter ? ` von ${reporter}` : ""}:`;
 		descEl.value = [header, request, String(descEl.value || "").trim()].filter(Boolean).join("\n");
+		changed.push("location-edit-description");
 	}
+
+	// Proposed size/type -> prefill if it differs from the current type.
+	const proposedType = typeof normalizeLocationType === "function"
+		? normalizeLocationType(report.report_subtype || report.size || "")
+		: String(report.report_subtype || "");
+	const typeEl = document.getElementById("location-edit-type");
+	if (typeEl && proposedType && proposedType !== String(markerEntry.locationType || "")) {
+		typeEl.value = proposedType;
+		changed.push("location-edit-type");
+	}
+
+	// Proposed wiki link -> prefill if it differs.
+	const proposedWiki = String(report.wiki_url || "").trim();
+	const wikiEl = document.getElementById("location-edit-wiki-url");
+	const currentWiki = String((markerEntry.location && markerEntry.location.wikiUrl) || "").trim();
+	if (wikiEl && proposedWiki && proposedWiki !== currentWiki) {
+		wikiEl.value = proposedWiki;
+		changed.push("location-edit-wiki-url");
+	}
+
+	// Proposed position -> pending move_point on save, when it differs meaningfully from the current position.
+	const rLat = Number(report.lat);
+	const rLng = Number(report.lng);
+	const cur = markerEntry.location && Array.isArray(markerEntry.location.coordinates) ? markerEntry.location.coordinates : null;
+	if (Number.isFinite(rLat) && Number.isFinite(rLng) && cur
+			&& (Math.abs(rLat - Number(cur[0])) > 0.01 || Math.abs(rLng - Number(cur[1])) > 0.01)) {
+		pendingChangeReportMove = { markerEntry, latlng: L.latLng(rLat, rLng) };
+		const coordEl = document.getElementById("location-edit-coordinates");
+		if (coordEl) coordEl.textContent = formatLocationReportCoordinates(L.latLng(rLat, rLng));
+		document.getElementById("location-edit-lat").value = rLat.toFixed(3);
+		document.getElementById("location-edit-lng").value = rLng.toFixed(3);
+		changed.push("location-edit-coordinates");
+	}
+
+	markChangeReportFields(changed);
 	return true;
+}
+
+// Red-outline the fields a change report proposes to change (so the editor sees the diff at a glance).
+function markChangeReportFields(fieldIds) {
+	clearChangeReportFieldMarks();
+	(fieldIds || []).forEach((id) => {
+		const el = document.getElementById(id);
+		if (el) {
+			el.classList.add("field--change-proposed");
+		}
+	});
+}
+
+function clearChangeReportFieldMarks() {
+	document.querySelectorAll(".field--change-proposed").forEach((el) => el.classList.remove("field--change-proposed"));
 }
 
 async function rejectReviewReport(report) {

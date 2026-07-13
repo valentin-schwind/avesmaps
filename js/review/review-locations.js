@@ -177,6 +177,8 @@ function resetLocationEditForm({ preserveWikiSyncFlow = false } = {}) {
 	activeReviewReportId = null;
 	activeReviewReportSource = null;
 	activeReviewReportSourceSuggestions = [];
+	if (typeof clearChangeReportFieldMarks === "function") { clearChangeReportFieldMarks(); }
+	pendingChangeReportMove = null;
 	pendingCrossingConversionPublicId = null;
 	pendingCrossingConversionName = "";
 	pendingCrossingConversionIsNodix = false;

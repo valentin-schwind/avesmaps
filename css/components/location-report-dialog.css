@@ -554,3 +554,11 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Community change report opened in the editor ("Bearbeiten"): the fields the report proposes to change get
+   a red outline so the editor sees the diff at a glance (position row, size, wiki link, description note). */
+.field--change-proposed {
+	outline: 2px solid var(--color-danger);
+	outline-offset: 1px;
+	border-radius: var(--radius-sm);
+}
