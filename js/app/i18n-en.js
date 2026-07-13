@@ -133,6 +133,8 @@ window.AVESMAPS_I18N_EN = {
 	"popup.fieldPopulation": "Population",
 	"popup.fieldTemples": "Temples",
 	"popup.fieldDescription": "Description",
+	"popup.fieldTradeZone": "Trade zone",
+	"popup.fieldTrafficRoutes": "Transport routes",
 	"toast.share.placeCopied": "Link to this spot copied to clipboard.",
 	"toast.share.copyFailed": "The link could not be copied automatically.",
 	"toast.share.linkCopied": "Link copied to clipboard.",
