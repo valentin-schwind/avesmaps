@@ -167,11 +167,9 @@
 	font-style: italic;
 	color: var(--color-text-muted);
 }
-/* Lizenz-Fußzeile: Cover-Nutzung mit Verweis auf den Ulisses-F-Shop (volle Breite, Trenner statt Rahmen). */
+/* Lizenz-Fußzeile: Cover-Nutzung mit Verweis auf den Ulisses-F-Shop. */
 .avesmaps-adv__credit {
-	margin-top: 10px;
-	padding-top: 6px;
-	border-top: 1px solid var(--color-divider);
+	margin-top: 6px;
 	font-size: 10.5px;
 	color: var(--color-text-muted);
 }
