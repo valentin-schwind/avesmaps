@@ -308,6 +308,13 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	flex: 1 1 calc((100% - 24px) / 4);
 	width: auto;
 }
+/* "Nächsten Ort finden"-Box: sie traegt die Kachel-Optik (floating-location-popup), ist mit 400px aber
+   deutlich breiter als die schwebende Wegpunkt-Box (310px) -- drei 90px-Kacheln stuenden dort links
+   gedraengt und liessen rechts eine Luecke. Wie im Panel: gleich breit UND randvoll (Owner-Regel). */
+.slim-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 90px;
+	width: auto;
+}
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {
 	flex-direction: column;

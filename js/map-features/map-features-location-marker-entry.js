@@ -155,7 +155,18 @@ function buildSlimLocationPopupHtml(markerEntry) {
 		? `<div class="location-popup__desc-label">${escapeHtml(tr("popup.descriptionLabel", "Beschreibung"))}</div>`
 			+ `<div class="location-popup__description">${escapeHtml(location.description)}</div>`
 		: "";
-	const actionButtons = [routeToggleActionButtonMarkup(markerEntry.name)];
+	// Dasselbe Menue wie in der schwebenden Wegpunkt-Infobox (Owner): Anzeigen · Reiseziel hinzufuegen ·
+	// Link teilen. "Anzeigen" (Sextant) oeffnet die VOLLE Info dieses Ortes im rechten Panel -- nur im
+	// Panel-Modus sinnvoll (ohne Panel gaebe es kein Ziel).
+	const actionButtons = [];
+	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
+		actionButtons.push(popupActionButtonMarkup({
+			label: tr("popup.showInPanel", "Anzeigen"),
+			iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
+			attributes: { "data-popup-action": "show-in-panel", "data-place-name": markerEntry.name },
+		}));
+	}
+	actionButtons.push(routeToggleActionButtonMarkup(markerEntry.name));
 	const shareButton = typeof sharePlaceActionButtonMarkup === "function"
 		? sharePlaceActionButtonMarkup(markerEntry.publicId, { wikiUrl: location.wikiUrl || "", wikiParam: "siedlung" })
 		: "";
