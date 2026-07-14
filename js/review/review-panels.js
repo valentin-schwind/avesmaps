@@ -70,6 +70,26 @@ function refreshActiveEditorPanel() {
 	return loadReviewReports();
 }
 
+// Reine DOM-Anzeige fuer den aktuellen isReviewPanelHidden-Stand. Die Entscheidung, WER gerade der
+// aktive Rand-Tab ist (Info oder Editor), faellt zentral im avesmapsEdgePanels-Koordinator (js/config.js) --
+// hier wird nur noch das Ergebnis angezeigt.
+function syncReviewPanelVisibility() {
+	$("#review-panel").toggleClass("is-hidden", isReviewPanelHidden);
+	$("#review-panel-toggle").toggleClass("is-hidden", isReviewPanelHidden);
+	$("#review-panel-toggle").text("Editor");
+}
+
+if (window.avesmapsEdgePanels) {
+	window.avesmapsEdgePanels.registerElement("editor", document.getElementById("review-panel"));
+	// Feuert auch, wenn der ANDERE Tab (Info) uebernimmt -- dann hier einklappen, OHNE toggleReviewPanel
+	// aufzurufen (das wuerde den gespeicherten Nutzer-Wunsch aendern; ein blosser Feature-Klick soll das
+	// naechste Laden nicht beeinflussen).
+	window.avesmapsEdgePanels.onChange(function (active) {
+		isReviewPanelHidden = active !== "editor";
+		syncReviewPanelVisibility();
+	});
+}
+
 function restoreReviewPanelState() {
 	let storedValue = null;
 	try {
@@ -85,33 +105,10 @@ function restoreReviewPanelState() {
 		isReviewPanelHidden = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
 	}
 
-	syncReviewPanelVisibility();
-}
-
-// Ist das Info-Panel (teilt sich mit dem Editor die rechte Kante) gerade sichtbar? Fuer den No-Slide-
-// Tab-Wechsel: faehrt der Editor auf, waehrend das Info-Panel schon da ist, soll er nicht doppelt reinsliden.
-function isInfopanelVisibleForEditor() {
-	var ip = document.querySelector(".avesmaps-infopanel");
-	return !!(ip && !ip.classList.contains("is-hidden"));
-}
-
-function syncReviewPanelVisibility() {
-	var panelEl = document.getElementById("review-panel");
-	// Kein Slide beim reinen Tab-Wechsel (Owner): faehrt der Editor gerade auf (war verborgen), waehrend das
-	// Info-Panel die rechte Kante schon belegt, die transform-Transition per Reflow aushebeln -> er erscheint
-	// direkt statt ein zweites Mal reinzusliden. Nur beim OEFFNEN.
-	var openingWhileInfoVisible = panelEl && !isReviewPanelHidden
-		&& panelEl.classList.contains("is-hidden") && isInfopanelVisibleForEditor();
-	if (openingWhileInfoVisible) {
-		panelEl.classList.add("avesmaps-no-slide");
-		panelEl.classList.remove("is-hidden");
-		void panelEl.offsetWidth; // Reflow: is-hidden greift ohne Transition, danach wieder animierbar
-		panelEl.classList.remove("avesmaps-no-slide");
-	} else {
-		$("#review-panel").toggleClass("is-hidden", isReviewPanelHidden);
+	if (!isReviewPanelHidden) {
+		window.avesmapsEdgePanels?.activate("editor");
 	}
-	$("#review-panel-toggle").toggleClass("is-hidden", isReviewPanelHidden);
-	$("#review-panel-toggle").text("Editor");
+	syncReviewPanelVisibility();
 }
 
 function toggleReviewPanel() {
@@ -122,6 +119,11 @@ function toggleReviewPanel() {
 		console.warn("Review-Panel-Zustand konnte nicht gespeichert werden:", error);
 	}
 
+	if (isReviewPanelHidden) {
+		window.avesmapsEdgePanels?.deactivate("editor");
+	} else {
+		window.avesmapsEdgePanels?.activate("editor");
+	}
 	syncReviewPanelVisibility();
 }
 

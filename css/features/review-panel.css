@@ -24,8 +24,9 @@
 	transform: translateX(100%);
 }
 /* Kein Slide beim reinen Tab-Wechsel (Owner): faehrt der Editor auf, waehrend das Info-Panel die rechte
-   Kante schon belegt, wird die transform-Transition kurz ausgehebelt (JS setzt+entfernt die Klasse um
-   einen erzwungenen Reflow) -> der Editor erscheint direkt statt doppelt reinzusliden. */
+   Kante schon belegt, wird die transform-Transition kurz ausgehebelt -> der Editor erscheint direkt statt
+   doppelt reinzusliden. Der zentrale Koordinator window.avesmapsEdgePanels (js/config.js) setzt und
+   entfernt die Klasse auf BEIDEN Panels symmetrisch um einen erzwungenen Reflow. */
 .review-panel.avesmaps-no-slide {
 	transition: none;
 }

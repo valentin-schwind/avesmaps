@@ -192,6 +192,47 @@ const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") !== "false";
 // Mode-Klasse frueh auf <html> -> flag-gebundene CSS (Panel + Zoom/Hinweise-Position) greift,
 // bevor bootstrap.js die Leaflet-Zoom-Control anlegt (kein Springen der Kontrollen).
 if (IS_INFOPANEL_MODE && document.documentElement) { document.documentElement.classList.add("avesmaps-infopanel-mode"); }
+// Info + Editor share the right map edge as two TABS of ONE conceptual panel (Owner-Feedback: they
+// used to be two independently-blinking widgets that opened/closed at random relative to each
+// other). This is the single source of truth for which one is open; each side (map-features-
+// infopanel.js / review-panels.js) still owns its own DOM/rendering, but only reacts to activate/
+// deactivate here instead of polling each other's classList. `registerElement` lets `activate()`
+// suppress the slide transition on BOTH elements during a genuine tab swap (Owner: switching tabs
+// should feel instant, like flipping to another tab of the same panel -- not a close+reopen slide);
+// a swap is only suppressed when a DIFFERENT tab was already open, never on the first open/close.
+window.avesmapsEdgePanels = (function () {
+	var active = null; // "info" | "editor" | null
+	var listeners = [];
+	var elements = {};
+	return {
+		registerElement: function (which, el) { elements[which] = el; },
+		activate: function (which) {
+			if (active === which) { return; }
+			var previous = active;
+			var isSwap = !!previous;
+			if (isSwap) {
+				if (elements[previous]) { elements[previous].classList.add("avesmaps-no-slide"); }
+				if (elements[which]) { elements[which].classList.add("avesmaps-no-slide"); }
+			}
+			active = which;
+			listeners.forEach(function (fn) { fn(active, previous); });
+			if (isSwap) {
+				if (elements[previous]) { void elements[previous].offsetWidth; }
+				if (elements[which]) { void elements[which].offsetWidth; }
+				if (elements[previous]) { elements[previous].classList.remove("avesmaps-no-slide"); }
+				if (elements[which]) { elements[which].classList.remove("avesmaps-no-slide"); }
+			}
+		},
+		deactivate: function (which) {
+			if (active !== which) { return; }
+			var previous = active;
+			active = null;
+			listeners.forEach(function (fn) { fn(active, previous); });
+		},
+		isActive: function (which) { return active === which; },
+		onChange: function (fn) { listeners.push(fn); },
+	};
+})();
 const MAP_TILE_STYLES = {
 	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.webp" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },

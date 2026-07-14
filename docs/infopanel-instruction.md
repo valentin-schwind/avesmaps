@@ -35,9 +35,11 @@ Commits / interne API-Messages Englisch, App-UI Deutsch.
 6. **Wegpunkt-Tabs** oben im Panel (aus `getWaypointInputValues()`); aktiver Tab =
    zuletzt geklicktes Feature. **In v1** enthalten.
 7. **Edit-Mode (Owner-Korrektur):** Infopanel und Editor teilen sich die rechte
-   Kante als **zwei gestapelte Rand-Tabs** desselben Slots — „Info" oben, „Editor"
-   darunter (lesbar). Ein Klick holt das jeweilige Panel per **z-index nach vorn**;
-   das Infopanel bleibt dabei offen. (NICHT zwei Panels nebeneinander.)
+   Kante als **zwei gestapelte Rand-Tabs desselben Slots** — „Info" oben, „Editor"
+   darunter (lesbar), aber **echt gegenseitig exklusiv**: es ist immer höchstens
+   einer offen (zentraler Koordinator `window.avesmapsEdgePanels`, `js/config.js`,
+   siehe Phase 5). Die „Info"-Regel gilt unverändert auch im Edit-Mode: der Tab
+   erscheint nur, wenn ein Feature angeklickt wurde. (NICHT zwei Panels nebeneinander.)
 8. **Ein durchgehender Scrollbalken** über die ganze Info-Spalte (Panel-Body
    scrollt; die kürzlich in `css/features/location-reviews.css` ergänzte
    Bewertungs-`max-height` wird im Panel-Modus **überschrieben**). Kopf +
@@ -167,10 +169,22 @@ Alle Info-Builder liefern **HTML-Strings** → direkt in den Panel-Body einspeis
 - Kein Zwei-Panel-Layout. Editor-Rand-Tab (`#review-panel-toggle`) per CSS auf
   `top:180` unter den Info-Tab (`top:30`), beide an der Panel-Kante
   (`.is-hidden`-Override, damit der Editor-Tab nicht auf `right:0` unter das
-  vordere Infopanel rutscht). Klick → z-index nach vorn: `.avesmaps-infopanel--front`
-  (z:1110 > Editor 1100) bei Feature/Info-Klick; Editor-Tab-Klick → `sendToBack`.
-  Infopanel bleibt im Edit-Mode offen (Zoom/Hinweise stabil). Nur `?edit=1&infopanel=true`.
-- **Deploy-Check:** beide Tabs lesbar gestapelt + klickbar, Panel springt nach vorn.
+  vordere Infopanel rutscht). Nur `?edit=1&infopanel=true`.
+- Ursprünglich per **z-index nach vorn** (`.avesmaps-infopanel--front`, z:1110 >
+  Editor 1100) gelöst — das erlaubte aber beiden Panels, unabhängig voneinander
+  offen zu sein (Owner-Bug-Report: „random auf- und zuklappen", keine echten
+  Tabs). **2026-07-14 ersetzt** durch den zentralen Koordinator
+  `window.avesmapsEdgePanels` (`js/config.js`): `registerElement`/`activate`/
+  `deactivate`/`onChange`, echte gegenseitige Exklusivität (Aktivieren des einen
+  Tabs schließt automatisch den anderen). Der No-Slide-Reflow-Trick
+  (`.avesmaps-no-slide` + erzwungener Reflow) läuft jetzt zentral in `activate()`
+  auf BEIDEN Panels symmetrisch, nur bei einem echten Tab-Wechsel (nicht beim
+  ersten Öffnen/vollständigen Schließen). Die z-index-Front/Back-Klasse
+  (`.avesmaps-infopanel--front`) und die DOM-Sniffing-Helfer
+  (`isEditorPanelVisible`, `isInfopanelVisibleForEditor`, `bringInfopanelToFront`,
+  `sendInfopanelToBack`) sind entfallen.
+- **Deploy-Check:** beide Tabs lesbar gestapelt + klickbar; es ist nie mehr als
+  einer offen; Tab-Wechsel wirkt wie ein Umschalten (kein doppeltes Slide-Ein/Aus).
 
 ### Phase 6 — Zusatz-Abschnitte (Daten, später)
 - **Stadtkarten:** waagrechter Streifen mit Thumbnail-Boxen → **externe**

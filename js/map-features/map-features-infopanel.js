@@ -123,19 +123,10 @@
 
 	function sync() {
 		var open = hasContent && !collapsed;
-		// Kein Slide beim reinen Tab-Wechsel (Owner): faehrt das Info-Panel gerade auf (war verborgen),
-		// waehrend der Editor die rechte Kante schon belegt, die transform-Transition per Reflow aushebeln
-		// -> das Panel erscheint direkt statt ein zweites Mal reinzusliden. Nur beim OEFFNEN.
-		var openingWhileEditorVisible = open && panel.classList.contains("is-hidden") && isEditorPanelVisible();
-		if (openingWhileEditorVisible) {
-			panel.classList.add("avesmaps-no-slide");
-			panel.classList.remove("is-hidden");
-			void panel.offsetWidth; // Reflow: is-hidden greift ohne Transition, danach wieder animierbar
-			panel.classList.remove("avesmaps-no-slide");
-		} else {
-			panel.classList.toggle("is-hidden", !open);
-		}
-		handle.style.display = (hasContent || (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)) ? "" : "none";
+		panel.classList.toggle("is-hidden", !open);
+		// Info-Tab NUR sichtbar, wenn tatsaechlich ein Element angeklickt wurde (Owner-Regel, dieselbe
+		// wie im Nicht-Edit-Frontend) -- keine Ausnahme mehr fuer den Edit-Mode.
+		handle.style.display = hasContent ? "" : "none";
 		handle.classList.toggle("is-hidden", collapsed);
 		handle.setAttribute("aria-expanded", open ? "true" : "false");
 		// Zoom + "Hinweise" fahren mit der Panel-Kante mit (CSS an dieser Klasse): offen -> ans
@@ -150,38 +141,24 @@
 	// klebten sie an der linken Panel-Kante (right:var(--ip-w)) -- die in schmalen Fenstern weit links
 	// liegt -> die Tabs wirkten dann losgeloest von den (verborgenen) Panels. Ist ein Panel offen, sitzen
 	// sie an dessen linker Kante. Klasse `avesmaps-any-panel-open` auf <html>, CSS positioniert danach.
-	function isEditorPanelVisible() {
-		var rp = document.getElementById("review-panel");
-		return !!(rp && !rp.classList.contains("is-hidden") && !rp.hasAttribute("hidden") && getComputedStyle(rp).display !== "none");
-	}
 	function updateEdgeTabDock() {
 		var infoOpen = hasContent && !collapsed;
-		document.documentElement.classList.toggle("avesmaps-any-panel-open", infoOpen || isEditorPanelVisible());
+		var editorActive = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
+			&& !!(window.avesmapsEdgePanels && window.avesmapsEdgePanels.isActive("editor"));
+		document.documentElement.classList.toggle("avesmaps-any-panel-open", infoOpen || editorActive);
 	}
 	sync();
 
-	// Edit-Mode-Koexistenz (Phase 5): Infopanel + Editor-Panel (#review-panel) teilen die rechte
-	// Kante; zwei gestapelte Rand-Tabs (Info oben, "Editor" per CSS darunter). Ein Klick holt das
-	// jeweilige Panel per z-index nach VORN. Das Infopanel bleibt dabei "offen" (nicht eingeklappt),
-	// damit Zoom/Hinweise stabil am Panel-Eck bleiben.
-	function bringInfopanelToFront() { panel.classList.add("avesmaps-infopanel--front"); }
-	function sendInfopanelToBack() { panel.classList.remove("avesmaps-infopanel--front"); }
-	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
-		var editorToggle = document.getElementById("review-panel-toggle");
-		if (editorToggle) {
-			// Klick auf "Editor" -> Editor nach vorn (Infopanel dahinter); der Editor-eigene Toggle
-			// (toggleReviewPanel) laeuft unveraendert daneben. Danach das Andocken neu bestimmen.
-			editorToggle.addEventListener("click", function () {
-				sendInfopanelToBack();
-				window.setTimeout(updateEdgeTabDock, 0);
-			});
-		}
-		// Editor-Panel-Sichtbarkeit beobachten (toggleReviewPanel setzt #review-panel.is-hidden ohne
-		// sync() zu rufen) -> Rand-Tabs an-/abdocken.
-		var reviewPanelEl = document.getElementById("review-panel");
-		if (reviewPanelEl && typeof MutationObserver === "function") {
-			new MutationObserver(updateEdgeTabDock).observe(reviewPanelEl, { attributes: true, attributeFilter: ["class", "hidden", "style"] });
-		}
+	// Edit-Mode-Koexistenz: Info und Editor sind ECHTE, sich gegenseitig ausschliessende Tabs DESSELBEN
+	// rechten Rand-Slots (avesmapsEdgePanels-Koordinator, js/config.js) statt zweier unabhaengig auf-
+	// und zuklappender Panels. `hasContent`/der Panel-Inhalt bleiben dabei erhalten -- ein spaeterer
+	// Klick auf "Info" zeigt wieder denselben Inhalt, ohne neu laden zu muessen.
+	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE && window.avesmapsEdgePanels) {
+		window.avesmapsEdgePanels.registerElement("info", panel);
+		window.avesmapsEdgePanels.onChange(function (active) {
+			collapsed = (active !== "info");
+			sync();
+		});
 	}
 
 	// Baut die Tab-Leiste aus den AKTUELLEN Wegpunkten (getWaypointInputValues, visuelle Reihenfolge).
@@ -424,17 +401,16 @@
 
 	handle.addEventListener("click", function () {
 		if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
-			// Edit-Mode: "Info" ist ein DAUERHAFTER Tab (neben "Editor"). Ist noch kein Feature
-			// angeklickt und kein Wegpunkt gelistet (kein Inhalt), darf das leere Info-Panel verborgen
-			// BLEIBEN -- es wird nicht mit einem Platzhalter aufgezwungen, damit der Editor sicht- und
-			// klickbar bleibt. Erst ein Feature-/Wegpunkt-Klick fuellt das Panel. Mit Inhalt: nach vorn.
+			// Ohne Inhalt gibt es nichts zu zeigen -- dank der hasContent-Sichtbarkeitsregel (sync())
+			// ist der Tab dann ohnehin ausgeblendet; dieser Zweig ist nur ein Sicherheitsnetz.
 			if (!hasContent) {
-				sendInfopanelToBack();
 				return;
 			}
-			collapsed = false;
-			sync();
-			bringInfopanelToFront();
+			if (window.avesmapsEdgePanels && window.avesmapsEdgePanels.isActive("info")) {
+				window.avesmapsEdgePanels.deactivate("info");
+			} else if (window.avesmapsEdgePanels) {
+				window.avesmapsEdgePanels.activate("info");
+			}
 			return;
 		}
 		if (!hasContent) {
@@ -445,7 +421,7 @@
 	});
 
 	// Leerklick auf die Karte (nichts getroffen) -> Infopanel einklappen. Im Edit-Mode stattdessen den
-	// Editor wieder nach vorn holen (dort ist der Editor die Standardansicht). Erkennung ueber openSeq:
+	// Editor wieder aktivieren (dort ist der Editor die Standardansicht). Erkennung ueber openSeq:
 	// ein Feature-Klick ruft avesmapsShowInfopanel (openSeq steigt). Der Snapshot wird in der CAPTURE-
 	// Phase genommen (vor Leaflets Klick-Handlern) und im setTimeout mit dem Endstand verglichen -> robust
 	// gegen die Reihenfolge der Klick-Handler (Canvas-Arbiter registriert vor uns).
@@ -474,7 +450,9 @@
 					window.avesmapsClearActiveLocation();
 				}
 				if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
-					sendInfopanelToBack(); // Editor wieder in den Vordergrund
+					if (window.avesmapsEdgePanels) {
+						window.avesmapsEdgePanels.activate("editor"); // Editor ist die Ruheansicht im Edit-Mode
+					}
 					return;
 				}
 				collapsed = true;
@@ -522,7 +500,9 @@
 			openSeq += 1;
 			currentTabActive = typeof activeName === "string" ? activeName : "";
 			renderTabs();
-			bringInfopanelToFront();
+			if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE && window.avesmapsEdgePanels) {
+				window.avesmapsEdgePanels.activate("info");
+			}
 		} else {
 			body.innerHTML = "";
 			hasContent = false;

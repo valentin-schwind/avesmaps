@@ -39,8 +39,8 @@
 }
 /* Kein Slide beim reinen Tab-Wechsel (Owner): faehrt das Info-Panel auf, waehrend der Editor die rechte
    Kante schon belegt, wird die transform-Transition kurz ausgehebelt -> das Panel erscheint direkt statt
-   ein zweites Mal reinzusliden. Das JS (sync / syncReviewPanelVisibility) setzt+entfernt die Klasse um
-   einen erzwungenen Reflow. */
+   ein zweites Mal reinzusliden. Der zentrale Koordinator window.avesmapsEdgePanels (js/config.js) setzt
+   und entfernt die Klasse auf BEIDEN Panels symmetrisch um einen erzwungenen Reflow. */
 .avesmaps-infopanel.avesmaps-no-slide {
 	transition: none;
 }
@@ -586,11 +586,11 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	padding: 0;
 }
 
-/* ---- Edit-Mode-Koexistenz (Phase 5) ----
-   Infopanel + Editor-Panel (#review-panel) teilen die rechte Kante. Der Editor-Rand-Tab
-   (#review-panel-toggle, existiert nur im Edit-Mode) rueckt UNTER den Info-Tab (top:30), damit beide
-   lesbar gestapelt sind. Ein Klick holt das jeweilige Panel per z-index nach vorn (Editor-Panel = 1100;
-   das Infopanel liegt per .--front darueber). */
+/* ---- Edit-Mode-Koexistenz ----
+   Infopanel + Editor-Panel (#review-panel) sind zwei TABS EINES Rand-Panels (Owner-Konzept, kein
+   z-index-Vorn/Zurueck mehr): window.avesmapsEdgePanels (js/config.js) haelt fest, welcher Tab aktiv
+   ist, und schliesst den jeweils anderen. Der Editor-Rand-Tab (#review-panel-toggle, existiert nur im
+   Edit-Mode) rueckt UNTER den Info-Tab (top:30), damit beide lesbar gestapelt sind. */
 .avesmaps-infopanel-mode #review-panel-toggle {
 	top: 180px;
 	height: 140px; /* exakt gleiche Hoehe wie der Info-Tab */
@@ -608,9 +608,6 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 }
 /* (Die fruehere .is-hidden-right-Regel fuer den Editor-Tab ist jetzt durch das Rand-Tab-Andocken
    oben abgeloest -- die Tabs folgen der offenen Panel-Kante bzw. der Bildschirmkante.) */
-.avesmaps-infopanel.avesmaps-infopanel--front {
-	z-index: 1110;
-}
 /* Editor-Panel auf dieselbe Hoehe wie das Infopanel bringen (Owner-Vorgabe): gleicher unterer Abstand
    wie die Infobox (bottom:14px). Der Editor endet sonst bei bottom:64px und ist damit kuerzer als die
    Infobox -- top:10px teilen sich beide ohnehin. */
