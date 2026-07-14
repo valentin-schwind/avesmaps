@@ -109,7 +109,7 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     // Routenplaner abgeschaltet hat (allowRiver/allowSea = false).
     if (!avesmapsIsClientRouteDomainEnabled($routeType, $request)) return;
     $transportOption = avesmapsResolveClientRouteTransportOption($routeType, $request);
-    if ($transportOption === null || !avesmapsIsClientTransportAllowedForPath($routeType, $transportOption)) return;
+    if ($transportOption === null || !avesmapsIsClientTransportAllowedForPath($routeType, $transportOption, $path)) return;
 
     $speed = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transportOption][$routeType] ?? null;
     if (!is_numeric($speed) || (float) $speed <= 0.0) return;
@@ -680,9 +680,30 @@ function avesmapsResolveClientRouteTransportOption(string $routeType, array $req
     return null;
 }
 
-function avesmapsIsClientTransportAllowedForPath(string $routeType, string $transportOption): bool {
+function avesmapsIsClientTransportAllowedForPath(string $routeType, string $transportOption, array $path = []): bool {
     if ($routeType === 'Wuestenpfad' && $transportOption === 'horseCarriage') return false;
-    return true;
+
+    $allowedTransports = avesmapsClientRoutePathAllowedTransports($path);
+    if ($allowedTransports === null) return true;
+
+    return in_array($transportOption, $allowedTransports, true);
+}
+
+// Per-path transport restriction, the editor's "Erlaubte Transportmittel" (transport_domain +
+// allowed_transports, always saved as a PAIR by avesmapsUpdatePathFeatureDetails). Null = the path
+// records no restriction; a list -- INCLUDING an empty one -- is authoritative: an empty list means
+// no transport at all may use this path (e.g. the upper Raller, where no boat gets past the source).
+// Mirrors js/routing/route-engine.js isTransportAllowedForPath; the properties_json is NESTED under
+// properties.properties in the route path shape (see avesmapsBuildRoutePathData), same as flow.
+// Legacy rows carry an empty list WITHOUT a transport_domain -- a shape the editor never wrote --
+// and are treated as unrestricted rather than impassable.
+function avesmapsClientRoutePathAllowedTransports(array $path): ?array {
+    $properties = is_array($path['properties'] ?? null) ? $path['properties'] : [];
+    $allowedTransports = $properties['allowed_transports'] ?? null;
+    if (!is_array($allowedTransports)) return null;
+    if ($allowedTransports === [] && trim((string) ($properties['transport_domain'] ?? '')) === '') return null;
+
+    return array_values(array_map(static fn(mixed $option): string => (string) $option, $allowedTransports));
 }
 
 function avesmapsCalculateClientRouteCoordinateDistance(array $coordinates): float {

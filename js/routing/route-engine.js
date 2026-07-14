@@ -23,9 +23,13 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 		return false;
 	}
 
-	const allowedTransports = Array.isArray(pathProperties?.allowed_transports)
-		? pathProperties.allowed_transports
-		: TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+	// A recorded list -- an empty one included -- is authoritative: no transport may use the path.
+	// An empty list WITHOUT a stored transport_domain is legacy noise (the editor always saves the
+	// pair), so it means "no restriction recorded". Same rule as the server graph, see
+	// avesmapsClientRoutePathAllowedTransports in api/_internal/routing/client-graph.php.
+	const restriction = Array.isArray(pathProperties?.allowed_transports) ? pathProperties.allowed_transports : null;
+	const hasRestriction = restriction !== null && (restriction.length > 0 || String(pathProperties?.transport_domain || "").trim() !== "");
+	const allowedTransports = hasRestriction ? restriction : TRANSPORT_DOMAIN_OPTIONS[domain] || [];
 	return allowedTransports.includes(transportOption);
 }
 
