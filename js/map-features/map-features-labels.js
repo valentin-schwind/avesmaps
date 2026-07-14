@@ -349,7 +349,7 @@ function buildRegionLabelViewPopupHtml(label) {
 		: "";
 	return locationPopupMarkup({
 		name: labelName,
-		locationTypeLabel: art,
+		locationTypeLabel: tr("spotlight.labelType." + label.labelType, art),
 		headerImageMarkup: headerImg,
 		showHeaderIcon: false,
 		compact: true,

@@ -192,7 +192,7 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		name: markerEntry.name,
 		coordinates: latLng,
 		locationType,
-		locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
+		locationTypeLabel: tr(`type.${locationType}.singular`, feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf"),
 		description: feature.description || "",
 		wikiUrl: feature.wiki_url || "",
 		otherSource: feature.other_source || null,
@@ -290,7 +290,9 @@ function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
 		name: feature.name,
 		coordinates: [Number(feature.lat), Number(feature.lng)],
 		locationType,
-		locationTypeLabel: locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
+		locationTypeLabel: locationType === CROSSING_LOCATION_TYPE
+			? tr("locationType.crossing", "Kreuzung")
+			: tr(`type.${locationType}.singular`, feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf"),
 		description: feature.description || "",
 		wikiUrl: feature.wiki_url || "",
 		otherSource: feature.other_source || null,
@@ -354,7 +356,7 @@ function addCreatedCrossingMarker(feature) {
 		name: getNextCrossingDisplayName(),
 		coordinates: [Number(feature.lat), Number(feature.lng)],
 		locationType: CROSSING_LOCATION_TYPE,
-		locationTypeLabel: "Kreuzung",
+		locationTypeLabel: tr("locationType.crossing", "Kreuzung"),
 		description: "",
 		wikiUrl: "",
 	};

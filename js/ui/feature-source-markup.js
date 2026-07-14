@@ -26,6 +26,17 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   opts = opts || {};
   var wikiLabel = opts.wikiLabel || "Wiki";
   var officialTooltip = opts.officialTooltip || "offizielle Quelle";
+  var mentionTooltip = opts.mentionTooltip || "";
+  var sourceLabelSingular = opts.sourceLabelSingular || "Quelle";
+  var sourceLabelPlural = opts.sourceLabelPlural || "Quellen";
+  var publicationsLabel = opts.publicationsLabel || "Publikationen:";
+  var officialTabLabel = opts.officialTabLabel || "Offiziell";
+  var mentionedTabLabel = opts.mentionedTabLabel || "Erwähnt";
+  var tableHeaders = opts.tableHeaders || {};
+  var titleHeader = tableHeaders.title || "Titel";
+  var typeHeader = tableHeaders.type || "Typ";
+  var pagesHeader = tableHeaders.pages || "Seiten";
+  var typeLabels = opts.typeLabels || FEATURE_SOURCE_MARKUP_TYPE_LABELS;
   var esc = opts.escape || function (s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
@@ -33,7 +44,7 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   };
   var typeLabel = function (t) {
     var key = String(t == null ? "" : t).trim();
-    return key ? (FEATURE_SOURCE_MARKUP_TYPE_LABELS[key] || key) : "";
+    return key ? (typeLabels[key] || key) : "";
   };
   var star = function (official) {
     return official ? '<span class="fs-src-star" title="' + esc(officialTooltip) + '">*</span>' : "";
@@ -74,8 +85,8 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
     }
   });
   if (items.length) {
-    var lbl = items.length > 1 ? "Quellen" : "Quelle";
-    blocks.push('<div class="fs-src-direct">' + lbl + ": " + items.join('<span class="fs-src-sep">·</span>') + "</div>");
+    var lbl = items.length > 1 ? sourceLabelPlural : sourceLabelSingular;
+    blocks.push('<div class="fs-src-direct">' + esc(lbl) + ": " + items.join('<span class="fs-src-sep">·</span>') + "</div>");
   }
 
   // ----- Line 2: Publikationen — collapsible tabbed Titel/Typ/Seiten table -----
@@ -84,14 +95,15 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
   if (publications.length && !opts.omitPublications) {
     var off = publications.filter(function (s) { return s.reference_kind !== "erwaehnung"; });
     var erw = publications.filter(function (s) { return s.reference_kind === "erwaehnung"; });
-    var tab = function (key, name, n) {
-      return '<span class="fs-src-tab" data-fs-tab="' + key + '" role="button" tabindex="0"' +
+    var tab = function (key, name, n, tooltip) {
+      var titleAttr = tooltip ? ' title="' + esc(tooltip) + '"' : "";
+      return '<span class="fs-src-tab" data-fs-tab="' + key + '" role="button" tabindex="0"' + titleAttr +
         ' onclick="avesmapsToggleSourceTab(this)" onkeydown="avesmapsSourceTabKeydown(event,this)">' +
-        name + ' <span class="fs-src-n">(' + n + ")</span></span>";
+        esc(name) + ' <span class="fs-src-n">(' + n + ")</span></span>";
     };
     var tabs = [];
-    if (off.length) tabs.push(tab("off", "Offiziell", off.length));
-    if (erw.length) tabs.push(tab("erw", "Erwähnt", erw.length));
+    if (off.length) tabs.push(tab("off", officialTabLabel, off.length));
+    if (erw.length) tabs.push(tab("erw", mentionedTabLabel, erw.length, mentionTooltip));
 
     var table = function (rows, key) {
       var body = rows.map(function (s) {
@@ -103,13 +115,13 @@ function buildSourceListMarkup(wikiUrl, sources, opts) {
       }).join("");
       return '<table class="fs-src-table" data-fs-panel="' + key + '" hidden>' +
         '<colgroup><col class="fs-src-col-title"><col class="fs-src-col-type"><col class="fs-src-col-pages"></colgroup>' +
-        '<thead><tr><th>Titel</th><th>Typ</th><th class="fs-src-th-r">Seiten</th></tr></thead><tbody>' + body + "</tbody></table>";
+        '<thead><tr><th>' + esc(titleHeader) + '</th><th>' + esc(typeHeader) + '</th><th class="fs-src-th-r">' + esc(pagesHeader) + '</th></tr></thead><tbody>' + body + "</tbody></table>";
     };
     var tables = "";
     if (off.length) tables += table(off, "off");
     if (erw.length) tables += table(erw, "erw");
 
-    blocks.push('<div class="fs-src-pub"><span class="fs-src-publabel">Publikationen:</span>' +
+    blocks.push('<div class="fs-src-pub"><span class="fs-src-publabel">' + esc(publicationsLabel) + '</span>' +
       tabs.join("") + "</div>");
     blocks.push('<div class="fs-src-tablewrap" hidden>' + tables + "</div>");
   }

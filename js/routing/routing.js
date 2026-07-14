@@ -68,7 +68,9 @@ const prepareLocationData = (data) => {
 				name: isCrossing ? `Kreuzung-${crossingCount++}` : feature.properties.name,
 				coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
 				locationType,
-				locationTypeLabel: isCrossing ? "Kreuzung" : feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
+				locationTypeLabel: isCrossing
+					? tr("locationType.crossing", "Kreuzung")
+					: tr(`type.${locationType}.singular`, feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf"),
 				description: feature.properties.description || "",
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				otherSource: readFeatureOtherSource(feature.properties),

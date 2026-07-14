@@ -485,7 +485,7 @@
 		}
 		return locationPopupMarkup({
 			name,
-			locationTypeLabel: wikiParam === "fluss" ? "Fluss" : "Straße",
+			locationTypeLabel: tr("spotlight.pathType." + entry.subtype, wikiParam === "fluss" ? "Fluss" : "Straße"),
 			showHeaderIcon: false,
 			showDescription: false,
 			showWikiLink: false,

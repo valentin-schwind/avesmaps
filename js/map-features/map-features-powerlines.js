@@ -164,7 +164,7 @@ function createPowerlinePopupMarkup(powerline) {
 	return locationPopupMarkup({
 		name: getPowerlineDisplayName(powerline),
 		locationType: "dorf",
-		locationTypeLabel: "Kraftlinie",
+		locationTypeLabel: tr("spotlight.type.powerline", "Kraftlinie"),
 		showHeaderIcon: false,
 		showDescription: false,
 		showWikiLink: false,

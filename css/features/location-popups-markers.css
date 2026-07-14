@@ -293,9 +293,10 @@ body.edit-mode .avesmaps-infopanel .location-popup__actions {
    UND randvoll zugleich (kein festes Spalten-Grid: das liesse eine unvollstaendige letzte Zeile mit Luecke
    rechts stehen). Scoped auf die HAUPT-Aktionen (direktes Kind von .location-popup), damit die
    verschachtelten Bewertungs-Aktionen ("Bewertung schreiben") eine normale Inline-Zeile bleiben.
-   Rechtes Panel (breiter, variable Breite): natuerliche Spaltenzahl -- flex-wrap bricht anhand der
-   Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig innerhalb der Zeile. */
-body.edit-mode .avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button {
+   Rechtes Panel (breiter, variable Breite), BEIDE Modi: im View-Modus (wenige Kacheln, kein Umbruch)
+   fuellt flex-grow die eine Zeile randvoll; im Edit-Modus (viele Kacheln) bricht flex-wrap anhand der
+   Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig je Zeile. */
+.avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button {
 	flex: 1 1 90px;
 	width: auto;
 }

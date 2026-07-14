@@ -69,7 +69,7 @@ function createPathPopupMarkup(path) {
 	return locationPopupMarkup({
 		name: pathName,
 		locationType: "dorf",
-		locationTypeLabel: pathType,
+		locationTypeLabel: tr("spotlight.pathType." + pathType, pathType),
 		headerImageMarkup: headerImg,
 		headerIconMarkup: pathHeaderIconMarkup(pathType),
 		showHeaderIcon: true,
