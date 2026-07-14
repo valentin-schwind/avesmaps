@@ -53,28 +53,28 @@
     padding: var(--space-10) var(--space-16);
     background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border);
   }
-  .ae-header h1 { margin: 0; font-size: var(--font-size-title); color: var(--color-text-strong);
-    font-weight: var(--font-weight-bold); line-height: var(--leading-tight); }
-  .ae-header .ae-sub { color: var(--color-text-muted); font-size: var(--font-size-small); }
   .ae-header__spacer { flex: 1 1 auto; }
-  /* header tiles: "Abenteuer syncen" (primary) + the cover kill-switch toggle */
-  .ae-synctile, .ae-covertoggle {
-    display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: var(--space-2); min-width: 96px; padding: var(--space-4) var(--space-12);
-    font: inherit; line-height: var(--leading-tight); text-align: center; cursor: pointer;
-    border-radius: var(--radius-md); border: 1px solid var(--color-button-border);
+  /* Zweizeiliger Button (Label + kleine Statuszeile) wie #seSyncen im Siedlungseditor -- gleiches
+     Muster, hier aber ueber die echten Tokens statt hartkodierter Hex-Werte (kein eigenes :root noetig,
+     diese Seite bindet tokens.css bereits direkt ein). Der Dialog-Rahmen zeigt den Editor-Titel schon
+     im H2 der Ueberschrift (siehe openAvesmapsAdventureEditorOverlay) -- ein zweiter H1 hier waere doppelt.
+     Gilt fuer beide Header-Buttons: Sync (primary) UND den Cover-Kill-Switch (soft, .is-off = Warnung). */
+  .ae-btn2 {
+    display: flex; flex-direction: column; align-items: flex-start; text-align: left;
+    gap: 1px; line-height: var(--leading-tight); font: inherit; cursor: pointer;
+    border-radius: var(--radius-md); padding: var(--space-4) var(--space-12);
+    background: var(--color-button-soft); color: var(--color-button-soft-text); border: 1px solid var(--color-button-soft-border);
   }
-  .ae-synctile__icon, .ae-covertoggle__icon { font-size: var(--font-size-subhead); }
-  .ae-synctile__label, .ae-covertoggle__label { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
-  .ae-synctile { background: var(--color-button); color: var(--color-button-text); }
-  .ae-synctile:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
-  .ae-synctile:disabled { opacity: .6; cursor: default; box-shadow: none; }
-  .ae-covertoggle { background: var(--color-button-soft); color: var(--color-button-soft-text);
-    border-color: var(--color-button-soft-border); }
-  .ae-covertoggle:hover { background: var(--color-button-soft-hover); }
-  .ae-covertoggle:disabled { opacity: .6; cursor: default; }
-  .ae-covertoggle.is-off { background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  .ae-btn2:hover { background: var(--color-button-soft-hover); }
+  .ae-btn2:disabled { opacity: .6; cursor: default; }
+  .ae-btn2 .t1 { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+  .ae-btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; }
+  .ae-btn2--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
+  .ae-btn2--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+  .ae-btn2--primary .t2 { color: var(--color-button-text); opacity: .8; }
+  .ae-btn2.is-off { background: color-mix(in srgb, var(--color-danger) 14%, transparent);
     border-color: var(--color-danger); color: var(--color-danger); }
+  .ae-btn2.is-off .t2 { color: var(--color-danger); }
 
   .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
 
@@ -298,17 +298,15 @@
 </head>
 <body>
   <div class="ae-header">
-    <h1>Abenteuereditor</h1>
-    <span class="ae-sub" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     <span class="ae-header__spacer"></span>
-    <button type="button" class="ae-covertoggle" id="aeCoversToggle" aria-pressed="false"
+    <button type="button" class="ae-btn2" id="aeCoversToggle" aria-pressed="false"
       title="Notfall-Aus: blendet ALLE Abenteuer-Cover im öffentlichen Frontend aus (Platzhalter). Die Bilder bleiben intern gespeichert; dieser Editor zeigt sie weiter.">
-      <span class="ae-covertoggle__icon" aria-hidden="true">🖼️</span>
-      <span class="ae-covertoggle__label" id="aeCoversToggleLabel">Cover: …</span>
+      <span class="t1">🖼️ Cover</span>
+      <span class="t2" id="aeCoversToggleLabel">…</span>
     </button>
-    <button type="button" class="ae-synctile" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
-      <span class="ae-synctile__icon" aria-hidden="true">🚨</span>
-      <span class="ae-synctile__label" id="aeSyncTileLabel">Abenteuer syncen</span>
+    <button type="button" class="ae-btn2 ae-btn2--primary" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
+      <span class="t1">🚨 Abenteuer syncen</span>
+      <span class="t2" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     </button>
   </div>
 
@@ -456,7 +454,7 @@
     const btn = document.getElementById("aeCoversToggle");
     const label = document.getElementById("aeCoversToggleLabel");
     if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
-    if (label) label.textContent = enabled ? "Cover: An" : "Cover: AUS";
+    if (label) label.textContent = enabled ? "An" : "AUS";
   }
   async function toggleCovers() {
     const next = !state.coversEnabled;
@@ -1093,8 +1091,8 @@
     const button = document.getElementById("aeSyncBtn");
     if (!button) return;
     button.disabled = isBusy;
-    const label = document.getElementById("aeSyncTileLabel");
-    if (label) label.textContent = isBusy ? "Synchronisiert…" : "Abenteuer syncen";
+    const label = button.querySelector(".t1");
+    if (label) label.textContent = isBusy ? "Synchronisiert…" : "🚨 Abenteuer syncen";
   }
 
   async function handleAeSyncClick() {
