@@ -422,6 +422,13 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 .route-waypoint-marker--end > svg {
 	transform-origin: 50% 100%;
 }
+/* Selected waypoint (its info is showing in the panel): the mark turns gold. The vector SVG paints
+   itself from --color-marker-waypoint, so bending that ONE variable recolours the whole drawing --
+   no second icon set, no colour logic in JS. (The image mode can't be recoloured by CSS and swaps in
+   the gold artwork instead, see routeWaypointImageSrc.) */
+.route-waypoint-marker--active {
+	--color-marker-waypoint: var(--color-marker-active);
+}
 
 .location-popup__description {
 	margin-top: 6px;

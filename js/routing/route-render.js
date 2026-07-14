@@ -71,9 +71,10 @@ function routeWaypointRole(index, total) {
 	return "between";
 }
 
-// Groesse + Anker einer Rolle. Scheiben sitzen MITTIG auf dem Ort (Anker = Mitte), der Tropfen mit
+// Groesse + Anker einer Rolle. Die Scheibe sitzt MITTIG auf dem Ort (Anker = Mitte), der Tropfen mit
 // seiner SPITZE (Anker = unten mittig). `overshoot` = wie weit die Grafik ueber den Ankerpunkt nach
 // oben ragt -> daraus folgt der Popup-Offset.
+// start und between sind GLEICH GROSS (Owner): die Groesse sagt nichts ueber die Position in der Route.
 function routeWaypointGeometry(role) {
 	const sizes = ROUTE_WAYPOINT_MARKER_SIZES[ROUTE_WAYPOINT_MARKER_SIZE] || ROUTE_WAYPOINT_MARKER_SIZES.medium;
 	if (role === "end") {
@@ -81,11 +82,15 @@ function routeWaypointGeometry(role) {
 		const width = Math.round(height * ROUTE_WAYPOINT_END_ASPECT);
 		return { width, height, anchor: [width / 2, height], overshoot: height };
 	}
-	const size = role === "between" ? sizes.between : sizes.start;
+	const size = sizes.waypoint;
 	return { width: size, height: size, anchor: [size / 2, size / 2], overshoot: size / 2 };
 }
 
 // Vektor-Variante (?routemarkers=vector): maßgleiches Inline-SVG.
+//
+// Die Farben kommen aus den TOKENS (var(--color-marker-waypoint) …), nicht als Hex-Literale. Dadurch
+// genuegt fuer den ausgewaehlten Zustand ein CSS-Regelchen, das --color-marker-waypoint lokal auf
+// --color-marker-active umbiegt -- kein zweites Grafik-Set, keine JS-Farblogik.
 //
 // Die viewBox umschliesst den Pfad EXAKT (kein Leerrand) -- die WebPs sind eng auf ihre Bounding-Box
 // beschnitten, ein Leerrand hier wuerde den Vektor-Marker also sichtbar kleiner rendern als den Bild-
@@ -93,23 +98,29 @@ function routeWaypointGeometry(role) {
 // dem Ankerpunkt; sein Seitenverhaeltnis (30/51 = 0.588) entspricht dem des Bildes (75/128 = 0.586), so
 // dass "meet" nichts verzerrt und nichts verschiebt.
 function routeWaypointVectorSvg(role, width, height) {
+	const fill = "var(--color-marker-waypoint)";
+	const core = "var(--color-marker-waypoint-core)";
+	const ring = "var(--color-marker-waypoint-ring)";
 	if (role === "end") {
 		return `<svg width="${width}" height="${height}" viewBox="-15 -51 30 51" xmlns="http://www.w3.org/2000/svg">`
-			+ '<path d="M0,0 C-6,-14 -15,-22 -15,-36 A15,15 0 1,1 15,-36 C15,-22 6,-14 0,0 Z" fill="#3a2a1e"/>'
-			+ '<path d="M0,-6 C-4.5,-16 -11.5,-23 -11.5,-36 A11.5,11.5 0 1,1 11.5,-36 C11.5,-23 4.5,-16 0,-6 Z" fill="#bf3a2b" stroke="#dcb877" stroke-width="1.8"/>'
-			+ '<circle cx="0" cy="-36" r="5.5" fill="#2e2119" stroke="#dcb877" stroke-width="2"/>'
+			+ `<path d="M0,0 C-6,-14 -15,-22 -15,-36 A15,15 0 1,1 15,-36 C15,-22 6,-14 0,0 Z" fill="${core}"/>`
+			+ `<path d="M0,-6 C-4.5,-16 -11.5,-23 -11.5,-36 A11.5,11.5 0 1,1 11.5,-36 C11.5,-23 4.5,-16 0,-6 Z" fill="${fill}" stroke="${ring}" stroke-width="1.8"/>`
+			+ `<circle cx="0" cy="-36" r="5.5" fill="${core}" stroke="${ring}" stroke-width="2"/>`
 			+ "</svg>";
 	}
-	if (role === "between") {
-		return `<svg width="${width}" height="${height}" viewBox="-13.5 -13.5 27 27" xmlns="http://www.w3.org/2000/svg">`
-			+ '<circle r="13.5" fill="#3a2a1e"/><circle r="11.5" fill="none" stroke="#e6c98a" stroke-width="1.7"/>'
-			+ '<circle r="9.5" fill="#e8b81b"/><circle r="4.4" fill="#2e2119" stroke="#e6c98a" stroke-width="1.7"/>'
-			+ "</svg>";
-	}
+	// start UND between: dieselbe Scheibe. Rot heisst "Wegpunkt" -- nicht "erster" oder "mittlerer".
 	return `<svg width="${width}" height="${height}" viewBox="-17 -17 34 34" xmlns="http://www.w3.org/2000/svg">`
-		+ '<circle r="17" fill="#3a2a1e"/><circle r="14.5" fill="none" stroke="#dcb877" stroke-width="2"/>'
-		+ '<circle r="12" fill="#bf3a2b"/><circle r="5.5" fill="#2e2119" stroke="#dcb877" stroke-width="2"/>'
+		+ `<circle r="17" fill="${core}"/><circle r="14.5" fill="none" stroke="${ring}" stroke-width="2"/>`
+		+ `<circle r="12" fill="${fill}"/><circle r="5.5" fill="${core}" stroke="${ring}" stroke-width="2"/>`
 		+ "</svg>";
+}
+
+// Im Bild-Modus kann CSS die Grafik nicht umfaerben -> fuer "ausgewaehlt" die goldene Fassung laden.
+function routeWaypointImageSrc(role, isActive) {
+	if (role === "end") {
+		return isActive ? ROUTE_WAYPOINT_MARKER_IMAGES.endActive : ROUTE_WAYPOINT_MARKER_IMAGES.end;
+	}
+	return isActive ? ROUTE_WAYPOINT_MARKER_IMAGES.waypointActive : ROUTE_WAYPOINT_MARKER_IMAGES.waypoint;
 }
 
 // BEIDE Modi laufen ueber L.divIcon -- auch der Bild-Modus. Grund: Leaflet positioniert das Icon-Element
@@ -117,15 +128,35 @@ function routeWaypointVectorSvg(role, width, height) {
 // ueberschreiben und den Marker vom Ort wegspringen lassen. Mit divIcon liegt die Grafik als KIND im
 // Container -- das laesst sich gefahrlos skalieren. (L.divIcons Default-Klasse "leaflet-div-icon" mit
 // weissem Kasten + Rahmen ist durch das eigene className ersetzt.)
-function routeWaypointIcon(role, geometry) {
+function routeWaypointIcon(role, geometry, isActive = false) {
 	const html = ROUTE_WAYPOINT_MARKER_MODE === "vector"
 		? routeWaypointVectorSvg(role, geometry.width, geometry.height)
-		: `<img src="${ROUTE_WAYPOINT_MARKER_IMAGES[role] || ROUTE_WAYPOINT_MARKER_IMAGES.start}" width="${geometry.width}" height="${geometry.height}" alt="" />`;
+		: `<img src="${routeWaypointImageSrc(role, isActive)}" width="${geometry.width}" height="${geometry.height}" alt="" />`;
 	return L.divIcon({
-		className: `route-waypoint-marker route-waypoint-marker--${role}`,
+		className: `route-waypoint-marker route-waypoint-marker--${role}${isActive ? " route-waypoint-marker--active" : ""}`,
 		html,
 		iconSize: [geometry.width, geometry.height],
 		iconAnchor: geometry.anchor,
+	});
+}
+
+// Faerbt den Wegpunkt-Marker des gerade im Infopanel gezeigten Ortes gold ein -- dieselbe Auswahl, die
+// den Siedlungs-Marker gold macht (activeLocationPublicId). Wird sowohl beim Auswahlwechsel gerufen
+// (Hook in setActiveLocationMarker/clearActiveLocationMarker) als auch nach jedem Neuaufbau der Marker,
+// weil renderRouteWaypointMarkers sie komplett neu erzeugt.
+// Idempotent: nur ein tatsaechlicher Zustandswechsel tauscht das Icon.
+function applyActiveRouteWaypointMarkers() {
+	const activeId = typeof activeLocationPublicId === "string" ? activeLocationPublicId : "";
+	(highlightedRouteNodes || []).forEach((marker) => {
+		if (!marker || !marker._waypointGeometry) {
+			return;
+		}
+		const isActive = Boolean(activeId) && marker._waypointPublicId === activeId;
+		if (marker._waypointActive === isActive) {
+			return;
+		}
+		marker._waypointActive = isActive;
+		marker.setIcon(routeWaypointIcon(marker._waypointRole, marker._waypointGeometry, isActive));
 	});
 }
 
@@ -135,7 +166,10 @@ function routeWaypointIcon(role, geometry) {
 // kein Hover gibt, ist das der regulaere Weg).
 function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 	const popup = L.popup({
-		autoClose: false,
+		// IMMER NUR EINE Infobox gleichzeitig (Owner). autoClose laesst Leaflet die vorher geoeffnete
+		// schliessen, sobald eine neue aufgeht -- auch eine gepinnte, und auch ein normales Orts-Popup.
+		// Das erledigt map.openPopup() unten; wir muessen die Geschwister nicht selbst einsammeln.
+		autoClose: true,
 		closeOnClick: false,
 		// autoPan waehrend einer noch laufenden Karten-Animation korrumpiert das Karten-Zentrum
 		// (_panInsideMaxBounds -> NaN-Pan-Crash). Dieselbe Absicherung nutzt der normale Ort-Marker.
@@ -186,7 +220,9 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 	const openPopup = () => {
 		cancelClose();
 		if (!map.hasLayer(popup)) {
-			popup.addTo(map);
+			// map.openPopup (nicht popup.addTo): es schliesst die zuvor offene Infobox mit -> nie zwei
+			// gleichzeitig. Das "remove" der geschlossenen loest dort pinned/isOverPopup wieder aus.
+			map.openPopup(popup);
 		}
 		// Das Popup-Element entsteht erst beim Oeffnen -> die Listener hier binden, aber nur einmal
 		// (Leaflet verwendet denselben Container beim Wiederoeffnen).
@@ -247,9 +283,23 @@ function renderRouteWaypointMarkers() {
 			riseOnHover: true,
 			keyboard: false,
 		}).addTo(map);
+		// Identitaet + Bauplan am Marker: applyActiveRouteWaypointMarkers braucht beides, um sein Icon
+		// gegen die goldene Fassung zu tauschen. publicId ist der Schluessel, an dem auch die Siedlungs-
+		// Marker und das Infopanel ihre Auswahl fuehren (activeLocationPublicId).
+		marker._waypointPublicId = waypoint.publicId || "";
+		marker._waypointRole = role;
+		marker._waypointGeometry = geometry;
+		marker._waypointActive = false;
 		bindRouteWaypointHoverPopup(marker, waypoint, role, geometry);
 		highlightedRouteNodes.push(marker);
 	});
+	// Der Neuaufbau wirft alle Marker weg -> die Auswahl erneut anwenden, sonst verliert der gerade im
+	// Panel gezeigte Wegpunkt sein Gold, sobald die Route neu gezeichnet wird. Dasselbe gilt fuer die
+	// Wegpunkt-Zeile im Planer (sie wird beim Sortieren/Hinzufuegen neu aufgebaut).
+	applyActiveRouteWaypointMarkers();
+	if (typeof applyActiveWaypointRow === "function") {
+		applyActiveWaypointRow();
+	}
 }
 
 function removeHighlightedRouteNodes() {

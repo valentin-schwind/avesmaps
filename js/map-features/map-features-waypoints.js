@@ -417,6 +417,24 @@ function getWaypointInputValues() {
 		.filter(Boolean);
 }
 
+// Markiert die Wegpunkt-Zeile des gerade im Infopanel gezeigten Ortes -- dieselbe Auswahl, die den
+// Kartenmarker gold faerbt (activeLocationPublicId). Die Zeile kennt nur den eingetippten NAMEN, also
+// ueber die Marker-Tabelle auf die publicId aufloesen; das ist derselbe Weg, den auch die Reise-Linie
+// im Infopanel geht.
+function applyActiveWaypointRow() {
+	const activeId = typeof activeLocationPublicId === "string" ? activeLocationPublicId : "";
+	$("#waypoints .waypoint-container").each(function () {
+		const $row = $(this);
+		const name = ($row.find(".waypoint-input").val() || "").trim();
+		let isActive = false;
+		if (activeId && name && typeof findLocationMarkerByName === "function") {
+			const entry = findLocationMarkerByName(name);
+			isActive = Boolean(entry && entry.publicId === activeId);
+		}
+		$row.toggleClass("is-active", isActive);
+	});
+}
+
 function removeWaypointElement($waypoint, { updateRoute = true } = {}) {
 	if (!$waypoint?.length) {
 		return false;

@@ -514,6 +514,17 @@
 		return body;
 	};
 
+	// Hebt die Wegpunkt-Markierung in der Reise-Linie auf. Gegenstueck zu clearActiveLocationMarker: die
+	// Karte fuehrt ihre Auswahl ueber activeLocationPublicId, das Panel ueber den NAMEN -- ohne diesen
+	// Aufruf blieb die goldene Perle stehen, nachdem ein Leerklick auf die Karte die Auswahl geloescht hat.
+	window.avesmapsClearInfopanelActiveWaypoint = function () {
+		if (!currentTabActive) {
+			return;
+		}
+		currentTabActive = "";
+		renderTabs();
+	};
+
 	// Feature-Glue (Phase 1, Siedlungen): baut den UNVERAENDERTEN Siedlungs-Popup-HTML
 	// (buildLocationMarkerPopupHtml) und zeigt ihn im Panel; laedt danach die Bewertungen in den
 	// Panel-Slot nach. Wird vom Klick-Arbiter (Canvas) und vom programmatischen Oeffnen (Suche/

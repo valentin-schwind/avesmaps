@@ -50,16 +50,23 @@
 	display: none !important;
 }
 
+/* Waypoint mark — the same language as the map marker (docs/route-waypoint-marker-design.md): a red disc
+   with a dark eye; the destination is a teardrop; the SELECTED one turns gold. At 14px the map graphic's
+   five layers are illegible, so only the eye survives -- it is what keeps the mark from reading as an
+   ordinary bullet. The eye is a radial-gradient INSIDE the same pseudo-element (a third element isn't
+   available: ::after is taken by the dotted connector, and by the teardrop on the last row). */
 #waypoints .waypoint-container::before {
 	content: "";
 	position: absolute;
 	left: 41px;
 	top: 50%;
-	width: 13px;
-	height: 13px;
-	border: 2px solid var(--color-text-muted);
+	width: 14px;
+	height: 14px;
+	border: 1.5px solid var(--color-marker-waypoint-core);
 	border-radius: 50%;
-	background: transparent;
+	background: radial-gradient(circle,
+		var(--color-marker-waypoint-core) 0 2.6px,
+		var(--color-marker-waypoint) 2.6px);
 	box-sizing: border-box;
 	transform: translate(-50%, -50%);
 	z-index: 1;
@@ -80,27 +87,21 @@
 	z-index: 0;
 }
 
+/* Destination = teardrop. The tip is the un-rounded corner, rotated to point down; the eye stays a
+   centred circle, so it rotates with the box without moving (a centred radial-gradient is rotation-
+   invariant) and lands in the middle of the teardrop's head. */
 #waypoints .waypoint-container:last-child::before {
-	width: 14px;
-	height: 14px;
-	border-color: var(--color-marker-destination);
 	border-radius: 50% 50% 50% 0;
 	transform: translate(-50%, -58%) rotate(-45deg);
 }
 
-#waypoints .waypoint-container:last-child::after {
-	content: "";
-	position: absolute;
-	left: 41px;
-	top: 50%;
-	bottom: auto;
-	width: 4px;
-	height: 4px;
-	border-radius: 50%;
-	background: var(--color-marker-destination);
-	transform: translate(-50%, -82%);
-	z-index: 2;
-	pointer-events: none;
+/* Selected waypoint (its info is showing in the panel): gold, like the map marker. Bending the ONE
+   colour variable recolours disc and teardrop alike. */
+#waypoints .waypoint-container.is-active::before {
+	--color-marker-waypoint: var(--color-marker-active);
+}
+#waypoints .waypoint-container.is-active .waypoint-input {
+	border-color: var(--color-marker-active);
 }
 
 #waypoints .waypoint-input {

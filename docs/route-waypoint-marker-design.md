@@ -26,16 +26,64 @@ Eine **Querfeldein**-Etappe ist gestrichelt — eine durchgezogene weiße Kontur
 ihre Lücken als weißer Balken durch. Sie ist `interactive: false`; Klicks gehören der
 farbigen Linie darüber.
 
-## Marker
+## Eine Sprache an drei Orten
+
+Wegpunkte erscheinen an **drei** Stellen — auf der Karte, im Routenplaner und in der
+Reise-Linie des Infopanels. Sie sagen überall dasselbe:
+
+> **Rot = Wegpunkt** (alle gleich groß) · **Tropfen = Ziel** · **Gold = ausgewählt**
+
+Die Marke kodiert **nicht** die Position in der Route. Wer der erste ist, steht in der
+Liste — dafür braucht es keine eigene Farbe. Gold heißt ausschließlich: *dieser Ort wird
+gerade im Infopanel gezeigt.* Das ist dasselbe Signal, das auch einen angeklickten
+Siedlungsmarker gold färbt.
 
 | Rolle | Grafik | Anker |
 |---|---|---|
-| Start (erster Wegpunkt) | rote Scheibe mit Ring (`waypoint-start.webp`) | Mitte |
-| Zwischenziel | gelbe Scheibe (`waypoint-between.webp`) | Mitte |
-| Ziel (letzter Wegpunkt) | roter Tropfen (`waypoint-end.webp`) | **Spitze unten** |
+| Start (erster Wegpunkt) | rote Scheibe mit dunklem Kern | Mitte |
+| Zwischenziel | **dieselbe** rote Scheibe | Mitte |
+| Ziel (letzter Wegpunkt) | roter Tropfen | **Spitze unten** |
 
-Bei nur einem gesetzten Wegpunkt gilt die Start-Rolle; ein Ziel gibt es erst ab
-zwei Wegpunkten.
+Bei nur einem gesetzten Wegpunkt gilt die Start-Rolle; ein Ziel gibt es erst ab zwei
+Wegpunkten. Die Rolle steuert nur noch zweierlei: die Tropfenform am Ende und die Zeile in
+der Infobox („Dorf · Startpunkt").
+
+### Farben liegen in Tokens, nicht im Code
+
+`--color-marker-waypoint` (rot), `--color-marker-waypoint-core` (dunkler Kern/Rand),
+`--color-marker-waypoint-ring` (Goldring, nur auf der Karte sichtbar) und
+`--color-marker-active` (gold). Sie sind **theme-invariant**: dieselbe Marke erscheint auf
+den immer hellen Kartenkacheln *und* auf den dunklen Panels — ein theme-abhängiges Rot
+würde Planer und Karte auseinanderlaufen lassen.
+
+Das Vektor-SVG malt sich aus diesen Variablen. Deshalb ist „ausgewählt" **eine CSS-Regel**,
+die `--color-marker-waypoint` lokal auf `--color-marker-active` umbiegt — sie färbt Scheibe
+und Tropfen gleichermaßen, an allen drei Orten, ohne zweites Icon-Set und ohne Farblogik in
+JavaScript. Der Bild-Modus kann das nicht und lädt stattdessen die goldene Fassung
+(`waypoint-active.webp` / `waypoint-end-active.webp`).
+
+### Die kleinen Marken (Planer, Infopanel)
+
+Bei 14–15 px sind die fünf Lagen der Kartengrafik nicht mehr lesbar. Übrig bleibt die
+**Scheibe mit dunklem Kern** — das Auge ist das einzige Detail, das überlebt, und es
+verhindert, dass die Marke wie ein gewöhnlicher Listenpunkt aussieht. Es entsteht als
+`radial-gradient` **im selben** Pseudoelement: ein drittes Element gibt es nicht (`::after`
+trägt die gepunktete Verbindung bzw. beim Ziel den Tropfen).
+
+### Der Auswahl-Zustand
+
+Alle drei Stellen hängen an **`activeLocationPublicId`** — demselben Schlüssel, den auch die
+Siedlungsmarker nutzen. `setActiveLocationMarker()` / `clearActiveLocationMarker()` rufen
+`syncActiveLocationDependents()`, das Kartenmarker, Planer-Zeile und Reise-Linie gemeinsam
+nachzieht. `renderRouteWaypointMarkers()` wendet die Auswahl nach jedem Neuaufbau erneut an,
+denn es wirft alle Marker weg und baut sie neu.
+
+> Vorher führten Karte und Infopanel ihre Auswahl **getrennt** (publicId gegen Namen). Ein
+> Leerklick auf die Karte löschte die eine, ließ die andere stehen — die Perle blieb gold,
+> während der Marker seine Hervorhebung verlor.
+
+**Immer nur eine Infobox gleichzeitig** (`autoClose: true` + `map.openPopup()`): Eine neu
+geöffnete Box schließt die vorherige, auch eine gepinnte.
 
 **Strikter Scope (Bug #10):** Marker bekommen **nur die echten, vom Nutzer
 gesetzten Wegpunkte** (`selectedLocations`) — niemals die Kreuzungen und

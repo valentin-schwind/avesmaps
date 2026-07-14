@@ -45,6 +45,19 @@ function applyActiveLocationMarkerClass() {
 	}
 }
 
+// Die Auswahl faerbt nicht nur den Siedlungs-Marker gold, sondern auch den Wegpunkt-Marker derselben
+// Stadt (route-render.js) und die Perle im Infopanel -- alle drei haengen an activeLocationPublicId.
+// typeof-Guard: route-render.js wird nach dieser Datei geladen.
+function syncActiveLocationDependents() {
+	applyActiveLocationMarkerClass();
+	if (typeof applyActiveRouteWaypointMarkers === "function") {
+		applyActiveRouteWaypointMarkers();
+	}
+	if (typeof applyActiveWaypointRow === "function") {
+		applyActiveWaypointRow();
+	}
+}
+
 function setActiveLocationMarker(entryOrId) {
 	const publicId = typeof entryOrId === "string" ? entryOrId : (entryOrId && entryOrId.publicId) || "";
 	if (!publicId || activeLocationPublicId === publicId) {
@@ -54,7 +67,7 @@ function setActiveLocationMarker(entryOrId) {
 	if (typeof locationCanvasLayer !== "undefined" && locationCanvasLayer._ready) {
 		locationCanvasLayer._redraw();
 	}
-	applyActiveLocationMarkerClass();
+	syncActiveLocationDependents();
 }
 
 function clearActiveLocationMarker() {
@@ -65,7 +78,12 @@ function clearActiveLocationMarker() {
 	if (typeof locationCanvasLayer !== "undefined" && locationCanvasLayer._ready) {
 		locationCanvasLayer._redraw();
 	}
-	applyActiveLocationMarkerClass();
+	syncActiveLocationDependents();
+	// Auch das Infopanel entmarkieren: sonst bliebe seine Perle golden stehen, waehrend die Karte ihre
+	// Auswahl schon verloren hat (der Panel-Zustand haengt am Namen, nicht an der publicId).
+	if (typeof window !== "undefined" && typeof window.avesmapsClearInfopanelActiveWaypoint === "function") {
+		window.avesmapsClearInfopanelActiveWaypoint();
+	}
 }
 
 if (typeof window !== "undefined") {

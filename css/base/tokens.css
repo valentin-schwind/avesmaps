@@ -101,15 +101,23 @@
 	--color-warning-soft-text: #854f0b;
 	--color-warning-strong: #f4c869;
 	--color-warning-strong-text: #4a3300;
-	--color-marker-destination: #e33b35; /* route destination pin — heraldic red, matches red map markers */
+	/* Route waypoints — ONE language across map, route planner and infopanel (Owner): every waypoint is
+	   red, the destination is a teardrop, and the SELECTED one turns gold-yellow. Red means "waypoint",
+	   gold means "selected" — never "which position in the route".
+	   These stay the SAME in both themes on purpose: the same mark appears on the always-light map tiles
+	   and on the dark panels, and it must read as the same thing in both places. */
+	--color-marker-waypoint: #e33b35;      /* heraldic red — matches the red settlement markers */
+	--color-marker-waypoint-core: #2e2119; /* the dark "eye" + outline inside the mark */
+	--color-marker-waypoint-ring: #dcb877; /* the gold ring (map marker only — invisible below ~16px) */
 
 	/* Review stars — the rating glyphs (infobox summary + write-dialog picker). Warm coat-gold,
 	   not a generic yellow; `-muted` is the empty-star track. */
 	--color-star: #e0a528;
 	--color-star-muted: #d9c7a6;
 
-	/* Active/selected map location — the clicked settlement's marker fills gold-yellow (Owner). The
-	   marker sits on the always-light map tiles, so the dark value stays the same warm gold. */
+	/* Active/selected map location — the clicked settlement's marker fills gold-yellow (Owner). Also the
+	   SELECTED route waypoint (see above). The marker sits on the always-light map tiles, so the dark
+	   value stays the same warm gold. */
 	--color-marker-active: #f0b429;
 
 	/* Modal scrim (behind centred dialogs) */
@@ -270,7 +278,8 @@
 	--color-warning-soft-text: #e9c684;
 	--color-warning-strong: #c79a3c;
 	--color-warning-strong-text: #241d14;
-	--color-marker-destination: #e6675b;
+	/* No dark override for the waypoint marks on purpose -- the SAME mark appears on the always-light map
+	   tiles and on the dark panels; a theme-shifted red would make the planner disagree with the map. */
 
 	--color-panel-translucent: rgba(49, 46, 38, 0.96);
 

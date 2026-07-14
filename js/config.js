@@ -240,24 +240,30 @@ window.avesmapsEdgePanels = (function () {
 })();
 
 // --- Route waypoint markers (docs/route-waypoint-marker-design.md) ---------------------------------
-// The user-set waypoints of a planned route are marked by role: first = start (red disc), last = end
-// (red teardrop), anything in between = stopover (yellow disc). NEVER the crossings/pass-through nodes
-// of the computed route (Bug #10) -- that is what made the earlier icon attempt look restless.
+// ONE language across map, route planner and infopanel (Owner): EVERY waypoint is a red disc of the same
+// size, the destination is a red teardrop, and the SELECTED waypoint turns gold-yellow. So red means
+// "waypoint" and gold means "selected" -- the mark never encodes the position in the route.
+//
+// Roles (start | between | end) still exist, but only two things depend on them: the teardrop shape at
+// the end, and the role line in the infobox ("Dorf · Startpunkt"). start and between draw IDENTICALLY.
+//
+// NEVER mark the crossings/pass-through nodes of the computed route (Bug #10) -- that is what made the
+// earlier icon attempt look restless.
 //
 // Two renderings are built; the flag decides which one ships. `vector` (the default, owner's pick) is an
-// inline SVG -- crisp at any zoom/DPI and themeable; `image` uses the painted WebPs. Both share the SAME
-// geometry, so switching changes only the look.
+// inline SVG that takes its colours from the tokens -- so the selected state is a pure CSS recolour;
+// `image` uses the painted WebPs and swaps in the gold artwork instead. Both share the SAME geometry.
 // Override live for an A/B compare: ?routemarkers=image and ?routemarkersize=large.
 const ROUTE_WAYPOINT_MARKER_MODE = INITIAL_SEARCH_PARAMS.get("routemarkers") === "image" ? "image"
 	: INITIAL_SEARCH_PARAMS.get("routemarkers") === "vector" ? "vector"
 		: "vector";
-// Sizes in px. Discs are square (start/between); `end` is the teardrop's HEIGHT -- its width follows
-// from ROUTE_WAYPOINT_END_ASPECT so the graphic is never distorted (the 80x80 squashed-pin bug of
-// fbb5565b, which is why that attempt "rendered wrong").
+// Sizes in px. The disc is square and the SAME for start and between; `end` is the teardrop's HEIGHT --
+// its width follows from ROUTE_WAYPOINT_END_ASPECT so the graphic is never distorted (the 80x80
+// squashed-pin bug of fbb5565b, which is why that attempt "rendered wrong").
 const ROUTE_WAYPOINT_MARKER_SIZES = {
-	small: { start: 26, between: 21, end: 36 },
-	medium: { start: 34, between: 27, end: 46 },
-	large: { start: 44, between: 35, end: 58 },
+	small: { waypoint: 26, end: 36 },
+	medium: { waypoint: 34, end: 46 },
+	large: { waypoint: 44, end: 58 },
 };
 const ROUTE_WAYPOINT_MARKER_SIZE = ROUTE_WAYPOINT_MARKER_SIZES[INITIAL_SEARCH_PARAMS.get("routemarkersize")]
 	? INITIAL_SEARCH_PARAMS.get("routemarkersize")
@@ -265,10 +271,12 @@ const ROUTE_WAYPOINT_MARKER_SIZE = ROUTE_WAYPOINT_MARKER_SIZES[INITIAL_SEARCH_PA
 // Teardrop aspect ratio (width / height) -- matches img/menu/waypoint-end.webp (75x128), cropped tight
 // so its bottom tip IS the anchor point.
 const ROUTE_WAYPOINT_END_ASPECT = 75 / 128;
+// Only the image mode needs artwork; the vector mode recolours itself from the tokens.
 const ROUTE_WAYPOINT_MARKER_IMAGES = {
-	start: "img/menu/waypoint-start.webp",
-	between: "img/menu/waypoint-between.webp",
+	waypoint: "img/menu/waypoint.webp",
+	waypointActive: "img/menu/waypoint-active.webp",
 	end: "img/menu/waypoint-end.webp",
+	endActive: "img/menu/waypoint-end-active.webp",
 };
 // Grace period before a hovered waypoint popup closes -- long enough to move the mouse across the gap
 // from the marker into the popup (otherwise its buttons would be unclickable).

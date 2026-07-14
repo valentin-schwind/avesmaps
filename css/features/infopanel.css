@@ -219,27 +219,30 @@
 	outline-offset: 2px;
 	border-radius: 5px;
 }
+/* Waypoint mark — the SAME language as the map marker and the route planner
+   (docs/route-waypoint-marker-design.md): a red disc with a dark eye, the destination a teardrop, the
+   selected one gold. It used to be a grey ring here, which said nothing and matched neither of the other
+   two places. The eye is a radial-gradient inside the dot (no room for a child element). */
 .avesmaps-infopanel__station-dot {
 	width: 15px;
 	height: 15px;
 	border-radius: 50%;
-	background: var(--color-panel);
-	border: 2px solid var(--color-text-muted);
+	border: 1.5px solid var(--color-marker-waypoint-core);
+	background: radial-gradient(circle,
+		var(--color-marker-waypoint-core) 0 2.8px,
+		var(--color-marker-waypoint) 2.8px);
 	box-sizing: border-box;
 }
-/* Aktiver Wegpunkt (dessen Info gerade im Panel steht): gold gefuellte Perle + fetter Name (Owner-Wahl). */
-.avesmaps-infopanel__station.is-active .avesmaps-infopanel__station-dot {
-	background: var(--color-link);
-	border-color: var(--color-link);
-}
-/* Letzter Wegpunkt = roter Ziel-Pin (Traenenform), wie im Routenplaner. */
+/* Destination = teardrop; the centred eye is rotation-invariant and stays in its head. */
 .avesmaps-infopanel__station.is-destination .avesmaps-infopanel__station-dot {
-	border-color: var(--color-marker-destination);
 	border-radius: 50% 50% 50% 0;
 	transform: rotate(-45deg);
 }
-.avesmaps-infopanel__station.is-destination.is-active .avesmaps-infopanel__station-dot {
-	background: var(--color-marker-destination);
+/* Selected waypoint (its info is showing in the panel): gold — the same signal as on the map. Bending
+   the ONE colour variable recolours disc and teardrop alike. Was --color-link (olive), which read as a
+   third colour next to the map's gold. */
+.avesmaps-infopanel__station.is-active .avesmaps-infopanel__station-dot {
+	--color-marker-waypoint: var(--color-marker-active);
 }
 .avesmaps-infopanel__station-labelrow {
 	display: inline-flex;
