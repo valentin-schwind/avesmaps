@@ -335,7 +335,16 @@
 		return { id, label, kind, row, parent: null, children: [], childMap: new Map() };
 	}
 
-	function expandRowsWithAncestors(rows) {
+	// isAncestorAllowed (optional): an ancestor pulled back in must still satisfy the filters that
+	// define WHICH territories exist at all (continent, time, „nur Flächenländer"). Without it this
+	// walk resurrected rows the caller had just filtered out — that is why „nur Flächenländer" did
+	// not actually hide promoted settlements (a Reichsstadt came back as the ancestor of a kept
+	// child), and why a search could surface dissolved/foreign-continent ancestors.
+	// A disallowed ancestor ENDS the chain: the child then has no parent in the set and buildTree()
+	// floats it to the top level — exactly what the sync monitor does when nodeHidden() hides a node.
+	// The map-status filter (placed/missing) is deliberately NOT part of this predicate: a placed
+	// intermediate between a covered root and a still-missing leaf must stay as a navigable path.
+	function expandRowsWithAncestors(rows, isAncestorAllowed = null) {
 		const inputRows = Array.isArray(rows) ? rows : [];
 		const completeRows = getCompleteRowsForAncestorLookup(inputRows);
 		if (completeRows.length <= inputRows.length) return inputRows;
@@ -370,6 +379,7 @@
 				walkedKeys.add(parentKey);
 				const ancestorRow = rowByWikiKey.get(parentKey);
 				if (!ancestorRow) break;
+				if (isAncestorAllowed && !isAncestorAllowed(ancestorRow)) break;
 				appendRow(ancestorRow);
 				cursor = ancestorRow;
 			}
@@ -501,10 +511,17 @@
 		return true;
 	}
 
+	// Search the same fields as the sync monitor's tree (the reference implementation):
+	// display name, wiki_key AND the redirect aliases. Two bugs lived here: aliases were never
+	// searched at all (a redirect title found the node in the monitor but not in the WikiSync tab
+	// or the editor), and the fields were folded into ONE `a || b || c` string — so as soon as a
+	// row had a name, its wiki_key was no longer searchable. Each field is matched on its own now.
 	function doesRowMatchSearch(row, search) {
 		if (!search) return true;
-		const title = normalizeText(row.name || (row.overrides && row.overrides.name) || row.wiki_key || "").toLowerCase();
-		return title.includes(search);
+		if (!row) return false;
+		const candidates = [row.name, row.overrides && row.overrides.name, row.wiki_key];
+		if (Array.isArray(row.aliases)) candidates.push(...row.aliases);
+		return candidates.some((value) => normalizeText(value).toLowerCase().includes(search));
 	}
 
 	// Ob eine flache Zeile selbst eine Karten-Geometrie hat (= „Platziert").
@@ -549,13 +566,16 @@
 			needsAncestorExpansion = true;
 		}
 		// „Nur Flächenländer": promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden.
-		// Vorfahren bleiben erhalten, damit das Ausblenden einer promoteten Blatt-Siedlung nie einen
-		// echten Eltern-Pfad verwaist (gleiche Ancestor-Erhaltung wie beim Karten-Status-Filter).
 		if (filters.flaechenlaenderOnly === true) {
 			matched = matched.filter((row) => isFlaechenlandRow(row));
 			needsAncestorExpansion = true;
 		}
-		return needsAncestorExpansion ? expandRowsWithAncestors(matched) : matched;
+		if (!needsAncestorExpansion) return matched;
+		// An ancestor may only be pulled back in if it survives the filters that decide which
+		// territories exist at all — otherwise the expansion undoes the filter it just applied.
+		const isAncestorAllowed = (row) =>
+			doesRowMatchStructuralFilters(row, filters) && (filters.flaechenlaenderOnly !== true || isFlaechenlandRow(row));
+		return expandRowsWithAncestors(matched, isAncestorAllowed);
 	}
 
 	function isSyntheticNode(node) {
