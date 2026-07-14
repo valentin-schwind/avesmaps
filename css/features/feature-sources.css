@@ -106,6 +106,25 @@
 	border-color: var(--color-danger-soft-text);
 	outline: none;
 }
+/* "Vorschlag" group: a change report's proposed source(s), shown before they exist as real
+   feature_sources (js/review/review-feature-sources.js:appendProposedFeatureSources). Reuses the
+   same danger-soft tokens as .field--change-proposed's outline so it reads as part of the same
+   "reviewer, look here" diff language as the red-outlined name/type/wiki-url fields. */
+.fs-group--proposed {
+	border: 1px dashed var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	border-radius: 6px;
+	padding: 2px 8px;
+	margin-bottom: 6px;
+}
+.fs-group-heading--proposed {
+	color: var(--color-danger-soft-text);
+}
+.fs-row--proposed .fs-row__badge--proposed {
+	color: var(--color-danger-soft-text);
+	background: transparent;
+	border-color: var(--color-danger-soft-border);
+}
 .fs-row--add {
 	flex-wrap: wrap;
 	gap: 6px;

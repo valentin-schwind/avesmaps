@@ -511,6 +511,13 @@ function mountLocationEditFeatureSources() {
 		if (data && typeof data.revision === "number" && markerEntry && markerEntry.location) {
 			markerEntry.location.revision = data.revision;
 		}
+		// A change report's proposed source(s) (openLocationEditDialogFromChangeReport) are stashed in
+		// activeReviewReportSourceSuggestions and only linked server-side on save -- append them here as
+		// a visible "Vorschlag" group so the reviewer sees the diff instead of it silently applying.
+		// No-op for a normal (non-report) edit, where the array is empty (resetLocationEditForm).
+		if (typeof appendProposedFeatureSources === "function") {
+			appendProposedFeatureSources(fresh, activeReviewReportSourceSuggestions, { escape: escapeHtml });
+		}
 	});
 }
 

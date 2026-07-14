@@ -250,6 +250,59 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   return renderFromServer("list");
 }
 
+// Multi-source #3 change-report gap fix: a change report's proposed source(s) are only linked
+// server-side on save (linkCommunityReportSource below) -- until then they live in
+// activeReviewReportSourceSuggestions and were never shown anywhere, so the reviewer had no way to
+// see what a report proposed before saving. This renders them as a distinct "Vorschlag" group inside
+// the mounted Quellen editor (appended after the server-rendered list resolves, since mounting
+// already overwrites containerEl.innerHTML) so the reviewer sees the diff at a glance, same as the
+// red-outlined name/type/wiki-url fields (js/review/review-report-flow.js markChangeReportFields).
+function renderProposedFeatureSourceRow(source, escape, tr) {
+  const officialMark = source.is_official ? " *" : "";
+  const pages = source.pages ? '<span class="fs-row__pages">S. ' + escape(source.pages) + "</span>" : "";
+  return (
+    '<div class="fs-row fs-row--proposed">' +
+    '<a class="fs-row__link" href="' + escape(source.url) + '" target="_blank" rel="noopener">' +
+    escape(source.label || source.url) + " ↗</a>" +
+    '<span class="fs-row__badge fs-row__badge--proposed">' +
+    escape(tr("sources.proposed", "Vorschlag (Meldung)")) + officialMark + "</span>" +
+    pages +
+    "</div>"
+  );
+}
+
+function renderProposedFeatureSourceGroup(suggestions, escape, tr) {
+  if (!suggestions.length) {
+    return "";
+  }
+  const heading = '<div class="fs-group-heading fs-group-heading--proposed">' +
+    escape(tr("sources.proposedHeading", "Aus der Meldung (wird beim Speichern übernommen)")) + "</div>";
+  const rows = suggestions.map((source) => renderProposedFeatureSourceRow(source, escape, tr)).join("");
+  return '<div class="fs-group fs-group--proposed" data-fs-group="proposed">' + heading + rows + "</div>";
+}
+
+// Appends the proposed group right after the hint line so it reads before the entity's existing
+// sources. No-op when there is nothing proposed (the common case -- a normal, non-report edit).
+function appendProposedFeatureSources(containerEl, suggestions, opts) {
+  if (!containerEl || !Array.isArray(suggestions) || !suggestions.length) {
+    return;
+  }
+  const options = opts || {};
+  const escape = options.escape || featureSourceDefaultEscape;
+  const tr = options.tr || featureSourceDefaultTr;
+  const markup = renderProposedFeatureSourceGroup(suggestions, escape, tr);
+  if (!markup) {
+    return;
+  }
+  const editorEl = containerEl.querySelector(".fs-editor") || containerEl;
+  const hintEl = editorEl.querySelector(".fs-hint");
+  if (hintEl) {
+    hintEl.insertAdjacentHTML("afterend", markup);
+  } else {
+    editorEl.insertAdjacentHTML("afterbegin", markup);
+  }
+}
+
 // Multi-source #3: link a community-reported source to a freshly created feature as a catalog source
 // -- the SAME server add path (POST feature-sources.php `add`) the editor's "Hinzufügen" button uses,
 // so an accepted community report's source shows up in the QUELLEN section exactly like a manual one.
@@ -311,6 +364,7 @@ if (typeof window !== "undefined") {
   window.renderFeatureSourceEditorHtml = renderFeatureSourceEditorHtml;
   window.mountFeatureSourceEditor = mountFeatureSourceEditor;
   window.linkCommunityReportSource = linkCommunityReportSource;
+  window.appendProposedFeatureSources = appendProposedFeatureSources;
 }
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { renderFeatureSourceEditorHtml };

@@ -70,6 +70,12 @@ function openLocationEditDialogFromChangeReport(report) {
 			is_official: Boolean(source.official),
 		}));
 	const changed = [];
+	// Red-outline the Quellen section too when the report proposes a linked source, same as the other
+	// proposed-change fields below (mountLocationEditFeatureSources appends the actual suggestion once
+	// the async "list" fetch resolves; the container's id is stable across that clone-replace).
+	if (activeReviewReportSourceSuggestions.length > 0) {
+		changed.push("location-edit-feature-sources");
+	}
 
 	// Free-text request -> prepend to the description so the editor sees it.
 	const descEl = document.getElementById("location-edit-description");
