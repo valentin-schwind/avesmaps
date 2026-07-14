@@ -484,14 +484,9 @@ async function updateMapViewServerPrimary() {
 	resetRoutePresentation();
 	collectAndValidateSelectedLocations();
 
-	selectedLocations.forEach((loc) => {
-		addTooltip(loc, {
-			compact: false,
-			showDescription: true,
-			showWikiLink: true,
-			showRemoveAction: true,
-		});
-	});
+	// Wegpunkt-Marker (Start/Zwischenziel/Ziel) statt permanent offener Infoboxen -- die Box erscheint
+	// jetzt beim Hover. Laeuft frueh, damit auch ein einzelner Wegpunkt (noch keine Route) markiert ist.
+	renderRouteWaypointMarkers();
 
 	console.log("Ausgewählte Locations:", selectedLocations);
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
@@ -534,7 +529,6 @@ async function updateMapViewServerPrimary() {
 		if (segments.length) {
 			logRoutePoints(segments);
 			drawRoute(segments);
-			highlightRouteLocations(routeNodeNames, segments);
 			showRoutePlan(routeNodeNames, segments);
 			// Fit to the WHOLE rendered route -- the earlier focusMapOnActiveTargets() only framed the
 			// waypoints (maxZoom 4). This fills the frame on the proper, route-aware zoom.
@@ -560,14 +554,7 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 	resetRoutePresentation();
 	collectAndValidateSelectedLocations();
 
-	selectedLocations.forEach((loc) => {
-		addTooltip(loc, {
-			compact: false,
-			showDescription: true,
-			showWikiLink: true,
-			showRemoveAction: true,
-		});
-	});
+	renderRouteWaypointMarkers();
 
 	console.log("Ausgewählte Locations:", selectedLocations);
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
@@ -592,7 +579,6 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 		if (segments.length) {
 			logRoutePoints(segments);
 			drawRoute(segments);
-			highlightRouteLocations(routeNodeNames, segments);
 			showRoutePlan(routeNodeNames, segments);
 			// Fit to the whole rendered route (not just the waypoints) so it fills the frame.
 			zoomToCurrentRoute();

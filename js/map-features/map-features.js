@@ -119,7 +119,7 @@ function resetRoutePresentation() {
 	currentRoutePlanEntries = [];
 	activeRoutePlanEntryIndex = null;
 
-	removeAllTooltips();
+	// Raeumt Wegpunkt-Marker UND ihre (ggf. offenen) Hover-Infoboxen ab.
 	removeHighlightedRouteNodes();
 	resetOverview();
 }

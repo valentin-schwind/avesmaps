@@ -189,10 +189,6 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	if (typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry) {
 		return true;
 	}
-	// Orte mit offener Routen-Wegpunkt-Infobox bleiben temporaer sichtbar (bis die Infobox schliesst).
-	if (typeof routeWaypointTempMarkerEntries !== "undefined" && routeWaypointTempMarkerEntries && routeWaypointTempMarkerEntries.has(entry)) {
-		return true;
-	}
 	if (entry.locationType === CROSSING_LOCATION_TYPE) {
 		const crossingsToggleChecked = visibilityContext
 			? visibilityContext.crossingsToggleChecked
@@ -256,8 +252,7 @@ function syncLocationMarkerVisibility() {
 			&& shouldShow
 			&& LOCATION_CANVAS_TYPES.has(entry.locationType)
 			&& !entry._canvasPromoted
-			&& !(typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry)
-			&& !(typeof routeWaypointTempMarkerEntries !== "undefined" && routeWaypointTempMarkerEntries && routeWaypointTempMarkerEntries.has(entry));
+			&& !(typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry);
 		if (canvasEligible) {
 			if (map.hasLayer(entry.marker)) {
 				map.removeLayer(entry.marker); // DOM-Marker raus -> Canvas zeichnet ihn

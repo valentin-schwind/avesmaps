@@ -21,3 +21,6 @@ tools/geo-import.sql.gz
 # Keep the deny-all .htaccess; ignore the downloaded dump artifacts.
 uploads/dumps/*
 !uploads/dumps/.htaccess
+
+# Superpowers brainstorming/verify scratch space (mockups, harnesses) — never deployed
+.superpowers/

@@ -115,6 +115,10 @@ window.AVESMAPS_I18N_EN = {
 	"popup.addToRoutePlain": "Add destination",
 	"popup.removeFromRoute": "Remove destination",
 	"popup.removeFromRouteX": "✕ Remove destination",
+	// --- route waypoint roles (shown in the waypoint infobox: "Village · Starting point") ---
+	"route.role.start": "Starting point",
+	"route.role.between": "Stopover",
+	"route.role.end": "Destination",
 	"popup.writeReview": "Write a review",
 	"popup.suggestChange": "Suggest a change",
 	"popup.labelTypeRegion": "Region",

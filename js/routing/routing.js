@@ -111,75 +111,12 @@ const prepareLocationData = (data) => {
 	syncLocationMarkerVisibility();
 	map.off("zoomend", syncLocationMarkerVisibility);
 	map.on("zoomend", syncLocationMarkerVisibility);
-	map.off("popupopen", handleRouteWaypointPopupOpen);
-	map.on("popupopen", handleRouteWaypointPopupOpen);
-	map.off("popupclose", handleRouteWaypointPopupClose);
-	map.on("popupclose", handleRouteWaypointPopupClose);
 };
 
-// Findet den Ort-Marker zu einem Routen-Wegpunkt (per public_id, sonst per Name).
-function findRouteWaypointMarkerEntry(loc) {
-	if (!loc) {
-		return null;
-	}
-	const byId = loc.publicId && typeof findLocationMarkerByPublicId === "function"
-		? findLocationMarkerByPublicId(loc.publicId)
-		: null;
-	if (byId) {
-		return byId;
-	}
-	return loc.name && typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
-}
-
-// Solange die Routen-Wegpunkt-Infobox eines Ortes offen ist, dessen Ort-Icon temporaer zeigen —
-// aber nur, wenn die Ortsgroesse gerade NICHT eingeblendet ist (sonst ist der Marker ohnehin da und
-// soll beim Schliessen nicht verschwinden).
-function handleRouteWaypointPopupOpen(event) {
-	const loc = event && event.popup ? event.popup._routeLoc : null;
-	const entry = findRouteWaypointMarkerEntry(loc);
-	if (!entry || !entry.marker || shouldShowLocationMarker(entry)) {
-		return;
-	}
-	routeWaypointTempMarkerEntries.add(entry);
-	// Refresh the (possibly stale) icon to the current zoom so the temp waypoint marker shows the size it
-	// would have at this zoom, not a tiny creation-zoom leftover.
-	const waypointZoomLevel = map.getZoom();
-	if (entry.iconZoomLevel !== waypointZoomLevel) {
-		entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, waypointZoomLevel));
-		entry.iconZoomLevel = waypointZoomLevel;
-	}
-	if (!map.hasLayer(entry.marker)) {
-		map.addLayer(entry.marker);
-	}
-	if (typeof entry.marker.bringToFront === "function") {
-		entry.marker.bringToFront();
-	}
-}
-
-function handleRouteWaypointPopupClose(event) {
-	const loc = event && event.popup ? event.popup._routeLoc : null;
-	const entry = findRouteWaypointMarkerEntry(loc);
-	if (!entry || !routeWaypointTempMarkerEntries.has(entry)) {
-		return;
-	}
-	routeWaypointTempMarkerEntries.delete(entry);
-	if (!shouldShowLocationMarker(entry) && map.hasLayer(entry.marker)) {
-		map.removeLayer(entry.marker);
-	}
-}
-
-// Defensive Aufraeumung beim Routen-Reset (falls das Entfernen der Popups kein popupclose ausloest).
-function clearRouteWaypointTempMarkers() {
-	if (typeof routeWaypointTempMarkerEntries === "undefined" || !routeWaypointTempMarkerEntries) {
-		return;
-	}
-	routeWaypointTempMarkerEntries.forEach((entry) => {
-		if (entry && entry.marker && !shouldShowLocationMarker(entry) && map.hasLayer(entry.marker)) {
-			map.removeLayer(entry.marker);
-		}
-	});
-	routeWaypointTempMarkerEntries.clear();
-}
+// Der frueher hier wohnende Temp-Marker-Mechanismus (routeWaypointTempMarkerEntries) blendete den
+// darunterliegenden Ort-Marker ein, solange die Wegpunkt-Infobox offen war. Mit den sichtbaren
+// Wegpunkt-Markern (route-render.js) ergaebe das ZWEI Symbole uebereinander -- genau die unruhige Optik,
+// an der der erste Icon-Versuch scheiterte. Deshalb entfaellt er ersatzlos.
 
 function loadRouteDataFromApi() {
 	if (!MAP_FEATURES_API_URL) {
@@ -448,7 +385,35 @@ routeDataRequest
 		// Datenload erfolgreich war oder nicht (sonst haengt der Balken bei einem Fehler).
 		.finally(() => document.dispatchEvent(new Event("avesmaps:map-ready")));
 
-$("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', () => syncPlannerStateToUrl());
+// Controls, die die ROUTE BERECHNEN (nicht bloss die Kartendarstellung): Transportmittel, die
+// Land/Fluss/Meer-Haken und die Routenoptionen. Eine Aenderung muss die Route neu rechnen.
+//
+// Bis 7a898af4 war der "Suche"-Button der EINZIGE Recompute-Trigger; mit seinem Wegfall wurde er nur
+// fuer Wegpunkt-Aktionen (Autocomplete/Enter/Loeschen/Sortieren) ersetzt. Transport- und Optionswechsel
+// aktualisierten seither nur die URL -- die angezeigte Route blieb stehen, bis man einen Wegpunkt anfasste.
+// Der generische Selektor unten trifft auch die Karten-Selects (#mapLayerModeSelect, #mapStyleSelect);
+// die duerfen NICHT neu rechnen, daher die explizite Liste. #travelHoursPerDay fehlt hier absichtlich --
+// es rechnet erst in seinem eigenen Handler weiter unten neu, NACH dem Clamping.
+const ROUTE_RECOMPUTE_CONTROL_SELECTOR = '#transport-options select, #transport-options input[type="checkbox"], input[name="pathType"], #minimizeTransfers';
+
+// Rechnet die Route neu, ohne den Kartenausschnitt zu verreissen -- ein Optionswechsel soll die Ansicht
+// nicht wegspringen lassen. Erst ab 2 Wegpunkten gibt es eine Route (darunter wuerde updateMapView die
+// Karte auf die blossen Ziele zoomen).
+function recomputeRouteAfterOptionChange() {
+	if (typeof getWaypointInputValues !== "function" || getWaypointInputValues().length < 2) {
+		return;
+	}
+	if (typeof updateRouteKeepingCurrentMapView === "function") {
+		updateRouteKeepingCurrentMapView();
+	}
+}
+
+$("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', function () {
+	syncPlannerStateToUrl();
+	if ($(this).is(ROUTE_RECOMPUTE_CONTROL_SELECTOR)) {
+		recomputeRouteAfterOptionChange();
+	}
+});
 $("#search").on("input", "#travelHoursPerDay, .waypoint-input", () => syncPlannerStateToUrl());
 
 // Reisestunden-Feld: gueltiger Bereich 0,5-24 Stunden/Tag (24 = durchreisen ohne Rast); leer -> Standard.
@@ -461,6 +426,8 @@ $("#search").on("change", "#travelHoursPerDay", function () {
 		: 24 - DEFAULT_PLANNER_STATE.restHours;
 	$travelHoursField.val(clampedTravelHours.toFixed(1));
 	if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
+	// Erst JETZT neu rechnen -- mit dem geclampten Wert (die Reisestunden bestimmen die Etappen/Reisetage).
+	recomputeRouteAfterOptionChange();
 });
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {
 	const requestUrl = settings?.url || "unbekannte Anfrage";
@@ -1103,7 +1070,14 @@ function findWaypointIdByLocationName(name) {
 // Content of a route-waypoint popup: slim -- name + type + actions ("Reiseziel entfernen",
 // "Link teilen"). No expandable infobox anymore (owner: the waypoint popup stays slim; the full
 // settlement info is a normal map click away).
-function buildRoutePopupHtml(loc, { showRemoveAction = false } = {}) {
+function routeWaypointRoleLabel(role) {
+	if (role === "start") return tr("route.role.start", "Startpunkt");
+	if (role === "between") return tr("route.role.between", "Zwischenziel");
+	if (role === "end") return tr("route.role.end", "Ziel");
+	return "";
+}
+
+function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) {
 	const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
 
 	const buttons = [];
@@ -1139,12 +1113,18 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false } = {}) {
 
 	// Slim waypoint box: header (name + type) + action buttons only. No Wiki link / infobox here --
 	// that lives in the normal marker popup.
-	const routeTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
+	const settlementTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
+	// Die Rolle in der Route ("Dorf · Startpunkt") steht mit in der Typ-Zeile -- so ist sie auch dann
+	// lesbar, wenn man die Markerform nicht auf Anhieb zuordnet.
+	const roleLabel = routeWaypointRoleLabel(role);
+	const routeTypeLabel = [settlementTypeLabel, roleLabel].filter(Boolean).join(" · ");
 	// Header icon: the SAME realistic settlement illustration (by size) as the normal floating box, so the
 	// waypoint box header matches it -- rendered 50x50 via `.floating-location-popup .location-popup__icon--realistic`
 	// (Owner: "das icon der stadt 50x50"). Empty markup falls back to the default type icon in locationPopupMarkup.
+	// Waehlt die Illustration nach der SIEDLUNGSGROESSE -- also mit dem reinen Typ-Label ("Dorf"), nicht
+	// mit der um die Rolle ergaenzten Anzeige-Zeile.
 	const headerIcon = typeof settlementRealisticIconMarkup === "function"
-		? settlementRealisticIconMarkup(loc.locationType, routeTypeLabel)
+		? settlementRealisticIconMarkup(loc.locationType, settlementTypeLabel)
 		: "";
 	return locationPopupMarkup({
 		name: loc.name,
@@ -1162,71 +1142,9 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false } = {}) {
 	});
 }
 
-// Fügt einem Waypoint ein Popup (mit Umschalter) bzw. einen Namens-Tooltip hinzu.
-const addTooltip = (loc, {
-	compact = true,
-	showDescription = false,
-	showWikiLink = false,
-	showRemoveAction = false,
-} = {}) => {
-	if (showDescription || showWikiLink) {
-		const popup = L.popup({
-			autoClose: false,
-			closeOnClick: false,
-			// These route-waypoint popups sit exactly on their (route-fitted) waypoint; Leaflet's autoPan
-			// firing mid-flight -- while the location-open pan is still animating -- corrupts the map centre
-			// -> _panInsideMaxBounds NaN crash, whose async rejection aborted the 2nd-waypoint route build
-			// (routing-nan-pan-crash class, uncovered caller). Same guard the marker popup already uses.
-			autoPan: false,
-			// Slim box in the floating-infobox STYLE (owner: same look as the normal floating popup):
-			// floating-location-popup gives the warm panel bg, the larger name/icon and the icon-tile
-			// action buttons; route-waypoint-popup sets the 310px width. No expanded state anymore.
-			minWidth: 310,
-			maxWidth: 400,
-			maxHeight: typeof locationMarkerPopupMaxHeight === "function" ? locationMarkerPopupMaxHeight() : 480,
-			className: "route-waypoint-popup floating-location-popup settlement-popup",
-		})
-			.setLatLng(loc.coordinates)
-			.setContent(buildRoutePopupHtml(loc, { showRemoveAction }));
-		// _routeLoc set BEFORE addTo so the popupopen fired by addTo can map the place marker
-		// (handleRouteWaypointPopupOpen).
-		popup._routeLoc = loc;
-		popup.addTo(map);
-		activeTooltips.push(popup);
-		return;
-	}
-
-	const tooltip = L.tooltip({
-		permanent: true,
-		direction: "top",
-		offset: [0, -10],
-		opacity: 1,
-		interactive: showRemoveAction,
-		className: showRemoveAction ? "location-tooltip location-tooltip--interactive" : "location-tooltip",
-	})
-		.setLatLng(loc.coordinates)
-		.setContent(locationPopupMarkup({
-			name: loc.name,
-			locationType: loc.locationType,
-			locationTypeLabel: loc.locationTypeLabel,
-			compact,
-			showDescription,
-			showWikiLink,
-			description: loc.description,
-			wikiUrl: loc.wikiUrl,
-			isRuined: loc.isRuined,
-			actionsMarkup: showRemoveAction ? waypointRemoveActionMarkup(loc.waypointId) : "",
-		}))
-		.addTo(map);
-	activeTooltips.push(tooltip);
-};
-
-// Entfernt alle Tooltips
-function removeAllTooltips() {
-	$.each(activeTooltips, (i, tip) => map.removeLayer(tip));
-	activeTooltips = [];
-	clearRouteWaypointTempMarkers();
-}
+// Die permanent offenen Wegpunkt-Infoboxen (frueher addTooltip/removeAllTooltips) sind ersetzt: die
+// Wegpunkte tragen jetzt eigene Marker, deren Infobox beim Hover erscheint (renderRouteWaypointMarkers
+// in route-render.js). Aufgeraeumt wird dort ueber removeHighlightedRouteNodes.
 
 // Hebt fehlerhafte Eingaben hervor
 const highlightError = ($input) => {
@@ -1282,14 +1200,7 @@ function updateMapView() {
 	resetRoutePresentation();
 	collectAndValidateSelectedLocations();
 
-	selectedLocations.forEach((loc) => {
-		addTooltip(loc, {
-			compact: false,
-			showDescription: true,
-			showWikiLink: true,
-			showRemoveAction: true,
-		});
-	});
+	renderRouteWaypointMarkers();
 
 	console.log("Ausgewählte Locations:", selectedLocations);
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
@@ -1308,7 +1219,6 @@ function updateMapView() {
 		if (segments.length) {
 			logRoutePoints(segments);
 			drawRoute(segments);
-			highlightRouteLocations(routeNodeNames, segments);
 			showRoutePlan(routeNodeNames, segments);
 		} else {
 			alert("Keine gültigen Routensegmente gefunden.");

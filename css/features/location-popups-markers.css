@@ -387,6 +387,41 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	margin-right: -14px;
 }
 
+/* --- Route waypoint markers (docs/route-waypoint-marker-design.md) ---------------------------------
+   The marker container is positioned by Leaflet via `transform: translate3d(...)` -- NEVER put a
+   transform on `.route-waypoint-marker` itself or the marker jumps off its place. The graphic sits
+   INSIDE as a child (<img> or inline <svg>), which is what we scale on hover. */
+.route-waypoint-marker {
+	cursor: pointer;
+	background: none;
+	border: 0;
+}
+.route-waypoint-marker > img,
+.route-waypoint-marker > svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+	transition: transform 0.13s ease-out;
+}
+/* Grow slightly on hover so the marker reads as touchable. The scale origin must be the ANCHOR point,
+   otherwise the graphic drifts off the place it marks: discs are anchored at their centre, the
+   teardrop at its bottom tip. */
+.route-waypoint-marker:hover > img,
+.route-waypoint-marker:hover > svg {
+	transform: scale(1.12);
+}
+.route-waypoint-marker--start > img,
+.route-waypoint-marker--start > svg,
+.route-waypoint-marker--between > img,
+.route-waypoint-marker--between > svg {
+	transform-origin: 50% 50%;
+}
+.route-waypoint-marker--end > img,
+.route-waypoint-marker--end > svg {
+	transform-origin: 50% 100%;
+}
+
 .location-popup__description {
 	margin-top: 6px;
 	color: var(--color-text);
