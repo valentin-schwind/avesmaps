@@ -3,6 +3,11 @@
 // undo keyboard shortcut). Split out of review-panels.js (M5 god-file split).
 // Plain classic script: global functions called at runtime.
 
+// How many merged entries the "Änderungen" feed shows. Must match the SQL LIMIT of BOTH sources
+// (see the comment in loadChangeLog) — a smaller server limit silently drops entries that are newer
+// than ones still on screen.
+const CHANGE_LOG_FEED_LIMIT = 200;
+
 async function loadChangeLog() {
 	if (!IS_EDIT_MODE) {
 		return;
@@ -27,11 +32,13 @@ async function loadChangeLog() {
 			console.warn("Politischer Änderungsverlauf konnte nicht geladen werden:", error);
 		}
 
-		// Both sources deliver up to 100 rows (map_audit_log + political change_log) and the merged feed
-		// keeps the newest 100. The map side used to be capped at 50 server-side while the merge sliced
-		// at 100, so in a map-heavy period entries 51+ were dropped even though they were NEWER than
-		// political entries that did make the cut — the feed was not "the newest 100 changes" it claimed
-		// to be. Keep the two limits and this slice in sync.
+		// Both sources deliver up to CHANGE_LOG_FEED_LIMIT rows (map_audit_log + political change_log) and
+		// the merged feed keeps the newest CHANGE_LOG_FEED_LIMIT. The map side used to be capped at 50
+		// server-side while the merge sliced at 100, so in a map-heavy period entries 51+ were dropped even
+		// though they were NEWER than political entries that did make the cut — the feed was not "the newest
+		// N changes" it claimed to be. The two SQL limits and this slice MUST stay in sync:
+		//   api/edit/map/audit-log.php            → LIMIT 200
+		//   api/_internal/political/territories-audit.php (change_log) → LIMIT 200
 		const mapChanges = Array.isArray(data.changes)
 			? data.changes.map((entry) => ({ ...entry, audit_source: "map_feature" }))
 			: [];
@@ -45,7 +52,7 @@ async function loadChangeLog() {
 				}
 				return Number(right?.id || 0) - Number(left?.id || 0);
 			})
-			.slice(0, 100);
+			.slice(0, CHANGE_LOG_FEED_LIMIT);
 		renderChangeLog();
 	} catch (error) {
 		console.error("Änderungsverlauf konnte nicht geladen werden:", error);

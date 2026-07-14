@@ -115,7 +115,7 @@ function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
         LEFT JOIN users ON users.id = audit.actor_user_id
         LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
         ORDER BY audit.created_at DESC, audit.id DESC
-        LIMIT 100'
+        LIMIT 200'
     );
     $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
 
