@@ -296,6 +296,15 @@
 	overflow-wrap: anywhere;
 }
 
+/* The reporter's free-text comment, shown under every report row so no user text is hidden. */
+.review-report__comment {
+	margin-top: 4px;
+	font-size: 13px;
+	color: var(--color-text-strong);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
 .review-report__change-ref-name {
 	font-weight: 700;
 }

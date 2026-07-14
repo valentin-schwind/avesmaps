@@ -259,6 +259,15 @@ function renderReviewReports() {
 			reportSourceParts.push("Wiki-Link");
 		}
 		itemElement.querySelector(".review-report__source").textContent = reportSourceParts.join(" · ");
+		// Surface the reporter's free-text comment for EVERY report type -- it otherwise only reached the
+		// location editor's description; label/comment/change reports lost it in the list entirely.
+		const reportComment = String(report.comment || "").trim();
+		if (reportComment) {
+			const commentEl = document.createElement("div");
+			commentEl.className = "review-report__comment";
+			commentEl.textContent = reportComment;
+			itemElement.querySelector(".review-report__focus").after(commentEl);
+		}
 		if (isCommentReport(report)) {
 			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
 		}
