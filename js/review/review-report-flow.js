@@ -56,6 +56,19 @@ function openLocationEditDialogFromChangeReport(report) {
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "map_reports";
 	pendingChangeReportMove = null;
+	// Reporter-Quellen MIT Link -> beim Speichern (update_point) als feature_sources an die bestehende
+	// Siedlung anhaengen (wie im Anlege-Flow), damit keine vom Nutzer gemeldete Quelle verloren geht.
+	const changeReportSources = Array.isArray(report.sources) ? report.sources : [];
+	activeReviewReportSourceSuggestions = changeReportSources
+		.filter((source) => source && source.url && source.label)
+		.map((source) => ({
+			url: String(source.url || ""),
+			label: String(source.label || ""),
+			pages: String(source.pages || ""),
+			source_type: String(source.type || "sonstiges"),
+			reference_kind: String(source.reference_kind || ""),
+			is_official: Boolean(source.official),
+		}));
 	const changed = [];
 
 	// Free-text request -> prepend to the description so the editor sees it.

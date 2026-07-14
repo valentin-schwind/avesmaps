@@ -68,7 +68,7 @@ async function handleLocationEditFormSubmit(event) {
 		// Multi-source #3: each community-reported source WITH a link becomes a real feature_source on the
 		// freshly created place (same catalog the manual "Quelle hinzufügen" writes to) so they show in the
 		// QUELLEN section instead of being lost in the description. Best-effort per source; needs id + url.
-		if (payload.action === "create_point" && connectPublicId && Array.isArray(activeReviewReportSourceSuggestions)
+		if ((payload.action === "create_point" || payload.action === "update_point") && connectPublicId && Array.isArray(activeReviewReportSourceSuggestions)
 			&& typeof linkCommunityReportSource === "function") {
 			let linkedAnySource = false;
 			for (const suggestion of activeReviewReportSourceSuggestions) {
