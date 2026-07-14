@@ -432,9 +432,9 @@ $("#search").on("change", "#travelHoursPerDay", function () {
 	recomputeRouteAfterOptionChange();
 });
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {
-	const requestUrl = settings?.url || "unbekannte Anfrage";
-	const requestError = thrownError || jqXHR?.statusText || "XMLHttpRequest fehlgeschlagen";
-	alert(`Fehler bei der Anfrage ${requestUrl}: ${requestError}`);
+	const requestUrl = settings?.url || tr("routing.alert.unknownRequest", "unbekannte Anfrage");
+	const requestError = thrownError || jqXHR?.statusText || tr("routing.alert.requestFailedGeneric", "XMLHttpRequest fehlgeschlagen");
+	alert(tr("routing.alert.requestFailed", "Fehler bei der Anfrage {url}: {error}", { url: requestUrl, error: requestError }));
 });
 
 $(document).on("click", (event) => {
@@ -483,7 +483,7 @@ $(document).on("click", ".review-rating__hide", function (event) {
 $(document).on("click", ".review-rating__delete", function (event) {
 	event.preventDefault();
 	const item = this.closest(".review-rating");
-	if (!item || !window.confirm("Diese Bewertung wirklich endgültig löschen?")) {
+	if (!item || !window.confirm(tr("review.confirmDeleteRating", "Diese Bewertung wirklich endgültig löschen?"))) {
 		return;
 	}
 	moderateReviewRating(item.dataset.reviewId, "delete", item.dataset.locationPublicId || "");
@@ -1208,7 +1208,7 @@ function updateMapView() {
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
 
 	focusMapOnActiveTargets();
-	if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
+	if (invalidLocationInputs.length) alert(tr("routing.alert.locationsNotFound", "Orte nicht gefunden: {list}", { list: invalidLocationInputs.join(", ") }));
 
 	if (selectedLocations.length >= 2) {
 		const routeResult = buildRouteResultFromSelectedLocations(useShortest);
@@ -1223,7 +1223,7 @@ function updateMapView() {
 			drawRoute(segments);
 			showRoutePlan(routeNodeNames, segments);
 		} else {
-			alert("Keine gültigen Routensegmente gefunden.");
+			alert(tr("routing.alert.noValidSegments", "Keine gültigen Routensegmente gefunden."));
 		}
 	}
 }

@@ -87,7 +87,7 @@ function buildPlaceCityMapsMarkup(location) {
 			+ '</a>';
 	}).join("");
 	return '<div class="avesmaps-citymaps">'
-		+ '<div class="avesmaps-citymaps__head">Kartensammlung <span class="avesmaps-citymaps__note">· Platzhalter · externe Links</span></div>'
+		+ '<div class="avesmaps-citymaps__head">' + placeExtrasEscape(tr("cityMaps.heading", "Kartensammlung")) + ' <span class="avesmaps-citymaps__note">' + placeExtrasEscape(tr("cityMaps.note", "· Platzhalter · externe Links")) + '</span></div>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
 		+ '</div>';
 }
@@ -137,7 +137,7 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var metaLine = metaParts.length ? '<div class="avesmaps-adv__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 	// Anthology-only adventures ship inside a parent product -> the shop link points there; say why.
-	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">enthalten in: ' + placeExtrasEscape(a.containedIn) + '</div>' : "";
+	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>' : "";
 	var extraClass = isPlay ? " is-play" : "";
 	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
 	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-edition="' + placeExtrasEscape(a.edition || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
@@ -155,7 +155,7 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 // Killswitch aus ist -- keine Cover auf dem Schirm heisst kein Ulisses-Credit noetig.
 function avesmapsAdventureCreditMarkup() {
 	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
-	return coversOn ? '<div class="avesmaps-adv__credit">Cover © Ulisses Spiele — <a href="https://www.f-shop.de/" target="_blank" rel="noopener">im F-Shop ansehen ↗</a></div>' : "";
+	return coversOn ? '<div class="avesmaps-adv__credit">' + tr("adventures.credit", "Cover © Ulisses Spiele — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
 }
 
 // ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----
@@ -175,7 +175,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	if (!hasBeginnt && !hasPlay) {
 		return "";
 	}
-	var name = placeName || "diesem Ort";
+	var name = placeName || tr("adventures.fallbackPlace", "diesem Ort");
 	var total = (opts.total != null) ? opts.total : (hasBeginnt ? beginnt.length : 0);
 	// Kopf-Zaehler NUR, wenn kein Toggle da ist (sonst tragen die Toggle-Segmente die Zaehler).
 	var countMarkup = (hasBeginnt && !hasPlay) ? ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>' : "";
@@ -183,33 +183,33 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// Sortierzeile (sortiert innerhalb der Rolle -- beginnt bleibt vor spielt).
 	var sortsMarkup =
 		'<div class="avesmaps-adv__sorts">'
-		+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
+		+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">' + placeExtrasEscape(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
 		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
+		+ '<span class="avesmaps-adv__sort" data-adv-sort="type">' + placeExtrasEscape(tr("adventures.sort.byType", "nach Art")) + '</span>'
 		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">nach Edition</span>'
+		+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">' + placeExtrasEscape(tr("adventures.sort.byEdition", "nach Edition")) + '</span>'
 		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
+		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 		+ '</div>';
 
 	// Umschalter unter der Sortierzeile (nur wenn es spielt-Orte gibt). Klick auf "Spielt hier" = Spoiler-Bestaetigung.
 	var togglesMarkup = hasPlay
-		? '<div class="avesmaps-adv__modes" role="tablist" aria-label="Beginnt hier oder Spielt hier">'
-			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">Beginnt hier <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(beginnt.length) + ')</span></button>'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
+		? '<div class="avesmaps-adv__modes" role="tablist" aria-label="' + placeExtrasEscape(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
+			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">' + placeExtrasEscape(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(beginnt.length) + ')</span></button>'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
 			+ '</div>'
 		: "";
 
-	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">Platzhalter · Cover temporär aus dem Wiki</div>' : "";
+	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">' + placeExtrasEscape(tr("adventures.placeholderNote", "Platzhalter · Cover temporär aus dem Wiki")) + '</div>' : "";
 	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
-	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>Hier beginnt kein Abenteuer.</div>' : "";
+	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>' + placeExtrasEscape(tr("adventures.emptyHint", "Hier beginnt kein Abenteuer.")) + '</div>' : "";
 
 	// EIN Streifen: beginnt-Karten, dann (verborgene) spielt-Karten.
 	var cards = (hasBeginnt ? beginnt.map(function (a) { return buildAdventureCardMarkup(a, false); }).join("") : "")
 		+ (hasPlay ? play.map(function (a) { return buildAdventureCardMarkup(a, true); }).join("") : "");
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
-	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">Alle anzeigen</button></div>' : "";
+	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("adventures.all", "Alle anzeigen")) + '</button></div>' : "";
 
 	var creditMarkup = avesmapsAdventureCreditMarkup();
 
@@ -218,7 +218,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// DOM-Klon-Dialogs der Siedlung. Bei der Siedlung fehlt das Attribut -> flacher Dialog wie bisher.
 	var terrAttr = opts.territoryKey ? ' data-adv-scope="territory" data-adv-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"' : "";
 	return '<div class="avesmaps-adv"' + terrAttr + '>'
-		+ '<div class="avesmaps-adv__head">Abenteuer in ' + placeExtrasEscape(name) + countMarkup + '</div>'
+		+ '<div class="avesmaps-adv__head">' + tr("adventures.heading", "Abenteuer in {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</div>'
 		+ sortsMarkup
 		+ togglesMarkup
 		+ noteMarkup
@@ -235,7 +235,7 @@ function buildPlaceAdventuresMarkup(location) {
 	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
 	var play = (catalogReady && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "play" }) : [];
 	var hasBeginnt = beginnt && beginnt.length > 0;
-	var placeName = (location && location.name) ? location.name : "diesem Ort";
+	var placeName = (location && location.name) ? location.name : tr("adventures.fallbackPlace", "diesem Ort");
 	return buildAdventuresSectionMarkup(placeName, beginnt, play, {
 		total: hasBeginnt ? getPlaceAdventuresTotal(location) : 0,
 		placeholderNote: hasBeginnt && !catalogReady,
@@ -254,7 +254,7 @@ function buildTerritoryAdventuresMarkup(regionEntry) {
 	if (typeof getAdventuresForTerritory !== "function") {
 		return "";
 	}
-	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || "diesem Gebiet";
+	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || tr("adventures.fallbackTerritory", "diesem Gebiet");
 	// Political territory: aggregate over the whole political subtree via the SERVER wiki_key that arrives
 	// with regionEntry.detail (territory-detail.php). Pre-detail render -> no wiki_key yet -> "".
 	var detail = (regionEntry && regionEntry.detail && regionEntry.detail.ok) ? regionEntry.detail : null;
@@ -297,7 +297,7 @@ function buildRegionAdventuresMarkup(label) {
 	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
 		return "";
 	}
-	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || "dieser Region";
+	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || tr("adventures.fallbackRegion", "dieser Region");
 	return buildAdventuresSectionMarkup(name, beginnt, play, {});
 }
 
@@ -321,7 +321,7 @@ function buildPathAdventuresMarkup(path) {
 	if ((!beginnt || !beginnt.length) && (!play || !play.length)) {
 		return "";
 	}
-	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || "diesem Weg");
+	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || tr("adventures.fallbackPath", "diesem Weg"));
 	return buildAdventuresSectionMarkup(name, beginnt, play, {});
 }
 
@@ -344,7 +344,7 @@ function buildFloatingAdventuresButtonMarkup(location, publicId) {
 		attributes["aria-disabled"] = "true";
 	}
 	return popupActionButtonMarkup({
-		label: "Abenteuer",
+		label: tr("adventures.label", "Abenteuer"),
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/abenteuer.webp" alt="" width="20" height="20" />',
 		attributes: attributes,
 	});
@@ -360,7 +360,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		// Weicher Trennstrich (U+00AD): unsichtbar, solange das Wort passt; bricht die 90px-Kachel sonst
 		// sauber in zwei Zeilen statt zu ueberlaufen. Kein Eingriff in die geteilte hyphens:auto-Regel (die
 		// ist bewusst nur fuer Fliesstext, nicht Buttons/Kacheln).
-		label: "Karten­sammlung",
+		label: tr("cityMaps.buttonLabel", "Karten­sammlung"),
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/stadtkarte.webp" alt="" width="20" height="20" />',
 		attributes: { "aria-disabled": "true", "data-citymaps-placeholder": "true" },
 	});
@@ -387,7 +387,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		overlay.className = "avesmaps-adv-dialog";
 		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="Schließen">✕</button></div>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + placeExtrasEscape(tr("adventures.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="avesmaps-adv-dialog__grid"></div>'
 			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
 		document.body.appendChild(overlay);
@@ -421,7 +421,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 	// also visuell wiederverwendbar). Eigene, dialog-lokale State-/Event-Verdrahtung in buildDialogControls
 	// (nicht $(document).on), damit sie den Nested-Dialog (#avesmaps-adv-tree-dialog) nicht beruehrt.
 	function dialogFiltersMarkup(facets) {
-		var parts = ['<span class="avesmaps-adv-tree__flabel">Filter</span>'];
+		var parts = ['<span class="avesmaps-adv-tree__flabel">' + placeExtrasEscape(tr("adventures.filter.label", "Filter")) + '</span>'];
 		if (facets.types && facets.types.length) {
 			facets.types.forEach(function (t) {
 				parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + placeExtrasEscape(t) + '">' + placeExtrasEscape(t) + '</span>');
@@ -429,26 +429,26 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		}
 		if (facets.editions && facets.editions.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">DSA-Version</option>'
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">' + placeExtrasEscape(tr("adventures.filter.edition", "DSA-Version")) + '</option>'
 				+ facets.editions.map(function (e) { return '<option value="' + placeExtrasEscape(e) + '">' + placeExtrasEscape(e) + '</option>'; }).join('') + '</select></span>');
 		}
 		if (facets.complexities && facets.complexities.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">Schwierigkeit</option>'
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">' + placeExtrasEscape(tr("adventures.filter.complexity", "Schwierigkeit")) + '</option>'
 				+ facets.complexities.map(function (d) { return '<option value="' + placeExtrasEscape(d) + '">' + placeExtrasEscape(d) + '</option>'; }).join('') + '</select></span>');
 		}
 		if (facets.genres && facets.genres.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">' + placeExtrasEscape(tr("adventures.filter.genre", "Genre")) + '</option>'
 				+ facets.genres.map(function (g) { return '<option value="' + placeExtrasEscape(g) + '">' + placeExtrasEscape(g) + '</option>'; }).join('') + '</select></span>');
 		}
 		var yr = facets.yearRange || { min: 0, max: 0 };
-		var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : "von";
-		var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : "bis";
-		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">Zeitraum (BF)</span>'
+		var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : placeExtrasEscape(tr("adventures.filter.from", "von"));
+		var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : placeExtrasEscape(tr("adventures.filter.to", "bis"));
+		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + placeExtrasEscape(tr("adventures.filter.period", "Zeitraum (BF)")) + '</span>'
 			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
 			+ '<span class="avesmaps-adv-tree__ydash">–</span>'
 			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
 		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">nur offiziell</span>');
+		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "nur offiziell")) + '</span>');
 		return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
 	}
 
@@ -468,18 +468,18 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		controls.className = "avesmaps-adv-dialog__controls";
 		var sortsHtml =
 			'<div class="avesmaps-adv__sorts">'
-			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">neueste zuerst</span>'
+			+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">' + placeExtrasEscape(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">nach Art</span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="type">' + placeExtrasEscape(tr("adventures.sort.byType", "nach Art")) + '</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">nach Edition</span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">' + placeExtrasEscape(tr("adventures.sort.byEdition", "nach Edition")) + '</span>'
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">alphabetisch</span>'
+			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
 		var togglesHtml = playCount
 			? '<div class="avesmaps-adv-dialog__modes" role="tablist">'
-				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">Beginnt hier <span class="avesmaps-adv__mode-count" data-adv-count="start">(' + startCount + ')</span></button>'
-				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
+				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">' + placeExtrasEscape(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count" data-adv-count="start">(' + startCount + ')</span></button>'
+				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
 				+ '</div>'
 			: "";
 
@@ -556,7 +556,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		}
 		var overlay = ensureAdventuresDialog();
 		var head = section.querySelector(".avesmaps-adv__head");
-		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : "Abenteuer";
+		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : tr("adventures.label", "Abenteuer");
 		var listEl = section.querySelector(".avesmaps-adv__list");
 		var startCards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card:not(.is-play)") : [];
 		var playCards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card.is-play") : [];
