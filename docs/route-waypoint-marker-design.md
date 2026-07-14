@@ -12,6 +12,20 @@ Route selbst. Stattdessen:
   (Start / Zwischenziel / Ziel).
 - Die **Infobox erscheint beim Überfahren** eines Markers und verschwindet wieder.
 
+## Die Routenlinie
+
+Die Linie trägt eine **weiße Kontur** (`ROUTE_OUTLINE_WIDTH`, 2 px je Seite), damit sie
+sich sowohl gegen dunklen Wald als auch gegen helle Wüste absetzt. Sie wird als breitere
+weiße Linie in einem **eigenen Pane** (`routeOutlinePane`, z-index 445) unter der farbigen
+Linie (`routePane`, 450) gezeichnet — dasselbe Muster wie `roadsOutlinePane` bei den
+Straßen. Eine Kontur je Segment im *selben* Pane würde an den Übergängen die Kontur des
+nächsten Segments über die Farbe des vorigen legen.
+
+Die Kontur erbt die geometrierelevanten Stilanteile des Segments (`dashArray`, `opacity`):
+Eine **Querfeldein**-Etappe ist gestrichelt — eine durchgezogene weiße Kontur schiene durch
+ihre Lücken als weißer Balken durch. Sie ist `interactive: false`; Klicks gehören der
+farbigen Linie darüber.
+
 ## Marker
 
 | Rolle | Grafik | Anker |

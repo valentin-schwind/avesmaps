@@ -18,6 +18,7 @@ map.createPane("mapDecorationsPane");
 map.createPane("roadsOutlinePane");
 map.createPane("roadsPane");
 map.createPane("powerlinesPane");
+map.createPane("routeOutlinePane");
 map.createPane("routePane");
 map.createPane("measurementPane");
 map.createPane("measurementHandlesPane");
@@ -30,6 +31,7 @@ map.getPane("mapDecorationsPane").style.zIndex = 480;
 map.getPane("roadsOutlinePane").style.zIndex = 350;
 map.getPane("roadsPane").style.zIndex = 400;
 map.getPane("powerlinesPane").style.zIndex = 430;
+map.getPane("routeOutlinePane").style.zIndex = 445; // white casing, just below the route line
 map.getPane("routePane").style.zIndex = 450;
 map.getPane("measurementPane").style.zIndex = 460;
 map.getPane("measurementHandlesPane").style.zIndex = 520;

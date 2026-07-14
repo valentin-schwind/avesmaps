@@ -46,6 +46,12 @@ const MAP_SCALE_BAND_MILES_BY_ZOOM = [100, 100, 100, 100, 10, 10, 10];
 
 const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 8, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
 const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: ROUTE_STYLE.weight, opacity: 1 };
+// White casing under the route line so it reads against dark forest and bright desert alike. Drawn as a
+// wider white line in its OWN pane below routePane -- a per-segment outline in the same pane would let
+// the next segment's casing overlap the previous segment's colour at the joins.
+const ROUTE_OUTLINE_COLOR = "#FFFFFF";
+const ROUTE_OUTLINE_WIDTH = 2; // px per side
+const ROUTE_OUTLINE_PANE = "routeOutlinePane";
 const SYNTHETIC_ROUTE_STYLE = { ...ROUTE_STYLE, dashArray: "14 10", opacity: 0.7 };
 const MEASUREMENT_LINE_STYLE = { pane: "measurementPane", color: "#FFFFFF", weight: 4, opacity: 0.95, interactive: false, dashArray: "10 8", lineCap: "round", lineJoin: "round" };
 const LOCATION_MARKER_STYLE = { pane: "locationsPane", fillColor: "#F52B25", color: "#7A1411", weight: 1.25, opacity: 1, fillOpacity: 0.95 };

@@ -19,6 +19,12 @@ function drawRoute(segments) {
 		const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || [], VISUAL_LINE_CATMULL_ROM_CONFIG);
 		const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
 		if (segCoords.length) {
+			// Weisse Kontur ZUERST -- sie lebt in routeOutlinePane (445), die farbige Linie in routePane
+			// (450). Die Trennung nach Panes (statt nur nach Einfuege-Reihenfolge) haelt die Stapelung auch
+			// an den Segment-Uebergaengen: sonst legte sich die Kontur des naechsten Segments ueber die
+			// Farbe des vorigen. Beide liegen in currentRouteLayer -> gemeinsames Aufraeumen.
+			currentRouteLayer.addLayer(L.polyline(segCoords, getRouteSegmentOutlineStyle(segment)));
+
 			const segLayer = L.polyline(segCoords, getRouteSegmentStyle(segment));
 			segLayer.on("click", (event) => {
 				if (event.originalEvent) {

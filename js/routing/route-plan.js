@@ -3,6 +3,20 @@ function getRouteSegmentStyle(segment, isSelected = false) {
 	return isSelected ? { ...baseStyle, ...ROUTE_SELECTED_STYLE } : { ...baseStyle };
 }
 
+// The white casing under a segment. Inherits the segment's geometry-relevant style (dashArray, opacity)
+// so a Querfeldein leg keeps its dashes instead of getting a solid white line underneath -- only colour,
+// width and pane differ. Not interactive: clicks belong to the coloured segment on top.
+function getRouteSegmentOutlineStyle(segment) {
+	const baseStyle = segment?.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
+	return {
+		...baseStyle,
+		pane: ROUTE_OUTLINE_PANE,
+		color: ROUTE_OUTLINE_COLOR,
+		weight: baseStyle.weight + ROUTE_OUTLINE_WIDTH * 2,
+		interactive: false,
+	};
+}
+
 function getRouteEntryBounds(routeEntry) {
 	let bounds = null;
 	(routeEntry?.segmentIndexes || []).forEach((segmentIndex) => {
