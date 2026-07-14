@@ -78,11 +78,17 @@ try {
                 (int) ($payload['limit'] ?? 200)
             ),
             'clear_territory' => avesmapsWikiSettlementClearTerritory($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
+            // Global settlement-image kill switch (ribbon toggle). No public_id / dry_run -- always a real write.
+            'set_images_enabled' => avesmapsSetSettlementImagesEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
         if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins', 'bulk_record_coats', 'set_coat', 'clear_coat', 'assign_territory', 'bulk_assign_territories', 'clear_territory'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncNextMapRevision($pdo);
+        }
+        // The image kill switch flips what map-features emits -> always bump so cached clients revalidate.
+        if ($action === 'set_images_enabled' && is_array($response)) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 

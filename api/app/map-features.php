@@ -66,6 +66,9 @@ try {
     // tables), resolved in memory per settlement -> no N+1, no lazy client fetch. See
     // avesmapsLoadSettlementPoliticalContext.
     $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo);
+    // Global settlement-image kill switch (ribbon toggle in the Siedlungseditor): when OFF, no settlement
+    // images reach the frontend at all. Read ONCE here (fail-open) and passed into the feature builder.
+    $settlementImagesEnabled = avesmapsMapFeaturesSettlementImagesEnabled($pdo);
     // Multi-source system: load the approved source catalog + per-entity references ONCE (two
     // collect-queries, no N+1) so the map renders every element's sources synchronously from this
     // payload -- no lazy per-popup fetch. The catalog is shared/deduped (one entry per source);
@@ -92,7 +95,7 @@ try {
         'revision' => $revision,
         'type' => 'FeatureCollection',
         'features' => array_map(
-            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext),
+            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled),
             $rows
         ),
         // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
@@ -257,6 +260,19 @@ function avesmapsMapFeaturesRespond(array $payload): never {
     exit;
 }
 
+// Reads the global settlement-image kill switch (app_setting 'settlement_images_enabled', default ON).
+// Fail-open: a missing table / read error keeps images enabled (current behaviour). No DDL here -- the
+// hot map-features path must not run DDL; the editor endpoint creates the row. See settlements.php.
+function avesmapsMapFeaturesSettlementImagesEnabled(PDO $pdo): bool {
+    try {
+        $stmt = $pdo->query("SELECT setting_value FROM app_setting WHERE setting_key = 'settlement_images_enabled' LIMIT 1");
+        $value = $stmt ? $stmt->fetchColumn() : false;
+        return $value === false ? true : ((string) $value !== '0');
+    } catch (Throwable) {
+        return true;
+    }
+}
+
 // Filters a settlement's properties.images down to the URLs that may be shown publicly: keeps
 // public_domain / cc0 / ai_generated, drops unknown_other, and strips the licence/note metadata
 // (editor-only). Accepts both the {url,license,note} object shape and the legacy plain-URL-string
@@ -286,7 +302,7 @@ function avesmapsMapFeaturesPublicImageUrls($images): array {
     return $out;
 }
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = []): array {
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
             'type' => 'Feature',
@@ -321,7 +337,7 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     // Only public licences reach the frontend, as a plain URL list -- unknown_other is dropped and the
     // licence/note metadata never leaves the editor. (PAYLOAD_VERSION bumped so cached clients revalidate.)
     if (isset($properties['images'])) {
-        $publicImages = avesmapsMapFeaturesPublicImageUrls($properties['images']);
+        $publicImages = $settlementImagesEnabled ? avesmapsMapFeaturesPublicImageUrls($properties['images']) : [];
         if ($publicImages !== []) {
             $properties['images'] = $publicImages;
         } else {

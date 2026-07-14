@@ -58,6 +58,8 @@
   .btn2.is-active { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
   .btn2.is-active:hover { background:var(--color-button-hover); }
   .btn2.is-active .t2 { color:var(--color-on-button-muted); }
+  .btn2.is-off { background:color-mix(in srgb, var(--bad) 16%, transparent); border-color:var(--bad); }
+  .btn2.is-off .t1 { color:var(--bad); }
   #settlementStatus { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
   #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
@@ -261,6 +263,7 @@
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Siedlungen ihrem Territorium per Ray-Cast zu"><span class="t1">Siedlungen zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seLocalizeCoats" title="Lädt gemeinfreie Wappen lokal herunter"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
+    <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Siedlungsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
   </div>
 </header>
 
@@ -2204,6 +2207,36 @@ function toggleMapFilter() {
 
 $("seFilterMap")?.addEventListener("click", toggleMapFilter);
 
+// Global settlement-image kill switch (ribbon). aria-pressed=true == kill switch engaged (images OFF).
+function setImagesToggleState(enabled) {
+	const btn = $("seImagesToggle");
+	const label = $("seImagesToggleLabel");
+	if (label) label.textContent = enabled ? "Bilder: An" : "Bilder: Aus";
+	if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
+}
+async function toggleSettlementImagesEnabled() {
+	const btn = $("seImagesToggle");
+	if (!btn || btn.disabled) return;
+	const currentlyEnabled = btn.getAttribute("aria-pressed") !== "true";
+	const next = !currentlyEnabled;
+	btn.disabled = true;
+	try {
+		const response = await fetch(SETTLEMENT_EDITOR_API, {
+			method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "set_images_enabled", enabled: next }),
+		});
+		const payload = await response.json().catch(() => null);
+		if (!response.ok || !payload || payload.ok !== true) throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		setImagesToggleState(typeof payload.images_enabled === "boolean" ? payload.images_enabled : next);
+		setStatusText(next ? "Siedlungsbilder im Frontend aktiviert." : "Siedlungsbilder im Frontend deaktiviert (Editor zeigt sie weiter).");
+	} catch (error) {
+		setStatusText("Bilder-Schalter fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		btn.disabled = false;
+	}
+}
+$("seImagesToggle")?.addEventListener("click", toggleSettlementImagesEnabled);
+
 // Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
 // map's filter on every render (see its own tail call below) -- covers every list-filter change
 // (search/type/source/chip/tree) in one place, without wrapping/reassigning the function.
@@ -2420,6 +2453,7 @@ async function loadSettlementItems() {
 			throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
 		}
 		settlementItems = Array.isArray(payload.items) ? payload.items : [];
+		if (typeof payload.images_enabled === "boolean") setImagesToggleState(payload.images_enabled);
 		renderSettlementMid();
 	} catch (error) {
 		if (list) {

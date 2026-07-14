@@ -1243,6 +1243,43 @@ function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun): 
 // Territoriums-Feldern der Editor-Zeile statt state/connected/region/wiki_title. Ohne diese Union
 // zeigte der Editor nur die ~2475 Karten-Orte, waehrend der WikiSync-Tab (list_locations) korrekt
 // 4741 (2475 on-map + 2266 „Fehlt") auswies.
+// Global settlement-image kill switch, stored in the shared app_setting key-value table (same table +
+// pattern as the adventure-cover switch, avesmapsAppSetting* in api/_internal/app/adventures.php).
+// Default ENABLED -- only an explicit stored '0' hides ALL settlement images on the public frontend
+// (enforced in api/app/map-features.php). The editor keeps managing images either way.
+const AVESMAPS_SETTLEMENT_IMAGES_SETTING = 'settlement_images_enabled';
+
+function avesmapsSettlementImagesAppSettingEnsure(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS app_setting (
+            setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+            setting_value VARCHAR(255) NOT NULL,
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+}
+
+function avesmapsSettlementImagesGloballyEnabled(PDO $pdo): bool {
+    try {
+        avesmapsSettlementImagesAppSettingEnsure($pdo);
+        $stmt = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
+        $stmt->execute(['k' => AVESMAPS_SETTLEMENT_IMAGES_SETTING]);
+        $value = $stmt->fetchColumn();
+        return $value === false ? true : ((string) $value !== '0');
+    } catch (Throwable) {
+        return true; // fail-open: never hide images because of a settings-read error
+    }
+}
+
+function avesmapsSetSettlementImagesEnabled(PDO $pdo, bool $enabled): array {
+    avesmapsSettlementImagesAppSettingEnsure($pdo);
+    $pdo->prepare(
+        'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+    )->execute(['k' => AVESMAPS_SETTLEMENT_IMAGES_SETTING, 'v' => $enabled ? '1' : '0']);
+    return ['ok' => true, 'images_enabled' => $enabled];
+}
+
 function avesmapsWikiSettlementEditorList(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $rows = $pdo->query(
@@ -1426,6 +1463,7 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         'on_map' => $onMap,
         'unassigned' => $unassigned,
         'wiki_only' => $wikiOnly,
+        'images_enabled' => avesmapsSettlementImagesGloballyEnabled($pdo),
     ];
 }
 
