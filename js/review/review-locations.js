@@ -310,10 +310,11 @@ function applyChangeSuggestionContext(ctx) {
 		typeSelect.disabled = true;
 	}
 
-	// Name locked + prefilled.
+	// Name prefilled but EDITABLE: users may propose a corrected spelling (owner: name changes are allowed,
+	// since users pointed out wrong spellings). The editor reviews the proposed name before applying it.
 	if (nameInput) {
 		nameInput.value = ctx.name || "";
-		nameInput.readOnly = true;
+		nameInput.readOnly = false;
 	}
 
 	// Position zeigt die IST-Position des Elements (aus ctx). Nicht Pflicht (report-flow ueberspringt die

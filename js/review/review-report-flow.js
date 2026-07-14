@@ -68,6 +68,15 @@ function openLocationEditDialogFromChangeReport(report) {
 		changed.push("location-edit-description");
 	}
 
+	// Proposed name -> prefill if it differs (users may propose a corrected spelling; name changes allowed).
+	const proposedName = String(report.name || "").trim();
+	const nameEl = document.getElementById("location-edit-name");
+	const currentName = String((markerEntry.location && markerEntry.location.name) || markerEntry.name || "").trim();
+	if (nameEl && proposedName && proposedName !== currentName) {
+		nameEl.value = proposedName;
+		changed.push("location-edit-name");
+	}
+
 	// Proposed size/type -> prefill if it differs from the current type.
 	const proposedType = typeof normalizeLocationType === "function"
 		? normalizeLocationType(report.report_subtype || report.size || "")

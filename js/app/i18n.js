@@ -21,8 +21,10 @@
 			if (stored === "en" || stored === "de") {
 				return stored;
 			}
-			var primary = String((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
-			return primary.indexOf("en") === 0 ? "en" : "de";
+			// German is the default; English is opt-in ONLY via ?lang=en or the DE|EN toggle (AGENTS.md §8) --
+			// no longer auto-derived from the browser language, which showed German users with an English browser
+			// a broken DE/EN mix (incomplete EN coverage falls back to German per key).
+			return "de";
 		} catch (error) {
 			return "de";
 		}

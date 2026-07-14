@@ -611,7 +611,7 @@
 			entityId: regionEntry.territoryPublicId || regionEntry.publicId || "",
 			name: name,
 			reportType: isTerritory ? "territorium" : "region",
-			label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderung vorschlagen") : "Änderung vorschlagen"),
+			label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderungen vorschlagen") : "Änderungen vorschlagen"),
 		});
 		return spec ? locationPopupActionsMarkup([popupActionButtonMarkup(spec)]) : "";
 	}

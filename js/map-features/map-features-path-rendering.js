@@ -88,7 +88,7 @@ function createPathPopupMarkup(path) {
 					entityId: getPathPublicId(path),
 					name: pathName,
 					reportType: "weg",
-					label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderung vorschlagen") : "Änderung vorschlagen"),
+					label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderungen vorschlagen") : "Änderungen vorschlagen"),
 				})
 				: null;
 			if (suggestSpec) {

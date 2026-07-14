@@ -427,7 +427,7 @@ function locationActionsMarkup(name, publicId, location = null, extraButtons = [
 			reportType: "location",
 			size: location?.locationType || "",
 			lat: location?.coordinates?.[0], lng: location?.coordinates?.[1],
-			label: tr("popup.suggestChange", "Änderung vorschlagen"),
+			label: tr("popup.suggestChange", "Änderungen vorschlagen"),
 		})
 		: null;
 	if (suggestSpec && !options.floating) {

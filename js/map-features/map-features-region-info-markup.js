@@ -95,7 +95,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const shareButton = wikiUrl
 		? sharePlaceActionButtonMarkup(regionEntry.publicId, { wikiUrl, wikiParam: regionWikiParam })
 		: "";
-	const suggestSpec = typeof buildSuggestChangeButtonSpec === "function" ? buildSuggestChangeButtonSpec({ entityType: regionEntry.source === "political_territory" ? "territory" : "region", entityId: regionEntry.territoryPublicId || regionEntry.publicId || "", name, reportType: regionEntry.source === "political_territory" ? "territorium" : "region", label: tr("popup.suggestChange", "Änderung vorschlagen") }) : null;
+	const suggestSpec = typeof buildSuggestChangeButtonSpec === "function" ? buildSuggestChangeButtonSpec({ entityType: regionEntry.source === "political_territory" ? "territory" : "region", entityId: regionEntry.territoryPublicId || regionEntry.publicId || "", name, reportType: regionEntry.source === "political_territory" ? "territorium" : "region", label: tr("popup.suggestChange", "Änderungen vorschlagen") }) : null;
 	const suggestButton = suggestSpec ? popupActionButtonMarkup(suggestSpec) : "";
 	const shareMarkup = (shareButton || suggestButton) ? locationPopupActionsMarkup([shareButton, suggestButton].filter(Boolean)) : "";
 	const wikiRows = [
