@@ -307,12 +307,12 @@ function moderateReview(action, id, publicId) {
 		.then((response) => response.json().catch(() => null))
 		.then((data) => {
 			if (!data || data.ok === false) {
-				showFeedbackToast(apiErrorMessage(data, "Aktion fehlgeschlagen."), "warning");
+				showFeedbackToast(apiErrorMessage(data, tr("review.moderationActionFailed", "Aktion fehlgeschlagen.")), "warning");
 				return;
 			}
 			refreshOpenReviewSlots(publicId);
 		})
-		.catch(() => showFeedbackToast("Aktion fehlgeschlagen.", "warning"));
+		.catch(() => showFeedbackToast(tr("review.moderationActionFailed", "Aktion fehlgeschlagen."), "warning"));
 }
 
 // ---- Panel jump (floating box, infopanel mode) ----
@@ -364,7 +364,7 @@ $(document).on("click", ".location-reviews__mod-btn", function (event) {
 	const id = this.dataset.reviewId;
 	const slot = this.closest(".location-reviews");
 	const publicId = slot ? slot.getAttribute("data-reviews-public-id") : "";
-	if (action === "delete" && !window.confirm("Diese Bewertung wirklich endgültig löschen?")) {
+	if (action === "delete" && !window.confirm(tr("review.confirmDeleteRating", "Diese Bewertung wirklich endgültig löschen?"))) {
 		return;
 	}
 	moderateReview(action, id, publicId);

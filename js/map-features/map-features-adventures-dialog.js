@@ -42,7 +42,7 @@
 		overlay.className = "avesmaps-adv-dialog avesmaps-adv-tree-dialog";
 		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true">'
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title"></span>'
-			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="Schließen">✕</button></div>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close" aria-label="' + esc(tr("adventures.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__controls"></div>'
 			+ '<div class="avesmaps-adv-tree-dialog__body avesmaps-adv-tree-dialog__tree"></div>'
 			+ '<div class="avesmaps-adv-dialog__credit"></div></div>';
@@ -88,7 +88,7 @@
 		return '<div class="avesmaps-adv-tree__frame">'
 			+ '<div class="avesmaps-adv-tree__fhead">' + pill
 			+ '<span class="avesmaps-adv-tree__fname">' + esc(node.name) + '</span>'
-			+ '<span class="avesmaps-adv-tree__direct" data-adv-direct>0 direkt</span></div>'
+			+ '<span class="avesmaps-adv-tree__direct" data-adv-direct>' + esc(tr("adventures.directCount", "{n} direkt", { n: 0 })) + '</span></div>'
 			+ '<div class="avesmaps-adv-tree__cards">' + startCards + playCards + '</div>'
 			+ kids
 			+ '</div>';
@@ -96,26 +96,26 @@
 
 	function sortsMarkup() {
 		return '<div class="avesmaps-adv-tree__sorts">'
-			+ '<span class="avesmaps-adv-tree__slabel">Sortierung:</span> '
-			+ '<span class="avesmaps-adv-tree__sort is-active" data-adv-tree-sort="year">neueste zuerst</span>'
+			+ '<span class="avesmaps-adv-tree__slabel">' + esc(tr("adventures.sortLabel", "Sortierung:")) + '</span> '
+			+ '<span class="avesmaps-adv-tree__sort is-active" data-adv-tree-sort="year">' + esc(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="type">nach Art</span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="type">' + esc(tr("adventures.sort.byType", "nach Art")) + '</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="edition">nach Edition</span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="edition">' + esc(tr("adventures.sort.byEdition", "nach Edition")) + '</span>'
 			+ '<span class="avesmaps-adv-tree__sortsep"> · </span>'
-			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="alpha">alphabetisch</span>'
+			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="alpha">' + esc(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
 	}
 	function modesMarkup() {
-		return '<div class="avesmaps-adv-tree__modes" role="tablist" aria-label="Beginnt hier oder Spielt hier">'
-			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-tree-mode="start">Beginnt hier <span class="avesmaps-adv__mode-count" data-adv-count="start"></span></button>'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="play">Spielt hier <span class="avesmaps-adv__mode-note">(Spoiler)</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
+		return '<div class="avesmaps-adv-tree__modes" role="tablist" aria-label="' + esc(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
+			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-tree-mode="start">' + esc(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count" data-adv-count="start"></span></button>'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="play">' + esc(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
 			+ '</div>';
 	}
 	// Filterleiste: "Filter"-Label + Art-Chips (multi) + Divider + Schwierigkeit-/Genre-Selects + Divider +
 	// "nur offiziell"-Chip. Nur Dimensionen mit >=1 Facette.
 	function filtersMarkup(facets) {
-		var parts = ['<span class="avesmaps-adv-tree__flabel">Filter</span>'];
+		var parts = ['<span class="avesmaps-adv-tree__flabel">' + esc(tr("adventures.filter.label", "Filter")) + '</span>'];
 		var hasTypes = facets.types && facets.types.length;
 		// The Zeitraum (year) range is ALWAYS shown so the control stays discoverable even when the current
 		// subtree happens to have no dated adventures (many adventures across the catalog carry a BF year).
@@ -129,26 +129,26 @@
 			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
 		}
 		if (facets.editions && facets.editions.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">DSA-Version</option>'
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">' + esc(tr("adventures.filter.edition", "DSA-Version")) + '</option>'
 				+ facets.editions.map(function (e) { return '<option value="' + esc(e) + '">' + esc(e) + '</option>'; }).join('') + '</select></span>');
 		}
 		if (facets.complexities && facets.complexities.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">Schwierigkeit</option>'
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">' + esc(tr("adventures.filter.complexity", "Schwierigkeit")) + '</option>'
 				+ facets.complexities.map(function (d) { return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join('') + '</select></span>');
 		}
 		if (facets.genres && facets.genres.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">Genre</option>'
+			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">' + esc(tr("adventures.filter.genre", "Genre")) + '</option>'
 				+ facets.genres.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select></span>');
 		}
 		var yr = facets.yearRange || { min: 0, max: 0 };
-		var fromPh = yr.min > 0 ? esc(yr.min) : "von";
-		var toPh = yr.max > 0 ? esc(yr.max) : "bis";
-		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">Zeitraum (BF)</span>'
+		var fromPh = yr.min > 0 ? esc(yr.min) : esc(tr("adventures.filter.from", "von"));
+		var toPh = yr.max > 0 ? esc(yr.max) : esc(tr("adventures.filter.to", "bis"));
+		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + esc(tr("adventures.filter.period", "Zeitraum (BF)")) + '</span>'
 			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
 			+ '<span class="avesmaps-adv-tree__ydash">–</span>'
 			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
 		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">nur offiziell</span>');
+		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + esc(tr("adventures.filter.officialOnly", "nur offiziell")) + '</span>');
 		return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
 	}
 
@@ -180,7 +180,7 @@
 		var head = section ? section.querySelector(".avesmaps-adv__head") : null;
 		var titleEl = overlay.querySelector(".avesmaps-adv-dialog__title");
 		if (titleEl) {
-			titleEl.textContent = head ? head.textContent.trim() : ("Abenteuer in " + (tree.name || ""));
+			titleEl.textContent = head ? head.textContent.trim() : tr("adventures.heading", "Abenteuer in {place}", { place: tree.name || "" });
 		}
 
 		var allShapes = [];
@@ -248,7 +248,7 @@
 				var direct = f.querySelector(":scope > .avesmaps-adv-tree__fhead > [data-adv-direct]");
 				if (direct) {
 					var n = state.mode === "play" ? visPlay : visStart;
-					direct.textContent = n + " direkt";
+					direct.textContent = tr("adventures.directCount", "{n} direkt", { n: n });
 				}
 			});
 

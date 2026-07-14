@@ -75,7 +75,7 @@ function currentShareQuery() {
 async function createAndCopyShareLink() {
 	const query = currentShareQuery();
 	if (!query) {
-		showFeedbackToast("Es gibt noch nichts zu teilen – setze zuerst Route oder Filter.", "info");
+		showFeedbackToast(tr("shareLink.nothingToShare", "Es gibt noch nichts zu teilen – setze zuerst Route oder Filter."), "info");
 		return;
 	}
 	try {
@@ -87,17 +87,17 @@ async function createAndCopyShareLink() {
 		});
 		const data = await response.json().catch(() => null);
 		if (!data || data.ok === false || !data.code) {
-			showFeedbackToast(apiErrorMessage(data, "Kurzlink konnte nicht erstellt werden."), "warning");
+			showFeedbackToast(apiErrorMessage(data, tr("shareLink.createFailed", "Kurzlink konnte nicht erstellt werden.")), "warning");
 			return;
 		}
 		const shortUrl = `${window.location.origin}${window.location.pathname}?s=${data.code}`;
 		const didCopy = typeof copyTextToClipboard === "function" ? await copyTextToClipboard(shortUrl) : false;
 		showFeedbackToast(
-			didCopy ? `Kurzlink kopiert: ${shortUrl}` : `Kurzlink: ${shortUrl}`,
+			didCopy ? tr("shareLink.copied", "Kurzlink kopiert: {url}", { url: shortUrl }) : tr("shareLink.copyFailedShowLink", "Kurzlink: {url}", { url: shortUrl }),
 			didCopy ? "success" : "warning"
 		);
 	} catch (error) {
-		showFeedbackToast("Kurzlink konnte nicht erstellt werden.", "warning");
+		showFeedbackToast(tr("shareLink.createFailed", "Kurzlink konnte nicht erstellt werden."), "warning");
 	}
 }
 

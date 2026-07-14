@@ -9,30 +9,30 @@
 	}
 
 	const LAND_MODES = [
-		{ key: "caravan", label: "Karawane" },
-		{ key: "groupFoot", label: "Gruppe zu Fuß" },
-		{ key: "lightWalker", label: "Zu Fuß leicht" },
-		{ key: "horseCarriage", label: "Kutsche" },
-		{ key: "groupHorse", label: "Gruppe beritten" },
-		{ key: "lightRider", label: "Reiter leicht" },
+		{ key: "caravan", label: tr("transport.speedInfo.mode.caravan", "Karawane") },
+		{ key: "groupFoot", label: tr("transport.speedInfo.mode.groupFoot", "Gruppe zu Fuß") },
+		{ key: "lightWalker", label: tr("transport.speedInfo.mode.lightWalker", "Zu Fuß leicht") },
+		{ key: "horseCarriage", label: tr("transport.speedInfo.mode.horseCarriage", "Kutsche") },
+		{ key: "groupHorse", label: tr("transport.speedInfo.mode.groupHorse", "Gruppe beritten") },
+		{ key: "lightRider", label: tr("transport.speedInfo.mode.lightRider", "Reiter leicht") },
 	];
 	const LAND_PATHS = [
-		{ key: "Reichsstrasse", label: "Reichsstraße" },
-		{ key: "Strasse", label: "Straße" },
-		{ key: "Weg", label: "Weg" },
-		{ key: "Pfad", label: "Pfad" },
-		{ key: "Gebirgspass", label: "Gebirgspass" },
-		{ key: "Wuestenpfad", label: "Wüstenpfad" },
-		{ key: "Querfeldein", label: "Querfeldein" },
+		{ key: "Reichsstrasse", label: tr("transport.speedInfo.path.Reichsstrasse", "Reichsstraße") },
+		{ key: "Strasse", label: tr("transport.speedInfo.path.Strasse", "Straße") },
+		{ key: "Weg", label: tr("transport.speedInfo.path.Weg", "Weg") },
+		{ key: "Pfad", label: tr("transport.speedInfo.path.Pfad", "Pfad") },
+		{ key: "Gebirgspass", label: tr("transport.speedInfo.path.Gebirgspass", "Gebirgspass") },
+		{ key: "Wuestenpfad", label: tr("transport.speedInfo.path.Wuestenpfad", "Wüstenpfad") },
+		{ key: "Querfeldein", label: tr("transport.speedInfo.path.Querfeldein", "Querfeldein") },
 	];
 	const RIVER_MODES = [
-		{ key: "riverSailer", label: "Flusssegler" },
-		{ key: "riverBarge", label: "Flusskahn" },
+		{ key: "riverSailer", label: tr("transport.speedInfo.mode.riverSailer", "Flusssegler") },
+		{ key: "riverBarge", label: tr("transport.speedInfo.mode.riverBarge", "Flusskahn") },
 	];
 	const SEA_MODES = [
-		{ key: "cargoShip", label: "Lastensegler" },
-		{ key: "fastShip", label: "Schnellsegler" },
-		{ key: "galley", label: "Galeere" },
+		{ key: "cargoShip", label: tr("transport.speedInfo.mode.cargoShip", "Lastensegler") },
+		{ key: "fastShip", label: tr("transport.speedInfo.mode.fastShip", "Schnellsegler") },
+		{ key: "galley", label: tr("transport.speedInfo.mode.galley", "Galeere") },
 	];
 
 	// Styles live in css/features/transport-speed-info.css (loaded via styles.css),
@@ -61,7 +61,7 @@
 	}
 
 	function landTable() {
-		let h = '<div class="tsi-scroll"><table class="tsi-matrix"><thead><tr><th class="tsi-corner">Wegtyp</th>';
+		let h = '<div class="tsi-scroll"><table class="tsi-matrix"><thead><tr><th class="tsi-corner">' + esc(tr("transport.speedInfo.pathTypeHeader", "Wegtyp")) + "</th>";
 		LAND_MODES.forEach((m) => {
 			h += `<th><span class="tsi-modehead">${iconImg(transportIcon("landTransport", m.key))}<span>${esc(m.label)}</span></span></th>`;
 		});
@@ -93,24 +93,24 @@
 		return (
 			'<div class="tsi-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-title">' +
 			'<div class="tsi-head"><span class="tsi-i" aria-hidden="true">ⓘ</span>' +
-			'<h2 id="tsi-title">Reisegeschwindigkeiten und Wegtypen</h2>' +
-			'<button type="button" class="tsi-close" aria-label="Schließen">✕</button></div>' +
+			'<h2 id="tsi-title">' + esc(tr("transport.speedInfo.title", "Reisegeschwindigkeiten und Wegtypen")) + "</h2>" +
+			'<button type="button" class="tsi-close" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>' +
 			'<div class="tsi-body">' +
-			'<p class="tsi-intro">Wie schnell du vorankommst, hängt vom gewählten Transportmittel <em>und</em> vom Wegtyp ab. Eine gute Reichsstraße trägt dich doppelt so schnell wie ein Gebirgspfad. Alle Werte in Meilen pro Stunde (1 Meile = 1&nbsp;km).</p>' +
-			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/landweg.webp") + 'Landreise</div>' +
+			'<p class="tsi-intro">' + tr("transport.speedInfo.intro", "Wie schnell du vorankommst, hängt vom gewählten Transportmittel <em>und</em> vom Wegtyp ab. Eine gute Reichsstraße trägt dich doppelt so schnell wie ein Gebirgspfad. Alle Werte in Meilen pro Stunde (1 Meile = 1&nbsp;km).") + "</p>" +
+			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/landweg.webp") + esc(tr("transport.speedInfo.landTravel", "Landreise")) + '</div>' +
 			landTable() +
-			'<div class="tsi-legend"><span><i class="tsi-fast"></i>schnell</span><span><i class="tsi-mid"></i>mittel</span><span><i class="tsi-slow"></i>langsam</span></div></div>' +
+			'<div class="tsi-legend"><span><i class="tsi-fast"></i>' + esc(tr("transport.speedInfo.legend.fast", "schnell")) + '</span><span><i class="tsi-mid"></i>' + esc(tr("transport.speedInfo.legend.mid", "mittel")) + '</span><span><i class="tsi-slow"></i>' + esc(tr("transport.speedInfo.legend.slow", "langsam")) + '</span></div></div>' +
 			'<div class="tsi-water">' +
-			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/flussweg.webp") + 'Flussreise</div><div class="tsi-wmodes">' +
+			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/flussweg.webp") + esc(tr("transport.speedInfo.riverTravel", "Flussreise")) + '</div><div class="tsi-wmodes">' +
 			waterModes(RIVER_MODES, "riverTransport", "Flussweg") +
-			'</div><div class="tsi-wnote">Flussabwärts, mit der Strömung, geht es mit voller Geschwindigkeit. Flussaufwärts, gegen die Strömung, dauert dieselbe Strecke länger — je nach Fluss das 1,5-fache, bei starker Strömung bis zum 3-fachen der Zeit.</div></div>' +
-			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/meerweg.webp") + 'Meerreise</div><div class="tsi-wmodes">' +
+			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.riverNote", "Flussabwärts, mit der Strömung, geht es mit voller Geschwindigkeit. Flussaufwärts, gegen die Strömung, dauert dieselbe Strecke länger — je nach Fluss das 1,5-fache, bei starker Strömung bis zum 3-fachen der Zeit.") + '</div></div>' +
+			'<div class="tsi-wcard"><div class="tsi-wtitle">' + iconImg("icons/meerweg.webp") + esc(tr("transport.speedInfo.seaTravel", "Meerreise")) + '</div><div class="tsi-wmodes">' +
 			waterModes(SEA_MODES, "seaTransport", "Seeweg") +
-			'</div><div class="tsi-wnote">Auf offener See wird Tag und Nacht durchgesegelt — hier fällt keine Rastzeit an.</div></div>' +
+			'</div><div class="tsi-wnote">' + tr("transport.speedInfo.seaNote", "Auf offener See wird Tag und Nacht durchgesegelt — hier fällt keine Rastzeit an.") + '</div></div>' +
 			"</div>" +
 			'<div class="tsi-rules">' +
-			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div><b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt nur an Land — auf dem Wasser wird durchgefahren.</div></div>" +
-			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div><b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh (1,25–2,5&nbsp;Meilen/h), darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.</div></div>" +
+			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt nur an Land — auf dem Wasser wird durchgefahren.") + "</div></div>" +
+			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div>" + tr("transport.speedInfo.crossCountryRule", "<b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh (1,25–2,5&nbsp;Meilen/h), darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.") + "</div></div>" +
 			"</div></div></div>"
 		);
 	}
