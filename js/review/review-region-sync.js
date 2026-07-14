@@ -164,43 +164,48 @@ function regionSyncCurrentRows() {
 	return missing.concat(matched, ambiguous, regionMapOnlyRows()); // "all"
 }
 
+// Alle aktiven Filter AUSSER dem Reiter (Alle/Platziert/Fehlt): Kontinent, Quelle, Art, Suchtext.
+// Speist Liste UND Reiter-Zähler, damit „Alle (N)" beim Suchen die Treffer zeigt statt des
+// Gesamtbestands — und Alle = Platziert + Fehlt immer aufgeht.
+function regionRowMatchesFilters(row) {
+	if (!regionContinentMatch(row)) {
+		return false;
+	}
+	if (regionSourceFilter.value && getItemSourceCategory(row) !== regionSourceFilter.value) {
+		return false;
+	}
+	if (regionTypeFilter.size > 0 && !regionTypeFilter.has((String(row.art || "").trim()) || "(ohne Art)")) {
+		return false;
+	}
+	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
+	if (filterValue === "") {
+		return true;
+	}
+	return [row.name, row.art, row.region_parent, row.affiliation_staat]
+		.filter(Boolean)
+		.some((value) => String(value).toLowerCase().includes(filterValue));
+}
+
 function renderRegionSyncList() {
 	const list = regionSyncElement("region-sync-list");
 	if (!list) {
 		return;
 	}
 	const summary = regionSyncData && regionSyncData.summary ? regionSyncData.summary : {};
-	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
-	const rows = regionSyncCurrentRows().filter((row) => {
-		if (!regionContinentMatch(row)) {
-			return false;
-		}
-		if (regionSourceFilter.value && getItemSourceCategory(row) !== regionSourceFilter.value) {
-			return false;
-		}
-		if (regionTypeFilter.size > 0 && !regionTypeFilter.has((String(row.art || "").trim()) || "(ohne Art)")) {
-			return false;
-		}
-		if (filterValue === "") {
-			return true;
-		}
-		return [row.name, row.art, row.region_parent, row.affiliation_staat]
-			.filter(Boolean)
-			.some((value) => String(value).toLowerCase().includes(filterValue));
-	});
+	const rows = regionSyncCurrentRows().filter(regionRowMatchesFilters);
 
 	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter
 	// dem Suchfeld, nicht in der scrollbaren Liste. „Platziert" = Zugeordnet + Mehrfach.
-	// Tab-Zähler kontinent-bewusst (sonst stimmen sie nicht mit der gefilterten Liste überein).
-	const missingCount = ((regionSyncData && regionSyncData.missing) || []).filter(regionContinentMatch).length;
-	const matchedCount = ((regionSyncData && regionSyncData.matched) || []).filter(regionContinentMatch).length;
-	const ambiguousCount = ((regionSyncData && regionSyncData.ambiguous) || []).filter(regionContinentMatch).length;
+	const missingCount = ((regionSyncData && regionSyncData.missing) || []).filter(regionRowMatchesFilters).length;
+	const matchedCount = ((regionSyncData && regionSyncData.matched) || []).filter(regionRowMatchesFilters).length;
+	const ambiguousCount = ((regionSyncData && regionSyncData.ambiguous) || []).filter(regionRowMatchesFilters).length;
+	const mapOnlyCount = regionMapOnlyRows().filter(regionRowMatchesFilters).length;
 	const tabsHost = regionSyncElement("region-sync-tabs");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
 			`<button type="button" data-region-view="${view}" class="region-sync__viewtab${regionSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
 		tabsHost.innerHTML =
-			tab("all", "Alle", missingCount + matchedCount + ambiguousCount + regionMapOnlyRows().filter(regionContinentMatch).length) +
+			tab("all", "Alle", missingCount + matchedCount + ambiguousCount + mapOnlyCount) +
 			tab("matched", "Platziert", matchedCount + ambiguousCount) +
 			tab("missing", "Fehlt", missingCount);
 	}

@@ -30,17 +30,45 @@ function settlementContinentOptions() {
 		/aventurien/i.test(a.value) ? -1 : /aventurien/i.test(b.value) ? 1 : a.label.localeCompare(b.label));
 }
 
+function settlementListQuery() {
+	return (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
+}
+
+function settlementMatchesView(item, view) {
+	if (view === "onmap") {
+		return Boolean(item.on_map);
+	}
+	if (view === "wiki") {
+		return !item.on_map;
+	}
+	return true;
+}
+
 // Basismenge für die Typ-Zähler: View-Tab + Suche, aber OHNE den Typ-Filter selbst.
 function settlementBaseFilteredItems() {
+	const query = settlementListQuery();
 	let items = settlementListItems.filter(settlementContinentMatch);
-	if (settlementListView === "onmap") {
-		items = items.filter((item) => item.on_map);
-	} else if (settlementListView === "wiki") {
-		items = items.filter((item) => !item.on_map);
-	}
-	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
+	items = items.filter((item) => settlementMatchesView(item, settlementListView));
 	if (query) {
 		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
+	}
+	return items;
+}
+
+// Basismenge für die REITER-Zähler: alle aktiven Filter (Kontinent, Suche, Typ, Quelle),
+// aber OHNE den Reiter selbst — sonst zählte jeder Reiter nur seine eigene Auswahl.
+// Gleiches Prinzip wie bei den Typ-Zählern: die eigene Dimension bleibt außen vor.
+function settlementItemsIgnoringView() {
+	const query = settlementListQuery();
+	let items = settlementListItems.filter(settlementContinentMatch);
+	if (query) {
+		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
+	}
+	if (settlementTypeFilter.size > 0) {
+		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
+	}
+	if (settlementSourceFilter.value) {
+		items = items.filter((item) => getItemSourceCategory(item) === settlementSourceFilter.value);
 	}
 	return items;
 }
@@ -86,31 +114,6 @@ async function loadSettlementList() {
 		return;
 	}
 	renderSettlementList();
-	void refreshSettlementContinentStatus();
-	void refreshSettlementRuinStatus();
-	void refreshSettlementCoatStatus();
-	void refreshSettlementConnectStatus();
-}
-
-// Zeigt den „Verbinden"-Button, solange eindeutig verbindbare, unverbundene Orte/Bauwerke existieren.
-async function refreshSettlementConnectStatus() {
-	const btn = document.getElementById("settlement-bulk-connect");
-	if (!btn) {
-		return;
-	}
-	try {
-		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=connect_status`, { credentials: "same-origin" });
-		const data = await response.json();
-		const remaining = data && data.ok ? Number(data.connectable_unconnected || 0) : 0;
-		if (remaining > 0) {
-			btn.textContent = `🔗 Verbinden (${remaining})`;
-			btn.hidden = false;
-		} else {
-			btn.hidden = true;
-		}
-	} catch (error) {
-		btn.hidden = true;
-	}
 }
 
 // (Settlement bulk operations moved to review-settlement-list-bulk-ops.js - M5 split.)
@@ -174,18 +177,15 @@ function renderSettlementList() {
 	if (!list) {
 		return;
 	}
-	// Tab-Zähler kontinent-bewusst (Default Aventurien) — sonst stimmen sie nicht mit der Liste überein.
-	const all = settlementListItems.filter(settlementContinentMatch);
-	const onMap = all.filter((item) => item.on_map).length;
-	const wikiOnly = all.length - onMap;
+	// Reiter-Zähler und Liste stammen aus DERSELBEN Menge: alle aktiven Filter (Kontinent, Suche,
+	// Typ, Quelle) sind angewandt, nur der Reiter selbst nicht. So zeigt „Alle (N)" beim Suchen die
+	// Treffer, nicht den Gesamtbestand — und Alle = Platziert + Fehlt geht immer auf.
+	const counted = settlementItemsIgnoringView();
+	const allCount = counted.length;
+	const onMap = counted.filter((item) => item.on_map).length;
+	const wikiOnly = allCount - onMap;
 
-	let items = settlementBaseFilteredItems();
-	if (settlementTypeFilter.size > 0) {
-		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
-	}
-	if (settlementSourceFilter.value) {
-		items = items.filter((item) => getItemSourceCategory(item) === settlementSourceFilter.value);
-	}
+	const items = counted.filter((item) => settlementMatchesView(item, settlementListView));
 	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
 	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");
@@ -197,7 +197,7 @@ function renderSettlementList() {
 	if (tabsHost) {
 		const tab = (view, label, count) =>
 			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
-		tabsHost.innerHTML = tab("all", "Alle", all.length) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
+		tabsHost.innerHTML = tab("all", "Alle", allCount) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
 	}
 
 	if (items.length === 0) {
@@ -302,26 +302,6 @@ function setWikiSyncCaseStatus(status) {
 
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
-		return;
-	}
-	if (event.target.closest("#settlement-backfill-continents")) {
-		void runSettlementContinentBackfill();
-		return;
-	}
-	if (event.target.closest("#settlement-record-ruins")) {
-		void runSettlementRecordRuins();
-		return;
-	}
-	if (event.target.closest("#settlement-record-coats")) {
-		void runSettlementRecordCoats();
-		return;
-	}
-	if (event.target.closest("#settlement-bulk-connect")) {
-		void runSettlementBulkConnect();
-		return;
-	}
-	if (event.target.closest("#settlement-crawl-buildings")) {
-		void runSettlementCrawlBuildings();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

@@ -192,6 +192,37 @@ function pathSyncCurrentRows() {
 	return rows;
 }
 
+function pathSyncQuery() {
+	return (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
+}
+
+// Alle aktiven Filter AUSSER dem Reiter: Kontinent, Quelle, Typ, Suchtext. Speist die Liste UND
+// die Reiter-Zähler, damit beide dieselbe Menge beschreiben.
+function pathRowMatchesFilters(row) {
+	if (!pathContinentMatch(row)) {
+		return false;
+	}
+	if (pathSourceFilter.value && getItemSourceCategory(row) !== pathSourceFilter.value) {
+		return false;
+	}
+	if (pathTypeFilter.size > 0 && !pathTypeFilter.has(pathRowType(row))) {
+		return false;
+	}
+	const filterValue = pathSyncQuery();
+	if (filterValue === "") {
+		return true;
+	}
+	return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
+}
+
+// „Flussrichtung unbekannt" mit angewandtem Suchtext — Liste und Reiter-Zähler nutzen dieselbe Menge.
+function flowUnknownFilteredGroups() {
+	const filterValue = pathSyncQuery();
+	return flowUnknownGroups().filter(
+		(row) => filterValue === "" || row.name.toLowerCase().includes(filterValue) || row.wikiKey.toLowerCase().includes(filterValue)
+	);
+}
+
 function renderPathSyncList() {
 	const list = pathSyncElement("path-sync-list");
 	if (!list) {
@@ -199,25 +230,26 @@ function renderPathSyncList() {
 	}
 
 	// Toggle-Tabs (Alle / Platziert / Fehlt / Konflikte / Flussrichtung unbekannt) — im eigenen
-	// Container unter dem Suchfeld. „Platziert" = matched + mehrteilig. Tab-Zähler kontinent-
-	// bewusst (sonst stimmen sie nicht mit der gefilterten Liste überein). Konflikte zählen
-	// offene Verlauf-Fälle (eigener Scan); Flussrichtung zählt Wege/Segmente ohne flow.dir
-	// (client-seitig aus pathData, kein Endpoint nötig).
+	// Container unter dem Suchfeld. „Platziert" = matched + mehrteilig. JEDER Zähler zählt die
+	// Menge, die sein Reiter bei den AKTUELLEN Filtern (Kontinent, Quelle, Typ, Suche) wirklich
+	// zeigt — nur der Reiter selbst bleibt außen vor. Sonst zeigt „Alle (N)" beim Suchen den
+	// Gesamtbestand statt der Treffer.
 	const assignedCount =
-		((pathSyncData && pathSyncData.matched) || []).filter(pathContinentMatch).length +
-		((pathSyncData && pathSyncData.ambiguous) || []).filter(pathContinentMatch).length;
-	const missingCount = ((pathSyncData && pathSyncData.missing) || []).filter(pathContinentMatch).length;
-	const openCasesCount = verlaufCases.filter((c) => c.status === "open").length;
+		((pathSyncData && pathSyncData.matched) || []).filter(pathRowMatchesFilters).length +
+		((pathSyncData && pathSyncData.ambiguous) || []).filter(pathRowMatchesFilters).length;
+	const missingCount = ((pathSyncData && pathSyncData.missing) || []).filter(pathRowMatchesFilters).length;
+	const mapOnlyCount = pathMapOnlyRows().filter(pathRowMatchesFilters).length;
+	const openCasesCount = verlaufCasesByStatus("open").length;
 	const tabsHost = pathSyncElement("path-sync-tabs");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
 			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
 		tabsHost.innerHTML =
-			tab("all", "Alle", assignedCount + missingCount + pathMapOnlyRows().filter(pathContinentMatch).length) +
+			tab("all", "Alle", assignedCount + missingCount + mapOnlyCount) +
 			tab("assigned", "Platziert", assignedCount) +
 			tab("missing", "Fehlt", missingCount) +
 			tab("cases", "Konflikte", openCasesCount) +
-			tab("flow", "Flussrichtung unbekannt", flowUnknownGroups().length);
+			tab("flow", "Flussrichtung unbekannt", flowUnknownFilteredGroups().length);
 	}
 
 	if (pathSyncView === "cases") {
@@ -234,22 +266,7 @@ function renderPathSyncList() {
 	}
 
 	const summary = (pathSyncData && pathSyncData.summary) || {};
-	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
-	const rows = pathSyncCurrentRows().filter((row) => {
-		if (!pathContinentMatch(row)) {
-			return false;
-		}
-		if (pathSourceFilter.value && getItemSourceCategory(row) !== pathSourceFilter.value) {
-			return false;
-		}
-		if (pathTypeFilter.size > 0 && !pathTypeFilter.has(pathRowType(row))) {
-			return false;
-		}
-		if (filterValue === "") {
-			return true;
-		}
-		return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
-	});
+	const rows = pathSyncCurrentRows().filter(pathRowMatchesFilters);
 
 	const candidate = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr((p && p.public_id) || "")}">${pathSyncEscapeText(p.name)}</button>`;
 	const items = rows
@@ -345,10 +362,7 @@ function flowUnknownGroups() {
 }
 
 function renderFlowUnknownList(list) {
-	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
-	const rows = flowUnknownGroups().filter((row) =>
-		filterValue === "" || row.name.toLowerCase().includes(filterValue) || row.wikiKey.includes(filterValue)
-	);
+	const rows = flowUnknownFilteredGroups();
 	const chip = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr(p.public_id)}">${pathSyncEscapeText(p.name || "Segment")}</button>`;
 	const items = rows
 		.map((row) => {
@@ -434,9 +448,29 @@ async function loadVerlaufCases() {
 }
 
 // Case ordering within a group: "newest first" is unknowable (no timestamp on the case), so sort
-// stably by name.
+// stably by name. The search box stays visible on the "Konflikte" tab, so it has to apply here too
+// (it silently did nothing before) — and the tab counter reads from this same function.
+function verlaufCaseMatchesQuery(caseEntry) {
+	const filterValue = pathSyncQuery();
+	if (filterValue === "") {
+		return true;
+	}
+	return [caseEntry && caseEntry.name, caseEntry && caseEntry.wiki_key]
+		.filter(Boolean)
+		.some((value) => String(value).toLowerCase().includes(filterValue));
+}
+
 function verlaufCasesByStatus(status) {
-	return verlaufCases.filter((c) => c.status === status).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+	return verlaufCases
+		.filter((c) => c.status === status && verlaufCaseMatchesQuery(c))
+		.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+// „Alle unstrittigen übernehmen" is a SERVER-side bulk action (apply_verlauf_cases_clean) that
+// ignores the client-side search box. Its counter must therefore stay unfiltered — otherwise the
+// button would promise "(3)" and silently apply all 50.
+function verlaufOpenCleanTotal() {
+	return verlaufCases.filter((c) => c.status === "open" && c.clean === true).length;
 }
 
 function verlaufKindLabel(kind) {
@@ -545,7 +579,7 @@ function renderVerlaufCaseList() {
 	const openCases = verlaufCasesByStatus("open");
 	const deferredCases = verlaufCasesByStatus("deferred");
 	const archivedCases = verlaufCasesByStatus("archived");
-	const cleanOpenCount = openCases.filter((c) => c.clean === true).length;
+	const cleanOpenCount = verlaufOpenCleanTotal();
 
 	// Top bar reuses .wiki-sync-panel__actions (existing 2-col grid) + .wiki-sync-panel__start
 	// button look — no new CSS in this task (only review-path-sync.js is in scope).
@@ -565,7 +599,9 @@ function renderVerlaufCaseList() {
 		return;
 	}
 	if (verlaufCasesLoaded && openCases.length === 0 && deferredCases.length === 0 && archivedCases.length === 0) {
-		list.innerHTML = topBar + '<p class="review-panel__status">Keine Verlauf-Fälle.</p>';
+		// Distinguish "nothing to do" from "your search matched nothing" — they look identical otherwise.
+		const emptyText = pathSyncQuery() !== "" && verlaufCases.length > 0 ? "Keine Treffer." : "Keine Verlauf-Fälle.";
+		list.innerHTML = topBar + `<p class="review-panel__status">${pathSyncEscapeText(emptyText)}</p>`;
 		return;
 	}
 
@@ -692,7 +728,7 @@ async function applyAllCleanVerlaufCases() {
 	if (verlaufCasesBusy) {
 		return;
 	}
-	const cleanCount = verlaufCasesByStatus("open").filter((c) => c.clean === true).length;
+	const cleanCount = verlaufOpenCleanTotal();
 	if (cleanCount < 1) {
 		return;
 	}
