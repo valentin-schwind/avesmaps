@@ -289,17 +289,17 @@ body.edit-mode .floating-location-popup .location-popup__actions,
 body.edit-mode .avesmaps-infopanel .location-popup__actions {
 	flex-wrap: wrap;
 }
-/* Owner: exactly 4 tiles per row in the floating box, box stays the normal ~400px width, only the height
-   grows with the extra rows. A 4-column grid packs four equal tiles per row (~87px each -- the same width as
-   view mode's four one-row tiles); the box width stays governed by the rating row (~400px), so it matches
-   the normal box. Scoped to the floating box's MAIN actions (direct child of .location-popup) so the nested
-   rating-row actions ("Bewertung schreiben") stay a single inline row. width:auto lets each tile fill its
-   grid column instead of the fixed 90px. */
-body.edit-mode .floating-location-popup .location-popup > .location-popup__actions {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-}
-body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+/* Owner: Kacheln fuellen IMMER die volle Zeilenbreite, egal ob eine Zeile 2, 3 oder 4 davon abbekommt --
+   gleich breit UND randvoll zugleich. Kein festes Spalten-Grid (das liesse eine unvollstaendige letzte
+   Zeile mit Luecke rechts stehen, z. B. 2 Kacheln bei einem 4-Spalten-Raster): stattdessen wachsen die
+   Kacheln per flex-grow gleichmaessig innerhalb IHRER Zeile nach, bis sie die Breite ausfuellen (flex-wrap
+   bricht die Zeilen anhand der Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig).
+   Gilt gleich in der schwebenden Box UND im rechten Panel. Scoped auf die HAUPT-Aktionen (direktes Kind
+   von .location-popup), damit die verschachtelten Bewertungs-Aktionen ("Bewertung schreiben") eine normale
+   Inline-Zeile bleiben. */
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
+body.edit-mode .avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 90px;
 	width: auto;
 }
 .floating-location-popup .location-popup__action-button,
