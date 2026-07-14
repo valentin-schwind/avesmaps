@@ -10,7 +10,7 @@ const map = L.map("map", {
     continuousWorld: false,
     noWrap: true,
     zoomControl: false,
-}).setView([IMG_HEIGHT / 2, IMG_WIDTH / 2], 0);
+}).setView([478.0, 539.0], 2);
 
 // Rendering-Reihenfolge
 map.createPane("regionsPane");
