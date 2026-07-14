@@ -346,6 +346,20 @@ function avesmapsWikiBuildPublicationUrl(?string $fShopPid, ?string $pdfShopId):
     $fShopPid = trim((string) $fShopPid);
     $pdfShopId = trim((string) $pdfShopId);
 
+    // A real F-Shop/PDF-Shop id is a product/article NUMBER and always contains digits (PID=12017,
+    // ID=109956). Reject digit-less template placeholders -- an editor who copies the {{F-Shop}} help
+    // skeleton and leaves {{F-Shop|PID=NUMMER}} unfilled otherwise builds the SAME bogus URL
+    // (.../search?sSearch=NUMMER) for EVERY such publication, collapsing them onto ONE catalog url_hash
+    // so their labels/types bleed into each other (live: the "Aventurien" row was reused for an added
+    // adventure at Irendor -- reported bug). No usable id -> no link (has_link=false), so the
+    // publication renders as a name-only source instead of a wrong, shared "buy" link.
+    if (preg_match('/\d/', $fShopPid) !== 1) {
+        $fShopPid = '';
+    }
+    if (preg_match('/\d/', $pdfShopId) !== 1) {
+        $pdfShopId = '';
+    }
+
     if ($fShopPid !== '') {
         return ['chosen_url' => 'https://www.f-shop.de/search?sSearch=' . rawurlencode($fShopPid), 'has_link' => true];
     }

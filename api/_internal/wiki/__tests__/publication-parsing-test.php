@@ -95,4 +95,13 @@ $u = avesmapsWikiBuildPublicationUrl('12017', '109956'); assert($u['has_link'] =
 $u = avesmapsWikiBuildPublicationUrl('12017', null); assert($u['chosen_url'] === 'https://www.f-shop.de/search?sSearch=12017' && $u['has_link'] === true); // F-Shop-only: pattern proven from Vorlage:F-Shop raw wikitext (PID branch), see comment in publication-parsing.php
 $u = avesmapsWikiBuildPublicationUrl(null, '109956'); assert($u['chosen_url'] === 'https://www.ulisses-ebooks.de/de/product/109956/');
 $u = avesmapsWikiBuildPublicationUrl(null, null); assert($u['chosen_url'] === '' && $u['has_link'] === false);
+// Digit-less template placeholders (an editor leaves the {{F-Shop|PID=NUMMER}} / {{PDF-Shop|ID=NUMMER}}
+// help skeleton unfilled) are NOT real product ids: every such publication would otherwise build the
+// SAME bogus URL (.../search?sSearch=NUMMER), collapsing them onto ONE catalog url_hash so their
+// labels/types bleed into each other (live: Irendor showed "Aventurien"/Regionalspielhilfe for an
+// added adventure). No usable id -> no link. Real ids always contain digits (PID=12017, ID=109956).
+$u = avesmapsWikiBuildPublicationUrl('NUMMER', null); assert($u['chosen_url'] === '' && $u['has_link'] === false);
+$u = avesmapsWikiBuildPublicationUrl(null, 'NUMMER'); assert($u['chosen_url'] === '' && $u['has_link'] === false);
+$u = avesmapsWikiBuildPublicationUrl('NUMMER', '109956'); assert($u['chosen_url'] === 'https://www.ulisses-ebooks.de/de/product/109956/' && $u['has_link'] === true); // bad F-Shop placeholder falls through to a valid PDF-Shop id
+$u = avesmapsWikiBuildPublicationUrl('PID', null); assert($u['has_link'] === false); // another common digit-less placeholder
 echo "url ok\n";
