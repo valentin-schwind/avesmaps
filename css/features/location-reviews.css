@@ -132,16 +132,6 @@
 	overscroll-behavior: contain;
 	padding-right: 4px;
 }
-.location-reviews__list::-webkit-scrollbar {
-	width: 7px;
-}
-.location-reviews__list::-webkit-scrollbar-thumb {
-	background: rgba(141, 121, 98, 0.4);
-	border-radius: 4px;
-}
-.location-reviews__list::-webkit-scrollbar-thumb:hover {
-	background: rgba(141, 121, 98, 0.6);
-}
 
 .location-reviews__item {
 	border-left: 2px solid var(--color-border);

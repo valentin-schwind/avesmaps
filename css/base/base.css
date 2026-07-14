@@ -12,6 +12,34 @@ body {
 	color: var(--color-text);
 }
 
+/* Scrollbars follow the theme everywhere: color-scheme tells the browser which native
+   chrome (incl. default scrollbars) to render; scrollbar-color/-width covers Firefox +
+   modern Chromium and is inherited, so setting it once on :root reaches every scroll
+   container. The WebKit pseudo-elements are NOT inherited, so `*` is needed to reach
+   nested scroll areas (review lists, editor trees, dialogs). */
+:root {
+	color-scheme: light;
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+:root[data-theme="dark"] {
+	color-scheme: dark;
+}
+*::-webkit-scrollbar {
+	width: 7px;
+	height: 7px;
+}
+*::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: var(--radius-sm);
+}
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
+}
+
 * {
 	font-family: "Faculty Glyphic", "Arial", sans-serif !important;
 	/* Faculty Glyphic ships only Regular — a font-weight:700 gets browser-synthesised

@@ -159,6 +159,12 @@
 	--color-disabled-text: #a99f8e;
 	--color-disabled-border: #dcd3c4;
 
+	/* Scrollbars — thin, theme-aware track/thumb (Firefox scrollbar-color + WebKit
+	   pseudo-elements), applied globally in base.css. */
+	--color-scrollbar-thumb: rgba(141, 121, 98, 0.4);
+	--color-scrollbar-thumb-hover: rgba(141, 121, 98, 0.6);
+	--color-scrollbar-track: transparent;
+
 	/* Spacing scale — value-named steps; use a token, never a stray px */
 	/* Owner: alle Spacing-Vars global +2px (mehr Luft überall). Die Namen (2/4/6/…)
 	   bleiben als Skala-Stufen; die WERTE tragen +2. App-weit + reversibel. */
@@ -284,6 +290,11 @@
 	--color-disabled-bg: #322f27;
 	--color-disabled-text: #6e685c;
 	--color-disabled-border: #433e33;
+
+	/* Scrollbars, dark: same warm-brown family as --color-text-muted, lightened so the
+	   thumb still shows up against the deep panel. */
+	--color-scrollbar-thumb: rgba(180, 168, 149, 0.35);
+	--color-scrollbar-thumb-hover: rgba(180, 168, 149, 0.55);
 
 	--shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.45);
 	--shadow-dialog: 0 20px 45px rgba(0, 0, 0, 0.6);
