@@ -357,7 +357,10 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		return "";
 	}
 	return popupActionButtonMarkup({
-		label: "Kartensammlung",
+		// Weicher Trennstrich (U+00AD): unsichtbar, solange das Wort passt; bricht die 90px-Kachel sonst
+		// sauber in zwei Zeilen statt zu ueberlaufen. Kein Eingriff in die geteilte hyphens:auto-Regel (die
+		// ist bewusst nur fuer Fliesstext, nicht Buttons/Kacheln).
+		label: "Karten­sammlung",
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/stadtkarte.webp" alt="" width="20" height="20" />',
 		attributes: { "aria-disabled": "true", "data-citymaps-placeholder": "true" },
 	});
