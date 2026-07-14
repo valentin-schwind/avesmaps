@@ -88,10 +88,12 @@ function settlementTypeOptions() {
 }
 let settlementListItems = [];
 
+// The textContent→innerHTML trick escapes & < > but NOT the double quote — and this helper is used
+// inside double-quoted attributes (data-settlement-title, href, title). A wiki title containing a "
+// therefore broke out of the attribute and could add its own (e.g. an event handler). Delegate to the
+// canonical escapeHtml() from js/app/utils.js (loaded before this file), which also covers " and '.
 function settlementListEscape(value) {
-	const holder = document.createElement("div");
-	holder.textContent = String(value === null || value === undefined ? "" : value);
-	return holder.innerHTML;
+	return escapeHtml(value === null || value === undefined ? "" : value);
 }
 
 async function loadSettlementList() {

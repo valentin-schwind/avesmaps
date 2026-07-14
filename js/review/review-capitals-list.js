@@ -9,10 +9,11 @@
 
 const CAPITAL_LIST_API_URL = "/api/app/political-territories.php";
 
+// Same defect as settlementListEscape: textContent→innerHTML leaves the double quote unescaped while
+// the result is interpolated into data-territory / data-place attributes. Delegate to escapeHtml()
+// (js/app/utils.js, loaded before this file), which escapes & < > " and '.
 function capitalListEscape(value) {
-	const holder = document.createElement("div");
-	holder.textContent = String(value === null || value === undefined ? "" : value);
-	return holder.innerHTML;
+	return escapeHtml(value === null || value === undefined ? "" : value);
 }
 
 // Fetch the live-computed missing-capital cases (with their persisted deferred/archived status). Returns [] on

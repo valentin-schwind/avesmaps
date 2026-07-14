@@ -162,7 +162,6 @@ async function loadReviewReports() {
 // STRATO-schonend: eine kleine Query alle 45s (map_reports/location_reports sind klein), nur im
 // Edit-Modus, nie schneller geloopt. Der Poll toastet NUR echt neue Meldungen (id > zuletzt bekannter)
 // und rendert die Liste neu; der allererste Seed (bekannt = 0) toastet nicht.
-let reviewReportsPollTimer = null;
 let reviewReportsKnownMaxId = 0;
 const REVIEW_REPORTS_POLL_INTERVAL_MS = 45000;
 
@@ -170,11 +169,30 @@ function reviewReportsMaxId() {
 	return (Array.isArray(reviewReports) ? reviewReports : []).reduce((max, report) => Math.max(max, Number(report.id) || 0), 0);
 }
 
+// Don't re-render the list under the user: not while a report's edit dialog is open, and not while
+// the pointer rests on the reports/ratings list — the re-render does innerHTML="" and would reset the
+// scroll position (the list is its own scroll container). The next tick renders once they are done.
+function isReviewReportsListBusy() {
+	if (activeReviewReportId) {
+		return true;
+	}
+	return ["review-report-list", "review-ratings-list"].some((id) => {
+		const element = document.getElementById(id);
+		return element && typeof element.matches === "function" && element.matches(":hover");
+	});
+}
+
+// ONE poll timer. There used to be two independent 45s intervals on the same endpoint
+// (ensureReviewReportsPolling + startReviewReportsPolling), so the editor fetched the report list
+// twice per cycle — and they disagreed: the "new reports" poller re-rendered without the busy guard
+// above, tearing the list away from an editor mid-review whenever a report arrived. Now a single tick
+// fetches once, always refreshes the data, and renders only when the user is not in the middle of it.
+// Uses reviewReportsPollTimerId (runtime-state.js) because bootstrap.js clears exactly that id on unload.
 function ensureReviewReportsPolling() {
-	if (reviewReportsPollTimer || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+	if (reviewReportsPollTimerId || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
 		return;
 	}
-	reviewReportsPollTimer = window.setInterval(pollReviewReportsForNew, REVIEW_REPORTS_POLL_INTERVAL_MS);
+	reviewReportsPollTimerId = window.setInterval(pollReviewReportsForNew, REVIEW_REPORTS_POLL_INTERVAL_MS);
 }
 
 async function pollReviewReportsForNew() {
@@ -191,14 +209,17 @@ async function pollReviewReportsForNew() {
 		const freshCount = data.reports.filter((report) => (Number(report.id) || 0) > previousMaxId).length;
 		reviewReports = data.reports;
 		reviewReportsKnownMaxId = reviewReportsMaxId();
-		if (freshCount > 0) {
+		// Refresh the list on every tick (a report handled by another editor disappears too, not just
+		// new ones), but never while the user is working in it.
+		if (!isReviewReportsListBusy()) {
 			renderReviewReports();
-			if (previousMaxId > 0 && typeof showFeedbackToast === "function") {
-				showFeedbackToast(
-					freshCount === 1 ? "Neue Community-Meldung eingegangen." : `${freshCount} neue Community-Meldungen eingegangen.`,
-					"info"
-				);
-			}
+		}
+		// The toast is non-intrusive, so it fires regardless of the busy state.
+		if (freshCount > 0 && previousMaxId > 0 && typeof showFeedbackToast === "function") {
+			showFeedbackToast(
+				freshCount === 1 ? "Neue Community-Meldung eingegangen." : `${freshCount} neue Community-Meldungen eingegangen.`,
+				"info"
+			);
 		}
 	} catch (error) {
 		// Polling darf den Editor nie stoeren -- Fehler still schlucken.
@@ -448,32 +469,12 @@ function startEditorPresenceHeartbeat() {
 	}, 30000);
 }
 
-// Community reports arrive from other users while the editor stays open; without this the review
-// list only refreshed on F5, the manual refresh button, or after an action. Poll periodically, but
-// skip while the user is mid-review (a report's edit dialog is open -> activeReviewReportId set) so
-// the list never re-renders under them; the next tick refreshes once that dialog is closed.
+// Community reports arrive from other users while the editor stays open; without polling the review
+// list would only refresh on F5, the manual refresh button, or after an action. This used to open its
+// OWN 45s interval on the same endpoint that ensureReviewReportsPolling() already polled — two timers,
+// two requests per cycle. It now just makes sure the single poller runs (bootstrap.js calls this).
 function startReviewReportsPolling() {
-	if (!IS_EDIT_MODE || reviewReportsPollTimerId) {
-		return;
-	}
-
-	reviewReportsPollTimerId = window.setInterval(() => {
-		if (activeReviewReportId) {
-			return;
-		}
-		// Nicht neu laden, waehrend der Nutzer die Liste gerade benutzt (Mauszeiger ueber der Meldungs-
-		// oder Bewertungsliste) -- der Re-Render macht innerHTML="" und reisst die Scrollposition auf 0
-		// (die Liste ist selbst der Scroll-Container). Der naechste Tick aktualisiert, sobald der Zeiger
-		// die Liste verlaesst.
-		const overList = ["review-report-list", "review-ratings-list"].some((id) => {
-			const el = document.getElementById(id);
-			return el && typeof el.matches === "function" && el.matches(":hover");
-		});
-		if (overList) {
-			return;
-		}
-		void loadReviewReports();
-	}, 45000);
+	ensureReviewReportsPolling();
 }
 
 function renderEditorPresenceUsers() {

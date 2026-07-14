@@ -27,6 +27,11 @@ async function loadChangeLog() {
 			console.warn("Politischer Änderungsverlauf konnte nicht geladen werden:", error);
 		}
 
+		// Both sources deliver up to 100 rows (map_audit_log + political change_log) and the merged feed
+		// keeps the newest 100. The map side used to be capped at 50 server-side while the merge sliced
+		// at 100, so in a map-heavy period entries 51+ were dropped even though they were NEWER than
+		// political entries that did make the cut — the feed was not "the newest 100 changes" it claimed
+		// to be. Keep the two limits and this slice in sync.
 		const mapChanges = Array.isArray(data.changes)
 			? data.changes.map((entry) => ({ ...entry, audit_source: "map_feature" }))
 			: [];
