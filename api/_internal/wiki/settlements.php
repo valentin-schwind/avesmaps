@@ -1313,8 +1313,10 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         // (properties.images, uploaded via settlement-images.php). Wiki-only registry rows have no images.
         $imageList = is_array($props['images'] ?? null) ? $props['images'] : [];
         $imageCount = 0;
-        foreach ($imageList as $imageUrl) {
-            if (is_string($imageUrl) && trim($imageUrl) !== '') {
+        foreach ($imageList as $imageEntry) {
+            // images are {url, license, note} objects now (legacy: plain URL strings) -- count either shape.
+            $imageUrl = is_array($imageEntry) ? (string) ($imageEntry['url'] ?? '') : (is_string($imageEntry) ? $imageEntry : '');
+            if (trim($imageUrl) !== '') {
                 $imageCount++;
             }
         }

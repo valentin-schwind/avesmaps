@@ -28,6 +28,27 @@ const AVESMAPS_SETTLEMENT_IMAGE_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
+// Per-image licence (editor-only + public gate). unknown_other is NEVER shown in the frontend
+// (map-features.php filters it out). Legacy plain-string images + new uploads default to ai_generated
+// ("Von uns KI-generiert") per owner decision, so nothing already uploaded disappears.
+const AVESMAPS_SETTLEMENT_IMAGE_LICENSES = ['public_domain', 'cc0', 'ai_generated', 'unknown_other'];
+const AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT = 'ai_generated';
+const AVESMAPS_SETTLEMENT_IMAGE_NOTE_MAX = 2000;
+
+function avesmapsSettlementImageNormalizeLicense($value): string
+{
+    $v = is_string($value) ? trim($value) : '';
+    return in_array($v, AVESMAPS_SETTLEMENT_IMAGE_LICENSES, true) ? $v : AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT;
+}
+
+function avesmapsSettlementImageNormalizeNote($value): string
+{
+    $note = trim((string) $value);
+    if (mb_strlen($note) > AVESMAPS_SETTLEMENT_IMAGE_NOTE_MAX) {
+        $note = mb_substr($note, 0, AVESMAPS_SETTLEMENT_IMAGE_NOTE_MAX);
+    }
+    return $note;
+}
 
 // Crop-to-fill auf 800x450, Ausgabe als WebP (Fallback JPEG, falls GD kein WebP kann). Gibt [bytes, ext]
 // oder null. Deckt die Zielbox komplett und schneidet den Ueberstand mittig weg (wie CSS object-fit:cover).
@@ -74,8 +95,9 @@ function avesmapsSettlementImageScale(string $srcPath, string $mime): ?array
     return $bytes !== '' ? [$bytes, $ext] : null;
 }
 
-// Normalisiert properties.images auf eine flache Liste von /uploads/siedlungen/-URLs (Strings). Aeltere
-// Objekt-Form {url:...} wird mitgenommen; fremde/absolute URLs werden verworfen (nur eigener Upload-Pfad).
+// Normalisiert properties.images auf eine Liste von Objekten {url, license, note}. Legacy-Strings werden
+// zu {url, license: DEFAULT (ai_generated), note: ''}; fremde/absolute URLs werden verworfen (nur eigener
+// Upload-Pfad). Dedup nach URL. Reihenfolge bleibt erhalten.
 function avesmapsSettlementImagesList(array $props): array
 {
     $raw = $props['images'] ?? [];
@@ -83,14 +105,27 @@ function avesmapsSettlementImagesList(array $props): array
         return [];
     }
     $out = [];
+    $seen = [];
     foreach ($raw as $item) {
         $url = is_array($item) ? (string) ($item['url'] ?? '') : (string) $item;
         $url = trim($url);
-        if ($url !== '' && str_starts_with($url, '/uploads/siedlungen/') && !in_array($url, $out, true)) {
-            $out[] = $url;
+        if ($url === '' || !str_starts_with($url, '/uploads/siedlungen/') || isset($seen[$url])) {
+            continue;
         }
+        $seen[$url] = true;
+        $out[] = [
+            'url' => $url,
+            'license' => is_array($item) ? avesmapsSettlementImageNormalizeLicense($item['license'] ?? null) : AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT,
+            'note' => is_array($item) ? avesmapsSettlementImageNormalizeNote($item['note'] ?? '') : '',
+        ];
     }
     return $out;
+}
+
+// URL-Liste aus der Objekt-Liste (für in_array-Prüfungen bei delete/reorder/set_meta).
+function avesmapsSettlementImageUrls(array $images): array
+{
+    return array_map(static fn (array $im): string => (string) ($im['url'] ?? ''), $images);
 }
 
 // Schreibt die neue Bilderliste ins Feature + zieht eine Map-Revision (Cache-Invalidierung + Audit).
@@ -181,7 +216,7 @@ try {
         @chmod($target, 0644);
 
         $url = '/uploads/siedlungen/' . $safeId . '/' . $filename;
-        $images[] = $url;
+        $images[] = ['url' => $url, 'license' => AVESMAPS_SETTLEMENT_IMAGE_LICENSE_DEFAULT, 'note' => ''];
         $revision = avesmapsSettlementImagesPersist($pdo, $feature, $images, $user);
         avesmapsJsonResponse(200, ['ok' => true, 'url' => $url, 'images' => $images, 'revision' => $revision]);
     }
@@ -190,10 +225,10 @@ try {
     $action = (string) ($body['action'] ?? '');
     if ($action === 'delete') {
         $url = trim((string) ($body['url'] ?? ''));
-        if ($url === '' || !in_array($url, $images, true)) {
+        if ($url === '' || !in_array($url, avesmapsSettlementImageUrls($images), true)) {
             avesmapsErrorResponse(404, 'not_found', 'Bild nicht gefunden.');
         }
-        $images = array_values(array_filter($images, static fn ($u) => $u !== $url));
+        $images = array_values(array_filter($images, static fn (array $im): bool => ($im['url'] ?? '') !== $url));
         $revision = avesmapsSettlementImagesPersist($pdo, $feature, $images, $user);
         // Datei best effort loeschen (nur im eigenen Upload-Pfad).
         if (str_starts_with($url, '/uploads/siedlungen/')) {
@@ -202,27 +237,55 @@ try {
         avesmapsJsonResponse(200, ['ok' => true, 'images' => $images, 'revision' => $revision]);
     }
 
-    // ----- REORDER -----
+    // ----- REORDER ----- (order = URL-Liste; Objekte werden entlang der URLs neu sortiert)
     if ($action === 'reorder') {
         $order = $body['order'] ?? [];
         if (!is_array($order)) {
             avesmapsErrorResponse(400, 'invalid_request', 'order[] fehlt.');
         }
+        $byUrl = [];
+        foreach ($images as $im) {
+            $byUrl[(string) ($im['url'] ?? '')] = $im;
+        }
         $wanted = [];
+        $used = [];
         foreach ($order as $u) {
             $u = trim((string) $u);
-            if (in_array($u, $images, true) && !in_array($u, $wanted, true)) {
-                $wanted[] = $u;
+            if (isset($byUrl[$u]) && !isset($used[$u])) {
+                $used[$u] = true;
+                $wanted[] = $byUrl[$u];
             }
         }
         // Nicht genannte Bilder hinten anhaengen -> nie stiller Verlust.
-        foreach ($images as $u) {
-            if (!in_array($u, $wanted, true)) {
-                $wanted[] = $u;
+        foreach ($images as $im) {
+            $u = (string) ($im['url'] ?? '');
+            if (!isset($used[$u])) {
+                $used[$u] = true;
+                $wanted[] = $im;
             }
         }
         $revision = avesmapsSettlementImagesPersist($pdo, $feature, $wanted, $user);
         avesmapsJsonResponse(200, ['ok' => true, 'images' => $wanted, 'revision' => $revision]);
+    }
+
+    // ----- SET_META ----- (Lizenz + Kommentar/Prompt eines Bildes setzen)
+    if ($action === 'set_meta') {
+        $url = trim((string) ($body['url'] ?? ''));
+        if ($url === '' || !in_array($url, avesmapsSettlementImageUrls($images), true)) {
+            avesmapsErrorResponse(404, 'not_found', 'Bild nicht gefunden.');
+        }
+        $license = avesmapsSettlementImageNormalizeLicense($body['license'] ?? null);
+        $note = avesmapsSettlementImageNormalizeNote($body['note'] ?? '');
+        foreach ($images as &$im) {
+            if ((string) ($im['url'] ?? '') === $url) {
+                $im['license'] = $license;
+                $im['note'] = $note;
+                break;
+            }
+        }
+        unset($im);
+        $revision = avesmapsSettlementImagesPersist($pdo, $feature, $images, $user);
+        avesmapsJsonResponse(200, ['ok' => true, 'images' => $images, 'revision' => $revision]);
     }
 
     avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Aktion.');

@@ -12,7 +12,7 @@ require_once __DIR__ . '/../_internal/wiki/sync.php';
 // MUST be declared BEFORE the try block below: the request handler calls avesmapsMapFeaturesETag while
 // running top-to-bottom, and a top-level const is sequential (defined when reached), not hoisted like a
 // function -- declaring it further down (among the helper functions) left it undefined at call time -> 500.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 5;
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 6;
 
 // Coat-of-arms thumbnail gate for the settlement "Liegt in" breadcrumb. These MIRROR the constants of
 // api/app/territory-detail.php EXACTLY (same staging + model tables, same public-domain-only allow list):
@@ -257,6 +257,35 @@ function avesmapsMapFeaturesRespond(array $payload): never {
     exit;
 }
 
+// Filters a settlement's properties.images down to the URLs that may be shown publicly: keeps
+// public_domain / cc0 / ai_generated, drops unknown_other, and strips the licence/note metadata
+// (editor-only). Accepts both the {url,license,note} object shape and the legacy plain-URL-string
+// shape (which counts as ai_generated = shown). See api/edit/wiki/settlement-images.php.
+function avesmapsMapFeaturesPublicImageUrls($images): array {
+    if (!is_array($images)) {
+        return [];
+    }
+    $allowed = ['public_domain', 'cc0', 'ai_generated'];
+    $out = [];
+    foreach ($images as $item) {
+        if (is_string($item)) {
+            $url = trim($item);
+            if ($url !== '') {
+                $out[] = $url;
+            }
+            continue;
+        }
+        if (is_array($item)) {
+            $url = trim((string) ($item['url'] ?? ''));
+            $license = trim((string) ($item['license'] ?? 'ai_generated'));
+            if ($url !== '' && in_array($license, $allowed, true)) {
+                $out[] = $url;
+            }
+        }
+    }
+    return $out;
+}
+
 function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = []): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
@@ -287,6 +316,18 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     $properties['feature_subtype'] = (string) $row['feature_subtype'];
     $properties['revision'] = (int) $row['revision'];
     $properties['updated_at'] = (string) $row['updated_at'];
+
+    // Settlement own-image gate: properties.images carries a per-image licence ([{url,license,note}]).
+    // Only public licences reach the frontend, as a plain URL list -- unknown_other is dropped and the
+    // licence/note metadata never leaves the editor. (PAYLOAD_VERSION bumped so cached clients revalidate.)
+    if (isset($properties['images'])) {
+        $publicImages = avesmapsMapFeaturesPublicImageUrls($properties['images']);
+        if ($publicImages !== []) {
+            $properties['images'] = $publicImages;
+        } else {
+            unset($properties['images']);
+        }
+    }
 
     // Genauer Bauwerkstyp (Festung/Turm/…) + Ruine aus der Registry an die verbundene Wiki-Siedlung
     // heften, damit die Infobox die Unterüberschrift zeigt (deckt auch schon-verbundene Bauwerke ab).
