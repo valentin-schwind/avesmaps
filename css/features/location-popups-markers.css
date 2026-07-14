@@ -289,17 +289,22 @@ body.edit-mode .floating-location-popup .location-popup__actions,
 body.edit-mode .avesmaps-infopanel .location-popup__actions {
 	flex-wrap: wrap;
 }
-/* Owner: Kacheln fuellen IMMER die volle Zeilenbreite, egal ob eine Zeile 2, 3 oder 4 davon abbekommt --
-   gleich breit UND randvoll zugleich. Kein festes Spalten-Grid (das liesse eine unvollstaendige letzte
-   Zeile mit Luecke rechts stehen, z. B. 2 Kacheln bei einem 4-Spalten-Raster): stattdessen wachsen die
-   Kacheln per flex-grow gleichmaessig innerhalb IHRER Zeile nach, bis sie die Breite ausfuellen (flex-wrap
-   bricht die Zeilen anhand der Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig).
-   Gilt gleich in der schwebenden Box UND im rechten Panel. Scoped auf die HAUPT-Aktionen (direktes Kind
-   von .location-popup), damit die verschachtelten Bewertungs-Aktionen ("Bewertung schreiben") eine normale
-   Inline-Zeile bleiben. */
-body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button,
+/* Owner: Kacheln fuellen IMMER die volle Zeilenbreite, egal wie viele eine Zeile abbekommt -- gleich breit
+   UND randvoll zugleich (kein festes Spalten-Grid: das liesse eine unvollstaendige letzte Zeile mit Luecke
+   rechts stehen). Scoped auf die HAUPT-Aktionen (direktes Kind von .location-popup), damit die
+   verschachtelten Bewertungs-Aktionen ("Bewertung schreiben") eine normale Inline-Zeile bleiben.
+   Rechtes Panel (breiter, variable Breite): natuerliche Spaltenzahl -- flex-wrap bricht anhand der
+   Basisbreite 90px um, danach verteilt flex-grow den Rest gleichmaessig innerhalb der Zeile. */
 body.edit-mode .avesmaps-infopanel .location-popup > .location-popup__actions > .location-popup__action-button {
 	flex: 1 1 90px;
+	width: auto;
+}
+/* Schwebende Box (Owner: bei direktem Klick immer 4 Spalten): feste Spaltenzahl statt natuerlichem Umbruch,
+   damit sich die Kachel-Reihen nicht je nach Popup-Breite mal auf 3, mal auf 4 pro Zeile aufteilen.
+   Prozentuale Basisbreite mit Gap-Ausgleich (calc((100% - 3*Gap)/4)) erzwingt exakt 4 pro Zeile; flex-grow
+   bleibt aktiv, damit eine unvollstaendige letzte Zeile trotzdem randvoll auswaechst. */
+body.edit-mode .floating-location-popup .location-popup > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 calc((100% - 24px) / 4);
 	width: auto;
 }
 .floating-location-popup .location-popup__action-button,
