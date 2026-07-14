@@ -360,6 +360,13 @@
 					<progress id="wiki-sync-sync-publications-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="4" value="0" hidden></progress>
 					<p id="wiki-sync-sync-publications-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
 				</div>
+				<!-- Global WikiSync status line. setWikiSyncStatus() (js/review/review-status.js) targets
+				     #wiki-sync-status: loading/empty/error of the case list, the dump/sync steps and the
+				     interactive hints ("Wählen Sie den Ort aus der Liste."). The element did not exist, and
+				     setPanelStateStatus() no-ops on a null node — so ALL of those messages were dropped
+				     silently, incl. load errors (a broken list looked exactly like an empty one). Sits above
+				     the sub-tabs because every sub-tab's flow writes to it. -->
+				<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite"></p>
 				<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
 					<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Territorien</button>

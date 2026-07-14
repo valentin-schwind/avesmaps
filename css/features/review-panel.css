@@ -757,6 +757,11 @@
 	white-space: pre-line;
 }
 
+/* No message → no gap. setWikiSyncStatus("") clears the text, so :empty is the idle state. */
+#wiki-sync-status:empty {
+	display: none;
+}
+
 .wiki-sync-panel__list-title {
 	margin: 8px 10px 6px;
 	color: var(--color-text-strong);
