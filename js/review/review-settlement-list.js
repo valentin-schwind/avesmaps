@@ -185,7 +185,9 @@ function renderSettlementList() {
 	const onMap = counted.filter((item) => item.on_map).length;
 	const wikiOnly = allCount - onMap;
 
-	const items = counted.filter((item) => settlementMatchesView(item, settlementListView));
+	const items = counted
+		.filter((item) => settlementMatchesView(item, settlementListView))
+		.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de"));
 	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
 	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");

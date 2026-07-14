@@ -5,7 +5,7 @@
 
 const REGION_SYNC_API_URL = "/api/edit/wiki/regions.php";
 let regionSyncData = null;
-let regionSyncView = "missing"; // missing | matched | ambiguous
+let regionSyncView = "all"; // all | matched | missing — same default as the settlement/path lists
 const regionTypeFilter = new Set(); // ausgewählte Arten (leer = alle)
 const regionContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 const regionSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
@@ -154,14 +154,19 @@ function regionSyncCurrentRows() {
 	const missing = regionSyncData.missing || [];
 	const matched = regionSyncData.matched || [];
 	const ambiguous = regionSyncData.ambiguous || [];
-	if (regionSyncView === "missing") {
-		return missing;
-	}
 	// „Platziert" = zugeordnet + mehrfach (Mehrfach in Platziert gemerged).
-	if (regionSyncView === "matched") {
-		return matched.concat(ambiguous);
+	// Copy before sorting: `missing` is the live regionSyncData array — sorting it in place would
+	// reorder the source data. Every tab sorts by name (the list was server-ordered before).
+	let rows;
+	if (regionSyncView === "missing") {
+		rows = missing.slice();
+	} else if (regionSyncView === "matched") {
+		rows = matched.concat(ambiguous);
+	} else {
+		rows = missing.concat(matched, ambiguous, regionMapOnlyRows()); // "all"
 	}
-	return missing.concat(matched, ambiguous, regionMapOnlyRows()); // "all"
+	rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de"));
+	return rows;
 }
 
 // Alle aktiven Filter AUSSER dem Reiter (Alle/Platziert/Fehlt): Kontinent, Quelle, Art, Suchtext.

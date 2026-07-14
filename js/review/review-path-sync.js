@@ -4,7 +4,7 @@
 
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
-let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing | cases (verlauf cases)
+let pathSyncView = "all"; // all | assigned (matched+mehrteilig) | missing | cases | flow — same default as the settlement/region lists
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 const pathSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
@@ -183,12 +183,18 @@ function pathSyncCurrentRows() {
 	}
 	const missing = pathSyncData.missing || [];
 	const assigned = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || []);
-	if (pathSyncView === "missing") {
-		return missing;
-	}
 	// „Platziert" = matched (1 Segment) + mehrteilig (mehrere) zusammengelegt.
-	const rows = pathSyncView === "all" ? assigned.concat(missing, pathMapOnlyRows()) : assigned;
-	rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+	// Copy before sorting: `missing` is the live pathSyncData array — sorting it in place would
+	// reorder the source data. Every tab sorts by name (previously „Fehlt" returned unsorted).
+	let rows;
+	if (pathSyncView === "missing") {
+		rows = missing.slice();
+	} else if (pathSyncView === "all") {
+		rows = assigned.concat(missing, pathMapOnlyRows());
+	} else {
+		rows = assigned;
+	}
+	rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de"));
 	return rows;
 }
 
@@ -277,7 +283,7 @@ function renderPathSyncList() {
 					const label = row.other_source.label || "Andere Quelle";
 					parts.push(`<a class="region-sync__link" href="${pathSyncEscapeAttr(row.other_source.url)}" target="_blank" rel="noopener">${pathSyncEscapeText(label)} ↗</a>`);
 				}
-				const segChips = row.paths.length ? `${row.paths.length} Segment${row.paths.length === 1 ? "" : "e"}: ${row.paths.slice(0, 40).map(candidate).join(" ")}` : "";
+				const segChips = row.paths.length ? `${row.paths.length} Segment${row.paths.length === 1 ? "" : "e"}: ${row.paths.map(candidate).join(" ")}` : "";
 				const metaInner = parts.join(" · ") + `<span class="region-sync__map">${segChips}</span>`;
 				return (
 					'<div class="tree-item region-sync__item">' +
@@ -299,7 +305,7 @@ function renderPathSyncList() {
 			// Zuordnen-Button als Chip in derselben Zeile/Größe wie die Segment-Chips.
 			// Bei bereits zugeordneten Wegen nur „+" (= neu zuordnen), sonst „Zuordnen".
 			const assignChip = `<button type="button" class="region-sync__cand path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}" title="${onMap ? "Neu zuordnen" : "Zuordnen"}">${onMap ? "+" : "Zuordnen"}</button>`;
-			const segChips = segs.length ? `${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")} ` : "";
+			const segChips = segs.length ? `${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.map(candidate).join(" ")} ` : "";
 			metaHtml += `<span class="region-sync__map">${segChips}${assignChip}</span>`;
 			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
 			// Wege haben keinen Drag-Handle — leere Spalte 1 für gleiche Ausrichtung.
@@ -369,7 +375,7 @@ function renderFlowUnknownList(list) {
 			const hint = row.wikiKey === ""
 				? "keine Wiki-Zuordnung"
 				: `Wiki: ${pathSyncEscapeText(row.wikiKey)}`;
-			const segChips = `<span class="region-sync__map">${row.segments.slice(0, 40).map(chip).join(" ")}</span>`;
+			const segChips = `<span class="region-sync__map">${row.segments.map(chip).join(" ")}</span>`;
 			const meta = `${row.segments.length} Segment${row.segments.length === 1 ? "" : "e"} ohne Richtung · ${hint} ${segChips}`;
 			return (
 				'<div class="tree-item region-sync__item">' +
