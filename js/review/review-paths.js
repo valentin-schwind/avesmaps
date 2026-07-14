@@ -161,14 +161,18 @@ function getPathTransportDomain(path) {
 }
 
 function getPathAllowedTransports(path) {
-	const domain = getPathTransportDomain(path);
 	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
+	const subtypeOptions = getTransportOptionsForPathSubtype(subtype);
 	const configured = Array.isArray(path?.properties?.allowed_transports) ? path.properties.allowed_transports : null;
-	if (configured !== null) {
-		return configured.filter((option) => getTransportOptionsForPathSubtype(subtype).includes(option));
-	}
+	// A stored list -- an empty one included -- is what the path allows. An empty list WITHOUT a stored
+	// transport_domain is NOT a decision: a one-off admin repair wrote [] on 26 Wuestenpfade that had no
+	// list yet, where it meant to write "every land transport but the carriage". Falling back to the
+	// defaults there shows the truth in the dialog, and saving heals the row. Same rule as the route
+	// graph, see avesmapsClientRoutePathAllowedTransports in api/_internal/routing/client-graph.php.
+	const hasRestriction = configured !== null
+		&& (configured.length > 0 || String(path?.properties?.transport_domain || "").trim() !== "");
 
-	return getTransportOptionsForPathSubtype(subtype);
+	return hasRestriction ? configured.filter((option) => subtypeOptions.includes(option)) : subtypeOptions;
 }
 
 function getTransportOptionsForPathSubtype(pathSubtype) {
