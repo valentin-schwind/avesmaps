@@ -101,11 +101,18 @@ function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 	return Math.round(getLocationMarkerContourWidth(locationType, zoomLevel) * 100) / 100;
 }
 
-function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
+function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), isUnconnected = false) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 		const isSimpleMarker = getVisualZoomLevel(zoomLevel) <= 3;
-		const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
+		const shapeClasses = ["location-visual-marker__shape", "location-visual-marker__shape--crossing"];
+		if (isSimpleMarker) {
+			shapeClasses.push("location-visual-marker__shape--simple");
+		}
+		if (isUnconnected) {
+			shapeClasses.push("location-visual-marker__shape--unconnected");
+		}
+		const iconHtml = `<span class="${shapeClasses.join(" ")}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
 
 		return L.divIcon({
 			className: `location-visual-marker location-visual-marker--crossing${isSimpleMarker ? " location-visual-marker--simple" : ""}`,
@@ -129,6 +136,9 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	}
 	if (isCapital) {
 		shapeClasses.push("location-visual-marker__shape--capital");
+	}
+	if (isUnconnected) {
+		shapeClasses.push("location-visual-marker__shape--unconnected");
 	}
 
 	const styleDeclarations = [
@@ -160,10 +170,12 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 // bekannt sein muss. shouldShowLocationMarker/-NameLabel funktionieren auch OHNE Kontext (Einzelaufrufe).
 function createLocationVisibilityContext() {
 	const visibleTypeCache = {};
+	const unconnectedToggleChecked = IS_EDIT_MODE && $("#toggleUnconnected").is(":checked");
 	return {
 		mapLayerMode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
 		nodixToggleChecked: IS_EDIT_MODE && $("#toggleNodix").is(":checked"),
 		crossingsToggleChecked: IS_EDIT_MODE && $("#toggleCrossings").is(":checked"),
+		unconnectedPublicIds: unconnectedToggleChecked ? getUnconnectedLocationPublicIds() : null,
 		isTypeVisible(locationType) {
 			if (!(locationType in visibleTypeCache)) {
 				visibleTypeCache[locationType] = isLocationTypeVisible(locationType);
@@ -171,6 +183,16 @@ function createLocationVisibilityContext() {
 			return visibleTypeCache[locationType];
 		},
 	};
+}
+
+// Nicht-Ziel (spec docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md): Nodices
+// bleiben außen vor -- der Ring gilt nur fuer Marker, die ueber die normale Typ-Kaskade bzw.
+// "Kreuzungen" sichtbar sind, NIE nur ueber "Nodices".
+function isMarkerUnconnectedRingEligible(entry, visibilityContext) {
+	if (entry.locationType === CROSSING_LOCATION_TYPE) {
+		return visibilityContext.crossingsToggleChecked;
+	}
+	return visibilityContext.isTypeVisible(entry.locationType);
 }
 
 function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), visibilityContext = null) {
@@ -260,12 +282,16 @@ function syncLocationMarkerVisibility() {
 			canvasEntries.push(entry);
 			return;
 		}
-		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) seit dem
-		// letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
-		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
-		if (shouldShow && entry.iconZoomLevel !== zoomLevel) {
-			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
+		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) ODER der
+		// Unverbunden-Ring seit dem letzten Bau fuer diesen Marker geaendert hat. Beim reinen
+		// Pannen bleibt das Icon identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
+		const isUnconnected = Boolean(visibilityContext.unconnectedPublicIds)
+			&& isMarkerUnconnectedRingEligible(entry, visibilityContext)
+			&& visibilityContext.unconnectedPublicIds.has(entry.publicId);
+		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._unconnectedRingApplied !== isUnconnected)) {
+			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, isUnconnected));
 			entry.iconZoomLevel = zoomLevel;
+			entry._unconnectedRingApplied = isUnconnected;
 		}
 		const isOnMap = map.hasLayer(entry.marker);
 		if (shouldShow && !isOnMap) {

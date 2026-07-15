@@ -695,6 +695,16 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 		0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
+/* Unverbundene Orte/Kreuzungen -- deutlicher pinker Warnring (Edit-Mode-Häkchen "Unverbunden", #25).
+   Muss NACH --capital/--crossing im Stylesheet stehen, damit die Regel bei Kombination gewinnt.
+   Nur box-shadow-Ringe, kein Blur/Filter (Perf, wie jeder andere Marker-Ring in dieser Datei). */
+.location-visual-marker__shape--unconnected {
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.55),
+		0 0 0 5px var(--color-marker-unconnected-ring),
+		0 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
 .share-pin-visual {
 	--share-pin-dot-size: 18px;
 	--share-pin-dot-left: 8px;
