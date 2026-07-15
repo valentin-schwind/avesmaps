@@ -189,6 +189,34 @@ function createGraph(routeOptions, graphOptions = {}) {
     return graph;
 }
 
+// Unconnected-marker feature (docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md):
+// a location is "unverbunden" iff it has 0 real path/sea-path edges in the all-transports,
+// no-Querfeldein connectivity graph AND is not a powerline endpoint. Cached in
+// unconnectedLocationPublicIds (js/app/runtime-state.js); invalidated in refreshPlannerAfterFeatureChange
+// (js/routing/route-render.js) plus the two powerline mutation sites that don't flow through it.
+function computeUnconnectedLocationPublicIds() {
+    const connectivityGraph = createGraph({}, { skipSyntheticConnections: true, transports: "all" });
+    const powerlineConnectedPublicIds = getPowerlineConnectedLocationPublicIds();
+    const unconnectedPublicIds = new Set();
+    locationData.forEach((location) => {
+        if (!location.publicId) {
+            return;
+        }
+        const hasPathEdge = Object.keys(connectivityGraph[location.name] || {}).length > 0;
+        if (!hasPathEdge && !powerlineConnectedPublicIds.has(location.publicId)) {
+            unconnectedPublicIds.add(location.publicId);
+        }
+    });
+    return unconnectedPublicIds;
+}
+
+function getUnconnectedLocationPublicIds() {
+    if (!unconnectedLocationPublicIds) {
+        unconnectedLocationPublicIds = computeUnconnectedLocationPublicIds();
+    }
+    return unconnectedLocationPublicIds;
+}
+
 function getVisualLatLngCoordinates(latLngs) {
     const coordinates = latLngs.map((latLng) => {
         const normalizedLatLng = L.latLng(latLng);

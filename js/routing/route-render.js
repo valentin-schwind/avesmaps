@@ -329,6 +329,7 @@ function updateRouteKeepingCurrentMapView() {
 
 function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 	graphData = null;
+	unconnectedLocationPublicIds = null;
 	refreshWaypointAutocompleteSources();
 	syncPlannerStateToUrl();
 

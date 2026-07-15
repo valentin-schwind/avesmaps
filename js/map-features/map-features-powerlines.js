@@ -436,6 +436,7 @@ async function completePendingPowerlineAtEndpoint(endEndpoint) {
 			to_public_id: endEndpoint.publicId,
 		});
 		applyLivePowerlineFeature(result.feature);
+		unconnectedLocationPublicIds = null;
 		updateRevisionFromEditResponse(result);
 		setSelectedMapLayerMode("powerlines");
 		syncPowerlineVisibility();
@@ -540,6 +541,7 @@ async function deletePowerlineFeature(powerline) {
 		map.removeLayer(powerline._layerGroup);
 		powerlineLayers = powerlineLayers.filter((layer) => layer !== powerline._layerGroup);
 		powerlineData = powerlineData.filter((entry) => entry !== powerline);
+		unconnectedLocationPublicIds = null;
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
 		setPowerlineEditDialogOpen(false, { resetForm: true });
