@@ -378,6 +378,21 @@ function getConnectedPowerlinesForPublicId(publicId) {
 	return powerlineData.filter((powerline) => powerline.properties?.from_public_id === publicId || powerline.properties?.to_public_id === publicId);
 }
 
+function getPowerlineConnectedLocationPublicIds() {
+	const publicIds = new Set();
+	powerlineData.forEach((powerline) => {
+		const fromPublicId = powerline.properties?.from_public_id;
+		const toPublicId = powerline.properties?.to_public_id;
+		if (fromPublicId) {
+			publicIds.add(fromPublicId);
+		}
+		if (toPublicId) {
+			publicIds.add(toPublicId);
+		}
+	});
+	return publicIds;
+}
+
 function applyPowerlineFeatureResponse(powerline, feature) {
 	const updatedPowerline = normalizePowerlineFeature(feature);
 	powerline.geometry = updatedPowerline.geometry;
