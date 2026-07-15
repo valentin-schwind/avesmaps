@@ -106,59 +106,81 @@ function getRiverFlowTimeFactors(properties, routeType) {
     };
 }
 
-function addRegularPathToGraph(graph, pathFeature, routeOptions) {
+function addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions = {}) {
     const { geometry: { coordinates }, properties } = pathFeature;
     const startNode = getLocationAtPathEndpoint(coordinates[0]);
     const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
-    if (startNode && endNode) {
-        const distance = calculatePathCoordinateDistance(coordinates),
-            routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
-            transportOption = getTransportOptionForRouteType(routeType, routeOptions);
-        if (!transportOption) {
-            console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
-            return;
-        }
-        if (!isTransportAllowedForPath(properties, transportOption)) {
-            return;
-        }
-        const speed = resolveSpeedForRouteType(routeType, transportOption);
-        if (!speed) {
-            console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
-            return;
-        }
-        const baseTime = distance / speed;
-        const flowFactors = getRiverFlowTimeFactors(properties, routeType);
-        if (!flowFactors) {
-            // No known flow direction: symmetric shared connection, exactly today's behaviour.
-            const connection = { distance, time: baseTime, routeType, id: properties.id, transportOption };
-            addGraphConnection(graph, startNode.name, endNode.name, connection);
-            addGraphConnection(graph, endNode.name, startNode.name, connection);
-            return;
-        }
-        // Asymmetric river edge (spec §4): the start->end edge follows the stored drawing
-        // order; upstream legs cost time * factor, downstream stays the plain time.
-        addGraphConnection(graph, startNode.name, endNode.name, {
-            distance, time: baseTime * flowFactors.forwardFactor, routeType, id: properties.id,
-            transportOption, flowTimeFactor: flowFactors.forwardFactor,
-        });
-        addGraphConnection(graph, endNode.name, startNode.name, {
-            distance, time: baseTime * flowFactors.backwardFactor, routeType, id: properties.id,
-            transportOption, flowTimeFactor: flowFactors.backwardFactor,
-        });
+    if (!startNode || !endNode) {
+        return;
     }
+
+    if (graphOptions.transports === "all") {
+        // Connectivity-only graph (unconnected-marker feature, docs/superpowers/specs/2026-07-15-
+        // unverbundene-orte-marker-design.md): an edge exists whenever the path allows ANY transport,
+        // independent of the planner's current selection. getPathAllowedTransports already encodes
+        // exactly this rule (explicit allowed_transports, domain default, Wuestenpfad/horseCarriage
+        // exclusion) -- an empty list ("unbefahrbar") correctly yields no edge (spec Kanten-Randfall).
+        if (!getPathAllowedTransports(pathFeature).length) {
+            return;
+        }
+        const connection = { routeType: normalizePathSubtype(properties?.feature_subtype || properties?.name), id: properties.id };
+        addGraphConnection(graph, startNode.name, endNode.name, connection);
+        addGraphConnection(graph, endNode.name, startNode.name, connection);
+        return;
+    }
+
+    const distance = calculatePathCoordinateDistance(coordinates),
+        routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
+        transportOption = getTransportOptionForRouteType(routeType, routeOptions);
+    if (!transportOption) {
+        console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
+        return;
+    }
+    if (!isTransportAllowedForPath(properties, transportOption)) {
+        return;
+    }
+    const speed = resolveSpeedForRouteType(routeType, transportOption);
+    if (!speed) {
+        console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
+        return;
+    }
+    const baseTime = distance / speed;
+    const flowFactors = getRiverFlowTimeFactors(properties, routeType);
+    if (!flowFactors) {
+        // No known flow direction: symmetric shared connection, exactly today's behaviour.
+        const connection = { distance, time: baseTime, routeType, id: properties.id, transportOption };
+        addGraphConnection(graph, startNode.name, endNode.name, connection);
+        addGraphConnection(graph, endNode.name, startNode.name, connection);
+        return;
+    }
+    // Asymmetric river edge (spec §4): the start->end edge follows the stored drawing
+    // order; upstream legs cost time * factor, downstream stays the plain time.
+    addGraphConnection(graph, startNode.name, endNode.name, {
+        distance, time: baseTime * flowFactors.forwardFactor, routeType, id: properties.id,
+        transportOption, flowTimeFactor: flowFactors.forwardFactor,
+    });
+    addGraphConnection(graph, endNode.name, startNode.name, {
+        distance, time: baseTime * flowFactors.backwardFactor, routeType, id: properties.id,
+        transportOption, flowTimeFactor: flowFactors.backwardFactor,
+    });
 }
 
-// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
-function createGraph(routeOptions) {
+// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden.
+// graphOptions.transports === "all" + graphOptions.skipSyntheticConnections: the connectivity-only
+// variant used by the unconnected-marker feature (getUnconnectedLocationPublicIds below). Default args
+// (no graphOptions) reproduce today's routing-graph behaviour exactly.
+function createGraph(routeOptions, graphOptions = {}) {
     syntheticPathSegments.clear();
     const graph = {};
     locationData.forEach((location) => {
         graph[location.name] = {};
     });
     pathData.forEach((pathFeature) => {
-        addRegularPathToGraph(graph, pathFeature, routeOptions);
+        addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions);
     });
-    connectDetachedGraphComponents(graph, routeOptions);
+    if (!graphOptions.skipSyntheticConnections) {
+        connectDetachedGraphComponents(graph, routeOptions);
+    }
 
     const unconnectedNames = Object.keys(graph).filter((locName) => !Object.keys(graph[locName]).length);
     if (unconnectedNames.length) {
