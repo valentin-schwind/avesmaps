@@ -211,6 +211,8 @@ if (IS_EDIT_MODE) {
     document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
     document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
     document.getElementById("toggleCrossings")?.removeAttribute("disabled");
+    document.getElementById("toggleUnconnectedControl")?.removeAttribute("hidden");
+    document.getElementById("toggleUnconnected")?.removeAttribute("disabled");
     document.getElementById("toggleNodixControl")?.removeAttribute("hidden");
     document.getElementById("toggleNodix")?.removeAttribute("disabled");
     document.getElementById("review-panel")?.removeAttribute("hidden");
@@ -224,6 +226,7 @@ if (IS_EDIT_MODE) {
     startReviewReportsPolling();
 } else {
     document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
+    document.getElementById("toggleUnconnected")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");
 }
 

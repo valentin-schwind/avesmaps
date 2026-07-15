@@ -106,6 +106,7 @@ function applyPlannerStateFromUrl() {
 		applyFrontendLayerModeDefaults(getSelectedMapLayerMode(), { includeCities: !hasExplicitCityParam });
 	}
 	$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
+	$("#toggleUnconnected").prop("checked", parseBooleanQueryParam(searchParams.get("toggleUnconnected"), DEFAULT_PLANNER_STATE.toggleUnconnected));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
 
 	if (pathType === "shortest" || pathType === "fastest") {
@@ -254,6 +255,10 @@ function buildPlannerSearchParams() {
 
 	if (IS_EDIT_MODE && $("#toggleCrossings").is(":checked") !== DEFAULT_PLANNER_STATE.toggleCrossings) {
 		searchParams.set("toggleCrossings", $("#toggleCrossings").is(":checked") ? "1" : "0");
+	}
+
+	if (IS_EDIT_MODE && $("#toggleUnconnected").is(":checked") !== DEFAULT_PLANNER_STATE.toggleUnconnected) {
+		searchParams.set("toggleUnconnected", $("#toggleUnconnected").is(":checked") ? "1" : "0");
 	}
 
 	if (activeMapStyle !== "stylized") {

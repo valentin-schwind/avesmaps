@@ -96,6 +96,10 @@ $("#toggleCrossings").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
 });
+$("#toggleUnconnected").change(() => {
+	syncLocationMarkerVisibility();
+	syncPlannerStateToUrl();
+});
 $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();

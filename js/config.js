@@ -469,6 +469,7 @@ const DEFAULT_PLANNER_STATE = {
 	togglePaths: false,
 	mapLayerMode: "deregraphic",
 	toggleCrossings: false,
+	toggleUnconnected: false,
 	toggleNodix: false,
 	pathType: "fastest",
 	minimizeTransfers: false,
