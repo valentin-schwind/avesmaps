@@ -45,6 +45,14 @@ const AVESMAPS_CITYMAP_TYPE_KEYS = [
 // Single choice (Spec §3.1). NULL = unknown, which is why '' is not a member here.
 const AVESMAPS_CITYMAP_ARTS = ['politisch', 'derographisch', 'topologisch', 'skizze'];
 
+// Provenance (Spec §3.1). 'community' = born from an approved reader suggestion (§3.8); 'manual' = an
+// editor typed it. No 'wiki': maps are curated + community, never dump-imported (§6).
+const AVESMAPS_CITYMAP_ORIGINS = ['manual', 'community'];
+
+// What a citymap may be pinned to (Spec §3.1, 1:1 with adventure_place). 'unresolved' is the honest
+// fallback for a free-text name the resolver has not matched yet -- not an error state.
+const AVESMAPS_CITYMAP_PLACE_KINDS = ['settlement', 'territory', 'region', 'path'];
+
 const AVESMAPS_CITYMAP_TITLE_MAX = 300;
 const AVESMAPS_CITYMAP_URL_MAX = 500;
 const AVESMAPS_CITYMAP_NOTE_MAX = 2000;
@@ -186,6 +194,14 @@ function avesmapsCitymapNormalizeLicense(mixed $value): string
 function avesmapsCitymapLicenseIsFree(mixed $value): bool
 {
     return in_array(avesmapsCitymapNormalizeLicense($value), AVESMAPS_CITYMAP_LICENSES_FREE, true);
+}
+
+// Unknown/garbage falls back to 'manual' rather than throwing: origin is our own bookkeeping, never
+// reader input, and 'manual' is the conservative answer (it is the value a hand-made map carries).
+function avesmapsCitymapNormalizeOrigin(mixed $value): string
+{
+    $v = is_string($value) ? trim($value) : '';
+    return in_array($v, AVESMAPS_CITYMAP_ORIGINS, true) ? $v : 'manual';
 }
 
 // Three-valued boolean (Spec §3.1): NULL means "nobody recorded this", which is NOT false. A plain
@@ -762,7 +778,10 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
 // (array_key_exists, so an explicit null counts as "sent" and clears to unknown). map_local_url /
 // thumb_local_url are NOT editable here on purpose -- only the upload endpoint may set them, because they
 // name a file we host.
-function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0): array
+// $origin is only consulted on INSERT -- an UPDATE never rewrites it, so a map keeps the provenance it
+// was created with even when an editor later reworks every field of it. 'community' is written by exactly
+// one caller: the report approval in api/edit/reports/locations.php (Spec §3.8).
+function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $origin = 'manual'): array
 {
     avesmapsCitymapsEnsureTables($pdo);
 
@@ -842,7 +861,7 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0): array
         $columns = array_keys($values);
         $insertColumns = array_merge(['public_id', 'origin', 'created_by'], $columns);
         $placeholders = array_map(static fn(string $c): string => ':' . $c, $insertColumns);
-        $params = ['public_id' => $publicId, 'origin' => 'manual', 'created_by' => $userId > 0 ? $userId : null];
+        $params = ['public_id' => $publicId, 'origin' => avesmapsCitymapNormalizeOrigin($origin), 'created_by' => $userId > 0 ? $userId : null];
         foreach ($columns as $column) {
             $params[$column] = $values[$column];
         }
@@ -885,6 +904,123 @@ function avesmapsCitymapNormalizeUrl(mixed $raw, string $label): string
         throw new InvalidArgumentException('Die URL ist zu lang (max. ' . AVESMAPS_CITYMAP_URL_MAX . ' Zeichen, ' . $label . ').');
     }
     return $url;
+}
+
+// ---- community suggestion (Spec §3.8) ----------------------------------------------------------------
+// PURE (no PDO, no HTTP) -> unit-tested in __tests__/citymap-report-test.php.
+//
+// Normalizes a reader's map proposal into exactly the three shapes the approval consumes:
+// avesmapsUpsertCitymap(['citymap']), avesmapsSetCitymapTypes(['types']), avesmapsAddCitymapPlace(['place']).
+// It runs on the PUBLIC endpoint (api/app/report-location.php) with capability NONE, so its output is
+// untrusted input that has passed a whitelist -- and anything it does not return can never reach a column.
+//
+// An ALLOWLIST by construction: a field the editor grows later does NOT silently become community-writable.
+// Three groups are absent ON PURPOSE:
+//
+//  - map_license / thumb_license and their notes. OWNER DECISION 2026-07-16: the community dialog does not
+//    offer them and this function does not accept them. The gate believes the COLUMN, not the sender --
+//    and thumb_url IS gated (avesmapsCitymapPublicThumbUrl), while an upload needs capability `edit`. An
+//    external preview is therefore the one image surface a stranger can touch, and a "cc0" claim on a
+//    publisher's preview would otherwise make us hot-link it. Because the keys never appear, the INSERT
+//    never names the columns and the NOT NULL DEFAULT 'unknown_other' stands on its own -- the gate is not
+//    bypassed here, it is simply never addressed. A suggested thumb_url is thus STORED but invisible to
+//    readers until an editor classifies the licence, while staying visible to that editor
+//    (avesmapsCitymapEditorThumbUrl is ungated). Nothing the reporter KNOWS is lost; nothing they merely
+//    CLAIM has any effect. A licence they genuinely know ("my own map, CC0") goes in `note`, where it
+//    reads as what it is: a claim addressed to a human.
+//  - map_local_url / thumb_local_url / thumb_auto_url -- uploads and the Autoget crawl, capability `edit`.
+//  - status / origin / parent_public_id / related -- moderation plus cross-map references. The first two
+//    are ours to decide; the last two name other maps by public_id, which a reader has no way to know.
+function avesmapsNormalizeCitymapReportPayload(mixed $raw): array
+{
+    $data = is_array($raw) ? $raw : [];
+
+    $title = avesmapsCitymapReportText($data['title'] ?? '', AVESMAPS_CITYMAP_TITLE_MAX, 'Der Titel');
+    if ($title === '') {
+        throw new InvalidArgumentException('Bitte einen Titel fuer die Karte angeben.');
+    }
+    // §3.1 makes title + source mandatory and everything else optional. map_url is the map itself: without
+    // it the proposal is a name with nothing behind it, which is why the editor marks it "*" as well.
+    $mapUrl = avesmapsCitymapNormalizeUrl($data['map_url'] ?? '', 'Karten-Link');
+    if ($mapUrl === '') {
+        throw new InvalidArgumentException('Bitte einen Karten-Link angeben.');
+    }
+
+    $citymap = [
+        'title' => $title,
+        'map_url' => $mapUrl,
+        'thumb_url' => avesmapsCitymapNormalizeUrl($data['thumb_url'] ?? '', 'Vorschau-Link'),
+        'author' => avesmapsCitymapReportText($data['author'] ?? '', AVESMAPS_CITYMAP_AUTHOR_MAX, 'Der Urheber'),
+        'note' => avesmapsCitymapReportText($data['note'] ?? '', AVESMAPS_CITYMAP_NOTE_MAX, 'Die Notiz'),
+    ];
+
+    // An unknown art is DROPPED to "unknown" rather than refused. The dialog offers a fixed select, so a
+    // stray value means a hand-built request -- and §3.1 already has an honest answer for "we do not know
+    // what kind of map this is". Same forgiving direction as avesmapsNormalizeReportSources' type.
+    $art = trim((string) ($data['art'] ?? ''));
+    $citymap['art'] = in_array($art, AVESMAPS_CITYMAP_ARTS, true) ? $art : '';
+
+    foreach (['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler'] as $field) {
+        $citymap[$field] = avesmapsCitymapTriBool($data[$field] ?? null);
+    }
+    foreach (['valid_from_bf', 'valid_to_bf', 'width_px', 'height_px'] as $field) {
+        $citymap[$field] = avesmapsCitymapIntOrNull($data[$field] ?? null);
+    }
+
+    $types = [];
+    foreach (is_array($data['types'] ?? null) ? $data['types'] : [] as $type) {
+        $key = is_string($type) ? trim($type) : '';
+        if (in_array($key, AVESMAPS_CITYMAP_TYPE_KEYS, true) && !in_array($key, $types, true)) {
+            $types[] = $key;
+        }
+    }
+
+    return [
+        'citymap' => $citymap,
+        'types' => $types,
+        'place' => avesmapsNormalizeCitymapReportPlace($data['place'] ?? null),
+    ];
+}
+
+// The place the map was suggested FROM (Spec §3.9: settlement | territory | region | path). The dialog
+// fills this from whichever Kartensammlung the reader had open, so it is normally exact.
+//
+// target_public_id is accepted from the client on purpose: the worst a wrong one can do is hang the map on
+// the wrong place -- a content error the approving editor sees (the raw_name is right there) and fixes in
+// the editor. It is not an authorization boundary. A public_id that matches nothing simply yields no
+// wiki_key and the shared resolver falls back to the name, which is the 'unresolved' path working as
+// designed. Returns [] when there is no usable name: a map with no place is a valid citymap (§3.1).
+function avesmapsNormalizeCitymapReportPlace(mixed $raw): array
+{
+    $place = is_array($raw) ? $raw : [];
+    $rawName = avesmapsCitymapReportText($place['raw_name'] ?? '', 300, 'Der Ortsname');
+    if ($rawName === '') {
+        return [];
+    }
+
+    $kind = trim((string) ($place['target_kind'] ?? ''));
+    return [
+        'raw_name' => $rawName,
+        'target_kind' => in_array($kind, AVESMAPS_CITYMAP_PLACE_KINDS, true) ? $kind : 'unresolved',
+        'target_public_id' => avesmapsCitymapReportText($place['target_public_id'] ?? '', 64, 'Die Orts-ID'),
+        'target_wiki_key' => avesmapsCitymapReportText($place['target_wiki_key'] ?? '', 190, 'Der Wiki-Schluessel'),
+    ];
+}
+
+// Trim + collapse whitespace, then REFUSE anything over the column width instead of truncating. The rest of
+// the report pipeline truncates (avesmapsNormalizeSingleLine), which is right for a free-text comment and
+// wrong here: a silently shortened title or author is a wrong fact stored under a reader's name, and a
+// shortened id or wiki key resolves to the wrong element (or to nothing) with no trace of why.
+function avesmapsCitymapReportText(mixed $raw, int $max, string $label): string
+{
+    $value = trim((string) preg_replace('/\s+/u', ' ', (string) $raw));
+    if ($value === '') {
+        return '';
+    }
+    if (mb_strlen($value) > $max) {
+        throw new InvalidArgumentException($label . ' ist zu lang (max. ' . $max . ' Zeichen).');
+    }
+    return $value;
 }
 
 function avesmapsCitymapResolveParentId(PDO $pdo, string $parentPublicId): ?int
@@ -991,7 +1127,13 @@ function avesmapsCitymapIdByPublicId(PDO $pdo, string $publicId): int
 // the part that matters -- the resolver (avesmapsResolvePlacesInTable) and the wiki-key lookup
 // (avesmapsAdventureWikiKeyByPublicId), so a place resolves identically on both surfaces.
 
-function avesmapsAddCitymapPlace(PDO $pdo, string $citymapPublicId, array $data): array
+// $origin mirrors avesmapsUpsertCitymap's: 'community' when the place came from an approved reader
+// suggestion (Spec §3.8), 'manual' when an editor added it. Not cosmetic in two ways -- the editor prints
+// it per place (html/citymap-editor.html:775 renders "Community" vs "manuell"), so a hardcoded 'manual'
+// would credit a reader's suggestion to an editor, right next to a map badged "Community"; and
+// avesmapsSuppressCitymapPlace tombstones every non-'manual' place instead of deleting it, a rule
+// commit 579d21c2 widened from 'community' to "not manual" for exactly this origin.
+function avesmapsAddCitymapPlace(PDO $pdo, string $citymapPublicId, array $data, string $origin = 'manual'): array
 {
     avesmapsCitymapsEnsureTables($pdo);
     $citymapId = avesmapsCitymapIdByPublicId($pdo, $citymapPublicId);
@@ -1020,7 +1162,7 @@ function avesmapsAddCitymapPlace(PDO $pdo, string $citymapPublicId, array $data)
     $pdo->prepare(
         "INSERT INTO citymap_place
             (citymap_id, sort_order, raw_name, target_kind, target_public_id, target_wiki_key, origin, status)
-         VALUES (:id, :sort_order, :raw_name, :target_kind, :target_public_id, :target_wiki_key, 'manual', 'approved')"
+         VALUES (:id, :sort_order, :raw_name, :target_kind, :target_public_id, :target_wiki_key, :origin, 'approved')"
     )->execute([
         'id' => $citymapId,
         'sort_order' => $sortOrder,
@@ -1028,6 +1170,7 @@ function avesmapsAddCitymapPlace(PDO $pdo, string $citymapPublicId, array $data)
         'target_kind' => $targetKind,
         'target_public_id' => $targetPublicId === '' ? null : $targetPublicId,
         'target_wiki_key' => $targetWikiKey === '' ? null : $targetWikiKey,
+        'origin' => avesmapsCitymapNormalizeOrigin($origin),
     ]);
     $placeId = (int) $pdo->lastInsertId();
 

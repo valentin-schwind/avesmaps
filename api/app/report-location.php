@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require __DIR__ . '/../_internal/app/report-context.php';
+// Kartensammlung community suggestion (Spec §3.8): the citymap vocabulary (arts, type keys, tri-bools,
+// URL rules) and the payload whitelist live in the citymap library, so this endpoint validates a proposed
+// map against THE SAME definitions the editor writes through -- rather than growing a second, drifting
+// copy of them here. Pure function definitions + consts; nothing runs on require.
+require __DIR__ . '/../_internal/app/citymaps.php';
 
 const AVESMAPS_REPORT_TYPES = [
     'location' => ['type' => 'location', 'subtype' => 'dorf'],
@@ -29,6 +34,10 @@ const AVESMAPS_REPORT_TYPES = [
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],
     'territorium' => ['type' => 'territory', 'subtype' => 'territorium'],
+    // Kartensammlung suggestion (Spec §3.8). Unlike every entry above it, this one does not propose a
+    // map_features row: report_type 'citymap' is what routes the review "Anlegen" to the citymap creator
+    // instead of the location/label editors -- see the dispatch in js/routing/routing.js.
+    'karte' => ['type' => 'citymap', 'subtype' => 'karte'],
 ];
 const AVESMAPS_LOCATION_SUBTYPES = ['dorf', 'gebaeude', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
 const AVESMAPS_REPORT_MAP_MAX_COORDINATE = 1024.0;
@@ -91,6 +100,7 @@ try {
             lng,
             source,
             sources_json,
+            payload_json,
             wiki_url,
             comment,
             page_url,
@@ -113,6 +123,7 @@ try {
             :lng,
             :source,
             :sources_json,
+            :payload_json,
             :wiki_url,
             :comment,
             :page_url,
@@ -139,6 +150,7 @@ try {
         'lng' => $mapReport['lng'],
         'source' => $mapReport['source'],
         'sources_json' => json_encode($mapReport['sources'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'payload_json' => $mapReport['payload_json'] ?? null,
         'wiki_url' => $mapReport['wiki_url'],
         'comment' => $mapReport['comment'],
         'page_url' => $mapReport['page_url'],
@@ -231,6 +243,14 @@ function avesmapsValidateMapReport(array $payload): array {
         throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
     }
 
+    // Kartensammlung suggestion (§3.8): the proposed map itself travels in payload_json, whitelisted by
+    // avesmapsNormalizeCitymapReportPayload -- notably WITHOUT any licence field, so a reporter cannot
+    // talk us into publishing an image (see the rationale on that function). Everything else about the
+    // report -- honeypot, elapsed_ms, rate limit, sources, position -- behaves like any other 'new' one.
+    $citymapReport = $requestedType === 'karte'
+        ? avesmapsNormalizeCitymapReportPayload($payload['citymap'] ?? null)
+        : null;
+
     // Multi-source #3 (community source suggestions): the reporter fills the SAME source fields an editor
     // fills by hand (title / link / pages / type / official) and MAY list several sources. On "Anlegen"
     // each becomes a real feature_sources link. Accept the structured array; fall back to the legacy
@@ -257,7 +277,16 @@ function avesmapsValidateMapReport(array $payload): array {
     }
 
     $sourceSpamText = implode(' ', array_map(static fn(array $entry): string => $entry['label'] . ' ' . $entry['url'], $sources));
-    $spamText = implode(' ', [$name, $sourceSpamText, $wikiUrl, $comment, (string) ($payload['reporter_name'] ?? '')]);
+    // The citymap's own free text is spam-checked too. It is reader-authored prose and links exactly like
+    // the fields beside it -- leaving it out would make 'karte' the one report type with an unchecked
+    // writing surface, which is precisely where spam would settle.
+    $citymapSpamText = $citymapReport === null ? '' : implode(' ', [
+        (string) $citymapReport['citymap']['author'],
+        (string) $citymapReport['citymap']['note'],
+        (string) $citymapReport['citymap']['map_url'],
+        (string) $citymapReport['citymap']['thumb_url'],
+    ]);
+    $spamText = implode(' ', [$name, $sourceSpamText, $wikiUrl, $comment, $citymapSpamText, (string) ($payload['reporter_name'] ?? '')]);
     if (avesmapsContainsSpamText($spamText) || avesmapsIsLinkOnlyText($comment)) {
         return [
             'is_spam' => true,
@@ -281,6 +310,10 @@ function avesmapsValidateMapReport(array $payload): array {
         'report_mode' => $changeContext['mode'],
         'entity_type' => $changeContext['entity_type'],
         'entity_public_id' => $changeContext['entity_public_id'],
+        // NULL for every type but 'karte' -> the column stays empty on the reports that do not use it.
+        'payload_json' => $citymapReport === null
+            ? null
+            : json_encode($citymapReport, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ];
 }
 
@@ -484,6 +517,10 @@ function avesmapsEnsureMapReportsTable(PDO $pdo): void {
     avesmapsEnsureMapReportColumn($pdo, 'report_mode', "VARCHAR(16) NOT NULL DEFAULT 'new' AFTER report_subtype");
     avesmapsEnsureMapReportColumn($pdo, 'entity_type', 'VARCHAR(20) NULL AFTER report_mode');
     avesmapsEnsureMapReportColumn($pdo, 'entity_public_id', 'VARCHAR(80) NULL AFTER entity_type');
+    // Kartensammlung suggestion (§3.8): the whole proposed map as JSON. Only report_type='citymap' fills
+    // it. A generic column rather than ~15 citymap columns on a table about map_features reports -- the
+    // shape is the citymap library's business, and it is read back through the same whitelist that wrote it.
+    avesmapsEnsureMapReportColumn($pdo, 'payload_json', 'TEXT NULL AFTER sources_json');
 }
 
 function avesmapsEnsureMapReportColumn(PDO $pdo, string $columnName, string $columnDefinition): void {

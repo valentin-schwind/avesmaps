@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
+// Kartensammlung suggestion (Spec §3.8): approving a 'karte' report creates the map right here. Same
+// three libraries api/edit/map/citymaps.php pulls in for the identical job -- avesmapsUuidV4() lives in
+// the map-features lib, the place resolver in adventure-resolve, and the write logic itself in the
+// citymap library (which also brings feature-sources, used below to link the reported sources).
+require_once __DIR__ . '/../../_internal/map/features.php';
+require_once __DIR__ . '/../../_internal/app/citymaps.php';
+require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -31,6 +38,7 @@ try {
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
     $response = match ($action) {
         'update_status' => avesmapsUpdateLocationReportReviewStatus($pdo, $payload, $user),
+        'create_citymap' => avesmapsCreateCitymapFromReport($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Review-Aktion ist unbekannt.'),
     };
 
@@ -65,6 +73,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             lng,
             source,
             sources_json,
+            payload_json,
             wiki_url,
             comment,
             page_url,
@@ -84,6 +93,13 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
         // Multi-source #3: expose the source list (array) to the client; drop the raw JSON column.
         $report['sources'] = avesmapsDecodeReportSources($report['sources_json'] ?? null, (string) ($report['source'] ?? ''));
         unset($report['sources_json']);
+        // Kartensammlung suggestion (§3.8): hand the review UI the decoded map so it can show WHAT is being
+        // proposed. Decoded, not re-normalized -- the whitelist ran on the way in; re-running it here would
+        // turn a payload written under older rules into a silent 500 in the middle of the report list.
+        $report['citymap'] = ($report['report_type'] ?? '') === 'citymap'
+            ? (json_decode((string) ($report['payload_json'] ?? ''), true) ?: null)
+            : null;
+        unset($report['payload_json']);
         $reports[] = $report;
     }
 
@@ -185,6 +201,118 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
     ];
 }
 
+// Spec §3.8: approving a 'karte' report is what CREATES the map. This does NOT follow the location flow
+// (prefill the editor -> the editor's own save creates -> report approved, review-editor-submit.js:93):
+// the citymap editor is a self-contained iframe page, not an in-page form, so there is no form to prefill.
+//
+// Server-side and in one call is also the only place two invariants can be GUARANTEED rather than
+// requested. Had the client driven the citymap editor's normal save instead, that path would write
+// origin='manual' and whatever licence its form held -- turning a stranger's claim into a published image.
+// Here the licence is simply never written: avesmapsNormalizeCitymapReportPayload never returns one, so
+// the INSERT never names the column and the NOT NULL DEFAULT 'unknown_other' stands (Spec §3.3).
+//
+// Not transactional, deliberately: the pieces after the citymap (types, place, sources) are additive, and
+// a half-linked map that an editor finishes by hand is a far better failure than a rejected approval whose
+// report has already been consumed. The report is only marked approved once the map exists.
+function avesmapsCreateCitymapFromReport(PDO $pdo, array $payload, array $user): array {
+    // The endpoint gate is `review`, which a reviewer holds and which does NOT include `edit`
+    // (auth.php:81 -- edit = admin|editor, review = admin|editor|reviewer). Creating a citymap is an edit.
+    // Approving a location report is already effectively edit-gated for the same reason: its "Anlegen"
+    // goes through api/edit/map/*, which a pure reviewer cannot call. Without this check, routing the
+    // citymap write through the reports endpoint would hand reviewers a write they do not otherwise have.
+    if (!avesmapsUserCan($user, 'edit')) {
+        avesmapsErrorResponse(403, 'forbidden', 'Zum Anlegen einer Karte fehlt dir die Berechtigung.');
+    }
+
+    $reportId = filter_var($payload['report_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($reportId === false || $reportId <= 0) {
+        throw new InvalidArgumentException('Es wurde keine gueltige report_id uebergeben.');
+    }
+
+    avesmapsEnsureMapReportsTableForReview($pdo);
+    $statement = $pdo->prepare(
+        "SELECT id, name, payload_json, sources_json, source
+         FROM map_reports
+         WHERE id = :id AND status = 'neu' AND report_type = 'citymap'
+         LIMIT 1"
+    );
+    $statement->execute(['id' => $reportId]);
+    $report = $statement->fetch();
+    if ($report === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Die Kartenmeldung wurde bereits verarbeitet oder nicht gefunden.');
+    }
+
+    // Re-run the whitelist on the way OUT, not just on the way in. The row has sat in a table since it was
+    // written, and this is the last point before the values become a public citymap -- so the licence rule
+    // holds even for a payload some future/older writer stored more loosely than today's endpoint would.
+    // Before the claim below, so a payload we cannot use fails with a 400 and leaves the report untouched.
+    $normalized = avesmapsNormalizeCitymapReportPayload(json_decode((string) ($report['payload_json'] ?? ''), true));
+
+    $userId = (int) ($user['id'] ?? 0);
+    // CLAIM FIRST, create second. Two reviewers double-clicking would otherwise both pass the SELECT above
+    // and each create a map, leaving a silent duplicate for someone to find later; this way the loser's
+    // UPDATE matches no row and it creates nothing. The inverse risk -- a crash between claim and create,
+    // spending the report without producing a map -- is the better one: it is loud (the reviewer sees the
+    // error) and recoverable (the row keeps its payload_json). A transaction is not an option here:
+    // avesmapsUpsertCitymap runs CREATE TABLE IF NOT EXISTS, and DDL implicitly commits in MySQL.
+    $claim = $pdo->prepare(
+        "UPDATE map_reports
+         SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = :reviewed_by
+         WHERE id = :report_id AND status = 'neu'"
+    );
+    $claim->execute([
+        'reviewed_by' => $userId ?: null,
+        'report_id' => $reportId,
+    ]);
+    if ($claim->rowCount() < 1) {
+        avesmapsErrorResponse(409, 'conflict', 'Die Kartenmeldung wurde soeben von jemand anderem verarbeitet.');
+    }
+
+    $created = avesmapsUpsertCitymap($pdo, $normalized['citymap'], $userId, 'community');
+    $citymapPublicId = (string) $created['public_id'];
+
+    if ($normalized['types'] !== []) {
+        avesmapsSetCitymapTypes($pdo, $citymapPublicId, $normalized['types']);
+    }
+    if ($normalized['place'] !== []) {
+        // 'community' wie die Karte selbst: der Ort kommt aus derselben Meldung. Der Editor zeigt die
+        // Provenienz je Ort an -- 'manual' hiesse, die Zuordnung sei von uns.
+        avesmapsAddCitymapPlace($pdo, $citymapPublicId, $normalized['place'], 'community');
+    }
+
+    // Multi-source #3, exactly as the location approval does it (review-editor-submit.js:71): every
+    // reported source WITH a link becomes a real feature_source on the new map, deduped against the shared
+    // catalogue by url_hash. A link-less source cannot be one -- it survives as the report's own `source`
+    // label, which the review list shows, and an editor can type it in.
+    $linkedSources = 0;
+    foreach (avesmapsDecodeReportSources($report['sources_json'] ?? null, (string) ($report['source'] ?? '')) as $source) {
+        if (($source['url'] ?? '') === '' || ($source['label'] ?? '') === '') {
+            continue;
+        }
+        avesmapsAddFeatureSource(
+            $pdo,
+            'citymap',
+            $citymapPublicId,
+            (string) $source['url'],
+            (string) $source['label'],
+            (string) ($source['type'] ?? 'sonstiges'),
+            (bool) ($source['official'] ?? false),
+            $userId,
+            (string) ($source['pages'] ?? ''),
+            (string) ($source['reference_kind'] ?? '')
+        );
+        $linkedSources++;
+    }
+
+    return [
+        'ok' => true,
+        'message' => 'Die Karte wurde angelegt.',
+        'public_id' => $citymapPublicId,
+        'linked_sources' => $linkedSources,
+        'reviewed_by' => $user['username'] ?? '',
+    ];
+}
+
 function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS map_reports (
@@ -219,6 +347,7 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
     // report is submitted (report-location.php adds them too; this is the defensive read-side gate).
     foreach ([
         'sources_json'     => 'TEXT NULL',
+        'payload_json'     => 'TEXT NULL',
         'report_mode'      => "VARCHAR(16) NOT NULL DEFAULT 'new' AFTER report_subtype",
         'entity_type'      => 'VARCHAR(20) NULL AFTER report_mode',
         'entity_public_id' => 'VARCHAR(80) NULL AFTER entity_type',

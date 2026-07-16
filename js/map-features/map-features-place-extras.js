@@ -178,11 +178,27 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	var cards = maps.map(cityMapCardMarkup).join("");
 	var name = placeName || tr("cityMaps.fallbackPlace", "diesem Ort");
 	// data-citymap-territory-key marks a territory/region block so the dialog can rebuild the SAME set
-	// from the catalog; the settlement block carries its place ref instead.
+	// from the catalog.
 	var scopeAttr = opts.territoryKey
 		? ' data-citymap-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"'
 		: "";
-	return '<div class="avesmaps-citymaps"' + scopeAttr + '>'
+	// Ortsreferenz (§3.8): "Karte vorschlagen" haengt den Vorschlag an genau den Ort, aus dessen
+	// Kartensammlung der Dialog geoeffnet wurde -- der Melder soll den Ort nicht abtippen, den er gerade
+	// offen hat. Bis hierher trug NUR der Territoriumsblock eine Referenz (fuer den Set-Rebuild); der
+	// Kommentar daneben behauptete zwar, der Siedlungsblock trage "seine place ref", aber alle drei
+	// anderen Aufrufer uebergaben {}.
+	//
+	// kind+publicId genuegt: den wiki_key leitet der Server aus der id ab (avesmapsAddCitymapPlace), was
+	// die §3.9-Falle gar nicht erst aufmacht -- Server-Slug (ö->oe) und Client-Normalisierer (ö->o)
+	// divergieren. Nur das Territorium schickt einen Key, und zwar den, den der SERVER geliefert hat.
+	var place = opts.place || null;
+	var placeAttr = place
+		? ' data-citymap-place-kind="' + placeExtrasEscape(place.kind || "")
+			+ '" data-citymap-place-name="' + placeExtrasEscape(place.name || name)
+			+ '" data-citymap-place-id="' + placeExtrasEscape(place.publicId || "")
+			+ '" data-citymap-place-key="' + placeExtrasEscape(place.wikiKey || "") + '"'
+		: "";
+	return '<div class="avesmaps-citymaps"' + scopeAttr + placeAttr + '>'
 		+ '<div class="avesmaps-citymaps__head">' + tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
 		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape(maps.length) + ')</span></div>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
@@ -197,7 +213,13 @@ function buildPlaceCityMapsMarkup(location) {
 		return "";
 	}
 	var placeName = (location && location.name) ? location.name : tr("cityMaps.fallbackPlace", "diesem Ort");
-	return buildCityMapsSectionMarkup(placeName, maps, {});
+	return buildCityMapsSectionMarkup(placeName, maps, {
+		place: {
+			kind: "settlement",
+			name: placeName,
+			publicId: (location && (location.publicId || location.public_id)) || "",
+		},
+	});
 }
 
 // Territorium/Region-Polygon: die ueber den politischen Subtree aggregierten Karten. Nutzt den
@@ -212,7 +234,12 @@ function buildTerritoryCityMapsMarkup(regionEntry) {
 	var wikiKey = detail ? (detail.wiki_key || "") : "";
 	if (wikiKey) {
 		var maps = getCityMapsForTerritory(wikiKey);
-		return maps.length ? buildCityMapsSectionMarkup(name, maps, { territoryKey: wikiKey }) : "";
+		return maps.length ? buildCityMapsSectionMarkup(name, maps, {
+			territoryKey: wikiKey,
+			// Der einzige Fall, der einen wiki_key mitschickt -- und zwar den SERVER-Key aus
+			// territory-detail.php (oben aus detail.wiki_key gelesen), nie einen clientnormalisierten (§3.9).
+			place: { kind: "territory", name: name, wikiKey: wikiKey },
+		}) : "";
 	}
 	// Landscape region rendered as a POLYGON (no political territoryPublicId): maps assigned DIRECTLY to
 	// this region, matched by its public_id.
@@ -220,7 +247,9 @@ function buildTerritoryCityMapsMarkup(regionEntry) {
 		return "";
 	}
 	var regionMaps = getCityMapsForRegion(regionEntry);
-	return regionMaps.length ? buildCityMapsSectionMarkup(name, regionMaps, {}) : "";
+	return regionMaps.length ? buildCityMapsSectionMarkup(name, regionMaps, {
+		place: { kind: "region", name: name, publicId: regionEntry.publicId || regionEntry.public_id || "" },
+	}) : "";
 }
 
 // Landschafts-Region-LABEL: die diesem Label direkt zugeordneten Karten, exakt ueber label.publicId.
@@ -236,7 +265,9 @@ function buildRegionCityMapsMarkup(label) {
 		return "";
 	}
 	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || tr("cityMaps.fallbackRegion", "dieser Region");
-	return buildCityMapsSectionMarkup(name, maps, {});
+	return buildCityMapsSectionMarkup(name, maps, {
+		place: { kind: "region", name: name, publicId: label.publicId || label.public_id || "" },
+	});
 }
 
 // Weg/Fluss: Match primaer ueber die wiki_path-Namensgruppe (robust, da ein Weg aus vielen Segmenten
@@ -249,15 +280,18 @@ function buildPathCityMapsMarkup(path) {
 		return "";
 	}
 	var wikiPath = (path.properties && path.properties.wiki_path) || null;
+	var pathPublicId = (typeof getPathPublicId === "function") ? getPathPublicId(path) : (path.public_id || "");
 	var maps = getCityMapsForPath({
-		publicId: (typeof getPathPublicId === "function") ? getPathPublicId(path) : (path.public_id || ""),
+		publicId: pathPublicId,
 		wikiKey: (wikiPath && wikiPath.wiki_key) || "",
 	});
 	if (!maps.length) {
 		return "";
 	}
 	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || tr("cityMaps.fallbackPath", "diesem Weg"));
-	return buildCityMapsSectionMarkup(name, maps, {});
+	return buildCityMapsSectionMarkup(name, maps, {
+		place: { kind: "path", name: name, publicId: pathPublicId },
+	});
 }
 
 // ---- Kartensammlung-Dialog: Filterleiste + Zeile (Spec §3.7) --------------------------------------

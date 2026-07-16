@@ -267,7 +267,13 @@ function renderReviewReports() {
 			</div>
 		`;
 		itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Eintrag";
-		itemElement.querySelector(".review-report__meta").textContent = `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
+		// Bei einer Kartenmeldung ist die Koordinate nur ein grober Anker (§3.8: verbindlich ist der Ort in
+		// payload_json) -- sie hier zu zeigen laedt dazu ein, sie fuer eine Aussage zu halten. Der Ort, an
+		// den die Karte kommt, ist die Information, auf die es bei der Freigabe ankommt.
+		const citymapProposal = isCitymapReport(report) ? (report.citymap || null) : null;
+		itemElement.querySelector(".review-report__meta").textContent = citymapProposal
+			? `${getReportTypeLabel(report)} · ${citymapProposal.place?.raw_name || "ohne Ort"}`
+			: `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
 		const reportSources = Array.isArray(report.sources) ? report.sources : [];
 		const sourceSummary = reportSources.length
 			? reportSources.map((source) => source.label + (source.pages ? ` (S. ${source.pages})` : "")).filter(Boolean).join("; ")
@@ -291,6 +297,41 @@ function renderReviewReports() {
 		}
 		if (isCommentReport(report)) {
 			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
+		}
+		// Kartensammlungs-Vorschlag (§3.8): zeigen, WAS vorgeschlagen wird. Der Titel steht schon oben, aber
+		// der Karten-Link ist das, was der Pruefer aufmachen muss, um ueberhaupt entscheiden zu koennen --
+		// und er steht sonst nirgends in der Liste. Rein per DOM gebaut (kein innerHTML): der Inhalt ist
+		// Fremdtext aus einer oeffentlichen Meldung, wie beim Change-Ref-Block darunter.
+		if (citymapProposal && citymapProposal.citymap) {
+			const proposed = citymapProposal.citymap;
+			const detailElement = document.createElement("div");
+			detailElement.className = "review-report__citymap";
+			if (proposed.map_url) {
+				const link = document.createElement("a");
+				link.className = "review-report__citymap-link";
+				link.href = proposed.map_url;
+				link.target = "_blank";
+				link.rel = "noopener noreferrer";
+				link.textContent = proposed.map_url + " ↗";
+				detailElement.appendChild(link);
+			}
+			// Was der Melder sonst noch wusste. Die LIZENZ fehlt hier bewusst und ist kein vergessenes Feld:
+			// der Melder darf keine angeben (§3.8), die Karte entsteht auf 'unknown_other', und der Pruefer
+			// klassifiziert sie im Karten-Editor.
+			const facts = [
+				(citymapProposal.types || []).join(", "),
+				proposed.art || "",
+				proposed.author ? `von ${proposed.author}` : "",
+				proposed.thumb_url ? "Vorschau-Link vorgeschlagen (erst nach Lizenzprüfung sichtbar)" : "",
+				proposed.note || "",
+			].filter(Boolean);
+			if (facts.length) {
+				const factsElement = document.createElement("div");
+				factsElement.className = "review-report__citymap-facts";
+				factsElement.textContent = facts.join(" · ");
+				detailElement.appendChild(factsElement);
+			}
+			itemElement.querySelector(".review-report__focus").after(detailElement);
 		}
 		// Change-mode reports: show what element the change suggestion refers to.
 		if (report.report_mode === "change" && report.entity_type) {
@@ -567,6 +608,7 @@ function getReportTypeLabel(report) {
 		sonstiges: "Sonstiges",
 		weg: "Weg/Straße",
 		territorium: "Herrschaftsgebiet",
+		karte: "Karte",
 	}[reportSubtype] || reportSubtype || "Karteneintrag";
 }
 
@@ -576,6 +618,12 @@ function isLocationReport(report) {
 
 function isCommentReport(report) {
 	return (report.report_type || "") === "comment" || (report.report_subtype || "") === "comment";
+}
+
+// Kartensammlungs-Vorschlag (§3.8). Der einzige Meldungstyp, der KEINE map_features-Zeile vorschlaegt --
+// "Anlegen" legt eine citymap an, nicht einen Punkt oder ein Label.
+function isCitymapReport(report) {
+	return (report.report_type || "") === "citymap";
 }
 
 function findReviewReportFromElement(element) {

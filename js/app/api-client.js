@@ -312,6 +312,30 @@ async function updateReviewReportStatus(reportId, status, reportSource = "locati
 	}
 }
 
+// Kartensammlungs-Vorschlag (§3.8): "Anlegen" auf einer Kartenmeldung. Legt die citymap serverseitig an
+// (origin='community', ohne jede vom Melder behauptete Lizenz), verknuepft Ort + Quellen und setzt die
+// Meldung in EINEM Aufruf auf approved -- deshalb kein anschliessendes updateReviewReportStatus.
+async function createCitymapFromReviewReport(reportId) {
+	const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action: "create_citymap",
+			report_id: reportId,
+		}),
+	});
+	const data = await readJsonResponse(response);
+
+	if (!response.ok || !data?.ok) {
+		throw new Error(apiErrorMessage(data, `Review-API antwortet mit HTTP ${response.status}.`));
+	}
+	return data;
+}
+
 async function submitWikiSyncLocationAction(action, payload = {}) {
 	const response = await fetch(WIKI_SYNC_LOCATIONS_API_URL, {
 		method: "POST",

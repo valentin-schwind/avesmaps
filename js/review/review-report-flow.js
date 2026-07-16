@@ -148,6 +148,32 @@ function clearChangeReportFieldMarks() {
 	document.querySelectorAll(".field--change-proposed").forEach((el) => el.classList.remove("field--change-proposed"));
 }
 
+// Kartensammlungs-Vorschlag (§3.8): "Anlegen" legt die Karte SERVERSEITIG an -- anders als beim Ort, wo der
+// Editor-Dialog vorbefuellt wird und dessen eigenes Speichern anlegt (openLocationEditDialogFromReport).
+// Zwei Gruende, und beide sind hart:
+//   - Der Karten-Editor ist eine eigenstaendige iframe-Seite (html/citymap-editor.html), kein Formular in
+//     dieser Seite. Es gibt nichts vorzubefuellen.
+//   - Nur auf dem Server lassen sich origin='community' und "keine Lizenz vom Melder" GARANTIEREN statt
+//     erbitten: liefe die Freigabe ueber das normale Speichern des Editors, schriebe sie origin='manual'
+//     und die Lizenz, die zufaellig im Formular stand.
+// Danach oeffnet sich der Editor auf der frischen Karte -- der Pruefer landet genau dort, wo er die Lizenz
+// klassifiziert und ein Vorschaubild freigibt. Ohne diesen Schritt waere "Anlegen" fertig und die Karte
+// erschiene bildlos, ohne dass jemand merkt, dass da noch etwas zu tun ist.
+async function createCitymapFromReport(report) {
+	try {
+		const result = await createCitymapFromReviewReport(Number(report.id));
+		clearReviewReportMarker();
+		showFeedbackToast(result.message || "Die Karte wurde angelegt.", "success");
+		await loadReviewReports();
+		if (typeof openAvesmapsCitymapEditorOverlay === "function" && result.public_id) {
+			openAvesmapsCitymapEditorOverlay(result.public_id);
+		}
+	} catch (error) {
+		console.error("Karte konnte nicht angelegt werden:", error);
+		showFeedbackToast(error.message || "Karte konnte nicht angelegt werden.", "warning");
+	}
+}
+
 async function rejectReviewReport(report) {
 	if (!window.confirm(`${report.name || "Meldung"} wirklich verwerfen?`)) {
 		return;

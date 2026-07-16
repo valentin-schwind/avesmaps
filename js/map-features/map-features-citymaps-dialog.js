@@ -52,7 +52,12 @@
 			closeBtn.addEventListener("click", close);
 		}
 		document.addEventListener("keydown", function (e) {
-			if (e.key === "Escape" && overlay.classList.contains("is-open")) { close(); }
+			if (e.key !== "Escape" || !overlay.classList.contains("is-open")) { return; }
+			// Der Vorschlags-Dialog (§3.8) liegt UEBER diesem und hoert auf denselben document-Escape. Ohne
+			// diesen Riegel schloesse EIN Tastendruck beide -- der Leser will den Vorschlag abbrechen und
+			// verlaere dabei die Kartenliste, aus der er ihn geoeffnet hat.
+			if (document.querySelector("#avesmaps-citymap-suggest.is-open")) { return; }
+			close();
 		});
 		return overlay;
 	}
@@ -218,11 +223,24 @@
 
 		var foot = overlay.querySelector(".avesmaps-citymaps-dialog__foot");
 		if (foot) {
-			// Fusszeile (§3.7). Der "Karte vorschlagen"-Button (§3.8) fehlt bewusst -- der Community-Weg
-			// ist eine eigene Sitzung; ein Button, der nichts oeffnet, waere schlimmer als keiner.
+			// Fusszeile (§3.7): Hinweis + "Karte vorschlagen" (§3.8).
+			//
+			// Die Ortsreferenz reist als data-Attribute AM BUTTON mit, nicht in einer Modulvariablen: der
+			// Dialog ist EINE wiederverwendete Huelle (ensureDialog), die beim naechsten Oeffnen einen
+			// anderen Ort zeigt -- eine gemerkte Referenz waere genau einmal falsch, naemlich dann, wenn
+			// jemand zwei Orte nacheinander ansieht und beim zweiten vorschlaegt.
 			foot.innerHTML = '<span class="avesmaps-citymaps-dialog__hint">'
 				+ esc(tr("cityMaps.footHint", "Karten sind externe Verweise. Vorschau nur bei freier Lizenz."))
-				+ '</span>';
+				+ '</span>'
+				+ '<button type="button" class="avesmaps-citymaps-dialog__suggest"'
+				+ ' data-citymap-place-kind="' + esc(section.getAttribute("data-citymap-place-kind") || "") + '"'
+				// KEIN Rueckfall auf baseTitle: das ist "Kartensammlung von Gareth", nicht "Gareth" -- als
+				// raw_name entstuende ein Ort dieses Namens. Leer ist richtig: der Server legt dann gar
+				// keinen Ort an, und eine Karte ohne Ort ist ein gueltiger Zustand (§3.1).
+				+ ' data-citymap-place-name="' + esc(section.getAttribute("data-citymap-place-name") || "") + '"'
+				+ ' data-citymap-place-id="' + esc(section.getAttribute("data-citymap-place-id") || "") + '"'
+				+ ' data-citymap-place-key="' + esc(section.getAttribute("data-citymap-place-key") || "") + '"'
+				+ '>' + esc(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>';
 		}
 
 		buildControls(overlay, shapes);

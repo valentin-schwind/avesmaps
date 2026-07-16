@@ -296,6 +296,21 @@
 	overflow-wrap: anywhere;
 }
 
+/* Kartensammlungs-Vorschlag (§3.8): der Karten-Link ist das, was der Prüfer aufmachen muss, um überhaupt
+   entscheiden zu können — er darf umbrechen statt die Zeile zu sprengen. */
+.review-report__citymap {
+	padding: 2px 0 4px;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+.review-report__citymap-link {
+	color: var(--color-link);
+}
+.review-report__citymap-facts {
+	margin-top: 2px;
+	color: var(--color-text-muted);
+}
+
 /* The reporter's free-text comment, shown under every report row so no user text is hidden. */
 .review-report__comment {
 	margin-top: 4px;

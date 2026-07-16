@@ -567,6 +567,12 @@ $(document).on("click", ".review-report__create", function (event) {
 		}
 		return;
 	}
+	// Kartensammlungs-Vorschlag (§3.8) VOR dem Label-Zweig: der faellt am Ende ungeprueft durch, und eine
+	// Kartenmeldung landete sonst im Label-Editor -- als Label mit dem Kartentitel als Text.
+	if (isCitymapReport(report)) {
+		void createCitymapFromReport(report);
+		return;
+	}
 
 	openLabelEditDialogFromReport(report, latlng);
 });

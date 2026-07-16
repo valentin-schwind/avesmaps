@@ -117,7 +117,37 @@ assert.ok(section.includes("avesmaps-citymaps__all"), "section offers 'Alle anze
 // A territory block is tagged so the dialog can rebuild the same set.
 assert.ok(buildCityMapsSectionMarkup("Garetien", [{ public_id: "m", title: "T" }], { territoryKey: "wiki:Garetien" })
   .includes('data-citymap-territory-key="wiki:Garetien"'));
+// No place ref given -> no place attributes at all. "Karte vorschlagen" then has nothing to hang a
+// suggestion on, which is the honest state -- better than an empty target_kind that resolves to nothing.
+assert.ok(!section.includes("data-citymap-place-kind"), "no opts.place -> no place attributes");
 console.log("citymap section ok");
+
+// ---- place ref for "Karte vorschlagen" (§3.8) -------------------------------------------------------
+// The suggestion hangs on the place whose Kartensammlung the reader had open, so the section has to carry
+// that identity down to the dialog's footer button. Until §3.8 only the territory block was tagged at all.
+const placed = buildCityMapsSectionMarkup("Gareth", [{ public_id: "m", title: "T" }], {
+  place: { kind: "settlement", name: "Gareth", publicId: "abc-123" },
+});
+assert.ok(placed.includes('data-citymap-place-kind="settlement"'));
+assert.ok(placed.includes('data-citymap-place-name="Gareth"'));
+assert.ok(placed.includes('data-citymap-place-id="abc-123"'));
+assert.ok(placed.includes('data-citymap-place-key=""'), "no wiki key is a valid state, not a missing one");
+// The territory case is the only one sending a key -- and it is the SERVER key (§3.9: the client
+// normaliser turns ö into o where the server slug turns it into oe, so a client-made key would miss).
+const placedTerritory = buildCityMapsSectionMarkup("Garetien", [{ public_id: "m", title: "T" }], {
+  territoryKey: "Garetien", place: { kind: "territory", name: "Garetien", wikiKey: "Garetien" },
+});
+assert.ok(placedTerritory.includes('data-citymap-place-kind="territory"'));
+assert.ok(placedTerritory.includes('data-citymap-place-key="Garetien"'));
+assert.ok(placedTerritory.includes('data-citymap-territory-key="Garetien"'), "the set-rebuild tag survives alongside");
+// A place name is reader-visible foreign text and lands in an ATTRIBUTE -- an unescaped quote would break
+// out of it and the following attributes would become markup.
+const placedNasty = buildCityMapsSectionMarkup("X", [{ public_id: "m", title: "T" }], {
+  place: { kind: "settlement", name: '"><img src=x onerror=alert(1)>', publicId: "id" },
+});
+assert.ok(!placedNasty.includes("onerror=alert(1)>"), "place name is escaped inside the attribute");
+assert.ok(placedNasty.includes("&quot;&gt;&lt;img"), "…and escaped rather than stripped");
+console.log("citymap place ref ok");
 
 // ---- row --------------------------------------------------------------------------------------------
 const row = buildCityMapRowMarkup({
