@@ -219,15 +219,41 @@ function avesmapsLinkCheckPruneOrphans(PDO $pdo): int
     )->rowCount();
 }
 
-// Counters for the editor panel: total / online / dead / unchecked / due.
-function avesmapsLinkCheckStatus(PDO $pdo): array
+// A scope restricts every link_status query below to the links ONE entity type references -- so the
+// "Abenteuer" tab checks adventure links only, and the "Karten" tab only maps, instead of everyone
+// paying for the whole 2851-link backlog. '' = no restriction (the CLI, which does want everything).
+//
+// Returns [sqlFragment, params] to append to a WHERE clause over `link_status`. EXISTS rather than a
+// JOIN: a URL referenced by several entities (the same F-Shop link hangs on many adventures) must stay
+// ONE row, and a JOIN would multiply it. The subquery is served by idx_link_ref_hash.
+// The type is BOUND, never interpolated -- it comes from a client.
+function avesmapsLinkCheckScopeClause(string $entityType): array
+{
+    if ($entityType === '') {
+        return ['', []];
+    }
+    return [
+        ' AND EXISTS (SELECT 1 FROM link_ref lr
+                       WHERE lr.url_hash = link_status.url_hash AND lr.entity_type = :scope)',
+        ['scope' => $entityType],
+    ];
+}
+
+// Counters for the editor panel: total / online / dead / unchecked / due. $entityType scopes them to one
+// type's links ('' = the whole registry).
+function avesmapsLinkCheckStatus(PDO $pdo, string $entityType = ''): array
 {
     avesmapsLinkCheckEnsureTables($pdo);
+    [$scopeSql, $scopeParams] = avesmapsLinkCheckScopeClause($entityType);
     // Counted against an explicit whitelist rather than against $status' own keys: 'total' and 'due'
     // live in the same array, and a state value colliding with either would silently overwrite a counter.
     $byState = ['unchecked' => 0, 'online' => 0, 'dead' => 0];
     $total = 0;
-    foreach ($pdo->query('SELECT state, COUNT(*) AS n FROM link_status GROUP BY state')->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+    $statement = $pdo->prepare(
+        'SELECT state, COUNT(*) AS n FROM link_status WHERE 1=1' . $scopeSql . ' GROUP BY state'
+    );
+    $statement->execute($scopeParams);
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
         $state = (string) $row['state'];
         $count = (int) $row['n'];
         $total += $count;
@@ -236,9 +262,13 @@ function avesmapsLinkCheckStatus(PDO $pdo): array
         }
     }
     $status = ['total' => $total] + $byState + ['due' => 0];
-    $status['due'] = (int) $pdo->query(
-        'SELECT COUNT(*) FROM link_status WHERE check_after IS NULL OR check_after <= NOW(3)'
-    )->fetchColumn();
+
+    $dueStatement = $pdo->prepare(
+        'SELECT COUNT(*) FROM link_status
+          WHERE (check_after IS NULL OR check_after <= NOW(3))' . $scopeSql
+    );
+    $dueStatement->execute($scopeParams);
+    $status['due'] = (int) $dueStatement->fetchColumn();
     return $status;
 }
 
@@ -317,9 +347,15 @@ function avesmapsLinkCheckWriteResult(PDO $pdo, int $id, array $probe, array $de
 // ONE bounded pass: lease up to AVESMAPS_LINK_CHECK_BATCH due links, probe them within the time budget,
 // write each verdict. Returns {done, checked, online, dead, remaining} -- the client loops until done.
 // $budgetSeconds = 0 removes the time cap (the CLI, which has no 28s ceiling).
-function avesmapsLinkCheckStep(PDO $pdo, int $budgetSeconds = AVESMAPS_LINK_CHECK_BUDGET_SECONDS): array
-{
+function avesmapsLinkCheckStep(
+    PDO $pdo,
+    int $budgetSeconds = AVESMAPS_LINK_CHECK_BUDGET_SECONDS,
+    string $entityType = ''
+): array {
     avesmapsLinkCheckEnsureTables($pdo);
+    // Selection AND the remaining-count below must use the SAME scope -- counting a wider set than we
+    // select would leave `done` permanently false and spin the client's loop forever.
+    [$scopeSql, $scopeParams] = avesmapsLinkCheckScopeClause($entityType);
 
     // A single probe may itself take up to the cURL timeout, so the wall clock can exceed the budget by
     // one probe. Raise the limit accordingly (pattern: dump-fetch.php:422). budget 0 means "no cap"
@@ -332,11 +368,11 @@ function avesmapsLinkCheckStep(PDO $pdo, int $budgetSeconds = AVESMAPS_LINK_CHEC
     $due = $pdo->prepare(
         'SELECT id, url, url_hash, state, fail_streak
            FROM link_status
-          WHERE check_after IS NULL OR check_after <= NOW(3)
+          WHERE (check_after IS NULL OR check_after <= NOW(3))' . $scopeSql . '
           ORDER BY check_after ASC, id ASC
           LIMIT ' . AVESMAPS_LINK_CHECK_BATCH
     );
-    $due->execute();
+    $due->execute($scopeParams);
     $rows = $due->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     // Lease one row at a time, immediately before probing it (§1.5) -- NOT the whole batch up front.
@@ -390,9 +426,12 @@ function avesmapsLinkCheckStep(PDO $pdo, int $budgetSeconds = AVESMAPS_LINK_CHEC
         }
     }
 
-    $remaining = (int) $pdo->query(
-        'SELECT COUNT(*) FROM link_status WHERE check_after IS NULL OR check_after <= NOW(3)'
-    )->fetchColumn();
+    $remainingStatement = $pdo->prepare(
+        'SELECT COUNT(*) FROM link_status
+          WHERE (check_after IS NULL OR check_after <= NOW(3))' . $scopeSql
+    );
+    $remainingStatement->execute($scopeParams);
+    $remaining = (int) $remainingStatement->fetchColumn();
 
     return [
         'done' => $remaining === 0,

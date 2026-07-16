@@ -393,6 +393,7 @@
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="adventures">
 						<div class="wiki-sync-panel__actions">
 							<button type="button" id="adventure-editor-open" class="wiki-sync-panel__start" title="Öffnet den Abenteuereditor (anlegen/bearbeiten, Orte zuordnen, enthält jetzt auch Syncen + Zuletzt gesynct).">Abenteuer Syncen &amp; Editieren</button><span id="adventure-editor-synced" class="wiki-sync-panel__summary" hidden></span>
+							<button type="button" id="link-check-start" class="wiki-sync-panel__start" data-link-check-scope="adventure" title="Prüft NUR die Links der Abenteuer (Shoplinks, Wiki-Seiten) auf Erreichbarkeit — Karten und Quellen bleiben unberührt. Höflich: 600ms Pause je Host, ein Durchlauf über alle Abenteuer dauert entsprechend.">Links prüfen</button><span class="wiki-sync-panel__summary" data-link-check-summary="adventure" hidden></span>
 						</div>
 						<!-- Kept hidden, NOT removed: startWikiSyncAdventuresSync/renderWikiSyncKindProgress/
 						     refreshWikiSyncKindSyncedStatus (js/review/review-wiki-sync.js) still target
@@ -412,9 +413,6 @@
 							</div>
 							<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
-						</div>
-						<div class="wiki-sync-panel__actions">
-							<button type="button" id="link-check-start" class="wiki-sync-panel__start" title="Prüft alle externen Links (Abenteuer-Shoplinks, Wiki-Seiten, Quellen) auf Erreichbarkeit. Baut zuerst die Registry auf, prüft dann die fälligen Links in Schritten. Höflich: 600ms Pause je Host — ein voller Durchlauf dauert.">Links prüfen</button><span id="link-check-summary" class="wiki-sync-panel__summary" hidden></span>
 						</div>
 					</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">

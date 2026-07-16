@@ -283,8 +283,11 @@ $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
 $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
 // Abenteuer (Phase 4): its OWN reconcile action (sync_adventures), not a sync_kind -- so its own handler.
 $("#wiki-sync-sync-adventure").on("click", () => startWikiSyncAdventuresSync());
-// Linkchecker: registry sync + probe loop, both driven from the client (STRATO has no cron).
-$("#link-check-start").on("click", () => startLinkCheck());
+// Linkchecker: registry sync + probe loop, both driven from the client (STRATO has no cron). Delegated
+// and keyed on the button's own scope, so a further tab's button (Karten, phase 3) needs markup only.
+$(document).on("click", "[data-link-check-scope]", (event) => {
+    startLinkCheck(String($(event.currentTarget).attr("data-link-check-scope") || ""));
+});
 $("#wiki-sync-dump-credentials-form").on("submit", (event) => {
     event.preventDefault();
     void submitWikiSyncDumpCredentials();

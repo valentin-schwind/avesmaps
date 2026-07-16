@@ -35,16 +35,24 @@ try {
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
 
+    // Optional scope: restrict sync/check_step/status to ONE entity type, so each editor tab checks its
+    // own links instead of the whole backlog. '' = everything (the CLI). Validated against the registry
+    // here -- an unknown type would silently match nothing and look like "already done".
+    $scope = trim((string) ($payload['entity_type'] ?? ''));
+    if ($scope !== '' && !array_key_exists($scope, avesmapsLinkCheckProviders())) {
+        avesmapsErrorResponse(400, 'invalid_request', 'Unbekannter entity_type: ' . $scope);
+    }
+
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     $result = match ($action) {
-        // Rebuild the registry, one provider per call (bounded, done-flag).
-        'sync' => ['ok' => true] + avesmapsLinkCheckSyncStep($pdo, trim((string) ($payload['cursor'] ?? ''))),
+        // Rebuild the registry: scoped -> one provider, done in a single call; unscoped -> cursor walk.
+        'sync' => ['ok' => true] + avesmapsLinkCheckSyncStep($pdo, trim((string) ($payload['cursor'] ?? '')), $scope),
 
-        // Probe one bounded batch of due links.
-        'check_step' => ['ok' => true] + avesmapsLinkCheckStep($pdo),
+        // Probe one bounded batch of due links (within the scope, if given).
+        'check_step' => ['ok' => true] + avesmapsLinkCheckStep($pdo, AVESMAPS_LINK_CHECK_BUDGET_SECONDS, $scope),
 
-        'status' => ['ok' => true, 'status' => avesmapsLinkCheckStatus($pdo)],
+        'status' => ['ok' => true, 'status' => avesmapsLinkCheckStatus($pdo, $scope)],
 
         // Force links due now -- either one hash or every link of one entity.
         'recheck' => (static function () use ($pdo, $payload): array {

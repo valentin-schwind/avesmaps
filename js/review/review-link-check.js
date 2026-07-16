@@ -1,11 +1,17 @@
-// Linkchecker editor UI (Spec §1.7): the "Links prüfen" button in the WikiSync "Abenteuer" tab.
+// Linkchecker editor UI (Spec §1.7): a "Links prüfen" button per WikiSync tab.
 //
 // STRATO has no cron, and looping a heavy endpoint here once saturated the PHP workers and looked like a
 // DB outage (AGENTS.md §9). So the server does ONE bounded step per request and the CLIENT drives the
 // repetition -- the same shape as runWikiSyncDumpLoop (review-wiki-sync.js). Two phases per run:
-//   1. sync       -- rebuild the registry, one provider per call, until done.
-//   2. check_step -- probe due links in batches until nothing is due.
-// For the full backlog without the ~28s request ceiling there is scripts/check-links.php.
+//   1. sync       -- rebuild the registry for the scope.
+//   2. check_step -- probe that scope's due links in batches until none are due.
+//
+// EACH BUTTON IS SCOPED to its tab's entity type, carried in data-link-check-scope: the Abenteuer tab
+// checks adventure links only, the Karten tab only maps. Without that, every button would work through
+// the whole registry (~2851 links, 15-30 min) no matter which tab it sits in. Adding the Karten button
+// is therefore markup plus one bootstrap line -- no change in here.
+// The registry also holds source-catalog links, which no tab owns; those are the CLI's job
+// (scripts/check-links.php --confirm, which runs unscoped and has no request ceiling).
 
 let isLinkCheckRunning = false;
 
@@ -14,8 +20,13 @@ let isLinkCheckRunning = false;
 const LINK_CHECK_MAX_SYNC_STEPS = 50;
 const LINK_CHECK_MAX_CHECK_STEPS = 2000;
 
-function setLinkCheckSummary(text) {
-	const summary = document.getElementById("link-check-summary");
+// Each scope has its own button + summary span, paired by the scope name so a second tab needs no JS.
+function linkCheckButton(scope) {
+	return document.querySelector('[data-link-check-scope="' + scope + '"]');
+}
+
+function setLinkCheckSummary(scope, text) {
+	const summary = document.querySelector('[data-link-check-summary="' + scope + '"]');
 	if (!summary) {
 		return;
 	}
@@ -41,8 +52,9 @@ function formatLinkCheckStatus(status) {
 	return parts.join(" · ");
 }
 
-// Phase 1: rebuild the registry. One provider per request; the server returns the next cursor.
-async function runLinkCheckSyncLoop() {
+// Phase 1: rebuild the registry for this scope. A scoped sync finishes in one call; the loop stays
+// because the server owns the done-flag and an unscoped run would walk the cursor.
+async function runLinkCheckSyncLoop(scope) {
 	let cursor = "";
 	let done = false;
 	let steps = 0;
@@ -54,7 +66,7 @@ async function runLinkCheckSyncLoop() {
 		}
 		steps += 1;
 
-		const step = await submitLinkCheckAction("sync", { cursor });
+		const step = await submitLinkCheckAction("sync", { cursor, entity_type: scope });
 		totals.seen += Number(step.seen ?? 0);
 		totals.created += Number(step.created ?? 0);
 		totals.removed += Number(step.removed ?? 0);
@@ -69,7 +81,7 @@ async function runLinkCheckSyncLoop() {
 
 // Phase 2: probe due links until none are due. Each step is server-bounded (batch size + time budget),
 // so the number of steps depends on the backlog.
-async function runLinkCheckProbeLoop() {
+async function runLinkCheckProbeLoop(scope) {
 	let done = false;
 	let steps = 0;
 	const totals = { checked: 0, online: 0, dead: 0 };
@@ -80,7 +92,7 @@ async function runLinkCheckProbeLoop() {
 		}
 		steps += 1;
 
-		const step = await submitLinkCheckAction("check_step");
+		const step = await submitLinkCheckAction("check_step", { entity_type: scope });
 		totals.checked += Number(step.checked ?? 0);
 		totals.online += Number(step.online ?? 0);
 		totals.dead += Number(step.dead ?? 0);
@@ -103,13 +115,14 @@ async function runLinkCheckProbeLoop() {
 	return totals;
 }
 
-// The button handler: sync, then probe, then show the counters. Re-entrancy guard + disabled button, so
-// an impatient double-click cannot start two loops (pattern: startWikiSyncAdventuresSync).
-async function startLinkCheck() {
+// The button handler for ONE scope: sync, then probe, then show that scope's counters. The re-entrancy
+// guard is global on purpose -- two scopes running at once would only fight over PHP workers and the
+// per-host throttle, and STRATO has punished exactly that before.
+async function startLinkCheck(scope) {
 	if (isLinkCheckRunning) {
 		return;
 	}
-	const button = document.getElementById("link-check-start");
+	const button = linkCheckButton(scope);
 	isLinkCheckRunning = true;
 	if (button) {
 		button.disabled = true;
@@ -117,12 +130,12 @@ async function startLinkCheck() {
 
 	try {
 		setWikiSyncStatus("Link-Registry wird aufgebaut …", "pending");
-		const syncTotals = await runLinkCheckSyncLoop();
+		const syncTotals = await runLinkCheckSyncLoop(scope);
 
-		const probeTotals = await runLinkCheckProbeLoop();
-		const status = await submitLinkCheckAction("status");
+		const probeTotals = await runLinkCheckProbeLoop(scope);
+		const status = await submitLinkCheckAction("status", { entity_type: scope });
 
-		setLinkCheckSummary(formatLinkCheckStatus(status.status));
+		setLinkCheckSummary(scope, formatLinkCheckStatus(status.status));
 		setWikiSyncStatus(
 			`Linkprüfung fertig: ${probeTotals.checked} geprüft, ${probeTotals.online} online, `
 			+ `${probeTotals.dead} tot (${syncTotals.created} neu registriert).`,

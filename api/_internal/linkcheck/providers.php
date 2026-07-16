@@ -99,10 +99,28 @@ function avesmapsLinkCheckCollectSourceLinks(PDO $pdo): array
 // Bounded per provider rather than per row: a sync does no HTTP at all (it only reads the DB and upserts
 // the registry), so one entity type per request is a comfortable unit of work -- and it keeps the stale
 // cleanup correct without any cross-request state, because each type only ever prunes its own refs.
-function avesmapsLinkCheckSyncStep(PDO $pdo, string $cursor = ''): array
+// $entityType scopes the pass to ONE provider and finishes in a single step -- that is what the per-tab
+// "Links prüfen" buttons use, so the Abenteuer tab never syncs (or waits for) maps and sources.
+// '' walks the whole registry via the cursor (the CLI).
+function avesmapsLinkCheckSyncStep(PDO $pdo, string $cursor = '', string $entityType = ''): array
 {
     $providers = avesmapsLinkCheckProviders();
     $types = array_keys($providers);
+
+    if ($entityType !== '') {
+        if (!isset($providers[$entityType])) {
+            throw new InvalidArgumentException('Unbekannter entity_type: ' . $entityType);
+        }
+        $collector = $providers[$entityType];
+        $result = avesmapsLinkCheckSyncEntityType($pdo, $entityType, $collector($pdo));
+        // Pruning is safe even in a scoped pass: it only deletes link_status rows that NO type
+        // references any more, and the other types' refs are still in place from their own last sync.
+        $result['pruned'] = avesmapsLinkCheckPruneOrphans($pdo);
+        $result['entity_type'] = $entityType;
+        $result['done'] = true;
+        $result['cursor'] = '';
+        return $result;
+    }
 
     $index = 0;
     if ($cursor !== '') {
