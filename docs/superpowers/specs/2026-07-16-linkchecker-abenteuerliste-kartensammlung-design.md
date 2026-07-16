@@ -391,10 +391,13 @@ Owner: *„Vier Kacheln + Brief nur im Panel"*.
 
 Das spiegelt exakt die Siedlung, wo „Änderung vorschlagen" schon heute an `!options.floating` hängt (`js/ui/popups.js:450`).
 
-**„Zentrieren"** ist eine neue Aktion: `data-popup-action="center"` → `map.flyTo(coords)`. Delegierter Handler neben `suggest-change` in `js/routing/routing.js:766`.
-Guard: mit `Number.isFinite` prüfen — ein Pan mit `NaN` zerstört das Map-Center (bekannter Bug, `routing-nan-pan-crash`).
+**„Zentrieren" ist „Anzeigen" für Regionen.** Owner-Entscheidung: derselbe Sextant (`icons/sextant.webp`) wie bei der Siedlung, und dieselbe Bedeutung — die Region zentrieren **und** ihre volle Info ins rechte Panel holen. Kein neues Icon nötig, keine neue Aktion.
 
-**🔧 DU:** Für „Zentrieren" fehlt ein Icon in `img/menu/`. Vorhanden sind `abenteuer.webp`, `brief.webp`, `linkteilen.webp`, `markierung.webp`, `stadtkarte.webp`, `waypoint*.webp`. Ich nehme vorläufig `icons/sextant.webp` (das die Slim-Box schon für „Anzeigen" nutzt). Wenn Du ein aventurisches Zentrieren-Icon zeichnest, lege es als `img/menu/zentrieren.webp` ab — ich tausche den einen `src` dann aus. Sonst musst Du nichts tun.
+Umsetzung: die vorhandene Aktion `show-in-panel` (`js/routing/routing.js:729`) **erweitern**, statt eine zweite danebenzustellen. Sie ist heute siedlungsgebunden — sie sucht per `findLocationMarkerByName(placeName)` einen Ortsmarker und ruft `avesmapsShowLocationInInfopanel(entry)`; eine Region hat keinen solchen Marker. Ergänzt wird ein `data-entity-type`: ohne Angabe bleibt das heutige Siedlungsverhalten, `region`/`territory` gehen auf `avesmapsShowRegionInInfopanel` bzw. `avesmapsShowRegionInfopanelById` (`map-features-infopanel.js:630` / `:659`).
+
+Zwei Fallen:
+- **`show-in-panel` zentriert heute nicht**, es füllt nur das Panel. Das `flyTo` ist also neu — und gehört **nur** an den Regions-Zweig. Es global anzuhängen würde bei Siedlungen die Karte springen lassen: eine Verhaltensänderung, die niemand bestellt hat.
+- Koordinaten mit `Number.isFinite` guarden — ein Pan mit `NaN` zerstört das Map-Center (bekannter Bug, siehe `routing-nan-pan-crash`).
 
 ### 5.4 Sektionen
 
