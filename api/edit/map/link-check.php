@@ -32,6 +32,14 @@ try {
     }
 
     avesmapsRequireUserWithCapability('edit');
+    // PHP holds the session file locked for the whole request, and a check_step occupies a worker for up
+    // to 25s -- a full run chains dozens of them. Without this, an editor's own link check freezes the
+    // rest of the editor FOR THEM: every other request queues behind the session lock (measured: a plain
+    // `status` call took 21s while a check_step was running). Nothing below reads or writes the session
+    // -- the capability was already resolved above -- so release it before doing the slow work.
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
 
