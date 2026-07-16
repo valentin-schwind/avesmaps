@@ -10,6 +10,11 @@
 			--hb-bg: #f7f5f0; --hb-fg: #23201b; --hb-muted: #6b6459;
 			--hb-accent: #7a5c2e; --hb-line: #e2dccf; --hb-card: #fffdf8;
 			--hb-max: 1180px;
+			/* Richtig/Falsch-Beispiele (Diagramm „Korrekte Wegzeichnung") */
+			--hb-bad: #a8392c; --hb-good: #3d6b35;
+			--hb-bad-wash: #fbefec; --hb-good-wash: #eff4ec;
+			/* Kartensymbole im Diagramm -- dieselben Farben wie die echten Marker auf der Karte */
+			--hb-place: #cc2f2a; --hb-node: #212121;
 		}
 		* { box-sizing: border-box; }
 		body { margin: 0; background: var(--hb-bg); color: var(--hb-fg);
@@ -178,6 +183,141 @@
 					<img src="screenshots/04-verlaufeditieren.png" alt="Ausgewaehlter Weg Reichsstrasse 1 mit sichtbaren Knotenpunkten und dem Popup mit Bearbeiten, Verlauf bearbeiten, Weg loeschen" />
 					<figcaption>Ein ausgewählter Weg mit seinen Knotenpunkten und dem Popup („Bearbeiten" / „Verlauf bearbeiten").</figcaption>
 				</figure>
+
+				<h3>Korrekte Wegzeichnung</h3>
+				<p>Das Wegenetz ist ein <strong>Graph</strong>: Ein Weg verbindet nur das, was an seinen <strong>beiden Endpunkten</strong> liegt &ndash; was nur optisch auf der Linie liegt, zählt nicht. Daraus folgen vier Regeln; die häufigsten Fehler entstehen alle, wenn man sie umgeht.</p>
+				<div class="hb-diagram">
+					<svg viewBox="0 0 880 664" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vier Beispiele fuer korrekte und falsche Wegzeichnung: Wege an Knoten teilen, Kreuzung erst ab drei Wegen, Kreuzung an Wegschnittpunkten, Wegenden exakt auf den Knoten">
+						<defs>
+							<marker id="hb-wz-bad" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+								<path d="M0 0 L6 3 L0 6 Z" fill="var(--hb-bad)" />
+							</marker>
+						</defs>
+						<g font-size="15" font-weight="600" text-anchor="middle">
+							<text x="225" y="20" fill="var(--hb-bad)">✗ Falsch</text>
+							<text x="655" y="20" fill="var(--hb-good)">✓ Richtig</text>
+						</g>
+
+						<text x="20" y="52" font-size="14" font-weight="600" fill="var(--hb-fg)">1. Einen Weg an jedem Ort und jeder Kreuzung teilen</text>
+						<rect x="20" y="60" width="410" height="104" rx="8" fill="var(--hb-bad-wash)" />
+						<rect x="450" y="60" width="410" height="104" rx="8" fill="var(--hb-good-wash)" />
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M70 96 L380 96" />
+						</g>
+						<g stroke="var(--hb-bad)" stroke-width="1.5" fill="none">
+							<path d="M70 112 L70 120 L380 120 L380 112" />
+						</g>
+						<text x="225" y="136" font-size="12" text-anchor="middle" fill="var(--hb-bad)">ein einziger Weg &ndash; läuft durch den Ort hindurch</text>
+						<text x="225" y="154" font-size="12" text-anchor="middle" fill="var(--hb-muted)">der Ort in der Mitte ist nicht angebunden</text>
+						<g>
+							<circle cx="70" cy="96" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="225" cy="96" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="380" cy="96" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+						</g>
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M500 96 L655 96" />
+							<path d="M655 96 L810 96" />
+						</g>
+						<g stroke="var(--hb-good)" stroke-width="1.5" fill="none">
+							<path d="M500 112 L500 120 L648 120 L648 112" />
+							<path d="M662 112 L662 120 L810 120 L810 112" />
+						</g>
+						<g font-size="12" text-anchor="middle" fill="var(--hb-good)">
+							<text x="574" y="136">Weg 1</text>
+							<text x="736" y="136">Weg 2</text>
+						</g>
+						<text x="655" y="154" font-size="12" text-anchor="middle" fill="var(--hb-muted)">zwei Wege, die am Ort enden &ndash; er verbindet beide</text>
+						<g>
+							<circle cx="500" cy="96" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="96" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="810" cy="96" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+						</g>
+
+						<text x="20" y="204" font-size="14" font-weight="600" fill="var(--hb-fg)">2. Eine Kreuzung verbindet mindestens drei Wegenden</text>
+						<rect x="20" y="212" width="410" height="128" rx="8" fill="var(--hb-bad-wash)" />
+						<rect x="450" y="212" width="410" height="128" rx="8" fill="var(--hb-good-wash)" />
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M70 250 L380 250" />
+						</g>
+						<g>
+							<circle cx="70" cy="250" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="380" cy="250" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="225" cy="250" r="6.5" fill="var(--hb-node)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="225" y="286" font-size="12" text-anchor="middle" fill="var(--hb-bad)">Kreuzung mit nur zwei Wegen</text>
+						<text x="225" y="304" font-size="12" text-anchor="middle" fill="var(--hb-muted)">sie verbindet nichts &ndash; der Weg würde ohne sie</text>
+						<text x="225" y="320" font-size="12" text-anchor="middle" fill="var(--hb-muted)">genauso laufen (löschen oder Ort ergänzen)</text>
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M500 250 L810 250" />
+							<path d="M655 250 L655 312" />
+						</g>
+						<g>
+							<circle cx="500" cy="250" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="810" cy="250" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="312" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="250" r="6.5" fill="var(--hb-node)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="655" y="332" font-size="12" text-anchor="middle" fill="var(--hb-good)">drei Wegenden &ndash; hier kann man abbiegen</text>
+
+						<text x="20" y="380" font-size="14" font-weight="600" fill="var(--hb-fg)">3. Wo sich zwei Wege kreuzen, gehört eine Kreuzung hin</text>
+						<rect x="20" y="388" width="410" height="150" rx="8" fill="var(--hb-bad-wash)" />
+						<rect x="450" y="388" width="410" height="150" rx="8" fill="var(--hb-good-wash)" />
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M90 452 L360 452" />
+							<path d="M225 406 L225 498" />
+						</g>
+						<circle cx="225" cy="452" r="13" fill="none" stroke="var(--hb-bad)" stroke-width="2" stroke-dasharray="4 3" />
+						<g>
+							<circle cx="90" cy="452" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="360" cy="452" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="225" cy="406" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="225" cy="498" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="225" y="512" font-size="12" text-anchor="middle" fill="var(--hb-bad)">kein Knoten am Schnittpunkt &ndash; die Wege liegen</text>
+						<text x="225" y="528" font-size="12" text-anchor="middle" fill="var(--hb-muted)">nur übereinander, niemand kann hier abbiegen</text>
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M520 452 L655 452" />
+							<path d="M655 452 L790 452" />
+							<path d="M655 406 L655 452" />
+							<path d="M655 452 L655 498" />
+						</g>
+						<g>
+							<circle cx="520" cy="452" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="790" cy="452" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="406" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="498" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="452" r="6.5" fill="var(--hb-node)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="655" y="512" font-size="12" text-anchor="middle" fill="var(--hb-good)">Kreuzung am Schnittpunkt, vier Wege enden dort</text>
+						<text x="655" y="528" font-size="12" text-anchor="middle" fill="var(--hb-muted)">&ndash; alle vier Richtungen sind befahrbar</text>
+
+						<text x="20" y="576" font-size="14" font-weight="600" fill="var(--hb-fg)">4. Das Wegende muss den Knoten wirklich treffen</text>
+						<rect x="20" y="584" width="410" height="72" rx="8" fill="var(--hb-bad-wash)" />
+						<rect x="450" y="584" width="410" height="72" rx="8" fill="var(--hb-good-wash)" />
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M70 614 L186 614" />
+							<path d="M240 614 L380 614" />
+						</g>
+						<path d="M196 632 L216 632" stroke="var(--hb-bad)" stroke-width="1.5" fill="none" marker-end="url(#hb-wz-bad)" />
+						<g>
+							<circle cx="70" cy="614" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="380" cy="614" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="225" cy="614" r="6.5" fill="var(--hb-node)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="225" y="650" font-size="12" text-anchor="middle" fill="var(--hb-bad)">Lücke: das linke Wegende liegt neben der Kreuzung</text>
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M500 614 L655 614" />
+							<path d="M655 614 L810 614" />
+						</g>
+						<g>
+							<circle cx="500" cy="614" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="810" cy="614" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="655" cy="614" r="6.5" fill="var(--hb-node)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="655" y="650" font-size="12" text-anchor="middle" fill="var(--hb-good)">beide Wegenden sitzen auf der Kreuzung</text>
+					</svg>
+				</div>
+				<p class="hb-todo"><strong>Selbst prüfen:</strong> Im Edit-Mode markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte.</p>
 
 				<h3>Kraftlinien</h3>
 				<ul class="hb-steps">
