@@ -404,8 +404,13 @@ function focusRegionPlace(publicId) {
 		keyboard: true,
 		interactive: true,
 	});
+	// The content is cloned from the real marker, so the box around it has to be the real marker's box too --
+	// mirror its options from map-features-location-marker-entry.js. The previous class "location-popup-wrapper"
+	// has no CSS anywhere in the repo, so the clone silently fell back to the 260px default box with inline pill
+	// buttons while the marker it mimics is a 400px tile box.
+	const spotlightInfopanelMode = typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE;
 	const popupContent = markerEntry.marker.getPopup()?.getContent?.() || markerEntry.name;
-	spotlight.bindPopup(popupContent, { autoPan: false, className: "location-popup-wrapper" });
+	spotlight.bindPopup(popupContent, { autoPan: false, minWidth: 320, maxWidth: 400, className: spotlightInfopanelMode ? "settlement-popup floating-location-popup" : "settlement-popup" });
 	spotlight.on("popupclose", clearRegionPlaceSpotlight);
 	activeRegionPlaceSpotlightMarker = spotlight;
 	spotlight.addTo(map);

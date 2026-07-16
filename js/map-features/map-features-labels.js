@@ -420,13 +420,13 @@ function refreshLabelMarkerPopup(entry) {
 		return;
 	}
 
-	// "floating-location-popup" is what gates the Kachel/tile action-button CSS (location-popups-markers.css)
-	// -- without it the edit-mode "Label verschieben/Bearbeiten/duplizieren/loeschen" buttons fall back to the
-	// plain old inline style. Needed on BOTH branches: labelActionsMarkup renders regardless of hasWiki.
-	const options = labelHasWikiRegion(entry.label)
-		? { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 }
-		: { className: "floating-location-popup" };
-	entry.marker.bindPopup(labelPopupMarkup(entry), options);
+	// TWO classes, and every label needs BOTH. "floating-location-popup" gates the Kachel/tile action-button
+	// CSS (location-popups-markers.css); "settlement-popup" is the only rule that releases the 260px base cap
+	// (.location-popup max-width) to 400px (region-sync.css). A label WITHOUT a wiki region -- a continent,
+	// say -- used to get the tile class alone: the tiles then had ~240px to sit in, could not fit four across,
+	// and wrapped into the vertical list. That looked like a layout bug but was a missing width anchor.
+	// labelActionsMarkup renders regardless of hasWiki, so the box is the same box either way.
+	entry.marker.bindPopup(labelPopupMarkup(entry), { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 });
 }
 
 function findLabelEntryByPublicId(publicId) {
