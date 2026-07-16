@@ -284,6 +284,96 @@ assert(avesmapsCitymapArtFromTitle('Kartenskizze von Y') === 'skizze');
 assert(avesmapsCitymapArtFromTitle('Karte von Z') === null); // unknown, not a default
 echo "art ok\n";
 
+// ------------------------------------------- KARTENINDEX: THE COLLISION BUG ---
+// REGRESSION. Running the real Kartenindex through the parser showed 3 of 48 regional rows vanishing:
+// the key was (region, source, variant), but ONE region+publication legitimately carries SEVERAL maps,
+// so they collided and the dedupe ate the survivors. The TITLE is what tells them apart, so the title
+// is the identity. The earlier version of this test passed while the bug was live -- it never fed two
+// maps of one region through.
+$page = <<<'WIKI'
+==DSA4-Regionalkartenwerk==
+{| class="wikitable"
+!Nr.
+!Karte
+!Publikation(en)
+!Veröffentlichungsdatum
+|-
+| ||[[:Datei:A.jpg|Detaillierte Karte der Streitenden Königreiche (A2)]] || [[Landkartenset Die Streitenden Königreiche]] || 2008
+|-
+| ||[[:Datei:B.jpg|Politische Karte der Streitenden Königreiche (A3)]] || [[Landkartenset Die Streitenden Königreiche]] || 2008
+|-
+| ||[[:Datei:C.jpg|Ingame-Karte der Streitenden Königreiche (A3)]] || [[Landkartenset Die Streitenden Königreiche]] || 2008
+|-
+| ||[[:Datei:D.jpg|Übersichtskarte der geographischen Regionen der Streitenden Königreiche (A3)]] || [[Landkartenset Die Streitenden Königreiche]] || 2008
+|-
+| ||[[:Datei:E.jpg|thumb|100px|Altoum und die Waldinseln]] || [[Landkartenset Meridiana]] || 2010
+|}
+WIKI;
+$cards = avesmapsCitymapParseKartenindex($page)['cards'];
+
+// Four maps of ONE region+publication must survive as FOUR cards.
+$sk = array_values(array_filter($cards, static fn(array $c): bool => str_contains((string) $c['title'], 'Streitenden')));
+assert(count($sk) === 4);
+assert(count(array_unique(array_column($sk, 'wiki_key'))) === 4); // four DISTINCT keys
+// ...and all four name the same place, so they group at one region.
+foreach ($sk as $card) {
+    assert($card['place_raw'] === 'Streitenden Königreiche');
+}
+// The prefix strippers that were missing: "Ingame-" needs the hyphen class, and the "geographischen
+// Regionen der" qualifier has to go too or the place can never resolve.
+$titles = array_column($sk, 'title');
+sort($titles);
+assert(str_contains($titles[0], 'Detaillierte'));
+
+// MediaWiki puts display options BEFORE the caption; the caption is the LAST parameter.
+$waldinseln = findCard($cards, 'Altoum und die Waldinseln', 'Landkartenset Meridiana', 'regional');
+assert($waldinseln !== null);
+assert($waldinseln['title'] === 'Altoum und die Waldinseln'); // NOT "thumb|100px|Altoum und die Waldinseln"
+echo "kartenindex-collision ok\n";
+
+// --------------------------------------- TEMPLATES CONTAINING "||" (THE SPLIT) ---
+// REGRESSION. "{{Zwölfgöttliche Zeitrechnung|von=Hal|17||}}" contains a literal "||". Splitting the row
+// before stripping templates tore the cell in half and shifted every column after it, producing a map
+// titled "...|von=Hal|17" with note "Abmessungen: }}". 5 of the real page's rows look like this.
+$row = "|Karte von Aventurien<br />gezeichnet im Jahre 17 Hal ({{Zwölfgöttliche Zeitrechnung|von=Hal|17||}})||42 x 56 cm ||1:6.000.000 ||[[Die Helden]] ||1984";
+$cells = avesmapsCitymapSplitRow($row);
+assert(count($cells) === 5);                                  // 5 columns, not 6 from a torn cell
+assert(!str_contains($cells[0], '{{') && !str_contains($cells[0], '}}'));
+assert(str_contains($cells[0], 'Aventurien gezeichnet'));     // <br /> became a SPACE, not nothing
+assert($cells[1] === '42 x 56 cm');                           // the dimension column is where it belongs
+assert($cells[2] === '1:6.000.000');
+// Nested templates unwind too.
+$cells = avesmapsCitymapSplitRow('|Das Imperium im Jahre {{IZ|4782 IZ}} ({{Zeitrechnung|von=IZ|4782||}}) || 34 x 39 cm || || [[Quelle]] ||');
+assert(str_contains($cells[0], 'Das Imperium im Jahre'));
+assert($cells[1] === '34 x 39 cm');
+echo "template-split ok\n";
+
+$page = <<<'WIKI'
+==Aventurienkarten==
+{| class="wikitable"
+|-
+| Aventurien (Großformat mit Farbtopografie) || 57 x 80 cm || ca. 1:4.250.000 || [[Aventurischer Atlas]] || 2005
+|-
+| Charta Mundi Jelhorathi Anno XIV Jeli ({{-|315 v. BF}}) ||21 x 30 cm || ||[[Die Dunklen Zeiten]] ||
+|}
+WIKI;
+$cards = avesmapsCitymapParseKartenindex($page)['cards'];
+// A legitimate parenthetical is part of the name and must survive (an earlier fix trimmed "()" blindly
+// and ate the closing brace).
+$gross = findCard($cards, 'Aventurien', 'Aventurischer Atlas', 'kontinent');
+assert($gross !== null);
+assert($gross['title'] === 'Aventurien (Großformat mit Farbtopografie)');
+// A parenthetical that held ONLY a template leaves no empty "( )" behind.
+$charta = null;
+foreach ($cards as $c) {
+    if (str_contains((string) $c['title'], 'Charta')) { $charta = $c; }
+}
+assert($charta !== null);
+assert($charta['title'] === 'Charta Mundi Jelhorathi Anno XIV Jeli');
+// Two continent maps from different publications keep distinct identities.
+assert(count(array_unique(array_column($cards, 'wiki_key'))) === count($cards));
+echo "kontinent-titles ok\n";
+
 // ---------------------------------------------------------------------- DEDUP ---
 $dupes = [
     ['wiki_key' => 'k1', 'author' => null, 'note' => 'N', 'is_labeled' => null, 'is_color' => 1, 'art' => null],

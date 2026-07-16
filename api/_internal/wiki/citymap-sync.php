@@ -80,20 +80,31 @@ function avesmapsCitymapHasEscaping(string $value): bool
 }
 
 /**
- * The stable identity of a wiki-born map: index + place + source + column variant.
+ * The stable identity of a wiki-born map: index + identity + source + variant.
  *
- * Why the wiki ROW is the map: the new list gives Format/Massstab/Kuenstler PER SOURCE as parallel
- * arrays ("A2/-"), i.e. the wiki itself models "one map per source". The variant must be in the key
- * because the same source can hold both a Stadtplan and an Umgebungskarte for the same city.
+ * WHAT $identity IS DIFFERS PER INDEX, because the two pages are shaped differently:
+ *
+ *   Stadtplanindex -> the CITY. It has no map titles at all, only "city x source x column", and the
+ *     new list gives Format/Massstab/Kuenstler PER SOURCE as parallel arrays ("A2/-") -- i.e. the wiki
+ *     itself models "one map per source". The variant must be in the key because one source can hold
+ *     both a Stadtplan and an Umgebungskarte for the same city.
+ *
+ *   Kartenindex -> the map TITLE. It names its maps, and one region+publication legitimately carries
+ *     SEVERAL of them ("Detaillierte Karte der Streitenden Koenigreiche (A2)" and "Politische Karte der
+ *     Streitenden Koenigreiche (A3)" both live in Landkartenset Die Streitenden Koenigreiche). Keying
+ *     those on the region collapsed them into one key and the dedupe silently ate the survivors --
+ *     measured: 3 of 48 regional rows vanished, and fixing the region extractor would have made it
+ *     worse, since better extraction means MORE rows sharing a region. The title is what distinguishes
+ *     them, so the title is the identity.
  *
  * Runs through avesmapsPoliticalSlug (the house scheme, cf. avesmapsPublicationCatalogWikiKeyForTitle),
  * which is why the escaping cannot split a key.
  */
-function avesmapsCitymapWikiKey(string $index, string $place, string $source, string $variant): string
+function avesmapsCitymapWikiKey(string $index, string $identity, string $source, string $variant): string
 {
     $parts = [
         $index,
-        avesmapsPoliticalSlug(avesmapsCitymapUnescapeApostrophes($place)),
+        avesmapsPoliticalSlug(avesmapsCitymapUnescapeApostrophes($identity)),
         avesmapsPoliticalSlug(avesmapsCitymapUnescapeApostrophes($source)),
         $variant,
     ];
@@ -112,6 +123,17 @@ function avesmapsCitymapWikiKey(string $index, string $place, string $source, st
  * Split a wikitext table row into its cells. MediaWiki rows are "| a || b || c"; a leading "|" and
  * cell padding are dropped. Returns [] for anything that is not a data row (|-, |}, ! headers).
  *
+ * TEMPLATES ARE STRIPPED BEFORE THE SPLIT, and that ordering is the whole point. A template with empty
+ * trailing parameters contains a literal "||":
+ *
+ *     |Karte von Aventurien<br />gezeichnet im Jahre 17 Hal ({{Zwölfgöttliche Zeitrechnung|von=Hal|17||}})||42 x 56 cm ||…
+ *                                                                                                   ^^ここ
+ *
+ * Splitting first tears that cell in half and shifts EVERY column after it -- which is how a map ended
+ * up titled "…|von=Hal|17" with note "Abmessungen: }}". Measured on the real Kartenindex: 5 rows.
+ * The loop handles nesting ({{IZ|4782 IZ}} inside a parenthetical); <br /> becomes a space rather than
+ * vanishing, or "Aventurien<br />gezeichnet" would read "Aventuriengezeichnet".
+ *
  * @return array<int, string>
  */
 function avesmapsCitymapSplitRow(string $line): array
@@ -125,6 +147,18 @@ function avesmapsCitymapSplitRow(string $line): array
     }
 
     $body = preg_replace('/^\|\s*/', '', $trimmed) ?? '';
+    $body = preg_replace('/<br\s*\/?>/i', ' ', $body) ?? $body;
+    $previous = null;
+    while ($previous !== $body) {
+        $previous = $body;
+        $body = preg_replace('/\{\{[^{}]*\}\}/u', '', $body) ?? $body;
+    }
+    // A template that never closes on this line (the page has none today, but wikitext allows it)
+    // would otherwise leave a dangling "{{…|a|b" to be split. Cut from the orphan brace on.
+    $orphan = mb_strpos($body, '{{');
+    if ($orphan !== false) {
+        $body = mb_substr($body, 0, $orphan);
+    }
 
     return array_map('trim', explode('||', $body));
 }
@@ -589,9 +623,17 @@ function avesmapsCitymapParseContinentRows(string $sectionBody, string $continen
         if (count($cells) < 2) {
             continue;
         }
+        // Templates and <br /> are already gone (avesmapsCitymapSplitRow strips them BEFORE splitting,
+        // because their stray "||" would shift the columns). What is left here is link/quote markup.
         $description = trim(strip_tags($cells[0]));
         $description = trim(preg_replace('/\[\[[^\]\|]*\|([^\]]*)\]\]/u', '$1', $description) ?? $description);
-        $description = trim(str_replace(['[[', ']]'], '', $description));
+        $description = trim(str_replace(['[[', ']]', "'''", "''"], '', $description));
+        $description = trim(preg_replace('/\s+/u', ' ', $description) ?? $description);
+        // Trim whitespace/commas, and an EMPTY parenthetical the template removal left behind ("Karte
+        // ... ( )"). NOT a blanket "()" trim -- that ate the closing brace of "Aventurien (Grossformat
+        // mit Farbtopografie)", which is a legitimate part of the name.
+        $description = trim(preg_replace('/\s*\(\s*\)\s*$/u', '', $description) ?? $description);
+        $description = trim($description, " \t\n\r,");
         if ($description === '' || $description === '-' || str_starts_with($description, '!')) {
             continue;
         }
@@ -617,7 +659,10 @@ function avesmapsCitymapParseContinentRows(string $sectionBody, string $continen
         }
 
         $cards[] = [
-            'wiki_key' => avesmapsCitymapWikiKey(AVESMAPS_CITYMAP_INDEX_KARTEN, $continent, $source, 'kontinent'),
+            // Identity = the DESCRIPTION, not the continent: one publication carries several
+            // continent-wide maps ("Aventurien-Hexkarte" and "Aventurien (Grossformat)"), and keying
+            // them on "Aventurien" would collapse them into one.
+            'wiki_key' => avesmapsCitymapWikiKey(AVESMAPS_CITYMAP_INDEX_KARTEN, $description, $source, 'kontinent'),
             'index' => AVESMAPS_CITYMAP_INDEX_KARTEN,
             'title' => $description,
             'place_raw' => $continent, // resolves to nothing today -> unresolved, exactly like the real gaps
@@ -653,8 +698,9 @@ function avesmapsCitymapParseRegionalRows(string $sectionBody): array
         $title = null;
         $cellIndex = null;
         foreach ($cells as $i => $cell) {
-            if (preg_match('/\[\[\s*:?\s*(?:Datei|File|Bild|Image)\s*:[^\]\|]+\|([^\]]+)\]\]/ui', $cell, $m) === 1) {
-                $title = trim($m[1]);
+            $caption = avesmapsCitymapFileLinkCaption($cell);
+            if ($caption !== null) {
+                $title = $caption;
                 $cellIndex = $i;
                 break;
             }
@@ -663,10 +709,11 @@ function avesmapsCitymapParseRegionalRows(string $sectionBody): array
             continue;
         }
 
-        $region = avesmapsCitymapRegionFromMapTitle($title);
-        if ($region === null) {
-            continue; // no region in the title -> nothing to hang it on; skipped rather than guessed
-        }
+        // The place is best-effort; the TITLE is the identity, so a miss here costs an unresolved
+        // place, never a lost or merged card. Null means "the title carries no place we can name" ->
+        // fall back to the whole title, which for 18 of 51 rows IS the region ("Altoum und die
+        // Waldinseln"). Better an honest raw_name the resolver can try than a skipped row.
+        $region = avesmapsCitymapRegionFromMapTitle($title) ?? $title;
 
         $sourceCell = $cells[$cellIndex + 1] ?? '';
         $sources = avesmapsCitymapExtractLinkTargets($sourceCell);
@@ -676,7 +723,8 @@ function avesmapsCitymapParseRegionalRows(string $sectionBody): array
         }
 
         $cards[] = [
-            'wiki_key' => avesmapsCitymapWikiKey(AVESMAPS_CITYMAP_INDEX_KARTEN, $region, $source, 'regional'),
+            // Identity = TITLE, not region: one region+publication carries several distinct maps.
+            'wiki_key' => avesmapsCitymapWikiKey(AVESMAPS_CITYMAP_INDEX_KARTEN, $title, $source, 'regional'),
             'index' => AVESMAPS_CITYMAP_INDEX_KARTEN,
             'title' => $title,
             'place_raw' => $region,
@@ -695,28 +743,64 @@ function avesmapsCitymapParseRegionalRows(string $sectionBody): array
 }
 
 /**
- * Pull the region out of a Regionalkartenwerk map title: "Politische Karte der Streitenden
- * Koenigreiche (A2)" -> "Streitenden Koenigreiche". Strips a trailing format parenthetical and a
- * leading kind ("Politische Karte der", "Uebersichtskarte von", ...). Returns null when nothing
- * recognisable remains -- the caller skips that row rather than guessing.
+ * The CAPTION of a wikitext file link, or null if the cell holds none.
  *
- * The result is a RAW NAME, deliberately not massaged further. The genitive fragment it leaves
- * ("Streitenden Koenigreiche" rather than "Die Streitenden Koenigreiche") may or may not resolve
- * against our regions -- the Kartenindex resolution rate is UNMEASURED (see the design doc's risk
- * list; the 83% figure covers the Stadtplanindex only). A row that does not resolve becomes an
- * unresolved place with raw_name kept, which loses nothing and is honest about what we know. Inventing
- * articles here would be guessing dressed up as data.
+ * "[[Datei:X.jpg|Politische Karte der Flusslande (A2)]]" -> the caption.
+ * "[[Datei:X.jpg|thumb|100px|DSA3-Kartenwerke]]"         -> "DSA3-Kartenwerke", NOT "thumb|100px|...".
+ *
+ * MediaWiki image syntax puts display options (thumb, 100px, left, ...) BEFORE the caption, and the
+ * caption is the last parameter. Taking everything after the first pipe -- which is what a naive
+ * `\|([^\]]+)\]\]` does -- yields "thumb|100px|DSA3-Kartenwerke" as the title. Measured on the real
+ * Kartenindex: 2 of 51 rows.
+ */
+function avesmapsCitymapFileLinkCaption(string $cell): ?string
+{
+    if (preg_match('/\[\[\s*:?\s*(?:Datei|File|Bild|Image)\s*:([^\]]+)\]\]/ui', $cell, $m) !== 1) {
+        return null;
+    }
+    $params = explode('|', $m[1]);
+    array_shift($params); // the file name itself
+    if ($params === []) {
+        return null; // a bare file link has no caption to name the map
+    }
+    $caption = trim((string) array_pop($params));
+
+    return $caption === '' ? null : $caption;
+}
+
+/**
+ * Pull the place out of a Kartenindex map title: "Politische Karte der Flusslande (A2)" ->
+ * "Flusslande". Strips a trailing format parenthetical, wiki templates, and a leading kind.
+ *
+ * BEST-EFFORT BY DESIGN, and safe to be so: since the TITLE is the identity (see
+ * avesmapsCitymapWikiKey), a miss here only costs an unresolved place with the raw name kept -- the
+ * same honest state the 33 real Stadtplanindex gaps land in. It can never merge or drop a card.
+ *
+ * The prefixes are the ones the page actually uses, counted rather than imagined: Uebersichtskarte
+ * (12), Detaillierte Karte (6), Ingame-Karte (6), Politische Karte (3). Note "Ingame-Karte" needs the
+ * hyphen class -- \w+\s+ does not match it, which is how "Ingame-Karte der Streitenden Koenigreiche"
+ * survived as a "place" in the first pass.
+ *
+ * NOT handled on purpose: the bare genitive ("Detaillierte Karte Araniens" -> "Araniens", not
+ * "Aranien"). De-inflecting German would be guessing dressed up as data; the recon's rule is "give up
+ * instead of guessing". It stays unresolved and visible.
  */
 function avesmapsCitymapRegionFromMapTitle(string $title): ?string
 {
     $value = trim($title);
+    // Wiki templates ({{-|315 v. BF}}, {{Zwoelfgoettliche Zeitrechnung|...}}) are markup, not names.
+    $value = trim(preg_replace('/\{\{[^}]*\}\}/u', '', $value) ?? $value);
+    $value = trim(preg_replace('/<br\s*\/?>/i', ' ', $value) ?? $value);
     $value = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $value) ?? $value); // drop "(A2)"
+    // "Uebersichtskarte der geographischen Regionen der X" -> "X": strip the qualifier too, else the
+    // place becomes "geographischen Regionen der X" and can never resolve.
+    $value = preg_replace('/^\s*(?:Übersichts|Uebersichts)karte\s+(?:der|über die|ueber die)\s+geographischen\s+Regionen\s+(?:von|des|der|dem)\s+/ui', '', $value) ?? $value;
     $value = preg_replace(
-        '/^\s*(?:[A-Za-zÄÖÜäöüß]+\s+)?(?:Karte|Landkarte|Übersichtskarte|Uebersichtskarte|Regionalkarte|Stadtplan)\s+(?:von|des|der|dem|zu)\s+/ui',
+        '/^\s*(?:[A-Za-zÄÖÜäöüß-]+\s+)?(?:Karte|Karten|Landkarte|Übersichtskarte|Uebersichtskarte|Ingame-Karte|Regionalkarte|Stadtplan)\s+(?:von|des|der|dem|zu|über die|ueber die)\s+/ui',
         '',
         $value
     ) ?? $value;
-    $value = trim($value);
+    $value = trim($value, " \t\n\r,");
     if ($value === '' || mb_strlen($value) < 3) {
         return null;
     }
