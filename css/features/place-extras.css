@@ -391,13 +391,19 @@
 .avesmaps-adv-row__cover.has-img {
 	background: var(--color-panel-soft);
 }
-/* Mitte: Titel + Einordnung. min-width:0 laesst lange Titel umbrechen statt die Link-Spalte wegzudruecken. */
+/* Mitte: Titel + Einordnung. min-width:0 laesst lange Titel umbrechen statt die Link-Spalte wegzudruecken.
+   Flex-Column mit EINEM gap statt je Zeile ein margin-top (Owner 2026-07-16: der Abstand unter dem Titel und
+   der zwischen den Meta-Zeilen sollen gleich gross sein) -- mit einem einzigen Knopf koennen sie gar nicht
+   erst wieder auseinanderlaufen. */
 .avesmaps-adv-row__main {
 	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
 }
+/* 14px: der Titel ist der Anker der Zeile und stand vorher zu dicht an seiner Meta-Zeile (Owner). */
 .avesmaps-adv-row__title {
-	display: block;
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: 700;
 	line-height: 1.3;
 	color: var(--color-link);
@@ -410,7 +416,6 @@
 .avesmaps-adv-row__meta,
 .avesmaps-adv-row__facts,
 .avesmaps-adv-row__contained {
-	margin-top: 3px;
 	font-size: 11.5px;
 	line-height: 1.35;
 	color: var(--color-text-muted);
