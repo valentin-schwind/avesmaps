@@ -1100,9 +1100,17 @@ function avesmapsSetCitymapPlace(PDO $pdo, int $placeId, array $data): array
     return ['place_id' => $placeId];
 }
 
-// A community place is tombstoned (status='suppressed') so a later re-import cannot resurrect it; a
-// manual one has nothing to protect and is deleted. Mirrors the adventure rule, with 'community' in the
-// role 'wiki' plays there -- maps have no wiki origin (Spec §6).
+// Removing a place: anything NOT authored in this editor is TOMBSTONED (status='suppressed') so a later
+// import cannot resurrect it; only a 'manual' place -- one an editor typed here -- has nothing to protect
+// and is really deleted.
+//
+// The rule is deliberately "not manual" rather than a list of external origins. The first version named
+// 'community' explicitly, reasoning that maps have no wiki origin (Spec §6: "kein Wiki-Sync für Karten").
+// That was true when written and is now on its way out: §6 always said "später möglich, das origin-Feld
+// ist da", and the owner has since asked for exactly that. A wiki-origin place under the old rule would
+// have been hard-deleted and resurrected by the very next sync -- the bug the tombstone exists to
+// prevent. Phrasing it as "whatever we did not author here" means the next origin does not need to
+// remember to come back and edit this function.
 function avesmapsSuppressCitymapPlace(PDO $pdo, int $placeId): array
 {
     avesmapsCitymapsEnsureTables($pdo);
@@ -1114,7 +1122,7 @@ function avesmapsSuppressCitymapPlace(PDO $pdo, int $placeId): array
         avesmapsErrorResponse(404, 'not_found', 'Der Ort wurde nicht gefunden.');
     }
 
-    if ((string) $origin === 'community') {
+    if ((string) $origin !== 'manual') {
         $pdo->prepare("UPDATE citymap_place SET status = 'suppressed' WHERE id = :id")->execute(['id' => $placeId]);
         return ['place_id' => $placeId, 'suppressed' => true];
     }
