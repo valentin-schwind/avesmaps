@@ -1244,7 +1244,7 @@ function avesmapsWikiSettlementBulkConnect(PDO $pdo, int $limit, bool $dryRun): 
 // zeigte der Editor nur die ~2475 Karten-Orte, waehrend der WikiSync-Tab (list_locations) korrekt
 // 4741 (2475 on-map + 2266 „Fehlt") auswies.
 // Global settlement-image kill switch, stored in the shared app_setting key-value table (same table +
-// pattern as the adventure-cover switch, avesmapsAppSetting* in api/_internal/app/adventures.php).
+// pattern as the adventure-cover and citymap switches, avesmapsAppSetting* in api/_internal/app/app-setting.php).
 // Default ENABLED -- only an explicit stored '0' hides ALL settlement images on the public frontend
 // (enforced in api/app/map-features.php). The editor keeps managing images either way.
 const AVESMAPS_SETTLEMENT_IMAGES_SETTING = 'settlement_images_enabled';
