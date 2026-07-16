@@ -95,11 +95,18 @@ function buildPlaceCityMapsMarkup(location) {
 // ---- eine Abenteuer-Karte (Cover A4 + Titel + Jahr + Typ) -- fuer beginnt/spielt-Streifen UND Dialog ----
 // isPlay=true -> "spielt hier"-Karte: gleiche Zeile, initial verborgen (display:none), wird beim Umschalten
 // per Fade + Rechts-Scroll freigegeben. data-role gruppiert die Sortierung (beginnt bleibt vor spielt).
-// The shop/reference links for an adventure, in click PRIORITY order (Owner): Ulisses e-book -> F-Shop ->
-// the wiki page -> Deutsche Nationalbibliothek (DNB LAST). Ulisses + F-Shop are wiki-sourced (link_ulisses/
-// link_fshop, may be empty); the wiki page is always available (so it wins over DNB, which is a mere ISBN/
-// title search fallback and effectively never the cover target). Returns [{ key, label, url }], highest first.
+// The shop/reference links for an adventure, in click PRIORITY order, highest first: Ulisses e-book ->
+// F-Shop -> the wiki page -> Deutsche Nationalbibliothek (DNB LAST, it is a mere ISBN/title search).
+//
+// The SERVER list wins whenever the payload carries one (Spec §2.5): avesmapsAdventureLinks() in
+// api/_internal/app/adventures.php is the single definition of that priority rule, it is what the
+// linkchecker probes, and only its entries carry the checked `state` and the curated extras (§2.4).
+// An EMPTY array is an answer ("this adventure has no identifiable link"), not a miss -- only a MISSING
+// list falls through to the builder below, which is the placeholder path on a box without a backend.
 function advShopLinks(a) {
+	if (a && Array.isArray(a.links)) {
+		return a.links;
+	}
 	var links = [];
 	var ulisses = (a && a.linkUlisses && String(a.linkUlisses).trim()) || "";
 	var fshop = (a && a.linkFshop && String(a.linkFshop).trim()) || "";
@@ -140,12 +147,94 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>' : "";
 	var extraClass = isPlay ? " is-play" : "";
 	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
-	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + ' data-role="' + (isPlay ? "play" : "start") + '" data-year="' + (Number(a.year) || 0) + '" data-type="' + placeExtrasEscape(a.type) + '" data-title="' + placeExtrasEscape(a.title) + '" data-complexity="' + placeExtrasEscape(a.complexity || "") + '" data-genre="' + placeExtrasEscape(a.genre || "") + '" data-edition="' + placeExtrasEscape(a.edition || "") + '" data-official="' + (a.official ? "1" : "0") + '">'
+	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + advCardDataAttributes(a, isPlay) + '>'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
 		+ typeLine
 		+ containedLine
+		+ '</div>';
+}
+
+// The data-* contract shared by the card AND the dialog row. The sort handler, the filter predicate and
+// the beginnt/spielt toggle all read these attributes off whatever element they find, so card and row MUST
+// stamp the identical set -- a row missing one would silently disable a control rather than break loudly.
+// data-public-id is the row's link back into the catalog (see advDialogShapesFromSection).
+function advCardDataAttributes(a, isPlay) {
+	return ' data-role="' + (isPlay ? "play" : "start") + '"'
+		+ ' data-public-id="' + placeExtrasEscape(a.public_id || "") + '"'
+		+ ' data-year="' + (Number(a.year) || 0) + '"'
+		+ ' data-type="' + placeExtrasEscape(a.type) + '"'
+		+ ' data-title="' + placeExtrasEscape(a.title) + '"'
+		+ ' data-complexity="' + placeExtrasEscape(a.complexity || "") + '"'
+		+ ' data-genre="' + placeExtrasEscape(a.genre || "") + '"'
+		+ ' data-edition="' + placeExtrasEscape(a.edition || "") + '"'
+		+ ' data-official="' + (a.official ? "1" : "0") + '"';
+}
+
+// One link line in the row's right-hand column: the link + its checked-state marker (Spec §1.8). A dead
+// link stays CLICKABLE on purpose -- our cache may be stale and the reader may still want to try -- so it
+// is struck through and greyed rather than removed. Every one of these is off-site, hence the ↗ (§12).
+function advRowLinkMarkup(link) {
+	var deadClass = (typeof avesmapsLinkStatusLinkClass === "function") ? avesmapsLinkStatusLinkClass(link.state) : "";
+	var marker = (typeof avesmapsLinkStatusMarkup === "function") ? avesmapsLinkStatusMarkup(link.state) : "";
+	return '<li class="avesmaps-adv-row__linkitem">'
+		+ '<a class="avesmaps-adv-row__link' + deadClass + '" href="' + placeExtrasEscape(link.url) + '"'
+		+ ' target="_blank" rel="noopener" title="' + placeExtrasEscape(link.url) + '">'
+		+ placeExtrasEscape(link.label) + ' ↗</a>'
+		+ marker
+		+ '</li>';
+}
+
+// ---- eine Abenteuer-ZEILE (Dialog, Spec §2.3) ----------------------------------------------------
+// Der Dialog zeigt Zeilen statt Kacheln: Grid 62px | minmax(0,1fr) | 196px -- links das A4-Thumb (weiter
+// der PRIMAERLINK wie in der Kachel), Mitte Titel + Einordnung, rechts ALLE Links mit Status-Marker. Genau
+// dafuer gibt es die Zeile: in eine 78px-Kachel passt keine Link-Spalte.
+//
+// Traegt bewusst AUCH .avesmaps-adv__card: Sortierung, Filter und der beginnt/spielt-Umschalter sind
+// geteilte Handler, die auf diese Klasse + .is-play + .is-filtered-out zielen. So gilt fuer die Zeile
+// automatisch dieselbe Steuerung wie fuer die Kachel; die abweichende Optik haengt an .avesmaps-adv-row.
+function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
+	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
+	var links = advShopLinks(a);
+	var best = links.length ? links[0] : null;
+	var coverHref = (best && best.url) || wikiUrl;
+	var coverTitle = best ? (best.label + ": " + (a.title || "")) : (a.title || "");
+	var coverInner = a.cover
+		? '<img class="avesmaps-adv__cover-img" src="' + placeExtrasEscape(a.cover) + '" alt="" loading="lazy">'
+		: AVESMAPS_ADV_COVER_PH_SVG;
+
+	// Erste Meta-Zeile: Edition · BF-Jahr · Produkttyp. In der Kachel steht der Typ eine Zeile tiefer --
+	// die Zeile hat die Breite, alles drei nebeneinander zu tragen.
+	var metaParts = [];
+	if (a.edition) { metaParts.push(a.edition); }
+	if (a.yearLabel) { metaParts.push(a.yearLabel); }
+	if (a.type) { metaParts.push(a.type); }
+	var metaLine = metaParts.length ? '<div class="avesmaps-adv-row__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
+
+	// Zweite Meta-Zeile: Genre · Komplexität -- in der Kachel gibt es sie gar nicht (kein Platz), im
+	// Dialog filtert man danach, also gehoert sie sichtbar an die Zeile.
+	var factParts = [];
+	if (a.genre) { factParts.push(a.genre); }
+	if (a.complexity) { factParts.push(a.complexity); }
+	var factLine = factParts.length ? '<div class="avesmaps-adv-row__facts">' + placeExtrasEscape(factParts.join(" · ")) + '</div>' : "";
+
+	var containedLine = a.containedIn
+		? '<div class="avesmaps-adv-row__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>'
+		: "";
+	var linksMarkup = links.length ? '<ul class="avesmaps-adv-row__links">' + links.map(advRowLinkMarkup).join("") + '</ul>' : "";
+
+	var extraClass = isPlay ? " is-play" : "";
+	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
+	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + hiddenStyle + advCardDataAttributes(a, isPlay) + '>'
+		+ '<a class="avesmaps-adv-row__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
+		+ '<div class="avesmaps-adv-row__main">'
+		+ '<a class="avesmaps-adv-row__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
+		+ metaLine
+		+ factLine
+		+ containedLine
+		+ '</div>'
+		+ '<div class="avesmaps-adv-row__side">' + linksMarkup + '</div>'
 		+ '</div>';
 }
 
@@ -366,8 +455,56 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 	});
 }
 
+// ---- Filterleiste, geteilt von BEIDEN "Alle anzeigen"-Dialogen (Spec §2.2) ------------------------
+// "Filter"-Label + Art-Chips (Mehrfachauswahl) + Divider + DSA-Version/Schwierigkeit/Genre als Selects +
+// Zeitraum + Divider + "nur offiziell"-Chip. Nur Dimensionen, zu denen die aktuelle Menge ueberhaupt eine
+// Facette hergibt -- ausser dem Zeitraum, der immer steht, damit das Feld auffindbar bleibt.
+//
+// Lag bis Aufgabe B zweimal fast identisch vor (dialogFiltersMarkup hier, filtersMarkup im Nested-Dialog):
+// ~40 Zeilen, die bei jeder Filteraenderung an zwei Stellen nachgezogen werden mussten -- und genau eine
+// davon wurde dann vergessen. Die .avesmaps-adv-tree__*-Klassen sind NICHT ancestor-scoped, deshalb traegt
+// dieselbe Leiste in beiden Dialogen. Die Verdrahtung bleibt pro Dialog eigen (box-lokal vs. document).
+function advFiltersMarkup(facets) {
+	facets = facets || {};
+	var parts = ['<span class="avesmaps-adv-tree__flabel">' + placeExtrasEscape(tr("adventures.filter.label", "Filter")) + '</span>'];
+	if (facets.types && facets.types.length) {
+		facets.types.forEach(function (t) {
+			parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + placeExtrasEscape(t) + '">' + placeExtrasEscape(t) + '</span>');
+		});
+		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
+	}
+	function selectMarkup(kind, placeholder, values) {
+		if (!values || !values.length) {
+			return "";
+		}
+		return '<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="' + kind + '">'
+			+ '<option value="">' + placeExtrasEscape(placeholder) + '</option>'
+			+ values.map(function (v) { return '<option value="' + placeExtrasEscape(v) + '">' + placeExtrasEscape(v) + '</option>'; }).join("")
+			+ '</select></span>';
+	}
+	parts.push(selectMarkup("edition", tr("adventures.filter.edition", "DSA-Version"), facets.editions));
+	parts.push(selectMarkup("complexity", tr("adventures.filter.complexity", "Schwierigkeit"), facets.complexities));
+	parts.push(selectMarkup("genre", tr("adventures.filter.genre", "Genre"), facets.genres));
+
+	var yr = facets.yearRange || { min: 0, max: 0 };
+	var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : placeExtrasEscape(tr("adventures.filter.from", "von"));
+	var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : placeExtrasEscape(tr("adventures.filter.to", "bis"));
+	parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + placeExtrasEscape(tr("adventures.filter.period", "Zeitraum (BF)")) + '</span>'
+		+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
+		+ '<span class="avesmaps-adv-tree__ydash">–</span>'
+		+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
+	parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
+	parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "nur offiziell")) + '</span>');
+	return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
+}
+
 // ---- Interaktivitaet via Document-Delegation (funktioniert in Popup UND Panel) ----
 (function initPlaceExtrasDelegation() {
+	// Node (unit tests): nothing to bind, and touching `window` here would throw before the pure markup
+	// builders above could ever be required. Same guard as map-features-adventures-dialog.js.
+	if (typeof window === "undefined" || typeof document === "undefined") {
+		return;
+	}
 	if (typeof window.__avesmapsPlaceExtrasBound !== "undefined") {
 		return;
 	}
@@ -399,8 +536,12 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 	}
 	// Shape aus den Karten-data-Attributen -> avesmapsAdventureFacetOptions/avesmapsAdventureMatchesFilter
 	// (geteilte, reine Funktionen aus map-features-adventures.js, gleiches Praedikat wie der Nested-Dialog).
+	// Das ist die MAGERE Shape: sie kennt nur, was als Attribut am Element steht -- insbesondere KEINE Links.
+	// Fuer die Dialogzeile wird sie deshalb nach Moeglichkeit durch die Katalog-Shape ersetzt (siehe unten).
 	function cardShapeFromEl(card) {
 		return {
+			public_id: card.getAttribute("data-public-id") || "",
+			title: card.getAttribute("data-title") || "",
 			type: card.getAttribute("data-type") || "",
 			edition: card.getAttribute("data-edition") || "",
 			year: Number(card.getAttribute("data-year")) || 0,
@@ -416,40 +557,27 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		return avesmapsAdventureMatchesFilter(cardShapeFromEl(card), filter);
 	}
 
-	// Filterleiste fuer den flachen Dialog -- gleiche Optik/Klassen wie der Nested-Dialog (adventures-dialog.css,
-	// .avesmaps-adv-tree__filters/__chip/__selwrap/__fsel/__yearwrap/__yearin/__fdiv sind NICHT ancestor-scoped,
-	// also visuell wiederverwendbar). Eigene, dialog-lokale State-/Event-Verdrahtung in buildDialogControls
-	// (nicht $(document).on), damit sie den Nested-Dialog (#avesmaps-adv-tree-dialog) nicht beruehrt.
-	function dialogFiltersMarkup(facets) {
-		var parts = ['<span class="avesmaps-adv-tree__flabel">' + placeExtrasEscape(tr("adventures.filter.label", "Filter")) + '</span>'];
-		if (facets.types && facets.types.length) {
-			facets.types.forEach(function (t) {
-				parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + placeExtrasEscape(t) + '">' + placeExtrasEscape(t) + '</span>');
-			});
-			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-		}
-		if (facets.editions && facets.editions.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">' + placeExtrasEscape(tr("adventures.filter.edition", "DSA-Version")) + '</option>'
-				+ facets.editions.map(function (e) { return '<option value="' + placeExtrasEscape(e) + '">' + placeExtrasEscape(e) + '</option>'; }).join('') + '</select></span>');
-		}
-		if (facets.complexities && facets.complexities.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">' + placeExtrasEscape(tr("adventures.filter.complexity", "Schwierigkeit")) + '</option>'
-				+ facets.complexities.map(function (d) { return '<option value="' + placeExtrasEscape(d) + '">' + placeExtrasEscape(d) + '</option>'; }).join('') + '</select></span>');
-		}
-		if (facets.genres && facets.genres.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">' + placeExtrasEscape(tr("adventures.filter.genre", "Genre")) + '</option>'
-				+ facets.genres.map(function (g) { return '<option value="' + placeExtrasEscape(g) + '">' + placeExtrasEscape(g) + '</option>'; }).join('') + '</select></span>');
-		}
-		var yr = facets.yearRange || { min: 0, max: 0 };
-		var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : placeExtrasEscape(tr("adventures.filter.from", "von"));
-		var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : placeExtrasEscape(tr("adventures.filter.to", "bis"));
-		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + placeExtrasEscape(tr("adventures.filter.period", "Zeitraum (BF)")) + '</span>'
-			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
-			+ '<span class="avesmaps-adv-tree__ydash">–</span>'
-			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
-		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "nur offiziell")) + '</span>');
-		return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
+	// Die Abenteuer einer Streifen-Section als VOLLE Katalog-Shapes (Spec §2.2: der flache Dialog wird
+	// datengetrieben). Bis Aufgabe B klonte der Dialog die Streifenkarten -- aus einer 78px-Kachel laesst
+	// sich aber keine Link-Spalte klonen, denn die Links stehen dort gar nicht im DOM.
+	//
+	// Der Streifen bleibt die Quelle der WELCHE-Frage (welche Abenteuer, in welcher Rolle): so koennen
+	// Streifen und Dialog nie verschiedene Mengen zeigen. Den INHALT holt jede Zeile ueber ihre public_id
+	// frisch aus dem Katalog -- dort haengen die Links samt geprueftem Status. Kein Katalog-Treffer
+	// (Platzhalterdaten ohne Backend) -> die magere DOM-Shape, aus der advShopLinks clientseitig wieder
+	// Wiki + DNB ableitet. Beide Wege liefern eine gueltige Zeile, nur die eine ohne Status-Marker.
+	function advDialogShapesFromSection(section) {
+		var listEl = section.querySelector(".avesmaps-adv__list");
+		var cards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card") : [];
+		return Array.prototype.map.call(cards, function (card) {
+			var fromCatalog = (typeof getAdventureShape === "function")
+				? getAdventureShape(card.getAttribute("data-public-id"))
+				: null;
+			return {
+				shape: fromCatalog || cardShapeFromEl(card),
+				isPlay: card.classList.contains("is-play"),
+			};
+		});
 	}
 
 	// Dialog-Steuerzeile: Umschalter (nur wenn spielt-Karten da sind) + Filterleiste (nur wenn die aktuellen
@@ -488,7 +616,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		var facets = (typeof avesmapsAdventureFacetOptions === "function")
 			? avesmapsAdventureFacetOptions(shapes)
 			: { types: [], complexities: [], genres: [], editions: [] };
-		var filtersHtml = dialogFiltersMarkup(facets);
+		var filtersHtml = advFiltersMarkup(facets);
 
 		controls.innerHTML = togglesHtml + filtersHtml + sortsHtml;
 		box.insertBefore(controls, grid);
@@ -547,9 +675,13 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		});
 	}
 
-	// Kern: den flachen Dialog aus einer .avesmaps-adv-SECTION befuellen (Titel + Karten aus dem Streifen klonen)
-	// und oeffnen. Genutzt vom "Alle anzeigen"-Button (Streifen im Panel) UND vom Floating-Box-"Abenteuer"-Button
-	// (der die Section on-demand aus den Ortsdaten baut -> openPlaceAdventuresDialog).
+	// Kern: den flachen Dialog aus einer .avesmaps-adv-SECTION befuellen und oeffnen. Genutzt vom
+	// "Alle anzeigen"-Button (Streifen im Panel) UND vom Floating-Box-"Abenteuer"-Button (der die Section
+	// on-demand aus den Ortsdaten baut -> openPlaceAdventuresDialog).
+	//
+	// Seit Aufgabe B datengetrieben (Spec §2.2): der Streifen sagt nur noch, WELCHE Abenteuer in welcher
+	// Rolle gemeint sind; die Zeilen werden aus den Katalog-Shapes NEU gebaut, nicht aus den Kacheln
+	// geklont. Erst dadurch gibt es ueberhaupt eine Link-Spalte -- die Links stehen in keiner Kachel.
 	function openFlatDialogForSection(section) {
 		if (!section) {
 			return;
@@ -557,25 +689,16 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		var overlay = ensureAdventuresDialog();
 		var head = section.querySelector(".avesmaps-adv__head");
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = head ? head.textContent.trim() : tr("adventures.label", "Abenteuer");
-		var listEl = section.querySelector(".avesmaps-adv__list");
-		var startCards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card:not(.is-play)") : [];
-		var playCards = listEl ? listEl.querySelectorAll(".avesmaps-adv__card.is-play") : [];
+		var entries = advDialogShapesFromSection(section);
+		var startEntries = entries.filter(function (e) { return !e.isPlay; });
+		var playEntries = entries.filter(function (e) { return e.isPlay; });
 		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
-		grid.innerHTML = "";
 		grid.classList.remove("show-play"); // Dialog startet in der beginnt-Sicht
-		// beginnt-Karten (voll), dann spielt-Karten (verborgen). Inline-Opacity zuruecksetzen (Streifen evtl. gedimmt).
-		Array.prototype.forEach.call(startCards, function (card) {
-			var clone = card.cloneNode(true);
-			clone.style.opacity = "";
-			grid.appendChild(clone);
-		});
-		Array.prototype.forEach.call(playCards, function (card) {
-			var clone = card.cloneNode(true);
-			clone.style.opacity = "";
-			clone.style.display = "none";
-			grid.appendChild(clone);
-		});
-		buildDialogControls(overlay, startCards.length, playCards.length);
+		// beginnt-Zeilen (voll), dann spielt-Zeilen (per Inline-display verborgen, wie im Streifen -- der
+		// geteilte applyAdventureMode gibt sie beim Umschalten frei).
+		grid.innerHTML = startEntries.map(function (e) { return buildAdventureRowMarkup(e.shape, false); }).join("")
+			+ playEntries.map(function (e) { return buildAdventureRowMarkup(e.shape, true); }).join("");
+		buildDialogControls(overlay, startEntries.length, playEntries.length);
 		var creditEl = overlay.querySelector(".avesmaps-adv-dialog__credit");
 		if (creditEl) {
 			creditEl.innerHTML = avesmapsAdventureCreditMarkup();
@@ -750,3 +873,16 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		applyAdventureMode(overlay.querySelector(".avesmaps-adv-dialog__grid"), mode, false);
 	});
 })();
+
+// ---- exports -------------------------------------------------------------------------------------
+// Node export of the PURE markup builders (inert in the browser, where index.html loads this as a plain
+// script and everything above is a global). The delegation IIFE needs a DOM and is not exported.
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = {
+		advShopLinks: advShopLinks,
+		advBestLink: advBestLink,
+		advFiltersMarkup: advFiltersMarkup,
+		buildAdventureCardMarkup: buildAdventureCardMarkup,
+		buildAdventureRowMarkup: buildAdventureRowMarkup,
+	};
+}

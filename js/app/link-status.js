@@ -37,3 +37,12 @@ function avesmapsLinkStatusMarkup(state) {
 function avesmapsLinkStatusLinkClass(state) {
 	return String(state == null ? "" : state).trim() === "dead" ? " link-status-dead-target" : "";
 }
+
+// Node export (inert in the browser, where both functions are globals loaded by index.html). Lets a
+// markup test render the real markers instead of asserting against re-typed strings.
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = {
+		avesmapsLinkStatusMarkup: avesmapsLinkStatusMarkup,
+		avesmapsLinkStatusLinkClass: avesmapsLinkStatusLinkClass,
+	};
+}

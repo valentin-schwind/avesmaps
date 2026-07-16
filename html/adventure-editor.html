@@ -238,6 +238,19 @@
   .ae-linkchip.is-active { border-color: var(--color-accent-strong); background: var(--color-active-wash);
     color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
 
+  /* ---- „Weitere Links" (§2.4): Titel + URL je Zeile, ▲▼, löschen ------------------------------- */
+  .ae-xlink { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); }
+  .ae-xlink__reorder { display: flex; flex-direction: column; }
+  .ae-xlink__reorder button { border: 0; background: transparent; cursor: pointer;
+    color: var(--color-text-muted); line-height: 1; padding: 0; font-size: 10px; }
+  .ae-xlink__reorder button:hover { color: var(--color-text-strong); }
+  .ae-xlink__reorder button:disabled { opacity: .35; cursor: default; }
+  .ae-xlink__hint { font-size: var(--font-size-caption); color: var(--color-text-muted);
+    margin: 0 0 var(--space-8); }
+  .ae-xlink__empty { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0; }
+  .ae-xlink__add { margin-top: var(--space-8); }
+
   /* ---- Orte (places) -------------------------------------------------------------------------- */
   .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
   .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
@@ -432,7 +445,9 @@
   // Left-list filters (all AND-combined with the title search). ortId = an exact target_public_id picked from
   // the map-search autocomplete; region = a raw_name of a region/territory place (coarse area filter).
   const EMPTY_FILTERS = { type: "", edition: "", yearFrom: "", yearTo: "", cover: "", fshop: "", region: "", ortId: "", ortName: "" };
-  const state = { adventures: [], selectedId: null, detail: null, filters: Object.assign({}, EMPTY_FILTERS) };
+  // extraLinks = the working copy of the "Weitere Links" list (§2.4). Held in state rather than read off
+  // the DOM on demand because ▲▼/✕ re-render the rows: whatever is typed must survive that.
+  const state = { adventures: [], selectedId: null, detail: null, extraLinks: [], filters: Object.assign({}, EMPTY_FILTERS) };
 
   // List-thumbnail placeholder (kein Cover) — mirrors AVESMAPS_ADV_COVER_PH_SVG (map-features-place-extras.js),
   // dieselbe Bild-Silhouette wie im Frontend-Streifen/-Dialog, nur kleiner fuer die dichte Editor-Liste.
@@ -584,6 +599,9 @@
     }
     const v = d || {};
     const o = (d && d.field_origins) || {};
+    // Fresh working copy per render (a new adventure has none) -- never the server objects themselves, so
+    // an abandoned edit cannot leak into state.detail.
+    state.extraLinks = ((d && d.extra_links) || []).map((l) => ({ label: l.label || "", url: l.url || "" }));
     body.innerHTML = `
       ${aeCoverGroup(v, o)}
       <div class="ae-grp"><p class="ae-grp__title">Identität</p><div class="ae-fields">
@@ -606,7 +624,8 @@
         ${aeField("F-Shop-Code", "fshop_code", v.fshop_code || "", o)}
         ${aeField("Cover-URL", "cover_url", v.cover_url || "", o)}
       </div></div>
-      ${aeLinksGroup(v, o)}`;
+      ${aeLinksGroup(v, o)}
+      ${aeExtraLinksGroup()}`;
     // Cover actions (upload / re-fetch) need a saved adventure -> wired after the body is in the DOM.
     const coverFile = document.getElementById("aeCoverFile");
     if (coverFile) coverFile.addEventListener("change", () => aeUploadCover(coverFile));
@@ -644,6 +663,55 @@
         ${aeField("ISBN (für DNB)", "isbn", v.isbn || "", o)}
         ${aeField("Enthalten in (Sammelprodukt)", "contained_in", v.contained_in || "", o, { wide: true })}
       </div></div>`;
+  }
+
+  // ---- „Weitere Links" (Spec §2.4) ----
+  // Kuratierte Zusatzlinks: alles, was weder Shop noch Wiki ist. Blattdaten ohne Wiki-Reconcile -> die
+  // ganze Liste wird als Array gespeichert (Action set_links), und die Reihenfolge IST die Array-
+  // Reihenfolge. ▲▼ ist deshalb ein reiner Array-Tausch ohne id-Jonglage.
+  //
+  // Die Felder heissen data-xl-field (NICHT data-field): gatherStamm() sammelt alles mit [data-field] aus
+  // #aeStammBody ein, und ein Link-Feld darf dort nicht als Abenteuer-Spalte mitfahren.
+  function aeExtraLinkRows() {
+    if (!state.extraLinks.length) {
+      return `<p class="ae-xlink__empty">Noch keine weiteren Links.</p>`;
+    }
+    return state.extraLinks.map((l, i) => `
+      <div class="ae-xlink" data-xl-idx="${i}">
+        <div class="ae-xlink__reorder">
+          <button type="button" data-xl-act="up" title="hoch"${i === 0 ? " disabled" : ""}>▲</button>
+          <button type="button" data-xl-act="down" title="runter"${i === state.extraLinks.length - 1 ? " disabled" : ""}>▼</button>
+        </div>
+        <input class="ae-input" data-xl-field="label" placeholder="Titel, z. B. „Rezension von XY“" value="${aeEscape(l.label || "")}">
+        <input class="ae-input" data-xl-field="url" placeholder="https://…" value="${aeEscape(l.url || "")}">
+        <button type="button" class="btn btn--icon btn--danger" data-xl-act="del" title="Link entfernen">✕</button>
+      </div>`).join("");
+  }
+  function aeExtraLinksGroup() {
+    return `<div class="ae-grp"><p class="ae-grp__title">Weitere Links</p>
+      <p class="ae-xlink__hint">Rezensionen, Errata, Fanmaterial — alles, was weder Shop noch Wiki ist. Sie stehen im
+        Abenteuer-Dialog hinter den Shop-Links und werden mitgeprüft. Speichern über „Stammdaten speichern“.</p>
+      <div id="aeExtraLinks">${aeExtraLinkRows()}</div>
+      <div class="ae-xlink__add"><button type="button" class="btn btn--sm" data-xl-act="add">+ Link</button></div>
+    </div>`;
+  }
+  // Nur die Zeilen neu zeichnen -- ein renderDetail() wuerde die ungespeicherten Stammdaten-Eingaben
+  // daneben wegwerfen.
+  function renderExtraLinks() {
+    const host = document.getElementById("aeExtraLinks");
+    if (host) host.innerHTML = aeExtraLinkRows();
+  }
+  // Getipptes aus den Inputs zurueck in den State holen. Muss VOR jedem Re-Render und vor dem Speichern
+  // laufen, sonst verliert ein ▲ die gerade eingegebene URL.
+  function aeSyncExtraLinksFromDom() {
+    document.querySelectorAll("#aeExtraLinks [data-xl-idx]").forEach((row) => {
+      const link = state.extraLinks[Number(row.dataset.xlIdx)];
+      if (!link) return;
+      const label = row.querySelector('[data-xl-field="label"]');
+      const url = row.querySelector('[data-xl-field="url"]');
+      if (label) link.label = label.value;
+      if (url) link.url = url.value;
+    });
   }
 
   // The "Cover" group: preview + origin badge + "eigenes Cover laden" (upload -> manual override) +
@@ -730,11 +798,15 @@
     return out;
   }
   async function saveStammdaten() {
+    aeSyncExtraLinksFromDom();
     const adventure = gatherStamm();
     const st = document.getElementById("aeSaveState");
     if (!adventure.title || !String(adventure.title).trim()) { st.textContent = "Titel fehlt."; st.className = "error"; return; }
     try {
       const { public_id } = await adventurePost({ action: "upsert_adventure", adventure });
+      // AFTER the upsert: set_links addresses the adventure by public_id, and a brand-new one only has
+      // that once it exists. The list is replaced wholesale, so an empty array legitimately clears it.
+      await adventurePost({ action: "set_links", public_id, links: state.extraLinks });
       await loadList();
       await selectAdventure(public_id);
       const st2 = document.getElementById("aeSaveState");
@@ -808,6 +880,29 @@
   document.getElementById("aeListScroll").addEventListener("click", (e) => {
     const b = e.target.closest(".ae-item"); if (!b) return;
     selectAdventure(b.dataset.id);
+  });
+
+  // „Weitere Links": + Link / ▲▼ / ✕. Delegiert auf dem statischen #aeStammBody, weil die Zeilen bei
+  // jedem Render neu entstehen. Rein lokal am State -- gespeichert wird erst mit „Stammdaten speichern".
+  document.getElementById("aeStammBody").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-xl-act]");
+    if (!btn) return;
+    aeSyncExtraLinksFromDom();
+    const act = btn.dataset.xlAct;
+    const rowEl = btn.closest("[data-xl-idx]");
+    const idx = rowEl ? Number(rowEl.dataset.xlIdx) : -1;
+    if (act === "add") {
+      state.extraLinks.push({ label: "", url: "" });
+    } else if (act === "del" && idx >= 0) {
+      state.extraLinks.splice(idx, 1);
+    } else if ((act === "up" || act === "down") && idx >= 0) {
+      const to = act === "up" ? idx - 1 : idx + 1;
+      if (to < 0 || to >= state.extraLinks.length) return;
+      state.extraLinks.splice(to, 0, state.extraLinks.splice(idx, 1)[0]);
+    } else {
+      return;
+    }
+    renderExtraLinks();
   });
 
   // ---- list filters: init selects, wire controls, Ort autocomplete ----

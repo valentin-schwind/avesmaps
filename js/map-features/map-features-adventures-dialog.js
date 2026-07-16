@@ -112,44 +112,11 @@
 			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="play">' + esc(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
 			+ '</div>';
 	}
-	// Filterleiste: "Filter"-Label + Art-Chips (multi) + Divider + Schwierigkeit-/Genre-Selects + Divider +
-	// "nur offiziell"-Chip. Nur Dimensionen mit >=1 Facette.
+	// Filterleiste: geteilt mit dem flachen Dialog (advFiltersMarkup, place-extras.js -- laedt frueher in
+	// index.html). Lag bis Aufgabe B hier als ~40 fast identische Zeilen neben dialogFiltersMarkup; die
+	// Verdrahtung bleibt hier (box-lokal), nur das Markup ist gemeinsam (Spec §2.2).
 	function filtersMarkup(facets) {
-		var parts = ['<span class="avesmaps-adv-tree__flabel">' + esc(tr("adventures.filter.label", "Filter")) + '</span>'];
-		var hasTypes = facets.types && facets.types.length;
-		// The Zeitraum (year) range is ALWAYS shown so the control stays discoverable even when the current
-		// subtree happens to have no dated adventures (many adventures across the catalog carry a BF year).
-		var hasSel = true;
-		if (hasTypes) {
-			facets.types.forEach(function (t) {
-				parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + esc(t) + '">' + esc(t) + '</span>');
-			});
-		}
-		if (hasTypes && hasSel) {
-			parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-		}
-		if (facets.editions && facets.editions.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="edition"><option value="">' + esc(tr("adventures.filter.edition", "DSA-Version")) + '</option>'
-				+ facets.editions.map(function (e) { return '<option value="' + esc(e) + '">' + esc(e) + '</option>'; }).join('') + '</select></span>');
-		}
-		if (facets.complexities && facets.complexities.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="complexity"><option value="">' + esc(tr("adventures.filter.complexity", "Schwierigkeit")) + '</option>'
-				+ facets.complexities.map(function (d) { return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join('') + '</select></span>');
-		}
-		if (facets.genres && facets.genres.length) {
-			parts.push('<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="genre"><option value="">' + esc(tr("adventures.filter.genre", "Genre")) + '</option>'
-				+ facets.genres.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select></span>');
-		}
-		var yr = facets.yearRange || { min: 0, max: 0 };
-		var fromPh = yr.min > 0 ? esc(yr.min) : esc(tr("adventures.filter.from", "von"));
-		var toPh = yr.max > 0 ? esc(yr.max) : esc(tr("adventures.filter.to", "bis"));
-		parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + esc(tr("adventures.filter.period", "Zeitraum (BF)")) + '</span>'
-			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
-			+ '<span class="avesmaps-adv-tree__ydash">–</span>'
-			+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
-		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-		parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + esc(tr("adventures.filter.officialOnly", "nur offiziell")) + '</span>');
-		return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
+		return typeof advFiltersMarkup === "function" ? advFiltersMarkup(facets) : "";
 	}
 
 	// Pseudo-shape aus den Karten-data-Attributen -> avesmapsAdventureMatchesFilter (geteiltes Praedikat).

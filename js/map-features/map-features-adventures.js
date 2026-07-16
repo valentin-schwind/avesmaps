@@ -81,6 +81,12 @@ function avesmapsAdventureToRenderShape(adventure) {
 		official: adventure.is_official === true || adventure.is_official === 1,
 		complexity: adventure.complexity_gm || adventure.complexity_pl || "",
 		genre: adventure.genre || "",
+		// The server-built link list [{key,label,url,state}] in click-priority order (Spec §2.5,
+		// avesmapsAdventureLinks). This shape is built from an EXPLICIT field list, so anything not named
+		// here is silently dropped -- leaving `links` out is why the dialog would show no links however
+		// correct the backend is. [] (not undefined) so callers can iterate unguarded; an empty list is
+		// also the honest answer for placeholder data, which advShopLinks then rebuilds client-side.
+		links: Array.isArray(adventure.links) ? adventure.links : [],
 	};
 }
 
@@ -567,6 +573,23 @@ function getAdventureTerritoryTree(territoryWikiKey) {
 	return avesmapsBuildAdventureTerritoryTree(state.catalog, state.territoryMeta || {}, territoryWikiKey, avesmapsNormalizeAdventureKey);
 }
 
+// The full render shape of ONE catalog adventure by public_id -- links (with their checked state)
+// included -- or null when the catalog holds no such row.
+//
+// For a surface that ALREADY knows which adventures it shows and only needs their content (the flat
+// "Alle anzeigen" dialog, Spec §2.2: it takes the set from the rendered strip and the content from here).
+// Deliberately not a place query: re-running the place lookup could return a different set than the strip
+// rendered, and the two disagreeing is the exact failure the data-driven rebuild is meant to end. null
+// (placeholder data, or a card rendered before the catalog landed) is a valid answer, not an error.
+function getAdventureShape(publicId) {
+	var index = avesmapsAdventureCatalogState.index;
+	if (!index || !publicId) {
+		return null;
+	}
+	var adventure = index.byPublicId[publicId];
+	return adventure ? avesmapsAdventureToRenderShape(adventure) : null;
+}
+
 // All places of one adventure (in sort_order). Returns the raw place objects (general catalog accessor,
 // e.g. for a future editor-defined route). The list order is wiki position, NOT a route.
 function getAdventurePlaces(publicId) {
@@ -602,6 +625,7 @@ if (typeof window !== "undefined") {
 	window.getAdventuresForRegion = getAdventuresForRegion;
 	window.getAdventuresForPath = getAdventuresForPath;
 	window.getAdventureTerritoryTree = getAdventureTerritoryTree;
+	window.getAdventureShape = getAdventureShape;
 	window.getAdventurePlaces = getAdventurePlaces;
 	// Cover kill switch (owner "emergency off"): false -> place-extras drops the "© Ulisses" cover credit
 	// (covers already render as placeholders because the render shape zeroes cover_url when disabled).

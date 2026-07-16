@@ -26,6 +26,17 @@ assert.strictEqual(shape.cover, "c");
 assert.strictEqual(shape.url, "u");
 // yearLabel falls back to "<bf_year> BF" when bf_label is missing
 assert.strictEqual(avesmapsAdventureToRenderShape({ public_id: "y", bf_year: 1030 }).yearLabel, "1030 BF");
+
+// The server-built link list (Spec §2.5) must survive the shape conversion -- the shape is built from an
+// explicit field list, so a link list left out here silently never reaches the dialog no matter how
+// correct the backend is.
+const linked = avesmapsAdventureToRenderShape({
+	public_id: "z", title: "T",
+	links: [{ key: "fshop", label: "F-Shop", url: "https://f-shop/x", state: "online" }],
+});
+assert.deepStrictEqual(linked.links, [{ key: "fshop", label: "F-Shop", url: "https://f-shop/x", state: "online" }]);
+// An adventure without links (placeholder data / a catalog older than the field) yields [], never undefined.
+assert.deepStrictEqual(avesmapsAdventureToRenderShape({ public_id: "y" }).links, []);
 console.log("render shape ok");
 
 // ---- index + select ----

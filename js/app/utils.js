@@ -336,3 +336,10 @@ function setVersionedIconSource(iconElement, iconPath) {
 	iconElement.dataset.sourceSrc = iconPath;
 	iconElement.src = withAssetVersion(iconPath);
 }
+
+// Node export (inert in the browser, where index.html loads this as a plain script and every function
+// above is simply a global). Only what a test needs to exercise the REAL implementation rather than a
+// re-typed stub: markup builders that escape via this escaper are only worth testing against it.
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = { escapeHtml: escapeHtml };
+}

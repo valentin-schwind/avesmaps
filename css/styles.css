@@ -27,7 +27,7 @@
 @import url("features/political-timeline.css");
 @import url("features/location-popups-markers.css?v=20260714-tilefill3");
 @import url("features/location-reviews.css?v=20260714-scrollbar1");
-@import url("features/place-extras.css?v=20260713-adventures9");
+@import url("features/place-extras.css?v=20260716-advrows1");
 @import url("features/adventures-dialog.css?v=20260713-adv-dialog7");
 @import url("features/measurement-tool.css");
 @import url("features/route-overview.css?v=20260711-theme9");
@@ -40,4 +40,4 @@
 @import url("features/infopanel.css?v=20260714-edgepanels1");
 
 /* Einheitlicher Link-Stil — als LETZTES, damit es aeltere per-Klasse-Linkfarben ueberschreibt. */
-@import url("features/links.css?v=20260712-links4");
+@import url("features/links.css?v=20260716-deadlink1");

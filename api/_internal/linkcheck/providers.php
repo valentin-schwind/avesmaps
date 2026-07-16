@@ -40,16 +40,22 @@ function avesmapsLinkCheckCollectAdventureLinks(PDO $pdo): array
 {
     avesmapsAdventuresEnsureTables($pdo);
     $rows = $pdo->query(
-        "SELECT public_id, title, wiki_url, link_ulisses, link_fshop, isbn
+        "SELECT id, public_id, title, wiki_url, link_ulisses, link_fshop, isbn
            FROM adventure WHERE status = 'approved'"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
+    // The curated "Weitere Links" (Spec §2.4) belong to the adventure just as much as its shop links, so
+    // they are collected in the same pass -- one batch query, never per adventure. Skipping them here
+    // would leave the reader looking at an "(noch nicht geprüft)" marker forever: the catalog renders
+    // them, but nothing would ever register or probe them.
+    $extraLinksByAdventure = avesmapsAdventureExtraLinksByAdventure(
+        $pdo,
+        array_map(static fn(array $r): int => (int) $r['id'], $rows)
+    );
+
     $collected = [];
     foreach ($rows as $row) {
-        // Phase A has no adventure_link table yet (that ships with Spec §2.4, task B); until then every
-        // adventure simply has no extra links. The call site already passes them, so B only has to fill
-        // this array -- no signature change here.
-        foreach (avesmapsAdventureLinks($row, []) as $link) {
+        foreach (avesmapsAdventureLinks($row, $extraLinksByAdventure[(int) $row['id']] ?? []) as $link) {
             $collected[] = [
                 'entity_public_id' => (string) $row['public_id'],
                 'field' => (string) $link['key'],

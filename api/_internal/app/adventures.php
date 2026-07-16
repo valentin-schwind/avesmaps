@@ -100,6 +100,25 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
             $pdo->exec('ALTER TABLE adventure ADD COLUMN ' . $column . ' ' . $type . ' NULL');
         }
     }
+
+    // Curated extra links (Spec §2.4, "Weitere Links"): reviews, errata, fan material -- everything that is
+    // neither a shop nor the wiki page. Leaf data: no wiki reconcile, no field_origins, no per-row identity
+    // to protect, which is why the editor replaces the whole list at once (set_links) instead of juggling
+    // ids. Deliberately NOT columns on `adventure`: the count is open-ended.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS adventure_link (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            adventure_id INT NOT NULL,
+            label VARCHAR(120) NOT NULL,
+            url VARCHAR(500) NOT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            origin VARCHAR(16) NOT NULL DEFAULT 'manual',
+            status VARCHAR(16) NOT NULL DEFAULT 'approved',
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            KEY idx_adventure_link_adventure (adventure_id, sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
 }
 
 function avesmapsAdventuresCount(PDO $pdo): int
@@ -213,6 +232,124 @@ function avesmapsAdventureLinks(array $row, array $extraLinks): array
     return $links;
 }
 
+// ---- curated extra links (Spec §2.4) --------------------------------------------------------------
+// Column widths, enforced in PHP rather than left to MySQL: a silently truncated URL is a broken link,
+// and a truncated label is a mislabelled one.
+const AVESMAPS_ADVENTURE_LINK_LABEL_MAX = 120;
+const AVESMAPS_ADVENTURE_LINK_URL_MAX = 500;
+
+// The gate between the editor and adventure_link. Takes the WHOLE list as displayed and returns it as
+// storable rows; sort_order is the array position, so the editor's ▲▼ is a plain array move and no id
+// ever has to be renumbered. Pure (no PDO) -> unit-tested in __tests__/adventure-links-test.php.
+//
+// An all-blank row is a trailing empty line in a row editor, not an error -- skipped. A HALF-filled row
+// is an error rather than a silent drop: dropping loses what the editor typed, and storing it would
+// render an empty anchor (avesmapsAdventureLinks only skips on an empty url, never on an empty label).
+function avesmapsNormalizeAdventureLinkRows(array $rows): array
+{
+    $normalized = [];
+    foreach ($rows as $row) {
+        $label = trim((string) (is_array($row) ? ($row['label'] ?? '') : ''));
+        $url = trim((string) (is_array($row) ? ($row['url'] ?? '') : ''));
+        if ($label === '' && $url === '') {
+            continue;
+        }
+        if ($label === '') {
+            throw new InvalidArgumentException('Ein Link braucht einen Titel: ' . $url);
+        }
+        if ($url === '') {
+            throw new InvalidArgumentException('Ein Link braucht eine URL: ' . $label);
+        }
+        // http/https only. The probe refuses everything else anyway (Spec §1.4), so any other scheme
+        // could never be checked -- and it would still be handed to the reader as a live href.
+        $scheme = strtolower((string) (parse_url($url, PHP_URL_SCHEME) ?: ''));
+        if ($scheme !== 'http' && $scheme !== 'https') {
+            throw new InvalidArgumentException('Nur http/https-Links sind erlaubt: ' . $label);
+        }
+        if (mb_strlen($label) > AVESMAPS_ADVENTURE_LINK_LABEL_MAX) {
+            throw new InvalidArgumentException('Der Titel ist zu lang (max. ' . AVESMAPS_ADVENTURE_LINK_LABEL_MAX . ' Zeichen): ' . $label);
+        }
+        if (strlen($url) > AVESMAPS_ADVENTURE_LINK_URL_MAX) {
+            throw new InvalidArgumentException('Die URL ist zu lang (max. ' . AVESMAPS_ADVENTURE_LINK_URL_MAX . ' Zeichen): ' . $label);
+        }
+        $normalized[] = ['label' => $label, 'url' => $url, 'sort_order' => count($normalized)];
+    }
+    return $normalized;
+}
+
+// The extra links of MANY adventures in one query, grouped by adventure_id (never per adventure -- the
+// catalog read and the linkcheck provider both walk the whole table). Returns [adventure_id => [{id,
+// label, url}]] in display order; adventures without extras are simply absent from the map.
+function avesmapsAdventureExtraLinksByAdventure(PDO $pdo, array $adventureIds): array
+{
+    $ids = array_values(array_unique(array_map('intval', $adventureIds)));
+    if ($ids === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        "SELECT id, adventure_id, label, url
+           FROM adventure_link
+          WHERE status = 'approved' AND adventure_id IN ($placeholders)
+          ORDER BY adventure_id ASC, sort_order ASC, id ASC"
+    );
+    $statement->execute($ids);
+
+    $byAdventure = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $byAdventure[(int) $row['adventure_id']][] = [
+            'id' => (int) $row['id'],
+            'label' => (string) $row['label'],
+            'url' => (string) $row['url'],
+        ];
+    }
+    return $byAdventure;
+}
+
+// Replace an adventure's whole extra-link list atomically (Spec §2.4 `set_links`). Delete + re-insert
+// rather than diffing: these are leaf rows with nothing to protect, and link_status keys on url_hash, so
+// a re-created row inherits the probe history of its URL even though its id (and thus its 'extra:<id>'
+// link_ref field) changed -- the stale ref is pruned by the next sync. 404s on an unknown public_id.
+function avesmapsSetAdventureLinks(PDO $pdo, string $publicId, array $links): array
+{
+    avesmapsAdventuresEnsureTables($pdo);
+
+    $find = $pdo->prepare('SELECT id FROM adventure WHERE public_id = :pid LIMIT 1');
+    $find->execute(['pid' => $publicId]);
+    $adventureId = $find->fetchColumn();
+    if ($adventureId === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+    }
+    $adventureId = (int) $adventureId;
+
+    // Validate the WHOLE list before touching a row: a partial save would leave the editor showing a list
+    // that no longer matches what is stored.
+    $rows = avesmapsNormalizeAdventureLinkRows($links);
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare('DELETE FROM adventure_link WHERE adventure_id = :aid')->execute(['aid' => $adventureId]);
+        $insert = $pdo->prepare(
+            "INSERT INTO adventure_link (adventure_id, label, url, sort_order, origin, status)
+             VALUES (:aid, :label, :url, :sort_order, 'manual', 'approved')"
+        );
+        foreach ($rows as $row) {
+            $insert->execute([
+                'aid' => $adventureId,
+                'label' => $row['label'],
+                'url' => $row['url'],
+                'sort_order' => $row['sort_order'],
+            ]);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['public_id' => $publicId, 'links' => count($rows)];
+}
+
 // The public catalog read (B1 client aggregation): the whole approved catalog in ONE payload so the
 // client can index + aggregate locally. Places travel WITH each adventure, in sort_order (start first);
 // spoiler separation (start vs play) is done in the client, the catalog ships both.
@@ -233,6 +370,9 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
 
     // All places for all adventures in one query (INDEX adventure_id, sort_order), grouped in PHP.
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
+    // The curated extra links, likewise in ONE query -- they are part of every adventure's link list, so
+    // fetching them per adventure would turn this endpoint into an N+1 on a payload every visitor loads.
+    $extraLinksByAdventure = avesmapsAdventureExtraLinksByAdventure($pdo, $ids);
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     $placeStatement = $pdo->prepare(
         "SELECT adventure_id, role, target_kind, target_public_id, target_wiki_key, target_territory_path, raw_name, sort_order
@@ -283,10 +423,10 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
             'isbn' => (string) ($row['isbn'] ?? ''),
             'contained_in' => (string) ($row['contained_in'] ?? ''),
             'places' => $placesByAdventure[(int) $row['id']] ?? [],
-            // The priority-ordered link list, built server-side (§2.5). The endpoint decorates each entry
-            // with its link state; this library deliberately knows nothing about the linkchecker.
-            // extraLinks stays [] until §2.4's adventure_link table ships with task B.
-            'links' => avesmapsAdventureLinks($row, []),
+            // The priority-ordered link list, built server-side (§2.5), curated extras appended. The
+            // endpoint decorates each entry with its link state; this library deliberately knows nothing
+            // about the linkchecker.
+            'links' => avesmapsAdventureLinks($row, $extraLinksByAdventure[(int) $row['id']] ?? []),
         ];
     }
     return $adventures;
@@ -686,6 +826,9 @@ function avesmapsAdventureDetailForEdit(PDO $pdo, string $publicId): ?array
         'updated_at' => (string) ($row['updated_at'] ?? ''),
         'synced_at' => $row['synced_at'] !== null ? (string) $row['synced_at'] : '',
         'places' => $places,
+        // The curated "Weitere Links" (§2.4) in display order. The editor edits this array as a whole and
+        // posts it back via set_links; the ids ride along only so the UI has a stable key per row.
+        'extra_links' => avesmapsAdventureExtraLinksByAdventure($pdo, [(int) $row['id']])[(int) $row['id']] ?? [],
     ];
 }
 

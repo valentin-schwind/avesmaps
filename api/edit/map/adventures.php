@@ -48,6 +48,15 @@ try {
             return $detail;
         })(),
         'upsert_adventure' => avesmapsUpsertAdventure($pdo, (array) ($payload['adventure'] ?? [])),
+        // Curated extra links (§2.4): the editor always posts the COMPLETE list in display order, so this
+        // replaces it wholesale. An empty array is a legitimate payload -- it clears the list.
+        'set_links' => (static function () use ($pdo, $payload): array {
+            $publicId = trim((string) ($payload['public_id'] ?? ''));
+            if ($publicId === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'public_id ist erforderlich.');
+            }
+            return avesmapsSetAdventureLinks($pdo, $publicId, (array) ($payload['links'] ?? []));
+        })(),
         'add_place' => (static function () use ($pdo, $payload): array {
             $adventurePublicId = trim((string) ($payload['adventure_public_id'] ?? ''));
             if ($adventurePublicId === '') {

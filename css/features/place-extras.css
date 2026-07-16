@@ -306,7 +306,9 @@
 .avesmaps-adv-dialog__box {
 	display: flex;
 	flex-direction: column;
-	width: min(680px, 100%);
+	/* 860px (Aufgabe B, §2.3): die Zeile braucht 62 + Mitte + 196 plus Padding. Der Nested-Dialog setzt
+	   sich in adventures-dialog.css weiterhin auf seine eigene Breite. */
+	width: min(860px, 100%);
 	max-height: min(82vh, 900px);
 	background: var(--color-panel);
 	color: var(--color-text-strong);
@@ -340,23 +342,92 @@
 .avesmaps-adv-dialog__close:hover {
 	background: var(--color-hover-wash);
 }
+/* Aufgabe B (§2.3): der flache Dialog ist eine LISTE, kein Kachelraster -- in eine 92px-Kachel passt keine
+   Link-Spalte. Die Klasse heisst weiter __grid: sie ist der Karten-Container, auf den die geteilten
+   Sortier-/Umschalt-/Filter-Handler zielen (map-features-place-extras.js). */
 .avesmaps-adv-dialog__grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
-	gap: 16px 12px;
-	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	padding: 4px 16px 16px;
 	overflow-y: auto;
 }
-/* Karten im Dialog: gleiche Optik wie im Streifen, nur zentriert in ihrer Grid-Zelle. */
+/* Die Zeile traegt bewusst AUCH .avesmaps-adv__card (damit die geteilten Handler greifen) -- hier die
+   Kachel-Grundwerte aus dem Streifen zuruecknehmen: 78px breit und zentriert ist genau das Gegenteil. */
 .avesmaps-adv-dialog__grid .avesmaps-adv__card {
 	width: auto;
-	justify-self: center;
-	max-width: 92px;
+	text-align: left;
 }
-.avesmaps-adv-dialog__grid .avesmaps-adv__cover {
-	width: 92px;
-	height: 130px;
+.avesmaps-adv-row {
+	display: grid;
+	grid-template-columns: 62px minmax(0, 1fr) 196px;
+	gap: 12px;
+	align-items: start;
+	padding: 12px 0;
 }
+/* Trenner NUR zwischen Zeilen (Owner-Regel: gruppieren per Linie, nicht per Rahmen). Als border-top am
+   Folge-Element statt border-bottom am Vorgaenger: der Dialog startet in der beginnt-Sicht mit verborgenen
+   spielt-Zeilen, und ein border-bottom haette dort dauerhaft eine Linie ins Leere gezogen. */
+.avesmaps-adv-row + .avesmaps-adv-row {
+	border-top: 1px solid var(--color-divider);
+}
+/* Linke Spalte: Cover im DIN-A4-Hochformat (210:297 -> 62x88), weiterhin der PRIMAERLINK. */
+.avesmaps-adv-row__cover {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 62px;
+	height: 88px;
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
+	border-radius: 3px;
+	overflow: hidden;
+	color: var(--color-text-muted);
+	text-decoration: none;
+	transition: border-color 0.12s ease;
+}
+.avesmaps-adv-row:hover .avesmaps-adv-row__cover {
+	border-color: var(--color-accent);
+}
+.avesmaps-adv-row__cover.has-img {
+	background: var(--color-panel-soft);
+}
+/* Mitte: Titel + Einordnung. min-width:0 laesst lange Titel umbrechen statt die Link-Spalte wegzudruecken. */
+.avesmaps-adv-row__main {
+	min-width: 0;
+}
+.avesmaps-adv-row__title {
+	display: block;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: var(--color-link);
+	text-decoration: none;
+}
+.avesmaps-adv-row__title:hover {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+}
+.avesmaps-adv-row__meta,
+.avesmaps-adv-row__facts,
+.avesmaps-adv-row__contained {
+	margin-top: 3px;
+	font-size: 11.5px;
+	line-height: 1.35;
+	color: var(--color-text-muted);
+}
+/* Rechte Spalte: alle Links untereinander, jeder mit seinem Status-Marker (link-status.css). */
+.avesmaps-adv-row__links {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.avesmaps-adv-row__linkitem {
+	font-size: 11.5px;
+	line-height: 1.5;
+}
+/* Bewusst OHNE eigene Farb-/Unterstreichungsregel: features/links.css faerbt jeden externen Link
+   (a[target="_blank"]) per !important einheitlich gold-braun, und link-status.css zeichnet den toten
+   Zustand. Eine Regel hier waere wirkungslos -- sie saehe nur so aus, als taete sie etwas. */
 /* Lizenz-Fussnote am Fuss des Dialogs (flach UND verschachtelt, geteilte Klasse) -- ausserhalb der
    scrollbaren Karten-/Baum-Flaeche, damit sie immer sichtbar bleibt, ohne Trenner (wie im Streifen). */
 .avesmaps-adv-dialog__credit {
