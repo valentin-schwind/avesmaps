@@ -182,7 +182,33 @@ Siedlungen, kein Loop) gegen den echten Stadtplanindex-Wikitext:
 - **„Das Wiki schreibt `Al\'Anfa`" war falsch** — ein Artefakt meiner eigenen Shell-Quotierung. Die rohen
   Bytes zeigen 8× `Al'Anfa`, nie mit Backslash. Kein Unescaping nötig.
 
-## 6. Was diese Recherche NICHT geklärt hat
+## 6. Geprüft und VERWORFEN: „alle DSA-Karten aus der Ulisses-API" (Owner, 2026-07-16)
+
+Naheliegende Idee, weil Autoget die API ja schon nutzt. **Nicht weiterverfolgen** — drei Gründe, der
+dritte ist der eigentliche:
+
+1. **Die API kann zwar auflisten** (`GET /api/vBeta/products` → 200, 30 Produkte/Seite), aber es gibt
+   **keinen Publisher-Filter und keine Suche** (`/publishers/3444/products` und `/search` sind 404). Der
+   Shop läuft auf einer **Multi-Publisher-Plattform** — auf der ersten Seite verteilen sich die Produkte
+   auf publisherId 1/26694/45/4261/402, Ulisses (3444) kommt gar nicht vor. „Alle DSA-Karten" hieße also:
+   einen fremden Gesamtkatalog durchblättern und filtern.
+2. **`api.ulisses-ebooks.de/robots.txt` sagt `Allow: /`** — aber im Kommentar auch, warum: sie halten die
+   API für Bots offen, damit GoogleBot ihre eigene SPA indexieren kann, *„until we identify specific cases
+   we need to block"*. Erlaubt ≠ eingeladen. Der Unterschied zwischen Autoget (**ein** Produkt nachschlagen,
+   das ein Editor bereits verlinkt hat, inkl. Rückverlinkung in den Shop) und Katalog-Enumeration ist real.
+   Bei Wiki Aventurica wurde vorher gefragt ([[wiki-aventurica-dump-policy]]); dieselbe Höflichkeit wäre
+   hier fällig, bevor Code entsteht.
+3. **Es beantwortet die Frage ohnehin nicht.** Der Shop verkauft **Produkte, keine Karten**. Stichprobe:
+   **0 von 30** Produkten tragen „Karte"/„Plan" im Namen. Standalone-Karten-PDFs (wie die Gareth-Karte)
+   sind der Sonderfall; die Masse der DSA-Karten steckt **in Büchern** — genau das sagt der Stadtplanindex:
+   `Al'Anfa | IdDM, Al'Anfa und der tiefe Süden | Farbe | A2 | Ina Kramer` ist ein **Buch**. Der Shop kennt
+   das Buch, nicht den A2-Stadtplan darin. Das weiß nur das Wiki.
+
+**Arbeitsteilung, die daraus folgt und die schon gilt:** Shop-API = Bild + lebender Link für eine
+*verlinkte* Karte (Autoget, Linkcheck). Wiki-Index = **welche Karte in welchem Buch steckt** → füllt die
+Kartensammlung. Nur der Wiki-Weg führt zu „alle Karten zu DSA".
+
+## 7. Was diese Recherche NICHT geklärt hat
 
 - Ob Stadtplanindex/Kartenindex **im Dump** genauso aussehen wie über die API (sollten sie — derselbe
   Wikitext — aber ungeprüft).
