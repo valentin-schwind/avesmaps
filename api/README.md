@@ -134,12 +134,26 @@ OPTIONS CORS/preflight
 
 The following endpoints are used by the Avesmaps app. They are reachable, but not stabilized as an external developer API:
 
+```text
+/api/app/adventures.php
+/api/app/coat.php
+/api/app/contact.php
+/api/app/feature-sources.php
+/api/app/link-status.php
+/api/app/location-reviews.php
 /api/app/map-features.php
 /api/app/map-search.php
-/api/app/report-location.php
+/api/app/political-derived-geometry-debug.php
 /api/app/political-territories.php
+/api/app/political-territory-display-sync.php
 /api/app/political-territory-wiki.php
-/api/app/wiki-proxy.php
+/api/app/political-zoom-coverage-debug.php
+/api/app/report-location.php
+/api/app/share-link.php
+/api/app/territory-detail.php
+/api/app/track.php
+/api/app/visitor-metrics.php
+```
 
 Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/report-location.php and /api/wiki-proxy.php are no longer maintained as canonical paths.
 
