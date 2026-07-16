@@ -119,4 +119,42 @@ assert($decision['verdict'] === true && $decision['state'] === 'dead');
 $probe = avesmapsLinkCheckProbe('http://127.0.0.1:3306/');
 assert($probe['blocked'] === true && $probe['http_status'] === 0);
 
+// ---- probe-URL rewriting: ask the endpoint that can actually answer -------------------------------
+// ulisses-ebooks.de serves its HTML behind bot protection that answers 403 to ANY server request --
+// verified including with a real Chrome user-agent, so it is a TLS-fingerprint gate, not a UA filter.
+// Probing the page therefore says nothing. Its own public product API answers us honestly (200 /
+// 403 "withdrawn" / 404 "no such id"), so for those links we probe that instead. The link the READER
+// gets is untouched -- only what we ASK changes.
+assert(avesmapsLinkCheckProbeUrl('https://www.ulisses-ebooks.de/de/product/475386/dsa5-die-verschwoerung-von-gareth')
+    === 'https://api.ulisses-ebooks.de/api/vBeta/products/475386');
+// Without www, and with another language segment.
+assert(avesmapsLinkCheckProbeUrl('https://ulisses-ebooks.de/en/product/126759/nedime')
+    === 'https://api.ulisses-ebooks.de/api/vBeta/products/126759');
+// Trailing slash / no slug.
+assert(avesmapsLinkCheckProbeUrl('https://www.ulisses-ebooks.de/de/product/999/')
+    === 'https://api.ulisses-ebooks.de/api/vBeta/products/999');
+// A query string on the page URL must not leak into the API call.
+assert(avesmapsLinkCheckProbeUrl('https://www.ulisses-ebooks.de/de/product/475386/x?utm_source=y')
+    === 'https://api.ulisses-ebooks.de/api/vBeta/products/475386');
+
+// Anything else on that host has no product id -> leave it alone rather than invent an API call.
+assert(avesmapsLinkCheckProbeUrl('https://www.ulisses-ebooks.de/') === 'https://www.ulisses-ebooks.de/');
+assert(avesmapsLinkCheckProbeUrl('https://www.ulisses-ebooks.de/de/browse/publisher/3444')
+    === 'https://www.ulisses-ebooks.de/de/browse/publisher/3444');
+// A non-numeric id is not a product id.
+assert(avesmapsLinkCheckProbeUrl('https://www.ulisses-ebooks.de/de/product/abc/x')
+    === 'https://www.ulisses-ebooks.de/de/product/abc/x');
+// And a lookalike host must NOT be rewritten -- the rule is anchored on the real domain.
+assert(avesmapsLinkCheckProbeUrl('https://evil-ulisses-ebooks.de.attacker.test/de/product/1/x')
+    === 'https://evil-ulisses-ebooks.de.attacker.test/de/product/1/x');
+
+// Every other host passes through untouched.
+foreach ([
+    'https://de.wiki-aventurica.de/wiki/Gareth',
+    'https://www.f-shop.de/produkt/123',
+    'https://portal.dnb.de/opac/simpleSearch?query=x',
+] as $url) {
+    assert(avesmapsLinkCheckProbeUrl($url) === $url);
+}
+
 echo "link-url ok\n";

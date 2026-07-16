@@ -42,6 +42,33 @@ function avesmapsLinkCheckIsProbeableUrl(string $url): bool
     return trim((string) ($parts['host'] ?? '')) !== '';
 }
 
+// PURE. Map a link URL to the URL we should actually PROBE. Returns the input unchanged for everything
+// we can ask directly -- which is nearly everything.
+//
+// The exception is ulisses-ebooks.de. Its HTML is served behind bot protection that answers 403 to any
+// server-side request; verified 2026-07-16 including with a genuine Chrome user-agent, so it gates on
+// the TLS fingerprint, not on who we claim to be. Probing the page tells us nothing: a live product and
+// a withdrawn one both come back 403, and taking that at face value marked 371 working links (16% of the
+// catalog, and the PRIMARY link at that) as dead.
+//
+// The shop's own product API answers our honest bot user-agent and distinguishes the cases properly:
+//   200 -> the product is there          403 (code 403.02) -> exists but withdrawn      404 -> no such id
+// which is exactly the question a link check asks. We do NOT spoof a browser to get around the gate --
+// we ask an endpoint that is willing to answer. The link the READER receives is never touched; only the
+// URL we probe changes.
+//
+// Coupling to note: if that API's shape changes, these links start reading 404 -> dead. That shows up as
+// "every Ulisses link died at once", which is implausible enough to be recognisable.
+function avesmapsLinkCheckProbeUrl(string $url): string
+{
+    // Anchored on the exact host (optionally www) so a lookalike domain cannot trigger the rewrite.
+    // Two-letter language segment, numeric product id; anything else on the host is left alone.
+    if (preg_match('~^https?://(?:www\.)?ulisses-ebooks\.de/[a-z]{2}/product/(\d+)(?:[/?\#]|$)~i', $url, $m) === 1) {
+        return 'https://api.ulisses-ebooks.de/api/vBeta/products/' . $m[1];
+    }
+    return $url;
+}
+
 // PURE. Is this IP in a range we must never reach? Blocks on ANY doubt -- an unparseable address is
 // blocked, never waved through.
 //
@@ -199,6 +226,15 @@ function avesmapsLinkCheckProbe(string $url): array
 {
     $url = trim($url);
     if (!avesmapsLinkCheckIsProbeableUrl($url) || !function_exists('curl_init')) {
+        return ['http_status' => 0, 'redirect_url' => '', 'blocked' => true];
+    }
+
+    // Some links are answered by a different endpoint than the one the reader clicks (see
+    // avesmapsLinkCheckProbeUrl). Everything below -- the SSRF guard included -- must run against the
+    // URL we ACTUALLY fetch, never against the original: guarding one address and requesting another
+    // is how an SSRF check gets bypassed.
+    $url = avesmapsLinkCheckProbeUrl($url);
+    if (!avesmapsLinkCheckIsProbeableUrl($url)) {
         return ['http_status' => 0, 'redirect_url' => '', 'blocked' => true];
     }
 
