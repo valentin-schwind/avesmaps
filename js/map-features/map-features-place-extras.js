@@ -193,18 +193,38 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	// die §3.9-Falle gar nicht erst aufmacht -- Server-Slug (ö->oe) und Client-Normalisierer (ö->o)
 	// divergieren. Nur das Territorium schickt einen Key, und zwar den, den der SERVER geliefert hat.
 	var place = opts.place || null;
-	var placeAttr = place
-		? ' data-citymap-place-kind="' + placeExtrasEscape(place.kind || "")
-			+ '" data-citymap-place-name="' + placeExtrasEscape(place.name || name)
-			+ '" data-citymap-place-id="' + placeExtrasEscape(place.publicId || "")
-			+ '" data-citymap-place-key="' + placeExtrasEscape(place.wikiKey || "") + '"'
+	var placeAttr = place ? citymapPlaceAttrs(place, name) : "";
+	// "Karte vorschlagen" gleich hier, neben "Alle anzeigen" (Owner 2026-07-17) -- nicht nur unten im
+	// Dialog, den man dafuer erst oeffnen muesste. Der Button traegt die Ortsreferenz SELBST, wie sein
+	// Zwilling in der Dialog-Fussleiste: ein Vorschlag haengt am Ort, nicht an der Sektion, und derselbe
+	// Klick-Handler bedient dadurch beide, ohne zu wissen, wo er gerade sitzt.
+	//
+	// Ohne Ortsreferenz kein Button: der Dialog fragt "Karte vorschlagen – <Ort>" und haenge den Vorschlag
+	// genau dort an. Ohne Ort waere er ein Formular ins Nichts. Faellt heute nie an (alle vier Aufrufer
+	// liefern einen Ort), aber der Zustand ist gueltig und darf nicht als kaputter Button erscheinen.
+	var suggestButton = place
+		? '<button type="button" class="avesmaps-citymaps__suggest"' + citymapPlaceAttrs(place, name) + '>'
+			+ placeExtrasEscape(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
 		: "";
 	return '<div class="avesmaps-citymaps"' + scopeAttr + placeAttr + '>'
 		+ '<div class="avesmaps-citymaps__head">' + tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
 		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape(maps.length) + ')</span></div>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
-		+ '<div class="avesmaps-citymaps__actions"><button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button></div>'
+		+ '<div class="avesmaps-citymaps__actions">'
+		+ '<button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
+		+ suggestButton
+		+ '</div>'
 		+ '</div>';
+}
+
+// Die vier data-Attribute, die einen Ort identifizieren -- an EINER Stelle, weil sie an drei sitzen: an der
+// Sektion (dort liest der Dialog sie, wenn er seine Fussleiste baut) und an beiden Vorschlag-Buttons (dort
+// liest sie der Klick-Handler). Auseinanderlaufende Kopien waeren ein Vorschlag am falschen Ort.
+function citymapPlaceAttrs(place, fallbackName) {
+	return ' data-citymap-place-kind="' + placeExtrasEscape(place.kind || "") + '"'
+		+ ' data-citymap-place-name="' + placeExtrasEscape(place.name || fallbackName || "") + '"'
+		+ ' data-citymap-place-id="' + placeExtrasEscape(place.publicId || "") + '"'
+		+ ' data-citymap-place-key="' + placeExtrasEscape(place.wikiKey || "") + '"';
 }
 
 // Siedlung.

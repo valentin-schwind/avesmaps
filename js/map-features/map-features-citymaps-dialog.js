@@ -233,7 +233,7 @@
 			foot.innerHTML = '<span class="avesmaps-citymaps-dialog__hint">'
 				+ esc(tr("cityMaps.footHint", "Karten sind externe Verweise. Vorschau nur bei freier Lizenz."))
 				+ '</span>'
-				+ '<button type="button" class="avesmaps-citymaps-dialog__suggest"'
+				+ '<button type="button" class="avesmaps-citymaps__suggest"'
 				+ ' data-citymap-place-kind="' + esc(section.getAttribute("data-citymap-place-kind") || "") + '"'
 				// KEIN Rueckfall auf baseTitle: das ist "Kartensammlung von Gareth", nicht "Gareth" -- als
 				// raw_name entstuende ein Ort dieses Namens. Leer ist richtig: der Server legt dann gar

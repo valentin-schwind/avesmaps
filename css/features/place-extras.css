@@ -110,7 +110,14 @@
 	gap: 8px;
 	margin-top: 10px;
 }
-.avesmaps-citymaps__all {
+/* Die Aktionen der Sektion sind GLEICHRANGIG und darum beide weich (Designsprache §12: genau EINE
+   Hauptaktion wird gefüllt). "Karte vorschlagen" hier zu füllen hieße, dem Leser eine zweite Hauptaktion
+   hinzustellen — er kam zum Schauen, nicht zum Beitragen. In der Dialog-Fußzeile ist derselbe Button die
+   EINZIGE Aktion und dort deshalb gefüllt (weiter unten).
+   Ein gemeinsamer Selektor statt zweier Regeln: die beiden stehen nebeneinander, jede Abweichung sähe man
+   sofort — und niemand müsste sie zweimal nachziehen. */
+.avesmaps-citymaps__all,
+.avesmaps-citymaps__suggest {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
@@ -125,7 +132,8 @@
 	cursor: pointer;
 	transition: background-color 0.12s ease;
 }
-.avesmaps-citymaps__all:hover {
+.avesmaps-citymaps__all:hover,
+.avesmaps-citymaps__suggest:hover {
 	background: var(--color-button-soft-hover);
 }
 
@@ -578,24 +586,22 @@
 	font-size: 11.5px;
 	color: var(--color-text-muted);
 }
-/* Die Hauptaktion dieser Fußzeile -> gefüllt (Designsprache §12: Hauptaktion filled, Rest soft). */
-.avesmaps-citymaps-dialog__suggest {
+/* DERSELBE Button wie in der Sektion (gleiche Klasse, gleicher Handler) -- hier aber die EINZIGE Aktion
+   der Fußzeile und darum gefüllt (Designsprache §12). Das Gefüllte gehört zum Ort, nicht zum Button:
+   deshalb hängt es am Fußzeilen-Kontext statt an einer zweiten Klasse, die man beim nächsten Einbau
+   vergessen könnte. */
+.avesmaps-citymaps-dialog__foot .avesmaps-citymaps__suggest {
 	flex: 0 0 auto;
 	padding: 6px 14px;
-	appearance: none;
 	background: var(--color-button);
-	border: 1px solid var(--color-button-border);
+	border-color: var(--color-button-border);
 	border-radius: var(--radius-md);
-	font: inherit;
-	font-size: 12px;
 	color: var(--color-button-text);
-	cursor: pointer;
-	transition: background-color 0.12s ease;
 }
-.avesmaps-citymaps-dialog__suggest:hover {
+.avesmaps-citymaps-dialog__foot .avesmaps-citymaps__suggest:hover {
 	background: var(--color-button-hover);
 }
-.avesmaps-citymaps-dialog__suggest:active {
+.avesmaps-citymaps-dialog__foot .avesmaps-citymaps__suggest:active {
 	background: var(--color-button-active);
 }
 

@@ -328,9 +328,11 @@
 		setStatus(overlay, result.message || t("cityMaps.suggestFailed", "Der Vorschlag konnte nicht gesendet werden."), "error");
 	}
 
-	// Fußzeile des Kartensammlungs-Dialogs (§3.7). Der Button trägt die Ortsreferenz selbst, weil die
-	// Dialoghülle wiederverwendet wird und beim nächsten Öffnen einen anderen Ort zeigt.
-	$(document).on("click", ".avesmaps-citymaps-dialog__suggest", function () {
+	// EIN Handler für beide Vorkommen: in der Sektion neben "Alle anzeigen" und unten in der Fußzeile des
+	// Kartensammlungs-Dialogs. Möglich, weil der Button die Ortsreferenz immer SELBST trägt und der Handler
+	// deshalb nicht wissen muss, wo er sitzt. Für die Fußzeile ist das keine Bequemlichkeit, sondern
+	// notwendig: die Dialoghülle wird wiederverwendet und zeigt beim nächsten Öffnen einen anderen Ort.
+	$(document).on("click", ".avesmaps-citymaps__suggest", function () {
 		openSuggestDialog({
 			kind: this.getAttribute("data-citymap-place-kind") || "",
 			name: this.getAttribute("data-citymap-place-name") || "",

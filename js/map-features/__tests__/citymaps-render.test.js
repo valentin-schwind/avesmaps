@@ -132,6 +132,18 @@ assert.ok(placed.includes('data-citymap-place-kind="settlement"'));
 assert.ok(placed.includes('data-citymap-place-name="Gareth"'));
 assert.ok(placed.includes('data-citymap-place-id="abc-123"'));
 assert.ok(placed.includes('data-citymap-place-key=""'), "no wiki key is a valid state, not a missing one");
+// "Karte vorschlagen" sits right next to "Alle anzeigen" (owner 2026-07-17) rather than only in the
+// dialog nobody would open to contribute. It carries the place ref ITSELF -- one handler serves this and
+// the dialog footer, and neither needs to know where it sits.
+assert.ok(placed.includes("avesmaps-citymaps__suggest"), "section offers 'Karte vorschlagen'");
+assert.ok(placed.includes("Karte vorschlagen"));
+const actions = placed.slice(placed.indexOf("avesmaps-citymaps__actions"));
+assert.ok(actions.indexOf("__all") < actions.indexOf("__suggest"), "'Alle anzeigen' comes first -- looking beats contributing");
+assert.ok((actions.match(/data-citymap-place-kind="settlement"/g) || []).length === 1, "the ref is on the button, not repeated per action");
+// No place ref -> no button. The dialog asks "Karte vorschlagen – <Ort>" and pins the suggestion there;
+// without a place it would be a form into nothing. A broken-looking button is worse than none.
+assert.ok(!section.includes("avesmaps-citymaps__suggest"), "no place -> no suggest button");
+assert.ok(section.includes("avesmaps-citymaps__all"), "…but 'Alle anzeigen' still stands");
 // The territory case is the only one sending a key -- and it is the SERVER key (§3.9: the client
 // normaliser turns ö into o where the server slug turns it into oe, so a client-made key would miss).
 const placedTerritory = buildCityMapsSectionMarkup("Garetien", [{ public_id: "m", title: "T" }], {
