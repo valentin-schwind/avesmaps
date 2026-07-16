@@ -446,4 +446,67 @@ assert(avesmapsCitymapRemovableKeys($live, ['a']) === ['gone']);
 assert(avesmapsCitymapRemovableKeys($live, []) === []);
 echo "removable ok\n";
 
+// ------------------------------------------------ RESOLVABLE DEPENDENCIES ---
+// REGRESSION, and the expensive kind: the sync died with a 500 on the owner's first real run because
+// avesmapsCitymapReconcileEntity called avesmapsUuidV4() -- which lives in map/features.php, a file the
+// dump endpoint does NOT require. Three identical UUID helpers exist; only wiki/sync.php's is in that
+// chain. Every test above passed, because a unit test never loads the endpoint's require chain.
+//
+// So: load what api/edit/wiki/dump.php loads, and assert every FOREIGN function this file calls is
+// actually there. Catches the whole class (undefined function on the sync path), not just this one.
+$chain = [
+    '/../../political/territory.php',
+    '/../sync.php',
+    '/../../app/feature-sources.php',
+    '/../publication-parsing.php',
+    '/../publication-sync.php',
+    '/../../app/adventures.php',
+    '/../../app/adventure-resolve.php',
+    '/../../app/citymaps.php',
+    '/../dump-reader.php',
+    '/../locations-helpers.php',
+];
+foreach ($chain as $relative) {
+    $path = __DIR__ . $relative;
+    if (is_file($path)) {
+        require_once $path;
+    }
+}
+
+// Every avesmaps* call in citymap-sync.php that the file does not define itself.
+//
+// Comments are stripped via the TOKENIZER first, not by regex over raw text: the fix for this very bug
+// left a comment reading "NOT avesmapsUuidV4 (map/features.php)", and a plain text scan dutifully
+// reported the warning against calling it as a call to it. A test that flags its own documentation is
+// worse than no test -- it trains you to ignore it.
+$raw = (string) file_get_contents(__DIR__ . '/../citymap-sync.php');
+$source = '';
+foreach (token_get_all($raw) as $token) {
+    if (is_array($token)) {
+        if ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT) {
+            continue;
+        }
+        $source .= $token[1];
+        continue;
+    }
+    $source .= $token;
+}
+preg_match_all('/\bavesmaps[A-Za-z0-9_]+(?=\s*\()/', $source, $calls);
+preg_match_all('/^function\s+(avesmaps[A-Za-z0-9_]+)/m', $source, $defs);
+$foreign = array_diff(array_unique($calls[0]), $defs[1]);
+sort($foreign);
+assert($foreign !== []); // the scan itself must find something, or this test is vacuous
+
+$missing = [];
+foreach ($foreign as $fn) {
+    if (!function_exists($fn)) {
+        $missing[] = $fn;
+    }
+}
+assert($missing === [], 'Not in the dump endpoint require chain: ' . implode(', ', $missing));
+// The specific trap, named: features.php is NOT loaded here, so this must never come back.
+assert(in_array('avesmapsWikiSyncUuidV4', $foreign, true));
+assert(!in_array('avesmapsUuidV4', $foreign, true));
+echo 'deps ok (' . count($foreign) . " foreign functions, all resolvable)\n";
+
 echo "\nALL CITYMAP-SYNC PARSER + RECONCILE TESTS PASSED\n";

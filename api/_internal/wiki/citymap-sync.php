@@ -1173,7 +1173,12 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
     }
 
     if ($plan['action'] === 'create') {
-        $publicId = avesmapsUuidV4();
+        // avesmapsWikiSyncUuidV4 (wiki/sync.php), NOT avesmapsUuidV4 (map/features.php): three identical
+        // UUID helpers exist in this codebase, and only this one is in the dump endpoint's require
+        // chain. Calling the features.php one here was a fatal "undefined function" on the sync path --
+        // invisible in unit tests, because they never load the endpoint's chain. adventure-sync.php,
+        // the template for this whole file, uses this same helper for exactly this reason.
+        $publicId = avesmapsWikiSyncUuidV4();
         $pdo->prepare(
             "INSERT INTO citymap (public_id, wiki_key, title, art, is_color, is_labeled, author, note,
                                   origin, status, map_license, thumb_license, created_by)
