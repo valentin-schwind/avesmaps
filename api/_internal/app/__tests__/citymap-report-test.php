@@ -253,12 +253,26 @@ assert($fromClient['place']['target_wiki_key'] === '');
 // ---- origin (Spec §3.8: approval writes 'community') -------------------------------------------------
 assert(avesmapsCitymapNormalizeOrigin('community') === 'community');
 assert(avesmapsCitymapNormalizeOrigin('manual') === 'manual');
-// Anything else falls back to 'manual' -- origin is our bookkeeping, never reader input, and 'manual' is
-// the conservative answer. Notably 'wiki' is NOT a citymap origin (§6: no wiki sync for maps).
-assert(avesmapsCitymapNormalizeOrigin('wiki') === 'manual');
+// 'wiki' is a REAL origin since the map wiki-sync shipped (2026-07-17), which retired §6's "no wiki sync
+// for maps". This line used to assert the opposite, and its failure is what surfaced the change -- kept
+// as a live assertion rather than deleted, because the next person to touch the vocabulary should trip
+// over it too.
+assert(avesmapsCitymapNormalizeOrigin('wiki') === 'wiki');
+// Anything UNRECOGNISED still falls back to 'manual' -- origin is our bookkeeping, never reader input,
+// and 'manual' is the conservative answer: it is exactly the value the wiki sync refuses to touch, so a
+// typo can only ever make a map too protected, never too exposed.
+assert(avesmapsCitymapNormalizeOrigin('erfunden') === 'manual');
 assert(avesmapsCitymapNormalizeOrigin('') === 'manual');
 assert(avesmapsCitymapNormalizeOrigin(null) === 'manual');
 assert(avesmapsCitymapNormalizeOrigin(42) === 'manual');
 assert(count(AVESMAPS_CITYMAP_ORIGINS) === count(array_unique(AVESMAPS_CITYMAP_ORIGINS)));
+
+// That 'wiki' became real RAISES the stakes on the whitelist above, which is why this is asserted here
+// rather than left implicit: the sync writes and DELETES only origin='wiki' rows. Could a reporter smuggle
+// origin='wiki' in, their map would be owned -- and on the next sync deleted -- by a dump that never
+// mentioned it. Two independent reasons it cannot happen, both worth pinning:
+$wikiClaim = avesmapsNormalizeCitymapReportPayload($valid + ['origin' => 'wiki']);
+assert(!array_key_exists('origin', $wikiClaim['citymap']));          // the payload never carries an origin
+assert(avesmapsCitymapNormalizeOrigin('community') !== 'wiki');      // and the approval passes 'community'
 
 echo "citymap-report ok\n";
