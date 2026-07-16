@@ -1,10 +1,12 @@
-// Place-Extras (Infopanel Phase 6): die Abschnitte "Stadtkarten" (kuratierte externe Karten-Links)
-// und "Abenteuer in <Ort>" (aus der Wiki-<Ort>/Abenteuer-Unterseite) fuer das Siedlungs-Popup/-Panel.
+// Place-Extras (Infopanel Phase 6): die Abschnitte "Kartensammlung" (kuratierte Karten) und
+// "Abenteuer in <Ort>" fuer Siedlung, Territorium, Region und Weg -- Popup wie Panel.
 //
-// HEUTE nur STATISCHE PLATZHALTER-Daten (leicht ersetzbar): sobald echte Daten im map-features-
-// Payload ankommen (location.adventures / location.cityMaps), liefern getPlaceAdventures /
-// getPlaceCityMaps diese statt der Platzhalter -- der Rest (Markup, Sortierung, "mehr") bleibt gleich.
-// Geplant: Abenteuer via Dump-Pipeline (analog Wiki-Publikationen), Stadtkarten kuratiert (Editor).
+// BEIDE sind seit Aufgabe C datengetrieben: die Abenteuer aus dem Katalog (map-features-adventures.js,
+// api/app/adventures.php), die Karten aus dem Kartenkatalog (map-features-citymaps.js,
+// api/app/citymaps.php). Von den Platzhaltern ist nur noch AVESMAPS_PLACEHOLDER_ADVENTURES uebrig, und
+// zwar absichtlich: der Abenteuerkatalog kann laden, waehrend die Box schon offen ist, und ein leerer
+// Blitz waere schlechter als eine Platzhalterkarte. Die Kartensammlung hat dieses Fenster nicht -- ohne
+// Katalog erscheint der Abschnitt gar nicht erst, was eine ehrliche Antwort ist.
 //
 // Sortierung ("neueste/Art/alphabetisch") und "mehr" laufen ueber Document-Delegation und funktionieren
 // daher gleich im schwebenden Popup UND im Infopanel. buildLocationMarkerPopupHtml haengt die beiden
@@ -27,12 +29,10 @@ var AVESMAPS_PLACEHOLDER_ADVENTURES = [
 	{ title: "Sturm der Gewalt", type: "Gruppenabenteuer", edition: "DSA4.1", year: 1037, yearLabel: "Hochsommer ab 1037 BF", cover: "https://de.wiki-aventurica.de/de/images/thumb/4/47/Box-AB_Gh.png/240px-Box-AB_Gh.png" },
 ];
 var AVESMAPS_PLACEHOLDER_ADVENTURES_TOTAL = 57;
-var AVESMAPS_PLACEHOLDER_CITYMAPS = [
-	{ label: "Gesamtplan", url: "" },
-	{ label: "Kaiserviertel", url: "" },
-	{ label: "Südquartier", url: "" },
-	{ label: "Tempelviertel", url: "" },
-];
+// AVESMAPS_PLACEHOLDER_CITYMAPS is gone (Aufgabe C): the Kartensammlung has a backend now
+// (api/app/citymaps.php + map-features-citymaps.js), so a place with no maps renders NO section rather
+// than four fake links. The adventure placeholders above still stand -- their catalog can be slow, and a
+// blank flash is worse than a placeholder; the map section has no such window (it simply does not appear).
 
 var AVESMAPS_CITYMAP_THUMB_SVG = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>';
 // Platzhalter-Icon fuer das Abenteuer-Cover (A4), solange kein echtes Cover-Bild (a.cover) vorliegt.
@@ -60,35 +60,319 @@ function getPlaceAdventuresTotal(location) {
 	}
 	return AVESMAPS_PLACEHOLDER_ADVENTURES_TOTAL;
 }
+// Kartensammlung (Aufgabe C): the real catalog (map-features-citymaps.js) whenever it is loaded.
+// location.cityMaps stays as the payload path for a box that carries its own maps. No placeholder tier --
+// no maps means no section, which is a truthful answer rather than a blank flash.
 function getPlaceCityMaps(location) {
+	if (typeof avesmapsCitymapCatalogIsReady === "function" && avesmapsCitymapCatalogIsReady()) {
+		return getCityMapsForPlace(location);
+	}
 	if (location && Array.isArray(location.cityMaps)) {
 		return location.cityMaps;
 	}
-	return AVESMAPS_PLACEHOLDER_CITYMAPS;
+	return [];
 }
 
 function placeExtrasEscape(value) {
 	return typeof escapeHtml === "function" ? escapeHtml(String(value == null ? "" : value)) : String(value == null ? "" : value);
 }
 
-// ---- Stadtkarten: waagrechter Streifen mit Thumbnail-Karten (externe Links) ----
+// ---- Kartensammlung -------------------------------------------------------------------------------
+// Only http(s) and our own /uploads/ paths may become an href. ESCAPING IS NOT ENOUGH HERE: escapeHtml
+// leaves "javascript:alert(1)" untouched (it has no HTML metacharacters), and it would then be a live
+// href. The write path already refuses anything else (avesmapsCitymapNormalizeUrl, api/_internal/app/
+// citymaps.php) -- but getPlaceCityMaps also accepts a location.cityMaps payload that never passed
+// through it, so the render side does not take that on trust.
+function cityMapSafeUrl(value) {
+	var url = String(value == null ? "" : value).trim();
+	if (!url) {
+		return "";
+	}
+	if (url.charAt(0) === "/" && url.charAt(1) !== "/") {
+		return url; // our own upload path; a leading "//" would be protocol-relative and is not
+	}
+	return /^https?:\/\//i.test(url) ? url : "";
+}
+
+// The link a map card opens: our own copy when we are allowed to host one (the server already applied the
+// licence gate, §3.3 -- a present map_local_url IS the permission), else the external map link. "" when a
+// map has neither, which is a valid row: the card then shows the title and does not pretend to link.
+function cityMapBestLink(m) {
+	var local = cityMapSafeUrl(m && m.map_local_url);
+	if (local) {
+		return local;
+	}
+	return cityMapSafeUrl(m && m.map_url);
+}
+
+// A spoiler map hides behind a blurred thumb + an overlay until the reader asks (§3.7). Only an EXPLICIT
+// is_spoiler === true counts: unknown (null) is not a spoiler, and treating it as one would hide maps
+// nobody ever classified.
+function cityMapIsSpoiler(m) {
+	return !!(m && m.is_spoiler === true);
+}
+
+// The thumb, or the placeholder icon when there is none -- which is also what a map whose licence forbids
+// a preview looks like (the server ships an empty thumb, §3.3). Shared by the strip card and the dialog
+// row so the two can never drift on how a missing preview reads.
+function cityMapThumbMarkup(m) {
+	var thumb = cityMapSafeUrl(m && m.thumb);
+	return thumb
+		? '<img class="avesmaps-citymaps__thumb-img" src="' + placeExtrasEscape(thumb) + '" alt="" loading="lazy">'
+		: AVESMAPS_CITYMAP_THUMB_SVG;
+}
+
+function cityMapCardMarkup(m) {
+	var href = cityMapBestLink(m);
+	var spoiler = cityMapIsSpoiler(m);
+	var thumbInner = cityMapThumbMarkup(m);
+	// The overlay sits INSIDE the anchor and swallows the first click (see the delegated reveal handler),
+	// so a spoiler can never be opened by accident on the way to uncovering it.
+	var spoilerOverlay = spoiler
+		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler — aufdecken")) + '</span>'
+		: "";
+	var openAttrs = href
+		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
+		: ' href="#" onclick="return false" aria-disabled="true"';
+	return '<a class="avesmaps-citymaps__card' + (spoiler ? " is-spoiler" : "") + '"' + openAttrs
+		+ cityMapDataAttributes(m) + ' title="' + placeExtrasEscape(m.title) + '">'
+		+ '<span class="avesmaps-citymaps__thumb">' + thumbInner + '</span>'
+		+ '<span class="avesmaps-citymaps__label">' + placeExtrasEscape(m.title) + '</span>'
+		+ spoilerOverlay
+		+ '</a>';
+}
+
+// The data-* contract shared by the strip card AND the dialog row -- the dialog's filter predicate reads
+// these off whatever element it finds, so both MUST stamp the identical set (the adventure card/row pair
+// learned this: a row missing one silently disables a control rather than breaking loudly).
+// data-public-id is the row's link back into the catalog.
+function cityMapDataAttributes(m) {
+	return ' data-public-id="' + placeExtrasEscape(m.public_id || "") + '"'
+		+ ' data-title="' + placeExtrasEscape(m.title || "") + '"'
+		+ ' data-types="' + placeExtrasEscape((m.types || []).join(",")) + '"'
+		+ ' data-art="' + placeExtrasEscape(m.art || "") + '"'
+		// Tri-state travels as "1" | "0" | "" -- an empty attribute is UNKNOWN, not false (§3.1). A
+		// data-color="0" would claim we know the map is not coloured.
+		+ ' data-color="' + cityMapTriAttr(m.is_color) + '"'
+		+ ' data-multilevel="' + cityMapTriAttr(m.is_multilevel) + '"'
+		+ ' data-labeled="' + cityMapTriAttr(m.is_labeled) + '"'
+		+ ' data-official="' + cityMapTriAttr(m.is_official) + '"'
+		+ ' data-spoiler="' + cityMapTriAttr(m.is_spoiler) + '"'
+		+ ' data-from="' + (m.valid_from_bf == null ? "" : Number(m.valid_from_bf)) + '"'
+		+ ' data-to="' + (m.valid_to_bf == null ? "" : Number(m.valid_to_bf)) + '"'
+		+ ' data-sources="' + placeExtrasEscape((m.sources || []).map(function (s) { return s && s.label; }).filter(Boolean).join("|")) + '"';
+}
+
+function cityMapTriAttr(value) {
+	return value == null ? "" : (value ? "1" : "0");
+}
+
+// Kern-Renderer: baut den Abschnitt aus einer fertigen Kartenliste. Genutzt von Siedlung, Territorium,
+// Region und Weg -- identisches Markup/identische Klassen, daher greifen "Alle anzeigen" und der
+// Spoiler-Reveal (Document-Delegation) fuer alle vier unveraendert.
+function buildCityMapsSectionMarkup(placeName, maps, opts) {
+	opts = opts || {};
+	if (!maps || !maps.length) {
+		return "";
+	}
+	var cards = maps.map(cityMapCardMarkup).join("");
+	var name = placeName || tr("cityMaps.fallbackPlace", "diesem Ort");
+	// data-citymap-territory-key marks a territory/region block so the dialog can rebuild the SAME set
+	// from the catalog; the settlement block carries its place ref instead.
+	var scopeAttr = opts.territoryKey
+		? ' data-citymap-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"'
+		: "";
+	return '<div class="avesmaps-citymaps"' + scopeAttr + '>'
+		+ '<div class="avesmaps-citymaps__head">' + tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
+		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape(maps.length) + ')</span></div>'
+		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
+		+ '<div class="avesmaps-citymaps__actions"><button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button></div>'
+		+ '</div>';
+}
+
+// Siedlung.
 function buildPlaceCityMapsMarkup(location) {
 	var maps = getPlaceCityMaps(location);
 	if (!maps || !maps.length) {
 		return "";
 	}
-	var cards = maps.map(function (m) {
-		var hasUrl = m && m.url;
-		var href = hasUrl ? m.url : "#";
-		return '<a class="avesmaps-citymaps__card" href="' + placeExtrasEscape(href) + '"'
-			+ (hasUrl ? ' target="_blank" rel="noopener"' : ' onclick="return false"') + '>'
-			+ '<span class="avesmaps-citymaps__thumb">' + AVESMAPS_CITYMAP_THUMB_SVG + '</span>'
-			+ '<span class="avesmaps-citymaps__label">' + placeExtrasEscape(m && m.label) + '</span>'
-			+ '</a>';
-	}).join("");
-	return '<div class="avesmaps-citymaps">'
-		+ '<div class="avesmaps-citymaps__head">' + placeExtrasEscape(tr("cityMaps.heading", "Kartensammlung")) + ' <span class="avesmaps-citymaps__note">' + placeExtrasEscape(tr("cityMaps.note", "· Platzhalter · externe Links")) + '</span></div>'
-		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
+	var placeName = (location && location.name) ? location.name : tr("cityMaps.fallbackPlace", "diesem Ort");
+	return buildCityMapsSectionMarkup(placeName, maps, {});
+}
+
+// Territorium/Region-Polygon: die ueber den politischen Subtree aggregierten Karten. Nutzt den
+// SERVER-wiki_key aus der territory-detail.php-Antwort -- NICHT aus wiki_url client-normalisiert: der
+// Server-Slug (ö->oe) und der Client-Normalizer (ö->o) divergieren bei Umlauten (§3.9).
+function buildTerritoryCityMapsMarkup(regionEntry) {
+	if (typeof avesmapsCitymapCatalogIsReady !== "function" || !avesmapsCitymapCatalogIsReady()) {
+		return "";
+	}
+	var name = (regionEntry && (regionEntry.displayName || regionEntry.name)) || tr("cityMaps.fallbackTerritory", "diesem Gebiet");
+	var detail = (regionEntry && regionEntry.detail && regionEntry.detail.ok) ? regionEntry.detail : null;
+	var wikiKey = detail ? (detail.wiki_key || "") : "";
+	if (wikiKey) {
+		var maps = getCityMapsForTerritory(wikiKey);
+		return maps.length ? buildCityMapsSectionMarkup(name, maps, { territoryKey: wikiKey }) : "";
+	}
+	// Landscape region rendered as a POLYGON (no political territoryPublicId): maps assigned DIRECTLY to
+	// this region, matched by its public_id.
+	if (!regionEntry || regionEntry.territoryPublicId || typeof getCityMapsForRegion !== "function") {
+		return "";
+	}
+	var regionMaps = getCityMapsForRegion(regionEntry);
+	return regionMaps.length ? buildCityMapsSectionMarkup(name, regionMaps, {}) : "";
+}
+
+// Landschafts-Region-LABEL: die diesem Label direkt zugeordneten Karten, exakt ueber label.publicId.
+function buildRegionCityMapsMarkup(label) {
+	if (typeof avesmapsCitymapCatalogIsReady !== "function" || !avesmapsCitymapCatalogIsReady()) {
+		return "";
+	}
+	if (typeof getCityMapsForRegion !== "function" || !label) {
+		return "";
+	}
+	var maps = getCityMapsForRegion(label);
+	if (!maps.length) {
+		return "";
+	}
+	var name = (label.text || (label.wikiRegion && label.wikiRegion.name)) || tr("cityMaps.fallbackRegion", "dieser Region");
+	return buildCityMapsSectionMarkup(name, maps, {});
+}
+
+// Weg/Fluss: Match primaer ueber die wiki_path-Namensgruppe (robust, da ein Weg aus vielen Segmenten
+// besteht) + Segment-public_id.
+function buildPathCityMapsMarkup(path) {
+	if (typeof avesmapsCitymapCatalogIsReady !== "function" || !avesmapsCitymapCatalogIsReady()) {
+		return "";
+	}
+	if (typeof getCityMapsForPath !== "function" || !path) {
+		return "";
+	}
+	var wikiPath = (path.properties && path.properties.wiki_path) || null;
+	var maps = getCityMapsForPath({
+		publicId: (typeof getPathPublicId === "function") ? getPathPublicId(path) : (path.public_id || ""),
+		wikiKey: (wikiPath && wikiPath.wiki_key) || "",
+	});
+	if (!maps.length) {
+		return "";
+	}
+	var name = (typeof getPathDisplayName === "function") ? getPathDisplayName(path) : (path.name || tr("cityMaps.fallbackPath", "diesem Weg"));
+	return buildCityMapsSectionMarkup(name, maps, {});
+}
+
+// ---- Kartensammlung-Dialog: Filterleiste + Zeile (Spec §3.7) --------------------------------------
+// Dieselbe Grammatik wie die Abenteuerleiste, voellig andere Dimensionen -> dieselbe Funktion
+// (avesmapsFilterBarMarkup, js/ui/filter-bar.js), eigene Gruppenliste. Kein zweiter Builder.
+function citymapFiltersMarkup(facets) {
+	facets = facets || {};
+	return avesmapsFilterBarMarkup([
+		{ kind: "label", text: tr("cityMaps.filter.label", "Filter") },
+		// Typ traegt Zaehler (§3.7) -- eine Karte kann mehrere Typen haben, die Summe der Chips ist also
+		// groesser als die Kartenzahl. Das ist gewollt: der Zaehler beantwortet "wie viele Karten haetten
+		// diesen Typ", nicht "wie teilt sich die Liste auf".
+		{ kind: "chips", filter: "type", values: facets.types || [], dividerAfter: true },
+		{ kind: "select", filter: "art", placeholder: tr("cityMaps.filter.art", "Art"), values: facets.arts },
+		{ kind: "select", filter: "source", placeholder: tr("cityMaps.filter.source", "Quelle"), values: facets.sources },
+		{
+			kind: "years", from: "yearFrom", to: "yearTo",
+			label: tr("cityMaps.filter.period", "Zeitraum (BF)"),
+			range: facets.yearRange || { min: 0, max: 0 },
+			fromPlaceholder: tr("cityMaps.filter.from", "von"),
+			toPlaceholder: tr("cityMaps.filter.to", "bis"),
+		},
+		{ kind: "divider" },
+		{ kind: "toggle", filter: "color", label: tr("cityMaps.filter.color", "farbig") },
+		{ kind: "toggle", filter: "multilevel", label: tr("cityMaps.filter.multilevel", "mehrstöckig") },
+		{ kind: "toggle", filter: "labeled", label: tr("cityMaps.filter.labeled", "beschriftet") },
+		{ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "nur offiziell") },
+		{ kind: "divider" },
+		// Der einzige INVERTIERTE Umschalter: er gibt frei statt einzuschraenken (wie "Spielt hier
+		// (Spoiler)" bei den Abenteuern). Aus = Spoilerkarten verborgen.
+		{ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler zeigen") },
+	]);
+}
+
+// "1027–1045 BF" | "seit 1027 BF" | "bis 1045 BF" | "" -- leer heisst UNBEKANNT und faellt weg (§3.1:
+// unbekannte Eigenschaften werden ausgelassen, nicht als "unbekannt" ausgeschrieben).
+// 9999 ist das offene Ende (AGENTS.md §5) und wird als "seit …" gelesen, nicht als Jahreszahl gedruckt.
+function cityMapValidityLabel(m) {
+	var from = (m.valid_from_bf == null) ? null : Number(m.valid_from_bf);
+	var to = (m.valid_to_bf == null || Number(m.valid_to_bf) === 9999) ? null : Number(m.valid_to_bf);
+	if (from == null && to == null) {
+		return "";
+	}
+	if (from != null && to != null) {
+		return from + "–" + to + " BF";
+	}
+	if (from != null) {
+		return tr("cityMaps.since", "seit {year} BF", { year: from });
+	}
+	return tr("cityMaps.until", "bis {year} BF", { year: to });
+}
+
+// ---- eine Karten-ZEILE (Dialog, Spec §3.7) --------------------------------------------------------
+// Grid 96px | minmax(0,1fr) | 196px -- links das Querformat-Thumb (Primaerlink wie in der Karte), Mitte
+// Titel + Einordnung, rechts die Links mit Status-Marker. Traegt bewusst AUCH .avesmaps-citymaps__card:
+// Filter und Spoiler-Reveal sind geteilte Handler, die auf diese Klasse zielen. So gilt fuer die Zeile
+// automatisch dieselbe Steuerung wie fuer die Streifenkarte; die abweichende Optik haengt an
+// .avesmaps-citymap-row.
+function buildCityMapRowMarkup(m) {
+	var href = cityMapBestLink(m);
+	var spoiler = cityMapIsSpoiler(m);
+	var thumbInner = cityMapThumbMarkup(m);
+	var spoilerOverlay = spoiler
+		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler — aufdecken")) + '</span>'
+		: "";
+	var openAttrs = href
+		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
+		: ' href="#" onclick="return false" aria-disabled="true"';
+
+	// Erste Meta-Zeile: Art · Typen. Beides faellt weg, wenn unbekannt.
+	var metaParts = [];
+	if (m.art && typeof avesmapsCitymapArtLabel === "function") { metaParts.push(avesmapsCitymapArtLabel(m.art)); }
+	if (m.types && m.types.length && typeof avesmapsCitymapTypeLabel === "function") {
+		metaParts.push(m.types.map(avesmapsCitymapTypeLabel).join(", "));
+	}
+	var metaLine = metaParts.length ? '<div class="avesmaps-citymap-row__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
+
+	// Zweite Meta-Zeile: Gueltigkeit · Aufloesung · Urheber. Jede Angabe nur, wenn sie erfasst ist.
+	var factParts = [];
+	var validity = cityMapValidityLabel(m);
+	if (validity) { factParts.push(validity); }
+	if (m.width_px && m.height_px) { factParts.push(m.width_px + " × " + m.height_px + " px"); }
+	if (m.author) { factParts.push(m.author); }
+	var factLine = factParts.length ? '<div class="avesmaps-citymap-row__facts">' + placeExtrasEscape(factParts.join(" · ")) + '</div>' : "";
+
+	// Eigenschaften als Merkmale -- NUR die explizit bejahten. Ein "nicht farbig" waere eine Aussage, die
+	// niemand getroffen hat (§3.1), und "farbig: nein" liest sich als Mangel statt als Datenlage.
+	var traits = [];
+	if (m.is_color === true) { traits.push(tr("cityMaps.trait.color", "farbig")); }
+	if (m.is_multilevel === true) { traits.push(tr("cityMaps.trait.multilevel", "mehrstöckig")); }
+	if (m.is_labeled === true) { traits.push(tr("cityMaps.trait.labeled", "beschriftet")); }
+	if (m.is_official === true) { traits.push(tr("cityMaps.trait.official", "offiziell")); }
+	var traitLine = traits.length ? '<div class="avesmaps-citymap-row__traits">' + placeExtrasEscape(traits.join(" · ")) + '</div>' : "";
+
+	var sourceLabels = (m.sources || []).map(function (s) { return s && s.label; }).filter(Boolean);
+	var sourceLine = sourceLabels.length
+		? '<div class="avesmaps-citymap-row__source">' + placeExtrasEscape(tr("cityMaps.sourcePrefix", "Quelle: ")) + placeExtrasEscape(sourceLabels.join(", ")) + '</div>'
+		: "";
+	var noteLine = m.note ? '<div class="avesmaps-citymap-row__note">' + placeExtrasEscape(m.note) + '</div>' : "";
+
+	// advRowLinkMarkup wiederverwendet: die Zeile ist {url,label,state} -- identisch zur Abenteuerzeile.
+	// Der adv-Name (und die adv-Klassen) sind historisch; sie tragen bereits beide Abenteuerdialoge, ein
+	// dritter Konsument ist konsistent statt divergent. Umbenennen waere ein eigener Sweep ohne Verhalten.
+	var linksMarkup = (m.links && m.links.length)
+		? '<ul class="avesmaps-adv-row__links">' + m.links.map(advRowLinkMarkup).join("") + '</ul>'
+		: "";
+
+	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
+		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '"' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
+		+ thumbInner + spoilerOverlay + '</a>'
+		+ '<div class="avesmaps-citymap-row__main">'
+		+ '<a class="avesmaps-citymap-row__title"' + openAttrs + '>' + placeExtrasEscape(m.title) + '</a>'
+		+ metaLine + factLine + traitLine + sourceLine + noteLine
+		+ '</div>'
+		+ '<div class="avesmaps-citymap-row__side">' + linksMarkup + '</div>'
 		+ '</div>';
 }
 
@@ -439,11 +723,22 @@ function buildFloatingAdventuresButtonMarkup(location, publicId) {
 	});
 }
 
-// Floating-Box-Kachel "Stadtkarten" (Owner via Design-Session): noch Platzhalter -> immer sichtbar, aber
-// deaktiviert. Kein Klick-Handler; die aria-disabled-Kachel gibt nur einen Ausblick auf das kommende Feature.
-function buildFloatingCityMapsButtonMarkup(publicId) {
+// Floating-Box-Kachel "Kartensammlung": die schlanke Siedlungs-Box zeigt KEINEN Kartenstreifen ->
+// stattdessen ein Kachel-Button, der den Dialog oeffnet. Seit Aufgabe C echt verdrahtet (bis dahin eine
+// dauerhaft deaktivierte Vorschau-Kachel).
+//
+// Immer eine Kachel rendern (Owner via Design-Session, wie bei "Abenteuer"): fehlen Karten -- oder ist der
+// Katalog noch nicht geladen -- steht sie deaktiviert da, statt wegzufallen. So bleibt die Aktionsleiste
+// stabil und springt nicht, wenn der Katalog nachlaedt.
+function buildFloatingCityMapsButtonMarkup(location, publicId) {
 	if (!publicId || typeof popupActionButtonMarkup !== "function") {
 		return "";
+	}
+	var ready = typeof avesmapsCitymapCatalogIsReady === "function" && avesmapsCitymapCatalogIsReady();
+	var maps = ready ? getPlaceCityMaps(location) : [];
+	var attributes = { "data-citymaps-open-place": publicId };
+	if (!maps.length) {
+		attributes["aria-disabled"] = "true";
 	}
 	return popupActionButtonMarkup({
 		// Weicher Trennstrich (U+00AD): unsichtbar, solange das Wort passt; bricht die 90px-Kachel sonst
@@ -451,7 +746,7 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 		// ist bewusst nur fuer Fliesstext, nicht Buttons/Kacheln).
 		label: tr("cityMaps.buttonLabel", "Karten­sammlung"),
 		iconMarkup: '<img class="location-popup__action-img" src="img/menu/stadtkarte.webp" alt="" width="20" height="20" />',
-		attributes: { "aria-disabled": "true", "data-citymaps-placeholder": "true" },
+		attributes: attributes,
 	});
 }
 
@@ -464,38 +759,31 @@ function buildFloatingCityMapsButtonMarkup(publicId) {
 // ~40 Zeilen, die bei jeder Filteraenderung an zwei Stellen nachgezogen werden mussten -- und genau eine
 // davon wurde dann vergessen. Die .avesmaps-adv-tree__*-Klassen sind NICHT ancestor-scoped, deshalb traegt
 // dieselbe Leiste in beiden Dialogen. Die Verdrahtung bleibt pro Dialog eigen (box-lokal vs. document).
+//
+// Seit Aufgabe C ist das hier nur noch die ABENTEUER-FORM: die Grammatik (Label / Chips / Trenner /
+// Selects / Jahresspanne / Toggle) baut avesmapsFilterBarMarkup (js/ui/filter-bar.js), weil die
+// Kartensammlung (§3.7) dieselbe Grammatik mit voellig anderen Dimensionen braucht. Das Markup ist
+// unveraendert -- byte-gleich, abgesichert in js/ui/__tests__/filter-bar.test.js.
 function advFiltersMarkup(facets) {
 	facets = facets || {};
-	var parts = ['<span class="avesmaps-adv-tree__flabel">' + placeExtrasEscape(tr("adventures.filter.label", "Filter")) + '</span>'];
-	if (facets.types && facets.types.length) {
-		facets.types.forEach(function (t) {
-			parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="type" data-adv-value="' + placeExtrasEscape(t) + '">' + placeExtrasEscape(t) + '</span>');
-		});
-		parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-	}
-	function selectMarkup(kind, placeholder, values) {
-		if (!values || !values.length) {
-			return "";
-		}
-		return '<span class="avesmaps-adv-tree__selwrap"><select class="avesmaps-adv-tree__fsel" data-adv-filter="' + kind + '">'
-			+ '<option value="">' + placeExtrasEscape(placeholder) + '</option>'
-			+ values.map(function (v) { return '<option value="' + placeExtrasEscape(v) + '">' + placeExtrasEscape(v) + '</option>'; }).join("")
-			+ '</select></span>';
-	}
-	parts.push(selectMarkup("edition", tr("adventures.filter.edition", "DSA-Version"), facets.editions));
-	parts.push(selectMarkup("complexity", tr("adventures.filter.complexity", "Schwierigkeit"), facets.complexities));
-	parts.push(selectMarkup("genre", tr("adventures.filter.genre", "Genre"), facets.genres));
-
-	var yr = facets.yearRange || { min: 0, max: 0 };
-	var fromPh = yr.min > 0 ? placeExtrasEscape(yr.min) : placeExtrasEscape(tr("adventures.filter.from", "von"));
-	var toPh = yr.max > 0 ? placeExtrasEscape(yr.max) : placeExtrasEscape(tr("adventures.filter.to", "bis"));
-	parts.push('<span class="avesmaps-adv-tree__yearwrap"><span class="avesmaps-adv-tree__ylabel">' + placeExtrasEscape(tr("adventures.filter.period", "Zeitraum (BF)")) + '</span>'
-		+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearFrom" placeholder="' + fromPh + '">'
-		+ '<span class="avesmaps-adv-tree__ydash">–</span>'
-		+ '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
-	parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-	parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "nur offiziell")) + '</span>');
-	return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + '</div>';
+	return avesmapsFilterBarMarkup([
+		{ kind: "label", text: tr("adventures.filter.label", "Filter") },
+		// dividerAfter statt eines eigenen Trenner-Eintrags: ohne Art-Facette faellt der Trenner MIT den
+		// Chips weg (sonst stuende eine Linie direkt hinter dem "Filter"-Label).
+		{ kind: "chips", filter: "type", values: facets.types || [], dividerAfter: true },
+		{ kind: "select", filter: "edition", placeholder: tr("adventures.filter.edition", "DSA-Version"), values: facets.editions },
+		{ kind: "select", filter: "complexity", placeholder: tr("adventures.filter.complexity", "Schwierigkeit"), values: facets.complexities },
+		{ kind: "select", filter: "genre", placeholder: tr("adventures.filter.genre", "Genre"), values: facets.genres },
+		{
+			kind: "years", from: "yearFrom", to: "yearTo",
+			label: tr("adventures.filter.period", "Zeitraum (BF)"),
+			range: facets.yearRange || { min: 0, max: 0 },
+			fromPlaceholder: tr("adventures.filter.from", "von"),
+			toPlaceholder: tr("adventures.filter.to", "bis"),
+		},
+		{ kind: "divider" },
+		{ kind: "toggle", filter: "official", label: tr("adventures.filter.officialOnly", "nur offiziell") },
+	]);
 }
 
 // ---- Interaktivitaet via Document-Delegation (funktioniert in Popup UND Panel) ----
@@ -884,5 +1172,14 @@ if (typeof module !== "undefined" && module.exports) {
 		advFiltersMarkup: advFiltersMarkup,
 		buildAdventureCardMarkup: buildAdventureCardMarkup,
 		buildAdventureRowMarkup: buildAdventureRowMarkup,
+		cityMapSafeUrl: cityMapSafeUrl,
+		cityMapBestLink: cityMapBestLink,
+		cityMapIsSpoiler: cityMapIsSpoiler,
+		cityMapValidityLabel: cityMapValidityLabel,
+		cityMapCardMarkup: cityMapCardMarkup,
+		cityMapDataAttributes: cityMapDataAttributes,
+		buildCityMapsSectionMarkup: buildCityMapsSectionMarkup,
+		citymapFiltersMarkup: citymapFiltersMarkup,
+		buildCityMapRowMarkup: buildCityMapRowMarkup,
 	};
 }

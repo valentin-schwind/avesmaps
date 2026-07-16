@@ -29,10 +29,11 @@ try {
 
     $entityType = trim((string) ($_GET['entity_type'] ?? ''));
     $entityPublicId = trim((string) ($_GET['entity_public_id'] ?? ''));
-    $allowedTypes = ['settlement', 'territory', 'region', 'path'];
+    // citymap joined in with the Kartensammlung (Spec §3.2).
+    $allowedTypes = ['settlement', 'territory', 'region', 'path', 'citymap'];
 
     if (!in_array($entityType, $allowedTypes, true) || $entityPublicId === '') {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type (settlement|territory|region|path) und entity_public_id sind erforderlich.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type (settlement|territory|region|path|citymap) und entity_public_id sind erforderlich.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);

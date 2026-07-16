@@ -574,6 +574,9 @@
 		}
 		// Phase 2 (Wege): the adventures assigned to this path, appended below the path infobox. Renders only
 		// in infopanel mode (the catalog loads only there); "" until the catalog is ready or if none match.
+		if (typeof buildPathCityMapsMarkup === "function") {
+			markup += buildPathCityMapsMarkup(path);
+		}
 		if (typeof buildPathAdventuresMarkup === "function") {
 			markup += buildPathAdventuresMarkup(path);
 		}
@@ -594,6 +597,9 @@
 	// (nur im Infopanel-Modus relevant) -> per typeof-Guard optional.
 	function regionMarkupWithAdventures(regionEntry) {
 		var markup = createRegionCompactTooltipMarkup(regionEntry);
+		if (typeof buildTerritoryCityMapsMarkup === "function") {
+			markup += buildTerritoryCityMapsMarkup(regionEntry);
+		}
 		if (typeof buildTerritoryAdventuresMarkup === "function") {
 			markup += buildTerritoryAdventuresMarkup(regionEntry);
 		}

@@ -18,11 +18,11 @@
 	color: var(--color-text-strong);
 }
 
-/* ---- Stadtkarten ---- */
-.avesmaps-citymaps__note {
-	font-size: 10.5px;
+/* ---- Kartensammlung ---- */
+.avesmaps-citymaps__count {
 	font-weight: 400;
-	color: var(--color-accent-strong);
+	font-size: 12px;
+	color: var(--color-text-muted);
 }
 .avesmaps-citymaps__scroll {
 	display: flex;
@@ -33,6 +33,7 @@
 	scrollbar-width: thin;
 }
 .avesmaps-citymaps__card {
+	position: relative; /* Anker fuer den Spoiler-Deckel */
 	flex: 0 0 auto;
 	width: 116px;
 	text-decoration: none;
@@ -47,7 +48,15 @@
 	background: var(--color-panel-muted);
 	border: 1px solid var(--color-border);
 	color: var(--color-text-muted);
+	overflow: hidden;
 	transition: border-color 0.12s ease, color 0.12s ease;
+}
+/* Das Thumb fuellt die Box formatunabhaengig (Ortsplaene sind quer, Grundrisse hoch). */
+.avesmaps-citymaps__thumb-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
 }
 .avesmaps-citymaps__card:hover .avesmaps-citymaps__thumb {
 	border-color: var(--color-accent);
@@ -59,6 +68,65 @@
 	font-size: 11.5px;
 	line-height: 1.25;
 	color: var(--color-link);
+}
+
+/* ---- Spoiler-Deckel (Spec §3.7) ----
+   Verdeckt die GANZE Karte, nicht nur das Bild: der Titel ("Die Krypta des Verräters") spoilert genauso
+   wie der Grundriss. Ein Klick auf den Deckel nimmt .is-spoiler weg -- rein deklarativ, ohne Neu-Render,
+   deshalb blurrt der Filter die Kinder statt das Markup auszutauschen. */
+.avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__thumb,
+.avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__label,
+.avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__thumb,
+.avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__main {
+	filter: blur(7px);
+	/* Der Text ist unter dem Blur noch markierbar/vorlesbar -- unkenntlich ist nicht unlesbar. */
+	user-select: none;
+}
+.avesmaps-citymaps__spoiler {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border-radius: 6px;
+	background: var(--color-scrim-spoiler);
+	color: var(--color-scrim-spoiler-text);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.2;
+	text-align: center;
+	cursor: pointer;
+}
+.avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__spoiler {
+	display: flex;
+}
+
+.avesmaps-citymaps__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+.avesmaps-citymaps__all {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 12px;
+	appearance: none;
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: 6px;
+	font: inherit;
+	font-size: 12px;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+}
+.avesmaps-citymaps__all:hover {
+	background: var(--color-button-soft-hover);
 }
 
 /* ---- Abenteuer in <Ort> ---- */
@@ -461,4 +529,112 @@
 }
 .location-popup__action-button[aria-disabled="true"] .location-popup__action-img {
 	opacity: 0.5;
+}
+
+/* ---- Kartensammlung-Dialog (Spec §3.7) ----
+   Teilt sich die Huelle (.avesmaps-adv-dialog: Overlay, Box, Kopf, Schliessen) mit den beiden
+   Abenteuerdialogen -- die Schale ist generisch, der Name historisch. Nur Zeile + Fusszeile sind eigen. */
+.avesmaps-citymaps-dialog .avesmaps-adv-dialog__box {
+	/* Schmaler als die 860px der Abenteuerzeile: 96 + Mitte + 196 plus Padding kommt mit weniger aus. */
+	width: min(780px, 100%);
+}
+.avesmaps-citymaps-dialog__controls {
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	align-items: flex-start;
+	padding: 10px 16px 4px;
+}
+.avesmaps-citymaps-dialog__grid {
+	display: flex;
+	flex-direction: column;
+	padding: 4px 16px 16px;
+	overflow-y: auto;
+}
+/* Im Dialog ist die Karte eine ZEILE: die 116px-Streifenbreite muss weg. */
+.avesmaps-citymaps-dialog__grid .avesmaps-citymaps__card {
+	width: auto;
+	text-align: left;
+}
+.avesmaps-citymaps-dialog__grid .avesmaps-citymaps__card.is-filtered-out {
+	display: none;
+}
+.avesmaps-citymaps-dialog__empty {
+	padding: 18px 0;
+	font-size: 12.5px;
+	color: var(--color-text-muted);
+}
+.avesmaps-citymaps-dialog__foot {
+	flex: 0 0 auto;
+	padding: 0 16px 14px;
+}
+.avesmaps-citymaps-dialog__hint {
+	font-size: 11.5px;
+	color: var(--color-text-muted);
+}
+
+/* ---- eine Karten-Zeile ---- */
+.avesmaps-citymap-row {
+	display: grid;
+	/* Querformat-Thumb (96px) statt des A4-Hochformats der Abenteuerzeile (62px) -- Ortsplaene sind breit. */
+	grid-template-columns: 96px minmax(0, 1fr) 196px;
+	gap: 12px;
+	align-items: start;
+	padding: 12px 0;
+}
+.avesmaps-citymap-row + .avesmaps-citymap-row {
+	border-top: 1px solid var(--color-divider);
+}
+.avesmaps-citymap-row__thumb {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 96px;
+	height: 68px;
+	border-radius: 6px;
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-border);
+	color: var(--color-text-muted);
+	overflow: hidden;
+	text-decoration: none;
+	transition: border-color 0.12s ease, color 0.12s ease;
+}
+.avesmaps-citymap-row__thumb:hover {
+	border-color: var(--color-accent);
+	color: var(--color-accent-strong);
+}
+.avesmaps-citymap-row__main {
+	min-width: 0;
+}
+.avesmaps-citymap-row__title {
+	display: block;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.3;
+	color: var(--color-link);
+	text-decoration: none;
+}
+.avesmaps-citymap-row__title:hover {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+}
+.avesmaps-citymap-row__meta,
+.avesmaps-citymap-row__facts,
+.avesmaps-citymap-row__traits,
+.avesmaps-citymap-row__source,
+.avesmaps-citymap-row__note {
+	margin-top: 3px;
+	font-size: 11.5px;
+	line-height: 1.35;
+	color: var(--color-text-muted);
+}
+.avesmaps-citymap-row__traits {
+	color: var(--color-accent-strong);
+}
+.avesmaps-citymap-row__note {
+	font-style: italic;
+}
+.avesmaps-citymap-row__side {
+	min-width: 0;
 }

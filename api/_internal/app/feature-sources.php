@@ -117,6 +117,40 @@ function avesmapsReadFeatureSources(PDO $pdo, string $entityType, string $entity
 // Dedup-Upsert einer Katalog-Quelle (url_hash = Identität). Gibt die sources.id zurück.
 // $wikiKey: set only for URL-less publication sources (a wiki catalog entry without a shop
 // link); the call contract is a URL-less source ALWAYS passes $wikiKey, otherwise leave it empty.
+// The same read as avesmapsReadFeatureSources, but for EVERY entity of one type in ONE query:
+// { entity_public_id => [ {url, label, type, official}, ... ] }. Mirrors the shape of
+// avesmapsLinkCheckStatesByEntityType so a catalog endpoint can decorate its whole payload without an
+// N+1 -- api/app/citymaps.php (Spec §3.5, "zwei Queries, kein N+1") is the first caller, and the reader
+// dialog needs it because it filters by source.
+//
+// Deliberately does NOT merge the legacy properties.other_source the per-entity read adds for
+// settlement/region/path: that merge is a per-element map_features lookup (an N+1 by construction) and it
+// only exists for entity types that predate the catalog. An entity with no approved sources is simply
+// absent from the map.
+function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+    $statement = $pdo->prepare(
+        "SELECT fs.entity_public_id, s.url, s.label, s.source_type, s.is_official
+           FROM feature_sources fs
+           JOIN sources s ON s.id = fs.source_id
+          WHERE fs.entity_type = :t AND fs.status = 'approved'
+          ORDER BY fs.entity_public_id ASC, s.is_official DESC, s.created_at ASC, s.id ASC"
+    );
+    $statement->execute(['t' => $entityType]);
+
+    $byEntity = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $byEntity[(string) $row['entity_public_id']][] = [
+            'url' => (string) $row['url'],
+            'label' => (string) $row['label'],
+            'type' => (string) $row['source_type'],
+            'official' => (int) $row['is_official'] === 1,
+        ];
+    }
+    return $byEntity;
+}
+
 function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = ''): int
 {
     $allowed = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
@@ -247,7 +281,10 @@ function avesmapsListFeatureSourcesForEdit(PDO $pdo, string $entityType, string 
 // the bumped value rather than a stale one.
 function avesmapsFeatureSourcesReadRevision(PDO $pdo, string $entityType, string $publicId): ?int
 {
-    if ($entityType === 'territory') {
+    // Only the map_features-backed types have a revision. Territories and citymaps live in their own
+    // tables, so their public_id must NEVER be looked up here: it would silently return ANOTHER feature's
+    // revision on an id collision, rather than the "no revision" this returns.
+    if (!in_array($entityType, ['settlement', 'region', 'path'], true)) {
         return null;
     }
     $s = $pdo->prepare("SELECT revision FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1");
@@ -263,6 +300,12 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
         $s = $pdo->prepare("SELECT wiki_url FROM political_territory WHERE public_id = :id LIMIT 1");
         $s->execute(['id' => $publicId]);
         return trim((string) ($s->fetchColumn() ?: ''));
+    }
+    // A citymap is not a map_features row and has no wiki page of its own (Spec §3.1 gives it no
+    // wiki_url column). Falling through to the lookup below would query map_features with a citymap id
+    // and, on a collision, hand back an unrelated feature's wiki_url.
+    if ($entityType === 'citymap') {
+        return '';
     }
     $s = $pdo->prepare("SELECT properties_json FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1");
     $s->execute(['id' => $publicId]);

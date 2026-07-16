@@ -144,6 +144,13 @@
 	--color-scrim-editor: rgba(20, 16, 12, 0.6);
 	/* Spotlight search overlay — lighter + blurred, keeps the map visible behind it. */
 	--color-scrim-light: rgba(18, 15, 12, 0.34);
+	/* Spoiler lid on a Kartensammlung card (Spec §3.7). Unlike every scrim above it does not sit BEHIND a
+	   dialog but ON a card, over already-blurred content: dense enough that the title underneath stays
+	   unreadable, light enough to read as a lid rather than a hole. Pinned + its own text colour: it
+	   always covers card content and always carries light text, so a themed --color-text-strong would go
+	   dark-on-dark in the light theme. */
+	--color-scrim-spoiler: rgba(20, 16, 12, 0.62);
+	--color-scrim-spoiler-text: #f4ece0;
 
 	/* Territory-editor sticky header — translucent panel + backdrop-filter blur
 	   so scrolled content shows through faintly. */

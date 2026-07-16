@@ -92,6 +92,12 @@
 	color: var(--color-text-strong);
 	font-weight: var(--font-weight-bold);
 }
+/* Chip-Zaehler (Kartensammlung, Spec §3.7 -- die Abenteuer-Chips liefern keinen). Zurueckgenommen, damit
+   die Zahl den Chip nicht anfuehrt: sie ist Beiwerk zum Label, nicht der Filter selbst. */
+.avesmaps-adv-tree__chipcount {
+	opacity: 0.7;
+	font-weight: var(--font-weight-regular);
+}
 
 /* Selects (Schwierigkeit/Genre): flaches Panel-Feld + EIGENER Chevron (Styleguide -- nie der graue
    OS-Control; ohne Pfeil sieht das native select nicht wie ein Dropdown aus). Chevron als border-Dreieck

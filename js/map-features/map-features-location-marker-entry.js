@@ -124,7 +124,7 @@ function buildLocationMarkerPopupHtml(markerEntry, opts) {
 			floating
 				? [
 					typeof buildFloatingAdventuresButtonMarkup === "function" ? buildFloatingAdventuresButtonMarkup(markerEntry.location, markerEntry.publicId) : "",
-					typeof buildFloatingCityMapsButtonMarkup === "function" ? buildFloatingCityMapsButtonMarkup(markerEntry.publicId) : "",
+					typeof buildFloatingCityMapsButtonMarkup === "function" ? buildFloatingCityMapsButtonMarkup(markerEntry.location, markerEntry.publicId) : "",
 				]
 				: [], { floating }) + breadcrumbMarkup + settlementInfobox + placeExtrasMarkup + reviewsSlot,
 	});

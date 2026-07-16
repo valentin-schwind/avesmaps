@@ -36,10 +36,12 @@ try {
 
     $entityType = trim((string) ($payload['entity_type'] ?? ''));
     $entityPublicId = trim((string) ($payload['entity_public_id'] ?? ''));
-    $allowedTypes = ['settlement', 'region', 'path', 'territory'];
+    // citymap joined in with the Kartensammlung (Spec §3.2): maps hang on the SAME shared source
+    // catalogue as every other element, so "Ulisses F-Shop" exists once rather than once per map.
+    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap'];
 
     if (!in_array($entityType, $allowedTypes, true)) {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path oder territory sein.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory oder citymap sein.');
     }
     if ($entityPublicId === '') {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');

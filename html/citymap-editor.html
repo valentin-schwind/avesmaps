@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Kartensammlung anlegen und editieren</title>
+<script>
+  /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved choice
+     wins, otherwise follow the browser/OS scheme (prefers-color-scheme). Runs before the stylesheet
+     paints so this overlay iframe never flashes the wrong theme, and stays in sync if the OS scheme
+     changes live while no explicit choice is stored. */
+  (function () {
+    function isDark() {
+      var saved = null;
+      try { saved = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (saved === "dark") { return true; }
+      if (saved === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- Self-contained editor page (Spec §3.6), loaded as an iframe overlay via
+     openAvesmapsCitymapEditorOverlay() with ?v=Date.now() (no ASSET_VERSION bump needed, §7). Links the
+     REAL design tokens so the warm/aventurian language is authentic — no hardcoded hex/radius, no blue.
+     Pure client on POST /api/edit/map/citymaps.php + /api/edit/map/citymap-image.php.
+     Layout mirrors the adventure editor: Liste | Stammdaten | Orte.
+
+     NO token-alias :root here, unlike the older wiki-sync-settlement-editor: that block is a shim for
+     pre-existing hardcoded rules, and this page uses var(--color-*) directly. (Spec §3.6 asks for both
+     "wie adventure-editor.html" and "Token-Alias-Block" — those contradict each other; the sibling
+     editor's actual architecture wins.)
+
+     tokens.css carries the SAME ?v= as css/styles.css uses. ?v=Date.now() on this HTML busts the page but
+     NOT its sub-resources, and the bare /css/base/tokens.css the adventure editor links is a separate
+     cache entry from the ?v=-stamped one the main page loads — it can go stale on its own. Bump both
+     together. -->
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css?v=20260716-citymaps1">
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Faculty Glyphic", "Arial", sans-serif;
+    background: var(--color-page-bg);
+    color: var(--color-text);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+  }
+  /* No <h1>: the overlay chrome (political-territory-editor-dialog__header) already carries the heading. */
+  a { color: var(--color-link); }
+
+  .ce-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-10) var(--space-12);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-panel);
+  }
+  .ce-header__spacer { flex: 1 1 auto; }
+  .ce-btn2 {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: var(--space-6) var(--space-10);
+    background: var(--color-button-soft);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-md);
+    color: var(--color-button-soft-text);
+    font: inherit;
+    cursor: pointer;
+  }
+  .ce-btn2:hover:not(:disabled) { background: var(--color-button-soft-hover); }
+  .ce-btn2:disabled { opacity: 0.6; cursor: default; }
+  .ce-btn2 .t1 { font-weight: 700; }
+  .ce-btn2 .t2 { font-size: 11px; color: var(--color-text-muted); }
+
+  .ce-body { flex: 1 1 auto; display: flex; min-height: 0; }
+  .ce-list {
+    flex: 0 0 300px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid var(--color-border);
+    background: var(--color-panel);
+  }
+  .ce-list__top { display: flex; gap: var(--space-6); padding: var(--space-8); }
+  .ce-search {
+    flex: 1 1 auto;
+    padding: var(--space-4) var(--space-8);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+    color: var(--color-text);
+    font: inherit;
+  }
+  .ce-list__count { margin: 0; padding: 0 var(--space-8) var(--space-6); font-size: 11px; color: var(--color-text-muted); }
+  .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+  .ce-item {
+    display: flex;
+    gap: var(--space-8);
+    width: 100%;
+    padding: var(--space-8);
+    border: none;
+    border-bottom: 1px solid var(--color-divider);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .ce-item:hover { background: var(--color-hover-wash); }
+  .ce-item.is-selected { background: var(--color-active-wash); }
+  .ce-item.is-draft .ce-item__title { opacity: 0.6; font-style: italic; }
+  .ce-item__thumb {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 40px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-panel-muted);
+    color: var(--color-text-muted);
+  }
+  .ce-item__thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .ce-item__text { min-width: 0; }
+  .ce-item__title { font-weight: 700; }
+  .ce-item__l2 { display: block; margin-top: 2px; font-size: 11px; color: var(--color-text-muted); }
+  .ce-empty { padding: var(--space-12); color: var(--color-text-muted); }
+
+  .ce-detail { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .ce-detail__head {
+    flex: 0 0 auto;
+    padding: var(--space-8) var(--space-12);
+    border-bottom: 1px solid var(--color-border);
+    font-weight: 700;
+  }
+  .ce-panels { flex: 1 1 auto; display: flex; min-height: 0; }
+  .ce-panel { flex: 1 1 50%; overflow-y: auto; min-height: 0; padding: var(--space-12); }
+  .ce-panel--orte { flex: 0 0 340px; border-left: 1px solid var(--color-border); }
+  .ce-placeholder { color: var(--color-text-muted); }
+
+  .ce-grp { margin-bottom: var(--space-16); }
+  .ce-grp__title {
+    margin: 0 0 var(--space-8);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-divider);
+    font-weight: 700;
+    color: var(--color-text-strong);
+  }
+  .ce-row { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
+  .ce-row__label { flex: 0 0 130px; color: var(--color-text-muted); }
+  .ce-input, .ce-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--space-4) var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+    color: var(--color-text);
+    font: inherit;
+  }
+  .ce-input:focus-visible, .ce-select:focus-visible {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--focus-ring);
+    outline: none;
+  }
+  .ce-hint { font-size: 11px; color: var(--color-text-muted); }
+  .ce-warn { font-size: 11px; color: var(--color-warning); }
+
+  /* Multi-select types: plain checkboxes, no chips — the editor is a form, not the reader dialog. */
+  .ce-types { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); }
+  .ce-types label { display: inline-flex; align-items: center; gap: var(--space-4); }
+
+  /* Tri-state property: a THREE-way select, never a checkbox. A checkbox cannot express "unknown", and
+     collapsing unknown into "no" is exactly the claim §3.1 forbids. */
+  .ce-tri { flex: 0 0 130px; }
+
+  .ce-img { display: flex; gap: var(--space-12); margin-bottom: var(--space-8); }
+  .ce-img__preview {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 100px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-panel-muted);
+    color: var(--color-text-muted);
+  }
+  .ce-img__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .ce-img__side { flex: 1 1 auto; min-width: 0; }
+  .ce-img__url {
+    margin: var(--space-4) 0;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    overflow-wrap: anywhere;
+  }
+  .ce-img__btns { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-6); }
+  .ce-img__state { margin-top: var(--space-4); font-size: 11px; color: var(--color-text-muted); }
+  .ce-img__state.error { color: var(--color-danger); }
+
+  .btn {
+    padding: var(--space-4) var(--space-10);
+    border: 1px solid var(--color-button-soft-border);
+    border-radius: var(--radius-md);
+    background: var(--color-button-soft);
+    color: var(--color-button-soft-text);
+    font: inherit;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--color-button-soft-hover); }
+  .btn--primary {
+    background: var(--color-button);
+    border-color: var(--color-button);
+    color: var(--color-button-text);
+  }
+  .btn--primary:hover { background: var(--color-button-hover); }
+  .btn--sm { padding: 2px var(--space-6); font-size: 11px; }
+  .btn--danger { color: var(--color-danger); }
+  .btn--icon { padding: 2px var(--space-6); }
+
+  .pill {
+    display: inline-block;
+    padding: 1px var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 10.5px;
+    color: var(--color-text-muted);
+  }
+  .pill--kind { border-color: var(--color-accent); color: var(--color-accent-strong); }
+  .pill--manual { border-color: var(--color-border-strong); }
+  .pill--community { border-color: var(--color-accent); color: var(--color-accent-strong); }
+  .pill--unresolved { border-color: var(--color-warning); color: var(--color-warning); }
+  .pill--nowiki { border-color: var(--color-border); }
+  .pill--hidden { border-color: var(--color-danger); color: var(--color-danger); }
+
+  .ce-savebar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    padding: var(--space-8) var(--space-12);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-panel);
+  }
+  .ce-savebar__state { flex: 1 1 auto; font-size: 11px; color: var(--color-text-muted); }
+  .ce-savebar__state.error { color: var(--color-danger); }
+
+  .ce-place {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: var(--space-6);
+    align-items: start;
+    padding: var(--space-6) 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .ce-place.is-hidden { opacity: 0.55; }
+  .ce-place__order { display: flex; align-items: center; gap: 2px; color: var(--color-text-muted); }
+  .ce-place__reorder { display: flex; flex-direction: column; }
+  .ce-place__reorder button {
+    padding: 0 var(--space-2);
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .ce-place__reorder button:disabled { opacity: 0.3; cursor: default; }
+  .ce-place__name { font-weight: 700; }
+  .ce-place__resolved { font-size: 11px; color: var(--color-text-muted); }
+  .ce-place__badges { margin-top: 2px; }
+  .ce-place__ctl { display: flex; gap: var(--space-4); }
+
+  .ce-add { position: relative; display: flex; gap: var(--space-6); margin-top: var(--space-8); }
+  .ce-ac {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+    box-shadow: var(--shadow-dialog);
+  }
+  .ce-ac__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    padding: var(--space-4) var(--space-8);
+    cursor: pointer;
+  }
+  .ce-ac__item.is-active { background: var(--color-active-wash); }
+  .ce-ac__free { border-top: 1px solid var(--color-divider); }
+</style>
+</head>
+<body>
+
+<div class="ce-header">
+  <button type="button" class="ce-btn2" id="ceEnabledToggle" title="Globaler Notaus für die Kartensammlung: aus = die Karten verschwinden auf der öffentlichen Seite (api/app/citymaps.php liefert eine leere Liste). Die Daten bleiben, der Editor arbeitet weiter.">
+    <span class="t1" id="ceEnabledLabel">Kartensammlung: …</span>
+    <span class="t2">öffentliche Anzeige</span>
+  </button>
+  <button type="button" class="ce-btn2" id="ceLinkCheckBtn" title="Prüft NUR die Karten-Links auf Erreichbarkeit — Abenteuer und Quellen bleiben unberührt. Höflich: 600ms Pause je Host.">
+    <span class="t1">🔗 Links prüfen</span>
+    <span class="t2" id="ceLinkCheckSub">…</span>
+  </button>
+  <span class="ce-header__spacer"></span>
+  <span class="ce-hint">Karten werden nicht aus dem Wiki gesynct — sie sind kuratiert.</span>
+</div>
+
+<div class="ce-body">
+  <aside class="ce-list">
+    <div class="ce-list__top">
+      <input class="ce-search" id="ceSearch" type="search" placeholder="Karte suchen …" autocomplete="off">
+      <button class="btn btn--primary" id="ceNew" title="Neue Karte anlegen">+ Neu</button>
+    </div>
+    <p class="ce-list__count" id="ceListCount">Lädt…</p>
+    <div class="ce-list__scroll" id="ceListScroll"></div>
+  </aside>
+
+  <section class="ce-detail">
+    <div class="ce-detail__head" id="ceDetailHead">Keine Karte gewählt</div>
+    <div class="ce-panels">
+      <div class="ce-panel ce-panel--stamm" id="ceStammBody">
+        <p class="ce-placeholder">Links eine Karte wählen oder „+ Neu“.</p>
+      </div>
+      <div class="ce-panel ce-panel--orte" id="ceOrteBody">
+        <p class="ce-placeholder">—</p>
+      </div>
+    </div>
+    <div class="ce-savebar" id="ceSaveBar" hidden>
+      <button class="btn btn--primary" id="ceSave">Speichern</button>
+      <button class="btn" id="ceDiscard">Verwerfen</button>
+      <span class="ce-savebar__state" id="ceSaveState"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+  const CITYMAP_EDIT_API = "/api/edit/map/citymaps.php";
+  const CITYMAP_IMAGE_API = "/api/edit/map/citymap-image.php";
+
+  // Mirrors of the ONE server-side definition (api/_internal/app/citymaps.php). The slugs are domain
+  // content and must match byte for byte; the labels are German UI. There is no way to derive one from
+  // the other at runtime without an extra endpoint, so this is a mirror — but a mirror of a single
+  // source, not a fourth independent list (the settlement-image licences are hardcoded in three places
+  // with nothing keeping them in sync; that is what §3.3 exists to avoid).
+  const LICENSES = [
+    { value: "public_domain", label: "Public Domain", free: true },
+    { value: "cc0", label: "CC0", free: true },
+    { value: "ai_generated", label: "Von uns KI-generiert", free: true },
+    { value: "permission_granted", label: "Genehmigung erteilt", free: true },
+    { value: "unknown_other", label: "Unbekannt/Sonstiges (nicht öffentlich)", free: false },
+  ];
+  const TYPE_KEYS = [
+    ["ortsplan", "Ortsplan"], ["stadtplan", "Stadtplan"], ["bezirk", "Bezirk"], ["viertel", "Viertel"],
+    ["lageplan", "Lageplan"], ["uebersicht", "Übersicht"], ["schauplatz", "Schauplatz"], ["grundriss", "Grundriss"],
+    ["befestigungen", "Befestigungen"], ["dungeon", "Dungeon"], ["hoehlen", "Höhlen"], ["krypten", "Krypten"],
+    ["katakomben", "Katakomben"], ["schatzkarte", "Schatzkarte"], ["region", "Region"], ["sonstige", "Sonstige"],
+  ];
+  const ARTS = [["politisch", "Politisch"], ["derographisch", "Derographisch"], ["topologisch", "Topologisch"], ["skizze", "Skizze"]];
+  const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg/Fluss", unresolved: "—" };
+  const CE_THUMB_PH_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>';
+
+  function licenseIsFree(value) {
+    const entry = LICENSES.find((l) => l.value === value);
+    return !!(entry && entry.free);
+  }
+
+  // HTML escaper safe for BOTH text and (quoted) attribute context — values flow into template strings
+  // like value="${ceEscape(v)}", so " and ' MUST be encoded too (a title containing a " would otherwise
+  // break out of the attribute).
+  function ceEscape(s) {
+    return (s == null ? "" : String(s))
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/`/g, "&#96;");
+  }
+
+  // POST helper — Gold-Contract envelope, surfaces error.message.
+  async function citymapPost(body) {
+    const response = await fetch(CITYMAP_EDIT_API, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || payload.ok !== true) {
+      throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, dirty: false };
+
+  // ---- list ----
+  async function loadList(keepSelection) {
+    try {
+      const payload = await citymapPost({ action: "list" });
+      state.citymaps = payload.citymaps || [];
+      state.enabled = payload.citymaps_enabled !== false;
+      setEnabledToggleState();
+      renderList();
+      if (!keepSelection || !state.citymaps.some((c) => c.public_id === state.selectedId)) {
+        // The selected map is gone (another tab deleted it) -> drop the stale detail rather than
+        // showing a form that saves into nothing.
+        if (state.selectedId && !state.citymaps.some((c) => c.public_id === state.selectedId)) {
+          state.selectedId = null;
+          state.detail = null;
+          renderDetail();
+          renderPlaces();
+        }
+      }
+    } catch (e) {
+      document.getElementById("ceListCount").textContent = "Fehler: " + e.message;
+    }
+  }
+
+  function citymapMatchesSearch(c) {
+    const q = (document.getElementById("ceSearch").value || "").trim().toLowerCase();
+    return !q || (c.title || "").toLowerCase().includes(q);
+  }
+
+  function renderList() {
+    const rows = state.citymaps.filter(citymapMatchesSearch);
+    document.getElementById("ceListCount").textContent = `${rows.length} von ${state.citymaps.length}`;
+    document.getElementById("ceListScroll").innerHTML = rows.length ? rows.map((c) => {
+      const draft = c.status !== "approved";
+      const community = c.origin === "community" ? ` <span class="pill pill--community">Community</span>` : "";
+      const thumb = c.thumb
+        ? `<img src="${ceEscape(c.thumb)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(''))">`
+        : CE_THUMB_PH_SVG;
+      const types = (c.types || []).length ? `<span class="pill pill--kind">${ceEscape((c.types || []).length)} Typ(en)</span> ` : "";
+      return `<button class="ce-item${c.public_id === state.selectedId ? " is-selected" : ""}${draft ? " is-draft" : ""}" data-id="${ceEscape(c.public_id)}">
+        <span class="ce-item__thumb">${thumb}</span>
+        <span class="ce-item__text">
+          <span class="ce-item__title">${ceEscape(c.title)}</span>
+          <span class="ce-item__l2">${types}${c.place_count || 0} Orte${community}${draft ? ` <span class="pill pill--hidden">verborgen</span>` : ""}</span>
+        </span></button>`;
+    }).join("") : `<p class="ce-empty">Keine Karten.</p>`;
+  }
+
+  async function selectCitymap(publicId) {
+    state.selectedId = publicId;
+    state.dirty = false;
+    renderList();
+    try {
+      state.detail = await citymapPost({ action: "detail", public_id: publicId });
+    } catch (e) {
+      document.getElementById("ceStammBody").innerHTML = `<p class="ce-placeholder" style="color:var(--color-danger)">Fehler: ${ceEscape(e.message)}</p>`;
+      return;
+    }
+    renderDetail();
+    renderPlaces();
+  }
+
+  function newCitymap() {
+    state.selectedId = null;
+    state.detail = null;
+    state.dirty = false;
+    renderList();
+    renderDetail();
+    renderPlaces();
+  }
+
+  // ---- detail ----
+  function ceField(label, name, value, type) {
+    return `<div class="ce-row"><span class="ce-row__label">${ceEscape(label)}</span>
+      <input class="ce-input" data-cm-field="${name}" type="${type || "text"}" value="${ceEscape(value == null ? "" : value)}"></div>`;
+  }
+
+  // Tri-state control (Spec §3.1). A checkbox is deliberately NOT used: it has two states and this data
+  // has three, and "unknown" silently becoming "nein" is the exact failure the NULLable column prevents.
+  function ceTri(label, name, value) {
+    const v = value == null ? "" : (value ? "1" : "0");
+    return `<div class="ce-row"><span class="ce-row__label">${ceEscape(label)}</span>
+      <select class="ce-select ce-tri" data-cm-field="${name}">
+        <option value=""${v === "" ? " selected" : ""}>unbekannt</option>
+        <option value="1"${v === "1" ? " selected" : ""}>ja</option>
+        <option value="0"${v === "0" ? " selected" : ""}>nein</option>
+      </select></div>`;
+  }
+
+  function ceSelect(label, name, value, options, placeholder) {
+    return `<div class="ce-row"><span class="ce-row__label">${ceEscape(label)}</span>
+      <select class="ce-select" data-cm-field="${name}">
+        <option value="">${ceEscape(placeholder || "—")}</option>
+        ${options.map(([v, l]) => `<option value="${ceEscape(v)}"${value === v ? " selected" : ""}>${ceEscape(l)}</option>`).join("")}
+      </select></div>`;
+  }
+
+  // The image block for ONE slot. The upload control appears only for a FREE licence (§3.3) — and it
+  // gates on the SAVED licence, not on whatever the select currently shows: uploading against an unsaved
+  // choice would store a file the server then hides, which looks like a broken upload.
+  function ceImageGroup(slot, title, v) {
+    const licenseField = slot === "thumb" ? "thumb_license" : "map_license";
+    const noteField = slot === "thumb" ? "thumb_license_note" : "map_license_note";
+    const localUrl = (slot === "thumb" ? v.thumb_local_url : v.map_local_url) || "";
+    const savedLicense = v[licenseField] || "unknown_other";
+    const free = licenseIsFree(savedLicense);
+    const preview = localUrl
+      ? `<img src="${ceEscape(localUrl)}" alt="" onerror="this.replaceWith(document.createTextNode(''))">`
+      : CE_THUMB_PH_SVG;
+    const uploadBtn = free
+      ? `<label class="btn btn--sm" for="ceFile_${slot}" style="cursor:pointer">Bild hochladen…</label>
+         <input type="file" id="ceFile_${slot}" accept="image/png,image/jpeg,image/webp,image/gif" hidden>`
+      : `<span class="ce-warn">Upload erst bei freier Lizenz (aktuell: ${ceEscape((LICENSES.find((l) => l.value === savedLicense) || {}).label || savedLicense)}).</span>`;
+    const deleteBtn = localUrl ? `<button type="button" class="btn btn--sm btn--danger" data-ce-img-delete="${slot}">Bild entfernen</button>` : "";
+    return `<div class="ce-grp"><p class="ce-grp__title">${ceEscape(title)}</p>
+      <div class="ce-img">
+        <div class="ce-img__preview">${preview}</div>
+        <div class="ce-img__side">
+          <div class="ce-img__url">${localUrl ? ceEscape(localUrl) : "kein eigenes Bild"}</div>
+          <div class="ce-img__btns">${uploadBtn}${deleteBtn}</div>
+          <div class="ce-img__state" id="ceImgState_${slot}"></div>
+        </div>
+      </div>
+      ${ceSelect("Lizenz", licenseField, savedLicense, LICENSES.map((l) => [l.value, l.label]), "—")}
+      ${ceField("Lizenz-Notiz (intern)", noteField, v[noteField])}
+      <p class="ce-hint">Die Notiz verlässt den Editor nie. Nur eine freie Lizenz gibt das Bild öffentlich frei — der externe Link wird immer angezeigt.</p>
+    </div>`;
+  }
+
+  function renderDetail() {
+    const head = document.getElementById("ceDetailHead");
+    const body = document.getElementById("ceStammBody");
+    document.getElementById("ceSaveBar").hidden = false;
+    if (!state.detail) {
+      head.textContent = "Neue Karte";
+      body.innerHTML = `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
+        ${ceField("Titel *", "title", "")}
+        ${ceField("Karten-Link (extern) *", "map_url", "")}
+        <p class="ce-hint">Titel und Quelle sind Pflicht, alles andere optional. Nicht Erfasstes bleibt „unbekannt“ und wird dem Leser gar nicht erst gezeigt.</p>
+      </div>`;
+      document.getElementById("ceOrteBody").innerHTML = `<p class="ce-placeholder">Erst speichern, dann Orte zuordnen.</p>`;
+      return;
+    }
+    const v = state.detail.citymap;
+    const types = state.detail.types || [];
+    head.textContent = v.title;
+    const parentOptions = state.citymaps
+      .filter((c) => c.public_id !== v.public_id)
+      .map((c) => [c.public_id, c.title]);
+    body.innerHTML =
+      ceImageGroup("thumb", "Vorschaubild", v) +
+      ceImageGroup("map", "Karte (eigenes Bild)", v) +
+      `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
+        ${ceField("Titel *", "title", v.title)}
+        ${ceField("Karten-Link (extern) *", "map_url", v.map_url)}
+        ${ceField("Vorschau-Link (extern)", "thumb_url", v.thumb_url)}
+        ${ceField("Urheber", "author", v.author)}
+        ${ceField("Notiz", "note", v.note)}
+        ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
+        ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
+      </div>
+      <div class="ce-grp"><p class="ce-grp__title">Einordnung</p>
+        ${ceSelect("Art", "art", v.art, ARTS, "— unbekannt —")}
+        ${ceField("Gültig ab (BF)", "valid_from_bf", v.valid_from_bf, "number")}
+        ${ceField("Gültig bis (BF)", "valid_to_bf", v.valid_to_bf, "number")}
+        ${ceField("Breite (px)", "width_px", v.width_px, "number")}
+        ${ceField("Höhe (px)", "height_px", v.height_px, "number")}
+        <p class="ce-hint">Breite/Höhe füllen sich beim Karten-Upload von selbst.</p>
+      </div>
+      <div class="ce-grp"><p class="ce-grp__title">Eigenschaften</p>
+        ${ceTri("farbig", "is_color", v.is_color)}
+        ${ceTri("mehrstöckig", "is_multilevel", v.is_multilevel)}
+        ${ceTri("beschriftet (Legende)", "is_labeled", v.is_labeled)}
+        ${ceTri("offiziell", "is_official", v.is_official)}
+        ${ceTri("Spoiler", "is_spoiler", v.is_spoiler)}
+        <p class="ce-hint">„unbekannt“ ist eine gültige Antwort und keine Lücke: der Leser sieht die Eigenschaft dann gar nicht, statt ein erfundenes „nein“.</p>
+      </div>
+      <div class="ce-grp"><p class="ce-grp__title">Typ (Mehrfachauswahl)</p>
+        <div class="ce-types">${TYPE_KEYS.map(([k, l]) =>
+          `<label><input type="checkbox" data-ce-type="${ceEscape(k)}"${types.includes(k) ? " checked" : ""}> ${ceEscape(l)}</label>`).join("")}</div>
+      </div>
+      <div class="ce-grp"><p class="ce-grp__title">Verwandte Karten</p>
+        <div class="ce-types">${state.citymaps.filter((c) => c.public_id !== v.public_id).map((c) =>
+          `<label><input type="checkbox" data-ce-related="${ceEscape(c.public_id)}"${(state.detail.related || []).some((r) => r.public_id === c.public_id) ? " checked" : ""}> ${ceEscape(c.title)}</label>`).join("") || `<span class="ce-hint">Es gibt noch keine andere Karte.</span>`}</div>
+        <p class="ce-hint">„Übergeordnet“ steckt oben in der Identität; hier stehen gleichrangige Karten. Die Verknüpfung gilt in beide Richtungen.</p>
+      </div>`;
+
+    // Upload inputs are created by innerHTML -> wire them after the body is in the DOM.
+    ["thumb", "map"].forEach((slot) => {
+      const input = document.getElementById("ceFile_" + slot);
+      if (input) input.addEventListener("change", () => uploadImage(slot, input));
+    });
+  }
+
+  // gatherStamm sweeps [data-cm-field] out of #ceStammBody. The prefix is load-bearing: a bare
+  // data-field would let any future control in this panel ride along as a citymap column.
+  function gatherStamm() {
+    const out = {};
+    document.querySelectorAll("#ceStammBody [data-cm-field]").forEach((el) => {
+      out[el.getAttribute("data-cm-field")] = el.value;
+    });
+    return out;
+  }
+
+  async function saveStamm() {
+    const stateEl = document.getElementById("ceSaveState");
+    const values = gatherStamm();
+    if (!(values.title || "").trim()) {
+      stateEl.textContent = "Ein Titel ist erforderlich.";
+      stateEl.className = "ce-savebar__state error";
+      return;
+    }
+    stateEl.className = "ce-savebar__state";
+    stateEl.textContent = "Speichert …";
+    try {
+      const citymap = Object.assign({}, values);
+      if (state.selectedId) citymap.public_id = state.selectedId;
+      const saved = await citymapPost({ action: "upsert_citymap", citymap });
+      // Types + related are their own whole-list actions; only send them for an existing map (a fresh
+      // one has no controls rendered yet).
+      if (state.detail) {
+        const types = Array.prototype.map.call(document.querySelectorAll("[data-ce-type]:checked"), (el) => el.getAttribute("data-ce-type"));
+        await citymapPost({ action: "set_types", public_id: saved.public_id, types });
+        const related = Array.prototype.map.call(document.querySelectorAll("[data-ce-related]:checked"), (el) => el.getAttribute("data-ce-related"));
+        await citymapPost({ action: "set_related", public_id: saved.public_id, related });
+      }
+      state.dirty = false;
+      await loadList(true);
+      await selectCitymap(saved.public_id);
+      stateEl.textContent = "Gespeichert.";
+    } catch (e) {
+      stateEl.textContent = "Fehler: " + e.message;
+      stateEl.className = "ce-savebar__state error";
+    }
+  }
+
+  // ---- images ----
+  function imgState(slot, text, isError) {
+    const el = document.getElementById("ceImgState_" + slot);
+    if (el) { el.textContent = text; el.className = "ce-img__state" + (isError ? " error" : ""); }
+  }
+
+  async function imagePost(formData) {
+    // No Content-Type header: the browser must set the multipart boundary itself.
+    const res = await fetch(CITYMAP_IMAGE_API, { method: "POST", credentials: "same-origin", body: formData });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok || !payload || payload.ok !== true) {
+      throw new Error((payload && payload.error && payload.error.message) || `HTTP ${res.status}`);
+    }
+    return payload;
+  }
+
+  async function uploadImage(slot, input) {
+    if (!state.selectedId) { imgState(slot, "Bitte zuerst die Karte speichern.", true); input.value = ""; return; }
+    const file = input.files && input.files[0];
+    if (!file) return;
+    imgState(slot, "Wird hochgeladen …", false);
+    try {
+      const fd = new FormData();
+      fd.append("public_id", state.selectedId);
+      fd.append("slot", slot);
+      fd.append("image", file);
+      await imagePost(fd);
+      await selectCitymap(state.selectedId);
+    } catch (e) {
+      imgState(slot, "Fehler: " + e.message, true);
+    } finally {
+      input.value = "";
+    }
+  }
+
+  async function deleteImage(slot) {
+    if (!state.selectedId) return;
+    imgState(slot, "Wird entfernt …", false);
+    try {
+      const fd = new FormData();
+      fd.append("public_id", state.selectedId);
+      fd.append("slot", slot);
+      fd.append("mode", "delete");
+      await imagePost(fd);
+      await selectCitymap(state.selectedId);
+    } catch (e) {
+      imgState(slot, "Fehler: " + e.message, true);
+    }
+  }
+
+  // ---- places ----
+  function placeRow(p, isFirst, isLast) {
+    const kind = p.target_kind || "unresolved";
+    const hidden = p.status !== "approved";
+    const resolved = kind === "unresolved"
+      ? `<span class="pill pill--unresolved">nicht aufgelöst</span> Rohname bleibt erhalten`
+      : `→ ${ceEscape(KIND_LABEL[kind] || kind)}${p.target_wiki_key ? ` <code>${ceEscape(p.target_wiki_key)}</code>` : ` <span class="pill pill--nowiki" title="Dieser Ort ist ein Karteneintrag ohne Wiki-Verknüpfung — völlig in Ordnung.">ohne Wiki-Eintrag</span>`}`;
+    const origin = p.origin === "community" ? `<span class="pill pill--community">Community</span>` : `<span class="pill pill--manual">manuell</span>`;
+    return `<div class="ce-place${hidden ? " is-hidden" : ""}" data-place-id="${p.id}">
+      <div class="ce-place__order"><span>${p.sort_order}</span>
+        <div class="ce-place__reorder">
+          <button data-act="up" title="hoch"${isFirst ? " disabled" : ""}>▲</button>
+          <button data-act="down" title="runter"${isLast ? " disabled" : ""}>▼</button></div></div>
+      <div>
+        <div class="ce-place__name">${ceEscape(p.raw_name)}</div>
+        <div class="ce-place__resolved">${resolved}</div>
+        <div class="ce-place__badges">${origin}${hidden ? ` <span class="pill pill--hidden">unterdrückt</span>` : ""}</div></div>
+      <div class="ce-place__ctl">
+        ${kind === "unresolved" ? `<button class="btn btn--sm" data-act="resolve" title="Erneut auflösen">↻</button>` : ""}
+        <button class="btn btn--icon btn--danger" data-act="suppress" title="Entfernen">✕</button></div></div>`;
+  }
+
+  function renderPlaces() {
+    const body = document.getElementById("ceOrteBody");
+    if (!state.detail) {
+      body.innerHTML = `<p class="ce-placeholder">Erst speichern, dann Orte zuordnen.</p>`;
+      return;
+    }
+    const approved = (state.detail.places || []).filter((p) => p.status === "approved");
+    const suppressed = (state.detail.places || []).filter((p) => p.status !== "approved");
+    body.innerHTML = `<p class="ce-grp__title">Orte (${approved.length})</p>
+      ${approved.map((p, i) => placeRow(p, i === 0, i === approved.length - 1)).join("") || `<p class="ce-placeholder">Noch kein Ort zugeordnet.</p>`}
+      ${suppressed.length ? `<details style="margin-top:var(--space-8)"><summary class="ce-hint">${suppressed.length} unterdrückt</summary>${suppressed.map((p) => placeRow(p, true, true)).join("")}</details>` : ""}
+      <div class="ce-add">
+        <input class="ce-input" id="ceAddName" autocomplete="off" placeholder="Ort suchen oder Namen eingeben …">
+        <button class="btn btn--primary" data-act="add">+ Ort</button>
+        <div class="ce-ac" id="ceAc" hidden></div></div>
+      <p class="ce-hint" style="margin-top:var(--space-8)">Eine Karte kann an Siedlung, Territorium, Region und Weg hängen. Territorien wirken auf den ganzen Unterbaum.</p>`;
+  }
+
+  async function reloadDetail() {
+    if (!state.selectedId) return;
+    state.detail = await citymapPost({ action: "detail", public_id: state.selectedId });
+    renderPlaces();
+    await loadList(true);
+  }
+
+  // ---- Ort autocomplete (docs/abenteuer-editor-p3-autocomplete.md, Approach A) ----
+  let acItems = [], acActive = -1, acQuery = "", acTimer = null, acAbort = null;
+
+  function hideAc() {
+    const ac = document.getElementById("ceAc");
+    if (ac) ac.hidden = true;
+    acActive = -1;
+  }
+
+  function renderAc() {
+    const ac = document.getElementById("ceAc");
+    if (!ac) return;
+    const rows = acItems.map((it, idx) =>
+      `<div class="ce-ac__item${idx === acActive ? " is-active" : ""}" data-act="ac-pick" data-idx="${idx}">
+        <span>${ceEscape(it.name)}</span>
+        <span class="pill pill--kind">${ceEscape(it.type_label || it.feature_subtype || "")}</span></div>`).join("");
+    ac.innerHTML = rows + `<div class="ce-ac__item ce-ac__free${acActive === -1 ? " is-active" : ""}" data-act="ac-free">
+        <span>„<b>${ceEscape(acQuery)}</b>“ als freien Ort hinzufügen</span><span class="pill">Freitext</span></div>`;
+    ac.hidden = false;
+  }
+
+  async function runAcSearch(q) {
+    if (acAbort) acAbort.abort();
+    acAbort = new AbortController();
+    try {
+      const r = await fetch("/api/app/map-search.php?limit=8&q=" + encodeURIComponent(q), { credentials: "same-origin", signal: acAbort.signal });
+      const j = await r.json().catch(() => null);
+      acItems = (j && j.ok === true ? (j.results || []) : []).filter((x) => x.kind !== "powerline").slice(0, 8);
+    } catch (e) { if (e && e.name === "AbortError") return; acItems = []; }
+    acActive = acItems.length ? 0 : -1;
+    renderAc();
+  }
+
+  // Map a map-search hit to a citymap target_kind (powerlines are filtered out upstream).
+  function mapSearchKind(it) {
+    if (it.kind === "location") return "settlement";
+    if (it.kind === "region" && it.feature_subtype === "political_territory") return "territory";
+    if (it.kind === "label" && it.feature_subtype === "region") return "region";
+    if (it.kind === "path") return "path";
+    return "";
+  }
+
+  async function addPlaceRaw(raw) {
+    raw = (raw || "").trim();
+    hideAc();
+    if (!raw || !state.selectedId) return;
+    try {
+      // add_place resolves server-side in the same call (it also fills the territory path), so there is
+      // no follow-up resolve here.
+      await citymapPost({ action: "add_place", citymap_public_id: state.selectedId, place: { raw_name: raw } });
+      await reloadDetail();
+      const inp = document.getElementById("ceAddName");
+      if (inp) { inp.value = ""; inp.focus(); }
+    } catch (err) { alert("Fehler: " + err.message); }
+  }
+
+  // Approach A: a picked suggestion is an EXACT entity -> store target_kind + target_public_id directly
+  // (the backend backfills wiki_key + territory_path from the id). No name resolution -> works even for
+  // non-wiki-linked entities. Unknown kind / no id -> fall back to the name flow.
+  async function addPickedItem(item) {
+    hideAc();
+    if (!state.selectedId || !item) return;
+    const kind = mapSearchKind(item);
+    if (!kind || !item.public_id) { addPlaceRaw(item.name); return; }
+    try {
+      await citymapPost({ action: "add_place", citymap_public_id: state.selectedId,
+        place: { raw_name: item.name, target_kind: kind, target_public_id: item.public_id } });
+      await reloadDetail();
+      const inp = document.getElementById("ceAddName");
+      if (inp) { inp.value = ""; inp.focus(); }
+    } catch (err) { alert("Fehler: " + err.message); }
+  }
+
+  // ---- kill switch ----
+  function setEnabledToggleState() {
+    const label = document.getElementById("ceEnabledLabel");
+    if (label) label.textContent = state.enabled ? "Kartensammlung: AN" : "Kartensammlung: AUS";
+  }
+
+  async function toggleEnabled() {
+    const next = !state.enabled;
+    try {
+      await citymapPost({ action: "set_citymaps_enabled", enabled: next });
+      state.enabled = next;
+      setEnabledToggleState();
+    } catch (e) { alert("Fehler: " + e.message); }
+  }
+
+  // ---- Link check (citymaps only) ----
+  // Delegates to window.parent.startLinkCheck('citymap') -- the SAME loop the ribbon drives, so there is
+  // exactly one link-check loop in the app. The scope keeps this button on map links: adventures and the
+  // source catalogue have their own buttons in their own editors. Progress arrives through the callback
+  // we hand in; polling would only queue behind the running step.
+  let ceLinkCheckRunning = false;
+
+  function setLinkCheckBusy(isBusy) {
+    ceLinkCheckRunning = isBusy;
+    const button = document.getElementById("ceLinkCheckBtn");
+    if (!button) return;
+    button.disabled = isBusy;
+    const label = button.querySelector(".t1");
+    if (label) label.textContent = isBusy ? "Prüft …" : "🔗 Links prüfen";
+  }
+
+  async function handleLinkCheckClick() {
+    if (ceLinkCheckRunning) return;
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    const statusEl = document.getElementById("ceLinkCheckSub");
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startLinkCheck !== "function") {
+      if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
+      return;
+    }
+    setLinkCheckBusy(true);
+    try {
+      const result = await parentWindow.startLinkCheck("citymap", (text) => {
+        if (statusEl) statusEl.textContent = text;
+      });
+      // startLinkCheck returns NULL (it does not throw) when another scope's run is already in flight --
+      // the guard is global on purpose. Say so instead of leaving the last progress line standing.
+      if (!result) {
+        if (statusEl) statusEl.textContent = "Eine andere Prüfung läuft bereits.";
+      } else if (statusEl && result.status) {
+        statusEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} ungeprüft`;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+    } finally {
+      setLinkCheckBusy(false);
+    }
+  }
+
+  // ---- wiring ----
+  document.getElementById("ceSearch").addEventListener("input", renderList);
+  document.getElementById("ceNew").addEventListener("click", newCitymap);
+  document.getElementById("ceSave").addEventListener("click", saveStamm);
+  document.getElementById("ceDiscard").addEventListener("click", () => {
+    if (state.selectedId) selectCitymap(state.selectedId); else newCitymap();
+  });
+  document.getElementById("ceEnabledToggle").addEventListener("click", toggleEnabled);
+  document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
+
+  // Delegate on the STABLE container -- the rows are rebuilt by innerHTML.
+  document.getElementById("ceListScroll").addEventListener("click", (e) => {
+    const b = e.target.closest(".ce-item");
+    if (b) selectCitymap(b.dataset.id);
+  });
+  // Spec §3.6 "Doppelklick öffnet die Karte": single click selects for editing (the sibling editor's
+  // convention), double click opens the map itself in a new tab. Reading it as "opens the editor" would
+  // be circular -- we are already in the editor.
+  document.getElementById("ceListScroll").addEventListener("dblclick", (e) => {
+    const b = e.target.closest(".ce-item");
+    if (!b) return;
+    const c = state.citymaps.find((x) => x.public_id === b.dataset.id);
+    const url = c && (c.map_local_url || c.map_url);
+    if (url) window.open(url, "_blank", "noopener");
+  });
+
+  document.getElementById("ceStammBody").addEventListener("click", (e) => {
+    const del = e.target.closest("[data-ce-img-delete]");
+    if (del) deleteImage(del.getAttribute("data-ce-img-delete"));
+  });
+
+  document.getElementById("ceOrteBody").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const act = btn.getAttribute("data-act");
+    if (act === "add") { addPlaceRaw(document.getElementById("ceAddName").value); return; }
+    if (act === "ac-free") { addPlaceRaw(acQuery); return; }
+    if (act === "ac-pick") { addPickedItem(acItems[Number(btn.dataset.idx)]); return; }
+    const row = btn.closest("[data-place-id]");
+    if (!row) return;
+    const placeId = Number(row.dataset.placeId);
+    try {
+      if (act === "suppress") {
+        await citymapPost({ action: "suppress_place", place_id: placeId });
+      } else if (act === "resolve") {
+        await citymapPost({ action: "resolve_place", place_id: placeId });
+      } else if (act === "up" || act === "down") {
+        // sort_order SWAP via two set_place calls (same as the adventure editor). Not atomic: if the
+        // second fails, both rows hold the same sort_order -- visible and re-fixable, never data loss.
+        const approved = (state.detail.places || []).filter((p) => p.status === "approved");
+        const idx = approved.findIndex((p) => p.id === placeId);
+        const swapWith = act === "up" ? approved[idx - 1] : approved[idx + 1];
+        if (!swapWith) return;
+        const cur = approved[idx];
+        await citymapPost({ action: "set_place", place_id: cur.id, place: { sort_order: swapWith.sort_order } });
+        await citymapPost({ action: "set_place", place_id: swapWith.id, place: { sort_order: cur.sort_order } });
+      } else { return; }
+      await reloadDetail();
+    } catch (err) { alert("Fehler: " + err.message); }
+  });
+
+  document.getElementById("ceOrteBody").addEventListener("input", (e) => {
+    if (e.target.id !== "ceAddName") return;
+    acQuery = e.target.value.trim();
+    clearTimeout(acTimer);
+    if (acQuery.length < 2) { hideAc(); return; }
+    acTimer = setTimeout(() => runAcSearch(acQuery), 250);
+  });
+  document.getElementById("ceOrteBody").addEventListener("keydown", (e) => {
+    if (e.target.id !== "ceAddName") return;
+    const ac = document.getElementById("ceAc");
+    if (e.key === "Escape") { hideAc(); return; }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (ac && !ac.hidden && acActive >= 0 && acItems[acActive]) addPickedItem(acItems[acActive]);
+      else addPlaceRaw(e.target.value);
+      return;
+    }
+    if (!ac || ac.hidden) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); acActive = Math.min(acActive + 1, acItems.length - 1); renderAc(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); acActive = Math.max(acActive - 1, -1); renderAc(); }
+  });
+  // mousedown, not click: blur would tear the dropdown down before a click could land.
+  document.getElementById("ceOrteBody").addEventListener("mousedown", (e) => {
+    if (e.target.closest("#ceAc")) e.preventDefault();
+  });
+
+  // The overlay HIDES the iframe rather than destroying it, so every (re-)open posts a refresh -- see
+  // openAvesmapsCitymapEditorOverlay (js/review/review-settlement-list.js).
+  window.addEventListener("message", (e) => {
+    if (!e || e.origin !== location.origin || !e.data || e.data.avesmapsCitymapRefresh !== true) return;
+    const id = (e.data.selectPublicId || "").trim();
+    loadList(true).then(() => { if (id) selectCitymap(id); });
+  });
+
+  loadList(false);
+</script>
+</body>
+</html>

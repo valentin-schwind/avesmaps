@@ -566,6 +566,66 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 	document.body.style.overflow = "hidden";
 };
 
+// Kartensammlung-Editor overlay (Spec §3.6) — same overlay chrome + iframe pattern as the adventure
+// editor above. Self-contained html/citymap-editor.html loaded with ?v=Date.now() (no ASSET_VERSION bump
+// needed, §7). No deep-link param and no tree refresh on close.
+//
+// The overlay is HIDDEN, not destroyed, on close (like its two siblings) — so a re-open reuses a live
+// iframe whose list is as old as the first open. The adventure editor lives with that; this one posts a
+// refresh on every open instead, because a map you just created in another tab silently missing from the
+// list is the kind of thing you debug for ten minutes before realising.
+window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverlay || function openAvesmapsCitymapEditorOverlay(selectPublicId) {
+	const overlayId = "avesmaps-citymap-editor-overlay";
+	const buildSrc = () => "/html/citymap-editor.html?v=" + Date.now();
+	const postRefresh = (frame) => {
+		if (!frame || !frame.contentWindow) { return; }
+		const id = (selectPublicId == null ? "" : String(selectPublicId)).trim();
+		try { frame.contentWindow.postMessage({ avesmapsCitymapRefresh: true, selectPublicId: id }, location.origin); } catch (e) { /* noop */ }
+	};
+	let overlay = document.getElementById(overlayId);
+	if (overlay) {
+		overlay.hidden = false;
+		document.body.style.overflow = "hidden";
+		postRefresh(overlay.querySelector("iframe"));
+		return;
+	}
+	overlay = document.createElement("div");
+	overlay.id = overlayId;
+	overlay.className = "political-territory-editor-overlay";
+	overlay.style.zIndex = "1500";
+	const dialog = document.createElement("div");
+	dialog.className = "political-territory-editor-dialog";
+	dialog.style.width = "min(1400px, calc(100vw - 24px))";
+	dialog.style.height = "min(880px, calc(100vh - 24px))";
+	const header = document.createElement("div");
+	header.className = "political-territory-editor-dialog__header";
+	const headingEl = document.createElement("h2");
+	headingEl.textContent = "Kartensammlung anlegen und editieren";
+	const closeButton = document.createElement("button");
+	closeButton.type = "button";
+	closeButton.className = "political-territory-editor-dialog__close";
+	closeButton.setAttribute("aria-label", "Schließen");
+	closeButton.textContent = "✕";
+	const closeOverlay = () => {
+		overlay.hidden = true;
+		document.body.style.overflow = "";
+	};
+	closeButton.addEventListener("click", closeOverlay);
+	header.appendChild(headingEl);
+	header.appendChild(closeButton);
+	const frame = document.createElement("iframe");
+	frame.className = "political-territory-editor-dialog__frame";
+	frame.addEventListener("load", () => postRefresh(frame));
+	frame.src = buildSrc();
+	frame.title = "Kartensammlungs-Editor";
+	dialog.appendChild(header);
+	dialog.appendChild(frame);
+	overlay.appendChild(dialog);
+	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+	document.body.appendChild(overlay);
+	document.body.style.overflow = "hidden";
+};
+
 // ---- Abenteuer-Liste im WikiSync-"Abenteuer"-Tab (ersetzt den alten Beschreibungstext) ------------------
 // Same catalog the editor uses (POST /api/edit/map/adventures.php {action:list} -> approved + drafts). Lazily
 // loaded when the tab opens (setWikiSyncPanelTab). Double-click a row -> open the editor pre-selected there.

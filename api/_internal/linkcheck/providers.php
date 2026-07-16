@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/../app/adventures.php';
+require_once __DIR__ . '/../app/citymaps.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 
 // The registry doubles as the scope list: every key is something an editor surface can check on its own
@@ -68,12 +69,39 @@ function avesmapsLinkCheckCollectAdventureLinks(PDO $pdo): array
     return $collected;
 }
 
-// Placeholder until Spec §3 (Kartensammlung) ships the citymap table in phase 3. Returning [] is a
-// complete, correct implementation of "no maps exist yet": the sync writes no refs for this type and
-// deletes none, so wiring it into the registry now costs nothing and phase 3 only fills in the body.
+// The external map link of every approved citymap (Spec §3.1: "immer gespeichert, immer angezeigt").
+// Uses avesmapsCitymapLinks() -- the SAME function the public catalog renders from -- so the checker can
+// never end up probing a different set of URLs than the one the reader sees.
+//
+// A map's catalogue SOURCES (feature_sources, §3.2) are deliberately not collected here: they live in the
+// shared `sources` table and are already covered per SOURCE by the source_* scopes, keyed by the
+// catalogue id. Keying them by citymap public_id as well would produce one ref per citing map for a
+// single URL -- exactly the fan-out those providers exist to avoid. (A dedicated 'source_citymap' scope
+// would be the way to give the map editor its own source run; that is a registry change, not this one.)
 function avesmapsLinkCheckCollectCitymapLinks(PDO $pdo): array
 {
-    return [];
+    avesmapsCitymapsEnsureTables($pdo);
+    $rows = $pdo->query(
+        "SELECT public_id, title, map_url FROM citymap WHERE status = 'approved'"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $collected = [];
+    foreach ($rows as $row) {
+        foreach (avesmapsCitymapLinks($row) as $link) {
+            $collected[] = [
+                'entity_public_id' => (string) $row['public_id'],
+                'field' => (string) $link['key'],
+                // The map's TITLE, not the link's label -- deliberately unlike the adventure provider
+                // above. An adventure's links each carry a distinguishing label (Ulisses / F-Shop / Wiki /
+                // DNB) worth recording; a citymap has exactly one link, so its label ("Karte") would say
+                // nothing on every row, while the title is what a human scanning dead links needs.
+                'label' => (string) $row['title'],
+                'url' => (string) $link['url'],
+                'url_hash' => (string) $link['url_hash'],
+            ];
+        }
+    }
+    return $collected;
 }
 
 // One thin provider per feature entity type -- the registry maps names to plain callables, so each scope
