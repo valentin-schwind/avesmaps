@@ -314,6 +314,15 @@ function avesmapsCitymapUlissesApiUrl(string $mapUrl): string
 // 301s to its CDN -- the fetcher follows redirects, bounded, and re-checks the final peer).
 // Priority: the full image first, because our own downscaler produces a better 400px thumb than the
 // shop's 200px one; the pre-made thumbnails are the fallback when there is no full cover.
+//
+// TWO SHAPES, because the API CONTENT-NEGOTIATES (measured 2026-07-16, and it cost us a live failure):
+//   Accept: application/json  ->  {"image":"3444/120516.jpg", ...}                 (flat)
+//   no Accept header          ->  {"data":{"attributes":{"image":"3444/..."}}}     (JSON:API envelope)
+// The first shipped version read only the envelope while the endpoint sent the JSON Accept header, so it
+// always answered "kein Titelbild" -- and the test agreed with it, because the fixture had been copied
+// from a curl run that sent no Accept header. Test and code were consistent with each other and both
+// wrong about the server. Handling BOTH shapes is not belt-and-braces: which one arrives depends on a
+// header far from here, and that is exactly the coupling that broke it.
 function avesmapsCitymapPickUlissesImage(string $json): string
 {
     $decoded = json_decode($json, true);
@@ -322,7 +331,7 @@ function avesmapsCitymapPickUlissesImage(string $json): string
     }
     $attributes = $decoded['data']['attributes'] ?? null;
     if (!is_array($attributes)) {
-        return '';
+        $attributes = $decoded; // flat shape
     }
     foreach (['image', 'webImage', 'thumbnail200', 'thumbnail'] as $field) {
         $path = trim((string) ($attributes[$field] ?? ''));

@@ -122,29 +122,44 @@ assert(avesmapsCitymapUlissesApiUrl('') === '');
 assert(avesmapsCitymapUlissesApiUrl('https://ulisses-ebooks.de.evil.example/de/product/1/x') === '');
 assert(avesmapsCitymapUlissesApiUrl('https://evil-ulisses-ebooks.de/de/product/1/x') === '');
 
-// The real API shape, trimmed from the live answer for product 120516.
-$apiJson = '{"data":{"attributes":{"image":"3444\/120516.jpg","webImage":"3444\/120516.webp",'
+// BOTH real shapes, copied from the live answer for product 120516 on 2026-07-16. The API
+// content-negotiates and the choice is made by a header set in citymap-image.php, far from this
+// function:
+//   Accept: application/json  -> FLAT      <- what our endpoint actually sends, so this is the live case
+//   no Accept header          -> ENVELOPE  <- what a bare curl gets
+// The first shipped version handled only the envelope and answered "kein Titelbild" for every map,
+// because the fixture here had been copied from a bare curl while the endpoint sent the JSON header.
+// Both shapes are asserted so that mistake cannot repeat in either direction.
+$apiFlat = '{"image":"3444\/120516.jpg","webImage":"3444\/120516.webp",'
+    . '"thumbnail":"3444\/120516-thumb140.jpg","thumbnail200":"3444\/120516-thumb200.webp","price":4.0}';
+$apiEnvelope = '{"data":{"id":"\/api\/vBeta\/products\/120516","type":"Product","attributes":'
+    . '{"image":"3444\/120516.jpg","webImage":"3444\/120516.webp",'
     . '"thumbnail":"3444\/120516-thumb140.jpg","thumbnail200":"3444\/120516-thumb200.webp"}}}';
 // The FULL image wins: our own downscaler makes a better 400px thumb than the shop's 200px one.
-assert(avesmapsCitymapPickUlissesImage($apiJson) === 'https://www.ulisses-ebooks.de/images/3444/120516.jpg');
-// Fallback chain when the fuller fields are missing.
+assert(avesmapsCitymapPickUlissesImage($apiFlat) === 'https://www.ulisses-ebooks.de/images/3444/120516.jpg', 'FLAT shape (what the endpoint gets)');
+assert(avesmapsCitymapPickUlissesImage($apiEnvelope) === 'https://www.ulisses-ebooks.de/images/3444/120516.jpg', 'ENVELOPE shape');
+// Fallback chain when the fuller fields are missing -- in both shapes.
+assert(avesmapsCitymapPickUlissesImage('{"thumbnail200":"3444\/x.webp"}') === 'https://www.ulisses-ebooks.de/images/3444/x.webp');
 assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"thumbnail200":"3444\/x.webp"}}}')
     === 'https://www.ulisses-ebooks.de/images/3444/x.webp');
-assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"","webImage":"3444\/w.webp"}}}')
+assert(avesmapsCitymapPickUlissesImage('{"image":"","webImage":"3444\/w.webp"}')
     === 'https://www.ulisses-ebooks.de/images/3444/w.webp');
 // No cover / wrong shape / not JSON -> '' (the caller says "bitte eins hochladen"), never a guess.
 assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{}}}') === '');
+assert(avesmapsCitymapPickUlissesImage('{"price":4.0,"sku":"DSK102"}') === '', 'a product without any image field');
 assert(avesmapsCitymapPickUlissesImage('{"data":{}}') === '');
 assert(avesmapsCitymapPickUlissesImage('not json at all') === '');
 assert(avesmapsCitymapPickUlissesImage('') === '');
+assert(avesmapsCitymapPickUlissesImage('[1,2,3]') === '');
 // The API returns bare "<publisher>/<file>" paths. Anything else is not its shape and must not be
 // improvised around -- a traversal or an absolute URL here would be someone rewriting where we fetch.
-assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"../../etc/passwd"}}}') === '');
-assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"https://evil.example/x.jpg"}}}') === '');
-assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"/absolute/x.jpg"}}}') === '');
-assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"javascript:alert(1)"}}}') === '');
+// Checked on the FLAT shape too: that is the one the endpoint actually parses.
+foreach (['../../etc/passwd', 'https://evil.example/x.jpg', '/absolute/x.jpg', 'javascript:alert(1)', '//evil.example/x.jpg'] as $bad) {
+    assert(avesmapsCitymapPickUlissesImage(json_encode(['image' => $bad])) === '', 'flat, refused: ' . $bad);
+    assert(avesmapsCitymapPickUlissesImage(json_encode(['data' => ['attributes' => ['image' => $bad]]])) === '', 'envelope, refused: ' . $bad);
+}
 // A hostile first field falls through to the next usable one rather than giving up.
-assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"../x","webImage":"3444\/ok.webp"}}}')
+assert(avesmapsCitymapPickUlissesImage('{"image":"../x","webImage":"3444\/ok.webp"}')
     === 'https://www.ulisses-ebooks.de/images/3444/ok.webp');
 echo "ulisses detour ok\n";
 
