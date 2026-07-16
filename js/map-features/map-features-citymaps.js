@@ -352,10 +352,20 @@ function avesmapsApplyCitymapCatalog(catalog, enabled) {
 		// A panel opened BEFORE this resolved was built without us and would stay that way forever -- the
 		// section renders nothing without a catalog, and nothing re-renders on its own. On a deeplink that
 		// is a real race: this small fetch queues behind the ~14 MB map-features payload. Rebuild once.
-		if (typeof window.avesmapsRefreshInfopanelLocation === "function") {
-			window.avesmapsRefreshInfopanelLocation();
+		if (typeof window.avesmapsRefreshInfopanel === "function") {
+			window.avesmapsRefreshInfopanel();
 		}
 	}
+}
+
+// Nachladen auf Zuruf (Owner 2026-07-17): der Katalog wurde bisher genau EINMAL geholt -- state.loading
+// merkt sich die Promise, jeder weitere Aufruf bekam dieselbe alte Antwort zurueck. Wer im Editor eine
+// Karte aenderte, sah das in seiner offenen Seite erst nach F5. Das Zuruecksetzen ist der ganze Trick:
+// avesmapsApplyCitymapCatalog baut danach den Index neu UND zeichnet ein offenes Panel neu.
+// Aufrufer: das Schliessen des Kartensammlungs-Editors.
+function avesmapsReloadCitymapCatalog() {
+	avesmapsCitymapCatalogState.loading = null;
+	return avesmapsLoadCitymapCatalog();
 }
 
 function avesmapsLoadCitymapCatalog() {
@@ -500,6 +510,7 @@ if (typeof module !== "undefined" && module.exports) {
 }
 if (typeof window !== "undefined") {
 	window.avesmapsLoadCitymapCatalog = avesmapsLoadCitymapCatalog;
+	window.avesmapsReloadCitymapCatalog = avesmapsReloadCitymapCatalog;
 	window.avesmapsCitymapCatalogIsReady = avesmapsCitymapCatalogIsReady;
 	window.avesmapsCitymapFacetOptions = avesmapsCitymapFacetOptions;
 	window.avesmapsCitymapMatchesFilter = avesmapsCitymapMatchesFilter;

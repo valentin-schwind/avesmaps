@@ -113,10 +113,15 @@
 	// Name des aktuell angezeigten Features -> markiert den passenden Wegpunkt-Tab als aktiv (leer,
 	// wenn das Feature kein Wegpunkt ist -> transiente Ansicht ohne aktiven Tab).
 	var currentTabActive = "";
-	// Die zuletzt im Panel gezeigte Siedlung -- Anker fuer avesmapsRefreshInfopanelLocation (siehe dort).
-	// null, sobald etwas anderes (Region/Weg/Route) im Panel steht.
-	var lastLocationEntry = null;
-	var locationRefreshQueued = false;
+	// WIE sich das offene Panel selbst neu zeichnet -- Anker fuer avesmapsRefreshInfopanel (siehe dort).
+	// null, sobald etwas im Panel steht, das keinen Anker gesetzt hat (z. B. die Route).
+	//
+	// Frueher stand hier `lastLocationEntry`, also nur die zuletzt gezeigte SIEDLUNG. Damit war der Refresh
+	// auf einen der drei Panel-Typen beschraenkt: Regionen, Gebiete und Wege bekamen zwar frische Kataloge,
+	// zeichneten sich aber nie neu. Eine Funktion statt eines Eintrags, weil nur die jeweilige Show-*-
+	// Funktion weiss, wie ihr Typ gebaut wird -- der Anker muss das nicht wissen.
+	var lastPanelRender = null;
+	var panelRefreshQueued = false;
 	// ResizeObserver, der den gemessenen Reise-Linien-SVG-Pfad bei Breitenaenderung des Panels neu zeichnet
 	// (einmalig in renderTabs angehaengt).
 	var routeLineObserver = null;
@@ -496,10 +501,11 @@
 	// kein Inhalt -> Panel leeren + einklappen (nie leer offen). Gibt das Body-Element zurueck, damit der
 	// Aufrufer z. B. hydrateLocationReviews darauf anwenden kann.
 	window.avesmapsShowInfopanel = function (html, activeName) {
-		// Jeder Inhaltswechsel entwertet den Siedlungs-Anker; avesmapsShowLocationInInfopanel setzt ihn
-		// direkt danach wieder. Hier zentral statt in jedem Aufrufer, damit Region/Weg/Route -- und alles,
-		// was spaeter dazukommt -- nicht von einem verspaeteten Katalog-Refresh ueberschrieben werden.
-		lastLocationEntry = null;
+		// Jeder Inhaltswechsel entwertet den Anker; die Show-*-Funktionen setzen ihn direkt danach wieder.
+		// Hier zentral statt in jedem Aufrufer, damit ein verspaeteter Refresh nie ein Panel neu zeichnet,
+		// das laengst etwas anderes zeigt. Inhalte ohne eigenen Anker (die Route) bleiben so bewusst
+		// unaufgefrischt, statt sich in eine fremde Ansicht zurueckzuverwandeln.
+		lastPanelRender = null;
 		if (typeof html === "string" && html.trim() !== "") {
 			body.innerHTML = html;
 			body.scrollTop = 0;
@@ -549,7 +555,8 @@
 			window.avesmapsSetActiveLocation(markerEntry);
 		}
 		var panelBody = window.avesmapsShowInfopanel(buildLocationMarkerPopupHtml(markerEntry), markerEntry.name);
-		lastLocationEntry = markerEntry;
+		// NACH dem Show setzen: avesmapsShowInfopanel loescht den Anker als Erstes.
+		lastPanelRender = function () { window.avesmapsShowLocationInInfopanel(markerEntry); };
 		if (panelBody && typeof hydrateLocationReviews === "function") {
 			hydrateLocationReviews(panelBody.querySelector(".location-reviews"));
 		}
@@ -560,29 +567,38 @@
 	// im Panel zeigen -> die Breadcrumb-Leiste (alle Wegpunkte) erscheint oben, dieser Wegpunkt aktiv.
 	// Wird nach dem Routen-Laden aufgerufen (routing.js, hasSharedRoute), damit das Infopanel mit den
 	// Wegpunkt-Breadcrumbs automatisch erscheint. Loest kein Wegpunkt auf, passiert nichts (Panel bleibt).
-	// Baut das Siedlungs-Panel neu, wenn ein Katalog NACH dem Oeffnen fertig geworden ist.
+	// Baut das offene Panel neu -- was immer darin steht (Siedlung, Weg, Region/Gebiet).
 	//
-	// Warum das noetig ist: das Panel wird EINMAL gebaut, die Kataloge (Abenteuer, Kartensammlung) kommen
-	// per fetch. Bei einem Deeplink/Sofort-Oeffnen ist das ein echtes Rennen -- die kleinen Katalog-Requests
-	// haengen hinter der ~14 MB grossen map-features-Nutzlast in der Verbindungs-Queue. Wer verliert, sieht
-	// das Ergebnis dauerhaft: die Kartensammlung fehlt komplett (kein Katalog -> kein Abschnitt) und der
-	// Abenteuer-Kopf friert auf dem Platzhalterwert "(57)" ein. Beobachtet auf avesmaps.de mit
-	// ?siedlung=Gareth, 2026-07-16.
+	// ZWEI Anlaesse, beide echt:
+	//  1. Ein Katalog wird NACH dem Oeffnen fertig. Das Panel wird EINMAL gebaut, die Kataloge (Abenteuer,
+	//     Kartensammlung) kommen per fetch. Bei einem Deeplink/Sofort-Oeffnen ist das ein Rennen -- die
+	//     kleinen Katalog-Requests haengen hinter der ~14 MB grossen map-features-Nutzlast in der
+	//     Verbindungs-Queue. Wer verliert, sieht das Ergebnis dauerhaft: die Kartensammlung fehlt komplett
+	//     (kein Katalog -> kein Abschnitt) und der Abenteuer-Kopf friert auf dem Platzhalter "(57)" ein.
+	//     Beobachtet auf avesmaps.de mit ?siedlung=Gareth, 2026-07-16.
+	//  2. Ein Editor hat gerade etwas geaendert und wird geschlossen. Bis dahin blieb der Katalog der von
+	//     der Seitenladung -- man sah seine eigene Aenderung erst nach F5 (Owner, 2026-07-17).
 	//
 	// Einmal pro Tick zusammengefasst, damit zwei Kataloge nicht zweimal neu rendern; die Scrollposition
-	// bleibt, weil showInfopanel sonst nach oben springt. Kein Loop-Risiko: ein Katalog laedt genau einmal.
-	window.avesmapsRefreshInfopanelLocation = function () {
-		if (!lastLocationEntry || !hasContent || locationRefreshQueued) {
+	// bleibt, weil showInfopanel sonst nach oben springt.
+	//
+	// Kein Loop-Risiko, aber die Begruendung hat sich geaendert: frueher galt "ein Katalog laedt genau
+	// einmal". Seit dem Nachladen stimmt das nicht mehr -- es traegt trotzdem, weil ein Refresh nur
+	// zeichnet und nie laedt. Der Ausloeser ist immer ein Klick oder ein fertiger fetch, nie ein Render.
+	window.avesmapsRefreshInfopanel = function () {
+		if (!lastPanelRender || !hasContent || panelRefreshQueued) {
 			return;
 		}
-		locationRefreshQueued = true;
+		panelRefreshQueued = true;
 		setTimeout(function () {
-			locationRefreshQueued = false;
-			if (!lastLocationEntry || !hasContent) {
+			panelRefreshQueued = false;
+			// Erneut pruefen: in dem Tick kann der Nutzer laengst etwas anderes geoeffnet -- oder das Panel
+			// geleert -- haben. Dann ist der Anker weg und wir zeichnen bewusst nichts.
+			if (!lastPanelRender || !hasContent) {
 				return;
 			}
 			var scrollTop = body.scrollTop;
-			window.avesmapsShowLocationInInfopanel(lastLocationEntry);
+			lastPanelRender();
 			body.scrollTop = scrollTop;
 		}, 0);
 	};
@@ -617,6 +633,7 @@
 			markup += buildPathAdventuresMarkup(path);
 		}
 		window.avesmapsShowInfopanel(markup);
+		lastPanelRender = function () { window.avesmapsShowPathInInfopanel(path); };
 		return true;
 	};
 
@@ -669,11 +686,20 @@
 		return spec ? locationPopupActionsMarkup([popupActionButtonMarkup(spec)]) : "";
 	}
 
+	// Zeigt das Gebiet UND verankert es fuer den Refresh. Eigene Funktion, weil beide Runden (sofort +
+	// nach dem Detail-Fetch) den Anker setzen muessen: avesmapsShowInfopanel loescht ihn jedes Mal. Der
+	// Anker zeigt hierher statt auf avesmapsShowRegionInInfopanel -- ein Refresh soll nur das Markup neu
+	// bauen, nicht die Fetch-Logik nochmal anwerfen.
+	function showRegionMarkup(regionEntry) {
+		window.avesmapsShowInfopanel(regionMarkupWithAdventures(regionEntry));
+		lastPanelRender = function () { showRegionMarkup(regionEntry); };
+	}
+
 	window.avesmapsShowRegionInInfopanel = function (regionEntry) {
 		if (!regionEntry || typeof createRegionCompactTooltipMarkup !== "function") {
 			return false;
 		}
-		window.avesmapsShowInfopanel(regionMarkupWithAdventures(regionEntry));
+		showRegionMarkup(regionEntry);
 		regionDetailToken = regionEntry;
 		var needsDetail = typeof hasRegionWikiInfo === "function" && hasRegionWikiInfo(regionEntry)
 			&& !regionEntry.detail && regionEntry.territoryPublicId;
@@ -686,7 +712,7 @@
 						return; // anderes Gebiet inzwischen angezeigt -> veraltete Antwort verwerfen
 					}
 					regionEntry.detail = data;
-					window.avesmapsShowInfopanel(regionMarkupWithAdventures(regionEntry));
+					showRegionMarkup(regionEntry);
 				})
 				.catch(function () { /* noop */ });
 		}

@@ -549,6 +549,13 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 	const closeOverlay = () => {
 		overlay.hidden = true;
 		document.body.style.overflow = "";
+		// Beim SCHLIESSEN nachladen, nicht beim Speichern (Owner 2026-07-17): waehrend das Overlay offen ist,
+		// verdeckt es die Karte -- ein Refresh dahinter saehe niemand. Ohne das blieb der Katalog der von der
+		// Seitenladung, und man sah seine eigene Aenderung erst nach F5. Bedingungslos, weil der Editor uns
+		// nicht sagt, ob er gespeichert hat; der Katalog ist ~1 KB, ein Abruf je Schliessen faellt nicht auf.
+		if (typeof window.avesmapsReloadAdventureCatalog === "function") {
+			void window.avesmapsReloadAdventureCatalog();
+		}
 	};
 	closeButton.addEventListener("click", closeOverlay);
 	header.appendChild(headingEl);
@@ -609,6 +616,10 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 	const closeOverlay = () => {
 		overlay.hidden = true;
 		document.body.style.overflow = "";
+		// Nachladen beim Schliessen -- Begruendung beim Abenteuer-Editor oben.
+		if (typeof window.avesmapsReloadCitymapCatalog === "function") {
+			void window.avesmapsReloadCitymapCatalog();
+		}
 	};
 	closeButton.addEventListener("click", closeOverlay);
 	header.appendChild(headingEl);

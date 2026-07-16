@@ -420,10 +420,19 @@ function avesmapsApplyAdventureCatalog(catalog, territoryMeta, coversEnabled) {
 		// ("Abenteuer in Gareth (57)") -- and keeps showing them, because nothing re-renders. The
 		// placeholder was meant to bridge the load, not to outlive it. Rebuild once (coalesced with the
 		// citymap catalog's refresh).
-		if (typeof window.avesmapsRefreshInfopanelLocation === "function") {
-			window.avesmapsRefreshInfopanelLocation();
+		if (typeof window.avesmapsRefreshInfopanel === "function") {
+			window.avesmapsRefreshInfopanel();
 		}
 	}
+}
+
+// Nachladen auf Zuruf (Owner 2026-07-17): der Katalog wurde bisher genau EINMAL geholt -- state.loading
+// merkt sich die Promise, jeder weitere Aufruf bekam die alte Antwort. Wer im Editor etwas aenderte, sah es
+// erst nach F5. Das Zuruecksetzen ist der ganze Trick; avesmapsApplyAdventureCatalog baut danach den Index
+// neu UND zeichnet ein offenes Panel neu. Aufrufer: das Schliessen des Abenteuer-Editors.
+function avesmapsReloadAdventureCatalog() {
+	avesmapsAdventureCatalogState.loading = null;
+	return avesmapsLoadAdventureCatalog();
 }
 
 // Load the catalog once. Injected window.AVESMAPS_ADVENTURE_CATALOG (repro harness / tests) bypasses
@@ -625,6 +634,7 @@ if (typeof module !== "undefined" && module.exports) {
 }
 if (typeof window !== "undefined") {
 	window.avesmapsLoadAdventureCatalog = avesmapsLoadAdventureCatalog;
+	window.avesmapsReloadAdventureCatalog = avesmapsReloadAdventureCatalog;
 	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
 	window.avesmapsAdventureEditionSortKey = avesmapsAdventureEditionSortKey;
 	window.getAdventuresForPlace = getAdventuresForPlace;
