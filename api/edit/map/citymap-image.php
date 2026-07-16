@@ -136,18 +136,35 @@ try {
             avesmapsErrorResponse(400, 'invalid_request', 'Diese Karte hat keinen Karten-Link — es gibt keine Seite, auf der ein Vorschaubild zu finden wäre.');
         }
 
-        // 1. The PAGE. avesmapsLinkCheckFetchBody applies the full SSRF guard (scheme, host class,
-        //    bounded http(s)-only redirects, post-flight PRIMARY_IP) and caps the body while streaming.
-        $page = avesmapsLinkCheckFetchBody($pageUrl, AVESMAPS_CITYMAP_AUTOGET_HTML_MAX_BYTES, 'text/html,application/xhtml+xml');
-        if (!$page['ok']) {
-            avesmapsErrorResponse(502, 'fetch_failed', 'Die Seite konnte nicht geladen werden (' . ($page['status'] ?: 'kein HTTP') . ').');
-        }
-
-        // 2. Find the preview. Resolved against the FINAL url, not the stored one -- a redirect moves the
-        //    base a relative og:image is relative to.
-        $imageUrl = avesmapsCitymapPickPreviewImage($page['body'], $page['final_url']);
-        if ($imageUrl === '') {
-            avesmapsErrorResponse(404, 'not_found', 'Auf der Seite ist kein Vorschaubild ausgezeichnet (og:image/twitter:image). Bitte eins hochladen.');
+        // 1. + 2. Fetch the source and find the preview. Two routes, because the DSA shop -- our most
+        //    common map source by far -- answers 403 to every server-side request for its HTML (it gates
+        //    on the TLS fingerprint, not the user-agent). The linkchecker already detours to its product
+        //    API; Autoget reuses that same detour instead of learning the host a second time. Every other
+        //    host takes the ordinary og:image route.
+        //
+        //    Both routes fetch through avesmapsLinkCheckFetchBody: full SSRF guard (scheme, host class,
+        //    bounded http(s)-only redirects, post-flight PRIMARY_IP), body capped while streaming.
+        $apiUrl = avesmapsCitymapUlissesApiUrl($pageUrl);
+        if ($apiUrl !== '') {
+            $api = avesmapsLinkCheckFetchBody($apiUrl, AVESMAPS_CITYMAP_AUTOGET_HTML_MAX_BYTES, 'application/json');
+            if (!$api['ok']) {
+                avesmapsErrorResponse(502, 'fetch_failed', 'Die Ulisses-Produkt-API antwortete nicht (' . ($api['status'] ?: 'kein HTTP') . ').');
+            }
+            $imageUrl = avesmapsCitymapPickUlissesImage($api['body']);
+            if ($imageUrl === '') {
+                avesmapsErrorResponse(404, 'not_found', 'Die Ulisses-Produkt-API nennt kein Titelbild. Bitte eins hochladen.');
+            }
+        } else {
+            $page = avesmapsLinkCheckFetchBody($pageUrl, AVESMAPS_CITYMAP_AUTOGET_HTML_MAX_BYTES, 'text/html,application/xhtml+xml');
+            if (!$page['ok']) {
+                avesmapsErrorResponse(502, 'fetch_failed', 'Die Seite konnte nicht geladen werden (' . ($page['status'] ?: 'kein HTTP') . ').');
+            }
+            // Resolved against the FINAL url, not the stored one -- a redirect moves the base that a
+            // relative og:image is relative to.
+            $imageUrl = avesmapsCitymapPickPreviewImage($page['body'], $page['final_url']);
+            if ($imageUrl === '') {
+                avesmapsErrorResponse(404, 'not_found', 'Auf der Seite ist kein Vorschaubild ausgezeichnet (og:image/twitter:image). Bitte eins hochladen.');
+            }
         }
 
         // 3. The IMAGE. THIS is the dangerous fetch: the URL was chosen by a page we do not control, so a
@@ -159,7 +176,10 @@ try {
             avesmapsErrorResponse(502, 'fetch_failed', 'Das gefundene Bild konnte nicht geladen werden.');
         }
 
-        // 4. Trust the BYTES, not the Content-Type header the remote server claimed.
+        // 4. Trust the BYTES, not the Content-Type header the remote server claimed. Not theoretical: the
+        //    Ulisses CDN serves its covers as "image/jpg" (measured 2026-07-16), which is not a MIME type
+        //    and is not in our whitelist -- believing the header would 415 every single DSA cover. finfo
+        //    reads the magic bytes and correctly says image/jpeg.
         $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($image['body']);
         if (!isset(AVESMAPS_CITYMAP_IMAGE_TYPES[$mime])) {
             avesmapsErrorResponse(415, 'unsupported_media_type', 'Das gefundene Bild ist kein PNG/JPG/WebP/GIF (' . $mime . ').');

@@ -106,6 +106,48 @@ assert(avesmapsCitymapPickPreviewImage(
 ) === 'http://169.254.169.254/latest/meta-data/iam/');
 echo "pick-preview ok\n";
 
+// ---- the Ulisses detour -----------------------------------------------------------------------------
+// The shop's HTML is 403 to any server-side request (TLS-fingerprint gate), so og:image is unreachable
+// there and this detour is what makes Autoget work at all for the most common map source.
+assert(avesmapsCitymapUlissesApiUrl('https://www.ulisses-ebooks.de/de/product/120516/gareth-karte-pdf-als-download-kaufen')
+    === 'https://api.ulisses-ebooks.de/api/vBeta/products/120516');
+assert(avesmapsCitymapUlissesApiUrl('https://ulisses-ebooks.de/en/product/99/x') === 'https://api.ulisses-ebooks.de/api/vBeta/products/99');
+assert(avesmapsCitymapUlissesApiUrl('https://www.ulisses-ebooks.de/de/product/120516') === 'https://api.ulisses-ebooks.de/api/vBeta/products/120516');
+// Everything else takes the og:image route -- '' is "not my case", not an error.
+assert(avesmapsCitymapUlissesApiUrl('https://www.f-shop.de/gareth') === '');
+assert(avesmapsCitymapUlissesApiUrl('https://de.wiki-aventurica.de/wiki/Gareth') === '');
+assert(avesmapsCitymapUlissesApiUrl('') === '');
+// A lookalike domain must NOT trigger the rewrite -- otherwise an attacker-owned host gets our request
+// redirected onto a URL they chose the shape of.
+assert(avesmapsCitymapUlissesApiUrl('https://ulisses-ebooks.de.evil.example/de/product/1/x') === '');
+assert(avesmapsCitymapUlissesApiUrl('https://evil-ulisses-ebooks.de/de/product/1/x') === '');
+
+// The real API shape, trimmed from the live answer for product 120516.
+$apiJson = '{"data":{"attributes":{"image":"3444\/120516.jpg","webImage":"3444\/120516.webp",'
+    . '"thumbnail":"3444\/120516-thumb140.jpg","thumbnail200":"3444\/120516-thumb200.webp"}}}';
+// The FULL image wins: our own downscaler makes a better 400px thumb than the shop's 200px one.
+assert(avesmapsCitymapPickUlissesImage($apiJson) === 'https://www.ulisses-ebooks.de/images/3444/120516.jpg');
+// Fallback chain when the fuller fields are missing.
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"thumbnail200":"3444\/x.webp"}}}')
+    === 'https://www.ulisses-ebooks.de/images/3444/x.webp');
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"","webImage":"3444\/w.webp"}}}')
+    === 'https://www.ulisses-ebooks.de/images/3444/w.webp');
+// No cover / wrong shape / not JSON -> '' (the caller says "bitte eins hochladen"), never a guess.
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{}}}') === '');
+assert(avesmapsCitymapPickUlissesImage('{"data":{}}') === '');
+assert(avesmapsCitymapPickUlissesImage('not json at all') === '');
+assert(avesmapsCitymapPickUlissesImage('') === '');
+// The API returns bare "<publisher>/<file>" paths. Anything else is not its shape and must not be
+// improvised around -- a traversal or an absolute URL here would be someone rewriting where we fetch.
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"../../etc/passwd"}}}') === '');
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"https://evil.example/x.jpg"}}}') === '');
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"/absolute/x.jpg"}}}') === '');
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"javascript:alert(1)"}}}') === '');
+// A hostile first field falls through to the next usable one rather than giving up.
+assert(avesmapsCitymapPickUlissesImage('{"data":{"attributes":{"image":"../x","webImage":"3444\/ok.webp"}}}')
+    === 'https://www.ulisses-ebooks.de/images/3444/ok.webp');
+echo "ulisses detour ok\n";
+
 // ---- the editor/public split (owner decision: Autoget never goes public) -----------------------------
 $row = [
     'thumb_url' => '', 'thumb_local_url' => '', 'thumb_auto_url' => '/uploads/kartensammlungen/x/auto-1.png',

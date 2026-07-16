@@ -288,6 +288,54 @@ function avesmapsCitymapResolveUrl(string $candidate, string $baseUrl): string
     return $baseScheme . '://' . $baseHost . $basePort . $dir . $candidate;
 }
 
+// ---- Autoget, the Ulisses special case ---------------------------------------------------------------
+// The DSA shop is our single most common map source and its HTML answers 403 to any server-side request
+// -- it gates on the TLS fingerprint, not on who we claim to be (verified for the linkchecker on
+// 2026-07-16, re-verified here: 403 to our bot UA AND to a Chrome UA). So there is no og:image to read
+// and the generic path below would simply fail on nearly every map we have.
+//
+// The linkchecker already solved exactly this: avesmapsLinkCheckProbeUrl rewrites a product page to the
+// shop's own product API, which answers our honest bot politely. That API also carries the cover, so
+// Autoget reuses the same detour rather than inventing a second piece of host knowledge. We do NOT spoof
+// a browser to get past the gate -- we ask an endpoint that is willing to answer.
+//
+// Returns '' for every other host, and the caller then takes the og:image route.
+function avesmapsCitymapUlissesApiUrl(string $mapUrl): string
+{
+    // Anchored on the exact host (optionally www) so a lookalike domain cannot trigger the rewrite --
+    // same anchoring as avesmapsLinkCheckProbeUrl, whose regex this deliberately mirrors.
+    if (preg_match('~^https?://(?:www\.)?ulisses-ebooks\.de/[a-z]{2}/product/(\d+)(?:[/?\#]|$)~i', $mapUrl, $m) === 1) {
+        return 'https://api.ulisses-ebooks.de/api/vBeta/products/' . $m[1];
+    }
+    return '';
+}
+
+// PURE. The cover out of the product API's JSON. The paths are relative to the shop's /images/ (which
+// 301s to its CDN -- the fetcher follows redirects, bounded, and re-checks the final peer).
+// Priority: the full image first, because our own downscaler produces a better 400px thumb than the
+// shop's 200px one; the pre-made thumbnails are the fallback when there is no full cover.
+function avesmapsCitymapPickUlissesImage(string $json): string
+{
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return '';
+    }
+    $attributes = $decoded['data']['attributes'] ?? null;
+    if (!is_array($attributes)) {
+        return '';
+    }
+    foreach (['image', 'webImage', 'thumbnail200', 'thumbnail'] as $field) {
+        $path = trim((string) ($attributes[$field] ?? ''));
+        // Guard the shape: these are bare "<publisher>/<file>" paths. Anything else -- an absolute URL,
+        // a traversal, a scheme -- is not what this API returns, and we do not improvise around it.
+        if ($path === '' || str_contains($path, '..') || preg_match('~^[a-z][a-z0-9+.-]*:~i', $path) === 1 || str_starts_with($path, '/')) {
+            continue;
+        }
+        return 'https://www.ulisses-ebooks.de/images/' . $path;
+    }
+    return '';
+}
+
 // Pick the preview image out of a page's HTML, in the order publishers actually maintain them:
 // og:image (the one every shop sets for social sharing) -> twitter:image -> link rel=image_src (legacy).
 // Returns an absolute http(s) URL, or '' when the page offers none -- which is a normal answer, not an
