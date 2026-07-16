@@ -341,6 +341,12 @@ function avesmapsApplyCitymapCatalog(catalog, enabled) {
 	if (typeof window !== "undefined") {
 		window.avesmapsCitymapCatalog = state.catalog;
 		window.avesmapsCitymapCatalogReady = true;
+		// A panel opened BEFORE this resolved was built without us and would stay that way forever -- the
+		// section renders nothing without a catalog, and nothing re-renders on its own. On a deeplink that
+		// is a real race: this small fetch queues behind the ~14 MB map-features payload. Rebuild once.
+		if (typeof window.avesmapsRefreshInfopanelLocation === "function") {
+			window.avesmapsRefreshInfopanelLocation();
+		}
 	}
 }
 

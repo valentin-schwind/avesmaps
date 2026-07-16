@@ -416,6 +416,13 @@ function avesmapsApplyAdventureCatalog(catalog, territoryMeta, coversEnabled) {
 	if (typeof window !== "undefined") {
 		window.avesmapsAdventureCatalog = state.catalog;
 		window.avesmapsAdventureCatalogReady = true;
+		// A panel opened BEFORE this resolved shows the PLACEHOLDER adventures and their fabricated total
+		// ("Abenteuer in Gareth (57)") -- and keeps showing them, because nothing re-renders. The
+		// placeholder was meant to bridge the load, not to outlive it. Rebuild once (coalesced with the
+		// citymap catalog's refresh).
+		if (typeof window.avesmapsRefreshInfopanelLocation === "function") {
+			window.avesmapsRefreshInfopanelLocation();
+		}
 	}
 }
 

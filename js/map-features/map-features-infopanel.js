@@ -113,6 +113,10 @@
 	// Name des aktuell angezeigten Features -> markiert den passenden Wegpunkt-Tab als aktiv (leer,
 	// wenn das Feature kein Wegpunkt ist -> transiente Ansicht ohne aktiven Tab).
 	var currentTabActive = "";
+	// Die zuletzt im Panel gezeigte Siedlung -- Anker fuer avesmapsRefreshInfopanelLocation (siehe dort).
+	// null, sobald etwas anderes (Region/Weg/Route) im Panel steht.
+	var lastLocationEntry = null;
+	var locationRefreshQueued = false;
 	// ResizeObserver, der den gemessenen Reise-Linien-SVG-Pfad bei Breitenaenderung des Panels neu zeichnet
 	// (einmalig in renderTabs angehaengt).
 	var routeLineObserver = null;
@@ -492,6 +496,10 @@
 	// kein Inhalt -> Panel leeren + einklappen (nie leer offen). Gibt das Body-Element zurueck, damit der
 	// Aufrufer z. B. hydrateLocationReviews darauf anwenden kann.
 	window.avesmapsShowInfopanel = function (html, activeName) {
+		// Jeder Inhaltswechsel entwertet den Siedlungs-Anker; avesmapsShowLocationInInfopanel setzt ihn
+		// direkt danach wieder. Hier zentral statt in jedem Aufrufer, damit Region/Weg/Route -- und alles,
+		// was spaeter dazukommt -- nicht von einem verspaeteten Katalog-Refresh ueberschrieben werden.
+		lastLocationEntry = null;
 		if (typeof html === "string" && html.trim() !== "") {
 			body.innerHTML = html;
 			body.scrollTop = 0;
@@ -541,6 +549,7 @@
 			window.avesmapsSetActiveLocation(markerEntry);
 		}
 		var panelBody = window.avesmapsShowInfopanel(buildLocationMarkerPopupHtml(markerEntry), markerEntry.name);
+		lastLocationEntry = markerEntry;
 		if (panelBody && typeof hydrateLocationReviews === "function") {
 			hydrateLocationReviews(panelBody.querySelector(".location-reviews"));
 		}
@@ -551,6 +560,33 @@
 	// im Panel zeigen -> die Breadcrumb-Leiste (alle Wegpunkte) erscheint oben, dieser Wegpunkt aktiv.
 	// Wird nach dem Routen-Laden aufgerufen (routing.js, hasSharedRoute), damit das Infopanel mit den
 	// Wegpunkt-Breadcrumbs automatisch erscheint. Loest kein Wegpunkt auf, passiert nichts (Panel bleibt).
+	// Baut das Siedlungs-Panel neu, wenn ein Katalog NACH dem Oeffnen fertig geworden ist.
+	//
+	// Warum das noetig ist: das Panel wird EINMAL gebaut, die Kataloge (Abenteuer, Kartensammlung) kommen
+	// per fetch. Bei einem Deeplink/Sofort-Oeffnen ist das ein echtes Rennen -- die kleinen Katalog-Requests
+	// haengen hinter der ~14 MB grossen map-features-Nutzlast in der Verbindungs-Queue. Wer verliert, sieht
+	// das Ergebnis dauerhaft: die Kartensammlung fehlt komplett (kein Katalog -> kein Abschnitt) und der
+	// Abenteuer-Kopf friert auf dem Platzhalterwert "(57)" ein. Beobachtet auf avesmaps.de mit
+	// ?siedlung=Gareth, 2026-07-16.
+	//
+	// Einmal pro Tick zusammengefasst, damit zwei Kataloge nicht zweimal neu rendern; die Scrollposition
+	// bleibt, weil showInfopanel sonst nach oben springt. Kein Loop-Risiko: ein Katalog laedt genau einmal.
+	window.avesmapsRefreshInfopanelLocation = function () {
+		if (!lastLocationEntry || !hasContent || locationRefreshQueued) {
+			return;
+		}
+		locationRefreshQueued = true;
+		setTimeout(function () {
+			locationRefreshQueued = false;
+			if (!lastLocationEntry || !hasContent) {
+				return;
+			}
+			var scrollTop = body.scrollTop;
+			window.avesmapsShowLocationInInfopanel(lastLocationEntry);
+			body.scrollTop = scrollTop;
+		}, 0);
+	};
+
 	window.avesmapsAutoOpenRouteInInfopanel = function () {
 		var names = (typeof getWaypointInputValues === "function") ? getWaypointInputValues() : [];
 		for (var i = 0; i < names.length; i += 1) {
