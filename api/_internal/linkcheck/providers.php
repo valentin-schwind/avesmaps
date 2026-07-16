@@ -149,9 +149,11 @@ function avesmapsLinkCheckSyncStep(PDO $pdo, string $cursor = '', string $entity
         }
         $collector = $providers[$entityType];
         $result = avesmapsLinkCheckSyncEntityType($pdo, $entityType, $collector($pdo));
-        // Pruning is safe even in a scoped pass: it only deletes link_status rows that NO type
-        // references any more, and the other types' refs are still in place from their own last sync.
-        $result['pruned'] = avesmapsLinkCheckPruneOrphans($pdo, $types);
+        // Refs of retired types can go in any pass -- nothing will ever re-stamp them.
+        avesmapsLinkCheckDropUnknownTypeRefs($pdo, $types);
+        // But NOT the orphan prune: a type not yet synced in this registry has no refs, so its links
+        // would look orphaned and lose their probe history. Only a full pass (the CLI) may prune.
+        $result['pruned'] = 0;
         $result['entity_type'] = $entityType;
         $result['done'] = true;
         $result['cursor'] = '';
@@ -175,9 +177,12 @@ function avesmapsLinkCheckSyncStep(PDO $pdo, string $cursor = '', string $entity
     $result = avesmapsLinkCheckSyncEntityType($pdo, $type, $collector($pdo));
 
     $isLast = $index >= count($types) - 1;
-    // Orphan pruning must wait for the LAST provider: a link_status row may be referenced by a type that
-    // has not been re-synced yet in this pass.
-    $result['pruned'] = $isLast ? avesmapsLinkCheckPruneOrphans($pdo, $types) : 0;
+    // Orphan pruning must wait for the LAST provider: only once EVERY type has re-stamped its refs in
+    // this pass does "no refs" really mean orphaned. This unscoped walk is the only path that earns it.
+    if ($isLast) {
+        avesmapsLinkCheckDropUnknownTypeRefs($pdo, $types);
+    }
+    $result['pruned'] = $isLast ? avesmapsLinkCheckPruneOrphans($pdo) : 0;
     $result['entity_type'] = $type;
     $result['done'] = $isLast;
     $result['cursor'] = $isLast ? '' : $types[$index + 1];

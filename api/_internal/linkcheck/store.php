@@ -207,23 +207,33 @@ function avesmapsLinkCheckSyncEntityType(PDO $pdo, string $entityType, array $li
     return ['seen' => $seen, 'created' => $created, 'removed' => $removeStale->rowCount()];
 }
 
-// Drop link_status rows nothing references any more -- otherwise we would probe links forever that no
-// object holds. Runs at the end of a sync pass.
-//
-// $knownTypes (the registry's scope names) first clears refs of types that no longer exist. Without
-// that, renaming or removing a provider would strand its refs forever: no provider would ever re-stamp
-// their seen_at, so the per-type cleanup could not reach them, and their mere presence would keep the
-// link_status rows looking referenced. Pass [] to skip that step.
-function avesmapsLinkCheckPruneOrphans(PDO $pdo, array $knownTypes = []): int
+// Drop refs whose entity_type is not in the registry any more (a provider was renamed or removed).
+// Safe in ANY pass: those types no longer exist, so nothing will ever re-stamp their seen_at and the
+// per-type cleanup can never reach them. Without this they would keep their link_status rows looking
+// referenced forever.
+function avesmapsLinkCheckDropUnknownTypeRefs(PDO $pdo, array $knownTypes): int
 {
     avesmapsLinkCheckEnsureTables($pdo);
-
-    if ($knownTypes !== []) {
-        $placeholders = implode(',', array_fill(0, count($knownTypes), '?'));
-        $pdo->prepare('DELETE FROM link_ref WHERE entity_type NOT IN (' . $placeholders . ')')
-            ->execute(array_values($knownTypes));
+    if ($knownTypes === []) {
+        return 0;
     }
+    $placeholders = implode(',', array_fill(0, count($knownTypes), '?'));
+    $statement = $pdo->prepare('DELETE FROM link_ref WHERE entity_type NOT IN (' . $placeholders . ')');
+    $statement->execute(array_values($knownTypes));
+    return $statement->rowCount();
+}
 
+// Drop link_status rows nothing references any more -- otherwise we would probe links forever that no
+// object holds.
+//
+// ONLY safe after a pass over EVERY provider (the CLI). It must NOT run after a scoped, single-provider
+// pass: a type that has not been synced yet in this registry has no refs at all, so its links would look
+// orphaned and be deleted -- taking their probe history with them. Concretely: after renaming
+// source -> source_settlement/_territory/…, the first scoped settlement sync would have wiped the
+// territory sources' state, and the next territory sync would re-add them as 'unchecked'.
+function avesmapsLinkCheckPruneOrphans(PDO $pdo): int
+{
+    avesmapsLinkCheckEnsureTables($pdo);
     return $pdo->query(
         'DELETE ls FROM link_status ls
           LEFT JOIN link_ref lr ON lr.url_hash = ls.url_hash
