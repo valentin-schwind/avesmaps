@@ -142,6 +142,17 @@ assert.ok(!avesmapsCitymapMatchesFilter(m3, { art: "politisch", showSpoiler: tru
 assert.ok(!avesmapsCitymapMatchesFilter(m2, { colorOnly: true, showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter(m1, { colorOnly: true, showSpoiler: true }));
 
+// "nur kostenlose" (is_paid, owner 2026-07-17) is the one toggle that matches a known FALSE -- "nur
+// kostenpflichtige" is a filter nobody asks for. The §3.7 rule is unchanged where it counts: unknown still
+// matches nothing, because "we never checked" is not evidence of "it's free".
+assert.ok(avesmapsCitymapMatchesFilter({ is_paid: false }, { freeOnly: true, showSpoiler: true }), "known free passes");
+assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: true }, { freeOnly: true, showSpoiler: true }), "known paid fails");
+assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: null }, { freeOnly: true, showSpoiler: true }), "UNKNOWN must not pass as free");
+assert.ok(!avesmapsCitymapMatchesFilter(m3, { freeOnly: true, showSpoiler: true }), "…same for a map that knows nothing");
+// Toggle off -> is_paid constrains nothing, in all three states.
+assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true }, { showSpoiler: true }));
+assert.ok(avesmapsCitymapMatchesFilter({ is_paid: null }, { showSpoiler: true }));
+
 // Spoiler is INVERTED: off by default, and it reveals rather than restricts.
 assert.ok(!avesmapsCitymapMatchesFilter(m2, {}), "spoiler map hidden while the toggle is off");
 assert.ok(avesmapsCitymapMatchesFilter(m2, { showSpoiler: true }), "toggle on -> spoiler map shows");

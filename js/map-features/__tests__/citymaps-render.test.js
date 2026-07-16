@@ -171,6 +171,15 @@ assert.ok(row.includes("Beilage"));
 assert.ok(row.includes("farbig · offiziell"), "only affirmed traits are listed");
 assert.ok(!row.includes("mehrstöckig"), "unknown trait is omitted");
 assert.ok(!row.includes("beschriftet"), "an explicit false trait is omitted too");
+// …with is_paid as the ONE documented exception, and it is the exception that proves the rule: "nicht
+// farbig" is a non-statement, "kostenlos" is the most useful thing on the row. Unknown still says nothing
+// — we do not guess about someone's wallet.
+assert.ok(!row.includes("kostenlos") && !row.includes("kostenpflichtig"), "is_paid unknown -> silent");
+const paidRow = buildCityMapRowMarkup({ public_id: "p1", title: "T", is_paid: true });
+assert.ok(paidRow.includes("kostenpflichtig") && !paidRow.includes("kostenlos"));
+const freeRow = buildCityMapRowMarkup({ public_id: "p2", title: "T", is_paid: false });
+assert.ok(freeRow.includes("kostenlos"), "a KNOWN false is printed here, unlike every other trait");
+assert.ok(!freeRow.includes("kostenpflichtig"), "…and not both at once");
 // A dead link stays clickable but reads as dead (link-status.js), and every off-site link gets its ↗.
 assert.ok(row.includes("link-status-dead-target"), "dead link is struck through");
 assert.ok(row.includes("nicht mehr erreichbar"), "dead marker rendered");
@@ -190,9 +199,13 @@ const bar = citymapFiltersMarkup({
   sources: ["Herz des Reiches"],
   yearRange: { min: 1027, max: 1045 },
 });
-["type", "art", "source", "color", "multilevel", "labeled", "official", "spoiler", "yearFrom", "yearTo"].forEach((kind) => {
+["type", "art", "source", "color", "multilevel", "labeled", "official", "free", "spoiler", "yearFrom", "yearTo"].forEach((kind) => {
   assert.ok(bar.includes('data-adv-filter="' + kind + '"'), "citymap bar offers the " + kind + " dimension (§3.7)");
 });
+// The toggle is "nur kostenlose", not "nur kostenpflichtige": the useful question is what a reader can look
+// at right now. Its filter key must stay `free` — map-features-citymaps-dialog.js's TOGGLES maps it to
+// freeOnly, and a rename on one side alone leaves a chip that highlights and filters nothing.
+assert.ok(bar.includes("nur kostenlose") && !bar.includes("nur kostenpflichtige"));
 assert.ok(bar.includes("(2)"), "type chip shows its count");
 assert.ok(bar.includes('<option value="politisch">Politisch</option>'), "art select maps slug -> label");
 // The adventure dimensions must NOT leak into the map bar.

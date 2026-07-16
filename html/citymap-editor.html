@@ -631,7 +631,9 @@
         ${ceTri("beschriftet (Legende)", "is_labeled", v.is_labeled)}
         ${ceTri("offiziell", "is_official", v.is_official)}
         ${ceTri("Spoiler", "is_spoiler", v.is_spoiler)}
+        ${ceTri("kostenpflichtig", "is_paid", v.is_paid)}
         <p class="ce-hint">„unbekannt“ ist eine gültige Antwort und keine Lücke: der Leser sieht die Eigenschaft dann gar nicht, statt ein erfundenes „nein“.</p>
+        <p class="ce-hint">„kostenpflichtig“ setzt ein Mensch — bewusst kein Auto-Abgleich mit dem Shop (Owner 2026-07-17). Ein Preis ist eine Momentaufnahme: „zahl was du willst“ ist weder frei noch bezahlt, Aktionen laufen ab. Und die API kennt nur das Produkt, nicht die Karte im Buch.</p>
       </div>
       <div class="ce-grp"><p class="ce-grp__title">Typ (Mehrfachauswahl)</p>
         <div class="ce-types">${TYPE_KEYS.map(([k, l]) =>

@@ -83,6 +83,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             is_labeled TINYINT(1) NULL,
             is_official TINYINT(1) NULL,
             is_spoiler TINYINT(1) NULL,
+            is_paid TINYINT(1) NULL,
             width_px INT NULL,
             height_px INT NULL,
             valid_from_bf INT NULL,
@@ -158,6 +159,20 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // one-character edit to a boolean.
     if (!$columnExists($pdo, 'thumb_auto_url')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN thumb_auto_url VARCHAR(500) NULL');
+    }
+    // is_paid: "you have to buy something to get this map" (owner 2026-07-17). A HUMAN sets it -- there is
+    // deliberately no auto-fill, although the Ulisses product API hands us `price` in the very JSON Autoget
+    // already fetches. Owner decision, and the reasoning is sound: a price is a snapshot. `isPwyw`
+    // ("pay what you want") is neither clearly free nor clearly paid, sales and specialPrice can drop to 0,
+    // and the column would quietly become a cache with an expiry date that nothing refreshes. Worse, it
+    // would only ever answer for the RARE case: the shop sells products, not maps -- most DSA maps sit
+    // inside books (see docs/superpowers/specs/2026-07-16-kartensammlung-wiki-sync-recon.md §6), and for
+    // those the API knows the book, not the map.
+    //
+    // Three-valued like every other property (§3.1): NULL means nobody has judged it, and the reader is
+    // shown nothing rather than a guess about their wallet.
+    if (!$columnExists($pdo, 'is_paid')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN is_paid TINYINT(1) NULL');
     }
 }
 
@@ -478,7 +493,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_local_url, map_license,
                 thumb_url, thumb_local_url, thumb_license, art, is_color, is_multilevel, is_labeled,
-                is_official, is_spoiler, width_px, height_px, valid_from_bf, valid_to_bf, author, note
+                is_official, is_spoiler, is_paid, width_px, height_px, valid_from_bf, valid_to_bf, author, note
            FROM citymap
           WHERE status = 'approved'
           ORDER BY title ASC"
@@ -525,6 +540,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
             'is_labeled' => avesmapsCitymapTriBoolOut($row['is_labeled']),
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
             'is_spoiler' => avesmapsCitymapTriBoolOut($row['is_spoiler']),
+            'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
             'width_px' => $row['width_px'] !== null ? (int) $row['width_px'] : null,
             'height_px' => $row['height_px'] !== null ? (int) $row['height_px'] : null,
             'valid_from_bf' => $row['valid_from_bf'] !== null ? (int) $row['valid_from_bf'] : null,
@@ -759,6 +775,7 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'is_labeled' => avesmapsCitymapTriBoolOut($row['is_labeled']),
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
             'is_spoiler' => avesmapsCitymapTriBoolOut($row['is_spoiler']),
+            'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
             'width_px' => $row['width_px'] !== null ? (int) $row['width_px'] : null,
             'height_px' => $row['height_px'] !== null ? (int) $row['height_px'] : null,
             'valid_from_bf' => $row['valid_from_bf'] !== null ? (int) $row['valid_from_bf'] : null,
@@ -795,12 +812,12 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
 
     $editableFields = [
         'map_url', 'map_license', 'map_license_note', 'thumb_url', 'thumb_license', 'thumb_license_note',
-        'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler',
+        'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
         'width_px', 'height_px', 'valid_from_bf', 'valid_to_bf', 'author', 'note', 'status',
     ];
 
     $normalize = static function (string $field, mixed $raw): int|string|null {
-        if (in_array($field, ['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler'], true)) {
+        if (in_array($field, ['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid'], true)) {
             return avesmapsCitymapTriBool($raw);
         }
         if (in_array($field, ['width_px', 'height_px', 'valid_from_bf', 'valid_to_bf'], true)) {
@@ -960,7 +977,10 @@ function avesmapsNormalizeCitymapReportPayload(mixed $raw): array
     $art = trim((string) ($data['art'] ?? ''));
     $citymap['art'] = in_array($art, AVESMAPS_CITYMAP_ARTS, true) ? $art : '';
 
-    foreach (['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler'] as $field) {
+    // is_paid rides along: it is a plain observation ("you have to buy this"), not a claim that unlocks
+    // anything. Unlike a licence it gates nothing -- a reporter looking at a shop page simply knows it, and
+    // §3.8's "Feldumfang voll wie im Editor" applies.
+    foreach (['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid'] as $field) {
         $citymap[$field] = avesmapsCitymapTriBool($data[$field] ?? null);
     }
     foreach (['valid_from_bf', 'valid_to_bf', 'width_px', 'height_px'] as $field) {

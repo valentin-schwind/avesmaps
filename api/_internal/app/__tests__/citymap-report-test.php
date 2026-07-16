@@ -88,10 +88,12 @@ foreach ([
 ] as $forbidden) {
     assert(!array_key_exists($forbidden, $sneaky['citymap']));
 }
-// The whitelist is closed, not merely long: exactly these keys, no others, ever.
+// The whitelist is closed, not merely long: exactly these keys, no others, ever. Adding a field here has
+// to be a decision someone makes on purpose -- which is the point. (It already earned its keep once: the
+// is_paid column of 2026-07-17 turned this line red until it was consciously admitted.)
 assert(array_keys($sneaky['citymap']) === [
     'title', 'map_url', 'thumb_url', 'author', 'note', 'art',
-    'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler',
+    'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
     'valid_from_bf', 'valid_to_bf', 'width_px', 'height_px',
 ]);
 // A citymap built from this payload can never name a licence column -> the NOT NULL DEFAULT stands.
@@ -139,6 +141,15 @@ assert($tri['citymap']['is_color'] === 1);
 assert($tri['citymap']['is_spoiler'] === 0);
 assert($tri['citymap']['is_multilevel'] === null);
 assert($tri['citymap']['is_labeled'] === null);
+
+// is_paid (owner 2026-07-17): a plain observation, NOT a claim that unlocks anything -- unlike a licence it
+// gates nothing, so the reporter may state it. All three values are meaningful and must survive distinctly:
+// unknown must not collapse into "kostenlos" (we would be guessing about someone's wallet), and a known
+// `false` is the one negative the reader row actually prints.
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['is_paid' => '1'])['citymap']['is_paid'] === 1);
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['is_paid' => '0'])['citymap']['is_paid'] === 0);
+assert(avesmapsNormalizeCitymapReportPayload($valid)['citymap']['is_paid'] === null);
+assert(avesmapsNormalizeCitymapReportPayload($valid + ['is_paid' => ''])['citymap']['is_paid'] === null);
 
 $years = avesmapsNormalizeCitymapReportPayload($valid + ['valid_from_bf' => '1027', 'valid_to_bf' => '', 'width_px' => 2000]);
 assert($years['citymap']['valid_from_bf'] === 1027);
@@ -212,6 +223,7 @@ $fromClient = avesmapsNormalizeCitymapReportPayload([
     'is_labeled' => '0',
     'is_official' => '',
     'is_spoiler' => '',
+    'is_paid' => '1',
     'place' => [
         'raw_name' => 'Gareth',
         'target_kind' => 'settlement',
@@ -225,6 +237,7 @@ assert($fromClient['citymap']['art'] === 'politisch');
 assert($fromClient['citymap']['is_color'] === 1);
 assert($fromClient['citymap']['is_labeled'] === 0);
 assert($fromClient['citymap']['is_multilevel'] === null); // "" -> unknown, NOT false
+assert($fromClient['citymap']['is_paid'] === 1);
 assert($fromClient['citymap']['valid_from_bf'] === 1027);
 assert($fromClient['citymap']['valid_to_bf'] === null);   // "" -> unknown, NOT 0
 assert($fromClient['citymap']['width_px'] === null);

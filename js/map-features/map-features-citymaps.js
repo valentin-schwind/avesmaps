@@ -76,6 +76,7 @@ function avesmapsCitymapToRenderShape(citymap) {
 		is_labeled: (citymap.is_labeled == null) ? null : !!citymap.is_labeled,
 		is_official: (citymap.is_official == null) ? null : !!citymap.is_official,
 		is_spoiler: (citymap.is_spoiler == null) ? null : !!citymap.is_spoiler,
+		is_paid: (citymap.is_paid == null) ? null : !!citymap.is_paid,
 		width_px: (citymap.width_px == null) ? null : Number(citymap.width_px),
 		height_px: (citymap.height_px == null) ? null : Number(citymap.height_px),
 		valid_from_bf: (citymap.valid_from_bf == null) ? null : Number(citymap.valid_from_bf),
@@ -288,6 +289,13 @@ function avesmapsCitymapMatchesFilter(shape, filter) {
 		return false;
 	}
 	if (filter.officialOnly && shape.is_official !== true) {
+		return false;
+	}
+	// Der einzige Umschalter, der auf ein bekanntes NEIN prueft: "nur kostenpflichtige" fragt niemand --
+	// nuetzlich ist die Gegenrichtung ("was kann ich mir jetzt sofort ansehen"). Die §3.7-Regel gilt
+	// trotzdem unveraendert: ein Filter matcht nur, was jemand BEHAUPTET hat. Unbekannt (null) faellt
+	// deshalb raus, genau wie oben -- "wir wissen es nicht" ist kein Beleg fuer "ist gratis".
+	if (filter.freeOnly && shape.is_paid !== false) {
 		return false;
 	}
 	// Spoiler is the one INVERTED toggle: it is off by default and reveals rather than restricts, exactly

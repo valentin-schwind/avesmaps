@@ -84,6 +84,7 @@
 			is_labeled: triFromAttr(card.getAttribute("data-labeled")),
 			is_official: triFromAttr(card.getAttribute("data-official")),
 			is_spoiler: triFromAttr(card.getAttribute("data-spoiler")),
+			is_paid: triFromAttr(card.getAttribute("data-paid")),
 			valid_from_bf: numFromAttr(card.getAttribute("data-from")),
 			valid_to_bf: numFromAttr(card.getAttribute("data-to")),
 			sources: sources ? sources.split("|").map(function (label) { return { label: label }; }) : [],
@@ -124,7 +125,7 @@
 		// ueber ihren eigenen Zustand.
 		var filterState = {
 			types: new Set(), art: "", source: "",
-			colorOnly: false, multilevelOnly: false, labeledOnly: false, officialOnly: false,
+			colorOnly: false, multilevelOnly: false, labeledOnly: false, officialOnly: false, freeOnly: false,
 			showSpoiler: true, yearFrom: 0, yearTo: 0,
 		};
 		var spoilerChip = existing.querySelector('[data-adv-filter="spoiler"]');
@@ -156,7 +157,7 @@
 
 		// Chip-Toggles: der Chip-Guard ist noetig, weil [data-adv-filter] AUCH die Selects und die
 		// Jahresfelder trifft -- ohne ihn fiele ein Select-Klick in den Chip-Zweig.
-		var TOGGLES = { color: "colorOnly", multilevel: "multilevelOnly", labeled: "labeledOnly", official: "officialOnly" };
+		var TOGGLES = { color: "colorOnly", multilevel: "multilevelOnly", labeled: "labeledOnly", official: "officialOnly", free: "freeOnly" };
 		existing.addEventListener("click", function (e) {
 			var chip = e.target.closest("[data-adv-filter]");
 			if (!chip || !chip.classList.contains("avesmaps-adv-tree__chip")) {

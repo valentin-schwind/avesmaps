@@ -64,6 +64,9 @@
 	var PROPS = [
 		["is_color", "farbig"], ["is_multilevel", "mehrstöckig"], ["is_labeled", "beschriftet (Legende)"],
 		["is_official", "offiziell"], ["is_spoiler", "Spoiler"],
+		// "kostenpflichtig" darf der Melder mitschicken -- anders als eine Lizenz schaltet es nichts frei,
+		// es ist eine schlichte Beobachtung ("das kostet was"), die er beim Blick auf die Shop-Seite hat.
+		["is_paid", "kostenpflichtig"],
 	];
 
 	function fieldMarkup(id, label, type, maxLength, extra) {

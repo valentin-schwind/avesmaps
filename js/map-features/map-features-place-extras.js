@@ -158,6 +158,7 @@ function cityMapDataAttributes(m) {
 		+ ' data-labeled="' + cityMapTriAttr(m.is_labeled) + '"'
 		+ ' data-official="' + cityMapTriAttr(m.is_official) + '"'
 		+ ' data-spoiler="' + cityMapTriAttr(m.is_spoiler) + '"'
+		+ ' data-paid="' + cityMapTriAttr(m.is_paid) + '"'
 		+ ' data-from="' + (m.valid_from_bf == null ? "" : Number(m.valid_from_bf)) + '"'
 		+ ' data-to="' + (m.valid_to_bf == null ? "" : Number(m.valid_to_bf)) + '"'
 		+ ' data-sources="' + placeExtrasEscape((m.sources || []).map(function (s) { return s && s.label; }).filter(Boolean).join("|")) + '"';
@@ -319,6 +320,10 @@ function citymapFiltersMarkup(facets) {
 		{ kind: "toggle", filter: "multilevel", label: tr("cityMaps.filter.multilevel", "mehrstöckig") },
 		{ kind: "toggle", filter: "labeled", label: tr("cityMaps.filter.labeled", "beschriftet") },
 		{ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "nur offiziell") },
+		// "nur kostenpflichtige" fragt niemand -- die nuetzliche Richtung ist "was kann ich mir sofort
+		// ansehen". Matcht nur ein bekanntes Nein; unbekannt faellt raus (§3.7: unbekannt matcht keinen
+		// Filter ausser "alle"), denn "wir wissen es nicht" ist kein Beleg fuer "gratis".
+		{ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "nur kostenlose") },
 		{ kind: "divider" },
 		// Der einzige INVERTIERTE Umschalter: er gibt frei statt einzuschraenken (wie "Spielt hier
 		// (Spoiler)" bei den Abenteuern). Aus = Spoilerkarten verborgen.
@@ -384,6 +389,11 @@ function buildCityMapRowMarkup(m) {
 	if (m.is_multilevel === true) { traits.push(tr("cityMaps.trait.multilevel", "mehrstöckig")); }
 	if (m.is_labeled === true) { traits.push(tr("cityMaps.trait.labeled", "beschriftet")); }
 	if (m.is_official === true) { traits.push(tr("cityMaps.trait.official", "offiziell")); }
+	// Die EINZIGE Eigenschaft, deren Nein wir auch zeigen -- und das ist kein Bruch der Regel darueber,
+	// sondern ihr Grund: "nicht farbig" ist eine Nicht-Aussage, "kostenlos" ist die nuetzlichste Information
+	// auf der ganzen Zeile. Unbekannt (null) faellt weiter weg (§3.1): wir raten nicht ueber fremdes Geld.
+	if (m.is_paid === true) { traits.push(tr("cityMaps.trait.paid", "kostenpflichtig")); }
+	else if (m.is_paid === false) { traits.push(tr("cityMaps.trait.free", "kostenlos")); }
 	var traitLine = traits.length ? '<div class="avesmaps-citymap-row__traits">' + placeExtrasEscape(traits.join(" · ")) + '</div>' : "";
 
 	var sourceLabels = (m.sources || []).map(function (s) { return s && s.label; }).filter(Boolean);
