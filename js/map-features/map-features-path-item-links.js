@@ -21,9 +21,9 @@ let pathItemLinkIndexCache = null;
 let pathItemLinkIndexCacheSignature = "";
 
 // Rendered markup per (field, value). Every segment of a way carries the SAME wiki_path object, so without
-// this the identical Verlauf gets linkified once per SEGMENT (~1660 segments over ~310 ways = 5x the work)
-// while refreshPathLayerPopup pre-builds every popup during hydration. Measured at realistic scale, this is
-// the difference between ~190 ms and ~35 ms of hydration time. Dropped whenever the index is rebuilt.
+// this the identical Verlauf gets linkified once per SEGMENT (~1660 segments over ~320 ways = 5x the work)
+// while refreshPathLayerPopup pre-builds every popup during hydration. Measured at production scale, dropping
+// it costs ~190 ms instead of ~20 ms. Dropped whenever the index is rebuilt (it carries the index's refs).
 let pathItemLinkMarkupCache = new Map();
 
 // Cheap signature in the style of getSpotlightSearchEntryCacheSignature (js/ui/spotlight-search.js): the
@@ -57,9 +57,10 @@ function addPathItemLinkKey(index, key, value) {
 //
 // Deliberately built from locationMarkers/locationData/pathData/labelMarkers and NOT from
 // getSpotlightSearchEntries(): this runs inside preparePathData, and routing.js hydrates locations ->
-// powerlines -> paths -> regions -> labels, so regionPolygons/labelMarkers are still empty at that point.
-// Touching the spotlight cache here would do wasted work and store a premature signature. The CLICK resolves
-// through the spotlight lookup instead -- by then everything is hydrated.
+// powerlines -> labels -> paths -> regions, so regionPolygons is still empty at that point -- building the
+// spotlight cache here would do wasted work and store a premature signature. Our four sources are all filled
+// by then (labels only because routing.js was reordered for exactly this -- see the note there). The CLICK
+// resolves through the spotlight lookup instead, and by then everything is hydrated.
 function getPathItemLinkIndexes() {
 	const signature = pathItemLinkIndexSignature();
 	if (pathItemLinkIndexCache && pathItemLinkIndexCacheSignature === signature) {
