@@ -22,7 +22,6 @@ loadBrowserScript("../../config.js");
 loadBrowserScript("../../app/runtime-state.js");
 loadBrowserScript("../../map-features/map-features-path-domain.js");
 loadBrowserScript("../../map-features/map-features-location-editing.js");
-loadBrowserScript("../../review/review-paths.js");
 loadBrowserScript("../route-graph-core.js");
 loadBrowserScript("../route-graph-routing.js");
 
@@ -32,14 +31,19 @@ const path_ = (id, subtype, [x1, y1], [x2, y2], extraProperties = {}) => ({
 	properties: { id, feature_subtype: subtype, ...extraProperties },
 });
 
-// A--B: a normal Weg (no recorded restriction) -> an edge exists in the "all transports" graph.
+// A--B: a normal Weg -> an edge exists.
 // C: isolated, no path touches it -> stays disconnected.
-// D--E: a Weg whose recorded allowed_transports is an explicit empty list ("unbefahrbar") -- the spec's
-// "Kanten-Randfall": still counts as disconnected even though a path is drawn between them.
-locationData = [loc("A", 0, 0), loc("B", 10, 0), loc("C", 20, 0), loc("D", 30, 0), loc("E", 40, 0)];
+// D--E: a river whose recorded allowed_transports is an explicit empty list ("unbefahrbar", e.g. a
+// river source too wild to travel). A DRAWN path is an existing connection regardless of whether any
+// transport may use it: the tool hunts MISSING ways, not impassable ones (Owner, 2026-07-16).
+// F=G: two separate paths between the same pair -> 2 edges but only 1 neighbour (the way COUNT must
+// not collapse to the neighbour count -- that distinction drives the sparse-crossing marker).
+locationData = [loc("A", 0, 0), loc("B", 10, 0), loc("C", 20, 0), loc("D", 30, 0), loc("E", 40, 0), loc("F", 50, 0), loc("G", 60, 0)];
 pathData = [
 	path_("p1", "Weg", [0, 0], [10, 0]),
-	path_("p2", "Weg", [30, 0], [40, 0], { transport_domain: "land", allowed_transports: [] }),
+	path_("p2", "Flussweg", [30, 0], [40, 0], { transport_domain: "river", allowed_transports: [] }),
+	path_("p3", "Weg", [50, 0], [60, 0]),
+	path_("p4", "Pfad", [50, 0], [60, 0]),
 ];
 
 const graph = createGraph({}, { skipSyntheticConnections: true, transports: "all" });
@@ -47,8 +51,14 @@ const graph = createGraph({}, { skipSyntheticConnections: true, transports: "all
 assert.ok(Object.keys(graph.A).length > 0, "A connects to B");
 assert.ok(Object.keys(graph.B).length > 0, "B connects to A");
 assert.strictEqual(Object.keys(graph.C).length, 0, "C is isolated");
-assert.strictEqual(Object.keys(graph.D).length, 0, "D: unbefahrbar path -> no edge (Kanten-Randfall)");
-assert.strictEqual(Object.keys(graph.E).length, 0, "E: unbefahrbar path -> no edge (Kanten-Randfall)");
+assert.strictEqual(countGraphNodePathEdges(graph, "D"), 1, "D: an unbefahrbar river still counts as a drawn connection");
+assert.strictEqual(countGraphNodePathEdges(graph, "E"), 1, "E: an unbefahrbar river still counts as a drawn connection");
+assert.strictEqual(countGraphNodePathEdges(graph, "C"), 0, "C has no ways at all");
 assert.strictEqual(syntheticPathSegments.size, 0, "skipSyntheticConnections: no Querfeldein edges added, C stays isolated");
+
+// Way COUNT vs neighbour count: F and G are joined by two distinct paths.
+assert.strictEqual(Object.keys(graph.F).length, 1, "F has a single neighbour (G)");
+assert.strictEqual(countGraphNodePathEdges(graph, "F"), 2, "F carries TWO ways even though both lead to G");
+assert.strictEqual(countGraphNodePathEdges(graph, "G"), 2, "G carries TWO ways even though both lead to F");
 
 console.log("create-graph connectivity tests passed");

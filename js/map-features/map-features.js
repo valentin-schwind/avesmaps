@@ -100,6 +100,10 @@ $("#toggleUnconnected").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
 });
+$("#toggleSparseCrossings").change(() => {
+	syncLocationMarkerVisibility();
+	syncPlannerStateToUrl();
+});
 $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();

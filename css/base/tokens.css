@@ -120,10 +120,12 @@
 	   value stays the same warm gold. */
 	--color-marker-active: #f0b429;
 
-	/* Unverbundene Orte/Kreuzungen (Edit-Mode-Häkchen "Unverbunden", Discord #25) -- deutlicher
-	   pinker Warnring. Pinned wie --color-marker-waypoint oben: der Ring sitzt auf den
+	/* Editor-Markierungswerkzeuge (Discord #25) -- kräftige Warnringe um Marker, je ein Ton pro
+	   Befund: pink = "Unverbunden" (gar keine Anbindung), türkis = "Kreuzungen ≤ 2 Wege"
+	   (überflüssiger Knoten). Pinned wie --color-marker-waypoint oben: die Ringe sitzen auf den
 	   IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel, also kein Dark-Override. */
 	--color-marker-unconnected-ring: #e0559a;
+	--color-marker-sparse-crossing-ring: #0fb9b1;
 
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
@@ -283,9 +285,9 @@
 	--color-warning-soft-text: #e9c684;
 	--color-warning-strong: #c79a3c;
 	--color-warning-strong-text: #241d14;
-	/* No dark override for the waypoint marks (or --color-marker-unconnected-ring below) on purpose --
-	   the SAME mark appears on the always-light map tiles and on the dark panels; a theme-shifted red
-	   would make the planner (or the editor) disagree with the map. */
+	/* No dark override for the waypoint marks (or the --color-marker-*-ring editor marks below) on
+	   purpose -- the SAME mark appears on the always-light map tiles and on the dark panels; a
+	   theme-shifted red would make the planner (or the editor) disagree with the map. */
 
 	--color-panel-translucent: rgba(49, 46, 38, 0.96);
 

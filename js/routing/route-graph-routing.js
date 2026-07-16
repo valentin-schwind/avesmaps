@@ -116,13 +116,11 @@ function addRegularPathToGraph(graph, pathFeature, routeOptions, graphOptions = 
 
     if (graphOptions.transports === "all") {
         // Connectivity-only graph (unconnected-marker feature, docs/superpowers/specs/2026-07-15-
-        // unverbundene-orte-marker-design.md): an edge exists whenever the path allows ANY transport,
-        // independent of the planner's current selection. getPathAllowedTransports already encodes
-        // exactly this rule (explicit allowed_transports, domain default, Wuestenpfad/horseCarriage
-        // exclusion) -- an empty list ("unbefahrbar") correctly yields no edge (spec Kanten-Randfall).
-        if (!getPathAllowedTransports(pathFeature).length) {
-            return;
-        }
+        // unverbundene-orte-marker-design.md): EVERY drawn path is an edge -- no transport filtering
+        // at all, neither the planner's current selection nor the path's own allowed_transports.
+        // The spec's original Kanten-Randfall (unbefahrbar = unverbunden) was dropped by the Owner
+        // on 2026-07-16: river sources are drawn but impassable ("zu wilde Stroemung"), and flagging
+        // them as unverbunden is a false positive. The tool hunts MISSING ways, not impassable ones.
         const connection = { routeType: normalizePathSubtype(properties?.feature_subtype || properties?.name), id: properties.id };
         addGraphConnection(graph, startNode.name, endNode.name, connection);
         addGraphConnection(graph, endNode.name, startNode.name, connection);
@@ -189,32 +187,60 @@ function createGraph(routeOptions, graphOptions = {}) {
     return graph;
 }
 
-// Unconnected-marker feature (docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md):
-// a location is "unverbunden" iff it has 0 real path/sea-path edges in the all-transports,
-// no-Querfeldein connectivity graph AND is not a powerline endpoint. Cached in
-// unconnectedLocationPublicIds (js/app/runtime-state.js); invalidated in refreshPlannerAfterFeatureChange
-// (js/routing/route-render.js) plus the two powerline mutation sites that don't flow through it.
-function computeUnconnectedLocationPublicIds() {
+// How many WAYS meet at a node -- the number of drawn paths, NOT the number of neighbours: two
+// separate paths between the same pair are two ways but one neighbour, and the sparse-crossing
+// marker must count them as two (a crossing joining two ways is redundant, whichever way they run).
+function countGraphNodePathEdges(graph, nodeName) {
+    const neighbours = graph[nodeName];
+    if (!neighbours) {
+        return 0;
+    }
+    return Object.values(neighbours).reduce((total, connections) => total + connections.length, 0);
+}
+
+// The editor's two marker tools (docs/superpowers/specs/2026-07-15-unverbundene-orte-marker-design.md,
+// Discord #25) share ONE pass over ONE connectivity graph -- building it twice for ~5200 paths would
+// be pure waste when both checkboxes are on:
+//   unconnected     -- 0 drawn ways AND not a powerline endpoint (an Anbindungsluecke).
+//   sparseCrossings -- a Kreuzung with <= SPARSE_CROSSING_MAX_WAYS ways (a redundant node: a real
+//                      crossing joins at least three). Powerlines don't count here -- a Kreuzung is
+//                      a way node, and Kraftlinien only ever attach to Nodices.
+// Cached in locationConnectivityIndex (js/app/runtime-state.js); invalidated in
+// refreshPlannerAfterFeatureChange (js/routing/route-render.js) plus the two powerline mutation
+// sites that don't flow through it.
+function computeLocationConnectivityIndex() {
     const connectivityGraph = createGraph({}, { skipSyntheticConnections: true, transports: "all" });
     const powerlineConnectedPublicIds = getPowerlineConnectedLocationPublicIds();
-    const unconnectedPublicIds = new Set();
+    const unconnected = new Set();
+    const sparseCrossings = new Set();
     locationData.forEach((location) => {
         if (!location.publicId) {
             return;
         }
-        const hasPathEdge = Object.keys(connectivityGraph[location.name] || {}).length > 0;
-        if (!hasPathEdge && !powerlineConnectedPublicIds.has(location.publicId)) {
-            unconnectedPublicIds.add(location.publicId);
+        const wayCount = countGraphNodePathEdges(connectivityGraph, location.name);
+        if (!wayCount && !powerlineConnectedPublicIds.has(location.publicId)) {
+            unconnected.add(location.publicId);
+        }
+        if (isCrossingLocation(location) && wayCount <= SPARSE_CROSSING_MAX_WAYS) {
+            sparseCrossings.add(location.publicId);
         }
     });
-    return unconnectedPublicIds;
+    return { unconnected, sparseCrossings };
+}
+
+function getLocationConnectivityIndex() {
+    if (!locationConnectivityIndex) {
+        locationConnectivityIndex = computeLocationConnectivityIndex();
+    }
+    return locationConnectivityIndex;
 }
 
 function getUnconnectedLocationPublicIds() {
-    if (!unconnectedLocationPublicIds) {
-        unconnectedLocationPublicIds = computeUnconnectedLocationPublicIds();
-    }
-    return unconnectedLocationPublicIds;
+    return getLocationConnectivityIndex().unconnected;
+}
+
+function getSparseCrossingPublicIds() {
+    return getLocationConnectivityIndex().sparseCrossings;
 }
 
 function getVisualLatLngCoordinates(latLngs) {

@@ -101,7 +101,9 @@ function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 	return Math.round(getLocationMarkerContourWidth(locationType, zoomLevel) * 100) / 100;
 }
 
-function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), isUnconnected = false) {
+// ringModifier: "" | "unconnected" | "sparse-crossing" -- the editor marker tools (#25) paint at most
+// ONE warning ring per marker; resolveMarkerRingModifier picks it.
+function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), ringModifier = "") {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 		const isSimpleMarker = getVisualZoomLevel(zoomLevel) <= 3;
@@ -109,8 +111,8 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), isUnc
 		if (isSimpleMarker) {
 			shapeClasses.push("location-visual-marker__shape--simple");
 		}
-		if (isUnconnected) {
-			shapeClasses.push("location-visual-marker__shape--unconnected");
+		if (ringModifier) {
+			shapeClasses.push(`location-visual-marker__shape--${ringModifier}`);
 		}
 		const iconHtml = `<span class="${shapeClasses.join(" ")}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
 
@@ -137,8 +139,8 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), isUnc
 	if (isCapital) {
 		shapeClasses.push("location-visual-marker__shape--capital");
 	}
-	if (isUnconnected) {
-		shapeClasses.push("location-visual-marker__shape--unconnected");
+	if (ringModifier) {
+		shapeClasses.push(`location-visual-marker__shape--${ringModifier}`);
 	}
 
 	const styleDeclarations = [
@@ -171,11 +173,13 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom(), isUnc
 function createLocationVisibilityContext() {
 	const visibleTypeCache = {};
 	const unconnectedToggleChecked = IS_EDIT_MODE && $("#toggleUnconnected").is(":checked");
+	const sparseCrossingsToggleChecked = IS_EDIT_MODE && $("#toggleSparseCrossings").is(":checked");
 	return {
 		mapLayerMode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
 		nodixToggleChecked: IS_EDIT_MODE && $("#toggleNodix").is(":checked"),
 		crossingsToggleChecked: IS_EDIT_MODE && $("#toggleCrossings").is(":checked"),
 		unconnectedPublicIds: unconnectedToggleChecked ? getUnconnectedLocationPublicIds() : null,
+		sparseCrossingPublicIds: sparseCrossingsToggleChecked ? getSparseCrossingPublicIds() : null,
 		isTypeVisible(locationType) {
 			if (!(locationType in visibleTypeCache)) {
 				visibleTypeCache[locationType] = isLocationTypeVisible(locationType);
@@ -193,6 +197,24 @@ function isMarkerUnconnectedRingEligible(entry, visibilityContext) {
 		return visibilityContext.crossingsToggleChecked;
 	}
 	return visibilityContext.isTypeVisible(entry.locationType);
+}
+
+// Welchen Warnring traegt dieser Marker? Hoechstens EINEN: eine Kreuzung ganz ohne Weg erfuellt
+// beide Kriterien, aber die fehlende Anbindung (pink) ist der gravierendere Befund und gewinnt
+// gegen "ueberfluessige Kreuzung" (tuerkis).
+function resolveMarkerRingModifier(entry, visibilityContext) {
+	if (visibilityContext.unconnectedPublicIds
+		&& isMarkerUnconnectedRingEligible(entry, visibilityContext)
+		&& visibilityContext.unconnectedPublicIds.has(entry.publicId)) {
+		return "unconnected";
+	}
+	if (visibilityContext.sparseCrossingPublicIds
+		&& entry.locationType === CROSSING_LOCATION_TYPE
+		&& visibilityContext.crossingsToggleChecked
+		&& visibilityContext.sparseCrossingPublicIds.has(entry.publicId)) {
+		return "sparse-crossing";
+	}
+	return "";
 }
 
 function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), visibilityContext = null) {
@@ -282,16 +304,14 @@ function syncLocationMarkerVisibility() {
 			canvasEntries.push(entry);
 			return;
 		}
-		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) ODER der
-		// Unverbunden-Ring seit dem letzten Bau fuer diesen Marker geaendert hat. Beim reinen
-		// Pannen bleibt das Icon identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
-		const isUnconnected = Boolean(visibilityContext.unconnectedPublicIds)
-			&& isMarkerUnconnectedRingEligible(entry, visibilityContext)
-			&& visibilityContext.unconnectedPublicIds.has(entry.publicId);
-		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._unconnectedRingApplied !== isUnconnected)) {
-			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, isUnconnected));
+		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) ODER der Warnring
+		// seit dem letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
+		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
+		const ringModifier = resolveMarkerRingModifier(entry, visibilityContext);
+		if (shouldShow && (entry.iconZoomLevel !== zoomLevel || entry._ringModifier !== ringModifier)) {
+			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel, ringModifier));
 			entry.iconZoomLevel = zoomLevel;
-			entry._unconnectedRingApplied = isUnconnected;
+			entry._ringModifier = ringModifier;
 		}
 		const isOnMap = map.hasLayer(entry.marker);
 		if (shouldShow && !isOnMap) {

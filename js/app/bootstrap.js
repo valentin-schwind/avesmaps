@@ -213,6 +213,8 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleUnconnectedControl")?.removeAttribute("hidden");
     document.getElementById("toggleUnconnected")?.removeAttribute("disabled");
+    document.getElementById("toggleSparseCrossingsControl")?.removeAttribute("hidden");
+    document.getElementById("toggleSparseCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleNodixControl")?.removeAttribute("hidden");
     document.getElementById("toggleNodix")?.removeAttribute("disabled");
     document.getElementById("review-panel")?.removeAttribute("hidden");
@@ -227,6 +229,7 @@ if (IS_EDIT_MODE) {
 } else {
     document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleUnconnected")?.setAttribute("disabled", "disabled");
+    document.getElementById("toggleSparseCrossings")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");
 }
 
