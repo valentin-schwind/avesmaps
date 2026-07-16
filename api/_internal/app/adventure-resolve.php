@@ -24,6 +24,41 @@ function avesmapsAdventureCanonicalKeyForName(string $rawName): string
     return $slug === '' ? '' : 'wiki:' . $slug;
 }
 
+/**
+ * The key a page title WOULD have without its disambiguating parenthetical: "Havena (Siedlung)" ->
+ * 'wiki:havena'. Empty string when the title carries no parenthetical.
+ *
+ * Why this exists: the wiki disambiguates pages that share a name ("Havena (Siedlung)" the city vs the
+ * region), but a source that mentions the place in passing just writes "Havena". The canonical key is
+ * built from the page title, so those never met -- measured on the live data, Havena alone lost 8 maps
+ * that way, plus Cumrat, Donnerbach and Thorwal.
+ *
+ * It must be a SEPARATE key rather than part of the slug: avesmapsPoliticalSlug turns "(Siedlung)" into
+ * "-siedlung", by which point "Havena (Siedlung)" and a genuine "Havena-Siedlung" are indistinguishable.
+ * The parenthetical has to be read off the title, before slugging.
+ */
+function avesmapsAdventureDeparenKeyForTitle(string $pageTitle): string
+{
+    $title = trim(str_replace('_', ' ', $pageTitle));
+    if (preg_match('/^(.*?)\s*\([^)]+\)\s*$/u', $title, $matches) !== 1) {
+        return '';
+    }
+    $base = trim($matches[1]);
+
+    return $base === '' ? '' : avesmapsAdventureCanonicalKeyForName($base);
+}
+
+/** The wiki page title behind a wiki_url ("…/wiki/Havena_(Siedlung)" -> "Havena (Siedlung)"). */
+function avesmapsAdventurePageTitleFromUrl(string $wikiUrl): string
+{
+    $path = (string) parse_url(trim($wikiUrl), PHP_URL_PATH);
+    if ($path === '') {
+        return '';
+    }
+
+    return trim(str_replace('_', ' ', rawurldecode(basename($path))));
+}
+
 // Redirect alias (wiki_redirect_alias: alias_slug PK -> canonical_wiki_key). Returns '' when there is
 // no alias row or the table does not exist yet (fresh DB) -- the caller then falls back to the
 // name-derived canonical key.
@@ -64,6 +99,29 @@ function avesmapsAdventureMatchCandidates(string $rawName, array $candidates, st
     if (isset($candidates['path']) && array_key_exists($bareSlug, $candidates['path'])) {
         return ['kind' => 'path', 'public_id' => (string) $candidates['path'][$bareSlug], 'wiki_key' => $bareSlug];
     }
+
+    // LAST RESORT: the name may be the undisambiguated form of a parenthesised page ("Havena" ->
+    // "Havena (Siedlung)"). Deliberately AFTER every direct lookup, so this can only ever turn an
+    // unresolved into a resolved -- never redirect a name that already matches something. That is what
+    // makes it safe for adventures, which share this resolver.
+    //
+    // ONLY when the winning kind holds EXACTLY ONE such candidate. The wiki uses parentheticals for two
+    // different jobs: type ("Havena (Siedlung)" vs the region -- one obvious answer) and location ("Berg
+    // (Nordmarken)" vs "Berg (Kosch)" -- no answer at all). Requiring uniqueness resolves the first and
+    // refuses the second, instead of guessing. Kind precedence stays settlement > territory > region.
+    foreach (['settlement', 'territory', 'region'] as $kind) {
+        $rows = $candidates[$kind . '_deparen'][$canonicalKey] ?? [];
+        if (count($rows) === 1) {
+            return [
+                'kind' => $kind,
+                'public_id' => (string) $rows[0]['public_id'],
+                // The REAL key of the page we landed on, not the searched-for one -- the territory path
+                // lookup keys off this, and 'wiki:havena' names no page.
+                'wiki_key' => (string) $rows[0]['wiki_key'],
+            ];
+        }
+    }
+
     return ['kind' => 'unresolved', 'public_id' => '', 'wiki_key' => $canonicalKey];
 }
 
@@ -73,7 +131,29 @@ function avesmapsAdventureMatchCandidates(string $rawName, array $candidates, st
 // indexed read of political_territory.wiki_key -- run it once per resolve pass, never in a loop.
 function avesmapsAdventureLoadCandidates(PDO $pdo): array
 {
-    $candidates = ['settlement' => [], 'territory' => [], 'region' => [], 'path' => []];
+    // The *_deparen maps back the last-resort lookup in avesmapsAdventureMatchCandidates: they map the
+    // UNDISAMBIGUATED key ('wiki:havena') to every candidate whose page title carries a parenthetical
+    // ('Havena (Siedlung)'). A LIST, not a single value, because uniqueness is the safety condition --
+    // two entries mean the name is genuinely ambiguous and must stay unresolved.
+    $candidates = [
+        'settlement' => [], 'territory' => [], 'region' => [], 'path' => [],
+        'settlement_deparen' => [], 'territory_deparen' => [], 'region_deparen' => [],
+    ];
+
+    // Record a parenthesised page under its undisambiguated key. Same "first writer wins" rule as the
+    // direct maps: a page already seen is not added twice (its title and wiki_url both reach here).
+    $addDeparen = static function (array &$candidates, string $kind, string $pageTitle, string $realKey, string $publicId): void {
+        $deparenKey = avesmapsAdventureDeparenKeyForTitle($pageTitle);
+        if ($deparenKey === '' || $deparenKey === $realKey) {
+            return;
+        }
+        foreach ($candidates[$kind . '_deparen'][$deparenKey] ?? [] as $existing) {
+            if ($existing['public_id'] === $publicId) {
+                return;
+            }
+        }
+        $candidates[$kind . '_deparen'][$deparenKey][] = ['public_id' => $publicId, 'wiki_key' => $realKey];
+    };
 
     // Landscape regions (e.g. Raschtulswall) are stored as feature_type='label' + feature_subtype='region'
     // and carry properties.wiki_url just like true region features -- include them so an adventure can be
@@ -106,6 +186,9 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                 if ($key !== '' && !isset($candidates['settlement'][$key])) {
                     $candidates['settlement'][$key] = $publicId;
                 }
+                if ($key !== '') {
+                    $addDeparen($candidates, 'settlement', $title, $key, $publicId);
+                }
             }
             $wikiUrl = trim((string) ($settlement['wiki_url'] ?? ''));
             if ($wikiUrl === '') {
@@ -115,6 +198,9 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                 $key = avesmapsPoliticalBuildWikiKey($wikiUrl, $name);
                 if (strncmp($key, 'wiki:', 5) === 0 && !isset($candidates['settlement'][$key])) {
                     $candidates['settlement'][$key] = $publicId;
+                }
+                if (strncmp($key, 'wiki:', 5) === 0) {
+                    $addDeparen($candidates, 'settlement', avesmapsAdventurePageTitleFromUrl($wikiUrl), $key, $publicId);
                 }
             }
         } elseif ($type === 'region' || ($type === 'label' && $subtype === 'region')) {
@@ -130,6 +216,9 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                 $key = avesmapsPoliticalBuildWikiKey($wikiUrl, $name);
                 if (strncmp($key, 'wiki:', 5) === 0 && !isset($candidates['region'][$key])) {
                     $candidates['region'][$key] = $publicId;
+                }
+                if (strncmp($key, 'wiki:', 5) === 0) {
+                    $addDeparen($candidates, 'region', avesmapsAdventurePageTitleFromUrl($wikiUrl), $key, $publicId);
                 }
             }
         } elseif ($type === 'path') { // path -- properties.wiki_path.wiki_key is a BARE slug (no 'wiki:' prefix)
@@ -148,8 +237,27 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
     );
     foreach ($territories as $row) {
         $key = trim((string) $row['wiki_key']);
-        if ($key !== '' && !isset($candidates['territory'][$key])) {
+        if ($key === '') {
+            continue;
+        }
+        if (!isset($candidates['territory'][$key])) {
             $candidates['territory'][$key] = (string) $row['public_id'];
+        }
+        // A territory's wiki_key IS the slugged page title, so the parenthetical is already collapsed
+        // into it ("wiki:x-y"). Recover the page title from the key's own shape instead: only a
+        // trailing segment that names a known disambiguator counts, so "Greifenfurt-Mark" is left alone.
+        $candidates['territory_deparen'] = $candidates['territory_deparen'] ?? [];
+        if (preg_match('/^(wiki:.+?)-(siedlung|stadt|dorf|burg|region|fluss|hort|historisch)$/u', $key, $matches) === 1) {
+            $base = $matches[1];
+            $seen = false;
+            foreach ($candidates['territory_deparen'][$base] ?? [] as $existing) {
+                if ($existing['public_id'] === (string) $row['public_id']) {
+                    $seen = true;
+                }
+            }
+            if (!$seen) {
+                $candidates['territory_deparen'][$base][] = ['public_id' => (string) $row['public_id'], 'wiki_key' => $key];
+            }
         }
     }
 

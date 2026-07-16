@@ -82,4 +82,49 @@ assert(strncmp(avesmapsAdventureCanonicalKeyForName('Gareth'), 'wiki:', 5) === 0
 assert(avesmapsAdventureCanonicalKeyForName('   ') === '');
 echo "canonical ok\n";
 
+// 9) de-parenthesised LAST RESORT. The wiki disambiguates by page title ("Havena (Siedlung)"), while a
+// source mentioning the place just writes "Havena" -- on live data that cost Havena all 8 of its city
+// maps, plus Cumrat and Donnerbach.
+assert(avesmapsAdventureDeparenKeyForTitle('Havena (Siedlung)') === avesmapsAdventureCanonicalKeyForName('Havena'));
+assert(avesmapsAdventureDeparenKeyForTitle('Havena_(Siedlung)') === avesmapsAdventureCanonicalKeyForName('Havena')); // URL form
+assert(avesmapsAdventureDeparenKeyForTitle('Gareth') === '');            // no parenthetical -> no key
+assert(avesmapsAdventureDeparenKeyForTitle('(Nur Klammer)') === '');     // nothing left of it
+assert(avesmapsAdventurePageTitleFromUrl('https://de.wiki-aventurica.de/wiki/Havena_(Siedlung)') === 'Havena (Siedlung)');
+
+$havenaKey = avesmapsAdventureCanonicalKeyForName('Havena (Siedlung)');
+$cand = [
+    'settlement' => [$havenaKey => 'S-HAV'], 'territory' => [], 'region' => [], 'path' => [],
+    'settlement_deparen' => [avesmapsAdventureCanonicalKeyForName('Havena') => [['public_id' => 'S-HAV', 'wiki_key' => $havenaKey]]],
+];
+$m = avesmapsAdventureMatchCandidates('Havena', $cand);
+assert($m['kind'] === 'settlement');
+assert($m['public_id'] === 'S-HAV');
+assert($m['wiki_key'] === $havenaKey); // the REAL page key, not the searched-for 'wiki:havena'
+// The exact title still matches directly, unchanged.
+assert(avesmapsAdventureMatchCandidates('Havena (Siedlung)', $cand)['public_id'] === 'S-HAV');
+
+// AMBIGUOUS -> stays unresolved. The wiki also uses parentheticals to separate same-named places
+// ("Berg (Nordmarken)" vs "Berg (Kosch)"); there the bare name has no answer, and guessing one would be
+// worse than the honest raw_name.
+$ambiguous = [
+    'settlement' => [], 'territory' => [], 'region' => [], 'path' => [],
+    'settlement_deparen' => [avesmapsAdventureCanonicalKeyForName('Berg') => [
+        ['public_id' => 'S-1', 'wiki_key' => 'wiki:berg-nordmarken'],
+        ['public_id' => 'S-2', 'wiki_key' => 'wiki:berg-kosch'],
+    ]],
+];
+assert(avesmapsAdventureMatchCandidates('Berg', $ambiguous)['kind'] === 'unresolved');
+
+// A DIRECT hit always wins -- the fallback may only ever turn unresolved into resolved, never redirect
+// a name that already matches. This is what makes it safe for adventures, which share this resolver.
+$both = [
+    'settlement' => [], 'territory' => [], 'region' => [avesmapsAdventureCanonicalKeyForName('Thorwal') => 'R-THO'], 'path' => [],
+    'settlement_deparen' => [avesmapsAdventureCanonicalKeyForName('Thorwal') => [['public_id' => 'S-THO', 'wiki_key' => 'wiki:thorwal-siedlung']]],
+];
+$m = avesmapsAdventureMatchCandidates('Thorwal', $both);
+assert($m['kind'] === 'region' && $m['public_id'] === 'R-THO'); // unchanged behaviour, no silent re-target
+// Callers that never build the *_deparen maps behave exactly as before.
+assert(avesmapsAdventureMatchCandidates('Havena', ['settlement' => [], 'territory' => [], 'region' => [], 'path' => []])['kind'] === 'unresolved');
+echo "deparen-fallback ok\n";
+
 echo "ALL OK\n";
