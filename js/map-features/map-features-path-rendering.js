@@ -65,6 +65,9 @@ function pathShareButtonMarkup(path) {
 // ?strasse=/?fluss= deep link does, through the same resolver. Filled (--accent) because it is the only tile
 // that acts on the MAP; the other two open dialogs. Gated like "Link teilen" on a linked wiki article (that
 // URL identifies the way), and off for sea routes like the item links.
+// The sextant is what "Anzeigen" already looks like elsewhere (the show-in-panel tile on a place/waypoint
+// popup, js/map-features/map-features-location-marker-entry.js + js/routing/routing.js) -- same word, same
+// icon, even though the actions differ. Kept unversioned like those two: the file never changes.
 function pathShowActionButtonMarkup(path) {
 	const wiki = (path.properties && path.properties.wiki_path) || {};
 	const supported = typeof pathSupportsItemLinks === "function" && pathSupportsItemLinks(path);
@@ -74,7 +77,7 @@ function pathShowActionButtonMarkup(path) {
 	return popupActionButtonMarkup({
 		label: (typeof tr === "function" ? tr("popup.showWholePath", "Anzeigen") : "Anzeigen"),
 		className: "location-popup__action-button--accent",
-		iconMarkup: '<img class="location-popup__action-img" src="img/menu/markierung.webp?v=1" alt="" width="20" height="20" />',
+		iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
 		attributes: {
 			"data-popup-action": "show-whole-path",
 			"data-public-id": getPathPublicId(path),
