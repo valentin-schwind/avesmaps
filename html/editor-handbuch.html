@@ -185,9 +185,9 @@
 				</figure>
 
 				<h3>Korrekte Wegzeichnung</h3>
-				<p>Das Wegenetz ist ein <strong>Graph</strong>: Ein Weg verbindet nur das, was an seinen <strong>beiden Endpunkten</strong> liegt &ndash; was nur optisch auf der Linie liegt, zählt nicht. Daraus folgen vier Regeln; die häufigsten Fehler entstehen alle, wenn man sie umgeht.</p>
+				<p>Das Wegenetz ist ein <strong>Graph</strong>: Ein Weg verbindet nur das, was an seinen <strong>beiden Endpunkten</strong> liegt &ndash; was nur optisch auf der Linie liegt, zählt nicht. Daraus folgen fünf Regeln; die häufigsten Fehler entstehen alle, wenn man sie umgeht.</p>
 				<div class="hb-diagram">
-					<svg viewBox="0 0 880 664" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vier Beispiele fuer korrekte und falsche Wegzeichnung: Wege an Knoten teilen, Kreuzung erst ab drei Wegen, Kreuzung an Wegschnittpunkten, Wegenden exakt auf den Knoten">
+					<svg viewBox="0 0 880 830" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fuenf Beispiele fuer korrekte und falsche Wegzeichnung: Wege an Knoten teilen, Kreuzung erst ab drei Wegen, Kreuzung an Wegschnittpunkten, Wegenden exakt auf den Knoten, Anschluss ans Wegenetz">
 						<defs>
 							<marker id="hb-wz-bad" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
 								<path d="M0 0 L6 3 L0 6 Z" fill="var(--hb-bad)" />
@@ -315,6 +315,31 @@
 							<circle cx="655" cy="614" r="6.5" fill="var(--hb-node)" stroke="#fff" stroke-width="2" />
 						</g>
 						<text x="655" y="650" font-size="12" text-anchor="middle" fill="var(--hb-good)">beide Wegenden sitzen auf der Kreuzung</text>
+
+						<text x="20" y="696" font-size="14" font-weight="600" fill="var(--hb-fg)">5. Jeder Ort und jede Kreuzung braucht Anschluss ans Wegenetz</text>
+						<rect x="20" y="704" width="410" height="110" rx="8" fill="var(--hb-bad-wash)" />
+						<rect x="450" y="704" width="410" height="110" rx="8" fill="var(--hb-good-wash)" />
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M70 748 L200 748" />
+						</g>
+						<path d="M207 752 L341 778" stroke="var(--hb-bad)" stroke-width="2" stroke-dasharray="5 4" fill="none" />
+						<text x="270" y="746" font-size="11" fill="var(--hb-bad)">Querfeldein</text>
+						<g>
+							<circle cx="70" cy="748" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="200" cy="748" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="348" cy="781" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="225" y="806" font-size="12" text-anchor="middle" fill="var(--hb-bad)">kein Weg führt hin &ndash; nur quer durchs Gelände</text>
+						<g stroke="var(--hb-accent)" stroke-width="3" fill="none">
+							<path d="M500 748 L630 748" />
+							<path d="M630 748 L772 778" />
+						</g>
+						<g>
+							<circle cx="500" cy="748" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="630" cy="748" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+							<circle cx="778" cy="781" r="7" fill="var(--hb-place)" stroke="#fff" stroke-width="2" />
+						</g>
+						<text x="655" y="806" font-size="12" text-anchor="middle" fill="var(--hb-good)">ein Weg bindet den Ort ans Netz an</text>
 					</svg>
 				</div>
 				<p class="hb-todo"><strong>Selbst prüfen:</strong> Im Edit-Mode markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte.</p>
