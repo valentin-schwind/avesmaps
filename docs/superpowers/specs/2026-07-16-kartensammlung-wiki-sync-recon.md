@@ -142,11 +142,51 @@ Der Ortsname steckt im **Dateinamen** („Alriksfurt beschriftet" → Resolver),
 - **Zwei Editoren, ein Button.** Der Sync-Trigger gehört in den Karteneditor (Muster `#aeSyncBtn` →
   `window.parent.startWikiSyncAdventuresSync()`), nicht ins Menüband.
 
-## 5. Was diese Recherche NICHT geklärt hat
+## 5. GEMESSEN: die Auflösungsquote (2026-07-16)
+
+Die Frage „lohnt es sich?" ist beantwortet — **ja**. Gemessen mit EINEM `map-features`-Abruf (2558
+Siedlungen, kein Loop) gegen den echten Stadtplanindex-Wikitext:
+
+| | Städte | aufgelöst | Quote |
+|---|---|---|---|
+| Aventurien, alte Liste | 136 | 119 | **88 %** |
+| Aventurien, neue Liste | 171 | 145 | **85 %** |
+| Aventurien, beide vereint | 206 | 167 | **81 %** |
+| Aventurien, entklammert (`(Siedlung)` weg) | 198 | 165 | **83 %** |
+| **Myranor (alt + neu)** | **12** | **0** | **0 %** |
+
+**Ergebnis: ~165 Siedlungen bekommen einen Kartensammlungs-Eintrag.** Das trägt den Bau.
+
+### Was die Messung an Design-Fragen ENTSCHIEDEN hat
+
+1. **Myranor überspringen.** 0 von 12 — der Kontinent ist auf unserer Karte nicht vorhanden. Die
+   Abschnitte `Myranische Städte` / `neue Liste - Myranische Städte` gehören ausgefiltert, sonst
+   entstehen 12 Karten, die nirgends erscheinen können.
+2. **BEIDE Listen syncen — die Frage „alt oder neu?" ist damit falsch gestellt.** Sie überschneiden sich
+   nur zu 101 Städten: **35 stehen nur in der alten, 70 nur in der neuen**. „Nur die neue nehmen" verlöre
+   u.a. Abilacht, Al'Anfa, Bosparan, Auraleth. Die Dubletten-Frage bleibt, aber sie heißt jetzt: **beide
+   lesen, per normalisiertem Stadtnamen zusammenführen** (die neue Liste liefert die reicheren Felder,
+   die alte die Wikilinks) — nicht „eine wegwerfen".
+3. **Entklammern (`Havena (Siedlung)` → `Havena`) bringt NICHTS.** Quote 81 %→83 %, aber die absoluten
+   Treffer SINKEN (167→165): der entklammerte Name steckte schon über die andere Liste drin, es
+   dedupliziert nur. Lohnt sich fürs Zusammenführen, nicht für die Abdeckung.
+4. **Die 33 Rest-Fehlschläge sind echte Lücken, kein Parser-Problem** — Städte, die es auf unserer Karte
+   nicht gibt: Alt-Bomed, Angralosch, Bosparan, Keft, Malquis, Tuluum, Charr'Jrzz Pfahldorf, Festung
+   Cumrat, Kloster Arras de Mott, … Nichts zu reparieren; sie werden `target_kind='unresolved'` mit
+   erhaltenem `raw_name`, wie beim Abenteuer-Sync.
+
+### Korrekturen an früheren Behauptungen dieses Dokuments
+
+- **„~500 Zeilen" war falsch.** Es sind 147 (alt) + 244 (neu) = 391 Zeilen, 218 eindeutige Städte, davon
+  206 aventurisch. Die 531 Wikilinks der Seite sind größtenteils Quellen, keine Städte.
+- **„Das Wiki schreibt `Al\'Anfa`" war falsch** — ein Artefakt meiner eigenen Shell-Quotierung. Die rohen
+  Bytes zeigen 8× `Al'Anfa`, nie mit Backslash. Kein Unescaping nötig.
+
+## 6. Was diese Recherche NICHT geklärt hat
 
 - Ob Stadtplanindex/Kartenindex **im Dump** genauso aussehen wie über die API (sollten sie — derselbe
   Wikitext — aber ungeprüft).
-- Wie viele der ~500 Stadtplanindex-Zeilen sich **tatsächlich auflösen** (Resolver gegen echte
-  Siedlungen). Das entscheidet über den Wert und ist in einer Stunde messbar.
+- Die Auflösungsquote des **Kartenindex** (Regionen statt Siedlungen) — nur der Stadtplanindex ist
+  gemessen.
 - Ob die `Legende`-Abkürzungen (`[[Das Land des Schwarzen Auges|Land]]`) in den Quellenspalten der
   **alten** Liste vorkommen und dort aufgelöst werden müssen.
