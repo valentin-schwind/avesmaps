@@ -226,6 +226,7 @@
     <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Daten übernehmen“ schreibbar"><span class="t1">Daten übernehmen</span><span class="t2" id="stIdent">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Daten (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
     <button class="btn2" id="btnLocalizeCoats" title="Lädt ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
+    <button class="btn2" id="btnLinkCheck" title="Prüft NUR die Quellen-Links der Herrschaftsgebiete auf Erreichbarkeit. Abenteuer, Karten und Siedlungs-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="stLinkCheck">—</span></button>
   </div>
 </header>
 <div id="status">
@@ -1102,6 +1103,37 @@ $('btnCrawl').onclick = () => { if (window.confirm("Syncen wirklich starten? Das
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+// Link check, scoped to the TERRITORY source links. Delegates to window.parent.startLinkCheck() -- the
+// same single loop the adventure/settlement editors drive, just a different scope, so nothing else is
+// touched here (one 2851-link run split into portions someone can sit through). Progress arrives via the
+// callback we pass in: polling would only queue behind the 25s check_step that is already running.
+// This page is also opened standalone via window.open (territory-editor-link.js) -- then there is no
+// parent to delegate to, and the button says so instead of throwing.
+$('btnLinkCheck').onclick = async()=>{
+  let host = null;
+  try { host = window.parent; } catch(e) { host = null; }
+  if(!host || host===window || typeof host.startLinkCheck!=='function'){
+    setStatus('Linkprüfung ist nur im eingebetteten Editor verfügbar (nicht im eigenen Fenster).');
+    $('stLinkCheck').textContent = 'nur eingebettet';
+    return;
+  }
+  const btn = $('btnLinkCheck');
+  btn.disabled = true;
+  try{
+    const result = await host.startLinkCheck('source_territory', (text)=>{
+      setStatus(text);
+      $('stLinkCheck').textContent = text.length>28 ? text.slice(0,28)+'…' : text;
+    });
+    if(result && result.status){
+      $('stLinkCheck').textContent = `${result.status.online} ok · ${result.status.dead} tot`;
+      setStatus(`Linkprüfung (Quellen der Herrschaftsgebiete) fertig: ${result.status.online} online, ${result.status.dead} tot, ${result.status.unchecked} ungeprüft.`);
+    }
+  }catch(e){
+    setStatus('Linkprüfung fehlgeschlagen: '+(e && e.message ? e.message : String(e)));
+    $('stLinkCheck').textContent = '—';
+  }finally{ btn.disabled = false; }
+};
+
 $('btnLocalizeCoats').onclick = async()=>{
   busy(true);
   let total=0, remaining=null;

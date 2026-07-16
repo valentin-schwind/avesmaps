@@ -1,4 +1,4 @@
-// Linkchecker editor UI (Spec §1.7): a "Links prüfen" button per WikiSync tab.
+// Linkchecker editor UI (Spec §1.7): the shared engine behind the per-editor "Links prüfen" buttons.
 //
 // STRATO has no cron, and looping a heavy endpoint here once saturated the PHP workers and looked like a
 // DB outage (AGENTS.md §9). So the server does ONE bounded step per request and the CLIENT drives the
@@ -6,12 +6,16 @@
 //   1. sync       -- rebuild the registry for the scope.
 //   2. check_step -- probe that scope's due links in batches until none are due.
 //
-// EACH BUTTON IS SCOPED to its tab's entity type, carried in data-link-check-scope: the Abenteuer tab
-// checks adventure links only, the Karten tab only maps. Without that, every button would work through
-// the whole registry (~2851 links, 15-30 min) no matter which tab it sits in. Adding the Karten button
-// is therefore markup plus one bootstrap line -- no change in here.
-// The registry also holds source-catalog links, which no tab owns; those are the CLI's job
-// (scripts/check-links.php --confirm, which runs unscoped and has no request ceiling).
+// The buttons themselves live in the editor DIALOGS and call in from their iframe via
+// window.parent.startLinkCheck(scope, onProgress) -- the same way their "Syncen" buttons already
+// delegate. EACH IS SCOPED to one entity type, so the work splits into portions someone can sit through
+// instead of one ~2851-link, 15-30 min run:
+//   adventure-editor.html          -> 'adventure'          (shop + wiki links of the adventures)
+//   wiki-sync-settlement-editor    -> 'source_settlement'  (source catalogue links of settlements)
+//   wiki-sync-monitor.html         -> 'source_territory'   (   "        "        of territories)
+//   citymap-editor.html (phase 3)  -> 'citymap'
+// region/path source links have no dialog of their own -- they are the CLI's job
+// (scripts/check-links.php --confirm runs unscoped and has no request ceiling).
 
 let isLinkCheckRunning = false;
 
@@ -19,38 +23,6 @@ let isLinkCheckRunning = false;
 // the check needs one step per batch of due links, so allow generously more.
 const LINK_CHECK_MAX_SYNC_STEPS = 50;
 const LINK_CHECK_MAX_CHECK_STEPS = 2000;
-
-// Each scope has its own button + summary span, paired by the scope name so a second tab needs no JS.
-function linkCheckButton(scope) {
-	return document.querySelector('[data-link-check-scope="' + scope + '"]');
-}
-
-function setLinkCheckSummary(scope, text) {
-	const summary = document.querySelector('[data-link-check-summary="' + scope + '"]');
-	if (!summary) {
-		return;
-	}
-	summary.textContent = text;
-	summary.hidden = text === "";
-}
-
-// "42 Links · 30 online · 2 tot · 10 ungeprüft" -- the counters the owner reads after a run.
-function formatLinkCheckStatus(status) {
-	if (!status) {
-		return "";
-	}
-	const parts = [
-		`${Number(status.total ?? 0)} Links`,
-		`${Number(status.online ?? 0)} online`,
-		`${Number(status.dead ?? 0)} tot`,
-		`${Number(status.unchecked ?? 0)} ungeprüft`,
-	];
-	const due = Number(status.due ?? 0);
-	if (due > 0) {
-		parts.push(`${due} fällig`);
-	}
-	return parts.join(" · ");
-}
 
 // Phase 1: rebuild the registry for this scope. A scoped sync finishes in one call; the loop stays
 // because the server owns the done-flag and an unscoped run would walk the cursor.
@@ -74,7 +46,7 @@ async function runLinkCheckSyncLoop(scope) {
 		cursor = String(step.cursor ?? "");
 		done = step.done === true;
 
-		setWikiSyncStatus(`Link-Registry wird aufgebaut … (${totals.seen} Links)`, "pending");
+		reportLinkCheckProgress(`Link-Registry wird aufgebaut … (${totals.seen} Links)`, "pending");
 	}
 	return totals;
 }
@@ -103,11 +75,11 @@ async function runLinkCheckProbeLoop(scope) {
 		// is working fine. Genuinely zero processed while links remain due means another editor's run
 		// holds the leases. Stop rather than spin -- they expire on their own.
 		if (!done && Number(step.processed ?? 0) === 0) {
-			setWikiSyncStatus("Andere Prüfung läuft bereits – die restlichen Links werden dort geprüft.", "pending");
+			reportLinkCheckProgress("Andere Prüfung läuft bereits – die restlichen Links werden dort geprüft.", "pending");
 			break;
 		}
 
-		setWikiSyncStatus(
+		reportLinkCheckProgress(
 			`Links werden geprüft … ${totals.checked} geprüft, ${Number(step.remaining ?? 0)} offen`,
 			"pending"
 		);
@@ -115,39 +87,54 @@ async function runLinkCheckProbeLoop(scope) {
 	return totals;
 }
 
-// The button handler for ONE scope: sync, then probe, then show that scope's counters. The re-entrancy
-// guard is global on purpose -- two scopes running at once would only fight over PHP workers and the
-// per-host throttle, and STRATO has punished exactly that before.
-async function startLinkCheck(scope) {
+// Where a run reports progress. The editors are iframes whose own status line the loop cannot reach, so
+// they hand in a callback rather than polling: a poll would be a second editor request queueing behind
+// the 25s check_step that is already running (measured: a plain `status` call took 21s mid-step).
+// Callers outside an iframe pass nothing and the ribbon's status line is used.
+let linkCheckProgressSink = null;
+
+function reportLinkCheckProgress(text, tone) {
+	setWikiSyncStatus(text, tone);
+	if (typeof linkCheckProgressSink === "function") {
+		try {
+			linkCheckProgressSink(text, tone);
+		} catch (error) {
+			// A dead iframe (editor closed mid-run) must never abort the run.
+			linkCheckProgressSink = null;
+		}
+	}
+}
+
+// The handler for ONE scope: sync, then probe, then report that scope's counters. Returns the totals so
+// an embedded editor can show its own summary. The re-entrancy guard is global on purpose -- two scopes
+// at once would only fight over PHP workers and the per-host throttle, and STRATO has punished exactly
+// that before.
+async function startLinkCheck(scope, onProgress) {
 	if (isLinkCheckRunning) {
-		return;
+		return null;
 	}
-	const button = linkCheckButton(scope);
 	isLinkCheckRunning = true;
-	if (button) {
-		button.disabled = true;
-	}
+	linkCheckProgressSink = typeof onProgress === "function" ? onProgress : null;
 
 	try {
-		setWikiSyncStatus("Link-Registry wird aufgebaut …", "pending");
+		reportLinkCheckProgress("Link-Registry wird aufgebaut …", "pending");
 		const syncTotals = await runLinkCheckSyncLoop(scope);
 
 		const probeTotals = await runLinkCheckProbeLoop(scope);
 		const status = await submitLinkCheckAction("status", { entity_type: scope });
 
-		setLinkCheckSummary(scope, formatLinkCheckStatus(status.status));
-		setWikiSyncStatus(
+		reportLinkCheckProgress(
 			`Linkprüfung fertig: ${probeTotals.checked} geprüft, ${probeTotals.online} online, `
 			+ `${probeTotals.dead} tot (${syncTotals.created} neu registriert).`,
 			"success"
 		);
 		showFeedbackToast(`Linkprüfung fertig – ${probeTotals.dead} tote Links.`);
+		return { ...probeTotals, status: status.status };
 	} catch (error) {
-		setWikiSyncStatus(error?.message || "Die Linkprüfung ist fehlgeschlagen.", "error");
+		reportLinkCheckProgress(error?.message || "Die Linkprüfung ist fehlgeschlagen.", "error");
+		throw error;
 	} finally {
 		isLinkCheckRunning = false;
-		if (button) {
-			button.disabled = false;
-		}
+		linkCheckProgressSink = null;
 	}
 }

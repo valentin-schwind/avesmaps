@@ -308,6 +308,10 @@
       <span class="t1">🚨 Abenteuer syncen</span>
       <span class="t2" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     </button>
+    <button type="button" class="ae-btn2" id="aeLinkCheckBtn" title="Prüft NUR die Links der Abenteuer (Shoplinks, Wiki-Seiten) auf Erreichbarkeit — Karten und Quellen bleiben unberührt. Höflich: 600ms Pause je Host, ein voller Durchlauf dauert entsprechend.">
+      <span class="t1">🔗 Links prüfen</span>
+      <span class="t2" id="aeLinkCheckSub">…</span>
+    </button>
   </div>
 
   <div class="ae-body">
@@ -1123,7 +1127,48 @@
     }
   }
 
+  // ---- Link check (adventures only) ----
+  // Delegates to window.parent.startLinkCheck('adventure') -- the SAME loop the ribbon drives, so there
+  // is exactly one link-check loop in the app (mirrors handleAeSyncClick above). The scope keeps this
+  // button on adventure links: maps and the source catalogue have their own buttons in their own editors.
+  // Progress arrives through the callback we hand in; polling would only queue behind the running step.
+  let aeLinkCheckRunning = false;
+
+  function setAeLinkCheckBusy(isBusy) {
+    aeLinkCheckRunning = isBusy;
+    const button = document.getElementById("aeLinkCheckBtn");
+    if (!button) return;
+    button.disabled = isBusy;
+    const label = button.querySelector(".t1");
+    if (label) label.textContent = isBusy ? "Prüft …" : "🔗 Links prüfen";
+  }
+
+  async function handleAeLinkCheckClick() {
+    if (aeLinkCheckRunning) return;
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    const statusEl = document.getElementById("aeLinkCheckSub");
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startLinkCheck !== "function") {
+      if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
+      return;
+    }
+    setAeLinkCheckBusy(true);
+    try {
+      const result = await parentWindow.startLinkCheck("adventure", (text) => {
+        if (statusEl) statusEl.textContent = text;
+      });
+      if (statusEl && result && result.status) {
+        statusEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} ungeprüft`;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+    } finally {
+      setAeLinkCheckBusy(false);
+    }
+  }
+
   document.getElementById("aeSyncBtn").addEventListener("click", handleAeSyncClick);
+  document.getElementById("aeLinkCheckBtn").addEventListener("click", handleAeLinkCheckClick);
   document.getElementById("aeCoversToggle").addEventListener("click", toggleCovers);
   void refreshAeSyncedInfo();
 

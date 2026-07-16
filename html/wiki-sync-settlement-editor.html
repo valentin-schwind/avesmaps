@@ -264,6 +264,7 @@
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seLocalizeCoats" title="Lädt gemeinfreie Wappen lokal herunter"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Siedlungsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
+    <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Siedlungen auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Siedlungen</span></button>
   </div>
 </header>
 
@@ -2138,7 +2139,54 @@ async function handleSeSyncenClick() {
 	}
 }
 
+// Link check, scoped to the SETTLEMENT source links. Delegates to window.parent.startLinkCheck() -- the
+// same single loop the other editors drive, just with a different scope, so adventures/maps/territory
+// sources are untouched here (one 2851-link run split into portions someone can sit through).
+// Progress arrives via the callback we hand in: polling would queue behind the running 25s check_step.
+let seLinkCheckRunning = false;
+
+function setSeLinkCheckBusy(isBusy) {
+	seLinkCheckRunning = isBusy;
+	const button = $("seLinkCheck");
+	if (!button) return;
+	button.disabled = isBusy;
+	const label = button.querySelector(".t1");
+	if (label) label.textContent = isBusy ? "Prüft …" : "🔗 Links prüfen";
+}
+
+async function handleSeLinkCheckClick() {
+	if (seLinkCheckRunning) return;
+	let parentWindow;
+	try {
+		parentWindow = window.parent;
+	} catch (error) {
+		parentWindow = null;
+	}
+	const infoEl = $("seLinkCheckInfo");
+	if (!parentWindow || parentWindow === window || typeof parentWindow.startLinkCheck !== "function") {
+		setStatusText("Linkprüfung ist nur im eingebetteten Editor verfügbar (nicht standalone geöffnet).");
+		return;
+	}
+
+	setSeLinkCheckBusy(true);
+	try {
+		const result = await parentWindow.startLinkCheck("source_settlement", (text) => {
+			setStatusText(text);
+			if (infoEl) infoEl.textContent = text;
+		});
+		if (infoEl && result && result.status) {
+			infoEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} ungeprüft`;
+		}
+	} catch (error) {
+		setStatusText("Linkprüfung fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+		if (infoEl) infoEl.textContent = "Quellen der Siedlungen";
+	} finally {
+		setSeLinkCheckBusy(false);
+	}
+}
+
 $("seSyncen")?.addEventListener("click", handleSeSyncenClick);
+$("seLinkCheck")?.addEventListener("click", handleSeLinkCheckClick);
 
 $("seAssign")?.addEventListener("click", runAssignDryRun);
 $("seAssignDialog")?.addEventListener("click", (event) => {

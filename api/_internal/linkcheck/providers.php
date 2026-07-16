@@ -13,12 +13,23 @@ require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/../app/adventures.php';
 require_once __DIR__ . '/../app/feature-sources.php';
 
+// The registry doubles as the scope list: every key is something an editor surface can check on its own
+// (see the per-editor "Links prüfen" buttons). The source catalogue is split by the entity type its
+// links hang on, so the Siedlungseditor checks settlement sources and the Territoriumseditor territory
+// sources -- one 2851-link run split into portions someone can actually sit through.
+//
+// region/path sources have no editor dialog of their own; they are covered by the unscoped CLI run
+// (scripts/check-links.php --confirm). They are listed here anyway so the registry stays complete --
+// otherwise their refs would be pruned as belonging to an unknown type.
 function avesmapsLinkCheckProviders(): array
 {
     return [
         'adventure' => 'avesmapsLinkCheckCollectAdventureLinks',
         'citymap' => 'avesmapsLinkCheckCollectCitymapLinks',
-        'source' => 'avesmapsLinkCheckCollectSourceLinks',
+        'source_settlement' => 'avesmapsLinkCheckCollectSettlementSourceLinks',
+        'source_territory' => 'avesmapsLinkCheckCollectTerritorySourceLinks',
+        'source_region' => 'avesmapsLinkCheckCollectRegionSourceLinks',
+        'source_path' => 'avesmapsLinkCheckCollectPathSourceLinks',
     ];
 }
 
@@ -59,33 +70,58 @@ function avesmapsLinkCheckCollectCitymapLinks(PDO $pdo): array
     return [];
 }
 
-// Every URL in the shared source catalog that is actually attached to something (an approved
-// feature_sources link). Suppressed links and orphaned catalog rows are not the reader's problem, so we
-// do not probe them.
-function avesmapsLinkCheckCollectSourceLinks(PDO $pdo): array
+// One thin provider per feature entity type -- the registry maps names to plain callables, so each scope
+// gets its own function rather than a bound parameter.
+function avesmapsLinkCheckCollectSettlementSourceLinks(PDO $pdo): array
+{
+    return avesmapsLinkCheckCollectSourceLinks($pdo, 'settlement');
+}
+
+function avesmapsLinkCheckCollectTerritorySourceLinks(PDO $pdo): array
+{
+    return avesmapsLinkCheckCollectSourceLinks($pdo, 'territory');
+}
+
+function avesmapsLinkCheckCollectRegionSourceLinks(PDO $pdo): array
+{
+    return avesmapsLinkCheckCollectSourceLinks($pdo, 'region');
+}
+
+function avesmapsLinkCheckCollectPathSourceLinks(PDO $pdo): array
+{
+    return avesmapsLinkCheckCollectSourceLinks($pdo, 'path');
+}
+
+// Every URL in the shared source catalogue attached to an approved feature_sources link OF ONE ENTITY
+// TYPE. Suppressed links and orphaned catalogue rows are not the reader's problem, so we do not probe
+// them.
+//
+// A source shared by a settlement AND a territory legitimately appears in both scopes: link_ref then
+// holds two refs, but url_hash keeps link_status at ONE row, so it is still probed once. The ref is
+// keyed by the catalogue id rather than by each citing element -- otherwise a publication cited by 300
+// settlements would produce 300 refs for a single URL.
+function avesmapsLinkCheckCollectSourceLinks(PDO $pdo, string $featureEntityType): array
 {
     avesmapsEnsureFeatureSourceTables($pdo);
     // url = '' is the wiki-publication convention (those rows are hashed as 'wikipub:<wiki_key>' and
     // carry no reachable URL) -- there is nothing to probe, so they are skipped (Spec §1.6).
-    $rows = $pdo->query(
+    $statement = $pdo->prepare(
         "SELECT DISTINCT s.id, s.url, s.label
            FROM sources s
            JOIN feature_sources fs ON fs.source_id = s.id AND fs.status = 'approved'
-          WHERE s.url <> ''"
-    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+          WHERE s.url <> '' AND fs.entity_type = :type"
+    );
+    $statement->execute(['type' => $featureEntityType]);
 
     $collected = [];
-    foreach ($rows as $row) {
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
         $url = trim((string) $row['url']);
         if ($url === '') {
             continue;
         }
-        // A source is identified by its own catalog id: the same source is shared by many entities, so
-        // the ref belongs to the source, not to each element that cites it (that would be N duplicates
-        // of one URL). field stays 'url' -- a source row has exactly one.
         $collected[] = [
             'entity_public_id' => (string) $row['id'],
-            'field' => 'url',
+            'field' => 'url', // a source row has exactly one URL
             'label' => (string) ($row['label'] ?? ''),
             'url' => $url,
         ];
@@ -115,7 +151,7 @@ function avesmapsLinkCheckSyncStep(PDO $pdo, string $cursor = '', string $entity
         $result = avesmapsLinkCheckSyncEntityType($pdo, $entityType, $collector($pdo));
         // Pruning is safe even in a scoped pass: it only deletes link_status rows that NO type
         // references any more, and the other types' refs are still in place from their own last sync.
-        $result['pruned'] = avesmapsLinkCheckPruneOrphans($pdo);
+        $result['pruned'] = avesmapsLinkCheckPruneOrphans($pdo, $types);
         $result['entity_type'] = $entityType;
         $result['done'] = true;
         $result['cursor'] = '';
@@ -141,7 +177,7 @@ function avesmapsLinkCheckSyncStep(PDO $pdo, string $cursor = '', string $entity
     $isLast = $index >= count($types) - 1;
     // Orphan pruning must wait for the LAST provider: a link_status row may be referenced by a type that
     // has not been re-synced yet in this pass.
-    $result['pruned'] = $isLast ? avesmapsLinkCheckPruneOrphans($pdo) : 0;
+    $result['pruned'] = $isLast ? avesmapsLinkCheckPruneOrphans($pdo, $types) : 0;
     $result['entity_type'] = $type;
     $result['done'] = $isLast;
     $result['cursor'] = $isLast ? '' : $types[$index + 1];
