@@ -727,11 +727,21 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	}
 
 	if (action === "show-in-panel") {
-		// "Anzeigen": die volle Info dieser Stadt ins rechte Panel holen + ihren Wegpunkt-Tab aktivieren.
+		// "Anzeigen": die volle Info dieser Stadt ins rechte Panel holen + ihren Wegpunkt-Tab aktivieren
+		// UND die Karte auf sie zentrieren (Owner: "Anzeigen" zentriert IMMER die Ansicht und zeigt die
+		// Infoleiste). panTo statt flyTo -- die Zoomstufe ist die Wahl des Nutzers und bleibt, wie sie ist.
 		const placeName = this.dataset.placeName;
 		const entry = placeName && typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(placeName) : null;
 		if (entry && typeof window.avesmapsShowLocationInInfopanel === "function") {
 			window.avesmapsShowLocationInInfopanel(entry);
+		}
+		// Erst das Panel, dann zentrieren: das Panel liegt rechts ueber der Karte, und bei einem Ort dicht am
+		// rechten Rand soll er danach frei liegen. Number.isFinite-Guard, weil ein Pan mit NaN das Map-Center
+		// dauerhaft zerstoert (siehe die Recenter-Guards weiter unten); getLatLng faellt aus, wenn der Marker
+		// gerade nicht auf der Karte liegt (Kategorie aus, ausserhalb des Zoom-Bands).
+		const showLatLng = entry && entry.marker && typeof entry.marker.getLatLng === "function" ? entry.marker.getLatLng() : null;
+		if (showLatLng && Number.isFinite(showLatLng.lat) && Number.isFinite(showLatLng.lng)) {
+			map.panTo(showLatLng);
 		}
 		return;
 	}

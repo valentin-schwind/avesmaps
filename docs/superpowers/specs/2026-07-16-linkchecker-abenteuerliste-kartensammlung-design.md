@@ -358,7 +358,16 @@ Eine globale `.floating-location-popup .location-popup { width: … }`-Regel wä
 
 ### 4.3 Was E zusätzlich braucht
 
-`.region-info-box` ist `width: min(360px, …)` (`map-labels.css:326`), und ihre Aktionsleiste ist **kein direktes Kind** von `.location-popup` — die `flex: 1 1 calc((100% - 24px) / 4)`-Regel (`location-popups-markers.css:298`) greift dort also nicht, die Kacheln bleiben starr bei 90px. Vier Kacheln = 4×90 + 3×8 = **384px > 360px** → sie würden umbrechen. Also: Flex-Regel auch für `.region-info-box > .location-popup__actions > .location-popup__action-button`.
+Die Aktionsleiste der `.region-info-box` ist **kein direktes Kind** von `.location-popup`. Die Flex-Regeln in `location-popups-markers.css:299/307` verlangen aber genau das (`.location-popup > .location-popup__actions > …`) — sie greifen dort also nicht, und die Kacheln bleiben starr bei `width: 90px`, statt die Zeile zu füllen.
+
+Kein Überlauf, aber ein Bruch der Owner-Regel *„Kacheln füllen IMMER die volle Zeilenbreite"*:
+
+| Oberfläche | Boxbreite | 3 Kacheln | Ergebnis |
+|---|---|---|---|
+| schwebende Box | `min(360px, …)` − 24px Padding = **336px** (`map-labels.css:326`) | 3×90 + 2×8 = **286px** | passt, lässt aber 50px Lücke rechts |
+| Infopanel | `width: auto` = volle Body-Breite (`infopanel.css:496` neutralisiert die 360px) | 4 Kacheln | reichlich Platz, gleiche Lücke |
+
+Das ist **heute schon so** (2 Kacheln = 188px in 336px) und dem Owner nie aufgefallen — mit 3 bzw. 4 Kacheln fällt es aber auf. Fix: Flex-Regel für `.region-info-box > .location-popup__actions > .location-popup__action-button` analog zu `.slim-location-popup` (`location-popups-markers.css:314`), also `flex: 1 1 90px; width: auto`.
 
 ---
 
@@ -386,18 +395,16 @@ Owner: *„Vier Kacheln + Brief nur im Panel"*.
 
 | Oberfläche | Kacheln |
 |---|---|
-| schwebende Box auf der Karte | Zentrieren · Link teilen · Abenteuer · Kartensammlung |
-| Infopanel | dieselben vier **+ Änderung vorschlagen** |
+| schwebende Box auf der Karte | Link teilen · Abenteuer · Kartensammlung |
+| Infopanel | dieselben drei **+ Änderung vorschlagen** |
 
 Das spiegelt exakt die Siedlung, wo „Änderung vorschlagen" schon heute an `!options.floating` hängt (`js/ui/popups.js:450`).
 
-**„Zentrieren" ist „Anzeigen" für Regionen.** Owner-Entscheidung: derselbe Sextant (`icons/sextant.webp`) wie bei der Siedlung, und dieselbe Bedeutung — die Region zentrieren **und** ihre volle Info ins rechte Panel holen. Kein neues Icon nötig, keine neue Aktion.
+**Keine „Zentrieren"- und keine „Anzeigen"-Kachel.** Owner-Entscheidung (2026-07-16, korrigiert eine frühere Fassung dieser Spec): der **Klick auf die Region selbst** zentriert und öffnet das Panel — dafür braucht es keinen Button in einer Box, die ohnehin erst durch diesen Klick erscheint. Für Label-Regionen tut das bereits genau das (`map-features-labels.js:406-408`: `map.panTo(label.coordinates)` + `avesmapsShowInfopanel`).
 
-Umsetzung: die vorhandene Aktion `show-in-panel` (`js/routing/routing.js:729`) **erweitern**, statt eine zweite danebenzustellen. Sie ist heute siedlungsgebunden — sie sucht per `findLocationMarkerByName(placeName)` einen Ortsmarker und ruft `avesmapsShowLocationInInfopanel(entry)`; eine Region hat keinen solchen Marker. Ergänzt wird ein `data-entity-type`: ohne Angabe bleibt das heutige Siedlungsverhalten, `region`/`territory` gehen auf `avesmapsShowRegionInInfopanel` bzw. `avesmapsShowRegionInfopanelById` (`map-features-infopanel.js:630` / `:659`).
+**Zu prüfen in Session 4:** ob die **Polygon**-Regionen und Territorien beim Klick ebenfalls zentrieren — der Owner sagt „was er aktuell schon tut", belegt ist das aber nur für den Label-Pfad. Der Polygon-Pfad läuft über `map-features-region-tooltip-lifecycle.js:53` → `avesmapsShowRegionInInfopanel`. Falls dort kein Pan passiert: einen `panTo` ergänzen, mit `Number.isFinite`-Guard (ein Pan mit `NaN` zerstört das Map-Center dauerhaft, siehe `routing-nan-pan-crash`).
 
-Zwei Fallen:
-- **`show-in-panel` zentriert heute nicht**, es füllt nur das Panel. Das `flyTo` ist also neu — und gehört **nur** an den Regions-Zweig. Es global anzuhängen würde bei Siedlungen die Karte springen lassen: eine Verhaltensänderung, die niemand bestellt hat.
-- Koordinaten mit `Number.isFinite` guarden — ein Pan mit `NaN` zerstört das Map-Center (bekannter Bug, siehe `routing-nan-pan-crash`).
+**Bereits erledigt (Commit auf master):** „Anzeigen" (`show-in-panel`, `js/routing/routing.js:729`) zentriert jetzt immer — die Aktion füllte bis dahin nur das Panel. Betrifft die Siedlungs-Slim-Box und die Wegpunkt-Box, nicht Regionen.
 
 ### 5.4 Sektionen
 
@@ -427,7 +434,7 @@ Owner-Regel: **eine** Linie pro Sektion, randlos von Rand zu Rand (negative Seit
 | Einzelner Timeout tötet lebenden Link | `fail_streak >= 3`, nur 4xx ist sofort tödlich (1.3) |
 | `sources`-Zeilen ohne URL (Wiki-Publikationen) | Provider überspringt `url = ''` |
 | Lizenz-Enum driftet auseinander | genau eine Definition, beide Seiten requiren sie (3.3) |
-| Vier Kacheln brechen in der 360px-Regionsbox um | Flex-Regel für `.region-info-box` (4.3) |
+| Regions-Kacheln füllen die Zeile nicht (starr 90px) | Flex-Regel für `.region-info-box` (4.3) |
 | Editor-Assets veraltet im Browser | `citymap-editor.html` per `?v=Date.now()` → kein ASSET_VERSION nötig |
 | `map_features`-Payload-Shape ändert sich | `AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION` bumpen — **oberhalb** des `try`-Blocks, top-level `const` ist sequenziell |
 
