@@ -423,7 +423,7 @@ Owner-Regel: **eine** Linie pro Sektion, randlos von Rand zu Rand (negative Seit
 
 ## 6. Was bewusst NICHT gebaut wird
 
-- **Kein Wiki-Sync für Karten.** Karten sind kuratiert + Community, kein Dump-Import. (Später möglich, das `origin`-Feld ist da.)
+- ~~**Kein Wiki-Sync für Karten.**~~ **REVIDIERT 2026-07-16 (Owner)** — der Vorbehalt „später möglich, das `origin`-Feld ist da" ist eingelöst: die fehlenden Pipeline-Stufen 1+2 sind gebaut (Dump-Phase `citymaps` → `wiki_citymap_catalog`, Owner-Aktion `sync_citymaps`, override-sicher). Karten sind jetzt **wiki + kuratiert + Community**; `origin='wiki'` ist ein echter Wert. Siehe `2026-07-16-kartensammlung-wiki-sync-{recon,design}.md` und `api/_internal/wiki/citymap-sync.php`.
 - ~~**Kein serverseitiger Bild-Fetch für Karten.**~~ **REVIDIERT 2026-07-16 (Owner)** — siehe §3.3: „Autoget" crawlt die Vorschau von der Karten-Seite, durch den Linkcheck-SSRF-Riegel, und das Ergebnis bleibt editor-only. Die eigentliche Karte bleibt Upload only.
 - **Kein Cron.** Siehe 1.1.
 - **Kein Link-Status im `map-features`-Payload.** Ein Statuswechsel würde `avesmapsNextMapRevision()` erzwingen und damit die **komplette 14-MB-Nutzlast** für **alle** Clients invalidieren. Der Linkstatus reist ausschließlich in `adventures.php` / `citymaps.php` / `link-status.php`.
