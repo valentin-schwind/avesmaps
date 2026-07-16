@@ -11,6 +11,12 @@ declare(strict_types=1);
 // sort_order is the start place (role='start', "beginnt hier"). NEVER reorder/resort that list -- the
 // start detection depends on it.
 
+// The generic app_setting KV store (avesmapsAppSettingEnsureTable/Get/Set) used to live in this file.
+// It moved out when the Kartensammlung needed the same store for its own kill switch (Spec §3.3): a
+// feature-agnostic store belongs to neither feature, and citymaps.php requiring adventures.php for it
+// would have inverted the dependency. Only the adventure-specific cover switch below stayed here.
+require_once __DIR__ . '/app-setting.php';
+
 // Idempotent DDL. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS + INFORMATION_SCHEMA column
 // probes), so a fresh deploy self-heals on the first endpoint hit -- no migration step.
 function avesmapsAdventuresEnsureTables(PDO $pdo): void
@@ -127,44 +133,14 @@ function avesmapsAdventuresCount(PDO $pdo): int
     return (int) $pdo->query('SELECT COUNT(*) FROM adventure')->fetchColumn();
 }
 
-// ---- global app settings (tiny KV store) -------------------------------------------------------------
-// Self-healing key/value store for runtime-toggleable flags. First user: the cover-display kill switch
-// ('adventure_covers_enabled') -- an owner "emergency off" that hides ALL adventure covers on the PUBLIC
-// frontend (placeholder shown instead) while the images stay stored internally. Only the public render
-// honors it; the capability-gated editor keeps showing covers so admins can moderate.
+// ---- cover kill switch -------------------------------------------------------------------------------
+// An owner "emergency off" that hides ALL adventure covers on the PUBLIC frontend (placeholder shown
+// instead) while the images stay stored internally. Only the public render honors it; the
+// capability-gated editor keeps showing covers so admins can moderate. Backed by the generic app_setting
+// store (app-setting.php, required above).
 const AVESMAPS_ADVENTURE_COVERS_SETTING = 'adventure_covers_enabled';
 
-function avesmapsAppSettingEnsureTable(PDO $pdo): void
-{
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS app_setting (
-            setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
-            setting_value VARCHAR(255) NOT NULL,
-            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-    );
-}
-
-function avesmapsAppSettingGet(PDO $pdo, string $key, string $default = ''): string
-{
-    avesmapsAppSettingEnsureTable($pdo);
-    $stmt = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
-    $stmt->execute(['k' => $key]);
-    $value = $stmt->fetchColumn();
-    return $value === false ? $default : (string) $value;
-}
-
-function avesmapsAppSettingSet(PDO $pdo, string $key, string $value): void
-{
-    avesmapsAppSettingEnsureTable($pdo);
-    $stmt = $pdo->prepare(
-        'INSERT INTO app_setting (setting_key, setting_value) VALUES (:k, :v)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
-    );
-    $stmt->execute(['k' => $key, 'v' => $value]);
-}
-
-// Cover kill switch. Default ENABLED -- only an explicit stored '0' hides covers on the public frontend.
+// Default ENABLED -- only an explicit stored '0' hides covers on the public frontend.
 function avesmapsAdventuresCoversEnabled(PDO $pdo): bool
 {
     return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_COVERS_SETTING, '1') !== '0';

@@ -275,9 +275,29 @@ function avesmapsAdventureWikiKeyByPublicId(PDO $pdo, string $kind, string $publ
 function avesmapsAdventureResolveAll(PDO $pdo): array
 {
     avesmapsAdventuresEnsureTables($pdo);
+    return avesmapsResolvePlacesInTable($pdo, 'adventure_place');
+}
+
+// The resolve-all CORE, parameterised by the place table. Everything above this line was ALREADY
+// table-agnostic: it answers "raw place name -> which map entity", and never knew what cites the place.
+// Only these two statements named adventure_place. The Kartensammlung (Spec §3.1) declares citymap_place
+// as a 1:1 copy of adventure_place precisely so the Ort-Autocomplete keeps working unchanged -- copying
+// 60 lines to change one table name is exactly how the two would then drift apart.
+//
+// $table is interpolated (a table name cannot be a bound parameter), hence the whitelist: every caller
+// passes a literal today, and this keeps it that way. The caller ensures its own tables first.
+//
+// NB: the avesmapsAdventure* prefix on the helpers is historical -- they are place resolvers, not
+// adventure code. Renaming them is a separate sweep; it would touch the adventure editor and its tests
+// for no behaviour change.
+function avesmapsResolvePlacesInTable(PDO $pdo, string $table): array
+{
+    if (!in_array($table, ['adventure_place', 'citymap_place'], true)) {
+        throw new InvalidArgumentException('Unbekannte Ort-Tabelle: ' . $table);
+    }
     $places = $pdo->query(
         "SELECT id, raw_name, target_kind, target_public_id, target_wiki_key
-           FROM adventure_place
+           FROM {$table}
           WHERE status = 'approved' AND (target_kind = 'unresolved' OR target_territory_path IS NULL)"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
     if ($places === []) {
@@ -288,7 +308,7 @@ function avesmapsAdventureResolveAll(PDO $pdo): array
     $parentMap = avesmapsAdventureLoadTerritoryParentMap($pdo);
     $settlementTerritory = avesmapsAdventureLoadSettlementTerritoryKeys($pdo);
     $update = $pdo->prepare(
-        "UPDATE adventure_place
+        "UPDATE {$table}
             SET target_kind = :kind, target_public_id = :pid, target_wiki_key = :wkey, target_territory_path = :path
           WHERE id = :id"
     );
