@@ -44,7 +44,16 @@ try {
         // the whole catalog, so the dialog never has to fetch link states per adventure. Deliberately
         // NOT part of the map-features payload -- a state flip there would invalidate the full 14 MB
         // payload for every client (§6).
-        $linkStates = avesmapsLinkCheckStatesByEntityType($pdo, 'adventure');
+        // The link state is a DECORATION on a payload every visitor loads eagerly. If the linkcheck
+        // tables cannot be read for any reason, ship the catalog with everything 'unchecked' instead of
+        // answering 500 and taking the whole adventure feature down over a marker. The state is the only
+        // thing lost, and it is visibly lost (grey "noch nicht geprüft"), not silently wrong.
+        $linkStates = [];
+        try {
+            $linkStates = avesmapsLinkCheckStatesByEntityType($pdo, 'adventure');
+        } catch (Throwable) {
+            $linkStates = [];
+        }
         foreach ($adventures as $index => $adventure) {
             foreach ($adventure['links'] as $linkIndex => $link) {
                 $state = $linkStates[$adventure['public_id']][$link['key']] ?? null;
