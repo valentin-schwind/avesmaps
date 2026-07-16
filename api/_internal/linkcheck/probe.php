@@ -218,6 +218,98 @@ function avesmapsLinkCheckRequest(string $url, bool $useHead): array
     ];
 }
 
+// Fetch a URL's BODY through the SAME guard the link probe uses, capped at $maxBytes.
+// Returns ['ok' => bool, 'status' => int, 'body' => string, 'content_type' => string, 'final_url' => string].
+//
+// Why this lives here rather than next to its caller: the Kartensammlung's "Autoget" has to fetch a page
+// the EDITOR typed, and then an image URL that PAGE chose -- both attacker-influenceable, both needing
+// exactly the guard this file already implements and tests. avesmapsLinkCheckRequest throws the body away
+// (a link check only wants the status), so this is the same request with the body kept. Rebuilding the
+// request somewhere else would mean a second, unguarded copy of the one thing that must never be copied.
+//
+// The guard, in order: scheme whitelist + host present (IsProbeableUrl) -> host classification (no
+// loopback / RFC1918 / link-local / CGNAT / metadata) -> per-host throttle -> bounded redirects that
+// cannot leave http/https -> POST-FLIGHT PRIMARY_IP check, because a public host may redirect us into
+// private space and only the last peer's address reveals it.
+//
+// The size cap is enforced WHILE STREAMING (CURLOPT_WRITEFUNCTION), not afterwards: with
+// RETURNTRANSFER a 4 GB answer would already be in memory before we could object.
+function avesmapsLinkCheckFetchBody(string $url, int $maxBytes, string $accept = '*/*'): array
+{
+    $fail = static fn(int $status = 0): array =>
+        ['ok' => false, 'status' => $status, 'body' => '', 'content_type' => '', 'final_url' => ''];
+
+    $url = trim($url);
+    if (!avesmapsLinkCheckIsProbeableUrl($url) || !function_exists('curl_init')) {
+        return $fail();
+    }
+    $host = (string) (parse_url($url, PHP_URL_HOST) ?: '');
+    if (avesmapsLinkCheckClassifyHost($host) !== 'public') {
+        return $fail();
+    }
+    avesmapsLinkCheckThrottleHost($host);
+
+    $body = '';
+    $overflow = false;
+    $ch = curl_init();
+    $options = [
+        CURLOPT_URL => $url,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => AVESMAPS_LINK_PROBE_MAX_REDIRECTS,
+        CURLOPT_CONNECTTIMEOUT => AVESMAPS_LINK_PROBE_CONNECT_TIMEOUT_SECONDS,
+        CURLOPT_TIMEOUT => AVESMAPS_LINK_PROBE_TIMEOUT_SECONDS,
+        CURLOPT_USERAGENT => AVESMAPS_LINK_PROBE_USER_AGENT,
+        CURLOPT_FAILONERROR => false,
+        CURLOPT_ACCEPT_ENCODING => '',
+        CURLOPT_HTTPHEADER => ['Accept: ' . $accept],
+        // Returning less than the chunk length aborts the transfer -- that is how curl is told to stop.
+        CURLOPT_WRITEFUNCTION => static function ($ch, string $chunk) use (&$body, &$overflow, $maxBytes): int {
+            if (strlen($body) + strlen($chunk) > $maxBytes) {
+                $overflow = true;
+                return 0;
+            }
+            $body .= $chunk;
+            return strlen($chunk);
+        },
+    ];
+    if (defined('CURLOPT_PROTOCOLS_STR')) {
+        $options[CURLOPT_PROTOCOLS_STR] = 'http,https';
+        $options[CURLOPT_REDIR_PROTOCOLS_STR] = 'http,https';
+    } else {
+        $options[CURLOPT_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+        $options[CURLOPT_REDIR_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+    }
+    curl_setopt_array($ch, $options);
+
+    curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $contentType = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+    $finalUrl = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    $primaryIp = (string) curl_getinfo($ch, CURLINFO_PRIMARY_IP);
+    curl_close($ch);
+
+    // Post-flight: the pre-flight check cannot see redirect hops. If the LAST peer sits in private space,
+    // throw the body away rather than hand a caller bytes we fetched from inside the network.
+    if ($primaryIp !== '' && avesmapsLinkCheckIsBlockedIp($primaryIp)) {
+        return $fail();
+    }
+    // An overflowed HTML page is still usable (the <head> is at the front, which is where og:image lives);
+    // an overflowed IMAGE is not, so the caller checks the cap against its own expectation.
+    if ($status < 200 || $status >= 300 || $body === '') {
+        return $fail($status);
+    }
+    return [
+        'ok' => true,
+        'status' => $status,
+        'body' => $body,
+        'content_type' => strtolower(trim(explode(';', $contentType)[0])),
+        'final_url' => $finalUrl !== '' ? $finalUrl : $url,
+        'truncated' => $overflow,
+    ];
+}
+
 // Probe one URL. Returns ['http_status' => int, 'redirect_url' => string, 'blocked' => bool].
 // http_status 0 means no HTTP answer at all (timeout, DNS, TLS) -- state.php reads that as an
 // inconclusive failure, never as death. blocked=true means we refused to ask (bad scheme / private

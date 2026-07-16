@@ -26,6 +26,7 @@ declare(strict_types=1);
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php'; // avesmapsWikiSyncMonitorDownscaleCoatBytes
 require_once __DIR__ . '/../../_internal/app/citymaps.php';               // avesmapsSetCitymapImage + ensure tables
+require_once __DIR__ . '/../../_internal/linkcheck/probe.php';            // avesmapsLinkCheckFetchBody (the SSRF guard)
 
 const AVESMAPS_CITYMAP_IMAGE_MAX_BYTES = 12 * 1024 * 1024; // 12 MB raw upload (Spec §3.4)
 const AVESMAPS_CITYMAP_IMAGE_TYPES = [
@@ -38,6 +39,10 @@ const AVESMAPS_CITYMAP_IMAGE_TYPES = [
 const AVESMAPS_CITYMAP_THUMB_MAX_EDGE = 400;
 const AVESMAPS_CITYMAP_MAP_MAX_EDGE = 4000;
 const AVESMAPS_CITYMAP_UPLOAD_DIR = '/uploads/kartensammlungen';
+// Autoget only ever reads a page's <head> for og:image, so 512 KB is generous. The cap is a memory bound,
+// not a correctness one: a truncated page still carries its <head>, which is why an overflowed HTML fetch
+// is accepted while an overflowed IMAGE fetch is refused.
+const AVESMAPS_CITYMAP_AUTOGET_HTML_MAX_BYTES = 512 * 1024;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -60,9 +65,14 @@ try {
     if ($publicId === '') {
         avesmapsErrorResponse(400, 'invalid_request', 'public_id fehlt.');
     }
+    // 'thumb_auto' is delete-only: it names the Autoget crawl's column, and the only way to FILL it is the
+    // autoget branch below (which the editor addresses as slot=thumb + mode=autoget). Accepting an upload
+    // into it would let an editor put a picture into the one slot the public read is defined never to
+    // look at -- pointless, and it would quietly break "an auto preview is always a crawl".
     $slot = trim((string) ($_POST['slot'] ?? ''));
-    if ($slot !== 'thumb' && $slot !== 'map') {
-        avesmapsErrorResponse(400, 'invalid_request', 'slot muss thumb oder map sein.');
+    $slotColumns = ['thumb' => 'thumb_local_url', 'map' => 'map_local_url', 'thumb_auto' => 'thumb_auto_url'];
+    if (!isset($slotColumns[$slot])) {
+        avesmapsErrorResponse(400, 'invalid_request', 'slot muss thumb, map oder thumb_auto sein.');
     }
     $mode = trim((string) ($_POST['mode'] ?? ''));
     $file = $_FILES['image'] ?? null;
@@ -74,7 +84,7 @@ try {
         $safeId = 'karte';
     }
     $dir = $docroot . AVESMAPS_CITYMAP_UPLOAD_DIR . '/' . $safeId;
-    $column = $slot === 'thumb' ? 'thumb_local_url' : 'map_local_url';
+    $column = $slotColumns[$slot];
 
     // The map must exist, and we need its current file for cleanup. Reading the column directly (rather
     // than via the detail read) keeps this endpoint independent of the editor payload shape.
@@ -110,7 +120,86 @@ try {
         avesmapsJsonResponse(200, ['ok' => true] + $result);
     }
 
+    // -------------------------------------------------------------------- AUTOGET ---
+    if ($mode === 'autoget' && !$hasFile) {
+        if ($slot !== 'thumb') {
+            avesmapsErrorResponse(400, 'invalid_request', 'Autoget gibt es nur für das Vorschaubild.');
+        }
+        // The source URL comes from OUR DATABASE, never from the request. That is not cosmetic: a
+        // client-supplied URL would make this endpoint a general-purpose fetcher for anyone with an edit
+        // session, and the whole point is that it can only ever look at the page this map already claims
+        // to be. (It still gets the full guard below -- an editor typed it once.)
+        $sourceStmt = $pdo->prepare('SELECT map_url FROM citymap WHERE public_id = :pid LIMIT 1');
+        $sourceStmt->execute(['pid' => $publicId]);
+        $pageUrl = trim((string) ($sourceStmt->fetchColumn() ?: ''));
+        if ($pageUrl === '') {
+            avesmapsErrorResponse(400, 'invalid_request', 'Diese Karte hat keinen Karten-Link — es gibt keine Seite, auf der ein Vorschaubild zu finden wäre.');
+        }
+
+        // 1. The PAGE. avesmapsLinkCheckFetchBody applies the full SSRF guard (scheme, host class,
+        //    bounded http(s)-only redirects, post-flight PRIMARY_IP) and caps the body while streaming.
+        $page = avesmapsLinkCheckFetchBody($pageUrl, AVESMAPS_CITYMAP_AUTOGET_HTML_MAX_BYTES, 'text/html,application/xhtml+xml');
+        if (!$page['ok']) {
+            avesmapsErrorResponse(502, 'fetch_failed', 'Die Seite konnte nicht geladen werden (' . ($page['status'] ?: 'kein HTTP') . ').');
+        }
+
+        // 2. Find the preview. Resolved against the FINAL url, not the stored one -- a redirect moves the
+        //    base a relative og:image is relative to.
+        $imageUrl = avesmapsCitymapPickPreviewImage($page['body'], $page['final_url']);
+        if ($imageUrl === '') {
+            avesmapsErrorResponse(404, 'not_found', 'Auf der Seite ist kein Vorschaubild ausgezeichnet (og:image/twitter:image). Bitte eins hochladen.');
+        }
+
+        // 3. The IMAGE. THIS is the dangerous fetch: the URL was chosen by a page we do not control, so a
+        //    prepared page could point og:image at 169.254.169.254 or a LAN address and we would fetch it
+        //    obediently. It goes through the SAME guard -- guarding step 1 and not step 3 would be no
+        //    guard at all.
+        $image = avesmapsLinkCheckFetchBody($imageUrl, AVESMAPS_CITYMAP_IMAGE_MAX_BYTES, 'image/*');
+        if (!$image['ok'] || ($image['truncated'] ?? false)) {
+            avesmapsErrorResponse(502, 'fetch_failed', 'Das gefundene Bild konnte nicht geladen werden.');
+        }
+
+        // 4. Trust the BYTES, not the Content-Type header the remote server claimed.
+        $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($image['body']);
+        if (!isset(AVESMAPS_CITYMAP_IMAGE_TYPES[$mime])) {
+            avesmapsErrorResponse(415, 'unsupported_media_type', 'Das gefundene Bild ist kein PNG/JPG/WebP/GIF (' . $mime . ').');
+        }
+        $autoExt = AVESMAPS_CITYMAP_IMAGE_TYPES[$mime];
+
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            avesmapsErrorResponse(500, 'server_error', 'Upload-Verzeichnis nicht verfügbar.');
+        }
+        $bytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($image['body'], $autoExt, AVESMAPS_CITYMAP_THUMB_MAX_EDGE);
+        if ($bytes === '') {
+            $bytes = $image['body'];
+        }
+        $autoName = 'auto-' . bin2hex(random_bytes(8)) . '.' . $autoExt;
+        $autoTarget = $dir . '/' . $autoName;
+        if (@file_put_contents($autoTarget, $bytes) === false) {
+            avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
+        }
+        @chmod($autoTarget, 0644);
+
+        $autoUrl = AVESMAPS_CITYMAP_UPLOAD_DIR . '/' . $safeId . '/' . $autoName;
+        // The file being replaced is the PREVIOUS AUTO preview -- a different column from $previousUrl
+        // (which holds thumb_local_url, the editor's own upload). Read it BEFORE the write, or there is
+        // nothing left to clean up.
+        $priorAuto = $pdo->prepare('SELECT thumb_auto_url FROM citymap WHERE public_id = :pid LIMIT 1');
+        $priorAuto->execute(['pid' => $publicId]);
+        $previousAutoUrl = (string) ($priorAuto->fetchColumn() ?: '');
+
+        // Slot 'thumb_auto' -> thumb_auto_url, which api/app/citymaps.php never selects. The picture stays
+        // inside the editor because it is somebody else's (owner decision 2026-07-16).
+        $result = avesmapsSetCitymapImage($pdo, $publicId, 'thumb_auto', $autoUrl);
+        $unlinkPrevious($previousAutoUrl, $dir, $autoUrl);
+
+        avesmapsJsonResponse(200, ['ok' => true] + $result + ['source' => $imageUrl]);
+    }
+
     // --------------------------------------------------------------------- UPLOAD ---
+    if ($slot === 'thumb_auto') {
+        avesmapsErrorResponse(400, 'invalid_request', 'In den Autoget-Slot kann nicht hochgeladen werden — er wird nur vom Crawler gefüllt.');
+    }
     if (!$hasFile || !is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
         avesmapsErrorResponse(400, 'invalid_request', 'Keine Datei empfangen.');
     }

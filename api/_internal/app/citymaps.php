@@ -130,6 +130,27 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             PRIMARY KEY (citymap_id, related_citymap_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // Self-healing column-add (project idiom). NOT folded into the CREATE above: `citymap` already exists
+    // in production, where CREATE TABLE IF NOT EXISTS is a no-op -- an added column only ever arrives
+    // through a probe like this one, and keeping it out of the CREATE keeps one source of truth.
+    $columnExists = static function (PDO $pdo, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'citymap' AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    // thumb_auto_url: the "Autoget" preview, crawled off the map's own page. EDITOR-ONLY, BY CONSTRUCTION
+    // (owner decision): it is a third party's image and we hold no licence for it, so it exists purely so
+    // an editor can recognise the map in the list. It gets its own column rather than a flag on
+    // thumb_local_url precisely so the public read cannot leak it by forgetting a check -- there is no
+    // check. avesmapsCitymapsReadCatalog simply never selects it, the same way *_license_note never
+    // leaves the editor. If it ever needs to become public, that must be a deliberate new column, not a
+    // one-character edit to a boolean.
+    if (!$columnExists($pdo, 'thumb_auto_url')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN thumb_auto_url VARCHAR(500) NULL');
+    }
 }
 
 function avesmapsCitymapsCount(PDO $pdo): int
@@ -221,6 +242,109 @@ function avesmapsCitymapLinks(array $row): array
     return $links;
 }
 
+// ---- Autoget: find a preview on the map's own page ---------------------------------------------------
+// PURE (no PDO, no HTTP) -> unit-tested in __tests__/citymap-autoget-test.php. The fetching, and the SSRF
+// guard around it, live in api/edit/map/citymap-image.php + avesmapsLinkCheckFetchBody.
+//
+// This REVERSES the spec: §3.3/§6 said "kein serverseitiger Bild-Fetch, SSRF-Risiko ohne Gegenwert".
+// Owner decision 2026-07-16 -- the value is real (a preview without hand-work) and the risk is now
+// covered by the linkcheck guard, which did not exist when that line was written. The result is
+// EDITOR-ONLY (thumb_auto_url), so we crawl a picture we never publish.
+
+// Resolve a possibly-relative URL against the page it came from. Returns '' for anything that is not
+// plain http(s) afterwards -- data:, javascript:, mailto: and friends have no business here, and this is
+// the last place before the URL is handed to a fetcher.
+function avesmapsCitymapResolveUrl(string $candidate, string $baseUrl): string
+{
+    $candidate = trim($candidate);
+    if ($candidate === '') {
+        return '';
+    }
+    $base = parse_url($baseUrl);
+    $baseScheme = strtolower((string) ($base['scheme'] ?? 'https'));
+    $baseHost = (string) ($base['host'] ?? '');
+    if ($baseHost === '') {
+        return '';
+    }
+    $basePort = isset($base['port']) ? ':' . (int) $base['port'] : '';
+
+    if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $candidate)) {
+        // Already absolute with a scheme -- keep only http/https.
+        $scheme = strtolower((string) (parse_url($candidate, PHP_URL_SCHEME) ?: ''));
+        return ($scheme === 'http' || $scheme === 'https') ? $candidate : '';
+    }
+    if (str_starts_with($candidate, '//')) {
+        return $baseScheme . ':' . $candidate; // protocol-relative
+    }
+    if (str_starts_with($candidate, '/')) {
+        return $baseScheme . '://' . $baseHost . $basePort . $candidate;
+    }
+    // Document-relative: hang it off the base path's directory.
+    $basePath = (string) ($base['path'] ?? '/');
+    $dir = substr($basePath, 0, (int) strrpos($basePath, '/') + 1);
+    if ($dir === '') {
+        $dir = '/';
+    }
+    return $baseScheme . '://' . $baseHost . $basePort . $dir . $candidate;
+}
+
+// Pick the preview image out of a page's HTML, in the order publishers actually maintain them:
+// og:image (the one every shop sets for social sharing) -> twitter:image -> link rel=image_src (legacy).
+// Returns an absolute http(s) URL, or '' when the page offers none -- which is a normal answer, not an
+// error: plenty of pages have no preview and the editor then uploads one.
+//
+// Regex rather than DOMDocument on purpose: we want the <meta> tags and nothing else, on input that is
+// frequently malformed, and a parser would happily follow it into places we do not need to go.
+function avesmapsCitymapPickPreviewImage(string $html, string $baseUrl): string
+{
+    if ($html === '') {
+        return '';
+    }
+    // og:/twitter: use `property`, some CMSes use `name` for both -> accept either.
+    $wanted = ['og:image', 'og:image:url', 'og:image:secure_url', 'twitter:image', 'twitter:image:src'];
+    $found = [];
+    if (preg_match_all('/<meta\b[^>]*>/i', $html, $metas)) {
+        foreach ($metas[0] as $meta) {
+            if (!preg_match('/\b(?:property|name)\s*=\s*["\']([^"\']+)["\']/i', $meta, $keyMatch)) {
+                continue;
+            }
+            $key = strtolower(trim($keyMatch[1]));
+            if (!in_array($key, $wanted, true) || isset($found[$key])) {
+                continue;
+            }
+            if (preg_match('/\bcontent\s*=\s*["\']([^"\']*)["\']/i', $meta, $valueMatch)) {
+                $value = html_entity_decode(trim($valueMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                if ($value !== '') {
+                    $found[$key] = $value;
+                }
+            }
+        }
+    }
+    foreach ($wanted as $key) {
+        if (isset($found[$key])) {
+            $resolved = avesmapsCitymapResolveUrl($found[$key], $baseUrl);
+            if ($resolved !== '') {
+                return $resolved;
+            }
+        }
+    }
+    // Legacy fallback: <link rel="image_src" href="...">
+    if (preg_match_all('/<link\b[^>]*>/i', $html, $links)) {
+        foreach ($links[0] as $link) {
+            if (!preg_match('/\brel\s*=\s*["\']?image_src["\']?/i', $link)) {
+                continue;
+            }
+            if (preg_match('/\bhref\s*=\s*["\']([^"\']*)["\']/i', $link, $hrefMatch)) {
+                $resolved = avesmapsCitymapResolveUrl(html_entity_decode(trim($hrefMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'), $baseUrl);
+                if ($resolved !== '') {
+                    return $resolved;
+                }
+            }
+        }
+    }
+    return '';
+}
+
 // ---- the public image gate (Spec §3.3) ----------------------------------------------------------------
 // Filtered SERVER-side (pattern: map-features.php:276), not blanked in the client like the adventure
 // covers: what may not go out does not leave the box.
@@ -252,6 +376,20 @@ function avesmapsCitymapPublicMapLocalUrl(array $row): string
         return '';
     }
     return trim((string) ($row['map_local_url'] ?? ''));
+}
+
+// The preview the EDITOR sees -- ungated (it is the surface that classifies licences) and including the
+// Autoget crawl. Never call this from the public read: thumb_auto_url is a third party's image we hold no
+// licence for. The public counterpart is avesmapsCitymapPublicThumbUrl, which does not know it exists.
+function avesmapsCitymapEditorThumbUrl(array $row): string
+{
+    foreach (['thumb_local_url', 'thumb_auto_url', 'thumb_url'] as $field) {
+        $value = trim((string) ($row[$field] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+    }
+    return '';
 }
 
 // ---- public catalog read (Spec §3.5) ------------------------------------------------------------------
@@ -424,7 +562,7 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
     avesmapsCitymapsEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_local_url, map_license,
-                thumb_url, thumb_local_url, thumb_license, art, is_official, is_spoiler,
+                thumb_url, thumb_local_url, thumb_auto_url, thumb_license, art, is_official, is_spoiler,
                 valid_from_bf, valid_to_bf, status, origin
            FROM citymap
           ORDER BY title ASC"
@@ -451,15 +589,14 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
     foreach ($rows as $row) {
         $id = (int) $row['id'];
         // The editor sees the images regardless of licence (it is the surface that classifies them);
-        // only the public read gates. Same rule as the adventure covers.
+        // only the public read gates. Same rule as the adventure covers. The Autoget preview ranks last:
+        // it is the fallback that exists so an unclassified map is still recognisable in this list.
         $citymaps[] = [
             'public_id' => (string) $row['public_id'],
             'title' => (string) $row['title'],
             'map_url' => (string) $row['map_url'],
             'map_local_url' => (string) ($row['map_local_url'] ?? ''),
-            'thumb' => trim((string) ($row['thumb_local_url'] ?? '')) !== ''
-                ? (string) $row['thumb_local_url']
-                : (string) ($row['thumb_url'] ?? ''),
+            'thumb' => avesmapsCitymapEditorThumbUrl($row),
             'art' => (string) ($row['art'] ?? ''),
             'types' => $typesByCitymap[$id] ?? [],
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
@@ -538,6 +675,9 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'map_license_note' => (string) ($row['map_license_note'] ?? ''),
             'thumb_url' => (string) ($row['thumb_url'] ?? ''),
             'thumb_local_url' => (string) ($row['thumb_local_url'] ?? ''),
+            // Editor-only (see avesmapsCitymapsEnsureTables): the Autoget crawl. Reaches this payload
+            // because the editor must show + manage it; never reaches api/app/citymaps.php.
+            'thumb_auto_url' => (string) ($row['thumb_auto_url'] ?? ''),
             'thumb_license' => (string) $row['thumb_license'],
             'thumb_license_note' => (string) ($row['thumb_license_note'] ?? ''),
             'art' => (string) ($row['art'] ?? ''),
@@ -964,12 +1104,14 @@ function avesmapsResolveCitymapPlace(PDO $pdo, int $placeId): array
 function avesmapsSetCitymapImage(PDO $pdo, string $publicId, string $slot, ?string $url, ?int $width = null, ?int $height = null): array
 {
     avesmapsCitymapsEnsureTables($pdo);
-    if ($slot !== 'thumb' && $slot !== 'map') {
+    // 'thumb_auto' is the Autoget slot -> thumb_auto_url, which the public read never selects.
+    $columns = ['thumb' => 'thumb_local_url', 'map' => 'map_local_url', 'thumb_auto' => 'thumb_auto_url'];
+    if (!isset($columns[$slot])) {
         throw new InvalidArgumentException('Unbekannter Slot: ' . $slot);
     }
     avesmapsCitymapIdByPublicId($pdo, $publicId); // 404 if unknown
 
-    $column = $slot === 'thumb' ? 'thumb_local_url' : 'map_local_url';
+    $column = $columns[$slot];
     $setClauses = [$column . ' = :url'];
     $params = ['url' => ($url === null || $url === '') ? null : $url, 'pid' => $publicId];
     if ($slot === 'map' && $width !== null && $height !== null && $width > 0 && $height > 0) {

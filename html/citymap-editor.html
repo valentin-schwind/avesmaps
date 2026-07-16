@@ -194,28 +194,43 @@
      collapsing unknown into "no" is exactly the claim §3.1 forbids. */
   .ce-tri { flex: 0 0 130px; }
 
-  .ce-img { display: flex; gap: var(--space-12); margin-bottom: var(--space-8); }
-  .ce-img__preview {
-    flex: 0 0 auto;
+  /* Vorschaubild + Karte nebeneinander, Eigenschaften jeweils darunter (Owner-Layout 2026-07-16).
+     auto-fit statt fester 2 Spalten: unter ~260px je Spalte stapeln sie von selbst, statt die Selects
+     unlesbar zu quetschen. */
+  .ce-imgcols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-12);
+    margin-bottom: var(--space-16);
+  }
+  .ce-imgcol {
+    min-width: 0;
+    padding: var(--space-10);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-panel);
+  }
+  .ce-imgcol__preview {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 140px;
-    height: 100px;
+    height: 110px;
     overflow: hidden;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-panel-muted);
     color: var(--color-text-muted);
   }
-  .ce-img__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
-  .ce-img__side { flex: 1 1 auto; min-width: 0; }
-  .ce-img__url {
-    margin: var(--space-4) 0;
-    font-size: 11px;
-    color: var(--color-text-muted);
-    overflow-wrap: anywhere;
+  .ce-imgcol__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .ce-imgcol__origin { margin: var(--space-6) 0 0; }
+  /* Der Trenner, der "Eigenschaften darunter" trägt -- eine Linie, nicht noch ein Kasten. */
+  .ce-imgcol__props {
+    margin-top: var(--space-8);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-divider);
   }
+  /* In der schmalen Spalte braucht das Label weniger Platz als im Formular darunter. */
+  .ce-imgcol__props .ce-row__label { flex: 0 0 88px; }
   .ce-img__btns { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-6); }
   .ce-img__state { margin-top: var(--space-4); font-size: 11px; color: var(--color-text-muted); }
   .ce-img__state.error { color: var(--color-danger); }
@@ -250,6 +265,8 @@
   }
   .pill--kind { border-color: var(--color-accent); color: var(--color-accent-strong); }
   .pill--manual { border-color: var(--color-border-strong); }
+  /* Autoget = fremdes Bildmaterial, nur intern -> Warnfarbe, damit es sich nie wie ein eigener Upload liest. */
+  .pill--auto { border-color: var(--color-warning); color: var(--color-warning); }
   .pill--community { border-color: var(--color-accent); color: var(--color-accent-strong); }
   .pill--unresolved { border-color: var(--color-warning); color: var(--color-warning); }
   .pill--nowiki { border-color: var(--color-border); }
@@ -514,35 +531,58 @@
       </select></div>`;
   }
 
-  // The image block for ONE slot. The upload control appears only for a FREE licence (§3.3) — and it
-  // gates on the SAVED licence, not on whatever the select currently shows: uploading against an unsaved
-  // choice would store a file the server then hides, which looks like a broken upload.
+  // One image COLUMN: preview + actions on top, properties below a divider (owner layout, 2026-07-16).
+  // The two columns sit side by side in .ce-imgcols and stack below ~260px.
+  //
+  // The upload control appears only for a FREE licence (§3.3) — and it gates on the SAVED licence, not on
+  // whatever the select currently shows: uploading against an unsaved choice would store a file the server
+  // then hides, which looks like a broken upload.
   function ceImageGroup(slot, title, v) {
-    const licenseField = slot === "thumb" ? "thumb_license" : "map_license";
-    const noteField = slot === "thumb" ? "thumb_license_note" : "map_license_note";
-    const localUrl = (slot === "thumb" ? v.thumb_local_url : v.map_local_url) || "";
+    const isThumb = slot === "thumb";
+    const licenseField = isThumb ? "thumb_license" : "map_license";
+    const noteField = isThumb ? "thumb_license_note" : "map_license_note";
+    const localUrl = (isThumb ? v.thumb_local_url : v.map_local_url) || "";
+    // The Autoget crawl is EDITOR-ONLY (owner decision): it stands in as the preview here so an
+    // unclassified map is recognisable, but api/app/citymaps.php never selects it. Our own upload wins.
+    const autoUrl = isThumb ? (v.thumb_auto_url || "") : "";
+    const shownUrl = localUrl || autoUrl;
+    const isAuto = !localUrl && !!autoUrl;
     const savedLicense = v[licenseField] || "unknown_other";
     const free = licenseIsFree(savedLicense);
-    const preview = localUrl
-      ? `<img src="${ceEscape(localUrl)}" alt="" onerror="this.replaceWith(document.createTextNode(''))">`
+    const savedLicenseLabel = (LICENSES.find((l) => l.value === savedLicense) || {}).label || savedLicense;
+
+    const preview = shownUrl
+      ? `<img src="${ceEscape(shownUrl)}" alt="" onerror="this.replaceWith(document.createTextNode(''))">`
       : CE_THUMB_PH_SVG;
     const uploadBtn = free
-      ? `<label class="btn btn--sm" for="ceFile_${slot}" style="cursor:pointer">Bild hochladen…</label>
+      ? `<label class="btn btn--sm" for="ceFile_${slot}" style="cursor:pointer">Hochladen…</label>
          <input type="file" id="ceFile_${slot}" accept="image/png,image/jpeg,image/webp,image/gif" hidden>`
-      : `<span class="ce-warn">Upload erst bei freier Lizenz (aktuell: ${ceEscape((LICENSES.find((l) => l.value === savedLicense) || {}).label || savedLicense)}).</span>`;
-    const deleteBtn = localUrl ? `<button type="button" class="btn btn--sm btn--danger" data-ce-img-delete="${slot}">Bild entfernen</button>` : "";
-    return `<div class="ce-grp"><p class="ce-grp__title">${ceEscape(title)}</p>
-      <div class="ce-img">
-        <div class="ce-img__preview">${preview}</div>
-        <div class="ce-img__side">
-          <div class="ce-img__url">${localUrl ? ceEscape(localUrl) : "kein eigenes Bild"}</div>
-          <div class="ce-img__btns">${uploadBtn}${deleteBtn}</div>
-          <div class="ce-img__state" id="ceImgState_${slot}"></div>
-        </div>
+      : "";
+    // Autoget needs a page to crawl; without a Karten-Link there is nothing to look at.
+    const autoBtn = isThumb
+      ? `<button type="button" class="btn btn--sm" data-ce-autoget="1"${v.map_url ? "" : " disabled"} title="Sucht auf der Seite des Karten-Links ein Vorschaubild (og:image). Bleibt im Editor — es ist fremdes Bildmaterial und erscheint nie öffentlich.">⤓ Autoget</button>`
+      : "";
+    const deleteBtn = localUrl
+      ? `<button type="button" class="btn btn--sm btn--danger" data-ce-img-delete="${slot}">Entfernen</button>`
+      : (isAuto ? `<button type="button" class="btn btn--sm btn--danger" data-ce-img-delete="thumb_auto">Entfernen</button>` : "");
+
+    const originLine = isAuto
+      ? `<span class="pill pill--auto" title="Von der Karten-Link-Seite geholt. Verlässt den Editor nie.">Autoget · nur intern</span>`
+      : (localUrl ? `<span class="pill pill--manual">eigener Upload</span>` : `<span class="ce-hint">kein eigenes Bild</span>`);
+
+    return `<div class="ce-imgcol"><p class="ce-grp__title">${ceEscape(title)}</p>
+      <div class="ce-imgcol__preview">${preview}</div>
+      <div class="ce-imgcol__origin">${originLine}</div>
+      <div class="ce-img__btns">${autoBtn}${uploadBtn}${deleteBtn}</div>
+      <div class="ce-img__state" id="ceImgState_${slot}"></div>
+      <div class="ce-imgcol__props">
+        ${ceSelect("Lizenz", licenseField, savedLicense, LICENSES.map((l) => [l.value, l.label]), "—")}
+        ${ceField("Notiz (intern)", noteField, v[noteField])}
+        ${free ? "" : `<p class="ce-warn">Upload erst bei freier Lizenz (aktuell: ${ceEscape(savedLicenseLabel)}). Lizenz setzen und speichern.</p>`}
+        <p class="ce-hint">${isThumb
+          ? "Die Notiz verlässt den Editor nie. Nur eine freie Lizenz zeigt die Vorschau öffentlich."
+          : "Der externe Karten-Link wird immer angezeigt — nur das eigene Bild hängt an der Lizenz."}</p>
       </div>
-      ${ceSelect("Lizenz", licenseField, savedLicense, LICENSES.map((l) => [l.value, l.label]), "—")}
-      ${ceField("Lizenz-Notiz (intern)", noteField, v[noteField])}
-      <p class="ce-hint">Die Notiz verlässt den Editor nie. Nur eine freie Lizenz gibt das Bild öffentlich frei — der externe Link wird immer angezeigt.</p>
     </div>`;
   }
 
@@ -567,8 +607,7 @@
       .filter((c) => c.public_id !== v.public_id)
       .map((c) => [c.public_id, c.title]);
     body.innerHTML =
-      ceImageGroup("thumb", "Vorschaubild", v) +
-      ceImageGroup("map", "Karte (eigenes Bild)", v) +
+      `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
       `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
         ${ceField("Titel *", "title", v.title)}
         ${ceField("Karten-Link (extern) *", "map_url", v.map_url)}
@@ -690,7 +729,10 @@
 
   async function deleteImage(slot) {
     if (!state.selectedId) return;
-    imgState(slot, "Wird entfernt …", false);
+    // The Autoget preview lives in its own column, so it deletes under its own slot -- the status line is
+    // still the thumb's, that is the box the editor is looking at.
+    const stateSlot = slot === "thumb_auto" ? "thumb" : slot;
+    imgState(stateSlot, "Wird entfernt …", false);
     try {
       const fd = new FormData();
       fd.append("public_id", state.selectedId);
@@ -699,7 +741,27 @@
       await imagePost(fd);
       await selectCitymap(state.selectedId);
     } catch (e) {
-      imgState(slot, "Fehler: " + e.message, true);
+      imgState(stateSlot, "Fehler: " + e.message, true);
+    }
+  }
+
+  // Autoget: the server crawls the map's own page (map_url, read from the DB — never sent from here) for
+  // an og:image and stores it as the EDITOR-ONLY preview. It is somebody else's picture, so it never
+  // reaches the public payload regardless of the licence set here.
+  async function autogetThumb() {
+    if (!state.selectedId) { imgState("thumb", "Bitte zuerst die Karte speichern.", true); return; }
+    imgState("thumb", "Sucht ein Vorschaubild auf der Karten-Seite …", false);
+    try {
+      const fd = new FormData();
+      fd.append("public_id", state.selectedId);
+      fd.append("slot", "thumb");
+      fd.append("mode", "autoget");
+      const payload = await imagePost(fd);
+      await selectCitymap(state.selectedId);
+      // selectCitymap re-rendered the body, so the status node is a new one -> set it afterwards.
+      imgState("thumb", payload.source ? "Gefunden: " + payload.source : "Vorschaubild geholt.", false);
+    } catch (e) {
+      imgState("thumb", "Fehler: " + e.message, true);
     }
   }
 
@@ -910,7 +972,9 @@
 
   document.getElementById("ceStammBody").addEventListener("click", (e) => {
     const del = e.target.closest("[data-ce-img-delete]");
-    if (del) deleteImage(del.getAttribute("data-ce-img-delete"));
+    if (del) { deleteImage(del.getAttribute("data-ce-img-delete")); return; }
+    const auto = e.target.closest("[data-ce-autoget]");
+    if (auto && !auto.disabled) autogetThumb();
   });
 
   document.getElementById("ceOrteBody").addEventListener("click", async (e) => {
