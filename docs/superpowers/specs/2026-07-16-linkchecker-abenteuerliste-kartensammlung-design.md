@@ -285,7 +285,9 @@ Regeln:
 - `map_local_url` / `thumb_local_url` — nur ausgeliefert, wenn die **jeweilige** Lizenz in `LICENSES_FREE` ist. Sonst `unset`.
 - Der Upload-Button erscheint im Editor **nur**, wenn die jeweilige Lizenz in `LICENSES_FREE` ist.
 - `*_license_note` verlässt den Editor nie.
-- **Kein serverseitiges Nachziehen externer Bilder.** Das „neu ziehen" der Abenteuer-Cover funktioniert nur, weil die Quell-URL aus dem Wiki-Dateinamen *abgeleitet* wird und nie vom Client kommt. Eine beliebige externe Karten-URL abzurufen wäre SSRF. Upload only.
+- ~~**Kein serverseitiges Nachziehen externer Bilder.**~~ **REVIDIERT 2026-07-16 (Owner), umgesetzt:** es gibt „**Autoget**". Der Server crawlt die Seite hinter `map_url` nach `og:image`/`twitter:image`/`link[rel=image_src]` und legt den Fund als Vorschau ab. Die ursprüngliche Begründung („SSRF-Risiko ohne Gegenwert") galt, als es keinen SSRF-Riegel gab; Aufgabe A hat ihn inzwischen gebaut und getestet. **Beide** Abrufe (Seite UND das von der Seite genannte Bild) laufen durch `avesmapsLinkCheckFetchBody` — Schema-Whitelist, Host-Klassifikation, begrenzte http(s)-Redirects, Post-Flight-`PRIMARY_IP`-Prüfung. Den zweiten Abruf ungeprüft zu lassen wäre gar kein Riegel: die Bild-URL wählt eine fremde Seite. Die Quell-URL kommt **aus der DB**, nie aus dem Request.
+- **Autoget-Ergebnis ist editor-only, per Konstruktion** (Owner-Entscheidung): es ist fremdes Bildmaterial ohne Lizenz. Eigene Spalte `thumb_auto_url`, die `api/app/citymaps.php` schlicht nie selektiert — kein Flag, das man vergessen kann. Auch eine *freie* Lizenz gibt es nicht frei (Test). In den Autoget-Slot kann man nicht hochladen.
+- **Kein serverseitiger Fetch für die MAP.** Nur die Vorschau wird gecrawlt; die eigentliche Karte bleibt Upload only.
 - Gefiltert wird **serverseitig** (Muster `map-features.php:276`), nicht clientseitig geblankt wie bei den Abenteuer-Covern. Was nicht raus darf, verlässt die Box nicht.
 
 Kill-Switch `citymaps_enabled` über die generischen `avesmapsAppSettingGet/Set` (`api/_internal/app/adventures.php:129`) — nicht die handgeklöppelte Siedlungs-Variante duplizieren.
@@ -305,7 +307,9 @@ Ziel: `/uploads/kartensammlungen/<safeId>/`. Thumb → längste Kante 400px. Kar
 
 ### 3.6 Editor
 
-`html/citymap-editor.html`, self-contained nach dem Vorbild `html/adventure-editor.html` (Inline-CSS/JS, Token-Alias-Block, Theme-Bootstrap, `?v=Date.now()` → **kein ASSET_VERSION-Bump nötig**).
+`html/citymap-editor.html`, self-contained nach dem Vorbild `html/adventure-editor.html` (Inline-CSS/JS, Theme-Bootstrap, `?v=Date.now()` → **kein ASSET_VERSION-Bump nötig**).
+**Korrektur beim Bauen:** dieser Absatz forderte ursprünglich zusätzlich einen „Token-Alias-Block" — den gibt es im `adventure-editor.html` gar nicht, er wurde dort bewusst abgeschafft (die Seite bindet `tokens.css` direkt ein und nutzt `var(--color-*)`). Der Alias-Block ist das *alte* Muster aus `wiki-sync-settlement-editor.html`. Gebaut wurde nach dem echten Vorbild, ohne Alias-Block.
+**Bild-Bereich (Owner 2026-07-16):** Vorschaubild und Karte stehen **nebeneinander in zwei Spalten**, Eigenschaften (Lizenz, Notiz) jeweils unter einem Trenner darunter. Beim Vorschaubild zusätzlich **„Autoget"** (§3.3).
 Geöffnet über `#citymaps-editor-open`, Button **„Kartensammlung editieren"** im WikiSync-Reiter „Abenteuer", als neuer `.wiki-sync-panel__actions`-Block **unter** `.wiki-sync-adv-picker` (`index.html`, nach dem schließenden `</div>` der Picker-Karte). Verdrahtung neben `js/app/bootstrap.js:277`.
 Die Kartenliste im Editor: gleiche Größe/Optik wie die Abenteuerliste (`.wiki-sync-adv-picker`, `css/features/review-panel.css:497`), Doppelklick öffnet die Karte.
 
@@ -420,7 +424,7 @@ Owner-Regel: **eine** Linie pro Sektion, randlos von Rand zu Rand (negative Seit
 ## 6. Was bewusst NICHT gebaut wird
 
 - **Kein Wiki-Sync für Karten.** Karten sind kuratiert + Community, kein Dump-Import. (Später möglich, das `origin`-Feld ist da.)
-- **Kein serverseitiger Bild-Fetch für Karten.** SSRF-Risiko ohne Gegenwert — der Editor lädt hoch.
+- ~~**Kein serverseitiger Bild-Fetch für Karten.**~~ **REVIDIERT 2026-07-16 (Owner)** — siehe §3.3: „Autoget" crawlt die Vorschau von der Karten-Seite, durch den Linkcheck-SSRF-Riegel, und das Ergebnis bleibt editor-only. Die eigentliche Karte bleibt Upload only.
 - **Kein Cron.** Siehe 1.1.
 - **Kein Link-Status im `map-features`-Payload.** Ein Statuswechsel würde `avesmapsNextMapRevision()` erzwingen und damit die **komplette 14-MB-Nutzlast** für **alle** Clients invalidieren. Der Linkstatus reist ausschließlich in `adventures.php` / `citymaps.php` / `link-status.php`.
 - **Kein `mirror --delete` beim Deploy.** Wie immer.
