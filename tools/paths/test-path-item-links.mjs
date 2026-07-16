@@ -51,10 +51,12 @@ const realHelpers = [
 
 // A fresh context per case -- the index memoizes on array lengths, so reusing one context across fixtures
 // could serve a stale index.
-function makeSandbox(locationMarkers, locationData) {
+function makeSandbox(locationMarkers, locationData, pathData = [], labelMarkers = []) {
 	const sandbox = {
 		locationMarkers,
 		locationData,
+		pathData,
+		labelMarkers,
 		isCrossingLocation: (location) => String(location?.name || "").startsWith("Kreuzung"),
 		normalizePathSubtype: (value) => value,
 	};
@@ -90,14 +92,28 @@ const locations = [
 	},
 	{ political: null },
 ];
-const box = makeSandbox(markers, locations);
+// A way's course legitimately names OTHER WAYS (junctions) and LANDSCAPES, not just settlements -- on
+// production that is the difference between 57% and 88% of stations resolving.
+const ways = [
+	{ properties: { feature_subtype: "Reichsstrasse", wiki_path: { name: "Reichsstraße 1", wiki_url: `${WIKI}Reichsstraße_1` } } },
+	// Same way, second segment: must not produce a second/other index entry.
+	{ properties: { feature_subtype: "Reichsstrasse", wiki_path: { name: "Reichsstraße 1", wiki_url: `${WIKI}Reichsstraße_1` } } },
+	// Not wiki-linked -> not an object we link to (Spotlight policy, Owner 2026-07-05).
+	{ properties: { feature_subtype: "Strasse", display_name: "Knüppeldamm", wiki_path: null } },
+];
+const labels = [
+	{ label: { text: "Trollzacken", publicId: "lbl-trollzacken" } },
+	{ label: { text: "Ohne Id", publicId: "" } },
+];
+const box = makeSandbox(markers, locations, ways, labels);
 
 // --- Verlauf ---------------------------------------------------------------------------------------------
 
 // Plain hit through the wiki_url channel.
 const verlauf = box.linkifyPathVerlauf("Elenvina → Zinnen am Ratsforst → Nirgendwo");
-assert.ok(verlauf.includes('data-station-public-id="loc-elenvina"'), "Elenvina resolves via wiki_url");
-assert.ok(verlauf.includes('data-station-public-id="loc-zinnen"'), "multi-word station resolves");
+assert.ok(verlauf.includes('data-station-ref="loc-elenvina"'), "Elenvina resolves via wiki_url");
+assert.ok(verlauf.includes('data-station-kind="location"'), "a settlement station is kind location");
+assert.ok(verlauf.includes('data-station-ref="loc-zinnen"'), "multi-word station resolves");
 assert.ok(verlauf.includes("class=\"location-popup__station-link\""), "station uses its own hook class");
 // NOT the political class: that one carries a delegated handler aiming at territories.
 assert.ok(!verlauf.includes("location-popup__political-link"), "station link must not fall into the political handler");
@@ -111,7 +127,7 @@ assert.strictEqual((verlauf.match(/ → /g) || []).length, 2, "both separators k
 
 // The piped-link rescue: the wiki_url channel cannot match "Lyngwyn", the name channel does.
 const lyngwyn = box.linkifyPathVerlauf("Lyngwyn");
-assert.ok(lyngwyn.includes('data-station-public-id="loc-lyngwyn"'), "piped-link label resolves via the name channel");
+assert.ok(lyngwyn.includes('data-station-ref="loc-lyngwyn"'), "piped-link label resolves via the name channel");
 assert.ok(lyngwyn.includes(">Lyngwyn<"), "the wiki's own token stays the visible text");
 
 // Dead-link guards.
@@ -128,6 +144,36 @@ const escaped = nasty.linkifyPathVerlauf("<img src=x onerror=alert(1)>");
 assert.ok(!escaped.includes("<img"), "station token is escaped");
 assert.ok(escaped.includes("&lt;img"), "station token is escaped, not dropped");
 assert.ok(!escaped.includes('id="x"><b>'), "publicId is escaped inside the attribute");
+
+// --- Stations that are NOT settlements ---------------------------------------------------------------------
+
+// A junction to another road. ref is the WAY-IDENTITY key (not a publicId): focusWholeWikiDeeplinkPath marks
+// the whole way, and its name channel compares a segment's RAW name, which is not the wiki name -- so the
+// wiki_url key is the only reliable ref.
+const junction = box.linkifyPathVerlauf("Reichsstraße 1");
+assert.ok(junction.includes('data-station-kind="path"'), "a way station is kind path");
+assert.ok(junction.includes('data-station-ref="reichsstrasse1"'), "a way station refs the wiki_url key, not a publicId");
+// Number-sensitivity is the whole point of that key: "Reichsstraße 1" must never collect "Reichsstraße 2".
+assert.ok(!box.linkifyPathVerlauf("Reichsstraße 2").includes("<button"), "a like-named way with another number does not resolve");
+
+// A landscape.
+const landscape = box.linkifyPathVerlauf("Trollzacken");
+assert.ok(landscape.includes('data-station-kind="label"'), "a landscape station is kind label");
+assert.ok(landscape.includes('data-station-ref="lbl-trollzacken"'), "a label station refs its publicId");
+assert.ok(!box.linkifyPathVerlauf("Ohne Id").includes("<button"), "a label without publicId is never linked");
+
+// Spotlight policy (Owner 2026-07-05): a way without a wiki_path is not a linkable object -- its generic
+// name is no identity. Only 15 of 2946 production stations would be gained by relaxing this.
+assert.ok(!box.linkifyPathVerlauf("Knüppeldamm").includes("<button"), "a way without a wiki_path is not linked");
+
+// Precedence: a station is primarily a place, so a settlement beats a like-named way/landscape.
+const clash = makeSandbox(
+	[{ publicId: "loc-x", name: "Doppelname", location: { name: "Doppelname", wikiUrl: "" } }],
+	[],
+	[{ properties: { feature_subtype: "Strasse", wiki_path: { name: "Doppelname", wiki_url: `${WIKI}Doppelname` } } }],
+	[{ label: { text: "Doppelname", publicId: "lbl-x" } }]
+);
+assert.ok(clash.linkifyPathVerlauf("Doppelname").includes('data-station-kind="location"'), "settlement wins over a like-named way and label");
 
 // --- Lage ------------------------------------------------------------------------------------------------
 
@@ -152,7 +198,7 @@ assert.ok(!box.linkifyPathLage("Ohne Id").includes("<button"), "territory withou
 // "Perricum" is a territory in Lage AND a city in Verlauf. Same name, different objects, different targets.
 const perricumStation = box.linkifyPathVerlauf("Perricum");
 const perricumLage = box.linkifyPathLage("Perricum");
-assert.ok(perricumStation.includes('data-station-public-id="loc-perricum"'), "Perricum as a station is the city");
+assert.ok(perricumStation.includes('data-station-ref="loc-perricum"'), "Perricum as a station is the city");
 assert.ok(perricumLage.includes('data-political-public-id="terr-perricum"'), "Perricum in Lage is the territory");
 assert.ok(!perricumStation.includes("political"), "the station must not route to the territory handler");
 
@@ -164,7 +210,7 @@ const rivals = makeSandbox([
 	{ publicId: "loc-namensvetter", name: "Havena", location: { name: "Havena", wikiUrl: `${WIKI}Havena_(Dorf)` } },
 	{ publicId: "loc-echt", name: "Havena am Meer", location: { name: "Havena am Meer", wikiUrl: `${WIKI}Havena` } },
 ], []);
-assert.ok(rivals.linkifyPathVerlauf("Havena").includes('data-station-public-id="loc-echt"'), "wiki_url channel wins over the name channel");
+assert.ok(rivals.linkifyPathVerlauf("Havena").includes('data-station-ref="loc-echt"'), "wiki_url channel wins over the name channel");
 
 // --- Markup cache must not go stale ------------------------------------------------------------------------
 
@@ -175,11 +221,11 @@ const growing = makeSandbox(
 	[{ publicId: "loc-a", name: "Astadt", location: { name: "Astadt", wikiUrl: `${WIKI}Astadt` } }],
 	[]
 );
-assert.ok(!growing.linkifyPathVerlauf("Astadt → Bdorf").includes('data-station-public-id="loc-b"'), "Bdorf unknown at first");
+assert.ok(!growing.linkifyPathVerlauf("Astadt → Bdorf").includes('data-station-ref="loc-b"'), "Bdorf unknown at first");
 growing.locationMarkers.push({ publicId: "loc-b", name: "Bdorf", location: { name: "Bdorf", wikiUrl: `${WIKI}Bdorf` } });
 const afterGrowth = growing.linkifyPathVerlauf("Astadt → Bdorf");
-assert.ok(afterGrowth.includes('data-station-public-id="loc-b"'), "the same field re-linkifies once the data changed");
-assert.ok(afterGrowth.includes('data-station-public-id="loc-a"'), "and the previously resolved station survives");
+assert.ok(afterGrowth.includes('data-station-ref="loc-b"'), "the same field re-linkifies once the data changed");
+assert.ok(afterGrowth.includes('data-station-ref="loc-a"'), "and the previously resolved station survives");
 
 // --- Sea-route gate ---------------------------------------------------------------------------------------
 

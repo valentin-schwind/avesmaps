@@ -354,9 +354,15 @@ routeDataRequest
 		window.__featureSourceRefs = (data && data.feature_sources) || {};
 		prepareLocationData(data);
 		preparePowerlineData(data);
+		// LOAD-BEARING ORDER: labels BEFORE paths. preparePathData pre-builds every way popup
+		// (createPathLayer -> refreshPathLayerPopup), and a way's "Verlauf" links the landscapes it names
+		// ("Trollzacken", "Goldene Bucht") -- those are labelMarkers, and the index is built from them at that
+		// moment (map-features-path-item-links.js). Hydrating labels afterwards would leave every landscape
+		// unlinked in markup that is already cached. prepareLabelData only reads data.features + map, so it has
+		// no path dependency of its own.
+		prepareLabelData(data);
 		preparePathData(data);
 		prepareRegionData(data);
-		prepareLabelData(data);
 
 		// Standardmäßig ersten Waypoint hinzufügen
 		initializeWaypointSorting();
@@ -717,14 +723,15 @@ $(document).on("click", ".location-popup__political-link", function (event) {
 	}
 });
 
-// Resolved "Verlauf" station in a way's infobox (map-features-path-item-links.js): fly to the settlement and
-// open it. Sibling of the political link above -- same gold look, but its own handler because that one aims at
-// territories. The publicId was resolved when the markup was built, so this is a pure lookup: no request.
+// Resolved "Verlauf" station in a way's infobox (map-features-path-item-links.js): fly to whatever it names --
+// a settlement, another way (junction) or a landscape. Sibling of the political link above: same gold look, but
+// its own handler because that one aims at territories. kind+ref were resolved when the markup was built, so
+// this is a pure route: no lookup by name, no request.
 $(document).on("click", ".location-popup__station-link", function (event) {
 	event.preventDefault();
 	event.stopPropagation();
 	if (typeof focusPathItemStation === "function") {
-		focusPathItemStation(this.dataset.stationPublicId || "");
+		focusPathItemStation(this.dataset.stationKind || "", this.dataset.stationRef || "");
 	}
 });
 

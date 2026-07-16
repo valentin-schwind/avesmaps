@@ -104,13 +104,28 @@ Nötig, weil derselbe Name zwei Objekte sein kann: „Perricum" steht in *Lage* 
 Territorium **und** in *Verlauf* als Stadt. Die Lage-Zeile muss zum Gebiet
 führen, die Verlauf-Station zur Stadt.
 
-- **Ortsindex:** aus den Spotlight-Einträgen `kind === "location"` (Kreuzungen
-  sind dort bereits gefiltert). Liefert direkt den Eintrag, den
-  `selectSpotlightSearchEntry` frisst — **der Klick braucht keinen Request**.
+- **Item-Index** (`items`): alles, was eine Verlauf-Station sein kann, als
+  `key → {kind, ref}`. Aus `locationMarkers` (Orte, Kreuzungen raus), `pathData`
+  (nur **wiki-verlinkte** Wege) und `labelMarkers` (Landschaften).
+  Vorrang: **Ort > Weg > Label** — eine Station ist primär ein Ort, den man passiert.
 - **Territorienindex:** aus `locationData[].political.hierarchy[]` →
   `{name, territory_public_id}`.
 
-Beide memoisiert, Signatur analog `getSpotlightSearchEntryCacheSignature`.
+Beide memoisiert; die Signatur zählt **alle vier** Quell-Arrays (analog
+`getSpotlightSearchEntryCacheSignature`) — fehlt eine, bemerkt der Index ihr
+Eintreffen nie.
+
+**Warum Wege + Labels dazugehören (live gemessen 2026-07-17, 2.946 Stationen über
+320 Wege):** Orte allein lösen nur **57 %** auf. Ein Weg nennt in seinem Verlauf
+legitim **andere Wege** (Abzweigungen: „Reichsstraße 1", „Fürstenstraße"; Flüsse
+nennen Flüsse) und **Landschaften** („Trollzacken", „Goldene Bucht"). Von den
+1.277 Nicht-Treffern sind 664 wiki-verlinkte Wege und 265 Labels — beides haben
+wir. Mit ihnen: **88 %**; die restlichen ~11 % führen wir wirklich nicht.
+Reichsstraße 3 lag schon mit Orten allein bei 34/37.
+
+Wege **ohne** wiki_path bleiben außen vor (Spotlight-Policy, Owner 2026-07-05:
+ein Weg ohne Wiki-Artikel ist kein suchbares Objekt, sein generischer Name
+`Reichsstrasse-4903` keine Identität). Kostet nur 15 von 2.946 Stationen.
 
 ### 4.3 Splitting
 
@@ -126,10 +141,17 @@ Beide memoisiert, Signatur analog `getSpotlightSearchEntryCacheSignature`.
   und fallen in den **existierenden** Handler (routing.js:710) →
   `avesmapsFocusPoliticalTerritory(name, publicId)`. **Kein neuer Klick-Code.**
 - **Verlauf-Stationen** brauchen einen eigenen Handler, weil der politische auf
-  Gebiete zielt. Er löst über denselben Index neu auf (stateless, das
-  data-Attribut trägt nur den Namen) und gibt den Eintrag an
-  `selectSpotlightSearchEntry`. Optisch identisch: dieselbe CSS-Regel, zweite
-  Hook-Klasse.
+  Gebiete zielt. Das Markup trägt `kind` + `ref` (beim Rendern aufgelöst), der
+  Handler routet nur noch — keine Namensauflösung im Klick, kein Request.
+  Optisch identisch: dieselbe CSS-Regel, zweite Hook-Klasse.
+  - `location` / `label` → `getSpotlightSearchLookup().byPublicId` →
+    `selectSpotlightSearchEntry` (fliegt + öffnet Panel bzw. zoomt auf die Landschaft).
+  - `path` → `focusWholeWikiDeeplinkPath(key)` — markiert den **ganzen** Weg, wie
+    „Anzeigen". Eine Abzweigung zur „Reichsstraße 1" meint die Straße, nicht einen
+    Punkt darauf. `ref` ist hier **immer der wiki_url-Key**: der Namenskanal von
+    `focusWholeWikiDeeplinkPath` vergleicht den ROH-Namen eines Segments, nicht den
+    Wiki-Namen — nur die wiki_url ist exakte Weg-Identität (und zahlen-genau:
+    „Reichsstraße 1" sammelt nie „Reichsstraße 2" ein).
 
 ### 4.5 „Anzeigen"-Button
 
@@ -141,25 +163,55 @@ Beide memoisiert, Signatur analog `getSpotlightSearchEntryCacheSignature`.
 - Klick → `focusWholeWikiDeeplinkPath(wikiUrlToDeeplinkKey(wiki.wiki_url))`.
 - Gate wie „Link teilen": nur bei verlinktem Wiki-Artikel.
 
-## 5. Bewusste Grenzen
+## 5. Ladereihenfolge (tragend!)
+
+`prepareLabelData` läuft in `js/routing/routing.js` jetzt **vor**
+`preparePathData` (vorher zuletzt). Grund: `preparePathData` baut **jedes**
+Weg-Popup vorab (`createPathLayer` → `refreshPathLayerPopup`), und der Item-Index
+entsteht in diesem Moment. Wären die Labels noch nicht hydratisiert, bliebe jede
+Landschaft in bereits gecachtem Markup unverlinkt. `prepareLabelData` liest nur
+`data.features` + `map` (und `syncLabelVisibility` fasst weder `pathData` noch
+`regionPolygons` an) — es hat keine eigene Weg-Abhängigkeit. **Wer diese
+Reihenfolge ändert, bricht die Landschafts-Links lautlos.**
+
+## 6. Bewusste Grenzen
 
 - **Siedlungslose Gebiete** fehlen im Territorienindex — ein solches Gebiet in
   „Lage" bliebe Text, obwohl wir es hätten. Preis dafür, dass kein neuer Request
-  nötig ist. (Owner informiert.)
-- **Die Trefferquote ist nicht vorab gemessen** (Owner: „einfach bauen"). Fällt
-  sie unangenehm niedrig aus, ist der nächste Hebel der Re-Sync aus §3.2.
+  nötig ist. Live-Beispiel: „Nordmarken" (wir führen „**Herzogtum** Nordmarken";
+  `short_name` ist bei **0** Territorien gesetzt, taugt also nicht als Brücke).
+- **Namensvarianten sind nicht mechanisch heilbar.** Gemessen: einen trailing
+  `(…)`-Zusatz zu strippen rettet **5 von 2.946** Stationen — nicht gebaut.
+  „Lyngwyn" bleibt bewusst Text: wir führen „Lyngwyn (Honingen)" **und**
+  „Lyngwyn (Havena)" → mehrdeutig, und ein Link auf das falsche Dorf wäre
+  schlechter als keiner. (Nebenbefund: die Honinger Siedlung trägt fälschlich die
+  Havena-`wiki_url` — eigener Fix.)
+- **~11 % der Stationen führen wir wirklich nicht** (333 von 2.946). Der einzige
+  verbleibende Hebel wäre §3.2 (additives Feld + Re-Sync).
 - **Meerwege** bleiben reiner Text.
 - Der Parser, das `verlauf`-Format und `course_hash` werden **nicht** angefasst.
 
-## 6. Definition of Done
+## 7. Perf
+
+Aufschlag bei der Hydratation, auf Produktionsmaß gemessen: **~45 ms**
+(~25 ms einmaliger Index über 2.558 Orte + 5.275 Wege + ~900 Labels, ~20 ms für
+1.660 Wiki-Segmente). Das Markup wird pro `(feld, wert)` memoisiert — alle
+Segmente eines Weges teilen dasselbe `wiki_path`-Objekt, ohne den Cache liefe
+derselbe Verlauf einmal pro **Segment** statt pro **Weg** (gemessen 190 ms → 6 ms
+im ersten Zuschnitt). Der Cache stirbt mit dem Index (er trägt dessen refs).
+
+## 8. Definition of Done
 
 1. Reichsstraße 3: Verlauf-Stationen, die wir führen, sind goldene Links; ein
    Klick fliegt hin und öffnet das Infopanel des Ortes.
-2. Lage-Token, die wir als Gebiet führen, sind goldene Links; ein Klick öffnet
+2. Eine Station, die ein **Weg** ist („Reichsstraße 1"), markiert beim Klick den
+   ganzen Weg; eine Station, die eine **Landschaft** ist („Trollzacken"), zoomt
+   dorthin.
+3. Lage-Token, die wir als Gebiet führen, sind goldene Links; ein Klick öffnet
    das Gebiet (politische Ebene schaltet sich zu).
-3. Nicht auflösbare Tokens sind normaler Text — nirgends ein toter Link.
-4. „Anzeigen" steht als erste, gefüllte Kachel und markiert die ganze Straße
+4. Nicht auflösbare Tokens sind normaler Text — nirgends ein toter Link.
+5. „Anzeigen" steht als erste, gefüllte Kachel und markiert die ganze Straße
    (gelbes Band + Rauszoomen), identisch zu `?strasse=Reichsstraße_3`.
-5. Ein Fluss (z. B. „Der Große Fluss") verhält sich gleich; ein Seeweg zeigt
+6. Ein Fluss (z. B. „Der Große Fluss") verhält sich gleich; ein Seeweg zeigt
    unverändert reinen Text.
-6. Die Adresszeile bleibt unverändert (URL-Policy).
+7. Die Adresszeile bleibt unverändert (URL-Policy).
