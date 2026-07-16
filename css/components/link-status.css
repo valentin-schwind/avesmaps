@@ -1,0 +1,38 @@
+/* Link status marker (linkchecker, Spec §1.8) — the small "(online)" / "(nicht mehr erreichbar)" note
+   behind an external link. Rendered by avesmapsLinkStatusMarkup (js/app/link-status.js).
+
+   Colours come from --color-status-* only; both follow the theme (see css/base/tokens.css). No red for
+   a dead link: it is a fact, not an error the reader can do anything about. */
+
+.link-status {
+	font-size: 0.85em;
+	white-space: nowrap;
+	/* Never let the marker be the thing that widens a row -- it is an annotation, not content. */
+	flex: 0 0 auto;
+}
+
+.link-status--online {
+	color: var(--color-status-online);
+}
+
+/* Dead and unchecked share the muted grey (Spec §1.3: both are "grau") -- which is why the token pair is
+   online/offline and not one token per state. They differ in wording, not in weight: neither is a link
+   the reader should be steered away from. */
+.link-status--dead,
+.link-status--unchecked {
+	color: var(--color-status-offline);
+}
+
+/* A dead link stays clickable on purpose (our cache may be stale, and the reader may still want to try),
+   so it must LOOK dead rather than be disabled. */
+.link-status-dead-target {
+	color: var(--color-status-offline);
+	text-decoration: line-through;
+}
+
+/* Hover still reacts, so it never feels like a broken control. */
+.link-status-dead-target:hover,
+.link-status-dead-target:focus {
+	color: var(--color-status-offline);
+	text-decoration: line-through underline;
+}

@@ -16,6 +16,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/app/adventures.php';
+// Link states travel with the catalog (Spec §1.7). Read-only here -- the store's DDL is self-healing, so
+// a fresh deploy answers with 'unchecked' everywhere until the first sync runs.
+require_once __DIR__ . '/../_internal/linkcheck/store.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -37,6 +40,25 @@ try {
 
     if ($requestMethod === 'GET') {
         $adventures = avesmapsAdventuresReadCatalog($pdo);
+        // Decorate each link with its checked state (Spec §1.7, the embedded path): ONE extra query for
+        // the whole catalog, so the dialog never has to fetch link states per adventure. Deliberately
+        // NOT part of the map-features payload -- a state flip there would invalidate the full 14 MB
+        // payload for every client (§6).
+        $linkStates = avesmapsLinkCheckStatesByEntityType($pdo, 'adventure');
+        foreach ($adventures as $index => $adventure) {
+            foreach ($adventure['links'] as $linkIndex => $link) {
+                $state = $linkStates[$adventure['public_id']][$link['key']] ?? null;
+                // Not in the registry yet (never synced) is indistinguishable from never probed: both
+                // are honestly "unchecked".
+                $adventures[$index]['links'][$linkIndex]['state'] = $state['state'] ?? 'unchecked';
+                // url_hash stays server-side. avesmapsAdventureLinks() returns it because the linkcheck
+                // provider needs it to key the registry, but no client reads it -- `state` is already
+                // inline here, and link-status.php exists for surfaces that hash their own URLs. This
+                // payload is fetched eagerly on EVERY page load, so ~64 hex chars per link per adventure
+                // would be pure weight. (Deviates from the literal shape in §2.5 for that reason.)
+                unset($adventures[$index]['links'][$linkIndex]['url_hash']);
+            }
+        }
         $territoryMeta = avesmapsAdventuresTerritoryMeta($pdo, $adventures);
         avesmapsJsonResponse(200, [
             'ok' => true,

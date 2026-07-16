@@ -1,5 +1,5 @@
 @import url("base/fonts.css");
-@import url("base/tokens.css?v=20260714-scrollbar1");
+@import url("base/tokens.css?v=20260716-linkstatus1");
 @import url("base/reset.css");
 @import url("base/base.css?v=20260714-scrollbar1");
 @import url("base/utilities.css");
@@ -13,6 +13,7 @@
 @import url("components/spotlight-search.css");
 @import url("components/edit-overlays.css?v=20260713-theme22");
 @import url("components/feedback-toast.css");
+@import url("components/link-status.css?v=20260716-linkstatus1");
 @import url("components/location-report-dialog.css?v=20260712-reviewdlg3");
 @import url("components/political-territory-editor-overlay.css?v=20260713-theme21");
 @import url("components/region-wiki-dialogs.css?v=20260713-theme22");

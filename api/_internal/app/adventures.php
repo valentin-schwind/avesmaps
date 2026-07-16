@@ -157,6 +157,62 @@ function avesmapsSetAdventuresCoversEnabled(PDO $pdo, bool $enabled): array
     return ['covers_enabled' => $enabled];
 }
 
+// ---- shared link builder (Spec §2.5) --------------------------------------------------------------
+// The shop/reference links of ONE adventure, in click PRIORITY order: Ulisses e-book -> F-Shop -> the
+// wiki page -> Deutsche Nationalbibliothek. This is the SINGLE definition of that rule: the public
+// catalog (api/app/adventures.php), the linkcheck provider and -- from Phase B on -- the client all read
+// it from here. It used to live only in the client (advShopLinks, map-features-place-extras.js) and the
+// linkchecker would have needed a second copy to hash the same URLs; two copies of a priority rule is
+// exactly the divergence this project already paid for once.
+//
+// Why the wiki page outranks the DNB: the wiki page is a real article that always exists, while the DNB
+// link is a mere ISBN/title SEARCH -- a guess that may return nothing. $extraLinks are the curated
+// "Weitere Links" (§2.4 adventure_link) and stay in the caller's order BEHIND the priority links, so
+// links[0] remains the cover target (advBestLink). Returns [{key, label, url, url_hash}]; url_hash is
+// the sha256 that link_status/link_ref join on. A row with nothing identifiable returns [].
+function avesmapsAdventureLinks(array $row, array $extraLinks): array
+{
+    $field = static fn(string $key): string => trim((string) ($row[$key] ?? ''));
+
+    $title = $field('title');
+    // No stored wiki_url -> derive it from the title, mirroring the client's encodeURIComponent
+    // fallback. NB: not byte-identical -- encodeURIComponent leaves !'()* alone, rawurlencode escapes
+    // them, so a title containing those would hash differently on the two sides. Inert today (the
+    // fallback only fires when wiki_url is empty, and wiki-synced adventures always have one; from task
+    // B on the client reads a.links from here anyway) -- but this is the one seam where §2.5's
+    // single-definition rule is not yet airtight.
+    $wikiUrl = $field('wiki_url');
+    if ($wikiUrl === '' && $title !== '') {
+        $wikiUrl = 'https://de.wiki-aventurica.de/wiki/' . rawurlencode($title);
+    }
+    // The DNB catalogue is searched by ISBN when we have one, else by title.
+    $dnbQuery = $field('isbn') !== '' ? $field('isbn') : $title;
+    $dnbUrl = $dnbQuery === '' ? '' : 'https://portal.dnb.de/opac/simpleSearch?query=' . rawurlencode($dnbQuery);
+
+    $links = [];
+    // Skips empty URLs -- an empty url would still hash (sha256 of "") and get probed forever.
+    $add = static function (string $key, string $label, string $url) use (&$links): void {
+        if ($url === '') {
+            return;
+        }
+        $links[] = ['key' => $key, 'label' => $label, 'url' => $url, 'url_hash' => hash('sha256', $url)];
+    };
+
+    $add('ulisses', 'Ulisses eBook', $field('link_ulisses'));
+    $add('fshop', 'F-Shop', $field('link_fshop'));
+    $add('wiki', 'Wiki Aventurica', $wikiUrl);
+    $add('dnb', 'Dt. Nationalbibliothek', $dnbUrl);
+
+    foreach ($extraLinks as $extra) {
+        $add(
+            'extra:' . (int) ($extra['id'] ?? 0),
+            trim((string) ($extra['label'] ?? '')),
+            trim((string) ($extra['url'] ?? ''))
+        );
+    }
+    return $links;
+}
+
 // The public catalog read (B1 client aggregation): the whole approved catalog in ONE payload so the
 // client can index + aggregate locally. Places travel WITH each adventure, in sort_order (start first);
 // spoiler separation (start vs play) is done in the client, the catalog ships both.
@@ -227,6 +283,10 @@ function avesmapsAdventuresReadCatalog(PDO $pdo): array
             'isbn' => (string) ($row['isbn'] ?? ''),
             'contained_in' => (string) ($row['contained_in'] ?? ''),
             'places' => $placesByAdventure[(int) $row['id']] ?? [],
+            // The priority-ordered link list, built server-side (§2.5). The endpoint decorates each entry
+            // with its link state; this library deliberately knows nothing about the linkchecker.
+            // extraLinks stays [] until §2.4's adventure_link table ships with task B.
+            'links' => avesmapsAdventureLinks($row, []),
         ];
     }
     return $adventures;

@@ -486,6 +486,11 @@ window.AVESMAPS_I18N_EN = {
 	"adventures.filter.to": "to",
 	"adventures.filter.officialOnly": "official only",
 
+	// --- link status (linkchecker) ---
+	"linkStatus.online": "(online)",
+	"linkStatus.dead": "(no longer reachable)",
+	"linkStatus.unchecked": "(not checked yet)",
+
 	// --- routing alerts ---
 	"routing.alert.unknownRequest": "unknown request",
 	"routing.alert.requestFailedGeneric": "XMLHttpRequest failed",

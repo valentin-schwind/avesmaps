@@ -298,6 +298,7 @@ const WIKI_SYNC_LOCATIONS_API_URL = window.AVESMAPS_WIKI_SYNC_LOCATIONS_ENDPOINT
 const WIKI_SYNC_TERRITORIES_API_URL = window.AVESMAPS_WIKI_SYNC_TERRITORIES_ENDPOINT || "api/edit/wiki/territories.php";
 const WIKI_SYNC_DUMP_API_URL = window.AVESMAPS_WIKI_SYNC_DUMP_ENDPOINT || "api/edit/wiki/dump.php";
 const EDITOR_PRESENCE_API_URL = window.AVESMAPS_EDITOR_PRESENCE_ENDPOINT || "api/edit/map/presence.php";
+const LINK_CHECK_API_URL = window.AVESMAPS_LINK_CHECK_ENDPOINT || "api/edit/map/link-check.php";
 const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
 const EDIT_MODE_MAP_STYLE_STORAGE_KEY = "avesmaps.edit.mapStyle";

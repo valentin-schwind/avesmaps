@@ -380,6 +380,33 @@ async function submitWikiSyncDumpAction(action, payload = {}) {
 	return data;
 }
 
+// Linkchecker editor actions (sync / check_step / status / recheck). Same auth as every editor write:
+// the session cookie, checked server-side via avesmapsRequireUserWithCapability('edit'). The endpoint
+// has no special error codes -- a failure is a plain error, and the caller's loop stops on it.
+async function submitLinkCheckAction(action, payload = {}) {
+	const response = await fetch(LINK_CHECK_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action,
+			...payload,
+		}),
+	});
+	const data = await readJsonResponse(response, {});
+
+	if (!response.ok || data?.ok !== true) {
+		const error = new Error(apiErrorMessage(data, `Linkcheck-API antwortet mit HTTP ${response.status}.`));
+		error.httpStatus = response.status;
+		throw error;
+	}
+
+	return data;
+}
+
 // GET ?action=status on the same endpoint: { present, size, age_seconds, last_fetch_at,
 // last_ok_at, username, url }. Read-only, used for the "Dump geholt: <date>" status line
 // next to the "Dump holen" button. Never includes the password (dump.php never returns it).

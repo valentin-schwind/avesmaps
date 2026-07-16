@@ -90,6 +90,13 @@
 	--color-danger-soft: #fbeae6;
 	--color-danger-soft-border: #d3a79c;
 	--color-danger-soft-text: #8a2d22;
+	/* Link status — the reachability marker behind an external link (linkchecker). "online" reuses the
+	   success green so the two never drift apart; "offline" is a muted warm grey, NOT a red: a link that
+	   has gone is a fact worth noting, not an error the reader can act on. Deliberately not
+	   --color-map-presence*, which is pinned identical in both themes because it sits on the always-light
+	   map tiles — these markers live in panels and must follow the theme. */
+	--color-status-online: var(--color-success);
+	--color-status-offline: #8b8478;
 	/* Status: warning (amber) — the third status colour next to --color-success/--color-danger,
 	   used by the WikiSync + settlement editors (coverage gaps, attribution-required licences,
 	   values diverging from the wiki). --color-warning is the solid text/border/dot value;
@@ -285,6 +292,9 @@
 	--color-warning-soft-text: #e9c684;
 	--color-warning-strong: #c79a3c;
 	--color-warning-strong-text: #241d14;
+	/* Link status, dark: the muted grey lifts so it stays legible on the deep panel. --color-status-online
+	   needs no override -- it is var(--color-success), which is re-pointed just above. */
+	--color-status-offline: #9a9184;
 	/* No dark override for the waypoint marks (or the --color-marker-*-ring editor marks below) on
 	   purpose -- the SAME mark appears on the always-light map tiles and on the dark panels; a
 	   theme-shifted red would make the planner (or the editor) disagree with the map. */

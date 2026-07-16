@@ -413,6 +413,9 @@
 							<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
 						</div>
+						<div class="wiki-sync-panel__actions">
+							<button type="button" id="link-check-start" class="wiki-sync-panel__start" title="Prüft alle externen Links (Abenteuer-Shoplinks, Wiki-Seiten, Quellen) auf Erreichbarkeit. Baut zuerst die Registry auf, prüft dann die fälligen Links in Schritten. Höflich: 600ms Pause je Host — ein voller Durchlauf dauert.">Links prüfen</button><span id="link-check-summary" class="wiki-sync-panel__summary" hidden></span>
+						</div>
 					</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
@@ -1431,6 +1434,7 @@
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>
 		<script src="js/app/i18n.js"></script>
+		<script src="js/app/link-status.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
 		<script src="js/app/utils.js"></script>
 		<script src="js/app/theme-toggle.js?v=20260713-browsertheme1"></script>
@@ -1470,6 +1474,7 @@
 			<script src="js/review/review-capitals-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
+		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-wiki-sync-cases.js"></script>
 		<script src="js/review/review-wiki-sync-resolve.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>
