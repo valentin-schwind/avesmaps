@@ -717,6 +717,17 @@ $(document).on("click", ".location-popup__political-link", function (event) {
 	}
 });
 
+// Resolved "Verlauf" station in a way's infobox (map-features-path-item-links.js): fly to the settlement and
+// open it. Sibling of the political link above -- same gold look, but its own handler because that one aims at
+// territories. The publicId was resolved when the markup was built, so this is a pure lookup: no request.
+$(document).on("click", ".location-popup__station-link", function (event) {
+	event.preventDefault();
+	event.stopPropagation();
+	if (typeof focusPathItemStation === "function") {
+		focusPathItemStation(this.dataset.stationPublicId || "");
+	}
+});
+
 $(document).on("click", ".location-popup__action-button", function (event) {
 	event.preventDefault();
 	event.stopPropagation();
@@ -748,6 +759,21 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		const showLatLng = entry && entry.marker && typeof entry.marker.getLatLng === "function" ? entry.marker.getLatLng() : null;
 		if (showLatLng && Number.isFinite(showLatLng.lat) && Number.isFinite(showLatLng.lng)) {
 			map.panTo(showLatLng);
+		}
+		return;
+	}
+
+	// "Anzeigen" in a way's infobox (Owner 2026-07-17): mark the WHOLE way and zoom to its full extent --
+	// the same thing ?strasse=/?fluss= does, through the same resolver. Distinct from "show-in-panel" above,
+	// which shares the label but means "put THIS city in the panel" in a waypoint popup.
+	if (action === "show-whole-path") {
+		const path = typeof findPathByPublicId === "function" ? findPathByPublicId(this.dataset.publicId) : null;
+		if (!path) {
+			showFeedbackToast(tr("toast.path.notFound", "Weg konnte nicht gefunden werden."), "warning");
+			return;
+		}
+		if (typeof showWholePathFromInfobox === "function") {
+			showWholePathFromInfobox(path);
 		}
 		return;
 	}

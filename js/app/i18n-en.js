@@ -137,6 +137,8 @@ window.AVESMAPS_I18N_EN = {
 	"route.role.end": "Destination",
 	"popup.writeReview": "Write a review",
 	"popup.suggestChange": "Suggest a change",
+	"popup.showWholePath": "Show",
+	"toast.path.notFound": "The way could not be found.",
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",
 	"popup.sharePinName": "Marked spot",

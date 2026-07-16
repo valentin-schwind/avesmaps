@@ -13,10 +13,23 @@ function pathWikiInfoboxMarkup(path) {
 		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 	};
 	const art = String(wiki.art || "").trim() || (wiki.kind === "fluss" ? "Fluss" : (wiki.kind === "strasse" ? "Straße" : ""));
+	// Same row, but the value is already-escaped MARKUP (linkified) instead of a raw string.
+	const rowHtml = (dtLabel, valueHtml) => {
+		if (!valueHtml || String(valueHtml).trim() === "") {
+			return "";
+		}
+		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${valueHtml}</dd></div>`;
+	};
+	// Owner 2026-07-17: the objects "Verlauf"/"Lage" name are on our map too -> gold fly-to links
+	// (map-features-path-item-links.js). Sea routes are excluded and every token we cannot resolve stays plain
+	// text, so both linkify calls fall back to the escaping `row` when they come back empty.
+	const linksSupported = typeof pathSupportsItemLinks === "function" && pathSupportsItemLinks(path);
+	const lageHtml = (linksSupported && typeof linkifyPathLage === "function") ? linkifyPathLage(wiki.lage) : "";
+	const verlaufHtml = (linksSupported && typeof linkifyPathVerlauf === "function") ? linkifyPathVerlauf(wiki.verlauf) : "";
 	let rows = "";
-	rows += row("Lage", wiki.lage);
+	rows += lageHtml ? rowHtml("Lage", lageHtml) : row("Lage", wiki.lage);
 	rows += row("Länge", wiki.laenge);
-	rows += row("Verlauf", wiki.verlauf);
+	rows += verlaufHtml ? rowHtml("Verlauf", verlaufHtml) : row("Verlauf", wiki.verlauf);
 	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
 	// Multi-source system: paths get a source line for the FIRST time here (previously the wiki
 	// credit only rendered when a wiki article was linked at all). Rendered synchronously from the
@@ -46,6 +59,27 @@ function pathShareButtonMarkup(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const wikiParam = (pathSubtype === "Flussweg" || pathSubtype === "Seeweg") ? "fluss" : "strasse";
 	return sharePlaceActionButtonMarkup(getPathPublicId(path), { wikiUrl: wiki.wiki_url, wikiParam });
+}
+
+// "Anzeigen" (Owner 2026-07-17): highlights the WHOLE way and zooms to its full extent -- the same thing the
+// ?strasse=/?fluss= deep link does, through the same resolver. Filled (--accent) because it is the only tile
+// that acts on the MAP; the other two open dialogs. Gated like "Link teilen" on a linked wiki article (that
+// URL identifies the way), and off for sea routes like the item links.
+function pathShowActionButtonMarkup(path) {
+	const wiki = (path.properties && path.properties.wiki_path) || {};
+	const supported = typeof pathSupportsItemLinks === "function" && pathSupportsItemLinks(path);
+	if (!wiki.wiki_url || !supported) {
+		return "";
+	}
+	return popupActionButtonMarkup({
+		label: (typeof tr === "function" ? tr("popup.showWholePath", "Anzeigen") : "Anzeigen"),
+		className: "location-popup__action-button--accent",
+		iconMarkup: '<img class="location-popup__action-img" src="img/menu/markierung.webp?v=1" alt="" width="20" height="20" />',
+		attributes: {
+			"data-popup-action": "show-whole-path",
+			"data-public-id": getPathPublicId(path),
+		},
+	});
 }
 
 // Kopf-Icon fuer den Weg-Kopf (Owner: einheitlicher grosser Kopf -- Wege haben kein Wappen, bekommen
@@ -78,7 +112,10 @@ function createPathPopupMarkup(path) {
 		showType: true,
 		actionsMarkup: (function () {
 			const buttons = [];
-			// "Link teilen" zuerst -> [Link teilen] [Änderung vorschlagen] gemeinsam in EINEM Band unter dem Kopf.
+			// "Anzeigen" zuerst (Owner): [Anzeigen] [Link teilen] [Änderung vorschlagen] in EINEM Band.
+			const showButton = pathShowActionButtonMarkup(path);
+			if (showButton) { buttons.push(showButton); }
+			// "Link teilen" danach -- alle drei gehoeren in EIN Band unter dem Kopf, nicht in ein eigenes dahinter.
 			const shareButton = pathShareButtonMarkup(path);
 			if (shareButton) { buttons.push(shareButton); }
 			// Community "Änderung vorschlagen" -- paths get a public action band here for the first time.

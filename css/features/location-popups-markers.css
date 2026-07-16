@@ -70,8 +70,12 @@
 
 /* Political context link inside the type line ("Metropole · Hauptstadt des Mittelreichs" / "Stadt ·
    Baronie Vierok"): a gold text link (button reset) that flies to the political region on click.
-   Never blue (design language); underline only on hover so the type line stays calm. */
-.location-popup__political-link {
+   Never blue (design language); underline only on hover so the type line stays calm.
+   .location-popup__station-link is the same link in a way's infobox: a resolved "Verlauf" station
+   (map-features-path-item-links.js). Same look, own class -- it flies to a SETTLEMENT, so it carries its
+   own delegated handler and must not fall into the political one. */
+.location-popup__political-link,
+.location-popup__station-link {
 	margin: 0;
 	padding: 0;
 	border: 0;
@@ -86,7 +90,9 @@
 	text-align: left;
 }
 .location-popup__political-link:hover,
-.location-popup__political-link:focus-visible {
+.location-popup__political-link:focus-visible,
+.location-popup__station-link:hover,
+.location-popup__station-link:focus-visible {
 	outline: none;
 	text-decoration: underline;
 }
