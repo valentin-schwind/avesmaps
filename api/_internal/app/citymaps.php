@@ -45,9 +45,18 @@ const AVESMAPS_CITYMAP_TYPE_KEYS = [
 // Single choice (Spec §3.1). NULL = unknown, which is why '' is not a member here.
 const AVESMAPS_CITYMAP_ARTS = ['politisch', 'derographisch', 'topologisch', 'skizze'];
 
-// Provenance (Spec §3.1). 'community' = born from an approved reader suggestion (§3.8); 'manual' = an
-// editor typed it. No 'wiki': maps are curated + community, never dump-imported (§6).
-const AVESMAPS_CITYMAP_ORIGINS = ['manual', 'community'];
+// Provenance (Spec §3.1). The values are behaviour, not decoration:
+//   manual    -- an editor typed it (or adopted a wiki map by editing it). The wiki sync never touches it.
+//   community -- born from an approved reader suggestion (§3.8). The wiki sync never touches it either.
+//   wiki      -- the dump pipeline owns it: it may rewrite its fields and delete it when the wiki drops
+//                the row. See api/_internal/wiki/citymap-sync.php.
+// Spec §6 said "no wiki sync for maps -- curated + community only", and this list said so with it. That
+// always carried the caveat "später möglich, das origin-Feld ist da", and the owner has since asked for
+// exactly that, so 'wiki' is now a real origin rather than a reserved one.
+// NB 'manual' doubles as the fallback for anything unrecognised (avesmapsCitymapNormalizeOrigin, below)
+// -- the conservative answer, since 'manual' is precisely the value the wiki sync refuses to touch. A
+// typo can therefore only ever make a map too protected, never too exposed.
+const AVESMAPS_CITYMAP_ORIGINS = ['manual', 'community', 'wiki'];
 
 // What a citymap may be pinned to (Spec §3.1, 1:1 with adventure_place). 'unresolved' is the honest
 // fallback for a free-text name the resolver has not matched yet -- not an error state.
@@ -795,9 +804,16 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
 // (array_key_exists, so an explicit null counts as "sent" and clears to unknown). map_local_url /
 // thumb_local_url are NOT editable here on purpose -- only the upload endpoint may set them, because they
 // name a file we host.
-// $origin is only consulted on INSERT -- an UPDATE never rewrites it, so a map keeps the provenance it
-// was created with even when an editor later reworks every field of it. 'community' is written by exactly
-// one caller: the report approval in api/edit/reports/locations.php (Spec §3.8).
+// $origin stamps a NEWLY CREATED map. It defaults to 'manual', so every existing caller behaves exactly
+// as before. It exists so that a map from a non-editor source comes through THIS door rather than
+// growing a second insert path that would drift out of sync with the validation above. Two callers pass
+// it: the report approval in api/edit/reports/locations.php ('community', Spec §3.8) and the wiki
+// reconcile in api/_internal/wiki/citymap-sync.php ('wiki').
+//
+// On UPDATE, origin is preserved with ONE deliberate exception: a 'wiki' map becomes 'manual' (see the
+// UPDATE branch). Editing a wiki map has to take it away from the sync, which would otherwise overwrite
+// the edit on its next run. 'community' and 'manual' are never rewritten, so a community map keeps its
+// provenance even after an editor reworks every field of it.
 function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $origin = 'manual'): array
 {
     avesmapsCitymapsEnsureTables($pdo);
@@ -900,6 +916,13 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         $setClauses[] = $column . ' = :' . $column;
         $params[$column] = $value;
     }
+    // ADOPTION: hand-editing a wiki-born map takes it away from the sync, which would otherwise
+    // overwrite the edit on its next run (it rewrites every field of an origin='wiki' row). This is the
+    // same move avesmapsCitymapResolvePlace already makes for a manually chosen place target ("origin is
+    // always stamped 'manual' so a re-resolve leaves it alone"). Scoped with IF() to origin='wiki' on
+    // purpose: a community map stays 'community' when an editor corrects a typo, so the pill keeps
+    // telling the truth about where the map came from.
+    $setClauses[] = "origin = IF(origin = 'wiki', 'manual', origin)";
     $pdo->prepare('UPDATE citymap SET ' . implode(', ', $setClauses) . ' WHERE public_id = :pid')->execute($params);
     return ['public_id' => $publicId, 'created' => false];
 }

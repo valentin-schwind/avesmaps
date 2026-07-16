@@ -135,6 +135,13 @@ require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
 require_once __DIR__ . '/../../_internal/app/adventures.php';
 require_once __DIR__ . '/../../_internal/app/adventure-resolve.php';
 require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
+// Kartensammlung (stages 1+2): the citymaps build phase (dump-hybrid-driver.php) + the
+// owner-triggered sync_citymaps reconcile below need the citymap staging/reconcile lib plus the live
+// citymap tables. The place resolver is the SHARED avesmapsResolvePlacesInTable (adventure-resolve.php
+// above, which already whitelists 'citymap_place') -- not a citymap-specific copy. All
+// function-definitions-only on include.
+require_once __DIR__ . '/../../_internal/app/citymaps.php';
+require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
@@ -636,6 +643,51 @@ try {
                 'progress' => [
                     'processed' => (int) ($advStep['processed'] ?? 0),
                     'total' => avesmapsAdventureCountCatalog($pdo),
+                ],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'sync_citymaps':
+            // OWNER-triggered PRODUCTION reconcile of the wiki citymap catalog (built by "Dump holen")
+            // into the live citymap / citymap_place tables. MIRRORS sync_adventures exactly: same
+            // 'edit' gate, same single-flight pipeline lock, same one-bounded-step-per-request client
+            // loop. It does NOT reopen the dump -- avesmapsCitymapReconcileStep reads the STAGING table
+            // (wiki_citymap_catalog, populated during "Dump holen") and applies the OVERRIDE-SAFE diff
+            // (writes/deletes ONLY origin='wiki' rows; manual/community + suppressed tombstones
+            // untouched) + links each map to its publication in the shared source catalog. A REAL
+            // production write, so a second concurrent editor is rejected (409). Resumable via a
+            // wiki_key high-water cursor; one bounded step per call (STRATO: no server-side loop).
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_citymaps');
+            $lockHeldByThisRequest = true;
+
+            avesmapsEnsureCitymapStagingTables($pdo);
+
+            $cmCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
+            $cmStep = avesmapsCitymapReconcileStep($pdo, $cmCursor, $lockUserId);
+            $cmDone = ($cmStep['done'] ?? false) === true;
+
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_citymaps');
+            if ($cmDone) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
+
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'stage' => 'reconcile',
+                // Echo the advanced wiki_key high-water so the client loop resumes from exactly here.
+                'cursor' => (string) ($cmStep['nextCursor'] ?? $cmCursor),
+                'done' => $cmDone,
+                // Per-STEP deltas (each step starts at 0; the frontend sums them for the run total).
+                'created' => (int) ($cmStep['created'] ?? 0),
+                'updated' => (int) ($cmStep['updated'] ?? 0),
+                'places_added' => (int) ($cmStep['places_added'] ?? 0),
+                'sources_linked' => (int) ($cmStep['sources_linked'] ?? 0),
+                'removed' => (int) ($cmStep['removed'] ?? 0),
+                'processed' => (int) ($cmStep['processed'] ?? 0),
+                'progress' => [
+                    'processed' => (int) ($cmStep['processed'] ?? 0),
+                    'total' => avesmapsCitymapCountCatalog($pdo),
                 ],
             ]);
             // no break -- avesmapsJsonResponse exits.

@@ -1183,6 +1183,105 @@ async function startWikiSyncAdventuresSync() {
 	}
 }
 
+// ===========================================================================
+// Karten syncen (Kartensammlung, pipeline stages 1+2): the SHARP reconcile of the
+// wiki citymap catalog (built during "Dump holen") into the live citymap/
+// citymap_place tables. Drives the backend `sync_citymaps` action via the same
+// one-POST-per-step client loop as sync_adventures.
+//
+// UNLIKE the adventure loop this has NO ribbon button and therefore no progress
+// bar to render into: the only trigger is "Karten syncen" in the citymap editor's
+// header, which delegates here via window.parent (owner decision). The loop lives
+// HERE anyway, next to its sibling, so there is exactly ONE sync_citymaps loop in
+// the app rather than a second copy inside the editor iframe -- the same reasoning
+// the adventure editor's #aeSyncBtn comment spells out.
+//
+// The override guarantee (never touch a manual/community/suppressed row, never
+// resurrect a tombstone, never duplicate on a re-run) lives entirely in the backend
+// diff (avesmapsCitymapReconcilePlan). Backend: api/edit/wiki/dump.php (sync_citymaps).
+// ===========================================================================
+
+let isWikiSyncCitymapsRunning = false;
+
+// Drive `sync_citymaps` to completion: loop the action once per step, advancing the
+// server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step
+// deltas until done. Mirrors runWikiSyncAdventuresSyncLoop (bounded step ceiling;
+// stops cleanly on the 409 pipeline lock). Reads staging + live DB only (no dump reopen).
+async function runWikiSyncCitymapsSyncLoop() {
+	let cursor = "";
+	let done = false;
+	let safetyCounter = 0;
+	let lastResult = null;
+	const totals = { created: 0, updated: 0, placesAdded: 0, sourcesLinked: 0, removed: 0, processed: 0 };
+	const MAX_STEPS = 4000;
+
+	while (!done) {
+		if (safetyCounter > MAX_STEPS) {
+			throw new Error("Karten-Übernahme wurde nach zu vielen Teilschritten angehalten.");
+		}
+		safetyCounter += 1;
+
+		let stepResult;
+		try {
+			stepResult = await submitWikiSyncDumpAction("sync_citymaps", { cursor });
+		} catch (error) {
+			if (error && error.dumpLocked) {
+				// Another editor holds the dump pipeline: stop immediately (do NOT retry).
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				throw error;
+			}
+			throw error;
+		}
+
+		lastResult = stepResult;
+		cursor = String(stepResult.cursor ?? cursor);
+		totals.created += Number(stepResult.created ?? 0);
+		totals.updated += Number(stepResult.updated ?? 0);
+		totals.placesAdded += Number(stepResult.places_added ?? 0);
+		totals.sourcesLinked += Number(stepResult.sources_linked ?? 0);
+		totals.removed += Number(stepResult.removed ?? 0);
+		totals.processed += Number(stepResult.processed ?? 0);
+		done = stepResult.done === true;
+
+		const total = Number(stepResult?.progress?.total ?? 0);
+		setWikiSyncStatus(
+			`Karten werden übernommen … ${totals.processed}${total > 0 ? "/" + total : ""} geprüft`,
+			"pending"
+		);
+	}
+
+	if (lastResult && typeof lastResult === "object") {
+		lastResult.totals = totals;
+	}
+	return lastResult;
+}
+
+// Entry point. Global on purpose: html/citymap-editor.html runs in an iframe and calls
+// window.parent.startWikiSyncCitymapsSync(). Re-entrancy guarded, so a double click is a no-op.
+async function startWikiSyncCitymapsSync() {
+	if (isWikiSyncCitymapsRunning) {
+		return;
+	}
+	isWikiSyncCitymapsRunning = true;
+	setWikiSyncStatus("Karten werden übernommen …", "pending");
+
+	try {
+		const result = await runWikiSyncCitymapsSyncLoop();
+		const totals = (result && result.totals) || { created: 0, updated: 0, removed: 0, sourcesLinked: 0 };
+		const note = ` (+${totals.created} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt / ${totals.sourcesLinked} Quellen)`;
+		setWikiSyncStatus(`Karten übernommen.${note}`, "success");
+		showFeedbackToast(`Karten übernommen.${note}`, "success");
+	} catch (error) {
+		if (!(error && error.dumpLocked)) {
+			setWikiSyncStatus(error.message || "Karten-Übernahme fehlgeschlagen.", "error");
+			showFeedbackToast(error.message || "Karten-Übernahme fehlgeschlagen.", "warning");
+		}
+		throw error; // the editor's button shows its own failure text
+	} finally {
+		isWikiSyncCitymapsRunning = false;
+	}
+}
+
 // --- Inline credential prompt (O1) -------------------------------------------
 // Copies the #wiki-sync-resolve-overlay dialog pattern. Resolves to true once the
 // credentials are stored server-side (set_dump_credentials), false if cancelled.

@@ -36,8 +36,26 @@ Shell-Quotierung. Die rohen Bytes zeigen 8× `Al'Anfa`, nie mit Backslash."*
 - Warum die Recherche es übersah: sie suchte nach `Al'Anfa`; der String `Al\'Anfa` **enthält diesen
   Substring nicht**. Die 8 sauberen Treffer stammen aus der alten Liste + Legende.
 
-**Folge ohne Unescaping:** Al'Anfa spaltet in zwei Kartensätze auf (alt unter `Al'Anfa`, neu unter
-`Al\'Anfa`), und der Quellenname der neuen Liste matcht sein eigenes Wikilink-Ziel in der alten nicht.
+**Folge: NUR kosmetisch — nicht identitätsrelevant.** (Diese Einschätzung ersetzt eine frühere
+Fassung dieses Dokuments, die „Al'Anfa spaltet in zwei Kartensätze auf" behauptete. Das war falsch.)
+
+Beide Haus-Normalisierer kollabieren den Backslash von selbst, weil sie **Runs** von Nicht-Alphanumerik
+behandeln, nicht Einzelzeichen:
+
+| Eingabe | `avesmapsPoliticalSlug` | `avesmapsWikiSyncCreateMatchKey` |
+|---|---|---|
+| `Al'Anfa` | `al-anfa` | `alanfa` |
+| `Al\'Anfa` | `al-anfa` | `alanfa` |
+
+Der `wiki_key` läuft über `avesmapsPoliticalSlug` (Hausmuster, s. `avesmapsPublicationCatalogWikiKeyForTitle`),
+die Ortsauflösung über den Match-Key. **Beide sind gegen das Escaping immun.** Betroffen ist allein die
+**Anzeige**: `raw_name` und der generierte Titel würden „Al\'Anfa" zeigen. Das Unescaping bleibt also
+richtig, ist aber ein Kosmetikschritt ohne Dubletten-Risiko.
+
+> **Umlaut-Falle (Umgebungsabhängigkeit).** Ohne `iconv` wird „Süden" zu `s-uden`, mit `iconv` nicht
+> (dokumentiert in `tools/wikidump/test-wiki-key-derivation.php`). Der Slug ist damit
+> **umgebungsabhängig** — Keys entstehen und vergleichen sich aber beide auf dem Server, also ist das
+> unkritisch. **Konsequenz für Tests: niemals konkrete Slug-Werte einfrieren, nur Invarianten prüfen.**
 
 ### 2.2 „neu = reichere Felder" trägt nicht als Quellen-Autorität
 
@@ -105,6 +123,9 @@ erlaubt (MySQL: UNIQUE ignoriert NULLs → „eindeutig, sobald gesetzt", wie be
 2. Die Phase führt einen Zähler **`escaped_names_seen`** im „Dump holen"-Fortschritt mit. Der erste
    echte Lauf zeigt `0` (Dump sauber, API-Artefakt) oder `13` (Dump escapet genauso) — Verifikation
    am echten Dump zum frühestmöglichen Zeitpunkt.
+3. **Der Einsatz ist niedriger als zunächst angenommen** (§2.1): Da Slug und Match-Key gegen das
+   Escaping immun sind, entscheidet diese Frage nur, ob ein Titel „Al\'Anfa" statt „Al'Anfa" zeigt.
+   Selbst die falsche Antwort erzeugt keine Dubletten und keine verlorene Ortsauflösung.
 
 ### 3.3 Ortlose Kontinentkarten (Owner-Wahl: als unresolved)
 

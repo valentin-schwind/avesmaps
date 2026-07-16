@@ -271,8 +271,8 @@ echo "\n-- (A) avesmapsWikiDumpHybridComputeNextState (the pure state machine) -
 
 $order = avesmapsWikiDumpHybridPhaseOrder();
 $check(
-    '(A0) phase order runs online_continent_map AFTER wikitext_collect (CONTINENT-FIX #1); publication_sources + adventures right after redirect_aliases (Task 4 / Abenteuer P4)',
-    ['online_class_map', 'online_building_map', 'wikitext_collect', 'redirect_aliases', 'publication_sources', 'adventures', 'online_continent_map', 'parse_and_upsert'],
+    '(A0) phase order runs online_continent_map AFTER wikitext_collect (CONTINENT-FIX #1); publication_sources + adventures + citymaps right after redirect_aliases (Task 4 / Abenteuer P4 / Kartensammlung 1+2)',
+    ['online_class_map', 'online_building_map', 'wikitext_collect', 'redirect_aliases', 'publication_sources', 'adventures', 'citymaps', 'online_continent_map', 'parse_and_upsert'],
     $order,
     'the continent map sources its titles from the fully-populated state table (via FetchWantedTitles), so it MUST run after the whole-dump wikitext_collect scan enumerated all kinds -- otherwise it only covers the H1 settlement/building rows'
 );
@@ -351,13 +351,29 @@ $check(
     [$s4e['phase'], $s4e['phase_advanced'], $s4e['stats']['adventure_cursor'], $s4e['done']],
     'the adventure catalog/place staging build loops on its own dump page cursor until the step reports done'
 );
-// adventures done -> online_continent_map (index 6); parse_and_upsert stays terminal.
+// adventures done -> citymaps (index 6); parse_and_upsert stays terminal.
 $s4f = avesmapsWikiDumpHybridComputeNextState('adventures', ['adventure_cursor' => 3000], ['done' => true, 'nextCursor' => 6000]);
 $check(
-    '(A5f) adventures done -> online_continent_map (parse_and_upsert stays the terminal sharp phase)',
-    ['online_continent_map', true, 6],
+    '(A5f) adventures done -> citymaps (the sibling staging phase; parse_and_upsert stays the terminal sharp phase)',
+    ['citymaps', true, 6],
     [$s4f['phase'], $s4f['phase_advanced'], $s4f['progress_current']],
-    'the adventure staging phase hands off to the continent map; parse_and_upsert remains the LAST phase'
+    'the adventure staging phase hands off to the citymap staging phase; parse_and_upsert remains the LAST phase'
+);
+// citymaps (resumable): NOT done -> stay put, persist citymap_cursor.
+$s4g = avesmapsWikiDumpHybridComputeNextState('citymaps', ['citymap_cursor' => 0], ['done' => false, 'nextCursor' => 3500]);
+$check(
+    '(A5g) citymaps NOT done -> stays in phase, persists citymap_cursor',
+    ['citymaps', false, 3500, false],
+    [$s4g['phase'], $s4g['phase_advanced'], $s4g['stats']['citymap_cursor'], $s4g['done']],
+    'the citymap catalog build loops on its own dump page cursor until the step reports done -- it is scanning the whole dump for two index PAGES'
+);
+// citymaps done -> online_continent_map (index 7); parse_and_upsert stays terminal.
+$s4h = avesmapsWikiDumpHybridComputeNextState('citymaps', ['citymap_cursor' => 3500], ['done' => true, 'nextCursor' => 6500]);
+$check(
+    '(A5h) citymaps done -> online_continent_map (parse_and_upsert stays the terminal sharp phase)',
+    ['online_continent_map', true, 7],
+    [$s4h['phase'], $s4h['phase_advanced'], $s4h['progress_current']],
+    'the citymap staging phase hands off to the continent map; parse_and_upsert remains the LAST phase'
 );
 
 // online_continent_map now runs AFTER the scan; resumable on continent_cursor; done -> parse_and_upsert.
@@ -370,8 +386,8 @@ $check(
 );
 $s5b = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 500], ['done' => true, 'nextCursor' => 9000]);
 $check(
-    '(A6b) online_continent_map done -> parse_and_upsert, continent_cursor persisted, progress index 7',
-    ['parse_and_upsert', true, 9000, 7],
+    '(A6b) online_continent_map done -> parse_and_upsert, continent_cursor persisted, progress index 8',
+    ['parse_and_upsert', true, 9000, 8],
     [$s5b['phase'], $s5b['phase_advanced'], $s5b['stats']['continent_cursor'], $s5b['progress_current']],
     'the continent map (now the LAST dump/online-walking phase before parse) hands off to the parse phase once its cursor drains the full title set'
 );
@@ -388,7 +404,7 @@ $check(
 $s6b = avesmapsWikiDumpHybridComputeNextState('parse_and_upsert', ['parse_cursor' => 2000], ['done' => true, 'nextCursor' => 2345]);
 $check(
     '(A8) parse_and_upsert done -> phase "completed" + status "completed" + full progress',
-    ['completed', 'completed', 8, 8, true],
+    ['completed', 'completed', 9, 9, true],
     [$s6b['phase'], $s6b['status'], $s6b['progress_current'], $s6b['progress_total'], $s6b['done']],
     'advancing off the last work phase completes the whole run (progress_current == progress_total)'
 );

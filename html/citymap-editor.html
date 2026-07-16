@@ -89,6 +89,12 @@
   .ce-btn2:disabled { opacity: 0.6; cursor: default; }
   .ce-btn2 .t1 { font-weight: 700; }
   .ce-btn2 .t2 { font-size: 11px; color: var(--color-text-muted); }
+  /* The one filled action in this header (AGENTS.md §12: main action filled, the rest soft).
+     Mirrors .ae-btn2--primary in adventure-editor.html token for token -- the two sync buttons are
+     the same gesture and must not drift apart. */
+  .ce-btn2--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
+  .ce-btn2--primary:hover:not(:disabled) { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
+  .ce-btn2--primary .t2 { color: var(--color-button-text); opacity: .8; }
 
   .ce-body { flex: 1 1 auto; display: flex; min-height: 0; }
   .ce-list {
@@ -268,6 +274,10 @@
   /* Autoget = fremdes Bildmaterial, nur intern -> Warnfarbe, damit es sich nie wie ein eigener Upload liest. */
   .pill--auto { border-color: var(--color-warning); color: var(--color-warning); }
   .pill--community { border-color: var(--color-accent); color: var(--color-accent-strong); }
+  /* Wiki-born (origin='wiki'): the sync owns this row and will rewrite it. --color-link is the
+     project's "this comes from the wiki" colour (AGENTS.md §12: links are gold-brown), so the pill
+     reads as provenance rather than as a warning. */
+  .pill--wiki { border-color: var(--color-link); color: var(--color-link); }
   .pill--unresolved { border-color: var(--color-warning); color: var(--color-warning); }
   .pill--nowiki { border-color: var(--color-border); }
   .pill--hidden { border-color: var(--color-danger); color: var(--color-danger); }
@@ -338,6 +348,10 @@
 <body>
 
 <div class="ce-header">
+  <button type="button" class="ce-btn2 ce-btn2--primary" id="ceSyncBtn" title="Übernimmt Karten aus dem zuletzt geholten Wiki-Dump override-sicher (Stadtplanindex + Kartenindex). Eigene und Community-Karten bleiben unberührt, entfernte Karten bleiben entfernt. Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
+    <span class="t1">🚨 Karten syncen</span>
+    <span class="t2" id="ceSyncSub">…</span>
+  </button>
   <button type="button" class="ce-btn2" id="ceEnabledToggle" title="Globaler Notaus für die Kartensammlung: aus = die Karten verschwinden auf der öffentlichen Seite (api/app/citymaps.php liefert eine leere Liste). Die Daten bleiben, der Editor arbeitet weiter.">
     <span class="t1" id="ceEnabledLabel">Kartensammlung: …</span>
     <span class="t2">öffentliche Anzeige</span>
@@ -347,7 +361,7 @@
     <span class="t2" id="ceLinkCheckSub">…</span>
   </button>
   <span class="ce-header__spacer"></span>
-  <span class="ce-hint">Karten werden nicht aus dem Wiki gesynct — sie sind kuratiert.</span>
+  <span class="ce-hint">Wiki-Karten tragen eine Wiki-Pille. Eigene Änderungen daran gewinnen: eine bearbeitete Karte fasst der Sync nicht mehr an.</span>
 </div>
 
 <div class="ce-body">
@@ -468,7 +482,13 @@
     document.getElementById("ceListCount").textContent = `${rows.length} von ${state.citymaps.length}`;
     document.getElementById("ceListScroll").innerHTML = rows.length ? rows.map((c) => {
       const draft = c.status !== "approved";
-      const community = c.origin === "community" ? ` <span class="pill pill--community">Community</span>` : "";
+      // Provenance pill. 'manual' stays unlabelled -- it is the norm here, and a pill on every row
+      // would be noise. Only the two origins the editor did NOT author announce themselves.
+      const community = c.origin === "community"
+        ? ` <span class="pill pill--community">Community</span>`
+        : (c.origin === "wiki"
+          ? ` <span class="pill pill--wiki" title="Aus dem Wiki-Dump übernommen. „Karten syncen“ aktualisiert diese Karte — sobald du sie bearbeitest, gehört sie dir und der Sync lässt sie in Ruhe.">Wiki</span>`
+          : "");
       const thumb = c.thumb
         ? `<img src="${ceEscape(c.thumb)}" alt="" loading="lazy" onerror="this.replaceWith(document.createTextNode(''))">`
         : CE_THUMB_PH_SVG;
@@ -774,7 +794,13 @@
     const resolved = kind === "unresolved"
       ? `<span class="pill pill--unresolved">nicht aufgelöst</span> Rohname bleibt erhalten`
       : `→ ${ceEscape(KIND_LABEL[kind] || kind)}${p.target_wiki_key ? ` <code>${ceEscape(p.target_wiki_key)}</code>` : ` <span class="pill pill--nowiki" title="Dieser Ort ist ein Karteneintrag ohne Wiki-Verknüpfung — völlig in Ordnung.">ohne Wiki-Eintrag</span>`}`;
-    const origin = p.origin === "community" ? `<span class="pill pill--community">Community</span>` : `<span class="pill pill--manual">manuell</span>`;
+    // Three origins, three labels. The old two-way ternary would have labelled a wiki place "manuell"
+    // -- wrong, and exactly the kind of quiet lie that makes an editor distrust the whole column.
+    const origin = p.origin === "community"
+      ? `<span class="pill pill--community">Community</span>`
+      : (p.origin === "wiki"
+        ? `<span class="pill pill--wiki" title="Aus dem Wiki-Dump. Wird vom Karten-Sync gepflegt.">Wiki</span>`
+        : `<span class="pill pill--manual">manuell</span>`);
     return `<div class="ce-place${hidden ? " is-hidden" : ""}" data-place-id="${p.id}">
       <div class="ce-place__order"><span>${p.sort_order}</span>
         <div class="ce-place__reorder">
@@ -902,6 +928,72 @@
     } catch (e) { alert("Fehler: " + e.message); }
   }
 
+  // ---- Wiki-Sync (citymaps) ----
+  // Delegates to window.parent.startWikiSyncCitymapsSync() -- the SAME sync_citymaps client loop that
+  // lives in js/review/review-wiki-sync.js, so there is exactly one sync_citymaps loop in the app, not
+  // a second copy here. Mirrors handleAeSyncClick in html/adventure-editor.html. Requires a prior
+  // "Dump holen" (WikiSync-Menüband) -- an empty staging catalog just yields 0 processed, which is why
+  // the sub-label reports the STAGING state rather than a last-sync time: "nichts im Dump" and "sync
+  // failed" must not look the same.
+  let ceSyncRunning = false;
+
+  function formatCitymapStagedText(raw) {
+    const trimmed = String(raw || "").trim();
+    if (trimmed === "") return "Kein Dump geholt";
+    const parsed = new Date(trimmed.replace(" ", "T"));
+    if (Number.isNaN(parsed.getTime())) return `Dump: ${trimmed}`;
+    return `Dump: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
+  }
+
+  // Read-only, no lock (the same GET the ribbon's synced-status refresh uses).
+  async function refreshCeSyncedInfo() {
+    const el = document.getElementById("ceSyncSub");
+    if (!el) return;
+    try {
+      const url = new URL("/api/edit/wiki/dump.php", window.location.href);
+      url.searchParams.set("action", "last_synced");
+      url.searchParams.set("_", String(Date.now()));
+      const res = await fetch(url.toString(), { method: "GET", credentials: "same-origin", cache: "no-store" });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok || !payload || payload.ok !== true) throw new Error(`HTTP ${res.status}`);
+      el.textContent = formatCitymapStagedText(payload.synced && payload.synced.citymap);
+    } catch (e) {
+      el.textContent = "Dump-Status unbekannt";
+    }
+  }
+
+  function setCeSyncBusy(isBusy) {
+    ceSyncRunning = isBusy;
+    const button = document.getElementById("ceSyncBtn");
+    if (!button) return;
+    button.disabled = isBusy;
+    const label = button.querySelector(".t1");
+    if (label) label.textContent = isBusy ? "Synchronisiert…" : "🚨 Karten syncen";
+  }
+
+  async function handleCeSyncClick() {
+    if (ceSyncRunning) return;
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    const statusEl = document.getElementById("ceSyncSub");
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncCitymapsSync !== "function") {
+      if (statusEl) statusEl.textContent = "Syncen ist nur im eingebetteten Editor verfügbar.";
+      return;
+    }
+    setCeSyncBusy(true);
+    if (statusEl) statusEl.textContent = "Karten werden übernommen …";
+    try {
+      await parentWindow.startWikiSyncCitymapsSync();
+      if (statusEl) statusEl.textContent = "Sync abgeschlossen.";
+      await loadList(); // new/updated maps should show up in the left list right away
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+    } finally {
+      setCeSyncBusy(false);
+      setTimeout(() => { void refreshCeSyncedInfo(); }, 1500);
+    }
+  }
+
   // ---- Link check (citymaps only) ----
   // Delegates to window.parent.startLinkCheck('citymap') -- the SAME loop the ribbon drives, so there is
   // exactly one link-check loop in the app. The scope keeps this button on map links: adventures and the
@@ -954,6 +1046,7 @@
     if (state.selectedId) selectCitymap(state.selectedId); else newCitymap();
   });
   document.getElementById("ceEnabledToggle").addEventListener("click", toggleEnabled);
+  document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
   document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
 
   // Delegate on the STABLE container -- the rows are rebuilt by innerHTML.
@@ -1044,6 +1137,9 @@
   });
 
   loadList(false);
+  // Fill the sync button's sub-label on open: it answers "is there a dump staged to sync at all?"
+  // before the owner presses anything. Best-effort -- a failure just shows "Dump-Status unbekannt".
+  void refreshCeSyncedInfo();
 </script>
 </body>
 </html>

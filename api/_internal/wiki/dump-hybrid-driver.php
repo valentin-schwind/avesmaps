@@ -127,6 +127,12 @@ const AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES = 'publication_sources';
 // action (sync_adventures), NOT part of this phase -- so "Dump holen" only ever stages adventures.
 // See adventure-sync.php.
 const AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES = 'adventures';
+// Kartensammlung (stages 1+2): build the citymap catalog from the two index PAGES (Stadtplanindex,
+// Kartenindex) -- a title match, not an infobox scan, because the maps live in tables on two known
+// pages rather than one page each. STAGING ONLY, exactly like adventures: the sharp reconcile into
+// the live citymap/citymap_place tables is the owner's separate sync_citymaps action. See
+// citymap-sync.php.
+const AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS = 'citymaps';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
 /**
@@ -187,6 +193,10 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
         // different payload). STAGING-ONLY, so it is dryRun-agnostic and never a sharp write; the
         // production reconcile is the owner's sync_adventures action.
         AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES,
+        // Kartensammlung staging runs right after adventures: same STAGING-ONLY contract, so it is
+        // dryRun-agnostic and never a sharp write. It scans for two known index PAGES rather than an
+        // infobox. The production reconcile is the owner's sync_citymaps action.
+        AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS,
         AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT,
     ];
@@ -214,6 +224,8 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
         AVESMAPS_WIKI_DUMP_PHASE_PUBLICATION_SOURCES => 'publication_cursor',
         // The dump page cursor for the adventure catalog/place staging build.
         AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES => 'adventure_cursor',
+        // The dump page cursor for the citymap catalog build (Stadtplanindex + Kartenindex).
+        AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS => 'citymap_cursor',
     ];
 }
 
@@ -939,6 +951,21 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
                 'found_this_step' => (int) ($r['found_this_step'] ?? 0),
             ];
 
+        case AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS:
+            // Build the citymap catalog from the two index pages (STAGING ONLY, both read_step and
+            // apply -- the owner's sync_citymaps action does the sharp write). Same dump-page cursor
+            // contract as the adventure/publication catalog builds.
+            $r = avesmapsCitymapBuildCatalogStep($pdo, $dumpPath, $cursor);
+            return [
+                'done' => (bool) ($r['done'] ?? false),
+                'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),
+                'pages_scanned' => (int) ($r['pages_scanned'] ?? 0),
+                'found_this_step' => (int) ($r['found_this_step'] ?? 0),
+                // Surfaces whether the REAL dump escapes apostrophes the way the API does (13) or not
+                // (0). The dump is basic-auth + server-only, so this run is the first chance to know.
+                'escaped_names_seen' => (int) ($r['escaped_names_seen'] ?? 0),
+            ];
+
         default:
             throw new RuntimeException('Die Dump-Read-Phase ist unbekannt: ' . $phase);
     }
@@ -969,6 +996,9 @@ function avesmapsWikiDumpHybridProgressEnvelope(array $public, ?array $stepResul
             'title_aliases_written', 'dry_run',
             // publication_sources counters (Task 4): run totals surfaced per step.
             'stage', 'publications', 'entity_refs', 'links_added', 'links_removed', 'links_updated', 'no_link',
+            // citymaps: how many escaped names (Al\'Anfa) the REAL dump carried -- the one question
+            // the API could not answer before this code existed.
+            'escaped_names_seen',
         ] as $key) {
             if (array_key_exists($key, $stepResult)) {
                 $progress[$key] = $stepResult[$key];
