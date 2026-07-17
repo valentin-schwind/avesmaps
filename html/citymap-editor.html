@@ -55,7 +55,7 @@
     font-family: "Faculty Glyphic", "Arial", sans-serif;
     background: var(--color-page-bg);
     color: var(--color-text);
-    font-size: 13px;
+    font-size: var(--font-size-body);
     display: flex;
     flex-direction: column;
   }
@@ -88,7 +88,7 @@
   .ce-btn2:hover:not(:disabled) { background: var(--color-button-soft-hover); }
   .ce-btn2:disabled { opacity: 0.6; cursor: default; }
   .ce-btn2 .t1 { font-weight: 700; }
-  .ce-btn2 .t2 { font-size: 11px; color: var(--color-text-muted); }
+  .ce-btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); }
   /* The one filled action in this header (AGENTS.md §12: main action filled, the rest soft).
      Mirrors .ae-btn2--primary in adventure-editor.html token for token -- the two sync buttons are
      the same gesture and must not drift apart. */
@@ -98,7 +98,10 @@
 
   .ce-body { flex: 1 1 auto; display: flex; min-height: 0; }
   .ce-list {
-    flex: 0 0 300px;
+    /* 380, not the original 300: wiki titles are long by construction ("Stadtplan von Al'Anfa (Al'Anfa
+       und der tiefe Süden)") because the source is part of the name, and at 300 nearly every one
+       ellipsed at the point where it starts to differ from its neighbour. Owner 2026-07-17. */
+    flex: 0 0 380px;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -115,7 +118,7 @@
     color: var(--color-text);
     font: inherit;
   }
-  .ce-list__count { margin: 0; padding: 0 var(--space-8) var(--space-6); font-size: 11px; color: var(--color-text-muted); }
+  .ce-list__count { margin: 0; padding: 0 var(--space-8) var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
   .ce-item {
     display: flex;
@@ -149,7 +152,7 @@
   .ce-item__thumb img { width: 100%; height: 100%; object-fit: cover; }
   .ce-item__text { min-width: 0; }
   .ce-item__title { font-weight: 700; }
-  .ce-item__l2 { display: block; margin-top: 2px; font-size: 11px; color: var(--color-text-muted); }
+  .ce-item__l2 { display: block; margin-top: 2px; font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-empty { padding: var(--space-12); color: var(--color-text-muted); }
 
   .ce-detail { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -181,7 +184,7 @@
     padding: 0 var(--space-4);
     color: var(--color-link);
     text-decoration: none;
-    font-size: 15px;
+    font-size: var(--font-size-subhead);
     line-height: 1;
   }
   .ce-open:hover { text-decoration: underline; }
@@ -201,8 +204,8 @@
     box-shadow: var(--focus-ring);
     outline: none;
   }
-  .ce-hint { font-size: 11px; color: var(--color-text-muted); }
-  .ce-warn { font-size: 11px; color: var(--color-warning); }
+  .ce-hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ce-warn { font-size: var(--font-size-caption); color: var(--color-warning); }
 
   /* Multi-select types: plain checkboxes, no chips — the editor is a form, not the reader dialog. */
   .ce-types { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-12); }
@@ -250,7 +253,7 @@
   /* In der schmalen Spalte braucht das Label weniger Platz als im Formular darunter. */
   .ce-imgcol__props .ce-row__label { flex: 0 0 88px; }
   .ce-img__btns { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-6); }
-  .ce-img__state { margin-top: var(--space-4); font-size: 11px; color: var(--color-text-muted); }
+  .ce-img__state { margin-top: var(--space-4); font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-img__state.error { color: var(--color-danger); }
 
   .btn {
@@ -269,30 +272,42 @@
     color: var(--color-button-text);
   }
   .btn--primary:hover { background: var(--color-button-hover); }
-  .btn--sm { padding: 2px var(--space-6); font-size: 11px; }
+  .btn--sm { padding: 2px var(--space-6); font-size: var(--font-size-caption); }
   .btn--danger { color: var(--color-danger); }
   .btn--icon { padding: 2px var(--space-6); }
 
+  /* Base pill copied token-for-token from html/adventure-editor.html -- the nearest existing component
+     (AGENTS.md §12: reuse it as the template, do not re-invent). It had drifted here: --color-border /
+     --color-text-muted instead of the dedicated --color-pill* tokens, radius-sm instead of -md, and no
+     background at all, so the same badge read differently in the two editors. */
   .pill {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
     padding: 1px var(--space-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 10.5px;
-    color: var(--color-text-muted);
+    border: 1px solid var(--color-pill-border);
+    border-radius: var(--radius-md);
+    background: var(--color-pill);
+    color: var(--color-pill-text);
+    font-size: var(--font-size-caption);
+    line-height: 1.3;
+    white-space: nowrap;
   }
-  .pill--kind { border-color: var(--color-accent); color: var(--color-accent-strong); }
-  .pill--manual { border-color: var(--color-border-strong); }
+  .pill--kind { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong); }
+  .pill--manual { border-color: var(--color-border-strong); background: transparent; }
   /* Autoget = fremdes Bildmaterial, nur intern -> Warnfarbe, damit es sich nie wie ein eigener Upload liest. */
-  .pill--auto { border-color: var(--color-warning); color: var(--color-warning); }
-  .pill--community { border-color: var(--color-accent); color: var(--color-accent-strong); }
-  /* Wiki-born (origin='wiki'): the sync owns this row and will rewrite it. --color-link is the
-     project's "this comes from the wiki" colour (AGENTS.md §12: links are gold-brown), so the pill
-     reads as provenance rather than as a warning. */
-  .pill--wiki { border-color: var(--color-link); color: var(--color-link); }
-  .pill--unresolved { border-color: var(--color-warning); color: var(--color-warning); }
-  .pill--nowiki { border-color: var(--color-border); }
-  .pill--hidden { border-color: var(--color-danger); color: var(--color-danger); }
+  .pill--auto { border-color: var(--color-warning); background: transparent; color: var(--color-warning); }
+  .pill--community { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong); }
+  /* Wiki-born (origin='wiki'): the sync owns this row and will rewrite it. Same treatment as
+     .pill--wiki in the adventure editor -- deliberately the QUIET one. My first cut painted it gold
+     (--color-link), which made "came from the wiki" shout louder than "an editor made this", the
+     opposite of the truth: wiki is the bulk default here, manual is the exception worth noticing. */
+  .pill--wiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
+  /* Warning, not danger (unlike the adventure editor): "unresolved" is the honest fallback for a name
+     we have not matched, NOT an error -- the whole point of keeping raw_name (Spec §3.1). */
+  .pill--unresolved { border-color: var(--color-warning); background: transparent; color: var(--color-warning); }
+  .pill--nowiki { border-color: var(--color-border); background: transparent; }
+  .pill--hidden { border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
 
   .ce-savebar {
     flex: 0 0 auto;
@@ -303,7 +318,7 @@
     border-top: 1px solid var(--color-border);
     background: var(--color-panel);
   }
-  .ce-savebar__state { flex: 1 1 auto; font-size: 11px; color: var(--color-text-muted); }
+  .ce-savebar__state { flex: 1 1 auto; font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-savebar__state.error { color: var(--color-danger); }
 
   .ce-place {
@@ -327,7 +342,7 @@
   }
   .ce-place__reorder button:disabled { opacity: 0.3; cursor: default; }
   .ce-place__name { font-weight: 700; }
-  .ce-place__resolved { font-size: 11px; color: var(--color-text-muted); }
+  .ce-place__resolved { font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-place__badges { margin-top: 2px; }
   .ce-place__ctl { display: flex; gap: var(--space-4); }
 
