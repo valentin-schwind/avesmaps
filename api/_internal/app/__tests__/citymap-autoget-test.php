@@ -277,4 +277,30 @@ $foreignHost = json_encode(['query' => ['pages' => ['5' => ['pageid' => 5, 'titl
 assert(avesmapsCitymapPickWikiImages($foreignHost) === []);
 echo "wiki route ok\n";
 
+// ---- thumb_origin + the skip rule (2026-07-17) -------------------------------------------------------
+// Its own vocabulary, NOT avesmapsCitymapNormalizeOrigin: that one normalises the MAP's origin
+// (manual|wiki|community), where 'wiki' would be an answer to a different question. This names who made
+// the preview picture.
+assert(avesmapsCitymapNormalizeThumbOrigin('auto') === 'auto');
+assert(avesmapsCitymapNormalizeThumbOrigin('manual') === 'manual');
+assert(avesmapsCitymapNormalizeThumbOrigin('wiki') === 'manual', 'foreign vocabulary falls to the conservative value');
+assert(avesmapsCitymapNormalizeThumbOrigin(null) === 'manual');
+assert(avesmapsCitymapNormalizeThumbOrigin('') === 'manual');
+assert(avesmapsCitymapNormalizeThumbOrigin(42) === 'manual');
+
+// "Own beats auto" (owner 2026-07-17): a run never overwrites a human's upload.
+assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '/uploads/kartensammlungen/a/t.webp', 'thumb_origin' => 'manual']) === true);
+// An auto-fetched picture may be refreshed.
+assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '/uploads/kartensammlungen/a/t.webp', 'thumb_origin' => 'auto']) === false);
+// THE TRAP: no picture, but the DEFAULT origin. Testing thumb_origin alone -- or filtering the due-query
+// on `thumb_origin <> 'manual'` -- skips EVERY map, because the column defaults to 'manual', and the
+// button would silently do nothing. The rule is "skip maps that HAVE an own picture".
+assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '', 'thumb_origin' => 'manual']) === false);
+assert(avesmapsCitymapAutogetSkips(['thumb_origin' => 'manual']) === false);
+assert(avesmapsCitymapAutogetSkips([]) === false);
+assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '   ', 'thumb_origin' => 'manual']) === false);
+// An auto picture with no origin recorded yet (pre-migration row) is still protected only if it has one.
+assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '/uploads/x/t.webp']) === true, 'unknown origin + own picture -> conservative: do not touch');
+echo "thumb origin + skip rule ok\n";
+
 echo "citymap-autoget ok\n";

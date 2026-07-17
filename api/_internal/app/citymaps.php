@@ -31,6 +31,13 @@ const AVESMAPS_CITYMAP_LICENSES = ['public_domain', 'cc0', 'ai_generated', 'perm
 const AVESMAPS_CITYMAP_LICENSE_DEFAULT = 'unknown_other';
 const AVESMAPS_CITYMAP_LICENSES_FREE = ['public_domain', 'cc0', 'ai_generated', 'permission_granted'];
 
+// Who made the current thumb_local_url. Its own vocabulary, deliberately not the map's origin
+// (manual|wiki|community) -- 'wiki' would be an answer to a different question.
+const AVESMAPS_CITYMAP_THUMB_ORIGINS = ['manual', 'auto'];
+// Every outcome of an autoget run gets one of these. NULL means "not attempted yet" and is what makes a
+// map due -- including the failures, or the next step finds the same map due and the run never ends.
+const AVESMAPS_CITYMAP_AUTOGET_STATES = ['ok', 'no_image', 'fetch_failed', 'not_an_image', 'skipped_manual'];
+
 // NB the default is the NON-free value, the inverse of the settlement-image default ('ai_generated' =
 // shown). A map whose licence nobody has judged must not be published: for our own generated settlement
 // pictures "unknown" is safe, for third-party cartography it is not.
@@ -110,6 +117,8 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             map_license_note VARCHAR(2000) NULL,
             thumb_url VARCHAR(500) NULL,
             thumb_local_url VARCHAR(500) NULL,
+            thumb_origin VARCHAR(16) NOT NULL DEFAULT 'manual',
+            thumb_auto_state VARCHAR(24) NULL,
             thumb_license VARCHAR(24) NOT NULL DEFAULT 'unknown_other',
             thumb_license_note VARCHAR(2000) NULL,
             art VARCHAR(24) NULL,
@@ -264,6 +273,27 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     if (!$columnExists($pdo, 'publisher')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN publisher VARCHAR(160) NULL');
     }
+    // thumb_origin: WHO made the current thumb_local_url -- 'manual' (an editor uploaded it) or 'auto'
+    // (the autoget run fetched it). Owner decision 2026-07-17: own beats auto, so a run never touches a
+    // human's upload. Mirrors the adventure cover reconcile, which asks field_origins['cover_url'].
+    //
+    // Meaningless while the slot is empty, and DEFAULT 'manual' is deliberate for exactly that reason: it
+    // is the conservative answer, and it is correct for the existing stock (the one preview that exists
+    // today is an upload). The skip rule therefore asks for a PICTURE too, never for this column alone --
+    // see avesmapsCitymapAutogetSkips, where getting that wrong makes nothing due at all.
+    if (!$columnExists($pdo, 'thumb_origin')) {
+        $pdo->exec("ALTER TABLE citymap ADD COLUMN thumb_origin VARCHAR(16) NOT NULL DEFAULT 'manual'");
+    }
+    // thumb_auto_state: due-ness AND the closing report in one column. NULL = not attempted yet.
+    //
+    // EVERY outcome writes a state, including the failures. Without a state for "tried, found nothing" the
+    // next step finds the same map due again and the run never ends -- the linkchecker paid for that
+    // lesson. And the state is written PER MAP right after its fetch, never leased in a batch up front:
+    // leasing rows and then hitting a time budget makes the due-query see nothing, report remaining=0, and
+    // call a half-finished run done.
+    if (!$columnExists($pdo, 'thumb_auto_state')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN thumb_auto_state VARCHAR(24) NULL');
+    }
 }
 
 function avesmapsCitymapsCount(PDO $pdo): int
@@ -307,6 +337,31 @@ function avesmapsCitymapNormalizeOrigin(mixed $value): string
 {
     $v = is_string($value) ? trim($value) : '';
     return in_array($v, AVESMAPS_CITYMAP_ORIGINS, true) ? $v : 'manual';
+}
+
+// Deliberately NOT avesmapsCitymapNormalizeOrigin: that one normalises the MAP's origin
+// (manual|wiki|community), where 'wiki' would be an answer to a different question. This one names who
+// made the preview picture. 'manual' is the conservative fallback -- it is the value that stops a run.
+function avesmapsCitymapNormalizeThumbOrigin(mixed $value): string
+{
+    $v = is_string($value) ? trim($value) : '';
+    return in_array($v, AVESMAPS_CITYMAP_THUMB_ORIGINS, true) ? $v : 'manual';
+}
+
+// The skip rule (owner 2026-07-17, "own beats auto"): a run leaves a human's upload alone. PURE, so the
+// one thing protecting somebody's work is provable without a database.
+//
+// It asks for BOTH the picture and the origin, and that is the whole point. Filtering the due-query on
+// `thumb_origin <> 'manual'` instead looks equivalent and is catastrophic: the column DEFAULTS to
+// 'manual', so nothing would ever be due and the button would silently do nothing. The rule is "skip maps
+// that HAVE an own picture", not "skip maps whose origin column sits at its default".
+//
+// Living here rather than in SQL also means a skip produces a visible state (skipped_manual) that the
+// closing report can name, instead of swallowing the map in a WHERE clause.
+function avesmapsCitymapAutogetSkips(array $row): bool
+{
+    $hasOwnPicture = trim((string) ($row['thumb_local_url'] ?? '')) !== '';
+    return $hasOwnPicture && avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null) === 'manual';
 }
 
 // Three-valued boolean (Spec §3.1): NULL means "nobody recorded this", which is NOT false. A plain
@@ -929,7 +984,7 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
     avesmapsCitymapsEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_local_url, map_license,
-                thumb_url, thumb_local_url, thumb_auto_url, thumb_license, art, is_official, is_spoiler,
+                thumb_url, thumb_local_url, thumb_auto_url, thumb_license, thumb_origin, thumb_auto_state, art, is_official, is_spoiler,
                 valid_from_bf, valid_to_bf, status, origin
            FROM citymap
           ORDER BY title ASC"
@@ -974,6 +1029,10 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
             'origin' => (string) $row['origin'],
             'map_license' => (string) $row['map_license'],
             'thumb_license' => (string) $row['thumb_license'],
+            // Travels with the LIST because that is where a run's outcome has to be findable (Spec §8):
+            // "9 ohne Seitenbild" is only useful if you can then see WHICH nine.
+            'thumb_origin' => avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null),
+            'thumb_auto_state' => (string) ($row['thumb_auto_state'] ?? ''),
             'place_count' => $placeCounts[$id] ?? 0,
         ];
     }
@@ -1090,6 +1149,10 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'thumb_auto_url' => (string) ($row['thumb_auto_url'] ?? ''),
             'thumb_license' => (string) $row['thumb_license'],
             'thumb_license_note' => (string) ($row['thumb_license_note'] ?? ''),
+            // Our own bookkeeping, NOT in $editableFields: a forgeable origin would make the upload
+            // protection worthless -- it is the only thing standing between a human's picture and a run.
+            'thumb_origin' => avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null),
+            'thumb_auto_state' => (string) ($row['thumb_auto_state'] ?? ''),
             'art' => (string) ($row['art'] ?? ''),
             'is_color' => avesmapsCitymapTriBoolOut($row['is_color']),
             'is_multilevel' => avesmapsCitymapTriBoolOut($row['is_multilevel']),
