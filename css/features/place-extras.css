@@ -612,6 +612,28 @@
 .avesmaps-citymaps-dialog__foot .avesmaps-citymaps__suggest:active {
 	background: var(--color-button-active);
 }
+.avesmaps-citymaps-dialog__actions {
+	flex: 0 0 auto;
+	display: flex;
+	gap: var(--space-8);
+	white-space: nowrap;
+}
+/* Soft/outline neben der EINEN gefuellten Hauptaktion (AGENTS.md §12): das Melden ist die Aktion fuer
+   alle, das Bearbeiten die fuer Redakteure. */
+.avesmaps-citymaps-dialog__foot .avesmaps-citymaps__edit {
+	flex: 0 0 auto;
+	padding: var(--space-6) var(--space-12);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: var(--font-size-small);
+	cursor: pointer;
+}
+.avesmaps-citymaps-dialog__foot .avesmaps-citymaps__edit:hover {
+	background: var(--color-button-soft-hover);
+}
 
 /* ---- "Karte vorschlagen": der Community-Dialog (§3.8) ---- */
 /* Teilt sich die Hülle .avesmaps-adv-dialog mit den Karten-/Abenteuerdialogen; nur der Inhalt ist eigen. */

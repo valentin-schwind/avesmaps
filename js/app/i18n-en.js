@@ -493,12 +493,20 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.fallbackPath": "this path",
 	"cityMaps.spoilerReveal": "Spoiler — reveal",
 	"cityMaps.noneMatch": "No map matches these filters.",
-	"cityMaps.footHint": "Maps are external references. Preview only where the licence permits.",
+	"cityMaps.footHint": "Maps are external content. Preview only with a free licence or permission.",
+	"cityMaps.editCollection": "Edit collection",
+	// Pre-existing key (the button shipped before this task); missing here from the start, so an
+	// English reader silently saw German. Caught by this task's i18n completeness pass.
+	"cityMaps.suggest": "Suggest a map",
 	"cityMaps.since": "since {year} BF",
 	"cityMaps.until": "until {year} BF",
 	"cityMaps.sourcePrefix": "Source: ",
 	// Heads the link list of a row: where a reader can actually get this map.
 	"cityMaps.foundAt": "Available at",
+	// Row-level empty states (Task 1): a row always shows a facts line and a links list, even when it
+	// has nothing to put in them.
+	"cityMaps.noFacts": "Nothing further recorded.",
+	"cityMaps.noLink": "no source known",
 	// Community fundort report. A FUNDORT is a link the map can be had at -- not the WORK it comes from
 	// (that is the Quelle/source, a different field with a different meaning).
 	"cityMaps.addFundort": "+ Add a source",
@@ -522,24 +530,19 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.link.paid": "(paid)",
 	// Not complementary: a map nobody has judged matches neither, and a map with both a free and a paid
 	// link appears only under "free" -- the free way in exists.
-	"cityMaps.filter.freeOnly": "free only",
-	"cityMaps.filter.paidOnly": "paid only",
+	"cityMaps.filter.freeOnly": "free",
 	"cityMaps.trait.color": "colour",
+	"cityMaps.trait.greyscale": "greyscale",
 	"cityMaps.trait.multilevel": "multi-level",
 	"cityMaps.trait.labeled": "labelled",
 	"cityMaps.trait.official": "official",
 	"cityMaps.trait.scale": "with scale",
 	"cityMaps.filter.label": "Filter",
-	"cityMaps.filter.art": "Kind",
-	"cityMaps.filter.source": "Source",
 	"cityMaps.filter.period": "Period (BF)",
 	"cityMaps.filter.from": "from",
 	"cityMaps.filter.to": "to",
 	"cityMaps.filter.color": "colour",
-	"cityMaps.filter.multilevel": "multi-level",
-	"cityMaps.filter.labeled": "labelled",
-	"cityMaps.filter.officialOnly": "official only",
-	"cityMaps.filter.spoiler": "show spoilers",
+	"cityMaps.filter.officialOnly": "official",
 	// Type + art LABELS. The slugs themselves are domain content and are never translated (AGENTS.md §8);
 	// only what the reader sees is.
 	"cityMaps.type.ortsplan": "Village plan",

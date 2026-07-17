@@ -217,15 +217,20 @@
 
 		var foot = overlay.querySelector(".avesmaps-citymaps-dialog__foot");
 		if (foot) {
-			// Fusszeile (§3.7): Hinweis + "Karte vorschlagen" (§3.8).
-			//
+			// "Sammlung bearbeiten" nur bei IS_EDIT_MODE -- das ist ?edit=1 (js/config.js), KEIN
+			// Capability-Check. Die Durchsetzung sitzt serverseitig (avesmapsRequireUserWithCapability);
+			// der Client zeigt Redakteursflaechen bei ?edit=1, wie jede andere Editor-Flaeche auch.
+			var editBtn = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
+				? '<button type="button" class="avesmaps-citymaps__edit">' + esc(tr("cityMaps.editCollection", "Sammlung bearbeiten")) + '</button>'
+				: "";
 			// Die Ortsreferenz reist als data-Attribute AM BUTTON mit, nicht in einer Modulvariablen: der
-			// Dialog ist EINE wiederverwendete Huelle (ensureDialog), die beim naechsten Oeffnen einen
-			// anderen Ort zeigt -- eine gemerkte Referenz waere genau einmal falsch, naemlich dann, wenn
-			// jemand zwei Orte nacheinander ansieht und beim zweiten vorschlaegt.
+			// Dialog ist EINE wiederverwendete Huelle, eine gemerkte Referenz waere genau einmal falsch --
+			// naemlich dann, wenn jemand zwei Orte nacheinander ansieht und beim zweiten vorschlaegt.
 			foot.innerHTML = '<span class="avesmaps-citymaps-dialog__hint">'
-				+ esc(tr("cityMaps.footHint", "Karten sind externe Verweise. Vorschau nur bei freier Lizenz."))
+				+ esc(tr("cityMaps.footHint", "Karten sind externe Inhalte. Vorschau nur mit freier Lizenz/Genehmigung."))
 				+ '</span>'
+				+ '<span class="avesmaps-citymaps-dialog__actions">'
+				+ editBtn
 				+ '<button type="button" class="avesmaps-citymaps__suggest"'
 				+ ' data-citymap-place-kind="' + esc(section.getAttribute("data-citymap-place-kind") || "") + '"'
 				// KEIN Rueckfall auf baseTitle: das ist "Kartensammlung von Gareth", nicht "Gareth" -- als
@@ -234,7 +239,8 @@
 				+ ' data-citymap-place-name="' + esc(section.getAttribute("data-citymap-place-name") || "") + '"'
 				+ ' data-citymap-place-id="' + esc(section.getAttribute("data-citymap-place-id") || "") + '"'
 				+ ' data-citymap-place-key="' + esc(section.getAttribute("data-citymap-place-key") || "") + '"'
-				+ '>' + esc(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>';
+				+ '>' + esc(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
+				+ '</span>';
 		}
 
 		buildControls(overlay, shapes);
@@ -352,6 +358,24 @@
 		var card = $(this).closest(".avesmaps-citymaps__card")[0];
 		if (card) {
 			card.classList.remove("is-spoiler");
+		}
+	});
+
+	// "Sammlung bearbeiten" -> Karten-Editor. Der Dialog wird VORHER geschlossen, und das ist nicht die
+	// billige Loesung, sondern die richtige: die Dialog-Huelle liegt auf z-index 3000
+	// (place-extras.css), das Editor-Overlay oeffnet auf 1500 (review-settlement-list.js) -- der Editor
+	// ginge sonst HINTER dem Dialog auf und der Knopf taete sichtbar nichts. Er ist ohnehin 1400x880 und
+	// verdeckt den Dialog komplett, und beim Schliessen laedt er den Katalog neu
+	// (avesmapsReloadCitymapCatalog) -- der Dialog dahinter waere also sowieso veraltet.
+	//
+	// Kein Vorauswaehlen der offenen Zeile: der Knopf sitzt in der Fusszeile und meint die SAMMLUNG.
+	$(document).on("click", ".avesmaps-citymaps__edit", function () {
+		var overlay = document.getElementById("avesmaps-citymaps-dialog");
+		if (overlay) {
+			overlay.classList.remove("is-open");
+		}
+		if (typeof window.openAvesmapsCitymapEditorOverlay === "function") {
+			window.openAvesmapsCitymapEditorOverlay();
 		}
 	});
 })();
