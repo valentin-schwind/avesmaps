@@ -121,6 +121,15 @@ function avesmapsWikiSyncMonitorParseLicense(string $wikitext): array {
         || preg_match('/\bgemeinfrei\b/iu', $wikitext) === 1) {
         $license = 'public domain';
         $status = 'public_domain';
+    } elseif (preg_match('/\{\{\s*cc(?:[\s_]+|\s*\|\s*)0\s*\}\}/iu', $wikitext) === 1) {
+        // {{CC 0}} / {{CC|0}}: Vorlage:CC is {{#ifeq:{{{1|}}}|0|{{CC 0}}|<by-variant>}}, so the
+        // 0-parameter form renders the very same licence box. CC0 waives every right the author
+        // can waive, and the wiki files both forms under [[Kategorie:Public domain Datei]] -- the
+        // same category {{Public domain}} uses. Keep this ABOVE the by-variants: they key on 'by',
+        // which a terms string like "40 by nc" carries and "0" does not.
+        $license = 'CC0';
+        $status = 'public_domain';
+        $licenseUrl = 'https://creativecommons.org/publicdomain/zero/1.0/';
     } elseif (preg_match('/cc[\s_-]?by[\s_-]?sa[\s_-]?([0-9]\.[0-9])?/iu', $wikitext, $match) === 1) {
         $version = $match[1] ?? '';
         $license = 'CC-BY-SA' . ($version !== '' ? '-' . $version : '');
