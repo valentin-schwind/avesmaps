@@ -558,6 +558,9 @@ window.openAvesmapsAdventureEditorOverlay = window.openAvesmapsAdventureEditorOv
 		}
 	};
 	closeButton.addEventListener("click", closeOverlay);
+	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
+	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
+	window.closeAvesmapsAdventureEditorOverlay = closeOverlay;
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
@@ -622,6 +625,9 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 		}
 	};
 	closeButton.addEventListener("click", closeOverlay);
+	// Exposed so the editor iframe can close itself after a save (owner 2026-07-17: "beim speichern
+	// zugehen"). Re-assigned on every open, which is correct: closeOverlay closes over THIS overlay.
+	window.closeAvesmapsCitymapEditorOverlay = closeOverlay;
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
@@ -700,6 +706,93 @@ window.loadWikiSyncAdventureList = window.loadWikiSyncAdventureList || function 
 		}
 		avesmapsAdvPickerCache = p.adventures;
 		avesmapsRenderAdventurePicker();
+	}).catch(function (e) {
+		if (scroll) { scroll.innerHTML = '<p class="wiki-sync-panel__summary">Fehler: ' + (e && e.message ? e.message : "Laden fehlgeschlagen") + '</p>'; }
+	});
+};
+
+// ---- Karten-Liste im "Materialien"-Tab, Untertab "Karten" ----------------------------------------
+// The adventure picker's twin, deliberately built as a near-copy of the three functions above rather
+// than a shared abstraction: they differ in catalog endpoint, row meta, empty text and which editor a
+// double-click opens -- parameterising all four leaves a function whose body is one big conditional.
+// Same DOM component (.wiki-sync-adv-picker) and same stylesheet, so they cannot drift apart visually,
+// which is what actually matters here.
+var avesmapsCmPickerCache = null; // [{ public_id, title, origin, status, place_count, types, ... }]
+var avesmapsCmPickerWired = false;
+
+function avesmapsRenderCitymapPicker() {
+	var scroll = document.getElementById("wiki-sync-cm-scroll");
+	if (!scroll) { return; }
+	var countEl = document.getElementById("wiki-sync-cm-count");
+	var searchEl = document.getElementById("wiki-sync-cm-search");
+	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
+	var all = avesmapsCmPickerCache || [];
+	var rows = q ? all.filter(function (c) { return (c.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
+	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
+	if (!rows.length) {
+		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Karten.") + '</p>';
+		return;
+	}
+	// escapeHtml (js/app/utils.js) is loaded well before this file, so the fallback is dead code -- but
+	// it ESCAPES rather than passing the string through, unlike the older pickers'. A dead fallback that
+	// silently disables escaping if the load order ever shifts is a footgun, not a safety net.
+	var esc = typeof escapeHtml === "function" ? escapeHtml : function (s) {
+		return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+			return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+		});
+	};
+	scroll.innerHTML = rows.map(function (c) {
+		// Meta mirrors the adventure row's "edition · product_type": what tells two rows apart at a
+		// glance. For maps that is the place it shows and where it came from -- 419 of 420 are 'wiki',
+		// so only the exceptions are worth naming (same reasoning as the editor's provenance pill).
+		var places = Array.isArray(c.places) ? c.places : [];
+		var place = places.length ? (places[0].raw_name || "") : "";
+		var origin = c.origin && c.origin !== "wiki" ? " · " + (c.origin === "community" ? "Community" : "eigen") : "";
+		var draft = c.status && c.status !== "approved" ? " · verborgen" : "";
+		var meta = [place, (c.types || []).join("/")].filter(Boolean).join(" · ");
+		return '<button type="button" class="wiki-sync-adv-picker__row" data-cm-id="' + esc(c.public_id) + '" title="Doppelklick: im Karteneditor öffnen">'
+			+ '<span class="wiki-sync-adv-picker__title">' + esc(c.title || "(ohne Titel)") + '</span>'
+			+ '<span class="wiki-sync-adv-picker__meta">' + esc(meta + origin + draft) + '</span>'
+			+ '</button>';
+	}).join("");
+}
+
+function avesmapsWireCitymapPicker() {
+	if (avesmapsCmPickerWired) { return; }
+	var searchEl = document.getElementById("wiki-sync-cm-search");
+	var scroll = document.getElementById("wiki-sync-cm-scroll");
+	if (!searchEl || !scroll) { return; }
+	avesmapsCmPickerWired = true;
+	searchEl.addEventListener("input", avesmapsRenderCitymapPicker);
+	scroll.addEventListener("dblclick", function (e) {
+		var row = e.target && e.target.closest ? e.target.closest("[data-cm-id]") : null;
+		if (!row) { return; }
+		var id = row.getAttribute("data-cm-id");
+		if (id && typeof window.openAvesmapsCitymapEditorOverlay === "function") {
+			window.openAvesmapsCitymapEditorOverlay(id);
+		}
+	});
+}
+
+// The EDITOR catalog (POST {action:list}), not the public GET: the public read hides suppressed maps
+// and applies the licence gate, so an editor list built on it would silently omit exactly the rows an
+// editor needs to find. Same choice the adventure picker makes.
+window.loadWikiSyncCitymapList = window.loadWikiSyncCitymapList || function loadWikiSyncCitymapList(force) {
+	avesmapsWireCitymapPicker();
+	if (avesmapsCmPickerCache && !force) {
+		avesmapsRenderCitymapPicker();
+		return Promise.resolve();
+	}
+	var scroll = document.getElementById("wiki-sync-cm-scroll");
+	return fetch("/api/edit/map/citymaps.php", {
+		method: "POST", credentials: "same-origin",
+		headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "list" }),
+	}).then(function (r) { return r.json().catch(function () { return null; }); }).then(function (p) {
+		if (!p || p.ok !== true || !Array.isArray(p.citymaps)) {
+			throw new Error((p && p.error && p.error.message) || "Laden fehlgeschlagen");
+		}
+		avesmapsCmPickerCache = p.citymaps;
+		avesmapsRenderCitymapPicker();
 	}).catch(function (e) {
 		if (scroll) { scroll.innerHTML = '<p class="wiki-sync-panel__summary">Fehler: ' + (e && e.message ? e.message : "Laden fehlgeschlagen") + '</p>'; }
 	});

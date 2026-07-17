@@ -38,6 +38,15 @@
 <link rel="stylesheet" href="/css/base/tokens.css">
 <style>
   * { box-sizing: border-box; }
+  /* Scrollbars, copied from css/base/base.css: this iframe links tokens.css but NOT base.css, so its
+     scroll areas showed the browser's default bars while the app around it had the thin warm ones.
+     The WebKit pseudo-elements do not inherit, hence `*`. Identical block in citymap-editor.html --
+     the two editors must not differ in this. */
+  :root { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+  *::-webkit-scrollbar { width: 7px; height: 7px; }
+  *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: var(--radius-sm); }
+  *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -311,7 +320,6 @@
 </head>
 <body>
   <div class="ae-header">
-    <span class="ae-header__spacer"></span>
     <button type="button" class="ae-btn2" id="aeCoversToggle" aria-pressed="false"
       title="Notfall-Aus: blendet ALLE Abenteuer-Cover im öffentlichen Frontend aus (Platzhalter). Die Bilder bleiben intern gespeichert; dieser Editor zeigt sie weiter.">
       <span class="t1">🖼️ Cover</span>
@@ -325,6 +333,10 @@
       <span class="t1">🔗 Links prüfen</span>
       <span class="t2" id="aeLinkCheckSub">…</span>
     </button>
+    <!-- Spacer AFTER the buttons, so the tile bar is left-aligned like the citymap editor's (owner
+         2026-07-17: "beide das kachelmenüband, linksbündig"). It used to sit in front of them, which
+         pushed the whole bar right and made the two editors read as different apps. -->
+    <span class="ae-header__spacer"></span>
   </div>
 
   <div class="ae-body">
@@ -807,13 +819,31 @@
       // AFTER the upsert: set_links addresses the adventure by public_id, and a brand-new one only has
       // that once it exists. The list is replaced wholesale, so an empty array legitimately clears it.
       await adventurePost({ action: "set_links", public_id, links: state.extraLinks });
-      await loadList();
-      await selectAdventure(public_id);
       const st2 = document.getElementById("aeSaveState");
       st2.textContent = "✓ gespeichert"; st2.className = "saved";
+      // Close on save (owner 2026-07-17: "beim speichern zugehen"), same as the citymap editor. NOT
+      // before this point -- an error above must leave the dialog open with its message. The parent
+      // reloads its catalog on close, so the list refresh that used to run here is redundant.
+      aeCloseAfterSave("Abenteuer gespeichert.");
     } catch (e) {
       st.textContent = "Fehler: " + e.message; st.className = "error";
     }
+  }
+
+  // Close the surrounding overlay and report through the parent's toast -- "gespeichert" in a savebar
+  // that is about to vanish is a message nobody reads. Standalone (no overlay): refresh in place.
+  function aeCloseAfterSave(message) {
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsAdventureEditorOverlay !== "function") {
+      void loadList();
+      return false;
+    }
+    if (typeof parentWindow.showFeedbackToast === "function") {
+      parentWindow.showFeedbackToast(message, "success");
+    }
+    parentWindow.closeAvesmapsAdventureEditorOverlay();
+    return true;
   }
 
   // ---- Orte (places) ----

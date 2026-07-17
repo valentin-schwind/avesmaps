@@ -555,7 +555,7 @@ async function refreshWikiSyncKindSyncedStatus() {
 		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
 		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
 		// verdrahten (der Territorien-Sync laeuft im Iframe-Editor, nicht ueber startWikiSyncKindSync).
-		[["settlement-editor-synced", synced && synced.settlement], ["wiki-sync-territory-synced", synced && synced.territory], ["wiki-sync-sync-adventure-synced", synced && synced.adventure], ["adventure-editor-synced", synced && synced.adventure]].forEach(([id, raw]) => {
+		[["settlement-editor-synced", synced && synced.settlement], ["wiki-sync-territory-synced", synced && synced.territory], ["wiki-sync-sync-adventure-synced", synced && synced.adventure], ["adventure-editor-synced", synced && synced.adventure], ["citymaps-editor-synced", synced && synced.citymap]].forEach(([id, raw]) => {
 			const el = document.getElementById(id);
 			if (!el || !raw) {
 				return;

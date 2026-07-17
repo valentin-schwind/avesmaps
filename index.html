@@ -372,7 +372,11 @@
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Territorien</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="regions">Regionen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="paths">Wege</button>
-					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="adventures">Abenteuer</button>
+					<!-- Label "Materialien", key still "adventures": the key is the internal wiring
+					     (setWikiSyncPanelTab, the lazy list load, the section's data attribute) and
+					     renaming it buys nothing but a chance to miss one. The tab holds Abenteuer AND
+					     Karten since the citymap sync landed, hence the label. -->
+					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="adventures">Materialien</button>
 				</nav>
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
@@ -391,6 +395,14 @@
 						<div id="path-sync-list" class="review-panel__list wikisync-itemlist"></div>
 					</div>
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="adventures">
+						<!-- Sub-tabs, same markup + wiring as the "Meldungen" tab's pills. Two kinds of
+						     material now live here, and stacking both lists in one pane meant neither
+						     could reach the panel bottom. -->
+						<div class="wiki-sync-panel__tabs">
+							<button class="wiki-sync-panel__tab is-active" type="button" data-material-subtab="adventures">Abenteuer</button>
+							<button class="wiki-sync-panel__tab" type="button" data-material-subtab="citymaps">Karten</button>
+						</div>
+						<div class="wiki-sync-panel__tab-panel is-active" data-material-subtab-section="adventures">
 						<div class="wiki-sync-panel__actions">
 							<button type="button" id="adventure-editor-open" class="wiki-sync-panel__start" title="Öffnet den Abenteuereditor (anlegen/bearbeiten, Orte zuordnen, enthält jetzt auch Syncen + Zuletzt gesynct).">Abenteuer Syncen &amp; Editieren</button><span id="adventure-editor-synced" class="wiki-sync-panel__summary" hidden></span>
 						</div>
@@ -413,8 +425,22 @@
 							<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
 						</div>
-						<div class="wiki-sync-panel__actions">
-							<button type="button" id="citymaps-editor-open" class="wiki-sync-panel__start" title="Öffnet den Kartensammlungs-Editor (Karten anlegen/bearbeiten, Orte zuordnen, Bilder hochladen, Links prüfen). Karten werden nicht aus dem Wiki gesynct — sie sind kuratiert.">Kartensammlung editieren</button>
+						</div>
+						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="citymaps">
+							<div class="wiki-sync-panel__actions">
+								<button type="button" id="citymaps-editor-open" class="wiki-sync-panel__start" title="Öffnet den Kartensammlungs-Editor (Karten anlegen/bearbeiten, Orte zuordnen, Bilder hochladen, Links prüfen, aus dem Wiki syncen).">Kartensammlung Syncen &amp; Editieren</button><span id="citymaps-editor-synced" class="wiki-sync-panel__summary" hidden></span>
+							</div>
+							<!-- Same component as the adventure list above (.wiki-sync-adv-picker), not a
+							     lookalike: one stylesheet, one row height, one behaviour. Only the ids
+							     differ, so the shared renderer can tell them apart. -->
+							<div class="wiki-sync-adv-picker">
+								<div class="wiki-sync-adv-picker__top">
+									<input type="search" id="wiki-sync-cm-search" class="wiki-sync-adv-picker__search" placeholder="Karte suchen …" autocomplete="off">
+									<span class="wiki-sync-panel__summary" id="wiki-sync-cm-count"></span>
+								</div>
+								<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-cm-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+								<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Karteneditor direkt dort.</p>
+							</div>
 						</div>
 					</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">

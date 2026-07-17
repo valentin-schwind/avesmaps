@@ -306,6 +306,21 @@ $(document).on("click", "[data-review-subtab]", function () {
         section.classList.toggle("is-active", section.dataset.reviewSubtabSection === sub);
     });
 });
+// Sub-Pills im "Materialien"-Reiter (Abenteuer / Karten) — dasselbe Muster wie oben.
+// The citymap list loads LAZILY on first open, like the adventure list: it is an editor catalog fetch
+// that nobody waiting on the Siedlungen tab should pay for.
+$(document).on("click", "[data-material-subtab]", function () {
+    const sub = this.dataset.materialSubtab || "adventures";
+    document.querySelectorAll("[data-material-subtab]").forEach((tab) => {
+        tab.classList.toggle("is-active", tab.dataset.materialSubtab === sub);
+    });
+    document.querySelectorAll("[data-material-subtab-section]").forEach((section) => {
+        section.classList.toggle("is-active", section.dataset.materialSubtabSection === sub);
+    });
+    if (sub === "citymaps" && typeof window.loadWikiSyncCitymapList === "function") {
+        void window.loadWikiSyncCitymapList(false);
+    }
+});
 $("#wiki-sync-filter").on("input search", function () {
     setWikiSyncFilterQuery(this.value || "");
 });

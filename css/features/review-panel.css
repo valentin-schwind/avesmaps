@@ -509,9 +509,13 @@
 }
 
 /* Adventure picker (adventures tab): search + scrollable list; double-click a row opens the editor there. */
+/* Grows to the panel's bottom edge instead of stopping at a fixed height (owner 2026-07-17). Same
+   recipe as .wiki-sync-territory-tree below -- the parent .wiki-sync-panel__tab-panel.is-active is
+   already a flex column, so the list only had to claim the free space. */
 .wiki-sync-adv-picker {
 	display: flex;
 	flex-direction: column;
+	flex: 1 1 auto;
 	min-height: 0;
 	margin: 0 10px 8px;
 }
@@ -538,7 +542,11 @@
 	box-shadow: var(--focus-ring);
 }
 .wiki-sync-adv-picker__scroll {
-	max-height: 260px;
+	/* was max-height: 260px -- a fixed cap that left dead space below the list on a tall panel and
+	   forced two scrollbars on a short one. */
+	flex: 1 1 auto;
+	min-height: 0;
+	max-height: none;
 	overflow-y: auto;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);

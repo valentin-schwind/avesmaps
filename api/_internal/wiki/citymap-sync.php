@@ -1078,6 +1078,35 @@ function avesmapsCitymapCountCatalog(PDO $pdo): int
     return (int) $pdo->query('SELECT COUNT(*) FROM wiki_citymap_catalog')->fetchColumn();
 }
 
+/** app_setting key holding the last completed sync_citymaps run (UTC 'Y-m-d H:i:s'). */
+const AVESMAPS_CITYMAP_LAST_SYNCED_SETTING = 'citymaps_last_synced';
+
+/**
+ * When the owner last ran "Karten syncen" to completion, or null if never.
+ *
+ * A single app_setting row rather than a citymap.synced_at column, on purpose: a per-card timestamp
+ * would have to be written on EVERY card on EVERY run to mean "when did the sync last run" -- 419
+ * writes to answer one question, and it would destroy the property that a repeat sync is a true no-op.
+ * (The adventure sync can use MAX(synced_at) because its table already carries the column.)
+ *
+ * Distinct from avesmapsCitymapLastStaged, and both are needed: this one answers "when did I last
+ * sync?" (the ribbon button), that one answers "is there anything staged TO sync?" (the editor button).
+ * Showing the dump time next to a "Syncen" button would be a quiet lie.
+ */
+function avesmapsCitymapLastSynced(PDO $pdo): ?string
+{
+    if (!function_exists('avesmapsAppSettingGet')) {
+        return null;
+    }
+    try {
+        $value = trim(avesmapsAppSettingGet($pdo, AVESMAPS_CITYMAP_LAST_SYNCED_SETTING, ''));
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value === '' ? null : $value;
+}
+
 /**
  * When the staging catalog was last filled by "Dump holen", or null if never.
  *
@@ -1331,6 +1360,15 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     $done = !$timedOut && count($catalogRows) < $budget;
 
     if ($done) {
+        // Stamp the run BEFORE the heavy tail work: this records "the owner ran a full sync", which is
+        // true the moment the catalog is drained, whether or not anything changed.
+        if (function_exists('avesmapsAppSettingSet')) {
+            try {
+                avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAP_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+            } catch (Throwable) {
+                // A missing timestamp is a cosmetic loss; it must never fail the reconcile itself.
+            }
+        }
         $totals['removed'] = avesmapsCitymapRemoveVanished($pdo);
         // Resolve freshly-added wiki place names -> entities, once, at the end (mirrors the adventures
         // reconcile). THIS is what makes the cards appear at their settlements, so it is not optional:

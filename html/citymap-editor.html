@@ -49,6 +49,16 @@
 <link rel="stylesheet" href="/css/base/tokens.css?v=20260716-citymaps1">
 <style>
   * { box-sizing: border-box; }
+  /* Scrollbars, copied from css/base/base.css. This iframe links tokens.css but NOT base.css, so every
+     scroll area in here fell back to the browser's default bars while the app around it had the thin
+     warm ones -- the single most obvious "this dialog is from somewhere else" tell (owner 2026-07-17:
+     "einheitliche ui z.B. die scrollbalken des design templates"). The WebKit pseudo-elements do not
+     inherit, hence `*`. Same tokens, so both themes come along. */
+  :root { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+  *::-webkit-scrollbar { width: 7px; height: 7px; }
+  *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: var(--radius-sm); }
+  *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -318,7 +328,10 @@
     border-top: 1px solid var(--color-border);
     background: var(--color-panel);
   }
-  .ce-savebar__state { flex: 1 1 auto; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  /* No flex-grow: the spacer pushes the buttons right now, so the status only takes what it needs and
+     stops sliding around as its text changes. */
+  .ce-savebar__state { flex: 0 1 auto; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ce-savebar__spacer { flex: 1 1 auto; }
   .ce-savebar__state.error { color: var(--color-danger); }
 
   .ce-place {
@@ -411,10 +424,15 @@
         <p class="ce-placeholder">—</p>
       </div>
     </div>
+    <!-- Order copied from the adventure editor's savebar: status LEFT, actions bottom-RIGHT, primary
+         last (owner 2026-07-17: "speichern und verwerfen an derselben stelle im footer, unten rechts").
+         The status keeps its own slot on the left rather than riding along after the buttons -- it must
+         stay readable while the buttons move. -->
     <div class="ce-savebar" id="ceSaveBar" hidden>
-      <button class="btn btn--primary" id="ceSave">Speichern</button>
-      <button class="btn" id="ceDiscard">Verwerfen</button>
       <span class="ce-savebar__state" id="ceSaveState"></span>
+      <span class="ce-savebar__spacer"></span>
+      <button class="btn" id="ceDiscard">Verwerfen</button>
+      <button class="btn btn--primary" id="ceSave">Speichern</button>
     </div>
   </section>
 </div>
@@ -756,13 +774,34 @@
         await citymapPost({ action: "set_types", public_id: saved.public_id, types });
       }
       state.dirty = false;
-      await loadList(true);
-      await selectCitymap(saved.public_id);
       stateEl.textContent = "Gespeichert.";
+      // Close on save (owner 2026-07-17: "beim speichern zugehen"). NOT before this point: an error
+      // above must leave the dialog open with its message, or the edit vanishes with no explanation.
+      //
+      // The confirmation moves to a toast in the PARENT window, because "Gespeichert." in a savebar
+      // that is about to disappear is a message nobody can read. Failing that (editor opened
+      // standalone), fall back to reloading the list in place -- the old behaviour.
+      closeAfterSave("Karte gespeichert.");
     } catch (e) {
       stateEl.textContent = "Fehler: " + e.message;
       stateEl.className = "ce-savebar__state error";
     }
+  }
+
+  // Close the surrounding overlay and report through the parent's toast. Returns false when there is
+  // no parent to close (standalone /html/citymap-editor.html), so the caller can stay put.
+  function closeAfterSave(message) {
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsCitymapEditorOverlay !== "function") {
+      void loadList(true); // standalone: no overlay to close, so at least refresh the list
+      return false;
+    }
+    if (typeof parentWindow.showFeedbackToast === "function") {
+      parentWindow.showFeedbackToast(message, "success");
+    }
+    parentWindow.closeAvesmapsCitymapEditorOverlay();
+    return true;
   }
 
   // ---- images ----
@@ -1007,7 +1046,9 @@
       const res = await fetch(url.toString(), { method: "GET", credentials: "same-origin", cache: "no-store" });
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload || payload.ok !== true) throw new Error(`HTTP ${res.status}`);
-      el.textContent = formatCitymapStagedText(payload.synced && payload.synced.citymap);
+      // citymap_staged, not citymap: this label answers "is there a dump to sync?", not "when did I
+      // last sync?" -- the ribbon button shows the latter. See avesmapsWikiDumpSyncKindLastSynced.
+      el.textContent = formatCitymapStagedText(payload.synced && payload.synced.citymap_staged);
     } catch (e) {
       el.textContent = "Dump-Status unbekannt";
     }

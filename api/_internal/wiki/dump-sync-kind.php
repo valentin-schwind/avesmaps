@@ -178,11 +178,17 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     if (function_exists('avesmapsAdventureLastSynced')) {
         $result['adventure'] = avesmapsAdventureLastSynced($pdo);
     }
-    // Karten are not a sync_kind either; the citymap editor's header label reuses this map. Unlike the
-    // others this is the STAGING time ("Dump holen"), not a reconcile time -- see
-    // avesmapsCitymapLastStaged. Same guard: a context without the citymap lib returns the rest.
+    // Karten are not a sync_kind either; two labels read this map and they need DIFFERENT answers:
+    //   citymap        -- when "Karten syncen" last completed. The ribbon button asks this.
+    //   citymap_staged -- when "Dump holen" last filled the staging catalog. The editor's own sync
+    //                     button asks this, because before pressing it the question is "is there
+    //                     anything to sync at all?", and "never synced" cannot answer that.
+    // Same guard as above: a context without the citymap lib returns the other kinds unchanged.
+    if (function_exists('avesmapsCitymapLastSynced')) {
+        $result['citymap'] = avesmapsCitymapLastSynced($pdo);
+    }
     if (function_exists('avesmapsCitymapLastStaged')) {
-        $result['citymap'] = avesmapsCitymapLastStaged($pdo);
+        $result['citymap_staged'] = avesmapsCitymapLastStaged($pdo);
     }
 
     return $result;
