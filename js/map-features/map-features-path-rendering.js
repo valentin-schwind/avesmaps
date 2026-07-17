@@ -277,7 +277,17 @@ function refreshPathLayerPopup(path) {
 	// unterdruecken koennen, wenn eine Siedlung auf dem Weg liegt -- ein bindPopup-Auto-Open liesse sich nicht
 	// abbrechen (Leaflet feuert alle click-Listener). Wir merken uns nur Markup + Optionen am Pfad.
 	path._popupMarkup = createPathPopupMarkup(path);
-	path._popupOptions = pathHasWiki(path) ? { className: "settlement-popup", minWidth: 320, maxWidth: 400 } : {};
+	// Dieselbe Huelle fuer JEDEN Weg. Vorher: ohne wiki_path ein leeres {} -> der 260px-Deckel aus
+	// .location-popup blieb stehen und die Editor-Aktionen fielen untereinander; und selbst MIT wiki_path
+	// fehlte "floating-location-popup", also die Kachel-Optik, die das Panel laengst zeigt. Nur der Inhalt
+	// haengt an pathHasWiki (createPathPopupMarkup), nicht die Kiste.
+	path._popupOptions = {
+		className: (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE)
+			? "settlement-popup floating-location-popup"
+			: "settlement-popup",
+		minWidth: 320,
+		maxWidth: 400,
+	};
 }
 
 function createPathLayer(path) {

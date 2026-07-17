@@ -194,7 +194,6 @@ function refreshLocationMarkerPopup(markerEntry) {
 	markerEntry.iconZoomLevel = map.getZoom();
 	// Alle Nicht-Kreuzungs-Popups nutzen die settlement-popup-Optik (feste Breite + voll-breite Trenner
 	// über Daten-Infobox, Quell-Zeile und Aktionen). Kreuzungen bleiben schlicht.
-	const isCrossingPopup = markerEntry.locationType === CROSSING_LOCATION_TYPE;
 	const maxHeight = locationMarkerPopupMaxHeight();
 	// In infopanel mode the bound popup is the slim FLOATING box (the panel holds the full info). Lazy
 	// content so the slim variant is built up front -> no full-box flash before the popupopen handler runs.
@@ -202,11 +201,15 @@ function refreshLocationMarkerPopup(markerEntry) {
 	// Popup-Inhalt LAZY binden (Leaflet akzeptiert eine Content-Funktion): das HTML entsteht erst beim
 	// Öffnen. Vorher wurde es hier für JEDEN Marker beim Start gebaut (~3000 × Infobox/Buttons/Bewertungs-
 	// Markup) und beim Öffnen via popupopen ohnehin neu gesetzt -> reiner Startup-Ballast.
+	// Kreuzungen bekamen hier lange NUR { maxHeight } -- "Kreuzungen bleiben schlicht" meinte den INHALT
+	// (keine Datenbox, keine Bewertungen; das entscheidet buildLocationMarkerPopupHtml), traf aber die KISTE:
+	// ohne "settlement-popup" bleibt .location-popup auf 260px gedeckelt, vier Kacheln brauchen ~384px --
+	// also fielen die fuenf Editor-Aktionen untereinander (Owner-Meldung "haessliche schwebende Infobox").
+	// Kein CSS setzt je flex-direction auf die Aktionsleiste; es war immer nur der fehlende Breiten-Anker
+	// (dieselbe Diagnose wie 36ac9a2b bei den Kontinent-Labels). Jede schwebende Box bekommt jetzt dieselbe.
 	markerEntry.marker.bindPopup(
 		() => buildLocationMarkerPopupHtml(markerEntry, infopanelMode ? { floating: true } : undefined),
-		isCrossingPopup
-			? { maxHeight }
-			: { minWidth: 320, maxWidth: 400, maxHeight, className: infopanelMode ? "settlement-popup floating-location-popup" : "settlement-popup" }
+		{ minWidth: 320, maxWidth: 400, maxHeight, className: infopanelMode ? "settlement-popup floating-location-popup" : "settlement-popup" }
 	);
 	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
 	// (Ort bereits Wegpunkt? -> "Reiseziel entfernen"). Nur EINMAL pro Marker binden.

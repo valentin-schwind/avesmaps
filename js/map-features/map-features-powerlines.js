@@ -191,7 +191,17 @@ function createPowerlinePopupMarkup(powerline) {
 
 function refreshPowerlineLayerPopup(powerline) {
 	const popupMarkup = createPowerlinePopupMarkup(powerline);
-	powerline._interactiveLines?.forEach((line) => line.bindPopup(popupMarkup));
+	// Ohne Optionen erbte die Box den 260px-Deckel aus .location-popup und KEINE Kachel-Optik -- die
+	// Editor-Aktionen fielen darin untereinander. Gleiche Huelle wie jede andere schwebende Box:
+	// "settlement-popup" loest die Breite auf 400px, "floating-location-popup" gibt die Kacheln.
+	const options = {
+		minWidth: 320,
+		maxWidth: 400,
+		className: (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE)
+			? "settlement-popup floating-location-popup"
+			: "settlement-popup",
+	};
+	powerline._interactiveLines?.forEach((line) => line.bindPopup(popupMarkup, options));
 }
 
 function createPowerlineLayer(powerline) {
