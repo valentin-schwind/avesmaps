@@ -67,21 +67,3 @@ body.modal-dialog-open {
 	background: var(--color-scrim-light);
 	backdrop-filter: blur(4px);
 }
-
-.political-territory-editor-overlay {
-	position: fixed;
-	inset: 0;
-	z-index: var(--z-dialog-high);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 18px;
-	background: var(--color-scrim-editor);
-	backdrop-filter: blur(3px);
-}
-
-@media (max-width: 680px) {
-	.political-territory-editor-overlay {
-		padding: 8px;
-	}
-}
