@@ -418,20 +418,20 @@
     <span class="t1">🚨 Karten syncen</span>
     <span class="t2" id="ceSyncSub">…</span>
   </button>
-  <button type="button" class="ce-btn2" id="ceEnabledToggle" title="Globaler Notaus für die Kartensammlung: aus = die Karten verschwinden auf der öffentlichen Seite (api/app/citymaps.php liefert eine leere Liste). Die Daten bleiben, der Editor arbeitet weiter.">
-    <span class="t1" id="ceEnabledLabel">Kartensammlung: …</span>
-    <span class="t2">öffentliche Anzeige</span>
-  </button>
   <button type="button" class="ce-btn2" id="ceLinkCheckBtn" title="Prüft NUR die Karten-Links auf Erreichbarkeit — Abenteuer und Quellen bleiben unberührt. Höflich: 600ms Pause je Host.">
-    <span class="t1">🔗 Links prüfen</span>
+    <span class="t1">Links prüfen</span>
     <span class="t2" id="ceLinkCheckSub">…</span>
   </button>
-  <button type="button" class="ce-btn2" id="ceAutogetBtn" title="Holt für alle Karten ein Vorschaubild: Wiki-Karten über die MediaWiki-API (kein HTML-Crawl), Ulisses über die Produkt-API. Verlagscover werden öffentlich, ein fremdes og:image bleibt im Editor. Eigene Uploads bleiben unangetastet. Läuft schrittweise und ist fortsetzbar.">
-    <span class="t1">🖼️ Vorschauen holen</span>
-    <span class="t2" id="ceAutogetSub">…</span>
+  <button type="button" class="ce-btn2" id="ceAutogetBtn" disabled title="Vorschauen-Massenlauf vorübergehend deaktiviert (Sicherheit): der Lauf hält je Schritt einen PHP-Worker und kommt mit einem Server-Riegel gegen Doppelläufe zurück. Der Einzelbild-Refetch pro Karte im Detail bleibt.">
+    <span class="t1">Vorschauen holen</span>
+    <span class="t2" id="ceAutogetSub">vorübergehend deaktiviert</span>
   </button>
   <button type="button" class="ce-btn2" id="cePreviewsToggle" title="Notaus NUR für die Vorschaubilder: aus = die Karten bleiben, aber kein Cover und keine „© Ulisses Spiele“-Fußnote erscheinen öffentlich. Getrennt vom Abenteuer-Cover-Schalter, weil die Erlaubnis nur bis auf Widerruf gilt.">
     <span class="t1" id="cePreviewsLabel">Vorschauen: …</span>
+    <span class="t2">öffentliche Anzeige</span>
+  </button>
+  <button type="button" class="ce-btn2" id="ceEnabledToggle" title="Globaler Notaus für die Kartensammlung: aus = die Karten verschwinden auf der öffentlichen Seite (api/app/citymaps.php liefert eine leere Liste). Die Daten bleiben, der Editor arbeitet weiter.">
+    <span class="t1" id="ceEnabledLabel">Kartensammlung: …</span>
     <span class="t2">öffentliche Anzeige</span>
   </button>
 </div>
@@ -1305,7 +1305,7 @@
     if (!button) return;
     button.disabled = isBusy;
     const label = button.querySelector(".t1");
-    if (label) label.textContent = isBusy ? "Prüft …" : "🔗 Links prüfen";
+    if (label) label.textContent = isBusy ? "Prüft …" : "Links prüfen";
   }
 
   async function handleLinkCheckClick() {
@@ -1349,7 +1349,7 @@
     if (!button) return;
     button.disabled = isBusy;
     const label = button.querySelector(".t1");
-    if (label) label.textContent = isBusy ? "Holt …" : "🖼️ Vorschauen holen";
+    if (label) label.textContent = isBusy ? "Holt …" : "Vorschauen holen";
   }
 
   // Read-only, no lock, no run -- the same shape as refreshCeSyncedInfo.
@@ -1433,7 +1433,9 @@
   document.getElementById("cePreviewsToggle").addEventListener("click", togglePreviews);
   document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
   document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
-  document.getElementById("ceAutogetBtn").addEventListener("click", handleAutogetClick);
+  // ceAutogetBtn (Vorschauen holen) is DISABLED for now: the mass run was the PHP-pool-hang trigger
+  // (2026-07-17) and comes back with a server-side single-run lock. handleAutogetClick /
+  // refreshCeAutogetInfo stay defined but unwired until then. The per-map single refetch is untouched.
 
   // Delegate on the STABLE container -- the rows are rebuilt by innerHTML.
   document.getElementById("ceListScroll").addEventListener("click", (e) => {
@@ -1571,8 +1573,8 @@
   // Fill the sync button's sub-label on open: it answers "is there a dump staged to sync at all?"
   // before the owner presses anything. Best-effort -- a failure just shows "Dump-Status unbekannt".
   void refreshCeSyncedInfo();
-  // Same idea for the autoget button: "133 von 365 offen" before anyone presses it.
-  void refreshCeAutogetInfo();
+  // No refreshCeAutogetInfo() while the autoget tile is disabled -- its sub-label stays the fixed
+  // "vorübergehend deaktiviert" set in the markup.
 </script>
 </body>
 </html>
