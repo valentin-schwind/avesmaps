@@ -161,3 +161,16 @@ assert(count($both) === 2);
 assert($both[1]['label'] === 'maps.aventuria.ru');
 
 echo "citymap linktext ok\n";
+
+// ---- map_url_label length guard (avesmapsUpsertCitymap's $normalize) ---------------------------------
+// The guard mirrors 'author' exactly (same closure, same style: mb_strlen($value) > MAX throws
+// InvalidArgumentException) and lives in avesmapsUpsertCitymap, which calls
+// avesmapsCitymapsEnsureTables($pdo) -- a real DB round-trip -- as its very FIRST statement, before the
+// closure ever runs. Like 'author'/'note' in that same closure, it therefore has no pure/no-PDO entry
+// point this naked test file can reach, and no PDO is opened here (no local DB exists; the live one is
+// off limits). Verified by static trace instead: the constant matches the column width below, and the
+// guard's '>' comparison lets exactly AVESMAPS_CITYMAP_URL_LABEL_MAX characters through and throws on one
+// more, the same semantics as the author check right above it in citymaps.php.
+assert(AVESMAPS_CITYMAP_URL_LABEL_MAX === 120, 'must match the map_url_label VARCHAR(120) column width');
+
+echo "citymap map_url_label length guard: constant checked; throw path needs a live PDO, not exercised here\n";

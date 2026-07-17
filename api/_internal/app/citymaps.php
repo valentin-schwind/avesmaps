@@ -121,6 +121,7 @@ const AVESMAPS_CITYMAP_FORMAT_MAX = 120;
 // 160 fits the longest real value by a wide margin: "Schmidt Spiele & Droemer Knaur" (30) is the
 // two-publisher case the wiki actually has.
 const AVESMAPS_CITYMAP_PUBLISHER_MAX = 160;
+const AVESMAPS_CITYMAP_URL_LABEL_MAX = 120; // matches map_url_label VARCHAR(120)
 
 // ---- DDL --------------------------------------------------------------------------------------------
 // Idempotent. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS), so a fresh deploy self-heals on the
@@ -1339,6 +1340,9 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         }
         if ($field === 'publisher' && mb_strlen($value) > AVESMAPS_CITYMAP_PUBLISHER_MAX) {
             throw new InvalidArgumentException('Der Verlag ist zu lang (max. ' . AVESMAPS_CITYMAP_PUBLISHER_MAX . ' Zeichen).');
+        }
+        if ($field === 'map_url_label' && mb_strlen($value) > AVESMAPS_CITYMAP_URL_LABEL_MAX) {
+            throw new InvalidArgumentException('Der Linktext ist zu lang (max. ' . AVESMAPS_CITYMAP_URL_LABEL_MAX . ' Zeichen).');
         }
         return $value === '' ? null : $value;
     };
