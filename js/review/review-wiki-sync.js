@@ -1379,7 +1379,6 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	overlay = document.createElement("div");
 	overlay.id = overlayId;
 	overlay.className = "political-territory-editor-overlay";
-	overlay.style.zIndex = "1500";
 	const dialog = document.createElement("div");
 	dialog.className = "political-territory-editor-dialog";
 	dialog.style.width = "min(1400px, calc(100vw - 24px))";

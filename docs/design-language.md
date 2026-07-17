@@ -28,7 +28,7 @@ waiting to happen — it is how the infobox and route planner drifted apart.
 | Spacing | `--space-2` … `--space-24` (9 steps: 2/4/6/8/10/12/16/20/24) |
 | Radius | `--radius-sm` 5px (panel shell), `--radius-md` 8px (all controls), `--radius-lg` 10px (menus/cards) |
 | Icons | `--icon-sm` 16 / `--icon-md` 20 (UI glyphs) · `--icon-lg` 24 / `--icon-xl` 40 / `--icon-2xl` 48 / `--icon-hero` 130 (imagery) |
-| Status · markers · elevation | `--color-danger`, `--color-success`, `--color-marker-destination`, `--color-marker-active` (clicked settlement → gold-yellow fill), `--shadow-panel`, `--shadow-dialog`, `--shadow-button-hover` / `--shadow-button-hover-strong` (button hover lift — strong = filled main action), `--z-map-ui` / `--z-dialog` / `--z-dialog-high` |
+| Status · markers · elevation | `--color-danger`, `--color-success`, `--color-marker-destination`, `--color-marker-active` (clicked settlement → gold-yellow fill), `--shadow-panel`, `--shadow-dialog`, `--shadow-button-hover` / `--shadow-button-hover-strong` (button hover lift — strong = filled main action), the stacking ladder, low → high: `--z-map-ui` 1000 / `--z-dialog` 1450 / `--z-dialog-high` 1460 (map context menu) / `--z-editor-overlay` 1500 (the iframe editor tools) / `--z-dialog-over-editor` 3000 (a dialog opened from inside an editor) / `--z-modal` 5000 |
 | Review stars | `--color-star` (filled glyph, warm coat-gold), `--color-star-muted` (empty-star track) — rating summary + write-dialog picker; both carry a dark value |
 
 ## Themes — light & dark

@@ -236,6 +236,11 @@
 	--z-map-ui: 1000;
 	--z-dialog: 1450;
 	--z-dialog-high: 1460;
+	/* Editor overlays (the iframe tools: territory, settlement, adventure, citymap, wiki-sync).
+	   Above --z-dialog-high so an editor overlay always clears the map context menu sitting there. */
+	--z-editor-overlay: 1500;
+	/* A dialog opened FROM an editor overlay ("Alle anzeigen") — must clear --z-editor-overlay. */
+	--z-dialog-over-editor: 3000;
 	--z-modal: 5000; /* full-screen modal overlay — above autocomplete (1600) */
 }
 
