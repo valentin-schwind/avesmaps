@@ -500,9 +500,6 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.suggest": "Suggest a map",
 	"cityMaps.since": "since {year} BF",
 	"cityMaps.until": "until {year} BF",
-	"cityMaps.sourcePrefix": "Source: ",
-	// Heads the link list of a row: where a reader can actually get this map.
-	"cityMaps.foundAt": "Available at",
 	// Row-level empty states (Task 1): a row always shows a facts line and a links list, even when it
 	// has nothing to put in them.
 	"cityMaps.noFacts": "Nothing further recorded.",

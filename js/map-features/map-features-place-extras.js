@@ -657,7 +657,9 @@ function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
 	var containedLine = a.containedIn
 		? '<div class="avesmaps-adv-row__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>'
 		: "";
-	var linksMarkup = links.length ? '<ul class="avesmaps-adv-row__links">' + links.map(advRowLinkMarkup).join("") + '</ul>' : "";
+	var linksMarkup = links.length ? '<ul class="avesmaps-adv-row__links">' + links.map(function (link) {
+		return advRowLinkMarkup(link);
+	}).join("") + '</ul>' : "";
 
 	var extraClass = isPlay ? " is-play" : "";
 	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
