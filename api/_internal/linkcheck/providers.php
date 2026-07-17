@@ -69,9 +69,15 @@ function avesmapsLinkCheckCollectAdventureLinks(PDO $pdo): array
     return $collected;
 }
 
-// The external map link of every approved citymap (Spec §3.1: "immer gespeichert, immer angezeigt").
-// Uses avesmapsCitymapLinks() -- the SAME function the public catalog renders from -- so the checker can
-// never end up probing a different set of URLs than the one the reader sees.
+// EVERY link of every approved citymap: the external map link (Spec §3.1: "immer gespeichert, immer
+// angezeigt") plus every place the map can also be found (citymap_link). Uses avesmapsCitymapLinks() --
+// the SAME function the public catalog renders from -- so the checker can never end up probing a different
+// set of URLs than the one the reader sees.
+//
+// Collecting the link LIST here is not optional garnish: skipping it would leave every one of those links
+// stuck on "(noch nicht geprüft)" forever while this provider reported a clean run -- the reader would be
+// looking at dead links under a checker that says everything is fine. The list is fetched in ONE batch
+// query, never per map.
 //
 // A map's catalogue SOURCES (feature_sources, §3.2) are deliberately not collected here: they live in the
 // shared `sources` table and are already covered per SOURCE by the source_* scopes, keyed by the
@@ -81,21 +87,30 @@ function avesmapsLinkCheckCollectAdventureLinks(PDO $pdo): array
 function avesmapsLinkCheckCollectCitymapLinks(PDO $pdo): array
 {
     avesmapsCitymapsEnsureTables($pdo);
+    // is_paid rides along because avesmapsCitymapLinks() reads it onto the map link. It is inert for the
+    // probe -- a paywall is not a dead link -- but selecting it keeps this call identical to the catalog's.
     $rows = $pdo->query(
-        "SELECT public_id, title, map_url FROM citymap WHERE status = 'approved'"
+        "SELECT id, public_id, title, map_url, is_paid FROM citymap WHERE status = 'approved'"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $linksByCitymap = avesmapsCitymapLinksByCitymap(
+        $pdo,
+        array_map(static fn(array $r): int => (int) $r['id'], $rows)
+    );
 
     $collected = [];
     foreach ($rows as $row) {
-        foreach (avesmapsCitymapLinks($row) as $link) {
+        foreach (avesmapsCitymapLinks($row, $linksByCitymap[(int) $row['id']] ?? []) as $link) {
+            // The bare map link has no distinguishing label of its own ("Karte" would say nothing on every
+            // row), so it is recorded under the map's TITLE -- that is what a human scanning dead links
+            // needs. A link from the list DOES carry a name of the place it was found ("Wiki-Aventurica"),
+            // and dropping that in favour of the title would make a map's rows indistinguishable from each
+            // other -- exactly the reason the adventure provider above keeps its labels.
+            $label = $link['key'] === 'map' ? (string) $row['title'] : (string) $link['label'];
             $collected[] = [
                 'entity_public_id' => (string) $row['public_id'],
                 'field' => (string) $link['key'],
-                // The map's TITLE, not the link's label -- deliberately unlike the adventure provider
-                // above. An adventure's links each carry a distinguishing label (Ulisses / F-Shop / Wiki /
-                // DNB) worth recording; a citymap has exactly one link, so its label ("Karte") would say
-                // nothing on every row, while the title is what a human scanning dead links needs.
-                'label' => (string) $row['title'],
+                'label' => $label !== '' ? $label : (string) $row['title'],
                 'url' => (string) $link['url'],
                 'url_hash' => (string) $link['url_hash'],
             ];

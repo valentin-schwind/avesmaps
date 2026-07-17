@@ -474,6 +474,8 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.since": "since {year} BF",
 	"cityMaps.until": "until {year} BF",
 	"cityMaps.sourcePrefix": "Source: ",
+	// Sits behind ONE link, not on the map: the same volume is paid in the shop and free on its wiki page.
+	"cityMaps.link.paid": "(paid)",
 	"cityMaps.trait.color": "colour",
 	"cityMaps.trait.multilevel": "multi-level",
 	"cityMaps.trait.labeled": "labelled",

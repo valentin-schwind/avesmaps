@@ -506,6 +506,14 @@
 	font-size: 11.5px;
 	line-height: 1.5;
 }
+/* „(kostenpflichtig)" hinter EINEM Link (Mehrfachlink-Spec §3). Gedaempft: es ist die Bedingung des Wegs,
+   nicht sein Name -- der Link bleibt das, was man liest. Ein <span>, kein <a>, deshalb greift die
+   !important-Regel aus features/links.css hier nicht (siehe Hinweis darunter). */
+.avesmaps-adv-row__linkpaid {
+	margin-left: var(--space-4);
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
 /* Bewusst OHNE eigene Farb-/Unterstreichungsregel: features/links.css faerbt jeden externen Link
    (a[target="_blank"]) per !important einheitlich gold-braun, und link-status.css zeichnet den toten
    Zustand. Eine Regel hier waere wirkungslos -- sie saehe nur so aus, als taete sie etwas. */

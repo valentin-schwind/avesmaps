@@ -1,6 +1,9 @@
 # Design: Mehrere Karten-Links + „kostenpflichtig" am Link
 
-**Datum:** 2026-07-17 · **Status:** freigegeben, NICHT gebaut (eigene Sitzung)
+**Datum:** 2026-07-17 · **Status:** Schritte 1–4 **GEBAUT** (2026-07-17). Offen: 5 (wartet auf die
+Abstimmung mit der Parallel-Session) und 6 (siehe §6 — der Punkt ist nicht so baubar, wie er dasteht).
+⚠️ End-to-End ungetestet: keine lokale DB. Unit-getestet sind die Normalisierer (PHP) und
+Filter + Anzeige (JS); der DB-Roundtrip „Linkname bleibt nach Reload" braucht einen Owner-Durchlauf.
 **Auftraggeber-Zitat:** *„es gibt für viele Karten mehrere quellen, man sieht dann ja welche wo
 verfügbar ist und die leute können selber entscheiden wo sie ihre karten hernehmen"*
 
@@ -96,14 +99,44 @@ Migration: bestehende `map_url` bleiben, wo sie sind. `citymap_link` ist **addit
 
 ## 6. Reihenfolge
 
-1. Schema + `set_links`-Endpoint (Vorlage `adventure_link` 1:1).
-2. Editor: Link-Liste (Label editierbar, URL, `is_paid`-Tri-State, ▲▼) — Vorlage:
+1. ✅ Schema + `set_links`-Endpoint (Vorlage `adventure_link` 1:1).
+2. ✅ Editor: Link-Liste (Label editierbar, URL, `is_paid`-Tri-State, ▲▼) — Vorlage:
    der Abenteuer-Editor hat sie bereits (`aeSyncExtraLinksFromDom`, `state.extraLinks`).
-3. Payload + Frontend-Anzeige (§3).
-4. **Filter (§4.1) und Linkchecker (§4.2)** — die vergisst man sonst, und beide versagen leise.
-5. `citymap.is_paid` entfernen — **erst nach Abstimmung** mit der Parallel-Session (§2).
-6. Wiki-Sync: schreibt seinen Publikations-Link künftig als `citymap_link` mit `origin='wiki'`
-   (override-sicher wie gehabt: nur `origin='wiki'` anfassen, Tombstones respektieren).
+3. ✅ Payload + Frontend-Anzeige (§3).
+4. ✅ **Filter (§4.1) und Linkchecker (§4.2)** — die vergisst man sonst, und beide versagen leise.
+5. ⏸ `citymap.is_paid` entfernen — **erst nach Abstimmung** mit der Parallel-Session (§2).
+6. ⛔ Wiki-Sync als `origin='wiki'` — **so nicht baubar, Owner-Entscheidung nötig** (siehe unten).
+
+### Was beim Bauen dazugelernt wurde
+
+- **Der Karten-Link erbt `is_paid` von der Karte.** `citymap.is_paid` beschrieb immer genau diesen einen
+  Link (es war der einzige, als die Spalte kam) — ihn auf den Link zu heben ist die ehrliche Übersetzung
+  der Altdaten, keine Erfindung. Genau das macht Schritt 5 zum reinen Datenumzug: alles dahinter fragt
+  bereits den LINK, nicht die Karte.
+- **Der Editor bearbeitet nur `origin='manual'`.** `set_links` postet eine Liste ohne ids zurück — alles,
+  was der Editor SIEHT, würde er als `'manual'` neu anlegen. Ein wiki-eigener Link im Editor-Payload wäre
+  nach dem nächsten Speichern doppelt da. Deshalb liest der Detail-Read `origin='manual'` und `set_links`
+  löscht auch nur das. Wer Schritt 6 baut, braucht dafür eine Read-only-Sicht + `suppress_link`
+  (Vorbild: der approved/suppressed-Umschalter bei `citymap_place`).
+- **Falle §4.1 saß tiefer als notiert.** Nicht nur `citymaps.js:298` las die Karte statt der Links:
+  `citymaps-dialog.js` filterte über die *magere DOM-Shape* (`links: []`), während die Zeile daneben aus
+  dem Katalog rendert. Der Dialog hätte einen freien Link ANGEZEIGT und die Karte trotzdem weggefiltert.
+  Beide Pfade teilen sich jetzt `shapeFromCard()`.
+- **Die Filterfrage lebt nur im Client.** Eine PHP-Kopie von `avesmapsCitymapHasFreeAccess` wurde gebaut
+  und wieder entfernt: der Server liefert den ganzen Katalog, gefiltert wird im Browser — sie hatte keinen
+  Aufrufer. Die Regel steht in `map-features-citymaps.js`.
+
+### Zu Schritt 6: der Punkt widerspricht sich selbst
+
+§6.6 sagt „der Wiki-Sync schreibt seinen Publikations-Link künftig als `citymap_link`", §5 sagt „`map_url`
+bleibt … der Wiki-Sync schreibt sie". Beides zugleich geht nicht, denn der Sync kennt **genau eine** URL:
+`avesmapsCitymapWikiUrlForSource()` liefert die Wiki-Seite der Publikation, und
+`avesmapsCitymapReconcilePlan()` schreibt sie nach `map_url` (Owner 2026-07-17: „wenn aus dem wiki, will
+ich oben den wiki link"). Ein `citymap_link` daneben wäre **dieselbe URL ein zweites Mal** — der Leser
+sähe „Karte ↗" und „Al'Anfa und der tiefe Süden ↗" auf dasselbe Ziel.
+
+`citymap_link` zahlt sich für Wiki-Karten erst aus, wenn der Sync **mehrere** Fundstellen pro Karte kennt.
+Solange er das nicht tut, ist Schritt 6 eine Dublette. Die Label-Frage in §7 hängt an derselben Klärung.
 
 ## 7. Offen
 

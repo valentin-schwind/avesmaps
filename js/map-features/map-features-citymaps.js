@@ -252,6 +252,31 @@ function avesmapsCitymapFacetOptions(shapes) {
 // Spec §3.7: "Unbekannte Werte werden nicht angezeigt und matchen keinen Filter außer 'alle'." So every
 // tri-state check below demands an explicit true -- null (unknown) fails, which is the whole point of
 // keeping those fields three-valued all the way from the DB.
+// DIE Frage, die der "nur kostenlose"-Filter stellt (Mehrfachlink-Spec §4.1) -- EINE Definition, weil ein
+// Fehler hier LEISE danebengeht: die Karte verschwindet einfach, und niemand sieht, dass sie fehlt.
+//
+// Sie lautet "gibt es einen freien Weg zu dieser Karte?", NICHT "ist diese Karte kostenlos". Eine Karte,
+// die im Shop verkauft UND auf ihrer Wiki-Seite frei lesbar ist, HAT einen freien Weg -- sie bleibt
+// sichtbar. Sie auszublenden wuerde dem Leser das Gegenteil der Wahrheit erzaehlen. Es zaehlt nur, was
+// jemand BEHAUPTET hat: unbekannt (null) ist kein Beleg fuer "frei" (§3.1) -- der Teil der alten Regel
+// gilt unveraendert weiter.
+function avesmapsCitymapHasFreeAccess(shape) {
+	if (!shape) {
+		return false;
+	}
+	var links = Array.isArray(shape.links) ? shape.links : [];
+	for (var i = 0; i < links.length; i++) {
+		if (links[i] && links[i].is_paid === false) {
+			return true;
+		}
+	}
+	// Rueckfall auf das Karten-Flag, solange es citymap.is_paid gibt (Spec §6, Schritt 5 raeumt es ab).
+	// Er greift nur fuer eine Shape OHNE Linkliste -- die magere DOM-Shape einer Box ohne Katalog. Wo
+	// Links da sind, entscheiden sie: der Karten-Link erbt is_paid von der Karte, deshalb koennen die
+	// beiden sich gar nicht erst widersprechen.
+	return shape.is_paid === false;
+}
+
 function avesmapsCitymapMatchesFilter(shape, filter) {
 	if (!filter || !shape) {
 		return true;
@@ -295,7 +320,7 @@ function avesmapsCitymapMatchesFilter(shape, filter) {
 	// nuetzlich ist die Gegenrichtung ("was kann ich mir jetzt sofort ansehen"). Die §3.7-Regel gilt
 	// trotzdem unveraendert: ein Filter matcht nur, was jemand BEHAUPTET hat. Unbekannt (null) faellt
 	// deshalb raus, genau wie oben -- "wir wissen es nicht" ist kein Beleg fuer "ist gratis".
-	if (filter.freeOnly && shape.is_paid !== false) {
+	if (filter.freeOnly && !avesmapsCitymapHasFreeAccess(shape)) {
 		return false;
 	}
 	// Spoiler is the one INVERTED toggle: it is off by default and reveals rather than restricts, exactly
@@ -504,6 +529,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsSelectCitymapEntries: avesmapsSelectCitymapEntries,
 		avesmapsCitymapFacetOptions: avesmapsCitymapFacetOptions,
 		avesmapsCitymapMatchesFilter: avesmapsCitymapMatchesFilter,
+		avesmapsCitymapHasFreeAccess: avesmapsCitymapHasFreeAccess,
 		avesmapsCitymapTypeLabel: avesmapsCitymapTypeLabel,
 		avesmapsCitymapArtLabel: avesmapsCitymapArtLabel,
 	};

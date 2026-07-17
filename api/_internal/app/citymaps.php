@@ -149,6 +149,33 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
 
+    // Where a map can be FOUND (docs/superpowers/specs/2026-07-17-karten-mehrfachlinks-design.md). One map
+    // is often available in several places -- bought in the F-Shop, free on its wiki page, mirrored by a fan
+    // project -- and the reader gets to choose. Modelled on adventure_link, with ONE added column:
+    //
+    // is_paid sits on the LINK, not on the map, and that is the whole point of the table. The SAME volume is
+    // paid in the shop and free on its wiki page, so a flag on the map is simply wrong for every map with
+    // more than one link. Tri-state like every other property (§3.1): NULL = nobody judged it, which is not
+    // false -- we do not guess about a reader's wallet.
+    //
+    // Leaf data, like adventure_link: no wiki reconcile per row, no field_origins, no per-row identity to
+    // protect -- which is why the editor replaces the whole list at once (set_links) rather than juggling ids.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS citymap_link (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            citymap_id INT NOT NULL,
+            label VARCHAR(200) NOT NULL,
+            url VARCHAR(500) NOT NULL,
+            is_paid TINYINT(1) NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            origin VARCHAR(16) NOT NULL DEFAULT 'manual',
+            status VARCHAR(16) NOT NULL DEFAULT 'approved',
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            KEY idx_citymap_link_citymap (citymap_id, sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
     // Self-healing column-add (project idiom). NOT folded into the CREATE above: `citymap` already exists
     // in production, where CREATE TABLE IF NOT EXISTS is a no-op -- an added column only ever arrives
     // through a probe like this one, and keeping it out of the CREATE keeps one source of truth.
@@ -261,23 +288,53 @@ function avesmapsCitymapTriBoolOut(mixed $raw): ?bool
     return $raw === null ? null : ((int) $raw === 1);
 }
 
-// The reader-facing links of ONE citymap, in priority order. Today that is exactly one -- the external
-// map link (§3.1: "immer gespeichert, immer angezeigt"). It is a LIST rather than a scalar because this
-// is the same shape avesmapsAdventureLinks() returns: the linkcheck provider, the state decoration in
-// api/app/citymaps.php and the reader row all consume it identically, so a second link (a mirror, a
-// publisher page) would slot in without touching any of the three.
+// The reader-facing links of ONE citymap: the external map link first (§3.1: "immer gespeichert, immer
+// angezeigt"), then wherever else the map can be found (citymap_link). This is the same shape
+// avesmapsAdventureLinks() returns, and it is the SINGLE definition of that list: the linkcheck provider,
+// the state decoration in api/app/citymaps.php and the reader row all consume it identically. That was
+// written down as the reason this returned a list rather than a scalar back when there was only one link
+// -- and it is what let the multi-link feature land here instead of in three places.
+//
+// Each entry carries its own is_paid (tri-state: true | false | null-for-unknown). It belongs to the LINK,
+// never to the map: the same volume is paid in the F-Shop and free on its wiki page. Whoever asks "can the
+// reader get at this for free" must ask the LINKS -- avesmapsCitymapHasFreeAccess() in
+// map-features-citymaps.js is that question, and the client is the only place it is asked (the server ships
+// the whole catalog and the client filters it).
 //
 // NOT included: a map's catalogue sources (feature_sources, §3.2). Those live in the shared `sources`
 // table and are checked per SOURCE, not per citing element -- that is what the registry's source_* scopes
 // are for. Keying them by citymap public_id here would produce one ref per citing map for a single URL,
 // which is exactly what the source providers exist to avoid.
-function avesmapsCitymapLinks(array $row): array
+function avesmapsCitymapLinks(array $row, array $extraLinks = []): array
 {
     $links = [];
     $mapUrl = trim((string) ($row['map_url'] ?? ''));
     if ($mapUrl !== '') {
-        // Skips an empty URL: sha256('') would hash and then be probed forever.
-        $links[] = ['key' => 'map', 'label' => 'Karte', 'url' => $mapUrl, 'url_hash' => hash('sha256', $mapUrl)];
+        // The map link INHERITS the map's is_paid, because citymap.is_paid describes exactly this link and
+        // no other: it was the only link a map had when that column was added. Carrying it onto the link is
+        // the honest reading of today's data rather than an invention -- and it is what makes retiring the
+        // column (spec §6 step 5) a pure data move: everything downstream already asks the LINK.
+        $links[] = [
+            'key' => 'map',
+            'label' => 'Karte',
+            'url' => $mapUrl,
+            'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
+            // Skips an empty URL: sha256('') would hash and then be probed forever.
+            'url_hash' => hash('sha256', $mapUrl),
+        ];
+    }
+    foreach ($extraLinks as $extra) {
+        $url = trim((string) ($extra['url'] ?? ''));
+        if ($url === '') {
+            continue; // same reason as above -- an empty url is not a link
+        }
+        $links[] = [
+            'key' => 'link:' . (int) ($extra['id'] ?? 0),
+            'label' => trim((string) ($extra['label'] ?? '')),
+            'url' => $url,
+            'is_paid' => array_key_exists('is_paid', $extra) ? avesmapsCitymapTriBoolOut($extra['is_paid']) : null,
+            'url_hash' => hash('sha256', $url),
+        ];
     }
     return $links;
 }
@@ -521,6 +578,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     $placesByCitymap = avesmapsCitymapPlacesByCitymap($pdo, $ids);
     $typesByCitymap = avesmapsCitymapTypesByCitymap($pdo, $ids);
     $relatedByCitymap = avesmapsCitymapRelatedByCitymap($pdo, $ids);
+    $linksByCitymap = avesmapsCitymapLinksByCitymap($pdo, $ids);
     $sourcesByPublicId = [];
     try {
         $sourcesByPublicId = avesmapsReadFeatureSourcesByEntityType($pdo, 'citymap');
@@ -565,7 +623,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
             'sources' => $sourcesByPublicId[(string) $row['public_id']] ?? [],
             // The endpoint decorates each entry with its checked state; this library deliberately knows
             // nothing about the linkchecker.
-            'links' => avesmapsCitymapLinks($row),
+            'links' => avesmapsCitymapLinks($row, $linksByCitymap[$id] ?? []),
         ];
     }
     return $citymaps;
@@ -642,6 +700,37 @@ function avesmapsCitymapRelatedByCitymap(PDO $pdo, array $citymapIds): array
     $byCitymap = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
         $byCitymap[(int) $row['citymap_id']][] = (int) $row['related_citymap_id'];
+    }
+    return $byCitymap;
+}
+
+// The stored links of MANY maps in one query, grouped by citymap_id (never per map -- the catalog read and
+// the linkcheck provider both walk the whole table). Returns [citymap_id => [{id, label, url, is_paid}]] in
+// display order; maps without links are simply absent. Suppressed rows (tombstones) stay out: they are the
+// record of a link somebody removed, not something to show or probe.
+function avesmapsCitymapLinksByCitymap(PDO $pdo, array $citymapIds): array
+{
+    $ids = array_values(array_unique(array_map('intval', $citymapIds)));
+    if ($ids === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        "SELECT id, citymap_id, label, url, is_paid
+           FROM citymap_link
+          WHERE status = 'approved' AND citymap_id IN ($placeholders)
+          ORDER BY citymap_id ASC, sort_order ASC, id ASC"
+    );
+    $statement->execute($ids);
+
+    $byCitymap = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $byCitymap[(int) $row['citymap_id']][] = [
+            'id' => (int) $row['id'],
+            'label' => (string) $row['label'],
+            'url' => (string) $row['url'],
+            'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid']),
+        ];
     }
     return $byCitymap;
 }
@@ -762,6 +851,32 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
         ];
     }
 
+    // The links the EDITOR owns, i.e. the ones set_links replaces: origin='manual'. The scoping is the
+    // whole reason both sides can stay this simple -- the editor posts back a plain list with no ids, so
+    // anything it can SEE it will also RE-CREATE as 'manual'. Handing it a wiki-owned row here would
+    // duplicate that row on the next save (once as 'wiki', once as 'manual'), which is exactly the kind of
+    // silent breakage the tombstone rules elsewhere in this file exist to prevent.
+    //
+    // Consequence, deliberate and worth knowing: once the wiki sync writes links (spec §6.6), its rows will
+    // render for the READER but not appear in this editor. Giving them a read-only view + a suppress action
+    // belongs to that step, mirroring citymap_place's approved/suppressed toggle -- it is not something to
+    // improvise here, and doing nothing today is safe, because nothing writes a non-manual link yet.
+    $links = [];
+    $linkStatement = $pdo->prepare(
+        "SELECT id, label, url, is_paid FROM citymap_link
+          WHERE citymap_id = :id AND status = 'approved' AND origin = 'manual'
+          ORDER BY sort_order ASC, id ASC"
+    );
+    $linkStatement->execute(['id' => $id]);
+    foreach ($linkStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $link) {
+        $links[] = [
+            'id' => (int) $link['id'],
+            'label' => (string) $link['label'],
+            'url' => (string) $link['url'],
+            'is_paid' => avesmapsCitymapTriBoolOut($link['is_paid']),
+        ];
+    }
+
     return [
         'citymap' => [
             'public_id' => (string) $row['public_id'],
@@ -797,6 +912,7 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
         'types' => avesmapsCitymapTypesByCitymap($pdo, [$id])[$id] ?? [],
         'related' => $related,
         'places' => $places,
+        'links' => $links,
     ];
 }
 
@@ -1151,6 +1267,92 @@ function avesmapsSetCitymapRelated(PDO $pdo, string $publicId, array $relatedPub
         throw $exception;
     }
     return ['public_id' => $publicId, 'related' => count($relatedIds)];
+}
+
+// ---- the link list (multi-link spec §6.1) ------------------------------------------------------------
+// Column widths, enforced in PHP rather than left to MySQL: a silently truncated URL is a broken link, and
+// a truncated label is a mislabelled one.
+const AVESMAPS_CITYMAP_LINK_LABEL_MAX = 200;
+
+// The gate between the editor and citymap_link. Takes the WHOLE list as displayed and returns it as
+// storable rows; sort_order is the array position, so the editor's ▲▼ is a plain array move and no id ever
+// has to be renumbered. Pure (no PDO) -> unit-tested in __tests__/citymap-links-test.php.
+//
+// Mirrors avesmapsNormalizeAdventureLinkRows, plus is_paid. An all-blank row is a trailing empty line in a
+// row editor, not an error -- skipped. A HALF-filled row is an error rather than a silent drop: dropping
+// loses what the editor typed, and storing it would render an anchor with no text (avesmapsCitymapLinks
+// only skips on an empty url, never on an empty label).
+function avesmapsNormalizeCitymapLinkRows(array $rows): array
+{
+    $normalized = [];
+    foreach ($rows as $row) {
+        $label = trim((string) (is_array($row) ? ($row['label'] ?? '') : ''));
+        $url = trim((string) (is_array($row) ? ($row['url'] ?? '') : ''));
+        // A touched tri-state alone does not make a row: nobody typed a link, they clicked a control and
+        // moved on. Only label/url decide whether a row exists.
+        if ($label === '' && $url === '') {
+            continue;
+        }
+        if ($label === '') {
+            throw new InvalidArgumentException('Ein Link braucht einen Titel: ' . $url);
+        }
+        if ($url === '') {
+            throw new InvalidArgumentException('Ein Link braucht eine URL: ' . $label);
+        }
+        if (mb_strlen($label) > AVESMAPS_CITYMAP_LINK_LABEL_MAX) {
+            throw new InvalidArgumentException('Der Link-Titel ist zu lang (max. ' . AVESMAPS_CITYMAP_LINK_LABEL_MAX . ' Zeichen): ' . $label);
+        }
+        $normalized[] = [
+            'label' => $label,
+            // http/https + length, the same gate map_url passes through.
+            'url' => avesmapsCitymapNormalizeUrl($url, 'Link „' . $label . '“'),
+            'is_paid' => avesmapsCitymapTriBool(is_array($row) ? ($row['is_paid'] ?? null) : null),
+            'sort_order' => count($normalized),
+        ];
+    }
+    return $normalized;
+}
+
+// Replace a map's whole link list atomically (spec §6.1 `set_links`, mirroring the adventure side). Delete
+// + re-insert rather than diffing: these are leaf rows with nothing to protect, and link_status keys on
+// url_hash, so an unchanged URL keeps its probe history across the rewrite regardless of its new row id.
+//
+// Scoped to origin='manual': a wiki-born link is the sync's to own (spec §6.6) and a community link is a
+// reader's, so neither is the editor's list to replace. Today the editor is the only writer and every row
+// is 'manual', which makes this scoping inert -- it is here so that the wiki sync landing next cannot have
+// its rows silently deleted by the first editor who saves an unrelated field.
+function avesmapsSetCitymapLinks(PDO $pdo, string $publicId, array $links): array
+{
+    avesmapsCitymapsEnsureTables($pdo);
+    $citymapId = avesmapsCitymapIdByPublicId($pdo, $publicId);
+
+    // Validate the WHOLE list before touching a row: a partial save would leave the editor showing a list
+    // that no longer matches what is stored.
+    $rows = avesmapsNormalizeCitymapLinkRows($links);
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("DELETE FROM citymap_link WHERE citymap_id = :id AND origin = 'manual'")
+            ->execute(['id' => $citymapId]);
+        $insert = $pdo->prepare(
+            "INSERT INTO citymap_link (citymap_id, label, url, is_paid, sort_order, origin, status)
+             VALUES (:id, :label, :url, :is_paid, :sort_order, 'manual', 'approved')"
+        );
+        foreach ($rows as $row) {
+            $insert->execute([
+                'id' => $citymapId,
+                'label' => $row['label'],
+                'url' => $row['url'],
+                'is_paid' => $row['is_paid'],
+                'sort_order' => $row['sort_order'],
+            ]);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+    return ['public_id' => $publicId, 'links' => count($rows)];
 }
 
 function avesmapsCitymapIdByPublicId(PDO $pdo, string $publicId): int

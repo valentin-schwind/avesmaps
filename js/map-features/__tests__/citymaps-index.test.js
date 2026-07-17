@@ -145,11 +145,37 @@ assert.ok(avesmapsCitymapMatchesFilter(m1, { colorOnly: true, showSpoiler: true 
 // "nur kostenlose" (is_paid, owner 2026-07-17) is the one toggle that matches a known FALSE -- "nur
 // kostenpflichtige" is a filter nobody asks for. The §3.7 rule is unchanged where it counts: unknown still
 // matches nothing, because "we never checked" is not evidence of "it's free".
-assert.ok(avesmapsCitymapMatchesFilter({ is_paid: false }, { freeOnly: true, showSpoiler: true }), "known free passes");
-assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: true }, { freeOnly: true, showSpoiler: true }), "known paid fails");
-assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: null }, { freeOnly: true, showSpoiler: true }), "UNKNOWN must not pass as free");
+//
+// The question is asked of the LINKS, not of the map (multi-link spec §4.1): is_paid moved onto the link,
+// because the same volume is paid in the shop and free on its wiki page.
+const free = (url) => ({ url: url || "https://x/free", is_paid: false });
+const paid = (url) => ({ url: url || "https://x/paid", is_paid: true });
+const unknownPaid = () => ({ url: "https://x/?", is_paid: null });
+
+assert.ok(avesmapsCitymapMatchesFilter({ links: [free()] }, { freeOnly: true, showSpoiler: true }), "known free passes");
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [paid()] }, { freeOnly: true, showSpoiler: true }), "known paid fails");
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [unknownPaid()] }, { freeOnly: true, showSpoiler: true }), "UNKNOWN must not pass as free");
 assert.ok(!avesmapsCitymapMatchesFilter(m3, { freeOnly: true, showSpoiler: true }), "…same for a map that knows nothing");
+
+// THE regression this feature exists to prevent: a map available BOTH ways stays visible under "nur
+// kostenlose". The free way in exists -- hiding it would tell the reader the opposite of the truth.
+assert.ok(avesmapsCitymapMatchesFilter({ links: [paid(), free()] }, { freeOnly: true, showSpoiler: true }),
+	"paid AND free link -> visible: the free way exists");
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [paid(), unknownPaid()] }, { freeOnly: true, showSpoiler: true }),
+	"paid + unknown -> no PROVEN free way");
+
+// Fallback while citymap.is_paid still exists (spec §6 step 5 retires it): a shape with NO link list at all
+// -- the lean DOM shape a box without the catalog builds -- still answers from the map-level flag.
+assert.ok(avesmapsCitymapMatchesFilter({ is_paid: false }, { freeOnly: true, showSpoiler: true }), "no links -> map-level is_paid answers");
+assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: true }, { freeOnly: true, showSpoiler: true }));
+assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: null }, { freeOnly: true, showSpoiler: true }));
+// ...and the LINKS win over it wherever they exist: the map link inherits is_paid, so the two can only
+// disagree on a map whose map_url is empty -- and then the links are the ones that were actually checked.
+assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true, links: [free()] }, { freeOnly: true, showSpoiler: true }),
+	"a free link outvotes a stale map-level 'paid'");
+
 // Toggle off -> is_paid constrains nothing, in all three states.
+assert.ok(avesmapsCitymapMatchesFilter({ links: [paid()] }, { showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true }, { showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter({ is_paid: null }, { showSpoiler: true }));
 

@@ -204,6 +204,44 @@ assert.ok(!bare.includes("citymap-row__traits") && !bare.includes("citymap-row__
 assert.ok(bare.includes("Nur ein Titel"));
 console.log("citymap row ok");
 
+// ---- mehrere Fundstellen (Mehrfachlink-Spec §3) -----------------------------------------------------
+// Der Owner-Fall: dieselbe Karte im Shop gekauft UND frei auf ihrer Wiki-Seite. Der Leser soll BEIDE
+// Wege sehen und selbst wählen.
+const multi = buildCityMapRowMarkup({
+  public_id: "m10",
+  title: "Al'Anfa",
+  links: [
+    { key: "link:7", label: "Al'Anfa und der tiefe Süden", url: "https://ulisses-ebooks.de/product/1", is_paid: true, state: "alive" },
+    { key: "link:9", label: "Wiki-Aventurica", url: "https://de.wiki-aventurica.de/wiki/Al'Anfa", is_paid: false, state: "alive" },
+    { key: "link:11", label: "Fanprojekt", url: "https://example.org/fan", is_paid: null, state: "alive" },
+  ],
+});
+// Der Linktext nennt die FUNDSTELLE, nicht eine Nummer: "#1 Link zur Karte" sagt dem Leser nichts.
+assert.ok(multi.includes("Al&#039;Anfa und der tiefe Süden") && multi.includes("Wiki-Aventurica") && multi.includes("Fanprojekt"),
+  "jede Fundstelle steht mit ihrem Namen da");
+assert.ok(!multi.includes("#1") && !multi.includes("#2"), "keine Nummerierung");
+// „(kostenpflichtig)" haengt am LINK und NUR am bezahlten. Genau EIN Vorkommen: nicht am freien, und
+// nicht am unbekannten -- „unbekannt" ist eine gueltige Antwort, nie ein erfundenes „frei" (§3.1).
+assert.strictEqual(multi.split("(kostenpflichtig)").length - 1, 1, "genau der bezahlte Link traegt den Zusatz");
+assert.ok(multi.indexOf("(kostenpflichtig)") > multi.indexOf("Al&#039;Anfa und der tiefe Süden"),
+  "…und zwar HINTER seinem eigenen Link");
+assert.ok(multi.indexOf("(kostenpflichtig)") < multi.indexOf("Wiki-Aventurica"),
+  "…vor dem naechsten, also nicht am freien Link");
+// Der Zusatz ist ein <span>, kein <a>: features/links.css faerbt jeden a[target=_blank] per !important,
+// eine eigene Farbregel auf einem Anchor waere wirkungslos gewesen.
+assert.ok(multi.includes('<span class="avesmaps-adv-row__linkpaid">(kostenpflichtig)</span>'));
+
+// EIN Link ohne is_paid rendert exakt wie vorher -- keine Liste, kein Zusatz fuer ein Element.
+const single = buildCityMapRowMarkup({
+  public_id: "m11", title: "Einzeln",
+  links: [{ key: "map", label: "Karte", url: "https://example.org/k", is_paid: null, state: "alive" }],
+});
+assert.ok(single.includes("Karte ↗") && !single.includes("kostenpflichtig"), "einzelner Link unveraendert");
+
+// Abenteuer-Links tragen kein is_paid und bleiben davon voellig unberuehrt (advRowLinkMarkup ist geteilt).
+assert.ok(!row.includes("linkpaid"), "die Abenteuer-/Karten-Linkzeile bleibt ohne is_paid unveraendert");
+console.log("citymap multi-links ok");
+
 // ---- filter bar ------------------------------------------------------------------------------------
 const bar = citymapFiltersMarkup({
   types: [{ value: "stadtplan", label: "Stadtplan", count: 2 }],

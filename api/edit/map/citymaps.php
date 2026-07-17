@@ -68,6 +68,16 @@ try {
             }
             return avesmapsSetCitymapRelated($pdo, $publicId, (array) ($payload['related'] ?? []));
         })(),
+        // Where the map can be FOUND (multi-link spec §6.1) -- same whole-list contract as set_types above,
+        // and the direct sibling of the adventure side's set_links. is_paid rides on each ROW, never on the
+        // map: the same volume is paid in the shop and free on its wiki page.
+        'set_links' => (static function () use ($pdo, $payload): array {
+            $publicId = trim((string) ($payload['public_id'] ?? ''));
+            if ($publicId === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'public_id ist erforderlich.');
+            }
+            return avesmapsSetCitymapLinks($pdo, $publicId, (array) ($payload['links'] ?? []));
+        })(),
         'add_place' => (static function () use ($pdo, $payload): array {
             $citymapPublicId = trim((string) ($payload['citymap_public_id'] ?? ''));
             if ($citymapPublicId === '') {

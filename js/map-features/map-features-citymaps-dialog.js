@@ -92,25 +92,33 @@
 		};
 	}
 
-	// Die Karten einer Streifen-Section als VOLLE Katalog-Shapes. Der Streifen bleibt die Quelle der
-	// WELCHE-Frage (welche Karten), damit Streifen und Dialog nie verschiedene Mengen zeigen; den INHALT
-	// holt jede Zeile ueber ihre public_id frisch aus dem Katalog -- dort haengen Links samt geprueftem
-	// Status, die in keiner Streifenkarte im DOM stehen. Kein Katalog-Treffer -> die magere DOM-Shape.
+	// EINE Karte als VOLLE Katalog-Shape: den INHALT holt sie ueber ihre public_id frisch aus dem Katalog --
+	// dort haengen Links samt geprueftem Status, die in keiner Streifenkarte im DOM stehen. Kein
+	// Katalog-Treffer -> die magere DOM-Shape.
+	//
+	// Gerendert UND gefiltert wird aus derselben Quelle, und das ist keine Kosmetik: der "nur kostenlose"-
+	// Filter fragt seit den Mehrfach-Links die LINKS (§4.1), und die magere DOM-Shape traegt keine. Wer hier
+	// die DOM-Shape filtert, waehrend die Zeile daneben aus dem Katalog rendert, blendet stillschweigend
+	// Karten aus, deren freien Link der Leser direkt daneben stehen sieht.
+	function shapeFromCard(card) {
+		var fromCatalog = (typeof getCityMapShape === "function")
+			? getCityMapShape(card.getAttribute("data-public-id"))
+			: null;
+		return fromCatalog || cardShapeFromEl(card);
+	}
+
+	// Die Karten einer Streifen-Section. Der Streifen bleibt die Quelle der WELCHE-Frage (welche Karten),
+	// damit Streifen und Dialog nie verschiedene Mengen zeigen.
 	function shapesFromSection(section) {
 		var cards = section.querySelectorAll(".avesmaps-citymaps__scroll .avesmaps-citymaps__card");
-		return Array.prototype.map.call(cards, function (card) {
-			var fromCatalog = (typeof getCityMapShape === "function")
-				? getCityMapShape(card.getAttribute("data-public-id"))
-				: null;
-			return fromCatalog || cardShapeFromEl(card);
-		});
+		return Array.prototype.map.call(cards, shapeFromCard);
 	}
 
 	function cardPasses(card, filter) {
 		if (typeof avesmapsCitymapMatchesFilter !== "function") {
 			return true;
 		}
-		return avesmapsCitymapMatchesFilter(cardShapeFromEl(card), filter);
+		return avesmapsCitymapMatchesFilter(shapeFromCard(card), filter);
 	}
 
 	function buildControls(overlay, shapes) {

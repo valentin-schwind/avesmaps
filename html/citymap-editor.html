@@ -225,6 +225,25 @@
      collapsing unknown into "no" is exactly the claim §3.1 forbids. */
   .ce-tri { flex: 0 0 130px; }
 
+  /* ---- „Wo gibt es die Karte?" (multi-link spec §6.2): Fundstelle + URL + kostenpflichtig je Zeile,
+     ▲▼, löschen. Same shape as the adventure editor's .ae-xlink, plus the is_paid column -- that column
+     IS the feature: the same map is paid in the shop and free on its wiki page. */
+  .ce-xlink { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1.4fr) 120px auto;
+    align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); }
+  .ce-xlink__reorder { display: flex; flex-direction: column; }
+  .ce-xlink__reorder button { border: 0; background: transparent; cursor: pointer;
+    color: var(--color-text-muted); line-height: 1; padding: 0; font-size: 10px; }
+  .ce-xlink__reorder button:hover { color: var(--color-text-strong); }
+  .ce-xlink__reorder button:disabled { opacity: .35; cursor: default; }
+  .ce-xlink__hint { font-size: var(--font-size-caption); color: var(--color-text-muted);
+    margin: 0 0 var(--space-8); }
+  .ce-xlink__empty { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0; }
+  .ce-xlink__add { margin-top: var(--space-8); }
+  /* The column headings sit on the same grid as the rows, so a heading can never drift off its column. */
+  .ce-xlink__head { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1.4fr) 120px auto;
+    gap: var(--space-6); margin-bottom: var(--space-4);
+    font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
   /* Vorschaubild + Karte nebeneinander, Eigenschaften jeweils darunter (Owner-Layout 2026-07-16).
      auto-fit statt fester 2 Spalten: unter ~260px je Spalte stapeln sie von selbst, statt die Selects
      unlesbar zu quetschen. */
@@ -492,7 +511,10 @@
     return payload;
   }
 
-  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, dirty: false };
+  // links = the working copy of the "Wo gibt es die Karte?" list (multi-link spec §6.2). Held in state
+  // rather than read off the DOM on demand because ▲▼/✕ re-render the rows: whatever is typed must
+  // survive that.
+  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, dirty: false, links: [] };
 
   // ---- list ----
   async function loadList(keepSelection) {
@@ -613,6 +635,68 @@
       </select></div>`;
   }
 
+  // ---- „Wo gibt es die Karte?" (multi-link spec §6.2) ----
+  // Eine Karte steckt oft an mehreren Stellen: gekauft im F-Shop, frei auf ihrer Wiki-Seite, gespiegelt bei
+  // einem Fanprojekt. Der Leser soll sehen wo — und selbst wählen. Blattdaten ohne Wiki-Reconcile: die ganze
+  // Liste wird als Array gespeichert (Action set_links), und die Reihenfolge IST die Array-Reihenfolge. ▲▼
+  // ist deshalb ein reiner Array-Tausch ohne id-Jonglage. Vorlage: „Weitere Links" im Abenteuer-Editor.
+  //
+  // Die Felder heissen data-cl-field (NICHT data-cm-field): gatherStamm() sammelt alles mit [data-cm-field]
+  // aus #ceStammBody ein, und ein Link-Feld darf dort nicht als citymap-Spalte mitfahren.
+  function ceLinkRows() {
+    if (!state.links.length) {
+      return `<p class="ce-xlink__empty">Noch keine weiteren Fundstellen.</p>`;
+    }
+    const head = `<div class="ce-xlink__head"><span></span><span>Fundstelle</span><span>URL</span><span>kostenpflichtig</span><span></span></div>`;
+    return head + state.links.map((l, i) => `
+      <div class="ce-xlink" data-cl-idx="${i}">
+        <div class="ce-xlink__reorder">
+          <button type="button" data-cl-act="up" title="hoch"${i === 0 ? " disabled" : ""}>▲</button>
+          <button type="button" data-cl-act="down" title="runter"${i === state.links.length - 1 ? " disabled" : ""}>▼</button>
+        </div>
+        <input class="ce-input" data-cl-field="label" placeholder="z. B. „Wiki-Aventurica“" value="${ceEscape(l.label || "")}">
+        <input class="ce-input" data-cl-field="url" placeholder="https://…" value="${ceEscape(l.url || "")}">
+        <select class="ce-select" data-cl-field="is_paid">
+          <option value=""${l.is_paid == null ? " selected" : ""}>unbekannt</option>
+          <option value="1"${l.is_paid === true ? " selected" : ""}>ja</option>
+          <option value="0"${l.is_paid === false ? " selected" : ""}>nein</option>
+        </select>
+        <button type="button" class="btn btn--icon btn--danger" data-cl-act="del" title="Fundstelle entfernen">✕</button>
+      </div>`).join("");
+  }
+  function ceLinksGroup() {
+    return `<div class="ce-grp"><p class="ce-grp__title">Wo gibt es die Karte?</p>
+      <p class="ce-xlink__hint">Zusätzlich zum Karten-Link oben: überall sonst, wo dieselbe Karte zu finden ist —
+        Shop-Seite, Wiki-Seite, Fanprojekt. Der Leser sieht die Fundstelle und wählt selbst.
+        „kostenpflichtig“ hängt an der ZEILE, nicht an der Karte: derselbe Band ist im Shop bezahlt und
+        auf seiner Wiki-Seite frei. „unbekannt“ zeigt dem Leser gar nichts — nie ein erfundenes „frei“.
+        Speichern über „Speichern“.</p>
+      <div id="ceLinks">${ceLinkRows()}</div>
+      <div class="ce-xlink__add"><button type="button" class="btn btn--sm" data-cl-act="add">+ Fundstelle</button></div>
+    </div>`;
+  }
+  // Nur die Zeilen neu zeichnen -- ein renderDetail() wuerde die ungespeicherten Stammdaten-Eingaben
+  // daneben wegwerfen.
+  function renderLinks() {
+    const host = document.getElementById("ceLinks");
+    if (host) host.innerHTML = ceLinkRows();
+  }
+  // Getipptes aus den Inputs zurueck in den State holen. Muss VOR jedem Re-Render und vor dem Speichern
+  // laufen, sonst verliert ein ▲ die gerade eingegebene URL.
+  function ceSyncLinksFromDom() {
+    document.querySelectorAll("#ceLinks [data-cl-idx]").forEach((row) => {
+      const link = state.links[Number(row.dataset.clIdx)];
+      if (!link) return;
+      const label = row.querySelector('[data-cl-field="label"]');
+      const url = row.querySelector('[data-cl-field="url"]');
+      const paid = row.querySelector('[data-cl-field="is_paid"]');
+      if (label) link.label = label.value;
+      if (url) link.url = url.value;
+      // "" is UNKNOWN and must stay null -- the tri-state rule this whole feature turns on (§3.1).
+      if (paid) link.is_paid = paid.value === "" ? null : paid.value === "1";
+    });
+  }
+
   // One image COLUMN: preview + actions on top, properties below a divider (owner layout, 2026-07-16).
   // The two columns sit side by side in .ce-imgcols and stack below ~260px.
   //
@@ -672,6 +756,12 @@
     const head = document.getElementById("ceDetailHead");
     const body = document.getElementById("ceStammBody");
     document.getElementById("ceSaveBar").hidden = false;
+    // Fresh working copy per render -- never the server objects themselves, so an abandoned edit cannot
+    // leak into state.detail. A new map has none, and clearing here is what stops the previously opened
+    // map's links from riding along into it.
+    state.links = ((state.detail && state.detail.links) || []).map((l) => ({
+      label: l.label || "", url: l.url || "", is_paid: l.is_paid == null ? null : !!l.is_paid,
+    }));
     if (!state.detail) {
       head.textContent = "Neue Karte";
       body.innerHTML = `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
@@ -699,6 +789,7 @@
         ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
         ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
       </div>
+      ${ceLinksGroup()}
       <div class="ce-grp"><p class="ce-grp__title">Einordnung</p>
         ${ceSelect("Art", "art", v.art, ARTS, "— unbekannt —")}
         ${ceField("Gültig ab (BF)", "valid_from_bf", v.valid_from_bf, "number")}
@@ -750,6 +841,7 @@
 
   async function saveStamm() {
     const stateEl = document.getElementById("ceSaveState");
+    ceSyncLinksFromDom(); // whatever is typed but not yet ▲▼'d back into state would be lost otherwise
     const values = gatherStamm();
     if (!(values.title || "").trim()) {
       stateEl.textContent = "Ein Titel ist erforderlich.";
@@ -772,6 +864,11 @@
       if (state.detail) {
         const types = Array.prototype.map.call(document.querySelectorAll("[data-ce-type]:checked"), (el) => el.getAttribute("data-ce-type"));
         await citymapPost({ action: "set_types", public_id: saved.public_id, types });
+        // Same whole-list contract as set_types, and AFTER the upsert: set_links addresses the map by
+        // public_id. An empty array legitimately clears the list. Unlike set_related this call is safe to
+        // make unconditionally, because the controls it reads are RENDERED whenever state.detail is set --
+        // it can therefore never mistake "no UI" for "no links".
+        await citymapPost({ action: "set_links", public_id: saved.public_id, links: state.links });
       }
       state.dirty = false;
       stateEl.textContent = "Gespeichert.";
@@ -1161,7 +1258,28 @@
     const del = e.target.closest("[data-ce-img-delete]");
     if (del) { deleteImage(del.getAttribute("data-ce-img-delete")); return; }
     const auto = e.target.closest("[data-ce-autoget]");
-    if (auto && !auto.disabled) autogetThumb();
+    if (auto && !auto.disabled) { autogetThumb(); return; }
+
+    // „Wo gibt es die Karte?": + Fundstelle / ▲▼ / ✕. Delegated on the stable #ceStammBody because the rows
+    // are rebuilt on every render. Purely local to the state -- nothing is stored until „Speichern".
+    const btn = e.target.closest("[data-cl-act]");
+    if (!btn) return;
+    ceSyncLinksFromDom(); // BEFORE the re-render, or ▲ throws away the URL just typed
+    const act = btn.dataset.clAct;
+    const rowEl = btn.closest("[data-cl-idx]");
+    const idx = rowEl ? Number(rowEl.dataset.clIdx) : -1;
+    if (act === "add") {
+      state.links.push({ label: "", url: "", is_paid: null });
+    } else if (act === "del" && idx >= 0) {
+      state.links.splice(idx, 1);
+    } else if ((act === "up" || act === "down") && idx >= 0) {
+      const to = act === "up" ? idx - 1 : idx + 1;
+      if (to < 0 || to >= state.links.length) return;
+      state.links.splice(to, 0, state.links.splice(idx, 1)[0]);
+    } else {
+      return;
+    }
+    renderLinks();
   });
 
   // Keep each URL field's ↗ pointing at what the box currently SAYS, not at what was last saved --

@@ -523,13 +523,22 @@ function advCardDataAttributes(a, isPlay) {
 // One link line in the row's right-hand column: the link + its checked-state marker (Spec §1.8). A dead
 // link stays CLICKABLE on purpose -- our cache may be stale and the reader may still want to try -- so it
 // is struck through and greyed rather than removed. Every one of these is off-site, hence the ↗ (§12).
+//
+// „(kostenpflichtig)" haengt an der ZEILE, weil is_paid am LINK haengt und nicht an der Karte: derselbe
+// Band ist im F-Shop bezahlt und auf seiner Wiki-Seite frei (Mehrfachlink-Spec §2). Nur ein bekanntes JA
+// wird gezeigt -- bei null steht da nichts, denn „unbekannt" ist eine gueltige Antwort und nie ein
+// erfundenes „frei" (§3.1). Abenteuer-Links tragen kein is_paid und bleiben damit unveraendert.
 function advRowLinkMarkup(link) {
 	var deadClass = (typeof avesmapsLinkStatusLinkClass === "function") ? avesmapsLinkStatusLinkClass(link.state) : "";
 	var marker = (typeof avesmapsLinkStatusMarkup === "function") ? avesmapsLinkStatusMarkup(link.state) : "";
+	var paid = link.is_paid === true
+		? '<span class="avesmaps-adv-row__linkpaid">' + placeExtrasEscape(tr("cityMaps.link.paid", "(kostenpflichtig)")) + '</span>'
+		: "";
 	return '<li class="avesmaps-adv-row__linkitem">'
 		+ '<a class="avesmaps-adv-row__link' + deadClass + '" href="' + placeExtrasEscape(link.url) + '"'
 		+ ' target="_blank" rel="noopener" title="' + placeExtrasEscape(link.url) + '">'
 		+ placeExtrasEscape(link.label) + ' ↗</a>'
+		+ paid
 		+ marker
 		+ '</li>';
 }
