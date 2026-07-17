@@ -12,6 +12,7 @@ declare(strict_types=1);
 // GET ?territory=<political_territory.public_id>
 
 require __DIR__ . '/../_internal/bootstrap.php';
+require_once __DIR__ . '/../_internal/coat-url.php';
 
 const AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE = 'wiki_territory_model';
@@ -163,7 +164,9 @@ try {
             : ($coatUrl !== '' ? $coatUrl : $stagingCoat);
         $allowed = $effCoatUrl !== '' && in_array($licenseStatus, AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED, true);
         $coat = [
-            'url' => $allowed ? $effCoatUrl : '',
+            // Versioned (?v=<mtime>) for locally re-uploaded coats: they keep their filename behind a
+            // 30-day Cache-Control, so an unversioned URL would keep showing the previous image.
+            'url' => $allowed ? avesmapsCoatUrlCacheBust($effCoatUrl) : '',
             'license_status' => $licenseStatus,
             'author' => trim((string) ($staging['coat_of_arms_author'] ?? '')),
             'attribution' => trim((string) ($staging['coat_of_arms_attribution'] ?? '')),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
+require_once __DIR__ . '/../_internal/coat-url.php';
 
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
@@ -12,7 +13,10 @@ require_once __DIR__ . '/../_internal/wiki/sync.php';
 // MUST be declared BEFORE the try block below: the request handler calls avesmapsMapFeaturesETag while
 // running top-to-bottom, and a top-level const is sequential (defined when reached), not hoisted like a
 // function -- declaring it further down (among the helper functions) left it undefined at call time -> 500.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 6;
+// 7: breadcrumb coat_url carries ?v=<mtime> for locally re-uploaded coats. A VALUE change rather than a
+//    shape change, but with the same consequence -- without a bump, a 304'd client keeps the unversioned
+//    URL and still shows the previous coat.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 7;
 
 // Coat-of-arms thumbnail gate for the settlement "Liegt in" breadcrumb. These MIRROR the constants of
 // api/app/territory-detail.php EXACTLY (same staging + model tables, same public-domain-only allow list):
@@ -597,7 +601,9 @@ function avesmapsSettlementTerritoryCoatUrl(string $ptCoatUrl, array $stagingRow
         : ($ptCoatUrl !== '' ? $ptCoatUrl : $stagingUrl);
 
     $allowed = $effUrl !== '' && in_array($license, AVESMAPS_MAP_FEATURES_COAT_ALLOWED, true);
-    return $allowed ? $effUrl : '';
+    // Versioned like the layer/detail readers: a re-uploaded coat keeps its filename behind a 30-day
+    // Cache-Control, so an unversioned URL would keep serving the previous image. Memoized per URL.
+    return $allowed ? avesmapsCoatUrlCacheBust($effUrl) : '';
 }
 
 // Conservative name-match key for capital<->settlement comparison: lowercased, whitespace-collapsed,

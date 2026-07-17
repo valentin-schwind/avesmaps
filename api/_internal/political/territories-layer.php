@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../coat-url.php';
+
 function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     // Die Karte erlaubt jetzt Zoom 7, die politischen Zoom-Baender aber nur 0-6 -> ueber 6 angefragten
@@ -1099,19 +1101,9 @@ function avesmapsPoliticalNormalizedValidToSql(string $valueExpression, string $
     END';
 }
 
+// Kept as the layer's local name; the logic itself now lives in _internal/coat-url.php so that every
+// reader of a coat URL (layer, territory detail, settlement breadcrumb) versions it the same way. It
+// used to live only here, which is exactly why the other two served stale coats (Discord #32).
 function avesmapsPoliticalCoatUrlCacheBust(string $url): string {
-    // Re-hochgeladene Wappen behalten ihren Dateinamen (z.B. *-custom.png) und werden mit
-    // Cache-Control: max-age=2592000 (30 Tage) ausgeliefert -> der Browser zeigt sonst das ALTE Bild.
-    // Nur lokale /uploads-Wappen mit ?v=<mtime> versionieren: bricht den Browser-Cache GENAU bei
-    // Aenderung (Re-Upload), sonst greift der 30-Tage-Cache weiter (Perf). Wiki-URLs (coat.php) bleiben.
-    $url = trim($url);
-    if ($url === '' || strpos($url, '?') !== false || strncmp($url, '/uploads/', 9) !== 0) {
-        return $url;
-    }
-    $root = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
-    if ($root === '') {
-        return $url;
-    }
-    $mtime = @filemtime($root . $url);
-    return $mtime !== false ? ($url . '?v=' . $mtime) : $url;
+    return avesmapsCoatUrlCacheBust($url);
 }
