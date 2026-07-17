@@ -69,11 +69,31 @@
 		["is_paid", "kostenpflichtig"],
 	];
 
-	function fieldMarkup(id, label, type, maxLength, extra) {
+	// placeholder ist ein eigenes Argument, nicht Teil von `extra` (Owner 2026-07-17: "in den ganzen
+	// Platzhalter Beispiele"). Als Pflichtstelle in der Signatur, damit ein neues Feld ohne Beispiel
+	// auffaellt statt still zu entstehen. Die Beispiele sind ECHT: "Hannah Möllmann" hat die Gareth-Karte
+	// wirklich gezeichnet -- ein erfundenes Beispiel lehrt den Melder das falsche Format.
+	function fieldMarkup(id, label, type, maxLength, placeholder, extra) {
 		return '<label class="citymap-suggest__field"><span>' + esc(label) + '</span>'
 			+ '<input id="' + esc(id) + '" type="' + esc(type || "text") + '"'
 			+ (maxLength ? ' maxlength="' + esc(maxLength) + '"' : "")
+			+ (placeholder ? ' placeholder="' + esc(placeholder) + '"' : "")
 			+ (extra || "") + ' /></label>';
+	}
+
+	// Eine eingeklappte Gruppe (Owner 2026-07-17): das Eingeklapptsein IST die Aussage "das ist optional" --
+	// deutlicher als jedes "(optional)" hinter jedem Label. <details> statt selbstgebauter Umschalter: es
+	// klappt ohne JS auf, ist per Tastatur bedienbar und der Screenreader kennt es.
+	//
+	// WICHTIG: kein Pflichtfeld darf hier hinein. Die eigene Pruefung in submitSuggestion fokussiert das
+	// erste fehlende Pflichtfeld -- in einer zugeklappten Gruppe liefe das ins Leere und der Melder saehe
+	// eine Fehlermeldung ohne Feld dazu. Alle drei Pflichtfelder stehen deshalb oben, offen.
+	function detailsGroup(title, why, content) {
+		return '<details class="citymap-suggest__group citymap-suggest__group--fold">'
+			+ '<summary class="citymap-suggest__summary">' + esc(title)
+			+ ' <span class="citymap-suggest__optional">' + esc(t("cityMaps.suggestOptional", "optional")) + '</span></summary>'
+			+ '<p class="citymap-suggest__why">' + esc(why) + '</p>'
+			+ content + '</details>';
 	}
 	// selected: ohne Angabe gewinnt die erste Option. Fuer Art und die Eigenschaften ist das genau richtig
 	// (dort steht "unbekannt" vorn); die Quellenart braucht es explizit, sonst stuende dort geraten
@@ -98,51 +118,72 @@
 			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title" id="citymap-suggest-title"></span>'
 			+ '<button type="button" class="avesmaps-adv-dialog__close" data-citymap-suggest-close aria-label="' + esc(t("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<form class="citymap-suggest__body" novalidate>'
-			+ '<p class="citymap-suggest__intro">' + esc(t("cityMaps.suggestIntro",
-				"Schlage eine Karte für diesen Ort vor. Pflicht sind nur Titel, Karten-Link und eine Quelle — alles andere darf „unbekannt“ bleiben.")) + '</p>'
+			// Das Hinweisfeld (Owner 2026-07-17). Sagt beides ausdruecklich: du musst nicht, aber es hilft.
+			// Der letzte Satz ist der wichtige -- er nimmt die Sorge, ein halb ausgefuellter Vorschlag sei
+			// wertlos, und genau diese Sorge fuellt sonst Felder mit Geraten. Das Formular macht die Zusage
+			// sichtbar wahr: beim Oeffnen stehen genau die drei Pflichtfelder da, alles andere ist zu.
+			+ '<p class="citymap-suggest__notice">' + esc(t("cityMaps.suggestNotice",
+				"Du musst nicht alles ausfüllen. Pflicht sind nur Titel, Link und Quelle. Alles Weitere ist freiwillig — es erspart uns aber das Nachschlagen, und deine Karte erscheint schneller. Was du offen lässt, tragen wir nach oder lassen es weg.")) + '</p>'
 
-			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupMap", "Die Karte")) + '</p>'
-			+ fieldMarkup("citymap-suggest-title-input", t("cityMaps.suggestTitle", "Titel *"), "text", 300, ' required')
-			+ fieldMarkup("citymap-suggest-map-url", t("cityMaps.suggestMapUrl", "Karten-Link (extern) *"), "url", 500, ' inputmode="url" placeholder="https://..." required')
-			+ fieldMarkup("citymap-suggest-thumb-url", t("cityMaps.suggestThumbUrl", "Vorschau-Link (extern)"), "url", 500, ' inputmode="url" placeholder="https://..."')
-			+ fieldMarkup("citymap-suggest-author", t("cityMaps.suggestAuthor", "Urheber"), "text", 300)
-			+ fieldMarkup("citymap-suggest-note", t("cityMaps.suggestNote", "Notiz"), "text", 2000)
-			// Der einzige Ort, an dem eine Lizenz-Kenntnis landen kann — als Prosa an einen Menschen, nicht
-			// als Formularfeld, das aussieht, als setze es eine Spalte.
-			+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.suggestLicenceHint",
-				"Ein Vorschaubild zeigen wir erst, wenn wir die Lizenz geprüft haben. Weißt du etwas dazu (z. B. „ist meine eigene Karte“), schreib es bitte in die Notiz.")) + '</p>'
+			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupNeed", "Das brauchen wir")) + '</p>'
+			+ '<p class="citymap-suggest__why">' + esc(t("cityMaps.suggestWhyNeed",
+				"Ohne diese drei können wir die Karte weder finden noch prüfen.")) + '</p>'
+			+ fieldMarkup("citymap-suggest-title-input", t("cityMaps.suggestTitle", "Titel *"), "text", 300,
+				t("cityMaps.suggestTitlePh", "Gareth — Gesamtplan"), ' required')
+			+ fieldMarkup("citymap-suggest-map-url", t("cityMaps.suggestMapUrl", "Karten-Link (extern) *"), "url", 500,
+				t("cityMaps.suggestMapUrlPh", "https://www.ulisses-ebooks.de/de/product/120516/…"), ' inputmode="url" required')
+			+ fieldMarkup("citymap-suggest-source-label", t("cityMaps.suggestSourceName", "Quelle *"), "text", 200,
+				t("cityMaps.suggestSourcePh", "Herz des Reiches"), ' required')
+			// Quelle vs. Urheber (Owner-Verdacht 2026-07-17, berechtigt): die beiden beissen sich, solange
+			// nichts den Unterschied sagt. Er steht deshalb AM Pflichtfeld und nicht in einer Fussnote --
+			// und der Urheber liegt eingeklappt weit darunter, stoesst also gar nicht mehr damit zusammen.
+			+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.suggestSourceVsAuthor",
+				"Wo die Karte erschienen ist — Buch, Bote, Website. Nicht, wer sie gezeichnet hat: das ist der Urheber, unter „Mehr zur Karte“.")) + '</p>'
 			+ '</div>'
 
-			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupClass", "Einordnung")) + '</p>'
-			+ selectMarkup("citymap-suggest-art", t("cityMaps.suggestArt", "Art"), [["", t("cityMaps.suggestUnknownOption", "— unbekannt —")]].concat(ARTS))
-			+ fieldMarkup("citymap-suggest-from", t("cityMaps.suggestFrom", "Gültig ab (BF)"), "number", 0)
-			+ fieldMarkup("citymap-suggest-to", t("cityMaps.suggestTo", "Gültig bis (BF)"), "number", 0)
-			+ fieldMarkup("citymap-suggest-width", t("cityMaps.suggestWidth", "Breite (px)"), "number", 0)
-			+ fieldMarkup("citymap-suggest-height", t("cityMaps.suggestHeight", "Höhe (px)"), "number", 0)
-			+ '</div>'
+			+ detailsGroup(t("cityMaps.suggestGroupSourceMore", "Mehr zur Quelle"),
+				t("cityMaps.suggestWhySource", "Seite und Link ersparen uns das Blättern."),
+				fieldMarkup("citymap-suggest-source-url", t("cityMaps.suggestSourceUrl", "Link zur Quelle (F-Shop / Wiki)"), "url", 500,
+					t("cityMaps.suggestSourceUrlPh", "https://www.ulisses-ebooks.de/de/product/…"), ' inputmode="url"')
+				+ fieldMarkup("citymap-suggest-source-pages", t("cityMaps.suggestSourcePages", "Seite(n)"), "text", 120,
+					t("cityMaps.suggestPagesPh", "S. 42–43"))
+				+ selectMarkup("citymap-suggest-source-type", t("cityMaps.suggestSourceType", "Art der Quelle"), SOURCE_TYPES, "sonstiges")
+				+ '<label class="citymap-suggest__check"><input id="citymap-suggest-source-official" type="checkbox" /> <span>'
+				+ esc(t("cityMaps.suggestSourceOfficial", "offizielle Quelle")) + '</span></label>')
 
-			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupProps", "Eigenschaften")) + '</p>'
-			+ PROPS.map(function (p) { return selectMarkup("citymap-suggest-" + p[0], t("cityMaps.prop." + p[0], p[1]), TRI); }).join("")
-			+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.suggestUnknownHint",
-				"„unbekannt“ ist eine gültige Antwort: die Eigenschaft wird dann gar nicht gezeigt, statt ein erfundenes „nein“.")) + '</p>'
-			+ '</div>'
+			+ detailsGroup(t("cityMaps.suggestGroupMapMore", "Mehr zur Karte"),
+				t("cityMaps.suggestWhyMap", "Je mehr hier steht, desto weniger müssen wir nachschlagen."),
+				fieldMarkup("citymap-suggest-thumb-url", t("cityMaps.suggestThumbUrl", "Vorschau-Link (extern)"), "url", 500,
+					t("cityMaps.suggestThumbPh", "https://www.ulisses-ebooks.de/images/…"), ' inputmode="url"')
+				+ fieldMarkup("citymap-suggest-author", t("cityMaps.suggestAuthor", "Urheber"), "text", 300,
+					t("cityMaps.suggestAuthorPh", "Hannah Möllmann"))
+				+ fieldMarkup("citymap-suggest-note", t("cityMaps.suggestNote", "Notiz"), "text", 2000,
+					t("cityMaps.suggestNotePh", "Beilage der Box, unbeschriftete Variante dabei"))
+				// Der einzige Ort, an dem eine Lizenz-Kenntnis landen kann — als Prosa an einen Menschen,
+				// nicht als Formularfeld, das aussieht, als setze es eine Spalte.
+				+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.suggestLicenceHint",
+					"Ein Vorschaubild zeigen wir erst, wenn wir die Lizenz geprüft haben. Weißt du etwas dazu (z. B. „ist meine eigene Karte“), schreib es bitte in die Notiz.")) + '</p>'
+				+ selectMarkup("citymap-suggest-art", t("cityMaps.suggestArt", "Art"), [["", t("cityMaps.suggestUnknownOption", "— unbekannt —")]].concat(ARTS))
+				+ fieldMarkup("citymap-suggest-from", t("cityMaps.suggestFrom", "Gültig ab (BF)"), "number", 0, t("cityMaps.suggestFromPh", "1027"))
+				+ fieldMarkup("citymap-suggest-to", t("cityMaps.suggestTo", "Gültig bis (BF)"), "number", 0, t("cityMaps.suggestToPh", "1045"))
+				+ fieldMarkup("citymap-suggest-width", t("cityMaps.suggestWidth", "Breite (px)"), "number", 0, t("cityMaps.suggestWidthPh", "2000"))
+				+ fieldMarkup("citymap-suggest-height", t("cityMaps.suggestHeight", "Höhe (px)"), "number", 0, t("cityMaps.suggestHeightPh", "1500")))
 
-			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupTypes", "Typ (Mehrfachauswahl)")) + '</p>'
-			+ '<div class="citymap-suggest__types">' + TYPE_KEYS.map(function (k) {
-				return '<label><input type="checkbox" data-citymap-suggest-type="' + esc(k[0]) + '" /> ' + esc(t("cityMaps.type." + k[0], k[1])) + '</label>';
-			}).join("") + '</div></div>'
+			+ detailsGroup(t("cityMaps.suggestGroupPropsTypes", "Eigenschaften und Typ"),
+				// Keine Floskel, sondern woertlich die §3.1/§3.7-Regel: unbekannt matcht keinen Filter ausser
+				// "alle". Der Melder erfaehrt damit die echte Folge des Weglassens statt eines Appells.
+				t("cityMaps.suggestWhyProps", "Danach filtern die Leser. Was hier fehlt, taucht in keinem Filter auf."),
+				PROPS.map(function (p) { return selectMarkup("citymap-suggest-" + p[0], t("cityMaps.prop." + p[0], p[1]), TRI); }).join("")
+				+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.suggestUnknownHint",
+					"„unbekannt“ ist eine gültige Antwort: die Eigenschaft wird dann gar nicht gezeigt, statt ein erfundenes „nein“.")) + '</p>'
+				+ '<div class="citymap-suggest__types">' + TYPE_KEYS.map(function (k) {
+					return '<label><input type="checkbox" data-citymap-suggest-type="' + esc(k[0]) + '" /> ' + esc(t("cityMaps.type." + k[0], k[1])) + '</label>';
+				}).join("") + '</div>')
 
-			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupSource", "Quelle *")) + '</p>'
-			+ fieldMarkup("citymap-suggest-source-label", t("cityMaps.suggestSourceName", "Quellenname * (z. B. Herz des Reiches)"), "text", 200, ' required')
-			+ fieldMarkup("citymap-suggest-source-url", t("cityMaps.suggestSourceUrl", "Link zur Quelle (F-Shop / Wiki) – optional"), "url", 500, ' inputmode="url" placeholder="https://..."')
-			+ fieldMarkup("citymap-suggest-source-pages", t("cityMaps.suggestSourcePages", "Seite(n)"), "text", 120)
-			+ selectMarkup("citymap-suggest-source-type", t("cityMaps.suggestSourceType", "Art der Quelle"), SOURCE_TYPES, "sonstiges")
-			+ '<label class="citymap-suggest__check"><input id="citymap-suggest-source-official" type="checkbox" /> <span>' + esc(t("cityMaps.suggestSourceOfficial", "offizielle Quelle")) + '</span></label>'
-			+ '</div>'
-
-			+ '<div class="citymap-suggest__group"><p class="citymap-suggest__grouptitle">' + esc(t("cityMaps.suggestGroupYou", "Weiteres")) + '</p>'
-			+ fieldMarkup("citymap-suggest-reporter", t("cityMaps.suggestReporter", "Dein Name/Pseudonym (optional)"), "text", 80, ' autocomplete="nickname"')
-			+ '</div>'
+			+ detailsGroup(t("cityMaps.suggestGroupYou", "Dein Name"),
+				t("cityMaps.suggestWhyYou", "Nur, falls du genannt werden willst."),
+				fieldMarkup("citymap-suggest-reporter", t("cityMaps.suggestReporter", "Dein Name/Pseudonym"), "text", 80,
+					t("cityMaps.suggestReporterPh", "Alrik aus Gareth"), ' autocomplete="nickname"'))
 
 			// Honeypot: unsichtbar, tabindex -1 — füllt ihn etwas aus, war es kein Mensch. Gleiche Mechanik
 			// wie das Ortsformular (index.html:654); der Server verwirft still (avesmapsValidateMapReport).
@@ -203,6 +244,10 @@
 		// stehen im Markup ungehakt und die Tri-Selects auf "unbekannt", das passt also. Der Status ist kein
 		// Formularfeld und muss von Hand weg, sonst klebt "Vorschlag gesendet." am nächsten Vorschlag.
 		setStatus(overlay, "");
+		// Ebenso wenig ist `open` ein Formularfeld: eine einmal aufgeklappte Gruppe bliebe über reset()
+		// hinweg offen, und der nächste Melder saehe ein Formular, dessen "das ist optional"-Aussage schon
+		// wieder aufgehoben ist. Die Zusage im Hinweisfeld gilt bei JEDEM Öffnen.
+		Array.prototype.forEach.call(overlay.querySelectorAll("details"), function (d) { d.open = false; });
 		overlay.querySelector(".avesmaps-adv-dialog__title").textContent = place.name
 			? t("cityMaps.suggestTitleFor", "Karte vorschlagen – {place}", { place: place.name })
 			: t("cityMaps.suggest", "Karte vorschlagen");
