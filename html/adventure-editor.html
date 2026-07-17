@@ -67,7 +67,7 @@
      Muster, hier aber ueber die echten Tokens statt hartkodierter Hex-Werte (kein eigenes :root noetig,
      diese Seite bindet tokens.css bereits direkt ein). Der Dialog-Rahmen zeigt den Editor-Titel schon
      im H2 der Ueberschrift (siehe openAvesmapsAdventureEditorOverlay) -- ein zweiter H1 hier waere doppelt.
-     Gilt fuer beide Header-Buttons: Sync (primary) UND den Cover-Kill-Switch (soft, .is-off = Warnung). */
+     Gilt fuer alle Header-Kacheln; nur die Sync-Kachel hebt sich ab (--primary), :disabled dimmt. */
   .ae-btn2 {
     display: flex; flex-direction: column; align-items: flex-start; text-align: left;
     gap: 1px; line-height: var(--leading-tight); font: inherit; cursor: pointer;
@@ -81,9 +81,6 @@
   .ae-btn2--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
   .ae-btn2--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
   .ae-btn2--primary .t2 { color: var(--color-button-text); opacity: .8; }
-  .ae-btn2.is-off { background: color-mix(in srgb, var(--color-danger) 14%, transparent);
-    border-color: var(--color-danger); color: var(--color-danger); }
-  .ae-btn2.is-off .t2 { color: var(--color-danger); }
 
   .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
 
@@ -320,18 +317,25 @@
 </head>
 <body>
   <div class="ae-header">
-    <button type="button" class="ae-btn2" id="aeCoversToggle" aria-pressed="false"
-      title="Notfall-Aus: blendet ALLE Abenteuer-Cover im öffentlichen Frontend aus (Platzhalter). Die Bilder bleiben intern gespeichert; dieser Editor zeigt sie weiter.">
-      <span class="t1">🖼️ Cover</span>
-      <span class="t2" id="aeCoversToggleLabel">…</span>
-    </button>
     <button type="button" class="ae-btn2 ae-btn2--primary" id="aeSyncBtn" title="Übernimmt Abenteuer aus dem zuletzt geholten Wiki-Dump override-sicher (Katalog + Orte + Cover). Vorher einmal „Dump holen" im WikiSync-Menüband ausführen.">
       <span class="t1">🚨 Abenteuer syncen</span>
       <span class="t2" id="aeHeaderSub">Letzte Sync: wird geladen…</span>
     </button>
     <button type="button" class="ae-btn2" id="aeLinkCheckBtn" title="Prüft NUR die Links der Abenteuer (Shoplinks, Wiki-Seiten) auf Erreichbarkeit — Karten und Quellen bleiben unberührt. Höflich: 600ms Pause je Host, ein voller Durchlauf dauert entsprechend.">
-      <span class="t1">🔗 Links prüfen</span>
+      <span class="t1">Links prüfen</span>
       <span class="t2" id="aeLinkCheckSub">…</span>
+    </button>
+    <button type="button" class="ae-btn2" id="aeAutogetBtn" disabled title="Cover-Massenlauf (Wiki-Cover neu ziehen) — vorübergehend deaktiviert; kommt mit einem Server-Riegel gegen Doppelläufe. Einzelne Cover neu ziehen geht weiter im Detail-Panel.">
+      <span class="t1">Vorschauen holen</span>
+      <span class="t2">vorübergehend deaktiviert</span>
+    </button>
+    <button type="button" class="ae-btn2" id="aeCoversToggle" title="Notaus NUR für die Vorschaubilder (Cover): aus = keine Cover und keine „© Ulisses Spiele“-Fußnote im öffentlichen Frontend. Die Abenteuer, ihre Links und der Editor bleiben. Getrennt vom Karten-Vorschauschalter, weil die Erlaubnis nur bis auf Widerruf gilt.">
+      <span class="t1" id="aeCoversToggleLabel">Vorschauen: …</span>
+      <span class="t2">öffentliche Anzeige</span>
+    </button>
+    <button type="button" class="ae-btn2" id="aeEnabledToggle" title="Globaler Notaus für die Abenteuer: aus = die Abenteuer verschwinden auf der öffentlichen Seite (schwebende Kachel + Infopanel-Sektionen inkl. „Abenteuer in …“). Die Daten bleiben, der Editor arbeitet weiter.">
+      <span class="t1" id="aeEnabledLabel">Abenteuer: …</span>
+      <span class="t2">Frontend-Zugriff</span>
     </button>
     <!-- Spacer AFTER the buttons, so the tile bar is left-aligned like the citymap editor's (owner
          2026-07-17: "beide das kachelmenüband, linksbündig"). It used to sit in front of them, which
@@ -471,6 +475,7 @@
       const res = await adventurePost({ action: "list" });
       state.adventures = res.adventures || [];
       if (typeof res.covers_enabled === "boolean") setCoversToggleState(res.covers_enabled);
+      if (typeof res.adventures_enabled === "boolean") setAdventuresEnabledToggleState(res.adventures_enabled);
       populateRegionFilter();
       renderList();
     } catch (e) {
@@ -479,13 +484,11 @@
   }
 
   // Cover kill switch (owner "emergency off"). Reflects/flips the GLOBAL public-frontend cover display;
-  // the editor itself always keeps showing covers so admins can moderate. aria-pressed = kill-switch engaged.
+  // the editor itself always keeps showing covers so admins can moderate.
   function setCoversToggleState(enabled) {
     state.coversEnabled = enabled;
-    const btn = document.getElementById("aeCoversToggle");
     const label = document.getElementById("aeCoversToggleLabel");
-    if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
-    if (label) label.textContent = enabled ? "An" : "AUS";
+    if (label) label.textContent = enabled ? "Vorschauen: AN" : "Vorschauen: AUS";
   }
   async function toggleCovers() {
     const next = !state.coversEnabled;
@@ -496,6 +499,27 @@
       setCoversToggleState(typeof res.covers_enabled === "boolean" ? res.covers_enabled : next);
     } catch (e) {
       alert("Cover-Umschaltung fehlgeschlagen: " + e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // Feature kill switch: the WHOLE adventure access on the public frontend (floating tile + infopanel
+  // sections). Wider than the cover switch above. Mirrors citymaps' ceEnabledToggle.
+  function setAdventuresEnabledToggleState(enabled) {
+    state.adventuresEnabled = enabled;
+    const label = document.getElementById("aeEnabledLabel");
+    if (label) label.textContent = enabled ? "Abenteuer: AN" : "Abenteuer: AUS";
+  }
+  async function toggleAdventuresEnabled() {
+    const next = !state.adventuresEnabled;
+    const btn = document.getElementById("aeEnabledToggle");
+    if (btn) btn.disabled = true;
+    try {
+      const res = await adventurePost({ action: "set_adventures_enabled", enabled: next });
+      setAdventuresEnabledToggleState(typeof res.adventures_enabled === "boolean" ? res.adventures_enabled : next);
+    } catch (e) {
+      alert("Umschaltung fehlgeschlagen: " + e.message);
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -1294,7 +1318,7 @@
     if (!button) return;
     button.disabled = isBusy;
     const label = button.querySelector(".t1");
-    if (label) label.textContent = isBusy ? "Prüft …" : "🔗 Links prüfen";
+    if (label) label.textContent = isBusy ? "Prüft …" : "Links prüfen";
   }
 
   async function handleAeLinkCheckClick() {
@@ -1324,6 +1348,7 @@
   document.getElementById("aeSyncBtn").addEventListener("click", handleAeSyncClick);
   document.getElementById("aeLinkCheckBtn").addEventListener("click", handleAeLinkCheckClick);
   document.getElementById("aeCoversToggle").addEventListener("click", toggleCovers);
+  document.getElementById("aeEnabledToggle").addEventListener("click", toggleAdventuresEnabled);
   void refreshAeSyncedInfo();
 
   // Pre-selection from the parent (WikiSync adventure picker): a same-origin postMessage jumps to an
