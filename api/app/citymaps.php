@@ -76,6 +76,10 @@ try {
         'ok' => true,
         'citymaps' => $citymaps,
         'citymaps_enabled' => true,
+        // The pictures are already gone from the payload when this is false (ReadCatalog blanks them).
+        // The flag ships so the render can drop the "© Ulisses Spiele" credit with them: no covers on
+        // screen means no credit needed -- the same rule the adventure covers follow.
+        'citymap_previews_enabled' => avesmapsCitymapPreviewsEnabled($pdo),
     ]);
 } catch (PDOException $exception) {
     avesmapsErrorResponse(500, 'server_error', 'Citymaps could not be loaded from the database.');

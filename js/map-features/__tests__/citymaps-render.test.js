@@ -25,6 +25,7 @@ global.tr = function (key, germanDefault, params) {
 const {
   cityMapSafeUrl, cityMapBestLink, cityMapIsSpoiler, cityMapValidityLabel,
   cityMapCardMarkup, buildCityMapsSectionMarkup, buildCityMapRowMarkup, citymapFiltersMarkup,
+  avesmapsCitymapCreditMarkup,
 } = require("../map-features-place-extras.js");
 
 // ---- URL safety -------------------------------------------------------------------------------------
@@ -320,5 +321,41 @@ assert.ok(bar.includes('<option value="politisch">Politisch</option>'), "art sel
 // The adventure dimensions must NOT leak into the map bar.
 assert.ok(!bar.includes('data-adv-filter="edition"') && !bar.includes('data-adv-filter="genre"'), "no adventure dimensions");
 console.log("citymap filter bar ok");
+
+// ---- the credit line (2026-07-17) -------------------------------------------------------------------
+// The obligation that makes the covers permissible (NOTICE.md / Ulisses fan guidelines), so it is not
+// decoration and may not be quietly dropped.
+global.avesmapsCitymapPreviewsEnabled = () => true;
+const credit = avesmapsCitymapCreditMarkup();
+assert.ok(credit.includes("Ulisses Spiele"), "the credit names the rights holder");
+assert.ok(credit.includes("f-shop.de"), "the F-Shop link is generic -- there is none per map");
+assert.ok(credit.includes("↗"), "external links carry the arrow (AGENTS.md §12)");
+assert.ok(credit.includes('target="_blank"') && credit.includes('rel="noopener"'));
+// No covers on screen means no credit needed -- the same rule the adventure covers follow.
+global.avesmapsCitymapPreviewsEnabled = () => false;
+assert.strictEqual(avesmapsCitymapCreditMarkup(), "");
+// Missing switch (older payload / test harness) must not hide the obligation: default is ON.
+delete global.avesmapsCitymapPreviewsEnabled;
+assert.ok(avesmapsCitymapCreditMarkup().includes("Ulisses Spiele"), "without the switch the credit still shows -- failing open on an obligation is the wrong direction");
+global.avesmapsCitymapPreviewsEnabled = () => true;
+
+// The section carries it, because that is where the covers are.
+const sectionWithCredit = buildCityMapsSectionMarkup("Gareth", [
+  { public_id: "m1", title: "Stadtplan von Gareth", map_url: "https://example.org/k", thumb: "/uploads/kartensammlungen/a/t.webp" },
+]);
+assert.ok(sectionWithCredit.includes("Ulisses Spiele"), "a section showing covers must show the credit");
+// No cover on screen -> no obligation. 419 maps show 1 preview today, so this is the common case, and a
+// credit under a section with no pictures would be a claim about nothing.
+const sectionNoCover = buildCityMapsSectionMarkup("Gareth", [
+  { public_id: "m1", title: "Stadtplan von Gareth", map_url: "https://example.org/k" },
+]);
+assert.ok(!sectionNoCover.includes("Ulisses Spiele"), "no covers, no credit");
+// Switch off -> the payload has already blanked the thumbs, so the section cannot claim otherwise.
+global.avesmapsCitymapPreviewsEnabled = () => false;
+assert.ok(!buildCityMapsSectionMarkup("Gareth", [
+  { public_id: "m1", title: "T", map_url: "https://example.org/k", thumb: "/uploads/kartensammlungen/a/t.webp" },
+]).includes("Ulisses Spiele"), "switch off drops the credit with the covers");
+global.avesmapsCitymapPreviewsEnabled = () => true;
+console.log("citymap credit ok");
 
 console.log("citymaps-render ok");

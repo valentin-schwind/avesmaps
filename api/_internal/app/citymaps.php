@@ -50,6 +50,9 @@ const AVESMAPS_CITYMAP_AUTOGET_STATES = ['ok', 'no_image', 'fetch_failed', 'not_
 // shown). A map whose licence nobody has judged must not be published: for our own generated settlement
 // pictures "unknown" is safe, for third-party cartography it is not.
 const AVESMAPS_CITYMAPS_SETTING = 'citymaps_enabled';
+// Its own switch for the preview pictures, separate from the whole-collection one above and from the
+// adventures' cover switch -- see avesmapsCitymapPreviewsEnabled for why.
+const AVESMAPS_CITYMAP_PREVIEWS_SETTING = 'citymap_previews_enabled';
 
 // ---- Autoget, the wiki route (2026-07-17) ------------------------------------------------------------
 // 364 of our 365 map links point at de.wiki-aventurica.de, and fetching those pages as HTML to read their
@@ -334,6 +337,25 @@ function avesmapsSetCitymapsEnabled(PDO $pdo, bool $enabled): array
 {
     avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAPS_SETTING, $enabled ? '1' : '0');
     return ['citymaps_enabled' => $enabled];
+}
+
+// A SECOND switch, for the preview pictures alone (owner decision 2026-07-17). Off = the public catalogue
+// carries no preview and the "© Ulisses Spiele" credit line disappears with it; the maps, their links and
+// the editor are untouched.
+//
+// Deliberately NOT the adventures' switch, though the pictures are the same publisher covers under the
+// same permission: that permission holds "nur bis auf Widerruf" (NOTICE.md), and on a revocation -- or a
+// complaint about one surface -- you want to reach map previews without also blanking adventure covers.
+// Reusing adventure_covers_enabled would chain two surfaces to a switch named after one of them.
+function avesmapsCitymapPreviewsEnabled(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_CITYMAP_PREVIEWS_SETTING, '1') !== '0';
+}
+
+function avesmapsSetCitymapPreviewsEnabled(PDO $pdo, bool $enabled): array
+{
+    avesmapsAppSettingSet($pdo, AVESMAPS_CITYMAP_PREVIEWS_SETTING, $enabled ? '1' : '0');
+    return ['citymap_previews_enabled' => $enabled];
 }
 
 // ---- pure normalisers ---------------------------------------------------------------------------------
@@ -815,6 +837,10 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     if ($rows === []) {
         return [];
     }
+    // Read ONCE, not per row: the switch is one app_setting, and asking for it 419 times would be the
+    // same N+1 the political layer is already being punished for. Off = no preview leaves the box at all
+    // -- filtered server-side like the licence gate, not blanked in the client.
+    $previewsOn = avesmapsCitymapPreviewsEnabled($pdo);
 
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
     // id -> public_id, so parent/related can be emitted as PUBLIC ids (the surrogate id never goes out).
@@ -848,7 +874,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
             'parent_public_id' => $parentId > 0 ? ($publicIdById[$parentId] ?? '') : '',
             'map_url' => (string) $row['map_url'],
             'map_local_url' => avesmapsCitymapPublicMapLocalUrl($row),
-            'thumb' => avesmapsCitymapPublicThumbUrl($row),
+            'thumb' => $previewsOn ? avesmapsCitymapPublicThumbUrl($row) : '',
             'art' => (string) ($row['art'] ?? ''),
             'is_color' => avesmapsCitymapTriBoolOut($row['is_color']),
             'is_multilevel' => avesmapsCitymapTriBoolOut($row['is_multilevel']),
@@ -1009,7 +1035,13 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
           ORDER BY title ASC"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
     if ($rows === []) {
-        return ['citymaps' => [], 'citymaps_enabled' => avesmapsCitymapsEnabled($pdo)];
+        // Both switches on BOTH exits -- the empty one too, or the ribbon toggle would read "AUS" on a
+        // fresh install simply because nobody has added a map yet.
+        return [
+            'citymaps' => [],
+            'citymaps_enabled' => avesmapsCitymapsEnabled($pdo),
+            'citymap_previews_enabled' => avesmapsCitymapPreviewsEnabled($pdo),
+        ];
     }
 
     $ids = array_map(static fn(array $r): int => (int) $r['id'], $rows);
@@ -1055,7 +1087,11 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
             'place_count' => $placeCounts[$id] ?? 0,
         ];
     }
-    return ['citymaps' => $citymaps, 'citymaps_enabled' => avesmapsCitymapsEnabled($pdo)];
+    return [
+        'citymaps' => $citymaps,
+        'citymaps_enabled' => avesmapsCitymapsEnabled($pdo),
+        'citymap_previews_enabled' => avesmapsCitymapPreviewsEnabled($pdo),
+    ];
 }
 
 // One map with everything the editor edits -- licence notes included (they never reach the public read).

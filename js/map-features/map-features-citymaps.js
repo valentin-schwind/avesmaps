@@ -398,10 +398,13 @@ function avesmapsCitymapsEndpointUrl() {
 	return ""; // e.g. localhost dev without a backend -> ready-empty, the section simply does not render
 }
 
-function avesmapsApplyCitymapCatalog(catalog, enabled) {
+function avesmapsApplyCitymapCatalog(catalog, enabled, previewsEnabled) {
 	var state = avesmapsCitymapCatalogState;
 	state.catalog = Array.isArray(catalog) ? catalog : [];
 	state.enabled = enabled !== false; // default ENABLED; only an explicit false (kill switch) hides it
+	// The SECOND switch, for the preview pictures alone. The payload has already blanked the thumbs when
+	// this is false; we keep it so the credit line can go with them (no covers, no credit needed).
+	state.previewsEnabled = previewsEnabled !== false;
 	state.index = avesmapsBuildCitymapIndex(state.catalog, avesmapsNormalizeCitymapKey);
 	state.loaded = true;
 	if (typeof window !== "undefined") {
@@ -447,7 +450,8 @@ function avesmapsLoadCitymapCatalog() {
 		.then(function (data) {
 			var catalog = data && data.ok && Array.isArray(data.citymaps) ? data.citymaps : [];
 			var enabled = data ? (data.citymaps_enabled !== false) : true;
-			avesmapsApplyCitymapCatalog(catalog, enabled);
+			var previewsEnabled = data ? (data.citymap_previews_enabled !== false) : true;
+			avesmapsApplyCitymapCatalog(catalog, enabled, previewsEnabled);
 			return state.catalog;
 		})
 		.catch(function () {
@@ -584,6 +588,9 @@ if (typeof window !== "undefined") {
 	// Kill switch (§3.3): the server already ships an empty catalog when it is off; this lets the frontend
 	// tell "switched off" apart from "no maps here".
 	window.avesmapsCitymapsEnabled = function () { return avesmapsCitymapCatalogState.enabled !== false; };
+	// Read by avesmapsCitymapCreditMarkup (place-extras). Default ON: the credit is an obligation, so an
+	// unknown switch must fail towards showing it, not towards hiding it.
+	window.avesmapsCitymapPreviewsEnabled = function () { return avesmapsCitymapCatalogState.previewsEnabled !== false; };
 	window.avesmapsCitymapCatalogReady = window.avesmapsCitymapCatalogReady || false;
 	// Kick the single catalog fetch as early as possible when in infopanel mode; the popup opens
 	// (user-initiated) generally after this resolves. Must not touch the Leaflet `map` at load time --

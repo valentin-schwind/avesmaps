@@ -433,6 +433,10 @@
     <span class="t1">🖼️ Vorschauen holen</span>
     <span class="t2" id="ceAutogetSub">…</span>
   </button>
+  <button type="button" class="ce-btn2" id="cePreviewsToggle" title="Notaus NUR für die Vorschaubilder: aus = die Karten bleiben, aber kein Cover und keine „© Ulisses Spiele“-Fußnote erscheinen öffentlich. Getrennt vom Abenteuer-Cover-Schalter, weil die Erlaubnis nur bis auf Widerruf gilt.">
+    <span class="t1" id="cePreviewsLabel">Vorschauen: …</span>
+    <span class="t2">öffentliche Anzeige</span>
+  </button>
   <span class="ce-header__spacer"></span>
   <span class="ce-hint">Wiki-Karten tragen eine Wiki-Pille. Eigene Änderungen daran gewinnen: eine bearbeitete Karte fasst der Sync nicht mehr an.</span>
 </div>
@@ -533,7 +537,7 @@
   // merged into `links`, because set_links posts `links` back without ids: anything in there is re-created
   // as 'manual' on save, so a foreign row would duplicate itself. The server already ships them apart
   // (avesmapsCitymapDetailForEdit) -- this just keeps the split.
-  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, dirty: false, links: [], foreignLinks: [] };
+  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, previewsEnabled: true, dirty: false, links: [], foreignLinks: [] };
 
   // ---- list ----
   async function loadList(keepSelection) {
@@ -541,7 +545,9 @@
       const payload = await citymapPost({ action: "list" });
       state.citymaps = payload.citymaps || [];
       state.enabled = payload.citymaps_enabled !== false;
+      state.previewsEnabled = payload.citymap_previews_enabled !== false;
       setEnabledToggleState();
+      setPreviewsToggleState();
       renderList();
       if (!keepSelection || !state.citymaps.some((c) => c.public_id === state.selectedId)) {
         // The selected map is gone (another tab deleted it) -> drop the stale detail rather than
@@ -1204,6 +1210,24 @@
     } catch (e) { alert("Fehler: " + e.message); }
   }
 
+  // The narrower switch: preview PICTURES only. Off leaves the maps and their links alone but takes every
+  // cover -- and the "© Ulisses Spiele" credit with it -- off the public side. Separate from the whole-
+  // collection switch above and from the adventures' cover switch, because the Ulisses permission holds
+  // "nur bis auf Widerruf" (NOTICE.md) and a revocation should be answerable per surface.
+  function setPreviewsToggleState() {
+    const label = document.getElementById("cePreviewsLabel");
+    if (label) label.textContent = state.previewsEnabled ? "Vorschauen: AN" : "Vorschauen: AUS";
+  }
+
+  async function togglePreviews() {
+    const next = !state.previewsEnabled;
+    try {
+      await citymapPost({ action: "set_citymap_previews_enabled", enabled: next });
+      state.previewsEnabled = next;
+      setPreviewsToggleState();
+    } catch (e) { alert("Fehler: " + e.message); }
+  }
+
   // ---- Wiki-Sync (citymaps) ----
   // Delegates to window.parent.startWikiSyncCitymapsSync() -- the SAME sync_citymaps client loop that
   // lives in js/review/review-wiki-sync.js, so there is exactly one sync_citymaps loop in the app, not
@@ -1410,6 +1434,7 @@
     }
   });
   document.getElementById("ceEnabledToggle").addEventListener("click", toggleEnabled);
+  document.getElementById("cePreviewsToggle").addEventListener("click", togglePreviews);
   document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
   document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
   document.getElementById("ceAutogetBtn").addEventListener("click", handleAutogetClick);

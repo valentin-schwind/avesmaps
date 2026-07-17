@@ -119,6 +119,10 @@ try {
         // Global kill switch (owner "emergency off"): hides the whole Kartensammlung on the public
         // frontend; the rows stay stored and the editor keeps working.
         'set_citymaps_enabled' => avesmapsSetCitymapsEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
+        // The second, narrower switch: preview PICTURES only. Off = no cover and no "© Ulisses Spiele"
+        // credit on the public side; the maps, their links and the editor keep working. Separate from the
+        // adventures' cover switch because the permission holds only until revoked (NOTICE.md).
+        'set_citymap_previews_enabled' => avesmapsSetCitymapPreviewsEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.'),
     };
 

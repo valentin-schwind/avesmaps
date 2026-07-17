@@ -206,6 +206,9 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 		? '<button type="button" class="avesmaps-citymaps__suggest"' + citymapPlaceAttrs(place, name) + '>'
 			+ placeExtrasEscape(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
 		: "";
+	// Die Lizenz-Fussnote reist MIT den Covern, nicht hinter ihnen her: sie ist die Bedingung, unter der
+	// wir sie ueberhaupt zeigen duerfen (Ulisses-Fanrichtlinien, NOTICE.md).
+	var creditMarkup = cityMapsHaveVisibleCover(maps) ? avesmapsCitymapCreditMarkup() : "";
 	return '<div class="avesmaps-citymaps"' + scopeAttr + placeAttr + '>'
 		+ '<div class="avesmaps-citymaps__head">' + tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
 		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape(maps.length) + ')</span></div>'
@@ -214,7 +217,22 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 		+ '<button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
 		+ suggestButton
 		+ '</div>'
+		+ creditMarkup
 		+ '</div>';
+}
+
+// Die Pflichtangabe nur, wenn hier wirklich ein Verlagscover haengt (Owner-Regel + NOTICE.md). Praeziser
+// als das Abenteuer-Vorbild, das allein seinen Killswitch fragt: dort HAT faktisch jedes Abenteuer ein
+// Cover, hier haengt es an der Quelle -- eine Sammlung, deren Karten alle kein Seitenbild haben, zeigt
+// nichts und braucht dann auch keinen Credit. Umgekehrt gilt es strikt: sobald EIN Cover sichtbar ist,
+// steht die Angabe darunter.
+function cityMapsHaveVisibleCover(maps) {
+	for (var i = 0; i < (maps || []).length; i++) {
+		if (cityMapSafeUrl(maps[i] && maps[i].thumb)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 // Die vier data-Attribute, die einen Ort identifizieren -- an EINER Stelle, weil sie an drei sitzen: an der
@@ -643,6 +661,21 @@ function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
 function avesmapsAdventureCreditMarkup() {
 	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
 	return coversOn ? '<div class="avesmaps-adv__credit">' + tr("adventures.credit", "Cover © Ulisses Spiele — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
+}
+
+// Lizenz-Fussnote der Kartensammlung. Dieselbe Pflichtangabe wie bei den Abenteuern und derselbe
+// GENERISCHE F-Shop-Link -- es gibt keinen pro Karte, 364 der 365 Karten-Links zeigen ins Wiki.
+//
+// EIGENE Funktion mit EIGENEM Schalter, obwohl der Text fast derselbe ist: die Erlaubnis gilt "nur bis auf
+// Widerruf" (NOTICE.md), und dann will man Karten-Vorschauen abschalten koennen, ohne die Abenteuer-Cover
+// zu verlieren. avesmapsAdventureCreditMarkup wiederzuverwenden haette die beiden Flaechen an einen
+// Schalter gekettet, der nach der einen von beiden benannt ist.
+//
+// Fehlt der Schalter (aelterer Payload), zeigt die Fussnote TROTZDEM: bei einer Pflichtangabe ist "im
+// Zweifel anzeigen" die richtige Richtung.
+function avesmapsCitymapCreditMarkup() {
+	var on = (typeof avesmapsCitymapPreviewsEnabled !== "function") || avesmapsCitymapPreviewsEnabled();
+	return on ? '<div class="avesmaps-adv__credit">' + tr("cityMaps.credit", "Vorschaubilder © Ulisses Spiele — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
 }
 
 // ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----
@@ -1292,6 +1325,7 @@ if (typeof module !== "undefined" && module.exports) {
 		cityMapValidityLabel: cityMapValidityLabel,
 		cityMapCardMarkup: cityMapCardMarkup,
 		cityMapDataAttributes: cityMapDataAttributes,
+		avesmapsCitymapCreditMarkup: avesmapsCitymapCreditMarkup,
 		buildCityMapsSectionMarkup: buildCityMapsSectionMarkup,
 		citymapFiltersMarkup: citymapFiltersMarkup,
 		buildCityMapRowMarkup: buildCityMapRowMarkup,
