@@ -560,12 +560,12 @@
 	flex-direction: column;
 	gap: 8px;
 	align-items: flex-start;
-	padding: 10px 16px 4px;
+	padding: 10px var(--space-16) 4px;
 }
 .avesmaps-citymaps-dialog__grid {
 	display: flex;
 	flex-direction: column;
-	padding: 4px 16px 16px;
+	padding: 4px var(--space-16) 16px;
 	overflow-y: auto;
 }
 /* Im Dialog ist die Karte eine ZEILE: die 116px-Streifenbreite muss weg. */
@@ -583,7 +583,7 @@
 }
 .avesmaps-citymaps-dialog__foot {
 	flex: 0 0 auto;
-	padding: 0 16px 14px;
+	padding: 0 var(--space-16) 14px;
 	/* Hinweis links, "Karte vorschlagen" rechts (§3.7). Der Hinweis darf umbrechen, der Button nicht. */
 	display: flex;
 	align-items: center;
@@ -880,8 +880,8 @@
 	gap: var(--space-10);
 	align-items: start;
 	/* Randlos bis an die Dialogkante: der negative Margin entspricht dem Seitenpadding des Grids, das
-	   Padding gleicht ihn wieder aus. Das braucht die Hover-Flaeche (ein Hintergrund, der 16px vor dem
-	   Rand endet, liest als schwebender Kasten statt als Listenzeile) -- und die Trennlinie laeuft damit
+	   Padding gleicht ihn wieder aus. Das braucht die Hover-Flaeche (ein Hintergrund, der --space-16 (18px)
+	   vor dem Rand endet, liest als schwebender Kasten statt als Listenzeile) -- und die Trennlinie laeuft damit
 	   Rand zu Rand, so wie Trenner hier laufen sollen (AGENTS.md §12). */
 	margin: 0 calc(-1 * var(--space-16));
 	padding: var(--space-6) var(--space-16);
