@@ -205,54 +205,47 @@ function avesmapsSelectCitymapEntries(index, ref) {
 	return collected;
 }
 
-// ---- facets + filter predicate (Spec §3.7) -----------------------------------------------------------
-// Typ (multi chips WITH counts), Art, Quelle, farbig, mehrstöckig, beschriftet, offiziell, Spoiler,
-// BF-Jahr. Only dimensions the current set actually offers -- except the year range, which always stands
-// so the field stays findable (same rule as the adventure bar).
-function avesmapsCitymapFacetOptions(shapes) {
-	var typeCounts = {};
-	var arts = {};
-	var sources = {};
-	var minYear = 0;
-	var maxYear = 0;
-	(shapes || []).forEach(function (shape) {
-		(shape.types || []).forEach(function (key) {
-			if (key) {
-				typeCounts[key] = (typeCounts[key] || 0) + 1;
-			}
-		});
-		if (shape.art) {
-			arts[shape.art] = true;
+// ---- adaptive Facetten (Spec §4.1) ------------------------------------------------------------------
+// Vokabular: Zeitraum, farbig, offiziell, kostenlos (Owner 2026-07-17). Typ, Art, Quelle, mehrstoeckig,
+// beschriftet, "nur kostenpflichtige" und "Spoiler zeigen" sind ERSATZLOS gestrichen -- siehe die
+// Umkehrungs-Warnung in der Spec §4.1, bevor jemand sie zurueckbaut.
+//
+// Die Regel: ein Filter erscheint nur, wenn er DIESE Liste wirklich teilt. Sonst stehen 13 Steuerelemente
+// ueber einer Zeile (168 von 245 Orten haben genau eine Karte) und zwei davon -- mehrstoeckig, Spoiler --
+// koennen nie etwas treffen, weil die Daten sie gar nicht kennen.
+function avesmapsCitymapActiveFacets(shapes) {
+	var list = shapes || [];
+	function splits(pred) {
+		var hit = 0;
+		for (var i = 0; i < list.length; i++) {
+			if (pred(list[i])) { hit++; }
 		}
-		(shape.sources || []).forEach(function (source) {
-			if (source && source.label) {
-				sources[source.label] = true;
-			}
-		});
-		// The year facet spans the whole VALIDITY of every map, so the placeholders tell the reader the
-		// real range rather than just the earliest start.
+		return hit > 0 && hit < list.length;
+	}
+	var years = {};
+	var withYear = 0;
+	list.forEach(function (shape) {
+		var has = false;
 		[shape.valid_from_bf, shape.valid_to_bf].forEach(function (value) {
 			var year = Number(value) || 0;
-			// 9999 is the open/never-dissolved sentinel (AGENTS.md §5) -- a real bound in the data, but
-			// showing "1027–9999" as the range would be nonsense to a reader.
+			// 9999 ist das offene Ende (AGENTS.md §5) -- ein echter Wert in den Daten, aber keine
+			// Jahreszahl, die man einem Leser als Bereichsgrenze zeigt.
 			if (year > 0 && year !== 9999) {
-				if (minYear === 0 || year < minYear) { minYear = year; }
-				if (year > maxYear) { maxYear = year; }
+				years[year] = true;
+				has = true;
 			}
 		});
+		if (has) { withYear++; }
 	});
-	function sortedKeys(map) {
-		return Object.keys(map).sort(function (a, b) { return a.localeCompare(b, "de"); });
-	}
+	var keys = Object.keys(years).map(Number);
 	return {
-		// Sorted by the LABEL the reader sees, not by the slug -- "Übersicht" belongs where a German
-		// reader looks for it, not where "uebersicht" would sort.
-		types: sortedKeys(typeCounts)
-			.map(function (key) { return { value: key, label: avesmapsCitymapTypeLabel(key), count: typeCounts[key] }; })
-			.sort(function (a, b) { return a.label.localeCompare(b.label, "de"); }),
-		arts: sortedKeys(arts).map(function (key) { return { value: key, label: avesmapsCitymapArtLabel(key) }; }),
-		sources: sortedKeys(sources),
-		yearRange: { min: minYear, max: maxYear },
+		color: splits(function (s) { return s.is_color === true; }),
+		official: splits(function (s) { return s.is_official === true; }),
+		free: splits(avesmapsCitymapHasFreeAccess),
+		// Zwei Karten MIT Jahr und unterschiedliche Jahre. Eine Karte mit einer Spanne liefert zwar zwei
+		// Zahlen, aber nichts zu filtern.
+		years: withYear >= 2 && keys.length >= 2,
+		yearRange: keys.length ? { min: Math.min.apply(null, keys), max: Math.max.apply(null, keys) } : { min: 0, max: 0 },
 	};
 }
 
@@ -310,55 +303,17 @@ function avesmapsCitymapMatchesFilter(shape, filter) {
 	if (!filter || !shape) {
 		return true;
 	}
-	var types = filter.types;
-	if (types) {
-		var size = typeof types.size === "number" ? types.size : (types.length || 0);
-		if (size > 0) {
-			// A map carries MANY types -> it passes if it has ANY of the selected ones (OR), the same way
-			// a single-typed adventure passes on its one Art.
-			var has = (shape.types || []).some(function (key) {
-				return typeof types.has === "function" ? types.has(key) : (types.indexOf(key) >= 0);
-			});
-			if (!has) {
-				return false;
-			}
-		}
-	}
-	if (filter.art && shape.art !== filter.art) {
-		return false;
-	}
-	if (filter.source) {
-		var hasSource = (shape.sources || []).some(function (source) { return source && source.label === filter.source; });
-		if (!hasSource) {
-			return false;
-		}
-	}
+	// §3.7: "Unbekannte Werte matchen keinen Filter ausser 'alle'." Jeder Check verlangt ein explizites
+	// true -- null (unbekannt) faellt durch, und genau dafuer sind die Felder dreiwertig.
 	if (filter.colorOnly && shape.is_color !== true) {
-		return false;
-	}
-	if (filter.multilevelOnly && shape.is_multilevel !== true) {
-		return false;
-	}
-	if (filter.labeledOnly && shape.is_labeled !== true) {
 		return false;
 	}
 	if (filter.officialOnly && shape.is_official !== true) {
 		return false;
 	}
-	// Die beiden Geld-Umschalter. Sie fragen die LINKS (siehe die zwei Funktionen oben), nicht die Karte,
-	// und sie sind NICHT komplementaer: eine Karte, ueber deren Bedingungen niemand etwas erfasst hat,
-	// faellt aus BEIDEN heraus -- die §3.7-Regel gilt unveraendert, ein Filter matcht nur, was jemand
-	// BEHAUPTET hat. Zusammen angehakt matchen sie deshalb nichts, was auch stimmt: kein Weg ist zugleich
-	// belegt frei und belegt bezahlt.
+	// Fragt die LINKS, nicht die Karte: derselbe Band ist im F-Shop bezahlt und auf seiner Wiki-Seite
+	// frei. "Gibt es einen freien Weg zu dieser Karte?"
 	if (filter.freeOnly && !avesmapsCitymapHasFreeAccess(shape)) {
-		return false;
-	}
-	if (filter.paidOnly && !avesmapsCitymapIsPaidOnly(shape)) {
-		return false;
-	}
-	// Spoiler is the one INVERTED toggle: it is off by default and reveals rather than restricts, exactly
-	// like the adventures' "Spielt hier (Spoiler)". Off -> spoiler maps are hidden; on -> everything shows.
-	if (!filter.showSpoiler && shape.is_spoiler === true) {
 		return false;
 	}
 	var from = Number(filter.yearFrom) || 0;
@@ -564,7 +519,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsCitymapToRenderShape: avesmapsCitymapToRenderShape,
 		avesmapsBuildCitymapIndex: avesmapsBuildCitymapIndex,
 		avesmapsSelectCitymapEntries: avesmapsSelectCitymapEntries,
-		avesmapsCitymapFacetOptions: avesmapsCitymapFacetOptions,
+		avesmapsCitymapActiveFacets: avesmapsCitymapActiveFacets,
 		avesmapsCitymapMatchesFilter: avesmapsCitymapMatchesFilter,
 		avesmapsCitymapHasFreeAccess: avesmapsCitymapHasFreeAccess,
 		avesmapsCitymapIsPaidOnly: avesmapsCitymapIsPaidOnly,
@@ -576,7 +531,7 @@ if (typeof window !== "undefined") {
 	window.avesmapsLoadCitymapCatalog = avesmapsLoadCitymapCatalog;
 	window.avesmapsReloadCitymapCatalog = avesmapsReloadCitymapCatalog;
 	window.avesmapsCitymapCatalogIsReady = avesmapsCitymapCatalogIsReady;
-	window.avesmapsCitymapFacetOptions = avesmapsCitymapFacetOptions;
+	window.avesmapsCitymapActiveFacets = avesmapsCitymapActiveFacets;
 	window.avesmapsCitymapMatchesFilter = avesmapsCitymapMatchesFilter;
 	window.avesmapsCitymapTypeLabel = avesmapsCitymapTypeLabel;
 	window.avesmapsCitymapArtLabel = avesmapsCitymapArtLabel;

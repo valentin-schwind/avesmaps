@@ -232,29 +232,6 @@ assert.ok(openRow.includes("+ Neuer Fundort"));
 assert.ok(!buildCityMapRowMarkup({ title: "Ohne id" }).includes("citymap-row__addlink"), "keine id -> kein Melde-Knopf");
 console.log("citymap add-fundort ok");
 
-// ---- filter bar ------------------------------------------------------------------------------------
-const bar = citymapFiltersMarkup({
-  types: [{ value: "stadtplan", label: "Stadtplan", count: 2 }],
-  arts: [{ value: "politisch", label: "Politisch" }],
-  sources: ["Herz des Reiches"],
-  yearRange: { min: 1027, max: 1045 },
-});
-["type", "art", "source", "color", "multilevel", "labeled", "official", "free", "paid", "spoiler", "yearFrom", "yearTo"].forEach((kind) => {
-  assert.ok(bar.includes('data-adv-filter="' + kind + '"'), "citymap bar offers the " + kind + " dimension (§3.7)");
-});
-// BOTH directions since 2026-07-17 (owner: "kostenpflichtige und nicht kostenpflichtige maps sollen danach
-// gefiltert werden können"). The bar used to carry only "nur kostenlose", on the reasoning that nobody asks
-// the other way round -- the owner does.
-//
-// The keys must stay `free` and `paid`: map-features-citymaps-dialog.js's TOGGLES maps them to freeOnly /
-// paidOnly, and a rename on one side alone leaves a chip that highlights and filters nothing.
-assert.ok(bar.includes("nur kostenlose") && bar.includes("nur kostenpflichtige"));
-assert.ok(bar.includes("(2)"), "type chip shows its count");
-assert.ok(bar.includes('<option value="politisch">Politisch</option>'), "art select maps slug -> label");
-// The adventure dimensions must NOT leak into the map bar.
-assert.ok(!bar.includes('data-adv-filter="edition"') && !bar.includes('data-adv-filter="genre"'), "no adventure dimensions");
-console.log("citymap filter bar ok");
-
 // ---- the credit line (2026-07-17) -------------------------------------------------------------------
 // The obligation that makes the covers permissible (NOTICE.md / Ulisses fan guidelines), so it is not
 // decoration and may not be quietly dropped.
@@ -357,5 +334,21 @@ assert.ok(advRowLinkMarkup(advLink).includes("(online)"), "Default unveraendert 
 assert.ok(!advRowLinkMarkup(advLink, { showStatus: false }).includes("(online)"));
 
 console.log("citymap row ok");
+
+// ---- Filterleiste -----------------------------------------------------------------------------------
+const barAll = citymapFiltersMarkup({ color: true, official: true, free: true, years: true, yearRange: { min: 1027, max: 1038 } });
+assert.ok(barAll.includes('data-adv-filter="color"') && barAll.includes('data-adv-filter="official"'));
+assert.ok(barAll.includes('data-adv-filter="free"') && barAll.includes('data-adv-filter="yearFrom"'));
+// Die zehn gestrichenen duerfen nirgends mehr auftauchen.
+["type", "art", "source", "multilevel", "labeled", "paid", "spoiler"].forEach((kind) => {
+  assert.ok(!barAll.includes('data-adv-filter="' + kind + '"'), kind + " ist gestrichen");
+});
+// Nur was traegt: eine Facette -> ein Chip.
+const barOne = citymapFiltersMarkup({ color: true, official: false, free: false, years: false });
+assert.ok(barOne.includes('data-adv-filter="color"') && !barOne.includes('data-adv-filter="official"'));
+// Nichts trennt -> GAR KEINE Leiste. Das ist der Normalfall (69% der Orte haben eine Karte).
+assert.strictEqual(citymapFiltersMarkup({ color: false, official: false, free: false, years: false }), "");
+assert.strictEqual(citymapFiltersMarkup({}), "");
+console.log("citymap filter bar adaptive ok");
 
 console.log("citymaps-render ok");

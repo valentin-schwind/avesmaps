@@ -3,7 +3,7 @@ const {
 	avesmapsCitymapToRenderShape,
 	avesmapsBuildCitymapIndex,
 	avesmapsSelectCitymapEntries,
-	avesmapsCitymapFacetOptions,
+	avesmapsCitymapActiveFacets,
 	avesmapsCitymapMatchesFilter,
 	avesmapsCitymapTypeLabel,
 } = require("../map-features-citymaps.js");
@@ -100,20 +100,9 @@ const dupIndex = avesmapsBuildCitymapIndex([{
 assert.strictEqual(avesmapsSelectCitymapEntries(dupIndex, { publicId: "loc-x" }).length, 1, "deduped");
 console.log("citymap index ok");
 
-// ---- facets ----
+// ---- shapes shared by the filter-predicate tests below (facet coverage moved to the adaptive-facets
+// block further down, which replaces avesmapsCitymapFacetOptions) ----
 const shapes = catalog.map(avesmapsCitymapToRenderShape);
-const facets = avesmapsCitymapFacetOptions(shapes);
-// Chips carry counts (§3.7) and are sorted by the LABEL a German reader sees, not by the slug.
-const uebersicht = facets.types.find((t) => t.value === "uebersicht");
-assert.strictEqual(uebersicht.count, 2, "two maps carry 'uebersicht'");
-assert.strictEqual(uebersicht.label, "Übersicht");
-assert.strictEqual(facets.types.find((t) => t.value === "viertel").count, 1);
-assert.deepStrictEqual(facets.sources, ["Herz des Reiches"], "sources are deduped");
-assert.deepStrictEqual(facets.arts.map((a) => a.value).sort(), ["politisch", "skizze"]);
-// The 9999 open-ended sentinel must not become the visible upper bound ("1027–9999" is nonsense to read).
-assert.deepStrictEqual(facets.yearRange, { min: 1027, max: 1045 }, "9999 sentinel excluded from the range");
-assert.deepStrictEqual(avesmapsCitymapFacetOptions([]).yearRange, { min: 0, max: 0 });
-console.log("citymap facets ok");
 
 // ---- filter predicate (Spec §3.7) ----
 const m1 = shapes[0]; // farbig, offiziell, politisch, stadtplan, 1027-9999
@@ -125,19 +114,9 @@ const noFilter = { showSpoiler: true };
 assert.ok(avesmapsCitymapMatchesFilter(m1, noFilter) && avesmapsCitymapMatchesFilter(m3, noFilter));
 assert.ok(avesmapsCitymapMatchesFilter(m1, null), "no filter object -> pass");
 
-// Types: a map has MANY, so it passes on ANY match (OR).
-assert.ok(avesmapsCitymapMatchesFilter(m2, { types: new Set(["bezirk"]), showSpoiler: true }));
-assert.ok(avesmapsCitymapMatchesFilter(m2, { types: new Set(["viertel"]), showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter(m2, { types: new Set(["stadtplan"]), showSpoiler: true }));
-assert.ok(avesmapsCitymapMatchesFilter(m2, { types: new Set(), showSpoiler: true }), "empty set = no constraint");
-// Array works as well as a Set (the adventure predicate duck-types the same way).
-assert.ok(avesmapsCitymapMatchesFilter(m2, { types: ["bezirk"], showSpoiler: true }));
-
 // THE §3.7 RULE: unknown matches no filter but "alle". m3 knows none of its properties.
 assert.ok(!avesmapsCitymapMatchesFilter(m3, { colorOnly: true, showSpoiler: true }), "unknown colour fails 'farbig'");
 assert.ok(!avesmapsCitymapMatchesFilter(m3, { officialOnly: true, showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter(m3, { labeledOnly: true, showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter(m3, { art: "politisch", showSpoiler: true }));
 // An explicit FALSE also fails "farbig" -- but for the honest reason.
 assert.ok(!avesmapsCitymapMatchesFilter(m2, { colorOnly: true, showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter(m1, { colorOnly: true, showSpoiler: true }));
@@ -179,45 +158,6 @@ assert.ok(avesmapsCitymapMatchesFilter({ links: [paid()] }, { showSpoiler: true 
 assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true }, { showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter({ is_paid: null }, { showSpoiler: true }));
 
-// ---- "nur kostenpflichtige", die Gegenrichtung (Owner 2026-07-17) ----
-// Sie ist NICHT die Verneinung von freeOnly. Beide fragen nach einem BELEG, deshalb gibt es Karten, die
-// in KEINEN der beiden fallen -- und das ist der Punkt: "wir wissen es nicht" ist weder frei noch bezahlt.
-assert.ok(avesmapsCitymapMatchesFilter({ links: [paid()] }, { paidOnly: true, showSpoiler: true }), "known paid passes");
-assert.ok(!avesmapsCitymapMatchesFilter({ links: [free()] }, { paidOnly: true, showSpoiler: true }), "known free fails");
-assert.ok(!avesmapsCitymapMatchesFilter({ links: [unknownPaid()] }, { paidOnly: true, showSpoiler: true }), "UNKNOWN is not paid either");
-assert.ok(!avesmapsCitymapMatchesFilter({ links: [] }, { paidOnly: true, showSpoiler: true }), "no links -> no claim -> no match");
-
-// Die Karte mit BEIDEN Wegen: sie erscheint unter "kostenlose" (der freie Weg existiert) und NICHT unter
-// "kostenpflichtige" -- sonst wuerde derselbe freie Weg beide Filter beantworten.
-assert.ok(!avesmapsCitymapMatchesFilter({ links: [paid(), free()] }, { paidOnly: true, showSpoiler: true }),
-	"ein belegt freier Weg schliesst 'kostenpflichtig' aus");
-// Ein Weg mit unbekannter Bedingung zaehlt NICHT gegen "kostenpflichtig": er ist kein Beleg fuer gratis.
-assert.ok(avesmapsCitymapMatchesFilter({ links: [paid(), unknownPaid()] }, { paidOnly: true, showSpoiler: true }),
-	"jeder BEKANNTE Weg ist bezahlt -> kostenpflichtig");
-
-// Die beiden Filter sind disjunkt: keine Karte kann unter beiden erscheinen.
-[[free()], [paid()], [unknownPaid()], [paid(), free()], [paid(), unknownPaid()], []].forEach((links) => {
-	const both = avesmapsCitymapMatchesFilter({ links }, { freeOnly: true, paidOnly: true, showSpoiler: true });
-	assert.ok(!both, "freeOnly + paidOnly zusammen matcht nie -- die beiden schliessen sich aus");
-});
-
-// Rueckfall auf das Karten-Flag, symmetrisch zu freeOnly (magere DOM-Shape ohne Linkliste).
-assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true }, { paidOnly: true, showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: false }, { paidOnly: true, showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: null }, { paidOnly: true, showSpoiler: true }));
-// Toggle aus -> nichts eingeschraenkt.
-assert.ok(avesmapsCitymapMatchesFilter({ links: [free()] }, { showSpoiler: true }));
-
-// Spoiler is INVERTED: off by default, and it reveals rather than restricts.
-assert.ok(!avesmapsCitymapMatchesFilter(m2, {}), "spoiler map hidden while the toggle is off");
-assert.ok(avesmapsCitymapMatchesFilter(m2, { showSpoiler: true }), "toggle on -> spoiler map shows");
-assert.ok(avesmapsCitymapMatchesFilter(m1, {}), "a non-spoiler map is unaffected by the toggle");
-assert.ok(avesmapsCitymapMatchesFilter(m3, {}), "unknown spoiler is NOT treated as a spoiler");
-
-// Source.
-assert.ok(avesmapsCitymapMatchesFilter(m1, { source: "Herz des Reiches", showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter(m3, { source: "Herz des Reiches", showSpoiler: true }));
-
 // BF year: an OVERLAP test, because a map's validity is a RANGE (not the single year an adventure has).
 assert.ok(avesmapsCitymapMatchesFilter(m2, { yearFrom: 1042, showSpoiler: true }), "1040-1045 overlaps from 1042");
 assert.ok(avesmapsCitymapMatchesFilter(m2, { yearTo: 1042, showSpoiler: true }), "1040-1045 overlaps up to 1042");
@@ -232,9 +172,59 @@ const openEnded = avesmapsCitymapToRenderShape({ public_id: "o", title: "O", val
 assert.ok(avesmapsCitymapMatchesFilter(openEnded, { yearFrom: 1031, showSpoiler: true }));
 assert.ok(!avesmapsCitymapMatchesFilter(openEnded, { yearTo: 1029, showSpoiler: true }));
 
-// Filters AND together.
-assert.ok(avesmapsCitymapMatchesFilter(m1, { types: new Set(["stadtplan"]), art: "politisch", colorOnly: true, officialOnly: true, yearFrom: 1030, showSpoiler: true }));
-assert.ok(!avesmapsCitymapMatchesFilter(m1, { types: new Set(["stadtplan"]), art: "skizze", showSpoiler: true }));
+// Filters AND together -- using only the surviving dimensions (type/art/source no longer constrain).
+assert.ok(avesmapsCitymapMatchesFilter(m1, { colorOnly: true, officialOnly: true, yearFrom: 1030 }), "all three satisfied together");
+assert.ok(!avesmapsCitymapMatchesFilter(m1, { colorOnly: true, officialOnly: true, yearTo: 1000 }), "yearTo alone breaks the AND even though colorOnly/officialOnly still pass");
 console.log("citymap filter ok");
+
+// ---- adaptive Facetten ------------------------------------------------------------------------------
+// Die Regel: ein Filter erscheint nur, wenn er DIESE Liste wirklich teilt -- mindestens eine Karte passt
+// UND mindestens eine nicht. So kann es tote Chips wie "mehrstoeckig" (0 von 419 erfasst) nie wieder geben.
+const gareth = [
+  { is_color: true, is_official: true, valid_to_bf: 1038, links: [{ is_paid: true }, { is_paid: false }] },
+  { is_color: true, is_official: null, links: [] },
+  { is_color: false, is_official: null, links: [] },
+  { is_color: null, is_official: null, links: [{ is_paid: null }] },
+];
+const f = avesmapsCitymapActiveFacets(gareth);
+assert.strictEqual(f.color, true, "2 farbig, 2 nicht -> teilt");
+assert.strictEqual(f.official, true, "1 offiziell, 3 nicht -> teilt");
+assert.strictEqual(f.free, true, "1 hat einen belegt freien Weg, 3 nicht -> teilt");
+assert.strictEqual(f.years, false, "nur EINE Karte traegt ein Jahr -> es gibt nichts zu filtern");
+
+// Alle gleich -> der Filter kann nichts ausrichten und erscheint nicht.
+assert.strictEqual(avesmapsCitymapActiveFacets([{ is_color: true }, { is_color: true }]).color, false);
+// 168 von 245 Orten haben genau EINE Karte. Dort steht keine Leiste.
+const solo = avesmapsCitymapActiveFacets([{ is_color: true, is_official: true, links: [{ is_paid: false }] }]);
+assert.strictEqual(solo.color, false);
+assert.strictEqual(solo.official, false);
+assert.strictEqual(solo.free, false);
+assert.strictEqual(solo.years, false);
+
+// Zeitraum: zwei Karten MIT Jahr und die Jahre unterscheiden sich.
+assert.strictEqual(avesmapsCitymapActiveFacets([{ valid_to_bf: 1027 }, { valid_to_bf: 1038 }]).years, true);
+assert.strictEqual(avesmapsCitymapActiveFacets([{ valid_to_bf: 1038 }, { valid_to_bf: 1038 }]).years, false, "gleiche Jahre trennen nicht");
+// EINE Karte mit einer Spanne ergibt zwar zwei Jahreszahlen, aber nichts zu filtern.
+assert.strictEqual(avesmapsCitymapActiveFacets([{ valid_from_bf: 1020, valid_to_bf: 1038 }]).years, false);
+// 9999 ist das offene Ende (AGENTS.md §5) und keine Jahreszahl.
+assert.deepStrictEqual(avesmapsCitymapActiveFacets([{ valid_from_bf: 1027, valid_to_bf: 9999 }, { valid_to_bf: 1038 }]).yearRange, { min: 1027, max: 1038 });
+
+// ---- Praedikat: die gestrichenen Dimensionen sind wirkungslos ---------------------------------------
+const shape = { types: ["stadtplan"], art: "politisch", is_color: true, is_multilevel: true, is_spoiler: true, sources: [{ label: "X" }], links: [] };
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { multilevelOnly: true }), true, "mehrstoeckig ist kein Filter mehr");
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { labeledOnly: true }), true, "beschriftet ist kein Filter mehr");
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { paidOnly: true }), true, "nur kostenpflichtige ist gestrichen");
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { art: "anderes" }), true, "Art ist kein Filter mehr");
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { source: "anderes" }), true, "Quelle ist kein Filter mehr");
+// Der Spoiler-CHIP ist weg, der DECKEL bleibt (er sitzt im Markup). Eine Spoilerkarte wird gelistet.
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, {}), true);
+// Die vier, die bleiben, wirken.
+assert.strictEqual(avesmapsCitymapMatchesFilter({ is_color: true }, { colorOnly: true }), true);
+assert.strictEqual(avesmapsCitymapMatchesFilter({ is_color: false }, { colorOnly: true }), false);
+assert.strictEqual(avesmapsCitymapMatchesFilter({ is_color: null }, { colorOnly: true }), false, "unbekannt matcht keinen Filter (§3.7)");
+assert.strictEqual(avesmapsCitymapMatchesFilter({ is_official: true }, { officialOnly: true }), true);
+assert.strictEqual(avesmapsCitymapMatchesFilter({ links: [{ is_paid: false }] }, { freeOnly: true }), true);
+
+console.log("citymap adaptive facets ok");
 
 console.log("citymaps-index ok");

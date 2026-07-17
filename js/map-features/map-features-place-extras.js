@@ -334,42 +334,28 @@ function buildPathCityMapsMarkup(path) {
 }
 
 // ---- Kartensammlung-Dialog: Filterleiste + Zeile (Spec §3.7) --------------------------------------
-// Dieselbe Grammatik wie die Abenteuerleiste, voellig andere Dimensionen -> dieselbe Funktion
-// (avesmapsFilterBarMarkup, js/ui/filter-bar.js), eigene Gruppenliste. Kein zweiter Builder.
+// Dieselbe Grammatik wie die Abenteuerleiste (avesmapsFilterBarMarkup), eigene Gruppenliste. Ein Filter
+// steht nur da, wenn avesmapsCitymapActiveFacets ihn fuer trennend haelt -- traegt nichts, kommt "" zurueck
+// und der Dialog hat gar keine Leiste.
 function citymapFiltersMarkup(facets) {
 	facets = facets || {};
-	return avesmapsFilterBarMarkup([
-		{ kind: "label", text: tr("cityMaps.filter.label", "Filter") },
-		// Typ traegt Zaehler (§3.7) -- eine Karte kann mehrere Typen haben, die Summe der Chips ist also
-		// groesser als die Kartenzahl. Das ist gewollt: der Zaehler beantwortet "wie viele Karten haetten
-		// diesen Typ", nicht "wie teilt sich die Liste auf".
-		{ kind: "chips", filter: "type", values: facets.types || [], dividerAfter: true },
-		{ kind: "select", filter: "art", placeholder: tr("cityMaps.filter.art", "Art"), values: facets.arts },
-		{ kind: "select", filter: "source", placeholder: tr("cityMaps.filter.source", "Quelle"), values: facets.sources },
-		{
+	var groups = [];
+	if (facets.years) {
+		groups.push({
 			kind: "years", from: "yearFrom", to: "yearTo",
 			label: tr("cityMaps.filter.period", "Zeitraum (BF)"),
 			range: facets.yearRange || { min: 0, max: 0 },
 			fromPlaceholder: tr("cityMaps.filter.from", "von"),
 			toPlaceholder: tr("cityMaps.filter.to", "bis"),
-		},
-		{ kind: "divider" },
-		{ kind: "toggle", filter: "color", label: tr("cityMaps.filter.color", "farbig") },
-		{ kind: "toggle", filter: "multilevel", label: tr("cityMaps.filter.multilevel", "mehrstöckig") },
-		{ kind: "toggle", filter: "labeled", label: tr("cityMaps.filter.labeled", "beschriftet") },
-		{ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "nur offiziell") },
-		// Beide Richtungen (Owner 2026-07-17). Sie fragen die LINKS, nicht die Karte: "nur kostenlose" =
-		// mindestens ein belegt freier Weg, "nur kostenpflichtige" = mindestens ein belegt bezahlter und
-		// kein freier. Sie sind deshalb NICHT komplementaer -- eine Karte, ueber deren Bedingungen niemand
-		// etwas erfasst hat, faellt aus BEIDEN (§3.7: unbekannt matcht keinen Filter ausser "alle"), und
-		// eine Karte mit beidem erscheint nur unter "kostenlose": der freie Weg existiert ja.
-		{ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "nur kostenlose") },
-		{ kind: "toggle", filter: "paid", label: tr("cityMaps.filter.paidOnly", "nur kostenpflichtige") },
-		{ kind: "divider" },
-		// Der einzige INVERTIERTE Umschalter: er gibt frei statt einzuschraenken (wie "Spielt hier
-		// (Spoiler)" bei den Abenteuern). Aus = Spoilerkarten verborgen.
-		{ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler zeigen") },
-	]);
+		});
+	}
+	if (facets.color) { groups.push({ kind: "toggle", filter: "color", label: tr("cityMaps.filter.color", "farbig") }); }
+	if (facets.official) { groups.push({ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "offiziell") }); }
+	if (facets.free) { groups.push({ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "kostenlos") }); }
+	if (!groups.length) {
+		return "";
+	}
+	return avesmapsFilterBarMarkup([{ kind: "label", text: tr("cityMaps.filter.label", "Filter") }].concat(groups));
 }
 
 // "1027–1045 BF" | "seit 1027 BF" | "bis 1045 BF" | "" -- leer heisst UNBEKANNT und faellt weg (§3.1:
