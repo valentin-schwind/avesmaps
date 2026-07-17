@@ -290,6 +290,17 @@ function highlightSpotlightPaths(paths) {
 		return;
 	}
 
+	// Drop the previous highlight BEFORE reassigning: the assignment below overwrites the only handle on it,
+	// and clearSpotlightSelection can free just the group it still references -- an orphaned one hangs on the
+	// map until a reload while every further call stacks another identical line on top of it (the line reads
+	// as "getting fatter"). The search never exposed this because selectSpotlightSearchEntry clears first; the
+	// way infobox's "Anzeigen" (showWholePathFromInfobox -> focusWholeWikiDeeplinkPath) calls in here directly.
+	// Deliberately NOT clearSpotlightSelection(): that would also wipe spotlightActiveSelectionId, which
+	// selectSpotlightSearchEntry sets BEFORE calling us -- Escape would stop clearing a searched way.
+	if (spotlightHighlightLayer) {
+		map.removeLayer(spotlightHighlightLayer);
+	}
+
 	spotlightHighlightLayer = L.layerGroup();
 	paths.forEach((path) => {
 		const latLngs = getPathVisualLatLngCoordinates(path.geometry?.coordinates || []);
