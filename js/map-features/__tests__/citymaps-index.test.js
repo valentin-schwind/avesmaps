@@ -210,8 +210,8 @@ assert.strictEqual(avesmapsCitymapActiveFacets([{ valid_from_bf: 1020, valid_to_
 assert.deepStrictEqual(avesmapsCitymapActiveFacets([{ valid_from_bf: 1027, valid_to_bf: 9999 }, { valid_to_bf: 1038 }]).yearRange, { min: 1027, max: 1038 });
 
 // ---- Praedikat: die gestrichenen Dimensionen sind wirkungslos ---------------------------------------
-const shape = { types: ["stadtplan"], art: "politisch", is_color: true, is_multilevel: true, is_spoiler: true, sources: [{ label: "X" }], links: [] };
-assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { multilevelOnly: true }), true, "mehrstoeckig ist kein Filter mehr");
+const shape = { types: ["stadtplan"], art: "politisch", is_color: true, is_multilevel: false, is_spoiler: true, sources: [{ label: "X" }], links: [] };
+assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { types: new Set(["hoehlen"]) }), true, "Typ ist kein Filter mehr"); assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { multilevelOnly: true }), true, "mehrstoeckig ist kein Filter mehr");
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { labeledOnly: true }), true, "beschriftet ist kein Filter mehr");
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { paidOnly: true }), true, "nur kostenpflichtige ist gestrichen");
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { art: "anderes" }), true, "Art ist kein Filter mehr");
