@@ -208,9 +208,9 @@ function sharePinPopupIconMarkup() {
 }
 
 // Info-Header-Grafiken (Owner): 16:9-Landschaftsbild oben in der Infobox, der Titel liegt als Overlay
-// darueber (Banner unten-links + Schatten). Landschaftsregionen per art, Wege per Subtyp, Territorien/
-// Strassen generisch "region", Siedlungen vorerst "metropole" (weitere Siedlungsbilder folgen). Die
-// Basenamen zeigen auf icons/header/<name>.webp.
+// darueber (Banner unten-links + Schatten). Drei Tabellen, eine je Objektart: Landschaftsregionen per art,
+// Wege per Subtyp, Siedlungen per Groesse. Territorien (und alles Unbekannte) fallen auf "region" zurueck.
+// Die Basenamen zeigen auf icons/header/<name>.webp -- alle 800x450, lossy WebP.
 const INFO_HEADER_IMAGE_BY_ART = {
 	gebirge: "gebirge", berge: "gebirge", berg: "gebirge", berggruppe: "gebirge", bergkamm: "gebirge",
 	hochland: "gebirge", schlucht: "gebirge", vulkan: "gebirge",
@@ -229,6 +229,22 @@ const INFO_HEADER_IMAGE_BY_ART = {
 	auenlandschaft: "auenlandschaft",
 	tundra: "tundra",
 	ebene: "ebene", talkessel: "ebene", tal: "ebene",
+};
+// Wegtyp -> Header-Bild (Owner-Grafiken 2026-07-17, eine je Subtyp). Vorher teilten sich alle Landwege das
+// generische "region", und Fluss-/Seewege liehen sich "fluss"/"meer" von den Landschafts-Labels.
+// Die bleiben BEWUSST getrennt: "fluss"/"meer" zeigen einen Fluss bzw. ein Meer als ORT (Landschaft), die
+// neuen zeigen ihn als REISEWEG (Kahn mit Fährmann) -- INFO_HEADER_IMAGE_BY_ART mappt weiter auf die alten.
+// Dateiname = unser Subtyp-Schlüssel, damit diese Tabelle trivial bleibt (die Owner-Quelle hiess
+// "gebirgspfad", unser Subtyp heisst "Gebirgspass" -> beim Import umbenannt).
+const INFO_HEADER_IMAGE_BY_PATH = {
+	Reichsstrasse: "reichsstrasse",
+	Strasse: "strasse",
+	Weg: "weg",
+	Pfad: "pfad",
+	Gebirgspass: "gebirgspass",
+	Wuestenpfad: "wuestenpfad",
+	Flussweg: "flussweg",
+	Seeweg: "seeweg",
 };
 // Siedlungstyp -> Header-Bild (eigene Grafik je Groesse). Unbekannte Typen fallen auf "metropole" zurueck.
 const INFO_HEADER_IMAGE_BY_SETTLEMENT = {
@@ -256,13 +272,7 @@ function settlementHeaderImageBasename(locationType) {
 	return INFO_HEADER_IMAGE_BY_SETTLEMENT[locationType] || "metropole";
 }
 function pathHeaderImageBasename(pathSubtype) {
-	if (pathSubtype === "Flussweg") {
-		return "fluss";
-	}
-	if (pathSubtype === "Seeweg") {
-		return "meer";
-	}
-	return "region";
+	return INFO_HEADER_IMAGE_BY_PATH[pathSubtype] || "region";
 }
 
 // Baut den 16:9-Bild-Header mit Titel-Overlay (Banner unten-links + Schatten). imageBasename ->
