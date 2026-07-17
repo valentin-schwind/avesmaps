@@ -225,7 +225,7 @@
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
     <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Daten übernehmen“ schreibbar"><span class="t1">Daten übernehmen</span><span class="t2" id="stIdent">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Daten (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
-    <button class="btn2" id="btnLocalizeCoats" title="Lädt ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
+    <button class="btn2" id="btnLocalizeCoats" title="Prüft zuerst die Wappen-Lizenzen neu (nur die bisher unbekannten – sichtbare Wappen bleiben dabei sichtbar), lädt dann ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
     <button class="btn2" id="btnLinkCheck" title="Prüft NUR die Quellen-Links der Herrschaftsgebiete auf Erreichbarkeit. Abenteuer, Karten und Siedlungs-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="stLinkCheck">—</span></button>
   </div>
 </header>
@@ -1138,6 +1138,26 @@ $('btnLocalizeCoats').onclick = async()=>{
   busy(true);
   let total=0, remaining=null;
   try{
+    // Schritt 1: Lizenzen. localize_coats laedt NUR gemeinfreie Wappen -- steht der Lizenzstand alt
+    // da, laeuft es an jedem Wappen vorbei, das ein erweiterter Parser inzwischen freigibt (so lagen
+    // 9 CC0-Wappen auf 'unknown' fest). recheck_unknown NUR im ersten Aufruf, sonst setzt sich der
+    // Lauf seine eigene Arbeit endlos zurueck. Es raeumt bewusst nur 'unknown' ab: die sind ohnehin
+    // ausgeblendet, also verschwindet waehrend des Laufs kein sichtbares Wappen (anders als reset).
+    let licRounds=0, licPd=0, licFirst=true;
+    setStatus('Prüfe Wappen-Lizenzen…');
+    while(true){
+      const body = {batch_limit:25, sleep_ms:150};
+      if(licFirst){ body.recheck_unknown = true; licFirst = false; }
+      const r = await api('enrich_licenses',{method:'POST',body:{options:body}});
+      licPd += (r.by_status && r.by_status.public_domain) || 0;
+      licRounds++;
+      setStatus(`Wappen-Lizenzen prüfen… ${licPd} gemeinfrei erkannt, noch ${r.remaining||0} offen.`);
+      if((r.remaining||0)===0) break;              // fertig
+      if((r.processed||0)===0) break;              // kein Fortschritt -> nur noch Zeilen ohne Datei
+      if(licRounds>120) break;                     // Sicherheits-Limit (25/Runde -> 3000 Wappen)
+    }
+
+    // Schritt 2: die jetzt bekannten gemeinfreien Wappen lokalisieren.
     let rounds=0, failed=0;
     setStatus('Lokalisiere gemeinfreie Wappen…');
     while(true){
@@ -1149,7 +1169,7 @@ $('btnLocalizeCoats').onclick = async()=>{
       if(rounds>60) break;                                      // Sicherheits-Limit
     }
     const tail = (remaining>0) ? ` ${remaining} übrig (vermutlich tote Bild-URLs oder Nicht-Wiki-Quellen).` : '';
-    setStatus(`Fertig: ${total} gemeinfreie Wappen lokalisiert + verkleinert.${tail}`);
+    setStatus(`Fertig: ${licPd} gemeinfreie Wappen erkannt, ${total} lokalisiert + verkleinert.${tail}`);
     await loadModel();
   }catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);

@@ -200,12 +200,29 @@ function avesmapsWikiSyncMonitorEnrichLicenses(PDO $pdo, array $options = []): a
     $stepRuntime = max(3, min(28, (int) ($options['step_runtime'] ?? AVESMAPS_WIKI_SYNC_MONITOR_STEP_RUNTIME)));
     @set_time_limit($stepRuntime + 15);
 
+    // Only rows with a NULL status are due (see the SELECT below), so a re-classification needs the
+    // old answer cleared first. Two scopes, and the difference matters:
+    //
+    //   reset           -- clears EVERY row. Correct after a parser change that could move a coat OUT
+    //                      of public_domain, but while the run catches up, every coat is NULL and the
+    //                      display drops it (territories-layer.php:864 passes exactly 'public_domain')
+    //                      -- i.e. all 261 visible coats vanish from the map until it finishes.
+    //   recheck_unknown -- clears only the 'unknown' rows. They are already invisible for that same
+    //                      reason, so nothing can disappear mid-run. This is what the "Wappen
+    //                      lokalisieren" button uses: it finds coats a widened parser now accepts
+    //                      (e.g. the 9 CC0 ones) without ever taking a live coat off the map.
+    $resetWhere = '';
     if (!empty($options['reset'])) {
+        $resetWhere = 'coat_of_arms_license_status IS NOT NULL';
+    } elseif (!empty($options['recheck_unknown'])) {
+        $resetWhere = "coat_of_arms_license_status = 'unknown'";
+    }
+    if ($resetWhere !== '') {
         $pdo->exec(
             'UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '
             SET coat_of_arms_license = NULL, coat_of_arms_author = NULL, coat_of_arms_attribution = NULL,
                 coat_of_arms_license_status = NULL, coat_of_arms_license_url = NULL
-            WHERE coat_of_arms_license_status IS NOT NULL'
+            WHERE ' . $resetWhere
         );
     }
 
