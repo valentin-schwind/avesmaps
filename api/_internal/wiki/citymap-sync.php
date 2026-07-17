@@ -831,7 +831,10 @@ function avesmapsCitymapRegionFromMapTitle(string $title): ?string
  */
 function avesmapsCitymapReconcilePlan(?array $current, array $desired): array
 {
-    $fields = ['title', 'art', 'is_color', 'is_labeled', 'author', 'note'];
+    // map_url is in here so a wiki card carries a link to its publication's wiki page (see
+    // avesmapsCitymapWikiUrlForSource). It is still override-safe: the moment an editor touches the
+    // card it becomes origin='manual' and this plan skips it entirely, so a hand-set link stands.
+    $fields = ['title', 'map_url', 'art', 'is_color', 'is_labeled', 'author', 'note'];
 
     if ($current === null) {
         $set = [];
@@ -1095,6 +1098,50 @@ function avesmapsCitymapLastStaged(PDO $pdo): ?string
 }
 
 /**
+ * The wiki page URL of a card's source publication, or '' when the source is not a publication we know.
+ *
+ * The index gives no link to the MAP itself -- it is a book reference, not an image ("Stadtplan von
+ * Al'Anfa, zu finden in: Al'Anfa und der tiefe Süden"). The useful link is therefore the publication's
+ * wiki page, which answers the question the entry actually raises: where do I find this map? (Owner
+ * 2026-07-17: "wenn aus dem wiki, will ich oben den wiki link".)
+ *
+ * The URL is built from source_raw, NOT from the catalog's title column: that column holds the
+ * {{Infobox Produkt}} DISPLAY title, which is not necessarily the page name. source_raw is the wikilink
+ * TARGET out of the index -- which is the page name, by definition of a wikilink.
+ *
+ * The catalog lookup is the GUARD, not the data source: it only answers "is this a real publication
+ * page?". That keeps the new list's abbreviations ("IdDM") from becoming links to pages that do not
+ * exist -- they resolve to no catalog row, so they get no link at all.
+ */
+function avesmapsCitymapWikiUrlForSource(PDO $pdo, string $sourceRaw): string
+{
+    $source = trim($sourceRaw);
+    if ($source === '' || !function_exists('avesmapsPublicationCatalogWikiKeyForTitle')) {
+        return '';
+    }
+    $key = avesmapsPublicationCatalogWikiKeyForTitle($source);
+    if ($key === '') {
+        return '';
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT 1 FROM wiki_publication_catalog WHERE wiki_key = :wk LIMIT 1');
+        $stmt->execute(['wk' => $key]);
+        if ($stmt->fetchColumn() === false) {
+            return ''; // not a known publication page -> no invented link
+        }
+    } catch (Throwable) {
+        return ''; // publication staging absent (site without WikiSync) -> no link, no failure
+    }
+
+    // rawurlencode, then put '/' back: a page title may legitimately contain one ("Der Ork/Mensch-Krieg")
+    // and %2F would 404. Mirrors the adventure catalog's wiki_url build.
+    $url = AVESMAPS_WIKI_PAGE_BASE_URL . str_replace('%2F', '/', rawurlencode($source));
+
+    return strlen($url) <= AVESMAPS_CITYMAP_URL_MAX ? $url : '';
+}
+
+/**
  * Link a card to its publication in the SHARED source catalogue, with the SAME identity the
  * publication sync uses -- so a map's source and a settlement's source are one `sources` row, not two.
  *
@@ -1161,13 +1208,18 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
     }
 
     $find = $pdo->prepare(
-        'SELECT id, public_id, origin, status, title, art, is_color, is_labeled, author, note
+        'SELECT id, public_id, origin, status, title, map_url, art, is_color, is_labeled, author, note
            FROM citymap WHERE wiki_key = :wk LIMIT 1'
     );
     $find->execute(['wk' => $wikiKey]);
     $current = $find->fetch(PDO::FETCH_ASSOC) ?: null;
 
-    $plan = avesmapsCitymapReconcilePlan($current, $catalog);
+    // The catalog has no map_url of its own (the index links no maps, only books) -- derive it from the
+    // source here, where a DB lookup is allowed. The plan itself stays pure.
+    $desired = $catalog;
+    $desired['map_url'] = avesmapsCitymapWikiUrlForSource($pdo, (string) ($catalog['source_raw'] ?? ''));
+
+    $plan = avesmapsCitymapReconcilePlan($current, $desired);
     if ($plan['action'] === 'skip') {
         return $counters;
     }
@@ -1180,14 +1232,16 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
         // the template for this whole file, uses this same helper for exactly this reason.
         $publicId = avesmapsWikiSyncUuidV4();
         $pdo->prepare(
-            "INSERT INTO citymap (public_id, wiki_key, title, art, is_color, is_labeled, author, note,
+            "INSERT INTO citymap (public_id, wiki_key, title, map_url, art, is_color, is_labeled, author, note,
                                   origin, status, map_license, thumb_license, created_by)
-             VALUES (:pid, :wk, :title, :art, :color, :labeled, :author, :note,
+             VALUES (:pid, :wk, :title, :url, :art, :color, :labeled, :author, :note,
                      'wiki', 'approved', 'unknown_other', 'unknown_other', NULL)"
         )->execute([
             'pid' => $publicId,
             'wk' => $wikiKey,
             'title' => (string) $plan['set']['title'],
+            // NOT NULL DEFAULT '' -- a source we cannot link to yields '', never null.
+            'url' => (string) ($plan['set']['map_url'] ?? ''),
             'art' => $plan['set']['art'],
             'color' => $plan['set']['is_color'],
             'labeled' => $plan['set']['is_labeled'],

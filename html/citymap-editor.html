@@ -174,6 +174,18 @@
   }
   .ce-row { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
   .ce-row__label { flex: 0 0 130px; color: var(--color-text-muted); }
+  /* Follow-the-link affordance next to a URL input. --color-link is the house link colour (never blue,
+     AGENTS.md §12); flex: 0 0 auto so it never steals width from the input. */
+  .ce-open {
+    flex: 0 0 auto;
+    padding: 0 var(--space-4);
+    color: var(--color-link);
+    text-decoration: none;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .ce-open:hover { text-decoration: underline; }
+  .ce-open[hidden] { display: none; }
   .ce-input, .ce-select {
     flex: 1 1 auto;
     min-width: 0;
@@ -531,6 +543,23 @@
       <input class="ce-input" data-cm-field="${name}" type="${type || "text"}" value="${ceEscape(value == null ? "" : value)}"></div>`;
   }
 
+  // Same as ceField, plus a real hyperlink to the target (owner 2026-07-17: "hyperlinks im backend").
+  // A URL you can only read and not follow makes you copy-paste it to check anything -- and checking is
+  // the whole reason it is on screen. The ↗ is the house marker for off-site links (AGENTS.md §12).
+  // Hidden while the field is empty, and kept in sync with what you type (see the input handler), so it
+  // always opens what the box SAYS rather than what was last saved.
+  function ceUrlField(label, name, value) {
+    const v = value == null ? "" : String(value).trim();
+    // Same http/https gate as the input handler below. The backend refuses other schemes
+    // (avesmapsCitymapNormalizeUrl), but stored data is not a place to trust blindly -- and a
+    // javascript:-URL behind a click is not a link.
+    const safe = /^https?:\/\//i.test(v);
+    return `<div class="ce-row"><span class="ce-row__label">${ceEscape(label)}</span>
+      <input class="ce-input" data-cm-field="${name}" type="text" value="${ceEscape(v)}">
+      <a class="ce-open" data-ce-open="${name}" href="${safe ? ceEscape(v) : "#"}" target="_blank" rel="noopener noreferrer"
+         title="Link in neuem Tab öffnen"${safe ? "" : " hidden"}>↗</a></div>`;
+  }
+
   // Tri-state control (Spec §3.1). A checkbox is deliberately NOT used: it has two states and this data
   // has three, and "unknown" silently becoming "nein" is the exact failure the NULLable column prevents.
   function ceTri(label, name, value) {
@@ -614,7 +643,7 @@
       head.textContent = "Neue Karte";
       body.innerHTML = `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
         ${ceField("Titel *", "title", "")}
-        ${ceField("Karten-Link (extern) *", "map_url", "")}
+        ${ceUrlField("Karten-Link (extern) *", "map_url", "")}
         <p class="ce-hint">Titel und Quelle sind Pflicht, alles andere optional. Nicht Erfasstes bleibt „unbekannt“ und wird dem Leser gar nicht erst gezeigt.</p>
       </div>`;
       document.getElementById("ceOrteBody").innerHTML = `<p class="ce-placeholder">Erst speichern, dann Orte zuordnen.</p>`;
@@ -630,8 +659,8 @@
       `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
       `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
         ${ceField("Titel *", "title", v.title)}
-        ${ceField("Karten-Link (extern) *", "map_url", v.map_url)}
-        ${ceField("Vorschau-Link (extern)", "thumb_url", v.thumb_url)}
+        ${ceUrlField("Karten-Link (extern) *", "map_url", v.map_url)}
+        ${ceUrlField("Vorschau-Link (extern)", "thumb_url", v.thumb_url)}
         ${ceField("Urheber", "author", v.author)}
         ${ceField("Notiz", "note", v.note)}
         ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
@@ -1077,6 +1106,21 @@
     if (del) { deleteImage(del.getAttribute("data-ce-img-delete")); return; }
     const auto = e.target.closest("[data-ce-autoget]");
     if (auto && !auto.disabled) autogetThumb();
+  });
+
+  // Keep each URL field's ↗ pointing at what the box currently SAYS, not at what was last saved --
+  // otherwise you paste a link, click the arrow to check it, and land on the previous one. Also hides
+  // the arrow again when the field is cleared. Only http/https is offered: the backend refuses anything
+  // else anyway (avesmapsCitymapNormalizeUrl), and a javascript:-URL behind a click is not a link.
+  document.getElementById("ceStammBody").addEventListener("input", (e) => {
+    const field = e.target && e.target.dataset ? e.target.dataset.cmField : null;
+    if (!field) return;
+    const anchor = document.querySelector(`[data-ce-open="${field}"]`);
+    if (!anchor) return;
+    const value = String(e.target.value || "").trim();
+    const safe = /^https?:\/\//i.test(value);
+    anchor.href = safe ? value : "#";
+    anchor.hidden = !safe;
   });
 
   document.getElementById("ceOrteBody").addEventListener("click", async (e) => {

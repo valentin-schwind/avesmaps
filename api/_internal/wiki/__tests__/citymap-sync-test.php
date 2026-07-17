@@ -388,17 +388,23 @@ echo "dedupe ok\n";
 
 // ------------------------------------------------------- RECONCILE PLAN ---
 // The override-safety heart. Every rule here is one the owner named explicitly.
-$desired = ['title' => 'Stadtplan von X (Q)', 'art' => null, 'is_color' => 1, 'is_labeled' => null,
-    'author' => 'Ina Kramer', 'note' => 'Format: A2'];
+$desired = ['title' => 'Stadtplan von X (Q)', 'map_url' => 'https://de.wiki-aventurica.de/wiki/Q',
+    'art' => null, 'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Format: A2'];
 
 // No live row -> create.
 $plan = avesmapsCitymapReconcilePlan(null, $desired);
 assert($plan['action'] === 'create');
 assert($plan['set']['title'] === 'Stadtplan von X (Q)');
 assert($plan['set']['author'] === 'Ina Kramer');
+// The index links no maps (they are book references), so the link is the publication's wiki page.
+assert($plan['set']['map_url'] === 'https://de.wiki-aventurica.de/wiki/Q');
+// A source we cannot link to must yield '' -- citymap.map_url is NOT NULL.
+$noUrl = avesmapsCitymapReconcilePlan(null, ['title' => 'T'] + $desired);
+assert(array_key_exists('map_url', $noUrl['set']));
 
 // A wiki row that already matches -> NO-OP. This IS "zweiter Sync-Lauf legt KEINE Dubletten an".
-$live = ['origin' => 'wiki', 'status' => 'approved', 'title' => 'Stadtplan von X (Q)', 'art' => null,
+$live = ['origin' => 'wiki', 'status' => 'approved', 'title' => 'Stadtplan von X (Q)',
+    'map_url' => 'https://de.wiki-aventurica.de/wiki/Q', 'art' => null,
     'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Format: A2'];
 $plan = avesmapsCitymapReconcilePlan($live, $desired);
 assert($plan['action'] === 'noop');
