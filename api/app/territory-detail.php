@@ -151,26 +151,25 @@ try {
             $fields['dissolved_text'] = $bf === '' ? 'besteht' : avesmapsTerritoryDetailFormatBf((int) $bf);
         }
 
-        // 4) Wappen-Lizenz (Gate). license_status kann ueberschrieben sein.
+        // 4) Wappen: canonical precedence (Override -> political_territory -> Staging) + public-domain gate
+        //    + cache-bust now live in ONE place (api/_internal/coat-url.php), so this infobox, the map label
+        //    and the settlement breadcrumb can never diverge again (Discord #32). license_status stays here
+        //    for the infobox's own author/attribution line.
         $licenseStatus = array_key_exists('coat_of_arms_license_status', $overrides)
-            ? (string) $overrides['coat_of_arms_license_status']
-            : (string) ($staging['coat_of_arms_license_status'] ?? '');
-        $licenseStatus = trim($licenseStatus);
-        // Effektive Wappen-URL: Override ?? political_territory ?? Staging (viele Live-Zeilen haben das
-        // gecrawlte Wappen nie bekommen -> sonst fehlt es trotz vorhandener Lizenz).
-        $stagingCoat = trim((string) ($staging['coat_of_arms_url'] ?? ''));
-        $effCoatUrl = array_key_exists('coat_of_arms_url', $overrides)
-            ? trim((string) $overrides['coat_of_arms_url'])
-            : ($coatUrl !== '' ? $coatUrl : $stagingCoat);
-        $allowed = $effCoatUrl !== '' && in_array($licenseStatus, AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED, true);
+            ? trim((string) $overrides['coat_of_arms_license_status'])
+            : trim((string) ($staging['coat_of_arms_license_status'] ?? ''));
+        $coatUrlResolved = avesmapsResolveGatedCoatUrl(
+            $overrides,
+            $coatUrl,
+            trim((string) ($staging['coat_of_arms_url'] ?? '')),
+            (string) ($staging['coat_of_arms_license_status'] ?? '')
+        );
         $coat = [
-            // Versioned (?v=<mtime>) for locally re-uploaded coats: they keep their filename behind a
-            // 30-day Cache-Control, so an unversioned URL would keep showing the previous image.
-            'url' => $allowed ? avesmapsCoatUrlCacheBust($effCoatUrl) : '',
+            'url' => $coatUrlResolved,
             'license_status' => $licenseStatus,
             'author' => trim((string) ($staging['coat_of_arms_author'] ?? '')),
             'attribution' => trim((string) ($staging['coat_of_arms_attribution'] ?? '')),
-            'allowed' => $allowed,
+            'allowed' => $coatUrlResolved !== '',
         ];
     }
 

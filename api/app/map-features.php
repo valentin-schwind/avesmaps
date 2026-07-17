@@ -590,20 +590,15 @@ function avesmapsLoadSettlementCoatGateInputs(PDO $pdo): array {
 //   allowed = url !== '' AND license IN (public_domain)
 // Returns the URL only when allowed, else '' -- a non-public-domain coat is never emitted (see NOTICE.md).
 function avesmapsSettlementTerritoryCoatUrl(string $ptCoatUrl, array $stagingRow, array $overrides): string {
-    $license = array_key_exists('coat_of_arms_license_status', $overrides)
-        ? (string) $overrides['coat_of_arms_license_status']
-        : (string) ($stagingRow['coat_of_arms_license_status'] ?? '');
-    $license = trim($license);
-
-    $stagingUrl = trim((string) ($stagingRow['coat_of_arms_url'] ?? ''));
-    $effUrl = array_key_exists('coat_of_arms_url', $overrides)
-        ? trim((string) $overrides['coat_of_arms_url'])
-        : ($ptCoatUrl !== '' ? $ptCoatUrl : $stagingUrl);
-
-    $allowed = $effUrl !== '' && in_array($license, AVESMAPS_MAP_FEATURES_COAT_ALLOWED, true);
-    // Versioned like the layer/detail readers: a re-uploaded coat keeps its filename behind a 30-day
-    // Cache-Control, so an unversioned URL would keep serving the previous image. Memoized per URL.
-    return $allowed ? avesmapsCoatUrlCacheBust($effUrl) : '';
+    // Canonical precedence + public-domain gate + cache-bust now live in api/_internal/coat-url.php, so this
+    // breadcrumb, the territory infobox and the map label share ONE implementation and cannot diverge again
+    // (Discord #32). The signature stays; only the duplicated body moved.
+    return avesmapsResolveGatedCoatUrl(
+        $overrides,
+        $ptCoatUrl,
+        (string) ($stagingRow['coat_of_arms_url'] ?? ''),
+        (string) ($stagingRow['coat_of_arms_license_status'] ?? '')
+    );
 }
 
 // Conservative name-match key for capital<->settlement comparison: lowercased, whitespace-collapsed,

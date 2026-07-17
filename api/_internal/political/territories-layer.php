@@ -816,6 +816,21 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         ? $territoryName
         : ($customName !== '' ? $customName : 'Freie Geometrie');
 
+    // Coat of arms: an UPLOADED override decides the coat, exactly like territory-detail.php (infobox) and
+    // the settlement breadcrumb -- so the label shows the SAME coat as the infobox (Discord #32: Grafschaft
+    // Ferdok showed the wiki coat here while the infobox showed the upload, because the override used to be
+    // resolved LAST). Canonical precedence + public-domain gate + cache-bust live in the shared resolver.
+    // With no uploaded override the block below runs unchanged (the layer's own display/style precedence).
+    $coatOverridesForLabel = avesmapsPoliticalDecodeJson($row['coat_override_json'] ?? null);
+    $coatOverridesForLabel = is_array($coatOverridesForLabel) ? $coatOverridesForLabel : [];
+    if (array_key_exists('coat_of_arms_url', $coatOverridesForLabel)) {
+        $visibleCoatOfArmsUrl = avesmapsResolveGatedCoatUrl(
+            $coatOverridesForLabel,
+            trim((string) ($row['coat_of_arms_url'] ?? '')),
+            trim((string) ($row['staging_coat_url'] ?? '')),
+            (string) ($row['staging_coat_license'] ?? '')
+        );
+    } else {
     $displayCoatOfArmsUrl = trim((string) ($assignmentDisplay['coatOfArmsUrl'] ?? $assignmentDisplay['coat_of_arms_url'] ?? ''));
     $visibleCoatOfArmsUrl = (string) (
         $displayCoatOfArmsUrl
@@ -869,6 +884,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     }
 
     $visibleCoatOfArmsUrl = avesmapsPoliticalCoatUrlCacheBust($visibleCoatOfArmsUrl);
+    }
 
     $displayColor = avesmapsPoliticalResolveLayerDisplayColor(
         $assignmentDisplay['color'] ?? '',

@@ -35,3 +35,40 @@ function avesmapsCoatUrlCacheBust(string $url): string {
 
     return $resolved[$url] = ($mtime !== false ? ($url . '?v=' . $mtime) : $url);
 }
+
+/**
+ * The only licence under which a coat may appear on the public map (NOTICE.md / Ulisses fan rules).
+ * One constant replacing the identical per-endpoint copies AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED and
+ * AVESMAPS_MAP_FEATURES_COAT_ALLOWED, so the legal gate cannot drift apart between readers.
+ */
+const AVESMAPS_COAT_PUBLIC_LICENSES = ['public_domain'];
+
+/**
+ * The ONE canonical precedence for a publicly displayed coat of arms. Every reader routes through this so
+ * the territory label, the territory infobox and the settlement "Liegt in" breadcrumb can never diverge
+ * again -- Discord #32 (Grafschaft Ferdok) happened precisely because each reader re-implemented the
+ * precedence and the map layer put the uploaded override LAST instead of first.
+ *
+ *   url     = override['coat_of_arms_url']  when the override sets that key (DECISIVE, even when '')
+ *             else own (political_territory.coat_of_arms_url)  else staging (the crawled wiki coat)
+ *   licence = override['coat_of_arms_license_status']  when the override sets it  else the staging licence
+ *
+ * An override that sets an EMPTY url is a deliberate "no coat" (e.g. an occupation correction) and is
+ * honoured -- there is no fall-through to the wiki coat. Only public_domain is ever emitted; anything else
+ * yields '' (a non-public-domain coat on the public map is a NOTICE.md / legal violation). The returned
+ * URL is cache-busted (?v=<mtime>) exactly like every other local upload.
+ */
+function avesmapsResolveGatedCoatUrl(array $override, string $ownUrl, string $stagingUrl, string $stagingLicense): string {
+    $license = array_key_exists('coat_of_arms_license_status', $override)
+        ? trim((string) $override['coat_of_arms_license_status'])
+        : trim($stagingLicense);
+    $ownUrl = trim($ownUrl);
+    $url = array_key_exists('coat_of_arms_url', $override)
+        ? trim((string) $override['coat_of_arms_url'])
+        : ($ownUrl !== '' ? $ownUrl : trim($stagingUrl));
+    if ($url === '' || !in_array($license, AVESMAPS_COAT_PUBLIC_LICENSES, true)) {
+        return '';
+    }
+
+    return avesmapsCoatUrlCacheBust($url);
+}
