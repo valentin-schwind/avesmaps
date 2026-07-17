@@ -1239,6 +1239,75 @@ EOF
 
 ---
 
+### Task 8: Editor aufräumen — „Identität" nach oben, Erklärsatz raus
+
+**Files:**
+- Modify: `html/citymap-editor.html` (`renderDetail`: Blocktausch ~846-847; `ce-hint` Zeile ~873 löschen)
+
+**Interfaces:**
+- Consumes: `ceImageGroup(slot, title, v)`, `ceField`, `ceUrlField`, `ceSelect` — alle vorhanden, unverändert.
+- Produces: nichts.
+
+**Kein Unit-Test:** reine Reihenfolge im Template-String, keine Logik. Abnahme im Browser.
+
+Läuft **nach** Task 6 und 7 — alle drei fassen denselben `body.innerHTML`-Ausdruck an, und ein Tausch von Blöcken, deren Inhalt sich noch ändert, produziert nur Konflikte.
+
+- [ ] **Step 1: Reihenfolge drehen**
+
+In `renderDetail()` die beiden Blöcke tauschen. Der Autoget-Knopf crawlt `map_url` (Zeile ~789, `disabled` ohne Karten-Link) und stand über dem Feld, das er liest — jetzt steht die Ursache über der Wirkung:
+
+```js
+    body.innerHTML =
+      `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
+        ${ceField("Titel *", "title", v.title)}
+        ${ceUrlField("Karten-Link (extern) *", "map_url", v.map_url)}
+        ${ceField("Linktext", "map_url_label", v.map_url_label)}
+        ${ceField("Urheber", "author", v.author)}
+        ${ceField("Notiz", "note", v.note)}
+        ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
+        ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
+      </div>` +
+      // Autoget liest den Karten-Link aus der Gruppe DARUEBER (siehe den Knopf in ceImageGroup): die
+      // Reihenfolge ist die Erklaerung. Stand dieser Kasten oben, war die Kausalitaet unsichtbar.
+      `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
+```
+
+Der Rest des Ausdrucks (Eigenschaften, Typen, Links) folgt unverändert. **`gatherStamm()` sweept `[data-cm-field]` aus `#ceStammBody`** und ist reihenfolgeunabhängig — der Tausch ändert nichts am Speichern.
+
+- [ ] **Step 2: Erklärsatz löschen**
+
+Zeile ~873 ersatzlos entfernen:
+
+```js
+        <p class="ce-hint">„kostenpflichtig“ setzt ein Mensch — bewusst kein Auto-Abgleich mit dem Shop (Owner 2026-07-17). Ein Preis ist eine Momentaufnahme: „zahl was du willst“ ist weder frei noch bezahlt, Aktionen laufen ab. Und die API kennt nur das Produkt, nicht die Karte im Buch.</p>
+```
+
+Die **Begründung** ist damit nicht widerrufen — sie steht in der Spec §5.4 und in `citymaps-feature-task-c`. Nur der Editor muss sie nicht bei jedem Öffnen erzählen. Wer später einen Shop-Abgleich bauen will, findet das Nein weiterhin dokumentiert.
+
+- [ ] **Step 3: Im Browser prüfen**
+
+`?edit=1` → WikiSync → Abenteuer → „Kartensammlung editieren" → eine Karte wählen. Erwartet: „Identität" (mit Titel, Karten-Link, Linktext) steht **über** Vorschaubild/Karte; der Erklärsatz ist weg; Speichern schreibt weiterhin alle Felder.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git status --short
+git add html/citymap-editor.html
+git commit --only html/citymap-editor.html -F - <<'EOF'
+ui(citymaps): put "Identitaet" above the image boxes, drop the is_paid essay
+
+Autoget crawls map_url and is disabled without it -- but its button sat in a box
+ABOVE the field it reads, so the causality was invisible. Identity first makes
+the editor read top-down as cause then effect (owner).
+
+The three-line hint explaining why "kostenpflichtig" has no shop auto-sync goes
+(owner). The reasoning is not withdrawn -- it lives in the spec and the project
+notes -- but the editor need not retell it on every open.
+EOF
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -1254,6 +1323,8 @@ EOF
 | §4.3 „Sammlung bearbeiten", `IS_EDIT_MODE`, z-index | 5 |
 | §5.1 „Linktext" / `map_url_label` | 6 |
 | §5.2 „Vorschau-Link" raus, `thumb_url` stillgelegt | 7 |
+| §5.3 „Identität" über die Bildkästen | 8 |
+| §5.4 `is_paid`-Erklärsatz raus | 8 |
 | §2.4 `(online)` raus | 1 (via `opts.showStatus`) |
 
 Keine Lücke.

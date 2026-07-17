@@ -244,6 +244,28 @@ vorschlagen), und die Sichtbarkeit für den Prüfer in der Meldung. Er lädt das
 die Lizenz es erlaubt. `thumb_auto_url` (Autoget, editor-only per Konstruktion) ist davon **nicht**
 berührt.
 
+### 5.3 „Identität" nach oben — über „Vorschaubild" und „Karte"
+
+Owner 2026-07-17: *„im Kartensammlungseditor will man das was zu »Identität« gehört über »Vorschaubild«
+und »Karte« haben, damit klar ist, dass das autoget den link anzapft."*
+
+Heute baut `renderDetail()` (`html/citymap-editor.html:846`) erst `ce-imgcols` (Vorschaubild + Karte),
+dann die Gruppe „Identität". **Der Autoget-Knopf sitzt damit über dem Feld, das er liest**: er crawlt
+`map_url` (`html/citymap-editor.html:789`, `disabled` ohne Karten-Link) — und der steht darunter. Die
+Reihenfolge dreht sich um; der Editor liest sich dann von oben nach unten als Ursache → Wirkung.
+
+Reine Reihenfolge, kein neues Feld: die beiden Blöcke tauschen im `body.innerHTML`-Ausdruck den Platz.
+
+### 5.4 Der `is_paid`-Erklärsatz fliegt raus
+
+`html/citymap-editor.html:873` trägt einen dreizeiligen `ce-hint`, der begründet, warum „kostenpflichtig"
+kein Auto-Abgleich mit dem Shop ist. Owner 2026-07-17: *„der satz kann weg"*.
+
+Die **Begründung** ist damit nicht widerrufen — sie bleibt in `citymaps-feature-task-c` und in dieser
+Spec: ein Preis ist eine Momentaufnahme, `isPwyw` ist weder frei noch bezahlt, und die Ulisses-API kennt
+das Produkt, nicht die Karte im Buch. Nur der Editor muss sie nicht bei jedem Öffnen erzählen. Wer später
+einen Auto-Abgleich bauen will, findet das Nein weiterhin dokumentiert.
+
 ## 6. Was NICHT dazugehört
 
 - **Der Streifen im Infopanel.** Der Owner hat „die Items und der Dialog" gesagt; die 116px-Kacheln haben
