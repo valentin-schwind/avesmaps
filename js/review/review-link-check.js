@@ -94,15 +94,19 @@ async function runLinkCheckProbeLoop(scope) {
 let linkCheckProgressSink = null;
 
 function reportLinkCheckProgress(text, tone) {
-	setWikiSyncStatus(text, tone);
+	// An embedded editor hands in its own status sink -- report ONLY there, NOT also into the WikiSync
+	// ribbon behind the editor overlay. Both used to fire, so every message (and the final "Linkprüfung
+	// fertig …") stayed wrongly parked in the ribbon once the editor closed. A dead iframe (editor closed
+	// mid-run) falls through to the ribbon so the run keeps reporting somewhere.
 	if (typeof linkCheckProgressSink === "function") {
 		try {
 			linkCheckProgressSink(text, tone);
+			return;
 		} catch (error) {
-			// A dead iframe (editor closed mid-run) must never abort the run.
 			linkCheckProgressSink = null;
 		}
 	}
+	setWikiSyncStatus(text, tone);
 }
 
 // The handler for ONE scope: sync, then probe, then report that scope's counters. Returns the totals so
