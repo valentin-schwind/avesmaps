@@ -151,7 +151,9 @@ try {
         // Write atomically (temp + rename) so concurrent cache-misses cannot serve a truncated image.
         $cachePath = $dir . '/' . $key . '.' . $ext;
         $tmpPath = $cachePath . '.tmp.' . getmypid();
-        if (@file_put_contents($tmpPath, $bytes, LOCK_EX) !== false && !@rename($tmpPath, $cachePath)) {
+        // No LOCK_EX: $tmpPath is unique per PID, so the flock guards nothing but can block on the NFS
+        // lock daemon under a cache-miss burst (pool-wedge risk -- see php-pool hang, 2026-07-17).
+        if (@file_put_contents($tmpPath, $bytes) !== false && !@rename($tmpPath, $cachePath)) {
             @unlink($tmpPath);
         }
     }

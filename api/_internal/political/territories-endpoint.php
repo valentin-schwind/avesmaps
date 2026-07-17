@@ -119,7 +119,10 @@ try {
             try {
                 $encodedLayer = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
                 $tmpLayer = $layerCacheFile . '.' . getmypid() . '.tmp';
-                if (@file_put_contents($tmpLayer, $encodedLayer, LOCK_EX) !== false) {
+                // No LOCK_EX: the temp file is unique per PID and swapped in with an atomic rename, so the
+                // flock guards nothing -- it only adds a blocking call to STRATO's NFS lock daemon, which
+                // under a cache-miss burst is a pool-wedge risk (see php-pool hang, 2026-07-17).
+                if (@file_put_contents($tmpLayer, $encodedLayer) !== false) {
                     @rename($tmpLayer, $layerCacheFile);
                 }
                 http_response_code(200);

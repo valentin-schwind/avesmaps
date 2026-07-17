@@ -29,6 +29,13 @@ function avesmapsStartSession(): void {
 function avesmapsCurrentUser(): ?array {
     avesmapsStartSession();
     $user = $_SESSION[AVESMAPS_AUTH_SESSION_KEY] ?? null;
+    // Release the session-file lock the moment we have read the user. PHP keeps an EXCLUSIVE flock on the
+    // session file for the whole request; on the network-mounted webspace (/mnt/web...) that serialises
+    // every concurrent same-session request -- the editor opens ~19 at once, all sharing one cookie -- and
+    // under sustained edit-mode load the workers pile up waiting for that one lock and wedge the FPM pool.
+    // Nothing writes $_SESSION after this read (only login/logout do, and they re-open via
+    // avesmapsStartSession), so closing here is safe. Mirrors api/edit/map/link-check.php.
+    session_write_close();
 
     return is_array($user) ? $user : null;
 }
