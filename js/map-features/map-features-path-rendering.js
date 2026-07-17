@@ -104,7 +104,7 @@ function createPathPopupMarkup(path) {
 	// getPathDisplayName, deshalb zeigte die Infobox als EINZIGE Flaeche "Reichsstrasse-16", waehrend die
 	// Suche "Reichsstraße 2" sagte (12 Altsegmente verletzen R1; die Anzeige heilt das jetzt von selbst).
 	const realName = typeof getPathTitleName === "function" ? getPathTitleName(path) : getPathDisplayName(path);
-	const typeLabel = tr("spotlight.pathType." + pathType, pathType);
+	const typeLabel = getPathTypeLabel(pathType);
 	const pathName = realName || (typeof getUnnamedPathTitle === "function" ? getUnnamedPathTitle(pathType) : typeLabel);
 	const subtitle = realName ? typeLabel : "";
 	// Owner: 16:9 header image per way subtype + title overlay.

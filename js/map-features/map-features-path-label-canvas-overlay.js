@@ -485,7 +485,10 @@
 		}
 		return locationPopupMarkup({
 			name,
-			locationTypeLabel: tr("spotlight.pathType." + entry.subtype, wikiParam === "fluss" ? "Fluss" : "Straße"),
+			// Praezises Wegtyp-Label wie die Weg-Infobox (path.type.*), nicht das grobe Suchlabel.
+			locationTypeLabel: typeof getPathTypeLabel === "function"
+				? getPathTypeLabel(entry.subtype)
+				: tr("spotlight.pathType." + entry.subtype, wikiParam === "fluss" ? "Fluss" : "Straße"),
 			showHeaderIcon: false,
 			showDescription: false,
 			showWikiLink: false,

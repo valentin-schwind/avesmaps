@@ -45,6 +45,29 @@ function getPathTitleName(path) {
 	return String(path?.properties?.display_name || path?.properties?.original_name || "").trim();
 }
 
+// Wegtyp, ausgeschrieben für Menschen. EIGENER Schlüsselraum `path.type.*`, NICHT `spotlight.pathType.*`:
+// der gehört der Trefferliste und vergröbert ABSICHTLICH (getSpotlightPathTypeLabel wirft Reichsstrasse/
+// Strasse/Weg/Pfad alle auf "Weg" -- in einer Suchliste richtig, im Untertitel falsch). Die Infobox hatte
+// sich dort bedient und zeigte deshalb (Owner 2026-07-17): auf Deutsch "Reichsstrasse" (= der rohe Schlüssel,
+// weil Deutsch keine Tabelle hat und der Fallback der Schlüssel selbst ist) und auf Englisch "Path" (= das
+// grobe Suchlabel). Beides falsch, nur verschieden.
+// Unsere Subtyp-SCHLÜSSEL tragen "ss" (Reichsstrasse/Strasse/Wuestenpfad) -- das sind Join-Keys, keine Prosa.
+const PATH_TYPE_LABEL = {
+	Reichsstrasse: "Reichsstraße",
+	Strasse: "Straße",
+	Weg: "Weg",
+	Pfad: "Pfad",
+	Gebirgspass: "Gebirgspass",
+	Wuestenpfad: "Wüstenpfad",
+	Flussweg: "Flussweg",
+	Seeweg: "Seeweg",
+};
+
+function getPathTypeLabel(subtype) {
+	const fallback = PATH_TYPE_LABEL[subtype] || String(subtype || "");
+	return typeof tr === "function" ? tr("path.type." + subtype, fallback) : fallback;
+}
+
 // Titel für einen Weg OHNE Namen (Owner 2026-07-17): "Straße" allein liest sich wie ein Name --
 // "Unbenannte Straße" ist erkennbar eine Beschreibung. Ausgeschriebene Strings statt zusammengesetzter,
 // weil das Deutsche das Adjektiv beugt: DIE Straße -> "Unbenannte", DER Pfad -> "Unbenannter".
@@ -65,7 +88,7 @@ function getUnnamedPathTitle(subtype) {
 	const fallback = UNNAMED_PATH_TITLE[subtype];
 	if (!fallback) {
 		// Seeweg/Querfeldein/Unbekanntes: der Typ selbst ist die ehrlichste Bezeichnung.
-		return typeof tr === "function" ? tr("spotlight.pathType." + subtype, subtype) : String(subtype || "");
+		return getPathTypeLabel(subtype);
 	}
 	return typeof tr === "function" ? tr(key, fallback) : fallback;
 }

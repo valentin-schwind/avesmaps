@@ -142,6 +142,18 @@ window.AVESMAPS_I18N_EN = {
 	// keep them side by side so they cannot drift apart again.
 	"popup.showInPanel": "Show",
 	"popup.showWholePath": "Show",
+	// Precise way type (infobox subtitle, route leg, planner row). Deliberately NOT spotlight.pathType.*:
+	// that namespace belongs to the search list and collapses Reichsstrasse/Strasse/Weg/Pfad all to "Path",
+	// which is right for a result list and wrong for a subtitle -- an English visitor read "Reichsstraße 3 /
+	// Path" while a German one read the raw key "Reichsstrasse".
+	"path.type.Reichsstrasse": "Imperial road",
+	"path.type.Strasse": "Road",
+	"path.type.Weg": "Way",
+	"path.type.Pfad": "Trail",
+	"path.type.Gebirgspass": "Mountain pass",
+	"path.type.Wuestenpfad": "Desert trail",
+	"path.type.Flussweg": "River route",
+	"path.type.Seeweg": "Sea route",
 	// A way we carry but have no name for. German inflects the adjective (DIE Straße -> "Unbenannte",
 	// DER Pfad -> "Unbenannter"), hence one string per subtype; English needs no such table but keeps the
 	// same keys. Seeweg is absent on purpose -- open water carries no names, so "unnamed" would imply a gap.

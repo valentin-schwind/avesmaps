@@ -45,6 +45,8 @@ vm.createContext(sandbox);
 vm.runInContext(extractFunction(nodeSource, "getRoutePathDisplayName"), sandbox);
 vm.runInContext(extractFunction(nodeSource, "escapeRouteDisplayRegex"), sandbox);
 vm.runInContext(extractFunction(nodeSource, "shouldShowRoutePathDisplayName"), sandbox);
+vm.runInContext(extractConst(domainSource, "PATH_TYPE_LABEL"), sandbox);
+vm.runInContext(extractFunction(domainSource, "getPathTypeLabel"), sandbox);
 vm.runInContext(extractConst(domainSource, "UNNAMED_PATH_TITLE"), sandbox);
 vm.runInContext(extractFunction(domainSource, "getPathTitleName"), sandbox);
 vm.runInContext(extractFunction(domainSource, "getUnnamedPathTitle"), sandbox);
@@ -97,5 +99,24 @@ assert.ok(Object.values(titles).every((v) => /^Unbenannte[r]? /.test(v)), "every
 assert.strictEqual(sandbox.getUnnamedPathTitle("Seeweg"), "Seeweg", "a sea route falls back to the bare type");
 // Anything unknown falls back too rather than inventing grammar.
 assert.strictEqual(sandbox.getUnnamedPathTitle("Querfeldein"), "Querfeldein", "unknown types fall back to the bare type");
+
+// --- getPathTypeLabel: prose, not the join key -------------------------------------------------------------
+
+// Our subtype KEYS carry "ss" because they are join keys. The visible label must not.
+assert.strictEqual(sandbox.getPathTypeLabel("Reichsstrasse"), "Reichsstraße", "the key's ss never reaches the reader");
+assert.strictEqual(sandbox.getPathTypeLabel("Strasse"), "Straße", "Strasse -> Straße");
+assert.strictEqual(sandbox.getPathTypeLabel("Wuestenpfad"), "Wüstenpfad", "Wuestenpfad -> Wüstenpfad");
+assert.strictEqual(sandbox.getPathTypeLabel("Gebirgspass"), "Gebirgspass", "already prose, unchanged");
+assert.strictEqual(sandbox.getPathTypeLabel("Seeweg"), "Seeweg", "already prose, unchanged");
+const typeLabels = vm.runInContext("PATH_TYPE_LABEL", sandbox);
+// Only the key spellings are forbidden -- "Gebirgspass" legitimately ends in ss, that is German, not a leak.
+assert.ok(!Object.values(typeLabels).some((v) => /strasse|wueste/i.test(v)), "no key spelling survives in a visible label");
+// Every subtype we ship must be covered -- an unknown one would surface its raw key.
+["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"]
+	.forEach((s) => assert.ok(typeLabels[s], `${s} has a label`));
+
+// It must NOT reuse the search's namespace: that one collapses Reichsstrasse/Strasse/Weg/Pfad to one word
+// (right for a result list, wrong for a subtitle) -- distinct labels prove we are not on it.
+assert.notStrictEqual(sandbox.getPathTypeLabel("Reichsstrasse"), sandbox.getPathTypeLabel("Pfad"), "the precise label distinguishes what the search deliberately merges");
 
 console.log("path-title tests passed");

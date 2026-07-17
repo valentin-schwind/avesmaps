@@ -156,7 +156,7 @@ function routeLegTypeLabel(type) {
 	if (typeof getUnnamedPathTitle === "function") {
 		return getUnnamedPathTitle(type);
 	}
-	return typeof tr === "function" ? tr("spotlight.pathType." + type, type) : String(type || "");
+	return typeof getPathTypeLabel === "function" ? getPathTypeLabel(type) : String(type || "");
 }
 
 // Infobox einer Routen-Etappe (Owner 2026-07-17): gleicher Kopf + gleiche Datentabelle wie die Weg-Infobox,
@@ -530,7 +530,7 @@ function showRoutePlan(routeNames, segments) {
 
 		$overview.append(`
 			<div role="button" tabindex="0" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}${longOffroadHint}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : getPathTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
 			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
