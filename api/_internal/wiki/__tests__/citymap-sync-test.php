@@ -98,6 +98,17 @@ assert(avesmapsCitymapParallelValue('A2/-', 0, true) === 'A2');
 assert(avesmapsCitymapParallelValue('A2/-', 1, true) === null);        // "-" = unknown, not ""
 assert(avesmapsCitymapParallelValue('A4', 0, false) === 'A4');
 assert(avesmapsCitymapParallelValue('-', 0, false) === null);
+// An ALL-unknown parallel array says "unknown" for every source -- exactly what a bare "-" says. Only
+// the bare form was caught, so "-/-/-" survived as a literal string and, on a row whose source split
+// gave up (split=false, the whole cell kept), was handed to `author` verbatim. Measured on the real
+// page 2026-07-17: Gareth/HdR carried author="-/-/-". Today rule 1 happens to drop that row, so the
+// junk never reached a card -- it is a live bug for any city the old list does not know.
+assert(avesmapsCitymapParallelValue('-/-/-', 0, false) === null);
+assert(avesmapsCitymapParallelValue('-/-', 1, false) === null);
+assert(avesmapsCitymapParallelValue('-/-/-', 0, true) === null);
+// ...while a real value in a parallel array is untouched, split or not.
+assert(avesmapsCitymapParallelValue('A2/-', 0, false) === 'A2/-');
+assert(avesmapsCitymapParallelValue('A2/-', 0, true) === 'A2');
 // A field with NO parallel array describes EVERY source of the row. Regression: running the real page
 // through the parser produced 1 artist attribution instead of 82, because "Ina Kramer" (named once for
 // two sources) was handed only to the first -- and that first one is the abbreviation we then drop.

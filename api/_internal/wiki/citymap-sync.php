@@ -319,7 +319,12 @@ function avesmapsCitymapSplitSourceCell(string $sourceCell, string $formatCell):
 function avesmapsCitymapParallelValue(string $cell, int $index, bool $split): ?string
 {
     $raw = trim($cell);
-    if ($raw === '' || $raw === '-') {
+    // "-" means unknown, and the parallel-array form "-/-/-" means it for every source. Catching only
+    // the bare "-" let an all-unknown array survive as a literal string: on a row whose source split
+    // gave up (split=false keeps the cell whole) it was handed to `author` verbatim -- the real page
+    // has one (Gareth/HdR, measured 2026-07-17). Stripping the separators leaves nothing exactly when
+    // every slot is unknown; a real value ("A2/-", "33,5x25,5/-") always leaves something behind.
+    if (trim($raw, " \t\n\r/-") === '') {
         return null;
     }
     if (!$split) {
