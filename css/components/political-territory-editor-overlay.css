@@ -6,7 +6,7 @@
 	align-items: center;
 	justify-content: center;
 	padding: 18px;
-	background: var(--color-scrim);
+	background: var(--color-scrim-editor);
 	backdrop-filter: blur(3px);
 }
 
