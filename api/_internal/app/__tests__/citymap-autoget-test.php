@@ -178,4 +178,103 @@ assert(avesmapsCitymapEditorThumbUrl(['thumb_url' => 'https://e.org/t.jpg']) ===
 assert(avesmapsCitymapEditorThumbUrl([]) === '');
 echo "autoget editor/public split ok\n";
 
+// ---- the WIKI route (2026-07-17) --------------------------------------------------------------------
+// 364 of 365 map links point at de.wiki-aventurica.de. Reading their og:image would be an HTML CRAWL, and
+// the operator asked us not to ("prefer the dump, API ok, NO HTML crawls"). These functions are the API
+// route that replaces it. All pure: no DB, no HTTP.
+
+// The title falls out of the URL -- live-measured 2026-07-17, the form is always /wiki/<title>, no query,
+// no fragment. That is why the wiki route needs no page fetch at all.
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/Land%20des%20schwarzen%20B%C3%A4ren') === 'Land des schwarzen Bären');
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/Gareth') === 'Gareth');
+// MediaWiki treats '_' and ' ' as the same character in a title; the API answers in spaces.
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/Herz_des_Reiches') === 'Herz des Reiches');
+// Quotes in a title are real: Kommando "Olachtai".
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/Kommando%20%22Olachtai%22') === 'Kommando "Olachtai"');
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/F%C3%BCrsten%2C%20H%C3%A4ndler%2C%20Intriganten') === 'Fürsten, Händler, Intriganten');
+// A fragment is not part of the title (does not occur today, but it would be a silent miss).
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/Gareth#Karten') === 'Gareth');
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/wiki/') === '');
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de/de/api.php?x=1') === '');
+assert(avesmapsCitymapWikiPageTitle('https://example.org/wiki/Gareth') === '');
+// A lookalike domain must NOT reach the wiki route -- its answer is trusted enough to be published.
+assert(avesmapsCitymapWikiPageTitle('https://de.wiki-aventurica.de.evil.tld/wiki/Gareth') === '');
+assert(avesmapsCitymapWikiPageTitle('') === '');
+
+// The route is a property of the SOURCE, not a flag: wiki + ulisses yield a publisher cover by
+// construction and go public; an arbitrary og:image does not.
+assert(avesmapsCitymapAutogetRoute('https://de.wiki-aventurica.de/wiki/Gareth') === 'wiki');
+assert(avesmapsCitymapAutogetRoute('https://www.ulisses-ebooks.de/de/product/120516/gareth-karte-pdf-als-download-kaufen') === 'ulisses');
+assert(avesmapsCitymapAutogetRoute('https://maps.aventuria.ru/gareth.png') === 'ogimage');
+assert(avesmapsCitymapAutogetRoute('https://de.wiki-aventurica.de.evil.tld/wiki/Gareth') === 'ogimage');
+assert(avesmapsCitymapAutogetRoute('') === 'ogimage');
+
+// The batch call: 50 titles in one request is what makes 133 sources cost ~6 requests.
+$wikiApi = avesmapsCitymapWikiApiUrl(['Gareth', 'Land des schwarzen Bären']);
+assert(str_starts_with($wikiApi, 'https://de.wiki-aventurica.de/de/api.php?'), 'must be /de/api.php -- plain /api.php is a 404 on this wiki');
+assert(str_contains($wikiApi, 'prop=pageimages'));
+assert(str_contains($wikiApi, 'pithumbsize=400'));
+assert(str_contains($wikiApi, 'redirects=1'), 'without redirects=1 the API does not resolve a redirected map_url');
+assert(str_contains($wikiApi, 'format=json'));
+assert(str_contains($wikiApi, rawurlencode('Gareth|Land des schwarzen Bären')), 'titles are pipe-separated');
+assert(avesmapsCitymapWikiApiUrl([]) === '');
+$fifty = [];
+for ($i = 0; $i < 50; $i++) {
+    $fifty[] = 'T' . $i;
+}
+assert(avesmapsCitymapWikiApiUrl($fifty) !== '', '50 is the limit for ordinary users and must pass');
+$tooMany = $fifty;
+$tooMany[] = 'T50';
+$threwOnBatch = false;
+try {
+    avesmapsCitymapWikiApiUrl($tooMany);
+} catch (InvalidArgumentException $e) {
+    $threwOnBatch = true;
+}
+assert($threwOnBatch, '51 titles must throw -- a silent slice would drop maps from a run that reports itself complete');
+
+// The parser, against the shape measured live on 2026-07-17 (4 titles in ONE answer).
+$wikiJson = json_encode(['query' => ['pages' => [
+    '12450' => ['pageid' => 12450, 'title' => 'Herz des Reiches', 'pageimage' => 'RSH.jpg',
+        'thumbnail' => ['source' => 'https://de.wiki-aventurica.de/de/images/thumb/5/54/RSH.jpg/400px-RSH.jpg', 'width' => 400, 'height' => 588],
+        'original' => ['source' => 'https://de.wiki-aventurica.de/de/images/5/54/RSH.jpg', 'width' => 1181, 'height' => 1736]],
+    '1315' => ['pageid' => 1315, 'title' => 'Gareth'],
+    '-1' => ['pageid' => -1, 'title' => 'Gibtsnicht'],
+]]], JSON_UNESCAPED_UNICODE);
+$wikiImages = avesmapsCitymapPickWikiImages($wikiJson);
+// The THUMBNAIL, not the original: pithumbsize already asked for our exact edge length, so the original
+// would only be bytes we downscale away again.
+assert($wikiImages['Herz des Reiches'] === 'https://de.wiki-aventurica.de/de/images/thumb/5/54/RSH.jpg/400px-RSH.jpg');
+// A page without a page image is a NORMAL answer, not an error -> simply absent.
+assert(!isset($wikiImages['Gareth']));
+// pageid -1 = the page does not exist.
+assert(!isset($wikiImages['Gibtsnicht']));
+assert(count($wikiImages) === 1);
+
+// Only an original, no thumbnail -> better than nothing.
+$onlyOriginal = json_encode(['query' => ['pages' => ['5' => ['pageid' => 5, 'title' => 'X',
+    'original' => ['source' => 'https://de.wiki-aventurica.de/de/images/5/54/X.jpg']]]]]);
+assert(avesmapsCitymapPickWikiImages($onlyOriginal)['X'] === 'https://de.wiki-aventurica.de/de/images/5/54/X.jpg');
+
+// Broken/empty answers are a statement ("nothing"), not a crash.
+assert(avesmapsCitymapPickWikiImages('{}') === []);
+assert(avesmapsCitymapPickWikiImages('kein json') === []);
+assert(avesmapsCitymapPickWikiImages('') === []);
+assert(avesmapsCitymapPickWikiImages(json_encode(['query' => ['pages' => []]])) === []);
+
+// The API normalises titles and resolves redirects, so the key coming back need not be the one we sent.
+$normalizedJson = json_encode(['query' => [
+    'normalized' => [['from' => 'Herz_des_Reiches', 'to' => 'Herz des Reiches']],
+    'pages' => ['12450' => ['pageid' => 12450, 'title' => 'Herz des Reiches',
+        'thumbnail' => ['source' => 'https://de.wiki-aventurica.de/de/images/t.jpg']]],
+]], JSON_UNESCAPED_UNICODE);
+assert(avesmapsCitymapPickWikiImages($normalizedJson)['Herz des Reiches'] === 'https://de.wiki-aventurica.de/de/images/t.jpg');
+
+// We asked the WIKI for titles, so the answer does not get to choose which server we talk to next. The
+// linkcheck guard would still refuse it; this is the door in front of it.
+$foreignHost = json_encode(['query' => ['pages' => ['5' => ['pageid' => 5, 'title' => 'X',
+    'thumbnail' => ['source' => 'https://evil.tld/x.jpg']]]]]);
+assert(avesmapsCitymapPickWikiImages($foreignHost) === []);
+echo "wiki route ok\n";
+
 echo "citymap-autoget ok\n";

@@ -36,6 +36,28 @@ const AVESMAPS_CITYMAP_LICENSES_FREE = ['public_domain', 'cc0', 'ai_generated', 
 // pictures "unknown" is safe, for third-party cartography it is not.
 const AVESMAPS_CITYMAPS_SETTING = 'citymaps_enabled';
 
+// ---- Autoget, the wiki route (2026-07-17) ------------------------------------------------------------
+// 364 of our 365 map links point at de.wiki-aventurica.de, and fetching those pages as HTML to read their
+// og:image would be a CRAWL -- the operator's standing request is "prefer the dump, API ok, NO HTML
+// crawls" (owner 2026-07-04). So we ask the API instead.
+//
+// Not a concession, simply better: PageImages IS the extension that produces og:image (presence verified
+// live 2026-07-17), so we get the SAME picture; the API takes 50 titles per call, so 133 sources cost ~6
+// requests instead of 133; and pithumbsize hands back a picture already scaled to the edge we want.
+//
+// The dump is no better here: it knows [[Datei:...]] in the wikitext but not the PAGE IMAGE, which only
+// exists once the infobox templates render -- the same limit that keeps four phases of "Dump holen"
+// online. And the bytes would need fetching either way.
+const AVESMAPS_CITYMAP_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
+const AVESMAPS_CITYMAP_WIKI_HOST = 'de.wiki-aventurica.de';
+// 50 is the API's titles limit for ordinary users; `highlimit` (500) needs a bot right we do not have.
+const AVESMAPS_CITYMAP_WIKI_TITLE_BATCH = 50;
+// The edge length we ask the wiki API for. Same value as AVESMAPS_CITYMAP_THUMB_MAX_EDGE in
+// api/edit/map/citymap-image.php, which lives in the endpoint and is not visible from here. Kept as its
+// own name rather than moved: the endpoint's constant governs OUR downscale of an upload, this one is a
+// request parameter to a foreign API. They agree today by intent, not by coupling.
+const AVESMAPS_CITYMAP_THUMB_MAX_EDGE_WIKI = 400;
+
 // Multiple selection per map (Spec §3.1). Stable keys -- German because they are domain content
 // (AGENTS.md §8: never translate option slugs); the visible labels live in the editor + i18n table.
 const AVESMAPS_CITYMAP_TYPE_KEYS = [
@@ -472,6 +494,125 @@ function avesmapsCitymapPickUlissesImage(string $json): string
         return 'https://www.ulisses-ebooks.de/images/' . $path;
     }
     return '';
+}
+
+// ---- Autoget, the wiki route -------------------------------------------------------------------------
+// PURE. The page title out of a map_url, or '' when this is not a wiki article URL.
+//
+// Host-anchored exactly like avesmapsCitymapUlissesApiUrl, and for a sharper reason: this route's answer
+// is trusted enough to be PUBLISHED (a wiki page image is a publisher cover by construction), so a
+// lookalike domain must never reach it.
+function avesmapsCitymapWikiPageTitle(string $mapUrl): string
+{
+    $parts = parse_url($mapUrl);
+    if (!is_array($parts)) {
+        return '';
+    }
+    $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+    $host = strtolower((string) ($parts['host'] ?? ''));
+    if (($scheme !== 'http' && $scheme !== 'https') || $host !== AVESMAPS_CITYMAP_WIKI_HOST) {
+        return '';
+    }
+    $path = (string) ($parts['path'] ?? '');
+    if (!str_starts_with($path, '/wiki/')) {
+        return '';
+    }
+    // rawurldecode, not urldecode: '+' is a literal plus in a path segment, not a space. parse_url has
+    // already stripped any #fragment, which is not part of the title.
+    $title = rawurldecode(substr($path, strlen('/wiki/')));
+    // MediaWiki treats '_' and ' ' as the same character in a title, and the API answers in spaces.
+    return trim(str_replace('_', ' ', $title));
+}
+
+// PURE. Which of the three routes a map_url takes.
+//
+// The route decides whether the result may be shown to readers (Spec §4), and it is deliberately DERIVED
+// FROM THE SOURCE rather than stored as a flag: a wiki page image and an Ulisses product image are
+// publisher covers by construction, an arbitrary og:image from a third-party host is not. A flag can be
+// set wrongly; a route cannot.
+function avesmapsCitymapAutogetRoute(string $mapUrl): string
+{
+    if (avesmapsCitymapWikiPageTitle($mapUrl) !== '') {
+        return 'wiki';
+    }
+    if (avesmapsCitymapUlissesApiUrl($mapUrl) !== '') {
+        return 'ulisses';
+    }
+    return 'ogimage';
+}
+
+// PURE. The batch query for up to 50 titles -- the reason a 133-source run costs ~6 requests.
+//
+// Throws above the limit rather than slicing: a silent slice would drop maps from a run that then reports
+// itself complete, and "no silent truncation" is the one thing the owner asked for by name.
+function avesmapsCitymapWikiApiUrl(array $titles): string
+{
+    $clean = [];
+    foreach ($titles as $title) {
+        $value = trim((string) $title);
+        if ($value !== '' && !in_array($value, $clean, true)) {
+            $clean[] = $value;
+        }
+    }
+    if ($clean === []) {
+        return '';
+    }
+    if (count($clean) > AVESMAPS_CITYMAP_WIKI_TITLE_BATCH) {
+        throw new InvalidArgumentException('Zu viele Titel für einen API-Call: ' . count($clean));
+    }
+    return AVESMAPS_CITYMAP_WIKI_API_URL . '?' . http_build_query([
+        'action' => 'query',
+        'titles' => implode('|', $clean),
+        'prop' => 'pageimages',
+        'piprop' => 'thumbnail|original|name',
+        'pithumbsize' => (string) AVESMAPS_CITYMAP_THUMB_MAX_EDGE_WIKI,
+        // Without this a map_url pointing at a redirect resolves to nothing at all.
+        'redirects' => '1',
+        'format' => 'json',
+    ], '', '&', PHP_QUERY_RFC3986);
+}
+
+// PURE. [title => image url] out of the API's answer. A title that is absent simply has no page image --
+// a normal answer, not an error (pageid -1 means the page does not exist at all).
+//
+// Prefers `thumbnail` over `original`: pithumbsize already asked for exactly our edge length, so the
+// original would only be bytes we downscale away again.
+function avesmapsCitymapPickWikiImages(string $json): array
+{
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $pages = $decoded['query']['pages'] ?? null;
+    if (!is_array($pages)) {
+        return [];
+    }
+    $out = [];
+    foreach ($pages as $page) {
+        if (!is_array($page) || (int) ($page['pageid'] ?? -1) < 0) {
+            continue;
+        }
+        $title = trim((string) ($page['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        $source = '';
+        foreach (['thumbnail', 'original'] as $field) {
+            $candidate = trim((string) ($page[$field]['source'] ?? ''));
+            if ($candidate !== '') {
+                $source = $candidate;
+                break;
+            }
+        }
+        // We asked the WIKI for titles, so the picture must be the wiki's. A foreign host here would mean
+        // the answer is choosing which server we talk to next -- exactly the og:image -> 169.254.169.254
+        // shape. avesmapsLinkCheckFetchBody would still refuse it; this is the door in front of it.
+        if ($source === '' || strtolower((string) parse_url($source, PHP_URL_HOST)) !== AVESMAPS_CITYMAP_WIKI_HOST) {
+            continue;
+        }
+        $out[$title] = $source;
+    }
+    return $out;
 }
 
 // Pick the preview image out of a page's HTML, in the order publishers actually maintain them:
