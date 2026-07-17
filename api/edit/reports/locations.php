@@ -39,6 +39,8 @@ try {
     $response = match ($action) {
         'update_status' => avesmapsUpdateLocationReportReviewStatus($pdo, $payload, $user),
         'create_citymap' => avesmapsCreateCitymapFromReport($pdo, $payload, $user),
+        // Fundorte an eine BESTEHENDE Karte haengen -- der einzige Melde-Weg, der nichts anlegt.
+        'add_citymap_links' => avesmapsAddCitymapLinksFromReport($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Review-Aktion ist unbekannt.'),
     };
 
@@ -309,6 +311,83 @@ function avesmapsCreateCitymapFromReport(PDO $pdo, array $payload, array $user):
         'message' => 'Die Karte wurde angelegt.',
         'public_id' => $citymapPublicId,
         'linked_sources' => $linkedSources,
+        'reviewed_by' => $user['username'] ?? '',
+    ];
+}
+
+// Approving a 'citymap_link' report: hang the reported fundorte onto an EXISTING map
+// (Spec 2026-07-17-community-fundorte §3.3). Sibling of avesmapsCreateCitymapFromReport above, and it
+// borrows every rule from it -- the edit gate, the claim-first order, the re-run of the allowlist on the
+// way out. Only the write differs: it adds instead of creating.
+function avesmapsAddCitymapLinksFromReport(PDO $pdo, array $payload, array $user): array {
+    // Gate `edit`, not `review`: writing a link onto a PUBLIC map is an edit, and this endpoint is only
+    // review-gated. Same reasoning, verbatim, as the citymap creator -- without it, routing the write
+    // through the reports endpoint would hand reviewers a write they do not otherwise hold.
+    if (!avesmapsUserCan($user, 'edit')) {
+        avesmapsErrorResponse(403, 'forbidden', 'Zum Ergaenzen einer Karte fehlt dir die Berechtigung.');
+    }
+
+    $reportId = filter_var($payload['report_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($reportId === false || $reportId <= 0) {
+        throw new InvalidArgumentException('Es wurde keine gueltige report_id uebergeben.');
+    }
+
+    avesmapsEnsureMapReportsTableForReview($pdo);
+    $statement = $pdo->prepare(
+        "SELECT id, name, payload_json
+         FROM map_reports
+         WHERE id = :id AND status = 'neu' AND report_type = 'citymap_link'
+         LIMIT 1"
+    );
+    $statement->execute(['id' => $reportId]);
+    $report = $statement->fetch();
+    if ($report === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Die Fundort-Meldung wurde bereits verarbeitet oder nicht gefunden.');
+    }
+
+    // The allowlist runs again on the way OUT, not just on the way in: the row has sat in a table since it
+    // was written, and this is the last point before its values become public. Before the claim, so a
+    // payload we cannot use fails with a 400 and leaves the report untouched.
+    $normalized = avesmapsNormalizeCitymapLinkReportPayload(json_decode((string) ($report['payload_json'] ?? ''), true));
+
+    // Does the map still exist? A 404 here beats a claimed report whose links went nowhere -- the map may
+    // have been deleted or hidden between the report and this click.
+    $citymapPublicId = $normalized['citymap_public_id'];
+    $find = $pdo->prepare("SELECT id FROM citymap WHERE public_id = :pid AND status = 'approved' LIMIT 1");
+    $find->execute(['pid' => $citymapPublicId]);
+    if ($find->fetchColumn() === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Die Karte zu dieser Meldung gibt es nicht mehr.');
+    }
+
+    // CLAIM FIRST, write second -- same trade as the citymap creator: two reviewers double-clicking would
+    // otherwise both pass the SELECT and each append the same links, leaving silent duplicates. The loser's
+    // UPDATE matches no row and writes nothing.
+    $userId = (int) ($user['id'] ?? 0);
+    $claim = $pdo->prepare(
+        "UPDATE map_reports
+         SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = :reviewed_by
+         WHERE id = :report_id AND status = 'neu'"
+    );
+    $claim->execute(['reviewed_by' => $userId ?: null, 'report_id' => $reportId]);
+    if ($claim->rowCount() < 1) {
+        avesmapsErrorResponse(409, 'conflict', 'Die Fundort-Meldung wurde soeben von jemand anderem verarbeitet.');
+    }
+
+    // ADDITIVE, one row at a time. avesmapsSetCitymapLinks is off limits here: it REPLACES the list and
+    // would delete every fundort an editor had entered -- a data loss nobody notices until someone misses
+    // their links. 'community' is stamped HERE; the reporter never had a say in it (the allowlist does not
+    // even read an origin).
+    $added = 0;
+    foreach ($normalized['links'] as $link) {
+        avesmapsAddCitymapLink($pdo, $citymapPublicId, $link, 'community');
+        $added++;
+    }
+
+    return [
+        'ok' => true,
+        'message' => $added === 1 ? 'Der Fundort wurde ergaenzt.' : 'Die Fundorte wurden ergaenzt.',
+        'public_id' => $citymapPublicId,
+        'added_links' => $added,
         'reviewed_by' => $user['username'] ?? '',
     ];
 }

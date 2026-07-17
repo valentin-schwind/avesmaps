@@ -851,29 +851,46 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
         ];
     }
 
-    // The links the EDITOR owns, i.e. the ones set_links replaces: origin='manual'. The scoping is the
-    // whole reason both sides can stay this simple -- the editor posts back a plain list with no ids, so
-    // anything it can SEE it will also RE-CREATE as 'manual'. Handing it a wiki-owned row here would
-    // duplicate that row on the next save (once as 'wiki', once as 'manual'), which is exactly the kind of
-    // silent breakage the tombstone rules elsewhere in this file exist to prevent.
+    // TWO lists, and the split is load-bearing (Spec 2026-07-17-community-fundorte §3.5):
     //
-    // Consequence, deliberate and worth knowing: once the wiki sync writes links (spec §6.6), its rows will
-    // render for the READER but not appear in this editor. Giving them a read-only view + a suppress action
-    // belongs to that step, mirroring citymap_place's approved/suppressed toggle -- it is not something to
-    // improvise here, and doing nothing today is safe, because nothing writes a non-manual link yet.
+    //   links         -- origin='manual': what the editor OWNS and what set_links replaces wholesale.
+    //   foreign_links -- community/wiki: what someone else authored. READ-ONLY, with a suppress action.
+    //
+    // They are split HERE, in the payload, rather than in the editor's UI, because set_links posts the list
+    // back with no ids: anything the editor can SEE it will RE-CREATE as 'manual' on the next save. A
+    // foreign row in the editable list would duplicate itself (once as 'community', once as 'manual'). A UI
+    // rule would be forgotten at the next rebuild; a separate field cannot be.
+    //
+    // Suppressed rows travel too -- the editor shows them behind its toggle so a tombstone can be undone,
+    // same as citymap_place.
     $links = [];
+    $foreignLinks = [];
     $linkStatement = $pdo->prepare(
-        "SELECT id, label, url, is_paid FROM citymap_link
-          WHERE citymap_id = :id AND status = 'approved' AND origin = 'manual'
+        "SELECT id, label, url, is_paid, origin, status FROM citymap_link
+          WHERE citymap_id = :id AND (origin = 'manual' OR status <> 'suppressed')
           ORDER BY sort_order ASC, id ASC"
     );
     $linkStatement->execute(['id' => $id]);
     foreach ($linkStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $link) {
-        $links[] = [
-            'id' => (int) $link['id'],
+        $origin = (string) $link['origin'];
+        if ($origin === 'manual') {
+            // The editable list carries no id on purpose: set_links keys on position, not identity.
+            if ((string) $link['status'] === 'approved') {
+                $links[] = [
+                    'label' => (string) $link['label'],
+                    'url' => (string) $link['url'],
+                    'is_paid' => avesmapsCitymapTriBoolOut($link['is_paid']),
+                ];
+            }
+            continue;
+        }
+        $foreignLinks[] = [
+            'id' => (int) $link['id'], // suppress_link addresses it by id -- it is a real row, not a position
             'label' => (string) $link['label'],
             'url' => (string) $link['url'],
             'is_paid' => avesmapsCitymapTriBoolOut($link['is_paid']),
+            'origin' => $origin,
+            'status' => (string) $link['status'],
         ];
     }
 
@@ -913,6 +930,7 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
         'related' => $related,
         'places' => $places,
         'links' => $links,
+        'foreign_links' => $foreignLinks,
     ];
 }
 
@@ -1353,6 +1371,114 @@ function avesmapsSetCitymapLinks(PDO $pdo, string $publicId, array $links): arra
         throw $exception;
     }
     return ['public_id' => $publicId, 'links' => count($rows)];
+}
+
+// ---- community fundort report (Spec 2026-07-17-community-fundorte §3.2) -------------------------------
+// PURE (no PDO, no HTTP) -> unit-tested in __tests__/citymap-link-report-test.php.
+//
+// Runs on the PUBLIC endpoint (api/app/report-location.php) with capability NONE, so its output is
+// untrusted input that has passed a whitelist -- and anything it does not return can never reach a column.
+// An ALLOWLIST by construction: it returns {citymap_public_id, links[], note} and nothing else.
+//
+// `origin` and `status` are absent ON PURPOSE, and that is the whole point of the function. They are OUR
+// bookkeeping: a report that could name its own origin would write itself in as 'manual' and the editor
+// would take it for his own work; a status='approved' would publish it without anyone looking. Because the
+// keys are never read, the INSERT never names the columns -- the defaults simply stand, and the approval
+// stamps 'community' itself.
+//
+// The ROW rules are avesmapsNormalizeCitymapLinkRows' -- the very gate the editor's set_links passes
+// through. A community row can therefore never be shaped differently from an editor's, and the http/https
+// check, the length limits and the "half-filled row is an error" rule hold identically on both doors.
+function avesmapsNormalizeCitymapLinkReportPayload(mixed $raw): array
+{
+    $data = is_array($raw) ? $raw : [];
+
+    // Without a map the proposal has no target -- "another place to find THIS map" is the entire idea.
+    $citymapPublicId = avesmapsCitymapReportText($data['citymap_public_id'] ?? '', 64, 'Die Karten-ID');
+    if ($citymapPublicId === '') {
+        throw new InvalidArgumentException('Zu welcher Karte gehoert der Fundort?');
+    }
+
+    $links = avesmapsNormalizeCitymapLinkRows(is_array($data['links'] ?? null) ? $data['links'] : []);
+    if ($links === []) {
+        throw new InvalidArgumentException('Bitte mindestens einen Fundort angeben.');
+    }
+
+    return [
+        'citymap_public_id' => $citymapPublicId,
+        'links' => $links,
+        // Free text to a human. Refused when too long rather than truncated (avesmapsCitymapReportText):
+        // a note cut mid-sentence changes what the reporter said, and this one is addressed to an editor
+        // deciding whether to trust them.
+        'note' => avesmapsCitymapReportText($data['note'] ?? '', AVESMAPS_CITYMAP_NOTE_MAX, 'Die Notiz'),
+    ];
+}
+
+// Append ONE fundort. Deliberately NOT avesmapsSetCitymapLinks: that one replaces the whole list, so a
+// community report routed through it would silently delete every fundort an editor had entered. This is the
+// one write on this table that must only ever add.
+//
+// $origin is stamped by the CALLER, never taken from the row: 'community' from the report approval,
+// 'wiki' from the sync (Mehrfachlink-Spec §6.6). Its default 'manual' keeps the signature honest for a
+// hand-written call, and avesmapsCitymapNormalizeOrigin turns anything unrecognised into 'manual' -- the
+// conservative answer, since 'manual' is exactly what the wiki sync refuses to touch.
+function avesmapsAddCitymapLink(PDO $pdo, string $citymapPublicId, array $row, string $origin = 'manual'): array
+{
+    avesmapsCitymapsEnsureTables($pdo);
+    $citymapId = avesmapsCitymapIdByPublicId($pdo, $citymapPublicId);
+
+    // Through the same gate as everything else on this table, even though the report path already ran it:
+    // this function is callable from anywhere, and a URL is not a thing to take on trust twice.
+    $normalized = avesmapsNormalizeCitymapLinkRows([$row]);
+    if ($normalized === []) {
+        throw new InvalidArgumentException('Der Fundort ist leer.');
+    }
+    $link = $normalized[0];
+
+    // Append: sort_order continues the list rather than restarting at 0 (the normalizer stamps positions
+    // per CALL, which is right for a whole-list replace and wrong here).
+    $max = $pdo->prepare('SELECT MAX(sort_order) FROM citymap_link WHERE citymap_id = :id');
+    $max->execute(['id' => $citymapId]);
+    $next = $max->fetchColumn();
+    $sortOrder = ($next === null || $next === false) ? 0 : ((int) $next) + 1;
+
+    $pdo->prepare(
+        "INSERT INTO citymap_link (citymap_id, label, url, is_paid, sort_order, origin, status)
+         VALUES (:id, :label, :url, :is_paid, :sort_order, :origin, 'approved')"
+    )->execute([
+        'id' => $citymapId,
+        'label' => $link['label'],
+        'url' => $link['url'],
+        'is_paid' => $link['is_paid'],
+        'sort_order' => $sortOrder,
+        'origin' => avesmapsCitymapNormalizeOrigin($origin),
+    ]);
+    return ['link_id' => (int) $pdo->lastInsertId()];
+}
+
+// Removing a fundort the editor does not own: TOMBSTONE, never DELETE. A deleted wiki row is one the next
+// sync digs straight back up -- the exact bug avesmapsSuppressCitymapPlace got its rule for. The rule is
+// phrased the same way here ("whatever we did not author") so the next origin does not have to remember to
+// come back and edit this function. A 'manual' row has nothing to protect and is really deleted -- but the
+// editor never reaches this path for one of those anyway: it removes those by leaving them out of set_links.
+function avesmapsSuppressCitymapLink(PDO $pdo, int $linkId): array
+{
+    avesmapsCitymapsEnsureTables($pdo);
+
+    $find = $pdo->prepare('SELECT origin FROM citymap_link WHERE id = :id LIMIT 1');
+    $find->execute(['id' => $linkId]);
+    $origin = $find->fetchColumn();
+    if ($origin === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Der Fundort wurde nicht gefunden.');
+    }
+
+    if ((string) $origin !== 'manual') {
+        $pdo->prepare("UPDATE citymap_link SET status = 'suppressed' WHERE id = :id")->execute(['id' => $linkId]);
+        return ['link_id' => $linkId, 'suppressed' => true];
+    }
+
+    $pdo->prepare('DELETE FROM citymap_link WHERE id = :id')->execute(['id' => $linkId]);
+    return ['link_id' => $linkId, 'suppressed' => false];
 }
 
 function avesmapsCitymapIdByPublicId(PDO $pdo, string $publicId): int

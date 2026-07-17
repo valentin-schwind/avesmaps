@@ -225,7 +225,7 @@
      collapsing unknown into "no" is exactly the claim §3.1 forbids. */
   .ce-tri { flex: 0 0 130px; }
 
-  /* ---- „Wo gibt es die Karte?" (multi-link spec §6.2): Fundstelle + URL + kostenpflichtig je Zeile,
+  /* ---- „Wo gibt es die Karte?" (multi-link spec §6.2): Fundort + URL + kostenpflichtig je Zeile,
      ▲▼, löschen. Same shape as the adventure editor's .ae-xlink, plus the is_paid column -- that column
      IS the feature: the same map is paid in the shop and free on its wiki page. */
   .ce-xlink { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1.4fr) 120px auto;
@@ -243,6 +243,16 @@
   .ce-xlink__head { display: grid; grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1.4fr) 120px auto;
     gap: var(--space-6); margin-bottom: var(--space-4);
     font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+  /* Fundorte, die jemand ANDERES verfasst hat (Community/Wiki). Sie stehen unter einer Trennlinie und ohne
+     Eingabefelder -- das IST die Aussage "die gehoeren dir nicht". Ein zweiter Kasten drumherum waere
+     Rauschen; die Linie genuegt (AGENTS.md §12). */
+  .ce-xlink__foreign { display: flex; align-items: center; gap: var(--space-8);
+    padding-top: var(--space-6); margin-top: var(--space-6); border-top: 1px solid var(--color-divider); }
+  .ce-xlink__foreign + .ce-xlink__foreign { margin-top: 0; }
+  .ce-xlink__foreignmain { flex: 1 1 auto; min-width: 0; }
+  /* Unterdrueckt = durchgestrichen und blass: die Zeile ist noch da (Tombstone), wirkt aber nicht mehr. */
+  .ce-xlink__foreign.is-suppressed .ce-xlink__foreignmain { text-decoration: line-through; opacity: .55; }
 
   /* Vorschaubild + Karte nebeneinander, Eigenschaften jeweils darunter (Owner-Layout 2026-07-16).
      auto-fit statt fester 2 Spalten: unter ~260px je Spalte stapeln sie von selbst, statt die Selects
@@ -514,7 +524,12 @@
   // links = the working copy of the "Wo gibt es die Karte?" list (multi-link spec §6.2). Held in state
   // rather than read off the DOM on demand because ▲▼/✕ re-render the rows: whatever is typed must
   // survive that.
-  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, dirty: false, links: [] };
+  //
+  // foreignLinks = fundorte someone ELSE authored (community/wiki). They are kept in their own field, not
+  // merged into `links`, because set_links posts `links` back without ids: anything in there is re-created
+  // as 'manual' on save, so a foreign row would duplicate itself. The server already ships them apart
+  // (avesmapsCitymapDetailForEdit) -- this just keeps the split.
+  const state = { citymaps: [], selectedId: null, detail: null, enabled: true, dirty: false, links: [], foreignLinks: [] };
 
   // ---- list ----
   async function loadList(keepSelection) {
@@ -645,9 +660,9 @@
   // aus #ceStammBody ein, und ein Link-Feld darf dort nicht als citymap-Spalte mitfahren.
   function ceLinkRows() {
     if (!state.links.length) {
-      return `<p class="ce-xlink__empty">Noch keine weiteren Fundstellen.</p>`;
+      return `<p class="ce-xlink__empty">Noch keine weiteren Fundorte.</p>`;
     }
-    const head = `<div class="ce-xlink__head"><span></span><span>Fundstelle</span><span>URL</span><span>kostenpflichtig</span><span></span></div>`;
+    const head = `<div class="ce-xlink__head"><span></span><span>Fundort</span><span>URL</span><span>kostenpflichtig</span><span></span></div>`;
     return head + state.links.map((l, i) => `
       <div class="ce-xlink" data-cl-idx="${i}">
         <div class="ce-xlink__reorder">
@@ -661,18 +676,44 @@
           <option value="1"${l.is_paid === true ? " selected" : ""}>ja</option>
           <option value="0"${l.is_paid === false ? " selected" : ""}>nein</option>
         </select>
-        <button type="button" class="btn btn--icon btn--danger" data-cl-act="del" title="Fundstelle entfernen">✕</button>
+        <button type="button" class="btn btn--icon btn--danger" data-cl-act="del" title="Fundort entfernen">✕</button>
       </div>`).join("");
   }
+  // Fundorte, die NICHT von hier stammen: freigegebene Community-Meldungen und (kuenftig) der Wiki-Sync.
+  // Nur lesbar, mit einem Unterdruecken-Knopf -- ohne diese Liste waeren sie fuer den Editor unsichtbar und
+  // damit unentfernbar, waehrend der Leser sie sieht.
+  //
+  // Unterdruecken statt Loeschen entscheidet der Server (avesmapsSuppressCitymapLink): eine geloeschte
+  // Wiki-Zeile graebt der naechste Sync wieder aus. Hier steht nur der Knopf.
+  function ceForeignLinkRows() {
+    if (!state.foreignLinks.length) {
+      return "";
+    }
+    const ORIGIN_LABEL = { community: "Community", wiki: "Wiki" };
+    return state.foreignLinks.map((l) => {
+      const suppressed = l.status === "suppressed";
+      const paid = l.is_paid === true ? "kostenpflichtig" : (l.is_paid === false ? "kostenlos" : "");
+      return `<div class="ce-xlink__foreign${suppressed ? " is-suppressed" : ""}">
+        <span class="ce-xlink__foreignmain"><a href="${ceEscape(l.url)}" target="_blank" rel="noopener noreferrer"
+          title="${ceEscape(l.url)}">${ceEscape(l.label)} ↗</a>${paid ? ` <span class="ce-hint">· ${ceEscape(paid)}</span>` : ""}</span>
+        <span class="pill pill--${l.origin === "wiki" ? "wiki" : "community"}">${ceEscape(ORIGIN_LABEL[l.origin] || l.origin)}</span>
+        ${suppressed
+          ? `<span class="ce-hint">unterdrückt</span>`
+          : `<button type="button" class="btn btn--sm btn--danger" data-cl-suppress="${ceEscape(l.id)}">Unterdrücken</button>`}
+      </div>`;
+    }).join("");
+  }
+
   function ceLinksGroup() {
     return `<div class="ce-grp"><p class="ce-grp__title">Wo gibt es die Karte?</p>
       <p class="ce-xlink__hint">Zusätzlich zum Karten-Link oben: überall sonst, wo dieselbe Karte zu finden ist —
-        Shop-Seite, Wiki-Seite, Fanprojekt. Der Leser sieht die Fundstelle und wählt selbst.
+        Shop-Seite, Wiki-Seite, Fanprojekt. Der Leser sieht den Fundort und wählt selbst.
         „kostenpflichtig“ hängt an der ZEILE, nicht an der Karte: derselbe Band ist im Shop bezahlt und
         auf seiner Wiki-Seite frei. „unbekannt“ zeigt dem Leser gar nichts — nie ein erfundenes „frei“.
         Speichern über „Speichern“.</p>
       <div id="ceLinks">${ceLinkRows()}</div>
-      <div class="ce-xlink__add"><button type="button" class="btn btn--sm" data-cl-act="add">+ Fundstelle</button></div>
+      <div class="ce-xlink__add"><button type="button" class="btn btn--sm" data-cl-act="add">+ Fundort</button></div>
+      <div id="ceForeignLinks">${ceForeignLinkRows()}</div>
     </div>`;
   }
   // Nur die Zeilen neu zeichnen -- ein renderDetail() wuerde die ungespeicherten Stammdaten-Eingaben
@@ -680,7 +721,26 @@
   function renderLinks() {
     const host = document.getElementById("ceLinks");
     if (host) host.innerHTML = ceLinkRows();
+    const foreign = document.getElementById("ceForeignLinks");
+    if (foreign) foreign.innerHTML = ceForeignLinkRows();
   }
+  // Wirkt sofort, ohne „Speichern": diese Zeilen gehoeren dem Melder bzw. dem Sync, nicht der set_links-
+  // Liste. Danach das Detail neu laden -- der Server entscheidet, ob die Zeile zum Tombstone wurde oder
+  // wirklich verschwand, und diese Antwort raten wir nicht.
+  async function suppressForeignLink(linkId) {
+    if (!linkId) return;
+    try {
+      await citymapPost({ action: "suppress_link", link_id: linkId });
+      await selectCitymap(state.selectedId);
+    } catch (e) {
+      const stateEl = document.getElementById("ceSaveState");
+      if (stateEl) {
+        stateEl.textContent = "Fehler: " + e.message;
+        stateEl.className = "ce-savebar__state error";
+      }
+    }
+  }
+
   // Getipptes aus den Inputs zurueck in den State holen. Muss VOR jedem Re-Render und vor dem Speichern
   // laufen, sonst verliert ein ▲ die gerade eingegebene URL.
   function ceSyncLinksFromDom() {
@@ -762,6 +822,10 @@
     state.links = ((state.detail && state.detail.links) || []).map((l) => ({
       label: l.label || "", url: l.url || "", is_paid: l.is_paid == null ? null : !!l.is_paid,
     }));
+    // Fremde Fundorte: NICHT in state.links mischen (siehe den Kommentar am State). Sie werden nur
+    // gelesen, deshalb reicht die Serverliste unveraendert -- es gibt nichts, was ein Re-Render verlieren
+    // koennte.
+    state.foreignLinks = (state.detail && state.detail.foreign_links) || [];
     if (!state.detail) {
       head.textContent = "Neue Karte";
       body.innerHTML = `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
@@ -1260,7 +1324,16 @@
     const auto = e.target.closest("[data-ce-autoget]");
     if (auto && !auto.disabled) { autogetThumb(); return; }
 
-    // „Wo gibt es die Karte?": + Fundstelle / ▲▼ / ✕. Delegated on the stable #ceStammBody because the rows
+    // Einen FREMDEN Fundort unterdruecken. Anders als alles andere in dieser Gruppe wirkt das SOFORT
+    // (eigene Action, eigene Zeile mit id) -- es gehoert nicht zu „Speichern", weil set_links diese Zeilen
+    // gar nicht kennt.
+    const suppress = e.target.closest("[data-cl-suppress]");
+    if (suppress) {
+      suppressForeignLink(Number(suppress.getAttribute("data-cl-suppress")));
+      return;
+    }
+
+    // „Wo gibt es die Karte?": + Fundort / ▲▼ / ✕. Delegated on the stable #ceStammBody because the rows
     // are rebuilt on every render. Purely local to the state -- nothing is stored until „Speichern".
     const btn = e.target.closest("[data-cl-act]");
     if (!btn) return;

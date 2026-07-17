@@ -78,6 +78,16 @@ try {
             }
             return avesmapsSetCitymapLinks($pdo, $publicId, (array) ($payload['links'] ?? []));
         })(),
+        // Einen FREMDEN Fundort entfernen (community/wiki). Der Editor raeumt seine eigenen ueber set_links
+        // ab -- er laesst sie einfach weg; hier geht es um die, die er nicht besitzt, und die tombstoned
+        // werden statt geloescht zu werden (sonst graebt der naechste Sync sie wieder aus).
+        'suppress_link' => (static function () use ($pdo, $payload): array {
+            $linkId = (int) ($payload['link_id'] ?? 0);
+            if ($linkId <= 0) {
+                avesmapsErrorResponse(400, 'invalid_request', 'link_id ist erforderlich.');
+            }
+            return avesmapsSuppressCitymapLink($pdo, $linkId);
+        })(),
         'add_place' => (static function () use ($pdo, $payload): array {
             $citymapPublicId = trim((string) ($payload['citymap_public_id'] ?? ''));
             if ($citymapPublicId === '') {

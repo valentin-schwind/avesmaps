@@ -38,6 +38,10 @@ const AVESMAPS_REPORT_TYPES = [
     // map_features row: report_type 'citymap' is what routes the review "Anlegen" to the citymap creator
     // instead of the location/label editors -- see the dispatch in js/routing/routing.js.
     'karte' => ['type' => 'citymap', 'subtype' => 'karte'],
+    // Ein weiterer FUNDORT zu einer BESTEHENDEN Karte (Spec 2026-07-17-community-fundorte). Der einzige
+    // Meldetyp, der nichts anlegen will, sondern etwas an einer Karte ergaenzt -- das Ziel reist als
+    // citymap_public_id im Payload, und die Freigabe haengt die Fundorte additiv an.
+    'fundort' => ['type' => 'citymap_link', 'subtype' => 'fundort'],
 ];
 const AVESMAPS_LOCATION_SUBTYPES = ['dorf', 'gebaeude', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
 const AVESMAPS_REPORT_MAP_MAX_COORDINATE = 1024.0;
@@ -251,6 +255,13 @@ function avesmapsValidateMapReport(array $payload): array {
         ? avesmapsNormalizeCitymapReportPayload($payload['citymap'] ?? null)
         : null;
 
+    // Ein weiterer Fundort zu einer bestehenden Karte. Gleiche Haltung wie oben: die Allowlist liegt in der
+    // Karten-Bibliothek, und was sie nicht zurueckgibt, erreicht keine Spalte -- insbesondere nicht origin
+    // (sonst schriebe sich ein Vorschlag als 'manual' ein und der Editor hielte ihn fuer seinen).
+    $citymapLinkReport = $requestedType === 'fundort'
+        ? avesmapsNormalizeCitymapLinkReportPayload($payload['citymap_link'] ?? null)
+        : null;
+
     // Multi-source #3 (community source suggestions): the reporter fills the SAME source fields an editor
     // fills by hand (title / link / pages / type / official) and MAY list several sources. On "Anlegen"
     // each becomes a real feature_sources link. Accept the structured array; fall back to the legacy
@@ -263,7 +274,11 @@ function avesmapsValidateMapReport(array $payload): array {
         }
     }
     $changeContext = avesmapsNormalizeChangeContext($payload);
-    if ($sources === [] && $requestedType !== 'comment' && $changeContext['mode'] !== 'change') {
+    // 'fundort' ist von der Quellenpflicht ausgenommen, und zwar nicht aus Bequemlichkeit: ein Fundort IST
+    // ein Link, die URL ist ihr eigener Beleg. Eine Quelle daneben zu verlangen hiesse, nach dem Werk zu
+    // fragen -- eine andere Frage (Spec §1), die der Melder hier gar nicht beantworten will und die er dann
+    // mit irgendetwas fuellen wuerde.
+    if ($sources === [] && $requestedType !== 'comment' && $requestedType !== 'fundort' && $changeContext['mode'] !== 'change') {
         throw new InvalidArgumentException('Bitte mindestens eine Quelle angeben.');
     }
     // `source` stays the (required, indexed) primary label used for dedup + the review list = first source.
@@ -286,7 +301,14 @@ function avesmapsValidateMapReport(array $payload): array {
         (string) $citymapReport['citymap']['map_url'],
         (string) $citymapReport['citymap']['thumb_url'],
     ]);
-    $spamText = implode(' ', [$name, $sourceSpamText, $wikiUrl, $comment, $citymapSpamText, (string) ($payload['reporter_name'] ?? '')]);
+    // Dasselbe fuer die Fundorte, aus demselben Grund: Bezeichnung, URL und Notiz sind reader-authored
+    // Prosa und Links. Ein Meldetyp, der NUR aus Links besteht und als einziger ungeprueft bliebe, waere
+    // genau die Tuer, an der Spam anklopft.
+    $citymapLinkSpamText = $citymapLinkReport === null ? '' : implode(' ', array_merge(
+        [(string) $citymapLinkReport['note']],
+        array_map(static fn(array $l): string => $l['label'] . ' ' . $l['url'], $citymapLinkReport['links'])
+    ));
+    $spamText = implode(' ', [$name, $sourceSpamText, $wikiUrl, $comment, $citymapSpamText, $citymapLinkSpamText, (string) ($payload['reporter_name'] ?? '')]);
     if (avesmapsContainsSpamText($spamText) || avesmapsIsLinkOnlyText($comment)) {
         return [
             'is_spam' => true,
@@ -310,10 +332,12 @@ function avesmapsValidateMapReport(array $payload): array {
         'report_mode' => $changeContext['mode'],
         'entity_type' => $changeContext['entity_type'],
         'entity_public_id' => $changeContext['entity_public_id'],
-        // NULL for every type but 'karte' -> the column stays empty on the reports that do not use it.
-        'payload_json' => $citymapReport === null
+        // NULL for every type but 'karte' and 'fundort' -> the column stays empty on the reports that do
+        // not use it. The two never collide: report_type decides which shape is in there, and each
+        // approval re-runs its OWN allowlist over it before anything reaches a column.
+        'payload_json' => ($citymapReport ?? $citymapLinkReport) === null
             ? null
-            : json_encode($citymapReport, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            : json_encode($citymapReport ?? $citymapLinkReport, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ];
 }
 
