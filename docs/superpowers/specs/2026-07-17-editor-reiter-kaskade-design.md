@@ -1,6 +1,6 @@
 # Design: Der Editor merkt sich die zuletzt offene Reiter-Kaskade
 
-**Datum:** 2026-07-17 · **Status:** freigegeben, NICHT gebaut
+**Datum:** 2026-07-17 · **Status:** GEBAUT (Unit-Tests grün); Ende-zu-Ende im echten Editor steht aus
 **Auftraggeber-Zitat:** *„Merk dir immer wo ich als editor zuletzt war (letzte offene menükaskade sollte
 nach einem refresh erhalten bleiben). wenn ich auf wikisync -> materialien -> karten klicke und dann F5
 mach sollte ich wieder da landen."*
@@ -36,11 +36,17 @@ Alle sechs Reiter-Familien des Editorpanels — sie sind alle nach demselben Mus
 | 1 | `data-editor-panel-tab` | review, changes, wiki-sync, presence | `avesmaps.review.activeTab` *(bestehend)* |
 | 2 | `data-wiki-sync-panel-tab` | locations, territories, regions, paths, **adventures** | `avesmaps.review.wikiSync.activeTab` *(bestehend)* |
 | 2 | `data-review-subtab` | reports, ratings, mails | `avesmaps.review.reports.activeTab` *(neu)* |
-| 2 | `data-status-subtab` | editoren, besucher | `avesmaps.review.status.activeTab` *(neu)* |
+| 2 | `data-status-subtab` | editoren, besucher | `avesmaps.review.status.activeTab` *(bestehend)* |
 | 3 | `data-material-subtab` | adventures, **citymaps** | `avesmaps.review.material.activeTab` *(neu)* |
 | 3 | `data-mail-tab` | empfangen, gesendet | `avesmaps.review.mail.activeTab` *(neu)* |
 
-Die zwei bestehenden Keys **behalten ihre Namen** — der aktuelle Stand des Owners überlebt den Umbau.
+Die drei bestehenden Keys **behalten ihre Namen** — der aktuelle Stand des Owners überlebt den Umbau.
+
+**Die Status-Familie war beim Bauen bereits fertig gebaut** — `js/review/review-visitor-analytics.js` hatte
+eine eigene, vollständige Persistenz *und* Wiederherstellung (`restoreStatusSubtab`), auf exakt demselben
+Key-Namen. Sie wird nicht ein zweites Mal gebaut: Speichern und Wiederherstellen übernimmt die Tabelle, die
+Doppelung entfällt (ein Key, ein Schreiber). `activateStatusSubtab` bleibt als reine Anzeige-Funktion — sie
+ist genau das, was der Wiederherstell-Klick auslöst.
 
 Die Werte-Spalte ist **Dokumentation, kein Code**. Sie steht nirgends im JS (siehe §3).
 
@@ -136,16 +142,18 @@ Ende-zu-Ende (nur der Owner, im echten Browser): WikiSync → Materialien → Ka
 | Datei | Änderung |
 |---|---|
 | `js/ui/ui-controls.js` | Kern: Tabelle statt Wertelisten, delegierter Speicher-Listener, Wiederherstellen per Klick, `updateReviewPanelTabUrlParameter` raus |
+| `js/review/review-visitor-analytics.js` | Status-Doppelung auflösen: eigener Speicher-Write + `restoreStatusSubtab` raus, `activateStatusSubtab` bleibt |
 | `tools/paths/test-review-tab-cascade.mjs` | neu |
 
-Sonst nichts. `index.html`, `bootstrap.js`, `review-panels.js`, `review-wiki-sync.js`, `review-mail.js` und
-`review-visitor-analytics.js` bleiben unberührt — deren Klick-Handler sind genau das, was wiederverwendet
-wird. Kein `ASSET_VERSION`-Bump nötig (keine dynamisch geladenen Editor-Assets betroffen).
+Sonst nichts. `index.html`, `bootstrap.js`, `review-panels.js`, `review-wiki-sync.js` und `review-mail.js`
+bleiben unberührt — deren Klick-Handler sind genau das, was wiederverwendet wird. Kein `ASSET_VERSION`-Bump
+nötig (keine dynamisch geladenen Editor-Assets betroffen).
 
 ## 8. Fallen
 
-- **Der Wiederherstell-Klick löst den Speicher-Listener mit aus** und schreibt denselben Wert zurück.
-  Idempotent, unschädlich — aber beim Lesen des Codes irritierend.
+- **Der Speicher-Listener wird erst NACH dem Wiederherstellen gebunden**, damit die Wiederherstell-Klicks
+  nicht durch ihn zurückschreiben. Wer die Reihenfolge in `initializeReviewPanelTabState` umdreht, bekommt
+  keinen Fehler, nur überflüssige Schreibvorgänge — die Reihenfolge ist Absicht.
 - **Nebeneffekt, dem Owner bekannt:** Wer dauerhaft auf „Materialien → Karten" stehen bleibt, holt bei
   *jedem* Editor-F5 den Karten-Katalog nach (vorher Standard „Siedlungen", Katalog nur auf Zuruf). Ein Fetch
   pro Reload, kein Loop — STRATO-unkritisch.

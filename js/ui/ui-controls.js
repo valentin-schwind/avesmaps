@@ -514,27 +514,102 @@ function writeReviewTabStorageValue(storageKey, value) {
 	}
 }
 
-function updateReviewPanelTabUrlParameter(parameterName, value) {
+function forgetReviewTabStorageValue(storageKey) {
 	try {
-		const url = new URL(window.location.href);
-		if (value) {
-			url.searchParams.set(parameterName, value);
-		} else {
-			url.searchParams.delete(parameterName);
-		}
-		window.history.replaceState(window.history.state, document.title, url.toString());
+		window.localStorage?.removeItem(storageKey);
 	} catch (error) {
-		// Ignore browsers or contexts without history support.
+		/* storage unavailable -- non-fatal */
 	}
 }
 
-function bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName) {
-	document.querySelectorAll(selector).forEach((tabElement) => {
-		tabElement.addEventListener("click", () => {
-			const value = String(tabElement.dataset[datasetKey] || "").trim();
-			if (!allowedValues.includes(value)) return;
-			writeReviewTabStorageValue(storageKey, value);
-			updateReviewPanelTabUrlParameter(urlParameterName, value);
+// The editor panel's tab cascade, three levels deep.
+// Spec: docs/superpowers/specs/2026-07-17-editor-reiter-kaskade-design.md
+//
+// This table is the ONLY place a tab family is declared, and it deliberately carries no list of allowed
+// values: a value is valid exactly when a button carrying it exists in the DOM. A hardcoded list is what
+// broke "Materialien" -- its key is "adventures", nobody added it to the list, and the persist handler
+// bailed out before storing anything (setWikiSyncPanelTab had known the key all along). Such a list has to
+// be hand-extended for every new tab; the DOM does not. Add a tab to index.html and it is remembered.
+//
+// Array order IS restore order: level 1 before 2 before 3, so a parent tab is in place before its children.
+//
+// The address bar is deliberately NOT written. updateReviewPanelTabUrlParameter() used to push
+// ?reviewTab=/?wikiSyncTab= through history.replaceState on every click; it predates the owner policy of
+// 2026-07-06 ("the app never rewrites the address bar") -- the Task-14 rollback cleaned up
+// syncPlannerStateToUrl and missed this path. READING those two params stays: incoming deep links are
+// always honoured. tools/paths/test-review-tab-cascade.mjs pins the absence of the write.
+const REVIEW_TAB_FAMILIES = [
+	{ attribute: "data-editor-panel-tab", storageKey: "avesmaps.review.activeTab", urlParameter: "reviewTab" },
+	{ attribute: "data-wiki-sync-panel-tab", storageKey: "avesmaps.review.wikiSync.activeTab", urlParameter: "wikiSyncTab" },
+	{ attribute: "data-review-subtab", storageKey: "avesmaps.review.reports.activeTab" },
+	{ attribute: "data-status-subtab", storageKey: "avesmaps.review.status.activeTab" },
+	{ attribute: "data-material-subtab", storageKey: "avesmaps.review.material.activeTab" },
+	{ attribute: "data-mail-tab", storageKey: "avesmaps.review.mail.activeTab" },
+];
+
+// A stored value ends up inside a CSS attribute selector and localStorage is user-writable, so it is
+// filtered to the charset the tab keys actually use rather than trusted.
+const REVIEW_TAB_VALUE_PATTERN = /^[a-z0-9-]+$/i;
+
+function findReviewTabButton(family, value) {
+	const candidate = String(value || "").trim();
+	if (!REVIEW_TAB_VALUE_PATTERN.test(candidate)) {
+		return null;
+	}
+	return document.querySelector(`[${family.attribute}="${candidate}"]`);
+}
+
+function restoreReviewTabFamily(family, urlParameters) {
+	const storedValue = readReviewTabStorageValue(family.storageKey);
+	const urlValue = family.urlParameter ? String(urlParameters.get(family.urlParameter) || "").trim() : "";
+	// A deep link beats the remembered tab, but only when it names a tab that exists.
+	const targetValue = findReviewTabButton(family, urlValue) ? urlValue : storedValue;
+	const targetButton = findReviewTabButton(family, targetValue);
+
+	if (!targetButton) {
+		// No button carries the stored value, so a deploy renamed or removed that tab. None of these
+		// families is capability-gated or hidden at runtime, so that is the only way to get here: drop the
+		// dead value and let the markup's own is-active default stand.
+		if (storedValue) {
+			forgetReviewTabStorageValue(family.storageKey);
+		}
+		return;
+	}
+
+	// Arriving via deep link counts as "where I last was".
+	if (targetValue !== storedValue) {
+		writeReviewTabStorageValue(family.storageKey, targetValue);
+	}
+
+	// Already open -- clicking would only buy a redundant list fetch on every load. With nothing stored
+	// this returns for every family, so the panel behaves exactly as it did before.
+	if (targetButton.classList.contains("is-active")) {
+		return;
+	}
+
+	// A real click rather than a setter call: four of the six families have no callable setter (mail,
+	// status and the two pill rows are inline handlers), and the click handlers carry side effects a
+	// setter would silently drop -- the citymap list lazy-loads off this very click.
+	targetButton.click();
+}
+
+// One delegated listener for all six families. Bound AFTER the restore pass, so the restore clicks do not
+// write back through it.
+function bindReviewTabPersistence() {
+	document.addEventListener("click", (event) => {
+		const clickedElement = event.target && typeof event.target.closest === "function" ? event.target : null;
+		if (!clickedElement) {
+			return;
+		}
+		REVIEW_TAB_FAMILIES.forEach((family) => {
+			const button = clickedElement.closest(`[${family.attribute}]`);
+			if (!button) {
+				return;
+			}
+			const value = String(button.getAttribute(family.attribute) || "").trim();
+			if (REVIEW_TAB_VALUE_PATTERN.test(value)) {
+				writeReviewTabStorageValue(family.storageKey, value);
+			}
 		});
 	});
 }
@@ -542,42 +617,15 @@ function bindPersistedTabClickHandler(selector, datasetKey, allowedValues, stora
 function initializeReviewPanelTabState() {
 	if (typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) return;
 
-	const reviewTabValues = ["review", "changes", "wiki-sync", "presence"];
-	const wikiSyncTabValues = ["locations", "territories", "regions", "paths"];
-	const reviewStorageKey = "avesmaps.review.activeTab";
-	const wikiSyncStorageKey = "avesmaps.review.wikiSync.activeTab";
-	const url = new URL(window.location.href);
-	const reviewTabFromUrl = url.searchParams.get("reviewTab") || "";
-	const wikiSyncTabFromUrl = url.searchParams.get("wikiSyncTab") || "";
-	const reviewTab = reviewTabValues.includes(reviewTabFromUrl)
-		? reviewTabFromUrl
-		: readReviewTabStorageValue(reviewStorageKey);
-	const wikiSyncTab = wikiSyncTabValues.includes(wikiSyncTabFromUrl)
-		? wikiSyncTabFromUrl
-		: readReviewTabStorageValue(wikiSyncStorageKey);
-
-	if (reviewTabValues.includes(reviewTab) && typeof window.setEditorPanelTab === "function") {
-		window.setEditorPanelTab(reviewTab);
-	}
-	if (wikiSyncTabValues.includes(wikiSyncTab) && typeof window.setWikiSyncPanelTab === "function") {
-		window.setWikiSyncPanelTab(wikiSyncTab);
+	let urlParameters;
+	try {
+		urlParameters = new URL(window.location.href).searchParams;
+	} catch (error) {
+		urlParameters = new URLSearchParams("");
 	}
 
-	bindPersistedTabClickHandler(
-		"[data-editor-panel-tab]",
-		"editorPanelTab",
-		reviewTabValues,
-		reviewStorageKey,
-		"reviewTab"
-	);
-
-	bindPersistedTabClickHandler(
-		"[data-wiki-sync-panel-tab]",
-		"wikiSyncPanelTab",
-		wikiSyncTabValues,
-		wikiSyncStorageKey,
-		"wikiSyncTab"
-	);
+	REVIEW_TAB_FAMILIES.forEach((family) => restoreReviewTabFamily(family, urlParameters));
+	bindReviewTabPersistence();
 }
 
 function normalizeWikiSyncTerritoryMetaText(value) {

@@ -1,4 +1,3 @@
-const STATUS_SUBTAB_STORAGE_KEY = "avesmaps.review.status.activeTab";
 let statusDashboardLoaded = false;
 
 function activateStatusSubtab(name) {
@@ -25,28 +24,12 @@ function activateStatusSubtab(name) {
 		if (!button) {
 			return;
 		}
-		const target = button.dataset.statusSubtab === "besucher" ? "besucher" : "editoren";
-		activateStatusSubtab(target);
-		try {
-			window.localStorage?.setItem(STATUS_SUBTAB_STORAGE_KEY, target);
-		} catch (error) {
-			/* storage unavailable -- non-fatal */
-		}
+		// Display only. Remembering the tab across a refresh is the cascade table's job now
+		// (REVIEW_TAB_FAMILIES in js/ui/ui-controls.js), which covers all six tab families at once. It used
+		// to be persisted AND restored here too, on the very same storage key -- one key, two writers.
+		activateStatusSubtab(button.dataset.statusSubtab === "besucher" ? "besucher" : "editoren");
 	});
 })();
-
-// Restore the last-used Status sub-tab across refresh, like the other panel tabs.
-function restoreStatusSubtab() {
-	let stored = "editoren";
-	try {
-		stored = window.localStorage?.getItem(STATUS_SUBTAB_STORAGE_KEY) || "editoren";
-	} catch (error) {
-		/* storage unavailable -- non-fatal */
-	}
-	if (stored === "besucher") {
-		activateStatusSubtab("besucher");
-	}
-}
 
 let visitorDashboardDays = 30;
 
@@ -331,8 +314,7 @@ async function loadEditorActivityFigures() {
 }
 
 if (document.readyState === "loading") {
-	document.addEventListener("DOMContentLoaded", () => { restoreStatusSubtab(); loadEditorActivityFigures(); }, { once: true });
+	document.addEventListener("DOMContentLoaded", () => loadEditorActivityFigures(), { once: true });
 } else {
-	restoreStatusSubtab();
 	loadEditorActivityFigures();
 }
