@@ -120,6 +120,20 @@ function avesmapsCitymapWikiKey(string $index, string $identity, string $source,
 }
 
 /**
+ * Colour-agnostic identity token for a Stadtplanindex variant. The wiki lists the same city map in the
+ * Farbe column AND the s/w column of one publication (and the new list adds a colour-unknown row); all
+ * three carry the identical title "Stadtplan von X (Quelle)" -- they are ONE map to the collection, the
+ * colour is data (is_color), not identity. Folding stadtplan-farbe / stadtplan-sw / stadtplan onto a
+ * single 'stadtplan' key lets avesmapsCitymapDedupeByWikiKey merge the twins (richer row wins, is_color
+ * kept); 'umgebung' is a DIFFERENT map and keeps its own key. Fixes the 23 same-title wiki duplicates
+ * measured 2026-07-18. The stored `variant`/`is_color` fields are untouched -- only the identity is.
+ */
+function avesmapsCitymapStadtplanIdentityVariant(string $variant): string
+{
+    return str_starts_with($variant, 'stadtplan') ? 'stadtplan' : $variant;
+}
+
+/**
  * Split a wikitext table row into its cells. MediaWiki rows are "| a || b || c"; a leading "|" and
  * cell padding are dropped. Returns [] for anything that is not a data row (|-, |}, ! headers).
  *
@@ -565,7 +579,9 @@ function avesmapsCitymapParseStadtplanindex(string $wikitext): array
 
         $label = $variant === 'umgebung' ? 'Umgebungskarte' : 'Stadtplan';
         $cards[] = [
-            'wiki_key' => avesmapsCitymapWikiKey(AVESMAPS_CITYMAP_INDEX_STADTPLAN, $place, $source, $variant),
+            // Colour-agnostic identity: Farbe/s-w/unknown of one Stadtplan are ONE map (same title),
+            // so they share a key and dedupe folds them. 'umgebung' stays distinct. (Discord/citymaps 2026-07-18)
+            'wiki_key' => avesmapsCitymapWikiKey(AVESMAPS_CITYMAP_INDEX_STADTPLAN, $place, $source, avesmapsCitymapStadtplanIdentityVariant($variant)),
             'index' => AVESMAPS_CITYMAP_INDEX_STADTPLAN,
             'title' => $label . ' von ' . $place . ' (' . $source . ')',
             'place_raw' => $place,

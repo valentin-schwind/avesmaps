@@ -288,6 +288,40 @@ $counted = avesmapsCitymapParseStadtplanindex($page);
 assert($counted['escaped_names_seen'] === 3); // the three Al\'Anfa cells above
 echo "escape-counter ok\n";
 
+// ---------------------------------------------- STADTPLANINDEX: COLOUR-COLLAPSE ---
+// The same publication printed a city plan in colour AND in s/w, so the wiki lists it in BOTH the
+// Farbe and the s/w column (Havena/AGF does this three times over on the real page). Both carry the
+// identical title "Stadtplan von X (Quelle)" -- they are ONE map, the colour is data, not identity.
+// Before the colour-agnostic identity this produced two cards with two wiki_keys the reconcile could
+// not dedupe -> the 23 same-title wiki duplicates measured 2026-07-18. An Umgebungskarte of the same
+// (city, source) is a DIFFERENT map and must stay separate.
+$page = <<<'WIKI'
+==Aventurische Städte==
+{| class="wikitable"
+!Stadt
+!Stadtplan (Farbe)
+!Stadtplan (s/w)
+!Umgebungskarte
+|-
+| [[Havena]] || [[AGF]] || [[AGF]] || [[AGF]]
+|}
+WIKI;
+$cards = avesmapsCitymapParseStadtplanindex($page)['cards'];
+
+$stadtplan = array_values(array_filter($cards, static fn(array $c): bool => $c['title'] === 'Stadtplan von Havena (AGF)'));
+assert(count($stadtplan) === 1);           // Farbe + s/w folded into ONE map (was 2 before the fix)
+assert($stadtplan[0]['is_color'] === 1);   // the richer (colour) row wins -> colour is kept
+assert($stadtplan[0]['type_key'] === 'stadtplan');
+
+$umgebung = array_values(array_filter($cards, static fn(array $c): bool => $c['title'] === 'Umgebungskarte von Havena (AGF)'));
+assert(count($umgebung) === 1);            // a different map -- NOT collapsed into the Stadtplan
+assert($stadtplan[0]['wiki_key'] !== $umgebung[0]['wiki_key']);
+
+// Havena/AGF therefore yields exactly two cards (Stadtplan + Umgebungskarte), not three.
+$havena = array_values(array_filter($cards, static fn(array $c): bool => $c['place_raw'] === 'Havena'));
+assert(count($havena) === 2);
+echo "colour-collapse ok\n";
+
 // ---------------------------------------------------------------- KARTENINDEX ---
 $page = <<<'WIKI'
 ==Aventurienkarten==
