@@ -262,7 +262,7 @@
     <button class="btn2 primary" id="seSyncen" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen)."><span class="t1">🚨 Syncen</span><span class="t2" id="seSyncedInfo">Letzte Sync: wird geladen…</span></button>
     <button class="btn2 primary" id="seAssign" title="Ordnet alle Siedlungen ihrem Territorium per Ray-Cast zu"><span class="t1">Siedlungen zuordnen</span><span class="t2">Ray-Cast über alles</span></button>
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
-    <button class="btn2" id="seLocalizeCoats" title="Lädt gemeinfreie Wappen lokal herunter"><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
+    <button class="btn2" id="seLocalizeCoats" title="Drei Schritte in einem: prüft die Wappen-Lizenzen im Wiki neu (nur die bisher unbekannten – sichtbare Wappen bleiben sichtbar), überträgt die gemeinfreien auf die Siedlungen und lädt ihre Bilder dann auf den Avesmaps-Server (verkleinert, max. 512px). Nur gemeinfrei, nur von Wiki Aventurica. Eigene Uploads werden nie angefasst. Läuft in Schüben."><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Siedlungsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Siedlungen auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Siedlungen</span></button>
   </div>
@@ -2185,8 +2185,82 @@ async function handleSeLinkCheckClick() {
 	}
 }
 
+// ===================== Toolbar: "Wappen lokalisieren" ==============================
+// The button existed as markup from step 1 of docs/siedlungseditor-plan.md ("Noch keine Logik") and
+// was never wired -- clicking it did nothing. Its two endpoints sat unused for the same reason.
+//
+// Three phases, because the coat has to travel that far: the wiki file page states the licence
+// (enrich_details), only public-domain ones may be copied onto the place (bulk_record_coats), and
+// only then can we fetch the actual image (localize_coats). Each phase is a bounded server step that
+// the client repeats -- never one request that does all of it (STRATO, AGENTS.md §9).
+let seLocalizeCoatsRunning = false;
+
+function setSeLocalizeCoatsBusy(isBusy) {
+	seLocalizeCoatsRunning = isBusy;
+	const button = $("seLocalizeCoats");
+	if (!button) return;
+	button.disabled = isBusy;
+	const label = button.querySelector(".t1");
+	if (label) label.textContent = isBusy ? "Lädt …" : "Wappen lokalisieren";
+}
+
+async function handleSeLocalizeCoatsClick() {
+	if (seLocalizeCoatsRunning) return;
+	setSeLocalizeCoatsBusy(true);
+	try {
+		// Phase 1: licences. recheck_unknown ONLY on the first call -- otherwise the run keeps
+		// clearing the very stamps it just wrote and never terminates.
+		let licRounds = 0, licFirst = true;
+		setStatusText("Prüfe Wappen-Lizenzen …");
+		while (true) {
+			const body = { action: "enrich_details", limit: 100 };
+			if (licFirst) { body.recheck_unknown = true; licFirst = false; }
+			const result = await settlementDetailPost(body);
+			setStatusText(`Wappen-Lizenzen prüfen … noch ${result.remaining || 0} Seiten.`);
+			if (!(result.remaining > 0)) break;
+			if (!(result.processed > 0)) break;      // kein Fortschritt
+			if (++licRounds > 60) break;             // Sicherheits-Limit
+		}
+
+		// Phase 2: carry the public-domain ones onto their places. dry_run:false + confirm:"apply"
+		// is what $isApply() in the endpoint demands before it writes anything.
+		let recRounds = 0, recApplied = 0;
+		setStatusText("Übertrage gemeinfreie Wappen …");
+		while (true) {
+			const result = await settlementDetailPost({
+				action: "bulk_record_coats", dry_run: false, confirm: "apply", limit: 150,
+			});
+			recApplied += result.applied || 0;
+			setStatusText(`Gemeinfreie Wappen übertragen … ${recApplied}, noch ${result.remaining || 0}.`);
+			if (!(result.remaining > 0)) break;
+			if (!(result.applied > 0)) break;
+			if (++recRounds > 40) break;
+		}
+
+		// Phase 3: fetch the images themselves.
+		let locRounds = 0, locTotal = 0, locFailed = 0;
+		setStatusText("Lade Wappen herunter …");
+		while (true) {
+			const result = await settlementDetailPost({ action: "localize_coats", limit: 10, sleep_ms: 150 });
+			locTotal += result.localized || 0;
+			locFailed = result.failed || 0;
+			setStatusText(`Wappen lokalisieren … ${locTotal} lokal gespeichert, noch ${result.remaining || 0} offen${locFailed ? ` (${locFailed} Fehler in dieser Runde)` : ""}.`);
+			if (!(result.remaining > 0)) break;
+			if (!(result.localized > 0)) break;      // nur noch tote Bild-URLs
+			if (++locRounds > 60) break;
+		}
+
+		setStatusText(`Fertig: ${recApplied} gemeinfreie Wappen übertragen, ${locTotal} lokal gespeichert + verkleinert.`);
+	} catch (error) {
+		setStatusText("Wappen lokalisieren fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		setSeLocalizeCoatsBusy(false);
+	}
+}
+
 $("seSyncen")?.addEventListener("click", handleSeSyncenClick);
 $("seLinkCheck")?.addEventListener("click", handleSeLinkCheckClick);
+$("seLocalizeCoats")?.addEventListener("click", handleSeLocalizeCoatsClick);
 
 $("seAssign")?.addEventListener("click", runAssignDryRun);
 $("seAssignDialog")?.addEventListener("click", (event) => {

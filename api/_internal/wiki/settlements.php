@@ -193,9 +193,21 @@ function avesmapsWikiSettlementEnrichStatus(PDO $pdo): array {
 // Reichert eine Charge noch unbestimmter Registry-Seiten an: Kontinent, Ruine, Wappen-URL +
 // Lizenz (gemeinfrei-Gate). Lädt Siedlungs-Seiten gebündelt (Kategorien+Content), für Seiten
 // mit Wappen zusätzlich die Datei-Seiten zur Lizenzbestimmung. Chunked bis remaining=0.
-function avesmapsWikiSettlementEnrichDetails(PDO $pdo, int $limit): array {
+function avesmapsWikiSettlementEnrichDetails(PDO $pdo, int $limit, bool $recheckUnknown = false): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $limit = max(1, min(200, $limit));
+    // A page is only due while enriched_at IS NULL, so a widened licence parser never reaches the
+    // coats it would now accept -- they were classified once and stamped. This clears the stamp for
+    // pages whose coat came out 'unknown'. Scoped to those on purpose: they are already hidden (only
+    // public_domain is ever shown), so nothing can disappear while the re-run catches up, and the
+    // public_domain ones are not re-fetched for nothing. Same reasoning as the recheck_unknown in
+    // avesmapsWikiSyncMonitorEnrichLicenses.
+    if ($recheckUnknown) {
+        $pdo->exec(
+            'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " SET enriched_at = NULL
+             WHERE coat_url IS NOT NULL AND coat_url <> '' AND coat_license_status = 'unknown'"
+        );
+    }
     $stmt = $pdo->prepare(
         'SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
          WHERE enriched_at IS NULL ORDER BY title ASC LIMIT ' . $limit

@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../_internal/wiki/territories.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';
+require_once __DIR__ . '/../../_internal/wiki/settlements-coat-localize.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -57,9 +58,21 @@ try {
             'crawl_buildings' => avesmapsWikiSettlementCrawlBuildings($pdo),
             'crawl_building_types' => avesmapsWikiSettlementBuildingTypes($pdo),
             'crawl_building_type' => avesmapsWikiSettlementCrawlBuildingType($pdo, (string) ($payload['type'] ?? '')),
-            'enrich_details', 'backfill_continents' => avesmapsWikiSettlementEnrichDetails($pdo, (int) ($payload['limit'] ?? 100)),
+            'enrich_details', 'backfill_continents' => avesmapsWikiSettlementEnrichDetails(
+                $pdo,
+                (int) ($payload['limit'] ?? 100),
+                !empty($payload['recheck_unknown'])
+            ),
             'bulk_record_ruins' => avesmapsWikiSettlementBulkRecordRuins($pdo, !$isApply()),
             'bulk_record_coats' => avesmapsWikiSettlementBulkRecordCoats($pdo, !$isApply(), (int) ($payload['limit'] ?? 150)),
+            // Copies the recorded public-domain coats off wiki-aventurica onto our server. No dry-run
+            // pair like its neighbours: it writes files, so a "preview" would be the expensive half
+            // anyway -- the bounded step IS the safety, and localize_coats_status answers "how many".
+            'localize_coats' => avesmapsWikiSettlementLocalizeCoats(
+                $pdo,
+                (int) ($payload['limit'] ?? 10),
+                (int) ($payload['sleep_ms'] ?? 150)
+            ),
             'set_coat' => avesmapsWikiSettlementSetWikiCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             'clear_coat' => avesmapsWikiSettlementClearCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             'assign_territory' => avesmapsWikiSettlementAssignTerritory(
@@ -111,6 +124,7 @@ try {
         'enrich_status', 'continent_status' => avesmapsWikiSettlementEnrichStatus($pdo),
         'ruin_status' => avesmapsWikiSettlementRuinStatus($pdo),
         'coat_status' => avesmapsWikiSettlementCoatStatus($pdo),
+        'localize_coats_status' => ['ok' => true, 'counts' => avesmapsWikiSettlementCoatLocalizeCounts($pdo)],
         'coat_info' => avesmapsWikiSettlementCoatInfo($pdo, (string) ($_GET['public_id'] ?? '')),
         'list_locations' => avesmapsWikiSettlementListLocations($pdo),
         'settlement_editor_list' => avesmapsWikiSettlementEditorList($pdo),
