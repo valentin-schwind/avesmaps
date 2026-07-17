@@ -134,6 +134,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             title VARCHAR(300) NOT NULL,
             parent_id INT NULL,
             map_url VARCHAR(500) NOT NULL DEFAULT '',
+            map_url_label VARCHAR(120) NULL,
             map_local_url VARCHAR(500) NULL,
             map_license VARCHAR(24) NOT NULL DEFAULT 'unknown_other',
             map_license_note VARCHAR(2000) NULL,
@@ -316,6 +317,11 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     if (!$columnExists($pdo, 'thumb_auto_state')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN thumb_auto_state VARCHAR(24) NULL');
     }
+    // map_url_label: der Linktext des Karten-Links (Owner 2026-07-17). Er trug sein Label als Konstante
+    // 'Karte'; die zusaetzlichen Fundorte haben das Feld laengst.
+    if (!$columnExists($pdo, 'map_url_label')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN map_url_label VARCHAR(120) NULL');
+    }
 }
 
 function avesmapsCitymapsCount(PDO $pdo): int
@@ -464,9 +470,13 @@ function avesmapsCitymapLinks(array $row, array $extraLinks = []): array
         // no other: it was the only link a map had when that column was added. Carrying it onto the link is
         // the honest reading of today's data rather than an invention -- and it is what makes retiring the
         // column (spec §6 step 5) a pure data move: everything downstream already asks the LINK.
+        //
+        // Der Linktext ersetzt das Wort "Karte" (Owner 2026-07-17). Fallback bleibt serverseitig: diese
+        // Funktion speist AUCH den Linkchecker, und ein leeres Label waere dort eine zweite Baustelle.
+        $label = trim((string) ($row['map_url_label'] ?? ''));
         $links[] = [
             'key' => 'map',
-            'label' => 'Karte',
+            'label' => $label !== '' ? $label : 'Karte',
             'url' => $mapUrl,
             'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
             // Skips an empty URL: sha256('') would hash and then be probed forever.
@@ -826,7 +836,7 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
 {
     avesmapsCitymapsEnsureTables($pdo);
     $rows = $pdo->query(
-        "SELECT id, public_id, title, parent_id, map_url, map_local_url, map_license,
+        "SELECT id, public_id, title, parent_id, map_url, map_url_label, map_local_url, map_license,
                 thumb_url, thumb_local_url, thumb_license, art, is_color, is_multilevel, is_labeled,
                 is_official, is_spoiler, is_paid, has_scale, width_px, height_px, format,
                 valid_from_bf, valid_to_bf, author, publisher, note
@@ -1194,6 +1204,7 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'title' => (string) $row['title'],
             'parent_public_id' => $parentPublicId,
             'map_url' => (string) $row['map_url'],
+            'map_url_label' => (string) ($row['map_url_label'] ?? ''),
             'map_local_url' => (string) ($row['map_local_url'] ?? ''),
             'map_license' => (string) $row['map_license'],
             'map_license_note' => (string) ($row['map_license_note'] ?? ''),
@@ -1262,7 +1273,7 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
     }
 
     $editableFields = [
-        'map_url', 'map_license', 'map_license_note', 'thumb_url', 'thumb_license', 'thumb_license_note',
+        'map_url', 'map_url_label', 'map_license', 'map_license_note', 'thumb_url', 'thumb_license', 'thumb_license_note',
         'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid', 'has_scale',
         'width_px', 'height_px', 'format', 'valid_from_bf', 'valid_to_bf', 'author', 'publisher', 'note',
         'status',

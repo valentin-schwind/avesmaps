@@ -138,3 +138,26 @@ assert(count(avesmapsNormalizeCitymapLinkRows([['label' => str_repeat('a', 200),
 assert($throws(static fn() => avesmapsNormalizeCitymapLinkRows([['label' => 'X', 'url' => 'https://example.org/' . str_repeat('a', 500)]])));
 
 echo "citymap-links ok\n";
+
+// ---- Linktext (map_url_label) ----
+// Der Karten-Link trug sein Label als KONSTANTE; die zusaetzlichen Fundorte haben das Feld laengst
+// (citymap_link.label). Er zieht nach.
+$labelled = avesmapsCitymapLinks(['map_url' => 'https://example.org/k', 'map_url_label' => 'Plan im Wiki']);
+assert($labelled[0]['label'] === 'Plan im Wiki');
+assert($labelled[0]['key'] === 'map');
+
+// Leer -> "Karte". Der Fallback bleibt serverseitig: avesmapsCitymapLinks speist AUCH den Linkchecker,
+// und ein leeres Label waere dort eine zweite Baustelle.
+assert(avesmapsCitymapLinks(['map_url' => 'https://example.org/k', 'map_url_label' => ''])[0]['label'] === 'Karte');
+assert(avesmapsCitymapLinks(['map_url' => 'https://example.org/k'])[0]['label'] === 'Karte');
+assert(avesmapsCitymapLinks(['map_url' => 'https://example.org/k', 'map_url_label' => '   '])[0]['label'] === 'Karte');
+
+// Der Linktext aendert nichts an den zusaetzlichen Fundorten.
+$both = avesmapsCitymapLinks(
+    ['map_url' => 'https://example.org/k', 'map_url_label' => 'Plan im Wiki'],
+    [['id' => 5, 'url' => 'https://example.org/x', 'label' => 'maps.aventuria.ru', 'is_paid' => 0]]
+);
+assert(count($both) === 2);
+assert($both[1]['label'] === 'maps.aventuria.ru');
+
+echo "citymap linktext ok\n";
