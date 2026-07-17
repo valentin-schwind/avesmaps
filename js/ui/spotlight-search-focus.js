@@ -235,6 +235,14 @@ function openSpotlightRegionInfobox(publicId) {
 }
 
 function focusSpotlightPath(entry) {
+	// Register the selection: Escape (handleSpotlightGlobalKeydown) and an outside click
+	// (handleSpotlightDocumentClick) both clear the highlight only when an id is set. The search route
+	// already set the same id in selectSpotlightSearchEntry -- but the deep-link / "Anzeigen" route
+	// (focusWholeWikiDeeplinkPath) lands here directly, and without this a shown way could not be
+	// dismissed by anything but a map click.
+	if (entry.id) {
+		spotlightActiveSelectionId = entry.id;
+	}
 	$("#togglePaths").prop("checked", true);
 	syncPathVisibility();
 	syncPathLabels();

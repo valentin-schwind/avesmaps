@@ -210,12 +210,19 @@ function focusWholeWikiDeeplinkPath(targetKey) {
 			bounds = extendSpotlightBounds(bounds, getSpotlightPathBounds(path));
 		});
 	}
+	// The id is what lets Escape / an outside click drop the highlight again (both only check that a
+	// selection is registered). Coin it through the spotlight's own key helper, so a way shown via
+	// "Anzeigen"/?strasse= and the same way picked in the search are ONE selection, not two.
+	const groupKey = typeof getSpotlightPathGroupKeyForPath === "function"
+		? getSpotlightPathGroupKeyForPath(anchor, matchedSubtype)
+		: "";
 	suppressPlannerUrlSyncForWikiDeeplink();
 	focusSpotlightPath({
 		kind: "path",
 		subtype: matchedSubtype,
 		paths: segments,
 		bounds,
+		id: groupKey ? `path:${groupKey}` : "",
 	});
 	return true;
 }

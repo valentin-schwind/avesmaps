@@ -20,6 +20,16 @@ const SPOTLIGHT_PATH_HIGHLIGHT_STYLE = {
 	className: "spotlight-path-highlight",
 };
 
+// Clicks that do NOT count as "outside" and therefore keep the current selection alive: the search
+// overlay, the map context menu -- and an infobox (right panel or popup). The infobox belongs on this
+// list because its "Anzeigen" tile is what CREATES a way highlight: handleSpotlightDocumentClick sits on
+// document just like the jQuery action handler in routing.js, and stopPropagation() only stops other
+// NODES, never other listeners on the same one. So we run right after the tile drew the highlight and
+// would wipe it in the very same click. (A search result escapes that only by accident -- its list is
+// emptied before we run, so !target.isConnected catches it. A panel button stays in the DOM.) Clicking
+// inside the infobox of the very way that is highlighted is not "somewhere else" anyway.
+const SPOTLIGHT_SELECTION_KEEPING_CLICK_SELECTOR = "#spotlight-search-overlay, #map-context-menu, .avesmaps-infopanel, .leaflet-popup";
+
 let spotlightRenderedEntries = [];
 let spotlightActiveResultIndex = -1;
 let spotlightHighlightLayer = null;
@@ -153,7 +163,7 @@ function handleSpotlightDocumentClick(event) {
 	// list BEFORE this document-level handler runs, so closest() can no longer see the overlay).
 	// Treating that as an "outside" click wiped the just-drawn path highlight in the same tick.
 	const target = event.target instanceof Element ? event.target : null;
-	if (!target || !target.isConnected || target.closest("#spotlight-search-overlay, #map-context-menu")) {
+	if (!target || !target.isConnected || target.closest(SPOTLIGHT_SELECTION_KEEPING_CLICK_SELECTOR)) {
 		return;
 	}
 
@@ -596,8 +606,7 @@ function buildSpotlightPathEntries() {
 			}
 
 			const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-			const wikiKey = String(wikiPath.wiki_key || "").trim();
-			const groupKey = wikiKey !== "" ? `wiki:${wikiKey}` : getSpotlightPathGroupKey(displayName, subtype);
+			const groupKey = getSpotlightPathGroupKeyForPath(path, subtype);
 			if (!pathGroups.has(groupKey)) {
 				pathGroups.set(groupKey, {
 					id: `path:${groupKey}`,
@@ -679,6 +688,21 @@ function getSpotlightPathTypeLabel(subtype) {
 
 function getSpotlightPathGroupKey(displayName, subtype) {
 	return `${normalizePathSubtype(subtype)}:${normalizeSpotlightSearchText(displayName)}`;
+}
+
+// A way's spotlight identity: the wiki_key IS the way (avesmapsWikiPathAssign stamps one wiki_path onto
+// every segment), a way without one falls back to name+subtype. Ask here instead of coining the key again:
+// buildSpotlightPathEntries and the deep-link/"Anzeigen" route (focusWholeWikiDeeplinkPath) both need it,
+// and two shapes for one way would make the same way read as two different selections. "" when the way has
+// no usable name at all -- callers treat that as "no identity".
+function getSpotlightPathGroupKeyForPath(path, subtype) {
+	const wikiPath = path?.properties?.wiki_path || {};
+	const wikiKey = String(wikiPath.wiki_key || "").trim();
+	if (wikiKey !== "") {
+		return `wiki:${wikiKey}`;
+	}
+	const displayName = String(wikiPath.name || getPathDisplayName(path) || "").trim();
+	return displayName ? getSpotlightPathGroupKey(displayName, subtype) : "";
 }
 
 function normalizeSpotlightSearchText(value) {
