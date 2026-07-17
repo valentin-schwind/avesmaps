@@ -129,18 +129,20 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 		}
 	});
 
+	// Etappen-Infobox ins Panel (Owner 2026-07-17). Hier und nicht in den Aufrufern: ALLE fuenf Wege hierher
+	// sind Nutzer-Klicks (Routenlinie, Etappenzeile, Tastatur, Weg-Link) -- keiner feuert beim BERECHNEN einer
+	// Route, sonst spraenge das Panel ungefragt auf.
+	// VOR dem Zoom: die Info ist das Anliegen des Klicks, der Zoom die Zugabe. Stolpert fitMapToRouteBounds
+	// ueber eine entartete Bbox, soll das nicht auch noch das Panel leer lassen.
+	if (typeof window.avesmapsShowRouteLegInInfopanel === "function") {
+		window.avesmapsShowRouteLegInInfopanel(routeEntry);
+	}
+
 	if (zoomToEntry) {
 		const bounds = getRouteEntryBounds(routeEntry);
 		if (bounds?.isValid()) {
 			fitMapToRouteBounds(bounds);
 		}
-	}
-
-	// Etappen-Infobox ins Panel (Owner 2026-07-17). Hier und nicht in den Aufrufern: ALLE fuenf Wege hierher
-	// sind Nutzer-Klicks (Routenlinie, Etappenzeile, Tastatur, Weg-Link) -- keiner feuert beim BERECHNEN einer
-	// Route, sonst spraenge das Panel ungefragt auf.
-	if (typeof window.avesmapsShowRouteLegInInfopanel === "function") {
-		window.avesmapsShowRouteLegInInfopanel(routeEntry);
 	}
 }
 
