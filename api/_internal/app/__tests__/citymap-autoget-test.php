@@ -303,4 +303,32 @@ assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '   ', 'thumb_origin' =
 assert(avesmapsCitymapAutogetSkips(['thumb_local_url' => '/uploads/x/t.webp']) === true, 'unknown origin + own picture -> conservative: do not touch');
 echo "thumb origin + skip rule ok\n";
 
+// ---- where a result goes (2026-07-17) ---------------------------------------------------------------
+// THE rule of this feature: the ROUTE decides whether readers see the picture. A wiki page image and an
+// Ulisses product image are publisher covers BY CONSTRUCTION -- the same artwork the adventure section
+// already shows publicly. An arbitrary og:image from a third-party host is not.
+$wikiTarget = avesmapsCitymapAutogetTarget('wiki');
+assert($wikiTarget['slot'] === 'thumb', 'thumb -> thumb_local_url, the public slot');
+assert($wikiTarget['license'] === 'permission_granted');
+$ulissesTarget = avesmapsCitymapAutogetTarget('ulisses');
+assert($ulissesTarget['slot'] === 'thumb');
+assert($ulissesTarget['license'] === 'permission_granted');
+// og:image from a foreign host is NOT a publisher cover -> editor-only, and no licence claim.
+$ogTarget = avesmapsCitymapAutogetTarget('ogimage');
+assert($ogTarget['slot'] === 'thumb_auto', 'thumb_auto -> thumb_auto_url, which the public catalogue never selects');
+assert($ogTarget['license'] === null, 'without permission we claim none');
+// NOT public_domain: it is permission under the fan guidelines and holds only until revoked (NOTICE.md).
+assert($wikiTarget['license'] !== 'public_domain');
+// It has to clear the EXISTING gate, or the whole exercise is decoration.
+assert(avesmapsCitymapLicenseIsFree($wikiTarget['license']) === true);
+// An unknown route falls to editor-only. Nothing reaches readers by accident.
+assert(avesmapsCitymapAutogetTarget('quatsch')['slot'] === 'thumb_auto');
+assert(avesmapsCitymapAutogetTarget('quatsch')['license'] === null);
+assert(avesmapsCitymapAutogetTarget('')['slot'] === 'thumb_auto');
+// The slots must be the ones avesmapsSetCitymapImage actually knows.
+foreach (['wiki', 'ulisses', 'ogimage'] as $route) {
+    assert(in_array(avesmapsCitymapAutogetTarget($route)['slot'], ['thumb', 'thumb_auto'], true));
+}
+echo "autoget target ok\n";
+
 echo "citymap-autoget ok\n";

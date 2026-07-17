@@ -21,6 +21,14 @@ require_once __DIR__ . '/app-setting.php';
 // Maps hang on the shared source catalogue (Spec §3.2) -- no second source field, so "Ulisses F-Shop"
 // exists once rather than once per map, and source_type + the link check come along for free.
 require_once __DIR__ . '/feature-sources.php';
+// avesmapsLinkCheckFetchBody -- THE SSRF guard. Autoget reverses the spec's original "no server-side
+// image fetch" on the owner's call, and this is what carries the risk: scheme + host class checked before
+// the request, bounded http(s)-only redirects, post-flight PRIMARY_IP, body capped while streaming.
+require_once __DIR__ . '/../linkcheck/probe.php';
+// avesmapsWikiSyncMonitorDownscaleCoatBytes -- the same downscaler the Wappen and the adventure covers
+// use. Bounding the longest edge is not decoration: a 4000px book cover as a 48px row thumb would be paid
+// for by every reader on every open.
+require_once __DIR__ . '/../wiki/sync-monitor-identity.php';
 
 // ---- licence + image gate (Spec §3.3) --------------------------------------------------------------
 // EXACTLY ONE definition of the licence vocabulary. The public read below, the editor dispatcher and the
@@ -64,6 +72,17 @@ const AVESMAPS_CITYMAP_WIKI_TITLE_BATCH = 50;
 // own name rather than moved: the endpoint's constant governs OUR downscale of an upload, this one is a
 // request parameter to a foreign API. They agree today by intent, not by coupling.
 const AVESMAPS_CITYMAP_THUMB_MAX_EDGE_WIKI = 400;
+
+// Mirrors of api/edit/map/citymap-image.php's constants, which live in that endpoint and are not visible
+// from this library. Same values by intent, not by coupling: the endpoint's govern an UPLOAD, these govern
+// the autoget fetch.
+const AVESMAPS_CITYMAP_IMAGE_MAX_BYTES_LIB = 12 * 1024 * 1024;
+const AVESMAPS_CITYMAP_IMAGE_TYPES_LIB = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'image/gif' => 'gif'];
+const AVESMAPS_CITYMAP_UPLOAD_DIR_LIB = '/uploads/kartensammlungen';
+// The API/page fetch only ever needs a JSON answer or an HTML <head>, so 512 KB is generous. The cap is a
+// memory bound, not a correctness one -- a truncated page still carries its <head>, which is why an
+// overflowed page fetch is accepted while an overflowed IMAGE fetch is refused.
+const AVESMAPS_CITYMAP_AUTOGET_API_MAX_BYTES = 512 * 1024;
 
 // Multiple selection per map (Spec §3.1). Stable keys -- German because they are domain content
 // (AGENTS.md §8: never translate option slugs); the visible labels live in the editor + i18n table.
@@ -1929,6 +1948,156 @@ function avesmapsResolveCitymapPlace(PDO $pdo, int $placeId): array
         'target_public_id' => ($row['target_public_id'] ?? null) !== null ? (string) $row['target_public_id'] : '',
         'target_wiki_key' => ($row['target_wiki_key'] ?? null) !== null ? (string) $row['target_wiki_key'] : '',
     ];
+}
+
+// ---- Autoget: one shared fetch path (2026-07-17) -----------------------------------------------------
+// Called by BOTH the single-map button (api/edit/map/citymap-image.php, mode=autoget) and the batch run
+// (api/edit/map/citymap-autoget.php). Duplicating this is exactly the parallel build the "extend, do not
+// rebuild" rule forbids -- the two callers differ in how they are DRIVEN, not in what a fetch means.
+
+// PURE. Where a route's result goes, and under which licence.
+//
+// THE rule of this feature: the ROUTE decides whether readers see the picture. A wiki page image and an
+// Ulisses product image are publisher covers BY CONSTRUCTION -- the same artwork the adventure section
+// already shows publicly under the same fan guidelines. An arbitrary og:image from a third-party host is
+// not, and we hold no licence for it, so it stays in the editor.
+//
+// Derived from the source rather than stored as a flag: a flag can be set wrongly, a route cannot. And an
+// unknown route falls to editor-only, so nothing reaches readers by accident.
+function avesmapsCitymapAutogetTarget(string $route): array
+{
+    if ($route === 'wiki' || $route === 'ulisses') {
+        // permission_granted, NOT public_domain: this is permission under the Ulisses fan guidelines and
+        // it holds "nur bis auf Widerruf" (NOTICE.md). Claiming public domain would be a false statement
+        // about somebody else's artwork. The value is already in AVESMAPS_CITYMAP_LICENSES_FREE, so the
+        // existing gate in avesmapsCitymapPublicThumbUrl lets it through -- no new hole, the same door.
+        return ['slot' => 'thumb', 'license' => 'permission_granted'];
+    }
+    return ['slot' => 'thumb_auto', 'license' => null];
+}
+
+// Fetch one map's preview. Returns a state from AVESMAPS_CITYMAP_AUTOGET_STATES plus a human message.
+//
+// Never throws for a remote failure: a dead source is an ANSWER ('fetch_failed'), and in a 133-source run
+// one dead link must not take the whole step down with it.
+//
+// $knownImageUrl lets the batch hand in the picture it already learned from its 50-title wiki call, so a
+// run does not ask the API once per map. Null = resolve it here (the single button's case).
+function avesmapsCitymapAutogetOne(PDO $pdo, string $publicId, string $mapUrl, ?string $knownImageUrl = null): array
+{
+    $fail = static function (string $state, string $message): array {
+        return ['state' => $state, 'url' => '', 'source' => '', 'message' => $message];
+    };
+    $mapUrl = trim($mapUrl);
+    if ($mapUrl === '') {
+        return $fail('no_image', 'Diese Karte hat keinen Karten-Link.');
+    }
+    $route = avesmapsCitymapAutogetRoute($mapUrl);
+
+    // 1. + 2. Find the picture. Every route fetches through avesmapsLinkCheckFetchBody.
+    $imageUrl = trim((string) ($knownImageUrl ?? ''));
+    if ($imageUrl === '') {
+        if ($route === 'wiki') {
+            $title = avesmapsCitymapWikiPageTitle($mapUrl);
+            $api = avesmapsLinkCheckFetchBody(avesmapsCitymapWikiApiUrl([$title]), AVESMAPS_CITYMAP_AUTOGET_API_MAX_BYTES, 'application/json');
+            if (!$api['ok']) {
+                return $fail('fetch_failed', 'Die Wiki-API antwortete nicht (' . ($api['status'] ?: 'kein HTTP') . ').');
+            }
+            $images = avesmapsCitymapPickWikiImages($api['body']);
+            // The API normalises titles and resolves redirects, so the key coming back need not be the one
+            // we sent. With a single title the answer is unambiguous -- take whatever is there.
+            $imageUrl = $images[$title] ?? (string) (reset($images) ?: '');
+            if ($imageUrl === '') {
+                return $fail('no_image', 'Die Wiki-Seite hat kein Seitenbild.');
+            }
+        } elseif ($route === 'ulisses') {
+            $api = avesmapsLinkCheckFetchBody(avesmapsCitymapUlissesApiUrl($mapUrl), AVESMAPS_CITYMAP_AUTOGET_API_MAX_BYTES, 'application/json');
+            if (!$api['ok']) {
+                return $fail('fetch_failed', 'Die Ulisses-Produkt-API antwortete nicht (' . ($api['status'] ?: 'kein HTTP') . ').');
+            }
+            $imageUrl = avesmapsCitymapPickUlissesImage($api['body']);
+            if ($imageUrl === '') {
+                return $fail('no_image', 'Die Ulisses-Produkt-API nennt kein Titelbild.');
+            }
+        } else {
+            $page = avesmapsLinkCheckFetchBody($mapUrl, AVESMAPS_CITYMAP_AUTOGET_API_MAX_BYTES, 'text/html,application/xhtml+xml');
+            if (!$page['ok']) {
+                return $fail('fetch_failed', 'Die Seite konnte nicht geladen werden (' . ($page['status'] ?: 'kein HTTP') . ').');
+            }
+            // Resolved against the FINAL url, not the stored one -- a redirect moves the base a relative
+            // og:image is relative to.
+            $imageUrl = avesmapsCitymapPickPreviewImage($page['body'], $page['final_url']);
+            if ($imageUrl === '') {
+                return $fail('no_image', 'Auf der Seite ist kein Vorschaubild ausgezeichnet.');
+            }
+        }
+    }
+
+    // 3. The IMAGE. THIS is the dangerous fetch: the URL was chosen by a page we do not control, so a
+    //    prepared answer could point at 169.254.169.254 and we would fetch it obediently. Same guard --
+    //    guarding step 1 and not step 3 would be no guard at all.
+    $image = avesmapsLinkCheckFetchBody($imageUrl, AVESMAPS_CITYMAP_IMAGE_MAX_BYTES_LIB, 'image/*');
+    if (!$image['ok'] || ($image['truncated'] ?? false)) {
+        return $fail('fetch_failed', 'Das gefundene Bild konnte nicht geladen werden.');
+    }
+
+    // 4. Trust the BYTES, not the Content-Type the remote server claimed. Not theoretical: the Ulisses CDN
+    //    serves its covers as "image/jpg", which is not a MIME type -- believing the header would 415
+    //    every single DSA cover.
+    $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->buffer($image['body']);
+    if (!isset(AVESMAPS_CITYMAP_IMAGE_TYPES_LIB[$mime])) {
+        return $fail('not_an_image', 'Das gefundene Bild ist kein PNG/JPG/WebP/GIF (' . $mime . ').');
+    }
+    $ext = AVESMAPS_CITYMAP_IMAGE_TYPES_LIB[$mime];
+
+    $target = avesmapsCitymapAutogetTarget($route);
+    $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
+    $safeId = preg_replace('/[^A-Za-z0-9_-]/', '', $publicId);
+    if ($safeId === '' || $safeId === null) {
+        $safeId = 'karte';
+    }
+    $dir = $docroot . AVESMAPS_CITYMAP_UPLOAD_DIR_LIB . '/' . $safeId;
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        return $fail('fetch_failed', 'Upload-Verzeichnis nicht verfügbar.');
+    }
+    $bytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($image['body'], $ext, AVESMAPS_CITYMAP_THUMB_MAX_EDGE_WIKI);
+    if ($bytes === '') {
+        $bytes = $image['body'];
+    }
+    $name = 'auto-' . bin2hex(random_bytes(8)) . '.' . $ext;
+    if (@file_put_contents($dir . '/' . $name, $bytes) === false) {
+        return $fail('fetch_failed', 'Datei konnte nicht gespeichert werden.');
+    }
+    @chmod($dir . '/' . $name, 0644);
+    $url = AVESMAPS_CITYMAP_UPLOAD_DIR_LIB . '/' . $safeId . '/' . $name;
+
+    // Read the file we are replacing BEFORE the write, or there is nothing left to clean up.
+    $priorStmt = $pdo->prepare('SELECT thumb_local_url, thumb_auto_url FROM citymap WHERE public_id = :pid LIMIT 1');
+    $priorStmt->execute(['pid' => $publicId]);
+    $prior = $priorStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $priorUrl = (string) ($prior[$target['slot'] === 'thumb' ? 'thumb_local_url' : 'thumb_auto_url'] ?? '');
+
+    avesmapsSetCitymapImage($pdo, $publicId, $target['slot'], $url);
+    if ($target['slot'] === 'thumb') {
+        // The licence is what makes it public, and thumb_origin='auto' is what lets a later run refresh
+        // it. Written together with the picture: a preview without its licence would be invisible, and a
+        // licence without its origin would freeze the map at its first fetch forever.
+        $pdo->prepare('UPDATE citymap SET thumb_license = :lic, thumb_origin = :org WHERE public_id = :pid')
+            ->execute(['lic' => $target['license'], 'org' => 'auto', 'pid' => $publicId]);
+    }
+    // Unlink OUR previous copy in the same slot. Reduced to a basename inside the fixed directory and
+    // realpath-confined, so no stored value can escape it (path traversal).
+    if ($priorUrl !== '' && $priorUrl !== $url
+        && str_starts_with($priorUrl, AVESMAPS_CITYMAP_UPLOAD_DIR_LIB . '/' . $safeId . '/')
+        && !str_contains($priorUrl, '..')) {
+        $realDir = realpath($dir);
+        $priorName = basename((string) parse_url($priorUrl, PHP_URL_PATH));
+        $realOld = $priorName !== '' ? realpath($dir . '/' . $priorName) : false;
+        if ($realOld !== false && $realDir !== false && str_starts_with($realOld, $realDir . DIRECTORY_SEPARATOR)) {
+            @unlink($realOld);
+        }
+    }
+    return ['state' => 'ok', 'url' => $url, 'source' => $imageUrl, 'message' => ''];
 }
 
 // Set a map's stored image for one slot. Called ONLY by api/edit/map/citymap-image.php after it has
