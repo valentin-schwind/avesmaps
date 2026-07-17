@@ -463,6 +463,51 @@ assert(avesmapsCitymapRemovableKeys($live, ['a']) === ['gone']);
 assert(avesmapsCitymapRemovableKeys($live, []) === []);
 echo "removable ok\n";
 
+// ------------------------------------------------ WIKI FUNDSTELLEN (LINKS) ---
+// The label names the FUNDSTELLE, not the publication (spec §7: "Der Titel der Karte nennt die
+// Publikation bereits"). The two hosts are the whole domain avesmapsPublicationChosenUrl can produce.
+assert(avesmapsCitymapShopLabel('https://www.f-shop.de/search?sSearch=12025') === 'F-Shop');
+assert(avesmapsCitymapShopLabel('https://www.ulisses-ebooks.de/de/product/109956/') === 'PDF-Shop');
+assert(avesmapsCitymapShopLabel('https://example.org/x') === 'Shop'); // unknown host -> no invented name
+
+$want = [['url' => 'https://www.f-shop.de/search?sSearch=12025', 'label' => 'F-Shop', 'is_paid' => 1]];
+
+// Nothing there yet -> insert exactly one Fundstelle.
+$plan = avesmapsCitymapWikiLinkPlan([], $want);
+assert(count($plan['insert']) === 1 && $plan['update'] === [] && $plan['delete'] === []);
+
+// THE idempotency invariant: a second sync must be a true no-op, or every run churns the table.
+$live = [['id' => 7, 'url' => 'https://www.f-shop.de/search?sSearch=12025', 'label' => 'F-Shop', 'is_paid' => 1, 'status' => 'approved']];
+$plan = avesmapsCitymapWikiLinkPlan($live, $want);
+assert($plan['insert'] === [] && $plan['update'] === [] && $plan['delete'] === []);
+
+// Drift in the label or the flag -> update in place, keeping the row id (and with it its sort position).
+$drift = $live;
+$drift[0]['label'] = 'Karte';
+$plan = avesmapsCitymapWikiLinkPlan($drift, $want);
+assert(count($plan['update']) === 1 && $plan['update'][0]['id'] === 7 && $plan['insert'] === []);
+
+// THE override rule: a tombstoned Fundstelle is never resurrected AND never rewritten. An editor who
+// suppressed a shop link has answered the question; the sync does not get a second vote.
+$tomb = $live;
+$tomb[0]['status'] = 'suppressed';
+$plan = avesmapsCitymapWikiLinkPlan($tomb, $want);
+assert($plan['insert'] === [] && $plan['update'] === [] && $plan['delete'] === []);
+
+// The wiki dropped the shop link -> our approved row goes...
+$plan = avesmapsCitymapWikiLinkPlan($live, []);
+assert($plan['delete'] === [7] && $plan['insert'] === []);
+// ...but a tombstone stays a tombstone rather than being deleted and re-created later.
+$plan = avesmapsCitymapWikiLinkPlan($tomb, []);
+assert($plan['delete'] === []);
+
+// A changed URL is a different Fundstelle: the old one goes, the new one arrives. Identity is the URL,
+// because that is what the reader follows -- two rows with one URL are the duplicate spec §6.6 refused.
+$moved = [['url' => 'https://www.ulisses-ebooks.de/de/product/109956/', 'label' => 'PDF-Shop', 'is_paid' => 1]];
+$plan = avesmapsCitymapWikiLinkPlan($live, $moved);
+assert(count($plan['insert']) === 1 && $plan['delete'] === [7]);
+echo "wiki-links ok\n";
+
 // ------------------------------------------------ RESOLVABLE DEPENDENCIES ---
 // REGRESSION, and the expensive kind: the sync died with a 500 on the owner's first real run because
 // avesmapsCitymapReconcileEntity called avesmapsUuidV4() -- which lives in map/features.php, a file the

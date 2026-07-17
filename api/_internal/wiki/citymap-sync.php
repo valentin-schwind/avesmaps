@@ -905,6 +905,93 @@ function avesmapsCitymapRemovableKeys(array $liveRows, array $catalogKeys): arra
     return $remove;
 }
 
+/**
+ * The label of a publication's shop link: the FUNDSTELLE, not the publication.
+ *
+ * docs/superpowers/specs/2026-07-17-karten-mehrfachlinks-design.md §7 left this open ("Wiki-Aventurica
+ * oder der Publikationstitel?") and answered it in the same breath: "Der Titel der Karte nennt die
+ * Publikation bereits". Every wiki card is titled "Stadtplan von X (Publikation)", so a link labelled
+ * with the publication would repeat the title one line below it and tell the reader nothing new. The
+ * label names where the link LANDS instead.
+ *
+ * The two hosts are the whole domain, not a sample: avesmapsPublicationChosenUrl builds chosen_url from
+ * exactly two templates -- {{F-Shop|PID}} -> f-shop.de and {{PDF-Shop|ID}} -> ulisses-ebooks.de. An
+ * unrecognised host keeps a neutral label rather than inventing a shop name it cannot know.
+ */
+function avesmapsCitymapShopLabel(string $url): string
+{
+    $host = mb_strtolower((string) parse_url($url, PHP_URL_HOST));
+    if (str_contains($host, 'ulisses-ebooks')) {
+        return 'PDF-Shop';
+    }
+    if (str_contains($host, 'f-shop')) {
+        return 'F-Shop';
+    }
+
+    return 'Shop';
+}
+
+/** Wiki-born Fundstellen sort AFTER the editor's own list, which numbers itself up from 0. */
+const AVESMAPS_CITYMAP_WIKI_LINK_SORT = 500;
+
+/**
+ * What to do with one card's wiki-born Fundstellen. PURE: no DB, no clock.
+ *
+ * Identity is the URL. A card carries at most a couple of wiki links and the URL is what the reader
+ * actually follows, so two rows sharing a URL are a duplicate by definition -- exactly the "dieselbe URL
+ * ein zweites Mal" the multilink spec §6.6 refused to ship.
+ *
+ * The override rules mirror avesmapsCitymapReconcilePlan, for the same reasons:
+ *   - status 'suppressed' -> LEAVE ALONE. An editor tombstoned this Fundstelle; re-inserting or
+ *     rewriting it is precisely the bug the tombstone exists to prevent.
+ *   - a link the wiki no longer offers -> DELETE, but only ours and only while approved.
+ *   - label/is_paid drift -> UPDATE, so a repeat sync stays a true no-op.
+ *
+ * Only wiki-origin rows may be passed in: a manual or community Fundstelle is not ours to plan for.
+ *
+ * @param array<int, array{id:int, url:string, label:string, is_paid:?int, status:string}> $current wiki-origin rows ONLY
+ * @param array<int, array{url:string, label:string, is_paid:?int}> $desired
+ * @return array{insert:array<int,array<string,mixed>>, update:array<int,array<string,mixed>>, delete:array<int,int>}
+ */
+function avesmapsCitymapWikiLinkPlan(array $current, array $desired): array
+{
+    $byUrl = [];
+    foreach ($current as $row) {
+        $byUrl[(string) $row['url']] = $row;
+    }
+
+    $insert = [];
+    $update = [];
+    $keep = [];
+    foreach ($desired as $want) {
+        $url = (string) $want['url'];
+        $keep[$url] = true;
+        $have = $byUrl[$url] ?? null;
+        if ($have === null) {
+            $insert[] = $want;
+            continue;
+        }
+        if ((string) $have['status'] === 'suppressed') {
+            continue; // tombstone -- never resurrect, never rewrite
+        }
+        $paidNow = $have['is_paid'] === null ? null : (int) $have['is_paid'];
+        $paidWant = $want['is_paid'] === null ? null : (int) $want['is_paid'];
+        if ((string) $have['label'] !== (string) $want['label'] || $paidNow !== $paidWant) {
+            $update[] = ['id' => (int) $have['id'], 'label' => $want['label'], 'is_paid' => $want['is_paid']];
+        }
+    }
+
+    $delete = [];
+    foreach ($current as $row) {
+        if (isset($keep[(string) $row['url']]) || (string) $row['status'] !== 'approved') {
+            continue; // still wanted, or a tombstone that stays one
+        }
+        $delete[] = (int) $row['id'];
+    }
+
+    return ['insert' => $insert, 'update' => $update, 'delete' => $delete];
+}
+
 // ===========================================================================
 // 3. Staging schema + dump build (STAGE 1 -- the "citymaps" phase of "Dump holen")
 // ===========================================================================
@@ -1228,14 +1315,117 @@ function avesmapsCitymapLinkSource(PDO $pdo, string $citymapPublicId, string $so
 }
 
 /**
+ * The Fundstellen the wiki offers for a card BESIDES map_url, shaped for avesmapsCitymapWikiLinkPlan.
+ *
+ * Today that is exactly one: the publication's SHOP link -- the wiki's "Erhältlich bei" row, which
+ * {{Infobox Produkt}} renders from |Direktlinks={{F-Shop|PID=…}} (verified against the template source
+ * 2026-07-17). The publication sync has been parsing it into wiki_publication_catalog.chosen_url all
+ * along (avesmapsPublicationChosenUrl), so this costs no new crawl and no policy question -- the answer
+ * to "erhältlich bei" was already in our own DB, it just never reached the card.
+ *
+ * NOT the publication's wiki page: that IS map_url already (avesmapsCitymapWikiUrlForSource), and
+ * listing it a second time is exactly the duplicate the multilink spec §6.6 refused to ship.
+ *
+ * is_paid = 1 is a fact here, not the invention the §3.1 unknown-rule forbids: chosen_url is only ever
+ * built from {{F-Shop}} or {{PDF-Shop}}, and both are purchase links. A publication with no shop link
+ * yields NO Fundstelle rather than one with an is_paid we would have to guess.
+ *
+ * @return array<int, array{url:string, label:string, is_paid:?int}>
+ */
+function avesmapsCitymapDesiredWikiLinks(PDO $pdo, string $sourceRaw): array
+{
+    if (!function_exists('avesmapsPublicationCatalogWikiKeyForTitle')) {
+        return [];
+    }
+    $key = avesmapsPublicationCatalogWikiKeyForTitle($sourceRaw);
+    if ($key === '') {
+        return [];
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT chosen_url, has_link FROM wiki_publication_catalog WHERE wiki_key = :wk LIMIT 1');
+        $stmt->execute(['wk' => $key]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        return []; // publication staging absent (site without WikiSync) -> no Fundstelle, never a failure
+    }
+    if ($row === false || (int) ($row['has_link'] ?? 0) !== 1) {
+        return []; // has_link=0 covers the {{F-Shop|PID=NUMMER}} placeholder the parser already rejects
+    }
+    $url = trim((string) ($row['chosen_url'] ?? ''));
+    if ($url === '' || strlen($url) > 500) {
+        return []; // 500 = the citymap_link.url column width
+    }
+
+    return [['url' => $url, 'label' => avesmapsCitymapShopLabel($url), 'is_paid' => 1]];
+}
+
+/**
+ * Write ONE card's wiki-born Fundstellen. Idempotent; returns the number of rows touched.
+ *
+ * Scoped to origin='wiki' at the SELECT and again at every write: a manual or community Fundstelle is
+ * not ours. The editor cannot collide with this either -- set_links replaces the whole list but deletes
+ * only its own 'manual' rows, and the detail read hands wiki rows to the read-only `foreign_links`
+ * bucket, so they are shown but never posted back.
+ */
+function avesmapsCitymapReconcileWikiLinks(PDO $pdo, int $citymapId, string $sourceRaw): int
+{
+    $desired = avesmapsCitymapDesiredWikiLinks($pdo, $sourceRaw);
+
+    $stmt = $pdo->prepare("SELECT id, url, label, is_paid, status FROM citymap_link WHERE citymap_id = :id AND origin = 'wiki'");
+    $stmt->execute(['id' => $citymapId]);
+    $current = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($current === [] && $desired === []) {
+        return 0; // publication without a shop link: the common case, and it costs nothing
+    }
+
+    $plan = avesmapsCitymapWikiLinkPlan(
+        array_map(static fn(array $r): array => [
+            'id' => (int) $r['id'],
+            'url' => (string) $r['url'],
+            'label' => (string) $r['label'],
+            'is_paid' => $r['is_paid'] === null ? null : (int) $r['is_paid'],
+            'status' => (string) $r['status'],
+        ], $current),
+        $desired
+    );
+
+    $touched = 0;
+    foreach ($plan['insert'] as $row) {
+        $pdo->prepare(
+            "INSERT INTO citymap_link (citymap_id, label, url, is_paid, sort_order, origin, status)
+             VALUES (:id, :label, :url, :paid, :sort, 'wiki', 'approved')"
+        )->execute([
+            'id' => $citymapId,
+            'label' => (string) $row['label'],
+            'url' => (string) $row['url'],
+            'paid' => $row['is_paid'],
+            'sort' => AVESMAPS_CITYMAP_WIKI_LINK_SORT,
+        ]);
+        $touched++;
+    }
+    foreach ($plan['update'] as $row) {
+        $pdo->prepare("UPDATE citymap_link SET label = :label, is_paid = :paid WHERE id = :id AND origin = 'wiki'")
+            ->execute(['label' => (string) $row['label'], 'paid' => $row['is_paid'], 'id' => (int) $row['id']]);
+        $touched++;
+    }
+    foreach ($plan['delete'] as $id) {
+        $pdo->prepare("DELETE FROM citymap_link WHERE id = :id AND origin = 'wiki'")->execute(['id' => $id]);
+        $touched++;
+    }
+
+    return $touched;
+}
+
+/**
  * Reconcile ONE staged card into the live tables. Idempotent; returns per-card counters.
  *
  * @param array<string,mixed> $catalog wiki_citymap_catalog row
- * @return array{created:int, updated:int, places_added:int, sources_linked:int}
+ * @return array{created:int, updated:int, places_added:int, sources_linked:int, links_written:int}
  */
 function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): array
 {
-    $counters = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'sources_linked' => 0];
+    $counters = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'sources_linked' => 0, 'links_written' => 0];
     $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
     if ($wikiKey === '') {
         return $counters;
@@ -1320,6 +1510,11 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
         $counters['sources_linked'] = 1;
     }
 
+    // The Fundstellen (citymap_link), which is a different question from the source above: a source says
+    // WHICH publication vouches for the map, a Fundstelle says WHERE the reader can get at it. The same
+    // F-Shop URL answers both, and they are stored apart on purpose (see avesmapsCitymapLinks).
+    $counters['links_written'] = avesmapsCitymapReconcileWikiLinks($pdo, $citymapId, (string) $catalog['source_raw']);
+
     return $counters;
 }
 
@@ -1329,7 +1524,7 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
  * resolve-once-at-the-end. One bounded step per request (STRATO: no server-side loop).
  *
  * @return array{done:bool, nextCursor:string, created:int, updated:int, places_added:int,
- *               sources_linked:int, removed:int, processed:int}
+ *               sources_linked:int, links_written:int, removed:int, processed:int}
  */
 function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
 {
@@ -1344,7 +1539,7 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     $select->execute();
     $catalogRows = $select->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    $totals = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'sources_linked' => 0, 'removed' => 0];
+    $totals = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'sources_linked' => 0, 'links_written' => 0, 'removed' => 0];
     $processed = 0;
     $nextCursor = $cursor;
     $timedOut = false;
@@ -1352,7 +1547,7 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     foreach ($catalogRows as $catalog) {
         $nextCursor = (string) $catalog['wiki_key'];
         $entity = avesmapsCitymapReconcileEntity($pdo, $catalog, $userId);
-        foreach (['created', 'updated', 'places_added', 'sources_linked'] as $key) {
+        foreach (['created', 'updated', 'places_added', 'sources_linked', 'links_written'] as $key) {
             $totals[$key] += (int) ($entity[$key] ?? 0);
         }
         $processed++;
@@ -1393,6 +1588,7 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
         'updated' => $totals['updated'],
         'places_added' => $totals['places_added'],
         'sources_linked' => $totals['sources_linked'],
+        'links_written' => $totals['links_written'],
         'removed' => $totals['removed'],
         'processed' => $processed,
     ];

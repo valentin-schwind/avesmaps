@@ -683,6 +683,8 @@ try {
                 'updated' => (int) ($cmStep['updated'] ?? 0),
                 'places_added' => (int) ($cmStep['places_added'] ?? 0),
                 'sources_linked' => (int) ($cmStep['sources_linked'] ?? 0),
+                // Fundstellen (citymap_link) written from the publication's "Erhältlich bei" shop link.
+                'links_written' => (int) ($cmStep['links_written'] ?? 0),
                 'removed' => (int) ($cmStep['removed'] ?? 0),
                 'processed' => (int) ($cmStep['processed'] ?? 0),
                 'progress' => [
