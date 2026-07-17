@@ -195,9 +195,15 @@ window.avesmapsSearchParams = function () {
 };
 const INITIAL_SEARCH_PARAMS = window.avesmapsSearchParams();
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
-// Infopanel is now the DEFAULT experience (owner): feature info lands in the collapsible right-edge
-// panel instead of floating map popups. Opt out with ?infopanel=false (escape hatch / A-B compare).
-const IS_INFOPANEL_MODE = INITIAL_SEARCH_PARAMS.get("infopanel") !== "false";
+// Infopanel is the ONLY experience (Owner 2026-07-17): feature info lands in the collapsible
+// right-edge panel, never in a floating map popup. The ?infopanel=false escape hatch that shipped
+// with the 2026-07-12 default switch is RETIRED -- it had done its job (A/B compare), and a stale
+// tab or bookmark still carrying it silently served the old floating boxes, which read as "some
+// regions still show the old infobox". Deliberately kept as a constant rather than removing all 17
+// read sites: this stays a one-line revert if the old boxes are ever needed again.
+// NOTE: edit mode still binds its own floating popup (it carries the edit actions) -- that is
+// independent of this flag and unaffected.
+const IS_INFOPANEL_MODE = true;
 // Mode-Klasse frueh auf <html> -> flag-gebundene CSS (Panel + Zoom/Hinweise-Position) greift,
 // bevor bootstrap.js die Leaflet-Zoom-Control anlegt (kein Springen der Kontrollen).
 if (IS_INFOPANEL_MODE && document.documentElement) { document.documentElement.classList.add("avesmaps-infopanel-mode"); }
