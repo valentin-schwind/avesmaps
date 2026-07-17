@@ -682,6 +682,9 @@ try {
                 'created' => (int) ($cmStep['created'] ?? 0),
                 'updated' => (int) ($cmStep['updated'] ?? 0),
                 'places_added' => (int) ($cmStep['places_added'] ?? 0),
+                // A place whose derived name the parser now reads better (wiki-origin + still
+                // unresolved only -- a manual or resolved place is never renamed).
+                'places_updated' => (int) ($cmStep['places_updated'] ?? 0),
                 'sources_linked' => (int) ($cmStep['sources_linked'] ?? 0),
                 // Fundstellen (citymap_link) written from the publication's "Erhältlich bei" shop link.
                 'links_written' => (int) ($cmStep['links_written'] ?? 0),

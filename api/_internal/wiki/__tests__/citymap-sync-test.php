@@ -358,6 +358,35 @@ assert(avesmapsCitymapArtFromTitle('Kartenskizze von Y') === 'skizze');
 assert(avesmapsCitymapArtFromTitle('Karte von Z') === null); // unknown, not a default
 echo "art ok\n";
 
+// ----------------------------------------------- KARTENINDEX: THE QUALIFIER ---
+// A Kartenindex title may put a QUALIFIER between the map kind and the place ("Übersichtskarte der
+// >>geographischen Regionen der<< Flusslande"). It must go, else the place carries it and can never
+// resolve. The rule existed but only covered ONE shape of a family the page actually uses in three;
+// measured against the live payload on 2026-07-17, 7 cards fell through the gaps. Titles below are
+// REAL (GET /api/app/citymaps.php), not invented.
+$q = 'avesmapsCitymapRegionFromMapTitle';
+// (a) the shape that always worked -- regression guard.
+assert($q('Übersichtskarte der geographischen Regionen der Flusslande (A3)') === 'Flusslande');
+// (b) "Region" SINGULAR, and no connector before the place at all.
+assert($q('Übersichtskarte der geographischen Region östliches Wüstenreich (A3)') === 'östliches Wüstenreich');
+assert($q('Übersichtskarte der geographischen Region Wilder Südens und Zyklopeninseln (A3)')
+    === 'Wilder Südens und Zyklopeninseln');
+// (c) "Regionen" followed by a BARE genitive (no von/des/der/dem to anchor on).
+assert($q('Übersichtskarte der geographischen Regionen Araniens (A3)') === 'Araniens');
+// (d) "politischen Einteilung" -- a second qualifier family the rule never knew.
+assert($q('Übersichtskarte der politischen Einteilung der Sonnenküste (A3)') === 'Sonnenküste');
+assert($q('Übersichtskarte der politischen Einteilung des westlichen Wüstenreichs (A3)') === 'westlichen Wüstenreichs');
+
+// What must NOT change (owner decision 2026-07-17): stripping the qualifier is mechanical, but
+// de-inflecting German is not. A declined place stays declined and honestly unresolved.
+assert($q('Politische Karte der Streitenden Königreiche (A2)') === 'Streitenden Königreiche');
+// The bare genitive after the KIND keeps failing to match on purpose -- the whole title survives.
+// (The doc comment used to claim this yields "Araniens"; it does not, and never did.)
+assert($q('Detaillierte Karte Araniens (A2)') === 'Detaillierte Karte Araniens');
+// A title that names no kind at all is returned untouched -- it is the map's name, not a caption.
+assert($q('Al\'Anfa und das Regengebirge') === 'Al\'Anfa und das Regengebirge');
+echo "kartenindex-qualifier ok\n";
+
 // ------------------------------------------- KARTENINDEX: THE COLLISION BUG ---
 // REGRESSION. Running the real Kartenindex through the parser showed 3 of 48 regional rows vanishing:
 // the key was (region, source, variant), but ONE region+publication legitimately carries SEVERAL maps,
@@ -534,6 +563,34 @@ $tomb = $live;
 $tomb['status'] = 'suppressed';
 assert(avesmapsCitymapReconcilePlan($tomb, $desired)['action'] === 'skip');
 echo "reconcile-plan ok\n";
+
+// ------------------------------------------------- PLACE RECONCILE PLAN ---
+// The place write used to be INSERT-only: "does a wiki place exist? no -> create". That made every
+// improvement to the title->place extraction UNREACHABLE for cards that already had a row -- the
+// parser would be right and the map would never change. This plan adds the missing UPDATE while
+// keeping the same override-safety invariants the card plan uses.
+$pp = 'avesmapsCitymapPlaceReconcilePlan';
+assert($pp(null, 'Flusslande')['action'] === 'create');
+// The whole point: a wiki-owned, still-unresolved place takes the better name.
+assert($pp(['origin' => 'wiki', 'status' => 'approved', 'target_kind' => 'unresolved',
+    'raw_name' => 'geographischen Region östliches Wüstenreich'], 'östliches Wüstenreich')['action'] === 'update');
+// Idempotency: "zweiter Sync-Lauf legt KEINE Dubletten an" and writes nothing either.
+assert($pp(['origin' => 'wiki', 'status' => 'approved', 'target_kind' => 'unresolved',
+    'raw_name' => 'Flusslande'], 'Flusslande')['action'] === 'noop');
+// A human typed this name. avesmapsSetCitymapPlace stamps origin='manual' on EVERY editor write
+// (api/_internal/app/citymaps.php), so 'wiki' provably means untouched -- and 'manual' means hands off.
+assert($pp(['origin' => 'manual', 'status' => 'approved', 'target_kind' => 'unresolved',
+    'raw_name' => 'Al\'Anfa'], 'Al\'Anfa und das Regengebirge')['action'] === 'skip');
+assert($pp(['origin' => 'community', 'status' => 'approved', 'target_kind' => 'unresolved',
+    'raw_name' => 'X'], 'Y')['action'] === 'skip');
+// A tombstone outranks a better name.
+assert($pp(['origin' => 'wiki', 'status' => 'suppressed', 'target_kind' => 'unresolved',
+    'raw_name' => 'X'], 'Y')['action'] === 'skip');
+// RESOLVED is the dangerous one: the name already found its place, and re-deriving it could move a
+// card that currently hangs on the right location. Only 'unresolved' rows are ours to rename.
+assert($pp(['origin' => 'wiki', 'status' => 'approved', 'target_kind' => 'settlement',
+    'raw_name' => 'Gareth'], 'Gareth-Süd')['action'] === 'skip');
+echo "place-reconcile-plan ok\n";
 
 // ------------------------------------------------------ REMOVABLE KEYS ---
 $live = [

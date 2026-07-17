@@ -1212,7 +1212,7 @@ async function runWikiSyncCitymapsSyncLoop() {
 	let done = false;
 	let safetyCounter = 0;
 	let lastResult = null;
-	const totals = { created: 0, updated: 0, placesAdded: 0, sourcesLinked: 0, linksWritten: 0, removed: 0, processed: 0 };
+	const totals = { created: 0, updated: 0, placesAdded: 0, placesUpdated: 0, sourcesLinked: 0, linksWritten: 0, removed: 0, processed: 0 };
 	const MAX_STEPS = 4000;
 
 	while (!done) {
@@ -1238,6 +1238,7 @@ async function runWikiSyncCitymapsSyncLoop() {
 		totals.created += Number(stepResult.created ?? 0);
 		totals.updated += Number(stepResult.updated ?? 0);
 		totals.placesAdded += Number(stepResult.places_added ?? 0);
+		totals.placesUpdated += Number(stepResult.places_updated ?? 0);
 		totals.sourcesLinked += Number(stepResult.sources_linked ?? 0);
 		totals.linksWritten += Number(stepResult.links_written ?? 0);
 		totals.removed += Number(stepResult.removed ?? 0);
@@ -1268,8 +1269,8 @@ async function startWikiSyncCitymapsSync() {
 
 	try {
 		const result = await runWikiSyncCitymapsSyncLoop();
-		const totals = (result && result.totals) || { created: 0, updated: 0, removed: 0, sourcesLinked: 0, linksWritten: 0 };
-		const note = ` (+${totals.created} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt / ${totals.sourcesLinked} Quellen / ${totals.linksWritten} Fundstellen)`;
+		const totals = (result && result.totals) || { created: 0, updated: 0, removed: 0, placesAdded: 0, placesUpdated: 0, sourcesLinked: 0, linksWritten: 0 };
+		const note = ` (+${totals.created} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt · Orte +${totals.placesAdded}/~${totals.placesUpdated} · ${totals.sourcesLinked} Quellen / ${totals.linksWritten} Fundstellen)`;
 		setWikiSyncStatus(`Karten übernommen.${note}`, "success");
 		showFeedbackToast(`Karten übernommen.${note}`, "success");
 	} catch (error) {

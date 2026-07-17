@@ -873,8 +873,12 @@ function avesmapsCitymapRegionFromMapTitle(string $title): ?string
     $value = trim(preg_replace('/<br\s*\/?>/i', ' ', $value) ?? $value);
     $value = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $value) ?? $value); // drop "(A2)"
     // "Uebersichtskarte der geographischen Regionen der X" -> "X": strip the qualifier too, else the
-    // place becomes "geographischen Regionen der X" and can never resolve.
-    $value = preg_replace('/^\s*(?:Übersichts|Uebersichts)karte\s+(?:der|über die|ueber die)\s+geographischen\s+Regionen\s+(?:von|des|der|dem)\s+/ui', '', $value) ?? $value;
+    // place becomes "geographischen Regionen der X" and can never resolve. The page writes this family
+    // in three shapes, all measured on the live payload 2026-07-17 -- covering only the first left 7
+    // cards carrying qualifier text as their "place": "Regionen"/"Region" (both numbers), a SECOND
+    // family "politischen Einteilung", and the place following either DIRECTLY ("Region oestliches
+    // Wuestenreich") instead of via von/des/der/dem -- hence the optional connector.
+    $value = preg_replace('/^\s*(?:Übersichts|Uebersichts)karte\s+(?:der|über die|ueber die)\s+(?:geographischen\s+Region(?:en)?|politischen\s+Einteilung)\s+(?:(?:von|des|der|dem)\s+)?/ui', '', $value) ?? $value;
     $value = preg_replace(
         '/^\s*(?:[A-Za-zÄÖÜäöüß-]+\s+)?(?:Karte|Karten|Landkarte|Übersichtskarte|Uebersichtskarte|Ingame-Karte|Regionalkarte|Stadtplan)\s+(?:von|des|der|dem|zu|über die|ueber die)\s+/ui',
         '',
@@ -952,6 +956,50 @@ function avesmapsCitymapReconcilePlan(?array $current, array $desired): array
     }
 
     return ['action' => $set === [] ? 'noop' : 'update', 'set' => $set];
+}
+
+/**
+ * Decide what a card's WIKI place row needs. PURE: no DB, no clock.
+ *
+ * Why an UPDATE exists at all: this write used to be INSERT-only ("is there a wiki place? no -> add
+ * one"), which quietly made every improvement to the title->place extraction unreachable for cards
+ * that already had a row. The 7 cards whose place carried qualifier text ("geographischen Region
+ * oestliches Wuestenreich", measured 2026-07-17) would have kept it forever: green parser, unchanged
+ * map. A derived field needs a path to be re-derived.
+ *
+ * Override-safety, the same invariants avesmapsCitymapReconcilePlan uses:
+ *   - no row -> CREATE.
+ *   - origin not 'wiki' -> SKIP. avesmapsSetCitymapPlace stamps origin='manual' on EVERY editor write
+ *     (api/_internal/app/citymaps.php), so 'wiki' provably means "no human has touched this name".
+ *   - status 'suppressed' -> SKIP. The editor's tombstone outranks a better name.
+ *   - target_kind not 'unresolved' -> SKIP. The name already found its place; re-deriving it could
+ *     move a card that currently hangs on the right location. Only unresolved rows are ours to rename.
+ *   - name unchanged -> NOOP, so a repeat sync stays a true no-op.
+ *
+ * @param array<string,mixed>|null $current live citymap_place row (null = does not exist)
+ * @return array{action:string, raw_name:string}
+ */
+function avesmapsCitymapPlaceReconcilePlan(?array $current, string $desiredRaw): array
+{
+    if ($current === null) {
+        return ['action' => 'create', 'raw_name' => $desiredRaw];
+    }
+    // Redundant against the caller's WHERE origin='wiki', deliberately: this function owns the
+    // override-safety decision, and it must stay correct if a future caller loosens that query.
+    if ((string) ($current['origin'] ?? '') !== 'wiki') {
+        return ['action' => 'skip', 'raw_name' => $desiredRaw];
+    }
+    if ((string) ($current['status'] ?? '') === 'suppressed') {
+        return ['action' => 'skip', 'raw_name' => $desiredRaw];
+    }
+    if ((string) ($current['target_kind'] ?? '') !== 'unresolved') {
+        return ['action' => 'skip', 'raw_name' => $desiredRaw];
+    }
+    if ((string) ($current['raw_name'] ?? '') === $desiredRaw) {
+        return ['action' => 'noop', 'raw_name' => $desiredRaw];
+    }
+
+    return ['action' => 'update', 'raw_name' => $desiredRaw];
 }
 
 /**
@@ -1569,11 +1617,12 @@ function avesmapsCitymapReconcileWikiLinks(PDO $pdo, int $citymapId, string $sou
  * Reconcile ONE staged card into the live tables. Idempotent; returns per-card counters.
  *
  * @param array<string,mixed> $catalog wiki_citymap_catalog row
- * @return array{created:int, updated:int, places_added:int, sources_linked:int, links_written:int}
+ * @return array{created:int, updated:int, places_added:int, places_updated:int, sources_linked:int,
+ *               links_written:int}
  */
 function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): array
 {
-    $counters = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'sources_linked' => 0, 'links_written' => 0];
+    $counters = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'places_updated' => 0, 'sources_linked' => 0, 'links_written' => 0];
     $wikiKey = trim((string) ($catalog['wiki_key'] ?? ''));
     if ($wikiKey === '') {
         return $counters;
@@ -1651,14 +1700,26 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
     // The place. A map depicts exactly one, so this is an existence check rather than a list diff.
     // target_kind stays 'unresolved' with raw_name kept -- the shared resolver fills it in afterwards,
     // and a name we cannot resolve (Bosparan, or the placeless 'Aventurien') stays honestly unresolved.
-    $placeExists = $pdo->prepare("SELECT id FROM citymap_place WHERE citymap_id = :id AND origin = 'wiki' LIMIT 1");
-    $placeExists->execute(['id' => $citymapId]);
-    if ($placeExists->fetchColumn() === false) {
+    $placeRow = $pdo->prepare(
+        "SELECT id, raw_name, target_kind, origin, status FROM citymap_place
+         WHERE citymap_id = :id AND origin = 'wiki' LIMIT 1"
+    );
+    $placeRow->execute(['id' => $citymapId]);
+    $currentPlace = $placeRow->fetch(PDO::FETCH_ASSOC) ?: null;
+    $placePlan = avesmapsCitymapPlaceReconcilePlan(
+        $currentPlace,
+        mb_substr((string) $catalog['place_raw'], 0, 300, 'UTF-8')
+    );
+    if ($placePlan['action'] === 'create') {
         $pdo->prepare(
             "INSERT INTO citymap_place (citymap_id, sort_order, raw_name, target_kind, origin, status)
              VALUES (:id, 0, :rn, 'unresolved', 'wiki', 'approved')"
-        )->execute(['id' => $citymapId, 'rn' => mb_substr((string) $catalog['place_raw'], 0, 300, 'UTF-8')]);
+        )->execute(['id' => $citymapId, 'rn' => $placePlan['raw_name']]);
         $counters['places_added'] = 1;
+    } elseif ($placePlan['action'] === 'update') {
+        $pdo->prepare('UPDATE citymap_place SET raw_name = :rn WHERE id = :id')
+            ->execute(['rn' => $placePlan['raw_name'], 'id' => (int) $currentPlace['id']]);
+        $counters['places_updated'] = 1;
     }
 
     if (avesmapsCitymapLinkSource($pdo, $publicId, (string) $catalog['source_raw'], $userId)) {
@@ -1678,7 +1739,7 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
  * Mirrors avesmapsAdventureReconcileStep: same budget shape, same "done" derivation, same
  * resolve-once-at-the-end. One bounded step per request (STRATO: no server-side loop).
  *
- * @return array{done:bool, nextCursor:string, created:int, updated:int, places_added:int,
+ * @return array{done:bool, nextCursor:string, created:int, updated:int, places_added:int, places_updated:int,
  *               sources_linked:int, links_written:int, removed:int, processed:int}
  */
 function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?int $budget = null): array
@@ -1694,7 +1755,7 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     $select->execute();
     $catalogRows = $select->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-    $totals = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'sources_linked' => 0, 'links_written' => 0, 'removed' => 0];
+    $totals = ['created' => 0, 'updated' => 0, 'places_added' => 0, 'places_updated' => 0, 'sources_linked' => 0, 'links_written' => 0, 'removed' => 0];
     $processed = 0;
     $nextCursor = $cursor;
     $timedOut = false;
@@ -1702,7 +1763,7 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
     foreach ($catalogRows as $catalog) {
         $nextCursor = (string) $catalog['wiki_key'];
         $entity = avesmapsCitymapReconcileEntity($pdo, $catalog, $userId);
-        foreach (['created', 'updated', 'places_added', 'sources_linked', 'links_written'] as $key) {
+        foreach (['created', 'updated', 'places_added', 'places_updated', 'sources_linked', 'links_written'] as $key) {
             $totals[$key] += (int) ($entity[$key] ?? 0);
         }
         $processed++;
@@ -1742,6 +1803,7 @@ function avesmapsCitymapReconcileStep(PDO $pdo, string $cursor, int $userId, ?in
         'created' => $totals['created'],
         'updated' => $totals['updated'],
         'places_added' => $totals['places_added'],
+        'places_updated' => $totals['places_updated'],
         'sources_linked' => $totals['sources_linked'],
         'links_written' => $totals['links_written'],
         'removed' => $totals['removed'],
