@@ -390,16 +390,98 @@ function cityMapValidityLabel(m) {
 	return tr("cityMaps.until", "bis {year} BF", { year: to });
 }
 
-// ---- eine Karten-ZEILE (Dialog, Spec §3.7) --------------------------------------------------------
-// Grid 96px | minmax(0,1fr) | 196px -- links das Querformat-Thumb (Primaerlink wie in der Karte), Mitte
-// Titel + Einordnung, rechts die Links mit Status-Marker. Traegt bewusst AUCH .avesmaps-citymaps__card:
-// Filter und Spoiler-Reveal sind geteilte Handler, die auf diese Klasse zielen. So gilt fuer die Zeile
-// automatisch dieselbe Steuerung wie fuer die Streifenkarte; die abweichende Optik haengt an
-// .avesmaps-citymap-row.
+// Der Bandname ist die Identitaet eines Katalogeintrags: 86% der Titel sind die Formel
+// "{Typ} von {Ort} ({Quelle})", und in einem Dialog namens "Kartensammlung von Gareth" ist alles daran
+// redundant AUSSER der Klammer. sources[0].label kommt zuerst, weil es ein strukturiertes Feld mit 87%
+// Abdeckung ist -- die Klammer ist geraten und nur der Rueckfall.
+function cityMapBandLabel(m) {
+	var sources = (m && m.sources) || [];
+	for (var i = 0; i < sources.length; i++) {
+		if (sources[i] && sources[i].label) {
+			return String(sources[i].label);
+		}
+	}
+	var title = String((m && m.title) || "").trim();
+	if (title.charAt(title.length - 1) !== ")") {
+		return title;
+	}
+	// Rueckwaerts bis zur BALANCIERENDEN Klammer, nicht bis zur ersten: "Umgebungskarte von Gareth
+	// (Abenteuer Basis-Spiel (DSA3))" ist echt, und /\(([^)]*)\)$/ liefert dort "DSA3".
+	var depth = 0;
+	for (var j = title.length - 1; j >= 0; j--) {
+		var ch = title.charAt(j);
+		if (ch === ")") {
+			depth++;
+		} else if (ch === "(") {
+			depth--;
+			if (depth === 0) {
+				return title.slice(j + 1, title.length - 1).trim() || title;
+			}
+		}
+	}
+	return title;
+}
+
+// Die muted Fortsetzung der Titelzeile. Typ und Ausfuehrung stehen hier, weil der Owner die Typ-GRUPPEN
+// und die Ausfuehrungs-SPALTE gestrichen hat -- ohne beides hiessen vier der neun Gareth-Zeilen wortgleich
+// "Herz des Reiches". Als Spalte weg, als Information da.
+function cityMapRowSuffix(m) {
+	var parts = [];
+	if (m && m.types && m.types.length && typeof avesmapsCitymapTypeLabel === "function") {
+		parts.push(m.types.map(avesmapsCitymapTypeLabel).join(" & "));
+	}
+	// is_color === false ist BEKANNT, nicht unbekannt -- es zu drucken ist die Anwendung von §3.1, nicht
+	// ihr Bruch (dieselbe Begruendung wie bei "kostenlos"). Nur null faellt weg.
+	if (m && m.is_color === true) {
+		parts.push(tr("cityMaps.trait.color", "farbig"));
+	} else if (m && m.is_color === false) {
+		parts.push(tr("cityMaps.trait.greyscale", "schwarzweiß"));
+	}
+	return parts.join(" · ");
+}
+
+// Die Fakten der AUFGEKLAPPTEN Zeile. Kein Feld kommt neu dazu; sie bekommen nur Platz. Nur explizit
+// bejahte Merkmale -- ein "nicht offiziell" hat niemand behauptet.
+function cityMapRowFacts(m) {
+	var parts = [];
+	if (!m) {
+		return parts;
+	}
+	if (m.art && typeof avesmapsCitymapArtLabel === "function") { parts.push(avesmapsCitymapArtLabel(m.art)); }
+	if (m.is_official === true) { parts.push(tr("cityMaps.trait.official", "offiziell")); }
+	if (m.is_labeled === true) { parts.push(tr("cityMaps.trait.labeled", "beschriftet")); }
+	if (m.is_multilevel === true) { parts.push(tr("cityMaps.trait.multilevel", "mehrstöckig")); }
+	// Wie die anderen: NUR das bejahte. Ein „ohne Maßstab" waere fuer den Leser ein Mangel, obwohl die
+	// Wiki-Spalte schlicht „Nein" sagt -- und bei 24 von 230 Zeilen steht dort „Forum", also gar keine
+	// Antwort. Der unlesbare Wert und ein ausgeschriebener Maßstab stehen beide sichtbar in der Notiz.
+	if (m.has_scale === true) { parts.push(tr("cityMaps.trait.scale", "mit Maßstab")); }
+	var validity = cityMapValidityLabel(m);
+	if (validity) { parts.push(validity); }
+	// Format steht NEBEN der Aufloesung, nicht statt ihr: sie messen dasselbe Blatt in verschiedenen
+	// Einheiten (Zentimeter/DIN aus dem Wiki, Pixel aus einem Scan) und kollidieren praktisch nie --
+	// width_px ist bei genau 1 von 419 Karten gefuellt.
+	if (m.format) { parts.push(String(m.format)); }
+	if (m.author) { parts.push(String(m.author)); }
+	// Der Verlag steht NEBEN dem Urheber, nie an seiner Stelle: „Ulisses" hat den Band gedruckt, „Ina
+	// Kramer" die Karte gezeichnet. Er traegt echte Information, weil er variiert (Fanpro / Schmidt Spiele
+	// & Droemer Knaur / Ulisses), nicht ein Wort auf 419 Zeilen.
+	if (m.publisher) { parts.push(String(m.publisher)); }
+	if (m.width_px && m.height_px) { parts.push(m.width_px + " × " + m.height_px + " px"); }
+	// note ist halbstrukturierter Sync-Output ("Format: A4 · Maßstab: 1:12.750.000") und traegt genau die
+	// Fragen, die ein Nachschlagewerk beantworten soll. Eigene Spalten waeren richtig -- das ist ein
+	// Datenprojekt, kein Design (Spec §6).
+	if (m.note) { parts.push(String(m.note)); }
+	return parts;
+}
+
+// Eine Karten-ZEILE im Dialog: zugeklappt einzeilig, per Klick animiert aufgeklappt (CSS, siehe
+// place-extras.css). Grid 56px | minmax(0,1fr) | 148px.
+//
+// Traegt bewusst AUCH .avesmaps-citymaps__card: Filter und Spoiler-Reveal sind geteilte Handler, die auf
+// diese Klasse zielen. Die abweichende Optik haengt an .avesmaps-citymap-row.
 function buildCityMapRowMarkup(m) {
 	var href = cityMapBestLink(m);
 	var spoiler = cityMapIsSpoiler(m);
-	var thumbInner = cityMapThumbMarkup(m);
 	var spoilerOverlay = spoiler
 		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler — aufdecken")) + '</span>'
 		: "";
@@ -407,80 +489,22 @@ function buildCityMapRowMarkup(m) {
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
 		: ' href="#" onclick="return false" aria-disabled="true"';
 
-	// Erste Meta-Zeile: Art · Typen. Beides faellt weg, wenn unbekannt.
-	var metaParts = [];
-	if (m.art && typeof avesmapsCitymapArtLabel === "function") { metaParts.push(avesmapsCitymapArtLabel(m.art)); }
-	if (m.types && m.types.length && typeof avesmapsCitymapTypeLabel === "function") {
-		metaParts.push(m.types.map(avesmapsCitymapTypeLabel).join(", "));
-	}
-	var metaLine = metaParts.length ? '<div class="avesmaps-citymap-row__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
+	var suffix = cityMapRowSuffix(m);
+	var facts = cityMapRowFacts(m);
+	var factsMarkup = '<div class="avesmaps-citymap-row__facts">'
+		+ (facts.length ? placeExtrasEscape(facts.join(" · ")) : placeExtrasEscape(tr("cityMaps.noFacts", "Keine weiteren Angaben erfasst.")))
+		+ '</div>';
 
-	// Zweite Meta-Zeile: Gueltigkeit · Format · Aufloesung · Urheber · Verlag. Jede Angabe nur, wenn sie
-	// erfasst ist. Format und Aufloesung stehen NEBENeinander statt uebereinander: sie messen dasselbe
-	// Blatt in verschiedenen Einheiten (Zentimeter/DIN aus dem Wiki, Pixel aus einem Scan) und kollidieren
-	// praktisch nie -- width_px ist bei genau 1 von 419 Karten gefuellt.
-	var factParts = [];
-	var validity = cityMapValidityLabel(m);
-	if (validity) { factParts.push(validity); }
-	if (m.format) { factParts.push(m.format); }
-	if (m.width_px && m.height_px) { factParts.push(m.width_px + " × " + m.height_px + " px"); }
-	if (m.author) { factParts.push(m.author); }
-	// Der Verlag steht NEBEN dem Urheber, nie an seiner Stelle: „Ulisses" hat den Band gedruckt, „Ina
-	// Kramer" die Karte gezeichnet. Er traegt echte Information, weil er variiert (Fanpro / Schmidt Spiele
-	// & Droemer Knaur / Ulisses -- an echten Wiki-Seiten gemessen), nicht ein Wort auf 419 Zeilen.
-	if (m.publisher) { factParts.push(m.publisher); }
-	var factLine = factParts.length ? '<div class="avesmaps-citymap-row__facts">' + placeExtrasEscape(factParts.join(" · ")) + '</div>' : "";
-
-	// Eigenschaften als Merkmale -- NUR die explizit bejahten. Ein "nicht farbig" waere eine Aussage, die
-	// niemand getroffen hat (§3.1), und "farbig: nein" liest sich als Mangel statt als Datenlage.
-	var traits = [];
-	if (m.is_color === true) { traits.push(tr("cityMaps.trait.color", "farbig")); }
-	if (m.is_multilevel === true) { traits.push(tr("cityMaps.trait.multilevel", "mehrstöckig")); }
-	if (m.is_labeled === true) { traits.push(tr("cityMaps.trait.labeled", "beschriftet")); }
-	if (m.is_official === true) { traits.push(tr("cityMaps.trait.official", "offiziell")); }
-	// Wie die anderen: NUR das bejahte. Ein „ohne Maßstab" waere fuer den Leser ein Mangel, obwohl die
-	// Wiki-Spalte schlicht „Nein" sagt -- und bei 24 von 230 Zeilen steht dort „Forum", also gar keine
-	// Antwort. Der unlesbare Wert und ein ausgeschriebener Maßstab („1:12.750.000") stehen beide sichtbar
-	// in der Notiz; hier steht nur die Ja/Nein-Frage, und nur wenn sie mit Ja beantwortet ist.
-	if (m.has_scale === true) { traits.push(tr("cityMaps.trait.scale", "mit Maßstab")); }
-	// KEIN is_paid hier (Owner 2026-07-17: "die kostenpflichtigkeit gilt nur fuer den link"). Es stand
-	// einmal als Merkmal der KARTE in dieser Zeile -- richtig, solange eine Karte einen Link hatte. Mit
-	// mehreren Fundstellen ist es schlicht falsch: derselbe Band ist im F-Shop bezahlt und auf seiner
-	// Wiki-Seite frei, und ein Merkmal der Karte kann das nicht sagen. Die Bedingung steht jetzt an der
-	// ZEILE, die sie betrifft (advRowLinkMarkup). Gefiltert wird weiterhin -- ueber die Links
-	// (avesmapsCitymapHasFreeAccess / avesmapsCitymapIsPaidOnly).
-	var traitLine = traits.length ? '<div class="avesmaps-citymap-row__traits">' + placeExtrasEscape(traits.join(" · ")) + '</div>' : "";
-
-	var sourceLabels = (m.sources || []).map(function (s) { return s && s.label; }).filter(Boolean);
-	var sourceLine = sourceLabels.length
-		? '<div class="avesmaps-citymap-row__source">' + placeExtrasEscape(tr("cityMaps.sourcePrefix", "Quelle: ")) + placeExtrasEscape(sourceLabels.join(", ")) + '</div>'
-		: "";
-	var noteLine = m.note ? '<div class="avesmaps-citymap-row__note">' + placeExtrasEscape(m.note) + '</div>' : "";
-
-	// advRowLinkMarkup wiederverwendet: die Zeile ist {url,label,state} -- identisch zur Abenteuerzeile.
-	// Der adv-Name (und die adv-Klassen) sind historisch; sie tragen bereits beide Abenteuerdialoge, ein
-	// dritter Konsument ist konsistent statt divergent. Umbenennen waere ein eigener Sweep ohne Verhalten.
+	// KEIN Status-Marker: (online) ist Linkchecker-Info, also Redakteurswissen auf einer Leserflaeche.
+	// Der Abenteuerdialog teilt sich advRowLinkMarkup und behaelt seinen Marker (Default).
 	var linksMarkup = (m.links && m.links.length)
-		? '<ul class="avesmaps-adv-row__links">' + m.links.map(advRowLinkMarkup).join("") + '</ul>'
-		: "";
+		? '<ul class="avesmaps-adv-row__links">' + m.links.map(function (link) {
+			return advRowLinkMarkup(link, { showStatus: false });
+		}).join("") + '</ul>'
+		: '<span class="avesmaps-citymap-row__nolink">' + placeExtrasEscape(tr("cityMaps.noLink", "keine Fundstelle")) + '</span>';
 
-	// KEIN eigener „Karte oeffnen"-Knopf: map_url steht als „Karte ↗" laengst in der Liste rechts
-	// (avesmapsCitymapLinks baut ihn), ein Knopf daneben waere derselbe Link ein zweites Mal. Die Karte
-	// selbst oeffnet man ueber das grosse Vorschaubild oder eben ueber diese Zeile.
-	//
-	// Ueberschrift ueber der Liste: sie beantwortet „wo kriege ich die Karte?" und traegt seit den
-	// Mehrfach-Links mehr als einen Eintrag -- ohne Titel liest sie sich wie lose Links neben der Zeile.
-	// Nur hier, nicht in advRowLinkMarkup: die Abenteuerzeile teilt sich die Link-Zeile, aber nicht diese
-	// Frage (dort sind es Shop-Links, keine Fundorte).
-	var linksHead = (m.links && m.links.length)
-		? '<div class="avesmaps-citymap-row__linkshead">' + placeExtrasEscape(tr("cityMaps.foundAt", "Zu finden bei")) + '</div>'
-		: "";
-
-	// „+ Neuer Fundort": nur in der AUFGEKLAPPTEN Zeile sichtbar (CSS) -- in der kompakten Liste waere er
-	// Laerm neben jeder Zeile. Er traegt seine Karte selbst, wie der Vorschlag-Knopf seinen Ort: der
-	// Melde-Dialog ist EINE wiederverwendete Huelle, eine gemerkte Referenz waere beim zweiten Melden
-	// falsch. Ohne public_id kein Knopf -- der Vorschlag haengt an genau dieser Karte und haette sonst
-	// kein Ziel.
+	// "+ Neuer Fundort" traegt seine Karte selbst: der Melde-Dialog ist EINE wiederverwendete Huelle, eine
+	// gemerkte Referenz waere beim zweiten Melden falsch. Sichtbar nur in der offenen Zeile (CSS).
 	var addLink = m.public_id
 		? '<button type="button" class="avesmaps-citymap-row__addlink"'
 			+ ' data-citymap-id="' + placeExtrasEscape(m.public_id) + '"'
@@ -490,12 +514,16 @@ function buildCityMapRowMarkup(m) {
 
 	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
 		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '"' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
-		+ thumbInner + spoilerOverlay + '</a>'
+		+ cityMapThumbMarkup(m) + spoilerOverlay + '</a>'
 		+ '<div class="avesmaps-citymap-row__main">'
-		+ '<a class="avesmaps-citymap-row__title"' + openAttrs + '>' + placeExtrasEscape(m.title) + '</a>'
-		+ metaLine + factLine + traitLine + sourceLine + noteLine
+		+ '<div class="avesmaps-citymap-row__band">' + placeExtrasEscape(cityMapBandLabel(m))
+		+ (suffix ? ' <span class="avesmaps-citymap-row__suffix">· ' + placeExtrasEscape(suffix) + '</span>' : "")
 		+ '</div>'
-		+ '<div class="avesmaps-citymap-row__side">' + linksHead + linksMarkup + addLink + '</div>'
+		+ '<div class="avesmaps-citymap-row__detail"><div class="avesmaps-citymap-row__detail-inner">'
+		+ factsMarkup + addLink
+		+ '</div></div>'
+		+ '</div>'
+		+ '<div class="avesmaps-citymap-row__side">' + linksMarkup + '</div>'
 		+ '</div>';
 }
 
@@ -587,9 +615,14 @@ function advCardDataAttributes(a, isPlay) {
 // Band ist im F-Shop bezahlt und auf seiner Wiki-Seite frei (Mehrfachlink-Spec §2). Nur ein bekanntes JA
 // wird gezeigt -- bei null steht da nichts, denn „unbekannt" ist eine gueltige Antwort und nie ein
 // erfundenes „frei" (§3.1). Abenteuer-Links tragen kein is_paid und bleiben damit unveraendert.
-function advRowLinkMarkup(link) {
+//
+// opts.showStatus === false laesst den Linkchecker-Marker weg. Die Kartensammlung nutzt das: (online) ist
+// Redakteursinfo. Der Default bleibt an -- die beiden Abenteuerdialoge teilen sich diese Funktion, und ein
+// stiller Wegfall dort waere eine Aenderung, die niemand bestellt hat.
+function advRowLinkMarkup(link, opts) {
 	var deadClass = (typeof avesmapsLinkStatusLinkClass === "function") ? avesmapsLinkStatusLinkClass(link.state) : "";
-	var marker = (typeof avesmapsLinkStatusMarkup === "function") ? avesmapsLinkStatusMarkup(link.state) : "";
+	var showStatus = !opts || opts.showStatus !== false;
+	var marker = (showStatus && typeof avesmapsLinkStatusMarkup === "function") ? avesmapsLinkStatusMarkup(link.state) : "";
 	var paid = link.is_paid === true
 		? '<span class="avesmaps-adv-row__linkpaid">' + placeExtrasEscape(tr("cityMaps.link.paid", "(kostenpflichtig)")) + '</span>'
 		: "";
@@ -1329,5 +1362,9 @@ if (typeof module !== "undefined" && module.exports) {
 		buildCityMapsSectionMarkup: buildCityMapsSectionMarkup,
 		citymapFiltersMarkup: citymapFiltersMarkup,
 		buildCityMapRowMarkup: buildCityMapRowMarkup,
+		cityMapBandLabel: cityMapBandLabel,
+		cityMapRowSuffix: cityMapRowSuffix,
+		cityMapRowFacts: cityMapRowFacts,
+		advRowLinkMarkup: advRowLinkMarkup,
 	};
 }

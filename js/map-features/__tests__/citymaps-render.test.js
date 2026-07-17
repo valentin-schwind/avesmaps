@@ -26,6 +26,7 @@ const {
   cityMapSafeUrl, cityMapBestLink, cityMapIsSpoiler, cityMapValidityLabel,
   cityMapCardMarkup, buildCityMapsSectionMarkup, buildCityMapRowMarkup, citymapFiltersMarkup,
   avesmapsCitymapCreditMarkup,
+  cityMapBandLabel, cityMapRowSuffix, cityMapRowFacts, advRowLinkMarkup,
 } = require("../map-features-place-extras.js");
 
 // ---- URL safety -------------------------------------------------------------------------------------
@@ -162,66 +163,6 @@ assert.ok(!placedNasty.includes("onerror=alert(1)>"), "place name is escaped ins
 assert.ok(placedNasty.includes("&quot;&gt;&lt;img"), "…and escaped rather than stripped");
 console.log("citymap place ref ok");
 
-// ---- row --------------------------------------------------------------------------------------------
-const row = buildCityMapRowMarkup({
-  public_id: "m1", title: "Gareth Gesamtplan", map_url: "https://example.org/plan",
-  thumb: "/uploads/kartensammlungen/m1/thumb-1.png",
-  types: ["stadtplan", "uebersicht"], art: "politisch",
-  is_color: true, is_multilevel: null, is_labeled: false, is_official: true, is_spoiler: null,
-  width_px: 2000, height_px: 1500, valid_from_bf: 1027, valid_to_bf: 9999, author: "Ina Kramer",
-  format: "A2", publisher: "Fanpro", has_scale: true,
-  note: "Beilage",
-  sources: [{ label: "Herz des Reiches" }],
-  links: [{ key: "map", label: "Karte", url: "https://example.org/plan", state: "dead" }],
-});
-// The row shares .avesmaps-citymaps__card so the filter + reveal handlers reach it.
-assert.ok(row.includes("avesmaps-citymaps__card") && row.includes("avesmaps-citymap-row"), "row carries both classes");
-assert.ok(row.includes("Politisch · Stadtplan, Übersicht"), "meta: Art then the German type labels");
-// Facts line: Gueltigkeit · Format · Aufloesung · Urheber · Verlag. Format ("A2", centimetres/DIN from
-// the wiki) sits NEXT TO the pixel size, not instead of it -- they measure the same sheet in different
-// units and practically never collide (width_px is filled on 1 of 419 maps).
-assert.ok(row.includes("seit 1027 BF · A2 · 2000 × 1500 px · Ina Kramer · Fanpro"), "facts line");
-// The publisher is its OWN field beside the author, never merged into it: Fanpro printed the book, Ina
-// Kramer drew the map. Filling `author` with the publisher would have mis-attributed 419 maps.
-assert.ok(row.includes("Ina Kramer · Fanpro"), "Urheber und Verlag stehen nebeneinander");
-assert.ok(row.includes("Quelle: Herz des Reiches"));
-assert.ok(row.includes("Beilage"));
-// TRAITS: only the explicitly TRUE ones. is_labeled is false and is_multilevel unknown -- neither may
-// appear. "beschriftet: nein" would read as a defect, and for is_multilevel we simply do not know.
-assert.ok(row.includes("farbig · offiziell · mit Maßstab"), "only affirmed traits are listed");
-assert.ok(!row.includes("mehrstöckig"), "unknown trait is omitted");
-assert.ok(!row.includes("beschriftet"), "an explicit false trait is omitted too");
-// has_scale follows the same rule as every other tri-bool: a known FALSE prints nothing. "ohne Maßstab"
-// would read as a defect, and the wiki column it comes from is a plain Ja/Nein -- 24 of its 230 rows say
-// "Forum", i.e. no answer at all.
-const noScaleRow = buildCityMapRowMarkup({ public_id: "p3", title: "T", has_scale: false });
-const unknownScaleRow = buildCityMapRowMarkup({ public_id: "p4", title: "T", has_scale: null });
-[noScaleRow, unknownScaleRow].forEach((markup) => {
-  assert.ok(!markup.includes("Maßstab"), "weder ein bekanntes Nein noch Unbekanntes wird gedruckt");
-});
-// is_paid is NOT among them, in any of its three states (owner 2026-07-17: "die kostenpflichtigkeit gilt
-// nur für den link"). It briefly WAS a trait of the map -- defensible while a map had one link, wrong as
-// soon as it has several: the same volume is paid in the shop and free on its wiki page. The condition now
-// sits on the link line that carries it, and printing it here as well was a visible double.
-const paidRow = buildCityMapRowMarkup({ public_id: "p1", title: "T", is_paid: true });
-const freeRow = buildCityMapRowMarkup({ public_id: "p2", title: "T", is_paid: false });
-[row, paidRow, freeRow].forEach((markup) => {
-  assert.ok(!markup.includes("citymap-row__traits") || !markup.includes("kostenpflichtig"),
-    "die Karte traegt die Kostenpflichtigkeit nicht mehr als Merkmal");
-  assert.ok(!markup.includes("kostenlos"), "…und 'kostenlos' erst recht nicht");
-});
-// A dead link stays clickable but reads as dead (link-status.js), and every off-site link gets its ↗.
-assert.ok(row.includes("link-status-dead-target"), "dead link is struck through");
-assert.ok(row.includes("nicht mehr erreichbar"), "dead marker rendered");
-assert.ok(row.includes("↗"), "off-site link marker");
-
-// A row that knows almost nothing renders no empty meta lines at all.
-const bare = buildCityMapRowMarkup({ public_id: "m9", title: "Nur ein Titel" });
-assert.ok(!bare.includes("citymap-row__meta") && !bare.includes("citymap-row__facts"), "unknown -> no empty lines");
-assert.ok(!bare.includes("citymap-row__traits") && !bare.includes("citymap-row__source"));
-assert.ok(bare.includes("Nur ein Titel"));
-console.log("citymap row ok");
-
 // ---- mehrere Fundstellen (Mehrfachlink-Spec §3) -----------------------------------------------------
 // Der Owner-Fall: dieselbe Karte im Shop gekauft UND frei auf ihrer Wiki-Seite. Der Leser soll BEIDE
 // Wege sehen und selbst wählen.
@@ -256,8 +197,6 @@ const single = buildCityMapRowMarkup({
 });
 assert.ok(single.includes("Karte ↗") && !single.includes("kostenpflichtig"), "einzelner Link unveraendert");
 
-// Abenteuer-Links tragen kein is_paid und bleiben davon voellig unberuehrt (advRowLinkMarkup ist geteilt).
-assert.ok(!row.includes("linkpaid"), "die Abenteuer-/Karten-Linkzeile bleibt ohne is_paid unveraendert");
 console.log("citymap multi-links ok");
 
 // ---- aufklappbare Zeile (Spec 2026-07-17-kartensammlung-zeile-aufklappen) ---------------------------
@@ -269,12 +208,6 @@ const openRow = buildCityMapRowMarkup({
 });
 assert.ok(!openRow.includes("citymap-row__open"), "kein doppelter Oeffnen-Knopf");
 assert.ok(openRow.includes("Karte ↗"), "…die Liste fuehrt den Karten-Link");
-
-// Die Fundorte bekommen eine Ueberschrift: sie sind der Grund, warum die Zeile aufgeklappt wird, und
-// tragen seit den Mehrfach-Links mehr als einen Eintrag.
-assert.ok(openRow.includes('class="avesmaps-citymap-row__linkshead">Zu finden bei'), "die Fundorte sind ueberschrieben");
-// Keine Liste -> keine Ueberschrift ueber dem Nichts.
-assert.ok(!buildCityMapRowMarkup({ public_id: "m15", title: "T" }).includes("citymap-row__linkshead"));
 
 // Das grosse Vorschaubild ist DASSELBE <img>, nur per CSS anders dimensioniert. Ein zweites, verstecktes
 // wuerde jede Karte im Dialog doppelt laden -- bei 20 Karten 20 unnoetige Requests.
@@ -357,5 +290,72 @@ assert.ok(!buildCityMapsSectionMarkup("Gareth", [
 ]).includes("Ulisses Spiele"), "switch off drops the credit with the covers");
 global.avesmapsCitymapPreviewsEnabled = () => true;
 console.log("citymap credit ok");
+
+// ---- Band-Ableitung ---------------------------------------------------------------------------------
+// sources[0].label ist ein echtes Datenfeld (87% Abdeckung) und schlaegt die geratene Klammer.
+assert.strictEqual(
+  cityMapBandLabel({ title: "Stadtplan von Gareth (Herz des Reiches)", sources: [{ label: "Herz des Reiches" }] }),
+  "Herz des Reiches");
+// Ohne sources traegt die Klammer -- 86% der Titel sind "{Typ} von {Ort} ({Quelle})".
+assert.strictEqual(cityMapBandLabel({ title: "Stadtplan von Gareth (Herz des Reiches)" }), "Herz des Reiches");
+// VERSCHACHTELTE Klammern: eine naive /\(([^)]*)\)$/ liefert hier "DSA3" statt des Bandes.
+assert.strictEqual(
+  cityMapBandLabel({ title: "Umgebungskarte von Gareth (Abenteuer Basis-Spiel (DSA3))" }),
+  "Abenteuer Basis-Spiel (DSA3)");
+// Kein Formel-Titel -> der Titel selbst. Er ist der Name der Karte, nicht ihr Band.
+assert.strictEqual(cityMapBandLabel({ title: "Gareth-Karte aus der Gareth-Box" }), "Gareth-Karte aus der Gareth-Box");
+assert.strictEqual(cityMapBandLabel({ title: "Leere Klammer ()" }), "Leere Klammer ()", "leere Klammer faellt auf den Titel zurueck");
+assert.strictEqual(cityMapBandLabel({}), "");
+
+// ---- Suffix: Typ + Ausfuehrung ----------------------------------------------------------------------
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], is_color: true }), "Stadtplan · farbig");
+// DAS ist der Grund fuer die ganze Uebung: 238 von 419 Karten haben is_color === false, und die Zeile
+// druckte es nicht -- 21 Titelpaare sahen dadurch aus wie Dubletten.
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], is_color: false }), "Stadtplan · schwarzweiß");
+// null bleibt unbekannt und faellt weg (Spec §3.1) -- false tut das NICHT.
+assert.strictEqual(cityMapRowSuffix({ types: ["stadtplan"], is_color: null }), "Stadtplan");
+assert.strictEqual(cityMapRowSuffix({ types: ["ortsplan", "stadtplan"], is_color: true }), "Ortsplan & Stadtplan · farbig");
+assert.strictEqual(cityMapRowSuffix({}), "");
+
+// ---- Fakten der aufgeklappten Zeile -----------------------------------------------------------------
+assert.deepStrictEqual(
+  cityMapRowFacts({ art: "derographisch", is_official: true, valid_to_bf: 1038, author: "Hannah Möllmann", width_px: 4635, height_px: 3278 }),
+  ["Derographisch", "offiziell", "bis 1038 BF", "Hannah Möllmann", "4635 × 3278 px"]);
+// Format, Verlag und has_scale (auf master ergaenzt) reisen mit: Format NEBEN der Aufloesung, Verlag NEBEN
+// dem Urheber, "mit Maßstab" nur bei bekanntem Ja. So bleibt jedes der drei Felder eine eigene Aussage.
+assert.deepStrictEqual(
+  cityMapRowFacts({ is_official: true, has_scale: true, valid_to_bf: 1038, format: "A2", author: "Ina Kramer", publisher: "Fanpro", width_px: 2000, height_px: 1500 }),
+  ["offiziell", "mit Maßstab", "bis 1038 BF", "A2", "Ina Kramer", "Fanpro", "2000 × 1500 px"]);
+// has_scale folgt derselben Tri-State-Regel: ein bekanntes Nein und Unbekanntes fallen beide weg.
+assert.deepStrictEqual(cityMapRowFacts({ has_scale: false }), [], "ein bekanntes Nein zu Maßstab ist keine Aussage");
+assert.deepStrictEqual(cityMapRowFacts({ has_scale: null }), [], "Unbekanntes zu Maßstab faellt weg");
+assert.deepStrictEqual(cityMapRowFacts({ is_official: false }), [], "ein bekanntes Nein ist hier keine Aussage, die der Leser braucht");
+assert.deepStrictEqual(cityMapRowFacts({ note: "Format: A4 · Maßstab: 1:12.750.000" }), ["Format: A4 · Maßstab: 1:12.750.000"]);
+
+// ---- die Zeile --------------------------------------------------------------------------------------
+const newRow = buildCityMapRowMarkup({
+  public_id: "m1", title: "Stadtplan von Gareth (Herz des Reiches)", types: ["stadtplan"], is_color: false,
+  sources: [{ label: "Herz des Reiches" }], map_url: "https://example.org/k",
+  links: [{ key: "map", label: "Karte", url: "https://example.org/k", state: "online", is_paid: null }],
+});
+assert.ok(newRow.includes("Herz des Reiches"), "der Band ist die Ueberschrift");
+assert.ok(newRow.includes("schwarzweiß"), "die Ausfuehrung steht in der Titelzeile");
+assert.ok(!newRow.includes(">Stadtplan von Gareth (Herz des Reiches)<"), "der Formel-Titel wird nicht mehr als Text gedruckt");
+assert.ok(!newRow.includes("citymap-row__linkshead"), "die Zeilen-Ueberschrift 'Zu finden bei' ist weg");
+assert.ok(!newRow.includes("(online)"), "(online) ist Linkchecker-Status und gehoert nicht auf die Leserflaeche");
+assert.ok(newRow.includes('data-public-id="m1"'), "das data-Attribut-Set bleibt -- der Filter liest es");
+assert.ok(newRow.includes("avesmaps-citymaps__card"), "die geteilten Filter-/Spoiler-Handler zielen auf diese Klasse");
+
+// Ohne Fundstelle sagt die Zeile das, statt zu schweigen.
+assert.ok(buildCityMapRowMarkup({ public_id: "m2", title: "T" }).includes("keine Fundstelle"));
+// Ohne jede Angabe traegt die aufgeklappte Zeile trotzdem eine Aussage.
+assert.ok(buildCityMapRowMarkup({ public_id: "m3", title: "T" }).includes("Keine weiteren Angaben erfasst"));
+
+// ---- advRowLinkMarkup: der Abenteuerdialog darf sich NICHT mitaendern -------------------------------
+const advLink = { url: "https://example.org/a", label: "F-Shop", state: "online", is_paid: null };
+assert.ok(advRowLinkMarkup(advLink).includes("(online)"), "Default unveraendert -- die Abenteuer behalten ihren Status-Marker");
+assert.ok(!advRowLinkMarkup(advLink, { showStatus: false }).includes("(online)"));
+
+console.log("citymap row ok");
 
 console.log("citymaps-render ok");
