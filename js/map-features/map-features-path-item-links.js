@@ -159,7 +159,7 @@ function getPathItemLinkIndexes() {
 // can never survive it.
 function cachedPathItemLinkMarkup(field, rawValue, build) {
 	const indexes = getPathItemLinkIndexes();
-	const cacheKey = `${field} ${String(rawValue || "")}`;
+	const cacheKey = `${field}\u0000${String(rawValue || "")}`;
 	if (pathItemLinkMarkupCache.has(cacheKey)) {
 		return pathItemLinkMarkupCache.get(cacheKey);
 	}
