@@ -179,6 +179,35 @@ assert.ok(avesmapsCitymapMatchesFilter({ links: [paid()] }, { showSpoiler: true 
 assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true }, { showSpoiler: true }));
 assert.ok(avesmapsCitymapMatchesFilter({ is_paid: null }, { showSpoiler: true }));
 
+// ---- "nur kostenpflichtige", die Gegenrichtung (Owner 2026-07-17) ----
+// Sie ist NICHT die Verneinung von freeOnly. Beide fragen nach einem BELEG, deshalb gibt es Karten, die
+// in KEINEN der beiden fallen -- und das ist der Punkt: "wir wissen es nicht" ist weder frei noch bezahlt.
+assert.ok(avesmapsCitymapMatchesFilter({ links: [paid()] }, { paidOnly: true, showSpoiler: true }), "known paid passes");
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [free()] }, { paidOnly: true, showSpoiler: true }), "known free fails");
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [unknownPaid()] }, { paidOnly: true, showSpoiler: true }), "UNKNOWN is not paid either");
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [] }, { paidOnly: true, showSpoiler: true }), "no links -> no claim -> no match");
+
+// Die Karte mit BEIDEN Wegen: sie erscheint unter "kostenlose" (der freie Weg existiert) und NICHT unter
+// "kostenpflichtige" -- sonst wuerde derselbe freie Weg beide Filter beantworten.
+assert.ok(!avesmapsCitymapMatchesFilter({ links: [paid(), free()] }, { paidOnly: true, showSpoiler: true }),
+	"ein belegt freier Weg schliesst 'kostenpflichtig' aus");
+// Ein Weg mit unbekannter Bedingung zaehlt NICHT gegen "kostenpflichtig": er ist kein Beleg fuer gratis.
+assert.ok(avesmapsCitymapMatchesFilter({ links: [paid(), unknownPaid()] }, { paidOnly: true, showSpoiler: true }),
+	"jeder BEKANNTE Weg ist bezahlt -> kostenpflichtig");
+
+// Die beiden Filter sind disjunkt: keine Karte kann unter beiden erscheinen.
+[[free()], [paid()], [unknownPaid()], [paid(), free()], [paid(), unknownPaid()], []].forEach((links) => {
+	const both = avesmapsCitymapMatchesFilter({ links }, { freeOnly: true, paidOnly: true, showSpoiler: true });
+	assert.ok(!both, "freeOnly + paidOnly zusammen matcht nie -- die beiden schliessen sich aus");
+});
+
+// Rueckfall auf das Karten-Flag, symmetrisch zu freeOnly (magere DOM-Shape ohne Linkliste).
+assert.ok(avesmapsCitymapMatchesFilter({ is_paid: true }, { paidOnly: true, showSpoiler: true }));
+assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: false }, { paidOnly: true, showSpoiler: true }));
+assert.ok(!avesmapsCitymapMatchesFilter({ is_paid: null }, { paidOnly: true, showSpoiler: true }));
+// Toggle aus -> nichts eingeschraenkt.
+assert.ok(avesmapsCitymapMatchesFilter({ links: [free()] }, { showSpoiler: true }));
+
 // Spoiler is INVERTED: off by default, and it reveals rather than restricts.
 assert.ok(!avesmapsCitymapMatchesFilter(m2, {}), "spoiler map hidden while the toggle is off");
 assert.ok(avesmapsCitymapMatchesFilter(m2, { showSpoiler: true }), "toggle on -> spoiler map shows");

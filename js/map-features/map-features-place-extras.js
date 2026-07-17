@@ -340,10 +340,13 @@ function citymapFiltersMarkup(facets) {
 		{ kind: "toggle", filter: "multilevel", label: tr("cityMaps.filter.multilevel", "mehrstöckig") },
 		{ kind: "toggle", filter: "labeled", label: tr("cityMaps.filter.labeled", "beschriftet") },
 		{ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "nur offiziell") },
-		// "nur kostenpflichtige" fragt niemand -- die nuetzliche Richtung ist "was kann ich mir sofort
-		// ansehen". Matcht nur ein bekanntes Nein; unbekannt faellt raus (§3.7: unbekannt matcht keinen
-		// Filter ausser "alle"), denn "wir wissen es nicht" ist kein Beleg fuer "gratis".
+		// Beide Richtungen (Owner 2026-07-17). Sie fragen die LINKS, nicht die Karte: "nur kostenlose" =
+		// mindestens ein belegt freier Weg, "nur kostenpflichtige" = mindestens ein belegt bezahlter und
+		// kein freier. Sie sind deshalb NICHT komplementaer -- eine Karte, ueber deren Bedingungen niemand
+		// etwas erfasst hat, faellt aus BEIDEN (§3.7: unbekannt matcht keinen Filter ausser "alle"), und
+		// eine Karte mit beidem erscheint nur unter "kostenlose": der freie Weg existiert ja.
 		{ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "nur kostenlose") },
+		{ kind: "toggle", filter: "paid", label: tr("cityMaps.filter.paidOnly", "nur kostenpflichtige") },
 		{ kind: "divider" },
 		// Der einzige INVERTIERTE Umschalter: er gibt frei statt einzuschraenken (wie "Spielt hier
 		// (Spoiler)" bei den Abenteuern). Aus = Spoilerkarten verborgen.
@@ -409,11 +412,12 @@ function buildCityMapRowMarkup(m) {
 	if (m.is_multilevel === true) { traits.push(tr("cityMaps.trait.multilevel", "mehrstöckig")); }
 	if (m.is_labeled === true) { traits.push(tr("cityMaps.trait.labeled", "beschriftet")); }
 	if (m.is_official === true) { traits.push(tr("cityMaps.trait.official", "offiziell")); }
-	// Die EINZIGE Eigenschaft, deren Nein wir auch zeigen -- und das ist kein Bruch der Regel darueber,
-	// sondern ihr Grund: "nicht farbig" ist eine Nicht-Aussage, "kostenlos" ist die nuetzlichste Information
-	// auf der ganzen Zeile. Unbekannt (null) faellt weiter weg (§3.1): wir raten nicht ueber fremdes Geld.
-	if (m.is_paid === true) { traits.push(tr("cityMaps.trait.paid", "kostenpflichtig")); }
-	else if (m.is_paid === false) { traits.push(tr("cityMaps.trait.free", "kostenlos")); }
+	// KEIN is_paid hier (Owner 2026-07-17: "die kostenpflichtigkeit gilt nur fuer den link"). Es stand
+	// einmal als Merkmal der KARTE in dieser Zeile -- richtig, solange eine Karte einen Link hatte. Mit
+	// mehreren Fundstellen ist es schlicht falsch: derselbe Band ist im F-Shop bezahlt und auf seiner
+	// Wiki-Seite frei, und ein Merkmal der Karte kann das nicht sagen. Die Bedingung steht jetzt an der
+	// ZEILE, die sie betrifft (advRowLinkMarkup). Gefiltert wird weiterhin -- ueber die Links
+	// (avesmapsCitymapHasFreeAccess / avesmapsCitymapIsPaidOnly).
 	var traitLine = traits.length ? '<div class="avesmaps-citymap-row__traits">' + placeExtrasEscape(traits.join(" · ")) + '</div>' : "";
 
 	var sourceLabels = (m.sources || []).map(function (s) { return s && s.label; }).filter(Boolean);

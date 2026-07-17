@@ -277,6 +277,28 @@ function avesmapsCitymapHasFreeAccess(shape) {
 	return shape.is_paid === false;
 }
 
+// Die Gegenrichtung (Owner 2026-07-17: "kostenpflichtige und nicht kostenpflichtige maps sollen danach
+// gefiltert werden koennen"). Sie ist NICHT einfach die Verneinung von hasFreeAccess: "kein freier Weg
+// bekannt" trifft auch auf eine Karte zu, ueber die niemand irgendetwas weiss -- die gehoert in KEINEN
+// der beiden Filter (§3.7: unbekannt matcht nichts ausser "alle").
+//
+// "Kostenpflichtig" heisst deshalb: mindestens ein Weg ist BELEGT bezahlt, und kein Weg ist belegt frei.
+// Ein Weg mit unbekannter Bedingung zaehlt nicht dagegen -- "wir wissen es nicht" ist kein Beleg fuer
+// "gratis", dieselbe Regel wie oben, nur andersherum gelesen.
+function avesmapsCitymapIsPaidOnly(shape) {
+	if (!shape || avesmapsCitymapHasFreeAccess(shape)) {
+		return false; // ein belegt freier Weg schliesst "kostenpflichtig" aus
+	}
+	var links = Array.isArray(shape.links) ? shape.links : [];
+	for (var i = 0; i < links.length; i++) {
+		if (links[i] && links[i].is_paid === true) {
+			return true;
+		}
+	}
+	// Rueckfall wie oben: magere DOM-Shape ohne Linkliste.
+	return shape.is_paid === true;
+}
+
 function avesmapsCitymapMatchesFilter(shape, filter) {
 	if (!filter || !shape) {
 		return true;
@@ -316,11 +338,15 @@ function avesmapsCitymapMatchesFilter(shape, filter) {
 	if (filter.officialOnly && shape.is_official !== true) {
 		return false;
 	}
-	// Der einzige Umschalter, der auf ein bekanntes NEIN prueft: "nur kostenpflichtige" fragt niemand --
-	// nuetzlich ist die Gegenrichtung ("was kann ich mir jetzt sofort ansehen"). Die §3.7-Regel gilt
-	// trotzdem unveraendert: ein Filter matcht nur, was jemand BEHAUPTET hat. Unbekannt (null) faellt
-	// deshalb raus, genau wie oben -- "wir wissen es nicht" ist kein Beleg fuer "ist gratis".
+	// Die beiden Geld-Umschalter. Sie fragen die LINKS (siehe die zwei Funktionen oben), nicht die Karte,
+	// und sie sind NICHT komplementaer: eine Karte, ueber deren Bedingungen niemand etwas erfasst hat,
+	// faellt aus BEIDEN heraus -- die §3.7-Regel gilt unveraendert, ein Filter matcht nur, was jemand
+	// BEHAUPTET hat. Zusammen angehakt matchen sie deshalb nichts, was auch stimmt: kein Weg ist zugleich
+	// belegt frei und belegt bezahlt.
 	if (filter.freeOnly && !avesmapsCitymapHasFreeAccess(shape)) {
+		return false;
+	}
+	if (filter.paidOnly && !avesmapsCitymapIsPaidOnly(shape)) {
 		return false;
 	}
 	// Spoiler is the one INVERTED toggle: it is off by default and reveals rather than restricts, exactly
@@ -530,6 +556,7 @@ if (typeof module !== "undefined" && module.exports) {
 		avesmapsCitymapFacetOptions: avesmapsCitymapFacetOptions,
 		avesmapsCitymapMatchesFilter: avesmapsCitymapMatchesFilter,
 		avesmapsCitymapHasFreeAccess: avesmapsCitymapHasFreeAccess,
+		avesmapsCitymapIsPaidOnly: avesmapsCitymapIsPaidOnly,
 		avesmapsCitymapTypeLabel: avesmapsCitymapTypeLabel,
 		avesmapsCitymapArtLabel: avesmapsCitymapArtLabel,
 	};

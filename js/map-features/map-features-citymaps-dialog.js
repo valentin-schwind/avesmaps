@@ -133,7 +133,8 @@
 		// ueber ihren eigenen Zustand.
 		var filterState = {
 			types: new Set(), art: "", source: "",
-			colorOnly: false, multilevelOnly: false, labeledOnly: false, officialOnly: false, freeOnly: false,
+			colorOnly: false, multilevelOnly: false, labeledOnly: false, officialOnly: false,
+			freeOnly: false, paidOnly: false,
 			showSpoiler: true, yearFrom: 0, yearTo: 0,
 		};
 		var spoilerChip = existing.querySelector('[data-adv-filter="spoiler"]');
@@ -165,7 +166,7 @@
 
 		// Chip-Toggles: der Chip-Guard ist noetig, weil [data-adv-filter] AUCH die Selects und die
 		// Jahresfelder trifft -- ohne ihn fiele ein Select-Klick in den Chip-Zweig.
-		var TOGGLES = { color: "colorOnly", multilevel: "multilevelOnly", labeled: "labeledOnly", official: "officialOnly", free: "freeOnly" };
+		var TOGGLES = { color: "colorOnly", multilevel: "multilevelOnly", labeled: "labeledOnly", official: "officialOnly", free: "freeOnly", paid: "paidOnly" };
 		existing.addEventListener("click", function (e) {
 			var chip = e.target.closest("[data-adv-filter]");
 			if (!chip || !chip.classList.contains("avesmaps-adv-tree__chip")) {

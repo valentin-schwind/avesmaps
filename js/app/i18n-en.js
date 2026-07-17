@@ -476,6 +476,10 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.sourcePrefix": "Source: ",
 	// Sits behind ONE link, not on the map: the same volume is paid in the shop and free on its wiki page.
 	"cityMaps.link.paid": "(paid)",
+	// Not complementary: a map nobody has judged matches neither, and a map with both a free and a paid
+	// link appears only under "free" -- the free way in exists.
+	"cityMaps.filter.freeOnly": "free only",
+	"cityMaps.filter.paidOnly": "paid only",
 	"cityMaps.trait.color": "colour",
 	"cityMaps.trait.multilevel": "multi-level",
 	"cityMaps.trait.labeled": "labelled",

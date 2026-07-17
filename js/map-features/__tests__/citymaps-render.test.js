@@ -183,15 +183,17 @@ assert.ok(row.includes("Beilage"));
 assert.ok(row.includes("farbig · offiziell"), "only affirmed traits are listed");
 assert.ok(!row.includes("mehrstöckig"), "unknown trait is omitted");
 assert.ok(!row.includes("beschriftet"), "an explicit false trait is omitted too");
-// …with is_paid as the ONE documented exception, and it is the exception that proves the rule: "nicht
-// farbig" is a non-statement, "kostenlos" is the most useful thing on the row. Unknown still says nothing
-// — we do not guess about someone's wallet.
-assert.ok(!row.includes("kostenlos") && !row.includes("kostenpflichtig"), "is_paid unknown -> silent");
+// is_paid is NOT among them, in any of its three states (owner 2026-07-17: "die kostenpflichtigkeit gilt
+// nur für den link"). It briefly WAS a trait of the map -- defensible while a map had one link, wrong as
+// soon as it has several: the same volume is paid in the shop and free on its wiki page. The condition now
+// sits on the link line that carries it, and printing it here as well was a visible double.
 const paidRow = buildCityMapRowMarkup({ public_id: "p1", title: "T", is_paid: true });
-assert.ok(paidRow.includes("kostenpflichtig") && !paidRow.includes("kostenlos"));
 const freeRow = buildCityMapRowMarkup({ public_id: "p2", title: "T", is_paid: false });
-assert.ok(freeRow.includes("kostenlos"), "a KNOWN false is printed here, unlike every other trait");
-assert.ok(!freeRow.includes("kostenpflichtig"), "…and not both at once");
+[row, paidRow, freeRow].forEach((markup) => {
+  assert.ok(!markup.includes("citymap-row__traits") || !markup.includes("kostenpflichtig"),
+    "die Karte traegt die Kostenpflichtigkeit nicht mehr als Merkmal");
+  assert.ok(!markup.includes("kostenlos"), "…und 'kostenlos' erst recht nicht");
+});
 // A dead link stays clickable but reads as dead (link-status.js), and every off-site link gets its ↗.
 assert.ok(row.includes("link-status-dead-target"), "dead link is struck through");
 assert.ok(row.includes("nicht mehr erreichbar"), "dead marker rendered");
@@ -249,13 +251,16 @@ const bar = citymapFiltersMarkup({
   sources: ["Herz des Reiches"],
   yearRange: { min: 1027, max: 1045 },
 });
-["type", "art", "source", "color", "multilevel", "labeled", "official", "free", "spoiler", "yearFrom", "yearTo"].forEach((kind) => {
+["type", "art", "source", "color", "multilevel", "labeled", "official", "free", "paid", "spoiler", "yearFrom", "yearTo"].forEach((kind) => {
   assert.ok(bar.includes('data-adv-filter="' + kind + '"'), "citymap bar offers the " + kind + " dimension (§3.7)");
 });
-// The toggle is "nur kostenlose", not "nur kostenpflichtige": the useful question is what a reader can look
-// at right now. Its filter key must stay `free` — map-features-citymaps-dialog.js's TOGGLES maps it to
-// freeOnly, and a rename on one side alone leaves a chip that highlights and filters nothing.
-assert.ok(bar.includes("nur kostenlose") && !bar.includes("nur kostenpflichtige"));
+// BOTH directions since 2026-07-17 (owner: "kostenpflichtige und nicht kostenpflichtige maps sollen danach
+// gefiltert werden können"). The bar used to carry only "nur kostenlose", on the reasoning that nobody asks
+// the other way round -- the owner does.
+//
+// The keys must stay `free` and `paid`: map-features-citymaps-dialog.js's TOGGLES maps them to freeOnly /
+// paidOnly, and a rename on one side alone leaves a chip that highlights and filters nothing.
+assert.ok(bar.includes("nur kostenlose") && bar.includes("nur kostenpflichtige"));
 assert.ok(bar.includes("(2)"), "type chip shows its count");
 assert.ok(bar.includes('<option value="politisch">Politisch</option>'), "art select maps slug -> label");
 // The adventure dimensions must NOT leak into the map bar.

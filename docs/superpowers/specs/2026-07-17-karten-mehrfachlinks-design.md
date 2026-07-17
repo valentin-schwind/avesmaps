@@ -62,8 +62,15 @@ Wiki-Aventurica ↗
 
 - `↗` ist Pflicht für externe Links (AGENTS.md §12).
 - „(kostenpflichtig)" **nur** bei `is_paid === true`. Bei `NULL` **nichts** anzeigen — „unbekannt" ist
-  eine gültige Antwort, nie ein erfundenes „frei" (Kernregel `citymaps.php`).
+  eine gültige Antwort, nie ein erfundenes „frei" (Kernregel `citymaps.php`). Bei `false` ebenfalls
+  nichts: Owner-Entscheidung 2026-07-17, gegen die Alternative „(kostenlos)" am freien Link. Preis davon:
+  frei und unbekannt sehen in der Liste gleich aus — der Unterschied lebt nur noch im Filter.
 - Bei genau einem Link ohne Label: wie heute rendern, keine Liste für ein Element.
+- **Die Karte trägt „kostenpflichtig" NICHT mehr als Merkmal** (Owner 2026-07-17: „die kostenpflichtigkeit
+  gilt nur für den link"). Die alte Merkmal-Zeile zeigte es neben „farbig · offiziell" — richtig, solange
+  eine Karte einen Link hatte, und ab dem zweiten Link doppelt und falsch. `citymap.is_paid` **bleibt** bis
+  Schritt 5 als Datenfeld bestehen (es speist den Karten-Link und den Filter-Rückfall), nur die Anzeige ist
+  weg.
 
 ## 4. Die zwei Fallen, die der Owner benannt hat
 
@@ -76,6 +83,12 @@ if (filter.freeOnly && shape.is_paid !== false) { /* ausblenden */ }
 Liest `is_paid` **von der Karte**. Nach dem Umzug muss die Frage lauten:
 **„hat die Karte mindestens einen Link mit `is_paid === false`?"** — eine Karte mit einem freien und
 einem bezahlten Link ist im „nur freie"-Filter **sichtbar** (der freie Weg existiert ja).
+
+**Beide Richtungen** (Owner 2026-07-17, Nachtrag): es gibt zusätzlich „nur kostenpflichtige" =
+*mindestens ein belegt bezahlter Weg und kein belegt freier*. Die zwei Filter sind bewusst **nicht
+komplementär** — eine Karte, über deren Bedingungen niemand etwas erfasst hat, fällt aus beiden heraus
+(§3.7). Ein Weg mit unbekannter Bedingung zählt **nicht** gegen „kostenpflichtig": „wir wissen es nicht"
+ist kein Beleg für „gratis" — dieselbe Regel, nur andersherum gelesen.
 
 Betroffen sind mind. 3 Stellen: der Filter (`:298`), die Trait-Anzeige
 (`map-features-place-extras.js:415`) und `data-paid` (`:161`) + der Dialog (`citymaps-dialog.js:87`).
