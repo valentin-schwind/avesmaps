@@ -848,23 +848,26 @@
 	background: var(--color-button-soft-hover);
 }
 
-/* ---- eine Karten-Zeile ---- */
+/* ---- eine Karten-Zeile ----
+   Zugeklappt einzeilig, per Klick aufgeklappt. Es ist bewusst KEINE <table>: die Spalten sind ein Grid
+   mit festen Breiten (gleiche Ausrichtung wie eine Tabelle), aber <tr>-Hoehen lassen sich nicht
+   verlaesslich animieren -- grid-template-columns mit Laengenwerten schon. */
 .avesmaps-citymap-row {
 	display: grid;
-	/* Querformat-Thumb (96px) statt des A4-Hochformats der Abenteuerzeile (62px) -- Ortsplaene sind breit. */
-	grid-template-columns: 96px minmax(0, 1fr) 196px;
-	gap: 12px;
+	grid-template-columns: 56px minmax(0, 1fr) 148px;
+	gap: var(--space-10);
 	align-items: start;
 	/* Randlos bis an die Dialogkante: der negative Margin entspricht dem Seitenpadding des Grids, das
-	   Padding gleicht ihn wieder aus -- der Inhalt steht also exakt wie vorher. Das braucht die
-	   Hover-Flaeche unten (ein Hintergrund, der 16px vor dem Rand endet, liest als schwebender Kasten statt
-	   als Listenzeile), und die Trennlinie laeuft damit ebenfalls durch -- so, wie Trenner hier laufen
-	   sollen: Rand zu Rand, neg. Margin = Padding. */
-	margin: 0 -16px;
-	padding: 12px 16px;
-	/* Die Zeile klappt auf Klick auf -- ohne Hover-Antwort sieht man ihr das nicht an. */
+	   Padding gleicht ihn wieder aus. Das braucht die Hover-Flaeche (ein Hintergrund, der 16px vor dem
+	   Rand endet, liest als schwebender Kasten statt als Listenzeile) -- und die Trennlinie laeuft damit
+	   Rand zu Rand, so wie Trenner hier laufen sollen (AGENTS.md §12). */
+	margin: 0 calc(-1 * var(--space-16));
+	padding: var(--space-6) var(--space-16);
 	cursor: pointer;
-	transition: background-color 0.12s ease;
+	transition:
+		grid-template-columns 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+		padding 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+		background-color 0.15s ease;
 }
 .avesmaps-citymap-row:hover {
 	background: var(--color-panel-soft);
@@ -872,115 +875,122 @@
 .avesmaps-citymap-row + .avesmaps-citymap-row {
 	border-top: 1px solid var(--color-divider);
 }
+.avesmaps-citymap-row.is-expanded {
+	grid-template-columns: 256px minmax(0, 1fr) 148px;
+	padding: var(--space-12) var(--space-16);
+}
 .avesmaps-citymap-row__thumb {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 96px;
-	height: 68px;
-	border-radius: 6px;
+	width: 48px;
+	height: 34px;
+	border-radius: var(--radius-sm);
 	background: var(--color-panel-muted);
 	border: 1px solid var(--color-border);
 	color: var(--color-text-muted);
 	overflow: hidden;
 	text-decoration: none;
-	transition: border-color 0.12s ease, color 0.12s ease;
+	transition:
+		width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+		height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+		border-color 0.12s ease;
 }
 .avesmaps-citymap-row__thumb:hover {
 	border-color: var(--color-accent);
-	color: var(--color-accent-strong);
 }
-
-/* ---- aufgeklappte Zeile ----
-   Ein Klick auf die Zeile klappt sie auf: das Vorschaubild waechst von 96x68 auf 280x196 -- der Zweck der
-   Uebung, denn auf 96px erkennt man auf einem Stadtplan nichts -- und die Angaben, die die Zeile ohnehin
-   traegt, bekommen Luft. Es kommt KEIN Feld dazu.
-
-   Es ist DASSELBE <img>, nur anders dimensioniert (der Rahmen misst, das Bild fuellt ihn mit width/height
-   100%). Ein zweites, verstecktes Bild fuer den grossen Zustand wuerde jede Karte im Dialog doppelt laden.
-
-   KEINE eigene Flaeche fuer den offenen Zustand: ein 280px-Bild statt 96px uebersieht niemand, und der
-   Hover-Hintergrund oben markiert die Zeile bereits, solange die Maus darauf steht. Ein zweiter, dauerhaft
-   gefaerbter Zustand daneben waere ein Kasten -- und Kaesten sind hier das, was Trennlinien ersetzen
-   (AGENTS.md §12). */
-.avesmaps-citymap-row.is-expanded {
-	/* minmax statt fixer 280px: die Dialogbox ist min(780px, 100%), und auf einem schmalen Viewport
-	   braeuchten 280 + 196 + Abstaende allein 500px fuer die beiden aeusseren Spalten. So schrumpft die
-	   Bildspalte mit, statt die Zeile aus dem Dialog zu schieben. */
-	grid-template-columns: minmax(0, 280px) minmax(0, 1fr) 196px;
-}
+/* DASSELBE <img>, nur anders dimensioniert (der Rahmen misst, das Bild fuellt ihn). Ein zweites,
+   verstecktes Bild fuer den grossen Zustand wuerde jede Karte im Dialog doppelt laden. */
 .avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__thumb {
 	width: 100%;
-	max-width: 280px;
-	height: 196px;
+	max-width: 248px;
+	height: 174px;
 }
 .avesmaps-citymap-row__main {
 	min-width: 0;
 }
-/* Die Fundorte sind die Antwort auf "wo kriege ich die Karte?" und damit das, weswegen der Leser die Zeile
-   aufklappt -- sie stehen deshalb unter einer Ueberschrift und in Lesegroesse statt als Kleingedrucktes am
-   Rand. Trennlinie statt Kasten, wie ueberall (AGENTS.md §12). */
-.avesmaps-citymap-row__linkshead {
-	padding-bottom: 5px;
-	border-bottom: 1px solid var(--color-divider);
-	margin-bottom: 7px;
-	font-size: 11px;
+.avesmaps-citymap-row__band {
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+	color: var(--color-link);
+	transition: font-size 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__band {
+	font-size: var(--font-size-reading);
+	font-weight: var(--font-weight-bold);
+}
+.avesmaps-citymap-row__suffix {
+	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
-.avesmaps-citymap-row__side .avesmaps-adv-row__linkitem {
-	font-size: 12.5px;
-	line-height: 1.5;
-	margin-bottom: 7px;
+/* 0fr -> 1fr statt max-height: die Animation endet exakt an der echten Inhaltshoehe. Ein geratenes
+   max-height hoert bei einer Karte mit drei Faktenzeilen zu frueh und bei einer mit sieben zu spaet auf. */
+.avesmaps-citymap-row__detail {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* „+ Neuer Fundort" — nur in der offenen Zeile (siehe Markup-Kommentar): in der kompakten Liste stuende er
-   neben jeder Zeile und waere Laerm. Soft/outline, nicht gefuellt: die Hauptsache dieser Spalte sind die
-   Fundorte, nicht das Melden (AGENTS.md §12). */
+.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__detail {
+	grid-template-rows: 1fr;
+}
+.avesmaps-citymap-row__detail-inner {
+	overflow: hidden;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+/* Verzoegert: der Text soll nicht vor seinem Platz da sein. */
+.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__detail-inner {
+	opacity: 1;
+	transition: opacity 0.25s ease 0.12s;
+}
+.avesmaps-citymap-row__facts {
+	padding-top: var(--space-4);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+	color: var(--color-text-muted);
+}
+.avesmaps-citymap-row__side {
+	min-width: 0;
+	text-align: right;
+}
+.avesmaps-citymap-row__side .avesmaps-adv-row__links {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.avesmaps-citymap-row__side .avesmaps-adv-row__linkitem {
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+	margin-bottom: var(--space-4);
+}
+.avesmaps-citymap-row__nolink {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+/* "+ Neuer Fundort" nur in der offenen Zeile: in der kompakten Liste stuende er neben jeder Zeile und
+   waere Laerm. Soft/outline -- die Hauptsache dieser Spalte sind die Fundorte, nicht das Melden. */
 .avesmaps-citymap-row__addlink {
-	display: none;
-	margin-top: 4px;
-	padding: 4px 9px;
+	display: inline-block;
+	margin-top: var(--space-8);
+	padding: var(--space-4) var(--space-8);
 	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
 	border: 1px solid var(--color-button-soft-border);
 	color: var(--color-button-soft-text);
 	font: inherit;
-	font-size: 11.5px;
+	font-size: var(--font-size-caption);
 	cursor: pointer;
-}
-.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__addlink {
-	display: inline-block;
 }
 .avesmaps-citymap-row__addlink:hover {
 	background: var(--color-button-soft-hover);
 }
-.avesmaps-citymap-row__title {
-	display: block;
-	font-size: 13px;
-	font-weight: 700;
-	line-height: 1.3;
-	color: var(--color-link);
-	text-decoration: none;
-}
-.avesmaps-citymap-row__title:hover {
-	color: var(--color-link-hover);
-	text-decoration: underline;
-}
-.avesmaps-citymap-row__meta,
-.avesmaps-citymap-row__facts,
-.avesmaps-citymap-row__traits,
-.avesmaps-citymap-row__source,
-.avesmaps-citymap-row__note {
-	margin-top: 3px;
-	font-size: 11.5px;
-	line-height: 1.35;
-	color: var(--color-text-muted);
-}
-.avesmaps-citymap-row__traits {
-	color: var(--color-accent-strong);
-}
-.avesmaps-citymap-row__note {
-	font-style: italic;
-}
-.avesmaps-citymap-row__side {
-	min-width: 0;
+/* Wer Bewegung abbestellt hat, bekommt den Endzustand ohne Weg dorthin. */
+@media (prefers-reduced-motion: reduce) {
+	.avesmaps-citymap-row,
+	.avesmaps-citymap-row__thumb,
+	.avesmaps-citymap-row__band,
+	.avesmaps-citymap-row__detail,
+	.avesmaps-citymap-row__detail-inner {
+		transition: none;
+	}
 }
