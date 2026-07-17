@@ -167,7 +167,8 @@ const row = buildCityMapRowMarkup({
   thumb: "/uploads/kartensammlungen/m1/thumb-1.png",
   types: ["stadtplan", "uebersicht"], art: "politisch",
   is_color: true, is_multilevel: null, is_labeled: false, is_official: true, is_spoiler: null,
-  width_px: 2000, height_px: 1500, valid_from_bf: 1027, valid_to_bf: 9999, author: "Ulisses",
+  width_px: 2000, height_px: 1500, valid_from_bf: 1027, valid_to_bf: 9999, author: "Ina Kramer",
+  format: "A2", publisher: "Fanpro", has_scale: true,
   note: "Beilage",
   sources: [{ label: "Herz des Reiches" }],
   links: [{ key: "map", label: "Karte", url: "https://example.org/plan", state: "dead" }],
@@ -175,14 +176,28 @@ const row = buildCityMapRowMarkup({
 // The row shares .avesmaps-citymaps__card so the filter + reveal handlers reach it.
 assert.ok(row.includes("avesmaps-citymaps__card") && row.includes("avesmaps-citymap-row"), "row carries both classes");
 assert.ok(row.includes("Politisch · Stadtplan, Übersicht"), "meta: Art then the German type labels");
-assert.ok(row.includes("seit 1027 BF · 2000 × 1500 px · Ulisses"), "facts line");
+// Facts line: Gueltigkeit · Format · Aufloesung · Urheber · Verlag. Format ("A2", centimetres/DIN from
+// the wiki) sits NEXT TO the pixel size, not instead of it -- they measure the same sheet in different
+// units and practically never collide (width_px is filled on 1 of 419 maps).
+assert.ok(row.includes("seit 1027 BF · A2 · 2000 × 1500 px · Ina Kramer · Fanpro"), "facts line");
+// The publisher is its OWN field beside the author, never merged into it: Fanpro printed the book, Ina
+// Kramer drew the map. Filling `author` with the publisher would have mis-attributed 419 maps.
+assert.ok(row.includes("Ina Kramer · Fanpro"), "Urheber und Verlag stehen nebeneinander");
 assert.ok(row.includes("Quelle: Herz des Reiches"));
 assert.ok(row.includes("Beilage"));
 // TRAITS: only the explicitly TRUE ones. is_labeled is false and is_multilevel unknown -- neither may
 // appear. "beschriftet: nein" would read as a defect, and for is_multilevel we simply do not know.
-assert.ok(row.includes("farbig · offiziell"), "only affirmed traits are listed");
+assert.ok(row.includes("farbig · offiziell · mit Maßstab"), "only affirmed traits are listed");
 assert.ok(!row.includes("mehrstöckig"), "unknown trait is omitted");
 assert.ok(!row.includes("beschriftet"), "an explicit false trait is omitted too");
+// has_scale follows the same rule as every other tri-bool: a known FALSE prints nothing. "ohne Maßstab"
+// would read as a defect, and the wiki column it comes from is a plain Ja/Nein -- 24 of its 230 rows say
+// "Forum", i.e. no answer at all.
+const noScaleRow = buildCityMapRowMarkup({ public_id: "p3", title: "T", has_scale: false });
+const unknownScaleRow = buildCityMapRowMarkup({ public_id: "p4", title: "T", has_scale: null });
+[noScaleRow, unknownScaleRow].forEach((markup) => {
+  assert.ok(!markup.includes("Maßstab"), "weder ein bekanntes Nein noch Unbekanntes wird gedruckt");
+});
 // is_paid is NOT among them, in any of its three states (owner 2026-07-17: "die kostenpflichtigkeit gilt
 // nur für den link"). It briefly WAS a trait of the map -- defensible while a map had one link, wrong as
 // soon as it has several: the same volume is paid in the shop and free on its wiki page. The condition now

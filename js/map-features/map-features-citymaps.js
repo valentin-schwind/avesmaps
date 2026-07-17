@@ -77,11 +77,18 @@ function avesmapsCitymapToRenderShape(citymap) {
 		is_official: (citymap.is_official == null) ? null : !!citymap.is_official,
 		is_spoiler: (citymap.is_spoiler == null) ? null : !!citymap.is_spoiler,
 		is_paid: (citymap.is_paid == null) ? null : !!citymap.is_paid,
+		has_scale: (citymap.has_scale == null) ? null : !!citymap.has_scale,
 		width_px: (citymap.width_px == null) ? null : Number(citymap.width_px),
 		height_px: (citymap.height_px == null) ? null : Number(citymap.height_px),
+		// The printed sheet size ("A2", "43 x 57 cm") -- a STRING, not a number. This is what the wiki
+		// records; width_px is filled on 1 of 419 maps because the wiki writes centimetres, not pixels.
+		format: citymap.format || "",
 		valid_from_bf: (citymap.valid_from_bf == null) ? null : Number(citymap.valid_from_bf),
 		valid_to_bf: (citymap.valid_to_bf == null) ? null : Number(citymap.valid_to_bf),
 		author: citymap.author || "",
+		// "Erschienen bei" -- who printed the book. NEVER merge this into author: author is who DREW the
+		// map, and the suggest dialog says so in as many words.
+		publisher: citymap.publisher || "",
 		note: citymap.note || "",
 		sources: Array.isArray(citymap.sources) ? citymap.sources : [],
 		related: Array.isArray(citymap.related) ? citymap.related : [],

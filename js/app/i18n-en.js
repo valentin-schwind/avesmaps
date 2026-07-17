@@ -527,6 +527,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.trait.multilevel": "multi-level",
 	"cityMaps.trait.labeled": "labelled",
 	"cityMaps.trait.official": "official",
+	"cityMaps.trait.scale": "with scale",
 	"cityMaps.filter.label": "Filter",
 	"cityMaps.filter.art": "Kind",
 	"cityMaps.filter.source": "Source",

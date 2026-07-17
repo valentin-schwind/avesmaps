@@ -397,12 +397,20 @@ function buildCityMapRowMarkup(m) {
 	}
 	var metaLine = metaParts.length ? '<div class="avesmaps-citymap-row__meta">' + placeExtrasEscape(metaParts.join(" · ")) + '</div>' : "";
 
-	// Zweite Meta-Zeile: Gueltigkeit · Aufloesung · Urheber. Jede Angabe nur, wenn sie erfasst ist.
+	// Zweite Meta-Zeile: Gueltigkeit · Format · Aufloesung · Urheber · Verlag. Jede Angabe nur, wenn sie
+	// erfasst ist. Format und Aufloesung stehen NEBENeinander statt uebereinander: sie messen dasselbe
+	// Blatt in verschiedenen Einheiten (Zentimeter/DIN aus dem Wiki, Pixel aus einem Scan) und kollidieren
+	// praktisch nie -- width_px ist bei genau 1 von 419 Karten gefuellt.
 	var factParts = [];
 	var validity = cityMapValidityLabel(m);
 	if (validity) { factParts.push(validity); }
+	if (m.format) { factParts.push(m.format); }
 	if (m.width_px && m.height_px) { factParts.push(m.width_px + " × " + m.height_px + " px"); }
 	if (m.author) { factParts.push(m.author); }
+	// Der Verlag steht NEBEN dem Urheber, nie an seiner Stelle: „Ulisses" hat den Band gedruckt, „Ina
+	// Kramer" die Karte gezeichnet. Er traegt echte Information, weil er variiert (Fanpro / Schmidt Spiele
+	// & Droemer Knaur / Ulisses -- an echten Wiki-Seiten gemessen), nicht ein Wort auf 419 Zeilen.
+	if (m.publisher) { factParts.push(m.publisher); }
 	var factLine = factParts.length ? '<div class="avesmaps-citymap-row__facts">' + placeExtrasEscape(factParts.join(" · ")) + '</div>' : "";
 
 	// Eigenschaften als Merkmale -- NUR die explizit bejahten. Ein "nicht farbig" waere eine Aussage, die
@@ -412,6 +420,11 @@ function buildCityMapRowMarkup(m) {
 	if (m.is_multilevel === true) { traits.push(tr("cityMaps.trait.multilevel", "mehrstöckig")); }
 	if (m.is_labeled === true) { traits.push(tr("cityMaps.trait.labeled", "beschriftet")); }
 	if (m.is_official === true) { traits.push(tr("cityMaps.trait.official", "offiziell")); }
+	// Wie die anderen: NUR das bejahte. Ein „ohne Maßstab" waere fuer den Leser ein Mangel, obwohl die
+	// Wiki-Spalte schlicht „Nein" sagt -- und bei 24 von 230 Zeilen steht dort „Forum", also gar keine
+	// Antwort. Der unlesbare Wert und ein ausgeschriebener Maßstab („1:12.750.000") stehen beide sichtbar
+	// in der Notiz; hier steht nur die Ja/Nein-Frage, und nur wenn sie mit Ja beantwortet ist.
+	if (m.has_scale === true) { traits.push(tr("cityMaps.trait.scale", "mit Maßstab")); }
 	// KEIN is_paid hier (Owner 2026-07-17: "die kostenpflichtigkeit gilt nur fuer den link"). Es stand
 	// einmal als Merkmal der KARTE in dieser Zeile -- richtig, solange eine Karte einen Link hatte. Mit
 	// mehreren Fundstellen ist es schlicht falsch: derselbe Band ist im F-Shop bezahlt und auf seiner

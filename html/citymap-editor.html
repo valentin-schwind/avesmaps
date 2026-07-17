@@ -849,6 +849,8 @@
         ${ceUrlField("Karten-Link (extern) *", "map_url", v.map_url)}
         ${ceUrlField("Vorschau-Link (extern)", "thumb_url", v.thumb_url)}
         ${ceField("Urheber", "author", v.author)}
+        ${ceField("Verlag", "publisher", v.publisher)}
+        <p class="ce-hint">„Urheber“ ist, wer die Karte gezeichnet hat (Ina Kramer). „Verlag“ ist, wer den Band gedruckt hat (Ulisses, Fanpro, Schmidt Spiele) — im Wiki die Zeile „Erschienen bei“. Der Sync holt ihn von der Buchseite.</p>
         ${ceField("Notiz", "note", v.note)}
         ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
         ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
@@ -858,9 +860,11 @@
         ${ceSelect("Art", "art", v.art, ARTS, "— unbekannt —")}
         ${ceField("Gültig ab (BF)", "valid_from_bf", v.valid_from_bf, "number")}
         ${ceField("Gültig bis (BF)", "valid_to_bf", v.valid_to_bf, "number")}
+        ${ceField("Format", "format", v.format)}
         ${ceField("Breite (px)", "width_px", v.width_px, "number")}
         ${ceField("Höhe (px)", "height_px", v.height_px, "number")}
         <p class="ce-hint">Breite/Höhe füllen sich beim Karten-Upload von selbst.</p>
+        <p class="ce-hint">„Format“ ist die Größe des gedruckten Blatts, wie das Wiki sie schreibt: „A2“ oder „33,5x25,5“. Das ist kein Zahlenfeld — Breite/Höhe sind Pixel eines Scans, das Wiki nennt Zentimeter.</p>
       </div>
       <div class="ce-grp"><p class="ce-grp__title">Eigenschaften</p>
         ${ceTri("farbig", "is_color", v.is_color)}
@@ -869,7 +873,9 @@
         ${ceTri("offiziell", "is_official", v.is_official)}
         ${ceTri("Spoiler", "is_spoiler", v.is_spoiler)}
         ${ceTri("kostenpflichtig", "is_paid", v.is_paid)}
+        ${ceTri("mit Maßstab", "has_scale", v.has_scale)}
         <p class="ce-hint">„unbekannt“ ist eine gültige Antwort und keine Lücke: der Leser sieht die Eigenschaft dann gar nicht, statt ein erfundenes „nein“.</p>
+        <p class="ce-hint">„mit Maßstab“ ist eine Ja/Nein-Frage, weil die Wiki-Spalte „Maßstab“ genau das enthält. Wo ein Maßstab ausgeschrieben dasteht („1:12.750.000“), steht er zusätzlich in der Notiz — er sagt mehr als ein „ja“.</p>
         <p class="ce-hint">„kostenpflichtig“ setzt ein Mensch — bewusst kein Auto-Abgleich mit dem Shop (Owner 2026-07-17). Ein Preis ist eine Momentaufnahme: „zahl was du willst“ ist weder frei noch bezahlt, Aktionen laufen ab. Und die API kennt nur das Produkt, nicht die Karte im Buch.</p>
       </div>
       <div class="ce-grp"><p class="ce-grp__title">Typ (Mehrfachauswahl)</p>
