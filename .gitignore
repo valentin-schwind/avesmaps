@@ -22,5 +22,9 @@ tools/geo-import.sql.gz
 uploads/dumps/*
 !uploads/dumps/.htaccess
 
+# Manually-uploaded map export archives (large binaries; live on the server, not in the repo).
+uploads/*.zip
+uploads/map/*.zip
+
 # Superpowers brainstorming/verify scratch space (mockups, harnesses) — never deployed
 .superpowers/
