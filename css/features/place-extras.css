@@ -812,7 +812,19 @@
 	grid-template-columns: 96px minmax(0, 1fr) 196px;
 	gap: 12px;
 	align-items: start;
-	padding: 12px 0;
+	/* Randlos bis an die Dialogkante: der negative Margin entspricht dem Seitenpadding des Grids, das
+	   Padding gleicht ihn wieder aus -- der Inhalt steht also exakt wie vorher. Das braucht die
+	   Hover-Flaeche unten (ein Hintergrund, der 16px vor dem Rand endet, liest als schwebender Kasten statt
+	   als Listenzeile), und die Trennlinie laeuft damit ebenfalls durch -- so, wie Trenner hier laufen
+	   sollen: Rand zu Rand, neg. Margin = Padding. */
+	margin: 0 -16px;
+	padding: 12px 16px;
+	/* Die Zeile klappt auf Klick auf -- ohne Hover-Antwort sieht man ihr das nicht an. */
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+}
+.avesmaps-citymap-row:hover {
+	background: var(--color-panel-soft);
 }
 .avesmaps-citymap-row + .avesmaps-citymap-row {
 	border-top: 1px solid var(--color-divider);
@@ -844,18 +856,19 @@
    Es ist DASSELBE <img>, nur anders dimensioniert (der Rahmen misst, das Bild fuellt ihn mit width/height
    100%). Ein zweites, verstecktes Bild fuer den grossen Zustand wuerde jede Karte im Dialog doppelt laden.
 
-   KEINE Flaeche und kein Rahmen fuer den offenen Zustand: beides liest als Kasten, und Kaesten sind in
-   dieser Designsprache genau das, was Trennlinien ersetzen (AGENTS.md §12). Ein Hintergrund muesste dafuer
-   randlos bis an die Dialogkante laufen (neg. Margin = Grid-Padding) und wuerde dann die Trennlinie der
-   Nachbarzeile ueberholen. Noetig ist er ohnehin nicht -- ein 280px-Bild statt 96px uebersieht niemand. */
-.avesmaps-citymap-row {
-	cursor: pointer;
-}
+   KEINE eigene Flaeche fuer den offenen Zustand: ein 280px-Bild statt 96px uebersieht niemand, und der
+   Hover-Hintergrund oben markiert die Zeile bereits, solange die Maus darauf steht. Ein zweiter, dauerhaft
+   gefaerbter Zustand daneben waere ein Kasten -- und Kaesten sind hier das, was Trennlinien ersetzen
+   (AGENTS.md §12). */
 .avesmaps-citymap-row.is-expanded {
-	grid-template-columns: 280px minmax(0, 1fr) 196px;
+	/* minmax statt fixer 280px: die Dialogbox ist min(780px, 100%), und auf einem schmalen Viewport
+	   braeuchten 280 + 196 + Abstaende allein 500px fuer die beiden aeusseren Spalten. So schrumpft die
+	   Bildspalte mit, statt die Zeile aus dem Dialog zu schieben. */
+	grid-template-columns: minmax(0, 280px) minmax(0, 1fr) 196px;
 }
 .avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__thumb {
-	width: 280px;
+	width: 100%;
+	max-width: 280px;
 	height: 196px;
 }
 /* Die Hauptaktion der offenen Zeile: gefuellt, weil sie die Karte SELBST oeffnet und neben den
