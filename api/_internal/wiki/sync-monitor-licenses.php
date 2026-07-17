@@ -130,6 +130,29 @@ function avesmapsWikiSyncMonitorParseLicense(string $wikitext): array {
         $license = 'CC0';
         $status = 'public_domain';
         $licenseUrl = 'https://creativecommons.org/publicdomain/zero/1.0/';
+    } elseif (preg_match('/\{\{\s*cc\s*\|\s*([^}|]*)\}\}/iu', $wikitext, $match) === 1) {
+        // {{CC|<version> <terms>}}: Vorlage:CC derives everything from this one parameter --
+        // version = its first two digits ("40" -> 4.0, "25" -> 2.5, 4.0 when absent), terms =
+        // whichever of nc/nd/sa occur, always appended in that order regardless of how they were
+        // written. The substring test mirrors the template's own {{#pos:}} checks. {{CC|0}} is
+        // CC0 and is caught above -- this branch must stay below it.
+        // NOTE for the pending Free-Art/attribution decision: nc/nd land in attribution_required
+        // because this vocabulary has no value between it and unknown, but naming the author does
+        // NOT make them publishable. The label keeps the restriction legible; read it, not just
+        // the status, before widening the gate.
+        $param = strtolower($match[1]);
+        $version = preg_match('/(\d)\D?(\d)/u', $param, $ccVersion) === 1
+            ? $ccVersion[1] . '.' . $ccVersion[2]
+            : '4.0';
+        $terms = '';
+        foreach (['nc', 'nd', 'sa'] as $term) {
+            if (strpos($param, $term) !== false) {
+                $terms .= '-' . $term;
+            }
+        }
+        $license = 'CC-BY' . strtoupper($terms) . '-' . $version;
+        $status = 'attribution_required';
+        $licenseUrl = 'https://creativecommons.org/licenses/by' . $terms . '/' . $version . '/';
     } elseif (preg_match('/cc[\s_-]?by[\s_-]?sa[\s_-]?([0-9]\.[0-9])?/iu', $wikitext, $match) === 1) {
         $version = $match[1] ?? '';
         $license = 'CC-BY-SA' . ($version !== '' ? '-' . $version : '');

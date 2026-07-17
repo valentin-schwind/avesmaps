@@ -146,4 +146,43 @@ $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz=irgendwas Unbekanntes
 assert($r['status'] === 'unknown', 'unknown regressed, got: ' . $r['status']);
 echo "regression ok\n";
 
+// --- {{CC|<version> <terms>}} labels ----------------------------------------------------------
+// Vorlage:CC builds the licence from its one parameter: version = its first two digits
+// ("40" -> 4.0, "25" -> 2.5), terms = whichever of nc/nd/sa occur, appended in that fixed order.
+// These files were all landing in `unknown`, so the editor could not see what they actually are.
+// The wiki's own auto-generated categories pin the real set (checked 2026-07-17):
+// CC10by, CC20by, CC20bysa, CC25by, CC25bysa, CC30by, CC30bync, CC30byncnd, CC30byncsa,
+// CC30bynd, CC30bysa, CC40by, CC40bync, CC40byncnd, CC40byncsa, CC40bynd, CC40bysa.
+
+$r = avesmapsWikiSyncMonitorParseLicense($ccByNc);
+assert($r['license'] === 'CC-BY-NC-4.0', 'CC|40 by nc label, got: ' . $r['license']);
+assert($r['status'] === 'attribution_required', 'CC|40 by nc status, got: ' . $r['status']);
+assert($r['license_url'] === 'https://creativecommons.org/licenses/by-nc/4.0/', 'url, got: ' . $r['license_url']);
+assert($r['attribution'] === 'Dal (CC-BY-NC-4.0)', 'attribution, got: ' . $r['attribution']);
+
+$r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz={{CC|30 by sa}}\n}}");
+assert($r['license'] === 'CC-BY-SA-3.0', 'CC|30 by sa label, got: ' . $r['license']);
+
+$r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz={{CC|25 by}}\n}}");
+assert($r['license'] === 'CC-BY-2.5', 'CC|25 by label, got: ' . $r['license']);
+
+$r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz={{CC|30 by nc sa}}\n}}");
+assert($r['license'] === 'CC-BY-NC-SA-3.0', 'CC|30 by nc sa label, got: ' . $r['license']);
+
+// Term order follows the template (nc, then nd, then sa), not the order written in the parameter.
+$r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz={{CC|40 by nd nc}}\n}}");
+assert($r['license'] === 'CC-BY-NC-ND-4.0', 'term order is nc,nd,sa, got: ' . $r['license']);
+echo "cc terms ok\n";
+
+// The restriction must stay legible in the label. `attribution_required` is the closest value this
+// vocabulary has (public_domain|attribution_required|unknown -- no "restricted"), but for nc/nd
+// naming the author is NOT enough to publish. Anyone acting on the pending Free-Art decision must
+// read the label, not just the status.
+foreach (['{{CC|40 by nc}}', '{{CC|30 by nc nd}}', '{{CC|30 by nd}}'] as $tpl) {
+    $r = avesmapsWikiSyncMonitorParseLicense("{{Datei\n|Lizenz=" . $tpl . "\n}}");
+    assert($r['status'] !== 'public_domain', $tpl . ' must never be public_domain');
+    assert(preg_match('/-(?:NC|ND)/', $r['license']) === 1, $tpl . ' must keep NC/ND in the label, got: ' . $r['license']);
+}
+echo "nc/nd legible ok\n";
+
 echo "ALL OK\n";
