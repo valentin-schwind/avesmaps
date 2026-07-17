@@ -146,11 +146,15 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 	}
 }
 
-// Typ-Bezeichnung einer Etappe, wie sie der Nutzer sieht. Querfeldein ist kein Wegtyp, sondern eine
-// Luftlinie -> eigenes Wort; alles andere teilt die Bezeichnung mit der Weg-Infobox (tr-Schluessel).
+// Bezeichnung einer Etappe OHNE Weg-Namen. Querfeldein ist kein Wegtyp, sondern eine Luftlinie -> eigenes
+// Wort. Alles andere teilt sich getUnnamedPathTitle mit der Weg-Infobox, damit ein namenloser Weg ueberall
+// gleich heisst ("Unbenannte Straße"); Seeweg faellt dort bewusst auf den blanken Typ zurueck.
 function routeLegTypeLabel(type) {
 	if (type === SYNTHETIC_ROUTE_TYPE) {
 		return tr("planner.leg.offroad", "Unwegsames Gelände");
+	}
+	if (typeof getUnnamedPathTitle === "function") {
+		return getUnnamedPathTitle(type);
 	}
 	return typeof tr === "function" ? tr("spotlight.pathType." + type, type) : String(type || "");
 }

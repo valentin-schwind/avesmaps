@@ -142,6 +142,16 @@ window.AVESMAPS_I18N_EN = {
 	// keep them side by side so they cannot drift apart again.
 	"popup.showInPanel": "Show",
 	"popup.showWholePath": "Show",
+	// A way we carry but have no name for. German inflects the adjective (DIE Straße -> "Unbenannte",
+	// DER Pfad -> "Unbenannter"), hence one string per subtype; English needs no such table but keeps the
+	// same keys. Seeweg is absent on purpose -- open water carries no names, so "unnamed" would imply a gap.
+	"path.unnamed.Reichsstrasse": "Unnamed imperial road",
+	"path.unnamed.Strasse": "Unnamed road",
+	"path.unnamed.Weg": "Unnamed way",
+	"path.unnamed.Pfad": "Unnamed trail",
+	"path.unnamed.Gebirgspass": "Unnamed mountain pass",
+	"path.unnamed.Wuestenpfad": "Unnamed desert trail",
+	"path.unnamed.Flussweg": "Unnamed river route",
 	"toast.path.notFound": "The way could not be found.",
 	"popup.labelTypeRegion": "Region",
 	"popup.labelNameFallback": "Label",

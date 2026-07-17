@@ -97,22 +97,30 @@ function pathHeaderIconMarkup(pathType) {
 }
 
 function createPathPopupMarkup(path) {
-	const pathName = getPathDisplayName(path);
 	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-	// Owner: 16:9 header image (Flussweg->fluss, Seeweg->meer, else generic region) + title overlay.
+	// Titel wie in der Routen-Etappe (Owner): echter Name -> Name im Titel, Typ als Untertitel; kein Name
+	// -> "Unbenannte Straße" tritt an die Titelstelle und der Untertitel entfaellt (stuende sonst doppelt).
+	// getPathTitleName nimmt den WIKI-Namen zuerst -- genau wie die Spotlight-Suche. Vorher stand hier roh
+	// getPathDisplayName, deshalb zeigte die Infobox als EINZIGE Flaeche "Reichsstrasse-16", waehrend die
+	// Suche "Reichsstraße 2" sagte (12 Altsegmente verletzen R1; die Anzeige heilt das jetzt von selbst).
+	const realName = typeof getPathTitleName === "function" ? getPathTitleName(path) : getPathDisplayName(path);
+	const typeLabel = tr("spotlight.pathType." + pathType, pathType);
+	const pathName = realName || (typeof getUnnamedPathTitle === "function" ? getUnnamedPathTitle(pathType) : typeLabel);
+	const subtitle = realName ? typeLabel : "";
+	// Owner: 16:9 header image per way subtype + title overlay.
 	const headerImg = typeof infoHeaderImageMarkup === "function"
-		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, pathType)
+		? infoHeaderImageMarkup(pathHeaderImageBasename(pathType), pathName, subtitle)
 		: "";
 	return locationPopupMarkup({
 		name: pathName,
 		locationType: "dorf",
-		locationTypeLabel: tr("spotlight.pathType." + pathType, pathType),
+		locationTypeLabel: subtitle,
 		headerImageMarkup: headerImg,
 		headerIconMarkup: pathHeaderIconMarkup(pathType),
 		showHeaderIcon: true,
 		showDescription: false,
 		showWikiLink: false,
-		showType: true,
+		showType: Boolean(subtitle),
 		actionsMarkup: (function () {
 			const buttons = [];
 			// "Anzeigen" zuerst (Owner): [Anzeigen] [Link teilen] [Änderung vorschlagen] in EINEM Band.
