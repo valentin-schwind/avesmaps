@@ -579,6 +579,12 @@ $(document).on("click", ".review-report__create", function (event) {
 		void createCitymapFromReport(report);
 		return;
 	}
+	// Fundort-Meldung: aus demselben Grund hier oben und nicht weiter unten. Sie legt nichts an, sondern
+	// haengt Fundorte an eine bestehende Karte.
+	if (isCitymapLinkReport(report)) {
+		void addCitymapLinksFromReport(report);
+		return;
+	}
 
 	openLabelEditDialogFromReport(report, latlng);
 });

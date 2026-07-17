@@ -174,6 +174,25 @@ async function createCitymapFromReport(report) {
 	}
 }
 
+// Fundort-Meldung: "Anlegen" haengt die gemeldeten Fundorte an eine BESTEHENDE Karte. Danach oeffnet sich
+// der Karten-Editor auf ihr -- nicht als Pflichtschritt wie bei der neuen Karte (dort wartet die Lizenz),
+// sondern weil der Pruefer dort sieht, was er gerade freigegeben hat, und es notfalls gleich unterdruecken
+// kann. Die Fundorte stehen dann unter der Trennlinie mit ihrem Community-Schild.
+async function addCitymapLinksFromReport(report) {
+	try {
+		const result = await addCitymapLinksFromReviewReport(Number(report.id));
+		clearReviewReportMarker();
+		showFeedbackToast(result.message || "Die Fundorte wurden ergänzt.", "success");
+		await loadReviewReports();
+		if (typeof openAvesmapsCitymapEditorOverlay === "function" && result.public_id) {
+			openAvesmapsCitymapEditorOverlay(result.public_id);
+		}
+	} catch (error) {
+		console.error("Fundorte konnten nicht ergänzt werden:", error);
+		showFeedbackToast(error.message || "Fundorte konnten nicht ergänzt werden.", "warning");
+	}
+}
+
 async function rejectReviewReport(report) {
 	if (!window.confirm(`${report.name || "Meldung"} wirklich verwerfen?`)) {
 		return;

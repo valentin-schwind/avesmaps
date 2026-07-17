@@ -445,6 +445,18 @@ function buildCityMapRowMarkup(m) {
 		? '<div class="avesmaps-citymap-row__linkshead">' + placeExtrasEscape(tr("cityMaps.foundAt", "Zu finden bei")) + '</div>'
 		: "";
 
+	// „+ Neuer Fundort": nur in der AUFGEKLAPPTEN Zeile sichtbar (CSS) -- in der kompakten Liste waere er
+	// Laerm neben jeder Zeile. Er traegt seine Karte selbst, wie der Vorschlag-Knopf seinen Ort: der
+	// Melde-Dialog ist EINE wiederverwendete Huelle, eine gemerkte Referenz waere beim zweiten Melden
+	// falsch. Ohne public_id kein Knopf -- der Vorschlag haengt an genau dieser Karte und haette sonst
+	// kein Ziel.
+	var addLink = m.public_id
+		? '<button type="button" class="avesmaps-citymap-row__addlink"'
+			+ ' data-citymap-id="' + placeExtrasEscape(m.public_id) + '"'
+			+ ' data-citymap-title="' + placeExtrasEscape(m.title || "") + '">'
+			+ placeExtrasEscape(tr("cityMaps.addFundort", "+ Neuer Fundort")) + '</button>'
+		: "";
+
 	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
 		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '"' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
 		+ thumbInner + spoilerOverlay + '</a>'
@@ -452,7 +464,7 @@ function buildCityMapRowMarkup(m) {
 		+ '<a class="avesmaps-citymap-row__title"' + openAttrs + '>' + placeExtrasEscape(m.title) + '</a>'
 		+ metaLine + factLine + traitLine + sourceLine + noteLine
 		+ '</div>'
-		+ '<div class="avesmaps-citymap-row__side">' + linksHead + linksMarkup + '</div>'
+		+ '<div class="avesmaps-citymap-row__side">' + linksHead + linksMarkup + addLink + '</div>'
 		+ '</div>';
 }
 

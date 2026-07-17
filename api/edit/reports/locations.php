@@ -101,6 +101,11 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
         $report['citymap'] = ($report['report_type'] ?? '') === 'citymap'
             ? (json_decode((string) ($report['payload_json'] ?? ''), true) ?: null)
             : null;
+        // Fundort-Meldung: dieselbe Spalte, andere Form -- report_type entscheidet, welche. Getrennte
+        // Felder, damit die Review-UI nicht raten muss, was sie gerade in der Hand hat.
+        $report['citymap_link'] = ($report['report_type'] ?? '') === 'citymap_link'
+            ? (json_decode((string) ($report['payload_json'] ?? ''), true) ?: null)
+            : null;
         unset($report['payload_json']);
         $reports[] = $report;
     }

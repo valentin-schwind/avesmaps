@@ -270,6 +270,19 @@ assert.strictEqual(thumbRow.split("example.org/t.png").length - 1, 1, "das Vorsc
 assert.ok(!openRow.includes("is-expanded"), "der Zustand steckt in der Klasse, nicht im Markup");
 console.log("citymap row expand ok");
 
+// ---- „+ Neuer Fundort" (Spec 2026-07-17-community-fundorte) ----------------------------------------
+// Der Knopf traegt seine Karte SELBST: der Melde-Dialog ist eine wiederverwendete Huelle, eine gemerkte
+// Referenz waere beim zweiten Melden falsch -- dieselbe Regel wie beim Vorschlag-Knopf der Sektion.
+assert.ok(openRow.includes('class="avesmaps-citymap-row__addlink"'), "die Zeile bietet das Melden an");
+assert.ok(openRow.includes('data-citymap-id="m12"'), "…und traegt die Karte, an der der Fundort haengt");
+assert.ok(openRow.includes('data-citymap-title="Al&#039;Anfa"'), "…samt Titel fuer die Melde-Ueberschrift");
+assert.ok(openRow.includes("+ Neuer Fundort"));
+
+// Ohne public_id kein Knopf: der Vorschlag haengt an genau dieser Karte und haette sonst kein Ziel --
+// er wuerde beim Absenden am Server scheitern, was der Leser als kaputten Knopf erlebt.
+assert.ok(!buildCityMapRowMarkup({ title: "Ohne id" }).includes("citymap-row__addlink"), "keine id -> kein Melde-Knopf");
+console.log("citymap add-fundort ok");
+
 // ---- filter bar ------------------------------------------------------------------------------------
 const bar = citymapFiltersMarkup({
   types: [{ value: "stadtplan", label: "Stadtplan", count: 2 }],

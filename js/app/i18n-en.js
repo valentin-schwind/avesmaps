@@ -486,6 +486,25 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.sourcePrefix": "Source: ",
 	// Heads the link list of a row: where a reader can actually get this map.
 	"cityMaps.foundAt": "Available at",
+	// Community fundort report. A FUNDORT is a link the map can be had at -- not the WORK it comes from
+	// (that is the Quelle/source, a different field with a different meaning).
+	"cityMaps.addFundort": "+ Add a source",
+	"cityMaps.fundortTitle": "New source",
+	"cityMaps.fundortTitleFor": "New source – {title}",
+	"cityMaps.fundortNotice": "Know another place this map can be found? A label and a link are enough — the label is what a reader clicks, so name the place itself (“Wiki Aventurica”), not the map.",
+	"cityMaps.fundortLabel": "Label *",
+	"cityMaps.fundortUrl": "Link *",
+	"cityMaps.fundortPaid": "paid",
+	"cityMaps.fundortLabelPh": "Wiki Aventurica",
+	"cityMaps.fundortUrlPh": "https://de.wiki-aventurica.de/wiki/…",
+	"cityMaps.fundortAdd": "+ another source",
+	"cityMaps.fundortPaidHint": "“Paid” belongs to the link, not to the map: the same volume is paid in the shop and free on its wiki page. If you don't know, leave it on “unknown” — we do not guess about someone's wallet.",
+	"cityMaps.fundortGroupMore": "Note and name",
+	"cityMaps.fundortWhyMore": "Only if you want to tell us something or be credited.",
+	"cityMaps.fundortNote": "Note for the editors",
+	"cityMaps.fundortNotePh": "The map is freely viewable there.",
+	"cityMaps.fundortNeedOne": "Please give at least one source.",
+	"cityMaps.fundortThanks": "Thank you! Your source has been sent.",
 	// Sits behind ONE link, not on the map: the same volume is paid in the shop and free on its wiki page.
 	"cityMaps.link.paid": "(paid)",
 	// Not complementary: a map nobody has judged matches neither, and a map with both a free and a paid

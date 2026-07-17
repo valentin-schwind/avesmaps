@@ -271,9 +271,16 @@ function renderReviewReports() {
 		// payload_json) -- sie hier zu zeigen laedt dazu ein, sie fuer eine Aussage zu halten. Der Ort, an
 		// den die Karte kommt, ist die Information, auf die es bei der Freigabe ankommt.
 		const citymapProposal = isCitymapReport(report) ? (report.citymap || null) : null;
-		itemElement.querySelector(".review-report__meta").textContent = citymapProposal
-			? `${getReportTypeLabel(report)} · ${citymapProposal.place?.raw_name || "ohne Ort"}`
-			: `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
+		// Fundort-Meldung: die Koordinate ist hier noch bedeutungsloser als bei der Kartenmeldung -- ein
+		// Fundort ist ein Link, er liegt nirgends. Was zaehlt, ist WIE VIELE Fundorte fuer WELCHE Karte,
+		// und der Kartentitel steht schon als Meldungsname darueber.
+		const fundortProposal = isCitymapLinkReport(report) ? (report.citymap_link || null) : null;
+		const fundortCount = (fundortProposal?.links || []).length;
+		itemElement.querySelector(".review-report__meta").textContent = fundortProposal
+			? `${getReportTypeLabel(report)} · ${fundortCount === 1 ? "1 Fundort" : `${fundortCount} Fundorte`}`
+			: citymapProposal
+				? `${getReportTypeLabel(report)} · ${citymapProposal.place?.raw_name || "ohne Ort"}`
+				: `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
 		const reportSources = Array.isArray(report.sources) ? report.sources : [];
 		const sourceSummary = reportSources.length
 			? reportSources.map((source) => source.label + (source.pages ? ` (S. ${source.pages})` : "")).filter(Boolean).join("; ")
@@ -297,6 +304,10 @@ function renderReviewReports() {
 		}
 		if (isCommentReport(report)) {
 			itemElement.querySelector(".review-report__create").textContent = "Erledigt";
+		}
+		// "Anlegen" waere gelogen: hier entsteht nichts, die Fundorte kommen an eine Karte, die es gibt.
+		if (isCitymapLinkReport(report)) {
+			itemElement.querySelector(".review-report__create").textContent = "Ergänzen";
 		}
 		// Kartensammlungs-Vorschlag (§3.8): zeigen, WAS vorgeschlagen wird. Der Titel steht schon oben, aber
 		// der Karten-Link ist das, was der Pruefer aufmachen muss, um ueberhaupt entscheiden zu koennen --
@@ -330,6 +341,40 @@ function renderReviewReports() {
 				factsElement.className = "review-report__citymap-facts";
 				factsElement.textContent = facts.join(" · ");
 				detailElement.appendChild(factsElement);
+			}
+			itemElement.querySelector(".review-report__focus").after(detailElement);
+		}
+		// Fundort-Meldung: die gemeldeten Links SIND die Meldung -- ohne sie stuende hier nur "3 Fundorte"
+		// und der Pruefer muesste blind freigeben. Jeder als echter Link: ob ein Fundort taugt, sieht man
+		// nur, wenn man ihn aufmacht. Rein per DOM gebaut (kein innerHTML), wie der Kartenblock darueber:
+		// das ist Fremdtext aus einer oeffentlichen Meldung.
+		if (fundortProposal && fundortCount) {
+			const detailElement = document.createElement("div");
+			detailElement.className = "review-report__citymap";
+			fundortProposal.links.forEach((entry) => {
+				const row = document.createElement("div");
+				const link = document.createElement("a");
+				link.className = "review-report__citymap-link";
+				link.href = entry.url;
+				link.target = "_blank";
+				link.rel = "noopener noreferrer";
+				link.textContent = `${entry.label} ↗`;
+				row.appendChild(link);
+				// Nur ein bekanntes JA/NEIN. NULL heisst "der Melder wusste es nicht" und wird nicht zu einer
+				// Aussage gemacht (§3.1) -- der Pruefer traegt es dann selbst nach oder laesst es offen.
+				if (entry.is_paid === 1 || entry.is_paid === 0) {
+					const paid = document.createElement("span");
+					paid.className = "review-report__citymap-facts";
+					paid.textContent = entry.is_paid === 1 ? " · kostenpflichtig" : " · kostenlos";
+					row.appendChild(paid);
+				}
+				detailElement.appendChild(row);
+			});
+			if (fundortProposal.note) {
+				const noteElement = document.createElement("div");
+				noteElement.className = "review-report__citymap-facts";
+				noteElement.textContent = fundortProposal.note;
+				detailElement.appendChild(noteElement);
 			}
 			itemElement.querySelector(".review-report__focus").after(detailElement);
 		}
@@ -609,6 +654,7 @@ function getReportTypeLabel(report) {
 		weg: "Weg/Straße",
 		territorium: "Herrschaftsgebiet",
 		karte: "Karte",
+		fundort: "Fundort",
 	}[reportSubtype] || reportSubtype || "Karteneintrag";
 }
 
@@ -624,6 +670,12 @@ function isCommentReport(report) {
 // "Anlegen" legt eine citymap an, nicht einen Punkt oder ein Label.
 function isCitymapReport(report) {
 	return (report.report_type || "") === "citymap";
+}
+
+// Fundort-Meldung (Spec 2026-07-17-community-fundorte): der einzige Typ, der ueberhaupt nichts anlegt --
+// "Anlegen" haengt Fundorte an eine BESTEHENDE Karte.
+function isCitymapLinkReport(report) {
+	return (report.report_type || "") === "citymap_link";
 }
 
 function findReviewReportFromElement(element) {

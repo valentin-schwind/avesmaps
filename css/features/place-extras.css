@@ -751,6 +751,49 @@
 	font-size: 12.5px;
 	color: var(--color-text);
 }
+
+/* ---- „Neuer Fundort": Bezeichnung | Link | kostenpflichtig je Zeile ----
+   Die Ueberschrift sitzt auf DEMSELBEN Grid wie die Zeilen, damit eine Spaltenbeschriftung nicht von ihrer
+   Spalte wegwandern kann -- gleiche Loesung wie im Editor. Unter ~380px stapeln die drei, statt die Selects
+   auf Briefmarkenbreite zu quetschen. */
+.citymap-fundort__head,
+.citymap-fundort__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 110px;
+	gap: 6px;
+	align-items: center;
+}
+.citymap-fundort__head {
+	margin-bottom: 4px;
+	font-size: 12px;
+	color: var(--color-text-strong);
+}
+.citymap-fundort__row {
+	margin-bottom: 6px;
+}
+.citymap-fundort__input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 6px 8px;
+	background: var(--color-panel);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	font: inherit;
+	font-size: 13px;
+	color: var(--color-text);
+}
+.citymap-fundort__input:focus {
+	border-color: var(--color-border-strong);
+	outline: none;
+}
+@media (max-width: 380px) {
+	.citymap-fundort__head {
+		display: none; /* gestapelt beschriften die Platzhalter selbst */
+	}
+	.citymap-fundort__row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
 .citymap-suggest__check {
 	display: flex;
 	align-items: center;
@@ -888,6 +931,27 @@
 	font-size: 12.5px;
 	line-height: 1.5;
 	margin-bottom: 7px;
+}
+/* „+ Neuer Fundort" — nur in der offenen Zeile (siehe Markup-Kommentar): in der kompakten Liste stuende er
+   neben jeder Zeile und waere Laerm. Soft/outline, nicht gefuellt: die Hauptsache dieser Spalte sind die
+   Fundorte, nicht das Melden (AGENTS.md §12). */
+.avesmaps-citymap-row__addlink {
+	display: none;
+	margin-top: 4px;
+	padding: 4px 9px;
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: 11.5px;
+	cursor: pointer;
+}
+.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__addlink {
+	display: inline-block;
+}
+.avesmaps-citymap-row__addlink:hover {
+	background: var(--color-button-soft-hover);
 }
 .avesmaps-citymap-row__title {
 	display: block;

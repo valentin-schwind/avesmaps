@@ -387,4 +387,216 @@
 	});
 
 	window.openCitymapSuggestDialog = openSuggestDialog;
+
+	// =====================================================================================================
+	// „Neuer Fundort" (Spec 2026-07-17-community-fundorte) — ein weiterer Ort, an dem es eine BESTEHENDE
+	// Karte gibt. Wohnt in dieser Datei statt in einer eigenen, weil er sich alles teilt, was zaehlt: die
+	// Dialoghuelle, esc/t/val/close/setStatus, den Honeypot, elapsed_ms und den Transport. Was ihn vom
+	// Formular oben unterscheidet, sind genau seine drei Felder.
+	//
+	// KEIN Zeilen-State (anders als im Editor): ohne ▲▼ wird nichts neu gezeichnet, „+ weiterer Fundort"
+	// haengt bloss eine Zeile an. Getipptes kann also gar nicht erst verlorengehen.
+	//
+	// FUNDORT ist nicht QUELLE: hier steht, WO es die Karte gibt (ein Link), nicht, aus welchem WERK sie
+	// stammt. Deshalb hat dieser Dialog kein Quellenfeld -- und der Server nimmt fuer 'fundort' auch keins
+	// an: die URL ist ihr eigener Beleg.
+	function fundortRowMarkup() {
+		return '<div class="citymap-fundort__row">'
+			+ '<input class="citymap-fundort__input" data-fundort-field="label" type="text" maxlength="200"'
+			+ ' placeholder="' + esc(t("cityMaps.fundortLabelPh", "Wiki-Aventurica")) + '" />'
+			+ '<input class="citymap-fundort__input" data-fundort-field="url" type="url" maxlength="500" inputmode="url"'
+			+ ' placeholder="' + esc(t("cityMaps.fundortUrlPh", "https://de.wiki-aventurica.de/wiki/…")) + '" />'
+			+ '<select class="citymap-fundort__input" data-fundort-field="is_paid">'
+			+ TRI.map(function (o) {
+				return '<option value="' + esc(o[0]) + '">' + esc(t("cityMaps.tri." + (o[0] || "unknown"), o[1])) + '</option>';
+			}).join("")
+			+ '</select></div>';
+	}
+
+	function ensureFundortDialog() {
+		var overlay = document.getElementById("avesmaps-citymap-fundort");
+		if (overlay) {
+			return overlay;
+		}
+		overlay = document.createElement("div");
+		overlay.id = "avesmaps-citymap-fundort";
+		overlay.className = "avesmaps-adv-dialog citymap-suggest citymap-fundort";
+		overlay.innerHTML = '<div class="avesmaps-adv-dialog__box" role="dialog" aria-modal="true" aria-labelledby="citymap-fundort-title">'
+			+ '<div class="avesmaps-adv-dialog__head"><span class="avesmaps-adv-dialog__title" id="citymap-fundort-title"></span>'
+			+ '<button type="button" class="avesmaps-adv-dialog__close" data-fundort-close aria-label="' + esc(t("cityMaps.closeAria", "Schließen")) + '">✕</button></div>'
+			+ '<form class="citymap-suggest__body" novalidate>'
+			+ '<p class="citymap-suggest__notice">' + esc(t("cityMaps.fundortNotice",
+				"Kennst du eine weitere Stelle, an der es diese Karte gibt? Bezeichnung und Link genügen — die Bezeichnung ist das, was der Leser anklickt, also die Fundstelle selbst („Wiki-Aventurica“), nicht die Karte.")) + '</p>'
+			+ '<div class="citymap-suggest__group">'
+			+ '<div class="citymap-fundort__head"><span>' + esc(t("cityMaps.fundortLabel", "Bezeichnung *")) + '</span>'
+			+ '<span>' + esc(t("cityMaps.fundortUrl", "Link *")) + '</span>'
+			+ '<span>' + esc(t("cityMaps.fundortPaid", "kostenpflichtig")) + '</span></div>'
+			+ '<div data-fundort-rows>' + fundortRowMarkup() + '</div>'
+			+ '<div class="ce-xlink__add"><button type="button" class="citymap-suggest__cancel" data-fundort-add>'
+			+ esc(t("cityMaps.fundortAdd", "+ weiterer Fundort")) + '</button></div>'
+			// Woertlich die §3.1-Regel: „unbekannt" ist eine gueltige Antwort. Ein Melder, der den Preis nicht
+			// kennt, soll nichts behaupten muessen -- und „kostenlos" ist die Behauptung, deren Widerlegung
+			// einen Leser Geld kostet.
+			+ '<p class="citymap-suggest__hint">' + esc(t("cityMaps.fundortPaidHint",
+				"„kostenpflichtig“ hängt am Link, nicht an der Karte: derselbe Band ist im Shop bezahlt und auf seiner Wiki-Seite frei. Weißt du es nicht, lass „unbekannt“ stehen — wir raten nicht über fremdes Geld.")) + '</p>'
+			+ '</div>'
+			+ detailsGroup(t("cityMaps.fundortGroupMore", "Notiz und Name"),
+				t("cityMaps.fundortWhyMore", "Nur, falls du uns etwas mitgeben oder genannt werden willst."),
+				fieldMarkup("citymap-fundort-note", t("cityMaps.fundortNote", "Notiz an die Redaktion"), "text", 2000,
+					t("cityMaps.fundortNotePh", "Dort liegt die Karte frei einsehbar."))
+				+ fieldMarkup("citymap-fundort-reporter", t("cityMaps.suggestReporter", "Dein Name/Pseudonym"), "text", 80,
+					t("cityMaps.suggestReporterPh", "Alrik aus Gareth"), ' autocomplete="nickname"'))
+			+ '<input class="location-report-form__honeypot" data-fundort-hp type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />'
+			+ '<p class="citymap-suggest__status" role="status" aria-live="polite"></p>'
+			+ '<div class="citymap-suggest__actions">'
+			+ '<button type="submit" class="citymap-suggest__submit">' + esc(t("cityMaps.suggestSubmit", "Vorschlag senden")) + '</button>'
+			+ '<button type="button" class="citymap-suggest__cancel" data-fundort-close>' + esc(t("cityMaps.suggestCancel", "Abbrechen")) + '</button>'
+			+ '</div></form></div>';
+		document.body.appendChild(overlay);
+
+		overlay.addEventListener("click", function (e) {
+			if (e.target === overlay || (e.target.closest && e.target.closest("[data-fundort-close]"))) {
+				close(overlay);
+				return;
+			}
+			if (e.target.closest && e.target.closest("[data-fundort-add]")) {
+				var rows = overlay.querySelector("[data-fundort-rows]");
+				if (rows) {
+					rows.insertAdjacentHTML("beforeend", fundortRowMarkup());
+				}
+			}
+		});
+		document.addEventListener("keydown", function (e) {
+			if (e.key === "Escape" && overlay.classList.contains("is-open")) {
+				close(overlay);
+			}
+		});
+		overlay.querySelector("form").addEventListener("submit", function (e) {
+			e.preventDefault();
+			void submitFundort(overlay);
+		});
+		return overlay;
+	}
+
+	// Die Zeilen aus dem DOM. Voellig leere fallen raus (eine angehaengte, nie ausgefuellte Zeile ist kein
+	// Fehler); halb gefuellte reisen mit, damit der SERVER sie beanstandet -- er ist die eine Instanz, die
+	// diese Regel kennt (avesmapsNormalizeCitymapLinkRows), und zwei Kopien davon liefen auseinander.
+	function fundortRows(overlay) {
+		var out = [];
+		overlay.querySelectorAll(".citymap-fundort__row").forEach(function (row) {
+			var get = function (field) {
+				var el = row.querySelector('[data-fundort-field="' + field + '"]');
+				return el ? String(el.value || "").trim() : "";
+			};
+			var label = get("label");
+			var url = get("url");
+			if (label === "" && url === "") {
+				return;
+			}
+			out.push({ label: label, url: url, is_paid: get("is_paid") });
+		});
+		return out;
+	}
+
+	function openFundortDialog(citymap) {
+		var overlay = ensureFundortDialog();
+		overlay.dataset.citymapId = citymap.publicId || "";
+		// Der Titel reist als Datensatz mit, weil submitFundort ihn als Meldungs-Ueberschrift braucht --
+		// ihn aus der Dialog-Ueberschrift zurueckzulesen holte "Neuer Fundort – " gleich mit.
+		overlay.dataset.citymapTitle = citymap.title || "";
+		overlay.dataset.openedAt = String(Date.now());
+		overlay.querySelector("#citymap-fundort-title").textContent = citymap.title
+			? t("cityMaps.fundortTitleFor", "Neuer Fundort – {title}", { title: citymap.title })
+			: t("cityMaps.fundortTitle", "Neuer Fundort");
+		// Frisches Formular: die Huelle wird wiederverwendet und zeigte sonst die Eingaben zur zuletzt
+		// gemeldeten Karte -- beim zweiten Melden genau einmal falsch.
+		overlay.querySelector("[data-fundort-rows]").innerHTML = fundortRowMarkup();
+		overlay.querySelector("#citymap-fundort-note").value = "";
+		setStatus(overlay, "", "");
+		overlay.classList.add("is-open");
+		overlay.querySelector('[data-fundort-field="label"]')?.focus();
+	}
+
+	async function submitFundort(overlay) {
+		if (typeof isLocationReportServiceConfigured === "function" && !isLocationReportServiceConfigured()) {
+			setStatus(overlay, t("report.statusNotConfigured", "Das Meldeformular ist noch nicht mit dem Avesmaps-Server verbunden."), "error");
+			return;
+		}
+		var rows = fundortRows(overlay);
+		if (rows.length === 0) {
+			setStatus(overlay, t("cityMaps.fundortNeedOne", "Bitte mindestens einen Fundort angeben."), "error");
+			overlay.querySelector('[data-fundort-field="label"]')?.focus();
+			return;
+		}
+
+		var hp = overlay.querySelector("[data-fundort-hp]");
+		// Position: wie beim Kartenvorschlag nur ein grober Anker -- report-location.php verlangt lat/lng
+		// fuer JEDE Meldung, verbindlich ist hier aber die citymap_public_id.
+		var centre = (typeof map !== "undefined" && map && typeof map.getCenter === "function")
+			? map.getCenter()
+			: { lat: 512, lng: 512 };
+		var clamp = function (n) { return Math.min(1024, Math.max(0, Number.isFinite(n) ? n : 512)); };
+		var title = overlay.dataset.citymapTitle || "";
+
+		var payload = {
+			report_type: "fundort",
+			report_mode: "new",
+			// `name` ist die Ueberschrift der Meldung im Reiter (Spalte 80 Zeichen) und traegt den
+			// Kartentitel -- verbindlich ist citymap_public_id darunter, nicht dieser Text.
+			name: (title || t("cityMaps.fundortTitle", "Neuer Fundort")).slice(0, 80),
+			reporter_name: val(overlay, "citymap-fundort-reporter"),
+			// KEINE `sources`: ein Fundort IST ein Link, die URL ist ihr eigener Beleg. Der Server nimmt
+			// 'fundort' deshalb von der Quellenpflicht aus.
+			comment: "",
+			wiki_url: "",
+			lat: clamp(centre.lat),
+			lng: clamp(centre.lng),
+			page_url: window.location.href,
+			client_version: typeof ICON_ASSET_VERSION === "string" ? ICON_ASSET_VERSION : "",
+			elapsed_ms: Math.max(0, Date.now() - Number.parseInt(overlay.dataset.openedAt || "0", 10)),
+			website: hp ? String(hp.value || "").trim() : "",
+			citymap_link: {
+				citymap_public_id: overlay.dataset.citymapId || "",
+				links: rows,
+				note: val(overlay, "citymap-fundort-note"),
+			},
+		};
+
+		setStatus(overlay, t("cityMaps.suggestSending", "Vorschlag wird gesendet..."), "pending");
+		var submit = overlay.querySelector(".citymap-suggest__submit");
+		if (submit) {
+			submit.disabled = true;
+		}
+		var result = { ok: false, message: "" };
+		try {
+			result = await submitLocationReportRequest(payload);
+		} catch (error) {
+			result = { ok: false, message: (error && error.message) || "" };
+		}
+		if (submit) {
+			submit.disabled = false;
+		}
+		if (result.ok) {
+			close(overlay);
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast(t("cityMaps.fundortThanks", "Danke! Dein Fundort wurde gesendet."), "success");
+			}
+			return;
+		}
+		setStatus(overlay, result.message || t("cityMaps.suggestFailed", "Der Vorschlag konnte nicht gesendet werden."), "error");
+	}
+
+	// Der Knopf sitzt in der aufgeklappten Karten-Zeile und traegt seine Karte selbst -- wie der
+	// Vorschlag-Knopf oben seinen Ort. Der Dialog wird wiederverwendet, eine gemerkte Referenz waere beim
+	// zweiten Melden falsch.
+	$(document).on("click", ".avesmaps-citymap-row__addlink", function (e) {
+		e.preventDefault();
+		e.stopPropagation(); // sonst klappt derselbe Klick die Zeile zu
+		openFundortDialog({
+			publicId: this.getAttribute("data-citymap-id") || "",
+			title: this.getAttribute("data-citymap-title") || "",
+		});
+	});
+
+	window.openCitymapFundortDialog = openFundortDialog;
 })();

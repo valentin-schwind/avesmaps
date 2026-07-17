@@ -336,6 +336,31 @@ async function createCitymapFromReviewReport(reportId) {
 	return data;
 }
 
+// Fundort-Meldung (Spec 2026-07-17-community-fundorte): "Anlegen" haengt die gemeldeten Fundorte an eine
+// BESTEHENDE Karte -- der einzige Meldeweg, der nichts anlegt. Serverseitig und in EINEM Aufruf, aus
+// denselben zwei Gruenden wie oben: nur dort laesst sich origin='community' garantieren statt erbitten,
+// und nur dort ist das Anhaengen additiv (set_links wuerde die Fundorte des Editors ersetzen).
+async function addCitymapLinksFromReviewReport(reportId) {
+	const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action: "add_citymap_links",
+			report_id: reportId,
+		}),
+	});
+	const data = await readJsonResponse(response);
+
+	if (!response.ok || !data?.ok) {
+		throw new Error(apiErrorMessage(data, `Review-API antwortet mit HTTP ${response.status}.`));
+	}
+	return data;
+}
+
 async function submitWikiSyncLocationAction(action, payload = {}) {
 	const response = await fetch(WIKI_SYNC_LOCATIONS_API_URL, {
 		method: "POST",
