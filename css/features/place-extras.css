@@ -636,12 +636,20 @@
 }
 /* Gruppierung per Trenner + Überschrift, nicht per Rahmenkasten (Designsprache §12). Eine Linie je
    Gruppe, randlos von Rand zu Rand: negative Seitenmargin = Padding der Box (16px). */
+/* Eine Linie je Gruppe, randlos von Rand zu Rand: negative Seitenmargin = Padding der Box (16px).
+   Symmetrisches Padding, damit der Trenner oben WIE unten Luft hat — mit `12px 16px 0` klebte die Linie
+   direkt unter dem Text der Gruppe darüber. */
 .citymap-suggest__group {
 	border-top: 1px solid var(--color-divider);
 	margin: 0 -16px;
-	padding: 12px 16px 0;
+	padding: 14px 16px;
 }
-.citymap-suggest__group:first-of-type {
+/* Die erste Gruppe braucht keine Linie: das Hinweisfeld darüber trennt schon.
+   NICHT :first-of-type — das zählt PRO TAGNAME. Solange alle Gruppen <div> waren, traf es nur die erste;
+   seit die eingeklappten <details> sind, war die erste von IHNEN ebenfalls ein :first-of-type und verlor
+   Trenner und Abstand still mit. Der Nachbarschafts-Selektor sagt, was gemeint ist, und ist gegen den
+   nächsten Tagwechsel immun. */
+.citymap-suggest__notice + .citymap-suggest__group {
 	border-top: 0;
 	padding-top: 0;
 }
@@ -655,9 +663,6 @@
 }
 /* Eingeklappte Gruppe: das Eingeklapptsein IST die Aussage „optional“ (Owner 2026-07-17). Die Zeile liest
    sich wie ein Gruppentitel — nur eben aufklappbar; der Melder soll keinen Modus lernen müssen. */
-.citymap-suggest__group--fold {
-	padding-bottom: 12px;
-}
 .citymap-suggest__summary {
 	display: flex;
 	align-items: center;
