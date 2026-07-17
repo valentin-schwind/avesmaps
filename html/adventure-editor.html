@@ -414,7 +414,7 @@
         <span class="saved" id="aeSaveState"></span>
         <span class="ae-spacer"></span>
         <button class="btn" id="aeDiscard">Verwerfen</button>
-        <button class="btn btn--primary" id="aeSave">Stammdaten speichern</button>
+        <button class="btn btn--primary" id="aeSave">Speichern</button>
       </div>
     </section>
   </div>
@@ -726,7 +726,7 @@
   function aeExtraLinksGroup() {
     return `<div class="ae-grp"><p class="ae-grp__title">Weitere Links</p>
       <p class="ae-xlink__hint">Rezensionen, Errata, Fanmaterial — alles, was weder Shop noch Wiki ist. Sie stehen im
-        Abenteuer-Dialog hinter den Shop-Links und werden mitgeprüft. Speichern über „Stammdaten speichern“.</p>
+        Abenteuer-Dialog hinter den Shop-Links und werden mitgeprüft; gespeichert wird mit „Speichern“.</p>
       <div id="aeExtraLinks">${aeExtraLinkRows()}</div>
       <div class="ae-xlink__add"><button type="button" class="btn btn--sm" data-xl-act="add">+ Link</button></div>
     </div>`;
@@ -962,7 +962,7 @@
   });
 
   // „Weitere Links": + Link / ▲▼ / ✕. Delegiert auf dem statischen #aeStammBody, weil die Zeilen bei
-  // jedem Render neu entstehen. Rein lokal am State -- gespeichert wird erst mit „Stammdaten speichern".
+  // jedem Render neu entstehen. Rein lokal am State -- gespeichert wird erst mit „Speichern“.
   document.getElementById("aeStammBody").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-xl-act]");
     if (!btn) return;
