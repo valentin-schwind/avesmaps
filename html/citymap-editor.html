@@ -429,6 +429,10 @@
     <span class="t1">🔗 Links prüfen</span>
     <span class="t2" id="ceLinkCheckSub">…</span>
   </button>
+  <button type="button" class="ce-btn2" id="ceAutogetBtn" title="Holt für alle Karten ein Vorschaubild: Wiki-Karten über die MediaWiki-API (kein HTML-Crawl), Ulisses über die Produkt-API. Verlagscover werden öffentlich, ein fremdes og:image bleibt im Editor. Eigene Uploads bleiben unangetastet. Läuft schrittweise und ist fortsetzbar.">
+    <span class="t1">🖼️ Vorschauen holen</span>
+    <span class="t2" id="ceAutogetSub">…</span>
+  </button>
   <span class="ce-header__spacer"></span>
   <span class="ce-hint">Wiki-Karten tragen eine Wiki-Pille. Eigene Änderungen daran gewinnen: eine bearbeitete Karte fasst der Sync nicht mehr an.</span>
 </div>
@@ -1312,6 +1316,83 @@
     }
   }
 
+  // ---- Preview autoget (all maps) ----
+  // Delegates to window.parent.startCitymapAutoget -- the loop lives in the parent
+  // (js/review/review-citymap-autoget.js) for the same reason the link check does: this editor is an
+  // iframe, and the run must outlive its own status line. Progress arrives through the callback we hand
+  // in; polling would only queue behind the running step.
+  let ceAutogetRunning = false;
+
+  function setAutogetBusy(isBusy) {
+    ceAutogetRunning = isBusy;
+    const button = document.getElementById("ceAutogetBtn");
+    if (!button) return;
+    button.disabled = isBusy;
+    const label = button.querySelector(".t1");
+    if (label) label.textContent = isBusy ? "Holt …" : "🖼️ Vorschauen holen";
+  }
+
+  // Read-only, no lock, no run -- the same shape as refreshCeSyncedInfo.
+  async function refreshCeAutogetInfo() {
+    const el = document.getElementById("ceAutogetSub");
+    if (!el) return;
+    try {
+      const res = await fetch("/api/edit/map/citymap-autoget.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "status" }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok || !payload || payload.ok !== true) throw new Error(`HTTP ${res.status}`);
+      el.textContent = payload.remaining > 0
+        ? `${payload.remaining} von ${payload.total} offen`
+        : `${payload.total} Karten geprüft`;
+    } catch (e) {
+      el.textContent = "Status unbekannt";
+    }
+  }
+
+  async function handleAutogetClick() {
+    if (ceAutogetRunning) return;
+    const statusEl = document.getElementById("ceAutogetSub");
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startCitymapAutoget !== "function") {
+      if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
+      return;
+    }
+    if (!window.confirm("Für alle Karten ohne eigenes Vorschaubild ein Bild holen?\n\nWiki-Karten über die MediaWiki-API, Ulisses über die Produkt-API. Verlagscover werden öffentlich sichtbar, eigene Uploads bleiben unangetastet. Der Durchlauf dauert ein bis zwei Minuten und lässt sich fortsetzen.")) {
+      return;
+    }
+    setAutogetBusy(true);
+    try {
+      const r = await parentWindow.startCitymapAutoget((text) => {
+        if (statusEl) statusEl.textContent = text;
+      });
+      // Returns NULL (it does not throw) when a run is already in flight -- the guard is global on
+      // purpose. Say so instead of leaving the last progress line standing.
+      if (!r) {
+        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits.";
+      } else if (statusEl) {
+        // Report EVERY outcome, not just the wins ("kein stilles Abschneiden", owner). Counted in MAPS,
+        // because that is what a reader sees -- the sources are only the bracket. A summary saying
+        // "118 geholt" would understate its own effect by a factor of 2.7.
+        const parts = [`${r.sources} Quellen · ${r.ok} Karten mit Vorschau`];
+        if (r.no_image) parts.push(`${r.no_image} ohne Seitenbild`);
+        if (r.fetch_failed) parts.push(`${r.fetch_failed} nicht erreichbar`);
+        if (r.not_an_image) parts.push(`${r.not_an_image} kein Bild`);
+        if (r.skipped) parts.push(`${r.skipped} übersprungen (eigenes Bild)`);
+        statusEl.textContent = parts.join(" · ");
+      }
+      await loadList(true);
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+    } finally {
+      setAutogetBusy(false);
+    }
+  }
+
   // ---- wiring ----
   document.getElementById("ceSearch").addEventListener("input", renderList);
   document.getElementById("ceNew").addEventListener("click", newCitymap);
@@ -1331,6 +1412,7 @@
   document.getElementById("ceEnabledToggle").addEventListener("click", toggleEnabled);
   document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
   document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
+  document.getElementById("ceAutogetBtn").addEventListener("click", handleAutogetClick);
 
   // Delegate on the STABLE container -- the rows are rebuilt by innerHTML.
   document.getElementById("ceListScroll").addEventListener("click", (e) => {
@@ -1468,6 +1550,8 @@
   // Fill the sync button's sub-label on open: it answers "is there a dump staged to sync at all?"
   // before the owner presses anything. Best-effort -- a failure just shows "Dump-Status unbekannt".
   void refreshCeSyncedInfo();
+  // Same idea for the autoget button: "133 von 365 offen" before anyone presses it.
+  void refreshCeAutogetInfo();
 </script>
 </body>
 </html>
