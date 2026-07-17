@@ -245,30 +245,29 @@ assert.ok(!row.includes("linkpaid"), "die Abenteuer-/Karten-Linkzeile bleibt ohn
 console.log("citymap multi-links ok");
 
 // ---- aufklappbare Zeile (Spec 2026-07-17-kartensammlung-zeile-aufklappen) ---------------------------
-// „Karte oeffnen" ist die Hauptaktion der aufgeklappten Zeile: der Klick auf die Zeile klappt jetzt
-// auf/zu, also braucht das Oeffnen einen eigenen Platz.
-const openRow = buildCityMapRowMarkup({ public_id: "m12", title: "Al'Anfa", map_url: "https://example.org/k" });
-assert.ok(openRow.includes('class="avesmaps-citymap-row__open"'), "die Zeile traegt den Oeffnen-Button");
-assert.ok(openRow.includes("Karte öffnen ↗"), "…mit dem ↗ jedes Off-Site-Links (AGENTS.md §12)");
-// Er haengt NICHT an .is-expanded im Markup -- sichtbar wird er per CSS. Die Zeile rendert in beiden
-// Zustaenden identisch; nur die Klasse am Container entscheidet, und die setzt der Klick-Handler.
-assert.ok(!openRow.includes("is-expanded"), "der Zustand steckt in der Klasse, nicht im Markup");
+// KEIN eigener „Karte oeffnen"-Knopf (Owner 2026-07-17): map_url steht als „Karte ↗" ohnehin in der Liste
+// rechts -- ein Knopf daneben war derselbe Link zweimal. Geoeffnet wird ueber das grosse Vorschaubild.
+const openRow = buildCityMapRowMarkup({
+  public_id: "m12", title: "Al'Anfa",
+  links: [{ key: "map", label: "Karte", url: "https://example.org/k", state: "alive" }],
+});
+assert.ok(!openRow.includes("citymap-row__open"), "kein doppelter Oeffnen-Knopf");
+assert.ok(openRow.includes("Karte ↗"), "…die Liste fuehrt den Karten-Link");
+
+// Die Fundorte bekommen eine Ueberschrift: sie sind der Grund, warum die Zeile aufgeklappt wird, und
+// tragen seit den Mehrfach-Links mehr als einen Eintrag.
+assert.ok(openRow.includes('class="avesmaps-citymap-row__linkshead">Zu finden bei'), "die Fundorte sind ueberschrieben");
+// Keine Liste -> keine Ueberschrift ueber dem Nichts.
+assert.ok(!buildCityMapRowMarkup({ public_id: "m15", title: "T" }).includes("citymap-row__linkshead"));
 
 // Das grosse Vorschaubild ist DASSELBE <img>, nur per CSS anders dimensioniert. Ein zweites, verstecktes
 // wuerde jede Karte im Dialog doppelt laden -- bei 20 Karten 20 unnoetige Requests.
 const thumbRow = buildCityMapRowMarkup({ public_id: "m13", title: "T", thumb: "https://example.org/t.png", map_url: "https://example.org/k" });
 assert.strictEqual(thumbRow.split("example.org/t.png").length - 1, 1, "das Vorschaubild steht GENAU einmal im Markup");
 
-// Ohne Karten-Link kein Button: eine Karte ohne map_url ist eine gueltige Zeile (§3.1), und ein Button
-// auf "#" waere ein Versprechen ins Leere.
-const rowWithoutLink = buildCityMapRowMarkup({ public_id: "m14", title: "Nur ein Titel" });
-assert.ok(!rowWithoutLink.includes("citymap-row__open"), "kein Link -> kein Oeffnen-Button");
-
-// Die Klasse ist der Aufhaenger der links.css-Ausnahme: ohne :not(.avesmaps-citymap-row__open) dort
-// faerbt dessen !important den Text gold-braun, und er verschwindet auf dem gefuellten Button.
-const linksCss = require("fs").readFileSync(require("path").join(__dirname, "../../../css/features/links.css"), "utf8");
-assert.ok(linksCss.includes(":not(.avesmaps-citymap-row__open)"),
-	"links.css nimmt den Oeffnen-Button von seiner !important-Faerbung aus");
+// Der Zustand steckt in der Klasse am Container, nicht im Markup -- die Zeile rendert offen wie zu
+// identisch, und nur der Klick-Handler entscheidet.
+assert.ok(!openRow.includes("is-expanded"), "der Zustand steckt in der Klasse, nicht im Markup");
 console.log("citymap row expand ok");
 
 // ---- filter bar ------------------------------------------------------------------------------------

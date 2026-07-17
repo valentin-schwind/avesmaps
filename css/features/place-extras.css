@@ -871,30 +871,23 @@
 	max-width: 280px;
 	height: 196px;
 }
-/* Die Hauptaktion der offenen Zeile: gefuellt, weil sie die Karte SELBST oeffnet und neben den
-   Fundstellen-Links daneben sonst wie eine weitere Fundstelle aussaehe (AGENTS.md §12). Dass die Farbe
-   haelt, haengt an der :not()-Ausnahme in features/links.css -- ohne sie faerbt dessen !important den
-   Text gold-braun und er verschwindet auf --color-button. */
-.avesmaps-citymap-row__open {
-	display: none;
-}
-.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__open {
-	display: inline-block;
-	margin-top: 10px;
-	padding: 5px 10px;
-	border-radius: var(--radius-md);
-	background: var(--color-button);
-	border: 1px solid var(--color-button-border);
-	color: var(--color-button-text);
-	font-size: 11.5px;
-	text-decoration: none;
-}
-.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__open:hover {
-	background: var(--color-button-hover);
-}
-
 .avesmaps-citymap-row__main {
 	min-width: 0;
+}
+/* Die Fundorte sind die Antwort auf "wo kriege ich die Karte?" und damit das, weswegen der Leser die Zeile
+   aufklappt -- sie stehen deshalb unter einer Ueberschrift und in Lesegroesse statt als Kleingedrucktes am
+   Rand. Trennlinie statt Kasten, wie ueberall (AGENTS.md §12). */
+.avesmaps-citymap-row__linkshead {
+	padding-bottom: 5px;
+	border-bottom: 1px solid var(--color-divider);
+	margin-bottom: 7px;
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+.avesmaps-citymap-row__side .avesmaps-adv-row__linkitem {
+	font-size: 12.5px;
+	line-height: 1.5;
+	margin-bottom: 7px;
 }
 .avesmaps-citymap-row__title {
 	display: block;

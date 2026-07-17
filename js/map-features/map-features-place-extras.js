@@ -433,13 +433,16 @@ function buildCityMapRowMarkup(m) {
 		? '<ul class="avesmaps-adv-row__links">' + m.links.map(advRowLinkMarkup).join("") + '</ul>'
 		: "";
 
-	// „Karte oeffnen": nur in der AUFGEKLAPPTEN Zeile sichtbar (CSS). Er existiert, weil der Klick auf die
-	// Zeile jetzt auf-/zuklappt und das Oeffnen deshalb einen eigenen, unmissverstaendlichen Platz braucht.
-	// Ohne Link kein Button -- eine Karte ohne map_url ist eine gueltige Zeile (§3.1), und ein Button, der
-	// auf "#" zeigt, waere ein Versprechen ins Leere.
-	var openButton = href
-		? '<a class="avesmaps-citymap-row__open"' + openAttrs + '>'
-			+ placeExtrasEscape(tr("cityMaps.openMap", "Karte öffnen")) + ' ↗</a>'
+	// KEIN eigener „Karte oeffnen"-Knopf: map_url steht als „Karte ↗" laengst in der Liste rechts
+	// (avesmapsCitymapLinks baut ihn), ein Knopf daneben waere derselbe Link ein zweites Mal. Die Karte
+	// selbst oeffnet man ueber das grosse Vorschaubild oder eben ueber diese Zeile.
+	//
+	// Ueberschrift ueber der Liste: sie beantwortet „wo kriege ich die Karte?" und traegt seit den
+	// Mehrfach-Links mehr als einen Eintrag -- ohne Titel liest sie sich wie lose Links neben der Zeile.
+	// Nur hier, nicht in advRowLinkMarkup: die Abenteuerzeile teilt sich die Link-Zeile, aber nicht diese
+	// Frage (dort sind es Shop-Links, keine Fundorte).
+	var linksHead = (m.links && m.links.length)
+		? '<div class="avesmaps-citymap-row__linkshead">' + placeExtrasEscape(tr("cityMaps.foundAt", "Zu finden bei")) + '</div>'
 		: "";
 
 	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
@@ -447,9 +450,9 @@ function buildCityMapRowMarkup(m) {
 		+ thumbInner + spoilerOverlay + '</a>'
 		+ '<div class="avesmaps-citymap-row__main">'
 		+ '<a class="avesmaps-citymap-row__title"' + openAttrs + '>' + placeExtrasEscape(m.title) + '</a>'
-		+ metaLine + factLine + traitLine + sourceLine + noteLine + openButton
+		+ metaLine + factLine + traitLine + sourceLine + noteLine
 		+ '</div>'
-		+ '<div class="avesmaps-citymap-row__side">' + linksMarkup + '</div>'
+		+ '<div class="avesmaps-citymap-row__side">' + linksHead + linksMarkup + '</div>'
 		+ '</div>';
 }
 

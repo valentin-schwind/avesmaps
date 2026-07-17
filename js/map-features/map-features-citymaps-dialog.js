@@ -341,11 +341,11 @@
 			return;
 		}
 		var expanded = row.classList.contains("is-expanded");
-		// 2. Aufgeklappt oeffnen das grosse Bild und "Karte oeffnen" die Karte. Das Klickziel des Bildes
-		// wechselt also mit dem Zustand (zu = aufklappen, offen = oeffnen). Das ist fehlklick-sicher, weil
-		// man erst aufklappen MUSS -- und ein 280px-Kartenbild, das auf Klick nichts tut, laedt sonst
-		// genau zu dem Fehlklick ein, den es hier nicht gibt.
-		if (expanded && e.target.closest(".avesmaps-citymap-row__thumb, .avesmaps-citymap-row__open")) {
+		// 2. Aufgeklappt oeffnet das grosse Bild die Karte. Das Klickziel des Bildes wechselt also mit dem
+		// Zustand (zu = aufklappen, offen = oeffnen). Das ist fehlklick-sicher, weil man erst aufklappen
+		// MUSS -- und ein 280px-Kartenbild, das auf Klick nichts tut, laedt sonst genau zu dem Fehlklick
+		// ein, den es hier nicht gibt. (Denselben Link fuehrt die Liste rechts als "Karte ↗".)
+		if (expanded && e.target.closest(".avesmaps-citymap-row__thumb")) {
 			return;
 		}
 		// 3. Alles andere klappt auf/zu. preventDefault, weil Thumb und Titel Anker auf die Karte sind:

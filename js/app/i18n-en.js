@@ -474,8 +474,8 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.since": "since {year} BF",
 	"cityMaps.until": "until {year} BF",
 	"cityMaps.sourcePrefix": "Source: ",
-	// The main action of an expanded row -- the map itself, as opposed to the places it can be found.
-	"cityMaps.openMap": "Open map",
+	// Heads the link list of a row: where a reader can actually get this map.
+	"cityMaps.foundAt": "Available at",
 	// Sits behind ONE link, not on the map: the same volume is paid in the shop and free on its wiki page.
 	"cityMaps.link.paid": "(paid)",
 	// Not complementary: a map nobody has judged matches neither, and a map with both a free and a paid
