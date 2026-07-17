@@ -433,12 +433,21 @@ function buildCityMapRowMarkup(m) {
 		? '<ul class="avesmaps-adv-row__links">' + m.links.map(advRowLinkMarkup).join("") + '</ul>'
 		: "";
 
+	// „Karte oeffnen": nur in der AUFGEKLAPPTEN Zeile sichtbar (CSS). Er existiert, weil der Klick auf die
+	// Zeile jetzt auf-/zuklappt und das Oeffnen deshalb einen eigenen, unmissverstaendlichen Platz braucht.
+	// Ohne Link kein Button -- eine Karte ohne map_url ist eine gueltige Zeile (§3.1), und ein Button, der
+	// auf "#" zeigt, waere ein Versprechen ins Leere.
+	var openButton = href
+		? '<a class="avesmaps-citymap-row__open"' + openAttrs + '>'
+			+ placeExtrasEscape(tr("cityMaps.openMap", "Karte öffnen")) + ' ↗</a>'
+		: "";
+
 	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
 		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '"' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
 		+ thumbInner + spoilerOverlay + '</a>'
 		+ '<div class="avesmaps-citymap-row__main">'
 		+ '<a class="avesmaps-citymap-row__title"' + openAttrs + '>' + placeExtrasEscape(m.title) + '</a>'
-		+ metaLine + factLine + traitLine + sourceLine + noteLine
+		+ metaLine + factLine + traitLine + sourceLine + noteLine + openButton
 		+ '</div>'
 		+ '<div class="avesmaps-citymap-row__side">' + linksMarkup + '</div>'
 		+ '</div>';

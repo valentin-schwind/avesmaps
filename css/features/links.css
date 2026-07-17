@@ -12,15 +12,21 @@
  * MUSS grau + durchgestrichen bleiben duerfen. Weil hier !important steht, koennte er das sonst nirgends
  * durchsetzen -- egal wie spezifisch die Regel dort waere. Die Ausnahme gehoert deshalb hierher, an die
  * zu breite Regel, und nicht in ein Wettruesten auf der anderen Seite. Betrifft nur den Zustand "tot":
- * jeder normale externe Link faellt weiter unter den einheitlichen Gold-Braun-Stil. */
-a[target="_blank"]:not(.link-status-dead-target),
+ * jeder normale externe Link faellt weiter unter den einheitlichen Gold-Braun-Stil.
+ *
+ * Ausnahme :not(.avesmaps-citymap-row__open): "Karte oeffnen" in der aufgeklappten Karten-Zeile ist die
+ * HAUPTAKTION der Zeile und deshalb ein gefuellter Button (AGENTS.md §12), kein Textlink -- auf
+ * --color-button waere Gold-Braun unlesbar, und neben den Fundstellen-Links daneben saehe es aus wie eine
+ * weitere Fundstelle statt wie die Karte selbst. Gleiche Begruendung wie beim toten Link: die Ausnahme
+ * gehoert an die zu breite Regel. */
+a[target="_blank"]:not(.link-status-dead-target):not(.avesmaps-citymap-row__open),
 .region-compact-tooltip__place-link {
 	color: var(--link-color) !important;
 	text-decoration: none !important;
 }
 
-a[target="_blank"]:not(.link-status-dead-target):hover,
-a[target="_blank"]:not(.link-status-dead-target):focus-visible,
+a[target="_blank"]:not(.link-status-dead-target):not(.avesmaps-citymap-row__open):hover,
+a[target="_blank"]:not(.link-status-dead-target):not(.avesmaps-citymap-row__open):focus-visible,
 .region-compact-tooltip__place-link:hover,
 .region-compact-tooltip__place-link:focus-visible {
 	color: var(--link-color-hover) !important;

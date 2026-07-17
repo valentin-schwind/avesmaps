@@ -210,7 +210,9 @@
 		applyFilters();
 	}
 
-	function openDialogForSection(section) {
+	// $focusPublicId (optional): die Karte, um die es dem Leser geht -- er hat sie im Streifen angeklickt.
+	// Sie wird aufgeklappt und in den Blick gescrollt. Ohne sie oeffnet der Dialog wie eh und je oben.
+	function openDialogForSection(section, focusPublicId) {
 		if (!section) {
 			return;
 		}
@@ -255,7 +257,46 @@
 
 		buildControls(overlay, shapes);
 		overlay.classList.add("is-open");
+		// ERST NACH is-open: vorher ist der Dialog nicht gelayoutet, und scrollIntoView auf einer Zeile
+		// ohne Massen scrollt nirgendwohin.
+		focusRow(grid, focusPublicId);
 	}
+
+	// Die angeklickte Karte aufklappen + in den Blick holen. Die public_id wird VERGLICHEN, nicht in einen
+	// Selektor eingesetzt: sie kommt zwar aus unserem eigenen Payload, aber ein Attribut-Selektor mit
+	// fremdem Inhalt ist genau die Stelle, an der sowas irgendwann kippt.
+	function focusRow(grid, focusPublicId) {
+		if (!grid || !focusPublicId) {
+			return;
+		}
+		var rows = grid.querySelectorAll(".avesmaps-citymap-row");
+		for (var i = 0; i < rows.length; i++) {
+			if (rows[i].getAttribute("data-public-id") === focusPublicId) {
+				rows[i].classList.add("is-expanded");
+				// "nearest": die Zeile soll sichtbar werden, nicht die Liste an den Anfang reissen.
+				rows[i].scrollIntoView({ block: "nearest" });
+				return;
+			}
+		}
+	}
+
+	// Eine Kachel im Streifen oeffnet die KARTENSAMMLUNG bei genau dieser Karte -- nicht mehr die Karte
+	// selbst (Owner 2026-07-17: "nur der klick führt zu vergrößertten kachel in der kartensammlung"). Die
+	// 116px-Kachel zeigt Bild + Titel und sonst nichts; alles andere -- Art, Typen, Gueltigkeit, Urheber,
+	// Quelle, die Fundstellen -- steht im Dialog. Dorthin fuehrt jetzt der Klick.
+	//
+	// Der Selektor MUSS auf .avesmaps-citymaps__scroll gescopet sein: die Dialog-Zeilen tragen
+	// .avesmaps-citymaps__card ebenfalls (die geteilten Filter-/Spoiler-Handler zielen darauf), und ohne
+	// das Scope wuerde ein Klick im Dialog denselben Dialog neu bauen.
+	//
+	// Die Kachel bleibt ein <a target="_blank"> auf die Karte, und das ist Absicht: features/links.css
+	// faerbt a[target="_blank"] per !important gold-braun -- als <button> verloere der Titel darunter
+	// genau diese Farbe, und "Aussehen unveraendert" waere gebrochen. Nebeneffekt, akzeptiert: Strg-/
+	// Mittelklick oeffnen die Karte weiterhin direkt (Browser-Default, den preventDefault nicht abfaengt).
+	$(document).on("click", ".avesmaps-citymaps__scroll .avesmaps-citymaps__card", function (e) {
+		e.preventDefault();
+		openDialogForSection($(this).closest(".avesmaps-citymaps")[0], this.getAttribute("data-public-id"));
+	});
 
 	// "Alle anzeigen" -- Streifen im Panel wie im Popup.
 	$(document).on("click", ".avesmaps-citymaps__all", function () {
@@ -284,6 +325,41 @@
 		if (section) {
 			openDialogForSection(section);
 		}
+	});
+
+	// Zeile auf-/zuklappen. Der Klick auf eine Zeile war bisher unbelegt (nur Thumb + Titel oeffneten die
+	// Karte); jetzt klappt er sie auf und zeigt das Vorschaubild gross.
+	//
+	// Delegiert auf `document` -- nicht am Element -- aus zwei Gruenden: die Zeilen entstehen bei jedem
+	// Dialog-Bau neu, und der Spoiler-Deckel unten muss seinen stopPropagation-Vorrang behalten. Ein
+	// Handler direkt am Element wuerde vor ihm feuern und ein Spoiler-Bild aufdecken, waehrend derselbe
+	// Klick die Zeile aufklappt.
+	$(document).on("click", ".avesmaps-citymaps-dialog__grid .avesmaps-citymap-row", function (e) {
+		var row = this;
+		// 1. Die Fundstellen rechts sind echte Links und bleiben es -- immer, in jedem Zustand.
+		if (e.target.closest(".avesmaps-adv-row__links")) {
+			return;
+		}
+		var expanded = row.classList.contains("is-expanded");
+		// 2. Aufgeklappt oeffnen das grosse Bild und "Karte oeffnen" die Karte. Das Klickziel des Bildes
+		// wechselt also mit dem Zustand (zu = aufklappen, offen = oeffnen). Das ist fehlklick-sicher, weil
+		// man erst aufklappen MUSS -- und ein 280px-Kartenbild, das auf Klick nichts tut, laedt sonst
+		// genau zu dem Fehlklick ein, den es hier nicht gibt.
+		if (expanded && e.target.closest(".avesmaps-citymap-row__thumb, .avesmaps-citymap-row__open")) {
+			return;
+		}
+		// 3. Alles andere klappt auf/zu. preventDefault, weil Thumb und Titel Anker auf die Karte sind:
+		// ohne ihn oeffnet der Klick, der aufklappen soll, zusaetzlich einen Tab.
+		e.preventDefault();
+		if (!expanded) {
+			// Akkordeon: immer nur EINE offen. Bei 20 Karten waere die Liste sonst nicht mehr zu ueberblicken,
+			// und der Zweck ist Durchklicken, nicht Stapeln.
+			var open = row.parentNode.querySelectorAll(".avesmaps-citymap-row.is-expanded");
+			Array.prototype.forEach.call(open, function (other) {
+				other.classList.remove("is-expanded");
+			});
+		}
+		row.classList.toggle("is-expanded");
 	});
 
 	// Spoiler aufdecken -- Streifen UND Dialog, deshalb Document-Delegation. Das Overlay liegt IM Anker:
