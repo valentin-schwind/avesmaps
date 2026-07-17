@@ -830,12 +830,23 @@
     }
   }
 
+  // The parent window IF this page runs inside the editor overlay -- null when it is open standalone
+  // (/html/adventure-editor.html), where there is no overlay to close. Both "Speichern" and "Verwerfen"
+  // ask through here.
+  function aeParentOverlay() {
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { return null; }
+    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsAdventureEditorOverlay !== "function") {
+      return null;
+    }
+    return parentWindow;
+  }
+
   // Close the surrounding overlay and report through the parent's toast -- "gespeichert" in a savebar
   // that is about to vanish is a message nobody reads. Standalone (no overlay): refresh in place.
   function aeCloseAfterSave(message) {
-    let parentWindow;
-    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
-    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsAdventureEditorOverlay !== "function") {
+    const parentWindow = aeParentOverlay();
+    if (!parentWindow) {
       void loadList();
       return false;
     }
@@ -906,7 +917,21 @@
   document.getElementById("aeSearch").addEventListener("input", renderList);
   document.getElementById("aeNew").addEventListener("click", newAdventure);
   document.getElementById("aeSave").addEventListener("click", saveStammdaten);
-  document.getElementById("aeDiscard").addEventListener("click", () => { if (state.selectedId) selectAdventure(state.selectedId); else newAdventure(); });
+  // "Verwerfen" drops the edits AND leaves. It sits right next to "Speichern", which closes the dialog
+  // since 2026-07-17 -- and a pair where only one half closes reads as the other half being broken, which
+  // is exactly how it was reported (owner, 2026-07-17: "verwerfen geht nicht mehr").
+  // Reset BEFORE closing: the overlay only HIDES this iframe, it never destroys it, so a re-open would
+  // otherwise serve back the very edits we just discarded. Standalone there is nothing to close and the
+  // reset alone IS the discard. finally, because the user asked to leave -- a reset that fails must not
+  // trap them in the dialog; nothing was saved either way.
+  document.getElementById("aeDiscard").addEventListener("click", async () => {
+    try {
+      if (state.selectedId) { await selectAdventure(state.selectedId); } else { newAdventure(); }
+    } finally {
+      const parentWindow = aeParentOverlay();
+      if (parentWindow) { parentWindow.closeAvesmapsAdventureEditorOverlay(); }
+    }
+  });
   document.getElementById("aeListScroll").addEventListener("click", (e) => {
     const b = e.target.closest(".ae-item"); if (!b) return;
     selectAdventure(b.dataset.id);

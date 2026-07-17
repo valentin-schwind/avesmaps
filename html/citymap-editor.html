@@ -949,12 +949,23 @@
     }
   }
 
+  // The parent window IF this page runs inside the editor overlay -- null when it is open standalone
+  // (/html/citymap-editor.html), where there is no overlay to close. Both "Speichern" and "Verwerfen"
+  // ask through here.
+  function ceParentOverlay() {
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { return null; }
+    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsCitymapEditorOverlay !== "function") {
+      return null;
+    }
+    return parentWindow;
+  }
+
   // Close the surrounding overlay and report through the parent's toast. Returns false when there is
   // no parent to close (standalone /html/citymap-editor.html), so the caller can stay put.
   function closeAfterSave(message) {
-    let parentWindow;
-    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
-    if (!parentWindow || parentWindow === window || typeof parentWindow.closeAvesmapsCitymapEditorOverlay !== "function") {
+    const parentWindow = ceParentOverlay();
+    if (!parentWindow) {
       void loadList(true); // standalone: no overlay to close, so at least refresh the list
       return false;
     }
@@ -1299,8 +1310,17 @@
   document.getElementById("ceSearch").addEventListener("input", renderList);
   document.getElementById("ceNew").addEventListener("click", newCitymap);
   document.getElementById("ceSave").addEventListener("click", saveStamm);
-  document.getElementById("ceDiscard").addEventListener("click", () => {
-    if (state.selectedId) selectCitymap(state.selectedId); else newCitymap();
+  // "Verwerfen" drops the edits AND leaves -- same reasoning as the Abenteuer editor: it sits next to a
+  // "Speichern" that closes the dialog, and a pair where only one half closes reads as broken. Reset
+  // BEFORE closing (the overlay only HIDES this iframe, so a re-open would serve the discarded edits back);
+  // finally, because a failed reset must not trap the user in a dialog they asked to leave.
+  document.getElementById("ceDiscard").addEventListener("click", async () => {
+    try {
+      if (state.selectedId) { await selectCitymap(state.selectedId); } else { newCitymap(); }
+    } finally {
+      const parentWindow = ceParentOverlay();
+      if (parentWindow) { parentWindow.closeAvesmapsCitymapEditorOverlay(); }
+    }
   });
   document.getElementById("ceEnabledToggle").addEventListener("click", toggleEnabled);
   document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
