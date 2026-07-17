@@ -50,6 +50,29 @@ assert($infoNewline !== null && $infoNewline['title']==='Zeilenumbruch');
 assert(avesmapsWikiParseProductInfobox("{{Infobox Ort\n|Name=X\n}}") === null); // genuinely different infobox -> still null
 echo "infobox ok\n";
 
+// --- Verlag ("Erschienen bei") ----------------------------------------------------------------
+// The wiki row "Erschienen bei" IS {{Infobox Produkt}}|Verlag on the BOOK page. We were already
+// parsing this very block -- the param just never made it into the list, so the value was thrown
+// away rather than never fetched. Reading it costs no new crawl (same shape as the F-Shop link,
+// 5ff93457). Verified against four real pages via action=raw on 2026-07-17.
+//
+// It is NOT the author: our own UI defines "Urheber" as who DREW the map
+// (js/map-features/map-features-citymaps-suggest.js). Ulisses printed the book; Ina Kramer drew
+// the map. Putting the publisher there would have filled 419 maps with a wrong attribution.
+//
+// The value is a WIKILINK and can name several publishers -- both measured, not imagined:
+//   Geographia Aventurica  -> |Verlag=[[Fanpro]]
+//   Abenteuer Ausbau-Spiel -> |Verlag=[[Schmidt Spiele]] & [[Droemer Knaur]]
+//   Die Dunklen Zeiten     -> |Verlag=[[Ulisses]]
+$pub = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Geographia Aventurica\n|Art=Regionalspielhilfe\n|Verlag=[[Fanpro]]\n}}");
+assert($pub['publisher'] === 'Fanpro');                    // markup stripped, target kept
+$multi = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Abenteuer Ausbau-Spiel\n|Verlag=[[Schmidt Spiele]] & [[Droemer Knaur]]\n}}");
+assert($multi['publisher'] === 'Schmidt Spiele & Droemer Knaur'); // two publishers stay two
+// Absent/empty -> '' (unknown). The normalize step downstream turns that into NULL.
+$none = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Ohne Verlag\n}}");
+assert($none['publisher'] === '');
+echo "verlag ok\n";
+
 // --- Adventure fields in {{Infobox Produkt}} (Phase 4 sync) -----------------------------------
 // Real "Siegelbruch" infobox (fetched once via the wiki's action=raw API, the allowed
 // template/definition read -- NOT an HTML crawl). The adventure field NAMES are the ones the live

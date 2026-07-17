@@ -114,6 +114,38 @@ assert(avesmapsCitymapParallelValue('A2/-', 0, true) === 'A2');
 // two sources) was handed only to the first -- and that first one is the abbreviation we then drop.
 assert(avesmapsCitymapParallelValue('Ina Kramer', 0, true) === 'Ina Kramer');
 assert(avesmapsCitymapParallelValue('Ina Kramer', 1, true) === 'Ina Kramer');
+
+// ---------------------------------------------------------------- SCALE CELL ---
+// The "Maßstab" column means TWO different things on the two index pages, and this function is where
+// that is reconciled (measured 2026-07-17, see the format/scale/publisher spec):
+//   Stadtplanindex -> "Ja"/"Nein". 70/36 of 230 rows.
+//   Kartenindex    -> a REAL scale, "1:12.750.000". 5 of 8 continent rows.
+// Yes/no is the common case, so has_scale is a tri-bool -- but a scale that is spelled out is proof of
+// a scale, so it sets has_scale=1 AND keeps its text (which carries more than "yes" ever could).
+$s = avesmapsCitymapScaleFromCell('Ja');
+assert($s['has_scale'] === 1 && $s['text'] === null);
+$s = avesmapsCitymapScaleFromCell('nein');                       // case-insensitive: the wiki is hand-typed
+assert($s['has_scale'] === 0 && $s['text'] === null);
+$s = avesmapsCitymapScaleFromCell('-');
+assert($s['has_scale'] === null && $s['text'] === null);          // "-" = unknown, and nothing to show
+$s = avesmapsCitymapScaleFromCell('');
+assert($s['has_scale'] === null && $s['text'] === null);
+
+// A real scale -> known TRUE, and the string survives.
+$s = avesmapsCitymapScaleFromCell('1:12.750.000');
+assert($s['has_scale'] === 1 && $s['text'] === '1:12.750.000');
+$s = avesmapsCitymapScaleFromCell('ca. 1:6.400.000');            // the Kartenindex really writes "ca."
+assert($s['has_scale'] === 1 && $s['text'] === 'ca. 1:6.400.000');
+
+// THE owner rule: a value we cannot read stays VISIBLE and stays UNKNOWN. "Forum" is not one broken
+// Andergast row -- it is 24 of 230, a systematically entered value nobody can explain. Swallowing it
+// would hide a wiki error from the only people able to fix it.
+$s = avesmapsCitymapScaleFromCell('Forum');
+assert($s['has_scale'] === null && $s['text'] === 'Forum');
+// Boronia's row is shifted by one IN THE WIKI ("Nein" in Format, "Mit Nummern" in Maßstab). We copy it
+// faithfully rather than repair it -- the wiki is wrong, not us.
+$s = avesmapsCitymapScaleFromCell('Mit Nummern');
+assert($s['has_scale'] === null && $s['text'] === 'Mit Nummern');
 echo "parallel ok\n";
 
 // ------------------------------------------------------- STADTPLANINDEX: OLD ---
@@ -187,6 +219,10 @@ $page = <<<'WIKI'
 | Al\'Anfa||IdDM||Farbe||A2||Ja||-||Ina Kramer
 |-
 | Neustadt||Borbarads Erben||sw||A4||Ja||-||Max Muster
+|-
+| Andergast||Unter dem Westwind||sw||A4||Forum||-||-
+|-
+| Boronia||Stunden des Schweigens||sw||Nein||Mit Nummern||mit Nummern||-
 |}
 WIKI;
 $cards = avesmapsCitymapParseStadtplanindex($page)['cards'];
@@ -196,8 +232,12 @@ $alanfa = findCard($cards, "Al'Anfa", "Al'Anfa und der tiefe Süden", 'stadtplan
 assert($alanfa !== null);
 assert($alanfa['author'] === 'Ina Kramer');            // enrichment from the new list
 assert($alanfa['is_labeled'] === 1);                   // "Mit Legende"
-assert($alanfa['note'] !== null && str_contains((string) $alanfa['note'], 'A2'));
-assert(str_contains((string) $alanfa['note'], 'Maßstab: Ja')); // yes/no field -> text, never a number
+// Format and Maßstab are their OWN fields now, not "Format: A2 · Maßstab: Ja" glued into note. The
+// wiki writes centimetres and DIN names ("A2", "33,5x25,5"), so format is a VARCHAR -- never width_px,
+// which is pixels.
+assert($alanfa['format'] === 'A2');
+assert($alanfa['has_scale'] === 1);
+assert($alanfa['note'] === 'Mit Legende');             // note is a NOTE again
 
 // (b) Known city + UNMATCHED source ("IdDM") -> DROPPED. This is the owner decision that keeps
 // Al'Anfa from showing "(IdDM)" and "(In den Dschungeln Meridianas)" as two maps of one publication.
@@ -209,6 +249,23 @@ assert($neu !== null);
 assert($neu['is_color'] === 0);
 assert($neu['author'] === 'Max Muster');
 assert($neu['is_labeled'] === null);                   // "-" is unknown, not "unlabelled"
+
+// (d) THE two real broken wiki rows, copied faithfully rather than repaired.
+// Andergast: "Forum" in the Maßstab column -- 24 of 230 rows do this. Unknown, but VISIBLE.
+$ander = findCard($cards, 'Andergast', 'Unter dem Westwind', 'stadtplan-sw');
+assert($ander !== null);
+assert($ander['format'] === 'A4');
+assert($ander['has_scale'] === null);                  // not readable -> unknown, NEVER false
+assert($ander['note'] === 'Forum');                    // ...and it survives where a human can see it
+
+// Boronia: the row is shifted by one IN THE WIKI -- "Nein" sits in Format, "Mit Nummern" in Maßstab.
+// format is a VARCHAR, so it carries "Nein" without complaint; that is the wiki's error to fix, and
+// inventing a repair here would be guessing dressed up as data.
+$boronia = findCard($cards, 'Boronia', 'Stunden des Schweigens', 'stadtplan-sw');
+assert($boronia !== null);
+assert($boronia['format'] === 'Nein');
+assert($boronia['has_scale'] === null);
+assert(str_contains((string) $boronia['note'], 'Mit Nummern'));
 
 // The escaping never reaches the stored name.
 foreach ($cards as $card) {
@@ -264,10 +321,16 @@ $cards = avesmapsCitymapParseKartenindex($page)['cards'];
 $hex = findCard($cards, 'Aventurien', 'Abenteuer Ausbau-Spiel', 'kontinent');
 assert($hex !== null);
 assert($hex['title'] === 'Aventurien-Hexkarte');
-// THE trap: "Abmessungen" is centimetres. It must be prose in `note`, never a pixel column.
-assert(str_contains((string) $hex['note'], '43 x 57 cm'));
+// THE trap: "Abmessungen" is centimetres, never a pixel column. It goes to `format` -- the SAME field
+// the Stadtplanindex fills with "33,5x25,5", because it is the same measurement under another column
+// name. Splitting one kind of value across two columns by which wiki page delivered it is exactly the
+// divergence this whole change exists to remove.
+assert($hex['format'] === '43 x 57 cm');
 assert(!array_key_exists('width_px', $hex));
 assert(!array_key_exists('height_px', $hex));
+// A spelled-out scale proves a scale AND says more than the tri-bool can hold, so it does both.
+assert($hex['has_scale'] === 1);
+assert(str_contains((string) $hex['note'], '1:6.400.000'));
 assert(str_contains((string) $hex['note'], '1985'));
 
 // Rule 3 again: Myranor is skipped even here.
@@ -400,7 +463,8 @@ echo "dedupe ok\n";
 // ------------------------------------------------------- RECONCILE PLAN ---
 // The override-safety heart. Every rule here is one the owner named explicitly.
 $desired = ['title' => 'Stadtplan von X (Q)', 'map_url' => 'https://de.wiki-aventurica.de/wiki/Q',
-    'art' => null, 'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Format: A2'];
+    'art' => null, 'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Mit Legende',
+    'format' => 'A2', 'has_scale' => 1, 'publisher' => 'Fanpro'];
 
 // No live row -> create.
 $plan = avesmapsCitymapReconcilePlan(null, $desired);
@@ -409,6 +473,11 @@ assert($plan['set']['title'] === 'Stadtplan von X (Q)');
 assert($plan['set']['author'] === 'Ina Kramer');
 // The index links no maps (they are book references), so the link is the publication's wiki page.
 assert($plan['set']['map_url'] === 'https://de.wiki-aventurica.de/wiki/Q');
+// The three new fields ride the SAME plan as everything else -- which is the whole reason they live on
+// the card: override-safety costs one entry in $fields and nothing more.
+assert($plan['set']['format'] === 'A2');
+assert($plan['set']['has_scale'] === 1);
+assert($plan['set']['publisher'] === 'Fanpro');       // "Erschienen bei" -- NEVER the author
 // A source we cannot link to must yield '' -- citymap.map_url is NOT NULL.
 $noUrl = avesmapsCitymapReconcilePlan(null, ['title' => 'T'] + $desired);
 assert(array_key_exists('map_url', $noUrl['set']));
@@ -416,7 +485,8 @@ assert(array_key_exists('map_url', $noUrl['set']));
 // A wiki row that already matches -> NO-OP. This IS "zweiter Sync-Lauf legt KEINE Dubletten an".
 $live = ['origin' => 'wiki', 'status' => 'approved', 'title' => 'Stadtplan von X (Q)',
     'map_url' => 'https://de.wiki-aventurica.de/wiki/Q', 'art' => null,
-    'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Format: A2'];
+    'is_color' => 1, 'is_labeled' => null, 'author' => 'Ina Kramer', 'note' => 'Mit Legende',
+    'format' => 'A2', 'has_scale' => 1, 'publisher' => 'Fanpro'];
 $plan = avesmapsCitymapReconcilePlan($live, $desired);
 assert($plan['action'] === 'noop');
 assert($plan['set'] === []);
@@ -426,6 +496,22 @@ $live['author'] = 'Alt';
 $plan = avesmapsCitymapReconcilePlan($live, $desired);
 assert($plan['action'] === 'update');
 assert($plan['set'] === ['author' => 'Ina Kramer']);
+$live['author'] = 'Ina Kramer';
+
+// A card that predates this change: the freetext note is dropped and the fields take over. THIS is why
+// no migration script exists -- the next sync heals the ~94 "Format: A4 · Maßstab: Ja" rows by itself.
+$old = $live;
+$old['note'] = 'Format: A2 · Maßstab: Ja · Mit Legende';
+$old['format'] = null;
+$old['has_scale'] = null;
+$old['publisher'] = null;
+$plan = avesmapsCitymapReconcilePlan($old, $desired);
+assert($plan['action'] === 'update');
+// ksort: the plan writes whatever $fields lists, in $fields order -- which is an implementation detail.
+// Freezing that order here would turn a harmless reordering into a red test.
+$set = $plan['set'];
+ksort($set);
+assert($set === ['format' => 'A2', 'has_scale' => 1, 'note' => 'Mit Legende', 'publisher' => 'Fanpro']);
 
 // NULL vs '' are both "unknown" -> no spurious write.
 $plan = avesmapsCitymapReconcilePlan(

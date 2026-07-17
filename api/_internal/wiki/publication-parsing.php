@@ -267,6 +267,10 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
     $art = trim((string) ($params['Art'] ?? ''));
     $isbn = trim((string) ($params['ISBN'] ?? ''));
     $unterkategorie = trim((string) ($params['Unterkategorie'] ?? ''));
+    // The wiki renders this param as the "Erschienen bei" row. It is a WIKILINK ("[[Fanpro]]") and may
+    // name several publishers ("[[Schmidt Spiele]] & [[Droemer Knaur]]") -- both measured on real pages,
+    // hence the markup strip rather than a link-target regex. NOT the author: see the test.
+    $publisher = avesmapsWikiStripWikiInlineMarkup((string) ($params['Verlag'] ?? ''));
     $direktlinks = (string) ($params['Direktlinks'] ?? '');
     $download = (string) ($params['Download'] ?? '');
 
@@ -306,6 +310,7 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         'art' => $art,
         'source_type' => avesmapsWikiMapArtToSourceType($art, $unterkategorie),
         'isbn' => $isbn,
+        'publisher' => $publisher,
         'f_shop_pid' => $fShopPid,
         'pdf_shop_id' => $pdfShopId,
         'adventure' => $adventure,

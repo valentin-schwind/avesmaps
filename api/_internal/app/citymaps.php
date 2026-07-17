@@ -66,6 +66,10 @@ const AVESMAPS_CITYMAP_TITLE_MAX = 300;
 const AVESMAPS_CITYMAP_URL_MAX = 500;
 const AVESMAPS_CITYMAP_NOTE_MAX = 2000;
 const AVESMAPS_CITYMAP_AUTHOR_MAX = 300;
+const AVESMAPS_CITYMAP_FORMAT_MAX = 120;
+// 160 fits the longest real value by a wide margin: "Schmidt Spiele & Droemer Knaur" (30) is the
+// two-publisher case the wiki actually has.
+const AVESMAPS_CITYMAP_PUBLISHER_MAX = 160;
 
 // ---- DDL --------------------------------------------------------------------------------------------
 // Idempotent. Runs on every read (cheap: CREATE TABLE IF NOT EXISTS), so a fresh deploy self-heals on the
@@ -93,11 +97,14 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
             is_official TINYINT(1) NULL,
             is_spoiler TINYINT(1) NULL,
             is_paid TINYINT(1) NULL,
+            has_scale TINYINT(1) NULL,
             width_px INT NULL,
             height_px INT NULL,
+            format VARCHAR(120) NULL,
             valid_from_bf INT NULL,
             valid_to_bf INT NULL,
             author VARCHAR(300) NULL,
+            publisher VARCHAR(160) NULL,
             note VARCHAR(2000) NULL,
             status VARCHAR(16) NOT NULL DEFAULT 'approved',
             origin VARCHAR(16) NOT NULL DEFAULT 'manual',
@@ -209,6 +216,31 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // shown nothing rather than a guess about their wallet.
     if (!$columnExists($pdo, 'is_paid')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN is_paid TINYINT(1) NULL');
+    }
+    // format: the printed sheet size -- "A2", "33,5x25,5", "43 x 57 cm". A VARCHAR and NOT width_px,
+    // because the wiki writes centimetres and DIN names; width_px is pixels and the wiki has filled it
+    // exactly once in 419 maps. Both index pages feed it (Stadtplanindex "Format", Kartenindex
+    // "Abmessungen" -- one measurement, two column names).
+    if (!$columnExists($pdo, 'format')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN format VARCHAR(120) NULL');
+    }
+    // has_scale: the SEVENTH tri-bool. The wiki's "Maßstab" column answers "does it have one?" with
+    // Ja/Nein (70/36 of 230 rows measured 2026-07-17) -- it does NOT name a scale, which is why this is
+    // a tri-bool and not `scale VARCHAR`. Where a page does spell one out (the Kartenindex does,
+    // "1:12.750.000"), that proves has_scale=1 and the string stays visible in `note`; a value nobody
+    // can read ("Forum", 24 rows) leaves this NULL and stays visible too. NULL = unknown, never false.
+    if (!$columnExists($pdo, 'has_scale')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN has_scale TINYINT(1) NULL');
+    }
+    // publisher: the wiki's "Erschienen bei" = {{Infobox Produkt}}|Verlag on the BOOK page, copied onto
+    // the card by the sync (avesmapsCitymapPublisherForSource) the same way map_url already is.
+    //
+    // ⛔ NOT `author`. Our own UI defines "Urheber" as who DREW the map
+    // (js/map-features/map-features-citymaps-suggest.js) -- putting "Ulisses" there would have filled
+    // 419 maps with a wrong attribution. It earns a column because it VARIES: Fanpro, Schmidt Spiele &
+    // Droemer Knaur, Ulisses (measured on real pages 2026-07-17), so it is not one constant word.
+    if (!$columnExists($pdo, 'publisher')) {
+        $pdo->exec('ALTER TABLE citymap ADD COLUMN publisher VARCHAR(160) NULL');
     }
 }
 
@@ -559,7 +591,8 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_local_url, map_license,
                 thumb_url, thumb_local_url, thumb_license, art, is_color, is_multilevel, is_labeled,
-                is_official, is_spoiler, is_paid, width_px, height_px, valid_from_bf, valid_to_bf, author, note
+                is_official, is_spoiler, is_paid, has_scale, width_px, height_px, format,
+                valid_from_bf, valid_to_bf, author, publisher, note
            FROM citymap
           WHERE status = 'approved'
           ORDER BY title ASC"
@@ -608,11 +641,17 @@ function avesmapsCitymapsReadCatalog(PDO $pdo): array
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
             'is_spoiler' => avesmapsCitymapTriBoolOut($row['is_spoiler']),
             'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
+            'has_scale' => avesmapsCitymapTriBoolOut($row['has_scale'] ?? null),
             'width_px' => $row['width_px'] !== null ? (int) $row['width_px'] : null,
             'height_px' => $row['height_px'] !== null ? (int) $row['height_px'] : null,
+            // The printed sheet size ("A2", "43 x 57 cm") -- what the wiki actually records, unlike
+            // width_px (filled on 1 of 419 maps). See the DDL note.
+            'format' => (string) ($row['format'] ?? ''),
             'valid_from_bf' => $row['valid_from_bf'] !== null ? (int) $row['valid_from_bf'] : null,
             'valid_to_bf' => $row['valid_to_bf'] !== null ? (int) $row['valid_to_bf'] : null,
             'author' => (string) ($row['author'] ?? ''),
+            // "Erschienen bei" -- who printed the book, NOT who drew the map (that is `author`).
+            'publisher' => (string) ($row['publisher'] ?? ''),
             'note' => (string) ($row['note'] ?? ''),
             'types' => $typesByCitymap[$id] ?? [],
             'related' => array_values(array_filter(array_map(
@@ -917,11 +956,14 @@ function avesmapsCitymapDetailForEdit(PDO $pdo, string $publicId): ?array
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
             'is_spoiler' => avesmapsCitymapTriBoolOut($row['is_spoiler']),
             'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
+            'has_scale' => avesmapsCitymapTriBoolOut($row['has_scale'] ?? null),
             'width_px' => $row['width_px'] !== null ? (int) $row['width_px'] : null,
             'height_px' => $row['height_px'] !== null ? (int) $row['height_px'] : null,
+            'format' => (string) ($row['format'] ?? ''),
             'valid_from_bf' => $row['valid_from_bf'] !== null ? (int) $row['valid_from_bf'] : null,
             'valid_to_bf' => $row['valid_to_bf'] !== null ? (int) $row['valid_to_bf'] : null,
             'author' => (string) ($row['author'] ?? ''),
+            'publisher' => (string) ($row['publisher'] ?? ''),
             'note' => (string) ($row['note'] ?? ''),
             'status' => (string) $row['status'],
             'origin' => (string) $row['origin'],
@@ -962,12 +1004,14 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
 
     $editableFields = [
         'map_url', 'map_license', 'map_license_note', 'thumb_url', 'thumb_license', 'thumb_license_note',
-        'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
-        'width_px', 'height_px', 'valid_from_bf', 'valid_to_bf', 'author', 'note', 'status',
+        'art', 'is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid', 'has_scale',
+        'width_px', 'height_px', 'format', 'valid_from_bf', 'valid_to_bf', 'author', 'publisher', 'note',
+        'status',
     ];
 
     $normalize = static function (string $field, mixed $raw): int|string|null {
-        if (in_array($field, ['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid'], true)) {
+        if (in_array($field, ['is_color', 'is_multilevel', 'is_labeled', 'is_official', 'is_spoiler', 'is_paid',
+            'has_scale'], true)) {
             return avesmapsCitymapTriBool($raw);
         }
         if (in_array($field, ['width_px', 'height_px', 'valid_from_bf', 'valid_to_bf'], true)) {
@@ -1004,6 +1048,12 @@ function avesmapsUpsertCitymap(PDO $pdo, array $data, int $userId = 0, string $o
         }
         if ($field === 'author' && mb_strlen($value) > AVESMAPS_CITYMAP_AUTHOR_MAX) {
             throw new InvalidArgumentException('Der Urheber ist zu lang (max. ' . AVESMAPS_CITYMAP_AUTHOR_MAX . ' Zeichen).');
+        }
+        if ($field === 'format' && mb_strlen($value) > AVESMAPS_CITYMAP_FORMAT_MAX) {
+            throw new InvalidArgumentException('Das Format ist zu lang (max. ' . AVESMAPS_CITYMAP_FORMAT_MAX . ' Zeichen).');
+        }
+        if ($field === 'publisher' && mb_strlen($value) > AVESMAPS_CITYMAP_PUBLISHER_MAX) {
+            throw new InvalidArgumentException('Der Verlag ist zu lang (max. ' . AVESMAPS_CITYMAP_PUBLISHER_MAX . ' Zeichen).');
         }
         return $value === '' ? null : $value;
     };

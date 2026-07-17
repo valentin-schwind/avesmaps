@@ -266,6 +266,10 @@ function avesmapsCitymapParseOldStadtplanRows(string $sectionBody): array
                     'type_key' => $typeKey,
                     'is_color' => $isColor,
                     'is_labeled' => null,
+                    // The old table has four columns and none of them is Format or Maßstab. Unknown ->
+                    // NULL, and the new list may fill them in via avesmapsCitymapMergeStadtplanRows.
+                    'format' => null,
+                    'has_scale' => null,
                     'author' => null,
                     'note' => null,
                 ];
@@ -384,12 +388,16 @@ function avesmapsCitymapParseNewStadtplanRows(string $sectionBody): array
             $notice = avesmapsCitymapParallelValue($cells[5] ?? '', $i, $split['split']);
             $author = avesmapsCitymapParallelValue($cells[6] ?? '', $i, $split['split']);
 
+            // Format and Maßstab used to be glued into `note` as "Format: A2 · Maßstab: Ja · Mit
+            // Legende" -- three different kinds of thing in one string, none of them filterable and
+            // none of them editable on their own. They are their own fields now, and `note` is a note
+            // again. The ONLY thing that still reaches note from these two columns is a Maßstab value
+            // we cannot read (see avesmapsCitymapScaleFromCell).
+            $scaleRead = avesmapsCitymapScaleFromCell((string) $scale);
+
             $noteParts = [];
-            if ($format !== null) {
-                $noteParts[] = 'Format: ' . $format;
-            }
-            if ($scale !== null) {
-                $noteParts[] = 'Maßstab: ' . $scale;
+            if ($scaleRead['text'] !== null) {
+                $noteParts[] = $scaleRead['text'];
             }
             if ($notice !== null) {
                 $noteParts[] = $notice;
@@ -406,6 +414,10 @@ function avesmapsCitymapParseNewStadtplanRows(string $sectionBody): array
                 'type_key' => 'stadtplan',
                 'is_color' => $isColor,
                 'is_labeled' => $isLabeled,
+                // "A2", "33,5x25,5", "ca. 8,5 x 8,5 cm" -- centimetres and DIN names. A VARCHAR, never
+                // width_px: those are pixels, and the wiki has never written one.
+                'format' => $format,
+                'has_scale' => $scaleRead['has_scale'],
                 'author' => $author,
                 'note' => $noteParts === [] ? null : implode(' · ', $noteParts),
             ];
@@ -413,6 +425,52 @@ function avesmapsCitymapParseNewStadtplanRows(string $sectionBody): array
     }
 
     return $rows;
+}
+
+/**
+ * Read a "Maßstab" cell into the tri-bool + whatever text the tri-bool cannot hold.
+ *
+ * THE COLUMN MEANS TWO DIFFERENT THINGS on the two index pages, and this is where that is reconciled
+ * (measured on the real wikitext 2026-07-17 -- do not re-derive):
+ *
+ *   Stadtplanindex, "neue Liste" -> a YES/NO field. Of 230 rows: 70 "Ja", 36 "Nein", 81 "-",
+ *     24 "Forum" (!), 18 parallel arrays. This is why the column is has_scale TINYINT(1) NULL and NOT
+ *     a `scale VARCHAR`: the wiki is answering "does it have one?", not naming one.
+ *   Kartenindex, continent tables -> a REAL scale, "1:12.750.000" / "ca. 1:6.400.000". 5 of 8 rows.
+ *
+ * Hence the two rules:
+ *
+ *   A SPELLED-OUT SCALE PROVES A SCALE -> has_scale = 1, and the string is handed back because it says
+ *   strictly more than "yes" does. Losing "1:12.750.000" to a boolean would be a downgrade.
+ *
+ *   AN UNREADABLE VALUE STAYS UNKNOWN AND STAYS VISIBLE -> has_scale = null, text handed back (owner
+ *   decision 2026-07-17). "Forum" is not a typo on one Andergast row -- it is 24 of 230, systematically
+ *   entered, and nobody knows what it means. Swallowing it would hide a wiki error from the only people
+ *   who could fix it; NULL-ing it silently would also violate the core rule (unknown != false).
+ *
+ * @return array{has_scale:?int, text:?string}
+ */
+function avesmapsCitymapScaleFromCell(string $cell): array
+{
+    $value = trim($cell);
+    if ($value === '' || $value === '-') {
+        return ['has_scale' => null, 'text' => null];
+    }
+
+    $key = mb_strtolower($value);
+    if ($key === 'ja') {
+        return ['has_scale' => 1, 'text' => null];
+    }
+    if ($key === 'nein') {
+        return ['has_scale' => 0, 'text' => null];
+    }
+    // "1:6.000.000", "ca. 1:6.400.000". Digit-colon-digit is what a scale looks like and what nothing
+    // else in this column looks like ("Forum", "Mit Nummern" carry no colon at all).
+    if (preg_match('/\d\s*:\s*\d/u', $value) === 1) {
+        return ['has_scale' => 1, 'text' => $value];
+    }
+
+    return ['has_scale' => null, 'text' => $value];
 }
 
 /**
@@ -461,7 +519,9 @@ function avesmapsCitymapMergeStadtplanRows(array $oldRows, array $newRows): arra
             continue;
         }
         foreach ($targets as $i) {
-            foreach (['author', 'note', 'is_labeled'] as $field) {
+            // format/has_scale enrich exactly like author/note do: the old list cannot know them, the
+            // new list often can. Only blanks are filled -- an old-list value is never overwritten.
+            foreach (['author', 'note', 'is_labeled', 'format', 'has_scale'] as $field) {
                 if ($merged[$i][$field] === null && $row[$field] !== null) {
                     $merged[$i][$field] = $row[$field];
                 }
@@ -515,6 +575,8 @@ function avesmapsCitymapParseStadtplanindex(string $wikitext): array
             'art' => null,
             'is_color' => $row['is_color'],
             'is_labeled' => $row['is_labeled'],
+            'format' => $row['format'] !== null ? avesmapsCitymapUnescapeApostrophes((string) $row['format']) : null,
+            'has_scale' => $row['has_scale'],
             'author' => $row['author'] !== null ? avesmapsCitymapUnescapeApostrophes((string) $row['author']) : null,
             'note' => $row['note'] !== null ? avesmapsCitymapUnescapeApostrophes((string) $row['note']) : null,
         ];
@@ -541,7 +603,7 @@ function avesmapsCitymapDedupeByWikiKey(array $cards): array
             continue;
         }
         // Keep the richer row: fill blanks rather than let row order decide.
-        foreach (['author', 'note', 'is_labeled', 'is_color', 'art'] as $field) {
+        foreach (['author', 'note', 'is_labeled', 'is_color', 'art', 'format', 'has_scale'] as $field) {
             if (($byKey[$key][$field] ?? null) === null && ($card[$field] ?? null) !== null) {
                 $byKey[$key][$field] = $card[$field];
             }
@@ -649,14 +711,20 @@ function avesmapsCitymapParseContinentRows(string $sectionBody, string $continen
             continue; // a map we cannot attribute is a map we cannot show a reference for
         }
 
-        $noteParts = [];
+        // "Abmessungen" is CENTIMETRES ("43 x 57 cm") -> `format`, the SAME field the Stadtplanindex
+        // fills with "33,5x25,5". Two column names, one measurement; splitting it across two columns by
+        // which page delivered it is the divergence this change exists to remove. Never width_px.
         $dimensions = trim($cells[1] ?? '');
-        if ($dimensions !== '' && $dimensions !== '-') {
-            $noteParts[] = 'Abmessungen: ' . $dimensions; // CENTIMETRES -> note, never width_px
-        }
-        $scale = trim($cells[2] ?? '');
-        if ($scale !== '' && $scale !== '-') {
-            $noteParts[] = 'Maßstab: ' . $scale;
+        $format = ($dimensions !== '' && $dimensions !== '-') ? $dimensions : null;
+
+        // Unlike the Stadtplanindex, THIS page's Maßstab column holds a real scale ("1:12.750.000").
+        // avesmapsCitymapScaleFromCell reads both shapes: it sets has_scale=1 and hands the string back,
+        // which then stays visible in `note` -- a scale says more than "yes".
+        $scaleRead = avesmapsCitymapScaleFromCell((string) ($cells[2] ?? ''));
+
+        $noteParts = [];
+        if ($scaleRead['text'] !== null) {
+            $noteParts[] = 'Maßstab: ' . $scaleRead['text'];
         }
         $published = trim($cells[4] ?? '');
         if ($published !== '' && $published !== '-') {
@@ -677,6 +745,8 @@ function avesmapsCitymapParseContinentRows(string $sectionBody, string $continen
             'art' => avesmapsCitymapArtFromTitle($description),
             'is_color' => null,
             'is_labeled' => null,
+            'format' => $format,
+            'has_scale' => $scaleRead['has_scale'],
             'author' => null,
             'note' => $noteParts === [] ? null : implode(' · ', $noteParts),
         ];
@@ -739,6 +809,11 @@ function avesmapsCitymapParseRegionalRows(string $sectionBody): array
             'art' => avesmapsCitymapArtFromTitle($title),
             'is_color' => null,
             'is_labeled' => null,
+            // The regional table has no Abmessungen/Maßstab columns at all. (The format often hides in
+            // the map's own title -- "Politische Karte der Flusslande (A2)" -- but that parenthetical is
+            // load-bearing for the identity, and mining it would be guessing. Unknown stays unknown.)
+            'format' => null,
+            'has_scale' => null,
             'author' => null,
             'note' => null,
         ];
@@ -839,7 +914,13 @@ function avesmapsCitymapReconcilePlan(?array $current, array $desired): array
     // map_url is in here so a wiki card carries a link to its publication's wiki page (see
     // avesmapsCitymapWikiUrlForSource). It is still override-safe: the moment an editor touches the
     // card it becomes origin='manual' and this plan skips it entirely, so a hand-set link stands.
-    $fields = ['title', 'map_url', 'art', 'is_color', 'is_labeled', 'author', 'note'];
+    // format/has_scale/publisher ride this list like every other field -- that is the whole reason they
+    // live on the card rather than only on the publication: override-safety costs one entry each.
+    // publisher is copied from the publication's {{Infobox Produkt}}|Verlag (see
+    // avesmapsCitymapPublisherForSource) and is NOT the author: our own UI defines "Urheber" as who
+    // DREW the map, and "Ulisses"/"Fanpro" is who printed the book it appeared in.
+    $fields = ['title', 'map_url', 'art', 'is_color', 'is_labeled', 'format', 'has_scale', 'author',
+        'publisher', 'note'];
 
     if ($current === null) {
         $set = [];
@@ -1019,11 +1100,32 @@ function avesmapsEnsureCitymapStagingTables(PDO $pdo): void
             art VARCHAR(24) NULL,
             is_color TINYINT(1) NULL,
             is_labeled TINYINT(1) NULL,
+            format VARCHAR(120) NULL,
+            has_scale TINYINT(1) NULL,
             author VARCHAR(300) NULL,
             note VARCHAR(2000) NULL,
             synced_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // format/has_scale: self-healing ALTER for a staging table that already exists in production (the
+    // CREATE above is a no-op there). No publisher column here on purpose -- it does not come from the
+    // index pages at all; the reconcile looks it up per card from wiki_publication_catalog, exactly as
+    // it already does for map_url.
+    $stagingColumn = static function (PDO $pdo, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'wiki_citymap_catalog'
+                AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    if (!$stagingColumn($pdo, 'format')) {
+        $pdo->exec('ALTER TABLE wiki_citymap_catalog ADD COLUMN format VARCHAR(120) NULL AFTER is_labeled');
+    }
+    if (!$stagingColumn($pdo, 'has_scale')) {
+        $pdo->exec('ALTER TABLE wiki_citymap_catalog ADD COLUMN has_scale TINYINT(1) NULL AFTER format');
+    }
 
     // The live citymap/citymap_place tables (self-healing DDL in api/_internal/app/citymaps.php).
     if (function_exists('avesmapsCitymapsEnsureTables')) {
@@ -1128,13 +1230,14 @@ function avesmapsCitymapWriteStaging(PDO $pdo, array $cards): int
     $insert = $pdo->prepare(
         'INSERT INTO wiki_citymap_catalog
             (wiki_key, index_page, title, place_raw, source_raw, variant, type_key, art, is_color,
-             is_labeled, author, note, synced_at)
-         VALUES (:wk, :ix, :title, :place, :source, :variant, :tk, :art, :color, :labeled, :author, :note,
-                 CURRENT_TIMESTAMP(3))
+             is_labeled, format, has_scale, author, note, synced_at)
+         VALUES (:wk, :ix, :title, :place, :source, :variant, :tk, :art, :color, :labeled, :format, :scale,
+                 :author, :note, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
             title = VALUES(title), place_raw = VALUES(place_raw), source_raw = VALUES(source_raw),
             variant = VALUES(variant), type_key = VALUES(type_key), art = VALUES(art),
-            is_color = VALUES(is_color), is_labeled = VALUES(is_labeled), author = VALUES(author),
+            is_color = VALUES(is_color), is_labeled = VALUES(is_labeled), format = VALUES(format),
+            has_scale = VALUES(has_scale), author = VALUES(author),
             note = VALUES(note), synced_at = CURRENT_TIMESTAMP(3)'
     );
 
@@ -1151,6 +1254,8 @@ function avesmapsCitymapWriteStaging(PDO $pdo, array $cards): int
             'art' => $card['art'],
             'color' => $card['is_color'],
             'labeled' => $card['is_labeled'],
+            'format' => $card['format'] !== null ? mb_substr((string) $card['format'], 0, 120, 'UTF-8') : null,
+            'scale' => $card['has_scale'],
             'author' => $card['author'] !== null ? mb_substr((string) $card['author'], 0, 300, 'UTF-8') : null,
             'note' => $card['note'] !== null ? mb_substr((string) $card['note'], 0, 2000, 'UTF-8') : null,
         ]);
@@ -1260,6 +1365,49 @@ function avesmapsCitymapWikiUrlForSource(PDO $pdo, string $sourceRaw): string
     $url = AVESMAPS_WIKI_PAGE_BASE_URL . str_replace('%2F', '/', rawurlencode($source));
 
     return strlen($url) <= AVESMAPS_CITYMAP_URL_MAX ? $url : '';
+}
+
+/**
+ * The publisher of a card's source publication ("Erschienen bei"), or null when we cannot know it.
+ *
+ * Same shape as avesmapsCitymapWikiUrlForSource, and same reason: the value belongs to the BOOK, the
+ * lookup needs a DB, and the plan stays pure. The wiki puts it in {{Infobox Produkt}}|Verlag on the
+ * publication page, which the publication sync already parses (see publication-parsing.php) -- so this
+ * costs no new crawl, exactly like the F-Shop link before it.
+ *
+ * ⛔ This is NOT the author. Our own UI defines "Urheber" as who DREW the map
+ * (js/map-features/map-features-citymaps-suggest.js); "Ulisses"/"Fanpro" is who printed the book it
+ * appeared in. Writing it to `author` would have filled 419 maps with a wrong attribution.
+ *
+ * It is worth a column of its own because it VARIES -- measured on real pages 2026-07-17:
+ * Geographia Aventurica -> Fanpro, Abenteuer Ausbau-Spiel -> Schmidt Spiele & Droemer Knaur,
+ * Die Dunklen Zeiten -> Ulisses. Not "always Ulisses".
+ */
+function avesmapsCitymapPublisherForSource(PDO $pdo, string $sourceRaw): ?string
+{
+    if (!function_exists('avesmapsPublicationCatalogWikiKeyForTitle')) {
+        return null;
+    }
+    $key = avesmapsPublicationCatalogWikiKeyForTitle($sourceRaw);
+    if ($key === '') {
+        return null;
+    }
+
+    try {
+        $stmt = $pdo->prepare('SELECT publisher FROM wiki_publication_catalog WHERE wiki_key = :wk LIMIT 1');
+        $stmt->execute(['wk' => $key]);
+        $value = $stmt->fetchColumn();
+    } catch (Throwable) {
+        // Publication staging absent (a site without WikiSync), or the column not yet migrated on a
+        // half-deployed server. A missing publisher is unknown, never a failed sync.
+        return null;
+    }
+    if ($value === false || $value === null) {
+        return null;
+    }
+    $publisher = trim((string) $value);
+
+    return $publisher === '' ? null : mb_substr($publisher, 0, 160, 'UTF-8');
 }
 
 /**
@@ -1432,16 +1580,19 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
     }
 
     $find = $pdo->prepare(
-        'SELECT id, public_id, origin, status, title, map_url, art, is_color, is_labeled, author, note
+        'SELECT id, public_id, origin, status, title, map_url, art, is_color, is_labeled, format,
+                has_scale, author, publisher, note
            FROM citymap WHERE wiki_key = :wk LIMIT 1'
     );
     $find->execute(['wk' => $wikiKey]);
     $current = $find->fetch(PDO::FETCH_ASSOC) ?: null;
 
     // The catalog has no map_url of its own (the index links no maps, only books) -- derive it from the
-    // source here, where a DB lookup is allowed. The plan itself stays pure.
+    // source here, where a DB lookup is allowed. The plan itself stays pure. The publisher rides the
+    // same path for the same reason: it lives on the BOOK page, not in the index.
     $desired = $catalog;
     $desired['map_url'] = avesmapsCitymapWikiUrlForSource($pdo, (string) ($catalog['source_raw'] ?? ''));
+    $desired['publisher'] = avesmapsCitymapPublisherForSource($pdo, (string) ($catalog['source_raw'] ?? ''));
 
     $plan = avesmapsCitymapReconcilePlan($current, $desired);
     if ($plan['action'] === 'skip') {
@@ -1456,10 +1607,11 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
         // the template for this whole file, uses this same helper for exactly this reason.
         $publicId = avesmapsWikiSyncUuidV4();
         $pdo->prepare(
-            "INSERT INTO citymap (public_id, wiki_key, title, map_url, art, is_color, is_labeled, author, note,
+            "INSERT INTO citymap (public_id, wiki_key, title, map_url, art, is_color, is_labeled, format,
+                                  has_scale, author, publisher, note,
                                   origin, status, map_license, thumb_license, created_by)
-             VALUES (:pid, :wk, :title, :url, :art, :color, :labeled, :author, :note,
-                     'wiki', 'approved', 'unknown_other', 'unknown_other', NULL)"
+             VALUES (:pid, :wk, :title, :url, :art, :color, :labeled, :format, :scale, :author, :publisher,
+                     :note, 'wiki', 'approved', 'unknown_other', 'unknown_other', NULL)"
         )->execute([
             'pid' => $publicId,
             'wk' => $wikiKey,
@@ -1469,7 +1621,10 @@ function avesmapsCitymapReconcileEntity(PDO $pdo, array $catalog, int $userId): 
             'art' => $plan['set']['art'],
             'color' => $plan['set']['is_color'],
             'labeled' => $plan['set']['is_labeled'],
+            'format' => $plan['set']['format'],
+            'scale' => $plan['set']['has_scale'],
             'author' => $plan['set']['author'],
+            'publisher' => $plan['set']['publisher'],
             'note' => $plan['set']['note'],
         ]);
         $citymapId = (int) $pdo->lastInsertId();

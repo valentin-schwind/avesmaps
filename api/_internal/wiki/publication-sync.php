@@ -34,6 +34,7 @@ function avesmapsEnsurePublicationStagingTables(PDO $pdo): void
             art VARCHAR(80),
             source_type VARCHAR(32),
             isbn VARCHAR(20),
+            publisher VARCHAR(160),
             f_shop_url TEXT,
             pdf_shop_url TEXT,
             chosen_url TEXT,
@@ -83,6 +84,14 @@ function avesmapsEnsurePublicationStagingTables(PDO $pdo): void
         } catch (Throwable) {
             // The 3-col unique already exists -- nothing to add.
         }
+    }
+
+    // publisher ({{Infobox Produkt}}|Verlag = the wiki's "Erschienen bei" row). Self-healing ALTER for
+    // the same reason as entity_type above: the table already exists in production, where the CREATE
+    // above is a no-op. Staging carries no production data, so a NULL column until the next "Dump
+    // holen" is the correct honest state -- unknown, not wrong.
+    if (!$columnExists($pdo, 'wiki_publication_catalog', 'publisher')) {
+        $pdo->exec('ALTER TABLE wiki_publication_catalog ADD COLUMN publisher VARCHAR(160) NULL AFTER isbn');
     }
 }
 
@@ -436,12 +445,13 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
 
     $upsert = $pdo->prepare(
         'INSERT INTO wiki_publication_catalog
-            (wiki_key, title, art, source_type, isbn, f_shop_url, pdf_shop_url, chosen_url, has_link, synced_at)
+            (wiki_key, title, art, source_type, isbn, publisher, f_shop_url, pdf_shop_url, chosen_url, has_link, synced_at)
          VALUES
-            (:wiki_key, :title, :art, :source_type, :isbn, :f_shop_url, :pdf_shop_url, :chosen_url, :has_link, CURRENT_TIMESTAMP(3))
+            (:wiki_key, :title, :art, :source_type, :isbn, :publisher, :f_shop_url, :pdf_shop_url, :chosen_url, :has_link, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
             title = VALUES(title), art = VALUES(art), source_type = VALUES(source_type),
-            isbn = VALUES(isbn), f_shop_url = VALUES(f_shop_url), pdf_shop_url = VALUES(pdf_shop_url),
+            isbn = VALUES(isbn), publisher = VALUES(publisher), f_shop_url = VALUES(f_shop_url),
+            pdf_shop_url = VALUES(pdf_shop_url),
             chosen_url = VALUES(chosen_url), has_link = VALUES(has_link), synced_at = CURRENT_TIMESTAMP(3)'
     );
 
@@ -473,6 +483,11 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
                         'art' => mb_substr((string) ($info['art'] ?? ''), 0, 80, 'UTF-8'),
                         'source_type' => (string) ($info['source_type'] ?? 'sonstiges'),
                         'isbn' => mb_substr((string) ($info['isbn'] ?? ''), 0, 20, 'UTF-8'),
+                        // '' -> NULL: the schema's "unknown". A book page that names no Verlag must not
+                        // hand an empty string to a citymap as if it were an answer.
+                        'publisher' => trim((string) ($info['publisher'] ?? '')) === ''
+                            ? null
+                            : mb_substr((string) $info['publisher'], 0, 160, 'UTF-8'),
                         // chosen_url + has_link are authoritative for the reconcile; the two
                         // per-shop URL columns are left NULL (not needed by the reconcile, and
                         // populating them would duplicate avesmapsWikiBuildPublicationUrl's link
