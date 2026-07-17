@@ -42,9 +42,6 @@ const AVESMAPS_TERRITORY_DETAIL_FIELDS = [
     'wiki_url',
 ];
 
-// Lizenz-Status, bei denen ein Wappen im Frontend gezeigt werden darf.
-const AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED = ['public_domain'];
-
 // Formatiert ein BF-Jahr fuer die Anzeige. 9999 (Ongoing-Sentinel) -> "besteht",
 // negativ -> "<n> v. BF", sonst "<n> BF" (0 BF = Bosparans Fall ist gueltig).
 function avesmapsTerritoryDetailFormatBf(int $year): string {

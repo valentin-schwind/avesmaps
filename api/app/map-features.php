@@ -18,16 +18,15 @@ require_once __DIR__ . '/../_internal/coat-url.php';
 //    URL and still shows the previous coat.
 const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 7;
 
-// Coat-of-arms thumbnail gate for the settlement "Liegt in" breadcrumb. These MIRROR the constants of
-// api/app/territory-detail.php EXACTLY (same staging + model tables, same public-domain-only allow list):
-// the breadcrumb must never surface a coat the canonical territory-detail gate would withhold -- a
-// non-public-domain coat is a NOTICE.md/legal violation. Declared ABOVE the try block for the same reason
-// as the payload version above: avesmapsLoadSettlementPoliticalContext() runs inside the try (top-to-bottom)
-// and reads them, and a top-level const is sequential -- declaring them below would be undefined at call
-// time -> 500. Array const is fine in PHP 8.
+// Coat-of-arms staging + model tables for the settlement "Liegt in" breadcrumb. These MIRROR the constants
+// of api/app/territory-detail.php EXACTLY. The public-domain GATE itself now lives once in the shared
+// avesmapsResolveGatedCoatUrl (api/_internal/coat-url.php, AVESMAPS_COAT_PUBLIC_LICENSES) -- surfacing a coat
+// the canonical gate would withhold is a NOTICE.md/legal violation. Declared ABOVE the try block for the same
+// reason as the payload version above: avesmapsLoadSettlementPoliticalContext() runs inside the try
+// (top-to-bottom) and reads them, and a top-level const is sequential -- declaring them below would be
+// undefined at call time -> 500.
 const AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE = 'political_territory_wiki_test'; // = AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE
 const AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE = 'wiki_territory_model';            // = AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE
-const AVESMAPS_MAP_FEATURES_COAT_ALLOWED = ['public_domain'];                     // = AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
