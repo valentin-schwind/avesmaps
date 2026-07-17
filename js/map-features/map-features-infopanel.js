@@ -637,6 +637,20 @@
 		return true;
 	};
 
+	// Feature-Glue (Owner 2026-07-17, Routen-Etappen): ein Klick auf ein Routen-Segment (Karte) oder auf die
+	// Etappe im Planer zeigt deren Infobox im Panel. Beide Wege laufen durch selectRoutePlanEntry, dort haengt
+	// der Aufruf. Der Anker wird direkt nach avesmapsShowInfopanel gesetzt -- das nullt ihn zentral, und ohne
+	// ihn koennte ein spaeterer Refresh diesen Inhalt nicht neu zeichnen (siehe infopanel-catalog-race).
+	window.avesmapsShowRouteLegInInfopanel = function (entry) {
+		var markup = (typeof buildRouteLegPopupHtml === "function") ? buildRouteLegPopupHtml(entry) : "";
+		if (!markup) {
+			return false;
+		}
+		window.avesmapsShowInfopanel(markup);
+		lastPanelRender = function () { window.avesmapsShowRouteLegInInfopanel(entry); };
+		return true;
+	};
+
 	// Feature-Glue (Phase 1c, Regionen/Territorien): zeigt die Regions-/Gebiets-Infobox
 	// (createRegionCompactTooltipMarkup) im Panel und laedt -- wie enrichRegionTooltipWithWikiDetail
 	// fuer den Hover-Tooltip (map-features-region-tooltip-lifecycle.js) -- die reichhaltigen

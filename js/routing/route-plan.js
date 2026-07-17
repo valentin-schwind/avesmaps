@@ -135,6 +135,67 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 			fitMapToRouteBounds(bounds);
 		}
 	}
+
+	// Etappen-Infobox ins Panel (Owner 2026-07-17). Hier und nicht in den Aufrufern: ALLE fuenf Wege hierher
+	// sind Nutzer-Klicks (Routenlinie, Etappenzeile, Tastatur, Weg-Link) -- keiner feuert beim BERECHNEN einer
+	// Route, sonst spraenge das Panel ungefragt auf.
+	if (typeof window.avesmapsShowRouteLegInInfopanel === "function") {
+		window.avesmapsShowRouteLegInInfopanel(routeEntry);
+	}
+}
+
+// Typ-Bezeichnung einer Etappe, wie sie der Nutzer sieht. Querfeldein ist kein Wegtyp, sondern eine
+// Luftlinie -> eigenes Wort; alles andere teilt die Bezeichnung mit der Weg-Infobox (tr-Schluessel).
+function routeLegTypeLabel(type) {
+	if (type === SYNTHETIC_ROUTE_TYPE) {
+		return tr("planner.leg.offroad", "Unwegsames Gelände");
+	}
+	return typeof tr === "function" ? tr("spotlight.pathType." + type, type) : String(type || "");
+}
+
+// Infobox einer Routen-Etappe (Owner 2026-07-17): gleicher Kopf + gleiche Datentabelle wie die Weg-Infobox,
+// nur aus dem Etappen-Modell statt aus einem map_features-Weg gespeist. Der Kopf nutzt dieselbe
+// Wegtyp-Grafik (pathHeaderImageBasename) -- fuer den Seeweg ist das die EINZIGE Flaeche, auf der seine
+// Grafik je erscheint: Seewege tragen keinen Wiki-Artikel (0 von 1275 Segmenten), sind darum nie klickbar
+// und bauen nie eine Weg-Infobox. Querfeldein faellt mangels Eintrag auf "region" zurueck -- es ist kein Weg.
+function buildRouteLegPopupHtml(entry) {
+	if (!entry || typeof locationPopupMarkup !== "function") {
+		return "";
+	}
+	const typeLabel = routeLegTypeLabel(entry.type);
+	// Titel = Weg-Name, wenn die Etappe einen traegt (Owner-Entscheid: "Name wenn da, sonst Typ") -- wie in
+	// der Weg-Infobox. Ohne Namen (Seeweg, Querfeldein, unbenannte Wege) tritt der Typ an die Titelstelle und
+	// der Untertitel entfaellt, sonst stuende zweimal dasselbe da.
+	const name = String(entry.segmentLabel || "").trim();
+	const title = name || typeLabel;
+	const subtitle = name ? typeLabel : "";
+	const headerImg = typeof infoHeaderImageMarkup === "function" && typeof pathHeaderImageBasename === "function"
+		? infoHeaderImageMarkup(pathHeaderImageBasename(entry.type), title, subtitle)
+		: "";
+	const row = (label, value) => (value === "" || value === null || value === undefined)
+		? ""
+		: `<div class="region-info-box__row"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(String(value))}</dd></div>`;
+	// Stroemungsvermerk wie in der Etappenzeile des Planers ("42.81 Meilen flussaufwaerts").
+	const flowWord = entry.type === "Flussweg" && entry.flowState
+		? ` ${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")}`
+		: "";
+	const hours = Number(entry.travelTime) || 0;
+	let rows = "";
+	rows += row(tr("planner.leg.from", "von"), entry.startName);
+	rows += row(tr("planner.leg.to", "bis"), entry.endName);
+	rows += row(tr("planner.summary.distance", "Distanz"), `${(Number(entry.distance) || 0).toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord}`);
+	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${hours.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(hours / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})`);
+	return locationPopupMarkup({
+		name: title,
+		locationType: "dorf",
+		locationTypeLabel: subtitle,
+		headerImageMarkup: headerImg,
+		showHeaderIcon: false,
+		showDescription: false,
+		showWikiLink: false,
+		showType: Boolean(subtitle),
+		actionsMarkup: `<div class="region-info-box region-info-box--settlement"><dl class="region-info-box__data">${rows}</dl></div>`,
+	});
 }
 
 function selectRoutePlanEntryForSegment(segmentIndex) {
