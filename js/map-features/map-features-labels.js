@@ -319,6 +319,18 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 		? renderFeatureSourceLine("region", label.publicId, wiki.wiki_url || "", "region-info-box__link")
 		: "";
 
+	// Ohne einen einzigen Wert entfaellt die Box GANZ (Spec §5.2). Seit alle Labels anklickbar sind, laeuft
+	// hier auch eines ohne Wiki-Zuweisung durch, und das ergaebe sonst ein leeres <dl> mit Rahmen und
+	// Abstaenden -- das liest sich nicht als "dazu wissen wir nichts", sondern als kaputt. Name und Typ
+	// stehen ohnehin im Kopf darueber; was bleibt, sind Kartensammlung und Abenteuer, und die haengen
+	// nicht an dieser Box. Ein Panel ohne Wiki-Zeilen ist ein gueltiger Zustand.
+	//
+	// sourceMarkup zaehlt mit: die Quellen eines Labels haengen an seiner public_id, nicht an der
+	// Wiki-Zuweisung -- eine Region ohne Wiki, aber mit erfasster Quelle behaelt ihre Zeile.
+	if (!rows && !sourceMarkup) {
+		return "";
+	}
+
 	const header = headless ? "" : (
 		`<div class="region-info-box__header${hasCoatClass}">` +
 		coatMarkup +
@@ -368,7 +380,16 @@ function createLabelMarkerEntry(label) {
 	const marker = L.marker(label.coordinates, {
 		icon: createLabelIcon(label),
 		draggable: false,
-		interactive: IS_EDIT_MODE || labelHasWikiRegion(label),
+		// JEDES Label ist anklickbar, nicht nur eins mit Wiki-Zuweisung (Spec §5.2): ohne sie war es im
+		// Lesemodus vollstaendig inert -- kein Popup, kein Panel, nicht einmal ein Trefferziel; der Klick
+		// fiel durch auf das, was darunter lag. Ein Panel ohne Wiki-Zeilen ist ein gueltiger Zustand (Name,
+		// Typ, Kartensammlung, Abenteuer), kein Fehler.
+		//
+		// Perf (der Vorbehalt in §5.2): unkritisch, weil syncLabelMarkerVisibility jedes Label ausserhalb
+		// von Zoomband/Viewport aus der KARTE nimmt -- im DOM stehen ohnehin nur die sichtbaren. Es kommen
+		// also nur die wiki-losen Labels des aktuellen Ausschnitts als Hit-Ziele dazu, und die Marker gab es
+		// schon; interactive schaltet nur pointer-events und die Leaflet-Registrierung.
+		interactive: true,
 		keyboard: false,
 		pane: "labelsPane",
 	});
@@ -385,8 +406,10 @@ function createLabelMarkerEntry(label) {
 		// to avesmapsShowInfopanel, gated only on IS_INFOPANEL_MODE). Mirror that here: when the label's
 		// editor popup opens, ALSO fill the panel with the read-only region info. The view-mode branch below
 		// is unreachable in edit mode, which is why this wiring was missing.
+		// Ohne labelHasWikiRegion-Gate (Spec §5.2), aus demselben Grund wie im Lesemodus darunter: sonst
+		// bliebe der Info-Reiter fuer ein Label ohne Wiki-Zuweisung leer und damit unerreichbar -- genau
+		// die Sackgasse, gegen die diese Verdrahtung ueberhaupt entstand.
 		if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE
-			&& labelHasWikiRegion(label)
 			&& typeof window.avesmapsShowInfopanel === "function"
 			&& typeof buildRegionLabelViewPopupHtml === "function") {
 			marker.on("popupopen", () => {
@@ -396,9 +419,13 @@ function createLabelMarkerEntry(label) {
 				);
 			});
 		}
-	} else if (labelHasWikiRegion(label)) {
+	} else {
 		// Ansichtsmodus: dasselbe Popup wie der Edit-Mode, nur OHNE die Bearbeiten-Buttons -- via den
 		// gemeinsamen Builder, den auch der Deep-Link/Spotlight-Fokus (focusSpotlightLabel) nutzt.
+		//
+		// Ohne labelHasWikiRegion-Gate (Spec §5.2): ein Label ohne Wiki-Zuweisung bekommt dasselbe Panel,
+		// nur ohne die Wiki-Zeilen -- Name, Typ, Kartensammlung und Abenteuer stehen auch ohne Wiki zur
+		// Verfuegung, und genau die waren bisher unerreichbar.
 		const regionLabelPopupHtml = buildRegionLabelViewPopupHtml(label);
 		// Infopanel (now the default): route landscape/Wiki-region label info into the right panel
 		// instead of a floating popup -- same as the other feature types. This label-click path had no

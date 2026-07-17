@@ -458,10 +458,16 @@ body.edit-mode .map-label img {
 	color: #fff;
 }
 
-/* Labels mit zugeordneter Wiki-Landschaft sind auch im ANSICHTSMODUS anklickbar (Infobox).
-   Hebt das pointer-events:none der Labels gezielt fuer diese auf. */
-.map-label--has-wiki,
-.map-label--has-wiki span {
+/* Region-/Landschafts-Labels sind im ANSICHTSMODUS anklickbar und oeffnen das Infopanel -- ALLE, nicht
+   mehr nur die mit Wiki-Zuweisung (Spec §5.2). Ohne Wiki zeigt das Panel Name, Typ, Kartensammlung und
+   Abenteuer; bis hierher war so ein Label komplett inert, und der Klick fiel durch auf das, was darunter
+   lag.
+
+   Hebt das pointer-events:none der Basisregel oben gezielt fuer .map-label auf. .location-name-label
+   teilt sich jene Regel und bleibt bewusst inert: dort ist der Siedlungs-MARKER das Klickziel, nicht
+   seine Beschriftung -- beide klickbar zu machen hiesse, zwei Treffer uebereinanderzulegen. */
+.map-label,
+.map-label span {
 	pointer-events: auto;
 	cursor: pointer;
 }

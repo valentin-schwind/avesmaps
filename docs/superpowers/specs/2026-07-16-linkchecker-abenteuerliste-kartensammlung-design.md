@@ -377,6 +377,27 @@ Das ist **heute schon so** (2 Kacheln = 188px in 336px) und dem Owner nie aufgef
 
 ## 5. Aufgabe E — Regionen bekommen das Infopanel
 
+> **Stand 2026-07-17 (gebaut):** §5.2.1/2 (alle Labels klickbar) und §4.3 (Kachel-Flex) sind umgesetzt.
+> §5.4 (Sektionen) war bereits erledigt. §5.3 hat sich **erledigt statt gebaut** — Begründung unten.
+> Beim Bauen korrigiert:
+> - **§8 ist veraltet.** Der Smoketest verlangt „vier Kacheln auf der Karte, fünf im Panel"; das ist die
+>   Fassung *vor* der Owner-Korrektur in §5.3 („keine Zentrieren-/Anzeigen-Kachel"). §5.3 gilt.
+> - **Der `panTo`-Auftrag in §5.3 wurde NICHT ausgeführt** (Owner-Entscheidung 2026-07-17). Der
+>   Polygon-Single-Klick verschiebt bewusst nicht (`map-features-region-tooltip-lifecycle.js:16`), und
+>   der Doppelklick zentriert+zoomt bereits. Die Asymmetrie zum Label ist begründet: ein Label ist ein
+>   **Punkt** (Klick zentriert ihn sinnvoll), ein Polygon eine **Fläche**, die man bereits vor sich hat.
+> - **§5.3s Kachel-Tabelle ist gegenstandslos.** Sie unterscheidet „schwebende Box" und „Infopanel" —
+>   für Regionen gibt es die schwebende Box im Lesemodus nicht mehr: `openRegionCompactTooltip:53`
+>   delegiert ans Panel und kehrt zurück. Beide Region-Pfade landen im Panel, und dort stehen
+>   Kartensammlung + Abenteuer bereits als **Sektionen** inline. Kacheln dafür wären dieselbe Doppelung,
+>   die das Siedlungs-Muster ausdrücklich vermeidet (`map-features-location-marker-entry.js:125`:
+>   Kacheln **nur** in der schlanken Box, „das rechte Panel zeigt den Streifen ohnehin inline"). §5.3s
+>   Satz „das spiegelt exakt die Siedlung" stimmt insofern nicht: dort hängen auch Abenteuer und
+>   Kartensammlung an `floating`, nicht nur „Änderung vorschlagen".
+> - **Der Perf-Vorbehalt in §5.2 greift nicht:** `syncLabelMarkerVisibility` nimmt jedes Label außerhalb
+>   von Zoomband/Viewport aus der Karte — im DOM stehen ohnehin nur die sichtbaren. `interactive` schaltet
+>   nur `pointer-events` und die Leaflet-Registrierung, es entstehen keine neuen Objekte.
+
 ### 5.1 Befund
 
 Die Prämisse „Regionen nutzen das Infopanel noch nicht" stimmt so nicht: seit dem 12.07. (`23dea65e`, `aa306522`, `b047e699`, `e9abeeda`) laufen Region-Klicks ins Panel. **Aber nur mit zugewiesener `wiki_region`.** `map-features-labels.js:370`:

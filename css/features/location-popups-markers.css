@@ -321,6 +321,15 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	flex: 1 1 90px;
 	width: auto;
 }
+/* Regionen/Herrschaftsgebiete (Spec §4.3): ihre Aktionsleiste haengt in einer .region-info-box, NICHT in
+   einer .location-popup -- createRegionWikiInfoBoxMarkup baut keinen solchen Wrapper. Die Child-Selektoren
+   oben matchen dort also NIE, und die Kacheln blieben auf den starren 90px der Basisregel darunter stehen,
+   statt die Zeile zu fuellen. Das ist derselbe Fall wie bei .slim-location-popup, deshalb dieselbe Regel.
+   (Die LABEL-Regionen sind nicht betroffen: die laufen durch locationPopupMarkup und haben den Wrapper.) */
+.region-info-box > .location-popup__actions > .location-popup__action-button {
+	flex: 1 1 90px;
+	width: auto;
+}
 .floating-location-popup .location-popup__action-button,
 .avesmaps-infopanel .location-popup__action-button {
 	flex-direction: column;
