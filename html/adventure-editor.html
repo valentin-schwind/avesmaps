@@ -1132,10 +1132,14 @@
   }
 
   // Map a map-search hit to an adventure target_kind (powerlines are filtered out upstream).
+  // EVERY label subtype is a landscape ("region" here), not just the one literally named "region":
+  // the subtype is the landscape category (gebirge, wald, kontinent, ... -- 19 of them), so pinning it
+  // to "region" dropped Regengebirge and Aventurien back into the name-resolution fallback, where the
+  // server filtered them out too and they stayed unresolved forever (owner report 2026-07-17).
   function mapSearchKind(it) {
     if (it.kind === "location") return "settlement";
     if (it.kind === "region" && it.feature_subtype === "political_territory") return "territory";
-    if (it.kind === "label" && it.feature_subtype === "region") return "region";
+    if (it.kind === "label") return "region";
     if (it.kind === "path") return "path";
     return "";
   }

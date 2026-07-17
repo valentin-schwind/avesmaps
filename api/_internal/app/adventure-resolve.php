@@ -155,15 +155,27 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
         $candidates[$kind . '_deparen'][$deparenKey][] = ['public_id' => $publicId, 'wiki_key' => $realKey];
     };
 
-    // Landscape regions (e.g. Raschtulswall) are stored as feature_type='label' + feature_subtype='region'
-    // and carry properties.wiki_url just like true region features -- include them so an adventure can be
-    // assigned to a landscape (owner requirement 2026-07-12); otherwise every landscape stays 'unresolved'.
+    // Landscapes (Raschtulswall, Regengebirge, ...) are stored as feature_type='label' and carry their
+    // wiki link like a true region feature -- include them so an adventure/citymap can be assigned to a
+    // landscape (owner requirement 2026-07-12); otherwise every landscape stays 'unresolved'.
+    //
+    // EVERY label subtype counts, not just 'region'. A label's subtype is its landscape CATEGORY, and
+    // there are 19 of them (avesmapsReadLabelSubtype in api/_internal/map/features.php: region, gebirge,
+    // wald, insel, kontinent, ...); which one a landscape got is an editorial detail, not a statement
+    // about whether it is a place. Scanning only 'region' silently excluded 389 of the 529 live labels --
+    // Regengebirge is 'gebirge', Aventurien is 'kontinent', and neither could EVER resolve (owner report
+    // 2026-07-17). It read as correct because the example everyone tested with, Raschtulswall, is itself
+    // a Gebirge that happens to be filed under 'region'. The real gate is the WIKI LINK below.
+    //
+    // ORDER BY: several labels may share one wiki page (a 'steppe' and a 'region' label both named
+    // Brydia). Candidate maps are first-writer-wins, so let the 'region' subtype land first -- that keeps
+    // those ties resolving to exactly the row they resolved to before this filter widened.
     $mapFeatures = $pdo->query(
         "SELECT public_id, feature_type, feature_subtype, name, properties_json
            FROM map_features
           WHERE is_active = 1
-            AND (feature_type IN ('location','region','path')
-                 OR (feature_type = 'label' AND feature_subtype = 'region'))"
+            AND feature_type IN ('location','region','path','label')
+          ORDER BY CASE WHEN feature_subtype = 'region' THEN 0 ELSE 1 END"
     );
     foreach ($mapFeatures as $row) {
         $props = json_decode((string) ($row['properties_json'] ?? ''), true);
@@ -173,7 +185,6 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
         $publicId = (string) $row['public_id'];
         $name = (string) ($row['name'] ?? '');
         $type = (string) $row['feature_type'];
-        $subtype = (string) ($row['feature_subtype'] ?? '');
 
         if ($type === 'location') {
             // A location's wiki link lives in properties.wiki_url (editor) and/or the WikiSync object
@@ -203,11 +214,12 @@ function avesmapsAdventureLoadCandidates(PDO $pdo): array
                     $addDeparen($candidates, 'settlement', avesmapsAdventurePageTitleFromUrl($wikiUrl), $key, $publicId);
                 }
             }
-        } elseif ($type === 'region' || ($type === 'label' && $subtype === 'region')) {
-            // Region-labels (Landschaften, e.g. Raschtulswall) keep their wiki link NESTED under
-            // properties.wiki_region.{wiki_url,wiki_key} -- a top-level properties.wiki_url is EMPTY for
-            // every region (that is why regions never resolved). Read the nested link, with a top-level
-            // wiki_url fallback for any true region feature that might carry it directly.
+        } elseif ($type === 'region' || $type === 'label') {
+            // Landscape labels keep their wiki link NESTED under properties.wiki_region.{wiki_url,wiki_key}
+            // -- a top-level properties.wiki_url is EMPTY for many of them (that is why regions never
+            // resolved at all before). Read the nested link, with a top-level wiki_url fallback for any
+            // true region feature that might carry it directly. A label with NO wiki link either way is
+            // simply not a candidate -- this is the gate that makes scanning all label subtypes safe.
             $wikiUrl = trim((string) ($props['wiki_url'] ?? ''));
             if ($wikiUrl === '' && isset($props['wiki_region']) && is_array($props['wiki_region'])) {
                 $wikiUrl = trim((string) ($props['wiki_region']['wiki_url'] ?? ''));

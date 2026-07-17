@@ -38,7 +38,7 @@ Der Badge nutzt direkt map-search `type_label`. Zur Orientierung, wie map-search
 |---|---|
 | `location` (metropole/dorf/…) | settlement |
 | `region` + `political_territory` | territory |
-| `label` + `region` | region (Landschaft) |
+| `label`, **jeder** Landschafts-Subtyp (`region`, `gebirge`, `wald`, `insel`, `kontinent`, … — 19 Stück) | region (Landschaft) |
 | `path` (Pfad/Straße/…) | path |
 | `powerline` | — (ausgeschlossen) |
 
