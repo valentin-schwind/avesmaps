@@ -955,15 +955,21 @@
 .avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__detail {
 	grid-template-rows: 1fr;
 }
+/* visibility statt nur opacity/overflow: eine Zeile ohne sie bleibt trotz 0fr-Hoehe ein echter Tab-Stop
+   und ihr Text bleibt fuer Screenreader da -- unsichtbar heisst hier nur "gefaltet", nicht "aus dem Baum".
+   0s-Delay auf visibility haelt sie WAEHREND der 0.32s-Faltanimation sichtbar/fokussierbar und blendet erst
+   danach aus; das muss mit grid-template-rows in Schritt bleiben (Spec §3.3). */
 .avesmaps-citymap-row__detail-inner {
 	overflow: hidden;
 	opacity: 0;
-	transition: opacity 0.15s ease;
+	visibility: hidden;
+	transition: opacity 0.15s ease, visibility 0s linear 0.32s;
 }
 /* Verzoegert: der Text soll nicht vor seinem Platz da sein. */
 .avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__detail-inner {
 	opacity: 1;
-	transition: opacity 0.25s ease 0.12s;
+	visibility: visible;
+	transition: opacity 0.25s ease 0.12s, visibility 0s;
 }
 .avesmaps-citymap-row__facts {
 	padding-top: var(--space-4);
