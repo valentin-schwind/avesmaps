@@ -122,6 +122,12 @@
 	// Funktion weiss, wie ihr Typ gebaut wird -- der Anker muss das nicht wissen.
 	var lastPanelRender = null;
 	var panelRefreshQueued = false;
+	// True WHILE a refresh redraws the panel. avesmapsShowInfopanel serves two callers whose intent is
+	// opposite: a feature CLICK ("show me this") must open and focus the panel, a REFRESH ("what you are
+	// already showing has new data") must change nothing but the markup. The refresh goes through the same
+	// show-* functions -- that is the point of the anchor -- and so inherited the click's side effects and
+	// tore the panel open behind the user's back. See avesmapsRefreshInfopanel.
+	var refreshingPanel = false;
 	// ResizeObserver, der den gemessenen Reise-Linien-SVG-Pfad bei Breitenaenderung des Panels neu zeichnet
 	// (einmalig in renderTabs angehaengt).
 	var routeLineObserver = null;
@@ -510,12 +516,21 @@
 			body.innerHTML = html;
 			body.scrollTop = 0;
 			hasContent = true;
-			collapsed = false;
-			openSeq += 1;
 			currentTabActive = typeof activeName === "string" ? activeName : "";
 			renderTabs();
-			if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE && window.avesmapsEdgePanels) {
-				window.avesmapsEdgePanels.activate("info");
+			// Everything below is "the user asked to SEE this" -- skipped for a refresh, which only ever
+			// updates what is already on screen and must leave the user's own view untouched:
+			//  - collapsed: a refresh must not re-open a panel the user closed.
+			//  - openSeq: the empty-click detector reads it as "a feature click landed". A refresh is not a
+			//    click; counting it would make a genuine empty click look like a hit and keep the panel open.
+			//  - activate("info"): in edit mode Info and Editor are exclusive tabs of the same edge slot, so
+			//    this would yank the panel in front of the editor the user is working in.
+			if (!refreshingPanel) {
+				collapsed = false;
+				openSeq += 1;
+				if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE && window.avesmapsEdgePanels) {
+					window.avesmapsEdgePanels.activate("info");
+				}
 			}
 		} else {
 			body.innerHTML = "";
@@ -598,7 +613,15 @@
 				return;
 			}
 			var scrollTop = body.scrollTop;
-			lastPanelRender();
+			// Redraw WITHOUT the click semantics of avesmapsShowInfopanel (see refreshingPanel). The anchors
+			// call it synchronously, so the flag covers exactly the redraw. try/finally because a throwing
+			// builder would otherwise leave every later click unable to open the panel.
+			refreshingPanel = true;
+			try {
+				lastPanelRender();
+			} finally {
+				refreshingPanel = false;
+			}
 			body.scrollTop = scrollTop;
 		}, 0);
 	};
