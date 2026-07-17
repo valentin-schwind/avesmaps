@@ -137,6 +137,10 @@ window.AVESMAPS_I18N_EN = {
 	"route.role.end": "Destination",
 	"popup.writeReview": "Write a review",
 	"popup.suggestChange": "Suggest a change",
+	// Two different actions that share the word "Anzeigen" (and the sextant): showInPanel puts THIS place in
+	// the panel, showWholePath marks a whole road/river. Same label in German, so same label in English --
+	// keep them side by side so they cannot drift apart again.
+	"popup.showInPanel": "Show",
 	"popup.showWholePath": "Show",
 	"toast.path.notFound": "The way could not be found.",
 	"popup.labelTypeRegion": "Region",
