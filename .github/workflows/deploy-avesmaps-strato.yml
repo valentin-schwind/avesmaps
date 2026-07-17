@@ -191,25 +191,36 @@ jobs:
           echo "Deploy package:"
           find "$DEPLOY_DIR" -maxdepth 2 -mindepth 1 | sort
 
-      - name: Stamp asset versions into index.html
+      - name: Stamp asset versions
         if: env.SKIP_DEPLOY != 'true'
         shell: bash
         run: |
           set -euo pipefail
 
-          # index.html immer ins Paket aufnehmen und neu stempeln, damit die ?v=-Hashes
-          # aktuell sind -- auch wenn nur ein referenziertes Asset (nicht index.html selbst)
-          # geaendert wurde. index.html ist winzig und wird ohnehin nie hart gecacht.
-          if [[ ! -f "$DEPLOY_DIR/index.html" ]]; then
-            cp -a index.html "$DEPLOY_DIR/index.html"
-          fi
+          # Die Einstiegsseiten werden IMMER neu gestempelt und ins Paket gelegt -- auch wenn nur ein
+          # referenziertes Asset (nicht die Seite selbst) geaendert wurde, denn sonst zeigten sie noch
+          # auf den alten Hash. Sie sind winzig und werden ohnehin nie hart gecacht.
+          entries=(index.html)
+          for page in html/*.html; do
+            [[ -f "$page" ]] && entries+=("$page")
+          done
 
-          # Hashes aus dem vollstaendigen Checkout ($PWD) berechnen -> unveraenderte Assets
-          # behalten ihren Hash und bleiben clientseitig gecacht.
-          python3 .github/scripts/stamp-asset-versions.py "$DEPLOY_DIR/index.html" "$PWD"
+          # Das Skript folgt der ganzen Referenzkette (index.html -> css/styles.css -> base/tokens.css
+          # -> ...) und legt jede Datei mit ins Paket, die es dabei umschreiben musste. Hashes werden
+          # aus dem vollstaendigen Checkout ($PWD) berechnet -> unveraenderte Assets behalten ihren
+          # Hash und bleiben clientseitig gecacht.
+          python3 .github/scripts/stamp-asset-versions.py \
+            --asset-root "$PWD" --deploy-dir "$DEPLOY_DIR" "${entries[@]}"
+
+          # Beweis, dass die Kette stimmt, BEVOR hochgeladen wird: ein falscher Hash faellt sonst
+          # nirgends auf (Deploy gruen, Datei auf dem Server korrekt) und wuerde die Nutzer bis zu
+          # einem Jahr auf dem alten CSS festhalten. Siehe docs/asset-caching-and-versioning.md.
+          python3 .github/scripts/verify-stamped-chain.py \
+            --asset-root "$PWD" --deploy-dir "$DEPLOY_DIR" "${entries[@]}"
 
           echo "Stamped reference sample:"
           grep -oE '(src|href)="(js|css)/[^"]+"' "$DEPLOY_DIR/index.html" | head -n 5 || true
+          grep -oE '@import url\("[^"]+"\)' "$DEPLOY_DIR/css/styles.css" | head -n 3 || true
 
       - name: Install SFTP client
         if: env.SKIP_DEPLOY != 'true'

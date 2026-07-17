@@ -31,10 +31,10 @@
   })();
 </script>
 <link rel="stylesheet" href="/css/base/fonts.css">
-<!-- The real design tokens. This iframe is served with ?v=Date.now(), which busts the HTML but NOT
-     its sub-resources, so the token sheet carries its own tag: bump it together with the one in
-     css/styles.css line 2 whenever tokens.css changes. -->
-<link rel="stylesheet" href="/css/base/tokens.css?v=20260717-ztokens1">
+<!-- The real design tokens. The deploy stamps this reference with a content hash, so it busts
+     itself whenever tokens.css changes -- nothing to bump by hand.
+     See docs/asset-caching-and-versioning.md. -->
+<link rel="stylesheet" href="/css/base/tokens.css">
 <style>
   /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */

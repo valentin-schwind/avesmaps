@@ -4,86 +4,135 @@
 `Ctrl+Shift+R` — while at the same time keeping **maximum performance** (unchanged
 files stay cached on the client "forever").
 
-Introduced on 2026-06-04 (commit `6b1700bc`). This file is the central reference
-whenever new JS/CSS files are added or "my change isn't showing up".
+Introduced on 2026-06-04 (commit `6b1700bc`); extended to the whole CSS `@import`
+chain on 2026-07-17. This file is the central reference whenever new JS/CSS files
+are added or "my change isn't showing up".
 
 ---
 
-## 1. Overview: three separate mechanisms
-
-There are **three** cache-busting systems. Which one applies depends on **how** a
-file is loaded:
+## 1. Overview: two mechanisms
 
 | Load mechanism | Cache-busting | Who maintains it |
 |---|---|---|
-| **A — Directly in `index.html`** (`<script src>` / `<link href>`) | **Auto** via content hash at deploy time | nobody — automatic |
+| **A — Reachable from `index.html` or an `html/*.html` page**, directly *or* through a CSS `@import` chain | **Auto** via content hash at deploy time | nobody — automatic |
 | **B — Dynamically from the editor** (`territory-editor-inline-host.js` loads editor HTML/CSS/JS) | **Manual** via `ASSET_VERSION` | developer (bump the constant) |
-| **C — Behind the `@import` chain** (`css/styles.css` → 38 files) **or from a sub-page** (`html/*.html`) | **Manual** via a hand-written `?v=` tag | developer (bump that one tag) |
 
-> **Rule of thumb:** the deploy stamps **only the `<script>`/`<link>` tags of
-> `index.html`** — nothing else, ever. A file reached **any other way** carries a
-> **hand-maintained** version tag that you have to bump yourself.
+> **Rule of thumb:** changed a JS or CSS file? **Do nothing.** The deploy works
+> out the new URLs itself, all the way down the `@import` chain.
 >
-> **Do not assume "it's CSS, so it's automatic".** `index.html` links only **9**
-> stylesheets directly; the other **38** hang behind `css/styles.css` in an
-> `@import` chain and are on **Mechanism C** (§4). That includes
-> `base/tokens.css`, `components/dialog-overlays.css` and
-> `features/place-extras.css`.
+> The **one** exception is Mechanism B: the editor assets loaded dynamically by
+> `territory-editor-inline-host.js` still need their constant bumped (§3).
+
+> **Never write a `?v=` by hand — anywhere.** Not in `index.html`, not in an
+> `@import`, not in an `html/*.html` page. The deploy overwrites it, and a
+> hand-written tag can only go stale. This is enforced: the deploy refuses to
+> upload if any reference disagrees with the bytes being served (§2.4).
 
 ---
 
-## 2. Mechanism A – Auto-versioning of `index.html` assets
+## 2. Mechanism A – Auto-versioning
 
-### How it works
-1. During the deploy (GitHub Action) the step **"Stamp asset versions into
-   index.html"** runs. It calls `.github/scripts/stamp-asset-versions.py`.
-2. The script appends `?v=<sha1-prefix>` to **every** local `js/`, `css/` or
-   `assets/` reference in the `<script>`/`<link>` tags of `index.html` — computed
-   from the **contents of the respective file**.
-   - Example: `<script src="js/app/runtime-state.js">`
-     → `<script src="js/app/runtime-state.js?v=8c13fa5241">`
+### 2.1 How it works
+1. During the deploy (GitHub Action) the step **"Stamp asset versions"** runs
+   `.github/scripts/stamp-asset-versions.py` over the **entry points**:
+   `index.html` and every `html/*.html` sub-page.
+2. It appends `?v=<sha1-prefix>` — derived from the referenced file's **content** —
+   to every local `js/`, `css/` or `assets/` reference it finds:
+   - in `<script src>` / `<link href>` tags (`js/app/runtime-state.js`
+     → `js/app/runtime-state.js?v=8c13fa5241`),
+   - **and in `@import url(...)` lines inside CSS files**
+     (`base/tokens.css` → `base/tokens.css?v=091f1f10bc`).
 3. The server (`.htaccess`) serves files **with** `?v=` as
    `Cache-Control: public, max-age=31536000, immutable` → the browser caches them
    for a year.
-4. `index.html` itself is **never** hard-cached (`no-cache`) → fresh on every
-   request → the current `?v=` hashes always reach the client.
+4. `index.html` and the `html/*.html` pages are **never** hard-cached (`no-cache`)
+   → fresh on every request → the current hashes always reach the client.
 
-### Why only changed files are reloaded
-The hash comes from the **file contents**. If `app.js` changes, its hash changes
-→ new URL → the browser reloads it. All **unchanged** files keep their hash →
-same URL → cache hit. That is the performance win.
+### 2.2 The chain — and why order matters
+Only **9** stylesheets hang directly in `index.html`. The other **38** hang behind
+`css/styles.css` in an `@import` chain, and one level deeper still:
 
-### Important: `index.html` is re-stamped on EVERY deploy
-Even if only an asset (not `index.html` itself) changed, `index.html` is
-re-stamped and uploaded along with it — otherwise it would point at the old
-hash. It is tiny and `no-cache`, so this costs nothing.
+```
+index.html
+  └── css/styles.css
+        ├── base/tokens.css   (+ 37 more)
+        └── components/context-menu-sizing.css
+              └── map-context-menu-icons.css
+```
 
-### Scope: `index.html` and nothing else
-The workflow invokes the script on **exactly one file**
-(`stamp-asset-versions.py "$DEPLOY_DIR/index.html" "$PWD"`). No other HTML file
-is ever stamped, and no CSS file is ever opened for rewriting. Everything outside
-those tags is Mechanism C.
+A file's hash is computed from its content **after its own references were
+stamped**. That is not a detail — it is the whole trick:
 
-**A hand-written `?v=` inside `index.html` is pointless** — the script's regex
-swallows an existing query and replaces it with the content hash
-(`css/styles.css?v=20260713-theme22` → `css/styles.css?v=8ef42c83c7` on deploy).
-Never bump a tag in `index.html` by hand; it has no effect.
+- Stamping `base/tokens.css?v=…` **changes the content of `styles.css`**
+  → `styles.css` gets a new hash → `index.html` gets a new `styles.css?v=…`
+  → the browser re-reads `styles.css` and sees the new import URL.
+- If `index.html` instead carried the hash of the *original* `styles.css`, the
+  browser would keep serving its cached copy and **never learn** about the new
+  import URLs. The chain would look stamped and be silently broken.
 
-### Files involved
-- `.github/scripts/stamp-asset-versions.py` – the stamping script (runs only in
-  CI, is **not** deployed).
-- `.github/workflows/deploy-avesmaps-strato.yml` – the step "Stamp asset versions
-  into index.html".
-- `.htaccess` – the Cache-Control rules (see below).
-- `index.html` – the **source** stays unversioned; only the deploy copy is
-  stamped. **Never** write hashes into the source by hand.
+The stamper therefore resolves bottom-up (a recursive, memoised
+"content-after-stamping" function). Nothing about this is visible in the source
+files — it happens on the deploy copy.
+
+### 2.3 Which files travel with the deploy
+The deploy package is **incremental** (only files changed since the last deploy).
+Entry points are **always** re-stamped and added, and so is every file the stamper
+had to rewrite — otherwise a changed `tokens.css` would ship while the
+`styles.css` pointing at it stayed behind.
+
+In practice that means `index.html`, the `html/*.html` pages, `css/styles.css` and
+`css/components/context-menu-sizing.css` ride along on every deploy. They are the
+only files that contain references; all other CSS are leaves and are shipped only
+when they actually change.
+
+### 2.4 The guard: the deploy proves the chain
+A broken chain has **no symptom** — green deploy, correct file on the server, and
+users silently stuck on old CSS for up to a year. So the deploy does not trust the
+stamper: `.github/scripts/verify-stamped-chain.py` walks the finished package,
+re-derives every hash from the bytes that will actually be served, and **fails the
+deploy before upload** if any reference disagrees or was never stamped at all.
+
+It deliberately looks *wider* than the stamper (any `@import` spelling, not just
+the `url("…")` form) so that a reference the stamper's regex does not know is
+reported rather than silently left uncached.
+
+### 2.5 Never version by hand
+The **source** files stay unversioned; only the deploy copy is stamped. A
+hand-written `?v=` is not just useless, it is a hazard:
+
+- in `index.html` and the `@import` lines it is **overwritten** by the deploy;
+- if it ever survived, it could only go **stale** — which is the failure this
+  whole system exists to prevent.
+
+> **History:** until 2026-07-17 the `@import` tags and the `html/*.html` links
+> *were* hand-maintained (`?v=20260717-ztokens1` and the like), because the
+> stamper only touched `<script>`/`<link>` tags in `index.html`. Forgetting a bump
+> pinned users to old CSS for up to a year, and `tokens.css` had **four** pins that
+> had to move together — they had already drifted apart once (`theme23` vs.
+> `citymaps1`). All of those tags are gone; if you meet one in an old branch,
+> delete it, don't bump it.
+
+### 2.6 Files involved
+- `.github/scripts/stamp-asset-versions.py` – the stamper (CI only, **not**
+  deployed). Tests: `.github/scripts/__tests__/stamp-asset-versions.test.py`.
+- `.github/scripts/verify-stamped-chain.py` – the guard (CI only). Tests:
+  `.github/scripts/__tests__/verify-stamped-chain.test.py`.
+- `.github/workflows/deploy-avesmaps-strato.yml` – the step "Stamp asset versions".
+- `.htaccess` – the Cache-Control rules (§4).
+
+Run the tests from the repo root (no runner, no flags):
+
+```bash
+python .github/scripts/__tests__/stamp-asset-versions.test.py
+python .github/scripts/__tests__/verify-stamped-chain.test.py
+```
 
 ---
 
 ## 3. Mechanism B – Editor assets (`ASSET_VERSION`)
 
-The territory editor loads its HTML/CSS/JS **dynamically** (not via
-`index.html`). These files are cache-busted via a constant:
+The territory editor loads its HTML/CSS/JS **dynamically** (not via `index.html`),
+so the stamper never sees those references. They are cache-busted via a constant:
 
 - File: `js/territory/territory-editor-inline-host.js`
 - Constant: `const ASSET_VERSION = "20260604r";` (bump the date + letter)
@@ -105,113 +154,13 @@ The territory editor loads its HTML/CSS/JS **dynamically** (not via
 > auto-versioned by Mechanism A. A normal reload pulls it fresh. But the editor
 > assets it **dynamically loads** still need the `ASSET_VERSION` bump.
 
----
-
-## 4. Mechanism C – Hand-maintained `?v=` (the `@import` chain & sub-pages)
-
-**This is the one that bites.** It looks exactly like Mechanism A from the
-outside (a `?v=` tag on a CSS URL), but **nobody maintains it for you**.
-
-### Where it applies
-1. **The `@import` chain.** Almost all CSS is not linked from `index.html` at
-   all. `index.html` links **9** stylesheets; the remaining **38** hang behind
-   `css/styles.css`:
-
-   ```css
-   @import url("base/tokens.css?v=20260717-ztokens1");
-   @import url("components/dialog-overlays.css?v=20260713-theme22");
-   @import url("features/place-extras.css?v=20260717-ztokens1");
-   ```
-
-   **27 of the 38** carry such a hand-written tag; the other 11 have none.
-2. **Sub-pages under `html/`** (the editors, the wiki-sync monitor, …). They are
-   never stamped, so every `<link>`/`<script>` tag in them is hand-maintained too.
-3. **Second-level imports.** `css/components/context-menu-sizing.css:1` imports
-   `map-context-menu-icons.css?v=20260608-ctxicon` — a chain two levels deep. See
-   the trap below.
-
-### Why the deploy does not do it
-`stamp-asset-versions.py` matches `<script>`/`<link>` **tags** (`TAG_RE`) and
-rewrites `src`/`href` **attributes** (`ATTR_RE`) inside them. An `@import` line in
-a CSS file is neither. Pointed at `css/styles.css`, the script reports
-`stamped 0 reference(s)` and leaves the file byte-identical. It is not a bug — the
-script only ever gets `index.html` (§2).
-
-### Why it is dangerous
-`.htaccess` serves **anything** with a `?v=` as `immutable, max-age=31536000`
-(§5). The browser will not even revalidate it. So if you change an @import-ed
-file **and leave its `?v=` untouched**:
-
-- the deploy is green,
-- the file on the server is correct,
-- `curl` shows the new content,
-- **and users keep the old CSS for up to a year.**
-
-There is no error anywhere. This is a *different* failure from the `ASSET_VERSION`
-trap in §3 and you will not find it by looking there.
-
-### The rule
-After changing a CSS file, check whether it is @import-ed:
-`grep '<filename>' css/styles.css`.
-
-| The file's `@import` line … | What to do |
-|---|---|
-| **has a `?v=`** (27 of 38) | **Bump it.** Mandatory — otherwise the change is invisible for up to a year. |
-| **has no `?v=`** (11 of 38, e.g. `powerlines.css`, `reset.css`) | Nothing. No query → `no-cache` → always revalidated. Safe, just uncached. |
-
-**The danger is a stale tag, not a missing one.** Adding a `?v=` to a file that
-had none is safe (a new URL is fresh on first load) — but from then on it is
-yours to bump forever.
-
-**Tag convention: `YYYYMMDD-<feature><n>`** — e.g. `20260717-ztokens1`,
-`20260716-citymaps1`. Date of the change, short feature slug, counter for a
-second bump on the same day.
-
-### Why bumping works (and why it must be *that* line)
-The bump does two things at once:
-1. the imported URL changes → the browser must fetch that file again;
-2. **`css/styles.css`'s own content changes** → new sha1 → Mechanism A gives
-   `index.html` a new `styles.css?v=…` → the browser re-reads `styles.css` and
-   sees the new import URL.
-
-Step 2 is what makes the chain permeable at all. Without it the browser would
-keep serving the cached `styles.css` and never learn about the new URL.
-
-> **Trap — two levels deep.** That help only exists on level 1. Bumping
-> `map-context-menu-icons.css?v=…` inside `context-menu-sizing.css` **does
-> nothing on its own**: `styles.css` still imports
-> `context-menu-sizing.css?v=20260608-ctxicon` (immutable), so the browser keeps
-> the cached copy of the middle file and never sees the new icon URL. **Bump both
-> tags together.**
-
-### `tokens.css` has FOUR pins that must move together
-
-`css/base/tokens.css` is linked from four places, each with its own hand-written
-tag. They must all carry the **same** value:
-
-| Pin | |
-|---|---|
-| `css/styles.css:2` | the main app |
-| `html/wiki-sync-settlement-editor.html:37` | editor iframe |
-| `html/wiki-sync-monitor.html:37` | editor iframe |
-| `html/citymap-editor.html:49` | editor iframe |
-
-The iframes link `tokens.css` themselves so the same custom properties resolve
-inside them; each URL is a **separate cache entry** and can go stale on its own.
-Busting the iframe's HTML (`?v=Date.now()`) does **not** bust its sub-resources.
-
-Two more references link `tokens.css` **without** a `?v=`
-(`html/adventure-editor.html:38`, `css/pages/edit.css:2`) → `no-cache` → always
-fresh, nothing to do.
-
-> These pins **had already drifted apart** (`theme23` vs. `citymaps1`, realigned
-> on 2026-07-17) precisely because the convention lived only in code comments in
-> those four files. If you touch `tokens.css`, grep for it and fix all four:
-> `grep -rn "tokens.css" css/ html/`
+> The editor HTML is loaded with `?v=ASSET_VERSION`, which busts **the page** but
+> not its sub-resources. Any stylesheet such a page links is a separate cache
+> entry — those links are stamped by Mechanism A, which is why they need nothing.
 
 ---
 
-## 5. `.htaccess` – Cache-Control matrix
+## 4. `.htaccess` – Cache-Control matrix
 
 In the root `.htaccess` (the "Caching" section), everything guarded via
 `<IfModule>` (no error if an Apache module is missing):
@@ -227,42 +176,35 @@ Technique: `mod_rewrite` sets the env variable `VERSIONED_ASSET` when `?v=` is
 present; `mod_headers` uses it to switch between `immutable` and `no-cache`
 (`env=VERSIONED_ASSET` / `env=!VERSIONED_ASSET`).
 
-**The rule cares only about the presence of a `?v=`, not about who wrote it.** A
-hand-written tag buys the same one-year `immutable` as an auto-stamped hash — that
-is exactly why a forgotten bump (§4) is so long-lived.
+The rule cares only about the **presence** of a `?v=`, not about who wrote it —
+which is why a hand-written tag would buy the same one-year `immutable` as a
+correct hash, and why the guard (§2.4) exists.
 
 ---
 
-## 6. Recipes
+## 5. Recipes
 
-### I changed an existing CSS file
-Find out how it is loaded — **do not guess**:
+### I changed an existing JS/CSS file
+Do nothing. Push → the deploy stamps a new hash, follows the `@import` chain up to
+`index.html`, and verifies the result → users get it on their next **normal**
+reload. This holds whether the file hangs in `index.html` directly or five
+`@import`s deep.
 
-```bash
-grep '<filename>' css/styles.css   # @import-ed?  -> Mechanism C
-grep '<filename>' index.html       # <link>-ed?   -> Mechanism A
-```
-
-- **@import-ed with a `?v=`** → bump that tag (convention `YYYYMMDD-<feature><n>`).
-  Two levels deep (§4) → bump both. It is `tokens.css` → **all four pins**.
-- **@import-ed without a `?v=`** → nothing to do (`no-cache`).
-- **Linked from `index.html`** (one of the 9) → nothing to do; the deploy stamps
-  it. Never bump it by hand.
-- **Linked from an `html/*.html` sub-page** → hand-maintained; bump it there.
-
-### I changed an existing `index.html` JS file
-Do nothing. Push → the deploy automatically stamps a new hash → users get it on
-their next **normal** reload.
+The only exception: if it is an editor asset loaded dynamically, see §3.
 
 ### I added a NEW JS/CSS file
-1. Add `<script src="js/…">` or `<link href="css/…">` to `index.html`
-   (a relative path under `js/`, `css/` or `assets/`, **without** `?v=`) — **or**
-   an `@import` to `css/styles.css`, which puts it on Mechanism C and makes its
-   `?v=` yours to maintain.
-2. Push. A reference in `index.html` is stamped automatically.
+1. Reference it — either as `<script src="js/…">` / `<link href="css/…">` in
+   `index.html`, or as an `@import` in `css/styles.css`. Use a plain relative path
+   **without** `?v=`; the deploy adds it.
+2. Push. Both routes are stamped automatically.
 3. Make sure the file is in the **deploy package**: if it lives under `js/`,
-   `css/` or `assets/`, it is included automatically (see `deploy_items` in the
-   workflow). Other top-level folders would have to be added there.
+   `css/`, `assets/` or `html/`, it is included automatically (see `deploy_items`
+   in the workflow). Other top-level folders would have to be added there.
+
+### I added a new standalone page under `html/`
+Nothing special — the workflow passes every `html/*.html` to the stamper, so its
+stylesheets and scripts are versioned like `index.html`'s. Link them with plain
+paths (`/css/base/tokens.css`); absolute and relative both work.
 
 ### I changed an editor file (dynamically loaded)
 Bump `ASSET_VERSION` in `territory-editor-inline-host.js` (e.g.
@@ -275,46 +217,49 @@ fix.
 
 ---
 
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 **"My code change isn't showing up."**
 1. Deploy finished? GitHub Action green? (Deploy latency ~1–2 min after push.)
 2. Check the server state (a cache-buster bypasses the browser cache):
    `curl -s "https://avesmaps.de/<path>?cb=$RANDOM" | head`
-3. Which mechanism? Is the file in `index.html`? → it should carry an auto-`?v=`:
-   `curl -s https://avesmaps.de/?cb=1 | grep -o '<filename>?v=[a-f0-9]*'`.
-   Loaded dynamically by the editor? → did you forget to bump `ASSET_VERSION`?
-   **@import-ed from `css/styles.css`?** → see the next entry.
+3. Is it an **editor asset** (§3)? → did you forget to bump `ASSET_VERSION`?
+   That is the only bump left that a human owns.
 4. Check the headers: `curl -sI "https://avesmaps.de/<path>?v=…" | grep -i cache-control`.
 
-**"My CSS change isn't showing up — but the deploy is green and the server file
-is correct."**
-The classic Mechanism C (§4) miss: you changed an @import-ed file and left its
-`?v=` untouched, so the browser is entitled to keep the old copy for a year.
+**"My CSS change isn't showing up."**
+Since 2026-07-17 this should not happen for anything in the `@import` chain — the
+deploy versions it and refuses to upload a chain that does not verify. To confirm
+what the live chain points at:
 
-1. Is the file @import-ed? `grep '<filename>' css/styles.css`
-2. Does that line carry a `?v=`? If yes and you did not bump it → **that's the
-   bug.** Bump it (`YYYYMMDD-<feature><n>`) and push.
-3. Verify what the live chain actually points at:
-   `curl -s "https://avesmaps.de/css/styles.css?cb=$RANDOM" | grep <filename>`
-   — if the `?v=` there is the old one, your bump never deployed; if it is the new
-   one and users still see old CSS, look one level up (is the *importing* file
-   itself pinned and stale? §4 "two levels deep").
-4. Is it `tokens.css`? → all four pins (§4), not just `css/styles.css:2`.
+```bash
+curl -s "https://avesmaps.de/?cb=$RANDOM" | grep -o 'styles.css?v=[a-f0-9]*'
+curl -s "https://avesmaps.de/css/styles.css?cb=$RANDOM" | grep <filename>
+```
+
+Both hashes should match the file contents in the repo. If they don't, the deploy
+did not run (check the Action) — do **not** "fix" it by adding a `?v=` by hand.
+
+**"The deploy failed with `Cache-busting chain is BROKEN`."**
+The guard (§2.4) found a reference that disagrees with the bytes being served.
+Read its output — it names the file and both hashes. Usual causes: someone
+re-introduced a hand-written `?v=`, or a reference uses a spelling the stamper
+does not rewrite but the guard does see (e.g. `@import "x.css";` without `url()`).
+Fix the source, don't silence the guard.
 
 **"A file stays stale forever."**
-For files **without** a `?v=` this cannot happen: they are `no-cache`. For a file
-**with** a hand-written `?v=`, it is the normal, designed behaviour until someone
-bumps the tag — see §4.
+This should not happen: unversioned `.js/.css` are `no-cache`, and versioned ones
+carry a content hash that changes with the content. If it does, check whether the
+stamp step actually ran for that file's entry point.
 
 **"The stamp step reports `missing`."**
 The referenced file does not exist at the given path in the repo. Either the path
-in `index.html` is wrong or the file is missing. (As of 2026-06-04: 2 known dead
-paths, see below.)
+is wrong or the file is missing. It is left unversioned on purpose (no `?v=` =
+`no-cache`) rather than pinned to a 404 for a year.
 
 ---
 
-## 8. Server cleanup: orphaned files (retire list)
+## 7. Server cleanup: orphaned files (retire list)
 
 The deploy only mirrors (`mirror` **without** `--delete`) — moved/deleted files
 otherwise linger as corpses on the server. A global `--delete` is dangerous (it

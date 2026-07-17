@@ -41,12 +41,10 @@
      "wie adventure-editor.html" and "Token-Alias-Block" — those contradict each other; the sibling
      editor's actual architecture wins.)
 
-     tokens.css carries the SAME ?v= as css/styles.css uses. ?v=Date.now() on this HTML busts the page but
-     NOT its sub-resources, and the bare /css/base/tokens.css the adventure editor links is a separate
-     cache entry from the ?v=-stamped one the main page loads — it can go stale on its own. Bump both
-     together. -->
+     tokens.css needs no hand-written ?v=: the deploy stamps this reference with a content hash, so it
+     busts itself whenever tokens.css changes. See docs/asset-caching-and-versioning.md. -->
 <link rel="stylesheet" href="/css/base/fonts.css">
-<link rel="stylesheet" href="/css/base/tokens.css?v=20260717-ztokens1">
+<link rel="stylesheet" href="/css/base/tokens.css">
 <style>
   * { box-sizing: border-box; }
   /* Scrollbars, copied from css/base/base.css. This iframe links tokens.css but NOT base.css, so every
