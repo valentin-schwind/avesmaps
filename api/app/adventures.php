@@ -74,6 +74,7 @@ try {
             'adventures' => $adventures,
             'territory_meta' => $territoryMeta,
             'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo),
+            'adventures_enabled' => avesmapsAdventuresEnabled($pdo),
         ]);
     }
 

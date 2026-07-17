@@ -152,6 +152,26 @@ function avesmapsSetAdventuresCoversEnabled(PDO $pdo, bool $enabled): array
     return ['covers_enabled' => $enabled];
 }
 
+// ---- feature kill switch (whole adventure access on the public frontend) ----------------------------
+// A WIDER switch than the cover one above: this hides the entire adventure feature on the public
+// frontend -- the floating "Abenteuer" tile AND every infopanel section ("beginnt/spielt", the
+// "Abenteuer in ..." lists) -- while the capability-gated editor keeps working. Same mechanic as
+// citymaps_enabled: the public catalog returns an empty list, so the client builds empty indices and
+// every place shows zero adventures (no frontend change needed). Default ENABLED; only a stored '0'
+// disables.
+const AVESMAPS_ADVENTURES_SETTING = 'adventures_enabled';
+
+function avesmapsAdventuresEnabled(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURES_SETTING, '1') !== '0';
+}
+
+function avesmapsSetAdventuresEnabled(PDO $pdo, bool $enabled): array
+{
+    avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURES_SETTING, $enabled ? '1' : '0');
+    return ['adventures_enabled' => $enabled];
+}
+
 // ---- shared link builder (Spec §2.5) --------------------------------------------------------------
 // The shop/reference links of ONE adventure, in click PRIORITY order: Ulisses e-book -> F-Shop -> the
 // wiki page -> Deutsche Nationalbibliothek. This is the SINGLE definition of that rule: the public
@@ -332,6 +352,12 @@ function avesmapsSetAdventureLinks(PDO $pdo, string $publicId, array $links): ar
 function avesmapsAdventuresReadCatalog(PDO $pdo): array
 {
     avesmapsAdventuresEnsureTables($pdo);
+    // Feature kill switch: off -> empty catalog, exactly like citymaps. The client then builds empty
+    // indices, so the floating tile goes disabled and no infopanel section renders. Checked right after
+    // EnsureTables so "off" skips the query entirely.
+    if (!avesmapsAdventuresEnabled($pdo)) {
+        return [];
+    }
     $rows = $pdo->query(
         "SELECT id, public_id, title, wiki_url, product_type, edition, bf_year, bf_label,
                 genre, complexity_gm, complexity_pl, is_official, fshop_code, cover_url, series,
@@ -722,7 +748,7 @@ function avesmapsListAdventuresForEdit(PDO $pdo): array
             'cover_url' => (string) ($row['cover_url'] ?? ''),
         ];
     }
-    return ['adventures' => $adventures, 'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo)];
+    return ['adventures' => $adventures, 'covers_enabled' => avesmapsAdventuresCoversEnabled($pdo), 'adventures_enabled' => avesmapsAdventuresEnabled($pdo)];
 }
 
 // Editor detail view: one adventure with all business columns + its whole place list (approved AND

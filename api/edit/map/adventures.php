@@ -88,6 +88,9 @@ try {
         // Global cover kill switch (owner "emergency off"): hides ALL adventure covers on the public
         // frontend (placeholder shown); the images stay stored and the editor keeps showing them.
         'set_covers_enabled' => avesmapsSetAdventuresCoversEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
+        // The WIDER kill switch: hides the whole adventure feature on the public frontend (floating tile
+        // + all infopanel sections) by emptying the public catalog. Mirrors set_citymaps_enabled.
+        'set_adventures_enabled' => avesmapsSetAdventuresEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unbekannte Aktion.'),
     };
 
