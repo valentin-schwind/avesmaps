@@ -1992,6 +1992,47 @@ function avesmapsSuppressCitymapPlace(PDO $pdo, int $placeId): array
     return ['place_id' => $placeId, 'suppressed' => false];
 }
 
+/**
+ * Delete a whole citymap and its child rows (place / type / link / related). Owner-only and
+ * irreversible -- the editor confirms first. Unlike the suppress_* actions it makes NO origin
+ * distinction: the owner asked for THIS row gone (it is how the one manual duplicate is removed). A
+ * wiki-origin row deleted here simply returns on the next "Karten syncen"; a manual one is gone for
+ * good. This schema has no ON DELETE CASCADE, so the children go first, in one transaction;
+ * citymap_related links maps BOTH ways, so a delete must clear rows on either side.
+ *
+ * @return array{deleted: bool, public_id: string, title: string}
+ */
+function avesmapsDeleteCitymap(PDO $pdo, string $publicId): array
+{
+    avesmapsCitymapsEnsureTables($pdo);
+
+    $find = $pdo->prepare('SELECT id, title FROM citymap WHERE public_id = :pid LIMIT 1');
+    $find->execute(['pid' => $publicId]);
+    $row = $find->fetch(PDO::FETCH_ASSOC);
+    if ($row === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Die Karte wurde nicht gefunden.');
+    }
+    $id = (int) $row['id'];
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare('DELETE FROM citymap_related WHERE citymap_id = :a OR related_citymap_id = :b')
+            ->execute(['a' => $id, 'b' => $id]);
+        $pdo->prepare('DELETE FROM citymap_place WHERE citymap_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM citymap_type WHERE citymap_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM citymap_link WHERE citymap_id = :id')->execute(['id' => $id]);
+        $pdo->prepare('DELETE FROM citymap WHERE id = :id')->execute(['id' => $id]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
+    }
+
+    return ['deleted' => true, 'public_id' => $publicId, 'title' => (string) $row['title']];
+}
+
 // Reset to 'unresolved', then run the shared resolver (which only touches unresolved rows) and report
 // what it found.
 function avesmapsResolveCitymapPlace(PDO $pdo, int $placeId): array

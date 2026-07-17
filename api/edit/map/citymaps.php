@@ -50,6 +50,15 @@ try {
             return $detail;
         })(),
         'upsert_citymap' => avesmapsUpsertCitymap($pdo, (array) ($payload['citymap'] ?? []), $userId),
+        // Delete a whole map (owner-only, irreversible; the editor confirms first). Removes the map and
+        // its child rows -- how the one manual duplicate gets cleared. A wiki row returns on the next sync.
+        'delete_citymap' => (static function () use ($pdo, $payload): array {
+            $publicId = trim((string) ($payload['public_id'] ?? ''));
+            if ($publicId === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'public_id ist erforderlich.');
+            }
+            return avesmapsDeleteCitymap($pdo, $publicId);
+        })(),
         // set_types / set_related take the COMPLETE list in display order, so each replaces its list
         // wholesale. An empty array is a legitimate payload -- it clears the list. Both are leaf data with
         // no per-row identity to protect, which is why there is no id juggling (same call as set_links on

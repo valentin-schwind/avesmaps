@@ -462,6 +462,7 @@
          stay readable while the buttons move. -->
     <div class="ce-savebar" id="ceSaveBar" hidden>
       <span class="ce-savebar__state" id="ceSaveState"></span>
+      <button class="btn btn--danger" id="ceDelete" hidden title="Diese Karte endgültig löschen (mit Rückfrage)">Löschen</button>
       <span class="ce-savebar__spacer"></span>
       <button class="btn" id="ceDiscard">Verwerfen</button>
       <button class="btn btn--primary" id="ceSave">Speichern</button>
@@ -821,6 +822,8 @@
     const head = document.getElementById("ceDetailHead");
     const body = document.getElementById("ceStammBody");
     document.getElementById("ceSaveBar").hidden = false;
+    // "Löschen" only for an existing map -- a brand-new, unsaved one has nothing to delete yet.
+    document.getElementById("ceDelete").hidden = !state.selectedId;
     // Fresh working copy per render -- never the server objects themselves, so an abandoned edit cannot
     // leak into state.detail. A new map has none, and clearing here is what stops the previously opened
     // map's links from riding along into it.
@@ -1417,6 +1420,28 @@
   document.getElementById("ceSearch").addEventListener("input", renderList);
   document.getElementById("ceNew").addEventListener("click", newCitymap);
   document.getElementById("ceSave").addEventListener("click", saveStamm);
+  // Delete the whole map (irreversible). Confirm first; then loadList(true) sees the map is gone and
+  // resets the detail through its own "selected map removed" path -- no separate clearing needed.
+  document.getElementById("ceDelete").addEventListener("click", async () => {
+    if (!state.selectedId) { return; }
+    const item = state.citymaps.find((c) => c.public_id === state.selectedId);
+    const title = (item && item.title) || "diese Karte";
+    if (!window.confirm(`„${title}“ wirklich endgültig löschen?\n\nEntfernt die Karte samt Orten, Typen und Fundort-Links. Eine Wiki-Karte kommt beim nächsten „Karten syncen“ zurück; eine eigene/manuelle Karte ist dann weg.`)) { return; }
+    const stateEl = document.getElementById("ceSaveState");
+    stateEl.className = "ce-savebar__state";
+    stateEl.textContent = "Löscht …";
+    try {
+      await citymapPost({ action: "delete_citymap", public_id: state.selectedId });
+      const parentWindow = ceParentOverlay();
+      if (parentWindow && typeof parentWindow.showFeedbackToast === "function") {
+        parentWindow.showFeedbackToast("Karte gelöscht.", "success");
+      }
+      await loadList(true);
+    } catch (e) {
+      stateEl.textContent = "Fehler: " + e.message;
+      stateEl.className = "ce-savebar__state error";
+    }
+  });
   // "Verwerfen" drops the edits AND leaves -- same reasoning as the Abenteuer editor: it sits next to a
   // "Speichern" that closes the dialog, and a pair where only one half closes reads as broken. Reset
   // BEFORE closing (the overlay only HIDES this iframe, so a re-open would serve the discarded edits back);
