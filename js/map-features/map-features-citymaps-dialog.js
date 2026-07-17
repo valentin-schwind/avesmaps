@@ -124,23 +124,15 @@
 	function buildControls(overlay, shapes) {
 		var existing = overlay.querySelector(".avesmaps-citymaps-dialog__controls");
 		var grid = overlay.querySelector(".avesmaps-citymaps-dialog__grid");
-		var facets = (typeof avesmapsCitymapFacetOptions === "function")
-			? avesmapsCitymapFacetOptions(shapes)
-			: { types: [], arts: [], sources: [], yearRange: { min: 0, max: 0 } };
+		var facets = (typeof avesmapsCitymapActiveFacets === "function")
+			? avesmapsCitymapActiveFacets(shapes)
+			: { color: false, official: false, free: false, years: false, yearRange: { min: 0, max: 0 } };
 		existing.innerHTML = (typeof citymapFiltersMarkup === "function") ? citymapFiltersMarkup(facets) : "";
 
-		// showSpoiler startet true (siehe Kopfkommentar) -> der Chip startet aktiv, sonst luegt die Leiste
-		// ueber ihren eigenen Zustand.
 		var filterState = {
-			types: new Set(), art: "", source: "",
-			colorOnly: false, multilevelOnly: false, labeledOnly: false, officialOnly: false,
-			freeOnly: false, paidOnly: false,
-			showSpoiler: true, yearFrom: 0, yearTo: 0,
+			colorOnly: false, officialOnly: false, freeOnly: false,
+			yearFrom: 0, yearTo: 0,
 		};
-		var spoilerChip = existing.querySelector('[data-adv-filter="spoiler"]');
-		if (spoilerChip) {
-			spoilerChip.classList.add("is-active");
-		}
 
 		var cards = Array.prototype.slice.call(grid.querySelectorAll(".avesmaps-citymaps__card"));
 		var countEl = overlay.querySelector(".avesmaps-adv-dialog__title");
@@ -164,40 +156,20 @@
 			}
 		}
 
-		// Chip-Toggles: der Chip-Guard ist noetig, weil [data-adv-filter] AUCH die Selects und die
-		// Jahresfelder trifft -- ohne ihn fiele ein Select-Klick in den Chip-Zweig.
-		var TOGGLES = { color: "colorOnly", multilevel: "multilevelOnly", labeled: "labeledOnly", official: "officialOnly", free: "freeOnly", paid: "paidOnly" };
+		var TOGGLES = { color: "colorOnly", official: "officialOnly", free: "freeOnly" };
 		existing.addEventListener("click", function (e) {
 			var chip = e.target.closest("[data-adv-filter]");
+			// Der Chip-Guard ist noetig, weil [data-adv-filter] AUCH die Jahresfelder traegt.
 			if (!chip || !chip.classList.contains("avesmaps-adv-tree__chip")) {
 				return;
 			}
 			var kind = chip.getAttribute("data-adv-filter");
-			if (kind === "type") {
-				var value = chip.getAttribute("data-adv-value");
-				if (filterState.types.has(value)) {
-					filterState.types.delete(value);
-					chip.classList.remove("is-active");
-				} else {
-					filterState.types.add(value);
-					chip.classList.add("is-active");
-				}
-			} else if (kind === "spoiler") {
-				filterState.showSpoiler = !filterState.showSpoiler;
-				chip.classList.toggle("is-active", filterState.showSpoiler);
-			} else if (TOGGLES[kind]) {
-				filterState[TOGGLES[kind]] = !filterState[TOGGLES[kind]];
-				chip.classList.toggle("is-active", filterState[TOGGLES[kind]]);
-			} else {
+			if (!TOGGLES[kind]) {
 				return;
 			}
+			filterState[TOGGLES[kind]] = !filterState[TOGGLES[kind]];
+			chip.classList.toggle("is-active", filterState[TOGGLES[kind]]);
 			applyFilters();
-		});
-		existing.addEventListener("change", function (e) {
-			var el = e.target;
-			var kind = el && el.getAttribute ? el.getAttribute("data-adv-filter") : "";
-			if (kind === "art") { filterState.art = el.value || ""; applyFilters(); }
-			else if (kind === "source") { filterState.source = el.value || ""; applyFilters(); }
 		});
 		// Zahlenfelder feuern 'input', nicht 'change' -> live mitfiltern.
 		existing.addEventListener("input", function (e) {
@@ -226,6 +198,18 @@
 		titleEl.textContent = baseTitle;
 
 		var shapes = shapesFromSection(section);
+		// Nach Typ, dann nach Band. Ohne Gruppenueberschriften (Owner), aber die Reihenfolge haelt die
+		// Farbe/Schwarzweiss-Paare nebeneinander -- so lesen sie sich als Paar statt als Dublette.
+		shapes.sort(function (a, b) {
+			var typeA = ((a.types || [])[0] || "");
+			var typeB = ((b.types || [])[0] || "");
+			if (typeA !== typeB) {
+				return typeA.localeCompare(typeB, "de");
+			}
+			var bandA = (typeof cityMapBandLabel === "function") ? cityMapBandLabel(a) : (a.title || "");
+			var bandB = (typeof cityMapBandLabel === "function") ? cityMapBandLabel(b) : (b.title || "");
+			return bandA.localeCompare(bandB, "de");
+		});
 		var grid = overlay.querySelector(".avesmaps-citymaps-dialog__grid");
 		grid.innerHTML = shapes.map(function (shape) {
 			return (typeof buildCityMapRowMarkup === "function") ? buildCityMapRowMarkup(shape) : "";
