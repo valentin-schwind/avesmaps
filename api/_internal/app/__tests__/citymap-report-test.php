@@ -63,12 +63,21 @@ assert(!avesmapsCitymapPublicThumbUrl([
     'thumb_url' => $claimed['citymap']['thumb_url'],
     'thumb_license' => AVESMAPS_CITYMAP_LICENSE_DEFAULT,
 ]));
-// ...and the same row becomes visible the moment an EDITOR classifies it. That is the whole design: the
-// reporter supplies the picture, an editor supplies the licence.
-assert(avesmapsCitymapPublicThumbUrl([
+// CORRECTED (Task 7, 2026-07-17, parallel to citymap-gate-test.php): thumb_url is retired as a display
+// path entirely, so classifying the licence ALONE no longer surfaces the reporter's suggested link -- this
+// used to assert the opposite ("the same row becomes visible the moment an editor classifies it"), which
+// was exactly the fallback this task removes. An editor must upload their OWN copy (thumb_local_url); only
+// then does the licence gate apply. The reporter's link stays what §3.8 always said it was: information
+// for a human to look at, never something that goes live on its own.
+assert(!avesmapsCitymapPublicThumbUrl([
     'thumb_url' => $claimed['citymap']['thumb_url'],
     'thumb_license' => 'permission_granted',
-]) === 'https://example.org/verlags-vorschau.jpg');
+]));
+assert(avesmapsCitymapPublicThumbUrl([
+    'thumb_url' => $claimed['citymap']['thumb_url'],
+    'thumb_local_url' => '/uploads/kartensammlungen/x/thumb-1.png',
+    'thumb_license' => 'permission_granted',
+]) === '/uploads/kartensammlungen/x/thumb-1.png');
 
 // Uploads, the Autoget crawl, moderation and cross-map references are equally not the reporter's to set.
 $sneaky = avesmapsNormalizeCitymapReportPayload($valid + [

@@ -79,21 +79,6 @@ $splitRow['map_license'] = 'unknown_other';
 assert(avesmapsCitymapPublicMapLocalUrl($splitRow) === '');
 assert(avesmapsCitymapPublicThumbUrl($splitRow) === '/uploads/kartensammlungen/abc/thumb-5678.png');
 
-// An EXTERNAL thumb is gated too -- deliberately beyond §3.3's literal wording, which names only the
-// *_local_url fields. A hot-linked protected preview breaks §3.7's promise ("Vorschau nur bei freier
-// Lizenz") exactly as thoroughly as serving our own copy would.
-$externalThumb = [
-    'thumb_url' => 'https://example.org/protected-thumb.jpg',
-    'thumb_local_url' => '',
-    'thumb_license' => 'unknown_other',
-];
-assert(avesmapsCitymapPublicThumbUrl($externalThumb) === '');
-$externalThumb['thumb_license'] = 'permission_granted';
-assert(avesmapsCitymapPublicThumbUrl($externalThumb) === 'https://example.org/protected-thumb.jpg');
-// Our own upload outranks an external thumb when both are present and free.
-$bothThumbs = ['thumb_url' => 'https://example.org/t.jpg', 'thumb_local_url' => '/uploads/kartensammlungen/x/thumb-9.png', 'thumb_license' => 'cc0'];
-assert(avesmapsCitymapPublicThumbUrl($bothThumbs) === '/uploads/kartensammlungen/x/thumb-9.png');
-
 // A row with no images at all is a valid row, not an error.
 assert(avesmapsCitymapPublicThumbUrl(['thumb_license' => 'cc0']) === '');
 assert(avesmapsCitymapPublicMapLocalUrl(['map_license' => 'cc0']) === '');
@@ -163,3 +148,29 @@ assert(count(AVESMAPS_CITYMAP_TYPE_KEYS) === count(array_unique(AVESMAPS_CITYMAP
 assert(count(AVESMAPS_CITYMAP_LICENSES) === count(array_unique(AVESMAPS_CITYMAP_LICENSES)));
 
 echo "citymap-gate ok\n";
+
+// ---- thumb_url ist stillgelegt (Owner 2026-07-17) ----
+// Es war nicht nur ein Eingabeweg, sondern ein ANZEIGEweg: ohne eigenen Upload wurde der Fremdlink zur
+// oeffentlichen Vorschau. Der Community-Vorschlagsdialog darf thumb_url befuellen, das Editor-Feld ist
+// weg, und einen "Entfernen"-Knopf gibt es nur fuer Uploads und Autoget -- ein schlechter Fremdlink waere
+// ueber die UI nicht mehr loszuwerden. Also: nur noch, was jemand mit Capability `edit` hochgeladen hat.
+//
+// CORRECTED vs. the plan's literal fixtures: every row below carries an explicit FREE 'thumb_license'.
+// Without one, the licence gate already returns '' for an unrelated reason (no licence -> non-free
+// default), so the assertions would hold whether or not thumb_url were actually retired -- vacuously
+// true, exactly the kind of anchor this plan's own caution note warns about. A free licence is what
+// makes these assertions actually exercise the retirement.
+assert(avesmapsCitymapPublicThumbUrl(['thumb_url' => 'https://example.org/fremd.jpg', 'thumb_license' => 'cc0']) === '');
+assert(avesmapsCitymapPublicThumbUrl(['thumb_url' => 'https://example.org/fremd.jpg', 'thumb_local_url' => '/uploads/kartensammlungen/a/t.webp', 'thumb_license' => 'cc0'])
+    === '/uploads/kartensammlungen/a/t.webp');
+assert(avesmapsCitymapPublicThumbUrl(['thumb_local_url' => '/uploads/kartensammlungen/a/t.webp', 'thumb_license' => 'cc0']) === '/uploads/kartensammlungen/a/t.webp');
+assert(avesmapsCitymapPublicThumbUrl([]) === '');
+// thumb_auto_url ist davon UNBERUEHRT und war nie oeffentlich (eigene Spalte, per Konstruktion) -- auch
+// nicht bei freier Lizenz, weil diese Funktion die Spalte schlicht nie liest.
+assert(avesmapsCitymapPublicThumbUrl(['thumb_auto_url' => 'https://example.org/auto.jpg', 'thumb_license' => 'cc0']) === '');
+// Die Lizenz gilt WEITERHIN fuer thumb_local_url (Brief-Text: "nur der thumb_url-Zweig entfaellt") -- ein
+// Upload mit nicht-freier Lizenz bleibt unveroeffentlicht, unveraendert gegenueber vorher. Ohne dieses
+// Assert haette die woertliche Plan-Implementierung (kein Lizenz-Check mehr) den Test unbemerkt bestanden.
+assert(avesmapsCitymapPublicThumbUrl(['thumb_local_url' => '/uploads/kartensammlungen/a/t.webp', 'thumb_license' => 'unknown_other']) === '');
+
+echo "citymap thumb_url retired ok\n";

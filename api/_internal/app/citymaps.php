@@ -786,21 +786,36 @@ function avesmapsCitymapPickPreviewImage(string $html, string $baseUrl): string
 // Everything we actually DISPLAY is gated by its own licence:
 //   map_local_url   <- map_license      (our upload of the full map)
 //   thumb_local_url <- thumb_license    (our upload of the preview)
-//   thumb_url       <- thumb_license    (an EXTERNAL preview -- see below)
 // Thumb and map have separate licences on purpose (owner decision): a source may have a free cover and a
 // protected map.
 //
-// DEVIATION worth knowing: §3.3 spells out the gate only for the two *_local_url fields and is silent on
-// thumb_url. We gate thumb_url too, because it is an image we embed rather than a link we offer, and
-// §3.7 promises the reader "Vorschau nur bei freier Lizenz". Hot-linking a protected preview would break
-// that promise just as thoroughly as serving our own copy of it.
+// thumb_url (an external preview) is RETIRED as a display path (Owner 2026-07-17, see
+// avesmapsCitymapPublicThumbUrl below): it is no longer read here at all, so there is nothing left to gate
+// on that column. See the function's own comment for why.
+//
+// Die oeffentliche Vorschau ist NUR noch unser eigener Upload (Owner 2026-07-17). thumb_url -- ein
+// Fremdlink, den auch der Community-Vorschlag befuellen darf -- war frueher der Rueckfall und damit ein
+// Anzeigeweg ohne Bedienung: das Editor-Feld ist weg, und "Entfernen" gibt es nur fuer Uploads und
+// Autoget. Ein schlechter Fremdlink waere nicht mehr loszuwerden gewesen.
+//
+// Die SPALTE bleibt: der Melder darf weiter einen Link vorschlagen, und der Pruefer sieht ihn in der
+// Meldung (avesmapsCitymapEditorThumbUrl ist ungegated) -- er laedt das Bild dann selbst hoch, wenn die
+// Lizenz es erlaubt. Kostete beim Umstellen nichts: von 419 Karten zeigte genau EINE eine Vorschau, und
+// die war ein Upload.
+//
+// CORRECTION vs. the plan brief: its literal code for this function dropped the licence check entirely
+// (`return trim((string) ($row['thumb_local_url'] ?? ''));`), which contradicts the brief's OWN next
+// paragraph ("Die Lizenz gilt weiterhin fuer thumb_local_url ... Nur der thumb_url-Zweig entfaellt") and
+// would have been a real regression: an editor can change thumb_license independently of thumb_local_url
+// (they save through the same form but are unrelated columns), so a once-free upload later marked
+// non-free would otherwise stay public forever with nothing left to stop it. The licence check below is
+// kept; only the thumb_url fallback branch is gone.
 function avesmapsCitymapPublicThumbUrl(array $row): string
 {
     if (!avesmapsCitymapLicenseIsFree($row['thumb_license'] ?? null)) {
         return '';
     }
-    $local = trim((string) ($row['thumb_local_url'] ?? ''));
-    return $local !== '' ? $local : trim((string) ($row['thumb_url'] ?? ''));
+    return trim((string) ($row['thumb_local_url'] ?? ''));
 }
 
 function avesmapsCitymapPublicMapLocalUrl(array $row): string
