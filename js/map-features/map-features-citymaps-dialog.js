@@ -8,9 +8,7 @@
 // SPOILER (§3.7), eine Entscheidung die die Spec offen laesst: der DECKEL ist der Schutz, ueberall --
 // im Streifen wie im Dialog liegt ueber einer Spoilerkarte ein Overlay, das Bild UND Titel verdeckt (der
 // Titel "Die Krypta des Verräters" spoilert genauso wie ihr Grundriss). Nichts wird ohne Klick
-// aufgedeckt. Der Filter-Chip "Spoiler zeigen" startet deshalb AKTIV und regelt nur, ob Spoilerkarten
-// ueberhaupt gelistet werden: startete er inaktiv, zeigte der Streifen drei Karten und der Dialog
-// daneben zwei, und der Leser suchte den Unterschied.
+// aufgedeckt.
 
 (function initCitymapsDialog() {
 	// Node (unit tests): nothing to bind, and touching `window` here would throw before the pure markup
