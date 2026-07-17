@@ -125,15 +125,20 @@ DDL in PHP** (self-healing pattern), partially mirrored in `sql/`. Key tables:
 - GitHub Action `.github/workflows/deploy-avesmaps-strato.yml` mirrors an
   **allowlist** of items to STRATO over SFTP. **It does not delete** — files
   removed from the repo persist on the server (see §10 server↔repo drift).
-- An asset-version stamping step rewrites `?v=` hashes for assets referenced
-  from `index.html`. **`index.html` itself stays unstamped.**
+- An asset-version stamping step rewrites `?v=` hashes for every asset reachable
+  from `index.html` / `html/*.html`, following the CSS `@import` chain. **The
+  sources themselves stay unstamped** (§7).
 
 ## 7. Asset-versioning gotcha (read before debugging "my change didn't show up")
 
 Two independent cache-busting mechanisms:
 
-1. **Automatic** content-hash `?v=` for assets linked from `index.html` — handled
-   by the deploy stamping step; do nothing.
+1. **Automatic** content-hash `?v=` for everything reachable from `index.html` or
+   an `html/*.html` page — linked directly *or* through the CSS `@import` chain
+   (`styles.css` → `base/tokens.css` → …, at any depth). Handled by the deploy
+   stamping step; do nothing. **Never write a `?v=` by hand anywhere** — the deploy
+   overwrites it and a hand-written tag can only go stale. The deploy verifies the
+   chain and refuses to upload if a hash disagrees.
 2. **Manual** `const ASSET_VERSION` in
    `js/territory/territory-editor-inline-host.js` — governs the **dynamically
    loaded editor HTML/CSS/JS**. **Bump it on every change to editor assets**, or
