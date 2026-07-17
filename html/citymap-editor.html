@@ -848,7 +848,6 @@
       .filter((c) => c.public_id !== v.public_id)
       .map((c) => [c.public_id, c.title]);
     body.innerHTML =
-      `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
       `<div class="ce-grp"><p class="ce-grp__title">Identität</p>
         ${ceField("Titel *", "title", v.title)}
         ${ceUrlField("Karten-Link (extern) *", "map_url", v.map_url)}
@@ -859,8 +858,11 @@
         ${ceField("Notiz", "note", v.note)}
         ${ceSelect("Übergeordnete Karte", "parent_public_id", v.parent_public_id, parentOptions, "— keine —")}
         ${ceSelect("Sichtbarkeit", "status", v.status, [["approved", "sichtbar"], ["suppressed", "verborgen"]], "sichtbar")}
-      </div>
-      ${ceLinksGroup()}
+      </div>` +
+      // Autoget liest den Karten-Link aus der Gruppe DARUEBER (siehe den Knopf in ceImageGroup): die
+      // Reihenfolge ist die Erklaerung. Stand dieser Kasten oben, war die Kausalitaet unsichtbar.
+      `<div class="ce-imgcols">` + ceImageGroup("thumb", "Vorschaubild", v) + ceImageGroup("map", "Karte (eigenes Bild)", v) + `</div>` +
+      `${ceLinksGroup()}
       <div class="ce-grp"><p class="ce-grp__title">Einordnung</p>
         ${ceSelect("Art", "art", v.art, ARTS, "— unbekannt —")}
         ${ceField("Gültig ab (BF)", "valid_from_bf", v.valid_from_bf, "number")}
@@ -881,7 +883,6 @@
         ${ceTri("mit Maßstab", "has_scale", v.has_scale)}
         <p class="ce-hint">„unbekannt“ ist eine gültige Antwort und keine Lücke: der Leser sieht die Eigenschaft dann gar nicht, statt ein erfundenes „nein“.</p>
         <p class="ce-hint">„mit Maßstab“ ist eine Ja/Nein-Frage, weil die Wiki-Spalte „Maßstab“ genau das enthält. Wo ein Maßstab ausgeschrieben dasteht („1:12.750.000“), steht er zusätzlich in der Notiz — er sagt mehr als ein „ja“.</p>
-        <p class="ce-hint">„kostenpflichtig“ setzt ein Mensch — bewusst kein Auto-Abgleich mit dem Shop (Owner 2026-07-17). Ein Preis ist eine Momentaufnahme: „zahl was du willst“ ist weder frei noch bezahlt, Aktionen laufen ab. Und die API kennt nur das Produkt, nicht die Karte im Buch.</p>
       </div>
       <div class="ce-grp"><p class="ce-grp__title">Typ (Mehrfachauswahl)</p>
         <div class="ce-types">${TYPE_KEYS.map(([k, l]) =>
