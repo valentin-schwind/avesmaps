@@ -659,11 +659,15 @@
         <div class="ce-types">${TYPE_KEYS.map(([k, l]) =>
           `<label><input type="checkbox" data-ce-type="${ceEscape(k)}"${types.includes(k) ? " checked" : ""}> ${ceEscape(l)}</label>`).join("")}</div>
       </div>
-      <div class="ce-grp"><p class="ce-grp__title">Verwandte Karten</p>
-        <div class="ce-types">${state.citymaps.filter((c) => c.public_id !== v.public_id).map((c) =>
-          `<label><input type="checkbox" data-ce-related="${ceEscape(c.public_id)}"${(state.detail.related || []).some((r) => r.public_id === c.public_id) ? " checked" : ""}> ${ceEscape(c.title)}</label>`).join("") || `<span class="ce-hint">Es gibt noch keine andere Karte.</span>`}</div>
-        <p class="ce-hint">„Übergeordnet“ steckt oben in der Identität; hier stehen gleichrangige Karten. Die Verknüpfung gilt in beide Richtungen.</p>
-      </div>`;
+      `;
+
+    // "Verwandte Karten" is HIDDEN here (owner 2026-07-17: "das ist zu viel und brauchen wir gerade
+    // nicht"). It rendered one checkbox per OTHER map -- fine at a dozen maps, unusable once the wiki
+    // sync brought 419: a wall of hundreds of checkboxes between you and everything below it.
+    //
+    // HIDDEN, NOT REMOVED. citymap_related, its set_related endpoint and the reader-side display are
+    // untouched, so existing links keep working and nothing needs migrating. To bring it back, restore
+    // this block AND the set_related call in saveStamm() -- they belong together, see the note there.
 
     // Upload inputs are created by innerHTML -> wire them after the body is in the DOM.
     ["thumb", "map"].forEach((slot) => {
@@ -696,13 +700,16 @@
       const citymap = Object.assign({}, values);
       if (state.selectedId) citymap.public_id = state.selectedId;
       const saved = await citymapPost({ action: "upsert_citymap", citymap });
-      // Types + related are their own whole-list actions; only send them for an existing map (a fresh
-      // one has no controls rendered yet).
+      // Types are their own whole-list action; only send them for an existing map (a fresh one has no
+      // controls rendered yet).
+      //
+      // NO set_related HERE, and that is load-bearing, not an oversight: set_related REPLACES the whole
+      // list, and with the "Verwandte Karten" checkboxes hidden (see renderStamm) the querySelectorAll
+      // would find nothing and send an empty list -- silently wiping every existing link on the next
+      // save. Hiding the UI and dropping this call belong together; restore both or neither.
       if (state.detail) {
         const types = Array.prototype.map.call(document.querySelectorAll("[data-ce-type]:checked"), (el) => el.getAttribute("data-ce-type"));
         await citymapPost({ action: "set_types", public_id: saved.public_id, types });
-        const related = Array.prototype.map.call(document.querySelectorAll("[data-ce-related]:checked"), (el) => el.getAttribute("data-ce-related"));
-        await citymapPost({ action: "set_related", public_id: saved.public_id, related });
       }
       state.dirty = false;
       await loadList(true);
