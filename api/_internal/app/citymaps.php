@@ -241,13 +241,21 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // Self-healing column-add (project idiom). NOT folded into the CREATE above: `citymap` already exists
     // in production, where CREATE TABLE IF NOT EXISTS is a no-op -- an added column only ever arrives
     // through a probe like this one, and keeping it out of the CREATE keeps one source of truth.
-    $columnExists = static function (PDO $pdo, string $column): bool {
-        $stmt = $pdo->query(
-            "SELECT COUNT(*) FROM information_schema.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'citymap' AND COLUMN_NAME = '" . $column . "'"
-        );
-        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
-    };
+    // Fetch the existing column set in ONE information_schema query, then check in PHP. This runs on every
+    // catalogue read (a public, per-page-load path), and one probe per column was up to nine round trips
+    // per request against information_schema -- a needless load multiplier (see php-pool hang, 2026-07-17).
+    // Same behaviour: each missing column is still added by exactly the same ALTER below.
+    $existingColumns = [];
+    $columnStmt = $pdo->query(
+        "SELECT COLUMN_NAME FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'citymap'"
+    );
+    if ($columnStmt !== false) {
+        foreach ($columnStmt->fetchAll(PDO::FETCH_COLUMN) as $existingColumn) {
+            $existingColumns[(string) $existingColumn] = true;
+        }
+    }
+    $columnExists = static fn (string $column): bool => isset($existingColumns[$column]);
     // thumb_auto_url: the "Autoget" preview, crawled off the map's own page. EDITOR-ONLY, BY CONSTRUCTION
     // (owner decision): it is a third party's image and we hold no licence for it, so it exists purely so
     // an editor can recognise the map in the list. It gets its own column rather than a flag on
@@ -255,7 +263,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // check. avesmapsCitymapsReadCatalog simply never selects it, the same way *_license_note never
     // leaves the editor. If it ever needs to become public, that must be a deliberate new column, not a
     // one-character edit to a boolean.
-    if (!$columnExists($pdo, 'thumb_auto_url')) {
+    if (!$columnExists('thumb_auto_url')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN thumb_auto_url VARCHAR(500) NULL');
     }
     // is_paid: "you have to buy something to get this map" (owner 2026-07-17). A HUMAN sets it -- there is
@@ -269,14 +277,14 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     //
     // Three-valued like every other property (§3.1): NULL means nobody has judged it, and the reader is
     // shown nothing rather than a guess about their wallet.
-    if (!$columnExists($pdo, 'is_paid')) {
+    if (!$columnExists('is_paid')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN is_paid TINYINT(1) NULL');
     }
     // format: the printed sheet size -- "A2", "33,5x25,5", "43 x 57 cm". A VARCHAR and NOT width_px,
     // because the wiki writes centimetres and DIN names; width_px is pixels and the wiki has filled it
     // exactly once in 419 maps. Both index pages feed it (Stadtplanindex "Format", Kartenindex
     // "Abmessungen" -- one measurement, two column names).
-    if (!$columnExists($pdo, 'format')) {
+    if (!$columnExists('format')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN format VARCHAR(120) NULL');
     }
     // has_scale: the SEVENTH tri-bool. The wiki's "Maßstab" column answers "does it have one?" with
@@ -284,7 +292,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // a tri-bool and not `scale VARCHAR`. Where a page does spell one out (the Kartenindex does,
     // "1:12.750.000"), that proves has_scale=1 and the string stays visible in `note`; a value nobody
     // can read ("Forum", 24 rows) leaves this NULL and stays visible too. NULL = unknown, never false.
-    if (!$columnExists($pdo, 'has_scale')) {
+    if (!$columnExists('has_scale')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN has_scale TINYINT(1) NULL');
     }
     // publisher: the wiki's "Erschienen bei" = {{Infobox Produkt}}|Verlag on the BOOK page, copied onto
@@ -294,7 +302,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // (js/map-features/map-features-citymaps-suggest.js) -- putting "Ulisses" there would have filled
     // 419 maps with a wrong attribution. It earns a column because it VARIES: Fanpro, Schmidt Spiele &
     // Droemer Knaur, Ulisses (measured on real pages 2026-07-17), so it is not one constant word.
-    if (!$columnExists($pdo, 'publisher')) {
+    if (!$columnExists('publisher')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN publisher VARCHAR(160) NULL');
     }
     // thumb_origin: WHO made the current thumb_local_url -- 'manual' (an editor uploaded it) or 'auto'
@@ -305,7 +313,7 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // is the conservative answer, and it is correct for the existing stock (the one preview that exists
     // today is an upload). The skip rule therefore asks for a PICTURE too, never for this column alone --
     // see avesmapsCitymapAutogetSkips, where getting that wrong makes nothing due at all.
-    if (!$columnExists($pdo, 'thumb_origin')) {
+    if (!$columnExists('thumb_origin')) {
         $pdo->exec("ALTER TABLE citymap ADD COLUMN thumb_origin VARCHAR(16) NOT NULL DEFAULT 'manual'");
     }
     // thumb_auto_state: due-ness AND the closing report in one column. NULL = not attempted yet.
@@ -315,12 +323,12 @@ function avesmapsCitymapsEnsureTables(PDO $pdo): void
     // lesson. And the state is written PER MAP right after its fetch, never leased in a batch up front:
     // leasing rows and then hitting a time budget makes the due-query see nothing, report remaining=0, and
     // call a half-finished run done.
-    if (!$columnExists($pdo, 'thumb_auto_state')) {
+    if (!$columnExists('thumb_auto_state')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN thumb_auto_state VARCHAR(24) NULL');
     }
     // map_url_label: der Linktext des Karten-Links (Owner 2026-07-17). Er trug sein Label als Konstante
     // 'Karte'; die zusaetzlichen Fundorte haben das Feld laengst.
-    if (!$columnExists($pdo, 'map_url_label')) {
+    if (!$columnExists('map_url_label')) {
         $pdo->exec('ALTER TABLE citymap ADD COLUMN map_url_label VARCHAR(120) NULL');
     }
 }
