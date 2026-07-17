@@ -129,6 +129,10 @@ async function splitPathAtNode(splitState) {
 	}
 
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	// Both halves stay segments of the SAME way, so they inherit its name: a way's identity is its name
+	// group (matchKey over the name), so a fresh generic name per half would split one way into two.
+	// Ways that never had a name still fall back to a generated one.
+	const pathTitleName = getPathTitleName(path);
 	try {
 		const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
 		addCreatedCrossingMarker(crossingResult.feature);
@@ -137,7 +141,7 @@ async function splitPathAtNode(splitState) {
 		const firstPathResult = await submitMapFeatureEdit({
 			action: "create_path",
 			feature_subtype: pathSubtype,
-			name: getNextPathDisplayName(pathSubtype),
+			name: getPathDisplayNameOrGenerated(pathTitleName, pathSubtype),
 			coordinates: coordinateGroups.firstCoordinates,
 		});
 		addCreatedPathFeature(firstPathResult.feature);
@@ -145,7 +149,7 @@ async function splitPathAtNode(splitState) {
 		const secondPathResult = await submitMapFeatureEdit({
 			action: "create_path",
 			feature_subtype: pathSubtype,
-			name: getNextPathDisplayName(pathSubtype),
+			name: getPathDisplayNameOrGenerated(pathTitleName, pathSubtype),
 			coordinates: coordinateGroups.secondCoordinates,
 		});
 		addCreatedPathFeature(secondPathResult.feature);
