@@ -1,6 +1,6 @@
 # Design: Der Editor merkt sich die zuletzt offene Reiter-Kaskade
 
-**Datum:** 2026-07-17 · **Status:** GEBAUT (Unit-Tests grün); Ende-zu-Ende im echten Editor steht aus
+**Datum:** 2026-07-17 · **Status:** LIVE (`9ee12651`), auf Produktion nachgewiesen
 **Auftraggeber-Zitat:** *„Merk dir immer wo ich als editor zuletzt war (letzte offene menükaskade sollte
 nach einem refresh erhalten bleiben). wenn ich auf wikisync -> materialien -> karten klicke und dann F5
 mach sollte ich wieder da landen."*
@@ -135,7 +135,12 @@ Gepinnt wird:
    den „fehlenden URL-Sync" für einen Bug hält.
 7. Reihenfolge: Ebene 1 vor 2 vor 3.
 
-Ende-zu-Ende (nur der Owner, im echten Browser): WikiSync → Materialien → Karten → F5 → wieder dort.
+**Ende-zu-Ende auf Produktion nachgewiesen** (2026-07-17, `?edit=1` rendert das Panel auch ohne Login —
+`IS_EDIT_MODE` hängt nur am Parameter): WikiSync → Materialien → Karten geklickt → gespeichert
+(`wikiSync.activeTab=adventures`, `material.activeTab=citymaps`) → F5 → `wiki-sync > adventures > citymaps`
+wieder offen, Adresszeile unverändert `?edit=1`. Der Lazy-Load der Karten-Liste feuerte mit (die Section
+zeigte „Du bist fuer diese Aktion nicht angemeldet" — der 401 belegt den Aufruf). Deep-Link
+`?wikiSyncTab=paths` schlug den gemerkten Reiter und wurde zum neuen „zuletzt hier".
 
 ## 7. Umfang
 
