@@ -325,9 +325,9 @@
       <span class="t1">Links prüfen</span>
       <span class="t2" id="aeLinkCheckSub">…</span>
     </button>
-    <button type="button" class="ae-btn2" id="aeAutogetBtn" disabled title="Cover-Massenlauf (Wiki-Cover neu ziehen) — vorübergehend deaktiviert; kommt mit einem Server-Riegel gegen Doppelläufe. Einzelne Cover neu ziehen geht weiter im Detail-Panel.">
+    <button type="button" class="ae-btn2" id="aeAutogetBtn" title="Holt die Wiki-Cover für alle Abenteuer, deren Cover lokal noch fehlt. Läuft nach einem Klick sicher durch: ein Server-Riegel lässt nur EINEN Vorschau-Lauf gleichzeitig zu (Karten oder Abenteuer), jeder Schritt hält einen Worker nur ~4 s. Eigene Cover-Uploads bleiben unangetastet. Vorher einmal „Dump holen“ + „Abenteuer syncen“.">
       <span class="t1">Vorschauen holen</span>
-      <span class="t2">vorübergehend deaktiviert</span>
+      <span class="t2" id="aeAutogetSub">…</span>
     </button>
     <button type="button" class="ae-btn2" id="aeCoversToggle" title="Notaus NUR für die Vorschaubilder (Cover): aus = keine Cover und keine „© Ulisses Spiele“-Fußnote im öffentlichen Frontend. Die Abenteuer, ihre Links und der Editor bleiben. Getrennt vom Karten-Vorschauschalter, weil die Erlaubnis nur bis auf Widerruf gilt.">
       <span class="t1" id="aeCoversToggleLabel">Vorschauen: …</span>
@@ -1345,11 +1345,88 @@
     }
   }
 
+  // ---- Cover autoget (all adventures) ----
+  // Delegates to window.parent.startAdventureCoverAutoget -- the loop lives in the parent
+  // (js/review/review-adventure-cover-autoget.js) because this editor is an iframe and the run must
+  // outlive its own status line, exactly like "Abenteuer syncen" and "Links prüfen".
+  let aeAutogetRunning = false;
+
+  function setAeAutogetBusy(isBusy) {
+    aeAutogetRunning = isBusy;
+    const button = document.getElementById("aeAutogetBtn");
+    if (!button) return;
+    button.disabled = isBusy;
+    const label = button.querySelector(".t1");
+    if (label) label.textContent = isBusy ? "Holt …" : "Vorschauen holen";
+  }
+
+  // Read-only, no lock, no run -- fills the sub-label with how many covers are still due.
+  async function refreshAeAutogetInfo() {
+    const el = document.getElementById("aeAutogetSub");
+    if (!el) return;
+    try {
+      const res = await fetch("/api/edit/map/adventure-cover-autoget.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ action: "status" }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok || !payload || payload.ok !== true) throw new Error(`HTTP ${res.status}`);
+      el.textContent = payload.remaining > 0
+        ? `${payload.remaining} von ${payload.total} offen`
+        : `${payload.total} Abenteuer geprüft`;
+    } catch (e) {
+      el.textContent = "Status unbekannt";
+    }
+  }
+
+  async function handleAeAutogetClick() {
+    if (aeAutogetRunning) return;
+    const statusEl = document.getElementById("aeAutogetSub");
+    let parentWindow;
+    try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
+    if (!parentWindow || parentWindow === window || typeof parentWindow.startAdventureCoverAutoget !== "function") {
+      if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
+      return;
+    }
+    if (!window.confirm("Für alle Abenteuer ohne lokales Cover das Wiki-Cover holen?\n\nEigene Uploads bleiben unangetastet. Der Durchlauf lässt sich fortsetzen und jederzeit stoppen.")) {
+      return;
+    }
+    setAeAutogetBusy(true);
+    try {
+      const r = await parentWindow.startAdventureCoverAutoget((text) => {
+        if (statusEl) statusEl.textContent = text;
+      });
+      if (!r) {
+        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits (dieser Tab).";
+      } else if (r.busy) {
+        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits (anderer Tab oder Server).";
+      } else if (r.stopped) {
+        if (statusEl) statusEl.textContent = "Durchlauf per Not-Aus gestoppt.";
+      } else if (statusEl) {
+        // Report EVERY outcome, not just the wins ("kein stilles Abschneiden", owner).
+        const parts = [`${r.adventures} Abenteuer · ${r.ok} Cover geholt`];
+        if (r.no_image) parts.push(`${r.no_image} ohne Cover-Quelle`);
+        if (r.fetch_failed) parts.push(`${r.fetch_failed} nicht erreichbar`);
+        if (r.skipped) parts.push(`${r.skipped} übersprungen (eigenes Cover)`);
+        statusEl.textContent = parts.join(" · ");
+      }
+      await loadList();
+    } catch (e) {
+      if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+    } finally {
+      setAeAutogetBusy(false);
+    }
+  }
+
   document.getElementById("aeSyncBtn").addEventListener("click", handleAeSyncClick);
   document.getElementById("aeLinkCheckBtn").addEventListener("click", handleAeLinkCheckClick);
+  document.getElementById("aeAutogetBtn").addEventListener("click", handleAeAutogetClick);
   document.getElementById("aeCoversToggle").addEventListener("click", toggleCovers);
   document.getElementById("aeEnabledToggle").addEventListener("click", toggleAdventuresEnabled);
   void refreshAeSyncedInfo();
+  void refreshAeAutogetInfo();
 
   // Pre-selection from the parent (WikiSync adventure picker): a same-origin postMessage jumps to an
   // adventure by public_id. selectAdventure fetches the detail by id, so it works even before loadList resolves.
