@@ -103,6 +103,22 @@
 	display: flex;
 }
 
+/* Sammelschalter der Filterleiste (Owner 2026-07-18): nimmt den Deckel von ALLEN Zeilen des Dialogs auf
+   einmal, statt sie einzeln aufzudecken. Die Klasse setzt erst der Klick -- der Startzustand bleibt also
+   unveraendert verdeckt, und der Streifen im Infopanel (kein Grid, keine Leiste) ist gar nicht betroffen.
+   Aufgehoben wird HIER statt per :not() an der Regel oben: die gilt fuer beide Kontexte, und ein Anker,
+   den nur der Dialog kennt, gehoert an die Ausnahme, nicht in die Grundregel.
+   Der Deckel muss mitverschwinden -- er liegt mit inset:0 ueber der Zeile und schluckt sonst unsichtbar
+   jeden Klick auf den Kartenlink. */
+.avesmaps-citymaps-dialog__grid.show-spoilers .avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__thumb,
+.avesmaps-citymaps-dialog__grid.show-spoilers .avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__main {
+	filter: none;
+	user-select: auto;
+}
+.avesmaps-citymaps-dialog__grid.show-spoilers .avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__spoiler {
+	display: none;
+}
+
 .avesmaps-citymaps__actions {
 	display: flex;
 	flex-wrap: wrap;

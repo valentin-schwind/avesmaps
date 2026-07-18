@@ -209,6 +209,18 @@ assert.strictEqual(avesmapsCitymapActiveFacets([{ valid_from_bf: 1020, valid_to_
 // 9999 ist das offene Ende (AGENTS.md §5) und keine Jahreszahl.
 assert.deepStrictEqual(avesmapsCitymapActiveFacets([{ valid_from_bf: 1027, valid_to_bf: 9999 }, { valid_to_bf: 1038 }]).yearRange, { min: 1027, max: 1038 });
 
+// ---- Spoiler-Sammelschalter (Owner 2026-07-18) ------------------------------------------------------
+// Er ist KEIN Filter: er blendet nichts aus, er nimmt den Blur weg. Deshalb gilt fuer ihn ausdruecklich
+// NICHT die "teilt die Liste"-Regel der uebrigen Facetten -- bei 3 von 3 verdeckten Karten trennt er
+// nichts und ist trotzdem am noetigsten. Wer ihn spaeter auf splits() umstellt, nimmt den Schalter genau
+// dort weg, wo die ganze Liste unter dem Deckel liegt.
+assert.strictEqual(avesmapsCitymapActiveFacets([{ is_spoiler: true }, { is_spoiler: null }]).spoiler, true);
+assert.strictEqual(avesmapsCitymapActiveFacets([{ is_spoiler: true }, { is_spoiler: true }]).spoiler, true, "alle verdeckt -> Schalter erst recht");
+assert.strictEqual(avesmapsCitymapActiveFacets([{ is_spoiler: null }, { is_spoiler: false }]).spoiler, false);
+// Tri-State (§3.1): nur ein explizites true ist ein Spoiler. Sonst hinge an jeder Karte mit unbekanntem
+// Feld ein Schalter, der nichts aufzudecken hat.
+assert.strictEqual(avesmapsCitymapActiveFacets([{}]).spoiler, false);
+
 // ---- Praedikat: die gestrichenen Dimensionen sind wirkungslos ---------------------------------------
 const shape = { types: ["stadtplan"], art: "politisch", is_color: true, is_multilevel: false, is_spoiler: true, sources: [{ label: "X" }], links: [] };
 assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { types: new Set(["hoehlen"]) }), true, "Typ ist kein Filter mehr"); assert.strictEqual(avesmapsCitymapMatchesFilter(shape, { multilevelOnly: true }), true, "mehrstoeckig ist kein Filter mehr");

@@ -207,12 +207,18 @@ function avesmapsSelectCitymapEntries(index, ref) {
 
 // ---- adaptive Facetten (Spec §4.1) ------------------------------------------------------------------
 // Vokabular: Zeitraum, farbig, offiziell, kostenlos (Owner 2026-07-17). Typ, Art, Quelle, mehrstoeckig,
-// beschriftet, "nur kostenpflichtige" und "Spoiler zeigen" sind ERSATZLOS gestrichen -- siehe die
-// Umkehrungs-Warnung in der Spec §4.1, bevor jemand sie zurueckbaut.
+// beschriftet und "nur kostenpflichtige" sind ERSATZLOS gestrichen -- siehe die Umkehrungs-Warnung in der
+// Spec §4.1, bevor jemand sie zurueckbaut.
 //
 // Die Regel: ein Filter erscheint nur, wenn er DIESE Liste wirklich teilt. Sonst stehen 13 Steuerelemente
-// ueber einer Zeile (168 von 245 Orten haben genau eine Karte) und zwei davon -- mehrstoeckig, Spoiler --
-// koennen nie etwas treffen, weil die Daten sie gar nicht kennen.
+// ueber einer Zeile (168 von 245 Orten haben genau eine Karte) und mehrstoeckig kann nie etwas treffen,
+// weil die Daten es gar nicht kennen.
+//
+// AUSNAHME `spoiler` (Owner 2026-07-18): der GESTRICHENE Spoiler-Chip regelte die Listung (Umkehrung 2 in
+// §4.1) -- dieser hier regelt den Deckel, den dieselbe Umkehrung ausdruecklich behaelt. Er ist deshalb kein
+// Filter und folgt der Teilungs-Regel nicht; §4.1 sieht die Rueckkehr ueber die Datenlage ohnehin vor
+// ("Kommt die Datenlage, kommen sie ueber dieselbe Regel zurueck"), und seit es Spoilerkarten gibt, ist
+// sie da.
 function avesmapsCitymapActiveFacets(shapes) {
 	var list = shapes || [];
 	function splits(pred) {
@@ -245,6 +251,10 @@ function avesmapsCitymapActiveFacets(shapes) {
 		// Zwei Karten MIT Jahr und unterschiedliche Jahre. Eine Karte mit einer Spanne liefert zwar zwei
 		// Zahlen, aber nichts zu filtern.
 		years: withYear >= 2 && keys.length >= 2,
+		// KEIN Filter, sondern der Sammelschalter fuer den Spoiler-Deckel (Owner 2026-07-18): ein einziger
+		// Spoiler genuegt. Bewusst NICHT splits() -- er blendet nichts aus, er deckt auf, und bei 3 von 3
+		// verdeckten Karten trennt er nichts und ist trotzdem am noetigsten. Siehe citymaps-index.test.js.
+		spoiler: list.some(function (s) { return s && s.is_spoiler === true; }),
 		yearRange: keys.length ? { min: Math.min.apply(null, keys), max: Math.max.apply(null, keys) } : { min: 0, max: 0 },
 	};
 }

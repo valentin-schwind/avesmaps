@@ -352,6 +352,10 @@ function citymapFiltersMarkup(facets) {
 	if (facets.color) { groups.push({ kind: "toggle", filter: "color", label: tr("cityMaps.filter.color", "farbig") }); }
 	if (facets.official) { groups.push({ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "offiziell") }); }
 	if (facets.free) { groups.push({ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "kostenlos") }); }
+	// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Deckel (Owner 2026-07-18): "aus" ist der
+	// Startzustand -- er zeigt also nie ungefragt, was verdeckt ist -- und ein Klick nimmt den Blur von
+	// ALLEN verdeckten Zeilen statt eine nach der anderen. Steht am Ende und darf die Leiste allein tragen.
+	if (facets.spoiler) { groups.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler zeigen") }); }
 	if (!groups.length) {
 		return "";
 	}

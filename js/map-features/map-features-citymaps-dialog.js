@@ -126,6 +126,11 @@
 			? avesmapsCitymapActiveFacets(shapes)
 			: { color: false, official: false, free: false, years: false, yearRange: { min: 0, max: 0 } };
 		existing.innerHTML = (typeof citymapFiltersMarkup === "function") ? citymapFiltersMarkup(facets) : "";
+		// Der Spoiler-Schalter wird hier neu und INAKTIV gebaut -- das grid-ELEMENT ueberlebt das Schliessen
+		// aber (nur seine Kinder werden ersetzt, s. openDialogForSection). Ohne dieses Zuruecksetzen bliebe
+		// "aufgedeckt" am naechsten Ort haengen, und zwar unsichtbar: der Schalter daneben zeigt "aus". Der
+		// Deckel ist bei jedem Oeffnen wieder zu (Owner: Spoiler standardmaessig an).
+		grid.classList.remove("show-spoilers");
 
 		var filterState = {
 			colorOnly: false, officialOnly: false, freeOnly: false,
@@ -162,6 +167,15 @@
 				return;
 			}
 			var kind = chip.getAttribute("data-adv-filter");
+			// Der Spoiler-Schalter ist KEIN Filter: er blendet keine Zeile aus, er nimmt den Deckel weg.
+			// Deshalb eigener Zweig vor TOGGLES, kein filterState-Feld und KEIN applyFilters() -- die Zahl
+			// im Fenstertitel darf sich beim Aufdecken nicht ruehren, es sind dieselben Karten.
+			if (kind === "spoiler") {
+				var reveal = !chip.classList.contains("is-active");
+				chip.classList.toggle("is-active", reveal);
+				grid.classList.toggle("show-spoilers", reveal);
+				return;
+			}
 			if (!TOGGLES[kind]) {
 				return;
 			}

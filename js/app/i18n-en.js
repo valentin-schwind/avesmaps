@@ -544,6 +544,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.filter.to": "to",
 	"cityMaps.filter.color": "colour",
 	"cityMaps.filter.officialOnly": "official",
+	"cityMaps.filter.spoiler": "show spoilers",
 	// Type + art LABELS. The slugs themselves are domain content and are never translated (AGENTS.md §8);
 	// only what the reader sees is.
 	"cityMaps.type.ortsplan": "Village plan",

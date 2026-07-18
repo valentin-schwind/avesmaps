@@ -360,10 +360,20 @@ console.log("citymap row ok");
 const barAll = citymapFiltersMarkup({ color: true, official: true, free: true, years: true, yearRange: { min: 1027, max: 1038 } });
 assert.ok(barAll.includes('data-adv-filter="color"') && barAll.includes('data-adv-filter="official"'));
 assert.ok(barAll.includes('data-adv-filter="free"') && barAll.includes('data-adv-filter="yearFrom"'));
-// Die zehn gestrichenen duerfen nirgends mehr auftauchen.
-["type", "art", "source", "multilevel", "labeled", "paid", "spoiler"].forEach((kind) => {
+// Die gestrichenen duerfen nirgends mehr auftauchen.
+["type", "art", "source", "multilevel", "labeled", "paid"].forEach((kind) => {
   assert.ok(!barAll.includes('data-adv-filter="' + kind + '"'), kind + " ist gestrichen");
 });
+// "Spoiler zeigen" als LISTUNGS-Filter bleibt gestrichen (Spec §4.1, Umkehrung 2): ohne verdeckte Karte
+// steht hier nichts -- barAll traegt jede andere Facette und trotzdem keinen Spoiler-Schalter.
+assert.ok(!barAll.includes('data-adv-filter="spoiler"'), "ohne Spoilerkarte kein Schalter");
+// Mit verdeckten Karten erscheint der SAMMELSCHALTER (Owner 2026-07-18). Das ist nicht der zurueckgebaute
+// Chip: der regelte die Listung, dieser regelt den Deckel, den Umkehrung 2 ausdruecklich behaelt.
+const barSpoiler = citymapFiltersMarkup({ color: true, spoiler: true });
+assert.ok(barSpoiler.includes('data-adv-filter="spoiler"') && barSpoiler.includes("Spoiler zeigen"));
+// Er traegt die Leiste ALLEIN -- eine einzige verdeckte Karte ist genau der Fall, in dem man ihn braucht,
+// und dort trennt keine andere Facette etwas.
+assert.ok(citymapFiltersMarkup({ spoiler: true }).includes('data-adv-filter="spoiler"'), "Schalter allein traegt die Leiste");
 // Nur was traegt: eine Facette -> ein Chip.
 const barOne = citymapFiltersMarkup({ color: true, official: false, free: false, years: false });
 assert.ok(barOne.includes('data-adv-filter="color"') && !barOne.includes('data-adv-filter="official"'));
