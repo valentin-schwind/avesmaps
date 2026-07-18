@@ -489,7 +489,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.headingIn": "Map collection of {place}",
 	"cityMaps.buttonLabel": "Map collection",
 	"cityMaps.all": "Show all",
-	"cityMaps.credit": "Preview images © Ulisses Spiele — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">view in the F-Shop ↗</a>",
+	"cityMaps.credit": "© Ulisses Spiele. All rights reserved. — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">view in the F-Shop ↗</a>",
 	"cityMaps.closeAria": "Close",
 	"cityMaps.fallbackPlace": "this place",
 	"cityMaps.fallbackTerritory": "this territory",
@@ -569,7 +569,7 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- adventures feature cluster ---
 	"adventures.containedInPrefix": "contained in: ",
-	"adventures.credit": "Cover © Ulisses Spiele — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">view in the F-Shop ↗</a>",
+	"adventures.credit": "© Ulisses Spiele. All rights reserved. — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">view in the F-Shop ↗</a>",
 	"adventures.fallbackPlace": "this place",
 	"adventures.fallbackTerritory": "this territory",
 	"adventures.fallbackRegion": "this region",
