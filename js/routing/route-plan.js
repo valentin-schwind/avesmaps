@@ -59,20 +59,49 @@ function getCurrentRouteBounds() {
 // Fit options for displaying a route: zoom in far enough that the route fills the frame (up to the
 // map's max zoom -- no longer capped at the current zoom) and reserve the route-planner panel's width
 // on the left so the route lands in the visible area instead of under the panel.
+// Die Breite des rechten Infopanels, sofern es gerade offen ist. Es liegt `position: fixed` UEBER der
+// Karte, zaehlt also nicht zur Kartengroesse -- ohne diese Reserve laeuft das Routenende darunter und ist
+// schlicht nicht zu sehen (Owner 2026-07-18: das Ziel lag unter dem Panel).
+function getRouteInfopanelInsetWidth() {
+	const panel = document.querySelector(".avesmaps-infopanel");
+	if (!panel || panel.classList.contains("is-hidden")) {
+		return 0;
+	}
+	const width = Math.round(panel.getBoundingClientRect().width);
+	return Number.isFinite(width) && width > 0 ? width : 0;
+}
+
 function getRouteFitBoundsOptions() {
-	const margin = 28;
-	const mapWidth = map.getSize().x;
+	// Rand PROPORTIONAL zur Karte (Owner 2026-07-18: "zu knapp zum rand"): eine Route, die den Rahmen
+	// ausfuellt, laesst den Leser nicht sehen, wohin sie weiterfuehrt -- und ein fester Pixelwert ist auf
+	// einem grossen Bildschirm ein Haarstrich und auf einem kleinen die halbe Karte. 7 % je Seite ergeben
+	// auf einem 2000er-Fenster gut eine halbe Zoomstufe mehr Ueberblick als der frueher feste 28er-Rand.
+	const mapSize = map.getSize();
+	const mapWidth = mapSize.x;
+	const margin = Math.max(40, Math.round(mapWidth * 0.07));
+	const marginY = Math.max(32, Math.round(mapSize.y * 0.07));
 	const isPhone = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
 	const panelVisible = typeof isSearchPanelHidden === "undefined" || !isSearchPanelHidden;
 	// Reserve the planner panel's width on the left ONLY on desktop, where it's a persistent left
 	// sidebar. On phones the panel is a temporary full-width overlay; reserving its width would exceed
 	// the narrow viewport, leave no room, and break the fit (route zoomed way out).
 	let leftInset = (!isPhone && panelVisible && typeof getRoutePlannerPanelWidth === "function") ? getRoutePlannerPanelWidth() : 0;
+	// Dasselbe rechts fuer das Infopanel -- auf dem Telefon aus demselben Grund nicht (dort deckt es die
+	// ganze Breite; reservieren hiesse, gar keinen Platz mehr zu lassen).
+	let rightInset = isPhone ? 0 : getRouteInfopanelInsetWidth();
 	// Safety cap: never reserve so much that the route cannot fit (narrow viewport / oversized panel).
-	leftInset = Math.min(leftInset, Math.max(0, mapWidth * 0.45 - margin));
+	// Gekappt wird die SUMME beider Seiten -- einzeln gekappt koennten zwei je 45%-Reserven zusammen die
+	// ganze Karte auffressen, und der Fit rutschte ins Absurde statt nur eng zu werden.
+	const maxInsets = Math.max(0, mapWidth * 0.6 - 2 * margin);
+	const insetSum = leftInset + rightInset;
+	if (insetSum > maxInsets && insetSum > 0) {
+		const scale = maxInsets / insetSum;
+		leftInset = Math.floor(leftInset * scale);
+		rightInset = Math.floor(rightInset * scale);
+	}
 	return {
-		paddingTopLeft: [leftInset + margin, margin],
-		paddingBottomRight: [margin, margin],
+		paddingTopLeft: [leftInset + margin, marginY],
+		paddingBottomRight: [rightInset + margin, marginY],
 		maxZoom: map.getMaxZoom(),
 	};
 }
