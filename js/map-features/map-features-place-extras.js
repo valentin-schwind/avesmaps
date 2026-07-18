@@ -747,7 +747,7 @@ function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
 // Killswitch aus ist -- keine Cover auf dem Schirm heisst kein Ulisses-Credit noetig.
 function avesmapsAdventureCreditMarkup() {
 	var coversOn = (typeof avesmapsAdventuresCoversEnabled !== "function") || avesmapsAdventuresCoversEnabled();
-	return coversOn ? '<div class="avesmaps-adv__credit">' + tr("adventures.credit", "© Ulisses Spiele. Alle Rechte vorbehalten. — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
+	return coversOn ? '<div class="avesmaps-adv__credit">' + tr("adventures.credit", "Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
 }
 
 // Lizenz-Fussnote der Kartensammlung. Dieselbe Pflichtangabe wie bei den Abenteuern und derselbe
@@ -762,7 +762,7 @@ function avesmapsAdventureCreditMarkup() {
 // Zweifel anzeigen" die richtige Richtung.
 function avesmapsCitymapCreditMarkup() {
 	var on = (typeof avesmapsCitymapPreviewsEnabled !== "function") || avesmapsCitymapPreviewsEnabled();
-	return on ? '<div class="avesmaps-adv__credit">' + tr("cityMaps.credit", "© Ulisses Spiele. Alle Rechte vorbehalten. — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
+	return on ? '<div class="avesmaps-adv__credit">' + tr("cityMaps.credit", "Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
 }
 
 // ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----

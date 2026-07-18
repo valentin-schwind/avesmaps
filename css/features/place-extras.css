@@ -523,9 +523,14 @@
    Zustand. Eine Regel hier waere wirkungslos -- sie saehe nur so aus, als taete sie etwas. */
 /* Lizenz-Fussnote am Fuss des Dialogs (flach UND verschachtelt, geteilte Klasse) -- ausserhalb der
    scrollbaren Karten-/Baum-Flaeche, damit sie immer sichtbar bleibt, ohne Trenner (wie im Streifen). */
+/* Same footer height in BOTH dialogs, text vertically centred (Owner 2026-07-18). The old
+   "padding only at the bottom" made the line sit at the top of an over-tall strip. */
 .avesmaps-adv-dialog__credit {
 	flex: 0 0 auto;
-	padding: 0 16px 14px;
+	display: flex;
+	align-items: center;
+	min-height: 44px;
+	padding: var(--space-6) 16px;
 }
 .avesmaps-adv-dialog__credit:empty {
 	padding: 0;
@@ -587,7 +592,8 @@
 }
 .avesmaps-citymaps-dialog__foot {
 	flex: 0 0 auto;
-	padding: 0 var(--space-16) 14px;
+	min-height: 44px;
+	padding: var(--space-6) var(--space-16);
 	/* Hinweis links, "Karte vorschlagen" rechts (§3.7). Der Hinweis darf umbrechen, der Button nicht. */
 	display: flex;
 	align-items: center;
