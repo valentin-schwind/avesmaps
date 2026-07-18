@@ -34,8 +34,13 @@ bbox-Cache, Soft-Delete über `is_active`, keine Fremdschlüssel).
 | `max_height` | höchster Punkt des Gebirges in Schritt — **eine Zahl pro Fläche** |
 | `max_height_source` | `wiki` / `manual` / NULL — Herkunft, nie stillschweigend |
 | `max_height_text` | roher Wiki-Textschnipsel („erreicht eine Höhe von bis zu 9000 Schritt"), damit ein Fehlgriff diagnostizierbar bleibt |
-| `mesh_json` | Dreiecksnetz, im Browser gerechnet (Stufe 3) |
-| `mesh_seed` | Startwert des Generators — gleiche Fläche + gleiche Zahl = gleiches Gelände |
+| `bumps_json` | Buckelliste `[{x, y, r, invR2, a}, …]` — im Browser gerechnet (Stufe 3), ~0,4 KB |
+| `bumps_seed` | Startwert des Generators — gleiche Fläche + gleiche Zahl = gleiches Gelände |
+
+> Die **Reihenfolge** der Buckelliste ist Vertragsbestandteil: Gleitkomma-Addition
+> ist nicht assoziativ, PHP muss das JSON-Array genau so durchlaufen, wie es
+> gespeichert wurde. `invR2 = 1/r²` wird im Browser **einmal** gerechnet und
+> mitgespeichert, nicht serverseitig nachgerechnet.
 | `is_active`, `created_by`, `updated_by`, Zeitstempel | Konvention |
 
 **`ecosystem_height_point`** — innere Stützpunkte (erst ab Stufe 3 relevant, aber
@@ -83,41 +88,89 @@ Faktor-Override (leer = Typ-Default), Fußhöhe.
 
 ## 4. Höhenfeld (vorbereitet, scharf ab Stufe 3)
 
-### 4.1 Echtes CDT ist Pflicht, kein Sparmodell
+### 4.1 Buckelsumme statt Dreiecksnetz
 
-Aus Polygonrand + Höhenpunkten entsteht per **Constrained-Delaunay-Triangulation**
-ein Dreiecksnetz. Bibliothek: `poly2tri` (Sweepline-CDT), zu vendorn nach
-`js/third-party/` neben `polygon-clipping` und `polylabel`.
+Das Höhenfeld ist eine **Summe kompakt getragener Buckel** — kein Netz, keine
+Triangulierung, keine Geometriebibliothek:
 
-Die naheliegende Abkürzung — gewöhnliches Delaunay über alle Punkte, danach alle
-Dreiecke wegwerfen, deren Schwerpunkt außerhalb liegt — **ist gemessen
-unbrauchbar**. An einer spiralförmigen Testfläche: **8 fehlende Randkanten, 9
-hinausragende Dreiecke, 250 von 2.436 Innenpunkten unbedeckt** (`scratchpad/verify.mjs`).
-Zwei unabhängige Gründe: der Schwerpunkttest ist unzureichend (ein Dreieck kann
-eine schmale Bucht überspannen und trotzdem seinen Schwerpunkt innen haben), und
-eine Randkante kann in der Delaunay-Triangulation schlicht **fehlen** — nachträgliches
-Filtern holt sie nicht zurück. Landschaftsflächen sind genau der konkave Fall.
+```
+h(x,y) = Σ aₖ · (1 − q²)³        q² = ((x−cxₖ)² + (y−cyₖ)²) / rₖ²,  nur wo q² < 1
+```
 
-- Polygonkanten als **Zwangskanten**, Höhenpunkte als innere Stützpunkte,
-  Randpunkte auf `base_height`.
-- **Gerechnet wird im Browser beim Speichern**, gespeichert wird das fertige Netz —
-  dasselbe Muster wie bei den abgeleiteten Außengrenzen (Frontend rechnet, Server
-  reicht durch). Erspart eine PHP-Geometriebibliothek.
-- Serverseitig wird das Netz nur **ausgewertet**: Punkt-in-Dreieck plus
-  baryzentrische Interpolation — reine Arithmetik.
+Zwei Konstruktionsregeln tragen das Modell:
+
+1. **`rₖ ≤ Randabstand`** → der Träger jedes Buckels liegt vollständig im Polygon.
+   Damit ist die Fußhöhe 0 am Rand **exakt und automatisch** — kein Abklingterm,
+   kein Zuschneiden, keine Klippe.
+2. **Gipfelradius `< 1,118 × Gipfelabstand`** → zwischen zwei Gipfeln entsteht
+   **beweisbar** ein Sattel. Die zweite Ableitung `6(1−q²)(5q²−1)` wechselt bei
+   `q = 1/√5` das Vorzeichen, und `√5/2 = 1,118`.
+
+Gebaut wird in zwei Schichten: ein breiter **Gebirgskörper** plus **je ein Buckel
+pro benanntem Gipfel**. Gespeichert wird eine flache Liste — **~0,4 KB je Fläche**.
+
+**Gerechnet wird im Browser beim Speichern**, ausgewertet in PHP. Der Kern braucht
+nur Grundrechenarten (er nimmt `q²` entgegen, also nicht einmal eine Wurzel) —
+gegen echtes PHP 8.5.6 gemessen: **20.000 von 20.000 Werten bitgleich**. Zum
+Vergleich weichen `exp()` in 1.826 und `log()` in 1.281 von 20.000 Fällen ab,
+weshalb Thin-Plate-Spline und Gauß-RBF an der Zwei-Sprachen-Bedingung scheitern.
+
+### 4.1.1 Warum kein Dreiecksnetz (gemessen)
+
+Zwei Gipfel, 720 km auseinander, Höhe auf halbem Weg dazwischen:
+
+| Modell | in % der Gipfelhöhe |
+|---|---|
+| TIN linear | **96 %** — Grat |
+| Thin-Plate-Spline | **93 %** — Grat |
+| IDW | **7 %** — eingebrochen |
+| **Buckelsumme** | **38 %** ✓ |
+| *glatte Referenz* | *29 %* |
+
+**Der Grat ist kein Delaunay-Problem.** Der Thin-Plate-Spline hat gar keine
+Triangulierung und wölbt sich trotzdem auf 93 %. Ursache ist das **Interpolieren
+zwischen zwei Gipfeln an sich**; IDW versagt spiegelbildlich, weil dort 82
+Randnullen zwei Gipfel überstimmen. Beide Male entscheidet Stützpunkt-Buchhaltung
+statt Gelände — und ihr Wert hängt zusätzlich davon ab, wie fein man den Rand
+abtastet, ein Parameter ohne physikalische Bedeutung.
+
+Dazu kommen die praktischen Kosten: ein Netz, das einen 5–20 km breiten Pass
+überhaupt auflöst, braucht ~5-km-Kanten — **440 KB je Fläche, 25,8 MB gesamt**, und
+7.200+ Dreiecke, deren Auswertung in PHP 80–270 s kostet. Ein Raster fällt aus
+einem anderen Grund weg: es ist **kein Modell, sondern der Cache eines Modells** —
+gefüllt werden muss es trotzdem aus etwas Stetigem.
+
+### 4.1.2 Ein Wächter fällt gratis ab
+
+Die maximale Flankensteigung eines Buckels ist exakt `1,7168 · a / r`. Damit lässt
+sich vor dem Speichern prüfen, ob die getippte Höhe zur gezeichneten Fläche passt:
+ein **9.000-Schritt-Gipfel braucht mindestens 31 km Auslauf**, um innerhalb des
+Gültigkeitsbereichs der Tempokurve zu bleiben. Der Editor kann also gesagt
+bekommen: *„dieses Polygon ist für 9.000 Schritt zu schmal."*
+
+### 4.1.3 Die Jensen-Steuer — wie viel Gelände darf man erfinden?
+
+`1 / Tempo(Steigung)` ist **konvex**. Deshalb verlängert *jedes* zusätzlich
+erfundene Geländedetail die Reisezeit systematisch — der Faktor steigt monoton mit
+der Buckelzahl, und **das Vorzeichen der Richtungs-Asymmetrie kippt zwischen 2 und
+4 Buckeln**. „Wie fein modelliere ich" ist damit selbst ein Parameter, der das
+Ergebnis verzerrt. Die Buckelzahl gehört deshalb festgelegt und dokumentiert, nicht
+nach Augenmaß gewählt. (Dichte Netze, feine Raster und Rauschverfahren haben
+dasselbe Problem — dort sieht man es nur nicht.)
 
 ### 4.2 Woher die Höhenpunkte kommen: Gipfel zuerst, Gitter füllt auf
 
 Der Editor tippt **eine Zahl pro Gebirge** (`max_height`), nicht eine pro Gipfel.
 Daraus baut der Generator die Stützpunkte in dieser Reihenfolge:
 
-1. **Vorhandene `berggipfel`-Labels innerhalb der Fläche** werden Netzknoten. Ihre
-   Positionen sind lore-korrekt und schon da; gefunden über den bbox-Vorfilter
-   (Punkt-Labels haben `min_x = max_x`, ihre bbox *ist* ihre Position).
+1. **Vorhandene `berggipfel`-Labels innerhalb der Fläche** bekommen je einen eigenen
+   Buckel. Ihre Positionen sind lore-korrekt und schon da; gefunden über den
+   bbox-Vorfilter (Punkt-Labels haben `min_x = max_x`, ihre bbox *ist* ihre Position).
    **Der nächstgelegene Gipfel bekommt `max_height`** — sonst landet der höchste
    Punkt neben dem benannten Gipfel, und genau das liest die Zielgruppe als Fehler.
-2. **Pseudozufälliges Gitter füllt auf.** Es gibt live nur **23 `berggipfel` auf 60
-   `gebirge`** — zu wenig, um ein Netz zu tragen, zu sichtbar, um sie zu ignorieren.
+2. **Der Gebirgskörper füllt auf** — breite Buckel auf einem pseudozufälligen
+   Gitter. Es gibt live nur **23 `berggipfel` auf 60 `gebirge`**: zu wenig, um das
+   Gelände allein zu tragen, zu sichtbar, um sie zu ignorieren.
 3. **Manuell gesetzte Höhenpunkte gewinnen immer** (`ecosystem_height_point`).
 
 Zwei Bedingungen:
@@ -128,23 +181,20 @@ Zwei Bedingungen:
 - **Randabfall.** Punkte nahe am Rand werden mit ihrem Randabstand skaliert,
   sonst entsteht am Polygonrand eine Klippe statt eines Gebirgsfußes.
 
-### 4.3 Der Pass ist ein innerer Punkt — nicht eine Einbuchtung
+### 4.3 Pässe entstehen von selbst — ein Punkt bleibt als Steuerung
 
-Zwei Gipfel allein erzeugen **keinen Sattel, sondern einen Grat**: Delaunay legt
-eine Kante zwischen sie, und darauf interpoliert die Höhe linear von Gipfel zu
-Gipfel. Gemessen an derselben Straße über dasselbe Massiv: die Kreuzung liegt bei
-**1.158 Schritt** statt bei 272 — Faktor 4,3 allein aus der Vernetzung. Ohne
-Gegenmaßnahme kodieren `factor_forward`/`factor_backward` die Triangulation, nicht
-das Gelände.
+Mit der Buckelsumme ist der Sattel **eingebaut**, nicht nachträglich zu reparieren:
+Regel 2 aus §4.1 garantiert ihn, sobald der Gipfelradius unter dem 1,118-fachen
+Gipfelabstand bleibt. Gemessen 38 % der Gipfelhöhe gegen 29 % der glatten Referenz —
+also im richtigen Bereich, ohne dass jemand etwas gesetzt hat.
 
-Ein Punkt nahe der Mitte der Verbindungsstrecke bricht diese Kante zuverlässig
-(jeder Kreis durch zwei Punkte enthält den Mittelpunkt ihrer Strecke, also gibt es
-dort keinen leeren Umkreis mehr).
+Ein **manueller Höhenpunkt** bleibt trotzdem sinnvoll, wenn ein Pass laut Quelle an
+einer bestimmten Stelle und Höhe liegt. Er ist dann Steuerung, nicht Notbehelf.
 
-**Der Pass gehört deshalb als innerer Höhenpunkt gesetzt**, nicht als Einbuchtung
-der Umrisslinie. Eine Kerbe im Umriss erzwingt Höhe ~0 *und* schneidet die
-Passstraße aus der Fläche heraus — sie verlöre damit den isotropen Gebirgsfaktor
-und zählte als offenes Land. Ein Pass ist aber der mühsamste Teil der Strecke.
+> ⚠️ **Nicht über die Umrisslinie lösen.** Eine Kerbe im Umriss würde die Passhöhe
+> auf ~0 zwingen *und* die Passstraße aus der Fläche herausschneiden — sie verlöre
+> damit den isotropen Gebirgsfaktor und zählte als offenes Land. Ein Pass ist aber
+> der mühsamste Teil der Strecke, nicht der leichteste.
 
 ## 5. Vorberechnung: Wege ↔ Flächen
 
@@ -189,24 +239,34 @@ eine benannte Stelle:
 
 ### 5.2 Das Profil ist exakt — keine Abtast-Schrittweite
 
-Innerhalb eines Dreiecks ist die Höhe affin, entlang einer Geraden also die
-Steigung **konstant**. Das Höhenprofil eines Wegs ist damit stückweise linear, und
-seine Knicke sind eine **endliche, exakt berechenbare Menge**:
+Das Feld ist glatt, das Profil eines Wegs also **stückweise glatt** — und die
+Stellen, an denen es *nicht* glatt ist, sind eine endliche, exakt berechenbare
+Menge. Die Zeit wird deshalb nicht abgetastet, sondern **stückweise integriert**
+(Gauß-Quadratur je Stück), mit Stützstellen an genau drei Sorten von Knicken:
 
 ```
-Knickpunkte = Schnitte mit Dreieckskanten  ∪  die Stützpunkte des Wegs selbst
+Knickpunkte =  Ein-/Austritte der Buckel-Trägerkreise
+            ∪  die Stützpunkte des Wegs selbst
+            ∪  die Knicke der Tempokurve
 ```
 
-> ⚠️ Der zweite Teil ist leicht zu vergessen und kostet gemessen **19 % des
-> Signals**: ein Knick der Polylinie *innerhalb* eines Dreiecks ist ein echter
-> Steigungswechsel, auch wenn dort keine Dreieckskante liegt.
+- **Trägerkreise:** `q²` ist quadratisch im Streckenparameter, ein Kreis schneidet
+  ein Segment also in den Nullstellen **einer** Quadratik. Endlich und geschlossen
+  lösbar — keine Suche, keine Toleranzschleife.
+- **Wegstützpunkte:** ein Knick der Polylinie ist ein echter Steigungswechsel.
+  Vergessen kostet gemessen **19 % des Signals**.
+- **Tempokurve:** Toblers `|S + 0,05|` knickt, und die Klemmen aus §5.3 knicken
+  ebenfalls. Nimmt man diese drei Stellen als Stützstellen mit, fällt der Fehler
+  auf **2,9e-10 bei 224 Feldauswertungen** für eine ganze Straße — naives Abtasten
+  braucht **9.765** Auswertungen für den schlechteren Wert 9,25e-8.
 
-Damit entfällt jede Abtastkonstante. Das ist nicht nur genauer, sondern billiger —
-und es beseitigt einen scharfen Fehlermodus: gemessen mit 0,8 Meilen Schrittweite
-kippt das **Vorzeichen der Asymmetrie** (−173 % Fehler), das Modell behauptet dann,
-die Gegenrichtung sei die schnellere. `1/rel(s)` ist konvex, gemitteltes Gefälle
-unterschätzt also systematisch (Jensen) — und dabei nicht einmal monoton, „die Zahl
-bewegt sich nicht mehr" ist als Konvergenztest wertlos.
+Damit entfällt jede Abtastkonstante. Das ist nicht nur genauer, sondern rund
+**vierzigmal billiger** — und es beseitigt einen scharfen Fehlermodus: gemessen mit
+0,8 Meilen Schrittweite kippt das **Vorzeichen der Asymmetrie** (−173 % Fehler),
+das Modell behauptet dann, die Gegenrichtung sei die schnellere. `1/rel(s)` ist
+konvex, gemitteltes Gefälle unterschätzt also systematisch (Jensen) — und dabei
+nicht einmal monoton, „die Zahl bewegt sich nicht mehr" ist als Konvergenztest
+wertlos.
 
 ### 5.3 Klemmen und Wächter
 
@@ -227,10 +287,11 @@ Drei Schichten:
 > (Faktor 0,865 bei 4 % Gefälle). Die Flussrichtung klemmt auf `[1,0 … 3,0]` —
 > diese Untergrenze hierher zu übernehmen würde die halbe Wirkung verschlucken.
 
-Und ein **`heightAt` ohne Treffer muss warnen, nicht 0 liefern.** Ein Loch im Netz
-wird sonst als Meereshöhe gelesen: mitten in einem 1.158-Schritt-Massiv sind das
-240 % Steigung, und **ein einziges Loch bläst eine saubere Querung um das 75-fache
-auf**.
+> ✅ **Ein Fehlermodus ist mit der Buckelsumme entfallen.** Beim Dreiecksnetz war
+> ein Loch in der Vernetzung tödlich: die Höhe wurde still als 0 gelesen, mitten in
+> einem Massiv also 240 % Steigung, und **ein einziges Loch blies eine saubere
+> Querung um das 75-fache auf**. Die Buckelsumme ist überall definiert — außerhalb
+> aller Trägerkreise ist 0 nicht ein Fehlschlag, sondern die richtige Antwort.
 
 ### 5.4 Die Kurve gehört den Editoren
 
@@ -349,11 +410,18 @@ vorgesehen — derselbe Kanal, den die Flussrichtung schon nutzt.
 
 - **Vorberechnung:** konkave Fläche mit Mehrfachdurchquerung (drei Intervalle),
   Weg beginnt innerhalb, Fläche mit Loch, Weg berührt eine Ecke tangential.
-- **Vernetzung:** Kamm, Stern und Spirale — **null** fehlende Zwangskanten, **null**
-  hinausragende Dreiecke, **null** unbedeckte Innenpunkte. Der Schwerpunktfilter
-  fällt hier durch (§4.1); der Test ist die Abnahme für das echte CDT.
-- **Knickpunkte:** Weg mit einem Stützpunkt *innerhalb* eines Dreiecks — das Profil
-  muss dort knicken (§5.2). Gegenprobe gegen ein sehr fein abgetastetes Profil.
+- **Randbedingung:** auf der Polygonkante muss die Höhe **exakt 0** sein, für Kamm,
+  Stern und Spirale. Folgt aus `r ≤ Randabstand` — der Test sichert, dass die
+  Radiusberechnung stimmt.
+- **Sattel:** zwei Gipfel, Höhe auf halbem Weg muss deutlich unter der Gipfelhöhe
+  liegen (Zielbereich ~30–40 %, §4.1.1) und die Hesse-Determinante dort negativ
+  sein. Fängt einen zu großen Gipfelradius.
+- **Wächter zu schmal:** ein 9.000-Schritt-Gipfel in einer zu engen Fläche muss die
+  Warnung aus §4.1.2 auslösen statt eine Steigung jenseits der Kurvengültigkeit.
+- **Parität:** dieselbe Buckelliste in JS und PHP ausgewertet, **bitgleich** — die
+  Reihenfolge der Liste darf dabei nicht verändert werden.
+- **Knickpunkte:** Weg mit einem Stützpunkt *innerhalb* eines Trägerkreises — das
+  Profil muss dort knicken (§5.2). Gegenprobe gegen ein sehr fein abgetastetes Profil.
 - **Einheiten:** eine Querung bekannter Höhe und Breite muss den analytisch
   berechenbaren Faktor liefern. Fängt einen schleichenden Faktor-3-Fehler (§5.0).
 - **Wächter:** doppelter Stützpunkt (`ds = 0`) darf kein NaN erzeugen; ein Loch im
@@ -371,10 +439,14 @@ vorgesehen — derselbe Kanal, den die Flussrichtung schon nutzt.
 ## 10. Offene Punkte
 
 - Konkrete Faktorwerte je Typ — **gehören den Editoren**, nicht diesem Dokument.
-- Ob ein Dreiecksnetz überhaupt das richtige Flächenmodell ist. Es ist stetig, aber
-  **nicht glatt** — die Steigung springt an jeder Dreieckskante, und die Steigung
-  ist genau das, was wir auswerten. Alternativen (Natural-Neighbour, inverse
-  Distanzgewichtung, Thin-Plate-Splines) werden gerade geprüft.
+- **Wie viele Buckel** der Gebirgskörper bekommt. Das ist wegen der Jensen-Steuer
+  (§4.1.3) kein Schönheitsregler: die Zahl bewegt den Faktor monoton und kann das
+  Vorzeichen der Asymmetrie kippen. Muss festgelegt und dokumentiert werden.
+- Wie mit **feindlichen Umrissen** umzugehen ist: auf einer Spirale tragen nur 54 %
+  der Innenfläche Höhe (auf einem realistischen Gebirge 92–93 %). Warnen, ablehnen
+  oder hinnehmen?
+- Ob `bodyFrac`/`kmaxBody` (Passhöhe, Zerklüftung) Editor-Regler werden oder feste
+  Konstanten bleiben.
 - Ausnahmenliste gegen Doppelzählung (`Gebirgspass`, `Wuestenpfad`, weitere?).
 - Ob Flächen ohne Wiki-Bezug im „Führt durch" auftauchen oder still bleiben.
 - Wann der Toggle vom Edit-Mode auf Standard umgestellt wird.

@@ -145,12 +145,22 @@ folgt der Aufwand der gezeichneten Geographie.
 | 3 | **Höhe** — Gebirge, Auf- und Abstieg | richtungsabhängig | Polygon + Höhenpunkte |
 | 4 | **Wind** — Seewege | richtungsabhängig | Polygon + Richtung + Stärke |
 
-**Schicht 3 im Detail.** Aus dem Polygon und seinen Höhenpunkten entsteht per
-**Constrained-Delaunay-Triangulation** ein Dreiecksnetz: die Polygonkanten sind
-Zwangskanten (nichts läuft aus der Fläche heraus, egal wie konkav sie ist), die
-Höhenpunkte gehen als innere Stützpunkte ein. Entlang eines Wegs wird das Netz
-abgetastet → Höhenprofil → Auf- und Abstieg. Beide Werte werden **in Zeichenrichtung
-des Wegs** gespeichert; fährt man rückwärts, tauschen sie.
+**Schicht 3 im Detail.** Das Höhenfeld ist eine **Summe kompakt getragener Buckel**
+— kein Dreiecksnetz, keine Triangulierung, keine Geometriebibliothek. Der Editor
+tippt **eine Zahl** (die Maximalhöhe aus dem Wiki); vorhandene `berggipfel`-Labels
+in der Fläche werden zu Gipfeln, ein Gebirgskörper füllt auf. Zwei Regeln tragen
+das Modell: der Radius jedes Buckels bleibt unter dem Randabstand (dadurch ist die
+Fußhöhe 0 exakt), und der Gipfelradius bleibt unter dem 1,118-fachen Gipfelabstand
+(dadurch entsteht zwischen zwei Gipfeln **beweisbar ein Sattel**).
+
+Entlang eines Wegs wird das Feld nicht abgetastet, sondern **stückweise
+integriert** → Höhenprofil → Auf- und Abstieg. Beide Werte werden **in
+Zeichenrichtung des Wegs** gespeichert; fährt man rückwärts, tauschen sie.
+
+*Gegen ein Dreiecksnetz spricht die Messung: dort liegt zwischen zwei Gipfeln ein
+**Grat** auf 96 % der Gipfelhöhe statt eines Passes — und das ist kein
+Delaunay-Problem, ein Thin-Plate-Spline ohne jede Triangulierung wölbt sich
+genauso. Details in `oekosystem-instruction.md` §4.1.1.*
 
 **Schicht 4 im Detail.** Kein glattes Vektorfeld zeichnen, sondern Zonen mit
 konstanter Windrichtung und -stärke. Die Kosten hängen vom Winkel zwischen
