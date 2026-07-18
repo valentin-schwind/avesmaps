@@ -160,7 +160,13 @@
 		}
 
 		var TOGGLES = { color: "colorOnly", official: "officialOnly", free: "freeOnly" };
-		existing.addEventListener("click", function (e) {
+		// Zuweisen statt addEventListener: buildControls laeuft bei JEDEM Oeffnen, `existing` ist aber das
+		// EINE Leisten-Element des einmal gebauten Overlays -- die Handler sammelten sich also an. Jeder haelt
+		// seinen eigenen filterState- und cards-Abschluss fest, der aelteste filtert damit auf laengst
+		// ersetzten Zeilen weiter. Sichtbar wurde es erst am Spoiler-Schalter, weil der seinen Zustand
+		// ehrlich aus dem DOM liest: zwei Handler = einschalten und sofort wieder aus, ab dem zweiten
+		// Oeffnen also ein toter Schalter (live gemessen 2026-07-18). Eine Zuweisung ersetzt den Vorgaenger.
+		existing.onclick = function (e) {
 			var chip = e.target.closest("[data-adv-filter]");
 			// Der Chip-Guard ist noetig, weil [data-adv-filter] AUCH die Jahresfelder traegt.
 			if (!chip || !chip.classList.contains("avesmaps-adv-tree__chip")) {
@@ -182,14 +188,14 @@
 			filterState[TOGGLES[kind]] = !filterState[TOGGLES[kind]];
 			chip.classList.toggle("is-active", filterState[TOGGLES[kind]]);
 			applyFilters();
-		});
-		// Zahlenfelder feuern 'input', nicht 'change' -> live mitfiltern.
-		existing.addEventListener("input", function (e) {
+		};
+		// Zahlenfelder feuern 'input', nicht 'change' -> live mitfiltern. Zuweisung aus demselben Grund.
+		existing.oninput = function (e) {
 			var el = e.target;
 			var kind = el && el.getAttribute ? el.getAttribute("data-adv-filter") : "";
 			if (kind === "yearFrom") { filterState.yearFrom = Number(el.value) || 0; applyFilters(); }
 			else if (kind === "yearTo") { filterState.yearTo = Number(el.value) || 0; applyFilters(); }
-		});
+		};
 
 		applyFilters();
 	}
