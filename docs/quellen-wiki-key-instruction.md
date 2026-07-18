@@ -183,6 +183,26 @@ Die Quelle, die dabei aus einem Abenteuer entsteht, trägt dessen **Wiki-Key und
 Shoplink. Genau das ist die Lücke aus Abschnitt 1, nur von der anderen Seite geschlossen: Was über diesen
 Weg entsteht, ist von Anfang an wiki-identifiziert.
 
+### Dritte Tür: „Änderung vorschlagen" (Community)
+
+Auch das Meldeformular bietet bei der Quellenangabe eine **Vorauswahl aus den vorhandenen Abenteuern**
+(und Karten) an, statt nur ein freies Feld (Owner 2026-07-18). Das ist die wirksamste Stelle überhaupt:
+Ein Vorschlag, der ein Werk aus unserem Katalog nennt, kommt **schon wiki-identifiziert** herein — statt
+als getippter Titel oder Shoplink, den später niemand mehr zuordnen kann. Genau so ist „Blutmond I"
+seinerzeit entstanden.
+
+⚠️ **Hier greift die Zuordnung NICHT sofort.** Ein Community-Vorschlag ist ein Vorschlag: Er trägt
+`origin='community'` und läuft über die bestehende Review, wie jede andere Meldung auch. Das „sofort" aus
+dem nächsten Absatz gilt für **Editoren**, die eine Berechtigung haben — nicht für anonyme Meldungen.
+Wer das verwechselt, macht aus einem Melde- ein Schreibrecht.
+
+Was der Vorschlag mitbringen soll, ist deshalb nicht die fertige Verbindung, sondern der **Wiki-Key des
+gemeinten Werks**. Der Editor in der Review bestätigt dann nur noch — und muss nicht raten, welches
+Abenteuer mit „Blutmond I" gemeint war.
+
+Freitext bleibt trotzdem möglich: Ein Werk, das wir nicht kennen, muss meldbar bleiben. Es entsteht dann
+wie bisher eine Quelle ohne Wiki-Key (Abschnitt 2, Punkt 4).
+
 **Die Zuordnung greift SOFORT** (Owner 2026-07-18) — kein Bestätigungsschritt, keine Warteschlange. Der
 Editor sieht unmittelbar, was seine Eingabe bewirkt hat, und das ist der Sinn der Sache.
 
