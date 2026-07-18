@@ -175,20 +175,22 @@ const multi = buildCityMapRowMarkup({
     { key: "link:11", label: "Fanprojekt", url: "https://example.org/fan", is_paid: null, state: "alive" },
   ],
 });
-// Der Linktext nennt die FUNDSTELLE, nicht eine Nummer: "#1 Link zur Karte" sagt dem Leser nichts.
-assert.ok(multi.includes("Al&#039;Anfa und der tiefe Süden") && multi.includes("Wiki-Aventurica") && multi.includes("Fanprojekt"),
-  "jede Fundstelle steht mit ihrem Namen da");
+// "ja" (Owner 2026-07-18): a known source is named by its SOURCE (the Ulisses-shop link shows as
+// "Ulisses eBook", not the band name the editor typed); an unknown host keeps its own name (Fanprojekt).
+assert.ok(multi.includes("Ulisses eBook") && multi.includes("Wiki Aventurica") && multi.includes("Fanprojekt"),
+  "known sources named by source, unknown host keeps its name");
+assert.ok(!multi.includes("Al&#039;Anfa und der tiefe Süden"), "the editor's band name gave way to the Ulisses source label");
 assert.ok(!multi.includes("#1") && !multi.includes("#2"), "keine Nummerierung");
-// „(kostenpflichtig)" haengt am LINK und NUR am bezahlten. Genau EIN Vorkommen: nicht am freien, und
-// nicht am unbekannten -- „unbekannt" ist eine gueltige Antwort, nie ein erfundenes „frei" (§3.1).
-assert.strictEqual(multi.split("(kostenpflichtig)").length - 1, 1, "genau der bezahlte Link traegt den Zusatz");
-assert.ok(multi.indexOf("(kostenpflichtig)") > multi.indexOf("Al&#039;Anfa und der tiefe Süden"),
+// "kostenpflichtig" hangs on the paid shop link only. Exactly one: the Ulisses e-book (a shop by host),
+// not the free wiki, not the unknown host (is_paid null is not a claimed "free", §3.1).
+assert.strictEqual(multi.split("kostenpflichtig").length - 1, 1, "genau der bezahlte Shop-Link traegt den Zusatz");
+assert.ok(multi.indexOf("kostenpflichtig") > multi.indexOf("Ulisses eBook"),
   "…und zwar HINTER seinem eigenen Link");
-assert.ok(multi.indexOf("(kostenpflichtig)") < multi.indexOf("Wiki-Aventurica"),
+assert.ok(multi.indexOf("kostenpflichtig") < multi.indexOf("Wiki Aventurica"),
   "…vor dem naechsten, also nicht am freien Link");
-// Der Zusatz ist ein <span>, kein <a>: features/links.css faerbt jeden a[target=_blank] per !important,
-// eine eigene Farbregel auf einem Anchor waere wirkungslos gewesen.
-assert.ok(multi.includes('<span class="avesmaps-adv-row__linkpaid">(kostenpflichtig)</span>'));
+// The combined "(status, kostenpflichtig)" note lives in the shared linkmeta span: a neutral bracket +
+// comma, only the status WORD coloured. (Two separate spans before 2026-07-18.)
+assert.ok(multi.includes("avesmaps-adv-row__linkmeta"));
 
 // EIN Link ohne is_paid rendert exakt wie vorher -- keine Liste, kein Zusatz fuer ein Element.
 const single = buildCityMapRowMarkup({
@@ -319,7 +321,7 @@ assert.ok(newRow.includes("Herz des Reiches"), "der Band ist die Ueberschrift");
 assert.ok(newRow.includes("schwarzweiß"), "die Ausfuehrung steht in der Titelzeile");
 assert.ok(!newRow.includes(">Stadtplan von Gareth (Herz des Reiches)<"), "der Formel-Titel wird nicht mehr als Text gedruckt");
 assert.ok(!newRow.includes("citymap-row__linkshead"), "die Zeilen-Ueberschrift 'Zu finden bei' ist weg");
-assert.ok(!newRow.includes("(online)"), "(online) ist Linkchecker-Status und gehoert nicht auf die Leserflaeche");
+assert.ok(newRow.includes("online") && newRow.includes("link-status--online"), "der Erreichbarkeits-Status wird jetzt AUCH bei Karten gezeigt (Owner 2026-07-18)");
 assert.ok(newRow.includes('data-public-id="m1"'), "das data-Attribut-Set bleibt -- der Filter liest es");
 assert.ok(newRow.includes("avesmaps-citymaps__card"), "die geteilten Filter-/Spoiler-Handler zielen auf diese Klasse");
 
@@ -328,10 +330,10 @@ assert.ok(buildCityMapRowMarkup({ public_id: "m2", title: "T" }).includes("keine
 // Ohne jede Angabe traegt die aufgeklappte Zeile trotzdem eine Aussage.
 assert.ok(buildCityMapRowMarkup({ public_id: "m3", title: "T" }).includes("Keine weiteren Angaben erfasst"));
 
-// ---- advRowLinkMarkup: der Abenteuerdialog darf sich NICHT mitaendern -------------------------------
+// ---- advRowLinkMarkup: default shows the reachability status; showStatus:false suppresses it ---------
 const advLink = { url: "https://example.org/a", label: "F-Shop", state: "online", is_paid: null };
-assert.ok(advRowLinkMarkup(advLink).includes("(online)"), "Default unveraendert -- die Abenteuer behalten ihren Status-Marker");
-assert.ok(!advRowLinkMarkup(advLink, { showStatus: false }).includes("(online)"));
+assert.ok(advRowLinkMarkup(advLink).includes("online") && advRowLinkMarkup(advLink).includes("link-status--online"), "default shows the coloured status word");
+assert.ok(!advRowLinkMarkup(advLink, { showStatus: false }).includes("link-status--online"), "showStatus:false drops the status word");
 
 console.log("citymap row ok");
 

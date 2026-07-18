@@ -509,10 +509,14 @@
 /* „(kostenpflichtig)" hinter EINEM Link (Mehrfachlink-Spec §3). Gedaempft: es ist die Bedingung des Wegs,
    nicht sein Name -- der Link bleibt das, was man liest. Ein <span>, kein <a>, deshalb greift die
    !important-Regel aus features/links.css hier nicht (siehe Hinweis darunter). */
-.avesmaps-adv-row__linkpaid {
+/* The combined status/paywall note "(online, kostenpflichtig)": neutral bracket + comma; only the status
+   WORD inside is coloured (via .link-status--online / --dead / --unchecked). An annotation, so a touch
+   smaller and never the thing that widens the row. */
+.avesmaps-adv-row__linkmeta {
 	margin-left: var(--space-4);
 	color: var(--color-text-muted);
 	white-space: nowrap;
+	font-size: 0.85em;
 }
 /* Bewusst OHNE eigene Farb-/Unterstreichungsregel: features/links.css faerbt jeden externen Link
    (a[target="_blank"]) per !important einheitlich gold-braun, und link-status.css zeichnet den toten

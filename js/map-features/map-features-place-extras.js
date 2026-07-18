@@ -481,11 +481,12 @@ function buildCityMapRowMarkup(m) {
 		+ (facts.length ? placeExtrasEscape(facts.join(" · ")) : placeExtrasEscape(tr("cityMaps.noFacts", "Keine weiteren Angaben erfasst.")))
 		+ '</div>';
 
-	// KEIN Status-Marker: (online) ist Linkchecker-Info, also Redakteurswissen auf einer Leserflaeche.
-	// Der Abenteuerdialog teilt sich advRowLinkMarkup und behaelt seinen Marker (Default).
+	// Same link line as the adventure dialog now (Owner 2026-07-18): source-named labels, shared order,
+	// and the reachability marker IS shown -- "(online)"/"(offline)" is useful reader info, not just
+	// editor knowledge. advNormalizeLinks derives label/order/paywall from each URL's host.
 	var linksMarkup = (m.links && m.links.length)
-		? '<ul class="avesmaps-adv-row__links">' + m.links.map(function (link) {
-			return advRowLinkMarkup(link, { showStatus: false });
+		? '<ul class="avesmaps-adv-row__links">' + advNormalizeLinks(m.links).map(function (link) {
+			return advRowLinkMarkup(link);
 		}).join("") + '</ul>'
 		: '<span class="avesmaps-citymap-row__nolink">' + placeExtrasEscape(tr("cityMaps.noLink", "keine Fundstelle")) + '</span>';
 
@@ -524,9 +525,53 @@ function buildCityMapRowMarkup(m) {
 // linkchecker probes, and only its entries carry the checked `state` and the curated extras (§2.4).
 // An EMPTY array is an answer ("this adventure has no identifiable link"), not a miss -- only a MISSING
 // list falls through to the builder below, which is the placeholder path on a box without a backend.
+// A link's TYPE -> display label + paywall flag + sort rank, so maps and adventures name AND order their
+// links identically (Owner 2026-07-18). The type is known by KEY where the payload sets one (adventures:
+// ulisses/fshop/wiki/dnb) and otherwise by the URL host (maps: the map_url points at the wiki, F-Shop or
+// Ulisses). Ulisses e-book + F-Shop are paid; wiki + DNB are free. Anything unrecognised (a curated extra,
+// a community link) keeps its given label, sorts last, and honours a manual is_paid.
+function advLinkMeta(link) {
+	var key = String((link && link.key) || "").toLowerCase();
+	var u = String((link && link.url) || "");
+	if (key === "ulisses" || /ulisses-ebooks\.de/i.test(u)) { return { label: "Ulisses eBook", paid: true, rank: 1 }; }
+	if (key === "fshop" || /f-shop\.de/i.test(u)) { return { label: "F-Shop", paid: true, rank: 2 }; }
+	if (key === "wiki" || /wiki-aventurica\.de/i.test(u)) { return { label: "Wiki Aventurica", paid: false, rank: 3 }; }
+	if (key === "dnb" || /portal\.dnb\.de/i.test(u)) { return { label: "Dt. Nationalbibliothek", paid: false, rank: 4 }; }
+	return { label: ((link && link.label && String(link.label).trim())) || "Link", paid: (link && link.is_paid === true), rank: 5 };
+}
+
+// Normalise a link list (from EITHER dialog) to the shared shape: label + paywall by type, the linkchecker
+// `state` kept, sorted by rank. A curated extra keeps its own key so the linkchecker still tracks it.
+function advNormalizeLinks(links) {
+	var out = (links || []).map(function (link) {
+		var info = advLinkMeta(link);
+		return {
+			key: link.key || info.label,
+			label: info.label,
+			url: link.url,
+			state: link.state,
+			is_paid: info.paid,
+			rank: info.rank,
+		};
+	});
+	out.sort(function (a, b) { return a.rank - b.rank; });
+	return out;
+}
+
+// The reachability WORD + its colour class for the combined "(online, …)" note -- the word alone (no
+// parentheses), so status and paywall share ONE bracket. Same states as avesmapsLinkStatusMarkup
+// (js/app/link-status.js): online = green, dead = red, unchecked = neutral. null when unknown/empty.
+function advLinkStatusWord(state) {
+	var s = String(state == null ? "" : state).trim();
+	if (s === "online") { return { word: tr("linkStatus.onlineWord", "online"), cls: "link-status--online" }; }
+	if (s === "dead") { return { word: tr("linkStatus.offlineWord", "offline"), cls: "link-status--dead" }; }
+	if (s === "unchecked") { return { word: tr("linkStatus.uncheckedWord", "ungeprüft"), cls: "link-status--unchecked" }; }
+	return null;
+}
+
 function advShopLinks(a) {
 	if (a && Array.isArray(a.links)) {
-		return a.links;
+		return advNormalizeLinks(a.links);
 	}
 	var links = [];
 	var ulisses = (a && a.linkUlisses && String(a.linkUlisses).trim()) || "";
@@ -539,7 +584,7 @@ function advShopLinks(a) {
 	if (wikiUrl) { links.push({ key: "wiki", label: "Wiki Aventurica", url: wikiUrl }); }
 	var dnbQuery = isbn || title;
 	if (dnbQuery) { links.push({ key: "dnb", label: "Dt. Nationalbibliothek", url: "https://portal.dnb.de/opac/simpleSearch?query=" + encodeURIComponent(dnbQuery) }); }
-	return links;
+	return advNormalizeLinks(links);
 }
 // The single best link (highest available priority) the cover click opens. null only when nothing is known.
 function advBestLink(a) {
@@ -608,16 +653,19 @@ function advCardDataAttributes(a, isPlay) {
 function advRowLinkMarkup(link, opts) {
 	var deadClass = (typeof avesmapsLinkStatusLinkClass === "function") ? avesmapsLinkStatusLinkClass(link.state) : "";
 	var showStatus = !opts || opts.showStatus !== false;
-	var marker = (showStatus && typeof avesmapsLinkStatusMarkup === "function") ? avesmapsLinkStatusMarkup(link.state) : "";
-	var paid = link.is_paid === true
-		? '<span class="avesmaps-adv-row__linkpaid">' + placeExtrasEscape(tr("cityMaps.link.paid", "(kostenpflichtig)")) + '</span>'
-		: "";
+	// Reachability WORD (coloured: online=green, offline=red, ungeprüft=neutral) + "kostenpflichtig"
+	// (neutral) share ONE bracket: "(online, kostenpflichtig)". The brackets/comma inherit the neutral
+	// meta colour; only the status word is coloured.
+	var parts = [];
+	var status = showStatus ? advLinkStatusWord(link.state) : null;
+	if (status) { parts.push('<span class="' + status.cls + '">' + placeExtrasEscape(status.word) + '</span>'); }
+	if (link.is_paid === true) { parts.push(placeExtrasEscape(tr("cityMaps.link.paidWord", "kostenpflichtig"))); }
+	var meta = parts.length ? ' <span class="avesmaps-adv-row__linkmeta">(' + parts.join(", ") + ')</span>' : "";
 	return '<li class="avesmaps-adv-row__linkitem">'
 		+ '<a class="avesmaps-adv-row__link' + deadClass + '" href="' + placeExtrasEscape(link.url) + '"'
 		+ ' target="_blank" rel="noopener" title="' + placeExtrasEscape(link.url) + '">'
 		+ placeExtrasEscape(link.label) + ' ↗</a>'
-		+ paid
-		+ marker
+		+ meta
 		+ '</li>';
 }
 

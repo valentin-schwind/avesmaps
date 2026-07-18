@@ -82,11 +82,14 @@ assert.ok(row.includes("Im Namen des Thearchen"), "row shows the containing prod
 // Left column: the cover is the PRIMARY link (unchanged from the card) -- not the wiki page.
 assert.ok(row.includes('href="https://ulisses/1"'), "cover opens the highest-priority link");
 
-// Right column: every link with its own marker.
+// Right column: every link with its combined "(status, kostenpflichtig)" note. The status word is
+// coloured (online=green, offline=red, ungeprüft=neutral); paid shops add "kostenpflichtig" in the
+// SAME bracket.
 assert.ok(row.includes("Ulisses eBook") && row.includes("Wiki Aventurica") && row.includes("Rezension"), "all links listed");
-assert.ok(row.includes("(online)"), "online marker");
-assert.ok(row.includes("(noch nicht geprüft)"), "unchecked marker");
-assert.ok(row.includes("(nicht mehr erreichbar)"), "dead marker");
+assert.ok(row.includes("online") && row.includes("link-status--online"), "online marker is the green word");
+assert.ok(row.includes("ungeprüft") && row.includes("link-status--unchecked"), "unchecked marker is the neutral word");
+assert.ok(row.includes("offline") && row.includes("link-status--dead"), "offline marker is the red word");
+assert.ok(row.includes("kostenpflichtig") && row.includes("avesmaps-adv-row__linkmeta"), "the paid shop link shows kostenpflichtig in the shared bracket");
 // A dead link stays clickable but must read as dead.
 assert.ok(row.includes('href="https://example.org/r"'), "dead link stays clickable");
 assert.ok(row.includes("link-status-dead-target"), "dead link carries the struck-through class");
@@ -103,7 +106,7 @@ assert.ok(row.includes('data-complexity="mittel"'), "data-complexity");
 // An adventure with no links at all: still a valid row (title + meta), just no link column entries.
 const bare = buildAdventureRowMarkup({ public_id: "adv-2", title: "Ohne Links", links: [] });
 assert.ok(bare.includes("Ohne Links"), "bare row still renders");
-assert.ok(!bare.includes("(online)"), "bare row has no markers");
+assert.ok(!bare.includes("link-status--online") && !bare.includes("avesmaps-adv-row__linkmeta"), "bare row has no link markers");
 
 // Spoiler role: a "spielt hier" row is marked exactly like a card, so .is-play/.show-play keep working.
 const playRow = buildAdventureRowMarkup({ public_id: "adv-3", title: "P", links: [] }, true);
