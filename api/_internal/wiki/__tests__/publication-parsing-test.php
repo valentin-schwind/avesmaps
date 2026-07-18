@@ -128,3 +128,25 @@ $u = avesmapsWikiBuildPublicationUrl(null, 'NUMMER'); assert($u['chosen_url'] ==
 $u = avesmapsWikiBuildPublicationUrl('NUMMER', '109956'); assert($u['chosen_url'] === 'https://www.ulisses-ebooks.de/de/product/109956/' && $u['has_link'] === true); // bad F-Shop placeholder falls through to a valid PDF-Shop id
 $u = avesmapsWikiBuildPublicationUrl('PID', null); assert($u['has_link'] === false); // another common digit-less placeholder
 echo "url ok\n";
+
+// --- Untertitel: the display title must not be SHORTER than the page name ---------------------
+// Discord case #33 (Alcor, Nordhag in Weiden): the source read "Aventurien" instead of
+// "Aventurien - Das Lexikon des Schwarzen Auges". Measured on the real page (action=raw,
+// 2026-07-18): {{Infobox Produkt}} splits that book into |Titel=Aventurien +
+// |Untertitel=Das Lexikon des Schwarzen Auges, and we only ever read |Titel -- so the catalog
+// label collapsed to the generic region name "Aventurien". Fix: when the PAGE NAME is exactly
+// that pair joined, the wiki itself treats the subtitle as part of the name -> use the page name.
+$lex = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Aventurien\n|Untertitel=Das Lexikon des Schwarzen Auges\n|Art=Spielhilfe\n}}");
+assert($lex !== null && $lex['subtitle'] === 'Das Lexikon des Schwarzen Auges');
+assert(avesmapsWikiPublicationDisplayTitle('Aventurien - Das Lexikon des Schwarzen Auges', 'Aventurien', 'Das Lexikon des Schwarzen Auges') === 'Aventurien - Das Lexikon des Schwarzen Auges');
+// Separator-tolerant: the wiki writes en/em dashes and colons in page names too.
+assert(avesmapsWikiPublicationDisplayTitle('Aventurien – Das Lexikon des Schwarzen Auges', 'Aventurien', 'Das Lexikon des Schwarzen Auges') === 'Aventurien – Das Lexikon des Schwarzen Auges');
+// A DESCRIPTIVE subtitle is NOT part of the page name and must stay out of the label -- measured
+// on real pages: Aventurischer Atlas/"Das Aventurische Kartenwerk", Hallen aus Gold/"Brandans
+// Pakt III", Schild des Reiches/"Weiden, Weiss-Tobrien, ...". Appending those would rewrite the
+// label of every such publication for no reason.
+assert(avesmapsWikiPublicationDisplayTitle('Aventurischer Atlas', 'Aventurischer Atlas', 'Das Aventurische Kartenwerk') === 'Aventurischer Atlas');
+assert(avesmapsWikiPublicationDisplayTitle('Hallen aus Gold', 'Hallen aus Gold', 'Brandans Pakt III') === 'Hallen aus Gold');
+assert(avesmapsWikiPublicationDisplayTitle('Das Herzogtum Weiden', 'Das Herzogtum Weiden', '') === 'Das Herzogtum Weiden'); // no subtitle -> unchanged
+assert(avesmapsWikiPublicationDisplayTitle('Die Flusslande', '', '') === 'Die Flusslande');                                 // no |Titel -> page name (existing fallback)
+echo "display title ok\n";

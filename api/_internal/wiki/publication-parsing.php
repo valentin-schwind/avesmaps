@@ -255,6 +255,35 @@ function avesmapsWikiParseProductCoverFile(string $bild, string $cover): string 
 // for pages with no infobox or a genuinely different infobox type.
 // f_shop_pid/pdf_shop_id are not direct template params -- they're regexed out of the
 // Direktlinks/Download param values ({{F-Shop|PID=…}} / {{PDF-Shop|ID=…}}).
+// Choose the label a publication is DISPLAYED under. Normally that is the infobox |Titel. But some
+// products split their NAME across |Titel + |Untertitel: the real page "Aventurien - Das Lexikon des
+// Schwarzen Auges" carries |Titel=Aventurien + |Untertitel=Das Lexikon des Schwarzen Auges (measured
+// via action=raw, 2026-07-18), and |Titel alone then names a DIFFERENT, far more generic thing -- the
+// continent -- which is what Discord case #33 reported at Nordhag: the source read just "Aventurien".
+// When the PAGE NAME is exactly "<Titel><separator><Untertitel>", the wiki itself treats the subtitle
+// as part of the name, so the page name is the honest label. A merely DESCRIPTIVE subtitle does NOT
+// match the page name and is deliberately dropped (Aventurischer Atlas / "Das Aventurische Kartenwerk",
+// Hallen aus Gold / "Brandans Pakt III") -- appending those would rewrite many labels for no reason.
+// Separators are folded (hyphen, en/em dash, colon) because the wiki mixes them.
+function avesmapsWikiPublicationDisplayTitle(string $pageTitle, string $title, string $subtitle): string {
+    $pageTitle = trim($pageTitle);
+    $title = trim($title);
+    $subtitle = trim($subtitle);
+    if ($title === '') {
+        return $pageTitle; // no |Titel -> the page name is all we have
+    }
+    if ($subtitle === '' || $pageTitle === '') {
+        return $title;
+    }
+    $fold = static function (string $text): string {
+        $text = preg_replace('/[\x{2010}-\x{2015}:]/u', '-', $text) ?? $text;
+        $text = preg_replace('/\s*-\s*/u', ' - ', $text) ?? $text;
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+        return mb_strtolower(trim($text), 'UTF-8');
+    };
+
+    return $fold($pageTitle) === $fold($title . ' - ' . $subtitle) ? $pageTitle : $title;
+}
 function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
     $block = avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext);
     $infoboxKey = avesmapsWikiSyncMonitorFieldKey(avesmapsWikiSyncMonitorInfoboxName($block));
@@ -265,6 +294,9 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
 
     $title = trim((string) ($params['Titel'] ?? ''));
     $art = trim((string) ($params['Art'] ?? ''));
+    // Part of the NAME on some pages, merely descriptive on others -- see
+    // avesmapsWikiPublicationDisplayTitle(), which is what decides between the two.
+    $subtitle = trim((string) ($params['Untertitel'] ?? ''));
     $isbn = trim((string) ($params['ISBN'] ?? ''));
     $unterkategorie = trim((string) ($params['Unterkategorie'] ?? ''));
     // The wiki renders this param as the "Erschienen bei" row. It is a WIKILINK ("[[Fanpro]]") and may
@@ -307,6 +339,7 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
 
     return [
         'title' => $title,
+        'subtitle' => $subtitle,
         'art' => $art,
         'source_type' => avesmapsWikiMapArtToSourceType($art, $unterkategorie),
         'isbn' => $isbn,

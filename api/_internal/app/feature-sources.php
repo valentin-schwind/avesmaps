@@ -151,7 +151,13 @@ function avesmapsReadFeatureSourcesByEntityType(PDO $pdo, string $entityType): a
     return $byEntity;
 }
 
-function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = ''): int
+// $refreshLabel: opt-in, used ONLY by the wiki-publication reconcile. The default keeps the
+// historic write-once behaviour (a label is only filled when empty). The wiki catalog OWNS the
+// canonical label of the rows it creates, so a corrected wiki title must be able to replace a
+// stale one -- without it, a fixed catalog title never reaches the live row (Discord case #33:
+// "Aventurien" stayed put instead of becoming "Aventurien - Das Lexikon des Schwarzen Auges").
+// An EMPTY new label never overwrites a filled one, so a refresh can only ever add information.
+function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, string $type, bool $official, int $userId, string $wikiKey = '', bool $refreshLabel = false): int
 {
     $allowed = ['regionalspielhilfe', 'abenteuer', 'aventurischer_bote', 'quellenband', 'roman', 'briefspiel', 'regelbuch', 'sonstiges'];
     $type = in_array($type, $allowed, true) ? $type : 'sonstiges';
@@ -160,8 +166,9 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
     $pdo->prepare(
         "INSERT INTO sources (url, url_hash, label, source_type, is_official, created_by)
          VALUES (:u, :h, :l, :t, :o, :cb)
-         ON DUPLICATE KEY UPDATE label = IF(label = '', VALUES(label), label),
-                                 is_official = VALUES(is_official)"
+         ON DUPLICATE KEY UPDATE
+             label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
+             is_official = VALUES(is_official)"
     )->execute(['u' => $url, 'h' => $hash, 'l' => $label, 't' => $type, 'o' => $official ? 1 : 0, 'cb' => $userId > 0 ? $userId : null]);
     return (int) $pdo->query('SELECT id FROM sources WHERE url_hash = ' . $pdo->quote($hash))->fetchColumn();
 }

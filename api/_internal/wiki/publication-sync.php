@@ -472,10 +472,11 @@ function avesmapsPublicationBuildCatalogStep(PDO $pdo, string $dumpPath, int $cu
                 $pageTitle = (string) ($page['title'] ?? '');
                 $wikiKey = avesmapsPublicationCatalogWikiKeyForTitle($pageTitle);
                 if ($wikiKey !== '') {
-                    $displayTitle = trim((string) ($info['title'] ?? ''));
-                    if ($displayTitle === '') {
-                        $displayTitle = $pageTitle;
-                    }
+                    $displayTitle = avesmapsWikiPublicationDisplayTitle(
+                        $pageTitle,
+                        (string) ($info['title'] ?? ''),
+                        (string) ($info['subtitle'] ?? '')
+                    );
                     $url = avesmapsWikiBuildPublicationUrl($info['f_shop_pid'] ?? null, $info['pdf_shop_id'] ?? null);
                     $upsert->execute([
                         'wiki_key' => $wikiKey,
@@ -642,7 +643,8 @@ function avesmapsPublicationDesiredLinksForEntity(PDO $pdo, string $entityType, 
             (string) ($row['source_type'] ?? 'sonstiges'),
             true, // a wiki publication is an official source
             $userId,
-            (string) ($row['publication_wiki_key'] ?? '') // URL-less identity fallback (has_link=0)
+            (string) ($row['publication_wiki_key'] ?? ''), // URL-less identity fallback (has_link=0)
+            true // the wiki catalog owns this label -- refresh it so title corrections land
         );
         if ($sourceId > 0) {
             $desired[] = [
