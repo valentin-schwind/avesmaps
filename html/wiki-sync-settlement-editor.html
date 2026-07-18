@@ -2175,7 +2175,7 @@ async function handleSeLinkCheckClick() {
 			if (infoEl) infoEl.textContent = text;
 		});
 		if (infoEl && result && result.status) {
-			infoEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} ungeprüft`;
+			infoEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} unbekannt`;
 		}
 	} catch (error) {
 		setStatusText("Linkprüfung fehlgeschlagen: " + (error && error.message ? error.message : String(error)));

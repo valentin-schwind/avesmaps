@@ -579,7 +579,11 @@ function advLinkStatusWord(state) {
 	var s = String(state == null ? "" : state).trim();
 	if (s === "online") { return { word: tr("linkStatus.onlineWord", "online"), cls: "link-status--online" }; }
 	if (s === "dead") { return { word: tr("linkStatus.offlineWord", "offline"), cls: "link-status--dead" }; }
-	if (s === "unchecked") { return { word: tr("linkStatus.uncheckedWord", "ungeprüft"), cls: "link-status--unchecked" }; }
+	// "unbekannt", nicht "ungeprüft" (Owner 2026-07-18): der Zustand deckt ZWEI Faelle ab -- nie geprueft,
+	// UND geprueft-aber-abgewiesen (401/403, s. state.php). "Ungeprueft" schoebe uns zu, was die Gegenstelle
+	// tut. Der Zustandsschluessel + die CSS-Klasse bleiben `unchecked`: die benennen den GESPEICHERTEN
+	// Zustand (API-Vertrag), nicht die Anzeige.
+	if (s === "unchecked") { return { word: tr("linkStatus.unknownWord", "Status unbekannt"), cls: "link-status--unchecked" }; }
 	return null;
 }
 
@@ -667,7 +671,7 @@ function advCardDataAttributes(a, isPlay) {
 function advRowLinkMarkup(link, opts) {
 	var deadClass = (typeof avesmapsLinkStatusLinkClass === "function") ? avesmapsLinkStatusLinkClass(link.state) : "";
 	var showStatus = !opts || opts.showStatus !== false;
-	// Reachability WORD (coloured: online=green, offline=red, ungeprüft=neutral) + "kostenpflichtig"
+	// Reachability WORD (coloured: online=green, offline=red, "Status unbekannt"=neutral) + "kostenpflichtig"
 	// (neutral) share ONE bracket: "(online, kostenpflichtig)". The brackets/comma inherit the neutral
 	// meta colour; only the status word is coloured.
 	var parts = [];

@@ -83,11 +83,12 @@ assert.ok(row.includes("Im Namen des Thearchen"), "row shows the containing prod
 assert.ok(row.includes('href="https://ulisses/1"'), "cover opens the highest-priority link");
 
 // Right column: every link with its combined "(status, kostenpflichtig)" note. The status word is
-// coloured (online=green, offline=red, ungeprüft=neutral); paid shops add "kostenpflichtig" in the
-// SAME bracket.
+// coloured (online=green, offline=red, "Status unbekannt"=neutral); paid shops add "kostenpflichtig" in
+// the SAME bracket. The neutral word is deliberately NOT "ungeprüft" (Owner 2026-07-18): the state also
+// covers links we probed and were refused on (401/403), which is not our omission -- see link-status.js.
 assert.ok(row.includes("Ulisses eBook") && row.includes("Wiki Aventurica") && row.includes("Rezension"), "all links listed");
 assert.ok(row.includes("online") && row.includes("link-status--online"), "online marker is the green word");
-assert.ok(row.includes("ungeprüft") && row.includes("link-status--unchecked"), "unchecked marker is the neutral word");
+assert.ok(row.includes("Status unbekannt") && row.includes("link-status--unchecked"), "unchecked marker is the neutral word");
 assert.ok(row.includes("offline") && row.includes("link-status--dead"), "offline marker is the red word");
 assert.ok(row.includes("kostenpflichtig") && row.includes("avesmaps-adv-row__linkmeta"), "the paid shop link shows kostenpflichtig in the shared bracket");
 // A dead link stays clickable but must read as dead.

@@ -602,7 +602,9 @@ window.AVESMAPS_I18N_EN = {
 	// --- link status (linkchecker) ---
 	"linkStatus.online": "(online)",
 	"linkStatus.dead": "(no longer reachable)",
-	"linkStatus.unchecked": "(not checked yet)",
+	// "unknown", not "not checked": the state also covers links we DID probe but were refused (401/403).
+	"linkStatus.unknown": "(status unknown)",
+	"linkStatus.unknownWord": "status unknown",
 
 	// --- routing alerts ---
 	"routing.alert.unknownRequest": "unknown request",

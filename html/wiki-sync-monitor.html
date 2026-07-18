@@ -1126,7 +1126,7 @@ $('btnLinkCheck').onclick = async()=>{
     });
     if(result && result.status){
       $('stLinkCheck').textContent = `${result.status.online} ok · ${result.status.dead} tot`;
-      setStatus(`Linkprüfung (Quellen der Herrschaftsgebiete) fertig: ${result.status.online} online, ${result.status.dead} tot, ${result.status.unchecked} ungeprüft.`);
+      setStatus(`Linkprüfung (Quellen der Herrschaftsgebiete) fertig: ${result.status.online} online, ${result.status.dead} tot, ${result.status.unchecked} unbekannt.`);
     }
   }catch(e){
     setStatus('Linkprüfung fehlgeschlagen: '+(e && e.message ? e.message : String(e)));

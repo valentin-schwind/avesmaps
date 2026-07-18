@@ -4,11 +4,16 @@
 // The state travels inside the payload that carries the link (adventures.php / citymaps.php), or can be
 // fetched for arbitrary hashes via GET api/app/link-status.php.
 //
-// Three visible states (Spec §1.3) -- "unchecked" is shown rather than hidden, on the owner's explicit
+// Three visible states (Spec §1.3) -- the third is shown rather than hidden, on the owner's explicit
 // call: a link nobody has verified yet must not look the same as one we know is fine.
 //   online    -> "(online)"                 green; the last check was a 2xx
-//   dead      -> "(nicht mehr erreichbar)"  grey; a definitive 404/410/403/401, or three failures in a row
-//   unchecked -> "(noch nicht geprüft)"     grey; registered but never successfully judged
+//   dead      -> "(nicht mehr erreichbar)"  grey; a definitive 404/410, or three failures in a row
+//   unchecked -> "(Status unbekannt)"       grey; we have no finding for it
+//
+// The LABEL says "unbekannt", not "ungeprüft" (Owner 2026-07-18): the state covers two different things --
+// never probed yet, AND probed but refused (401/403, see state.php). Calling the second one "ungeprüft"
+// blames us for something the far side did. "Unbekannt" is true for both. The state key and the CSS class
+// stay `unchecked` on purpose: they name the STORED state (API contract), not the wording.
 //
 // Anything else (empty/unknown) renders nothing -- that is not a state, it is missing data.
 //
@@ -27,7 +32,7 @@ function avesmapsLinkStatusMarkup(state) {
 	}
 	if (normalized === "unchecked") {
 		return ' <span class="link-status link-status--unchecked">'
-			+ tr("linkStatus.unchecked", "(noch nicht geprüft)") + '</span>';
+			+ tr("linkStatus.unknown", "(Status unbekannt)") + '</span>';
 	}
 	return "";
 }

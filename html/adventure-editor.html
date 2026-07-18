@@ -1336,7 +1336,7 @@
         if (statusEl) statusEl.textContent = text;
       });
       if (statusEl && result && result.status) {
-        statusEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} ungeprüft`;
+        statusEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} unbekannt`;
       }
     } catch (e) {
       if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
