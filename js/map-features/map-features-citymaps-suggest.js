@@ -63,7 +63,7 @@
 	var TRI = [["", "unbekannt"], ["1", "ja"], ["0", "nein"]];
 	var PROPS = [
 		["is_color", "farbig"], ["is_multilevel", "mehrstöckig"], ["is_labeled", "beschriftet (Legende)"],
-		["is_official", "offiziell"], ["is_spoiler", "Spoiler"],
+		["is_official", "offiziell"], ["is_spoiler", "Spoiler (aufgedeckte Inhalte)"],
 		// "kostenpflichtig" darf der Melder mitschicken -- anders als eine Lizenz schaltet es nichts frei,
 		// es ist eine schlichte Beobachtung ("das kostet was"), die er beim Blick auf die Shop-Seite hat.
 		["is_paid", "kostenpflichtig"],

@@ -495,7 +495,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.fallbackTerritory": "this territory",
 	"cityMaps.fallbackRegion": "this region",
 	"cityMaps.fallbackPath": "this path",
-	"cityMaps.spoilerReveal": "Spoiler — reveal",
+	"cityMaps.spoilerReveal": "Spoiler (revealed content) — reveal",
 	"cityMaps.noneMatch": "No map matches these filters.",
 	"cityMaps.footHint": "Maps are external content. Preview only with a free licence or permission.",
 	"cityMaps.editMap": "Edit map",
@@ -544,7 +544,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.filter.to": "to",
 	"cityMaps.filter.color": "colour",
 	"cityMaps.filter.officialOnly": "official",
-	"cityMaps.filter.spoiler": "show spoilers",
+	"cityMaps.filter.spoiler": "Spoiler (revealed content)",
 	// Type + art LABELS. The slugs themselves are domain content and are never translated (AGENTS.md §8);
 	// only what the reader sees is.
 	"cityMaps.type.ortsplan": "Village plan",
@@ -582,8 +582,8 @@ window.AVESMAPS_I18N_EN = {
 	"adventures.sortLabel": "Sort:",
 	"adventures.modesAriaLabel": "Starts here or plays here",
 	"adventures.mode.start": "Starts here",
-	"adventures.mode.play": "Plays here",
-	"adventures.mode.spoiler": "(Spoiler)",
+	"adventures.mode.play": "Spoiler",
+	"adventures.mode.playNote": "(plays here)",
 	"adventures.placeholderNote": "Placeholder · cover temporarily from the wiki",
 	"adventures.emptyHint": "No adventure starts here.",
 	"adventures.all": "Show all",

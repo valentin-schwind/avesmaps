@@ -129,7 +129,7 @@ function cityMapCardMarkup(m) {
 	// The overlay sits INSIDE the anchor and swallows the first click (see the delegated reveal handler),
 	// so a spoiler can never be opened by accident on the way to uncovering it.
 	var spoilerOverlay = spoiler
-		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler — aufdecken")) + '</span>'
+		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken")) + '</span>'
 		: "";
 	var openAttrs = href
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
@@ -355,7 +355,7 @@ function citymapFiltersMarkup(facets) {
 	// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Deckel (Owner 2026-07-18): "aus" ist der
 	// Startzustand -- er zeigt also nie ungefragt, was verdeckt ist -- und ein Klick nimmt den Blur von
 	// ALLEN verdeckten Zeilen statt eine nach der anderen. Steht am Ende und darf die Leiste allein tragen.
-	if (facets.spoiler) { groups.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler zeigen") }); }
+	if (facets.spoiler) { groups.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler (aufgedeckte Inhalte)") }); }
 	if (!groups.length) {
 		return "";
 	}
@@ -473,7 +473,7 @@ function buildCityMapRowMarkup(m) {
 	var href = cityMapBestLink(m);
 	var spoiler = cityMapIsSpoiler(m);
 	var spoilerOverlay = spoiler
-		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler — aufdecken")) + '</span>'
+		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken")) + '</span>'
 		: "";
 	var openAttrs = href
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
@@ -807,7 +807,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	var togglesMarkup = hasPlay
 		? '<div class="avesmaps-adv__modes" role="tablist" aria-label="' + placeExtrasEscape(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
 			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">' + placeExtrasEscape(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(beginnt.length) + ')</span></button>'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
 			+ '</div>'
 		: "";
 
@@ -1133,7 +1133,7 @@ function advFiltersMarkup(facets) {
 		var togglesHtml = playCount
 			? '<div class="avesmaps-adv-dialog__modes" role="tablist">'
 				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">' + placeExtrasEscape(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count" data-adv-count="start">(' + startCount + ')</span></button>'
-				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
+				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
 				+ '</div>'
 			: "";
 

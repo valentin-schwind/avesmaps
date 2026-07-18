@@ -109,7 +109,7 @@
 	function modesMarkup() {
 		return '<div class="avesmaps-adv-tree__modes" role="tablist" aria-label="' + esc(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
 			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-tree-mode="start">' + esc(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count" data-adv-count="start"></span></button>'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="play">' + esc(tr("adventures.mode.play", "Spielt hier")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.spoiler", "(Spoiler)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="play">' + esc(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
 			+ '</div>';
 	}
 	// Filterleiste: geteilt mit dem flachen Dialog (advFiltersMarkup, place-extras.js -- laedt frueher in
