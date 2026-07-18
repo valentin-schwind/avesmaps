@@ -27,6 +27,7 @@ const {
   cityMapCardMarkup, buildCityMapsSectionMarkup, buildCityMapRowMarkup, citymapFiltersMarkup,
   avesmapsCitymapCreditMarkup,
   cityMapBandLabel, cityMapRowSuffix, cityMapRowFacts, advRowLinkMarkup,
+  advFiltersMarkup,
 } = require("../map-features-place-extras.js");
 
 // ---- URL safety -------------------------------------------------------------------------------------
@@ -402,5 +403,24 @@ assert.ok(barOne.includes('data-adv-filter="color"') && !barOne.includes('data-a
 assert.strictEqual(citymapFiltersMarkup({ color: false, official: false, free: false, years: false }), "");
 assert.strictEqual(citymapFiltersMarkup({}), "");
 console.log("citymap filter bar adaptive ok");
+
+// ---- Beide Leisten teilen sich Ordnung und Bauart (Owner 2026-07-18) ------------------------------
+// Karten und Abenteuer haben eigene Auswahlfilter, aber die zwei Schalter, die BEIDE kennen, stehen am
+// selben Platz und in derselben Reihenfolge: erst `offiziell`, dahinter `spoiler`. Das ist die Zusage
+// "gleiche Reihenfolge, gleiches Aussehen" -- ohne Test wandert einer davon beim naechsten Umbau.
+const orderOf = (html) => [...html.matchAll(/data-adv-filter="([^"]+)"/g)].map((m) => m[1]).filter((k) => k === "official" || k === "spoiler");
+const citymapBar = citymapFiltersMarkup({ color: true, free: true, years: true, official: true, spoiler: true, yearRange: { min: 1000, max: 1040 } });
+const advBar = advFiltersMarkup({ types: ["A"], editions: ["DSA5"], complexities: ["mittel"], genres: ["Intrige"], spoiler: true, yearRange: { min: 1000, max: 1040 } });
+assert.deepStrictEqual(orderOf(citymapBar), ["official", "spoiler"], "Kartenleiste: offiziell, dann Spoiler");
+assert.deepStrictEqual(orderOf(advBar), ["official", "spoiler"], "Abenteuerleiste: offiziell, dann Spoiler");
+// Und beide bauen aus DERSELBEN Leiste (avesmapsFilterBarMarkup) -- gleiche Huelle, gleiche Chip-Klasse.
+[citymapBar, advBar].forEach((bar) => {
+	assert.ok(bar.includes("avesmaps-adv-tree__filters"), "gleiche Leisten-Huelle");
+	assert.ok(bar.includes("avesmaps-adv-tree__chip"), "gleiche Chip-Klasse");
+});
+// Ohne Spoilerkarten steht der Chip in KEINER der beiden Leisten.
+assert.ok(!citymapFiltersMarkup({ official: true }).includes('data-adv-filter="spoiler"'));
+assert.ok(!advFiltersMarkup({ types: [] }).includes('data-adv-filter="spoiler"'));
+console.log("shared filter bar order ok");
 
 console.log("citymaps-render ok");

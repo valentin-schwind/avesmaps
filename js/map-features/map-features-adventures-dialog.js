@@ -115,11 +115,8 @@
 			+ '<span class="avesmaps-adv-tree__sort" data-adv-tree-sort="alpha">' + esc(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
 	}
-	function modesMarkup() {
-		return '<div class="avesmaps-adv-tree__modes" role="tablist" aria-label="' + esc(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="spoiler" aria-pressed="false">' + esc(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
-			+ '</div>';
-	}
+	// modesMarkup() ist entfallen (Owner 2026-07-18): der Spoiler-Schalter sitzt jetzt als Chip in
+	// der Filterleiste hinter `offiziell` -- dieselbe Stelle und dieselbe Optik wie bei den Karten.
 	// Filterleiste: geteilt mit dem flachen Dialog (advFiltersMarkup, place-extras.js -- laedt frueher in
 	// index.html). Lag bis Aufgabe B hier als ~40 fast identische Zeilen neben dialogFiltersMarkup; die
 	// Verdrahtung bleibt hier (box-lokal), nur das Markup ist gemeinsam (Spec §2.2).
@@ -163,6 +160,13 @@
 		var facets = (typeof avesmapsAdventureFacetOptions === "function")
 			? avesmapsAdventureFacetOptions(allShapes)
 			: { types: [], complexities: [], genres: [] };
+		// Gibt es ueberhaupt Spoiler? Die Rolle steht NICHT in der Shape (collectShapes wirft start und play
+		// in eine Liste) -- also am Baum selbst nachsehen, sonst erschiene der Schalter nie.
+		facets.spoiler = (function hasPlay(node) {
+			if (!node) { return false; }
+			if ((node.play || []).length) { return true; }
+			return (node.children || []).some(hasPlay);
+		})(tree);
 
 		var state = { revealSpoilers: false, sort: "year", filter: { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false } };
 		var controls = box.querySelector(".avesmaps-adv-tree-dialog__controls");
@@ -172,7 +176,7 @@
 		body.innerHTML = renderFrame(tree);
 		// Reihenfolge (UI-Konvention, Design-Doc): Ansichts-Umschalter -> Filter -> Sortierung.
 		// Filter stehen UEBER der Sortierung (Filter grenzt die Menge ein, Sortierung ordnet den Rest).
-		controls.innerHTML = modesMarkup() + filtersMarkup(facets) + sortsMarkup();
+		controls.innerHTML = filtersMarkup(facets) + sortsMarkup();
 
 		// Karten je Rahmen sortieren -- start bleibt VOR play (Rollen-Invariante), sortiert innerhalb der Rolle.
 		function compare(a, b) {
@@ -238,17 +242,8 @@
 			if (!t || !t.closest) {
 				return;
 			}
-			var modeBtn = t.closest("[data-adv-tree-mode]");
-			if (modeBtn) {
-				state.revealSpoilers = !state.revealSpoilers;
-				Array.prototype.forEach.call(controls.querySelectorAll("[data-adv-tree-mode]"), function (b) {
-					var on = state.revealSpoilers;
-					b.classList.toggle("is-active", on);
-					b.setAttribute("aria-pressed", on ? "true" : "false");
-				});
-				apply();
-				return;
-			}
+			// (Der [data-adv-tree-mode]-Zweig ist entfallen: den Button gibt es nicht mehr, der Spoiler-Chip
+			// unten in der Filterleiste hat ihn abgeloest.)
 			var sortEl = t.closest("[data-adv-tree-sort]");
 			if (sortEl) {
 				state.sort = sortEl.getAttribute("data-adv-tree-sort");

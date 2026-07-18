@@ -49,16 +49,11 @@
 	color: var(--color-text-muted);
 }
 
-/* Umschalter "Beginnt hier | Spielt hier" -- eigener Container (data-adv-tree-mode), Segment-Optik wie
-   .avesmaps-adv__modes; die Buttons selbst nutzen .avesmaps-adv__mode aus place-extras.css. */
-.avesmaps-adv-tree__modes {
-	display: inline-flex;
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	overflow: hidden;
-}
+/* (.avesmaps-adv-tree__modes ist 2026-07-18 entfallen: der Spoiler-Schalter sitzt jetzt als Chip in der
+   Filterleiste unten, hinter `offiziell` -- gleiche Stelle und gleiche Optik wie in der Kartenleiste.) */
 
-/* Filterleiste: Label + Art-Chips (multi) + Divider + Schwierigkeit-/Genre-Selects + Divider + offiziell-Chip. */
+/* Filterleiste: Label + Art-Chips (multi) + Divider + Selects + Zeitraum + Divider + offiziell + Spoiler.
+   Die beiden letzten Chips stehen in DIESER Reihenfolge auch in der Kartenleiste (Owner 2026-07-18). */
 .avesmaps-adv-tree__filters {
 	display: flex;
 	flex-wrap: wrap;

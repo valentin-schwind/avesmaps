@@ -366,9 +366,15 @@ function buildPathCityMapsMarkup(path) {
 // Dieselbe Grammatik wie die Abenteuerleiste (avesmapsFilterBarMarkup), eigene Gruppenliste. Ein Filter
 // steht nur da, wenn avesmapsCitymapActiveFacets ihn fuer trennend haelt -- traegt nichts, kommt "" zurueck
 // und der Dialog hat gar keine Leiste.
+// GEMEINSAME Ordnung mit der Abenteuerleiste (Owner 2026-07-18): erst die feature-eigenen Auswahlfilter,
+// dann der Zeitraum, dann ein Trenner, dann die beiden Schalter, die BEIDE Features kennen --
+// `offiziell`, und dahinter `Spoiler`. Wer hier etwas einsortiert, sortiert es in advFiltersMarkup mit ein.
 function citymapFiltersMarkup(facets) {
 	facets = facets || {};
 	var groups = [];
+	// Feature-eigen (die Abenteuer haben an dieser Stelle Typ/Edition/Schwierigkeit/Genre).
+	if (facets.color) { groups.push({ kind: "toggle", filter: "color", label: tr("cityMaps.filter.color", "farbig") }); }
+	if (facets.free) { groups.push({ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "kostenlos") }); }
 	if (facets.years) {
 		groups.push({
 			kind: "years", from: "yearFrom", to: "yearTo",
@@ -378,13 +384,17 @@ function citymapFiltersMarkup(facets) {
 			toPlaceholder: tr("cityMaps.filter.to", "bis"),
 		});
 	}
-	if (facets.color) { groups.push({ kind: "toggle", filter: "color", label: tr("cityMaps.filter.color", "farbig") }); }
-	if (facets.official) { groups.push({ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "offiziell") }); }
-	if (facets.free) { groups.push({ kind: "toggle", filter: "free", label: tr("cityMaps.filter.freeOnly", "kostenlos") }); }
-	// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Deckel (Owner 2026-07-18): "aus" ist der
-	// Startzustand -- er zeigt also nie ungefragt, was verdeckt ist -- und ein Klick nimmt den Blur von
-	// ALLEN verdeckten Zeilen statt eine nach der anderen. Steht am Ende und darf die Leiste allein tragen.
-	if (facets.spoiler) { groups.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler (Spielinhalte)") }); }
+	// Der Trenner gehoert VOR die geteilten Schalter -- und faellt mit ihnen weg, sonst stuende eine Linie
+	// am Leistenende. Dieselbe Regel wie beim Typ-Trenner der Abenteuerleiste.
+	var shared = [];
+	if (facets.official) { shared.push({ kind: "toggle", filter: "official", label: tr("cityMaps.filter.officialOnly", "offiziell") }); }
+	// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Schleier (Owner 2026-07-18): "aus" ist der
+	// Startzustand -- er zeigt also nie ungefragt, was verdeckt ist -- und ein Klick deckt ALLE auf statt
+	// eines nach dem anderen. Steht hinter `offiziell`, in beiden Leisten.
+	if (facets.spoiler) { shared.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler (Spielinhalte)") }); }
+	if (shared.length) {
+		groups = groups.concat(groups.length ? [{ kind: "divider" }] : []).concat(shared);
+	}
 	if (!groups.length) {
 		return "";
 	}
@@ -1067,9 +1077,17 @@ function advFiltersMarkup(facets) {
 			fromPlaceholder: tr("adventures.filter.from", "von"),
 			toPlaceholder: tr("adventures.filter.to", "bis"),
 		},
+		// Ab hier die GEMEINSAME Ordnung mit der Kartenleiste (Owner 2026-07-18): Trenner, `offiziell`,
+		// dahinter `Spoiler`. Das Wort ist "offiziell" wie dort, nicht mehr "nur offiziell" -- dieselbe
+		// Leiste soll nicht zwei Namen fuer denselben Schalter fuehren.
 		{ kind: "divider" },
-		{ kind: "toggle", filter: "official", label: tr("adventures.filter.officialOnly", "nur offiziell") },
-	]);
+		{ kind: "toggle", filter: "official", label: tr("adventures.filter.officialOnly", "offiziell") },
+	].concat(facets.spoiler
+		// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Schleier -- er blendet keine Zeile aus.
+		// Sass frueher in einer EIGENEN Leiste (.avesmaps-adv__modes) ueber den Filtern und sah dadurch
+		// anders aus als sein Gegenstueck bei den Karten. Jetzt derselbe Chip an derselben Stelle.
+		? [{ kind: "toggle", filter: "spoiler", label: tr("adventures.mode.play", "Spoiler") + " " + tr("adventures.mode.playNote", "(spielt hier)") }]
+		: []));
 }
 
 // ---- Interaktivitaet via Document-Delegation (funktioniert in Popup UND Panel) ----
@@ -1178,20 +1196,20 @@ function advFiltersMarkup(facets) {
 			+ '<span class="avesmaps-adv__sortsep"> · </span>'
 			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
-		var togglesHtml = playCount
-			? '<div class="avesmaps-adv-dialog__modes">'
-				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="spoiler" aria-pressed="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
-				+ '</div>'
-			: "";
-
 		var cards = grid ? Array.prototype.slice.call(grid.querySelectorAll(".avesmaps-adv__card")) : [];
 		var shapes = cards.map(cardShapeFromEl);
 		var facets = (typeof avesmapsAdventureFacetOptions === "function")
 			? avesmapsAdventureFacetOptions(shapes)
 			: { types: [], complexities: [], genres: [], editions: [] };
+		// Die Rolle steht nicht in der Shape, nur der Aufrufer kennt sie -- deshalb wird die Spoiler-Facette
+		// hier gesetzt und nicht in avesmapsAdventureFacetOptions.
+		facets.spoiler = playCount > 0;
 		var filtersHtml = advFiltersMarkup(facets);
 
-		controls.innerHTML = togglesHtml + filtersHtml + sortsHtml;
+		// Der Spoiler-Schalter ist jetzt ein Chip IN der Filterleiste (hinter `offiziell`), wie bei den
+		// Karten -- die eigene .__modes-Leiste davor ist damit weg (Owner 2026-07-18: gleiche Reihenfolge,
+		// gleiches Aussehen in beiden Leisten).
+		controls.innerHTML = filtersHtml + sortsHtml;
 		box.insertBefore(controls, grid);
 
 		var filterState = { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false };
@@ -1215,6 +1233,15 @@ function advFiltersMarkup(facets) {
 				return;
 			}
 			var kind = chip.getAttribute("data-adv-filter");
+			// Der Spoiler-Chip ist KEIN Filter: er blendet keine Zeile aus, er nimmt die Schleier weg.
+			// Deshalb eigener Zweig ohne filterState und ohne applyFilters() -- der Zaehler darf sich beim
+			// Aufdecken nicht ruehren, es sind dieselben Abenteuer. Gleiche Bauart wie im Kartendialog.
+			if (kind === "spoiler") {
+				var reveal = !chip.classList.contains("is-active");
+				chip.classList.toggle("is-active", reveal);
+				if (grid) { grid.classList.toggle("show-spoilers", reveal); }
+				return;
+			}
 			if (kind === "official") {
 				filterState.officialOnly = !filterState.officialOnly;
 				chip.classList.toggle("is-active", filterState.officialOnly);
@@ -1380,7 +1407,9 @@ function advFiltersMarkup(facets) {
 	// Ein Schalter, kein Umschalter: er hat kein Gegenstueck mehr, weil nichts mehr versteckt wird.
 	// Streifen (Infopanel/Popup) und "Alle anzeigen"-Dialog teilen sich denselben Handler -- der Container
 	// ist das Einzige, was sich unterscheidet.
-	$(document).on("click", ".avesmaps-adv__modes .avesmaps-adv__mode, .avesmaps-adv-dialog__modes .avesmaps-adv__mode", function () {
+	// Nur noch der STREIFEN hat diesen Schalter: in den Dialogen ist er ein Chip in der Filterleiste
+	// (hinter `offiziell`). Der Streifen hat keine Filterleiste, deshalb bleibt er dort eigenstaendig.
+	$(document).on("click", ".avesmaps-adv__modes .avesmaps-adv__mode", function () {
 		var reveal = !this.classList.contains("is-active");
 		this.classList.toggle("is-active", reveal);
 		this.setAttribute("aria-pressed", reveal ? "true" : "false");

@@ -323,17 +323,16 @@
 	margin-top: 0;
 }
 
-/* Umschalter "Beginnt hier | Spielt hier (Spoiler)" unter der Sortierzeile -- kompaktes Segment-Control
-   (Radius 6px identisch zu den Geschwister-Buttons; place-extras-Radien sind projektweit Pre-Token-Literale). */
-.avesmaps-adv__modes,
-.avesmaps-adv-dialog__modes {
+/* Spoiler-Schalter unter der Sortierzeile -- nur noch im STREIFEN, der keine Filterleiste hat. In beiden
+   Dialogen ist er seit 2026-07-18 ein Chip in der Filterleiste (hinter `offiziell`), weshalb
+   .avesmaps-adv-dialog__modes und .avesmaps-adv-tree__modes hier entfallen sind.
+   (Radius 6px identisch zu den Geschwister-Buttons; place-extras-Radien sind projektweit Pre-Token-Literale.) */
+.avesmaps-adv__modes {
 	display: inline-flex;
+	margin-top: 6px;
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: 6px;
 	overflow: hidden;
-}
-.avesmaps-adv__modes {
-	margin-top: 6px;
 }
 /* Dialog-Steuerzeile (Sortierung + Umschalter) zwischen Kopf und Grid. align-items:flex-start verhindert,
    dass die Kinder im Flex-Column-Dialog auf volle Breite gestreckt werden (sonst wirkt der Toggle "kaputt"). */
