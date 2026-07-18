@@ -373,6 +373,21 @@ function avesmapsSetCitymapPreviewsEnabled(PDO $pdo, bool $enabled): array
     return ['citymap_previews_enabled' => $enabled];
 }
 
+// ---- autoget RUN kill switch (the MASS RUN, not the public display) ----------------------------------
+// A per-RUN emergency off, distinct from citymap_previews_enabled (which hides already-fetched previews on
+// the public frontend): this stops the "Vorschauen holen" MASS RUN mid-flight, tab-across (the browser
+// "Stop" only aborts one tab; PHP keeps running after a disconnect). Every autoget_step reads it first and
+// bails with {stopped:true}. The owner flips it by SQL (no UI toggle):
+//   INSERT INTO app_setting (setting_key, setting_value) VALUES ('citymap_autoget_enabled','0')
+//     ON DUPLICATE KEY UPDATE setting_value='0';   -- '1' re-arms.
+// Default ENABLED; only a stored '0' stops the run.
+const AVESMAPS_CITYMAP_AUTOGET_SETTING = 'citymap_autoget_enabled';
+
+function avesmapsCitymapAutogetEnabled(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_CITYMAP_AUTOGET_SETTING, '1') !== '0';
+}
+
 // ---- pure normalisers ---------------------------------------------------------------------------------
 // Unknown/invalid falls back to the NON-free default: an unrecognised licence string must never be the
 // reason a protected image gets published.
