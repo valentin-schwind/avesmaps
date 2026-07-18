@@ -165,7 +165,7 @@ function cityMapCardMarkup(m) {
 		: ' href="#" onclick="return false" aria-disabled="true"';
 	return '<a class="avesmaps-citymaps__card' + (spoiler ? " is-spoiler" : "") + '"' + openAttrs
 		+ cityMapDataAttributes(m) + ' title="' + placeExtrasEscape(m.title) + '">'
-		+ '<span class="avesmaps-citymaps__thumb">' + thumbInner + '</span>'
+		+ '<span class="avesmaps-citymaps__thumb" data-spoiler-image>' + thumbInner + '</span>'
 		+ '<span class="avesmaps-citymaps__label">' + placeExtrasEscape(m.title) + '</span>'
 		+ spoilerOverlay
 		+ '</a>';
@@ -547,8 +547,8 @@ function buildCityMapRowMarkup(m) {
 		: "";
 
 	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
-		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '"' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
-		+ cityMapThumbMarkup(m) + spoilerOverlay + '</a>'
+		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '" data-spoiler-image' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
+		+ cityMapThumbMarkup(m) + '</a>'
 		+ '<div class="avesmaps-citymap-row__main">'
 		+ '<div class="avesmaps-citymap-row__band">' + placeExtrasEscape(cityMapBandLabel(m))
 		+ (suffix ? ' <span class="avesmaps-citymap-row__suffix">· ' + placeExtrasEscape(suffix) + '</span>' : "")
@@ -558,6 +558,12 @@ function buildCityMapRowMarkup(m) {
 		+ '</div></div>'
 		+ '</div>'
 		+ '<div class="avesmaps-citymap-row__side">' + linksMarkup + '</div>'
+		// Der Schleier liegt ueber der GANZEN Zeile, als direktes Kind -- wie bei der Kachel und beim
+		// Abenteuer-Cover. Vorher steckte er im Thumb-Anker: dort traf ihn die Anzeige-Regel nicht (sie
+		// verlangt ein direktes Kind), und selbst sichtbar waere er mitgeblurrt worden, weil er in einem
+		// verschleierten Element sass -- Nebel ohne Label. Sein alter Zweck, den Klick vom Kartenlink
+		// fernzuhalten, bleibt erfuellt: er deckt jetzt die ganze Zeile ab, nicht nur das Vorschaubild.
+		+ spoilerOverlay
 		+ '</div>';
 }
 
@@ -668,7 +674,7 @@ function buildAdventureCardMarkup(a, isPlay) {
 	var extraClass = isPlay ? " is-play is-spoiler" : "";
 	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("adventures.spoilerVeil", "Spoiler (spielt hier)")) : "";
 	return '<div class="avesmaps-adv__card' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
-		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
+		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" data-spoiler-image href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
 		+ typeLine
@@ -767,7 +773,7 @@ function buildAdventureRowMarkup(a, isPlay) {
 	var extraClass = isPlay ? " is-play is-spoiler" : "";
 	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("adventures.spoilerVeil", "Spoiler (spielt hier)")) : "";
 	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
-		+ '<a class="avesmaps-adv-row__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
+		+ '<a class="avesmaps-adv-row__cover' + (a.cover ? " has-img" : "") + '" data-spoiler-image href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<div class="avesmaps-adv-row__main">'
 		+ '<a class="avesmaps-adv-row__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine

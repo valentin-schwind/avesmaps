@@ -98,6 +98,11 @@ assert.ok(spoiler.includes("is-spoiler") && spoiler.includes("data-spoiler-revea
 // Wer hier einen feature-eigenen Namen einfuehrt, spaltet den Mechanismus wieder auf -- und genau die
 // Aufspaltung hatte zur Folge, dass Karten blurrten und Abenteuer sich versteckten.
 assert.ok(spoiler.includes("avesmaps-spoiler-veil"), "der Schleier ist der geteilte, kein citymap-eigener");
+// Der Schleier MUSS direktes Kind des .is-spoiler-Elements sein. Steckt er in einem Kind (die Zeile hatte
+// ihn im Thumb-Anker), passiert zweierlei: die Anzeige-Regel `.is-spoiler > .veil` greift nicht, UND der
+// Blur `.is-spoiler > :not(.veil)` trifft ihn mit -- der Leser sieht Nebel ohne Label.
+const veilAt = spoiler.indexOf("avesmaps-spoiler-veil");
+assert.ok(veilAt > spoiler.indexOf("</span>"), "Kachel: Schleier steht nach den Inhalts-Spans, nicht in einem");
 assert.ok(spoiler.includes("Spoiler (aufgedeckte Inhalte)"), "der Deckel nennt seinen Grund, nicht nur 'Spoiler'");
 
 // Escaping: a hostile title must not break out of the attribute OR the text node.
@@ -224,6 +229,18 @@ assert.strictEqual(thumbRow.split("example.org/t.png").length - 1, 1, "das Vorsc
 // identisch, und nur der Klick-Handler entscheidet.
 assert.ok(!openRow.includes("is-expanded"), "der Zustand steckt in der Klasse, nicht im Markup");
 console.log("citymap row expand ok");
+
+// ---- Der Schleier der ZEILE gehoert an die Zeile, nicht in den Thumb-Anker -------------------------
+// Genau das war 2026-07-18 kaputt: er steckte im <a> des Vorschaubilds. Folge -- die Anzeige-Regel
+// `.is-spoiler > .veil` griff nicht (kein direktes Kind), und der Blur `.is-spoiler > :not(.veil)` traf
+// ihn mit. Der Leser sah Nebel OHNE Label, waehrend die Abenteuer daneben eines trugen.
+const spoilerRow = buildCityMapRowMarkup({ public_id: "m14", title: "Krypta", is_spoiler: true, map_url: "https://example.org/k" });
+assert.ok(spoilerRow.includes("is-spoiler") && spoilerRow.includes("avesmaps-spoiler-veil"), "Spoilerzeile traegt den Schleier");
+assert.ok(spoilerRow.indexOf("avesmaps-spoiler-veil") > spoilerRow.indexOf("</a>"),
+	"der Schleier steht NACH dem Thumb-Anker -- nicht darin");
+// Und er ist das LETZTE Element der Zeile, liegt also ueber allen Spalten (auch der Linkspalte).
+assert.ok(spoilerRow.trimEnd().endsWith("</span></div>"), "der Schleier schliesst die Zeile ab");
+console.log("citymap row veil ok");
 
 // ---- „+ Neuer Fundort" (Spec 2026-07-17-community-fundorte) ----------------------------------------
 // Der Knopf traegt seine Karte SELBST: der Melde-Dialog ist eine wiederverwendete Huelle, eine gemerkte

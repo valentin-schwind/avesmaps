@@ -366,14 +366,23 @@
 		row.classList.toggle("is-expanded");
 	});
 
-	// Spoiler aufdecken -- Streifen UND Dialog, deshalb Document-Delegation. Das Overlay liegt IM Anker:
-	// preventDefault + stopPropagation, sonst oeffnet derselbe Klick, der aufdeckt, schon die Karte.
+	// EINEN Spoiler aufdecken -- Karten UND Abenteuer, Streifen UND Dialoge, deshalb Document-Delegation.
+	// Der Schleier liegt ueber dem ganzen Element und faengt den Klick ab: preventDefault +
+	// stopPropagation, sonst oeffnet derselbe Klick, der aufdeckt, schon den Link darunter.
+	//
+	// Gesucht wird `.is-spoiler`, NICHT eine Feature-Klasse: der Schleier deckt genau das Element auf, das
+	// ihn traegt. Vorher stand hier `.avesmaps-citymaps__card` -- damit fand der geteilte Handler eine
+	// Abenteuer-Karte nicht und das Einzel-Aufdecken gab es dort trotz Schleier nicht.
+	//
+	// Wohnt weiter in dieser Datei (historisch, document-delegiert): der Handler ist global gebunden und
+	// gilt fuer beide Features, egal wo er steht. Ein Umzug haette nur den Load-Order-Vertrag in
+	// index.html angefasst, ohne etwas zu verbessern.
 	$(document).on("click", "[data-spoiler-reveal]", function (e) {
 		e.preventDefault();
 		e.stopPropagation();
-		var card = $(this).closest(".avesmaps-citymaps__card")[0];
-		if (card) {
-			card.classList.remove("is-spoiler");
+		var el = $(this).closest(".is-spoiler")[0];
+		if (el) {
+			el.classList.remove("is-spoiler");
 		}
 	});
 

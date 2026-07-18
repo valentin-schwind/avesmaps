@@ -34,6 +34,9 @@
 }
 .avesmaps-citymaps__card {
 	position: relative; /* Anker fuer den Spoiler-Deckel */
+	/* Hoehe des Vorschaubilds unten -- der Spoiler-Schleier deckt genau diesen Bereich ab. Steht hier,
+	   direkt neben der Kachel, damit beide Werte zusammen geaendert werden. */
+	--spoiler-veil-height: 72px;
 	flex: 0 0 auto;
 	width: 116px;
 	text-decoration: none;
@@ -82,10 +85,16 @@
    Rein deklarativ, ohne Neu-Render: ein Klick nimmt .is-spoiler weg (einzeln) oder setzt .show-spoilers
    am Container (alle). Das Element braucht `position: relative` als Anker, sonst legt sich der Schleier
    ueber den naechstbesten positionierten Vorfahren. */
-.is-spoiler > :not(.avesmaps-spoiler-veil) {
+/* NUR das Bild wird unkenntlich; alles andere verschwindet (Owner 2026-07-18: "nur das bild blurren und
+   die restl. labels hiden"). Ein geblurrter Titel liest sich als Schmutz -- ein fehlender als Absicht.
+   `visibility` statt `display`, damit die Kachel ihre Hoehe behaelt und der Streifen nicht zerfranst. */
+.is-spoiler > [data-spoiler-image] {
 	filter: blur(7px);
 	/* Der Text ist unter dem Blur noch markierbar/vorlesbar -- unkenntlich ist nicht unlesbar. */
 	user-select: none;
+}
+.is-spoiler > :not([data-spoiler-image]):not(.avesmaps-spoiler-veil) {
+	visibility: hidden;
 }
 .avesmaps-spoiler-veil {
 	position: absolute;
@@ -104,17 +113,25 @@
 	text-align: center;
 	cursor: pointer;
 }
+/* Der Schleier deckt den BILDbereich ab, nicht die leergeraeumte Flaeche darunter -- sonst haenge das
+   Label unter dem Bild in der Luft. Jede Kachel nennt ihre Bildhoehe; wer keine setzt, bekommt ihn ueber
+   das ganze Element (so die Kartenzeile, deren Vorschaubild mit 48x34 kein Label traegt). */
 .is-spoiler > .avesmaps-spoiler-veil {
 	display: flex;
+	bottom: auto;
+	height: var(--spoiler-veil-height, 100%);
 }
 
 /* Sammelschalter: nimmt die Schleier ALLER Elemente im Container auf einmal weg. Die Klasse setzt erst
    der Klick -- der Startzustand bleibt verdeckt, und beim naechsten Oeffnen ist wieder alles zu.
    Der Schleier muss mitverschwinden: er liegt mit inset:0 ueber dem Element und schluckt sonst
    unsichtbar jeden Klick auf den Link darunter. */
-.show-spoilers .is-spoiler > :not(.avesmaps-spoiler-veil) {
+.show-spoilers .is-spoiler > [data-spoiler-image] {
 	filter: none;
 	user-select: auto;
+}
+.show-spoilers .is-spoiler > :not([data-spoiler-image]):not(.avesmaps-spoiler-veil) {
+	visibility: visible;
 }
 .show-spoilers .is-spoiler > .avesmaps-spoiler-veil {
 	display: none;
@@ -371,6 +388,9 @@
    Der Blur-Uebergang macht das Aufdecken weich, so wie frueher der Fade. */
 .avesmaps-adv__card {
 	position: relative;
+	/* = Cover-Hoehe (.avesmaps-adv__cover) -- der Schleier deckt das Cover ab, nicht den leergeraeumten
+	   Textbereich darunter. */
+	--spoiler-veil-height: 110px;
 	transition: filter 0.28s ease;
 }
 
@@ -894,6 +914,10 @@
    mit festen Breiten (gleiche Ausrichtung wie eine Tabelle), aber <tr>-Hoehen lassen sich nicht
    verlaesslich animieren -- grid-template-columns mit Laengenwerten schon. */
 .avesmaps-citymap-row {
+	/* Die Zeile traegt AUCH .avesmaps-citymaps__card und erbte damit deren 72px-Schleier. Ihr eigenes
+	   Vorschaubild misst aber nur 48x34 -- viel zu klein fuer ein Label. Also deckt der Schleier hier die
+	   ganze Zeile ab. Steht bewusst NACH der Kachel-Regel, sonst gewinnt bei gleicher Spezifitaet jene. */
+	--spoiler-veil-height: 100%;
 	display: grid;
 	grid-template-columns: 56px minmax(0, 1fr) 248px;
 	gap: var(--space-10);
