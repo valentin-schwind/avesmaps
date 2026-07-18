@@ -19,7 +19,24 @@ global.tr = function (key, germanDefault, params) {
 	return out;
 };
 
-const { advShopLinks, advBestLink, buildAdventureRowMarkup } = require("../map-features-place-extras.js");
+const { advShopLinks, advBestLink, buildAdventureRowMarkup, avesmapsSortAdventureEntries } = require("../map-features-place-extras.js");
+
+// ---- Reihenfolge: Spoiler stehen MITTENDRIN, nicht als Block am Ende (Owner 2026-07-18) -------------
+// Die alte Invariante "beginnt vor spielt" hing am Umschalter, der die spielt-Karten rechts freigab. Ohne
+// ihn wird durchgehend nach Jahr sortiert -- und die ANFANGSreihenfolge muss das auch tun, sonst ordnet
+// der erste Klick auf "neueste zuerst" sichtbar um, obwohl der Leser dieselbe Sortierung waehlt.
+const mixed = avesmapsSortAdventureEntries([
+	{ a: { title: "alt, spoilerfrei", year: 1010 }, isPlay: false },
+	{ a: { title: "neu, SPOILER", year: 1040 }, isPlay: true },
+	{ a: { title: "mittel, spoilerfrei", year: 1025 }, isPlay: false },
+]);
+assert.deepStrictEqual(mixed.map((e) => e.a.title), ["neu, SPOILER", "mittel, spoilerfrei", "alt, spoilerfrei"]);
+assert.strictEqual(mixed[0].isPlay, true, "ein neuerer Spoiler steht VOR aelteren spoilerfreien");
+// Jahrlose Eintraege zaehlen als 0 und landen hinten, statt die Sortierung zu sprengen.
+assert.deepStrictEqual(
+	avesmapsSortAdventureEntries([{ a: {}, isPlay: false }, { a: { year: 1000 }, isPlay: true }]).map((e) => Number(e.a.year) || 0),
+	[1000, 0]
+);
 
 // ---- advShopLinks: the server list wins (Spec §2.5) ----------------------------------------------
 // avesmapsAdventureLinks() in api/_internal/app/adventures.php is the SINGLE definition of the priority

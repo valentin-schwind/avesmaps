@@ -123,6 +123,17 @@ function avesmapsSpoilerVeilMarkup(label) {
 	return '<span class="avesmaps-spoiler-veil" data-spoiler-reveal>' + placeExtrasEscape(label) + '</span>';
 }
 
+// Die ANFANGSreihenfolge einer Abenteuerliste: durchgehend nach Jahr, neueste zuerst -- Spoiler stehen
+// dazwischen statt als Block am Ende (Owner 2026-07-18). Muss mit der Default-Sortierung der Sortierzeile
+// uebereinstimmen (data-adv-sort="year" traegt is-active), sonst ordnet der erste Sortierklick sichtbar um,
+// obwohl der Leser dieselbe Sortierung waehlt. Nimmt/liefert {a, isPlay}-Paare, weil die Rolle beim
+// Rendern gebraucht wird; stabil, damit Jahrgleiche ihre Eingangsreihenfolge behalten.
+function avesmapsSortAdventureEntries(entries) {
+	return entries.slice().sort(function (x, y) {
+		return (Number(y.a && y.a.year) || 0) - (Number(x.a && x.a.year) || 0);
+	});
+}
+
 // A spoiler map hides behind a blurred thumb + an overlay until the reader asks (§3.7). Only an EXPLICIT
 // is_spoiler === true counts: unknown (null) is not a spoiler, and treating it as one would hide maps
 // nobody ever classified.
@@ -841,9 +852,14 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
 	var emptyHint = (!hasBeginnt && hasPlay) ? '<div class="avesmaps-adv__empty" data-adv-empty>' + placeExtrasEscape(tr("adventures.emptyHint", "Hier beginnt kein Abenteuer.")) + '</div>' : "";
 
-	// EIN Streifen: beginnt-Karten, dann (verborgene) spielt-Karten.
-	var cards = (hasBeginnt ? beginnt.map(function (a) { return buildAdventureCardMarkup(a, false); }).join("") : "")
-		+ (hasPlay ? play.map(function (a) { return buildAdventureCardMarkup(a, true); }).join("") : "");
+	// EIN Streifen, DURCHGEHEND sortiert (Owner 2026-07-18): ein Spoiler steht an seinem Sortierplatz
+	// zwischen den anderen, nicht als Block am Ende. Die Anfangsreihenfolge MUSS der Default-Sortierung der
+	// Sortierzeile entsprechen ("neueste zuerst", is-active) -- sonst springen die Karten beim ersten
+	// Sortierklick, ohne dass sich die Sortierung geaendert haette.
+	var cards = avesmapsSortAdventureEntries(
+		(hasBeginnt ? beginnt.map(function (a) { return { a: a, isPlay: false }; }) : [])
+			.concat(hasPlay ? play.map(function (a) { return { a: a, isPlay: true }; }) : [])
+	).map(function (e) { return buildAdventureCardMarkup(e.a, e.isPlay); }).join("");
 	var listMarkup = '<div class="avesmaps-adv__list">' + cards + '</div>';
 
 	var alleMarkup = (hasBeginnt || hasPlay) ? '<div class="avesmaps-adv__actions"><button type="button" class="avesmaps-adv__all">' + placeExtrasEscape(tr("adventures.all", "Alle anzeigen")) + '</button></div>' : "";
@@ -1242,10 +1258,11 @@ function advFiltersMarkup(facets) {
 		var playEntries = entries.filter(function (e) { return e.isPlay; });
 		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
 		grid.classList.remove("show-spoilers"); // Dialog startet verschleiert -- Spoiler sind bei jedem Oeffnen wieder zu
-		// beginnt-Zeilen (voll), dann spielt-Zeilen (per Inline-display verborgen, wie im Streifen -- der
-		// geteilte Schleier-Regel verdeckt sie, bis jemand aufdeckt).
-		grid.innerHTML = startEntries.map(function (e) { return buildAdventureRowMarkup(e.shape, false); }).join("")
-			+ playEntries.map(function (e) { return buildAdventureRowMarkup(e.shape, true); }).join("");
+		// Durchgehend sortiert wie der Streifen -- Spoilerzeilen stehen an ihrem Platz, nicht als Block am
+		// Ende. Dieselbe Hilfsfunktion, damit Streifen und Dialog nicht auseinanderlaufen koennen.
+		grid.innerHTML = avesmapsSortAdventureEntries(
+			entries.map(function (e) { return { a: e.shape, isPlay: e.isPlay }; })
+		).map(function (e) { return buildAdventureRowMarkup(e.a, e.isPlay); }).join("");
 		buildDialogControls(overlay, startEntries.length, playEntries.length);
 		var creditEl = overlay.querySelector(".avesmaps-adv-dialog__credit");
 		if (creditEl) {
@@ -1380,6 +1397,7 @@ if (typeof module !== "undefined" && module.exports) {
 		advFiltersMarkup: advFiltersMarkup,
 		buildAdventureCardMarkup: buildAdventureCardMarkup,
 		buildAdventureRowMarkup: buildAdventureRowMarkup,
+		avesmapsSortAdventureEntries: avesmapsSortAdventureEntries,
 		cityMapSafeUrl: cityMapSafeUrl,
 		cityMapBestLink: cityMapBestLink,
 		cityMapIsSpoiler: cityMapIsSpoiler,

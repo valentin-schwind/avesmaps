@@ -82,14 +82,23 @@
 			return "";
 		}
 		var pill = node.rank ? '<span class="avesmaps-adv-tree__pill">' + esc(node.rank) + '</span>' : "";
-		var startCards = (node.start || []).map(function (s) { return cardMarkup(s, false); }).join("");
-		var playCards = (node.play || []).map(function (s) { return cardMarkup(s, true); }).join("");
+		// Durchgehend sortiert wie Streifen und flacher Dialog (Owner 2026-07-18): ein Spoiler steht an
+		// seinem Sortierplatz, nicht als Block hinter den spoilerfreien. Geteilte Hilfsfunktion aus
+		// place-extras.js -- drei Listen, EINE Reihenfolge-Regel.
+		var frameEntries = (node.start || []).map(function (s) { return { a: s, isPlay: false }; })
+			.concat((node.play || []).map(function (s) { return { a: s, isPlay: true }; }));
+		// Fehlt die geteilte Sortierung wider Erwarten, wird UNSORTIERT gerendert -- nie gar nicht. Eine
+		// falsche Reihenfolge ist ein Schoenheitsfehler, ein leerer Rahmen waere Datenverlust vor dem Leser.
+		if (typeof avesmapsSortAdventureEntries === "function") {
+			frameEntries = avesmapsSortAdventureEntries(frameEntries);
+		}
+		var frameCards = frameEntries.map(function (e) { return cardMarkup(e.a, e.isPlay); }).join("");
 		var kids = (node.children || []).map(renderFrame).join("");
 		return '<div class="avesmaps-adv-tree__frame">'
 			+ '<div class="avesmaps-adv-tree__fhead">' + pill
 			+ '<span class="avesmaps-adv-tree__fname">' + esc(node.name) + '</span>'
 			+ '<span class="avesmaps-adv-tree__direct" data-adv-direct>' + esc(tr("adventures.directCount", "{n} direkt", { n: 0 })) + '</span></div>'
-			+ '<div class="avesmaps-adv-tree__cards">' + startCards + playCards + '</div>'
+			+ '<div class="avesmaps-adv-tree__cards">' + frameCards + '</div>'
 			+ kids
 			+ '</div>';
 	}
