@@ -422,9 +422,9 @@
     <span class="t1">Links prüfen</span>
     <span class="t2" id="ceLinkCheckSub">…</span>
   </button>
-  <button type="button" class="ce-btn2" id="ceAutogetBtn" disabled title="Vorschauen-Massenlauf vorübergehend deaktiviert (Sicherheit): der Lauf hält je Schritt einen PHP-Worker und kommt mit einem Server-Riegel gegen Doppelläufe zurück. Der Einzelbild-Refetch pro Karte im Detail bleibt.">
+  <button type="button" class="ce-btn2" id="ceAutogetBtn" title="Holt für alle Karten ohne eigenes Vorschaubild ein Cover (Wiki über die MediaWiki-API, Ulisses über die Produkt-API). Läuft nach einem Klick sicher durch: ein Server-Riegel lässt nur EINEN Lauf gleichzeitig zu, jeder Schritt hält einen Worker nur ~4 s. Eigene Uploads bleiben unangetastet.">
     <span class="t1">Vorschauen holen</span>
-    <span class="t2" id="ceAutogetSub">vorübergehend deaktiviert</span>
+    <span class="t2" id="ceAutogetSub">…</span>
   </button>
   <button type="button" class="ce-btn2" id="cePreviewsToggle" title="Notaus NUR für die Vorschaubilder: aus = die Karten bleiben, aber kein Cover und keine „© Ulisses Spiele“-Fußnote erscheinen öffentlich. Getrennt vom Abenteuer-Cover-Schalter, weil die Erlaubnis nur bis auf Widerruf gilt.">
     <span class="t1" id="cePreviewsLabel">Vorschauen: …</span>
@@ -1396,11 +1396,14 @@
       // Returns NULL (it does not throw) when a run is already in flight -- the guard is global on
       // purpose. Say so instead of leaving the last progress line standing.
       if (!r) {
-        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits.";
+        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits (dieser Tab).";
+      } else if (r.busy) {
+        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits (anderer Tab oder Server).";
+      } else if (r.stopped) {
+        if (statusEl) statusEl.textContent = "Durchlauf per Not-Aus gestoppt.";
       } else if (statusEl) {
         // Report EVERY outcome, not just the wins ("kein stilles Abschneiden", owner). Counted in MAPS,
-        // because that is what a reader sees -- the sources are only the bracket. A summary saying
-        // "118 geholt" would understate its own effect by a factor of 2.7.
+        // because that is what a reader sees -- the sources are only the bracket.
         const parts = [`${r.sources} Quellen · ${r.ok} Karten mit Vorschau`];
         if (r.no_image) parts.push(`${r.no_image} ohne Seitenbild`);
         if (r.fetch_failed) parts.push(`${r.fetch_failed} nicht erreichbar`);
@@ -1458,9 +1461,7 @@
   document.getElementById("cePreviewsToggle").addEventListener("click", togglePreviews);
   document.getElementById("ceSyncBtn").addEventListener("click", handleCeSyncClick);
   document.getElementById("ceLinkCheckBtn").addEventListener("click", handleLinkCheckClick);
-  // ceAutogetBtn (Vorschauen holen) is DISABLED for now: the mass run was the PHP-pool-hang trigger
-  // (2026-07-17) and comes back with a server-side single-run lock. handleAutogetClick /
-  // refreshCeAutogetInfo stay defined but unwired until then. The per-map single refetch is untouched.
+  document.getElementById("ceAutogetBtn").addEventListener("click", handleAutogetClick);
 
   // Delegate on the STABLE container -- the rows are rebuilt by innerHTML.
   document.getElementById("ceListScroll").addEventListener("click", (e) => {
@@ -1598,8 +1599,8 @@
   // Fill the sync button's sub-label on open: it answers "is there a dump staged to sync at all?"
   // before the owner presses anything. Best-effort -- a failure just shows "Dump-Status unbekannt".
   void refreshCeSyncedInfo();
-  // No refreshCeAutogetInfo() while the autoget tile is disabled -- its sub-label stays the fixed
-  // "vorübergehend deaktiviert" set in the markup.
+  // Fill the autoget sub-label on open: how many maps are still due (read-only, no lock, no run).
+  void refreshCeAutogetInfo();
 </script>
 </body>
 </html>

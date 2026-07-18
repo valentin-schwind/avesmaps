@@ -8,9 +8,10 @@
 // queues behind the running step (measured on the linkchecker: a plain status call took 21s mid-step).
 
 const CITYMAP_AUTOGET_URL = "/api/edit/map/citymap-autoget.php";
-// A backstop against an endless loop if a step ever reported done=false without making progress. 133
-// sources at 25 per step is ~6 steps; 40 is far above any real run and far below "forever".
-const CITYMAP_AUTOGET_MAX_STEPS = 40;
+// A backstop against an endless loop if a step ever reported done=false without making progress. Steps are
+// now ~4s each (was ~15s), so a full run is many more, shorter steps: 133 sources at ~7/step is ~20 steps;
+// 200 is far above any real run and far below "forever" (the sources_done===0 break is the real terminator).
+const CITYMAP_AUTOGET_MAX_STEPS = 200;
 
 let isCitymapAutogetRunning = false;
 let citymapAutogetProgressSink = null;
@@ -58,6 +59,19 @@ async function startCitymapAutoget(onProgress) {
 			steps += 1;
 
 			const step = await submitCitymapAutogetAction("autoget_step");
+
+			// Server single-flight lock: another run (other tab / reload / agent) holds it. Stop cleanly and
+			// tell the caller -- the tab-local guard alone cannot see a second tab.
+			if (step.busy === true) {
+				totals.busy = true;
+				break;
+			}
+			// DB kill-switch flipped mid-run: stop cleanly, tab-across emergency off.
+			if (step.stopped === true) {
+				totals.stopped = true;
+				break;
+			}
+
 			totals.sources += Number(step.sources_done ?? 0);
 			totals.ok += Number(step.maps_ok ?? 0);
 			totals.no_image += Number(step.no_image ?? 0);
