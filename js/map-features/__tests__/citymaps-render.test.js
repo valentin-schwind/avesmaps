@@ -103,7 +103,7 @@ assert.ok(spoiler.includes("avesmaps-spoiler-veil"), "der Schleier ist der getei
 // Blur `.is-spoiler > :not(.veil)` trifft ihn mit -- der Leser sieht Nebel ohne Label.
 const veilAt = spoiler.indexOf("avesmaps-spoiler-veil");
 assert.ok(veilAt > spoiler.indexOf("</span>"), "Kachel: Schleier steht nach den Inhalts-Spans, nicht in einem");
-assert.ok(spoiler.includes("Spoiler (aufgedeckte Inhalte)"), "der Deckel nennt seinen Grund, nicht nur 'Spoiler'");
+assert.ok(spoiler.includes("Spoiler (Spielinhalte)"), "der Deckel nennt seinen Grund, nicht nur 'Spoiler'");
 
 // Escaping: a hostile title must not break out of the attribute OR the text node.
 const hostile = cityMapCardMarkup({ public_id: "x", title: '"><script>alert(1)</script>', map_url: "https://e.org/a" });
@@ -391,7 +391,7 @@ assert.ok(!barAll.includes('data-adv-filter="spoiler"'), "ohne Spoilerkarte kein
 // Mit verdeckten Karten erscheint der SAMMELSCHALTER (Owner 2026-07-18). Das ist nicht der zurueckgebaute
 // Chip: der regelte die Listung, dieser regelt den Deckel, den Umkehrung 2 ausdruecklich behaelt.
 const barSpoiler = citymapFiltersMarkup({ color: true, spoiler: true });
-assert.ok(barSpoiler.includes('data-adv-filter="spoiler"') && barSpoiler.includes("Spoiler (aufgedeckte Inhalte)"));
+assert.ok(barSpoiler.includes('data-adv-filter="spoiler"') && barSpoiler.includes("Spoiler (Spielinhalte)"));
 // Er traegt die Leiste ALLEIN -- eine einzige verdeckte Karte ist genau der Fall, in dem man ihn braucht,
 // und dort trennt keine andere Facette etwas.
 assert.ok(citymapFiltersMarkup({ spoiler: true }).includes('data-adv-filter="spoiler"'), "Schalter allein traegt die Leiste");

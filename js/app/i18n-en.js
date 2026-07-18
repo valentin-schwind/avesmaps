@@ -495,7 +495,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.fallbackTerritory": "this territory",
 	"cityMaps.fallbackRegion": "this region",
 	"cityMaps.fallbackPath": "this path",
-	"cityMaps.spoilerReveal": "Spoiler (revealed content) — reveal",
+	"cityMaps.spoilerReveal": "Spoiler (in-play content)",
 	"cityMaps.noneMatch": "No map matches these filters.",
 	"cityMaps.footHint": "Maps are external content. Preview only with a free licence or permission.",
 	"cityMaps.editMap": "Edit map",
@@ -544,7 +544,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.filter.to": "to",
 	"cityMaps.filter.color": "colour",
 	"cityMaps.filter.officialOnly": "official",
-	"cityMaps.filter.spoiler": "Spoiler (revealed content)",
+	"cityMaps.filter.spoiler": "Spoiler (in-play content)",
 	// Type + art LABELS. The slugs themselves are domain content and are never translated (AGENTS.md §8);
 	// only what the reader sees is.
 	"cityMaps.type.ortsplan": "Village plan",

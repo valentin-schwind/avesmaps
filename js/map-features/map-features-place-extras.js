@@ -158,7 +158,7 @@ function cityMapCardMarkup(m) {
 	// The overlay sits INSIDE the anchor and swallows the first click (see the delegated reveal handler),
 	// so a spoiler can never be opened by accident on the way to uncovering it.
 	var spoilerOverlay = spoiler
-		? avesmapsSpoilerVeilMarkup(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken"))
+		? avesmapsSpoilerVeilMarkup(tr("cityMaps.spoilerReveal", "Spoiler (Spielinhalte)"))
 		: "";
 	var openAttrs = href
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
@@ -384,7 +384,7 @@ function citymapFiltersMarkup(facets) {
 	// Kein Filter, sondern der Sammelschalter fuer den Spoiler-Deckel (Owner 2026-07-18): "aus" ist der
 	// Startzustand -- er zeigt also nie ungefragt, was verdeckt ist -- und ein Klick nimmt den Blur von
 	// ALLEN verdeckten Zeilen statt eine nach der anderen. Steht am Ende und darf die Leiste allein tragen.
-	if (facets.spoiler) { groups.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler (aufgedeckte Inhalte)") }); }
+	if (facets.spoiler) { groups.push({ kind: "toggle", filter: "spoiler", label: tr("cityMaps.filter.spoiler", "Spoiler (Spielinhalte)") }); }
 	if (!groups.length) {
 		return "";
 	}
@@ -502,7 +502,7 @@ function buildCityMapRowMarkup(m) {
 	var href = cityMapBestLink(m);
 	var spoiler = cityMapIsSpoiler(m);
 	var spoilerOverlay = spoiler
-		? avesmapsSpoilerVeilMarkup(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken"))
+		? avesmapsSpoilerVeilMarkup(tr("cityMaps.spoilerReveal", "Spoiler (Spielinhalte)"))
 		: "";
 	var openAttrs = href
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
