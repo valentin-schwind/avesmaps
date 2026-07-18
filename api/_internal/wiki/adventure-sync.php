@@ -734,3 +734,110 @@ function avesmapsAdventureLastSynced(PDO $pdo): ?string
         return null;
     }
 }
+
+// ===========================================================================
+// 6. Cover mass run (SHARP): pull covers for adventures whose local cover is missing.
+// ===========================================================================
+
+/**
+ * ONE bounded cover-fetch step. Work unit = an adventure with a wiki_key whose LOCAL cover is still due
+ * (cover_auto_state IS NULL). Mirrors citymap-autoget's step: EVERY outcome writes cover_auto_state so the
+ * run terminates, the state is written PER adventure right after its fetch (never a batch lease), and the
+ * ~4s wall-clock budget stops the step (leftovers stay due). The due-query keys off cover_auto_state, NOT
+ * an origin field. Manual uploads are skipped (own beats wiki). Bumps map_revision once if any cover was
+ * fetched (covers travel in the map-features payload).
+ *
+ * Called INSIDE avesmapsAutogetGuardedStep (kill-switch + single-flight lock live there), so this body is
+ * only ever reached when the run is enabled and this connection holds the lock.
+ *
+ * @return array{ok:bool, done:bool, remaining:int, adventures_done:int, covers_ok:int, no_image:int,
+ *   fetch_failed:int, skipped:int}
+ */
+function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): array
+{
+    $startedAt = microtime(true);
+    @set_time_limit(30);
+
+    // An adventure is DUE when the run has not touched it yet (cover_auto_state IS NULL) and it has a
+    // wiki_key (the only source for a wiki cover). Whether the catalog actually has a cover file, and
+    // whether the cover is a manual override, is decided in CODE below -- never in this query (an origin
+    // filter here would exclude everything, the trap from citymaps-autoget-vorschauen).
+    $dueWhere = "wiki_key IS NOT NULL AND TRIM(wiki_key) <> '' AND cover_auto_state IS NULL";
+
+    $due = $pdo->query(
+        'SELECT public_id, wiki_key, field_origins_json FROM adventure WHERE ' . $dueWhere
+        . ' ORDER BY id LIMIT 200'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $coverFileStmt = $pdo->prepare('SELECT cover_file FROM wiki_adventure_catalog WHERE wiki_key = :wk LIMIT 1');
+    $stateStmt = $pdo->prepare('UPDATE adventure SET cover_auto_state = :state WHERE public_id = :pid');
+    $sourceStmt = $pdo->prepare('UPDATE adventure SET cover_source = :cs WHERE public_id = :pid');
+
+    $tally = ['ok' => 0, 'no_image' => 0, 'fetch_failed' => 0, 'skipped_manual' => 0];
+    $adventuresDone = 0;
+
+    foreach ($due as $row) {
+        $publicId = (string) $row['public_id'];
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+
+        $origins = [];
+        if (!empty($row['field_origins_json'])) {
+            $decoded = json_decode((string) $row['field_origins_json'], true);
+            if (is_array($decoded)) {
+                $origins = $decoded;
+            }
+        }
+
+        // own beats wiki: never overwrite a manual upload.
+        if (avesmapsAdventureCoverAutogetSkips($origins)) {
+            $stateStmt->execute(['state' => 'skipped_manual', 'pid' => $publicId]);
+            $tally['skipped_manual']++;
+            $adventuresDone++;
+        } else {
+            $coverFileStmt->execute(['wk' => $wikiKey]);
+            $coverFile = trim((string) ($coverFileStmt->fetchColumn() ?: ''));
+
+            if ($coverFile === '') {
+                // Has a wiki_key but the staging catalog holds no cover file -> nothing to fetch.
+                $stateStmt->execute(['state' => 'no_image', 'pid' => $publicId]);
+                $tally['no_image']++;
+            } else {
+                $localUrl = avesmapsAdventureSaveCoverLocal($wikiKey, $coverFile);
+                if ($localUrl === '') {
+                    $stateStmt->execute(['state' => 'fetch_failed', 'pid' => $publicId]);
+                    $tally['fetch_failed']++;
+                } else {
+                    // Set the cover with origin 'wiki' (field-origin stamped so a manual upload later still
+                    // wins) + stamp cover_source so the reconcile treats it as up to date (no re-fetch).
+                    avesmapsSetAdventureCoverUrl($pdo, $publicId, $localUrl, 'wiki');
+                    $sourceStmt->execute(['cs' => mb_substr($coverFile, 0, 300, 'UTF-8'), 'pid' => $publicId]);
+                    $stateStmt->execute(['state' => 'ok', 'pid' => $publicId]);
+                    $tally['ok']++;
+                }
+            }
+            $adventuresDone++;
+        }
+
+        // Time budget: stop after ~4s; leftovers stay due (cover_auto_state IS NULL) for the next step.
+        if (avesmapsAutogetDeadlineReached($startedAt, microtime(true), $budgetSeconds)) {
+            break;
+        }
+    }
+
+    // Covers travel in the map-features payload -> invalidate once if we actually fetched any.
+    if ($tally['ok'] > 0) {
+        avesmapsWikiSyncNextMapRevision($pdo);
+    }
+
+    $remaining = (int) $pdo->query('SELECT COUNT(*) FROM adventure WHERE ' . $dueWhere)->fetchColumn();
+    return [
+        'ok' => true,
+        'done' => $remaining === 0,
+        'remaining' => $remaining,
+        'adventures_done' => $adventuresDone,
+        'covers_ok' => $tally['ok'],
+        'no_image' => $tally['no_image'],
+        'fetch_failed' => $tally['fetch_failed'],
+        'skipped' => $tally['skipped_manual'],
+    ];
+}

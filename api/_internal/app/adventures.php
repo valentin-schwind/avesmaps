@@ -101,7 +101,10 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
     };
     // contained_in: the parent product an anthology-only adventure ships inside (e.g. "Alter Hass" -> "Im
     // Namen des Thearchen"). Display note + the reason its shop link points at the parent product.
-    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)', 'contained_in' => 'VARCHAR(300)'] as $column => $type) {
+    // cover_auto_state: the cover mass-run's per-adventure progress marker (NULL=due | ok | no_image |
+    // fetch_failed | skipped_manual). Like citymap.thumb_auto_state: EVERY outcome writes a state so the
+    // run terminates, and the due-query keys off it (never off an origin field -- that would exclude all).
+    foreach (['link_ulisses' => 'VARCHAR(500)', 'link_fshop' => 'VARCHAR(500)', 'isbn' => 'VARCHAR(20)', 'contained_in' => 'VARCHAR(300)', 'cover_auto_state' => 'VARCHAR(20)'] as $column => $type) {
         if (!$adventureColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE adventure ADD COLUMN ' . $column . ' ' . $type . ' NULL');
         }
@@ -170,6 +173,29 @@ function avesmapsSetAdventuresEnabled(PDO $pdo, bool $enabled): array
 {
     avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURES_SETTING, $enabled ? '1' : '0');
     return ['adventures_enabled' => $enabled];
+}
+
+// ---- cover autoget RUN kill switch (the MASS RUN, not the public display) ----------------------------
+// A per-RUN emergency off, distinct from adventure_covers_enabled (which hides covers on the public
+// frontend): this stops the cover MASS RUN mid-flight, tab-across. Every autoget_step reads it first and
+// bails with {stopped:true}. Owner flips it by SQL (no UI toggle):
+//   INSERT INTO app_setting (setting_key, setting_value) VALUES ('adventure_cover_autoget_enabled','0')
+//     ON DUPLICATE KEY UPDATE setting_value='0';   -- '1' re-arms.
+// Default ENABLED; only a stored '0' stops the run.
+const AVESMAPS_ADVENTURE_COVER_AUTOGET_SETTING = 'adventure_cover_autoget_enabled';
+
+function avesmapsAdventureCoverAutogetEnabled(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_COVER_AUTOGET_SETTING, '1') !== '0';
+}
+
+// PURE: skip this adventure's cover fetch? Only when the cover is a MANUAL editor upload (own beats wiki,
+// spec §4). $fieldOrigins is the decoded field_origins_json map. Unlike citymap's thumb_origin (which
+// DEFAULTS to 'manual'), an unset cover origin means "never set" -> fetchable, so we test ONLY for the
+// explicit 'manual' value and never invert it into a default-excludes-everything trap.
+function avesmapsAdventureCoverAutogetSkips(array $fieldOrigins): bool
+{
+    return (string) ($fieldOrigins['cover_url'] ?? '') === 'manual';
 }
 
 // ---- shared link builder (Spec §2.5) --------------------------------------------------------------
