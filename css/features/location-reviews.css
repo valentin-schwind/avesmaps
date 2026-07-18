@@ -89,8 +89,14 @@
 .location-reviews__compact-row .location-reviews__summary {
 	margin-bottom: 0;
 }
+/* Der Knopf sitzt rechtsbuendig (Owner 2026-07-18): links die Bewertungslage, rechts die Aktion -- so
+   liest die Zeile sich als Aussage plus Angebot statt als zwei aneinandergeschobene Textstuecke.
+   `margin-left: auto` statt `justify-content: space-between` an der Zeile: die Zeile darf umbrechen
+   (flex-wrap), und space-between liesse den Knopf in einer eigenen zweiten Zeile wieder nach links
+   rutschen -- die Auto-Marge haelt ihn auch dort rechts. */
 .location-reviews__compact-row .location-reviews__write {
 	margin-top: 0;
+	margin-left: auto;
 }
 
 /* Owner: score + stars stay plain text; ONLY the count "(5) ›" is the link to the panel (button reset). */
