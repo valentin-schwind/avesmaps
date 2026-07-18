@@ -43,6 +43,26 @@ Ebenfalls schon da und deshalb zu beachten: `Gebirgspass` und `Wuestenpfad` sind
 Ein Pass ist heute bereits rund 2,7× langsamer als eine Straße. Terrain-Faktoren
 dürfen das **nicht doppelt** berechnen (siehe §9).
 
+**Die Datenlage in Zahlen** (gemessen 2026-07-17):
+
+| | |
+|---|---|
+| Landschafts-Labels gesamt | 529 |
+| davon `gebirge` | 60 |
+| davon `berggipfel` | 23 |
+| Landschafts-**Polygone** | **0** |
+| Wegabschnitte für die Vorberechnung | ~5.080 |
+| Höhenangaben irgendwo im System | **keine** |
+
+23 benannte Gipfel auf 60 Gebirge heißt: zu wenige, um ein Höhenmodell allein zu
+tragen — zu sichtbar, um sie zu ignorieren. Und der Wiki-Importer holt heute
+`einwohner`, `sprache`, `vegetation`, `verkehrswege`, aber **kein Höhenfeld**.
+
+**Die Maßstabskonstante** (eine, an einer Stelle): `1 Karteneinheit = 3 Meilen =
+3 km = 3000 Schritt`, denn im Geschwindigkeits-Dialog des Projekts steht „1 Meile
+= 1 km". Ohne diese Festlegung ist jede Steigung bedeutungslos — siehe die
+Einheitenfalle in §9.
+
 ## 3. Grundidee: ein Substrat, mehrere Schichten
 
 **Eine Geometrieart für alles: das Polygon.** Konkav, mit Löchern, beliebig zerfranst.
@@ -71,6 +91,28 @@ Kantenzeit(Richtung) = Distanz / Tempo
   stapelt unrealistisch. Die **Anzeige listet trotzdem beide Namen**.
 - **richtung** — hängt von der Fahrtrichtung ab: Höhe (Auf-/Abstieg) und später
   Wind. Nutzt das vorhandene `forwardFactor`/`backwardFactor`-Paar.
+
+**Die beiden Anteile leisten Verschiedenes — gemessen bei fahrbarer Steigung:**
+
+| Gebirge | symmetrischer Faktor | Spreizung bergauf/bergab |
+|---|---|---|
+| 1.240 Schritt / 60 Meilen | 1,01 | **34 %** |
+| 2.500 Schritt / 60 Meilen | 1,14 | **42 %** |
+| 9.000 Schritt / 120 Meilen | 1,44 | **42 %** |
+| *`Gebirgspass` (existiert bereits)* | *2,67* | *0 %* |
+
+Der **symmetrische** Anteil bleibt selbst beim höchsten Gebirge unter dem, was der
+Wegtyp `Gebirgspass` heute schon leistet — für „Berge sind mühsam" genügt also der
+isotrope Faktor. Der **Richtungsunterschied** dagegen ist groß und stabil: oberhalb
+von 5 % Steigung ist das Verhältnis bergauf zu bergab konstant `exp(0,35) ≈ 1,42`,
+unabhängig davon, wie steil es weitergeht.
+
+**Daraus folgt die Arbeitsteilung:** der isotrope Faktor macht das Gebirge mühsam,
+das Höhenmodell macht es **richtungsabhängig** — und Letzteres kann ein isotroper
+Faktor prinzipiell nicht. Nur dafür lohnt der Aufwand des Höhenmodells.
+
+Nebenbedingung: bergab fällt der Faktor **unter 1** (abwärts ist echt schneller als
+flach). Klemmen dürfen deshalb nicht bei 1,0 abschneiden.
 - **saison** — Toggle plus Breitengrad plus Terrain (Schnee).
 
 Weil das *verschiedene Arten* von Modifikatoren sind, multiplizieren sie sich
@@ -151,6 +193,18 @@ bleiben.
   im Wegtyp. Der Landschaftsfaktor darf dort nicht zusätzlich greifen, sonst
   entstehen absurde Reisezeiten. Für Sumpf und Wald gibt es kein Gegenstück — dort
   ist der Faktor der volle neue Wert.
+  **Verschärfend:** die Geschwindigkeitstabelle ist **veröffentlicht** — der Dialog
+  in `js/routing/transport-speed-info.js` zeigt sie den Nutzern und sagt wörtlich,
+  eine Reichsstraße trage doppelt so schnell wie ein Gebirgspfad. Ein Terrainfaktor
+  obendrauf widerspricht damit einer Auskunft, die wir aktiv geben.
+- **Einheitenfalle.** Die Graph-Distanz steht in **Karteneinheiten**, ohne den
+  Faktor 3 — was nie störte, weil Dijkstra nur *rangiert*. Eine Steigung rangiert
+  nicht. Wird die Graph-Distanz versehentlich als Meilen gelesen, ist die Steigung
+  3× und das Signal 23× zu groß — und das Ergebnis sieht **überzeugender aus** als
+  das richtige. Details in `oekosystem-instruction.md` §5.0.
+- **Erfundene Zahlen.** Aus dem Wiki stammt nur die Maximalhöhe, die Verteilung
+  erzeugt der Generator. Interpolierte Höhen dürfen deshalb nie als Zahl in die
+  Infobox — dort stehen belegte Angaben unter einer Quellenfußnote.
 - **Datenmenge.** Der Nutzen wächst mit der Zahl gezeichneter Flächen. Bis
   Aventurien flächendeckend erfasst ist, wirkt das Feature lückenhaft.
 - **Netzdichte.** Terrain ändert die *Routenwahl* nur dort, wo es überhaupt
