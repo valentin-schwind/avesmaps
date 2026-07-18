@@ -423,4 +423,18 @@ assert.ok(!citymapFiltersMarkup({ official: true }).includes('data-adv-filter="s
 assert.ok(!advFiltersMarkup({ types: [] }).includes('data-adv-filter="spoiler"'));
 console.log("shared filter bar order ok");
 
+// ---- Leerer Ort: Streifen schweigt, Dialog oeffnet trotzdem (Owner 2026-07-18) ---------------------
+// Die Kachel ist nicht mehr ausgegraut, also braucht der Dialog eine Sektion, auch wenn nichts verzeichnet
+// ist -- sonst faellt mit ihr die einzige Stelle weg, an der ein Leser hier etwas beitragen koennte.
+// Der STREIFEN darf davon nichts abbekommen: eine leere Ueberschrift im Infopanel waere nur Rauschen.
+const emptyPlace = { kind: "settlement", name: "Bethana", publicId: "abc" };
+assert.strictEqual(buildCityMapsSectionMarkup("Bethana", [], { place: emptyPlace }), "", "Streifen bleibt leer");
+const emptyForDialog = buildCityMapsSectionMarkup("Bethana", [], { allowEmpty: true, place: emptyPlace });
+assert.ok(emptyForDialog.includes("avesmaps-citymaps"), "Dialog bekommt eine Sektion");
+// Die Ortsreferenz MUSS mitkommen: ohne sie haengt der Vorschlag an keinem Ort, und der leere Dialog
+// waere ein Formular ins Nichts -- genau der Zustand, den §3.1 als gueltig, aber nutzlos beschreibt.
+assert.ok(emptyForDialog.includes('data-citymap-place-id="abc"'), "Ortsreferenz reist mit");
+assert.ok(emptyForDialog.includes("(0)"), "Zaehler zeigt 0 statt zu fehlen");
+console.log("citymap empty place ok");
+
 console.log("citymaps-render ok");

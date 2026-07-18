@@ -200,12 +200,15 @@ function cityMapTriAttr(value) {
 // Kern-Renderer: baut den Abschnitt aus einer fertigen Kartenliste. Genutzt von Siedlung, Territorium,
 // Region und Weg -- identisches Markup/identische Klassen, daher greifen "Alle anzeigen" und der
 // Spoiler-Reveal (Document-Delegation) fuer alle vier unveraendert.
+// opts.allowEmpty: eine Sektion OHNE Karten bauen, statt "" zu liefern. Der Streifen im Infopanel will das
+// nicht (dort waere eine leere Ueberschrift nur Rauschen) -- der Dialog schon: seit 2026-07-18 oeffnet die
+// Kachel immer, und der leere Dialog braucht eine Sektion, die wenigstens Ortsnamen und -referenz traegt.
 function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	opts = opts || {};
-	if (!maps || !maps.length) {
+	if ((!maps || !maps.length) && !opts.allowEmpty) {
 		return "";
 	}
-	var cards = maps.map(cityMapCardMarkup).join("");
+	var cards = (maps || []).map(cityMapCardMarkup).join("");
 	var name = placeName || tr("cityMaps.fallbackPlace", "diesem Ort");
 	// data-citymap-territory-key marks a territory/region block so the dialog can rebuild the SAME set
 	// from the catalog.
@@ -240,7 +243,7 @@ function buildCityMapsSectionMarkup(placeName, maps, opts) {
 	var creditMarkup = cityMapsHaveVisibleCover(maps) ? avesmapsCitymapCreditMarkup() : "";
 	return '<div class="avesmaps-citymaps"' + scopeAttr + placeAttr + '>'
 		+ '<div class="avesmaps-citymaps__head">' + tr("cityMaps.headingIn", "Kartensammlung von {place}", { place: placeExtrasEscape(name) })
-		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape(maps.length) + ')</span></div>'
+		+ ' <span class="avesmaps-citymaps__count">(' + placeExtrasEscape((maps || []).length) + ')</span></div>'
 		+ '<div class="avesmaps-citymaps__scroll">' + cards + '</div>'
 		+ '<div class="avesmaps-citymaps__actions">'
 		+ '<button type="button" class="avesmaps-citymaps__all">' + placeExtrasEscape(tr("cityMaps.all", "Alle anzeigen")) + '</button>'
@@ -275,13 +278,16 @@ function citymapPlaceAttrs(place, fallbackName) {
 }
 
 // Siedlung.
-function buildPlaceCityMapsMarkup(location) {
+function buildPlaceCityMapsMarkup(location, opts) {
 	var maps = getPlaceCityMaps(location);
-	if (!maps || !maps.length) {
+	// opts.allowEmpty: der Dialog will die Sektion AUCH ohne Karten (er zeigt dann seinen leeren Zustand);
+	// der Streifen im Infopanel will sie nicht -- dort waere eine leere Ueberschrift nur Rauschen.
+	if ((!maps || !maps.length) && !(opts && opts.allowEmpty)) {
 		return "";
 	}
 	var placeName = (location && location.name) ? location.name : tr("cityMaps.fallbackPlace", "diesem Ort");
 	return buildCityMapsSectionMarkup(placeName, maps, {
+		allowEmpty: !!(opts && opts.allowEmpty),
 		place: {
 			kind: "settlement",
 			name: placeName,
@@ -829,11 +835,14 @@ function avesmapsCitymapCreditMarkup() {
 // (Document-Delegation weiter unten) fuer beide unveraendert. opts.total = Kopf-Zaehler (Default beginnt.length,
 // fuer die Siedlung ggf. der Payload-/Platzhalter-Gesamtwert); opts.placeholderNote = Platzhalter-Hinweis
 // (nur die Siedlung zeigt ihn, solange der echte Katalog noch nicht geladen ist).
+// opts.allowEmpty: eine Sektion OHNE Abenteuer bauen, statt "" zu liefern -- dieselbe Regel wie bei der
+// Kartensammlung. Der Streifen im Infopanel will das nicht, der Dialog schon: seine Kachel oeffnet seit
+// 2026-07-18 immer, und der leere Dialog braucht eine Sektion, die Ortsnamen und -id traegt.
 function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	opts = opts || {};
 	var hasBeginnt = beginnt && beginnt.length > 0;
 	var hasPlay = play && play.length > 0;
-	if (!hasBeginnt && !hasPlay) {
+	if (!hasBeginnt && !hasPlay && !opts.allowEmpty) {
 		return "";
 	}
 	var name = placeName || tr("adventures.fallbackPlace", "diesem Ort");
@@ -886,7 +895,9 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// datengetriebenen Nested-Dialog (getAdventureTerritoryTree, deepest-wins + Filter) statt des flachen
 	// DOM-Klon-Dialogs der Siedlung. Bei der Siedlung fehlt das Attribut -> flacher Dialog wie bisher.
 	var terrAttr = opts.territoryKey ? ' data-adv-scope="territory" data-adv-territory-key="' + placeExtrasEscape(opts.territoryKey) + '"' : "";
-	return '<div class="avesmaps-adv"' + terrAttr + '>'
+	// Die Orts-id reist mit, damit der leere Dialog von HIER aus das naechste Abenteuer suchen kann.
+	var placeIdAttr = opts.placeId ? ' data-adv-place-id="' + placeExtrasEscape(opts.placeId) + '"' : "";
+	return '<div class="avesmaps-adv"' + terrAttr + placeIdAttr + '>'
 		+ '<div class="avesmaps-adv__head">' + tr("adventures.heading", "Abenteuer in {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</div>'
 		+ sortsMarkup
 		+ togglesMarkup
@@ -899,7 +910,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 }
 
 // Siedlung: die "beginnt hier"/"spielt hier"-Abenteuer dieses Orts (Phase 1). Delegiert an den Kern-Renderer.
-function buildPlaceAdventuresMarkup(location) {
+function buildPlaceAdventuresMarkup(location, opts) {
 	var catalogReady = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
 	var beginnt = getPlaceAdventures(location); // "beginnt hier" (Start-Ort liegt hier)
 	var play = (catalogReady && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "play" }) : [];
@@ -908,6 +919,9 @@ function buildPlaceAdventuresMarkup(location) {
 	return buildAdventuresSectionMarkup(placeName, beginnt, play, {
 		total: hasBeginnt ? getPlaceAdventuresTotal(location) : 0,
 		placeholderNote: hasBeginnt && !catalogReady,
+		// Nur der Dialog will eine leere Sektion (s. buildAdventuresSectionMarkup); der Streifen nicht.
+		allowEmpty: !!(opts && opts.allowEmpty),
+		placeId: (location && (location.publicId || location.public_id)) || "",
 	});
 }
 
@@ -1006,10 +1020,10 @@ function buildFloatingAdventuresButtonMarkup(location, publicId) {
 	// Immer eine Kachel rendern (Owner via Design-Session): fehlen Abenteuer -- oder ist der Katalog noch
 	// nicht geladen -- steht sie deaktiviert da, statt wegzufallen. So bleibt die Aktionsleiste stabil.
 	var ready = typeof avesmapsAdventureCatalogIsReady === "function" && avesmapsAdventureCatalogIsReady();
-	var all = (ready && typeof getAdventuresForPlace === "function") ? getAdventuresForPlace(location, { role: "all" }) : [];
-	var hasAdventures = !!(all && all.length);
 	var attributes = { "data-adv-open-place": publicId };
-	if (!hasAdventures) {
+	// Wie bei der Kartensammlung: nur der ungeladene Katalog deaktiviert. Ein Ort ohne Abenteuer oeffnet
+	// den Dialog und bietet an, eines in der Gegend zu finden.
+	if (!ready) {
 		attributes["aria-disabled"] = "true";
 	}
 	return popupActionButtonMarkup({
@@ -1031,9 +1045,11 @@ function buildFloatingCityMapsButtonMarkup(location, publicId) {
 		return "";
 	}
 	var ready = typeof avesmapsCitymapCatalogIsReady === "function" && avesmapsCitymapCatalogIsReady();
-	var maps = ready ? getPlaceCityMaps(location) : [];
 	var attributes = { "data-citymaps-open-place": publicId };
-	if (!maps.length) {
+	// Deaktiviert NUR, solange der Katalog nicht geladen ist -- dann wissen wir schlicht nichts. Ein Ort
+	// OHNE Karten ist kein Grund mehr (Owner 2026-07-18): der Dialog oeffnet und bietet an, eine
+	// vorzuschlagen. Eine tote Kachel war eine Sackgasse fuer genau die Leser, die etwas beitragen wollten.
+	if (!ready) {
 		attributes["aria-disabled"] = "true";
 	}
 	return popupActionButtonMarkup({
@@ -1293,10 +1309,27 @@ function advFiltersMarkup(facets) {
 		grid.classList.remove("show-spoilers"); // Dialog startet verschleiert -- Spoiler sind bei jedem Oeffnen wieder zu
 		// Durchgehend sortiert wie der Streifen -- Spoilerzeilen stehen an ihrem Platz, nicht als Block am
 		// Ende. Dieselbe Hilfsfunktion, damit Streifen und Dialog nicht auseinanderlaufen koennen.
-		grid.innerHTML = avesmapsSortAdventureEntries(
-			entries.map(function (e) { return { a: e.shape, isPlay: e.isPlay }; })
-		).map(function (e) { return buildAdventureRowMarkup(e.a, e.isPlay); }).join("");
-		buildDialogControls(overlay, startEntries.length, playEntries.length);
+		// Kein Eintrag: der Dialog oeffnet trotzdem (Owner 2026-07-18, die Kachel ist nicht mehr ausgegraut)
+		// und zeigt mittig, was Sache ist. Statt eines Vorschlags-Knopfs -- Abenteuer sollen Nutzer vorerst
+		// NICHT einstellen (Owner) -- fuehrt er zum naechstgelegenen Ort, an dem eines spielt.
+		grid.innerHTML = entries.length
+			? avesmapsSortAdventureEntries(
+				entries.map(function (e) { return { a: e.shape, isPlay: e.isPlay }; })
+			).map(function (e) { return buildAdventureRowMarkup(e.a, e.isPlay); }).join("")
+			: '<div class="avesmaps-dialog-empty">'
+				+ '<p class="avesmaps-dialog-empty__text">' + placeExtrasEscape(tr("adventures.emptyPlace", "Noch kein Abenteuer hier.")) + '</p>'
+				+ '<button type="button" class="avesmaps-dialog-empty__action" data-adv-find-nearest="'
+				+ placeExtrasEscape(section.getAttribute("data-adv-place-id") || "") + '">'
+				+ placeExtrasEscape(tr("adventures.emptyFindNearby", "Finde ein Abenteuer in der Gegend")) + '</button>'
+				+ '</div>';
+		// Ohne Eintraege gibt es nichts zu filtern und nichts zu sortieren -- eine Leiste ueber einem leeren
+		// Fenster waere Bedienung ohne Gegenstand.
+		if (entries.length) {
+			buildDialogControls(overlay, startEntries.length, playEntries.length);
+		} else {
+			var staleControls = overlay.querySelector(".avesmaps-adv-dialog__controls");
+			if (staleControls) { staleControls.parentNode.removeChild(staleControls); }
+		}
 		var creditEl = overlay.querySelector(".avesmaps-adv-dialog__credit");
 		if (creditEl) {
 			creditEl.innerHTML = avesmapsAdventureCreditMarkup();
@@ -1310,13 +1343,57 @@ function advFiltersMarkup(facets) {
 		if (!location || typeof buildPlaceAdventuresMarkup !== "function") {
 			return;
 		}
+		// allowEmpty: auch ohne Abenteuer oeffnen (Owner 2026-07-18) -- der Dialog zeigt dann seinen leeren
+		// Zustand mit dem Weg zum naechsten Abenteuer, statt dass gar nichts passiert.
 		var holder = document.createElement("div");
-		holder.innerHTML = buildPlaceAdventuresMarkup(location);
+		holder.innerHTML = buildPlaceAdventuresMarkup(location, { allowEmpty: true });
 		var section = holder.querySelector(".avesmaps-adv");
 		if (section) {
 			openFlatDialogForSection(section);
 		}
 	}
+
+	// "Finde ein Abenteuer in der Gegend": der raeumlich naechste Ort, an dem ueberhaupt eines spielt --
+	// und dorthin springen, statt den Dialog mit fremden Abenteuern zu fuellen (die spielen ja nicht hier).
+	// Nutzt bewusst die vorhandene Nachbarschaftssuche (findNearestLocationToLatLng) und nicht die
+	// politische Hierarchie: "in der Gegend" heisst fuer einen Leser Luftlinie, nicht Lehnspyramide.
+	$(document).on("click", "[data-adv-find-nearest]", function () {
+		var fromId = this.getAttribute("data-adv-find-nearest");
+		if (!fromId || typeof findLocationMarkerByPublicId !== "function"
+			|| typeof findNearestLocationToLatLng !== "function") {
+			return;
+		}
+		var origin = findLocationMarkerByPublicId(fromId);
+		var coords = origin && origin.location && origin.location.coordinates;
+		if (!coords || !L || typeof L.latLng !== "function") {
+			return;
+		}
+		var target = findNearestLocationToLatLng(L.latLng(coords[0], coords[1]), {
+			accept: function (candidate) {
+				return candidate !== origin.location
+					&& typeof getPlaceAdventuresTotal === "function"
+					&& getPlaceAdventuresTotal(candidate) > 0;
+			},
+		});
+		var warn = function (msg) {
+			if (typeof showFeedbackToast === "function") { showFeedbackToast(msg, "warning"); }
+		};
+		if (!target) {
+			warn(tr("adventures.noneNearby", "In der Nähe ist kein Abenteuer verzeichnet."));
+			return;
+		}
+		var overlay = document.getElementById("avesmaps-adv-dialog");
+		if (overlay) { overlay.classList.remove("is-open"); }
+		// Denselben Weg gehen wie "Nächsten Ort finden" im Kontextmenue: Marker-Entry ueber die publicId,
+		// sonst ueber den Namen, dann die schlanke Infobox am Ziel oeffnen.
+		var targetEntry = (target.publicId && typeof findLocationMarkerByPublicId === "function"
+			? findLocationMarkerByPublicId(target.publicId) : null)
+			|| (typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(target.name) : null);
+		if (!targetEntry || typeof openSlimLocationPopupForMarkerEntry !== "function"
+			|| !openSlimLocationPopupForMarkerEntry(targetEntry)) {
+			warn(tr("toast.findNearest.openFailed", "Der nächste Ort konnte nicht geöffnet werden."));
+		}
+	});
 
 	// "Alle anzeigen" -> flacher Dialog (aus dem Streifen geklont); bei einem Territoriums-Block
 	// (data-adv-territory-key) stattdessen der verschachtelte Baum-Dialog. Popup UND Panel.

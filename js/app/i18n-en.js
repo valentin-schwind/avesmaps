@@ -544,6 +544,8 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.filter.to": "to",
 	"cityMaps.filter.color": "colour",
 	"cityMaps.filter.officialOnly": "official",
+	"cityMaps.emptyPlace": "No maps on record.",
+	"cityMaps.emptySuggest": "Suggest a map",
 	"cityMaps.filter.spoiler": "Spoiler (in-play content)",
 	// Type + art LABELS. The slugs themselves are domain content and are never translated (AGENTS.md §8);
 	// only what the reader sees is.
@@ -584,6 +586,9 @@ window.AVESMAPS_I18N_EN = {
 	"adventures.mode.start": "Starts here",
 	"adventures.mode.play": "Spoiler",
 	"adventures.mode.playNote": "(plays here)",
+	"adventures.emptyPlace": "No adventure here yet.",
+	"adventures.emptyFindNearby": "Find an adventure nearby",
+	"adventures.noneNearby": "No adventure on record nearby.",
 	"adventures.spoilerVeil": "Spoiler (plays here)",
 	"adventures.placeholderNote": "Placeholder · cover temporarily from the wiki",
 	"adventures.emptyHint": "No adventure starts here.",

@@ -229,11 +229,26 @@
 			return bandA.localeCompare(bandB, "de");
 		});
 		var grid = overlay.querySelector(".avesmaps-citymaps-dialog__grid");
-		grid.innerHTML = shapes.map(function (shape) {
-			return (typeof buildCityMapRowMarkup === "function") ? buildCityMapRowMarkup(shape) : "";
-		}).join("")
-			+ '<div class="avesmaps-citymaps-dialog__empty" data-citymaps-empty style="display:none">'
-			+ esc(tr("cityMaps.noneMatch", "Keine Karte passt zu diesen Filtern.")) + '</div>';
+		// Kein Eintrag: der Dialog oeffnet trotzdem (Owner 2026-07-18, die Kachel ist nicht mehr ausgegraut)
+		// und zeigt mittig, was Sache ist -- samt der einzigen Aktion, die hier sinnvoll ist. Der Knopf
+		// traegt dieselbe Ortsreferenz wie sein Zwilling in der Fusszeile, die in diesem Fall wegfaellt:
+		// derselbe Knopf zweimal waere Rauschen, und der grosse in der Mitte ist der, den man sucht.
+		var isEmpty = !shapes.length;
+		grid.innerHTML = isEmpty
+			? '<div class="avesmaps-dialog-empty">'
+				+ '<p class="avesmaps-dialog-empty__text">' + esc(tr("cityMaps.emptyPlace", "Keine Karten hinterlegt.")) + '</p>'
+				+ '<button type="button" class="avesmaps-dialog-empty__action avesmaps-citymaps__suggest"'
+				+ ' data-citymap-place-kind="' + esc(section.getAttribute("data-citymap-place-kind") || "") + '"'
+				+ ' data-citymap-place-name="' + esc(section.getAttribute("data-citymap-place-name") || "") + '"'
+				+ ' data-citymap-place-id="' + esc(section.getAttribute("data-citymap-place-id") || "") + '"'
+				+ ' data-citymap-place-key="' + esc(section.getAttribute("data-citymap-place-key") || "") + '">'
+				+ esc(tr("cityMaps.emptySuggest", "Schlag eine Karte vor")) + '</button>'
+				+ '</div>'
+			: shapes.map(function (shape) {
+				return (typeof buildCityMapRowMarkup === "function") ? buildCityMapRowMarkup(shape) : "";
+			}).join("")
+				+ '<div class="avesmaps-citymaps-dialog__empty" data-citymaps-empty style="display:none">'
+				+ esc(tr("cityMaps.noneMatch", "Keine Karte passt zu diesen Filtern.")) + '</div>';
 
 		var foot = overlay.querySelector(".avesmaps-citymaps-dialog__foot");
 		if (foot) {
@@ -246,7 +261,10 @@
 			foot.innerHTML = '<span class="avesmaps-citymaps-dialog__hint">'
 				+ esc(tr("cityMaps.footHint", "Karten sind externe Inhalte. Vorschau nur mit freier Lizenz/Genehmigung."))
 				+ '</span>'
-				+ '<span class="avesmaps-citymaps-dialog__actions">'
+				// Im leeren Dialog steht derselbe Knopf gross in der Mitte -- hier faellt er weg, damit er
+				// nicht zweimal dasteht (Owner 2026-07-18). Der Hinweistext bleibt: er gilt unabhaengig davon,
+				// ob gerade Karten verzeichnet sind.
+				+ (isEmpty ? "" : '<span class="avesmaps-citymaps-dialog__actions">'
 				+ '<button type="button" class="avesmaps-citymaps__suggest"'
 				+ ' data-citymap-place-kind="' + esc(section.getAttribute("data-citymap-place-kind") || "") + '"'
 				// KEIN Rueckfall auf baseTitle: das ist "Kartensammlung von Gareth", nicht "Gareth" -- als
@@ -256,7 +274,7 @@
 				+ ' data-citymap-place-id="' + esc(section.getAttribute("data-citymap-place-id") || "") + '"'
 				+ ' data-citymap-place-key="' + esc(section.getAttribute("data-citymap-place-key") || "") + '"'
 				+ '>' + esc(tr("cityMaps.suggest", "Karte vorschlagen")) + '</button>'
-				+ '</span>';
+				+ '</span>');
 		}
 
 		buildControls(overlay, shapes);
@@ -323,8 +341,11 @@
 		if (!entry || !entry.location || typeof buildPlaceCityMapsMarkup !== "function") {
 			return;
 		}
+		// allowEmpty: der Dialog oeffnet auch ohne Karten (Owner 2026-07-18) und zeigt dann seinen leeren
+		// Zustand samt "Schlag eine Karte vor". Vorher fiel die Sektion weg -- und mit ihr die einzige
+		// Stelle, an der ein Leser fuer diesen Ort ueberhaupt etwas beitragen konnte.
 		var holder = document.createElement("div");
-		holder.innerHTML = buildPlaceCityMapsMarkup(entry.location);
+		holder.innerHTML = buildPlaceCityMapsMarkup(entry.location, { allowEmpty: true });
 		var section = holder.querySelector(".avesmaps-citymaps");
 		if (section) {
 			openDialogForSection(section);

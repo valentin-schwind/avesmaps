@@ -618,6 +618,46 @@
 	font-size: 12.5px;
 	color: var(--color-text-muted);
 }
+
+/* Leerer Dialog (Owner 2026-07-18): beide Kacheln oeffnen jetzt immer, statt ausgegraut zu sein -- steht
+   fuer den Ort nichts zur Verfuegung, sagt der Dialog das mittig dort, wo sonst die Liste beginnt, und
+   bietet die eine Aktion an, die hier sinnvoll ist. Geteilt von Kartensammlung und Abenteuern, damit die
+   beiden leeren Zustaende nicht auseinanderlaufen wie seinerzeit die Spoiler-Mechanik. */
+.avesmaps-dialog-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-12);
+	padding: 48px 16px;
+	text-align: center;
+}
+.avesmaps-dialog-empty__text {
+	margin: 0;
+	font-size: 13px;
+	color: var(--color-text-muted);
+}
+/* Die EINZIGE Aktion im leeren Fenster -> gefuellt (Designsprache §12: genau eine Hauptaktion). Ihr
+   Zwilling in der Fusszeile faellt in diesem Fall weg, sonst stuenden zwei Hauptaktionen nebeneinander. */
+.avesmaps-dialog-empty__action {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	appearance: none;
+	background: var(--color-button);
+	border: 1px solid var(--color-button);
+	border-radius: var(--radius-md);
+	font: inherit;
+	font-size: 13px;
+	color: var(--color-button-text);
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+}
+.avesmaps-dialog-empty__action:hover {
+	background: var(--color-button-hover);
+	border-color: var(--color-button-hover);
+}
 .avesmaps-citymaps-dialog__foot {
 	flex: 0 0 auto;
 	min-height: 44px;

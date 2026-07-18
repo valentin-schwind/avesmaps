@@ -43,8 +43,12 @@ function findLocationMarkerByPublicId(publicId) {
 	return locationMarkers.find((entry) => entry.publicId === publicId) || null;
 }
 
-function findNearestLocationToLatLng(latlng) {
+// opts.accept (optional): zusaetzliches Praedikat, das ein Kandidat erfuellen muss. Damit sucht der leere
+// Abenteuer-Dialog den naechsten Ort, an dem ueberhaupt ein Abenteuer spielt, ohne die Distanzlogik zu
+// kopieren -- "in der Gegend" ist dieselbe Frage wie "naechster Ort", nur mit einer Bedingung mehr.
+function findNearestLocationToLatLng(latlng, opts) {
 	const targetLocation = { coordinates: [latlng.lat, latlng.lng] };
+	const accept = opts && typeof opts.accept === "function" ? opts.accept : null;
 	let nearestMatch = null;
 
 	const locationCandidates = locationData.length
@@ -53,6 +57,7 @@ function findNearestLocationToLatLng(latlng) {
 
 	locationCandidates
 		.filter((location) => location?.name && !isCrossingName(location.name))
+		.filter((location) => !accept || accept(location))
 		.forEach((location) => {
 			const distance = getLocationDistance(location, targetLocation);
 			if (!nearestMatch || distance < nearestMatch.distance) {
