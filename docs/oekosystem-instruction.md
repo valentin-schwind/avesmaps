@@ -43,8 +43,15 @@ Konstante in `js/config.js`: `type_key`, `label`, `speed_factor`,
 
 **`path_ecosystem`** — das Vorberechnungs-Ergebnis, eine Zeile je Weg × Fläche ×
 Intervall: `path_id`, `area_id`, `enter_distance`, `exit_distance`,
-`ascent`, `descent` (in **Zeichenrichtung** des Wegs), `computed_at`.
+`factor_forward`, `factor_backward` (fertig gerechnet, in **Zeichenrichtung** des
+Wegs), `ascent`, `descent` (**nur für die Anzeige**), `computed_at`.
 Index auf `path_id`.
+
+> **Gespeichert wird der fertige Faktor, nicht die rohe Höhensumme.** Steigung
+> wirkt nichtlinear aufs Tempo: 600 Schritt am Stück steil kosten mehr als 600
+> Schritt über 40 Meilen verteilt, und aus einer Summe lässt sich die Verteilung
+> nicht zurückrechnen. Die Zeit wird deshalb beim Abtasten **integriert** (§5).
+> `ascent`/`descent` überleben nur als Anzeigewerte.
 
 > **Wichtig:** ein Weg kann dieselbe Fläche mehrfach durchqueren (konkave Flächen).
 > Deshalb *mehrere Zeilen* je Weg×Fläche, kein Ja/Nein-Feld.
@@ -100,7 +107,16 @@ Stapellauf nach dem Muster von `autoget-run.php` (Sperre, Budget, Kill-Switch).
    (Strecke × Kante, Parameterform), damit die Meilenangabe sauber ist.
 4. **Schreiben** — je Intervall eine Zeile in `path_ecosystem`.
 5. **Im Gebirge zusätzlich** (Stufe 3): an denselben Abtastpunkten die Höhe aus dem
-   Netz lesen → Auf- und Abstieg aufsummieren, in Zeichenrichtung.
+   Netz lesen und die Zeit **Schritt für Schritt integrieren** — je Schritt aus der
+   *lokalen* Steigung ein lokales Tempo bilden und aufsummieren, einmal vorwärts
+   und einmal rückwärts. Ergebnis sind `factor_forward` / `factor_backward`.
+   Auf- und Abstieg werden nebenher summiert, aber nur als Anzeigewerte.
+
+   Die **Kurve Steigung → Tempo** ist ein austauschbares Stück und gehört den
+   Editoren (§8 des Designdocs). Startvorschlag: Toblers Wanderfunktion —
+   asymmetrisch, am schnellsten leicht bergab, steil hinauf *und* steil hinab
+   langsam. Ändert sich die Kurve, läuft **nur dieser Stapellauf** neu; an der
+   Routing-Seite ändert sich nichts.
 
 > **Warum abtasten statt nur exakt schneiden:** die exakte Variante stirbt an
 > Entartungen — Stützpunkt genau auf der Kante, tangentiale Berührung einer Ecke.
@@ -115,6 +131,16 @@ Routenanfrage**.
 
 **Toggle.** `routeOptions` bekommt ein Feld für „Landschaft berücksichtigen"; die
 Checkbox erscheint zunächst nur im Edit-Mode. Aus = Verhalten exakt wie heute.
+
+**Es braucht keinen neuen Suchalgorithmus.** Terrain ändert ausschließlich
+Kantengewichte; die Wegwahl macht weiterhin Dijkstra. Ein flacherer Umweg gewinnt
+automatisch, sobald er billiger ist — vorausgesetzt, er ist als Weg gezeichnet.
+
+> ⚠️ **Nur im Zeitmodus.** Der Graph wählt `weight = useShortestPath ?
+> conn.distance : conn.time`. Steht der Planer auf **„kürzester Weg", ist Terrain
+> vollständig wirkungslos** — Distanz kennt kein Gelände, und ein flacherer Umweg
+> ist dort per Definition der schlechtere. Terrain drückt sich ausschließlich über
+> die Zeit aus. Das ist kein Bug, muss aber in der Oberfläche verständlich sein.
 
 **Kosten je Kante.** Der Graph zerlegt Wege an **Kreuzungen**, nicht an
 Zonengrenzen. Eine Kante deckt also einen Meilenbereich ihres Wegs ab; diesen
@@ -190,3 +216,6 @@ vorgesehen — derselbe Kanal, den die Flussrichtung schon nutzt.
 - Ausnahmenliste gegen Doppelzählung (`Gebirgspass`, `Wuestenpfad`, weitere?).
 - Ob Flächen ohne Wiki-Bezug im „Führt durch" auftauchen oder still bleiben.
 - Wann der Toggle vom Edit-Mode auf Standard umgestellt wird.
+- Welche Kurve Steigung → Tempo abbildet (Startvorschlag Tobler, §5).
+- Wie der Oberfläche beizubringen ist, dass Terrain im Modus „kürzester Weg"
+  wirkungslos bleibt — Hinweis, Ausgrauen des Hakens, oder gar nichts.
