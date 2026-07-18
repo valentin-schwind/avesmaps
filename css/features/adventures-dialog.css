@@ -247,21 +247,12 @@
 	display: none;
 }
 
-/* Karten-Sichtbarkeit im Nested-Dialog: ueber display (Modus) + is-filtered-out (Filter), Fade fuer die
-   start-Dimmung. Die place-extras-Regel .avesmaps-adv__card.is-play{opacity:0} hier hoeher-spezifisch
-   ueberschreiben (wir steuern play NICHT ueber opacity, sondern ueber display). */
-.avesmaps-adv-tree-dialog__body .avesmaps-adv__card.is-play {
-	opacity: 1;
-	display: none;
-}
+/* Karten-Sichtbarkeit im Nested-Dialog: nur noch ueber den FILTER. Der Modus ist weg -- Spoiler stehen
+   auch hier an ihrem Platz und tragen den geteilten Schleier (.is-spoiler in place-extras.css). Die drei
+   frueheren Regeln (is-play auf display:none, im show-play-Zustand wieder auf display:block, start-Karten
+   auf opacity 0.4) hatten nur einen Zweck: das Verstecken, das es nicht mehr gibt. */
 .avesmaps-adv-tree-dialog__body .avesmaps-adv__card.is-filtered-out {
 	display: none !important;
-}
-.avesmaps-adv-tree-dialog__body.show-play .avesmaps-adv__card.is-play:not(.is-filtered-out) {
-	display: block;
-}
-.avesmaps-adv-tree-dialog__body.show-play .avesmaps-adv__card:not(.is-play):not(.is-filtered-out) {
-	opacity: 0.4;
 }
 
 /* Flacher Siedlungs-/Wege-/Regions-Dialog (#avesmaps-adv-dialog): dieselbe Filterleiste (Klassen oben),

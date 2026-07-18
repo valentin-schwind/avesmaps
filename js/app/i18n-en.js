@@ -584,6 +584,7 @@ window.AVESMAPS_I18N_EN = {
 	"adventures.mode.start": "Starts here",
 	"adventures.mode.play": "Spoiler",
 	"adventures.mode.playNote": "(plays here)",
+	"adventures.spoilerVeil": "Spoiler (plays here)",
 	"adventures.placeholderNote": "Placeholder · cover temporarily from the wiki",
 	"adventures.emptyHint": "No adventure starts here.",
 	"adventures.all": "Show all",

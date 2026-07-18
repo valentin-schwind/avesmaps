@@ -109,9 +109,19 @@ const bare = buildAdventureRowMarkup({ public_id: "adv-2", title: "Ohne Links", 
 assert.ok(bare.includes("Ohne Links"), "bare row still renders");
 assert.ok(!bare.includes("link-status--online") && !bare.includes("avesmaps-adv-row__linkmeta"), "bare row has no link markers");
 
-// Spoiler role: a "spielt hier" row is marked exactly like a card, so .is-play/.show-play keep working.
+// Spoiler-Rolle: "spielt hier" ist der Spoiler. is-play bleibt der ROLLEN-Marker (data-role, Zaehler,
+// Filter), is-spoiler ist der SCHUTZ-Zustand -- zwei Dinge, die vorher eines waren.
 const playRow = buildAdventureRowMarkup({ public_id: "adv-3", title: "P", links: [] }, true);
 assert.ok(playRow.includes("is-play") && playRow.includes('data-role="play"'), "play row marked");
+// Seit 2026-07-18 steht ein Spoiler DA, nur verschleiert -- er wird nicht mehr weggeblendet. Ein
+// wiederkehrendes display:none hier waere der Rueckfall in den alten, zweiten Mechanismus.
+assert.ok(playRow.includes("is-spoiler") && playRow.includes("avesmaps-spoiler-veil"), "play row carries the shared veil");
+assert.ok(!playRow.includes("display:none"), "ein Spoiler wird NICHT mehr versteckt");
+// Und der Schleier nennt seinen Grund (Owner-Muster "Spoiler (<Grund>)"), statt nur "Spoiler" zu rufen.
+assert.ok(playRow.includes("Spoiler (spielt hier)"), "der Schleier nennt seinen Grund");
+// Spoilerfreies bleibt unangetastet: kein Schleier, keine Schutzklasse.
+const startRow = buildAdventureRowMarkup({ public_id: "adv-5", title: "S", links: [] }, false);
+assert.ok(!startRow.includes("is-spoiler") && !startRow.includes("avesmaps-spoiler-veil"), "spoilerfrei bleibt offen");
 
 // Attribute-context escaping: a title with a quote must not break out of data-title="…".
 const nasty = buildAdventureRowMarkup({ public_id: "adv-4", title: 'A" onmouseover="x', links: [] });

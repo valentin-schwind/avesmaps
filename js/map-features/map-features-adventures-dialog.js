@@ -6,7 +6,7 @@
 // + Genre als Selects, "nur offiziell" als Chip). Deepest-wins + Baum + Facetten kommen fertig aus dem
 // Datenlayer (map-features-adventures.js): getAdventureTerritoryTree / avesmapsAdventureFacetOptions /
 // avesmapsAdventureMatchesFilter. Die Karten-Optik teilt sich buildAdventureCardMarkup (place-extras.js) --
-// im Nested-Dialog OHNE inline display:none (3. Arg), damit die CSS-Klassen (.is-play/.show-play/
+// im Nested-Dialog; Sichtbarkeit steuern die geteilten Klassen (.is-spoiler/.show-spoilers/
 // .is-filtered-out) Sichtbarkeit + Fade + Filter steuern.
 //
 // Eigener Overlay (#avesmaps-adv-tree-dialog), damit der flache Siedlungs-Dialog (#avesmaps-adv-dialog)
@@ -70,9 +70,9 @@
 	}
 
 	// Eine Karte in Nested-Optik: buildAdventureCardMarkup (geteilte Optik) OHNE inline display:none, damit
-	// CSS (.is-play/.show-play/.is-filtered-out) Sichtbarkeit/Fade/Filter steuert.
+	// Spoiler stehen da wie alle anderen, nur verschleiert; .is-filtered-out blendet aus.
 	function cardMarkup(shape, isPlay) {
-		return typeof buildAdventureCardMarkup === "function" ? buildAdventureCardMarkup(shape, isPlay, true) : "";
+		return typeof buildAdventureCardMarkup === "function" ? buildAdventureCardMarkup(shape, isPlay) : "";
 	}
 
 	// Ein Territoriums-Rahmen, ECHT verschachtelt: Kopf (Rang-Pill + Name + "N direkt"), eigene Karten
@@ -108,8 +108,7 @@
 	}
 	function modesMarkup() {
 		return '<div class="avesmaps-adv-tree__modes" role="tablist" aria-label="' + esc(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
-			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-tree-mode="start">' + esc(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count" data-adv-count="start"></span></button>'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="play">' + esc(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-tree-mode="spoiler" aria-pressed="false">' + esc(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + esc(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play"></span></button>'
 			+ '</div>';
 	}
 	// Filterleiste: geteilt mit dem flachen Dialog (advFiltersMarkup, place-extras.js -- laedt frueher in
@@ -156,7 +155,7 @@
 			? avesmapsAdventureFacetOptions(allShapes)
 			: { types: [], complexities: [], genres: [] };
 
-		var state = { mode: "start", sort: "year", filter: { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false } };
+		var state = { revealSpoilers: false, sort: "year", filter: { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false } };
 		var controls = box.querySelector(".avesmaps-adv-tree-dialog__controls");
 		var body = box.querySelector(".avesmaps-adv-tree-dialog__body");
 
@@ -186,9 +185,7 @@
 			var wraps = body.querySelectorAll(".avesmaps-adv-tree__cards");
 			Array.prototype.forEach.call(wraps, function (wrap) {
 				var all = Array.prototype.slice.call(wrap.children);
-				var starts = all.filter(function (c) { return !c.classList.contains("is-play"); }).sort(compare);
-				var plays = all.filter(function (c) { return c.classList.contains("is-play"); }).sort(compare);
-				starts.concat(plays).forEach(function (c) { wrap.appendChild(c); });
+				all.sort(compare).forEach(function (c) { wrap.appendChild(c); });
 			});
 		}
 
@@ -199,7 +196,7 @@
 			Array.prototype.forEach.call(body.querySelectorAll(".avesmaps-adv__card"), function (c) {
 				c.classList.toggle("is-filtered-out", !cardPasses(c, state.filter));
 			});
-			body.classList.toggle("show-play", state.mode === "play");
+			body.classList.toggle("show-spoilers", state.revealSpoilers);
 
 			var frames = Array.prototype.slice.call(body.querySelectorAll(".avesmaps-adv-tree__frame")).reverse();
 			frames.forEach(function (f) {
@@ -207,14 +204,14 @@
 				var visStart = wrap ? wrap.querySelectorAll(".avesmaps-adv__card:not(.is-play):not(.is-filtered-out)").length : 0;
 				var visPlay = wrap ? wrap.querySelectorAll(".avesmaps-adv__card.is-play:not(.is-filtered-out)").length : 0;
 				// Sichtbare Karten im aktuellen Modus: start-Modus nur start; play-Modus zeigt beide (Fade).
-				var visInMode = state.mode === "play" ? (visStart + visPlay) : visStart;
+				var visInMode = visStart + visPlay;
 				var hasKid = Array.prototype.some.call(f.querySelectorAll(":scope > .avesmaps-adv-tree__frame"), function (k) {
 					return !k.classList.contains("is-hidden");
 				});
 				f.classList.toggle("is-hidden", visInMode === 0 && !hasKid);
 				var direct = f.querySelector(":scope > .avesmaps-adv-tree__fhead > [data-adv-direct]");
 				if (direct) {
-					var n = state.mode === "play" ? visPlay : visStart;
+					var n = visStart + visPlay;
 					direct.textContent = tr("adventures.directCount", "{n} direkt", { n: n });
 				}
 			});
@@ -234,11 +231,11 @@
 			}
 			var modeBtn = t.closest("[data-adv-tree-mode]");
 			if (modeBtn) {
-				state.mode = modeBtn.getAttribute("data-adv-tree-mode") === "play" ? "play" : "start";
+				state.revealSpoilers = !state.revealSpoilers;
 				Array.prototype.forEach.call(controls.querySelectorAll("[data-adv-tree-mode]"), function (b) {
-					var on = b === modeBtn;
+					var on = state.revealSpoilers;
 					b.classList.toggle("is-active", on);
-					b.setAttribute("aria-selected", on ? "true" : "false");
+					b.setAttribute("aria-pressed", on ? "true" : "false");
 				});
 				apply();
 				return;

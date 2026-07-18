@@ -93,7 +93,11 @@ assert.ok(noLink.includes("<svg"), "no thumb -> placeholder icon");
 
 // A spoiler card carries the cover; the reveal target is inside the anchor.
 const spoiler = cityMapCardMarkup({ public_id: "m2", title: "Die Krypta", map_url: "https://example.org/k", is_spoiler: true });
-assert.ok(spoiler.includes("is-spoiler") && spoiler.includes("data-citymap-reveal"), "spoiler card is covered");
+assert.ok(spoiler.includes("is-spoiler") && spoiler.includes("data-spoiler-reveal"), "spoiler card is covered");
+// Der Schleier ist seit 2026-07-18 GETEILT: dieselbe Klasse, derselbe Reveal-Hook wie bei den Abenteuern.
+// Wer hier einen feature-eigenen Namen einfuehrt, spaltet den Mechanismus wieder auf -- und genau die
+// Aufspaltung hatte zur Folge, dass Karten blurrten und Abenteuer sich versteckten.
+assert.ok(spoiler.includes("avesmaps-spoiler-veil"), "der Schleier ist der geteilte, kein citymap-eigener");
 assert.ok(spoiler.includes("Spoiler (aufgedeckte Inhalte)"), "der Deckel nennt seinen Grund, nicht nur 'Spoiler'");
 
 // Escaping: a hostile title must not break out of the attribute OR the text node.

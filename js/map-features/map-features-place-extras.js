@@ -105,6 +105,24 @@ function cityMapBestLink(m) {
 	return cityMapSafeUrl(m && m.map_url);
 }
 
+// ---- Spoiler-Schleier: EIN Mechanismus fuer Karten UND Abenteuer (Owner 2026-07-18) -----------------
+// Die Regel, die beide Seiten teilen: **spoilerfrei steht sofort da, ein Spoiler steht auch da -- nur
+// unkenntlich**, mit einem Label mittig auf dem Nebel. Ein Klick auf den Schleier deckt EINEN auf, der
+// Sammelschalter der Leiste alle; beim naechsten Oeffnen ist wieder alles zu.
+//
+// Vorher waren es zwei Mechanismen: Karten blurrten, Abenteuer versteckten ihre Spoiler per display:none
+// hinter einem Beginnt/Spielt-Umschalter. Das Verstecken sagte dem Leser erst NACH dem Klick, welche
+// Eintraege die Spoiler sind -- der Nebel sagt es sofort und ohne Klick.
+//
+// Drei Bausteine, mehr braucht es nicht:
+//   .is-spoiler            am Element -- verschleiert seine Kinder
+//   .avesmaps-spoiler-veil das Label mittig darauf (Klick deckt genau dieses Element auf)
+//   .show-spoilers         am Container -- hebt ALLE Schleier darin auf
+// Das Element braucht `position: relative`, sonst legt sich der Schleier ueber den falschen Anker.
+function avesmapsSpoilerVeilMarkup(label) {
+	return '<span class="avesmaps-spoiler-veil" data-spoiler-reveal>' + placeExtrasEscape(label) + '</span>';
+}
+
 // A spoiler map hides behind a blurred thumb + an overlay until the reader asks (§3.7). Only an EXPLICIT
 // is_spoiler === true counts: unknown (null) is not a spoiler, and treating it as one would hide maps
 // nobody ever classified.
@@ -129,7 +147,7 @@ function cityMapCardMarkup(m) {
 	// The overlay sits INSIDE the anchor and swallows the first click (see the delegated reveal handler),
 	// so a spoiler can never be opened by accident on the way to uncovering it.
 	var spoilerOverlay = spoiler
-		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken")) + '</span>'
+		? avesmapsSpoilerVeilMarkup(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken"))
 		: "";
 	var openAttrs = href
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
@@ -473,7 +491,7 @@ function buildCityMapRowMarkup(m) {
 	var href = cityMapBestLink(m);
 	var spoiler = cityMapIsSpoiler(m);
 	var spoilerOverlay = spoiler
-		? '<span class="avesmaps-citymaps__spoiler" data-citymap-reveal>' + placeExtrasEscape(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken")) + '</span>'
+		? avesmapsSpoilerVeilMarkup(tr("cityMaps.spoilerReveal", "Spoiler (aufgedeckte Inhalte) — aufdecken"))
 		: "";
 	var openAttrs = href
 		? ' href="' + placeExtrasEscape(href) + '" target="_blank" rel="noopener"'
@@ -614,7 +632,7 @@ function advBestLink(a) {
 	return links.length ? links[0] : null;
 }
 
-function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
+function buildAdventureCardMarkup(a, isPlay) {
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	// The COVER opens the highest-priority shop/reference link (Ulisses -> F-Shop -> DNB -> Wiki); the TITLE
 	// stays the wiki page. Fall back to the wiki on the cover only when nothing is known.
@@ -633,14 +651,18 @@ function buildAdventureCardMarkup(a, isPlay, noInlineHide) {
 	var typeLine = a.type ? '<div class="avesmaps-adv__type">' + placeExtrasEscape(a.type) + '</div>' : "";
 	// Anthology-only adventures ship inside a parent product -> the shop link points there; say why.
 	var containedLine = a.containedIn ? '<div class="avesmaps-adv__contained">' + placeExtrasEscape(tr("adventures.containedInPrefix", "enthalten in: ")) + placeExtrasEscape(a.containedIn) + '</div>' : "";
-	var extraClass = isPlay ? " is-play" : "";
-	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
-	return '<div class="avesmaps-adv__card' + extraClass + '"' + hiddenStyle + advCardDataAttributes(a, isPlay) + '>'
+	// "spielt hier" IST der Spoiler (Owner 2026-07-18): er steht jetzt da, nur verschleiert -- vorher war er
+	// display:none, und der Leser erfuhr erst NACH dem Umschalten, welche Eintraege es ueberhaupt betrifft.
+	// is-play bleibt der ROLLEN-Marker (data-role, Zaehler, Filter), is-spoiler ist der SCHUTZ-Zustand.
+	var extraClass = isPlay ? " is-play is-spoiler" : "";
+	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("adventures.spoilerVeil", "Spoiler (spielt hier)")) : "";
+	return '<div class="avesmaps-adv__card' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
 		+ '<a class="avesmaps-adv__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<a class="avesmaps-adv__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
 		+ metaLine
 		+ typeLine
 		+ containedLine
+		+ veil
 		+ '</div>';
 }
 
@@ -699,7 +721,7 @@ function advRowLinkMarkup(link, opts) {
 // Traegt bewusst AUCH .avesmaps-adv__card: Sortierung, Filter und der beginnt/spielt-Umschalter sind
 // geteilte Handler, die auf diese Klasse + .is-play + .is-filtered-out zielen. So gilt fuer die Zeile
 // automatisch dieselbe Steuerung wie fuer die Kachel; die abweichende Optik haengt an .avesmaps-adv-row.
-function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
+function buildAdventureRowMarkup(a, isPlay) {
 	var wikiUrl = a.url || ("https://de.wiki-aventurica.de/wiki/" + encodeURIComponent(a.title || ""));
 	var links = advShopLinks(a);
 	var best = links.length ? links[0] : null;
@@ -731,9 +753,9 @@ function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
 		return advRowLinkMarkup(link);
 	}).join("") + '</ul>' : "";
 
-	var extraClass = isPlay ? " is-play" : "";
-	var hiddenStyle = (isPlay && !noInlineHide) ? ' style="display:none"' : "";
-	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + hiddenStyle + advCardDataAttributes(a, isPlay) + '>'
+	var extraClass = isPlay ? " is-play is-spoiler" : "";
+	var veil = isPlay ? avesmapsSpoilerVeilMarkup(tr("adventures.spoilerVeil", "Spoiler (spielt hier)")) : "";
+	return '<div class="avesmaps-adv__card avesmaps-adv-row' + extraClass + '"' + advCardDataAttributes(a, isPlay) + '>'
 		+ '<a class="avesmaps-adv-row__cover' + (a.cover ? " has-img" : "") + '" href="' + placeExtrasEscape(coverHref) + '" target="_blank" rel="noopener" title="' + placeExtrasEscape(coverTitle) + '">' + coverInner + '</a>'
 		+ '<div class="avesmaps-adv-row__main">'
 		+ '<a class="avesmaps-adv-row__title" href="' + placeExtrasEscape(wikiUrl) + '" target="_blank" rel="noopener">' + placeExtrasEscape(a.title) + '</a>'
@@ -742,6 +764,7 @@ function buildAdventureRowMarkup(a, isPlay, noInlineHide) {
 		+ containedLine
 		+ '</div>'
 		+ '<div class="avesmaps-adv-row__side">' + linksMarkup + '</div>'
+		+ veil
 		+ '</div>';
 }
 
@@ -788,8 +811,10 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	}
 	var name = placeName || tr("adventures.fallbackPlace", "diesem Ort");
 	var total = (opts.total != null) ? opts.total : (hasBeginnt ? beginnt.length : 0);
-	// Kopf-Zaehler NUR, wenn kein Toggle da ist (sonst tragen die Toggle-Segmente die Zaehler).
-	var countMarkup = (hasBeginnt && !hasPlay) ? ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>' : "";
+	// Kopf-Zaehler IMMER: seit der Umschalter ein blosser Spoiler-Schalter ist, hat "Beginnt hier" kein
+	// eigenes Segment mehr, das seine Zahl tragen koennte (Owner 2026-07-18: "'Beginnt hier' schrumpft zur
+	// Zahl im Kopf").
+	var countMarkup = ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>';
 
 	// Sortierzeile (sortiert innerhalb der Rolle -- beginnt bleibt vor spielt).
 	var sortsMarkup =
@@ -803,11 +828,12 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 		+ '</div>';
 
-	// Umschalter unter der Sortierzeile (nur wenn es spielt-Orte gibt). Klick auf "Spielt hier" = Spoiler-Bestaetigung.
+	// EIN Schalter unter der Sortierzeile, kein Umschalter mehr (Owner 2026-07-18): die spielt-Eintraege
+	// stehen ohnehin da, nur verschleiert -- es gibt nichts umzuschalten, nur aufzudecken. Deshalb auch
+	// kein role="tablist"/aria-selected mehr, sondern ein gedrueckter Zustand (aria-pressed).
 	var togglesMarkup = hasPlay
-		? '<div class="avesmaps-adv__modes" role="tablist" aria-label="' + placeExtrasEscape(tr("adventures.modesAriaLabel", "Beginnt hier oder Spielt hier")) + '">'
-			+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">' + placeExtrasEscape(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(beginnt.length) + ')</span></button>'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
+		? '<div class="avesmaps-adv__modes">'
+			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="spoiler" aria-pressed="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
 			+ '</div>'
 		: "";
 
@@ -1131,9 +1157,8 @@ function advFiltersMarkup(facets) {
 			+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
 			+ '</div>';
 		var togglesHtml = playCount
-			? '<div class="avesmaps-adv-dialog__modes" role="tablist">'
-				+ '<button type="button" class="avesmaps-adv__mode is-active" data-adv-mode="start" aria-selected="true">' + placeExtrasEscape(tr("adventures.mode.start", "Beginnt hier")) + ' <span class="avesmaps-adv__mode-count" data-adv-count="start">(' + startCount + ')</span></button>'
-				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="play" aria-selected="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
+			? '<div class="avesmaps-adv-dialog__modes">'
+				+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="spoiler" aria-pressed="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count" data-adv-count="play">(' + playCount + ')</span></button>'
 				+ '</div>'
 			: "";
 
@@ -1150,18 +1175,15 @@ function advFiltersMarkup(facets) {
 		var filterState = { types: new Set(), complexity: "", genre: "", edition: "", yearFrom: 0, yearTo: 0, officialOnly: false };
 
 		function applyFilters() {
-			var visStart = 0;
+			// Nur noch der Spoiler-Zaehler: seit der Umschalter ein einzelner Schalter ist, gibt es kein
+			// "Beginnt hier"-Segment mehr, das eine zweite Zahl tragen koennte.
 			var visPlay = 0;
 			cards.forEach(function (card) {
 				var passes = dialogCardPasses(card, filterState);
 				card.classList.toggle("is-filtered-out", !passes);
-				if (passes) {
-					if (card.classList.contains("is-play")) { visPlay += 1; } else { visStart += 1; }
-				}
+				if (passes && card.classList.contains("is-play")) { visPlay += 1; }
 			});
-			var cs = controls.querySelector('[data-adv-count="start"]');
 			var cp = controls.querySelector('[data-adv-count="play"]');
-			if (cs) { cs.textContent = "(" + visStart + ")"; }
 			if (cp) { cp.textContent = "(" + visPlay + ")"; }
 		}
 
@@ -1219,9 +1241,9 @@ function advFiltersMarkup(facets) {
 		var startEntries = entries.filter(function (e) { return !e.isPlay; });
 		var playEntries = entries.filter(function (e) { return e.isPlay; });
 		var grid = overlay.querySelector(".avesmaps-adv-dialog__grid");
-		grid.classList.remove("show-play"); // Dialog startet in der beginnt-Sicht
+		grid.classList.remove("show-spoilers"); // Dialog startet verschleiert -- Spoiler sind bei jedem Oeffnen wieder zu
 		// beginnt-Zeilen (voll), dann spielt-Zeilen (per Inline-display verborgen, wie im Streifen -- der
-		// geteilte applyAdventureMode gibt sie beim Umschalten frei).
+		// geteilte Schleier-Regel verdeckt sie, bis jemand aufdeckt).
 		grid.innerHTML = startEntries.map(function (e) { return buildAdventureRowMarkup(e.shape, false); }).join("")
 			+ playEntries.map(function (e) { return buildAdventureRowMarkup(e.shape, true); }).join("");
 		buildDialogControls(overlay, startEntries.length, playEntries.length);
@@ -1303,13 +1325,14 @@ function advFiltersMarkup(facets) {
 			}
 			return (Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0);
 		};
-		// Innerhalb der Rolle sortieren -- beginnt bleibt VOR spielt (Reihenfolge-Invariante).
-		var startCards = Array.prototype.slice.call(cardBox.querySelectorAll(".avesmaps-adv__card:not(.is-play)")).sort(compare);
-		var playCards = Array.prototype.slice.call(cardBox.querySelectorAll(".avesmaps-adv__card.is-play")).sort(compare);
-		startCards.concat(playCards).forEach(function (c) { cardBox.appendChild(c); });
-		if (!cardBox.classList.contains("show-play")) {
-			cardBox.scrollLeft = 0;
-		}
+		// DURCHGEHEND sortieren, ohne Rollen-Bloecke (Owner 2026-07-18). Die alte Invariante "beginnt bleibt
+		// vor spielt" war keine inhaltliche Entscheidung, sondern eine Folge des Umschalters: der gab die
+		// spielt-Karten per Fade frei und scrollte nach rechts zu ihnen, dafuer mussten sie hinten liegen.
+		// Ohne Umschalter hat sie keinen Grund mehr -- die Spoiler stehen jetzt verschleiert an ihrem
+		// Sortierplatz, mitten zwischen den anderen.
+		var allCards = Array.prototype.slice.call(cardBox.querySelectorAll(".avesmaps-adv__card")).sort(compare);
+		allCards.forEach(function (c) { cardBox.appendChild(c); });
+		cardBox.scrollLeft = 0;
 		// Aktiv-Zustand nur in der geklickten Sortierzeile (Streifen ODER Dialog).
 		var sortsRow = $(this).closest(".avesmaps-adv__sorts")[0];
 		var sorts = sortsRow ? sortsRow.querySelectorAll(".avesmaps-adv__sort") : [];
@@ -1318,85 +1341,32 @@ function advFiltersMarkup(facets) {
 		}
 	});
 
-	// Kern: beginnt/spielt im SELBEN Karten-Container (Streifen ODER Dialog-Grid) umschalten. Bei "play" die
-	// spielt-Karten per Fade freigeben (JS display + CSS-Opacity) und die beginnt-Karten dimmen (Owner-Wunsch:
-	// "etwas ausblenden"); optional horizontal nach rechts scrollen (nur Streifen). Bei "start" umgekehrt.
-	function applyAdventureMode(cardBox, mode, doScroll) {
+	// Sammelschalter: nimmt die Schleier ALLER Spoiler im Container weg -- oder legt sie zurueck.
+	//
+	// Das ersetzt den frueheren beginnt/spielt-Umschalter (Owner 2026-07-18). Der musste display umschalten,
+	// einen Reflow erzwingen, per Fade ein- und ausblenden, nach rechts scrollen und die Karten nach 320 ms
+	// wieder verstecken -- all das nur, um Eintraege zu verbergen, die jetzt schlicht dastehen. Uebrig
+	// bleibt eine Container-Klasse.
+	function applyAdventureSpoilers(cardBox, reveal) {
 		if (!cardBox) {
 			return;
 		}
-		var playCards = cardBox.querySelectorAll(".avesmaps-adv__card.is-play");
-		var j;
-		if (mode === "play") {
-			for (j = 0; j < playCards.length; j += 1) {
-				playCards[j].style.display = "";
-			}
-			void cardBox.offsetWidth; // Reflow erzwingen, damit die Opacity-Transition greift
-			cardBox.classList.add("show-play");
-			if (doScroll) {
-				var firstPlay = cardBox.querySelector(".avesmaps-adv__card.is-play");
-				var firstCard = cardBox.querySelector(".avesmaps-adv__card");
-				if (firstPlay && firstCard) {
-					var target = firstPlay.offsetLeft - firstCard.offsetLeft;
-					if (typeof cardBox.scrollTo === "function") {
-						cardBox.scrollTo({ left: target, behavior: "smooth" });
-					} else {
-						cardBox.scrollLeft = target;
-					}
-				}
-			}
-		} else {
-			cardBox.classList.remove("show-play");
-			if (doScroll) {
-				if (typeof cardBox.scrollTo === "function") {
-					cardBox.scrollTo({ left: 0, behavior: "smooth" });
-				} else {
-					cardBox.scrollLeft = 0;
-				}
-			}
-			setTimeout(function () {
-				if (!cardBox.classList.contains("show-play")) {
-					for (var k = 0; k < playCards.length; k += 1) {
-						playCards[k].style.display = "none";
-					}
-				}
-			}, 320);
-		}
+		cardBox.classList.toggle("show-spoilers", reveal);
 	}
 
-	function syncModeButtons(container, mode) {
-		var modes = container.querySelectorAll(".avesmaps-adv__mode");
-		for (var i = 0; i < modes.length; i += 1) {
-			var active = modes[i].getAttribute("data-adv-mode") === mode;
-			modes[i].classList.toggle("is-active", active);
-			modes[i].setAttribute("aria-selected", active ? "true" : "false");
-		}
-	}
-
-	// Streifen-Umschalter (Infopanel/Popup): Buttons + Leer-Hinweis setzen, dann Karten umschalten (mit Scroll).
-	$(document).on("click", ".avesmaps-adv__modes .avesmaps-adv__mode", function () {
+	// Ein Schalter, kein Umschalter: er hat kein Gegenstueck mehr, weil nichts mehr versteckt wird.
+	// Streifen (Infopanel/Popup) und "Alle anzeigen"-Dialog teilen sich denselben Handler -- der Container
+	// ist das Einzige, was sich unterscheidet.
+	$(document).on("click", ".avesmaps-adv__modes .avesmaps-adv__mode, .avesmaps-adv-dialog__modes .avesmaps-adv__mode", function () {
+		var reveal = !this.classList.contains("is-active");
+		this.classList.toggle("is-active", reveal);
+		this.setAttribute("aria-pressed", reveal ? "true" : "false");
+		var overlay = $(this).closest(".avesmaps-adv-dialog")[0];
 		var section = $(this).closest(".avesmaps-adv")[0];
-		if (!section) {
-			return;
-		}
-		var mode = this.getAttribute("data-adv-mode");
-		syncModeButtons(section, mode);
-		var empty = section.querySelector("[data-adv-empty]");
-		if (empty) {
-			empty.style.display = (mode === "play") ? "none" : "";
-		}
-		applyAdventureMode(section.querySelector(".avesmaps-adv__list"), mode, true);
-	});
-
-	// Dialog-Umschalter ("Alle anzeigen"): gleiches Verhalten im Grid, ohne Scroll (Grid bricht um).
-	$(document).on("click", ".avesmaps-adv-dialog__modes .avesmaps-adv__mode", function () {
-		var overlay = document.getElementById("avesmaps-adv-dialog");
-		if (!overlay) {
-			return;
-		}
-		var mode = this.getAttribute("data-adv-mode");
-		syncModeButtons(overlay, mode);
-		applyAdventureMode(overlay.querySelector(".avesmaps-adv-dialog__grid"), mode, false);
+		var cardBox = overlay
+			? overlay.querySelector(".avesmaps-adv-dialog__grid")
+			: (section ? section.querySelector(".avesmaps-adv__list") : null);
+		applyAdventureSpoilers(cardBox, reveal);
 	});
 })();
 

@@ -70,19 +70,24 @@
 	color: var(--color-link);
 }
 
-/* ---- Spoiler-Deckel (Spec §3.7) ----
-   Verdeckt die GANZE Karte, nicht nur das Bild: der Titel ("Die Krypta des Verräters") spoilert genauso
-   wie der Grundriss. Ein Klick auf den Deckel nimmt .is-spoiler weg -- rein deklarativ, ohne Neu-Render,
-   deshalb blurrt der Filter die Kinder statt das Markup auszutauschen. */
-.avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__thumb,
-.avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__label,
-.avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__thumb,
-.avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__main {
+/* ---- Spoiler-Schleier: EIN Mechanismus fuer Karten UND Abenteuer (Owner 2026-07-18) ----
+   Die Regel, die beide Seiten teilen: spoilerfrei steht sofort da, ein Spoiler steht auch da -- nur
+   unkenntlich, mit einem Label mittig auf dem Nebel.
+
+   Verdeckt wird die GANZE Kachel/Zeile, nicht nur das Bild: der Titel ("Die Krypta des Verräters")
+   spoilert genauso wie der Grundriss. Deshalb `> :not(.avesmaps-spoiler-veil)` -- ALLE direkten Kinder
+   ausser dem Schleier selbst. Eine Liste einzelner Kindklassen hatte genau das Loch, das dieser Selektor
+   schliesst: die Linkspalte der Kartenzeile stand frueher unverschleiert neben dem Nebel.
+
+   Rein deklarativ, ohne Neu-Render: ein Klick nimmt .is-spoiler weg (einzeln) oder setzt .show-spoilers
+   am Container (alle). Das Element braucht `position: relative` als Anker, sonst legt sich der Schleier
+   ueber den naechstbesten positionierten Vorfahren. */
+.is-spoiler > :not(.avesmaps-spoiler-veil) {
 	filter: blur(7px);
 	/* Der Text ist unter dem Blur noch markierbar/vorlesbar -- unkenntlich ist nicht unlesbar. */
 	user-select: none;
 }
-.avesmaps-citymaps__spoiler {
+.avesmaps-spoiler-veil {
 	position: absolute;
 	inset: 0;
 	z-index: 1;
@@ -99,23 +104,19 @@
 	text-align: center;
 	cursor: pointer;
 }
-.avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__spoiler {
+.is-spoiler > .avesmaps-spoiler-veil {
 	display: flex;
 }
 
-/* Sammelschalter der Filterleiste (Owner 2026-07-18): nimmt den Deckel von ALLEN Zeilen des Dialogs auf
-   einmal, statt sie einzeln aufzudecken. Die Klasse setzt erst der Klick -- der Startzustand bleibt also
-   unveraendert verdeckt, und der Streifen im Infopanel (kein Grid, keine Leiste) ist gar nicht betroffen.
-   Aufgehoben wird HIER statt per :not() an der Regel oben: die gilt fuer beide Kontexte, und ein Anker,
-   den nur der Dialog kennt, gehoert an die Ausnahme, nicht in die Grundregel.
-   Der Deckel muss mitverschwinden -- er liegt mit inset:0 ueber der Zeile und schluckt sonst unsichtbar
-   jeden Klick auf den Kartenlink. */
-.avesmaps-citymaps-dialog__grid.show-spoilers .avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__thumb,
-.avesmaps-citymaps-dialog__grid.show-spoilers .avesmaps-citymaps__card.is-spoiler .avesmaps-citymap-row__main {
+/* Sammelschalter: nimmt die Schleier ALLER Elemente im Container auf einmal weg. Die Klasse setzt erst
+   der Klick -- der Startzustand bleibt verdeckt, und beim naechsten Oeffnen ist wieder alles zu.
+   Der Schleier muss mitverschwinden: er liegt mit inset:0 ueber dem Element und schluckt sonst
+   unsichtbar jeden Klick auf den Link darunter. */
+.show-spoilers .is-spoiler > :not(.avesmaps-spoiler-veil) {
 	filter: none;
 	user-select: auto;
 }
-.avesmaps-citymaps-dialog__grid.show-spoilers .avesmaps-citymaps__card.is-spoiler .avesmaps-citymaps__spoiler {
+.show-spoilers .is-spoiler > .avesmaps-spoiler-veil {
 	display: none;
 }
 
@@ -363,22 +364,14 @@
 	font-size: 11px;
 	color: var(--color-text-muted);
 }
-/* Karten faden beim Umschalten -- im Streifen (.avesmaps-adv__list) UND im Dialog-Grid. spielt-Karten
-   liegen initial per JS display:none + opacity 0; im show-play-Zustand faden sie ein und die beginnt-Karten
-   werden gedimmt (Owner-Wunsch "etwas ausblenden"). */
+/* Spoiler-Abenteuer stehen an ihrem Sortierplatz und tragen den geteilten Schleier (.is-spoiler, oben).
+   Vorher lagen sie per JS auf display:none und wurden beim Umschalten eingefadet, waehrend die
+   beginnt-Karten auf 0.4 dimmten -- ein zweiter Mechanismus fuer dieselbe Sache. `position: relative` ist
+   der Anker, ohne den der Schleier ueber den naechstbesten positionierten Vorfahren rutscht.
+   Der Blur-Uebergang macht das Aufdecken weich, so wie frueher der Fade. */
 .avesmaps-adv__card {
-	transition: opacity 0.28s ease;
-}
-.avesmaps-adv__card.is-play {
-	opacity: 0;
-}
-.avesmaps-adv__list.show-play .avesmaps-adv__card.is-play,
-.avesmaps-adv-dialog__grid.show-play .avesmaps-adv__card.is-play {
-	opacity: 1;
-}
-.avesmaps-adv__list.show-play .avesmaps-adv__card:not(.is-play),
-.avesmaps-adv-dialog__grid.show-play .avesmaps-adv__card:not(.is-play) {
-	opacity: 0.4;
+	position: relative;
+	transition: filter 0.28s ease;
 }
 
 /* ---- Dialog "Alle Abenteuer" (modaler Overlay ueber allem) ---- */

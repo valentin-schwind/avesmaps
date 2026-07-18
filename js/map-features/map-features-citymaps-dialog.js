@@ -368,7 +368,7 @@
 
 	// Spoiler aufdecken -- Streifen UND Dialog, deshalb Document-Delegation. Das Overlay liegt IM Anker:
 	// preventDefault + stopPropagation, sonst oeffnet derselbe Klick, der aufdeckt, schon die Karte.
-	$(document).on("click", "[data-citymap-reveal]", function (e) {
+	$(document).on("click", "[data-spoiler-reveal]", function (e) {
 		e.preventDefault();
 		e.stopPropagation();
 		var card = $(this).closest(".avesmaps-citymaps__card")[0];
