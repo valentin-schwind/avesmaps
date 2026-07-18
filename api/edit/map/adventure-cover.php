@@ -13,7 +13,8 @@ declare(strict_types=1);
 // Ulisses/F-Shop permission (the reference is enforced at the display layer, not here).
 
 require __DIR__ . '/../../_internal/auth.php';
-require_once __DIR__ . '/../../_internal/wiki/sync.php';                     // AVESMAPS_WIKI_PAGE_BASE_URL + avesmapsWikiSyncNextMapRevision
+require_once __DIR__ . '/../../_internal/wiki/sync.php';                     // AVESMAPS_WIKI_PAGE_BASE_URL + wiki sync constants
+require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';        // avesmapsWikiSyncNextMapRevision (NOT in sync.php: it hangs off locations.php, which this endpoint does not load) -- the refetch path calls it
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php';    // HttpGetBinary / ImageExtension / DownscaleCoatBytes
 require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';      // avesmapsWikiSyncPoliticalTerritoryFilePathUrl (cover file -> wiki image URL)
 require_once __DIR__ . '/../../_internal/app/adventures.php';                // avesmapsSetAdventureCoverUrl + ensure tables
