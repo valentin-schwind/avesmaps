@@ -18,6 +18,7 @@ require_once __DIR__ . '/../../_internal/app/autoget-run.php';               // 
 require_once __DIR__ . '/../../_internal/wiki/sync.php';                     // AVESMAPS_WIKI_PAGE_BASE_URL + wiki sync constants (used by adventure-sync helpers)
 require_once __DIR__ . '/../../_internal/wiki/locations-helpers.php';        // avesmapsWikiSyncNextMapRevision (covers travel in the map-features payload -> invalidate). NOT in sync.php: it hangs off locations.php, which this endpoint does not load.
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php';    // HttpGetBinary / ImageExtension / DownscaleCoatBytes (the cover fetch helpers)
+require_once __DIR__ . '/../../_internal/wiki/territories-tree.php';         // avesmapsWikiSyncNormalizeWikiTreeText (called transitively by PoliticalTerritoryFilePathUrl)
 require_once __DIR__ . '/../../_internal/wiki/territories-parsing.php';      // avesmapsWikiSyncPoliticalTerritoryFilePathUrl (cover file -> wiki image URL)
 require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';           // avesmapsAdventureSaveCoverLocal + avesmapsAdventureCoverAutogetStep + staging ensure
 
