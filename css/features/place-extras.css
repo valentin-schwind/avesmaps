@@ -1000,7 +1000,10 @@
 }
 /* "+ Neuer Fundort" nur in der offenen Zeile: in der kompakten Liste stuende er neben jeder Zeile und
    waere Laerm. Soft/outline -- die Hauptsache dieser Spalte sind die Fundorte, nicht das Melden. */
-.avesmaps-citymap-row__addlink {
+/* "Karte bearbeiten" (nur ?edit=1) teilt die Optik von "+ Neuer Fundort" -- eigene Klasse nur, weil am
+   addlink der Melde-Handler haengt; hier keine eigenen Werte, damit beide nicht auseinanderlaufen. */
+.avesmaps-citymap-row__addlink,
+.avesmaps-citymap-row__editmap {
 	display: inline-block;
 	margin-top: var(--space-8);
 	padding: var(--space-4) var(--space-8);
@@ -1012,7 +1015,8 @@
 	font-size: var(--font-size-caption);
 	cursor: pointer;
 }
-.avesmaps-citymap-row__addlink:hover {
+.avesmaps-citymap-row__addlink:hover,
+.avesmaps-citymap-row__editmap:hover {
 	background: var(--color-button-soft-hover);
 }
 /* Wer Bewegung abbestellt hat, bekommt den Endzustand ohne Weg dorthin. */

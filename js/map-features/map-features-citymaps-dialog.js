@@ -217,12 +217,9 @@
 
 		var foot = overlay.querySelector(".avesmaps-citymaps-dialog__foot");
 		if (foot) {
-			// "Sammlung bearbeiten" nur bei IS_EDIT_MODE -- das ist ?edit=1 (js/config.js), KEIN
-			// Capability-Check. Die Durchsetzung sitzt serverseitig (avesmapsRequireUserWithCapability);
-			// der Client zeigt Redakteursflaechen bei ?edit=1, wie jede andere Editor-Flaeche auch.
-			var editBtn = (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
-				? '<button type="button" class="avesmaps-citymaps__edit">' + esc(tr("cityMaps.editCollection", "Sammlung bearbeiten")) + '</button>'
-				: "";
+			// KEIN "Sammlung bearbeiten" mehr in der Fusszeile (Owner 2026-07-18): der Knopf meinte die
+			// SAMMLUNG und liess einen die gerade offene Karte im Editor erneut suchen. Ersetzt durch
+			// "Karte bearbeiten" PRO ZEILE (buildCityMapRowMarkup), das direkt zu dieser Karte springt.
 			// Die Ortsreferenz reist als data-Attribute AM BUTTON mit, nicht in einer Modulvariablen: der
 			// Dialog ist EINE wiederverwendete Huelle, eine gemerkte Referenz waere genau einmal falsch --
 			// naemlich dann, wenn jemand zwei Orte nacheinander ansieht und beim zweiten vorschlaegt.
@@ -230,7 +227,6 @@
 				+ esc(tr("cityMaps.footHint", "Karten sind externe Inhalte. Vorschau nur mit freier Lizenz/Genehmigung."))
 				+ '</span>'
 				+ '<span class="avesmaps-citymaps-dialog__actions">'
-				+ editBtn
 				+ '<button type="button" class="avesmaps-citymaps__suggest"'
 				+ ' data-citymap-place-kind="' + esc(section.getAttribute("data-citymap-place-kind") || "") + '"'
 				// KEIN Rueckfall auf baseTitle: das ist "Kartensammlung von Gareth", nicht "Gareth" -- als
@@ -361,21 +357,28 @@
 		}
 	});
 
-	// "Sammlung bearbeiten" -> Karten-Editor. Der Dialog wird VORHER geschlossen, und das ist nicht die
-	// billige Loesung, sondern die richtige: die Dialog-Huelle liegt auf z-index 3000
-	// (place-extras.css), das Editor-Overlay oeffnet auf 1500 (review-settlement-list.js) -- der Editor
-	// ginge sonst HINTER dem Dialog auf und der Knopf taete sichtbar nichts. Er ist ohnehin 1400x880 und
-	// verdeckt den Dialog komplett, und beim Schliessen laedt er den Katalog neu
-	// (avesmapsReloadCitymapCatalog) -- der Dialog dahinter waere also sowieso veraltet.
+	// "Karte bearbeiten" -> Karten-Editor, VORAUSGEWAEHLT auf genau dieser Karte (Owner 2026-07-18).
+	// Loest den fruehreren Fusszeilen-Knopf "Sammlung bearbeiten" ab, der nur die Sammlung oeffnete und
+	// einen die gerade offene Karte dort erneut suchen liess. Die public_id reist am Knopf mit, weil der
+	// Dialog EINE wiederverwendete Huelle ist -- eine gemerkte Referenz waere beim zweiten Ort falsch.
 	//
-	// Kein Vorauswaehlen der offenen Zeile: der Knopf sitzt in der Fusszeile und meint die SAMMLUNG.
-	$(document).on("click", ".avesmaps-citymaps__edit", function () {
+	// Der Dialog wird VORHER geschlossen, und das ist nicht die billige Loesung, sondern die richtige: die
+	// Dialog-Huelle liegt auf z-index 3000 (place-extras.css), das Editor-Overlay oeffnet auf 1500
+	// (review-settlement-list.js) -- der Editor ginge sonst HINTER dem Dialog auf und der Knopf taete
+	// sichtbar nichts. Er ist ohnehin 1400x880 und verdeckt den Dialog komplett, und beim Schliessen laedt
+	// er den Katalog neu (avesmapsReloadCitymapCatalog) -- der Dialog dahinter waere also sowieso veraltet.
+	//
+	// stopPropagation wie beim Nachbarknopf "+ Neuer Fundort": sonst klappt derselbe Klick die Zeile zu.
+	$(document).on("click", ".avesmaps-citymap-row__editmap", function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var id = this.getAttribute("data-citymap-edit-id") || "";
 		var overlay = document.getElementById("avesmaps-citymaps-dialog");
 		if (overlay) {
 			overlay.classList.remove("is-open");
 		}
 		if (typeof window.openAvesmapsCitymapEditorOverlay === "function") {
-			window.openAvesmapsCitymapEditorOverlay();
+			window.openAvesmapsCitymapEditorOverlay(id);
 		}
 	});
 })();

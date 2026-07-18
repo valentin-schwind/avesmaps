@@ -234,6 +234,25 @@ assert.ok(openRow.includes("+ Neuer Fundort"));
 assert.ok(!buildCityMapRowMarkup({ title: "Ohne id" }).includes("citymap-row__addlink"), "keine id -> kein Melde-Knopf");
 console.log("citymap add-fundort ok");
 
+// ---- „Karte bearbeiten" (Owner 2026-07-18) ---------------------------------------------------------
+// Redakteursflaeche: nur bei ?edit=1, und sie traegt die public_id, weil der Knopf DIREKT zu dieser Karte
+// im Editor springt (openAvesmapsCitymapEditorOverlay(id)) -- er ersetzt das fruehere "Sammlung
+// bearbeiten", das nur die Sammlung oeffnete.
+assert.ok(!openRow.includes("citymap-row__editmap"), "ohne ?edit=1 kein Redakteurs-Knopf");
+
+global.IS_EDIT_MODE = true;
+const editRow = buildCityMapRowMarkup({ public_id: "m12", title: "Al'Anfa" });
+// EIGENE Klasse, nicht addlink mitbenutzt: an .avesmaps-citymap-row__addlink haengt der Melde-Handler
+// (citymaps-suggest.js) -- eine geteilte Klasse haette diesen Knopf den Fundort-Dialog oeffnen lassen.
+assert.ok(editRow.includes('class="avesmaps-citymap-row__editmap"'), "im Edit-Modus bietet die Zeile das Bearbeiten an");
+assert.ok(!editRow.includes('class="avesmaps-citymap-row__addlink avesmaps-citymap-row__editmap"'), "teilt die Melde-Klasse NICHT");
+assert.ok(editRow.includes('data-citymap-edit-id="m12"'), "…und traegt die Karte, zu der gesprungen wird");
+assert.ok(editRow.includes("Karte bearbeiten"));
+// Ohne public_id kein Sprungziel -> kein Knopf (gleiche Regel wie beim Melden).
+assert.ok(!buildCityMapRowMarkup({ title: "Ohne id" }).includes("citymap-row__editmap"), "keine id -> kein Knopf");
+global.IS_EDIT_MODE = false;
+console.log("citymap edit-map ok");
+
 // ---- the credit line (2026-07-17) -------------------------------------------------------------------
 // The obligation that makes the covers permissible (NOTICE.md / Ulisses fan guidelines), so it is not
 // decoration and may not be quietly dropped.

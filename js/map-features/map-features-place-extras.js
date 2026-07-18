@@ -499,6 +499,20 @@ function buildCityMapRowMarkup(m) {
 			+ placeExtrasEscape(tr("cityMaps.addFundort", "+ Neuer Fundort")) + '</button>'
 		: "";
 
+	// "Karte bearbeiten" (Owner 2026-07-18): springt DIREKT zu DIESER Karte im Editor. Ersetzt den
+	// generischen "Sammlung bearbeiten" der Fusszeile -- der oeffnete nur die Sammlung und liess einen
+	// die gerade offene Karte dort erneut suchen. Nur bei IS_EDIT_MODE (?edit=1), wie jede andere
+	// Redakteursflaeche; durchgesetzt wird serverseitig (avesmapsRequireUserWithCapability).
+	// EIGENE Klasse, NICHT addlink mitbenutzen: an .avesmaps-citymap-row__addlink haengt der
+	// "Neuer Fundort"-Handler (citymaps-suggest.js) -- eine geteilte Klasse haette diesen Knopf den
+	// Melde-Dialog oeffnen lassen. Die Optik teilt sich stattdessen die CSS-Regel (place-extras.css),
+	// also weiterhin kein neuer Farb-/Radiuswert.
+	var editLink = (m.public_id && typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE)
+		? '<button type="button" class="avesmaps-citymap-row__editmap"'
+			+ ' data-citymap-edit-id="' + placeExtrasEscape(m.public_id) + '">'
+			+ placeExtrasEscape(tr("cityMaps.editMap", "Karte bearbeiten")) + '</button>'
+		: "";
+
 	return '<div class="avesmaps-citymaps__card avesmaps-citymap-row' + (spoiler ? " is-spoiler" : "") + '"' + cityMapDataAttributes(m) + '>'
 		+ '<a class="avesmaps-citymap-row__thumb' + (cityMapSafeUrl(m.thumb) ? " has-img" : "") + '"' + openAttrs + ' title="' + placeExtrasEscape(m.title) + '">'
 		+ cityMapThumbMarkup(m) + spoilerOverlay + '</a>'
@@ -507,7 +521,7 @@ function buildCityMapRowMarkup(m) {
 		+ (suffix ? ' <span class="avesmaps-citymap-row__suffix">· ' + placeExtrasEscape(suffix) + '</span>' : "")
 		+ '</div>'
 		+ '<div class="avesmaps-citymap-row__detail"><div class="avesmaps-citymap-row__detail-inner">'
-		+ factsMarkup + addLink
+		+ factsMarkup + addLink + editLink
 		+ '</div></div>'
 		+ '</div>'
 		+ '<div class="avesmaps-citymap-row__side">' + linksMarkup + '</div>'

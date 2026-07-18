@@ -498,7 +498,7 @@ window.AVESMAPS_I18N_EN = {
 	"cityMaps.spoilerReveal": "Spoiler — reveal",
 	"cityMaps.noneMatch": "No map matches these filters.",
 	"cityMaps.footHint": "Maps are external content. Preview only with a free licence or permission.",
-	"cityMaps.editCollection": "Edit collection",
+	"cityMaps.editMap": "Edit map",
 	// Pre-existing key (the button shipped before this task); missing here from the start, so an
 	// English reader silently saw German. Caught by this task's i18n completeness pass.
 	"cityMaps.suggest": "Suggest a map",
