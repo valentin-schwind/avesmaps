@@ -155,10 +155,14 @@ function buildSlimLocationPopupHtml(markerEntry) {
 		? `<div class="location-popup__desc-label">${escapeHtml(tr("popup.descriptionLabel", "Beschreibung"))}</div>`
 			+ `<div class="location-popup__description">${escapeHtml(location.description)}</div>`
 		: "";
-	// Dasselbe Menue wie in der schwebenden Wegpunkt-Infobox (Owner): Anzeigen · Reiseziel hinzufuegen ·
-	// Link teilen. "Anzeigen" (Sextant) oeffnet die VOLLE Info dieses Ortes im rechten Panel -- nur im
-	// Panel-Modus sinnvoll (ohne Panel gaebe es kein Ziel).
+	// Reiseziel hinzufuegen · Anzeigen · Link teilen (Owner 2026-07-18: die ersten beiden getauscht).
+	// Die schwebende Wegpunkt-Infobox behaelt ihre Reihenfolge: dort steht an zweiter Stelle "Reiseziel
+	// ENTFERNEN" -- eine destruktive Aktion, die nicht auf den ersten Platz gehoert. Gleiche Reihenfolge
+	// waere hier also gerade nicht dasselbe.
+	// "Anzeigen" (Sextant) oeffnet die VOLLE Info dieses Ortes im rechten Panel -- nur im Panel-Modus
+	// sinnvoll (ohne Panel gaebe es kein Ziel).
 	const actionButtons = [];
+	actionButtons.push(routeToggleActionButtonMarkup(markerEntry.name));
 	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
 		actionButtons.push(popupActionButtonMarkup({
 			label: tr("popup.showInPanel", "Anzeigen"),
@@ -166,7 +170,6 @@ function buildSlimLocationPopupHtml(markerEntry) {
 			attributes: { "data-popup-action": "show-in-panel", "data-place-name": markerEntry.name },
 		}));
 	}
-	actionButtons.push(routeToggleActionButtonMarkup(markerEntry.name));
 	const shareButton = typeof sharePlaceActionButtonMarkup === "function"
 		? sharePlaceActionButtonMarkup(markerEntry.publicId, { wikiUrl: location.wikiUrl || "", wikiParam: "siedlung" })
 		: "";
