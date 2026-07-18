@@ -945,6 +945,13 @@
 	gap: 6px;
 }
 
+/* The material sub-tab pills carry their total count ("Abenteuer (349)") -- dimmed, so the label
+   reads first and the number stays a quiet aside. Empty until the list has loaded. */
+.wiki-sync-panel__tab-count {
+	color: var(--color-text-muted);
+	font-weight: normal;
+}
+
 .wiki-sync-case__choices {
 	align-items: center;
 }

@@ -646,6 +646,14 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 var avesmapsAdvPickerCache = null; // [{ public_id, title, edition, product_type, status, ... }]
 var avesmapsAdvPickerWired = false;
 
+// Show each material sub-tab's TOTAL count on its pill ("Abenteuer (349)"), set from the loaded list.
+// Total, not the filtered subset -- the pill answers "how many are there", the in-list "X / Y" answers
+// "how many match the search".
+function avesmapsSetMaterialCount(kind, n) {
+	var el = document.querySelector('[data-material-count="' + kind + '"]');
+	if (el) { el.textContent = "(" + n + ")"; }
+}
+
 function avesmapsRenderAdventurePicker() {
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
 	if (!scroll) { return; }
@@ -653,6 +661,7 @@ function avesmapsRenderAdventurePicker() {
 	var searchEl = document.getElementById("wiki-sync-adv-search");
 	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
 	var all = avesmapsAdvPickerCache || [];
+	avesmapsSetMaterialCount("adventures", all.length);
 	var rows = q ? all.filter(function (a) { return (a.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {
@@ -724,6 +733,7 @@ function avesmapsRenderCitymapPicker() {
 	var searchEl = document.getElementById("wiki-sync-cm-search");
 	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
 	var all = avesmapsCmPickerCache || [];
+	avesmapsSetMaterialCount("citymaps", all.length);
 	var rows = q ? all.filter(function (c) { return (c.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {

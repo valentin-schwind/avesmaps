@@ -221,6 +221,11 @@ function setWikiSyncPanelTab(tabName) {
 		if (typeof loadWikiSyncAdventureList === "function") {
 			void loadWikiSyncAdventureList();
 		}
+		// Also load the citymap list so BOTH material sub-tab pills show their count right away, not
+		// only after the "Karten" pill is first clicked. Cheap: the editor is already open here.
+		if (typeof loadWikiSyncCitymapList === "function") {
+			void loadWikiSyncCitymapList();
+		}
 	} else {
 		renderWikiSyncCases();
 		if (typeof loadSettlementList === "function") {
