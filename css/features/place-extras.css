@@ -1025,6 +1025,34 @@
 .avesmaps-citymap-row__editmap:hover {
 	background: var(--color-button-soft-hover);
 }
+/* ---- Handy: die dreispaltige Dialogzeile stapelt (Owner 2026-07-18) ----
+   Auf ~375px Bildschirmbreite bleiben neben Bild (56px) und Linkspalte (248px) noch ~15px fuer den
+   Titel -- jedes Wort braeche in einzelne Buchstaben -- und aufgeklappt (256px Vorschau) liefe die
+   Zeile ueber den Rand hinaus. Beide Dialoge sind identisch gebaut (Bild | Mitte | __side), darum
+   traegt EINE Regel beide: Bild und Titel nebeneinander, die Links als eigene Zeile darunter ueber
+   die volle Breite. Am Desktop aendert sich nichts. */
+@media (max-width: 640px) {
+	.avesmaps-adv-row {
+		grid-template-columns: 62px minmax(0, 1fr);
+	}
+	.avesmaps-citymap-row,
+	.avesmaps-citymap-row.is-expanded {
+		grid-template-columns: 56px minmax(0, 1fr);
+	}
+	.avesmaps-adv-row__side,
+	.avesmaps-citymap-row__side {
+		grid-column: 1 / -1;
+	}
+	/* Aufgeklappt: die grosse Vorschau nimmt die volle Zeilenbreite, statt neben Titel UND Links zu
+	   klemmen; Titel und Fakten ruecken darunter. */
+	.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__thumb,
+	.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__main {
+		grid-column: 1 / -1;
+	}
+	.avesmaps-citymap-row.is-expanded .avesmaps-citymap-row__thumb {
+		max-width: 100%;
+	}
+}
 /* Wer Bewegung abbestellt hat, bekommt den Endzustand ohne Weg dorthin. */
 @media (prefers-reduced-motion: reduce) {
 	.avesmaps-citymap-row,
