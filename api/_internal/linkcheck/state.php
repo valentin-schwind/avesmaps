@@ -20,12 +20,21 @@ const AVESMAPS_LINK_RECHECK_THROTTLED_DAYS = 1;
 // weeks to be recognised as dead.
 const AVESMAPS_LINK_RECHECK_FAILING_DAYS = 1;
 
-// The server answered, and the answer is final: the resource is gone (404/410) or shut to us (401/403).
-// No streak needed -- this IS the verdict.
-const AVESMAPS_LINK_DEAD_HTTP_CODES = [401, 403, 404, 410];
+// The server answered, and the answer is final: the resource is GONE. No streak needed -- this IS the
+// verdict. 401/403 used to sit here and no longer do: see AVESMAPS_LINK_REFUSED_HTTP_CODES.
+const AVESMAPS_LINK_DEAD_HTTP_CODES = [404, 410];
 // The server answered "not now": we were rate-limited or the request timed out server-side. That is a
 // statement about US, not about the link -- so we pass no judgement at all.
 const AVESMAPS_LINK_THROTTLED_HTTP_CODES = [408, 429];
+// The server answered "not YOU": it refuses to serve us at all. Also a statement about us, not about the
+// link -- bot/IP protection answers 403 to a datacentre IP far more readily than to a home line, so the
+// page a visitor loads fine reads as forbidden from the server.
+//
+// Measured 2026-07-18: all three artstation.com links stood at 'dead' -- 3 of only 5 dead links in the
+// entire map catalogue -- while the pages answer 200. The same rule had already cost 371 working
+// ulisses-ebooks.de links (16% of that catalogue, see probe.php), which was worked around per-host
+// instead of fixing the rule. So: 401/403 never kill a link; only 404/410 do.
+const AVESMAPS_LINK_REFUSED_HTTP_CODES = [401, 403];
 
 // Decide what one probe result means for one link.
 //
@@ -62,6 +71,26 @@ function avesmapsLinkCheckDecide(array $current, int $httpStatus): array
             'verdict' => false,
             'state' => $state,
             'fail_streak' => $streak,
+            'online' => false,
+            'recheck_days' => AVESMAPS_LINK_RECHECK_THROTTLED_DAYS,
+        ];
+    }
+
+    // Refused (401/403) -> no judgement, and it REVOKES an old one. Deliberately BEFORE the dead-code
+    // check, for the same reason 429 is: a refusal must never be read as death.
+    //
+    // A stored 'dead' can only stem from the former rule that treated 403 as a tombstone, so it goes back
+    // to 'unchecked' instead of staying wrongly struck through -- the reader then sees "not checked yet",
+    // which is the truth. An 'online' KEEPS its state: that the link was reachable stays true.
+    //
+    // verdict=true on purpose: the store writes state/http_status only for a verdict (a false would move
+    // check_after alone and silently keep the stale 'dead'). fail_streak resets to 0, otherwise a host
+    // that blocks us permanently would still die of repetition after three probes.
+    if (in_array($httpStatus, AVESMAPS_LINK_REFUSED_HTTP_CODES, true)) {
+        return [
+            'verdict' => true,
+            'state' => $state === 'dead' ? 'unchecked' : $state,
+            'fail_streak' => 0,
             'online' => false,
             'recheck_days' => AVESMAPS_LINK_RECHECK_THROTTLED_DAYS,
         ];

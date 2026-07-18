@@ -31,13 +31,38 @@ $d = avesmapsLinkCheckDecide($current('dead', 5), 200);
 assert($d['state'] === 'online' && $d['fail_streak'] === 0 && $d['online'] === true);
 
 // ---- definitive 4xx: instant death, no streak needed ----------------------------------------------
-foreach ([401, 403, 404, 410] as $status) {
+// ONLY 404/410 -- "the resource is gone". 401/403 are NOT here: see the block below.
+foreach ([404, 410] as $status) {
     $d = avesmapsLinkCheckDecide($current('online'), $status);
     assert($d['verdict'] === true && $d['state'] === 'dead');
     assert($d['online'] === false && $d['recheck_days'] === AVESMAPS_LINK_RECHECK_DEAD_DAYS);
 }
 // Even a brand-new link dies instantly on a 404 -- no three strikes for a definitive answer.
 assert(avesmapsLinkCheckDecide($current('unchecked'), 404)['state'] === 'dead');
+
+// ---- 401/403: the server refuses US -> never a death sentence (2026-07-18) -------------------------
+// Measured: all three artstation.com links sat at 'dead' (3 of only 5 dead links in the whole catalogue)
+// while the pages answer 200 in a browser. Bot/IP protection answers 403 to a datacentre IP far more
+// readily than to a home line -- so 403 says "you may not ask", NOT "the page is gone". Same reasoning
+// the code already applies to 429; 404/410 remain the only real tombstones.
+foreach ([401, 403] as $status) {
+    // A living link is never killed by it, however often it repeats.
+    $d = avesmapsLinkCheckDecide($current('online'), $status);
+    assert($d['state'] === 'online' && $d['online'] === false, '403 darf einen lebenden Link nicht toeten');
+    assert($d['recheck_days'] === AVESMAPS_LINK_RECHECK_THROTTLED_DAYS);
+
+    // It never builds a streak towards death -- otherwise a permanently blocking host dies after 3 probes.
+    assert(avesmapsLinkCheckDecide($current('unchecked', 2), $status)['fail_streak'] === 0);
+    assert(avesmapsLinkCheckDecide($current('unchecked', 2), $status)['state'] !== 'dead');
+
+    // And it REVOKES an old verdict: a 'dead' can only have come from exactly this wrong rule, so the
+    // link goes back to 'unchecked' instead of staying wrongly struck through. verdict=true, because the
+    // store writes state only then (a verdict=false would silently keep the stale 'dead').
+    $revoked = avesmapsLinkCheckDecide($current('dead', 4), $status);
+    assert($revoked['verdict'] === true, 'muss geschrieben werden, sonst bleibt das Fehlurteil stehen');
+    assert($revoked['state'] === 'unchecked', 'ein auf 403 gegruendetes "dead" wird aufgehoben');
+    assert($revoked['online'] === false);
+}
 
 // ---- 429/408: we were throttled -> NO verdict, only check_after moves -----------------------------
 // verdict=false tells the store to touch check_after ONLY: state, http_status and last_checked_at keep
