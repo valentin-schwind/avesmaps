@@ -1384,13 +1384,16 @@ function advFiltersMarkup(facets) {
 		}
 		var overlay = document.getElementById("avesmaps-adv-dialog");
 		if (overlay) { overlay.classList.remove("is-open"); }
-		// Denselben Weg gehen wie "Nächsten Ort finden" im Kontextmenue: Marker-Entry ueber die publicId,
-		// sonst ueber den Namen, dann die schlanke Infobox am Ziel oeffnen.
+		// Marker-Entry ueber die publicId, sonst ueber den Namen -- dann den Ort oeffnen wie ein normaler
+		// Klick (Owner 2026-07-18). Bewusst NICHT openSlimLocationPopupForMarkerEntry: das ist die
+		// Kurzfassung des Kontextmenue-Treffers und laesst genau die Kacheln weg, um die es hier geht
+		// ("Abenteuer", "Kartensammlung"). openLocationPopupForMarkerEntry ist derselbe Weg, den ein
+		// Deep-Link (?siedlung=) und die Spotlight-Suche nehmen: schwenkt hin, fuellt Infopanel UND Box.
 		var targetEntry = (target.publicId && typeof findLocationMarkerByPublicId === "function"
 			? findLocationMarkerByPublicId(target.publicId) : null)
 			|| (typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(target.name) : null);
-		if (!targetEntry || typeof openSlimLocationPopupForMarkerEntry !== "function"
-			|| !openSlimLocationPopupForMarkerEntry(targetEntry)) {
+		if (!targetEntry || typeof openLocationPopupForMarkerEntry !== "function"
+			|| !openLocationPopupForMarkerEntry(targetEntry, { pan: true })) {
 			warn(tr("toast.findNearest.openFailed", "Der nächste Ort konnte nicht geöffnet werden."));
 		}
 	});
