@@ -163,14 +163,18 @@ dasselbe Problem — dort sieht man es nur nicht.)
 Der Editor tippt **eine Zahl pro Gebirge** (`max_height`), nicht eine pro Gipfel.
 Daraus baut der Generator die Stützpunkte in dieser Reihenfolge:
 
+0. **Zuerst das vorhandene Wegenetz einlesen** — es ist Randbedingung, nicht
+   Beiwerk (§4.3). Wege in der Fläche sperren Zonen für Buckel; `Gebirgspass`-Wege
+   erzwingen einen niedrigen Korridor.
 1. **Vorhandene `berggipfel`-Labels innerhalb der Fläche** bekommen je einen eigenen
    Buckel. Ihre Positionen sind lore-korrekt und schon da; gefunden über den
    bbox-Vorfilter (Punkt-Labels haben `min_x = max_x`, ihre bbox *ist* ihre Position).
    **Der nächstgelegene Gipfel bekommt `max_height`** — sonst landet der höchste
    Punkt neben dem benannten Gipfel, und genau das liest die Zielgruppe als Fehler.
 2. **Der Gebirgskörper füllt auf** — breite Buckel auf einem pseudozufälligen
-   Gitter. Es gibt live nur **23 `berggipfel` auf 60 `gebirge`**: zu wenig, um das
-   Gelände allein zu tragen, zu sichtbar, um sie zu ignorieren.
+   Gitter, aber **nur außerhalb der gesperrten Zonen**. Es gibt live nur **23
+   `berggipfel` auf 60 `gebirge`**: zu wenig, um das Gelände allein zu tragen, zu
+   sichtbar, um sie zu ignorieren.
 3. **Manuell gesetzte Höhenpunkte gewinnen immer** (`ecosystem_height_point`).
 
 Zwei Bedingungen:
@@ -181,20 +185,41 @@ Zwei Bedingungen:
 - **Randabfall.** Punkte nahe am Rand werden mit ihrem Randabstand skaliert,
   sonst entsteht am Polygonrand eine Klippe statt eines Gebirgsfußes.
 
-### 4.3 Pässe entstehen von selbst — ein Punkt bleibt als Steuerung
+### 4.3 Das Wegenetz ist Randbedingung — Pässe werden abgelesen, nicht erfunden
 
-Mit der Buckelsumme ist der Sattel **eingebaut**, nicht nachträglich zu reparieren:
-Regel 2 aus §4.1 garantiert ihn, sobald der Gipfelradius unter dem 1,118-fachen
-Gipfelabstand bleibt. Gemessen 38 % der Gipfelhöhe gegen 29 % der glatten Referenz —
-also im richtigen Bereich, ohne dass jemand etwas gesetzt hat.
+> 🔴 **Die wichtigste Regel dieses Kapitels.** Die Wege sind **seit Jahren
+> gezeichnet**; das Gelände entsteht erst danach. Ein Generator, der die Wege nicht
+> kennt, kann einen Buckel **mitten auf eine bestehende Passstraße** setzen — aus
+> einem seit Jahrhunderten begangenen Pass würde ein 9.000-Schritt-Anstieg. Das
+> Gelände muss sich **um das Netz herum** bilden, nicht umgekehrt.
 
-Ein **manueller Höhenpunkt** bleibt trotzdem sinnvoll, wenn ein Pass laut Quelle an
-einer bestimmten Stelle und Höhe liegt. Er ist dann Steuerung, nicht Notbehelf.
+Die Umkehrung ist zugleich die beste verfügbare Datenquelle: **wo eine Straße ein
+Massiv quert, gibt es dort einen Pass** — sonst hätte sie niemand gezeichnet. Das
+Wegenetz ist damit Beweismaterial über das Gelände, gepflegt von Editoren, lange
+bevor es dieses Feature gab.
+
+Daraus drei Regeln für den Generator:
+
+1. **`Gebirgspass`-Wege in der Fläche erzwingen einen niedrigen Korridor.** Die
+   Passhöhe wird nicht gewürfelt, sondern an der Stelle abgelesen, an der die
+   Editoren den Pass gezeichnet haben.
+2. **Alle übrigen Wege sperren einen Streifen für Buckelzentren.** Gipfel-Labels
+   ziehen an, Wege stoßen ab. Kein Gipfel landet auf einer Straße.
+3. **Ein manueller Höhenpunkt gewinnt weiterhin** — wenn eine Quelle die Passhöhe
+   nennt, wird sie gesetzt statt abgeleitet.
+
+Erst *innerhalb* dieser Randbedingungen greift die Sattelregel aus §4.1: sie sorgt
+dafür, dass zwischen zwei Gipfeln kein Grat steht. Sie **erzeugt** keinen Pass, sie
+verhindert nur, dass die Interpolation einen wegbügelt.
 
 > ⚠️ **Nicht über die Umrisslinie lösen.** Eine Kerbe im Umriss würde die Passhöhe
 > auf ~0 zwingen *und* die Passstraße aus der Fläche herausschneiden — sie verlöre
 > damit den isotropen Gebirgsfaktor und zählte als offenes Land. Ein Pass ist aber
 > der mühsamste Teil der Strecke, nicht der leichteste.
+
+> **Und die Doppelzählung löst sich hier mit auf:** wo `Gebirgspass` steht, kodiert
+> der Wegtyp die Mühe bereits (§6). Das Höhenfeld darf dort gerade *nicht* nochmal
+> draufsatteln — ein weiterer Grund, den Korridor niedrig zu halten.
 
 ## 5. Vorberechnung: Wege ↔ Flächen
 
