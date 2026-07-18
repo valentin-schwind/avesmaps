@@ -771,7 +771,15 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
 
     $coverFileStmt = $pdo->prepare('SELECT cover_file FROM wiki_adventure_catalog WHERE wiki_key = :wk LIMIT 1');
     $stateStmt = $pdo->prepare('UPDATE adventure SET cover_auto_state = :state WHERE public_id = :pid');
-    $sourceStmt = $pdo->prepare('UPDATE adventure SET cover_source = :cs WHERE public_id = :pid');
+    // On a successful fetch: cover_url + its 'wiki' origin + cover_source + the ok state in ONE update, so
+    // the step never calls avesmapsAdventuresEnsureTables. Using avesmapsSetAdventureCoverUrl here would
+    // run that ensure (3 CREATE + information_schema probes) PER cover -- exactly the DDL load mechanism 3
+    // removes from the step path. The citymap step likewise writes its state directly, never ensuring in
+    // the loop. field_origins is merged from the row we already read (same step -> no stale race).
+    $okStmt = $pdo->prepare(
+        "UPDATE adventure SET cover_url = :u, field_origins_json = :fo, cover_source = :cs, cover_auto_state = 'ok'
+          WHERE public_id = :pid"
+    );
 
     $tally = ['ok' => 0, 'no_image' => 0, 'fetch_failed' => 0, 'skipped_manual' => 0];
     $adventuresDone = 0;
@@ -807,11 +815,15 @@ function avesmapsAdventureCoverAutogetStep(PDO $pdo, float $budgetSeconds): arra
                     $stateStmt->execute(['state' => 'fetch_failed', 'pid' => $publicId]);
                     $tally['fetch_failed']++;
                 } else {
-                    // Set the cover with origin 'wiki' (field-origin stamped so a manual upload later still
-                    // wins) + stamp cover_source so the reconcile treats it as up to date (no re-fetch).
-                    avesmapsSetAdventureCoverUrl($pdo, $publicId, $localUrl, 'wiki');
-                    $sourceStmt->execute(['cs' => mb_substr($coverFile, 0, 300, 'UTF-8'), 'pid' => $publicId]);
-                    $stateStmt->execute(['state' => 'ok', 'pid' => $publicId]);
+                    // Cover fetched: set cover_url + its 'wiki' origin (a later manual upload still wins) +
+                    // cover_source (so the reconcile treats it as up to date) + the ok state, in ONE update.
+                    $origins['cover_url'] = 'wiki';
+                    $okStmt->execute([
+                        'u' => $localUrl,
+                        'fo' => avesmapsAdventuresEncodeOrigins($origins),
+                        'cs' => mb_substr($coverFile, 0, 300, 'UTF-8'),
+                        'pid' => $publicId,
+                    ]);
                     $tally['ok']++;
                 }
             }
