@@ -880,7 +880,7 @@
    verlaesslich animieren -- grid-template-columns mit Laengenwerten schon. */
 .avesmaps-citymap-row {
 	display: grid;
-	grid-template-columns: 56px minmax(0, 1fr) 148px;
+	grid-template-columns: 56px minmax(0, 1fr) 196px;
 	gap: var(--space-10);
 	align-items: start;
 	/* Randlos bis an die Dialogkante: der negative Margin entspricht dem Seitenpadding des Grids, das
@@ -902,7 +902,7 @@
 	border-top: 1px solid var(--color-divider);
 }
 .avesmaps-citymap-row.is-expanded {
-	grid-template-columns: 256px minmax(0, 1fr) 148px;
+	grid-template-columns: 256px minmax(0, 1fr) 196px;
 	padding: var(--space-12) var(--space-16);
 }
 .avesmaps-citymap-row__thumb {
@@ -983,18 +983,17 @@
 }
 .avesmaps-citymap-row__side {
 	min-width: 0;
-	text-align: right;
+	/* Left-aligned like the adventure dialog's link column (Owner 2026-07-18): the source-named links read
+	   as a tidy list, not a ragged right edge. */
+	text-align: left;
 }
 .avesmaps-citymap-row__side .avesmaps-adv-row__links {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
-.avesmaps-citymap-row__side .avesmaps-adv-row__linkitem {
-	font-size: var(--font-size-small);
-	line-height: var(--leading-snug);
-	margin-bottom: var(--space-4);
-}
+/* No citymap-specific link-item override: the side column uses the SHARED .avesmaps-adv-row__linkitem
+   (11.5px / line-height 1.5), so the map and adventure link columns match exactly. */
 .avesmaps-citymap-row__nolink {
 	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
