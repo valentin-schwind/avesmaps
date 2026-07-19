@@ -163,6 +163,37 @@
 	color: var(--color-text-muted);
 	white-space: nowrap;
 }
+/* Instruction 5a: shown while the add-row holds a catalog row picked from the typeahead, so
+   "referenced the existing source" and "about to create a duplicate" stop looking identical. */
+.fs-add-picked {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	flex-shrink: 0;
+	padding: 2px 4px 2px 8px;
+	font-size: 11px;
+	color: var(--color-accent-strong);
+	background: var(--color-panel-muted);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-sm);
+	white-space: nowrap;
+}
+/* Required: the display above would otherwise defeat the hidden attribute the script toggles. */
+.fs-add-picked[hidden] {
+	display: none;
+}
+.fs-add-picked__x {
+	padding: 0 2px;
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: 12px;
+	line-height: 1;
+	cursor: pointer;
+}
+.fs-add-picked__x:hover {
+	color: var(--color-text-strong);
+}
 .fs-row__add {
 	border: 1px solid var(--color-button-soft-border);
 	background: var(--color-button-soft);

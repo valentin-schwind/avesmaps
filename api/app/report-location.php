@@ -342,9 +342,10 @@ function avesmapsValidateMapReport(array $payload): array {
 }
 
 // Multi-source #3: normalize + validate the community source list -- an array of
-// {url,label,pages,type,official}. Drops entries without a label; url is optional (a link-based catalog
-// entry) but validated when present; type is whitelisted; capped at 10. Mirrors exactly what an editor's
-// feature-source add-row produces, so an accepted report links cleanly into feature_sources.
+// {source_id,url,label,pages,type,official}. Drops entries without a label; url is optional (a link-based
+// catalog entry) but validated when present; type is whitelisted; capped at 10. Mirrors exactly what an
+// editor's feature-source add-row produces, so an accepted report links cleanly into feature_sources.
+// source_id (instruction 5a) is 0 unless the reporter picked an existing catalog row.
 function avesmapsNormalizeReportSources(mixed $raw): array {
     if (!is_array($raw)) {
         return [];
@@ -371,6 +372,11 @@ function avesmapsNormalizeReportSources(mixed $raw): array {
             $kind = '';
         }
         $normalized[] = [
+            // Instruction 5a: when the reporter PICKED an existing catalog row from the typeahead,
+            // its id travels along. That is what lets the review link the exact source instead of
+            // guessing which work a typed title meant -- and it is the only way a source with no
+            // URL can be linked at all (url_hash cannot identify it).
+            'source_id' => max(0, (int) ($entry['source_id'] ?? 0)),
             'url' => avesmapsNormalizeOptionalUrl((string) ($entry['url'] ?? ''), 500, 'Der Link zur Quelle'),
             'label' => $label,
             'pages' => avesmapsNormalizeSingleLine((string) ($entry['pages'] ?? ''), 120),

@@ -241,7 +241,11 @@
 	--z-editor-overlay: 1500;
 	/* A dialog opened FROM an editor overlay ("Alle anzeigen") — must clear --z-editor-overlay. */
 	--z-dialog-over-editor: 3000;
-	--z-modal: 5000; /* full-screen modal overlay — above autocomplete (1600) */
+	/* Typeahead dropdowns. Must clear --z-editor-overlay: the source autocomplete opens from an
+	   add-row that lives INSIDE the editor overlays. css/features/route-planner.css:577 still
+	   inlines this same 1600 and should move onto this token. */
+	--z-autocomplete: 1600;
+	--z-modal: 5000; /* full-screen modal overlay — above --z-autocomplete */
 }
 
 /* Dark theme — opt-in (set data-theme="dark" on :root). Same warm family,

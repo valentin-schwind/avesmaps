@@ -64,6 +64,18 @@ try {
             $referenceKind = trim((string) ($payload['reference_kind'] ?? ''));
             return avesmapsAddFeatureSource($pdo, $entityType, $entityPublicId, $url, $label, $type, $official, $userId, $pages, $referenceKind);
         })(),
+        // Instruction 5a: the editor picked an existing catalog row from the typeahead. Separate
+        // from 'add' because that action requires a url -- and the rows most worth reusing (wiki
+        // publications) may not have one.
+        'add_existing' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
+            $sourceId = (int) ($payload['source_id'] ?? 0);
+            if ($sourceId <= 0) {
+                avesmapsErrorResponse(400, 'invalid_request', 'source_id ist erforderlich.');
+            }
+            $pages = trim((string) ($payload['pages'] ?? ''));
+            $referenceKind = trim((string) ($payload['reference_kind'] ?? ''));
+            return avesmapsLinkExistingFeatureSource($pdo, $entityType, $entityPublicId, $sourceId, $userId, $pages, $referenceKind);
+        })(),
         'remove' => (static function () use ($pdo, $entityType, $entityPublicId, $payload, $userId): array {
             $sourceId = (int) ($payload['source_id'] ?? 0);
             if ($sourceId <= 0) {

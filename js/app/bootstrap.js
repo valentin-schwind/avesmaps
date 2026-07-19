@@ -354,6 +354,11 @@ $("#location-report-type").on("change", syncLocationReportTypeFields);
 $("#location-report-form").on("submit", handleLocationReportFormSubmit);
 // Multi-source #3: dynamic source list in the community report form (add / remove / Enter-to-add).
 $("#report-source-add-btn").on("click", addLocationReportSourceFromInputs);
+// Instruction 5a: suggest existing catalog sources on the name field. MUST be wired before the
+// Enter binding below -- both listen on #report-source-label, native listeners fire in registration
+// order, and the autocomplete has to be able to swallow Enter (stopImmediatePropagation) when it is
+// picking a suggestion instead of letting "Enter adds the source" run with half-filled fields.
+initLocationReportSourceAutocomplete();
 $("#location-report-pick-position").on("click", startChangePositionPick);
 $("#location-report-sources-list").on("click", (event) => {
 	const removeButton = event.target.closest("[data-remove-report-source]");

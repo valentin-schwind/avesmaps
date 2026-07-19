@@ -136,6 +136,13 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<div class="fs-row fs-row--add" data-fs-add>' +
     '<input type="text" class="fs-add-url" placeholder="' + escape(tr("sources.add.url", "URL")) + '">' +
     '<input type="text" class="fs-add-label" placeholder="' + escape(tr("sources.add.label", "Quellenname")) + '">' +
+    // Instruction 5a requires the form to SAY which case occurred -- without this an editor cannot
+    // tell whether they just referenced the existing source or minted a duplicate.
+    '<span class="fs-add-picked" data-fs-picked hidden>' +
+    escape(tr("sources.add.picked", "bestehende Quelle")) +
+    '<button type="button" class="fs-add-picked__x" data-fs-unpick aria-label="' +
+    escape(tr("sources.add.unpick", "Auswahl aufheben")) + '">✕</button>' +
+    "</span>" +
     '<input type="text" class="fs-add-pages" placeholder="' + escape(tr("sources.add.pages", "Seite(n)")) + '">' +
     '<select class="fs-add-type">' + options + "</select>" +
     '<select class="fs-add-kind" title="' + escape(tr("sources.add.kind", "Abdeckung: Ausführlich/Ergänzend → Offiziell-Tab, Erwähnung → Erwähnt-Tab, sonst normale Quellenzeile")) + '">' + kindOptions + "</select>" +
@@ -200,6 +207,73 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     return;
   }
 
+  // Instruction 5a state: the catalog row the editor picked from the typeahead, if any. Reset on
+  // every re-render and cleared the moment they edit url/label by hand (then they no longer mean
+  // that row).
+  let detachAutocomplete = null;
+  let pickedSourceId = 0;
+
+  function clearPick() {
+    pickedSourceId = 0;
+    const badge = containerEl.querySelector("[data-fs-picked]");
+    if (badge) {
+      badge.hidden = true;
+    }
+  }
+
+  // The widget re-renders from the server after every add/remove, which destroys the add-row and
+  // its input. So re-attach after each render -- and detach FIRST, or every render stacks another
+  // listener set plus another orphaned dropdown node on the page.
+  function wireAutocomplete() {
+    if (detachAutocomplete) {
+      detachAutocomplete();
+      detachAutocomplete = null;
+    }
+    pickedSourceId = 0;
+    if (typeof attachSourceAutocomplete !== "function") {
+      return; // component not loaded on this surface -- typing a new source still works
+    }
+    const labelInput = containerEl.querySelector(".fs-add-label");
+    const urlInput = containerEl.querySelector(".fs-add-url");
+    if (!labelInput) {
+      return;
+    }
+    labelInput.addEventListener("input", clearPick);
+    if (urlInput) {
+      urlInput.addEventListener("input", clearPick);
+    }
+    detachAutocomplete = attachSourceAutocomplete(
+      labelInput,
+      Object.assign({}, opts, {
+        onPick(item) {
+          pickedSourceId = Number(item.source_id) || 0;
+          labelInput.value = item.label || "";
+          if (urlInput) {
+            urlInput.value = item.url || "";
+          }
+          const typeSelect = containerEl.querySelector(".fs-add-type");
+          if (typeSelect && item.type) {
+            typeSelect.value = item.type;
+          }
+          const officialInput = containerEl.querySelector(".fs-add-official");
+          if (officialInput) {
+            officialInput.checked = Boolean(item.official);
+          }
+          const badge = containerEl.querySelector("[data-fs-picked]");
+          if (badge) {
+            badge.hidden = false;
+          }
+          // Focus the page field: it is the one value belonging to THIS link rather than to the
+          // work itself, so it is the only thing still worth typing.
+          const pagesInput = containerEl.querySelector(".fs-add-pages");
+          if (pagesInput) {
+            pagesInput.focus();
+          }
+        },
+      })
+    );
+  }
+
   async function renderFromServer(action, extra) {
     const publicId = typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter;
     const body = Object.assign({ action, entity_type: entityType, entity_public_id: publicId }, extra || {});
@@ -208,6 +282,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       return; // keep the prior render on any failure -- never blank the widget
     }
     containerEl.innerHTML = renderFeatureSourceEditorHtml(data, opts);
+    wireAutocomplete();
     // Return the server payload so a caller can react to it (e.g. the "Ort bearbeiten" dialog
     // reads data.revision to refresh its optimistic-locking token after the list's takeover).
     return data;
@@ -237,9 +312,24 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       await renderFromServer("remove", { source_id: sourceId });
       return;
     }
+    if (event.target.closest("[data-fs-unpick]")) {
+      clearPick();
+      return;
+    }
     const addTarget = event.target.closest("[data-fs-add-submit]");
     if (addTarget) {
       const values = readAddRowValues();
+      // A picked catalog row is linked BY ID (instruction 5a, "direkte Zuweisung"): it is already
+      // the right source, and a wiki publication may have no URL to re-upsert by at all. Pages and
+      // coverage still travel -- those describe this link, not the work.
+      if (pickedSourceId > 0) {
+        await renderFromServer("add_existing", {
+          source_id: pickedSourceId,
+          pages: values.pages,
+          reference_kind: values.reference_kind,
+        });
+        return;
+      }
       if (!values.url) {
         return; // url required -- no-op instead of a failed round trip
       }
@@ -309,20 +399,40 @@ function appendProposedFeatureSources(containerEl, suggestions, opts) {
 // Best-effort: no publicId/url -> no-op; transport/non-ok failures are swallowed so a create is never
 // broken by this. Returns true only on a confirmed add.
 async function linkCommunityReportSource(entityPublicId, suggestion) {
-  if (!entityPublicId || !suggestion || !suggestion.url) {
+  if (!entityPublicId || !suggestion) {
     return false;
   }
-  const data = await featureSourceFetch({
-    action: "add",
-    entity_type: "settlement",
-    entity_public_id: entityPublicId,
-    url: String(suggestion.url || ""),
-    label: String(suggestion.label || ""),
-    source_type: String(suggestion.source_type || "sonstiges"),
-    reference_kind: String(suggestion.reference_kind || ""),
-    is_official: Boolean(suggestion.is_official),
-    pages: String(suggestion.pages || ""),
-  });
+  // Instruction 5a: a reporter who PICKED an existing catalog row sent its id along. Link that row
+  // directly -- it is already the right source, and it may legitimately have no URL at all (a wiki
+  // publication is identified by its wiki key, not by a link). Without this branch such a source is
+  // dropped by the url guard below, which is precisely how a hand-typed "Blutmond I" ends up as its
+  // own catalog row instead of the adventure it names.
+  const pickedSourceId = Number(suggestion.source_id) || 0;
+  if (!pickedSourceId && !suggestion.url) {
+    return false;
+  }
+  const data = await featureSourceFetch(
+    pickedSourceId > 0
+      ? {
+          action: "add_existing",
+          entity_type: "settlement",
+          entity_public_id: entityPublicId,
+          source_id: pickedSourceId,
+          reference_kind: String(suggestion.reference_kind || ""),
+          pages: String(suggestion.pages || ""),
+        }
+      : {
+          action: "add",
+          entity_type: "settlement",
+          entity_public_id: entityPublicId,
+          url: String(suggestion.url || ""),
+          label: String(suggestion.label || ""),
+          source_type: String(suggestion.source_type || "sonstiges"),
+          reference_kind: String(suggestion.reference_kind || ""),
+          is_official: Boolean(suggestion.is_official),
+          pages: String(suggestion.pages || ""),
+        }
+  );
   if (!(data && data.ok === true)) {
     return false;
   }

@@ -35,6 +35,10 @@
      itself whenever tokens.css changes -- nothing to bump by hand.
      See docs/asset-caching-and-versioning.md. -->
 <link rel="stylesheet" href="/css/base/tokens.css">
+<!-- Source typeahead (instruction 5a). This iframe links tokens.css but NOT styles.css, so the
+     component's own stylesheet has to be pulled in explicitly -- the dropdown is appended to THIS
+     document's body and would otherwise render unstyled. Also stamped by the deploy. -->
+<link rel="stylesheet" href="/css/components/source-autocomplete.css">
 <style>
   /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
@@ -335,6 +339,7 @@
      same-origin absolute path like the sibling script above since this iframe document is fetched
      with ?v=Date.now() by its host, not through index.html's own asset-versioning pass. -->
 <link rel="stylesheet" href="/css/features/feature-sources.css" />
+<script src="/js/ui/source-autocomplete.js"></script>
 <script src="/js/review/review-feature-sources.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";

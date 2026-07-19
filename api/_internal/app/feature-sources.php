@@ -392,3 +392,124 @@ function avesmapsRemoveFeatureSource(PDO $pdo, string $entityType, string $publi
     avesmapsNextMapRevision($pdo);
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
 }
+
+// Link an EXISTING catalog row to an element (instruction 5a: "Treffer -> direkte Zuweisung").
+//
+// Deliberately NOT routed through avesmapsAddFeatureSource: that one upserts a source FROM A URL,
+// which cannot express "this exact row". A URL-less wiki publication (its url_hash is synthesized
+// from the wiki key, see avesmapsFeatureSourceUpsert) has no URL to upsert by, so a pick sent
+// through `add` would either be rejected outright or mint a second row for the same work -- which
+// is the very thing 5a exists to stop.
+//
+// origin='manual' is the same contract as the editor add path: manual wins, and re-picking a
+// previously suppressed source makes it visible again rather than silently staying hidden.
+function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string $publicId, int $sourceId, int $userId, string $pages = '', string $referenceKind = ''): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    // The id must name a real catalog row. A stale or invented id would otherwise produce a
+    // feature_sources row joining to nothing, which surfaces as a source that silently disappeared.
+    $exists = $pdo->prepare('SELECT COUNT(*) FROM sources WHERE id = :id');
+    $exists->execute(['id' => $sourceId]);
+    if ((int) $exists->fetchColumn() === 0) {
+        throw new InvalidArgumentException('Diese Quelle gibt es nicht (mehr).');
+    }
+
+    $allowedKinds = ['ausfuehrlich', 'ergaenzend', 'erwaehnung'];
+    $refKind = in_array($referenceKind, $allowedKinds, true) ? $referenceKind : null;
+    $pagesValue = trim($pages);
+    avesmapsFeatureSourceLink(
+        $pdo,
+        $entityType,
+        $publicId,
+        $sourceId,
+        $userId,
+        'manual',
+        $refKind,
+        $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null
+    );
+    // Same cache invalidation as the add path: the element's rendered source list changed.
+    avesmapsNextMapRevision($pdo);
+    return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
+}
+
+// --- Catalog search (instruction 5a: reference an EXISTING source instead of typing a new one) ---
+
+// feature_sources has no key on source_id alone -- its unique key leads with entity_type, so
+// counting how often a source is cited meant a full scan of ~55k rows. Added here and NOT in
+// avesmapsEnsureFeatureSourceTables on purpose: that one runs on the map-features hot path
+// (AGENTS.md §10) while the search endpoint is only hit while an editor types.
+function avesmapsEnsureSourceSearchIndex(PDO $pdo): void
+{
+    $statement = $pdo->query(
+        "SELECT COUNT(*) FROM information_schema.STATISTICS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'feature_sources'
+            AND INDEX_NAME = 'idx_feature_sources_source'"
+    );
+    if ($statement !== false && (int) $statement->fetchColumn() === 0) {
+        try {
+            $pdo->exec('ALTER TABLE feature_sources ADD KEY idx_feature_sources_source (source_id, status)');
+        } catch (PDOException) {
+            // Two searches racing on a cold table both pass the check above and both try the ALTER;
+            // the loser gets "Duplicate key name". The index exists either way, which is all this
+            // function promises -- so swallow it rather than turning one keystroke into a 500.
+        }
+    }
+}
+
+// Typeahead over the shared catalog. Matches label OR url, so pasting a link also finds the row
+// that already holds it. Prefix hits rank above substring hits, official above unofficial.
+// `uses` (how many elements already cite this source) is what tells an editor they picked the
+// right row; it is counted only for the handful of rows actually returned, never catalog-wide.
+//
+// Returns a flat list; the ENDPOINT wraps it in a group. Once sources.wiki_key exists (steps 1+2)
+// the adventure and citymap catalogues become a second group and the client renders them unchanged.
+function avesmapsSearchSourceCatalog(PDO $pdo, string $query, int $limit): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+    avesmapsEnsureSourceSearchIndex($pdo);
+
+    // LIKE wildcards typed by a user are literals, not operators. Backslash first, then % and _.
+    $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $query);
+    $limit = max(1, min(10, $limit));
+
+    // Distinct placeholder names: the same name twice is only safe under emulated prepares.
+    $statement = $pdo->prepare(
+        "SELECT id, url, label, source_type, is_official
+           FROM sources
+          WHERE label LIKE :contains ESCAPE '\\\\' OR url LIKE :contains_url ESCAPE '\\\\'
+          ORDER BY (label LIKE :prefix ESCAPE '\\\\') DESC, is_official DESC, label ASC, id ASC
+          LIMIT " . $limit
+    );
+    $statement->execute([
+        'contains' => '%' . $escaped . '%',
+        'contains_url' => '%' . $escaped . '%',
+        'prefix' => $escaped . '%',
+    ]);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($rows === []) {
+        return [];
+    }
+
+    $ids = array_map(static fn(array $row): int => (int) $row['id'], $rows);
+    $countStatement = $pdo->prepare(
+        "SELECT source_id, COUNT(*) AS uses FROM feature_sources
+          WHERE status = 'approved' AND source_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")
+          GROUP BY source_id"
+    );
+    $countStatement->execute($ids);
+    $uses = [];
+    foreach ($countStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $uses[(int) $row['source_id']] = (int) $row['uses'];
+    }
+
+    return array_map(static fn(array $row): array => [
+        'source_id' => (int) $row['id'],
+        'url' => (string) $row['url'],
+        'label' => (string) $row['label'],
+        'type' => (string) $row['source_type'],
+        'official' => (int) $row['is_official'] === 1,
+        'uses' => $uses[(int) $row['id']] ?? 0,
+    ], $rows);
+}

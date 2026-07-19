@@ -106,6 +106,11 @@
 			+ '</select></label>';
 	}
 
+	// Instruction 5a: the catalog row picked from the typeahead on the "Quelle *" field, if any.
+	// Travels with the suggestion so the review links THAT row instead of guessing which work a
+	// typed title meant.
+	var suggestPickedSourceId = 0;
+
 	function ensureDialog() {
 		var overlay = document.getElementById("avesmaps-citymap-suggest");
 		if (overlay) {
@@ -209,6 +214,44 @@
 			e.preventDefault();
 			void submitSuggestion(overlay);
 		});
+
+		// Instruction 5a: suggest existing catalog sources on the "Quelle *" field. Wired HERE
+		// because ensureDialog builds the overlay exactly once and returns the cached node on every
+		// later open -- so this can never stack a second listener set per open.
+		if (typeof attachSourceAutocomplete === "function") {
+			var sourceLabel = overlay.querySelector("#citymap-suggest-source-label");
+			if (sourceLabel) {
+				// Typing again means the reporter no longer means the row they picked.
+				sourceLabel.addEventListener("input", function () {
+					suggestPickedSourceId = 0;
+				});
+				attachSourceAutocomplete(sourceLabel, {
+					onPick: function (item) {
+						suggestPickedSourceId = Number(item.source_id) || 0;
+						sourceLabel.value = item.label || "";
+						var sourceUrl = overlay.querySelector("#citymap-suggest-source-url");
+						if (sourceUrl) {
+							sourceUrl.value = item.url || "";
+							// The link and type live in a collapsed "Mehr zur Quelle" group. Filling
+							// them invisibly would leave the reporter unable to see that an existing
+							// source was used -- so open the group when a pick fills it.
+							var group = sourceUrl.closest("details");
+							if (group) {
+								group.open = true;
+							}
+						}
+						var sourceType = overlay.querySelector("#citymap-suggest-source-type");
+						if (sourceType && item.type) {
+							sourceType.value = item.type;
+						}
+						var sourceOfficial = overlay.querySelector("#citymap-suggest-source-official");
+						if (sourceOfficial) {
+							sourceOfficial.checked = Boolean(item.official);
+						}
+					},
+				});
+			}
+		}
 		return overlay;
 	}
 
@@ -240,6 +283,9 @@
 		var overlay = ensureDialog();
 		var form = overlay.querySelector("form");
 		form.reset();
+		// form.reset() only touches form fields; the picked catalog row is script state and would
+		// otherwise survive into the NEXT suggestion and attach the previous map's source to it.
+		suggestPickedSourceId = 0;
 		// reset() setzt Checkboxen/Selects auf ihren MARKUP-Default zurück, nicht auf leer — die Typ-Haken
 		// stehen im Markup ungehakt und die Tri-Selects auf "unbekannt", das passt also. Der Status ist kein
 		// Formularfeld und muss von Hand weg, sonst klebt "Vorschlag gesendet." am nächsten Vorschlag.
@@ -309,6 +355,8 @@
 			name: citymap.title.slice(0, 80),
 			reporter_name: val(overlay, "citymap-suggest-reporter"),
 			sources: [{
+				// 0 unless the reporter picked an existing catalog row (instruction 5a).
+				source_id: suggestPickedSourceId,
 				label: val(overlay, "citymap-suggest-source-label"),
 				url: val(overlay, "citymap-suggest-source-url"),
 				pages: val(overlay, "citymap-suggest-source-pages"),

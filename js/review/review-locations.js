@@ -27,6 +27,13 @@ function buildLocationReportRequestPayload(formElement) {
 // "Anlegen" einzeln als feature_sources verknuepft (wie im Editor). Kein Server-Write vor dem Absenden.
 let locationReportSources = [];
 
+// Instruction 5a: the catalog row the reporter picked from the typeahead, if any. Travels with the
+// source so the review can link THAT row instead of guessing which work a typed title meant. This
+// is the most valuable of the four forms to cover: here only the NAME is required, so a source
+// reported without a link cannot be deduped by url_hash at all and always becomes a fresh row.
+let locationReportPickedSourceId = 0;
+let detachLocationReportAutocomplete = null;
+
 function reportSourceTypeLabel(type) {
 	return typeof featureSourceTypeLabel === "function" ? featureSourceTypeLabel(type) : String(type || "Sonstiges");
 }
@@ -62,6 +69,7 @@ function renderLocationReportSourcesList() {
 
 function readLocationReportSourceInputs() {
 	return {
+		source_id: locationReportPickedSourceId,
 		label: String(document.getElementById("report-source-label")?.value || "").trim(),
 		url: String(document.getElementById("report-source-url")?.value || "").trim(),
 		pages: String(document.getElementById("report-source-pages")?.value || "").trim(),
@@ -72,6 +80,7 @@ function readLocationReportSourceInputs() {
 }
 
 function clearLocationReportSourceInputs() {
+	locationReportPickedSourceId = 0;
 	["report-source-label", "report-source-url", "report-source-pages", "report-source-kind"].forEach((id) => {
 		const element = document.getElementById(id);
 		if (element) {
@@ -98,6 +107,49 @@ function addLocationReportSourceFromInputs() {
 	clearLocationReportSourceInputs();
 	document.getElementById("report-source-label")?.focus();
 	return true;
+}
+
+// Instruction 5a: offer the existing catalog on the source-name field.
+//
+// Wired ONCE: #report-source-label is static markup in index.html and is never re-rendered, so a
+// re-attach on every dialog open would stack another listener set plus another orphaned dropdown
+// node -- the failure mode that has bitten this codebase before (a handler stacked per open until
+// the control stopped responding).
+function initLocationReportSourceAutocomplete() {
+	if (detachLocationReportAutocomplete || typeof attachSourceAutocomplete !== "function") {
+		return; // already wired, or component absent -- typing a new source still works, unchanged
+	}
+	const labelInput = document.getElementById("report-source-label");
+	if (!labelInput) {
+		return;
+	}
+	// Typing again means the reporter no longer means the row they picked.
+	labelInput.addEventListener("input", () => {
+		locationReportPickedSourceId = 0;
+	});
+	detachLocationReportAutocomplete = attachSourceAutocomplete(labelInput, {
+		onPick(item) {
+			locationReportPickedSourceId = Number(item.source_id) || 0;
+			labelInput.value = item.label || "";
+			const urlInput = document.getElementById("report-source-url");
+			if (urlInput) {
+				urlInput.value = item.url || "";
+			}
+			const typeSelect = document.getElementById("report-source-type");
+			if (typeSelect && item.type) {
+				typeSelect.value = item.type;
+			}
+			const officialInput = document.getElementById("report-source-official");
+			if (officialInput) {
+				officialInput.checked = Boolean(item.official);
+			}
+			// The page number is the one value that belongs to THIS mention rather than to the work.
+			const pagesInput = document.getElementById("report-source-pages");
+			if (pagesInput) {
+				pagesInput.focus();
+			}
+		},
+	});
 }
 
 function removeLocationReportSource(index) {
