@@ -64,9 +64,41 @@
 	// map-features-way-labels.js (extractFunction-getestet, tools/paths/test-way-labels.mjs).
 	let wayLabelClickRegister = [];
 
+	// Läuft der Abschnitt, den der Text TATSÄCHLICH belegt (drawGlyphsAlong zentriert ihn immer auf
+	// dem übergebenen Punkte-Array), netto nach links? Die Aufrufer drehen nur die GANZE Polyline
+	// links->rechts -- eine Serpentine kann in ihrer Mitte trotzdem zurücklaufen, und genau dort stand
+	// die Schrift auf dem Kopf (Discord #34). Gleiche Konvention wie dort, nur auf dem Teilstück.
+	function labelSpanRunsLeftward(pts, textLen) {
+		const cum = [0];
+		for (let i = 1; i < pts.length; i += 1) {
+			cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+		}
+		const total = cum[cum.length - 1];
+		if (!(total > 0) || textLen > total) {
+			return false;
+		}
+		const xAt = (d) => {
+			for (let i = 1; i < pts.length; i += 1) {
+				if (d <= cum[i]) {
+					const segLen = cum[i] - cum[i - 1];
+					const t = segLen > 0 ? (d - cum[i - 1]) / segLen : 0;
+					return pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t;
+				}
+			}
+			return pts[pts.length - 1].x;
+		};
+		const spanStart = (total - textLen) / 2;
+		return xAt(spanStart + textLen) < xAt(spanStart);
+	}
+
 	// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
 	// rotiert). textAlign/textBaseline werden in redraw() gesetzt; Halo = weicher Schatten + scharfe Kontur.
 	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor, perpOffset) {
+		const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
+		// Vor dem perpOffset-Shift umdrehen, damit „positiv = oben" für den gedrehten Lauf gilt.
+		if (labelSpanRunsLeftward(pts, textLen)) {
+			pts = pts.slice().reverse();
+		}
 		if (perpOffset) {
 			// Alle Punkte senkrecht zur Linie verschieben (positiv = „oben"/über der Linie für links->rechts).
 			const shifted = [];
@@ -87,7 +119,6 @@
 		if (!seg.length) {
 			return;
 		}
-		const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
 		if (textLen > total) {
 			return; // Linie zu kurz für den Namen
 		}
