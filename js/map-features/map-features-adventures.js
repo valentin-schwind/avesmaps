@@ -45,6 +45,34 @@ function avesmapsAdventureEditionSortKey(edition) {
 	return m ? -parseFloat(m[1]) : 1000;
 }
 
+// Der Vergleich hinter "neueste zuerst" -- fuer Render-Shapes {edition, year, title} UND fuer
+// element.dataset (dort ist jeder Wert ein String). Schluessel in dieser Reihenfolge:
+//   1. EDITION (DSA5 -> DSA1, Unbekanntes ans Ende) -- die einzige Recency-Achse, die wirklich
+//      gefuellt ist. bf_year traegt live 6 von 1352 Abenteuern, weil {{Infobox Produkt}} keine
+//      BF-Jahreszahl fuehrt; api/_internal/wiki/adventure-sync.php sagt es ausdruecklich, der
+//      Wiki-Sync fuellt das Feld also nie. Ein Vergleich NUR auf bf_year lieferte deshalb fuer
+//      fast jedes Paar 0 -- und weil Array.sort stabil ist, blieb dann die EINGANGSreihenfolge
+//      stehen. Gebaut wird die als `beginnt`.concat(`spielt`), weshalb jeder Spoiler
+//      systembedingt hinten landete: nicht als Regel, sondern als Rest (Owner 2026-07-19).
+//   2. bf_year absteigend -- verfeinert dort, wo eines da ist.
+//   3. Titel -- damit Gleichstand deterministisch bricht, statt in die Eingangsreihenfolge zu
+//      fallen (genau der Rueckfall, der den Fehler erzeugt hat).
+// Die ROLLE (beginnt/spielt = spoilerfrei/Spoiler) geht bewusst NICHT ein: ein Spoiler steht an
+// seinem Sortierplatz, verschleiert -- nicht als Block am Ende.
+function avesmapsCompareAdventureRecency(a, b) {
+	var editionA = avesmapsAdventureEditionSortKey(a && a.edition);
+	var editionB = avesmapsAdventureEditionSortKey(b && b.edition);
+	if (editionA !== editionB) {
+		return editionA - editionB;
+	}
+	var yearA = Number(a && a.year) || 0;
+	var yearB = Number(b && b.year) || 0;
+	if (yearA !== yearB) {
+		return yearB - yearA;
+	}
+	return String((a && a.title) || "").localeCompare(String((b && b.title) || ""), "de");
+}
+
 // Normalize a stored wiki key ('wiki:<slug>') OR a page name into the client comparison key: strip the
 // 'wiki:' prefix, then apply the deeplink normalizer (NFD diacritic strip, lowercase, drop non-alnum).
 function avesmapsNormalizeAdventureKey(key) {
@@ -622,6 +650,7 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		avesmapsAdventureProductTypeLabel: avesmapsAdventureProductTypeLabel,
 		avesmapsAdventureEditionSortKey: avesmapsAdventureEditionSortKey,
+		avesmapsCompareAdventureRecency: avesmapsCompareAdventureRecency,
 		avesmapsNormalizeAdventureKey: avesmapsNormalizeAdventureKey,
 		avesmapsAdventureToRenderShape: avesmapsAdventureToRenderShape,
 		avesmapsBuildAdventureIndex: avesmapsBuildAdventureIndex,
@@ -637,6 +666,7 @@ if (typeof window !== "undefined") {
 	window.avesmapsReloadAdventureCatalog = avesmapsReloadAdventureCatalog;
 	window.avesmapsAdventureCatalogIsReady = avesmapsAdventureCatalogIsReady;
 	window.avesmapsAdventureEditionSortKey = avesmapsAdventureEditionSortKey;
+	window.avesmapsCompareAdventureRecency = avesmapsCompareAdventureRecency;
 	window.getAdventuresForPlace = getAdventuresForPlace;
 	window.getAdventuresForTerritory = getAdventuresForTerritory;
 	window.getAdventuresForRegion = getAdventuresForRegion;

@@ -123,13 +123,24 @@ function avesmapsSpoilerVeilMarkup(label) {
 	return '<span class="avesmaps-spoiler-veil" data-spoiler-reveal>' + placeExtrasEscape(label) + '</span>';
 }
 
-// Die ANFANGSreihenfolge einer Abenteuerliste: durchgehend nach Jahr, neueste zuerst -- Spoiler stehen
-// dazwischen statt als Block am Ende (Owner 2026-07-18). Muss mit der Default-Sortierung der Sortierzeile
-// uebereinstimmen (data-adv-sort="year" traegt is-active), sonst ordnet der erste Sortierklick sichtbar um,
-// obwohl der Leser dieselbe Sortierung waehlt. Nimmt/liefert {a, isPlay}-Paare, weil die Rolle beim
-// Rendern gebraucht wird; stabil, damit Jahrgleiche ihre Eingangsreihenfolge behalten.
+// Die ANFANGSreihenfolge einer Abenteuerliste: durchgehend "neueste zuerst" (Edition, dann BF-Jahr, dann
+// Titel -- s. avesmapsCompareAdventureRecency), Spoiler stehen dazwischen statt als Block am Ende
+// (Owner 2026-07-18). Muss mit der Default-Sortierung der Sortierzeile uebereinstimmen
+// (data-adv-sort="year" traegt is-active), sonst ordnet der erste Sortierklick sichtbar um, obwohl der
+// Leser dieselbe Sortierung waehlt. Nimmt/liefert {a, isPlay}-Paare, weil die Rolle beim Rendern
+// gebraucht wird.
+//
+// Hier stand frueher "stabil, damit Jahrgleiche ihre Eingangsreihenfolge behalten" -- genau das WAR der
+// Fehler: fast alle Jahre sind gleich (naemlich keins), also blieb die Eingangsreihenfolge
+// `beginnt`.concat(`spielt`) unangetastet und schob jeden Spoiler ans Ende (Owner 2026-07-19).
 function avesmapsSortAdventureEntries(entries) {
 	return entries.slice().sort(function (x, y) {
+		// map-features-adventures.js laedt NACH dieser Datei (index.html); der Aufruf faellt aber erst zur
+		// Laufzeit an, das Global steht dann. Fehlt es wider Erwarten, bleibt das Jahr als Notbehelf: eine
+		// schwaechere Reihenfolge ist ein Schoenheitsfehler, eine Ausnahme waere ein leerer Streifen.
+		if (typeof avesmapsCompareAdventureRecency === "function") {
+			return avesmapsCompareAdventureRecency(x.a, y.a);
+		}
 		return (Number(y.a && y.a.year) || 0) - (Number(x.a && x.a.year) || 0);
 	});
 }
@@ -852,7 +863,7 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// Zahl im Kopf").
 	var countMarkup = ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>';
 
-	// Sortierzeile (sortiert innerhalb der Rolle -- beginnt bleibt vor spielt).
+	// Sortierzeile. Sortiert DURCHGEHEND, ohne Rollen-Bloecke -- ein Spoiler steht an seinem Sortierplatz.
 	var sortsMarkup =
 		'<div class="avesmaps-adv__sorts">'
 		+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">' + placeExtrasEscape(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
@@ -1453,7 +1464,12 @@ function advFiltersMarkup(facets) {
 					? (avesmapsAdventureEditionSortKey(a.dataset.edition) - avesmapsAdventureEditionSortKey(b.dataset.edition)) : 0;
 				return ek || String(a.dataset.title).localeCompare(String(b.dataset.title), "de");
 			}
-			return (Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0);
+			// "neueste zuerst" -- DERSELBE Vergleicher wie die Anfangsreihenfolge (dataset liefert Strings,
+			// der Vergleicher rechnet sie um). Liefen die beiden auseinander, ordnete der erste Klick auf die
+			// ohnehin schon aktive Sortierung sichtbar um.
+			return (typeof avesmapsCompareAdventureRecency === "function")
+				? avesmapsCompareAdventureRecency(a.dataset, b.dataset)
+				: ((Number(b.dataset.year) || 0) - (Number(a.dataset.year) || 0));
 		};
 		// DURCHGEHEND sortieren, ohne Rollen-Bloecke (Owner 2026-07-18). Die alte Invariante "beginnt bleibt
 		// vor spielt" war keine inhaltliche Entscheidung, sondern eine Folge des Umschalters: der gab die

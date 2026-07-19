@@ -178,7 +178,7 @@
 		// Filter stehen UEBER der Sortierung (Filter grenzt die Menge ein, Sortierung ordnet den Rest).
 		controls.innerHTML = filtersMarkup(facets) + sortsMarkup();
 
-		// Karten je Rahmen sortieren -- start bleibt VOR play (Rollen-Invariante), sortiert innerhalb der Rolle.
+		// Karten je Rahmen sortieren -- DURCHGEHEND, ohne Rollen-Bloecke: ein Spoiler steht an seinem Platz.
 		function compare(a, b) {
 			if (state.sort === "alpha") {
 				return String(a.getAttribute("data-title")).localeCompare(String(b.getAttribute("data-title")), "de");
@@ -192,7 +192,11 @@
 					? (avesmapsAdventureEditionSortKey(a.getAttribute("data-edition")) - avesmapsAdventureEditionSortKey(b.getAttribute("data-edition"))) : 0;
 				return ek || String(a.getAttribute("data-title")).localeCompare(String(b.getAttribute("data-title")), "de");
 			}
-			return (Number(b.getAttribute("data-year")) || 0) - (Number(a.getAttribute("data-year")) || 0);
+			// "neueste zuerst" -- derselbe Vergleicher wie Streifen und flacher Dialog (place-extras.js),
+			// damit die drei Listen EINE Reihenfolge-Regel haben.
+			return (typeof avesmapsCompareAdventureRecency === "function")
+				? avesmapsCompareAdventureRecency(a.dataset, b.dataset)
+				: ((Number(b.getAttribute("data-year")) || 0) - (Number(a.getAttribute("data-year")) || 0));
 		}
 		function sortCards() {
 			var wraps = body.querySelectorAll(".avesmaps-adv-tree__cards");
