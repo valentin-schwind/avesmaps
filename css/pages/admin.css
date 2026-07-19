@@ -40,7 +40,17 @@
 
 .admin-user-form {
 	display: grid;
-	grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 0.8fr) minmax(160px, 1fr) auto auto auto;
+	/* The last three tracks are fixed on purpose. Every row is its own <form> with its
+	   own grid, so with `auto` each one measured its own buttons -- "Benutzer anlegen"
+	   (131px), "Speichern" (86px), "Loeschen" (82px or absent on your own account) --
+	   and whatever was left went to the fr tracks. The fields then landed up to 33px
+	   apart from row to row. Fixed button tracks make every row resolve identically.
+	   The password track carries a 290px floor and extra weight: it holds the field AND
+	   the dice button, and a generated 15-character password has to stay fully readable
+	   (at 160px it was cut off mid-password, which defeats the point of showing it).
+	   290px = 178px widest password out of 3000 draws + 19px field chrome + 6px gap +
+	   82px button, rounded up. */
+	grid-template-columns: minmax(140px, 1.2fr) minmax(120px, 0.8fr) minmax(290px, 1.4fr) 4rem 9rem 5.75rem;
 	align-items: end;
 	gap: 10px;
 	padding: 12px;
@@ -78,6 +88,7 @@
 	cursor: pointer;
 	font: inherit;
 	padding: 8px 11px;
+	white-space: nowrap;
 }
 
 .admin-user-form .admin-danger-button {
@@ -137,7 +148,10 @@
 	width: auto;
 }
 
-@media (max-width: 920px) {
+/* Stacks earlier than the old 920px: the row needs 140 + 120 + 290 (track floors) + 300
+   (fixed button tracks) + 50 gaps + 24 form padding + 36 panel padding + 32 page gutter
+   = 1032px before the password field would be squeezed below a readable width. */
+@media (max-width: 1040px) {
 	.admin-user-form {
 		grid-template-columns: 1fr;
 		align-items: stretch;
