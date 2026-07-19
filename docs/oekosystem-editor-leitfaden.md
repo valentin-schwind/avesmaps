@@ -392,21 +392,67 @@ dasselbe Muster wie der „Fehlt"-Reiter bei den Territorien-Listen.
 
 **~2.300 Zeilen neu, ~500 umgebaut, ~1.000 wiederverwendet.**
 
-| Phase | Inhalt | fertig, wenn |
-|---|---|---|
-| **E1** | Zwei Tabellen + Endpoint + Repository | Region und Fläche per API anlegen, lesen, ändern, soft-löschen |
-| **E2** | Deskriptor + die acht Nahtstellen | politische Tests unverändert grün, zweiter Typ akzeptiert |
-| **E3** | Modus (edit-only), Kontextmenü, eigene Ebene + Loader | Fläche erscheint, überlebt Kartenschwenk und Moduswechsel |
-| **E4** | Zeichenwerkzeuge am neuen Typ | Ecken ziehen, Kante teilen, Boolean-Split |
-| **E5** | Panel: Typ, Name, Wiki-Zuweisung, eigene Region | Zuordnung speicherbar |
-| **E6** | Regioneneditor (§8) | Übersicht zeigt Regionen, Herkunft, Flächenzahl, Lücken |
-| **E7** | Kill-Switch + öffentliche Ebene | erst wenn die Ebene für Nutzer sichtbar werden soll |
+Ausgerollt wird **behutsam und in dieser Reihenfolge**. Jede Stufe endet mit etwas,
+das der Owner **anschauen** kann — erst danach beginnt die nächste. Eins nach dem
+andern.
 
-> 🔴 **Routing ist in diesen Phasen NICHT enthalten.** Die Wirkungen werden später
-> und **modular** gebaut — als erster *Abnehmer* der fertigen Regionen
-> (`oekosystem-instruction.md`), Kräuter und Reisesimulation später als weitere.
-> E1–E6 liefern Flächen mit Eigenschaften, sonst nichts. Das ist Absicht: solange
-> kein Abnehmer dranhängt, kann auch keiner kaputtgehen.
+### R1 — Die Ebene existiert
+
+Modus „Ökosystem" im Edit-Mode. Man schaltet um und sieht **die Karte**: Kacheln,
+Wege, Orte — und eine leere Ökosystem-Ebene. Sonst nichts.
+
+*Fertig, wenn:* der Modus umschaltbar ist, die Karte darunter vollständig steht und
+ein Moduswechsel hin und zurück nichts kaputt macht.
+
+> Bewusst eine eigene Stufe: Der Moduseintrag muss an **fünf Stellen** stimmen
+> (§3), und wenn eine fehlt, fällt er **stumm** zurück. Das will man isoliert
+> gesehen haben, bevor Daten im Spiel sind.
+
+### R2 — Erste Geometrie
+
+Tabellen, Endpoint, Repository, der Entitäts-Deskriptor und die acht Nahtstellen —
+dann Zeichnen: Kontextmenü, Fläche anlegen, Ecken ziehen, Kante teilen.
+
+*Fertig, wenn:* eine gezeichnete Fläche gespeichert wird, den Reload überlebt und
+die politischen Tests unverändert grün sind.
+
+Das ist der große Brocken. Alles davor und danach ist klein dagegen.
+
+### R3 — Der Owner zeichnet einen Wald
+
+Kein Code. **Abnahme.** Eine echte Fläche, von Hand gezeichnet, mit dem Werkzeug,
+das die Editoren später benutzen.
+
+*Fertig, wenn:* es sich gut anfühlt. Wenn nicht, wird R2 nachgeschärft, bevor
+irgendetwas darauf aufbaut.
+
+### R4 — Zuweisung aus dem Wiki
+
+- **Wiki-Regionen werden ziehbar** und lassen sich per Drag'n'drop auf eine Fläche
+  fallen lassen. Vorlage ist die vorhandene Territorien-Zuweisung
+  (`js/territory/territory-drag-assignment.js`, 441 Zeilen) — dasselbe Muster, ohne
+  Hierarchie.
+- **Rechtsklick auf eine Fläche → erster Eintrag öffnet den Regioneneditor.**
+
+*Fertig, wenn:* eine gezogene Wiki-Region an der Fläche hängt und das
+Labels-Häkchen (§3.1) bestätigt, dass der Name zum Standard-Label darunter passt.
+
+### R5 — Den Regioneneditor gestalten
+
+**Erst jetzt.** Wenn feststeht, was zugewiesen wird und wie es sich anfühlt, wird
+die Übersicht entworfen (§8) — nicht vorher auf Verdacht.
+
+### Später, ausdrücklich nicht jetzt
+
+| | |
+|---|---|
+| Öffentliche Ebene + Kill-Switch | erst wenn Nutzer sie sehen sollen |
+| **Routing** | als **erster Abnehmer** fertiger Regionen (`oekosystem-instruction.md`) |
+| Kräuter, Reisesimulation | als weitere Abnehmer |
+
+> 🔴 **Routing ist in R1–R5 NICHT enthalten.** Die Wirkungen kommen später und
+> **modular**. Diese Stufen liefern Flächen mit Eigenschaften, sonst nichts — und
+> solange kein Abnehmer dranhängt, kann auch keiner kaputtgehen.
 
 ## 11. Offene Entscheidung vor Baubeginn
 
