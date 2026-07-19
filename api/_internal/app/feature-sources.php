@@ -377,6 +377,12 @@ function avesmapsAddFeatureSource(PDO $pdo, string $entityType, string $publicId
     $refKind = in_array($referenceKind, $allowedKinds, true) ? $referenceKind : null;
     $pagesValue = trim($pages);
     avesmapsFeatureSourceLink($pdo, $entityType, $publicId, $sourceId, $userId, 'manual', $refKind, $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null);
+    // Step 6: if this source IS an adventure, the place joins its "Abenteuer in …" list right away
+    // -- no confirmation step (owner). Guarded because the adventure library is not loaded on every
+    // surface that adds a source; without it the source link simply stands on its own, as before.
+    if (function_exists('avesmapsAdventureLinkPlaceFromSource')) {
+        avesmapsAdventureLinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId, $userId);
+    }
     // Cache invalidation (Fix #1): a new source link changes the element's rendered source list,
     // which rides in the ETag-cached map-features payload (W/"mf-<map_revision>-..."). Bump the SAME
     // global map_revision counter ordinary editor edits use so warm-cache clients don't keep a stale
@@ -415,6 +421,12 @@ function avesmapsRemoveFeatureSource(PDO $pdo, string $entityType, string $publi
             ->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $sourceId]);
     }
 
+    // Step 6, the reverse path: the place entry this source link created goes with it, immediately
+    // and through the same door. An entry that was already there is untouched -- it carries no
+    // created_from_source_id, and only rows carrying THIS source id are removed.
+    if (function_exists('avesmapsAdventureUnlinkPlaceFromSource')) {
+        avesmapsAdventureUnlinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId);
+    }
     // Cache invalidation (Fix #1): suppress OR hard-delete both change the element's rendered
     // source list -> bump the same global map_revision counter (ETag seed) ordinary edits use, so
     // warm-cache clients don't keep a stale 304. Same avesmapsNextMapRevision reuse as the add path.
@@ -457,6 +469,10 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
         $refKind,
         $pagesValue !== '' ? mb_substr($pagesValue, 0, 120) : null
     );
+    // Step 6, same as the add path: picking an existing adventure source connects the place to it.
+    if (function_exists('avesmapsAdventureLinkPlaceFromSource')) {
+        avesmapsAdventureLinkPlaceFromSource($pdo, $sourceId, $entityType, $publicId, $userId);
+    }
     // Same cache invalidation as the add path: the element's rendered source list changed.
     avesmapsNextMapRevision($pdo);
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);

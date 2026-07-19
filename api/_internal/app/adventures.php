@@ -110,6 +110,29 @@ function avesmapsAdventuresEnsureTables(PDO $pdo): void
         }
     }
 
+    // Step 6 of docs/quellen-wiki-key-instruction.md. Which feature_sources link created this place
+    // entry, if any -- NULL means a human put it here directly.
+    //
+    // This column is the whole reason the reverse path can be safe. Removing the source has to take
+    // the entry it created with it ("eine sofort wirksame Aktion ohne ebenso sofortige Rücknahme
+    // wäre eine Falle"), and must NOT take an entry that was already there ("es zählt, was diese
+    // Eingabe erzeugt hat -- nicht, was zufällig dasselbe Paar beschreibt"). Without the marker
+    // those two cases are indistinguishable and one of them is always wrong.
+    $placeColumnExists = static function (PDO $pdo, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'adventure_place' AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    if (!$placeColumnExists($pdo, 'created_from_source_id')) {
+        $pdo->exec(
+            'ALTER TABLE adventure_place
+                ADD COLUMN created_from_source_id BIGINT UNSIGNED NULL,
+                ADD KEY idx_adventure_place_from_source (created_from_source_id)'
+        );
+    }
+
     // Curated extra links (Spec §2.4, "Weitere Links"): reviews, errata, fan material -- everything that is
     // neither a shop nor the wiki page. Leaf data: no wiki reconcile, no field_origins, no per-row identity
     // to protect, which is why the editor replaces the whole list at once (set_links) instead of juggling
@@ -1118,6 +1141,107 @@ function avesmapsSuppressAdventurePlace(PDO $pdo, int $placeId): array
 
     $pdo->prepare('DELETE FROM adventure_place WHERE id = :id')->execute(['id' => $placeId]);
     return ['place_id' => $placeId, 'suppressed' => false];
+}
+
+// --- Step 6: a source that IS an adventure makes its place appear under "Abenteuer in …" --------
+
+// The display name for adventure_place.raw_name. settlement/region/path live in map_features, a
+// territory in political_territory; anything else falls back to the id so a row is never written
+// with an empty name.
+function avesmapsAdventurePlaceNameFor(PDO $pdo, string $entityType, string $publicId): string
+{
+    try {
+        if (in_array($entityType, ['settlement', 'region', 'path'], true)) {
+            $statement = $pdo->prepare('SELECT name FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1');
+        } elseif ($entityType === 'territory') {
+            $statement = $pdo->prepare('SELECT name FROM political_territory WHERE public_id = :id LIMIT 1');
+        } else {
+            return $publicId;
+        }
+        $statement->execute(['id' => $publicId]);
+        $name = $statement->fetchColumn();
+        return is_string($name) && trim($name) !== '' ? trim($name) : $publicId;
+    } catch (Throwable) {
+        return $publicId;
+    }
+}
+
+// Connect a place to the adventure a source stands for. Returns true only when a row was created.
+//
+// Silently does nothing when the source has no wiki key, when no adventure carries that key, or
+// when the pair already exists. That last case is the "beide Türen" rule: an editor who adds the
+// source AND enters the place by hand must still end up with ONE connection, and whichever input
+// comes second must change nothing.
+//
+// origin='manual' by design (invariant 2): sync_adventures writes and deletes only origin='wiki',
+// so no reconcile can ever remove what an editor caused here.
+function avesmapsAdventureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId, int $userId = 0): bool
+{
+    if ($sourceId <= 0 || $publicId === '' || $entityType === 'citymap') {
+        return false;
+    }
+    avesmapsAdventuresEnsureTables($pdo);
+
+    $keyStatement = $pdo->prepare('SELECT wiki_key FROM sources WHERE id = :id LIMIT 1');
+    $keyStatement->execute(['id' => $sourceId]);
+    $wikiKey = trim((string) ($keyStatement->fetchColumn() ?: ''));
+    if ($wikiKey === '') {
+        return false; // no wiki key means nothing happens -- section 2, point 4
+    }
+
+    $adventureStatement = $pdo->prepare('SELECT id FROM adventure WHERE wiki_key = :k LIMIT 1');
+    $adventureStatement->execute(['k' => $wikiKey]);
+    $adventureId = (int) ($adventureStatement->fetchColumn() ?: 0);
+    if ($adventureId <= 0) {
+        return false; // the key names something that is not an adventure (a map, a sourcebook)
+    }
+
+    $existing = $pdo->prepare(
+        'SELECT id FROM adventure_place
+          WHERE adventure_id = :aid AND target_kind = :kind AND target_public_id = :pid LIMIT 1'
+    );
+    $existing->execute(['aid' => $adventureId, 'kind' => $entityType, 'pid' => $publicId]);
+    if ($existing->fetchColumn() !== false) {
+        return false; // already connected, through whichever door
+    }
+
+    $order = $pdo->prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM adventure_place WHERE adventure_id = :aid');
+    $order->execute(['aid' => $adventureId]);
+
+    $pdo->prepare(
+        "INSERT INTO adventure_place
+            (adventure_id, sort_order, raw_name, target_kind, target_public_id, role, origin, status, created_from_source_id)
+         VALUES (:aid, :ord, :name, :kind, :pid, 'play', 'manual', 'approved', :src)"
+    )->execute([
+        'aid' => $adventureId,
+        'ord' => (int) $order->fetchColumn(),
+        'name' => avesmapsAdventurePlaceNameFor($pdo, $entityType, $publicId),
+        'kind' => $entityType,
+        'pid' => $publicId,
+        'src' => $sourceId,
+    ]);
+    return true;
+}
+
+// The reverse path, and it has to be exactly as immediate as the forward one -- "eine sofort
+// wirksame Aktion ohne ebenso sofortige Rücknahme wäre eine Falle".
+//
+// Deletes ONLY what this very source link created (created_from_source_id). A place someone entered
+// by hand carries NULL there and survives: "es zählt, was diese Eingabe erzeugt hat -- nicht, was
+// zufällig dasselbe Paar beschreibt". That is the difference between undoing a mistake and quietly
+// destroying older work.
+function avesmapsAdventureUnlinkPlaceFromSource(PDO $pdo, int $sourceId, string $entityType, string $publicId): int
+{
+    if ($sourceId <= 0 || $publicId === '') {
+        return 0;
+    }
+    avesmapsAdventuresEnsureTables($pdo);
+    $statement = $pdo->prepare(
+        'DELETE FROM adventure_place
+          WHERE created_from_source_id = :src AND target_kind = :kind AND target_public_id = :pid'
+    );
+    $statement->execute(['src' => $sourceId, 'kind' => $entityType, 'pid' => $publicId]);
+    return $statement->rowCount();
 }
 
 // Delete a MANUALLY created adventure and everything hanging off it (places + curated extra links).

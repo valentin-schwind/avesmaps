@@ -13,6 +13,10 @@ require_once __DIR__ . '/../../_internal/app/feature-sources.php';
 // community/editor link to a publication's wiki article with the wiki-reconciled source (same
 // source_id). Side-effect-free on include; it lazy-loads its own slug chain only for wiki-aventurica URLs.
 require_once __DIR__ . '/../../_internal/wiki/publication-sync.php';
+// Step 6: a source carrying an adventure's wiki key connects its place to that adventure on add and
+// disconnects it again on remove. Loaded here so the guarded calls in the app library find it; the
+// library stays usable without it (the calls are function_exists-gated).
+require_once __DIR__ . '/../../_internal/app/adventures.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
