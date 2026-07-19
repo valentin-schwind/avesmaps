@@ -422,11 +422,14 @@
 	color: var(--color-danger-soft-text);
 }
 
+/* Der Spalten-Abstand traegt hier eine Bedeutung: links die Handlung, rechts ihr Datum. Bei 8px
+   klebten beide aneinander und lasen sich als ein Block (Owner 2026-07-19). Diese EINE Regel gilt
+   fuer alle sechs Reiter -- Siedlungen, Territorien, Regionen, Wege, Abenteuer, Karten. */
 .wiki-sync-panel__actions {
 	display: grid;
 	grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr);
 	align-items: center;
-	gap: 8px;
+	gap: var(--space-16);
 	margin: 8px 10px 8px;
 	padding: 0;
 }

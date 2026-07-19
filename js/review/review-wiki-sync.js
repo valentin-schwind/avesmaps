@@ -552,6 +552,22 @@ async function refreshWikiSyncDumpFetchedStatus() {
 // well after full parse), so the forward reference is safe. Best-effort: a failed
 // fetch just leaves the labels in whatever state they were already in (hidden by
 // default), never blocks the panel or throws into a caller.
+// Das "Zuletzt gesynct"-Label einer Art -- immer MIT Text, nie leer. Ein Feld, das bei vier Reitern
+// steht und bei zweien fehlt, laesst die sechs Kacheln unterschiedlich aussehen (Owner 2026-07-19:
+// "einfach Konsistenz schaffen"). Die Server-Antwort kennt dabei zwei verschiedene Faelle, und dieser
+// Text auch: null heisst "diese Art wurde nachweislich nie gesynct" (so dokumentiert an
+// avesmapsWikiDumpSyncKindLastSynced), ein FEHLENDER Schluessel heisst nur "dazu kam keine Antwort" --
+// etwa wenn die Lib einer Art nicht geladen war. Die beiden duerfen nicht denselben Satz bekommen,
+// sonst behauptet das Panel ein "nie", das es gar nicht weiss.
+function wikiSyncKindSyncedLabel(synced, kind) {
+	const answered = synced !== null && typeof synced === "object" && Object.prototype.hasOwnProperty.call(synced, kind);
+	const raw = answered ? synced[kind] : null;
+	if (raw) {
+		return formatWikiSyncKindSyncedText({ completed_at: raw });
+	}
+	return answered ? "Noch nie gesynct" : "Zuletzt gesynct: unbekannt";
+}
+
 async function refreshWikiSyncKindSyncedStatus() {
 	try {
 		const synced = await fetchWikiSyncKindLastSynced();
@@ -560,23 +576,18 @@ async function refreshWikiSyncKindSyncedStatus() {
 			if (!syncedElement) {
 				return;
 			}
-			const raw = synced ? synced[kind] : null;
-			if (!raw) {
-				return; // never synced -- leave the label hidden (default markup state).
-			}
-			// Reuses the same formatter the fresh-sync path uses (completed_at-shaped input).
-			syncedElement.textContent = formatWikiSyncKindSyncedText({ completed_at: raw });
+			syncedElement.textContent = wikiSyncKindSyncedLabel(synced, kind);
 			syncedElement.hidden = false;
 		});
 		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
 		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
 		// verdrahten (der Territorien-Sync laeuft im Iframe-Editor, nicht ueber startWikiSyncKindSync).
-		[["settlement-editor-synced", synced && synced.settlement], ["wiki-sync-territory-synced", synced && synced.territory], ["wiki-sync-sync-adventure-synced", synced && synced.adventure], ["adventure-editor-synced", synced && synced.adventure], ["citymaps-editor-synced", synced && synced.citymap]].forEach(([id, raw]) => {
+		[["settlement-editor-synced", "settlement"], ["wiki-sync-territory-synced", "territory"], ["wiki-sync-sync-adventure-synced", "adventure"], ["adventure-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"]].forEach(([id, kind]) => {
 			const el = document.getElementById(id);
-			if (!el || !raw) {
+			if (!el) {
 				return;
 			}
-			el.textContent = formatWikiSyncKindSyncedText({ completed_at: raw });
+			el.textContent = wikiSyncKindSyncedLabel(synced, kind);
 			el.hidden = false;
 		});
 	} catch (error) {
