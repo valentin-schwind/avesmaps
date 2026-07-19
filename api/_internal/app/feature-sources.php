@@ -478,6 +478,57 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
 }
 
+// The wiki key of a source, self-healing: reads the column, and when that is empty derives the key
+// the way the reconcile would and WRITES IT BACK.
+//
+// The column alone is not enough, and the first live test of step 6 is how that surfaced. A
+// publication reconcile only upserts the sources it is actively placing, so a publication the wiki
+// lists no places for is never touched and keeps wiki_key NULL -- even though its identity is known
+// beyond doubt (its url_hash IS the identity the reconcile computes). "Die Feuer von Gruuzash" is
+// exactly such a case, which is why adding it to a place did nothing at all.
+//
+// Deriving without storing would leave the column permanently untrustworthy, and section 6 plans to
+// put a UNIQUE index on it. So the lookup repairs the row it just read: the column converges on the
+// truth through ordinary use, the same self-healing idiom as the other_source takeover.
+function avesmapsSourceWikiKeyResolved(PDO $pdo, int $sourceId): string
+{
+    if ($sourceId <= 0) {
+        return '';
+    }
+    $read = $pdo->prepare('SELECT url_hash, wiki_key FROM sources WHERE id = :id LIMIT 1');
+    $read->execute(['id' => $sourceId]);
+    $row = $read->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        return '';
+    }
+    $stored = trim((string) ($row['wiki_key'] ?? ''));
+    if ($stored !== '') {
+        return $stored;
+    }
+
+    // Same identity the reconcile computes: sha256 of the chosen shop url, or of 'wikipub:'+key for
+    // a publication that has no shop link at all. Matched in SQL so the catalog is scanned once.
+    $derive = $pdo->prepare(
+        "SELECT wiki_key FROM wiki_publication_catalog
+          WHERE (has_link = 1 AND SHA2(chosen_url, 256) = :h1)
+             OR (has_link = 0 AND SHA2(CONCAT('wikipub:', wiki_key), 256) = :h2)
+          LIMIT 1"
+    );
+    try {
+        $derive->execute(['h1' => (string) $row['url_hash'], 'h2' => (string) $row['url_hash']]);
+        $derived = trim((string) ($derive->fetchColumn() ?: ''));
+    } catch (Throwable) {
+        return ''; // no WikiSync staging on this installation
+    }
+    if ($derived === '') {
+        return '';
+    }
+
+    $pdo->prepare('UPDATE sources SET wiki_key = :k WHERE id = :id AND (wiki_key IS NULL OR wiki_key = :empty)')
+        ->execute(['k' => $derived, 'id' => $sourceId, 'empty' => '']);
+    return $derived;
+}
+
 // --- Step 4: work out which sources have a wiki key, WITHOUT writing anything -------------------
 
 // Reads the wiki key a source WOULD get, rather than the one it has. sources.wiki_key is only

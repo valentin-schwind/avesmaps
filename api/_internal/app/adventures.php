@@ -1182,9 +1182,13 @@ function avesmapsAdventureLinkPlaceFromSource(PDO $pdo, int $sourceId, string $e
     }
     avesmapsAdventuresEnsureTables($pdo);
 
-    $keyStatement = $pdo->prepare('SELECT wiki_key FROM sources WHERE id = :id LIMIT 1');
-    $keyStatement->execute(['id' => $sourceId]);
-    $wikiKey = trim((string) ($keyStatement->fetchColumn() ?: ''));
+    // Not a plain column read: avesmapsSourceWikiKeyResolved also DERIVES the key for a source the
+    // reconcile has never touched (a publication the wiki lists no places for keeps wiki_key NULL
+    // even though its identity is certain) and writes it back. Reading the column alone made the
+    // whole feature do nothing for exactly those sources -- caught on the first live try.
+    $wikiKey = function_exists('avesmapsSourceWikiKeyResolved')
+        ? avesmapsSourceWikiKeyResolved($pdo, $sourceId)
+        : '';
     if ($wikiKey === '') {
         return false; // no wiki key means nothing happens -- section 2, point 4
     }

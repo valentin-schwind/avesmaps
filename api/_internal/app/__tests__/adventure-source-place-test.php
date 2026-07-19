@@ -22,6 +22,10 @@ if (ini_get('zend.assertions') !== '1') {
 }
 
 require __DIR__ . '/../adventures.php';
+// avesmapsSourceWikiKeyResolved lives here: the key lookup is not a plain column read, it derives
+// and repairs a missing key. Without this require the guarded call finds nothing and every case
+// below would "pass" by doing nothing at all.
+require __DIR__ . '/../feature-sources.php';
 
 // Fake PDO/statement built WITHOUT a driver: records every statement and its bound parameters, and
 // replays scripted column values, so the exact SQL can be asserted with no MySQL anywhere.
@@ -40,7 +44,15 @@ final class FakeAdvStmt extends PDOStatement
     }
     public function fetchColumn(int $column = 0): mixed { return $this->col; }
     public function fetchAll(int $mode = PDO::FETCH_BOTH, mixed ...$args): array { return []; }
-    public function fetch(int $mode = PDO::FETCH_BOTH, int $cursor = PDO::FETCH_ORI_NEXT, int $offset = 0): mixed { return false; }
+    // Only the sources row is fetched as an assoc array (avesmapsSourceWikiKeyResolved); the scripted
+    // key rides in via $col so a test can hand back a stored key, an empty one, or no row at all.
+    public function fetch(int $mode = PDO::FETCH_BOTH, int $cursor = PDO::FETCH_ORI_NEXT, int $offset = 0): mixed
+    {
+        if (str_contains($this->sql, 'url_hash, wiki_key FROM sources')) {
+            return $this->col === false ? false : ['url_hash' => 'hash-of-the-source', 'wiki_key' => $this->col];
+        }
+        return false;
+    }
     public function rowCount(): int { return $this->rows; }
 }
 final class FakeAdvPdo extends PDO
@@ -83,11 +95,12 @@ $fresh = static function (array $columns = []): FakeAdvPdo {
     // Order matters: first match wins, so the SPECIFIC needles come before the general ones --
     // "FROM adventure_place" also occurs in the MAX(sort_order) query.
     $pdo->columns = $columns + [
-        'wiki_key FROM sources' => 'die-feuer-von-gruuzash',
+        'url_hash, wiki_key FROM sources' => 'die-feuer-von-gruuzash',
         'FROM adventure WHERE wiki_key' => 7,
         'MAX(sort_order)' => 3,
         'SELECT id FROM adventure_place' => false,   // no existing pair
         'FROM map_features' => 'Der Schläfer',
+        'FROM wiki_publication_catalog' => '',       // nothing to derive unless a test says so
     ];
     return $pdo;
 };
@@ -111,9 +124,21 @@ assert(str_contains($inserts[0]['sql'], "'manual'"), "origin manual -> kein Reco
 echo "hinweg ok\n";
 
 // ---- the three silent no-ops -------------------------------------------------------------------
-$pdo = $fresh(['wiki_key FROM sources' => '']);
+$pdo = $fresh(['url_hash, wiki_key FROM sources' => '']);
 assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'ohne Wiki-Key passiert nichts');
 assert($pdo->ran('INSERT INTO adventure_place') === [], 'und es wird nichts geschrieben');
+
+// The case that broke it live: the column is empty, but the source IS a known publication. The key
+// gets derived AND written back, and the place is connected -- reading the column alone did nothing.
+$pdo = $fresh([
+    'url_hash, wiki_key FROM sources' => '',
+    'FROM wiki_publication_catalog' => 'die-feuer-von-gruuzash',
+]);
+assert(avesmapsAdventureLinkPlaceFromSource($pdo, 107810, 'settlement', 'schlaefer-id') === true, 'abgeleiteter Key zaehlt genauso');
+$repairs = $pdo->ran('UPDATE sources SET wiki_key');
+assert(count($repairs) === 1, 'und der Key wird zurueckgeschrieben, sonst bleibt die Spalte unzuverlaessig');
+assert($repairs[0]['params']['k'] === 'die-feuer-von-gruuzash', 'mit dem abgeleiteten Wert');
+assert(count($pdo->ran('INSERT INTO adventure_place')) === 1, 'und der Ort haengt am Abenteuer');
 
 $pdo = $fresh(['FROM adventure WHERE wiki_key' => false]);
 assert(avesmapsAdventureLinkPlaceFromSource($pdo, 1, 'settlement', 'x') === false, 'Key ist kein Abenteuer (Karte, Quellenband)');
