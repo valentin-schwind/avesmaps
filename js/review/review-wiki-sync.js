@@ -486,12 +486,18 @@ const WIKI_SYNC_DUMP_PHASE_LABELS = {
 	completed: "Abgeschlossen",
 };
 
-function setWikiSyncDumpButtonsDisabled(isDisabled, label = "📥 Dump holen") {
+function setWikiSyncDumpButtonsDisabled(isDisabled, label = "") {
 	const readButton = document.getElementById("wiki-sync-dump-read");
-	if (readButton) {
-		readButton.disabled = isDisabled;
-		readButton.textContent = isWikiSyncDumpRunning ? label : "📥 Dump holen";
+	if (!readButton) {
+		return;
 	}
+	// Goes through the shared setter so this and renderWikiSyncDumpProgress cannot fight over the
+	// same button. It used to hard-code "📥 Dump holen" when idle, which wiped the resting label --
+	// and the resting label is where "zuletzt <Datum>" now lives.
+	setWikiSyncButtonState(readButton, {
+		label: isWikiSyncDumpRunning ? label : "",
+		running: isDisabled,
+	});
 }
 
 // Format the "Dump geholt: <date>" status line next to the button, from the
@@ -592,8 +598,11 @@ function renderWikiSyncDumpProgress(progress, done) {
 	const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : 6;
 
 	if (done) {
-		setWikiSyncButtonState(button, { label: "📥 Dump holen", running: false });
-		button.dataset.idleLabel = "📥 Dump holen";
+		// Deliberately NOT resetting the button here. This "done" is the READ STEP finishing, not
+		// the operation -- cleanup and the publication reconcile still follow. The old code wrote
+		// "Fertig: Abgeschlossen" at this point and left it standing while two more steps ran, which
+		// is exactly the "es steht fertig dran und macht dann noch weiter" that got reported.
+		// startWikiSyncDumpRead owns the end: it re-enables the button and refreshes the label.
 		return;
 	}
 
