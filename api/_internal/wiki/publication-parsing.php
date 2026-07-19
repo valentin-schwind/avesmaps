@@ -136,6 +136,17 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
         'kaufabenteuer' => 'abenteuer',
         'soloabenteuer' => 'abenteuer',
         'gruppenabenteuer' => 'abenteuer',
+        // Measured 2026-07-19 from the live catalog (api/edit/wiki/publication-art-survey.php),
+        // which is the follow-up this table's comment asks for. These four are the adventure-family
+        // values that were falling through to 'sonstiges' -- 430 pages between them, and with them
+        // 430 adventures that never entered the catalogue at all.
+        'szenario' => 'abenteuer',
+        'anthologie' => 'abenteuer',
+        'kampagnenband' => 'abenteuer',
+        'metaband' => 'abenteuer',
+        // Prose, not a scenario: it belongs with the novels rather than in the catch-all. It is NOT
+        // an adventure (see avesmapsWikiProductIsAdventure) -- this only fixes its type.
+        'kurzgeschichte' => 'roman',
         'regionalspielhilfe' => 'regionalspielhilfe',
         'quellenband' => 'quellenband',
         'roman' => 'roman',
@@ -176,12 +187,28 @@ function avesmapsWikiMapArtToSourceType(string $art, string $unterkategorie = ''
 // True iff a product's `Art` marks it as an adventure or campaign (the two product families that
 // carry an ordered "Ort" place list). Matches any *abenteuer (Gruppen-/Solo-/Kauf-/Kurz-…) plus
 // the bare "Kampagne" (a campaign's source_type is not 'abenteuer', but it IS an adventure here).
+// The gate runs when the DUMP builds wiki_adventure_catalog, not at reconcile time -- so widening
+// it only takes effect after another "Dump holen", never from a "Abenteuer syncen" alone.
+//
+// 'kampagne' is matched by substring rather than equality now, so "Kampagnenband" comes along; it
+// used to be an exact comparison and that one character of difference cost 27 volumes.
+//
+// The four additions are measured, not guessed: publication-art-survey.php over the live catalog
+// showed 38 % of all publication pages falling through the Art table, and these carry ordered
+// place lists exactly like the three types already recognised. "Anthologie" is the one worth
+// naming -- a volume holding several short adventures ("Schreckgestalt & Spukgemäuer" is two of
+// them, hence the ampersand). It becomes ONE entry with the combined place list, which is what
+// the infobox can actually show; splitting a volume into its parts is not something the
+// {{Infobox Produkt}} data supports.
 function avesmapsWikiProductIsAdventure(string $art): bool {
     $key = avesmapsWikiSyncMonitorFieldKey($art);
     if ($key === '') {
         return false;
     }
-    return str_contains($key, 'abenteuer') || $key === 'kampagne';
+    if (str_contains($key, 'abenteuer') || str_contains($key, 'kampagne')) {
+        return true;
+    }
+    return in_array($key, ['szenario', 'anthologie', 'metaband'], true);
 }
 
 // Normalize an `Art` value to the adventure.product_type slug (lowercase, umlaut-folded, non-alnum

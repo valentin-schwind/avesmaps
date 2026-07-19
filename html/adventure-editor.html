@@ -456,9 +456,14 @@
   }
 
   // ============ data layer (P2) ============
-  const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne"];
+  // Must cover every Art that avesmapsWikiProductIsAdventure lets through (api/_internal/wiki/
+  // publication-parsing.php): product_type IS the folded Art value, and a value missing from this
+  // list has no matching <option> -- so opening such an entry would show the wrong type selected
+  // and saving would quietly rewrite it.
+  const PRODUCT_TYPES = ["gruppenabenteuer", "soloabenteuer", "kurzabenteuer", "szenario", "anthologie", "kampagne", "kampagnenband", "metaband"];
   const PRODUCT_TYPE_LABEL = { gruppenabenteuer: "Gruppenabenteuer", soloabenteuer: "Soloabenteuer",
-    kurzabenteuer: "Kurzabenteuer", szenario: "Szenario", anthologie: "Anthologie", kampagne: "Kampagne" };
+    kurzabenteuer: "Kurzabenteuer", szenario: "Szenario", anthologie: "Anthologie", kampagne: "Kampagne",
+    kampagnenband: "Kampagnenband", metaband: "Metaband" };
   const EDITIONS = ["", "DSA1", "DSA2", "DSA3", "DSA4", "DSA5"];
   const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg", unresolved: "—" };
 

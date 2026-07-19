@@ -42,6 +42,32 @@ assert($info['f_shop_pid']==='12017' && $info['pdf_shop_id']==='109956');
 assert(avesmapsWikiMapArtToSourceType('Abenteuer')==='abenteuer');
 assert(avesmapsWikiMapArtToSourceType('Regionalspielhilfe')==='regionalspielhilfe');
 assert(avesmapsWikiMapArtToSourceType('Unbekanntes Dings')==='sonstiges');
+
+// --- The Art values measured 2026-07-19 (publication-art-survey.php over the live catalog) -------
+// 38 % of all publication pages were falling through this table. These carry ordered place lists
+// exactly like the three types already recognised, so they are adventures in every sense that
+// matters here -- and until now they entered NOTHING: not the catalogue, not even a wrong type.
+foreach (['Szenario', 'Anthologie', 'Kampagnenband', 'Metaband'] as $art) {
+    assert(avesmapsWikiMapArtToSourceType($art) === 'abenteuer', "$art -> abenteuer");
+    assert(avesmapsWikiProductIsAdventure($art) === true, "$art zaehlt als Abenteuer");
+}
+// "Kampagnenband" used to fail on an EXACT comparison against 'kampagne'; one character of
+// difference cost 27 volumes. The bare form must keep working alongside it.
+assert(avesmapsWikiProductIsAdventure('Kampagne') === true, 'die blosse Kampagne weiterhin');
+// Prose: a better type than the catch-all, but emphatically NOT an adventure. If this ever flips,
+// 189 short stories appear in the adventure list.
+assert(avesmapsWikiMapArtToSourceType('Kurzgeschichte') === 'roman');
+assert(avesmapsWikiProductIsAdventure('Kurzgeschichte') === false, 'Kurzgeschichte ist kein Abenteuer');
+// The rest of the fall-through list must stay out -- the gate widened, it did not open.
+foreach (['Hörbuch', 'Soundtrack', 'Brettspiel', 'Kartenspiel', 'Computerspiel', 'Browserspiel',
+          'Heldenbogen', 'Lösungsbuch', 'Merchandising', 'DLC', 'Spielmaterial', 'Meisterschirmset'] as $art) {
+    assert(avesmapsWikiProductIsAdventure($art) === false, "$art darf KEIN Abenteuer sein");
+}
+// product_type is the folded Art -- the value the editor's PRODUCT_TYPES list must contain, or
+// opening such an entry shows the wrong type selected and saving rewrites it.
+assert(avesmapsWikiNormalizeAdventureProductType('Anthologie') === 'anthologie');
+assert(avesmapsWikiNormalizeAdventureProductType('Kampagnenband') === 'kampagnenband');
+echo "art mapping ok\n";
 // Whitespace/newline-tolerant Produkt-infobox guard (real dump wikitext is not always "{{Infobox Produkt" exactly).
 $infoDoubleSpace = avesmapsWikiParseProductInfobox("{{Infobox  Produkt\n|Titel=Doppelter Leerraum\n}}"); // double space after "Infobox"
 assert($infoDoubleSpace !== null && $infoDoubleSpace['title']==='Doppelter Leerraum');
