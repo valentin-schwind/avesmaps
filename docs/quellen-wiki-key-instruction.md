@@ -248,6 +248,29 @@ zufällig dasselbe Paar beschreibt.
 **Prüfung:** „Der Schläfer" zeigt „Die Feuer von Gruuzash" als *spielt hier*. Ein anschließender
 `sync_adventures` verändert diese Zeile nicht.
 
+## 5a. Vorgezogen: bestehende Quellen auswählen statt neue anlegen
+
+**Owner 2026-07-19.** An **jedem** Formular, das Quellen aufnimmt, soll man eine bereits vorhandene
+Quelle referenzieren können — per Autovervollständigung, statt sie erneut einzutippen. Betrifft
+mindestens: Siedlungseditor (Eigenschaften & Overrides), „Siedlung bearbeiten", „Änderung vorschlagen" —
+und weitere Stellen, die vor dem Bau zu sammeln sind.
+
+Verhalten:
+
+- Tippen sucht in den vorhandenen Quellen. Treffer → **direkte Zuweisung** zur bestehenden Quelle.
+- Kein Treffer → neue Quelle anlegen, genau wie heute. Der bisherige Weg bleibt vollständig erhalten.
+- **Sichtbar machen, welcher Fall eintrat.** Das Formular sagt, dass es eine bestehende Quelle gefunden
+  und verwendet hat — sonst weiß der Editor nie, ob er gerade referenziert oder eine Dublette erzeugt.
+
+**Das steht bewusst VOR den Schritten 1–6 und ist von ihnen unabhängig.** Es braucht keinen Wiki-Key:
+Gesucht wird im Bestand, wie er ist. Der Nutzen ist trotzdem sofort da, und er wirkt in dieselbe
+Richtung — jede nicht neu angelegte Dublette ist eine, die Schritt 5 später nicht zusammenführen muss.
+Sobald der Wiki-Key existiert, wird aus derselben Auswahl zusätzlich die Abenteuer-/Kartenzuordnung
+(Schritt 6); die Oberfläche ändert sich dann nicht mehr.
+
+⚠️ **Kein Widerspruch zum Rest, aber eine Reihenfolge-Korrektur:** Die Instruction sah die Auswahl nur im
+Ort-Editor und erst in Schritt 6 vor. Beides war zu eng.
+
 ## 6. Vor dem Bau zu klären
 
 - **Wer entscheidet bei Konflikten?** Wenn zwei zusammenzuführende Quellen unterschiedliche
@@ -256,5 +279,12 @@ zufällig dasselbe Paar beschreibt.
   daraus folgenden Pflicht, dass das Entfernen der Quelle die Zuordnung im selben Zug mitnimmt.
 - **Was passiert mit den 539 F-Shop-Quellen ohne Wiki-Entsprechung?** Bleiben sie dauerhaft
   URL-identifiziert — oder sollen sie langfristig eine Wiki-Seite bekommen?
+- **📌 TODO (Owner 2026-07-19, NICHT Teil dieses Umbaus):** Territorien bekommen ihre Quellen
+  **automatisch**. Ob das so bleiben soll — oder ob man dort auch von Hand Quellen hinzufügen können
+  soll — ist eine eigene Frage für später. Beim Zählen und Zusammenführen nicht als Fehler werten: Diese
+  Quellen sind gewollt entstanden.
+- **Wo überall gibt es Quellenformulare?** Bekannt sind Siedlungseditor, „Siedlung bearbeiten" und
+  „Änderung vorschlagen"; der Owner nennt weitere Stellen. Vor dem Bau von 5a einmal vollständig sammeln,
+  sonst bleibt die Autovervollständigung auf halber Strecke stehen.
 - **Wird `uq_sources_url_hash` irgendwann ersetzt?** Solange beide Identitäten nebeneinander existieren,
   ist die Tabelle zweigleisig. Das ist tragbar, sollte aber eine bewusste Entscheidung sein.
