@@ -657,7 +657,16 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 		lastRun = stepResult.run || lastRun;
 		done = stepResult.done === true || (stepResult.run?.status === "completed");
 		renderWikiSyncDumpProgress(stepResult.progress, done);
-		setWikiSyncStatus(stepResult.run?.message || (action === "apply" ? "Übernahme läuft …" : "WikiDump wird gelesen …"), "pending");
+		// The phase label deliberately does NOT go to the global #wiki-sync-status any more.
+		// renderWikiSyncDumpProgress above already puts a richer version into the dump's own line
+		// ("Phase 4/6: Weiterleitungs-Aliase (12345 Seiten, 678 Aliase)") AND hides that line when
+		// the run is over. The global line has no such lifecycle, so the last phase message stayed
+		// on screen forever -- "Weiterleitungs-Aliase werden aus dem Dump gelesen." sitting there
+		// long after the dump had finished, reading like something was still running.
+		//
+		// The global line keeps its real job: errors, the credentials prompt and the interactive
+		// hints. Those must persist until something replaces them, which is exactly why it must not
+		// be used for per-step chatter that nothing ever clears.
 	}
 
 	return lastRun;
