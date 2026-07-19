@@ -4,42 +4,74 @@
 > stehen in `oekosystem-instruction.md`, das Gesamtbild in
 > `oekosystem-feature-design.md`. **Dieses Dokument beschreibt nur den Editor.**
 
-## 1. Was ein Ökosystem ist — und was es ausdrücklich nicht ist
+## 1. Was ein Ökosystem ist
 
-Ein **Ökosystem** ist eine gezeichnete Fläche mit einer semantischen Zuordnung:
-Sumpf, Wald, Wüste, Gebirge, … Mehr nicht.
+**Ökosystem ist eine Kartenebene** — wie „politisch" oder „Standard". Sie zeigt
+**statische Regionen mit Eigenschaften**, und sie ist **vorerst nur im Edit-Mode
+sichtbar**; die öffentliche Ebene kommt später.
 
-**Routing ist nur ein Abnehmer dieser Flächen, nicht ihr Zweck.** Später sollen
-dieselben Gebiete andere Fragen beantworten — Fundwahrscheinlichkeit für Kräuter,
-Begegnungstabellen, Klima, was auch immer. Deshalb gilt als Bauregel:
+Sie funktioniert wie die Territorien, **ohne den Hierarchie-Apparat**.
 
-> Die Fläche kennt ihre **Geometrie**, ihren **Typ** und ihren **Wiki-Bezug**.
-> Alles, was ein *Abnehmer* daraus macht, hängt **daneben**, nicht darin.
+### 1.1 Zwei Entitäten, nicht eine
 
-Konkret heißt das für das Datenmodell (dies **ersetzt** die flache Feldliste in
-`oekosystem-instruction.md` §2):
+Die **Region** ist das benannte Ding mit den Eigenschaften. Die **Fläche** ist nur
+ihre Geometrie. Eine Region darf **mehrere** Flächen haben (ein Moor in zwei
+Teilen), und die Eigenschaften hängen an der Region, nicht an jedem Stück.
 
 ```
-ecosystem_area
-  public_id, area_type, name,
+ecosystem_region                      -- das benannte Ding
+  public_id, name, region_type,
+  origin           'wiki' | 'own'     -- aus dem Wiki zugewiesen oder selbst angelegt
+  wiki_region_key, wiki_url           -- NULL bei origin='own'
+  properties_json                     -- nach Abnehmer getrennt
+  is_active, created_by, updated_by, Zeitstempel
+
+ecosystem_area                        -- eine gezeichnete Fläche
+  public_id, region_id,
   geometry_geojson, min_x/min_y/max_x/max_y,
-  wiki_region_key, wiki_url,
-  consumer_json        <-- hier hinein, nach Abnehmer getrennt
   is_active, created_by, updated_by, Zeitstempel
 ```
 
 ```json
-consumer_json = {
-  "routing": { "speed_factor_override": 1.8, "max_height": 9000, "bumps": [...] },
-  "kraeuter": { ... später ... }
+properties_json = {
+  "routing":  { "speed_factor": 1.8, "max_height": 9000, … },
+  "kraeuter": { … später … }
 }
 ```
 
-Ein JSON-Feld statt eigener Spalten, weil das dem Haus-Stil entspricht
-(`properties_json`, `style_json`, `geometry_json`) und ein zweiter Abnehmer dann
-**ohne Schema-Änderung** dazukommt. Wer Routing-Werte in die Wurzel schreibt,
-zwingt in einem halben Jahr die Kräuterwahrscheinlichkeit in ein Feld namens
-Tempo-Faktor.
+**Routing ist nur ein Abnehmer, nicht der Zweck.** Die Wirkungen werden *später*
+und *modular* gebaut — dieselben Regionen sollen andere Fragen beantworten können
+(Reisesimulation, Kräuterfunde, was noch kommt). Ein JSON-Feld nach Abnehmer
+getrennt statt eigener Spalten, damit ein zweiter Abnehmer **ohne
+Schema-Änderung** dazukommt.
+
+> Dies **ersetzt** die flache Feldliste in `oekosystem-instruction.md` §2. Wer
+> Routing-Werte in die Wurzel schreibt, zwingt in einem halben Jahr die
+> Kräuterwahrscheinlichkeit in ein Feld namens Tempo-Faktor.
+
+### 1.2 Was ausdrücklich NICHT mitkommt
+
+Der Territorien-Editor ist voll von Maschinerie, die hier **nicht** gebraucht wird
+und beim Abschreiben versehentlich mitwandert:
+
+| Nicht übernehmen | Warum |
+|---|---|
+| **Zoom-Bänder** (`min_zoom`/`max_zoom` + der ganze Synchronisier-Apparat) | Eine in Zoom 7 gezeichnete Fläche gilt genauso in Zoom 1. Es gibt **keine** Zoom-Abhängigkeit. |
+| Hierarchie (`parent_id`, Vererbung, Breadcrumb) | Regionen liegen nebeneinander, nicht ineinander. |
+| Abgeleitete Außengrenzen | Es gibt keine Kinder, aus denen sich etwas ableiten ließe. |
+| BF-Zeitstrahl (`valid_from_bf`/`valid_to_bf`) | Regionen sind **statisch**. |
+| Streitgebiete / Ansprüche | Politisch. |
+
+Das ist etwa ein Drittel des politischen Systems — und der Grund, warum der Umbau
+überschaubar bleibt.
+
+### 1.3 Zuweisung: Wiki-Regionen und eigene
+
+Eine Region ist entweder **aus dem Wiki zugewiesen** (dann trägt sie
+`wiki_region_key` und erbt Namen und Beleg) oder **selbst angelegt** (`origin='own'`)
+— für Gebiete, die es bei uns gibt, im Wiki aber nicht. Die vorhandene
+Landschafts-Wiki-Anbindung (`wiki_region_staging`, Picker in
+`js/review/review-label-wiki.js`) ist dafür die Vorlage.
 
 ## 2. Machbarkeit — gemessen
 
@@ -61,10 +93,17 @@ Stützpunkte haben: eine bbox-Prüfung **pro Wegsegment** vor der Kantenschleife
 
 ## 3. Der neue Kartenmodus
 
-> ⚠️ **Nicht** dem Kachelband von Karten-/Abenteuer-Editor nachbauen. Das ist das
-> Muster für eigenständige Listen-Editoren; es gibt dort keine Kachel-Registry,
-> jede Kachel ist ein einzelner `addEventListener`. Ein **Zeichen**-Modus folgt dem
-> **Politik-Muster**: Modus-Auswahl + Karten-Kontextmenü + Werkzeuge auf der Karte.
+> ⚠️ **Für den Zeichen-Modus nicht** dem Kachelband von Karten-/Abenteuer-Editor
+> nachbauen — das ist das Muster für eigenständige Listen-Editoren. Ein
+> **Zeichen**-Modus folgt dem **Politik-Muster**: Modus-Auswahl + Karten-Kontextmenü
+> + Werkzeuge auf der Karte.
+>
+> *(Für den **Regioneneditor** aus §8 ist das Kachelband dagegen genau die richtige
+> Vorlage. Beide Muster kommen vor, an verschiedenen Stellen.)*
+
+> 🔒 **Die Ebene ist vorerst nur im Edit-Mode sichtbar.** Der Modus-Eintrag wird
+> also an `IS_EDIT_MODE` gehängt; die öffentliche Ebene kommt später und bekommt
+> dann den Kill-Switch als Schalter. Bis dahin sehen normale Nutzer nichts davon.
 
 Ein Modus muss an **fünf Stellen** deklariert werden, die übereinstimmen müssen —
 fehlt eine, fällt der Modus stumm auf `deregraphic` zurück:
@@ -207,7 +246,36 @@ Abschnitt, dreiwertige Herkunftszeile („aus Wiki" / „manuell" / „unbekannt
 kleines Zahlenfeld mit Einheit, eigener Speichern-Knopf, beidseitig identisch
 geklemmt.
 
-## 8. Die drei Fallen, die zuverlässig zuschlagen
+## 8. Der Regioneneditor — die Übersicht
+
+Neben dem Zeichnen auf der Karte braucht es eine **Liste**: welche Regionen haben
+wir, woher stammen sie, und welche Eigenschaften tragen sie. Das ist bewusst eine
+zweite Oberfläche, weil sie eine andere Frage beantwortet — die Karte zeigt *wo*,
+die Liste zeigt *was*.
+
+**Hier ist das Kachelband die richtige Vorlage**, konkret `html/citymap-editor.html`
+und `html/adventure-editor.html`: eigenständige Seite, Tabelle, Filter, Kachelband
+für Aktionen.
+
+Die Liste zeigt je Region:
+
+| Spalte | Quelle |
+|---|---|
+| Name | `ecosystem_region.name` |
+| Typ | `region_type` |
+| Herkunft | `origin` — Wiki-Beleg oder „eigen", als Chip mit Herkunftsfarbe |
+| Flächen | Anzahl zugehöriger `ecosystem_area`, Klick springt zur Karte |
+| Eigenschaften | je Abnehmer eine Spalte oder ein aufklappbarer Block |
+| Zustand | zugewiesen / ohne Fläche / ohne Eigenschaften |
+
+Die letzte Spalte ist der eigentliche Nutzen: **sie zeigt die Lücken.** Eine Region
+ohne Fläche ist unbenutzt, eine Fläche ohne Eigenschaften wirkt nirgends. Das ist
+dasselbe Muster wie der „Fehlt"-Reiter bei den Territorien-Listen.
+
+> Der Regioneneditor **schreibt keine Geometrie**. Zeichnen passiert auf der Karte,
+> hier werden nur Zuordnung und Eigenschaften gepflegt.
+
+## 9. Die drei Fallen, die zuverlässig zuschlagen
 
 1. **`regionPolygons` teilen** → Ökosystem-Flächen verschwinden bei jedem
    Kartenschwenk. Eigene Registry.
@@ -220,23 +288,27 @@ geklemmt.
    Ökosystem-Panel denselben Inline-Host nutzt → veralteter Editor-Code ohne
    Fehlermeldung.
 
-## 9. Aufwand
+## 10. Aufwand und Phasen
 
-**~2.100 Zeilen neu, ~500 umgebaut, ~1.000 wiederverwendet.**
+**~2.300 Zeilen neu, ~500 umgebaut, ~1.000 wiederverwendet.**
 
 | Phase | Inhalt | fertig, wenn |
 |---|---|---|
-| **E1** | Tabellen + Endpoint + Repository | Fläche per API anlegen, lesen, ändern, soft-löschen |
+| **E1** | Zwei Tabellen + Endpoint + Repository | Region und Fläche per API anlegen, lesen, ändern, soft-löschen |
 | **E2** | Deskriptor + die acht Nahtstellen | politische Tests unverändert grün, zweiter Typ akzeptiert |
-| **E3** | Modus, Kontextmenü, eigene Ebene + Loader | Fläche erscheint, überlebt Kartenschwenk und Moduswechsel |
+| **E3** | Modus (edit-only), Kontextmenü, eigene Ebene + Loader | Fläche erscheint, überlebt Kartenschwenk und Moduswechsel |
 | **E4** | Zeichenwerkzeuge am neuen Typ | Ecken ziehen, Kante teilen, Boolean-Split |
-| **E5** | Panel: Typ, Name, Wiki-Bezug | Zuordnung speicherbar |
-| **E6** | Kill-Switch + öffentliches Lesen | Ebene ist abschaltbar, Payload liefert Flächen |
+| **E5** | Panel: Typ, Name, Wiki-Zuweisung, eigene Region | Zuordnung speicherbar |
+| **E6** | Regioneneditor (§8) | Übersicht zeigt Regionen, Herkunft, Flächenzahl, Lücken |
+| **E7** | Kill-Switch + öffentliche Ebene | erst wenn die Ebene für Nutzer sichtbar werden soll |
 
-Erst danach hängt sich Routing als **erster Abnehmer** an
-(`oekosystem-instruction.md`), und Kräuter später als zweiter.
+> 🔴 **Routing ist in diesen Phasen NICHT enthalten.** Die Wirkungen werden später
+> und **modular** gebaut — als erster *Abnehmer* der fertigen Regionen
+> (`oekosystem-instruction.md`), Kräuter und Reisesimulation später als weitere.
+> E1–E6 liefern Flächen mit Eigenschaften, sonst nichts. Das ist Absicht: solange
+> kein Abnehmer dranhängt, kann auch keiner kaputtgehen.
 
-## 10. Offene Entscheidung vor Baubeginn
+## 11. Offene Entscheidung vor Baubeginn
 
 **Zweite Instanz oder gemeinsamer Singleton für `activeRegionGeometryEdit`?**
 Zwei Instanzen sind sauberer getrennt, aber die überschriebenen Handler
