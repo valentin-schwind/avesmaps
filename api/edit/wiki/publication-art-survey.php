@@ -39,6 +39,31 @@ try {
     avesmapsRequireUserWithCapability('edit');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
+    // ?title=... looks up individual publications instead of aggregating. Needed to answer "what
+    // Art does THIS missing adventure actually have?" without guessing from the aggregate.
+    $title = trim((string) ($_GET['title'] ?? ''));
+    if ($title !== '') {
+        $lookup = $pdo->prepare(
+            "SELECT wiki_key, title, COALESCE(art, '') AS art, source_type
+               FROM wiki_publication_catalog
+              WHERE title LIKE :needle
+              ORDER BY title ASC
+              LIMIT 25"
+        );
+        $lookup->execute(['needle' => '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $title) . '%']);
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'matches' => array_map(static fn(array $row): array => [
+                'wiki_key' => (string) $row['wiki_key'],
+                'title' => (string) $row['title'],
+                'art' => (string) $row['art'],
+                'stored_source_type' => (string) $row['source_type'],
+                'parsed_source_type' => avesmapsWikiMapArtToSourceType((string) $row['art']),
+                'counts_as_adventure' => avesmapsWikiProductIsAdventure((string) $row['art']),
+            ], $lookup->fetchAll(PDO::FETCH_ASSOC) ?: []),
+        ]);
+    }
+
     $statement = $pdo->query(
         "SELECT COALESCE(art, '') AS art, COUNT(*) AS n
            FROM wiki_publication_catalog
