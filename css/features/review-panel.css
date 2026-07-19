@@ -785,13 +785,38 @@
 	outline: none;
 }
 
-#wiki-sync-status {
-	white-space: pre-line;
-}
+/* The action buttons carry their own state now (setWikiSyncButtonState, js/review/review-wiki-sync.js):
+   the label says what is happening, the fill shows how far, and `disabled` blocks a second click.
+   Every status/progress element that used to unfold beneath them is gone -- unfolding one shoved the
+   whole panel down while the owner was already aiming at the next control.
 
-/* No message → no gap. setWikiSyncStatus("") clears the text, so :empty is the idle state. */
-#wiki-sync-status:empty {
-	display: none;
+   The progress is a background gradient rather than a pseudo-element on purpose: an absolutely
+   positioned ::before paints OVER the button's own text (text is unpositioned), which would need a
+   wrapper span around every label to fix. A gradient has no such layering problem. */
+.wiki-sync-panel__start {
+	/* Fixed floor so a changing label cannot resize the button and nudge its neighbours. */
+	min-width: 16rem;
+	background-image: linear-gradient(
+		to right,
+		rgba(255, 255, 255, 0.2) 0 var(--wsb-progress, 0%),
+		transparent var(--wsb-progress, 0%) 100%
+	);
+	transition: background-image 0.2s linear;
+}
+.wiki-sync-panel__start[data-tone="error"] {
+	background-color: var(--color-danger);
+	border-color: var(--color-danger);
+	color: var(--color-button-text);
+}
+.wiki-sync-panel__start[data-tone="success"] {
+	background-color: var(--color-success);
+	border-color: var(--color-success);
+	color: var(--color-button-text);
+}
+/* Running: the disabled state IS the busy state, so it must not read as "unavailable". */
+.wiki-sync-panel__start:disabled {
+	cursor: progress;
+	opacity: 1;
 }
 
 .wiki-sync-panel__list-title {

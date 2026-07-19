@@ -64,6 +64,17 @@ function setPresencePanelStatus(message = "", state = "") {
 	setPanelStateStatus(document.getElementById("presence-panel-status"), message, state);
 }
 
+// The WikiSync panel has NO status line any more (owner 2026-07-19: "es braucht kein statusfeld --
+// nirgends"). Long-running actions report inside their own button; what is left here are the
+// cross-cutting messages that belong to no single control.
+//
+// Errors and successes go to the toast: it overlays instead of pushing the panel down, which is the
+// whole point. Everything else is dropped on purpose -- "… läuft" for an action whose button
+// already says so is the duplication that grew the panel to twenty status elements.
+//
+// Callers are unchanged: dozens of them across five files still call this, and they keep working.
 function setWikiSyncStatus(message = "", state = "") {
-	setPanelStateStatus(document.getElementById("wiki-sync-status"), message, state);
+	if ((state === "error" || state === "success") && message && typeof showFeedbackToast === "function") {
+		showFeedbackToast(message, state);
+	}
 }

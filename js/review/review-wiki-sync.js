@@ -518,17 +518,22 @@ function formatWikiSyncDumpFetchedStatusText(status) {
 // Load + render the fetched-status line. Best-effort: a failed status fetch just
 // hides the line again (never blocks the panel or throws into a caller).
 async function refreshWikiSyncDumpFetchedStatus() {
-	const statusElement = document.getElementById("wiki-sync-dump-fetched-status");
-	if (!statusElement) {
+	// "Dump geholt: <date>" is persistent information, not a transient state -- so it becomes the
+	// button's RESTING label instead of a line underneath it. Same fact, no element that appears.
+	const button = document.getElementById("wiki-sync-dump-read");
+	if (!button) {
 		return;
 	}
 	try {
 		const status = await fetchWikiSyncDumpStatus();
-		statusElement.textContent = formatWikiSyncDumpFetchedStatusText(status);
-		statusElement.hidden = false;
+		const fetched = formatWikiSyncDumpFetchedStatusText(status).replace("Dump geholt: ", "zuletzt ");
+		button.dataset.idleLabel = `📥 Dump holen — ${fetched}`;
+		// Only adopt it right away when nothing is running; a live run owns the label meanwhile.
+		if (!button.disabled) {
+			button.textContent = button.dataset.idleLabel;
+		}
 	} catch (error) {
 		console.warn("WikiDump-Status konnte nicht geladen werden:", error);
-		statusElement.hidden = true;
 	}
 }
 
@@ -574,32 +579,41 @@ async function refreshWikiSyncKindSyncedStatus() {
 }
 
 function renderWikiSyncDumpProgress(progress, done) {
-	const progressElement = document.getElementById("wiki-sync-dump-progress");
-	const statusElement = document.getElementById("wiki-sync-dump-status");
+	// Into the button, like every other long-running action here. The bar and the status line this
+	// used to drive unfolded UNDER the button and pushed the whole panel down mid-click; both are
+	// gone, and the same information now rides in the control the user just pressed.
+	const button = document.getElementById("wiki-sync-dump-read");
+	if (!button) {
+		return;
+	}
 
 	const current = Number(progress?.progress_current ?? 0);
-	const total = Number(progress?.progress_total ?? 6);
-	if (progressElement) {
-		progressElement.hidden = false;
-		progressElement.max = Number.isFinite(total) && total > 0 ? total : 6;
-		progressElement.value = Number.isFinite(current) && current >= 0 ? Math.min(current, progressElement.max) : 0;
+	const totalRaw = Number(progress?.progress_total ?? 6);
+	const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : 6;
+
+	if (done) {
+		setWikiSyncButtonState(button, { label: "📥 Dump holen", running: false });
+		button.dataset.idleLabel = "📥 Dump holen";
+		return;
 	}
 
-	if (statusElement) {
-		const phaseKey = String(progress?.phase ?? "");
-		const phaseLabel = WIKI_SYNC_DUMP_PHASE_LABELS[phaseKey] || phaseKey || "…";
-		// Surface whichever per-step counter the current phase returned (dump-hybrid-driver.php envelope).
-		const counters = [];
-		if (progress && Number(progress.pages_scanned) > 0) counters.push(`${Number(progress.pages_scanned)} Seiten`);
-		if (progress && Number(progress.found_this_step) > 0) counters.push(`${Number(progress.found_this_step)} gefunden`);
-		if (progress && Number(progress.title_aliases_written) > 0) counters.push(`${Number(progress.title_aliases_written)} Aliase`);
-		if (progress && Number(progress.processed_this_step) > 0) counters.push(`${Number(progress.processed_this_step)} verarbeitet`);
-		if (progress && Number(progress.kept) > 0) counters.push(`${Number(progress.kept)} übernommen`);
-		const counterText = counters.length > 0 ? ` (${counters.join(", ")})` : "";
-		const prefix = done ? "Fertig" : `Phase ${Math.min(current + (done ? 0 : 1), total)}/${total}`;
-		statusElement.hidden = false;
-		statusElement.textContent = `${prefix}: ${phaseLabel}${counterText}`;
-	}
+	const phaseKey = String(progress?.phase ?? "");
+	const phaseLabel = WIKI_SYNC_DUMP_PHASE_LABELS[phaseKey] || phaseKey || "…";
+	// Whichever per-step counter the current phase returned (dump-hybrid-driver.php envelope).
+	const counters = [];
+	if (progress && Number(progress.pages_scanned) > 0) counters.push(`${Number(progress.pages_scanned)} Seiten`);
+	if (progress && Number(progress.found_this_step) > 0) counters.push(`${Number(progress.found_this_step)} gefunden`);
+	if (progress && Number(progress.title_aliases_written) > 0) counters.push(`${Number(progress.title_aliases_written)} Aliase`);
+	if (progress && Number(progress.processed_this_step) > 0) counters.push(`${Number(progress.processed_this_step)} verarbeitet`);
+	if (progress && Number(progress.kept) > 0) counters.push(`${Number(progress.kept)} übernommen`);
+	const counterText = counters.length > 0 ? ` (${counters.join(", ")})` : "";
+
+	setWikiSyncButtonState(button, {
+		label: `Phase ${Math.min(current + 1, total)}/${total}: ${phaseLabel}${counterText}`,
+		current,
+		total,
+		running: true,
+	});
 }
 
 // Drive one dump pass to completion: create the run (unless resuming a passed-in one),
@@ -766,12 +780,46 @@ const WIKI_SYNC_KIND_ELEMENTS = {
 // server-side; a second would 409). This guards the frontend from starting two.
 let isWikiSyncKindSyncRunning = false;
 
+// Owner instruction 2026-07-19: a long-running action reports IN its own button -- the label, the
+// progress fill and the blocked state all live there, and there is NO status field anywhere. Every
+// element that unfolds on click pushes the page down while the user is already aiming at the next
+// control; this panel had grown twenty of them.
+//
+// The idle label is remembered on first use so the button can always find its way back.
+function setWikiSyncButtonState(button, { label = "", current = 0, total = 0, tone = "", running = false } = {}) {
+	if (!button) {
+		return;
+	}
+	if (!button.dataset.idleLabel) {
+		button.dataset.idleLabel = button.textContent.trim();
+	}
+	button.textContent = label || button.dataset.idleLabel;
+	// Busy IS blocked -- one source of truth, so the two can never disagree.
+	button.disabled = running;
+	const totalValue = Number(total);
+	const pct = totalValue > 0 ? Math.max(0, Math.min(100, (Number(current) / totalValue) * 100)) : 0;
+	button.style.setProperty("--wsb-progress", pct.toFixed(1) + "%");
+	if (tone) {
+		button.dataset.tone = tone;
+	} else {
+		delete button.dataset.tone;
+	}
+}
+
+function wikiSyncKindButton(kind) {
+	const ids = WIKI_SYNC_KIND_ELEMENTS[kind];
+	return ids ? document.getElementById(ids.button) : null;
+}
+
 function setWikiSyncKindButtonsDisabled(isDisabled, activeKind = null) {
-	Object.entries(WIKI_SYNC_KIND_ELEMENTS).forEach(([kind, ids]) => {
-		const button = document.getElementById(ids.button);
-		if (button) {
-			button.disabled = isDisabled;
-			button.textContent = isDisabled && kind === activeKind ? "Synchronisiert..." : "🚨 Syncen";
+	Object.keys(WIKI_SYNC_KIND_ELEMENTS).forEach((kind) => {
+		const button = wikiSyncKindButton(kind);
+		if (!button || (isDisabled && kind === activeKind)) {
+			return; // the active kind is driven by renderWikiSyncKindProgress -- don't fight it
+		}
+		button.disabled = isDisabled;
+		if (!isDisabled) {
+			setWikiSyncButtonState(button, {});
 		}
 	});
 }
@@ -796,21 +844,17 @@ function formatWikiSyncKindSyncedText(run) {
 // consumers can style; the text is always set so a hang can never be misread as a
 // silent success.
 function setWikiSyncKindStatus(kind, message, tone = "") {
-	const ids = WIKI_SYNC_KIND_ELEMENTS[kind];
-	if (!ids) {
+	const button = wikiSyncKindButton(kind);
+	if (!button) {
 		return;
 	}
-	const statusElement = document.getElementById(ids.status);
-	if (!statusElement) {
-		return;
+	// An error also gets a toast: it overlays instead of pushing, and it survives the button
+	// returning to its idle label. A failure must not be readable ONLY for as long as nobody
+	// clicks anything else.
+	if (tone === "error" && typeof showFeedbackToast === "function") {
+		showFeedbackToast(message, "error");
 	}
-	statusElement.hidden = false;
-	statusElement.textContent = message;
-	if (tone) {
-		statusElement.dataset.tone = tone;
-	} else {
-		delete statusElement.dataset.tone;
-	}
+	setWikiSyncButtonState(button, { label: message, tone, running: false });
 }
 
 function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging") {
@@ -818,51 +862,32 @@ function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging"
 	if (!ids) {
 		return;
 	}
-	const progressElement = document.getElementById(ids.progress);
-	const statusElement = document.getElementById(ids.status);
-	const syncedElement = document.getElementById(ids.synced);
+	const button = wikiSyncKindButton(kind);
+	if (!button) {
+		return;
+	}
 
 	const processed = Number(progress?.processed ?? 0);
 	const total = Number(progress?.total ?? 0);
 
 	if (done) {
-		// Idle again: hide the transient bar + "läuft …" status (fix: they used to stay
-		// full-green/visible forever after a sync finished). The persistent "Zuletzt
-		// gesynct" label next to the button takes over instead, mirroring the central
-		// "Dump holen" block's #wiki-sync-dump-fetched-status.
-		if (progressElement) {
-			progressElement.hidden = true;
-			progressElement.value = 0;
-		}
-		if (statusElement) {
-			statusElement.hidden = true;
-			statusElement.textContent = "";
-			delete statusElement.dataset.tone;
-		}
-		if (syncedElement) {
-			syncedElement.hidden = false;
-			syncedElement.textContent = formatWikiSyncKindSyncedText(run);
-		}
+		// Idle again -- and the button now carries the "last synced" note itself, so the separate
+		// summary element it used to need is gone with the bar and the status line. Writing it back
+		// into idleLabel makes it the resting state rather than something a later reset would wipe.
+		const synced = formatWikiSyncKindSyncedText(run).replace("Zuletzt gesynct: ", "zuletzt ");
+		setWikiSyncButtonState(button, { label: `🚨 Syncen — ${synced}`, running: false });
+		button.dataset.idleLabel = button.textContent;
 		return;
 	}
 
-	// Actively running: show the bar + transient status, same as before.
-	if (progressElement) {
-		progressElement.hidden = false;
-		progressElement.max = Number.isFinite(total) && total > 0 ? total : 1;
-		progressElement.value = Number.isFinite(processed) && processed >= 0 ? Math.min(processed, progressElement.max) : 0;
-	}
-	if (statusElement) {
-		statusElement.hidden = false;
-		// A fresh progress render means the step SUCCEEDED, so drop any prior error tone.
-		delete statusElement.dataset.tone;
-		if (phase === "conflict_gen") {
-			// The chunked settlement conflict-generation phase (after staging drained).
-			statusElement.textContent = total > 0 ? `Konfliktanalyse läuft … ${processed}/${total}` : "Konfliktanalyse läuft …";
-		} else {
-			statusElement.textContent = total > 0 ? `Syncen läuft … ${processed}/${total}` : "Syncen läuft …";
-		}
-	}
+	setWikiSyncButtonState(button, {
+		label: phase === "conflict_gen"
+			? (total > 0 ? `Konfliktanalyse … ${processed}/${total}` : "Konfliktanalyse …")
+			: (total > 0 ? `Syncen … ${processed}/${total}` : "Syncen …"),
+		current: processed,
+		total,
+		running: true,
+	});
 }
 
 // Drive sync_kind to completion for ONE kind: loop the action once per step,
@@ -1001,25 +1026,37 @@ async function startWikiSyncKindSync(kind) {
 // counters the loop accumulates (each step starts its counters at 0, like the
 // settlement conflict-gen phase). The 4 segments drive the coarse progress bar.
 function renderWikiSyncPublicationsProgress(step, done, totals) {
-	const progressElement = document.getElementById("wiki-sync-sync-publications-progress");
-	const statusElement = document.getElementById("wiki-sync-sync-publications-status");
+	// This is step 4/4 of "Dump holen", so it reports in THAT button -- it has no control of its
+	// own, and inventing a status line for it is exactly what made the panel jump.
+	const button = document.getElementById("wiki-sync-dump-read");
+	if (!button) {
+		return;
+	}
 	const segment = Number(step?.segment ?? 0);
-	const totalSegments = Number(step?.progress?.total ?? 4);
+	const totalRaw = Number(step?.progress?.total ?? 4);
+	const totalSegments = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : 4;
 
-	if (progressElement) {
-		progressElement.hidden = done;
-		progressElement.max = Number.isFinite(totalSegments) && totalSegments > 0 ? totalSegments : 4;
-		progressElement.value = done ? progressElement.max : Math.min(Math.max(segment, 0), progressElement.max);
-	}
-	if (statusElement) {
-		statusElement.hidden = false;
-		if (done) {
-			statusElement.textContent = `Fertig: +${totals.added} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt (${totals.processed} Einträge geprüft).`;
-		} else {
-			const shown = Math.min(segment + 1, totalSegments);
-			statusElement.textContent = `Übernahme läuft … Segment ${shown}/${totalSegments} (${totals.processed} Einträge geprüft)`;
+	if (done) {
+		// The summary is a result, not a state: it goes to the toast, which overlays instead of
+		// pushing, and the button drops back to its resting label.
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast(
+				`Publikationsquellen: +${totals.added} neu / ~${totals.updated} aktualisiert / -${totals.removed} entfernt (${totals.processed} geprüft).`,
+				"success"
+			);
 		}
+		setWikiSyncButtonState(button, { label: "📥 Dump holen", running: false });
+		button.dataset.idleLabel = "📥 Dump holen";
+		return;
 	}
+
+	const shown = Math.min(segment + 1, totalSegments);
+	setWikiSyncButtonState(button, {
+		label: `Publikationsquellen … ${shown}/${totalSegments} (${totals.processed} geprüft)`,
+		current: segment,
+		total: totalSegments,
+		running: true,
+	});
 }
 
 // Drive `sync_publications` to completion: loop the action once per step, advancing
@@ -1089,24 +1126,32 @@ let isWikiSyncAdventuresRunning = false;
 // `totals` carries the run-summed counters the loop accumulates (each step's counters
 // start at 0). progress.total is the staging catalog size (the "N Abenteuer geprüft" cap).
 function renderWikiSyncAdventuresProgress(step, done, totals) {
-	const progressElement = document.getElementById("wiki-sync-sync-adventure-progress");
-	const statusElement = document.getElementById("wiki-sync-sync-adventure-status");
+	const button = document.getElementById("wiki-sync-sync-adventure");
+	if (!button) {
+		return;
+	}
 	const processed = Number(totals?.processed ?? 0);
 	const total = Number(step?.progress?.total ?? 0);
 
-	if (progressElement) {
-		progressElement.hidden = done;
-		progressElement.max = Number.isFinite(total) && total > 0 ? total : 1;
-		progressElement.value = done ? progressElement.max : Math.min(Math.max(processed, 0), progressElement.max);
-	}
-	if (statusElement) {
-		statusElement.hidden = false;
-		if (done) {
-			statusElement.textContent = `Fertig: +${totals.created} neu / ~${totals.updated} aktualisiert · Orte +${totals.placesAdded}/-${totals.placesRemoved} · ${totals.coversFetched} Cover geladen (${totals.processed} Abenteuer geprüft).`;
-		} else {
-			statusElement.textContent = `Übernahme läuft … ${processed}${total > 0 ? "/" + total : ""} Abenteuer geprüft`;
+	if (done) {
+		// A result, not a state -- the toast overlays instead of pushing the tabs down.
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast(
+				`Abenteuer: +${totals.created} neu / ~${totals.updated} aktualisiert · Orte +${totals.placesAdded}/-${totals.placesRemoved} · ${totals.coversFetched} Cover (${totals.processed} geprüft).`,
+				"success"
+			);
 		}
+		setWikiSyncButtonState(button, { label: "🚨 Syncen", running: false });
+		button.dataset.idleLabel = "🚨 Syncen";
+		return;
 	}
+
+	setWikiSyncButtonState(button, {
+		label: `Syncen … ${processed}${total > 0 ? "/" + total : ""} Abenteuer`,
+		current: processed,
+		total,
+		running: true,
+	});
 }
 
 // Drive `sync_adventures` to completion: loop the action once per step, advancing the
