@@ -517,14 +517,25 @@ function avesmapsSourceWikiKeyReport(PDO $pdo, int $sampleLimit = 50): array
         } elseif (isset($identityByHash[(string) $row['url_hash']])) {
             $key = $identityByHash[(string) $row['url_hash']];
             $route = 'hash';
-        } elseif (function_exists('avesmapsWikiAventuricaPageTitleFromUrl')) {
-            // Gated on the pure title check first: for the ~1100 non-wiki urls this costs no query.
+        } elseif (function_exists('avesmapsResolvePublicationIdentityFromUrl')) {
+            // Go through avesmapsResolvePublicationIdentityFromUrl rather than calling the key
+            // resolver directly: it owns the lazy require chain (sync-monitor's alias-table constant
+            // and the political slug helper). Calling past it throws on the first wiki url and the
+            // failure lands in the catch below -- a route that silently reports zero instead of
+            // saying it is broken. That happened; hence this note.
+            //
+            // It returns the reconcile's identity INPUTS, not the key, so the result is mapped back
+            // through the same hash table the hash route uses -- one definition of identity, not two.
             try {
-                $title = avesmapsWikiAventuricaPageTitleFromUrl((string) $row['url']);
-                if ($title !== '' && function_exists('avesmapsPublicationResolvePublicationKey')) {
-                    $resolved = avesmapsPublicationResolvePublicationKey($pdo, $title);
-                    if ($resolved !== '') {
-                        $key = $resolved;
+                $identity = avesmapsResolvePublicationIdentityFromUrl($pdo, (string) $row['url']);
+                if (is_array($identity)) {
+                    $identityUrl = (string) ($identity['url'] ?? '');
+                    $identityKey = (string) ($identity['wiki_key'] ?? '');
+                    $identityHash = ($identityUrl === '' && $identityKey !== '')
+                        ? hash('sha256', 'wikipub:' . $identityKey)
+                        : hash('sha256', $identityUrl);
+                    if (isset($identityByHash[$identityHash])) {
+                        $key = $identityByHash[$identityHash];
                         $route = 'url';
                     }
                 }
