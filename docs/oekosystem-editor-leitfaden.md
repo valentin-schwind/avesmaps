@@ -110,6 +110,20 @@ Damit trägt der *Amboss* seine Höhe selbst, sichtbar und pflegbar im
 Standard-Layer, unabhängig davon, ob es je ein Ökosystem darüber gibt. Die
 Ökosystem-Ebene liest sie nur.
 
+**Nicht jeder Gipfel gehört auf die öffentliche Karte.** Für ein brauchbares
+Höhenfeld braucht das Modell **mehr** Stützpunkte, als ein Leser sehen will. Daher:
+
+> Ein `berggipfel`-Label wird im **Standard-Layer** nur gezeichnet, wenn es
+> **wiki-verknüpft** ist. Gipfel ohne Wiki-Eintrag existieren als Datensatz,
+> erscheinen aber **nicht** als Dreieck auf der Karte — sie sind nur in der
+> Ökosystem-Ebene sichtbar und dienen der Berechnung der anisotropen Gebirge.
+
+Damit können Editoren so viele Arbeitspunkte setzen, wie das Gelände braucht, ohne
+die Karte zuzumüllen. Die Regel gilt **nur für `berggipfel`** — andere Label-Typen
+behalten ihr heutiges Verhalten. *(Es gibt bereits eine Wiki-Unterscheidung an
+Labels, sie steuert bisher nur die Darstellung — hier kommt für diesen einen
+Subtyp die Sichtbarkeit dazu.)*
+
 **Bearbeiten ist bidirektional.** Wird der Gipfel im Standard-Layer verschoben,
 wandert der Höhenpunkt mit; wird er aus der Ökosystem-Ebene heraus verschoben,
 bewegt sich das Label im Standard-Layer. Beide Wege schreiben dieselbe Aktion
@@ -193,6 +207,24 @@ Das Auswahlfeld baut sich aus den `<option>`-Elementen selbst
 Eintrag daneben. Beim Anlegen muss der Modus mitgeschaltet werden — Politik macht
 das in `map-features-region-crud.js:159`, sonst landet das neue Polygon in einer
 unsichtbaren Ebene.
+
+### 3.1 Was der Modus zeigt
+
+Der Ökosystem-Modus ist **kein leerer Zeichentisch**. Er zeigt im Edit-Mode
+weiterhin die übrigen Karteninhalte — Grundkarte, Wege, Orte —, sonst zeichnet man
+Flächen ins Nichts.
+
+Dazu ein **Häkchen „Labels"**, das die Beschriftungen der Standardkarte einblendet.
+Das ist mehr als Bequemlichkeit:
+
+> **Es macht Fehlzuweisungen sichtbar.** Hat eine Ökosystem-Fläche eine
+> Wiki-Region zugewiesen bekommen, kann daneben ihr Name stehen — und wenn dort
+> „Farindel" steht, während das Standard-Label darunter „Farindel" sagt, stimmt die
+> Zuweisung. Steht etwas anderes da, ist sie falsch. Ein Abgleich, den sonst
+> niemand macht.
+
+Das Ökosystem selbst braucht **keine** eigene Beschriftung — die Fläche ist ja
+schon sichtbar. Angezeigt wird nur der **zugewiesene Name**, als Prüfhilfe.
 
 **Kill-Switch:** `ecosystem_enabled` in den App-Einstellungen
 (`api/_internal/app/app-setting.php:17`, bewusst feature-agnostischer
