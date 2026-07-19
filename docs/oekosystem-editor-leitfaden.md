@@ -65,7 +65,51 @@ und beim Abschreiben versehentlich mitwandert:
 Das ist etwa ein Drittel des politischen Systems — und der Grund, warum der Umbau
 überschaubar bleibt.
 
-### 1.3 Zuweisung: Wiki-Regionen und eigene
+### 1.3 Die Typenliste — eigene Liste, eigene Tabelle
+
+Die 19 Label-Subtypen sind eine **Beschriftungs**-Taxonomie und taugen nicht
+unverändert als Ökosystem-Typen. Ökosysteme bekommen eine **eigene Liste**; die
+Label-Liste bleibt unangetastet (zwei Taxonomien für zwei Zwecke — Labels
+beschriften die Karte, Ökosysteme beschreiben Gelände).
+
+**Startbestand, 13 Typen:**
+
+| Land | Wasser | Grenzfall |
+|---|---|---|
+| `wald`, `suempfe_moore`, `wueste`, `steppe`, `tundra`, `graslandschaft`, `auenlandschaft`, `gebirge`, `huegelland`, `ebene` | `see`, `meer` | `kueste` |
+
+**Nicht aufgenommen, mit Grund:**
+
+| | warum nicht |
+|---|---|
+| `fluss` | ist eine **Linie**, keine Fläche — Flusswege sind bereits ein Wegtyp |
+| `berggipfel` | ist ein **Punkt** — wirkt *auf* eine Region, ist keine (siehe §1.4) |
+| `insel`, `kontinent` | Landformen bzw. Beschriftung; auf einer Insel liegen mehrere Ökosysteme |
+| `region`, `sonstiges` | Auffangkategorien — tragen für **keinen** Abnehmer Information |
+
+> Die Liste gehört in eine **Tabelle, nicht in den Code** (`ecosystem_region_type`).
+> Dann lassen sich „Dschungel", „Salzwüste", „Gletscher" oder „Hochmoor" ohne
+> Entwickler ergänzen — dasselbe Argument wie bei den Faktoren.
+
+### 1.4 Punkte, die auf eine Region wirken
+
+Ein `berggipfel`-Label ist kein Regionstyp, aber es ist auch nicht bedeutungslos:
+**liegt es innerhalb einer Gebirgsregion, wird es zu deren Höhenpunkt.** Position
+und Name stammen dann aus einem Label, das seit Jahren auf der Karte liegt und
+wiki-verknüpft ist — es muss nichts neu erfasst werden.
+
+Das ist **kein Gebirgs-Sonderfall, sondern ein Muster**, und es gehört so gebaut:
+
+> Eine Region trägt Fläche und Typ. **Punktförmige Kartenobjekte innerhalb ihrer
+> Fläche können ihre Eigenschaften modulieren.** Welcher Punkttyp welche Eigenschaft
+> beeinflusst, entscheidet der jeweilige *Abnehmer* — nicht die Region.
+
+Heute: `berggipfel` → Höhenpunkte für den Routing-Abnehmer. Später könnten andere
+Punktsorten andere Abnehmer speisen, ohne dass Region oder Fläche sich ändern.
+Gefunden werden diese Punkte über den bbox-Vorfilter, den die Vorberechnung ohnehin
+schon fährt.
+
+### 1.5 Zuweisung: Wiki-Regionen und eigene
 
 Eine Region ist entweder **aus dem Wiki zugewiesen** (dann trägt sie
 `wiki_region_key` und erbt Namen und Beleg) oder **selbst angelegt** (`origin='own'`)
