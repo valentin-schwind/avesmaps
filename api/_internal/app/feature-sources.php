@@ -462,6 +462,166 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
 }
 
+// --- Step 4: work out which sources have a wiki key, WITHOUT writing anything -------------------
+
+// Reads the wiki key a source WOULD get, rather than the one it has. sources.wiki_key is only
+// filled by a publication reconcile (step 2), so a report keyed off the column would show nothing
+// until after the very run it is supposed to inform. Deriving it from the freshly dumped catalog
+// answers the useful question instead: what would the reconcile do, and what collides?
+//
+// Three routes, and the report says which one produced each key -- "woher" from step 4:
+//   stored -- already on the row (a reconcile has run)
+//   hash   -- the row IS a reconciled one: its url_hash equals the identity the reconcile computes
+//             (sha256 of chosen_url, or of 'wikipub:'+key for a publication with no shop link)
+//   url    -- the row points at a Wiki-Aventurica article that resolves to a known publication,
+//             redirects included (avesmapsPublicationResolvePublicationKey walks the alias chain)
+// No fourth route. Title similarity and shop ids are excluded by invariant 3 -- measured at 1 %.
+function avesmapsSourceWikiKeyReport(PDO $pdo, int $sampleLimit = 50): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+
+    // The identity map the reconcile itself uses, built once from the catalog: hash -> wiki_key.
+    $identityByHash = [];
+    $catalogTypeByKey = [];
+    $catalogTitleByKey = [];
+    try {
+        $catalog = $pdo->query('SELECT wiki_key, chosen_url, has_link, source_type, title FROM wiki_publication_catalog');
+        foreach ($catalog === false ? [] : $catalog->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $key = (string) $row['wiki_key'];
+            $hash = (int) ($row['has_link'] ?? 0) === 1
+                ? hash('sha256', (string) ($row['chosen_url'] ?? ''))
+                : hash('sha256', 'wikipub:' . $key);
+            $identityByHash[$hash] = $key;
+            $catalogTypeByKey[$key] = (string) ($row['source_type'] ?? '');
+            $catalogTitleByKey[$key] = (string) ($row['title'] ?? '');
+        }
+    } catch (Throwable) {
+        // No WikiSync staging on this installation -> every source simply reports "no key".
+    }
+
+    $sources = $pdo->query('SELECT id, url, url_hash, wiki_key, label, source_type, is_official FROM sources')
+        ?: null;
+    $rows = $sources === null ? [] : $sources->fetchAll(PDO::FETCH_ASSOC);
+
+    $byKey = [];
+    $routes = ['stored' => 0, 'hash' => 0, 'url' => 0, 'none' => 0];
+    foreach ($rows as $row) {
+        $id = (int) $row['id'];
+        $stored = trim((string) ($row['wiki_key'] ?? ''));
+        $key = '';
+        $route = 'none';
+
+        if ($stored !== '') {
+            $key = $stored;
+            $route = 'stored';
+        } elseif (isset($identityByHash[(string) $row['url_hash']])) {
+            $key = $identityByHash[(string) $row['url_hash']];
+            $route = 'hash';
+        } elseif (function_exists('avesmapsWikiAventuricaPageTitleFromUrl')) {
+            // Gated on the pure title check first: for the ~1100 non-wiki urls this costs no query.
+            try {
+                $title = avesmapsWikiAventuricaPageTitleFromUrl((string) $row['url']);
+                if ($title !== '' && function_exists('avesmapsPublicationResolvePublicationKey')) {
+                    $resolved = avesmapsPublicationResolvePublicationKey($pdo, $title);
+                    if ($resolved !== '') {
+                        $key = $resolved;
+                        $route = 'url';
+                    }
+                }
+            } catch (Throwable) {
+                // A single unresolvable url must not sink the whole report.
+            }
+        }
+
+        $routes[$route]++;
+        if ($key === '') {
+            continue;
+        }
+        $byKey[$key][] = [
+            'source_id' => $id,
+            'label' => (string) $row['label'],
+            'type' => (string) $row['source_type'],
+            'official' => (int) $row['is_official'] === 1,
+            'route' => $route,
+        ];
+    }
+
+    // How many place links hang on each source -- the number invariant 1 is about.
+    $linkCounts = [];
+    $countStmt = $pdo->query("SELECT source_id, COUNT(*) AS n FROM feature_sources WHERE status = 'approved' GROUP BY source_id");
+    foreach ($countStmt === false ? [] : $countStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $linkCounts[(int) $row['source_id']] = (int) $row['n'];
+    }
+
+    // Which resolved keys are an adventure we already know? That is what step 6 will light up.
+    $adventureKeys = [];
+    try {
+        $adv = $pdo->query("SELECT wiki_key FROM adventure WHERE wiki_key IS NOT NULL AND wiki_key <> ''");
+        foreach ($adv === false ? [] : $adv->fetchAll(PDO::FETCH_COLUMN) as $key) {
+            $adventureKeys[(string) $key] = true;
+        }
+    } catch (Throwable) {
+        // adventure table absent -> the count stays 0, the rest of the report is unaffected.
+    }
+
+    $merges = [];
+    $conflicts = [];
+    $linksInMerges = 0;
+    $keysHittingAdventure = 0;
+    foreach ($byKey as $key => $group) {
+        if (isset($adventureKeys[$key])) {
+            $keysHittingAdventure++;
+        }
+        if (count($group) < 2) {
+            continue;
+        }
+        $links = 0;
+        foreach ($group as $entry) {
+            $links += $linkCounts[$entry['source_id']] ?? 0;
+        }
+        $linksInMerges += $links;
+
+        $types = array_values(array_unique(array_map(static fn(array $e): string => $e['type'], $group)));
+        $officials = array_values(array_unique(array_map(static fn(array $e): bool => $e['official'], $group)));
+        $entry = [
+            'wiki_key' => $key,
+            'catalog_title' => $catalogTitleByKey[$key] ?? '',
+            'sources' => $group,
+            'links_affected' => $links,
+            'is_adventure' => isset($adventureKeys[$key]),
+        ];
+        $merges[] = $entry;
+        // A conflict is a disagreement about WHAT THE WORK IS. Section 6 decided the wiki wins those,
+        // but every one is listed so the override is visible rather than silent.
+        if (count($types) > 1 || count($officials) > 1) {
+            $conflicts[] = $entry + [
+                'types' => $types,
+                'officials' => $officials,
+                'catalog_type' => $catalogTypeByKey[$key] ?? '',
+            ];
+        }
+    }
+
+    // Biggest first: those are the ones worth looking at by hand.
+    usort($merges, static fn(array $a, array $b): int => $b['links_affected'] <=> $a['links_affected']);
+
+    return [
+        'sources_total' => count($rows),
+        'by_route' => $routes,
+        'with_key' => $routes['stored'] + $routes['hash'] + $routes['url'],
+        'without_key' => $routes['none'],
+        'distinct_keys' => count($byKey),
+        'keys_matching_an_adventure' => $keysHittingAdventure,
+        'merge_groups' => count($merges),
+        'links_affected_by_merges' => $linksInMerges,
+        'conflicts' => count($conflicts),
+        // Full list of conflicts (step 4 requires each one named), merges capped to keep the
+        // response readable -- the count above is the complete figure.
+        'conflict_cases' => $conflicts,
+        'merge_sample' => array_slice($merges, 0, max(1, $sampleLimit)),
+    ];
+}
+
 // --- Source merge (instruction step 5: fold one catalog row into another) -----------------------
 
 // Origin precedence when the SAME element is linked to both the old and the new source: the
