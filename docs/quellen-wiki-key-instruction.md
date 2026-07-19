@@ -271,6 +271,42 @@ Verhalten:
 - **Sichtbar machen, welcher Fall eintrat.** Das Formular sagt, dass es eine bestehende Quelle gefunden
   und verwendet hat — sonst weiß der Editor nie, ob er gerade referenziert oder eine Dublette erzeugt.
 
+**Gemessene Inventur (2026-07-19).** Die offene Frage aus Abschnitt 6 („wo überall gibt es
+Quellenformulare?") ist damit beantwortet: Es sind **acht** Eingabestellen in **drei technisch getrennten
+Systemen**, und **keine einzige** hat heute eine Vorschlagsliste. Dedupliziert wird ausschließlich
+serverseitig über `url_hash`.
+
+| System | schreibt wohin | Formulare | jetzt? |
+|---|---|---|---|
+| Mehrquellen-Widget (`js/review/review-feature-sources.js`) | echter Katalog | „Siedlung bearbeiten", Siedlungseditor-Panel | **ja** |
+| Community `sources_json` | Katalog nach Review | „Änderung vorschlagen", **Kartenvorschlag** | **ja** |
+| Altfeld `properties.other_source` | einzelnes URL+Label im Feature-JSON | Weg-Editor, Region-Label-Editor, Herrschaftsgebiet-Dialog, Territorien-Editor | nein |
+| *kein Quellenfeld vorhanden* | — | **Abenteuer-Editor, Karteneditor** | nein |
+
+Drei Korrekturen an der Formularliste oben:
+
+1. **Der Kartenvorschlag fehlte.** Er ist ein öffentliches Formular mit eigenem Quellenfeld und geht
+   durch denselben Report-Endpunkt — er kommt dazu, sonst bleibt ausgerechnet die Stelle uneinheitlich,
+   an der Fremde Quellen eintragen.
+2. **Abenteuer-Editor und Karteneditor haben heute gar kein Quellenfeld.** Das dortige „offiziell"
+   (`html/adventure-editor.html:647`, `html/citymap-editor.html:883`) ist eine Eigenschaft *des Werks*
+   („Offizielles Produkt"), keine Katalogquelle. Der Sonderfall oben ist damit nicht nur eine
+   Verwechslungsgefahr — dort muss das Feld erst **gebaut** werden, mitsamt der Regel, dass ein Werk
+   nicht sein eigener Beleg sein kann. Eigener Bauabschnitt.
+3. **Vier Editoren schreiben noch ins Altfeld** und kennen den Katalog nicht (Weg, Region-Label,
+   Herrschaftsgebiet, Territorien-Editor). Vorschläge dort hießen: Katalogeinträge in ein Feld anbieten,
+   das keinen Katalogeintrag erzeugt. Sie brauchen zuerst das Widget — die nie beendete Phase 2/3 aus
+   `docs/quellen-system-2-editor-design.md`.
+
+⚠️ **Die wichtigste Stelle sind die öffentlichen Formulare**, nicht die Editoren: dort ist nur der
+**Name** Pflicht, die URL optional (`js/review/review-locations.js:93`). Eine gemeldete Quelle ohne Link
+kann der Server gar nicht deduplizieren — er vergleicht nur `url_hash` — und wird garantiert zur neuen
+Zeile. Genau so ist „Blutmond I" entstanden.
+
+**Gebaut wird jetzt:** der read-only Endpunkt `GET /api/app/source-search.php` (den gibt es nicht,
+`api/app/feature-sources.php` liest nur die Quellen *eines* Elements) plus eine geteilte Vorschlagsliste
+am Quellenname-Feld, in den **vier** Formularen der ersten beiden Tabellenzeilen.
+
 **Das steht bewusst VOR den Schritten 1–6 und ist von ihnen unabhängig.** Es braucht keinen Wiki-Key:
 Gesucht wird im Bestand, wie er ist. Der Nutzen ist trotzdem sofort da, und er wirkt in dieselbe
 Richtung — jede nicht neu angelegte Dublette ist eine, die Schritt 5 später nicht zusammenführen muss.
@@ -280,20 +316,48 @@ Sobald der Wiki-Key existiert, wird aus derselben Auswahl zusätzlich die Abente
 ⚠️ **Kein Widerspruch zum Rest, aber eine Reihenfolge-Korrektur:** Die Instruction sah die Auswahl nur im
 Ort-Editor und erst in Schritt 6 vor. Beides war zu eng.
 
-## 6. Vor dem Bau zu klären
+## 6. Entschieden vor dem Bau (2026-07-19)
 
-- **Wer entscheidet bei Konflikten?** Wenn zwei zusammenzuführende Quellen unterschiedliche
-  `source_type` oder `is_official` tragen — automatisch nach Regel, oder Owner-Sichtung je Fall?
-- ~~Sofort oder bestätigt?~~ **Entschieden (Owner 2026-07-18): sofort.** Siehe Schritt 6 — samt der
-  daraus folgenden Pflicht, dass das Entfernen der Quelle die Zuordnung im selben Zug mitnimmt.
-- **Was passiert mit den 539 F-Shop-Quellen ohne Wiki-Entsprechung?** Bleiben sie dauerhaft
-  URL-identifiziert — oder sollen sie langfristig eine Wiki-Seite bekommen?
+Die offenen Punkte sind geklärt. Was offen **bleibt**, steht am Ende dieses Abschnitts.
+
+**Konflikte beim Zusammenführen — das Wiki gewinnt, aber nur über das Werk.** Im Dokument steckte ein
+Widerspruch: Invariante 2 sagt „Handarbeit schlägt Sync, immer", Abschnitt 2.2 sagt, Label/Typ/Offiziell
+kommen aus dem Wiki. Beide gelten — sie reden über verschiedene Dinge:
+
+| Worüber | Wer gewinnt |
+|---|---|
+| **Was das Werk ist** — `label`, `source_type`, `is_official` | das **Wiki**, wo ein Wiki-Key die Identität belegt |
+| **Dass dieser Ort zu diesem Werk gehört** — die `feature_sources`-Zeile, ihr `origin`, ein `suppressed` | **immer** die Handarbeit, unverändert |
+
+Invariante 2 schützt das Urteil eines Menschen über einen *Ort*. Sie schützt keinen Tippfehler im
+Werktyp. Jede Überschreibung eines von Hand gesetzten Werk-Feldes wird im Schritt-4-Bericht einzeln
+aufgeführt und ist über die alt→neu-Tabelle umkehrbar (Invariante 4). **Keine Owner-Sichtung je Fall** —
+das blockierte den Lauf bei 1132 Quellen, ohne die Entscheidung besser zu machen.
+
+**~~Sofort oder bestätigt?~~ Sofort** (Owner 2026-07-18) — samt der Pflicht, dass das Entfernen der
+Quelle die Zuordnung im selben Zug mitnimmt (Schritt 6).
+
+**Die 539 F-Shop-Quellen bleiben URL-identifiziert.** Dauerhaft und rechtmäßig: Abschnitt 2.4 sagt das
+bereits, `NULL` ist ein gültiger Dauerzustand (Schritt 1). Kein Feldzug, ihnen Wiki-Seiten zu beschaffen
+— das wäre genau der Rateschritt, den Invariante 3 verbietet (gemessen 1 % Trefferquote). Die Zahl
+schrumpft von allein, sobald der Publikations-Sync Keys mitschreibt.
+
+**`uq_sources_url_hash` bleibt und bekommt Gesellschaft.** Nicht ersetzt, sondern ergänzt um
+`UNIQUE KEY uq_sources_wiki_key (wiki_key)` — MySQL erlaubt in einem UNIQUE-Index beliebig viele `NULL`.
+Damit sind die beiden Identitäten nicht „zweigleisig", sondern trennscharf: **mit Key gilt der Key, ohne
+Key die URL.** Der Index ist zugleich die Sperre, die verhindert, dass die Dubletten nach Schritt 5 neu
+wachsen. ⚠️ Er kann erst **nach** Schritt 5 gesetzt werden — vorher gibt es die Dubletten ja noch.
+
+**Wo überall gibt es Quellenformulare?** Beantwortet: die gemessene Inventur steht in Abschnitt 5a.
+Acht Stellen in drei Systemen; vier bekommen jetzt die Autovervollständigung.
+
+### Bleibt offen
+
 - **📌 TODO (Owner 2026-07-19, NICHT Teil dieses Umbaus):** Territorien bekommen ihre Quellen
   **automatisch**. Ob das so bleiben soll — oder ob man dort auch von Hand Quellen hinzufügen können
   soll — ist eine eigene Frage für später. Beim Zählen und Zusammenführen nicht als Fehler werten: Diese
   Quellen sind gewollt entstanden.
-- **Wo überall gibt es Quellenformulare?** Bekannt sind Siedlungseditor, „Siedlung bearbeiten" und
-  „Änderung vorschlagen"; der Owner nennt weitere Stellen. Vor dem Bau von 5a einmal vollständig sammeln,
-  sonst bleibt die Autovervollständigung auf halber Strecke stehen.
-- **Wird `uq_sources_url_hash` irgendwann ersetzt?** Solange beide Identitäten nebeneinander existieren,
-  ist die Tabelle zweigleisig. Das ist tragbar, sollte aber eine bewusste Entscheidung sein.
+- **Abenteuer-Editor und Karteneditor brauchen zuerst ein Quellenfeld** (Abschnitt 5a, Korrektur 2) —
+  eigener Bauabschnitt, samt der Regel, dass ein Werk nicht sein eigener Beleg sein kann.
+- **Die vier Altfeld-Editoren brauchen zuerst das Mehrquellen-Widget** (Phase 2/3 aus
+  `docs/quellen-system-2-editor-design.md`), bevor eine Vorschlagsliste dort Sinn ergibt.
