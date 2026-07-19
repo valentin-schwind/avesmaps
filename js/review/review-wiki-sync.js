@@ -568,16 +568,41 @@ function wikiSyncKindSyncedLabel(synced, kind) {
 	return answered ? "Noch nie gesynct" : "Zuletzt gesynct: unbekannt";
 }
 
+// Dieselbe Auskunft in der Knopf-Fassung: klein geschrieben, weil sie hinter dem Gedankenstrich den
+// Knopf-Text FORTSETZT statt einen eigenen Satz zu beginnen ("🚨 Syncen — zuletzt 16.07.2026, 18:30").
+// Gleiche Kuerzung wie bei "📥 Dump holen — zuletzt …" und wie nach einem Lauf in
+// renderWikiSyncKindProgress, damit der Knopf im Ruhezustand immer denselben Satzbau hat.
+function wikiSyncKindSyncedButtonNote(synced, kind) {
+	const label = wikiSyncKindSyncedLabel(synced, kind);
+	if (label === "Noch nie gesynct") {
+		return "noch nie gesynct";
+	}
+	if (label === "Zuletzt gesynct: unbekannt") {
+		// NICHT "zuletzt unbekannt": das laese sich als Zeitangabe und waere keine.
+		return "Stand unbekannt";
+	}
+	return label.replace("Zuletzt gesynct: ", "zuletzt ");
+}
+
 async function refreshWikiSyncKindSyncedStatus() {
 	try {
 		const synced = await fetchWikiSyncKindLastSynced();
+		// Owner-Regel (ausformuliert an setWikiSyncButtonState): eine langlaufende Aktion berichtet IN
+		// ihrem eigenen Knopf -- daneben steht KEIN Statusfeld. Die Sync-Knoepfe (Wege/Regionen/
+		// Siedlungen) bekommen ihr Datum deshalb ins Ruhe-Label, genau wie renderWikiSyncKindProgress
+		// es nach einem Lauf tut und wie der "Dump holen"-Knopf darueber. Das alte Summary-<span>
+		// daneben bleibt bewusst leer: es ist der Rest, den genau diese Regel abgeschafft hat -- es zu
+		// fuellen brachte das Feld zurueck, das hier verschwinden sollte.
 		Object.entries(WIKI_SYNC_KIND_ELEMENTS).forEach(([kind, ids]) => {
-			const syncedElement = document.getElementById(ids.synced);
-			if (!syncedElement) {
+			const button = document.getElementById(ids.button);
+			if (!button) {
 				return;
 			}
-			syncedElement.textContent = wikiSyncKindSyncedLabel(synced, kind);
-			syncedElement.hidden = false;
+			button.dataset.idleLabel = `🚨 Syncen — ${wikiSyncKindSyncedButtonNote(synced, kind)}`;
+			// Ein laufender Sync besitzt sein Label solange; nur der Ruhezustand uebernimmt sofort.
+			if (!button.disabled) {
+				button.textContent = button.dataset.idleLabel;
+			}
 		});
 		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
 		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
