@@ -568,41 +568,21 @@ function wikiSyncKindSyncedLabel(synced, kind) {
 	return answered ? "Noch nie gesynct" : "Zuletzt gesynct: unbekannt";
 }
 
-// Dieselbe Auskunft in der Knopf-Fassung: klein geschrieben, weil sie hinter dem Gedankenstrich den
-// Knopf-Text FORTSETZT statt einen eigenen Satz zu beginnen ("🚨 Syncen — zuletzt 16.07.2026, 18:30").
-// Gleiche Kuerzung wie bei "📥 Dump holen — zuletzt …" und wie nach einem Lauf in
-// renderWikiSyncKindProgress, damit der Knopf im Ruhezustand immer denselben Satzbau hat.
-function wikiSyncKindSyncedButtonNote(synced, kind) {
-	const label = wikiSyncKindSyncedLabel(synced, kind);
-	if (label === "Noch nie gesynct") {
-		return "noch nie gesynct";
-	}
-	if (label === "Zuletzt gesynct: unbekannt") {
-		// NICHT "zuletzt unbekannt": das laese sich als Zeitangabe und waere keine.
-		return "Stand unbekannt";
-	}
-	return label.replace("Zuletzt gesynct: ", "zuletzt ");
-}
-
 async function refreshWikiSyncKindSyncedStatus() {
 	try {
 		const synced = await fetchWikiSyncKindLastSynced();
-		// Owner-Regel (ausformuliert an setWikiSyncButtonState): eine langlaufende Aktion berichtet IN
-		// ihrem eigenen Knopf -- daneben steht KEIN Statusfeld. Die Sync-Knoepfe (Wege/Regionen/
-		// Siedlungen) bekommen ihr Datum deshalb ins Ruhe-Label, genau wie renderWikiSyncKindProgress
-		// es nach einem Lauf tut und wie der "Dump holen"-Knopf darueber. Das alte Summary-<span>
-		// daneben bleibt bewusst leer: es ist der Rest, den genau diese Regel abgeschafft hat -- es zu
-		// fuellen brachte das Feld zurueck, das hier verschwinden sollte.
+		// Das DATUM steht rechts neben dem Knopf -- bei allen sechs Reitern gleich (Owner 2026-07-19,
+		// Vorbild Siedlungen/Territorien). Das ist kein Widerspruch zur Regel an setWikiSyncButtonState:
+		// die gilt dem LAUFENDEN Zustand (Beschriftung, Fortschritt, blockiert), der beim Klick
+		// aufklappen und die Seite schieben wuerde. Das "Zuletzt gesynct"-Datum steht dagegen dauerhaft
+		// an derselben Stelle und schiebt nichts -- es gehoert in die zweite Rasterspalte, nicht in den Knopf.
 		Object.entries(WIKI_SYNC_KIND_ELEMENTS).forEach(([kind, ids]) => {
-			const button = document.getElementById(ids.button);
-			if (!button) {
+			const syncedElement = document.getElementById(ids.synced);
+			if (!syncedElement) {
 				return;
 			}
-			button.dataset.idleLabel = `🚨 Syncen — ${wikiSyncKindSyncedButtonNote(synced, kind)}`;
-			// Ein laufender Sync besitzt sein Label solange; nur der Ruhezustand uebernimmt sofort.
-			if (!button.disabled) {
-				button.textContent = button.dataset.idleLabel;
-			}
+			syncedElement.textContent = wikiSyncKindSyncedLabel(synced, kind);
+			syncedElement.hidden = false;
 		});
 		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
 		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
@@ -916,12 +896,17 @@ function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging"
 	const total = Number(progress?.total ?? 0);
 
 	if (done) {
-		// Idle again -- and the button now carries the "last synced" note itself, so the separate
-		// summary element it used to need is gone with the bar and the status line. Writing it back
-		// into idleLabel makes it the resting state rather than something a later reset would wipe.
-		const synced = formatWikiSyncKindSyncedText(run).replace("Zuletzt gesynct: ", "zuletzt ");
-		setWikiSyncButtonState(button, { label: `🚨 Syncen — ${synced}`, running: false });
+		// Idle again: the button drops back to its plain label, and the fresh DATE goes into the field
+		// beside it -- the same second raster column Siedlungen/Territorien/Abenteuer/Karten use
+		// (Owner 2026-07-19). The button keeps owning the RUNNING state; only the persistent date lives
+		// outside it, so a tab reads identically after a run and after a reload.
+		setWikiSyncButtonState(button, { label: "🚨 Syncen", running: false });
 		button.dataset.idleLabel = button.textContent;
+		const syncedElement = document.getElementById(ids.synced);
+		if (syncedElement) {
+			syncedElement.textContent = formatWikiSyncKindSyncedText(run);
+			syncedElement.hidden = false;
+		}
 		return;
 	}
 
