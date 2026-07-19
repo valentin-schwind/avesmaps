@@ -179,7 +179,7 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Avesmaps Admin</title>
-    <link rel="stylesheet" href="../css/pages/admin.css?v=20260713-theme22" />
+    <link rel="stylesheet" href="../css/pages/admin.css?v=20260720-pwgen" />
 </head>
 
 <body class="edit-page">
@@ -236,7 +236,10 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
                     </label>
                     <label>
                         <span>Passwort</span>
-                        <input type="password" name="password" minlength="12" required />
+                        <span class="admin-password-field">
+                            <input type="password" name="password" minlength="12" autocomplete="new-password" required />
+                            <button type="button" class="admin-password-dice">Wuerfeln</button>
+                        </span>
                     </label>
                     <label class="admin-checkbox">
                         <input type="checkbox" name="is_active" checked />
@@ -259,7 +262,10 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
                             </label>
                             <label>
                                 <span>Neues Passwort</span>
-                                <input type="password" name="password" minlength="12" placeholder="unveraendert" />
+                                <span class="admin-password-field">
+                                    <input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="unveraendert" />
+                                    <button type="button" class="admin-password-dice">Wuerfeln</button>
+                                </span>
                             </label>
                             <label class="admin-checkbox">
                                 <input type="checkbox" name="is_active" <?php echo (int) $user['is_active'] === 1 ? 'checked' : ''; ?> />
@@ -274,6 +280,78 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
                 </div>
             </section>
         </main>
+
+        <script>
+            (function () {
+                var ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                var PASSWORD_LENGTH = 15;
+                var STATUS_RESET_MS = 1800;
+                var IDLE_LABEL = 'Wuerfeln';
+
+                // Rejection sampling keeps every character equally likely: bytes at or above
+                // the largest exact multiple of the alphabet length are discarded instead of
+                // folded back with a modulo, which would favour the first few characters.
+                function createPassword() {
+                    var acceptLimit = 256 - (256 % ALPHABET.length);
+                    var bytes = new Uint8Array(64);
+                    var password = '';
+
+                    while (password.length < PASSWORD_LENGTH) {
+                        window.crypto.getRandomValues(bytes);
+                        for (var index = 0; index < bytes.length && password.length < PASSWORD_LENGTH; index += 1) {
+                            if (bytes[index] < acceptLimit) {
+                                password += ALPHABET.charAt(bytes[index] % ALPHABET.length);
+                            }
+                        }
+                    }
+
+                    return password;
+                }
+
+                function copyToClipboard(password) {
+                    if (window.isSecureContext && window.navigator.clipboard) {
+                        return window.navigator.clipboard.writeText(password);
+                    }
+
+                    return Promise.reject(new Error('Die Zwischenablage ist hier nicht verfuegbar.'));
+                }
+
+                function reportStatus(button, label) {
+                    button.textContent = label;
+                    button.classList.add('is-done');
+                    window.clearTimeout(button.avesmapsResetTimer);
+                    button.avesmapsResetTimer = window.setTimeout(function () {
+                        button.textContent = IDLE_LABEL;
+                        button.classList.remove('is-done');
+                    }, STATUS_RESET_MS);
+                }
+
+                document.addEventListener('click', function (event) {
+                    var button = event.target.closest('.admin-password-dice');
+                    if (button === null) {
+                        return;
+                    }
+
+                    var field = button.parentNode.querySelector('input[name="password"]');
+                    if (field === null) {
+                        return;
+                    }
+
+                    var password = createPassword();
+                    field.type = 'text';
+                    field.value = password;
+                    field.classList.add('is-generated');
+
+                    // The button reports its own outcome: a failed copy must not claim success,
+                    // the password stays readable in the field either way.
+                    copyToClipboard(password).then(function () {
+                        reportStatus(button, 'Kopiert');
+                    }, function () {
+                        reportStatus(button, 'Erzeugt');
+                    });
+                });
+            })();
+        </script>
     <?php endif; ?>
 </body>
 

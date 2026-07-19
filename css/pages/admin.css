@@ -85,6 +85,47 @@
 	background: var(--color-danger);
 }
 
+.admin-password-field {
+	display: flex;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.admin-password-field input {
+	flex: 1;
+	min-width: 0;
+}
+
+/* A generated password gets read character by character, so it is spaced out a
+   little. No monospace switch here: base.css pins one app-wide font family with
+   !important, and a local override would only start an !important tug of war. */
+.admin-password-field input.is-generated {
+	letter-spacing: 0.08em;
+}
+
+.admin-user-form .admin-password-dice {
+	flex: 0 0 auto;
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font-weight: normal;
+	white-space: nowrap;
+}
+
+.admin-user-form .admin-password-dice:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.admin-user-form .admin-password-dice:active {
+	background: var(--color-button-soft-active);
+}
+
+.admin-user-form .admin-password-dice.is-done {
+	border-color: var(--color-success-soft-border);
+	background: var(--color-success-soft);
+	color: var(--color-success-soft-text);
+}
+
 .admin-checkbox {
 	align-items: center;
 	flex-direction: row !important;
