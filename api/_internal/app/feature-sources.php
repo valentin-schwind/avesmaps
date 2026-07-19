@@ -433,6 +433,224 @@ function avesmapsLinkExistingFeatureSource(PDO $pdo, string $entityType, string 
     return avesmapsListFeatureSourcesForEdit($pdo, $entityType, $publicId, $userId);
 }
 
+// --- Source merge (instruction step 5: fold one catalog row into another) -----------------------
+
+// Origin precedence when the SAME element is linked to both the old and the new source: the
+// stronger origin wins (manual > community > wiki_publication) and a 'suppressed' status survives.
+// Pure so it can be unit-tested without a database -- this rule decides data ownership, and getting
+// it wrong silently demotes handwork to sync-owned, which the next reconcile would then overwrite.
+function avesmapsMergeWinningLink(array $from, array $into): array
+{
+    $rank = ['wiki_publication' => 1, 'community' => 2, 'manual' => 3];
+    $fromRank = $rank[(string) ($from['origin'] ?? '')] ?? 0;
+    $intoRank = $rank[(string) ($into['origin'] ?? '')] ?? 0;
+    $winner = $fromRank > $intoRank ? $from : $into;
+
+    // Suppression is a deliberate act on either side and must not be undone by a merge.
+    $suppressed = ((string) ($from['status'] ?? '')) === 'suppressed'
+        || ((string) ($into['status'] ?? '')) === 'suppressed';
+
+    return [
+        'origin' => (string) ($winner['origin'] ?? 'manual'),
+        'status' => $suppressed ? 'suppressed' : 'approved',
+        // Reference details describe the citation, not the work: keep whichever side has them.
+        'pages' => ($into['pages'] ?? null) !== null && (string) $into['pages'] !== ''
+            ? $into['pages'] : ($from['pages'] ?? null),
+        'reference_kind' => ($into['reference_kind'] ?? null) !== null && (string) $into['reference_kind'] !== ''
+            ? $into['reference_kind'] : ($from['reference_kind'] ?? null),
+    ];
+}
+
+// The alt->neu record demanded by invariant 4: without it, nothing is merged.
+function avesmapsEnsureSourceMergeLog(PDO $pdo): void
+{
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS source_merge_log (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            merged_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            merged_by INT NULL,
+            from_source_id BIGINT UNSIGNED NOT NULL,
+            into_source_id BIGINT UNSIGNED NOT NULL,
+            entity_type VARCHAR(16) NOT NULL,
+            entity_public_id VARCHAR(64) NOT NULL,
+            prior_origin VARCHAR(24) NULL,
+            prior_status VARCHAR(16) NULL,
+            prior_pages VARCHAR(120) NULL,
+            prior_reference_kind VARCHAR(16) NULL,
+            prior_other_source_url VARCHAR(500) NULL,
+            KEY idx_source_merge_from (from_source_id),
+            KEY idx_source_merge_entity (entity_type, entity_public_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+}
+
+// Fold $fromId into $intoId: every element citing the old row ends up citing the new one.
+//
+// $dryRun=true writes NOTHING and returns exactly what an apply would do -- the report from step 4.
+//
+// Two populations are folded, because a source reaches an element two ways:
+//   1. feature_sources rows pointing at $fromId (the catalog links)
+//   2. elements still carrying the old single properties.other_source with the SAME url -- those
+//      have no feature_sources row at all. They are converted first via the existing atomic
+//      takeover, which puts them into population 1 without a window where the source is nowhere.
+//
+// Order per element is invariant 5: write the new link, THEN drop the old one. Never the reverse.
+function avesmapsMergeSourceInto(PDO $pdo, int $fromId, int $intoId, int $userId, bool $dryRun): array
+{
+    avesmapsEnsureFeatureSourceTables($pdo);
+    if ($fromId === $intoId || $fromId <= 0 || $intoId <= 0) {
+        throw new InvalidArgumentException('from_source_id und into_source_id muessen verschiedene, gueltige Quellen sein.');
+    }
+
+    $read = $pdo->prepare('SELECT id, url, label FROM sources WHERE id IN (:a, :b)');
+    $read->execute(['a' => $fromId, 'b' => $intoId]);
+    $rows = $read->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if (count($rows) !== 2) {
+        throw new InvalidArgumentException('Mindestens eine der beiden Quellen gibt es nicht.');
+    }
+    $byId = [];
+    foreach ($rows as $row) {
+        $byId[(int) $row['id']] = $row;
+    }
+    $fromUrl = trim((string) ($byId[$fromId]['url'] ?? ''));
+
+    // -- population 2: legacy other_source carriers ------------------------------------------------
+    // map_features.feature_type is NOT the source system's entity_type: a settlement is stored as
+    // 'location'. junction/powerline have no source surface at all and are skipped.
+    $entityTypeOf = ['location' => 'settlement', 'path' => 'path', 'region' => 'region', 'label' => 'region'];
+
+    $legacy = [];
+    if ($fromUrl !== '') {
+        // LIKE is only a coarse pre-filter (the url lives inside properties_json). Every hit is then
+        // verified EXACTLY: the url must be this feature's other_source.url, not merely appear
+        // somewhere in its JSON. Without that check a feature that cites the url in another field
+        // would have its unrelated other_source taken over -- the wrong source, silently.
+        $scan = $pdo->prepare(
+            "SELECT public_id, feature_type, properties_json FROM map_features
+              WHERE is_active = 1 AND properties_json LIKE :needle"
+        );
+        $scan->execute(['needle' => '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $fromUrl) . '%']);
+        foreach ($scan->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $props = json_decode((string) $row['properties_json'], true);
+            $other = is_array($props) ? ($props['other_source'] ?? null) : null;
+            $otherUrl = is_array($other) ? trim((string) ($other['url'] ?? '')) : '';
+            if ($otherUrl !== $fromUrl) {
+                continue;
+            }
+            $entityType = $entityTypeOf[(string) $row['feature_type']] ?? null;
+            if ($entityType === null) {
+                continue;
+            }
+            $legacy[] = ['public_id' => (string) $row['public_id'], 'entity_type' => $entityType];
+        }
+    }
+
+    if (!$dryRun) {
+        avesmapsEnsureSourceMergeLog($pdo);
+        foreach ($legacy as $entry) {
+            // Atomic and loss-free: creates the catalog link for $fromId, THEN clears the old field.
+            // After this the element is an ordinary population-1 row and folds like any other.
+            avesmapsFeatureSourcesTakeoverOtherSource($pdo, $entry['entity_type'], $entry['public_id'], $userId);
+        }
+    }
+
+    // -- population 1: the catalog links (now including everything just taken over) -----------------
+    $linkStmt = $pdo->prepare(
+        'SELECT entity_type, entity_public_id, origin, status, pages, reference_kind
+           FROM feature_sources WHERE source_id = :id'
+    );
+    $linkStmt->execute(['id' => $fromId]);
+    $fromLinks = $linkStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $moved = 0;
+    $mergedWithExisting = 0;
+    foreach ($fromLinks as $link) {
+        $entityType = (string) $link['entity_type'];
+        $publicId = (string) $link['entity_public_id'];
+
+        $existing = $pdo->prepare(
+            'SELECT origin, status, pages, reference_kind FROM feature_sources
+              WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid LIMIT 1'
+        );
+        $existing->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $intoId]);
+        $target = $existing->fetch(PDO::FETCH_ASSOC) ?: null;
+        $winner = avesmapsMergeWinningLink($link, $target ?? []);
+        if ($target !== null) {
+            $mergedWithExisting++;
+        }
+
+        if ($dryRun) {
+            $moved++;
+            continue;
+        }
+
+        $pdo->beginTransaction();
+        try {
+            // 1. the new link FIRST (invariant 5) -- upsert so an existing one takes the winning values
+            $pdo->prepare(
+                "INSERT INTO feature_sources
+                    (entity_type, entity_public_id, source_id, status, created_by, origin, reference_kind, pages)
+                 VALUES (:t, :id, :sid, :st, :cb, :o, :rk, :pg)
+                 ON DUPLICATE KEY UPDATE status = VALUES(status), origin = VALUES(origin),
+                     reference_kind = VALUES(reference_kind), pages = VALUES(pages)"
+            )->execute([
+                't' => $entityType, 'id' => $publicId, 'sid' => $intoId,
+                'st' => $winner['status'], 'cb' => $userId > 0 ? $userId : null,
+                'o' => $winner['origin'], 'rk' => $winner['reference_kind'], 'pg' => $winner['pages'],
+            ]);
+
+            // 2. the reversal record BEFORE the old link disappears
+            $pdo->prepare(
+                'INSERT INTO source_merge_log
+                    (merged_by, from_source_id, into_source_id, entity_type, entity_public_id,
+                     prior_origin, prior_status, prior_pages, prior_reference_kind, prior_other_source_url)
+                 VALUES (:by, :from, :into, :t, :id, :o, :st, :pg, :rk, :url)'
+            )->execute([
+                'by' => $userId > 0 ? $userId : null, 'from' => $fromId, 'into' => $intoId,
+                't' => $entityType, 'id' => $publicId,
+                'o' => $link['origin'], 'st' => $link['status'],
+                'pg' => $link['pages'], 'rk' => $link['reference_kind'],
+                'url' => $fromUrl !== '' ? mb_substr($fromUrl, 0, 500) : null,
+            ]);
+
+            // 3. only NOW the old link goes
+            $pdo->prepare(
+                'DELETE FROM feature_sources WHERE entity_type = :t AND entity_public_id = :id AND source_id = :sid'
+            )->execute(['t' => $entityType, 'id' => $publicId, 'sid' => $fromId]);
+
+            $pdo->commit();
+            $moved++;
+        } catch (Throwable $error) {
+            $pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    if (!$dryRun && $moved > 0) {
+        avesmapsNextMapRevision($pdo); // one bump for the whole run, not one per element
+    }
+
+    // NOTE the asymmetry, or the two runs look like they disagree: on an APPLY the takeover has
+    // already turned the legacy carriers into catalog links, so links_moved counts them too. On a
+    // DRY RUN nothing was converted, so links_moved covers only the pre-existing catalog links and
+    // the carriers are still listed separately. total_entities is the comparable number.
+    return [
+        'dry_run' => $dryRun,
+        'from' => ['id' => $fromId, 'label' => (string) ($byId[$fromId]['label'] ?? ''), 'url' => $fromUrl],
+        'into' => ['id' => $intoId, 'label' => (string) ($byId[$intoId]['label'] ?? '')],
+        'legacy_other_source_carriers' => count($legacy),
+        'total_entities' => $dryRun ? $moved + count($legacy) : $moved,
+        'links_moved' => $moved,
+        'merged_with_existing_link' => $mergedWithExisting,
+        'entities' => array_map(static fn(array $l): array => [
+            'entity_type' => (string) $l['entity_type'],
+            'entity_public_id' => (string) $l['entity_public_id'],
+            'origin' => (string) $l['origin'],
+            'status' => (string) $l['status'],
+        ], $fromLinks),
+    ];
+}
+
 // --- Catalog search (instruction 5a: reference an EXISTING source instead of typing a new one) ---
 
 // feature_sources has no key on source_id alone -- its unique key leads with entity_type, so
