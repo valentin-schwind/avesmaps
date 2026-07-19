@@ -989,17 +989,22 @@
     btn.disabled = true;
     try {
       await adventurePost({ action: "delete_adventure", public_id: state.selectedId });
-      if (!aeCloseAfterSave("Abenteuer gelöscht.")) {
-        // Standalone: the list reloads, but the detail panel would keep showing the entry we just
-        // removed -- a ghost the user could still press "Speichern" on, recreating it.
-        state.selectedId = null;
-        state.detail = null;
-        document.getElementById("aeSaveBar").hidden = true;
-        document.getElementById("aeDetailHead").innerHTML = "";
-        document.getElementById("aeStammBody").innerHTML =
-          `<p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>`;
-        document.getElementById("aeOrteBody").innerHTML =
-          `<p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>`;
+      // Clear the panels in BOTH cases. The overlay only HIDES this iframe, it never destroys it,
+      // so a reopen would otherwise show the detail of the row we just deleted -- with a
+      // "Speichern" button sitting under it that would quietly recreate the entry.
+      state.selectedId = null;
+      state.detail = null;
+      document.getElementById("aeSaveBar").hidden = true;
+      document.getElementById("aeDetailHead").innerHTML = "";
+      document.getElementById("aeStammBody").innerHTML =
+        `<p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>`;
+      document.getElementById("aeOrteBody").innerHTML =
+        `<p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>`;
+      // aeCloseAfterSave reloads the list ONLY when standalone (it returns false there). In the
+      // overlay case nothing reloads OUR list -- the parent refreshes its own catalog, not this
+      // one -- so the deleted row would still be sitting there on the next open.
+      if (aeCloseAfterSave("Abenteuer gelöscht.")) {
+        await loadList();
       }
     } catch (err) {
       btn.disabled = false;
