@@ -574,7 +574,7 @@
 }
 
 .ui-autocomplete {
-	z-index: 1600 !important;
+	z-index: var(--z-autocomplete) !important;
 	max-width: calc(100vw - 16px);
 	max-height: min(54vh, 360px);
 	overflow-y: auto;
