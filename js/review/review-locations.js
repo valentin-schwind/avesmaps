@@ -1,8 +1,25 @@
+// A DISABLED control is not submittable: FormData runs the HTML "constructing the entry list" algorithm,
+// which skips it entirely -- .get() then answers null, not "". The change-suggestion dialog locks the
+// category exactly that way (applyChangeSuggestionContext: typeSelect.disabled = true), so reading it out
+// of the entry list loses it and the `|| "location"` below quietly turns a path/region/territory report
+// into a settlement one -- which the server rejects with "Die Ortsgroesse ist ungueltig.", naming a field
+// the dialog never showed. Read the CONTROL instead; formElement.elements holds disabled ones too.
+// (`size` deliberately keeps reading the entry list: it is disabled only when the type is not "location",
+// and then the server ignores it anyway -- sending a fake "dorf" would be worse than sending nothing.)
+function locationReportControlValue(formElement, formData, name) {
+	const submitted = formData.get(name);
+	if (submitted !== null) {
+		return String(submitted);
+	}
+	const control = formElement?.elements?.[name];
+	return typeof control?.value === "string" ? control.value : "";
+}
+
 function buildLocationReportRequestPayload(formElement) {
 	const formData = new FormData(formElement);
 
 	return {
-		report_type: String(formData.get("report_type") || "location").trim(),
+		report_type: locationReportControlValue(formElement, formData, "report_type").trim() || "location",
 		name: String(formData.get("name") || "").trim(),
 		size: String(formData.get("size") || "").trim(),
 		sources: typeof collectLocationReportSources === "function" ? collectLocationReportSources() : [],
@@ -805,3 +822,7 @@ document.addEventListener("change", (event) => {
 		}
 	}
 });
+
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = { buildLocationReportRequestPayload };
+}
