@@ -218,6 +218,10 @@
   .btn--icon { padding: 2px var(--space-6); font-size: var(--font-size-small); }
   .btn--danger { color: var(--color-danger); border-color: var(--color-border); background: transparent; }
   .btn--danger:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
+  /* Armed state of the two-step delete: the second click is the destructive one, so it stops
+     looking like the quiet outline button the first click was. */
+  .btn--danger.is-armed { background: var(--color-danger); color: var(--color-button-text);
+    border-color: var(--color-danger); }
 
   /* ---- Cover-Block (Vorschau + eigenes Cover laden / Wiki-Cover neu ziehen) -------------------- */
   .ae-cover { display: flex; gap: var(--space-12); align-items: flex-start; }
@@ -626,12 +630,22 @@
         <div class="ae-detail__meta">Noch nicht gespeichert</div></div>`;
     } else {
       const originLabel = d.origin === "manual" ? "Manuell" : "Wiki";
+      // Deleting is offered ONLY for entries made here. A wiki-sync row would be back on the next
+      // run, so the server refuses it as well (avesmapsDeleteAdventure) -- the button simply does
+      // not appear rather than failing on click. The place count is carried on the element so the
+      // armed label can name the consequence.
+      const deletable = d.origin !== "wiki";
+      const placeCount = (d.places || []).filter((p) => p.status === "approved").length;
+      const deleteButton = deletable
+        ? `<button type="button" class="btn btn--sm btn--danger" id="aeDelete" data-places="${placeCount}"
+             title="Dieses selbst angelegte Abenteuer löschen">Löschen</button>`
+        : "";
       head.innerHTML = `<div class="ae-detail__head-main">
         <h2 class="ae-detail__title">${aeEscape(d.title || "—")}</h2>
         <div class="ae-detail__meta"><span class="pill pill--kind">${aeEscape(d.product_type)}</span>
           <span>${aeEscape([d.edition, d.bf_label].filter(Boolean).join(" · "))}</span>
           <span class="pill pill--wiki">Quelle: ${originLabel}</span>
-          ${d.wiki_key ? `<span>wiki_key: <code>${aeEscape(d.wiki_key)}</code></span>` : ""}</div></div>`;
+          ${d.wiki_key ? `<span>wiki_key: <code>${aeEscape(d.wiki_key)}</code></span>` : ""}</div></div>${deleteButton}`;
     }
     const v = d || {};
     const o = (d && d.field_origins) || {};
@@ -956,6 +970,47 @@
       if (parentWindow) { parentWindow.closeAvesmapsAdventureEditorOverlay(); }
     }
   });
+  // Delete, in two clicks. Delegated on the STATIC #aeDetailHead because its contents are replaced
+  // on every render -- binding to the button itself would stack a handler per render.
+  //
+  // Two steps instead of confirm(): this editor runs in an iframe, where a native dialog is both
+  // out of place and dismissed by reflex. Arming the button also lets it name the consequence --
+  // how many places go with it -- which a yes/no box never does.
+  document.getElementById("aeDetailHead").addEventListener("click", async (e) => {
+    const btn = e.target.closest("#aeDelete");
+    if (!btn || !state.selectedId) return;
+    if (btn.dataset.armed !== "1") {
+      const n = Number(btn.dataset.places) || 0;
+      btn.dataset.armed = "1";
+      btn.classList.add("is-armed");
+      btn.textContent = n > 0 ? `Wirklich löschen? (mit ${n} Ort${n === 1 ? "" : "en"})` : "Wirklich löschen?";
+      return;
+    }
+    btn.disabled = true;
+    try {
+      await adventurePost({ action: "delete_adventure", public_id: state.selectedId });
+      if (!aeCloseAfterSave("Abenteuer gelöscht.")) {
+        // Standalone: the list reloads, but the detail panel would keep showing the entry we just
+        // removed -- a ghost the user could still press "Speichern" on, recreating it.
+        state.selectedId = null;
+        state.detail = null;
+        document.getElementById("aeSaveBar").hidden = true;
+        document.getElementById("aeDetailHead").innerHTML = "";
+        document.getElementById("aeStammBody").innerHTML =
+          `<p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>`;
+        document.getElementById("aeOrteBody").innerHTML =
+          `<p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>`;
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.dataset.armed = "";
+      btn.classList.remove("is-armed");
+      btn.textContent = "Löschen";
+      const st = document.getElementById("aeSaveState");
+      st.textContent = err.message || "Löschen fehlgeschlagen."; st.className = "error";
+    }
+  });
+
   document.getElementById("aeListScroll").addEventListener("click", (e) => {
     const b = e.target.closest(".ae-item"); if (!b) return;
     selectAdventure(b.dataset.id);

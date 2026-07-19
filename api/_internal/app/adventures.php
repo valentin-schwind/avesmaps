@@ -1120,6 +1120,63 @@ function avesmapsSuppressAdventurePlace(PDO $pdo, int $placeId): array
     return ['place_id' => $placeId, 'suppressed' => false];
 }
 
+// Delete a MANUALLY created adventure and everything hanging off it (places + curated extra links).
+//
+// The origin guard lives HERE, not only in the editor's markup: a wiki adventure must never be
+// deletable through this path. sync_adventures owns those rows and would simply recreate the entry
+// on the next run -- leaving an editor convinced the button is broken, and the deletion of the
+// attached places permanent. Refusing outright is the honest answer.
+//
+// Deliberately NOT a suppression like avesmapsSuppressAdventurePlace: a tombstone exists so a later
+// sync does not resurrect a removed row, and nothing syncs a manual adventure. A tombstone here
+// would just be a row nobody can see and nobody can clean up.
+//
+// The cover file (uploads/questcovers) is intentionally left on disk: deriving a filesystem path
+// from a stored URL to unlink it is how the wrong file gets deleted. An orphaned image costs a few
+// kB; a bad unlink costs a cover that was still in use.
+function avesmapsDeleteAdventure(PDO $pdo, string $publicId): array
+{
+    avesmapsAdventuresEnsureTables($pdo);
+
+    $find = $pdo->prepare('SELECT id, origin, title FROM adventure WHERE public_id = :pid LIMIT 1');
+    $find->execute(['pid' => $publicId]);
+    $row = $find->fetch(PDO::FETCH_ASSOC);
+    if ($row === false) {
+        avesmapsErrorResponse(404, 'not_found', 'Das Abenteuer wurde nicht gefunden.');
+    }
+    if ((string) $row['origin'] === 'wiki') {
+        avesmapsErrorResponse(
+            400,
+            'wiki_origin_protected',
+            'Dieses Abenteuer stammt aus dem Wiki-Sync und kann hier nicht geloescht werden. Nur selbst angelegte Eintraege.'
+        );
+    }
+
+    $adventureId = (int) $row['id'];
+    $pdo->beginTransaction();
+    try {
+        // Children first: an adventure_place or _link row whose adventure is gone is invisible
+        // everywhere and would never be cleaned up again.
+        $places = $pdo->prepare('DELETE FROM adventure_place WHERE adventure_id = :aid');
+        $places->execute(['aid' => $adventureId]);
+        $links = $pdo->prepare('DELETE FROM adventure_link WHERE adventure_id = :aid');
+        $links->execute(['aid' => $adventureId]);
+        $pdo->prepare('DELETE FROM adventure WHERE id = :id')->execute(['id' => $adventureId]);
+        $pdo->commit();
+
+        return [
+            'deleted' => true,
+            'public_id' => $publicId,
+            'title' => (string) $row['title'],
+            'places_deleted' => $places->rowCount(),
+            'links_deleted' => $links->rowCount(),
+        ];
+    } catch (Throwable $error) {
+        $pdo->rollBack();
+        throw $error;
+    }
+}
+
 // Re-resolve a place (by id -> 404 if unknown): reset it to 'unresolved', then run the shared resolver
 // (avesmapsAdventureResolveAll, loaded by the dispatcher) which only touches unresolved places. Returns
 // the freshly resolved ['target_kind','target_public_id','target_wiki_key'].

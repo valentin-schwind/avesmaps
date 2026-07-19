@@ -78,6 +78,15 @@ try {
             }
             return avesmapsSuppressAdventurePlace($pdo, $placeId);
         })(),
+        // Only for entries the editor created by hand -- avesmapsDeleteAdventure refuses wiki-origin
+        // rows, because sync_adventures owns those and would recreate them on the next run.
+        'delete_adventure' => (static function () use ($pdo, $payload): array {
+            $publicId = trim((string) ($payload['public_id'] ?? ''));
+            if ($publicId === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'public_id ist erforderlich.');
+            }
+            return avesmapsDeleteAdventure($pdo, $publicId);
+        })(),
         'resolve_place' => (static function () use ($pdo, $payload): array {
             $placeId = (int) ($payload['place_id'] ?? 0);
             if ($placeId <= 0) {
