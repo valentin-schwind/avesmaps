@@ -94,20 +94,44 @@ beschriften die Karte, Ökosysteme beschreiben Gelände).
 ### 1.4 Punkte, die auf eine Region wirken
 
 Ein `berggipfel`-Label ist kein Regionstyp, aber es ist auch nicht bedeutungslos:
-**liegt es innerhalb einer Gebirgsregion, wird es zu deren Höhenpunkt.** Position
-und Name stammen dann aus einem Label, das seit Jahren auf der Karte liegt und
-wiki-verknüpft ist — es muss nichts neu erfasst werden.
+**liegt es innerhalb einer Gebirgsregion, ist es deren Höhenpunkt.**
 
-Das ist **kein Gebirgs-Sonderfall, sondern ein Muster**, und es gehört so gebaut:
+> 🔴 **1:1, nicht kopiert.** Die Gipfel liegen bereits im Standard-Layer. Das
+> Ökosystem legt **keine eigenen Höhenpunkte an** und führt **keine zweite
+> Positionsliste** — es *referenziert* dieselben `map_features`-Zeilen
+> (`feature_type='label'`, `feature_subtype='berggipfel'`). Es gibt genau **ein**
+> Objekt, in zwei Ansichten.
+
+**Daraus folgt zweierlei:**
+
+**Die Höhe gehört ans Label**, nicht an das Ökosystem — als Feld in
+`properties_json` des Labels (neben dem dort schon vorhandenen `wiki_region`).
+Damit trägt der *Amboss* seine Höhe selbst, sichtbar und pflegbar im
+Standard-Layer, unabhängig davon, ob es je ein Ökosystem darüber gibt. Die
+Ökosystem-Ebene liest sie nur.
+
+**Bearbeiten ist bidirektional.** Wird der Gipfel im Standard-Layer verschoben,
+wandert der Höhenpunkt mit; wird er aus der Ökosystem-Ebene heraus verschoben,
+bewegt sich das Label im Standard-Layer. Beide Wege schreiben dieselbe Aktion
+(`move_label` bzw. `update_label`) auf dieselbe Zeile — es gibt keinen
+Synchronisationspfad, weil es nichts zu synchronisieren gibt.
+
+> ⚠️ **Neue Invalidierungskante:** verschiebt jemand einen `berggipfel` — egal aus
+> welcher Ebene —, muss die **enthaltende Region neu gerechnet** werden. Das ist
+> derselbe begrenzte Nachlauf wie bei einer geänderten Fläche (§ Vorberechnung in
+> `oekosystem-instruction.md`), nur mit dem Label als Auslöser.
+
+Das ist **kein Gebirgs-Sonderfall, sondern ein Muster**:
 
 > Eine Region trägt Fläche und Typ. **Punktförmige Kartenobjekte innerhalb ihrer
-> Fläche können ihre Eigenschaften modulieren.** Welcher Punkttyp welche Eigenschaft
-> beeinflusst, entscheidet der jeweilige *Abnehmer* — nicht die Region.
+> Fläche können ihre Eigenschaften modulieren** — als Referenz, nie als Kopie.
+> Welcher Punkttyp welche Eigenschaft beeinflusst, entscheidet der jeweilige
+> *Abnehmer*, nicht die Region.
 
-Heute: `berggipfel` → Höhenpunkte für den Routing-Abnehmer. Später könnten andere
+Heute: `berggipfel` → Höhe für den Routing-Abnehmer. Später können andere
 Punktsorten andere Abnehmer speisen, ohne dass Region oder Fläche sich ändern.
-Gefunden werden diese Punkte über den bbox-Vorfilter, den die Vorberechnung ohnehin
-schon fährt.
+Gefunden werden sie über den bbox-Vorfilter, den die Vorberechnung ohnehin fährt —
+Punkt-Labels haben `min_x = max_x`, ihre bbox *ist* ihre Position.
 
 ### 1.5 Zuweisung: Wiki-Regionen und eigene
 

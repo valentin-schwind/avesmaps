@@ -43,8 +43,16 @@ bbox-Cache, Soft-Delete über `is_active`, keine Fremdschlüssel).
 > mitgespeichert, nicht serverseitig nachgerechnet.
 | `is_active`, `created_by`, `updated_by`, Zeitstempel | Konvention |
 
-**`ecosystem_height_point`** — innere Stützpunkte (erst ab Stufe 3 relevant, aber
-gleich mit anlegen): `area_id`, `x`, `y`, `height`.
+**Höhenpunkte bekommen KEINE eigene Tabelle.** Die Gipfel liegen bereits im
+Standard-Layer als `map_features`-Labels (`feature_subtype='berggipfel'`) und
+werden **1:1 referenziert, nicht kopiert**. Die Höhe gehört ans Label selbst, als
+Feld in dessen `properties_json` — damit trägt der Gipfel seine Höhe unabhängig
+davon, ob je ein Ökosystem darüber liegt.
+
+> Bearbeiten ist **bidirektional**: verschieben aus dem Standard-Layer oder aus der
+> Ökosystem-Ebene schreibt dieselbe Aktion auf dieselbe Zeile. Es gibt keinen
+> Synchronisationspfad, weil es nichts zu synchronisieren gibt. Details im
+> Leitfaden §1.4.
 
 **`ecosystem_type`** — die **editorpflegbaren** Typ-Defaults. Genau *keine*
 Konstante in `js/config.js`: `type_key`, `label`, `speed_factor`,
@@ -175,7 +183,9 @@ Daraus baut der Generator die Stützpunkte in dieser Reihenfolge:
    Gitter, aber **nur außerhalb der gesperrten Zonen**. Es gibt live nur **23
    `berggipfel` auf 60 `gebirge`**: zu wenig, um das Gelände allein zu tragen, zu
    sichtbar, um sie zu ignorieren.
-3. **Manuell gesetzte Höhenpunkte gewinnen immer** (`ecosystem_height_point`).
+3. **Ein gesetzter Gipfel gewinnt immer** — will man an einer Stelle einen
+   Höhenpunkt, legt man dort ein `berggipfel`-Label an. Es gibt genau **einen**
+   Mechanismus, und der ist im Standard-Layer sichtbar (Leitfaden §1.4).
 
 Zwei Bedingungen:
 
