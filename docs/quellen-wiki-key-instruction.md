@@ -255,6 +255,15 @@ Quelle referenzieren können — per Autovervollständigung, statt sie erneut ei
 mindestens: Siedlungseditor (Eigenschaften & Overrides), „Siedlung bearbeiten", „Änderung vorschlagen" —
 und weitere Stellen, die vor dem Bau zu sammeln sind.
 
+**Bekannte Formulare** (Stand 2026-07-19, Owner): Siedlungseditor (Eigenschaften & Overrides),
+„Siedlung bearbeiten", „Änderung vorschlagen", **Abenteuer-Editor**, **Karteneditor**.
+
+⚠️ Die letzten beiden sind ein Sonderfall, der nicht übersehen werden darf: Dort ist das Werk **selbst**
+der Gegenstand. Eine Quelle, die man einem Abenteuer zuweist, ist etwas anderes als das Abenteuer — sie
+belegt es (Rezension, Erwähnung, Begleitband). Die Auswahl darf dort also nicht dazu verleiten, ein
+Abenteuer mit sich selbst zu verknüpfen; und wenn die gewählte Quelle das eigene Werk IST, gehört sie
+nicht als Beleg hinzugefügt, sondern ist bereits die Identität der Zeile (Wiki-Key, Abschnitt 2).
+
 Verhalten:
 
 - Tippen sucht in den vorhandenen Quellen. Treffer → **direkte Zuweisung** zur bestehenden Quelle.
