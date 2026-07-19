@@ -73,6 +73,20 @@ try {
                 $pdo,
                 "SELECT COUNT(*) FROM sources WHERE url LIKE '%ulisses%'"
             ),
+            // Pruefung zu Schritt 2: wie viele Quellen tragen jetzt einen Wiki-Key? Direkt nach
+            // Schritt 1 ist das 0 -- die Spalte gibt es dann, gefuellt wird sie erst vom Reconcile.
+            // Bleibt die Zahl nach einem Sync-Lauf bei 0, hat Schritt 2 nicht gegriffen. (-1 heisst:
+            // die Spalte fehlt noch, Schritt 1 ist auf diesem Server nicht angekommen.)
+            'wiki_key' => avesmapsSourceCoverageCount(
+                $pdo,
+                "SELECT COUNT(*) FROM sources WHERE wiki_key IS NOT NULL AND wiki_key <> ''"
+            ),
+            // Und die Zahl, die den Umfang von Schritt 5 verraet: stehen mehr Zeilen mit Key da als
+            // es verschiedene Keys gibt, ist die Differenz genau die Menge der Zusammenfuehrungen.
+            'wiki_key_distinct' => avesmapsSourceCoverageCount(
+                $pdo,
+                "SELECT COUNT(DISTINCT wiki_key) FROM sources WHERE wiki_key IS NOT NULL AND wiki_key <> ''"
+            ),
         ],
         // Der Kern: trifft eine Wiki-Quelle ein Werk, das wir schon kennen?
         'matches' => [

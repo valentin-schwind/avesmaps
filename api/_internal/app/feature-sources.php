@@ -57,6 +57,24 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
     $addColumn('reference_kind', 'VARCHAR(16) NULL');
     $addColumn('pages', 'VARCHAR(120) NULL');
     $addColumn('note', 'VARCHAR(200) NULL');
+
+    // Step 1 of docs/quellen-wiki-key-instruction.md: a source MAY carry the wiki key of the work
+    // it IS. NULL means "no wiki reference known" and is a valid PERMANENT state -- most rows keep
+    // it (the 539 shop-only sources are expected to, section 6).
+    //
+    // Column and index in ONE statement so a half-applied migration is impossible: the guard below
+    // only checks the column, and a separate index ALTER could be skipped forever if it failed once.
+    //
+    // Plain index, deliberately NOT unique yet: the key only becomes the identity once step 5 has
+    // folded the duplicates away, and today several rows still describe the same work. The UNIQUE
+    // is the last step of the migration, not the first.
+    if (!$columnExists($pdo, 'sources', 'wiki_key')) {
+        $pdo->exec(
+            'ALTER TABLE sources
+                ADD COLUMN wiki_key VARCHAR(190) NULL AFTER url_hash,
+                ADD KEY idx_sources_wiki_key (wiki_key)'
+        );
+    }
 }
 
 // The read used by the public endpoint: approved catalog links PLUS the element's legacy single
@@ -163,13 +181,24 @@ function avesmapsFeatureSourceUpsert(PDO $pdo, string $url, string $label, strin
     $type = in_array($type, $allowed, true) ? $type : 'sonstiges';
     // URL-less identity: synthesize the hash from the stable wiki key instead of the (missing) URL.
     $hash = ($url === '' && $wikiKey !== '') ? hash('sha256', 'wikipub:' . $wikiKey) : hash('sha256', $url);
+    // Step 2: the key is no longer just a hash ingredient -- it is STORED. Until now it was
+    // computed here and thrown away because the column did not exist, which is the whole gap
+    // section 1 of the instruction describes. Both wiki syncs already pass it, so they need no
+    // change; the editor path passes the key avesmapsResolvePublicationIdentityFromUrl proved.
+    //
+    // Fill, never blank: a later caller without a key (an editor adding the same url by hand) must
+    // not erase a key the wiki established. Same one-way rule the label refresh follows.
     $pdo->prepare(
-        "INSERT INTO sources (url, url_hash, label, source_type, is_official, created_by)
-         VALUES (:u, :h, :l, :t, :o, :cb)
+        "INSERT INTO sources (url, url_hash, wiki_key, label, source_type, is_official, created_by)
+         VALUES (:u, :h, :wk, :l, :t, :o, :cb)
          ON DUPLICATE KEY UPDATE
              label = " . ($refreshLabel ? "IF(VALUES(label) = '', label, VALUES(label))" : "IF(label = '', VALUES(label), label)") . ",
-             is_official = VALUES(is_official)"
-    )->execute(['u' => $url, 'h' => $hash, 'l' => $label, 't' => $type, 'o' => $official ? 1 : 0, 'cb' => $userId > 0 ? $userId : null]);
+             is_official = VALUES(is_official),
+             wiki_key = IF(VALUES(wiki_key) IS NULL, wiki_key, VALUES(wiki_key))"
+    )->execute([
+        'u' => $url, 'h' => $hash, 'wk' => $wikiKey !== '' ? $wikiKey : null,
+        'l' => $label, 't' => $type, 'o' => $official ? 1 : 0, 'cb' => $userId > 0 ? $userId : null,
+    ]);
     return (int) $pdo->query('SELECT id FROM sources WHERE url_hash = ' . $pdo->quote($hash))->fetchColumn();
 }
 
