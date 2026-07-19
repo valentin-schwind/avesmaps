@@ -167,6 +167,19 @@ Dieser Bericht ist das Material für die Owner-Entscheidung. **Hier wird nichts 
 **Prüfung:** Der Bericht nennt Zahlen für: mit Key / ohne Key / Zusammenführungen / Konflikte — und listet
 die Konfliktfälle einzeln auf.
 
+> **Das Werkzeug dafür existiert seit 2026-07-19:** `POST /api/edit/map/source-merge.php`
+> `{action, from_source_id, into_source_id}`. `action:"report"` (Berechtigung `edit`) rechnet den
+> Fall durch und **schreibt nichts** — das ist das Material für Schritt 4. `action:"apply"`
+> (Berechtigung `admin`) führt zusammen. Beide Ids kommen vom Aufrufer; nichts wird über Titel oder
+> Slug erraten (Invariante 3). Der Ist-Zustand landet vor dem Trennen in `source_merge_log`
+> (Invariante 4), die neue Verknüpfung wird vor dem Lösen der alten geschrieben (Invariante 5).
+>
+> Der Lauf fasst **zwei Bestände** an, weil eine Quelle einen Ort auf zwei Wegen erreicht: die
+> `feature_sources`-Verknüpfungen **und** die Orte, die dieselbe URL noch im Altfeld
+> `properties.other_source` tragen (die haben gar keine Verknüpfungszeile). Letztere werden zuerst
+> über die vorhandene atomare Übernahme eingesammelt. Wer nur die Verknüpfungen zählt, übersieht die
+> Mehrheit — beim ersten echten Fall waren es 4 gegenüber 33.
+
 ### Schritt 5 — Zusammenführen (der heikle Schritt)
 
 Erst nach Sichtung des Berichts. Für jede Gruppe von Quellen mit gleichem Wiki-Key:
