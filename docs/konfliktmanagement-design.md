@@ -383,13 +383,16 @@ eine Tabelle, welches Teilen erlaubt ist:
 
 ```php
 // Welche Objektart-Paare duerfen sich einen Wiki-Artikel teilen?
-'path|path'       => 'erlaubt',    // Segmente einer Strasse -- so gewollt
-'location|location'=> 'fehler',
-'location|path'   => 'abweichung',
-'label|location'  => 'abweichung', // Stadt + gleichnamige Region: in DSA normal
-'label|label'     => 'abweichung',
+'path|path' => 'erlaubt',   // NUR das: die Segmente EINER Strasse, so gewollt
 // alles Uebrige: 'fehler'
 ```
+
+**Owner-Korrektur 2026-07-20:** typübergreifendes Teilen ist **immer ein Fall**, nicht
+bloß eine Abweichung. „Greifenfurt Stadt" und „Greifenfurt Baronie" sind eben **Ort**
+und **Territorium** — zwei verschiedene Dinge, die nicht dieselbe Identität tragen
+dürfen, auch wenn sie gleich heißen. (Greifenfurt selbst ist im Wiki längst getrennt;
+das Muster gilt trotzdem.) Damit bleibt genau **eine** erlaubte Paarung übrig, und die
+Regel wird einfacher statt komplizierter.
 
 ### Was das am Aufbau ändert
 
@@ -402,6 +405,53 @@ Objektart-Filter bekommt dadurch erst seinen eigentlichen Sinn.
 `adventure.wiki_key`, `citymap.wiki_key` und `sources.wiki_key` liegen in eigenen
 Tabellen und sind **noch nie gegen die Karte geprüft worden**. Erst der erste echte
 Lauf zeigt, wie groß die Überschneidung dort ist.
+
+## 6b. Kein Wiki-Schlüssel ist auch ein Zustand
+
+Owner 2026-07-20: **von Hand angelegte Objekte ohne Wiki-Schlüssel sind potenzielle
+Konflikte** — wir wissen schlicht nicht, ob es im Wiki ein Gegenstück gibt. Stimmt
+unser Schlüssel später mit einem Wiki-Schlüssel überein, darf gemergt werden
+(*Übernehmen* oder *Behalten*); solange nicht, sollen Editoren regelmäßig ein Auge
+darauf haben.
+
+Das ist richtig — und es ist die mit Abstand größte Menge im ganzen Werkzeug:
+
+| Objektart | benannt, ohne Wiki-Link |
+|---|---|
+| Weg | 3721 |
+| Ort | 618 |
+| Kraftlinie | 152 |
+| Region | 70 |
+| **gesamt** | **4561** (nur `map_features`) |
+
+Bei den Wegen sind das **3358 verschiedene Einzelnamen** — also echte benannte Wege,
+keine Segmentwiederholungen.
+
+### 💣 4561 Zeilen sind keine Liste, die jemand durchsieht
+
+Als undifferenzierte Warteschlange wäre das dieselbe Falle wie die 1547 Wegsegmente in
+§6a. Die Menge muss deshalb **nach Handlungsfähigkeit** geteilt werden — und dafür gibt
+es im Bestand bereits genau die richtige Unterscheidung, sie existiert nur für
+Siedlungen:
+
+| bestehende Fallart | Bedeutung | hier |
+|---|---|---|
+| `probable_match` | es gibt einen Wiki-Kandidaten | **Abweichung** — handlungsfähig: *Übernehmen* / *Behalten* |
+| `unresolved_without_candidate` | kein Kandidat gefunden | **Ungeprüft** — Beobachtungsliste, gezählt statt aufgelistet |
+
+Die Kandidatensuche ist ebenfalls vorhanden (Match-Key + `similar_text` +
+`AVESMAPS_WIKI_FUZZY_CUTOFF`, `locations.php:408-420`) — sie läuft heute nur für
+Siedlungen. **Der Auftrag ist also, diese beiden Fallarten auf Wege, Regionen,
+Territorien, Abenteuer und Karten auszuweiten**, nicht etwas Neues zu erfinden.
+
+So bleibt oben eine bearbeitbare Liste („für diese Objekte gibt es einen Wiki-Kandidaten"),
+und darunter ein Zähler mit Einstieg („3358 Wege ohne Wiki-Entsprechung"), den ein
+Editor bei Gelegenheit durchgeht statt ihn als Rückstand vor sich herzuschieben.
+
+> Gegenprobe zur Kandidatensuche: von den 4561 Objekten hat auf der **eigenen Karte**
+> nur ein einziges ein namensgleiches, bereits verknüpftes Gegenstück (Region
+> „Durenwald" ⇄ „Dûrenwald"). Die Kandidaten müssen also aus `wiki_sync_pages` kommen,
+> nicht aus dem Kartenbestand — die Messung von hier aus kann sie nicht vorwegnehmen.
 
 ## 7. Die Regeln zum Start
 
