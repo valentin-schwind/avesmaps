@@ -1399,3 +1399,38 @@
 		overflow: visible;
 	}
 }
+
+/* Einheitliche Knopf-Optik im Konfliktzentrum. Die eingegliederten WikiSync-Faelle bringen ihre
+   gruen/roten Varianten aus dem Panel mit; neben den warmen Knoepfen der neuen Regeln liest sich
+   das wie zwei verschiedene Programme (Owner 2026-07-21). Rot war ausserdem irrefuehrend:
+   „Archivieren“ aendert gar keine Daten. Bewusst NUR innerhalb #conflict-list ueberschrieben --
+   dieselben Klassen im uebrigen WikiSync-Panel bleiben, wie sie sind. */
+#conflict-list .wiki-sync-case__action,
+#conflict-list .wiki-sync-case__choice {
+	padding: 4px 10px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font-size: 12px;
+}
+#conflict-list .wiki-sync-case__action:hover,
+#conflict-list .wiki-sync-case__choice:hover {
+	background: var(--color-button-soft-hover);
+}
+/* Die eine Haupthandlung bleibt hervorgehoben -- gefuellt statt farbig, wie ueberall sonst. */
+#conflict-list .wiki-sync-case__action--primary,
+#conflict-list .wiki-sync-case__choice--accept {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+}
+#conflict-list .wiki-sync-case__action--primary:hover,
+#conflict-list .wiki-sync-case__choice--accept:hover {
+	background: var(--color-button-hover);
+}
+#conflict-list .wiki-sync-case__action--danger {
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}

@@ -115,6 +115,91 @@ const LEGACY_CASE_SEVERITY = {
 	coat_available: "unverified",
 };
 
+// Was jede eingegliederte WikiSync-Fallart bedeutet und was ihre Knoepfe tun. Owner 2026-07-21:
+// die ausfuehrliche Erklaerung an der Regel hat sich bewaehrt, also bekommt sie JEDE Kategorie --
+// "damit jeder Blödmann versteht, welche Art von Konflikten behandelt werden und was die Buttons
+// tun". Wer eine Zeile aendert, aendert damit, was Editoren fuer richtig halten: bitte nur
+// beschreiben, was der Knopf WIRKLICH tut.
+const LEGACY_COMMON_VERBS = [
+	{ label: "Anzeigen", effect: "Springt auf der Karte zu dem Objekt. Ändert nichts." },
+	{ label: "Lösen", effect: "Öffnet den Bearbeiten-Dialog, vorbelegt mit den Wiki-Werten. Erst das Speichern dort schreibt etwas — bis dahin ist nichts verändert." },
+	{ label: "Zurückstellen", effect: "Nimmt den Fall aus „Offen“, ohne Daten zu ändern. Er kommt zurück, sobald sich am Objekt oder im Wiki etwas ändert." },
+	{ label: "Archivieren", effect: "Bewusst so gelassen. Ändert keine Daten und bleibt unter „Archiviert“ auffindbar und umkehrbar." },
+];
+
+const LEGACY_RULE_INFO = {
+	duplicate_wiki_title: {
+		hint: "Mehrere Orte auf der Karte wurden beim Sync demselben Wiki-Artikel zugeordnet. Nur einer kann gemeint sein — die übrigen brauchen einen eigenen Artikel oder gar keinen.",
+		verbs: [
+			{ label: "Akzeptieren", effect: "Erklärt DIESEN Ort zum richtigen Träger des Artikels. Die anderen bleiben, bis du sie einzeln entscheidest." },
+			...LEGACY_COMMON_VERBS.filter((verb) => verb.label !== "Lösen"),
+		],
+	},
+	duplicate_avesmaps_name: {
+		hint: "Zwei oder mehr Orte auf der Karte heißen gleich. Das ist nicht automatisch falsch — es macht aber jede Zuordnung über den Namen unzuverlässig, weil niemand weiß, welcher gemeint ist.",
+		verbs: [
+			{ label: "Anzeigen", effect: "Springt zu dem Ort, damit du siehst, ob es wirklich zwei verschiedene sind." },
+			{ label: "Zurückstellen / Archivieren", effect: "Ändern keine Daten. Sind es tatsächlich zwei verschiedene Orte, ist Archivieren die richtige Antwort — dann sollte einer der beiden einen unterscheidenden Zusatz bekommen." },
+		],
+	},
+	canonical_name_difference: {
+		hint: "Der Ort wurde einem Wiki-Artikel zugeordnet, dessen Titel anders lautet als der Kartenname — etwa „Burg Wolfenstein“ gegenüber „Festung Wolfenstein“. Meistens richtig, gelegentlich ein Fehlgriff.",
+		verbs: LEGACY_COMMON_VERBS,
+	},
+	type_conflict: {
+		hint: "Karte und Wiki sind sich über die Ortsgröße uneinig — die Karte sagt etwa Dorf, das Wiki Kleinstadt. Die Größe bestimmt Symbol und ab welchem Zoom der Ort erscheint.",
+		verbs: LEGACY_COMMON_VERBS,
+	},
+	field_divergence: {
+		hint: "Ein oder mehrere Felder weichen vom Wiki ab (Einwohner, Region, Ruine …). Der Fall sagt nicht, wer recht hat — eigene Angaben sind oft bewusst gesetzt.",
+		verbs: LEGACY_COMMON_VERBS,
+	},
+	coordinate_drift: {
+		hint: "Der Marker steht weit von der Position, die das Wiki angibt. Das ist entweder ein verrutschter Marker oder eine ungenaue Wiki-Koordinate — die Wiki-Positionen sind ausdrücklich gröber als die Karte.",
+		verbs: [
+			{ label: "Wiki-Position übernehmen", effect: "Verschiebt den Marker auf die Wiki-Koordinate. Das ist eine echte Kartenänderung, im Änderungsverlauf umkehrbar." },
+			{ label: "Karte behalten", effect: "Unsere Position bleibt. Archiviert den Fall, ohne etwas zu verschieben." },
+			...LEGACY_COMMON_VERBS.filter((verb) => verb.label === "Anzeigen" || verb.label === "Zurückstellen"),
+		],
+	},
+	probable_match: {
+		hint: "Der Sync hat einen wahrscheinlichen, aber nicht sicheren Wiki-Artikel gefunden. Verknüpft ist noch nichts — das ist ein Vorschlag, keine Feststellung.",
+		verbs: LEGACY_COMMON_VERBS,
+	},
+	unresolved_without_candidate: {
+		hint: "Zu diesem Ort wurde im Wiki nichts Passendes gefunden. Das ist oft völlig in Ordnung: nicht jeder Ort auf der Karte hat einen Artikel.",
+		verbs: [
+			{ label: "Anzeigen", effect: "Springt zu dem Ort. Ändert nichts." },
+			{ label: "Zurückstellen / Archivieren", effect: "Ändern keine Daten. Archivieren heißt hier sinngemäß „hat eben keinen Artikel“ — der Fall bleibt auffindbar, falls später doch einer entsteht." },
+		],
+	},
+	missing_wiki_with_coordinates: {
+		hint: "Das Wiki kennt einen Ort, den unsere Karte nicht hat — und liefert Koordinaten dazu. Er ließe sich also direkt anlegen.",
+		verbs: [
+			{ label: "Lösen", effect: "Öffnet den Anlegen-Dialog mit der Wiki-Position und den Wiki-Werten. Erst das Speichern dort legt den Ort wirklich an." },
+			...LEGACY_COMMON_VERBS.filter((verb) => verb.label === "Zurückstellen" || verb.label === "Archivieren"),
+		],
+	},
+	missing_wiki_without_coordinates: {
+		hint: "Das Wiki kennt einen Ort, den unsere Karte nicht hat — aber ohne Koordinaten. Wo er hingehört, muss von Hand bestimmt werden.",
+		verbs: [
+			{ label: "Auf der Karte setzen", effect: "Du klickst die Stelle auf der Karte an, danach öffnet sich der Anlegen-Dialog. Erst das Speichern legt den Ort an." },
+			...LEGACY_COMMON_VERBS.filter((verb) => verb.label === "Zurückstellen" || verb.label === "Archivieren"),
+		],
+	},
+	coat_available: {
+		hint: "Das Wiki hat ein Wappen, das bei uns fehlt. Achtung: öffentlich gezeigt werden nur gemeinfreie Wappen — ein vorhandenes Wappen heißt nicht automatisch, dass wir es zeigen dürfen.",
+		verbs: LEGACY_COMMON_VERBS,
+	},
+	missing_capital: {
+		hint: "Ein Herrschaftsgebiet nennt im Wiki eine Hauptstadt, die bei uns nicht zugeordnet ist. Betrifft Territorien, nicht Orte.",
+		verbs: [
+			{ label: "Hauptstadt zuweisen", effect: "Verknüpft das Gebiet mit dem gewählten Ort. Echte Änderung, im Editor umkehrbar." },
+			{ label: "Zurückstellen / Archivieren", effect: "Ändern keine Daten. Archivieren passt, wenn das Gebiet schlicht keine Hauptstadt hat." },
+		],
+	},
+};
+
 function getLegacyConflicts() {
 	if (typeof wikiSyncCases === "undefined" || !Array.isArray(wikiSyncCases)) {
 		return [];
@@ -142,11 +227,13 @@ function getLegacyRules(conflicts) {
 			return;
 		}
 		const caseType = conflict.legacy.case_type || "unknown";
+		const info = LEGACY_RULE_INFO[caseType] || {};
 		seen.set(conflict.rule_id, {
 			id: conflict.rule_id,
 			label: conflict.legacy.case_label
 				|| (typeof getWikiSyncCaseTypeLabel === "function" ? getWikiSyncCaseTypeLabel(caseType) : caseType),
-			hint: "Aus dem WikiSync-Lauf. Wird dort entschieden — die Knöpfe im Fall führen den Vorgang aus.",
+			hint: info.hint || "Aus dem WikiSync-Lauf.",
+			verbs: info.verbs || LEGACY_COMMON_VERBS,
 			severity: conflict.severity,
 		});
 	});
