@@ -59,6 +59,11 @@
 			   real marker colours on the map in both themes, not UI chrome that follows the theme. */
 			--hb-place: #cc2f2a;
 			--hb-node: #212121;
+			/* The "is it on the map?" dot in the WikiSync lists. --color-map-presence is pinned
+			   identical in both themes, so the legend below matches the real UI either way.
+			   Note: commit 145a8f58 lost these very dots by aliasing to a name that is not
+			   declared globally -- var() then fails silently. Only real tokens here. */
+			--hb-presence: var(--color-map-presence);
 		}
 		* { box-sizing: border-box; }
 		body { margin: 0; background: var(--hb-bg); color: var(--hb-fg);
@@ -175,6 +180,7 @@
 				</li>
 				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten">Karten-Features</a>
 					<ul>
+						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
 						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen">Siedlungen</a></li>
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie kraftlinie wald gebirge meer">Regionen</a></li>
@@ -370,6 +376,53 @@
 				</ul>
 				<div class="hb-note hb-warn"><strong>Beides löst der Betreiber aus, nicht du.</strong> Ein Dump-Lauf zieht den ganzen Wiki-Bestand durch und belastet den Server erheblich. Wenn dir auffällt, dass ein Sync nötig wäre, sag Bescheid — klick ihn nicht selbst an, und niemals mehrfach hintereinander.</div>
 				<p>Jede Sorten-Liste hat oben dieselben Ansichten: <strong>Alle</strong>, <strong>Platziert</strong> und <strong>Fehlt</strong> — mit der Anzahl in Klammern. „Fehlt" ist deine Arbeitsliste: Dinge, die das Wiki kennt und die Karte noch nicht.</p>
+
+				<h3 id="kreise" class="hb-sub">Der Kreis neben dem Namen</h3>
+				<p>In allen vier Listen steht rechts neben jedem Namen ein kleiner grüner Kreis. Er beantwortet eine einzige Frage: <strong>Ist das schon auf der Karte?</strong> Gefüllt heißt ja, leer heißt nein — und die halb gefüllten sind die interessanten Fälle dazwischen.</p>
+				<p><strong>Achtung:</strong> Derselbe Kreis bedeutet je nach Liste etwas anderes. Bei Siedlungen geht es um die Wiki-Verknüpfung, bei Territorien um die Untergebiete.</p>
+				<table class="hb-table">
+					<tr>
+						<th>Kreis</th><th>Siedlungen</th><th>Territorien</th><th>Regionen &amp; Wege</th>
+					</tr>
+					<tr>
+						<td>
+							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="leerer Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /></svg>
+							<strong>leer</strong>
+						</td>
+						<td>Fehlt auf der Karte — steht nur im Wiki. Das ist deine Arbeit.</td>
+						<td>Gebiet <em>und</em> Untergebiete fehlen auf der Karte.</td>
+						<td>Nicht auf der Karte.</td>
+					</tr>
+					<tr>
+						<td>
+							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="rechts halb gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /><path d="M9 3 A6 6 0 0 1 9 15 Z" fill="var(--hb-presence)" /></svg>
+							<strong>rechte Hälfte</strong>
+						</td>
+						<td>Auf der Karte, aber <strong>ohne Wiki-Verknüpfung</strong>. Der Ort existiert, ihm fehlt nur die Verbindung.</td>
+						<td>Das Gebiet selbst liegt auf der Karte, seine Untergebiete fehlen oder sind unvollständig.</td>
+						<td>—</td>
+					</tr>
+					<tr>
+						<td>
+							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="links halb gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-card)" stroke="var(--hb-presence)" stroke-width="2" /><path d="M9 3 A6 6 0 0 0 9 15 Z" fill="var(--hb-presence)" /></svg>
+							<strong>linke Hälfte</strong>
+						</td>
+						<td>—</td>
+						<td>Das Gebiet ist nur <em>indirekt</em> da: Es hat keine eigene Fläche, aber Untergebiete liegen auf der Karte.</td>
+						<td>—</td>
+					</tr>
+					<tr>
+						<td>
+							<svg width="17" height="17" viewBox="0 0 18 18" role="img" aria-label="voll gefuellter Kreis"><circle cx="9" cy="9" r="6" fill="var(--hb-presence)" stroke="var(--hb-presence)" stroke-width="2" /></svg>
+							<strong>voll</strong>
+						</td>
+						<td>Auf der Karte <em>und</em> mit dem Wiki verbunden. Fertig.</td>
+						<td>Gebiet und alle Untergebiete sind vollständig auf der Karte.</td>
+						<td>Auf der Karte.</td>
+					</tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Bei Territorien zählt der ganze Ast.</strong> Ein Gebiet wird erst voll, wenn auch jedes Untergebiet vollständig ist — und deren Untergebiete ebenso, bis nach unten. Ein Kaiserreich mit einer einzigen fehlenden Baronie bleibt darum halb gefüllt. Das ist kein Fehler, sondern der Hinweis, wo noch Arbeit liegt: Klapp den Ast auf und folge den halben Kreisen nach unten.</div>
+				<div class="hb-note hb-tip"><strong>Im Territorien-Baum</strong> kannst du mit der Maus über dem Kreis stehen bleiben, dann erscheint die Bedeutung im Klartext. In den anderen drei Listen gibt es diesen Hinweis nicht — dafür ist diese Tabelle da.</div>
 
 				<h3 id="siedlungen" class="hb-sub">Siedlungen</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick → Infopanel → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Ort" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Siedlungen</p>
