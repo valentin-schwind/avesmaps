@@ -104,6 +104,90 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
 }
 
 /**
+ * Territories and adventures claim wiki articles too, and they live in their own tables -- so a
+ * settlement and a barony of the same name never met, which is exactly the case the owner raised
+ * first ("Heldenweiler"). Both are read here and thrown into the same collision detector.
+ *
+ * NOT included, deliberately:
+ *  - citymap.wiki_key is a COMPOSITE build key (`index:stadt:quelle:variante`), not a page identity.
+ *    Comparing it against article links would produce pure nonsense.
+ *  - sources.wiki_key IS a publication article, but a shared source catalogue exists precisely so
+ *    that many entities cite ONE publication. Flagging that would be noise, not a finding.
+ *
+ * Each loader is wrapped: a missing table (fresh install, feature never used) must leave the rule
+ * working on whatever else is there, never take the whole list down.
+ *
+ * @return list<array{type:string,id:string,label:string,wiki_url:string}>
+ */
+function avesmapsConflictLoadTerritoryRows(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT t.public_id, t.name, w.wiki_url
+             FROM political_territory t
+             INNER JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
+             WHERE t.is_active = 1 AND w.wiki_url IS NOT NULL AND w.wiki_url <> ''"
+        );
+    } catch (Throwable $exception) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $rows = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+        $rows[] = [
+            'type' => 'territory',
+            'id' => (string) $row['public_id'],
+            'label' => $name,
+            'subtype' => '',
+            'wiki_url' => trim((string) $row['wiki_url']),
+            'position' => null,
+            'claim_source' => 'territory_wiki',
+        ];
+    }
+
+    return $rows;
+}
+
+function avesmapsConflictLoadAdventureRows(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT public_id, title, wiki_url FROM adventure
+             WHERE status = 'approved' AND wiki_url IS NOT NULL AND wiki_url <> ''"
+        );
+    } catch (Throwable $exception) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $rows = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        $rows[] = [
+            'type' => 'adventure',
+            'id' => (string) $row['public_id'],
+            'label' => $title,
+            'subtype' => '',
+            'wiki_url' => trim((string) $row['wiki_url']),
+            'position' => null,
+            'claim_source' => 'adventure',
+        ];
+    }
+
+    return $rows;
+}
+
+/**
  * First coordinate of a feature as [lat, lng], or null. GeoJSON stores [x, y] = [lng, lat] and
  * Leaflet wants [lat, lng] (AGENTS.md §5) -- swapped here ONCE so no caller has to remember.
  * A line takes its first vertex: good enough to fly the map there.
@@ -332,8 +416,16 @@ function avesmapsConflictRuleCatalog(): array {
 function avesmapsConflictDetectAll(PDO $pdo): array {
     $rows = avesmapsConflictLoadMapRows($pdo);
     $wikiTitles = avesmapsConflictLoadWikiTitles($pdo);
+    // The collision rule sees EVERYTHING that claims an article -- map, territories, adventures --
+    // because the wiki namespace is global (§6a). The watchlist rule stays on map features: a
+    // territory without a wiki key is a different question with a different answer.
+    $claimRows = array_merge(
+        $rows,
+        avesmapsConflictLoadTerritoryRows($pdo),
+        avesmapsConflictLoadAdventureRows($pdo)
+    );
     $conflicts = array_merge(
-        avesmapsConflictRuleSharedArticle($rows, $wikiTitles),
+        avesmapsConflictRuleSharedArticle($claimRows, $wikiTitles),
         avesmapsConflictCollapsePathsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles))
     );
 

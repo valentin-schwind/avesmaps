@@ -155,6 +155,32 @@ function avesmapsConflictPathNameIsAuto(string $name, array $subtypes): bool {
 }
 
 /**
+ * Comparison key for "is this the same wiki article?".
+ *
+ * The claim arrives in different shapes depending on where it is stored -- map features keep a URL,
+ * territories and adventures keep a URL next to a slug, and the same page can be written with
+ * underscores or percent-escapes. Comparing raw strings would let "Heldenweiler" and
+ * "Heldenweiler" miss each other purely on spelling, which is the one thing this rule exists to
+ * catch. So everything collapses to the decoded page title, case-folded.
+ *
+ * A non-wiki URL has no page title and keeps its full URL as its key -- two objects pointing at the
+ * same foreign link are still the same claim.
+ */
+function avesmapsConflictArticleKey(string $wikiUrl): string {
+    $wikiUrl = trim($wikiUrl);
+    if ($wikiUrl === '') {
+        return '';
+    }
+    if (preg_match('~/wiki/([^?#]+)~i', $wikiUrl, $match) === 1) {
+        $title = str_replace('_', ' ', rawurldecode($match[1]));
+
+        return mb_strtolower(trim($title), 'UTF-8');
+    }
+
+    return mb_strtolower(rtrim($wikiUrl, '/'), 'UTF-8');
+}
+
+/**
  * Group rows by the wiki article they claim and return only the groups that are a real conflict.
  *
  * A row is ['type' => 'location'|'path'|..., 'id' => string, 'label' => string, 'wiki_url' => string].
@@ -163,19 +189,22 @@ function avesmapsConflictPathNameIsAuto(string $name, array $subtypes): bool {
  * @return list<array{wiki_url:string, parties:list<array{type:string,id:string,label:string}>, severity:string}>
  */
 function avesmapsConflictFindSharedWikiUrls(array $rows): array {
-    $byUrl = [];
+    $byArticle = [];
+    $displayUrl = [];
     foreach ($rows as $row) {
         $url = trim((string) ($row['wiki_url'] ?? ''));
         $type = trim((string) ($row['type'] ?? ''));
         $id = trim((string) ($row['id'] ?? ''));
-        if ($url === '' || $type === '' || $id === '') {
+        $key = avesmapsConflictArticleKey($url);
+        if ($key === '' || $type === '' || $id === '') {
             continue;
         }
-        $byUrl[$url][] = ['type' => $type, 'id' => $id, 'label' => (string) ($row['label'] ?? '')];
+        $byArticle[$key][] = ['type' => $type, 'id' => $id, 'label' => (string) ($row['label'] ?? '')];
+        $displayUrl[$key] ??= $url;
     }
 
     $conflicts = [];
-    foreach ($byUrl as $url => $parties) {
+    foreach ($byArticle as $key => $parties) {
         if (count($parties) < 2) {
             continue;
         }
@@ -183,7 +212,7 @@ function avesmapsConflictFindSharedWikiUrls(array $rows): array {
         if ($verdict === 'legitimate') {
             continue;
         }
-        $conflicts[] = ['wiki_url' => (string) $url, 'parties' => $parties, 'severity' => $verdict];
+        $conflicts[] = ['wiki_url' => (string) $displayUrl[$key], 'parties' => $parties, 'severity' => $verdict];
     }
 
     return $conflicts;

@@ -92,6 +92,29 @@ foreach ($found as $conflict) {
     assert(count($conflict['parties']) === 2);
 }
 
+// ---- 4b. the article key: same page, different spelling -----------------------------------------
+// The claim arrives in different shapes per table (map features vs territories vs adventures), so
+// raw string comparison would let the same article miss itself and the rule would find nothing.
+assert(avesmapsConflictArticleKey('https://w/wiki/Heldenweiler') === 'heldenweiler');
+assert(avesmapsConflictArticleKey('https://w/wiki/Feste_Hohenstein') === 'feste hohenstein');
+assert(avesmapsConflictArticleKey('https://w/wiki/Feste%20Hohenstein') === 'feste hohenstein');
+assert(avesmapsConflictArticleKey('https://w/wiki/Feste_Hohenstein') === avesmapsConflictArticleKey('https://w/wiki/Feste%20Hohenstein'));
+// Anchors and query strings are not part of the identity.
+assert(avesmapsConflictArticleKey('https://w/wiki/Havena#Hafen') === 'havena');
+// A non-wiki link keeps its whole URL: two objects on the same foreign link still collide.
+assert(avesmapsConflictArticleKey('https://herzogtum-weiden.net/x/') === 'https://herzogtum-weiden.net/x');
+assert(avesmapsConflictArticleKey('') === '');
+
+// A territory and a settlement of the same name now actually meet -- they live in different tables
+// and never did before (owner's "Heldenweiler").
+$crossTable = [
+    ['type' => 'location', 'id' => 'l1', 'label' => 'Heldenweiler', 'wiki_url' => 'https://w/wiki/Heldenweiler'],
+    ['type' => 'territory', 'id' => 't1', 'label' => 'Heldenweiler', 'wiki_url' => 'https://w/wiki/Heldenweiler'],
+];
+$crossFound = avesmapsConflictFindSharedWikiUrls($crossTable);
+assert(count($crossFound) === 1);
+assert($crossFound[0]['severity'] === 'error');
+
 // ---- 5. the fingerprint ------------------------------------------------------------------------
 $a = [['type' => 'location', 'id' => 'l1'], ['type' => 'territory', 'id' => 't1']];
 $b = [['type' => 'territory', 'id' => 't1'], ['type' => 'location', 'id' => 'l1']];
