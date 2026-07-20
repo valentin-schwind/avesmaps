@@ -231,56 +231,60 @@ schon sichtbar. Angezeigt wird nur der **zugewiesene Name**, als Prüfhilfe.
 Schlüssel/Wert-Speicher, Standard-Polarität „aktiviert"). Drei Zeilen neben
 `api/_internal/app/citymaps.php:52`.
 
-## 4. Das Zeichnen — was wiederverwendet wird
+## 4. Das Zeichnen — kopieren, nicht umbauen
 
-Der Zustand ist besser als erhofft: **die eigentlichen Zeichenwerkzeuge sind
-politisch weitgehend sauber.** Gemessen an politischen Referenzen je Datei:
+> 🔴 **Harte Regel des Owners: die politische Karte und die Territorien werden
+> weder angetastet noch verändert. Erlaubt ist ausschließlich, die Werkzeuge von
+> dort zu KOPIEREN.**
+>
+> Kein politisches File wird bearbeitet — und keines wird zur Laufzeit aufgerufen,
+> auch nicht die scheinbar reine Geometrie-Mathematik. Ein Aufruf koppelt in die
+> Gegenrichtung: wer später eine Boolean-Funktion für die Politik anpasst, ändert
+> sonst still das Ökosystem mit.
 
-**Ohne jede Kopplung, direkt nutzbar (~1.000 Zeilen):**
+Die Vermessung der Zeichenwerkzeuge bleibt trotzdem wertvoll — sie sagt, **wie
+sauber sich abschreiben lässt**. Politische Referenzen je Datei:
 
-| Was | Datei | Bedingung |
+| Was | Datei | politische Refs |
 |---|---|---|
-| 35 Geometrie-Helfer | `map-features-region-geometry-helpers.js` | duck-typed auf `{layer, layers}` |
-| Vertex-Griffe | `map-features-region-edit-handles.js` | braucht 2 Injektionen (s. u.) |
-| Kanten-Unterteilung | `map-features-region-edit-edge-controls.js` | dieselben 2 |
-| Boolean-Geometrie | `map-features-region-boolean-geometry.js:1-63` | rein rechnerisch |
+| 35 Geometrie-Helfer | `map-features-region-geometry-helpers.js` | **0** |
+| Vertex-Griffe | `map-features-region-edit-handles.js` | **0** |
+| Kanten-Unterteilung | `map-features-region-edit-edge-controls.js` | **0** |
+| Boolean-Geometrie | `map-features-region-boolean-geometry.js:1-63` | **0** |
+| Vorschau, Hervorhebung, Chip | 3 kleine Dateien, 113 Zeilen | **0** |
 | Schnitt-Mathematik | `map-features-region-edit-ops.js:203-240` | rein rechnerisch |
 | Operations-Berechnung | `map-features-region-operation-pipeline.js:57-78` | rein rechnerisch |
-| Vorschau, Hervorhebung, Chip | 3 kleine Dateien | 113 Zeilen zusammen |
 
-**Der einzige Unterscheider im ganzen System ist `regionEntry.source`**
-(`map-features-region-feature-normalization.js:22`). 19 Dateien verzweigen darauf —
-aber immer als **Verweigerung**, nie als Verteilung. Ein dritter Wert würde derzeit
-überall abgelehnt.
+Diese Dateien enthalten **generisches Polygon-Handwerk** — Ecken ziehen, Kanten
+unterteilen, Ringe verschneiden. Politisch daran ist nichts. Sie lassen sich fast
+wörtlich abschreiben, und die Kopien werden dabei **kleiner**, weil der ganze
+politische Apparat wegfällt (Hierarchie, Zoom-Bänder, BF-Zeitstrahl, abgeleitete
+Grenzen, Streitgebiete).
 
-### Die acht Nahtstellen
+> **Vollständige Kopierliste — Vorlage, Zeilenzahl, Zielgröße, was wegfällt:**
+> `oekosystem-r2-auftrag.md` §2. Zusammen rund 1.200 Zeilen Ökosystem-Zeichenschicht
+> aus rund 2.300 Zeilen Vorlage.
 
-Statt `source` weiter zu verzweigen: ein **Entitäts-Deskriptor**
-`{sourceKey, repository, reloadFn, layerRegistry, paneName, labels}`, der durch
-diese Stellen gereicht wird:
+### Was daraus folgt
 
-1. **`activeRegionGeometryEdit`** (`js/app/runtime-state.js:166`) — der Singleton,
-   den der gesamte Vertex-Editor liest. Entweder bekommt er ein `entity`-Feld, oder
-   es läuft eine zweite Instanz. **Das ist die folgenreichste Entscheidung im
-   ganzen Vorhaben** und gehört vor Baubeginn getroffen.
-2. **`saveRegionGeometry`** (`map-features-region-crud.js:75`) — die
-   Zwei-Wege-Verzweigung wird Deskriptor-Aufruf. *Jedes* wiederverwendete Werkzeug
-   endet hier.
-3. **`applySharedBoundaryVertexMove`** (`:49`, Filter `:53`) — muss auf die Quelle
-   des *Aufrufers* filtern statt auf das Literal.
-4. **Die fünf Payload-Bauer** (`map-features-region-payload-builders.js`) — reine
-   `regionEntry → {action, …}`-Funktionen, die natürliche Parametrisierungsstelle.
-5. **`persistRegionOperationResult`** (`-region-operation-pipeline.js:80`) +
-   `finishPendingRegionOperation` `:93` — Repository und Reload tauschen; die
-   übrigen zwei Pipeline-Stufen brauchen nur eine gelockerte Wache.
-6. **Die 19 `source`-Wachen** — aus Verweigerungen werden Fähigkeitsprüfungen.
-   Ökosystem hat **keine** Hierarchie, keine abgeleiteten Außengrenzen, keinen
-   BF-Zeitstrahl; mehrere Werkzeuge müssen also **absichtlich** abgeschaltet werden,
-   nicht versehentlich.
-7. **`resolveOverlappingRegionLayerSelection`** (`-region-overlap-selection.js:83`).
-8. **`normalizeRegionFeature`** (`-region-feature-normalization.js:6`) — rund 40 der
-   55 Felder sind politisch. Ökosystem braucht einen eigenen Normalisierer mit
-   demselben *strukturellen* Vertrag (`layer`, `layers`, `label`, `handles`, `source`).
+`regionEntry.source` (`map-features-region-feature-normalization.js:22`) ist der
+Unterscheider, auf den 19 Dateien verzweigen — **immer als Verweigerung, nie als
+Verteilung.** Ein früherer Entwurf wollte daraus Fähigkeitsprüfungen machen und
+einen Entitäts-Deskriptor durch acht Nahtstellen reichen.
+
+**Das ist gestrichen.** Ökosystem läuft nie durch die politischen Pfade, also
+sehen deren Wachen es nie. Damit entfallen ersatzlos:
+
+- der Deskriptor und die acht Nahtstellen
+- die Frage, ob `activeRegionGeometryEdit` ein `entity`-Feld bekommt — Ökosystem
+  hat schlicht seine **eigene** Zustandsvariable daneben
+- die Sorge um die sieben zur Laufzeit überschriebenen Vertex-Handler; die
+  überschreiben *die politischen*, unsere sind unberührt
+
+Der Preis ist **Drift** — zwei Vertex-Editoren, die auseinanderlaufen können.
+Bewusst in Kauf genommen: die Kopien sind kleiner als ihre Vorbilder, und falls
+die beiden je zusammengeführt werden, macht man das später mit zwei sichtbaren
+Beispielen statt heute blind.
 
 ## 5. Der Endpoint
 
@@ -410,16 +414,17 @@ ein Moduswechsel hin und zurück nichts kaputt macht.
 
 ### R2 — Erste Geometrie
 
-Tabellen, Endpoint, Repository, der Entitäts-Deskriptor und die acht Nahtstellen —
-dann Zeichnen: Kontextmenü, Fläche anlegen, Ecken ziehen, Kante teilen.
+Tabellen, Endpoint, Repository — dann die eigene Zeichenschicht, abgeschrieben von
+den politischen Werkzeugen (§4): Kontextmenü, Fläche anlegen, Ecken ziehen, Kante
+teilen.
 
-*Fertig, wenn:* eine gezeichnete Fläche gespeichert wird, den Reload überlebt und
-die politischen Tests unverändert grün sind.
+*Fertig, wenn:* eine gezeichnete Fläche gespeichert wird, den Reload überlebt —
+und `git status` **keine Änderung an politischen Dateien** zeigt.
 
-Das ist der große Brocken — rund 2.100 Zeilen neu und 500 umgebaut, und damit zu
-groß für eine Sitzung. **`oekosystem-r2-auftrag.md` schneidet R2 in vier einzeln
-abnehmbare Stufen** (Daten+API → Darstellung → Nahtstellen → Zeichnen) und
-entscheidet die Singleton-Frage aus §11. Dort stehen auch die fertigen Prompts.
+Das ist der große Brocken — rund **2.000 Zeilen neu, null geändert** — und damit zu
+groß für eine Sitzung. **`oekosystem-r2-auftrag.md` schneidet R2 in drei einzeln
+abnehmbare Stufen** (Daten+API → Darstellung → Zeichnen) und enthält die
+vollständige Kopierliste sowie die fertigen Prompts.
 
 ### R3 — Der Owner zeichnet einen Wald
 
@@ -457,13 +462,20 @@ die Übersicht entworfen (§8) — nicht vorher auf Verdacht.
 > **modular**. Diese Stufen liefern Flächen mit Eigenschaften, sonst nichts — und
 > solange kein Abnehmer dranhängt, kann auch keiner kaputtgehen.
 
-## 11. Offene Entscheidung vor Baubeginn
+## 11. Die Entscheidung, die keine mehr ist
 
-**Zweite Instanz oder gemeinsamer Singleton für `activeRegionGeometryEdit`?**
-Zwei Instanzen sind sauberer getrennt, aber die überschriebenen Handler
-(Falle 2) lesen den Singleton direkt — bei zwei Instanzen müssten sie ebenfalls
-parametrisiert werden. Ein gemeinsamer Singleton mit `entity`-Feld ist der
-kleinere Eingriff, koppelt aber beide Editoren aneinander.
+Ein früherer Stand dieses Dokuments hielt hier eine offene Frage fest: bekommt
+`activeRegionGeometryEdit` (`js/app/runtime-state.js:166`) ein `entity`-Feld, oder
+läuft eine zweite Instanz?
 
-Das ist die Stelle, an der ein falscher Griff später teuer wird. Sie gehört
-entschieden, bevor E2 anfängt.
+**Die Frage existierte nur unter der Annahme, dass wir den politischen Zustand
+mitbenutzen.** Mit der harten Regel aus §4 fällt sie weg: Ökosystem bekommt seine
+**eigene** Zustandsvariable daneben, additiv, und der politische Singleton bleibt
+unangetastet.
+
+Es bleibt eine Lehre, die weiterträgt:
+
+> Die naheliegendste Frage beim Erweitern eines Systems — „wie parametrisiere ich
+> das Vorhandene?" — setzt voraus, dass Erweitern und Ändern dasselbe sind. In
+> einer Anwendung ohne Build-Schritt, wo alles global ist, sind sie es nicht.
+> **Danebenstellen ist oft billiger als Umbauen, und immer sicherer.**
