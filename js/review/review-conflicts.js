@@ -11,6 +11,9 @@
 let conflictData = { rules: [], conflicts: [], summary: null, typeLabels: {} };
 let conflictFilter = { type: "", severity: "", status: "open" };
 let conflictLoading = false;
+// Loaded once per page, not once per open: reopening the dialog must not re-walk the table, but an
+// editor should never have to press a button to see anything at all. "Neu prüfen" forces a refresh.
+let conflictsLoadedOnce = false;
 
 const CONFLICT_SEVERITY_LABELS = {
 	error: "Fehler",
@@ -42,8 +45,19 @@ async function loadConflicts({ rescan = false } = {}) {
 	}
 	const button = document.getElementById("conflict-rescan");
 	conflictLoading = true;
+	conflictsLoadedOnce = true;
 	if (button) {
 		setWikiSyncButtonState(button, { label: "Prüft …", running: true });
+	}
+	// The first run walks every active map feature, so say so instead of showing an empty list that
+	// looks like "no conflicts".
+	const listElement = getConflictListElement();
+	if (listElement && conflictData.conflicts.length < 1) {
+		listElement.textContent = "";
+		const busy = document.createElement("p");
+		busy.className = "conflict-empty";
+		busy.textContent = "Prüft den Datenbestand …";
+		listElement.appendChild(busy);
 	}
 	try {
 		const data = await submitConflictAction("list");

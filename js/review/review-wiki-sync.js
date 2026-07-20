@@ -47,6 +47,13 @@ function setWikiSyncConflictsDialogOpen(isOpen) {
 	syncModalDialogBodyState();
 	if (isOpen) {
 		document.getElementById("wiki-sync-conflicts-dialog")?.focus();
+		// Load on first open so the dialog is never empty for no reason. The scan is one walk over
+		// map_features -- the same table map-features.php walks on every visitor page load -- so it
+		// does not warrant making an editor press a button to see anything. Subsequent opens reuse
+		// the result; "Neu prüfen" is the explicit refresh.
+		if (typeof conflictsLoadedOnce !== "undefined" && !conflictsLoadedOnce && typeof loadConflicts === "function") {
+			void loadConflicts();
+		}
 	}
 }
 
