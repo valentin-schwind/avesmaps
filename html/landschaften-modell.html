@@ -106,14 +106,21 @@
 		.legend { margin-top: 14px; font-size: 13px; color: var(--ls-muted); display: flex; flex-wrap: wrap; gap: 20px; }
 		.legend i { display: inline-block; width: 22px; height: 3px; vertical-align: middle; margin-right: 7px; border-radius: 2px; }
 		.note { margin-top: 14px; padding: 11px 14px; background: var(--ls-soft); border: 1px solid var(--ls-line); border-radius: var(--radius-md); font-size: 13.5px; }
-		.foot { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--color-divider); font-size: 13px; color: var(--ls-muted); }
-		.foot code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+		.foot { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--color-divider); font-size: 15px; }
+		.foot h2 { font-size: 17px; color: var(--ls-strong); margin: 20px 0 4px; font-weight: 600; }
+		.foot h2:first-child { margin-top: 4px; }
+		.foot p { margin: 0 0 9px; max-width: 62ch; }
+		.foot code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+		.foot details { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--color-divider); color: var(--ls-muted); }
+		.foot details p { font-size: 14px; }
+		.foot summary { cursor: pointer; color: var(--ls-accent); font-size: 14px; margin-bottom: 8px; }
+		.foot summary:hover { text-decoration: underline; }
 	</style>
 </head>
 <body>
 <div class="wrap">
 	<h1>Landschaften — zwei Ebenen, ein Umschalter</h1>
-	<p class="sub">Modellskizze zum geplanten Landschaften-Layer. Ecken und Gipfel ziehen. Die inaktive Ebene bleibt sichtbar, nimmt aber keine Klicks an — die roten Punkte sind die Route und gehören keiner der beiden Ebenen.</p>
+	<p class="sub">Ein Vorschlag, noch nichts Gebautes — zum Ausprobieren und Zerpflücken. Zieh an den Ecken, an den Gipfeln und an der Route; die Zahlen unten rechnen live mit. Die inaktive Ebene bleibt sichtbar, nimmt aber keine Klicks an.</p>
 
 	<div class="bar">
 		<div class="grp">
@@ -162,9 +169,25 @@
 	<div class="note" id="note"></div>
 
 	<div class="foot">
-		<p><strong>Was hier gerechnet wird.</strong> Das Gelände ist eine Summe kompakt getragener Buckel — <code>Σ a·(1−q²)³</code> —, auf einem verwackelten Raster erzeugt und auf den eingegebenen Höchstwert normiert. Jeder Buckel endet exakt an seinem Radius, deshalb ist die Fußhöhe am Polygonrand automatisch null, ohne Maske und ohne Beschneiden. Die Gipfel sind Buckel mit voller Amplitude; ihr Radius bleibt unter dem 1,118-fachen Gipfelabstand, wodurch zwischen zwei Gipfeln zwingend ein Sattel entsteht statt eines Grats.</p>
-		<p>Das Tempo folgt Toblers Wanderfunktion, normiert auf 1,0 in der Ebene, mit <code>1 Karteneinheit = 3000 Schritt</code>. Der Bewuchs multipliziert isotrop — in jede Richtung gleich. Die Steigung wirkt gerichtet.</p>
-		<p><strong>Zwei Regler mit echter Wirkung.</strong> „Buckel“ ist kein Kosmetikschalter: mehr erfundenes Geländedetail verlängert systematisch die Reisezeit, weil die Tempokurve konvex ist. „Neu würfeln“ gibt denselben Gipfeln ein anderes Gelände bei gleicher Höhe.</p>
+		<h2>Was du einstellen würdest</h2>
+		<p>Drei Dinge, mehr nicht: den <strong>Umriss</strong> des Gebirges, die <strong>Höhe des höchsten Punktes</strong> — die steht im Wiki, etwa „bis zu 9.000 Schritt“ — und wo die <strong>bekannten Gipfel</strong> liegen. Die Gipfel liegen ohnehin schon als Beschriftung auf der Karte; das Modell benutzt dieselben Punkte, es legt keine zweiten an.</p>
+
+		<h2>Woher die Hügel kommen, die niemand gesetzt hat</h2>
+		<p>Zwischen den Gipfeln würfelt die Karte Gelände dazu — Kuppen, Hänge, Senken. <strong>Nicht bei jedem Aufruf neu:</strong> dieselbe Eingabe ergibt immer dasselbe Gelände. Ein anderes entsteht erst, wenn du den Umriss veränderst, einen Gipfel verschiebst oder ausdrücklich auf „Neu würfeln“ drückst.</p>
+		<p>Der Grund ist Handarbeit. Damit eine Route eine brauchbare Steigung bekommt, braucht sie mehr Stützpunkte, als jemand von Hand setzen möchte. Statt fünfzig Hügel zu klicken, setzt du die drei, die im Wiki stehen — der Rest füllt sich plausibel auf. Und der <strong>Sattel</strong> zwischen zwei Gipfeln entsteht dabei von selbst; auch den muss niemand einzeichnen.</p>
+
+		<h2>Was davon erfunden ist — und was nie behauptet wird</h2>
+		<p>Erfunden ist alles zwischen den Gipfeln. Deshalb wird <strong>keine dieser Höhen jemals als Zahl angezeigt</strong>. Sichtbar wird nur, was aus dem Wiki stammt, und was daraus für die Reise folgt: dass der Weg hinauf länger dauert als hinab. Eine erfundene Höhe darf die Reisezeit beeinflussen — sie darf nicht so aussehen, als stünde sie irgendwo geschrieben.</p>
+
+		<h2>„Buckel“ ist kein Geschmacksregler</h2>
+		<p>Je mehr erfundenes Detail im Gelände steckt, desto länger wird die Reisezeit — systematisch, nicht zufällig. Zieh den Regler von 0 auf 40 und sieh dem Gesamtfaktor beim Klettern zu. Die Zahl ist deshalb eine <em>Festlegung</em>, die einmal getroffen und dann in Ruhe gelassen wird, kein Knopf zum Hübschmachen.</p>
+
+		<details>
+			<summary>Für die Neugierigen: die Rechnung dahinter</summary>
+			<p>Das Gelände ist eine Summe kompakt getragener Buckel — <code>Σ a·(1−q²)³</code> —, auf einem verwackelten Raster erzeugt und auf den eingegebenen Höchstwert normiert. Jeder Buckel endet exakt an seinem Radius, deshalb ist die Höhe am Polygonrand automatisch null, ohne Maske und ohne Beschneiden. Die Gipfel sind Buckel mit voller Amplitude; ihr Radius bleibt unter dem 1,118-fachen Gipfelabstand — das ist es, was zwischen zwei Gipfeln zwingend einen Sattel erzwingt statt eines Grats, wie ihn ein Dreiecksnetz dort hinlegen würde.</p>
+			<p>Das Tempo folgt Toblers Wanderfunktion, normiert auf 1,0 in der Ebene, mit <code>1 Karteneinheit = 3000 Schritt</code>. Der Bewuchs multipliziert <em>isotrop</em> — in jede Richtung gleich. Die Steigung wirkt <em>gerichtet</em>. Dass mehr Buckel die Reise verlängern, liegt daran, dass die Tempokurve konvex ist: Umwege nach oben kosten mehr, als Umwege nach unten einbringen.</p>
+			<p>Eine Ehrlichkeit zum Schluss: bei einer <em>vollen</em> Querung sind Anstieg und Abstieg gleich groß, der Richtungsunterschied hebt sich in der Gesamtzahl also fast auf. Er steckt in jedem einzelnen Pfeil, nicht im Endergebnis — sichtbar wird er erst bei Routen, die im Gebirge anfangen oder enden.</p>
+		</details>
 	</div>
 </div>
 
