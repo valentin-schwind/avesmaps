@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Avesmaps · Landschaften — Modellskizze</title>
+	<meta name="robots" content="noindex, nofollow" />
+	<script>
+		/* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved
+		   choice wins, otherwise follow the browser/OS scheme. Runs before the stylesheet paints so the
+		   page never flashes the wrong theme. Same guard as html/editor-handbuch.html. */
+		(function () {
+			function isDark() {
+				var saved = null;
+				try { saved = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+				if (saved === "dark") { return true; }
+				if (saved === "light") { return false; }
+				return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+			}
+			function apply() {
+				if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+				else { document.documentElement.removeAttribute("data-theme"); }
+			}
+			apply();
+			if (window.matchMedia) {
+				var mq = window.matchMedia("(prefers-color-scheme: dark)");
+				if (mq.addEventListener) { mq.addEventListener("change", apply); }
+				else if (mq.addListener) { mq.addListener(apply); }
+			}
+		})();
+	</script>
+	<link rel="stylesheet" href="/css/base/fonts.css">
+	<!-- The real design tokens. The deploy stamps this reference with a content hash, so it busts
+	     itself whenever tokens.css changes -- nothing to bump by hand.
+	     See docs/asset-caching-and-versioning.md. -->
+	<link rel="stylesheet" href="/css/base/tokens.css">
+	<style>
+		/* The local --ls-* names are ALIASES of the real design tokens (css/base/tokens.css), not a
+		   pinned palette. Every chrome rule below therefore follows light/dark without being rewritten.
+		   See AGENTS.md sec.12 -- never hardcode a colour here. */
+		:root {
+			--ls-bg: var(--color-page-bg);
+			--ls-fg: var(--color-text);
+			--ls-strong: var(--color-text-strong);
+			--ls-muted: var(--color-text-muted);
+			--ls-line: var(--color-border);
+			--ls-line-strong: var(--color-border-strong);
+			--ls-card: var(--color-panel);
+			--ls-soft: var(--color-panel-soft);
+			--ls-inset: var(--color-panel-muted);
+			--ls-accent: var(--color-link);
+			--ls-btn: var(--color-button);
+			--ls-btn-text: var(--color-button-text);
+			--ls-max: 1180px;
+
+			/* Map symbols and the elevation ramp. DELIBERATELY LITERAL: this is a legend that has to
+			   match how the terrain reads on the map itself, in both themes -- it is data, not UI
+			   chrome. A hypsometric ramp cannot be tokenised meaningfully, and a route line that
+			   flipped colour with the theme would stop being recognisable. Same reasoning as the map
+			   symbols in html/editor-handbuch.html. */
+			--ls-topo: #6b5c47;
+			--ls-veg: #4f6139;
+			--ls-veg-fill: #6b7f52;
+			--ls-route: #b4442e;
+		}
+
+		* { box-sizing: border-box; }
+		body {
+			margin: 0; padding: 20px; background: var(--ls-bg); color: var(--ls-fg);
+			font-family: "Cormorant Garamond", Georgia, serif; font-size: 15px; line-height: 1.55;
+		}
+		.wrap { max-width: var(--ls-max); margin: 0 auto; }
+		h1 { font-size: 22px; margin: 0 0 4px; color: var(--ls-strong); }
+		.sub { color: var(--ls-muted); font-size: 14px; margin: 0 0 18px; }
+		.ui { font-family: system-ui, "Segoe UI", sans-serif; }
+
+		.bar {
+			display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+			padding: 12px 14px; background: var(--ls-card); border: 1px solid var(--ls-line);
+			border-radius: var(--radius-md); margin-bottom: 14px;
+			font-family: system-ui, "Segoe UI", sans-serif; font-size: 13px;
+		}
+		.grp { display: flex; align-items: center; gap: 8px; }
+		.grp > label { font-size: 11.5px; color: var(--ls-muted); white-space: nowrap; }
+
+		.seg { display: flex; border: 1px solid var(--ls-line); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-soft); }
+		.seg button { border: 0; background: transparent; color: var(--ls-muted); cursor: pointer; padding: 7px 16px; font: 600 12.5px/1 system-ui, sans-serif; }
+		.seg button.on { background: var(--ls-btn); color: var(--ls-btn-text); }
+
+		input[type=range] { width: 118px; accent-color: var(--ls-btn); }
+		input[type=number] { width: 76px; padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
+		.btn { border: 1px solid var(--ls-line-strong); background: var(--ls-soft); color: var(--ls-fg); border-radius: var(--radius-md); padding: 6px 12px; font: 12.5px system-ui, sans-serif; cursor: pointer; }
+		.btn:hover { border-color: var(--ls-accent); }
+		.unit { font-size: 12px; color: var(--ls-muted); }
+
+		.stage { position: relative; height: 540px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-inset); line-height: 0; }
+		.stage canvas, .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+		.stage svg { cursor: crosshair; }
+
+		.out { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; font-family: system-ui, sans-serif; }
+		.card { flex: 1 1 190px; background: var(--ls-card); border: 1px solid var(--ls-line); border-radius: var(--radius-md); padding: 10px 12px; }
+		.card b { display: block; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ls-muted); font-weight: 600; margin-bottom: 3px; }
+		.card span { font-size: 20px; font-weight: 700; color: var(--ls-strong); }
+		.card em { font-style: normal; font-size: 11.5px; color: var(--ls-muted); display: block; margin-top: 2px; }
+
+		.legend { margin-top: 14px; font-size: 13px; color: var(--ls-muted); display: flex; flex-wrap: wrap; gap: 20px; }
+		.legend i { display: inline-block; width: 22px; height: 3px; vertical-align: middle; margin-right: 7px; border-radius: 2px; }
+		.note { margin-top: 14px; padding: 11px 14px; background: var(--ls-soft); border: 1px solid var(--ls-line); border-radius: var(--radius-md); font-size: 13.5px; }
+		.foot { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--color-divider); font-size: 13px; color: var(--ls-muted); }
+		.foot code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+	</style>
+</head>
+<body>
+<div class="wrap">
+	<h1>Landschaften — zwei Ebenen, ein Umschalter</h1>
+	<p class="sub">Modellskizze zum geplanten Landschaften-Layer. Ecken und Gipfel ziehen. Die inaktive Ebene bleibt sichtbar, nimmt aber keine Klicks an — die roten Punkte sind die Route und gehören keiner der beiden Ebenen.</p>
+
+	<div class="bar">
+		<div class="grp">
+			<label>Ebene</label>
+			<div class="seg">
+				<button id="bTopo" class="on">Topographie</button>
+				<button id="bVeg">Vegetation</button>
+			</div>
+		</div>
+		<div class="grp">
+			<label>Höchster Punkt</label>
+			<input type="number" id="hmax" value="5200" min="200" max="9000" step="100">
+			<span class="unit">Schritt</span>
+		</div>
+		<div class="grp">
+			<label>Buckel</label>
+			<input type="range" id="bumps" min="0" max="40" value="18">
+			<span class="unit" id="bumpsN" style="width:20px">18</span>
+		</div>
+		<div class="grp">
+			<label>Bewuchs Wald ×</label>
+			<input type="range" id="veg" min="100" max="220" value="130">
+			<span class="unit" id="vegN" style="width:30px">1,30</span>
+		</div>
+		<button class="btn" id="reroll">Neu würfeln</button>
+	</div>
+
+	<div class="stage">
+		<canvas id="cv"></canvas>
+		<svg id="ov" viewBox="0 0 900 540" preserveAspectRatio="none"></svg>
+	</div>
+
+	<div class="out">
+		<div class="card"><b>Reisezeit gesamt</b><span id="oFac">—</span><em>gegenüber flachem, offenem Land</em></div>
+		<div class="card"><b>Hin / zurück</b><span id="oDir">—</span><em>Spreizung durch die Steigung</em></div>
+		<div class="card"><b>Anstieg / Abstieg</b><span id="oAsc">—</span><em>Schritt</em></div>
+		<div class="card"><b>Sattel zwischen den Gipfeln</b><span id="oSad">—</span><em>Anteil der Gipfelhöhe</em></div>
+	</div>
+
+	<div class="legend">
+		<span><i style="background:#6b5c47"></i>Topographie — erzeugt ein Höhenfeld</span>
+		<span><i style="background:#4f6139"></i>Vegetation — trägt einen Faktor</span>
+		<span><i style="background:#b4442e"></i>Route — Pfeillänge ist das Tempo</span>
+	</div>
+
+	<div class="note" id="note"></div>
+
+	<div class="foot">
+		<p><strong>Was hier gerechnet wird.</strong> Das Gelände ist eine Summe kompakt getragener Buckel — <code>Σ a·(1−q²)³</code> —, auf einem verwackelten Raster erzeugt und auf den eingegebenen Höchstwert normiert. Jeder Buckel endet exakt an seinem Radius, deshalb ist die Fußhöhe am Polygonrand automatisch null, ohne Maske und ohne Beschneiden. Die Gipfel sind Buckel mit voller Amplitude; ihr Radius bleibt unter dem 1,118-fachen Gipfelabstand, wodurch zwischen zwei Gipfeln zwingend ein Sattel entsteht statt eines Grats.</p>
+		<p>Das Tempo folgt Toblers Wanderfunktion, normiert auf 1,0 in der Ebene, mit <code>1 Karteneinheit = 3000 Schritt</code>. Der Bewuchs multipliziert isotrop — in jede Richtung gleich. Die Steigung wirkt gerichtet.</p>
+		<p><strong>Zwei Regler mit echter Wirkung.</strong> „Buckel“ ist kein Kosmetikschalter: mehr erfundenes Geländedetail verlängert systematisch die Reisezeit, weil die Tempokurve konvex ist. „Neu würfeln“ gibt denselben Gipfeln ein anderes Gelände bei gleicher Höhe.</p>
+	</div>
+</div>
+
+<script>
+const W = 900, H = 540;
+const PX_TO_SCHRITT = 400;            // 1 px = 0,4 Meilen = 400 Schritt
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const ov = document.getElementById('ov');
+
+let topo  = [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]];
+let veg   = [[120,250],[250,180],[380,210],[430,320],[380,430],[240,470],[130,410],[90,320]];
+let peaks = [{x:390,y:170},{x:520,y:280}];
+let route = [[20,330],[170,318],[330,300],[470,262],[620,240],[790,268],[880,300]];
+
+let layer = 'topo', seed = 20260719, bumps = [], scale = 1;
+
+const inPoly = (px, py, p) => {
+	let c = false;
+	for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+		const [xi, yi] = p[i], [xj, yj] = p[j];
+		if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) c = !c;
+	}
+	return c;
+};
+function distEdge(px, py, p) {
+	let b = 1e9;
+	for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
+		const [x1, y1] = p[j], [x2, y2] = p[i];
+		const dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
+		let t = L ? ((px - x1) * dx + (py - y1) * dy) / L : 0;
+		t = Math.max(0, Math.min(1, t));
+		b = Math.min(b, Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy)));
+	}
+	return b;
+}
+const rng = s => () => {
+	s |= 0; s = (s + 0x6D2B79F5) | 0;
+	let t = Math.imul(s ^ (s >>> 15), 1 | s);
+	t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+	return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+// Bump field: jittered lattice inside the polygon, radius clamped to the edge distance so the
+// support never leaves the area. The peaks are added last with full amplitude.
+function build() {
+	const n = +document.getElementById('bumps').value, r = rng(seed);
+	bumps = [];
+	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
+	const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+	let guard = 0;
+	while (bumps.length < n && guard++ < 4000) {
+		const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0);
+		if (!inPoly(x, y, topo)) continue;
+		const d = distEdge(x, y, topo);
+		if (d < 14) continue;
+		bumps.push({ x, y, r: Math.min(d, 70), a: .28 + .34 * r() });
+	}
+	// Peak radius under 1.118x the peak separation -- that is what guarantees a saddle instead of a ridge.
+	const sep = peaks.length > 1 ? Math.hypot(peaks[0].x - peaks[1].x, peaks[0].y - peaks[1].y) : 1e9;
+	for (const p of peaks) {
+		if (!inPoly(p.x, p.y, topo)) continue;
+		bumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, topo), .72 * sep, 150), a: 1 });
+	}
+	for (const b of bumps) b.i = 1 / (b.r * b.r);
+	let mx = 0;
+	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = raw(x, y); if (v > mx) mx = v; }
+	scale = mx > 0 ? (+document.getElementById('hmax').value) / mx : 0;
+}
+function raw(x, y) {
+	let s = 0;
+	for (const b of bumps) {
+		const dx = x - b.x, dy = y - b.y, q = (dx * dx + dy * dy) * b.i;
+		if (q < 1) { const u = 1 - q; s += b.a * u * u * u; }
+	}
+	return s;
+}
+const hAt = (x, y) => inPoly(x, y, topo) ? raw(x, y) * scale : 0;
+
+const STOPS = [[0,[176,190,158]],[.25,[198,190,150]],[.55,[190,163,124]],[.8,[214,196,178]],[1,[247,243,238]]];
+function ramp(t) {
+	t = Math.max(0, Math.min(1, t));
+	for (let i = 0; i < STOPS.length - 1; i++) {
+		const [a, c0] = STOPS[i], [b, c1] = STOPS[i + 1];
+		if (t <= b) { const k = (t - a) / (b - a); return [c0[0]+(c1[0]-c0[0])*k, c0[1]+(c1[1]-c0[1])*k, c0[2]+(c1[2]-c0[2])*k]; }
+	}
+	return [247, 243, 238];
+}
+function paint() {
+	cv.width = W; cv.height = H;
+	const img = ctx.createImageData(W, H), d = img.data;
+	const hm = +document.getElementById('hmax').value, S = 2;
+	for (let y = 0; y < H; y += S) for (let x = 0; x < W; x += S) {
+		let r = 0, g = 0, b = 0, a = 0;
+		if (inPoly(x, y, topo)) { const c = ramp(raw(x, y) * scale / hm); r = c[0]; g = c[1]; b = c[2]; a = 255; }
+		for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+			const o = ((y + j) * W + (x + i)) * 4; d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = a;
+		}
+	}
+	ctx.putImageData(img, 0, 0);
+}
+
+// Tobler's hiking function, normalised to 1.0 on the flat.
+const rel = s => Math.exp(-3.5 * (Math.abs(s + .05) - .05));
+function sampleRoute() {
+	const vf = +document.getElementById('veg').value / 100, pts = [];
+	let tF = 0, tB = 0, flat = 0, asc = 0, desc = 0;
+	for (let i = 0; i < route.length - 1; i++) {
+		const [x0, y0] = route[i], [x1, y1] = route[i + 1];
+		const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 3));
+		for (let k = 0; k < n; k++) {
+			const t0 = k / n, t1 = (k + 1) / n;
+			const ax = x0 + (x1 - x0) * t0, ay = y0 + (y1 - y0) * t0;
+			const bx = x0 + (x1 - x0) * t1, by = y0 + (y1 - y0) * t1;
+			const ds = Math.hypot(bx - ax, by - ay); if (!ds) continue;
+			const hA = hAt(ax, ay), hB = hAt(bx, by), dh = hB - hA;
+			const mx = (ax + bx) / 2, my = (ay + by) / 2;
+			const v = inPoly(mx, my, veg) ? vf : 1;
+			const s = dh / (ds * PX_TO_SCHRITT);
+			tF += ds / (rel(s) / v);
+			tB += ds / (rel(-s) / v);
+			flat += ds;
+			if (dh > 0) asc += dh; else desc -= dh;
+			pts.push({ x: mx, y: my, ang: Math.atan2(by - ay, bx - ax), spd: rel(s) / v, d: flat });
+		}
+	}
+	return { pts, fF: tF / flat, fB: tB / flat, asc, desc };
+}
+
+const ns = 'http://www.w3.org/2000/svg';
+const el = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function draw() {
+	const r = sampleRoute();
+	ov.textContent = '';
+	const cTopo = cssVar('--ls-topo'), cVeg = cssVar('--ls-veg'), cVegFill = cssVar('--ls-veg-fill'),
+	      cRoute = cssVar('--ls-route'), cInk = cssVar('--ls-strong'), cCard = cssVar('--ls-card');
+
+	const defs = el('defs');
+	const mk = el('marker', { id: 'a', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 9, markerHeight: 9, markerUnits: 'userSpaceOnUse', orient: 'auto' });
+	mk.appendChild(el('path', { d: 'M0,1 L10,5 L0,9 Z', fill: cRoute }));
+	defs.appendChild(mk); ov.appendChild(defs);
+
+	const topoOn = layer === 'topo';
+	const pstr = p => p.map(q => q.join(',')).join(' ');
+
+	ov.appendChild(el('polygon', { points: pstr(veg), fill: cVegFill, 'fill-opacity': topoOn ? .12 : .34,
+		stroke: cVeg, 'stroke-width': topoOn ? 2 : 2.8, 'stroke-opacity': topoOn ? .35 : 1, 'stroke-linejoin': 'round' }));
+	ov.appendChild(el('polygon', { points: pstr(topo), fill: 'none',
+		stroke: cTopo, 'stroke-width': topoOn ? 2.8 : 2, 'stroke-opacity': topoOn ? 1 : .35, 'stroke-linejoin': 'round' }));
+
+	ov.appendChild(el('polyline', { points: pstr(route), fill: 'none', stroke: cInk, 'stroke-width': 1.6, 'stroke-opacity': .3 }));
+	let next = 0;
+	for (const p of r.pts) {
+		if (p.d < next) continue;
+		next = p.d + 34;
+		const len = 5 + 20 * Math.min(1.3, p.spd);
+		ov.appendChild(el('line', { x1: p.x, y1: p.y, x2: p.x + Math.cos(p.ang) * len, y2: p.y + Math.sin(p.ang) * len,
+			stroke: cRoute, 'stroke-width': 3.2, 'marker-end': 'url(#a)' }));
+	}
+
+	const act = topoOn ? topo : veg, col = topoOn ? cTopo : cVeg;
+	act.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5.5, fill: cCard,
+		stroke: col, 'stroke-width': 2, 'data-k': topoOn ? 'topo' : 'veg', 'data-i': i, style: 'cursor:grab' })));
+	if (topoOn) peaks.forEach((p, i) => {
+		ov.appendChild(el('path', { d: `M${p.x-9},${p.y+5} L${p.x},${p.y-11} L${p.x+9},${p.y+5} Z`,
+			fill: cInk, 'data-k': 'peak', 'data-i': i, style: 'cursor:grab' }));
+		ov.appendChild(el('text', { x: p.x, y: p.y - 16, 'font-size': 11, 'font-weight': 700, fill: cInk,
+			'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle' })).textContent = Math.round(hAt(p.x, p.y)).toLocaleString('de-DE');
+	});
+	route.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5, fill: cRoute,
+		'fill-opacity': .85, stroke: cCard, 'stroke-width': 1.6, 'data-k': 'route', 'data-i': i, style: 'cursor:grab' })));
+
+	const f = x => x.toFixed(3).replace('.', ',');
+	document.getElementById('oFac').textContent = '×' + f((r.fF + r.fB) / 2);
+	document.getElementById('oDir').textContent = '×' + f(r.fF) + ' / ×' + f(r.fB);
+	document.getElementById('oAsc').textContent = Math.round(r.asc).toLocaleString('de-DE') + ' / ' + Math.round(r.desc).toLocaleString('de-DE');
+	let sad = '—';
+	if (peaks.length > 1) {
+		const mx = (peaks[0].x + peaks[1].x) / 2, my = (peaks[0].y + peaks[1].y) / 2;
+		const hg = Math.max(hAt(peaks[0].x, peaks[0].y), hAt(peaks[1].x, peaks[1].y));
+		if (hg > 0) sad = Math.round(100 * hAt(mx, my) / hg) + ' %';
+	}
+	document.getElementById('oSad').textContent = sad;
+	document.getElementById('note').textContent =
+		'Im Wald werden alle Pfeile gleichmäßig kürzer, egal in welche Richtung — das ist der Bewuchs. '
+		+ 'Im Gebirge werden sie im Anstieg kurz und im Gefälle wieder lang — das ist das Höhenfeld. '
+		+ bumps.length + ' Buckel, ' + (bumps.length * 5 * 8 / 1024).toFixed(1) + ' KB gespeichert.';
+}
+function all() { build(); paint(); draw(); }
+
+let drag = null;
+const pt = e => { const b = ov.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H]; };
+ov.addEventListener('pointerdown', e => {
+	const k = e.target.getAttribute && e.target.getAttribute('data-k');
+	if (!k) return;
+	drag = { k, i: +e.target.getAttribute('data-i') };
+	ov.setPointerCapture(e.pointerId);
+	e.preventDefault();
+});
+ov.addEventListener('pointermove', e => {
+	if (!drag) return;
+	const [x, y] = pt(e);
+	if (drag.k === 'topo') topo[drag.i] = [x, y];
+	else if (drag.k === 'veg') veg[drag.i] = [x, y];
+	else if (drag.k === 'peak') peaks[drag.i] = { x, y };
+	else route[drag.i] = [x, y];
+	if (drag.k === 'route' || drag.k === 'veg') draw(); else all();
+});
+addEventListener('pointerup', () => drag = null);
+
+document.getElementById('bTopo').onclick = () => { layer = 'topo'; bTopo.classList.add('on'); bVeg.classList.remove('on'); draw(); };
+document.getElementById('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); draw(); };
+document.getElementById('bumps').oninput = e => { bumpsN.textContent = e.target.value; all(); };
+document.getElementById('veg').oninput   = e => { vegN.textContent = (e.target.value / 100).toFixed(2).replace('.', ','); draw(); };
+document.getElementById('hmax').oninput  = () => all();
+document.getElementById('reroll').onclick = () => { seed = (seed * 1664525 + 1013904223) | 0; all(); };
+all();
+</script>
+</body>
+</html>
