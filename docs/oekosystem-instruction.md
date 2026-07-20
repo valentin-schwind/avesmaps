@@ -326,6 +326,47 @@ konvex, gemitteltes Gefälle unterschätzt also systematisch (Jensen) — und da
 nicht einmal monoton, „die Zahl bewegt sich nicht mehr" ist als Konvergenztest
 wertlos.
 
+**Die Knickstellen sind beim Buckelfeld exakt berechenbar.** `q²` ist quadratisch
+im Segmentparameter, ein Trägerkreis schneidet ein gerades Wegstück also in den
+Nullstellen *einer* Quadratik. Die Knickmenge ist damit endlich und geschlossen
+bestimmbar — es muss nichts gesucht und nichts geraten werden.
+
+> **Daraus folgt die Antwort auf die naheliegende Anforderung** *„große Gebirge
+> sollen gröber abgetastet werden"*: Sie wird **nicht gebraucht**. Der Aufwand des
+> exakten Verfahrens hängt an der **Zahl der gekreuzten Buckelränder**, nicht an
+> der Weglänge und nicht am Umriss der Fläche. Ein weites Gebirge mit wenigen
+> großen Buckeln kostet von selbst weniger als ein enges mit vielen kleinen. Der
+> Hebel ist die **Detailstufe**, nicht die Größe.
+
+### 5.2a Wenn doch abgetastet wird: `r_min / 8`
+
+Für Stellen, die kein exaktes Profil bauen — eine Vorschau im Editor, eine
+überschlägige Schätzung im Client —, gilt eine gemessene Untergrenze. Sie hängt
+**nicht** an der Größe der Fläche, sondern am **kleinsten Buckelradius** darin:
+
+| Schrittweite | Fehler am Signal (F−1) | Fehler an der Asymmetrie |
+|---|---|---|
+| `r_min / 1` | 37,2 % | **179 %** — Vorzeichen verdreht |
+| `r_min / 2` | 16,4 % | **179 %** |
+| `r_min / 4` | 4,4 % | 56 % |
+| **`r_min / 8`** | **0,6 %** | **1,9 %** |
+| `r_min / 16` | 0,2 % | 1,9 % |
+
+**Die Tabelle ist über drei Größenklassen hinweg identisch** — gemessen an Feldern
+mit `r_min` von 19, 58 und 160 Karteneinheiten, bis auf die Nachkommastelle
+dieselben Werte. Das Feld ist maßstabsinvariant, die Größe des Gebirges kommt in
+der nötigen Feinheit also **gar nicht vor**.
+
+> 💣 **Warum eine Regel nach Flächengröße gefährlich wäre.** Gemessen an einem
+> großen Gebirge mit *einem* absichtlich kleinen Buckel: `r_min` fällt von 160 auf
+> 21. Eine Größenregel hätte „groß, also grob" gesagt und bei ~20 Einheiten
+> abgetastet — dort liegt der Fehler bei **27 %**. Die Regel hätte sich genau dort
+> geirrt, wo sie sich sicher fühlte. An `r_min` gebunden kann das nicht passieren.
+
+`r_min` wird beim Erzeugen des Feldes **mitgespeichert**, nicht zur Laufzeit
+gesucht. Vorgeführt in `html/landschaften-modell.html`: die Seite zeigt `r_min`
+und die abgeleitete Schrittweite live und ändert beides mit jeder Detailstufe mit.
+
 ### 5.3 Klemmen und Wächter
 
 Vorbild ist die Flussrichtung, die in **beiden** Engines identisch klemmt
