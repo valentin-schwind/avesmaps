@@ -416,16 +416,32 @@ darauf haben.
 
 Das ist richtig — und es ist die mit Abstand größte Menge im ganzen Werkzeug:
 
-| Objektart | benannt, ohne Wiki-Link |
-|---|---|
-| Weg | 3721 |
-| Ort | 618 |
-| Kraftlinie | 152 |
-| Region | 70 |
-| **gesamt** | **4561** (nur `map_features`) |
+### Wege sind dreierlei (Owner 2026-07-20)
 
-Bei den Wegen sind das **3358 verschiedene Einzelnamen** — also echte benannte Wege,
-keine Segmentwiederholungen.
+Der erste Zähler nannte 3721 Wege ohne Wiki-Link. Das war zu grob: **Wege zerfallen in
+drei Sorten**, und nur eine davon gehört auf eine Beobachtungsliste.
+
+| Sorte | Segmente | gehört auf die Liste? |
+|---|---|---|
+| Wiki-Schlüssel zugewiesen | 1664 | nein — erledigt |
+| **Autoname** `<Subtyp>-<n>` (`avesmapsWikiPathNextGenericName`, `path-naming.php:56`) | **2448** | **nein — ein Autoname kann per Definition kein Wiki-Pendant haben** |
+| von Hand benannt | 1273 | **ja** |
+
+Die 1273 handbenannten Segmente sind **1178 verschiedene Namen** (1153 davon
+einsegmentig) — ein benannter Weg ist ein Prüffall, nicht seine Segmentzahl.
+
+| Objektart | Beobachtungsliste |
+|---|---|
+| Weg (verschiedene Namen) | 1178 |
+| Ort | 618 |
+| Kraftlinie | 158 |
+| Region | 70 |
+| **gesamt** | **2024** statt der zunächst gezählten 4561 |
+
+💣 **Ohne diese Dreiteilung wären 2448 Autonamen als „potenzieller Konflikt" in der
+Liste gelandet** — dieselbe Falle wie die 1547 Wegsegmente in §6a, nur eine Ebene
+später. Die Regel muss den Autonamen also kennen; das Muster steht in
+`path-naming.php` und ist eindeutig (`^<Subtyp>-<Ziffern>$`).
 
 ### 💣 4561 Zeilen sind keine Liste, die jemand durchsieht
 
