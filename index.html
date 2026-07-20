@@ -777,8 +777,12 @@
 						<!-- Die 11 bestehenden WikiSync-Fallarten laufen weiter ueber ihre eigene Liste; sie in die
 						     Registry zu ziehen ist P4. Bis dahin stehen sie hier eingeklappt darunter statt in einem
 						     zweiten Fenster -- ein Ort fuer Konflikte, wie vereinbart. -->
-						<details class="conflict-legacy">
-							<summary>WikiSync-Fälle (eigene Liste, noch nicht in der Registry)</summary>
+						<!-- Die WikiSync-Faelle stehen jetzt OBEN in derselben Liste (review-conflicts.js,
+						     getLegacyConflicts) -- gezeichnet weiterhin von ihrem eigenen Renderer, damit kein
+						     Detail verloren geht. Dieser Block bleibt nur als versteckter Anker bestehen:
+						     renderWikiSyncCases() und setWikiSyncCaseStatus() zielen auf #wiki-sync-case-list
+						     bzw. die Status-Reiter und duerfen nicht ins Leere greifen. -->
+						<div class="conflict-legacy-anchor" hidden>
 						<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
 							<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
 							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
@@ -788,7 +792,7 @@
 							<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 						</div>
 						<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
-						</details>
+						</div>
 					</div>
 				</div>
 			</div>

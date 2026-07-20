@@ -88,6 +88,68 @@ async function loadConflicts({ rescan = false } = {}) {
 	void rescan;
 }
 
+// --- the 11 legacy WikiSync case types, folded into the same list -----------------------------
+// They keep their own storage, their own producers and their own resolve flows (which write real
+// data through forms this renderer has no business duplicating). What is unified is the SURFACE:
+// one list, one filter rail, one set of statuses. Each case is still drawn by its own renderer
+// (createWikiSyncCaseElement), so nothing about them is lost or reimplemented.
+//
+// The data is already in the browser -- loadWikiSyncCases() fills wikiSyncCases for the WikiSync
+// tab -- so this costs no extra request.
+const LEGACY_CASE_SEVERITY = {
+	duplicate_wiki_title: "error",
+	duplicate_avesmaps_name: "error",
+	coordinate_drift: "error",
+	canonical_name_difference: "divergence",
+	type_conflict: "divergence",
+	field_divergence: "divergence",
+	missing_capital: "divergence",
+	probable_match: "unverified",
+	unresolved_without_candidate: "unverified",
+	missing_wiki_with_coordinates: "unverified",
+	missing_wiki_without_coordinates: "unverified",
+	coat_available: "unverified",
+};
+
+function getLegacyConflicts() {
+	if (typeof wikiSyncCases === "undefined" || !Array.isArray(wikiSyncCases)) {
+		return [];
+	}
+	return wikiSyncCases.map((caseEntry) => {
+		const type = caseEntry.case_type === "missing_capital" ? "territory" : "location";
+		const label = caseEntry.payload?.map?.name || caseEntry.wiki_title || caseEntry.payload?.name || "";
+		return {
+			rule_id: `wikisync.${caseEntry.case_type || "unknown"}`,
+			fingerprint: `legacy-${caseEntry.id}`,
+			severity: LEGACY_CASE_SEVERITY[caseEntry.case_type] || "unverified",
+			title: typeof getWikiSyncCaseTitle === "function" ? getWikiSyncCaseTitle(caseEntry) : label,
+			status: caseEntry.status === "resolved" ? "done" : (caseEntry.status || "open"),
+			parties: [{ type, type_label: conflictData.typeLabels[type] || type, label, id: caseEntry.map_public_id || "" }],
+			legacy: caseEntry,
+		};
+	});
+}
+
+// Rule entries for whichever legacy types are actually present, so they appear as normal groups.
+function getLegacyRules(conflicts) {
+	const seen = new Map();
+	conflicts.forEach((conflict) => {
+		if (!conflict.legacy || seen.has(conflict.rule_id)) {
+			return;
+		}
+		const caseType = conflict.legacy.case_type || "unknown";
+		seen.set(conflict.rule_id, {
+			id: conflict.rule_id,
+			label: conflict.legacy.case_label
+				|| (typeof getWikiSyncCaseTypeLabel === "function" ? getWikiSyncCaseTypeLabel(caseType) : caseType),
+			hint: "Aus dem WikiSync-Lauf. Wird dort entschieden — die Knöpfe im Fall führen den Vorgang aus.",
+			severity: conflict.severity,
+		});
+	});
+
+	return Array.from(seen.values());
+}
+
 // A conflict belongs to EVERY party's type, not just its subject -- a place-and-territory case has
 // to be reachable from both filters (§4.3).
 function conflictHasType(conflict, type) {
@@ -97,8 +159,13 @@ function conflictHasType(conflict, type) {
 	return (conflict.parties || []).some((party) => party.type === type);
 }
 
+// Alle Faelle in EINER Liste: die berechneten und die aus dem WikiSync-Lauf.
+function getAllConflicts() {
+	return conflictData.conflicts.concat(getLegacyConflicts());
+}
+
 function getFilteredConflicts() {
-	return conflictData.conflicts.filter((conflict) => {
+	return getAllConflicts().filter((conflict) => {
 		if (conflictFilter.status && conflict.status !== conflictFilter.status) {
 			return false;
 		}
@@ -140,7 +207,20 @@ function renderConflictRail() {
 		return;
 	}
 	rail.textContent = "";
-	const summary = conflictData.summary || { by_type: {}, by_severity: {}, by_status: {} };
+	// Aus der VOLLEN Menge gezaehlt statt aus der Server-Zusammenfassung: sonst zeigt die Leiste
+	// andere Zahlen als die Liste, sobald die WikiSync-Faelle dazukommen.
+	const all = getAllConflicts();
+	const summary = { by_type: {}, by_severity: {}, by_status: {} };
+	all.forEach((conflict) => {
+		summary.by_severity[conflict.severity] = (summary.by_severity[conflict.severity] || 0) + 1;
+		summary.by_status[conflict.status] = (summary.by_status[conflict.status] || 0) + 1;
+		const seen = {};
+		(conflict.parties || []).forEach((party) => {
+			if (!party.type || seen[party.type]) { return; }
+			seen[party.type] = true;
+			summary.by_type[party.type] = (summary.by_type[party.type] || 0) + 1;
+		});
+	});
 
 	const section = (title) => {
 		const heading = document.createElement("h4");
@@ -149,7 +229,7 @@ function renderConflictRail() {
 	};
 
 	section("Objektart");
-	rail.appendChild(createConflictFilterButton("Alle", conflictData.conflicts.length, conflictFilter.type === "", () => {
+	rail.appendChild(createConflictFilterButton("Alle", all.length, conflictFilter.type === "", () => {
 		conflictFilter.type = "";
 	}));
 	Object.entries(summary.by_type || {}).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
@@ -437,7 +517,7 @@ function renderConflicts() {
 	if (filtered.length < 1) {
 		const empty = document.createElement("p");
 		empty.className = "conflict-empty";
-		empty.textContent = conflictData.conflicts.length < 1
+		empty.textContent = getAllConflicts().length < 1
 			? "Noch nicht geprüft. „Neu prüfen“ startet den Durchlauf."
 			: "Keine Konflikte in dieser Auswahl.";
 		list.appendChild(empty);
@@ -454,7 +534,8 @@ function renderConflicts() {
 		byRule.get(conflict.rule_id).push(conflict);
 	});
 
-	conflictData.rules.forEach((rule) => {
+	const rules = conflictData.rules.concat(getLegacyRules(filtered));
+	rules.forEach((rule) => {
 		const cases = byRule.get(rule.id);
 		if (!cases || cases.length < 1) {
 			return;
@@ -497,7 +578,13 @@ function renderConflicts() {
 			});
 			group.appendChild(legend);
 		}
-		cases.forEach((conflict) => group.appendChild(createConflictElement(conflict)));
+		cases.forEach((conflict) => {
+			if (conflict.legacy && typeof createWikiSyncCaseElement === "function") {
+				group.appendChild(createWikiSyncCaseElement(conflict.legacy));
+				return;
+			}
+			group.appendChild(createConflictElement(conflict));
+		});
 		list.appendChild(group);
 	});
 }
