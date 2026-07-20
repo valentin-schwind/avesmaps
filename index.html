@@ -770,22 +770,15 @@
 					<button id="wiki-sync-conflicts-close" class="location-report-dialog__close" type="button" aria-label="Konflikte schließen">×</button>
 				</div>
 				<div class="wiki-sync-conflicts-dialog__body">
-						<details open class="wiki-sync-accordion" id="wiki-sync-cases-accordion">
-						<summary class="wiki-sync-accordion__summary">Konfliktl&ouml;sung</summary>
-						<div class="wiki-sync-accordion__body">
-							<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
-							<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
-							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
-							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
-						</div>
-
+					<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
+						<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
+						<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
+						<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
+					</div>
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 					</div>
 					<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
-						</div>
-						<div class="wiki-sync-accordion__resizer" title="H&ouml;he ziehen" aria-hidden="true"></div>
-						</details>
 				</div>
 			</div>
 		</div>

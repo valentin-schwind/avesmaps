@@ -591,106 +591,28 @@
 }
 
 /* Aufklappbares Accordion fuer die WikiSync-Konfliktfaelle. */
-.wiki-sync-accordion {
-	margin: 0 10px 8px;
-	border: 1px solid var(--color-border);
-	border-radius: 8px;
-	background: var(--color-panel);
+/* Konfliktzentrum (P0). Der Dialog gibt die Hoehe vor: Kopfzeile und Filterleiste stehen fest,
+   die Fallliste fuellt den Rest und scrollt selbst (.review-panel__list bringt flex:1 1 auto +
+   overflow:auto schon mit). Deshalb gibt es hier KEIN Klapp-Element und keinen Zieh-Balken mehr:
+   beides war Chrome fuer die schmale Panel-Spalte und im eigenen Dialog nur ein zweiter Rahmen
+   um denselben Inhalt (Owner, 2026-07-20). overflow:hidden verhindert die doppelte Scrollleiste,
+   die .location-report-dialog sonst mitbringt. */
+.wiki-sync-conflicts-dialog {
+	display: flex;
+	flex-direction: column;
+	width: min(1000px, 100%);
+	height: min(88vh, 900px);
 	overflow: hidden;
-	/* Nie vom Flex-Eltern stauchen lassen - sonst wird im ZUGEKLAPPTEN Zustand die 48px-Summary auf
-	   wenige px geclippt (sieht aus wie leerer Balken, kaum wieder aufklickbar). Gilt offen wie zu. */
-	flex: 0 0 auto;
 }
-.wiki-sync-accordion__summary {
+.wiki-sync-conflicts-dialog__body {
 	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-height: 48px;
-	box-sizing: border-box;
-	padding: 8px 10px;
-	font-size: 12px;
-	font-weight: 700;
-	color: var(--color-text-strong);
-	cursor: pointer;
-	list-style: none;
-	user-select: none;
-}
-.wiki-sync-accordion__summary::-webkit-details-marker {
-	display: none;
-}
-.wiki-sync-accordion__summary::before {
-	content: "▾";
-	font-size: 11px;
-	color: var(--color-text-muted);
-	transition: transform 0.15s ease;
-}
-.wiki-sync-accordion:not([open]) .wiki-sync-accordion__summary::before {
-	transform: rotate(-90deg);
-}
-.wiki-sync-accordion__summary:hover {
-	background: var(--color-panel-muted);
-}
-/* Ausgeklappt: Block-Layout (KEIN Flex/keine feste Hoehe am <details> -> vermeidet die
-   <details>-Flex-Quirks, bei denen der Body nicht schrumpft und der Zieh-Balken weggeclippt wird).
-   Die Hoehe regelt die Fall-Liste (#wiki-sync-case-list); der Balken liegt im Fluss direkt darunter
-   und bleibt deshalb immer sichtbar. flex: 0 0 auto, damit der Flex-Eltern die Box nicht staucht. */
-.wiki-sync-accordion[open] {
-	display: block;
-	flex: 0 0 auto;
-}
-
-/* Sichtbarer Zieh-Balken am unteren Rand des Accordions (= der Trenner unter den Status-Buttons). */
-.wiki-sync-accordion__resizer {
-	flex: 0 0 auto;
-	height: 12px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: ns-resize;
-	background: var(--color-panel-muted);
-	border-top: 1px solid var(--color-border);
-	touch-action: none;
-}
-.wiki-sync-accordion__resizer::before {
-	content: "";
-	width: 44px;
-	height: 3px;
-	border-radius: 2px;
-	background: var(--color-border-strong);
-}
-.wiki-sync-accordion__resizer:hover::before {
-	background: var(--color-text-muted);
-}
-.wiki-sync-accordion:not([open]) .wiki-sync-accordion__resizer {
-	display: none;
-}
-.wiki-sync-accordion__body {
-	border-top: 1px solid var(--color-border);
-	padding-top: 8px;
-}
-.wiki-sync-accordion__body > .wiki-sync-substatus,
-.wiki-sync-accordion__body > .wiki-sync-panel__filter {
-	flex: 0 0 auto;
-}
-.wiki-sync-accordion__body > #wiki-sync-case-list {
-	/* Eigene, per Zieh-Balken anpassbare Hoehe; scrollt intern (.review-panel__list overflow:auto).
-	   Der Zieh-Balken liegt im Fluss direkt darunter -> immer sichtbar, auch wenn die Liste klein ist. */
-	height: 220px;
+	flex: 1 1 auto;
+	flex-direction: column;
 	min-height: 0;
 }
-
-/* Konfliktzentrum (P0): dieselbe Konfliktloesung, aber im eigenen Dialog statt in der schmalen
-   Panel-Spalte. Nur der BEHAELTER wird angepasst -- Aufbau, ids und der Zieh-Balken bleiben, wie
-   sie waren. Die Liste startet hoeher, weil hier Platz ist; ziehbar bleibt sie unveraendert. */
-.wiki-sync-conflicts-dialog {
-	width: min(1000px, 100%);
-	max-height: min(88vh, 900px);
-}
-.wiki-sync-conflicts-dialog .wiki-sync-accordion {
-	margin: 0;
-}
-.wiki-sync-conflicts-dialog .wiki-sync-accordion__body > #wiki-sync-case-list {
-	height: min(58vh, 560px);
+.wiki-sync-conflicts-dialog__body > .wiki-sync-substatus,
+.wiki-sync-conflicts-dialog__body > .wiki-sync-panel__filter {
+	flex: 0 0 auto;
 }
 
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */

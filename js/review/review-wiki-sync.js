@@ -1644,51 +1644,5 @@ function getWikiSyncTerritoryLoadedDataSummary() {
 
 // (WikiSync case resolution moved to review-wiki-sync-resolve.js - M5 split.)
 
-// Ziehbarer Trenner am unteren Rand des Konfliktloesung-Accordions: sichtbarer Balken
-// (.wiki-sync-accordion__resizer) statt der unscheinbaren CSS-resize-Ecke. Setzt die
-// Accordion-Hoehe per Drag; die Fall-Liste fuellt die Hoehe und scrollt intern.
-(function initWikiSyncAccordionResizer() {
-	let drag = null;
-	const MIN_HEIGHT = 0;
-	const maxHeight = () => Math.round(window.innerHeight * 0.8);
-
-	document.addEventListener("pointerdown", (event) => {
-		const handle = event.target instanceof Element ? event.target.closest(".wiki-sync-accordion__resizer") : null;
-		if (!handle) {
-			return;
-		}
-		const accordion = handle.closest(".wiki-sync-accordion");
-		const list = accordion ? accordion.querySelector("#wiki-sync-case-list") : null;
-		if (!list) {
-			return;
-		}
-		event.preventDefault();
-		drag = { list, startY: event.clientY, startHeight: list.getBoundingClientRect().height };
-		try { handle.setPointerCapture(event.pointerId); } catch (error) { /* egal */ }
-		document.body.style.userSelect = "none";
-	});
-
-	document.addEventListener("pointermove", (event) => {
-		if (!drag) {
-			return;
-		}
-		// Robustheit: ist die Maustaste nicht (mehr) gedrueckt (verpasstes pointerup), Drag beenden -
-		// sonst "klebt" der Drag und spaetere Mausbewegungen wuerden die Hoehe weiter veraendern.
-		if (!(event.buttons & 1)) {
-			endDrag();
-			return;
-		}
-		const next = drag.startHeight + (event.clientY - drag.startY);
-		drag.list.style.height = Math.max(MIN_HEIGHT, Math.min(maxHeight(), next)) + "px";
-	});
-
-	const endDrag = () => {
-		if (!drag) {
-			return;
-		}
-		drag = null;
-		document.body.style.userSelect = "";
-	};
-	document.addEventListener("pointerup", endDrag);
-	document.addEventListener("pointercancel", endDrag);
-})();
+// (Der Zieh-Balken des Konfliktloesung-Akkordeons ist mit dem Akkordeon entfallen, 2026-07-20:
+//  im eigenen Dialog gibt der Dialog die Hoehe vor und die Fallliste scrollt selbst.)
