@@ -128,7 +128,13 @@ function avesmapsConflictApplyDecisions(array $conflicts, array $decisions): arr
  * historical record, so the name as it was at decision time is the honest one -- and a bare user id
  * ("Erledigt von 1") tells an editor nothing.
  */
-function avesmapsConflictReviewerName(array $decision): string {
+function avesmapsConflictReviewerName(?array $decision): string {
+    // Nullable on purpose: the join calls this for EVERY conflict, and the overwhelming majority are
+    // undecided (2140 conflicts, 2 decisions on the live data). A non-nullable signature here threw
+    // a TypeError on the first undecided row and killed the whole list with a 500.
+    if ($decision === null) {
+        return '';
+    }
     $detail = json_decode((string) ($decision['detail_json'] ?? ''), true);
     $name = is_array($detail) ? trim((string) ($detail['by_name'] ?? '')) : '';
     if ($name !== '') {
