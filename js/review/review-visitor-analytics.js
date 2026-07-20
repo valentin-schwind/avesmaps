@@ -14,6 +14,15 @@ function activateStatusSubtab(name) {
 	}
 }
 
+// The visitor dashboard loads lazily, on the first click of its sub-tab. Since "Besucher"
+// is the markup default that click may never come, so the panel asks once when the Status
+// tab is opened -- not on page load, which would drag the heavy metrics read into every
+// edit-mode start.
+function ensureStatusSubtabLoaded() {
+	const activeButton = document.querySelector(".status-subtabs [data-status-subtab].is-active");
+	activateStatusSubtab(activeButton ? activeButton.dataset.statusSubtab : "besucher");
+}
+
 (function wireStatusSubtabs() {
 	const nav = document.querySelector(".status-subtabs");
 	if (!nav) {

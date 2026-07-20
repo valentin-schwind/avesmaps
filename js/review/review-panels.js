@@ -49,6 +49,11 @@ function setEditorPanelTab(tabName) {
 		void loadChangeLog();
 	} else if (activeEditorPanelTab === "presence") {
 		void sendEditorPresenceHeartbeat();
+		// "Besucher" is the default sub-tab, and its dashboard loads lazily on click. Without
+		// this the panel would open on an empty dashboard until you clicked away and back.
+		if (typeof ensureStatusSubtabLoaded === "function") {
+			ensureStatusSubtabLoaded();
+		}
 	} else if (activeEditorPanelTab === "wiki-sync") {
 		refreshActiveWikiSyncPanel();
 	}
