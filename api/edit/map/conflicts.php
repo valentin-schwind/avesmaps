@@ -108,7 +108,10 @@ try {
         ],
     ]);
 } catch (Throwable $exception) {
-    // No getMessage() to the client -- that is the info-disclosure leak M1 is cleaning up elsewhere
-    // (AGENTS.md §10); do not add a new one here.
-    avesmapsErrorResponse(500, 'internal_error', 'Die Konflikte konnten nicht geladen werden.');
+    // Canonical helper: writes the real reason to the PHP error log and returns a generic 500 to the
+    // client. Swallowing it entirely (the first draft here) would have made a failed first run
+    // undiagnosable, while echoing getMessage() would add exactly the info-disclosure leak M1 is
+    // cleaning up elsewhere (AGENTS.md §10). The first call also runs CREATE TABLE IF NOT EXISTS, so
+    // a missing privilege surfaces here -- and now says so in the log.
+    avesmapsServerErrorResponse($exception, 'conflicts');
 }
