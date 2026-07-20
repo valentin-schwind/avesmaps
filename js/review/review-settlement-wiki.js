@@ -182,6 +182,16 @@ async function selectSettlementWikiResult(title) {
 	try {
 		const result = await settlementWikiPost({ action: "assign_to", title, public_id: publicId, dry_run: false, confirm: "apply" });
 		if (result && result.ok) {
+			// Das versteckte wiki_url-Formfeld mitziehen (Gegenstueck zu removeSettlementWiki): der Dialog
+			// belegt es aus location.wikiUrl vor -- also aus dem ANGEREICHERTEN Payload-Wert, der bei leerer
+			// Spalte per Namensraten entstehen kann -- und buildLocationEditPayload sendet es bei jedem
+			// Speichern zurueck. Ohne Mitziehen ueberschreibt das naechste Speichern die gerade gewaehlte
+			// Verbindung wieder mit dem alten/erratenen/leeren Wert (Discord #38).
+			const chosenWikiUrl = String(result.settlement?.wiki_url || "").trim();
+			const wikiUrlField = document.getElementById("location-edit-wiki-url");
+			if (wikiUrlField && chosenWikiUrl !== "") {
+				wikiUrlField.value = chosenWikiUrl;
+			}
 			const entry = settlementWikiCurrentMarkerEntry();
 			if (entry && entry.location) {
 				entry.location.wikiSettlement = result.settlement || null;
@@ -407,3 +417,7 @@ async function syncSettlementWikiFromServer() {
 
 window.renderSettlementWikiReference = renderSettlementWikiReference;
 window.syncSettlementWikiFromServer = syncSettlementWikiFromServer;
+
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = { selectSettlementWikiResult, removeSettlementWiki };
+}
