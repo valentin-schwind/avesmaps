@@ -317,34 +317,44 @@
 					<li><strong>„Speichern"</strong>. Die Karte aktualisiert sich sofort, ohne dass du neu laden musst.</li>
 					<li>Wechsle im Editor-Panel auf den Reiter <strong>„Änderungen"</strong>. Deine Änderung steht ganz oben, mit deinem Namen und der Uhrzeit.</li>
 				</ol>
-				<div class="hb-note hb-check"><strong>Geschafft.</strong> Genau dieser Ablauf — anklicken, bearbeiten, speichern, im Protokoll wiederfinden — gilt für Orte, Wege, Regionen und Gebiete gleichermaßen.</div>
-				<div class="hb-diagram">
-					<svg viewBox="0 0 640 92" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ablauf einer Bearbeitung: Linksklick, Infopanel, Bearbeiten, Speichern, Aenderungen">
+				<div class="hb-diagram hb-diagram--wide">
+					<!-- Top row: the four things you DO. Bottom row: the two things that FOLLOW from
+					     saving. The predecessor put "Änderungen" at the end of one straight chain, which
+					     read as "the save is not done until you go there" -- it is done, and the tab is a
+					     safety net you may visit, not a step. It also jumped from the button straight to
+					     saving, leaving out the dialog where the change actually happens. -->
+					<svg viewBox="0 0 880 175" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ablauf einer Bearbeitung: Ort anklicken, Infopanel, im Dialog aendern, Speichern. Aus dem Speichern folgt zweierlei: die Aenderung ist sofort fuer alle sichtbar, und sie steht im Reiter Aenderungen zum Zuruecknehmen.">
 						<defs>
 							<marker id="hb-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
 								<path d="M0 0 L6 3 L0 6 Z" fill="var(--hb-accent)" />
 							</marker>
 						</defs>
-						<g font-size="12" text-anchor="middle" fill="var(--hb-fg)">
-							<rect x="4" y="26" width="112" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="60" y="51">Linksklick</text>
-							<rect x="136" y="26" width="112" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="192" y="51">Infopanel</text>
-							<rect x="268" y="26" width="112" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="324" y="51">Bearbeiten</text>
-							<rect x="400" y="26" width="112" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="456" y="51">Speichern</text>
-							<rect x="532" y="26" width="104" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-accent)" />
-							<text x="584" y="51">Änderungen</text>
+						<g font-size="13" text-anchor="middle" fill="var(--hb-fg)">
+							<rect x="12" y="18" width="176" height="46" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="100" y="46">Ort anklicken</text>
+							<rect x="212" y="18" width="176" height="46" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="300" y="46">Infopanel</text>
+							<rect x="412" y="18" width="176" height="46" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="500" y="46">Dialog: ändern</text>
+							<rect x="612" y="18" width="176" height="46" rx="8" fill="var(--hb-card)" stroke="var(--hb-accent)" stroke-width="2" />
+							<text x="700" y="46">Speichern</text>
+						</g>
+						<g font-size="11" text-anchor="middle" fill="var(--hb-muted)">
+							<rect x="450" y="112" width="200" height="44" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" stroke-dasharray="4 3" />
+							<text x="550" y="139">sofort für alle sichtbar</text>
+							<rect x="670" y="112" width="200" height="44" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" stroke-dasharray="4 3" />
+							<text x="770" y="139">im Reiter „Änderungen"</text>
 						</g>
 						<g stroke="var(--hb-accent)" stroke-width="2" fill="none">
-							<path d="M116 46 L136 46" marker-end="url(#hb-arrow)" />
-							<path d="M248 46 L268 46" marker-end="url(#hb-arrow)" />
-							<path d="M380 46 L400 46" marker-end="url(#hb-arrow)" />
-							<path d="M512 46 L532 46" marker-end="url(#hb-arrow)" />
+							<path d="M188 41 L212 41" marker-end="url(#hb-arrow)" />
+							<path d="M388 41 L412 41" marker-end="url(#hb-arrow)" />
+							<path d="M588 41 L612 41" marker-end="url(#hb-arrow)" />
+							<path d="M700 64 L700 88 L550 88 L550 112" marker-end="url(#hb-arrow)" />
+							<path d="M700 64 L700 88 L770 88 L770 112" marker-end="url(#hb-arrow)" />
 						</g>
 					</svg>
 				</div>
+				<div class="hb-note hb-check"><strong>Geschafft.</strong> Genau dieser Ablauf — anklicken, ändern, speichern — gilt für Orte, Wege, Regionen und Gebiete gleichermaßen. Was danach kommt, musst du nicht tun: Gespeichert ist gespeichert. Der Reiter „Änderungen" ist dein Netz, falls doch mal etwas schiefgeht.</div>
 			</section>
 
 			<!-- ============================= 2. KARTEN-FEATURES ============================= -->
