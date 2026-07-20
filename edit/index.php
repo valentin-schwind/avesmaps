@@ -65,7 +65,10 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Avesmaps Edit</title>
-    <link rel="stylesheet" href="../css/pages/edit.css?v=20260713-theme22" />
+    <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
+         html/*.html, so it never reaches this PHP page. Bump this whenever edit.css changes,
+         or editors keep the cached stylesheet. See AGENTS.md sec.7. -->
+    <link rel="stylesheet" href="../css/pages/edit.css?v=20260720-handbuch" />
 </head>
 
 <body class="edit-page">
@@ -96,10 +99,17 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
                     <strong>Avesmaps Edit</strong>
                     <span><?php echo htmlspecialchars((string) $currentUser['username'], ENT_QUOTES, 'UTF-8'); ?> | <?php echo htmlspecialchars((string) $currentUser['role'], ENT_QUOTES, 'UTF-8'); ?></span>
                 </div>
-                <form method="post" action="./">
-                    <input type="hidden" name="action" value="logout" />
-                    <button type="submit">Abmelden</button>
-                </form>
+                <div class="edit-shell__actions">
+                    <!-- Permanent entry point. The other one lives at the end of the map's data
+                         status line, inside the editor panel, so it is invisible until that panel
+                         is opened. Root-relative is fine here: this page is the top-level shell,
+                         not the map iframe. -->
+                    <a class="edit-shell__handbook" href="/html/editor-handbuch.html" target="_blank" rel="noopener" title="Editor-Handbuch öffnen" aria-label="Handbuch">📖 Handbuch</a>
+                    <form method="post" action="./">
+                        <input type="hidden" name="action" value="logout" />
+                        <button type="submit">Abmelden</button>
+                    </form>
+                </div>
             </header>
             <iframe class="edit-shell__map" src="<?php echo $mapIframeSrc; ?>" title="Avesmaps Karte"></iframe>
         </main>

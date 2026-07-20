@@ -54,12 +54,38 @@
 .edit-login__panel button,
 .edit-shell__bar button {
 	border: 1px solid var(--color-button-border);
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	background: var(--color-button);
 	color: var(--color-button-text);
 	cursor: pointer;
 	font: inherit;
 	padding: 8px 11px;
+}
+
+/* Right-hand group of the top bar: handbook link next to "Abmelden". Needs its own class
+   because the bare `.edit-shell__bar div` rule below aligns on the baseline, which sits a
+   button and a link at different heights. */
+.edit-shell__bar .edit-shell__actions {
+	align-items: center;
+	gap: 10px;
+}
+
+/* Soft/outline: "Abmelden" is the filled action in this bar, and the handbook must not
+   compete with it. See docs/design-language.md — one filled main action, the rest soft. */
+.edit-shell__handbook {
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	padding: 8px 11px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.edit-shell__handbook:hover,
+.edit-shell__handbook:focus-visible {
+	background: var(--color-button-soft-hover);
 }
 
 .edit-login__error {

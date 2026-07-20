@@ -144,6 +144,12 @@ Two independent cache-busting mechanisms:
    loaded editor HTML/CSS/JS**. **Bump it on every change to editor assets**, or
    the browser serves stale editor code. `inline-host.js` itself is loaded by
    `index.html` *without* `?v=`, so after editing it you need one hard reload.
+3. **Manual, and the one exception to "never by hand":** `edit/index.php` links
+   `css/pages/edit.css` with a hand-written `?v=`. The stamper walks `index.html`
+   and `html/*.html` only, so it never reaches a `.php` page and cannot overwrite
+   or verify this tag. **Bump it by hand whenever `edit.css` changes**, otherwise
+   editors keep the cached stylesheet. Rule 1's ban applies to everything the
+   stamper *does* reach — which is everything else.
 
 Diagnosis when a deployed change doesn't appear: compare `fetch(url+'?cb='+Date.now())`
 (server-fresh) vs `fetch(url)` (as the app loads). See
@@ -182,6 +188,14 @@ is the default, English is opt-in. Therefore:
 - **STRATO caution:** never loop expensive endpoints (e.g. the political layer) —
   it saturated PHP workers once and looked like a DB outage. Probe with a single
   request.
+- **Editor-visible change → update the handbook in the same commit.** If your
+  change alters what a human editor sees or does — a renamed button, a new tab or
+  dialog, a changed workflow, a new rule they must follow — pull the matching
+  section of `html/editor-handbuch.html` along with it, and bump the `Stand:` date
+  in its top bar. Not a follow-up task: the handbook went from written to
+  materially wrong in **13 days** (2026-07-07 → 07-20) precisely because this was
+  nobody's job. A wrong handbook is worse than none — new editors act on it. If
+  the change only touches internals an editor never sees, there is nothing to do.
 - **Secrets:** `api/config.local.php` is gitignored and must never be committed.
   No production dumps, reports, audit logs, tokens or credentials in the repo.
 - **Legal:** DSA assets follow the Ulisses fan guidelines (see `NOTICE.md`).
@@ -216,6 +230,7 @@ is the default, English is opt-in. Therefore:
 Authoritative docs (being translated to English in M8):
 
 - **`docs/design-language.md` — the warm/aventurian design language + token rules (see §12). Read before any CSS/UI work.**
+- **`html/editor-handbuch.html` — the handbook human editors actually read.** Not a doc *about* the code; it is product surface, reachable from the edit shell's top bar and the editor panel's status line. Five layers: Erste Schritte / Karten-Features / Aufgaben / Verstehen / Nachschlagen. **Keep it current with editor-visible changes (see §9)**; plan and gap inventory in `docs/superpowers/plans/2026-07-20-editor-handbuch-aufwertung.md`.
 - `docs/asset-caching-and-versioning.md` — **the deploy/cache gotcha** (see §7).
 - `docs/future-map-architecture.md` — north-star architecture & full data model.
 - `docs/territories.md` — political-territory data model + WikiSync.
