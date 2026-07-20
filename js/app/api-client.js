@@ -361,6 +361,22 @@ async function addCitymapLinksFromReviewReport(reportId) {
 	return data;
 }
 
+// Konfliktzentrum (api/edit/map/conflicts.php): list / decide / reopen. Mirrors
+// submitWikiSyncLocationAction -- same envelope, same error handling, capability `edit`.
+async function submitConflictAction(action, payload = {}) {
+	const response = await fetch(CONFLICTS_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json", Accept: "application/json" },
+		body: JSON.stringify({ action, ...payload }),
+	});
+	const data = await readJsonResponse(response, {});
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(apiErrorMessage(data, `Konflikt-API antwortet mit HTTP ${response.status}.`));
+	}
+	return data;
+}
+
 async function submitWikiSyncLocationAction(action, payload = {}) {
 	const response = await fetch(WIKI_SYNC_LOCATIONS_API_URL, {
 		method: "POST",

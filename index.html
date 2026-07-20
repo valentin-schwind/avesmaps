@@ -767,18 +767,29 @@
 			<div id="wiki-sync-conflicts-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-conflicts-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="wiki-sync-conflicts-title">Konflikte</h2>
+					<button id="conflict-rescan" class="wiki-sync-panel__start conflict-rescan" type="button" title="Durchsucht den aktuellen Datenbestand nach Konflikten. Laeuft nicht automatisch — der Durchlauf liest jedes aktive Kartenobjekt.">Neu prüfen</button>
 					<button id="wiki-sync-conflicts-close" class="location-report-dialog__close" type="button" aria-label="Konflikte schließen">×</button>
 				</div>
 				<div class="wiki-sync-conflicts-dialog__body">
-					<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
-						<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
-						<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
-						<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
+					<div id="conflict-rail" class="conflict-rail"></div>
+					<div class="conflict-main">
+						<div id="conflict-list" class="conflict-list"></div>
+						<!-- Die 11 bestehenden WikiSync-Fallarten laufen weiter ueber ihre eigene Liste; sie in die
+						     Registry zu ziehen ist P4. Bis dahin stehen sie hier eingeklappt darunter statt in einem
+						     zweiten Fenster -- ein Ort fuer Konflikte, wie vereinbart. -->
+						<details class="conflict-legacy">
+							<summary>WikiSync-Fälle (eigene Liste, noch nicht in der Registry)</summary>
+						<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
+							<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
+							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
+							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
+						</div>
+						<div class="wiki-sync-panel__filter">
+							<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
+						</div>
+						<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
+						</details>
 					</div>
-					<div class="wiki-sync-panel__filter">
-						<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
-					</div>
-					<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
 				</div>
 			</div>
 		</div>
@@ -1508,6 +1519,7 @@
 		<script src="js/review/review-citymap-autoget.js"></script>
 		<script src="js/review/review-adventure-cover-autoget.js"></script>
 		<script src="js/review/review-wiki-sync-cases.js"></script>
+		<script src="js/review/review-conflicts.js"></script>
 		<script src="js/review/review-wiki-sync-resolve.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>
 		<script src="js/review/review-region-basics.js"></script>
