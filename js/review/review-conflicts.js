@@ -452,6 +452,21 @@ function renderConflicts() {
 			hint.textContent = rule.hint;
 			group.appendChild(hint);
 		}
+		// What each button actually does. Spelled out at the group, not hidden in tooltips: the
+		// difference between "Trennen" and "Kein Wiki-Eintrag" decides whether the removal sticks.
+		if (Array.isArray(rule.verbs) && rule.verbs.length > 0) {
+			const legend = document.createElement("dl");
+			legend.className = "conflict-verbs";
+			rule.verbs.forEach((verb) => {
+				const term = document.createElement("dt");
+				term.textContent = verb.label;
+				legend.appendChild(term);
+				const description = document.createElement("dd");
+				description.textContent = verb.effect;
+				legend.appendChild(description);
+			});
+			group.appendChild(legend);
+		}
 		cases.forEach((conflict) => group.appendChild(createConflictElement(conflict)));
 		list.appendChild(group);
 	});

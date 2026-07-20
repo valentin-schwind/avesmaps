@@ -292,6 +292,16 @@ function avesmapsConflictRuleCatalog(): array {
             'hint' => 'Ein Wiki-Artikel kann nur zu einem Objekt gehören. Segmente einer Straße sind ausgenommen.',
             'severity' => AVESMAPS_CONFLICT_ERROR,
             'actions' => ['pick_one', 'unlink', 'defer', 'ignore'],
+            // What each button DOES. The difference between "Trennen" and "Kein Wiki-Eintrag" is not
+            // cosmetic: only the second one sticks, because the enrichment keeps proposing a link for
+            // any name it can match. Without this spelled out, an editor picks the weaker verb and
+            // the link quietly returns -- which is Discord #38 all over again.
+            'verbs' => [
+                ['label' => 'Behält den Link', 'effect' => 'Dieses Objekt bleibt mit dem Artikel verknüpft. Alle anderen in diesem Fall verlieren ihre Verknüpfung.'],
+                ['label' => 'Trennen', 'effect' => 'Nur dieses Objekt verliert die Verknüpfung. Achtung: Trägt es einen Namen, der zu einem Wiki-Artikel passt, kann der Server ihn später erneut vorschlagen.'],
+                ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt. Nur so bleibt die Trennung dauerhaft — nichts wird mehr vorgeschlagen.'],
+                ['label' => 'Zurückstellen / Archivieren', 'effect' => 'Ändern die Daten nicht. Zurückgestellt heißt „später“, archiviert heißt „bewusst so gelassen“ — beides bleibt auffindbar und umkehrbar.'],
+            ],
         ],
         [
             'id' => 'wiki.missing_key',
@@ -299,6 +309,10 @@ function avesmapsConflictRuleCatalog(): array {
             'hint' => 'Von Hand angelegt. Ob es im Wiki ein Gegenstück gibt, weiß bisher niemand.',
             'severity' => AVESMAPS_CONFLICT_UNVERIFIED,
             'actions' => ['defer', 'ignore'],
+            'verbs' => [
+                ['label' => 'Zurückstellen', 'effect' => 'Nimmt den Eintrag aus „Offen“, holt ihn aber zurück, sobald sich am Objekt etwas ändert.'],
+                ['label' => 'Archivieren', 'effect' => 'Bewusst so gelassen. Bleibt unter „Archiviert“ auffindbar und lässt sich jederzeit wieder öffnen.'],
+            ],
         ],
     ];
 }

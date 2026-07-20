@@ -690,6 +690,19 @@
 .conflict-group > summary::-webkit-details-marker { display: none; }
 .conflict-group__count { margin-left: auto; color: var(--color-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .conflict-group__hint { margin: 3px 0 8px; color: var(--color-text-muted); font-size: 12.5px; }
+/* Folgen-Legende je Regel: was jeder Knopf tatsaechlich tut. Steht sichtbar an der Gruppe statt
+   in Tooltips -- der Unterschied zwischen „Trennen“ und „Kein Wiki-Eintrag“ entscheidet, ob die
+   Trennung haelt, und das darf man nicht erst durch Hovern erfahren. */
+.conflict-verbs {
+	margin: 0 0 10px;
+	padding: 8px 10px;
+	border-left: 2px solid var(--color-border-strong);
+	background: var(--color-panel-soft);
+	font-size: 12px;
+}
+.conflict-verbs dt { font-weight: 600; color: var(--color-text-strong); }
+.conflict-verbs dd { margin: 0 0 6px; color: var(--color-text-muted); }
+.conflict-verbs dd:last-child { margin-bottom: 0; }
 .conflict-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .conflict-dot--error { background: var(--color-danger); }
 .conflict-dot--divergence { background: var(--color-warning-soft-border); }
