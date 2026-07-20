@@ -22,6 +22,7 @@ declare(strict_types=1);
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/conflicts/rules.php';
 require_once __DIR__ . '/../../_internal/conflicts/store.php';
+require_once __DIR__ . '/../../_internal/conflicts/repair.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -51,6 +52,24 @@ try {
 
     if ($action === 'decide') {
         $result = avesmapsConflictRecordDecision($pdo, $payload, (int) ($user['id'] ?? 0));
+        avesmapsJsonResponse(200, $result);
+    }
+
+    // The repairing verb. Writes real map data (revision + audit log), then records the decision so
+    // the case shows as handled instead of silently vanishing on the next scan.
+    if ($action === 'resolve') {
+        $result = avesmapsConflictResolve($pdo, $payload, (int) ($user['id'] ?? 0));
+        if (($payload['rule_id'] ?? '') !== '' && ($payload['fingerprint'] ?? '') !== '') {
+            avesmapsConflictRecordDecision($pdo, [
+                'rule_id' => $payload['rule_id'],
+                'fingerprint' => $payload['fingerprint'],
+                'decision' => 'resolved',
+                'subject_type' => $payload['subject_type'] ?? '',
+                'subject_id' => $payload['subject_id'] ?? '',
+                'acted_type' => $payload['acted_type'] ?? null,
+                'acted_id' => $payload['acted_id'] ?? null,
+            ], (int) ($user['id'] ?? 0));
+        }
         avesmapsJsonResponse(200, $result);
     }
 

@@ -889,6 +889,13 @@ function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $w
     if ((string) ($properties['wiki_url'] ?? '') !== '') {
         return $properties;
     }
+    // An editor has stated that this place has NO wiki article (conflict centre, "Kein Wiki-Eintrag").
+    // Without honouring that, an empty column is indistinguishable from "nobody set one yet" and the
+    // guess below simply puts the wrong link back -- which is why deleting a link never stuck and
+    // Discord #38 kept reappearing. A deliberate emptiness is data, not a gap to fill.
+    if (!empty($properties['wiki_no_article'])) {
+        return $properties;
+    }
 
     $locationName = trim((string) ($row['name'] ?? ''));
     if ($locationName === '') {

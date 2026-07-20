@@ -727,6 +727,9 @@
 	cursor: pointer;
 }
 .conflict-party__show:hover { background: var(--color-button-soft-hover); }
+.conflict-party__actions { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 5px; }
+.conflict-party__actions .conflict-action { font-size: 11.5px; padding: 3px 9px; }
+.conflict-party__locked { color: var(--color-text-muted); font-size: 11px; font-style: italic; }
 .conflict-case__actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .conflict-action {
 	padding: 4px 10px;

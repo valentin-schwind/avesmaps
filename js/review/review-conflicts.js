@@ -226,6 +226,77 @@ function createConflictPartyElement(party) {
 	return element;
 }
 
+// Repair verbs sit ON the party, because that is where the decision lives: this one keeps the
+// article, that one does not. "Behält den Link" is expressed as "unlink all the others" -- the
+// keeper is never written to, which is the safest possible way to say "leave it alone".
+function createConflictPartyActions(conflict, party) {
+	const bar = document.createElement("div");
+	bar.className = "conflict-party__actions";
+
+	const others = (conflict.parties || []).filter((other) => other.id !== party.id || other.type !== party.type);
+	const run = async (button, mode, targets) => {
+		button.disabled = true;
+		try {
+			const result = await submitConflictAction("resolve", {
+				mode,
+				targets: targets.map((target) => ({ type: target.type, id: target.id })),
+				wiki_url: conflict.wiki_url || "",
+				rule_id: conflict.rule_id,
+				fingerprint: conflict.fingerprint,
+				subject_type: party.type,
+				subject_id: party.id,
+				acted_type: party.type,
+				acted_id: party.id,
+			});
+			// The server refuses a party whose claim sits inside a wiki block -- surface that instead
+			// of pretending it worked.
+			const refused = (result.results || []).filter((entry) => entry.ok === false);
+			if (refused.length > 0) {
+				window.alert(refused.map((entry) => entry.reason).join("\n"));
+			}
+			await loadConflicts();
+		} catch (error) {
+			button.disabled = false;
+			window.alert(`Konnte nicht angewendet werden: ${error.message}`);
+		}
+	};
+
+	if (others.length > 0) {
+		const keep = document.createElement("button");
+		keep.type = "button";
+		keep.className = "conflict-action conflict-action--main";
+		keep.textContent = "Behält den Link";
+		keep.title = `Trennt die ${others.length} andere${others.length === 1 ? "n" : "n"} Objekte von diesem Artikel.`;
+		keep.addEventListener("click", () => run(keep, "unlink", others));
+		bar.appendChild(keep);
+	}
+
+	const unlink = document.createElement("button");
+	unlink.type = "button";
+	unlink.className = "conflict-action";
+	unlink.textContent = "Trennen";
+	unlink.addEventListener("click", () => run(unlink, "unlink", [party]));
+	bar.appendChild(unlink);
+
+	const none = document.createElement("button");
+	none.type = "button";
+	none.className = "conflict-action";
+	none.textContent = "Kein Wiki-Eintrag";
+	none.title = "Trennt und hält fest, dass es im Wiki nichts dazu gibt — sonst rät der Server den Link wieder herein.";
+	none.addEventListener("click", () => run(none, "no_wiki", [party]));
+	bar.appendChild(none);
+
+	if (party.unlinkable === false) {
+		const hint = document.createElement("span");
+		hint.className = "conflict-party__locked";
+		hint.textContent = "aus der Wiki-Zuordnung";
+		hint.title = "Diese Verknüpfung hängt an der Infobox und wird im zuständigen Editor gelöst.";
+		bar.appendChild(hint);
+	}
+
+	return bar;
+}
+
 function createConflictActionButton(label, conflict, decision, variant = "") {
 	const button = document.createElement("button");
 	button.type = "button";
@@ -273,17 +344,27 @@ function createConflictElement(conflict) {
 	}
 	element.appendChild(head);
 
+	// A shared article is repaired per party; the watchlist rule has nothing to repair, so it only
+	// offers the bookkeeping verbs below.
+	const isRepairable = Boolean(conflict.wiki_url) && (conflict.parties || []).length > 1;
 	if ((conflict.parties || []).length > 0) {
 		const parties = document.createElement("div");
 		parties.className = "conflict-case__parties";
-		conflict.parties.forEach((party) => parties.appendChild(createConflictPartyElement(party)));
+		conflict.parties.forEach((party) => {
+			const partyElement = createConflictPartyElement(party);
+			if (isRepairable && conflict.status === "open") {
+				partyElement.appendChild(createConflictPartyActions(conflict, party));
+			}
+			parties.appendChild(partyElement);
+		});
 		element.appendChild(parties);
 	}
 
 	const actions = document.createElement("div");
 	actions.className = "conflict-case__actions";
 	if (conflict.status === "open") {
-		actions.appendChild(createConflictActionButton("Erledigt", conflict, "resolved", "main"));
+		// No case-level "Erledigt": it would archive the case while the wrong link stays, i.e. claim
+		// a repair that never happened. Repair lives on the party; these two only record a verdict.
 		actions.appendChild(createConflictActionButton("Zurückstellen", conflict, "deferred"));
 		actions.appendChild(createConflictActionButton("Archivieren", conflict, "ignored"));
 	} else {

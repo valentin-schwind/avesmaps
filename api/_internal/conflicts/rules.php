@@ -74,15 +74,19 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
             $properties = [];
         }
         // The stored claim, in the order the editors write it. No enrichment, no fallback guessing.
+        // WHERE it comes from is carried along: only the plain field can be cleared from here.
+        // A block-borne claim (wiki_settlement/-region/-path) hangs off the whole infobox payload
+        // and belongs to its own editor -- see repair.php.
         $wikiUrl = trim((string) ($properties['wiki_url'] ?? ''));
-        if ($wikiUrl === '') {
-            $wikiUrl = trim((string) ($properties['wiki_settlement']['wiki_url'] ?? ''));
-        }
-        if ($wikiUrl === '') {
-            $wikiUrl = trim((string) ($properties['wiki_region']['wiki_url'] ?? ''));
-        }
-        if ($wikiUrl === '') {
-            $wikiUrl = trim((string) ($properties['wiki_path']['wiki_url'] ?? ''));
+        $claimSource = $wikiUrl !== '' ? 'wiki_url' : '';
+        foreach (['wiki_settlement', 'wiki_region', 'wiki_path'] as $block) {
+            if ($wikiUrl !== '') {
+                break;
+            }
+            $wikiUrl = trim((string) ($properties[$block]['wiki_url'] ?? ''));
+            if ($wikiUrl !== '') {
+                $claimSource = $block;
+            }
         }
 
         $rows[] = [
@@ -92,6 +96,7 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
             'subtype' => (string) ($row['feature_subtype'] ?? ''),
             'wiki_url' => $wikiUrl,
             'position' => avesmapsConflictFirstPosition($row['geometry_json'] ?? null),
+            'claim_source' => $claimSource,
         ];
     }
 
@@ -164,17 +169,24 @@ function avesmapsConflictLoadWikiTitles(PDO $pdo): array {
  * article under its own exact name exists, and where it sits on the map.
  */
 function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []): array {
-    $positions = [];
+    $meta = [];
     foreach ($rows as $row) {
-        $positions[$row['type'] . '|' . $row['id']] = $row['position'] ?? null;
+        $meta[$row['type'] . '|' . $row['id']] = [
+            'position' => $row['position'] ?? null,
+            'claim_source' => $row['claim_source'] ?? '',
+        ];
     }
     $conflicts = [];
     foreach (avesmapsConflictFindSharedWikiUrls($rows) as $group) {
-        $parties = array_map(static function (array $party) use ($wikiTitles, $positions): array {
+        $parties = array_map(static function (array $party) use ($wikiTitles, $meta): array {
             $party['type_label'] = AVESMAPS_CONFLICT_TYPE_LABELS[$party['type']] ?? $party['type'];
             $own = $wikiTitles[mb_strtolower((string) $party['label'], 'UTF-8')] ?? null;
             $party['own_wiki'] = $own;
-            $party['position'] = $positions[$party['type'] . '|' . $party['id']] ?? null;
+            $info = $meta[$party['type'] . '|' . $party['id']] ?? [];
+            $party['position'] = $info['position'] ?? null;
+            // Only a plain-field claim may be cleared from the conflict centre (repair.php).
+            $party['claim_source'] = $info['claim_source'] ?? '';
+            $party['unlinkable'] = ($info['claim_source'] ?? '') === 'wiki_url';
             return $party;
         }, $group['parties']);
         $title = decodeConflictWikiTitle($group['wiki_url']);
