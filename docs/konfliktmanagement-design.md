@@ -345,6 +345,64 @@ Drei Dinge sind bewusst so:
   sich (SQL `locations.php:694`, PHP `locations-helpers.php:12`, JS
   `review-wiki-sync-cases.js:349`). **Eine Quelle.**
 
+## 6a. Der Wiki-Namensraum ist global — die wichtigste Regelfamilie
+
+Owner-Hinweis 2026-07-20, zweiter und größerer: **es sind nicht nur Siedlungen und
+Territorien. Alle Wiki-Schlüssel können miteinander kollidieren.** Wenn wir einen Ort
+„Heldenweiler" haben und das Wiki liefert eine Region, eine Baronie oder eine Straße
+desselben Namens, ist das derselbe Konflikt.
+
+Das stimmt, und es ist messbar. Im Karten-Payload beanspruchen **vier** Feature-Typen
+Wiki-Artikel — zusammen über 4.000 Ansprüche, ohne Territorien, Abenteuer, Karten und
+Quellen, die in eigenen Tabellen liegen:
+
+| Typ | Ansprüche |
+|---|---|
+| Ort | 1954 |
+| Weg | 1664 |
+| Region/Landschaft | 473 |
+| Kraftlinie | 4 |
+
+### 💣 Die naive Regel wäre unbrauchbar
+
+„Mehrere Objekte teilen einen Wiki-Link" trifft **268 Gruppen mit 1670 Objekten**
+(gemessen 2026-07-20). Aufgeschlüsselt:
+
+| Kombination | Gruppen | Objekte | Bewertung |
+|---|---|---|---|
+| Weg ⇄ Weg | 215 | 1547 | **legitim** — „Reichsstraße 1" hat 26 Segmente, ein Artikel |
+| Region ⇄ Region | 18 | 37 | fraglich — zwei Labels auf einem Artikel |
+| Region ⇄ Ort | 16 | 33 | **oft legitim** — in Aventurien teilen Stadt und gleichnamige Region den Artikel (Greifenfurt, Mengbilla) |
+| Ort ⇄ Ort | 12 | 30 | **Fehler** — nur einer kann es sein |
+| Ort ⇄ Weg | 6 | 19 | fraglich — teils Fluss + Ort am Fluss |
+| Kraftlinie | 1 | 4 | ungeklärt |
+
+**Ohne Unterscheidung nach Typ-Paar würde das Werkzeug am ersten Tag 1547 legitime
+Wegsegmente als Konflikt melden und wäre damit unbenutzbar.** Die Regel braucht also
+eine Tabelle, welches Teilen erlaubt ist:
+
+```php
+// Welche Objektart-Paare duerfen sich einen Wiki-Artikel teilen?
+'path|path'       => 'erlaubt',    // Segmente einer Strasse -- so gewollt
+'location|location'=> 'fehler',
+'location|path'   => 'abweichung',
+'label|location'  => 'abweichung', // Stadt + gleichnamige Region: in DSA normal
+'label|label'     => 'abweichung',
+// alles Uebrige: 'fehler'
+```
+
+### Was das am Aufbau ändert
+
+Es ersetzt mehrere Einzelregeln durch **eine globale Regel über den gesamten
+Wiki-Namensraum**, deren Beteiligte beliebige Objektarten haben. Genau dafür ist das
+`parties`-Modell aus §4.3 da — die Oberfläche muss sich **nicht** ändern, der
+Objektart-Filter bekommt dadurch erst seinen eigentlichen Sinn.
+
+⚠️ Diese Messung deckt nur `map_features` ab. `political_territory.wiki_key`,
+`adventure.wiki_key`, `citymap.wiki_key` und `sources.wiki_key` liegen in eigenen
+Tabellen und sind **noch nie gegen die Karte geprüft worden**. Erst der erste echte
+Lauf zeigt, wie groß die Überschneidung dort ist.
+
 ## 7. Die Regeln zum Start
 
 Viele Prüfungen existieren bereits — aber **weniger, als ich zunächst behauptet
