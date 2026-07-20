@@ -212,7 +212,7 @@ function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []):
  * Auto-named ways are excluded -- a generated "Reichsstrasse-3633" can never match a wiki page, and
  * including them would bury the 1178 hand-named ways under 2448 machine-made ones (§6b).
  */
-function avesmapsConflictRuleMissingKey(array $rows): array {
+function avesmapsConflictRuleMissingKey(array $rows, array $wikiTitles = []): array {
     $conflicts = [];
     foreach ($rows as $row) {
         if (trim((string) $row['wiki_url']) !== '') {
@@ -221,16 +221,24 @@ function avesmapsConflictRuleMissingKey(array $rows): array {
         if ($row['type'] === 'path' && avesmapsConflictPathNameIsAuto((string) $row['label'], AVESMAPS_CONFLICT_PATH_SUBTYPES)) {
             continue;
         }
+        // The same evidence the shared-article rule shows, for the same reason: without it this is a
+        // list of names nobody can act on. And the wiki lookup is what splits the watchlist into the
+        // two halves §6b calls for -- "there IS a candidate" (actionable: link it) versus "there is
+        // none" (nothing to do but keep an eye on it).
         $party = [
             'type' => $row['type'],
             'id' => $row['id'],
             'label' => $row['label'],
             'type_label' => AVESMAPS_CONFLICT_TYPE_LABELS[$row['type']] ?? $row['type'],
+            'position' => $row['position'] ?? null,
+            'own_wiki' => $wikiTitles[mb_strtolower((string) $row['label'], 'UTF-8')] ?? null,
         ];
         $conflicts[] = [
             'rule_id' => 'wiki.missing_key',
             'fingerprint' => avesmapsConflictFingerprint('wiki.missing_key', [$party]),
-            'severity' => AVESMAPS_CONFLICT_UNVERIFIED,
+            // §6b: ein Fall MIT Kandidat ist handlungsfaehig (verknuepfen), einer ohne bleibt reine
+            // Beobachtung. Ohne diese Trennung waeren alle 2000 gleich dringend -- also keiner.
+            'severity' => $party['own_wiki'] !== null ? AVESMAPS_CONFLICT_DIVERGENCE : AVESMAPS_CONFLICT_UNVERIFIED,
             'title' => (string) $row['label'],
             'wiki_url' => '',
             'parties' => [$party],
@@ -326,7 +334,7 @@ function avesmapsConflictDetectAll(PDO $pdo): array {
     $wikiTitles = avesmapsConflictLoadWikiTitles($pdo);
     $conflicts = array_merge(
         avesmapsConflictRuleSharedArticle($rows, $wikiTitles),
-        avesmapsConflictCollapsePathsByName(avesmapsConflictRuleMissingKey($rows))
+        avesmapsConflictCollapsePathsByName(avesmapsConflictRuleMissingKey($rows, $wikiTitles))
     );
 
     return $conflicts;

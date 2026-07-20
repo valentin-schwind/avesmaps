@@ -276,7 +276,7 @@ function focusConflictParty(party) {
 // decidable; what decides it is whether THIS object has an article of its own and where it sits.
 // Owner on the live list: "ist Jergan im Wiki? ist Jergan auf der Karte? ... dann kann ich
 // entscheiden."
-function createConflictPartyElement(party) {
+function createConflictPartyElement(party, conflict = null) {
 	const element = document.createElement("div");
 	element.className = "conflict-party";
 
@@ -296,18 +296,23 @@ function createConflictPartyElement(party) {
 	evidence.className = "conflict-party__evidence";
 
 	// "Im Wiki?" -- an article under this object's OWN exact name, not the shared one.
+	// Bei einem Fall OHNE gespeicherte Verknuepfung heisst ein Treffer etwas anderes als bei einer
+	// Kollision: dort belegt er, wem der Artikel gehoert, hier ist er ein Vorschlag.
+	const unlinked = conflict?.rule_id === "wiki.missing_key";
 	if (party.own_wiki?.url) {
 		const link = document.createElement("a");
 		link.className = "conflict-party__wiki";
 		link.href = party.own_wiki.url;
 		link.target = "_blank";
 		link.rel = "noopener noreferrer";
-		link.textContent = `eigener Artikel: ${party.own_wiki.title} ↗`;
+		link.textContent = unlinked
+			? `passender Artikel gefunden: ${party.own_wiki.title} ↗`
+			: `eigener Artikel: ${party.own_wiki.title} ↗`;
 		evidence.appendChild(link);
 	} else {
 		const none = document.createElement("span");
 		none.className = "conflict-party__none";
-		none.textContent = "kein eigener Wiki-Artikel";
+		none.textContent = unlinked ? "im Wiki nichts gefunden" : "kein eigener Wiki-Artikel";
 		evidence.appendChild(none);
 	}
 
@@ -462,7 +467,7 @@ function createConflictElement(conflict) {
 		const parties = document.createElement("div");
 		parties.className = "conflict-case__parties";
 		conflict.parties.forEach((party) => {
-			const partyElement = createConflictPartyElement(party);
+			const partyElement = createConflictPartyElement(party, conflict);
 			if (isRepairable && conflict.status === "open") {
 				partyElement.appendChild(createConflictPartyActions(conflict, party));
 			}
