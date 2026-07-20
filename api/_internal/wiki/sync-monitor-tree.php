@@ -118,6 +118,33 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
         $present[(string) $row['wiki_key']] = true;
     }
 
+    // Sources per territory (multi-source system), for the tree's "Quelle" filter. Deliberately a
+    // separate aggregate query instead of another JOIN in the main statement: feature_sources is
+    // created by self-healing DDL (api/_internal/app/feature-sources.php) and may not exist yet on
+    // a fresh install -- a failing JOIN would take the whole tree down with it. The link is
+    // feature_sources.entity_public_id = political_territory.public_id while this tree is keyed by
+    // wiki_key, hence the join through political_territory.
+    $sourceCounts = [];
+    try {
+        foreach ($pdo->query(
+            "SELECT pt.wiki_key AS wk,
+                    SUM(fs.origin = 'wiki_publication') AS wiki_cnt,
+                    SUM(fs.origin <> 'wiki_publication') AS other_cnt
+             FROM feature_sources fs
+             JOIN political_territory pt ON pt.public_id = fs.entity_public_id
+             WHERE fs.entity_type = 'territory' AND fs.status = 'approved'
+               AND pt.is_active = 1 AND pt.wiki_key IS NOT NULL AND pt.wiki_key <> ''
+             GROUP BY pt.wiki_key"
+        ) ?: [] as $row) {
+            $sourceCounts[(string) $row['wk']] = [
+                'wiki' => (int) $row['wiki_cnt'],
+                'other' => (int) $row['other_cnt'],
+            ];
+        }
+    } catch (Throwable $exception) {
+        $sourceCounts = [];   // table missing -> the filter falls back to wiki_url alone
+    }
+
     // Reverse-Alias-Karte: kanonischer wiki_key -> [alias_slugs] (fuer alias-bewusste Suche,
     // z.B. "mittelreich" findet den kanonischen Knoten).
     $aliasesByKey = [];
@@ -189,6 +216,10 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'diverges' => $diverges,
             'source_origin' => (string) ($row['source_origin'] ?? ''),
             'is_own_node' => avesmapsWikiSyncMonitorIsCustomNodeKey((string) $row['wiki_key']),
+            // Multi-source counts (see $sourceCounts above). Note that source_origin means something
+            // else entirely: which wiki infobox produced the node, not which source documents it.
+            'source_count_wiki' => $sourceCounts[$wikiKey]['wiki'] ?? 0,
+            'source_count_other' => $sourceCounts[$wikiKey]['other'] ?? 0,
             'has_conflict' => $conflictNames !== [],
             'conflicts' => $conflictNames,
             'aliases' => $aliases,

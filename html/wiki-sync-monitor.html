@@ -72,6 +72,20 @@
   .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
   input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
   input[type=search] { flex:1; }
+  /* Kombiniertes „Filter ▾"-Dropdown des Hierarchie-Baums -- die .type-filter*-Regeln sind 1:1 die
+     des Siedlungseditors (html/wiki-sync-settlement-editor.html, dort seinerseits aus
+     css/features/review-panel.css portiert), damit die Filtermaske in beiden Editoren identisch
+     aussieht. Padding am Toggle bewusst enger als dort: diese Bar ist kompakter. */
+  .type-filter { position:relative; flex:0 0 auto; display:flex; }
+  .type-filter__toggle { padding:4px 8px; font-size:12px; border:1px solid var(--line2); border-radius:5px; background:var(--soft); color:var(--color-button-soft-text); cursor:pointer; white-space:nowrap; font:inherit; }
+  .type-filter__toggle:hover { background:var(--color-button-soft-hover); }
+  .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:var(--color-panel); border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+  .type-filter__menu[hidden] { display:none; }
+  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:12px; color:var(--color-text); cursor:pointer; border-radius:4px; }
+  .type-filter__opt:hover { background:var(--color-hover-wash); }
+  .type-filter__label { flex:1 1 auto; min-width:0; }
+  .type-filter__section-title { font-size:11px; font-weight:600; color:var(--color-text-muted); padding:4px 6px 2px; }
+  .type-filter__section + .type-filter__section { border-top:1px solid var(--color-divider); margin-top:4px; padding-top:2px; }
   .row { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:3px 5px; border-radius:4px; cursor:grab; }
   .row:hover { background:var(--color-hover-wash); }
   /* Gebietsname hat Vorrang: Mindestbreite + fett, damit er nicht von langen Eltern-/Konflikt-Tags
@@ -271,7 +285,7 @@
     <div class="colhead">
       <h2 class="listhead">Hierarchiemodell der Herrschaftsgebiete</h2>
       <div class="listsub" id="treeCount"></div>
-      <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"></div>
+      <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"><div class="type-filter"><button type="button" id="treeFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="treeFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="treeSourceFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="treeCoatFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Hierarchie</div><div id="treeHierarchyFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Zugewiesen</div><div id="treeAssignedFilterMenu"></div></div></div></div></div>
       <div class="timefilter">Zeige nur: <input type="number" id="timeRightFrom" placeholder="von" disabled> – <input type="number" id="timeRightTo" placeholder="bis" disabled> BF <label><input type="checkbox" id="timeRightToday" checked> heute</label> <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="flaechRight"> nur Flächenländer</label></div>
       <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     </div>
@@ -952,6 +966,63 @@ function buildTreeNode(n, depth) {
   if (hasKids && open) html += `<ul class="tree">${kids.map(k=>buildTreeNode(k,depth+1)).join('')}</ul>`;
   return html + '</li>';
 }
+
+// ===== Kombiniertes „Filter ▾"-Dropdown des Hierarchie-Baums =====================================
+// Vier Radio-Abschnitte (Quelle/Wappen/Hierarchie/Zugewiesen). Markup und Verhalten sind 1:1 die des
+// Siedlungseditors (renderSettlementFilterSections/wireSettlementFilterPanel in
+// html/wiki-sync-settlement-editor.html), damit beide Editoren dieselbe Filtermaske zeigen. Bewusst
+// lokal nachgebaut statt importiert: diese Seite ist ein eigenstaendiges iframe-Dokument ohne
+// Zugriff auf die Modul-Welt der Hauptanwendung -- gleiche Begruendung wie dort.
+//
+// WICHTIG: Diese Filter greifen NICHT in nodeHidden() ein, sondern nur ueber treeKeep -- genau wie
+// die Suche. Zwei Gruende: (1) nodeHidden() steuert auch coverage(), ein „Zugewiesen"-Filter dort
+// wuerde also die Abdeckung veraendern, nach der er filtert; (2) ein herausgefiltertes Elternteil
+// darf seine passenden Kinder nicht mit abschneiden -- Treffer behalten ihre Vorfahren.
+const treeSourceFilter = { value:'' };      // '' = alle | wiki | andere | keine
+const treeCoatFilter = { value:'' };        // '' = alle | ja | nein
+const treeHierarchyFilter = { value:'' };   // '' = alle | mit | ohne
+const treeAssignedFilter = { value:'' };    // '' = alle | ja | teilweise | nein
+// Quelle-Kategorie: Wiki hat Vorrang, dann eine andere Quelle, sonst keine -- dieselbe Reihenfolge
+// wie getItemSourceCategory() in js/app/utils.js. Anders als dort zaehlt der wiki_key hier NICHT
+// (den hat jeder Knoten, auch ein eigener), sondern die echte Wiki-Seite bzw. die Eintraege aus dem
+// Mehrquellen-System (source_count_* aus dem model_tree).
+function treeSourceCategory(n){
+  if(n.wiki_url || (n.source_count_wiki||0) > 0) return 'wiki';
+  if((n.source_count_other||0) > 0) return 'andere';
+  return 'keine';
+}
+function treeHasChildren(n){ return (treeChildren.get(n.wiki_key) || []).length > 0; }
+// „Zugewiesen" spiegelt exakt den Abdeckungs-Kreis vor dem Namen: voll = ja, halb = teilweise,
+// leer = nein. Deshalb coverage() und keine zweite Rechnung daneben.
+function treeAssignedCategory(n){
+  const k = coverage(n).kind;
+  if(k==='all') return 'ja';
+  if(k==='none') return 'nein';
+  return 'teilweise';
+}
+const TREE_FILTER_SECTIONS = [
+  { menuId:'treeSourceFilterMenu', state:treeSourceFilter, options:[{value:'wiki',label:'Wiki'},{value:'andere',label:'Andere'},{value:'keine',label:'Keine'}], match:(n,v)=>treeSourceCategory(n)===v },
+  { menuId:'treeCoatFilterMenu', state:treeCoatFilter, options:[{value:'ja',label:'ja'},{value:'nein',label:'nein'}], match:(n,v)=>(!!n.coat_of_arms_url)===(v==='ja') },
+  { menuId:'treeHierarchyFilterMenu', state:treeHierarchyFilter, options:[{value:'mit',label:'mit Kindern'},{value:'ohne',label:'ohne Kinder'}], match:(n,v)=>treeHasChildren(n)===(v==='mit') },
+  { menuId:'treeAssignedFilterMenu', state:treeAssignedFilter, options:[{value:'ja',label:'ja'},{value:'teilweise',label:'teilweise'},{value:'nein',label:'nein'}], match:(n,v)=>treeAssignedCategory(n)===v },
+];
+function treeFiltersActive(){ return TREE_FILTER_SECTIONS.some(s=>Boolean(s.state.value)); }
+function matchesTreeFilters(n){ return TREE_FILTER_SECTIONS.every(s=>!s.state.value || s.match(n, s.state.value)); }
+// Baut die vier Optionslisten neu und stempelt die Zahl abweichender Abschnitte auf den Toggle.
+// Nur die inneren Abschnitts-Container werden ersetzt, nicht das Panel selbst -- ein offenes Menue
+// bleibt offen und der delegierte change-Listener am Panel ueberlebt.
+function renderTreeFilterSections(){
+  let active = 0;
+  for(const s of TREE_FILTER_SECTIONS){
+    const menu = $(s.menuId); if(!menu) continue;
+    const parts = [`<label class="type-filter__opt"><input type="radio" name="${s.menuId}" value="__all__"${!s.state.value?' checked':''}><span class="type-filter__label">Alle</span></label>`];
+    for(const opt of s.options) parts.push(`<label class="type-filter__opt"><input type="radio" name="${s.menuId}" value="${esc(opt.value)}"${s.state.value===opt.value?' checked':''}><span class="type-filter__label">${esc(opt.label)}</span></label>`);
+    menu.innerHTML = parts.join('');
+    if(s.state.value) active += 1;
+  }
+  const toggle = $('treeFilterToggle');
+  if(toggle){ toggle.textContent = active>0 ? `Filter (${active}) ▾` : 'Filter ▾'; toggle.title = active>0 ? `Filter (${active} aktiv)` : 'Filter'; }
+}
 function renderTree() {
   covTime = rightTime; covFlaech = rightFlaech; covCache.clear();
   // Lücken (Eltern nicht im Modell) erscheinen NICHT im Hierarchie-Baum – nur in der linken
@@ -966,20 +1037,25 @@ function renderTree() {
     if (p) { if(!treeChildren.has(p)) treeChildren.set(p,[]); treeChildren.get(p).push(n); }
     else roots.push(n);
   }
-  // Suche: nur Treffer + ihre Vorfahren behalten, Vorfahren aufklappen
+  // Suche + Filtermenue: nur Treffer und ihre Vorfahren behalten, Vorfahren aufklappen. Ein Vorfahr
+  // bleibt auch dann stehen, wenn er selbst nicht passt -- sonst waere der Treffer unerreichbar.
   const q = treeQuery.trim().toLowerCase();
+  const filtered = treeFiltersActive();
   treeKeep=null; treeForceOpen=null;
-  if(q){
+  let hits = 0;
+  if(q || filtered){
     treeKeep=new Set(); treeForceOpen=new Set();
-    const match=(n)=> dispName(n).toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q) || (n.aliases||[]).some(a=>a.includes(q));
+    const match=(n)=> (!q || dispName(n).toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q) || (n.aliases||[]).some(a=>a.includes(q))) && matchesTreeFilters(n);
     for(const n of NODES){
       if(hide(n) || !match(n)) continue;
+      hits += 1;
       let c=n;
       while(c){ treeKeep.add(c.wiki_key); const p=(c.parent_wiki_key && c.parent_in_model && !hidden.has(c.parent_wiki_key)) ? BYKEY.get(c.parent_wiki_key) : null; if(p) treeForceOpen.add(p.wiki_key); c=p; }
     }
   }
   const shown = roots.filter(r=>!treeKeep || treeKeep.has(r.wiki_key)).sort((a,b)=>a.name.localeCompare(b.name));
-  $('treeCount').textContent = `${NODES.length} Knoten · ${roots.length} Wurzelknoten`;
+  renderTreeFilterSections();
+  $('treeCount').textContent = `${NODES.length} Knoten · ${roots.length} Wurzelknoten${treeKeep ? ` · ${hits} Treffer` : ''}`;
   $('tree').innerHTML = shown.length ? `<ul class="tree">${shown.map(r=>buildTreeNode(r,0)).join('')}</ul>` : '<div class="muted">— keine —</div>';
 }
 // Chirurgisches Auf-/Zuklappen: nur den betroffenen Teilbaum anfassen -> kein Wappen-Flackern.
@@ -1218,6 +1294,21 @@ $('timeRightToday').onchange = ()=>applyTime('timeRight', rightTime, renderTree)
 $('timeRightFrom').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
 $('timeRightTo').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
 $('flaechRight').onchange = ()=>{ rightFlaech = $('flaechRight').checked; renderTree(); };
+// Filtermenue des Baums: Toggle auf/zu, Klick daneben schliesst, Auswahl baut den Baum neu. Der
+// change-Handler haengt am Panel (Delegation) -- renderTreeFilterSections() ersetzt nur die inneren
+// Abschnitts-Container, das Panel selbst bleibt bestehen.
+$('treeFilterToggle').onclick = (e)=>{ e.stopPropagation(); const m=$('treeFilterMenu'); m.hidden = !m.hidden; };
+document.addEventListener('click', (e)=>{ const m=$('treeFilterMenu'), t=$('treeFilterToggle'); if(m && !m.hidden && !m.contains(e.target) && !t.contains(e.target)) m.hidden = true; });
+$('treeFilterMenu').addEventListener('change', (e)=>{
+  const input = e.target; if(!input || input.type!=='radio') return;
+  const section = TREE_FILTER_SECTIONS.find(s=>{ const c=$(s.menuId); return c && c.contains(input); });
+  if(!section) return;
+  section.state.value = input.value==='__all__' ? '' : input.value;
+  renderTree();
+});
+// Einmal beim Start fuellen: renderTree() laeuft erst nach loadModel(), das Menue soll aber auch
+// dann Optionen zeigen, wenn das Laden fehlschlaegt.
+renderTreeFilterSections();
 
 // Kontinente-Dropdown
 $('contMenu').addEventListener('click', e=>{
