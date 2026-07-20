@@ -51,7 +51,7 @@ const AVESMAPS_CONFLICT_TYPE_LABELS = [
  */
 function avesmapsConflictLoadMapRows(PDO $pdo): array {
     $statement = $pdo->query(
-        "SELECT public_id, name, feature_type, feature_subtype, properties_json
+        "SELECT public_id, name, feature_type, feature_subtype, properties_json, geometry_json
          FROM map_features
          WHERE is_active = 1 AND feature_type IN ('location','path','label','powerline')"
     );
@@ -91,6 +91,7 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
             'label' => $name,
             'subtype' => (string) ($row['feature_subtype'] ?? ''),
             'wiki_url' => $wikiUrl,
+            'position' => avesmapsConflictFirstPosition($row['geometry_json'] ?? null),
         ];
     }
 
@@ -98,16 +99,82 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
 }
 
 /**
+ * First coordinate of a feature as [lat, lng], or null. GeoJSON stores [x, y] = [lng, lat] and
+ * Leaflet wants [lat, lng] (AGENTS.md §5) -- swapped here ONCE so no caller has to remember.
+ * A line takes its first vertex: good enough to fly the map there.
+ */
+function avesmapsConflictFirstPosition($geometryJson): ?array {
+    $geometry = json_decode((string) ($geometryJson ?? ''), true);
+    $coordinates = is_array($geometry) ? ($geometry['coordinates'] ?? null) : null;
+    while (is_array($coordinates) && isset($coordinates[0]) && is_array($coordinates[0])) {
+        $coordinates = $coordinates[0];
+    }
+    if (!is_array($coordinates) || !isset($coordinates[0], $coordinates[1])) {
+        return null;
+    }
+
+    return ['lat' => (float) $coordinates[1], 'lng' => (float) $coordinates[0]];
+}
+
+/**
+ * EXACT wiki page titles, indexed for a per-party lookup: "does an article with THIS object's own
+ * name exist?".
+ *
+ * Deliberately NOT keyed on normalized_key. That key strips the parenthetical suffix, which is
+ * precisely what caused Discord #38 -- "Jergan (Wasserfall)" would resolve to the article "Jergan"
+ * and the evidence shown to the editor would repeat the very mistake being reviewed. Only a
+ * case-folded exact title match answers the question honestly.
+ *
+ * @return array<string, array{title:string,url:string}>
+ */
+function avesmapsConflictLoadWikiTitles(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT title, wiki_url FROM wiki_sync_pages
+             WHERE title IS NOT NULL AND title <> '' AND wiki_url IS NOT NULL AND wiki_url <> ''"
+        );
+    } catch (Throwable $exception) {
+        return []; // no dump read yet -- the evidence column simply stays empty
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $index = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $title = trim((string) $row['title']);
+        if ($title === '') {
+            continue;
+        }
+        $index[mb_strtolower($title, 'UTF-8')] = ['title' => $title, 'url' => (string) $row['wiki_url']];
+    }
+
+    return $index;
+}
+
+/**
  * Rule 1 -- several objects claim the same wiki article.
  *
  * The one legitimate sharing (the segments of a single road) is filtered out in core.php; without
  * that filter this rule would report 1547 correct road segments and be abandoned on sight (§6a).
+ *
+ * Each party carries its OWN evidence, because the conflict alone is not decidable. Owner, on the
+ * live list: "ist Jergan im Wiki? ist Jergan auf der Karte? ist Jergan (Wasserfall) im Wiki? ist
+ * Jergan (Wasserfall) auf der Karte -> dann kann ich entscheiden." So every party reports whether an
+ * article under its own exact name exists, and where it sits on the map.
  */
-function avesmapsConflictRuleSharedArticle(array $rows): array {
+function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []): array {
+    $positions = [];
+    foreach ($rows as $row) {
+        $positions[$row['type'] . '|' . $row['id']] = $row['position'] ?? null;
+    }
     $conflicts = [];
     foreach (avesmapsConflictFindSharedWikiUrls($rows) as $group) {
-        $parties = array_map(static function (array $party): array {
+        $parties = array_map(static function (array $party) use ($wikiTitles, $positions): array {
             $party['type_label'] = AVESMAPS_CONFLICT_TYPE_LABELS[$party['type']] ?? $party['type'];
+            $own = $wikiTitles[mb_strtolower((string) $party['label'], 'UTF-8')] ?? null;
+            $party['own_wiki'] = $own;
+            $party['position'] = $positions[$party['type'] . '|' . $party['id']] ?? null;
             return $party;
         }, $group['parties']);
         $title = decodeConflictWikiTitle($group['wiki_url']);
@@ -229,8 +296,9 @@ function avesmapsConflictRuleCatalog(): array {
  */
 function avesmapsConflictDetectAll(PDO $pdo): array {
     $rows = avesmapsConflictLoadMapRows($pdo);
+    $wikiTitles = avesmapsConflictLoadWikiTitles($pdo);
     $conflicts = array_merge(
-        avesmapsConflictRuleSharedArticle($rows),
+        avesmapsConflictRuleSharedArticle($rows, $wikiTitles),
         avesmapsConflictCollapsePathsByName(avesmapsConflictRuleMissingKey($rows))
     );
 

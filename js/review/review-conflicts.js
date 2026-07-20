@@ -160,17 +160,68 @@ function renderConflictRail() {
 	});
 }
 
+// Fly to a party and get the dialog out of the way. Without closing it the map is behind a
+// near-fullscreen overlay and "Anzeigen" would do nothing visible.
+function focusConflictParty(party) {
+	const lat = Number(party?.position?.lat);
+	const lng = Number(party?.position?.lng);
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return;
+	}
+	setWikiSyncConflictsDialogOpen(false);
+	map.flyTo(L.latLng(lat, lng), Math.max(map.getZoom(), 4), { duration: 0.8 });
+}
+
+// One party = one column of evidence. The conflict alone ("two things share an article") is not
+// decidable; what decides it is whether THIS object has an article of its own and where it sits.
+// Owner on the live list: "ist Jergan im Wiki? ist Jergan auf der Karte? ... dann kann ich
+// entscheiden."
 function createConflictPartyElement(party) {
 	const element = document.createElement("div");
 	element.className = "conflict-party";
+
+	const head = document.createElement("div");
+	head.className = "conflict-party__head";
 	const type = document.createElement("span");
 	type.className = "conflict-party__type";
 	type.textContent = party.type_label || party.type || "";
-	element.appendChild(type);
+	head.appendChild(type);
 	const label = document.createElement("span");
 	label.className = "conflict-party__label";
 	label.textContent = party.label || "(ohne Namen)";
-	element.appendChild(label);
+	head.appendChild(label);
+	element.appendChild(head);
+
+	const evidence = document.createElement("div");
+	evidence.className = "conflict-party__evidence";
+
+	// "Im Wiki?" -- an article under this object's OWN exact name, not the shared one.
+	if (party.own_wiki?.url) {
+		const link = document.createElement("a");
+		link.className = "conflict-party__wiki";
+		link.href = party.own_wiki.url;
+		link.target = "_blank";
+		link.rel = "noopener noreferrer";
+		link.textContent = `eigener Artikel: ${party.own_wiki.title} ↗`;
+		evidence.appendChild(link);
+	} else {
+		const none = document.createElement("span");
+		none.className = "conflict-party__none";
+		none.textContent = "kein eigener Wiki-Artikel";
+		evidence.appendChild(none);
+	}
+
+	// "Auf der Karte?"
+	if (party.position) {
+		const show = document.createElement("button");
+		show.type = "button";
+		show.className = "conflict-party__show";
+		show.textContent = "Auf der Karte zeigen";
+		show.addEventListener("click", () => focusConflictParty(party));
+		evidence.appendChild(show);
+	}
+
+	element.appendChild(evidence);
 
 	return element;
 }

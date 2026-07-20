@@ -55,6 +55,32 @@ assert($partyTypes === ['label', 'location']);                    // cross-type,
 assert($shared[0]['parties'][0]['type_label'] !== '');            // German label reaches the screen
 assert(preg_match('/^[a-f0-9]{64}$/', $shared[0]['fingerprint']) === 1);
 
+// ---- the per-party evidence (owner: "ist Jergan im Wiki? ist Jergan (Wasserfall) im Wiki?") -----
+// The index is keyed on the EXACT title, case-folded. This is the assertion that keeps #38 from
+// coming back in through the evidence column: normalized_key would strip "(Wasserfall)" and claim
+// the waterfall has its own article when it merely collides with the settlement's.
+$wikiTitles = [
+    'jergan' => ['title' => 'Jergan', 'url' => 'https://w/wiki/Jergan'],
+    'heldenweiler' => ['title' => 'Heldenweiler', 'url' => 'https://w/wiki/Heldenweiler'],
+];
+$jerganRows = [
+    ['type' => 'location', 'id' => 'j1', 'label' => 'Jergan', 'subtype' => 'dorf', 'wiki_url' => 'https://w/wiki/Jergan', 'position' => ['lat' => 1.0, 'lng' => 2.0]],
+    ['type' => 'location', 'id' => 'j2', 'label' => 'Jergan (Wasserfall)', 'subtype' => 'dorf', 'wiki_url' => 'https://w/wiki/Jergan', 'position' => ['lat' => 3.0, 'lng' => 4.0]],
+];
+$jergan = avesmapsConflictRuleSharedArticle($jerganRows, $wikiTitles);
+assert(count($jergan) === 1);
+$byLabel = [];
+foreach ($jergan[0]['parties'] as $party) {
+    $byLabel[$party['label']] = $party;
+}
+// "Jergan" has an article of its own -> it is the plausible owner of the shared link.
+assert($byLabel['Jergan']['own_wiki']['title'] === 'Jergan');
+// "Jergan (Wasserfall)" has NONE -- and must not inherit Jergan's just because the key would fold.
+assert($byLabel['Jergan (Wasserfall)']['own_wiki'] === null);
+// Each party carries where it sits, so the editor can look at it before deciding.
+assert($byLabel['Jergan']['position']['lat'] === 1.0);
+assert($byLabel['Jergan (Wasserfall)']['position']['lng'] === 4.0);
+
 // ---- rule 2: missing key, before collapsing -----------------------------------------------------
 $missing = avesmapsConflictRuleMissingKey($rows);
 $missingLabels = array_column($missing, 'title');
