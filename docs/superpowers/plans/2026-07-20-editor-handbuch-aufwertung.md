@@ -105,9 +105,27 @@ Alle sieben stammen vom 07./08.07. — vor Dark Mode und vor dem Infopanel.
   haben seitdem Einträge bekommen). Bildunterschriften entschärft, ersetzen wäre besser.
 - **08-ort-popup** — zeigt die abgelöste Popup-Welt. **Entfernt.**
 
-🔧 **Owner:** Neue Aufnahmen kann nur jemand mit Editor-Login machen. Sinnvoll wären:
-Infopanel eines Ortes im Bearbeiten-Modus, der Siedlungseditor, ein Menüband, der
-Quellen-Bereich im Bearbeiten-Dialog.
+**Neue Aufnahmen kann eine Agent-Sitzung selbst machen** — alle bisherigen sind so
+entstanden (`856d6330`, `72e09f11`, `ce965ef9`, alle mit Claude-Co-Author-Zeile). Der Weg:
+
+1. `preview_start({name: "handbook-preview"})` — die Konfiguration liegt seit Langem in
+   `.claude/launch.json` (PHP-Server auf Port **8137**, Wurzel = Repo).
+2. Im Pane **`localhost`** benutzen, nicht `127.0.0.1` — letzteres wird abgewiesen.
+3. Für Editor-Ansichten die **öffentliche** Karte mit `?edit=1` laden: die Oberfläche
+   rendert samt echter Daten, nur Schreibzugriffe scheitern mit 401. Kein Login nötig.
+
+⚠️ **Dabei sparsam sein:** Ein `?edit=1`-Aufruf feuert ~19 parallele PHP-Requests gegen
+STRATO; genau das hat den Pool schon zweimal gesättigt. **Einmal** laden, dann rein
+клиent-seitig weiterklicken — nicht neu laden für jedes Bild.
+
+⚠️ In dieser Sitzung (2026-07-20) lief `computer{action:"screenshot"}` durchweg in den
+30-s-Timeout (fünf Versuche, drei Tabs, `file://` **und** `localhost`), während
+`javascript_tool` und `get_page_text` einwandfrei arbeiteten. Die Aufnahmen stehen also
+noch aus, aber an der Sitzung, nicht am Zugang.
+
+Sinnvoll wären: Infopanel eines Ortes im Bearbeiten-Modus, der Siedlungseditor, ein
+Menüband, der Quellen-Bereich im Bearbeiten-Dialog — plus ein Ersatz für
+`02-editor-panel` (zeigt den Link noch als „Tutorial").
 
 ## Prüfmittel
 
@@ -116,7 +134,10 @@ Ohne Backend prüfbar und beim Umbau tatsächlich benutzt:
 - Ankertest — jeder `href="#…"` muss eine `id` treffen (fand die Navigation vollständig).
 - `node --check` auf beide Inline-Skripte **einzeln** (ein `sed`-Bereich über die ganze
   Datei klebt sie zusammen und meldet einen Syntaxfehler, den es nicht gibt).
-- Tokens per `file://`-`<link>` nachladen und Computed Styles in beiden Themes lesen —
-  der absolute Pfad `/css/base/tokens.css` löst lokal nicht auf, auf dem Server schon.
+- **Die Seite über `preview_start({name: "handbook-preview"})` ansehen, nicht über
+  `file://`.** Unter `file://` löst der absolute Pfad `/css/base/tokens.css` nicht auf,
+  die Seite wirkt ungestylt und der Pane hält obendrein alte Fassungen fest. Über den
+  Server stimmt alles: Tokens, Schrift, Bilder. Ich habe das in dieser Sitzung erst spät
+  gemerkt und vorher umständlich Tokens per `file://`-`<link>` nachgeladen — unnötig.
 - Filter funktional testen. Der erste Entwurf lieferte für „wappen" **null** Treffer,
   weil er nur Überschriften sah; daher `data-keywords`.
