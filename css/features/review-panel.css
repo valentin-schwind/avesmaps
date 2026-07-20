@@ -676,6 +676,17 @@
 }
 .conflict-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
 .conflict-empty { color: var(--color-text-muted); font-size: 13px; }
+/* Ladezustand: mittig in der Liste, damit er nicht wie ein Ergebnis aussieht. */
+.conflict-loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 1 1 auto;
+	min-height: 160px;
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
 .conflict-group { border-top: 1px solid var(--color-divider); padding: 8px 0; }
 .conflict-group:first-child { border-top: none; }
 .conflict-group > summary {

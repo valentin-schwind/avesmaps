@@ -49,14 +49,14 @@ async function loadConflicts({ rescan = false } = {}) {
 	if (button) {
 		setWikiSyncButtonState(button, { label: "Prüft …", running: true });
 	}
-	// The first run walks every active map feature, so say so instead of showing an empty list that
-	// looks like "no conflicts".
+	// An empty list would read as "no conflicts", which is the wrong answer to show while still
+	// counting. Short and centred -- the button already carries the running state.
 	const listElement = getConflictListElement();
 	if (listElement && conflictData.conflicts.length < 1) {
 		listElement.textContent = "";
 		const busy = document.createElement("p");
-		busy.className = "conflict-empty";
-		busy.textContent = "Prüft den Datenbestand …";
+		busy.className = "conflict-loading";
+		busy.textContent = "Lade …";
 		listElement.appendChild(busy);
 	}
 	try {
