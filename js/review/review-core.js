@@ -106,6 +106,10 @@ function isWikiSyncResolveDialogOpen() {
 	return !$("#wiki-sync-resolve-overlay").prop("hidden");
 }
 
+function isWikiSyncConflictsDialogOpen() {
+	return !$("#wiki-sync-conflicts-overlay").prop("hidden");
+}
+
 function isPathEditDialogOpen() {
 	return !$("#path-edit-overlay").prop("hidden");
 }
@@ -131,6 +135,6 @@ function isLocationReportServiceConfigured() {
 }
 
 function syncModalDialogBodyState() {
-	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#political-territory-editor-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden") || !$("#region-wiki-picker-overlay").prop("hidden");
+	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#political-territory-editor-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#wiki-sync-conflicts-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden") || !$("#region-wiki-picker-overlay").prop("hidden");
 	$("body").toggleClass("modal-dialog-open", hasOpenModal);
 }

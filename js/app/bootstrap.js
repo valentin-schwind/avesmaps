@@ -345,6 +345,8 @@ $("#wiki-sync-territory-flaechenland").on("change", function () {
     void renderWikiSyncTerritoryTree();
 });
 $("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
+$("#wiki-sync-conflicts-open").on("click", () => setWikiSyncConflictsDialogOpen(true));
+$("#wiki-sync-conflicts-close").on("click", () => setWikiSyncConflictsDialogOpen(false));
 $("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 $("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));
 $("#wiki-sync-preset-avesmap").on("click", () => applyWikiSyncResolvePreset("avesmap"));
@@ -452,6 +454,11 @@ $(document).on("keydown", (event) => {
 
     if (event.key === "Escape" && isRegionEditDialogOpen()) {
         setRegionEditDialogOpen(false, { resetForm: true });
+        return;
+    }
+
+    if (event.key === "Escape" && isWikiSyncConflictsDialogOpen()) {
+        setWikiSyncConflictsDialogOpen(false);
         return;
     }
 

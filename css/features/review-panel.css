@@ -679,6 +679,20 @@
 	min-height: 0;
 }
 
+/* Konfliktzentrum (P0): dieselbe Konfliktloesung, aber im eigenen Dialog statt in der schmalen
+   Panel-Spalte. Nur der BEHAELTER wird angepasst -- Aufbau, ids und der Zieh-Balken bleiben, wie
+   sie waren. Die Liste startet hoeher, weil hier Platz ist; ziehbar bleibt sie unveraendert. */
+.wiki-sync-conflicts-dialog {
+	width: min(1000px, 100%);
+	max-height: min(88vh, 900px);
+}
+.wiki-sync-conflicts-dialog .wiki-sync-accordion {
+	margin: 0;
+}
+.wiki-sync-conflicts-dialog .wiki-sync-accordion__body > #wiki-sync-case-list {
+	height: min(58vh, 560px);
+}
+
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
 .type-filter {
 	position: relative;

@@ -558,7 +558,11 @@ function appendWikiSyncCaseCandidates(bodyElement, caseEntry) {
 		labelElement.textContent = "Avesmaps-Orte";
 		sectionElement.appendChild(labelElement);
 
-		matches.slice(0, 2).forEach((match, index) => {
+		// Frueher matches.slice(0, 2): der Renderer nahm an, Dubletten kaemen paarweise. Am 2026-07-20
+		// live gemessen: „Das Erbe von Blaustein" haengt an FUENF Orten, Erlenbruch an drei -- ab dem
+		// dritten Ort war der Fall nicht mehr aufloesbar, weil die uebrigen gar nicht erst gerendert
+		// wurden. Die Nummerierung (index + 1) trug das schon immer.
+		matches.forEach((match, index) => {
 			const entryElement = document.createElement("div");
 			entryElement.className = "wiki-sync-case__duplicate-entry";
 

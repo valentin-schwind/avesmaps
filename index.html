@@ -350,6 +350,14 @@
 					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Lädt den Wiki-Dump neu herunter, liest ihn ein (Sandbox, schreibt nichts Scharfes), räumt danach alte Dump-Stände auf und übernimmt die Publikationsquellen scharf in die Quellen (feature_sources) — manuelle/unterdrückte Quellen bleiben unangetastet.">📥 Dump holen</button>
 					</div>
+					<!-- Konfliktzentrum P0 (docs/konfliktmanagement-design.md §8): die Konfliktloesung lag bisher
+					     als Accordion IM Siedlungen-Reiter und las sich dadurch wie eine Siedlungs-Funktion,
+					     obwohl schon heute Territorien-Faelle (missing_capital) darin landen. Der Knopf sitzt
+					     zentral neben "Dump holen", weil Konflikte objektartuebergreifend sind. Gleicher
+					     Wrapper wie oben -- die Regel traegt nur den Rand, kein eigenes Aussehen. -->
+					<div class="wiki-sync-dump-solo">
+						<button id="wiki-sync-conflicts-open" class="wiki-sync-panel__start" type="button" title="Oeffnet die Konfliktloesung: Faelle, bei denen sich Karte und Wiki Aventurica widersprechen — objektartuebergreifend.">⚖️ Konflikte</button>
+					</div>
 					<!-- SHARP reconcile of the wiki publication sources into feature_sources
 					     (origin=wiki_publication) is now step 4/4 of "Dump holen" above -- folded in,
 					     no separate trigger. This progress bar + status line are driven by that same
@@ -460,22 +468,13 @@
 						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 					</div>
 					<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
-						<details class="wiki-sync-accordion" id="wiki-sync-cases-accordion">
-						<summary class="wiki-sync-accordion__summary">Konfliktl&ouml;sung</summary>
-						<div class="wiki-sync-accordion__body">
-							<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
-							<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
-							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
-							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
-						</div>
-
-					<div class="wiki-sync-panel__filter">
-						<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
-					</div>
-					<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
-						</div>
-						<div class="wiki-sync-accordion__resizer" title="H&ouml;he ziehen" aria-hidden="true"></div>
-						</details>
+						<!-- Die Konfliktloesung stand hier (Accordion im Siedlungen-Reiter) und ist nach
+						     #wiki-sync-conflicts-overlay umgezogen -- Konfliktzentrum P0, siehe
+						     docs/konfliktmanagement-design.md. Sie war nie siedlungsspezifisch:
+						     missing_capital-Faelle aus dem Politik-Layer werden seit jeher in dieselbe
+						     Liste gemischt (review-wiki-sync.js). VERSCHOBEN, nicht kopiert -- alle ids
+						     bleiben identisch, damit die Bindungen in bootstrap.js und
+						     review-settlement-list.js weiter greifen. -->
 
 						<div class="wiki-sync-locations-section">
 							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
@@ -759,6 +758,35 @@
 						<button id="location-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 					</div>
 				</form>
+			</div>
+		</div>
+		<!-- Konfliktzentrum (P0). Haelt die verschobene Konfliktloesung. Gleiche Huelle wie die
+		     uebrigen Dialoge (.location-report-dialog + eigener Modifier fuer die Breite), damit
+		     Kopfzeile, Schliessen-Knopf und modal-dialog-open-Verhalten identisch sind. -->
+		<div id="wiki-sync-conflicts-overlay" hidden>
+			<div id="wiki-sync-conflicts-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-conflicts-title" tabindex="-1">
+				<div class="location-report-dialog__header">
+					<h2 id="wiki-sync-conflicts-title">Konflikte</h2>
+					<button id="wiki-sync-conflicts-close" class="location-report-dialog__close" type="button" aria-label="Konflikte schließen">×</button>
+				</div>
+				<div class="wiki-sync-conflicts-dialog__body">
+						<details open class="wiki-sync-accordion" id="wiki-sync-cases-accordion">
+						<summary class="wiki-sync-accordion__summary">Konfliktl&ouml;sung</summary>
+						<div class="wiki-sync-accordion__body">
+							<div class="region-sync__viewtabs wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
+							<button class="region-sync__viewtab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
+							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
+							<button class="region-sync__viewtab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
+						</div>
+
+					<div class="wiki-sync-panel__filter">
+						<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
+					</div>
+					<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
+						</div>
+						<div class="wiki-sync-accordion__resizer" title="H&ouml;he ziehen" aria-hidden="true"></div>
+						</details>
+				</div>
 			</div>
 		</div>
 		<div id="wiki-sync-resolve-overlay" hidden>

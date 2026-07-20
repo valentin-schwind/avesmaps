@@ -9,6 +9,7 @@ body.modal-dialog-open {
 #location-report-overlay[hidden],
 #location-edit-overlay[hidden],
 #wiki-sync-resolve-overlay[hidden],
+#wiki-sync-conflicts-overlay[hidden],
 #path-edit-overlay[hidden],
 #powerline-edit-overlay[hidden],
 #label-edit-overlay[hidden],
@@ -22,6 +23,7 @@ body.modal-dialog-open {
 #location-report-overlay,
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
+#wiki-sync-conflicts-overlay,
 #path-edit-overlay,
 #powerline-edit-overlay,
 #label-edit-overlay,
@@ -47,6 +49,7 @@ body.modal-dialog-open {
 
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
+#wiki-sync-conflicts-overlay,
 #path-edit-overlay,
 #powerline-edit-overlay,
 #label-edit-overlay,

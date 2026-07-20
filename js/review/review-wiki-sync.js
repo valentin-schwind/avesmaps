@@ -40,6 +40,16 @@ function setWikiSyncResolveDialogOpen(isOpen, { resetForm = false } = {}) {
 	}
 }
 
+// Konfliktzentrum (P0): der Dialog haelt die verschobene Konfliktloesung. Kein Laden noetig --
+// der Knopf sitzt im WikiSync-Panel, dessen Tab-Loader loadWikiSyncCases() bereits gelaufen ist.
+function setWikiSyncConflictsDialogOpen(isOpen) {
+	$("#wiki-sync-conflicts-overlay").prop("hidden", !isOpen);
+	syncModalDialogBodyState();
+	if (isOpen) {
+		document.getElementById("wiki-sync-conflicts-dialog")?.focus();
+	}
+}
+
 function setWikiSyncLocationsRunning(isRunning, run = null) {
 	isWikiSyncLocationsRunning = isRunning;
 
