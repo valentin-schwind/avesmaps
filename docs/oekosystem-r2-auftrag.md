@@ -87,18 +87,34 @@ Regionen und Flaechen ueber die API anlegen, lesen, aendern, weich loeschen.
 KEINE Oberflaeche, KEIN Rendering, KEIN Zeichnen. Verifizierbar ohne Karte.
 
 TABELLEN (inline DDL, self-healing wie im Rest des Projekts):
-  ecosystem_region       public_id, name, region_type, origin('wiki'|'own'),
+  ecosystem_region       public_id, name,
+                         kind ('topographie'|'bedeckung')   <-- DIE EBENE
+                         region_type, origin('wiki'|'own'),
                          wiki_region_key, wiki_url, properties_json,
                          is_active, created_by, updated_by, Zeitstempel
   ecosystem_area         public_id, region_id, geometry_geojson,
                          min_x/min_y/max_x/max_y, is_active, created_by,
                          updated_by, Zeitstempel
-  ecosystem_region_type  key, label, sort_order, is_active
-Die 13 Starttypen aus dem Leitfaden §1.3 als Seed einspielen.
+  ecosystem_region_type  kind, key, label, sort_order, is_active
 
-KEINE Spalten fuer: min_zoom/max_zoom, parent_id, valid_from_bf/valid_to_bf.
-Die gibt es hier nicht (Leitfaden §1.2). Wer sie aus dem politischen Schema
-mitkopiert, baut den Apparat wieder auf, den wir gerade weggelassen haben.
+ZWEI EBENEN, NICHT EINE. Landschaften werden in zwei getrennt gezeichneten
+Ebenen erfasst, die sich frei ueberlappen: Topographie (nur gebirge/ebene/see/
+meer -- alles Ungezeichnete gilt als "normal") und Bedeckung (wald, sumpf,
+wueste, ...). Der Grund: Berg und Bewuchs haben verschiedene Umrisse, und das
+topographische Polygon begrenzt das Hoehenfeld. Waere es um den Wald gezeichnet,
+wuerde das Gebirge an der Waldkante abgeschnitten.
+
+`kind` sitzt an der REGION, nicht an der Flaeche -- eine Region ist entweder
+topographisch oder eine Bedeckung, beides zugleich gibt es nicht. Die Flaechen
+erben es ueber region_id. ecosystem_region_type traegt dasselbe kind, es sind
+zwei getrennte Vokabulare (Leitfaden §1.3), keine gefilterte Gemeinsamkeitsliste.
+Beide Vokabulare als Seed einspielen.
+
+KEINE Spalten fuer: min_zoom/max_zoom, parent_id, valid_from_bf/valid_to_bf,
+und KEIN relief-Feld. Die ersten drei gibt es hier nicht (Leitfaden §1.2); das
+relief-Feld waere eine Wiederholung dessen, was die Hoehenpunkte schon sagen
+(Leitfaden §1.4). Wer sie aus dem politischen Schema mitkopiert, baut den
+Apparat wieder auf, den wir gerade weggelassen haben.
 
 ENDPOINTS:
   api/edit/map/ecosystem.php      Verteiler, VORLAGE citymaps.php:
@@ -160,9 +176,15 @@ Eine Flaeche aus der Datenbank erscheint im Modus "Ökosystem" auf der Karte.
 NUR LESEN -- kein Zeichnen, keine Griffe, kein Speichern. Das kommt in R2c.
 
 ZU BAUEN:
-1. Eigene Leaflet-Pane, z-index zwischen 201 und 299 (regionsPane liegt bei 200,
-   Anlage in js/app/bootstrap.js:16/29). Nicht 350 -- dort liegen schon zwei.
-2. EIGENE Registry (eigenes Array), NICHT regionPolygons mitbenutzen.
+1. ZWEI eigene Leaflet-Panes -- eine je Ebene (Topographie, Bedeckung) --,
+   z-index zwischen 201 und 299 (regionsPane liegt bei 200, Anlage in
+   js/app/bootstrap.js:16/29). Nicht 350 -- dort liegen schon zwei.
+   Die INAKTIVE Pane bekommt pointer-events:none plus halbe Deckkraft. Sie wird
+   NICHT ausgeblendet: man zeichnet das Gebirge und sieht dabei den Wald. Genau
+   das macht die Ueberlappung harmlos -- es antwortet immer nur eine Ebene.
+   Der Umschalter selbst ist R2c; in R2b genuegt, dass beide Panes existieren
+   und sich per Konsole umschalten lassen.
+2. EIGENE Registry je Ebene, NICHT regionPolygons mitbenutzen.
 3. Eigener Loader + eigene Sichtbarkeitsfunktion, die auf den Moduswechsel hoert.
 4. Eigener Normalisierer (Kopiervorlage: map-features-region-feature-
    normalization.js, 142 Zeilen -> ca. 60). Gleicher STRUKTURELLER Vertrag

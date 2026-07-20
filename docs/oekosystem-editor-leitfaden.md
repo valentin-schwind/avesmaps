@@ -1,8 +1,15 @@
 # Ökosystem — Leitfaden für den neuen Kartenmodus im Edit-Mode
 
-> Bauanleitung für den Zeichen-Modus. Das Datenmodell und die Routing-Wirkung
-> stehen in `oekosystem-instruction.md`, das Gesamtbild in
-> `oekosystem-feature-design.md`. **Dieses Dokument beschreibt nur den Editor.**
+> Bauanleitung für den Zeichen-Modus: Architektur, Bauteile, Kopiervorlagen.
+>
+> **Was der Editor tut, wenn jemand klickt, steht in
+> `oekosystem-editor-verhalten.md`** — Ebenen umschalten, Fläche anlegen,
+> Überlappung, Gipfel, Speichern, Prüfungen. Vorgeführt in
+> `html/landschaften-modell.html`.
+>
+> Die Routing-Wirkung steht in `oekosystem-instruction.md`, das Gesamtbild in
+> `oekosystem-feature-design.md`, die Bauphasen in `oekosystem-r1-auftrag.md`
+> und `oekosystem-r2-auftrag.md`.
 
 ## 1. Was ein Ökosystem ist
 
@@ -12,15 +19,37 @@ sichtbar**; die öffentliche Ebene kommt später.
 
 Sie funktioniert wie die Territorien, **ohne den Hierarchie-Apparat**.
 
-### 1.1 Zwei Entitäten, nicht eine
+### 1.1 Zwei Ebenen, zwei Entitäten
 
-Die **Region** ist das benannte Ding mit den Eigenschaften. Die **Fläche** ist nur
-ihre Geometrie. Eine Region darf **mehrere** Flächen haben (ein Moor in zwei
-Teilen), und die Eigenschaften hängen an der Region, nicht an jedem Stück.
+**Landschaften bestehen aus zwei getrennt gezeichneten Ebenen**, die sich frei
+überlappen dürfen:
+
+| Ebene | beschreibt | gezeichnet werden |
+|---|---|---|
+| **Topographie** | die Form des Landes | nur `gebirge`, `ebene`, `see`, `meer` — **alles andere gilt als „normal" und wird nicht gezeichnet** |
+| **Bedeckung** | was auf dem Land wächst oder liegt | Wald, Sumpf, Wüste, … |
+
+**Warum zwei und nicht ein Feld an einer Fläche:** Berg und Bewuchs haben
+verschiedene Umrisse. Ein Wald reicht vom Bergfuß in die Ebene hinunter, ein
+Gebirgszug ist teils bewaldet und teils kahl. Vor allem aber **begrenzt das
+topographische Polygon das Höhenfeld** — an seinem Rand ist die Höhe null. Wäre
+es um den Wald gezeichnet, würde das Gebirge an der Waldkante abgeschnitten.
+
+Der tiefere Grund, und der trägt die Entscheidung:
+
+> **Eine Bedeckungsfläche hält einen Wert fest. Eine topographische Fläche ist der
+> Definitionsbereich eines Generators.** In ihr entsteht das Höhenfeld, aus ihrem
+> Umriss und ihrem Saatwert. Das sind zwei verschiedene Arten von Ding.
+
+Innerhalb einer Ebene gilt weiter die Trennung von Name und Geometrie: die
+**Region** ist das benannte Ding mit den Eigenschaften, die **Fläche** nur ihre
+Geometrie. Eine Region darf **mehrere** Flächen haben (ein Moor in zwei Teilen).
 
 ```
 ecosystem_region                      -- das benannte Ding
-  public_id, name, region_type,
+  public_id, name,
+  kind             'topographie' | 'bedeckung'   -- die Ebene
+  region_type                                    -- aus dem Vokabular der Ebene (1.3)
   origin           'wiki' | 'own'     -- aus dem Wiki zugewiesen oder selbst angelegt
   wiki_region_key, wiki_url           -- NULL bei origin='own'
   properties_json                     -- nach Abnehmer getrennt
@@ -31,6 +60,10 @@ ecosystem_area                        -- eine gezeichnete Fläche
   geometry_geojson, min_x/min_y/max_x/max_y,
   is_active, created_by, updated_by, Zeitstempel
 ```
+
+> `kind` sitzt an der **Region**, nicht an der Fläche. Eine Region ist entweder
+> topographisch oder eine Bedeckung; ein Gebilde, das beides zugleich wäre, gibt
+> es nicht. Die Flächen erben es über `region_id`.
 
 ```json
 properties_json = {
@@ -65,36 +98,74 @@ und beim Abschreiben versehentlich mitwandert:
 Das ist etwa ein Drittel des politischen Systems — und der Grund, warum der Umbau
 überschaubar bleibt.
 
-### 1.3 Die Typenliste — eigene Liste, eigene Tabelle
+### 1.3 Zwei Vokabulare, je eines pro Ebene
 
 Die 19 Label-Subtypen sind eine **Beschriftungs**-Taxonomie und taugen nicht
-unverändert als Ökosystem-Typen. Ökosysteme bekommen eine **eigene Liste**; die
-Label-Liste bleibt unangetastet (zwei Taxonomien für zwei Zwecke — Labels
-beschriften die Karte, Ökosysteme beschreiben Gelände).
+unverändert als Typenliste. Die Label-Liste bleibt unangetastet — zwei Taxonomien
+für zwei Zwecke: Labels beschriften die Karte, Landschaften beschreiben Gelände.
 
-**Startbestand, 13 Typen:**
+**Topographie — vier Typen, und das ist Absicht:**
 
-| Land | Wasser | Grenzfall |
-|---|---|---|
-| `wald`, `suempfe_moore`, `wueste`, `steppe`, `tundra`, `graslandschaft`, `auenlandschaft`, `gebirge`, `huegelland`, `ebene` | `see`, `meer` | `kueste` |
+```
+gebirge     erzeugt ein Höhenfeld (§1.4)
+ebene       ausdrücklich flach
+see  meer   Wasser
+```
 
-**Nicht aufgenommen, mit Grund:**
+> **Alles Ungezeichnete gilt als „normal".** Es gibt keinen Typ dafür und keine
+> Fläche. Das halbiert die Handarbeit: die Editoren zeichnen die Ausnahmen, nicht
+> die Karte.
+>
+> ⚠️ **`ebene` verdient seinen Platz nur, wenn es sich anders verhält als
+> „normal".** Bekommt es denselben Faktor, ist es eine Fläche, die nichts tut, und
+> gehört gestrichen. Das entscheidet der erste Abnehmer, nicht dieses Dokument.
+
+**Bedeckung — am Wiki ausgerichtet.** *Wiki Aventurica* führt unter
+[Vegetationszone](https://de.wiki-aventurica.de/wiki/Vegetationszone/Liste) 14
+Einträge. Wir übernehmen deren Vokabular, damit die Zuweisung in R4 eins zu eins
+läuft:
+
+```
+aus dem Wiki   wald  regenwald  trockenwald  nebelwald  sumpf
+               mangrovensumpf  wueste  savanne  steppe  kueste
+ergänzt        tundra  grasland  aue  fels  eis
+```
+
+**Drei Einträge der Wiki-Liste übernehmen wir nicht, und der Grund ist derselbe:**
 
 | | warum nicht |
 |---|---|
-| `fluss` | ist eine **Linie**, keine Fläche — Flusswege sind bereits ein Wegtyp |
-| `berggipfel` | ist ein **Punkt** — wirkt *auf* eine Region, ist keine (siehe §1.4) |
-| `insel`, `kontinent` | Landformen bzw. Beschriftung; auf einer Insel liegen mehrere Ökosysteme |
-| `region`, `sonstiges` | Auffangkategorien — tragen für **keinen** Abnehmer Information |
+| `fluss` | ist eine **Linie**, kein Gebiet — Flusswege sind bereits ein Wegtyp |
+| `ebene` | ist **Relief**, keine Bedeckung → wandert in die Topographie |
+| `bergwald` | ist **beides zugleich** → bei uns `wald` + eine Gebirgsfläche darüber |
 
-> Die Liste gehört in eine **Tabelle, nicht in den Code** (`ecosystem_region_type`).
-> Dann lassen sich „Dschungel", „Salzwüste", „Gletscher" oder „Hochmoor" ohne
-> Entwickler ergänzen — dasselbe Argument wie bei den Faktoren.
+> `bergwald` ist der aufschlussreichste Fall. Die Wiki-Liste brauchte Höhe,
+> konnte sie in einer Vegetationskategorie aber nicht unterbringen — also wurde
+> sie durch die Vegetation geschmuggelt. Dasselbe bei `nebelwald`, definiert als
+> *„ab einer Höhe von 2.000 Schritt"*. **Die Zwei-Ebenen-Trennung ist damit kein
+> Einfall von uns, sondern die Auflösung eines Problems, das die Datengrundlage
+> schon hat.** Und sie rechnet besser: eine Route durch Bergwald bekommt bei uns
+> den Waldfaktor **und** das Höhenfeld statt eines Mischwerts, in dem beides
+> steckt und keins stimmt.
+
+Beide Listen gehören in eine **Tabelle, nicht in den Code**
+(`ecosystem_region_type` mit `kind`). Dann lassen sich „Dschungel", „Salzwüste"
+oder „Hochmoor" ohne Entwickler ergänzen — dasselbe Argument wie bei den Faktoren.
 
 ### 1.4 Punkte, die auf eine Region wirken
 
 Ein `berggipfel`-Label ist kein Regionstyp, aber es ist auch nicht bedeutungslos:
-**liegt es innerhalb einer Gebirgsregion, ist es deren Höhenpunkt.**
+**liegt es innerhalb einer topographischen Fläche vom Typ `gebirge`, ist es deren
+Höhenpunkt.** In einer Bedeckungsfläche bewirkt es nichts — ein Gipfel im Wald
+ist ein Gipfel, kein Wald-Merkmal.
+
+> **Und damit gibt es kein Relief-Feld.** Ein Aufzählwert `relief=gebirge` würde
+> nur wiederholen, was die Gipfel schon sagen, und könnte ihnen widersprechen.
+> Schlimmer: er wäre *gleichmäßig* für die ganze Fläche, während ein echter
+> Gebirgszug im Norden hoch ausläuft und im Süden flach. Höhenpunkte bilden das
+> ab, ein Enum nicht. Auch „Hügelland gegen Gebirge" ist dadurch kein
+> Schubladenpaar mehr, sondern ein Übergang: 300 Schritt sind Hügel, 9.000 sind
+> Wall, dazwischen muss niemand wählen.
 
 > 🔴 **1:1, nicht kopiert.** Die Gipfel liegen bereits im Standard-Layer. Das
 > Ökosystem legt **keine eigenen Höhenpunkte an** und führt **keine zweite

@@ -19,6 +19,29 @@
 Vier Tabellen, Muster wie `political_territory_geometry` (Inline-DDL,
 bbox-Cache, Soft-Delete über `is_active`, keine Fremdschlüssel).
 
+> 🔴 **Die Aufteilung unten ist überholt.** Maßgeblich ist
+> `oekosystem-editor-leitfaden.md` §1: **zwei Ebenen** (Topographie / Bedeckung),
+> und je Ebene **zwei** Entitäten — `ecosystem_region` (das benannte Ding mit den
+> Eigenschaften) und `ecosystem_area` (nur Geometrie, mehrere je Region).
+>
+> Die Felder unten sind sachlich weiter richtig, sie sitzen nur woanders:
+>
+> | Feld unten | gehört jetzt nach |
+> |---|---|
+> | `area_type` | `ecosystem_region.region_type` + `.kind` (zwei getrennte Vokabulare) |
+> | `name`, `wiki_region_key`, `wiki_url` | `ecosystem_region` |
+> | `speed_factor_override`, `max_height*` | `ecosystem_region.properties_json.routing` |
+> | `base_height`, `bumps_json`, `bumps_seed` | bleiben an der **Fläche** — der Generator hat das Polygon als Definitionsbereich |
+>
+> Ebenfalls gestrichen: die Vorstellung, ein Gebirge sei ein *Typ* neben `wald`.
+> Gebirge ist eine **topographische Fläche**, Wald eine **Bedeckung**, und sie
+> überlappen sich. Ein bewaldeter Gebirgszug ist beides, nicht eins von beidem.
+>
+> ⚠️ **Offen:** Bei einer Region mit **mehreren** Flächen ist ungeklärt, ob
+> `max_height` gemeinsam über alle Flächen normiert wird (ein Gipfel für den
+> ganzen Zug) oder je Fläche einzeln (zwei gleich hohe Gipfel). Zu entscheiden,
+> bevor der Stapellauf gebaut wird.
+
 **`ecosystem_area`** — die gezeichnete Fläche.
 
 | Spalte | Zweck |
