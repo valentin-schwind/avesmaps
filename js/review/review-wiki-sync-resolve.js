@@ -173,7 +173,19 @@ function focusWikiSyncCase(caseEntry, { mapPlace = null } = {}) {
 		return;
 	}
 
-	showFeedbackToast("Dieser WikiSync-Fall hat keine Kartenposition.", "warning");
+	// Letzter Versuch ueber den Auflöser des Konfliktzentrums (review-conflicts.js): der sucht das
+	// Objekt anhand der map_public_id des FALLS -- nicht nur in payload.map -- und findet dabei auch
+	// Wege, nicht nur Ortsmarker. Genau daran scheiterte "Anzeigen" bei Faellen, die zwar auf ein
+	// vorhandenes Objekt zeigen, es aber nicht in ihrem payload mitfuehren (Owner 2026-07-21).
+	if (typeof resolveConflictPartyLatLng === "function" && caseEntry.map_public_id) {
+		const latlng = resolveConflictPartyLatLng({ id: caseEntry.map_public_id });
+		if (latlng) {
+			map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
+			return;
+		}
+	}
+
+	showFeedbackToast("Zu diesem Fall ist kein Objekt auf der Karte auffindbar — es fehlt entweder noch oder wurde gelöscht.", "warning");
 }
 
 function clearWikiSyncPreviewMarker() {
