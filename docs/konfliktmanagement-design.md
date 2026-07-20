@@ -105,8 +105,18 @@ verteilt bereits über settlement / region / path / territory.
 Eine Regel liefert Konflikte in einer einheitlichen Form:
 
 ```php
-['entity_type','entity_id','title','severity','facts','candidates','fields']
+[
+  'rule_id'  => 'settlement.wiki_url.shared',
+  'parties'  => [                       // n Beteiligte, Objektarten duerfen sich mischen
+     ['type' => 'settlement', 'id' => '…', 'label' => 'Feste Hohenstein'],
+     ['type' => 'settlement', 'id' => '…', 'label' => 'Feste Hohenstein (Weiden)'],
+  ],
+  'title', 'severity', 'facts', 'candidates', 'fields',
+]
 ```
+
+Die Objektart-Filter der Oberfläche lesen `parties` — ein Konflikt zwischen einer
+Siedlung und einem Territorium taucht deshalb unter beiden auf.
 
 ### 4.2 Fingerabdruck statt Lauf-Kopplung
 
@@ -124,20 +134,45 @@ Fingerabdruck, und der Konflikt öffnet sich automatisch neu. Das ist der
 conflict_decision (
   id            BIGINT UNSIGNED AUTO_INCREMENT,
   rule_id       VARCHAR(80)  NOT NULL,
-  entity_type   VARCHAR(30)  NOT NULL,
-  entity_id     VARCHAR(64)  NOT NULL,   -- public_id | uuid | wiki_key, IMMER Text
-  fingerprint   CHAR(64)     NOT NULL,
+  fingerprint   CHAR(64)     NOT NULL,   -- deckt ALLE Beteiligten + die Fakten ab
   decision      VARCHAR(20)  NOT NULL,   -- resolved | deferred | ignored
-  detail_json   JSON NULL,
+  subject_type  VARCHAR(30)  NOT NULL,   -- Hauptbeteiligter, nur zum Nachschlagen
+  subject_id    VARCHAR(64)  NOT NULL,   -- public_id | uuid | wiki_key, IMMER Text
+  acted_type    VARCHAR(30) NULL,        -- woran die Entscheidung tatsaechlich schrieb
+  acted_id      VARCHAR(64) NULL,
+  detail_json   JSON NULL,               -- u. a. die vollstaendige Beteiligtenliste
   reviewed_at   DATETIME(3),
   reviewed_by   BIGINT UNSIGNED NULL,
-  UNIQUE KEY uq (rule_id, entity_type, entity_id)
+  UNIQUE KEY uq (rule_id, fingerprint),
+  KEY idx_subject (subject_type, subject_id)
 )
 ```
 
-`entity_id` ist bewusst **Text**: `missing_capital` hat bereits bewiesen, dass
+`subject_id` ist bewusst **Text**: `missing_capital` hat bereits bewiesen, dass
 Ganzzahl-IDs nicht verallgemeinern (dort ist es eine UUID, und die Oberfläche
 muss deshalb heute auf `source: 'political'` verzweigen).
+
+### Ein Konflikt hat Beteiligte, nicht ein Objekt
+
+Owner-Hinweis 2026-07-20: **es gibt Konflikte zwischen Siedlungen und Territorien.**
+Ein Konflikt ist deshalb nie „ein Objekt hat ein Problem", sondern **eine Regel über
+n Beteiligten** — und die können verschiedene Objektarten haben. Beispiele:
+
+- eine Siedlung ist einem Territorium zugeordnet, dessen Geometrie sie gar nicht enthält
+- eine Hauptstadt liegt außerhalb ihres eigenen Reiches
+- ein Abenteuer-Ort zeigt auf eine gelöschte Siedlung
+
+Deshalb ist die **Identität eines Konflikts `(rule_id, fingerprint)`** und nicht
+`(rule_id, Objekt)`. Der Fingerabdruck deckt alle Beteiligten mit ab; `subject_*` ist
+nur ein Index zum Nachschlagen („was hängt an diesem Ort?"), `acted_*` hält fest, wo
+die Entscheidung tatsächlich hingeschrieben hat — bei „Hauptstadt falsch" kann das je
+nach Entscheidung das Territorium **oder** die Siedlung sein.
+
+> 💡 Das kostet nichts, weil **Konflikte berechnet und nicht abgefragt** werden (§2).
+> Der Erkenner liefert sie im Speicher — Hunderte, nicht Millionen. Filtern nach
+> Objektart ist damit ein Array-Filter über die Beteiligtenliste, keine Datenbank-
+> Abfrage. Ein Konflikt mit einer Siedlung und einem Territorium erscheint unter
+> **beiden** Objektarten, ohne dass es dafür eine Verknüpfungstabelle braucht.
 
 ### 4.4 Was mit `wiki_sync_cases` passiert
 
@@ -338,6 +373,9 @@ existiert, taugt aber nicht direkt als Erkenner) und *neu*.
 | Karte | Dubletten | **erledigt** — `avesmapsCitymapDedupeByWikiKey` (`citymap-sync.php:612`); der Bug wurde am 2026-07-18 mit `84b52c42` behoben |
 | Quelle | `wiki_key`-Kollision | **fertig** — `avesmapsSourceWikiKeyReport` (`feature-sources.php:546`), löst über drei Wege auf (stored / hash / url), nur ohne Oberfläche |
 | Wappen | Lizenz unbekannt | **neu** — `…CountPendingLicenses` (`sync-monitor-licenses.php:189`) liefert nur ein `COUNT(*)`; die aufzählende Abfrage fehlt ganz |
+| **Siedlung × Territorium** | Ort liegt außerhalb des Territoriums, dem er zugeordnet ist | **neu** — erste objektartübergreifende Regel; Geometrie liegt in `political_territory_geometry` |
+| **Siedlung × Territorium** | Hauptstadt liegt außerhalb ihres eigenen Reiches | **neu**, ergänzt `missing_capital` (das nur *fehlende* findet, nicht *falsche*) |
+| **Abenteuer × Siedlung** | Abenteuer-Ort zeigt auf eine gelöschte Siedlung | **Teil** — `adventure-resolve.php` löst auf, meldet aber keinen Bruch |
 
 ## 8. Umsetzung in Stufen
 
