@@ -97,7 +97,9 @@ Nicht gebaut, also kein Thema: Ökosystem-Ebene, Audit-Überarbeitung.
 Alle sieben stammen vom 07./08.07. — vor Dark Mode und vor dem Infopanel.
 
 - **02-editor-panel** — gegen `index.html:299` geprüft, vier Reiter und drei Unterreiter
-  stimmen. **Bleibt.**
+  stimmen. **Bleibt**, mit einer Einschränkung: Seit der Link „Tutorial" in
+  **„📖 Handbuch"** umbenannt wurde, zeigt die Aufnahme diesen einen Namen veraltet.
+  Die Bildunterschrift sagt das ausdrücklich, bis es eine neue Aufnahme gibt.
 - **03-hinzufuegen**, **04-verlaufeditieren**, **06-territoriumseditor** — plausibel,
   bleiben vorerst.
 - **07-gebiet-menu**, **09-herrschaftsgebieteeditor** — unvollständig (Menü und Menüband

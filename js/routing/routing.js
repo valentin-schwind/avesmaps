@@ -164,11 +164,16 @@ function updateMapDataStatus(data) {
 	$("#map-data-status")
 		.text(`Map: ${mapDataSourceStatus.label} | Rev ${revisionText} | ${mapDataSourceStatus.featureCount.toLocaleString("de-DE")} Features | `)
 		.append(
+			// Built as an element, never via .html(): the line above carries dynamic values, so
+			// injecting markup here would open an XSS surface for whatever the API returns.
+			// aria-label keeps the emoji out of the accessible name ("Handbuch", not "open book").
 			$("<a>", {
 				href: "https://avesmaps.de/html/editor-handbuch.html",
 				target: "_blank",
 				rel: "noopener",
-				text: "Tutorial",
+				text: "📖 Handbuch",
+				title: "Editor-Handbuch öffnen",
+				"aria-label": "Handbuch",
 			})
 		)
 		.prop("hidden", false);
