@@ -416,7 +416,10 @@ dann Zeichnen: Kontextmenü, Fläche anlegen, Ecken ziehen, Kante teilen.
 *Fertig, wenn:* eine gezeichnete Fläche gespeichert wird, den Reload überlebt und
 die politischen Tests unverändert grün sind.
 
-Das ist der große Brocken. Alles davor und danach ist klein dagegen.
+Das ist der große Brocken — rund 2.100 Zeilen neu und 500 umgebaut, und damit zu
+groß für eine Sitzung. **`oekosystem-r2-auftrag.md` schneidet R2 in vier einzeln
+abnehmbare Stufen** (Daten+API → Darstellung → Nahtstellen → Zeichnen) und
+entscheidet die Singleton-Frage aus §11. Dort stehen auch die fertigen Prompts.
 
 ### R3 — Der Owner zeichnet einen Wald
 
