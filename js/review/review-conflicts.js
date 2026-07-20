@@ -260,16 +260,55 @@ function renderConflictRail() {
 	});
 }
 
+// Where is this party on the map?
+//
+// The backend delivers a position for the rules it computes, but the merged WikiSync cases bring
+// none -- and they do not need to: the object is already on the map, so looking it up by its
+// public id is enough. Owner: "du musst doch nur das ding suchen". Tried in order, each step
+// guarded so a missing helper never throws:
+//   1. the delivered coordinate
+//   2. the location marker
+//   3. the path's own geometry
+function resolveConflictPartyLatLng(party) {
+	const lat = Number(party?.position?.lat);
+	const lng = Number(party?.position?.lng);
+	if (Number.isFinite(lat) && Number.isFinite(lng)) {
+		return L.latLng(lat, lng);
+	}
+
+	const publicId = String(party?.id || "").trim();
+	if (!publicId) {
+		return null;
+	}
+
+	if (typeof findLocationMarkerByPublicId === "function") {
+		const markerEntry = findLocationMarkerByPublicId(publicId);
+		if (markerEntry?.marker) {
+			return markerEntry.marker.getLatLng();
+		}
+	}
+
+	if (typeof findPathByPublicId === "function") {
+		// The raw first vertex is enough to fly there -- no need for the smoothed visual geometry.
+		// GeoJSON stores [x, y] = [lng, lat], Leaflet wants [lat, lng] (AGENTS.md §5).
+		const first = findPathByPublicId(publicId)?.geometry?.coordinates?.[0];
+		if (Array.isArray(first) && Number.isFinite(Number(first[0])) && Number.isFinite(Number(first[1]))) {
+			return L.latLng(Number(first[1]), Number(first[0]));
+		}
+	}
+
+	return null;
+}
+
 // Fly to a party and get the dialog out of the way. Without closing it the map is behind a
 // near-fullscreen overlay and "Anzeigen" would do nothing visible.
 function focusConflictParty(party) {
-	const lat = Number(party?.position?.lat);
-	const lng = Number(party?.position?.lng);
-	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+	const latlng = resolveConflictPartyLatLng(party);
+	if (!latlng) {
 		return;
 	}
 	setWikiSyncConflictsDialogOpen(false);
-	map.flyTo(L.latLng(lat, lng), Math.max(map.getZoom(), 4), { duration: 0.8 });
+	map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
 }
 
 // One party = one column of evidence. The conflict alone ("two things share an article") is not
@@ -316,8 +355,9 @@ function createConflictPartyElement(party, conflict = null) {
 		evidence.appendChild(none);
 	}
 
-	// "Auf der Karte?"
-	if (party.position) {
+	// "Auf der Karte?" -- asked of the resolver, not of the payload, so a case that brought no
+	// coordinate (every merged WikiSync case) still gets the button as long as the object is findable.
+	if (resolveConflictPartyLatLng(party)) {
 		const show = document.createElement("button");
 		show.type = "button";
 		show.className = "conflict-party__show";
