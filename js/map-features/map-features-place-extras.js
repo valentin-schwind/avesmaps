@@ -836,14 +836,14 @@ function avesmapsCitymapCreditMarkup() {
 	return on ? '<div class="avesmaps-adv__credit">' + tr("cityMaps.credit", "Bilder © Ulisses Spiele bzw. der jeweiligen Rechteinhaber — <a href=\"https://www.f-shop.de/\" target=\"_blank\" rel=\"noopener\">im F-Shop ansehen ↗</a>") + '</div>' : "";
 }
 
-// ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + Sortierung + Umschalter + "Alle anzeigen" ----
-// Unter der Sortierzeile ein Umschalter "Beginnt hier | Spielt hier (Spoiler)"; "Spielt hier" gibt die
-// verborgenen spielt-Karten IM SELBEN Streifen per Fade frei und scrollt horizontal nach rechts zu ihnen.
+// ---- Abenteuer in <Ort>: EIN Streifen (beginnt + spielt) + "Alle anzeigen" ----
+// Kopfzeile, Liste, Knopf -- sonst nichts (Owner 2026-07-19). Die spielt-Karten stehen mit im Streifen,
+// nur verschleiert; aufgedeckt wird einzeln per Klick auf den Schleier.
 //
 // Kern-Renderer (Phase 2.2): baut den Abschnitt aus fertigen beginnt/spielt-Listen (render shape). Wird von
 // der SIEDLUNG (buildPlaceAdventuresMarkup) UND vom TERRITORIUM/der REGION (buildTerritoryAdventuresMarkup)
-// genutzt -- identisches Markup/identische Klassen, daher greifen Sortierung, Umschalter und "Alle anzeigen"
-// (Document-Delegation weiter unten) fuer beide unveraendert. opts.total = Kopf-Zaehler (Default beginnt.length,
+// genutzt -- identisches Markup/identische Klassen, daher greift "Alle anzeigen" (Document-Delegation weiter
+// unten) fuer beide unveraendert. opts.total = Kopf-Zaehler (Default beginnt.length,
 // fuer die Siedlung ggf. der Payload-/Platzhalter-Gesamtwert); opts.placeholderNote = Platzhalter-Hinweis
 // (nur die Siedlung zeigt ihn, solange der echte Katalog noch nicht geladen ist).
 // opts.allowEmpty: eine Sektion OHNE Abenteuer bauen, statt "" zu liefern -- dieselbe Regel wie bei der
@@ -863,26 +863,15 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	// Zahl im Kopf").
 	var countMarkup = ' <span class="avesmaps-adv__count">(' + placeExtrasEscape(total) + ')</span>';
 
-	// Sortierzeile. Sortiert DURCHGEHEND, ohne Rollen-Bloecke -- ein Spoiler steht an seinem Sortierplatz.
-	var sortsMarkup =
-		'<div class="avesmaps-adv__sorts">'
-		+ '<span class="avesmaps-adv__sort is-active" data-adv-sort="year">' + placeExtrasEscape(tr("adventures.sort.newest", "neueste zuerst")) + '</span>'
-		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="type">' + placeExtrasEscape(tr("adventures.sort.byType", "nach Art")) + '</span>'
-		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="edition">' + placeExtrasEscape(tr("adventures.sort.byEdition", "nach Edition")) + '</span>'
-		+ '<span class="avesmaps-adv__sortsep"> · </span>'
-		+ '<span class="avesmaps-adv__sort" data-adv-sort="alpha">' + placeExtrasEscape(tr("adventures.sort.alpha", "alphabetisch")) + '</span>'
-		+ '</div>';
-
-	// EIN Schalter unter der Sortierzeile, kein Umschalter mehr (Owner 2026-07-18): die spielt-Eintraege
-	// stehen ohnehin da, nur verschleiert -- es gibt nichts umzuschalten, nur aufzudecken. Deshalb auch
-	// kein role="tablist"/aria-selected mehr, sondern ein gedrueckter Zustand (aria-pressed).
-	var togglesMarkup = hasPlay
-		? '<div class="avesmaps-adv__modes">'
-			+ '<button type="button" class="avesmaps-adv__mode" data-adv-mode="spoiler" aria-pressed="false">' + placeExtrasEscape(tr("adventures.mode.play", "Spoiler")) + ' <span class="avesmaps-adv__mode-note">' + placeExtrasEscape(tr("adventures.mode.playNote", "(spielt hier)")) + '</span> <span class="avesmaps-adv__mode-count">(' + placeExtrasEscape(play.length) + ')</span></button>'
-			+ '</div>'
-		: "";
+	// KEINE Sortier- und keine Spoilerzeile mehr im Infopanel (Owner 2026-07-19: "die Filter koennen alle
+	// weg"). Der Streifen ist eine Vorschau, kein Arbeitsgeraet -- und er braucht die Bedienung auch nicht:
+	// er steht bereits in seiner besten Reihenfolge (avesmapsSortAdventureEntries, "neueste zuerst"), jeder
+	// Spoiler bleibt EINZELN per Klick auf seinen Schleier aufdeckbar (data-spoiler-reveal), und wer wirklich
+	// sortieren oder filtern will, nimmt "Alle anzeigen": der Dialog baut seine eigene Leiste
+	// (buildDialogControls) und ist von hier unabhaengig. Damit liest sich die Sektion wie die
+	// Kartensammlung direkt daneben, die nie eine solche Zeile hatte.
+	// Der Handler auf .avesmaps-adv__sort bleibt: der flache Dialog baut exakt dieselben Klassen
+	// (buildDialogControls) -- die Sortierung ist hier nur nicht mehr angebracht, nicht tot.
 
 	var noteMarkup = opts.placeholderNote ? '<div class="avesmaps-adv__placeholder">' + placeExtrasEscape(tr("adventures.placeholderNote", "Platzhalter · Cover temporär aus dem Wiki")) + '</div>' : "";
 	// Rand-Fall: hier beginnt nichts, es wird aber gespielt -> Hinweis in der beginnt-Sicht.
@@ -910,8 +899,6 @@ function buildAdventuresSectionMarkup(placeName, beginnt, play, opts) {
 	var placeIdAttr = opts.placeId ? ' data-adv-place-id="' + placeExtrasEscape(opts.placeId) + '"' : "";
 	return '<div class="avesmaps-adv"' + terrAttr + placeIdAttr + '>'
 		+ '<div class="avesmaps-adv__head">' + tr("adventures.heading", "Abenteuer in {place}", { place: placeExtrasEscape(name) }) + countMarkup + '</div>'
-		+ sortsMarkup
-		+ togglesMarkup
 		+ noteMarkup
 		+ emptyHint
 		+ listMarkup
@@ -1487,35 +1474,11 @@ function advFiltersMarkup(facets) {
 		}
 	});
 
-	// Sammelschalter: nimmt die Schleier ALLER Spoiler im Container weg -- oder legt sie zurueck.
-	//
-	// Das ersetzt den frueheren beginnt/spielt-Umschalter (Owner 2026-07-18). Der musste display umschalten,
-	// einen Reflow erzwingen, per Fade ein- und ausblenden, nach rechts scrollen und die Karten nach 320 ms
-	// wieder verstecken -- all das nur, um Eintraege zu verbergen, die jetzt schlicht dastehen. Uebrig
-	// bleibt eine Container-Klasse.
-	function applyAdventureSpoilers(cardBox, reveal) {
-		if (!cardBox) {
-			return;
-		}
-		cardBox.classList.toggle("show-spoilers", reveal);
-	}
-
-	// Ein Schalter, kein Umschalter: er hat kein Gegenstueck mehr, weil nichts mehr versteckt wird.
-	// Streifen (Infopanel/Popup) und "Alle anzeigen"-Dialog teilen sich denselben Handler -- der Container
-	// ist das Einzige, was sich unterscheidet.
-	// Nur noch der STREIFEN hat diesen Schalter: in den Dialogen ist er ein Chip in der Filterleiste
-	// (hinter `offiziell`). Der Streifen hat keine Filterleiste, deshalb bleibt er dort eigenstaendig.
-	$(document).on("click", ".avesmaps-adv__modes .avesmaps-adv__mode", function () {
-		var reveal = !this.classList.contains("is-active");
-		this.classList.toggle("is-active", reveal);
-		this.setAttribute("aria-pressed", reveal ? "true" : "false");
-		var overlay = $(this).closest(".avesmaps-adv-dialog")[0];
-		var section = $(this).closest(".avesmaps-adv")[0];
-		var cardBox = overlay
-			? overlay.querySelector(".avesmaps-adv-dialog__grid")
-			: (section ? section.querySelector(".avesmaps-adv__list") : null);
-		applyAdventureSpoilers(cardBox, reveal);
-	});
+	// Der Sammel-Spoilerschalter (.avesmaps-adv__modes) ist mit der Sortierzeile aus dem Streifen entfallen
+	// (Owner 2026-07-19), und der Streifen war zuletzt der EINZIGE Ort, der ihn baute -- in den Dialogen ist
+	// er ein Chip in der Filterleiste mit eigenem Handler. Sein Klick-Handler stand hier also ohne Element und
+	// ist mitgegangen, zusammen mit applyAdventureSpoilers(), das nur dieser Handler aufrief.
+	// Aufgedeckt wird jetzt im Streifen einzeln ueber [data-spoiler-reveal].
 })();
 
 // ---- exports -------------------------------------------------------------------------------------

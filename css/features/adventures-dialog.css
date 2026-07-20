@@ -1,7 +1,7 @@
 /* Abenteuer-Feature (Phase 2.3): der verschachtelte "Alle anzeigen"-Dialog fuer Territorien/Regionen.
    Umsetzung des vom Owner freigegebenen Entwurfs. Ergaenzt nur die Nested-spezifischen Klassen -- Scrim/
-   Box/Head/Close + die Karten-Optik (.avesmaps-adv__card/-cover/-title/-meta) + der .avesmaps-adv__mode-
-   Button kommen aus css/features/place-extras.css (geteilt). Markup: js/map-features/map-features-adventures-dialog.js.
+   Box/Head/Close + die Karten-Optik (.avesmaps-adv__card/-cover/-title/-meta) kommen aus
+   css/features/place-extras.css (geteilt). Markup: js/map-features/map-features-adventures-dialog.js.
    Rahmen = JEDE Ebene gerahmt (inkl. oberstes Reich), warm getoent + eingerueckt (bewusste Kachel-Ausnahme,
    Owner-Regel §8.3), Rang-Pill + "N direkt". Nur Tokens aus css/base/tokens.css -- kein Blau, keine Hardcodes. */
 
