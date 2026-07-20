@@ -81,6 +81,10 @@
 
 	--color-danger: #9d3a2e;
 	--color-success: #2f7d3a;             /* status: success (e.g. contact form) */
+	/* Halo around a presence dot (online editor, live visitor count) — the ring that
+	   lifts a 9px dot off the panel without giving it a border. */
+	--color-success-halo: rgba(79, 159, 74, 0.16);
+	--color-muted-halo: rgba(161, 140, 116, 0.16);
 	/* Soft status surfaces — the pale tinted fills for accept/reject buttons and status pills in the
 	   editor (Meldungen, WikiSync). --color-success/-danger above are the solid text colours; these carry
 	   a full bg/border/text set so the buttons follow the theme instead of staying light in dark mode. */
@@ -296,6 +300,8 @@
 
 	--color-danger: #d27566;
 	--color-success: #7cc48a;
+	--color-success-halo: rgba(124, 196, 138, 0.22);
+	--color-muted-halo: rgba(180, 168, 149, 0.20);
 	--color-success-soft: #2c3a24;
 	--color-success-soft-border: #4d6b3a;
 	--color-success-soft-text: #9cd39a;

@@ -5,6 +5,19 @@
 .status-subsection.is-active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* The dashboard fills the sub-section and scrolls when taller than the panel. */
 /* Fixed time-range bar above the scroll area, like a real sub-tab row. */
+/* Live presence line, directly above the time-range bar -- both belong to the fixed
+   header over the scrolling dashboard, so they share its padding and hairline. */
+.va-live { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--color-border); background: var(--color-panel-soft); }
+/* .va-live sets a display below, which would otherwise outrank the browser's own
+   [hidden] rule and leave the line visible before any data has arrived. */
+.va-live[hidden] { display: none; }
+.va-live__head { display: flex; align-items: center; gap: 8px; }
+.va-live__dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--color-success); box-shadow: 0 0 0 3px var(--color-success-halo); }
+.va-live--quiet .va-live__dot { background: var(--color-text-muted); box-shadow: 0 0 0 3px var(--color-muted-halo); }
+.va-live__title { font-size: 13px; font-weight: 700; color: var(--color-text-strong); }
+.va-live__counts { margin-left: auto; font-size: 13px; color: var(--color-button-soft-text); }
+.va-live__counts b { font-size: 17px; font-weight: 700; }
+.va-live__split { margin-top: 4px; padding-left: 17px; font-size: 12px; color: var(--color-text-muted); }
 #visitor-pills { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
 #visitor-pills:empty { display: none; }
 #visitor-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px; }

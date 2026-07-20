@@ -539,6 +539,10 @@ async function sendEditorPresenceHeartbeat() {
 
 		editorPresenceUsers = Array.isArray(data.users) ? data.users : [];
 		renderEditorPresenceUsers();
+		// The Status panel's visitor line rides on this poll instead of opening its own.
+		if (typeof renderVisitorLiveStrip === "function") {
+			renderVisitorLiveStrip(data.visitors, editorPresenceUsers.filter((user) => user.is_online).length);
+		}
 	} catch (error) {
 		console.warn("Online-Status konnte nicht aktualisiert werden:", error);
 		setPresencePanelStatus(error.message || "Nutzerstatus konnte nicht geladen werden.", "error");

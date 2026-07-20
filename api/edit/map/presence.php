@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
+require __DIR__ . '/../../_internal/analytics/visitor-analytics.php';
 
 const AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS = 90;
 
@@ -34,6 +35,7 @@ try {
         'ok' => true,
         'users' => avesmapsListOnlineEditors($pdo),
         'online_seconds' => AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS,
+        'visitors' => avesmapsReadVisitorPresence($pdo),
     ]);
 } catch (PDOException) {
     avesmapsErrorResponse(500, 'server_error', 'Der Editor-Status konnte nicht gespeichert werden.');
@@ -41,6 +43,26 @@ try {
     avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
     avesmapsErrorResponse(500, 'server_error', 'Der Editor-Status konnte nicht verarbeitet werden.');
+}
+
+// The Status panel shows visitor presence right above the editor list, so the
+// numbers ride along with this poll rather than opening a second one of their own.
+//
+// Its own try/catch is deliberate: visitor_live is optional (analytics can be
+// switched off, and the table appears only once someone has pinged), and a failure
+// here must not take the editor list down with it -- a shared catch once blanked
+// both halves of the geo reader for exactly that reason. Null keeps the panel line
+// hidden, which is honest; "0 visitors" would not be.
+function avesmapsReadVisitorPresence(PDO $pdo): ?array {
+    if (!avesmapsVisitorAnalyticsEnabled()) {
+        return null;
+    }
+
+    try {
+        return avesmapsVisitorReadLive($pdo);
+    } catch (Throwable $exception) {
+        return null;
+    }
 }
 
 function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {

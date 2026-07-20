@@ -146,6 +146,7 @@ const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOI
 const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-features.php" : "");
 const VISITOR_TRACK_API_URL = window.AVESMAPS_VISITOR_TRACK_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/track.php" : "");
 const VISITOR_METRICS_API_URL = window.AVESMAPS_VISITOR_METRICS_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/visitor-metrics.php" : "");
+const VISITOR_HEARTBEAT_API_URL = window.AVESMAPS_VISITOR_HEARTBEAT_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/heartbeat.php" : "");
 const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/political-territories.php" : "");
 // Politische Zeitleiste im FRONTEND vorerst deaktiviert (zu wenig Zeitdaten für eine gute
 // Darstellung). Im Editor bleibt sie immer aktiv. Auf true setzen, um sie später im Frontend

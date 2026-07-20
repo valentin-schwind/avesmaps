@@ -229,6 +229,93 @@ function avesmapsVisitorLanguage(): string {
     return preg_match('/^[a-z]{2}$/', $code) ? $code : '?';
 }
 
+// --- Live presence -----------------------------------------------------------
+// "Who is on the site right now", as opposed to the day-aggregated counters above.
+// One short-lived row per present visitor, keyed by the same anonymous daily hash
+// as visitor_daily_seen -- the IP is never stored, and a row outlives its visitor
+// by minutes rather than a day, so this is strictly less retentive than what the
+// analytics module already keeps.
+
+if (!defined('AVESMAPS_VISITOR_LIVE_WINDOW_SECONDS')) {
+    // Must stay comfortably above the client ping interval (60s), so one dropped
+    // beacon does not make a present visitor blink out of the panel.
+    define('AVESMAPS_VISITOR_LIVE_WINDOW_SECONDS', 150);
+}
+if (!defined('AVESMAPS_VISITOR_LIVE_PURGE_MINUTES')) {
+    define('AVESMAPS_VISITOR_LIVE_PURGE_MINUTES', 15);
+}
+
+function avesmapsVisitorEnsureLiveTable(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS visitor_live (
+            visitor_hash CHAR(64) NOT NULL,
+            actor_type ENUM('visitor','editor') NOT NULL DEFAULT 'visitor',
+            state ENUM('active','reading','hidden') NOT NULL DEFAULT 'reading',
+            last_seen DATETIME NOT NULL,
+            PRIMARY KEY (visitor_hash),
+            KEY idx_visitor_live_last_seen (last_seen)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function avesmapsVisitorRecordLive(PDO $pdo, string $actorType, string $state): void {
+    $statement = $pdo->prepare(
+        'INSERT INTO visitor_live (visitor_hash, actor_type, state, last_seen)
+        VALUES (:hash, :actor_type, :state, NOW())
+        ON DUPLICATE KEY UPDATE
+            actor_type = VALUES(actor_type),
+            state = VALUES(state),
+            last_seen = VALUES(last_seen)'
+    );
+    $statement->execute([
+        'hash' => avesmapsVisitorDailyHash(),
+        'actor_type' => $actorType === 'editor' ? 'editor' : 'visitor',
+        'state' => in_array($state, ['active', 'reading', 'hidden'], true) ? $state : 'reading',
+    ]);
+}
+
+// Closing the tab removes the row at once instead of letting it linger for the
+// length of the window -- the difference between "left" and "idle" is worth a
+// beacon on pagehide.
+function avesmapsVisitorForgetLive(PDO $pdo): void {
+    $statement = $pdo->prepare('DELETE FROM visitor_live WHERE visitor_hash = :hash');
+    $statement->execute(['hash' => avesmapsVisitorDailyHash()]);
+}
+
+function avesmapsVisitorPurgeLive(PDO $pdo): void {
+    $pdo->exec(
+        'DELETE FROM visitor_live
+        WHERE last_seen < DATE_SUB(NOW(), INTERVAL ' . AVESMAPS_VISITOR_LIVE_PURGE_MINUTES . ' MINUTE)'
+    );
+}
+
+// Presence snapshot for the Status panel. Editors get a row too (so a signed-in
+// owner is not counted among the visitors), but they are reported by the editor
+// list in api/edit/map/presence.php, which knows their names -- hence only the
+// visitor side is summarised here. Aliases are backticked throughout: `rows` once
+// cost a deploy cycle by colliding with a MySQL 8 reserved word.
+function avesmapsVisitorReadLive(PDO $pdo): array {
+    avesmapsVisitorPurgeLive($pdo);
+    $statement = $pdo->query(
+        "SELECT
+            SUM(actor_type = 'visitor') AS `total`,
+            SUM(actor_type = 'visitor' AND state = 'active') AS `active`,
+            SUM(actor_type = 'visitor' AND state = 'reading') AS `reading`,
+            SUM(actor_type = 'visitor' AND state = 'hidden') AS `hidden`
+        FROM visitor_live
+        WHERE last_seen >= DATE_SUB(NOW(), INTERVAL " . AVESMAPS_VISITOR_LIVE_WINDOW_SECONDS . " SECOND)"
+    );
+    $row = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    return [
+        'total' => (int) ($row['total'] ?? 0),
+        'active' => (int) ($row['active'] ?? 0),
+        'reading' => (int) ($row['reading'] ?? 0),
+        'hidden' => (int) ($row['hidden'] ?? 0),
+        'window_seconds' => AVESMAPS_VISITOR_LIVE_WINDOW_SECONDS,
+    ];
+}
+
 function avesmapsVisitorEnsureGeoTable(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS visitor_geo_range (

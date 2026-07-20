@@ -1225,12 +1225,12 @@
 	height: 9px;
 	border-radius: 50%;
 	background: var(--color-success);
-	box-shadow: 0 0 0 3px rgba(79, 159, 74, 0.16);
+	box-shadow: 0 0 0 3px var(--color-success-halo);
 }
 
 .presence-user--offline .presence-user__dot {
 	background: var(--color-text-muted);
-	box-shadow: 0 0 0 3px rgba(161, 140, 116, 0.16);
+	box-shadow: 0 0 0 3px var(--color-muted-halo);
 }
 
 .presence-user__body {

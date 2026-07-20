@@ -295,6 +295,41 @@ function renderVisitorDashboard(mount, data) {
 	}
 }
 
+// Live presence line above the time-range pills: "who is here right now", as opposed
+// to the day-aggregated dashboard below it. Fed by the editor-presence poll in
+// review-panels.js, which runs every 30s anyway -- this line costs no extra request.
+function renderVisitorLiveStrip(visitors, editorsOnline) {
+	const mount = document.getElementById("visitor-live");
+	if (!mount) {
+		return;
+	}
+	// A missing block means analytics is switched off or nobody has ever pinged.
+	// Staying hidden is honest -- claiming "0 Besucher" would not be.
+	if (!visitors) {
+		mount.hidden = true;
+		return;
+	}
+
+	const guests = Number(visitors.total) || 0;
+	const editors = Number(editorsOnline) || 0;
+	const split = [
+		[Number(visitors.active) || 0, "aktiv"],
+		[Number(visitors.reading) || 0, "liest"],
+		[Number(visitors.hidden) || 0, "im Hintergrund"],
+	].filter((entry) => entry[0] > 0).map((entry) => entry[0] + " " + entry[1]);
+	const windowMinutes = ((Number(visitors.window_seconds) || 150) / 60).toLocaleString("de-DE", { maximumFractionDigits: 1 });
+
+	mount.hidden = false;
+	mount.classList.toggle("va-live--quiet", guests + editors === 0);
+	mount.innerHTML =
+		`<div class="va-live__head" title="Anwesend in den letzten ${windowMinutes} Minuten">`
+		+ `<span class="va-live__dot" aria-hidden="true"></span>`
+		+ `<span class="va-live__title">Gerade jetzt</span>`
+		+ `<span class="va-live__counts"><b>${guests}</b> Besucher · <b>${editors}</b> ${editors === 1 ? "Editor" : "Editoren"}</span>`
+		+ `</div>`
+		+ (split.length > 0 ? `<div class="va-live__split">${split.join(" · ")}</div>` : "");
+}
+
 async function loadEditorActivityFigures() {
 	const mount = document.getElementById("editor-activity-figures");
 	if (!mount || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || window.AVESMAPS_VISITOR_ANALYTICS_ENABLED === false) {
