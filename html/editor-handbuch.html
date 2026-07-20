@@ -159,7 +159,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 20.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 21.07.2026</span>
 		<a class="hb-back" href="https://avesmaps.de/edit/">← Zurück zur Karte</a>
 	</div>
 	<div class="hb-wrap">
@@ -196,6 +196,7 @@
 				</li>
 				<li><a href="#aufgaben" data-keywords="posteingang arbeit community">Aufgaben</a>
 					<ul>
+						<li><a href="#konflikte" data-keywords="konflikt konflikte wiki artikel doppelt verknüpfung trennen genehmigt kein wiki-eintrag widerspruch">Konflikte</a></li>
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community">Bewertungen</a></li>
@@ -780,6 +781,47 @@
 			<section id="aufgaben" class="hb-section">
 				<h2>Aufgaben</h2>
 				<p class="hb-lead">Die Arbeit, die von selbst zu dir kommt. Was hier liegt, hat jemand gemeldet, bewertet oder geschrieben — oder es ist ein Fehler, den das System selbst gefunden hat.</p>
+
+				<h3 id="konflikte" class="hb-sub">Konflikte</h3>
+				<p class="hb-path"><strong>Editor → WikiSync → ⚖️ Konflikte</strong></p>
+				<p>Widersprüche zwischen unserer Karte und dem Wiki Aventurica — an einem Ort, quer über alle Objektarten. Das Fenster <strong>findet</strong> sie; entscheiden musst du. Es ändert von sich aus nie etwas.</p>
+				<p>Beim Öffnen läuft die Prüfung einmal automatisch. <strong>Neu prüfen</strong> oben rechts wiederholt sie — nötig, nachdem du etwas repariert hast oder ein Sync gelaufen ist.</p>
+				<h4>Die Leiste links</h4>
+				<p>Drei Filter, die sich kombinieren lassen. <strong>Objektart</strong> zeigt, was betroffen ist — ein Fall zwischen einem Ort und einem Territorium erscheint unter <em>beiden</em>. <strong>Schweregrad</strong> trennt „nachweislich falsch" von „muss jemand entscheiden" und „nur ungeprüft". <strong>Status</strong> ist die Zustandsanzeige eines Falls:</p>
+				<table class="hb-table">
+					<tr><th>Status</th><th>Bedeutung</th></tr>
+					<tr><td><strong>Offen</strong></td><td>Sollte gemacht werden. Niemand hat sich entschieden.</td></tr>
+					<tr><td><strong>Zurückgestellt</strong></td><td>Zu wenig Information. Kommt zurück, sobald sich etwas ändert.</td></tr>
+					<tr><td><strong>Genehmigt</strong></td><td>Der Fund stimmt, die Lage ist aber richtig so. Kein Fehler.</td></tr>
+					<tr><td><strong>Archiviert</strong></td><td>Bewusst so gelassen — der Konflikt besteht weiter.</td></tr>
+					<tr><td><strong>Erledigt</strong></td><td>Die Daten sind repariert. Der Fall bleibt als Historie stehen.</td></tr>
+				</table>
+				<div class="hb-note"><strong>„Archiviert" und „Erledigt" sind nicht dasselbe.</strong> Archiviert heißt: das Problem ist noch da, wir lassen es bewusst so. Erledigt heißt: es ist weg. Beides bleibt auffindbar, und beides lässt sich wieder öffnen.</div>
+				<h4>Einen Fall lesen</h4>
+				<p>Die Fälle sind nach <strong>Regel</strong> gruppiert, nicht nach Objektart — man arbeitet eine Sorte Problem am Stück ab und entscheidet dadurch einheitlicher. Jede Gruppe erklärt oben, worum es geht und was jeder Knopf tut. <strong>Lies das einmal je Gruppe</strong>; manche Knöpfe tun nicht das, was ihr Name nahelegt.</p>
+				<p>Innerhalb eines Falls steht jedes beteiligte Objekt für sich, mit seinen eigenen Belegen:</p>
+				<table class="hb-table">
+					<tr><th>Angabe</th><th>Was sie beantwortet</th></tr>
+					<tr><td><em>eigener Artikel: …</em></td><td>Es gibt im Wiki einen Artikel, der <strong>genau so</strong> heißt. Starkes Argument, dass dieses Objekt gemeint ist.</td></tr>
+					<tr><td><em>kein eigener Wiki-Artikel</em></td><td>Unter diesem Namen gibt es nichts. Dann gehört ihm der strittige Artikel vermutlich nicht.</td></tr>
+					<tr><td><em>passender Artikel gefunden: …</em></td><td>Nur bei „Kein Wiki-Schlüssel": ein Vorschlag, noch nichts verknüpft.</td></tr>
+					<tr><td><strong>Auf der Karte zeigen</strong></td><td>Springt zum Objekt. Das Fenster schließt dabei — einfach erneut öffnen.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Der übliche Ablauf:</strong> Beteiligte vergleichen → wer hat einen eigenen Artikel? → im Zweifel „Auf der Karte zeigen" und nachsehen → entscheiden. Wenn du es nicht weißt, ist <strong>Zurückstellen</strong> die richtige Antwort, nicht Raten.</div>
+				<h4>Die Entscheidungen</h4>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Was passiert</th></tr>
+					<tr><td><strong>Behält den Link</strong></td><td>Dieses Objekt bleibt verknüpft, <em>alle anderen im Fall</em> verlieren ihre Verknüpfung.</td></tr>
+					<tr><td><strong>Trennen</strong></td><td>Nur dieses Objekt verliert die Verknüpfung. <strong>Hält nicht dauerhaft:</strong> passt der Name zu einem Artikel, kann der Server ihn später wieder vorschlagen.</td></tr>
+					<tr><td><strong>Kein Wiki-Eintrag</strong></td><td>Trennt <em>und</em> hält fest, dass es im Wiki nichts dazu gibt. <strong>Nur so bleibt es weg.</strong></td></tr>
+					<tr><td><strong>Genehmigt</strong></td><td>Fund richtig, Lage richtig. Ändert keine Daten.</td></tr>
+					<tr><td><strong>Zurückstellen</strong> / <strong>Archivieren</strong></td><td>Ändern keine Daten.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Der wichtigste Unterschied im ganzen Fenster:</strong> „Trennen" allein kann rückgängig gemacht werden, ohne dass es jemand merkt — der Server darf bei passendem Namen erneut verknüpfen. Wenn du <em>weißt</em>, dass es im Wiki nichts gibt, nimm <strong>„Kein Wiki-Eintrag"</strong>. Das ist die Angabe, die hält.</div>
+				<p>Manche Objekte tragen den Hinweis <em>„aus der Wiki-Zuordnung"</em>. Bei ihnen hängt die Verknüpfung an der ganzen Infobox — Einwohner, Region, Wappen. Sie werden hier bewusst nicht angefasst; das gehört in den jeweiligen Sync-Editor.</p>
+				<h4>Wann ein Fall wiederkommt</h4>
+				<p>Konflikte werden bei jeder Prüfung <strong>neu berechnet</strong>, nicht gespeichert. Ein reparierter verschwindet also von selbst. Eine Entscheidung gilt für <em>die Lage, zu der du sie getroffen hast</em>: ändert sich daran etwas — im Wiki oder bei uns —, taucht der Fall wieder als offen auf. Das ist Absicht und kein Fehler.</p>
+				<div class="hb-note"><strong>Noch nicht alles ist drin.</strong> Geprüft werden derzeit Orte, Wege, Regionen und Kraftlinien sowie die Fälle aus dem letzten WikiSync-Lauf. <strong>Territorien, Abenteuer, Kartensammlung und Quellen kommen noch nicht mit eigener Prüfung vor</strong> — ein leeres Konfliktfenster heißt also nicht, dass dort alles stimmt.</div>
 
 				<h3 id="bug-system" class="hb-sub">Das automatische Bug-System</h3>
 				<p class="hb-path"><strong>Auf unserem Discord</strong></p>
