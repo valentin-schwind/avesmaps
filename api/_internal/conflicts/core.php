@@ -27,13 +27,19 @@ const AVESMAPS_CONFLICT_DIVERGENCE = 'divergence';  // a decision is needed, not
 const AVESMAPS_CONFLICT_UNVERIFIED = 'unverified';  // plausible, never confirmed
 
 // Decisions an editor can record. Stored verbatim in conflict_decision.decision.
-const AVESMAPS_CONFLICT_DECISIONS = ['resolved', 'deferred', 'ignored'];
+const AVESMAPS_CONFLICT_DECISIONS = ['resolved', 'deferred', 'ignored', 'approved'];
 
 // Derived status (§5a). NOT a stored column -- see avesmapsConflictStatus().
 const AVESMAPS_CONFLICT_STATUS_OPEN = 'open';
 const AVESMAPS_CONFLICT_STATUS_DEFERRED = 'deferred';
 const AVESMAPS_CONFLICT_STATUS_ARCHIVED = 'archived';
 const AVESMAPS_CONFLICT_STATUS_DONE = 'done';
+// "Genehmigt": the finding is correct AND the situation is legitimate. Distinct from 'archived'
+// ("still a conflict, left alone" ) -- owner 2026-07-21 on the Maraskansund, a sea made of two bays
+// that each need their own label and therefore rightly share one article. Approving a single case
+// is deliberately preferred over widening the legitimacy table (§6a) to all label|label pairs,
+// which would blind the rule to the ones that ARE wrong.
+const AVESMAPS_CONFLICT_STATUS_APPROVED = 'approved';
 
 /**
  * The status is NOT stored. It falls out of two independent questions (owner definition, §5a):
@@ -55,6 +61,9 @@ function avesmapsConflictStatus(bool $stillPresent, ?string $decision): string {
     }
     if ($decision === 'deferred') {
         return AVESMAPS_CONFLICT_STATUS_DEFERRED;
+    }
+    if ($decision === 'approved') {
+        return AVESMAPS_CONFLICT_STATUS_APPROVED;
     }
     if ($decision === 'resolved' || $decision === 'ignored') {
         return AVESMAPS_CONFLICT_STATUS_ARCHIVED;

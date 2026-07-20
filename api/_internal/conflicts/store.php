@@ -52,10 +52,29 @@ function avesmapsConflictEnsureSchema(PDO $pdo): void {
  */
 function avesmapsConflictReadDecisions(PDO $pdo): array {
     avesmapsConflictEnsureSchema($pdo);
-    $statement = $pdo->query(
-        'SELECT rule_id, fingerprint, decision, acted_type, acted_id, note, detail_json, reviewed_at, reviewed_by
-         FROM conflict_decision'
-    );
+
+    // Two lookups so a decision stays readable even when it predates the snapshot in detail_json:
+    // the username comes from `users`, and the case title is recovered from the subject that was
+    // recorded from the very first version. Both are LEFT JOINs -- a deleted user or object must
+    // degrade to a blank, never drop the row.
+    $sql =
+        'SELECT d.rule_id, d.fingerprint, d.decision, d.acted_type, d.acted_id, d.note, d.detail_json,
+                d.reviewed_at, d.reviewed_by, d.subject_type, d.subject_id,
+                u.username AS reviewer_username,
+                f.name AS subject_name
+         FROM conflict_decision d
+         LEFT JOIN users u ON u.id = d.reviewed_by
+         LEFT JOIN map_features f ON f.public_id = d.subject_id';
+    try {
+        $statement = $pdo->query($sql);
+    } catch (Throwable $exception) {
+        // Never let a schema surprise kill the whole list again -- fall back to the plain read.
+        $statement = $pdo->query(
+            'SELECT rule_id, fingerprint, decision, acted_type, acted_id, note, detail_json,
+                    reviewed_at, reviewed_by, subject_type, subject_id
+             FROM conflict_decision'
+        );
+    }
     if ($statement === false) {
         return [];
     }
@@ -110,7 +129,11 @@ function avesmapsConflictApplyDecisions(array $conflicts, array $decisions): arr
             'fingerprint' => (string) $decision['fingerprint'],
             'parties' => is_array($detail['parties'] ?? null) ? $detail['parties'] : [],
             'severity' => (string) ($detail['severity'] ?? AVESMAPS_CONFLICT_UNVERIFIED),
-            'title' => (string) ($detail['title'] ?? ''),
+            // Snapshot first; for rows that predate it, fall back to the subject's current name --
+            // subject_id was recorded from the first version, so "(ohne Titel)" was never necessary.
+            'title' => (string) ($detail['title'] ?? '') !== ''
+                ? (string) $detail['title']
+                : trim((string) ($decision['subject_name'] ?? '')),
             'wiki_url' => (string) ($detail['wiki_url'] ?? ''),
             'decision' => (string) $decision['decision'],
             'status' => avesmapsConflictStatus(false, (string) $decision['decision']),
@@ -134,6 +157,12 @@ function avesmapsConflictReviewerName(?array $decision): string {
     // a TypeError on the first undecided row and killed the whole list with a 500.
     if ($decision === null) {
         return '';
+    }
+    // The live username wins over the snapshot: rows decided before the snapshot existed only have
+    // an id, and "Benutzer 1" tells the owner nothing about himself.
+    $joined = trim((string) ($decision['reviewer_username'] ?? ''));
+    if ($joined !== '') {
+        return $joined;
     }
     $detail = json_decode((string) ($decision['detail_json'] ?? ''), true);
     $name = is_array($detail) ? trim((string) ($detail['by_name'] ?? '')) : '';

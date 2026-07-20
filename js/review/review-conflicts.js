@@ -23,6 +23,7 @@ const CONFLICT_SEVERITY_LABELS = {
 const CONFLICT_STATUS_LABELS = {
 	open: "Offen",
 	deferred: "Zurückgestellt",
+	approved: "Genehmigt",
 	archived: "Archiviert",
 	done: "Erledigt",
 };
@@ -31,6 +32,7 @@ const CONFLICT_STATUS_LABELS = {
 const CONFLICT_STATUS_HINTS = {
 	open: "sollte gemacht werden",
 	deferred: "zu wenig Information",
+	approved: "stimmt so, kein Fehler",
 	archived: "bewusst so gelassen — Konflikt besteht weiter",
 	done: "Daten repariert, Fall bleibt als Historie",
 };
@@ -390,6 +392,9 @@ function createConflictElement(conflict) {
 	if (conflict.status === "open") {
 		// No case-level "Erledigt": it would archive the case while the wrong link stays, i.e. claim
 		// a repair that never happened. Repair lives on the party; these two only record a verdict.
+		// "Genehmigt" statt "Archivieren", wenn die Lage richtig ist: der Fund war korrekt, das
+		// Ergebnis ist es auch. Archivieren bleibt fuer "weiterhin falsch, aber hingenommen".
+		actions.appendChild(createConflictActionButton("Genehmigt", conflict, "approved"));
 		actions.appendChild(createConflictActionButton("Zurückstellen", conflict, "deferred"));
 		actions.appendChild(createConflictActionButton("Archivieren", conflict, "ignored"));
 	} else {

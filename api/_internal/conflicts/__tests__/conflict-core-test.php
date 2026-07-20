@@ -32,6 +32,11 @@ assert(avesmapsConflictStatus(true, 'resolved') === 'archived');
 // "data repaired, the case remains as history" -- the detector no longer finds it.
 assert(avesmapsConflictStatus(false, 'resolved') === 'done');
 assert(avesmapsConflictStatus(false, 'deferred') === 'done');
+// "genehmigt": the finding is right, the situation is legitimate (Maraskansund -- one sea, two bays,
+// both need a label). Must NOT collapse into 'archived', which means "still wrong, left alone".
+assert(avesmapsConflictStatus(true, 'approved') === 'approved');
+assert(avesmapsConflictStatus(true, 'approved') !== avesmapsConflictStatus(true, 'ignored'));
+assert(in_array('approved', AVESMAPS_CONFLICT_DECISIONS, true));
 
 // ---- 2. the legitimacy table (§6a) -------------------------------------------------------------
 // THE one legal pairing: the segments of a single road share one article by design.
