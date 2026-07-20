@@ -45,52 +45,51 @@ Nachschlagen        Auswahllisten · Prüf-Häkchen · Kontextmenüs · Sync-Edi
 - [x] **Phase 2 — Gliederung** (`476b7621`). Fünf Ebenen wie oben; Verzeichnis mit allen
       39 Themen in zwei Stufen, mitlaufende Markierung, Filter mit `data-keywords`.
       Regeln stehen nur noch an einer Stelle (`#regeln`).
-- [ ] **Phase 3 — Tiefe** (siehe unten). Die neuen Kapitel stehen inhaltlich korrekt,
-      aber knapp. Hier wird ausgebaut.
-- [ ] **Phase 4 — Auffindbarkeit.** Dauerhafter „Handbuch"-Link in die Kopfleiste von
-      `edit/index.php:94` neben „Abmelden". Heute hängt das Handbuch an genau einem
-      Faden: dem Wort „Tutorial" hinten an der Statuszeile (`js/routing/routing.js:168`),
-      sichtbar erst nach Öffnen des Editor-Panels.
-- [ ] **Phase 5 — Nicht wieder veralten.** Ein Satz in AGENTS.md §9: Wer die
-      Editor-Oberfläche ändert, zieht den Handbuch-Abschnitt mit. Ohne das steht dieselbe
-      Analyse in zwei Wochen wieder an.
+- [x] **Phase 3 — Tiefe.** Siedlungseditor, Quellen, Abenteuer, Kartensammlung,
+      „Änderungen vorschlagen", Wege- und Territorien-Nachträge ausgebaut; Beschriftungen
+      wörtlich aus dem Code (drei parallele Code-Abgleiche).
+- [x] **Phase 4 — Auffindbarkeit** (`96072e1e`). Dauerhafter „📖 Handbuch"-Link in der
+      Kopfleiste von `edit/index.php` neben „Abmelden".
+- [x] **Phase 5 — Nicht wieder veralten** (`96072e1e`). AGENTS.md §9: editor-sichtbare
+      Änderung → Handbuch im selben Commit. Dazu §11: das Handbuch stand **gar nicht** im
+      Doku-Verzeichnis — ein Agent erfuhr nie, dass es existiert. Und §7 verbot pauschal
+      handgeschriebene `?v=`, was für `edit/index.php` falscher Rat war (der Stempler
+      erreicht keine PHP-Seite); die Ausnahme ist jetzt benannt.
 
-## Phase 3 — was noch fehlt
+## Was beim Ausbau korrigiert werden musste
 
-Aus drei Code-Abgleichen (Panel-Oberfläche, Kontextmenüs/Dialoge, Commit-Diff seit 07.07.).
-Alles hier ist **verifiziert**, nicht vermutet.
+Aus drei parallelen Code-Abgleichen. Diese Punkte standen **falsch** im Handbuch oder in
+diesem Plan — sie sind der eigentliche Ertrag von Phase 3:
 
-**Siedlungen.** Der Siedlungseditor ist beschrieben, aber flach: Zwei-Achsen-Reiter
-(Platziert/Fehlt) und Filtermasken, Territorienbaum mit Tri-State-Auswahl, das
-Dry-Run-Fenster von „Siedlungen zuordnen" (der riskanteste Knopf für normale Editoren),
-Bildergalerie mit Multi-Upload und Drag-Sortierung, Wappen-/Bilder-Filter in der Liste.
+- **Spalten des Siedlungseditors vertauscht.** Richtig: links Territorienbaum, Mitte
+  Siedlungsliste, rechts „Eigenschaften & Overrides".
+- **„Siedlungen zuordnen" läuft IMMER global.** Baum-Auswahl, Reiter und Filter haben
+  keinen Einfluss. Das ist die gefährlichste Eigenschaft des Knopfes und stand nirgends.
+  Die Kontextmenü-Variante grenzt nur ein, WELCHE Orte geprüft werden — zugeordnet wird
+  weiter in die Tiefe, also ggf. an eine Baronie statt an die angeklickte Grafschaft.
+- **„kostenpflichtig" ist kein Häkchen**, sondern eine Auswahl unbekannt/ja/nein je
+  Fundort-Zeile. Daneben existiert ein gleichnamiges Häkchen für die ganze Karte.
+- **Shop-Link-Priorität ist Ulisses → F-Shop → Wiki → DNB.** Dieser Plan behauptete vorher
+  „… → DNB → Wiki". Drei Code-Kommentare behaupten dasselbe Falsche; maßgeblich sind die
+  Gruppenüberschrift im Editor und `advLinkMeta`.
+- **Der Knopf heißt „Änderungen vorschlagen"** (Plural).
+- **Abenteuer-Orte haben genau zwei Rollen** und keine Auswahlliste — ein Umschalter
+  „★ Startort" / „☆ Start". Er entscheidet zugleich über den Spoiler.
+- **Bilder: Ziehen sortiert nur.** Einen Drag-&-Drop-Upload gibt es nicht.
+- **Die Reiter-Zähler im Siedlungseditor sind nur kontinent-skaliert** — sie ändern sich
+  nicht mit Suche und Filtern. Sieht wie ein Fehler aus, ist keiner.
 
-**Quellen.** Die 8er-Taxonomie ist als Liste da, der Ablauf nicht: Abdeckung
-„Offiziell"/„Erwähnt" und wie sie die Popup-Reiter steuert, Seitenangaben,
-Quellen zusammenführen, der Wiki-Key.
+## Bewusst NICHT aufgenommen
 
-**Abenteuer / Kartensammlungen.** Je ein knapper Abschnitt. Es fehlen: Cover-Herkunft
-und „neu ziehen", Shop-Link-Priorität (Ulisses > F-Shop > DNB > Wiki), „enthalten in"
-bei Mutterprodukten, Meisterinformationen-Vorrang, die Freigabestrecke für
-Community-Fundorte, `has_scale`.
-
-**Meldungen.** Der „Änderung vorschlagen"-Weg ist genannt, aber nicht durchgespielt:
-vorbefüllte Felder, rot umrandete Abweichungen, Positionsübernahme, Quellenvorschlag
-→ echte `feature_source`.
-
-**Wege.** Nachzutragen: unbenannte Wege benennen, Wegtyp ist Fließtext und kein
-Join-Key mehr, Labels sind im Edit-Modus klickdurchlässig (damit Vertices treffbar
-bleiben), Verlauf-/Lage-Einträge sind verlinkt.
-
-**Territorien.** Abgeleitete Außengrenzen nur bei Container-Gebieten; Zoom-Band-Regeln;
-die drei Ausschneide-Varianten auseinanderhalten.
-
-### Ausdrücklich NICHT ins Handbuch
-
-Owner-Aktionen — höchstens als „gibt es, macht der Betreiber" erwähnen: die Kill-Switches,
-„Dump holen"/„Syncen", „Wappen lokalisieren", „Vorschauen holen" samt Lock und
-Schrittbudget, Quellen zusammenführen, Admin-/Discord-Verwaltung.
-Nicht gebaut, also kein Thema: Ökosystem-Ebene, Audit-Überarbeitung.
+- **Meisterinformationen-Vorrang bei Abenteuer-Orten** — `docs/abenteuer-mi-places-instruction.md`
+  ist eine unabgearbeitete Instruction, im Code existiert nichts davon. Wäre erfundene UI.
+- **„Quellen zusammenführen"** — keine Editor-UI, nur ein Endpunkt mit Capability `admin`.
+  Owner-Sache.
+- **Bruch im Meldungsweg:** Das Meldeformular speichert die gepickte Katalog-ID, der
+  Review-Endpunkt gibt sie nicht weiter (`api/edit/reports/locations.php:474-481`), also
+  wird der `add_existing`-Zweig von dort nie erreicht. Im Handbuch nur als Symptom
+  beschrieben („eine gemeldete Quelle ohne Link geht verloren"), nicht als Mechanik.
+  **Offener Bug, eigene Session.**
 
 ## Screenshots
 

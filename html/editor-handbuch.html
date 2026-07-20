@@ -107,6 +107,7 @@
 		.hb-sub { scroll-margin-top: 76px; }
 		.hb-main h3 { font-size: var(--font-size-subhead); color: var(--hb-strong); margin: 22px 0 8px; }
 		.hb-main h4 { font-size: var(--font-size-reading); color: var(--hb-strong); margin: 16px 0 6px; }
+		.hb-main h5 { font-size: var(--font-size-body); color: var(--hb-strong); margin: 14px 0 4px; }
 		.hb-lead { color: var(--hb-muted); margin-top: 0; }
 		.hb-steps { padding-left: 22px; }
 		.hb-steps li { margin: 6px 0; }
@@ -441,7 +442,7 @@
 
 				<h4>Der Siedlungseditor</h4>
 				<p class="hb-path"><strong>Editor → WikiSync → Siedlungen → „Siedlungen Syncen &amp; Editieren"</strong></p>
-				<p>Für alles, was über einen einzelnen Ort hinausgeht, gibt es ein eigenes Fenster: links die Siedlungsliste mit Filtern, in der Mitte die Details, rechts der Territorienbaum. Oben das Menüband:</p>
+				<p>Für alles, was über einen einzelnen Ort hinausgeht, gibt es ein eigenes Fenster mit drei Spalten: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Siedlungsliste</strong>, rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband:</p>
 				<table class="hb-table">
 					<tr><th>Kachel</th><th>Was sie tut</th></tr>
 					<tr><td><strong>🚨 Syncen</strong></td><td>Holt die Siedlungen aus dem Dump. <em>Betreiber-Aktion.</em></td></tr>
@@ -451,8 +452,40 @@
 					<tr><td><strong>Bilder: An/Aus</strong></td><td>Schaltet die Siedlungsbilder im öffentlichen Frontend ein oder aus.</td></tr>
 					<tr><td><strong>🔗 Links prüfen</strong></td><td>Prüft die hinterlegten Quellen-Links auf Erreichbarkeit.</td></tr>
 				</table>
-				<div class="hb-note hb-warn"><strong>„Siedlungen zuordnen" ist der riskanteste Knopf, an den du herankommst.</strong> Er ändert sehr viele Datensätze auf einmal. Lies die Vorschau wirklich durch, bevor du bestätigst — und im Zweifel frag vorher. Für ein einzelnes Gebiet gibt es die sanftere Variante „Siedlungen hier zuordnen" im Rechtsklick-Menü des Gebiets.</div>
-				<p>Im Detailbereich hängt unter dem Wappen die <strong>Bildergalerie</strong>: bis zu zehn Bilder je Siedlung, per Ziehen sortierbar. Jedes Bild braucht eine Lizenzangabe — siehe <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</p>
+				<h4>Die Liste finden lernen</h4>
+				<p>Die mittlere Spalte hat oben <strong>„Alle"</strong>, <strong>„Platziert"</strong> und <strong>„Fehlt"</strong>, daneben das Suchfeld <em>„Name suchen…"</em> und ein Dropdown <strong>„Filter ▾"</strong> mit fünf Abschnitten: <strong>Typ</strong>, <strong>Kontinent</strong> (voreingestellt auf Aventurien), <strong>Quelle</strong> („Wiki" / „Andere" / „Keine"), <strong>Wappen</strong> und <strong>Bilder</strong>. Sind Filter aktiv, zeigt der Knopf ihre Anzahl.</p>
+				<div class="hb-note hb-tip"><strong>Die Zähler in den Reitern zählen anders, als du denkst.</strong> Sie beziehen sich nur auf den gewählten Kontinent — Suche, Typ und die übrigen Filter gehen <em>nicht</em> ein. „Platziert (312)" bleibt also stehen, während die Liste darunter drei Zeilen zeigt. Das ist kein Fehler.</div>
+				<p>Der Chip <strong>„⚠ Nicht zugeordnet"</strong> daneben zeigt die platzierten Siedlungen ohne Territorium — deine Arbeitsliste für die Zuordnung. Solange er aktiv ist, wird die Baum-Auswahl links ausgeblendet.</p>
+
+				<h4>Der Territorienbaum links</h4>
+				<p>Er dient <em>nur zum Filtern</em>, nicht zum Zuordnen. Jeder Knoten hat ein Kästchen mit drei Zuständen: <strong>angehakt</strong> (dieses Gebiet und alles darunter), <strong>Querbalken</strong> (nicht selbst gewählt, aber etwas darunter schon) und <strong>leer</strong>. Ohne jedes Häkchen siehst du alles.</p>
+
+				<h4>„Siedlungen zuordnen"</h4>
+				<p>Der Knopf ordnet jeder Siedlung per Ray-Cast ihr Herrschaftsgebiet zu. Zuerst kommt eine Vorschau mit vier Zahlen — <strong>Zugeordnet</strong>, <strong>Geändert</strong>, <strong>Nicht zugeordnet</strong>, <strong>Übersprungen (manuell)</strong> — und einer Beispielliste <em>Name → Zielterritorium</em>. Erst <strong>„Übernehmen"</strong> schreibt.</p>
+				<div class="hb-note hb-warn"><strong>Der Lauf ist immer global — Filter und Baum-Auswahl ändern daran nichts.</strong> Das ist die gefährlichste Eigenschaft dieses Knopfes: Man hat die Liste auf eine Handvoll Orte eingegrenzt, drückt ihn und trifft trotzdem <em>alle</em>. Willst du nur ein Gebiet bearbeiten, nimm <strong>„Siedlungen hier zuordnen"</strong> im Rechtsklick-Menü des Gebiets.</div>
+				<p>Was der Lauf beachtet, ohne dass du es siehst:</p>
+				<ul class="hb-steps">
+					<li>Nur <strong>platzierte</strong> Siedlungen. Reine Wiki-Orte haben keine Koordinate und bleiben unberührt.</li>
+					<li>Von Hand gesetzte Zuordnungen werden <strong>nie</strong> überschrieben — sie erscheinen als „Übersprungen (manuell)".</li>
+					<li>Gewinner ist die <strong>tiefste</strong> Ebene: liegt ein Ort in Grafschaft <em>und</em> Baronie, bekommt er die Baronie. Bei Gleichstand die kleinere Fläche.</li>
+					<li>Findet sich kein Gebiet, bleibt die Zuordnung leer. Es wird nichts geraten.</li>
+				</ul>
+				<div class="hb-note hb-tip"><strong>Auch die Variante fürs einzelne Gebiet ordnet in die Tiefe zu.</strong> Klickst du eine Grafschaft an, können ihre Orte trotzdem bei den darunterliegenden Baronien landen — die Regel „tiefste Ebene gewinnt" gilt weiter. Ausgewählt wird nur, <em>welche</em> Orte geprüft werden, nicht, wohin sie kommen.</div>
+
+				<h4>Die rechte Spalte</h4>
+				<p>Unter <strong>„Identität"</strong> stehen Name, Typ, Beschreibung und die <strong>Quellen</strong>, dazu die Häkchen „Ort ist ein Nodix" und „Ruine / zerstört". Felder mit dem Schild <strong>Wiki</strong> — Einwohner, Oberhaupt, Region, Staat, Lage — kommen aus dem Wiki und sind nicht änderbar.</p>
+				<p>Unter <strong>„Lage &amp; Zugehörigkeit"</strong> sitzt das einzige echte Override: das <strong>Territorium</strong>. Daneben steht, woher es stammt — <em>„manuell"</em> oder <em>„Ray-Cast · tiefste Ebene"</em>. Mit <strong>„ändern"</strong> setzt du es selbst; ab dann ist es manuell und kein Massenlauf fasst es mehr an.</p>
+				<div class="hb-note hb-tip"><strong>Zeilen aus dem Reiter „Fehlt" kannst du hier nicht bearbeiten.</strong> Sie stehen nur im Wiki und haben noch keinen Punkt auf der Karte, also auch nichts zu bearbeiten. Der Editor sagt es selbst: „Zum Bearbeiten zuerst auf der Karte platzieren."</div>
+
+				<h4>Bilder</h4>
+				<p>Unter dem Wappen liegt die Galerie: <strong>bis zu zehn Bilder</strong> je Siedlung. Über die Kachel <strong>„＋ Bild hochladen"</strong> kannst du mehrere auf einmal auswählen, sie werden nacheinander hochgeladen. Die Reihenfolge änderst du, indem du die <em>Vorschaubilder</em> ziehst.</p>
+				<div class="hb-note hb-tip"><strong>Ziehen sortiert nur — hochladen kannst du damit nicht.</strong> Eine Datei ins Fenster zu ziehen bewirkt nichts; es geht ausschließlich über die Kachel.</div>
+				<p>Jedes Bild hat ein Lizenzfeld mit vier Werten. Drei davon werden öffentlich ausgeliefert: <strong>„Public Domain"</strong>, <strong>„CC0"</strong> und <strong>„Von uns KI-generiert"</strong>. Der vierte, <strong>„Unbekannt/CC/Sonstiges (nicht öffentlich)"</strong>, wird es nicht.</p>
+				<div class="hb-note hb-warn"><strong>Voreingestellt ist „Von uns KI-generiert" — und das ist eine Aussage.</strong> Wer ein fremdes Bild hochlädt und das Feld nicht anfasst, behauptet damit, wir hätten es selbst erzeugt, und veröffentlicht es. Erlaubt sind nur KI-generierte und zweifelsfrei gemeinfreie Bilder; alles unter CC, GNU oder mit Namensnennung gehört nicht hierher. Im Zweifel „Unbekannt/CC/Sonstiges" wählen — dann bleibt es intern.</div>
+
+				<h4>„Nur Auswahl anzeigen"</h4>
+				<p>Zeigt auf der <em>Karte</em> nur die Orte, die die mittlere Liste gerade anzeigt — mit allen Filtern, dem Reiter und der Baum-Auswahl zusammen. Solange das aktiv ist, sitzt oben rechts auf der Karte der Hinweis <strong>„Gefilterte Ansicht aktiv ✕"</strong>; ein Klick darauf stellt die volle Ansicht wieder her.</p>
+				<div class="hb-note hb-tip"><strong>Wenn die Karte plötzlich fast leer ist,</strong> such zuerst diesen Chip oben rechts. Er überlebt das Schließen des Editors — die Karte bleibt gefiltert, bis du ihn wegklickst.</div>
 
 				<h3 id="territorien" class="hb-sub">Territorien</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Rechtsklick auf ein Gebiet → eigenes Menü &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Territorien</p>
@@ -468,6 +501,18 @@
 					<img src="screenshots/07-gebiet-menu.png" alt="Gebiets-Kontextmenue mit Grenzen bearbeiten, Territoriumseditor oeffnen, Grenzen berechnen, Verschieben, Gebiet zerschneiden, vereinigen, ausschneiden, herausloesen, Loeschen" />
 					<figcaption>Das Rechtsklick-Menü eines Gebiets. Je nach Gebiet erscheinen zusätzliche Einträge.</figcaption>
 				</figure>
+
+				<h4>Die Formwerkzeuge</h4>
+				<p>Alle vier arbeiten gleich: Du startest sie auf dem Gebiet, das du angeklickt hast, dann wählst du ein <strong>Zielgebiet</strong> — oben erscheint dazu der Hinweis <em>„Zielgebiet anklicken."</em>. Was danach passiert, unterscheidet sich in einem Punkt, den man den Namen nicht ansieht:</p>
+				<table class="hb-table">
+					<tr><th>Werkzeug</th><th>Dein Gebiet bekommt …</th><th>Das Zielgebiet</th></tr>
+					<tr><td><strong>Mit anderem vereinigen</strong></td><td>beide Flächen zusammen</td><td><strong>wird aufgezehrt</strong></td></tr>
+					<tr><td><strong>Von anderem ausschneiden</strong></td><td>seine Fläche <em>minus</em> der des Ziels</td><td><strong>wird aufgezehrt</strong></td></tr>
+					<tr><td><strong>Von anderem ausschneiden und anderes beibehalten</strong></td><td>dasselbe</td><td>bleibt stehen</td></tr>
+					<tr><td><strong>Neues von anderem ausschneiden</strong></td><td>nur die <em>Überlappung</em> beider</td><td>bleibt stehen</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Die ersten beiden verbrauchen das Gebiet, das du anklickst.</strong> Hat es keine Fläche mehr übrig, ist es weg. Der lange Name „…&nbsp;und anderes beibehalten" ist genau dafür da — er ist nicht die umständliche Variante, sondern die vorsichtige. Im Zweifel nimm sie: Was zu viel stehen bleibt, kannst du danach immer noch löschen; was verbraucht wurde, holst du nur über den Reiter <a href="#aenderungen">Änderungen</a> zurück.</div>
+
 				<h4>Im Territoriumseditor</h4>
 				<ul class="hb-steps">
 					<li><strong>Wiki-Referenz</strong> setzen oder ändern.</li>
@@ -685,29 +730,46 @@
 				<div class="hb-note hb-check"><strong>Selbst prüfen:</strong> Im Bearbeiten-Modus markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte. Alle sieben Häkchen stehen unter <a href="#n-haekchen">Die Prüf-Häkchen</a>.</div>
 				<p>Die Wege-Liste im WikiSync-Reiter hat zwei Ansichten mehr als die anderen Sorten: <strong>„Konflikte"</strong> und <strong>„Flussrichtung unbekannt"</strong> — beides fertige Arbeitslisten.</p>
 
+				<h4>Kleinigkeiten, die Zeit sparen</h4>
+				<ul class="hb-steps">
+					<li><strong>Beschriftungen sind im Bearbeiten-Modus klickdurchlässig.</strong> Wo ein Weg- oder Flussname über der Linie liegt, kam man früher nicht an die Linie darunter. Heute geht der Doppelklick durch und setzt den Stützpunkt, wo du hinzeigst.</li>
+					<li><strong>Namenlose Wege darfst du benennen.</strong> Trägt ein Segment noch einen technischen Namen wie <code>Reichsstrasse-16</code>, ist das ein Altbestand und kein Sonderfall — gib ihm den richtigen Namen oder verknüpfe ihn mit seinem Wiki-Weg.</li>
+					<li><strong>Der Wegtyp ist Fließtext.</strong> Er ist kein Schlüssel, an dem etwas hängt, sondern nur die Beschriftung darunter — dass die Suche gröber einteilt als der Editor, ist Absicht und kein Widerspruch.</li>
+				</ul>
+
 				<h3 id="materialien" class="hb-sub">Materialien</h3>
 				<p class="hb-path"><strong>Editor → WikiSync → Materialien</strong></p>
 				<p>Unter „Materialien" liegt, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer und veröffentlichte Karten. Beide haben einen eigenen Editor, und beide erreichst du über den Knopf oben — oder per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
 
 				<h4 id="abenteuer" class="hb-sub">Abenteuer</h4>
 				<p>Ein Abenteuer ist ein veröffentlichtes DSA-Produkt mit den Orten, an denen es spielt. Auf der Karte taucht es an genau diesen Orten wieder auf.</p>
-				<ul class="hb-steps">
-					<li><strong>Stammdaten</strong> — Titel, Edition, Cover, Shop-Link. Das Cover wird automatisch geholt; du kannst es überschreiben oder neu ziehen.</li>
-					<li><strong>Orte</strong> — die Liste der Schauplätze, jeder mit einer Rolle („beginnt hier", „spielt hier"). Über das Autocomplete-Feld suchst du den Ort und wählst die konkrete Entität aus; die Reihenfolge stellst du mit ▲▼ ein.</li>
-					<li>Ein Eintrag <em>ohne</em> Wiki-Verknüpfung ist erlaubt — er wird als „ohne Wiki-Eintrag" geführt.</li>
-				</ul>
+				<p>Die Stammdaten sind in Gruppen geteilt: <strong>Cover</strong>, <strong>Identität</strong> (Titel, Produkttyp, Regelsystem, Serie), <strong>Datierung &amp; Einordnung</strong> (BF-Jahr, Genre, Komplexität, Autoren), <strong>Wiki &amp; F-Shop</strong> und <strong>Shop-Links</strong>.</p>
+
+				<h5>Die Orte</h5>
+				<p>Unten die Schauplätze. Neue trägst du über <em>„Ort suchen oder Wiki-Titel eingeben …"</em> und <strong>„+ Ort"</strong> ein; die Reihenfolge stellst du mit <strong>▲▼</strong>. Sie wird <em>nie</em> automatisch umsortiert — was du festlegst, bleibt.</p>
+				<p><strong>Es gibt nur zwei Rollen, und keine Auswahlliste dafür.</strong> Jede Zeile hat einen Umschalter: steht dort <strong>„★ Startort"</strong>, beginnt das Abenteuer hier; steht dort <strong>„☆ Start"</strong>, spielt es hier nur. Mehrere Startorte sind erlaubt.</p>
+				<div class="hb-note hb-warn"><strong>Dieser Umschalter entscheidet über den Spoiler.</strong> Startorte sind spoilerfrei und offen sichtbar — alle übrigen erscheinen für Lesende verschleiert als „Spoiler (spielt hier)". Ein falsch gesetzter Stern verrät also, wo ein Abenteuer hinführt. Im Zweifel den Stern <em>nicht</em> setzen.</div>
+				<p>Zwei Zustände an einer Ortszeile solltest du auseinanderhalten: <strong>„ohne Wiki-Eintrag"</strong> heißt, der Ort ist sauber aufgelöst und hat einfach keine Wiki-Seite — völlig in Ordnung. <strong>„nicht aufgelöst"</strong> in Rot heißt, der Name konnte keinem Kartenobjekt zugeordnet werden; dann hilft <strong>„↻ Auflösen"</strong> oder ein genauerer Name.</p>
+
+				<h5>Cover und Shop-Links</h5>
+				<p>Das Cover holt sich der Sync aus dem Wiki. <strong>„Eigenes Cover laden…"</strong> überschreibt es — und zwar dauerhaft: Ein späterer Sync stellt das Wiki-Cover nicht wieder her. Mit <strong>„Wiki-Cover neu ziehen"</strong> holst du es zurück.</p>
+				<p>Bei den Shop-Links gilt eine feste Klick-Reihenfolge: <strong>Ulisses → F-Shop → Wiki → DNB</strong>. Der erste vorhandene wird der Hauptlink. Das Feld <strong>„Enthalten in (Sammelprodukt)"</strong> ist für Abenteuer gedacht, die nur als Teil eines größeren Bandes erschienen sind; steht dort etwas, sehen Lesende „enthalten in: …".</p>
 				<div class="hb-note hb-tip"><strong>Abkürzung:</strong> Trägst du bei einem Ort eine <em>Quelle</em> ein, die auf ein Abenteuer zeigt, legt das System den passenden Abenteuer-Ort-Eintrag von selbst an. Nimmst du die Quelle wieder weg, verschwindet nur der selbst erzeugte Eintrag — ein Eintrag, der vorher schon da war, bleibt.</div>
-				<p>Wo Abenteuer öffentlich sichtbar sind, gilt die <a href="#v-spoiler">Spoiler-Regel</a>.</p>
+				<p>Gelöschte Wiki-Orte verschwinden nicht spurlos: Sie liegen hinter <strong>„unterdrückte anzeigen"</strong> und lassen sich mit <strong>„↺ Zurückholen"</strong> wiederbeleben. Ein erneuter Sync fügt sie von sich aus nicht wieder ein.</p>
 
 				<h4 id="kartensammlungen" class="hb-sub">Kartensammlungen</h4>
 				<p>Veröffentlichte Karten und Stadtpläne — wo es sie gibt, in welchem Buch, in welchem Maßstab.</p>
-				<ul class="hb-steps">
-					<li><strong>Stammdaten</strong> — Titel, Format, Maßstab, Verlag, zugehöriger Ort.</li>
-					<li><strong>Links</strong> — eine Karte darf mehrere haben, jeder mit eigenem Linktext.</li>
-					<li><strong>Vorschaubild</strong> — wird nur öffentlich gezeigt, wenn die Lizenz es hergibt.</li>
-				</ul>
-				<div class="hb-note hb-warn"><strong>„Kostenpflichtig" hängt am Link, nicht an der Karte.</strong> Dieselbe Karte kann einen kostenlosen und einen kostenpflichtigen Fundort haben. Setz das Häkchen also beim einzelnen Link — das ist die häufigste Fehlbedienung hier.</div>
-				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>Fundort-Meldungen</strong> (ein weiterer Link zu einer bekannten Karte). Beide erscheinen erst nach deiner Freigabe.</p>
+				<p>Unter <strong>„Identität"</strong> stehen Titel, der Karten-Link und <strong>„Urheber"</strong> bzw. <strong>„Verlag"</strong> — zwei verschiedene Dinge: der Urheber hat die Karte <em>gezeichnet</em>, der Verlag hat den Band <em>gedruckt</em>. Unter <strong>„Einordnung"</strong> folgen Art, Gültigkeit in BF und das <strong>Format</strong>, also die Größe des gedruckten Blatts, wie das Wiki sie schreibt („A2", „33,5x25,5"). Breite und Höhe daneben sind Pixel eines Scans und füllen sich beim Upload von selbst.</p>
+
+				<h5>Wo gibt es die Karte?</h5>
+				<p>Unter dieser Überschrift sammelst du die Fundorte. Mit <strong>„+ Fundort"</strong> legst du weitere an, jede Zeile hat <strong>Fundort</strong> (das, was Lesende anklicken — also „Wiki-Aventurica", nicht der Kartenname), <strong>URL</strong> und <strong>kostenpflichtig</strong>.</p>
+				<div class="hb-note hb-warn"><strong>„Kostenpflichtig" hängt an der Zeile, nicht an der Karte</strong> — derselbe Band ist im Shop bezahlt und auf seiner Wiki-Seite frei. Und es ist <em>kein Häkchen</em>, sondern eine Auswahl aus <strong>unbekannt / ja / nein</strong>. Lass „unbekannt" stehen, wenn du es nicht weißt: Lesende sehen dann gar nichts, statt ein erfundenes „frei". Verwechsle es nicht mit dem gleichnamigen Häkchen unter „Eigenschaften" — das gilt für die ganze Karte.</div>
+				<p>Ebenso dreiwertig ist <strong>„mit Maßstab"</strong>: Die Wiki-Spalte beantwortet genau diese Ja/Nein-Frage. Steht dort ein ausgeschriebener Maßstab („1:12.750.000"), gehört der zusätzlich in die Notiz — er sagt mehr als ein „ja".</p>
+
+				<h5>Vorschaubild</h5>
+				<p>Öffentlich erscheint eine Vorschau nur bei vier Lizenzen: <strong>Public Domain</strong>, <strong>CC0</strong>, <strong>Von uns KI-generiert</strong> und <strong>Genehmigung erteilt</strong>. Der Knopf <strong>„Hochladen…"</strong> erscheint überhaupt erst, wenn eine solche Lizenz <em>gespeichert</em> ist.</p>
+				<div class="hb-note hb-tip"><strong>„⤓ Autoget" holt kein veröffentlichbares Bild.</strong> Es sucht auf der verlinkten Seite eine Vorschau und legt sie <em>nur für den Editor</em> ab — fremdes Material, das nie öffentlich erscheint. Der Karten-Link selbst wird dagegen immer angezeigt; nur das Bild hängt an der Lizenz.</div>
+				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>„+ Neuer Fundort"</strong> (eine weitere Stelle für eine bekannte Karte). Beide erscheinen erst nach deiner Freigabe im Reiter <a href="#meldungen">Meldungen</a> — bei einer neuen Karte heißt der Knopf dort <strong>„Anlegen"</strong>, bei Fundorten <strong>„Ergänzen"</strong>. Fremde Fundorte kannst du nicht löschen, nur <strong>„Unterdrücken"</strong>; das wirkt sofort, ohne Speichern.</p>
 			</section>
 
 			<!-- ============================= 3. AUFGABEN ============================= -->
@@ -731,14 +793,25 @@
 
 				<h3 id="meldungen" class="hb-sub">Meldungen</h3>
 				<p class="hb-path"><strong>Editor → Meldungen → Community Meldungen</strong></p>
-				<p>Hinweise von Nutzerinnen und Nutzern zur Karte. Sie entstehen über <strong>„Hier melden…"</strong> im Rechtsklick-Menü oder über <strong>„Änderung vorschlagen"</strong> im Infopanel eines Objekts.</p>
-				<ul class="hb-steps">
-					<li>Jede Zeile zeigt Art, Ort und den Kommentar des Melders. Die Liste frischt sich selbst auf; daneben gibt es ⟳ zum Nachladen.</li>
-					<li>Eine <strong>Änderungsmeldung</strong> öffnet auf Klick den Siedlungseditor mit <em>vorausgefüllten</em> Feldern. Was von der aktuellen Karte abweicht, ist rot umrandet — du siehst also sofort, worum es geht.</li>
-					<li>Schlägt jemand eine <strong>neue Position</strong> vor, kannst du sie direkt übernehmen.</li>
-					<li>Schlägt jemand eine <strong>Quelle</strong> vor, erscheint sie im Quellen-Editor zur Prüfung und wird bei Freigabe eine echte Quelle.</li>
-				</ul>
+				<p>Hinweise von Nutzerinnen und Nutzern zur Karte. Sie entstehen auf zwei Wegen: über <strong>„Hier melden…"</strong> im Rechtsklick-Menü (ein ganz neuer Eintrag) oder über <strong>„Änderungen vorschlagen"</strong> im Infopanel eines vorhandenen Objekts. Jede Zeile zeigt Art, Ort, die genannten Quellen und den Kommentar; die Liste frischt sich selbst auf, daneben gibt es ⟳ zum Nachladen. Ein Klick auf die Karte der Meldung springt auf der Karte dorthin.</p>
+
+				<h4>Der linke Knopf heißt nicht immer gleich</h4>
+				<p>Er wechselt mit der Art der Meldung — und der Name sagt dir, was gleich passiert:</p>
+				<table class="hb-table">
+					<tr><th>Knopf</th><th>Bei welcher Meldung</th><th>Was er tut</th></tr>
+					<tr><td><strong>Anlegen</strong></td><td>neuer Ort</td><td>Öffnet den Bearbeiten-Dialog <em>vorbefüllt</em>. Angelegt wird erst durch dein „Speichern".</td></tr>
+					<tr><td><strong>Bearbeiten</strong></td><td>Änderung an einer Siedlung</td><td>Öffnet die <em>bestehende</em> Siedlung, vorbefüllt mit dem Vorschlag.</td></tr>
+					<tr><td><strong>Erledigt</strong></td><td>reiner Kommentar</td><td>Legt nichts an, hakt die Meldung nur ab.</td></tr>
+					<tr><td><strong>Ergänzen</strong></td><td>Fundort zu einer Karte</td><td>Hängt die Fundorte an die bestehende Karte an.</td></tr>
+					<tr><td><strong>Anlegen</strong></td><td>Kartenvorschlag</td><td>Legt die Karte an und öffnet danach den Karteneditor, damit du die Lizenz einordnest.</td></tr>
+				</table>
+				<p>Rechts steht immer <strong>„Verwerfen"</strong>, mit Rückfrage.</p>
+
+				<h4>Eine Änderungsmeldung bearbeiten</h4>
+				<p>Der Dialog geht vorbefüllt auf — aber <strong>nur dort, wo der Vorschlag von der Karte abweicht</strong>. Genau diese Felder bekommen einen <strong>roten Rahmen</strong>. Du musst also nicht vergleichen; du siehst sofort, worum es geht. Vorgeschlagene Quellen stehen im Quellen-Block in einer eigenen Gruppe <em>„Aus der Meldung (wird beim Speichern übernommen)"</em>.</p>
+				<div class="hb-note hb-warn"><strong>Eine vorgeschlagene Position ist bereits eingetragen, wenn der Dialog aufgeht.</strong> Es gibt keinen Knopf zum Übernehmen — und keinen zum Ablehnen. Speicherst du, wandert der Ort. Willst du den Namen übernehmen, die Position aber nicht, dann speichere hier <em>nicht</em>, sondern ändere den Ort auf dem normalen Weg und verwirf die Meldung.</div>
 				<div class="hb-note hb-tip"><strong>Meldung ≠ Auftrag.</strong> Prüf den Hinweis gegen das Wiki, bevor du ihn übernimmst. Nichts wird automatisch veröffentlicht — die Entscheidung liegt bei dir.</div>
+				<div class="hb-note hb-tip"><strong>Eine gemeldete Quelle ohne Link geht verloren.</strong> Nur Quellen mit URL werden beim Speichern zu echten Quellen. Bei einer Neu-Meldung landet eine linklose Quelle wenigstens als Textzeile in der Beschreibung — bei einer Änderungsmeldung gar nicht. Steht im Kommentar ein Buchtitel ohne Link, trag ihn selbst nach.</div>
 
 				<h3 id="bewertungen" class="hb-sub">Bewertungen</h3>
 				<p class="hb-path"><strong>Editor → Meldungen → Bewertungen</strong></p>
@@ -876,7 +949,23 @@
 					<li><strong>Aus der Community</strong> — vorgeschlagen und von dir freigegeben.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Entfernen heißt unterdrücken, nicht löschen.</strong> Nimmst du eine Wiki-Quelle weg, merkt sich das System das und setzt sie beim nächsten Sync nicht wieder ein. Fügst du sie von Hand wieder hinzu, lebt sie wieder auf. Deine Entscheidungen überleben also jeden Abgleich — das ist der Sinn der Sache.</div>
-				<p>Beim Eintragen hilft ein <strong>Autocomplete</strong>: Tippst du den Anfang eines bekannten Werks, schlägt es die bereits erfasste Quelle vor. Nimm den Vorschlag — so bleibt der Katalog sauber, statt dass dasselbe Buch zehnmal unterschiedlich geschrieben herumliegt.</p>
+				<h4>Die Eingabezeile</h4>
+				<p>Eine neue Quelle trägst du in einer Zeile ein: <strong>URL</strong>, <strong>Quellenname</strong>, <strong>Seite(n)</strong>, der <strong>Typ</strong>, die <strong>Abdeckung</strong> und das Häkchen <strong>offiziell</strong> — dann <strong>„Hinzufügen"</strong>. Beim Quellennamen gehört der <em>Veröffentlichungstitel</em> hinein, nicht eine Umschreibung.</p>
+
+				<h4>Die Abdeckung entscheidet, wo die Quelle landet</h4>
+				<p>Das unscheinbarste Feld hat die größte Wirkung auf die Leseransicht:</p>
+				<table class="hb-table">
+					<tr><th>Abdeckung</th><th>Wo sie beim Leser erscheint</th></tr>
+					<tr><td><strong>Standardquelle</strong></td><td>In der normalen Zeile „Quelle:" bzw. „Quellen:".</td></tr>
+					<tr><td><strong>Ausführlich</strong> / <strong>Ergänzend</strong></td><td>Im Reiter <strong>„Offiziell"</strong> unter „Publikationen:".</td></tr>
+					<tr><td><strong>Nur Erwähnung</strong></td><td>Im Reiter <strong>„Erwähnt"</strong> — für Werke, die den Ort bloß nennen.</td></tr>
+				</table>
+				<p>Ein Reiter ohne Einträge wird gar nicht erst angezeigt. Die Zahl dahinter — „Offiziell (3)" — ist einfach die Anzahl.</p>
+
+				<h4>Das Autocomplete</h4>
+				<p>Tippst du zwei Zeichen in den Quellennamen, schlägt der <em>Quellenkatalog</em> bereits erfasste Werke vor, mit Typ und „an <em>n</em> Orten". <strong>Nimm den Vorschlag</strong> — so steht dasselbe Buch nicht zehnmal unterschiedlich geschrieben herum.</p>
+				<div class="hb-note hb-tip"><strong>Ein übernommener Vorschlag überschreibt Name, URL, Typ und „offiziell"</strong> und markiert die Zeile als <em>„bestehende Quelle"</em>; der Cursor springt weiter zu „Seite(n)", denn nur die Seitenzahl und die Abdeckung gehören zu <em>dieser</em> Verknüpfung — alles andere beschreibt das Werk. Tippst du danach wieder in „URL" oder „Quellenname", ist die Auswahl aufgehoben und du legst eine neue Quelle an. Das ist der häufigste Weg, versehentlich eine Dublette zu erzeugen.</div>
+				<div class="hb-note hb-tip"><strong>Die Zeile „… als neue Quelle anlegen"</strong> am Ende der Vorschlagsliste legt nichts an — sie schließt nur die Liste, damit du normal weitertippen kannst.</div>
 
 				<h3 id="v-lizenzen" class="hb-sub">Bilder &amp; Lizenzen</h3>
 				<p>Avesmaps ist ein nicht-kommerzielles Fan-Projekt. Bei Bildern hört der Spaß trotzdem auf, deshalb ist die Regel streng und im Zweifel restriktiv:</p>
