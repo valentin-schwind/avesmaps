@@ -14,6 +14,10 @@ let conflictLoading = false;
 // Loaded once per page, not once per open: reopening the dialog must not re-walk the table, but an
 // editor should never have to press a button to see anything at all. "Neu prüfen" forces a refresh.
 let conflictsLoadedOnce = false;
+// Welche Regelgruppen der Editor aufgeklappt hat. Die Liste wird bei jeder Entscheidung und
+// jedem Filterklick neu gebaut -- ohne diesen Merkzettel klappte alles wieder auf und man
+// verlor bei jedem Klick die Stelle, an der man war. Standard: alles zu.
+const conflictOpenGroups = new Set();
 
 const CONFLICT_SEVERITY_LABELS = {
 	error: "Fehler",
@@ -542,7 +546,14 @@ function renderConflicts() {
 		}
 		const group = document.createElement("details");
 		group.className = "conflict-group";
-		group.open = true;
+		group.open = conflictOpenGroups.has(rule.id);
+		group.addEventListener("toggle", () => {
+			if (group.open) {
+				conflictOpenGroups.add(rule.id);
+			} else {
+				conflictOpenGroups.delete(rule.id);
+			}
+		});
 		const summary = document.createElement("summary");
 		const dot = document.createElement("span");
 		dot.className = `conflict-dot conflict-dot--${rule.severity}`;
