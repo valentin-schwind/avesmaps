@@ -261,6 +261,11 @@ function createConflictPartyActions(conflict, party) {
 				subject_id: party.id,
 				acted_type: party.type,
 				acted_id: party.id,
+				title: conflict.title || "",
+				severity: conflict.severity || "",
+				parties: (conflict.parties || []).map((entry) => ({
+					type: entry.type, type_label: entry.type_label, label: entry.label,
+				})),
 			});
 			// The server refuses a party whose claim sits inside a wiki block -- surface that instead
 			// of pretending it worked.
@@ -328,6 +333,12 @@ function createConflictActionButton(label, conflict, decision, variant = "") {
 					decision,
 					subject_type: conflict.subject_type || "",
 					subject_id: conflict.subject_id || "",
+					title: conflict.title || "",
+					wiki_url: conflict.wiki_url || "",
+					severity: conflict.severity || "",
+					parties: (conflict.parties || []).map((entry) => ({
+						type: entry.type, type_label: entry.type_label, label: entry.label,
+					})),
 				});
 			}
 			await loadConflicts();

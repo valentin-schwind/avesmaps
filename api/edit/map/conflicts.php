@@ -47,11 +47,13 @@ try {
     }
 
     $payload = avesmapsReadJsonRequest();
+    // Stored WITH the decision: a repaired case has no object left to look a name up from.
+    $userName = trim((string) ($user['username'] ?? $user['name'] ?? ''));
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'list'), 40);
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     if ($action === 'decide') {
-        $result = avesmapsConflictRecordDecision($pdo, $payload, (int) ($user['id'] ?? 0));
+        $result = avesmapsConflictRecordDecision($pdo, $payload, (int) ($user['id'] ?? 0), $userName);
         avesmapsJsonResponse(200, $result);
     }
 
@@ -68,7 +70,11 @@ try {
                 'subject_id' => $payload['subject_id'] ?? '',
                 'acted_type' => $payload['acted_type'] ?? null,
                 'acted_id' => $payload['acted_id'] ?? null,
-            ], (int) ($user['id'] ?? 0));
+                'title' => $payload['title'] ?? '',
+                'wiki_url' => $payload['wiki_url'] ?? '',
+                'severity' => $payload['severity'] ?? '',
+                'parties' => $payload['parties'] ?? [],
+            ], (int) ($user['id'] ?? 0), $userName);
         }
         avesmapsJsonResponse(200, $result);
     }

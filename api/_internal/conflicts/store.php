@@ -53,7 +53,7 @@ function avesmapsConflictEnsureSchema(PDO $pdo): void {
 function avesmapsConflictReadDecisions(PDO $pdo): array {
     avesmapsConflictEnsureSchema($pdo);
     $statement = $pdo->query(
-        'SELECT rule_id, fingerprint, decision, acted_type, acted_id, note, reviewed_at, reviewed_by
+        'SELECT rule_id, fingerprint, decision, acted_type, acted_id, note, detail_json, reviewed_at, reviewed_by
          FROM conflict_decision'
     );
     if ($statement === false) {
@@ -90,32 +90,53 @@ function avesmapsConflictApplyDecisions(array $conflicts, array $decisions): arr
         $conflict['decision'] = $decision['decision'] ?? null;
         $conflict['status'] = avesmapsConflictStatus(true, $conflict['decision']);
         $conflict['reviewed_at'] = $decision['reviewed_at'] ?? null;
-        $conflict['reviewed_by'] = $decision['reviewed_by'] ?? null;
+        $conflict['reviewed_by'] = avesmapsConflictReviewerName($decision);
         $conflict['note'] = $decision['note'] ?? null;
         $out[] = $conflict;
     }
 
-    // Decided cases the detector no longer finds = the data was repaired. They stay as history.
+    // Decided cases the detector no longer finds = the data was repaired. They stay as history --
+    // and that is exactly why the decision has to carry its own title and parties: at this point
+    // there is nothing left to derive them from. Without it the history reads "(ohne Titel)".
     foreach ($decisions as $key => $decision) {
         if (isset($seen[$key])) {
             continue;
         }
         [$ruleId] = explode('|', $key, 2);
+        $detail = json_decode((string) ($decision['detail_json'] ?? ''), true);
+        $detail = is_array($detail) ? $detail : [];
         $out[] = [
             'rule_id' => $ruleId,
             'fingerprint' => (string) $decision['fingerprint'],
-            'parties' => [],
-            'severity' => AVESMAPS_CONFLICT_UNVERIFIED,
-            'title' => '',
+            'parties' => is_array($detail['parties'] ?? null) ? $detail['parties'] : [],
+            'severity' => (string) ($detail['severity'] ?? AVESMAPS_CONFLICT_UNVERIFIED),
+            'title' => (string) ($detail['title'] ?? ''),
+            'wiki_url' => (string) ($detail['wiki_url'] ?? ''),
             'decision' => (string) $decision['decision'],
             'status' => avesmapsConflictStatus(false, (string) $decision['decision']),
             'reviewed_at' => $decision['reviewed_at'] ?? null,
-            'reviewed_by' => $decision['reviewed_by'] ?? null,
+            'reviewed_by' => avesmapsConflictReviewerName($decision),
             'note' => $decision['note'] ?? null,
         ];
     }
 
     return $out;
+}
+
+/**
+ * Display name of whoever decided. Stored WITH the decision rather than joined on read: this is a
+ * historical record, so the name as it was at decision time is the honest one -- and a bare user id
+ * ("Erledigt von 1") tells an editor nothing.
+ */
+function avesmapsConflictReviewerName(array $decision): string {
+    $detail = json_decode((string) ($decision['detail_json'] ?? ''), true);
+    $name = is_array($detail) ? trim((string) ($detail['by_name'] ?? '')) : '';
+    if ($name !== '') {
+        return $name;
+    }
+    $id = (int) ($decision['reviewed_by'] ?? 0);
+
+    return $id > 0 ? 'Benutzer ' . $id : 'unbekannt';
 }
 
 /**
@@ -125,7 +146,7 @@ function avesmapsConflictApplyDecisions(array $conflicts, array $decisions): arr
  * P1 only records the verdict. That keeps the store honest: it never claims something was repaired
  * that wasn't. `acted_*` is filled by the caller once a rule can apply its own fix.
  */
-function avesmapsConflictRecordDecision(PDO $pdo, array $input, int $userId = 0): array {
+function avesmapsConflictRecordDecision(PDO $pdo, array $input, int $userId = 0, string $userName = ''): array {
     avesmapsConflictEnsureSchema($pdo);
 
     $ruleId = trim((string) ($input['rule_id'] ?? ''));
@@ -141,15 +162,31 @@ function avesmapsConflictRecordDecision(PDO $pdo, array $input, int $userId = 0)
         throw new RuntimeException('Ungueltiger Fingerabdruck.');
     }
 
+    // The snapshot that keeps a repaired case readable in the history (see avesmapsConflictApplyDecisions).
+    // Parties are trimmed to what the list actually renders -- this is a record, not a second copy
+    // of the map.
+    $detail = [
+        'title' => mb_substr(trim((string) ($input['title'] ?? '')), 0, 200, 'UTF-8'),
+        'wiki_url' => mb_substr(trim((string) ($input['wiki_url'] ?? '')), 0, 500, 'UTF-8'),
+        'severity' => mb_substr(trim((string) ($input['severity'] ?? '')), 0, 20, 'UTF-8'),
+        'by_name' => mb_substr(trim($userName), 0, 80, 'UTF-8'),
+        'parties' => array_map(static fn(array $party): array => [
+            'type' => (string) ($party['type'] ?? ''),
+            'type_label' => (string) ($party['type_label'] ?? ''),
+            'label' => (string) ($party['label'] ?? ''),
+        ], array_slice(is_array($input['parties'] ?? null) ? $input['parties'] : [], 0, 12)),
+    ];
+
     $statement = $pdo->prepare(
         'INSERT INTO conflict_decision
-            (rule_id, fingerprint, decision, subject_type, subject_id, acted_type, acted_id, note, reviewed_at, reviewed_by)
-         VALUES (:rule_id, :fingerprint, :decision, :subject_type, :subject_id, :acted_type, :acted_id, :note, CURRENT_TIMESTAMP(3), :reviewed_by)
+            (rule_id, fingerprint, decision, subject_type, subject_id, acted_type, acted_id, note, detail_json, reviewed_at, reviewed_by)
+         VALUES (:rule_id, :fingerprint, :decision, :subject_type, :subject_id, :acted_type, :acted_id, :note, :detail_json, CURRENT_TIMESTAMP(3), :reviewed_by)
          ON DUPLICATE KEY UPDATE
             decision = VALUES(decision),
             acted_type = VALUES(acted_type),
             acted_id = VALUES(acted_id),
             note = VALUES(note),
+            detail_json = VALUES(detail_json),
             reviewed_at = CURRENT_TIMESTAMP(3),
             reviewed_by = VALUES(reviewed_by)'
     );
@@ -162,6 +199,7 @@ function avesmapsConflictRecordDecision(PDO $pdo, array $input, int $userId = 0)
         'acted_type' => ($input['acted_type'] ?? null) !== null ? mb_substr(trim((string) $input['acted_type']), 0, 30, 'UTF-8') : null,
         'acted_id' => ($input['acted_id'] ?? null) !== null ? mb_substr(trim((string) $input['acted_id']), 0, 64, 'UTF-8') : null,
         'note' => ($input['note'] ?? null) !== null ? mb_substr(trim((string) $input['note']), 0, 500, 'UTF-8') : null,
+        'detail_json' => json_encode($detail, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         'reviewed_by' => $userId > 0 ? $userId : null,
     ]);
 
