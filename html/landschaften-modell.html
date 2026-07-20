@@ -136,9 +136,19 @@
 			<span class="unit">Schritt</span>
 		</div>
 		<div class="grp">
-			<label>Buckel</label>
-			<input type="range" id="bumps" min="0" max="40" value="18">
-			<span class="unit" id="bumpsN" style="width:20px">18</span>
+			<label>Detailstufen</label>
+			<input type="range" id="levels" min="0" max="4" value="2">
+			<span class="unit" id="levelsN" style="width:74px">2 · 21 Buckel</span>
+		</div>
+		<div class="grp">
+			<label>Darstellung</label>
+			<select id="step" style="padding:5px 7px;border:1px solid var(--ls-line);border-radius:var(--radius-md);background:var(--ls-soft);color:var(--ls-fg);font:12.5px system-ui,sans-serif">
+				<option value="1">jeder Pixel</option>
+				<option value="2" selected>jeder 2.</option>
+				<option value="4">jeder 4.</option>
+				<option value="8">jeder 8.</option>
+			</select>
+			<span class="unit" id="stepMs" style="width:52px"></span>
 		</div>
 		<div class="grp">
 			<label>Bewuchs Wald ×</label>
@@ -179,8 +189,14 @@
 		<h2>Was davon erfunden ist — und was nie behauptet wird</h2>
 		<p>Erfunden ist alles zwischen den Gipfeln. Deshalb wird <strong>keine dieser Höhen jemals als Zahl angezeigt</strong>. Sichtbar wird nur, was aus dem Wiki stammt, und was daraus für die Reise folgt: dass der Weg hinauf länger dauert als hinab. Eine erfundene Höhe darf die Reisezeit beeinflussen — sie darf nicht so aussehen, als stünde sie irgendwo geschrieben.</p>
 
-		<h2>„Buckel“ ist kein Geschmacksregler</h2>
-		<p>Je mehr erfundenes Detail im Gelände steckt, desto länger wird die Reisezeit — systematisch, nicht zufällig. Zieh den Regler von 0 auf 40 und sieh dem Gesamtfaktor beim Klettern zu. Die Zahl ist deshalb eine <em>Festlegung</em>, die einmal getroffen und dann in Ruhe gelassen wird, kein Knopf zum Hübschmachen.</p>
+		<h2>Detail kommt dazu, es wird nicht neu gewürfelt</h2>
+		<p>Zieh <strong>Detailstufen</strong> von 0 auf 4 und achte auf die großen Formen: <strong>sie bleiben stehen.</strong> Jede Stufe halbiert den Abstand der Hügel und ihre Höhe, und legt sie <em>zwischen</em> die vorhandenen — statt alles neu zu verteilen. Das ist die Bedingung dafür, dass Hineinzoomen später Detail nachschärfen kann, ohne dass das Gebirge unter dem Cursor die Form wechselt.</p>
+		<p>Möglich wird das dadurch, dass jeder Hügel aus seiner <em>Gitterzelle</em> berechnet wird und nicht aus einer Reihenfolge. Wo er liegt, hängt nur an der Zelle und am Startwert — nicht daran, wie viele Hügel vorher kamen und nicht daran, wo gerade der Rand des Gebirges verläuft. Zieh eine weit entfernte Ecke: die Hügel am anderen Ende rühren sich nicht.</p>
+		<p>Trotzdem ist der Regler kein Kosmetikknopf. <strong>Je mehr erfundenes Detail, desto länger die Reisezeit</strong> — systematisch, nicht zufällig, weil die Tempokurve konvex ist. Sieh dem Gesamtfaktor beim Klettern zu. Die Stufenzahl ist deshalb eine <em>Festlegung</em>, die einmal getroffen und dann in Ruhe gelassen wird.</p>
+
+		<h2>Wie fein muss abgetastet werden?</h2>
+		<p>Zwei verschiedene Feinheiten, die nichts miteinander zu tun haben. <strong>Darstellung</strong> — wie grob das Bild gemalt wird — kostet nur Rechenzeit; die Millisekunden stehen neben dem Auswahlfeld. Auf einem vollen Bildschirm ist „jeder Pixel“ mit rund 72 ms unbrauchbar, „jeder 4.“ mit 4,5 ms läuft flüssig.</p>
+		<p>Die <strong>Route</strong> dagegen muss fein genug abgetastet werden, sonst wird die Rechnung falsch — und zwar nicht ein bisschen: bei zu groben Schritten kippt die Richtungswirkung ins Gegenteil, bergauf erscheint dann schneller als bergab. Wie fein, hängt <em>nicht</em> an der Größe des Gebirges, sondern am <strong>kleinsten Hügel</strong> darin. Gemessen reicht ein Achtel seines Radius; die Zahl steht oben im Kasten und ändert sich mit jeder Detailstufe mit.</p>
 
 		<details>
 			<summary>Für die Neugierigen: die Rechnung dahinter</summary>
@@ -224,39 +240,73 @@ function distEdge(px, py, p) {
 	}
 	return b;
 }
-const rng = s => () => {
-	s |= 0; s = (s + 0x6D2B79F5) | 0;
-	let t = Math.imul(s ^ (s >>> 15), 1 | s);
-	t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-	return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
+// Per-CELL hash instead of a sequential generator. A cell's bump is derived from
+// (seed, level, cell index) alone -- not from how many bumps came before it, and not from the
+// polygon's bounding box. That is what makes the field stable: adding a finer level, or moving a
+// far-away vertex, leaves every existing bump exactly where it was.
+function cellHash(level, ix, iy, salt) {
+	let n = (seed ^ Math.imul(level + 1, 0x9E3779B1) ^ Math.imul(ix, 0x85EBCA6B) ^ Math.imul(iy, 0xC2B2AE35) ^ Math.imul(salt, 0x27D4EB2F)) | 0;
+	n = Math.imul(n ^ (n >>> 15), 0x2C1B3C6D); n ^= n >>> 12;
+	n = Math.imul(n ^ (n >>> 15), 0x297A2D39); n ^= n >>> 15;
+	return (n >>> 0) / 4294967296;
+}
 
-// Bump field: jittered lattice inside the polygon, radius clamped to the edge distance so the
-// support never leaves the area. The peaks are added last with full amplitude.
-function build() {
-	const n = +document.getElementById('bumps').value, r = rng(seed);
-	bumps = [];
+// One stratified level: a grid of cell size c in ABSOLUTE map coordinates, one jittered bump per
+// cell. Stratified rather than uniformly random, because uniform points clump and leave holes --
+// a grid with jitter covers evenly and still looks unplanned.
+function level(k, c, amp, out) {
 	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
 	const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-	let guard = 0;
-	while (bumps.length < n && guard++ < 4000) {
-		const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0);
-		if (!inPoly(x, y, topo)) continue;
-		const d = distEdge(x, y, topo);
-		if (d < 14) continue;
-		bumps.push({ x, y, r: Math.min(d, 70), a: .28 + .34 * r() });
+	for (let ix = Math.floor(x0 / c) - 1; ix <= Math.ceil(x1 / c) + 1; ix++) {
+		for (let iy = Math.floor(y0 / c) - 1; iy <= Math.ceil(y1 / c) + 1; iy++) {
+			const px = (ix + .15 + .7 * cellHash(k, ix, iy, 1)) * c;
+			const py = (iy + .15 + .7 * cellHash(k, ix, iy, 2)) * c;
+			if (!inPoly(px, py, topo)) continue;
+			const r = Math.min(c * .85, distEdge(px, py, topo));
+			if (r < c * .3) continue;                       // zu dicht am Rand, traegt kaum bei
+			out.push({ x: px, y: py, r, a: amp * (.55 + .9 * cellHash(k, ix, iy, 3)) });
+		}
 	}
-	// Peak radius under 1.118x the peak separation -- that is what guarantees a saddle instead of a ridge.
+}
+
+function build() {
+	const L = +document.getElementById('levels').value;
+	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
+	const C0 = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 3;
+
+	// Grobe Struktur: Stufe 0 plus die gesetzten Gipfel.
+	const grob = [];
+	level(0, C0, .85, grob);
+	// Gipfelradius unter dem 1,118-fachen Gipfelabstand -- das erzwingt den Sattel statt eines Grats.
 	const sep = peaks.length > 1 ? Math.hypot(peaks[0].x - peaks[1].x, peaks[0].y - peaks[1].y) : 1e9;
 	for (const p of peaks) {
 		if (!inPoly(p.x, p.y, topo)) continue;
-		bumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, topo), .72 * sep, 150), a: 1 });
+		grob.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, topo), .72 * sep, 150), a: 1 });
 	}
-	for (const b of bumps) b.i = 1 / (b.r * b.r);
+	for (const b of grob) b.i = 1 / (b.r * b.r);
+
+	// Normiert wird NUR auf der groben Struktur. Deshalb aendert eine zusaetzliche Detailstufe die
+	// Gebirgshoehe nicht -- das Feine reitet oben drauf, statt alles neu zu skalieren.
+	bumps = grob;
 	let mx = 0;
 	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = raw(x, y); if (v > mx) mx = v; }
 	scale = mx > 0 ? (+document.getElementById('hmax').value) / mx : 0;
+
+	// Feinere Stufen: halber Zellabstand, aber Amplitude x0,35 je Stufe -- NICHT x0,5.
+	// Mit halbem Zellabstand liegen viermal so viele Buckel im Gebiet, ihr Radius halbiert sich
+	// mit, also decken an jedem Punkt etwa gleich viele Buckel wie zuvor. Bei x0,5 summiert sich
+	// das Feine deshalb auf fast dieselbe Hoehe wie das Grobe (gemessen +69 %), und der Berg
+	// WAECHST beim Verfeinern. x0,35 haelt den Zuwachs bei rund einem Drittel: sichtbares Detail,
+	// aber die Gebirgshoehe bleibt die, die der Editor eingetragen hat.
+	const fein = [];
+	for (let k = 1; k <= L; k++) level(k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k), fein);
+	for (const b of fein) b.i = 1 / (b.r * b.r);
+	bumps = grob.concat(fein);
+
+	document.getElementById('levelsN').textContent = L + ' · ' + bumps.length + ' Buckel';
+	rMin = bumps.length ? Math.min(...bumps.map(b => b.r)) : 0;
 }
+let rMin = 0;
 function raw(x, y) {
 	let s = 0;
 	for (const b of bumps) {
@@ -279,15 +329,19 @@ function ramp(t) {
 function paint() {
 	cv.width = W; cv.height = H;
 	const img = ctx.createImageData(W, H), d = img.data;
-	const hm = +document.getElementById('hmax').value, S = 2;
+	const hm = +document.getElementById('hmax').value;
+	const S = +document.getElementById('step').value;
+	const t0 = performance.now();
+	let n = 0;
 	for (let y = 0; y < H; y += S) for (let x = 0; x < W; x += S) {
 		let r = 0, g = 0, b = 0, a = 0;
-		if (inPoly(x, y, topo)) { const c = ramp(raw(x, y) * scale / hm); r = c[0]; g = c[1]; b = c[2]; a = 255; }
-		for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+		if (inPoly(x, y, topo)) { const c = ramp(raw(x, y) * scale / hm); r = c[0]; g = c[1]; b = c[2]; a = 255; n++; }
+		for (let j = 0; j < S && y + j < H; j++) for (let i = 0; i < S && x + i < W; i++) {
 			const o = ((y + j) * W + (x + i)) * 4; d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = a;
 		}
 	}
 	ctx.putImageData(img, 0, 0);
+	document.getElementById('stepMs').textContent = (performance.now() - t0).toFixed(1) + ' ms';
 }
 
 // Tobler's hiking function, normalised to 1.0 on the flat.
@@ -373,10 +427,12 @@ function draw() {
 		if (hg > 0) sad = Math.round(100 * hAt(mx, my) / hg) + ' %';
 	}
 	document.getElementById('oSad').textContent = sad;
-	document.getElementById('note').textContent =
-		'Im Wald werden alle Pfeile gleichmäßig kürzer, egal in welche Richtung — das ist der Bewuchs. '
-		+ 'Im Gebirge werden sie im Anstieg kurz und im Gefälle wieder lang — das ist das Höhenfeld. '
-		+ bumps.length + ' Buckel, ' + (bumps.length * 5 * 8 / 1024).toFixed(1) + ' KB gespeichert.';
+	document.getElementById('note').innerHTML =
+		'Im <strong>Wald</strong> werden alle Pfeile gleichmäßig kürzer, egal in welche Richtung — das ist der Bewuchs. '
+		+ 'Im <strong>Gebirge</strong> werden sie im Anstieg kurz und im Gefälle wieder lang — das ist das Höhenfeld.<br>'
+		+ bumps.length + ' Buckel, ' + (bumps.length * 5 * 8 / 1024).toFixed(1) + ' KB gespeichert. '
+		+ 'Kleinster Radius ' + rMin.toFixed(1) + ' Einheiten → nötige Abtastweite für die Route '
+		+ '<strong>' + (rMin / 8).toFixed(2) + '</strong> (r<sub>min</sub>/8).';
 }
 function all() { build(); paint(); draw(); }
 
@@ -402,7 +458,8 @@ addEventListener('pointerup', () => drag = null);
 
 document.getElementById('bTopo').onclick = () => { layer = 'topo'; bTopo.classList.add('on'); bVeg.classList.remove('on'); draw(); };
 document.getElementById('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); draw(); };
-document.getElementById('bumps').oninput = e => { bumpsN.textContent = e.target.value; all(); };
+document.getElementById('levels').oninput = () => all();
+document.getElementById('step').onchange  = () => { paint(); };
 document.getElementById('veg').oninput   = e => { vegN.textContent = (e.target.value / 100).toFixed(2).replace('.', ','); draw(); };
 document.getElementById('hmax').oninput  = () => all();
 document.getElementById('reroll').onclick = () => { seed = (seed * 1664525 + 1013904223) | 0; all(); };
