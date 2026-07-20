@@ -781,52 +781,91 @@
 				<p>Herrschaftsgebiete hängen ineinander: ein Kaiserreich enthält Königreiche und Grafschaften, eine Grafschaft enthält Baronien. Diese Beziehung wird nicht gezeichnet, sondern zugeordnet — daraus ergeben sich Beschriftungen, die Breadcrumb im Infopanel und die abgeleiteten Außengrenzen.</p>
 				<p><strong>Der Baum ist nicht überall gleich tief.</strong> Manche Grafschaften hängen über ein Königreich am Kaiserreich, andere direkt darunter — und wie viele Baronien eine Grafschaft trägt, ist von Fall zu Fall verschieden. Ordne also nach dem, was das Wiki für dieses eine Gebiet sagt, nicht nach einem festen Muster.</p>
 				<div class="hb-diagram hb-diagram--wide">
-					<svg viewBox="0 0 880 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Territorien-Hierarchie: ein Kaiserreich, darunter links ein Koenigreich mit zwei Grafschaften und rechts eine Grafschaft direkt am Kaiserreich; jede Grafschaft traegt mehrere Baronien">
+					<!-- Vertical position = zoom band, not tree depth. That is the whole point: the two
+					     Grafschaften on the left sit one band lower than the one on the right, because
+					     their branch is one level deeper. Grafschaft C therefore spans two bands. -->
+					<svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Territorien-Hierarchie mit Zoom-Baendern. Links eine Zoom-Achse mit vier waagerechten Baendern: Zoom 0 bis 1 enthaelt das Kaiserreich, Zoom 2 das Koenigreich, Zoom 3 die beiden Grafschaften unter dem Koenigreich, Zoom 4 bis 6 alle Baronien. Die Grafschaft, die direkt am Kaiserreich haengt, reicht ueber die Baender 2 und 3, weil ihr Ast eine Ebene flacher ist.">
+						<defs>
+							<marker id="hb-h-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+								<path d="M0 0 L6 3 L0 6 Z" fill="var(--hb-accent)" />
+							</marker>
+						</defs>
+
+						<!-- Band separators + the zoom axis in the left gutter -->
+						<g stroke="var(--hb-divider)" stroke-width="1" stroke-dasharray="5 4">
+							<line x1="10" y1="90" x2="870" y2="90" />
+							<line x1="10" y1="150" x2="870" y2="150" />
+							<line x1="10" y1="210" x2="870" y2="210" />
+						</g>
+						<line x1="112" y1="22" x2="112" y2="288" stroke="var(--hb-divider)" stroke-width="1" />
+						<g font-size="11" text-anchor="end" fill="var(--hb-muted)">
+							<text x="104" y="18" font-weight="700">sichtbar bei</text>
+							<text x="104" y="64">Zoom 0–1</text>
+							<text x="104" y="124">Zoom 2</text>
+							<text x="104" y="184">Zoom 3</text>
+							<text x="104" y="252">Zoom 4–6</text>
+						</g>
+
 						<g font-size="13" text-anchor="middle" fill="var(--hb-fg)">
-							<rect x="385" y="14" width="150" height="40" rx="8" fill="var(--hb-card)" stroke="var(--hb-accent)" stroke-width="2" />
-							<text x="460" y="39">Kaiserreich</text>
-							<rect x="180" y="88" width="140" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="250" y="112">Königreich</text>
-							<rect x="78" y="162" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="140" y="186">Grafschaft</text>
-							<rect x="298" y="162" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="360" y="186">Grafschaft</text>
-							<rect x="608" y="162" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="670" y="186">Grafschaft</text>
+							<rect x="445" y="41" width="150" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-accent)" stroke-width="2" />
+							<text x="520" y="65">Kaiserreich</text>
+							<rect x="250" y="101" width="140" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="320" y="125">Königreich</text>
+							<rect x="153" y="161" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="215" y="185">Grafschaft</text>
+							<rect x="363" y="161" width="124" height="38" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="425" y="185">Grafschaft</text>
+							<!-- Spans bands 2 and 3: its own branch is only three levels deep, so the
+							     default rule gives it 2-3 instead of 3-3. -->
+							<rect x="658" y="101" width="124" height="98" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="720" y="145">Grafschaft</text>
+							<text x="720" y="163" font-size="11" fill="var(--hb-muted)">Zoom 2–3</text>
 						</g>
 						<g font-size="12" text-anchor="middle" fill="var(--hb-fg)">
-							<rect x="48" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="90" y="259">Baronie</text>
-							<rect x="148" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="190" y="259">Baronie</text>
-							<rect x="268" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="310" y="259">Baronie</text>
-							<rect x="368" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="410" y="259">Baronie</text>
-							<rect x="528" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="570" y="259">Baronie</text>
-							<rect x="628" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="670" y="259">Baronie</text>
-							<rect x="728" y="236" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
-							<text x="770" y="259">Baronie</text>
+							<rect x="123" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="165" y="248">Baronie</text>
+							<rect x="223" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="265" y="248">Baronie</text>
+							<rect x="333" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="375" y="248">Baronie</text>
+							<rect x="433" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="475" y="248">Baronie</text>
+							<rect x="578" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="620" y="248">Baronie</text>
+							<rect x="678" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="720" y="248">Baronie</text>
+							<rect x="778" y="225" width="84" height="36" rx="8" fill="var(--hb-card)" stroke="var(--hb-line)" />
+							<text x="820" y="248">Baronie</text>
 						</g>
+
 						<g stroke="var(--hb-accent)" stroke-width="2" fill="none">
-							<!-- Kaiserreich -> Koenigreich, and Kaiserreich -> the Grafschaft that hangs
-							     directly below it (skipping the Koenigreich row on purpose). -->
-							<path d="M460 54 L460 71 L250 71 L250 88" />
-							<path d="M460 54 L460 71 L670 71 L670 162" />
-							<path d="M250 126 L250 144 L140 144 L140 162" />
-							<path d="M250 126 L250 144 L360 144 L360 162" />
-							<path d="M140 200 L140 218 L90 218 L90 236" />
-							<path d="M140 200 L140 218 L190 218 L190 236" />
-							<path d="M360 200 L360 218 L310 218 L310 236" />
-							<path d="M360 200 L360 218 L410 218 L410 236" />
-							<path d="M670 200 L670 218 L570 218 L570 236" />
-							<path d="M670 200 L670 236" />
-							<path d="M670 200 L670 218 L770 218 L770 236" />
+							<path d="M520 79 L520 90 L320 90 L320 101" marker-end="url(#hb-h-arrow)" />
+							<path d="M520 79 L520 90 L720 90 L720 101" marker-end="url(#hb-h-arrow)" />
+							<path d="M320 139 L320 150 L215 150 L215 161" marker-end="url(#hb-h-arrow)" />
+							<path d="M320 139 L320 150 L425 150 L425 161" marker-end="url(#hb-h-arrow)" />
+							<path d="M215 199 L215 212 L165 212 L165 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M215 199 L215 212 L265 212 L265 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M425 199 L425 212 L375 212 L375 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M425 199 L425 212 L475 212 L475 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M720 199 L720 212 L620 212 L620 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M720 199 L720 225" marker-end="url(#hb-h-arrow)" />
+							<path d="M720 199 L720 212 L820 212 L820 225" marker-end="url(#hb-h-arrow)" />
 						</g>
 					</svg>
 				</div>
+				<p>Die waagerechten Bänder sagen, <strong>ab wann ein Gebiet auf der Karte erscheint</strong>. Ganz herausgezoomt siehst du nur das Kaiserreich; je weiter du hineinzoomst, desto feiner wird die Einteilung, bis bei Zoom 4 die Baronien dazukommen. So bleibt die Karte auf jeder Stufe lesbar, statt alle Ebenen übereinanderzustapeln.</p>
+				<p><strong>Die Bänder richten sich nach der Tiefe des Astes, nicht nach dem Rang.</strong> Im Bild siehst du das an den drei Grafschaften: Die beiden links stehen in einem vier Ebenen tiefen Ast und bekommen darum Zoom 3. Die rechte hängt direkt am Kaiserreich — ihr Ast ist nur drei Ebenen tief, also rückt sie auf <strong>Zoom 2–3</strong> vor und füllt die Lücke, die sonst bei Zoom 2 entstünde. Beide Zweige enden bei ihren Baronien wieder gemeinsam bei Zoom 4–6.</p>
+				<p>Diese Standardwerte vergibt der Editor automatisch, gestaffelt nach der Anzahl Ebenen im Ast:</p>
+				<table class="hb-table">
+					<tr><th>Ebenen im Ast</th><th>Bänder von oben nach unten</th></tr>
+					<tr><td>1</td><td>0–6</td></tr>
+					<tr><td>2</td><td>0–1 · 2–6</td></tr>
+					<tr><td>3</td><td>0–1 · 2–3 · 4–6</td></tr>
+					<tr><td>4</td><td>0–1 · 2–2 · 3–3 · 4–6</td></tr>
+					<tr><td>5</td><td>0–1 · 2–2 · 3–3 · 4–4 · 5–6</td></tr>
+					<tr><td>6 und mehr</td><td>0–1 · 2–2 · 3–3 · 4–4 · 5–5 · 6–6</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Die Bänder schließen lückenlos aneinander an.</strong> Ein Gebiet beginnt immer genau eine Zoomstufe nach dem Ende seines Elternteils. Darum bleibt bei einem flachen Ast keine Zoomstufe leer — dort wächst das Band des Kindes einfach nach oben. Du kannst die Werte pro Gebiet überschreiben; die Tabelle ist nur der Vorschlag, den der Editor macht.</div>
 				<p>Zwei Begriffe, die dazugehören: Die <strong>Gültigkeit</strong> eines Gebiets steht in BF-Jahren („Bosparans Fall"), wobei <code>9999</code> heißt „bis heute nicht aufgelöst". Und <strong>umstrittene Gebiete</strong> — solche, die mehrere beanspruchen — erscheinen als Schraffur statt als Fläche.</p>
 
 				<h3 id="v-quellen" class="hb-sub">Quellen</h3>
