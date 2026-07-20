@@ -767,7 +767,7 @@
 			<div id="wiki-sync-conflicts-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-conflicts-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="wiki-sync-conflicts-title">Konflikte</h2>
-					<button id="conflict-rescan" class="wiki-sync-panel__start conflict-rescan" type="button" title="Durchsucht den aktuellen Datenbestand nach Konflikten. Laeuft nicht automatisch — der Durchlauf liest jedes aktive Kartenobjekt.">Neu prüfen</button>
+					<button id="conflict-minimize" class="location-report-dialog__close conflict-minimize" type="button" aria-label="Fenster verkleinern" title="Verkleinert das Fenster, damit die Karte dahinter sichtbar und bedienbar wird.">–</button>
 					<button id="wiki-sync-conflicts-close" class="location-report-dialog__close" type="button" aria-label="Konflikte schließen">×</button>
 				</div>
 				<div class="wiki-sync-conflicts-dialog__body">
@@ -795,6 +795,13 @@
 						</div>
 					</div>
 				</div>
+					<!-- Fusszeile: der Durchlauf-Knopf sitzt hier statt in der Kopfzeile, damit oben nur noch
+					     Verkleinern und Schliessen stehen (Editor-Wunsch 2026-07-21). Rechts die Zusammenfassung,
+					     damit man beim Abarbeiten sieht, wieviel noch liegt, ohne nach links zu schauen. -->
+					<div class="conflict-foot">
+						<button id="conflict-rescan" class="wiki-sync-panel__start conflict-rescan" type="button" title="Durchsucht den aktuellen Datenbestand erneut nach Konflikten.">Neu prüfen</button>
+						<span id="conflict-foot-summary" class="conflict-foot__summary"></span>
+					</div>
 			</div>
 		</div>
 		<div id="wiki-sync-resolve-overlay" hidden>

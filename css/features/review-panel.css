@@ -1434,3 +1434,56 @@
 	background: var(--color-button-soft);
 	color: var(--color-button-soft-text);
 }
+
+/* Fusszeile des Konfliktfensters: links der Durchlauf, rechts der Stand. Der Durchlauf-Knopf sass
+   in der Kopfzeile -- dort steht jetzt nur noch Verkleinern und Schliessen (Editor-Wunsch). */
+.conflict-foot {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex: 0 0 auto;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid var(--color-divider);
+}
+.conflict-foot__summary {
+	margin-left: auto;
+	color: var(--color-text-muted);
+	font-size: 12.5px;
+	font-variant-numeric: tabular-nums;
+}
+.location-report-dialog__header .conflict-minimize {
+	font-size: 22px;
+	line-height: 1;
+}
+
+/* Verkleinert: nur die Kopfzeile bleibt, unten rechts. Entscheidend ist pointer-events -- ohne das
+   liegt die unsichtbare Overlay-Flaeche weiter ueber der Karte und schluckt jeden Klick, womit das
+   Verkleinern genau nichts brächte. Das Fenster selbst faengt seine Klicks wieder ein. */
+#wiki-sync-conflicts-overlay.is-minimized {
+	pointer-events: none;
+	background: none;
+	align-items: flex-end;
+	justify-content: flex-end;
+	padding: 16px;
+}
+#wiki-sync-conflicts-overlay.is-minimized .wiki-sync-conflicts-dialog {
+	pointer-events: auto;
+	width: auto;
+	min-width: 260px;
+	height: auto;
+	padding: 6px 10px;
+	box-shadow: var(--shadow-dialog);
+}
+#wiki-sync-conflicts-overlay.is-minimized .wiki-sync-conflicts-dialog__body,
+#wiki-sync-conflicts-overlay.is-minimized .conflict-foot {
+	display: none;
+}
+#wiki-sync-conflicts-overlay.is-minimized .location-report-dialog__header {
+	margin-bottom: 0;
+}
+/* Verkleinert zaehlt nicht als offener Modal-Dialog: sonst bliebe der Seitenkoerper gesperrt,
+   waehrend der Editor gerade auf der Karte arbeiten will. */
+body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
+	pointer-events: auto;
+}

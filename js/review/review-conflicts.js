@@ -41,6 +41,24 @@ const CONFLICT_STATUS_HINTS = {
 	done: "Daten repariert, Fall bleibt als Historie",
 };
 
+// Verkleinert statt geschlossen: der Dialog schrumpft auf seine Kopfzeile und die Karte dahinter
+// wird wieder sicht- UND bedienbar. Ein Editor bat darum, weil man beim Entscheiden oft nachsehen
+// will, wo das Objekt eigentlich liegt (2026-07-21).
+let conflictMinimized = false;
+
+function setConflictDialogMinimized(isMinimized) {
+	conflictMinimized = isMinimized;
+	document.getElementById("wiki-sync-conflicts-overlay")?.classList.toggle("is-minimized", isMinimized);
+	const button = document.getElementById("conflict-minimize");
+	if (button) {
+		button.textContent = isMinimized ? "▢" : "–";
+		button.setAttribute("aria-label", isMinimized ? "Fenster wiederherstellen" : "Fenster verkleinern");
+		button.title = isMinimized
+			? "Zurück zur vollen Liste."
+			: "Verkleinert das Fenster, damit die Karte dahinter sichtbar und bedienbar wird.";
+	}
+}
+
 function getConflictListElement() {
 	return document.getElementById("conflict-list");
 }
@@ -394,7 +412,8 @@ function focusConflictParty(party) {
 	if (!latlng) {
 		return;
 	}
-	setWikiSyncConflictsDialogOpen(false);
+	// Verkleinern statt schliessen: die Liste bleibt erhalten, samt Filter und aufgeklappter Gruppe.
+	setConflictDialogMinimized(true);
 	map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
 }
 
@@ -641,8 +660,22 @@ function createConflictElement(conflict) {
 	return element;
 }
 
+function renderConflictFootSummary(all) {
+	const element = document.getElementById("conflict-foot-summary");
+	if (!element) {
+		return;
+	}
+	const counts = {};
+	all.forEach((conflict) => { counts[conflict.status] = (counts[conflict.status] || 0) + 1; });
+	const parts = ["open", "deferred", "approved", "archived", "done"]
+		.filter((key) => counts[key])
+		.map((key) => `${counts[key]} ${CONFLICT_STATUS_LABELS[key].toLowerCase()}`);
+	element.textContent = parts.length ? parts.join(" · ") : "";
+}
+
 function renderConflicts() {
 	renderConflictRail();
+	renderConflictFootSummary(getAllConflicts());
 	const list = getConflictListElement();
 	if (!list) {
 		return;

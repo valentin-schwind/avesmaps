@@ -347,6 +347,7 @@ $("#wiki-sync-territory-flaechenland").on("change", function () {
 $("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 $("#wiki-sync-conflicts-open").on("click", () => setWikiSyncConflictsDialogOpen(true));
 $("#conflict-rescan").on("click", () => loadConflicts({ rescan: true }));
+$("#conflict-minimize").on("click", () => setConflictDialogMinimized(!conflictMinimized));
 $("#wiki-sync-conflicts-close").on("click", () => setWikiSyncConflictsDialogOpen(false));
 $("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 $("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));
