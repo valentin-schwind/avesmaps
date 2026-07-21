@@ -1,76 +1,54 @@
-// Verkehrswege in Infoboxen anklickbar machen (Siedlung, Region, Herrschaftsgebiet).
+// Verkehrswege in der Siedlungs-Infobox anklickbar machen.
 //
-// 💣 DIE LINKZIELE SIND WEG. Im Wiki steht „|Verkehrswege=[[Yaquir]], [[Eisenstraße]]",
-// aber avesmapsWikiSyncCleanPoliticalTerritoryWikiValue (territories-parsing.php:199)
-// löst Wikilinks zu reinem Anzeigetext auf, BEVOR der Wert in die Datenbank geht. Im
-// Payload steht also nur noch „Yaquir, Eisenstraße". Deshalb wird hier NICHT ein
-// verlorener Link wiederhergestellt, sondern der NAME gegen die geladenen Wege der
-// Karte aufgelöst.
+// 💣 DIE LINKZIELE SIND WEG, BEVOR DIE DATEN ANKOMMEN. Im Wiki steht
+// „|Verkehrswege=[[Yaquir]], [[Eisenstraße]]", aber
+// avesmapsWikiSyncCleanPoliticalTerritoryWikiValue (territories-parsing.php:199) löst
+// Wikilinks schon beim Sync zu reinem Text auf. Im Payload steht nur „Yaquir,
+// Eisenstraße". Es wird hier also kein Link wiederhergestellt, sondern der NAME
+// aufgelöst.
 //
-// Das ist auch die nützlichere Auflösung: ein Klick springt zur Straße AUF DER KARTE,
-// statt das Wiki in einem neuen Tab zu öffnen. Findet sich kein Weg dieses Namens,
-// bleibt der Eintrag schlichter Text -- ein toter Link wäre schlechter als keiner.
+// UND ZWAR MIT DER SPOTLIGHT-SUCHE, nicht mit einer eigenen (Owner 2026-07-21). Die
+// kennt die Fallstricke bereits:
+//   - properties.name ist der AUTO-NAME („Pfad-170", „Gebirgspass-239"), nicht der
+//     lesbare -- ein erster Versuch verglich dagegen und fand bei 5.385 geladenen
+//     Wegen exakt NULL Treffer, obwohl „Eisenstraße" dreimal vorhanden war
+//   - Wege sind SEGMENTIERT; Spotlight gruppiert alle Segmente über den wiki_key und
+//     hält deren Gesamt-Bounds, sodass der ganze Weg angesprungen wird
+//   - nur wiki-verlinkte Wege sind überhaupt suchbar (Policy 2026-07-05), was hier
+//     genau richtig ist: alles andere hat keinen echten Namen
+//
+// Damit verhält sich ein Klick auf „Eisenstraße" identisch zur Auswahl desselben Wegs
+// in der Spotlight-Suche -- inklusive Hervorhebung und dem Einschalten der Ebene.
 
 "use strict";
 
-// Wege sind SEGMENTIERT: eine Reichsstraße besteht aus vielen Teilstücken, die alle
-// denselben Namen tragen. Deshalb wird auf die Gesamtausdehnung ALLER gleichnamigen
-// Segmente gezoomt und nicht auf das erste zufällige Stück.
-function avesmapsFindPathsByName(name) {
-	var wanted = String(name || "").trim().toLowerCase();
-	if (!wanted || typeof pathData === "undefined" || !Array.isArray(pathData)) {
-		return [];
+// Weg-Eintrag der Spotlight-Suche zu einem Namen, oder null. Nutzt deren eigene
+// Normalisierung, damit „Reichsstraße 2" hier nicht anders behandelt wird als dort.
+function avesmapsFindTrafficRouteEntry(name) {
+	var wanted = String(name || "").trim();
+	if (!wanted || typeof getSpotlightSearchEntries !== "function") {
+		return null;
 	}
-	return pathData.filter(function (path) {
-		var props = (path && path.properties) || {};
-		var candidate = String(props.name || path.name || "").trim().toLowerCase();
-		return candidate !== "" && candidate === wanted;
-	});
-}
-
-// Zoomt auf alle Segmente dieses Namens und schaltet die zugehörige Anzeige-Ebene ein
-// -- ein Sprung zu einem ausgeblendeten Weg zeigt sonst leere Karte.
-function avesmapsFocusPathsByName(name) {
-	var matches = avesmapsFindPathsByName(name);
-	if (!matches.length || typeof map === "undefined" || typeof L === "undefined") {
-		return false;
+	var normalize = typeof normalizeSpotlightSearchText === "function"
+		? normalizeSpotlightSearchText
+		: function (value) { return String(value || "").trim().toLowerCase(); };
+	var target = normalize(wanted);
+	if (!target) {
+		return null;
 	}
-
-	// Anzeige-Ebene einschalten: dieselbe Zuordnung wie focusPathOnMap
-	// (review-path-sync.js), damit ein Fluss nicht unsichtbar bleibt.
-	var subtype = String((matches[0].properties && matches[0].properties.feature_subtype) || "").toLowerCase();
-	var toggleId = subtype === "flussweg" ? "#toggleRivers" : (subtype === "seeweg" ? "#toggleSeaPaths" : "#togglePaths");
-	if (typeof $ === "function") {
-		var toggle = $(toggleId);
-		if (toggle.length && !toggle.prop("checked")) {
-			toggle.prop("checked", true).trigger("change");
+	var entries = getSpotlightSearchEntries() || [];
+	for (var i = 0; i < entries.length; i++) {
+		if (entries[i] && entries[i].kind === "path" && normalize(entries[i].name) === target) {
+			return entries[i];
 		}
 	}
-
-	var points = [];
-	matches.forEach(function (path) {
-		var coords = path && path.geometry && Array.isArray(path.geometry.coordinates) ? path.geometry.coordinates : null;
-		if (!coords) {
-			return;
-		}
-		coords.forEach(function (pair) {
-			// GeoJSON speichert [x, y]; Leaflet CRS.Simple will [lat, lng] = [y, x].
-			if (Array.isArray(pair) && pair.length >= 2 && Number.isFinite(pair[0]) && Number.isFinite(pair[1])) {
-				points.push([pair[1], pair[0]]);
-			}
-		});
-	});
-	if (!points.length) {
-		return false;
-	}
-
-	map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: Math.max(map.getZoom(), 4) });
-	return true;
+	return null;
 }
 
 // „Yaquir, Eisenstraße, Zedernstraße nach Mhanadistan" -> anklickbare Namen.
-// Getrennt wird NUR an Kommas und Semikolons: „Zedernstraße nach Mhanadistan" ist ein
-// Eintrag, kein zwei.
+// Getrennt wird NUR an Komma und Semikolon: „Zedernstraße nach Mhanadistan" ist EIN
+// Eintrag. Namen ohne passenden Weg bleiben schlichter Text -- ein Link, der nirgendwo
+// hinführt, ist schlechter als keiner.
 function avesmapsTrafficRoutesMarkup(raw) {
 	var text = String(raw == null ? "" : raw).trim();
 	if (!text) {
@@ -85,9 +63,7 @@ function avesmapsTrafficRoutesMarkup(raw) {
 		if (!name) {
 			return "";
 		}
-		// Nur verlinken, wenn die Karte diesen Weg wirklich kennt. Sonst bleibt es Text
-		// -- ein Link, der nirgendwo hinführt, ist ein Versprechen, das bricht.
-		if (avesmapsFindPathsByName(name).length === 0) {
+		if (!avesmapsFindTrafficRouteEntry(name)) {
 			return esc(name);
 		}
 		return '<button type="button" class="avesmaps-traffic-link" data-traffic-path="'
@@ -95,7 +71,7 @@ function avesmapsTrafficRoutesMarkup(raw) {
 	}).filter(Boolean).join(", ");
 }
 
-// Ein Handler auf Dokumentebene, einmal registriert -- nicht je Popup, sonst stapeln
+// Ein Handler auf Dokumentebene, EINMAL registriert -- nicht je Popup, sonst stapeln
 // sie sich bei jedem Öffnen (dieselbe Falle wie beim Spoiler-Schalter der
 // Kartensammlung).
 if (typeof document !== "undefined" && !document.__avesmapsTrafficLinksBound) {
@@ -106,8 +82,11 @@ if (typeof document !== "undefined" && !document.__avesmapsTrafficLinksBound) {
 			return;
 		}
 		event.preventDefault();
-		var name = button.getAttribute("data-traffic-path") || "";
-		if (!avesmapsFocusPathsByName(name) && typeof showFeedbackToast === "function") {
+		var entry = avesmapsFindTrafficRouteEntry(button.getAttribute("data-traffic-path") || "");
+		if (entry && typeof selectSpotlightSearchEntry === "function") {
+			// Exakt derselbe Weg wie über die Suche: zoomen, hervorheben, Ebene an.
+			selectSpotlightSearchEntry(entry);
+		} else if (typeof showFeedbackToast === "function") {
 			showFeedbackToast("Dieser Weg ist gerade nicht geladen.", "info");
 		}
 	});
