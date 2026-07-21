@@ -46,6 +46,11 @@ Die Orte stehen dort als echte Wikilinks, also maschinenlesbar:
 | ware | 2.531 | 1.285 | 14.648 | 4 |
 | **Σ** | **5.104** | **7.748 Verknüpfungen** | **34.933** | **10** |
 
+**Nach dem ersten scharfen Sync (2026-07-21) live bestätigt:** 5.104 / 7.748 auf den
+Eintrag genau, Quellen **34.930**. Die Differenz von 3 sind echte Wiki-Dubletten
+(Kerze, Floß, Kletterseil — je zweimal dieselbe Publikation mit gleicher Seite), die
+der Reconcile korrekt zu je einer zusammenfasst. 34.930 ist also die richtigere Zahl.
+
 **Abnahmetest:** Für Weiden liefert der Scan 19 Fauna (namentlich dieselben wie
 das Wiki), 10 Flora, 4 Spezies. Die Wiki-Seite nennt „14 Artikel, 10 angezeigt"
 bzw. „7 Artikel, 4 angezeigt" — DPL zählt alle Artikel mit `linksto`, zeigt aber
