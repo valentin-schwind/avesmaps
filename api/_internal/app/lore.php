@@ -98,18 +98,12 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
         $countStatement->execute($params);
         $total = (int) $countStatement->fetchColumn();
 
+        // 💣 KEINE korrelierten Unterabfragen je Zeile. Die erste Fassung hatte DREI --
+        // bei 200 Zeilen also 600 Abfragen für eine Liste. Stattdessen: erst die
+        // Einträge, dann Orte und Quellen für genau diese Schlüssel in je EINER
+        // Abfrage. Drei Abfragen statt sechshundert, unabhängig von der Seitengröße.
         $statement = $pdo->prepare(
-            'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin,
-                    (SELECT COUNT(*) FROM lore_place p
-                      WHERE p.entry_wiki_key = e.wiki_key AND p.status = \'active\') AS place_count,
-                    -- Die Orte SELBST, nicht nur ihre Zahl: „Weiden, Kosch, Nordmarken" sagt
-                    -- etwas, „3 Orte" nichts. Getrennt mit | statt , weil Ortsnamen selbst
-                    -- Kommas enthalten („Bornland (Region)" nicht, aber andere schon).
-                    (SELECT GROUP_CONCAT(p2.place_title ORDER BY p2.sort_order SEPARATOR \'|\')
-                       FROM lore_place p2
-                      WHERE p2.entry_wiki_key = e.wiki_key AND p2.status = \'active\') AS place_titles,
-                    (SELECT COUNT(*) FROM lore_source s
-                      WHERE s.entry_wiki_key = e.wiki_key AND s.status = \'active\') AS source_count
+            'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin
              FROM lore_entry e
              WHERE ' . $whereSql . '
              ORDER BY e.name
@@ -117,6 +111,35 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
         );
         $statement->execute($params);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $keys = array_column($rows, 'wiki_key');
+        $placesByEntry = [];
+        $sourceCounts = [];
+        if ($keys !== []) {
+            $in = implode(',', array_fill(0, count($keys), '?'));
+
+            // Die Orte SELBST, nicht nur ihre Zahl: „Weiden, Kosch, Nordmarken" sagt
+            // etwas, „3 Orte" nichts.
+            $placeStatement = $pdo->prepare(
+                'SELECT entry_wiki_key, place_title FROM lore_place
+                 WHERE status = \'active\' AND entry_wiki_key IN (' . $in . ')
+                 ORDER BY entry_wiki_key, sort_order'
+            );
+            $placeStatement->execute($keys);
+            foreach ($placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $placesByEntry[(string) $row['entry_wiki_key']][] = (string) $row['place_title'];
+            }
+
+            $sourceStatement = $pdo->prepare(
+                'SELECT entry_wiki_key, COUNT(*) AS n FROM lore_source
+                 WHERE status = \'active\' AND entry_wiki_key IN (' . $in . ')
+                 GROUP BY entry_wiki_key'
+            );
+            $sourceStatement->execute($keys);
+            foreach ($sourceStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $sourceCounts[(string) $row['entry_wiki_key']] = (int) $row['n'];
+            }
+        }
     } catch (Throwable $error) {
         // NICHT still auf 0 Treffer zurückfallen: ein Abfragefehler sieht dann exakt
         // aus wie „gibt es nicht", und man sucht ihn an der falschen Stelle. Genau das
@@ -138,14 +161,11 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
             'typ' => (string) ($row['typ'] ?? ''),
             'lebensraum' => (string) ($row['lebensraum'] ?? ''),
             'origin' => (string) ($row['origin'] ?? 'wiki'),
-            'place_count' => (int) $row['place_count'],
+            'place_count' => count($placesByEntry[(string) $row['wiki_key']] ?? []),
             // Auf 6 gekappt: eine Zeile soll die Gegend andeuten, nicht 40 Orte
             // ausbreiten. Der Rest steht als Zahl dahinter.
-            'places' => array_slice(array_values(array_filter(
-                explode('|', (string) ($row['place_titles'] ?? '')),
-                static fn(string $title): bool => trim($title) !== ''
-            )), 0, 6),
-            'source_count' => (int) $row['source_count'],
+            'places' => array_slice($placesByEntry[(string) $row['wiki_key']] ?? [], 0, 6),
+            'source_count' => $sourceCounts[(string) $row['wiki_key']] ?? 0,
         ];
     }
 

@@ -1617,6 +1617,29 @@ var avesmapsLoreListKind = "fauna";
 var avesmapsLoreListTimer = null;
 var avesmapsLoreListToken = 0;
 
+// 💣 JEDER Abruf braucht ein Zeitlimit. Ein hängender Request belegt bis zum
+// Servertimeout einen PHP-Worker; mehrere davon legen die gesamte API lahm -- genau
+// so ist der Pool am 21.07. gesättigt worden. Ein Abbruch gibt den Worker sofort frei.
+var AVESMAPS_LORE_UI_TIMEOUT_MS = 12000;
+
+function avesmapsLoreFetchWithTimeout(url, options, timeoutMs) {
+	var controller = typeof AbortController === "function" ? new AbortController() : null;
+	var timer = controller
+		? window.setTimeout(function () { controller.abort(); }, timeoutMs || AVESMAPS_LORE_UI_TIMEOUT_MS)
+		: null;
+	var settings = Object.assign({}, options || {});
+	if (controller) {
+		settings.signal = controller.signal;
+	}
+	return fetch(url, settings).then(function (response) {
+		if (timer) { window.clearTimeout(timer); }
+		return response;
+	}, function (error) {
+		if (timer) { window.clearTimeout(timer); }
+		throw error;
+	});
+}
+
 function avesmapsLoreListEscape(value) {
 	return String(value == null ? "" : value)
 		.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -1692,7 +1715,7 @@ function loadLoreList() {
 	var token = ++avesmapsLoreListToken;
 	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(avesmapsLoreListKind)
 		+ "&q=" + encodeURIComponent(query) + "&limit=200";
-	fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
+	avesmapsLoreFetchWithTimeout(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
 		.then(function (r) { return r.ok ? r.json() : null; })
 		.then(function (data) {
 			if (token !== avesmapsLoreListToken) {
@@ -1758,12 +1781,13 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 var avesmapsLoreDetailKey = "";
 
 function loreEditAction(action, payload) {
-	return fetch("api/edit/map/lore.php", {
+	return avesmapsLoreFetchWithTimeout("api/edit/map/lore.php", {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { "Content-Type": "application/json", Accept: "application/json" },
 		body: JSON.stringify(Object.assign({ action: action }, payload || {})),
-	}).then(function (r) { return r.json().catch(function () { return null; }); });
+	}).then(function (r) { return r.json().catch(function () { return null; }); },
+		function () { return null; }); // Abbruch/Netzfehler: der Aufrufer prüft auf null
 }
 
 function closeLoreDetail() {
