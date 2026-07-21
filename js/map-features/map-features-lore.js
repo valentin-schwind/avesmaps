@@ -321,6 +321,8 @@ function avesmapsLoreOpenDialog(kind, list, placeName) {
 	var groups = [
 		{ rank: 0, label: placeName ? "Direkt in " + placeName : "Direkt hier" },
 		{ rank: 1, label: "Aus Untergebieten" },
+		// Rang 2 (Obergebiete) wird nicht mehr eingesammelt -- die Gruppe bleibt nur
+		// stehen, falls noch alte Daten in einem offenen Panel liegen.
 		{ rank: 2, label: "Aus Obergebieten" },
 		{ rank: 3, label: "Aventurienweit" },
 	];

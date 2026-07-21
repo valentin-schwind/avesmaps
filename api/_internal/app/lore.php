@@ -235,8 +235,7 @@ function avesmapsLoreKeysFromWikiField(string $value): array
  *   0  der Ort selbst
  *   1  ABWÄRTS -- Untergebiete. Werden Schilde in der Baronie Moosgrund gehandelt,
  *      gehören sie in Weidens Liste, weil Moosgrund in Weiden liegt.
- *   2  AUFWÄRTS -- Obergebiete (Herzogtum, Mittelreich). Gilt dort etwas allgemein,
- *      gilt es hier auch, ist aber weniger spezifisch.
+ *   (Rang 2 gab es einmal für Obergebiete und ist bewusst entfallen -- siehe unten.)
  *
  * Zwei Bäume werden dafür verbunden, weil das Wiki zwei Achsen führt:
  *   - politisch:      wiki_territory_model.parent_wiki_key (⚠️ NIE affiliation_path)
@@ -294,38 +293,18 @@ function avesmapsLoreExpandPlaceKeys(PDO $pdo, string $placeKey): array
         // Wiki-Spiegel fehlt -> keine Regionsbrücke.
     }
 
-    // Umgekehrte Brücke: Territorium -> seine Region. Damit erreicht eine SIEDLUNG die
-    // Lore ihrer Gegend, obwohl Siedlungen selbst kein Region-Feld im Staging tragen:
-    // Trallop -> (Raycast) Stadtmark Trallop -> Herzogtum Weiden -> geographic: Weiden.
-    $regionOfTerritory = [];
-    foreach ($territoriesInRegion as $regionKey => $territories) {
-        foreach ($territories as $territory) {
-            $regionOfTerritory[$territory][] = $regionKey;
-        }
-    }
+    // 💣 KEINE VERERBUNG NACH UNTEN (Owner 2026-07-21). Information steigt AUF, sie
+    // fällt nicht herab: Werden Schilde in der Baronie Moosgrund gehandelt, gehören sie
+    // in Weidens Liste. Umgekehrt macht „Taschendrachen gibt es in Almada" die Stadt
+    // Punin NICHT zum Drachenort -- Punin liegt nur zufällig darin.
+    //
+    // Die frühere Fassung sammelte auch die Vorfahren (Rang 2) ein. Ergebnis: Punin
+    // zeigte 149 Einträge, praktisch alle von Almada geerbt, und las sich, als käme
+    // das alles dort vor. Deshalb gibt es hier nur noch Rang 0 (der Ort selbst) und
+    // Rang 1 (seine Untergebiete). Eine Stadt zeigt dann meist nichts -- das ist die
+    // richtige Antwort, nicht eine fehlende.
 
-    // AUFWÄRTS: Vorfahren im politischen Baum -- und je Station deren Region.
-    $cursor = $root;
-    $guard = 0;
-    foreach ($regionOfTerritory[$root] ?? [] as $regionKey) {
-        if (!isset($ranks[$regionKey])) {
-            $ranks[$regionKey] = 2;
-        }
-    }
-    while (isset($parentOf[$cursor]) && $guard < 32) {
-        $cursor = $parentOf[$cursor];
-        $guard++;
-        if (!isset($ranks[$cursor])) {
-            $ranks[$cursor] = 2;
-        }
-        foreach ($regionOfTerritory[$cursor] ?? [] as $regionKey) {
-            if (!isset($ranks[$regionKey])) {
-                $ranks[$regionKey] = 2;
-            }
-        }
-    }
-
-    // ABWÄRTS: Nachfahren im politischen Baum + alle Territorien dieser Region.
+    // ABWÄRTS EINSAMMELN: Nachfahren im politischen Baum + alle Territorien dieser Region.
     $queue = $childrenOf[$root] ?? [];
     foreach ($territoriesInRegion[$root] ?? [] as $territory) {
         $queue[] = $territory;
@@ -453,7 +432,7 @@ function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVES
             }
             continue;
         }
-        // Rang aus der Expansion (0 direkt, 1 Untergebiet, 2 Obergebiet); ohne Expansion
+        // Rang aus der Expansion (0 direkt, 1 Untergebiet); ohne Expansion
         // ist jeder Treffer direkt. Kontinente gehen IMMER auf 3 -- sie gelten überall
         // und sagen über diesen Ort am wenigsten aus.
         $placeKeyLower = mb_strtolower((string) $row['place_wiki_key'], 'UTF-8');
@@ -471,7 +450,7 @@ function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVES
             'relations' => [(string) $row['relation']],
             'place_title' => (string) $row['place_title'],
             // 0 = direkt am Ort, 3 = kontinentweit. Abschnitt 3 fuellt 1 (Untergebiet)
-            // und 2 (Obergebiet) nach; die Reihung steht dann schon.
+            // nach; die Reihung steht dann schon.
             'rank' => $rank,
         ];
     }
