@@ -135,16 +135,19 @@ function avesmapsLoreFetch(placeKey, full, titles) {
 // Spezies -- als Zeilen in derselben Feldliste wie Oberhaupt/Einwohner/Verkehrswege,
 // nicht als eigene Blöcke daneben.
 //
-// Spezies war zwischenzeitlich draußen, weil dort „immer nur Tiefzwerg" stand. Die
-// Ursache war NICHT die Art selbst: Tiefzwerg ist für ganz [[Aventurien]] gelistet und
-// erschien deshalb bei jedem Ort -- und weil es wenig ortsspezifische Spezies gibt,
-// blieb er meist als einziger übrig. Der Rang-3-Filter unten löst das an der Wurzel,
-// für alle vier Arten. Deshalb ist Spezies wieder dabei.
+// SPEZIES WIRD NICHT ANGEZEIGT (Owner 2026-07-21): das Feld „Regionen" der
+// {{Infobox Spezies}} ist in Wiki Aventurica schlecht gepflegt, die Zuordnungen sind
+// zu unzuverlässig für eine Infobox-Zeile. Das ist eine Aussage über die
+// DATENGRUNDLAGE, nicht über die Technik -- der Rang-3-Filter unten hatte den
+// auffälligsten Auswuchs („überall Tiefzwerg") bereits behoben.
+//
+// Die Daten bleiben vollständig erhalten: Katalog, Editor-Reiter und der Endpoint
+// führen Spezies weiter. Nur die öffentliche Anzeige verzichtet darauf, bis die
+// Pflege im Wiki besser ist.
 var AVESMAPS_LORE_ROWS = [
 	{ kind: "ware", label: "Waren" },
 	{ kind: "fauna", label: "Fauna" },
 	{ kind: "flora", label: "Flora" },
-	{ kind: "spezies", label: "Spezies" },
 ];
 
 // EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd), damit sie sich in
