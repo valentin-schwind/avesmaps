@@ -231,7 +231,7 @@
 			<div id="popTopo">
 				<div class="row">
 					<label for="pAvg">Durchschnittshöhe</label>
-					<input type="range" id="pAvg" min="0" step="50">
+					<input type="range" id="pAvg" min="0" max="15000" step="50">
 				</div>
 				<div class="row" style="margin-top:-4px">
 					<span></span><span class="unit" id="pAvgN"></span>
@@ -522,14 +522,14 @@ function buildArea(a) {
 	let lmax = 0;
 	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = rawArea(a, x, y); if (v > lmax) lmax = v; }
 	a.peakBumps = keepPeaks;
-	// Das Rauschen wird auf die eingestellte DURCHSCHNITTSHOEHE gezogen -- das ist der einzige
-	// Hoehenregler der Flaeche. Gedeckelt beim niedrigsten benannten Gipfel, damit nie ein
-	// erfundener Huegel einen benannten ueberragt; der Schieber endet sichtbar dort, statt
-	// stillschweigend zu klemmen.
+	// Das Rauschen wird auf die eingestellte DURCHSCHNITTSHOEHE gezogen -- der einzige Hoehenregler
+	// der Flaeche. NICHT gedeckelt: der Regler tut, was draufsteht. avgMax ist nur die Schwelle,
+	// ab der das erfundene Gelaende den niedrigsten benannten Gipfel ueberragt; das wird angezeigt
+	// statt verhindert. (Die Gipfel selbst bleiben davon unberuehrt -- das Fenster loescht das
+	// Rauschen an ihrer Stelle, sie lesen also weiter exakt ihre eigene Hoehe.)
 	const minG = a.peakBumps.length ? Math.min(...a.peakBumps.map(b => b.a)) : Infinity;
-	a.avgMax = Number.isFinite(minG) ? Math.round(minG * .8) : 6000;
-	const ziel = Math.min(a.avg, a.avgMax);
-	const daempfung = lmax > 0 ? ziel / lmax : 0;
+	a.avgMax = minG;                     // Schwelle = der niedrigste Gipfel selbst, nicht 80 % davon
+	const daempfung = lmax > 0 ? a.avg / lmax : 0;
 	for (const b of grob) b.a *= daempfung;
 
 	// Feinere Stufen: halber Zellabstand, Amplitude x0,35 je Stufe -- NICHT x0,5. Bei halbem
@@ -772,8 +772,7 @@ function openPop(kind, idx, clientX, clientY, pIdx) {
 	// Kopfleiste in der Farbe der Ebene -- dieselbe wie Umschalter, Umriss und Legende.
 	pop.style.setProperty('--kopf', cssVar(kind === 'veg' ? '--ls-veg' : '--ls-topo'));
 	if (kind === 'topo') {
-		$('pGrain').value = o.grain; $('pLevels').value = o.levels;
-		$('pAvg').max = o.avgMax; $('pAvg').value = Math.min(o.avg, o.avgMax);
+		$('pGrain').value = o.grain; $('pLevels').value = o.levels; $('pAvg').value = o.avg;
 	} else if (kind === 'peak') {
 		$('pPeakH').value = o.h;
 	} else { $('pTyp').value = o.typ; $('pFaktor').value = o.faktor.toFixed(2); }
@@ -784,9 +783,8 @@ function refreshPop() {
 	const o = cur(); if (!o) return;
 	if (sel.kind === 'topo') {
 		const t = o.grain / 10;
-		$('pAvg').max = o.avgMax;
-		$('pAvgN').textContent = Math.min(o.avg, o.avgMax).toLocaleString('de-DE') + ' Schritt'
-			+ (o.avg >= o.avgMax ? ' · Anschlag am niedrigsten Gipfel' : '');
+		$('pAvgN').innerHTML = o.avg.toLocaleString('de-DE') + ' Schritt'
+			+ (o.avg > o.avgMax ? ' · <strong>überragt den niedrigsten Gipfel</strong>' : '');
 		$('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
 		$('pInfo').textContent = o.levels + ' Stufen · ' + o.bumps.length.toLocaleString('de-DE') + ' Buckel'
 			+ (o.gestoppt ? ' · Budget ab Stufe ' + o.gestoppt : '');
