@@ -30,6 +30,154 @@ const AVESMAPS_LORE_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
 /** Wie viele Eintraege je Sektion das Infopanel zeigt; der Rest liegt hinter „alle anzeigen". */
 const AVESMAPS_LORE_PANEL_LIMIT = 10;
 
+/** Normalisiert einen Server-wiki_key ('wiki:weiden') auf die Form in lore_place ('weiden'). */
+function avesmapsLoreStripKeyPrefix(string $key): string
+{
+    $key = mb_strtolower(trim($key), 'UTF-8');
+    foreach (['wiki:', 'name:'] as $prefix) {
+        if (str_starts_with($key, $prefix)) {
+            $key = substr($key, strlen($prefix));
+        }
+    }
+
+    return trim($key);
+}
+
+/**
+ * Wiki-Titel -> Ortsschlüssel. Bildet avesmapsPoliticalSlug nach (Umlaute werden
+ * transliteriert), damit die Schlüssel zu denen aus lore-sync.php passen.
+ */
+function avesmapsLoreSlugForTitle(string $title): string
+{
+    if (function_exists('avesmapsPoliticalSlug')) {
+        return avesmapsPoliticalSlug(trim($title));
+    }
+    $slug = mb_strtolower(trim($title), 'UTF-8');
+    $slug = strtr($slug, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss']);
+    $slug = preg_replace('/[^a-z0-9]+/u', '-', $slug) ?? '';
+
+    return trim((string) $slug, '-');
+}
+
+/** Alle Wikilink-Ziele eines Feldwerts als Ortsschlüssel ('[[Weiden|Weiden]]' -> ['weiden']). */
+function avesmapsLoreKeysFromWikiField(string $value): array
+{
+    if (trim($value) === '' || !str_contains($value, '[[')) {
+        return [];
+    }
+    if (preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|[^\]]*)?\]\]/u', $value, $matches) < 1) {
+        return [];
+    }
+    $out = [];
+    foreach ($matches[1] as $title) {
+        $slug = avesmapsLoreSlugForTitle((string) $title);
+        if ($slug !== '' && !in_array($slug, $out, true)) {
+            $out[] = $slug;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * Erweitert EINEN Ortsschlüssel um alles, was inhaltlich dazugehört, mit Rang:
+ *
+ *   0  der Ort selbst
+ *   1  ABWÄRTS -- Untergebiete. Werden Schilde in der Baronie Moosgrund gehandelt,
+ *      gehören sie in Weidens Liste, weil Moosgrund in Weiden liegt.
+ *   2  AUFWÄRTS -- Obergebiete (Herzogtum, Mittelreich). Gilt dort etwas allgemein,
+ *      gilt es hier auch, ist aber weniger spezifisch.
+ *
+ * Zwei Bäume werden dafür verbunden, weil das Wiki zwei Achsen führt:
+ *   - politisch:      wiki_territory_model.parent_wiki_key (⚠️ NIE affiliation_path)
+ *   - derographisch:  political_territory_wiki.geographic nennt die Region eines
+ *                     Territoriums -- das ist die Brücke zwischen beiden Achsen.
+ *
+ * Kontinente werden NICHT expandiert: „Aventurien" zöge sonst die halbe Welt herein.
+ * Ihre Einträge kommen weiter über den direkten Treffer und landen auf Rang 3.
+ *
+ * @return array<string,int> Ortsschlüssel => Rang
+ */
+function avesmapsLoreExpandPlaceKeys(PDO $pdo, string $placeKey): array
+{
+    $root = avesmapsLoreStripKeyPrefix($placeKey);
+    if ($root === '') {
+        return [];
+    }
+    $ranks = [$root => 0];
+    if (in_array($root, AVESMAPS_LORE_CONTINENT_KEYS, true)) {
+        return $ranks; // ein Kontinent hat keine sinnvolle Ausweitung
+    }
+
+    $parentOf = [];
+    $childrenOf = [];
+    try {
+        $rows = $pdo->query('SELECT wiki_key, parent_wiki_key FROM wiki_territory_model') ?: [];
+        foreach ($rows as $row) {
+            $child = avesmapsLoreStripKeyPrefix((string) ($row['wiki_key'] ?? ''));
+            $parent = avesmapsLoreStripKeyPrefix((string) ($row['parent_wiki_key'] ?? ''));
+            if ($child !== '' && $parent !== '') {
+                $parentOf[$child] = $parent;
+                $childrenOf[$parent][] = $child;
+            }
+        }
+    } catch (Throwable) {
+        // Baum noch nicht gebaut -> nur direkte Treffer. Kein Grund für einen 500er.
+    }
+
+    $territoriesInRegion = [];
+    try {
+        $rows = $pdo->query(
+            'SELECT wiki_key, geographic FROM political_territory_wiki
+             WHERE geographic IS NOT NULL AND geographic <> \'\''
+        ) ?: [];
+        foreach ($rows as $row) {
+            $territory = avesmapsLoreStripKeyPrefix((string) ($row['wiki_key'] ?? ''));
+            if ($territory === '') {
+                continue;
+            }
+            foreach (avesmapsLoreKeysFromWikiField((string) ($row['geographic'] ?? '')) as $regionKey) {
+                $territoriesInRegion[$regionKey][] = $territory;
+            }
+        }
+    } catch (Throwable) {
+        // Wiki-Spiegel fehlt -> keine Regionsbrücke.
+    }
+
+    // AUFWÄRTS: Vorfahren im politischen Baum.
+    $cursor = $root;
+    $guard = 0;
+    while (isset($parentOf[$cursor]) && $guard < 32) {
+        $cursor = $parentOf[$cursor];
+        $guard++;
+        if (!isset($ranks[$cursor])) {
+            $ranks[$cursor] = 2;
+        }
+    }
+
+    // ABWÄRTS: Nachfahren im politischen Baum + alle Territorien dieser Region.
+    $queue = $childrenOf[$root] ?? [];
+    foreach ($territoriesInRegion[$root] ?? [] as $territory) {
+        $queue[] = $territory;
+    }
+    $seen = [];
+    while ($queue !== []) {
+        $node = array_shift($queue);
+        if ($node === '' || isset($seen[$node]) || count($seen) > 5000) {
+            continue;
+        }
+        $seen[$node] = true;
+        if (!isset($ranks[$node])) {
+            $ranks[$node] = 1;
+        }
+        foreach ($childrenOf[$node] ?? [] as $child) {
+            $queue[] = $child;
+        }
+    }
+
+    return $ranks;
+}
+
 /**
  * Bestandszahlen -- der Abnahmetest nach einem Sync. Erwartung aus dem verifizierten
  * Dump-Scan (2026-07-21): 5.104 Eintraege (1.382 fauna / 1.004 flora / 187 spezies /
@@ -74,7 +222,7 @@ function avesmapsLoreReadStats(PDO $pdo): array
  * @param list<string> $placeKeys ein oder mehrere Ortsschluessel (Region, Siedlung, Territorium)
  * @return array<string,mixed> { sections: {kind: [entry,...]}, counts: {kind: n}, total: n }
  */
-function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVESMAPS_LORE_PANEL_LIMIT): array
+function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVESMAPS_LORE_PANEL_LIMIT, array $rankByKey = []): array
 {
     $keys = [];
     foreach ($placeKeys as $key) {
@@ -126,9 +274,22 @@ function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVES
             if (!in_array($relation, $byKind[$kind][$index]['relations'], true)) {
                 $byKind[$kind][$index]['relations'][] = $relation;
             }
+            // Derselbe Eintrag kann über mehrere Orte hereinkommen (direkt UND über ein
+            // Untergebiet). Der SPEZIFISCHSTE gewinnt, sonst sinkt ein direkter Treffer
+            // ans Ende, nur weil er zufällig auch kontinentweit gelistet ist.
+            if ($rank < $byKind[$kind][$index]['rank']) {
+                $byKind[$kind][$index]['rank'] = $rank;
+                $byKind[$kind][$index]['place_title'] = (string) $row['place_title'];
+            }
             continue;
         }
-        $isContinent = in_array(mb_strtolower((string) $row['place_wiki_key'], 'UTF-8'), AVESMAPS_LORE_CONTINENT_KEYS, true);
+        // Rang aus der Expansion (0 direkt, 1 Untergebiet, 2 Obergebiet); ohne Expansion
+        // ist jeder Treffer direkt. Kontinente gehen IMMER auf 3 -- sie gelten überall
+        // und sagen über diesen Ort am wenigsten aus.
+        $placeKeyLower = mb_strtolower((string) $row['place_wiki_key'], 'UTF-8');
+        $rank = in_array($placeKeyLower, AVESMAPS_LORE_CONTINENT_KEYS, true)
+            ? 3
+            : (int) ($rankByKey[$placeKeyLower] ?? 0);
         $seen[$kind][$key] = count($byKind[$kind]);
         $byKind[$kind][] = [
             'wiki_key' => $key,
@@ -141,7 +302,7 @@ function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVES
             'place_title' => (string) $row['place_title'],
             // 0 = direkt am Ort, 3 = kontinentweit. Abschnitt 3 fuellt 1 (Untergebiet)
             // und 2 (Obergebiet) nach; die Reihung steht dann schon.
-            'rank' => $isContinent ? 3 : 0,
+            'rank' => $rank,
         ];
     }
 

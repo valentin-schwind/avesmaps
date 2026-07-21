@@ -19,6 +19,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/app/lore.php';
+// avesmapsPoliticalSlug für die Ortsschlüssel der Regionsbrücke (geographic-Feld).
+require_once __DIR__ . '/../_internal/political/territory.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -61,7 +63,27 @@ try {
     }
 
     $full = isset($_GET['full']) && (string) $_GET['full'] !== '0';
-    $result = avesmapsLoreReadForPlaces($pdo, $placeKeys, $full ? 0 : AVESMAPS_LORE_PANEL_LIMIT);
+    // Abschnitt 3: den angefragten Ort um Unter- und Obergebiete erweitern, damit
+    // Weiden auch zeigt, was in der Baronie Moosgrund gehandelt wird. Der niedrigste
+    // (spezifischste) Rang gewinnt, wenn mehrere Wege auf denselben Ort führen.
+    // ⚠️ PERF: die Expansion liest zwei Hierarchietabellen komplett. Bei den aktuellen
+    // Größen ist das vertretbar; wächst der Territorienbestand deutlich, gehört hier
+    // ein Cache hin (die Bäume ändern sich nur beim Sync, nicht pro Aufruf).
+    $ranks = [];
+    foreach ($placeKeys as $key) {
+        foreach (avesmapsLoreExpandPlaceKeys($pdo, $key) as $expandedKey => $rank) {
+            if (!isset($ranks[$expandedKey]) || $rank < $ranks[$expandedKey]) {
+                $ranks[$expandedKey] = $rank;
+            }
+        }
+    }
+    if ($ranks === []) {
+        foreach ($placeKeys as $key) {
+            $ranks[$key] = 0;
+        }
+    }
+
+    $result = avesmapsLoreReadForPlaces($pdo, array_keys($ranks), $full ? 0 : AVESMAPS_LORE_PANEL_LIMIT, $ranks);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
