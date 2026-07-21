@@ -81,6 +81,41 @@ assert($byLabel['Jergan (Wasserfall)']['own_wiki'] === null);
 assert($byLabel['Jergan']['position']['lat'] === 1.0);
 assert($byLabel['Jergan (Wasserfall)']['position']['lng'] === 4.0);
 
+// ---- evidence for parties that are not in wiki_sync_pages ---------------------------------------
+// wiki_sync_pages holds settlement/building pages only, so an adventure or a territory is never in
+// it. Live on 2026-07-21 that made the evidence line claim "kein eigener Wiki-Artikel" for the
+// adventure "Tyrannenmord" -- whose article is exactly what it is fighting over. The evidence has
+// to be right here, because it is what the editor decides by.
+$advRows = [
+    ['type' => 'location', 'id' => 'a1', 'label' => "Al'Khomaney", 'subtype' => 'dorf', 'wiki_url' => 'https://w/wiki/Tyrannenmord', 'position' => null],
+    ['type' => 'adventure', 'id' => 'a2', 'label' => 'Tyrannenmord', 'subtype' => '', 'wiki_url' => 'https://w/wiki/Tyrannenmord', 'position' => null],
+];
+// Registry deliberately EMPTY -- neither party is a settlement page.
+$adv = avesmapsConflictRuleSharedArticle($advRows, []);
+assert(count($adv) === 1);
+$advBy = [];
+foreach ($adv[0]['parties'] as $party) {
+    $advBy[$party['label']] = $party;
+}
+// Its own name IS the article title -> it owns the article, registry or not.
+assert($advBy['Tyrannenmord']['own_wiki'] !== null);
+assert($advBy['Tyrannenmord']['own_wiki']['title'] === 'Tyrannenmord');
+// The settlement that merely points there must NOT inherit that claim.
+assert($advBy["Al'Khomaney"]['own_wiki'] === null);
+
+// Umlauts survive the round trip through the URL (Gefängnis der Schatten was the reported case).
+$umlautRows = [
+    ['type' => 'location', 'id' => 'u1', 'label' => 'Efferdsruh', 'subtype' => 'dorf', 'wiki_url' => 'https://w/wiki/Gef%C3%A4ngnis_der_Schatten', 'position' => null],
+    ['type' => 'adventure', 'id' => 'u2', 'label' => 'Gefängnis der Schatten', 'subtype' => '', 'wiki_url' => 'https://w/wiki/Gef%C3%A4ngnis_der_Schatten', 'position' => null],
+];
+$umlaut = avesmapsConflictRuleSharedArticle($umlautRows, []);
+$umlautBy = [];
+foreach ($umlaut[0]['parties'] as $party) {
+    $umlautBy[$party['label']] = $party;
+}
+assert($umlautBy['Gefängnis der Schatten']['own_wiki']['title'] === 'Gefängnis der Schatten');
+assert($umlautBy['Efferdsruh']['own_wiki'] === null);
+
 // ---- rule 2: missing key, before collapsing -----------------------------------------------------
 $missing = avesmapsConflictRuleMissingKey($rows);
 $missingLabels = array_column($missing, 'title');

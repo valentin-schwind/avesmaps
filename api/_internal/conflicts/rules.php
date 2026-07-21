@@ -262,9 +262,27 @@ function avesmapsConflictRuleSharedArticle(array $rows, array $wikiTitles = []):
     }
     $conflicts = [];
     foreach (avesmapsConflictFindSharedWikiUrls($rows) as $group) {
-        $parties = array_map(static function (array $party) use ($wikiTitles, $meta): array {
+        $claimedKey = avesmapsConflictArticleKey((string) $group['wiki_url']);
+        $parties = array_map(static function (array $party) use ($wikiTitles, $meta, $group, $claimedKey): array {
             $party['type_label'] = AVESMAPS_CONFLICT_TYPE_LABELS[$party['type']] ?? $party['type'];
-            $own = $wikiTitles[mb_strtolower((string) $party['label'], 'UTF-8')] ?? null;
+            $nameKey = mb_strtolower((string) $party['label'], 'UTF-8');
+            $own = $wikiTitles[$nameKey] ?? null;
+            // wiki_sync_pages holds SETTLEMENT and building pages only. An adventure or a territory
+            // is never in there, so the registry lookup alone reported "kein eigener Wiki-Artikel"
+            // for every one of them -- while the article plainly exists, which is why the object is
+            // in this conflict at all. That is not a cosmetic miss: the evidence line exists to
+            // decide by, and it was pointing the editor at the wrong party.
+            //
+            // The answer needs no registry: if the object's own name IS the title of the article it
+            // claims, then that article is its own. In a collision this reads exactly right --
+            // the adventure "Tyrannenmord" owns the article "Tyrannenmord", the settlement that
+            // also points there does not.
+            if ($own === null && $claimedKey !== '' && $nameKey === $claimedKey) {
+                $own = [
+                    'title' => decodeConflictWikiTitle((string) $group['wiki_url']),
+                    'url' => (string) $group['wiki_url'],
+                ];
+            }
             $party['own_wiki'] = $own;
             $info = $meta[$party['type'] . '|' . $party['id']] ?? [];
             $party['position'] = $info['position'] ?? null;
