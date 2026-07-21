@@ -122,8 +122,13 @@
 		   eigener Stapelkontext, hoher z-index, background-color EINZELN gesetzt (nicht als
 		   Kurzschreibweise, die eine spaetere ueberschreiben koennte), und --ls-inset statt
 		   --ls-card, weil die Panel-Farbe im Hellmodus fast weiss ist -- wie das hohe Gelaende. */
+		/* position: FIXED, und das Element haengt nicht mehr in .stage. Vier Anlaeufe gingen in die
+		   Farbe und in z-index, ohne dass das Fenster je zuverlaessig deckend wurde. Als Kind der
+		   Karte konkurriert es mit Canvas und SVG um dieselbe Malreihenfolge; ausserhalb, im
+		   Viewport-Stapel, gibt es diesen Wettbewerb gar nicht mehr. Fehler ohne Moeglichkeit
+		   schlaegt Fehler mit Erklaerung. */
 		.pop {
-			position: absolute; z-index: 20; isolation: isolate; opacity: 1;
+			position: fixed; z-index: 9999; isolation: isolate; opacity: 1;
 			width: 250px; padding: 12px 13px 13px;
 			background-color: var(--ls-inset);
 			border: 1.5px solid var(--ls-line-strong);
@@ -133,13 +138,25 @@
 		}
 		.pop [hidden] { display: none; }
 		.pop[hidden] { display: none; }
-		.pop h3 { margin: 0 0 2px; font-size: 13.5px; color: var(--ls-strong); }
-		.pop .kind { font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ls-muted); margin-bottom: 10px; }
+		/* Kopfleiste in der Farbe DER EBENE. Der Rumpf allein genuegte nicht: im Hellmodus liegt
+		   --color-panel-muted (#f1ece1) mitten in der Gelaende-Farbskala (bis #f7f3ee), das Fenster
+		   war also deckend und trotzdem ununterscheidbar von dem, was es verdeckt. Eine kraeftige
+		   Kante loest das, wo eine weitere Farbnuance es nicht kann -- und verknuepft das Fenster
+		   nebenbei mit dem Umschalter und der Legende. */
+		.pop .kopf {
+			margin: -12px -13px 11px; padding: 10px 13px 9px;
+			border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+			background: var(--kopf, var(--ls-btn));
+		}
+		.pop h3 { margin: 0 0 1px; font-size: 14px; color: var(--ls-btn-text); }
+		.pop .kind { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+			color: var(--ls-btn-text); opacity: .78; }
 		.pop .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 		.pop .row > label { font-size: 11.5px; color: var(--ls-muted); }
 		.pop .foot2 { display: flex; gap: 8px; align-items: center; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--color-divider); }
-		.pop .close { position: absolute; top: 8px; right: 9px; border: 0; background: transparent; color: var(--ls-muted); font-size: 17px; line-height: 1; cursor: pointer; padding: 2px 4px; }
-		.pop .close:hover { color: var(--ls-fg); }
+		.pop .close { position: absolute; top: 9px; right: 10px; border: 0; background: transparent;
+			color: var(--ls-btn-text); opacity: .7; font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 5px; }
+		.pop .close:hover { opacity: 1; }
 		.pop .meta { font-size: 11px; color: var(--ls-muted); margin-top: 9px; }
 
 		.out { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; font-family: system-ui, sans-serif; }
@@ -191,11 +208,16 @@
 	<div class="stage" id="stage">
 		<canvas id="cv"></canvas>
 		<svg id="ov" viewBox="0 0 900 540" preserveAspectRatio="none"></svg>
+	</div>
 
-		<div class="pop" id="pop" hidden>
-			<button class="close" id="popClose" title="Schließen">×</button>
-			<h3 id="popName">—</h3>
-			<div class="kind" id="popKind">—</div>
+	<!-- Das Einstellungsfenster steht AUSSERHALB der Karte. Als deren Kind konkurrierte es mit
+	     Canvas und SVG um dieselbe Malreihenfolge; hier kann es das nicht mehr. -->
+	<div class="pop" id="pop" hidden>
+			<div class="kopf">
+				<button class="close" id="popClose" title="Schließen">×</button>
+				<h3 id="popName">—</h3>
+				<div class="kind" id="popKind">—</div>
+			</div>
 
 			<div id="popTopo">
 				<div class="row">
@@ -237,7 +259,6 @@
 			</div>
 
 			<div class="meta" id="pMeta"></div>
-		</div>
 	</div>
 
 	<div class="out">
@@ -690,14 +711,17 @@ const cur = () => sel && (sel.kind === 'topo' ? areas[sel.i] : vegs[sel.i]);
 
 function openPop(kind, idx, clientX, clientY) {
 	sel = { kind, i: idx };
-	const o = cur(), st = $('stage').getBoundingClientRect();
+	const o = cur();
 	pop.hidden = false;
 	$('popTopo').hidden = kind !== 'topo';
 	$('popVeg').hidden = kind !== 'veg';
-	pop.style.left = Math.min(Math.max(8, clientX - st.left + 10), st.width - 262) + 'px';
-	pop.style.top = Math.min(Math.max(8, clientY - st.top + 8), st.height - 240) + 'px';
+	// position: fixed -> direkt in Viewport-Koordinaten, nicht mehr relativ zur Karte.
+	pop.style.left = Math.min(Math.max(8, clientX + 12), innerWidth - 266) + 'px';
+	pop.style.top = Math.min(Math.max(8, clientY + 8), innerHeight - 250) + 'px';
 	$('popName').textContent = o.name;
 	$('popKind').textContent = kind === 'topo' ? 'Topographie · Gebirge' : 'Bedeckung · ' + o.typ;
+	// Kopfleiste in der Farbe der Ebene -- dieselbe wie Umschalter, Umriss und Legende.
+	pop.style.setProperty('--kopf', cssVar(kind === 'topo' ? '--ls-topo' : '--ls-veg'));
 	if (kind === 'topo') { $('pHmax').value = o.hmax; $('pGrain').value = o.grain; $('pLevels').value = o.levels; }
 	else { $('pTyp').value = o.typ; $('pFaktor').value = o.faktor.toFixed(2); }
 	refreshPop();
