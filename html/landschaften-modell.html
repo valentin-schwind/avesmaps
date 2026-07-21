@@ -72,7 +72,6 @@
 		.wrap { max-width: var(--ls-max); margin: 0 auto; }
 		h1 { font-size: 22px; margin: 0 0 4px; color: var(--ls-strong); }
 		.sub { color: var(--ls-muted); font-size: 14px; margin: 0 0 18px; }
-		.ui { font-family: system-ui, "Segoe UI", sans-serif; }
 
 		.bar {
 			display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
@@ -82,6 +81,7 @@
 		}
 		.grp { display: flex; align-items: center; gap: 8px; }
 		.grp > label { font-size: 11.5px; color: var(--ls-muted); white-space: nowrap; }
+		.hint { margin-left: auto; font-size: 11.5px; color: var(--ls-muted); font-style: italic; }
 
 		.seg { display: flex; border: 1px solid var(--ls-line); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-soft); }
 		.seg button { border: 0; background: transparent; color: var(--ls-muted); cursor: pointer; padding: 7px 16px; font: 600 12.5px/1 system-ui, sans-serif; }
@@ -89,6 +89,7 @@
 
 		input[type=range] { width: 118px; accent-color: var(--ls-btn); }
 		input[type=number] { width: 76px; padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
+		select { padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
 		.btn { border: 1px solid var(--ls-line-strong); background: var(--ls-soft); color: var(--ls-fg); border-radius: var(--radius-md); padding: 6px 12px; font: 12.5px system-ui, sans-serif; cursor: pointer; }
 		.btn:hover { border-color: var(--ls-accent); }
 		.unit { font-size: 12px; color: var(--ls-muted); }
@@ -96,6 +97,24 @@
 		.stage { position: relative; height: 540px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-inset); line-height: 0; }
 		.stage canvas, .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 		.stage svg { cursor: crosshair; }
+
+		/* Das Einstellungsfenster einer einzelnen Flaeche. Spaeter ein Untermenuepunkt im
+		   Kontextmenue; hier oeffnet der Rechtsklick es direkt. */
+		.pop {
+			position: absolute; z-index: 5; width: 250px; padding: 12px 13px 13px;
+			background: var(--ls-card); border: 1px solid var(--ls-line-strong);
+			border-radius: var(--radius-lg); box-shadow: 0 6px 22px rgba(0,0,0,.22);
+			font-family: system-ui, "Segoe UI", sans-serif; font-size: 12.5px; line-height: 1.5;
+		}
+		.pop[hidden] { display: none; }
+		.pop h3 { margin: 0 0 2px; font-size: 13.5px; color: var(--ls-strong); }
+		.pop .kind { font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ls-muted); margin-bottom: 10px; }
+		.pop .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+		.pop .row > label { font-size: 11.5px; color: var(--ls-muted); }
+		.pop .foot2 { display: flex; gap: 8px; align-items: center; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--color-divider); }
+		.pop .close { position: absolute; top: 8px; right: 9px; border: 0; background: transparent; color: var(--ls-muted); font-size: 17px; line-height: 1; cursor: pointer; padding: 2px 4px; }
+		.pop .close:hover { color: var(--ls-fg); }
+		.pop .meta { font-size: 11px; color: var(--ls-muted); margin-top: 9px; }
 
 		.out { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; font-family: system-ui, sans-serif; }
 		.card { flex: 1 1 190px; background: var(--ls-card); border: 1px solid var(--ls-line); border-radius: var(--radius-md); padding: 10px 12px; }
@@ -120,7 +139,7 @@
 <body>
 <div class="wrap">
 	<h1>Landschaften — zwei Ebenen, ein Umschalter</h1>
-	<p class="sub">Ein Vorschlag, noch nichts Gebautes — zum Ausprobieren und Zerpflücken. Zieh an den Ecken, an den Gipfeln und an der Route; die Zahlen unten rechnen live mit. Die inaktive Ebene bleibt sichtbar, nimmt aber keine Klicks an.</p>
+	<p class="sub">Ein Vorschlag, noch nichts Gebautes. Zieh an den Ecken, an den Gipfeln und an der Route. <strong>Rechtsklick auf ein Gebirge öffnet seine Einstellungen</strong> — die gehören der Fläche, nicht der Menüleiste.</p>
 
 	<div class="bar">
 		<div class="grp">
@@ -131,23 +150,8 @@
 			</div>
 		</div>
 		<div class="grp">
-			<label>Höchster Punkt</label>
-			<input type="number" id="hmax" value="5200" min="200" max="9000" step="100">
-			<span class="unit">Schritt</span>
-		</div>
-		<div class="grp">
-			<label>Körnung</label>
-			<input type="range" id="grain" min="18" max="80" step="2" value="30">
-			<span class="unit" id="grainN" style="width:88px"></span>
-		</div>
-		<div class="grp">
-			<label>Detailstufen</label>
-			<input type="range" id="levels" min="0" max="4" value="2">
-			<span class="unit" id="levelsN" style="width:74px">2 · 21 Buckel</span>
-		</div>
-		<div class="grp">
 			<label>Darstellung</label>
-			<select id="step" style="padding:5px 7px;border:1px solid var(--ls-line);border-radius:var(--radius-md);background:var(--ls-soft);color:var(--ls-fg);font:12.5px system-ui,sans-serif">
+			<select id="step">
 				<option value="1">jeder Pixel</option>
 				<option value="2" selected>jeder 2.</option>
 				<option value="4">jeder 4.</option>
@@ -160,19 +164,45 @@
 			<input type="range" id="veg" min="100" max="220" value="130">
 			<span class="unit" id="vegN" style="width:30px">1,30</span>
 		</div>
-		<button class="btn" id="reroll">Neu würfeln</button>
+		<span class="hint">Einstellungen je Gebirge: Rechtsklick darauf</span>
 	</div>
 
-	<div class="stage">
+	<div class="stage" id="stage">
 		<canvas id="cv"></canvas>
 		<svg id="ov" viewBox="0 0 900 540" preserveAspectRatio="none"></svg>
+
+		<div class="pop" id="pop" hidden>
+			<button class="close" id="popClose" title="Schließen">×</button>
+			<h3 id="popName">—</h3>
+			<div class="kind">Topographie · Gebirge</div>
+			<div class="row">
+				<label for="pHmax">Höchster Punkt</label>
+				<span><input type="number" id="pHmax" min="200" max="9000" step="100"> <span class="unit">Schritt</span></span>
+			</div>
+			<div class="row">
+				<label for="pGrain">Körnung</label>
+				<input type="range" id="pGrain" min="18" max="80" step="2">
+			</div>
+			<div class="row" style="margin-top:-4px">
+				<span></span><span class="unit" id="pGrainN"></span>
+			</div>
+			<div class="row">
+				<label for="pLevels">Detailstufen</label>
+				<input type="range" id="pLevels" min="0" max="4">
+			</div>
+			<div class="foot2">
+				<button class="btn" id="pReroll">Neu würfeln</button>
+				<span class="unit" id="pInfo"></span>
+			</div>
+			<div class="meta" id="pMeta"></div>
+		</div>
 	</div>
 
 	<div class="out">
 		<div class="card"><b>Reisezeit gesamt</b><span id="oFac">—</span><em>gegenüber flachem, offenem Land</em></div>
 		<div class="card"><b>Hin / zurück</b><span id="oDir">—</span><em>Spreizung durch die Steigung</em></div>
 		<div class="card"><b>Anstieg / Abstieg</b><span id="oAsc">—</span><em>Schritt</em></div>
-		<div class="card"><b>Sattel zwischen den Gipfeln</b><span id="oSad">—</span><em>Anteil der Gipfelhöhe</em></div>
+		<div class="card"><b>Gequerte Gebirge</b><span id="oCross">—</span><em>von zwei</em></div>
 	</div>
 
 	<div class="legend">
@@ -184,34 +214,32 @@
 	<div class="note" id="note"></div>
 
 	<div class="foot">
+		<h2>Warum die Einstellungen an der Fläche hängen</h2>
+		<p>Zwei Gebirge auf derselben Karte haben nichts miteinander zu tun: das eine ist ein hoher, geschlossener Wall, das andere ein niedriges, zerklüftetes Bergland. Höhe, Körnung und Detailstufen sind deshalb <strong>Eigenschaften des Gebiets</strong>, nicht Einstellungen des Editors. In der Menüleiste stehen nur noch Dinge, die für die ganze Ansicht gelten — welche Ebene aktiv ist und wie fein gemalt wird.</p>
+		<p>Der Rechtsklick öffnet sie hier direkt. Im echten Editor wird das ein <strong>Untermenüpunkt im Kontextmenü</strong> sein, neben „Ecke einfügen“ und „Fläche löschen“.</p>
+
 		<h2>Was du einstellen würdest</h2>
-		<p>Drei Dinge, mehr nicht: den <strong>Umriss</strong> des Gebirges, die <strong>Höhe des höchsten Punktes</strong> — die steht im Wiki, etwa „bis zu 9.000 Schritt“ — und wo die <strong>bekannten Gipfel</strong> liegen. Die Gipfel liegen ohnehin schon als Beschriftung auf der Karte; das Modell benutzt dieselben Punkte, es legt keine zweiten an.</p>
+		<p>Drei Dinge je Gebirge: die <strong>Höhe des höchsten Punktes</strong> — die steht im Wiki, etwa „bis zu 9.000 Schritt“ —, die <strong>Körnung</strong>, und wie fein aufgelöst wird. Die <strong>bekannten Gipfel</strong> liegen ohnehin schon als Beschriftung auf der Karte; das Modell benutzt dieselben Punkte, es legt keine zweiten an.</p>
 
 		<h2>Woher die Hügel kommen, die niemand gesetzt hat</h2>
 		<p>Zwischen den Gipfeln würfelt die Karte Gelände dazu — Kuppen, Hänge, Senken. <strong>Nicht bei jedem Aufruf neu:</strong> dieselbe Eingabe ergibt immer dasselbe Gelände. Ein anderes entsteht erst, wenn du den Umriss veränderst, einen Gipfel verschiebst oder ausdrücklich auf „Neu würfeln“ drückst.</p>
-		<p>Der Grund ist Handarbeit. Damit eine Route eine brauchbare Steigung bekommt, braucht sie mehr Stützpunkte, als jemand von Hand setzen möchte. Statt fünfzig Hügel zu klicken, setzt du die drei, die im Wiki stehen — der Rest füllt sich plausibel auf. Und der <strong>Sattel</strong> zwischen zwei Gipfeln entsteht dabei von selbst; auch den muss niemand einzeichnen.</p>
+		<p>Der Grund ist Handarbeit. Damit eine Route eine brauchbare Steigung bekommt, braucht sie mehr Stützpunkte, als jemand von Hand setzen möchte. Statt fünfzig Hügel zu klicken, setzt du die drei, die im Wiki stehen — der Rest füllt sich plausibel auf. Und der <strong>Sattel</strong> zwischen zwei Gipfeln entsteht dabei von selbst.</p>
+		<p><strong>Die benannten Gipfel bleiben dabei unantastbar:</strong> jeder steht auf einem echten Hochpunkt und liest genau die Höhe, die eingetragen wurde — kein erfundener Hügel überragt ihn. Das Rauschen wird an jedem Gipfel mit verschwindender Steigung ausgeblendet und so weit gedämpft, dass es unter dem niedrigsten benannten Gipfel bleibt.</p>
 
 		<h2>Was davon erfunden ist — und was nie behauptet wird</h2>
-		<p>Erfunden ist alles zwischen den Gipfeln. Deshalb wird <strong>keine dieser Höhen jemals als Zahl angezeigt</strong>. Sichtbar wird nur, was aus dem Wiki stammt, und was daraus für die Reise folgt: dass der Weg hinauf länger dauert als hinab. Eine erfundene Höhe darf die Reisezeit beeinflussen — sie darf nicht so aussehen, als stünde sie irgendwo geschrieben.</p>
+		<p>Erfunden ist alles zwischen den Gipfeln. Deshalb wird <strong>keine dieser Höhen jemals als Zahl angezeigt</strong>. Sichtbar wird nur, was aus dem Wiki stammt, und was daraus für die Reise folgt: dass der Weg hinauf länger dauert als hinab.</p>
 
 		<h2>Körnung: ein Massiv oder ein Hügelland?</h2>
-		<p>Der Regler <strong>Körnung</strong> bestimmt, wie groß die erfundenen Erhebungen ausfallen — links wenige weite Rücken, rechts viele kleine Kuppen. Damit lässt sich derselbe Umriss als geschlossenes Massiv oder als zerklüftetes Hügelland lesen, <strong>ohne dass sich an den benannten Gipfeln etwas ändert</strong>: die stehen weiter genau auf ihrer Höhe und an ihrer Stelle.</p>
-		<p>Verwechsle ihn nicht mit <strong>Detailstufen</strong>. Die Körnung ändert den <em>Charakter</em> des Geländes — alles wird neu verteilt. Detailstufen ändern nur, wie fein es <em>aufgelöst</em> ist; die vorhandenen Formen bleiben dabei stehen.</p>
-
-		<h2>Detail kommt dazu, es wird nicht neu gewürfelt</h2>
-		<p>Zieh <strong>Detailstufen</strong> von 0 auf 4 und achte auf die großen Formen: <strong>sie bleiben stehen.</strong> Jede Stufe halbiert den Abstand der Hügel und ihre Höhe, und legt sie <em>zwischen</em> die vorhandenen — statt alles neu zu verteilen. Das ist die Bedingung dafür, dass Hineinzoomen später Detail nachschärfen kann, ohne dass das Gebirge unter dem Cursor die Form wechselt.</p>
-		<p>Möglich wird das dadurch, dass jeder Hügel aus seiner <em>Gitterzelle</em> berechnet wird und nicht aus einer Reihenfolge. Wo er liegt, hängt nur an der Zelle und am Startwert — nicht daran, wie viele Hügel vorher kamen und nicht daran, wo gerade der Rand des Gebirges verläuft. Zieh eine weit entfernte Ecke: die Hügel am anderen Ende rühren sich nicht.</p>
-		<p>Trotzdem ist der Regler kein Kosmetikknopf. <strong>Je mehr erfundenes Detail, desto länger die Reisezeit</strong> — systematisch, nicht zufällig, weil die Tempokurve konvex ist. Sieh dem Gesamtfaktor beim Klettern zu. Die Stufenzahl ist deshalb eine <em>Festlegung</em>, die einmal getroffen und dann in Ruhe gelassen wird.</p>
-
-		<h2>Wie fein muss abgetastet werden?</h2>
-		<p>Zwei verschiedene Feinheiten, die nichts miteinander zu tun haben. <strong>Darstellung</strong> — wie grob das Bild gemalt wird — kostet nur Rechenzeit; die Millisekunden stehen neben dem Auswahlfeld. Auf einem vollen Bildschirm ist „jeder Pixel“ mit rund 72 ms unbrauchbar, „jeder 4.“ mit 4,5 ms läuft flüssig.</p>
-		<p>Die <strong>Route</strong> dagegen muss fein genug abgetastet werden, sonst wird die Rechnung falsch — und zwar nicht ein bisschen: bei zu groben Schritten kippt die Richtungswirkung ins Gegenteil, bergauf erscheint dann schneller als bergab. Wie fein, hängt <em>nicht</em> an der Größe des Gebirges, sondern am <strong>kleinsten Hügel</strong> darin. Gemessen reicht ein Achtel seines Radius; die Zahl steht oben im Kasten und ändert sich mit jeder Detailstufe mit.</p>
+		<p>Die <strong>Körnung</strong> bestimmt, wie groß die erfundenen Erhebungen ausfallen — links wenige weite Rücken, rechts viele kleine Kuppen. Derselbe Umriss liest sich damit als geschlossenes Massiv oder als zerklüftetes Bergland, <strong>ohne dass sich an den benannten Gipfeln etwas ändert</strong>.</p>
+		<p>Verwechsle sie nicht mit <strong>Detailstufen</strong>. Die Körnung ändert den <em>Charakter</em> — alles wird neu verteilt. Detailstufen ändern nur die <em>Auflösung</em>; die vorhandenen Formen bleiben stehen.</p>
+		<p>Trotzdem ist keiner der beiden ein Kosmetikknopf: <strong>je mehr erfundenes Detail, desto länger die Reisezeit</strong> — systematisch, weil die Tempokurve konvex ist.</p>
 
 		<details>
 			<summary>Für die Neugierigen: die Rechnung dahinter</summary>
-			<p>Das Gelände ist eine Summe kompakt getragener Buckel — <code>Σ a·(1−q²)³</code> —, auf einem verwackelten Raster erzeugt und auf den eingegebenen Höchstwert normiert. Jeder Buckel endet exakt an seinem Radius, deshalb ist die Höhe am Polygonrand automatisch null, ohne Maske und ohne Beschneiden. Die Gipfel sind Buckel mit voller Amplitude; ihr Radius bleibt unter dem 1,118-fachen Gipfelabstand — das ist es, was zwischen zwei Gipfeln zwingend einen Sattel erzwingt statt eines Grats, wie ihn ein Dreiecksnetz dort hinlegen würde.</p>
-			<p>Das Tempo folgt Toblers Wanderfunktion, normiert auf 1,0 in der Ebene, mit <code>1 Karteneinheit = 3000 Schritt</code>. Der Bewuchs multipliziert <em>isotrop</em> — in jede Richtung gleich. Die Steigung wirkt <em>gerichtet</em>. Dass mehr Buckel die Reise verlängern, liegt daran, dass die Tempokurve konvex ist: Umwege nach oben kosten mehr, als Umwege nach unten einbringen.</p>
-			<p>Eine Ehrlichkeit zum Schluss: bei einer <em>vollen</em> Querung sind Anstieg und Abstieg gleich groß, der Richtungsunterschied hebt sich in der Gesamtzahl also fast auf. Er steckt in jedem einzelnen Pfeil, nicht im Endergebnis — sichtbar wird er erst bei Routen, die im Gebirge anfangen oder enden.</p>
+			<p>Das Gelände ist eine Summe kompakt getragener Buckel — <code>Σ a·(1−q²)³</code> —, auf einem verwackelten Raster erzeugt und auf den eingegebenen Höchstwert normiert. Jeder Buckel endet exakt an seinem Radius, deshalb ist die Höhe am Polygonrand automatisch null, ohne Maske und ohne Beschneiden. Die Gipfel sind Buckel mit ihrer eigenen Amplitude; ihr Radius bleibt unter dem 1,118-fachen Gipfelabstand — das erzwingt zwischen zwei Gipfeln einen Sattel statt eines Grats, wie ihn ein Dreiecksnetz dort hinlegen würde.</p>
+			<p>Weil Buckel außerhalb ihres Radius exakt null sind, liegt jeder in einem Gitterindex, und eine Auswertung liest nur ihre eigene Zelle. Der Aufwand hängt damit <em>nicht</em> an der Buckelzahl: gemessen kosten 7,6-mal so viele Buckel 7 % mehr Zeit.</p>
+			<p>Das Tempo folgt Toblers Wanderfunktion, normiert auf 1,0 in der Ebene, mit <code>1 Karteneinheit = 3000 Schritt</code>. Der Bewuchs multipliziert <em>isotrop</em> — in jede Richtung gleich. Die Steigung wirkt <em>gerichtet</em>.</p>
+			<p>Eine Ehrlichkeit zum Schluss: bei einer <em>vollen</em> Querung sind Anstieg und Abstieg gleich groß, der Richtungsunterschied hebt sich in der Gesamtzahl also fast auf. Er steckt in jedem einzelnen Pfeil, nicht im Endergebnis.</p>
 		</details>
 	</div>
 </div>
@@ -221,17 +249,31 @@ const W = 900, H = 540;
 const PX_TO_SCHRITT = 400;            // 1 px = 0,4 Meilen = 400 Schritt
 
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
-const ov = document.getElementById('ov');
+const ov = document.getElementById('ov'), pop = document.getElementById('pop');
 
-let topo  = [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]];
-let veg   = [[120,250],[250,180],[380,210],[430,320],[380,430],[240,470],[130,410],[90,320]];
-// f = Anteil an der eingetragenen Hoechsthoehe. Im echten System kommt die Zahl je Gipfel aus
-// dem Wiki und haengt am berggipfel-Label; hier stehen zwei verschieden hohe stellvertretend.
-let peaks = [{x:390,y:170,f:1},{x:520,y:280,f:.78}];
+// ----------------------------------------------------------------- Zustand
+// Jede topographische Flaeche traegt ihre EIGENEN Werte. Hoehe, Koernung und Detailstufen sind
+// Eigenschaften des Gebiets, nicht des Editors -- zwei Gebirge auf derselben Karte haben nichts
+// miteinander zu tun. In der Menueleiste bleibt nur, was fuer die ganze Ansicht gilt.
+// ALLE Felder stehen schon im Literal, auch die erst spaeter berechneten. Werden sie stattdessen
+// nachtraeglich angehaengt, wechselt das Objekt bei jedem Bau seine innere Form, und die Zugriffe
+// in der Malschleife fallen auf den langsamen Pfad -- gemessen 47 ms statt 8,6 fuer dieselbe
+// Flaeche mit denselben Buckeln.
+const NEU = o => Object.assign({ bumps: [], peakBumps: [], grid: null, gCell: 18, gW: 0, gH: 0,
+	scale: 1, mask: null, maskSig: '', rMin: 0 }, o);
+let areas = [
+	NEU({ name: 'Amboss-Wall', seed: 20260719, hmax: 5200, grain: 30, levels: 2,
+	  ring: [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]],
+	  peaks: [{ x: 390, y: 170, f: 1 }, { x: 520, y: 280, f: .78 }] }),
+	NEU({ name: 'Zwergenzinnen', seed: 77414, hmax: 2600, grain: 62, levels: 2,
+	  ring: [[660,235],[762,196],[856,246],[872,344],[800,412],[698,396],[648,318]],
+	  peaks: [{ x: 745, y: 300, f: 1 }] }),
+];
+let veg = [[120,250],[250,180],[380,210],[430,320],[380,430],[240,470],[130,410],[90,320]];
 let route = [[20,330],[170,318],[330,300],[470,262],[620,240],[790,268],[880,300]];
+let layer = 'topo', selArea = null;
 
-let layer = 'topo', seed = 20260719, bumps = [], scale = 1;
-
+// ------------------------------------------------------------------ Geometrie
 const inPoly = (px, py, p) => {
 	let c = false;
 	for (let i = 0, j = p.length - 1; i < p.length; j = i++) {
@@ -251,170 +293,84 @@ function distEdge(px, py, p) {
 	}
 	return b;
 }
-// Per-CELL hash instead of a sequential generator. A cell's bump is derived from
-// (seed, level, cell index) alone -- not from how many bumps came before it, and not from the
-// polygon's bounding box. That is what makes the field stable: adding a finer level, or moving a
-// far-away vertex, leaves every existing bump exactly where it was.
-function cellHash(level, ix, iy, salt) {
+// Per-CELL hash: die Lage eines Buckels haengt nur an (Saat, Stufe, Zellindex) -- nicht daran,
+// wie viele Buckel vorher kamen, und nicht am Umriss. Deshalb bleibt beim Verfeinern alles stehen.
+function cellHash(seed, level, ix, iy, salt) {
 	let n = (seed ^ Math.imul(level + 1, 0x9E3779B1) ^ Math.imul(ix, 0x85EBCA6B) ^ Math.imul(iy, 0xC2B2AE35) ^ Math.imul(salt, 0x27D4EB2F)) | 0;
 	n = Math.imul(n ^ (n >>> 15), 0x2C1B3C6D); n ^= n >>> 12;
 	n = Math.imul(n ^ (n >>> 15), 0x297A2D39); n ^= n >>> 15;
 	return (n >>> 0) / 4294967296;
 }
 
-// One stratified level: a grid of cell size c in ABSOLUTE map coordinates, one jittered bump per
-// cell. Stratified rather than uniformly random, because uniform points clump and leave holes --
-// a grid with jitter covers evenly and still looks unplanned.
-const JITTER = .55;                                     // Zittern als Anteil des Sollabstands
-
-function level(k, c0, amp, out) {
-	// VERSETZTES (hexagonales) Gitter statt eines quadratischen. Beim Quadratgitter duerfen zwei
-	// Nachbarzellen ihre Punkte beide an die gemeinsame Kante legen -- die stehen dann bei rund
-	// 30 % des Sollabstands beieinander und lesen sich als Doppelhuegel. Im Dreiecksgitter liegen
-	// die sechs Nachbarn gleich weit entfernt, der schlechteste Fall ist also deutlich besser.
-	// Zittern bleibt, sonst sieht man die Reihen; nur schwaecher als vorher (0,55 statt 0,7 voll).
-	const c = c0 * 1.075;                                 // gleicht die dichtere Hex-Packung aus,
-	const rowH = c * Math.sqrt(3) / 2;                    // damit die Buckelzahl vergleichbar bleibt
-	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
+// -------------------------------------------------------------- Buckelfeld
+// Eine stratifizierte Stufe: Gitter der Zellgroesse c in ABSOLUTEN Kartenkoordinaten, ein
+// verwackelter Buckel je Zelle. Stratifiziert statt gleichverteilt, weil zufaellige Punkte
+// klumpen und Loecher lassen.
+function level(a, k, c, amp, out) {
+	const xs = a.ring.map(p => p[0]), ys = a.ring.map(p => p[1]);
 	const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-	for (let iy = Math.floor(y0 / rowH) - 1; iy <= Math.ceil(y1 / rowH) + 1; iy++) {
-		const versatz = (iy & 1) ? c / 2 : 0;             // jede zweite Reihe um eine halbe Zelle
-		for (let ix = Math.floor((x0 - versatz) / c) - 1; ix <= Math.ceil((x1 - versatz) / c) + 1; ix++) {
-			const px = ix * c + versatz + (cellHash(k, ix, iy, 1) - .5) * c * JITTER;
-			const py = iy * rowH + (cellHash(k, ix, iy, 2) - .5) * rowH * JITTER;
-			if (!inPoly(px, py, topo)) continue;
-			const r = Math.min(c * .85, distEdge(px, py, topo));
-			if (r < c * .3) continue;                       // zu dicht am Rand, traegt kaum bei
-			out.push({ x: px, y: py, r, a: amp * (.55 + .9 * cellHash(k, ix, iy, 3)) });
+	for (let ix = Math.floor(x0 / c) - 1; ix <= Math.ceil(x1 / c) + 1; ix++) {
+		for (let iy = Math.floor(y0 / c) - 1; iy <= Math.ceil(y1 / c) + 1; iy++) {
+			const px = (ix + .15 + .7 * cellHash(a.seed, k, ix, iy, 1)) * c;
+			const py = (iy + .15 + .7 * cellHash(a.seed, k, ix, iy, 2)) * c;
+			if (!inPoly(px, py, a.ring)) continue;
+			const r = Math.min(c * .85, distEdge(px, py, a.ring));
+			if (r < c * .3) continue;
+			out.push({ x: px, y: py, r, a: amp * (.55 + .9 * cellHash(a.seed, k, ix, iy, 3)) });
 		}
 	}
 }
 
-function build() {
-	const L = +document.getElementById('levels').value;
-	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
-	// Koernung: wie oft passt eine Zelle in die Flaeche. Klein = wenige weite Buckel (ein Massiv),
-	// gross = viele enge (Huegelland). Das ist die Charakter-Achse und aendert das Gelaende ganz --
-	// anders als die Detailstufen, die nur ergaenzen. Die Gipfel bleiben davon unberuehrt.
-	const teiler = +document.getElementById('grain').value / 10;
-	const C0 = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / teiler;
-
-	const hmax = +document.getElementById('hmax').value;
-
-	// Grobe Struktur: Stufe 0 plus die gesetzten Gipfel.
-	const grob = [];
-	level(0, C0, .85, grob);
-	// Gipfelradius unter dem 1,118-fachen Gipfelabstand -- das erzwingt den Sattel statt eines Grats.
-	// Amplitude = die EIGENE Hoehe des Gipfels, nicht pauschal 1. Sonst sind alle gleich hoch.
-	const sep = peaks.length > 1 ? Math.hypot(peaks[0].x - peaks[1].x, peaks[0].y - peaks[1].y) : 1e9;
-	const gipfelBumps = [];
-	for (const p of peaks) {
-		if (!inPoly(p.x, p.y, topo)) continue;
-		// Riegel: eine fehlende oder unsinnige Hoehe darf die ganze Flaeche nicht auf NaN ziehen.
-		const f = Number.isFinite(p.f) && p.f > 0 ? p.f : 1;
-		gipfelBumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, topo), .72 * sep, 150), a: f, peak: true });
-	}
-	for (const b of grob) b.i = 1 / (b.r * b.r);
-	for (const b of gipfelBumps) b.i = 1 / (b.r * b.r);
-
-	// Das Rauschen wird gedaempft, bis es UNTER dem niedrigsten benannten Gipfel bleibt. Sonst
-	// steht der Amboss zwar auf einem Hochpunkt, aber irgendein erfundener Hügel ueberragt ihn --
-	// und genau das faellt jedem auf, der die Karte kennt.
-	bumps = grob;                                   // nur Rauschen, ohne Gipfel: dessen Maximum messen
-	peakBumps = []; buildIndex(grob);
-	let lmax = 0;
-	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = raw(x, y); if (v > lmax) lmax = v; }
-	const minGipfel = gipfelBumps.length ? Math.min(...gipfelBumps.map(b => b.a)) : 1;
-	const daempfung = lmax > 0 ? Math.min(1, .8 * minGipfel / lmax) : 1;
-	for (const b of grob) b.a *= daempfung;
-
-	// Normiert wird auf den HOECHSTEN benannten Gipfel: dessen Buckel traegt in seinem Zentrum
-	// genau seine Amplitude (das Fenster loescht dort das Rauschen), also liest er exakt die Zahl,
-	// die der Editor eingetragen hat. Ohne Gipfel faellt es auf das Rauschmaximum zurueck.
-	bumps = grob.concat(gipfelBumps);
-	peakBumps = gipfelBumps; buildIndex(grob);
-	const maxGipfel = gipfelBumps.length ? Math.max(...gipfelBumps.map(b => b.a)) : 0;
-	scale = maxGipfel > 0 ? hmax / maxGipfel : (lmax > 0 ? hmax / lmax : 0);
-
-	// Feinere Stufen: halber Zellabstand, aber Amplitude x0,35 je Stufe -- NICHT x0,5.
-	// Mit halbem Zellabstand liegen viermal so viele Buckel im Gebiet, ihr Radius halbiert sich
-	// mit, also decken an jedem Punkt etwa gleich viele Buckel wie zuvor. Bei x0,5 summiert sich
-	// das Feine deshalb auf fast dieselbe Hoehe wie das Grobe (gemessen +69 %), und der Berg
-	// WAECHST beim Verfeinern. x0,35 haelt den Zuwachs bei rund einem Drittel: sichtbares Detail,
-	// aber die Gebirgshoehe bleibt die, die der Editor eingetragen hat.
-	const fein = [];
-	for (let k = 1; k <= L; k++) level(k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k) * daempfung, fein);
-	for (const b of fein) b.i = 1 / (b.r * b.r);
-	bumps = grob.concat(gipfelBumps, fein);
-	buildIndex(grob.concat(fein));                  // endgueltiger Index: alles Rauschen, ohne Gipfel
-
-	document.getElementById('levelsN').textContent = L + ' · ' + bumps.length + ' Buckel';
-	document.getElementById('grainN').textContent =
-		teiler <= 2.6 ? 'einzelne Massive' : teiler >= 6 ? 'viele Hügel' : 'ausgewogen';
-	rMin = bumps.length ? Math.min(...bumps.map(b => b.r)) : 0;
-}
-let rMin = 0;
-// ---------------------------------------------------------------- Gitter-Index
-// Buckel haben kompakten Traeger: ausserhalb ihres Radius sind sie EXAKT null. Es muessen also
-// nie alle geprueft werden, sondern nur die, deren Kreis den Punkt erreicht. Jeder Buckel wird in
-// alle Zellen eingetragen, die sein Traegerquadrat beruehrt; eine Abfrage liest dann nur ihre
-// eigene Zelle. Weil der Radius bauartbedingt etwa dem Zellabstand entspricht, decken an jeder
-// Stelle etwa gleich viele Buckel -- die Auswertung wird damit UNABHAENGIG von der Buckelzahl,
-// und die Koernung kostet keine Rechenzeit mehr.
-let peakBumps = [], grid = null, gCell = 32, gW = 0, gH = 0, gCount = 0;
-function buildIndex(noise) {
+// Buckel haben kompakten Traeger: ausserhalb ihres Radius EXAKT null. Jeder wird deshalb in die
+// Zellen eingetragen, die sein Traegerquadrat beruehrt, und eine Abfrage liest nur ihre eigene
+// Zelle. Weil der Radius dem Zellabstand folgt, decken ueberall etwa gleich viele -- die
+// Auswertung wird damit unabhaengig von der Buckelzahl.
+function buildIndex(a, noise) {
 	const rMax = noise.length ? Math.max(...noise.map(b => b.r)) : 32;
 	const rMn = noise.length ? Math.min(...noise.map(b => b.r)) : 32;
-	gCell = Math.max(10, Math.min(rMax, Math.max(rMn, 18)));
-	gW = Math.ceil(W / gCell) + 1; gH = Math.ceil(H / gCell) + 1;
-	grid = new Array(gW * gH);
-	gCount = 0;
+	a.gCell = Math.max(10, Math.min(rMax, Math.max(rMn, 18)));
+	a.gW = Math.ceil(W / a.gCell) + 1; a.gH = Math.ceil(H / a.gCell) + 1;
+	a.grid = new Array(a.gW * a.gH);
 	for (const b of noise) {
-		const i0 = Math.max(0, (b.x - b.r) / gCell | 0), i1 = Math.min(gW - 1, (b.x + b.r) / gCell | 0);
-		const j0 = Math.max(0, (b.y - b.r) / gCell | 0), j1 = Math.min(gH - 1, (b.y + b.r) / gCell | 0);
+		const i0 = Math.max(0, (b.x - b.r) / a.gCell | 0), i1 = Math.min(a.gW - 1, (b.x + b.r) / a.gCell | 0);
+		const j0 = Math.max(0, (b.y - b.r) / a.gCell | 0), j1 = Math.min(a.gH - 1, (b.y + b.r) / a.gCell | 0);
 		for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-			const k = j * gW + i;
-			(grid[k] || (grid[k] = [])).push(b);
-			gCount++;
+			const k = j * a.gW + i;
+			(a.grid[k] || (a.grid[k] = [])).push(b);
 		}
 	}
 }
 
 // Fenster, das das Rauschen an jedem Gipfel auf null zieht -- UND ZWAR MIT STEIGUNG NULL.
-// Das ist der Punkt: der Buckel (1-q^2)^3 hat in seinem Zentrum selbst die Steigung null, dort
-// zaehlt also allein das Gefaelle des Rauschens. Ein blosses Abschwaechen genuegt deshalb nicht,
-// der Hochpunkt der Summe wandert trotzdem weg. Das Argument t = d^2/D^2 ist quadratisch im
-// Abstand, die Ableitung nach d verschwindet am Gipfel -- damit ist der Gipfel ein kritischer
-// Punkt der Summe, und weil sein eigener Buckel dort ein echtes Maximum hat, ein Hochpunkt.
-function peakWindow(x, y) {
+// Der Buckel (1-q^2)^3 hat in seinem Zentrum selbst Steigung null, dort zaehlt also allein das
+// Gefaelle des Rauschens; blosses Abschwaechen genuegt deshalb nicht, der Hochpunkt wandert
+// trotzdem weg. t = d^2/D^2 ist quadratisch im Abstand, die Ableitung verschwindet am Gipfel.
+function peakWindow(a, x, y) {
 	let w = 1;
-	// Nur die Gipfel, nicht alle Buckel: vorher lief das GESAMTE Array pro Pixel durch,
-	// bei feiner Koernung 700 Durchlaeufe, um zwei Eintraege zu finden.
-	for (let k = 0; k < peakBumps.length; k++) {
-		const b = peakBumps[k];
-		const D2 = b.r * b.r * .36;                       // Fensterradius = 0,6 x Gipfelradius
+	for (let k = 0; k < a.peakBumps.length; k++) {
+		const b = a.peakBumps[k];
+		const D2 = b.r * b.r * .36;
 		const dx = x - b.x, dy = y - b.y, d2 = dx * dx + dy * dy;
 		if (d2 >= D2) continue;
-		const t = d2 / D2;
-		const s = t * t * (3 - 2 * t);                    // Smoothstep, in d gerechnet doppelt flach
+		const t = d2 / D2, s = t * t * (3 - 2 * t);
 		if (s < w) w = s;
 	}
 	return w;
 }
-function raw(x, y) {
+function rawArea(a, x, y) {
+	// Felder EINMAL in Locals holen, nicht in den Schleifen wiederholt als Eigenschaft lesen.
+	const pb = a.peakBumps, grid = a.grid, gc = a.gCell, gw = a.gW, gh = a.gH;
 	let gipfel = 0;
-	for (let k = 0; k < peakBumps.length; k++) {
-		const b = peakBumps[k];
+	for (let k = 0; k < pb.length; k++) {
+		const b = pb[k];
 		const dx = x - b.x, dy = y - b.y, q = (dx * dx + dy * dy) * b.i;
 		if (q < 1) { const u = 1 - q; gipfel += b.a * u * u * u; }
 	}
-	// Rauschen NUR aus der eigenen Gitterzelle. Alles ausserhalb ist per Konstruktion null,
-	// muss also gar nicht erst geprueft werden.
 	let rauschen = 0;
 	if (grid) {
-		const i = x / gCell | 0, j = y / gCell | 0;
-		if (i >= 0 && j >= 0 && i < gW && j < gH) {
-			const cell = grid[j * gW + i];
+		const i = x / gc | 0, j = y / gc | 0;
+		if (i >= 0 && j >= 0 && i < gw && j < gh) {
+			const cell = grid[j * gw + i];
 			if (cell) for (let k = 0; k < cell.length; k++) {
 				const b = cell[k];
 				const dx = x - b.x, dy = y - b.y, q = (dx * dx + dy * dy) * b.i;
@@ -425,10 +381,87 @@ function raw(x, y) {
 	// NICHT `rauschen > 0` fragen: das ist bei NaN false und wuerde einen Rechenfehler in eine
 	// stumm flache Landschaft verwandeln statt ihn zu zeigen. Genau das ist einmal passiert.
 	if (rauschen === 0) return gipfel;
-	return gipfel + peakWindow(x, y) * rauschen;
+	return gipfel + peakWindow(a, x, y) * rauschen;
 }
-const hAt = (x, y) => inPoly(x, y, topo) ? raw(x, y) * scale : 0;
 
+function buildArea(a) {
+	const xs = a.ring.map(p => p[0]), ys = a.ring.map(p => p[1]);
+	const teiler = a.grain / 10;
+	const C0 = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / teiler;
+
+	const grob = [];
+	level(a, 0, C0, .85, grob);
+	// Gipfelradius unter dem 1,118-fachen Gipfelabstand erzwingt den Sattel. Amplitude = die
+	// EIGENE Hoehe des Gipfels; ein fehlender Wert darf die Flaeche nicht auf NaN ziehen.
+	let sep = 1e9;
+	for (let i = 0; i < a.peaks.length; i++) for (let j = i + 1; j < a.peaks.length; j++)
+		sep = Math.min(sep, Math.hypot(a.peaks[i].x - a.peaks[j].x, a.peaks[i].y - a.peaks[j].y));
+	a.peakBumps = [];
+	for (const p of a.peaks) {
+		if (!inPoly(p.x, p.y, a.ring)) continue;
+		const f = Number.isFinite(p.f) && p.f > 0 ? p.f : 1;
+		a.peakBumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, a.ring), .72 * sep, 150), a: f, peak: true });
+	}
+	for (const b of grob) b.i = 1 / (b.r * b.r);
+	for (const b of a.peakBumps) b.i = 1 / (b.r * b.r);
+
+	// Rauschmaximum messen (ohne Gipfel), dann so daempfen, dass es unter dem NIEDRIGSTEN
+	// benannten Gipfel bleibt -- sonst ueberragt ein erfundener Huegel einen benannten.
+	const keepPeaks = a.peakBumps; a.peakBumps = [];
+	buildIndex(a, grob);
+	let lmax = 0;
+	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = rawArea(a, x, y); if (v > lmax) lmax = v; }
+	a.peakBumps = keepPeaks;
+	const minG = a.peakBumps.length ? Math.min(...a.peakBumps.map(b => b.a)) : 1;
+	const daempfung = lmax > 0 ? Math.min(1, .8 * minG / lmax) : 1;
+	for (const b of grob) b.a *= daempfung;
+
+	// Normiert auf den HOECHSTEN benannten Gipfel: dessen Buckel traegt in seinem Zentrum genau
+	// seine Amplitude (das Fenster loescht dort das Rauschen), er liest also exakt die eingetragene
+	// Zahl. Ohne Gipfel faellt es auf das Rauschmaximum zurueck.
+	const maxG = a.peakBumps.length ? Math.max(...a.peakBumps.map(b => b.a)) : 0;
+	a.scale = maxG > 0 ? a.hmax / maxG : (lmax > 0 ? a.hmax / lmax : 0);
+
+	// Feinere Stufen: halber Zellabstand, Amplitude x0,35 je Stufe -- NICHT x0,5. Bei halbem
+	// Abstand liegen viermal so viele Buckel im Gebiet und ihre Radien halbieren sich mit, an
+	// jedem Punkt decken also gleich viele wie zuvor. Bei x0,5 summiert sich das Feine auf fast
+	// dieselbe Hoehe wie das Grobe (gemessen +69 %) und der Berg WAECHST beim Verfeinern.
+	const fein = [];
+	for (let k = 1; k <= a.levels; k++) level(a, k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k) * daempfung, fein);
+	for (const b of fein) b.i = 1 / (b.r * b.r);
+	buildIndex(a, grob.concat(fein));
+	a.bumps = grob.concat(a.peakBumps, fein);
+	a.rMin = a.bumps.length ? Math.min(...a.bumps.map(b => b.r)) : 0;
+
+	// Polygon-Test einmal in eine Maske, statt pro Pixel ueber alle Ecken zu laufen. Nur neu,
+	// wenn sich der Umriss wirklich bewegt hat -- beim Gipfelziehen faellt er damit ganz weg.
+	const sig = a.ring.map(p => (p[0] | 0) + ',' + (p[1] | 0)).join(';');
+	if (sig !== a.maskSig || !a.mask) {
+		a.maskSig = sig;
+		a.mask = new Uint8Array(W * H);
+		const bx0 = Math.max(0, Math.min(...xs) | 0), bx1 = Math.min(W - 1, Math.ceil(Math.max(...xs)));
+		const by0 = Math.max(0, Math.min(...ys) | 0), by1 = Math.min(H - 1, Math.ceil(Math.max(...ys)));
+		for (let y = by0; y <= by1; y++) for (let x = bx0; x <= bx1; x++)
+			if (inPoly(x, y, a.ring)) a.mask[y * W + x] = 1;
+	}
+}
+const buildAll = () => areas.forEach(buildArea);
+
+// Hoehe an einer Stelle: Summe ueber alle Flaechen, die sie enthalten. Ueberlappen sich zwei
+// Gebirge, addieren sich ihre Felder -- am Rand ist jedes null, das bleibt also stetig.
+// Indizierte Schleife, kein for..of: das laeuft in der Malschleife hunderttausendfach, und jede
+// Iterator-Allokation dort kostet mehr als die eigentliche Rechnung.
+function hAt(x, y) {
+	let h = 0;
+	const row = (y | 0) * W + (x | 0);
+	for (let k = 0; k < areas.length; k++) {
+		const a = areas[k];
+		if (a.mask && a.mask[row]) h += rawArea(a, x, y) * a.scale;
+	}
+	return h;
+}
+
+// ------------------------------------------------------------------- Farben
 const STOPS = [[0,[176,190,158]],[.25,[198,190,150]],[.55,[190,163,124]],[.8,[214,196,178]],[1,[247,243,238]]];
 function ramp(t) {
 	t = Math.max(0, Math.min(1, t));
@@ -438,46 +471,42 @@ function ramp(t) {
 	}
 	return [247, 243, 238];
 }
-// Der Polygon-Test kostete pro Pixel eine Schleife ueber alle Ecken -- bei jedem Malen erneut,
-// obwohl sich der Umriss dabei fast nie aendert. Er wird deshalb EINMAL in eine Maske gelegt und
-// nur neu gebaut, wenn sich der Umriss tatsaechlich bewegt hat. Beim Ziehen eines Gipfels oder
-// beim Wechsel der Aufloesung faellt er damit ganz weg.
-let mask = null, maskSig = '';
-function ensureMask() {
-	const sig = topo.map(p => (p[0] | 0) + ',' + (p[1] | 0)).join(';');
-	if (sig === maskSig && mask) return;
-	maskSig = sig;
-	mask = new Uint8Array(W * H);
-	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
-	const x0 = Math.max(0, Math.min(...xs) | 0), x1 = Math.min(W - 1, Math.ceil(Math.max(...xs)));
-	const y0 = Math.max(0, Math.min(...ys) | 0), y1 = Math.min(H - 1, Math.ceil(Math.max(...ys)));
-	for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-		if (inPoly(x, y, topo)) mask[y * W + x] = 1;      // ausserhalb der bbox bleibt es 0
-	}
-}
 function paint() {
 	cv.width = W; cv.height = H;
 	const img = ctx.createImageData(W, H), d = img.data;
-	const hm = +document.getElementById('hmax').value;
 	const S = +document.getElementById('step').value;
+	// EINE gemeinsame Farbskala ueber alle Flaechen, sonst sieht ein 2.600er Bergland genauso
+	// hoch aus wie ein 5.200er Wall.
+	const hm = Math.max(...areas.map(a => a.hmax), 1);
 	const t0 = performance.now();
-	ensureMask();
-	for (let y = 0; y < H; y += S) for (let x = 0; x < W; x += S) {
-		let r = 0, g = 0, b = 0, a = 0;
-		if (mask[y * W + x]) { const c = ramp(raw(x, y) * scale / hm); r = c[0]; g = c[1]; b = c[2]; a = 255; }
-		for (let j = 0; j < S && y + j < H; j++) for (let i = 0; i < S && x + i < W; i++) {
-			const o = ((y + j) * W + (x + i)) * 4; d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = a;
+	// EIN Durchgang: Maske lesen und Hoehe aufsummieren zugleich, indiziert statt for..of.
+	// Vorher liefen hier zwei Iteratoren je Pixel (einmal "drin?", einmal in hAt) -- 242.000
+	// Allokationen pro Bild, die mehr kosteten als das Feld selbst (gemessen 47 ms statt 8,6).
+	const A = areas, nA = A.length;
+	for (let y = 0; y < H; y += S) {
+		const row = y * W;
+		for (let x = 0; x < W; x += S) {
+			let r = 0, g = 0, b = 0, al = 0, h = 0, drin = false;
+			for (let k = 0; k < nA; k++) {
+				const a = A[k];
+				if (a.mask[row + x]) { drin = true; h += rawArea(a, x, y) * a.scale; }
+			}
+			if (drin) { const c = ramp(h / hm); r = c[0]; g = c[1]; b = c[2]; al = 255; }
+			for (let j = 0; j < S && y + j < H; j++) for (let i = 0; i < S && x + i < W; i++) {
+				const o = ((y + j) * W + (x + i)) * 4; d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = al;
+			}
 		}
 	}
 	ctx.putImageData(img, 0, 0);
 	document.getElementById('stepMs').textContent = (performance.now() - t0).toFixed(1) + ' ms';
 }
 
-// Tobler's hiking function, normalised to 1.0 on the flat.
+// ------------------------------------------------------- Route und Geschwindigkeit
 const rel = s => Math.exp(-3.5 * (Math.abs(s + .05) - .05));
 function sampleRoute() {
 	const vf = +document.getElementById('veg').value / 100, pts = [];
 	let tF = 0, tB = 0, flat = 0, asc = 0, desc = 0;
+	const gequert = new Set();
 	for (let i = 0; i < route.length - 1; i++) {
 		const [x0, y0] = route[i], [x1, y1] = route[i + 1];
 		const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / 3));
@@ -488,6 +517,7 @@ function sampleRoute() {
 			const ds = Math.hypot(bx - ax, by - ay); if (!ds) continue;
 			const hA = hAt(ax, ay), hB = hAt(bx, by), dh = hB - hA;
 			const mx = (ax + bx) / 2, my = (ay + by) / 2;
+			areas.forEach((a, idx) => { if (a.mask[(my | 0) * W + (mx | 0)]) gequert.add(idx); });
 			const v = inPoly(mx, my, veg) ? vf : 1;
 			const s = dh / (ds * PX_TO_SCHRITT);
 			tF += ds / (rel(s) / v);
@@ -497,9 +527,10 @@ function sampleRoute() {
 			pts.push({ x: mx, y: my, ang: Math.atan2(by - ay, bx - ax), spd: rel(s) / v, d: flat });
 		}
 	}
-	return { pts, fF: tF / flat, fB: tB / flat, asc, desc };
+	return { pts, fF: tF / flat, fB: tB / flat, asc, desc, gequert };
 }
 
+// ------------------------------------------------------------------- Zeichnen
 const ns = 'http://www.w3.org/2000/svg';
 const el = (t, a) => { const e = document.createElementNS(ns, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -520,8 +551,12 @@ function draw() {
 
 	ov.appendChild(el('polygon', { points: pstr(veg), fill: cVegFill, 'fill-opacity': topoOn ? .12 : .34,
 		stroke: cVeg, 'stroke-width': topoOn ? 2 : 2.8, 'stroke-opacity': topoOn ? .35 : 1, 'stroke-linejoin': 'round' }));
-	ov.appendChild(el('polygon', { points: pstr(topo), fill: 'none',
-		stroke: cTopo, 'stroke-width': topoOn ? 2.8 : 2, 'stroke-opacity': topoOn ? 1 : .35, 'stroke-linejoin': 'round' }));
+	areas.forEach((a, idx) => {
+		ov.appendChild(el('polygon', { points: pstr(a.ring), fill: 'none', stroke: cTopo,
+			'stroke-width': topoOn ? (idx === selArea ? 3.6 : 2.8) : 2,
+			'stroke-opacity': topoOn ? 1 : .35, 'stroke-linejoin': 'round',
+			'data-k': 'area', 'data-i': idx, style: topoOn ? 'cursor:context-menu' : '' }));
+	});
 
 	ov.appendChild(el('polyline', { points: pstr(route), fill: 'none', stroke: cInk, 'stroke-width': 1.6, 'stroke-opacity': .3 }));
 	let next = 0;
@@ -533,15 +568,25 @@ function draw() {
 			stroke: cRoute, 'stroke-width': 3.2, 'marker-end': 'url(#a)' }));
 	}
 
-	const act = topoOn ? topo : veg, col = topoOn ? cTopo : cVeg;
-	act.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5.5, fill: cCard,
-		stroke: col, 'stroke-width': 2, 'data-k': topoOn ? 'topo' : 'veg', 'data-i': i, style: 'cursor:grab' })));
-	if (topoOn) peaks.forEach((p, i) => {
-		ov.appendChild(el('path', { d: `M${p.x-9},${p.y+5} L${p.x},${p.y-11} L${p.x+9},${p.y+5} Z`,
-			fill: cInk, 'data-k': 'peak', 'data-i': i, style: 'cursor:grab' }));
-		ov.appendChild(el('text', { x: p.x, y: p.y - 16, 'font-size': 11, 'font-weight': 700, fill: cInk,
-			'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle' })).textContent = Math.round(hAt(p.x, p.y)).toLocaleString('de-DE');
-	});
+	if (topoOn) {
+		areas.forEach((a, ai) => {
+			a.ring.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5.5, fill: cCard,
+				stroke: cTopo, 'stroke-width': 2, 'data-k': 'topo', 'data-a': ai, 'data-i': i, style: 'cursor:grab' })));
+			a.peaks.forEach((p, i) => {
+				ov.appendChild(el('path', { d: `M${p.x-9},${p.y+5} L${p.x},${p.y-11} L${p.x+9},${p.y+5} Z`,
+					fill: cInk, 'data-k': 'peak', 'data-a': ai, 'data-i': i, style: 'cursor:grab' }));
+				ov.appendChild(el('text', { x: p.x, y: p.y - 16, 'font-size': 11, 'font-weight': 700, fill: cInk,
+					'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle' })).textContent = Math.round(hAt(p.x, p.y)).toLocaleString('de-DE');
+			});
+			const cx = a.ring.reduce((s, p) => s + p[0], 0) / a.ring.length;
+			const cy = a.ring.reduce((s, p) => s + p[1], 0) / a.ring.length;
+			ov.appendChild(el('text', { x: cx, y: cy, 'font-size': 12, 'font-style': 'italic', fill: cInk,
+				'fill-opacity': .55, 'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle' })).textContent = a.name;
+		});
+	} else {
+		veg.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5.5, fill: cCard,
+			stroke: cVeg, 'stroke-width': 2, 'data-k': 'veg', 'data-i': i, style: 'cursor:grab' })));
+	}
 	route.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5, fill: cRoute,
 		'fill-opacity': .85, stroke: cCard, 'stroke-width': 1.6, 'data-k': 'route', 'data-i': i, style: 'cursor:grab' })));
 
@@ -549,51 +594,85 @@ function draw() {
 	document.getElementById('oFac').textContent = '×' + f((r.fF + r.fB) / 2);
 	document.getElementById('oDir').textContent = '×' + f(r.fF) + ' / ×' + f(r.fB);
 	document.getElementById('oAsc').textContent = Math.round(r.asc).toLocaleString('de-DE') + ' / ' + Math.round(r.desc).toLocaleString('de-DE');
-	let sad = '—';
-	if (peaks.length > 1) {
-		const mx = (peaks[0].x + peaks[1].x) / 2, my = (peaks[0].y + peaks[1].y) / 2;
-		const hg = Math.max(hAt(peaks[0].x, peaks[0].y), hAt(peaks[1].x, peaks[1].y));
-		if (hg > 0) sad = Math.round(100 * hAt(mx, my) / hg) + ' %';
-	}
-	document.getElementById('oSad').textContent = sad;
+	document.getElementById('oCross').textContent = r.gequert.size;
+	const nB = areas.reduce((s, a) => s + a.bumps.length, 0);
 	document.getElementById('note').innerHTML =
 		'Im <strong>Wald</strong> werden alle Pfeile gleichmäßig kürzer, egal in welche Richtung — das ist der Bewuchs. '
 		+ 'Im <strong>Gebirge</strong> werden sie im Anstieg kurz und im Gefälle wieder lang — das ist das Höhenfeld.<br>'
-		+ bumps.length + ' Buckel, ' + (bumps.length * 5 * 8 / 1024).toFixed(1) + ' KB gespeichert. '
-		+ 'Kleinster Radius ' + rMin.toFixed(1) + ' Einheiten → nötige Abtastweite für die Route '
-		+ '<strong>' + (rMin / 8).toFixed(2) + '</strong> (r<sub>min</sub>/8).';
+		+ areas.length + ' Gebirge, ' + nB + ' Buckel, ' + (nB * 5 * 8 / 1024).toFixed(1) + ' KB gespeichert.';
+	if (selArea !== null) refreshPop();
 }
-function all() { build(); paint(); draw(); }
+function all() { buildAll(); paint(); draw(); }
 
+// -------------------------------------------------- Einstellungen je Flaeche
+function openPop(idx, clientX, clientY) {
+	selArea = idx;
+	const a = areas[idx], st = document.getElementById('stage').getBoundingClientRect();
+	pop.hidden = false;
+	const x = Math.min(Math.max(8, clientX - st.left + 10), st.width - 262);
+	const y = Math.min(Math.max(8, clientY - st.top + 8), st.height - 250);
+	pop.style.left = x + 'px'; pop.style.top = y + 'px';
+	document.getElementById('popName').textContent = a.name;
+	document.getElementById('pHmax').value = a.hmax;
+	document.getElementById('pGrain').value = a.grain;
+	document.getElementById('pLevels').value = a.levels;
+	refreshPop();
+	draw();
+}
+function refreshPop() {
+	if (selArea === null) return;
+	const a = areas[selArea], t = a.grain / 10;
+	document.getElementById('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
+	document.getElementById('pInfo').textContent = a.levels + ' Stufen · ' + a.bumps.length + ' Buckel';
+	document.getElementById('pMeta').innerHTML = a.peaks.length + ' Gipfel · kleinster Radius '
+		+ a.rMin.toFixed(1) + ' → Abtastweite <strong>' + (a.rMin / 8).toFixed(2) + '</strong>';
+}
+function closePop() { selArea = null; pop.hidden = true; draw(); }
+document.getElementById('popClose').onclick = closePop;
+document.getElementById('pHmax').oninput = e => { areas[selArea].hmax = +e.target.value || 200; all(); };
+document.getElementById('pGrain').oninput = e => { areas[selArea].grain = +e.target.value; all(); };
+document.getElementById('pLevels').oninput = e => { areas[selArea].levels = +e.target.value; all(); };
+document.getElementById('pReroll').onclick = () => { const a = areas[selArea]; a.seed = (a.seed * 1664525 + 1013904223) | 0; all(); };
+
+// Rechtsklick auf ein Gebirge oeffnet seine Einstellungen. Spaeter ein Untermenuepunkt im
+// Kontextmenue -- hier direkt, damit man sieht, wohin die Werte gehoeren.
+ov.addEventListener('contextmenu', e => {
+	e.preventDefault();
+	if (layer !== 'topo') return;
+	const [x, y] = pt(e);
+	for (let i = areas.length - 1; i >= 0; i--) {
+		if (inPoly(x, y, areas[i].ring)) { openPop(i, e.clientX, e.clientY); return; }
+	}
+	closePop();
+});
+
+// ---------------------------------------------------------------- Interaktion
 let drag = null;
 const pt = e => { const b = ov.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * W, (e.clientY - b.top) / b.height * H]; };
 ov.addEventListener('pointerdown', e => {
+	if (e.button !== 0) return;
 	const k = e.target.getAttribute && e.target.getAttribute('data-k');
-	if (!k) return;
-	drag = { k, i: +e.target.getAttribute('data-i') };
+	if (!k || k === 'area') return;
+	drag = { k, i: +e.target.getAttribute('data-i'), a: +e.target.getAttribute('data-a') };
 	ov.setPointerCapture(e.pointerId);
 	e.preventDefault();
 });
 ov.addEventListener('pointermove', e => {
 	if (!drag) return;
 	const [x, y] = pt(e);
-	if (drag.k === 'topo') topo[drag.i] = [x, y];
-	else if (drag.k === 'veg') veg[drag.i] = [x, y];
+	if (drag.k === 'topo') areas[drag.a].ring[drag.i] = [x, y];
 	// Objekt ERGAENZEN, nicht ersetzen -- sonst geht f (die eigene Hoehe des Gipfels) verloren.
-	else if (drag.k === 'peak') peaks[drag.i] = { ...peaks[drag.i], x, y };
+	else if (drag.k === 'peak') areas[drag.a].peaks[drag.i] = { ...areas[drag.a].peaks[drag.i], x, y };
+	else if (drag.k === 'veg') veg[drag.i] = [x, y];
 	else route[drag.i] = [x, y];
 	if (drag.k === 'route' || drag.k === 'veg') draw(); else all();
 });
 addEventListener('pointerup', () => drag = null);
 
 document.getElementById('bTopo').onclick = () => { layer = 'topo'; bTopo.classList.add('on'); bVeg.classList.remove('on'); draw(); };
-document.getElementById('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); draw(); };
-document.getElementById('grain').oninput  = () => all();
-document.getElementById('levels').oninput = () => all();
-document.getElementById('step').onchange  = () => { paint(); };
+document.getElementById('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); closePop(); };
+document.getElementById('step').onchange = () => paint();
 document.getElementById('veg').oninput   = e => { vegN.textContent = (e.target.value / 100).toFixed(2).replace('.', ','); draw(); };
-document.getElementById('hmax').oninput  = () => all();
-document.getElementById('reroll').onclick = () => { seed = (seed * 1664525 + 1013904223) | 0; all(); };
 all();
 </script>
 </body>
