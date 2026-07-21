@@ -134,6 +134,12 @@ function avesmapsLoreFetch(placeKey, full, titles) {
 // Reihenfolge und Beschriftung der Infobox-ZEILEN (Owner): Waren, Fauna, Flora,
 // Spezies -- als Zeilen in derselben Feldliste wie Oberhaupt/Einwohner/Verkehrswege,
 // nicht als eigene Blöcke daneben.
+//
+// Spezies war zwischenzeitlich draußen, weil dort „immer nur Tiefzwerg" stand. Die
+// Ursache war NICHT die Art selbst: Tiefzwerg ist für ganz [[Aventurien]] gelistet und
+// erschien deshalb bei jedem Ort -- und weil es wenig ortsspezifische Spezies gibt,
+// blieb er meist als einziger übrig. Der Rang-3-Filter unten löst das an der Wurzel,
+// für alle vier Arten. Deshalb ist Spezies wieder dabei.
 var AVESMAPS_LORE_ROWS = [
 	{ kind: "ware", label: "Waren" },
 	{ kind: "fauna", label: "Fauna" },
@@ -143,8 +149,17 @@ var AVESMAPS_LORE_ROWS = [
 
 // EINE Infobox-Zeile im Hausformat (.region-info-box__row + dt/dd), damit sie sich in
 // die bestehende Feldliste einreiht statt daneben zu stehen. Leere Arten entfallen.
+//
+// 💣 KONTINENTWEITE EINTRÄGE (rank 3) KOMMEN HIER NICHT VOR. „Tiefzwerg" ist für ganz
+// [[Aventurien]] gelistet und erschien deshalb bei JEDEM Ort -- bei Spezies meist als
+// einziger Eintrag, weil dort wenig Spezifisches existiert. Formal richtig, praktisch
+// wertlos: was überall gilt, sagt über diesen Ort nichts. Im Dialog („+N") stehen sie
+// weiterhin, dort ist Platz für die Einordnung.
 function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey) {
-	if (!entries || entries.length === 0) {
+	entries = (entries || []).filter(function (entry) {
+		return Number(entry && entry.rank) < 3;
+	});
+	if (entries.length === 0) {
 		return "";
 	}
 	var names = entries.slice(0, 8).map(function (entry) {
@@ -154,10 +169,13 @@ function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey) {
 			? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
 			: name;
 	}).join(", ");
+	// Der Zähler bezieht sich auf die GESAMTZAHL inklusive der hier ausgeblendeten
+	// kontinentweiten -- der Dialog zeigt sie ja.
 	var rest = total - Math.min(entries.length, 8);
 	var more = rest > 0
 		? ' <button type="button" class="avesmaps-lore__more" data-lore-more="' + avesmapsLoreEscape(placeKey)
-			+ '" data-lore-kind="' + avesmapsLoreEscape(row.kind) + '">+' + rest + "</button>"
+			+ '" data-lore-kind="' + avesmapsLoreEscape(row.kind)
+			+ '" data-lore-rest="' + rest + '" title="Alle ' + total + " anzeigen\">+" + rest + "</button>"
 		: "";
 	return '<div class="region-info-box__row avesmaps-lore__row"><dt>' + avesmapsLoreEscape(row.label)
 		+ "</dt><dd>" + names + more + "</dd></div>";
@@ -268,7 +286,89 @@ function buildLoreMarkup(placeRef) {
 	// direkt ins Zeilenraster greifen, statt es zu brechen.
 	return '<div class="avesmaps-lore-rows" data-lore-place="' + avesmapsLoreEscape(containerKey)
 		+ '" data-lore-fetch="' + avesmapsLoreEscape(key)
+		+ '" data-lore-name="' + avesmapsLoreEscape(name)
 		+ '" data-lore-titles="' + avesmapsLoreEscape(titles) + '"></div>';
+}
+
+// „+N" öffnet die vollständige Liste in einem Dialog, statt die Infobox-Zeile
+// aufzublähen -- 93 Waren gehören nicht in eine Tabellenzeile.
+//
+// Der Dialog wird bei jedem Öffnen NEU aufgebaut und beim Schließen entfernt. Ein
+// dauerhaft vorgehaltenes Element hätte zwei bekannte Fallen: gestapelte Handler bei
+// wiederholtem Öffnen (Kartensammlungs-Spoiler) und eine 0×0-Pane, wenn es einmal
+// leer gerendert wurde.
+var AVESMAPS_LORE_DIALOG_LABELS = { ware: "Waren", fauna: "Fauna", flora: "Flora", spezies: "Spezies" };
+
+function avesmapsLoreCloseDialog() {
+	var existing = document.getElementById("avesmaps-lore-dialog");
+	if (existing) {
+		existing.remove();
+	}
+	document.removeEventListener("keydown", avesmapsLoreDialogKeydown);
+}
+
+function avesmapsLoreDialogKeydown(event) {
+	if (event.key === "Escape") {
+		avesmapsLoreCloseDialog();
+	}
+}
+
+function avesmapsLoreOpenDialog(kind, list, placeName) {
+	avesmapsLoreCloseDialog();
+
+	// Nach Spezifität gruppieren, damit erkennbar bleibt, was hier gilt und was
+	// überall -- genau die Unterscheidung, die der Zeile fehlt.
+	var groups = [
+		{ rank: 0, label: placeName ? "Direkt in " + placeName : "Direkt hier" },
+		{ rank: 1, label: "Aus Untergebieten" },
+		{ rank: 2, label: "Aus Obergebieten" },
+		{ rank: 3, label: "Aventurienweit" },
+	];
+	var body = "";
+	groups.forEach(function (group) {
+		var members = list.filter(function (entry) { return Number(entry.rank) === group.rank; });
+		if (!members.length) {
+			return;
+		}
+		body += '<h4 class="avesmaps-lore-dialog__group">' + avesmapsLoreEscape(group.label)
+			+ ' <span class="avesmaps-lore__count">(' + members.length + ")</span></h4>"
+			+ '<ul class="avesmaps-lore-dialog__list">'
+			+ members.map(function (entry) {
+				var href = avesmapsLoreSafeUrl(entry.wiki_url);
+				var name = avesmapsLoreEscape(entry.name);
+				var meta = avesmapsLoreRenderWikiText(entry.typ || entry.gruppe || "");
+				var via = entry.place_title && Number(entry.rank) > 0
+					? ' <span class="avesmaps-lore__meta">über ' + avesmapsLoreEscape(entry.place_title) + "</span>"
+					: "";
+				return "<li>" + (href
+					? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + " ↗</a>"
+					: name)
+					+ (meta ? ' <span class="avesmaps-lore__meta">' + meta + "</span>" : "")
+					+ via + "</li>";
+			}).join("")
+			+ "</ul>";
+	});
+
+	var title = (AVESMAPS_LORE_DIALOG_LABELS[kind] || kind) + (placeName ? " in " + placeName : "");
+	var overlay = document.createElement("div");
+	overlay.id = "avesmaps-lore-dialog";
+	overlay.className = "avesmaps-lore-dialog";
+	overlay.innerHTML = '<div class="avesmaps-lore-dialog__box" role="dialog" aria-modal="true">'
+		+ '<div class="avesmaps-lore-dialog__head">'
+		+ '<strong>' + avesmapsLoreEscape(title) + ' <span class="avesmaps-lore__count">(' + list.length + ")</span></strong>"
+		+ '<button type="button" class="avesmaps-lore-dialog__close" aria-label="Schließen">×</button>'
+		+ "</div>"
+		+ '<div class="avesmaps-lore-dialog__body">' + body + "</div>"
+		+ "</div>";
+	document.body.appendChild(overlay);
+	document.addEventListener("keydown", avesmapsLoreDialogKeydown);
+
+	overlay.addEventListener("click", function (event) {
+		// Klick auf den Hintergrund oder das × schließt; Klicks im Kasten nicht.
+		if (event.target === overlay || (event.target.closest && event.target.closest(".avesmaps-lore-dialog__close"))) {
+			avesmapsLoreCloseDialog();
+		}
+	});
 }
 
 // Ortsreferenz einer SIEDLUNG. Zwei Wege, beide gebraucht:
@@ -322,21 +422,17 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreMoreBound) {
 		var host = button.closest ? button.closest("[data-lore-place]") : null;
 		var fetchKey = host ? (host.getAttribute("data-lore-fetch") || placeKey) : placeKey;
 		var fetchTitles = host ? (host.getAttribute("data-lore-titles") || "") : "";
+		var label = (host && host.getAttribute("data-lore-name")) || "";
 		button.disabled = true;
 		button.textContent = "…";
 		avesmapsLoreFetch(fetchKey, true, fetchTitles).then(function (data) {
-			var list = data && data.sections ? data.sections[kind] : null;
-			var section = button.closest(".avesmaps-lore__section");
-			if (!list || !section) {
-				button.disabled = false;
-				button.textContent = "alle anzeigen";
+			button.disabled = false;
+			button.textContent = "+" + (button.getAttribute("data-lore-rest") || "");
+			var list = (data && data.sections && data.sections[kind]) || null;
+			if (!list || !list.length) {
 				return;
 			}
-			var ul = section.querySelector(".avesmaps-lore__list");
-			if (ul) {
-				ul.innerHTML = list.map(avesmapsLoreItemMarkup).join("");
-			}
-			button.remove();
+			avesmapsLoreOpenDialog(kind, list, label);
 		});
 	});
 }
