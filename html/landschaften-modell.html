@@ -204,14 +204,14 @@
 				</div>
 				<div class="row">
 					<label for="pGrain">Körnung</label>
-					<input type="range" id="pGrain" min="18" max="80" step="2">
+					<input type="range" id="pGrain" min="15" max="200" step="5">
 				</div>
 				<div class="row" style="margin-top:-4px">
 					<span></span><span class="unit" id="pGrainN"></span>
 				</div>
 				<div class="row">
 					<label for="pLevels">Detailstufen</label>
-					<input type="range" id="pLevels" min="0" max="4">
+					<input type="range" id="pLevels" min="0" max="7">
 				</div>
 				<div class="foot2">
 					<button class="btn" id="pReroll">Neu würfeln</button>
@@ -302,7 +302,7 @@ const ov = document.getElementById('ov'), pop = document.getElementById('pop');
 // in der Malschleife fallen auf den langsamen Pfad -- gemessen 47 ms statt 8,6 fuer dieselbe
 // Flaeche mit denselben Buckeln.
 const NEU = o => Object.assign({ bumps: [], peakBumps: [], grid: null, gCell: 18, gW: 0, gH: 0,
-	scale: 1, mask: null, maskSig: '', rMin: 0 }, o);
+	scale: 1, mask: null, maskSig: '', rMin: 0, gestoppt: 0 }, o);
 let areas = [
 	NEU({ name: 'Amboss-Wall', seed: 20260719, hmax: 5200, grain: 30, levels: 2,
 	  ring: [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]],
@@ -475,8 +475,22 @@ function buildArea(a) {
 	// Abstand liegen viermal so viele Buckel im Gebiet und ihre Radien halbieren sich mit, an
 	// jedem Punkt decken also gleich viele wie zuvor. Bei x0,5 summiert sich das Feine auf fast
 	// dieselbe Hoehe wie das Grobe (gemessen +69 %) und der Berg WAECHST beim Verfeinern.
+	// Budget. Die Zellzahl einer Stufe waechst mit (Teiler x 2^k)^2 -- bei feiner Koernung UND
+	// hoher Stufe sind das Millionen Zellen, und die Schleife laeuft ueber alle, auch wenn kaum
+	// eine angenommen wird. Deshalb wird VOR jeder Stufe geschaetzt und notfalls abgebrochen.
+	// Der Regler darf dadurch weit gehen, ohne dass der Browser stehenbleibt; wo das Budget
+	// gegriffen hat, sagt es das Fenster, statt still weniger zu liefern.
+	const ZELLEN_MAX = 240000, BUCKEL_MAX = 14000;
+	const bx = Math.max(...xs) - Math.min(...xs), by = Math.max(...ys) - Math.min(...ys);
 	const fein = [];
-	for (let k = 1; k <= a.levels; k++) level(a, k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k) * daempfung, fein);
+	let zellen = 0; a.gestoppt = 0;
+	for (let k = 1; k <= a.levels; k++) {
+		const c = C0 / Math.pow(2, k);
+		const n = (Math.ceil(bx / c) + 3) * (Math.ceil(by / c) + 3);
+		if (zellen + n > ZELLEN_MAX || fein.length > BUCKEL_MAX) { a.gestoppt = k; break; }
+		zellen += n;
+		level(a, k, c, .85 * Math.pow(.35, k) * daempfung, fein);
+	}
 	for (const b of fein) b.i = 1 / (b.r * b.r);
 	buildIndex(a, grob.concat(fein));
 	a.bumps = grob.concat(a.peakBumps, fein);
@@ -666,7 +680,7 @@ function draw() {
 		'Im <strong>Wald</strong> werden alle Pfeile gleichmäßig kürzer, egal in welche Richtung — das ist der Bewuchs. '
 		+ 'Im <strong>Gebirge</strong> werden sie im Anstieg kurz und im Gefälle wieder lang — das ist das Höhenfeld.<br>'
 		+ areas.length + ' Gebirge, ' + nB + ' Buckel, ' + (nB * 5 * 8 / 1024).toFixed(1) + ' KB gespeichert.';
-	if (selArea !== null) refreshPop();
+	if (sel) refreshPop();
 }
 function all() { buildAll(); paint(); draw(); }
 
@@ -694,7 +708,8 @@ function refreshPop() {
 	if (sel.kind === 'topo') {
 		const t = o.grain / 10;
 		$('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
-		$('pInfo').textContent = o.levels + ' Stufen · ' + o.bumps.length + ' Buckel';
+		$('pInfo').textContent = o.levels + ' Stufen · ' + o.bumps.length.toLocaleString('de-DE') + ' Buckel'
+			+ (o.gestoppt ? ' · Budget ab Stufe ' + o.gestoppt : '');
 		$('pMeta').innerHTML = o.peaks.length + ' Gipfel · kleinster Radius ' + o.rMin.toFixed(1)
 			+ ' → Abtastweite <strong>' + (o.rMin / 8).toFixed(2) + '</strong>';
 	} else {
