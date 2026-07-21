@@ -429,7 +429,10 @@ function avesmapsConflictRuleCatalog(): array {
         [
             'id' => 'wiki.shared_article',
             'label' => 'Mehrere Objekte beanspruchen denselben Wiki-Artikel',
-            'hint' => 'Ein Wiki-Artikel kann nur zu einem Objekt gehören. Segmente einer Straße sind ausgenommen.',
+            // Owner 2026-07-21: kein Absolutsatz. Der Erkenner findet die Ueberschneidung, ob sie
+            // richtig oder falsch ist, entscheidet der Mensch -- deshalb "sollte prinzipiell", und
+            // "Genehmigt" ist genau fuer die Ausnahmen da.
+            'hint' => 'Ein Wiki-Artikel sollte prinzipiell nur zu einem Objekt gehören. Es gibt natürlich Ausnahmen, trotzdem lohnt sich ein Blick auf potentielle Konflikte. Segmente einer Straße sind ausgenommen und tauchen hier gar nicht erst auf.',
             'severity' => AVESMAPS_CONFLICT_ERROR,
             'actions' => ['pick_one', 'unlink', 'defer', 'ignore'],
             // What each button DOES. The difference between "Trennen" and "Kein Wiki-Eintrag" is not
@@ -447,7 +450,9 @@ function avesmapsConflictRuleCatalog(): array {
         [
             'id' => 'wiki.missing_key',
             'label' => 'Kein Wiki-Schlüssel',
-            'hint' => 'Von Hand angelegt. Ob es im Wiki ein Gegenstück gibt, weiß bisher niemand.',
+            // Owner 2026-07-21: nicht als Vorwurf formulieren -- von Hand anlegen ist erlaubt und
+            // normal. Die Liste sagt nur, wo noch niemand nachgesehen hat.
+            'hint' => 'Objekte können ohne weitere Informationen von Hand angelegt werden. Falls es im Wiki aber kein Gegenstück gibt, wird es hier gelistet.',
             'severity' => AVESMAPS_CONFLICT_UNVERIFIED,
             'actions' => ['defer', 'ignore'],
             'verbs' => [

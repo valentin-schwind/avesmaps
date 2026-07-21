@@ -448,6 +448,10 @@
 				<h4>Der Siedlungseditor</h4>
 				<p class="hb-path"><strong>Editor → WikiSync → Siedlungen → „Siedlungen Syncen &amp; Editieren"</strong></p>
 				<p>Für alles, was über einen einzelnen Ort hinausgeht, gibt es ein eigenes Fenster mit drei Spalten: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Siedlungsliste</strong>, rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband:</p>
+				<figure class="hb-shot">
+					<img src="screenshots/11-siedlungseditor.png" alt="Der Siedlungseditor mit Menueband, links der Territorienbaum, in der Mitte die Siedlungsliste mit den Reitern Alle, Platziert und Fehlt, rechts die Spalte Eigenschaften und Overrides" />
+					<figcaption>Der Siedlungseditor: links der <strong>Territorienbaum</strong>, in der Mitte die <strong>Siedlungsliste</strong> mit „Alle / Platziert / Fehlt", rechts <strong>„Eigenschaften &amp; Overrides"</strong>. Oben das Menüband.</figcaption>
+				</figure>
 				<table class="hb-table">
 					<tr><th>Kachel</th><th>Was sie tut</th></tr>
 					<tr><td><strong>🚨 Syncen</strong></td><td>Holt die Siedlungen aus dem Dump. <em>Betreiber-Aktion.</em></td></tr>
@@ -823,6 +827,14 @@
 				<p>Konflikte werden bei jeder Prüfung <strong>neu berechnet</strong>, nicht gespeichert. Ein reparierter verschwindet also von selbst. Eine Entscheidung gilt für <em>die Lage, zu der du sie getroffen hast</em>: ändert sich daran etwas — im Wiki oder bei uns —, taucht der Fall wieder als offen auf. Das ist Absicht und kein Fehler.</p>
 				<div class="hb-note"><strong>Was verglichen wird.</strong> Auf denselben Wiki-Artikel geprüft werden <strong>Orte, Wege, Regionen, Kraftlinien, Territorien und Abenteuer</strong> — quer über alle Tabellen hinweg. So fällt auch auf, wenn eine Siedlung und eine gleichnamige Baronie denselben Artikel beanspruchen. Dazu kommen die Fälle aus dem letzten WikiSync-Lauf.</div>
 				<div class="hb-note"><strong>Bewusst nicht verglichen:</strong> die <strong>Kartensammlung</strong> — ihr Schlüssel ist kein Artikel, sondern aus Stadt, Quelle und Variante zusammengesetzt. Und <strong>Quellen</strong>: dass viele Objekte dieselbe Publikation zitieren, ist der Sinn eines gemeinsamen Quellenverzeichnisses, kein Fehler.</div>
+				<h4>Zwei Gruppen, die sich zum Verwechseln ähnlich lesen</h4>
+				<p>Beide heißen sinngemäß „hat nichts im Wiki" — sie beantworten aber verschiedene Fragen:</p>
+				<table class="hb-table">
+					<tr><th>Gruppe</th><th>Was sie wirklich sagt</th></tr>
+					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td><strong>Am Objekt steht kein Link.</strong> Eine Zustandsangabe — es hat noch niemand verknüpft. Ob es im Wiki etwas gäbe, ist damit gar nicht gesagt. Gilt für <em>alle</em> Objektarten und wird bei jeder Prüfung neu berechnet.</td></tr>
+					<tr><td><strong>Keine Zuordnung gefunden</strong></td><td><strong>Es wurde gesucht — erfolglos.</strong> Der WikiSync-Lauf hat über Namen und ähnliche Schreibweisen geprüft und nicht einmal einen Kandidaten gefunden. Gilt nur für <em>Orte</em> (Siedlungen und Bauwerke) und ist eine Momentaufnahme des letzten Laufs.</td></tr>
+				</table>
+				<div class="hb-note"><strong>Ein Ort kann in beiden stehen</strong> — das ist kein Doppeleintrag. „Kein Wiki-Schlüssel" beschreibt seinen Zustand, „Keine Zuordnung gefunden" das Ergebnis der Suche. Trägt die erste Gruppe zusätzlich <em>„passender Artikel gefunden"</em>, ist das der handfeste Fall: dann gibt es einen gleichnamigen Artikel, und es fehlt nur die Verknüpfung.</div>
 
 				<h3 id="bug-system" class="hb-sub">Das automatische Bug-System</h3>
 				<p class="hb-path"><strong>Auf unserem Discord</strong></p>
