@@ -153,17 +153,18 @@ function avesmapsLoreRenderWikiText(raw) {
 // Holt die Lore eines Ortes (einmal je Ort). Mehrere Schlüssel werden kommagetrennt
 // übergeben -- so kann Abschnitt 3 die Territorienkette hereinreichen, ohne dass sich
 // hier etwas ändert.
-function avesmapsLoreFetch(placeKey, full, titles) {
+function avesmapsLoreFetch(placeKey, full, titles, goods) {
 	if (!AVESMAPS_LORE_ENABLED) {
 		return Promise.resolve(null); // Not-Aus: kein Request, keine Zeile
 	}
-	var cacheKey = placeKey + (titles ? "|t:" + titles : "") + (full ? "|full" : "");
+	var cacheKey = placeKey + (titles ? "|t:" + titles : "") + (goods ? "|g:" + goods : "") + (full ? "|full" : "");
 	var cached = avesmapsLoreCache.get(cacheKey);
 	if (cached) {
 		return cached.pending || Promise.resolve(cached.data);
 	}
 	var url = AVESMAPS_LORE_API_URL + "?place=" + encodeURIComponent(placeKey)
 		+ (titles ? "&title=" + encodeURIComponent(titles) : "")
+		+ (goods ? "&goods=" + encodeURIComponent(goods) : "")
 		+ (full ? "&full=1" : "");
 	// Hartes Zeitlimit: ein hängender Request hält sonst bis zum Servertimeout einen
 	// PHP-Worker fest, und mehrere offene Panels legen damit die ganze API lahm.
@@ -223,20 +224,42 @@ var AVESMAPS_LORE_ROWS = [
 // einziger Eintrag, weil dort wenig Spezifisches existiert. Formal richtig, praktisch
 // wertlos: was überall gilt, sagt über diesen Ort nichts. Im Dialog („+N") stehen sie
 // weiterhin, dort ist Platz für die Einordnung.
-function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey) {
+function avesmapsLoreInfoRowMarkup(row, entries, total, placeKey, extras) {
 	entries = (entries || []).filter(function (entry) {
 		return Number(entry && entry.rank) < 3;
 	});
-	if (entries.length === 0) {
+	// extras = die Freitext-Handelswaren der Infobox, VOR den katalogisierten Waren.
+	// Erst die Gattungen der Gegend („Vieh, Holz, Wolltuch"), dann die Stücke mit Namen
+	// („Bräubier"). Zwei getrennte Zeilen lasen sich wie ein widersprüchlicher
+	// Doppeleintrag; zusammen ergeben sie einen Gedanken. Verlinkt wird, was einen
+	// Artikel hat -- so bleibt trotz Verschmelzung sichtbar, was belegt ist.
+	var lead = (extras || []).map(function (item) {
+		var href = avesmapsLoreSafeUrl(item && item.wiki_url);
+		var name = avesmapsLoreEscape(item && item.name);
+		return href
+			? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
+			: name;
+	});
+	if (entries.length === 0 && lead.length === 0) {
 		return "";
 	}
-	var names = entries.slice(0, 8).map(function (entry) {
+
+	// Doppelungen vermeiden: „Salz" kann in beiden Quellen stehen.
+	var seen = {};
+	(extras || []).forEach(function (item) {
+		seen[String((item && item.name) || "").toLowerCase()] = true;
+	});
+	entries = entries.filter(function (entry) {
+		return !seen[String((entry && entry.name) || "").toLowerCase()];
+	});
+
+	var names = lead.concat(entries.slice(0, 8).map(function (entry) {
 		var href = avesmapsLoreSafeUrl(entry && entry.wiki_url);
 		var name = avesmapsLoreEscape(entry && entry.name);
 		return href
 			? '<a class="avesmaps-lore__name" href="' + avesmapsLoreEscape(href) + '" target="_blank" rel="noopener">' + name + "</a>"
 			: name;
-	}).join(", ");
+	})).join(", ");
 	// Der Zähler bezieht sich auf die GESAMTZAHL inklusive der hier ausgeblendeten
 	// kontinentweiten -- der Dialog zeigt sie ja.
 	var rest = total - Math.min(entries.length, 8);
@@ -283,12 +306,22 @@ function avesmapsLoreFillContainers(placeKey, placeName, data) {
 	}
 	var markup = "";
 	if (data && data.sections) {
+		// Die aufgelösten Handelswaren gehen VORNE in die Waren-Zeile. Reihenfolge wie
+		// im Infobox-Feld, damit man sie wiedererkennt; verlinkt, wo es einen Artikel gibt.
+		var goodsLead = [];
+		if (data.goods_order && data.goods_order.length) {
+			data.goods_order.forEach(function (name) {
+				var hit = data.goods && data.goods[name];
+				goodsLead.push({ name: name, wiki_url: hit ? hit.wiki_url : "" });
+			});
+		}
 		AVESMAPS_LORE_ROWS.forEach(function (row) {
 			markup += avesmapsLoreInfoRowMarkup(
 				row,
 				data.sections[row.kind] || [],
 				(data.counts && data.counts[row.kind]) || 0,
-				placeKey
+				placeKey,
+				row.kind === "ware" ? goodsLead : null
 			);
 		});
 	}
@@ -318,7 +351,8 @@ function avesmapsLoreLoadPendingContainers() {
 			avesmapsLoreFetch(
 				element.getAttribute("data-lore-fetch") || "",
 				false,
-				element.getAttribute("data-lore-titles") || ""
+				element.getAttribute("data-lore-titles") || "",
+				element.getAttribute("data-lore-goods") || ""
 			).then(function (data) {
 				if (data && data.total > 0) {
 					avesmapsLoreFillContainers(containerKey, name, data);
@@ -401,9 +435,15 @@ function buildLoreMarkup(placeRef) {
 	// Container OHNE eigene Hülle: er sitzt mitten in der Feldliste der Infobox und
 	// füllt sich mit .region-info-box__row-Zeilen. display:contents lässt seine Kinder
 	// direkt ins Zeilenraster greifen, statt es zu brechen.
+	// Die Freitext-Handelswaren reisen mit, damit der Server sie gegen den Warenkatalog
+	// auflösen kann -- Ergebnis: eine Zeile statt zweier, mit Links wo es Artikel gibt.
+	var goods = String((placeRef && placeRef.tradeGoods) || "").split(/\s*[,;]\s*/)
+		.map(function (part) { return part.trim(); }).filter(Boolean).join("|");
+
 	return '<div class="avesmaps-lore-rows" data-lore-place="' + avesmapsLoreEscape(containerKey)
 		+ '" data-lore-fetch="' + avesmapsLoreEscape(key)
 		+ '" data-lore-name="' + avesmapsLoreEscape(name)
+		+ '" data-lore-goods="' + avesmapsLoreEscape(goods)
 		+ '" data-lore-titles="' + avesmapsLoreEscape(titles) + '"></div>';
 }
 
@@ -430,11 +470,15 @@ function avesmapsLoreDialogKeydown(event) {
 	}
 }
 
-function avesmapsLoreOpenDialog(kind, list, placeName) {
-	avesmapsLoreCloseDialog();
-
-	// Nach Spezifität gruppieren, damit erkennbar bleibt, was hier gilt und was
-	// überall -- genau die Unterscheidung, die der Zeile fehlt.
+// EIN Dialog für ALLE Arten (Owner 2026-07-22). Vorher hatte jede Zeile ihren eigenen,
+// und wer Flora und Fauna vergleichen wollte, musste zweimal öffnen und schließen.
+// Jetzt: eine Übersicht des Ortes, nach Art gegliedert, die aufgerufene Art zuerst.
+function avesmapsLoreDialogSectionMarkup(kind, list, placeName) {
+	if (!list || !list.length) {
+		return "";
+	}
+	// Innerhalb einer Art nach Spezifität gruppieren -- genau die Unterscheidung, die
+	// der Zeile fehlt: was gilt hier, was gilt überall.
 	var groups = [
 		{ rank: 0, label: placeName ? "Direkt in " + placeName : "Direkt hier" },
 		{ rank: 1, label: "Aus Untergebieten" },
@@ -449,8 +493,8 @@ function avesmapsLoreOpenDialog(kind, list, placeName) {
 		if (!members.length) {
 			return;
 		}
-		body += '<h4 class="avesmaps-lore-dialog__group">' + avesmapsLoreEscape(group.label)
-			+ ' <span class="avesmaps-lore__count">(' + members.length + ")</span></h4>"
+		body += '<h5 class="avesmaps-lore-dialog__group">' + avesmapsLoreEscape(group.label)
+			+ ' <span class="avesmaps-lore__count">(' + members.length + ")</span></h5>"
 			+ '<ul class="avesmaps-lore-dialog__list">'
 			+ members.map(function (entry) {
 				var href = avesmapsLoreSafeUrl(entry.wiki_url);
@@ -468,13 +512,32 @@ function avesmapsLoreOpenDialog(kind, list, placeName) {
 			+ "</ul>";
 	});
 
-	var title = (AVESMAPS_LORE_DIALOG_LABELS[kind] || kind) + (placeName ? " in " + placeName : "");
+	return '<h4 class="avesmaps-lore-dialog__kind">' + avesmapsLoreEscape(AVESMAPS_LORE_DIALOG_LABELS[kind] || kind)
+		+ ' <span class="avesmaps-lore__count">(' + list.length + ")</span></h4>" + body;
+}
+
+function avesmapsLoreOpenDialog(kind, sections, placeName) {
+	avesmapsLoreCloseDialog();
+
+	// Die angeklickte Art zuerst, der Rest in gewohnter Reihenfolge darunter.
+	var order = [kind].concat(AVESMAPS_LORE_ROWS.map(function (row) { return row.kind; })
+		.filter(function (other) { return other !== kind; }));
+
+	var body = "";
+	var total = 0;
+	order.forEach(function (currentKind) {
+		var list = (sections && sections[currentKind]) || [];
+		total += list.length;
+		body += avesmapsLoreDialogSectionMarkup(currentKind, list, placeName);
+	});
+
+	var title = placeName ? "Natur & Waren in " + placeName : "Natur & Waren";
 	var overlay = document.createElement("div");
 	overlay.id = "avesmaps-lore-dialog";
 	overlay.className = "avesmaps-lore-dialog";
 	overlay.innerHTML = '<div class="avesmaps-lore-dialog__box" role="dialog" aria-modal="true">'
 		+ '<div class="avesmaps-lore-dialog__head">'
-		+ '<strong>' + avesmapsLoreEscape(title) + ' <span class="avesmaps-lore__count">(' + list.length + ")</span></strong>"
+		+ '<strong>' + avesmapsLoreEscape(title) + ' <span class="avesmaps-lore__count">(' + total + ")</span></strong>"
 		+ '<button type="button" class="avesmaps-lore-dialog__close" aria-label="Schließen">×</button>'
 		+ "</div>"
 		+ '<div class="avesmaps-lore-dialog__body">' + body + "</div>"
@@ -544,14 +607,15 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreMoreBound) {
 		var label = (host && host.getAttribute("data-lore-name")) || "";
 		button.disabled = true;
 		button.textContent = "…";
-		avesmapsLoreFetch(fetchKey, true, fetchTitles).then(function (data) {
+		avesmapsLoreFetch(fetchKey, true, fetchTitles, host ? (host.getAttribute("data-lore-goods") || "") : "").then(function (data) {
 			button.disabled = false;
 			button.textContent = "+" + (button.getAttribute("data-lore-rest") || "");
-			var list = (data && data.sections && data.sections[kind]) || null;
-			if (!list || !list.length) {
+			// ALLE Sektionen an den Dialog, nicht nur die angeklickte -- er zeigt jetzt
+			// die ganze Natur & Waren des Ortes, die geklickte Art oben.
+			if (!data || !data.sections) {
 				return;
 			}
-			avesmapsLoreOpenDialog(kind, list, label);
+			avesmapsLoreOpenDialog(kind, data.sections, label);
 		});
 	});
 }

@@ -172,6 +172,87 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
     return ['items' => $items, 'total' => $total];
 }
 
+/**
+ * Löst freie Warennamen gegen den Katalog auf: „Salz" -> Artikel, „Vieh" -> nichts.
+ *
+ * Wozu: die Infobox-Zeile „Handelswaren" ist FREITEXT aus {{Infobox Staat}}, und der
+ * Wiki-Sync hat etwaige Links darin längst zu bloßem Text aufgelöst. Wer die Liste mit
+ * den katalogisierten Waren zu EINER Zeile verschmelzen will, braucht für jeden Namen
+ * die Antwort: gibt es dazu einen Artikel? Genau das liefert diese Funktion --
+ * Gattungen wie „Vieh" oder „Holz" bleiben erwartungsgemäß ohne Treffer.
+ *
+ * @param list<string> $names
+ * @return array<string,array{name:string,wiki_url:string,gruppe:string}> Eingabename => Treffer
+ */
+function avesmapsLoreResolveGoodsByName(PDO $pdo, array $names): array
+{
+    $clean = [];
+    foreach ($names as $name) {
+        $name = trim((string) $name);
+        if ($name !== '' && mb_strlen($name, 'UTF-8') <= 190 && !in_array($name, $clean, true)) {
+            $clean[] = $name;
+        }
+    }
+    if ($clean === []) {
+        return [];
+    }
+    $clean = array_slice($clean, 0, 60); // eine Infobox-Zeile ist nie länger
+
+    try {
+        $in = implode(',', array_fill(0, count($clean), '?'));
+        // Über match_key vergleichen, nicht über name: der faltet Groß/Klein, Umlaute
+        // und Sonderzeichen -- „Leinöl" trifft dann auch „Leinoel".
+        $statement = $pdo->prepare(
+            'SELECT name, match_key, wiki_url, gruppe FROM lore_entry
+             WHERE kind = \'ware\' AND status = \'active\' AND match_key IN (' . $in . ')'
+        );
+        $keys = array_map(static fn(string $n): string => avesmapsLoreMatchKey($n), $clean);
+        $statement->execute($keys);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $error) {
+        error_log('lore goods resolve failed: ' . $error->getMessage());
+
+        return [];
+    }
+
+    $byKey = [];
+    foreach ($rows as $row) {
+        $key = (string) $row['match_key'];
+        if (!isset($byKey[$key])) {
+            $byKey[$key] = [
+                'name' => (string) $row['name'],
+                'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+                'gruppe' => (string) ($row['gruppe'] ?? ''),
+            ];
+        }
+    }
+
+    $out = [];
+    foreach ($clean as $name) {
+        $hit = $byKey[avesmapsLoreMatchKey($name)] ?? null;
+        if ($hit !== null) {
+            $out[$name] = $hit;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * Vergleichsschlüssel eines Warennamens. Bildet avesmapsWikiSyncCreateMatchKey nach,
+ * damit der Abgleich zu den beim Sync geschriebenen match_key-Werten passt.
+ */
+function avesmapsLoreMatchKey(string $value): string
+{
+    if (function_exists('avesmapsWikiSyncCreateMatchKey')) {
+        return avesmapsWikiSyncCreateMatchKey($value);
+    }
+    $key = mb_strtolower(trim($value), 'UTF-8');
+    $key = strtr($key, ['ä' => 'a', 'ö' => 'o', 'ü' => 'u', 'ß' => 'ss']);
+
+    return (string) preg_replace('/[^a-z0-9]+/u', '', $key);
+}
+
 /** Normalisiert einen Server-wiki_key ('wiki:weiden') auf die Form in lore_place ('weiden'). */
 function avesmapsLoreStripKeyPrefix(string $key): string
 {

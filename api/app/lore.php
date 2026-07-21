@@ -21,6 +21,11 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/app/lore.php';
 // avesmapsPoliticalSlug für die Ortsschlüssel der Regionsbrücke (geographic-Feld).
 require_once __DIR__ . '/../_internal/political/territory.php';
+// avesmapsWikiSyncCreateMatchKey für die Warenauflösung. NICHT nachbauen: die Funktion
+// strippt Klammerzusätze, faltet ß/æ/œ/ø/ð/þ, transliteriert per iconv und wirft
+// Apostrophe wie Bindestriche weg -- eine Eigenbau-Variante trifft die beim Sync
+// geschriebenen match_key-Werte nicht zuverlässig.
+require_once __DIR__ . '/../_internal/wiki/sync.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -146,6 +151,23 @@ try {
         avesmapsErrorResponse(400, 'place_invalid', 'Parameter "place" holds no usable wiki_key.');
     }
 
+    // ?goods=Vieh|Holz|Salz -- freie Warennamen aus der Infobox-Zeile „Handelswaren",
+    // die der Client mit den katalogisierten Waren zu EINER Liste verschmelzen will.
+    // Antwort enthält nur die Namen, zu denen es wirklich einen Artikel gibt.
+    $resolvedGoods = [];
+    $goodsOrder = [];
+    $goodsParameter = trim((string) ($_GET['goods'] ?? ''));
+    if ($goodsParameter !== '') {
+        foreach (explode('|', $goodsParameter) as $name) {
+            $name = trim($name);
+            if ($name !== '' && !in_array($name, $goodsOrder, true)) {
+                $goodsOrder[] = $name;
+            }
+        }
+        $goodsOrder = array_slice($goodsOrder, 0, 60);
+        $resolvedGoods = avesmapsLoreResolveGoodsByName($pdo, $goodsOrder);
+    }
+
     $full = isset($_GET['full']) && (string) $_GET['full'] !== '0';
     // Abschnitt 3: den angefragten Ort um Unter- und Obergebiete erweitern, damit
     // Weiden auch zeigt, was in der Baronie Moosgrund gehandelt wird. Der niedrigste
@@ -176,6 +198,12 @@ try {
         'counts' => $result['counts'],
         'total' => $result['total'],
         'limit' => $full ? 0 : AVESMAPS_LORE_PANEL_LIMIT,
+        // Eingabename => {name, wiki_url, gruppe} für alles aus ?goods=, wozu es einen
+        // Artikel gibt. Gattungen wie „Vieh" fehlen hier und bleiben im Client Text.
+        'goods' => $resolvedGoods,
+        // Dieselben Namen in EINGABEREIHENFOLGE -- die Infobox-Zeile soll ihre gewohnte
+        // Ordnung behalten, nicht die der Treffer.
+        'goods_order' => $goodsOrder,
     ]);
 } catch (Throwable $error) {
     avesmapsErrorResponse(500, 'lore_failed', 'Lore konnte nicht geladen werden.');

@@ -122,13 +122,23 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		// BENANNTEN Erzeugnisse mit eigenem Wiki-Artikel (Bräubier, Brachfelder
 		// Bärenbiss). Getrennt durch Handelszone/Geographisch/Kartenzeitraum las sich das
 		// wie ein Doppeleintrag mit widersprüchlichem Inhalt.
-		createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods),
+		// „Handelswaren" hat KEINE eigene Zeile mehr, solange die Waren-Zeile darunter
+		// greift (Owner 2026-07-22): ihr Inhalt geht dort hinein, damit Gattungen (Vieh,
+		// Holz) und benannte Erzeugnisse (Bräubier) EINE Liste bilden statt zweier, die
+		// sich zu widersprechen scheinen. Der Server löst die Namen gegen den
+		// Warenkatalog auf und verlinkt, was einen Artikel hat.
+		// ⚠️ FALLBACK: Ohne Lore-Schlüssel (kein wiki_key, kein Detail-Fetch) entsteht
+		// dort gar nichts -- dann MUSS die alte Zeile stehen bleiben, sonst verlöre die
+		// Box die Handelswaren ganz.
+		((typeof avesmapsLorePlaceRefFromRegion === "function" && avesmapsLorePlaceRefFromRegion(regionEntry))
+			? ""
+			: createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods)),
 		// Waren / Fauna / Flora / Spezies als eigene Zeilen in DIESER Feldliste (Owner).
 		// Der Container kommt leer und füllt sich, sobald api/app/lore.php geantwortet
 		// hat -- ohne die Box neu zu bauen. Vor dem Detail-Fetch gibt es noch keinen
 		// wiki_key; die zweite Renderrunde liefert ihn nach.
 		(typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromRegion === "function"
-			? buildLoreMarkup(avesmapsLorePlaceRefFromRegion(regionEntry))
+			? buildLoreMarkup(Object.assign(avesmapsLorePlaceRefFromRegion(regionEntry) || {}, { tradeGoods: f.trade_goods || "" }))
 			: "")
 	].join("");
 
