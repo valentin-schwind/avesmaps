@@ -229,8 +229,13 @@
 			</div>
 
 			<div id="popTopo">
-				<!-- Ein Regler JE GIPFEL. Die Hoehe gehoert dem Gipfel, nicht der Flaeche. -->
-				<div id="pPeaks"></div>
+				<div class="row">
+					<label for="pAvg">Durchschnittshöhe</label>
+					<input type="range" id="pAvg" min="0" step="50">
+				</div>
+				<div class="row" style="margin-top:-4px">
+					<span></span><span class="unit" id="pAvgN"></span>
+				</div>
 				<div class="row">
 					<label for="pGrain">Körnung</label>
 					<input type="range" id="pGrain" min="15" max="200" step="5">
@@ -245,6 +250,17 @@
 				<div class="foot2">
 					<button class="btn" id="pReroll">Neu würfeln</button>
 					<span class="unit" id="pInfo"></span>
+				</div>
+			</div>
+
+			<!-- Eigenes Fenster fuer einen GIPFEL. Seine Hoehe gehoert ihm, nicht der Flaeche. -->
+			<div id="popPeak">
+				<div class="row">
+					<label for="pPeakH">Höhe</label>
+					<input type="range" id="pPeakH" min="200" max="15000" step="100">
+				</div>
+				<div class="row" style="margin-top:-4px">
+					<span></span><span class="unit" id="pPeakN"></span>
 				</div>
 			</div>
 
@@ -339,11 +355,14 @@ const NEU = o => Object.assign({ bumps: [], peakBumps: [], grid: null, gCell: 18
 // war sie ein Anteil (f) an einer Flaechenhoehe; damit verschob ein Zug am Schieber alle Gipfel
 // zugleich, und ein Bedienelement schrieb Daten um. Die Flaeche hat deshalb keine eigene Hoehe
 // mehr: ihr hoechster Punkt IST ihr hoechster Gipfel.
+// Die Flaeche regelt NUR das erfundene Gelaende: wie hoch es im Mittel liegt, wie grob es
+// gekoernt ist, wie fein aufgeloest. Die Gipfel gehen sie nichts an -- deren Hoehe ist ein Datum
+// aus dem Wiki, haengt am berggipfel-Label und wird am Gipfel selbst eingestellt.
 let areas = [
-	NEU({ name: 'Amboss-Wall', seed: 20260719, grain: 30, levels: 2,
+	NEU({ name: 'Amboss-Wall', seed: 20260719, avg: 1400, grain: 30, levels: 2,
 	  ring: [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]],
 	  peaks: [{ x: 390, y: 170, h: 5200, name: 'Amboss' }, { x: 520, y: 280, h: 4056, name: 'Hammerkopf' }] }),
-	NEU({ name: 'Zwergenzinnen', seed: 77414, grain: 62, levels: 2,
+	NEU({ name: 'Zwergenzinnen', seed: 77414, avg: 900, grain: 62, levels: 2,
 	  ring: [[660,235],[762,196],[856,246],[872,344],[800,412],[698,396],[648,318]],
 	  peaks: [{ x: 745, y: 300, h: 2600, name: 'Zwergenzinne' }] }),
 ];
@@ -503,8 +522,14 @@ function buildArea(a) {
 	let lmax = 0;
 	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = rawArea(a, x, y); if (v > lmax) lmax = v; }
 	a.peakBumps = keepPeaks;
-	const minG = a.peakBumps.length ? Math.min(...a.peakBumps.map(b => b.a)) : 0;
-	const daempfung = lmax > 0 && minG > 0 ? .8 * minG / lmax : 0;
+	// Das Rauschen wird auf die eingestellte DURCHSCHNITTSHOEHE gezogen -- das ist der einzige
+	// Hoehenregler der Flaeche. Gedeckelt beim niedrigsten benannten Gipfel, damit nie ein
+	// erfundener Huegel einen benannten ueberragt; der Schieber endet sichtbar dort, statt
+	// stillschweigend zu klemmen.
+	const minG = a.peakBumps.length ? Math.min(...a.peakBumps.map(b => b.a)) : Infinity;
+	a.avgMax = Number.isFinite(minG) ? Math.round(minG * .8) : 6000;
+	const ziel = Math.min(a.avg, a.avgMax);
+	const daempfung = lmax > 0 ? ziel / lmax : 0;
 	for (const b of grob) b.a *= daempfung;
 
 	// Feinere Stufen: halber Zellabstand, Amplitude x0,35 je Stufe -- NICHT x0,5. Bei halbem
@@ -725,39 +750,33 @@ function all() { buildAll(); paint(); draw(); }
 
 // -------------------------------------------------- Einstellungen je Flaeche
 const $ = id => document.getElementById(id);
-const cur = () => sel && (sel.kind === 'topo' ? areas[sel.i] : vegs[sel.i]);
+const cur = () => !sel ? null
+	: sel.kind === 'topo' ? areas[sel.i]
+	: sel.kind === 'veg' ? vegs[sel.i]
+	: areas[sel.i].peaks[sel.p];
 
-function openPop(kind, idx, clientX, clientY) {
-	sel = { kind, i: idx };
+function openPop(kind, idx, clientX, clientY, pIdx) {
+	sel = { kind, i: idx, p: pIdx };
 	const o = cur();
 	pop.hidden = false;
 	$('popTopo').hidden = kind !== 'topo';
 	$('popVeg').hidden = kind !== 'veg';
+	$('popPeak').hidden = kind !== 'peak';
 	// position: fixed -> direkt in Viewport-Koordinaten, nicht mehr relativ zur Karte.
 	pop.style.left = Math.min(Math.max(8, clientX + 12), innerWidth - 266) + 'px';
 	pop.style.top = Math.min(Math.max(8, clientY + 8), innerHeight - 250) + 'px';
-	$('popName').textContent = o.name;
-	$('popKind').textContent = kind === 'topo' ? 'Topographie · Gebirge' : 'Bedeckung · ' + o.typ;
+	$('popName').textContent = o.name || 'Namenloser Gipfel';
+	$('popKind').textContent = kind === 'topo' ? 'Topographie · Gebirge'
+		: kind === 'peak' ? 'Gipfel · in ' + areas[idx].name
+		: 'Bedeckung · ' + o.typ;
 	// Kopfleiste in der Farbe der Ebene -- dieselbe wie Umschalter, Umriss und Legende.
-	pop.style.setProperty('--kopf', cssVar(kind === 'topo' ? '--ls-topo' : '--ls-veg'));
+	pop.style.setProperty('--kopf', cssVar(kind === 'veg' ? '--ls-veg' : '--ls-topo'));
 	if (kind === 'topo') {
 		$('pGrain').value = o.grain; $('pLevels').value = o.levels;
-		// Gipfelzeilen frisch aufbauen -- jede Flaeche hat ihre eigene Zahl davon.
-		const box = $('pPeaks'); box.textContent = '';
-		o.peaks.forEach((p, pi) => {
-			const row = document.createElement('div'); row.className = 'row';
-			const lab = document.createElement('label'); lab.textContent = p.name || ('Gipfel ' + (pi + 1));
-			const sl = document.createElement('input');
-			sl.type = 'range'; sl.min = 200; sl.max = 15000; sl.step = 100; sl.value = p.h;
-			sl.oninput = e => { p.h = +e.target.value; all(); };
-			row.append(lab, sl);
-			const out = document.createElement('div'); out.className = 'row';
-			out.style.marginTop = '-4px';
-			out.innerHTML = '<span></span><span class="unit"></span>';
-			box.append(row, out);
-		});
-	}
-	else { $('pTyp').value = o.typ; $('pFaktor').value = o.faktor.toFixed(2); }
+		$('pAvg').max = o.avgMax; $('pAvg').value = Math.min(o.avg, o.avgMax);
+	} else if (kind === 'peak') {
+		$('pPeakH').value = o.h;
+	} else { $('pTyp').value = o.typ; $('pFaktor').value = o.faktor.toFixed(2); }
 	refreshPop();
 	draw();
 }
@@ -765,20 +784,25 @@ function refreshPop() {
 	const o = cur(); if (!o) return;
 	if (sel.kind === 'topo') {
 		const t = o.grain / 10;
+		$('pAvg').max = o.avgMax;
+		$('pAvgN').textContent = Math.min(o.avg, o.avgMax).toLocaleString('de-DE') + ' Schritt'
+			+ (o.avg >= o.avgMax ? ' · Anschlag am niedrigsten Gipfel' : '');
 		$('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
 		$('pInfo').textContent = o.levels + ' Stufen · ' + o.bumps.length.toLocaleString('de-DE') + ' Buckel'
 			+ (o.gestoppt ? ' · Budget ab Stufe ' + o.gestoppt : '');
-		// Jede zweite Zeile im Gipfelkasten ist die Anzeige zum Regler darueber.
-		const zeilen = $('pPeaks').querySelectorAll('.unit');
-		o.peaks.forEach((p, pi) => { if (zeilen[pi]) zeilen[pi].textContent = p.h.toLocaleString('de-DE') + ' Schritt'; });
-		// Steilste Flanke eines Buckels ist exakt 1,7168 x Amplitude / Radius. Damit sagt die
-		// Flaeche selbst, ob sie fuer die eingetragene Hoehe zu schmal ist -- oberhalb von rund
+		$('pMeta').innerHTML = o.peaks.length + ' Gipfel (Rechtsklick darauf) · höchster '
+			+ o.hmax.toLocaleString('de-DE') + '<br>kleinster Radius ' + o.rMin.toFixed(1)
+			+ ' → Abtastweite <strong>' + (o.rMin / 8).toFixed(2) + '</strong>';
+	} else if (sel.kind === 'peak') {
+		$('pPeakN').textContent = o.h.toLocaleString('de-DE') + ' Schritt';
+		// Steilste Flanke eines Buckels ist exakt 1,7168 x Amplitude / Radius. Damit sagt der
+		// Gipfel selbst, ob seine Flaeche fuer diese Hoehe zu schmal ist -- oberhalb von rund
 		// 50 % ist Toblers Kurve nicht mehr gefittet, das waere Fels statt Weg.
-		let steil = 0;
-		for (const b of o.peakBumps) steil = Math.max(steil, 1.7168 * (b.a * o.scale) / (b.r * PX_TO_SCHRITT));
-		$('pMeta').innerHTML = o.peaks.length + ' Gipfel · kleinster Radius ' + o.rMin.toFixed(1)
-			+ ' → Abtastweite <strong>' + (o.rMin / 8).toFixed(2) + '</strong><br>steilste Flanke '
-			+ (steil * 100).toFixed(0) + ' %' + (steil > .5 ? ' — <strong>zu schmal für diese Höhe</strong>' : '');
+		const a = areas[sel.i], b = a.peakBumps[sel.p];
+		const steil = b ? 1.7168 * b.a / (b.r * PX_TO_SCHRITT) : 0;
+		$('pMeta').innerHTML = 'Aus dem Wiki, gehört dem Gipfel — die Fläche ändert ihn nicht.<br>'
+			+ 'steilste Flanke ' + (steil * 100).toFixed(0) + ' %'
+			+ (steil > .5 ? ' — <strong>Fläche zu schmal für diese Höhe</strong>' : '');
 	} else {
 		$('pFaktorN').textContent = o.faktor <= 1.05 ? 'kaum spürbar'
 			: o.faktor >= 1.7 ? 'sehr zäh' : o.faktor >= 1.35 ? 'zäh' : 'leicht bremsend';
@@ -788,19 +812,27 @@ function refreshPop() {
 }
 function closePop() { sel = null; pop.hidden = true; draw(); }
 $('popClose').onclick = closePop;
-// Kein Flaechen-Hoehenregler mehr -- die Gipfelregler entstehen dynamisch in openPop().
+$('pAvg').oninput    = e => { areas[sel.i].avg = +e.target.value; all(); };
 $('pGrain').oninput  = e => { areas[sel.i].grain = +e.target.value; all(); };
 $('pLevels').oninput = e => { areas[sel.i].levels = +e.target.value; all(); };
 $('pReroll').onclick = () => { const a = areas[sel.i]; a.seed = (a.seed * 1664525 + 1013904223) | 0; all(); };
+$('pPeakH').oninput  = e => { areas[sel.i].peaks[sel.p].h = +e.target.value; all(); };
 $('pTyp').onchange   = e => { vegs[sel.i].typ = e.target.value; $('popKind').textContent = 'Bedeckung · ' + e.target.value; draw(); };
 $('pFaktor').oninput = e => { vegs[sel.i].faktor = Math.max(1, Math.min(3, +e.target.value || 1)); draw(); };
 
-// Rechtsklick oeffnet die Einstellungen der Flaeche. NUR die aktive Ebene antwortet -- dieselbe
-// Regel wie beim Klicken. Spaeter wird das ein Untermenuepunkt im Kontextmenue; hier direkt,
-// damit sichtbar ist, wohin die Werte gehoeren.
+// Rechtsklick oeffnet Einstellungen. GIPFEL ZUERST -- er liegt in einer Flaeche, und wer auf ihn
+// zielt, meint ihn und nicht den Untergrund. NUR die aktive Ebene antwortet, dieselbe Regel wie
+// beim Klicken. Spaeter wird das ein Untermenuepunkt im Kontextmenue.
 ov.addEventListener('contextmenu', e => {
 	e.preventDefault();
 	const [x, y] = pt(e);
+	if (layer === 'topo') {
+		for (let i = areas.length - 1; i >= 0; i--)
+			for (let p = 0; p < areas[i].peaks.length; p++) {
+				const q = areas[i].peaks[p];
+				if (Math.hypot(x - q.x, y - q.y) < 15) { openPop('peak', i, e.clientX, e.clientY, p); return; }
+			}
+	}
 	const liste = layer === 'topo' ? areas : vegs;
 	for (let i = liste.length - 1; i >= 0; i--) {
 		if (inPoly(x, y, liste[i].ring)) { openPop(layer, i, e.clientX, e.clientY); return; }
