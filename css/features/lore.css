@@ -203,6 +203,26 @@
 	line-height: 1.5;
 }
 
+/* ---- Fenster „Natur & Waren" ----
+   Der Koerper erbt .wiki-sync-conflicts-dialog__body, und die dreht fuer das
+   Konfliktzentrum auf flex-direction:row (Schiene links, Regelgruppen rechts,
+   review-panel.css). Hier wird gestapelt: Sync-Knopf, Reiter, Liste. Nur die
+   Richtung wird zurueckgedreht -- Polsterung, Hoehe und Scrollverhalten bleiben
+   geerbt, damit das Fenster sich nicht von den uebrigen Dialogen entfernt. */
+#wiki-sync-lore-dialog-body {
+	flex-direction: column;
+	gap: var(--space-10);
+}
+/* Knopfzeile und Reiter behalten ihre Hoehe; nur die Liste waechst und scrollt. */
+#wiki-sync-lore-dialog-body > .wiki-sync-panel__actions,
+#wiki-sync-lore-dialog-body > .wiki-sync-panel__tabs {
+	flex: 0 0 auto;
+}
+#wiki-sync-lore-dialog-body > .wiki-sync-adv-picker {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
 /* ---- Editor eines Eintrags (ersetzt die Liste im selben Bereich) ---- */
 
 .lore-detail {
