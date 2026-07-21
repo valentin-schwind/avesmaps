@@ -76,6 +76,33 @@
 		.hb-topbar__title { color: var(--hb-strong); font-weight: var(--font-weight-bold); }
 		.hb-topbar__meta { color: var(--hb-muted); font-size: var(--font-size-caption); }
 		.hb-topbar a.hb-back { font-weight: var(--font-weight-bold); text-decoration: none; }
+		.hb-topbar__actions { display: flex; align-items: center; gap: 16px; }
+
+		/* --- Hell/Dunkel-Umschalter --- Optik und Verhalten wie in der App: das Markup stammt aus
+		   index.html, die Logik aus js/app/theme-toggle.js (unten eingebunden, kein zweiter Handler).
+		   Nur die Positionierung ist anders: in der App sitzt der Knopf absolut im Routenplaner,
+		   hier steht er in der Kopfleiste. Deshalb sind hier auch nur die Regeln wiederholt, die
+		   das Aussehen tragen -- css/features/route-planner.css laedt diese Seite nicht. */
+		.theme-toggle-btn { position: relative; width: 24px; height: 24px; padding: 0; flex: none;
+			overflow: hidden; border: 0; background: transparent; cursor: pointer;
+			transition: transform 0.12s ease; }
+		.theme-toggle-btn:hover { transform: scale(1.12); }
+		.theme-toggle-btn:focus-visible { outline: none; border-radius: var(--radius-md);
+			box-shadow: var(--focus-ring); }
+		.theme-toggle-ico { position: absolute; left: 50%; top: 50%; width: 21px; height: 21px;
+			transition: transform 0.55s cubic-bezier(0.34, 1.32, 0.5, 1); }
+		/* Sonne und Mond sind Symbolfarben, in beiden Themes gleich -- wie die Kartenlegende weiter
+		   oben und wie im Original. Deshalb hier bewusst literal. */
+		.theme-toggle-ico--sun { fill: #e6a532; stroke: #e6a532; transform: translate(-50%, -50%); }
+		.theme-toggle-ico--moon { fill: #d8d0bd; transform: translate(-50%, 135%); }
+		:root[data-theme="dark"] .theme-toggle-ico--sun { transform: translate(-50%, 135%); }
+		:root[data-theme="dark"] .theme-toggle-ico--moon { transform: translate(-50%, -50%); }
+		.theme-toggle-ico--sun g { transform-box: fill-box; transform-origin: center;
+			animation: theme-sun-spin 22s linear infinite; }
+		@keyframes theme-sun-spin { to { transform: rotate(360deg); } }
+		@media (prefers-reduced-motion: reduce) {
+			.theme-toggle-ico, .theme-toggle-ico--sun g { transition: none; animation: none; }
+		}
 		.hb-wrap { max-width: var(--hb-max); margin: 0 auto; padding: 24px 20px 80px;
 			display: grid; grid-template-columns: 260px 1fr; gap: 40px; }
 
@@ -160,7 +187,13 @@
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
 		<span class="hb-topbar__meta">Stand: 21.07.2026</span>
-		<a class="hb-back" href="https://avesmaps.de/edit/">← Zurück zur Karte</a>
+		<div class="hb-topbar__actions">
+			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
+				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
+				<svg class="theme-toggle-ico theme-toggle-ico--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+			</button>
+			<a class="hb-back" href="https://avesmaps.de/edit/">← Zurück zur Karte</a>
+		</div>
 	</div>
 	<div class="hb-wrap">
 		<nav class="hb-toc" aria-label="Inhalt">
@@ -1215,5 +1248,9 @@
 			}
 		})();
 	</script>
+	<!-- Hell/Dunkel: dieselbe Logik wie in der App (delegierter Klick, Wahl in localStorage unter
+	     "avesmaps-theme"), damit Handbuch und Karte dieselbe Einstellung teilen. Der Guard im <head>
+	     setzt das Theme schon vor dem ersten Zeichnen; dieses Modul liefert den Umschalter. -->
+	<script src="/js/app/theme-toggle.js"></script>
 </body>
 </html>
