@@ -9,6 +9,27 @@
 	display: none;
 }
 
+/* Der Zeilen-Container sitzt MITTEN in der Feldliste der Infobox. display:contents
+   löst ihn aus dem Layout, sodass seine .region-info-box__row-Kinder direkt im
+   Zeilenraster landen -- sonst bräche eine zusätzliche Box das dt/dd-Gitter. */
+.avesmaps-lore-rows {
+	display: contents;
+}
+
+/* Die Werte einer Lore-Zeile sollen umbrechen dürfen: „Waren" trägt schnell acht
+   Namen, und eine nicht umbrechende Zeile sprengt die Infoboxbreite. */
+.avesmaps-lore__row dd {
+	display: block;
+	line-height: 1.45;
+}
+
+.avesmaps-lore__row .avesmaps-lore__more {
+	margin: 0 0 0 0.25rem;
+	padding: 0 0.35rem;
+	font-size: 0.8rem;
+	vertical-align: baseline;
+}
+
 .avesmaps-lore__section {
 	/* Volle Breite trennen wie die übrigen Infobox-Abschnitte: negativer Seitenrand in
 	   Höhe des Panel-Paddings, damit die Linie randlos durchläuft (siehe

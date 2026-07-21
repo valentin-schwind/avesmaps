@@ -693,13 +693,9 @@
 		if (typeof buildTerritoryAdventuresMarkup === "function") {
 			markup += buildTerritoryAdventuresMarkup(regionEntry);
 		}
-		// Natur & Waren (Flora/Fauna/Spezies/Handelswaren). Wie der Abenteuer-Block auf
-		// regionEntry.detail angewiesen: vor dem Detail-Fetch gibt es keinen wiki_key und
-		// damit keinen Abschnitt; die zweite Renderrunde liefert ihn nach. Der Container
-		// füllt sich anschließend selbst (map-features-lore.js) -- ohne Panel-Neuaufbau.
-		if (typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromRegion === "function") {
-			markup += buildLoreMarkup(avesmapsLorePlaceRefFromRegion(regionEntry));
-		}
+		// Natur & Waren stehen NICHT mehr hier als eigener Block: sie sind Zeilen in der
+		// Feldliste der Infobox selbst (createRegionWikiInfoBoxMarkup, Owner-Vorgabe) --
+		// zwischen Kartenzeitraum und dem Ende der Tabelle.
 		// Wiki-Regionen/Territorien tragen den Button jetzt im Kopf-Band (region-info-markup.js). Nur die
 		// kompakte Mini-Box (ohne Wiki, ohne Aktionsband) bekommt ihn hier unten angehaengt.
 		if (typeof hasRegionWikiInfo === "function" && !hasRegionWikiInfo(regionEntry)) { markup += regionSuggestChangeBandMarkup(regionEntry); }

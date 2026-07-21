@@ -110,9 +110,25 @@ try {
 
     // Mehrere Orte sind erlaubt (kommagetrennt): Abschnitt 3 reicht hier die
     // Territorienkette herein, ohne dass sich der Vertrag ändert.
+    // ?title= nimmt WIKI-TITEL statt fertiger Schlüssel und sluggt sie hier.
+    // 💣 Das ist kein Komfort, sondern nötig: avesmapsPoliticalSlug transliteriert per
+    // iconv und verschluckt dabei Umlaute („Königreich" -> „k-nigreich"). Der Client
+    // kann das nicht nachbilden, also darf er es gar nicht erst versuchen -- sonst
+    // trifft jeder Ort mit Umlaut ins Leere.
+    $titleParameter = trim((string) ($_GET['title'] ?? ''));
     $placeParameter = trim((string) ($_GET['place'] ?? ''));
+    if ($titleParameter !== '') {
+        $fromTitles = [];
+        foreach (explode('|', $titleParameter) as $title) {
+            $slug = avesmapsLoreSlugForTitle(trim($title));
+            if ($slug !== '') {
+                $fromTitles[] = $slug;
+            }
+        }
+        $placeParameter = trim($placeParameter . ',' . implode(',', $fromTitles), ',');
+    }
     if ($placeParameter === '') {
-        avesmapsErrorResponse(400, 'place_required', 'Parameter "place" (wiki_key) is required.');
+        avesmapsErrorResponse(400, 'place_required', 'Parameter "place" (wiki_key) oder "title" is required.');
     }
     $placeKeys = [];
     foreach (explode(',', $placeParameter) as $candidate) {

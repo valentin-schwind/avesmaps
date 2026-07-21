@@ -116,7 +116,14 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods),
 		createRegionInfoTextRow(tr("infobox.tradeZone", "Handelszone"), f.trade_zone),
 		createRegionInfoTextRow(tr("infobox.geographic", "Geographisch"), f.geographic),
-		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel)
+		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel),
+		// Waren / Fauna / Flora / Spezies als eigene Zeilen in DIESER Feldliste (Owner).
+		// Der Container kommt leer und füllt sich, sobald api/app/lore.php geantwortet
+		// hat -- ohne die Box neu zu bauen. Vor dem Detail-Fetch gibt es noch keinen
+		// wiki_key; die zweite Renderrunde liefert ihn nach.
+		(typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromRegion === "function"
+			? buildLoreMarkup(avesmapsLorePlaceRefFromRegion(regionEntry))
+			: "")
 	].join("");
 
 	// Owner: 16:9 header image + title overlay instead of the coat/icon header. Territories carry a political

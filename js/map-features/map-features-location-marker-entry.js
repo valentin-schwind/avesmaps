@@ -307,6 +307,13 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	rows += row(tr("popup.fieldTrafficRoutes", "Verkehrswege"), wiki.verkehrswege);
 	rows += row(tr("popup.fieldPopulation", "Bevölkerung"), wiki.bevoelkerung);
 	rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
+	// Waren / Fauna / Flora / Spezies als eigene Zeilen (Owner). Der Container kommt
+	// leer und füllt sich, sobald api/app/lore.php geantwortet hat -- die Siedlung
+	// erreicht ihre Gegend über das Territorium aus dem Raycast, weil sie selbst kein
+	// Region-Feld trägt.
+	if (typeof buildLoreMarkup === "function" && typeof avesmapsLorePlaceRefFromLocation === "function") {
+		rows += buildLoreMarkup(avesmapsLorePlaceRefFromLocation(location));
+	}
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	// Quellen-Zeile: der Aufrufer (buildLocationMarkerPopupHtml) reicht die fertige

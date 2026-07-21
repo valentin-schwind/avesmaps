@@ -280,14 +280,34 @@ function avesmapsLoreExpandPlaceKeys(PDO $pdo, string $placeKey): array
         // Wiki-Spiegel fehlt -> keine Regionsbrücke.
     }
 
-    // AUFWÄRTS: Vorfahren im politischen Baum.
+    // Umgekehrte Brücke: Territorium -> seine Region. Damit erreicht eine SIEDLUNG die
+    // Lore ihrer Gegend, obwohl Siedlungen selbst kein Region-Feld im Staging tragen:
+    // Trallop -> (Raycast) Stadtmark Trallop -> Herzogtum Weiden -> geographic: Weiden.
+    $regionOfTerritory = [];
+    foreach ($territoriesInRegion as $regionKey => $territories) {
+        foreach ($territories as $territory) {
+            $regionOfTerritory[$territory][] = $regionKey;
+        }
+    }
+
+    // AUFWÄRTS: Vorfahren im politischen Baum -- und je Station deren Region.
     $cursor = $root;
     $guard = 0;
+    foreach ($regionOfTerritory[$root] ?? [] as $regionKey) {
+        if (!isset($ranks[$regionKey])) {
+            $ranks[$regionKey] = 2;
+        }
+    }
     while (isset($parentOf[$cursor]) && $guard < 32) {
         $cursor = $parentOf[$cursor];
         $guard++;
         if (!isset($ranks[$cursor])) {
             $ranks[$cursor] = 2;
+        }
+        foreach ($regionOfTerritory[$cursor] ?? [] as $regionKey) {
+            if (!isset($ranks[$regionKey])) {
+                $ranks[$regionKey] = 2;
+            }
         }
     }
 
