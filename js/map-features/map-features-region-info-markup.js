@@ -113,10 +113,16 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		createRegionInfoTextRow(tr("infobox.language", "Sprache"), f.language),
 		createRegionInfoTextRow(tr("infobox.currency", "Währung"), f.currency),
 		createRegionInfoTextRow(tr("infobox.population", "Einwohnerzahl"), f.population),
-		createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods),
 		createRegionInfoTextRow(tr("infobox.tradeZone", "Handelszone"), f.trade_zone),
 		createRegionInfoTextRow(tr("infobox.geographic", "Geographisch"), f.geographic),
 		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel),
+		// „Handelswaren" steht DIREKT über den Lore-Zeilen (Owner 2026-07-22): beide
+		// handeln von Waren, meinen aber Verschiedenes -- dies hier ist die Freitextliste
+		// der GATTUNGEN aus {{Infobox Staat}} (Vieh, Holz, Wolltuch), darunter folgen die
+		// BENANNTEN Erzeugnisse mit eigenem Wiki-Artikel (Bräubier, Brachfelder
+		// Bärenbiss). Getrennt durch Handelszone/Geographisch/Kartenzeitraum las sich das
+		// wie ein Doppeleintrag mit widersprüchlichem Inhalt.
+		createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods),
 		// Waren / Fauna / Flora / Spezies als eigene Zeilen in DIESER Feldliste (Owner).
 		// Der Container kommt leer und füllt sich, sobald api/app/lore.php geantwortet
 		// hat -- ohne die Box neu zu bauen. Vor dem Detail-Fetch gibt es noch keinen
