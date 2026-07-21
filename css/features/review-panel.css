@@ -437,16 +437,30 @@
 /* Central "Dump holen" block (above the 4 tabs): button + fetched-status on one row
    (inherited from .wiki-sync-panel__actions' grid), with a divider below separating
    it from the tab nav that follows. */
+/* Beide zentralen Knoepfe stehen in EINER Kachelzeile (Owner 2026-07-21). "Dump holen" bekommt
+   mehr Breite, weil sein Text waehrend des Laufs den Fortschritt UND danach das Datum traegt --
+   die Meldung lebt im Knopf, nicht daneben. */
 .wiki-sync-dump-central {
-	padding-bottom: 8px;
+	display: grid;
+	grid-template-columns: 1.6fr 1fr;
+	gap: 8px;
+	padding: 0 10px 8px;
 	border-bottom: 1px solid var(--color-border);
+}
+/* .wiki-sync-panel__start traegt min-width:16rem, damit eine wechselnde Fortschritts-Beschriftung
+   den Knopf nicht springen laesst. In der Kachelzeile uebernimmt das Raster diese Aufgabe -- die
+   Spalten liegen fest, egal was im Knopf steht -- also darf der Boden hier weg. Sonst sprengen
+   beide Knoepfe ihre Spalte und stehen wieder gleich breit. */
+.wiki-sync-dump-central .wiki-sync-panel__start {
+	min-width: 0;
 }
 
 /* "Dump holen" sits alone in the central block now (the "Abenteuereditor" tile moved into its own
    Abenteuer tab below); the wrapper carries the margin (matching .wiki-sync-dump-summary below it)
    while the button keeps width:100% of it, same convention as .wiki-sync-panel__actions/-dump-tiles. */
 .wiki-sync-dump-solo {
-	margin: 8px 10px 4px;
+	margin: 8px 0 0;
+	min-width: 0;
 }
 /* Die Status-/"Dump geholt: <date>"-Zeile läuft jetzt UNTER dem Button -- horizontaler Rand
    wie der Button, damit sie damit fluchtet (vorher trug den Rand das .wiki-sync-panel__actions-Grid). */
@@ -787,10 +801,18 @@
 .conflict-legacy > summary { cursor: pointer; color: var(--color-text-muted); font-size: 12.5px; }
 /* Der Kopfzeilen-Knopf erbt sonst die 100%-Breite von .wiki-sync-panel__start (dort sitzt er in
    einer Spalte, hier neben dem Titel) -- Elternselektor statt !important. */
-.location-report-dialog__header .conflict-rescan {
+/* .wiki-sync-panel__start ist auf volle Spaltenbreite ausgelegt. Im Dialog sitzt der Knopf aber in
+   einer Zeile, nicht in einer Spalte -- ohne diese Regel fuellt er die halbe Fusszeile. Gilt fuer
+   BEIDE Stellen: die Regel hing vorher nur an der Kopfzeile, aus der er inzwischen umgezogen ist,
+   und wurde dadurch wirkungslos. */
+.location-report-dialog__header .conflict-rescan,
+.conflict-foot .conflict-rescan {
 	width: auto;
 	flex: 0 0 auto;
-	margin-left: auto;
+	padding: 5px 14px;
+	font-size: 12.5px;
+	/* 16rem-Boden weg, aber ein kleiner bleibt: "Prüft …" darf den Knopf nicht springen lassen. */
+	min-width: 9rem;
 }
 
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
