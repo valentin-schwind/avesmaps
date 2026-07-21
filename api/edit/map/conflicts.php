@@ -97,6 +97,13 @@ try {
         avesmapsConflictReadDecisions($pdo)
     );
 
+    // Sprechbare Fallnummer, zentral vergeben statt in jeder Regel -- so kann keine sie vergessen,
+    // und sie ist garantiert nach demselben Verfahren gebildet. Abgeleitet aus dem Fingerabdruck,
+    // also ohne eigene Tabelle stabil.
+    foreach ($conflicts as $index => $conflict) {
+        $conflicts[$index]['short_id'] = avesmapsConflictShortId((string) ($conflict['fingerprint'] ?? ''));
+    }
+
     // Summary counters. Computed here so the client never has to re-derive them and the two cannot
     // drift apart -- the filter rail and the pills must agree.
     $bySeverity = [];

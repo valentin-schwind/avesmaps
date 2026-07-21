@@ -132,4 +132,19 @@ assert(avesmapsConflictFingerprint('r', $a, ['x' => 1, 'y' => 2]) === avesmapsCo
 $c = array_merge($a, [['type' => 'path', 'id' => 'p9']]);
 assert(avesmapsConflictFingerprint('r', $a) !== avesmapsConflictFingerprint('r', $c));
 
+// ---- 6. the speakable case number ---------------------------------------------------------------
+// Editors talk about cases and were talking past each other; the number only helps if it is the
+// SAME number next week, and if nobody mistypes it reading it aloud.
+$printA = str_repeat("a", 64);
+$printB = str_repeat("b", 64);
+assert(avesmapsConflictShortId($printA) === avesmapsConflictShortId($printA));   // stabil
+assert(avesmapsConflictShortId($printA) !== avesmapsConflictShortId($printB));
+assert(strlen(avesmapsConflictShortId($printA)) === 6);
+// Kein I, L, O oder U -- genau die Zeichen, die beim Vorlesen verwechselt werden.
+assert(preg_match("/^[0-9A-HJKMNP-TV-Z]{6}$/", avesmapsConflictShortId($printA)) === 1);
+// Ueber viele Faelle hinweg keine auffaellige Haeufung (grobe Streuungspruefung).
+$seen = [];
+for ($i = 0; $i < 4000; $i++) { $seen[avesmapsConflictShortId(hash("sha256", (string) $i))] = true; }
+assert(count($seen) > 3980);
+
 fwrite(STDOUT, "conflict-core-test: alle Zusicherungen erfuellt\n");

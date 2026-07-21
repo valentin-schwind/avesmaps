@@ -103,6 +103,31 @@ function avesmapsConflictFingerprint(string $ruleId, array $parties, array $fact
 }
 
 /**
+ * Short, speakable case number derived from the fingerprint -- so editors can say "schau dir mal
+ * K7M2QX an" instead of describing the case (owner 2026-07-21: they talk past each other).
+ *
+ * Derived, not stored: the fingerprint is already the stable identity of a conflict, so the number
+ * is stable for free and needs no table. The flip side is honest rather than annoying -- when the
+ * underlying facts change the fingerprint changes, and so does the number. That IS a different
+ * case: it reopened for a reason.
+ *
+ * Crockford-style alphabet without I/L/O/U: those are the characters people mistype when reading a
+ * code aloud, which is the entire purpose here. Six characters over 32 symbols leaves a ~1.5%
+ * chance that ANY two of ~6000 conflicts collide -- and a collision costs nothing worse than the
+ * search returning both.
+ */
+function avesmapsConflictShortId(string $fingerprint): string {
+    $alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+    $digest = hash('sha256', 'conflict-id|' . trim($fingerprint), true);
+    $out = '';
+    for ($i = 0; $i < 6; $i++) {
+        $out .= $alphabet[ord($digest[$i]) % 32];
+    }
+
+    return $out;
+}
+
+/**
  * May these object types share one wiki article?
  *
  * Exactly ONE pairing is legitimate: the segments of a single road. Everything else is a case --

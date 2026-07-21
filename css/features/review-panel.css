@@ -1546,3 +1546,39 @@
 body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 	pointer-events: auto;
 }
+
+/* Fallnummer: klein, einfarbig, anklickbar zum Kopieren. Editoren reden ueber die Faelle und
+   redeten aneinander vorbei -- eine sprechbare Nummer loest das, aber nur wenn man sie auch
+   schnell in den Chat bekommt. */
+.conflict-case__id {
+	flex: 0 0 auto;
+	padding: 1px 7px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-muted);
+	color: var(--color-text-muted);
+	font: inherit;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+.conflict-case__id:hover {
+	border-color: var(--color-border-strong);
+	color: var(--color-text);
+}
+.location-report-dialog__header .conflict-search {
+	flex: 0 1 240px;
+	margin-left: auto;
+	min-width: 0;
+	padding: 5px 10px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 12.5px;
+}
+#wiki-sync-conflicts-overlay.is-minimized .conflict-search {
+	display: none;
+}

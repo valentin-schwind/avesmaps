@@ -348,6 +348,10 @@ $("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncC
 $("#wiki-sync-conflicts-open").on("click", () => setWikiSyncConflictsDialogOpen(true));
 $("#conflict-rescan").on("click", () => loadConflicts({ rescan: true }));
 $("#conflict-minimize").on("click", () => setConflictDialogMinimized(!conflictMinimized));
+$("#conflict-search").on("input search", function () {
+    conflictFilter.query = String($(this).val() || "").trim();
+    renderConflicts();
+});
 $("#wiki-sync-conflicts-close").on("click", () => setWikiSyncConflictsDialogOpen(false));
 $("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 $("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));

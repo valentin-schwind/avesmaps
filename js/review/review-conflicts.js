@@ -9,7 +9,7 @@
 //    runs WITHOUT decision content (e.g. the ways' "alle sauberen anwenden") may batch.
 
 let conflictData = { rules: [], conflicts: [], summary: null, typeLabels: {} };
-let conflictFilter = { type: "", severity: "", status: "open" };
+let conflictFilter = { type: "", severity: "", status: "open", query: "" };
 let conflictLoading = false;
 // Loaded once per page, not once per open: reopening the dialog must not re-walk the table, but an
 // editor should never have to press a button to see anything at all. "Neu prüfen" forces a refresh.
@@ -232,6 +232,9 @@ function getLegacyConflicts() {
 		return {
 			rule_id: `wikisync.${caseEntry.case_type || "unknown"}`,
 			fingerprint: `legacy-${caseEntry.id}`,
+			// Eigene Form: ein WikiSync-Fall HAT bereits eine echte, stabile Nummer -- die ist
+			// nuetzlicher als eine abgeleitete, und das Praefix sagt, wo der Fall herkommt.
+			short_id: `WS${caseEntry.id}`,
 			severity: LEGACY_CASE_SEVERITY[caseEntry.case_type] || "unverified",
 			title: typeof getWikiSyncCaseTitle === "function" ? getWikiSyncCaseTitle(caseEntry) : label,
 			status: caseEntry.status === "resolved" ? "done" : (caseEntry.status || "open"),
@@ -277,8 +280,27 @@ function getAllConflicts() {
 	return conflictData.conflicts.concat(getLegacyConflicts());
 }
 
+// Sucht ueber die Fallnummer UND den Text -- ein Editor tippt mal "K7M2QX", mal "Fasar".
+// Das "#" darf mitgetippt werden, weil es in der Anzeige davorsteht.
+function conflictMatchesQuery(conflict, query) {
+	if (!query) {
+		return true;
+	}
+	const needle = query.replace(/^#/, "").toLowerCase();
+	const haystack = [
+		conflict.short_id || "",
+		conflict.title || "",
+		...(conflict.parties || []).map((party) => `${party.label || ""} ${party.type_label || ""}`),
+	].join(" ").toLowerCase();
+
+	return haystack.includes(needle);
+}
+
 function getFilteredConflicts() {
 	return getAllConflicts().filter((conflict) => {
+		if (!conflictMatchesQuery(conflict, conflictFilter.query)) {
+			return false;
+		}
 		if (conflictFilter.status && conflict.status !== conflictFilter.status) {
 			return false;
 		}
@@ -598,6 +620,19 @@ function createConflictElement(conflict) {
 
 	const head = document.createElement("div");
 	head.className = "conflict-case__head";
+	if (conflict.short_id) {
+		const id = document.createElement("button");
+		id.type = "button";
+		id.className = "conflict-case__id";
+		id.textContent = `#${conflict.short_id}`;
+		id.title = "Fallnummer — klicken zum Kopieren. Damit kann man im Team ueber genau diesen Fall reden.";
+		id.addEventListener("click", () => {
+			navigator.clipboard?.writeText(`#${conflict.short_id}`);
+			id.textContent = "kopiert";
+			window.setTimeout(() => { id.textContent = `#${conflict.short_id}`; }, 1200);
+		});
+		head.appendChild(id);
+	}
 	const title = document.createElement("span");
 	title.className = "conflict-case__title";
 	title.textContent = conflict.title || "(ohne Titel)";
