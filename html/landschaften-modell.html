@@ -38,19 +38,28 @@
 		/* The local --ls-* names are ALIASES of the real design tokens (css/base/tokens.css), not a
 		   pinned palette. Every chrome rule below therefore follows light/dark without being rewritten.
 		   See AGENTS.md sec.12 -- never hardcode a colour here. */
+		/* 💣 JEDER Alias braucht einen Rueckfallwert. Ohne ihn ist var(--color-...) bei fehlender
+		   tokens.css UNGUELTIG, und eine ungueltige Farbe wird nicht ignoriert -- sie wird
+		   TRANSPARENT. Genau daran lag das "durchsichtige" Einstellungsfenster: seine Kopfleiste
+		   nutzt --ls-topo (ein Literal, kam immer an), sein Rumpf --ls-inset (aus tokens.css, kam
+		   nicht an). Mit Rueckfall sieht die Seite ohne Tokens nur schlichter aus statt kaputt. */
 		:root {
-			--ls-bg: var(--color-page-bg);
-			--ls-fg: var(--color-text);
-			--ls-strong: var(--color-text-strong);
-			--ls-muted: var(--color-text-muted);
-			--ls-line: var(--color-border);
-			--ls-line-strong: var(--color-border-strong);
-			--ls-card: var(--color-panel);
-			--ls-soft: var(--color-panel-soft);
-			--ls-inset: var(--color-panel-muted);
-			--ls-accent: var(--color-link);
-			--ls-btn: var(--color-button);
-			--ls-btn-text: var(--color-button-text);
+			--ls-bg: var(--color-page-bg, #f3f0e8);
+			--ls-fg: var(--color-text, #2e271e);
+			--ls-strong: var(--color-text-strong, #3c3327);
+			--ls-muted: var(--color-text-muted, #706557);
+			--ls-line: var(--color-border, #ddd3c3);
+			--ls-line-strong: var(--color-border-strong, #cdbfa8);
+			--ls-card: var(--color-panel, #fffdf9);
+			--ls-soft: var(--color-panel-soft, #faf6ee);
+			--ls-inset: var(--color-panel-muted, #f1ece1);
+			--ls-accent: var(--color-link, #8f7326);
+			--ls-btn: var(--color-button, #5b5548);
+			--ls-btn-text: var(--color-button-text, #f6efe1);
+			--ls-btn-hover: var(--color-button-soft-hover, #e7ddc9);
+			--ls-divider: var(--color-divider, rgba(125, 115, 96, .30));
+			--ls-r: var(--radius-md, 8px);
+			--ls-r-lg: var(--radius-lg, 10px);
 			--ls-max: 1180px;
 
 			/* Map symbols and the elevation ramp. DELIBERATELY LITERAL: this is a legend that has to
@@ -76,7 +85,7 @@
 		.bar {
 			display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
 			padding: 12px 14px; background: var(--ls-card); border: 1px solid var(--ls-line);
-			border-radius: var(--radius-md); margin-bottom: 14px;
+			border-radius: var(--ls-r); margin-bottom: 14px;
 			font-family: system-ui, "Segoe UI", sans-serif; font-size: 13px;
 		}
 		.grp { display: flex; align-items: center; gap: 8px; }
@@ -86,7 +95,7 @@
 		/* Jeder Schalter traegt die Farbe SEINER Ebene -- dieselbe wie der Umriss auf der Karte und
 		   in der Legende. Vorher waren beide im Aktivzustand dasselbe Braun, die Zuordnung war also
 		   erst nach dem Klicken zu sehen. Der Punkt links bleibt auch im Ruhezustand farbig. */
-		.seg { display: flex; border: 1px solid var(--ls-line-strong); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-soft); }
+		.seg { display: flex; border: 1px solid var(--ls-line-strong); border-radius: var(--ls-r); overflow: hidden; background: var(--ls-soft); }
 		.seg button {
 			border: 0; background: transparent; color: var(--ls-muted); cursor: pointer;
 			padding: 10px 20px; font: 600 14px/1 system-ui, sans-serif;
@@ -97,7 +106,7 @@
 			content: ""; width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto;
 			background: var(--dot); box-shadow: inset 0 0 0 1px rgba(0,0,0,.28);
 		}
-		.seg button:hover:not(.on) { background: var(--color-button-soft-hover); color: var(--ls-fg); }
+		.seg button:hover:not(.on) { background: var(--ls-btn-hover); color: var(--ls-fg); }
 		#bTopo { --dot: var(--ls-topo); }
 		#bVeg  { --dot: var(--ls-veg); }
 		#bTopo.on { background: var(--ls-topo); color: var(--ls-btn-text); }
@@ -105,13 +114,13 @@
 		.seg button.on::before { background: rgba(255,255,255,.9); box-shadow: none; }
 
 		input[type=range] { width: 118px; accent-color: var(--ls-btn); }
-		input[type=number] { width: 76px; padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
-		select { padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
-		.btn { border: 1px solid var(--ls-line-strong); background: var(--ls-soft); color: var(--ls-fg); border-radius: var(--radius-md); padding: 6px 12px; font: 12.5px system-ui, sans-serif; cursor: pointer; }
+		input[type=number] { width: 76px; padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--ls-r); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
+		select { padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--ls-r); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
+		.btn { border: 1px solid var(--ls-line-strong); background: var(--ls-soft); color: var(--ls-fg); border-radius: var(--ls-r); padding: 6px 12px; font: 12.5px system-ui, sans-serif; cursor: pointer; }
 		.btn:hover { border-color: var(--ls-accent); }
 		.unit { font-size: 12px; color: var(--ls-muted); }
 
-		.stage { position: relative; height: 540px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-inset); line-height: 0; }
+		.stage { position: relative; height: 540px; border: 1px solid var(--ls-line); border-radius: var(--ls-r); overflow: hidden; background: var(--ls-inset); line-height: 0; }
 		.stage canvas, .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 		.stage svg { cursor: crosshair; }
 
@@ -132,7 +141,7 @@
 			width: 250px; padding: 12px 13px 13px;
 			background-color: var(--ls-inset);
 			border: 1.5px solid var(--ls-line-strong);
-			border-radius: var(--radius-lg);
+			border-radius: var(--ls-r-lg);
 			box-shadow: 0 10px 30px rgba(0,0,0,.34), 0 0 0 1px rgba(0,0,0,.10);
 			font-family: system-ui, "Segoe UI", sans-serif; font-size: 12.5px; line-height: 1.5;
 		}
@@ -145,7 +154,7 @@
 		   nebenbei mit dem Umschalter und der Legende. */
 		.pop .kopf {
 			margin: -12px -13px 11px; padding: 10px 13px 9px;
-			border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+			border-radius: calc(var(--ls-r-lg) - 1px) calc(var(--ls-r-lg) - 1px) 0 0;
 			background: var(--kopf, var(--ls-btn));
 		}
 		.pop h3 { margin: 0 0 1px; font-size: 14px; color: var(--ls-btn-text); }
@@ -153,27 +162,27 @@
 			color: var(--ls-btn-text); opacity: .78; }
 		.pop .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 		.pop .row > label { font-size: 11.5px; color: var(--ls-muted); }
-		.pop .foot2 { display: flex; gap: 8px; align-items: center; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--color-divider); }
+		.pop .foot2 { display: flex; gap: 8px; align-items: center; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--ls-divider); }
 		.pop .close { position: absolute; top: 9px; right: 10px; border: 0; background: transparent;
 			color: var(--ls-btn-text); opacity: .7; font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 5px; }
 		.pop .close:hover { opacity: 1; }
 		.pop .meta { font-size: 11px; color: var(--ls-muted); margin-top: 9px; }
 
 		.out { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; font-family: system-ui, sans-serif; }
-		.card { flex: 1 1 190px; background: var(--ls-card); border: 1px solid var(--ls-line); border-radius: var(--radius-md); padding: 10px 12px; }
+		.card { flex: 1 1 190px; background: var(--ls-card); border: 1px solid var(--ls-line); border-radius: var(--ls-r); padding: 10px 12px; }
 		.card b { display: block; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ls-muted); font-weight: 600; margin-bottom: 3px; }
 		.card span { font-size: 20px; font-weight: 700; color: var(--ls-strong); }
 		.card em { font-style: normal; font-size: 11.5px; color: var(--ls-muted); display: block; margin-top: 2px; }
 
 		.legend { margin-top: 14px; font-size: 13px; color: var(--ls-muted); display: flex; flex-wrap: wrap; gap: 20px; }
 		.legend i { display: inline-block; width: 22px; height: 3px; vertical-align: middle; margin-right: 7px; border-radius: 2px; }
-		.note { margin-top: 14px; padding: 11px 14px; background: var(--ls-soft); border: 1px solid var(--ls-line); border-radius: var(--radius-md); font-size: 13.5px; }
-		.foot { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--color-divider); font-size: 15px; }
+		.note { margin-top: 14px; padding: 11px 14px; background: var(--ls-soft); border: 1px solid var(--ls-line); border-radius: var(--ls-r); font-size: 13.5px; }
+		.foot { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--ls-divider); font-size: 15px; }
 		.foot h2 { font-size: 17px; color: var(--ls-strong); margin: 20px 0 4px; font-weight: 600; }
 		.foot h2:first-child { margin-top: 4px; }
 		.foot p { margin: 0 0 9px; max-width: 62ch; }
 		.foot code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
-		.foot details { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--color-divider); color: var(--ls-muted); }
+		.foot details { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ls-divider); color: var(--ls-muted); }
 		.foot details p { font-size: 14px; }
 		.foot summary { cursor: pointer; color: var(--ls-accent); font-size: 14px; margin-bottom: 8px; }
 		.foot summary:hover { text-decoration: underline; }
@@ -220,10 +229,8 @@
 			</div>
 
 			<div id="popTopo">
-				<div class="row">
-					<label for="pHmax">Höchster Punkt</label>
-					<span><input type="number" id="pHmax" min="200" max="9000" step="100"> <span class="unit">Schritt</span></span>
-				</div>
+				<!-- Ein Regler JE GIPFEL. Die Hoehe gehoert dem Gipfel, nicht der Flaeche. -->
+				<div id="pPeaks"></div>
 				<div class="row">
 					<label for="pGrain">Körnung</label>
 					<input type="range" id="pGrain" min="15" max="200" step="5">
@@ -310,6 +317,9 @@
 <script>
 const W = 900, H = 540;
 const PX_TO_SCHRITT = 400;            // 1 px = 0,4 Meilen = 400 Schritt
+// Obergrenze der Farbskala, gleich dem Anschlag des Hoehenschiebers. Fest, damit eine Farbe
+// immer dieselbe Hoehe bedeutet -- und damit das Aendern einer Flaeche keine andere umfaerbt.
+const SKALA_MAX = 15000;
 
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 const ov = document.getElementById('ov'), pop = document.getElementById('pop');
@@ -324,13 +334,18 @@ const ov = document.getElementById('ov'), pop = document.getElementById('pop');
 // Flaeche mit denselben Buckeln.
 const NEU = o => Object.assign({ bumps: [], peakBumps: [], grid: null, gCell: 18, gW: 0, gH: 0,
 	scale: 1, mask: null, maskSig: '', rMin: 0, gestoppt: 0 }, o);
+// Gipfel tragen ihre Hoehe ABSOLUT, in Schritt. Sie stammt im echten System aus dem Wiki und
+// haengt am berggipfel-Label -- also an einem Datum, nicht an einem Regler der Flaeche. Frueher
+// war sie ein Anteil (f) an einer Flaechenhoehe; damit verschob ein Zug am Schieber alle Gipfel
+// zugleich, und ein Bedienelement schrieb Daten um. Die Flaeche hat deshalb keine eigene Hoehe
+// mehr: ihr hoechster Punkt IST ihr hoechster Gipfel.
 let areas = [
-	NEU({ name: 'Amboss-Wall', seed: 20260719, hmax: 5200, grain: 30, levels: 2,
+	NEU({ name: 'Amboss-Wall', seed: 20260719, grain: 30, levels: 2,
 	  ring: [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]],
-	  peaks: [{ x: 390, y: 170, f: 1 }, { x: 520, y: 280, f: .78 }] }),
-	NEU({ name: 'Zwergenzinnen', seed: 77414, hmax: 2600, grain: 62, levels: 2,
+	  peaks: [{ x: 390, y: 170, h: 5200, name: 'Amboss' }, { x: 520, y: 280, h: 4056, name: 'Hammerkopf' }] }),
+	NEU({ name: 'Zwergenzinnen', seed: 77414, grain: 62, levels: 2,
 	  ring: [[660,235],[762,196],[856,246],[872,344],[800,412],[698,396],[648,318]],
-	  peaks: [{ x: 745, y: 300, f: 1 }] }),
+	  peaks: [{ x: 745, y: 300, h: 2600, name: 'Zwergenzinne' }] }),
 ];
 // Bedeckungsflaechen tragen ihren Faktor selbst -- ein Sumpf bremst anders als ein Wald, und
 // beides ist eine Eigenschaft des Gebiets, nicht eine Einstellung des Editors.
@@ -466,31 +481,31 @@ function buildArea(a) {
 	let sep = 1e9;
 	for (let i = 0; i < a.peaks.length; i++) for (let j = i + 1; j < a.peaks.length; j++)
 		sep = Math.min(sep, Math.hypot(a.peaks[i].x - a.peaks[j].x, a.peaks[i].y - a.peaks[j].y));
+	// Amplitude = die Hoehe des Gipfels IN SCHRITT, direkt. Damit traegt sein Buckel im Zentrum
+	// genau diesen Wert (das Fenster loescht dort das Rauschen), und es gibt nichts mehr zu
+	// normieren: a.scale bleibt 1. Ein fehlender Wert darf die Flaeche nicht auf NaN ziehen.
 	a.peakBumps = [];
 	for (const p of a.peaks) {
 		if (!inPoly(p.x, p.y, a.ring)) continue;
-		const f = Number.isFinite(p.f) && p.f > 0 ? p.f : 1;
-		a.peakBumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, a.ring), .72 * sep, 150), a: f, peak: true });
+		const h = Number.isFinite(p.h) && p.h > 0 ? p.h : 1000;
+		a.peakBumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, a.ring), .72 * sep, 150), a: h, peak: true });
 	}
 	for (const b of grob) b.i = 1 / (b.r * b.r);
 	for (const b of a.peakBumps) b.i = 1 / (b.r * b.r);
+	a.scale = 1;
+	a.hmax = a.peakBumps.length ? Math.max(...a.peakBumps.map(b => b.a)) : 0;   // abgeleitet, nicht eingestellt
 
-	// Rauschmaximum messen (ohne Gipfel), dann so daempfen, dass es unter dem NIEDRIGSTEN
-	// benannten Gipfel bleibt -- sonst ueberragt ein erfundener Huegel einen benannten.
+	// Rauschmaximum messen (ohne Gipfel, noch in relativen Einheiten), dann so skalieren, dass es
+	// unter dem NIEDRIGSTEN benannten Gipfel bleibt -- sonst ueberragt ein erfundener Huegel einen
+	// benannten. Damit landet auch das Rauschen unmittelbar in Schritt.
 	const keepPeaks = a.peakBumps; a.peakBumps = [];
 	buildIndex(a, grob);
 	let lmax = 0;
 	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = rawArea(a, x, y); if (v > lmax) lmax = v; }
 	a.peakBumps = keepPeaks;
-	const minG = a.peakBumps.length ? Math.min(...a.peakBumps.map(b => b.a)) : 1;
-	const daempfung = lmax > 0 ? Math.min(1, .8 * minG / lmax) : 1;
+	const minG = a.peakBumps.length ? Math.min(...a.peakBumps.map(b => b.a)) : 0;
+	const daempfung = lmax > 0 && minG > 0 ? .8 * minG / lmax : 0;
 	for (const b of grob) b.a *= daempfung;
-
-	// Normiert auf den HOECHSTEN benannten Gipfel: dessen Buckel traegt in seinem Zentrum genau
-	// seine Amplitude (das Fenster loescht dort das Rauschen), er liest also exakt die eingetragene
-	// Zahl. Ohne Gipfel faellt es auf das Rauschmaximum zurueck.
-	const maxG = a.peakBumps.length ? Math.max(...a.peakBumps.map(b => b.a)) : 0;
-	a.scale = maxG > 0 ? a.hmax / maxG : (lmax > 0 ? a.hmax / lmax : 0);
 
 	// Feinere Stufen: halber Zellabstand, Amplitude x0,35 je Stufe -- NICHT x0,5. Bei halbem
 	// Abstand liegen viermal so viele Buckel im Gebiet und ihre Radien halbieren sich mit, an
@@ -559,9 +574,12 @@ function paint() {
 	cv.width = W; cv.height = H;
 	const img = ctx.createImageData(W, H), d = img.data;
 	const S = +document.getElementById('step').value;
-	// EINE gemeinsame Farbskala ueber alle Flaechen, sonst sieht ein 2.600er Bergland genauso
-	// hoch aus wie ein 5.200er Wall.
-	const hm = Math.max(...areas.map(a => a.hmax), 1);
+	// FESTE Farbskala, nicht das Maximum ueber die Flaechen. Vorher war sie relativ -- drehte man
+	// die Hoehe EINER Flaeche, verschob sich die Skala und alle ANDEREN wechselten die Farbe, ohne
+	// sich geaendert zu haben. In einem Editor ist das eine unsichtbare Kopplung zwischen Objekten,
+	// die nichts miteinander zu tun haben. Fest verankert heisst dagegen: eine Farbe bedeutet immer
+	// dieselbe Hoehe, und ein 2.600er Bergland sieht dauerhaft aus wie eines.
+	const hm = SKALA_MAX;
 	const t0 = performance.now();
 	// EIN Durchgang: Maske lesen und Hoehe aufsummieren zugleich, indiziert statt for..of.
 	// Vorher liefen hier zwei Iteratoren je Pixel (einmal "drin?", einmal in hAt) -- 242.000
@@ -722,7 +740,23 @@ function openPop(kind, idx, clientX, clientY) {
 	$('popKind').textContent = kind === 'topo' ? 'Topographie · Gebirge' : 'Bedeckung · ' + o.typ;
 	// Kopfleiste in der Farbe der Ebene -- dieselbe wie Umschalter, Umriss und Legende.
 	pop.style.setProperty('--kopf', cssVar(kind === 'topo' ? '--ls-topo' : '--ls-veg'));
-	if (kind === 'topo') { $('pHmax').value = o.hmax; $('pGrain').value = o.grain; $('pLevels').value = o.levels; }
+	if (kind === 'topo') {
+		$('pGrain').value = o.grain; $('pLevels').value = o.levels;
+		// Gipfelzeilen frisch aufbauen -- jede Flaeche hat ihre eigene Zahl davon.
+		const box = $('pPeaks'); box.textContent = '';
+		o.peaks.forEach((p, pi) => {
+			const row = document.createElement('div'); row.className = 'row';
+			const lab = document.createElement('label'); lab.textContent = p.name || ('Gipfel ' + (pi + 1));
+			const sl = document.createElement('input');
+			sl.type = 'range'; sl.min = 200; sl.max = 15000; sl.step = 100; sl.value = p.h;
+			sl.oninput = e => { p.h = +e.target.value; all(); };
+			row.append(lab, sl);
+			const out = document.createElement('div'); out.className = 'row';
+			out.style.marginTop = '-4px';
+			out.innerHTML = '<span></span><span class="unit"></span>';
+			box.append(row, out);
+		});
+	}
 	else { $('pTyp').value = o.typ; $('pFaktor').value = o.faktor.toFixed(2); }
 	refreshPop();
 	draw();
@@ -734,8 +768,17 @@ function refreshPop() {
 		$('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
 		$('pInfo').textContent = o.levels + ' Stufen · ' + o.bumps.length.toLocaleString('de-DE') + ' Buckel'
 			+ (o.gestoppt ? ' · Budget ab Stufe ' + o.gestoppt : '');
+		// Jede zweite Zeile im Gipfelkasten ist die Anzeige zum Regler darueber.
+		const zeilen = $('pPeaks').querySelectorAll('.unit');
+		o.peaks.forEach((p, pi) => { if (zeilen[pi]) zeilen[pi].textContent = p.h.toLocaleString('de-DE') + ' Schritt'; });
+		// Steilste Flanke eines Buckels ist exakt 1,7168 x Amplitude / Radius. Damit sagt die
+		// Flaeche selbst, ob sie fuer die eingetragene Hoehe zu schmal ist -- oberhalb von rund
+		// 50 % ist Toblers Kurve nicht mehr gefittet, das waere Fels statt Weg.
+		let steil = 0;
+		for (const b of o.peakBumps) steil = Math.max(steil, 1.7168 * (b.a * o.scale) / (b.r * PX_TO_SCHRITT));
 		$('pMeta').innerHTML = o.peaks.length + ' Gipfel · kleinster Radius ' + o.rMin.toFixed(1)
-			+ ' → Abtastweite <strong>' + (o.rMin / 8).toFixed(2) + '</strong>';
+			+ ' → Abtastweite <strong>' + (o.rMin / 8).toFixed(2) + '</strong><br>steilste Flanke '
+			+ (steil * 100).toFixed(0) + ' %' + (steil > .5 ? ' — <strong>zu schmal für diese Höhe</strong>' : '');
 	} else {
 		$('pFaktorN').textContent = o.faktor <= 1.05 ? 'kaum spürbar'
 			: o.faktor >= 1.7 ? 'sehr zäh' : o.faktor >= 1.35 ? 'zäh' : 'leicht bremsend';
@@ -745,7 +788,7 @@ function refreshPop() {
 }
 function closePop() { sel = null; pop.hidden = true; draw(); }
 $('popClose').onclick = closePop;
-$('pHmax').oninput   = e => { areas[sel.i].hmax = +e.target.value || 200; all(); };
+// Kein Flaechen-Hoehenregler mehr -- die Gipfelregler entstehen dynamisch in openPop().
 $('pGrain').oninput  = e => { areas[sel.i].grain = +e.target.value; all(); };
 $('pLevels').oninput = e => { areas[sel.i].levels = +e.target.value; all(); };
 $('pReroll').onclick = () => { const a = areas[sel.i]; a.seed = (a.seed * 1664525 + 1013904223) | 0; all(); };
