@@ -1429,6 +1429,50 @@ async function startWikiSyncCitymapsSync() {
 
 let isWikiSyncLoreRunning = false;
 
+// Drive `build_lore_staging` to completion: walks the CACHED dump and fills the lore
+// staging tables. Runs before the reconcile so the button works on its own, without
+// requiring a full „Dump holen" pass first -- the lore phase sits 8th of 10 there, so
+// a run that stops early never reaches it. Idempotent (upserts), and the dump is not
+// re-downloaded while the cached copy is under 24h old.
+async function runWikiSyncLoreBuildLoop(onProgress) {
+	let cursor = 0;
+	let done = false;
+	let guard = 0;
+	let pages = 0;
+	let found = 0;
+	const MAX_STEPS = 2000;
+
+	while (!done) {
+		if (guard > MAX_STEPS) {
+			throw new Error("Lore-Staging-Aufbau wurde nach zu vielen Teilschritten angehalten.");
+		}
+		guard += 1;
+
+		let step;
+		try {
+			step = await submitWikiSyncDumpAction("build_lore_staging", { cursor });
+		} catch (error) {
+			if (error && error.dumpLocked) {
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+			}
+			throw error;
+		}
+
+		cursor = Number(step.cursor ?? cursor);
+		pages += Number(step.pages_scanned ?? 0);
+		found += Number(step.found_this_step ?? 0);
+		done = step.done === true;
+
+		const label = `${pages.toLocaleString("de-DE")} Seiten · ${found.toLocaleString("de-DE")} Einträge`;
+		setWikiSyncStatus(`Dump wird gelesen … ${label}`, "pending");
+		if (typeof onProgress === "function") {
+			onProgress(label);
+		}
+	}
+
+	return { pages, found };
+}
+
 // Drive `sync_lore` to completion: one action call per step, advancing the
 // server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step
 // deltas until done. Mirrors runWikiSyncCitymapsSyncLoop, including the clean stop
@@ -1515,6 +1559,19 @@ async function startWikiSyncLoreSync() {
 	setWikiSyncStatus("Natur & Waren werden übernommen …", "pending");
 
 	try {
+		// SCHRITT 1: Staging aus dem (gecachten) Dump aufbauen. Läuft immer, ist
+		// idempotent und macht den Knopf unabhängig davon, ob „Dump holen" bis zur
+		// lore-Phase durchgelaufen ist.
+		const build = await runWikiSyncLoreBuildLoop((label) => {
+			if (button) {
+				button.textContent = `Dump lesen … ${label}`;
+			}
+		});
+		if (!build || build.found === 0) {
+			throw new Error("Der Dump enthält keine Lore-Einträge – das sollte nicht passieren, bitte melden.");
+		}
+
+		// SCHRITT 2: Staging override-sicher in die Live-Tabellen übernehmen.
 		const result = await runWikiSyncLoreSyncLoop((label) => {
 			if (button) {
 				button.textContent = `Natur & Waren … ${label}`;

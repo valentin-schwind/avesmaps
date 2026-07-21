@@ -651,6 +651,42 @@ try {
             ]);
             // no break -- avesmapsJsonResponse exits.
 
+        case 'build_lore_staging':
+            // Runs ONLY the lore staging build over the already-cached dump, without the full
+            // "Dump holen" state machine. Reason this exists: the lore phase sits 8th of 10 in
+            // avesmapsWikiDumpHybridReadPhasesInOrder, so a run that stops early never reaches it
+            // -- and demanding a complete re-run just to fill one staging table is a poor trade
+            // when avesmapsLoreBuildCatalogStep is self-contained anyway.
+            //
+            // STAGING-ONLY, exactly like the phase it mirrors: it writes wiki_lore_catalog and the
+            // place/source staging, never a live table. The sharp write stays sync_lore. The dump
+            // itself is NOT re-downloaded when the cached .bz2 is under 24h old (dump-fetch.php).
+            // One bounded step per call, resumable via an integer page cursor.
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'build_lore_staging');
+            $lockHeldByThisRequest = true;
+
+            $loreDumpPath = avesmapsWikiDumpEnsureDumpPresentOrFail($pdo);
+            $loreBuildCursor = (int) ($payload['cursor'] ?? 0);
+            $loreBuild = avesmapsLoreBuildCatalogStep($pdo, $loreDumpPath, $loreBuildCursor);
+            $loreBuildDone = ($loreBuild['done'] ?? false) === true;
+
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'build_lore_staging');
+            if ($loreBuildDone) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
+
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'stage' => 'build',
+                'cursor' => (int) ($loreBuild['nextCursor'] ?? $loreBuildCursor),
+                'done' => $loreBuildDone,
+                'pages_scanned' => (int) ($loreBuild['pages_scanned'] ?? 0),
+                'found_this_step' => (int) ($loreBuild['found_this_step'] ?? 0),
+                'staged_total' => avesmapsLoreCountStaging($pdo),
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
         case 'sync_lore':
             // OWNER-triggered PRODUCTION reconcile of the wiki lore catalog (flora / fauna / species /
             // trade goods, built by "Dump holen") into the live lore_entry / lore_place / lore_source
