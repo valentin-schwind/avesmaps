@@ -321,6 +321,7 @@ function build() {
 	// steht der Amboss zwar auf einem Hochpunkt, aber irgendein erfundener Hügel ueberragt ihn --
 	// und genau das faellt jedem auf, der die Karte kennt.
 	bumps = grob;                                   // nur Rauschen, ohne Gipfel: dessen Maximum messen
+	peakBumps = []; buildIndex(grob);
 	let lmax = 0;
 	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = raw(x, y); if (v > lmax) lmax = v; }
 	const minGipfel = gipfelBumps.length ? Math.min(...gipfelBumps.map(b => b.a)) : 1;
@@ -331,6 +332,7 @@ function build() {
 	// genau seine Amplitude (das Fenster loescht dort das Rauschen), also liest er exakt die Zahl,
 	// die der Editor eingetragen hat. Ohne Gipfel faellt es auf das Rauschmaximum zurueck.
 	bumps = grob.concat(gipfelBumps);
+	peakBumps = gipfelBumps; buildIndex(grob);
 	const maxGipfel = gipfelBumps.length ? Math.max(...gipfelBumps.map(b => b.a)) : 0;
 	scale = maxGipfel > 0 ? hmax / maxGipfel : (lmax > 0 ? hmax / lmax : 0);
 
@@ -344,6 +346,7 @@ function build() {
 	for (let k = 1; k <= L; k++) level(k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k) * daempfung, fein);
 	for (const b of fein) b.i = 1 / (b.r * b.r);
 	bumps = grob.concat(gipfelBumps, fein);
+	buildIndex(grob.concat(fein));                  // endgueltiger Index: alles Rauschen, ohne Gipfel
 
 	document.getElementById('levelsN').textContent = L + ' · ' + bumps.length + ' Buckel';
 	document.getElementById('grainN').textContent =
@@ -351,6 +354,32 @@ function build() {
 	rMin = bumps.length ? Math.min(...bumps.map(b => b.r)) : 0;
 }
 let rMin = 0;
+// ---------------------------------------------------------------- Gitter-Index
+// Buckel haben kompakten Traeger: ausserhalb ihres Radius sind sie EXAKT null. Es muessen also
+// nie alle geprueft werden, sondern nur die, deren Kreis den Punkt erreicht. Jeder Buckel wird in
+// alle Zellen eingetragen, die sein Traegerquadrat beruehrt; eine Abfrage liest dann nur ihre
+// eigene Zelle. Weil der Radius bauartbedingt etwa dem Zellabstand entspricht, decken an jeder
+// Stelle etwa gleich viele Buckel -- die Auswertung wird damit UNABHAENGIG von der Buckelzahl,
+// und die Koernung kostet keine Rechenzeit mehr.
+let peakBumps = [], grid = null, gCell = 32, gW = 0, gH = 0, gCount = 0;
+function buildIndex(noise) {
+	const rMax = noise.length ? Math.max(...noise.map(b => b.r)) : 32;
+	const rMn = noise.length ? Math.min(...noise.map(b => b.r)) : 32;
+	gCell = Math.max(10, Math.min(rMax, Math.max(rMn, 18)));
+	gW = Math.ceil(W / gCell) + 1; gH = Math.ceil(H / gCell) + 1;
+	grid = new Array(gW * gH);
+	gCount = 0;
+	for (const b of noise) {
+		const i0 = Math.max(0, (b.x - b.r) / gCell | 0), i1 = Math.min(gW - 1, (b.x + b.r) / gCell | 0);
+		const j0 = Math.max(0, (b.y - b.r) / gCell | 0), j1 = Math.min(gH - 1, (b.y + b.r) / gCell | 0);
+		for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+			const k = j * gW + i;
+			(grid[k] || (grid[k] = [])).push(b);
+			gCount++;
+		}
+	}
+}
+
 // Fenster, das das Rauschen an jedem Gipfel auf null zieht -- UND ZWAR MIT STEIGUNG NULL.
 // Das ist der Punkt: der Buckel (1-q^2)^3 hat in seinem Zentrum selbst die Steigung null, dort
 // zaehlt also allein das Gefaelle des Rauschens. Ein blosses Abschwaechen genuegt deshalb nicht,
@@ -359,8 +388,10 @@ let rMin = 0;
 // Punkt der Summe, und weil sein eigener Buckel dort ein echtes Maximum hat, ein Hochpunkt.
 function peakWindow(x, y) {
 	let w = 1;
-	for (const b of bumps) {
-		if (!b.peak) continue;
+	// Nur die Gipfel, nicht alle Buckel: vorher lief das GESAMTE Array pro Pixel durch,
+	// bei feiner Koernung 700 Durchlaeufe, um zwei Eintraege zu finden.
+	for (let k = 0; k < peakBumps.length; k++) {
+		const b = peakBumps[k];
 		const D2 = b.r * b.r * .36;                       // Fensterradius = 0,6 x Gipfelradius
 		const dx = x - b.x, dy = y - b.y, d2 = dx * dx + dy * dy;
 		if (d2 >= D2) continue;
@@ -371,12 +402,25 @@ function peakWindow(x, y) {
 	return w;
 }
 function raw(x, y) {
-	let gipfel = 0, rauschen = 0;
-	for (const b of bumps) {
+	let gipfel = 0;
+	for (let k = 0; k < peakBumps.length; k++) {
+		const b = peakBumps[k];
 		const dx = x - b.x, dy = y - b.y, q = (dx * dx + dy * dy) * b.i;
-		if (q >= 1) continue;
-		const u = 1 - q, v = b.a * u * u * u;
-		if (b.peak) gipfel += v; else rauschen += v;
+		if (q < 1) { const u = 1 - q; gipfel += b.a * u * u * u; }
+	}
+	// Rauschen NUR aus der eigenen Gitterzelle. Alles ausserhalb ist per Konstruktion null,
+	// muss also gar nicht erst geprueft werden.
+	let rauschen = 0;
+	if (grid) {
+		const i = x / gCell | 0, j = y / gCell | 0;
+		if (i >= 0 && j >= 0 && i < gW && j < gH) {
+			const cell = grid[j * gW + i];
+			if (cell) for (let k = 0; k < cell.length; k++) {
+				const b = cell[k];
+				const dx = x - b.x, dy = y - b.y, q = (dx * dx + dy * dy) * b.i;
+				if (q < 1) { const u = 1 - q; rauschen += b.a * u * u * u; }
+			}
+		}
 	}
 	// NICHT `rauschen > 0` fragen: das ist bei NaN false und wuerde einen Rechenfehler in eine
 	// stumm flache Landschaft verwandeln statt ihn zu zeigen. Genau das ist einmal passiert.
@@ -394,16 +438,33 @@ function ramp(t) {
 	}
 	return [247, 243, 238];
 }
+// Der Polygon-Test kostete pro Pixel eine Schleife ueber alle Ecken -- bei jedem Malen erneut,
+// obwohl sich der Umriss dabei fast nie aendert. Er wird deshalb EINMAL in eine Maske gelegt und
+// nur neu gebaut, wenn sich der Umriss tatsaechlich bewegt hat. Beim Ziehen eines Gipfels oder
+// beim Wechsel der Aufloesung faellt er damit ganz weg.
+let mask = null, maskSig = '';
+function ensureMask() {
+	const sig = topo.map(p => (p[0] | 0) + ',' + (p[1] | 0)).join(';');
+	if (sig === maskSig && mask) return;
+	maskSig = sig;
+	mask = new Uint8Array(W * H);
+	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
+	const x0 = Math.max(0, Math.min(...xs) | 0), x1 = Math.min(W - 1, Math.ceil(Math.max(...xs)));
+	const y0 = Math.max(0, Math.min(...ys) | 0), y1 = Math.min(H - 1, Math.ceil(Math.max(...ys)));
+	for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+		if (inPoly(x, y, topo)) mask[y * W + x] = 1;      // ausserhalb der bbox bleibt es 0
+	}
+}
 function paint() {
 	cv.width = W; cv.height = H;
 	const img = ctx.createImageData(W, H), d = img.data;
 	const hm = +document.getElementById('hmax').value;
 	const S = +document.getElementById('step').value;
 	const t0 = performance.now();
-	let n = 0;
+	ensureMask();
 	for (let y = 0; y < H; y += S) for (let x = 0; x < W; x += S) {
 		let r = 0, g = 0, b = 0, a = 0;
-		if (inPoly(x, y, topo)) { const c = ramp(raw(x, y) * scale / hm); r = c[0]; g = c[1]; b = c[2]; a = 255; n++; }
+		if (mask[y * W + x]) { const c = ramp(raw(x, y) * scale / hm); r = c[0]; g = c[1]; b = c[2]; a = 255; }
 		for (let j = 0; j < S && y + j < H; j++) for (let i = 0; i < S && x + i < W; i++) {
 			const o = ((y + j) * W + (x + i)) * 4; d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = a;
 		}
