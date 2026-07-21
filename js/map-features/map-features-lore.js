@@ -17,22 +17,27 @@
 
 var AVESMAPS_LORE_API_URL = "api/app/lore.php";
 
-// 🚨 NOTAUS (2026-07-21). Auf false gesetzt feuert der Client KEINE Lore-Abrufe mehr:
-// keine Infobox-Zeilen, kein Dialog. Alles andere auf der Karte bleibt unberührt.
+// 🚨 NOT-AUS. Auf false gesetzt feuert der Client KEINE Lore-Abrufe mehr: keine
+// Infobox-Zeilen, kein Dialog. Alles andere auf der Karte bleibt unberührt.
 //
-// Warum es diesen Schalter gibt: die Abrufe hatten kein Zeitlimit. Ein Request, der
-// auf einem gesättigten PHP-Pool 120 s hängt, belegt genau so lange einen Worker --
-// mehrere offene Panels stapeln das, und dann hängt auch alles andere (adventures.php
-// hing mit, obwohl es damit nichts zu tun hat). Unten steht jetzt zusätzlich ein
-// hartes Zeitlimit, aber der Schalter bleibt: er wirkt SOFORT und ohne PHP, weil ein
-// reiner JS-Deploy ihn ausrollt.
+// Warum es den Schalter GIBT (2026-07-21, PHP-Pool gesättigt): die Abrufe starteten
+// beim BAUEN des Markups, und bindPopup baut das für jedes Label schon beim
+// Kartenaufbau -- hunderte gleichzeitige Anfragen, ohne Zeitlimit. Ein Request, der
+// auf einem vollen Pool hängt, belegt bis zum Servertimeout einen Worker; danach hing
+// die ganze API, auch adventures.php, das damit nichts zu tun hat.
+//
+// Warum er wieder AUF TRUE steht: die Ursachen sind behoben -- geladen wird nur noch
+// über den DOM-Beobachter (also je geöffnetem Panel einmal), jeder Abruf bricht nach
+// 8 s ab, die Katalogliste braucht 3 statt 600 Abfragen, und die Hierarchietabellen
+// werden je Anfrage nur einmal gelesen. Der Schalter bleibt trotzdem: er wirkt sofort
+// und ohne PHP, weil ein reiner JS-Deploy ihn ausrollt.
 // Anschalten OHNE Deploy, damit der Schalter auch dem Owner gehört und nicht nur dem
 // nächsten Commit:
 //   ?lore=1   schaltet für DIESEN Aufruf ein (zum gefahrlosen Nachmessen)
 //   ?lore=0   schaltet aus, auch wenn der Default unten wieder true ist
 //   localStorage: avesmaps.lore.enabled = "1" | "0"  -- gilt dauerhaft in diesem Browser
 // Ist nichts gesetzt, gilt der Default darunter.
-var AVESMAPS_LORE_DEFAULT_ENABLED = false;
+var AVESMAPS_LORE_DEFAULT_ENABLED = true;
 
 var AVESMAPS_LORE_ENABLED = (function () {
 	try {
