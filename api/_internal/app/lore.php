@@ -94,6 +94,12 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
             'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin,
                     (SELECT COUNT(*) FROM lore_place p
                       WHERE p.entry_wiki_key = e.wiki_key AND p.status = \'active\') AS place_count,
+                    -- Die Orte SELBST, nicht nur ihre Zahl: „Weiden, Kosch, Nordmarken" sagt
+                    -- etwas, „3 Orte" nichts. Getrennt mit | statt , weil Ortsnamen selbst
+                    -- Kommas enthalten („Bornland (Region)" nicht, aber andere schon).
+                    (SELECT GROUP_CONCAT(p2.place_title ORDER BY p2.sort_order SEPARATOR \'|\')
+                       FROM lore_place p2
+                      WHERE p2.entry_wiki_key = e.wiki_key AND p2.status = \'active\') AS place_titles,
                     (SELECT COUNT(*) FROM lore_source s
                       WHERE s.entry_wiki_key = e.wiki_key AND s.status = \'active\') AS source_count
              FROM lore_entry e
@@ -119,6 +125,12 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
             'lebensraum' => (string) ($row['lebensraum'] ?? ''),
             'origin' => (string) ($row['origin'] ?? 'wiki'),
             'place_count' => (int) $row['place_count'],
+            // Auf 6 gekappt: eine Zeile soll die Gegend andeuten, nicht 40 Orte
+            // ausbreiten. Der Rest steht als Zahl dahinter.
+            'places' => array_slice(array_values(array_filter(
+                explode('|', (string) ($row['place_titles'] ?? '')),
+                static fn(string $title): bool => trim($title) !== ''
+            )), 0, 6),
             'source_count' => (int) $row['source_count'],
         ];
     }

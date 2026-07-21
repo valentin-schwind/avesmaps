@@ -1649,24 +1649,34 @@ function renderLoreList(data) {
 			+ "</p>";
 		return;
 	}
+	// Dieselben Klassen wie die Abenteuer- und Kartenliste (wiki-sync-adv-picker__row),
+	// damit die vier Listen im selben Reiter nicht drei verschiedene Zeilen zeigen.
 	scroll.innerHTML = items.map(function (item) {
-		var meta = avesmapsLoreListPlain(item.typ || item.gruppe || "");
+		var art = avesmapsLoreListPlain(item.typ || item.gruppe || "");
+		var places = Array.isArray(item.places) ? item.places : [];
+		// Die Orte SELBST statt einer Zahl -- danach ist die Zeile erst brauchbar:
+		// „Weiden, Kosch, Nordmarken" beantwortet die Frage, „3 Orte" stellt sie nur.
+		var placeText = places.join(", ");
+		var rest = item.place_count - places.length;
+		if (rest > 0) {
+			placeText += " +" + rest;
+		}
+		if (!placeText) {
+			placeText = "ohne Ortsangabe";
+		}
+		var meta = [art, placeText].filter(Boolean).join(" · ");
+		if (item.origin && item.origin !== "wiki") {
+			meta += " · " + item.origin;
+		}
 		var href = String(item.wiki_url || "");
 		var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
-		var name = avesmapsLoreListEscape(item.name);
-		return '<div class="wikisync-item">'
-			+ '<div class="wikisync-item__main">'
-			+ (safe
-				? '<a class="wikisync-item__title" href="' + avesmapsLoreListEscape(safe) + '" target="_blank" rel="noopener">' + name + " ↗</a>"
-				: '<span class="wikisync-item__title">' + name + "</span>")
-			+ (meta ? ' <span class="wikisync-item__sub">' + avesmapsLoreListEscape(meta) + "</span>" : "")
-			+ "</div>"
-			+ '<div class="wikisync-item__meta">'
-			+ item.place_count + (item.place_count === 1 ? " Ort · " : " Orte · ")
-			+ item.source_count + (item.source_count === 1 ? " Quelle" : " Quellen")
-			+ (item.origin && item.origin !== "wiki" ? " · " + avesmapsLoreListEscape(item.origin) : "")
-			+ "</div>"
-			+ "</div>";
+		return '<button type="button" class="wiki-sync-adv-picker__row" data-lore-entry="'
+			+ avesmapsLoreListEscape(item.wiki_key) + '"'
+			+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
+			+ ' title="' + avesmapsLoreListEscape(item.name + (safe ? " – Doppelklick öffnet den Wiki-Artikel" : "")) + '">'
+			+ '<span class="wiki-sync-adv-picker__title">' + avesmapsLoreListEscape(item.name) + "</span>"
+			+ '<span class="wiki-sync-adv-picker__meta">' + avesmapsLoreListEscape(meta) + "</span>"
+			+ "</button>";
 	}).join("");
 }
 
@@ -1729,6 +1739,15 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 		// Entprellt: sonst eine Abfrage je Tastendruck.
 		window.clearTimeout(avesmapsLoreListTimer);
 		avesmapsLoreListTimer = window.setTimeout(loadLoreList, 250);
+	});
+	// Doppelklick öffnet den Wiki-Artikel -- dieselbe Geste wie in der Abenteuer- und
+	// Kartenliste. Einfachklick bleibt frei für das spätere Bearbeiten.
+	document.addEventListener("dblclick", function (event) {
+		var row = event.target && event.target.closest ? event.target.closest("[data-lore-entry]") : null;
+		var url = row ? row.getAttribute("data-lore-url") : "";
+		if (url) {
+			window.open(url, "_blank", "noopener");
+		}
 	});
 }
 
