@@ -98,6 +98,9 @@ try {
             'items' => $catalog['items'],
             'total' => $catalog['total'],
             'offset' => max(0, $offset),
+            // Bestand ALLER Arten, damit die Unterreiter ihre Zahlen sofort tragen und
+            // nicht erst, nachdem man sie einzeln angeklickt hat.
+            'counts_by_kind' => avesmapsLoreCountsByKind($pdo),
         ]);
     }
 

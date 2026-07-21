@@ -1689,9 +1689,17 @@ function loadLoreList() {
 				return;
 			}
 			renderLoreList(data && data.ok ? data : null);
-			var chip = document.querySelector('[data-lore-count="' + avesmapsLoreListKind + '"]');
-			if (chip && data && data.ok && !query) {
-				chip.textContent = "(" + data.total + ")";
+			// ALLE Reiterzahlen setzen, nicht nur die des geladenen: sonst bleiben die
+			// übrigen leer, bis man sie einzeln anklickt. Die Zahlen zeigen den
+			// Gesamtbestand und bleiben deshalb auch während einer Suche stehen.
+			var counts = (data && data.ok && data.counts_by_kind) || null;
+			if (counts) {
+				Object.keys(counts).forEach(function (kind) {
+					var chip = document.querySelector('[data-lore-count="' + kind + '"]');
+					if (chip) {
+						chip.textContent = "(" + counts[kind] + ")";
+					}
+				});
 			}
 		})
 		.catch(function () {

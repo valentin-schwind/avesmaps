@@ -37,6 +37,36 @@ const AVESMAPS_LORE_PANEL_LIMIT = 10;
  *
  * @return array{items:list<array<string,mixed>>, total:int}
  */
+/**
+ * Bestand je Art -- die Zahlen an den Unterreitern. Bewusst UNABHÄNGIG von Filter und
+ * Suchbegriff: die Reiter sollen zeigen, wie viel es gibt, nicht wie viel gerade
+ * gefiltert übrig bleibt. Sonst wandern die Zahlen bei jedem Tastendruck.
+ *
+ * @return array<string,int>
+ */
+function avesmapsLoreCountsByKind(PDO $pdo): array
+{
+    $counts = [];
+    foreach (AVESMAPS_LORE_KINDS as $kind) {
+        $counts[$kind] = 0;
+    }
+    try {
+        $rows = $pdo->query(
+            'SELECT kind, COUNT(*) AS n FROM lore_entry WHERE status = \'active\' GROUP BY kind'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $row) {
+            $kind = (string) $row['kind'];
+            if (array_key_exists($kind, $counts)) {
+                $counts[$kind] = (int) $row['n'];
+            }
+        }
+    } catch (Throwable) {
+        // Tabelle fehlt (kein Sync) -> Nullen, keine Ausnahme.
+    }
+
+    return $counts;
+}
+
 function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = '', int $limit = 200, int $offset = 0): array
 {
     $where = ["e.status = 'active'"];
