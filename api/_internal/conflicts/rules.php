@@ -120,12 +120,31 @@ function avesmapsConflictLoadMapRows(PDO $pdo): array {
  * @return list<array{type:string,id:string,label:string,wiki_url:string}>
  */
 function avesmapsConflictLoadTerritoryRows(PDO $pdo): array {
+    // Die Position kommt aus derselben rekursiven Abfrage wie in der Spotlight-Suche
+    // (avesmapsFetchPoliticalTerritorySearchRows, api/app/map-search.php): die Huelle eines Gebiets
+    // ist die seiner eigenen Geometrie PLUS aller Nachfahren -- sonst haette ein reiner
+    // Aggregat-Knoten ohne eigene Geometrie keine, und genau die grossen Reiche sind solche Knoten.
+    // Owner-Hinweis 2026-07-21: "die kriegst du raus, wenn du dir die spotlight suche anschaust".
+    // Uebernommen statt neu erfunden; LEFT JOIN, damit ein Gebiet ohne jede Geometrie trotzdem als
+    // Konfliktpartei erscheint -- nur eben ohne "Auf der Karte zeigen".
     try {
         $statement = $pdo->query(
-            "SELECT t.public_id, t.name, w.wiki_url
+            "WITH RECURSIVE subtree AS (
+                SELECT id AS root_id, id AS node_id FROM political_territory WHERE is_active = 1
+                UNION ALL
+                SELECT st.root_id, c.id
+                FROM subtree st
+                JOIN political_territory c ON c.parent_id = st.node_id AND c.is_active = 1
+            )
+            SELECT t.public_id, t.name, w.wiki_url,
+                   MIN(g.min_x) AS min_x, MIN(g.min_y) AS min_y,
+                   MAX(g.max_x) AS max_x, MAX(g.max_y) AS max_y
              FROM political_territory t
              INNER JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
-             WHERE t.is_active = 1 AND w.wiki_url IS NOT NULL AND w.wiki_url <> ''"
+             LEFT JOIN subtree st ON st.root_id = t.id
+             LEFT JOIN political_territory_geometry g ON g.territory_id = st.node_id AND g.is_active = 1
+             WHERE t.is_active = 1 AND w.wiki_url IS NOT NULL AND w.wiki_url <> ''
+             GROUP BY t.id, t.public_id, t.name, w.wiki_url"
         );
     } catch (Throwable $exception) {
         return [];
@@ -140,13 +159,24 @@ function avesmapsConflictLoadTerritoryRows(PDO $pdo): array {
         if ($name === '') {
             continue;
         }
+        // Mittelpunkt der Huelle. Die Geometrie liegt bereits im 0..1024-Kartenraum, also KEINE
+        // Vertauschung wie bei GeoJSON -- min_y/max_y sind schon die Breite.
+        $position = null;
+        if (is_numeric($row['min_x'] ?? null) && is_numeric($row['min_y'] ?? null)
+            && is_numeric($row['max_x'] ?? null) && is_numeric($row['max_y'] ?? null)) {
+            $position = [
+                'lat' => ((float) $row['min_y'] + (float) $row['max_y']) / 2,
+                'lng' => ((float) $row['min_x'] + (float) $row['max_x']) / 2,
+            ];
+        }
+
         $rows[] = [
             'type' => 'territory',
             'id' => (string) $row['public_id'],
             'label' => $name,
             'subtype' => '',
             'wiki_url' => trim((string) $row['wiki_url']),
-            'position' => null,
+            'position' => $position,
             'claim_source' => 'territory_wiki',
         ];
     }

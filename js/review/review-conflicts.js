@@ -433,10 +433,23 @@ function resolveConflictPartyLatLng(party) {
 
 // Fly to a party and get the dialog out of the way. Without closing it the map is behind a
 // near-fullscreen overlay and "Anzeigen" would do nothing visible.
+// Manche Objektarten werden nur in EINER Kartenansicht gezeichnet. Dorthin zu fliegen, ohne die
+// Ansicht zu wechseln, zeigt eine leere Stelle -- der Editor sucht dann etwas, das gerade gar nicht
+// gerendert wird (Owner 2026-07-21). Dasselbe macht die Spotlight-Suche bereits vor dem Anspringen
+// eines Gebiets (focusSpotlightRegion, spotlight-search-focus.js).
+const CONFLICT_PARTY_MAP_MODE = {
+	powerline: "powerlines",
+	territory: "political",
+};
+
 function focusConflictParty(party) {
 	const latlng = resolveConflictPartyLatLng(party);
 	if (!latlng) {
 		return;
+	}
+	const mode = CONFLICT_PARTY_MAP_MODE[party?.type];
+	if (mode && typeof setSelectedMapLayerMode === "function") {
+		setSelectedMapLayerMode(mode);
 	}
 	// Verkleinern statt schliessen: die Liste bleibt erhalten, samt Filter und aufgeklappter Gruppe.
 	setConflictDialogMinimized(true);
