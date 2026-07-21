@@ -185,3 +185,45 @@ Die Aufnahmen macht eine Agent-Sitzung selbst; alle bisherigen sind so entstande
 - Bilder, die nicht zustande kommen, ersatzlos weglassen — **kein Platzhalter**. Ein
   leerer Kasten ist schlechter als kein Kasten; die Erstfassung hatte das und es hat
   niemandem geholfen.
+
+## Ergebnis (2026-07-21)
+
+**Geliefert: 1, 2, 3, 4, 5, 6, 7** — also `10-infopanel-bearbeiten`,
+`11-siedlungseditor`, `12-siedlungen-zuordnen`, `13-bilder-lizenz`,
+`14-quellen-editor`, `16-menueband`, `17-abenteuer-orte`. Alle hell, alle unter
+600 KB, eingebaut mit `figure`/`alt`/`figcaption`. Ankertest, Tag-Balance und
+`node --check` auf beide Inline-Skripte laufen sauber.
+
+**Zugang — der Auftrag oben irrt.** Ohne Login rendert zwar die komplette
+Oberfläche, aber **jede Liste und jeder Dialog bleibt leer** („Du bist fuer diese
+Aktion nicht angemeldet"). Nur Aufnahme 1 geht ohne Login, weil das Infopanel aus
+dem öffentlichen Karten-Payload lebt. Für alles andere braucht es eine echte
+Editor-Sitzung.
+
+**Aufnahmetechnik.** Ein eigener Chrome mit `--remote-debugging-port` und
+`--user-data-dir` im Scratchpad, gesteuert über das DevTools-Protokoll: echte
+Maus-Events, elementgenauer `clip`, `deviceScaleFactor` frei wählbar, PNG direkt
+auf die Platte. Zwei Fallen: `Emulation.setEmulatedMedia` ignoriert `features`
+ohne (leeres) `media` — sonst bleibt alles dunkel; und Overrides gelten je
+CDP-Sitzung, müssen also bei jedem Verbinden neu gesetzt werden. Das
+Screenshot-Werkzeug des Alltags-Browsers taugt hier **nicht**: es legt trotz
+`save_to_disk` keine Datei ab und liefert JPEG.
+
+**Nicht geliefert:**
+
+- **8 `18-karten-fundorte`** — Datenlage. Der Katalog meldet zwar bei 287 Karten
+  Zusatz-Links, im Editor steht unter „Wo gibt es die Karte?" trotzdem überall
+  „Noch keine weiteren Fundorte" (13 Karten geprüft, darunter alle aus dem
+  Katalog mit `link:*`). Es gibt schlicht keine gepflegte Fundort-Zeile zu
+  fotografieren; eine anzulegen wäre ein Schreibzugriff gewesen.
+- **9 `19-aenderungsmeldung`** — wie im Auftrag vorgesehen entfallen. Von vier
+  offenen Meldungen trägt genau eine „Bearbeiten" (Tiefenfurt), und die ist eine
+  Textanmerkung **ohne abweichende Felder**. Der geöffnete Dialog zeigt also
+  keinen roten Rahmen — das Bild hätte genau die Aussage nicht belegt, für die es
+  gedacht war.
+- **`15-quellen-autocomplete`** — war ausdrücklich „kein Muss"; nicht versucht.
+
+**Anmerkung zu Aufnahme 4:** Ein aufgeklapptes natives `<select>` ist unter
+Windows ein OS-Fenster und erscheint in **keinem** Screenshot. Das Lizenzfeld
+wurde für die Aufnahme per `size=4` als Listbox dargestellt — dieselben echten
+Optionen desselben Feldes — und danach zurückgesetzt.
