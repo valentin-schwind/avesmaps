@@ -1543,8 +1543,11 @@
 	font-size: 12.5px;
 	font-variant-numeric: tabular-nums;
 }
+/* Bewusst KEINE eigene Schriftgroesse mehr: der Knopf sass auf 22px, damit der duenne
+   Gedankenstrich ueberhaupt zu sehen war, und stand dadurch neben dem 20px-× wie ein Fremdkoerper.
+   Mit − statt – traegt die geerbte Groesse von .location-report-dialog__close (Owner 2026-07-21:
+   "kannst du die beiden nochmal optisch angleichen"). */
 .location-report-dialog__header .conflict-minimize {
-	font-size: 22px;
 	line-height: 1;
 }
 
@@ -1618,4 +1621,12 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 }
 #wiki-sync-conflicts-overlay.is-minimized .conflict-search {
 	display: none;
+}
+/* Verkleinert traegt das Suchfeld sein margin-left:auto nicht mehr bei -- es ist ausgeblendet. Die
+   Kopfzeile steht aber auf space-between, also verteilte sie die drei verbliebenen Kinder ueber die
+   ganze Breite und riss Verkleinern und Schliessen weit auseinander, waehrend sie im offenen
+   Fenster dicht beieinander sitzen. Das auto-Margin wandert deshalb auf den Verkleinern-Knopf: die
+   beiden bleiben ein Paar, egal ob das Suchfeld da ist. */
+#wiki-sync-conflicts-overlay.is-minimized .conflict-minimize {
+	margin-left: auto;
 }

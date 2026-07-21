@@ -66,7 +66,10 @@ function setConflictDialogMinimized(isMinimized) {
 	}
 	const button = document.getElementById("conflict-minimize");
 	if (button) {
-		button.textContent = isMinimized ? "▢" : "–";
+		// − (U+2212) und × (U+00D7) sind beides mathematische Operatoren und haben deshalb in
+		// derselben Schrift dieselbe Strichstaerke -- ein Gedankenstrich daneben wirkt duenn und
+		// verrutscht. □ (U+25A1) statt ▢: das gerundete Kaestchen ist merklich fetter als beide.
+		button.textContent = isMinimized ? "□" : "−";
 		button.setAttribute("aria-label", isMinimized ? "Fenster wiederherstellen" : "Fenster verkleinern");
 		button.title = isMinimized
 			? "Zurück zur vollen Liste."
