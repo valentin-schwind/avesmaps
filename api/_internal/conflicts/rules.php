@@ -410,7 +410,7 @@ function avesmapsConflictRuleCatalog(): array {
                 ['label' => 'Behält den Link', 'effect' => 'Dieses Objekt bleibt mit dem Artikel verknüpft. Alle anderen in diesem Fall verlieren ihre Verknüpfung.'],
                 ['label' => 'Trennen', 'effect' => 'Nur dieses Objekt verliert die Verknüpfung. Achtung: Trägt es einen Namen, der zu einem Wiki-Artikel passt, kann der Server ihn später erneut vorschlagen.'],
                 ['label' => 'Kein Wiki-Eintrag', 'effect' => 'Trennt UND hält fest, dass es im Wiki nichts dazu gibt. Nur so bleibt die Trennung dauerhaft — nichts wird mehr vorgeschlagen.'],
-                ['label' => 'Genehmigt', 'effect' => 'Der Fund stimmt, die Lage ist aber richtig so — etwa ein Meer aus zwei Buchten, die beide beschriftet werden müssen. Ändert die Daten nicht und taucht nicht wieder als Fehler auf.'],
+                ['label' => 'Genehmigt', 'effect' => 'Der Fund stimmt, die Lage ist aber richtig so — etwa ein Meer aus zwei Buchten, die beide beschriftet werden müssen. Ändert die Daten nicht und taucht nicht wieder unter „Wichtig“ auf.'],
                 ['label' => 'Zurückstellen / Archivieren', 'effect' => 'Ändern die Daten nicht. Zurückgestellt heißt „später“, archiviert heißt „bewusst so gelassen, aber weiterhin falsch“ — beides bleibt auffindbar und umkehrbar.'],
             ],
         ],

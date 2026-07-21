@@ -19,8 +19,12 @@ let conflictsLoadedOnce = false;
 // verlor bei jedem Klick die Stelle, an der man war. Standard: alles zu.
 const conflictOpenGroups = new Set();
 
+// Owner 2026-07-21: aus "Fehler" wurde "Wichtig". Der Fund ist hier zwar hart -- zwei Objekte
+// beanspruchen denselben Artikel --, aber ob das falsch IST, entscheidet der Mensch: der
+// Maraskansund besteht nun einmal aus zwei Buchten. "Fehler" behauptete ein Urteil, das dem
+// Erkenner nicht zusteht. Der Maschinenwert bleibt 'error'.
 const CONFLICT_SEVERITY_LABELS = {
-	error: "Fehler",
+	error: "Wichtig",
 	divergence: "Abweichung",
 	unverified: "Ungeprüft",
 };
