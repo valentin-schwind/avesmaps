@@ -312,6 +312,18 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	rows += row(tr("infobox.language", "Sprache"), wiki.sprache);
 	rows += row(tr("infobox.vegetation", "Vegetation"), wiki.vegetation);
 	rows += row(tr("infobox.description", "Beschreibung"), typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
+	// Waren / Fauna / Flora als eigene Zeilen -- Landschaftsregionen sind die Ebene, auf
+	// der das Wiki diese Angaben tatsächlich pflegt. Der Container kommt leer und füllt
+	// sich nach dem Abruf; ohne Treffer bleibt er leer und erzeugt keine Zeile.
+	// Der Ortsschlüssel geht als TITEL an den Server, der sluggt (Umlaut-Falle, siehe
+	// api/app/lore.php) -- wiki_key wird mitgegeben, falls er im Payload steht.
+	if (typeof buildLoreMarkup === "function") {
+		rows += buildLoreMarkup({
+			key: wiki.wiki_key || "",
+			titles: typeof avesmapsLoreTitleFromUrl === "function" ? avesmapsLoreTitleFromUrl(wiki.wiki_url || "") : "",
+			name: name,
+		});
+	}
 	// Multi-source system: ONE source line covers the wiki credit line that used to render
 	// unconditionally here -- rendered synchronously from the map-features payload
 	// (renderFeatureSourceLine in js/ui/popups.js resolves this element's approved sources).
