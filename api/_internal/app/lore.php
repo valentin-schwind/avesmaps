@@ -258,6 +258,21 @@ function avesmapsLoreExpandPlaceKeys(PDO $pdo, string $placeKey): array
         return $ranks; // ein Kontinent hat keine sinnvolle Ausweitung
     }
 
+    // Die beiden Hierarchietabellen werden PRO ANFRAGE nur EINMAL gelesen, auch wenn
+    // mehrere Orte expandiert werden. Sie ändern sich ausschließlich beim Sync, nie
+    // während eines Aufrufs.
+    static $parentOfCache = null;
+    static $childrenOfCache = null;
+    static $territoriesInRegionCache = null;
+
+    if ($parentOfCache !== null) {
+        $parentOf = $parentOfCache;
+        $childrenOf = $childrenOfCache;
+        $territoriesInRegion = $territoriesInRegionCache;
+
+        return avesmapsLoreExpandFromMaps($root, $ranks, $parentOf, $childrenOf, $territoriesInRegion);
+    }
+
     $parentOf = [];
     $childrenOf = [];
     try {
@@ -304,6 +319,28 @@ function avesmapsLoreExpandPlaceKeys(PDO $pdo, string $placeKey): array
     // Rang 1 (seine Untergebiete). Eine Stadt zeigt dann meist nichts -- das ist die
     // richtige Antwort, nicht eine fehlende.
 
+    $parentOfCache = $parentOf;
+    $childrenOfCache = $childrenOf;
+    $territoriesInRegionCache = $territoriesInRegion;
+
+    return avesmapsLoreExpandFromMaps($root, $ranks, $parentOf, $childrenOf, $territoriesInRegion);
+}
+
+/**
+ * PURE: die eigentliche Ausweitung auf den bereits geladenen Hierarchie-Karten.
+ * Getrennt, damit der zweite und jeder weitere Ort einer Anfrage sie ohne erneutes
+ * Tabellenlesen durchlaufen kann.
+ *
+ * @param array<string,int> $ranks
+ * @return array<string,int>
+ */
+function avesmapsLoreExpandFromMaps(
+    string $root,
+    array $ranks,
+    array $parentOf,
+    array $childrenOf,
+    array $territoriesInRegion
+): array {
     // ABWÄRTS EINSAMMELN: Nachfahren im politischen Baum + alle Territorien dieser Region.
     $queue = $childrenOf[$root] ?? [];
     foreach ($territoriesInRegion[$root] ?? [] as $territory) {

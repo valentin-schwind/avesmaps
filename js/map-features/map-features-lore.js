@@ -284,6 +284,51 @@ function avesmapsLoreFillContainers(placeKey, placeName, data) {
 	}
 }
 
+// Lädt die Lore für jeden Container, der NEU im Dokument steht. Das ist der einzige
+// Ort, an dem ein Abruf startet.
+//
+// Warum überhaupt ein Beobachter: das Markup entsteht lange bevor es angezeigt wird
+// (bindPopup bekommt fertiges HTML für JEDES Label). Erst wenn ein Container wirklich
+// im DOM hängt, schaut jemand hin -- und nur dann lohnt der Abruf. So wird aus
+// „hunderte Anfragen beim Kartenaufbau" „eine Anfrage pro geöffnetem Panel".
+function avesmapsLoreLoadPendingContainers() {
+	if (!AVESMAPS_LORE_ENABLED) {
+		return;
+	}
+	var pending = document.querySelectorAll("[data-lore-place]:not([data-lore-loaded])");
+	for (var i = 0; i < pending.length; i++) {
+		var el = pending[i];
+		el.setAttribute("data-lore-loaded", "1"); // sofort markieren: kein Doppelabruf
+		(function (element) {
+			var containerKey = element.getAttribute("data-lore-place") || "";
+			var name = element.getAttribute("data-lore-name") || "";
+			avesmapsLoreFetch(
+				element.getAttribute("data-lore-fetch") || "",
+				false,
+				element.getAttribute("data-lore-titles") || ""
+			).then(function (data) {
+				if (data && data.total > 0) {
+					avesmapsLoreFillContainers(containerKey, name, data);
+				}
+			});
+		})(el);
+	}
+}
+
+if (typeof document !== "undefined" && !document.__avesmapsLoreObserverBound) {
+	document.__avesmapsLoreObserverBound = true;
+	var avesmapsLoreScanTimer = null;
+	var scheduleScan = function () {
+		// Entprellt: ein geöffnetes Popup löst viele Mutationen aus, gescannt wird einmal.
+		window.clearTimeout(avesmapsLoreScanTimer);
+		avesmapsLoreScanTimer = window.setTimeout(avesmapsLoreLoadPendingContainers, 120);
+	};
+	if (typeof MutationObserver === "function") {
+		new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true });
+	}
+	document.addEventListener("DOMContentLoaded", scheduleScan);
+}
+
 // Ortsreferenz aus einem regionEntry des Infopanels. Zwei Quellen, wie beim
 // Abenteuer-Block: ein politisches Territorium trägt seinen Server-wiki_key erst in
 // regionEntry.detail (territory-detail.php), eine Landschaftsregion in
@@ -334,11 +379,12 @@ function buildLoreMarkup(placeRef) {
 	// Container-Id: bei reiner Titel-Anfrage der Titel selbst, sonst der Schlüssel.
 	var containerKey = key || titles.replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 190);
 	var name = (placeRef && (placeRef.name || placeRef.displayName)) || "";
-	avesmapsLoreFetch(key, false, titles).then(function (data) {
-		if (data && data.total > 0) {
-			avesmapsLoreFillContainers(containerKey, name, data);
-		}
-	});
+	// 💣 HIER WIRD NICHT GELADEN. buildLoreMarkup() läuft für JEDES Label schon beim
+	// Anlegen des Markers (map-features-labels.js:469 ruft bindPopup mit fertigem
+	// HTML), nicht erst beim Öffnen. Ein Abruf an dieser Stelle bedeutete hunderte
+	// gleichzeitige Anfragen beim Kartenaufbau -- genau das hat den PHP-Pool
+	// gesättigt. Geladen wird erst, wenn der Container WIRKLICH im DOM steht; darum
+	// kümmert sich der Beobachter weiter unten.
 	// Container OHNE eigene Hülle: er sitzt mitten in der Feldliste der Infobox und
 	// füllt sich mit .region-info-box__row-Zeilen. display:contents lässt seine Kinder
 	// direkt ins Zeilenraster greifen, statt es zu brechen.
