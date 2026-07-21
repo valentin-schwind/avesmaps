@@ -77,9 +77,17 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
     }
     $query = trim($query);
     if ($query !== '') {
-        // Name ODER Gruppe: „Hirsch" soll auch die Tiere finden, deren Art das ist.
-        $where[] = '(e.name LIKE :q OR e.gruppe LIKE :q OR e.synonyme LIKE :q)';
-        $params['q'] = '%' . $query . '%';
+        // Name ODER Gruppe ODER Synonym: „Hirsch" soll auch die Tiere finden, deren Art
+        // das ist.
+        // 💣 DREI EIGENE PLATZHALTER, nicht dreimal derselbe: ohne Prepare-Emulation
+        // lehnt MySQL einen mehrfach verwendeten benannten Parameter ab. Die erste
+        // Fassung tat genau das, der Fehler wurde vom catch unten zu „0 Treffer"
+        // verschluckt, und jede Textsuche kam leer zurück -- was aussah, als gäbe es
+        // den gesuchten Eintrag nicht.
+        $where[] = '(e.name LIKE :q1 OR e.gruppe LIKE :q2 OR e.synonyme LIKE :q3)';
+        $params['q1'] = '%' . $query . '%';
+        $params['q2'] = '%' . $query . '%';
+        $params['q3'] = '%' . $query . '%';
     }
     $whereSql = implode(' AND ', $where);
     $limit = max(1, min(500, $limit));
@@ -109,8 +117,14 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
         );
         $statement->execute($params);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    } catch (Throwable) {
-        return ['items' => [], 'total' => 0];
+    } catch (Throwable $error) {
+        // NICHT still auf 0 Treffer zurückfallen: ein Abfragefehler sieht dann exakt
+        // aus wie „gibt es nicht", und man sucht ihn an der falschen Stelle. Genau das
+        // ist mit dem mehrfach verwendeten Platzhalter oben passiert. Die Meldung geht
+        // an den Aufrufer, nicht in die Antwort -- sie kann Schemadetails enthalten.
+        error_log('lore catalog query failed: ' . $error->getMessage());
+
+        return ['items' => [], 'total' => 0, 'failed' => true];
     }
 
     $items = [];

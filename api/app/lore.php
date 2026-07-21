@@ -97,6 +97,9 @@ try {
             'q' => $query,
             'items' => $catalog['items'],
             'total' => $catalog['total'],
+            // Unterscheidet „nichts gefunden" von „Abfrage fehlgeschlagen". Ohne das
+            // sieht ein kaputter Filter aus wie ein leerer Bestand.
+            'failed' => (bool) ($catalog['failed'] ?? false),
             'offset' => max(0, $offset),
             // Bestand ALLER Arten, damit die Unterreiter ihre Zahlen sofort tragen und
             // nicht erst, nachdem man sie einzeln angeklickt hat.
