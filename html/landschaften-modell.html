@@ -136,6 +136,11 @@
 			<span class="unit">Schritt</span>
 		</div>
 		<div class="grp">
+			<label>Körnung</label>
+			<input type="range" id="grain" min="18" max="80" step="2" value="30">
+			<span class="unit" id="grainN" style="width:88px"></span>
+		</div>
+		<div class="grp">
 			<label>Detailstufen</label>
 			<input type="range" id="levels" min="0" max="4" value="2">
 			<span class="unit" id="levelsN" style="width:74px">2 · 21 Buckel</span>
@@ -188,6 +193,10 @@
 
 		<h2>Was davon erfunden ist — und was nie behauptet wird</h2>
 		<p>Erfunden ist alles zwischen den Gipfeln. Deshalb wird <strong>keine dieser Höhen jemals als Zahl angezeigt</strong>. Sichtbar wird nur, was aus dem Wiki stammt, und was daraus für die Reise folgt: dass der Weg hinauf länger dauert als hinab. Eine erfundene Höhe darf die Reisezeit beeinflussen — sie darf nicht so aussehen, als stünde sie irgendwo geschrieben.</p>
+
+		<h2>Körnung: ein Massiv oder ein Hügelland?</h2>
+		<p>Der Regler <strong>Körnung</strong> bestimmt, wie groß die erfundenen Erhebungen ausfallen — links wenige weite Rücken, rechts viele kleine Kuppen. Damit lässt sich derselbe Umriss als geschlossenes Massiv oder als zerklüftetes Hügelland lesen, <strong>ohne dass sich an den benannten Gipfeln etwas ändert</strong>: die stehen weiter genau auf ihrer Höhe und an ihrer Stelle.</p>
+		<p>Verwechsle ihn nicht mit <strong>Detailstufen</strong>. Die Körnung ändert den <em>Charakter</em> des Geländes — alles wird neu verteilt. Detailstufen ändern nur, wie fein es <em>aufgelöst</em> ist; die vorhandenen Formen bleiben dabei stehen.</p>
 
 		<h2>Detail kommt dazu, es wird nicht neu gewürfelt</h2>
 		<p>Zieh <strong>Detailstufen</strong> von 0 auf 4 und achte auf die großen Formen: <strong>sie bleiben stehen.</strong> Jede Stufe halbiert den Abstand der Hügel und ihre Höhe, und legt sie <em>zwischen</em> die vorhandenen — statt alles neu zu verteilen. Das ist die Bedingung dafür, dass Hineinzoomen später Detail nachschärfen kann, ohne dass das Gebirge unter dem Cursor die Form wechselt.</p>
@@ -284,7 +293,11 @@ function level(k, c0, amp, out) {
 function build() {
 	const L = +document.getElementById('levels').value;
 	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
-	const C0 = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 3;
+	// Koernung: wie oft passt eine Zelle in die Flaeche. Klein = wenige weite Buckel (ein Massiv),
+	// gross = viele enge (Huegelland). Das ist die Charakter-Achse und aendert das Gelaende ganz --
+	// anders als die Detailstufen, die nur ergaenzen. Die Gipfel bleiben davon unberuehrt.
+	const teiler = +document.getElementById('grain').value / 10;
+	const C0 = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / teiler;
 
 	const hmax = +document.getElementById('hmax').value;
 
@@ -333,6 +346,8 @@ function build() {
 	bumps = grob.concat(gipfelBumps, fein);
 
 	document.getElementById('levelsN').textContent = L + ' · ' + bumps.length + ' Buckel';
+	document.getElementById('grainN').textContent =
+		teiler <= 2.6 ? 'einzelne Massive' : teiler >= 6 ? 'viele Hügel' : 'ausgewogen';
 	rMin = bumps.length ? Math.min(...bumps.map(b => b.r)) : 0;
 }
 let rMin = 0;
@@ -512,6 +527,7 @@ addEventListener('pointerup', () => drag = null);
 
 document.getElementById('bTopo').onclick = () => { layer = 'topo'; bTopo.classList.add('on'); bVeg.classList.remove('on'); draw(); };
 document.getElementById('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); draw(); };
+document.getElementById('grain').oninput  = () => all();
 document.getElementById('levels').oninput = () => all();
 document.getElementById('step').onchange  = () => { paint(); };
 document.getElementById('veg').oninput   = e => { vegN.textContent = (e.target.value / 100).toFixed(2).replace('.', ','); draw(); };
