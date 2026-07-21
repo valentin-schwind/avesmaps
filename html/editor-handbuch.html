@@ -552,6 +552,19 @@
 					<figcaption>Das Rechtsklick-Menü eines Gebiets. Je nach Gebiet erscheinen zusätzliche Einträge.</figcaption>
 				</figure>
 
+				<h4>Grenzen bearbeiten</h4>
+				<p><strong>„Grenzen bearbeiten"</strong> zeigt jede Ecke des Gebiets als Griff. <strong>Ziehen</strong> verschiebt sie, <strong>Doppelklick auf einen Griff</strong> löscht sie.</p>
+				<p>Beim Loslassen passieren zwei Dinge, die man dem Ziehen nicht ansieht: Der Punkt <strong>rastet ein</strong>, wenn ein <em>Nachbargebiet</em> dort eine Ecke oder Kante hat — und <strong>jedes Nachbargebiet, das genau diesen Punkt teilt, wird mitgezogen und mitgespeichert</strong>. So bleiben aneinandergrenzende Gebiete lückenlos, ohne dass du jede Grenze zweimal ziehst.</p>
+				<p><strong>Die Strg-Taste ist der Umschalter dafür.</strong> Gedrückt gehalten gilt beides nicht — sie regelt den Umgang mit Punkten und Linien:</p>
+				<table class="hb-table">
+					<tr><th>Strg&nbsp;+</th><th>Was passiert</th></tr>
+					<tr><td><strong>einen Punkt ziehen</strong></td><td><strong>Löst ihn heraus.</strong> Kein Einrasten, und die Nachbarn bleiben liegen — die gemeinsame Grenze trennt sich an dieser Stelle auf. Der Punkt bleibt genau dort, wo du loslässt.</td></tr>
+					<tr><td><strong>über eine Linie fahren</strong></td><td>Hebt die Kante unter dem Zeiger hervor — die, die der nächste Klick trifft.</td></tr>
+					<tr><td><strong>auf die Linie klicken</strong></td><td>Setzt <strong>vier</strong> gleichmäßig verteilte Punkte hinein; aus einer Kante werden fünf Abschnitte. So bekommst du Material zum Formen, wo vorher eine gerade Strecke war.</td></tr>
+				</table>
+				<div class="hb-note hb-warn"><strong>Ohne Strg bearbeitest du unter Umständen mehrere Gebiete gleichzeitig.</strong> Das ist so gewollt — es hält Grenzen dicht —, aber es heißt auch: Ein Zug an der falschen Ecke verschiebt die Grenze des Nachbarn mit, und beide werden gespeichert. Willst du <em>nur</em> dein Gebiet bewegen, halte Strg.</div>
+				<div class="hb-note hb-tip"><strong>Abgeleitete Außengrenzen ziehen nie mit.</strong> Sie sind berechnet, nicht gezeichnet, und kommen über <strong>„Grenzen berechnen"</strong> nach.</div>
+
 				<h4>Die Formwerkzeuge</h4>
 				<p>Alle vier arbeiten gleich: Du startest sie auf dem Gebiet, das du angeklickt hast, dann wählst du ein <strong>Zielgebiet</strong> — oben erscheint dazu der Hinweis <em>„Zielgebiet anklicken."</em>. Was danach passiert, unterscheidet sich in einem Punkt, den man den Namen nicht ansieht:</p>
 				<table class="hb-table">
