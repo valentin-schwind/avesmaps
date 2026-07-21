@@ -256,13 +256,23 @@ function cellHash(level, ix, iy, salt) {
 // One stratified level: a grid of cell size c in ABSOLUTE map coordinates, one jittered bump per
 // cell. Stratified rather than uniformly random, because uniform points clump and leave holes --
 // a grid with jitter covers evenly and still looks unplanned.
-function level(k, c, amp, out) {
+const JITTER = .55;                                     // Zittern als Anteil des Sollabstands
+
+function level(k, c0, amp, out) {
+	// VERSETZTES (hexagonales) Gitter statt eines quadratischen. Beim Quadratgitter duerfen zwei
+	// Nachbarzellen ihre Punkte beide an die gemeinsame Kante legen -- die stehen dann bei rund
+	// 30 % des Sollabstands beieinander und lesen sich als Doppelhuegel. Im Dreiecksgitter liegen
+	// die sechs Nachbarn gleich weit entfernt, der schlechteste Fall ist also deutlich besser.
+	// Zittern bleibt, sonst sieht man die Reihen; nur schwaecher als vorher (0,55 statt 0,7 voll).
+	const c = c0 * 1.075;                                 // gleicht die dichtere Hex-Packung aus,
+	const rowH = c * Math.sqrt(3) / 2;                    // damit die Buckelzahl vergleichbar bleibt
 	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
 	const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-	for (let ix = Math.floor(x0 / c) - 1; ix <= Math.ceil(x1 / c) + 1; ix++) {
-		for (let iy = Math.floor(y0 / c) - 1; iy <= Math.ceil(y1 / c) + 1; iy++) {
-			const px = (ix + .15 + .7 * cellHash(k, ix, iy, 1)) * c;
-			const py = (iy + .15 + .7 * cellHash(k, ix, iy, 2)) * c;
+	for (let iy = Math.floor(y0 / rowH) - 1; iy <= Math.ceil(y1 / rowH) + 1; iy++) {
+		const versatz = (iy & 1) ? c / 2 : 0;             // jede zweite Reihe um eine halbe Zelle
+		for (let ix = Math.floor((x0 - versatz) / c) - 1; ix <= Math.ceil((x1 - versatz) / c) + 1; ix++) {
+			const px = ix * c + versatz + (cellHash(k, ix, iy, 1) - .5) * c * JITTER;
+			const py = iy * rowH + (cellHash(k, ix, iy, 2) - .5) * rowH * JITTER;
 			if (!inPoly(px, py, topo)) continue;
 			const r = Math.min(c * .85, distEdge(px, py, topo));
 			if (r < c * .3) continue;                       // zu dicht am Rand, traegt kaum bei
