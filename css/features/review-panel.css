@@ -761,10 +761,40 @@
 .conflict-verbs dt { font-weight: 600; color: var(--color-text-strong); }
 .conflict-verbs dd { margin: 0 0 6px; color: var(--color-text-muted); }
 .conflict-verbs dd:last-child { margin-bottom: 0; }
-.conflict-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-.conflict-dot--error { background: var(--color-danger); }
-.conflict-dot--divergence { background: var(--color-warning-soft-border); }
-.conflict-dot--unverified { background: var(--color-border-strong); }
+/* Aufklapp-Dreieck statt Punkt: es zeigt nach rechts, solange die Gruppe zu ist, und kippt beim
+   Oeffnen nach unten. Die Schweregrad-Farbe bleibt daran haengen -- ein zweites Zeichen dafuer waere
+   doppelt, und an der Spitze liest sie sich genauso gut wie am Punkt. Ueber Rahmen gezeichnet statt
+   als Schriftzeichen, damit die Farbe frei setzbar bleibt. */
+.conflict-dot {
+	width: 0;
+	height: 0;
+	flex: 0 0 auto;
+	margin-right: 1px;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-top: 7px solid var(--color-border-strong);
+	transform: rotate(-90deg);
+	transition: transform 0.15s ease;
+}
+.conflict-group[open] > summary .conflict-dot {
+	transform: rotate(0deg);
+}
+.conflict-dot--error { border-top-color: var(--color-danger); }
+.conflict-dot--divergence { border-top-color: var(--color-warning-soft-border); }
+.conflict-dot--unverified { border-top-color: var(--color-border-strong); }
+
+/* Die ganze Kopfzeile ist die Klickflaeche -- also soll sie sich auch als solche anfuehlen. Der
+   negative Seitenrand gleicht das Innenpolster aus, damit die Flaeche buendig mit der Liste
+   beginnt statt eingerueckt zu wirken. */
+.conflict-group > summary {
+	margin: 0 -8px;
+	padding: 4px 8px;
+	border-radius: var(--radius-sm);
+	transition: background-color 0.12s ease;
+}
+.conflict-group > summary:hover {
+	background: var(--color-button-soft-hover);
+}
 .conflict-case { padding: 8px 0; border-top: 1px dashed var(--color-divider); }
 .conflict-case:first-of-type { border-top: none; }
 .conflict-case__head { display: flex; align-items: baseline; gap: 8px; }
