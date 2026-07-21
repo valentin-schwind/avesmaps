@@ -769,10 +769,10 @@
 	width: 0;
 	height: 0;
 	flex: 0 0 auto;
-	margin-right: 1px;
-	border-left: 5px solid transparent;
-	border-right: 5px solid transparent;
-	border-top: 7px solid var(--color-border-strong);
+	margin-right: 3px;
+	border-left: 7px solid transparent;
+	border-right: 7px solid transparent;
+	border-top: 10px solid var(--color-text-muted);
 	transform: rotate(-90deg);
 	transition: transform 0.15s ease;
 }
@@ -781,14 +781,16 @@
 }
 .conflict-dot--error { border-top-color: var(--color-danger); }
 .conflict-dot--divergence { border-top-color: var(--color-warning-soft-border); }
-.conflict-dot--unverified { border-top-color: var(--color-border-strong); }
+/* Nicht --color-border-strong: das ist in der hellen Ansicht fast weiss und das Dreieck damit
+   unsichtbar. Ein Aufklapp-Zeichen muss man sehen, auch wenn seine Stufe die harmloseste ist. */
+.conflict-dot--unverified { border-top-color: var(--color-text-muted); }
 
-/* Die ganze Kopfzeile ist die Klickflaeche -- also soll sie sich auch als solche anfuehlen. Der
-   negative Seitenrand gleicht das Innenpolster aus, damit die Flaeche buendig mit der Liste
-   beginnt statt eingerueckt zu wirken. */
+/* Die ganze Kopfzeile ist die Klickflaeche -- also soll sie sich auch als solche anfuehlen.
+   KEIN negativer Seitenrand: der machte die Kopfzeile breiter als ihren Container, und die Liste
+   (overflow:auto) bekam davon eine waagerechte Scrollleiste. Ein paar Pixel buendiger sind das
+   nicht wert. */
 .conflict-group > summary {
-	margin: 0 -8px;
-	padding: 4px 8px;
+	padding: 4px 6px;
 	border-radius: var(--radius-sm);
 	transition: background-color 0.12s ease;
 }
