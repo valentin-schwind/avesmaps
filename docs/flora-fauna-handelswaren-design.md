@@ -44,7 +44,7 @@ Die Orte stehen dort als echte Wikilinks, also maschinenlesbar:
 | flora | 1.004 | 880 | 5.510 | 2 |
 | spezies | 187 | 175 | 4.847 | 0 |
 | ware | 2.531 | 1.285 | 14.648 | 4 |
-| **Σ** | **5.104** | **7.746 Verknüpfungen** | **34.933** | **10** |
+| **Σ** | **5.104** | **7.748 Verknüpfungen** | **34.933** | **10** |
 
 **Abnahmetest:** Für Weiden liefert der Scan 19 Fauna (namentlich dieselben wie
 das Wiki), 10 Flora, 4 Spezies. Die Wiki-Seite nennt „14 Artikel, 10 angezeigt"
