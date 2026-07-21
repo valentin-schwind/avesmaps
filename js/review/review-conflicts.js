@@ -519,6 +519,50 @@ function createConflictPartyElement(party, conflict = null) {
 // Repair verbs sit ON the party, because that is where the decision lives: this one keeps the
 // article, that one does not. "Behält den Link" is expressed as "unlink all the others" -- the
 // keeper is never written to, which is the safest possible way to say "leave it alone".
+// Ein Knopf: den gefundenen Artikel uebernehmen. Die URL schickt der Client NICHT mit -- der
+// Server schlaegt sie selbst am Objektnamen nach (repair.php), damit von hier aus keine
+// beliebige Verknuepfung gesetzt werden kann.
+function createConflictLinkAction(conflict, party) {
+	const bar = document.createElement("div");
+	bar.className = "conflict-party__actions";
+	const link = document.createElement("button");
+	link.type = "button";
+	link.className = "conflict-action conflict-action--main";
+	link.textContent = "Artikel übernehmen";
+	link.title = `Verknüpft dieses Objekt mit „${party.own_wiki.title}“.`;
+	link.addEventListener("click", async () => {
+		link.disabled = true;
+		try {
+			const result = await submitConflictAction("resolve", {
+				mode: "link",
+				targets: [{ type: party.type, id: party.id }],
+				rule_id: conflict.rule_id,
+				fingerprint: conflict.fingerprint,
+				subject_type: party.type,
+				subject_id: party.id,
+				acted_type: party.type,
+				acted_id: party.id,
+				title: conflict.title || "",
+				severity: conflict.severity || "",
+				parties: (conflict.parties || []).map((entry) => ({
+					type: entry.type, type_label: entry.type_label, label: entry.label,
+				})),
+			});
+			const refused = (result.results || []).filter((entry) => entry.ok === false);
+			if (refused.length > 0) {
+				window.alert(refused.map((entry) => entry.reason).join("\n"));
+			}
+			await loadConflicts();
+		} catch (error) {
+			link.disabled = false;
+			window.alert(`Konnte nicht übernommen werden: ${error.message}`);
+		}
+	});
+	bar.appendChild(link);
+
+	return bar;
+}
+
 function createConflictPartyActions(conflict, party) {
 	const bar = document.createElement("div");
 	bar.className = "conflict-party__actions";
@@ -668,6 +712,10 @@ function createConflictElement(conflict) {
 			const partyElement = createConflictPartyElement(party, conflict);
 			if (isRepairable && conflict.status === "open") {
 				partyElement.appendChild(createConflictPartyActions(conflict, party));
+			} else if (conflict.status === "open" && party.own_wiki?.url) {
+				// Beobachtungsliste MIT Kandidat: der Fall sagte "passender Artikel gefunden" und bot
+				// dann nichts an, womit man ihn nehmen konnte (Owner 2026-07-21).
+				partyElement.appendChild(createConflictLinkAction(conflict, party));
 			}
 			parties.appendChild(partyElement);
 		});

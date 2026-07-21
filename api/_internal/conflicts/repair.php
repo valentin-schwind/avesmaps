@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/core.php';
 require_once __DIR__ . '/../map/features.php';
+require_once __DIR__ . '/rules.php';
 
 // Where a party's wiki claim is stored. Only the plain field is safely removable (rule 1 above).
 const AVESMAPS_CONFLICT_CLAIM_FIELD = 'wiki_url';
@@ -106,10 +107,76 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
 }
 
 /**
+ * Link an object to the wiki article that carries its exact name.
+ *
+ * The candidate is looked up HERE, from the object's own stored name -- never taken from the
+ * request. A client-supplied URL would let anything set any link, and this endpoint writes real map
+ * data; the client only says WHICH object to link, the server decides to what.
+ *
+ * Refuses when the object already claims something: linking is for the empty case, and silently
+ * overwriting an existing claim is how wrong links spread in the first place.
+ */
+function avesmapsConflictLinkFeature(PDO $pdo, string $publicId, array $wikiTitles, int $userId): array {
+    $select = $pdo->prepare(
+        "SELECT id, name, properties_json FROM map_features
+         WHERE public_id = :p AND is_active = 1 LIMIT 1"
+    );
+    $select->execute(['p' => $publicId]);
+    $feature = $select->fetch(PDO::FETCH_ASSOC);
+    if (!$feature) {
+        return ['ok' => false, 'public_id' => $publicId, 'changed' => false, 'reason' => 'Objekt nicht gefunden.'];
+    }
+
+    $properties = json_decode((string) ($feature['properties_json'] ?? '{}'), true);
+    if (!is_array($properties)) {
+        $properties = [];
+    }
+    $before = json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    $existing = trim((string) ($properties[AVESMAPS_CONFLICT_CLAIM_FIELD] ?? ''));
+    if ($existing !== '') {
+        return ['ok' => false, 'public_id' => $publicId, 'changed' => false,
+            'reason' => 'Dieses Objekt trägt bereits eine Verknüpfung — bitte erst trennen.'];
+    }
+
+    $name = trim((string) ($feature['name'] ?? ''));
+    $candidate = $wikiTitles[mb_strtolower($name, 'UTF-8')] ?? null;
+    if ($candidate === null || trim((string) ($candidate['url'] ?? '')) === '') {
+        return ['ok' => false, 'public_id' => $publicId, 'changed' => false,
+            'reason' => 'Zu diesem Namen gibt es im Wiki keinen exakt passenden Artikel (mehr).'];
+    }
+
+    $properties[AVESMAPS_CONFLICT_CLAIM_FIELD] = (string) $candidate['url'];
+    // Eine Verknüpfung widerlegt die Aussage "hat keinen Artikel" -- sonst blieben beide stehen.
+    unset($properties[AVESMAPS_CONFLICT_NO_ARTICLE_FLAG]);
+
+    $revision = avesmapsNextMapRevision($pdo);
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev, updated_by = :by WHERE id = :id');
+    $update->execute([
+        'pj' => json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'rev' => $revision,
+        'by' => $userId > 0 ? $userId : null,
+        'id' => (int) $feature['id'],
+    ]);
+
+    avesmapsWriteMapAuditLog(
+        $pdo,
+        (int) $feature['id'],
+        'conflict_link',
+        $userId,
+        (string) $before,
+        (string) json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+    );
+
+    return ['ok' => true, 'public_id' => $publicId, 'changed' => true, 'name' => $name, 'wiki_url' => (string) $candidate['url']];
+}
+
+/**
  * Apply one resolution across a conflict's parties, in a transaction.
  *
  * mode 'unlink'   -- drop the claim on every target
  * mode 'no_wiki'  -- drop it AND record that there is no article (makes the removal stick)
+ * mode 'link'     -- attach the article carrying the object's exact name (looked up server-side)
  *
  * "Behält den Link" is expressed by the caller as: unlink every party EXCEPT the keeper. There is
  * no separate verb for it, so the keeper is never written to -- the safest possible way to say
@@ -119,7 +186,7 @@ function avesmapsConflictUnlinkFeature(PDO $pdo, string $publicId, string $expec
  */
 function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
     $mode = trim((string) ($input['mode'] ?? ''));
-    if (!in_array($mode, ['unlink', 'no_wiki'], true)) {
+    if (!in_array($mode, ['unlink', 'no_wiki', 'link'], true)) {
         throw new RuntimeException('Unbekannter Reparatur-Modus.');
     }
     $targets = is_array($input['targets'] ?? null) ? $input['targets'] : [];
@@ -127,6 +194,8 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
         throw new RuntimeException('Keine Ziele angegeben.');
     }
     $expectedUrl = trim((string) ($input['wiki_url'] ?? ''));
+    // Nur fuer 'link' gebraucht, und bewusst SERVERSEITIG geholt statt aus der Anfrage.
+    $wikiTitles = $mode === 'link' ? avesmapsConflictLoadWikiTitles($pdo) : [];
 
     $results = [];
     $applied = 0;
@@ -137,7 +206,9 @@ function avesmapsConflictResolve(PDO $pdo, array $input, int $userId): array {
             if ($publicId === '') {
                 continue;
             }
-            $result = avesmapsConflictUnlinkFeature($pdo, $publicId, $expectedUrl, $mode === 'no_wiki', $userId);
+            $result = $mode === 'link'
+                ? avesmapsConflictLinkFeature($pdo, $publicId, $wikiTitles, $userId)
+                : avesmapsConflictUnlinkFeature($pdo, $publicId, $expectedUrl, $mode === 'no_wiki', $userId);
             $results[] = $result;
             if (!empty($result['changed'])) {
                 $applied++;
