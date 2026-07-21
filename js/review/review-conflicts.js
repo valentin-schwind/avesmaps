@@ -345,10 +345,33 @@ function renderConflictRail() {
 	// Aus der VOLLEN Menge gezaehlt statt aus der Server-Zusammenfassung: sonst zeigt die Leiste
 	// andere Zahlen als die Liste, sobald die WikiSync-Faelle dazukommen.
 	const all = getAllConflicts();
+
+	// Die Zahlen sagen, was ein Klick BRINGT -- also unter Beruecksichtigung der anderen Filter.
+	// Owner 2026-07-21. Vorher zaehlte jede Facette global: mit "Ort" gewaehlt stand bei "Wichtig"
+	// weiter die Gesamtzahl, obwohl der Klick etwas anderes geliefert haette.
+	//
+	// Eine Facette filtert sich dabei NICHT selbst -- sonst zeigte die gewaehlte Objektart ihre Zahl
+	// und alle uebrigen null, und man koennte nie sehen, wohin ein Wechsel fuehrt. Genau deshalb
+	// bekommt jede Facette ihre eigene Grundmenge statt einer gemeinsamen.
+	const subset = (skip) => all.filter((conflict) => {
+		if (!conflictMatchesQuery(conflict, conflictFilter.query)) {
+			return false;
+		}
+		if (skip !== "status" && conflictFilter.status && conflict.status !== conflictFilter.status) {
+			return false;
+		}
+		if (skip !== "severity" && conflictFilter.severity && conflict.severity !== conflictFilter.severity) {
+			return false;
+		}
+		if (skip !== "type" && !conflictHasType(conflict, conflictFilter.type)) {
+			return false;
+		}
+
+		return true;
+	});
+
 	const summary = { by_type: {}, by_severity: {}, by_status: {} };
-	all.forEach((conflict) => {
-		summary.by_severity[conflict.severity] = (summary.by_severity[conflict.severity] || 0) + 1;
-		summary.by_status[conflict.status] = (summary.by_status[conflict.status] || 0) + 1;
+	subset("type").forEach((conflict) => {
 		const seen = {};
 		(conflict.parties || []).forEach((party) => {
 			if (!party.type || seen[party.type]) { return; }
@@ -356,6 +379,14 @@ function renderConflictRail() {
 			summary.by_type[party.type] = (summary.by_type[party.type] || 0) + 1;
 		});
 	});
+	subset("severity").forEach((conflict) => {
+		summary.by_severity[conflict.severity] = (summary.by_severity[conflict.severity] || 0) + 1;
+	});
+	subset("status").forEach((conflict) => {
+		summary.by_status[conflict.status] = (summary.by_status[conflict.status] || 0) + 1;
+	});
+	// "Alle" ist die Objektart-Zeile -- also dieselbe Grundmenge wie die uebrigen Objektarten.
+	const allCount = subset("type").length;
 
 	const section = (title) => {
 		const heading = document.createElement("h4");
@@ -364,7 +395,7 @@ function renderConflictRail() {
 	};
 
 	section("Objektart");
-	rail.appendChild(createConflictFilterButton("Alle", all.length, conflictFilter.type === "", () => {
+	rail.appendChild(createConflictFilterButton("Alle", allCount, conflictFilter.type === "", () => {
 		conflictFilter.type = "";
 	}));
 	Object.entries(summary.by_type || {}).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
