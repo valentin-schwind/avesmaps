@@ -216,7 +216,9 @@ const ov = document.getElementById('ov');
 
 let topo  = [[300,90],[430,60],[560,95],[640,190],[620,320],[520,400],[390,390],[300,300],[262,190]];
 let veg   = [[120,250],[250,180],[380,210],[430,320],[380,430],[240,470],[130,410],[90,320]];
-let peaks = [{x:390,y:170},{x:520,y:280}];
+// f = Anteil an der eingetragenen Hoechsthoehe. Im echten System kommt die Zahl je Gipfel aus
+// dem Wiki und haengt am berggipfel-Label; hier stehen zwei verschieden hohe stellvertretend.
+let peaks = [{x:390,y:170,f:1},{x:520,y:280,f:.78}];
 let route = [[20,330],[170,318],[330,300],[470,262],[620,240],[790,268],[880,300]];
 
 let layer = 'topo', seed = 20260719, bumps = [], scale = 1;
@@ -274,23 +276,40 @@ function build() {
 	const xs = topo.map(p => p[0]), ys = topo.map(p => p[1]);
 	const C0 = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 3;
 
+	const hmax = +document.getElementById('hmax').value;
+
 	// Grobe Struktur: Stufe 0 plus die gesetzten Gipfel.
 	const grob = [];
 	level(0, C0, .85, grob);
 	// Gipfelradius unter dem 1,118-fachen Gipfelabstand -- das erzwingt den Sattel statt eines Grats.
+	// Amplitude = die EIGENE Hoehe des Gipfels, nicht pauschal 1. Sonst sind alle gleich hoch.
 	const sep = peaks.length > 1 ? Math.hypot(peaks[0].x - peaks[1].x, peaks[0].y - peaks[1].y) : 1e9;
+	const gipfelBumps = [];
 	for (const p of peaks) {
 		if (!inPoly(p.x, p.y, topo)) continue;
-		grob.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, topo), .72 * sep, 150), a: 1 });
+		// Riegel: eine fehlende oder unsinnige Hoehe darf die ganze Flaeche nicht auf NaN ziehen.
+		const f = Number.isFinite(p.f) && p.f > 0 ? p.f : 1;
+		gipfelBumps.push({ x: p.x, y: p.y, r: Math.min(distEdge(p.x, p.y, topo), .72 * sep, 150), a: f, peak: true });
 	}
 	for (const b of grob) b.i = 1 / (b.r * b.r);
+	for (const b of gipfelBumps) b.i = 1 / (b.r * b.r);
 
-	// Normiert wird NUR auf der groben Struktur. Deshalb aendert eine zusaetzliche Detailstufe die
-	// Gebirgshoehe nicht -- das Feine reitet oben drauf, statt alles neu zu skalieren.
-	bumps = grob;
-	let mx = 0;
-	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = raw(x, y); if (v > mx) mx = v; }
-	scale = mx > 0 ? (+document.getElementById('hmax').value) / mx : 0;
+	// Das Rauschen wird gedaempft, bis es UNTER dem niedrigsten benannten Gipfel bleibt. Sonst
+	// steht der Amboss zwar auf einem Hochpunkt, aber irgendein erfundener Hügel ueberragt ihn --
+	// und genau das faellt jedem auf, der die Karte kennt.
+	bumps = grob;                                   // nur Rauschen, ohne Gipfel: dessen Maximum messen
+	let lmax = 0;
+	for (let y = 0; y < H; y += 4) for (let x = 0; x < W; x += 4) { const v = raw(x, y); if (v > lmax) lmax = v; }
+	const minGipfel = gipfelBumps.length ? Math.min(...gipfelBumps.map(b => b.a)) : 1;
+	const daempfung = lmax > 0 ? Math.min(1, .8 * minGipfel / lmax) : 1;
+	for (const b of grob) b.a *= daempfung;
+
+	// Normiert wird auf den HOECHSTEN benannten Gipfel: dessen Buckel traegt in seinem Zentrum
+	// genau seine Amplitude (das Fenster loescht dort das Rauschen), also liest er exakt die Zahl,
+	// die der Editor eingetragen hat. Ohne Gipfel faellt es auf das Rauschmaximum zurueck.
+	bumps = grob.concat(gipfelBumps);
+	const maxGipfel = gipfelBumps.length ? Math.max(...gipfelBumps.map(b => b.a)) : 0;
+	scale = maxGipfel > 0 ? hmax / maxGipfel : (lmax > 0 ? hmax / lmax : 0);
 
 	// Feinere Stufen: halber Zellabstand, aber Amplitude x0,35 je Stufe -- NICHT x0,5.
 	// Mit halbem Zellabstand liegen viermal so viele Buckel im Gebiet, ihr Radius halbiert sich
@@ -299,21 +318,45 @@ function build() {
 	// WAECHST beim Verfeinern. x0,35 haelt den Zuwachs bei rund einem Drittel: sichtbares Detail,
 	// aber die Gebirgshoehe bleibt die, die der Editor eingetragen hat.
 	const fein = [];
-	for (let k = 1; k <= L; k++) level(k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k), fein);
+	for (let k = 1; k <= L; k++) level(k, C0 / Math.pow(2, k), .85 * Math.pow(.35, k) * daempfung, fein);
 	for (const b of fein) b.i = 1 / (b.r * b.r);
-	bumps = grob.concat(fein);
+	bumps = grob.concat(gipfelBumps, fein);
 
 	document.getElementById('levelsN').textContent = L + ' · ' + bumps.length + ' Buckel';
 	rMin = bumps.length ? Math.min(...bumps.map(b => b.r)) : 0;
 }
 let rMin = 0;
+// Fenster, das das Rauschen an jedem Gipfel auf null zieht -- UND ZWAR MIT STEIGUNG NULL.
+// Das ist der Punkt: der Buckel (1-q^2)^3 hat in seinem Zentrum selbst die Steigung null, dort
+// zaehlt also allein das Gefaelle des Rauschens. Ein blosses Abschwaechen genuegt deshalb nicht,
+// der Hochpunkt der Summe wandert trotzdem weg. Das Argument t = d^2/D^2 ist quadratisch im
+// Abstand, die Ableitung nach d verschwindet am Gipfel -- damit ist der Gipfel ein kritischer
+// Punkt der Summe, und weil sein eigener Buckel dort ein echtes Maximum hat, ein Hochpunkt.
+function peakWindow(x, y) {
+	let w = 1;
+	for (const b of bumps) {
+		if (!b.peak) continue;
+		const D2 = b.r * b.r * .36;                       // Fensterradius = 0,6 x Gipfelradius
+		const dx = x - b.x, dy = y - b.y, d2 = dx * dx + dy * dy;
+		if (d2 >= D2) continue;
+		const t = d2 / D2;
+		const s = t * t * (3 - 2 * t);                    // Smoothstep, in d gerechnet doppelt flach
+		if (s < w) w = s;
+	}
+	return w;
+}
 function raw(x, y) {
-	let s = 0;
+	let gipfel = 0, rauschen = 0;
 	for (const b of bumps) {
 		const dx = x - b.x, dy = y - b.y, q = (dx * dx + dy * dy) * b.i;
-		if (q < 1) { const u = 1 - q; s += b.a * u * u * u; }
+		if (q >= 1) continue;
+		const u = 1 - q, v = b.a * u * u * u;
+		if (b.peak) gipfel += v; else rauschen += v;
 	}
-	return s;
+	// NICHT `rauschen > 0` fragen: das ist bei NaN false und wuerde einen Rechenfehler in eine
+	// stumm flache Landschaft verwandeln statt ihn zu zeigen. Genau das ist einmal passiert.
+	if (rauschen === 0) return gipfel;
+	return gipfel + peakWindow(x, y) * rauschen;
 }
 const hAt = (x, y) => inPoly(x, y, topo) ? raw(x, y) * scale : 0;
 
@@ -450,7 +493,8 @@ ov.addEventListener('pointermove', e => {
 	const [x, y] = pt(e);
 	if (drag.k === 'topo') topo[drag.i] = [x, y];
 	else if (drag.k === 'veg') veg[drag.i] = [x, y];
-	else if (drag.k === 'peak') peaks[drag.i] = { x, y };
+	// Objekt ERGAENZEN, nicht ersetzen -- sonst geht f (die eigene Hoehe des Gipfels) verloren.
+	else if (drag.k === 'peak') peaks[drag.i] = { ...peaks[drag.i], x, y };
 	else route[drag.i] = [x, y];
 	if (drag.k === 'route' || drag.k === 'veg') draw(); else all();
 });
