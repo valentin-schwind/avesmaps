@@ -310,7 +310,7 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	if (typeof avesmapsTrafficRoutesMarkup === "function" && String(wiki.verkehrswege || "").trim() !== "") {
 		rows += '<div class="region-info-box__row"><dt>'
 			+ escapeHtml(tr("popup.fieldTrafficRoutes", "Verkehrswege")) + "</dt><dd>"
-			+ avesmapsTrafficRoutesMarkup(wiki.verkehrswege) + "</dd></div>";
+			+ avesmapsTrafficRoutesMarkup(wiki.verkehrswege, wiki.verkehrswege_links) + "</dd></div>";
 	} else {
 		rows += row(tr("popup.fieldTrafficRoutes", "Verkehrswege"), wiki.verkehrswege);
 	}

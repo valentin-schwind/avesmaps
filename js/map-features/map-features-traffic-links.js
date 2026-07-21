@@ -63,15 +63,37 @@ function avesmapsGetTrafficRouteIndex() {
 	return index;
 }
 
-// Weg-Eintrag der Spotlight-Suche zu einem Namen, oder null. Nutzt deren eigene
-// Normalisierung, damit „Reichsstraße 2" hier nicht anders behandelt wird als dort.
-function avesmapsFindTrafficRouteEntry(name) {
-	var target = avesmapsTrafficRouteNormalize(String(name || "").trim());
-	if (!target) {
+// Weg-Eintrag zu einem Namen, oder null. ZWEI WEGE, in dieser Reihenfolge:
+//
+//   1. ÜBER DAS LINKZIEL (zuverlässig). wiki_settlement.verkehrswege_links bildet
+//      Anzeigetext -> echten Wegnamen ab, gerettet aus dem Rohwert vor der Bereinigung
+//      (settlements.php). Nur so findet „Kronstraße nach Perricum" die Straße
+//      „Kronstraße von Perricum nach Zorgan" -- rund 8 % der Angaben sind solche
+//      Pipe-Links und über den Namen grundsätzlich nicht auflösbar.
+//   2. ÜBER DEN NAMEN (Rückfallebene). Greift für die übrigen ~92 % und für alle
+//      Datensätze, die noch keinen neuen Sync gesehen haben. Ohne diesen Fallback
+//      wären nach dem Ausrollen zunächst ALLE Wege unverlinkt.
+function avesmapsFindTrafficRouteEntry(name, linkTargets) {
+	var raw = String(name || "").trim();
+	if (!raw) {
 		return null;
 	}
 	var index = avesmapsGetTrafficRouteIndex();
-	return index ? (index.get(target) || null) : null;
+	if (!index) {
+		return null;
+	}
+
+	if (linkTargets && typeof linkTargets === "object") {
+		var mapped = linkTargets[raw];
+		if (mapped) {
+			var viaTarget = index.get(avesmapsTrafficRouteNormalize(mapped));
+			if (viaTarget) {
+				return viaTarget;
+			}
+		}
+	}
+
+	return index.get(avesmapsTrafficRouteNormalize(raw)) || null;
 }
 
 // „Yaquir, Eisenstraße, Zedernstraße nach Mhanadistan" -> anklickbare Namen.
@@ -86,7 +108,7 @@ function avesmapsFindTrafficRouteEntry(name) {
 //
 // Also: nur Text und ein Merker. Verlinkt wird erst, wenn das Popup wirklich im DOM
 // steht -- siehe Beobachter unten. Dasselbe Muster wie bei den Lore-Zeilen.
-function avesmapsTrafficRoutesMarkup(raw) {
+function avesmapsTrafficRoutesMarkup(raw, linkTargets) {
 	var text = String(raw == null ? "" : raw).trim();
 	if (!text) {
 		return "";
@@ -95,7 +117,35 @@ function avesmapsTrafficRoutesMarkup(raw) {
 		? escapeHtml
 		: function (value) { return String(value == null ? "" : value); };
 
-	return '<span class="avesmaps-traffic" data-traffic-raw="' + esc(text) + '">' + esc(text) + "</span>";
+	// Die Anzeigetext->Wegname-Zuordnung reist im Element mit, damit sie beim späteren
+	// Verlinken und beim Klick verfügbar ist, ohne den Ort erneut nachzuschlagen.
+	var mapAttr = "";
+	if (linkTargets && typeof linkTargets === "object" && Object.keys(linkTargets).length) {
+		try {
+			mapAttr = ' data-traffic-map="' + esc(JSON.stringify(linkTargets)) + '"';
+		} catch (error) {
+			mapAttr = "";
+		}
+	}
+
+	return '<span class="avesmaps-traffic" data-traffic-raw="' + esc(text) + '"' + mapAttr + ">"
+		+ esc(text) + "</span>";
+}
+
+// Liest die mitgereiste Zuordnung eines Containers zurück. Fehlt oder bricht sie, wird
+// still auf den Namensabgleich zurückgefallen -- lieber ein Weg weniger verlinkt als
+// eine Ausnahme im Popup-Aufbau.
+function avesmapsTrafficLinkTargets(element) {
+	var raw = element ? element.getAttribute("data-traffic-map") : "";
+	if (!raw) {
+		return null;
+	}
+	try {
+		var parsed = JSON.parse(raw);
+		return parsed && typeof parsed === "object" ? parsed : null;
+	} catch (error) {
+		return null;
+	}
 }
 
 // Ersetzt den Rohtext eines Containers durch anklickbare Namen. Läuft nur für
@@ -114,6 +164,7 @@ function avesmapsTrafficLinkifyPending() {
 		var element = pending[i];
 		element.setAttribute("data-traffic-done", "1");
 		var raw = element.getAttribute("data-traffic-raw") || "";
+		var targets = avesmapsTrafficLinkTargets(element);
 		// Getrennt wird NUR an Komma und Semikolon: „Zedernstraße nach Mhanadistan"
 		// ist EIN Eintrag. Namen ohne passenden Weg bleiben Text -- ein Link ins Leere
 		// ist schlechter als keiner.
@@ -122,11 +173,15 @@ function avesmapsTrafficLinkifyPending() {
 			if (!name) {
 				return "";
 			}
-			if (!avesmapsFindTrafficRouteEntry(name)) {
+			if (!avesmapsFindTrafficRouteEntry(name, targets)) {
 				return esc(name);
 			}
+			// Das aufgelöste Ziel wandert an den Knopf, damit der Klick nicht erneut
+			// zuordnen muss -- und im Titel sieht man, wie die Straße wirklich heißt.
+			var resolved = (targets && targets[name]) || name;
 			return '<button type="button" class="avesmaps-traffic-link" data-traffic-path="'
-				+ esc(name) + '" title="Auf der Karte zeigen">' + esc(name) + "</button>";
+				+ esc(resolved) + '" title="' + esc(resolved) + ' auf der Karte zeigen">'
+				+ esc(name) + "</button>";
 		}).filter(Boolean).join(", ");
 	}
 }

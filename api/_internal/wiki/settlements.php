@@ -520,6 +520,46 @@ function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRu
     return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'revision' => $revision];
 }
 
+/**
+ * Anzeigetext -> Linkziel für alle Wikilinks eines Feldwerts.
+ *
+ * 💣 WARUM DAS NÖTIG IST: avesmapsWikiSyncCleanPoliticalTerritoryWikiValue
+ * (territories-parsing.php:199) löst „[[Ziel|Anzeige]]" zu „Anzeige" auf und wirft das
+ * ZIEL weg. Bei „[[Eisenstraße]]" fällt das nicht auf (Ziel = Anzeige), aber bei
+ * Pipe-Links geht der einzige verlässliche Schlüssel verloren:
+ *   Zorgan  „Kronstraße nach Perricum"  ->  Kronstraße von Perricum nach Zorgan
+ *   Salza   „Küstenstraße"              ->  Küstenstraße von Thorwal nach Nostria
+ *   Trallop „Pandlaril"                 ->  Pandlaril (Fluss)
+ * Gemessen am Dump 2026-07-21: 358 von 4.652 verlinkten Verkehrswegen (~8 %) sind
+ * solche Pipe-Links -- über den Namen sind sie NICHT auflösbar („Küstenstraße" allein
+ * ist mehrdeutig), über das Ziel eindeutig.
+ *
+ * @return array<string,string> Anzeigetext => Linkziel (nur wo beide abweichen bzw. ein Link existiert)
+ */
+function avesmapsWikiSettlementLinkTargets(string $rawValue): array {
+    if (trim($rawValue) === '' || !str_contains($rawValue, '[[')) {
+        return [];
+    }
+    if (preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|([^\]]*))?\]\]/u', $rawValue, $matches, PREG_SET_ORDER) < 1) {
+        return [];
+    }
+
+    $out = [];
+    foreach ($matches as $match) {
+        $target = trim((string) ($match[1] ?? ''));
+        $label = trim((string) ($match[2] ?? '')); // leer bei [[Name]]
+        if ($target === '') {
+            continue;
+        }
+        $key = $label !== '' ? $label : $target;
+        if (!isset($out[$key])) {
+            $out[$key] = $target;
+        }
+    }
+
+    return $out;
+}
+
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans
 // Orts-Feature geheftet wird. settlementClass/settlementLabel kommen aus der Registry (Kategorie).
 function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, string $settlementClass = '', string $registryUrl = ''): array {
@@ -564,6 +604,12 @@ function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, str
         'lage' => mb_substr($lage, 0, 300, 'UTF-8'),
         'handelszone' => mb_substr($field(['handelszone']), 0, 200, 'UTF-8'),
         'verkehrswege' => mb_substr($field(['verkehrswege', 'verkehr']), 0, 300, 'UTF-8'),
+        // Anzeigetext -> echter Wegname, aus dem ROHWERT vor der Bereinigung. Nur damit
+        // lässt sich „Kronstraße nach Perricum" der Straße „Kronstraße von Perricum nach
+        // Zorgan" zuordnen; der bereinigte Wert oben kennt das Ziel nicht mehr.
+        'verkehrswege_links' => avesmapsWikiSettlementLinkTargets(
+            avesmapsWikiSyncMonitorField($norm, ['verkehrswege', 'verkehr'])
+        ),
         'tempel' => mb_substr($field(['tempel', 'geweihte', 'geweihtenschaft']), 0, 300, 'UTF-8'),
         'description' => avesmapsWikiSettlementExtractDescription($wikitext, $block),
         'wappen_url' => avesmapsWikiSyncMonitorCoatOfArmsUrl($wappenRaw),
