@@ -454,6 +454,24 @@
 .wiki-sync-dump-central .wiki-sync-panel__start {
 	min-width: 0;
 }
+/* Zweizeilige Kachel: Titel oben, Zusatz klein darunter -- gesetzt von setWikiSyncButtonState,
+   sobald eine Beschriftung " — " enthaelt. white-space:nowrap der Basisregel wuerde die zweite
+   Zeile sonst neben die erste zwingen und wieder abschneiden. */
+.wiki-sync-dump-central .wiki-sync-panel__start {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+	padding: 7px 12px;
+	white-space: normal;
+}
+.wiki-sync-dump-central .wiki-sync-panel__start .t1 {
+	font-weight: 600;
+}
+.wiki-sync-dump-central .wiki-sync-panel__start .t2 {
+	font-size: 11px;
+	opacity: 0.75;
+}
 
 /* "Dump holen" sits alone in the central block now (the "Abenteuereditor" tile moved into its own
    Abenteuer tab below); the wrapper carries the margin (matching .wiki-sync-dump-summary below it)

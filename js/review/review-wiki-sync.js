@@ -838,7 +838,24 @@ function setWikiSyncButtonState(button, { label = "", current = 0, total = 0, to
 	if (!button.dataset.idleLabel) {
 		button.dataset.idleLabel = button.textContent.trim();
 	}
-	button.textContent = label || button.dataset.idleLabel;
+	const text = label || button.dataset.idleLabel;
+	// Kachel-Optik: eine Beschriftung der Form "Titel — Zusatz" wird zweizeilig gesetzt, Titel oben,
+	// Zusatz klein darunter. Einzeilige Beschriftungen bleiben exakt wie bisher, deshalb ist das für
+	// alle anderen Knöpfe wirkungslos. Grund: "📥 Dump holen — zuletzt 19.07.2026, 03:12" passte in
+	// einer Zeile nicht mehr in die Kachel und wurde abgeschnitten (Owner 2026-07-21).
+	const split = text.split(" — ");
+	if (split.length === 2) {
+		button.textContent = "";
+		const title = document.createElement("span");
+		title.className = "t1";
+		title.textContent = split[0];
+		const note = document.createElement("span");
+		note.className = "t2";
+		note.textContent = split[1];
+		button.append(title, note);
+	} else {
+		button.textContent = text;
+	}
 	// Busy IS blocked -- one source of truth, so the two can never disagree.
 	button.disabled = running;
 	const totalValue = Number(total);
