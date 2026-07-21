@@ -725,6 +725,23 @@ function focusReviewReport(report) {
 		className: "review-report-tooltip",
 		offset: [0, -10],
 	}).openTooltip();
+	// Dieselbe Geste wie beim WikiSync-Vorschaupunkt: Klick raeumt weg. Der Marker verschwindet
+	// zwar in allen Abschlusswegen (genehmigen, anlegen, ablehnen), aber wer eine Meldung nur
+	// ansieht und dann nichts tut, behielt ihn -- ohne Moeglichkeit, ihn wieder loszuwerden.
+	reviewReportMarker.on("click", clearReviewReportMarker);
+	armReviewReportMarkerDismiss();
 
 	map.flyTo(latlng, Math.max(map.getZoom(), 3), { duration: 0.8 });
+}
+
+// Erst beim ersten gezeigten Marker registriert: `map` entsteht im Bootstrap zuletzt.
+let reviewReportDismissArmed = false;
+
+function armReviewReportMarkerDismiss() {
+	if (reviewReportDismissArmed || typeof map === "undefined" || !map) {
+		return;
+	}
+
+	reviewReportDismissArmed = true;
+	map.on("click", () => clearReviewReportMarker());
 }

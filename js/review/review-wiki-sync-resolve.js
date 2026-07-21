@@ -224,14 +224,16 @@ function armWikiSyncPreviewDismiss() {
 	}
 
 	wikiSyncPreviewDismissArmed = true;
-	map.on("click", () => {
-		// Waehrend einer laufenden Positionswahl IST der Klick die Auswahl -- und deren Handler
-		// setzt unmittelbar danach selbst eine Vorschau. Hier wegzuraeumen waere ein Wettlauf.
-		if (pendingWikiSyncLocationPickCase) {
-			return;
-		}
-		clearWikiSyncPreviewMarker();
-	});
+	map.on("click", dismissWikiSyncPreviewOnClick);
+}
+
+function dismissWikiSyncPreviewOnClick() {
+	// Waehrend einer laufenden Positionswahl IST der Klick die Auswahl -- und deren Handler setzt
+	// unmittelbar danach selbst eine Vorschau. Hier wegzuraeumen waere ein Wettlauf.
+	if (pendingWikiSyncLocationPickCase) {
+		return;
+	}
+	clearWikiSyncPreviewMarker();
 }
 
 function showWikiSyncPreviewMarker(caseEntry, latlng) {
@@ -252,6 +254,10 @@ function showWikiSyncPreviewMarker(caseEntry, latlng) {
 		className: "wiki-sync-preview-tooltip",
 		offset: [0, -12],
 	}).openTooltip();
+	// Auch der Punkt SELBST raeumt sich weg -- das ist die Geste, die man zuerst probiert, und ein
+	// Klick auf einen Vektor erreicht den Karten-Handler nicht zuverlaessig. Dasselbe Muster nutzt
+	// der Marker im Aenderungsverlauf bereits (review-panels-change-log.js).
+	wikiSyncPreviewMarker.on("click", dismissWikiSyncPreviewOnClick);
 }
 
 // --- coordinate_drift map visualization ------------------------------------
