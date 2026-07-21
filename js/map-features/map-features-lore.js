@@ -26,7 +26,29 @@ var AVESMAPS_LORE_API_URL = "api/app/lore.php";
 // hing mit, obwohl es damit nichts zu tun hat). Unten steht jetzt zusätzlich ein
 // hartes Zeitlimit, aber der Schalter bleibt: er wirkt SOFORT und ohne PHP, weil ein
 // reiner JS-Deploy ihn ausrollt.
-var AVESMAPS_LORE_ENABLED = false;
+// Anschalten OHNE Deploy, damit der Schalter auch dem Owner gehört und nicht nur dem
+// nächsten Commit:
+//   ?lore=1   schaltet für DIESEN Aufruf ein (zum gefahrlosen Nachmessen)
+//   ?lore=0   schaltet aus, auch wenn der Default unten wieder true ist
+//   localStorage: avesmaps.lore.enabled = "1" | "0"  -- gilt dauerhaft in diesem Browser
+// Ist nichts gesetzt, gilt der Default darunter.
+var AVESMAPS_LORE_DEFAULT_ENABLED = false;
+
+var AVESMAPS_LORE_ENABLED = (function () {
+	try {
+		var fromUrl = new URLSearchParams(window.location.search).get("lore");
+		if (fromUrl === "1" || fromUrl === "0") {
+			return fromUrl === "1";
+		}
+		var stored = window.localStorage.getItem("avesmaps.lore.enabled");
+		if (stored === "1" || stored === "0") {
+			return stored === "1";
+		}
+	} catch (error) {
+		// Privater Modus o. ä.: dann eben der Default.
+	}
+	return AVESMAPS_LORE_DEFAULT_ENABLED;
+})();
 
 // Nie länger als das auf eine Antwort warten. Ein abgebrochener Request gibt den
 // Worker frei; ohne Limit hält ein einziger hängender Aufruf ihn bis zum Servertimeout.
