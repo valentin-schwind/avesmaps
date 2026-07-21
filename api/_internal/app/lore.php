@@ -59,20 +59,48 @@ function avesmapsLoreSlugForTitle(string $title): string
     return trim((string) $slug, '-');
 }
 
-/** Alle Wikilink-Ziele eines Feldwerts als Ortsschlüssel ('[[Weiden|Weiden]]' -> ['weiden']). */
+/**
+ * Ortsschlüssel aus einem Feldwert.
+ *
+ * 💣 political_territory_wiki.geographic enthält KEIN Wiki-Markup mehr: der
+ * Territorien-Parser (avesmapsPoliticalReadWikiString) hat die Links längst zu
+ * Klartext aufgelöst. Gemessen 2026-07-21 steht dort schlicht "Albernia", nicht
+ * "[[Albernia]]". Ein reiner Wikilink-Extraktor findet dort NICHTS -- genau daran
+ * ist die erste Fassung der Aggregation gescheitert.
+ *
+ * Deshalb beide Formen: sind Links da, gewinnen sie (präziser, weil das Linkziel der
+ * echte Seitentitel ist); sonst wird der Klartext an ;/, getrennt und geslugged.
+ */
 function avesmapsLoreKeysFromWikiField(string $value): array
 {
-    if (trim($value) === '' || !str_contains($value, '[[')) {
+    $value = trim($value);
+    if ($value === '') {
         return [];
     }
-    if (preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|[^\]]*)?\]\]/u', $value, $matches) < 1) {
-        return [];
-    }
+
     $out = [];
-    foreach ($matches[1] as $title) {
-        $slug = avesmapsLoreSlugForTitle((string) $title);
+    $add = static function (string $title) use (&$out): void {
+        $slug = avesmapsLoreSlugForTitle($title);
         if ($slug !== '' && !in_array($slug, $out, true)) {
             $out[] = $slug;
+        }
+    };
+
+    if (str_contains($value, '[[')
+        && preg_match_all('/\[\[\s*([^\]\|#<>\[]+?)\s*(?:#[^\]\|]*)?(?:\|[^\]]*)?\]\]/u', $value, $matches) >= 1) {
+        foreach ($matches[1] as $title) {
+            $add((string) $title);
+        }
+
+        return $out;
+    }
+
+    // Klartext: "Mittelaventurien; Weiden" -> zwei Schlüssel. Ein etwaiges
+    // "Feldname:"-Präfix fällt weg, sonst wird die Beschriftung Teil des Ortsnamens.
+    foreach (preg_split('/\s*[;,]\s*/u', $value) ?: [] as $part) {
+        $part = trim((string) preg_replace('/^[^:]{0,24}:\s*/u', '', trim($part)));
+        if ($part !== '') {
+            $add($part);
         }
     }
 
