@@ -286,7 +286,14 @@ $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
 $("#wiki-sync-sync-adventure").on("click", () => startWikiSyncAdventuresSync());
 // Natur & Waren (Flora/Fauna/Spezies/Handelswaren): likewise its OWN reconcile action
 // (sync_lore), driven in ~35 bounded steps -- see runWikiSyncLoreSyncLoop.
+// Der Sync bleibt an DIESE id gebunden. Der Knopf zieht beim ersten Oeffnen mit ins
+// Fenster um; die Bindung haengt am ELEMENT und ueberlebt den Umzug deshalb.
 $("#wiki-sync-sync-lore").on("click", () => startWikiSyncLoreSync());
+// Der Knopf im Reiter OEFFNET nur -- er traegt bewusst eine andere id, damit an ihm
+// nichts haengen KANN, was synct. Das ist die Garantie: nicht "wir rufen den Sync nicht
+// auf", sondern "der Sync ist an eine id gebunden, die dieser Knopf nicht hat".
+$("#wiki-sync-lore-open").on("click", () => setWikiSyncLoreDialogOpen(true));
+$("#wiki-sync-lore-close").on("click", () => setWikiSyncLoreDialogOpen(false));
 // Linkchecker: no binding here on purpose. The "Links prüfen" buttons live in the editor DIALOGS
 // (adventure-editor / wiki-sync-settlement-editor / wiki-sync-monitor), each scoped to its own entity
 // type; they call window.parent.startLinkCheck(scope, onProgress) from their iframe, exactly like the

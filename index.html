@@ -422,7 +422,7 @@
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
 						</div>
 						</div>
-						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="lore">
+						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="lore"><div class="wiki-sync-panel__actions" id="wiki-sync-lore-open-wrap"><button id="wiki-sync-lore-open" class="wiki-sync-panel__start" type="button" title="Oeffnet das Fenster fuer Natur &amp; Waren. Startet NICHTS: syncen und bearbeiten passieren erst im Fenster.">Natur &amp; Waren syncen &amp; editieren</button></div>
 								<!-- Flora / Fauna / Spezies / Handelswaren. Vorerst NUR der Sync-Knopf: die drei
 								     Listen (Fauna, Flora, Waren) kommen in einem eigenen Schritt hierher, sobald
 								     Daten da sind -- ein Editor ohne Datensatz hat nichts zu bearbeiten. -->
@@ -788,6 +788,22 @@
 		<!-- Konfliktzentrum (P0). Haelt die verschobene Konfliktloesung. Gleiche Huelle wie die
 		     uebrigen Dialoge (.location-report-dialog + eigener Modifier fuer die Breite), damit
 		     Kopfzeile, Schliessen-Knopf und modal-dialog-open-Verhalten identisch sind. -->
+		<!-- Natur & Waren als FENSTER. Zwei Gruende: der Sync ist eine schwere Owner-Aktion,
+		     die nicht auf einen unbedachten Klick losgehen darf, und der Editor war im Panel
+		     schlicht nicht auffindbar (am 2026-07-22 als "fehlt" gemeldet, obwohl er live war).
+		     Der Koerper bleibt hier LEER: review-wiki-sync.js VERSCHIEBT den bestehenden
+		     Panel-Inhalt beim ersten Oeffnen herein -- verschoben, nicht kopiert, damit jede
+		     id eindeutig bleibt und die Bindung an #wiki-sync-sync-lore weiter greift. -->
+		<div id="wiki-sync-lore-overlay" hidden>
+			<div id="wiki-sync-lore-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-lore-title" tabindex="-1">
+				<div class="location-report-dialog__header">
+					<h2 id="wiki-sync-lore-title">Natur &amp; Waren</h2>
+					<button id="wiki-sync-lore-close" class="location-report-dialog__close" type="button" aria-label="Natur &amp; Waren schließen">×</button>
+				</div>
+				<div class="wiki-sync-conflicts-dialog__body" id="wiki-sync-lore-dialog-body"></div>
+			</div>
+		</div>
+
 		<div id="wiki-sync-conflicts-overlay" hidden>
 			<div id="wiki-sync-conflicts-dialog" class="location-report-dialog wiki-sync-conflicts-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-conflicts-title" tabindex="-1">
 				<div class="location-report-dialog__header">

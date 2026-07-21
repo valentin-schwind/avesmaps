@@ -1541,6 +1541,51 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 	return lastResult;
 }
 
+// ===========================================================================
+// Fenster „Natur & Waren". Der Reiter zeigt nur noch EINEN Knopf, der dieses
+// Fenster öffnet; syncen und bearbeiten passieren ausschließlich darin.
+//
+// WARUM: Der Sync-Knopf saß direkt im Reiter und startete beim ersten Klick einen
+// mehrminütigen Lauf -- eine schwere Owner-Aktion ohne Zwischenschritt. Gleichzeitig
+// war der Editor (Klick auf eine Listenzeile) darunter so unauffällig, dass er am
+// 2026-07-22 als „fehlt noch" gemeldet wurde, obwohl er live und funktionsfähig war.
+// Ein Fenster löst beides: der Einstieg ist harmlos, und drinnen liegt alles offen.
+//
+// 💣 Der Inhalt wird VERSCHOBEN, nicht kopiert. Ein Duplikat hätte jede id doppelt im
+// DOM -- getElementById träfe das falsche Element, und die Bindung aus bootstrap.js
+// (die am ELEMENT hängt, nicht an der id) liefe ins Leere. Dasselbe Verfahren wie beim
+// Umzug der Konfliktliste, siehe Kommentar in index.html.
+// ===========================================================================
+
+function moveLoreSectionIntoDialog() {
+	var body = document.getElementById("wiki-sync-lore-dialog-body");
+	var panel = document.querySelector('[data-material-subtab-section="lore"]');
+	if (!body || !panel || body.childElementCount > 0) {
+		return; // schon umgezogen (oder Markup fehlt) -- ein zweiter Lauf würde nichts finden
+	}
+	Array.prototype.slice.call(panel.children).forEach(function (child) {
+		// Der Öffnen-Knopf bleibt im Reiter zurück, alles andere zieht um.
+		if (child.id !== "wiki-sync-lore-open-wrap") {
+			body.appendChild(child);
+		}
+	});
+}
+
+function setWikiSyncLoreDialogOpen(isOpen) {
+	if (isOpen) {
+		moveLoreSectionIntoDialog();
+	}
+	$("#wiki-sync-lore-overlay").prop("hidden", !isOpen);
+	syncModalDialogBodyState();
+	if (isOpen) {
+		document.getElementById("wiki-sync-lore-dialog")?.focus();
+		// Nur LESEN (GET api/app/lore.php?catalog=1): füllt Liste, Reiterzahlen und den
+		// „zuletzt gesynct"-Stempel. Startet ausdrücklich KEINEN Sync -- der hängt allein
+		// am Knopf #wiki-sync-sync-lore im Fenster.
+		loadLoreList();
+	}
+}
+
 // Entry point for #wiki-sync-sync-lore. Re-entrancy guarded, so a double click is a
 // no-op. The progress rides IN the button label rather than in an extra line, so
 // nothing below it shifts around while the ~35 steps run.
