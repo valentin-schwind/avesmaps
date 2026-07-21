@@ -83,9 +83,26 @@
 		.grp > label { font-size: 11.5px; color: var(--ls-muted); white-space: nowrap; }
 		.hint { margin-left: auto; font-size: 11.5px; color: var(--ls-muted); font-style: italic; }
 
-		.seg { display: flex; border: 1px solid var(--ls-line); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-soft); }
-		.seg button { border: 0; background: transparent; color: var(--ls-muted); cursor: pointer; padding: 7px 16px; font: 600 12.5px/1 system-ui, sans-serif; }
-		.seg button.on { background: var(--ls-btn); color: var(--ls-btn-text); }
+		/* Jeder Schalter traegt die Farbe SEINER Ebene -- dieselbe wie der Umriss auf der Karte und
+		   in der Legende. Vorher waren beide im Aktivzustand dasselbe Braun, die Zuordnung war also
+		   erst nach dem Klicken zu sehen. Der Punkt links bleibt auch im Ruhezustand farbig. */
+		.seg { display: flex; border: 1px solid var(--ls-line-strong); border-radius: var(--radius-md); overflow: hidden; background: var(--ls-soft); }
+		.seg button {
+			border: 0; background: transparent; color: var(--ls-muted); cursor: pointer;
+			padding: 10px 20px; font: 600 14px/1 system-ui, sans-serif;
+			display: flex; align-items: center; gap: 9px;
+		}
+		.seg button + button { border-left: 1px solid var(--ls-line-strong); }
+		.seg button::before {
+			content: ""; width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto;
+			background: var(--dot); box-shadow: inset 0 0 0 1px rgba(0,0,0,.28);
+		}
+		.seg button:hover:not(.on) { background: var(--color-button-soft-hover); color: var(--ls-fg); }
+		#bTopo { --dot: var(--ls-topo); }
+		#bVeg  { --dot: var(--ls-veg); }
+		#bTopo.on { background: var(--ls-topo); color: var(--ls-btn-text); }
+		#bVeg.on  { background: var(--ls-veg);  color: var(--ls-btn-text); }
+		.seg button.on::before { background: rgba(255,255,255,.9); box-shadow: none; }
 
 		input[type=range] { width: 118px; accent-color: var(--ls-btn); }
 		input[type=number] { width: 76px; padding: 5px 7px; border: 1px solid var(--ls-line); border-radius: var(--radius-md); background: var(--ls-soft); color: var(--ls-fg); font: 12.5px system-ui, sans-serif; }
@@ -100,12 +117,21 @@
 
 		/* Das Einstellungsfenster einer einzelnen Flaeche. Spaeter ein Untermenuepunkt im
 		   Kontextmenue; hier oeffnet der Rechtsklick es direkt. */
+		/* Das Fenster sass ueber dem Gelaende und war trotzdem nicht als Flaeche zu erkennen.
+		   Deshalb hier alles, was es unmissverstaendlich macht, statt einer einzelnen Vermutung:
+		   eigener Stapelkontext, hoher z-index, background-color EINZELN gesetzt (nicht als
+		   Kurzschreibweise, die eine spaetere ueberschreiben koennte), und --ls-inset statt
+		   --ls-card, weil die Panel-Farbe im Hellmodus fast weiss ist -- wie das hohe Gelaende. */
 		.pop {
-			position: absolute; z-index: 5; width: 250px; padding: 12px 13px 13px;
-			background: var(--ls-card); border: 1px solid var(--ls-line-strong);
-			border-radius: var(--radius-lg); box-shadow: 0 6px 22px rgba(0,0,0,.22);
+			position: absolute; z-index: 20; isolation: isolate; opacity: 1;
+			width: 250px; padding: 12px 13px 13px;
+			background-color: var(--ls-inset);
+			border: 1.5px solid var(--ls-line-strong);
+			border-radius: var(--radius-lg);
+			box-shadow: 0 10px 30px rgba(0,0,0,.34), 0 0 0 1px rgba(0,0,0,.10);
 			font-family: system-ui, "Segoe UI", sans-serif; font-size: 12.5px; line-height: 1.5;
 		}
+		.pop [hidden] { display: none; }
 		.pop[hidden] { display: none; }
 		.pop h3 { margin: 0 0 2px; font-size: 13.5px; color: var(--ls-strong); }
 		.pop .kind { font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ls-muted); margin-bottom: 10px; }
@@ -159,12 +185,7 @@
 			</select>
 			<span class="unit" id="stepMs" style="width:52px"></span>
 		</div>
-		<div class="grp">
-			<label>Bewuchs Wald ×</label>
-			<input type="range" id="veg" min="100" max="220" value="130">
-			<span class="unit" id="vegN" style="width:30px">1,30</span>
-		</div>
-		<span class="hint">Einstellungen je Gebirge: Rechtsklick darauf</span>
+		<span class="hint">Einstellungen je Fläche: Rechtsklick darauf</span>
 	</div>
 
 	<div class="stage" id="stage">
@@ -174,26 +195,47 @@
 		<div class="pop" id="pop" hidden>
 			<button class="close" id="popClose" title="Schließen">×</button>
 			<h3 id="popName">—</h3>
-			<div class="kind">Topographie · Gebirge</div>
-			<div class="row">
-				<label for="pHmax">Höchster Punkt</label>
-				<span><input type="number" id="pHmax" min="200" max="9000" step="100"> <span class="unit">Schritt</span></span>
+			<div class="kind" id="popKind">—</div>
+
+			<div id="popTopo">
+				<div class="row">
+					<label for="pHmax">Höchster Punkt</label>
+					<span><input type="number" id="pHmax" min="200" max="9000" step="100"> <span class="unit">Schritt</span></span>
+				</div>
+				<div class="row">
+					<label for="pGrain">Körnung</label>
+					<input type="range" id="pGrain" min="18" max="80" step="2">
+				</div>
+				<div class="row" style="margin-top:-4px">
+					<span></span><span class="unit" id="pGrainN"></span>
+				</div>
+				<div class="row">
+					<label for="pLevels">Detailstufen</label>
+					<input type="range" id="pLevels" min="0" max="4">
+				</div>
+				<div class="foot2">
+					<button class="btn" id="pReroll">Neu würfeln</button>
+					<span class="unit" id="pInfo"></span>
+				</div>
 			</div>
-			<div class="row">
-				<label for="pGrain">Körnung</label>
-				<input type="range" id="pGrain" min="18" max="80" step="2">
+
+			<div id="popVeg">
+				<div class="row">
+					<label for="pTyp">Bedeckung</label>
+					<select id="pTyp">
+						<option>Wald</option><option>Sumpf</option><option>Wüste</option>
+						<option>Steppe</option><option>Fels</option>
+					</select>
+				</div>
+				<div class="row">
+					<label for="pFaktor">Tempo-Faktor ×</label>
+					<span><input type="number" id="pFaktor" min="1" max="3" step="0.05" style="width:64px"></span>
+				</div>
+				<div class="row" style="margin-top:-4px">
+					<span></span><span class="unit" id="pFaktorN"></span>
+				</div>
 			</div>
-			<div class="row" style="margin-top:-4px">
-				<span></span><span class="unit" id="pGrainN"></span>
-			</div>
-			<div class="row">
-				<label for="pLevels">Detailstufen</label>
-				<input type="range" id="pLevels" min="0" max="4">
-			</div>
-			<div class="foot2">
-				<button class="btn" id="pReroll">Neu würfeln</button>
-				<span class="unit" id="pInfo"></span>
-			</div>
+
 			<div class="meta" id="pMeta"></div>
 		</div>
 	</div>
@@ -269,9 +311,16 @@ let areas = [
 	  ring: [[660,235],[762,196],[856,246],[872,344],[800,412],[698,396],[648,318]],
 	  peaks: [{ x: 745, y: 300, f: 1 }] }),
 ];
-let veg = [[120,250],[250,180],[380,210],[430,320],[380,430],[240,470],[130,410],[90,320]];
+// Bedeckungsflaechen tragen ihren Faktor selbst -- ein Sumpf bremst anders als ein Wald, und
+// beides ist eine Eigenschaft des Gebiets, nicht eine Einstellung des Editors.
+let vegs = [
+	{ name: 'Farindel', typ: 'Wald', faktor: 1.30,
+	  ring: [[120,250],[250,180],[380,210],[430,320],[380,430],[240,470],[130,410],[90,320]] },
+	{ name: 'Nebelmoor', typ: 'Sumpf', faktor: 1.80,
+	  ring: [[430,255],[530,240],[600,275],[580,340],[480,355],[420,310]] },
+];
 let route = [[20,330],[170,318],[330,300],[470,262],[620,240],[790,268],[880,300]];
-let layer = 'topo', selArea = null;
+let layer = 'topo', sel = null;         // sel = { kind:'topo'|'veg', i }
 
 // ------------------------------------------------------------------ Geometrie
 const inPoly = (px, py, p) => {
@@ -504,7 +553,7 @@ function paint() {
 // ------------------------------------------------------- Route und Geschwindigkeit
 const rel = s => Math.exp(-3.5 * (Math.abs(s + .05) - .05));
 function sampleRoute() {
-	const vf = +document.getElementById('veg').value / 100, pts = [];
+	const pts = [];
 	let tF = 0, tB = 0, flat = 0, asc = 0, desc = 0;
 	const gequert = new Set();
 	for (let i = 0; i < route.length - 1; i++) {
@@ -518,7 +567,11 @@ function sampleRoute() {
 			const hA = hAt(ax, ay), hB = hAt(bx, by), dh = hB - hA;
 			const mx = (ax + bx) / 2, my = (ay + by) / 2;
 			areas.forEach((a, idx) => { if (a.mask[(my | 0) * W + (mx | 0)]) gequert.add(idx); });
-			const v = inPoly(mx, my, veg) ? vf : 1;
+			// Ueberlappen sich zwei Bedeckungen, gewinnt die schlechtere -- nicht das Produkt.
+			// Sumpf im Wald ist Sumpf, nicht Sumpf mal Wald.
+			let v = 1;
+			for (let q = 0; q < vegs.length; q++)
+				if (vegs[q].faktor > v && inPoly(mx, my, vegs[q].ring)) v = vegs[q].faktor;
 			const s = dh / (ds * PX_TO_SCHRITT);
 			tF += ds / (rel(s) / v);
 			tB += ds / (rel(-s) / v);
@@ -549,13 +602,19 @@ function draw() {
 	const topoOn = layer === 'topo';
 	const pstr = p => p.map(q => q.join(',')).join(' ');
 
-	ov.appendChild(el('polygon', { points: pstr(veg), fill: cVegFill, 'fill-opacity': topoOn ? .12 : .34,
-		stroke: cVeg, 'stroke-width': topoOn ? 2 : 2.8, 'stroke-opacity': topoOn ? .35 : 1, 'stroke-linejoin': 'round' }));
+	vegs.forEach((v, idx) => {
+		const aktiv = !topoOn && sel && sel.kind === 'veg' && sel.i === idx;
+		ov.appendChild(el('polygon', { points: pstr(v.ring), fill: cVegFill, 'fill-opacity': topoOn ? .12 : .34,
+			stroke: cVeg, 'stroke-width': topoOn ? 2 : (aktiv ? 3.6 : 2.8),
+			'stroke-opacity': topoOn ? .35 : 1, 'stroke-linejoin': 'round',
+			'data-k': 'flaeche', 'data-i': idx, style: topoOn ? '' : 'cursor:context-menu' }));
+	});
 	areas.forEach((a, idx) => {
+		const aktiv = topoOn && sel && sel.kind === 'topo' && sel.i === idx;
 		ov.appendChild(el('polygon', { points: pstr(a.ring), fill: 'none', stroke: cTopo,
-			'stroke-width': topoOn ? (idx === selArea ? 3.6 : 2.8) : 2,
+			'stroke-width': topoOn ? (aktiv ? 3.6 : 2.8) : 2,
 			'stroke-opacity': topoOn ? 1 : .35, 'stroke-linejoin': 'round',
-			'data-k': 'area', 'data-i': idx, style: topoOn ? 'cursor:context-menu' : '' }));
+			'data-k': 'flaeche', 'data-i': idx, style: topoOn ? 'cursor:context-menu' : '' }));
 	});
 
 	ov.appendChild(el('polyline', { points: pstr(route), fill: 'none', stroke: cInk, 'stroke-width': 1.6, 'stroke-opacity': .3 }));
@@ -584,8 +643,15 @@ function draw() {
 				'fill-opacity': .55, 'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle' })).textContent = a.name;
 		});
 	} else {
-		veg.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5.5, fill: cCard,
-			stroke: cVeg, 'stroke-width': 2, 'data-k': 'veg', 'data-i': i, style: 'cursor:grab' })));
+		vegs.forEach((v, vi) => {
+			v.ring.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5.5, fill: cCard,
+				stroke: cVeg, 'stroke-width': 2, 'data-k': 'veg', 'data-a': vi, 'data-i': i, style: 'cursor:grab' })));
+			const cx = v.ring.reduce((s, p) => s + p[0], 0) / v.ring.length;
+			const cy = v.ring.reduce((s, p) => s + p[1], 0) / v.ring.length;
+			ov.appendChild(el('text', { x: cx, y: cy, 'font-size': 12, 'font-style': 'italic', fill: cVeg,
+				'fill-opacity': .8, 'font-family': 'system-ui, sans-serif', 'text-anchor': 'middle' }))
+				.textContent = v.name + ' · ×' + v.faktor.toFixed(2).replace('.', ',');
+		});
 	}
 	route.forEach((p, i) => ov.appendChild(el('circle', { cx: p[0], cy: p[1], r: 5, fill: cRoute,
 		'fill-opacity': .85, stroke: cCard, 'stroke-width': 1.6, 'data-k': 'route', 'data-i': i, style: 'cursor:grab' })));
@@ -605,43 +671,57 @@ function draw() {
 function all() { buildAll(); paint(); draw(); }
 
 // -------------------------------------------------- Einstellungen je Flaeche
-function openPop(idx, clientX, clientY) {
-	selArea = idx;
-	const a = areas[idx], st = document.getElementById('stage').getBoundingClientRect();
+const $ = id => document.getElementById(id);
+const cur = () => sel && (sel.kind === 'topo' ? areas[sel.i] : vegs[sel.i]);
+
+function openPop(kind, idx, clientX, clientY) {
+	sel = { kind, i: idx };
+	const o = cur(), st = $('stage').getBoundingClientRect();
 	pop.hidden = false;
-	const x = Math.min(Math.max(8, clientX - st.left + 10), st.width - 262);
-	const y = Math.min(Math.max(8, clientY - st.top + 8), st.height - 250);
-	pop.style.left = x + 'px'; pop.style.top = y + 'px';
-	document.getElementById('popName').textContent = a.name;
-	document.getElementById('pHmax').value = a.hmax;
-	document.getElementById('pGrain').value = a.grain;
-	document.getElementById('pLevels').value = a.levels;
+	$('popTopo').hidden = kind !== 'topo';
+	$('popVeg').hidden = kind !== 'veg';
+	pop.style.left = Math.min(Math.max(8, clientX - st.left + 10), st.width - 262) + 'px';
+	pop.style.top = Math.min(Math.max(8, clientY - st.top + 8), st.height - 240) + 'px';
+	$('popName').textContent = o.name;
+	$('popKind').textContent = kind === 'topo' ? 'Topographie · Gebirge' : 'Bedeckung · ' + o.typ;
+	if (kind === 'topo') { $('pHmax').value = o.hmax; $('pGrain').value = o.grain; $('pLevels').value = o.levels; }
+	else { $('pTyp').value = o.typ; $('pFaktor').value = o.faktor.toFixed(2); }
 	refreshPop();
 	draw();
 }
 function refreshPop() {
-	if (selArea === null) return;
-	const a = areas[selArea], t = a.grain / 10;
-	document.getElementById('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
-	document.getElementById('pInfo').textContent = a.levels + ' Stufen · ' + a.bumps.length + ' Buckel';
-	document.getElementById('pMeta').innerHTML = a.peaks.length + ' Gipfel · kleinster Radius '
-		+ a.rMin.toFixed(1) + ' → Abtastweite <strong>' + (a.rMin / 8).toFixed(2) + '</strong>';
+	const o = cur(); if (!o) return;
+	if (sel.kind === 'topo') {
+		const t = o.grain / 10;
+		$('pGrainN').textContent = t <= 2.6 ? 'einzelne Massive' : t >= 6 ? 'viele Hügel' : 'ausgewogen';
+		$('pInfo').textContent = o.levels + ' Stufen · ' + o.bumps.length + ' Buckel';
+		$('pMeta').innerHTML = o.peaks.length + ' Gipfel · kleinster Radius ' + o.rMin.toFixed(1)
+			+ ' → Abtastweite <strong>' + (o.rMin / 8).toFixed(2) + '</strong>';
+	} else {
+		$('pFaktorN').textContent = o.faktor <= 1.05 ? 'kaum spürbar'
+			: o.faktor >= 1.7 ? 'sehr zäh' : o.faktor >= 1.35 ? 'zäh' : 'leicht bremsend';
+		$('pMeta').innerHTML = 'Wirkt <strong>isotrop</strong> — in jede Richtung gleich. '
+			+ 'Bei Überlappung gewinnt der höhere Faktor.';
+	}
 }
-function closePop() { selArea = null; pop.hidden = true; draw(); }
-document.getElementById('popClose').onclick = closePop;
-document.getElementById('pHmax').oninput = e => { areas[selArea].hmax = +e.target.value || 200; all(); };
-document.getElementById('pGrain').oninput = e => { areas[selArea].grain = +e.target.value; all(); };
-document.getElementById('pLevels').oninput = e => { areas[selArea].levels = +e.target.value; all(); };
-document.getElementById('pReroll').onclick = () => { const a = areas[selArea]; a.seed = (a.seed * 1664525 + 1013904223) | 0; all(); };
+function closePop() { sel = null; pop.hidden = true; draw(); }
+$('popClose').onclick = closePop;
+$('pHmax').oninput   = e => { areas[sel.i].hmax = +e.target.value || 200; all(); };
+$('pGrain').oninput  = e => { areas[sel.i].grain = +e.target.value; all(); };
+$('pLevels').oninput = e => { areas[sel.i].levels = +e.target.value; all(); };
+$('pReroll').onclick = () => { const a = areas[sel.i]; a.seed = (a.seed * 1664525 + 1013904223) | 0; all(); };
+$('pTyp').onchange   = e => { vegs[sel.i].typ = e.target.value; $('popKind').textContent = 'Bedeckung · ' + e.target.value; draw(); };
+$('pFaktor').oninput = e => { vegs[sel.i].faktor = Math.max(1, Math.min(3, +e.target.value || 1)); draw(); };
 
-// Rechtsklick auf ein Gebirge oeffnet seine Einstellungen. Spaeter ein Untermenuepunkt im
-// Kontextmenue -- hier direkt, damit man sieht, wohin die Werte gehoeren.
+// Rechtsklick oeffnet die Einstellungen der Flaeche. NUR die aktive Ebene antwortet -- dieselbe
+// Regel wie beim Klicken. Spaeter wird das ein Untermenuepunkt im Kontextmenue; hier direkt,
+// damit sichtbar ist, wohin die Werte gehoeren.
 ov.addEventListener('contextmenu', e => {
 	e.preventDefault();
-	if (layer !== 'topo') return;
 	const [x, y] = pt(e);
-	for (let i = areas.length - 1; i >= 0; i--) {
-		if (inPoly(x, y, areas[i].ring)) { openPop(i, e.clientX, e.clientY); return; }
+	const liste = layer === 'topo' ? areas : vegs;
+	for (let i = liste.length - 1; i >= 0; i--) {
+		if (inPoly(x, y, liste[i].ring)) { openPop(layer, i, e.clientX, e.clientY); return; }
 	}
 	closePop();
 });
@@ -652,7 +732,7 @@ const pt = e => { const b = ov.getBoundingClientRect(); return [(e.clientX - b.l
 ov.addEventListener('pointerdown', e => {
 	if (e.button !== 0) return;
 	const k = e.target.getAttribute && e.target.getAttribute('data-k');
-	if (!k || k === 'area') return;
+	if (!k || k === 'flaeche') return;      // Flaechen selbst zieht man nicht, nur ihre Ecken
 	drag = { k, i: +e.target.getAttribute('data-i'), a: +e.target.getAttribute('data-a') };
 	ov.setPointerCapture(e.pointerId);
 	e.preventDefault();
@@ -663,16 +743,17 @@ ov.addEventListener('pointermove', e => {
 	if (drag.k === 'topo') areas[drag.a].ring[drag.i] = [x, y];
 	// Objekt ERGAENZEN, nicht ersetzen -- sonst geht f (die eigene Hoehe des Gipfels) verloren.
 	else if (drag.k === 'peak') areas[drag.a].peaks[drag.i] = { ...areas[drag.a].peaks[drag.i], x, y };
-	else if (drag.k === 'veg') veg[drag.i] = [x, y];
+	else if (drag.k === 'veg') vegs[drag.a].ring[drag.i] = [x, y];
 	else route[drag.i] = [x, y];
 	if (drag.k === 'route' || drag.k === 'veg') draw(); else all();
 });
 addEventListener('pointerup', () => drag = null);
 
-document.getElementById('bTopo').onclick = () => { layer = 'topo'; bTopo.classList.add('on'); bVeg.classList.remove('on'); draw(); };
-document.getElementById('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); closePop(); };
-document.getElementById('step').onchange = () => paint();
-document.getElementById('veg').oninput   = e => { vegN.textContent = (e.target.value / 100).toFixed(2).replace('.', ','); draw(); };
+// Beim Ebenenwechsel schliesst ein offenes Popup: es gehoert zu einer Flaeche, die gerade
+// unanklickbar geworden ist.
+$('bTopo').onclick = () => { layer = 'topo'; bTopo.classList.add('on'); bVeg.classList.remove('on'); closePop(); };
+$('bVeg').onclick  = () => { layer = 'veg';  bVeg.classList.add('on');  bTopo.classList.remove('on'); closePop(); };
+$('step').onchange = () => paint();
 all();
 </script>
 </body>
