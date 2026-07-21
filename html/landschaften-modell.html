@@ -599,12 +599,12 @@ function paint() {
 	cv.width = W; cv.height = H;
 	const img = ctx.createImageData(W, H), d = img.data;
 	const S = +document.getElementById('step').value;
-	// FESTE Farbskala, nicht das Maximum ueber die Flaechen. Vorher war sie relativ -- drehte man
-	// die Hoehe EINER Flaeche, verschob sich die Skala und alle ANDEREN wechselten die Farbe, ohne
-	// sich geaendert zu haben. In einem Editor ist das eine unsichtbare Kopplung zwischen Objekten,
-	// die nichts miteinander zu tun haben. Fest verankert heisst dagegen: eine Farbe bedeutet immer
-	// dieselbe Hoehe, und ein 2.600er Bergland sieht dauerhaft aus wie eines.
-	const hm = SKALA_MAX;
+	// Farbskala JE FLAECHE, auf deren eigenen hoechsten Gipfel. Das ist NICHT die alte relative
+	// Skala: die lief ueber das Maximum ALLER Flaechen, und deshalb faerbte das Verstellen einer
+	// jede andere um. Das Maximum EINER Flaeche haengt an keiner anderen -- die Entkopplung bleibt,
+	// und jedes Gebirge nutzt trotzdem die ganze Rampe bis ins Weisse.
+	// Preis, bewusst: die Farbe liest sich innerhalb eines Gebirges, nicht zwischen zweien. Ein
+	// 2.600er Bergland bekommt einen ebenso weissen Gipfel wie ein 5.200er Wall.
 	const t0 = performance.now();
 	// EIN Durchgang: Maske lesen und Hoehe aufsummieren zugleich, indiziert statt for..of.
 	// Vorher liefen hier zwei Iteratoren je Pixel (einmal "drin?", einmal in hAt) -- 242.000
@@ -613,12 +613,16 @@ function paint() {
 	for (let y = 0; y < H; y += S) {
 		const row = y * W;
 		for (let x = 0; x < W; x += S) {
-			let r = 0, g = 0, b = 0, al = 0, h = 0, drin = false;
+			let r = 0, g = 0, b = 0, al = 0, h = 0, ref = 0, drin = false;
 			for (let k = 0; k < nA; k++) {
 				const a = A[k];
-				if (a.mask[row + x]) { drin = true; h += rawArea(a, x, y) * a.scale; }
+				if (a.mask[row + x]) {
+					drin = true;
+					h += rawArea(a, x, y) * a.scale;
+					if (a.hmax > ref) ref = a.hmax;    // Bezug: der hoechste Gipfel DIESER Flaeche
+				}
 			}
-			if (drin) { const c = ramp(h / hm); r = c[0]; g = c[1]; b = c[2]; al = 255; }
+			if (drin) { const c = ramp(h / (ref || SKALA_MAX)); r = c[0]; g = c[1]; b = c[2]; al = 255; }
 			for (let j = 0; j < S && y + j < H; j++) for (let i = 0; i < S && x + i < W; i++) {
 				const o = ((y + j) * W + (x + i)) * 4; d[o] = r; d[o+1] = g; d[o+2] = b; d[o+3] = al;
 			}
