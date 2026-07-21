@@ -17,6 +17,21 @@
 
 var AVESMAPS_LORE_API_URL = "api/app/lore.php";
 
+// 🚨 NOTAUS (2026-07-21). Auf false gesetzt feuert der Client KEINE Lore-Abrufe mehr:
+// keine Infobox-Zeilen, kein Dialog. Alles andere auf der Karte bleibt unberührt.
+//
+// Warum es diesen Schalter gibt: die Abrufe hatten kein Zeitlimit. Ein Request, der
+// auf einem gesättigten PHP-Pool 120 s hängt, belegt genau so lange einen Worker --
+// mehrere offene Panels stapeln das, und dann hängt auch alles andere (adventures.php
+// hing mit, obwohl es damit nichts zu tun hat). Unten steht jetzt zusätzlich ein
+// hartes Zeitlimit, aber der Schalter bleibt: er wirkt SOFORT und ohne PHP, weil ein
+// reiner JS-Deploy ihn ausrollt.
+var AVESMAPS_LORE_ENABLED = false;
+
+// Nie länger als das auf eine Antwort warten. Ein abgebrochener Request gibt den
+// Worker frei; ohne Limit hält ein einziger hängender Aufruf ihn bis zum Servertimeout.
+var AVESMAPS_LORE_TIMEOUT_MS = 8000;
+
 // placeKey -> { data } | { pending: Promise }. Ein Ort wird höchstens einmal geholt.
 var avesmapsLoreCache = new Map();
 
@@ -104,6 +119,9 @@ function avesmapsLoreRenderWikiText(raw) {
 // übergeben -- so kann Abschnitt 3 die Territorienkette hereinreichen, ohne dass sich
 // hier etwas ändert.
 function avesmapsLoreFetch(placeKey, full, titles) {
+	if (!AVESMAPS_LORE_ENABLED) {
+		return Promise.resolve(null); // Not-Aus: kein Request, keine Zeile
+	}
 	var cacheKey = placeKey + (titles ? "|t:" + titles : "") + (full ? "|full" : "");
 	var cached = avesmapsLoreCache.get(cacheKey);
 	if (cached) {
@@ -112,7 +130,19 @@ function avesmapsLoreFetch(placeKey, full, titles) {
 	var url = AVESMAPS_LORE_API_URL + "?place=" + encodeURIComponent(placeKey)
 		+ (titles ? "&title=" + encodeURIComponent(titles) : "")
 		+ (full ? "&full=1" : "");
-	var pending = fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
+	// Hartes Zeitlimit: ein hängender Request hält sonst bis zum Servertimeout einen
+	// PHP-Worker fest, und mehrere offene Panels legen damit die ganze API lahm.
+	var controller = typeof AbortController === "function" ? new AbortController() : null;
+	var timer = controller ? window.setTimeout(function () { controller.abort(); }, AVESMAPS_LORE_TIMEOUT_MS) : null;
+	var pending = fetch(url, {
+		credentials: "same-origin",
+		headers: { Accept: "application/json" },
+		signal: controller ? controller.signal : undefined,
+	})
+		.then(function (response) {
+			if (timer) { window.clearTimeout(timer); }
+			return response;
+		})
 		.then(function (response) {
 			return response.ok ? response.json() : null;
 		})
@@ -271,6 +301,9 @@ function avesmapsLoreTitleFromUrl(wikiUrl) {
 // placeRef: { key, name, titles } -- key ist ein fertiger Server-Schlüssel, titles sind
 // Wiki-Titel, die der Server selbst sluggt (mit | getrennt).
 function buildLoreMarkup(placeRef) {
+	if (!AVESMAPS_LORE_ENABLED) {
+		return ""; // Not-Aus: gar kein Container, also auch kein Abruf
+	}
 	var key = avesmapsLoreNormalizeKey(placeRef && (placeRef.key || placeRef.wikiKey || placeRef.wiki_key));
 	var titles = (placeRef && placeRef.titles) || "";
 	if (!key && !titles) {
