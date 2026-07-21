@@ -200,7 +200,9 @@ const LEGACY_RULE_INFO = {
 		verbs: LEGACY_COMMON_VERBS,
 	},
 	unresolved_without_candidate: {
-		hint: "Zu diesem Ort wurde im Wiki nichts Passendes gefunden. Das ist oft völlig in Ordnung: nicht jeder Ort auf der Karte hat einen Artikel.",
+		// Gegenstueck zum Abgrenzungssatz in „Kein Wiki-Schluessel" (rules.php) -- beide zeigen
+		// aufeinander, weil sie sich zum Verwechseln aehnlich lesen.
+		hint: "Zu diesem Ort wurde im Wiki nichts Passendes gefunden. Das ist oft völlig in Ordnung: nicht jeder Ort auf der Karte hat einen Artikel. Unterschied zu „Kein Wiki-Schlüssel“: dort fehlt nur der Link — hier hat der Lauf bereits gesucht und nichts gefunden.",
 		verbs: [
 			{ label: "Anzeigen", effect: "Springt zu dem Ort. Ändert nichts." },
 			{ label: "Zurückstellen / Archivieren", effect: "Ändern keine Daten. Archivieren heißt hier sinngemäß „hat eben keinen Artikel“ — der Fall bleibt auffindbar, falls später doch einer entsteht." },

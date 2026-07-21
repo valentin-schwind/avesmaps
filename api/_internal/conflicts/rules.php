@@ -452,7 +452,9 @@ function avesmapsConflictRuleCatalog(): array {
             'label' => 'Kein Wiki-Schlüssel',
             // Owner 2026-07-21: nicht als Vorwurf formulieren -- von Hand anlegen ist erlaubt und
             // normal. Die Liste sagt nur, wo noch niemand nachgesehen hat.
-            'hint' => 'Objekte können ohne weitere Informationen von Hand angelegt werden. Falls es im Wiki aber kein Gegenstück gibt, wird es hier gelistet.',
+            // Der Abgrenzungssatz steht in BEIDEN Gruppen, jeweils auf die andere zeigend: sie lesen
+            // sich zum Verwechseln aehnlich, und die Frage kam prompt (Owner 2026-07-21).
+            'hint' => 'Objekte können ohne weitere Informationen von Hand angelegt werden. Falls es im Wiki aber kein Gegenstück gibt, wird es hier gelistet. Unterschied zu „Keine Zuordnung gefunden“: hier fehlt nur der Link — dort wurde bereits im Wiki gesucht.',
             'severity' => AVESMAPS_CONFLICT_UNVERIFIED,
             'actions' => ['defer', 'ignore'],
             'verbs' => [
