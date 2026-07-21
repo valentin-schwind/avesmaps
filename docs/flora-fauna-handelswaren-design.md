@@ -126,8 +126,14 @@ ist sie überflüssig, weil jeder der vier Typen seine **eigene** Infobox hat.
 
 ## 4. Auflösung: Region, Siedlung, Herrschaftsgebiet
 
-Alle drei laufen über **ein einziges Feld** — jede Entität nennt ihre Region
-selbst. Keine Geometrie, kein Namensraten, keine Vererbungskette:
+Die Ortsfelder im Wiki mischen **zwei Achsen**, und beide werden gebraucht. Beim
+Amazonensäbel stehen nebeneinander `[[Albernia]]`, `[[Weiden]]` (derographische
+Regionen) und `[[Horasreich]]`, `[[Kalifat]]`, `[[Tulamidenlande]]` (politische
+Gebilde). Wer nur eine Achse auswertet, verliert die andere.
+
+### Achse A — derographisch (Region)
+
+Jede Entität nennt ihre Region selbst, kein Raten, keine Geometrie:
 
 | Entität | Infobox | Feld |
 |---|---|---|
@@ -135,18 +141,47 @@ selbst. Keine Geometrie, kein Namensraten, keine Vererbungskette:
 | Siedlung Trallop | `Infobox Siedlung` | `\|Region=[[Weiden]]` |
 | Grafschaft Heldentrutz | `Infobox Staat` | `\|Region=[[Weiden]]` |
 
-Das ist entscheidend, weil Karten-Regionen nur **Label-Punkte ohne Fläche** sind
-— ein geometrisches „liegt in" gäbe es gar nicht.
+Das ist wesentlich, weil Karten-Regionen nur **Label-Punkte ohne Fläche** sind —
+ein geometrisches „liegt in" gäbe es gar nicht.
 
 **Zu tun:** Territorien parsen das Feld bereits (als `Geographisch`,
 `sync-monitor-parsing.php:531`). **Siedlungen nicht** — dort muss `Region` ins
 Staging ergänzt werden.
 
+### Achse B — politisch (Territorienkette per Raycast)
+
+Der Weg, den das Abenteuer-Feature bereits geht (`adventure-resolve.php:288`ff):
+
+1. Eine Siedlung trägt in `map_features.properties_json` ein
+   **`territory_wiki_key`** — das Ergebnis des Point-in-Polygon-Laufs
+   (`map-features-settlement-territory-assign.js`, tiefstes Territorium).
+2. Von dort die Ahnenkette hoch: Stadtmark Trallop → Herzogtum Weiden →
+   Mittelreich.
+3. Für jedes Glied der Kette Lore-Einträge einsammeln und vereinigen.
+
+Ein Herrschaftsgebiet startet direkt bei sich selbst; die Region-Zeile aus
+Achse A kommt hinzu.
+
+⚠️ **KERN-INVARIANTE:** Die Ahnenkette läuft **ausschließlich über
+`parent_wiki_key`** (aus `wiki_territory_model`), **niemals über
+`affiliation_path`**. Das ist im Projekt bereits mehrfach schiefgegangen.
+
+### Tiefe: nicht alles einsammeln, sondern nach Ebene gruppieren
+
+Läuft die Kette ungebremst hoch, erbt Trallop irgendwann alles vom Mittelreich —
+und über die Regionsachse alles von `[[Aventurien]]` (1.166 Einträge). Deshalb:
+
+- **Kontinente werden verworfen** (`Aventurien`, `Myranor`, `Uthuria`,
+  `Rakshazar`) — `place_kind='kontinent'`.
+- Die Ergebnisse werden **nach Ebene gruppiert** ausgegeben, nie zu einer Liste
+  vermengt: „in Weiden" zuerst, „im Herzogtum Weiden" und „in Mittelaventurien"
+  darunter, eingeklappt. So bleibt sichtbar, wie spezifisch eine Angabe ist.
+
 **Zusatzquelle:** `Infobox Staat` trägt ein eigenes Feld
 `|Handelswaren=[[Schaf]]s[[wolle]], [[Salz]]`. Das ist präziser als die generische
-Waren-Verbreitung und sollte mitgenommen werden — 💣 aber Vorsicht: `[[Schaf]]s[[wolle]]`
-ist **ein** Wort aus **zwei** Links. Naive Linkextraktion macht daraus „Schaf" und
-„wolle".
+Waren-Verbreitung und sollte mitgenommen werden — 💣 aber Vorsicht:
+`[[Schaf]]s[[wolle]]` ist **ein** Wort aus **zwei** Links. Naive Linkextraktion
+macht daraus „Schaf" und „wolle".
 
 ---
 
