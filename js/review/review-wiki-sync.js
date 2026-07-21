@@ -1661,7 +1661,9 @@ function renderLoreList(data) {
 				: '<span class="wikisync-item__title">' + name + "</span>")
 			+ (meta ? ' <span class="wikisync-item__sub">' + avesmapsLoreListEscape(meta) + "</span>" : "")
 			+ "</div>"
-			+ '<div class="wikisync-item__meta">' + item.place_count + " Orte · " + item.source_count + " Quellen"
+			+ '<div class="wikisync-item__meta">'
+			+ item.place_count + (item.place_count === 1 ? " Ort · " : " Orte · ")
+			+ item.source_count + (item.source_count === 1 ? " Quelle" : " Quellen")
 			+ (item.origin && item.origin !== "wiki" ? " · " + avesmapsLoreListEscape(item.origin) : "")
 			+ "</div>"
 			+ "</div>";
