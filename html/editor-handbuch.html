@@ -892,7 +892,13 @@
 					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td><strong>Am Objekt steht kein Link.</strong> Eine Zustandsangabe — es hat noch niemand verknüpft. Ob es im Wiki etwas gäbe, ist damit gar nicht gesagt. Gilt für <em>alle</em> Objektarten und wird bei jeder Prüfung neu berechnet.</td></tr>
 					<tr><td><strong>Keine Zuordnung gefunden</strong></td><td><strong>Es wurde gesucht — erfolglos.</strong> Der WikiSync-Lauf hat über Namen und ähnliche Schreibweisen geprüft und nicht einmal einen Kandidaten gefunden. Gilt nur für <em>Orte</em> (Siedlungen und Bauwerke) und ist eine Momentaufnahme des letzten Laufs.</td></tr>
 				</table>
-				<div class="hb-note"><strong>Ein Ort kann in beiden stehen</strong> — das ist kein Doppeleintrag. „Kein Wiki-Schlüssel" beschreibt seinen Zustand, „Keine Zuordnung gefunden" das Ergebnis der Suche. Trägt die erste Gruppe zusätzlich <em>„passender Artikel gefunden"</em>, ist das der handfeste Fall: dann gibt es einen gleichnamigen Artikel, und es fehlt nur die Verknüpfung.</div>
+				<div class="hb-note"><strong>Ein Ort kann in beiden stehen</strong> — das ist kein Doppeleintrag: die eine Gruppe beschreibt seinen Zustand, die andere das Ergebnis einer Suche. Die eine ist aber <em>nicht</em> die gründlichere Fassung der anderen. Es gibt Fälle, die nur in einer der beiden stehen <em>können</em>, und die sagen jeweils etwas Eigenes:</div>
+				<table class="hb-table">
+					<tr><th>Steht nur in …</th><th>Was das bedeutet</th></tr>
+					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td>Alles, was kein Ort ist — <strong>Wege, Regionen, Kraftlinien</strong> ohne Link, denn der WikiSync-Lauf schaut die gar nicht an. Dazu Orte ohne Link, deren Name im Wiki <em>sehr wohl</em> etwas trifft: die tragen dann <em>„passender Artikel gefunden“</em> und sind der handfeste Fall — es fehlt nur die Verknüpfung.</td></tr>
+					<tr><td><strong>Keine Zuordnung gefunden</strong></td><td>Orte, die <strong>bereits einen Link haben</strong>, deren Name aber zu keinem Wiki-Artikel passt. Der Lauf vergleicht nur über den Namen, der gespeicherte Link interessiert ihn nicht — solche Orte können unter „Kein Wiki-Schlüssel“ nie auftauchen.</td></tr>
+				</table>
+				<div class="hb-note hb-tip"><strong>Die zweite Zeile lohnt einen zweiten Blick.</strong> Wenn ein Ort verknüpft ist, sein Name im Wiki aber nirgends vorkommt, kann der Link nicht aus dem Namensabgleich stammen. Dann hat ihn entweder jemand von Hand gesetzt, er kommt aus einer Wiki-Zuordnung — oder der Artikel wurde inzwischen umbenannt oder gelöscht. <strong>Ein toter Link fällt genau hier auf und in keiner anderen Gruppe.</strong></div>
 
 				<h3 id="bug-system" class="hb-sub">Das automatische Bug-System</h3>
 				<p class="hb-path"><strong>Auf unserem Discord</strong></p>
