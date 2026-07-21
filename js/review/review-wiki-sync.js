@@ -1410,6 +1410,134 @@ async function startWikiSyncCitymapsSync() {
 	}
 }
 
+// ===========================================================================
+// „Natur & Waren syncen": the SHARP reconcile of the wiki lore catalog (flora,
+// fauna, species, trade goods — built during „Dump holen") into the live
+// lore_entry / lore_place / lore_source tables. Drives the backend `sync_lore`
+// action via the same one-POST-per-step client loop as sync_citymaps.
+//
+// The catalog holds ~5.100 entries with ~7.750 place links and ~35.000 source
+// references, so the server hands back 150 rows per step — expect roughly 35
+// round trips. That is deliberate: one big request would saturate the STRATO PHP
+// workers (CLAUDE.md), which once looked exactly like a database outage.
+//
+// The override guarantee (never touch a manual row, never resurrect a suppressed
+// tombstone, never duplicate on a re-run) lives entirely in the backend diff
+// (avesmapsLoreChildPlan / avesmapsLoreFieldPlan, both unit-tested).
+// Backend: api/edit/wiki/dump.php (sync_lore).
+// ===========================================================================
+
+let isWikiSyncLoreRunning = false;
+
+// Drive `sync_lore` to completion: one action call per step, advancing the
+// server-returned wiki_key high-water `cursor` (a STRING) and SUMMING the per-step
+// deltas until done. Mirrors runWikiSyncCitymapsSyncLoop, including the clean stop
+// on the 409 pipeline lock. Reads staging + live DB only (no dump reopen).
+async function runWikiSyncLoreSyncLoop(onProgress) {
+	let cursor = "";
+	let done = false;
+	let safetyCounter = 0;
+	let lastResult = null;
+	const totals = {
+		added: 0, updated: 0, unchanged: 0, retired: 0,
+		placesAdded: 0, placesRemoved: 0, placesSuppressed: 0,
+		sourcesAdded: 0, sourcesRemoved: 0, processed: 0,
+	};
+	const MAX_STEPS = 4000;
+
+	while (!done) {
+		if (safetyCounter > MAX_STEPS) {
+			throw new Error("Natur-&-Waren-Übernahme wurde nach zu vielen Teilschritten angehalten.");
+		}
+		safetyCounter += 1;
+
+		let stepResult;
+		try {
+			stepResult = await submitWikiSyncDumpAction("sync_lore", { cursor });
+		} catch (error) {
+			if (error && error.dumpLocked) {
+				// Another editor holds the dump pipeline: stop immediately (do NOT retry).
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				throw error;
+			}
+			throw error;
+		}
+
+		// An empty staging table is a USER-fixable state, not a crash: it just means
+		// „Dump holen" has not run yet. Say so instead of looping on nothing.
+		if (stepResult && stepResult.error === "staging_empty") {
+			throw new Error("Kein Lore-Staging vorhanden – bitte zuerst „Dump holen“ laufen lassen.");
+		}
+
+		lastResult = stepResult;
+		cursor = String(stepResult.cursor ?? cursor);
+		totals.added += Number(stepResult.entries_added ?? 0);
+		totals.updated += Number(stepResult.entries_updated ?? 0);
+		totals.unchanged += Number(stepResult.entries_unchanged ?? 0);
+		totals.retired += Number(stepResult.entries_retired ?? 0);
+		totals.placesAdded += Number(stepResult.places_added ?? 0);
+		totals.placesRemoved += Number(stepResult.places_removed ?? 0);
+		totals.placesSuppressed += Number(stepResult.places_suppressed ?? 0);
+		totals.sourcesAdded += Number(stepResult.sources_added ?? 0);
+		totals.sourcesRemoved += Number(stepResult.sources_removed ?? 0);
+		totals.processed += Number(stepResult.processed ?? 0);
+		done = stepResult.done === true;
+
+		const total = Number(stepResult?.progress?.total ?? 0);
+		const label = `${totals.processed}${total > 0 ? "/" + total : ""}`;
+		setWikiSyncStatus(`Natur & Waren werden übernommen … ${label} geprüft`, "pending");
+		if (typeof onProgress === "function") {
+			onProgress(label);
+		}
+	}
+
+	if (lastResult && typeof lastResult === "object") {
+		lastResult.totals = totals;
+	}
+	return lastResult;
+}
+
+// Entry point for #wiki-sync-sync-lore. Re-entrancy guarded, so a double click is a
+// no-op. The progress rides IN the button label rather than in an extra line, so
+// nothing below it shifts around while the ~35 steps run.
+async function startWikiSyncLoreSync() {
+	if (isWikiSyncLoreRunning) {
+		return;
+	}
+	isWikiSyncLoreRunning = true;
+
+	const button = document.getElementById("wiki-sync-sync-lore");
+	const originalLabel = button ? button.textContent : "";
+	if (button) {
+		button.disabled = true;
+		button.textContent = "Natur & Waren werden übernommen …";
+	}
+	setWikiSyncStatus("Natur & Waren werden übernommen …", "pending");
+
+	try {
+		const result = await runWikiSyncLoreSyncLoop((label) => {
+			if (button) {
+				button.textContent = `Natur & Waren … ${label}`;
+			}
+		});
+		const t = (result && result.totals) || { added: 0, updated: 0, retired: 0, placesAdded: 0, sourcesAdded: 0 };
+		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · Quellen +${t.sourcesAdded})`;
+		setWikiSyncStatus(`Natur & Waren übernommen.${note}`, "success");
+		showFeedbackToast(`Natur & Waren übernommen.${note}`, "success");
+	} catch (error) {
+		if (!(error && error.dumpLocked)) {
+			setWikiSyncStatus(error.message || "Natur-&-Waren-Übernahme fehlgeschlagen.", "error");
+			showFeedbackToast(error.message || "Natur-&-Waren-Übernahme fehlgeschlagen.", "warning");
+		}
+	} finally {
+		isWikiSyncLoreRunning = false;
+		if (button) {
+			button.disabled = false;
+			button.textContent = originalLabel || "Natur & Waren syncen";
+		}
+	}
+}
+
 // --- Inline credential prompt (O1) -------------------------------------------
 // Copies the #wiki-sync-resolve-overlay dialog pattern. Resolves to true once the
 // credentials are stored server-side (set_dump_credentials), false if cancelled.

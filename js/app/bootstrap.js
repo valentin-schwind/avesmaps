@@ -284,6 +284,9 @@ $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
 $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
 // Abenteuer (Phase 4): its OWN reconcile action (sync_adventures), not a sync_kind -- so its own handler.
 $("#wiki-sync-sync-adventure").on("click", () => startWikiSyncAdventuresSync());
+// Natur & Waren (Flora/Fauna/Spezies/Handelswaren): likewise its OWN reconcile action
+// (sync_lore), driven in ~35 bounded steps -- see runWikiSyncLoreSyncLoop.
+$("#wiki-sync-sync-lore").on("click", () => startWikiSyncLoreSync());
 // Linkchecker: no binding here on purpose. The "Links prüfen" buttons live in the editor DIALOGS
 // (adventure-editor / wiki-sync-settlement-editor / wiki-sync-monitor), each scoped to its own entity
 // type; they call window.parent.startLinkCheck(scope, onProgress) from their iframe, exactly like the

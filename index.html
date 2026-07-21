@@ -399,7 +399,7 @@
 						     could reach the panel bottom. -->
 						<div class="wiki-sync-panel__tabs">
 							<button class="wiki-sync-panel__tab is-active" type="button" data-material-subtab="adventures">Abenteuer <span class="wiki-sync-panel__tab-count" data-material-count="adventures"></span></button>
-							<button class="wiki-sync-panel__tab" type="button" data-material-subtab="citymaps">Karten <span class="wiki-sync-panel__tab-count" data-material-count="citymaps"></span></button>
+							<button class="wiki-sync-panel__tab" type="button" data-material-subtab="citymaps">Karten <span class="wiki-sync-panel__tab-count" data-material-count="citymaps"></span></button><button class="wiki-sync-panel__tab" type="button" data-material-subtab="lore">Natur &amp; Waren <span class="wiki-sync-panel__tab-count" data-material-count="lore"></span></button>
 						</div>
 						<div class="wiki-sync-panel__tab-panel is-active" data-material-subtab-section="adventures">
 						<div class="wiki-sync-panel__actions">
@@ -422,7 +422,16 @@
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
 						</div>
 						</div>
-						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="citymaps">
+						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="lore">
+								<!-- Flora / Fauna / Spezies / Handelswaren. Vorerst NUR der Sync-Knopf: die drei
+								     Listen (Fauna, Flora, Waren) kommen in einem eigenen Schritt hierher, sobald
+								     Daten da sind -- ein Editor ohne Datensatz hat nichts zu bearbeiten. -->
+								<div class="wiki-sync-panel__actions">
+									<button id="wiki-sync-sync-lore" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt Flora, Fauna, Spezies und Handelswaren aus dem zuletzt geholten Dump override-sicher in die Lore-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf.">Natur &amp; Waren syncen</button><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span>
+								</div>
+								<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Braucht einen zuvor geholten Dump: „Dump holen“ füllt das Staging, dieser Knopf übernimmt es scharf in die Lore-Tabellen.</p>
+							</div>
+							<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="citymaps">
 							<div class="wiki-sync-panel__actions">
 								<button type="button" id="citymaps-editor-open" class="wiki-sync-panel__start" title="Öffnet den Kartensammlungs-Editor (Karten anlegen/bearbeiten, Orte zuordnen, Bilder hochladen, Links prüfen, aus dem Wiki syncen).">Kartensammlung Syncen &amp; Editieren</button><span id="citymaps-editor-synced" class="wiki-sync-panel__summary" hidden></span>
 							</div>

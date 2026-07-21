@@ -133,6 +133,11 @@ const AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES = 'adventures';
 // the live citymap/citymap_place tables is the owner's separate sync_citymaps action. See
 // citymap-sync.php.
 const AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS = 'citymaps';
+// Flora/Fauna/Spezies/Handelswaren: scans the four lore infoboxes (Tierart, Pflanzenart,
+// Spezies, Gegenstandsgruppe) into wiki_lore_catalog + place/source staging. STAGING ONLY,
+// exactly like adventures and citymaps -- the sharp reconcile into lore_entry/lore_place/
+// lore_source is the owner's separate sync_lore action. See lore-sync.php.
+const AVESMAPS_WIKI_DUMP_PHASE_LORE = 'lore';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
 /**
@@ -197,6 +202,10 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
         // dryRun-agnostic and never a sharp write. It scans for two known index PAGES rather than an
         // infobox. The production reconcile is the owner's sync_citymaps action.
         AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS,
+        // Flora/Fauna/Spezies/Handelswaren staging: same STAGING-ONLY contract again, so
+        // dryRun-agnostic and never a sharp write. Scans the four lore infoboxes on ordinary
+        // article pages. The production reconcile is the owner's sync_lore action.
+        AVESMAPS_WIKI_DUMP_PHASE_LORE,
         AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT,
     ];
@@ -226,6 +235,8 @@ function avesmapsWikiDumpHybridResumableCursorKeys(): array
         AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES => 'adventure_cursor',
         // The dump page cursor for the citymap catalog build (Stadtplanindex + Kartenindex).
         AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS => 'citymap_cursor',
+        // The dump page cursor for the lore catalog build (four infoboxes, ~5.1k entries).
+        AVESMAPS_WIKI_DUMP_PHASE_LORE => 'lore_cursor',
     ];
 }
 
@@ -964,6 +975,18 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
                 // Surfaces whether the REAL dump escapes apostrophes the way the API does (13) or not
                 // (0). The dump is basic-auth + server-only, so this run is the first chance to know.
                 'escaped_names_seen' => (int) ($r['escaped_names_seen'] ?? 0),
+            ];
+
+        case AVESMAPS_WIKI_DUMP_PHASE_LORE:
+            // Build the lore catalog + place/source staging from the four lore infoboxes
+            // (STAGING ONLY, both read_step and apply -- the owner's sync_lore action does the
+            // sharp write). Same dump-page cursor contract as the adventure/citymap builds.
+            $r = avesmapsLoreBuildCatalogStep($pdo, $dumpPath, $cursor);
+            return [
+                'done' => (bool) ($r['done'] ?? false),
+                'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),
+                'pages_scanned' => (int) ($r['pages_scanned'] ?? 0),
+                'found_this_step' => (int) ($r['found_this_step'] ?? 0),
             ];
 
         default:

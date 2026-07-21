@@ -142,6 +142,10 @@ require_once __DIR__ . '/../../_internal/wiki/adventure-sync.php';
 // function-definitions-only on include.
 require_once __DIR__ . '/../../_internal/app/citymaps.php';
 require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';
+// Flora/Fauna/Spezies/Handelswaren: the lore build phase (dump-hybrid-driver.php) + the
+// owner-triggered sync_lore reconcile below. Function-definitions-only on include; the parser
+// it pulls in (lore-parsing.php) is likewise side-effect-free.
+require_once __DIR__ . '/../../_internal/wiki/lore-sync.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
@@ -643,6 +647,62 @@ try {
                 'progress' => [
                     'processed' => (int) ($advStep['processed'] ?? 0),
                     'total' => avesmapsAdventureCountCatalog($pdo),
+                ],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'sync_lore':
+            // OWNER-triggered PRODUCTION reconcile of the wiki lore catalog (flora / fauna / species /
+            // trade goods, built by "Dump holen") into the live lore_entry / lore_place / lore_source
+            // tables. MIRRORS sync_citymaps exactly: same 'edit' gate, same single-flight pipeline lock,
+            // same one-bounded-step-per-request client loop. It does NOT reopen the dump --
+            // avesmapsLoreReconcileStep reads the STAGING tables (wiki_lore_catalog + place/source
+            // staging, populated during "Dump holen") and applies the OVERRIDE-SAFE diff: writes and
+            // deletes ONLY origin='wiki' rows, manual rows and suppressed tombstones stay untouched.
+            // A REAL production write, so a second concurrent editor is rejected (409). Resumable via a
+            // wiki_key high-water cursor; one bounded step per call (STRATO: no server-side loop, and
+            // ~5.1k catalog rows would never fit in one request anyway).
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_lore');
+            $lockHeldByThisRequest = true;
+
+            avesmapsLoreEnsureStagingTables($pdo);
+            avesmapsLoreEnsureLiveTables($pdo);
+
+            $loreCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
+            $loreStep = avesmapsLoreReconcileStep($pdo, $loreCursor, false);
+            $loreDone = ($loreStep['done'] ?? false) === true;
+
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_lore');
+            if ($loreDone) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
+
+            avesmapsJsonResponse(200, [
+                'ok' => (bool) ($loreStep['ok'] ?? false),
+                'stage' => 'reconcile',
+                // Echo the advanced wiki_key high-water so the client loop resumes from exactly here.
+                'cursor' => (string) ($loreStep['nextCursor'] ?? $loreCursor),
+                'done' => $loreDone,
+                // Per-STEP deltas (each step starts at 0; the frontend sums them for the run total).
+                'entries_added' => (int) ($loreStep['entries_added'] ?? 0),
+                'entries_updated' => (int) ($loreStep['entries_updated'] ?? 0),
+                'entries_unchanged' => (int) ($loreStep['entries_unchanged'] ?? 0),
+                // Only filled on the final step: wiki entries the staging no longer knows are
+                // retired, never deleted -- they may still be referenced elsewhere.
+                'entries_retired' => (int) ($loreStep['entries_retired'] ?? 0),
+                'places_added' => (int) ($loreStep['places_added'] ?? 0),
+                'places_removed' => (int) ($loreStep['places_removed'] ?? 0),
+                // Wiki places the editor deliberately suppressed -- reported so a shrinking list is
+                // explainable rather than mysterious.
+                'places_suppressed' => (int) ($loreStep['places_suppressed'] ?? 0),
+                'sources_added' => (int) ($loreStep['sources_added'] ?? 0),
+                'sources_removed' => (int) ($loreStep['sources_removed'] ?? 0),
+                'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
+                'error' => (string) ($loreStep['error'] ?? ''),
+                'progress' => [
+                    'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
+                    'total' => avesmapsLoreCountStaging($pdo),
                 ],
             ]);
             // no break -- avesmapsJsonResponse exits.
