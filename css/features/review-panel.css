@@ -764,7 +764,20 @@
 .conflict-case__head { display: flex; align-items: baseline; gap: 8px; }
 .conflict-case__title { font-weight: 600; font-size: 13.5px; }
 .conflict-case__meta { color: var(--color-text-muted); font-size: 11.5px; }
-.conflict-case__parties { display: flex; flex-wrap: wrap; gap: 6px; margin: 5px 0 7px; }
+/* Gegenueberstellung als festes Zweispaltenraster. Vorher war es ein Flex-Umbruch: die Boxen
+   wuchsen mit ihrem Inhalt (Beleg + Knopfreihe), zu zweit lagen sie knapp ueber der Zeilenbreite
+   und die zweite rutschte nach unten -- daneben blieb die halbe Breite leer. Zwei Spalten stellen
+   die beiden Seiten nebeneinander, was bei einer Gegenueberstellung auch der Punkt ist. */
+.conflict-case__parties {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin: 5px 0 7px;
+}
+/* Eine einzelne Partei (Beobachtungsliste) soll nicht die halbe Breite leer lassen. */
+.conflict-case__parties:has(> .conflict-party:only-child) {
+	grid-template-columns: minmax(0, 1fr);
+}
 .conflict-party {
 	display: flex;
 	align-items: baseline;
@@ -775,7 +788,7 @@
 	font-size: 12.5px;
 }
 .conflict-party__type { color: var(--color-text-muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; }
-.conflict-party { flex-direction: column; align-items: stretch; gap: 4px; min-width: 210px; }
+.conflict-party { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 0; }
 .conflict-party__head { display: flex; align-items: baseline; gap: 6px; }
 .conflict-party__evidence { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; }
 .conflict-party__wiki { color: var(--color-link); }
