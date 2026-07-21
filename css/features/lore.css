@@ -86,3 +86,141 @@
 	opacity: 0.6;
 	cursor: default;
 }
+
+/* ---- Editor eines Eintrags (ersetzt die Liste im selben Bereich) ---- */
+
+.lore-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	overflow-y: auto;
+	max-height: 100%;
+}
+
+.lore-detail__head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.lore-detail__back,
+.lore-detail__place-btn {
+	padding: 0.2rem 0.55rem;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
+.lore-detail__back:hover,
+.lore-detail__place-btn:hover:not(:disabled) {
+	background: var(--color-button-soft-hover);
+}
+
+.lore-detail__place-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.lore-detail__wiki {
+	color: var(--color-link);
+	text-decoration: none;
+	font-size: 0.85rem;
+}
+
+.lore-detail__title {
+	margin: 0;
+	font-size: 1rem;
+}
+
+.lore-detail__kind,
+.lore-detail__place-meta {
+	color: var(--color-text-muted);
+	font-size: 0.8rem;
+	font-weight: 400;
+}
+
+.lore-detail__field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+}
+
+.lore-detail__label {
+	font-size: 0.8rem;
+	color: var(--color-text-muted);
+}
+
+/* Ein von Hand gesetztes Feld muss man sehen -- sonst rätselt man, warum der Sync es
+   nicht mehr anfasst. */
+.lore-detail__flag {
+	color: var(--color-link);
+	font-style: normal;
+}
+
+.lore-detail__input {
+	padding: 0.3rem 0.45rem;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-input-bg, var(--color-button-soft));
+	color: var(--color-text);
+	font: inherit;
+	font-size: 0.9rem;
+}
+
+.lore-detail__section {
+	margin: 0.4rem 0 0;
+	padding-top: 0.4rem;
+	border-top: 1px solid var(--color-divider);
+	font-size: 0.9rem;
+}
+
+.lore-detail__hint {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: 0.8rem;
+}
+
+.lore-detail__places,
+.lore-detail__sources {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.lore-detail__place {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.lore-detail__place-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Grabsteine sind sichtbar anders: sie sind eine Entscheidung, kein Datenverlust. */
+.lore-detail__place.is-tomb .lore-detail__place-name {
+	text-decoration: line-through;
+	color: var(--color-text-muted);
+}
+
+.lore-detail__add {
+	display: flex;
+	gap: 0.4rem;
+}
+
+.lore-detail__add .lore-detail__input {
+	flex: 1 1 auto;
+	min-width: 0;
+}

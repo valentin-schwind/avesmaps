@@ -1740,14 +1740,190 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 		window.clearTimeout(avesmapsLoreListTimer);
 		avesmapsLoreListTimer = window.setTimeout(loadLoreList, 250);
 	});
-	// Doppelklick öffnet den Wiki-Artikel -- dieselbe Geste wie in der Abenteuer- und
-	// Kartenliste. Einfachklick bleibt frei für das spätere Bearbeiten.
-	document.addEventListener("dblclick", function (event) {
-		var row = event.target && event.target.closest ? event.target.closest("[data-lore-entry]") : null;
-		var url = row ? row.getAttribute("data-lore-url") : "";
-		if (url) {
-			window.open(url, "_blank", "noopener");
+	// KEIN Doppelklick-Handler mehr: seit der Einfachklick den Editor öffnet, würde ein
+	// Doppelklick beides auslösen -- Editor auf UND Wiki-Tab auf. Der Wiki-Link sitzt
+	// jetzt im Editorkopf, wo er nicht mit einer Geste kollidiert.
+}
+
+// ===========================================================================
+// Editor für einen Lore-Eintrag. Ersetzt die Liste im selben Bereich.
+//
+// Der Editor schreibt KEINE Sonderfälle -- er setzt genau die Marker, die der
+// Reconcile (wiki/lore-sync.php) ohnehin liest: ein zugeordneter Ort ist
+// origin='manual', ein entfernter Wiki-Ort ein Grabstein (status='suppressed'), ein
+// überschriebenes Feld trägt field_origins[feld]='manual'. Deshalb überlebt jede
+// Handkorrektur den nächsten „Natur & Waren syncen"-Lauf, und das ist unit-getestet.
+// ===========================================================================
+
+var avesmapsLoreDetailKey = "";
+
+function loreEditAction(action, payload) {
+	return fetch("api/edit/map/lore.php", {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json", Accept: "application/json" },
+		body: JSON.stringify(Object.assign({ action: action }, payload || {})),
+	}).then(function (r) { return r.json().catch(function () { return null; }); });
+}
+
+function closeLoreDetail() {
+	var detail = document.getElementById("lore-detail");
+	var picker = document.getElementById("lore-list-scroll");
+	avesmapsLoreDetailKey = "";
+	if (detail) { detail.hidden = true; detail.innerHTML = ""; }
+	if (picker) { picker.hidden = false; }
+	var search = document.getElementById("lore-list-search");
+	if (search) { search.hidden = false; }
+}
+
+function loreFieldRow(entry, field, label) {
+	var overridden = entry.field_origins && entry.field_origins[field] === "manual";
+	return '<label class="lore-detail__field">'
+		+ '<span class="lore-detail__label">' + avesmapsLoreListEscape(label)
+		+ (overridden ? ' <em class="lore-detail__flag">von Hand</em>' : "")
+		+ "</span>"
+		+ '<input type="text" class="lore-detail__input" data-lore-field="' + field + '" value="'
+		+ avesmapsLoreListEscape(entry[field] || "") + '">'
+		+ "</label>";
+}
+
+function renderLoreDetail(entry) {
+	var detail = document.getElementById("lore-detail");
+	if (!detail || !entry) { return; }
+	var live = [];
+	var tombs = [];
+	(entry.places || []).forEach(function (place) {
+		(place.status === "suppressed" ? tombs : live).push(place);
+	});
+
+	function placeRow(place, isTomb) {
+		var origin = place.origin === "wiki" ? "Wiki" : "von Hand";
+		return '<li class="lore-detail__place' + (isTomb ? " is-tomb" : "") + '">'
+			+ '<span class="lore-detail__place-name">' + avesmapsLoreListEscape(place.place_title) + "</span>"
+			+ '<span class="lore-detail__place-meta">' + avesmapsLoreListEscape(place.relation + " · " + origin) + "</span>"
+			+ '<button type="button" class="lore-detail__place-btn" data-lore-place-action="'
+			+ (isTomb ? "add" : "remove") + '" data-lore-place-key="' + avesmapsLoreListEscape(place.place_wiki_key)
+			+ '" data-lore-place-title="' + avesmapsLoreListEscape(place.place_title)
+			+ '" data-lore-place-rel="' + avesmapsLoreListEscape(place.relation) + '">'
+			+ (isTomb ? "wieder aufnehmen" : "entfernen") + "</button>"
+			+ "</li>";
+	}
+
+	var safe = String(entry.wiki_url || "");
+	if (safe.indexOf("https://de.wiki-aventurica.de/") !== 0) { safe = ""; }
+
+	detail.innerHTML = '<div class="lore-detail__head">'
+		+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück zur Liste</button>'
+		+ (safe ? '<a class="lore-detail__wiki" href="' + avesmapsLoreListEscape(safe) + '" target="_blank" rel="noopener">Wiki-Artikel ↗</a>' : "")
+		+ "</div>"
+		+ '<h4 class="lore-detail__title">' + avesmapsLoreListEscape(entry.name)
+		+ ' <span class="lore-detail__kind">' + avesmapsLoreListEscape(entry.kind) + "</span></h4>"
+		+ loreFieldRow(entry, "name", "Name")
+		+ loreFieldRow(entry, "gruppe", "Art")
+		+ (entry.kind === "ware" ? loreFieldRow(entry, "typ", "Gegenstandstyp") : "")
+		+ loreFieldRow(entry, "lebensraum", "Lebensraum")
+		+ loreFieldRow(entry, "synonyme", "Weitere Namen")
+		+ '<p class="lore-detail__hint">Ein geändertes Feld bleibt beim nächsten Sync stehen. Leeren gibt es wieder ans Wiki zurück.</p>'
+		+ '<h5 class="lore-detail__section">Orte (' + live.length + ")</h5>"
+		+ (live.length ? '<ul class="lore-detail__places">' + live.map(function (p) { return placeRow(p, false); }).join("") + "</ul>"
+			: '<p class="lore-detail__hint">Noch keinem Ort zugeordnet.</p>')
+		+ '<div class="lore-detail__add">'
+		+ '<input type="text" id="lore-add-place" class="lore-detail__input" placeholder="Ort, Region oder Gebiet …" autocomplete="off">'
+		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-place-btn">zuordnen</button>'
+		+ "</div>"
+		+ (tombs.length
+			? '<h5 class="lore-detail__section">Entfernte Wiki-Orte (' + tombs.length + ")</h5>"
+				+ '<p class="lore-detail__hint">Diese bleiben entfernt, auch wenn das Wiki sie weiter nennt.</p>'
+				+ '<ul class="lore-detail__places">' + tombs.map(function (p) { return placeRow(p, true); }).join("") + "</ul>"
+			: "")
+		+ '<h5 class="lore-detail__section">Quellen (' + (entry.sources || []).length + ")</h5>"
+		+ ((entry.sources || []).length
+			? '<ul class="lore-detail__sources">' + entry.sources.map(function (s) {
+				return "<li>" + avesmapsLoreListEscape(s.publication_title)
+					+ (s.pages ? " S. " + avesmapsLoreListEscape(s.pages) : "")
+					+ ' <span class="lore-detail__place-meta">' + avesmapsLoreListEscape(s.reference_kind) + "</span></li>";
+			}).join("") + "</ul>"
+			: '<p class="lore-detail__hint">Keine Quellen hinterlegt.</p>');
+}
+
+function openLoreDetail(wikiKey) {
+	var detail = document.getElementById("lore-detail");
+	var picker = document.getElementById("lore-list-scroll");
+	if (!detail) { return; }
+	avesmapsLoreDetailKey = wikiKey;
+	if (picker) { picker.hidden = true; }
+	detail.hidden = false;
+	detail.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>';
+	loreEditAction("detail", { wiki_key: wikiKey }).then(function (data) {
+		if (avesmapsLoreDetailKey !== wikiKey) { return; }
+		if (!data || data.ok !== true || !data.entry) {
+			// 401 = nicht eingeloggt. Das ist die häufigste Ursache und verdient eine
+			// klare Ansage statt eines allgemeinen Fehlers.
+			detail.innerHTML = '<p class="wiki-sync-panel__summary">'
+				+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück</button><br>'
+				+ "Bearbeiten geht nur angemeldet und mit Editorrecht.</p>";
+			return;
 		}
+		renderLoreDetail(data.entry);
+	});
+}
+
+if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
+	document.__avesmapsLoreEditBound = true;
+
+	document.addEventListener("click", function (event) {
+		var target = event.target;
+		if (!target || !target.closest) { return; }
+
+		if (target.closest("#lore-detail-back")) {
+			closeLoreDetail();
+			return;
+		}
+		var row = target.closest("[data-lore-entry]");
+		if (row && !avesmapsLoreDetailKey) {
+			openLoreDetail(row.getAttribute("data-lore-entry") || "");
+			return;
+		}
+		var placeBtn = target.closest("[data-lore-place-action]");
+		if (placeBtn && avesmapsLoreDetailKey) {
+			var isAdd = placeBtn.getAttribute("data-lore-place-action") === "add";
+			placeBtn.disabled = true;
+			loreEditAction(isAdd ? "add_place" : "remove_place", {
+				wiki_key: avesmapsLoreDetailKey,
+				place_title: placeBtn.getAttribute("data-lore-place-title") || "",
+				place_wiki_key: placeBtn.getAttribute("data-lore-place-key") || "",
+				relation: placeBtn.getAttribute("data-lore-place-rel") || "verbreitung",
+			}).then(function (data) {
+				if (data && data.ok && data.entry) { renderLoreDetail(data.entry); }
+				else { placeBtn.disabled = false; }
+			});
+			return;
+		}
+		if (target.closest("#lore-add-place-btn") && avesmapsLoreDetailKey) {
+			var input = document.getElementById("lore-add-place");
+			var value = input ? input.value.trim() : "";
+			if (!value) { return; }
+			loreEditAction("add_place", { wiki_key: avesmapsLoreDetailKey, place_title: value })
+				.then(function (data) {
+					if (data && data.ok && data.entry) { renderLoreDetail(data.entry); }
+				});
+		}
+	});
+
+	// Feld speichern, sobald es den Fokus verliert -- kein Speichern-Knopf, der
+	// vergessen werden kann.
+	document.addEventListener("change", function (event) {
+		var input = event.target;
+		if (!input || !input.getAttribute || !input.getAttribute("data-lore-field") || !avesmapsLoreDetailKey) {
+			return;
+		}
+		loreEditAction("set_field", {
+			wiki_key: avesmapsLoreDetailKey,
+			field: input.getAttribute("data-lore-field"),
+			value: input.value,
+		}).then(function (data) {
+			if (data && data.ok && data.entry) { renderLoreDetail(data.entry); }
+		});
 	});
 }
 
