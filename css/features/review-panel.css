@@ -464,6 +464,11 @@
 	gap: 1px;
 	padding: 7px 12px;
 	white-space: normal;
+	/* Beide Kacheln gleich hoch: "Dump holen" ist zweizeilig, "Konflikte" einzeilig -- ohne das
+	   haengt die kuerzere oben und die Zeile franst aus. Der Raster-Wrapper streckt sich schon,
+	   der Knopf darin muss ihn nur ausfuellen. */
+	height: 100%;
+	justify-content: center;
 }
 .wiki-sync-dump-central .wiki-sync-panel__start .t1 {
 	font-weight: 600;
@@ -479,6 +484,7 @@
 .wiki-sync-dump-solo {
 	margin: 8px 0 0;
 	min-width: 0;
+	display: flex;
 }
 /* Die Status-/"Dump geholt: <date>"-Zeile läuft jetzt UNTER dem Button -- horizontaler Rand
    wie der Button, damit sie damit fluchtet (vorher trug den Rand das .wiki-sync-panel__actions-Grid). */
