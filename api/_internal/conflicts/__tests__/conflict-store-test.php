@@ -82,4 +82,39 @@ assert($legacy['reviewed_by'] === 'Benutzer 7');
 // Every conflict is accounted for exactly once: 2 found + 2 history entries.
 assert(count($result) === 4);
 
+// ---- the snapshot must carry the EVIDENCE, not just the names --------------------------------
+// Live case #EDCXYJ "Hursach": three parties, two named exactly like the article they were fighting
+// over, and the finished case labelled all three "kein eigener Wiki-Artikel". It could not know --
+// the snapshot stored type and name only, so the line asserted a finding nobody ever recorded.
+$snapshot = avesmapsConflictSnapshotParties([
+    ['type' => 'path', 'type_label' => 'Weg', 'label' => 'Hursach',
+        'own_wiki' => ['title' => 'Hursach', 'url' => 'https://w/wiki/Hursach']],
+    ['type' => 'location', 'type_label' => 'Ort', 'label' => 'Hursachquelle', 'own_wiki' => null],
+]);
+assert($snapshot[0]['own_wiki']['title'] === 'Hursach');
+assert($snapshot[0]['own_wiki']['url'] === 'https://w/wiki/Hursach');
+// THE distinction the renderer reads: present-and-null is a finding ("damals nichts gefunden"),
+// a MISSING key is not. Both must survive a JSON round-trip, or the tri-state collapses and the
+// history starts lying again.
+assert($snapshot[1]['own_wiki'] === null);
+assert(array_key_exists('own_wiki', $snapshot[1]));
+$roundTrip = json_decode((string) json_encode($snapshot), true);
+assert(array_key_exists('own_wiki', $roundTrip[1]));
+assert($roundTrip[1]['own_wiki'] === null);
+assert($roundTrip[0]['own_wiki']['url'] === 'https://w/wiki/Hursach');
+
+// A half-recorded belief is worse than none: no URL means no link to render, so it degrades to null.
+$halfKnown = avesmapsConflictSnapshotParties([['type' => 'location', 'label' => 'X', 'own_wiki' => ['title' => 'X']]]);
+assert($halfKnown[0]['own_wiki'] === null);
+
+// Old snapshots stay recognisable as old -- the key must NOT appear, or entries decided before
+// today would claim a finding again (this is exactly the 'c' history entry above).
+assert(!array_key_exists('own_wiki', $done['parties'][0]));
+
+// Junk in the party list is skipped, not turned into a blank party.
+assert(count(avesmapsConflictSnapshotParties(['nonsense', null])) === 0);
+assert(count(avesmapsConflictSnapshotParties(null)) === 0);
+// The cap still holds with the extra field in place.
+assert(count(avesmapsConflictSnapshotParties(array_fill(0, 30, ['type' => 'location', 'label' => 'x']))) === 12);
+
 fwrite(STDOUT, "conflict-store-test: alle Zusicherungen erfuellt\n");

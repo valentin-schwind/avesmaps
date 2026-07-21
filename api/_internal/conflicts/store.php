@@ -175,6 +175,45 @@ function avesmapsConflictReviewerName(?array $decision): string {
 }
 
 /**
+ * The parties as they go into the decision snapshot -- trimmed to what the list renders back.
+ *
+ * The EVIDENCE travels with them. For a repaired case the detector finds nothing any more and the
+ * history entry is rebuilt from this snapshot alone; without own_wiki it can no longer say why the
+ * case was decided that way, which is the only question anybody asks of an old case.
+ *
+ * The key is always written, null included, and that distinction is load-bearing: present-and-null
+ * means "nothing was found back then" (a finding, and the UI may state it), absent means "it was
+ * never recorded" (not a finding, and the UI stays silent -- see createConflictPartyElement).
+ *
+ * @param mixed $parties Raw parties from the request.
+ * @return list<array<string, mixed>>
+ */
+function avesmapsConflictSnapshotParties($parties): array {
+    $list = is_array($parties) ? array_slice($parties, 0, 12) : [];
+    $out = [];
+    foreach ($list as $party) {
+        if (!is_array($party)) {
+            continue;
+        }
+        $wiki = is_array($party['own_wiki'] ?? null) ? $party['own_wiki'] : null;
+        $url = $wiki === null ? '' : trim((string) ($wiki['url'] ?? ''));
+        $out[] = [
+            'type' => (string) ($party['type'] ?? ''),
+            'type_label' => (string) ($party['type_label'] ?? ''),
+            'label' => (string) ($party['label'] ?? ''),
+            // Ohne URL ist der Beleg keiner -- dann lieber null als ein halber Eintrag, auf den
+            // die Anzeige einen Link bauen wuerde.
+            'own_wiki' => $url === '' ? null : [
+                'title' => mb_substr(trim((string) ($wiki['title'] ?? '')), 0, 200, 'UTF-8'),
+                'url' => mb_substr($url, 0, 500, 'UTF-8'),
+            ],
+        ];
+    }
+
+    return $out;
+}
+
+/**
  * Record (or overwrite) one decision. Idempotent by (rule_id, fingerprint).
  *
  * Deliberately does NOT touch feature data -- writing the actual fix is the rule's business, and
@@ -205,11 +244,7 @@ function avesmapsConflictRecordDecision(PDO $pdo, array $input, int $userId = 0,
         'wiki_url' => mb_substr(trim((string) ($input['wiki_url'] ?? '')), 0, 500, 'UTF-8'),
         'severity' => mb_substr(trim((string) ($input['severity'] ?? '')), 0, 20, 'UTF-8'),
         'by_name' => mb_substr(trim($userName), 0, 80, 'UTF-8'),
-        'parties' => array_map(static fn(array $party): array => [
-            'type' => (string) ($party['type'] ?? ''),
-            'type_label' => (string) ($party['type_label'] ?? ''),
-            'label' => (string) ($party['label'] ?? ''),
-        ], array_slice(is_array($input['parties'] ?? null) ? $input['parties'] : [], 0, 12)),
+        'parties' => avesmapsConflictSnapshotParties($input['parties'] ?? null),
     ];
 
     $statement = $pdo->prepare(

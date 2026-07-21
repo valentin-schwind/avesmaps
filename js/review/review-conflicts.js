@@ -535,12 +535,22 @@ function createConflictPartyElement(party, conflict = null) {
 			? `passender Artikel gefunden: ${party.own_wiki.title} ↗`
 			: `eigener Artikel: ${party.own_wiki.title} ↗`;
 		evidence.appendChild(link);
-	} else {
+	} else if (conflict?.status !== "done" || "own_wiki" in party) {
 		const none = document.createElement("span");
 		none.className = "conflict-party__none";
 		none.textContent = unlinked ? "im Wiki nichts gefunden" : "kein eigener Wiki-Artikel";
 		evidence.appendChild(none);
 	}
+	// Warum die Bedingung so umstaendlich aussieht: bei einem ERLEDIGTEN Fall findet der Erkenner
+	// nichts mehr, der Eintrag wird komplett aus dem gespeicherten Schnappschuss gebaut. Enthaelt
+	// der die Belege nicht, ist "kein eigener Wiki-Artikel" keine Feststellung mehr, sondern eine
+	// Behauptung ueber etwas, das wir gar nicht mehr wissen -- dann bleibt die Zeile leer.
+	//
+	// `"own_wiki" in party` trennt genau das: seit conflictDecisionParties() setzt jeder neue
+	// Schnappschuss den Schluessel, notfalls auf null. Vorhanden+null heisst "damals nichts
+	// gefunden" (das darf dastehen), fehlend heisst "damals nicht mitgeschrieben" (das nicht).
+	// Aufgefallen an #EDCXYJ „Hursach", wo zwei Beteiligte genau so heissen wie der Artikel, um den
+	// es ging, und trotzdem alle drei "kein eigener Wiki-Artikel" trugen (Owner 2026-07-21).
 
 	// "Auf der Karte?" -- asked of the resolver, not of the payload, so a case that brought no
 	// coordinate (every merged WikiSync case) still gets the button as long as the object is findable.
@@ -556,6 +566,25 @@ function createConflictPartyElement(party, conflict = null) {
 	element.appendChild(evidence);
 
 	return element;
+}
+
+// Was von den Beteiligten im Schnappschuss der Entscheidung landet.
+//
+// Bewusst EINE Stelle fuer alle drei Aufrufer (Trennen, Verknuepfen, Entscheiden): sie muessen
+// dasselbe speichern, sonst haengt der Inhalt der Historie davon ab, welcher Knopf gedrueckt wurde.
+//
+// Die Belege reisen MIT. Fuer einen erledigten Fall findet der Erkenner nichts mehr, der Eintrag
+// wird vollstaendig aus diesem Schnappschuss gebaut -- ohne own_wiki weiss die Historie spaeter
+// nicht mehr, WARUM so entschieden wurde, und das ist die einzige Frage, die man an einen alten
+// Fall stellt. Der Schluessel wird IMMER gesetzt, auch als null: "damals nichts gefunden" und
+// "damals nicht mitgeschrieben" sind zwei verschiedene Aussagen (siehe createConflictPartyElement).
+function conflictDecisionParties(conflict) {
+	return (conflict.parties || []).map((party) => ({
+		type: party.type,
+		type_label: party.type_label,
+		label: party.label,
+		own_wiki: party.own_wiki || null,
+	}));
 }
 
 // Repair verbs sit ON the party, because that is where the decision lives: this one keeps the
@@ -586,9 +615,7 @@ function createConflictLinkAction(conflict, party) {
 				acted_id: party.id,
 				title: conflict.title || "",
 				severity: conflict.severity || "",
-				parties: (conflict.parties || []).map((entry) => ({
-					type: entry.type, type_label: entry.type_label, label: entry.label,
-				})),
+				parties: conflictDecisionParties(conflict),
 			});
 			const refused = (result.results || []).filter((entry) => entry.ok === false);
 			if (refused.length > 0) {
@@ -625,9 +652,7 @@ function createConflictPartyActions(conflict, party) {
 				acted_id: party.id,
 				title: conflict.title || "",
 				severity: conflict.severity || "",
-				parties: (conflict.parties || []).map((entry) => ({
-					type: entry.type, type_label: entry.type_label, label: entry.label,
-				})),
+				parties: conflictDecisionParties(conflict),
 			});
 			// The server refuses a party whose claim sits inside a wiki block -- surface that instead
 			// of pretending it worked.
@@ -698,9 +723,7 @@ function createConflictActionButton(label, conflict, decision, variant = "") {
 					title: conflict.title || "",
 					wiki_url: conflict.wiki_url || "",
 					severity: conflict.severity || "",
-					parties: (conflict.parties || []).map((entry) => ({
-						type: entry.type, type_label: entry.type_label, label: entry.label,
-					})),
+					parties: conflictDecisionParties(conflict),
 				});
 			}
 			await loadConflicts();
