@@ -514,9 +514,12 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
     $staged = $batch->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     if ($staged === [] && $cursor === '') {
-        $stats['ok'] = false;
+        // KEIN Fehler, sondern ein Zustand: „Dump holen" lief noch nicht, oder nicht bis
+        // zur lore-Phase durch. ok BLEIBT true -- sonst wirft submitWikiSyncDumpAction
+        // (api-client.js:431) mit der generischen Meldung „WikiDump-API antwortet mit
+        // HTTP 200", statt den tatsaechlichen Grund zu nennen.
         $stats['done'] = true;
-        $stats['error'] = 'staging_empty';
+        $stats['staging_empty'] = true;
 
         return $stats;
     }

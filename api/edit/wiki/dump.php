@@ -679,7 +679,9 @@ try {
             }
 
             avesmapsJsonResponse(200, [
-                'ok' => (bool) ($loreStep['ok'] ?? false),
+                // Immer true: der SCHRITT ist gelaufen. Ein leeres Staging ist ein Zustand,
+                // kein Fehler -- der Client erkennt ihn an staging_empty und nennt den Grund.
+                'ok' => true,
                 'stage' => 'reconcile',
                 // Echo the advanced wiki_key high-water so the client loop resumes from exactly here.
                 'cursor' => (string) ($loreStep['nextCursor'] ?? $loreCursor),
@@ -699,7 +701,10 @@ try {
                 'sources_added' => (int) ($loreStep['sources_added'] ?? 0),
                 'sources_removed' => (int) ($loreStep['sources_removed'] ?? 0),
                 'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
-                'error' => (string) ($loreStep['error'] ?? ''),
+                // Kein Lore-Staging vorhanden: „Dump holen" lief nicht oder nicht bis zur
+                // lore-Phase (sie steht an 8. von 10 Stellen -- ein abgebrochener Lauf
+                // erreicht sie nie). Der Client macht daraus eine lesbare Meldung.
+                'staging_empty' => (bool) ($loreStep['staging_empty'] ?? false),
                 'progress' => [
                     'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
                     'total' => avesmapsLoreCountStaging($pdo),

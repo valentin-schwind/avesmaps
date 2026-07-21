@@ -1465,8 +1465,8 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 
 		// An empty staging table is a USER-fixable state, not a crash: it just means
 		// „Dump holen" has not run yet. Say so instead of looping on nothing.
-		if (stepResult && stepResult.error === "staging_empty") {
-			throw new Error("Kein Lore-Staging vorhanden – bitte zuerst „Dump holen“ laufen lassen.");
+		if (stepResult && stepResult.staging_empty === true) {
+			throw new Error("Kein Lore-Staging vorhanden – „Dump holen“ muss einmal KOMPLETT durchlaufen (die lore-Phase steht an 8. von 10 Stellen).");
 		}
 
 		lastResult = stepResult;
@@ -1525,13 +1525,24 @@ async function startWikiSyncLoreSync() {
 		setWikiSyncStatus(`Natur & Waren übernommen.${note}`, "success");
 		showFeedbackToast(`Natur & Waren übernommen.${note}`, "success");
 	} catch (error) {
-		if (!(error && error.dumpLocked)) {
-			setWikiSyncStatus(error.message || "Natur-&-Waren-Übernahme fehlgeschlagen.", "error");
-			showFeedbackToast(error.message || "Natur-&-Waren-Übernahme fehlgeschlagen.", "warning");
+		// IMMER sichtbar melden, auch bei dumpLocked. Die erste Fassung schwieg in
+		// genau dem Fall, weil der Loop ja schon setWikiSyncStatus() gesetzt hatte --
+		// aber diese Statuszeile ist im Materialien-Reiter gar nicht im Blick. Ergebnis:
+		// Knopf blinkt, Fehler landet unsichtbar, der Benutzer sieht „nix passiert".
+		// Ein Fehler, den niemand sieht, ist schlimmer als ein lauter.
+		const message = (error && error.message) || "Natur-&-Waren-Übernahme fehlgeschlagen.";
+		setWikiSyncStatus(message, "error");
+		showFeedbackToast(message, "warning");
+		if (button) {
+			// Der Grund bleibt im Knopf stehen, bis der nächste Versuch startet.
+			button.textContent = "⚠ " + message.slice(0, 80);
+			button.disabled = false;
 		}
+		isWikiSyncLoreRunning = false;
+		return;
 	} finally {
 		isWikiSyncLoreRunning = false;
-		if (button) {
+		if (button && !button.textContent.startsWith("⚠")) {
 			button.disabled = false;
 			button.textContent = originalLabel || "Natur & Waren syncen";
 		}
