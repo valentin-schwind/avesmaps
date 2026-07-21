@@ -30,6 +30,72 @@ const AVESMAPS_LORE_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
 /** Wie viele Eintraege je Sektion das Infopanel zeigt; der Rest liegt hinter „alle anzeigen". */
 const AVESMAPS_LORE_PANEL_LIMIT = 10;
 
+/**
+ * Katalogliste für den Editor-Reiter: durchsuchbar, nach Art gefiltert, mit der Zahl
+ * der zugeordneten Orte je Eintrag. Bewusst NICHT der Panel-Pfad -- der liest pro Ort,
+ * hier will man den Bestand sehen.
+ *
+ * @return array{items:list<array<string,mixed>>, total:int}
+ */
+function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = '', int $limit = 200, int $offset = 0): array
+{
+    $where = ["e.status = 'active'"];
+    $params = [];
+    if ($kind !== '' && in_array($kind, AVESMAPS_LORE_KINDS, true)) {
+        $where[] = 'e.kind = :kind';
+        $params['kind'] = $kind;
+    }
+    $query = trim($query);
+    if ($query !== '') {
+        // Name ODER Gruppe: „Hirsch" soll auch die Tiere finden, deren Art das ist.
+        $where[] = '(e.name LIKE :q OR e.gruppe LIKE :q OR e.synonyme LIKE :q)';
+        $params['q'] = '%' . $query . '%';
+    }
+    $whereSql = implode(' AND ', $where);
+    $limit = max(1, min(500, $limit));
+    $offset = max(0, $offset);
+
+    try {
+        $countStatement = $pdo->prepare('SELECT COUNT(*) FROM lore_entry e WHERE ' . $whereSql);
+        $countStatement->execute($params);
+        $total = (int) $countStatement->fetchColumn();
+
+        $statement = $pdo->prepare(
+            'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin,
+                    (SELECT COUNT(*) FROM lore_place p
+                      WHERE p.entry_wiki_key = e.wiki_key AND p.status = \'active\') AS place_count,
+                    (SELECT COUNT(*) FROM lore_source s
+                      WHERE s.entry_wiki_key = e.wiki_key AND s.status = \'active\') AS source_count
+             FROM lore_entry e
+             WHERE ' . $whereSql . '
+             ORDER BY e.name
+             LIMIT ' . $limit . ' OFFSET ' . $offset
+        );
+        $statement->execute($params);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable) {
+        return ['items' => [], 'total' => 0];
+    }
+
+    $items = [];
+    foreach ($rows as $row) {
+        $items[] = [
+            'wiki_key' => (string) $row['wiki_key'],
+            'kind' => (string) $row['kind'],
+            'name' => (string) $row['name'],
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'gruppe' => (string) ($row['gruppe'] ?? ''),
+            'typ' => (string) ($row['typ'] ?? ''),
+            'lebensraum' => (string) ($row['lebensraum'] ?? ''),
+            'origin' => (string) ($row['origin'] ?? 'wiki'),
+            'place_count' => (int) $row['place_count'],
+            'source_count' => (int) $row['source_count'],
+        ];
+    }
+
+    return ['items' => $items, 'total' => $total];
+}
+
 /** Normalisiert einen Server-wiki_key ('wiki:weiden') auf die Form in lore_place ('weiden'). */
 function avesmapsLoreStripKeyPrefix(string $key): string
 {

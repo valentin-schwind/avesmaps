@@ -84,6 +84,23 @@ try {
         ]);
     }
 
+    // Katalogliste für den Editor-Reiter: ?catalog=1[&kind=fauna][&q=…][&limit=][&offset=]
+    if (isset($_GET['catalog'])) {
+        $kind = mb_strtolower(trim((string) ($_GET['kind'] ?? '')), 'UTF-8');
+        $query = trim((string) ($_GET['q'] ?? ''));
+        $limit = (int) ($_GET['limit'] ?? 200);
+        $offset = (int) ($_GET['offset'] ?? 0);
+        $catalog = avesmapsLoreReadCatalog($pdo, $kind, $query, $limit, $offset);
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'kind' => $kind,
+            'q' => $query,
+            'items' => $catalog['items'],
+            'total' => $catalog['total'],
+            'offset' => max(0, $offset),
+        ]);
+    }
+
     if (isset($_GET['stats'])) {
         avesmapsJsonResponse(200, ['ok' => true, 'stats' => avesmapsLoreReadStats($pdo)]);
     }

@@ -430,6 +430,20 @@
 									<button id="wiki-sync-sync-lore" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt Flora, Fauna, Spezies und Handelswaren aus dem zuletzt geholten Dump override-sicher in die Lore-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf.">Natur &amp; Waren syncen</button><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span>
 								</div>
 								<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Braucht einen zuvor geholten Dump: „Dump holen“ füllt das Staging, dieser Knopf übernimmt es scharf in die Lore-Tabellen.</p>
+								<div class="wiki-sync-panel__tabs">
+									<button class="wiki-sync-panel__tab is-active" type="button" data-lore-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-count="fauna"></span></button>
+									<button class="wiki-sync-panel__tab" type="button" data-lore-kind="flora">Flora <span class="wiki-sync-panel__tab-count" data-lore-count="flora"></span></button>
+									<button class="wiki-sync-panel__tab" type="button" data-lore-kind="ware">Waren <span class="wiki-sync-panel__tab-count" data-lore-count="ware"></span></button>
+									<button class="wiki-sync-panel__tab" type="button" data-lore-kind="spezies">Spezies <span class="wiki-sync-panel__tab-count" data-lore-count="spezies"></span></button>
+								</div>
+								<div class="wiki-sync-adv-picker">
+									<div class="wiki-sync-adv-picker__top">
+										<input type="search" id="lore-list-search" class="wiki-sync-adv-picker__search" placeholder="Name oder Art suchen …" autocomplete="off">
+										<span class="wiki-sync-panel__summary" id="lore-list-count"></span>
+									</div>
+									<div class="wiki-sync-adv-picker__scroll" id="lore-list-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+									<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Klick auf einen Eintrag öffnet den Wiki-Artikel. Die Zahlen zeigen zugeordnete Orte und Quellen.</p>
+								</div>
 							</div>
 							<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="citymaps">
 							<div class="wiki-sync-panel__actions">

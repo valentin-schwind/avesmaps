@@ -323,6 +323,11 @@ $(document).on("click", "[data-material-subtab]", function () {
     if (sub === "citymaps" && typeof window.loadWikiSyncCitymapList === "function") {
         void window.loadWikiSyncCitymapList(false);
     }
+    // Natur & Waren: dieselbe Lazy-Regel -- der Katalog wird erst beim ersten Öffnen
+    // geholt, nicht schon beim Laden der Karte.
+    if (sub === "lore" && typeof window.loadLoreList === "function") {
+        window.loadLoreList();
+    }
 });
 $("#wiki-sync-filter").on("input search", function () {
     setWikiSyncFilterQuery(this.value || "");

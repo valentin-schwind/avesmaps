@@ -1606,6 +1606,122 @@ async function startWikiSyncLoreSync() {
 	}
 }
 
+// ===========================================================================
+// Liste im Reiter „Natur & Waren": Fauna / Flora / Waren / Spezies, durchsuchbar.
+// Liest api/app/lore.php?catalog=1 -- den öffentlichen Lesepfad, nicht den
+// Editor-Endpoint: die Liste zeigt nur Bestand. Bearbeiten kommt in einem eigenen
+// Schritt dazu, dann mit capability-Gate.
+// ===========================================================================
+
+var avesmapsLoreListKind = "fauna";
+var avesmapsLoreListTimer = null;
+var avesmapsLoreListToken = 0;
+
+function avesmapsLoreListEscape(value) {
+	return String(value == null ? "" : value)
+		.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// Wiki-Markup einer Art („[[Laubbaum]]") auf reinen Text reduzieren -- in der Liste
+// soll die Art lesbar sein, nicht klickbar; Klicks gehören dem Eintrag selbst.
+function avesmapsLoreListPlain(value) {
+	return String(value == null ? "" : value).replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, function (all, target, label) {
+		return (label || target || "").trim();
+	}).trim();
+}
+
+function renderLoreList(data) {
+	var scroll = document.getElementById("lore-list-scroll");
+	var counter = document.getElementById("lore-list-count");
+	if (!scroll) {
+		return;
+	}
+	var items = (data && data.items) || [];
+	if (counter) {
+		counter.textContent = data ? (items.length + " von " + data.total) : "";
+	}
+	if (items.length === 0) {
+		scroll.innerHTML = '<p class="wiki-sync-panel__summary">'
+			+ (data && data.total === 0 && !data.q
+				? "Noch keine Einträge – bitte einmal „Natur &amp; Waren syncen“."
+				: "Kein Treffer.")
+			+ "</p>";
+		return;
+	}
+	scroll.innerHTML = items.map(function (item) {
+		var meta = avesmapsLoreListPlain(item.typ || item.gruppe || "");
+		var href = String(item.wiki_url || "");
+		var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
+		var name = avesmapsLoreListEscape(item.name);
+		return '<div class="wikisync-item">'
+			+ '<div class="wikisync-item__main">'
+			+ (safe
+				? '<a class="wikisync-item__title" href="' + avesmapsLoreListEscape(safe) + '" target="_blank" rel="noopener">' + name + " ↗</a>"
+				: '<span class="wikisync-item__title">' + name + "</span>")
+			+ (meta ? ' <span class="wikisync-item__sub">' + avesmapsLoreListEscape(meta) + "</span>" : "")
+			+ "</div>"
+			+ '<div class="wikisync-item__meta">' + item.place_count + " Orte · " + item.source_count + " Quellen"
+			+ (item.origin && item.origin !== "wiki" ? " · " + avesmapsLoreListEscape(item.origin) : "")
+			+ "</div>"
+			+ "</div>";
+	}).join("");
+}
+
+function loadLoreList() {
+	var scroll = document.getElementById("lore-list-scroll");
+	if (!scroll) {
+		return;
+	}
+	var input = document.getElementById("lore-list-search");
+	var query = input ? input.value.trim() : "";
+	// Staleness-Token: eine langsame Antwort auf einen alten Suchbegriff darf die
+	// aktuelle Liste nicht überschreiben.
+	var token = ++avesmapsLoreListToken;
+	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(avesmapsLoreListKind)
+		+ "&q=" + encodeURIComponent(query) + "&limit=200";
+	fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
+		.then(function (r) { return r.ok ? r.json() : null; })
+		.then(function (data) {
+			if (token !== avesmapsLoreListToken) {
+				return;
+			}
+			renderLoreList(data && data.ok ? data : null);
+			var chip = document.querySelector('[data-lore-count="' + avesmapsLoreListKind + '"]');
+			if (chip && data && data.ok && !query) {
+				chip.textContent = "(" + data.total + ")";
+			}
+		})
+		.catch(function () {
+			if (token === avesmapsLoreListToken) {
+				scroll.innerHTML = '<p class="wiki-sync-panel__summary">Liste konnte nicht geladen werden.</p>';
+			}
+		});
+}
+
+if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
+	document.__avesmapsLoreListBound = true;
+	document.addEventListener("click", function (event) {
+		var tab = event.target && event.target.closest ? event.target.closest("[data-lore-kind]") : null;
+		if (!tab) {
+			return;
+		}
+		avesmapsLoreListKind = tab.getAttribute("data-lore-kind") || "fauna";
+		document.querySelectorAll("[data-lore-kind]").forEach(function (other) {
+			other.classList.toggle("is-active", other === tab);
+		});
+		loadLoreList();
+	});
+	document.addEventListener("input", function (event) {
+		if (!event.target || event.target.id !== "lore-list-search") {
+			return;
+		}
+		// Entprellt: sonst eine Abfrage je Tastendruck.
+		window.clearTimeout(avesmapsLoreListTimer);
+		avesmapsLoreListTimer = window.setTimeout(loadLoreList, 250);
+	});
+}
+
 // --- Inline credential prompt (O1) -------------------------------------------
 // Copies the #wiki-sync-resolve-overlay dialog pattern. Resolves to true once the
 // credentials are stored server-side (set_dump_credentials), false if cancelled.
