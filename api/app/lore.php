@@ -39,6 +39,51 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
+    // Diagnose: zeigt, wie ein Ortsschlüssel expandiert wird und woran die beiden
+    // Hierarchietabellen gerade stehen. Read-only, keine Geheimnisse -- aber die
+    // einzige Möglichkeit, eine leere Aggregation von einer kaputten zu unterscheiden,
+    // ohne DB-Zugang.
+    if (isset($_GET['expand'])) {
+        $probe = mb_strtolower(trim((string) $_GET['expand']), 'UTF-8');
+        $counts = ['wiki_territory_model' => -1, 'political_territory_wiki_geographic' => -1, 'lore_place_distinct' => -1];
+        try {
+            $counts['wiki_territory_model'] = (int) $pdo->query('SELECT COUNT(*) FROM wiki_territory_model')->fetchColumn();
+        } catch (Throwable) {
+        }
+        try {
+            $counts['political_territory_wiki_geographic'] = (int) $pdo->query(
+                'SELECT COUNT(*) FROM political_territory_wiki WHERE geographic IS NOT NULL AND geographic <> \'\''
+            )->fetchColumn();
+        } catch (Throwable) {
+        }
+        try {
+            $counts['lore_place_distinct'] = (int) $pdo->query('SELECT COUNT(DISTINCT place_wiki_key) FROM lore_place')->fetchColumn();
+        } catch (Throwable) {
+        }
+        $samples = [];
+        try {
+            $samples['territory_model'] = $pdo->query('SELECT wiki_key, parent_wiki_key FROM wiki_territory_model LIMIT 3')
+                ->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable) {
+        }
+        try {
+            $samples['geographic'] = $pdo->query(
+                'SELECT wiki_key, geographic FROM political_territory_wiki
+                 WHERE geographic IS NOT NULL AND geographic <> \'\' LIMIT 3'
+            )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable) {
+        }
+        $expanded = $probe !== '' ? avesmapsLoreExpandPlaceKeys($pdo, $probe) : [];
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'probe' => $probe,
+            'expanded_count' => count($expanded),
+            'expanded_sample' => array_slice($expanded, 0, 25, true),
+            'table_counts' => $counts,
+            'samples' => $samples,
+        ]);
+    }
+
     if (isset($_GET['stats'])) {
         avesmapsJsonResponse(200, ['ok' => true, 'stats' => avesmapsLoreReadStats($pdo)]);
     }
