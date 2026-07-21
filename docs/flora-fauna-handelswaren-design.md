@@ -166,16 +166,31 @@ Achse A kommt hinzu.
 `parent_wiki_key`** (aus `wiki_territory_model`), **niemals über
 `affiliation_path`**. Das ist im Projekt bereits mehrfach schiefgegangen.
 
-### Tiefe: nicht alles einsammeln, sondern nach Ebene gruppieren
+### Drei Sammelrichtungen
 
-Läuft die Kette ungebremst hoch, erbt Trallop irgendwann alles vom Mittelreich —
-und über die Regionsachse alles von `[[Aventurien]]` (1.166 Einträge). Deshalb:
+Ein Ort zeigt nicht nur, was direkt an ihm hängt. Werden Schilde in der
+**Baronie Moosgrund** gehandelt, gehören sie in Weidens Liste — Moosgrund liegt
+in Weiden.
 
-- **Kontinente werden verworfen** (`Aventurien`, `Myranor`, `Uthuria`,
-  `Rakshazar`) — `place_kind='kontinent'`.
-- Die Ergebnisse werden **nach Ebene gruppiert** ausgegeben, nie zu einer Liste
-  vermengt: „in Weiden" zuerst, „im Herzogtum Weiden" und „in Mittelaventurien"
-  darunter, eingeklappt. So bleibt sichtbar, wie spezifisch eine Angabe ist.
+| Richtung | für Weiden heißt das | Rang |
+|---|---|---|
+| **direkt** | Einträge mit `place=Weiden` | 1 |
+| **abwärts** (Subtree) | alles aus Baronie Moosgrund, Grafschaft Heldentrutz, … | 2 |
+| **aufwärts** (Ancestors) | Herzogtum Weiden, Mittelaventurien, Mittelreich | 3 |
+| **kontinentweit** | `[[Aventurien]]` — gilt überall, sagt über Weiden nichts | 4 |
+
+Die Abwärtsrichtung ist die eigentlich interessante und im Projekt bereits
+gelöst: `adventure-resolve.php` liefert je Ort den **ancestor_path**, und der
+Client aggregiert damit den Subtree (ein Eintrag gehört zu Weiden, wenn Weiden in
+seinem Pfad steht). Dasselbe Verfahren, keine neue Mechanik.
+
+⚠️ **Kontinente werden NICHT verworfen, sondern niedrig gerankt.** Wirselkraut
+steht als `ganz [[Aventurien]]` und wächst damit tatsächlich auch in Weiden —
+wegzuwerfen wäre schlicht falsch. Es darf die Liste nur nicht anführen.
+
+Das Ranking ist damit die einzige Begrenzung, die es braucht: **je spezifischer,
+desto weiter oben.** Die ersten zehn Einträge sind dann automatisch die
+aussagekräftigen, nicht die 1.166 aventurienweiten.
 
 **Zusatzquelle:** `Infobox Staat` trägt ein eigenes Feld
 `|Handelswaren=[[Schaf]]s[[wolle]], [[Salz]]`. Das ist präziser als die generische
@@ -187,24 +202,34 @@ macht daraus „Schaf" und „wolle".
 
 ## 5. Anzeige (Infopanel)
 
-Drei Sektionen, nur wenn nicht leer, jeder Eintrag mit Wiki-Link und `↗`:
+Drei Sektionen, jede nur wenn nicht leer, jeder Eintrag mit Wiki-Link und `↗`.
+**Höchstens 10 Einträge je Sektion**, nach dem Ranking aus §4 sortiert; der Rest
+hängt hinter „alle anzeigen" in einem Dialog:
 
 ```
 Pflanzen in Weiden
-  Wirselkraut · Roggen · Tanne …
+  Wirselkraut · Roggen · Tanne · Espe · Schratmoos …        (10)
+  alle 47 anzeigen →
 
 Tiere in Weiden
-  Kronenhirsch · Griswolf · Silberlöwe …
+  Kronenhirsch · Griswolf · Silberlöwe · Grubenwurm …       (10)
+  alle 63 anzeigen →
 
 Handelswaren in Weiden
-  Schwere Armbrust · Salz …
+  Schwere Armbrust · Salz · Schafswolle …                   (10)
+  alle 41 anzeigen →
 ```
 
+Der **Dialog** zeigt die vollständige Liste mit Details — Gruppe/Art, Lebensraum,
+Merkmale, Quellen mit Seitenzahl — und nach Herkunftsebene gruppiert („in
+Weiden" / „in der Baronie Moosgrund" / „aventurienweit"), damit erkennbar bleibt,
+wie spezifisch eine Angabe ist. Aufbau wie der Abenteuer-Dialog
+(`adventure-dialog-list`), inklusive dessen Lehre: Handler beim Öffnen **nicht
+stapeln**, und ein leerer Dialog darf keine 0×0-Pane erzeugen.
+
 Regeln: Design-Sprache aus `docs/design-language.md` (Trenner statt Kästen,
-`--color-link`, kein Blau). Bei sehr langen Listen einklappen. Quellen als
-Fußnote wie im Mehrquellen-System. Einträge der **Oberregion** (Mittelaventurien
-→ Weiden) getrennt ausweisen, nie untermischen — sonst erbt über
-`Aventurien` jede Region alles.
+`--color-link`, kein Blau, externe Links mit `↗`). Quellen als Fußnote wie im
+Mehrquellen-System.
 
 ---
 
