@@ -41,7 +41,15 @@ var AVESMAPS_LORE_DEFAULT_ENABLED = true;
 
 var AVESMAPS_LORE_ENABLED = (function () {
 	try {
-		var fromUrl = new URLSearchParams(window.location.search).get("lore");
+		// 💣 avesmapsSearchParams(), NICHT new URLSearchParams(): die App parst URLs
+		// TOLERANT -- ein zweites „?" gilt wie „&" (url-tolerant-parsing). Bei
+		// „?siedlung=Punin?lore=1" liest der Standard-Parser den Schalter GAR NICHT,
+		// und dann sieht es aus, als würde das Feature bei gesetztem Parameter
+		// aussetzen. Fallback nur, falls die Hilfe noch nicht geladen ist.
+		var params = typeof window.avesmapsSearchParams === "function"
+			? window.avesmapsSearchParams()
+			: new URLSearchParams(window.location.search);
+		var fromUrl = params.get("lore");
 		if (fromUrl === "1" || fromUrl === "0") {
 			return fromUrl === "1";
 		}
