@@ -108,6 +108,26 @@
 	cursor: default;
 }
 
+/* ---- Verkehrswege: Namen, die zur Straße auf der Karte springen ----
+   Ein <button>, weil es keine Navigation ist, sondern eine Aktion auf der Karte.
+   Sieht aber aus wie ein Link, denn genau so wird es gelesen -- kein ↗, das steht
+   für „verlässt die Seite". */
+
+.avesmaps-traffic-link {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--color-link);
+	font: inherit;
+	cursor: pointer;
+	text-align: left;
+}
+
+.avesmaps-traffic-link:hover {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+}
+
 /* ---- „+N"-Dialog: die vollständige Liste, nach Spezifität gruppiert ---- */
 
 .avesmaps-lore-dialog {

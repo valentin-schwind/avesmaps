@@ -304,7 +304,17 @@ function settlementWikiInfoboxMarkup(location, sourceMarkup = "", opts) {
 	// Wieder aufgenommen (Owner) -- in ce8e796f "entschlackt", aber projektweit haeufig befuellt
 	// (Handelszone 62%, Verkehrswege 58%); die Daten reisen ohnehin im Payload mit.
 	rows += row(tr("popup.fieldTradeZone", "Handelszone"), wiki.handelszone);
-	rows += row(tr("popup.fieldTrafficRoutes", "Verkehrswege"), wiki.verkehrswege);
+	// Verkehrswege anklickbar: die Namen werden gegen die geladenen Wege aufgelöst, ein
+	// Klick springt zur Straße auf der Karte. Nicht über row(), weil das den Wert
+	// escaped -- avesmapsTrafficRoutesMarkup escaped selbst und liefert fertiges HTML.
+	// Ohne die Datei (typeof-Guard) bleibt es die alte Textzeile.
+	if (typeof avesmapsTrafficRoutesMarkup === "function" && String(wiki.verkehrswege || "").trim() !== "") {
+		rows += '<div class="region-info-box__row"><dt>'
+			+ escapeHtml(tr("popup.fieldTrafficRoutes", "Verkehrswege")) + "</dt><dd>"
+			+ avesmapsTrafficRoutesMarkup(wiki.verkehrswege) + "</dd></div>";
+	} else {
+		rows += row(tr("popup.fieldTrafficRoutes", "Verkehrswege"), wiki.verkehrswege);
+	}
 	rows += row(tr("popup.fieldPopulation", "Bevölkerung"), wiki.bevoelkerung);
 	rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
 	// Waren / Fauna / Flora / Spezies als eigene Zeilen (Owner). Der Container kommt
