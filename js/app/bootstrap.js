@@ -344,7 +344,13 @@ $("#wiki-sync-territory-time-today").on("change", function () {
 $("#wiki-sync-territory-flaechenland").on("change", function () {
     void renderWikiSyncTerritoryTree();
 });
-$("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
+// Auf `document`, NICHT auf einen Container. Die WikiSync-Faelle wurden ins Konfliktfenster
+// verlegt; ihr alter Wirt #wiki-sync-case-list ist seitdem ein verstecktes Ankerelement, und weil
+// die Delegation daran hing, war JEDER Knopf JEDER eingegliederten Fallart tot -- gezeichnet,
+// anklickbar, ohne Wirkung. Aufgefallen ist es dem Owner an "Anzeigen"/"Position waehlen"
+// (2026-07-21); betroffen waren alle zwoelf Fallarten. Ein Container-Wirt macht die Bindung von
+// der DOM-Lage abhaengig, und die aendert sich wieder -- der Selektor ist eindeutig genug.
+$(document).on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 $("#wiki-sync-conflicts-open").on("click", () => setWikiSyncConflictsDialogOpen(true));
 $("#conflict-rescan").on("click", () => loadConflicts({ rescan: true }));
 $("#conflict-minimize").on("click", () => setConflictDialogMinimized(!conflictMinimized));

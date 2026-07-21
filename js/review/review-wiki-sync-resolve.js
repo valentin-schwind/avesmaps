@@ -15,6 +15,16 @@ async function handleWikiSyncCaseActionClick(event) {
 	const selectedMap = findWikiSyncMapInCase(caseEntry, buttonElement.dataset.publicId || "");
 	const selectedWiki = findWikiSyncCandidateInCase(caseEntry, buttonElement.dataset.candidateIndex);
 
+	// Alles, was auf die KARTE zeigt, muss das Konfliktfenster aus dem Weg raeumen: es liegt als
+	// Vollbild-Schleier darueber und schluckt jeden Mausklick. Sonst springt die Karte zwar
+	// korrekt, man sieht es nur nicht -- und "Position waehlen" wartet auf einen Klick, der
+	// niemals ankommt. Minimieren statt Schliessen, damit der Fall in Reichweite bleibt.
+	if (action === "focus" || action === "pick-position" || action === "drift-focus") {
+		if (typeof setConflictDialogMinimized === "function") {
+			setConflictDialogMinimized(true);
+		}
+	}
+
 	if (action === "focus") {
 		focusWikiSyncCase(caseEntry, { mapPlace: selectedMap });
 		return;

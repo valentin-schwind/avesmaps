@@ -105,27 +105,30 @@ async function assignCapitalForTerritory(territoryPublicId, placePublicId) {
 	}
 }
 
-// Delegated assign UI on the WikiSync case list. The missing_capital case bodies render the .capital-list__*
-// controls; the list element itself persists across re-renders (innerHTML reset keeps it), so one delegation
-// is enough. Click = assign (suggestion or search hit); input = run the free search.
+// Delegated assign UI for the missing_capital case bodies, which render the .capital-list__* controls.
+// Click = assign (suggestion or search hit); input = run the free search.
+//
+// Auf `document` delegiert, aus demselben Grund wie die Fall-Knoepfe in bootstrap.js: die Faelle
+// sind ins Konfliktfenster gewandert, der frueher hier verwendete Wirt #wiki-sync-case-list ist nur
+// noch ein verstecktes Ankerelement -- daran gebunden war "Hauptstadt zuweisen" samt Ortssuche
+// wirkungslos. Ein Dokument-Delegat ueberlebt den naechsten Umzug.
 (function wireCapitalCaseAssignControls() {
-	const list = document.getElementById("wiki-sync-case-list");
-	if (!list) {
-		return;
-	}
+	const list = document;
+	// Am Dokument kann das Ziel auch ein Nicht-Element sein; .closest() gaebe es dort nicht.
+	const target = (event) => (event.target instanceof Element ? event.target : null);
 	list.addEventListener("click", (event) => {
-		const suggest = event.target.closest(".capital-list__suggest");
+		const suggest = target(event)?.closest(".capital-list__suggest");
 		if (suggest) {
 			void assignCapitalForTerritory(suggest.dataset.territory, suggest.dataset.place);
 			return;
 		}
-		const result = event.target.closest(".capital-list__search-result");
+		const result = target(event)?.closest(".capital-list__search-result");
 		if (result) {
 			void assignCapitalForTerritory(result.dataset.territory, result.dataset.place);
 		}
 	});
 	list.addEventListener("input", (event) => {
-		const input = event.target.closest(".capital-list__search-input");
+		const input = target(event)?.closest(".capital-list__search-input");
 		if (!input) {
 			return;
 		}

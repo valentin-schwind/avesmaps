@@ -655,7 +655,7 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 
 	if (caseEntry.case_type === "missing_wiki_without_coordinates" && caseEntry.status === "open" && isWikiSyncCreateLocationSelectionActive && wikiSyncCreateLocationContextLatLng) {
 		actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "wiki-sync-case__action--primary"));
-	} else if (caseEntry.case_type !== "missing_wiki_with_coordinates" && caseEntry.case_type !== "missing_capital") {
+	} else if (!WIKI_SYNC_CASE_TYPES_WITHOUT_FOCUS.has(caseEntry.case_type)) {
 		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "wiki-sync-case__action--primary"));
 	}
 
@@ -675,8 +675,22 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 // which is delegated on #wiki-sync-case-list in review-capitals-list.js.
 function appendMissingCapitalCaseBody(bodyElement, caseEntry) {
 	const payload = caseEntry.payload || {};
-	appendWikiSyncInfoRow(bodyElement, "Gebiet", `${payload.name || "-"}${payload.type ? ` (${payload.type})` : ""}`);
-	appendWikiSyncInfoRow(bodyElement, "Wiki-Hauptstadt", payload.capital_name || "-");
+	// Beide Namen verlinken, wo eine ECHTE URL vorliegt (Owner 2026-07-21) -- so kann man den Fall im
+	// Wiki nachlesen, statt zwei Mal selbst zu suchen. Das Gebiet bringt seine gespeicherte URL mit,
+	// die Hauptstadt nur, wenn es unter genau dem Namen einen Artikel gibt; sonst bleibt sie Text.
+	// Bewusst NICHT aus dem Namen gebaut: capital_name ist Infobox-Freitext und enthaelt auch Prosa
+	// ("wohl Alstfurt"), eine geratene URL waere Discord #38 an neuer Stelle.
+	const territoryLabel = `${payload.name || "-"}${payload.type ? ` (${payload.type})` : ""}`;
+	if (payload.wiki_url) {
+		appendWikiSyncLinkRow(bodyElement, "Gebiet", territoryLabel, payload.wiki_url);
+	} else {
+		appendWikiSyncInfoRow(bodyElement, "Gebiet", territoryLabel);
+	}
+	if (payload.capital_wiki_url) {
+		appendWikiSyncLinkRow(bodyElement, "Wiki-Hauptstadt", payload.capital_name || "-", payload.capital_wiki_url);
+	} else {
+		appendWikiSyncInfoRow(bodyElement, "Wiki-Hauptstadt", payload.capital_name || "-");
+	}
 
 	if (caseEntry.status === "open" && typeof renderCapitalAssignControls === "function") {
 		const controls = document.createElement("div");
@@ -785,6 +799,17 @@ function createWikiSyncActionButton(action, label, className) {
 	buttonElement.textContent = label;
 	return buttonElement;
 }
+
+// Fallarten, bei denen "Anzeigen" nichts zu zeigen HAT -- kein Knopf ist ehrlicher als einer, der
+// nur eine Warnmeldung auswirft. Bei allen dreien beschreibt der Fall etwas, das auf der Karte gar
+// nicht existiert: die beiden missing_wiki_* sind Wiki-Orte OHNE Kartenobjekt (ohne Koordinaten
+// gibt es nicht einmal eine vorgeschlagene Stelle, locations.php:543), missing_capital ist ein
+// Territorium ohne verknuepften Hauptstadt-Ort. Owner 2026-07-21: "anzeigen ... geht nicht".
+const WIKI_SYNC_CASE_TYPES_WITHOUT_FOCUS = new Set([
+	"missing_wiki_with_coordinates",
+	"missing_wiki_without_coordinates",
+	"missing_capital",
+]);
 
 function appendWikiSyncInfoRow(bodyElement, label, value) {
 	const rowElement = document.createElement("p");

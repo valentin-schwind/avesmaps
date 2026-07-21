@@ -210,6 +210,41 @@ function avesmapsPoliticalListCapitalCases(PDO $pdo, array $query): array {
     return ['ok' => true, 'cases' => $cases];
 }
 
+/**
+ * Exact wiki page titles (case-folded) -> URL, for turning a capital NAME into a real link.
+ *
+ * Nur nachgeschlagen, nie gebaut. Aus "Südwall" liesse sich muehelos eine URL basteln, und fuer die
+ * meisten Hauptstaedte waere sie sogar richtig -- aber `capital_name` ist ein Infobox-Freitext und
+ * enthaelt auch Prosa ("wohl Alstfurt") oder "keine". Eine geratene URL ist genau der Fehler aus
+ * Discord #38, nur an einer anderen Stelle: sie sieht aus wie eine Feststellung und ist geraten.
+ * Kein Treffer in der Tabelle => kein Link, der Name bleibt einfach Text.
+ *
+ * @return array<string, string>
+ */
+function avesmapsPoliticalLoadWikiPageUrls(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            "SELECT title, wiki_url FROM wiki_sync_pages
+             WHERE title IS NOT NULL AND title <> '' AND wiki_url IS NOT NULL AND wiki_url <> ''"
+        );
+    } catch (Throwable $exception) {
+        return []; // noch kein Dump gelesen -- dann gibt es hier eben keine Links
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $index = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $title = trim((string) $row['title']);
+        if ($title !== '') {
+            $index[mb_strtolower($title, 'UTF-8')] = (string) $row['wiki_url'];
+        }
+    }
+
+    return $index;
+}
+
 // Core compute shared by both surfaces above. continent='' returns all continents (the cases view is unfiltered;
 // the legacy list passes its continent filter).
 function avesmapsPoliticalComputeMissingCapitalRows(PDO $pdo, string $continent = ''): array {
@@ -228,7 +263,8 @@ function avesmapsPoliticalComputeMissingCapitalRows(PDO $pdo, string $continent 
 
     $statement = $pdo->prepare(
         'SELECT territory.public_id, territory.name, territory.type, territory.continent,
-                wiki.capital_name AS wiki_capital_name
+                wiki.capital_name AS wiki_capital_name,
+                COALESCE(NULLIF(territory.wiki_url, \'\'), wiki.wiki_url) AS wiki_url
         FROM political_territory territory
         LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
         WHERE ' . implode(' AND ', $conditions) . '
@@ -236,6 +272,9 @@ function avesmapsPoliticalComputeMissingCapitalRows(PDO $pdo, string $continent 
     );
     $statement->execute($params);
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    // Einmal fuer den ganzen Lauf, nicht je Gebiet -- sonst waeren das ein paar hundert Abfragen.
+    $wikiPageUrls = avesmapsPoliticalLoadWikiPageUrls($pdo);
 
     // Index all active locations by normalized name once (~2400 rows). Ambiguous names map to several entries.
     $byNorm = [];
@@ -284,6 +323,13 @@ function avesmapsPoliticalComputeMissingCapitalRows(PDO $pdo, string $continent 
             'type' => (string) ($row['type'] ?? ''),
             'continent' => (string) ($row['continent'] ?? ''),
             'capital_name' => $capitalName,
+            // Beide Links, damit ein Editor den Fall im Wiki nachlesen kann, ohne selbst zu suchen.
+            // Das Gebiet bringt seine eigene, gespeicherte URL mit; die Hauptstadt nur dann, wenn es
+            // unter genau diesem Namen wirklich einen Artikel gibt (siehe Nachschlagewerk oben).
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'capital_wiki_url' => $capitalName !== ''
+                ? ($wikiPageUrls[mb_strtolower($capitalName, 'UTF-8')] ?? '')
+                : '',
             'suggestions' => array_slice($suggestions, 0, 8),
         ];
     }
