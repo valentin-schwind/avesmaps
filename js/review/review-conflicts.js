@@ -52,7 +52,18 @@ let conflictMinimized = false;
 
 function setConflictDialogMinimized(isMinimized) {
 	conflictMinimized = isMinimized;
-	document.getElementById("wiki-sync-conflicts-overlay")?.classList.toggle("is-minimized", isMinimized);
+	const overlay = document.getElementById("wiki-sync-conflicts-overlay");
+	overlay?.classList.toggle("is-minimized", isMinimized);
+	// Verkleinert sitzt das Fenster oben mittig -- unten rechts verschwand es hinter dem
+	// Editor-/Infopanel (Owner 2026-07-21). Der Abstand nach oben richtet sich nach dem Zeitstrahl,
+	// der dort ebenfalls sitzt, aber meistens versteckt ist: gemessen statt geraten, sonst klebt das
+	// Fenster entweder darunter fest oder ueberdeckt ihn, je nach Modus.
+	if (overlay && isMinimized) {
+		const timeline = document.getElementById("political-timeline");
+		const box = timeline && !timeline.hidden ? timeline.getBoundingClientRect() : null;
+		const top = box && box.height > 0 ? Math.round(box.bottom) + 10 : 12;
+		overlay.style.setProperty("--conflict-min-top", `${top}px`);
+	}
 	const button = document.getElementById("conflict-minimize");
 	if (button) {
 		button.textContent = isMinimized ? "▢" : "–";

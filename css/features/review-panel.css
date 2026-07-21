@@ -1549,12 +1549,17 @@
 /* Verkleinert: nur die Kopfzeile bleibt, unten rechts. Entscheidend ist pointer-events -- ohne das
    liegt die unsichtbare Overlay-Flaeche weiter ueber der Karte und schluckt jeden Klick, womit das
    Verkleinern genau nichts brächte. Das Fenster selbst faengt seine Klicks wieder ein. */
+/* Verkleinert: oben mittig, unter dem Zeitstrahl. Vorher unten rechts -- dort liegt das
+   Editor-/Infopanel darueber und das Fenster war schlicht weg (Owner 2026-07-21). Der obere Abstand
+   kommt aus --conflict-min-top, das beim Verkleinern am tatsaechlichen Zeitstrahl gemessen wird;
+   der ist je nach Kartenmodus da oder nicht, eine feste Zahl waere in einem der beiden Faelle
+   falsch. */
 #wiki-sync-conflicts-overlay.is-minimized {
 	pointer-events: none;
 	background: none;
-	align-items: flex-end;
-	justify-content: flex-end;
-	padding: 16px;
+	align-items: flex-start;
+	justify-content: center;
+	padding: var(--conflict-min-top, 12px) 16px 16px;
 }
 #wiki-sync-conflicts-overlay.is-minimized .wiki-sync-conflicts-dialog {
 	pointer-events: auto;
