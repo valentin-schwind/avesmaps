@@ -1581,6 +1581,10 @@ async function startWikiSyncLoreSync() {
 		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · Quellen +${t.sourcesAdded})`;
 		setWikiSyncStatus(`Natur & Waren übernommen.${note}`, "success");
 		showFeedbackToast(`Natur & Waren übernommen.${note}`, "success");
+		// Liste UND „zuletzt gesynct" nachziehen. Ohne das zeigt der Reiter direkt nach
+		// einem erfolgreichen Sync noch den alten Stempel und die alten Zahlen -- was
+		// wie ein fehlgeschlagener Lauf aussieht, obwohl gerade alles geklappt hat.
+		loadLoreList();
 	} catch (error) {
 		// IMMER sichtbar melden, auch bei dumpLocked. Die erste Fassung schwieg in
 		// genau dem Fall, weil der Loop ja schon setWikiSyncStatus() gesetzt hatte --
@@ -1696,11 +1700,34 @@ function renderLoreList(data) {
 		return '<button type="button" class="wiki-sync-adv-picker__row" data-lore-entry="'
 			+ avesmapsLoreListEscape(item.wiki_key) + '"'
 			+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
-			+ ' title="' + avesmapsLoreListEscape(item.name + (safe ? " – Doppelklick öffnet den Wiki-Artikel" : "")) + '">'
+			+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '">'
 			+ '<span class="wiki-sync-adv-picker__title">' + avesmapsLoreListEscape(item.name) + "</span>"
 			+ '<span class="wiki-sync-adv-picker__meta">' + avesmapsLoreListEscape(meta) + "</span>"
 			+ "</button>";
 	}).join("");
+}
+
+/**
+ * „Zuletzt gesynct: …" neben den Knopf schreiben -- wie bei Abenteuern und
+ * Kartensammlung. Ohne die Zeile sieht ein leerer Reiter aus wie ein Fehler, statt
+ * wie „noch nie gesynct", und niemand weiß, ob der Bestand von heute oder von
+ * letzter Woche stammt. Der Zeitstempel kommt UTC aus app_setting und wird lokal
+ * angezeigt; ein unlesbarer Wert wird roh durchgereicht statt zu „Invalid Date".
+ */
+function renderLoreLastSynced(data) {
+	var syncedEl = document.getElementById("wiki-sync-lore-synced");
+	if (!syncedEl || !data || !data.ok) {
+		return;
+	}
+	var stamp = typeof data.last_synced === "string" ? data.last_synced.trim() : "";
+	if (stamp) {
+		var parsed = new Date(stamp.replace(" ", "T") + "Z");
+		syncedEl.textContent = "Zuletzt gesynct: "
+			+ (isNaN(parsed.getTime()) ? stamp : parsed.toLocaleString("de-DE"));
+	} else {
+		syncedEl.textContent = "Noch nie gesynct";
+	}
+	syncedEl.hidden = false;
 }
 
 function loadLoreList() {
@@ -1722,6 +1749,7 @@ function loadLoreList() {
 				return;
 			}
 			renderLoreList(data && data.ok ? data : null);
+			renderLoreLastSynced(data);
 			// ALLE Reiterzahlen setzen, nicht nur die des geladenen: sonst bleiben die
 			// übrigen leer, bis man sie einzeln anklickt. Die Zahlen zeigen den
 			// Gesamtbestand und bleiben deshalb auch während einer Suche stehen.

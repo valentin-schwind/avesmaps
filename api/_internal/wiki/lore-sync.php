@@ -26,6 +26,11 @@ declare(strict_types=1);
 // -- dieselbe Konvention wie regions.php.
 
 require_once __DIR__ . '/lore-parsing.php';
+// avesmapsAppSettingGet/-Set für den „zuletzt gesynct"-Zeitstempel. EXPLIZIT hier und
+// nicht auf einen function_exists-Zufall verlassen: der Sync-Endpoint (edit/wiki/dump.php)
+// lädt app-setting.php sonst nirgends, und ein Guard ohne require hätte den Stempel
+// still verschluckt -- der Reiter bliebe für immer bei „Noch nie gesynct".
+require_once __DIR__ . '/../app/app-setting.php';
 
 // ===========================================================================
 // 0. Konstanten
@@ -462,6 +467,30 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
 /** Wie viele Katalogzeilen ein Reconcile-Schritt hoechstens anfasst. */
 const AVESMAPS_LORE_RECONCILE_BATCH = 150;
 
+/**
+ * app_setting-Schluessel mit dem Zeitpunkt des letzten VOLLSTAENDIGEN sync_lore.
+ * Eine einzelne Einstellungszeile statt einer Spalte je Eintrag -- dasselbe Vorgehen
+ * wie bei der Kartensammlung: ein Zeitstempel je Zeile muesste bei JEDEM Lauf auf ALLE
+ * 5.104 Zeilen geschrieben werden, nur um eine Frage zu beantworten, und ein
+ * wiederholter Sync waere kein echtes No-op mehr.
+ */
+const AVESMAPS_LORE_LAST_SYNCED_SETTING = 'lore_last_synced';
+
+/** Wann sync_lore zuletzt DURCHGELAUFEN ist, oder null. */
+function avesmapsLoreLastSynced(PDO $pdo): ?string
+{
+    if (!function_exists('avesmapsAppSettingGet')) {
+        return null;
+    }
+    try {
+        $value = trim(avesmapsAppSettingGet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, ''));
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value === '' ? null : $value;
+}
+
 /** Anzahl Staging-Katalogzeilen -- Nenner fuer die Fortschrittsanzeige. 0 wenn es die Tabelle noch nicht gibt. */
 function avesmapsLoreCountStaging(PDO $pdo): int
 {
@@ -708,6 +737,16 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
             $stats['entries_retired'] = (int) $pdo->query($countSql)->fetchColumn();
         } else {
             $stats['entries_retired'] = (int) $pdo->exec($retireSql);
+            // Erst JETZT stempeln: nach dem letzten Schritt und nur auf dem scharfen
+            // Pfad. Ein Zeitstempel nach einem Probelauf oder mitten im Durchlauf waere
+            // eine stille Luege -- der Editor liest ihn als „Bestand ist aktuell".
+            if (function_exists('avesmapsAppSettingSet')) {
+                try {
+                    avesmapsAppSettingSet($pdo, AVESMAPS_LORE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+                } catch (Throwable) {
+                    // Einstellungstabelle fehlt -> ohne Zeitstempel weiter, kein Abbruch.
+                }
+            }
         }
     }
 

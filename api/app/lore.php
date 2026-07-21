@@ -19,6 +19,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/app/lore.php';
+// avesmapsAppSettingGet für den „zuletzt gesynct"-Zeitstempel.
+require_once __DIR__ . '/../_internal/app/app-setting.php';
 // avesmapsPoliticalSlug für die Ortsschlüssel der Regionsbrücke (geographic-Feld).
 require_once __DIR__ . '/../_internal/political/territory.php';
 // avesmapsWikiSyncCreateMatchKey für die Warenauflösung. NICHT nachbauen: die Funktion
@@ -109,6 +111,8 @@ try {
             // Bestand ALLER Arten, damit die Unterreiter ihre Zahlen sofort tragen und
             // nicht erst, nachdem man sie einzeln angeklickt hat.
             'counts_by_kind' => avesmapsLoreCountsByKind($pdo),
+            // Zeitpunkt des letzten scharfen Syncs für die Zeile neben dem Knopf.
+            'last_synced' => avesmapsLoreReadLastSynced($pdo),
         ]);
     }
 

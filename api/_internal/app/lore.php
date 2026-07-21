@@ -31,6 +31,28 @@ const AVESMAPS_LORE_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
 const AVESMAPS_LORE_PANEL_LIMIT = 10;
 
 /**
+ * Wann „Natur & Waren syncen" zuletzt durchlief, oder null.
+ *
+ * Liest dieselbe app_setting-Zeile, die der Reconcile schreibt
+ * (AVESMAPS_LORE_LAST_SYNCED_SETTING in wiki/lore-sync.php) -- aber OHNE die
+ * Wiki-Bibliothek zu laden. Der öffentliche Lesepfad soll nicht die halbe Sync-Kette
+ * mitziehen, nur um einen Zeitstempel anzuzeigen.
+ */
+function avesmapsLoreReadLastSynced(PDO $pdo): ?string
+{
+    if (!function_exists('avesmapsAppSettingGet')) {
+        return null;
+    }
+    try {
+        $value = trim((string) avesmapsAppSettingGet($pdo, 'lore_last_synced', ''));
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value === '' ? null : $value;
+}
+
+/**
  * Katalogliste für den Editor-Reiter: durchsuchbar, nach Art gefiltert, mit der Zahl
  * der zugeordneten Orte je Eintrag. Bewusst NICHT der Panel-Pfad -- der liest pro Ort,
  * hier will man den Bestand sehen.
@@ -474,7 +496,12 @@ function avesmapsLoreExpandFromMaps(
  */
 function avesmapsLoreReadStats(PDO $pdo): array
 {
-    $out = ['entries' => [], 'entries_total' => 0, 'places' => 0, 'sources' => 0, 'top_places' => []];
+    $out = [
+        'entries' => [], 'entries_total' => 0, 'places' => 0, 'sources' => 0, 'top_places' => [],
+        // Wann „Natur & Waren syncen" zuletzt DURCHLIEF -- der Editor zeigt es neben dem
+        // Knopf, wie bei Abenteuern und Kartensammlung.
+        'last_synced' => avesmapsLoreReadLastSynced($pdo),
+    ];
 
     try {
         $rows = $pdo->query(
