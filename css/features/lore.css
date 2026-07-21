@@ -1,0 +1,88 @@
+/* Natur & Waren im Infopanel: Pflanzen, Tiere, Spezies, Handelswaren eines Ortes.
+   Design: docs/design-language.md — Gruppierung per Trenner statt Kasten, Gold-Braun
+   für Links, kein Blau. Alle Werte kommen aus css/base/tokens.css; hier steht bewusst
+   kein einziger Literalwert für Farbe, Radius oder Trenner. */
+
+.avesmaps-lore:empty {
+	/* Solange der Abruf läuft, ist der Container leer -- er darf dann keinen Platz und
+	   keine Trennlinie erzeugen, sonst zuckt das Panel beim Nachladen. */
+	display: none;
+}
+
+.avesmaps-lore__section {
+	/* Volle Breite trennen wie die übrigen Infobox-Abschnitte: negativer Seitenrand in
+	   Höhe des Panel-Paddings, damit die Linie randlos durchläuft (siehe
+	   docs/design-language.md §Trenner). */
+	border-top: 1px solid var(--color-divider);
+	margin: 0.75rem -0.75rem 0;
+	padding: 0.75rem 0.75rem 0;
+}
+
+.avesmaps-lore__heading {
+	margin: 0 0 0.4rem;
+	font-size: 0.95rem;
+	font-weight: 600;
+	color: var(--color-text);
+}
+
+.avesmaps-lore__count {
+	color: var(--color-text-muted);
+	font-weight: 400;
+}
+
+.avesmaps-lore__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 0.75rem;
+}
+
+.avesmaps-lore__item {
+	/* Die Einträge fließen nebeneinander: eine Region hat schnell 40 Waren, und 40
+	   Zeilen untereinander wären eine Wand statt einer Liste. */
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.3rem;
+	max-width: 100%;
+}
+
+.avesmaps-lore__name,
+.avesmaps-lore__link {
+	color: var(--color-link);
+	text-decoration: none;
+}
+
+.avesmaps-lore__name:hover,
+.avesmaps-lore__link:hover {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+}
+
+.avesmaps-lore__meta {
+	color: var(--color-text-muted);
+	font-size: 0.85em;
+}
+
+.avesmaps-lore__more {
+	margin-top: 0.5rem;
+	padding: 0.25rem 0.6rem;
+	border: 1px solid var(--color-divider);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
+.avesmaps-lore__more:hover:not(:disabled) {
+	border-color: var(--color-link);
+	color: var(--color-link);
+}
+
+.avesmaps-lore__more:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
