@@ -207,8 +207,36 @@ function clearWikiSyncPreviewMarker() {
 	wikiSyncPreviewMarker = null;
 }
 
+// Ein Klick auf die Karte raeumt die Vorschau weg.
+//
+// Vorher hatte der violette Punkt ueberhaupt kein Ende: geloescht wurde er nur, wenn zufaellig ein
+// anderer Fall ihn ersetzte oder ein Ort angelegt wurde -- nicht beim Zuklappen des Falls, nicht
+// beim Schliessen des Fensters. Er blieb also einfach auf der Karte stehen (Owner 2026-07-21:
+// "man kriegt sie nicht so einfach wieder los").
+//
+// Erst hier registriert, nicht beim Laden der Datei: `map` entsteht im Bootstrap zuletzt, ein
+// Handler auf Modulebene liefe ins Leere. Wenn ein Marker gezeigt wird, gibt es die Karte sicher.
+let wikiSyncPreviewDismissArmed = false;
+
+function armWikiSyncPreviewDismiss() {
+	if (wikiSyncPreviewDismissArmed || typeof map === "undefined" || !map) {
+		return;
+	}
+
+	wikiSyncPreviewDismissArmed = true;
+	map.on("click", () => {
+		// Waehrend einer laufenden Positionswahl IST der Klick die Auswahl -- und deren Handler
+		// setzt unmittelbar danach selbst eine Vorschau. Hier wegzuraeumen waere ein Wettlauf.
+		if (pendingWikiSyncLocationPickCase) {
+			return;
+		}
+		clearWikiSyncPreviewMarker();
+	});
+}
+
 function showWikiSyncPreviewMarker(caseEntry, latlng) {
 	clearWikiSyncPreviewMarker();
+	armWikiSyncPreviewDismiss();
 	const wikiPage = caseEntry.payload?.wiki || {};
 	wikiSyncPreviewMarker = L.circleMarker(latlng, {
 		pane: "measurementHandlesPane",

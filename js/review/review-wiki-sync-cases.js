@@ -435,8 +435,8 @@ function createWikiSyncCaseElement(caseEntry) {
 			return;
 		}
 
-		// A drift case that CLOSES must clear its two markers + line (mirrors the
-		// preview-marker auto-remove). An OPEN drift case draws them via its own hook.
+		// A drift case that CLOSES must clear its two markers + line, exactly like the preview
+		// marker below. An OPEN drift case draws them via its own hook.
 		if (caseEntry.case_type === "coordinate_drift") {
 			if (detailsElement.open) {
 				focusWikiSyncCoordinateDriftCase(caseEntry);
@@ -448,6 +448,11 @@ function createWikiSyncCaseElement(caseEntry) {
 
 		if (detailsElement.open && (payload.map || payload.proposed_location || Array.isArray(payload.matches))) {
 			focusWikiSyncCase(caseEntry);
+		} else if (!detailsElement.open) {
+			// Zuklappen raeumt die Vorschau weg -- genau die Symmetrie, die der Kommentar oben bei
+			// den Abweichungs-Layern schon behauptet hat ("mirrors the preview-marker auto-remove").
+			// Sie fehlte: der Punkt ueberlebte das Zuklappen und blieb auf der Karte stehen.
+			clearWikiSyncPreviewMarker();
 		}
 	});
 
