@@ -208,14 +208,19 @@ is the default, English is opt-in. Therefore:
 - **STRATO caution:** never loop expensive endpoints (e.g. the political layer) —
   it saturated PHP workers once and looked like a DB outage. Probe with a single
   request.
-- **Editor-visible change → update the handbook in the same commit.** If your
-  change alters what a human editor sees or does — a renamed button, a new tab or
-  dialog, a changed workflow, a new rule they must follow — pull the matching
-  section of `html/editor-handbuch.html` along with it, and bump the `Stand:` date
-  in its top bar. Not a follow-up task: the handbook went from written to
-  materially wrong in **13 days** (2026-07-07 → 07-20) precisely because this was
-  nobody's job. A wrong handbook is worse than none — new editors act on it. If
-  the change only touches internals an editor never sees, there is nothing to do.
+- **Editor-visible change → name it in the commit subject; do NOT edit the
+  handbook in passing.** `html/editor-handbuch.html` is owned by a nightly routine
+  (`avesmaps-handbuch-pflege`, 00:00 local — see §11), not by whoever happens to
+  touch an editor surface. Your only obligation: a commit subject that states the
+  user-visible effect ("rename the X button", "new Y tab", "Z now runs globally").
+  The routine reads `git log`, judges whether an editor following the handbook
+  would now find something different, and rewrites the affected section. Editing
+  the handbook yourself competes with that routine over the same file and its
+  `Stand:` date — leave it alone unless the owner asks you directly. This replaced
+  the old "same commit" rule on 2026-07-22: it depended on every one of many
+  parallel sessions remembering, and a wrong handbook is worse than none (it went
+  from written to materially wrong in **13 days**, 2026-07-07 → 07-20, back when
+  it was nobody's job).
 - **Secrets:** `api/config.local.php` is gitignored and must never be committed.
   No production dumps, reports, audit logs, tokens or credentials in the repo.
 - **Legal:** DSA assets follow the Ulisses fan guidelines (see `NOTICE.md`).
@@ -250,7 +255,7 @@ is the default, English is opt-in. Therefore:
 Authoritative docs (being translated to English in M8):
 
 - **`docs/design-language.md` — the warm/aventurian design language + token rules (see §12). Read before any CSS/UI work.**
-- **`html/editor-handbuch.html` — the handbook human editors actually read.** Not a doc *about* the code; it is product surface, reachable from the edit shell's top bar and the editor panel's status line. Five layers: Erste Schritte / Karten-Features / Aufgaben / Verstehen / Nachschlagen. **Keep it current with editor-visible changes (see §9)**; plan and gap inventory in `docs/superpowers/plans/2026-07-20-editor-handbuch-aufwertung.md`.
+- **`html/editor-handbuch.html` — the handbook human editors actually read.** Not a doc *about* the code; it is product surface, reachable from the edit shell's top bar and the editor panel's status line. Five layers: Erste Schritte / Karten-Features / Aufgaben / Verstehen / Nachschlagen. **Maintained by a nightly scheduled task, not by feature sessions (see §9)**: `avesmaps-handbuch-pflege` runs at 00:00 local and does two things — (A) read every commit since its last run and rewrite the sections an editor would now find wrong, (B) re-verify 3–4 of the 33 anchored `<h3 id=…>` sections against the live code on rotation, so the whole book is checked roughly every 8–10 days. It commits only when something actually changed, and only `html/editor-handbuch.html`. Plan and gap inventory in `docs/superpowers/plans/2026-07-20-editor-handbuch-aufwertung.md`.
 - `docs/asset-caching-and-versioning.md` — **the deploy/cache gotcha** (see §7).
 - `docs/future-map-architecture.md` — north-star architecture & full data model.
 - `docs/territories.md` — political-territory data model + WikiSync.
