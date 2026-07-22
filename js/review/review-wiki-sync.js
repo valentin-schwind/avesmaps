@@ -82,13 +82,30 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 	syncWikiSyncPanelHeaderState();
 }
 
+// Die Startknoepfe der Editoren tragen seit 2026-07-22 eine feste Struktur:
+// <span class="t1">Beschriftung</span> plus den eigenstaendigen "Zuletzt gesynct"-Span
+// (dessen id refreshWikiSyncKindSyncedStatus weiter direkt anspricht). Ein textContent
+// auf den KNOPF wuerde beide Kinder entfernen -- der Zeitstempel waere nach dem ersten
+// Sync-Lauf weg und kaeme erst beim naechsten Laden wieder. Darum nur die Titelzeile.
+function setWikiSyncStartButtonLabel(buttonElement, label) {
+	if (!buttonElement) {
+		return;
+	}
+	const titleElement = buttonElement.querySelector(".t1");
+	if (titleElement) {
+		titleElement.textContent = label;
+		return;
+	}
+	buttonElement.textContent = label;
+}
+
 function setWikiSyncTerritoriesRunning(isRunning) {
 	isWikiSyncTerritoriesRunning = isRunning;
 
 	const buttonElement = document.getElementById("wiki-sync-territories");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "Territorien bearbeiten";
+		setWikiSyncStartButtonLabel(buttonElement, isRunning ? "Synchronisiert..." : "Territorien bearbeiten");
 	}
 
 	const progressElement = document.getElementById("wiki-sync-territories-progress");
@@ -2440,7 +2457,7 @@ function syncWikiSyncActionButtonLabels() {
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
 	if (territoriesButtonElement) {
-		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "Territorien bearbeiten";
+		setWikiSyncStartButtonLabel(territoriesButtonElement, isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "Territorien bearbeiten");
 	}
 }
 

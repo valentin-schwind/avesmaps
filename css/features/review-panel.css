@@ -440,17 +440,39 @@
 	margin: var(--space-6) var(--space-8);
 	padding: 0;
 }
-/* KEIN min-width:0 am Knopf: er traegt white-space:nowrap, und mit erlaubtem
-   Schrumpfen wuerde eine lange Beschriftung aus dem Kasten laufen statt ihren Platz
-   zu behalten. So bleibt der Knopf mindestens so breit wie sein Text; nachgeben muss
-   das Datum, das dank overflow-wrap:anywhere sauber umbricht. */
+/* Zweizeilige Kachel: Beschriftung oben, "Zuletzt gesynct" klein darunter -- dasselbe
+   Muster wie die Menuebandkacheln IM Editor (.ae-btn2/.ce-btn2) und wie die zentrale
+   "Dump holen"-Kachel. Owner 2026-07-22; kehrt den Stand vom 2026-07-19 um, als das
+   Datum neben den Knopf wanderte. Damals ging es darum, dass Regionen/Wege anders
+   aussahen als Siedlungen/Territorien -- jetzt sind alle sechs gleich zweizeilig,
+   also entsteht dieser Unterschied nicht.
+   Der Status-Span STEHT weiterhin im Markup und behaelt seine id; er ist nur ins
+   Knopfinnere gewandert. Deshalb schreibt review-wiki-sync.js unveraendert weiter
+   hinein (es sucht per getElementById, nicht ueber die Struktur). */
 .wiki-sync-panel__actions > .wiki-sync-panel__start {
 	flex: 1 1 auto;
 	width: auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1px;
+	white-space: normal;
+	/* Zwei Zeilen Platz, auch solange das Datum noch fehlt -- sonst waechst der Knopf,
+	   wenn der Abruf zurueckkommt, und schiebt alles darunter ein Stueck nach unten. */
+	min-height: 44px;
 }
-.wiki-sync-panel__actions > .wiki-sync-panel__summary {
-	flex: 0 1 auto;
-	text-align: right;
+.wiki-sync-panel__actions > .wiki-sync-panel__start .t1 {
+	font-weight: var(--font-weight-bold);
+}
+/* Auf gefuelltem Grund traegt die zweite Zeile die Knopffarbe, nicht die Textfarbe --
+   --color-text-strong waere hier fast unsichtbar. Entspricht .ae-btn2--primary .t2. */
+.wiki-sync-panel__actions > .wiki-sync-panel__start > .wiki-sync-panel__summary {
+	color: var(--color-button-text);
+	opacity: 0.85;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	text-align: center;
 }
 
 /* Central "Dump holen" block (above the 4 tabs): button + fetched-status on one row
