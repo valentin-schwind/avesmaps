@@ -1423,6 +1423,10 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Name der Kraftlinie');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
+    $description = trim((string) ($payload['description'] ?? ''));
+    // Explicit or empty -- never guessed. avesmapsEnrichMapFeatureWikiUrl skips powerlines for
+    // exactly this reason (see api/app/map-features.php).
+    $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
 
     $pdo->beginTransaction();
     try {
@@ -1433,6 +1437,8 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
         $properties['feature_type'] = 'powerline';
         $properties['feature_subtype'] = 'powerline';
         $properties['show_label'] = $showLabel;
+        $properties['description'] = $description;
+        $properties['wiki_url'] = $wikiUrl;
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
@@ -1462,6 +1468,8 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
             'feature_subtype' => 'powerline',
             'name' => $name,
             'show_label' => $showLabel,
+            'description' => $description,
+            'wiki_url' => $wikiUrl,
             'properties_json' => $properties,
             'revision' => $revision,
         ]));

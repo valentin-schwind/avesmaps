@@ -897,6 +897,13 @@ function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $w
         return $properties;
     }
 
+    // A powerline's wiki link is explicit or nothing. The name match below is built for PLACES:
+    // a powerline named like a settlement would silently inherit that settlement's article --
+    // the Discord #38 class of bug, where a guessed link became real data on the next save.
+    if ((string) ($row['feature_type'] ?? '') === 'powerline') {
+        return $properties;
+    }
+
     $locationName = trim((string) ($row['name'] ?? ''));
     if ($locationName === '') {
         return $properties;

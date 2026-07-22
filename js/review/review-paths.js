@@ -98,6 +98,8 @@ function populatePowerlineEditForm(powerline) {
 	void acquireFeatureSoftLock(document.getElementById("powerline-edit-public-id").value);
 	document.getElementById("powerline-edit-name").value = String(powerline.properties?.name || "").trim();
 	document.getElementById("powerline-edit-show-label").checked = shouldPowerlineNameBeDisplayed(powerline);
+	document.getElementById("powerline-edit-description").value = String(powerline.properties?.description || "").trim();
+	document.getElementById("powerline-edit-wiki-url").value = String(powerline.properties?.wiki_url || "").trim();
 }
 
 function openPowerlineEditDialog(powerline) {
@@ -113,6 +115,8 @@ function buildPowerlineEditPayload(formElement) {
 		public_id: String(formData.get("public_id") || "").trim(),
 		name: String(formData.get("name") || "").trim(),
 		show_label: formData.get("show_label") === "on",
+		description: String(formData.get("description") || "").trim(),
+		wiki_url: String(formData.get("wiki_url") || "").trim(),
 	};
 }
 
