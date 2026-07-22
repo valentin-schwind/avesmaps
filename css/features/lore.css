@@ -339,6 +339,65 @@
 	color: var(--color-text-muted);
 }
 
+/* ---- Die beiden rechten Spalten: Stammdaten | Orte ----
+   Zusammen mit der Liste ergeben sie die drei Spalten des Abenteuereditors. Die Orte
+   stehen bewusst eigenstaendig: sie sind die eigentliche Arbeit an einem Eintrag,
+   untereinander musste man fuer jede Zuordnung erst an den Feldern vorbeiscrollen. */
+.lore-detail__cols {
+	display: flex;
+	flex: 1 1 auto;
+	gap: var(--space-16);
+	align-items: flex-start;
+	min-height: 0;
+}
+.lore-detail__col {
+	display: flex;
+	flex: 1 1 0;
+	flex-direction: column;
+	gap: var(--space-6);
+	min-width: 0;
+}
+.lore-detail__col--places {
+	flex: 0 0 300px;
+	padding-left: var(--space-16);
+	border-left: 1px solid var(--color-divider);
+}
+/* Schmales Fenster: die Ortsspalte rutscht unter die Stammdaten, statt beide zu quetschen. */
+@media (max-width: 900px) {
+	.lore-detail__cols {
+		flex-direction: column;
+	}
+	.lore-detail__col--places {
+		flex: 1 1 auto;
+		padding-left: 0;
+		border-left: none;
+		border-top: 1px solid var(--color-divider);
+		padding-top: var(--space-10);
+	}
+}
+/* Herkunfts-Pille wie die „manuell"-Marken im Abenteuereditor. */
+.lore-detail__pill {
+	flex: 0 0 auto;
+	padding: 1px var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-muted);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+.lore-detail__pill.is-manual {
+	border-color: var(--color-link);
+	color: var(--color-link);
+}
+.lore-detail__place-main {
+	display: flex;
+	flex: 1 1 auto;
+	flex-wrap: wrap;
+	gap: var(--space-4);
+	align-items: baseline;
+	min-width: 0;
+}
+
 /* Knopfzeile und Reiter behalten ihre Hoehe; nur die Liste waechst und scrollt. */
 #wiki-sync-lore-dialog-body > .wiki-sync-panel__actions,
 #wiki-sync-lore-dialog-body > .wiki-sync-panel__tabs {
@@ -454,21 +513,26 @@
 	list-style: none;
 	display: flex;
 	flex-direction: column;
-	gap: 0.2rem;
+	gap: var(--space-4);
 }
 
+/* Gerahmte Karte statt Tabellenzeile -- wie die Ortskarten im Abenteuereditor. */
 .lore-detail__place {
 	display: flex;
-	align-items: center;
-	gap: 0.5rem;
+	align-items: flex-start;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
 }
 
+/* Der Name darf umbrechen: „Meer der Schwimmenden Inseln" in einer 300px-Spalte sonst
+   direkt abgeschnitten, und ein Ortsname, den man nicht lesen kann, hilft niemandem. */
 .lore-detail__place-name {
-	flex: 1 1 auto;
+	flex: 1 1 100%;
 	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	font-weight: 600;
 }
 
 /* Grabsteine sind sichtbar anders: sie sind eine Entscheidung, kein Datenverlust. */

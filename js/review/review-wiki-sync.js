@@ -2006,46 +2006,49 @@ function renderLoreDetail(entry) {
 		(place.status === "suppressed" ? tombs : live).push(place);
 	});
 
+	// Eine Ortskarte, nicht eine Tabellenzeile -- gerahmt wie die Ortskarten im
+	// Abenteuereditor, mit der Herkunft als Pille statt als Fließtext.
 	function placeRow(place, isTomb) {
-		var origin = place.origin === "wiki" ? "Wiki" : "von Hand";
+		var manual = place.origin !== "wiki";
 		return '<li class="lore-detail__place' + (isTomb ? " is-tomb" : "") + '">'
+			+ '<div class="lore-detail__place-main">'
 			+ '<span class="lore-detail__place-name">' + avesmapsLoreListEscape(place.place_title) + "</span>"
-			+ '<span class="lore-detail__place-meta">' + avesmapsLoreListEscape(place.relation + " · " + origin) + "</span>"
+			+ '<span class="lore-detail__place-meta">' + avesmapsLoreListEscape(place.relation) + "</span>"
+			+ '<span class="lore-detail__pill' + (manual ? " is-manual" : "") + '">'
+			+ (manual ? "manuell" : "Wiki") + "</span>"
+			+ "</div>"
 			+ '<button type="button" class="lore-detail__place-btn" data-lore-place-action="'
 			+ (isTomb ? "add" : "remove") + '" data-lore-place-key="' + avesmapsLoreListEscape(place.place_wiki_key)
 			+ '" data-lore-place-title="' + avesmapsLoreListEscape(place.place_title)
 			+ '" data-lore-place-rel="' + avesmapsLoreListEscape(place.relation) + '">'
-			+ (isTomb ? "wieder aufnehmen" : "entfernen") + "</button>"
+			+ (isTomb ? "↺ wieder aufnehmen" : "×") + "</button>"
 			+ "</li>";
 	}
 
 	var safe = String(entry.wiki_url || "");
 	if (safe.indexOf("https://de.wiki-aventurica.de/") !== 0) { safe = ""; }
 
+	// DREI Spalten wie im Abenteuereditor: Liste (im Markup daneben) | Stammdaten | Orte.
+	// Die Orte sind kein Anhängsel der Felder, sondern die eigentliche Arbeit an einem
+	// Eintrag -- untereinander gestapelt musste man für jede Zuordnung erst an den Feldern
+	// vorbeiscrollen. Abschnitte in Versalien, damit die Spalten dieselbe Gliederung tragen
+	// wie COVER / IDENTITÄT / ORTE beim Abenteuer.
 	detail.innerHTML = '<div class="lore-detail__head">'
 		+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück zur Liste</button>'
 		+ (safe ? '<a class="lore-detail__wiki" href="' + avesmapsLoreListEscape(safe) + '" target="_blank" rel="noopener">Wiki-Artikel ↗</a>' : "")
 		+ "</div>"
 		+ '<h4 class="lore-detail__title">' + avesmapsLoreListEscape(entry.name)
 		+ ' <span class="lore-detail__kind">' + avesmapsLoreListEscape(entry.kind) + "</span></h4>"
+		+ '<div class="lore-detail__cols">'
+
+		+ '<div class="lore-detail__col">'
+		+ '<h5 class="lore-detail__section">Stammdaten</h5>'
 		+ loreFieldRow(entry, "name", "Name")
 		+ loreFieldRow(entry, "gruppe", "Art")
 		+ (entry.kind === "ware" ? loreFieldRow(entry, "typ", "Gegenstandstyp") : "")
 		+ loreFieldRow(entry, "lebensraum", "Lebensraum")
 		+ loreFieldRow(entry, "synonyme", "Weitere Namen")
 		+ '<p class="lore-detail__hint">Ein geändertes Feld bleibt beim nächsten Sync stehen. Leeren gibt es wieder ans Wiki zurück.</p>'
-		+ '<h5 class="lore-detail__section">Orte (' + live.length + ")</h5>"
-		+ (live.length ? '<ul class="lore-detail__places">' + live.map(function (p) { return placeRow(p, false); }).join("") + "</ul>"
-			: '<p class="lore-detail__hint">Noch keinem Ort zugeordnet.</p>')
-		+ '<div class="lore-detail__add">'
-		+ '<input type="text" id="lore-add-place" class="lore-detail__input" placeholder="Ort, Region oder Gebiet …" autocomplete="off">'
-		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-place-btn">zuordnen</button>'
-		+ "</div>"
-		+ (tombs.length
-			? '<h5 class="lore-detail__section">Entfernte Wiki-Orte (' + tombs.length + ")</h5>"
-				+ '<p class="lore-detail__hint">Diese bleiben entfernt, auch wenn das Wiki sie weiter nennt.</p>'
-				+ '<ul class="lore-detail__places">' + tombs.map(function (p) { return placeRow(p, true); }).join("") + "</ul>"
-			: "")
 		+ '<h5 class="lore-detail__section">Quellen (' + (entry.sources || []).length + ")</h5>"
 		+ ((entry.sources || []).length
 			? '<ul class="lore-detail__sources">' + entry.sources.map(function (s) {
@@ -2053,7 +2056,25 @@ function renderLoreDetail(entry) {
 					+ (s.pages ? " S. " + avesmapsLoreListEscape(s.pages) : "")
 					+ ' <span class="lore-detail__place-meta">' + avesmapsLoreListEscape(s.reference_kind) + "</span></li>";
 			}).join("") + "</ul>"
-			: '<p class="lore-detail__hint">Keine Quellen hinterlegt.</p>');
+			: '<p class="lore-detail__hint">Keine Quellen hinterlegt.</p>')
+		+ "</div>"
+
+		+ '<div class="lore-detail__col lore-detail__col--places">'
+		+ '<h5 class="lore-detail__section">Orte (' + live.length + ")</h5>"
+		+ '<div class="lore-detail__add">'
+		+ '<input type="text" id="lore-add-place" class="lore-detail__input" placeholder="Ort, Region oder Gebiet …" autocomplete="off">'
+		+ '<button type="button" class="lore-detail__place-btn" id="lore-add-place-btn">+ Ort</button>'
+		+ "</div>"
+		+ (live.length ? '<ul class="lore-detail__places">' + live.map(function (p) { return placeRow(p, false); }).join("") + "</ul>"
+			: '<p class="lore-detail__hint">Noch keinem Ort zugeordnet.</p>')
+		+ (tombs.length
+			? '<h5 class="lore-detail__section">Entfernte Wiki-Orte (' + tombs.length + ")</h5>"
+				+ '<p class="lore-detail__hint">Diese bleiben entfernt, auch wenn das Wiki sie weiter nennt.</p>'
+				+ '<ul class="lore-detail__places">' + tombs.map(function (p) { return placeRow(p, true); }).join("") + "</ul>"
+			: "")
+		+ "</div>"
+
+		+ "</div>";
 }
 
 function openLoreDetail(wikiKey) {
@@ -2123,7 +2144,12 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
 			return;
 		}
 		var row = target.closest("[data-lore-entry]");
-		if (row && !avesmapsLoreDetailKey) {
+		if (row) {
+			// 💣 Hier stand `&& !avesmapsLoreDetailKey`: solange ein Eintrag offen war, tat
+			// ein Klick auf eine andere Zeile NICHTS -- man musste erst „← Zurück". Das fiel
+			// nie auf, weil die Liste beim Öffnen versteckt wurde; seit sie im Fenster
+			// danebensteht, ist es schlicht eine tote Liste. Ein Schutz vor Datenverlust war
+			// es nie (Felder speichern beim Fokusverlust).
 			openLoreDetail(row.getAttribute("data-lore-entry") || "");
 			return;
 		}
