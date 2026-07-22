@@ -613,22 +613,11 @@
 	gap: 8px;
 	margin-bottom: 6px;
 }
-.wiki-sync-adv-picker__search {
-	flex: 1 1 auto;
-	min-width: 0;
-	font: inherit;
-	font-size: 12px;
-	color: var(--color-text);
-	background: var(--color-panel);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	padding: 4px 8px;
-}
-.wiki-sync-adv-picker__search:focus-visible {
-	outline: none;
-	border-color: var(--color-border-strong);
-	box-shadow: var(--focus-ring);
-}
+/* Das Suchfeld selbst wird NICHT mehr hier beschrieben: es teilt sich eine Regel mit
+   .wiki-sync-panel__filter-input (weiter unten). Bis 2026-07-22 gab es zwei Suchfelder mit
+   zwei Aussehen -- 4px/8px gegen 9px/10px Polsterung, 12px gegen geerbte Schrift -- und
+   jede Seite machte die HAELFTE richtig: hier standen die Tokens (--radius-md, --focus-ring),
+   dort die richtige Groesse. Beides zusammengelegt statt eine Seite zu kopieren. */
 .wiki-sync-adv-picker__scroll {
 	/* was max-height: 260px -- a fixed cap that left dead space below the list on a tall panel and
 	   forced two scrollbars on a short one. */
@@ -1023,20 +1012,29 @@
 	gap: 4px;
 }
 
-.wiki-sync-panel__filter-input {
+/* DAS Suchfeld des Panels -- eine Regel fuer alle sieben Subjekte. .wiki-sync-adv-picker__search
+   (Abenteuer, Karten, Vorkommen) haengt hier mit drin; getrennt sahen die beiden sichtbar
+   verschieden aus. Groesse vom Panel-Filter (passt zur Hoehe des Filter-Knopfs daneben),
+   Tokens vom Adv-Picker. */
+.wiki-sync-panel__filter-input,
+.wiki-sync-adv-picker__search {
 	flex: 1 1 auto;
 	min-width: 0;
 	padding: 9px 10px;
 	border: 1px solid var(--color-border);
-	border-radius: 8px;
+	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
 }
 
-.wiki-sync-panel__filter-input:focus {
-	border-color: var(--color-success);
-	box-shadow: 0 0 0 2px rgba(106, 127, 58, 0.12);
+/* Fokus war hier GRUEN (--color-success + hartkodiertes rgba) -- eine Erfolgsfarbe an einem
+   Feld, in das man nur tippt, und der einzige gruene Rand in einem warmen Panel. Jetzt der
+   gemeinsame Fokusring aus den Tokens, wie ihn der Rest der Oberflaeche traegt. */
+.wiki-sync-panel__filter-input:focus-visible,
+.wiki-sync-adv-picker__search:focus-visible {
+	border-color: var(--color-border-strong);
+	box-shadow: var(--focus-ring);
 	outline: none;
 }
 
