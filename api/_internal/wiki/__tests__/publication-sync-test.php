@@ -102,6 +102,26 @@ assert(avesmapsPublicationStripWikiKeyPrefix('efferds-wogen') === 'efferds-wogen
 assert(avesmapsPublicationReconcileSegmentOrder() === ['territory', 'settlement', 'region', 'path', 'lore']);
 echo "helpers ok\n";
 
+// 💣 THE "EMPTY DESIRED WIPES EVERYTHING" HAZARD, pinned so nobody removes the guard that stops it.
+// The diff above is CORRECT to remove every approved wiki row when nothing is desired -- that is
+// how an article that dropped its sources gets cleaned up. But the same input also arises when a
+// whole entity type was never staged, and there it would delete data nobody asked to delete.
+// The diff cannot tell the two apart; avesmapsPublicationStagingHasEntityType is what does, and
+// both callers (the lore reconcile, the segment loop) must ask it BEFORE reconciling.
+$wipe = avesmapsPublicationDiffLinks(
+    [
+        ['source_id' => 7, 'origin' => 'wiki_publication', 'status' => 'approved'],
+        ['source_id' => 8, 'origin' => 'wiki_publication', 'status' => 'approved'],
+    ],
+    []
+);
+assert(count($wipe['remove']) === 2); // <- this is why the type-level guard exists
+// The guard itself queries the DB, and this suite is deliberately DB-free (the test PHP has no PDO
+// driver at all), so only its EXISTENCE is pinned here. That is the part worth pinning: the risk is
+// somebody deleting the guard as a redundant-looking query, not somebody breaking its three lines.
+assert(function_exists('avesmapsPublicationStagingHasEntityType'));
+echo "staging-guard ok\n";
+
 // ReferenceFieldsDiffer: null vs '' are equal; a missing field forces "differ".
 assert(avesmapsPublicationReferenceFieldsDiffer(
     ['reference_kind' => 'ausfuehrlich', 'pages' => null, 'note' => ''],

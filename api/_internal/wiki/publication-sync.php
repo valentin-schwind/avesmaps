@@ -883,6 +883,15 @@ function avesmapsPublicationReconcileStep(PDO $pdo, int $segment, int $lastId, i
 
     while ($currentSegment < count($segments)) {
         $type = $segments[$currentSegment];
+
+        // Skip a type the staging knows nothing about -- see avesmapsPublicationStagingHasEntityType.
+        // Without this, a type whose refs were never built loses every wiki link it has.
+        if (!avesmapsPublicationStagingHasEntityType($pdo, $type)) {
+            $currentSegment++;
+            $currentLastId = 0;
+            continue;
+        }
+
         $rows = avesmapsPublicationFetchLiveEntityBatch($pdo, $type, $currentLastId, $budget);
 
         foreach ($rows as $row) {
@@ -952,6 +961,36 @@ function avesmapsPublicationReconcileStep(PDO $pdo, int $segment, int $lastId, i
 // ===========================================================================
 // 6. Small COUNT accessors for the stats counters.
 // ===========================================================================
+
+/**
+ * Does the staging know ANYTHING about this entity type?
+ *
+ * 💣 THE GUARD THAT KEEPS AN UNSTAGED TYPE FROM BEING WIPED. avesmapsPublicationDiffLinks reads
+ * "no desired links" as "remove every approved wiki_publication row" -- which is right for ONE
+ * entity whose article stopped citing its sources, and catastrophic for a whole type whose refs
+ * were simply never built. The two are indistinguishable per entity; only this type-level question
+ * tells them apart.
+ *
+ * It became real with lore on 2026-07-22: the migration moved ~34.800 links into feature_sources
+ * BEFORE any dump had staged a single lore ref, so the very next reconcile would have deleted all
+ * of them. Empty staging means "I do not know yet", never "there is nothing".
+ *
+ * Absent table -> false (skip), same reasoning: no knowledge is not knowledge of absence.
+ */
+function avesmapsPublicationStagingHasEntityType(PDO $pdo, string $entityType): bool
+{
+    if ($entityType === '') {
+        return false;
+    }
+    try {
+        $statement = $pdo->prepare('SELECT 1 FROM wiki_entity_publication WHERE entity_type = :t LIMIT 1');
+        $statement->execute(['t' => $entityType]);
+
+        return $statement->fetchColumn() !== false;
+    } catch (Throwable) {
+        return false;
+    }
+}
 
 function avesmapsPublicationCountCatalog(PDO $pdo): int
 {

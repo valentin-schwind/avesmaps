@@ -1486,7 +1486,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 	const totals = {
 		added: 0, updated: 0, unchanged: 0, retired: 0,
 		placesAdded: 0, placesRemoved: 0, placesSuppressed: 0,
-		sourcesAdded: 0, sourcesRemoved: 0, sourcesUpdated: 0, processed: 0,
+		sourcesAdded: 0, sourcesRemoved: 0, sourcesUpdated: 0, sourcesStagingEmpty: false, processed: 0,
 	};
 	const MAX_STEPS = 4000;
 
@@ -1526,6 +1526,9 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 		totals.sourcesAdded += Number(stepResult.sources_added ?? 0);
 		totals.sourcesRemoved += Number(stepResult.sources_removed ?? 0);
 		totals.sourcesUpdated += Number(stepResult.sources_updated ?? 0);
+		// KEIN Summieren: das ist eine Aussage über den Bestand, kein Zähler. Sobald ein
+		// Schritt meldet, dass das Quellen-Staging fehlt, gilt das für den ganzen Lauf.
+		if (stepResult.sources_staging_empty === true) { totals.sourcesStagingEmpty = true; }
 		totals.processed += Number(stepResult.processed ?? 0);
 		done = stepResult.done === true;
 
@@ -1705,7 +1708,12 @@ async function startWikiSyncLoreSync() {
 		// Quellen sind seit 2026-07-22 Verknüpfungen im geteilten System, deshalb steht
 		// hier auch „~aktualisiert": eine nachgezogene Seitenangabe ist dort eine Änderung,
 		// keine Löschung samt Neuanlage.
-		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · Quellen +${t.sourcesAdded}/~${t.sourcesUpdated})`;
+		// Quellen unangetastet, weil das Staging sie nicht kennt: das MUSS dranstehen, sonst
+		// liest sich „Quellen +0" wie „es gab nichts zu tun" statt wie „hier fehlt ein Schritt".
+		const quellen = t.sourcesStagingEmpty
+			? "Quellen unverändert (noch kein „Dump holen“ mit Quellen gelaufen)"
+			: `Quellen +${t.sourcesAdded}/~${t.sourcesUpdated}`;
+		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · ${quellen})`;
 		setWikiSyncStatus(`Natur & Waren übernommen.${note}`, "success");
 		showFeedbackToast(`Natur & Waren übernommen.${note}`, "success");
 		// Liste UND „zuletzt gesynct" nachziehen. Ohne das zeigt der Reiter direkt nach

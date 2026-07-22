@@ -495,6 +495,9 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
         // Seitenangabe/Gewichtung einer bestehenden Verknuepfung nachziehen, was der alte
         // Weg nur als Loeschen+Anlegen ausdruecken konnte.
         'sources_added' => 0, 'sources_removed' => 0, 'sources_updated' => 0,
+        // true = das Staging kennt keine Lore-Quellen, also wurden sie NICHT angefasst.
+        // Ein Zustand, kein Fehler -- der Client sagt, was fehlt ("Dump holen").
+        'sources_staging_empty' => false,
         'processed_this_step' => 0,
     ];
 
@@ -540,6 +543,16 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
     );
     // Quellen: KEINE eigenen Statements mehr. Sie laufen ueber den geteilten Reconcile,
     // siehe die Quellen-Sektion in der Schleife unten.
+    //
+    // 💣 EINMAL je Schritt gefragt, nicht je Eintrag: kennt das Staging ueberhaupt
+    // Lore-Quellen? Wenn nicht, bleiben die Quellen KOMPLETT unangetastet. Sonst laese der
+    // Diff "keine Wunschliste" als "alles loeschen" und raeumte bei einem Sync vor dem
+    // ersten "Dump holen" jede vorhandene Verknuepfung weg -- genau der Fall nach der
+    // Migration vom 2026-07-22, die ~34.800 Zeilen anlegte, bevor je ein Dump Lore-Refs
+    // gestaged hatte. Leeres Staging heisst "weiss ich nicht", nie "gibt es nicht".
+    $sourceStagingReady = function_exists('avesmapsPublicationStagingHasEntityType')
+        && avesmapsPublicationStagingHasEntityType($pdo, 'lore');
+    $stats['sources_staging_empty'] = !$sourceStagingReady;
 
     $nextCursor = $cursor;
     $processed = 0;
@@ -648,7 +661,7 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
         // ⚠️ Der Eintragsschluessel ist zugleich die public id (Lore hat keine eigene).
         // Guarded: laeuft der Reconcile ohne geladene Publikations-Bibliothek, bleiben die
         // Quellen schlicht unangetastet, statt den ganzen Lauf zu versenken.
-        if (!$dryRun && function_exists('avesmapsPublicationReconcileEntity')) {
+        if (!$dryRun && $sourceStagingReady && function_exists('avesmapsPublicationReconcileEntity')) {
             $sourceCounters = avesmapsPublicationReconcileEntity($pdo, 'lore', $wikiKey, $wikiKey, $userId);
             $stats['sources_added'] += (int) $sourceCounters['links_added'];
             $stats['sources_removed'] += (int) $sourceCounters['links_removed'];

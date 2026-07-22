@@ -761,6 +761,9 @@ try {
                 'sources_added' => (int) ($loreStep['sources_added'] ?? 0),
                 'sources_removed' => (int) ($loreStep['sources_removed'] ?? 0),
                 'sources_updated' => (int) ($loreStep['sources_updated'] ?? 0),
+                // Das Staging kennt keine Lore-Quellen -> sie wurden BEWUSST nicht angefasst
+                // (siehe die Wache in lore-sync.php). Der Client sagt, was zu tun ist.
+                'sources_staging_empty' => (bool) ($loreStep['sources_staging_empty'] ?? false),
                 'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
                 // Kein Lore-Staging vorhanden: „Dump holen" lief nicht oder nicht bis zur
                 // lore-Phase (sie steht an 8. von 10 Stellen -- ein abgebrochener Lauf
