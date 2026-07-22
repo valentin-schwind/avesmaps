@@ -517,6 +517,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	// url/label pair. The server-side takeover now owns other_source, so this dialog no longer
 	// reads or writes it here or in buildLocationEditPayload (see mountLocationEditFeatureSources).
 	mountLocationEditFeatureSources();
+	mountLocationEditNameAutocomplete();
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
@@ -554,10 +555,47 @@ function openLocationEditDialog(options = {}) {
 // listeners (and leave the previous feature's rows on screen). A place with no saved public_id has
 // no feature to attach sources to yet, so it gets the same widget over a local buffer instead
 // (bug #41) -- see the pending branch below.
+// Ortsname-Typeahead beim ANLEGEN: schlägt Wiki-Siedlungen vor und zeigt je Treffer, ob er schon
+// vergeben ist (js/ui/settlement-autocomplete.js). Nur im Anlegen-Fall -- ein bestehender Ort hat
+// seinen Namen bereits und für die Wiki-Verbindung den genaueren „Zuweisen"-Weg.
+//
+// Die Auswahl schreibt Name UND die versteckte wiki_url. Mehr ist nicht nötig: der Speichern-Ablauf
+// ruft nach create_point ohnehin autoConnectSettlementWikiByUrl auf (review-editor-submit.js), die
+// Verbindung entsteht also von selbst aus dem, was hier im Formular steht.
+function mountLocationEditNameAutocomplete() {
+	if (typeof locationEditNameAutocompleteDetach === "function") {
+		locationEditNameAutocompleteDetach();
+		locationEditNameAutocompleteDetach = null;
+	}
+	const nameInput = document.getElementById("location-edit-name");
+	const publicId = document.getElementById("location-edit-public-id")?.value || "";
+	if (!nameInput || publicId || typeof attachSettlementNameAutocomplete !== "function") {
+		return;
+	}
+	locationEditNameAutocompleteDetach = attachSettlementNameAutocomplete(nameInput, {
+		escape: escapeHtml,
+		onPick(item) {
+			nameInput.value = String(item.name || "");
+			const wikiUrlField = document.getElementById("location-edit-wiki-url");
+			if (wikiUrlField) {
+				wikiUrlField.value = String(item.wiki_url || "");
+			}
+		},
+	});
+}
+
 function mountLocationEditFeatureSources() {
 	const container = document.getElementById("location-edit-feature-sources");
 	if (!container) {
 		return;
+	}
+	// Den alten Knoten NICHT einfach wegwerfen: sein Quellen-Autocomplete hängt sein Dropdown an
+	// document.body, und ohne dieses Abräumen bleibt es dort für immer liegen -- ein Knoten pro
+	// Öffnen des Dialogs (genau die Falle, vor der __fsDetachAutocomplete in
+	// review-feature-sources.js warnt).
+	if (typeof container.__fsDetachAutocomplete === "function") {
+		container.__fsDetachAutocomplete();
+		container.__fsDetachAutocomplete = null;
 	}
 	const fresh = container.cloneNode(false); // drops the previous mount's listener + rendered rows
 	container.replaceWith(fresh);

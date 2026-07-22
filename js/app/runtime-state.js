@@ -146,6 +146,9 @@ let locationData = [],
 	// Sources named while CREATING a place, before it has a public_id to hang them on (bug #41).
 	// Held by the "Ort bearbeiten" dialog and replayed right after create_point succeeds.
 	locationEditPendingSourceStore = null,
+	// detach() des Ortsnamen-Typeaheads im Anlegen-Dialog; beim erneuten Öffnen zuerst abräumen,
+	// sonst stapeln sich Listener und verwaiste Dropdown-Knoten im body.
+	locationEditNameAutocompleteDetach = null,
 	isLocationEditSubmissionPending = false,
 	pendingCrossingConversionPublicId = null,
 	pendingCrossingConversionName = "",

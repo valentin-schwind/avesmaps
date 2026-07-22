@@ -82,6 +82,24 @@
 .sac-badge--official {
 	color: var(--color-accent-strong);
 }
+/* Ortsname-Typeahead (js/ui/settlement-autocomplete.js): sagt je Treffer, ob die Wiki-Siedlung noch
+   zu vergeben ist. Bewusst „warning", nicht „danger" -- eine belegte Zeile bleibt wählbar, die
+   1:1-Regel ist eine Absprache und kein Fehlerfall. */
+.sac-badge--free {
+	color: var(--color-success-soft-text);
+	background: var(--color-success-soft);
+	border: 1px solid var(--color-success-soft-border);
+}
+.sac-badge--taken {
+	color: var(--color-warning-soft-text);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+}
+/* Der belegte Treffer tritt zurück, damit die freien zuerst ins Auge fallen. Nur der Name, nicht
+   die ganze Zeile -- sonst kämpft es mit .is-active um denselben Hintergrund. */
+.sac-item.is-taken .sac-name {
+	color: var(--color-text-muted);
+}
 .sac-uses {
 	flex-shrink: 0;
 	font-size: 10px;

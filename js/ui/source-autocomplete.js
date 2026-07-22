@@ -106,21 +106,31 @@ function renderSourceAutocompleteHtml(state, opts) {
   return heading + '<ul class="sac-list" role="listbox">' + rows + "</ul>" + newRow;
 }
 
-// Attach the typeahead to a text input. opts:
-//   onPick(item)  -- required; receives the chosen catalog row
-//   tr, escape    -- optional injectables, same contract as the render
-//   limit         -- optional, defaults to SOURCE_AUTOCOMPLETE_LIMIT
+// Generic typeahead engine. Everything that is hard about a dropdown-on-an-input lives here once:
+// debouncing, out-of-order responses, aborting, positioning against a scrolling ancestor, the
+// keyboard contract, and the mousedown-before-blur dance. What it does NOT know is what it is
+// searching -- that arrives through hooks:
+//   search(term, signal)  -- required; returns the item array (may throw/abort freely)
+//   renderHtml(state,opts)-- required; state = { items, activeIndex, query }
+//   itemId(item)          -- required; the DOM id of an item row, for aria-activedescendant
+//   onPick(item)          -- required; receives the chosen row
+//   minChars, debounceMs, boxClassName -- optional
+//   tr, escape            -- optional injectables, passed through to renderHtml
 // Returns a detach() that removes every listener and the dropdown node.
-function attachSourceAutocomplete(inputEl, opts) {
+//
+// Presets below wire it to a concrete catalog (sources here; wiki settlements in
+// js/ui/settlement-autocomplete.js). Adding a third one must not mean a third copy of this.
+function attachTypeahead(inputEl, opts) {
   if (!inputEl || typeof document === "undefined") {
     return function noop() {};
   }
   const options = opts || {};
   const doc = inputEl.ownerDocument || document;
-  const limit = Number(options.limit) > 0 ? Number(options.limit) : SOURCE_AUTOCOMPLETE_LIMIT;
+  const minChars = Number(options.minChars) > 0 ? Number(options.minChars) : SOURCE_AUTOCOMPLETE_MIN_CHARS;
+  const debounceMs = Number(options.debounceMs) >= 0 ? Number(options.debounceMs) : SOURCE_AUTOCOMPLETE_DEBOUNCE_MS;
 
   const box = doc.createElement("div");
-  box.className = "sac";
+  box.className = options.boxClassName || "sac";
   box.hidden = true;
   doc.body.appendChild(box);
 
@@ -145,11 +155,13 @@ function attachSourceAutocomplete(inputEl, opts) {
   }
 
   function paint() {
-    box.innerHTML = renderSourceAutocompleteHtml(
+    box.innerHTML = options.renderHtml(
       { items: items, activeIndex: activeIndex, query: inputEl.value },
       options
     );
-    const activeId = activeIndex >= 0 && items[activeIndex] ? "sac-opt-" + items[activeIndex].source_id : "";
+    // The index rides along: an item is not always identifiable on its own (a wiki settlement has
+    // no numeric id the way a catalog source does), and the row markup knows its position anyway.
+    const activeId = activeIndex >= 0 && items[activeIndex] ? options.itemId(items[activeIndex], activeIndex) : "";
     if (activeId) {
       inputEl.setAttribute("aria-activedescendant", activeId);
     } else {
@@ -195,19 +207,11 @@ function attachSourceAutocomplete(inputEl, opts) {
     controller = typeof AbortController === "function" ? new AbortController() : null;
     const seq = ++requestSeq;
     try {
-      const url = SOURCE_AUTOCOMPLETE_API_URL + "?q=" + encodeURIComponent(term) + "&limit=" + limit;
-      const response = await fetch(url, {
-        credentials: "same-origin",
-        signal: controller ? controller.signal : undefined,
-      });
-      const data = await response.json();
+      const found = await options.search(term, controller ? controller.signal : undefined);
       if (seq !== requestSeq) {
         return; // a newer keystroke already won
       }
-      const groups = data && data.ok === true && Array.isArray(data.groups) ? data.groups : [];
-      // Flattened on purpose: the endpoint will grow an adventures/citymaps group once
-      // sources.wiki_key exists (steps 1+2) and this list renders it without a change here.
-      items = groups.reduce((all, group) => all.concat(Array.isArray(group.items) ? group.items : []), []);
+      items = Array.isArray(found) ? found : [];
       activeIndex = -1;
       show();
     } catch (error) {
@@ -223,12 +227,12 @@ function attachSourceAutocomplete(inputEl, opts) {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
-    if (term.length < SOURCE_AUTOCOMPLETE_MIN_CHARS) {
+    if (term.length < minChars) {
       items = [];
       hide();
       return;
     }
-    debounceTimer = setTimeout(() => search(term), SOURCE_AUTOCOMPLETE_DEBOUNCE_MS);
+    debounceTimer = setTimeout(() => search(term), debounceMs);
   }
 
   function onKeyDown(event) {
@@ -312,15 +316,43 @@ function attachSourceAutocomplete(inputEl, opts) {
     doc.removeEventListener("mousedown", onDocMouseDown);
     doc.removeEventListener("scroll", onReposition, true);
     (doc.defaultView || window).removeEventListener("resize", onReposition);
+    // Auch die ARIA-Rollen zurücknehmen: bleibt role="combobox" stehen, kündigt ein Screenreader
+    // an einem Feld ohne Vorschlagsliste weiterhin eine an.
+    inputEl.removeAttribute("role");
+    inputEl.removeAttribute("aria-autocomplete");
+    inputEl.removeAttribute("aria-expanded");
+    inputEl.removeAttribute("aria-activedescendant");
     if (box.parentNode) {
       box.parentNode.removeChild(box);
     }
   };
 }
 
+// The source-catalog preset -- the original public entry point, unchanged for every caller: same
+// name, same opts (onPick/tr/escape/limit), same endpoint, same markup, same Enter semantics.
+// Everything it adds over the engine is the three catalog-specific hooks.
+function attachSourceAutocomplete(inputEl, opts) {
+  const options = opts || {};
+  const limit = Number(options.limit) > 0 ? Number(options.limit) : SOURCE_AUTOCOMPLETE_LIMIT;
+  return attachTypeahead(inputEl, Object.assign({}, options, {
+    renderHtml: renderSourceAutocompleteHtml,
+    itemId: (item) => "sac-opt-" + item.source_id,
+    async search(term, signal) {
+      const url = SOURCE_AUTOCOMPLETE_API_URL + "?q=" + encodeURIComponent(term) + "&limit=" + limit;
+      const response = await fetch(url, { credentials: "same-origin", signal: signal });
+      const data = await response.json();
+      const groups = data && data.ok === true && Array.isArray(data.groups) ? data.groups : [];
+      // Flattened on purpose: the endpoint will grow an adventures/citymaps group once
+      // sources.wiki_key exists (steps 1+2) and this list renders it without a change here.
+      return groups.reduce((all, group) => all.concat(Array.isArray(group.items) ? group.items : []), []);
+    },
+  }));
+}
+
 if (typeof window !== "undefined") {
   window.renderSourceAutocompleteHtml = renderSourceAutocompleteHtml;
   window.attachSourceAutocomplete = attachSourceAutocomplete;
+  window.attachTypeahead = attachTypeahead;
 }
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { renderSourceAutocompleteHtml, renderSourceAutocompleteLabel };
