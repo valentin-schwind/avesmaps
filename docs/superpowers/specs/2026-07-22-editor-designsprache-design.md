@@ -201,6 +201,58 @@ Maße: `width: min(1400px, calc(100vw - 24px))`,
 die iframe-Grenze (Titel im Hauptdokument, Menüband im iframe) und gehört zum
 De-iframe-Umbau, nicht hierher.
 
+### 3.1a Hüllenmaße — verbindlich
+
+> 💣 **Diese Tabelle fehlte, und das war die Ursache.** Die Spec legte Typografie
+> (§4.1), Bedienhöhe (§4.3), Spaltenbreiten (§3.2) und Farben fest — aber **kein
+> einziges Polstermaß**. Drei Sitzungen haben Menüband, Statuszeile, Spalten-
+> Innenrand und Listenzeile deshalb geraten, dreimal verschieden, und der Owner
+> sah es sofort: „vom design her sehen abenteuer und karteneditor anders aus".
+> Gemessen waren es **15 Abweichungen** — Abenteuer 8, Karten 7. Es gab kein
+> „einer ist richtig".
+
+| Bauteil | Wert | = px |
+|---|---|---|
+| Menüband | `padding: var(--space-8) var(--space-12)`, `gap: var(--space-4)`, `background: var(--color-panel)` | 10/14, 6 |
+| Statuszeile | `padding: var(--space-4) var(--space-12)`, `min-height: 30px`, `background: var(--color-panel-soft)` | 6/14 |
+| Spalte (alle drei) | `padding: var(--space-6) var(--space-10)` | 8/12 |
+| Detailkopf | `padding: var(--space-6) var(--space-10)`, **leer ⇒ `display: none`** | 8/12 |
+| Speicherleiste | `padding: var(--space-6) var(--space-10)` | 8/12 |
+| Listenzeile | `padding: var(--space-2) var(--space-4)`, `border-radius: var(--radius-md)`, `border: 1px solid transparent`, gewählt `border-color: var(--color-accent)` | 4/6 |
+| Listenspalte | **kein eigener Hintergrund** — die Trennlinie genügt | — |
+
+**Zwei Regeln dazu, beide teuer gelernt:**
+
+1. **Der Spaltentitel steht AUSSERHALB des Scrollbereichs**, nicht als
+   `position: sticky` darin. Die Spalte ist `display: flex; flex-direction: column;
+   overflow: hidden`, der Titel ihr erstes Kind, darunter ein
+   `…__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto }`, **das die id
+   trägt**. Sticky funktioniert zwar auch, braucht aber einen deckenden Hintergrund,
+   ausblutende Ränder und kennt die Falle aus §8.9 — diese Bauweise kennt sie nicht.
+2. **Die Listenzeile schwebt**, sie läuft nicht randlos mit Trennlinie durch. Der
+   transparente 1px-Rahmen ist Pflicht: er ist immer da und wechselt beim Auswählen
+   nur die Farbe, sonst springt die Zeile um zwei Pixel.
+
+Wappen, Kreise und Vorschaubilder der Listenzeilen bleiben davon **unberührt** —
+ein Buchcover ist hochkant (32 × 45), eine Karte querformat (56 × 40). Das ist
+Inhalt, keine Abweichung.
+
+### 3.1b Pillen — eine Vokabel, eine Betonung
+
+> 💣 **Abenteuer- und Kartensammlungs-Editor färbten dieselbe Klasse
+> gegensätzlich.** `manuell` schrie im einen in Gold und flüsterte im anderen in
+> Grau; `Typ` genau umgekehrt. Wer zwischen den Editoren wechselt, lernt die
+> Farbe zweimal verschieden.
+
+**Regel: betont wird die Ausnahme, nicht die Einordnung.**
+
+| Pille | Bedeutung | Optik |
+|---|---|---|
+| `--manual` | Ausnahme: von Hand gesetzt, der Sync fasst es nicht an | **Gold**, gefüllt, fett |
+| `--kind` | Einordnung: Typ, Kategorie | ruhig grau |
+| `--wiki` | Herkunft: aus der Datengrundlage | ruhig, randlos |
+| `--unresolved` | offener Punkt | **Warnfarbe**, nicht `--color-danger` — Rot bleibt dem echten Fehler |
+
 ### 3.2 Drei gleiche Spalten — verbindlich
 
 ```css
@@ -670,6 +722,33 @@ untracked wie die übrigen `verify-*.html`).
 
 **Karten-Editor** (`6ba36307` + `84b5781e`): Spalten **458,66 / 458,67 / 458,67**
 (vorher 459 / 673 / 244, Streuung 429), Bildlaufleiste gemessen 10px.
+
+### 11.2 Alle drei nebeneinander (Hüllenmaße, §3.1a)
+
+Gestell `verify-editor-diff.html`: lädt Siedlungs-, Abenteuer- und Karten-Editor
+in je einen 1400 × 880-Rahmen und vergleicht jede Eigenschaft **gegen das
+Vorbild**, nicht gegen die Mehrheit.
+
+| | vorher | nachher |
+|---|---|---|
+| Abweichungen vom Vorbild | Abenteuer **8**, Karten **7** | **0 / 0** |
+| Statuszeile | 6/18 · 6/14 | beide 6/14 |
+| Menüband | 12/18 g12 · 12/14 g10 | beide 10/14, Abstand 6 |
+| Spalten-Innenrand | 0/18/14 · 0/14/14 | beide 8/12 |
+| Spaltentitel | klebend · nicht klebend | beide außerhalb des Scrollbereichs |
+| Listenzeile | schwebend r8 · randlos mit Trennlinie | beide schwebend, 4/6, `--radius-md` |
+| `.pill--manual` | Gold · transparent-grau | beide Gold |
+| `.pill--kind` | grau · Gold | beide grau |
+
+> **Warum nicht einfach „mach's wie den Siedlungseditor":** das Vorbild trägt an
+> genau diesen Stellen selbst noch `border-radius: 5px`, viermal `font-size: 10px`
+> und `font-weight: 600` — Werte, die §4.1/§4.2 anderswo ausdrücklich streichen.
+> Übernommen wurden deshalb **nur seine Polstermaße** (die liegen auf der Skala);
+> der Zeilenradius ging bei allen dreien auf `--radius-md`, und seine gerahmten
+> Scrollkästen (`#seList` & Co. mit Rahmen + Radius auf eigenem Grund) wurden
+> **nicht** übernommen — sie widersprechen AGENTS.md §12 („nach Trennern gruppieren,
+> nicht nach gerahmten Kästen"). **Offen und noch im Vorbild:** diese Kästen und
+> die 10px-Schriften.
 
 > **Drei Falschmessungen, die erst auffielen, als sie fehlschlugen** — jedes Mal
 > war die Erwartung falsch, nicht der Code:

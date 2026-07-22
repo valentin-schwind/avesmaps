@@ -156,7 +156,9 @@
   #seTreeBypassHint { font-size:10px; color:var(--color-warning-soft-text); margin:0 0 6px; padding:3px 6px; background:var(--color-warning-soft); border:1px solid var(--color-warning-soft-border); border-radius:4px; }
   #seTreeBypassHint[hidden] { display:none; }
   /* Siedlungs-Zeilen: zweizeilig, Zeile 2 = Zuordnungsstatus (gruen=zugeordnet, amber=Luecke). */
-  .se-row { display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:5px; border:1px solid transparent; cursor:pointer; }
+  /* Radius auf das Token statt 5px (Spec §4.2 kennt nur --radius-sm und --radius-md). Abenteuer- und
+     Kartensammlungs-Editor tragen dieselbe Zeilengeometrie -- 4/6, --radius-md, transparenter Rahmen. */
+  .se-row { display:flex; align-items:center; gap:8px; padding:var(--space-2) var(--space-4); border-radius:var(--radius-md); border:1px solid transparent; cursor:pointer; }
   .se-row:hover { background:var(--color-hover-wash); }
   .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
   .se-row-coat { flex:0 0 auto; width:22px; height:22px; border-radius:3px; object-fit:contain; background:var(--panel); border:1px solid var(--line2); }

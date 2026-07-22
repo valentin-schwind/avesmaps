@@ -86,8 +86,8 @@
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
     align-items: stretch;
-    gap: var(--space-8);
-    padding: var(--space-10) var(--space-12);
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-12);
     border-bottom: 1px solid var(--color-border);
     background: var(--color-panel);
   }
@@ -150,26 +150,27 @@
     flex-direction: column;
     min-height: 0;
     border-right: 1px solid var(--color-border);
-    background: var(--color-panel);
+    /* Spalten-Innenrand 8/12 wie alle drei Spalten (Spec §3.1a). Vorher trug jedes Kind seinen
+       eigenen Rand (0 var(--space-8)), weil die Zeilen randlos durchliefen -- mit schwebenden
+       Zeilen ist das nicht mehr noetig, und die Spalte bekommt denselben Rhythmus wie die anderen. */
+    padding: var(--space-6) var(--space-10);
   }
   /* Spaltentitel (Spec §3.2: "Jede Spalte traegt einen Titel", §4.1: --font-size-subhead in
      --color-accent-strong). Er steht AUSSERHALB des Scrollbereichs, denn die Panel-Inhalte werden per
      innerHTML neu gebaut -- ein Titel darin waere beim ersten Render weg. Deshalb traegt in den beiden
      Detailspalten ein innerer .ce-panel__scroll die id, und der Titel ist sein Geschwister davor. */
+  /* Den Innenrand liefert jetzt die Spalte, nicht der Titel -- sonst stuenden Titel und Inhalt auf
+     zwei verschiedenen Kanten (Spec §3.1a). */
   .ce-coltitle {
     flex: 0 0 auto;
-    margin: 0;
-    padding: var(--space-8) var(--space-12) var(--space-6);
+    margin: 0 0 var(--space-6);
     font-size: var(--font-size-subhead);
     line-height: var(--leading-snug);
     font-weight: var(--font-weight-bold);
     color: var(--color-accent-strong);
   }
-  /* Die Liste hat ihren eigenen, engeren Innenrand (--space-8 an Suchzeile, Zaehler und Zeilen);
-     der Titel folgt ihm, statt eine zweite Kante einzufuehren. */
-  .ce-list > .ce-coltitle { padding-left: var(--space-8); padding-right: var(--space-8); }
   .ce-coltitle__count { font-size: var(--font-size-caption); font-weight: 400; color: var(--color-text-muted); }
-  .ce-list__top { display: flex; gap: var(--space-6); padding: 0 var(--space-8) var(--space-8); }
+  .ce-list__top { display: flex; gap: var(--space-6); padding: 0 0 var(--space-8); }
   .ce-search {
     flex: 1 1 auto;
     min-height: var(--ce-control-h);
@@ -180,15 +181,20 @@
     color: var(--color-text);
     font: inherit;
   }
-  .ce-list__count { margin: 0; padding: 0 var(--space-8) var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ce-list__count { margin: 0; padding: 0 0 var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+  /* Schwebende, gerundete Zeile wie .se-row im Vorbild und .ae-item im Abenteuer-Editor. Vorher
+     randlos mit Trennlinie unten -- das war der auffaelligste Unterschied der beiden Editoren
+     nebeneinander (Spec §3.1a). Der transparente Rahmen haelt die Zeile beim Auswaehlen ruhig:
+     er ist immer da und wechselt nur die Farbe, sonst wuerde die Zeile um 2px springen. */
   .ce-item {
     display: flex;
     gap: var(--space-8);
     width: 100%;
-    padding: var(--space-8);
-    border: none;
-    border-bottom: 1px solid var(--color-divider);
+    padding: var(--space-2) var(--space-4);
+    margin-bottom: 1px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -196,7 +202,7 @@
     cursor: pointer;
   }
   .ce-item:hover { background: var(--color-hover-wash); }
-  .ce-item.is-selected { background: var(--color-active-wash); }
+  .ce-item.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
   .ce-item.is-draft .ce-item__title { opacity: 0.6; font-style: italic; }
   .ce-item__thumb {
     flex: 0 0 auto;
@@ -226,7 +232,7 @@
      kein Fach. Vorher trug sie nur font-weight und blieb damit auf Listenzeilen-Groesse. */
   .ce-detail__head {
     flex: 0 0 auto;
-    padding: var(--space-8) var(--space-12);
+    padding: var(--space-6) var(--space-10);
     border-bottom: 1px solid var(--color-border);
     font-size: var(--font-size-subhead);
     line-height: var(--leading-snug);
@@ -238,10 +244,12 @@
      Basen in derselben Zeile, und der freie Rest wurde dann noch einmal gleich verteilt. Ergebnis waren
      nicht Drittel, sondern ein breites Stammdaten- und ein schmales Orte-Panel (gemessen: 673 / 244). */
   .ce-panels { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
-  .ce-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .ce-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    padding: var(--space-6) var(--space-10); }
+  .ce-detail__head:empty { display: none; }
   /* Das Panel selbst scrollt nicht mehr -- sonst wanderte der Spaltentitel mit dem Inhalt weg.
      Es scrollt der innere Kasten, der auch die id traegt. */
-  .ce-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 var(--space-12) var(--space-12); }
+  .ce-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .ce-panel--orte { border-left: 1px solid var(--color-border); }
   .ce-placeholder { color: var(--color-text-muted); }
 
@@ -411,8 +419,13 @@
     line-height: 1.3;
     white-space: nowrap;
   }
-  .pill--kind { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong); }
-  .pill--manual { border-color: var(--color-border-strong); background: transparent; }
+  /* 💣 Diese beiden waren gegenueber dem Abenteuer-Editor VERTAUSCHT: dort schrie „manuell" in Gold
+     und der Typ blieb still, hier genau umgekehrt. Eine Vokabel darf nicht in zwei Editoren
+     Gegensaetzliches betonen. Regel (Spec §3.1b): die AUSNAHME wird betont, die Kategorie nicht --
+     „manuell" ist die Ausnahme, der Typ ist eine Einordnung. */
+  .pill--kind { border-color: var(--color-border); background: var(--color-panel-muted); color: var(--color-text-muted); }
+  .pill--manual { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong);
+    font-weight: var(--font-weight-bold); }
   /* Autoget = fremdes Bildmaterial, nur intern -> Warnfarbe, damit es sich nie wie ein eigener Upload liest. */
   .pill--auto { border-color: var(--color-warning); background: transparent; color: var(--color-warning); }
   .pill--community { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong); }
@@ -432,7 +445,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-8);
-    padding: var(--space-8) var(--space-12);
+    padding: var(--space-6) var(--space-10);
     border-top: 1px solid var(--color-border);
     background: var(--color-panel);
   }

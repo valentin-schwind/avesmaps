@@ -69,11 +69,14 @@
      Territorieneditor. Kehrt den Stand vom 2026-07-17 um ("beide das kachelmenüband, linksbündig") --
      damals ging es darum, dass Abenteuer und Karten untereinander gleich aussehen; der Owner
      vergleicht sie jetzt mit Siedlungen/Territorien, und die fuehren die volle Breite (Spec §3.3). */
+  /* Hüllenmaße nach Spec §3.1a -- vorher geraten (12/18, Abstand 12, weicher Grund) und damit in
+     jedem der drei Editoren anders. Jetzt die Werte des Vorbilds: Menüband 10/14, Abstand 6,
+     --color-panel. */
   .ae-header {
     flex: 0 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-    align-items: stretch; gap: var(--space-10);
-    padding: var(--space-10) var(--space-16);
-    background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border);
+    align-items: stretch; gap: var(--space-4);
+    padding: var(--space-8) var(--space-12);
+    background: var(--color-panel); border-bottom: 1px solid var(--color-border);
   }
   /* Im Gitter unnoetig -- er wuerde eine eigene Spalte belegen und die Kacheln schmaler machen. */
   .ae-header__spacer { display: none; }
@@ -102,7 +105,7 @@
      den ganzen Editor betrifft (Liste geladen, Auswahl fehlgeschlagen), nicht den Lauf einer Kachel. */
   .ae-status {
     flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-12);
-    padding: var(--space-4) var(--space-16); min-height: 30px;
+    padding: var(--space-4) var(--space-12); min-height: 30px;
     color: var(--color-text-muted); background: var(--color-panel-soft);
     border-bottom: 1px solid var(--color-border);
   }
@@ -128,26 +131,20 @@
      Die frueheren min-width:240px sitzen jetzt an der Spur selbst (minmax(240px,1fr)): bei 1400
      Breite ist die Spur 466 und der Mindestwert greift nicht, das 1:2 bleibt exakt -- schmal
      wird die Liste trotzdem nicht unter 240 gequetscht. */
+  /* Spalten-Innenrand 8/12 in ALLEN drei Spalten (Spec §3.1a). Kein eigener Grund mehr: der
+     --color-panel-soft hob die Liste gegen die beiden Detailspalten ab, was sie im Vergleich mit
+     Siedlungen und Karten wie ein fremdes Bauteil aussehen liess. Trennlinie genuegt. */
   .ae-list {
     min-width: 0; min-height: 0; display: flex; flex-direction: column;
-    border-right: 1px solid var(--color-border); background: var(--color-panel-soft); padding: var(--space-10);
+    border-right: 1px solid var(--color-border); padding: var(--space-6) var(--space-10);
   }
   /* Spaltentitel -- fuehrt jede der drei Spalten an (Spec §3.2), auf der eigenen Stufe der Leiter
      (--font-size-subhead, §4.1). Vorbild .listhead im Siedlungseditor: --color-accent-strong statt
      der normalen Textfarbe, damit die Titel die Spalten sichtbar anfuehren statt mitzulaufen. */
   .ae-colhead {
+    flex: 0 0 auto;
     margin: 0 0 var(--space-6); font-size: var(--font-size-subhead); line-height: var(--leading-snug);
     font-weight: var(--font-weight-bold); color: var(--color-accent-strong);
-  }
-  /* Die beiden Panels scrollen SELBST, also klebt ihr Titel oben -- sonst ist er nach der ersten
-     Mausraddrehung weg. Der Hintergrund ist Pflicht, nicht Zierde: ohne ihn laeuft der Inhalt
-     sichtbar durch den Titel. Aussenrand OBEN bleibt 0 (sonst wandert der Klebepunkt mit, siehe
-     .ae-panel); seitlich blendet er bis an die Panelkanten aus, seine Polsterung stellt die
-     Textposition wieder her, die das Panel oben nicht mehr liefert. */
-  .ae-panel > .ae-colhead {
-    position: sticky; top: 0; z-index: 2; background: var(--color-panel);
-    margin: 0 calc(-1 * var(--space-16)) var(--space-10);
-    padding: var(--space-12) var(--space-16) var(--space-6);
   }
   .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
   .ae-search {
@@ -188,13 +185,15 @@
     color: var(--color-link); font-size: var(--font-size-caption); padding: 0; }
   .ae-filter__reset:hover { text-decoration: underline; }
 
+  /* Schwebende, gerundete Zeile wie .se-row im Vorbild -- Polsterung 4/6, Auswahl am Rahmen in
+     --color-accent (vorher --color-border-strong, was gegen den Grund kaum zu sehen war). */
   .ae-item {
     display: flex; align-items: center; gap: var(--space-8); width: 100%; text-align: left; cursor: pointer; font: inherit;
     background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
-    padding: var(--space-4) var(--space-8); margin-bottom: 1px; line-height: var(--leading-tight);
+    padding: var(--space-2) var(--space-4); margin-bottom: 1px; line-height: var(--leading-tight);
   }
   .ae-item:hover { background: var(--color-hover-wash); }
-  .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-border-strong); }
+  .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
   .ae-item__thumb {
     flex: 0 0 auto; width: 32px; height: 45px; border: 1px solid var(--color-border);
     border-radius: var(--radius-sm); overflow: hidden; background: var(--color-panel-muted);
@@ -215,8 +214,12 @@
   .ae-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .ae-detail__head {
     flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
-    padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--color-border); min-height: 40px;
+    padding: var(--space-6) var(--space-10); border-bottom: 1px solid var(--color-border);
   }
+  /* Ohne Auswahl ist der Kopf leer -- die feste Mindesthoehe liess dann ein leeres 40px-Band mit
+     Trennlinie ueber den beiden Spalten stehen und schob ihre Titel gegenueber dem Listentitel
+     nach unten. Leer heisst jetzt weg. */
+  .ae-detail__head:empty { display: none; }
   .ae-detail__head-main { flex: 1 1 auto; min-width: 0; }
   .ae-detail__title { margin: 0; font-size: var(--font-size-subhead); color: var(--color-text-strong);
     font-weight: var(--font-weight-bold); }
@@ -227,11 +230,14 @@
      Trenner, .ae-panel--orte nicht -- unter flex:1 1 50% haette dieser eine Pixel die beiden
      Spalten wieder ungleich gemacht. */
   .ae-panels { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
-  /* Kein Polster oben: das liefert der klebende Spaltentitel mit seiner eigenen Polsterung. Ein
-     negativer Aussenrand am Titel taete es NICHT -- er verschiebt den Klebepunkt um genau diesen
-     Betrag, gemessen sass der Titel dann 14px unter der Panelkante und der Inhalt lief durch den
-     Spalt darueber. */
-  .ae-panel { min-width: 0; min-height: 0; overflow: auto; padding: 0 var(--space-16) var(--space-12); }
+  /* Nicht mehr das Panel scrollt, sondern der innere Kasten -- so steht der Spaltentitel AUSSERHALB
+     des Scrollbereichs und kann gar nicht erst wegwandern. Das ersetzt den vorherigen
+     position:sticky mit deckendem Hintergrund: dieselbe Wirkung, aber ohne Klebepunkt, ohne
+     ausblutende Raender und ohne die Falle, dass ein negativer Aussenrand den Klebepunkt
+     mitverschiebt. So loesen es Vorbild und Kartensammlungs-Editor auch (Spec §3.1a). */
+  .ae-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    padding: var(--space-6) var(--space-10); }
+  .ae-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .ae-panel--stamm { border-right: 1px solid var(--color-border); }
   .ae-placeholder { color: var(--color-text-muted); padding: var(--space-16); }
 
@@ -267,7 +273,9 @@
   .pill--manual { border-color: var(--color-accent); background: var(--color-pill); color: var(--color-accent-strong);
     font-weight: var(--font-weight-bold); }
   .pill--wiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
-  .pill--unresolved { border-color: var(--color-danger); background: transparent; color: var(--color-danger); }
+  /* Warnfarbe, nicht Gefahrfarbe: „nicht aufgeloest" ist ein offener Punkt, kein Fehler -- Rot
+     bleibt dem echten Fehlerfall vorbehalten. Gleicht den Kartensammlungs-Editor an (Spec §3.1b). */
+  .pill--unresolved { border-color: var(--color-warning); background: transparent; color: var(--color-warning); }
   .pill--nowiki { border-color: var(--color-border); background: transparent; color: var(--color-text-muted); }
   .start-toggle.is-on { background: var(--color-active-wash); border-color: var(--color-accent-strong);
     color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
@@ -391,7 +399,7 @@
 
   /* ---- save bar ------------------------------------------------------------------------------- */
   .ae-savebar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
-    padding: var(--space-8) var(--space-16); border-top: 1px solid var(--color-border); background: var(--color-panel-soft); }
+    padding: var(--space-6) var(--space-10); border-top: 1px solid var(--color-border); background: var(--color-panel-soft); }
   .ae-savebar[hidden] { display: none; } /* author display:flex would otherwise beat the hidden attribute */
   .ae-savebar .ae-spacer { flex: 1 1 auto; }
   .ae-savebar .saved { font-size: var(--font-size-caption); color: var(--color-success); }
@@ -487,20 +495,21 @@
 
     <section class="ae-detail">
       <div class="ae-detail__head" id="aeDetailHead"></div>
-      <!-- Die ids sitzen INNEN: beide Panels werden per innerHTML ueberschrieben, ein Titel darin
-           waere beim ersten Rendern geloescht. Als Geschwister davor ueberlebt er jedes Rendern --
-           und die Klick-Delegierung auf #aeStammBody (Weitere Links) bleibt unberuehrt, weil das
-           Element selbst weiterhin statisch ist und nur seine Kinder wechseln. -->
+      <!-- Die ids sitzen auf dem SCROLLKASTEN, nicht auf dem Panel: beide werden per innerHTML
+           ueberschrieben, ein Titel darin waere beim ersten Rendern geloescht. Als Geschwister
+           davor -- und ausserhalb des Scrollbereichs -- ueberlebt er jedes Rendern und wandert
+           beim Scrollen nicht weg. Die Klick-Delegierung auf #aeStammBody (Weitere Links) bleibt
+           unberuehrt: das Element ist weiterhin statisch, nur seine Kinder wechseln. -->
       <div class="ae-panels">
         <div class="ae-panel ae-panel--stamm">
           <h2 class="ae-colhead">Stammdaten</h2>
-          <div id="aeStammBody">
+          <div class="ae-panel__scroll" id="aeStammBody">
             <p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>
           </div>
         </div>
         <div class="ae-panel ae-panel--orte">
           <h2 class="ae-colhead" id="aeOrteTitle">Orte</h2>
-          <div id="aeOrteBody">
+          <div class="ae-panel__scroll" id="aeOrteBody">
             <p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>
           </div>
         </div>
