@@ -232,7 +232,10 @@ window.refreshActiveWikiSyncPanelAfterAssignment = refreshActiveWikiSyncPanelAft
 })();
 
 function setWikiSyncPanelTab(tabName) {
-	activeWikiSyncPanelTab = ["territories", "regions", "paths", "adventures"].includes(tabName) ? tabName : "locations";
+	// Valid = "the registry knows it" (js/review/review-subjects.js). Never a literal list here:
+	// a key missing from such a list makes its tab silently fall back to Siedlungen, which is how
+	// the tab cascade broke once already (spec 2026-07-17-editor-reiter-kaskade-design.md).
+	activeWikiSyncPanelTab = wikiSyncIsKnownSubject(tabName) ? tabName : "locations";
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
@@ -244,30 +247,29 @@ function setWikiSyncPanelTab(tabName) {
 		sectionElement.classList.toggle("is-active", sectionElement.dataset.wikiSyncPanelSection === activeWikiSyncPanelTab);
 	});
 
-	if (activeWikiSyncPanelTab === "territories") {
-		void renderWikiSyncTerritoryTree();
-	} else if (activeWikiSyncPanelTab === "regions") {
-		if (typeof loadRegionWikiSync === "function") {
-			void loadRegionWikiSync();
-		}
-	} else if (activeWikiSyncPanelTab === "paths") {
-		if (typeof loadPathWikiSync === "function") {
-			void loadPathWikiSync();
-		}
-	} else if (activeWikiSyncPanelTab === "adventures") {
-		if (typeof loadWikiSyncAdventureList === "function") {
-			void loadWikiSyncAdventureList();
-		}
-		// Also load the citymap list so BOTH material sub-tab pills show their count right away, not
-		// only after the "Karten" pill is first clicked. Cheap: the editor is already open here.
-		if (typeof loadWikiSyncCitymapList === "function") {
-			void loadWikiSyncCitymapList();
-		}
-	} else {
-		renderWikiSyncCases();
-		if (typeof loadSettlementList === "function") {
-			loadSettlementList();
-		}
+	// Which list to (lazily) load for which subject. Loaders stay optional -- some are defined in
+	// files that only load in edit mode, so a missing one must be skipped, not crash. The guards
+	// also mean a MISSPELLED loader silently does nothing, so the panel-tab test checks every name
+	// here against the real definitions.
+	//
+	// Kraftlinien deliberately has no entry: it is a sync-only subject with no list to load.
+	// The old adventures branch also loaded the citymap list, so both "Materialien" pills showed
+	// their count at once. That is gone on purpose -- Karten is its own subject now and loads on
+	// its own click.
+	const loaders = {
+		locations: () => {
+			if (typeof renderWikiSyncCases === "function") renderWikiSyncCases();
+			if (typeof loadSettlementList === "function") loadSettlementList();
+		},
+		territories: () => (typeof renderWikiSyncTerritoryTree === "function") && renderWikiSyncTerritoryTree(),
+		regions: () => (typeof loadRegionWikiSync === "function") && loadRegionWikiSync(),
+		paths: () => (typeof loadPathWikiSync === "function") && loadPathWikiSync(),
+		adventures: () => (typeof loadWikiSyncAdventureList === "function") && loadWikiSyncAdventureList(),
+		citymaps: () => (typeof loadWikiSyncCitymapList === "function") && loadWikiSyncCitymapList(),
+		lore: () => (typeof loadLoreList === "function") && loadLoreList("panel"),
+	};
+	if (loaders[activeWikiSyncPanelTab]) {
+		void loaders[activeWikiSyncPanelTab]();
 	}
 }
 
