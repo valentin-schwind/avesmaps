@@ -507,6 +507,8 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	const location = markerEntry?.location || {};
 	const wikiLocationLink = getWikiLocationLink(location.name || markerEntry?.name || "", location.wikiUrl || "");
 	document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
+	// Eine beim Anlegen gemerkte Wiki-Wahl gehört zum vorigen Dialog, nicht zum nächsten.
+	locationEditPendingWikiSettlement = null;
 	void acquireFeatureSoftLock(markerEntry?.publicId || "");
 	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
 	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
@@ -579,6 +581,16 @@ function mountLocationEditNameAutocomplete() {
 			const wikiUrlField = document.getElementById("location-edit-wiki-url");
 			if (wikiUrlField) {
 				wikiUrlField.value = String(item.wiki_url || "");
+			}
+			// Dieselbe Wahl auch im Abschnitt „Wiki-Siedlung" zeigen. Beide Wege führen zur selben
+			// Verbindung, also dürfen sie nicht Verschiedenes behaupten.
+			locationEditPendingWikiSettlement = {
+				title: String(item.title || item.name || ""),
+				name: String(item.name || item.title || ""),
+				wiki_url: String(item.wiki_url || ""),
+			};
+			if (typeof renderSettlementWikiReference === "function") {
+				renderSettlementWikiReference();
 			}
 		},
 	});

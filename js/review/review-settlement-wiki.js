@@ -57,14 +57,23 @@ function renderSettlementWikiReference() {
 	// (mounted in review-locations.js) now renders the Wiki row and catalog sources together, so
 	// there is no wiki-vs-other-source visibility to reconcile here anymore (multi-source #2).
 	if (!publicId) {
-		// Neuer Ort ohne gespeicherte ID: erst speichern, dann verbinden.
-		list.innerHTML = '<div class="label-wiki-reference__empty">Ort zuerst speichern, dann verbinden.</div>';
+		// Neuer Ort: es gibt noch keine ID, an die eine Verbindung geschrieben werden könnte -- aber
+		// die AUSWAHL braucht keine, nur das Schreiben. Der Knopf bleibt also offen, die Wahl wird
+		// gemerkt, und nach create_point verbindet der vorhandene Auto-Connect. Vorher war er hier
+		// gesperrt, was zwang, erst zu speichern und den Dialog neu zu öffnen.
+		const pending = typeof locationEditPendingWikiSettlement !== "undefined"
+			? locationEditPendingWikiSettlement
+			: null;
+		list.innerHTML = pending
+			? '<div class="label-wiki-reference__empty">' + settlementWikiEscapeText(pending.name) +
+				' — wird beim Anlegen verbunden.</div>'
+			: '<div class="label-wiki-reference__empty">Noch nichts gewählt. Die Auswahl wird beim Anlegen verbunden.</div>';
 		if (assignButton) {
-			assignButton.disabled = true;
-			assignButton.textContent = "Zuweisen";
+			assignButton.disabled = false;
+			assignButton.textContent = pending ? "Ändern" : "Zuweisen";
 		}
 		if (removeButton) {
-			removeButton.hidden = true;
+			removeButton.hidden = !pending;
 		}
 		return;
 	}
@@ -169,10 +178,44 @@ function renderSettlementWikiPickerList() {
 		.join("");
 }
 
+// Anlege-Fall: assign_to braucht eine public_id und wirft ohne sie („title/public_id fehlt"). Die
+// Siedlung wird deshalb nur GELESEN -- ?action=preview liefert dasselbe Objekt, das assign_to
+// zurückgäbe (avesmapsWikiSettlementBuildFromTitle) -- und die Wahl lokal gemerkt. Träger für den
+// Auto-Connect nach create_point ist das versteckte wiki_url-Feld, genau wie im Bearbeiten-Fall.
+async function selectSettlementWikiResultWhileCreating(title) {
+	const status = settlementWikiElement("settlement-wiki-picker-status");
+	if (status) {
+		status.textContent = "Wird übernommen ...";
+	}
+	try {
+		const data = await settlementWikiGet(`?action=preview&title=${encodeURIComponent(title)}`);
+		const settlement = data && data.ok === true ? data.settlement : null;
+		if (!settlement) {
+			throw new Error(apiErrorMessage(data, "Siedlung konnte nicht gelesen werden"));
+		}
+		locationEditPendingWikiSettlement = {
+			title: String(settlement.title || title),
+			name: String(settlement.name || settlement.title || title),
+			wiki_url: String(settlement.wiki_url || ""),
+		};
+		const wikiUrlField = document.getElementById("location-edit-wiki-url");
+		if (wikiUrlField) {
+			wikiUrlField.value = locationEditPendingWikiSettlement.wiki_url;
+		}
+		setSettlementWikiPickerOpen(false);
+		renderSettlementWikiReference();
+		showFeedbackToast?.(`„${locationEditPendingWikiSettlement.name}" wird beim Anlegen verbunden.`, "info");
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	}
+}
+
 async function selectSettlementWikiResult(title) {
 	const publicId = settlementWikiCurrentPublicId();
 	if (!publicId) {
-		showFeedbackToast?.("Ort zuerst speichern.", "error");
+		await selectSettlementWikiResultWhileCreating(title);
 		return;
 	}
 	const status = settlementWikiElement("settlement-wiki-picker-status");
@@ -280,6 +323,14 @@ async function autoConnectSettlementWikiByUrl(publicId, wikiUrl, markerEntry) {
 async function removeSettlementWiki() {
 	const publicId = settlementWikiCurrentPublicId();
 	if (!publicId) {
+		// Anlege-Fall: es gibt nur die lokal gemerkte Wahl. Die nehmen wir zurück, ohne zu schreiben --
+		// sonst klebt sie bis zum Speichern fest und wird dann doch verbunden.
+		locationEditPendingWikiSettlement = null;
+		const pendingUrlField = document.getElementById("location-edit-wiki-url");
+		if (pendingUrlField) {
+			pendingUrlField.value = "";
+		}
+		renderSettlementWikiReference();
 		return;
 	}
 	try {

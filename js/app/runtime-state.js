@@ -149,6 +149,10 @@ let locationData = [],
 	// detach() des Ortsnamen-Typeaheads im Anlegen-Dialog; beim erneuten Öffnen zuerst abräumen,
 	// sonst stapeln sich Listener und verwaiste Dropdown-Knoten im body.
 	locationEditNameAutocompleteDetach = null,
+	// Beim ANLEGEN gewählte Wiki-Siedlung ({title,name,wiki_url}), solange es noch keine public_id
+	// gibt, an die man sie schreiben könnte. Verbunden wird sie nach create_point vom vorhandenen
+	// Auto-Connect; Träger dafür ist das versteckte wiki_url-Feld, das dies hier nur begleitet.
+	locationEditPendingWikiSettlement = null,
 	isLocationEditSubmissionPending = false,
 	pendingCrossingConversionPublicId = null,
 	pendingCrossingConversionName = "",
