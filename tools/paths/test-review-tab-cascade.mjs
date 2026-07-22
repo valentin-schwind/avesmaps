@@ -41,7 +41,6 @@ const ATTRIBUTE = {
 	editorPanel: "data-editor-panel-tab",
 	wikiSync: "data-wiki-sync-panel-tab",
 	reviewSub: "data-review-subtab",
-	material: "data-material-subtab",
 	mail: "data-mail-tab",
 };
 const KEY = {
@@ -49,9 +48,17 @@ const KEY = {
 	wikiSync: "avesmaps.review.wikiSync.activeTab",
 	reviewSub: "avesmaps.review.reports.activeTab",
 	status: "avesmaps.review.status.activeTab",
-	material: "avesmaps.review.material.activeTab",
 	mail: "avesmaps.review.mail.activeTab",
 };
+
+// The third level is gone (2026-07-22): Abenteuer, Karten and Vorkommen are top-level subjects,
+// so the cascade is two deep, not three. Asserted against the real sliced table -- re-adding the
+// family here would be the cheapest way to quietly bring the level back.
+// Matches the TABLE ENTRY, not the word: the comment that records why the level went away names
+// the attribute too, and a guard that trips on its own explanation teaches the next session to
+// delete the explanation.
+assert.equal(/attribute:\s*"data-material-subtab"/.test(cascadeSource), false,
+	"the material sub-tab family must not come back -- that level no longer exists");
 
 function makeButton(attribute, value, { active = false, clickLog } = {}) {
 	const button = {
@@ -125,14 +132,14 @@ function run({ buttons = [], stored = {}, href = "https://avesmaps.de/?edit=1", 
 	assert.equal(materialien.clicks, 1, '"Materialien" (key "adventures") was not restored');
 }
 
-// ---- 2. Level 3: the owner's actual destination ----
+// ---- 2. "Karten" -- a level-3 sub-tab until 2026-07-22, a level-2 subject since ----
 {
-	const karten = makeButton(ATTRIBUTE.material, "citymaps");
+	const karten = makeButton(ATTRIBUTE.wikiSync, "citymaps");
 	run({
-		buttons: [makeButton(ATTRIBUTE.material, "adventures", { active: true }), karten],
-		stored: { [KEY.material]: "citymaps" },
+		buttons: [makeButton(ATTRIBUTE.wikiSync, "locations", { active: true }), karten],
+		stored: { [KEY.wikiSync]: "citymaps" },
 	});
-	assert.equal(karten.clicks, 1, 'level 3 ("Karten") was not restored');
+	assert.equal(karten.clicks, 1, '"Karten" was not restored');
 }
 
 // ---- 3. A tab a deploy removed: no click, and the dead value is dropped ----
@@ -200,24 +207,22 @@ function run({ buttons = [], stored = {}, href = "https://avesmaps.de/?edit=1", 
 	assert.equal(cascadeSource.includes("replaceState("), false, "history.replaceState must not return to the tab code");
 }
 
-// ---- 7. Restore order: level 1 before 2 before 3 ----
+// ---- 7. Restore order: level 1 before level 2 (there is no level 3 any more) ----
 {
 	const clickLog = [];
 	run({
 		buttons: [
-			makeButton(ATTRIBUTE.material, "citymaps", { clickLog }),
-			makeButton(ATTRIBUTE.wikiSync, "adventures", { clickLog }),
+			makeButton(ATTRIBUTE.wikiSync, "citymaps", { clickLog }),
 			makeButton(ATTRIBUTE.editorPanel, "wiki-sync", { clickLog }),
 		],
 		stored: {
 			[KEY.editorPanel]: "wiki-sync",
-			[KEY.wikiSync]: "adventures",
-			[KEY.material]: "citymaps",
+			[KEY.wikiSync]: "citymaps",
 		},
 	});
 	assert.deepEqual(
 		clickLog,
-		["data-editor-panel-tab=wiki-sync", "data-wiki-sync-panel-tab=adventures", "data-material-subtab=citymaps"],
+		["data-editor-panel-tab=wiki-sync", "data-wiki-sync-panel-tab=citymaps"],
 		"the cascade must be restored top-down, parent tab before child"
 	);
 }
@@ -229,7 +234,9 @@ function run({ buttons = [], stored = {}, href = "https://avesmaps.de/?edit=1", 
 {
 	const cases = [
 		[ATTRIBUTE.wikiSync, "adventures", KEY.wikiSync],
-		[ATTRIBUTE.material, "citymaps", KEY.material],
+		[ATTRIBUTE.wikiSync, "citymaps", KEY.wikiSync],
+		[ATTRIBUTE.wikiSync, "lore", KEY.wikiSync],
+		[ATTRIBUTE.wikiSync, "powerlines", KEY.wikiSync],
 		[ATTRIBUTE.editorPanel, "presence", KEY.editorPanel],
 		[ATTRIBUTE.reviewSub, "mails", KEY.reviewSub],
 		[ATTRIBUTE.mail, "gesendet", KEY.mail],

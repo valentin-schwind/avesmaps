@@ -323,23 +323,10 @@ $(document).on("click", "[data-review-subtab]", function () {
 // Sub-Pills im "Materialien"-Reiter (Abenteuer / Karten) — dasselbe Muster wie oben.
 // The citymap list loads LAZILY on first open, like the adventure list: it is an editor catalog fetch
 // that nobody waiting on the Siedlungen tab should pay for.
-$(document).on("click", "[data-material-subtab]", function () {
-    const sub = this.dataset.materialSubtab || "adventures";
-    document.querySelectorAll("[data-material-subtab]").forEach((tab) => {
-        tab.classList.toggle("is-active", tab.dataset.materialSubtab === sub);
-    });
-    document.querySelectorAll("[data-material-subtab-section]").forEach((section) => {
-        section.classList.toggle("is-active", section.dataset.materialSubtabSection === sub);
-    });
-    if (sub === "citymaps" && typeof window.loadWikiSyncCitymapList === "function") {
-        void window.loadWikiSyncCitymapList(false);
-    }
-    // Natur & Waren: dieselbe Lazy-Regel -- der Katalog wird erst beim ersten Öffnen
-    // geholt, nicht schon beim Laden der Karte.
-    if (sub === "lore" && typeof window.loadLoreList === "function") {
-        window.loadLoreList();
-    }
-});
+// The level-3 "Materialien" pills used to be handled here. That level is gone (2026-07-22):
+// Abenteuer, Karten and Vorkommen are top-level subjects, and setWikiSyncPanelTab does the
+// switching and the lazy list load for all eight in one table. This handler was delegated on
+// document, so with no such element left it did not error -- it simply never fired again.
 $("#wiki-sync-filter").on("input search", function () {
     setWikiSyncFilterQuery(this.value || "");
 });

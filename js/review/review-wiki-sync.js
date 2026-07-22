@@ -1628,7 +1628,7 @@ async function startWikiSyncCitymapsSync() {
 }
 
 // ===========================================================================
-// „Natur & Waren syncen": the SHARP reconcile of the wiki lore catalog (flora,
+// „Vorkommen syncen" (called „Natur & Waren" until 2026-07-22): the SHARP reconcile of the wiki lore catalog (flora,
 // fauna, species, trade goods — built during „Dump holen") into the live
 // lore_entry / lore_place tables -- and, per entry, its sources into the SHARED
 // feature_sources (entity_type='lore'). Drives the backend `sync_lore`
@@ -1751,7 +1751,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 
 		const total = Number(stepResult?.progress?.total ?? 0);
 		const label = `${totals.processed}${total > 0 ? "/" + total : ""}`;
-		setWikiSyncStatus(`Natur & Waren werden übernommen … ${label} geprüft`, "pending");
+		setWikiSyncStatus(`Vorkommen werden übernommen … ${label} geprüft`, "pending");
 		if (typeof onProgress === "function") {
 			onProgress(label);
 		}
@@ -1764,7 +1764,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 }
 
 // ===========================================================================
-// Fenster „Natur & Waren". Der Reiter zeigt nur noch EINEN Knopf, der dieses
+// Fenster „Vorkommen" (bis 2026-07-22 „Natur & Waren"). Der Reiter zeigt nur noch EINEN Knopf, der dieses
 // Fenster öffnet; syncen und bearbeiten passieren ausschließlich darin.
 //
 // WARUM: Der Sync-Knopf saß direkt im Reiter und startete beim ersten Klick einen
@@ -1904,7 +1904,7 @@ async function startWikiSyncLoreSync() {
 		button.disabled = true;
 		setLoreSyncStatusLabel(button, "wird übernommen …");
 	}
-	setWikiSyncStatus("Natur & Waren werden übernommen …", "pending");
+	setWikiSyncStatus("Vorkommen werden übernommen …", "pending");
 
 	try {
 		// SCHRITT 1: Staging aus dem (gecachten) Dump aufbauen. Läuft immer, ist
@@ -1931,8 +1931,8 @@ async function startWikiSyncLoreSync() {
 			? "Quellen unverändert (noch kein „Dump holen“ mit Quellen gelaufen)"
 			: `Quellen +${t.sourcesAdded}/~${t.sourcesUpdated}`;
 		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · ${quellen})`;
-		setWikiSyncStatus(`Natur & Waren übernommen.${note}`, "success");
-		showFeedbackToast(`Natur & Waren übernommen.${note}`, "success");
+		setWikiSyncStatus(`Vorkommen übernommen.${note}`, "success");
+		showFeedbackToast(`Vorkommen übernommen.${note}`, "success");
 		// Liste UND „zuletzt gesynct" nachziehen. Ohne das zeigt der Reiter direkt nach
 		// einem erfolgreichen Sync noch den alten Stempel und die alten Zahlen -- was
 		// wie ein fehlgeschlagener Lauf aussieht, obwohl gerade alles geklappt hat.
@@ -1966,7 +1966,7 @@ async function startWikiSyncLoreSync() {
 }
 
 // ===========================================================================
-// Liste im Reiter „Natur & Waren": Fauna / Flora / Waren / Spezies, durchsuchbar.
+// Liste im Subjekt „Vorkommen" (bis 2026-07-22 „Natur & Waren"): Fauna / Flora / Waren / Spezies, durchsuchbar.
 // Liest api/app/lore.php?catalog=1 -- den öffentlichen Lesepfad, nicht den
 // Editor-Endpoint: die Liste zeigt nur Bestand. Bearbeiten kommt in einem eigenen
 // Schritt dazu, dann mit capability-Gate.
@@ -2053,7 +2053,7 @@ function renderLoreList(view, data) {
 	if (items.length === 0) {
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">'
 			+ (data && data.total === 0 && !data.q
-				? "Noch keine Einträge – bitte einmal „Natur &amp; Waren syncen“."
+				? "Noch keine Einträge – bitte einmal „Vorkommen syncen“."
 				: "Kein Treffer.")
 			+ "</p>";
 		return;
@@ -2271,7 +2271,7 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 // Reconcile (wiki/lore-sync.php) ohnehin liest: ein zugeordneter Ort ist
 // origin='manual', ein entfernter Wiki-Ort ein Grabstein (status='suppressed'), ein
 // überschriebenes Feld trägt field_origins[feld]='manual'. Deshalb überlebt jede
-// Handkorrektur den nächsten „Natur & Waren syncen"-Lauf, und das ist unit-getestet.
+// Handkorrektur den nächsten „Vorkommen syncen"-Lauf, und das ist unit-getestet.
 // ===========================================================================
 
 var avesmapsLoreDetailKey = "";
@@ -2365,7 +2365,10 @@ function renderLoreDetail(entry) {
 		+ '<div class="lore-detail__col">'
 		+ '<h5 class="lore-detail__section">Stammdaten</h5>'
 		+ loreFieldRow(entry, "name", "Name")
-		+ loreFieldRow(entry, "gruppe", "Art")
+		// Beschriftet die Spalte `gruppe` -- und hiess bis 2026-07-22 „Art", was ihrer eigenen
+		// Spalte widersprach und mit der Art-Unterscheidung (Fauna/Flora/Waren/Spezies, jetzt die
+		// Reiter über der Liste) kollidierte. Zwei verschiedene Dinge, ein Name, ein Panel.
+		+ loreFieldRow(entry, "gruppe", "Gruppe")
 		+ (entry.kind === "ware" ? loreFieldRow(entry, "typ", "Gegenstandstyp") : "")
 		+ loreFieldRow(entry, "lebensraum", "Lebensraum")
 		+ loreFieldRow(entry, "synonyme", "Weitere Namen")

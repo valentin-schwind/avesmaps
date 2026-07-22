@@ -543,7 +543,10 @@ const REVIEW_TAB_FAMILIES = [
 	{ attribute: "data-wiki-sync-panel-tab", storageKey: "avesmaps.review.wikiSync.activeTab", urlParameter: "wikiSyncTab" },
 	{ attribute: "data-review-subtab", storageKey: "avesmaps.review.reports.activeTab" },
 	{ attribute: "data-status-subtab", storageKey: "avesmaps.review.status.activeTab" },
-	{ attribute: "data-material-subtab", storageKey: "avesmaps.review.material.activeTab" },
+	// "data-material-subtab" stood here until 2026-07-22. That level is gone -- Abenteuer, Karten
+	// and Vorkommen are top-level subjects now, so their keys live in the wiki-sync family above.
+	// Nothing needs to forget the stored value on purpose: restoreReviewTabFamily drops a value
+	// whose button no longer exists in the DOM, which is exactly what happened here.
 	{ attribute: "data-mail-tab", storageKey: "avesmaps.review.mail.activeTab" },
 ];
 
