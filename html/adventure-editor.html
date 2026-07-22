@@ -38,14 +38,20 @@
 <link rel="stylesheet" href="/css/base/tokens.css">
 <style>
   * { box-sizing: border-box; }
-  /* Scrollbars, copied from css/base/base.css: this iframe links tokens.css but NOT base.css, so its
-     scroll areas showed the browser's default bars while the app around it had the thin warm ones.
-     The WebKit pseudo-elements do not inherit, hence `*`. Identical block in citymap-editor.html --
-     the two editors must not differ in this. */
-  :root { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
-  *::-webkit-scrollbar { width: 7px; height: 7px; }
+  /* Eine Bedienhoehe fuer Suchfeld, Eingabe, Auswahl und Knopf (Spec §4.3, = --se-control-h im
+     Siedlungseditor). Sie stehen staendig nebeneinander -- in .ae-list__top, in .ae-filters, in
+     .ae-add -- und drei verschiedene Hoehen nebeneinander lesen sich als Unfall. */
+  :root { --ae-control-h: 32px; }
+  /* Scrollbars: this iframe links tokens.css but NOT base.css, so its scroll areas showed the
+     browser's default bars while the app around it had the thin warm ones. The WebKit
+     pseudo-elements do not inherit, hence `*`. Measurements now match the settlement editor
+     (6cc567db): 10px wide, round thumb inset by a 2px track-coloured border. The citymap editor
+     still carries the older 7px copy of this block -- it gets the same treatment when its turn
+     comes; Spec §4.6 wants all of them replaced by ONE block in editor-shell.css. */
+  * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: var(--radius-sm); }
+  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: 999px; border: 2px solid var(--color-scrollbar-track); }
   *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
   html, body { height: 100%; }
   body {
@@ -88,16 +94,62 @@
   .ae-btn2--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
   .ae-btn2--primary .t2 { color: var(--color-button-text); opacity: .8; }
 
-  .ae-body { flex: 1 1 auto; min-height: 0; display: flex; }
+  /* Statuszeile: eigene Zeile unter dem Menueband, volle Breite (Spec §3.4, Vorbild #settlementStatus).
+     Die feste Mindesthoehe ist der Punkt -- eine eintreffende Meldung darf die drei Spalten darunter
+     NICHT nach unten schieben. Die Kacheln behalten ihre eigenen .t2-Zeilen; diese Zeile meldet, was
+     den ganzen Editor betrifft (Liste geladen, Auswahl fehlgeschlagen), nicht den Lauf einer Kachel. */
+  .ae-status {
+    flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-12);
+    padding: var(--space-4) var(--space-16); min-height: 30px;
+    color: var(--color-text-muted); background: var(--color-panel-soft);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .ae-status__text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ae-status.is-error .ae-status__text { color: var(--color-danger); }
+
+  /* Gitter statt Flex -- und das ist die Loesung des 483/458/458-Raetsels (Spaltenbreiten waren
+     1 : 1,898 statt 1 : 2). Ursache: `flex: 1 1 0` MIT `box-sizing: border-box`. Eine Border-Box-
+     Groesse kann nicht kleiner werden als ihr eigenes Padding + Border, also wurde die flex-basis
+     von .ae-list nicht auf 0, sondern auf 25px aufgerundet (2x --space-10 Padding + 1px Trenner);
+     .ae-detail hat kein eigenes Padding und blieb bei 0. Verteilt wurde damit nicht die volle
+     Breite, sondern 1399-25=1374 -> 458/916, und .ae-list bekam die 25px obendrauf: 483.
+     Genau die gemessenen Zahlen. Gitterspuren kennen dieses Problem nicht: minmax(0,1fr) und
+     minmax(0,2fr) sind exakt 1:2, unabhaengig vom Padding der Kinder. */
+  .ae-body {
+    flex: 1 1 auto; min-height: 0;
+    display: grid; grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr); grid-template-rows: minmax(0, 1fr);
+  }
 
   /* ---- left column: adventure list ------------------------------------------------------------ */
+  /* Gitterspur statt flex-basis (siehe .ae-body). min-width/min-height 0, sonst zwingt der
+     auto-Mindestwert eines Gitterkindes die Spur breiter als ihr 1fr und der Trick waere hin.
+     Die frueheren min-width:240px sitzen jetzt an der Spur selbst (minmax(240px,1fr)): bei 1400
+     Breite ist die Spur 466 und der Mindestwert greift nicht, das 1:2 bleibt exakt -- schmal
+     wird die Liste trotzdem nicht unter 240 gequetscht. */
   .ae-list {
-    flex: 1 1 0; min-width: 240px; display: flex; flex-direction: column;
+    min-width: 0; min-height: 0; display: flex; flex-direction: column;
     border-right: 1px solid var(--color-border); background: var(--color-panel-soft); padding: var(--space-10);
+  }
+  /* Spaltentitel -- fuehrt jede der drei Spalten an (Spec §3.2), auf der eigenen Stufe der Leiter
+     (--font-size-subhead, §4.1). Vorbild .listhead im Siedlungseditor: --color-accent-strong statt
+     der normalen Textfarbe, damit die Titel die Spalten sichtbar anfuehren statt mitzulaufen. */
+  .ae-colhead {
+    margin: 0 0 var(--space-6); font-size: var(--font-size-subhead); line-height: var(--leading-snug);
+    font-weight: var(--font-weight-bold); color: var(--color-accent-strong);
+  }
+  /* Die beiden Panels scrollen SELBST, also klebt ihr Titel oben -- sonst ist er nach der ersten
+     Mausraddrehung weg. Der Hintergrund ist Pflicht, nicht Zierde: ohne ihn laeuft der Inhalt
+     sichtbar durch den Titel. Aussenrand OBEN bleibt 0 (sonst wandert der Klebepunkt mit, siehe
+     .ae-panel); seitlich blendet er bis an die Panelkanten aus, seine Polsterung stellt die
+     Textposition wieder her, die das Panel oben nicht mehr liefert. */
+  .ae-panel > .ae-colhead {
+    position: sticky; top: 0; z-index: 2; background: var(--color-panel);
+    margin: 0 calc(-1 * var(--space-16)) var(--space-10);
+    padding: var(--space-12) var(--space-16) var(--space-6);
   }
   .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
   .ae-search {
-    flex: 1 1 auto; min-width: 0; font: inherit; color: var(--color-text);
+    flex: 1 1 auto; min-width: 0; height: var(--ae-control-h); font: inherit; color: var(--color-text);
     background: var(--color-panel); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: var(--space-4) var(--space-8);
   }
@@ -118,7 +170,8 @@
     padding: var(--space-2) var(--space-6); font-size: var(--font-size-small); }
   .ae-ac-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
   .ae-year { display: flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; }
-  .ae-year__in { width: 58px; min-width: 0; font: inherit; font-size: var(--font-size-small); color: var(--color-text);
+  .ae-year__in { width: 58px; min-width: 0; height: var(--ae-control-h); font: inherit; font-size: var(--font-size-small);
+    color: var(--color-text);
     background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md);
     padding: var(--space-2) var(--space-6); }
   .ae-year__in:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
@@ -157,7 +210,7 @@
   .ae-empty { color: var(--color-text-muted); padding: var(--space-8); }
 
   /* ---- detail column (layout C: head on top, Stammdaten | Orte side by side) ------------------- */
-  .ae-detail { flex: 2 1 0; min-width: 0; display: flex; flex-direction: column; }
+  .ae-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .ae-detail__head {
     flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
     padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--color-border); min-height: 40px;
@@ -168,8 +221,15 @@
   .ae-detail__meta { margin-top: var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-muted);
     display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; }
 
-  .ae-panels { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: row; }
-  .ae-panel { flex: 1 1 50%; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-12) var(--space-16); }
+  /* Zwei gleiche Spuren aus demselben Grund wie in .ae-body: .ae-panel--stamm traegt einen 1px-
+     Trenner, .ae-panel--orte nicht -- unter flex:1 1 50% haette dieser eine Pixel die beiden
+     Spalten wieder ungleich gemacht. */
+  .ae-panels { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+  /* Kein Polster oben: das liefert der klebende Spaltentitel mit seiner eigenen Polsterung. Ein
+     negativer Aussenrand am Titel taete es NICHT -- er verschiebt den Klebepunkt um genau diesen
+     Betrag, gemessen sass der Titel dann 14px unter der Panelkante und der Inhalt lief durch den
+     Spalt darueber. */
+  .ae-panel { min-width: 0; min-height: 0; overflow: auto; padding: 0 var(--space-16) var(--space-12); }
   .ae-panel--stamm { border-right: 1px solid var(--color-border); }
   .ae-placeholder { color: var(--color-text-muted); padding: var(--space-16); }
 
@@ -187,7 +247,7 @@
   .ae-field > label { font-size: var(--font-size-caption); color: var(--color-text-muted);
     display: flex; align-items: center; gap: var(--space-6); }
   .ae-input, .ae-select {
-    font: inherit; color: var(--color-text); background: var(--color-panel);
+    font: inherit; height: var(--ae-control-h); color: var(--color-text); background: var(--color-panel);
     border: 1px solid var(--color-border); border-radius: var(--radius-md);
     padding: var(--space-4) var(--space-8); width: 100%;
   }
@@ -215,13 +275,21 @@
     cursor: help; font-weight: var(--font-weight-bold); }
 
   /* ---- buttons -------------------------------------------------------------------------------- */
-  .btn { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: var(--space-4) var(--space-12);
+  /* Senkrechte Polsterung 0, wie `button` im Siedlungseditor: mit var(--space-4) oben und unten
+     wird der Knopf 32,84 hoch und die Bedienhoehe stimmt eben NICHT mehr -- min-height ist ein
+     Boden, kein Mass. Ohne sie zentriert der Knopf seinen Text ohnehin selbst. */
+  .btn { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: 0 var(--space-12);
+    min-height: var(--ae-control-h);
     background: var(--color-button-soft); color: var(--color-button-soft-text); border: 1px solid var(--color-button-soft-border); }
   .btn:hover { background: var(--color-button-soft-hover); }
   .btn--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
   .btn--primary:hover { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
-  .btn--sm { padding: 2px var(--space-8); font-size: var(--font-size-caption); }
-  .btn--icon { padding: 2px var(--space-6); font-size: var(--font-size-small); }
+  /* Bewusste Ausnahme von der Bedienhoehe: diese beiden sitzen IN einer Ortszeile (☆ Start, ✕, ▲▼)
+     und gehoeren zur Zeile, nicht zur Bedienleiste. Auf 32 gezogen wuerde jede Ortskarte um acht
+     Pixel wachsen. Die Hoehe steht hier explizit, damit sie eine Entscheidung ist und nicht ein
+     von .btn geerbter Zufall. */
+  .btn--sm { padding: 2px var(--space-8); font-size: var(--font-size-caption); min-height: 24px; }
+  .btn--icon { padding: 2px var(--space-6); font-size: var(--font-size-small); min-height: 24px; }
   .btn--danger { color: var(--color-danger); border-color: var(--color-border); background: transparent; }
   .btn--danger:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
   /* Armed state of the two-step delete: the second click is the destructive one, so it stops
@@ -268,9 +336,12 @@
   .ae-xlink__add { margin-top: var(--space-8); }
 
   /* ---- Orte (places) -------------------------------------------------------------------------- */
+  /* Das <h3> "Orte (N)" ist von hier in den statischen Spaltentitel #aeOrteTitle gewandert (Spec §3.2):
+     als versale --font-size-caption-Zeile war es keine Spaltenueberschrift, sondern eine Gruppenzeile
+     wie jede andere, und es verschwand vollstaendig, sobald kein Abenteuer gewaehlt war -- dann hatte
+     die dritte Spalte als einzige gar keinen Titel. Der Zaehler ist mitgewandert, nicht verloren.
+     Was hier bleibt, ist die Hinweiszeile: Invariante links, "unterdrueckte anzeigen" rechts. */
   .ae-orte__head { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-8); }
-  .ae-orte__head h3 { margin: 0; font-size: var(--font-size-caption); text-transform: uppercase; letter-spacing: .04em;
-    font-weight: var(--font-weight-bold); color: var(--color-text-muted); }
   .ae-orte__hint { font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ae-orte__invariant { font-size: var(--font-size-caption); color: var(--color-accent-strong);
     display: inline-flex; align-items: center; gap: var(--space-4); }
@@ -352,8 +423,11 @@
     <span class="ae-header__spacer"></span>
   </div>
 
+  <div class="ae-status" id="aeStatus"><span class="ae-status__text" id="aeStatusText">Bereit.</span></div>
+
   <div class="ae-body">
     <aside class="ae-list">
+      <h2 class="ae-colhead">Abenteuer</h2>
       <div class="ae-list__top">
         <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
         <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
@@ -411,12 +485,22 @@
 
     <section class="ae-detail">
       <div class="ae-detail__head" id="aeDetailHead"></div>
+      <!-- Die ids sitzen INNEN: beide Panels werden per innerHTML ueberschrieben, ein Titel darin
+           waere beim ersten Rendern geloescht. Als Geschwister davor ueberlebt er jedes Rendern --
+           und die Klick-Delegierung auf #aeStammBody (Weitere Links) bleibt unberuehrt, weil das
+           Element selbst weiterhin statisch ist und nur seine Kinder wechseln. -->
       <div class="ae-panels">
-        <div class="ae-panel ae-panel--stamm" id="aeStammBody">
-          <p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>
+        <div class="ae-panel ae-panel--stamm">
+          <h2 class="ae-colhead">Stammdaten</h2>
+          <div id="aeStammBody">
+            <p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>
+          </div>
         </div>
-        <div class="ae-panel ae-panel--orte" id="aeOrteBody">
-          <p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>
+        <div class="ae-panel ae-panel--orte">
+          <h2 class="ae-colhead" id="aeOrteTitle">Orte</h2>
+          <div id="aeOrteBody">
+            <p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>
+          </div>
         </div>
       </div>
       <div class="ae-savebar" id="aeSaveBar" hidden>
@@ -460,6 +544,25 @@
       .replace(/`/g, "&#96;");
   }
 
+  // Statuszeile unter dem Menueband (Spec §3.4). Bewusst NUR fuer das, was den ganzen Editor
+  // betrifft: die Kacheln melden ihren eigenen Lauf weiterhin in ihrer .t2-Zeile, und die Savebar
+  // meldet Speichern/Loeschen weiterhin am Detail. Doppelte Meldungen an zwei Orten waeren
+  // schlimmer als gar keine Zeile. textContent, nicht innerHTML -- hier landen Fehlermeldungen
+  // vom Server.
+  function aeSetStatus(text, isError) {
+    const el = document.getElementById("aeStatusText");
+    if (el) el.textContent = text;
+    const row = document.getElementById("aeStatus");
+    if (row) row.classList.toggle("is-error", !!isError);
+  }
+
+  // Der Zaehler des Spaltentitels "Orte (N)". null = kein Abenteuer gewaehlt -> nur "Orte", damit
+  // die Spalte auch im Leerzustand ihren Titel behaelt (dort stand vorher gar keiner).
+  function aeSetOrteCount(count) {
+    const el = document.getElementById("aeOrteTitle");
+    if (el) el.textContent = count == null ? "Orte" : `Orte (${count})`;
+  }
+
   // ============ data layer (P2) ============
   // Must cover every Art that avesmapsWikiProductIsAdventure lets through (api/_internal/wiki/
   // publication-parsing.php): product_type IS the folded Art value, and a value missing from this
@@ -492,8 +595,10 @@
       if (typeof res.adventures_enabled === "boolean") setAdventuresEnabledToggleState(res.adventures_enabled);
       populateRegionFilter();
       renderList();
+      aeSetStatus(`${state.adventures.length} Abenteuer geladen.`);
     } catch (e) {
       document.getElementById("aeListCount").textContent = "Fehler: " + e.message;
+      aeSetStatus("Liste konnte nicht geladen werden: " + e.message, true);
     }
   }
 
@@ -597,10 +702,14 @@
       state.detail = await adventurePost({ action: "detail", public_id: publicId });
     } catch (e) {
       document.getElementById("aeStammBody").innerHTML = `<p class="ae-placeholder" style="color:var(--color-danger)">Fehler: ${aeEscape(e.message)}</p>`;
+      aeSetStatus("Abenteuer konnte nicht geladen werden: " + e.message, true);
       return;
     }
     renderDetail();
     renderPlaces();
+    // Raeumt eine stehengebliebene Fehlermeldung weg -- sonst behauptet die Zeile beim naechsten
+    // erfolgreichen Klick immer noch, das Laden sei fehlgeschlagen.
+    aeSetStatus(`Gewählt: ${(state.detail && state.detail.title) || "Abenteuer"}`);
   }
   function newAdventure() {
     state.selectedId = null;
@@ -929,12 +1038,17 @@
   }
   function renderPlaces() {
     const body = document.getElementById("aeOrteBody");
-    if (!state.detail) { body.innerHTML = `<p class="ae-placeholder">Erst ein Abenteuer speichern, dann Orte zuordnen.</p>`; return; }
+    if (!state.detail) {
+      aeSetOrteCount(null);
+      body.innerHTML = `<p class="ae-placeholder">Erst ein Abenteuer speichern, dann Orte zuordnen.</p>`;
+      return;
+    }
     const all = state.detail.places || [];
     const approved = all.filter((p) => p.status === "approved");
     const suppressed = all.filter((p) => p.status === "suppressed");
+    aeSetOrteCount(approved.length);
     body.innerHTML = `
-      <div class="ae-orte__head"><h3>Orte (${approved.length})</h3>
+      <div class="ae-orte__head">
         <span class="ae-orte__invariant" title="Startorte oben; nie automatisch umsortieren — nur manuell per ▲▼.">★ Startorte oben · manuell ordenbar (▲▼)</span>
         <span style="flex:1"></span>
         ${suppressed.length ? `<button class="btn btn--sm" data-act="toggle-sup">unterdrückte anzeigen (${suppressed.length})</button>` : ""}</div>
@@ -1010,6 +1124,8 @@
         `<p class="ae-placeholder">Abenteuer links wählen oder neu anlegen.</p>`;
       document.getElementById("aeOrteBody").innerHTML =
         `<p class="ae-placeholder">Noch kein Abenteuer gewählt.</p>`;
+      aeSetOrteCount(null);
+      aeSetStatus("Abenteuer gelöscht.");
       // aeCloseAfterSave reloads the list ONLY when standalone (it returns false there). In the
       // overlay case nothing reloads OUR list -- the parent refreshes its own catalog, not this
       // one -- so the deleted row would still be sitting there on the next open.
