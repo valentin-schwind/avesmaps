@@ -1724,7 +1724,17 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 .wiki-sync-rail > .wiki-sync-rail__row:nth-child(2n) {
 	box-shadow: inset 1px 0 0 var(--color-divider);
 }
-.wiki-sync-rail__count { font-variant-numeric: tabular-nums; font-weight: 400; }
+/* Die Zeile zeigt Name und Sync-Datum -- KEINE Anzahl. Die Zahl kam von den Listen-Renderern
+   (setWikiSyncSubjectCount), und die laufen erst beim Anklicken eines Subjekts: sieben Zeilen
+   zeigten "—", die achte eine Zahl, und mit jedem Klick wurde es eine mehr. Ein Statusbrett,
+   das seinen Stand erst nach dem Besuch kennt, ist keins (Owner 2026-07-22).
+   🔧 OFFEN: der Erzeuger lebt noch. renderWikiSyncSubjectRail() schreibt den Span weiterhin,
+   und setWikiSyncSubjectCount wird aus vier Listen-Renderern gefuettert. Das gehoert raus --
+   js/review/review-wiki-sync.js war beim Fix in fremder Hand (parallele Sitzung), darum hier
+   erst nur ausgeblendet. Beim Aufraeumen mitnehmen: den Span in renderWikiSyncSubjectRail,
+   `wikiSyncSubjectCounts`, `setWikiSyncSubjectCount` und die vier Aufrufe in
+   review-path-sync.js / review-region-sync.js / review-settlement-list.js (2x). */
+.wiki-sync-rail__count { display: none; }
 .wiki-sync-rail__date {
 	min-width: 46px;
 	text-align: right;
