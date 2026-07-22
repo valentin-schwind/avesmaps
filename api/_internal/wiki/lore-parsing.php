@@ -111,6 +111,31 @@ function avesmapsLoreKindForInfoboxName(string $infoboxName): string
 }
 
 /**
+ * PURE: HTML-Entities eines Infobox-Feldwerts aufloesen.
+ *
+ * 💣 Wiki-Autoren schreiben Apostrophe in den KLARTEXT-Feldern als Entity: die Seite
+ * "Ban'Shi" trägt wörtlich "|Name=Ban&#39;Shi", "Te'Sumurrischer Todeswurm" ebenso.
+ * Im SELBEN Artikel steht im Verbreitungsfeld dagegen ein echtes
+ * "[[Te'Sumurru (Region)|Te'Sumurru]]" -- die Gewohnheit betrifft nur den Fließtext,
+ * nicht die Wikilinks. Genau deshalb sahen die Orte richtig aus und der Name nicht;
+ * es sind NICHT zwei Code-Pfade, es sind zwei Schreibweisen in der Quelle.
+ *
+ * Ohne diese Stelle landet die Entity wörtlich in der DB, und der Client zeigt sie
+ * an, gerade WEIL er korrekt escaped: sein "&"-zuerst macht aus "Ban&#39;Shi" das
+ * Markup "Ban&amp;#39;Shi", was der Browser als "Ban&#39;Shi" rendert.
+ *
+ * 🪤 GENAU EINMAL dekodieren, nie in einer Schleife. Einmal ist exakt das, was das
+ * Wiki selbst anzeigt -- "&amp;#39;" rendert es als den Text "&#39;". Wiederholtes
+ * Dekodieren machte daraus fälschlich ein Apostroph und wiche von der Quelle ab.
+ */
+function avesmapsLoreDecodeEntities(string $value): string
+{
+    return str_contains($value, '&')
+        ? html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8')
+        : $value;
+}
+
+/**
  * PURE: alle Wikilink-ZIELE eines Feldwerts, in Reihenfolge und dedupliziert
  * (case-insensitiv). Anzeigetext hinter "|" und Anker hinter "#" fallen weg, das Ziel
  * ist der Wiki-Titel -- und damit derselbe Schluessel, den der Rest des Projekts nutzt.
@@ -192,6 +217,12 @@ function avesmapsLoreParsePage(string $title, string $wikitext): ?array
         return null;
     }
     $params = avesmapsWikiSyncMonitorParseTemplateParams($block);
+    // EIN Flaschenhals für ALLE Feldwerte: Name, die Textspalten, merkmale und die
+    // Ortslinks hängen samt und sonders an $params. Wer stattdessen nur den Namen
+    // dekodiert, holt sich denselben Bug beim nächsten Feld zurück. Die
+    // Feld-Normalisierung darunter (avesmapsWikiSyncMonitorNormFields/-Field)
+    // dekodiert NICHT -- hier ist die einzige Stelle, kein Doppel-Decode.
+    $params = array_map('avesmapsLoreDecodeEntities', $params);
     $norm = avesmapsWikiSyncMonitorNormFields($params);
 
     // Der Anzeigename kommt aus |Name=, faellt aber auf den Seitentitel zurueck: bei

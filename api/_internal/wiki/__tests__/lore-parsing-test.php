@@ -213,4 +213,89 @@ assert(avesmapsLoreParsePage('', '{{Infobox Tierart|Name=X}}') === null);
 assert(avesmapsLoreParsePage('Leer', '') === null);
 echo "non-entity ok\n";
 
+// --------------------------------------------------------------- ENTITIES ---
+// REAL case "Te'Sumurrischer Todeswurm" -- der Beweis in EINER Infobox: das Wiki
+// schreibt den Apostroph im Klartextfeld als Entity ("|Name=Te&#39;..."), im
+// Verbreitungsfeld derselben Box aber als echtes Zeichen ("[[Te'Sumurru (Region)|…]]").
+// Genau diese Asymmetrie sah in der DB wie "zwei Code-Pfade" aus und ist in Wahrheit
+// die Schreibweise der Quelle. Der Name muss dekodiert werden, die Orte müssen dabei
+// UNVERÄNDERT bleiben -- ein Ortsschlüssel, der sich hier verschiebt, wäre ein Regress.
+$todeswurm = <<<'WIKI'
+==Kurzbeschreibung==
+{{Infobox Tierart
+|Name=Te&#39;Sumurrischer Todeswurm
+|Art=[[Wurm]]
+|Unterarten=Stakalischer Eiswurm
+|Verbreitung=[[Te'Sumurru (Region)|Te'Sumurru]], [[Khamuri-Savanne]], [[Rhacornos]]
+}}
+WIKI;
+
+$r = avesmapsLoreParsePage('Te\'Sumurrischer Todeswurm', $todeswurm);
+assert($r !== null && $r['kind'] === 'fauna');
+assert($r['name'] === "Te'Sumurrischer Todeswurm");     // Entity aufgelöst
+assert(!str_contains($r['name'], '&#'));
+// Die Orte kommen aus derselben Infobox und dürfen sich NICHT verändern.
+assert(array_column($r['places'], 'title') === ["Te'Sumurru (Region)", 'Khamuri-Savanne', 'Rhacornos']);
+assert(($r['merkmale']['Unterarten'] ?? '') === 'Stakalischer Eiswurm');
+
+// REAL case "Ban'Shi" (spezies) -- dieselbe Gewohnheit, andere Infobox.
+$banshi = <<<'WIKI'
+{{Infobox Spezies
+|Name=Ban&#39;Shi
+|Regionen=Norden [[Myranor]]s
+|Größe=1,85-2,04 [[Schritt]]
+}}
+WIKI;
+
+$r = avesmapsLoreParsePage('Ban\'Shi', $banshi);
+assert($r !== null && $r['kind'] === 'spezies');
+assert($r['name'] === "Ban'Shi");
+assert(array_column($r['places'], 'title') === ['Myranor']);
+
+// Die Entity kann in JEDEM Klartextfeld stehen, nicht nur im Namen -- deshalb sitzt
+// das Dekodieren an $params und nicht am Namen allein.
+$felder = <<<'WIKI'
+{{Infobox Gegenstandsgruppe
+|Name=Ornat
+|Art=al&#39;anfanisch
+|Gegenstandstyp=[[Ornat]]
+|Beinamen=Si&#39;Dur&#39;an
+|Material=Gold &amp; Seide
+}}
+WIKI;
+
+$r = avesmapsLoreParsePage('Ornat', $felder);
+assert($r['gruppe'] === "al'anfanisch");
+assert($r['synonyme'] === "Si'Dur'an");
+assert(($r['merkmale']['Material'] ?? '') === 'Gold & Seide');
+
+// 🪤 KONSTRUIERT (anders als die Fixtures oben): pinnt die EIN-PASS-Regel fest.
+// "&amp;#39;" zeigt das Wiki als den TEXT "&#39;" -- genau das muss ankommen. Würde
+// hier in einer Schleife dekodiert, stünde fälschlich "Al'Anfaner" da, also etwas,
+// das so nirgends im Wiki steht.
+$doppelt = <<<'WIKI'
+{{Infobox Gegenstandsgruppe
+|Name=Al&amp;#39;Anfaner Ornat
+|Herkunft=[[Al'Anfa]]
+}}
+WIKI;
+
+$r = avesmapsLoreParsePage('Al&#39;Anfaner Ornat', $doppelt);
+assert($r['name'] === 'Al&#39;Anfaner Ornat');   // genau EINE Ebene aufgelöst
+assert(array_column($r['places'], 'title') === ["Al'Anfa"]);
+
+// Der reine Helfer, direkt.
+assert(avesmapsLoreDecodeEntities('Ban&#39;Shi') === "Ban'Shi");     // ENT_QUOTES wirkt
+assert(avesmapsLoreDecodeEntities('Gold &amp; Seide') === 'Gold & Seide');
+assert(avesmapsLoreDecodeEntities('Al&amp;#39;Anfa') === 'Al&#39;Anfa');
+assert(avesmapsLoreDecodeEntities('ohne alles') === 'ohne alles');
+assert(avesmapsLoreDecodeEntities('') === '');
+
+// Der Titel-Fallback bleibt unangetastet: Dump-Titel kommen bereits sauber aus dem
+// XMLReader (bewiesen durch wiki_key/wiki_url der betroffenen Zeilen), hier wird
+// also nichts doppelt "repariert".
+$ohneName = avesmapsLoreParsePage("Te'Sumurru (Ware)", "{{Infobox Gegenstandsgruppe\n|Art=profan\n}}");
+assert($ohneName !== null && $ohneName['name'] === "Te'Sumurru (Ware)");
+echo "entities ok\n";
+
 echo "\nALL OK\n";
