@@ -1764,3 +1764,9 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
    border-bottom mit, also stuende dort ein 18px-Band mit einer Linie und nichts darin -- dasselbe
    "reserviert Platz fuer nichts" wie bei .wiki-sync-panel__actions. */
 .wiki-sync-views:empty { display: none; }
+
+/* Die Reiter gehoeren zur Liste unter ihnen, nicht zum Knopf darueber. .wiki-sync-panel__tabs
+   bringt 8px Bodenluft mit; zusammen mit den 7px Innenabstand der Reiter selbst standen
+   ~16px zwischen Reitertext und Statistikzeile. Der Trenner trennt hier bereits -- Abstand
+   darf knapp sein. Nur auf .wiki-sync-views, damit andere Reiterzeilen unberuehrt bleiben. */
+.wiki-sync-views { margin-bottom: 2px; }

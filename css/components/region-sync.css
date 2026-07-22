@@ -704,9 +704,10 @@
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0;
-	border-top: 2px solid var(--color-border);
-	margin-top: 6px;
-	padding-top: 4px;
+	/* Kein Trenner mehr ueber dem Suchfeld. Die 2px-Linie gehoerte zu einem Sektionskopf
+	   (.wiki-sync-locations-section__head/__title), den es nicht mehr gibt -- sie trennte
+	   zuletzt die Statistikzeile vom Suchfeld, also innerhalb EINER Gruppe. Kein anderes
+	   Subjekt hat sie, weshalb Siedlungen als einziges anders aussah. */
 }
 .wiki-sync-locations-section__head {
 	display: flex;
