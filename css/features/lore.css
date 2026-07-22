@@ -357,8 +357,12 @@
 	gap: var(--space-6);
 	min-width: 0;
 }
+/* War fest 300px und damit schmaler als die Stammdaten daneben -- die drei Spalten des
+   Editors (Liste, Stammdaten, Orte) sollen gleich breit sein (Spec §5). Der Umbruch
+   darunter bleibt: schmal rutscht die Ortsspalte weiterhin nach unten. */
 .lore-detail__col--places {
-	flex: 0 0 300px;
+	flex: 1 1 0;
+	min-width: 0;
 	padding-left: var(--space-16);
 	border-left: 1px solid var(--color-divider);
 }
@@ -413,7 +417,7 @@
 .lore-detail {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--space-6);
 	overflow-y: auto;
 	max-height: 100%;
 }
@@ -422,7 +426,7 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--space-6);
 }
 
 /* „← Zurück zur Liste" ist nur dort sinnvoll, wo die Liste WEICHEN musste. Auf breiten
@@ -437,15 +441,20 @@
 	}
 }
 
+/* Ab hier die Editor-Regeln auf der gemeinsamen Leiter (Spec §4.1/§4.3). Die Datei sprach
+   als einzige rem: 0.8/0.85/0.9/0.95/1/1.3 -- eine sechste Skala neben den fuenf, die es
+   schon gab. Die .avesmaps-lore*-Regeln weiter oben bleiben unangetastet, die gehoeren zum
+   oeffentlichen Infopanel und nicht zu diesem Editor. */
 .lore-detail__back,
 .lore-detail__place-btn {
-	padding: 0.2rem 0.55rem;
+	min-height: 32px;
+	padding: 0 var(--space-6);
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
 	color: var(--color-button-soft-text);
 	font: inherit;
-	font-size: 0.85rem;
+	font-size: var(--font-size-body);
 	cursor: pointer;
 }
 
@@ -462,29 +471,30 @@
 .lore-detail__wiki {
 	color: var(--color-link);
 	text-decoration: none;
-	font-size: 0.85rem;
+	font-size: var(--font-size-body);
 }
 
 .lore-detail__title {
 	margin: 0;
-	font-size: 1rem;
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-snug);
 }
 
 .lore-detail__kind,
 .lore-detail__place-meta {
 	color: var(--color-text-muted);
-	font-size: 0.8rem;
-	font-weight: 400;
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-regular);
 }
 
 .lore-detail__field {
 	display: flex;
 	flex-direction: column;
-	gap: 0.15rem;
+	gap: var(--space-2);
 }
 
 .lore-detail__label {
-	font-size: 0.8rem;
+	font-size: var(--font-size-caption);
 	color: var(--color-text-muted);
 }
 
@@ -496,26 +506,29 @@
 }
 
 .lore-detail__input {
-	padding: 0.3rem 0.45rem;
+	min-height: 32px;
+	padding: 0 var(--space-6);
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
 	background: var(--color-input-bg, var(--color-button-soft));
 	color: var(--color-text);
 	font: inherit;
-	font-size: 0.9rem;
+	font-size: var(--font-size-reading);
 }
 
+/* Gruppe = Trennlinie + Titel, kein Kasten (Designsprache). */
 .lore-detail__section {
-	margin: 0.4rem 0 0;
-	padding-top: 0.4rem;
+	margin: var(--space-6) 0 0;
+	padding-top: var(--space-6);
 	border-top: 1px solid var(--color-divider);
-	font-size: 0.9rem;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
 }
 
 .lore-detail__hint {
 	margin: 0;
 	color: var(--color-text-muted);
-	font-size: 0.8rem;
+	font-size: var(--font-size-caption);
 }
 
 /* .lore-detail__sources gab es hier bis 2026-07-22 mit: die Quellen waren eine eigene
