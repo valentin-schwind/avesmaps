@@ -444,6 +444,7 @@ function renderWikiSyncTerritoryMapStatusTabs(total, placed, missing) {
 	const tab = (view, label, count) =>
 		`<button type="button" data-territory-mapstatus="${view}" class="region-sync__viewtab${wikiSyncTerritoryMapStatus === view ? " is-active" : ""}">${label} (${count})</button>`;
 	host.innerHTML = tab("all", "Alle", total) + tab("placed", "Platziert", placed) + tab("missing", "Fehlt", missing);
+	setWikiSyncSubjectCount("territories", total);
 }
 
 // Liest den Zeitfilter (von/bis/heute) aus den DOM-Eingaben via geteilter Baumkomponente.
@@ -741,7 +742,9 @@ async function refreshWikiSyncKindSyncedStatus() {
 		const synced = await fetchWikiSyncKindLastSynced();
 		// Same answer, second reader: the rail shows one date per subject and translates the
 		// subject key to this map's sync kind through the registry (wikiSyncSubjectSyncKind).
-		wikiSyncKindSyncedRaw = synced;
+		// VERSCHMELZEN, nicht ersetzen: der Lore-Schluessel kommt aus einem anderen Endpunkt
+		// (siehe loadLoreList) und waere bei jedem Neuladen dieser Antwort sonst wieder weg.
+		wikiSyncKindSyncedRaw = Object.assign({}, wikiSyncKindSyncedRaw, synced);
 		renderWikiSyncSubjectRail();
 		// Das DATUM steht rechts neben dem Knopf -- bei allen sechs Reitern gleich (Owner 2026-07-19,
 		// Vorbild Siedlungen/Territorien). Das ist kein Widerspruch zur Regel an setWikiSyncButtonState:
@@ -2221,6 +2224,16 @@ function loadLoreList(view) {
 				// Der gemeinsame Streifen zeichnet sich mit den frischen Zahlen neu -- er trägt
 				// bewusst keine data-lore-count-Chips, die die Schleife oben bedienen könnte.
 				renderWikiSyncLoreViewTabs(counts);
+				// Zahl und Datum der Auswahlzeile kommen aus DERSELBEN Antwort. Vorkommen ist keine
+				// sync_kind des Dump-Endpunkts; sein Datum steht in app_setting und reist mit dem
+				// Katalog mit -- deshalb wird es hier eingehaengt statt dort abgefragt.
+				if (counts) {
+					setWikiSyncSubjectCount("lore", Object.keys(counts).reduce(function (sum, k) { return sum + Number(counts[k] || 0); }, 0));
+				}
+				if (data && data.ok) {
+					wikiSyncKindSyncedRaw = Object.assign({}, wikiSyncKindSyncedRaw, { lore: data.last_synced || null });
+					renderWikiSyncSubjectRail();
+				}
 			}
 		})
 		.catch(function () {
