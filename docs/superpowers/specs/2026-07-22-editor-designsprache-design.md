@@ -47,10 +47,35 @@ dialog.style.height = "min(880px, calc(100vh - 24px))";
 ```
 
 `review-settlement-list.js:482,536,605` und `review-wiki-sync.js:2306`. Kein
-Stylesheet erreicht sie. Dazu zwei Beinah-Dubletten:
-`css/components/edit-overlays.css` wiederholt `dialog-overlays.css` fast
-vollständig, und `political-territory-editor-inline.css` ist ein Zwilling von
-`political-territory-editor.css`.
+Stylesheet erreicht sie.
+
+> ⚠️ **Korrektur 2026-07-22 (beim Bau geprüft).** Die erste Fassung dieses
+> Abschnitts nannte hier **zwei** Dubletten zum Löschen. Nur eine davon ist eine:
+>
+> - **`css/components/edit-overlays.css`** — Dublette **bestätigt**, aber schmaler
+>   als behauptet: der Kopfblock (Zeile 1–16) erklärt für acht Overlay-IDs
+>   wortgleich dasselbe wie `dialog-overlays.css:23-42`, und alle acht sind in
+>   dessen Zwölferliste enthalten. Ob der *Rest* der Datei ebenfalls doppelt ist,
+>   wurde **nicht** geprüft — „fast vollständig" ist unbelegt.
+> - **`css/pages/political-territory-editor-inline.css`** — **kein Zwilling.** Die
+>   Datei ist ein **Bauprodukt**: `tools/scope_editor_css.js` erzeugt sie aus
+>   **drei** Quellen (`political-territory-editor.css`, `-layout.css`,
+>   `political-territory-wiki-tree.css`) und sperrt jede Regel unter
+>   `#political-territory-editor-host` ein, damit der Ganzseiten-Reset des
+>   eigenständigen Editors (`*`, `body`, `html`, `button`, `input`) nicht auf die
+>   Karte durchschlägt. Geladen von `territory-editor-inline-host.js`. Ihr Kopf
+>   sagt es selbst: „AUTO-GENERATED … do not edit by hand."
+>   **Wer sie löscht, killt den eingebetteten Territorien-Editor.**
+>
+> Folge für Schritt 4 am Territorien-Editor: Quelldatei ändern → `node
+> tools/scope_editor_css.js` laufen lassen → **`ASSET_VERSION` bumpen**
+> (AGENTS.md §7), weil der Inline-Host die erzeugte Datei dynamisch nachlädt.
+
+Und ein dritter Fund, der Arbeit spart statt sie zu machen: die
+`[hidden]`-ID-Liste in `dialog-overlays.css:6-19` ist **überflüssig**.
+`css/base/reset.css:14` setzt global `[hidden] { display: none !important }`,
+was jedes `display:flex` eines Overlays schlägt. Ein neues Overlay muss dort
+**nicht** eingetragen werden — die Liste nicht weiter verlängern.
 
 ### 1.3 Die Knopfleiste reserviert Platz für nichts
 
@@ -436,7 +461,9 @@ Gemessen bei 390 × 844: genau **eine** Spalte je Schritt, „Zurück" ab Schrit
    überschreibt Markup mit Klartext. **Nicht Teil dieser Spec** (Datenfrage), aber
    notiert.
 
-4. **Zwei CSS-Dubletten** (§1.2) — beim Extrahieren der Hülle mit löschen.
+4. **Eine CSS-Dublette, nicht zwei** (§1.2, korrigiert) — `edit-overlays.css`
+   ja, `political-territory-editor-inline.css` **nein**: die ist generiert und
+   trägt den eingebetteten Editor. Erst lesen, dann löschen.
 
 5. **Falsche Überschrift „Eigenschaften & Overrides"** (§5.2).
 
@@ -476,11 +503,28 @@ Wer die Spec später liest, prüft den Stand gegen `git log`, statt ihm zu glaub
 | ✅ 1 | **Knopfleiste** — `a505aee8`. Grid → Flex, Literale auf Tokens. Gemessen: Status versteckt → Knopf 100 %, Lücke 0; Status da → 64 % (vorher 66 %), Beschriftung nie abgeschnitten. Prüfgestell `verify-launcher-row.html` | gering |
 | ✅ 2 | **Benennung** — `095ad263`. 5 Knöpfe, 5 Dialogtitel, 4 Seitentitel, Handbuch. Inklusive der zwei Stellen, die die Territorien-Beschriftung nach einem Lauf neu setzen (sonst wäre sie zurückgesprungen). Kein `ASSET_VERSION`-Bump nötig | gering |
 | ✅ 2b | **Zweizeilige Startkachel** — `48438139`. „Zuletzt gesynct" wandert in den Knopf, Status-Span verschoben statt neu gebaut, `setWikiSyncStartButtonLabel()` schützt die Struktur (§3.3). Gemessen: volle Breite in jedem Zustand, Höhe konstant 44 (kein Springen), Zeitstempel überlebt einen Sync-Lauf. Owner live bestätigt: „die zweizeilige Kachel passt" | gering |
-| 3 | **`editor-shell.css`**: Hülle extrahieren, JS-Inline-Maße raus, 2 Dubletten löschen | mittel |
-| 4 | **Je Editor** Typografie/Abstände/Spalten/Menüband, ein Commit pro Editor (Siedlungen → Territorien → Karten → Abenteuer → Vorkommen) | mittel |
+| ✅ 3 | **`editor-shell.css`** — `70a4b204`. Äußere Hülle extrahiert, JS-Inline-Maße raus, Siedlungseditor darauf umgestellt. Die drei übrigen laufen bewusst weiter auf den alten Klassen, darum darf `political-territory-editor-overlay.css` noch **nicht** weg. Zur Dublettenlöschung siehe die Korrektur in §1.2 | mittel |
+| 🔶 4 | **Je Editor** Typografie/Abstände/Spalten/Menüband. ✅ Siedlungen `6cc567db` (volle Sprache) · ✅ Abenteuer + Karten `19a042c9` (Menüband auf volle Breite; Karten verlieren zwei feste Spaltenbreiten) · ✅ Vorkommen `be08016c` (rem-Dialekt auf die Leiter) · ⬜ **Territorien offen** — eigener Fall, siehe unten | mittel |
 | 5 | **Herkunft & `↺`** nach §5, zuerst Territorien (dort ist die Datenlage sauber) | mittel |
 | 6 | **Quellen** nach §6 — *nach* Abgleich mit §9 | mittel |
 | 7 | **Mobil**, Bildlaufleisten, Doku-Korrekturen aus §8 | gering |
+
+### Warum Territorien eigens dran muss
+
+Die anderen vier waren Maßarbeit an einer vorhandenen Struktur. Dieser nicht:
+
+- **84 harte Schriftgrößen über drei Dateien**, darunter `10pt`, `9px`, `0.78em`,
+  `0.85em`, `0.75rem` — die Größen liegen nicht neben der Leiter, sie sprechen
+  vier verschiedene Einheiten.
+- **Eigene Struktur.** Kein `.controls`, kein `.cols`/`.col`, sondern `.panel`,
+  `.panel-header`, `.manual-data-columns`. Die Regeln der anderen vier greifen
+  hier nicht.
+- **Sein Menüband liegt woanders.** Die acht Kacheln aus dem Screenshot gehören
+  dem WikiSync-Dialog (`review-wiki-sync.js`), nicht
+  `html/political-territory-editor.html`. Der Editor ist **zwei** Oberflächen.
+- **Generierte CSS** (§1.2): jede Änderung braucht `node
+  tools/scope_editor_css.js` + `ASSET_VERSION`-Bump, sonst sieht der eingebettete
+  Editor anders aus als der eigenständige.
 
 **Fallen beim Bau:**
 - Schritt 3–4 fassen dynamisch geladene Editor-Assets an → **`ASSET_VERSION` in
