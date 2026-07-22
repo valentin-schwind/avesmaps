@@ -1688,7 +1688,7 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 }
 .wiki-sync-rail__row {
 	display: grid;
-	grid-template-columns: 1fr auto auto;
+	grid-template-columns: 1fr auto;
 	align-items: center;
 	gap: 10px;
 	width: 100%;
@@ -1724,17 +1724,11 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 .wiki-sync-rail > .wiki-sync-rail__row:nth-child(2n) {
 	box-shadow: inset 1px 0 0 var(--color-divider);
 }
-/* Die Zeile zeigt Name und Sync-Datum -- KEINE Anzahl. Die Zahl kam von den Listen-Renderern
-   (setWikiSyncSubjectCount), und die laufen erst beim Anklicken eines Subjekts: sieben Zeilen
-   zeigten "—", die achte eine Zahl, und mit jedem Klick wurde es eine mehr. Ein Statusbrett,
-   das seinen Stand erst nach dem Besuch kennt, ist keins (Owner 2026-07-22).
-   🔧 OFFEN: der Erzeuger lebt noch. renderWikiSyncSubjectRail() schreibt den Span weiterhin,
-   und setWikiSyncSubjectCount wird aus vier Listen-Renderern gefuettert. Das gehoert raus --
-   js/review/review-wiki-sync.js war beim Fix in fremder Hand (parallele Sitzung), darum hier
-   erst nur ausgeblendet. Beim Aufraeumen mitnehmen: den Span in renderWikiSyncSubjectRail,
-   `wikiSyncSubjectCounts`, `setWikiSyncSubjectCount` und die vier Aufrufe in
-   review-path-sync.js / review-region-sync.js / review-settlement-list.js (2x). */
-.wiki-sync-rail__count { display: none; }
+/* Die Zeile zeigt Name und Sync-Datum -- KEINE Anzahl, deshalb hat das Raster oben zwei Spalten.
+   Die Zahl kam von den Listen-Renderern, und die laufen erst beim Anklicken eines Subjekts:
+   sieben Zeilen zeigten "—", die achte eine Zahl, und mit jedem Klick wurde es eine mehr. Ein
+   Statusbrett, das seinen Stand erst nach dem Besuch kennt, ist keins (Owner 2026-07-22). Das
+   Datum bleibt: es laedt eifrig und stimmt schon beim Oeffnen. */
 .wiki-sync-rail__date {
 	min-width: 46px;
 	text-align: right;

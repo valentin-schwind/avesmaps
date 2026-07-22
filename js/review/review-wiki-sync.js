@@ -231,11 +231,13 @@ window.refreshActiveWikiSyncPanelAfterAssignment = refreshActiveWikiSyncPanelAft
 })();
 
 // --- The subject rail (level 2) --------------------------------------------------------------
-// Built from the registry; index.html holds only the empty container. Counts and last-synced come
-// from the callers that already fetch them. Two empty cases stay APART, the same distinction
-// wikiSyncKindSyncedLabel already draws: no answer yet is an em dash / blank, a server-side null
-// is "nie". Collapsing them would make the rail claim a "never synced" it was never told.
-var wikiSyncSubjectCounts = {};
+// Built from the registry; index.html holds only the empty container. A row carries name and
+// last-synced -- and deliberately NO count. A count is only known once its list has rendered,
+// which happens when the subject is clicked, so the rail opened showing seven em dashes and one
+// number and grew a number per visit (Owner 2026-07-22). The date loads eagerly and is right on
+// open, which is why it stays. Two empty cases stay APART, the same distinction
+// wikiSyncKindSyncedLabel already draws: no answer yet is blank, a server-side null is "nie".
+// Collapsing them would make the rail claim a "never synced" it was never told.
 var wikiSyncKindSyncedRaw = null;
 
 // Short form for the narrow date column ("22.07."). The full sentence rides in the row's title,
@@ -266,7 +268,6 @@ function renderWikiSyncSubjectRail() {
 	}
 	host.innerHTML = "";
 	WIKI_SYNC_SUBJECTS.forEach((subject) => {
-		const count = wikiSyncSubjectCounts[subject.key];
 		const isActive = subject.key === activeWikiSyncPanelTab;
 		const row = document.createElement("button");
 		row.type = "button";
@@ -281,24 +282,12 @@ function renderWikiSyncSubjectRail() {
 		}
 		row.innerHTML =
 			'<span>' + escapeHtml(subject.label) + '</span>'
-			+ '<span class="wiki-sync-rail__count">'
-			+ (typeof count === "number" ? count.toLocaleString("de-DE") : "—") + '</span>'
 			+ '<span class="wiki-sync-rail__date">' + escapeHtml(wikiSyncRailDateText(subject.key)) + '</span>';
 		// bootstrap.js binds [data-wiki-sync-panel-tab] DIRECTLY, not delegated, so it only ever
 		// sees elements that existed at load. These rows do not, hence their own listener.
 		row.addEventListener("click", () => setWikiSyncPanelTab(subject.key));
 		host.appendChild(row);
 	});
-}
-
-// Records a subject's total so the rail can show it. Called from the list loaders that already
-// know the number; a subject nobody reports stays absent and renders as an em dash.
-function setWikiSyncSubjectCount(subjectKey, total) {
-	if (!wikiSyncIsKnownSubject(subjectKey) || typeof total !== "number" || !Number.isFinite(total)) {
-		return;
-	}
-	wikiSyncSubjectCounts[subjectKey] = total;
-	renderWikiSyncSubjectRail();
 }
 
 // Wohin ein Knopf zurückgehört, wenn ein anderes Subjekt an die Reihe kommt. WeakMap, damit ein
@@ -443,7 +432,6 @@ function renderWikiSyncTerritoryMapStatusTabs(total, placed, missing) {
 	const tab = (view, label, count) =>
 		`<button type="button" data-territory-mapstatus="${view}" class="region-sync__viewtab${wikiSyncTerritoryMapStatus === view ? " is-active" : ""}">${label} (${count})</button>`;
 	host.innerHTML = tab("all", "Alle", total) + tab("placed", "Platziert", placed) + tab("missing", "Fehlt", missing);
-	setWikiSyncSubjectCount("territories", total);
 }
 
 // Liest den Zeitfilter (von/bis/heute) aus den DOM-Eingaben via geteilter Baumkomponente.
@@ -2223,12 +2211,9 @@ function loadLoreList(view) {
 				// Der gemeinsame Streifen zeichnet sich mit den frischen Zahlen neu -- er trägt
 				// bewusst keine data-lore-count-Chips, die die Schleife oben bedienen könnte.
 				renderWikiSyncLoreViewTabs(counts);
-				// Zahl und Datum der Auswahlzeile kommen aus DERSELBEN Antwort. Vorkommen ist keine
+				// Das Datum der Auswahlzeile kommt aus DIESER Antwort. Vorkommen ist keine
 				// sync_kind des Dump-Endpunkts; sein Datum steht in app_setting und reist mit dem
 				// Katalog mit -- deshalb wird es hier eingehaengt statt dort abgefragt.
-				if (counts) {
-					setWikiSyncSubjectCount("lore", Object.keys(counts).reduce(function (sum, k) { return sum + Number(counts[k] || 0); }, 0));
-				}
 				if (data && data.ok) {
 					wikiSyncKindSyncedRaw = Object.assign({}, wikiSyncKindSyncedRaw, { lore: data.last_synced || null });
 					renderWikiSyncSubjectRail();

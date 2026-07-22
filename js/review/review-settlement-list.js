@@ -202,8 +202,6 @@ function renderSettlementList() {
 		const tab = (view, label, count) =>
 			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
 		tabsHost.innerHTML = tab("all", "Alle", allCount) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
-		// Dieselbe Summe traegt die Auswahlzeile oben -- sie wird hier ohnehin schon gerechnet.
-		if (typeof setWikiSyncSubjectCount === "function") { setWikiSyncSubjectCount("locations", allCount); }
 	}
 
 	if (items.length === 0) {
@@ -650,17 +648,10 @@ window.openAvesmapsCitymapEditorOverlay = window.openAvesmapsCitymapEditorOverla
 var avesmapsAdvPickerCache = null; // [{ public_id, title, edition, product_type, status, ... }]
 var avesmapsAdvPickerWired = false;
 
-// Show each material sub-tab's TOTAL count on its pill ("Abenteuer (349)"), set from the loaded list.
-// Total, not the filtered subset -- the pill answers "how many are there", the in-list "X / Y" answers
-// "how many match the search".
-function avesmapsSetMaterialCount(kind, n) {
-	var el = document.querySelector('[data-material-count="' + kind + '"]');
-	if (el) { el.textContent = "(" + n + ")"; }
-	// The pills those counts were written for are gone (the subjects are top level now), so the
-	// number goes to the subject rail instead. Kept as one function because both callers already
-	// compute exactly this total.
-	if (typeof setWikiSyncSubjectCount === "function") { setWikiSyncSubjectCount(kind, n); }
-}
+// avesmapsSetMaterialCount stood here. It wrote a total onto the material sub-tab pills
+// ("Abenteuer (349)"); those pills went away with the data-material-subtab level on 2026-07-22,
+// after which it only fed the subject rail's count -- and that went too. Both callers keep their
+// own "X / Y" line right below, which is the number an editor actually reads.
 
 function avesmapsRenderAdventurePicker() {
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
@@ -669,7 +660,6 @@ function avesmapsRenderAdventurePicker() {
 	var searchEl = document.getElementById("wiki-sync-adv-search");
 	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
 	var all = avesmapsAdvPickerCache || [];
-	avesmapsSetMaterialCount("adventures", all.length);
 	var rows = q ? all.filter(function (a) { return (a.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {
@@ -741,7 +731,6 @@ function avesmapsRenderCitymapPicker() {
 	var searchEl = document.getElementById("wiki-sync-cm-search");
 	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
 	var all = avesmapsCmPickerCache || [];
-	avesmapsSetMaterialCount("citymaps", all.length);
 	var rows = q ? all.filter(function (c) { return (c.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {

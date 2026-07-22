@@ -49,10 +49,9 @@ vm.runInContext("function escapeHtml(s) { return String(s == null ? '' : s); }",
 vm.runInContext("function setWikiSyncPanelTab(k) { activeWikiSyncPanelTab = k; }", context);
 vm.runInContext(sliceFunction("formatWikiSyncKindSyncedText"), context);
 vm.runInContext(sliceFunction("wikiSyncKindSyncedLabel"), context);
-vm.runInContext("var wikiSyncSubjectCounts = {}; var wikiSyncKindSyncedRaw = null;", context);
+vm.runInContext("var wikiSyncKindSyncedRaw = null;", context);
 vm.runInContext(sliceFunction("wikiSyncRailDateText"), context);
 vm.runInContext(sliceFunction("renderWikiSyncSubjectRail"), context);
-vm.runInContext(sliceFunction("setWikiSyncSubjectCount"), context);
 
 const render = () => { vm.runInContext("renderWikiSyncSubjectRail()", context); return host.children; };
 
@@ -82,19 +81,19 @@ const render = () => { vm.runInContext("renderWikiSyncSubjectRail()", context); 
 	vm.runInContext("activeWikiSyncPanelTab = 'locations';", context);
 }
 
-// --- an unknown count is an em dash, never a zero ----------------------------------------
+// --- a row carries name and date, and NO count -------------------------------------------
+// A count used to sit between them, fed by the list renderers -- which only run once a subject
+// is clicked. So the rail opened with seven em dashes and one number and grew a number per
+// visit; a status board that learns its own state only after the visit is not one (Owner
+// 2026-07-22). This guards the whole chain: span, emitter and feeders are gone for good.
 {
 	const rows = render();
-	assert.ok(rows[0].innerHTML.includes("—"), "a count nobody reported must render as an em dash");
-	assert.ok(!rows[0].innerHTML.includes(">0<"), "never invent a zero -- that claims 'we know: none'");
-
-	vm.runInContext(`setWikiSyncSubjectCount("adventures", 1352)`, context);
-	const withCount = render();
-	assert.ok(withCount[5].innerHTML.includes("1.352"), "a reported count is grouped for German");
-
-	// A key that is not a subject must not create a phantom entry.
-	vm.runInContext(`setWikiSyncSubjectCount("materials", 99)`, context);
-	assert.equal(vm.runInContext(`wikiSyncSubjectCounts.materials`, context), undefined);
+	rows.forEach((row) => assert.ok(!row.innerHTML.includes("wiki-sync-rail__count"),
+		"no row may carry a count span -- the number is unknown until the subject was visited"));
+	rows.forEach((row) => assert.ok(!row.innerHTML.includes("—"),
+		"the em dash was the placeholder for the unknown count and goes with it"));
+	assert.equal(source.includes("setWikiSyncSubjectCount"), false,
+		"the emitter must not come back -- its four feeders were removed with it");
 }
 
 // --- the date column translates subject key -> server sync kind --------------------------

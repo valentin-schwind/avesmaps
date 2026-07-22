@@ -265,10 +265,6 @@ function renderPathSyncList() {
 			tab("cases", "Konflikte", openCasesCount) +
 			tab("outliers", "Ausreißer", outlierData ? outlierData.flagged || 0 : 0) +
 			tab("flow", "Flussrichtung unbekannt", flowUnknownFilteredGroups().length);
-		// Dieselbe Summe traegt die Auswahlzeile oben -- sie wird hier ohnehin schon gerechnet.
-		if (typeof setWikiSyncSubjectCount === "function") {
-			setWikiSyncSubjectCount("paths", assignedCount + missingCount + mapOnlyCount);
-		}
 	}
 
 	if (pathSyncView === "cases") {

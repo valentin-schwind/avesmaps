@@ -118,8 +118,14 @@ die umbricht, kostet eine Zeile Höhe. Deshalb darf es genau eine geben, und zwa
 
 - Zweispaltiges Raster, acht Subjekte in vier Zeilen. **Gemessen 126 px** statt 249 px
   einspaltig — gut eine halbe Panelhöhe zurück für die Liste.
-- Je Zeile: **Name · Anzahl · Sync-Datum**. Damit ist das Panel nebenbei ein Statusbrett;
-  man sieht alle acht Stände gleichzeitig, ohne zu klicken.
+- Je Zeile: **Name · Sync-Datum**. Damit ist das Panel nebenbei ein Statusbrett; man sieht alle
+  acht Stände gleichzeitig, ohne zu klicken.
+- 💣 **Keine Anzahl je Zeile** (Owner 2026-07-22, nach dem ersten Bau korrigiert). Die Zahl kann
+  nur aus den Listen-Renderern kommen, und die laufen erst, wenn man das Subjekt anklickt: die
+  Auswahl öffnete mit sieben Gedankenstrichen und einer Zahl und bekam pro Besuch eine dazu. Ein
+  Statusbrett, das seinen Stand erst nach dem Besuch kennt, ist keins. Das Datum bleibt, weil es
+  eifrig lädt und beim Öffnen schon stimmt. Wer die Zahl wieder einbauen will, braucht erst einen
+  Endpunkt, der alle acht Summen auf einmal liefert.
 - Aktiv-Kennung ist ein `border-left` in `--color-accent`. **Der Spaltentrenner darf
   deshalb NICHT `border-left` benutzen** — dort `box-shadow: inset 1px 0 0` verwenden,
   sonst überschreibt er die Aktiv-Kennung.
@@ -291,8 +297,9 @@ umgelegt.
 Reihenfolge so gewählt, dass nach jedem Schritt ein benutzbares Panel steht.
 
 1. **Auswahl bauen.** `.wiki-sync-panel__tabs` (Ebene 2) durch das zweispaltige Raster
-   ersetzen; Zähler und Sync-Datum je Zeile aus den bestehenden Endpunkten
-   (`avesmapsWikiDumpSyncKindLastSynced` liefert alle Arten). „Materialien" fällt weg,
+   ersetzen; Sync-Datum je Zeile aus dem bestehenden Endpunkt
+   (`avesmapsWikiDumpSyncKindLastSynced` liefert alle Arten) — keine Zähler, siehe §3.1.
+   „Materialien" fällt weg,
    Abenteuer/Karten/Vorkommen werden Geschwister, Kraftlinien bekommt seine Zeile.
 2. **Verbzeile.** Syncen · Bearbeiten aus der Tabelle §5; Syncen allein, wo kein Editor ist.
    **Dabei `wiki-sync-territories` von „Territorien bearbeiten" auf „Syncen" umbeschriften**
