@@ -268,11 +268,11 @@
 .wiki-sync-case__action,
 .change-log-entry__undo {
 	min-height: 30px;
-	padding: 5px 8px;
-	border-radius: 6px;
+	padding: var(--space-4) var(--space-6);
+	border-radius: var(--radius-md);
 	cursor: pointer;
 	font: inherit;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 }
 
 .review-report__create,
@@ -425,13 +425,32 @@
 /* Der Spalten-Abstand traegt hier eine Bedeutung: links die Handlung, rechts ihr Datum. Bei 8px
    klebten beide aneinander und lasen sich als ein Block (Owner 2026-07-19). Diese EINE Regel gilt
    fuer alle sechs Reiter -- Siedlungen, Territorien, Regionen, Wege, Abenteuer, Karten. */
+/* FLEX, nicht Grid. Ein explizites Raster legt seine Spuren an, egal ob das Kind
+   `display:none` ist -- und das "Zuletzt gesynct"-Span daneben startet `hidden` und
+   wird erst sichtbar, wenn der Abruf zurueckkommt (schlaegt er fehl, bleibt es fuer
+   immer versteckt, siehe den catch in review-wiki-sync.js). Mit dem alten
+   2-Spalten-Raster stand deshalb JEDER Editor-Knopf dauerhaft auf zwei Dritteln
+   Breite, rechts daneben eine leere 120px-Spalte plus Abstand. Flex laesst das
+   versteckte Kind einfach weg; steht das Datum da, traegt derselbe eine `gap` den
+   Abstand wie vorher. Gilt fuer alle sechs Reiter. */
 .wiki-sync-panel__actions {
-	display: grid;
-	grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr);
+	display: flex;
 	align-items: center;
 	gap: var(--space-16);
-	margin: 8px 10px 8px;
+	margin: var(--space-6) var(--space-8);
 	padding: 0;
+}
+/* KEIN min-width:0 am Knopf: er traegt white-space:nowrap, und mit erlaubtem
+   Schrumpfen wuerde eine lange Beschriftung aus dem Kasten laufen statt ihren Platz
+   zu behalten. So bleibt der Knopf mindestens so breit wie sein Text; nachgeben muss
+   das Datum, das dank overflow-wrap:anywhere sauber umbricht. */
+.wiki-sync-panel__actions > .wiki-sync-panel__start {
+	flex: 1 1 auto;
+	width: auto;
+}
+.wiki-sync-panel__actions > .wiki-sync-panel__summary {
+	flex: 0 1 auto;
+	text-align: right;
 }
 
 /* Central "Dump holen" block (above the 4 tabs): button + fetched-status on one row
@@ -471,10 +490,11 @@
 	justify-content: center;
 }
 .wiki-sync-dump-central .wiki-sync-panel__start .t1 {
-	font-weight: 600;
+	/* 600 gibt es nicht -- die Designsprache kennt genau zwei Gewichte (400/700). */
+	font-weight: var(--font-weight-bold);
 }
 .wiki-sync-dump-central .wiki-sync-panel__start .t2 {
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	opacity: 0.75;
 }
 
@@ -530,9 +550,9 @@
 .wiki-sync-panel__summary {
 	min-width: 0;
 	color: var(--color-text-strong);
-	font-size: 12px;
-	font-weight: 700;
-	line-height: 1.25;
+	font-size: var(--font-size-small);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--leading-snug);
 	overflow-wrap: anywhere;
 }
 
