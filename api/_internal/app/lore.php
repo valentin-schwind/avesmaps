@@ -31,6 +31,52 @@ const AVESMAPS_LORE_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
 const AVESMAPS_LORE_PANEL_LIMIT = 10;
 
 /**
+ * Ist diese Art öffentlich sichtbar? Vier Schalter, einer je Art.
+ *
+ * Polarität wie bei citymaps_enabled/adventures_enabled: **Default AN**, nur ein
+ * ausdrücklich gespeichertes '0' schaltet ab — ein nie geschriebenes Flag funktioniert
+ * auf einem frischen Deploy also von selbst. AUSNAHME `spezies`: das Feld „Regionen" der
+ * {{Infobox Spezies}} ist im Wiki zu schlecht gepflegt (Owner 2026-07-21), deshalb ist
+ * diese eine Art per Default AUS. Vorher stand das als HTML-Kommentar im Markup — jetzt
+ * ist es ein Schalter, den der Owner ohne Codeänderung umlegen kann.
+ */
+function avesmapsLoreKindDefaultEnabled(string $kind): bool
+{
+    return $kind !== 'spezies';
+}
+
+function avesmapsLoreKindSettingKey(string $kind): string
+{
+    return 'lore_kind_' . $kind . '_enabled';
+}
+
+function avesmapsLoreKindEnabled(PDO $pdo, string $kind): bool
+{
+    $default = avesmapsLoreKindDefaultEnabled($kind);
+    if (!function_exists('avesmapsAppSettingGet')) {
+        return $default;
+    }
+    try {
+        $raw = trim((string) avesmapsAppSettingGet($pdo, avesmapsLoreKindSettingKey($kind), ''));
+    } catch (Throwable) {
+        return $default;
+    }
+
+    return $raw === '' ? $default : $raw !== '0';
+}
+
+/** Alle vier Schalter auf einmal — für den Editor und für das Gate im Lesepfad. */
+function avesmapsLoreEnabledKinds(PDO $pdo): array
+{
+    $out = [];
+    foreach (AVESMAPS_LORE_KINDS as $kind) {
+        $out[$kind] = avesmapsLoreKindEnabled($pdo, $kind);
+    }
+
+    return $out;
+}
+
+/**
  * Wann „Natur & Waren syncen" zuletzt durchlief, oder null.
  *
  * Liest dieselbe app_setting-Zeile, die der Reconcile schreibt
@@ -555,18 +601,29 @@ function avesmapsLoreReadForPlaces(PDO $pdo, array $placeKeys, int $limit = AVES
         return $empty;
     }
 
+    // Abgeschaltete Arten fallen HIER raus, nicht erst im Client: sonst reisen sie im
+    // Payload mit und ein „AUS" wäre nur eine Anzeigefrage, keine echte Abschaltung.
+    // Sind alle vier aus, gibt es nichts zu holen -- ohne diesen Riegel würde ein leeres
+    // IN () die Abfrage zerlegen.
+    $activeKinds = array_keys(array_filter(avesmapsLoreEnabledKinds($pdo)));
+    if ($activeKinds === []) {
+        return $empty;
+    }
+
     $placeholders = implode(',', array_fill(0, count($keys), '?'));
+    $kindPlaceholders = implode(',', array_fill(0, count($activeKinds), '?'));
     $sql =
         'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum,
                 p.place_wiki_key, p.place_title, p.relation
          FROM lore_place p
          JOIN lore_entry e ON e.wiki_key = p.entry_wiki_key AND e.status = \'active\'
          WHERE p.status = \'active\' AND p.place_wiki_key IN (' . $placeholders . ')
+           AND e.kind IN (' . $kindPlaceholders . ')
          ORDER BY e.name';
 
     try {
         $statement = $pdo->prepare($sql);
-        $statement->execute($keys);
+        $statement->execute(array_merge($keys, $activeKinds));
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable) {
         return $empty; // Tabellen fehlen (kein Sync) -> leer statt 500

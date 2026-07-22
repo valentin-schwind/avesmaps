@@ -10,6 +10,7 @@ declare(strict_types=1);
 // POST { action: "remove_place", wiki_key, place_wiki_key, relation } -> Wiki-Ort: Grabstein; manuell: löschen
 // POST { action: "set_field",    wiki_key, field, value }          -> Feld übersteuern (leer = Übersteuerung aufheben)
 // POST { action: "set_status",   wiki_key, status }                -> active | suppressed
+// POST { action: "set_kind_enabled", kind, enabled }               -> Art oeffentlich an/aus (OHNE wiki_key)
 //
 // Alle Schreibaktionen sind capability-gated ('edit') wie jeder Editor-Schreibpfad.
 
@@ -17,6 +18,10 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/app/lore-edit.php';
 // avesmapsPoliticalSlug für die Ortsschlüssel beim Zuordnen.
 require_once __DIR__ . '/../../_internal/political/territory.php';
+// avesmapsLoreKindEnabled/-SettingKey + AVESMAPS_LORE_KINDS für die Schalter je Art.
+require_once __DIR__ . '/../../_internal/app/lore.php';
+// avesmapsAppSettingSet -- explizit, nicht auf function_exists verlassen.
+require_once __DIR__ . '/../../_internal/app/app-setting.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -38,7 +43,9 @@ try {
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
     $wikiKey = avesmapsNormalizeSingleLine((string) ($payload['wiki_key'] ?? ''), 190);
 
-    if ($wikiKey === '') {
+    // set_kind_enabled schaltet eine ganze ART, nicht einen Eintrag -- als einzige Aktion
+    // ohne wiki_key. Ohne diese Ausnahme scheitert sie schon vor dem Dispatcher.
+    if ($wikiKey === '' && $action !== 'set_kind_enabled') {
         avesmapsErrorResponse(400, 'invalid_request', 'wiki_key ist erforderlich.');
     }
 
@@ -102,6 +109,24 @@ try {
                 avesmapsErrorResponse(400, (string) ($result['error'] ?? 'invalid_request'), 'Dieser Status ist nicht erlaubt.');
             }
             avesmapsJsonResponse(200, $result);
+            // no break
+
+        // Schalter je Art (Menüband). Kein wiki_key -- das betrifft die ganze Art, nicht
+        // einen Eintrag. Schreibt nur die app_setting-Zeile; die Daten bleiben unangetastet,
+        // ein wieder eingeschaltetes „Spezies" ist sofort vollständig da.
+        case 'set_kind_enabled':
+            $kind = avesmapsNormalizeSingleLine((string) ($payload['kind'] ?? ''), 20);
+            if (!in_array($kind, AVESMAPS_LORE_KINDS, true)) {
+                avesmapsErrorResponse(400, 'unknown_kind', 'Diese Art gibt es nicht.');
+            }
+            $enabled = (bool) ($payload['enabled'] ?? false);
+            avesmapsAppSettingSet($pdo, avesmapsLoreKindSettingKey($kind), $enabled ? '1' : '0');
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'kind' => $kind,
+                'enabled' => $enabled,
+                'kinds' => avesmapsLoreEnabledKinds($pdo),
+            ]);
             // no break
 
         default:

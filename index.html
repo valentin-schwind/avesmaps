@@ -422,12 +422,12 @@
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
 						</div>
 						</div>
-						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="lore"><div class="wiki-sync-panel__actions" id="wiki-sync-lore-open-wrap"><button id="wiki-sync-lore-open" class="wiki-sync-panel__start" type="button" title="Oeffnet das Fenster fuer Natur &amp; Waren. Startet NICHTS: syncen und bearbeiten passieren erst im Fenster.">Natur &amp; Waren syncen &amp; editieren</button></div>
+						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="lore"><div class="wiki-sync-panel__actions" id="wiki-sync-lore-open-wrap"><button id="wiki-sync-lore-open" class="wiki-sync-panel__start" type="button" title="Oeffnet das Fenster fuer Natur &amp; Waren. Startet NICHTS: syncen und bearbeiten passieren erst im Fenster.">Natur &amp; Waren Syncen &amp; Editieren</button><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span></div>
 								<!-- Flora / Fauna / Spezies / Handelswaren. Vorerst NUR der Sync-Knopf: die drei
 								     Listen (Fauna, Flora, Waren) kommen in einem eigenen Schritt hierher, sobald
 								     Daten da sind -- ein Editor ohne Datensatz hat nichts zu bearbeiten. -->
 								<div class="wiki-sync-panel__actions">
-									<button id="wiki-sync-sync-lore" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Liest den Dump und übernimmt Flora, Fauna, Spezies und Handelswaren override-sicher in die Lore-Tabellen. Ein vorheriges „Dump holen“ ist nicht nötig. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf.">Natur &amp; Waren syncen</button><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span>
+									<button id="wiki-sync-sync-lore" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Liest den Dump und übernimmt Flora, Fauna, Spezies und Handelswaren override-sicher in die Lore-Tabellen. Ein vorheriges „Dump holen“ ist nicht nötig. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf." hidden>Natur &amp; Waren syncen</button>
 								</div>
 																<div class="wiki-sync-panel__tabs">
 									<button class="wiki-sync-panel__tab is-active" type="button" data-lore-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-count="fauna"></span></button>
@@ -438,13 +438,15 @@
 								<div class="wiki-sync-adv-picker">
 									<div class="wiki-sync-adv-picker__top">
 										<input type="search" id="lore-list-search" class="wiki-sync-adv-picker__search" placeholder="Name oder Art suchen …" autocomplete="off">
-										<span class="wiki-sync-panel__summary" id="lore-list-count"></span><!-- Ohne diesen Hinweis findet niemand den Editor: die Liste sieht aus wie eine reine Anzeige, und dass ein Klick auf eine Zeile ihn oeffnet, verraet sonst nichts. Genau so ist er nach dem Bau unbemerkt geblieben. --><span class="wiki-sync-panel__summary">Zeile anklicken zum Bearbeiten.</span>
+										<span class="wiki-sync-panel__summary" id="lore-list-count"></span>
 									</div>
-									<div class="wiki-sync-adv-picker__scroll" id="lore-list-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+									<div class="wiki-sync-adv-picker__scroll" id="lore-list-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen…</p></div>
 									<!-- Ersetzt die Liste, statt unter ihr aufzuklappen: ein Detail, das alles
 									     nach unten schiebt, verliert man aus den Augen. „Zurück" bringt die
 									     Liste samt Suchbegriff wieder. -->
-									<div class="lore-detail" id="lore-detail" hidden></div>
+									<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Klick auf einen Eintrag oeffnet den Editor.</p>
+										<!-- Zieht per JS ins Fenster um (moveLoreSectionIntoDialog); steht hier nur, damit die id von Anfang an existiert. -->
+										<div class="lore-detail" id="lore-detail" hidden></div>
 																	</div>
 							</div>
 							<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="citymaps">
@@ -800,7 +802,17 @@
 					<h2 id="wiki-sync-lore-title">Natur &amp; Waren</h2>
 					<button id="wiki-sync-lore-close" class="location-report-dialog__close" type="button" aria-label="Natur &amp; Waren schließen">×</button>
 				</div>
-				<div class="wiki-sync-conflicts-dialog__body" id="wiki-sync-lore-dialog-body"></div>
+				<div class="wiki-sync-conflicts-dialog__body" id="wiki-sync-lore-dialog-body">
+					<!-- Menueband wie in Abenteuer- und Karteneditor: NUR die Sync-Kachel traegt ein Icon,
+					     die uebrigen sind rein textliche Schalter (Owner-Entscheid, siehe Menueband-Konsistenz).
+					     Der Sync-Knopf selbst zieht per JS aus dem Reiter hierher -- er darf NUR hier stehen. -->
+					<div class="lore-ribbon" id="lore-ribbon">
+						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="fauna" aria-pressed="true">Fauna: AN</button>
+						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="flora" aria-pressed="true">Flora: AN</button>
+						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="ware" aria-pressed="true">Waren: AN</button>
+						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="spezies" aria-pressed="false">Spezies: AUS</button>
+					</div>
+				</div>
 			</div>
 		</div>
 

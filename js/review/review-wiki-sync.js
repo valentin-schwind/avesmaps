@@ -1559,15 +1559,53 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 
 function moveLoreSectionIntoDialog() {
 	var body = document.getElementById("wiki-sync-lore-dialog-body");
-	var panel = document.querySelector('[data-material-subtab-section="lore"]');
-	if (!body || !panel || body.childElementCount > 0) {
-		return; // schon umgezogen (oder Markup fehlt) -- ein zweiter Lauf würde nichts finden
+	var detail = document.getElementById("lore-detail");
+	// Der Sync-Knopf steht im Markup VERSTECKT im Reiter, damit bootstrap.js ihn beim Start
+	// binden kann (die Bindung hängt am ELEMENT, nicht an der id). Sichtbar wird er erst
+	// hier: als erste Kachel des Menübands, seinem einzigen erlaubten Platz. Im Reiter darf
+	// er nicht auftauchen -- ein Klick dort würde den Lauf starten, den der Einstiegsknopf
+	// gerade verhindern soll.
+	var ribbon = document.getElementById("lore-ribbon");
+	var syncButton = document.getElementById("wiki-sync-sync-lore");
+	if (ribbon && syncButton && syncButton.parentElement !== ribbon) {
+		ribbon.insertBefore(syncButton, ribbon.firstChild);
+		syncButton.hidden = false;
+		syncButton.classList.add("lore-ribbon__sync");
 	}
-	Array.prototype.slice.call(panel.children).forEach(function (child) {
-		// Der Öffnen-Knopf bleibt im Reiter zurück, alles andere zieht um.
-		if (child.id !== "wiki-sync-lore-open-wrap") {
-			body.appendChild(child);
+	if (!body || !detail || detail.parentElement === body) {
+		return; // schon umgezogen (oder Markup fehlt)
+	}
+	// NUR die Bearbeitungsmaske zieht um. Knopfzeile, Datum, Reiter und Liste BLEIBEN im
+	// Panel -- genau wie bei Abenteuern, Karten und Siedlungen. Eine erste Fassung hat den
+	// ganzen Abschnitt ins Fenster geschoben; damit war der Reiter leer, und das Datum stand
+	// nicht mehr in der zweiten Rasterspalte neben dem Knopf, wo es bei allen sechs Reitern
+	// steht. Konsistenz schlägt hier die Idee, alles an einem Ort zu bündeln.
+	body.appendChild(detail);
+}
+
+/**
+ * Die vier Menüband-Schalter auf den Serverzustand setzen.
+ *
+ * `Spezies` steht per Default auf AUS (das Wiki-Feld „Regionen" ist zu schlecht gepflegt,
+ * Owner-Entscheid). Das stand früher als HTML-Kommentar im Markup — jetzt ist es ein
+ * Schalter, den der Owner ohne Codeänderung umlegen kann.
+ */
+function renderLoreKindToggles(kinds) {
+	if (!kinds) {
+		return;
+	}
+	document.querySelectorAll("[data-lore-toggle]").forEach(function (button) {
+		var kind = button.getAttribute("data-lore-toggle");
+		if (!(kind in kinds)) {
+			return;
 		}
+		var on = !!kinds[kind];
+		var label = button.getAttribute("data-lore-label")
+			|| button.textContent.replace(/:\s*(AN|AUS)\s*$/, "").trim();
+		button.setAttribute("data-lore-label", label);
+		button.setAttribute("aria-pressed", on ? "true" : "false");
+		button.classList.toggle("is-off", !on);
+		button.textContent = label + ": " + (on ? "AN" : "AUS");
 	});
 }
 
@@ -1795,6 +1833,7 @@ function loadLoreList() {
 			}
 			renderLoreList(data && data.ok ? data : null);
 			renderLoreLastSynced(data);
+			renderLoreKindToggles(data && data.ok ? data.kinds_enabled : null);
 			// ALLE Reiterzahlen setzen, nicht nur die des geladenen: sonst bleiben die
 			// übrigen leer, bis man sie einzeln anklickt. Die Zahlen zeigen den
 			// Gesamtbestand und bleiben deshalb auch während einer Suche stehen.
@@ -1865,12 +1904,10 @@ function loreEditAction(action, payload) {
 
 function closeLoreDetail() {
 	var detail = document.getElementById("lore-detail");
-	var picker = document.getElementById("lore-list-scroll");
 	avesmapsLoreDetailKey = "";
+	// „Zurück" leert die Maske, schließt aber NICHT das Fenster: das Menüband darüber
+	// bleibt bedienbar. Die Liste steht ohnehin im Reiter und wurde nie versteckt.
 	if (detail) { detail.hidden = true; detail.innerHTML = ""; }
-	if (picker) { picker.hidden = false; }
-	var search = document.getElementById("lore-list-search");
-	if (search) { search.hidden = false; }
 }
 
 function loreFieldRow(entry, field, label) {
@@ -1945,10 +1982,11 @@ function renderLoreDetail(entry) {
 
 function openLoreDetail(wikiKey) {
 	var detail = document.getElementById("lore-detail");
-	var picker = document.getElementById("lore-list-scroll");
 	if (!detail) { return; }
 	avesmapsLoreDetailKey = wikiKey;
-	if (picker) { picker.hidden = true; }
+	// Der Editor lebt im Fenster. Die Liste im Reiter bleibt stehen -- nach dem Schließen
+	// macht man dort weiter, wo man war, statt Suchbegriff und Scrollstand zu verlieren.
+	setWikiSyncLoreDialogOpen(true);
 	detail.hidden = false;
 	detail.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>';
 	loreEditAction("detail", { wiki_key: wikiKey }).then(function (data) {
@@ -1972,6 +2010,36 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
 		var target = event.target;
 		if (!target || !target.closest) { return; }
 
+		var toggle = target.closest("[data-lore-toggle]");
+		if (toggle) {
+			// Optimistisch umschalten wäre hier falsch: der Schalter behauptet einen
+			// öffentlichen Zustand. Erst wenn der Server bestätigt hat, wird das Label
+			// gedreht -- sonst zeigt das Menüband "AUS", während die Art weiter ausgeliefert
+			// wird. Solange gilt: Knopf gesperrt.
+			var wasOn = toggle.getAttribute("aria-pressed") === "true";
+			toggle.disabled = true;
+			loreEditAction("set_kind_enabled", {
+				kind: toggle.getAttribute("data-lore-toggle"),
+				enabled: !wasOn,
+			}).then(function (data) {
+				toggle.disabled = false;
+				if (data && data.ok && data.kinds) {
+					renderLoreKindToggles(data.kinds);
+					if (typeof showFeedbackToast === "function") {
+						showFeedbackToast(
+							(toggle.getAttribute("data-lore-label") || "Art")
+								+ (data.enabled ? " wird wieder angezeigt." : " ist ausgeblendet."),
+							"success"
+						);
+					}
+					return;
+				}
+				if (typeof showFeedbackToast === "function") {
+					showFeedbackToast("Schalter konnte nicht geändert werden (angemeldet?).", "warning");
+				}
+			});
+			return;
+		}
 		if (target.closest("#lore-detail-back")) {
 			closeLoreDetail();
 			return;

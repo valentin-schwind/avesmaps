@@ -113,6 +113,9 @@ try {
             'counts_by_kind' => avesmapsLoreCountsByKind($pdo),
             // Zeitpunkt des letzten scharfen Syncs für die Zeile neben dem Knopf.
             'last_synced' => avesmapsLoreReadLastSynced($pdo),
+            // Zustand der vier Menueband-Schalter, damit sie beim Oeffnen sofort richtig
+            // stehen und nicht erst nach dem ersten Klick.
+            'kinds_enabled' => avesmapsLoreEnabledKinds($pdo),
         ]);
     }
 

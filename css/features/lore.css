@@ -213,6 +213,40 @@
 	flex-direction: column;
 	gap: var(--space-10);
 }
+/* Menueband: Sync-Kachel links, danach die Schalter je Art. Gleiche Anordnung wie im
+   Abenteuer- und Karteneditor -- linksbuendig, umbruchfaehig, EIN Abstand. */
+.lore-ribbon {
+	display: flex;
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	gap: var(--space-6);
+	align-items: center;
+	padding-bottom: var(--space-8);
+	border-bottom: 1px solid var(--color-divider);
+}
+.lore-ribbon__toggle {
+	padding: var(--space-4) var(--space-10);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-text);
+	font: inherit;
+	cursor: pointer;
+}
+.lore-ribbon__toggle:hover {
+	border-color: var(--color-link);
+}
+/* AUS ist ein Zustand, kein Fehler: gedaempft, aber lesbar -- und nicht rot, sonst liest
+   sich eine bewusste Owner-Entscheidung wie eine Stoerung. */
+.lore-ribbon__toggle.is-off {
+	background: var(--color-panel-muted);
+	color: var(--color-text-muted);
+}
+.lore-ribbon__toggle:disabled {
+	opacity: 0.6;
+	cursor: progress;
+}
+
 /* Knopfzeile und Reiter behalten ihre Hoehe; nur die Liste waechst und scrollt. */
 #wiki-sync-lore-dialog-body > .wiki-sync-panel__actions,
 #wiki-sync-lore-dialog-body > .wiki-sync-panel__tabs {
