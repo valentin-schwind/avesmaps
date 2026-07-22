@@ -206,6 +206,10 @@ Grundlage jeder Zeile ist Code, nicht Vermutung.
 
 ⚠️ = als „bearbeiten" beschriftet, startet aber einen Sync (§1.3).
 
+**Vier der acht Subjekte haben keinen Listen-Editor** — Territorien, Regionen, Wege,
+Kraftlinien. Vom Owner bestätigt (2026-07-22). Sie bekommen eine Verbzeile mit „Syncen"
+über die volle Breite (§3.2).
+
 Reiter-Quellen: `review-settlement-list.js:203`, `review-wiki-sync.js:314`,
 `review-region-sync.js:211`, `review-path-sync.js:252`.
 
@@ -335,8 +339,6 @@ Am Produkt zu prüfen:
 
 ## 10. Offene Fragen
 
-- **Regionen:** hat nach Codelage ebenfalls keinen Listen-Editor, wurde vom Owner aber nicht
-  in der Liste der Sync-only-Subjekte genannt. Vor Schritt 2 kurz bestätigen.
 - **Filterfacetten** für Kraftlinien (Stärke, Affinität), Abenteuer (Art, Genre, Regeln,
   Herkunft) und Karten (Zugang, Vorschau, Herkunft) sind aus den echten Infobox-Feldern
   abgeleitet, aber **nicht mit dem Owner abgestimmt**. Im Muster mit `NEU` markiert.
