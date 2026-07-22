@@ -20,6 +20,9 @@
 @import url("components/link-status.css");
 @import url("components/location-report-dialog.css");
 @import url("components/political-territory-editor-overlay.css");
+/* Nachfolger der Zeile darueber. Beide gelten, solange nicht alle vier Editoren
+   umgestellt sind -- bisher nur der Siedlungseditor (Spec §3, §14 Schritt 3). */
+@import url("components/editor-shell.css");
 @import url("components/region-wiki-dialogs.css");
 @import url("components/political-territory-tree.css");
 @import url("components/political-territory-controls.css");

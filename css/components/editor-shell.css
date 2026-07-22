@@ -1,0 +1,115 @@
+/* Gemeinsame Hülle der Editor-Overlays — Spec: docs/superpowers/specs/
+   2026-07-22-editor-designsprache-design.md §3.
+
+   Ersetzt schrittweise die Klassen `political-territory-editor-*`, die vier Editoren
+   gemeinsam benutzen, obwohl nur einer davon der Territorien-Editor ist (Spec §1.2:
+   "die Hülle existiert, aber sie lügt über ihren Namen"). Umgestellt ist bisher NUR
+   der Siedlungseditor; Abenteuer, Karten und Territorien laufen weiter über die alten
+   Klassen. Deshalb existieren beide Stylesheets nebeneinander — die alten dürfen erst
+   weg, wenn der letzte Editor herüber ist.
+
+   Die Maße stehen hier und NUR hier. Vorher standen sie viermal wortgleich als
+   JS-Inline-Style (`dialog.style.width = "min(1400px, …)"`), wo kein Stylesheet sie
+   erreichte.
+
+   Kein `[hidden]`-Sonderfall nötig: css/base/reset.css:14 setzt global
+   `[hidden] { display: none !important }`, das schlägt das `display: flex` hier. Die
+   ID-Liste in dialog-overlays.css:6-19 ist deshalb überflüssig — nicht erweitern. */
+
+.avm-editor-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-editor-overlay);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-16);
+	background: var(--color-scrim-editor);
+	backdrop-filter: blur(3px);
+}
+
+.avm-editor-dialog {
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr);
+	/* Die eine Stelle, an der die Editorgröße steht. */
+	width: min(1400px, calc(100vw - 24px));
+	height: min(880px, calc(100vh - 24px));
+	overflow: hidden;
+	border: 1px solid var(--color-border-strong);
+	/* Spec §4.2: Hülle --radius-sm, Bedienelemente --radius-md. Vorher --radius-lg. */
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-dialog);
+}
+
+.avm-editor-dialog:focus {
+	outline: none;
+}
+
+.avm-editor-dialog__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-10);
+	padding: var(--space-8) var(--space-12);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel);
+}
+
+.avm-editor-dialog__header h2 {
+	margin: 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-text-strong);
+	/* Spec §4.1: Dialogtitel = --font-size-title. Vorher hart 16px. */
+	font-size: var(--font-size-title);
+	line-height: var(--leading-tight);
+}
+
+.avm-editor-dialog__close {
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-weight: var(--font-weight-bold);
+}
+
+.avm-editor-dialog__close:hover,
+.avm-editor-dialog__close:focus-visible {
+	background: var(--color-button-soft-hover);
+	outline: none;
+}
+
+.avm-editor-dialog__frame {
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	border: 0;
+	background: var(--color-panel);
+	overflow-y: auto;
+	overflow-x: hidden;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Schmal: der Dialog nimmt den ganzen Schirm. Die alte Hülle brach erst bei 680px um;
+   900px ist der Wert, den die Spec für das Spaltenverhalten setzt (§5) -- ein
+   Umbruchpunkt für beides, nicht zwei. */
+@media (max-width: 900px) {
+	.avm-editor-overlay {
+		padding: 0;
+	}
+
+	.avm-editor-dialog {
+		width: 100vw;
+		height: 100vh;
+		border: 0;
+		border-radius: 0;
+	}
+}

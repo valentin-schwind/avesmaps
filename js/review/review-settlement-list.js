@@ -476,18 +476,20 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	}
 	overlay = document.createElement("div");
 	overlay.id = overlayId;
-	overlay.className = "political-territory-editor-overlay";
+	// Umgestellt auf die gemeinsame Huelle (css/components/editor-shell.css, Spec §3).
+	// Die Maße stehen jetzt dort und nicht mehr als Inline-Style hier -- die drei
+	// uebrigen Editoren unten benutzen noch die alten political-territory-editor-*
+	// Klassen und ihre Inline-Maße, bis sie einzeln nachziehen (Spec §14 Schritt 4).
+	overlay.className = "avm-editor-overlay";
 	const dialog = document.createElement("div");
-	dialog.className = "political-territory-editor-dialog";
-	dialog.style.width = "min(1400px, calc(100vw - 24px))";
-	dialog.style.height = "min(880px, calc(100vh - 24px))";
+	dialog.className = "avm-editor-dialog";
 	const header = document.createElement("div");
-	header.className = "political-territory-editor-dialog__header";
+	header.className = "avm-editor-dialog__header";
 	const headingEl = document.createElement("h2");
 	headingEl.textContent = "Siedlungen bearbeiten";
 	const closeButton = document.createElement("button");
 	closeButton.type = "button";
-	closeButton.className = "political-territory-editor-dialog__close";
+	closeButton.className = "avm-editor-dialog__close";
 	closeButton.setAttribute("aria-label", "Schließen");
 	closeButton.textContent = "✕";
 	const closeOverlay = () => {
@@ -498,7 +500,7 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
-	frame.className = "political-territory-editor-dialog__frame";
+	frame.className = "avm-editor-dialog__frame";
 	frame.src = buildSettlementEditorSrc();
 	frame.title = "Siedlungseditor";
 	dialog.appendChild(header);
