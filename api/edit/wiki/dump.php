@@ -107,6 +107,10 @@ require __DIR__ . '/../../_internal/wiki/territories-parsing.php';
 require __DIR__ . '/../../_internal/wiki/territories.php';
 require __DIR__ . '/../../_internal/wiki/paths.php';
 require __DIR__ . '/../../_internal/wiki/powerlines.php';
+// The powerline reconcile writes map_features rows, so it needs the map helpers
+// (avesmapsNextMapRevision / avesmapsEncodeJson). Function definitions only, no side effects
+// on include, and its own require (path-naming.php) is already loaded above via paths.php.
+require_once __DIR__ . '/../../_internal/map/features.php';
 require __DIR__ . '/../../_internal/wiki/regions.php';
 require __DIR__ . '/../../_internal/wiki/locations.php';
 require __DIR__ . '/../../_internal/wiki/settlements.php';
@@ -600,6 +604,41 @@ try {
                     'segment' => (int) ($pubStep['nextSegment'] ?? $pubSegment),
                     'total' => count(avesmapsPublicationReconcileSegmentOrder()),
                 ],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'sync_powerlines':
+            // OWNER-triggered PRODUCTION reconcile of the Kraftlinien staged by "Dump holen"
+            // (wiki_powerline_staging) onto the live map_features powerline rows. Same 'edit' gate and
+            // single-flight pipeline lock as its siblings, but NO cursor loop: 23 staged articles
+            // against 162 segments fit in one request, so a resumable machine would be ceremony.
+            //
+            // The join is the NAME -- a powerline is many segments sharing one lore name, the same
+            // 1-to-N shape roads have. OVERRIDE-SAFE: writes ONLY properties.wiki_powerline; the
+            // editor's own properties.wiki_url and properties.description are never touched, so a
+            // hand-set link survives every sync (unit-tested, powerline-parsing-test.php).
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_powerlines');
+            $lockHeldByThisRequest = true;
+
+            $powerlineResult = avesmapsWikiPowerlineReconcile($pdo, $lockUserId);
+
+            avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+            $lockHeldByThisRequest = false;
+
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'stage' => 'reconcile',
+                'done' => true,
+                // An empty staging is a STATE, not an error -- the client says so by name.
+                'staged' => (int) ($powerlineResult['staged'] ?? 0),
+                'linked' => (int) ($powerlineResult['linked'] ?? 0),
+                'updated' => (int) ($powerlineResult['updated'] ?? 0),
+                'cleared' => (int) ($powerlineResult['cleared'] ?? 0),
+                'unchanged' => (int) ($powerlineResult['unchanged'] ?? 0),
+                'matched_names' => (int) ($powerlineResult['matched_names'] ?? 0),
+                // Wiki lines with no segment on our map. Reported, not an error: nobody may have
+                // drawn them yet, or our spelling differs ("Bruecke nach/von Akrabaal").
+                'unmatched_names' => array_values((array) ($powerlineResult['unmatched_names'] ?? [])),
             ]);
             // no break -- avesmapsJsonResponse exits.
 

@@ -69,6 +69,139 @@ function avesmapsWikiPowerlineEnsureTables(PDO $pdo): void
     );
 }
 
+/**
+ * PURE: the wiki nest a staging row should produce on a matching map segment.
+ * Everything the wiki knows lives under properties.wiki_powerline -- never in the
+ * editor's own fields.
+ */
+function avesmapsWikiPowerlineDesiredNest(array $stagingRow): array
+{
+    return [
+        'wiki_key' => trim((string) ($stagingRow['wiki_key'] ?? '')),
+        'wiki_url' => trim((string) ($stagingRow['wiki_url'] ?? '')),
+        'name' => trim((string) ($stagingRow['name'] ?? '')),
+        'staerke' => trim((string) ($stagingRow['staerke'] ?? '')),
+        'affinitaet' => trim((string) ($stagingRow['affinitaet'] ?? '')),
+        'laenge' => trim((string) ($stagingRow['laenge'] ?? '')),
+        'regionen' => trim((string) ($stagingRow['regionen'] ?? '')),
+        'verlauf' => trim((string) ($stagingRow['verlauf'] ?? '')),
+        'description' => trim((string) ($stagingRow['description'] ?? '')),
+    ];
+}
+
+/**
+ * PURE + THE OVERRIDE GUARANTEE: merge a desired wiki nest into a segment's properties.
+ *
+ * 💣 Touches ONLY properties.wiki_powerline. The editor's own properties.wiki_url and
+ * properties.description are never read and never written here -- a hand-set wiki link must
+ * survive every sync, exactly as manual/suppressed rows survive the source reconcile
+ * (AGENTS.md §5, "writes/deletes ONLY origin='wiki'").
+ *
+ * $desired === null means "the wiki no longer knows a line by this name" -> retire the nest.
+ *
+ * @return array{properties:array, changed:bool, action:string} action: linked|updated|cleared|none
+ */
+function avesmapsWikiPowerlineMergeProperties(array $properties, ?array $desired): array
+{
+    $current = is_array($properties['wiki_powerline'] ?? null) ? $properties['wiki_powerline'] : null;
+
+    if ($desired === null) {
+        if ($current === null) {
+            return ['properties' => $properties, 'changed' => false, 'action' => 'none'];
+        }
+        unset($properties['wiki_powerline']);
+
+        return ['properties' => $properties, 'changed' => true, 'action' => 'cleared'];
+    }
+
+    if ($current !== null && $current == $desired) {
+        return ['properties' => $properties, 'changed' => false, 'action' => 'none'];
+    }
+
+    $properties['wiki_powerline'] = $desired;
+
+    return ['properties' => $properties, 'changed' => true, 'action' => $current === null ? 'linked' : 'updated'];
+}
+
+/**
+ * OWNER-TRIGGERED production reconcile: wiki_powerline_staging -> map_features.properties.
+ * One shot, no cursor: 23 staged articles against 162 segments fit in a single request.
+ *
+ * The join is the NAME (avesmapsWikiSyncCreateMatchKey), because a powerline is many segments
+ * sharing one lore name -- the same 1-to-N shape roads have.
+ *
+ * @return array{linked:int, updated:int, cleared:int, unchanged:int, staged:int, matched_names:int, unmatched_names:string[]}
+ */
+function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
+{
+    avesmapsWikiPowerlineEnsureTables($pdo);
+
+    $staged = [];
+    $statement = $pdo->query('SELECT * FROM ' . AVESMAPS_WIKI_POWERLINE_STAGING_TABLE);
+    foreach (($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $key = trim((string) ($row['match_key'] ?? ''));
+        if ($key !== '') {
+            $staged[$key] = $row;
+        }
+    }
+
+    $segments = $pdo->query(
+        "SELECT id, public_id, name, properties_json FROM map_features
+          WHERE feature_type = 'powerline' AND is_active = 1"
+    );
+    $rows = $segments !== false ? $segments->fetchAll(PDO::FETCH_ASSOC) : [];
+
+    $counts = ['linked' => 0, 'updated' => 0, 'cleared' => 0, 'unchanged' => 0];
+    $matchedKeys = [];
+    $update = $pdo->prepare(
+        'UPDATE map_features SET properties_json = :props, revision = :revision, updated_by = :user WHERE id = :id'
+    );
+
+    foreach ($rows as $row) {
+        $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+        if (!is_array($properties)) {
+            $properties = [];
+        }
+        $matchKey = avesmapsWikiSyncCreateMatchKey((string) ($row['name'] ?? ''));
+        $stagingRow = ($matchKey !== '' && isset($staged[$matchKey])) ? $staged[$matchKey] : null;
+        if ($stagingRow !== null) {
+            $matchedKeys[$matchKey] = true;
+        }
+
+        $merged = avesmapsWikiPowerlineMergeProperties(
+            $properties,
+            $stagingRow === null ? null : avesmapsWikiPowerlineDesiredNest($stagingRow)
+        );
+        if (!$merged['changed']) {
+            $counts['unchanged']++;
+            continue;
+        }
+        $counts[$merged['action']]++;
+        $update->execute([
+            'props' => avesmapsEncodeJson($merged['properties']),
+            'revision' => avesmapsNextMapRevision($pdo),
+            'user' => $userId,
+            'id' => (int) $row['id'],
+        ]);
+    }
+
+    // Wiki lines with no segment on our map -- reported, not an error: the article may describe a
+    // line nobody has drawn yet, or our name differs slightly ("Bruecke nach/von Akrabaal").
+    $unmatched = [];
+    foreach ($staged as $key => $row) {
+        if (!isset($matchedKeys[$key])) {
+            $unmatched[] = (string) ($row['name'] ?? $key);
+        }
+    }
+    sort($unmatched);
+
+    return $counts + [
+        'staged' => count($staged),
+        'matched_names' => count($matchedKeys),
+        'unmatched_names' => $unmatched,
+    ];
+}
+
 function avesmapsWikiPowerlineUpsertRecord(PDO $pdo, array $record): void
 {
     $statement = $pdo->prepare(

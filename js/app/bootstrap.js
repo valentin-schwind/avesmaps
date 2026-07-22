@@ -367,6 +367,7 @@ $("#wiki-sync-territory-flaechenland").on("change", function () {
 // der DOM-Lage abhaengig, und die aendert sich wieder -- der Selektor ist eindeutig genug.
 $(document).on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 $("#wiki-sync-conflicts-open").on("click", () => setWikiSyncConflictsDialogOpen(true));
+$("#wiki-sync-powerlines-sync").on("click", () => startWikiSyncPowerlines());
 $("#conflict-rescan").on("click", () => loadConflicts({ rescan: true }));
 $("#conflict-minimize").on("click", () => setConflictDialogMinimized(!conflictMinimized));
 $("#conflict-search").on("input search", function () {

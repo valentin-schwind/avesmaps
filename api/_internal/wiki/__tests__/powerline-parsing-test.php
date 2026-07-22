@@ -105,4 +105,47 @@ assert($u['is_powerline'] === true);
 assert($u['record']['name'] === 'Kraftlinie zwischen Himmelsturm und Heiligtum der alten Götter', 'name: ' . $u['record']['name']);
 echo "unnamed fallback ok\n";
 
+// ------------------------------------------------------------- RECONCILE ---
+// The pure half of the production reconcile. DB-free.
+$stagingRow = [
+    'wiki_key' => 'basiliuslinie', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Basiliuslinie',
+    'name' => 'Basiliuslinie', 'staerke' => 'kontinental', 'affinitaet' => 'Leben und Tod',
+    'laenge' => 'ca. 3000 Meilen', 'regionen' => 'Almada', 'verlauf' => 'A → B', 'description' => 'Text.',
+];
+$desired = avesmapsWikiPowerlineDesiredNest($stagingRow);
+assert($desired['staerke'] === 'kontinental');
+assert($desired['wiki_url'] === 'https://de.wiki-aventurica.de/wiki/Basiliuslinie');
+
+// A segment the wiki has not touched yet -> linked.
+$fresh = avesmapsWikiPowerlineMergeProperties(['name' => 'Basiliuslinie'], $desired);
+assert($fresh['action'] === 'linked' && $fresh['changed'] === true);
+assert($fresh['properties']['wiki_powerline']['laenge'] === 'ca. 3000 Meilen');
+
+// Running it again changes nothing (idempotent).
+$again = avesmapsWikiPowerlineMergeProperties($fresh['properties'], $desired);
+assert($again['action'] === 'none' && $again['changed'] === false, 'reconcile must be idempotent');
+
+// A changed wiki value updates.
+$changed = avesmapsWikiPowerlineMergeProperties($fresh['properties'], ['staerke' => 'regional'] + $desired);
+assert($changed['action'] === 'updated');
+
+// The wiki no longer knows the name -> the nest is retired.
+$retired = avesmapsWikiPowerlineMergeProperties($fresh['properties'], null);
+assert($retired['action'] === 'cleared' && !isset($retired['properties']['wiki_powerline']));
+echo "reconcile merge ok\n";
+
+// 💣 THE OVERRIDE GUARANTEE: the editor's OWN wiki_url and description must survive every
+// branch above. A hand-set link is data, not a gap for the sync to fill (Discord #38 class).
+$manual = ['name' => 'Basiliuslinie', 'wiki_url' => 'https://example.invalid/hand', 'description' => 'Von Hand.'];
+foreach ([$desired, null, ['staerke' => 'regional'] + $desired] as $variant) {
+    $out = avesmapsWikiPowerlineMergeProperties($manual, $variant)['properties'];
+    assert($out['wiki_url'] === 'https://example.invalid/hand', 'the manual wiki link must never be touched');
+    assert($out['description'] === 'Von Hand.', 'the manual description must never be touched');
+}
+// And on a segment that already carries a wiki nest, too.
+$both = avesmapsWikiPowerlineMergeProperties($manual + ['wiki_powerline' => ['name' => 'alt']], null)['properties'];
+assert($both['wiki_url'] === 'https://example.invalid/hand');
+assert(!isset($both['wiki_powerline']));
+echo "override guarantee ok\n";
+
 echo "powerline parsing tests passed\n";

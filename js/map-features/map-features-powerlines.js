@@ -327,13 +327,27 @@ function powerlineInfoboxMarkup(powerline) {
 		const ringNote = topology.isRing ? " · geschlossener Ring" : "";
 		rows += row("Abschnitte", escapeHtml(`${topology.segmentCount}${ringNote}`));
 	}
-	rows += row("Beschreibung", escapeHtml(String(powerline?.properties?.description || "").trim()));
+	// Was der Wiki-Abgleich beigesteuert hat. Liegt in einem EIGENEN Nest (properties.wiki_powerline),
+	// damit der Sync die handgesetzten Felder nie ueberschreibt -- dasselbe Verhaeltnis wie
+	// properties.wiki_path beim Weg. Leer, solange niemand "Kraftlinien syncen" gedrueckt hat.
+	const wiki = (powerline?.properties?.wiki_powerline) || {};
+	rows += row("Stärke", escapeHtml(String(wiki.staerke || "").trim()));
+	rows += row("Affinität", escapeHtml(String(wiki.affinitaet || "").trim()));
+	rows += row("Länge", escapeHtml(String(wiki.laenge || "").trim()));
+	rows += row("Regionen", escapeHtml(String(wiki.regionen || "").trim()));
+	// Handgetipptes schlaegt Wiki -- wer etwas selbst geschrieben hat, will es auch lesen.
+	const description = String(powerline?.properties?.description || "").trim()
+		|| String(wiki.description || "").trim();
+	rows += row("Beschreibung", escapeHtml(description));
 	// Multi-source system: die Zeile traegt den Wiki-Link UND die Katalog-Quellen, offizielle zuerst.
+	// Auch hier gewinnt der handgesetzte Link vor dem aus dem Wiki.
+	const wikiUrl = String(powerline?.properties?.wiki_url || "").trim()
+		|| String(wiki.wiki_url || "").trim();
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
 		? renderFeatureSourceLine(
 			"powerline",
 			getPowerlinePublicId(powerline),
-			String(powerline?.properties?.wiki_url || "").trim(),
+			wikiUrl,
 			"location-popup__wiki-link"
 		)
 		: "";

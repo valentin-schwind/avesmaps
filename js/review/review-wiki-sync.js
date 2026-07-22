@@ -1194,6 +1194,77 @@ async function runWikiSyncPublicationsSyncLoop() {
 }
 
 // ===========================================================================
+// ===========================================================================
+// „Kraftlinien syncen": der SCHARFE Abgleich der beim „Dump holen" gesammelten
+// Kraftlinien-Artikel auf die Kraftlinien der Karte. Zugeordnet wird über den
+// NAMEN -- eine Kraftlinie liegt als viele Segmente vor, die nur ihr Name
+// zusammenhält (dieselbe 1-zu-N-Form wie bei Straßen).
+//
+// EIN Request, keine Schrittschleife: 23 Artikel gegen 162 Segmente passen in
+// eine Anfrage. Die Geschwister (Lore ~5.100 Einträge) brauchen den Cursor, hier
+// wäre er Zeremonie.
+//
+// Die Override-Garantie liegt im Backend und ist unit-getestet: geschrieben wird
+// AUSSCHLIESSLICH properties.wiki_powerline; von Hand gesetzte Wiki-Links und
+// Beschreibungen werden nie angefasst.
+// Backend: api/edit/wiki/dump.php (sync_powerlines).
+// ===========================================================================
+
+let isWikiSyncPowerlinesRunning = false;
+
+async function startWikiSyncPowerlines() {
+	if (isWikiSyncPowerlinesRunning) {
+		return;
+	}
+	isWikiSyncPowerlinesRunning = true;
+	const button = document.getElementById("wiki-sync-powerlines-sync");
+	if (button) {
+		button.disabled = true;
+	}
+	setWikiSyncStatus("Kraftlinien werden abgeglichen …", "pending");
+	try {
+		const result = await submitWikiSyncDumpAction("sync_powerlines", {});
+		const staged = Number(result.staged ?? 0);
+		if (staged === 0) {
+			// Leeres Staging ist ein ZUSTAND, kein Fehler -- und der Grund gehört dazu,
+			// sonst sucht der Owner den Fehler im Abgleich statt im fehlenden Dump-Lauf.
+			setWikiSyncStatus("Keine Kraftlinien im Zwischenspeicher. Bitte zuerst „📥 Dump holen“ laufen lassen.", "error");
+			return;
+		}
+		const linked = Number(result.linked ?? 0);
+		const updated = Number(result.updated ?? 0);
+		const cleared = Number(result.cleared ?? 0);
+		const unmatched = Array.isArray(result.unmatched_names) ? result.unmatched_names : [];
+		const parts = [
+			`${staged} Wiki-Kraftlinien`,
+			`${Number(result.matched_names ?? 0)} zugeordnet`,
+			`${linked} neu verknüpft`,
+			`${updated} aktualisiert`,
+		];
+		if (cleared > 0) {
+			parts.push(`${cleared} gelöst`);
+		}
+		// Nicht zugeordnete Artikel BEIM NAMEN nennen: fast immer eine Schreibweise, die
+		// abweicht ("Brücke nach/von Akrabaal") -- das ist eine Editor-Aufgabe, kein Fehler.
+		if (unmatched.length > 0) {
+			const shown = unmatched.slice(0, 6).join(", ");
+			parts.push(`ohne Gegenstück auf der Karte: ${shown}${unmatched.length > 6 ? " …" : ""}`);
+		}
+		// Bewusst KEIN Nachladen: die Kartendaten holt loadRouteData() einmal beim Start, ein
+		// zweiter Aufruf würde Layer doppeln. Der Hinweis ist ehrlicher als ein erfundener
+		// Nachladepfad -- die neuen Wiki-Zeilen stehen nach einem Neuladen im Infopanel.
+		setWikiSyncStatus(`Kraftlinien abgeglichen — ${parts.join(" · ")}. Seite neu laden, um sie im Infopanel zu sehen.`, "success");
+	} catch (error) {
+		console.error("Kraftlinien-Abgleich fehlgeschlagen:", error);
+		setWikiSyncStatus(error?.message || "Der Kraftlinien-Abgleich ist fehlgeschlagen.", "error");
+	} finally {
+		isWikiSyncPowerlinesRunning = false;
+		if (button) {
+			button.disabled = false;
+		}
+	}
+}
+
 // Abenteuer syncen (Phase 4): the SHARP reconcile of the wiki adventure catalog
 // (built during "Dump holen") into the live adventure/adventure_place tables.
 // UNLIKE publications (folded into "Dump holen"), this is its OWN "Abenteuer"-tab

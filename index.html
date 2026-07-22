@@ -358,6 +358,12 @@
 					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-conflicts-open" class="wiki-sync-panel__start" type="button" title="Öffnet die Konfliktlösung: Fälle, bei denen sich Karte und Wiki Aventurica widersprechen — objektartübergreifend.">⚖️ Konflikte</button>
 					</div>
+					<!-- Kraftlinien haben keinen eigenen Reiter (23 Wiki-Artikel, 61 Namen auf der Karte),
+					     darum sitzt ihr scharfer Abgleich hier bei den objektartuebergreifenden Aktionen.
+					     Braucht ein vorheriges "Dump holen" -- ohne Staging meldet er das im Klartext. -->
+					<div class="wiki-sync-dump-solo">
+						<button id="wiki-sync-powerlines-sync" class="wiki-sync-panel__start" type="button" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Zugeordnet wird über den Namen. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet.">⚡ Kraftlinien syncen</button>
+					</div>
 					<!-- SHARP reconcile of the wiki publication sources into feature_sources
 					     (origin=wiki_publication) is now step 4/4 of "Dump holen" above -- folded in,
 					     no separate trigger. This progress bar + status line are driven by that same
