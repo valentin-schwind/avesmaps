@@ -1084,29 +1084,21 @@ document.addEventListener("keydown", (event) => {
 // und `findPathByPublicId` hier alle `undefined` sind (live geprüft 2026-07-22). Auf der
 // Kartenseite mit ?edit=1 liegt dagegen alles im eigenen Dokument. Beides bedienen statt eines
 // davon anzunehmen — genau diese Annahme ließ die Segment-Chips stumm ins Leere laufen.
-function editorMapContext() {
+// 💣 NICHT auf `win.map` prüfen. Die Karten-Globals sind top-level `let` und landen damit NICHT
+// auf `window`: `win.pathData` ist `undefined`, und `win.map` liefert das `<div id="map">` über
+// den benannten Element-Zugriff — es besteht jede Wahrheitsprüfung und hat trotzdem kein
+// `flyToBounds`. Nur FUNKTIONSDEKLARATIONEN sind von außen greifbar (live geprüft 2026-07-22:
+// findPathByPublicId, focusWholeWikiDeeplinkPath, normalizeWikiDeeplinkKey, focusSpotlightPath).
+// Deshalb ruft die Hülle die Fokus-Funktionen des iframes auf, statt selbst fliegen zu wollen.
+function editorMapWindow() {
 	if (typeof map !== "undefined" && typeof findPathByPublicId === "function") {
-		return {
-			win: window,
-			map,
-			L,
-			findPathByPublicId,
-			pathData: typeof pathData !== "undefined" && Array.isArray(pathData) ? pathData : [],
-		};
+		return { win: window, sameDocument: true };
 	}
 	const frame = document.querySelector("iframe.edit-shell__map");
 	const win = frame && frame.contentWindow ? frame.contentWindow : null;
-	// Same origin, so reaching in is allowed; a not-yet-loaded iframe simply has no map yet.
-	if (win && win.map && typeof win.findPathByPublicId === "function") {
-		return {
-			win,
-			map: win.map,
-			L: win.L,
-			findPathByPublicId: win.findPathByPublicId,
-			pathData: Array.isArray(win.pathData) ? win.pathData : [],
-		};
-	}
-	return null;
+	return win && typeof win.focusWholeWikiDeeplinkPath === "function"
+		? { win, sameDocument: false }
+		: null;
 }
 
 // Fliegt zur Stelle eines Weg-Segments (Polyline-Bounds aus der Geometrie).
@@ -1117,27 +1109,28 @@ function focusPathOnMap(publicId) {
 // Alle Segment-IDs eines Wiki-Weges aus den geladenen Kartendaten. Der „Ausreißer"-Payload
 // listet nur die abgetrennten Segmente, und ein Verlauf-Fall nur seine Diff-Teile — zum Zoomen
 // auf den GANZEN Weg ist die Karte die vollständigere Quelle.
-function pathPublicIdsForWikiKey(wikiKey, context) {
-	const ctx = context || editorMapContext();
-	if (!wikiKey || !ctx) {
+// Nur im GLEICHEN Dokument nutzbar (Kartenseite mit ?edit=1) — in der /edit/-Hülle ist
+// `pathData` nicht erreichbar, dort übernimmt focusWayOnMap über die iframe-Funktionen.
+function pathPublicIdsForWikiKey(wikiKey) {
+	if (!wikiKey || typeof pathData === "undefined" || !Array.isArray(pathData)) {
 		return [];
 	}
-	return ctx.pathData
+	return pathData
 		.filter((path) => String(path?.properties?.wiki_path?.wiki_key || "") === String(wikiKey))
 		.map((path) => String(path?.properties?.public_id || ""))
 		.filter(Boolean);
 }
 
-// Fliegt auf die Gesamtausdehnung mehrerer Segmente (ein Segment, ein Klumpen oder ein ganzer Weg).
-function focusPathsOnMap(publicIds, context) {
-	const ctx = context || editorMapContext();
-	if (!Array.isArray(publicIds) || !publicIds.length || !ctx) {
+// Fliegt auf die Gesamtausdehnung mehrerer Segmente. Ebenfalls nur im gleichen Dokument.
+function focusPathsOnMap(publicIds) {
+	if (!Array.isArray(publicIds) || !publicIds.length
+		|| typeof findPathByPublicId !== "function" || typeof map === "undefined") {
 		return;
 	}
 	const latlngs = [];
 	let subtype = "";
 	publicIds.forEach((publicId) => {
-		const path = publicId ? ctx.findPathByPublicId(publicId) : null;
+		const path = publicId ? findPathByPublicId(publicId) : null;
 		const coords = path && path.geometry && Array.isArray(path.geometry.coordinates) ? path.geometry.coordinates : null;
 		if (!coords || !coords.length) {
 			return;
@@ -1167,17 +1160,16 @@ function focusPathsOnMap(publicIds, context) {
 	} else if (subtype === "seeweg") {
 		toggleId = "#toggleSeaPaths";
 	}
-	const jq = typeof ctx.win.$ === "function" ? ctx.win.$ : null;
-	if (jq) {
-		const toggle = jq(toggleId);
+	if (typeof $ === "function") {
+		const toggle = $(toggleId);
 		if (toggle.length && !toggle.is(":checked")) {
 			toggle.prop("checked", true).trigger("change");
 		}
 	}
 
-	const bounds = ctx.L.latLngBounds(latlngs);
+	const bounds = L.latLngBounds(latlngs);
 	if (bounds.isValid()) {
-		ctx.map.flyToBounds(bounds.pad(0.25), { maxZoom: 5, duration: 0.8 });
+		map.flyToBounds(bounds.pad(0.25), { maxZoom: 5, duration: 0.8 });
 	}
 }
 
@@ -1208,13 +1200,16 @@ function focusWayOnMap(row, preferredPublicId) {
 	if (!row) {
 		return;
 	}
-	const ctx = editorMapContext();
+	const ctx = editorMapWindow();
 	if (!ctx) {
 		showFeedbackToast?.("Die Karte ist noch nicht geladen.", "info");
 		return;
 	}
-	if (preferredPublicId) {
-		focusPathsOnMap([preferredPublicId], ctx);
+	// Einzelnes Segment nur, wo die Karte im eigenen Dokument liegt. In der Hülle gibt es keinen
+	// Weg an ein einzelnes Segment heran, ohne ein Spotlight-Entry zu erfinden — dort zeigt der
+	// Klick den ganzen Weg, in dem der Ausreißer als weit abliegendes Stück ohnehin auffällt.
+	if (preferredPublicId && ctx.sameDocument) {
+		focusPathsOnMap([preferredPublicId]);
 		return;
 	}
 	// Whole way: reuse the deep-link resolver's OWN path focus. It gathers every segment of the
@@ -1228,9 +1223,9 @@ function focusWayOnMap(row, preferredPublicId) {
 		return;
 	}
 	// Not hydrated / no wiki_url: fall back to plain bounds over the way's segments.
-	const ids = pathPublicIdsForWikiKey(row.dataset.focusWay, ctx);
+	const ids = ctx.sameDocument ? pathPublicIdsForWikiKey(row.dataset.focusWay) : [];
 	if (ids.length) {
-		focusPathsOnMap(ids, ctx);
+		focusPathsOnMap(ids);
 		return;
 	}
 	showFeedbackToast?.("Dieser Weg ist auf der Karte nicht auffindbar.", "info");
