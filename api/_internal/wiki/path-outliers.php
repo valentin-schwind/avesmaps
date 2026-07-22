@@ -213,6 +213,11 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
         $scanned++;
         $geometry = json_decode((string) ($row['geometry_json'] ?? ''), true);
         $byWay[$wikiKey]['name'] = (string) ($wikiPath['name'] ?? $wikiPath['wiki_name'] ?? $row['name'] ?? '');
+        // Carried for the editor's map link: the shell at /edit/ has no Leaflet, so a row opens
+        // the map page's ?strasse=/?fluss= deep link -- which resolves by WIKI PAGE NAME taken
+        // from wiki_url, not by wiki_key.
+        $byWay[$wikiKey]['wiki_url'] = (string) ($wikiPath['wiki_url'] ?? '');
+        $byWay[$wikiKey]['kind'] = (string) ($wikiPath['kind'] ?? '');
         $byWay[$wikiKey]['segments'][] = [
             'public_id' => (string) ($row['public_id'] ?? ''),
             'name' => (string) ($row['name'] ?? ''),
@@ -247,6 +252,8 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
         $ways[] = [
             'wiki_key' => (string) $wikiKey,
             'name' => (string) ($way['name'] ?? ''),
+            'wiki_url' => (string) ($way['wiki_url'] ?? ''),
+            'kind' => (string) ($way['kind'] ?? ''),
             'total' => count($way['segments']),
             'main_size' => $analysis['components'][0]['size'],
             'outlier_count' => $analysis['outlier_count'],

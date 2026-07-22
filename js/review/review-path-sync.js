@@ -473,7 +473,9 @@ function renderOutlierList(list) {
 			(cluster.segments || []).map(chip).join(" ") +
 			"</div>").join("");
 		return (
-			'<div class="tree-item region-sync__item">' +
+			`<div class="tree-item region-sync__item" data-focus-way="${pathSyncEscapeAttr(way.wiki_key)}"` +
+			` data-wiki-url="${pathSyncEscapeAttr(way.wiki_url || "")}" data-way-kind="${pathSyncEscapeAttr(way.kind || "")}"` +
+			' title="Klick: Weg auf der Karte zeigen">' +
 			`<span class="tree-item-name">${pathSyncEscapeText(way.name || way.wiki_key)}</span>` +
 			'<span class="tree-item-meta">' +
 			`<span class="region-sync__badge">${way.outlier_count} von ${way.total} abseits</span>` +
@@ -684,7 +686,9 @@ function renderVerlaufCase(caseEntry) {
 	}
 
 	return (
-		'<div class="tree-item region-sync__item">' +
+		`<div class="tree-item region-sync__item" data-focus-way="${pathSyncEscapeAttr(caseEntry.wiki_key)}"` +
+		` data-wiki-url="${pathSyncEscapeAttr(caseEntry.wiki_url || "")}" data-way-kind="${pathSyncEscapeAttr(caseEntry.kind || "")}"` +
+		' title="Klick: Weg auf der Karte zeigen">' +
 		'<span class="drag-handle" aria-hidden="true"></span>' +
 		`<span class="tree-item-name">${nameHtml}</span>` +
 		'<span class="tree-item-meta">' +
@@ -1075,37 +1079,161 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
+// WO die Karte lebt. Im Editor (/edit/) ist dieses Panel die HÜLLE — die Karte steckt in einem
+// gleichnamigen iframe (`iframe.edit-shell__map`, edit/index.php), weshalb `map`, `L`, `pathData`
+// und `findPathByPublicId` hier alle `undefined` sind (live geprüft 2026-07-22). Auf der
+// Kartenseite mit ?edit=1 liegt dagegen alles im eigenen Dokument. Beides bedienen statt eines
+// davon anzunehmen — genau diese Annahme ließ die Segment-Chips stumm ins Leere laufen.
+function editorMapContext() {
+	if (typeof map !== "undefined" && typeof findPathByPublicId === "function") {
+		return {
+			win: window,
+			map,
+			L,
+			findPathByPublicId,
+			pathData: typeof pathData !== "undefined" && Array.isArray(pathData) ? pathData : [],
+		};
+	}
+	const frame = document.querySelector("iframe.edit-shell__map");
+	const win = frame && frame.contentWindow ? frame.contentWindow : null;
+	// Same origin, so reaching in is allowed; a not-yet-loaded iframe simply has no map yet.
+	if (win && win.map && typeof win.findPathByPublicId === "function") {
+		return {
+			win,
+			map: win.map,
+			L: win.L,
+			findPathByPublicId: win.findPathByPublicId,
+			pathData: Array.isArray(win.pathData) ? win.pathData : [],
+		};
+	}
+	return null;
+}
+
 // Fliegt zur Stelle eines Weg-Segments (Polyline-Bounds aus der Geometrie).
 function focusPathOnMap(publicId) {
-	if (!publicId || typeof findPathByPublicId !== "function" || typeof map === "undefined") {
+	focusPathsOnMap([publicId]);
+}
+
+// Alle Segment-IDs eines Wiki-Weges aus den geladenen Kartendaten. Der „Ausreißer"-Payload
+// listet nur die abgetrennten Segmente, und ein Verlauf-Fall nur seine Diff-Teile — zum Zoomen
+// auf den GANZEN Weg ist die Karte die vollständigere Quelle.
+function pathPublicIdsForWikiKey(wikiKey, context) {
+	const ctx = context || editorMapContext();
+	if (!wikiKey || !ctx) {
+		return [];
+	}
+	return ctx.pathData
+		.filter((path) => String(path?.properties?.wiki_path?.wiki_key || "") === String(wikiKey))
+		.map((path) => String(path?.properties?.public_id || ""))
+		.filter(Boolean);
+}
+
+// Fliegt auf die Gesamtausdehnung mehrerer Segmente (ein Segment, ein Klumpen oder ein ganzer Weg).
+function focusPathsOnMap(publicIds, context) {
+	const ctx = context || editorMapContext();
+	if (!Array.isArray(publicIds) || !publicIds.length || !ctx) {
 		return;
 	}
-	const path = findPathByPublicId(publicId);
-	const coords = path && path.geometry && Array.isArray(path.geometry.coordinates) ? path.geometry.coordinates : null;
-	if (!coords || !coords.length) {
+	const latlngs = [];
+	let subtype = "";
+	publicIds.forEach((publicId) => {
+		const path = publicId ? ctx.findPathByPublicId(publicId) : null;
+		const coords = path && path.geometry && Array.isArray(path.geometry.coordinates) ? path.geometry.coordinates : null;
+		if (!coords || !coords.length) {
+			return;
+		}
+		if (subtype === "") {
+			subtype = String((path.properties && path.properties.feature_subtype) || "").toLowerCase();
+		}
+		coords.forEach((c) => {
+			// GeoJSON stores [x, y]; Leaflet wants [lat, lng] = [y, x]. A single NaN poisons the
+			// bounds and crashes flyToBounds, so non-finite pairs are dropped, not passed on.
+			const lat = Number(c && c[1]);
+			const lng = Number(c && c[0]);
+			if (Number.isFinite(lat) && Number.isFinite(lng)) {
+				latlngs.push([lat, lng]);
+			}
+		});
+	});
+	if (!latlngs.length) {
 		showFeedbackToast?.("Weg ist (noch) nicht geladen.", "info");
 		return;
 	}
-	// Passende Anzeige-Checkbox im Routenplaner einschalten, damit der Weg sichtbar ist.
-	const subtype = String((path.properties && path.properties.feature_subtype) || "").toLowerCase();
+	// Passende Anzeige-Checkbox im Routenplaner einschalten, damit der Weg sichtbar ist. Die
+	// Checkbox lebt im selben Dokument wie die Karte, also über deren jQuery greifen.
 	let toggleId = "#togglePaths";
 	if (subtype === "flussweg") {
 		toggleId = "#toggleRivers";
 	} else if (subtype === "seeweg") {
 		toggleId = "#toggleSeaPaths";
 	}
-	if (typeof $ === "function") {
-		const toggle = $(toggleId);
+	const jq = typeof ctx.win.$ === "function" ? ctx.win.$ : null;
+	if (jq) {
+		const toggle = jq(toggleId);
 		if (toggle.length && !toggle.is(":checked")) {
 			toggle.prop("checked", true).trigger("change");
 		}
 	}
 
-	const latlngs = coords.map((c) => [Number(c[1]), Number(c[0])]);
-	const bounds = L.latLngBounds(latlngs);
+	const bounds = ctx.L.latLngBounds(latlngs);
 	if (bounds.isValid()) {
-		map.flyToBounds(bounds.pad(0.25), { maxZoom: 5, duration: 0.8 });
+		ctx.map.flyToBounds(bounds.pad(0.25), { maxZoom: 5, duration: 0.8 });
 	}
+}
+
+// Wiki-Seitenname aus einer wiki_url — das ist der Wert, den ?strasse=/?fluss= erwartet
+// (js/app/wiki-deeplink.js matcht gegen den Seitennamen, NICHT gegen den wiki_key).
+function wikiPageNameFromUrl(wikiUrl) {
+	const raw = String(wikiUrl || "").trim();
+	if (raw === "") {
+		return "";
+	}
+	const segment = raw.split("#")[0].split("?")[0].replace(/\/+$/, "").split("/").pop() || "";
+	try {
+		return decodeURIComponent(segment);
+	} catch (error) {
+		return segment;
+	}
+}
+
+// EIN Einstieg für „zeig mir das auf der Karte", aus beiden Reitern.
+//
+// Der Editor-Shell unter /edit/ hat KEINE Karte — kein Leaflet, kein pathData, kein
+// findPathByPublicId (live geprüft 2026-07-22, alle vier undefined). Ein Zoom im eigenen
+// Dokument ist dort unmöglich; die Segment-Chips liefen deshalb bisher stumm ins Leere.
+// Fallback ist der Deep-Link der Kartenseite, in einem NEUEN Tab, damit die Arbeitsliste
+// stehen bleibt. Er hebt den GANZEN Weg hervor und fasst dessen Bounds — bei einem Ausreißer
+// also Korridor UND Streuner in einem Bild, was den Fehler auf den ersten Blick zeigt.
+function focusWayOnMap(row, preferredPublicId) {
+	if (!row) {
+		return;
+	}
+	const ctx = editorMapContext();
+	if (!ctx) {
+		showFeedbackToast?.("Die Karte ist noch nicht geladen.", "info");
+		return;
+	}
+	if (preferredPublicId) {
+		focusPathsOnMap([preferredPublicId], ctx);
+		return;
+	}
+	// Whole way: reuse the deep-link resolver's OWN path focus. It gathers every segment of the
+	// named way from the unfiltered pathData and highlights them -- more than a bare zoom, and
+	// exactly what ?strasse=/?fluss= does. It resolves by wiki PAGE NAME, not by wiki_key.
+	const page = wikiPageNameFromUrl(row.dataset.wikiUrl);
+	if (page !== ""
+		&& typeof ctx.win.focusWholeWikiDeeplinkPath === "function"
+		&& typeof ctx.win.normalizeWikiDeeplinkKey === "function"
+		&& ctx.win.focusWholeWikiDeeplinkPath(ctx.win.normalizeWikiDeeplinkKey(page))) {
+		return;
+	}
+	// Not hydrated / no wiki_url: fall back to plain bounds over the way's segments.
+	const ids = pathPublicIdsForWikiKey(row.dataset.focusWay, ctx);
+	if (ids.length) {
+		focusPathsOnMap(ids, ctx);
+		return;
+	}
+	showFeedbackToast?.("Dieser Weg ist auf der Karte nicht auffindbar.", "info");
 }
 
 document.addEventListener("click", (event) => {
@@ -1131,7 +1259,24 @@ document.addEventListener("click", (event) => {
 	}
 	const candidate = event.target.closest(".region-sync__cand[data-path-id]");
 	if (candidate) {
-		focusPathOnMap(candidate.dataset.pathId);
+		// With a map in the document this focuses the single segment; without one (the /edit/
+		// shell) focusWayOnMap falls back to the way's deep link, which shows the stray in the
+		// context of its road -- more useful there than nothing, which is what this did before.
+		// Chips in the other lists have no way row to fall back to, so they keep the old path.
+		const chipRow = candidate.closest("[data-focus-way]");
+		if (chipRow) {
+			focusWayOnMap(chipRow, candidate.dataset.pathId);
+		} else {
+			focusPathOnMap(candidate.dataset.pathId);
+		}
+		return;
+	}
+	// Click anywhere else on a way's row -> show the WHOLE way. Buttons and links keep their own
+	// meaning (segment chip, wiki link, apply/defer), so they are excluded rather than ordered
+	// around: this branch may sit before them without swallowing their clicks.
+	const wayRow = event.target.closest("[data-focus-way]");
+	if (wayRow && !event.target.closest("button") && !event.target.closest("a")) {
+		focusWayOnMap(wayRow);
 		return;
 	}
 	const outlierBtn = event.target.closest("[data-outlier-action]");
