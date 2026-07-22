@@ -4,7 +4,12 @@
 
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
-let pathSyncView = "all"; // all | assigned (matched+mehrteilig) | missing | cases | flow — same default as the settlement/region lists
+let pathSyncView = "all"; // all | assigned (matched+mehrteilig) | missing | cases | outliers | flow — same default as the settlement/region lists
+// „Ausreißer": geometric check, independent of the wiki course (api ?action=outliers). One
+// request, no cursor — the server does one pass and returns ids + distances only.
+let outlierData = null;
+let outlierLoading = false;
+let outlierLoaded = false;
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 const pathSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
@@ -258,6 +263,7 @@ function renderPathSyncList() {
 			tab("assigned", "Platziert", assignedCount) +
 			tab("missing", "Fehlt", missingCount) +
 			tab("cases", "Konflikte", openCasesCount) +
+			tab("outliers", "Ausreißer", outlierData ? outlierData.flagged || 0 : 0) +
 			tab("flow", "Flussrichtung unbekannt", flowUnknownFilteredGroups().length);
 		// Dieselbe Summe traegt die Auswahlzeile oben -- sie wird hier ohnehin schon gerechnet.
 		if (typeof setWikiSyncSubjectCount === "function") {
@@ -269,6 +275,14 @@ function renderPathSyncList() {
 		renderVerlaufCaseList();
 		if (!verlaufCasesLoaded && !verlaufCasesLoading) {
 			void loadVerlaufCases();
+		}
+		return;
+	}
+
+	if (pathSyncView === "outliers") {
+		renderOutlierList(list);
+		if (!outlierLoaded && !outlierLoading) {
+			void loadOutliers();
 		}
 		return;
 	}
@@ -372,6 +386,111 @@ function flowUnknownGroups() {
 		return (aUnassigned - bUnassigned) || (b.segments.length - a.segments.length) || a.name.localeCompare(b.name);
 	});
 	return rows;
+}
+
+// ===========================================================================
+// „Ausreißer" (Bug #39): segments sitting in a cluster of their own, away from the rest of their
+// way -- an "Eisenstraße" segment on the beach near Qinsay, 334 map units off its corridor.
+//
+// Purely geometric, so it has neither weakness of the course-based diff: it needs no wiki chain
+// (covering the ~354 ways that never produce a case) and it cannot mistake a road's own
+// CONTINUATION for an error -- an extension is attached, a stray is not.
+//
+// The list never says "wrong". It says "this cluster hangs N units away from the rest" and lets
+// the editor look. Clicking a segment focuses it on the map (same delegated data-path-id handler
+// the other lists use).
+async function loadOutliers() {
+	if (outlierLoading) {
+		return;
+	}
+	outlierLoading = true;
+	renderPathSyncList();
+	try {
+		const data = await pathSyncGet("?action=outliers");
+		if (!data || data.ok !== true) {
+			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
+		}
+		outlierData = data;
+	} catch (error) {
+		outlierData = null;
+		const status = pathSyncElement("path-sync-summary");
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		// Set even on failure: the render branch retriggers the load while this is false, so
+		// leaving it unset on an error spins forever. "Neu prüfen" is the way back.
+		outlierLoaded = true;
+		outlierLoading = false;
+		renderPathSyncList();
+	}
+}
+
+function renderOutlierList(list) {
+	if (!list) {
+		return;
+	}
+	const summaryText = outlierData
+		? `${outlierData.flagged || 0} Wege mit Ausreißern · ${outlierData.scanned || 0} zugewiesene Segmente geprüft`
+		: "Ausreißer";
+	const topBar =
+		'<div class="wiki-sync-panel__actions">' +
+		`<span class="wiki-sync-panel__summary">${pathSyncEscapeText(summaryText)}</span>` +
+		'<button type="button" class="wiki-sync-panel__start" data-outlier-action="rescan">Neu prüfen</button>' +
+		"</div>";
+
+	if (outlierLoading) {
+		list.innerHTML = topBar + '<p class="review-panel__status">Segmente werden geprüft …</p>';
+		return;
+	}
+	if (!outlierData) {
+		list.innerHTML = topBar + '<p class="review-panel__status">Prüfung fehlgeschlagen.</p>';
+		return;
+	}
+
+	const query = pathSyncQuery();
+	const ways = (outlierData.ways || []).filter((way) =>
+		query === "" || `${way.name} ${way.wiki_key}`.toLowerCase().includes(query));
+	if (!ways.length) {
+		const empty = query !== "" && (outlierData.ways || []).length > 0 ? "Keine Treffer." : "Keine Ausreißer gefunden.";
+		list.innerHTML = topBar + `<p class="review-panel__status">${pathSyncEscapeText(empty)}</p>`;
+		return;
+	}
+
+	const chip = (segment) => {
+		// An 'editor' segment can only ever be repaired by hand -- the verlauf sync clears
+		// 'verlauf-sync' rows only. Editors need to see that before they plan the fix.
+		const own = segment.source !== "verlauf-sync";
+		return `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr(segment.public_id)}"` +
+			` title="${pathSyncEscapeAttr(own ? "von Hand zugewiesen — nur manuell änderbar" : "vom Verlauf-Sync zugewiesen")}">` +
+			`${pathSyncEscapeText(String(segment.public_id).slice(0, 8))}${own ? " ✍" : ""}</button>`;
+	};
+
+	const items = ways.map((way) => {
+		const clusters = (way.detached || []).map((cluster) =>
+			'<div class="region-sync__map">' +
+			`<span class="region-sync__badge">${cluster.size} Segment${cluster.size === 1 ? "" : "e"} · Abstand ${pathSyncEscapeText(String(cluster.distance ?? "?"))}</span> ` +
+			(cluster.segments || []).map(chip).join(" ") +
+			"</div>").join("");
+		return (
+			'<div class="tree-item region-sync__item">' +
+			`<span class="tree-item-name">${pathSyncEscapeText(way.name || way.wiki_key)}</span>` +
+			'<span class="tree-item-meta">' +
+			`<span class="region-sync__badge">${way.outlier_count} von ${way.total} abseits</span>` +
+			(way.ambiguous
+				? ' <span class="region-sync__cand region-sync__cand--conflict">zerfällt in zwei gleich große Hälften — welche stimmt, muss ein Mensch entscheiden</span>'
+				: "") +
+			clusters +
+			"</span>" +
+			'<span class="tree-map-status" aria-hidden="true"></span>' +
+			"</div>"
+		);
+	}).join("");
+
+	list.innerHTML = topBar +
+		'<p class="review-panel__status">Die Segmente eines Weges sollten eine durchgehende Kette bilden. ' +
+		'Hier hängen sie in getrennten Klumpen — je größer der Abstand, desto sicherer die Fehlzuweisung.</p>' +
+		items;
 }
 
 function renderFlowUnknownList(list) {
@@ -601,10 +720,18 @@ function renderVerlaufCaseList() {
 		`<span class="wiki-sync-panel__summary">${openCases.length} offen · ${deferredCases.length} zurückgestellt · ${archivedCases.length} archiviert</span>` +
 		`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="rescan">Neu berechnen</button>` +
 		"</div>" +
+		// „Alle unstrittigen übernehmen" REMOVED 2026-07-22. Measured against live data, the 22
+		// clean cases would have deleted 70 segments -- every one a contiguous part of its OWN road
+		// (17x Lettastieg, 15x Kanopenstraße), because `clean` only means the course is internally
+		// consistent, never that the wiki describes the whole road: everything beyond the first and
+		// last listed station falls out of the Soll and looks removable.
+		// Restore it only once a removal can tell an end extension from a branch.
 		(cleanOpenCount
-			? '<div class="wiki-sync-panel__actions">' +
-				`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="apply-clean">Alle unstrittigen übernehmen (${cleanOpenCount})</button>` +
-				"</div>"
+			? '<p class="review-panel__status">' +
+				`${cleanOpenCount} Fälle gelten als unstrittig. Die Sammelübernahme ist deaktiviert: sie würde auch ` +
+				"Segmente lösen, die zur Straße gehören und bloß nicht im Wiki-Verlauf stehen. Einzelne Fälle " +
+				"lassen sich weiterhin ansehen und übernehmen." +
+				"</p>"
 			: "");
 
 	if (verlaufCasesLoading && verlaufCases.length === 0) {
@@ -1007,6 +1134,18 @@ document.addEventListener("click", (event) => {
 		focusPathOnMap(candidate.dataset.pathId);
 		return;
 	}
+	const outlierBtn = event.target.closest("[data-outlier-action]");
+	if (outlierBtn) {
+		if (outlierBtn.dataset.outlierAction === "rescan") {
+			outlierLoaded = false;
+			outlierData = null;
+			void loadOutliers();
+		}
+		return;
+	}
+	// NOTE: the "apply-clean" branch below is no longer reachable -- its button was removed on
+	// 2026-07-22 (see renderVerlaufCaseList). Do not re-add the button without first teaching
+	// removals to tell a road's end extension from a branch.
 	const verlaufBtn = event.target.closest("[data-verlauf-action]");
 	if (verlaufBtn) {
 		const action = verlaufBtn.dataset.verlaufAction;
