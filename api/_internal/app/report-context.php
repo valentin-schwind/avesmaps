@@ -7,7 +7,7 @@ declare(strict_types=1);
 // existing element (entity_type + entity_public_id). This normalizer whitelists those fields. No DB, no
 // globals -> unit-testable in isolation (see __tests__/report-context-test.php).
 
-const AVESMAPS_CHANGE_ENTITY_TYPES = ['settlement', 'region', 'territory', 'path'];
+const AVESMAPS_CHANGE_ENTITY_TYPES = ['settlement', 'region', 'territory', 'path', 'powerline'];
 
 function avesmapsNormalizeChangeContext(array $payload): array {
     $mode = strtolower(trim((string) ($payload['report_mode'] ?? 'new')));

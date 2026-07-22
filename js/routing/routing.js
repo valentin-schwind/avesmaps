@@ -796,6 +796,18 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "show-whole-powerline") {
+		const powerline = typeof findPowerlineByPublicId === "function" ? findPowerlineByPublicId(this.dataset.publicId) : null;
+		if (!powerline) {
+			showFeedbackToast("Kraftlinie konnte nicht gefunden werden.", "warning");
+			return;
+		}
+		if (typeof showWholePowerlineFromInfobox === "function") {
+			showWholePowerlineFromInfobox(powerline);
+		}
+		return;
+	}
+
 	if (action === "remove-waypoint") {
 		const waypointId = this.dataset.waypointId;
 		if (waypointId) {

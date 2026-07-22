@@ -270,6 +270,37 @@ function syncPowerlineLabels() {
 // Die beiden Enden als Gold-Links. Markup und Klick-Ziel sind exakt die des Weges
 // (pathItemStationLinkMarkup, js/map-features/map-features-path-item-links.js), und der Handler
 // haengt global am document (js/routing/routing.js) -- Kraftlinien benutzen ihn einfach mit.
+// „Anzeigen": zoomt auf die Ausdehnung der GANZEN Linie, nicht auf das angeklickte Segment --
+// dieselbe Geste wie beim Weg (show-whole-path). Bei einer einsegmentigen Linie ist es schlicht
+// ein Zoom auf dieses eine Stück, also nie falsch.
+function showWholePowerlineFromInfobox(powerline) {
+	const segments = getPowerlineSegmentsSharingName(powerline);
+	const latLngs = [];
+	(segments.length > 0 ? segments : [powerline]).forEach((segment) => {
+		getPowerlineLatLngs(segment).forEach((latLng) => latLngs.push(latLng));
+	});
+	if (latLngs.length === 0 || typeof map === "undefined") {
+		return;
+	}
+	const bounds = L.latLngBounds(latLngs);
+	if (!bounds.isValid()) {
+		return;
+	}
+	map.fitBounds(bounds, { padding: [60, 60], maxZoom: 4 });
+}
+
+function powerlineShowActionButtonMarkup(powerline) {
+	return popupActionButtonMarkup({
+		label: (typeof tr === "function" ? tr("popup.showWholePowerline", "Anzeigen") : "Anzeigen"),
+		className: "location-popup__action-button--accent",
+		iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
+		attributes: {
+			"data-popup-action": "show-whole-powerline",
+			"data-public-id": getPowerlinePublicId(powerline),
+		},
+	});
+}
+
 function powerlinePlaceLinkMarkup(publicId) {
 	const entry = findLocationMarkerByPublicId(publicId);
 	const name = String(entry?.name || "").trim();
@@ -378,23 +409,44 @@ function createPowerlinePopupMarkup(powerline) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
-		actionsMarkup: (IS_EDIT_MODE ? locationPopupActionsMarkup([
-			popupActionButtonMarkup({
-				label: "Bearbeiten",
-				attributes: {
-					"data-popup-action": "edit-powerline-details",
-					"data-public-id": getPowerlinePublicId(powerline),
-				},
-			}),
-			popupActionButtonMarkup({
-				label: "Kraftlinie löschen",
-				className: "location-popup__action-button--danger",
-				attributes: {
-					"data-popup-action": "delete-powerline",
-					"data-public-id": getPowerlinePublicId(powerline),
-				},
-			}),
-		]) : "") + powerlineInfoboxMarkup(powerline),
+		actionsMarkup: (function () {
+			// Besucher bekommen dieselben zwei Gesten wie beim Weg: die ganze Linie zeigen und
+			// eine Änderung vorschlagen. Vorher hatte das Band NUR im Editor Inhalt.
+			// „Link teilen" fehlt bewusst: Wege teilen über ihren Wiki-Deeplink (?strasse=/?fluss=),
+			// für Kraftlinien gibt es keinen solchen Parameter -- ein Knopf, der nichts Auflösbares
+			// erzeugt, wäre schlimmer als keiner.
+			const buttons = [powerlineShowActionButtonMarkup(powerline)];
+			const suggestSpec = typeof buildSuggestChangeButtonSpec === "function"
+				? buildSuggestChangeButtonSpec({
+					entityType: "powerline",
+					entityId: getPowerlinePublicId(powerline),
+					name,
+					reportType: "kraftlinie",
+					label: (typeof tr === "function" ? tr("popup.suggestChange", "Änderungen vorschlagen") : "Änderungen vorschlagen"),
+				})
+				: null;
+			if (suggestSpec) {
+				buttons.push(popupActionButtonMarkup(suggestSpec));
+			}
+			if (IS_EDIT_MODE) {
+				buttons.push(popupActionButtonMarkup({
+					label: "Bearbeiten",
+					attributes: {
+						"data-popup-action": "edit-powerline-details",
+						"data-public-id": getPowerlinePublicId(powerline),
+					},
+				}));
+				buttons.push(popupActionButtonMarkup({
+					label: "Kraftlinie löschen",
+					className: "location-popup__action-button--danger",
+					attributes: {
+						"data-popup-action": "delete-powerline",
+						"data-public-id": getPowerlinePublicId(powerline),
+					},
+				}));
+			}
+			return buttons.length ? locationPopupActionsMarkup(buttons) : "";
+		})() + powerlineInfoboxMarkup(powerline),
 	});
 }
 

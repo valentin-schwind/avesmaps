@@ -33,6 +33,10 @@ const AVESMAPS_REPORT_TYPES = [
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],
+    // Kraftlinien werden über die Infobox nur GEÄNDERT, nie neu vorgeschlagen (anlegen geht bloß
+    // zwischen zwei Nodix-Orten im Editor). Ein eigener Typ statt 'sonstiges', damit eine Freigabe
+    // die Meldung nicht als neues Label anzulegen versucht.
+    'kraftlinie' => ['type' => 'powerline', 'subtype' => 'kraftlinie'],
     'territorium' => ['type' => 'territory', 'subtype' => 'territorium'],
     // Kartensammlung suggestion (Spec §3.8). Unlike every entry above it, this one does not propose a
     // map_features row: report_type 'citymap' is what routes the review "Anlegen" to the citymap creator
