@@ -88,7 +88,7 @@ function setWikiSyncTerritoriesRunning(isRunning) {
 	const buttonElement = document.getElementById("wiki-sync-territories");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "Territorien Syncen & Editieren";
+		buttonElement.textContent = isRunning ? "Synchronisiert..." : "Territorien bearbeiten";
 	}
 
 	const progressElement = document.getElementById("wiki-sync-territories-progress");
@@ -2339,7 +2339,9 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	const header = document.createElement("div");
 	header.className = "political-territory-editor-dialog__header";
 	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Herrschaftsgebiete synchronisieren und editieren";
+	// Titel = Knopfbeschriftung, wortgleich. "Territorien" statt "Herrschaftsgebiete":
+	// Owner-Entscheid, kuerzer. Erklaerender Fliesstext darf weiter Herrschaftsgebiete sagen.
+	headingEl.textContent = "Territorien bearbeiten";
 	const closeButton = document.createElement("button");
 	closeButton.type = "button";
 	closeButton.className = "political-territory-editor-dialog__close";
@@ -2438,7 +2440,7 @@ function syncWikiSyncActionButtonLabels() {
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
 	if (territoriesButtonElement) {
-		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "Territorien Syncen & Editieren";
+		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "Territorien bearbeiten";
 	}
 }
 
