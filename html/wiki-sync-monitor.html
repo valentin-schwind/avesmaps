@@ -92,17 +92,11 @@
      des Siedlungseditors (html/wiki-sync-settlement-editor.html, dort seinerseits aus
      css/features/review-panel.css portiert), damit die Filtermaske in beiden Editoren identisch
      aussieht. Padding am Toggle bewusst enger als dort: diese Bar ist kompakter. */
-  .type-filter { position:relative; flex:0 0 auto; display:flex; }
-  .type-filter__toggle { padding:4px 8px; font-size:var(--font-size-small); border:1px solid var(--line2); border-radius:5px; background:var(--soft); color:var(--color-button-soft-text); cursor:pointer; white-space:nowrap; font:inherit; }
-  .type-filter__toggle:hover { background:var(--color-button-soft-hover); }
-  .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:var(--color-panel); border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
-  .type-filter__menu[hidden] { display:none; }
-  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:var(--font-size-small); color:var(--color-text); cursor:pointer; border-radius:4px; }
-  .type-filter__opt:hover { background:var(--color-hover-wash); }
-  .type-filter__label { flex:1 1 auto; min-width:0; }
-  .type-filter__section-title { font-size:var(--font-size-caption); font-weight:var(--font-weight-bold); color:var(--color-text-muted); padding:4px 6px 2px; }
-  .type-filter__section + .type-filter__section { border-top:1px solid var(--color-divider); margin-top:4px; padding-top:2px; }
-  .row { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:3px 5px; border-radius:4px; cursor:grab; }
+  /* Die .type-filter*-Regeln standen hier lokal und wichen ab (Radius 5 statt 8, 4px-Polsterung statt
+     einer Bedienhoehe -- der „Filter ▾"-Knopf war dadurch niedriger als im Siedlungseditor). Seit
+     2026-07-23 stehen sie in css/components/editor-page.css; die lokalen haetten die gemeinsamen nur
+     wieder ueberschrieben. */
+  .row { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:var(--avm-row-pad); border-radius:var(--radius-md); border:1px solid transparent; cursor:grab; }
   .row:hover { background:var(--color-hover-wash); }
   /* Gebietsname hat Vorrang: Mindestbreite + fett, damit er nicht von langen Eltern-/Konflikt-Tags
      zerquetscht wird. Tags brechen bei Bedarf in die nächste Zeile um (flex-wrap am .row). */
@@ -187,11 +181,18 @@
   .dt-head { display:flex; gap:10px; align-items:flex-start; margin-bottom:6px; }
   .dt-wappen { width:56px; height:56px; flex:0 0 56px; object-fit:contain; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; }
   .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
-  .dt-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); line-height:1.2; }
+  .dt-title { font-size:var(--font-size-subhead); font-weight:var(--font-weight-bold); color:var(--color-text-strong); line-height:var(--leading-snug); }
   .dt-sub { color:var(--mut); font-size:var(--font-size-small); margin-top:2px; }
-  .dt-grid { display:grid; grid-template-columns:minmax(110px,0.35fr) minmax(0,1fr); gap:0; font-size:var(--font-size-small); margin:8px 0; border:1px solid var(--color-border); border-radius:8px; overflow:hidden; }
-  .dt-grid .k { color:var(--color-text-muted); background:var(--color-panel-soft); font-weight:700; white-space:nowrap; padding:8px 8px; border-bottom:1px solid var(--color-border); }
-  .dt-grid > div:not(.k) { padding:8px 8px; border-bottom:1px solid var(--color-border); color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
+  /* 💣 Dieselbe Klasse .dt-grid gibt es im Siedlungseditor -- sie sah hier komplett anders aus und war
+     der letzte grosse Bruch zwischen den beiden Fenstern: hier ein GERAHMTER KASTEN mit Zeilentrennern
+     und abgesetzt eingefaerbter Beschriftungsspalte (las sich wie ein Datenbank-Dump), dort offene
+     Zeilen. Die Designsprache gruppiert "by divider, not by framed boxes" (AGENTS.md §12), also gilt
+     jetzt die Siedlungs-Fassung. Feste Beschriftungsbreite aus editor-page.css, damit die Wertespalte
+     ueber alle Zeilen fluchtet. Gehoert perspektivisch ganz nach editor-page.css -- dafuer muesste
+     auch der Siedlungseditor angefasst werden, an dem gerade eine andere Sitzung arbeitet. */
+  .dt-grid { display:grid; grid-template-columns:var(--avm-field-label-w) minmax(0,1fr); gap:0; font-size:var(--font-size-small); margin:var(--space-2) 0 0; }
+  .dt-grid .k { color:var(--color-text-muted); font-weight:var(--font-weight-bold); white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
+  .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
   .dt-lic { margin-top:8px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:var(--font-size-caption); }
   .dt-lic.pd { border-color:var(--color-success-soft-border); }
   .dt-lic.cc { border-color:var(--warn); }
