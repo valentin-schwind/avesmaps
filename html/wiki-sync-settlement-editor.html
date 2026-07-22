@@ -44,18 +44,22 @@
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
   :root { --bg:var(--color-page-bg); --panel:var(--color-panel); --soft:var(--color-panel-soft); --line:var(--color-border); --line2:var(--color-border-strong); --fg:var(--color-text-strong); --mut:var(--color-text-muted); --accent:var(--color-link); --accent-hover:var(--color-link-hover); --warn:var(--color-warning); --bad:var(--color-danger); --ok:var(--color-success); --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
-  body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
-  header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+  /* Eine Bedienhoehe fuer Knoepfe, Eingaben und Auswahlfelder (Spec §4.3): sie stehen staendig
+     nebeneinander in .bar und .timefilter, und 30/28/26 nebeneinander liest sich als Unfall. */
+  :root { --se-control-h:32px; }
+  body { margin:0; font:var(--font-size-body)/var(--leading-normal) var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
+  header { padding:var(--space-8) var(--space-12); background:var(--panel); border-bottom:1px solid var(--line); }
   /* Alle Steuer-Buttons in EINER Zeile, gleich breite Spalten (wie im Territoriumseditor). */
-  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; align-items:stretch; }
-  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
+  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--space-4); align-items:stretch; }
+  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--se-control-h); cursor:pointer; font:inherit; }
   button:hover { background:var(--color-button-soft-hover); }
   button:disabled { opacity:.5; cursor:default; }
   button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
   button.primary:hover { background:var(--color-button-hover); }
-  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:5px 11px; gap:1px; line-height:1.15; }
-  .btn2 .t1 { font-size:13px; font-weight:bold; }
-  .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
+  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:var(--space-4) var(--space-8); gap:1px; line-height:var(--leading-tight); }
+  .btn2 .t1 { font-size:var(--font-size-body); font-weight:var(--font-weight-bold); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* War 10px und damit unter der Untergrenze der Designsprache (Spec §4.1). */
+  .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
   .btn2.primary .t2 { color:var(--color-on-button-muted); }
   /* "Nur Auswahl anzeigen" Zwei-Zustands-Toggle (§7 design doc): ON = wie .primary eingefaerbt, damit
      der aktive Kartenfilter im Menueband sofort auffaellt (gleiche Konvention wie .chip-toggle.is-active). */
@@ -64,15 +68,31 @@
   .btn2.is-active .t2 { color:var(--color-on-button-muted); }
   .btn2.is-off { background:color-mix(in srgb, var(--bad) 16%, transparent); border-color:var(--bad); }
   .btn2.is-off .t1 { color:var(--bad); }
-  #settlementStatus { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
+  /* Feste Mindesthoehe: eine eintreffende Meldung darf die drei Spalten darunter nicht schieben. */
+  #settlementStatus { padding:var(--space-4) var(--space-12); min-height:30px; color:var(--mut); background:var(--soft); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:var(--space-12); }
   #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
-  .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; min-width:0; }
+  /* flex:1 setzt flex-basis auf 0 -- zusammen mit min-width:0 teilen sich die drei Spalten die
+     Breite exakt zu Dritteln, unabhaengig davon, wie lang ihr laengster Eintrag ist (Spec §5). */
+  .col { flex:1 1 0; overflow:hidden; padding:var(--space-6) var(--space-10); display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .col + .col { border-left:1px solid var(--line); }
   #seLeft { border-right:1px solid var(--line); max-width:46%; }
   .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
-  .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:var(--color-text-strong); }
-  .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
-  input[type=search] { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; flex:1; }
+  /* Spaltentitel: eigene Stufe der Leiter (Spec §4.1), vorher 13px und damit von den Listenzeilen
+     darunter nicht zu unterscheiden. --color-accent-strong statt --fg, damit die drei Titel die
+     Spalten sichtbar anfuehren. */
+  .listhead { font-size:var(--font-size-subhead); line-height:var(--leading-snug); font-weight:var(--font-weight-bold); margin:0 0 var(--space-6); color:var(--color-accent-strong); }
+  .bar { display:flex; gap:var(--space-4); align-items:center; margin-bottom:var(--space-4); }
+  input[type=search] { height:var(--se-control-h); background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); font:inherit; flex:1; }
+
+  /* Bildlaufleisten: diese Datei hatte keine, also zeichnete der Browser seine eigenen -- neben
+     Abenteuer- und Kartensammlungs-Editor, die den Block kopiert tragen, sah der Editor fremd aus.
+     Der iframe bindet tokens.css, aber NICHT base.css, wo die globale Regel steht (Spec §4.6). */
+  * { scrollbar-width:thin; scrollbar-color:var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+  *::-webkit-scrollbar { width:10px; height:10px; }
+  *::-webkit-scrollbar-track { background:var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb { background:var(--color-scrollbar-thumb); border-radius:999px; border:2px solid var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb:hover { background:var(--color-scrollbar-thumb-hover); }
   #seTree, #seList, #seDetailBody { flex:1 1 auto; overflow:auto; min-height:0; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
   .dt-empty { color:var(--mut); padding:6px; }
   /* Territorien-Baum (LINKS): read-only Filterbaum mit Tri-State-Checkboxen. */
@@ -101,8 +121,8 @@
   #seTree .tree-row .nm { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
   .count { color:var(--mut); font-size:11px; }
   /* Filterleiste ueber dem Baum (Muster .timefilter aus wiki-sync-monitor.html). */
-  .timefilter { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-bottom:6px; }
-  .timefilter input[type=number] { width:60px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 5px; font:inherit; }
+  .timefilter { font-size:var(--font-size-small); color:var(--mut); display:flex; align-items:center; gap:var(--space-4); flex-wrap:wrap; margin-bottom:var(--space-4); }
+  .timefilter input[type=number] { width:60px; height:var(--se-control-h); background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-4); font:inherit; }
   .timefilter input:disabled { opacity:.4; }
   .timefilter select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 5px; font:inherit; }
   .timefilter label { display:inline-flex; align-items:center; gap:3px; }
