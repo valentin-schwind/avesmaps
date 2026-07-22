@@ -302,10 +302,42 @@ function setWikiSyncSubjectCount(subjectKey, total) {
 	renderWikiSyncSubjectRail();
 }
 
-// Rendered once here, during parse. It has to exist before ui-controls' DOMContentLoaded handler
-// restores the remembered tab -- that looks the button up with querySelector and clicks it, so an
-// empty container would silently drop the whole "remember where I was" feature for WikiSync.
+// The verbs of the selected subject. They delegate to the buttons that already exist in the
+// markup, so all wiring, busy labels and progress handling stay untouched -- including
+// #wiki-sync-sync-lore, which moves into the lore window's ribbon on first open and is still
+// found by id wherever it currently sits.
+function renderWikiSyncVerbs() {
+	const host = document.getElementById("wiki-sync-verbs");
+	if (!host) {
+		return;
+	}
+	host.innerHTML = "";
+	wikiSyncSubjectVerbs(activeWikiSyncPanelTab).forEach((verb) => {
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "wiki-sync-verbs__btn" + (verb.primary ? " wiki-sync-verbs__btn--primary" : "");
+		button.textContent = verb.label;
+		// The real button keeps its own title, which is the one that explains what actually
+		// happens -- carry it over rather than writing a second, drifting description here.
+		const target = document.getElementById(verb.id);
+		if (target && target.title) {
+			button.title = target.title;
+		}
+		button.addEventListener("click", () => {
+			const current = document.getElementById(verb.id);
+			if (current) {
+				current.click();
+			}
+		});
+		host.appendChild(button);
+	});
+}
+
+// Rendered once here, during parse. The rail has to exist before ui-controls' DOMContentLoaded
+// handler restores the remembered tab -- that looks the button up with querySelector and clicks
+// it, so an empty container would silently drop "remember where I was" for WikiSync.
 renderWikiSyncSubjectRail();
+renderWikiSyncVerbs();
 
 function setWikiSyncPanelTab(tabName) {
 	// Valid = "the registry knows it" (js/review/review-subjects.js). Never a literal list here:
@@ -346,6 +378,12 @@ function setWikiSyncPanelTab(tabName) {
 	};
 	if (loaders[activeWikiSyncPanelTab]) {
 		void loaders[activeWikiSyncPanelTab]();
+	}
+
+	// The verb row belongs to the SELECTED subject, so it is the one thing that must be rebuilt
+	// on every switch. (The rail is not: its active marker is already moved by the loop above.)
+	if (typeof renderWikiSyncVerbs === "function") {
+		renderWikiSyncVerbs();
 	}
 }
 

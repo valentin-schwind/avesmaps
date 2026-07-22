@@ -381,6 +381,12 @@
 				     registry has stopped being the single source and the two can disagree.
 				     Spec: docs/superpowers/specs/2026-07-22-editor-navigation-design.md -->
 				<nav class="wiki-sync-rail" id="wiki-sync-subject-rail" aria-label="WikiSync-Subjekte"></nav>
+				<!-- The selected subject's verbs, fixed order Syncen then Bearbeiten, built by
+				     renderWikiSyncVerbs() from the registry. The buttons here are STAND-INS: they
+				     click the real button by id, which keeps every existing binding, busy label and
+				     progress handler untouched -- including #wiki-sync-sync-lore, which migrates
+				     into the lore window's ribbon on first open and is still found by id there. -->
+				<div class="wiki-sync-verbs" id="wiki-sync-verbs"></div>
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
@@ -528,7 +534,12 @@
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
 					<div class="wiki-sync-panel__actions">
-						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button"><span class="t1">Territorien bearbeiten</span><span id="wiki-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span></button>
+						<!-- Labelled "Syncen" because that is the task it starts (owner 2026-07-22). What it
+						     opens is the territory SYNC EDITOR -- startWikiSyncTerritoryRun() calls
+						     openAvesmapsSyncEditorOverlay() and returns; the old one-click sync_territories
+						     path below it is dead code behind no-unreachable. The title therefore says
+						     "opens", not "transfers": the run itself is a deliberate step inside that window. -->
+						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button" title="Öffnet den Territorien-Sync-Editor: Crawl → Staging → Modell, mit Unterschieden und Lückenliste. Der scharfe Übernahmeschritt wird dort bewusst ausgelöst, nicht schon von diesem Knopf."><span class="t1">Syncen</span><span id="wiki-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span></button>
 					</div>
 					<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 

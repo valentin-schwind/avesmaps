@@ -207,6 +207,7 @@
 					<ul>
 						<li><a href="#zugang" data-keywords="login passwort konto benutzername registrieren">Zugang &amp; Anmelden</a></li>
 						<li><a href="#orientierung" data-keywords="infopanel panel karte rechtsklick kontextmenü popup theme sprache">Die drei Flächen</a></li>
+						<li><a href="#wikisync-navigation" data-keywords="wikisync auswahl reiter navigation syncen bearbeiten materialien anzahl zuletzt gesynct">So findest du dich im WikiSync-Reiter zurecht</a></li>
 						<li><a href="#rollen" data-keywords="rechte editor reviewer admin berechtigung">Rollen &amp; Rechte</a></li>
 						<li><a href="#regeln" data-keywords="etikette grundsätze wiki">Die goldenen Regeln</a></li>
 						<li><a href="#erster-durchlauf" data-keywords="tutorial übung anfang beispiel">Dein erster Durchlauf</a></li>
@@ -220,13 +221,9 @@
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie kraftlinie wald gebirge meer">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen">Wege</a></li>
-						<li><a href="#materialien" data-keywords="produkte publikationen">Materialien</a>
-							<ul>
-								<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz">Abenteuer</a></li>
-								<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig">Kartensammlungen</a></li>
-									<li><a href="#natur-waren" data-keywords="flora fauna spezies handelswaren lore pflanzen tiere waren lebensraum vorkommen verbreitung">Natur &amp; Waren</a></li>
-							</ul>
-						</li>
+						<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz produkte publikationen materialien">Abenteuer</a></li>
+						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien">Kartensammlungen</a></li>
+						<li><a href="#natur-waren" data-keywords="flora fauna spezies handelswaren lore pflanzen tiere waren lebensraum vorkommen verbreitung materialien">Natur &amp; Waren</a></li>
 					</ul>
 				</li>
 				<li><a href="#aufgaben" data-keywords="posteingang arbeit community">Aufgaben</a>
@@ -305,6 +302,16 @@
 					<figcaption>Das „Editor"-Panel mit seinen vier Reitern; oben die Statuszeile mit dem Link <strong>„📖 Handbuch"</strong> auf diese Seite. <em>(Die Aufnahme ist älter — dort heißt der Link noch „Tutorial".)</em></figcaption>
 				</figure>
 				<p>Oben rechts in der App sitzen außerdem der <strong>Hell/Dunkel-Umschalter</strong> und der <strong>DE|EN-Sprachumschalter</strong>. Beide gelten nur für deine Ansicht und ändern nichts an den Daten.</p>
+
+				<h3 id="wikisync-navigation" class="hb-sub">So findest du dich im WikiSync-Reiter zurecht</h3>
+				<p>Der WikiSync-Reiter ist nach demselben Muster aufgebaut, egal womit du arbeitest. Von oben nach unten:</p>
+				<ul class="hb-steps">
+					<li><strong>Übergreifende Knöpfe.</strong> <strong>„📥 Dump holen"</strong> und <strong>„⚖️ Konflikte"</strong> — sie gehören zu keinem einzelnen Thema, sondern zu allen.</li>
+					<li><strong>Die Auswahl.</strong> Acht Themen in zwei Spalten: <strong>Siedlungen · Territorien · Regionen · Wege · Kraftlinien · Abenteuer · Karten · Natur &amp; Waren</strong>. Jede Zeile zeigt neben dem Namen die <strong>Anzahl</strong> und das <strong>Datum des letzten Syncs</strong> — du siehst also alle acht Stände auf einen Blick, ohne zu klicken. Ein Gedankenstrich heißt „dazu kam keine Zahl", nicht „null".</li>
+					<li><strong>Die Knopfzeile.</strong> Darunter stehen die Knöpfe des <em>ausgewählten</em> Themas, immer in derselben Reihenfolge: <strong>„Syncen"</strong>, dann <strong>„Bearbeiten"</strong>. Vier Themen (Territorien, Regionen, Wege, Kraftlinien) haben keinen eigenen Listeneditor — dort steht „Syncen" allein über die volle Breite. Ein ausgegrauter zweiter Knopf wäre nur Verwirrung.</li>
+					<li><strong>Suche, Filter und die Liste</strong> des ausgewählten Themas.</li>
+				</ul>
+				<div class="hb-note"><strong>Was sich geändert hat.</strong> Früher lagen Abenteuer, Karten und Natur &amp; Waren unter einem Sammelreiter <strong>„Materialien"</strong>, und die Kraftlinien hatten gar keinen eigenen Reiter. Beides war kein Ordnungsprinzip, sondern schlicht Platzmangel in der waagerechten Reiterzeile. Jetzt stehen alle acht gleichrangig untereinander.</div>
 
 				<h3 id="rollen" class="hb-sub">Rollen &amp; Rechte</h3>
 				<p>Es gibt drei Rollen. Sie bestimmen, was du darfst:</p>
@@ -589,9 +596,9 @@
 					<img src="screenshots/06-territoriumseditor.png" alt="Der Territoriumseditor mit Hierarchiebaum der Herrschaftsgebiete, Wiki-Verknuepfungen, Gueltigkeit und Breadcrumb-Darstellung" />
 					<figcaption>Der Territoriumseditor: Hierarchie-Baum, Wiki-Verknüpfungen und Breadcrumb.</figcaption>
 				</figure>
-				<p>Den großen Abgleich gegen das Wiki macht der eigene Editor unter <strong>„Territorien bearbeiten"</strong> — mit Hierarchiemodell, Unterschieden und Lückenliste. Wie die Hierarchie gedacht ist, steht unter <a href="#v-hierarchie">Die Gebiets-Hierarchie</a>.</p>
+				<p>Den großen Abgleich gegen das Wiki macht der eigene Editor hinter <strong>„Syncen"</strong> — mit Hierarchiemodell, Unterschieden und Lückenliste. Der Knopf <em>öffnet</em> diesen Editor; die scharfe Übernahme löst du darin bewusst aus, sie läuft nicht schon beim Klick. Wie die Hierarchie gedacht ist, steht unter <a href="#v-hierarchie">Die Gebiets-Hierarchie</a>.</p>
 				<figure class="hb-shot">
-					<img src="screenshots/09-herrschaftsgebieteeditor.png" alt="Fenster Territorien bearbeiten mit Syncen, Hierarchiemodell, Lueckenliste und Wiki-Overrides" />
+					<img src="screenshots/09-herrschaftsgebieteeditor.png" alt="Territorien-Sync-Editor mit Syncen, Hierarchiemodell, Lueckenliste und Wiki-Overrides" />
 					<figcaption>Der Territorien-Editor: Syncen, Hierarchiemodell, Lücken und Wiki-Overrides.</figcaption>
 				</figure>
 
@@ -618,7 +625,7 @@
 				<p>Nicht jede Kraftlinie ist ein Strang. Von 61 Namen auf der Karte sind 54 durchgehende Linien, sechs verzweigen sich (die <em>Yaquirlinie</em> hat sechs Enden) und eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
 
 				<h4 class="hb-sub2">Angaben aus dem Wiki holen</h4>
-				<p class="hb-path"><strong>Editor → WikiSync → <strong>„⚡ Kraftlinien syncen"</strong></strong> (neben „📥 Dump holen" und „⚖️ Konflikte")</p>
+				<p class="hb-path"><strong>Editor → WikiSync → Kraftlinien → „Syncen"</strong></p>
 				<p>Wiki Aventurica beschreibt 23 Kraftlinien mit einer eigenen Infobox. Der Knopf überträgt deren <strong>Stärke</strong>, <strong>Affinität</strong>, <strong>Länge</strong>, <strong>Regionen</strong> und <strong>Verlauf</strong> auf die Kraftlinien der Karte und zeigt sie in der Infobox an. Zugeordnet wird über den <strong>Namen</strong>.</p>
 				<ul>
 					<li><strong>Vorher „📥 Dump holen"</strong> — der Sync liest nur, was der Dump-Lauf vorher gesammelt hat. Ohne das meldet er es im Klartext, statt still nichts zu tun.</li>
@@ -823,11 +830,12 @@
 					<li><strong>Der Wegtyp ist Fließtext.</strong> Er ist kein Schlüssel, an dem etwas hängt, sondern nur die Beschriftung darunter — dass die Suche gröber einteilt als der Editor, ist Absicht und kein Widerspruch.</li>
 				</ul>
 
-				<h3 id="materialien" class="hb-sub">Materialien</h3>
-				<p class="hb-path"><strong>Editor → WikiSync → Materialien</strong></p>
-				<p>Unter „Materialien" liegt, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere und Handelswaren. Jeder der drei Reiter hat einen eigenen Editor, den du über den Knopf oben erreichst; bei Abenteuern und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
+				<h3 id="materialien" class="hb-sub">Abenteuer, Karten und Natur &amp; Waren</h3>
+				<p class="hb-path"><strong>Editor → WikiSync → Abenteuer</strong> &nbsp;·&nbsp; <strong>→ Karten</strong> &nbsp;·&nbsp; <strong>→ Natur &amp; Waren</strong></p>
+				<p>Diese drei sind, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere und Handelswaren. Jedes hat einen eigenen Editor, den du über <strong>„Bearbeiten"</strong> erreichst; bei Abenteuern und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
+				<div class="hb-note"><strong>Sie standen früher unter „Materialien".</strong> Diesen Sammelreiter gibt es nicht mehr — er war nur entstanden, weil in der waagerechten Reiterzeile kein Platz für einen sechsten Reiter war. Alle acht Themen stehen jetzt gleichrangig in der Auswahl.</div>
 
-				<h4 id="abenteuer" class="hb-sub">Abenteuer</h4>
+				<h3 id="abenteuer" class="hb-sub">Abenteuer</h3>
 				<p>Ein Abenteuer ist ein veröffentlichtes DSA-Produkt mit den Orten, an denen es spielt. Auf der Karte taucht es an genau diesen Orten wieder auf.</p>
 				<p>Die Stammdaten sind in Gruppen geteilt: <strong>Cover</strong>, <strong>Identität</strong> (Titel, Produkttyp, Regelsystem, Serie), <strong>Datierung &amp; Einordnung</strong> (BF-Jahr, Genre, Komplexität, Autoren), <strong>Wiki &amp; F-Shop</strong> und <strong>Shop-Links</strong>.</p>
 
@@ -847,7 +855,7 @@
 				<div class="hb-note hb-tip"><strong>Abkürzung:</strong> Trägst du bei einem Ort eine <em>Quelle</em> ein, die auf ein Abenteuer zeigt, legt das System den passenden Abenteuer-Ort-Eintrag von selbst an. Nimmst du die Quelle wieder weg, verschwindet nur der selbst erzeugte Eintrag — ein Eintrag, der vorher schon da war, bleibt.</div>
 				<p>Gelöschte Wiki-Orte verschwinden nicht spurlos: Sie liegen hinter <strong>„unterdrückte anzeigen"</strong> und lassen sich mit <strong>„↺ Zurückholen"</strong> wiederbeleben. Ein erneuter Sync fügt sie von sich aus nicht wieder ein.</p>
 
-				<h4 id="kartensammlungen" class="hb-sub">Kartensammlungen</h4>
+				<h3 id="kartensammlungen" class="hb-sub">Kartensammlungen</h3>
 				<p>Veröffentlichte Karten und Stadtpläne — wo es sie gibt, in welchem Buch, in welchem Maßstab.</p>
 				<p>Unter <strong>„Identität"</strong> stehen Titel, der Karten-Link und <strong>„Urheber"</strong> bzw. <strong>„Verlag"</strong> — zwei verschiedene Dinge: der Urheber hat die Karte <em>gezeichnet</em>, der Verlag hat den Band <em>gedruckt</em>. Unter <strong>„Einordnung"</strong> folgen Art, Gültigkeit in BF und das <strong>Format</strong>, also die Größe des gedruckten Blatts, wie das Wiki sie schreibt („A2", „33,5x25,5"). Breite und Höhe daneben sind Pixel eines Scans und füllen sich beim Upload von selbst.</p>
 
@@ -861,7 +869,7 @@
 				<div class="hb-note hb-tip"><strong>„⤓ Autoget" holt kein veröffentlichbares Bild.</strong> Es sucht auf der verlinkten Seite eine Vorschau und legt sie <em>nur für den Editor</em> ab — fremdes Material, das nie öffentlich erscheint. Der Karten-Link selbst wird dagegen immer angezeigt; nur das Bild hängt an der Lizenz.</div>
 				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>„+ Neuer Fundort"</strong> (eine weitere Stelle für eine bekannte Karte). Beide erscheinen erst nach deiner Freigabe im Reiter <a href="#meldungen">Meldungen</a> — bei einer neuen Karte heißt der Knopf dort <strong>„Anlegen"</strong>, bei Fundorten <strong>„Ergänzen"</strong>. Fremde Fundorte kannst du nicht löschen, nur <strong>„Unterdrücken"</strong>; das wirkt sofort, ohne Speichern.</p>
 
-				<h4 id="natur-waren" class="hb-sub">Natur &amp; Waren</h4>
+				<h3 id="natur-waren" class="hb-sub">Natur &amp; Waren</h3>
 				<p>Pflanzen, Tiere und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Abenteuer und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen und Gebiete, zu denen es gehört.</p>
 				<p>Der Knopf <strong>„Natur &amp; Waren bearbeiten"</strong> <em>öffnet nur ein Fenster und startet nichts</em>. Syncen und Bearbeiten passieren ausschließlich darin. Daneben steht <strong>„Zuletzt gesynct: …"</strong> — oder „Noch nie gesynct", solange der Bestand leer ist.</p>
 				<div class="hb-note hb-tip"><strong>Warum der Umweg über ein Fenster?</strong> Der Sync liest den kompletten Wiki-Dump und läuft mehrere Minuten. Solange er direkt am Reiter hing, startete ihn der erste Klick — eine schwere Aktion ohne Zwischenschritt. Der Einstiegsknopf ist deshalb mit Absicht harmlos.</div>
@@ -1214,10 +1222,10 @@
 				<table class="hb-table">
 					<tr><th>Editor</th><th>Erreichbar über</th></tr>
 					<tr><td><strong>Siedlungen</strong></td><td>WikiSync → Siedlungen → „Siedlungen bearbeiten"</td></tr>
-					<tr><td><strong>Territorien</strong></td><td>WikiSync → Territorien → „Territorien bearbeiten"</td></tr>
-					<tr><td><strong>Abenteuer</strong></td><td>WikiSync → Materialien → Abenteuer → Knopf oder Doppelklick</td></tr>
-					<tr><td><strong>Kartensammlung</strong></td><td>WikiSync → Materialien → Karten → Knopf oder Doppelklick</td></tr>
-					<tr><td><strong>Natur &amp; Waren</strong></td><td>WikiSync → Materialien → Natur &amp; Waren → Knopf oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
+					<tr><td><strong>Territorien</strong></td><td>WikiSync → Territorien → „Syncen" (öffnet den Sync-Editor)</td></tr>
+					<tr><td><strong>Abenteuer</strong></td><td>WikiSync → Abenteuer → „Bearbeiten" oder Doppelklick</td></tr>
+					<tr><td><strong>Kartensammlung</strong></td><td>WikiSync → Karten → „Bearbeiten" oder Doppelklick</td></tr>
+					<tr><td><strong>Natur &amp; Waren</strong></td><td>WikiSync → Natur &amp; Waren → „Bearbeiten" oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
 				</table>
 				<p>Wiederkehrende Kacheln: <strong>🔗 Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), <strong>Wappen lokalisieren</strong> und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
 				<div class="hb-note hb-warn"><strong>Massenläufe nicht in Schleife anstoßen.</strong> „Vorschauen holen" und die Sync-Läufe arbeiten in Etappen und lassen jeweils nur <em>einen</em> Lauf gleichzeitig zu. Ein zweiter Klick bringt nichts außer Last auf dem Server — und der ist geteilt.</div>
