@@ -86,11 +86,17 @@ das Aktionsband in den `actionsMarkup`-Slot von `locationPopupMarkup` gehängt.
 └─────────────────────────────────────┘
 ```
 
-**Kopfbild** — `infoHeaderImageMarkup("Kraftlinien", name, "Kraftlinie")`, analog
+**Kopfbild** — `infoHeaderImageMarkup("powerline", name, "Kraftlinie")`, analog
 zum Weg-Kopf (`map-features-path-rendering.js:111`). Die Vorlage liegt bereits in
 `avesmaps-map-processing/icons/info_header_graphics/Kraftlinien.png`, im selben
-Bestand wie die Weg-Kopfbilder unter `strassen/`; sie wandert wie diese nach
-`img/`. Ein Bild für alle Kraftlinien — es gibt keine Subtypen.
+Bestand wie die Weg-Kopfbilder unter `strassen/`.
+
+Ziel ist **`icons/header/powerline.webp`** — nicht `img/`, und als WebP: die
+Funktion baut `icons/header/<basename>.webp` (`js/ui/popups.js:287`), und die
+Zuordnungstabelle schreibt vor „Dateiname = unser Subtyp-Schlüssel"
+(`js/ui/popups.js:237`). Unser Schlüssel ist `powerline`. Alle 31 bestehenden
+Kopfbilder folgen dieser Regel. Ein Bild für alle Kraftlinien — es gibt keine
+Subtypen.
 
 **Zeile „Verbindet"** — die Spanne der **ganzen Linie**, nicht des angeklickten
 Segments.
@@ -272,8 +278,9 @@ Falle, die schon ~430 Abenteuer verschluckt hat: **sie greift beim Dump, lautlos
 
 ## 7. Umfang
 
-Neu: `img/Kraftlinien.png` (aus
-`avesmaps-map-processing/icons/info_header_graphics/`, wie die Weg-Kopfbilder).
+Neu: `icons/header/powerline.webp` (konvertiert aus
+`avesmaps-map-processing/icons/info_header_graphics/Kraftlinien.png`, wie die
+Weg-Kopfbilder) und `js/map-features/__tests__/powerline-span.test.js`.
 
 Berührt: `js/map-features/map-features-powerlines.js`, `index.html`,
 `api/_internal/map/features.php`, `api/app/feature-sources.php`,
