@@ -349,8 +349,9 @@ function avesmapsWikiPathCrawlStep(PDO $pdo, string $runId, array $options = [])
 // 2026-07-05: Reichsstrasse 3 routed via Winhall because crossing targets leaked into
 // the chain). River rows add tributaries that are rivers, not stations. Rules per row
 // template (name folded, "Straßenquerung" -> "strassenquerung"):
-//   - zufluss* / zusammenfluss / flussquerung / anschluss: contributes NO station
-//     (tributary, source rivers, crossed river on road pages, connecting road)
+//   - zufluss* / zusammenfluss / flussquerung / flussquelle / anschluss: contributes NO station
+//     (tributary, confluence, crossed river on road pages, the river's own SOURCE -- which is
+//     terrain, e.g. {{Flussquelle|[[Koschberge]]}} on "Ange" -- and the connecting road)
 //   - strassenquerung / flussmuendung: the on-route place is positional param 2
 //     (param 1 is the crossing road resp. the sea)
 //   - every other row template (strasse, fluss, kreuzung, abzweigung*, pass, hafen,
@@ -391,6 +392,7 @@ function avesmapsWikiPathExtractVerlaufStations(string $verlaufRaw): array {
         if (str_starts_with($templateName, 'zufluss')
             || $templateName === 'zusammenfluss'
             || $templateName === 'flussquerung'
+            || $templateName === 'flussquelle'
             || $templateName === 'anschluss') {
             continue;
         }

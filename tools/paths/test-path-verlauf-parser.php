@@ -73,6 +73,22 @@ check(
     ['Oberangbar', 'Steinbrücken', 'Burg Draustein', 'Calbrozim', 'Havena']
 );
 
+// --- Flussquelle: a river's SOURCE is terrain, never a station (Bug #39, live page "Ange") ---
+// {{Flussquelle|[[Koschberge]]}} put a mountain range at the head of the chain. It can never
+// match a map location, so the chain stayed short and the way reported a phantom missing station.
+
+$riverSource = <<<'WT'
+{{Flussquelle|[[Koschberge]]}}
+{{Hafen links|[[Angenburg]]}}
+{{Zufluss links|[[Rohanja]]}}
+{{Flussmündung|[[Breite]]|[[Oberangbar]]}}
+WT;
+check(
+    'Flussquelle contributes no station (a source is terrain, not a place)',
+    avesmapsWikiPathExtractVerlaufStations($riverSource),
+    ['Angenburg', 'Oberangbar']
+);
+
 // --- Fallback: no row templates => all plain links (previous behaviour) ---
 
 check(
