@@ -57,14 +57,36 @@ locationMarkers = [place("a", "A"), place("b", "B")];
 powerlineData = [segment("", "a", "b")];
 assert.strictEqual(getPowerlineSpanEndpointIds(powerlineData[0]), null, "an unnamed powerline has no span");
 
-// Verzweigung (drei Enden) -> lieber keine Zeile als eine falsche.
+// Verzweigung (drei Enden): KEIN Zwei-Enden-Span -- aber die Topologie kennt alle drei Enden.
+// Am Live-Bestand sind 6 von 61 Namen verzweigt, darunter Basiliuslinie (4 Enden) und
+// Yaquirlinie (6). Eine erste Fassung gab hier gar nichts zurueck und schwieg damit ausgerechnet
+// die groessten Linien tot -- 44 von 162 Segmenten.
 locationMarkers = [place("m", "Mitte"), place("x", "X"), place("y", "Y"), place("z", "Z")];
 powerlineData = [
 	segment("Fächer der Macht", "m", "x"),
 	segment("Fächer der Macht", "m", "y"),
 	segment("Fächer der Macht", "m", "z"),
 ];
-assert.strictEqual(getPowerlineSpanEndpointIds(powerlineData[0]), null, "a branching line reports no span");
+assert.strictEqual(getPowerlineSpanEndpointIds(powerlineData[0]), null, "a branching line has no two-end span");
+const branch = getPowerlineTopology(powerlineData[0]);
+assert.deepStrictEqual([...branch.endpointIds].sort(), ["x", "y", "z"], "all three ends must be reported");
+assert.deepStrictEqual(branch.stationIds, ["m"], "the hub is a station, not an end");
+assert.strictEqual(branch.segmentCount, 3);
+assert.strictEqual(branch.isRing, false);
+
+// Ring (kein einziges Ende) -- Hexenband(-schleife) im Live-Bestand. Ohne Enden traegt nur die
+// Stationsliste, deshalb darf sie hier NICHT leer sein.
+locationMarkers = [place("a", "A"), place("b", "B"), place("c", "C")];
+powerlineData = [
+	segment("Hexenband(-schleife)", "a", "b"),
+	segment("Hexenband(-schleife)", "b", "c"),
+	segment("Hexenband(-schleife)", "c", "a"),
+];
+const ring = getPowerlineTopology(powerlineData[0]);
+assert.strictEqual(ring.isRing, true, "a closed loop must be recognised as a ring");
+assert.deepStrictEqual(ring.endpointIds, [], "a ring has no ends");
+assert.deepStrictEqual([...ring.stationIds].sort(), ["a", "b", "c"], "a ring is carried by its stations");
+assert.strictEqual(ring.segmentCount, 3);
 
 // Nur Kreuzungen -> kein benennbares Ende.
 locationMarkers = [crossing("k1"), crossing("k2")];

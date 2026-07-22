@@ -72,26 +72,54 @@ function walkToNamedPowerlineEndpoint(adjacency, startPublicId) {
 	return "";
 }
 
-// Die Spanne der GANZEN Linie, nicht des angeklickten Segments: wer die Basiliuslinie anklickt,
-// will ihre beiden Enden wissen, nicht welchen von vierzehn Hops er getroffen hat.
-// Verzweigt die Kette oder ist sie ein Ring (!== 2 Enden mit Grad 1), geben wir null zurueck --
-// lieber keine Zeile als eine falsche.
-function getPowerlineSpanEndpointIds(powerline) {
+// Die Gestalt der GANZEN Linie, nicht des angeklickten Segments: wer die Basiliuslinie anklickt,
+// will nicht wissen, welchen von sechzehn Hops er getroffen hat.
+//
+// 💣 AM LIVE-BESTAND GEMESSEN (2026-07-22, 162 Segmente / 61 Namen): Kraftlinien sind KEINE
+// Straengen wie Strassen. 54 Namen sind Straenge (2 Enden), 6 sind VERZWEIGT (bis zu 6 Enden --
+// Basiliuslinie, Yaquirlinie, Elementares Hexagramm, Strick des Schwarzen Mannes) und einer ist
+// ein RING (0 Enden, Hexenband(-schleife)). Eine erste Fassung verlangte genau zwei Enden und gab
+// sonst nichts zurueck -- das schwieg ausgerechnet die groessten Linien tot, 44 von 162 Segmenten.
+// Darum beschreibt diese Funktion die Topologie, statt sie abzulehnen.
+//
+// @return {{segmentCount:number, endpointIds:string[], stationIds:string[], isRing:boolean}|null}
+function getPowerlineTopology(powerline) {
 	const segments = getPowerlineSegmentsSharingName(powerline);
 	if (segments.length === 0) {
 		return null;
 	}
 	const adjacency = buildPowerlineAdjacency(segments);
 	const chainEnds = [...adjacency.keys()].filter((id) => (adjacency.get(id) || []).length === 1);
-	if (chainEnds.length !== 2) {
+
+	// Jedes Kettenende nach innen laufen lassen, bis ein BENANNTER Punkt kommt (reine Kreuzungen
+	// ueberspringen). Mehrere Enden koennen auf denselben benannten Punkt zulaufen -> dedupliziert.
+	const endpointIds = [];
+	chainEnds.forEach((endId) => {
+		const named = walkToNamedPowerlineEndpoint(adjacency, endId);
+		if (named && !endpointIds.includes(named)) {
+			endpointIds.push(named);
+		}
+	});
+
+	// Alles Benannte dazwischen -- das traegt den Ring (der gar keine Enden hat) und macht auch
+	// bei Straengen sichtbar, woran die Linie unterwegs vorbeikommt.
+	const stationIds = [...adjacency.keys()].filter((id) => !endpointIds.includes(id) && isNamedPowerlineEndpoint(id));
+
+	return {
+		segmentCount: segments.length,
+		endpointIds,
+		stationIds,
+		isRing: chainEnds.length === 0,
+	};
+}
+
+// Rueckwaertskompatibel: der saubere Zwei-Enden-Fall (54 der 61 Namen).
+function getPowerlineSpanEndpointIds(powerline) {
+	const topology = getPowerlineTopology(powerline);
+	if (!topology || topology.endpointIds.length !== 2) {
 		return null;
 	}
-	const fromPublicId = walkToNamedPowerlineEndpoint(adjacency, chainEnds[0]);
-	const toPublicId = walkToNamedPowerlineEndpoint(adjacency, chainEnds[1]);
-	if (!fromPublicId || !toPublicId || fromPublicId === toPublicId) {
-		return null;
-	}
-	return { fromPublicId, toPublicId };
+	return { fromPublicId: topology.endpointIds[0], toPublicId: topology.endpointIds[1] };
 }
 
 function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
@@ -242,27 +270,40 @@ function syncPowerlineLabels() {
 // Die beiden Enden als Gold-Links. Markup und Klick-Ziel sind exakt die des Weges
 // (pathItemStationLinkMarkup, js/map-features/map-features-path-item-links.js), und der Handler
 // haengt global am document (js/routing/routing.js) -- Kraftlinien benutzen ihn einfach mit.
+function powerlinePlaceLinkMarkup(publicId) {
+	const entry = findLocationMarkerByPublicId(publicId);
+	const name = String(entry?.name || "").trim();
+	if (name === "") {
+		return "";
+	}
+	return '<button type="button" class="location-popup__station-link" '
+		+ `data-station-kind="location" data-station-ref="${escapeHtml(publicId)}">`
+		+ `${escapeHtml(name)}</button>`;
+}
+
+function powerlinePlaceLinksMarkup(publicIds, separator, limit) {
+	const links = (publicIds || []).map(powerlinePlaceLinkMarkup).filter((markup) => markup !== "");
+	if (links.length === 0) {
+		return "";
+	}
+	const cap = limit || links.length;
+	const shown = links.slice(0, cap).join(separator);
+	return links.length > cap ? `${shown} …` : shown;
+}
+
+// "Verbindet": bei zwei Enden das vertraute A ↔ B, bei einer verzweigten Linie ALLE ihre Enden.
+// Ein Ring hat keine -- der wird ueber "Verlaeuft ueber" beschrieben.
 function powerlineSpanMarkup(powerline) {
-	const span = getPowerlineSpanEndpointIds(powerline);
-	if (!span) {
+	const topology = getPowerlineTopology(powerline);
+	if (!topology || topology.endpointIds.length === 0) {
 		return "";
 	}
-	const linkFor = (publicId) => {
-		const entry = findLocationMarkerByPublicId(publicId);
-		const name = String(entry?.name || "").trim();
-		if (name === "") {
-			return "";
-		}
-		return '<button type="button" class="location-popup__station-link" '
-			+ `data-station-kind="location" data-station-ref="${escapeHtml(publicId)}">`
-			+ `${escapeHtml(name)}</button>`;
-	};
-	const from = linkFor(span.fromPublicId);
-	const to = linkFor(span.toPublicId);
-	if (from === "" || to === "") {
-		return "";
+	if (topology.endpointIds.length === 2) {
+		const from = powerlinePlaceLinkMarkup(topology.endpointIds[0]);
+		const to = powerlinePlaceLinkMarkup(topology.endpointIds[1]);
+		return (from !== "" && to !== "") ? `${from} ↔ ${to}` : "";
 	}
-	return `${from} ↔ ${to}`;
+	return powerlinePlaceLinksMarkup(topology.endpointIds, " · ");
 }
 
 // Infobox der Kraftlinie -- gleiche .region-info-box-Huelle wie Weg/Region/Gebiet, damit sie
@@ -274,8 +315,18 @@ function powerlineInfoboxMarkup(powerline) {
 		}
 		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${valueHtml}</dd></div>`;
 	};
+	const topology = getPowerlineTopology(powerline);
 	let rows = "";
 	rows += row("Verbindet", powerlineSpanMarkup(powerline));
+	// Die benannten Punkte dazwischen. Traegt den RING (der gar keine Enden hat) und zeigt auch bei
+	// Straengen, woran die Linie unterwegs vorbeikommt. Gedeckelt, damit die Box nicht ausufert.
+	rows += row("Verläuft über", powerlinePlaceLinksMarkup(topology?.stationIds || [], " · ", 12));
+	// Immer wahr und immer verfuegbar -- und die einzige Zeile, die eine Linie ohne einen einzigen
+	// benannten Punkt noch traegt.
+	if (topology && topology.segmentCount > 1) {
+		const ringNote = topology.isRing ? " · geschlossener Ring" : "";
+		rows += row("Abschnitte", escapeHtml(`${topology.segmentCount}${ringNote}`));
+	}
 	rows += row("Beschreibung", escapeHtml(String(powerline?.properties?.description || "").trim()));
 	// Multi-source system: die Zeile traegt den Wiki-Link UND die Katalog-Quellen, offizielle zuerst.
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
