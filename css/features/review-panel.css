@@ -974,6 +974,34 @@
 	color: var(--color-text-muted);
 	font-size: 11px;
 }
+/* Zahlenbereich im Trichter (BF-Zeitraum). Die zwei Felder stehen UNTER den Vorauswahlen
+   „Alle / heute / Zeitraum", weil Hineintippen die Vorauswahl selbst auf „Zeitraum" schaltet --
+   sie gehören zu ihr, sind aber jederzeit bedienbar. Maße wie die übrigen Steuerelemente. */
+.type-filter__range {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 6px;
+}
+.type-filter__rangefield {
+	flex: 1 1 0;
+	min-width: 0;
+	width: 100%;
+	padding: 4px 6px;
+	font: inherit;
+	font-size: 12px;
+	color: var(--color-text);
+	background: var(--color-input-bg, var(--color-panel));
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+.type-filter__rangedash,
+.type-filter__rangeunit {
+	flex: 0 0 auto;
+	font-size: 11px;
+	color: var(--color-text-muted);
+}
+
 /* Abschnitte im kombinierten Filter-Panel (Typ / Kontinent / Quelle), per Trenner getrennt. */
 .type-filter__section-title {
 	font-size: 11px;

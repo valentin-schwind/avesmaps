@@ -443,24 +443,44 @@ function renderWikiSyncTerritoryMapStatusTabs(total, placed, missing) {
 	host.innerHTML = tab("all", "Alle", total) + tab("placed", "Platziert", placed) + tab("missing", "Fehlt", missing);
 }
 
-// Liest den Zeitfilter (von/bis/heute) aus den DOM-Eingaben via geteilter Baumkomponente.
+// Zeitraum + „nur Flächenländer" liegen jetzt im gemeinsamen Trichter (js/ui/filter-menu.js) statt
+// als Zeile unter der Suche. Ihr Zustand lebt hier; die Auswertung liefert dasselbe {mode,from,to}
+// wie früher readTimeFilter, sodass die Consumer (getWikiSyncTerritoryTimeFilter-Aufrufer)
+// unberührt bleiben. Vorgabe „heute", wie das alte, vorangekreuzte Häkchen.
+const wikiSyncTerritoryTimeState = typeof avmRangeStateCreate === "function"
+	? avmRangeStateCreate("today")
+	: { mode: "today", fromText: "", toText: "" };
+const wikiSyncTerritoryFlaechState = { value: "" }; // "" = alle | "ja" = nur Flächenländer
+
 function getWikiSyncTerritoryTimeFilter() {
-	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
-	if (!treeModule || typeof treeModule.readTimeFilter !== "function") {
-		return { mode: "off" };
+	if (typeof avmRangeValue === "function") {
+		return avmRangeValue(wikiSyncTerritoryTimeState);
 	}
-	return treeModule.readTimeFilter(
-		document.getElementById("wiki-sync-territory-time-from"),
-		document.getElementById("wiki-sync-territory-time-to"),
-		document.getElementById("wiki-sync-territory-time-today")
-	);
+	return { mode: "off", from: -Infinity, to: Infinity };
 }
 
-// Liest die „nur Flächenländer"-Checkbox: promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat)
-// ausblenden. Default aus (alle zeigen).
+// „nur Flächenländer": promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden.
+// Default aus (alle zeigen).
 function getWikiSyncTerritoryFlaechenlandOnly() {
-	const checkbox = document.getElementById("wiki-sync-territory-flaechenland");
-	return Boolean(checkbox && checkbox.checked);
+	return wikiSyncTerritoryFlaechState.value === "ja";
+}
+
+// Den Trichter des Territorien-Subjekts verdrahten. Einmal beim Auswerten -- die Hülle steht
+// statisch in index.html. Beide Abschnitte lösen ein Neuzeichnen des Baums aus.
+if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined") {
+	avmFilterMenuAttach(
+		"wiki-sync-territory-filter-toggle",
+		"wiki-sync-territory-filter-menu",
+		[
+			{ menuId: "wiki-sync-territory-time-menu", kind: "range", state: wikiSyncTerritoryTimeState, label: "Zeitraum" },
+			{
+				menuId: "wiki-sync-territory-flaech-menu", kind: "single", state: wikiSyncTerritoryFlaechState,
+				options: [{ value: "ja", label: "nur Flächenländer" }], label: "Flächenländer",
+			},
+		],
+		() => { if (typeof renderWikiSyncTerritoryTree === "function") void renderWikiSyncTerritoryTree(); },
+		"Filter"
+	);
 }
 
 async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {

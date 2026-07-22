@@ -544,8 +544,12 @@
 
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
+						<div class="type-filter"><button type="button" id="wiki-sync-territory-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-territory-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Zeitraum</div><div id="wiki-sync-territory-time-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Flächenländer</div><div id="wiki-sync-territory-flaech-menu"></div></div></div></div>
 					</div>
-					<div class="wiki-sync-panel__timefilter">Zeige nur: <input type="number" id="wiki-sync-territory-time-from" placeholder="von" aria-label="Zeitfilter von (BF)" disabled> – <input type="number" id="wiki-sync-territory-time-to" placeholder="bis" aria-label="Zeitfilter bis (BF)" disabled> BF <label><input type="checkbox" id="wiki-sync-territory-time-today" checked> heute</label> <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="wiki-sync-territory-flaechenland"> nur Flächenländer</label></div>
+					<!-- BF-Zeitraum + „nur Flächenländer" liegen jetzt IM Trichter #wiki-sync-territory-filter-menu
+					     (oben, neben der Suche) statt als Zeile hier, wie bei den anderen Subjekten -- eine
+					     ausklappende Zeile schöbe den Baum nach unten. Gefüllt von avmFilterMenuAttach
+					     (js/ui/filter-menu.js), verdrahtet in review-wiki-sync.js. -->
 						<div id="wiki-sync-territory-tree" class="tree-wrap wiki-sync-territory-tree" role="tree"></div>
 				</div>
 			</section>
@@ -1614,6 +1618,9 @@
 		<script src="js/app/link-status.js"></script>
 		<script src="js/app/legal-contact-form.js"></script>
 		<script src="js/app/utils.js"></script>
+		<!-- Der geteilte Trichter (auch von den Editor-iframes geladen). Vor review-wiki-sync.js,
+		     das ihn beim Auswerten verdrahtet. Ohne Abhängigkeiten. -->
+		<script src="js/ui/filter-menu.js"></script>
 		<script src="js/app/theme-toggle.js"></script>
 		<script src="js/app/lang-toggle.js"></script>
 		<script src="js/app/share-link.js"></script>

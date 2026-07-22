@@ -337,20 +337,9 @@ $("#wiki-sync-territory-filter").on("input search", function () {
 $("#wiki-sync-view-tabs").on("click", "[data-territory-mapstatus]", function () {
     setWikiSyncTerritoryMapStatus(this.dataset.territoryMapstatus || "all");
 });
-$("#wiki-sync-territory-time-from, #wiki-sync-territory-time-to").on("input", function () {
-    void renderWikiSyncTerritoryTree();
-});
-$("#wiki-sync-territory-time-today").on("change", function () {
-    const today = this.checked;
-    const fromInput = document.getElementById("wiki-sync-territory-time-from");
-    const toInput = document.getElementById("wiki-sync-territory-time-to");
-    if (fromInput) fromInput.disabled = today;
-    if (toInput) toInput.disabled = today;
-    void renderWikiSyncTerritoryTree();
-});
-$("#wiki-sync-territory-flaechenland").on("change", function () {
-    void renderWikiSyncTerritoryTree();
-});
+// Zeitraum + „nur Flächenländer" hängen seit 2026-07-23 im gemeinsamen Trichter
+// (js/ui/filter-menu.js, verdrahtet in review-wiki-sync.js); die alten Einzel-Handler auf
+// #wiki-sync-territory-time-from/-to/-today/-flaechenland sind mit ihren Eingaben entfallen.
 // Auf `document`, NICHT auf einen Container. Die WikiSync-Faelle wurden ins Konfliktfenster
 // verlegt; ihr alter Wirt #wiki-sync-case-list ist seitdem ein verstecktes Ankerelement, und weil
 // die Delegation daran hing, war JEDER Knopf JEDER eingegliederten Fallart tot -- gezeichnet,
