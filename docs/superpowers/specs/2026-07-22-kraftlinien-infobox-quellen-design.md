@@ -26,9 +26,9 @@ Daraus folgt an drei Stellen dasselbe Nichts:
 **Der Unterschied zu Wegen, der die Form bestimmt:** Bei einem Weg kommt *jede*
 Zeile der Infobox aus WikiSync — `pathWikiInfoboxMarkup` liest Lage, Länge,
 Verlauf und Beschreibung ausschließlich aus `properties.wiki_path`
-(`js/map-features/map-features-path-rendering.js:6`). Kraftlinien haben keinen
-Sync und mutmaßlich auch keine eigenen Wiki-Artikel je Linie. Das Weg-Muster
-wird also in der **Form** übernommen, nicht in der **Herkunft**.
+(`js/map-features/map-features-path-rendering.js:6`). Kraftlinien haben **heute**
+keinen Sync. Das Weg-Muster wird deshalb zuerst in der **Form** übernommen, nicht
+in der **Herkunft** — siehe §5, das ist eine Reihenfolge, kein Endzustand.
 
 ## 2. Der entscheidende Befund
 
@@ -169,18 +169,67 @@ wie Discord #38, wo ein geratener Link durch Speichern zu echten Daten wurde.
 sicher (die Funktion steigt bei gefülltem `wiki_url` sofort aus, Zeile 889) — der
 Riegel schützt die Linien *ohne* Link.
 
-## 5. Was bewusst nicht gebaut wird
+## 5. Der Wiki-Sync: gemessen, und bewusst Schritt 2
 
-* **Keine WikiSync-Phase für Kraftlinien.** Ob es Artikel je Linie gibt, ist
-  ungeprüft. Der handgesetzte Wiki-Link deckt beide Antworten ab, und ein Sync
-  könnte später auf dasselbe Feld schreiben. Eine Sync-Maschine für womöglich
-  nicht existierende Artikel wäre die teure Richtung.
-* **Keine Zeile „Länge".** Wege beziehen sie als Lore-Text aus dem Wiki; für
-  Kraftlinien wäre sie aus der Geometrie gerechnet und stünde in Karteneinheiten,
-  die niemandem etwas sagen.
+Nachgemessen am 2026-07-22 (Owner-Rückfrage „sind Kraftlinien im Dump
+enthalten?"). Die Antwort ist **ja**, und deutlicher als angenommen:
+
+* **23 Artikel** binden `{{Infobox Kraftlinie}}` ein (`list=embeddedin` auf
+  `Vorlage:Infobox Kraftlinie`, ns 0) — Hexenband, Basiliuslinie, Arteria Magica,
+  Yaquirlinie, Madas Kelch, Septima, Sternentreppe, Konzilslinie, Torweg,
+  Schimmelader u. a. Alle im Main-Namespace, also **im Dump enthalten**.
+  (Die Volltextsuche liefert nur 7 Treffer — die Vorlagen-Einbindung ist die
+  belastbare Zahl.)
+* Die Infobox trägt **Stärke** (kontinental/regional), **Affinität**, **Länge**
+  (Lore-Einheit, z. B. „ca. 3000 Meilen"), **Regionen**, **Verlauf** (verschachtelte
+  Nexus-/Nodix-Einträge) und **Bild**.
+* Die Artikel haben einen **`==Publikationen==`**-Abschnitt (Ausführliche /
+  Ergänzende / Erwähnungen / Inoffizielle) — dieselbe Struktur, die
+  `avesmapsWikiParsePublicationsSection` bereits liest.
+* Es gibt zusätzlich **`Kraftlinie/Quellenauswertung`** (~55 KB), eine
+  Quellen-Auswertung über Kraftlinien und Nodices.
+
+**Warum wir sie heute trotzdem nicht sehen:**
+`avesmapsWikiDumpClassifyEntityKind` (`api/_internal/wiki/dump-entity-scan.php:172`)
+prüft auf fluss/strasse, staat/herrschaftsgebiet/reich, bauwerk/festung/burg,
+siedlung/stadt/ort, region/landschaft. „kraftlinie" trifft keinen Zweig und fällt
+auf `''` — die Seite gilt als Nicht-Entität und wird verworfen. Das ist dieselbe
+Falle, die schon ~430 Abenteuer verschluckt hat: **sie greift beim Dump, lautlos.**
+
+**Trotzdem ist der Sync Schritt 2, nicht Teil dieser Spec.** Gründe:
+
+1. Diese Spec ist seine **Voraussetzung**. Ohne `powerline` als `entity_type`
+   hat der Publikations-Reconciler keinen Ort, an den er die Quellen schreiben
+   könnte.
+2. Der Sync fasst den Dump-Treiber, neue Staging-Tabellen und eine
+   owner-getriggerte Reconcile-Aktion an — eigener Umfang, eigene Sitzung.
+3. Die Zuordnung ist ungeklärt und muss gemessen werden, bevor man sie baut:
+   unsere Linien verbinden **zwei** Nodices, eine Wiki-Kraftlinie durchläuft
+   **viele** (`Verlauf`). Das ist mit hoher Wahrscheinlichkeit dieselbe
+   1-Artikel-zu-N-Segmenten-Form wie bei Straßen — dann gehört das Feld als
+   `wiki_powerline`-Objekt modelliert, analog `properties.wiki_path`, nicht als
+   flacher Link. **Offene Zahl:** wie viele powerline-Zeilen die Karte überhaupt
+   führt; erst das entscheidet zwischen Namensabgleich, Verlauf-/Nodix-Abgleich
+   und Handzuordnung (bei 23 Artikeln ist Hand durchaus im Rennen).
+
+**Konsequenzen für diese Spec, damit Schritt 2 nichts zurückbauen muss:**
+
+* Der `row()`-Aufbau der Box (§3.1) ist bewusst derselbe wie beim Weg. Stärke,
+  Affinität, Länge und Regionen sind später **zusätzliche Zeilen**, kein Umbau.
+* **„Länge" bleibt hier weg** — nicht aus Prinzip, sondern weil die brauchbare
+  Angabe die Lore-Angabe des Wikis ist („ca. 3000 Meilen"). Eine aus der
+  Geometrie gerechnete Zahl stünde in Karteneinheiten und sagte niemandem etwas.
+  Die Zeile kommt mit Schritt 2, aus dem Wiki.
+* Das handgesetzte `wiki_url` aus §3.3 muss ein späterer Sync **überleben**. Es
+  gilt die Hausregel: ein Reconciler schreibt und löscht ausschließlich, was
+  `origin='wiki'` ist; Handgesetztes bleibt unangetastet.
+
+## 6. Was bewusst nicht gebaut wird
+
 * **Kein `other_source` für Kraftlinien** (siehe §3.2).
+* **Kein Wiki-Picker** für den Link, sondern ein sichtbares Feld (siehe §3.3).
 
-## 6. Umfang
+## 7. Umfang
 
 Berührt: `js/map-features/map-features-powerlines.js`, `index.html`,
 `api/_internal/map/features.php`, `api/app/feature-sources.php`,
@@ -195,7 +244,7 @@ des Territorien-Editors (AGENTS.md §7). Dialog und Skript hier hängen an
 `html/editor-handbuch.html` und das `Stand:`-Datum gehören in denselben Commit
 (AGENTS.md §9).
 
-## 7. Abnahme
+## 8. Abnahme
 
 1. Klick auf eine beliebige bestehende Kraftlinie zeigt eine Infobox mit
    „Verbindet" und zwei Gold-Links; ein Klick darauf fliegt zum jeweiligen Nodix.
