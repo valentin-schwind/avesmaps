@@ -1413,7 +1413,8 @@ async function startWikiSyncCitymapsSync() {
 // ===========================================================================
 // „Natur & Waren syncen": the SHARP reconcile of the wiki lore catalog (flora,
 // fauna, species, trade goods — built during „Dump holen") into the live
-// lore_entry / lore_place / lore_source tables. Drives the backend `sync_lore`
+// lore_entry / lore_place tables -- and, per entry, its sources into the SHARED
+// feature_sources (entity_type='lore'). Drives the backend `sync_lore`
 // action via the same one-POST-per-step client loop as sync_citymaps.
 //
 // The catalog holds ~5.100 entries with ~7.750 place links and ~35.000 source
@@ -1485,7 +1486,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 	const totals = {
 		added: 0, updated: 0, unchanged: 0, retired: 0,
 		placesAdded: 0, placesRemoved: 0, placesSuppressed: 0,
-		sourcesAdded: 0, sourcesRemoved: 0, processed: 0,
+		sourcesAdded: 0, sourcesRemoved: 0, sourcesUpdated: 0, processed: 0,
 	};
 	const MAX_STEPS = 4000;
 
@@ -1524,6 +1525,7 @@ async function runWikiSyncLoreSyncLoop(onProgress) {
 		totals.placesSuppressed += Number(stepResult.places_suppressed ?? 0);
 		totals.sourcesAdded += Number(stepResult.sources_added ?? 0);
 		totals.sourcesRemoved += Number(stepResult.sources_removed ?? 0);
+		totals.sourcesUpdated += Number(stepResult.sources_updated ?? 0);
 		totals.processed += Number(stepResult.processed ?? 0);
 		done = stepResult.done === true;
 
@@ -1699,8 +1701,11 @@ async function startWikiSyncLoreSync() {
 		const result = await runWikiSyncLoreSyncLoop((label) => {
 			setLoreSyncStatusLabel(button, `übernehmen … ${label}`);
 		});
-		const t = (result && result.totals) || { added: 0, updated: 0, retired: 0, placesAdded: 0, sourcesAdded: 0 };
-		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · Quellen +${t.sourcesAdded})`;
+		const t = (result && result.totals) || { added: 0, updated: 0, retired: 0, placesAdded: 0, sourcesAdded: 0, sourcesUpdated: 0 };
+		// Quellen sind seit 2026-07-22 Verknüpfungen im geteilten System, deshalb steht
+		// hier auch „~aktualisiert": eine nachgezogene Seitenangabe ist dort eine Änderung,
+		// keine Löschung samt Neuanlage.
+		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · Quellen +${t.sourcesAdded}/~${t.sourcesUpdated})`;
 		setWikiSyncStatus(`Natur & Waren übernommen.${note}`, "success");
 		showFeedbackToast(`Natur & Waren übernommen.${note}`, "success");
 		// Liste UND „zuletzt gesynct" nachziehen. Ohne das zeigt der Reiter direkt nach
@@ -2009,6 +2014,16 @@ function loreFieldRow(entry, field, label) {
 function renderLoreDetail(entry) {
 	var detail = document.getElementById("lore-detail");
 	if (!detail || !entry) { return; }
+
+	// 💣 ERST abräumen, DANN überschreiben. Der Quellen-Editor hängt seine Vorschlagsliste an
+	// document.body, nicht in seinen Container -- wer den Container wegwirft, ohne vorher zu
+	// lösen, lässt sie dort liegen. Diese Funktion baut das ganze Detail bei JEDEM gespeicherten
+	// Feld neu auf, also wäre das nach fünf Bearbeitungen fünf tote Listen tief.
+	var previousSourceHost = document.getElementById("lore-source-editor");
+	if (previousSourceHost && typeof previousSourceHost.__fsDetachAutocomplete === "function") {
+		previousSourceHost.__fsDetachAutocomplete();
+	}
+
 	var live = [];
 	var tombs = [];
 	(entry.places || []).forEach(function (place) {
@@ -2058,14 +2073,13 @@ function renderLoreDetail(entry) {
 		+ loreFieldRow(entry, "lebensraum", "Lebensraum")
 		+ loreFieldRow(entry, "synonyme", "Weitere Namen")
 		+ '<p class="lore-detail__hint">Ein geändertes Feld bleibt beim nächsten Sync stehen. Leeren gibt es wieder ans Wiki zurück.</p>'
-		+ '<h5 class="lore-detail__section">Quellen (' + (entry.sources || []).length + ")</h5>"
-		+ ((entry.sources || []).length
-			? '<ul class="lore-detail__sources">' + entry.sources.map(function (s) {
-				return "<li>" + avesmapsLoreListEscape(s.publication_title)
-					+ (s.pages ? " S. " + avesmapsLoreListEscape(s.pages) : "")
-					+ ' <span class="lore-detail__place-meta">' + avesmapsLoreListEscape(s.reference_kind) + "</span></li>";
-			}).join("") + "</ul>"
-			: '<p class="lore-detail__hint">Keine Quellen hinterlegt.</p>')
+		// Quellen: das GETEILTE Bauteil, dasselbe wie im Siedlungs-, Regions-, Wege-,
+		// Territoriums- und Kartensammlungseditor. Bis 2026-07-22 stand hier eine reine
+		// Leseliste aus einer Lore-eigenen Tabelle -- man konnte eine falsche Quelle sehen,
+		// aber nichts dagegen tun. Der Container bleibt leer; mountFeatureSourceEditor füllt
+		// ihn vom Server, sobald das Markup steht.
+		+ '<h5 class="lore-detail__section">Quellen</h5>'
+		+ '<div id="lore-source-editor"></div>'
 		+ "</div>"
 
 		+ '<div class="lore-detail__col lore-detail__col--places">'
@@ -2084,6 +2098,15 @@ function renderLoreDetail(entry) {
 		+ "</div>"
 
 		+ "</div>";
+
+	// ⚠️ NACH dem innerHTML, sonst mountet man in einen Knoten, der gleich ersetzt wird.
+	// Der Schlüssel kommt als GETTER, nicht als Wert: das Bauteil fragt ihn bei jeder
+	// Anfrage frisch ab, und in dieser Liste kann man den Eintrag wechseln, während der
+	// Quellen-Editor offen steht -- ein kopierter Schlüssel schriebe dann auf den alten.
+	var sourceHost = document.getElementById("lore-source-editor");
+	if (sourceHost && typeof mountFeatureSourceEditor === "function") {
+		mountFeatureSourceEditor(sourceHost, "lore", function () { return avesmapsLoreDetailKey; });
+	}
 }
 
 function openLoreDetail(wikiKey) {

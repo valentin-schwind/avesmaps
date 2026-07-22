@@ -518,8 +518,11 @@
 	font-size: 0.8rem;
 }
 
-.lore-detail__places,
-.lore-detail__sources {
+/* .lore-detail__sources gab es hier bis 2026-07-22 mit: die Quellen waren eine eigene
+   Leseliste. Sie kommen jetzt aus dem geteilten Bauteil und tragen dessen .fs-*-Klassen
+   (css/features/feature-sources.css) -- eine zweite Gestaltung dafuer waere genau die
+   Doppelung, die der Umbau beseitigt hat. */
+.lore-detail__places {
 	margin: 0;
 	padding: 0;
 	list-style: none;

@@ -207,6 +207,13 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
     return;
   }
 
+  // Re-mounting the SAME node (rather than a fresh one) must not leave the previous mount's
+  // dropdown behind either -- see the note at the end of wireAutocomplete below.
+  if (typeof containerEl.__fsDetachAutocomplete === "function") {
+    containerEl.__fsDetachAutocomplete();
+    containerEl.__fsDetachAutocomplete = null;
+  }
+
   // Instruction 5a state: the catalog row the editor picked from the typeahead, if any. Reset on
   // every re-render and cleared the moment they edit url/label by hand (then they no longer mean
   // that row).
@@ -272,6 +279,14 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         },
       })
     );
+    // Published on the container so a caller that DESTROYS this node can still tear the dropdown
+    // down first. attachSourceAutocomplete appends its .sac box to document.body, so a node that
+    // is thrown away without detaching leaves that box orphaned there forever. Surfaces that mount
+    // once (settlement/region/path/territory/citymap dialogs) never need this; the lore editor
+    // re-renders its whole detail pane on every field save, and without it each save would stack
+    // another dead dropdown on the page -- the exact failure the comment above wireAutocomplete
+    // warns about, one level further out.
+    containerEl.__fsDetachAutocomplete = detachAutocomplete;
   }
 
   async function renderFromServer(action, extra) {

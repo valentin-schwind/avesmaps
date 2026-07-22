@@ -394,7 +394,34 @@ function avesmapsPublicationEntityRefForPage(array $page): array
             $entityType = 'territory';
             break;
         default:
-            return ['entity_type' => '', 'entity_wiki_key' => ''];
+            // LORE (flora/fauna/species/trade goods) as a FALLBACK, never a competitor: it is only
+            // consulted when the classifier recognised nothing, so it cannot take a page away from
+            // the four types above. It cannot collide either -- the four lore infoboxes (Tierart,
+            // Pflanzenart, Spezies, Gegenstandsgruppe) match none of the classifier's needles.
+            //
+            // This is what lets ONE refs builder serve lore too (AGENTS.md §5): the lore parser
+            // already reads its sources with avesmapsWikiParsePublicationsSection, the very parser
+            // this step uses. Guarded by function_exists because this file requires nothing on
+            // include; the dump endpoint loads lore-sync.php (which pulls in the parser) at runtime.
+            if (!function_exists('avesmapsLoreKindForInfoboxName') || !function_exists('avesmapsLoreWikiKeyForTitle')) {
+                return ['entity_type' => '', 'entity_wiki_key' => ''];
+            }
+            $pageTitle = (string) ($page['title'] ?? '');
+            if ((int) ($page['ns'] ?? 0) !== 0 || ($page['redirect'] ?? null) !== null) {
+                return ['entity_type' => '', 'entity_wiki_key' => ''];
+            }
+            // The INFOBOX NAME alone decides (lore invariant O4), which is also the cheap answer:
+            // this runs for every article that cites a publication and is not one of the four types
+            // above -- tens of thousands of pages per dump. avesmapsLoreParsePage would give the
+            // same verdict, but only after extracting the infobox block, parsing its parameters,
+            // decoding entities and pulling place links: all of it thrown away for a non-lore page.
+            if (avesmapsLoreKindForInfoboxName(avesmapsWikiSyncMonitorInfoboxName((string) ($page['wikitext'] ?? ''))) === '') {
+                return ['entity_type' => '', 'entity_wiki_key' => ''];
+            }
+
+            // The key is derived from the PAGE TITLE, exactly as avesmapsLoreBuildCatalogStep
+            // derives the lore_entry.wiki_key it will be matched against.
+            return ['entity_type' => 'lore', 'entity_wiki_key' => avesmapsLoreWikiKeyForTitle($pageTitle)];
     }
 
     $wikiKey = is_array($record) ? trim((string) ($record['wiki_key'] ?? '')) : '';
@@ -733,7 +760,9 @@ function avesmapsPublicationReconcileEntity(PDO $pdo, string $entityType, string
  */
 function avesmapsPublicationReconcileSegmentOrder(): array
 {
-    return ['territory', 'settlement', 'region', 'path'];
+    // 'lore' runs LAST: it is the largest population (~5.100 entries) and the only one whose live
+    // table may not exist yet, so a shortfall there never delays the four map-element segments.
+    return ['territory', 'settlement', 'region', 'path', 'lore'];
 }
 
 /**
@@ -763,6 +792,34 @@ function avesmapsPublicationFetchLiveEntityBatch(PDO $pdo, string $type, int $la
         return array_map(static fn(array $r): array => [
             'id' => (int) $r['id'],
             'public_id' => (string) $r['public_id'],
+            'wiki_key' => trim((string) $r['wiki_key']),
+        ], $statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
+    }
+
+    if ($type === 'lore') {
+        // A lore entry has no public_id: its wiki_key IS its public identity, so both fields carry
+        // the same value. Only 'active' entries are reconciled -- a retired one is a leftover the
+        // wiki no longer knows, and giving it fresh sources would resurrect it in every count.
+        //
+        // try/catch, not a guard: an installation that never ran "Natur & Waren syncen" has no
+        // lore_entry table, and that must skip the segment rather than break the whole reconcile.
+        try {
+            $statement = $pdo->prepare(
+                "SELECT id, wiki_key
+                   FROM lore_entry
+                  WHERE status = 'active' AND wiki_key <> '' AND id > :last
+                  ORDER BY id LIMIT :budget"
+            );
+            $statement->bindValue(':last', $lastId, PDO::PARAM_INT);
+            $statement->bindValue(':budget', $budget, PDO::PARAM_INT);
+            $statement->execute();
+        } catch (Throwable) {
+            return [];
+        }
+
+        return array_map(static fn(array $r): array => [
+            'id' => (int) $r['id'],
+            'public_id' => trim((string) $r['wiki_key']),
             'wiki_key' => trim((string) $r['wiki_key']),
         ], $statement->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }

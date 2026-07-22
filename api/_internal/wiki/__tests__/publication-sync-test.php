@@ -96,7 +96,10 @@ echo "empty ok\n";
 assert(avesmapsPublicationStripWikiKeyPrefix('wiki:efferds-wogen') === 'efferds-wogen');
 assert(avesmapsPublicationStripWikiKeyPrefix('name:efferds-wogen') === 'efferds-wogen');
 assert(avesmapsPublicationStripWikiKeyPrefix('efferds-wogen') === 'efferds-wogen'); // already plain
-assert(avesmapsPublicationReconcileSegmentOrder() === ['territory', 'settlement', 'region', 'path']);
+// 'lore' joined as the fifth segment on 2026-07-22 and runs LAST: it is the largest population
+// (~5.100 entries) and the only one whose live table may be absent, so a shortfall there never
+// delays the four map-element segments.
+assert(avesmapsPublicationReconcileSegmentOrder() === ['territory', 'settlement', 'region', 'path', 'lore']);
 echo "helpers ok\n";
 
 // ReferenceFieldsDiffer: null vs '' are equal; a missing field forces "differ".

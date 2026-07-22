@@ -75,6 +75,25 @@ function avesmapsEnsureFeatureSourceTables(PDO $pdo): void
                 ADD KEY idx_sources_wiki_key (wiki_key)'
         );
     }
+
+    // entity_public_id must hold a LORE key (2026-07-22). Every other entity type carries a short
+    // opaque public_id that fits in 64; lore has no public_id at all -- its identity IS its
+    // wiki_key, a slug of the wiki article title, and those run past 64 characters.
+    //
+    // 💣 This is not cosmetic. MySQL would truncate the key silently, and two lore entries whose
+    // titles agree in their first 64 slug characters would then collide on the UNIQUE index and
+    // share each other's sources. Widening to 190 matches every wiki_key column in the schema.
+    // Index length stays far inside the limit: 16*4 + 190*4 + 8 = 832 of 3072 bytes.
+    $statement = $pdo->query(
+        "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'feature_sources'
+            AND COLUMN_NAME = 'entity_public_id'"
+    );
+    $currentLength = $statement === false ? 0 : (int) $statement->fetchColumn();
+    if ($currentLength > 0 && $currentLength < 190) {
+        $pdo->exec('ALTER TABLE feature_sources MODIFY COLUMN entity_public_id VARCHAR(190) NOT NULL');
+    }
 }
 
 // The read used by the public endpoint: approved catalog links PLUS the element's legacy single
@@ -336,6 +355,19 @@ function avesmapsFeatureSourcesReadWikiUrl(PDO $pdo, string $entityType, string 
         $s = $pdo->prepare("SELECT wiki_url FROM political_territory WHERE public_id = :id LIMIT 1");
         $s->execute(['id' => $publicId]);
         return trim((string) ($s->fetchColumn() ?: ''));
+    }
+    // A lore entry lives in its own table and DOES have a wiki article -- that article is the whole
+    // reason the entry exists. Its public id IS its wiki_key (see the entity_public_id note in
+    // avesmapsEnsureFeatureSourceTables), so the lookup is by that key.
+    if ($entityType === 'lore') {
+        try {
+            $s = $pdo->prepare('SELECT wiki_url FROM lore_entry WHERE wiki_key = :id LIMIT 1');
+            $s->execute(['id' => $publicId]);
+
+            return trim((string) ($s->fetchColumn() ?: ''));
+        } catch (Throwable) {
+            return ''; // no lore tables on this installation -> no wiki link, not a 500
+        }
     }
     // A citymap is not a map_features row and has no wiki page of its own (Spec §3.1 gives it no
     // wiki_url column). Falling through to the lookup below would query map_features with a citymap id

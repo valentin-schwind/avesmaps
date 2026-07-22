@@ -31,9 +31,11 @@ const AVESMAPS_LORE_EDITABLE_FIELDS = ['name', 'gruppe', 'typ', 'lebensraum', 's
 const AVESMAPS_LORE_ENTRY_STATES = ['active', 'suppressed'];
 
 /**
- * Vollständige Editoransicht eines Eintrags: Stammdaten, ALLE Orte (auch die
- * unterdrückten -- der Editor muss seine eigenen Grabsteine sehen können) und alle
- * Quellen.
+ * Vollständige Editoransicht eines Eintrags: Stammdaten und ALLE Orte (auch die
+ * unterdrückten -- der Editor muss seine eigenen Grabsteine sehen können).
+ *
+ * Quellen sind bewusst NICHT dabei: sie kommen aus dem geteilten Quellensystem, das
+ * seinen eigenen Endpoint und sein eigenes Bauteil mitbringt (siehe unten).
  *
  * @return array<string,mixed>|null
  */
@@ -65,12 +67,12 @@ function avesmapsLoreReadEntryDetail(PDO $pdo, string $wikiKey): ?array
     );
     $placeStatement->execute(['wk' => $wikiKey]);
 
-    $sourceStatement = $pdo->prepare(
-        'SELECT publication_title, publication_wiki_key, reference_kind, pages, note, origin, status
-         FROM lore_source WHERE entry_wiki_key = :wk AND status = \'active\'
-         ORDER BY reference_kind, publication_title'
-    );
-    $sourceStatement->execute(['wk' => $wikiKey]);
+    // Quellen holt der Editor NICHT hier ab. Seit 2026-07-22 haengen Lore-Quellen im
+    // geteilten System, und die Oberflaeche dafuer ist das gemeinsame Bauteil
+    // (mountFeatureSourceEditor -> api/edit/map/feature-sources.php), genau wie beim
+    // Siedlungseditor. Sie hier ein zweites Mal mitzuliefern hiesse, zwei Quellen der
+    // Wahrheit im selben Dialog zu haben -- eine davon waere nach dem ersten
+    // Hinzufuegen veraltet.
 
     $merkmale = [];
     if (is_string($entry['merkmale_json'] ?? null)) {
@@ -94,7 +96,6 @@ function avesmapsLoreReadEntryDetail(PDO $pdo, string $wikiKey): ?array
         'field_origins' => $fieldOrigins,
         'merkmale' => $merkmale,
         'places' => $placeStatement->fetchAll(PDO::FETCH_ASSOC) ?: [],
-        'sources' => $sourceStatement->fetchAll(PDO::FETCH_ASSOC) ?: [],
     ];
 }
 

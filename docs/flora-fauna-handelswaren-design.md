@@ -99,15 +99,30 @@ UNIQUE(`entry_wiki_key`, `place_wiki_key`, `relation`).
 `relation` ist nicht kosmetisch: Bei Waren heißt *Herkunft* „stammt von dort",
 *Verbreitung* „wird dort gehandelt". Das gehört in der Anzeige getrennt.
 
-### `lore_source` — Eintrag ↔ Publikation
+### Quellen — im geteilten System, **keine eigene Tabelle**
 
-Felder `entry_wiki_key`, `publikation`, `publikation_wiki_url`,
-`reference_kind` (ausfuehrlich \| ergaenzend \| erwaehnung), `pages`, `note`.
+Ein Lore-Eintrag hängt an `sources` + `feature_sources` wie jedes andere Element:
+`entity_type='lore'`, `entity_public_id` = `lore_entry.wiki_key` (Lore hat keine
+eigene `public_id`, sein Schlüssel *ist* sie), `origin='wiki_publication'`,
+dazu `reference_kind` (ausfuehrlich \| ergaenzend \| erwaehnung), `pages`, `note`.
 
 Der Parser ist **nicht neu zu schreiben**:
 `avesmapsWikiParsePublicationsSection()` (`publication-parsing.php:75`) leistet
-genau das. Damit passen die Daten ohne Umweg ins bestehende
-`sources`/`feature_sources`-System mit `origin='wiki_publication'`.
+genau das. Damit passen die Daten ohne Umweg ins bestehende System.
+
+> 💣 **Diese Zeilen standen hier schon vor der Umsetzung — und wurden ignoriert.**
+> Gebaut wurde am 2026-07-21 stattdessen eine eigene Tabelle `lore_source`, samt
+> eigenem Staging und eigenem Reconcile. Die Kosten: der Publikationstitel lag in
+> jeder der ~35.000 Zeilen statt einmal im Katalog, der Editor konnte Quellen nur
+> anzeigen, und dieselben Wiki-Angaben liefen durch zwei Reconciler. **Am
+> 2026-07-22 zurückgebaut** — Spaltenverbreiterung, Datenmigration und ein
+> erneuter Test des ganzen Lore-Syncs, gegen die zwei Zeilen, die es vorher
+> gekostet hätte. Spec:
+> `docs/superpowers/specs/2026-07-22-lore-quellen-vereinheitlichung-design.md`,
+> Regel: AGENTS.md §5.
+>
+> Die Lehre ist nicht „Design-Dokumente lesen", sondern: *ein Satz im Design, der
+> eine bestehende Struktur benennt, ist eine Anweisung, keine Anregung.*
 
 ---
 
@@ -122,6 +137,13 @@ Zweistufig, exakt wie Abenteuer und Kartensammlung:
 2. **Owner-Aktion `sync_lore`** — reconciled Staging → Produktion,
    override-safe: schreibt und löscht ausschließlich `origin='wiki'`;
    manuelle und suppressed Einträge bleiben unangetastet; idempotent.
+
+**Quellen laufen NICHT über diese beiden Stufen.** Sie werden von der
+`publication_sources`-Phase gestaged (`avesmapsPublicationEntityRefForPage`
+erkennt Lore-Seiten als fünften Typ) und von `avesmapsPublicationReconcileEntity`
+abgeglichen — dieselbe override-sichere Logik wie bei Siedlungen. `sync_lore` ruft
+sie je Eintrag auf, damit ein einzelner Sync vollständig ist; zusätzlich gibt es
+das Segment `lore` in `sync_publications`. Beide sind idempotent.
 
 🪤 **Niemals nach dem Feld `Art` filtern.** Bei den Abenteuern hat genau so eine
 Weiche ~430 Einträge verschluckt (siehe `wiki-art-gate-missing-adventures`). Hier
@@ -293,6 +315,7 @@ Feature; die Editoren sind ohne Daten wertlos und kommen deshalb zuletzt.
 
 Der verifizierende Scan liegt außerhalb des Repos (Scratchpad, kein Dump im
 Repo — `docs/repository-data-policy.md`). Er erzeugt `lore_entry.csv`,
-`lore_place.csv`, `lore_source.csv` und portiert den Publikations-Parser 1:1 nach
+`lore_place.csv`, `lore_source.csv` (eine Prototyp-DATEI, keine Tabelle — Quellen
+gehören in `feature_sources`, siehe §2) und portiert den Publikations-Parser 1:1 nach
 Python. Er ist die Referenz für den späteren PHP-Handler: Parse-Regeln, DPL-Logik
 und Abnahmezahlen sind daran an echten Daten geprüft.

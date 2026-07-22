@@ -42,10 +42,14 @@ try {
     $entityPublicId = trim((string) ($payload['entity_public_id'] ?? ''));
     // citymap joined in with the Kartensammlung (Spec §3.2): maps hang on the SAME shared source
     // catalogue as every other element, so "Ulisses F-Shop" exists once rather than once per map.
-    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap'];
+    // lore joined the same way (2026-07-22), undoing the one time this rule was ignored: "Natur &
+    // Waren" had shipped its own lore_source table, which duplicated a publication title into every
+    // one of ~35.000 rows and cost the editor add/remove/autocomplete. Its entity_public_id is
+    // lore_entry.wiki_key -- lore has no public_id, and the wiki_key IS its public identity.
+    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap', 'lore'];
 
     if (!in_array($entityType, $allowedTypes, true)) {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory oder citymap sein.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap oder lore sein.');
     }
     if ($entityPublicId === '') {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');

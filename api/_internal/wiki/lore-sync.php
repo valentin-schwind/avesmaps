@@ -14,10 +14,14 @@ declare(strict_types=1);
 //   - FELDER: ein Feld wird nur aus dem Wiki geschrieben, wenn field_origins_json[feld]
 //     NICHT 'manual' ist UND sich der Wert tatsaechlich aendert (Handarbeit gewinnt;
 //     ein wiederholter Sync ist ein No-op).
-//   - ORTE/QUELLEN: nur Zeilen mit origin='wiki' werden angelegt/entfernt. Eine
-//     manuelle Zeile wird nie angefasst, und ein auf status='suppressed' gesetzter
-//     Wiki-Eintrag (Grabstein des Editors) wird NIE wiederbelebt, auch wenn das Wiki
-//     ihn weiterhin auffuehrt.
+//   - ORTE: nur Zeilen mit origin='wiki' werden angelegt/entfernt. Eine manuelle Zeile
+//     wird nie angefasst, und ein auf status='suppressed' gesetzter Wiki-Eintrag
+//     (Grabstein des Editors) wird NIE wiederbelebt, auch wenn das Wiki ihn weiterhin
+//     auffuehrt.
+//   - QUELLEN: leben seit 2026-07-22 im GETEILTEN System (sources + feature_sources,
+//     entity_type='lore'). Dieser Reconcile ruft dafuer avesmapsPublicationReconcileEntity
+//     auf, das dieselbe Garantie mit derselben Vokabel gibt: origin='wiki_publication'
+//     statt 'wiki', status='approved' statt 'active'. Siehe den Konstantenblock unten.
 //
 // Side-effect-free on include (nur const + function), damit
 // __tests__/lore-sync-test.php den PUREN Diff-Kern ohne MySQL `require`n kann. Jede
@@ -38,11 +42,22 @@ require_once __DIR__ . '/../app/app-setting.php';
 
 const AVESMAPS_LORE_STAGING_CATALOG = 'wiki_lore_catalog';
 const AVESMAPS_LORE_STAGING_PLACES = 'wiki_lore_place_staging';
-const AVESMAPS_LORE_STAGING_SOURCES = 'wiki_lore_source_staging';
 
 const AVESMAPS_LORE_TABLE_ENTRY = 'lore_entry';
 const AVESMAPS_LORE_TABLE_PLACE = 'lore_place';
-const AVESMAPS_LORE_TABLE_SOURCE = 'lore_source';
+
+// 💣 THERE IS NO LORE SOURCE TABLE, AND THERE MUST NEVER BE ONE AGAIN (2026-07-22).
+// Lore quellen live in the SHARED system -- `sources` + `feature_sources` with
+// entity_type='lore' and entity_public_id=lore_entry.wiki_key -- exactly like settlements,
+// regions, paths, territories and citymaps. AGENTS.md §5.
+//
+// This file used to own `lore_source` and `wiki_lore_source_staging`. That copied a publication
+// title into every one of ~35.000 rows, left the editor unable to add or remove a source, and ran
+// the SAME wiki publication data through a second reconciler. Both tables are gone; their staging
+// is wiki_entity_publication (entity_type='lore'), written by the shared refs builder, and their
+// reconcile is avesmapsPublicationReconcileEntity, called per entry below.
+//
+// If you are about to add a lore-only source table back: the answer is one more entity_type.
 
 /** Die Spalten, die der Wiki-Sync fuellen darf -- je Feld per field_origins_json schuetzbar. */
 const AVESMAPS_LORE_WIKI_FIELDS = [
@@ -94,7 +109,8 @@ function avesmapsLoreFieldPlan(array $current, array $desired, array $fieldOrigi
 }
 
 /**
- * PURE: Abgleich einer Kindliste (Orte oder Quellen) gegen die Wiki-Wunschliste.
+ * PURE: Abgleich der Ortsliste gegen die Wiki-Wunschliste. (Bis 2026-07-22 lief hier
+ * auch die Quellenliste durch; die gehoert jetzt ins geteilte System, siehe Dateikopf.)
  * Identitaet ist der uebergebene $key. Es werden AUSSCHLIESSLICH Zeilen mit
  * origin='wiki' angelegt oder entfernt:
  *   - manuelle Zeilen (origin != 'wiki') tauchen weder in add noch in remove auf,
@@ -165,17 +181,6 @@ function avesmapsLorePlaceKey(array $row): string
     return $place === '' ? '' : $place . '|' . $relation;
 }
 
-/** PURE: Identitaet einer Quellenzeile (Publikation + Gewicht + Seiten). */
-function avesmapsLoreSourceKey(array $row): string
-{
-    $pub = trim((string) ($row['publication_wiki_key'] ?? ''));
-    if ($pub === '') {
-        return '';
-    }
-
-    return $pub . '|' . trim((string) ($row['reference_kind'] ?? '')) . '|' . trim((string) ($row['pages'] ?? ''));
-}
-
 /**
  * PURE: Wiki-Titel -> wiki_key. DIESELBE Formel wie
  * avesmapsPublicationCatalogWikiKeyForTitle (publication-sync.php:238), damit ein
@@ -224,20 +229,9 @@ function avesmapsLoreEnsureStagingTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_LORE_STAGING_SOURCES . ' (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            entry_wiki_key VARCHAR(190) NOT NULL,
-            publication_wiki_key VARCHAR(190) NOT NULL,
-            publication_title VARCHAR(300) NOT NULL,
-            reference_kind VARCHAR(20) NOT NULL,
-            pages VARCHAR(200) NULL,
-            note VARCHAR(500) NULL,
-            sort_order INT NOT NULL DEFAULT 0,
-            UNIQUE KEY uq_lore_source_staging (entry_wiki_key, publication_wiki_key, reference_kind, sort_order),
-            KEY idx_lore_source_staging_entry (entry_wiki_key)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-    );
+    // No source staging here: lore publication refs are staged into wiki_entity_publication by the
+    // SHARED refs builder (avesmapsPublicationBuildEntityRefsStep), which recognises lore pages via
+    // avesmapsPublicationEntityRefForPage. See the constants block at the top of this file.
 }
 
 function avesmapsLoreEnsureLiveTables(PDO $pdo): void
@@ -290,23 +284,10 @@ function avesmapsLoreEnsureLiveTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_LORE_TABLE_SOURCE . ' (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            entry_wiki_key VARCHAR(190) NOT NULL,
-            publication_wiki_key VARCHAR(190) NOT NULL,
-            publication_title VARCHAR(300) NOT NULL,
-            reference_kind VARCHAR(20) NOT NULL,
-            pages VARCHAR(200) NULL,
-            note VARCHAR(500) NULL,
-            sort_order INT NOT NULL DEFAULT 0,
-            origin VARCHAR(16) NOT NULL DEFAULT \'wiki\',
-            status VARCHAR(16) NOT NULL DEFAULT \'active\',
-            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            UNIQUE KEY uq_lore_source (entry_wiki_key, publication_wiki_key, reference_kind, sort_order),
-            KEY idx_lore_source_entry (entry_wiki_key, status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-    );
+    // 🪤 lore_source is DELIBERATELY not created here any more, and re-adding the DDL would be
+    // worse than pointless: after the owner drops the table, a CREATE IF NOT EXISTS would quietly
+    // rebuild it EMPTY -- and the migration would then read zero rows and report "nothing to do"
+    // when the truth is "the table came back". The shared feature_sources is the only home.
 }
 
 // ===========================================================================
@@ -365,14 +346,10 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
          VALUES (:wk, :pk, :pt, :rel, :so)
          ON DUPLICATE KEY UPDATE place_title = VALUES(place_title), sort_order = VALUES(sort_order)'
     );
-    $deleteSources = $pdo->prepare('DELETE FROM ' . AVESMAPS_LORE_STAGING_SOURCES . ' WHERE entry_wiki_key = :wk');
-    $insertSource = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_LORE_STAGING_SOURCES . '
-            (entry_wiki_key, publication_wiki_key, publication_title, reference_kind, pages, note, sort_order)
-         VALUES (:wk, :pk, :pt, :rk, :pages, :note, :so)
-         ON DUPLICATE KEY UPDATE publication_title = VALUES(publication_title),
-            pages = VALUES(pages), note = VALUES(note)'
-    );
+    // No source insert: the publications this page cites are staged by the SHARED refs builder
+    // (avesmapsPublicationBuildEntityRefsStep) into wiki_entity_publication with entity_type='lore'.
+    // $rec['sources'] is still parsed -- the parser is shared and its output is what the refs
+    // builder reads from the very same page -- it simply is not written a second time here.
 
     $pagesScanned = 0;
     $found = 0;
@@ -416,25 +393,6 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
                             'pk' => $placeKey,
                             'pt' => mb_substr($place['title'], 0, 300, 'UTF-8'),
                             'rel' => $place['relation'],
-                            'so' => $sortOrder,
-                        ]);
-                        $sortOrder++;
-                    }
-
-                    $deleteSources->execute(['wk' => $wikiKey]);
-                    $sortOrder = 0;
-                    foreach ($rec['sources'] as $src) {
-                        $pubKey = avesmapsLoreWikiKeyForTitle((string) $src['title']);
-                        if ($pubKey === '') {
-                            continue;
-                        }
-                        $insertSource->execute([
-                            'wk' => $wikiKey,
-                            'pk' => $pubKey,
-                            'pt' => mb_substr((string) $src['title'], 0, 300, 'UTF-8'),
-                            'rk' => (string) $src['reference_kind'],
-                            'pages' => $src['pages'] === null ? null : mb_substr((string) $src['pages'], 0, 200, 'UTF-8'),
-                            'note' => $src['note'] === null ? null : mb_substr((string) $src['note'], 0, 500, 'UTF-8'),
                             'so' => $sortOrder,
                         ]);
                         $sortOrder++;
@@ -507,8 +465,8 @@ function avesmapsLoreCountStaging(PDO $pdo): int
  * Dump-Aenderung schreibt nichts.
  *
  * ⚠️ RESUMIERBAR, und das ist nicht optional: der Katalog hat ~5.100 Zeilen, jede mit
- * eigenen Orts- und Quellenlisten. In einem Rutsch wuerde das auf STRATO die
- * PHP-Worker saettigen (CLAUDE.md). Ein Schritt verarbeitet hoechstens
+ * eigener Ortsliste und einem Quellen-Reconcile. In einem Rutsch wuerde das auf STRATO
+ * die PHP-Worker saettigen (CLAUDE.md). Ein Schritt verarbeitet hoechstens
  * AVESMAPS_LORE_RECONCILE_BATCH Zeilen bzw. bis zum Zeitbudget; der Aufrufer ruft
  * erneut mit `nextCursor`, bis `done` true ist. Cursor = wiki_key-High-Water-Mark,
  * genau wie beim Kartensammlungs-Reconcile.
@@ -521,7 +479,7 @@ function avesmapsLoreCountStaging(PDO $pdo): int
  *
  * @return array<string,int|bool|string>
  */
-function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun = false): array
+function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun = false, int $userId = 0): array
 {
     avesmapsLoreEnsureStagingTables($pdo);
     avesmapsLoreEnsureLiveTables($pdo);
@@ -532,7 +490,12 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
         'ok' => true, 'dry_run' => $dryRun, 'done' => false, 'nextCursor' => $cursor,
         'entries_added' => 0, 'entries_updated' => 0, 'entries_retired' => 0, 'entries_unchanged' => 0,
         'places_added' => 0, 'places_removed' => 0, 'places_suppressed' => 0,
-        'sources_added' => 0, 'sources_removed' => 0, 'processed_this_step' => 0,
+        // Quellen zaehlen jetzt Verknuepfungen in feature_sources, nicht mehr Zeilen einer
+        // eigenen Tabelle. `updated` kam mit dem Umstieg dazu: der geteilte Reconcile kann
+        // Seitenangabe/Gewichtung einer bestehenden Verknuepfung nachziehen, was der alte
+        // Weg nur als Loeschen+Anlegen ausdruecken konnte.
+        'sources_added' => 0, 'sources_removed' => 0, 'sources_updated' => 0,
+        'processed_this_step' => 0,
     ];
 
     $batch = $pdo->prepare(
@@ -555,12 +518,10 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
 
     $selectEntry = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_ENTRY . ' WHERE wiki_key = :wk LIMIT 1');
     $selectPlaces = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_PLACE . ' WHERE entry_wiki_key = :wk');
-    $selectSources = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_TABLE_SOURCE . ' WHERE entry_wiki_key = :wk');
     $stagedPlaces = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_STAGING_PLACES . ' WHERE entry_wiki_key = :wk ORDER BY sort_order');
-    $stagedSources = $pdo->prepare('SELECT * FROM ' . AVESMAPS_LORE_STAGING_SOURCES . ' WHERE entry_wiki_key = :wk ORDER BY sort_order');
 
-    // Einmal vorbereiten, nicht je Zeile: bei ~7.750 Orten und ~35.000 Quellen waere
-    // ein prepare() in der Schleife ein spuerbarer Eigentor-Effekt.
+    // Einmal vorbereiten, nicht je Zeile: bei ~7.750 Orten waere ein prepare() in der
+    // Schleife ein spuerbarer Eigentor-Effekt.
     $insertEntryLive = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_LORE_TABLE_ENTRY . '
             (wiki_key, kind, wiki_title, wiki_url, name, match_key, gruppe, typ, lebensraum,
@@ -577,18 +538,8 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
         'DELETE FROM ' . AVESMAPS_LORE_TABLE_PLACE . '
          WHERE entry_wiki_key = :wk AND place_wiki_key = :pk AND relation = :rel AND origin = \'wiki\''
     );
-    $insertSourceLive = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_LORE_TABLE_SOURCE . '
-            (entry_wiki_key, publication_wiki_key, publication_title, reference_kind, pages, note, sort_order, origin, status)
-         VALUES (:wk, :pk, :pt, :rk, :pages, :note, :so, \'wiki\', \'active\')
-         ON DUPLICATE KEY UPDATE publication_title = VALUES(publication_title),
-            pages = VALUES(pages), note = VALUES(note)'
-    );
-    $deleteSourceLive = $pdo->prepare(
-        'DELETE FROM ' . AVESMAPS_LORE_TABLE_SOURCE . '
-         WHERE entry_wiki_key = :wk AND publication_wiki_key = :pk AND reference_kind = :rk
-           AND sort_order = :so AND origin = \'wiki\''
-    );
+    // Quellen: KEINE eigenen Statements mehr. Sie laufen ueber den geteilten Reconcile,
+    // siehe die Quellen-Sektion in der Schleife unten.
 
     $nextCursor = $cursor;
     $processed = 0;
@@ -685,28 +636,23 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
             }
         }
 
-        // ---- Quellen ----
-        $stagedSources->execute(['wk' => $wikiKey]);
-        $desiredSources = $stagedSources->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        $selectSources->execute(['wk' => $wikiKey]);
-        $currentSources = $selectSources->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        $sourcePlan = avesmapsLoreChildPlan($currentSources, $desiredSources, 'avesmapsLoreSourceKey');
-        $stats['sources_added'] += count($sourcePlan['add']);
-        $stats['sources_removed'] += count($sourcePlan['remove']);
-        if (!$dryRun) {
-            foreach ($sourcePlan['add'] as $s) {
-                $insertSourceLive->execute([
-                    'wk' => $wikiKey, 'pk' => (string) $s['publication_wiki_key'],
-                    'pt' => (string) $s['publication_title'], 'rk' => (string) $s['reference_kind'],
-                    'pages' => $s['pages'], 'note' => $s['note'], 'so' => (int) ($s['sort_order'] ?? 0),
-                ]);
-            }
-            foreach ($sourcePlan['remove'] as $s) {
-                $deleteSourceLive->execute([
-                    'wk' => $wikiKey, 'pk' => (string) $s['publication_wiki_key'],
-                    'rk' => (string) $s['reference_kind'], 'so' => (int) ($s['sort_order'] ?? 0),
-                ]);
-            }
+        // ---- Quellen: EIN Aufruf in das geteilte System ----
+        //
+        // Kein eigener Abgleich mehr. avesmapsPublicationReconcileEntity liest die
+        // Wunschliste aus wiki_entity_publication (entity_type='lore') und gleicht sie
+        // gegen feature_sources ab -- mit derselben override-sicheren, unit-getesteten
+        // Logik, die Siedlungen, Regionen, Wege und Territorien benutzen: es schreibt und
+        // loescht AUSSCHLIESSLICH Zeilen mit origin='wiki_publication', manuelle Zeilen und
+        // Grabsteine bleiben unberuehrt, ein Wiederholungslauf ist ein echtes No-op.
+        //
+        // ⚠️ Der Eintragsschluessel ist zugleich die public id (Lore hat keine eigene).
+        // Guarded: laeuft der Reconcile ohne geladene Publikations-Bibliothek, bleiben die
+        // Quellen schlicht unangetastet, statt den ganzen Lauf zu versenken.
+        if (!$dryRun && function_exists('avesmapsPublicationReconcileEntity')) {
+            $sourceCounters = avesmapsPublicationReconcileEntity($pdo, 'lore', $wikiKey, $wikiKey, $userId);
+            $stats['sources_added'] += (int) $sourceCounters['links_added'];
+            $stats['sources_removed'] += (int) $sourceCounters['links_removed'];
+            $stats['sources_updated'] += (int) $sourceCounters['links_updated'];
         }
 
         if (microtime(true) >= $deadline) {

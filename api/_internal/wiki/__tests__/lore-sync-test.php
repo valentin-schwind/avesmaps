@@ -41,8 +41,6 @@ assert(avesmapsLorePlaceKey(['place_wiki_key' => 'weiden', 'relation' => 'verbre
 assert(avesmapsLorePlaceKey(['place_wiki_key' => 'weiden', 'relation' => 'herkunft'])
     !== avesmapsLorePlaceKey(['place_wiki_key' => 'weiden', 'relation' => 'verbreitung']));
 assert(avesmapsLorePlaceKey(['place_wiki_key' => '', 'relation' => 'verbreitung']) === '');
-assert(avesmapsLoreSourceKey(['publication_wiki_key' => 'zba', 'reference_kind' => 'ausfuehrlich', 'pages' => '110'])
-    === 'zba|ausfuehrlich|110');
 echo "keys ok\n";
 
 // -------------------------------------------------------------- CHILD PLAN ---
@@ -106,20 +104,13 @@ assert(array_column($plan['remove'], 'place_wiki_key') === ['tobrien']);
 assert($plan['suppressed'] === 1);
 echo "childplan-mixed ok\n";
 
-// Sources use the same engine, keyed by publication + weight + pages.
-$plan = avesmapsLoreChildPlan(
-    [['publication_wiki_key' => 'zba', 'reference_kind' => 'ausfuehrlich', 'pages' => '110', 'origin' => 'wiki', 'status' => 'active']],
-    [['publication_wiki_key' => 'zba', 'reference_kind' => 'ausfuehrlich', 'pages' => '110']],
-    'avesmapsLoreSourceKey'
-);
-assert($plan['add'] === [] && $plan['remove'] === []);
-// A corrected page number is a different source row: add the new, drop the old.
-$plan = avesmapsLoreChildPlan(
-    [['publication_wiki_key' => 'zba', 'reference_kind' => 'ausfuehrlich', 'pages' => '110', 'origin' => 'wiki', 'status' => 'active']],
-    [['publication_wiki_key' => 'zba', 'reference_kind' => 'ausfuehrlich', 'pages' => '111']],
-    'avesmapsLoreSourceKey'
-);
-assert(count($plan['add']) === 1 && count($plan['remove']) === 1);
-echo "sources ok\n";
+// SOURCES ARE NOT TESTED HERE ANY MORE -- and their absence is the point.
+//
+// Until 2026-07-22 this file also drove avesmapsLoreChildPlan with a source key, because lore
+// owned its own lore_source table. It does not any more: lore sources live in the shared system
+// (sources + feature_sources, entity_type='lore'), so their override safety is proven where the
+// shared code lives -- __tests__/publication-sync-test.php for the reconcile diff, and
+// __tests__/lore-source-migration-test.php for the one-off move of the old rows. Re-adding source
+// cases here would mean lore had grown a second source path again. AGENTS.md §5.
 
 echo "\nALL OK\n";

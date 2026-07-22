@@ -198,14 +198,19 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
                 $placesByEntry[(string) $row['entry_wiki_key']][] = (string) $row['place_title'];
             }
 
+            // Quellen aus dem GETEILTEN System (seit 2026-07-22, AGENTS.md §5): ein
+            // Lore-Eintrag haengt dort als entity_type='lore' mit seinem wiki_key als
+            // entity_public_id -- Lore hat keine eigene public_id, sein Schluessel IST sie.
+            // Weiterhin EINE Abfrage fuer die ganze Seite, kein N+1.
             $sourceStatement = $pdo->prepare(
-                'SELECT entry_wiki_key, COUNT(*) AS n FROM lore_source
-                 WHERE status = \'active\' AND entry_wiki_key IN (' . $in . ')
-                 GROUP BY entry_wiki_key'
+                'SELECT entity_public_id, COUNT(*) AS n FROM feature_sources
+                 WHERE entity_type = \'lore\' AND status = \'approved\'
+                   AND entity_public_id IN (' . $in . ')
+                 GROUP BY entity_public_id'
             );
             $sourceStatement->execute($keys);
             foreach ($sourceStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-                $sourceCounts[(string) $row['entry_wiki_key']] = (int) $row['n'];
+                $sourceCounts[(string) $row['entity_public_id']] = (int) $row['n'];
             }
         }
     } catch (Throwable $error) {
@@ -558,7 +563,13 @@ function avesmapsLoreReadStats(PDO $pdo): array
             $out['entries_total'] += (int) $row['n'];
         }
         $out['places'] = (int) $pdo->query('SELECT COUNT(*) FROM lore_place WHERE status = \'active\'')->fetchColumn();
-        $out['sources'] = (int) $pdo->query('SELECT COUNT(*) FROM lore_source WHERE status = \'active\'')->fetchColumn();
+        // ⚠️ Diese Zahl IST kleiner als die alten ~34.933 aus lore_source, und das ist richtig:
+        // dort war jede Nennung einer Publikation eine eigene Zeile, hier ist eine Publikation
+        // je Eintrag EINE Verknuepfung. Wer gegen die alte Zahl vergleicht, haelt einen
+        // korrekten Bestand fuer Datenverlust (Migrations-Spec §6.1).
+        $out['sources'] = (int) $pdo->query(
+            'SELECT COUNT(*) FROM feature_sources WHERE entity_type = \'lore\' AND status = \'approved\''
+        )->fetchColumn();
         $out['top_places'] = $pdo->query(
             'SELECT place_title, COUNT(*) AS n FROM lore_place WHERE status = \'active\'
              GROUP BY place_title ORDER BY n DESC LIMIT 15'

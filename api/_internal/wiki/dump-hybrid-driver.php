@@ -134,9 +134,13 @@ const AVESMAPS_WIKI_DUMP_PHASE_ADVENTURES = 'adventures';
 // citymap-sync.php.
 const AVESMAPS_WIKI_DUMP_PHASE_CITYMAPS = 'citymaps';
 // Flora/Fauna/Spezies/Handelswaren: scans the four lore infoboxes (Tierart, Pflanzenart,
-// Spezies, Gegenstandsgruppe) into wiki_lore_catalog + place/source staging. STAGING ONLY,
-// exactly like adventures and citymaps -- the sharp reconcile into lore_entry/lore_place/
-// lore_source is the owner's separate sync_lore action. See lore-sync.php.
+// Spezies, Gegenstandsgruppe) into wiki_lore_catalog + place staging. STAGING ONLY, exactly
+// like adventures and citymaps -- the sharp reconcile into lore_entry/lore_place is the owner's
+// separate sync_lore action. See lore-sync.php.
+//
+// Lore SOURCES are not staged here: they ride the publication_sources phase above, which
+// recognises lore pages through avesmapsPublicationEntityRefForPage and stages them into
+// wiki_entity_publication like every other entity's sources (AGENTS.md §5).
 const AVESMAPS_WIKI_DUMP_PHASE_LORE = 'lore';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
 
