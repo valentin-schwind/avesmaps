@@ -45,9 +45,11 @@
   /* Scrollbars: this iframe links tokens.css but NOT base.css, so its scroll areas showed the
      browser's default bars while the app around it had the thin warm ones. The WebKit
      pseudo-elements do not inherit, hence `*`. Measurements now match the settlement editor
-     (6cc567db): 10px wide, round thumb inset by a 2px track-coloured border. The citymap editor
-     still carries the older 7px copy of this block -- it gets the same treatment when its turn
-     comes; Spec §4.6 wants all of them replaced by ONE block in editor-shell.css. */
+     (6cc567db): 10px wide, round thumb inset by a 2px track-coloured border -- deliberately NOT
+     base.css's 7px, which the app around the editors keeps. All three editor pages now carry this
+     block character for character. Merging them into one stylesheet still needs that stylesheet to
+     exist: editor-shell.css is NOT it, it reaches the app shell via styles.css and no editor page
+     links it (Spec §4.6, corrected). */
   * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
   *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }

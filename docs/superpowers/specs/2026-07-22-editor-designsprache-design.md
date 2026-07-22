@@ -1,9 +1,16 @@
 # Gemeinsame Designsprache der fünf Editoren (Design)
 
 **Datum:** 2026-07-22 · **Auftraggeber:** Owner · **Maßstab:** `docs/design-language.md`,
-AGENTS.md §12 · **Status:** Entwurf am lebenden Muster abgestimmt
-(`verify-editor-shell.html`), Owner: „ich glaube jetzt haben wir eine gemeinsame
-Designsprache"
+AGENTS.md §12 · **Status:** in Umsetzung — Schritte 1–3 stehen, Schritt 4 ist für
+**vier von fünf** Editoren gebaut (Siedlungen, Vorkommen, Abenteuer, Karten);
+**Territorien** und die Schritte 5–7 sind offen. Fortschritt in §10, am echten
+Editor gemessene Zahlen in §11.1.
+
+> ⚠️ **Diese Spec ist ein Arbeitspapier, kein Protokoll.** Sie wurde beim Bauen
+> mehrfach widerlegt und korrigiert — §1.2 (Dubletten), §4.6 (Bildlaufleisten,
+> in *beiden* Hälften falsch), §8. Wer sie liest, prüft ihre Behauptungen gegen
+> `git log` und gegen den Code, statt ihnen zu glauben. Was hier steht, war beim
+> Schreiben wahr; was gemessen wurde, steht als Zahl da.
 
 ---
 
@@ -214,6 +221,32 @@ geschlossen — Vorkommen zeigt seine Spalten 2+3 erst mit ausgewähltem Eintrag
 
 Jede Spalte trägt einen Titel (`--font-size-subhead`, `--color-accent-strong`).
 
+> 💣 **`display: grid` ist hier keine Geschmacksfrage — Flex kann es nicht.**
+> Zweimal gemessen, zweimal aus demselben Grund daneben:
+>
+> - **Abenteuer** stand auf `flex: 1 1 0` / `flex: 2 1 0` — das *müsste* exakt
+>   1:2 ergeben, gemessen kam **483 / 458 / 458** heraus (1 : 1,898, Streuung
+>   24,67px). Ursache: `flex-basis: 0` **mit `box-sizing: border-box`**. Eine
+>   Border-Box kann nicht kleiner werden als ihr eigenes `padding + border`, also
+>   wurde die Basis der linken Spalte auf **25px** angehoben (2×12px Polsterung +
+>   1px Trenner), während die rechte — die keine eigene Polsterung hat — bei 0
+>   blieb. Verteilt wurden damit nicht 1399, sondern 1374 → 458/916, und links
+>   kamen die 25 obendrauf: 483. **border-box ist nicht der entlastete Verdächtige,
+>   sondern der Täter** — nur andersherum, als man vermutet.
+> - **Karten** hatte zwei Basen in einer Zeile: `.ce-panel` auf `flex-basis: 50%`,
+>   `.ce-panel--orte` übersteuerte auf `0`. Gemessen **459 / 673 / 244**
+>   (Streuung 429px) — die Orte-Spalte also *schmaler* als die feste Breite, die
+>   sie ersetzt hatte.
+>
+> Gitterspuren kennen beides nicht: `minmax(0,1fr)` und `minmax(0,2fr)` sind
+> exakt 1:2, gleichgültig wie sich die Kinder polstern. Den Kindern dann
+> `min-width: 0; min-height: 0` geben (der `auto`-Mindestwert eines Gitterkindes
+> drückt die Spur sonst auf). Ein vorhandenes `min-width: 240px` wandert an die
+> Spur (`minmax(240px, 1fr)`): greift schmal, stört bei voller Breite nicht.
+>
+> **Prüfen heißt messen, nicht die Regel lesen.** Beide Fälle sahen im Stylesheet
+> nach Dritteln aus.
+
 **Nicht Teil dieser Spec:** die *Rolle* der dritten Spalte unterscheidet sich
 (Eigenschaften vs. verbundene Orte). Gleich wird die **Breite**, nicht die
 Reihenfolge — die bleibt, wie Editoren sie kennen.
@@ -323,14 +356,38 @@ gebaut.
 
 **Die eigentliche Ursache der Uneinheitlichkeit:** die Editor-iframes binden
 `tokens.css`, aber **nicht** `base.css` — die globale Regel erreicht sie nie.
-Abenteuer- und Kartensammlungs-Editor haben den Block deshalb in ihr eigenes
-`<style>` **kopiert** (mit Kommentar, warum, z. B. `adventure-editor.html:41`);
-Siedlungs- und Territorien-Editor sowie das Vorkommen-Fenster haben ihn
-**nicht** — dort zeichnet der Browser seine Standardleisten.
+Diese Diagnose gilt weiter; der Befund daneben ist **überholt** (Stand bei
+Abfassung, 2026-07-22 vormittags): damals hatten nur Abenteuer- und
+Kartensammlungs-Editor den Block in ihr eigenes `<style>` **kopiert**, während
+Siedlungs- und Territorien-Editor sowie das Vorkommen-Fenster ihn **nicht**
+hatten und der Browser dort seine Standardleisten zeichnete. Wie es heute
+aussieht, steht im Kasten darunter.
 
-**Zu tun:** den Block **einmal** in `editor-shell.css` unterbringen, das jede
-Editor-Seite ohnehin bindet, und die beiden Kopien entfernen. Dabei die Breite
-angleichen — die Kopien setzen `7px`, `base.css` einen anderen Wert.
+> ⚠️ **Korrektur 2026-07-22 (beim Bau geprüft). Die alte Anweisung an dieser
+> Stelle war in beiden Hälften falsch** und hätte, befolgt, drei Commits
+> rückgängig gemacht:
+>
+> - *„den Block einmal in `editor-shell.css` unterbringen, das jede Editor-Seite
+>   ohnehin bindet"* — **keine** Editor-Seite bindet es. `editor-shell.css` kommt
+>   über `css/styles.css:25` (`@import`) in die **App-Hülle**, also in
+>   `index.html`; es stylt das äußere Overlay. Die Editor-iframes laden genau
+>   zwei Dateien, `css/base/fonts.css` und `css/base/tokens.css` (geprüft in
+>   allen drei `<head>`s). Ein gemeinsamer Block bräuchte ein **eigenes**
+>   Stylesheet, das die Editor-Seiten wirklich verlinken — dann aber gleich für
+>   Bildlaufleisten *und* `font-synthesis-weight` (§8.7).
+> - *„die Kopien setzen `7px`, `base.css` einen anderen Wert"* — beide setzten
+>   `7px`, sie waren identisch. Die Abweichung entstand **danach und andersherum**:
+>   der Siedlungseditor ging in `6cc567db` bewusst auf **10px** mit rundem Daumen
+>   und 2px Rand in Spurfarbe. Wer hier „angleichen" liest und auf `base.css`
+>   zielt, zieht die Editoren zurück auf 7px.
+>
+> **Stand:** alle drei Editorseiten tragen denselben 10px-Block, zeichenweise
+> gleich — Siedlungen `6cc567db`, Abenteuer `952fb225`, Karten `84b5781e`. Die
+> App ringsum bleibt auf `base.css`' 7px. Das ist ein **Unterschied mit Absicht**
+> (die Editoren sind Arbeitsflächen mit vielen Scrollbereichen), kein Rest.
+>
+> **Zu tun bleibt** nur noch das Zusammenlegen der drei gleichen Kopien in ein
+> Stylesheet, das die Editorseiten binden — Aufräumen, kein sichtbarer Effekt.
 
 ### 4.7 Hell und Dunkel
 
@@ -467,6 +524,35 @@ Gemessen bei 390 × 844: genau **eine** Spalte je Schritt, „Zurück" ab Schrit
 
 5. **Falsche Überschrift „Eigenschaften & Overrides"** (§5.2).
 
+6. **⚠️ Der goldene Spaltentitel liegt im Hellmodus unter AA — Owner-Entscheid.**
+   `--color-accent-strong` auf `--color-panel` misst **3,78:1** (hell `#9c7f22`
+   auf `#fffdf9`); dunkel sind es 8,08. Bei 16px fett gilt die 4,5-Schwelle —
+   16px fett ist *kein* „large text" (das beginnt bei 18,66px fett). Wichtig:
+   das ist **die von dieser Spec vorgeschriebene Paarung** (§3.2) und steht im
+   Siedlungseditor seit `6cc567db` genauso — also kein Alleingang eines Editors,
+   sondern eine Frage an das Token. Wer es ändert, ändert es **global** und für
+   alle fünf Editoren gleichzeitig, nicht in einer Datei.
+
+7. **⚠️ Den Editor-iframes fehlt `font-synthesis-weight: none` — Owner-Entscheid.**
+   Die Regel steht in `css/base/base.css:48`, das die iframes nicht laden (§4.6).
+   Faculty Glyphic liefert nur Regular, also rendert jedes `font-weight: 700` in
+   den Editoren als **synthetischer** Fettschnitt, während die App ringsum
+   bewusst keinen hat. Ein Einzeiler — der aber allen Editoren sichtbar die
+   Fettung nimmt, also nicht nebenbei erledigen. Gehört zusammen mit den
+   Bildlaufleisten in das gemeinsame Editor-Stylesheet, das §4.6 noch braucht.
+
+8. **`min-height` ist ein Boden, kein Maß.** Eine „Bedienhöhe 32px" über
+   `min-height` plus senkrechte Polsterung ergibt **32,84**. Der Siedlungseditor
+   schreibt an seinen Knöpfen `padding: 0 …` genau deswegen. Wer eine Höhe
+   *behauptet*, misst sie; wer sie misst, misst nicht, was `min-height` sagt.
+
+9. **Ein klebender Spaltentitel darf keinen negativen `margin-top` bekommen.**
+   Naheliegend, um in die Panel-Polsterung auszubluten — verschiebt aber den
+   Klebepunkt um genau diesen Betrag. Gemessen saß der Titel dann 14px unter der
+   Panelkante, und der Inhalt lief durch den Spalt darüber. Stattdessen das
+   **Panel oben entpolstern** und die Polsterung dem Titel geben; seitliches
+   Ausbluten ist unbedenklich.
+
 ---
 
 ## 9. Abgrenzung zu laufenden Sessions
@@ -504,10 +590,10 @@ Wer die Spec später liest, prüft den Stand gegen `git log`, statt ihm zu glaub
 | ✅ 2 | **Benennung** — `095ad263`. 5 Knöpfe, 5 Dialogtitel, 4 Seitentitel, Handbuch. Inklusive der zwei Stellen, die die Territorien-Beschriftung nach einem Lauf neu setzen (sonst wäre sie zurückgesprungen). Kein `ASSET_VERSION`-Bump nötig | gering |
 | ✅ 2b | **Zweizeilige Startkachel** — `48438139`. „Zuletzt gesynct" wandert in den Knopf, Status-Span verschoben statt neu gebaut, `setWikiSyncStartButtonLabel()` schützt die Struktur (§3.3). Gemessen: volle Breite in jedem Zustand, Höhe konstant 44 (kein Springen), Zeitstempel überlebt einen Sync-Lauf. Owner live bestätigt: „die zweizeilige Kachel passt" | gering |
 | ✅ 3 | **`editor-shell.css`** — `70a4b204`. Äußere Hülle extrahiert, JS-Inline-Maße raus, Siedlungseditor darauf umgestellt. Die drei übrigen laufen bewusst weiter auf den alten Klassen, darum darf `political-territory-editor-overlay.css` noch **nicht** weg. Zur Dublettenlöschung siehe die Korrektur in §1.2 | mittel |
-| 🔶 4 | **Je Editor** Typografie/Abstände/Spalten/Menüband. ✅ Siedlungen `6cc567db` (volle Sprache) · ✅ Abenteuer + Karten `19a042c9` (Menüband auf volle Breite; Karten verlieren zwei feste Spaltenbreiten) · ✅ Vorkommen `be08016c` (rem-Dialekt auf die Leiter) · ⬜ **Territorien offen** — eigener Fall, siehe unten | mittel |
+| 🔶 4 | **Je Editor** Typografie/Abstände/Spalten/Menüband. ✅ Siedlungen `6cc567db` (volle Sprache, **das Vorbild — hier abschreiben**) · ✅ Vorkommen `be08016c` (rem-Dialekt auf die Leiter) · ✅ Menüband aller vier auf volle Breite `19a042c9` · ✅ **Abenteuer `952fb225`** (Spaltentitel, Statuszeile, 32px-Bedienhöhe, Bildlaufleisten, exakte Drittel) · ✅ **Karten `6ba36307` + `84b5781e`** (dasselbe) · ⬜ **Territorien offen** — eigener Fall, siehe unten | mittel |
 | 5 | **Herkunft & `↺`** nach §5, zuerst Territorien (dort ist die Datenlage sauber) | mittel |
 | 6 | **Quellen** nach §6 — *nach* Abgleich mit §9 | mittel |
-| 7 | **Mobil**, Bildlaufleisten, Doku-Korrekturen aus §8 | gering |
+| 7 | **Mobil**; Bildlaufleisten sind inhaltlich erledigt (drei Editoren auf 10px), offen bleibt nur das Zusammenlegen der drei Kopien in ein Stylesheet, das die Editorseiten binden — zusammen mit `font-synthesis-weight` (§4.6, §8.7); Doku-Korrekturen aus §8 | gering |
 
 ### Warum Territorien eigens dran muss
 
@@ -563,7 +649,48 @@ Am Prüfgestell `verify-launcher-row.html` **gemessen** (Startknöpfe, alle Zust
 | Zeitstempel nach simuliertem Sync-Lauf | überlebt, Text unverändert |
 | Beschriftung | wechselt korrekt auf „Synchronisiert…" und zurück |
 
-**Nicht verifiziert** (Klassifizierer-Ausfälle während der Sitzung): Tippziele auf
-schmalem Schirm, die vereinheitlichten Bildlaufleisten im echten Editor, und
-sämtliche Aussagen am **laufenden** Produkt — die Editorlisten brauchen einen Login.
-Der Owner-Browser ist die verlässliche Instanz.
+### 11.1 Am echten Editor gemessen (nicht mehr am Muster)
+
+Die Muster oben sind Attrappen. Ab Schritt 4 wird in der **echten** Datei
+gemessen, über einen PHP-Server auf einem eigenen Port und ein Gestell, das den
+Editor im 1400 × 880-Rahmen der Hülle iframed (`verify-adventure-editor.html`,
+untracked wie die übrigen `verify-*.html`).
+
+**Abenteuer-Editor** (`952fb225`), alles gemessen:
+
+| | vorher | nachher |
+|---|---|---|
+| Drei Spalten | 483 / 458 / 458 (Streuung 24,67) | **466,66 / 466,67 / 466,67** (Streuung 0,01) |
+| Spaltentitel | keiner in keiner Spalte | 3 × 16px / 700 / `--color-accent-strong`, die zwei scrollenden kleben |
+| Statuszeile | fehlt ganz | volle Breite, konstant 31,84 hoch — lange Meldung schiebt die Spalten **nicht** |
+| Bedienhöhen | gemischt | Suche / Auswahl / Auswahl / Jahr / Knopf = **je 32** |
+| Menüband | 5 gleiche Kacheln | unverändert 5 × 263,2 (Streuung 0,01) |
+| Klebender Titel | — | bündig an der Panelkante (Abstand 0), deckend, volle Scheibenbreite |
+| Bildlaufleiste | 7px | 10px, runder Daumen, Tokens |
+
+**Karten-Editor** (`6ba36307` + `84b5781e`): Spalten **458,66 / 458,67 / 458,67**
+(vorher 459 / 673 / 244, Streuung 429), Bildlaufleiste gemessen 10px.
+
+> **Drei Falschmessungen, die erst auffielen, als sie fehlschlugen** — jedes Mal
+> war die Erwartung falsch, nicht der Code:
+> - Die Statuszeile *soll* nicht exakt 30 hoch sein. `min-height: 30px` ist ein
+>   Boden; 13px Text plus 2×6px Polsterung ergeben 31,84, im Siedlungseditor mit
+>   denselben Werten genauso. Zu prüfen ist die **Konstanz**, nicht die Zahl.
+> - Ein klebender Titel kann die **Bildlaufleiste nicht überdecken**. Gegen
+>   `clientWidth` messen, nicht gegen die Rahmenbox — sonst fehlen immer 11px
+>   (10 Leiste + 1 Trenner) und man „repariert" etwas Heiles.
+> - **Der Zoom des Prüf-Panes schwankt zwischen Läufen und skaliert jede Zahl
+>   mit.** Ein Lauf meldete den 1px-Spaltentrenner als `0.666667px` (= 1 ÷ 1,5)
+>   und damit zwei Fehlschläge, während im Stylesheet unverändert `1px` stand.
+>   Zahlen aus zwei Läufen sind nur vergleichbar, wenn `devicePixelRatio` gleich
+>   ist — das Gestell gibt es deshalb als erste Zeile aus. Für „gibt es eine
+>   Linie?" nicht die benutzte Breite gegen `"1px"` prüfen, sondern `> 0` plus
+>   die Deklaration im Stylesheet.
+
+**Nicht verifiziert:** Tippziele auf schmalem Schirm, und sämtliche Aussagen am
+**laufenden** Produkt — die Editorlisten brauchen einen Login, lokal antwortet die
+API mit 401 (was den Fehlerpfad der Statuszeile immerhin echt vorführt). Der
+Owner-Browser ist die verlässliche Instanz. Ebenfalls offen: der Hell/Dunkel-
+Vergleich im Browser-Pane ist unzuverlässig (gecachte `tokens.css`) — die
+Kontrastzahlen in §8.6 sind deshalb aus den Token-Werten **gerechnet**, nicht
+abgelesen.
