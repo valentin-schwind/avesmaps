@@ -22,7 +22,7 @@ const local = (value) => Array.from(value);
 const subjects = local(vm.runInContext("WIKI_SYNC_SUBJECTS", context));
 const byKey = (k) => vm.runInContext(`wikiSyncSubjectByKey(${JSON.stringify(k)})`, context);
 const known = (k) => vm.runInContext(`wikiSyncIsKnownSubject(${JSON.stringify(k)})`, context);
-const verbs = (k) => local(vm.runInContext(`wikiSyncSubjectVerbs(${JSON.stringify(k)})`, context));
+const buttonId = (k) => vm.runInContext(`wikiSyncSubjectButtonId(${JSON.stringify(k)})`, context);
 const views = (k) => local(vm.runInContext(`wikiSyncSubjectViewTabs(${JSON.stringify(k)})`, context));
 
 // --- the eight subjects, in display order -----------------------------------------------
@@ -43,17 +43,34 @@ assert.equal(known("materials"), false, "the junk-drawer key must not come back"
 assert.equal(known(""), false);
 assert.equal(known(null), false);
 
-// --- verbs: four subjects have no list editor -------------------------------------------
-// Owner-confirmed 2026-07-22 (spec §5). No dead second button -- Syncen carries the row alone.
-["territories", "regions", "paths", "powerlines"].forEach((key) => {
-	assert.deepEqual(verbs(key).map((v) => v.label), ["Syncen"], `${key} has no list editor`);
+// --- ONE button per subject, and it is the one that already exists ----------------------
+// Owner 2026-07-22, correcting an earlier build of this: a "Syncen | Bearbeiten" PAIR showed
+// every subject's button twice (once new, once as the old tile below it) and, for the four
+// subjects whose editor owns their sync, put a Syncen back in the panel that had deliberately
+// been taken out of it. Rule: editor button where there is one, sync button otherwise.
+assert.equal(buttonId("locations"), "settlement-editor-open");
+assert.equal(buttonId("territories"), "wiki-sync-territories");
+assert.equal(buttonId("adventures"), "adventure-editor-open");
+assert.equal(buttonId("citymaps"), "citymaps-editor-open");
+assert.equal(buttonId("lore"), "wiki-sync-lore-open");
+// The three without a list editor fall through to their sync button.
+assert.equal(buttonId("regions"), "wiki-sync-sync-region");
+assert.equal(buttonId("paths"), "wiki-sync-sync-path");
+assert.equal(buttonId("powerlines"), "wiki-sync-powerlines-sync");
+assert.equal(buttonId("nonsense"), null, "unknown key must not throw");
+
+// Karten is the one subject with no panel sync button at all -- its sync lives entirely inside
+// the citymap editor. Naming a button here that does not exist is how a dead control gets built.
+assert.equal(byKey("citymaps").syncButtonId, null, "Karten has no sync button in the panel");
+
+// Every id the registry names must exist in index.html. This is the check that would have caught
+// wiki-sync-sync-citymap, which the instruction named and the markup never had.
+const markup = readFileSync(path.join(repoRoot, "index.html"), "utf8");
+subjects.forEach((subject) => {
+	[subject.syncButtonId, subject.editorButtonId].filter(Boolean).forEach((id) => {
+		assert.ok(markup.includes(`id="${id}"`), `${subject.key} names button #${id}, which is not in index.html`);
+	});
 });
-["locations", "adventures", "citymaps", "lore"].forEach((key) => {
-	assert.deepEqual(verbs(key).map((v) => v.label), ["Syncen", "Bearbeiten"], `${key} has an editor`);
-});
-assert.equal(verbs("locations")[0].primary, true, "Syncen is the filled button");
-assert.equal(verbs("locations")[1].id, "settlement-editor-open", "verb must name the real button id");
-assert.equal(verbs("paths").length, 1);
 
 // --- view tabs: from the real renderers, see spec §5 ------------------------------------
 assert.deepEqual(views("paths").map((v) => v.label),

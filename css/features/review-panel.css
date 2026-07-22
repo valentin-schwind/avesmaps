@@ -1704,11 +1704,17 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 	background: var(--color-panel-muted);
 	color: var(--color-text-strong);
 }
+/* Die gewählte Zeile trägt --color-panel-active: auf hellem Grund dunkler, auf dunklem heller
+   als das Panel. --color-panel-muted allein (der erste Versuch) lag zu dicht am Panel -- man
+   musste die aktive Zeile suchen statt sie zu sehen. */
 .wiki-sync-rail__row.is-active {
 	border-left-color: var(--color-accent);
-	background: var(--color-panel-muted);
+	background: var(--color-panel-active);
 	color: var(--color-text-strong);
 	font-weight: 700;
+}
+.wiki-sync-rail__row.is-active:hover {
+	background: var(--color-panel-active);
 }
 /* Column separator as an inset shadow, NOT border-left: border-left is already the active
    marker on this row and would be overwritten. */
@@ -1725,34 +1731,17 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 	color: var(--color-text-muted);
 }
 
-/* Verb row: fixed order Syncen, then Bearbeiten. Four of the eight subjects have no list
-   editor, and there Syncen carries the row alone -- deliberately no greyed placeholder, a dead
-   button explains nothing and invites a click. */
+/* Der Platz für den EINEN Knopf des gewählten Subjekts. Der Knopf wird hierher VERSCHOBEN und
+   behält sein eigenes Aussehen (alle acht tragen .wiki-sync-panel__start) -- dieser Container
+   gibt ihm nur eine feste Stelle, unabhängig davon, welche Sektion gerade offen ist. Deshalb
+   steht hier keine Knopf-Optik: sie zu wiederholen hiesse, sie auseinanderlaufen zu lassen. */
 .wiki-sync-verbs {
 	display: grid;
-	grid-auto-flow: column;
-	grid-auto-columns: minmax(0, 1fr);
 	gap: 6px;
 	margin: 10px;
 }
-.wiki-sync-verbs__btn {
-	padding: 7px 6px;
-	font: inherit;
-	font-size: 12.5px;
-	text-align: center;
-	white-space: nowrap;
-	cursor: pointer;
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	border: 1px solid var(--color-button-soft-border);
-}
-.wiki-sync-verbs__btn:hover { background: var(--color-button-soft-hover); }
-.wiki-sync-verbs__btn--primary {
-	background: var(--color-button);
-	color: var(--color-button-text);
-	border-color: var(--color-button-border);
-	font-weight: var(--font-weight-bold);
+.wiki-sync-verbs:empty {
+	display: none;
 }
 
 /* Greyed = not shown publicly (today only Spezies). Deliberately NOT disabled: the data is

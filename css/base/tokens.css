@@ -33,6 +33,10 @@
 	--color-panel: #fffdf9;          /* white card (infobox, route planner) */
 	--color-panel-soft: #faf6ee;     /* softly grouped background */
 	--color-panel-muted: #f1ece1;    /* muted inset (coat frame, wells) */
+	/* The SELECTED row of a list or rail. One step further from the panel than -muted, in the
+	   direction that reads as "pressed" in each theme: darker on light, lighter on dark. -muted
+	   alone was too close to the panel to find the active row at a glance. */
+	--color-panel-active: #e7ddc9;
 
 	/* Text */
 	--color-text: #2e271e;
@@ -261,6 +265,8 @@
 	--color-panel: #312e26;
 	--color-panel-soft: #37342b;
 	--color-panel-muted: #39352b;
+	/* Lighter than the panel here -- the same "pressed" reading, mirrored for dark. */
+	--color-panel-active: #4c4636;
 
 	--color-text: #eee7da;
 	--color-text-strong: #f5f0e4;

@@ -462,16 +462,10 @@
 							<div class="wiki-sync-panel__actions">
 								<button type="button" id="citymaps-editor-open" class="wiki-sync-panel__start" title="Öffnet den Kartensammlungs-Editor (Karten anlegen/bearbeiten, Orte zuordnen, Bilder hochladen, Links prüfen, aus dem Wiki syncen)."><span class="t1">Karten bearbeiten</span><span id="citymaps-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
 							</div>
-							<!-- Karten was the ONE subject with no sync button anywhere in the panel: its
-							     only trigger is "Karten syncen" inside the citymap editor, which calls
-							     window.parent.startWikiSyncCitymapsSync() (review-wiki-sync.js:1477). The
-							     verb row delegates to a real button by id, so without this the row would
-							     render a Syncen that does nothing -- the dead button spec §3.2 forbids.
-							     Hidden and wired exactly like #wiki-sync-sync-adventure above: the editor
-							     toolbar stays the visible trigger, this is the id the row can click. -->
-							<div class="wiki-sync-panel__actions" hidden>
-								<button id="wiki-sync-sync-citymap" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Karten aus dem zuletzt geholten Dump override-sicher in die Karten-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet.">🚨 Syncen</button>
-							</div>
+							<!-- Karten hat bewusst KEINEN Sync-Knopf im Panel: sein einziger Auslöser ist
+							     „Karten syncen" im Karteneditor (window.parent.startWikiSyncCitymapsSync).
+							     Hier stand kurzzeitig ein versteckter Knopf, den die frühere Verbzeile
+							     anklicken sollte -- mit einem Knopf je Subjekt braucht es ihn nicht mehr. -->
 							<!-- Same component as the adventure list above (.wiki-sync-adv-picker), not a
 							     lookalike: one stylesheet, one row height, one behaviour. Only the ids
 							     differ, so the shared renderer can tell them apart. -->

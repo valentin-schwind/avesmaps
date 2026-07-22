@@ -302,35 +302,41 @@ function setWikiSyncSubjectCount(subjectKey, total) {
 	renderWikiSyncSubjectRail();
 }
 
-// The verbs of the selected subject. They delegate to the buttons that already exist in the
-// markup, so all wiring, busy labels and progress handling stay untouched -- including
-// #wiki-sync-sync-lore, which moves into the lore window's ribbon on first open and is still
-// found by id wherever it currently sits.
+// Wohin ein Knopf zurückgehört, wenn ein anderes Subjekt an die Reihe kommt. WeakMap, damit ein
+// Knopf, den ein Fenster woanders hinzieht (moveLoreSectionIntoDialog), hier nichts festhält.
+const wikiSyncVerbHomes = new WeakMap();
+
+// Der EINE Knopf des gewählten Subjekts, an eine feste Stelle direkt unter die Auswahl.
+//
+// 💣 Er wird VERSCHOBEN, nicht nachgebaut. Ein Stellvertreter hätte den echten Knopf daneben
+// stehen lassen (jedes Subjekt zeigte seinen Knopf doppelt) und hätte die Fortschrittsanzeige
+// verloren: setWikiSyncButtonState schreibt Beschriftung, Füllstand und den blockierten Zustand
+// IN den echten Knopf. appendChild verschiebt den Knoten samt id, Bindungen, Titel und dem
+// „Zuletzt gesynct"-Span darin -- es gibt danach nur noch diesen einen Knopf.
 function renderWikiSyncVerbs() {
 	const host = document.getElementById("wiki-sync-verbs");
 	if (!host) {
 		return;
 	}
-	host.innerHTML = "";
-	wikiSyncSubjectVerbs(activeWikiSyncPanelTab).forEach((verb) => {
-		const button = document.createElement("button");
-		button.type = "button";
-		button.className = "wiki-sync-verbs__btn" + (verb.primary ? " wiki-sync-verbs__btn--primary" : "");
-		button.textContent = verb.label;
-		// The real button keeps its own title, which is the one that explains what actually
-		// happens -- carry it over rather than writing a second, drifting description here.
-		const target = document.getElementById(verb.id);
-		if (target && target.title) {
-			button.title = target.title;
+	// Erst zurückräumen: was hier noch vom vorigen Subjekt liegt, gehört in seine Sektion.
+	Array.from(host.children).forEach((parked) => {
+		const home = wikiSyncVerbHomes.get(parked);
+		if (home) {
+			home.appendChild(parked);
+		} else {
+			parked.remove();
 		}
-		button.addEventListener("click", () => {
-			const current = document.getElementById(verb.id);
-			if (current) {
-				current.click();
-			}
-		});
-		host.appendChild(button);
 	});
+
+	const buttonId = wikiSyncSubjectButtonId(activeWikiSyncPanelTab);
+	const button = buttonId ? document.getElementById(buttonId) : null;
+	if (!button) {
+		return;
+	}
+	if (!wikiSyncVerbHomes.has(button) && button.parentElement) {
+		wikiSyncVerbHomes.set(button, button.parentElement);
+	}
+	host.appendChild(button);
 }
 
 // Rendered once here, during parse. The rail has to exist before ui-controls' DOMContentLoaded

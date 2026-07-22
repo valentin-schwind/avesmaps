@@ -40,9 +40,17 @@ const WIKI_SYNC_LORE_VIEWS = [
 	},
 ];
 
-// editorButtonId: null means there is no LIST editor. Owner-confirmed 2026-07-22 for
-// territories/regions/paths/powerlines -- "Weg bearbeiten" in a map popup edits ONE object and
-// is a different thing. Where it is null the verb row shows Syncen at full width; no dead button.
+// 💣 EIN Knopf je Subjekt, und zwar der, den es schon gibt (Owner 2026-07-22, korrigiert eine
+// frühere Fassung dieser Datei). Die Regel steht in wikiSyncSubjectButtonId: Editor-Knopf, sonst
+// Sync-Knopf. Kein Paar „Syncen | Bearbeiten" bauen — das hatte zwei Folgen, beide falsch:
+// jedes Subjekt zeigte seinen Knopf DOPPELT (einmal neu, einmal als alte Kachel darunter), und
+// für Siedlungen/Abenteuer/Karten/Vorkommen holte es ein „Syncen" ins Panel zurück, das dort
+// bewusst entfernt worden war (Owner 2026-07-07 „Ersetzen"; der Lore-Kommentar sagt wörtlich
+// „Im Reiter darf er nicht auftauchen"). Deren Sync lebt in ihrem Editor-Fenster.
+//
+// syncButtonId: null heißt „kein Sync-Knopf im PANEL" -- bei Karten läuft der Sync
+// ausschließlich über „Karten syncen" im Karteneditor (startWikiSyncCitymapsSync).
+// editorButtonId: null heißt „kein Listen-Editor" (Regionen, Wege, Kraftlinien).
 //
 // syncKind is the key the SERVER answers "last synced" under
 // (avesmapsWikiDumpSyncKindLastSynced, api/_internal/wiki/dump-sync-kind.php): singular and
@@ -56,7 +64,7 @@ const WIKI_SYNC_SUBJECTS = [
 	{ key: "paths",       label: "Wege",        syncButtonId: "wiki-sync-sync-path",        editorButtonId: null,                     syncKind: "path",       views: WIKI_SYNC_PATH_VIEWS },
 	{ key: "powerlines",  label: "Kraftlinien", syncButtonId: "wiki-sync-powerlines-sync",  editorButtonId: null,                     syncKind: null,         views: [] },
 	{ key: "adventures",  label: "Abenteuer",   syncButtonId: "wiki-sync-sync-adventure",   editorButtonId: "adventure-editor-open",  syncKind: "adventure",  views: [] },
-	{ key: "citymaps",    label: "Karten",      syncButtonId: "wiki-sync-sync-citymap",     editorButtonId: "citymaps-editor-open",   syncKind: "citymap",    views: [] },
+	{ key: "citymaps",    label: "Karten",      syncButtonId: null,                         editorButtonId: "citymaps-editor-open",   syncKind: "citymap",    views: [] },
 	// Label "Vorkommen", key stays `lore`: renaming the key buys nothing but a chance to miss
 	// one place (same reasoning as index.html:383). Here label and key even agree.
 	{ key: "lore",        label: "Vorkommen",   syncButtonId: "wiki-sync-sync-lore",        editorButtonId: "wiki-sync-lore-open",    syncKind: null,         views: WIKI_SYNC_LORE_VIEWS },
@@ -70,14 +78,14 @@ function wikiSyncIsKnownSubject(key) {
 	return wikiSyncSubjectByKey(key) !== null;
 }
 
-function wikiSyncSubjectVerbs(key) {
+// Der EINE Knopf des Subjekts: der Editor-Knopf, wo es einen gibt, sonst der Sync-Knopf. Er wird
+// nicht nachgebaut, sondern an eine feste Stelle unter die Auswahl VERSCHOBEN (renderWikiSyncVerbs)
+// -- id, Bindung, Fortschrittsanzeige im Knopf und das „Zuletzt gesynct" darin ziehen mit um, und
+// es bleibt kein zweiter Knopf übrig, der auseinanderlaufen könnte.
+function wikiSyncSubjectButtonId(key) {
 	const subject = wikiSyncSubjectByKey(key);
-	if (!subject) return [];
-	const verbs = [{ id: subject.syncButtonId, label: "Syncen", primary: true }];
-	if (subject.editorButtonId) {
-		verbs.push({ id: subject.editorButtonId, label: "Bearbeiten", primary: false });
-	}
-	return verbs;
+	if (!subject) return null;
+	return subject.editorButtonId || subject.syncButtonId || null;
 }
 
 function wikiSyncSubjectViewTabs(key) {
