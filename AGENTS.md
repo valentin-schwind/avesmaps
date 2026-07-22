@@ -116,6 +116,22 @@ DDL in PHP** (self-healing pattern), partially mirrored in `sql/`. Key tables:
 - `sources` + `feature_sources` — multi-source system (shipped): shared source catalog (`url`/`url_hash`=SHA256, `label`, `source_type`, `is_official`) linked to elements (`entity_type` ∈ settlement|region|path|territory, `entity_public_id`, `status`). Public read `GET /api/app/feature-sources.php`; editor write `POST /api/edit/map/feature-sources.php` (capability `edit`, dedup by `url_hash`, atomic `other_source` takeover). Wiki-publication bulk lookup + provenance **shipped**: `feature_sources` gains `origin` (wiki_publication|manual|community), `reference_kind`, `pages`, `note` (+ `status='suppressed'` tombstone); a resumable `publication_sources` dump-sync phase parses `{{Infobox Produkt}}` + `==Publikationen==` into `wiki_publication_catalog`/`wiki_entity_publication` staging, and an **owner-triggered `sync_publications` action** reconciles them override-safely into the wiki layer (writes/deletes ONLY `origin='wiki_publication'`, manual/suppressed untouched, idempotent by `wiki_key`). Sources travel in the `map-features` payload (shared `source_catalog` + per-entity refs, rendered synchronously — no lazy per-popup fetch). See §11.
 - WikiSync staging: `wiki_sync_runs/pages/cases`, `wiki_*_staging/queue`, `political_territory_wiki_test`, `wiki_territory_model`, `wiki_redirect_alias`.
 
+> 💣 **Sources live in ONE place. Never build a second source system.**
+> A new entity that needs sources joins `sources` + `feature_sources` by adding its
+> name to the `entity_type` whitelist — today `settlement | region | path | territory
+> | citymap`, in `api/edit/map/feature-sources.php` and `api/app/feature-sources.php`.
+> That is a two-line change, and it is how `citymap` joined.
+>
+> This is written down because it was ignored once: the Lore feature (Natur & Waren,
+> 2026-07-21) shipped its own `lore_source` table. The cost is not theoretical — a
+> publication title is stored once in the shared catalogue but was duplicated into
+> every one of ~35 000 lore rows, the editor lost add/remove/autocomplete and the
+> `note`/`status` provenance fields, and the same wiki publication data now flows
+> through two unrelated reconcilers. Undoing it needs a data migration.
+>
+> The tell: if you are about to write `CREATE TABLE <feature>_source`, stop — the
+> answer is one more `entity_type`.
+
 **Coordinate convention:** GeoJSON stores `[x, y]`; Leaflet `L.CRS.Simple` uses
 `[lat, lng] = [y, x]`. Always swap consciously.
 
