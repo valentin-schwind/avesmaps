@@ -60,17 +60,6 @@ declare(strict_types=1);
  *           loopable; resumable via (segment, id high-water); returns
  *           { stage, segment, cursor, done, links_added, links_removed, links_updated,
  *             no_link, processed, progress }. Holds the pipeline lock; releases on done.
- *   POST { "action": "migrate_lore_sources", "cursor"?: string, "dry_run"?: bool }
- *        -> ⏳ ONE-OFF, owner-triggered: moves the pre-2026-07-22 lore_source rows into
- *           the shared source system (sources + feature_sources, entity_type='lore',
- *           entity_public_id = lore_entry.wiki_key). Reads lore_source DIRECTLY, so it
- *           needs NO fresh dump. dry_run writes nothing and takes no lock. Resumable via
- *           an entry_wiki_key high-water cursor; returns { cursor, done, entries_processed,
- *           rows_read, links_written, sources_touched, rows_skipped, source_missing,
- *           counts, gaps }. 💣 Compare counts.lore_pairs (NOT counts.lore_rows) against
- *           counts.shared_approved -- the raw row count collapses by design, see the file
- *           header of _internal/wiki/lore-source-migration.php. Delete this action, its
- *           library and its test once the table is dropped.
  *   POST { "action": "cleanup_state" }
  *        -> "Dump holen" step 3/3: deletes every dump_read run's sandbox rows
  *           from wiki_dump_hybrid_state/wiki_dump_title_alias EXCEPT the newest
@@ -157,9 +146,6 @@ require_once __DIR__ . '/../../_internal/wiki/citymap-sync.php';
 // owner-triggered sync_lore reconcile below. Function-definitions-only on include; the parser
 // it pulls in (lore-parsing.php) is likewise side-effect-free.
 require_once __DIR__ . '/../../_internal/wiki/lore-sync.php';
-// ⏳ ONE-OFF: moves the pre-2026-07-22 lore_source rows into the shared source system. Delete this
-// require together with the file once the owner has migrated and dropped the table.
-require_once __DIR__ . '/../../_internal/wiki/lore-source-migration.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
@@ -773,76 +759,6 @@ try {
                     'processed' => (int) ($loreStep['processed_this_step'] ?? 0),
                     'total' => avesmapsLoreCountStaging($pdo),
                 ],
-            ]);
-            // no break -- avesmapsJsonResponse exits.
-
-        case 'migrate_lore_sources':
-            // ⏳ ONE-OFF, owner-triggered: move the pre-2026-07-22 lore_source rows into the shared
-            // source system (sources + feature_sources with entity_type='lore'). Spec:
-            // docs/superpowers/specs/2026-07-22-lore-quellen-vereinheitlichung-design.md.
-            //
-            // It reads lore_source DIRECTLY and needs NO fresh dump -- that is precisely why it can
-            // run before the first new sync, and why it is verifiable on its own. Resumable via an
-            // entry_wiki_key high-water cursor; one bounded step per call (STRATO: no server-side
-            // loop over 35.000 rows).
-            //
-            // { "dry_run": true } writes NOTHING and reports what a sharp run would do. The counts
-            // block is returned on EVERY call so the owner can compare before/after without a
-            // second endpoint.
-            //
-            // 💣 lore_rows vs lore_pairs: the raw row count is NOT the target. lore_source is unique
-            // per (entry, publication, kind, sort_order), feature_sources per (entity, source), so a
-            // publication cited twice in one article is two rows and ONE link. Compare against
-            // lore_pairs; comparing against lore_rows makes a correct run look like data loss.
-            $loreMigrateDry = ($payload['dry_run'] ?? false) === true;
-
-            // The lock is a PRODUCTION-write lock, so a dry run does not take it: reading counts
-            // must stay possible while something else is running.
-            if (!$loreMigrateDry) {
-                avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'migrate_lore_sources');
-                $lockHeldByThisRequest = true;
-                avesmapsEnsureFeatureSourceTables($pdo);
-            }
-
-            $loreMigrateCursor = avesmapsNormalizeSingleLine((string) ($payload['cursor'] ?? ''), 190);
-            $loreMigrateStep = avesmapsLoreSourceMigrationStep($pdo, $loreMigrateCursor, $loreMigrateDry, $lockUserId);
-            $loreMigrateDone = ($loreMigrateStep['done'] ?? false) === true;
-
-            if (!$loreMigrateDry) {
-                avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'migrate_lore_sources');
-                if ($loreMigrateDone) {
-                    avesmapsWikiDumpLockRelease($pdo, $lockUserId);
-                    $lockHeldByThisRequest = false;
-                    // The lore source lists ride in the ETag-cached map-features payload, so a
-                    // finished migration must invalidate it -- otherwise a warm client keeps
-                    // 304-ing the pre-migration state. Same counter ordinary edits bump.
-                    avesmapsWikiSyncNextMapRevision($pdo);
-                }
-            }
-
-            avesmapsJsonResponse(200, [
-                'ok' => true,
-                'stage' => 'migrate',
-                'dry_run' => $loreMigrateDry,
-                'cursor' => (string) ($loreMigrateStep['nextCursor'] ?? $loreMigrateCursor),
-                'done' => $loreMigrateDone,
-                // Per-STEP deltas; the client sums them for the run total.
-                'entries_processed' => (int) ($loreMigrateStep['entries_processed'] ?? 0),
-                'rows_read' => (int) ($loreMigrateStep['rows_read'] ?? 0),
-                'links_written' => (int) ($loreMigrateStep['links_written'] ?? 0),
-                'sources_touched' => (int) ($loreMigrateStep['sources_touched'] ?? 0),
-                // Unusable INPUT (row without an entry or publication key) -- expected 0.
-                'rows_skipped' => (int) ($loreMigrateStep['rows_skipped'] ?? 0),
-                // A write that did not land. Separate on purpose: a different problem, a different
-                // fix, and folding it into rows_skipped would hide it.
-                'links_failed' => (int) ($loreMigrateStep['links_failed'] ?? 0),
-                // lore_source is gone (already dropped, or never existed here). A STATE, not an
-                // error -- the client says so instead of showing a failure.
-                'source_missing' => (bool) ($loreMigrateStep['source_missing'] ?? false),
-                // THE RECONCILIATION. Read fresh on every call, so the final call of a sharp run
-                // carries the "after" numbers the owner checks before dropping the table.
-                'counts' => avesmapsLoreSourceMigrationCounts($pdo),
-                'gaps' => avesmapsLoreSourceMigrationGaps($pdo),
             ]);
             // no break -- avesmapsJsonResponse exits.
 

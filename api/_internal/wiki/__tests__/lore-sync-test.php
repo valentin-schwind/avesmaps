@@ -109,8 +109,7 @@ echo "childplan-mixed ok\n";
 // Until 2026-07-22 this file also drove avesmapsLoreChildPlan with a source key, because lore
 // owned its own lore_source table. It does not any more: lore sources live in the shared system
 // (sources + feature_sources, entity_type='lore'), so their override safety is proven where the
-// shared code lives -- __tests__/publication-sync-test.php for the reconcile diff, and
-// __tests__/lore-source-migration-test.php for the one-off move of the old rows. Re-adding source
-// cases here would mean lore had grown a second source path again. AGENTS.md §5.
+// shared code lives -- __tests__/publication-sync-test.php for the reconcile diff. Re-adding
+// source cases here would mean lore had grown a second source path again. AGENTS.md §5.
 
 echo "\nALL OK\n";
