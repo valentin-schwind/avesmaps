@@ -1078,7 +1078,7 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
     avesmapsCitymapsEnsureTables($pdo);
     $rows = $pdo->query(
         "SELECT id, public_id, title, parent_id, map_url, map_local_url, map_license,
-                thumb_url, thumb_local_url, thumb_auto_url, thumb_license, thumb_origin, thumb_auto_state, art, is_official, is_spoiler,
+                thumb_url, thumb_local_url, thumb_auto_url, thumb_license, thumb_origin, thumb_auto_state, art, is_official, is_spoiler, is_paid, has_scale,
                 valid_from_bf, valid_to_bf, status, origin
            FROM citymap
           ORDER BY title ASC"
@@ -1123,6 +1123,11 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
             'types' => $typesByCitymap[$id] ?? [],
             'is_official' => avesmapsCitymapTriBoolOut($row['is_official']),
             'is_spoiler' => avesmapsCitymapTriBoolOut($row['is_spoiler']),
+            // Dreiwertig und deshalb hier: die Panel-Liste filtert auf „kostenpflichtig" und
+            // „mit Maßstab", und NULL heisst dort „weiss niemand", nicht „nein". Ohne diese zwei
+            // Felder koennte sie die Frage gar nicht stellen; die Spalten gab es schon (:280/:296).
+            'is_paid' => avesmapsCitymapTriBoolOut($row['is_paid'] ?? null),
+            'has_scale' => avesmapsCitymapTriBoolOut($row['has_scale'] ?? null),
             'valid_from_bf' => $row['valid_from_bf'] !== null ? (int) $row['valid_from_bf'] : null,
             'valid_to_bf' => $row['valid_to_bf'] !== null ? (int) $row['valid_to_bf'] : null,
             'status' => (string) $row['status'],
@@ -1131,7 +1136,16 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
             'thumb_license' => (string) $row['thumb_license'],
             // Travels with the LIST because that is where a run's outcome has to be findable (Spec §8):
             // "9 ohne Seitenbild" is only useful if you can then see WHICH nine.
-            'thumb_origin' => avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null),
+            // 💣 NUR wenn es ein eigenes Bild GIBT. Die Spalte steht per Default auf 'manual'
+            // (der Grund steht bei avesmapsCitymapAutogetSkips), also behauptet sie roh
+            // durchgereicht „selbst hochgeladen" fuer jede Karte, die gar kein Vorschaubild hat --
+            // die Facette „Vorschaubild von" zaehlte dann hunderte Karten in einen falschen Wert.
+            // Ohne eigenes Bild beantwortet die Frage niemand: dann leer, und die Liste zeigt das
+            // als „(ohne Angabe)". Die AUSFUEHRLICHE Fassung unten (Detailansicht) bleibt roh --
+            // dort ist der Wert die Uploadsperre selbst und darf nicht verschwinden.
+            'thumb_origin' => trim((string) ($row['thumb_local_url'] ?? '')) !== ''
+                ? avesmapsCitymapNormalizeThumbOrigin($row['thumb_origin'] ?? null)
+                : '',
             'thumb_auto_state' => (string) ($row['thumb_auto_state'] ?? ''),
             'place_count' => $placeCounts[$id] ?? 0,
         ];

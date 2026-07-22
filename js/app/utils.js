@@ -125,6 +125,11 @@ function attachRadioFilter(toggleId, menuId, state, options, applyFilter, label 
 // wie viele Abschnitte vom Default abweichen. Rendert die Abschnitte ueber die vorhandenen
 // render*Filter (ohne eigenen Toggle) und routet Change-Events pro Abschnitt an dessen State.
 // sections = [{ menuId, kind: "multi"|"single", state, getOptions?, options?, label, isActive() }]
+// getOptions() gilt fuer BEIDE Arten: auch ein Einfachauswahl-Abschnitt darf seine Werte aus den
+// Daten ziehen statt aus einer festen Liste. Das ist nicht Kosmetik -- auf dem Reiter „Fehlt" etwa
+// stammt jede Zeile aus dem Wiki, eine feste Quelle-Liste boete dort „Andere" und „Keine" an, die
+// beide nur Leere liefern koennen. `options` bleibt fuer die Aufrufer, deren Werte wirklich fest
+// sind (Wiki/Andere/Keine im Siedlungs- und Wege-Editor).
 function attachFilterMenu(toggleId, panelId, sections, applyFilter, label = "Filter") {
 	const toggle = document.getElementById(toggleId);
 	const panel = document.getElementById(panelId);
@@ -135,7 +140,7 @@ function attachFilterMenu(toggleId, panelId, sections, applyFilter, label = "Fil
 		let active = 0;
 		sections.forEach((section) => {
 			if (section.kind === "single") {
-				renderRadioFilter("", section.menuId, section.options || SOURCE_FILTER_OPTIONS, section.state, section.label);
+				renderRadioFilter("", section.menuId, section.getOptions ? section.getOptions() : (section.options || SOURCE_FILTER_OPTIONS), section.state, section.label);
 			} else {
 				renderTypeFilter("", section.menuId, section.getOptions(), section.state, section.label);
 			}

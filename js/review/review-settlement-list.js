@@ -8,6 +8,151 @@ let settlementListView = "all"; // "all" | "onmap" | "wiki"
 const settlementTypeFilter = new Set(); // ausgewählte Ortsgrößen (leer = alle)
 const settlementContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 const settlementSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
+const settlementCoatFilter = { value: "" };   // Wappen: "" = alle | "ja" | "nein"
+const settlementImageFilter = { value: "" };  // Bilder: "" = alle | "ja" | "nein"
+
+// ===== Facetten-Werte AUS DEN ZEILEN =====================================================
+// Die Registry (js/review/review-subjects.js) sagt, WELCHES Feld eine Facette liest; welche
+// Werte es gibt, sagen ausschliesslich die geladenen Zeilen -- mit Zaehler, wie pathTypeOptions()
+// es seit jeher tut. Owner 2026-07-22.
+//
+// Warum das keine Formsache ist: der Abenteuereditor fuehrt den Fehler gerade vor. Seine feste
+// Liste EDITIONS (html/adventure-editor.html:573) endet bei DSA5 und kennt DSA4.1 nicht -- im
+// Bestand stehen aber Abenteuer mit genau dieser Angabe. Eine solche Liste bietet an, was es nicht
+// gibt, und verschluckt, was es gibt.
+//
+// Anzeigenamen sind ein GETRENNTES Nachschlagen mit Rueckfall auf den Rohwert. Es entscheidet nie,
+// welche Optionen erscheinen -- nur, wie sie heissen. Ein Wert, den diese Tabelle nicht kennt,
+// steht als er selbst in der Liste, statt zu fehlen.
+const WIKI_SYNC_FACET_VALUE_LABELS = {
+	product_type: {
+		gruppenabenteuer: "Gruppenabenteuer", soloabenteuer: "Soloabenteuer", kurzabenteuer: "Kurzabenteuer",
+		szenario: "Szenario", anthologie: "Anthologie", kampagne: "Kampagne", kampagnenband: "Kampagnenband",
+		metaband: "Metaband",
+	},
+	thumb_origin: { manual: "selbst hochgeladen", auto: "automatisch geholt" },
+};
+
+// Ein Wert, den es gibt -- naemlich „hier steht nichts". Als sichtbare Option und nicht als
+// stilles Wegfallen: „Abenteuer ohne DSA-Version" ist eine Frage, die ein Redakteur wirklich hat.
+const WIKI_SYNC_FACET_EMPTY = "(ohne Angabe)";
+
+function wikiSyncFacetValueLabel(field, value) {
+	const table = WIKI_SYNC_FACET_VALUE_LABELS[field];
+	return (table && table[value]) || value;
+}
+
+// „ist das Feld gefuellt?" fuer kind:"flag" -- 0, "", null und undefined heissen alle nein.
+function wikiSyncFacetIsFilled(value) {
+	if (Array.isArray(value)) {
+		return value.length > 0;
+	}
+	if (typeof value === "number") {
+		return value > 0;
+	}
+	return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+// Der Wert EINER Zeile fuer EINE Facette. Optionsbau und Trefferpruefung rufen beide hierher --
+// sonst koennten die angebotene Option und der Filter, der sie anwendet, auseinanderlaufen, und
+// eine Option zeigte einen Zaehler an, den ihr eigener Filter dann nicht erreicht.
+function wikiSyncFacetRowValue(row, facet) {
+	if (facet.kind === "source") {
+		// Die Quelle liest MEHRERE Felder und hat deshalb keins. Ohne diesen Zweig fiele sie in
+		// den generischen unten, laese row[""] und antwortete fuer jede Zeile „(ohne Angabe)" --
+		// eine Facette, die still das Falsche tut, statt zu fehlen. Heute nimmt die Siedlungsliste
+		// noch ihren eigenen Weg dorthin; das hier ist der Vertrag fuer den naechsten Aufrufer.
+		return getItemSourceCategory(row);
+	}
+	const raw = row ? row[facet.field] : null;
+	if (facet.kind === "flag") {
+		return wikiSyncFacetIsFilled(raw) ? "ja" : "nein";
+	}
+	if (facet.kind === "tri") {
+		// null ist ein EIGENER Wert. Die dreiwertigen Karten-Spalten meinen mit NULL „weiss
+		// niemand", und das zu „nein" zu falten wuerde behaupten, jemand haette es geprueft.
+		return raw === true ? "ja" : (raw === false ? "nein" : "unbekannt");
+	}
+	const value = String(raw === null || raw === undefined ? "" : raw).trim();
+	return value === "" ? WIKI_SYNC_FACET_EMPTY : value;
+}
+
+// Eine Auswahl, die in den aktuellen Daten nicht mehr vorkommt, filtert die Liste auf leer UND
+// verschwindet aus dem Menue -- der Trichter zaehlt sie dann, aber es gibt kein Kaestchen mehr,
+// um sie wieder abzuwaehlen. Genau das passiert beim Reiterwechsel: auf „Fehlt" stammt jede Zeile
+// aus dem Wiki, also faellt „Andere" aus den Quelle-Optionen heraus, waehrend die Auswahl stehen
+// bleibt. Was es nicht mehr gibt, wird deshalb abgewaehlt, statt unsichtbar weiterzufiltern.
+function wikiSyncPruneFacetState(state, options) {
+	if (!state) {
+		return;
+	}
+	const values = new Set(options.map((option) => option.value));
+	if (state instanceof Set) {
+		[...state].forEach((value) => {
+			if (!values.has(value)) {
+				state.delete(value);
+			}
+		});
+		return;
+	}
+	if (state.value && !values.has(state.value)) {
+		state.value = "";
+	}
+}
+
+// [{value, label, count}] aus den Zeilen. Eine Option ohne Zeile entsteht gar nicht erst -- der
+// Filter kann also nie ins Leere fuehren, und ein leeres Ergebnis heisst wirklich „nichts da".
+// `state` ist freiwillig; wird es uebergeben, raeumt der Optionsbau gestrandete Auswahlen weg.
+function wikiSyncFacetOptions(rows, facet, state) {
+	const byValue = new Map();
+	(rows || []).forEach((row) => {
+		const value = wikiSyncFacetRowValue(row, facet);
+		if (!byValue.has(value)) {
+			byValue.set(value, { value, label: wikiSyncFacetValueLabel(facet.field, value), count: 0 });
+		}
+		byValue.get(value).count += 1;
+	});
+	const options = [...byValue.values()];
+	wikiSyncPruneFacetState(state, options);
+	if (facet.kind === "flag" || facet.kind === "tri") {
+		const order = ["ja", "nein", "unbekannt"];
+		return options.sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
+	}
+	// „(ohne Angabe)" ans Ende, sonst alphabetisch -- es ist eine Restkategorie und soll nicht
+	// zwischen den echten Werten einsortiert stehen.
+	return options.sort((a, b) => {
+		if (a.value === WIKI_SYNC_FACET_EMPTY) return 1;
+		if (b.value === WIKI_SYNC_FACET_EMPTY) return -1;
+		return a.label.localeCompare(b.label, "de");
+	});
+}
+
+// Baut die Abschnitte eines Trichter-Menues AUS DER REGISTRY -- Titel und Reihenfolge stehen dort,
+// nicht im Markup. index.html traegt fuer diese Menues nur die leere Huelle. (Die drei Siedlungs-
+// Abschnitte stehen noch als festes Markup dort; sie sind aelter als die Registry.)
+function wikiSyncBuildFacetMenu(menuId, facets, sectionMenuId) {
+	const menu = document.getElementById(menuId);
+	if (!menu) {
+		return;
+	}
+	menu.innerHTML = facets.map((facet) =>
+		'<div class="type-filter__section"><div class="type-filter__section-title">'
+		+ escapeHtml(facet.label) + '</div><div id="' + escapeHtml(sectionMenuId(facet.key)) + '"></div></div>'
+	).join("");
+}
+
+// Die rebuild-Rueckgaben aller Trichter dieses Panels. Ein Verwerfen aus dem Programm heraus
+// aendert nur den Zustand -- die Zahl IM KNOPF („Filter (2) ▾") zeichnet attachFilterMenu sonst
+// erst beim naechsten Klick neu, und bis dahin nennt der Knopf Filter, die es nicht mehr gibt.
+const AVESMAPS_WIKISYNC_FILTER_REBUILDS = [];
+
+// Trefferpruefung. Mehrfachauswahl: leer = alle. Einfachauswahl: "" = alle.
+function wikiSyncFacetMatches(row, facet, state) {
+	if (facet.kind === "multi") {
+		return state.size === 0 || state.has(wikiSyncFacetRowValue(row, facet));
+	}
+	return !state.value || state.value === wikiSyncFacetRowValue(row, facet);
+}
 
 // Kontinent eines Eintrags; leer -> Aventurien (On-Map-Orte tragen 'Aventurien', Wiki-only ihren Wert).
 function settlementItemContinent(item) {
@@ -70,7 +215,25 @@ function settlementItemsIgnoringView() {
 	if (settlementSourceFilter.value) {
 		items = items.filter((item) => getItemSourceCategory(item) === settlementSourceFilter.value);
 	}
+	items = items.filter((item) => wikiSyncFacetMatches(item, SETTLEMENT_COAT_FACET, settlementCoatFilter));
+	items = items.filter((item) => wikiSyncFacetMatches(item, SETTLEMENT_IMAGE_FACET, settlementImageFilter));
 	return items;
+}
+
+// Die beiden Facetten, die der Siedlungseditor schon hatte und die Panel-Liste bis jetzt nicht
+// (html/wiki-sync-settlement-editor.html:2411). Sie kommen aus der Registry, damit Fenster und
+// Liste nicht zwei Fassungen derselben Frage pflegen.
+const SETTLEMENT_COAT_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "coat");
+const SETTLEMENT_IMAGE_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "image");
+
+// Ihre Optionen kommen bewusst aus der Basismenge OHNE die eigene Auswahl: sonst verschwindet
+// „nein", sobald „ja" gewaehlt ist (eine Option entsteht ja nur fuer Werte, die vorkommen) -- und
+// man kaeme aus dem Filter nicht mehr heraus, ohne ihn zu erraten.
+function settlementCoatOptions() {
+	return wikiSyncFacetOptions(settlementBaseFilteredItems(), SETTLEMENT_COAT_FACET, settlementCoatFilter);
+}
+function settlementImageOptions() {
+	return wikiSyncFacetOptions(settlementBaseFilteredItems(), SETTLEMENT_IMAGE_FACET, settlementImageFilter);
 }
 
 // Optionen für den Typ-Filter: distinct Ortsgrößen (Zähler aus der aktuellen Basismenge).
@@ -194,6 +357,8 @@ function renderSettlementList() {
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
 	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");
 	renderRadioFilter("settlement-source-filter-toggle", "settlement-source-filter-menu", SOURCE_FILTER_OPTIONS, settlementSourceFilter, "Quelle");
+	renderRadioFilter("", "settlement-coat-filter-menu", settlementCoatOptions(), settlementCoatFilter, SETTLEMENT_COAT_FACET.label);
+	renderRadioFilter("", "settlement-image-filter-menu", settlementImageOptions(), settlementImageFilter, SETTLEMENT_IMAGE_FACET.label);
 
 	// Toggle-Buttons (gegenseitig exklusiv, einer aktiv) — in eigenem Container unter dem
 	// Suchfeld, NICHT in der scrollbaren Liste.
@@ -452,11 +617,33 @@ document.addEventListener("dragend", () => {
 	settlementDragClass = "";
 });
 
-attachFilterMenu("settlement-filter-toggle", "settlement-filter-menu", [
+AVESMAPS_WIKISYNC_FILTER_REBUILDS.push(attachFilterMenu("settlement-filter-toggle", "settlement-filter-menu", [
 	{ menuId: "settlement-type-filter-menu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
 	{ menuId: "settlement-continent-filter-menu", kind: "multi", state: settlementContinentFilter, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilter.size === 1 && settlementContinentFilter.has("Aventurien")) },
 	{ menuId: "settlement-source-filter-menu", kind: "single", state: settlementSourceFilter, options: SOURCE_FILTER_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
-], renderSettlementList, "Filter");
+	{ menuId: "settlement-coat-filter-menu", kind: "single", state: settlementCoatFilter, getOptions: settlementCoatOptions, label: SETTLEMENT_COAT_FACET.label, isActive: () => Boolean(settlementCoatFilter.value) },
+	{ menuId: "settlement-image-filter-menu", kind: "single", state: settlementImageFilter, getOptions: settlementImageOptions, label: SETTLEMENT_IMAGE_FACET.label, isActive: () => Boolean(settlementImageFilter.value) },
+], renderSettlementList, "Filter"));
+
+// Subjektwechsel verwirft die Auswahl (Owner 2026-07-22). Die Zustaende sind je Subjekt getrennt,
+// koennten sich also gar nicht vermischen -- aber ein Filter, den man vor drei Subjekten gesetzt
+// hat, laesst die Liste beim Zurueckkommen unvollstaendig aussehen, und das faellt erst auf,
+// nachdem man den fehlenden Eintrag schon gesucht hat.
+window.avesmapsResetWikiSyncListFilters = function avesmapsResetWikiSyncListFilters() {
+	[settlementTypeFilter, settlementContinentFilter, avesmapsAdvTypeFilter, avesmapsAdvEditionFilter,
+		avesmapsAdvRegionFilter, avesmapsCmThumbOriginFilter].forEach((state) => state.clear());
+	// Kontinent kehrt auf seinen VORGABEWERT zurueck, nicht auf ein leeres Set: „alle Kontinente"
+	// ist nicht der Ruhezustand dieser Liste, die Karte ist Aventurien (siehe Deklaration oben).
+	settlementContinentFilter.add("Aventurien");
+	[settlementSourceFilter, settlementCoatFilter, settlementImageFilter, avesmapsAdvCoverFilter,
+		avesmapsAdvFshopFilter, avesmapsCmPaidFilter, avesmapsCmScaleFilter, avesmapsCmPreviewFilter]
+		.forEach((state) => { state.value = ""; });
+	AVESMAPS_WIKISYNC_FILTER_REBUILDS.forEach((rebuild) => {
+		if (typeof rebuild === "function") {
+			rebuild();
+		}
+	});
+};
 
 window.loadSettlementList = loadSettlementList;
 
@@ -653,14 +840,82 @@ var avesmapsAdvPickerWired = false;
 // after which it only fed the subject rail's count -- and that went too. Both callers keep their
 // own "X / Y" line right below, which is the number an editor actually reads.
 
+// --- Filter der Abenteuerliste ------------------------------------------------------------
+// Der Facettensatz ist DER DES EDITORS (html/adventure-editor.html:432), soweit er in den
+// Trichter passt. „Jahr von/bis" und „Ort" bleiben dort: das eine ist ein Zahlenbereich, das
+// andere eine Autovervollstaendigung, und attachFilterMenu kennt nur Ankreuz- und Radioabschnitte.
+// Eine dritte Art dafuer waere groesser als diese Aufgabe -- und die Panel-Liste ist die Flaeche,
+// von der man in den Editor abspringt, nicht die, auf der man recherchiert.
+var AVESMAPS_ADV_FACETS = wikiSyncSubjectFacets("adventures");
+function avesmapsAdvFacet(key) {
+	return AVESMAPS_ADV_FACETS.find(function (facet) { return facet.key === key; });
+}
+var avesmapsAdvTypeFilter = new Set();
+var avesmapsAdvEditionFilter = new Set();
+var avesmapsAdvRegionFilter = new Set();
+var avesmapsAdvCoverFilter = { value: "" };
+var avesmapsAdvFshopFilter = { value: "" };
+
+// Die Regionen EINER Zeile: die Rohnamen ihrer Orte vom Typ region/territory, wie sie auch der
+// Editor zieht (populateRegionFilter, html/adventure-editor.html:681). Eine Zeile kann mehrere
+// haben, deshalb eine eigene Lesart -- wikiSyncFacetRowValue liefert genau einen Wert je Zeile.
+function avesmapsAdvRegionNames(adventure) {
+	return ((adventure && adventure.places) || [])
+		.filter(function (place) { return (place.kind === "region" || place.kind === "territory") && place.name; })
+		.map(function (place) { return place.name; });
+}
+
+// Alle Filter ausser dem genannten. Fuer die Liste selbst mit null aufgerufen, fuer die Optionen
+// EINER Facette mit deren Schluessel: sonst zaehlte jede Option nur ihre eigene Auswahl, und die
+// nicht gewaehlten Werte verschwaenden aus dem Menue, sobald man einmal etwas angeklickt hat.
+function avesmapsAdvFilteredRows(skipKey) {
+	var searchEl = document.getElementById("wiki-sync-adv-search");
+	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
+	return (avesmapsAdvPickerCache || []).filter(function (a) {
+		if (q && (a.title || "").toLowerCase().indexOf(q) < 0) { return false; }
+		if (skipKey !== "type" && !wikiSyncFacetMatches(a, avesmapsAdvFacet("type"), avesmapsAdvTypeFilter)) { return false; }
+		if (skipKey !== "edition" && !wikiSyncFacetMatches(a, avesmapsAdvFacet("edition"), avesmapsAdvEditionFilter)) { return false; }
+		if (skipKey !== "cover" && !wikiSyncFacetMatches(a, avesmapsAdvFacet("cover"), avesmapsAdvCoverFilter)) { return false; }
+		if (skipKey !== "fshop" && !wikiSyncFacetMatches(a, avesmapsAdvFacet("fshop"), avesmapsAdvFshopFilter)) { return false; }
+		if (skipKey !== "region" && avesmapsAdvRegionFilter.size > 0) {
+			var names = avesmapsAdvRegionNames(a);
+			if (!names.some(function (name) { return avesmapsAdvRegionFilter.has(name); })) { return false; }
+		}
+		return true;
+	});
+}
+
+// Zustand je Facettenschluessel -- der Optionsbau braucht ihn, um gestrandete Auswahlen wegzuraeumen.
+var AVESMAPS_ADV_FILTER_STATES = {
+	type: avesmapsAdvTypeFilter, edition: avesmapsAdvEditionFilter, region: avesmapsAdvRegionFilter,
+	cover: avesmapsAdvCoverFilter, fshop: avesmapsAdvFshopFilter,
+};
+
+function avesmapsAdvRegionOptions() {
+	var byName = new Map();
+	avesmapsAdvFilteredRows("region").forEach(function (a) {
+		// Ein Abenteuer, das dieselbe Region zweimal auffuehrt, zaehlt einmal -- der Zaehler
+		// beantwortet „wie viele Abenteuer", nicht „wie viele Ortszeilen".
+		new Set(avesmapsAdvRegionNames(a)).forEach(function (name) {
+			if (!byName.has(name)) { byName.set(name, { value: name, label: name, count: 0 }); }
+			byName.get(name).count += 1;
+		});
+	});
+	var options = [...byName.values()].sort(function (a, b) { return a.label.localeCompare(b.label, "de"); });
+	wikiSyncPruneFacetState(avesmapsAdvRegionFilter, options);
+	return options;
+}
+
+function avesmapsAdvFacetOptions(key) {
+	return wikiSyncFacetOptions(avesmapsAdvFilteredRows(key), avesmapsAdvFacet(key), AVESMAPS_ADV_FILTER_STATES[key]);
+}
+
 function avesmapsRenderAdventurePicker() {
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
 	if (!scroll) { return; }
 	var countEl = document.getElementById("wiki-sync-adv-count");
-	var searchEl = document.getElementById("wiki-sync-adv-search");
-	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
 	var all = avesmapsAdvPickerCache || [];
-	var rows = q ? all.filter(function (a) { return (a.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
+	var rows = avesmapsAdvFilteredRows(null);
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Abenteuer.") + '</p>';
@@ -683,6 +938,16 @@ function avesmapsWireAdventurePicker() {
 	var scroll = document.getElementById("wiki-sync-adv-scroll");
 	if (!searchEl || !scroll) { return; }
 	avesmapsAdvPickerWired = true;
+	wikiSyncBuildFacetMenu("wiki-sync-adv-filter-menu", AVESMAPS_ADV_FACETS, function (key) {
+		return "wiki-sync-adv-" + key.toLowerCase() + "-menu";
+	});
+	AVESMAPS_WIKISYNC_FILTER_REBUILDS.push(attachFilterMenu("wiki-sync-adv-filter-toggle", "wiki-sync-adv-filter-menu", [
+		{ menuId: "wiki-sync-adv-type-menu", kind: "multi", state: avesmapsAdvTypeFilter, getOptions: function () { return avesmapsAdvFacetOptions("type"); }, label: avesmapsAdvFacet("type").label, isActive: function () { return avesmapsAdvTypeFilter.size > 0; } },
+		{ menuId: "wiki-sync-adv-edition-menu", kind: "multi", state: avesmapsAdvEditionFilter, getOptions: function () { return avesmapsAdvFacetOptions("edition"); }, label: avesmapsAdvFacet("edition").label, isActive: function () { return avesmapsAdvEditionFilter.size > 0; } },
+		{ menuId: "wiki-sync-adv-region-menu", kind: "multi", state: avesmapsAdvRegionFilter, getOptions: avesmapsAdvRegionOptions, label: avesmapsAdvFacet("region").label, isActive: function () { return avesmapsAdvRegionFilter.size > 0; } },
+		{ menuId: "wiki-sync-adv-cover-menu", kind: "single", state: avesmapsAdvCoverFilter, getOptions: function () { return avesmapsAdvFacetOptions("cover"); }, label: avesmapsAdvFacet("cover").label, isActive: function () { return Boolean(avesmapsAdvCoverFilter.value); } },
+		{ menuId: "wiki-sync-adv-fshop-menu", kind: "single", state: avesmapsAdvFshopFilter, getOptions: function () { return avesmapsAdvFacetOptions("fshop"); }, label: avesmapsAdvFacet("fshop").label, isActive: function () { return Boolean(avesmapsAdvFshopFilter.value); } },
+	], avesmapsRenderAdventurePicker, "Filter"));
 	searchEl.addEventListener("input", avesmapsRenderAdventurePicker);
 	scroll.addEventListener("dblclick", function (e) {
 		var row = e.target && e.target.closest ? e.target.closest("[data-adv-id]") : null;
@@ -724,14 +989,50 @@ window.loadWikiSyncAdventureList = window.loadWikiSyncAdventureList || function 
 var avesmapsCmPickerCache = null; // [{ public_id, title, origin, status, place_count, types, ... }]
 var avesmapsCmPickerWired = false;
 
+// --- Filter der Kartenliste ---------------------------------------------------------------
+// Hier gab es nichts zu uebernehmen: der Karteneditor hat selbst nur eine Titelsuche
+// (citymapMatchesSearch, html/citymap-editor.html:672). Die vier Facetten kommen daher aus den
+// echten Spalten. „kostenpflichtig" und „mit Maßstab" heissen woertlich wie im Editorformular
+// (html/citymap-editor.html:995) und sind DREIWERTIG -- NULL heisst dort „weiss niemand".
+var AVESMAPS_CM_FACETS = wikiSyncSubjectFacets("citymaps");
+function avesmapsCmFacet(key) {
+	return AVESMAPS_CM_FACETS.find(function (facet) { return facet.key === key; });
+}
+var avesmapsCmPaidFilter = { value: "" };
+var avesmapsCmScaleFilter = { value: "" };
+var avesmapsCmPreviewFilter = { value: "" };
+var avesmapsCmThumbOriginFilter = new Set();
+
+// Wie bei den Abenteuern: mit null fuer die Liste, mit einem Schluessel fuer die Optionen dieser
+// einen Facette -- sonst faellt jede nicht gewaehlte Option aus ihrem eigenen Menue heraus.
+function avesmapsCmFilteredRows(skipKey) {
+	var searchEl = document.getElementById("wiki-sync-cm-search");
+	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
+	return (avesmapsCmPickerCache || []).filter(function (c) {
+		if (q && (c.title || "").toLowerCase().indexOf(q) < 0) { return false; }
+		if (skipKey !== "paid" && !wikiSyncFacetMatches(c, avesmapsCmFacet("paid"), avesmapsCmPaidFilter)) { return false; }
+		if (skipKey !== "scale" && !wikiSyncFacetMatches(c, avesmapsCmFacet("scale"), avesmapsCmScaleFilter)) { return false; }
+		if (skipKey !== "preview" && !wikiSyncFacetMatches(c, avesmapsCmFacet("preview"), avesmapsCmPreviewFilter)) { return false; }
+		if (skipKey !== "thumbOrigin" && !wikiSyncFacetMatches(c, avesmapsCmFacet("thumbOrigin"), avesmapsCmThumbOriginFilter)) { return false; }
+		return true;
+	});
+}
+
+var AVESMAPS_CM_FILTER_STATES = {
+	paid: avesmapsCmPaidFilter, scale: avesmapsCmScaleFilter,
+	preview: avesmapsCmPreviewFilter, thumbOrigin: avesmapsCmThumbOriginFilter,
+};
+
+function avesmapsCmFacetOptions(key) {
+	return wikiSyncFacetOptions(avesmapsCmFilteredRows(key), avesmapsCmFacet(key), AVESMAPS_CM_FILTER_STATES[key]);
+}
+
 function avesmapsRenderCitymapPicker() {
 	var scroll = document.getElementById("wiki-sync-cm-scroll");
 	if (!scroll) { return; }
 	var countEl = document.getElementById("wiki-sync-cm-count");
-	var searchEl = document.getElementById("wiki-sync-cm-search");
-	var q = (searchEl && searchEl.value ? searchEl.value : "").trim().toLowerCase();
 	var all = avesmapsCmPickerCache || [];
-	var rows = q ? all.filter(function (c) { return (c.title || "").toLowerCase().indexOf(q) >= 0; }) : all;
+	var rows = avesmapsCmFilteredRows(null);
 	if (countEl) { countEl.textContent = rows.length + " / " + all.length; }
 	if (!rows.length) {
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">' + (all.length ? "Kein Treffer." : "Keine Karten.") + '</p>';
@@ -767,6 +1068,15 @@ function avesmapsWireCitymapPicker() {
 	var scroll = document.getElementById("wiki-sync-cm-scroll");
 	if (!searchEl || !scroll) { return; }
 	avesmapsCmPickerWired = true;
+	wikiSyncBuildFacetMenu("wiki-sync-cm-filter-menu", AVESMAPS_CM_FACETS, function (key) {
+		return "wiki-sync-cm-" + key.toLowerCase() + "-menu";
+	});
+	AVESMAPS_WIKISYNC_FILTER_REBUILDS.push(attachFilterMenu("wiki-sync-cm-filter-toggle", "wiki-sync-cm-filter-menu", [
+		{ menuId: "wiki-sync-cm-paid-menu", kind: "single", state: avesmapsCmPaidFilter, getOptions: function () { return avesmapsCmFacetOptions("paid"); }, label: avesmapsCmFacet("paid").label, isActive: function () { return Boolean(avesmapsCmPaidFilter.value); } },
+		{ menuId: "wiki-sync-cm-scale-menu", kind: "single", state: avesmapsCmScaleFilter, getOptions: function () { return avesmapsCmFacetOptions("scale"); }, label: avesmapsCmFacet("scale").label, isActive: function () { return Boolean(avesmapsCmScaleFilter.value); } },
+		{ menuId: "wiki-sync-cm-preview-menu", kind: "single", state: avesmapsCmPreviewFilter, getOptions: function () { return avesmapsCmFacetOptions("preview"); }, label: avesmapsCmFacet("preview").label, isActive: function () { return Boolean(avesmapsCmPreviewFilter.value); } },
+		{ menuId: "wiki-sync-cm-thumborigin-menu", kind: "multi", state: avesmapsCmThumbOriginFilter, getOptions: function () { return avesmapsCmFacetOptions("thumbOrigin"); }, label: avesmapsCmFacet("thumbOrigin").label, isActive: function () { return avesmapsCmThumbOriginFilter.size > 0; } },
+	], avesmapsRenderCitymapPicker, "Filter"));
 	searchEl.addEventListener("input", avesmapsRenderCitymapPicker);
 	scroll.addEventListener("dblclick", function (e) {
 		var row = e.target && e.target.closest ? e.target.closest("[data-cm-id]") : null;

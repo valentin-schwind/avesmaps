@@ -73,8 +73,70 @@ const WIKI_SYNC_SUBJECTS = [
 	{ key: "lore",        label: "Vorkommen",   syncButtonId: "wiki-sync-sync-lore",        editorButtonId: "wiki-sync-lore-open",    syncKind: "lore",       views: WIKI_SYNC_LORE_VIEWS },
 ];
 
+// Die Facetten je Subjekt -- FELD und BESCHRIFTUNG, niemals Werte. Die Werte leitet der
+// Optionsbauer aus den geladenen Zeilen ab, samt Zähler, so wie pathTypeOptions() es seit jeher
+// tut (js/review/review-path-sync.js:78). Owner 2026-07-22, und damit ersetzt: die frühere
+// Fassung der Anweisung schrieb Wertelisten fest ins Programm. Eine feste Liste bietet Werte an,
+// die es nicht gibt, und verschluckt echte -- und ein leeres Ergebnis sieht dann genauso aus wie
+// „gibt es nicht".
+//
+// kind:
+//   "multi"  verschiedene Werte von `field`, Ankreuzfelder (Typ, Kontinent, DSA-Version, …)
+//   "flag"   ist `field` gefüllt? -> ja/nein (Wappen, Bilder, Cover, F-Shop, Vorschaubild)
+//   "tri"    `field` ist ja / nein / unbekannt -- die dreiwertigen Karten-Spalten, wo NULL
+//            „weiß niemand" heißt und nicht „nein" (api/_internal/app/citymaps.php:280)
+//   "source" die geteilte Wiki/Andere/Keine-Lesart, die über MEHRERE Felder geht
+//            (getItemSourceCategory, js/app/utils.js) -- deshalb hier ohne `field`
+//
+// Wo ein Editor den Filter schon hat, steht hier SEIN Satz: die Panel-Liste und das Fenster
+// desselben Subjekts sollen nicht zwei verschiedene Fragen stellen können.
+//
+// Kraftlinien fehlen absichtlich: 61 Namen sind zu wenig, als dass ein Filter sich lohnte
+// (Owner 2026-07-22). Vorkommen fehlt ebenfalls, aber aus einem anderen Grund -- seine Liste
+// kommt serverseitig seitenweise (api/app/lore.php, limit=200 über ~35.000 Zeilen), also könnte
+// eine Facette hier nur das gerade geladene Fenster sehen und filtern. Seine Facetten müssen in
+// die Abfrage, nicht in den Browser; das ist ein eigener Schritt.
+const WIKI_SYNC_SUBJECT_FACETS = {
+	locations: [
+		{ key: "type", label: "Typ", kind: "multi", field: "settlement_label" },
+		{ key: "continent", label: "Kontinent", kind: "multi", field: "continent" },
+		{ key: "source", label: "Quelle", kind: "source", field: "" },
+		{ key: "coat", label: "Wappen", kind: "flag", field: "has_coat" },
+		{ key: "image", label: "Bilder", kind: "flag", field: "image_count" },
+	],
+	adventures: [
+		{ key: "type", label: "Typ", kind: "multi", field: "product_type" },
+		{ key: "edition", label: "DSA-Version", kind: "multi", field: "edition" },
+		// Liest die Ortsliste, nicht ein Feld der Zeile -- der Optionsbauer dafür steht am
+		// Aufrufer (avesmapsAdvRegionOptions). „Jahr von/bis" und „Ort" bleiben im Fenster:
+		// beide passen in keine der vier Arten oben, und die Panel-Liste ist die Fläche, von
+		// der man wegspringt, nicht die, auf der man recherchiert.
+		{ key: "region", label: "Region", kind: "multi", field: "places" },
+		{ key: "cover", label: "Cover", kind: "flag", field: "has_cover" },
+		{ key: "fshop", label: "F-Shop", kind: "flag", field: "has_fshop" },
+	],
+	citymaps: [
+		// Beschriftungen wörtlich wie im Karteneditor (html/citymap-editor.html:995) -- dieselbe
+		// Spalte darf im Panel nicht anders heißen als im Fenster.
+		{ key: "paid", label: "kostenpflichtig", kind: "tri", field: "is_paid" },
+		{ key: "scale", label: "mit Maßstab", kind: "tri", field: "has_scale" },
+		{ key: "preview", label: "Vorschaubild", kind: "flag", field: "thumb" },
+		{ key: "thumbOrigin", label: "Vorschaubild von", kind: "multi", field: "thumb_origin" },
+	],
+};
+
 function wikiSyncSubjectByKey(key) {
 	return WIKI_SYNC_SUBJECTS.find((subject) => subject.key === key) || null;
+}
+
+// Die Facetten eines Subjekts, oder eine leere Liste. EIN Argument, nicht zwei: die Anweisung
+// nannte hier ein zweites (viewKey), mit dem Vorkommen seine Facette „Art" hätte ausblenden
+// sollen, sobald der Reiterstreifen schon eine Art wählt. Vorkommen ist vertagt (siehe oben),
+// also hätte jeder Aufrufer heute `undefined` übergeben und der Parameter nichts getan. Wenn
+// Vorkommen kommt, ist das ein zweizeiliger Nachtrag samt Test -- ein Parameter ohne Wirkung
+// wäre bis dahin nur Maschinerie, die vorgibt, etwas zu können.
+function wikiSyncSubjectFacets(key) {
+	return WIKI_SYNC_SUBJECT_FACETS[key] || [];
 }
 
 function wikiSyncIsKnownSubject(key) {

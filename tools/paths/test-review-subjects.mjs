@@ -109,4 +109,73 @@ assert.equal(syncKind("lore"), "lore");
 assert.equal(syncKind("powerlines"), null, "nothing answers for powerlines -- do not invent one");
 assert.equal(syncKind("nonsense"), null);
 
+// --- Facetten: FELD und BESCHRIFTUNG, niemals Werte -------------------------------------
+// Das ist die Regel, die diese Datei durchsetzen muss. Eine feste Werteliste in der Registry
+// bietet Werte an, die es nicht gibt, und verschluckt echte -- der Abenteuereditor fuehrt genau
+// das vor (seine EDITIONS-Liste endet bei DSA5 und kennt DSA4.1 nicht, obwohl der Bestand es hat).
+const facets = (k) => local(vm.runInContext(`wikiSyncSubjectFacets(${JSON.stringify(k)})`, context));
+const facetKeys = (k) => facets(k).map((f) => f.key);
+
+assert.deepEqual(facetKeys("locations"), ["type", "continent", "source", "coat", "image"],
+	"der Satz ist der des Siedlungseditors -- Fenster und Panel duerfen nicht zwei Fragen stellen");
+assert.deepEqual(facetKeys("adventures"), ["type", "edition", "region", "cover", "fshop"]);
+assert.deepEqual(facetKeys("citymaps"), ["paid", "scale", "preview", "thumbOrigin"]);
+
+// Kraftlinien bewusst ohne Filter (61 Namen, Owner 2026-07-22); Vorkommen, weil seine Liste
+// serverseitig seitenweise kommt und eine Facette hier nur das geladene Fenster saehe.
+assert.deepEqual(facets("powerlines"), [], "Kraftlinien bekommen absichtlich keinen Filter");
+assert.deepEqual(facets("lore"), [], "Vorkommen braucht serverseitige Facetten, nicht diese");
+assert.deepEqual(facets("nonsense"), [], "unbekannter Schluessel darf nicht werfen");
+
+// Die Kernregel, maschinell geprueft: kein Facetteneintrag darf Werte mitbringen.
+["locations", "adventures", "citymaps"].forEach((key) => {
+	facets(key).forEach((facet) => {
+		["values", "options", "choices"].forEach((forbidden) => {
+			assert.ok(!(forbidden in facet),
+				`${key}.${facet.key} traegt "${forbidden}" -- Werte kommen aus den Daten, nie von hier`);
+		});
+		assert.ok(facet.label && facet.label.length > 0, `${key}.${facet.key} braucht eine Beschriftung`);
+		assert.ok(["multi", "flag", "tri", "source"].includes(facet.kind),
+			`${key}.${facet.key} hat die unbekannte Art "${facet.kind}"`);
+		// "source" liest mehrere Felder (getItemSourceCategory) und traegt deshalb keins.
+		assert.equal(facet.field === "", facet.kind === "source",
+			`${key}.${facet.key}: nur die Quelle-Facette darf ohne Feld auskommen`);
+	});
+});
+
+// Die dreiwertigen Karten-Spalten muessen dreiwertig BLEIBEN: NULL heisst dort "weiss niemand".
+// Als "flag" gefaltet behauptete der Filter, jemand haette "nein" geprueft.
+assert.equal(facets("citymaps").find((f) => f.key === "paid").kind, "tri");
+assert.equal(facets("citymaps").find((f) => f.key === "scale").kind, "tri");
+
+// --- die Menue-Huellen, die das Markup stellen muss --------------------------------------
+// Gleiche Absicherung wie bei den Knopf-ids oben: eine Facette, deren Abschnitt es im Markup
+// nicht gibt, rendert lautlos ins Nichts -- der Trichter zaehlt sie dann, zeigt aber nichts an.
+// Siedlungen tragen ihre Abschnitte noch als festes Markup; Abenteuer und Karten bekommen nur
+// die leere Huelle, die wikiSyncBuildFacetMenu aus der Registry fuellt.
+facetKeys("locations").forEach((key) => {
+	assert.ok(markup.includes(`id="settlement-${key}-filter-menu"`),
+		`Siedlungs-Facette ${key} hat keinen Abschnitt in index.html`);
+});
+[["adv", "wiki-sync-adv"], ["cm", "wiki-sync-cm"]].forEach(([, prefix]) => {
+	assert.ok(markup.includes(`id="${prefix}-filter-toggle"`), `${prefix}: Trichter fehlt in index.html`);
+	assert.ok(markup.includes(`id="${prefix}-filter-menu"`), `${prefix}: Menue-Huelle fehlt in index.html`);
+});
+
+// --- Ladereihenfolge: die Registry vor ihren Lesern -------------------------------------
+// review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim
+// AUSWERTEN auf (die Beschriftungen der Filterabschnitte stehen in der Registry). Stand sie
+// darunter -- so war es bis 2026-07-23 --, warf das Listenmodul beim Laden und fiel als Ganzes
+// aus: keine Siedlungsliste, keine Abenteuerliste, keine Kartenliste. Ohne DB faellt so etwas
+// beim Entwickeln nicht auf, weil die Listen ohnehin leer bleiben.
+const scriptPos = (file) => markup.indexOf(`src="${file}"`);
+assert.ok(scriptPos("js/review/review-subjects.js") > 0, "review-subjects.js fehlt in index.html");
+["js/review/review-settlement-list.js", "js/review/review-wiki-sync.js"].forEach((reader) => {
+	assert.ok(scriptPos(reader) > 0, `${reader} fehlt in index.html`);
+	assert.ok(
+		scriptPos("js/review/review-subjects.js") < scriptPos(reader),
+		`review-subjects.js muss VOR ${reader} geladen werden -- sonst wirft dessen Auswertung`,
+	);
+});
+
 console.log("review-subjects: OK");

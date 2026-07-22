@@ -424,7 +424,7 @@
 						</div>
 						<div class="wiki-sync-adv-picker">
 							<div class="wiki-sync-adv-picker__top">
-								<input type="search" id="wiki-sync-adv-search" class="wiki-sync-adv-picker__search" placeholder="Abenteuer suchen …" autocomplete="off">
+								<input type="search" id="wiki-sync-adv-search" class="wiki-sync-adv-picker__search" placeholder="Abenteuer suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="wiki-sync-adv-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-adv-filter-menu" class="type-filter__menu" hidden></div></div>
 								<span class="wiki-sync-panel__summary" id="wiki-sync-adv-count"></span>
 							</div>
 							<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-adv-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
@@ -470,7 +470,7 @@
 							     differ, so the shared renderer can tell them apart. -->
 							<div class="wiki-sync-adv-picker">
 								<div class="wiki-sync-adv-picker__top">
-									<input type="search" id="wiki-sync-cm-search" class="wiki-sync-adv-picker__search" placeholder="Karte suchen …" autocomplete="off">
+									<input type="search" id="wiki-sync-cm-search" class="wiki-sync-adv-picker__search" placeholder="Karte suchen …" autocomplete="off"><div class="type-filter"><button type="button" id="wiki-sync-cm-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wiki-sync-cm-filter-menu" class="type-filter__menu" hidden></div></div>
 									<span class="wiki-sync-panel__summary" id="wiki-sync-cm-count"></span>
 								</div>
 								<div class="wiki-sync-adv-picker__scroll" id="wiki-sync-cm-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
@@ -525,7 +525,7 @@
 						<div class="wiki-sync-locations-section">
 							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
-								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div></div></div>
+								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="settlement-coat-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="settlement-image-filter-menu"></div></div></div></div>
 							</div>
 							<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
@@ -1636,11 +1636,11 @@
 		<script src="js/review/review-path-sync.js"></script>
 		<script src="js/review/review-path-wiki.js"></script>
 		<script src="js/review/review-path-flow.js"></script>
-		<script src="js/review/review-settlement-wiki.js"></script>
+		<!-- Die Subjekt-Registry MUSS vor ihren Lesern stehen: review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim Auswerten auf (Beschriftungen der Listenfilter). Sie stand bis 2026-07-23 unter beiden; das Listenmodul waere beim ersten Laden mit einem ReferenceError komplett ausgefallen. Die Datei selbst haengt von nichts ab -- reine Daten. --><script src="js/review/review-subjects.js"></script><script src="js/review/review-settlement-wiki.js"></script>
 		<script src="js/review/review-settlement-list.js"></script>
 			<script src="js/review/review-capitals-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
-		<script src="js/review/review-subjects.js"></script>
+		<!-- review-subjects.js ist nach OBEN gezogen, vor seine beiden Leser -- siehe dort. -->
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-link-check.js"></script>
 		<script src="js/review/review-citymap-autoget.js"></script>

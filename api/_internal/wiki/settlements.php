@@ -1147,11 +1147,27 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
                 $mapKeys[$wsKey] = true;
             }
         }
+        // Wappen + eigene Bilder: dieselbe Lesart wie avesmapsWikiSettlementEditorList (unten,
+        // ~1405) -- Fenster und Panel-Liste sollen dieselbe Frage gleich beantworten. Ohne diese
+        // zwei Felder koennte die Panel-Liste ihre Facetten „Wappen" und „Bilder" nicht bauen; sie
+        // sind der einzige Grund, aus dem sie hier stehen.
+        $hasCoat = is_array($props['coat'] ?? null) && (string) ($props['coat']['url'] ?? '') !== '';
+        $imageCount = 0;
+        foreach (is_array($props['images'] ?? null) ? $props['images'] : [] as $imageEntry) {
+            // images sind {url, license, note}-Objekte (alt: blanke URL-Strings) -- beides zaehlen.
+            $imageUrl = is_array($imageEntry) ? (string) ($imageEntry['url'] ?? '') : (is_string($imageEntry) ? $imageEntry : '');
+            if (trim($imageUrl) !== '') {
+                $imageCount++;
+            }
+        }
+
         $items[] = [
             'public_id' => (string) $r['public_id'],
             'name' => $name,
             'settlement_class' => $sub,
             'settlement_label' => avesmapsWikiSettlementClassLabel($sub),
+            'has_coat' => $hasCoat,
+            'image_count' => $imageCount,
             'state' => $connected ? 'full' : 'empty',
             'on_map' => true,
             'continent' => 'Aventurien', // On-Map-Orte liegen per Definition auf der Aventurien-Karte.
@@ -1167,7 +1183,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
 
     // Fehlende Wiki-Siedlungen (Siedlungs-Klassen + Bauwerke) aus der Registry.
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
-    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
@@ -1196,6 +1212,10 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'name' => $title,
             'settlement_class' => $cls,
             'settlement_label' => avesmapsWikiSettlementClassLabel($cls),
+            // Registry-Wappen wie im Editor-Listenzweig; eigene Bilder kann eine Zeile, die noch
+            // nicht auf der Karte liegt, nicht haben -- 0 ist hier die Wahrheit, kein Platzhalter.
+            'has_coat' => (string) ($r['coat_url'] ?? '') !== '',
+            'image_count' => 0,
             'state' => 'half',
             'on_map' => false,
             'continent' => $cont,

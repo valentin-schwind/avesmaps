@@ -337,7 +337,16 @@ function setWikiSyncPanelTab(tabName) {
 	// Valid = "the registry knows it" (js/review/review-subjects.js). Never a literal list here:
 	// a key missing from such a list makes its tab silently fall back to Siedlungen, which is how
 	// the tab cascade broke once already (spec 2026-07-17-editor-reiter-kaskade-design.md).
+	const previousWikiSyncSubject = activeWikiSyncPanelTab;
 	activeWikiSyncPanelTab = wikiSyncIsKnownSubject(tabName) ? tabName : "locations";
+
+	// Ein Subjektwechsel verwirft die Filterauswahl der Listen (Owner 2026-07-22): ein Filter, den
+	// man vor drei Subjekten gesetzt hat, laesst die Liste beim Zurueckkommen unvollstaendig
+	// aussehen. NUR bei einem echten Wechsel -- denselben Reiter erneut anzuklicken (das tut u. a.
+	// jeder Refresh-Pfad) darf die Arbeit nicht wegwerfen.
+	if (previousWikiSyncSubject !== activeWikiSyncPanelTab && typeof window !== "undefined" && typeof window.avesmapsResetWikiSyncListFilters === "function") {
+		window.avesmapsResetWikiSyncListFilters();
+	}
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
