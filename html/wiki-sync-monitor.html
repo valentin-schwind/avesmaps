@@ -35,34 +35,34 @@
      itself whenever tokens.css changes -- nothing to bump by hand.
      See docs/asset-caching-and-versioning.md. -->
 <link rel="stylesheet" href="/css/base/tokens.css">
+<!-- Gemeinsame Huellenmasse + Bildlaufleisten aller Editor-SEITEN (Spec §3.1a/§4.6). Diese Seite
+     trug beides bis 2026-07-23 als eigene Kopie (--wsm-control-h, eigener Scrollbar-Block) -- also
+     genau der Zustand, den editor-page.css beendet hat: derselbe Wert an vier Stellen laeuft
+     auseinander. NICHT editor-shell.css, das ist die App-Huelle drumherum. -->
+<link rel="stylesheet" href="/css/components/editor-page.css">
 <style>
   /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
   :root { --bg:var(--color-page-bg); --panel:var(--color-panel); --soft:var(--color-panel-soft); --line:var(--color-border); --line2:var(--color-border-strong); --fg:var(--color-text-strong); --mut:var(--color-text-muted); --accent:var(--color-link); --accent-hover:var(--color-link-hover); --warn:var(--color-warning); --bad:var(--color-danger); --ok:var(--color-success); --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
-  /* Eine Bedienhoehe fuer Knoepfe, Eingaben und Auswahlfelder (Spec §4.3): sie stehen staendig nebeneinander in .bar und .timefilter, und 30/28/26 nebeneinander liest sich als Unfall. Gleicher Wert und gleiche Begruendung wie --se-control-h im Siedlungseditor. */
-  :root { --wsm-control-h:32px; }
   body { margin:0; font:var(--font-size-body)/var(--leading-normal) var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
-  /* Bildlaufleisten (Spec §4.6): dieser iframe bindet tokens.css, aber NICHT base.css, wo die globale Regel steht -- der Browser zeichnete hier seine eigenen Leisten, waehrend die App ringsum die schmalen warmen hatte. Werte 1:1 wie im Siedlungseditor, damit die beiden Editoren nicht unterschiedlich scrollen. */
-  * { scrollbar-width:thin; scrollbar-color:var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
-  *::-webkit-scrollbar { width:10px; height:10px; }
-  *::-webkit-scrollbar-track { background:var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb { background:var(--color-scrollbar-thumb); border-radius:999px; border:2px solid var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb:hover { background:var(--color-scrollbar-thumb-hover); }
-  header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+  header { padding:var(--avm-ribbon-pad); background:var(--panel); border-bottom:1px solid var(--line); }
   h1 { font-size:var(--font-size-subhead); margin:0 0 8px; color:var(--color-text-strong); }
   /* Alle Steuer-Buttons in EINER Zeile, gleich breite Spalten, automatisch so viele wie Kinder
      (Dropdown + N Buttons) -- so wandert ein neuer Button nie in eine zweite Reihe. */
-  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--space-4); align-items:stretch; }
+  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--avm-ribbon-gap); align-items:stretch; }
   .controls > .dd > summary, .controls > .dd { width:100%; box-sizing:border-box; }
-  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--wsm-control-h); cursor:pointer; font:inherit; }
+  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--avm-control-h); cursor:pointer; font:inherit; }
   button:hover { background:var(--color-button-soft-hover); }
   button:disabled { opacity:.5; cursor:default; }
   button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
   button.primary:hover { background:var(--color-button-hover); }
   .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:var(--space-4) var(--space-8); gap:1px; line-height:var(--leading-tight); }
-  .btn2 .t1 { font-size:var(--font-size-body); font-weight:bold; }
-  .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; }
+  /* Eine Zeile je Kachelteil, notfalls gekuerzt. Ohne das brachen die laengeren Beschriftungen
+     ("Daten uebernehmen", "Wappen lokalisieren") um und machten IHRE Kachel hoeher als die
+     danebenliegenden -- bei acht Kacheln faellt das sofort auf. Gleiche Regel wie im Siedlungseditor. */
+  .btn2 .t1 { font-size:var(--font-size-body); font-weight:var(--font-weight-bold); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
   .btn2.primary .t2 { color:var(--color-on-button-muted); }
   #statusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #contDD { flex:0 0 auto; align-self:center; }
@@ -70,15 +70,23 @@
   .timefilter input[type=number] { width:62px; }
   .timefilter input:disabled { opacity:.4; }
   textarea {width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
-  #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
+  /* Statuszeile: eigene Zeile unter dem Menueband, volle Breite (Spec §3.4). Feste Mindesthoehe und
+     abgesetzter Grund wie im Siedlungseditor -- sonst springen die drei Spalten darunter, sobald
+     eine Meldung eintrifft, und die Zeile war ohne Hintergrund kaum als eigener Streifen zu lesen. */
+  #status { padding:var(--avm-status-pad); min-height:var(--avm-status-min-h); color:var(--mut); background:var(--soft); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:var(--space-12); }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
-  .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; }
+  /* flex:1 1 0 setzt die flex-basis auf 0 -- zusammen mit min-width:0 teilen sich die drei Spalten
+     die Breite exakt zu Dritteln, unabhaengig davon, wie lang ihr laengster Eintrag ist (Spec §5). */
+  .col { flex:1 1 0; overflow:hidden; padding:var(--avm-col-pad); display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .col + .col { border-left:1px solid var(--line); }
   #list, #tree, #detailBody { flex:1 1 auto; overflow:auto; min-height:0; }
   /* Listen-Hintergrund weiß wie im Haupt-Tool (statt der beigen Seitenfarbe). */
   #list, #tree { background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
-  #left { border-right:1px solid var(--line); max-width:46%; }
-  .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
-  input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); height:var(--wsm-control-h); font:inherit; }
+  /* Trenner kommen jetzt ausschliesslich aus `.col + .col` -- das hier setzte zusaetzlich einen
+     border-right, sodass zwischen Spalte 1 und 2 zwei Linien uebereinanderlagen (Designsprache:
+     genau EINE Linie je Abschnitt). max-width:46% ist weiter unten ohnehin auf none gesetzt. */
+  .bar { display:flex; gap:var(--space-4); align-items:center; margin-bottom:var(--space-4); }
+  input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); height:var(--avm-control-h); font:inherit; }
   input[type=search] { flex:1; }
   /* Kombiniertes „Filter ▾"-Dropdown des Hierarchie-Baums -- die .type-filter*-Regeln sind 1:1 die
      des Siedlungseditors (html/wiki-sync-settlement-editor.html, dort seinerseits aus
@@ -114,6 +122,11 @@
   .node.drop { outline:2px dashed var(--accent); }
   .twist { cursor:pointer; color:var(--mut); width:12px; display:inline-block; user-select:none; }
   .muted { color:var(--mut); }
+  /* 💣 Es gab hier nur eine Regel fuer a.wl -- klassenlose Links (die Abkuerzungen ueber der Lueckenliste,
+     "88 im Papierkorb" / "9 nicht zugew. Geometrie") fielen damit auf das Browser-Blau zurueck. Blau ist
+     in dieser App gar keine Farbe (AGENTS.md §12), es las sich als fremdes UI-Kit mitten im Editor. */
+  a { color:var(--color-link); }
+  a:hover, a:focus-visible { color:var(--color-link-hover); }
   a.wl { color:var(--accent); text-decoration:none; font-size:var(--font-size-caption); padding:0 2px; }
   a.wl:hover, a.wl:focus-visible { color:var(--accent-hover); }
   a.wl:hover { color:var(--accent); }
@@ -155,7 +168,7 @@
   #left, #right { background:var(--bg); }
   #left { max-width:none; flex:1 1 0; }
   #right { flex:1 1 0; }
-  #detail { flex:1 1 0; border-left:1px solid var(--line); background:var(--soft); }
+  #detail { flex:1 1 0; background:var(--soft); }
   .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
   .listsub { font-size:var(--font-size-caption); color:var(--mut); margin:-4px 0 6px; }
   /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
