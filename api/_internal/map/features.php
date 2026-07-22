@@ -88,9 +88,9 @@ function avesmapsReadLocationSubtype(mixed $value): string {
 function avesmapsLocationSubtypeLabel(string $subtype): string {
     return match ($subtype) {
         'metropole' => 'Metropole',
-        'grossstadt' => 'Grosse Stadt',
+        "grossstadt" => "Gro\u{00DF}stadt",
         'stadt' => 'Stadt',
-        'kleinstadt' => 'Kleine Stadt',
+        'kleinstadt' => 'Kleinstadt',
         'gebaeude' => 'Besondere Bauwerke/Staetten',
         default => 'Dorf',
     };

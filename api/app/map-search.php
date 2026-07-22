@@ -428,9 +428,9 @@ function avesmapsSearchKindOrder(string $kind): int {
 function avesmapsLocationSearchTypeLabel(string $subtype): string {
     return match ($subtype) {
         'metropole' => 'Metropole',
-        'grossstadt' => 'Grosse Stadt',
+        "grossstadt" => "Gro\u{00DF}stadt",
         'stadt' => 'Stadt',
-        'kleinstadt' => 'Kleine Stadt',
+        'kleinstadt' => 'Kleinstadt',
         'gebaeude' => 'Bauwerk',
         default => 'Ort',
     };
