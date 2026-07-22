@@ -73,25 +73,58 @@ das Aktionsband in den `actionsMarkup`-Slot von `locationPopupMarkup` gehängt.
 
 ```
 ┌─────────────────────────────────────┐
-│  Nodix Gareth – Nodix Punin          │
-│  Kraftlinie                          │
+│ ▓▓▓▓ Kraftlinien.png (16:9) ▓▓▓▓▓▓▓ │
+│ Basiliuslinie                        │
+│ Kraftlinie                           │
 ├─────────────────────────────────────┤
-│  Verbindet   Nodix Gareth ↔ Punin    │
-│  Beschreibung  Verläuft entlang …    │
+│ [Bearbeiten]        [Löschen]        │  ← nur im Editor
 ├─────────────────────────────────────┤
-│  Quelle: Aventurischer Almanach ↗    │
+│ Verbindet   Ewiges Eis ↔ Südmeer     │  ← Spanne ALLER 14 Segmente
+│ Beschreibung  Verläuft entlang …     │
+├─────────────────────────────────────┤
+│ Quelle: Aventurischer Almanach ↗     │
 └─────────────────────────────────────┘
 ```
 
-**Zeile „Verbindet"** — aus `from_public_id`/`to_public_id`, aufgelöst über
-`findLocationMarkerByPublicId` (die Funktion nutzt `getPowerlineLatLngs` bereits,
-`map-features-powerlines.js:1`). Beide Enden sind echte Orte auf unserer Karte
-und werden deshalb zu Gold-Fly-to-Links, wie `linkifyPathVerlauf` es beim Weg
-tut. Fehlt ein Endpunkt im Marker-Index, bleibt der Name unverlinkter Text.
+**Kopfbild** — `infoHeaderImageMarkup("Kraftlinien", name, "Kraftlinie")`, analog
+zum Weg-Kopf (`map-features-path-rendering.js:111`). Die Vorlage liegt bereits in
+`avesmaps-map-processing/icons/info_header_graphics/Kraftlinien.png`, im selben
+Bestand wie die Weg-Kopfbilder unter `strassen/`; sie wandert wie diese nach
+`img/`. Ein Bild für alle Kraftlinien — es gibt keine Subtypen.
+
+**Zeile „Verbindet"** — die Spanne der **ganzen Linie**, nicht des angeklickten
+Segments.
+
+*Warum:* am Live-Payload gemessen (2026-07-22) führt die Karte **162
+powerline-Zeilen** mit rund **40 verschiedenen Namen**. Eine Kraftlinie besteht
+also aus vielen Segmenten — *Basiliuslinie* aus 14, *Fächer der Macht* aus 11,
+*Strick des Schwarzen Mannes* aus 8, *Yaquirlinie* aus 7. Dieselbe
+1-zu-N-Form wie bei Straßen. Wer auf die Basiliuslinie klickt, will ihre Spanne
+wissen, nicht welchen von vierzehn Hops er getroffen hat.
+
+Der Aufbau: alle Segmente gleichen Namens einsammeln, ihre
+`from_public_id`/`to_public_id` zu einer Kette verketten und deren beide äußeren
+Enden nehmen. **Reine Kreuzungen werden übersprungen** — es zählt der äußerste
+*benannte* Punkt je Richtung, sonst stünde dort „Kreuzung ↔ Kreuzung" (mehrere
+Segmente heißen heute genau so). Beide Enden sind echte Orte auf unserer Karte
+und werden zu Gold-Fly-to-Links, wie `linkifyPathVerlauf` es beim Weg tut; ein im
+Marker-Index fehlender Endpunkt bleibt unverlinkter Text.
+
+Ist eine Linie einsegmentig oder findet die Kette kein benanntes Ende, fällt die
+Zeile weg (der `row()`-Helfer kann das schon) — lieber keine Zeile als eine
+falsche.
 
 *Das ist die tragende Entscheidung:* diese Zeile braucht kein neues Feld und
 keine Editorarbeit — **jede** heute bestehende Kraftlinie hat damit sofort
 Inhalt. Beschreibung und Quellen wachsen danach nach.
+
+> **Datenlage, nicht Teil dieser Arbeit:** unter den 40 Namen stecken Dubletten
+> durch Tippfehler („Elementare Hexagramm" neben „Elementares Hexagramm",
+> „Elemntarlinie", „Thalusische Liniea") und ein Namensfeld, das eine URL
+> enthält („Hursachquelle - https://de.wiki-aventurica.de/wiki/…"). Da die
+> „Verbindet"-Zeile über den **Namen** gruppiert, zerfällt eine falsch
+> geschriebene Linie in zwei Ketten. Das ist eine Editor-Aufgabe (und ein
+> Kandidat fürs ⚖️ Konfliktzentrum), kein Grund, die Gruppierung anders zu bauen.
 
 **Zeile „Beschreibung"** — neues `properties.description`, im Editor frei
 getippt. Leer → Zeile fällt weg.
@@ -203,14 +236,22 @@ Falle, die schon ~430 Abenteuer verschluckt hat: **sie greift beim Dump, lautlos
    könnte.
 2. Der Sync fasst den Dump-Treiber, neue Staging-Tabellen und eine
    owner-getriggerte Reconcile-Aktion an — eigener Umfang, eigene Sitzung.
-3. Die Zuordnung ist ungeklärt und muss gemessen werden, bevor man sie baut:
-   unsere Linien verbinden **zwei** Nodices, eine Wiki-Kraftlinie durchläuft
-   **viele** (`Verlauf`). Das ist mit hoher Wahrscheinlichkeit dieselbe
-   1-Artikel-zu-N-Segmenten-Form wie bei Straßen — dann gehört das Feld als
-   `wiki_powerline`-Objekt modelliert, analog `properties.wiki_path`, nicht als
-   flacher Link. **Offene Zahl:** wie viele powerline-Zeilen die Karte überhaupt
-   führt; erst das entscheidet zwischen Namensabgleich, Verlauf-/Nodix-Abgleich
-   und Handzuordnung (bei 23 Artikeln ist Hand durchaus im Rennen).
+3. Die Zuordnung ist inzwischen **gemessen** und sieht gut aus, aber sie gehört
+   sauber gebaut. Die Karte führt 162 powerline-Zeilen mit rund 40 Namen —
+   1-Artikel-zu-N-Segmenten, wie bei Straßen. Und die Namen sind **nicht**
+   automatisch, sondern echte Lore-Namen, von denen viele die Wiki-Titel direkt
+   treffen: Hexenband, Basiliuslinie, Yaquirlinie, Konzilslinie, Madas Kelch,
+   Septima, Wandelband, Wasserscheide, Torweg, Bann-Linie, Fächer der Macht,
+   Kette der Zyklopen, Weg des Diskus, Arteria Magica, Strick des Schwarzen
+   Mannes, Elementares Hexagramm. Ein **Namensabgleich** ist damit der Weg, und
+   das kanonische Verfahren dafür steht schon: das Straßen-Bulk-Hopping.
+   Zwei Dinge sind dabei zu erwarten und kein Gegenargument: unsere ~40 Namen
+   übersteigen die 23 Artikel (Linien wie Maraskanstachel oder Drachenblick
+   stehen vermutlich nur in `Kraftlinie/Quellenauswertung`), und einige Namen
+   weichen leicht ab („Brücke nach Akrabaal" vs. „Brücke von Akrabaal",
+   „Szepter der Macht" vs. „Szepter der Macht (Kraftlinie)").
+   Das Feld gehört als `wiki_powerline`-Objekt modelliert, analog
+   `properties.wiki_path`, nicht als flacher Link.
 
 **Konsequenzen für diese Spec, damit Schritt 2 nichts zurückbauen muss:**
 
@@ -231,6 +272,9 @@ Falle, die schon ~430 Abenteuer verschluckt hat: **sie greift beim Dump, lautlos
 
 ## 7. Umfang
 
+Neu: `img/Kraftlinien.png` (aus
+`avesmaps-map-processing/icons/info_header_graphics/`, wie die Weg-Kopfbilder).
+
 Berührt: `js/map-features/map-features-powerlines.js`, `index.html`,
 `api/_internal/map/features.php`, `api/app/feature-sources.php`,
 `api/edit/map/feature-sources.php`, `api/_internal/app/feature-sources.php`,
@@ -246,12 +290,15 @@ des Territorien-Editors (AGENTS.md §7). Dialog und Skript hier hängen an
 
 ## 8. Abnahme
 
-1. Klick auf eine beliebige bestehende Kraftlinie zeigt eine Infobox mit
-   „Verbindet" und zwei Gold-Links; ein Klick darauf fliegt zum jeweiligen Nodix.
-2. Eine im Editor gespeicherte Beschreibung erscheint als eigene Zeile.
-3. Eine im Editor hinzugefügte Quelle erscheint in der Quellenzeile, offizielle
+1. Klick auf eine beliebige bestehende Kraftlinie öffnet das Infopanel mit
+   Kopfbild, Namen und — im Editor — „Bearbeiten" und „Löschen".
+2. Die Zeile „Verbindet" zeigt die Spanne der **ganzen** Linie: ein Klick auf ein
+   beliebiges der 14 Basiliuslinien-Segmente nennt dieselben zwei Enden, und
+   beide sind benannte Orte (keine „Kreuzung"). Ein Klick darauf fliegt hin.
+3. Eine im Editor gespeicherte Beschreibung erscheint als eigene Zeile.
+4. Eine im Editor hinzugefügte Quelle erscheint in der Quellenzeile, offizielle
    zuerst; ein gesetzter Wiki-Link erscheint mit `↗`.
-4. Eine Kraftlinie ohne jede Eingabe zeigt trotzdem „Verbindet" — und **keinen**
+5. Eine Kraftlinie ohne jede Eingabe zeigt trotzdem „Verbindet" — und **keinen**
    geratenen Wiki-Link, auch wenn ihr Name einer Siedlung gleicht.
-5. Wege, Siedlungen, Regionen und Gebiete zeigen unverändert dieselben Quellen
+6. Wege, Siedlungen, Regionen und Gebiete zeigen unverändert dieselben Quellen
    wie zuvor (der Whitelist-Zusatz darf nichts Bestehendes verschieben).
