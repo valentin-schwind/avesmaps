@@ -130,24 +130,9 @@ async function handleLocationEditFormSubmit(event) {
 		pendingCrossingConversionPublicId = null;
 		pendingCrossingConversionName = "";
 		pendingCrossingConversionIsNodix = false;
-		const wikiSyncCreatedCaseId = wikiSyncCreateLocationCaseId;
-		if (wikiSyncCreatedCaseId) {
-			const archived = await archiveWikiSyncCreatedLocationCase(wikiSyncCreatedCaseId, responseFeature || result.feature || null);
-			resetWikiSyncCreateLocationFlowState();
-			if (archived) {
-				setWikiSyncStatus("Ort wurde gespeichert, Wiki-Meldung ist archiviert.", "success");
-				showFeedbackToast("Ort wurde gespeichert, Wiki-Meldung ist archiviert.", "success");
-			} else {
-				showFeedbackToast("Ort wurde gespeichert, die Wiki-Meldung konnte noch nicht archiviert werden.", "warning");
-			}
-		} else {
-			resetWikiSyncCreateLocationFlowState();
-		}
 		setLocationEditSubmitPending(false);
 		setLocationEditDialogOpen(false, { resetForm: true });
-		if (!wikiSyncCreatedCaseId) {
-			showFeedbackToast("Ort gespeichert.", "success");
-		}
+		showFeedbackToast("Ort gespeichert.", "success");
 		if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
 			void refreshActiveWikiSyncPanelAfterAssignment();
 		}

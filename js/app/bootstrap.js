@@ -487,14 +487,6 @@ $(document).on("keydown", (event) => {
         return;
     }
 
-    if (event.key === "Escape" && activeEditorPanelTab === "wiki-sync" && isWikiSyncCreateLocationSelectionActive) {
-        event.preventDefault();
-        event.stopPropagation();
-        resetWikiSyncCreateLocationFlowState();
-        renderWikiSyncCases();
-        return;
-    }
-
     if (event.key === "Escape") {
         if (pendingRegionOperation) {
             cancelPendingRegionOperation();
@@ -577,7 +569,6 @@ function openMapContextMenu(latlng, clientX, clientY) {
     setMapContextMenuAnchor(pendingContextMenuLatLng);
     syncDistanceMeasurementContextMenuAction();
     syncPathSplitContextMenuAction();
-    syncWikiSyncCreateLocationContextMenuAction();
     if (typeof syncShareLinkContextMenuAction === "function") {
         syncShareLinkContextMenuAction();
     }

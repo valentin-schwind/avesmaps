@@ -150,7 +150,6 @@ async function loadWikiSyncCases() {
 		activeWikiSyncRunId = activeRun?.status === "running" ? activeRun.public_id : null;
 		activeWikiSyncRunStatus = activeRun?.status === "running" ? "running" : "";
 		renderWikiSyncCases(data.latest_run || null);
-		syncWikiSyncCreateLocationContextMenuAction();
 
 		if (activeRun?.status === "running") {
 			setWikiSyncLocationsRunning(false, activeRun);

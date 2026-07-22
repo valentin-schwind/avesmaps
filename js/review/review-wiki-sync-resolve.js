@@ -40,11 +40,6 @@ async function handleWikiSyncCaseActionClick(event) {
 		return;
 	}
 
-	if (action === "select-wiki-location") {
-		openWikiSyncCreateLocationDialogFromCase(caseEntry);
-		return;
-	}
-
 	// coordinate_drift actions (Wave 2): redraw the line+markers; write the map to
 	// the wiki position (the sole new map write); or keep the map (plain archive).
 	if (action === "drift-focus") {
@@ -101,27 +96,6 @@ async function updateWikiSyncCaseStatus(caseEntry, action, successMessage) {
 	} catch (error) {
 		console.error("WikiSync-Fall konnte nicht aktualisiert werden:", error);
 		showFeedbackToast(error.message || "WikiSync-Fall konnte nicht aktualisiert werden.", "warning");
-	}
-}
-
-async function archiveWikiSyncCreatedLocationCase(caseId, feature = null) {
-	const numericCaseId = Number(caseId);
-	if (!Number.isInteger(numericCaseId) || numericCaseId < 1) {
-		return false;
-	}
-
-	try {
-		const payload = { case_id: numericCaseId };
-		if (feature) {
-			payload.resolution = { feature };
-		}
-		await submitWikiSyncLocationAction("archive_case", payload);
-		await loadWikiSyncCases();
-		return true;
-	} catch (error) {
-		console.error("WikiSync-Fall konnte nicht archiviert werden:", error);
-		showFeedbackToast(error.message || "WikiSync-Fall konnte nicht archiviert werden.", "warning");
-		return false;
 	}
 }
 
