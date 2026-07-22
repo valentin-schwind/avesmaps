@@ -165,7 +165,10 @@ function renderFeatureSourceAddRow(escape, tr) {
     '<input type="checkbox" class="fs-add-official"> ' + escape(tr("sources.add.official", "offiziell")) +
     "</label>" +
     '<button type="button" class="fs-row__add" data-fs-add-submit>' + escape(tr("sources.add.submit", "Hinzufügen")) + "</button>" +
-    "</div>"
+    "</div>" +
+    // Platz für die Absage. Ohne ihn verschluckte der Knopf den Klick wortlos, sobald die URL fehlte
+    // -- der häufigste Fall beim Anlegen, wo man einen Buchtitel im Kopf hat und keinen Link.
+    '<p class="fs-add-note" data-fs-note hidden></p>'
   );
 }
 
@@ -294,6 +297,17 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
 
   // Present only in the create case: every request is answered locally instead of over the wire.
   const pendingStore = (opts && opts.store) || null;
+  const tr = (opts && opts.tr) || featureSourceDefaultTr;
+
+  // Sagt, warum ein Klick nicht zum Ziel führte. textContent, nicht innerHTML: die Meldung zitiert
+  // den eingetippten Quellennamen, also Nutzereingabe.
+  function showAddRowNote(message) {
+    const note = containerEl.querySelector("[data-fs-note]");
+    if (note) {
+      note.textContent = message;
+      note.hidden = false;
+    }
+  }
 
   // Re-mounting the SAME node (rather than a fresh one) must not leave the previous mount's
   // dropdown behind either -- see the note at the end of wireAutocomplete below.
@@ -441,8 +455,21 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
         ));
         return;
       }
+      // Die URL bleibt Pflicht -- der Katalog erkennt Dubletten über den URL-Hash, ohne Link
+      // entstünde dasselbe Werk beliebig oft neu. Aber die Absage wird jetzt ausgesprochen statt
+      // verschluckt, und sie zeigt den Ausweg: ein Treffer aus der Vorschlagsliste wird über seine
+      // Katalog-ID verknüpft und braucht selbst gar keine URL.
       if (!values.url) {
-        return; // url required -- no-op instead of a failed round trip
+        showAddRowNote(
+          values.label
+            ? tr("sources.add.needUrlPicked", "Für „{label}“ fehlt der Link. Trag ihn ein — oder wähle den Titel aus der Vorschlagsliste, dann wird die bestehende Quelle verknüpft.").replace("{label}", values.label)
+            : tr("sources.add.needUrl", "Ohne Link geht es nicht: trag die URL ein, oder wähle den Titel aus der Vorschlagsliste.")
+        );
+        const urlInput = containerEl.querySelector(".fs-add-url");
+        if (urlInput) {
+          urlInput.focus();
+        }
+        return;
       }
       await renderFromServer("add", values);
     }

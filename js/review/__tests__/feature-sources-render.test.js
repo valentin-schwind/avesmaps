@@ -74,4 +74,10 @@ const pagesRowHtml = renderFeatureSourceEditorHtml(
 );
 assert.ok(pagesRowHtml.includes("S. 12"), "source row shows its page citation");
 
+// Bug #41, Nachtrag: „Hinzufügen" ohne URL tat gar nichts -- keine Zeile, keine Meldung, der Knopf
+// wirkte tot. Die URL bleibt Pflicht (der Katalog erkennt Dubletten über den URL-Hash), aber die
+// Zeile muss das sagen können. Der Platz dafür gehört ins Markup, verborgen bis er gebraucht wird.
+assert.ok(emptyHtml.includes("data-fs-note"), "die Eingabezeile hat einen Platz für ihre Absage");
+assert.ok(/data-fs-note[^>]*\bhidden\b/.test(emptyHtml), "der Hinweis startet verborgen");
+
 console.log("feature-sources-render tests passed");

@@ -29,6 +29,17 @@
 .fs-row + .fs-row {
 	border-top: 1px solid var(--color-divider);
 }
+/* Absage der Eingabezeile (fehlende URL). Verborgen, bis sie gebraucht wird -- ein dauerhafter
+   Hinweis wäre Rauschen, ein verschluckter Klick war der Fehler. */
+.fs-add-note {
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: var(--color-warning-soft-text);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-sm);
+	padding: 5px 8px;
+}
 /* Sub-group for sources auto-populated by the WikiSync publication reconcile
    (origin === "wiki_publication", js/review/review-feature-sources.js). */
 .fs-group-heading {
