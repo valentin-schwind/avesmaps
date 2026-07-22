@@ -317,8 +317,10 @@ Override-Mechanismus je Feld haben. Mit der Kennzeichnung aus §5 wird die
 ## 6. Quellen
 
 Die geteilte Komponente `mountFeatureSourceEditor` /
-`css/features/feature-sources.css` ist heute an **zwei** Stellen eingehängt
-(Siedlungseditor, Karten-Bearbeiten-Dialog).
+`css/features/feature-sources.css` ist an **drei** Stellen eingehängt:
+Siedlungseditor, „Ort bearbeiten"-Dialog auf der Karte
+(`js/review/review-locations.js:569`) und — seit `1673b655`, siehe §9 — der
+Natur-&-Waren-Editor (`js/review/review-wiki-sync.js:2116`).
 
 **Formatierung** (ohne Felder oder Optionen anzufassen — Owner: „verändere keine
 Optionen oder Eigenschaften"):
@@ -334,10 +336,12 @@ Optionen oder Eigenschaften"):
   Kasten = Eingabe.**
 - Abzeichen von `10px` auf `--font-size-caption` (11), Polsterungen auf die Skala.
 
-**Verwendung:** `feature_sources.entity_type` kennt heute
-`settlement | region | path | territory`. Territorien, Regionen und Wege können die
-Komponente also **sofort** bekommen. Abenteuer und Karten hängen nicht daran — dort
-lässt sich nur die **Optik** angleichen.
+**Verwendung:** `feature_sources.entity_type` kennt
+`settlement | region | path | territory | lore`. Territorien, Regionen und Wege
+können die Komponente also **sofort** bekommen — der Lore-Umbau (§9) hat gerade
+vorgeführt, dass ein neuer `entity_type` ein kleiner Eingriff ist. Abenteuer und
+Karten hängen weiterhin nicht daran (eigene Shop- und Publikationslinks); dort
+lässt sich vorerst nur die **Optik** angleichen.
 
 ---
 
@@ -388,14 +392,28 @@ Gemessen bei 390 × 844: genau **eine** Spalte je Schritt, „Zurück" ab Schrit
 
 ## 9. Abgrenzung zu laufenden Sessions
 
-⚠️ **`docs/superpowers/specs/2026-07-22-lore-quellen-vereinheitlichung-design.md`
-(gleicher Tag)** hängt Lore-Quellen an `feature_sources` (`entity_type='lore'`) und
-montiert `mountFeatureSourceEditor` in den Natur-&-Waren-Editor — **dieselben
-Dateien**, die §6 anfasst (`review-feature-sources.js`, `feature-sources.css`).
+✅ **Erledigt, noch während diese Spec entstand.** Die Parallel-Session zu
+`2026-07-22-lore-quellen-vereinheitlichung-design.md` ist gelandet:
 
-**Regel:** §6 ist reine Formatierung und darf die Mount-Punkte und die Datenschicht
-nicht anfassen. Vor dem Bau von §6 den Stand jener Session prüfen; im Zweifel §6
-**nach** ihr bauen. Kein `git add -A` (AGENTS.md §9) — der Baum ist geteilt.
+```
+f5d7fd98 docs(agents): sources live in one place -- never build a second source system
+1673b655 refactor(lore): sources move to the shared system -- lore_source retires
+41b7c726 fix(lore): empty publication staging must not wipe a whole entity type
+```
+
+Lore-Quellen hängen jetzt an `feature_sources` (`entity_type='lore'`), und der
+Natur-&-Waren-Editor montiert die geteilte Komponente
+(`review-wiki-sync.js:2116`). **Folge für §6:** die Formatierung wirkt damit
+sofort in *drei* Editoren statt zwei — mehr Nutzen, aber auch mehr Fläche, auf
+der ein Fehler auffällt.
+
+**Regel bleibt:** §6 ist reine Formatierung und fasst weder Mount-Punkte noch die
+Datenschicht an. Vor dem Bau `git log` auf `review-feature-sources.js` und
+`feature-sources.css` prüfen — dort arbeiten mehrere Sessions. Kein `git add -A`
+(AGENTS.md §9), der Baum ist geteilt.
+
+⚠️ **Genereller Hinweis:** dieser Abschnitt ist ein Schnappschuss vom 2026-07-22.
+Wer die Spec später liest, prüft den Stand gegen `git log`, statt ihm zu glauben.
 
 ---
 
