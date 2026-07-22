@@ -274,8 +274,15 @@
 	--color-button: #6b6456;
 	--color-button-border: #7a7361;
 	--color-button-text: #f5ebd7;
-	--color-button-hover: #797264;
-	--color-button-active: #5d5648;
+	/* Hover geht hier DUNKLER, anders als im hellen Thema. Auf dunklem Grund steht
+	   cremefarbene Schrift auf dem Knopf: ein hellerer Hover senkt den Kontrast, statt
+	   ihn zu heben. Der alte Wert #797264 lag bei 4,03:1 gegen --color-button-text und
+	   damit unter WCAG AA (4,5) -- sichtbar an jeder Sync-Kachel. Jetzt 6,05:1.
+	   Die 1px-Anhebung und der staerkere Schatten tragen das Hover-Signal. */
+	--color-button-hover: #5e5749;
+	/* Muss mitwandern: der bisherige Wert #5d5648 lag praktisch auf dem neuen Hover
+	   und waere nicht mehr davon zu unterscheiden gewesen. Jetzt 7,46:1. */
+	--color-button-active: #4f4a3d;
 
 	--color-button-soft: #3a362c;
 	--color-button-soft-text: #eae1cf;
