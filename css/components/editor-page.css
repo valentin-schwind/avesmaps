@@ -35,6 +35,12 @@
 	--avm-status-min-h: 30px;
 	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
 	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
+
+	/* Formularfeld: Beschriftung LINKS neben dem Eingabefeld, feste Spalte, damit die Feldkanten
+	   über alle Gruppen hinweg fluchten. Der Abenteuer-Editor stapelte als einziger Label ÜBER
+	   Feld -- bei ~15 Feldern untereinander ergibt das doppelt so viele Zeilen und eine sichtbar
+	   andere Sprache als Siedlungen und Karten (Spec §3.1c). */
+	--avm-field-label-w: 130px;
 }
 
 /* Bildlaufleisten. Stand bis 2026-07-22 dreimal kopiert in den Editorseiten (zwei davon auf 7px,
@@ -59,4 +65,79 @@
 }
 *::-webkit-scrollbar-thumb:hover {
 	background: var(--color-scrollbar-thumb-hover);
+}
+
+/* ---- Filter-Aufklappmenü (Spec §4.4) --------------------------------------------------------
+ * „Alle Filter eines Editors gehören in EIN Aufklappmenü." Stand bis 2026-07-23 nur im
+ * Siedlungseditor, dort lokal und mit harten Werten (8px/10px/12px/11px/4px/8px, font-weight:600,
+ * ein handgeschriebener Schatten). Der Abenteuer-Editor hatte stattdessen sieben Felder dauerhaft
+ * offen in der Listenspalte — der auffälligste Block-Unterschied der beiden Editoren.
+ * Beim Umzug auf die Leiter gezogen: Bedienhöhe, --font-size-*, --radius-*, --shadow-panel,
+ * font-weight 600 → 700 (§4.1 kennt nur 400 und 700).
+ */
+.type-filter {
+	position: relative;
+	flex: 0 0 auto;
+	display: flex;
+}
+.type-filter__toggle {
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	font: inherit;
+	font-size: var(--font-size-body);
+	white-space: nowrap;
+	cursor: pointer;
+	color: var(--color-button-soft-text);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+}
+.type-filter__toggle:hover {
+	background: var(--color-button-soft-hover);
+}
+/* Aktiv = mindestens ein Filter greift. Ohne diese Rückmeldung versteckt das Aufklappmenü, dass die
+   Liste gefiltert ist — „warum sehe ich nur drei Einträge" wird dann zur Suche nach einem Bug. */
+.type-filter__toggle.is-active {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+.type-filter__menu {
+	position: absolute;
+	right: 0;
+	top: calc(100% + var(--space-2));
+	z-index: 30;
+	min-width: 170px;
+	max-height: 320px;
+	overflow-y: auto;
+	padding: var(--space-4);
+	background: var(--color-panel);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-panel);
+}
+.type-filter__menu[hidden] { display: none; }
+.type-filter__opt {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--space-2) var(--space-4);
+	font-size: var(--font-size-small);
+	color: var(--color-text);
+	cursor: pointer;
+	border-radius: var(--radius-sm);
+}
+.type-filter__opt:hover { background: var(--color-hover-wash); }
+.type-filter__label { flex: 1 1 auto; min-width: 0; }
+.type-filter__count { color: var(--color-text-muted); font-size: var(--font-size-caption); }
+.type-filter__section-title {
+	padding: var(--space-2) var(--space-4) 2px;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-text-muted);
+}
+.type-filter__section + .type-filter__section {
+	margin-top: var(--space-2);
+	padding-top: 2px;
+	border-top: 1px solid var(--color-divider);
 }

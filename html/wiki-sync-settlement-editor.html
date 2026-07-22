@@ -127,17 +127,9 @@
      identical to js/review/review-settlement-list.js's attachFilterMenu(...) panel. The old
      per-filter #seContDD/#seTypeDD/#seSourceDD .dropdown2/.ddbtn/.dd-menu rules are gone -- this
      is now the only filter-dropdown pattern in the document. */
-  .type-filter { position:relative; flex:0 0 auto; display:flex; }
-  .type-filter__toggle { padding:8px 10px; font-size:12px; border:1px solid var(--line2); border-radius:8px; background:var(--soft); color:var(--color-button-soft-text); cursor:pointer; white-space:nowrap; font:inherit; }
-  .type-filter__toggle:hover { background:var(--color-button-soft-hover); }
-  .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:var(--color-panel); border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
-  .type-filter__menu[hidden] { display:none; }
-  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:12px; color:var(--color-text); cursor:pointer; border-radius:4px; }
-  .type-filter__opt:hover { background:var(--color-hover-wash); }
-  .type-filter__label { flex:1 1 auto; min-width:0; }
-  .type-filter__count { color:var(--color-text-muted); font-size:11px; }
-  .type-filter__section-title { font-size:11px; font-weight:600; color:var(--color-text-muted); padding:4px 6px 2px; }
-  .type-filter__section + .type-filter__section { border-top:1px solid var(--color-divider); margin-top:4px; padding-top:2px; }
+  /* Die .type-filter*-Komponente steht jetzt in css/components/editor-page.css -- sie wird seit
+     2026-07-23 auch vom Abenteuer-Editor benutzt (Spec §4.4: alle Filter in EIN Aufklappmenue).
+     Beim Umzug auf die Leiter gezogen: harte 8/10/12/11/4/8px und font-weight:600 sind weg. */
   /* Siedlungsliste (MITTE): on_map-Achse als Tab-Leiste + kombinierbare Filterzeile. */
   #seListTabs { display:flex; gap:2px; background:var(--color-panel-muted); border:1px solid var(--line); border-radius:6px; padding:2px; margin-bottom:6px; }
   #seListTabs button { flex:1; background:transparent; border:none; border-radius:4px; padding:4px 6px; color:var(--mut); font:inherit; font-size:11px; cursor:pointer; white-space:nowrap; }
@@ -215,7 +207,10 @@
   .dt-img-note { font:inherit; font-size:11px; padding:4px 5px; border:1px solid var(--line2); border-radius:4px; background:var(--panel); color:var(--fg); resize:vertical; min-height:32px; }
   .dt-grp { font-size:11px; font-weight:bold; color:var(--mut); border-top:1px solid var(--line); padding-top:6px; margin-top:8px; }
   .dt-grp:first-of-type { border-top:none; margin-top:0; }
-  .dt-grid { display:grid; grid-template-columns:minmax(90px,0.35fr) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
+  /* Beschriftungsspalte aus dem gemeinsamen Token (Spec §3.1c), damit die Feldkanten in allen drei
+     Editoren an derselben Stelle stehen -- vorher 0.35fr hier, feste 130px im Kartensammlungs-
+     Editor, gestapelt im Abenteuer-Editor. */
+  .dt-grid { display:grid; grid-template-columns:var(--avm-field-label-w) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
   .dt-grid .k { color:var(--color-text-muted); font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; vertical-align:top; }
   .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
   .dt-badge { font-size:10px; color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; margin-left:5px; white-space:nowrap; }

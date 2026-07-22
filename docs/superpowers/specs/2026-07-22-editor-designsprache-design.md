@@ -245,6 +245,36 @@ Wappen, Kreise und Vorschaubilder der Listenzeilen bleiben davon **unberührt** 
 ein Buchcover ist hochkant (32 × 45), eine Karte querformat (56 × 40). Das ist
 Inhalt, keine Abweichung.
 
+### 3.1c Formularfeld — Beschriftung links, nicht darüber
+
+> 💣 **Die Hüllenmaße aus §3.1a reichten nicht.** Nachdem alle drei Editoren dort
+> auf 0 Abweichungen standen, sagte der Owner beim nächsten Blick trotzdem:
+> „der abenteuer editor spricht doch eine total andere designsprache als z.B.
+> siedlungen editieren". Er hatte recht — gemessen worden war die **Hülle**
+> (Polsterungen, Menüband, Statuszeile, Spaltenmaße), nicht der **Inhalt** der
+> Spalten. „0 Abweichungen" hieß nur: null in den fünfzehn Dingen, die geprüft
+> wurden.
+
+**Regel:** Beschriftung **links neben** dem Eingabefeld, feste Spalte
+`--avm-field-label-w` (130px), damit die Feldkanten über alle Gruppen und alle
+Editoren hinweg fluchten.
+
+| Editor | vorher | jetzt |
+|---|---|---|
+| Siedlungen | `.dt-grid`, `minmax(90px, 0.35fr)` | Token |
+| Karten | `.ce-row__label`, feste `130px` | Token |
+| Abenteuer | `.ae-field { flex-direction: column }` — **gestapelt** | Token, `row` |
+
+Abenteuer war der einzige, der stapelte. Bei rund fünfzehn Feldern ergibt das
+doppelt so viele Zeilen wie nebenan — der Grund, warum die Detailspalte auf den
+ersten Blick nach einem anderen Programm aussah.
+
+**Zwei Ausnahmen, beide nötig:** ein Ankreuzfeld *ist* seine Beschriftung (das
+`<input>` steckt darin) — es bekommt die volle Breite, sonst schneidet die
+130px-Spalte es mittendrin ab. Und mehrzeilige Felder richten oben aus
+(`align-items: flex-start`), sonst schwimmt die kurze Beschriftung in der Mitte
+eines hohen Kastens.
+
 ### 3.1b Pillen — eine Vokabel, eine Betonung
 
 > 💣 **Abenteuer- und Kartensammlungs-Editor färbten dieselbe Klasse
@@ -394,6 +424,26 @@ schmal). Gemessen: alle vier auf 32.
 Alle Filter eines Editors gehören in **ein** Aufklappmenü. Die vorhandene
 `.type-filter`-Komponente (`__toggle` / `__menu`) wird wiederverwendet, nichts neu
 gebaut.
+
+✅ **Umgesetzt 2026-07-23.** Die Komponente lag lokal im Siedlungseditor und ist
+nach **`css/components/editor-page.css`** gezogen (§4.6) — dabei auf die Leiter
+gebracht: harte `8/10/12/11/4/8px`, ein handgeschriebener Schatten und
+`font-weight: 600` sind weg (§4.1 kennt nur 400 und 700).
+
+Der Abenteuer-Editor hatte stattdessen **sieben Filter dauerhaft offen** in der
+Listenspalte — ein Kasten, der rund die halbe Spalte fraß und neben dem
+Siedlungseditor („Filter ▾") wie ein anderes Programm aussah. Er benutzt jetzt
+dieselbe Komponente.
+
+> 💣 **Ein zugeklapptes Menü verbirgt, DASS gefiltert wird.** Ohne Rückmeldung
+> sucht man den Fehler in den Daten, wenn die Liste plötzlich acht Einträge zeigt.
+> Der Knopf trägt deshalb einen Zähler und färbt sich: `Filter ▾` → **`Filter (2) ▾`**
+> in `--color-button`. Wer die Komponente an einem weiteren Editor anschließt,
+> baut das mit — es ist kein Zierrat, sondern der Preis fürs Verstecken.
+>
+> Zweite Falle: der Außenklick-Schließer darf **Klicks im Menü nicht** schließen,
+> sonst klappt es bei jeder Auswahl zu und das Ort-Autocomplete darin wird
+> unbedienbar.
 
 ### 4.5 Bilder und Wappen
 
@@ -768,7 +818,14 @@ Vorbild**, nicht gegen die Mehrheit.
 > nicht nach gerahmten Kästen"). **Offen und noch im Vorbild:** diese Kästen und
 > die 10px-Schriften.
 
-> **Drei Falschmessungen, die erst auffielen, als sie fehlschlugen** — jedes Mal
+> 💣 **Die Lehre aus §3.1c: „0 Abweichungen" ist keine Aussage über das Ganze,
+> sondern über die Liste, die man geprüft hat.** Nach der Hüllen-Angleichung stand
+> hier 0/0 — und der Owner sah beim nächsten Blick sofort, dass die Editoren
+> verschieden sprechen. Die Messung deckte Polsterungen und Maße ab, nicht den
+> Aufbau der Felder und nicht die Filterdarstellung. Wer eine Gleichheit behauptet,
+> nennt dazu, **was** verglichen wurde.
+
+> **Falschmessungen, die erst auffielen, als sie fehlschlugen** — jedes Mal
 > war die Erwartung falsch, nicht der Code:
 > - Die Statuszeile *soll* nicht exakt 30 hoch sein. `min-height: 30px` ist ein
 >   Boden; 13px Text plus 2×6px Polsterung ergeben 31,84, im Siedlungseditor mit
@@ -783,6 +840,15 @@ Vorbild**, nicht gegen die Mehrheit.
 >   ist — das Gestell gibt es deshalb als erste Zeile aus. Für „gibt es eine
 >   Linie?" nicht die benutzte Breite gegen `"1px"` prüfen, sondern `> 0` plus
 >   die Deklaration im Stylesheet.
+> - **Regeln in einer verlinkten Datei stehen nicht im `<style>` der Seite.** Als
+>   der Bildlaufleisten-Block nach `editor-page.css` zog, meldeten vier Prüfungen
+>   Fehler, die `document.querySelectorAll("style")` durchsuchten. Zusätzlich die
+>   CSSOM lesen (`styleSheets` → `cssRules`) — **mit Positivkontrolle**, sonst
+>   besteht jede „X kommt nicht mehr vor"-Prüfung, weil gar nichts gelesen wurde.
+> - **Was erst mit Daten entsteht, ist ohne Login nicht messbar.** Formularfelder
+>   und der Filterknopf existieren nur bei geladenem Eintrag; eine DOM-Messung
+>   meldete „fehlt" statt eines Befunds. Dort die **Regel** vergleichen und das
+>   auch so beschriften — oder den Zustand stubben, wo es geht.
 
 **Nicht verifiziert:** Tippziele auf schmalem Schirm, und sämtliche Aussagen am
 **laufenden** Produkt — die Editorlisten brauchen einen Login, lokal antwortet die

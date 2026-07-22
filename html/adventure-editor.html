@@ -145,9 +145,14 @@
   .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
 
   /* ---- list filters (Typ / DSA-Version / Jahr / Cover / F-Shop / Region / Ort) ----------------- */
+  /* Nur noch das Raster -- Rahmen, Grund, Radius und Schatten kommen jetzt von .type-filter__menu.
+     Feste Breite, weil das Menue absolut positioniert ist und sich sonst auf die Toggle-Breite
+     zusammenzieht. */
   .ae-filters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) var(--space-8);
-    margin-bottom: var(--space-8); padding: var(--space-6) var(--space-8); background: var(--color-panel-muted);
-    border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+    width: 340px; max-width: 86vw; }
+  /* Ohne diese Zeile schlaegt das display:grid von oben das hidden-Attribut und das Menue steht
+     dauerhaft offen -- dieselbe Falle wie bei .ae-savebar. */
+  .ae-filters[hidden] { display: none; }
   /* label + control on ONE line (space is tight); the control fills the rest of the cell, not full width */
   .ae-filter { display: flex; flex-direction: row; align-items: center; gap: var(--space-6); min-width: 0; }
   .ae-filter--wide { grid-column: 1 / -1; }
@@ -236,11 +241,22 @@
     padding-bottom: var(--space-6); margin: 0 0 var(--space-10);
     border-bottom: 1px solid var(--color-divider);
   }
-  .ae-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-10) var(--space-12); }
-  .ae-field { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+  /* Beschriftung LINKS neben dem Feld (Spec §3.1c) -- vorher als einziger Editor gestapelt, was bei
+     rund fuenfzehn Feldern doppelt so viele Zeilen ergab und die Detailspalte sichtbar anders
+     sprechen liess als Siedlungen (.dt-grid) und Karten (.ce-row). Der Zeilenabstand faellt mit,
+     weil eine Zeile jetzt EINE Zeile ist und nicht zwei. */
+  .ae-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-6) var(--space-12); }
+  .ae-field { display: flex; flex-direction: row; align-items: center; gap: var(--space-8); min-width: 0; }
   .ae-field.is-wide { grid-column: 1 / -1; }
-  .ae-field > label { font-size: var(--font-size-caption); color: var(--color-text-muted);
-    display: flex; align-items: center; gap: var(--space-6); }
+  .ae-field > label { flex: 0 0 var(--avm-field-label-w); font-size: var(--font-size-caption);
+    color: var(--color-text-muted); display: flex; align-items: center; gap: var(--space-6); }
+  /* Ausnahme: bei einem Ankreuzfeld IST die Beschriftung die Zeile (das <input> steckt darin) --
+     eine 130px-Spalte wuerde sie mittendrin abschneiden. Sie nimmt die volle Breite. */
+  .ae-field > label.ae-check { flex: 1 1 auto; }
+  /* Mehrzeilige Felder (Beschreibung) sitzen oben, nicht mittig -- sonst schwimmt die kurze
+     Beschriftung in der Mitte eines hohen Kastens. */
+  .ae-field:has(textarea) { align-items: flex-start; }
+  .ae-field:has(textarea) > label { padding-top: var(--space-4); }
   .ae-input, .ae-select {
     font: inherit; height: var(--avm-control-h); color: var(--color-text); background: var(--color-panel);
     border: 1px solid var(--color-border); border-radius: var(--radius-md);
@@ -425,11 +441,15 @@
   <div class="ae-body">
     <aside class="ae-list">
       <h2 class="ae-colhead">Abenteuer</h2>
+      <!-- Die sieben Filter sitzen im Aufklappmenü (Spec §4.4), nicht mehr dauerhaft offen in der
+           Spalte: aufgeklappt frassen sie rund die halbe Listenspalte und liessen den Editor neben
+           Siedlungen ("Filter ▾") wie ein anderes Programm aussehen. Gleiche .type-filter-
+           Komponente, aus css/components/editor-page.css. -->
       <div class="ae-list__top">
         <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
-        <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
-      </div>
-      <div class="ae-filters" id="aeFilters">
+        <div class="type-filter">
+          <button type="button" class="type-filter__toggle" id="aeFilterToggle" aria-expanded="false" aria-label="Filter">Filter ▾</button>
+          <div class="ae-filters type-filter__menu" id="aeFilters" hidden>
         <div class="ae-filter">
           <label class="ae-filter__lbl" for="aeFType">Typ</label>
           <select class="ae-select" id="aeFType"></select>
@@ -475,6 +495,9 @@
           <div class="ae-filter__chip" id="aeFOrtChip" hidden></div>
         </div>
         <button type="button" class="ae-filter__reset" id="aeFReset">Filter zurücksetzen</button>
+          </div>
+        </div>
+        <button class="btn btn--primary" id="aeNew" title="Neues Abenteuer anlegen">+ Neu</button>
       </div>
       <p class="ae-list__count" id="aeListCount">Lädt…</p>
       <div class="ae-list__scroll" id="aeListScroll"></div>
@@ -1184,6 +1207,7 @@
     state.filters.cover = document.getElementById("aeFCover").value;
     state.filters.fshop = document.getElementById("aeFShop").value;
     state.filters.region = document.getElementById("aeFRegion").value;
+    renderFilterToggle();
     renderList();
   }
   function renderOrtChip() {
@@ -1193,9 +1217,45 @@
       chip.innerHTML = `<span class="pill pill--kind">${aeEscape(state.filters.ortName)}</span>`
         + `<button type="button" class="ae-filter__chipx" id="aeFOrtClear" title="Ort-Filter entfernen">×</button>`;
     } else { chip.hidden = true; chip.innerHTML = ""; }
+    // Hier mit, nicht an jeder Aufrufstelle einzeln: renderOrtChip() laeuft bei JEDER Aenderung am
+    // Ort-Filter (Setzen, Loeschen, Zuruecksetzen), und der Zaehler am Knopf muss dieselben Momente
+    // treffen. Drei Aufrufstellen waeren drei Gelegenheiten, es zu vergessen.
+    renderFilterToggle();
   }
+  // Aufklappmenue (Spec §4.4). Der Zaehler am Knopf ist nicht Zierde: ein zugeklapptes Menue
+  // verbirgt, DASS gefiltert wird -- ohne Rueckmeldung sucht man den Fehler in den Daten, wenn die
+  // Liste ploetzlich acht Eintraege zeigt.
+  function aeActiveFilterCount() {
+    const f = state.filters;
+    return ["type", "edition", "cover", "fshop", "region", "ortId"].filter((k) => f[k]).length
+      + (f.yearFrom !== "" ? 1 : 0) + (f.yearTo !== "" ? 1 : 0);
+  }
+  function renderFilterToggle() {
+    const btn = document.getElementById("aeFilterToggle");
+    if (!btn) return;
+    const n = aeActiveFilterCount();
+    btn.textContent = n ? `Filter (${n}) ▾` : "Filter ▾";
+    btn.classList.toggle("is-active", n > 0);
+  }
+  function setFilterMenuOpen(open) {
+    document.getElementById("aeFilters").hidden = !open;
+    document.getElementById("aeFilterToggle").setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  document.getElementById("aeFilterToggle").addEventListener("click", (e) => {
+    e.stopPropagation();
+    setFilterMenuOpen(document.getElementById("aeFilters").hidden);
+  });
+  // Klick daneben schliesst -- aber NICHT ein Klick im Menue selbst, sonst klappt es bei jeder
+  // Auswahl zu, und das Ort-Autocomplete darin waere unbedienbar.
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#aeFilters") || e.target.closest("#aeFilterToggle")) return;
+    setFilterMenuOpen(false);
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setFilterMenuOpen(false); });
+
   initFilterSelects();
   renderOrtChip();
+  renderFilterToggle();
   ["aeFType", "aeFEdition", "aeFCover", "aeFShop", "aeFRegion"].forEach((id) =>
     document.getElementById(id).addEventListener("change", syncSimpleFilters));
   ["aeFYearFrom", "aeFYearTo"].forEach((id) =>

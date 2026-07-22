@@ -82,8 +82,8 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 2px;
-    padding: var(--space-6) var(--space-10);
+    gap: 1px; justify-content: center; text-align: left; min-height: 48px; line-height: var(--leading-tight);
+    padding: var(--space-4) var(--space-8);
     background: var(--color-button-soft);
     border: 1px solid var(--color-button-soft-border);
     border-radius: var(--radius-md);
@@ -93,14 +93,14 @@
   }
   .ce-btn2:hover:not(:disabled) { background: var(--color-button-soft-hover); }
   .ce-btn2:disabled { opacity: 0.6; cursor: default; }
-  .ce-btn2 .t1 { font-weight: 700; }
-  .ce-btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); }
+  .ce-btn2 .t1 { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ce-btn2 .t2 { font-size: var(--font-size-caption); color: var(--color-text-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* The one filled action in this header (AGENTS.md §12: main action filled, the rest soft).
-     Mirrors .ae-btn2--primary in adventure-editor.html token for token -- the two sync buttons are
-     the same gesture and must not drift apart. */
+     Tile metrics and .t1/.t2 mirror .btn2 in wiki-sync-settlement-editor.html, the reference (spec §3.3):
+     48px min-height, 6/10 padding, ellipsis instead of wrapping. This tile diverged in eight properties. */
   .ce-btn2--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
   .ce-btn2--primary:hover:not(:disabled) { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
-  .ce-btn2--primary .t2 { color: var(--color-button-text); opacity: .8; }
+  .ce-btn2--primary .t2 { color: var(--color-on-button-muted); }
 
   /* Statuszeile unter dem Menueband (Spec §3.4), volle Breite, eigener Grund -- Vorbild
      #settlementStatus im Siedlungseditor. Feste Mindesthoehe, weil eine eintreffende Meldung die drei
@@ -255,7 +255,7 @@
     color: var(--color-text-muted);
   }
   .ce-row { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
-  .ce-row__label { flex: 0 0 130px; color: var(--color-text-muted); }
+  .ce-row__label { flex: 0 0 var(--avm-field-label-w); color: var(--color-text-muted); }
   /* Follow-the-link affordance next to a URL input. --color-link is the house link colour (never blue,
      AGENTS.md §12); flex: 0 0 auto so it never steals width from the input. */
   .ce-open {
