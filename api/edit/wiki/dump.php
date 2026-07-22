@@ -106,6 +106,7 @@ require __DIR__ . '/../../_internal/wiki/territories-tree.php';
 require __DIR__ . '/../../_internal/wiki/territories-parsing.php';
 require __DIR__ . '/../../_internal/wiki/territories.php';
 require __DIR__ . '/../../_internal/wiki/paths.php';
+require __DIR__ . '/../../_internal/wiki/powerlines.php';
 require __DIR__ . '/../../_internal/wiki/regions.php';
 require __DIR__ . '/../../_internal/wiki/locations.php';
 require __DIR__ . '/../../_internal/wiki/settlements.php';

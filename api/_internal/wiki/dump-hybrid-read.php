@@ -255,6 +255,10 @@ function avesmapsWikiDumpHybridParseRow(array $row): array
             // Paths carry no override triple -- called exactly as Pass B calls it.
             $result = avesmapsWikiDumpParsePathPage($page);
             break;
+        case AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE:
+            // Like paths: no override triple, no continent gate.
+            $result = avesmapsWikiDumpParsePowerlinePage($page);
+            break;
         case AVESMAPS_WIKI_DUMP_ENTITY_REGION:
             $result = avesmapsWikiDumpParseRegionPage($page, $override);
             break;
@@ -575,6 +579,9 @@ function avesmapsWikiDumpHybridParseUpsertStep(
         // Guard the enrichment/schema columns exactly as Pass B does before its
         // settlement/building upserts (idempotent).
         avesmapsWikiSettlementEnsureSchema($pdo);
+        // Same guard for the powerline staging table: the upsert below would otherwise hit a
+        // missing table on the very first sharp run. Idempotent, once per step, not per row.
+        avesmapsWikiPowerlineEnsureTables($pdo);
     } else {
         avesmapsWikiDumpHybridEnsureStateTable($pdo);
     }
@@ -697,6 +704,10 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
     switch ($kind) {
         case AVESMAPS_WIKI_DUMP_ENTITY_PATH:
             avesmapsWikiPathUpsertRecord($pdo, $record); // reused Pass B upsert
+            break;
+
+        case AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE:
+            avesmapsWikiPowerlineUpsertRecord($pdo, $record); // staging only
             break;
 
         case AVESMAPS_WIKI_DUMP_ENTITY_REGION:

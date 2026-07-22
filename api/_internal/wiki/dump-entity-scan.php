@@ -125,6 +125,7 @@ const AVESMAPS_WIKI_DUMP_ENTITY_REGION = 'region';         // 4b (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT = 'settlement'; // 4c (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // 4d (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4c2 (handled)
+const AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE = 'powerline';   // 4e (handled)
 
 /**
  * The set of entity kinds this task actually processes. A dispatcher can test
@@ -144,6 +145,7 @@ function avesmapsWikiDumpHandledEntityKinds(): array
         AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT,
         AVESMAPS_WIKI_DUMP_ENTITY_BUILDING,
         AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY,
+        AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE,
     ];
 }
 
@@ -174,6 +176,14 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
     $key = avesmapsWikiSyncMonitorFieldKey($infoboxName);
     if ($key === '') {
         return '';
+    }
+
+    // POWERLINES (4e). Checked FIRST because it is the most specific needle -- and because
+    // its absence is what made 23 {{Infobox Kraftlinie}} pages fall through to '' and be
+    // discarded silently, the same gate that once swallowed ~430 adventures. No other
+    // infobox name contains "kraftlinie", so this claims nothing another handler wants.
+    if (str_contains($key, 'kraftlinie')) {
+        return AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE;
     }
 
     // PATHS (handled in 4a).
@@ -312,6 +322,40 @@ function avesmapsWikiDumpParsePathPage(array $page): array
     // online-crawler DB, which never filtered by continent). The detected continent
     // VALUE is still carried on the record; only the keep/drop decision is keep-all.
     return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
+}
+
+// ===========================================================================
+// 3a2. POWERLINE handler -- PURE (parse + keep/skip decision, DB-free). Task 4e.
+// ===========================================================================
+
+/**
+ * PURE powerline handler for ONE dump page -- the tight analogue of
+ * avesmapsWikiDumpParsePathPage(). It reuses avesmapsWikiPowerlineParsePage()
+ * (powerlines.php) verbatim and adds ZERO field or key logic of its own.
+ *
+ * Keep-all, like every other handler: the detected continent VALUE rides on the
+ * record, but no page is dropped for it.
+ */
+function avesmapsWikiDumpParsePowerlinePage(array $page): array
+{
+    $title = (string) ($page['title'] ?? '');
+    $wikitext = (string) ($page['wikitext'] ?? '');
+    $categories = avesmapsWikiDumpExtractCategoryNames($wikitext);
+
+    $parsed = avesmapsWikiPowerlineParsePage($title, $wikitext, $title, 'dump', $categories);
+
+    if (empty($parsed['is_powerline']) || !is_array($parsed['record'] ?? null)) {
+        return [
+            'kept' => false,
+            'reason' => (string) ($parsed['reason'] ?? 'keine Kraftlinie'),
+            'record' => null,
+            'continent' => '',
+        ];
+    }
+
+    $record = $parsed['record'];
+
+    return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => (string) ($record['continent'] ?? '')];
 }
 
 // ===========================================================================
@@ -957,6 +1001,10 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
                 $result = avesmapsWikiDumpParseTerritoryPage($page);
                 break;
 
+            case AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE:
+                $result = avesmapsWikiDumpParsePowerlinePage($page);
+                break;
+
             default:
                 // Recognised but unhandled: counted above, no record. (All recognised
                 // kinds now have a handler, so this branch is effectively unreachable.)
@@ -1316,6 +1364,33 @@ function avesmapsWikiDumpPersistPathRecords(PDO $pdo, iterable $pages): int
         $result = avesmapsWikiDumpParsePathPage($page);
         if ($result['kept'] && is_array($result['record'])) {
             avesmapsWikiPathUpsertRecord($pdo, $result['record']); // reused real upsert
+            $written++;
+        }
+    }
+
+    return $written;
+}
+
+/**
+ * THIN persistence for the POWERLINE handler -- the analogue of
+ * avesmapsWikiDumpPersistPathRecords(). Staging only; nothing here touches map_features.
+ *
+ * DB-backed -> NOT covered by the fixture test; verified on a real "Dump holen" run.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return int number of powerline records upserted
+ */
+function avesmapsWikiDumpPersistPowerlineRecords(PDO $pdo, iterable $pages): int
+{
+    avesmapsWikiPowerlineEnsureTables($pdo);
+    $written = 0;
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParsePowerlinePage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            avesmapsWikiPowerlineUpsertRecord($pdo, $result['record']);
             $written++;
         }
     }
