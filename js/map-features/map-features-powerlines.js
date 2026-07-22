@@ -334,18 +334,21 @@ function createPowerlinePopupMarkup(powerline) {
 }
 
 function refreshPowerlineLayerPopup(powerline) {
-	const popupMarkup = createPowerlinePopupMarkup(powerline);
-	// Ohne Optionen erbte die Box den 260px-Deckel aus .location-popup und KEINE Kachel-Optik -- die
-	// Editor-Aktionen fielen darin untereinander. Gleiche Huelle wie jede andere schwebende Box:
-	// "settlement-popup" loest die Breite auf 400px, "floating-location-popup" gibt die Kacheln.
-	const options = {
+	// KEIN bindPopup mehr (Owner 2026-07-22): eine Kraftlinie gehoert ins INFOPANEL, nicht in die
+	// schwebende Kiste. bindPopup oeffnet automatisch und liesse sich weder vom Panel noch vom
+	// Klick-Schiedsrichter abfangen -- Leaflet feuert alle click-Listener. Wir merken uns darum nur
+	// Markup + Optionen und entscheiden im click-Handler (createPowerlineLayer), genau wie der Weg
+	// es tut (refreshPathLayerPopup, map-features-path-rendering.js).
+	powerline._popupMarkup = createPowerlinePopupMarkup(powerline);
+	// Die Optionen gelten nur noch fuer den Rueckfall ohne Panel: "settlement-popup" loest die
+	// Breite auf 400px, "floating-location-popup" gibt die Kachel-Optik.
+	powerline._popupOptions = {
 		minWidth: 320,
 		maxWidth: 400,
 		className: (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE)
 			? "settlement-popup floating-location-popup"
 			: "settlement-popup",
 	};
-	powerline._interactiveLines?.forEach((line) => line.bindPopup(popupMarkup, options));
 }
 
 function createPowerlineLayer(powerline) {
@@ -394,6 +397,29 @@ function createPowerlineLayer(powerline) {
 	powerline._layerGroup = group;
 	powerline._labelLine = labelLine;
 	powerline._interactiveLines = interactiveLines;
+	interactiveLines.forEach((line) => {
+		line.on("click", (event) => {
+			// Klick-Schiedsrichter zuerst: Kraftlinien enden an Nodix-ORTEN, ein Klick nahe dem
+			// Endpunkt gehoert dem Ort, nicht der Linie (docs/click-arbiter-coordination.md).
+			if (typeof window.avesmapsTryOpenLocationAtContainerPoint === "function"
+					&& window.avesmapsTryOpenLocationAtContainerPoint(event.containerPoint)) {
+				L.DomEvent.stop(event);
+				return;
+			}
+			// Der Normalfall: Info ins rechte Panel.
+			if (typeof window.avesmapsShowPowerlineInInfopanel === "function"
+					&& window.avesmapsShowPowerlineInInfopanel(powerline)) {
+				return;
+			}
+			// Nur ohne Panel: schwebendes Popup als Rueckfall (bindPopup-Ersatz).
+			if (powerline._popupMarkup && typeof map !== "undefined") {
+				L.popup(powerline._popupOptions || {})
+					.setLatLng(event.latlng)
+					.setContent(powerline._popupMarkup)
+					.openOn(map);
+			}
+		});
+	});
 	refreshPowerlineLayerPopup(powerline);
 	refreshPowerlineLayerText(powerline);
 	return group;
@@ -554,6 +580,11 @@ function applyPowerlineFeatureResponse(powerline, feature) {
 	powerline.id = updatedPowerline.id;
 	refreshPowerlineLayerPopup(powerline);
 	refreshPowerlineLayers();
+	// Steht diese Kraftlinie gerade im Panel, muss das Gespeicherte auch dort ankommen -- sonst
+	// zeigt das Panel nach dem Speichern noch den alten Namen/die alte Beschreibung.
+	if (typeof window.avesmapsRefreshInfopanel === "function") {
+		window.avesmapsRefreshInfopanel();
+	}
 	if (window.AvesmapsPathLabelCanvasOverlay) {
 		window.AvesmapsPathLabelCanvasOverlay.redraw();
 	}

@@ -660,6 +660,21 @@
 		return true;
 	};
 
+	// Feature-Glue (Owner 2026-07-22, Kraftlinien): eine Kraftlinie gehoert ins PANEL, nicht in die
+	// schwebende Kiste -- genau wie Wege. Baut das Markup frisch, wenn der Layer noch keins gemerkt
+	// hat (Direktaufruf), und setzt den Anker, damit ein spaeterer Refresh denselben Inhalt neu
+	// zeichnen kann. false -> der Aufrufer faellt auf das schwebende Popup zurueck.
+	window.avesmapsShowPowerlineInInfopanel = function (powerline) {
+		var markup = (powerline && powerline._popupMarkup)
+			|| (powerline && typeof createPowerlinePopupMarkup === "function" ? createPowerlinePopupMarkup(powerline) : "");
+		if (!markup) {
+			return false;
+		}
+		window.avesmapsShowInfopanel(markup);
+		lastPanelRender = function () { window.avesmapsShowPowerlineInInfopanel(powerline); };
+		return true;
+	};
+
 	// Feature-Glue (Owner 2026-07-17, Routen-Etappen): ein Klick auf ein Routen-Segment (Karte) oder auf die
 	// Etappe im Planer zeigt deren Infobox im Panel. Beide Wege laufen durch selectRoutePlanEntry, dort haengt
 	// der Aufruf. Der Anker wird direkt nach avesmapsShowInfopanel gesetzt -- das nullt ihn zentral, und ohne
