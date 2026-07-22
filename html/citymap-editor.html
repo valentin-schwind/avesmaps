@@ -47,6 +47,10 @@
 <link rel="stylesheet" href="/css/base/tokens.css">
 <style>
   * { box-sizing: border-box; }
+  /* Eine Bedienhoehe fuer Suchfeld, Knopf, Eingabe und Auswahl (Spec §4.3): sie stehen staendig
+     nebeneinander, und drei verschiedene Hoehen lesen sich als Unfall. Die kompakten Zeilen-Knoepfe
+     (.btn--sm/.btn--icon) bleiben bewusst klein -- die sitzen IN einer Zeile, nicht neben dem Suchfeld. */
+  :root { --ce-control-h: 32px; }
   /* Scrollbars, copied from css/base/base.css. This iframe links tokens.css but NOT base.css, so every
      scroll area in here fell back to the browser's default bars while the app around it had the thin
      warm ones -- the single most obvious "this dialog is from somewhere else" tell (owner 2026-07-17:
@@ -107,6 +111,24 @@
   .ce-btn2--primary:hover:not(:disabled) { background: var(--color-button-hover); box-shadow: var(--shadow-button-hover-strong); }
   .ce-btn2--primary .t2 { color: var(--color-button-text); opacity: .8; }
 
+  /* Statuszeile unter dem Menueband (Spec §3.4), volle Breite, eigener Grund -- Vorbild
+     #settlementStatus im Siedlungseditor. Feste Mindesthoehe, weil eine eintreffende Meldung die drei
+     Spalten darunter sonst nach unten schiebt; sie ist immer da und sagt im Ruhezustand "Bereit.". */
+  .ce-status {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    min-height: 30px;
+    padding: var(--space-4) var(--space-12);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-panel-soft);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ce-status.error { color: var(--color-danger); }
+
   .ce-body { flex: 1 1 auto; display: flex; min-height: 0; }
   .ce-list {
     /* War fest 380px (Owner 2026-07-17: Wiki-Titel sind lang, weil die Quelle Teil des Namens ist --
@@ -122,9 +144,27 @@
     border-right: 1px solid var(--color-border);
     background: var(--color-panel);
   }
-  .ce-list__top { display: flex; gap: var(--space-6); padding: var(--space-8); }
+  /* Spaltentitel (Spec §3.2: "Jede Spalte traegt einen Titel", §4.1: --font-size-subhead in
+     --color-accent-strong). Er steht AUSSERHALB des Scrollbereichs, denn die Panel-Inhalte werden per
+     innerHTML neu gebaut -- ein Titel darin waere beim ersten Render weg. Deshalb traegt in den beiden
+     Detailspalten ein innerer .ce-panel__scroll die id, und der Titel ist sein Geschwister davor. */
+  .ce-coltitle {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: var(--space-8) var(--space-12) var(--space-6);
+    font-size: var(--font-size-subhead);
+    line-height: var(--leading-snug);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-accent-strong);
+  }
+  /* Die Liste hat ihren eigenen, engeren Innenrand (--space-8 an Suchzeile, Zaehler und Zeilen);
+     der Titel folgt ihm, statt eine zweite Kante einzufuehren. */
+  .ce-list > .ce-coltitle { padding-left: var(--space-8); padding-right: var(--space-8); }
+  .ce-coltitle__count { font-size: var(--font-size-caption); font-weight: 400; color: var(--color-text-muted); }
+  .ce-list__top { display: flex; gap: var(--space-6); padding: 0 var(--space-8) var(--space-8); }
   .ce-search {
     flex: 1 1 auto;
+    min-height: var(--ce-control-h);
     padding: var(--space-4) var(--space-8);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -173,25 +213,43 @@
      1 : 2 mit je 50 % innen ergibt drei gleich breite Spalten, ohne die Kopfzeile und die
      Speicherleiste auseinanderzureissen -- die spannen bewusst ueber beide Panels (Spec §5). */
   .ce-detail { flex: 2 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  /* Die Ueberschrift der gewaehlten Karte -- Detail-Ueberschrift, also dieselbe Stufe wie die
+     Spaltentitel (Spec §4.1), aber in --color-text-strong statt Gold: sie benennt einen Datensatz,
+     kein Fach. Vorher trug sie nur font-weight und blieb damit auf Listenzeilen-Groesse. */
   .ce-detail__head {
     flex: 0 0 auto;
     padding: var(--space-8) var(--space-12);
     border-bottom: 1px solid var(--color-border);
-    font-weight: 700;
+    font-size: var(--font-size-subhead);
+    line-height: var(--leading-snug);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-strong);
   }
   .ce-panels { flex: 1 1 auto; display: flex; min-height: 0; }
-  .ce-panel { flex: 1 1 50%; overflow-y: auto; min-height: 0; padding: var(--space-12); }
-  /* War fest 340px -- zusammen mit der festen Listenbreite ergab das 540/950/500 statt Dritteln. */
-  .ce-panel--orte { flex: 1 1 0; min-width: 0; border-left: 1px solid var(--color-border); }
+  /* flex-basis 0 fuer BEIDE Panels. Vorher stand hier 50 %, waehrend .ce-panel--orte auf 0 stand --
+     zwei verschiedene Basen in derselben Zeile, und der freie Rest wurde dann noch einmal gleich
+     verteilt. Ergebnis waren nicht Drittel, sondern ein breites Stammdaten- und ein schmales
+     Orte-Panel (gemessen, siehe Commit). Mit gleicher Basis 0 teilen sie die Detailspalte exakt. */
+  .ce-panel { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  /* Das Panel selbst scrollt nicht mehr -- sonst wanderte der Spaltentitel mit dem Inhalt weg.
+     Es scrollt der innere Kasten, der auch die id traegt. */
+  .ce-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 var(--space-12) var(--space-12); }
+  .ce-panel--orte { border-left: 1px solid var(--color-border); }
   .ce-placeholder { color: var(--color-text-muted); }
 
   .ce-grp { margin-bottom: var(--space-16); }
+  /* Gruppentitel = versal auf --font-size-caption (Spec §4.1), Wort fuer Wort wie .ae-grp__title im
+     Abenteuer-Editor. Vorher fett auf Fliesstextgroesse und damit auf derselben Stufe wie der
+     Spaltentitel darueber -- zwei Ebenen, die gleich laut sprachen. */
   .ce-grp__title {
     margin: 0 0 var(--space-8);
     padding-bottom: var(--space-4);
     border-bottom: 1px solid var(--color-divider);
-    font-weight: 700;
-    color: var(--color-text-strong);
+    font-size: var(--font-size-caption);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-muted);
   }
   .ce-row { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-6); }
   .ce-row__label { flex: 0 0 130px; color: var(--color-text-muted); }
@@ -210,6 +268,7 @@
   .ce-input, .ce-select {
     flex: 1 1 auto;
     min-width: 0;
+    min-height: var(--ce-control-h);
     padding: var(--space-4) var(--space-6);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -240,7 +299,7 @@
     align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); }
   .ce-xlink__reorder { display: flex; flex-direction: column; }
   .ce-xlink__reorder button { border: 0; background: transparent; cursor: pointer;
-    color: var(--color-text-muted); line-height: 1; padding: 0; font-size: 10px; }
+    color: var(--color-text-muted); line-height: 1; padding: 0; font-size: var(--font-size-caption); }
   .ce-xlink__reorder button:hover { color: var(--color-text-strong); }
   .ce-xlink__reorder button:disabled { opacity: .35; cursor: default; }
   .ce-xlink__hint { font-size: var(--font-size-caption); color: var(--color-text-muted);
@@ -304,6 +363,7 @@
   .ce-img__state.error { color: var(--color-danger); }
 
   .btn {
+    min-height: var(--ce-control-h);
     padding: var(--space-4) var(--space-10);
     border: 1px solid var(--color-button-soft-border);
     border-radius: var(--radius-md);
@@ -319,9 +379,12 @@
     color: var(--color-button-text);
   }
   .btn--primary:hover { background: var(--color-button-hover); }
-  .btn--sm { padding: 2px var(--space-6); font-size: var(--font-size-caption); }
+  /* Die zwei kompakten Varianten nehmen die Bedienhoehe ausdruecklich zurueck: sie sitzen INNERHALB
+     einer Zeile (Fundort-, Bild- und Ortszeilen), wo 32px die Zeile aufblaehen wuerden. Die Regel aus
+     §4.3 meint die Bedienelemente, die nebeneinander in einer Leiste stehen. */
+  .btn--sm { min-height: 0; padding: 2px var(--space-6); font-size: var(--font-size-caption); }
   .btn--danger { color: var(--color-danger); }
-  .btn--icon { padding: 2px var(--space-6); }
+  .btn--icon { min-height: 0; padding: 2px var(--space-6); }
 
   /* Base pill copied token-for-token from html/adventure-editor.html -- the nearest existing component
      (AGENTS.md §12: reuse it as the template, do not re-invent). It had drifted here: --color-border /
@@ -447,8 +510,13 @@
   </button>
 </div>
 
+<!-- Statuszeile (Spec §3.4). Sie nimmt auf, was gerade LAEUFT; was ein Knopf im Ruhezustand ueber sich
+     zu sagen hat ("Dump: …", "12 von 300 offen"), bleibt in seiner eigenen zweiten Zeile stehen. -->
+<div class="ce-status" id="ceStatus" role="status" aria-live="polite">Bereit.</div>
+
 <div class="ce-body">
   <aside class="ce-list">
+    <h2 class="ce-coltitle">Karten</h2>
     <div class="ce-list__top">
       <input class="ce-search" id="ceSearch" type="search" placeholder="Karte suchen …" autocomplete="off">
       <button class="btn btn--primary" id="ceNew" title="Neue Karte anlegen">+ Neu</button>
@@ -460,11 +528,21 @@
   <section class="ce-detail">
     <div class="ce-detail__head" id="ceDetailHead">Keine Karte gewählt</div>
     <div class="ce-panels">
-      <div class="ce-panel ce-panel--stamm" id="ceStammBody">
-        <p class="ce-placeholder">Links eine Karte wählen oder „+ Neu“.</p>
+      <!-- Die id sitzt am inneren, scrollenden Kasten: renderDetail/renderPlaces schreiben per
+           innerHTML hinein, und ein Spaltentitel darin waere beim ersten Render weg. Als Geschwister
+           davor ueberlebt er jedes Neuzeichnen. Delegierte Listener und die
+           querySelectorAll("#ceStammBody [data-cm-field]")-Sammlung greifen unveraendert. -->
+      <div class="ce-panel ce-panel--stamm">
+        <h2 class="ce-coltitle">Stammdaten</h2>
+        <div class="ce-panel__scroll" id="ceStammBody">
+          <p class="ce-placeholder">Links eine Karte wählen oder „+ Neu“.</p>
+        </div>
       </div>
-      <div class="ce-panel ce-panel--orte" id="ceOrteBody">
-        <p class="ce-placeholder">—</p>
+      <div class="ce-panel ce-panel--orte">
+        <h2 class="ce-coltitle">Orte <span class="ce-coltitle__count" id="ceOrteCount"></span></h2>
+        <div class="ce-panel__scroll" id="ceOrteBody">
+          <p class="ce-placeholder">—</p>
+        </div>
       </div>
     </div>
     <!-- Order copied from the adventure editor's savebar: status LEFT, actions bottom-RIGHT, primary
@@ -519,6 +597,18 @@
     return (s == null ? "" : String(s))
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/`/g, "&#96;");
+  }
+
+  // Die eine Statuszeile unter dem Menueband (Spec §3.4). Sie traegt, was gerade LAEUFT -- Fortschritt,
+  // Ergebnis, Fehler. Die zweite Zeile einer Kachel bleibt dagegen ihr Ruhezustand ("Dump: …",
+  // "12 von 300 offen"): vorher schrieben beide in dieselbe Stelle, weshalb ein "Sync fehlgeschlagen"
+  // in der Kachel stand und 1,5 s spaeter vom Auffrischen des Dump-Datums ueberschrieben wurde -- die
+  // Fehlermeldung war weg, bevor sie jemand lesen konnte.
+  function ceStatus(text, isError) {
+    const el = document.getElementById("ceStatus");
+    if (!el) return;
+    el.textContent = text;
+    el.className = isError ? "ce-status error" : "ce-status";
   }
 
   // POST helper — Gold-Contract envelope, surfaces error.message.
@@ -852,6 +942,7 @@
         ${ceUrlField("Karten-Link (extern) *", "map_url", "")}
         <p class="ce-hint">Titel und Quelle sind Pflicht, alles andere optional. Nicht Erfasstes bleibt „unbekannt“ und wird dem Leser gar nicht erst gezeigt.</p>
       </div>`;
+      setOrteCount("");
       document.getElementById("ceOrteBody").innerHTML = `<p class="ce-placeholder">Erst speichern, dann Orte zuordnen.</p>`;
       return;
     }
@@ -1103,15 +1194,24 @@
         <button class="btn btn--icon btn--danger" data-act="suppress" title="Entfernen">✕</button></div></div>`;
   }
 
+  // Der Zaehler sitzt im Spaltentitel, nicht mehr in einer eigenen Ueberschrift im Inhalt: sonst
+  // stuenden "Orte" (Spaltentitel) und "Orte (3)" (Gruppentitel) unmittelbar uebereinander.
+  function setOrteCount(text) {
+    const el = document.getElementById("ceOrteCount");
+    if (el) el.textContent = text;
+  }
+
   function renderPlaces() {
     const body = document.getElementById("ceOrteBody");
     if (!state.detail) {
+      setOrteCount("");
       body.innerHTML = `<p class="ce-placeholder">Erst speichern, dann Orte zuordnen.</p>`;
       return;
     }
     const approved = (state.detail.places || []).filter((p) => p.status === "approved");
     const suppressed = (state.detail.places || []).filter((p) => p.status !== "approved");
-    body.innerHTML = `<p class="ce-grp__title">Orte (${approved.length})</p>
+    setOrteCount(`(${approved.length})`);
+    body.innerHTML = `
       ${approved.map((p, i) => placeRow(p, i === 0, i === approved.length - 1)).join("") || `<p class="ce-placeholder">Noch kein Ort zugeordnet.</p>`}
       ${suppressed.length ? `<details style="margin-top:var(--space-8)"><summary class="ce-hint">${suppressed.length} unterdrückt</summary>${suppressed.map((p) => placeRow(p, true, true)).join("")}</details>` : ""}
       <div class="ce-add">
@@ -1287,19 +1387,18 @@
     if (ceSyncRunning) return;
     let parentWindow;
     try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
-    const statusEl = document.getElementById("ceSyncSub");
     if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncCitymapsSync !== "function") {
-      if (statusEl) statusEl.textContent = "Syncen ist nur im eingebetteten Editor verfügbar.";
+      ceStatus("Syncen ist nur im eingebetteten Editor verfügbar.", true);
       return;
     }
     setCeSyncBusy(true);
-    if (statusEl) statusEl.textContent = "Karten werden übernommen …";
+    ceStatus("Karten werden übernommen …");
     try {
       await parentWindow.startWikiSyncCitymapsSync();
-      if (statusEl) statusEl.textContent = "Sync abgeschlossen.";
+      ceStatus("Sync abgeschlossen.");
       await loadList(); // new/updated maps should show up in the left list right away
     } catch (e) {
-      if (statusEl) statusEl.textContent = "Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+      ceStatus("Sync fehlgeschlagen: " + (e && e.message ? e.message : String(e)), true);
     } finally {
       setCeSyncBusy(false);
       setTimeout(() => { void refreshCeSyncedInfo(); }, 1500);
@@ -1328,23 +1427,28 @@
     try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
     const statusEl = document.getElementById("ceLinkCheckSub");
     if (!parentWindow || parentWindow === window || typeof parentWindow.startLinkCheck !== "function") {
-      if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
+      ceStatus("Nur im eingebetteten Editor verfügbar.", true);
       return;
     }
     setLinkCheckBusy(true);
+    ceStatus("Links werden geprüft …");
     try {
+      // Fortschritt in die Statuszeile; die Kachel behaelt ihre Bilanz (sie ist der Ruhezustand
+      // "wie steht es um die Links?" und hat sonst keinen Schreiber).
       const result = await parentWindow.startLinkCheck("citymap", (text) => {
-        if (statusEl) statusEl.textContent = text;
+        ceStatus(text);
       });
       // startLinkCheck returns NULL (it does not throw) when another scope's run is already in flight --
       // the guard is global on purpose. Say so instead of leaving the last progress line standing.
       if (!result) {
-        if (statusEl) statusEl.textContent = "Eine andere Prüfung läuft bereits.";
-      } else if (statusEl && result.status) {
-        statusEl.textContent = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} unbekannt`;
+        ceStatus("Eine andere Prüfung läuft bereits.");
+      } else if (result.status) {
+        const bilanz = `${result.status.online} online · ${result.status.dead} tot · ${result.status.unchecked} unbekannt`;
+        if (statusEl) statusEl.textContent = bilanz;
+        ceStatus("Prüfung abgeschlossen: " + bilanz);
       }
     } catch (e) {
-      if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+      ceStatus("Fehlgeschlagen: " + (e && e.message ? e.message : String(e)), true);
     } finally {
       setLinkCheckBusy(false);
     }
@@ -1389,11 +1493,10 @@
 
   async function handleAutogetClick() {
     if (ceAutogetRunning) return;
-    const statusEl = document.getElementById("ceAutogetSub");
     let parentWindow;
     try { parentWindow = window.parent; } catch (e) { parentWindow = null; }
     if (!parentWindow || parentWindow === window || typeof parentWindow.startCitymapAutoget !== "function") {
-      if (statusEl) statusEl.textContent = "Nur im eingebetteten Editor verfügbar.";
+      ceStatus("Nur im eingebetteten Editor verfügbar.", true);
       return;
     }
     if (!window.confirm("Für alle Karten ohne eigenes Vorschaubild ein Bild holen?\n\nWiki-Karten über die MediaWiki-API, Ulisses über die Produkt-API. Verlagscover werden öffentlich sichtbar, eigene Uploads bleiben unangetastet. Der Durchlauf dauert ein bis zwei Minuten und lässt sich fortsetzen.")) {
@@ -1402,17 +1505,17 @@
     setAutogetBusy(true);
     try {
       const r = await parentWindow.startCitymapAutoget((text) => {
-        if (statusEl) statusEl.textContent = text;
+        ceStatus(text);
       });
       // Returns NULL (it does not throw) when a run is already in flight -- the guard is global on
       // purpose. Say so instead of leaving the last progress line standing.
       if (!r) {
-        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits (dieser Tab).";
+        ceStatus("Ein Durchlauf läuft bereits (dieser Tab).");
       } else if (r.busy) {
-        if (statusEl) statusEl.textContent = "Ein Durchlauf läuft bereits (anderer Tab oder Server).";
+        ceStatus("Ein Durchlauf läuft bereits (anderer Tab oder Server).");
       } else if (r.stopped) {
-        if (statusEl) statusEl.textContent = "Durchlauf per Not-Aus gestoppt.";
-      } else if (statusEl) {
+        ceStatus("Durchlauf per Not-Aus gestoppt.");
+      } else {
         // Report EVERY outcome, not just the wins ("kein stilles Abschneiden", owner). Counted in MAPS,
         // because that is what a reader sees -- the sources are only the bracket.
         const parts = [`${r.sources} Quellen · ${r.ok} Karten mit Vorschau`];
@@ -1420,13 +1523,16 @@
         if (r.fetch_failed) parts.push(`${r.fetch_failed} nicht erreichbar`);
         if (r.not_an_image) parts.push(`${r.not_an_image} kein Bild`);
         if (r.skipped) parts.push(`${r.skipped} übersprungen (eigenes Bild)`);
-        statusEl.textContent = parts.join(" · ");
+        ceStatus(parts.join(" · "));
       }
       await loadList(true);
     } catch (e) {
-      if (statusEl) statusEl.textContent = "Fehlgeschlagen: " + (e && e.message ? e.message : String(e));
+      ceStatus("Fehlgeschlagen: " + (e && e.message ? e.message : String(e)), true);
     } finally {
       setAutogetBusy(false);
+      // Die Kachel zurueck auf ihren Ruhezustand ("N von M offen") -- nach einem Lauf stimmt die beim
+      // Oeffnen geholte Zahl nicht mehr. Dieselbe Geste wie refreshCeSyncedInfo nach dem Sync.
+      void refreshCeAutogetInfo();
     }
   }
 
