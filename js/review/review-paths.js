@@ -105,6 +105,18 @@ function populatePowerlineEditForm(powerline) {
 function openPowerlineEditDialog(powerline) {
 	resetPowerlineEditForm();
 	populatePowerlineEditForm(powerline);
+	// Der Quellen-Editor ist generisch -- ein Mount-Aufruf, kein Neubau. Die public_id wird bei
+	// JEDER Anfrage frisch aus dem Feld gelesen, damit ein Dialogwechsel nicht auf die alte Linie
+	// schreibt (dieselbe Vorsicht wie im Lore- und Siedlungs-Editor).
+	const sourceHost = document.getElementById("powerline-edit-feature-sources");
+	if (sourceHost && typeof mountFeatureSourceEditor === "function") {
+		void mountFeatureSourceEditor(
+			sourceHost,
+			"powerline",
+			() => document.getElementById("powerline-edit-public-id")?.value || "",
+			{ escape: escapeHtml }
+		);
+	}
 	setPowerlineEditDialogOpen(true);
 }
 
