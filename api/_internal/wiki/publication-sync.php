@@ -393,6 +393,12 @@ function avesmapsPublicationEntityRefForPage(array $page): array
             $record = avesmapsWikiDumpParseTerritoryPage($page)['record'] ?? null;
             $entityType = 'territory';
             break;
+        case AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE:
+            // Kraftlinien articles carry a full ==Publikationen== section (verified on
+            // Basiliuslinie), so they feed the shared catalogue like any other type.
+            $record = avesmapsWikiDumpParsePowerlinePage($page)['record'] ?? null;
+            $entityType = 'powerline';
+            break;
         default:
             // LORE (flora/fauna/species/trade goods) as a FALLBACK, never a competitor: it is only
             // consulted when the classifier recognised nothing, so it cannot take a page away from
