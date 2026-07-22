@@ -449,7 +449,8 @@
    Der Status-Span STEHT weiterhin im Markup und behaelt seine id; er ist nur ins
    Knopfinnere gewandert. Deshalb schreibt review-wiki-sync.js unveraendert weiter
    hinein (es sucht per getElementById, nicht ueber die Struktur). */
-.wiki-sync-panel__actions > .wiki-sync-panel__start {
+.wiki-sync-panel__actions > .wiki-sync-panel__start,
+.wiki-sync-verbs > .wiki-sync-panel__start {
 	flex: 1 1 auto;
 	width: auto;
 	display: flex;
@@ -462,12 +463,14 @@
 	   wenn der Abruf zurueckkommt, und schiebt alles darunter ein Stueck nach unten. */
 	min-height: 44px;
 }
-.wiki-sync-panel__actions > .wiki-sync-panel__start .t1 {
+.wiki-sync-panel__actions > .wiki-sync-panel__start .t1,
+.wiki-sync-verbs > .wiki-sync-panel__start .t1 {
 	font-weight: var(--font-weight-bold);
 }
 /* Auf gefuelltem Grund traegt die zweite Zeile die Knopffarbe, nicht die Textfarbe --
    --color-text-strong waere hier fast unsichtbar. Entspricht .ae-btn2--primary .t2. */
-.wiki-sync-panel__actions > .wiki-sync-panel__start > .wiki-sync-panel__summary {
+.wiki-sync-panel__actions > .wiki-sync-panel__start > .wiki-sync-panel__summary,
+.wiki-sync-verbs > .wiki-sync-panel__start > .wiki-sync-panel__summary {
 	color: var(--color-button-text);
 	opacity: 0.85;
 	font-size: var(--font-size-caption);

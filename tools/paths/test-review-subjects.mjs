@@ -102,8 +102,11 @@ assert.equal(syncKind("regions"), "region");
 assert.equal(syncKind("paths"), "path");
 assert.equal(syncKind("adventures"), "adventure");
 assert.equal(syncKind("citymaps"), "citymap");
-assert.equal(syncKind("powerlines"), null, "the server knows no powerline kind -- do not invent one");
-assert.equal(syncKind("lore"), null, "the server knows no lore kind -- do not invent one");
+// "lore" is answered by the lore catalogue itself (api/app/lore.php -> last_synced), not by the
+// dump endpoint; loadLoreList feeds it into the same map. Powerlines have no source at all, and
+// null has to stay null there -- a rail that invents a date claims a sync nobody ran.
+assert.equal(syncKind("lore"), "lore");
+assert.equal(syncKind("powerlines"), null, "nothing answers for powerlines -- do not invent one");
 assert.equal(syncKind("nonsense"), null);
 
 console.log("review-subjects: OK");

@@ -215,6 +215,9 @@ function renderRegionSyncList() {
 			tab("all", "Alle", missingCount + matchedCount + ambiguousCount + mapOnlyCount) +
 			tab("matched", "Platziert", matchedCount + ambiguousCount) +
 			tab("missing", "Fehlt", missingCount);
+		if (typeof setWikiSyncSubjectCount === "function") {
+			setWikiSyncSubjectCount("regions", missingCount + matchedCount + ambiguousCount + mapOnlyCount);
+		}
 	}
 
 	const candidate = (label) => {

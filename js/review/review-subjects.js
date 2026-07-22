@@ -67,7 +67,10 @@ const WIKI_SYNC_SUBJECTS = [
 	{ key: "citymaps",    label: "Karten",      syncButtonId: null,                         editorButtonId: "citymaps-editor-open",   syncKind: "citymap",    views: [] },
 	// Label "Vorkommen", key stays `lore`: renaming the key buys nothing but a chance to miss
 	// one place (same reasoning as index.html:383). Here label and key even agree.
-	{ key: "lore",        label: "Vorkommen",   syncButtonId: "wiki-sync-sync-lore",        editorButtonId: "wiki-sync-lore-open",    syncKind: null,         views: WIKI_SYNC_LORE_VIEWS },
+	// syncKind "lore" beantwortet NICHT der Dump-Endpunkt, sondern der Lore-Katalog selbst
+	// (api/app/lore.php liefert last_synced aus app_setting). loadLoreList hängt den Wert in
+	// dieselbe Map ein, aus der die Auswahlzeile alle Daten liest.
+	{ key: "lore",        label: "Vorkommen",   syncButtonId: "wiki-sync-sync-lore",        editorButtonId: "wiki-sync-lore-open",    syncKind: "lore",       views: WIKI_SYNC_LORE_VIEWS },
 ];
 
 function wikiSyncSubjectByKey(key) {

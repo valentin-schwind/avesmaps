@@ -202,6 +202,8 @@ function renderSettlementList() {
 		const tab = (view, label, count) =>
 			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
 		tabsHost.innerHTML = tab("all", "Alle", allCount) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
+		// Dieselbe Summe traegt die Auswahlzeile oben -- sie wird hier ohnehin schon gerechnet.
+		if (typeof setWikiSyncSubjectCount === "function") { setWikiSyncSubjectCount("locations", allCount); }
 	}
 
 	if (items.length === 0) {
