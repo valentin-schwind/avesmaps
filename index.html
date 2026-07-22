@@ -812,6 +812,32 @@
 						<button class="lore-btn2" type="button" data-lore-toggle="ware" aria-pressed="true" title="Blendet Waren in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten -- Wiedereinschalten stellt sie vollstaendig her."><span class="t1">Waren: AN</span><span class="t2">oeffentliche Anzeige</span></button>
 						<button class="lore-btn2" type="button" data-lore-toggle="spezies" aria-pressed="false" title="Spezies ist aus: das Wiki-Feld „Regionen“ der Infobox Spezies ist zu schlecht gepflegt. Die Daten liegen vollstaendig vor und kommen beim Einschalten sofort zurueck."><span class="t1">Spezies: AUS</span><span class="t2">oeffentliche Anzeige</span></button>
 					</div>
+					<!-- Reiter fuer ALLE VIER Arten -- auch Spezies, obwohl es oeffentlich aus ist:
+					     der Schalter im Menueband steuert die Karte, nicht den Editor. Die Daten sind
+					     vollstaendig da und muessen bearbeitbar bleiben. -->
+					<div class="wiki-sync-panel__tabs lore-dlg__tabs">
+						<button class="wiki-sync-panel__tab is-active" type="button" data-lore-dlg-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="fauna"></span></button>
+						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="flora">Flora <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="flora"></span></button>
+						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="ware">Waren <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="ware"></span></button>
+						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="spezies">Spezies <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="spezies"></span></button>
+					</div>
+					<!-- Zwei Spalten wie im Karteneditor (.ce-body/.ce-list): links waehlen, rechts
+					     bearbeiten. Die Maske ersetzt damit nicht mehr die Liste -- man sieht beim
+					     Bearbeiten weiterhin, wo man steht. -->
+					<div class="lore-dlg__body">
+						<div class="lore-dlg__list">
+							<div class="lore-dlg__top">
+								<input type="search" id="lore-dlg-search" class="lore-dlg__search" placeholder="Name oder Art suchen …" autocomplete="off">
+							</div>
+							<p class="lore-dlg__count" id="lore-dlg-count"></p>
+							<div class="lore-dlg__scroll" id="lore-dlg-scroll"><p class="wiki-sync-panel__summary">Liste wird geladen …</p></div>
+						</div>
+						<div class="lore-dlg__edit" id="lore-dlg-edit">
+							<!-- Leerer Zustand: eine unbeschriftete leere Spalte liest sich als Fehler.
+							     #lore-detail zieht per JS hierher und verdraengt den Hinweis. -->
+							<p class="lore-dlg__placeholder" id="lore-dlg-placeholder">Links einen Eintrag auswählen, um ihn zu bearbeiten.</p>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -1571,6 +1571,9 @@ function moveLoreSectionIntoDialog() {
 		ribbon.insertBefore(syncButton, ribbon.firstChild);
 		syncButton.hidden = false;
 	}
+	// Ziel ist die RECHTE Spalte, nicht der Fensterkörper: links steht die Auswahlliste,
+	// rechts wird bearbeitet -- wie im Karteneditor.
+	body = document.getElementById("lore-dlg-edit") || body;
 	if (!body || !detail || detail.parentElement === body) {
 		return; // schon umgezogen (oder Markup fehlt)
 	}
@@ -1622,7 +1625,7 @@ function setWikiSyncLoreDialogOpen(isOpen) {
 		// Nur LESEN (GET api/app/lore.php?catalog=1): füllt Liste, Reiterzahlen und den
 		// „zuletzt gesynct"-Stempel. Startet ausdrücklich KEINEN Sync -- der hängt allein
 		// am Knopf #wiki-sync-sync-lore im Fenster.
-		loadLoreList();
+		loadLoreList("dialog");
 	}
 }
 
@@ -1694,7 +1697,10 @@ async function startWikiSyncLoreSync() {
 		// Liste UND „zuletzt gesynct" nachziehen. Ohne das zeigt der Reiter direkt nach
 		// einem erfolgreichen Sync noch den alten Stempel und die alten Zahlen -- was
 		// wie ein fehlgeschlagener Lauf aussieht, obwohl gerade alles geklappt hat.
-		loadLoreList();
+		// BEIDE Ansichten: der Lauf startet im Fenster, aber der Reiter dahinter zeigt sonst
+		// weiter den alten Stempel und die alten Zahlen -- das sieht nach Fehlschlag aus.
+		loadLoreList("dialog");
+		loadLoreList("panel");
 	} catch (error) {
 		// IMMER sichtbar melden, auch bei dumpLocked. Die erste Fassung schwieg in
 		// genau dem Fall, weil der Loop ja schon setWikiSyncStatus() gesetzt hatte --
@@ -1727,9 +1733,31 @@ async function startWikiSyncLoreSync() {
 // Schritt dazu, dann mit capability-Gate.
 // ===========================================================================
 
-var avesmapsLoreListKind = "fauna";
+/**
+ * Zwei Listen, EIN Codeweg: die Übersicht im Reiter und die Auswahlspalte im Fenster.
+ *
+ * Dieselbe Aufteilung wie bei Abenteuern und Karten -- der Reiter zeigt den Bestand, das
+ * Fenster ist der Arbeitsplatz. Die IDs müssen sich unterscheiden (zwei Elemente mit
+ * derselben id wären ein DOM-Fehler, und getElementById träfe stets nur das erste), die
+ * Logik nicht. Deshalb steht hier nur, WO die Elemente sitzen; alles Übrige ist geteilt.
+ *
+ * Nur das Fenster kennt „spezies": der Menüband-Schalter steuert die öffentliche Anzeige,
+ * nicht die Bearbeitbarkeit. Im Reiter bleiben die drei sichtbaren Arten.
+ */
+var AVESMAPS_LORE_VIEWS = {
+	panel: {
+		scroll: "lore-list-scroll", search: "lore-list-search", count: "lore-list-count",
+		tabAttr: "data-lore-kind", countAttr: "data-lore-count",
+	},
+	dialog: {
+		scroll: "lore-dlg-scroll", search: "lore-dlg-search", count: "lore-dlg-count",
+		tabAttr: "data-lore-dlg-kind", countAttr: "data-lore-dlg-count",
+	},
+};
+
+var avesmapsLoreListKind = { panel: "fauna", dialog: "fauna" };
 var avesmapsLoreListTimer = null;
-var avesmapsLoreListToken = 0;
+var avesmapsLoreListToken = { panel: 0, dialog: 0 };
 
 // 💣 JEDER Abruf braucht ein Zeitlimit. Ein hängender Request belegt bis zum
 // Servertimeout einen PHP-Worker; mehrere davon legen die gesamte API lahm -- genau
@@ -1768,9 +1796,10 @@ function avesmapsLoreListPlain(value) {
 	}).trim();
 }
 
-function renderLoreList(data) {
-	var scroll = document.getElementById("lore-list-scroll");
-	var counter = document.getElementById("lore-list-count");
+function renderLoreList(view, data) {
+	var ids = AVESMAPS_LORE_VIEWS[view] || AVESMAPS_LORE_VIEWS.panel;
+	var scroll = document.getElementById(ids.scroll);
+	var counter = document.getElementById(ids.count);
 	if (!scroll) {
 		return;
 	}
@@ -1840,42 +1869,45 @@ function renderLoreLastSynced(data) {
 	syncedEl.hidden = false;
 }
 
-function loadLoreList() {
-	var scroll = document.getElementById("lore-list-scroll");
+function loadLoreList(view) {
+	view = view === "dialog" ? "dialog" : "panel";
+	var ids = AVESMAPS_LORE_VIEWS[view];
+	var scroll = document.getElementById(ids.scroll);
 	if (!scroll) {
 		return;
 	}
-	var input = document.getElementById("lore-list-search");
+	var input = document.getElementById(ids.search);
 	var query = input ? input.value.trim() : "";
-	// Staleness-Token: eine langsame Antwort auf einen alten Suchbegriff darf die
-	// aktuelle Liste nicht überschreiben.
-	var token = ++avesmapsLoreListToken;
-	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(avesmapsLoreListKind)
+	// Staleness-Token JE ANSICHT: sonst würde ein Abruf im Fenster die Antwort für den
+	// Reiter verwerfen (und umgekehrt), weil beide denselben Zähler hochzählen.
+	var token = ++avesmapsLoreListToken[view];
+	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(avesmapsLoreListKind[view])
 		+ "&q=" + encodeURIComponent(query) + "&limit=200";
 	avesmapsLoreFetchWithTimeout(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
 		.then(function (r) { return r.ok ? r.json() : null; })
 		.then(function (data) {
-			if (token !== avesmapsLoreListToken) {
+			if (token !== avesmapsLoreListToken[view]) {
 				return;
 			}
-			renderLoreList(data && data.ok ? data : null);
+			renderLoreList(view, data && data.ok ? data : null);
 			renderLoreLastSynced(data);
 			renderLoreKindToggles(data && data.ok ? data.kinds_enabled : null);
 			// ALLE Reiterzahlen setzen, nicht nur die des geladenen: sonst bleiben die
 			// übrigen leer, bis man sie einzeln anklickt. Die Zahlen zeigen den
 			// Gesamtbestand und bleiben deshalb auch während einer Suche stehen.
+			// Beide Reitersätze auf einmal -- Reiter und Fenster zeigen denselben Bestand,
+			// und ein Abruf reicht für beide.
 			var counts = (data && data.ok && data.counts_by_kind) || null;
 			if (counts) {
 				Object.keys(counts).forEach(function (kind) {
-					var chip = document.querySelector('[data-lore-count="' + kind + '"]');
-					if (chip) {
-						chip.textContent = "(" + counts[kind] + ")";
-					}
+					document
+						.querySelectorAll('[data-lore-count="' + kind + '"], [data-lore-dlg-count="' + kind + '"]')
+						.forEach(function (chip) { chip.textContent = "(" + counts[kind] + ")"; });
 				});
 			}
 		})
 		.catch(function () {
-			if (token === avesmapsLoreListToken) {
+			if (token === avesmapsLoreListToken[view]) {
 				scroll.innerHTML = '<p class="wiki-sync-panel__summary">Liste konnte nicht geladen werden.</p>';
 			}
 		});
@@ -1883,24 +1915,38 @@ function loadLoreList() {
 
 if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 	document.__avesmapsLoreListBound = true;
+	// Ein Handler für BEIDE Reitersätze. Der Reiter im Panel und der im Fenster tragen
+	// verschiedene Attribute, damit sie sich nicht gegenseitig als „aktiv" markieren --
+	// man kann im Fenster Spezies bearbeiten, während der Panel-Reiter auf Fauna steht.
 	document.addEventListener("click", function (event) {
-		var tab = event.target && event.target.closest ? event.target.closest("[data-lore-kind]") : null;
-		if (!tab) {
+		if (!event.target || !event.target.closest) {
 			return;
 		}
-		avesmapsLoreListKind = tab.getAttribute("data-lore-kind") || "fauna";
-		document.querySelectorAll("[data-lore-kind]").forEach(function (other) {
-			other.classList.toggle("is-active", other === tab);
+		Object.keys(AVESMAPS_LORE_VIEWS).forEach(function (view) {
+			var attr = AVESMAPS_LORE_VIEWS[view].tabAttr;
+			var tab = event.target.closest("[" + attr + "]");
+			if (!tab) {
+				return;
+			}
+			avesmapsLoreListKind[view] = tab.getAttribute(attr) || "fauna";
+			document.querySelectorAll("[" + attr + "]").forEach(function (other) {
+				other.classList.toggle("is-active", other === tab);
+			});
+			loadLoreList(view);
 		});
-		loadLoreList();
 	});
 	document.addEventListener("input", function (event) {
-		if (!event.target || event.target.id !== "lore-list-search") {
+		if (!event.target) {
+			return;
+		}
+		var view = event.target.id === "lore-dlg-search" ? "dialog"
+			: (event.target.id === "lore-list-search" ? "panel" : "");
+		if (!view) {
 			return;
 		}
 		// Entprellt: sonst eine Abfrage je Tastendruck.
 		window.clearTimeout(avesmapsLoreListTimer);
-		avesmapsLoreListTimer = window.setTimeout(loadLoreList, 250);
+		avesmapsLoreListTimer = window.setTimeout(function () { loadLoreList(view); }, 250);
 	});
 	// KEIN Doppelklick-Handler mehr: seit der Einfachklick den Editor öffnet, würde ein
 	// Doppelklick beides auslösen -- Editor auf UND Wiki-Tab auf. Der Wiki-Link sitzt
@@ -1932,9 +1978,12 @@ function loreEditAction(action, payload) {
 function closeLoreDetail() {
 	var detail = document.getElementById("lore-detail");
 	avesmapsLoreDetailKey = "";
-	// „Zurück" leert die Maske, schließt aber NICHT das Fenster: das Menüband darüber
-	// bleibt bedienbar. Die Liste steht ohnehin im Reiter und wurde nie versteckt.
+	// „Zurück" leert die Maske, schließt aber NICHT das Fenster: Menüband und Liste
+	// daneben bleiben bedienbar. Der Platzhalter kommt zurück, damit die rechte Spalte
+	// nicht als leere Fläche dasteht.
 	if (detail) { detail.hidden = true; detail.innerHTML = ""; }
+	var placeholder = document.getElementById("lore-dlg-placeholder");
+	if (placeholder) { placeholder.hidden = false; }
 }
 
 function loreFieldRow(entry, field, label) {
@@ -2014,6 +2063,8 @@ function openLoreDetail(wikiKey) {
 	// Der Editor lebt im Fenster. Die Liste im Reiter bleibt stehen -- nach dem Schließen
 	// macht man dort weiter, wo man war, statt Suchbegriff und Scrollstand zu verlieren.
 	setWikiSyncLoreDialogOpen(true);
+	var placeholder = document.getElementById("lore-dlg-placeholder");
+	if (placeholder) { placeholder.hidden = true; }
 	detail.hidden = false;
 	detail.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>';
 	loreEditAction("detail", { wiki_key: wikiKey }).then(function (data) {
