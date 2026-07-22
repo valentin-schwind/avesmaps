@@ -586,10 +586,12 @@
    to fill the column-flex tab-panel's leftover space (same fix as the progress bar). */
 .wiki-sync-panel__row-summary {
 	flex: 0 0 auto;
-	/* Trenner zwischen dem Sync-Aktionsblock und der Statistikzeile; Zeile schlank + nicht fett. */
-	margin: 6px 10px 8px;
-	padding-top: 7px;
-	border-top: 1px solid var(--color-border);
+	/* Kein eigener Trenner mehr. Die border-top hier trennte gegen den Sync-Aktionsblock --
+	   der ist seit dem Editor-Umstieg `hidden` (index.html:513 u.a.), also trennte sie zuletzt
+	   gegen nichts. Darueber steht jetzt der Reiterstreifen mit seiner EIGENEN border-bottom:
+	   zwei Linien und 23px fuer eine Aufgabe. Eine Gruppe, ein Trenner (AGENTS.md §12) --
+	   den zieht der Streifen, diese Zeile schliesst direkt an. */
+	margin: 0 10px 8px;
 	font-weight: 400;
 	font-size: 11px;
 }
@@ -1756,3 +1758,9 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 /* Greyed = not shown publicly (today only Spezies). Deliberately NOT disabled: the data is
    complete and stays editable, only the public display is off. The reason sits in the tooltip. */
 .wiki-sync-views .wiki-sync-panel__tab.is-off { opacity: 0.5; }
+
+/* Ein Subjekt ohne Sichten (Abenteuer, Karten, Kraftlinien) laesst den geteilten Streifen leer.
+   Leer heisst aber NICHT unsichtbar: .wiki-sync-panel__tabs bringt margin 10/10/8 UND eine
+   border-bottom mit, also stuende dort ein 18px-Band mit einer Linie und nichts darin -- dasselbe
+   "reserviert Platz fuer nichts" wie bei .wiki-sync-panel__actions. */
+.wiki-sync-views:empty { display: none; }
