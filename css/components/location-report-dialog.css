@@ -256,7 +256,7 @@
 .location-report-form__field select:disabled,
 .location-report-form__field textarea:disabled {
 	background: var(--color-disabled-bg);
-	cursor: wait;
+	cursor: not-allowed; /* der Warte-Cursor nur bei .is-busy, siehe unten */
 }
 
 .location-report-form__field input[readonly] {
@@ -352,9 +352,20 @@
 	transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
 
+/* Deaktiviert heißt hier standardmäßig „geht (noch) nicht", nicht „lädt". Der Warte-Cursor kommt
+   erst, wenn das Formular wirklich beschäftigt ist -- die Klasse setzt setFormFieldsDisabled
+   (js/review/review-pending.js) für die Dauer des Speicherns. Vorher trug jeder dauerhaft gesperrte
+   Knopf eine Sanduhr und sah aus, als hinge die Seite. */
 .location-report-form__button:disabled {
-	cursor: wait;
+	cursor: not-allowed;
 	opacity: 0.65;
+}
+
+.is-busy .location-report-form__button:disabled,
+.is-busy .location-report-form__field input:disabled,
+.is-busy .location-report-form__field select:disabled,
+.is-busy .location-report-form__field textarea:disabled {
+	cursor: wait;
 }
 
 .location-report-form__button--secondary {

@@ -4,6 +4,11 @@ function setFormFieldsDisabled(formElement, isPending) {
 			fieldElement.disabled = isPending;
 		}
 	});
+	// „Deaktiviert" heißt in diesen Dialogen zweierlei: gerade beschäftigt (Speichern läuft) ODER
+	// hier noch nicht möglich. Ohne Unterschied trug beides den Warte-Cursor, und ein dauerhaft
+	// gesperrter Knopf sah aus, als lade die Seite ewig -- so gemeldet für „Zuweisen" beim Anlegen.
+	// Diese Klasse markiert NUR den ersten Fall; das CSS hängt den Warte-Cursor daran.
+	formElement.classList.toggle("is-busy", Boolean(isPending));
 }
 
 function setLocationReportSubmitPending(isPending) {
