@@ -425,6 +425,18 @@
 	gap: 0.5rem;
 }
 
+/* „← Zurück zur Liste" ist nur dort sinnvoll, wo die Liste WEICHEN musste. Auf breiten
+   Schirmen steht sie links daneben und wurde nie ersetzt -- ein Knopf zurück zu etwas,
+   das man ansieht, ist bestenfalls Rauschen. Unterhalb von 900px stapeln die Spalten
+   (siehe .lore-detail__cols), dort trägt er wieder. Ausgeblendet per CSS statt im
+   Markup weggelassen: der Handler bleibt derselbe, und im Fehlerfall („nur angemeldet")
+   ist er der einzige Rückweg. */
+@media (min-width: 901px) {
+	.lore-detail__head .lore-detail__back {
+		display: none;
+	}
+}
+
 .lore-detail__back,
 .lore-detail__place-btn {
 	padding: 0.2rem 0.55rem;

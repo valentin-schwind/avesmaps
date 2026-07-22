@@ -227,7 +227,12 @@ function avesmapsLoreParsePage(string $title, string $wikitext): ?array
 
     // Der Anzeigename kommt aus |Name=, faellt aber auf den Seitentitel zurueck: bei
     // "Weidener Kettenhecht" traegt die Infobox nur "Kettenhecht".
-    $name = trim(avesmapsWikiSyncMonitorField($norm, ['name']));
+    // 💣 Der Name darf KEIN Wikilink-Markup tragen. Manche Artikel schreiben ihn als
+    // "[[Baburin|Baburischer]] Wurfspeer" -- das reiste bis in die oeffentliche Infobox
+    // durch, weil jeder Client korrekt HTML-escaped und dabei die eckigen Klammern
+    // stehen laesst. Nur der NAME wird gestrippt: die Ortsfelder brauchen ihre Links,
+    // aus denen avesmapsLoreExtractPlaceLinks die Orte zieht.
+    $name = avesmapsWikiStripWikiInlineMarkup(trim(avesmapsWikiSyncMonitorField($norm, ['name'])));
     if ($name === '') {
         $name = $title;
     }

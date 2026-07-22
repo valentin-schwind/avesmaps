@@ -298,4 +298,33 @@ $ohneName = avesmapsLoreParsePage("Te'Sumurru (Ware)", "{{Infobox Gegenstandsgru
 assert($ohneName !== null && $ohneName['name'] === "Te'Sumurru (Ware)");
 echo "entities ok\n";
 
+// ---------------------------------------------------------------------------
+// Wikilinks im NAMEN. Echter Fall: "Baburischer Wurfspeer" schreibt seinen Namen
+// als "[[Baburin|Baburischer]] Wurfspeer". Das reiste roh bis in die oeffentliche
+// Karten-Infobox durch -- ein korrekt HTML-escapender Client laesst eckige Klammern
+// stehen, weil sie kein HTML sind.
+// ---------------------------------------------------------------------------
+$speer = <<<'WIKI'
+{{Infobox Gegenstandsgruppe
+|Name=[[Baburin|Baburischer]] Wurfspeer
+|Art=profan
+|Gegenstandstyp=[[Wurfspeer]]
+|Herkunft=[[Aranien]]
+}}
+WIKI;
+
+$r = avesmapsLoreParsePage('Baburischer Wurfspeer', $speer);
+assert($r['name'] === 'Baburischer Wurfspeer');          // Label gewinnt, nicht das Linkziel
+assert(array_column($r['places'], 'title') === ['Aranien']); // Ortslinks BLEIBEN Links
+
+// Einfacher Link ohne Label: das Ziel ist der Name.
+$r = avesmapsLoreParsePage('X', "{{Infobox Tierart\n|Name=[[Tatzelwurm]]\n|Verbreitung=[[Kosch]]\n}}");
+assert($r['name'] === 'Tatzelwurm');
+
+// Ein Name ohne Markup bleibt Zeichen fuer Zeichen stehen -- auch mit Apostroph, der
+// aus dem Entity-Decode oben kommt.
+$r = avesmapsLoreParsePage('Y', "{{Infobox Tierart\n|Name=Ban&#39;Shi\n|Verbreitung=[[Myranor]]\n}}");
+assert($r['name'] === "Ban'Shi");
+echo "name-markup ok\n";
+
 echo "\nALL OK\n";
