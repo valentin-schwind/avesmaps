@@ -1,0 +1,208 @@
+# Kraftlinien: Infobox + Quellenverlinkung (Design)
+
+**Datum:** 2026-07-22 · **Auftraggeber:** Owner · **Maßstab:** AGENTS.md §5
+„Sources live in ONE place", §12 Designsprache
+
+## 1. Ausgangslage
+
+Eine Kraftlinie ist heute eine Linie und sonst nichts. Sie liegt als
+`map_features`-Zeile mit `feature_type='powerline'` und ganzen fünf
+Eigenschaften vor: `name` (automatisch „Nodix A - Nodix B"), `feature_subtype`,
+`show_label`, `from_public_id`, `to_public_id`
+(`api/_internal/map/features.php:1365`).
+
+Daraus folgt an drei Stellen dasselbe Nichts:
+
+* **Popup:** `createPowerlinePopupMarkup` setzt `showDescription: false` und
+  `showWikiLink: false` (`js/map-features/map-features-powerlines.js:163`).
+  Sichtbar sind nur der Name, das Typ-Label „Kraftlinie" und — im Editor — die
+  Knöpfe Bearbeiten/Löschen.
+* **Editor:** der Dialog `#powerline-edit-form` hat zwei Felder, Name und
+  „Beschriftung anzeigen" (`index.html:1044`).
+* **Quellen:** gar nicht. Der Code sagt es selbst:
+  `// junction/powerline have no source surface at all and are skipped.`
+  (`api/_internal/app/feature-sources.php:818`).
+
+**Der Unterschied zu Wegen, der die Form bestimmt:** Bei einem Weg kommt *jede*
+Zeile der Infobox aus WikiSync — `pathWikiInfoboxMarkup` liest Lage, Länge,
+Verlauf und Beschreibung ausschließlich aus `properties.wiki_path`
+(`js/map-features/map-features-path-rendering.js:6`). Kraftlinien haben keinen
+Sync und mutmaßlich auch keine eigenen Wiki-Artikel je Linie. Das Weg-Muster
+wird also in der **Form** übernommen, nicht in der **Herkunft**.
+
+## 2. Der entscheidende Befund
+
+Der Umbau ist klein, weil vier Dinge schon tragen:
+
+**a) Die Payload trägt Quellen bereits typunabhängig.**
+`avesmapsLoadFeatureSourceRefs` (`api/app/map-features.php:751`) lädt *alle*
+freigegebenen Verknüpfungen ohne `entity_type`-Filter, verschlüsselt als
+`"<entity_type>:<public_id>"`. Sobald `feature_sources`-Zeilen für Kraftlinien
+existieren, reisen sie ohne eine einzige Änderung an der Payload mit.
+
+**b) Neue Felder erreichen das Frontend von selbst.**
+`avesmapsMapFeatureRowToGeoJsonFeature` (`api/app/map-features.php:308`) reicht
+`properties_json` ungefiltert durch — es gibt keine Ausgabe-Whitelist.
+`description` und `wiki_url` sind damit reine Schreib-Arbeit.
+
+**c) Der Quellen-Editor ist generisch.**
+`mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)`
+(`js/review/review-feature-sources.js:205`) ist nicht typgebunden. Hinzufügen,
+Entfernen, Autocomplete und Provenienz sind ein Mount-Aufruf, kein Neubau.
+
+**d) Der Wiki-Link-Leser fällt schon richtig durch.**
+`avesmapsFeatureSourcesReadWikiUrl` (`api/_internal/app/feature-sources.php:352`)
+behandelt nur `territory`, `lore` und `citymap` gesondert; alles andere liest
+`map_features.properties.wiki_url`. Für `powerline` ist dort **keine Zeile**
+nötig.
+
+**e) Die Schreib-Aktion ist additiv.** `avesmapsUpdatePowerlineFeatureDetails`
+(`api/_internal/map/features.php:1422`) dekodiert die vorhandenen `properties`
+und überschreibt selektiv. Neue Felder brechen nichts und werden nicht von einer
+Whitelist geschluckt.
+
+## 3. Der Entwurf
+
+### 3.1 Die Infobox
+
+Eine neue Funktion `powerlineInfoboxMarkup(powerline)` spiegelt
+`pathWikiInfoboxMarkup`: dieselbe `.region-info-box.region-info-box--settlement`-
+Hülle, dieselbe `<dl class="region-info-box__data">`-Struktur, derselbe
+`row()`-Helfer, der leere Werte wegfallen lässt. Sie wird — wie beim Weg — hinter
+das Aktionsband in den `actionsMarkup`-Slot von `locationPopupMarkup` gehängt.
+
+```
+┌─────────────────────────────────────┐
+│  Nodix Gareth – Nodix Punin          │
+│  Kraftlinie                          │
+├─────────────────────────────────────┤
+│  Verbindet   Nodix Gareth ↔ Punin    │
+│  Beschreibung  Verläuft entlang …    │
+├─────────────────────────────────────┤
+│  Quelle: Aventurischer Almanach ↗    │
+└─────────────────────────────────────┘
+```
+
+**Zeile „Verbindet"** — aus `from_public_id`/`to_public_id`, aufgelöst über
+`findLocationMarkerByPublicId` (die Funktion nutzt `getPowerlineLatLngs` bereits,
+`map-features-powerlines.js:1`). Beide Enden sind echte Orte auf unserer Karte
+und werden deshalb zu Gold-Fly-to-Links, wie `linkifyPathVerlauf` es beim Weg
+tut. Fehlt ein Endpunkt im Marker-Index, bleibt der Name unverlinkter Text.
+
+*Das ist die tragende Entscheidung:* diese Zeile braucht kein neues Feld und
+keine Editorarbeit — **jede** heute bestehende Kraftlinie hat damit sofort
+Inhalt. Beschreibung und Quellen wachsen danach nach.
+
+**Zeile „Beschreibung"** — neues `properties.description`, im Editor frei
+getippt. Leer → Zeile fällt weg.
+
+**Quellenzeile** — `renderFeatureSourceLine("powerline", getPowerlinePublicId(powerline),
+wikiUrl, "location-popup__wiki-link")`
+(Signatur: `js/ui/popups.js:124`). `wikiUrl` ist das neue
+`properties.wiki_url`. Damit trägt dieselbe Zeile den Wiki-Link *und* die
+Katalog-Quellen — genau wie beim Weg, offizielle zuerst.
+
+Beide Oberflächen sind abgedeckt: das Popup baut in klassischer und in
+Infopanel-Hülle über denselben `locationPopupMarkup`-Aufruf
+(`map-features-powerlines.js:192`), die Box erbt also beide.
+
+### 3.2 Quellen — drei Zeilen, keine neue Tabelle
+
+Nach der 💣-Regel aus AGENTS.md §5 ist das ein weiterer `entity_type`:
+
+| Datei | Zeile | Änderung |
+|---|---|---|
+| `api/app/feature-sources.php` | 33 | `'powerline'` in `$allowedTypes` |
+| `api/edit/map/feature-sources.php` | 49 | `'powerline'` in `$allowedTypes` |
+| `api/_internal/app/feature-sources.php` | 342 | `'powerline'` in `avesmapsFeatureSourcesReadRevision` |
+
+Die dritte ist nicht kosmetisch: Kraftlinien **haben** eine
+`map_features.revision`, und der Quellen-Editor braucht sie als Token fürs
+optimistische Sperren. Ohne sie bekäme er `null`.
+
+**Bewusst NICHT angefasst** — die beiden `other_source`-Stellen
+(`api/_internal/app/feature-sources.php:124` und `:265`) und die
+`$entityTypeOf`-Abbildung (`:819`). `other_source` ist das alte Einzelquellen-Feld
+von settlement/region/path; Kraftlinien haben es nie getragen, genau wie
+`citymap` und `lore` dort außen vor blieben.
+
+### 3.3 Editor
+
+`#powerline-edit-form` (`index.html:1044`) bekommt:
+
+* **Beschreibung** — `<textarea>`, in der Formular-Konvention des Dialogs
+  (`location-report-form__field` / `location-edit-fieldrow`).
+* **Wiki-Link** — `<input type="url">`, **sichtbar**, mit `↗` in der Anzeige (§12).
+* **Quellen** — ein Container plus
+  `mountFeatureSourceEditor(el, "powerline", () => publicId)`.
+
+**Beide Felder sind neu zu bauen, es gibt kein Vorbild zum Abschreiben.** Der
+Weg-Dialog hat weder Beschreibung noch Wiki-Link (beides kommt dort aus
+WikiSync, `index.html:989`), und der Siedlungseditor hält genau diese zwei
+Felder **versteckt** (`index.html:736-737`) — `location-edit-wiki-url` ist das
+Feld aus Discord #38, das den geratenen Anreicherungswert durchs Speichern zu
+echten Daten machte.
+
+Für Kraftlinien sind die Felder deshalb **sichtbar**. Was ein Editor nicht sieht,
+kann er nicht prüfen; und da §4 den Rateweg für Kraftlinien zudreht, ist das eine
+sichtbare Eingabe die einzige Quelle dieses Werts — das soll man dem Formular
+ansehen.
+
+`avesmapsUpdatePowerlineFeatureDetails` liest zwei Payload-Felder mehr
+(`description`, `wiki_url`) und schreibt sie in `properties`. Validierung wie bei
+den Weg-Pendants; der Audit-Log-Eintrag führt sie mit.
+
+## 4. Die Falle, die wir gleich mitschließen
+
+`avesmapsEnrichMapFeatureWikiUrl` (`api/app/map-features.php:888`) **rät** einen
+`wiki_url` per Namensabgleich für *jede* `map_features`-Zeile mit leerem
+`wiki_url` — Kraftlinien eingeschlossen.
+
+Heute ist das folgenlos: der automatische Name „Nodix A - Nodix B" trifft keinen
+Wiki-Schlüssel. Sobald ein Editor eine Kraftlinie aber wie eine Siedlung
+benennt, erbt die Linie stillschweigend deren Artikel — dieselbe Klasse Fehler
+wie Discord #38, wo ein geratener Link durch Speichern zu echten Daten wurde.
+
+**Deshalb:** Der Kraftlinien-Wiki-Link ist ausdrücklich gesetzt oder gar nicht.
+`avesmapsEnrichMapFeatureWikiUrl` bekommt einen frühen Ausstieg für
+`feature_type === 'powerline'`. Ein ausdrücklich gesetzter Link war ohnehin
+sicher (die Funktion steigt bei gefülltem `wiki_url` sofort aus, Zeile 889) — der
+Riegel schützt die Linien *ohne* Link.
+
+## 5. Was bewusst nicht gebaut wird
+
+* **Keine WikiSync-Phase für Kraftlinien.** Ob es Artikel je Linie gibt, ist
+  ungeprüft. Der handgesetzte Wiki-Link deckt beide Antworten ab, und ein Sync
+  könnte später auf dasselbe Feld schreiben. Eine Sync-Maschine für womöglich
+  nicht existierende Artikel wäre die teure Richtung.
+* **Keine Zeile „Länge".** Wege beziehen sie als Lore-Text aus dem Wiki; für
+  Kraftlinien wäre sie aus der Geometrie gerechnet und stünde in Karteneinheiten,
+  die niemandem etwas sagen.
+* **Kein `other_source` für Kraftlinien** (siehe §3.2).
+
+## 6. Umfang
+
+Berührt: `js/map-features/map-features-powerlines.js`, `index.html`,
+`api/_internal/map/features.php`, `api/app/feature-sources.php`,
+`api/edit/map/feature-sources.php`, `api/_internal/app/feature-sources.php`,
+`api/app/map-features.php`.
+
+**Kein `ASSET_VERSION`-Bump.** Der gilt nur für die dynamisch geladenen Assets
+des Territorien-Editors (AGENTS.md §7). Dialog und Skript hier hängen an
+`index.html` und werden vom Deploy automatisch gestempelt.
+
+**Handbuch:** editor-sichtbare Änderung → der passende Abschnitt in
+`html/editor-handbuch.html` und das `Stand:`-Datum gehören in denselben Commit
+(AGENTS.md §9).
+
+## 7. Abnahme
+
+1. Klick auf eine beliebige bestehende Kraftlinie zeigt eine Infobox mit
+   „Verbindet" und zwei Gold-Links; ein Klick darauf fliegt zum jeweiligen Nodix.
+2. Eine im Editor gespeicherte Beschreibung erscheint als eigene Zeile.
+3. Eine im Editor hinzugefügte Quelle erscheint in der Quellenzeile, offizielle
+   zuerst; ein gesetzter Wiki-Link erscheint mit `↗`.
+4. Eine Kraftlinie ohne jede Eingabe zeigt trotzdem „Verbindet" — und **keinen**
+   geratenen Wiki-Link, auch wenn ihr Name einer Siedlung gleicht.
+5. Wege, Siedlungen, Regionen und Gebiete zeigen unverändert dieselben Quellen
+   wie zuvor (der Whitelist-Zusatz darf nichts Bestehendes verschieben).
