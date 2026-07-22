@@ -57,12 +57,18 @@
   }
 
   /* ---- shell ---------------------------------------------------------------------------------- */
+  /* Gitter statt Flex: ALLE Kacheln gleich breit ueber die volle Zeile, wie im Siedlungs- und
+     Territorieneditor. Kehrt den Stand vom 2026-07-17 um ("beide das kachelmenüband, linksbündig") --
+     damals ging es darum, dass Abenteuer und Karten untereinander gleich aussehen; der Owner
+     vergleicht sie jetzt mit Siedlungen/Territorien, und die fuehren die volle Breite (Spec §3.3). */
   .ae-header {
-    flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
+    flex: 0 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+    align-items: stretch; gap: var(--space-10);
     padding: var(--space-10) var(--space-16);
     background: var(--color-panel-soft); border-bottom: 1px solid var(--color-border);
   }
-  .ae-header__spacer { flex: 1 1 auto; }
+  /* Im Gitter unnoetig -- er wuerde eine eigene Spalte belegen und die Kacheln schmaler machen. */
+  .ae-header__spacer { display: none; }
   /* Zweizeiliger Button (Label + kleine Statuszeile) wie #seSyncen im Siedlungseditor -- gleiches
      Muster, hier aber ueber die echten Tokens statt hartkodierter Hex-Werte (kein eigenes :root noetig,
      diese Seite bindet tokens.css bereits direkt ein). Der Dialog-Rahmen zeigt den Editor-Titel schon
@@ -341,9 +347,8 @@
       <span class="t1" id="aeEnabledLabel">Abenteuer: …</span>
       <span class="t2">Frontend-Zugriff</span>
     </button>
-    <!-- Spacer AFTER the buttons, so the tile bar is left-aligned like the citymap editor's (owner
-         2026-07-17: "beide das kachelmenüband, linksbündig"). It used to sit in front of them, which
-         pushed the whole bar right and made the two editors read as different apps. -->
+    <!-- Bleibt im Markup, ist aber seit 2026-07-22 per CSS ausgeblendet: das Menueband ist ein Gitter
+         mit gleich breiten Kacheln ueber die volle Zeile, da schiebt nichts mehr. -->
     <span class="ae-header__spacer"></span>
   </div>
 

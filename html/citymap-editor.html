@@ -70,10 +70,14 @@
   /* No <h1>: the overlay chrome (political-territory-editor-dialog__header) already carries the heading. */
   a { color: var(--color-link); }
 
+  /* Gitter statt Flex: ALLE Kacheln gleich breit ueber die volle Zeile, wie im Siedlungs- und
+     Territorieneditor (Spec §3.3). Loest die linksbuendige Fassung vom 2026-07-17 ab. */
   .ce-header {
     flex: 0 0 auto;
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: stretch;
     gap: var(--space-8);
     padding: var(--space-10) var(--space-12);
     border-bottom: 1px solid var(--color-border);
@@ -105,10 +109,13 @@
 
   .ce-body { flex: 1 1 auto; display: flex; min-height: 0; }
   .ce-list {
-    /* 380, not the original 300: wiki titles are long by construction ("Stadtplan von Al'Anfa (Al'Anfa
-       und der tiefe Süden)") because the source is part of the name, and at 300 nearly every one
-       ellipsed at the point where it starts to differ from its neighbour. Owner 2026-07-17. */
-    flex: 0 0 380px;
+    /* War fest 380px (Owner 2026-07-17: Wiki-Titel sind lang, weil die Quelle Teil des Namens ist --
+       "Stadtplan von Al'Anfa (Al'Anfa und der tiefe Süden)" -- und bei 300 kuerzte fast jeder genau
+       dort, wo er sich vom Nachbarn zu unterscheiden beginnt). Jetzt ein Drittel wie die anderen
+       beiden Spalten (Spec §5). Das Anliegen bleibt erfuellt: im 1400er Dialog sind das ~466px,
+       also MEHR als die 380 -- die Titel bekommen Platz, nicht weniger. */
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -162,7 +169,10 @@
   .ce-item__l2 { display: block; margin-top: 2px; font-size: var(--font-size-caption); color: var(--color-text-muted); }
   .ce-empty { padding: var(--space-12); color: var(--color-text-muted); }
 
-  .ce-detail { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  /* 2 statt auto: die Detailspalte traegt ZWEI Panels (Stammdaten + Orte), die Liste eines.
+     1 : 2 mit je 50 % innen ergibt drei gleich breite Spalten, ohne die Kopfzeile und die
+     Speicherleiste auseinanderzureissen -- die spannen bewusst ueber beide Panels (Spec §5). */
+  .ce-detail { flex: 2 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .ce-detail__head {
     flex: 0 0 auto;
     padding: var(--space-8) var(--space-12);
@@ -171,7 +181,8 @@
   }
   .ce-panels { flex: 1 1 auto; display: flex; min-height: 0; }
   .ce-panel { flex: 1 1 50%; overflow-y: auto; min-height: 0; padding: var(--space-12); }
-  .ce-panel--orte { flex: 0 0 340px; border-left: 1px solid var(--color-border); }
+  /* War fest 340px -- zusammen mit der festen Listenbreite ergab das 540/950/500 statt Dritteln. */
+  .ce-panel--orte { flex: 1 1 0; min-width: 0; border-left: 1px solid var(--color-border); }
   .ce-placeholder { color: var(--color-text-muted); }
 
   .ce-grp { margin-bottom: var(--space-16); }
