@@ -124,6 +124,21 @@ function renderFeatureSourceWikiAutoGroup(wikiAutoSources, escape, tr) {
   return '<div class="fs-group fs-group--wiki-auto" data-fs-group="wiki-auto">' + heading + rows + "</div>";
 }
 
+// Sources an editor added while the entity does not exist yet (bug #41: creating a place). They
+// live only in a local buffer until create_point returns a public_id, so they get their own
+// heading -- an editor must be able to tell "this is already stored" from "this goes in when I
+// save". Same row renderer as everywhere else, so the remove button works identically; here it
+// just splices the buffer instead of reaching the server.
+function renderFeatureSourcePendingGroup(pendingSources, escape, tr) {
+  if (!pendingSources.length) {
+    return "";
+  }
+  const heading =
+    '<div class="fs-group-heading">' + escape(tr("sources.pending", "Wird beim Anlegen übernommen")) + "</div>";
+  const rows = pendingSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
+  return '<div class="fs-group fs-group--pending" data-fs-group="pending">' + heading + rows + "</div>";
+}
+
 function renderFeatureSourceAddRow(escape, tr) {
   const options = FEATURE_SOURCE_TYPES.map(
     (type) => '<option value="' + escape(type) + '">' + escape(featureSourceTypeLabel(type)) + "</option>"
@@ -168,10 +183,16 @@ function renderFeatureSourceEditorHtml(state, opts) {
   // Split into "wiki-automatic" (origin === "wiki_publication") vs everything else
   // (manual/community rows, and legacy rows with no origin field yet) so they render as two groups.
   const wikiAutoSources = sources.filter((source) => source && source.origin === "wiki_publication");
-  const otherSources = sources.filter((source) => !(source && source.origin === "wiki_publication"));
+  // Not-yet-saved rows (origin "pending", from createPendingFeatureSourceStore) are their own group
+  // and must not fall into the manual list -- they are not stored anywhere yet.
+  const pendingSources = sources.filter((source) => source && source.origin === "pending");
+  const otherSources = sources.filter(
+    (source) => !(source && (source.origin === "wiki_publication" || source.origin === "pending"))
+  );
 
   const wikiRow = renderFeatureSourceWikiRow(safeState.wiki_url, escape, tr);
   const wikiAutoGroup = renderFeatureSourceWikiAutoGroup(wikiAutoSources, escape, tr);
+  const pendingGroup = renderFeatureSourcePendingGroup(pendingSources, escape, tr);
   const sourceRows = otherSources.map((source) => renderFeatureSourceRow(source, escape, tr)).join("");
   const addRow = renderFeatureSourceAddRow(escape, tr);
 
@@ -180,7 +201,7 @@ function renderFeatureSourceEditorHtml(state, opts) {
   // inserted as HTML rather than escaped.
   const hint = '<div class="fs-hint">' + tr("sources.hint",
     "Tragt bei Quellen immer den eigentlichen <strong>Veröffentlichungstitel der Quelle</strong> und den Link ein. Achtet darauf, ob es sich um eine offizielle Quelle handelt.") + "</div>";
-  return '<div class="fs-editor">' + hint + wikiRow + wikiAutoGroup + sourceRows + addRow + "</div>";
+  return '<div class="fs-editor">' + hint + wikiRow + pendingGroup + wikiAutoGroup + sourceRows + addRow + "</div>";
 }
 
 // POST helper: returns the parsed JSON body, or null on any transport/parse failure so the
@@ -199,13 +220,80 @@ async function featureSourceFetch(body) {
   }
 }
 
+// A drop-in stand-in for the server, for the one case where there is no server to talk to yet:
+// the entity does not exist (bug #41 -- "Quelle beim Anlegen"). It answers the same four actions
+// with the same envelope the endpoint returns, so mountFeatureSourceEditor cannot tell the
+// difference and needs no create-mode of its own.
+//
+// Every buffered row gets a fresh NEGATIVE display id. Real catalog ids are positive, so the two
+// can never collide, and picking the same catalog source twice still yields two independently
+// removable rows. The picked catalog id (0 when the editor typed a new source) rides along in
+// catalog_source_id and is what toSuggestions() hands to the replay.
+function createPendingFeatureSourceStore() {
+  const entries = [];
+  let nextLocalId = -1;
+
+  // Copies, not the live objects: the widget writes the result straight into its render path and
+  // must not be able to mutate the buffer by accident.
+  function snapshot() {
+    return { ok: true, wiki_url: "", sources: entries.map((entry) => Object.assign({}, entry)) };
+  }
+
+  return {
+    async request(action, body) {
+      const payload = body || {};
+      if (action === "add" || action === "add_existing") {
+        entries.push({
+          source_id: nextLocalId--,
+          catalog_source_id: Number(payload.source_id) || 0,
+          url: String(payload.url || ""),
+          label: String(payload.label || ""),
+          type: String(payload.source_type || "sonstiges"),
+          official: Boolean(payload.is_official),
+          pages: String(payload.pages || ""),
+          reference_kind: String(payload.reference_kind || ""),
+          origin: "pending",
+        });
+      } else if (action === "remove") {
+        const id = Number(payload.source_id);
+        const index = entries.findIndex((entry) => entry.source_id === id);
+        if (index >= 0) {
+          entries.splice(index, 1);
+        }
+      }
+      return snapshot();
+    },
+    // The shape linkCommunityReportSource() consumes -- a non-zero source_id routes to
+    // add_existing, a zero one to add. Same replay path an accepted community report uses.
+    toSuggestions() {
+      return entries.map((entry) => ({
+        source_id: entry.catalog_source_id,
+        url: entry.url,
+        label: entry.label,
+        source_type: entry.type,
+        reference_kind: entry.reference_kind,
+        is_official: entry.official,
+        pages: entry.pages,
+      }));
+    },
+    count() {
+      return entries.length;
+    },
+  };
+}
+
 // Mount the widget into containerEl and wire add/remove. entityType is fixed for the mount's
 // lifetime; publicIdGetter is called fresh on every request so the same mounted widget can
 // track a selection that changes after opening (e.g. the settlement editor's selected feature).
+// opts.store swaps the server for a local buffer (createPendingFeatureSourceStore) -- used by the
+// create case, where there is no entity_public_id to POST against yet.
 function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts) {
   if (!containerEl) {
     return;
   }
+
+  // Present only in the create case: every request is answered locally instead of over the wire.
+  const pendingStore = (opts && opts.store) || null;
 
   // Re-mounting the SAME node (rather than a fresh one) must not leave the previous mount's
   // dropdown behind either -- see the note at the end of wireAutocomplete below.
@@ -292,7 +380,7 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
   async function renderFromServer(action, extra) {
     const publicId = typeof publicIdGetter === "function" ? publicIdGetter() : publicIdGetter;
     const body = Object.assign({ action, entity_type: entityType, entity_public_id: publicId }, extra || {});
-    const data = await featureSourceFetch(body);
+    const data = pendingStore ? await pendingStore.request(action, body) : await featureSourceFetch(body);
     if (!data || data.ok !== true) {
       return; // keep the prior render on any failure -- never blank the widget
     }
@@ -338,11 +426,19 @@ function mountFeatureSourceEditor(containerEl, entityType, publicIdGetter, opts)
       // the right source, and a wiki publication may have no URL to re-upsert by at all. Pages and
       // coverage still travel -- those describe this link, not the work.
       if (pickedSourceId > 0) {
-        await renderFromServer("add_existing", {
-          source_id: pickedSourceId,
-          pages: values.pages,
-          reference_kind: values.reference_kind,
-        });
+        // The buffer has no catalog to look the row up in, so in create mode the display fields
+        // travel too. Over the wire the payload stays byte-identical to before -- the server
+        // resolves the row by id and never saw these keys.
+        await renderFromServer("add_existing", Object.assign(
+          {
+            source_id: pickedSourceId,
+            pages: values.pages,
+            reference_kind: values.reference_kind,
+          },
+          pendingStore
+            ? { url: values.url, label: values.label, source_type: values.source_type, is_official: values.is_official }
+            : {}
+        ));
         return;
       }
       if (!values.url) {
@@ -490,7 +586,8 @@ if (typeof window !== "undefined") {
   window.mountFeatureSourceEditor = mountFeatureSourceEditor;
   window.linkCommunityReportSource = linkCommunityReportSource;
   window.appendProposedFeatureSources = appendProposedFeatureSources;
+  window.createPendingFeatureSourceStore = createPendingFeatureSourceStore;
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { renderFeatureSourceEditorHtml };
+  module.exports = { renderFeatureSourceEditorHtml, createPendingFeatureSourceStore };
 }

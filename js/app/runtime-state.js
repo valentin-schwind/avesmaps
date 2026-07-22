@@ -143,6 +143,9 @@ let locationData = [],
 	isLocationReportSubmissionPending = false,
 	locationEditLatLng = null,
 	locationEditMarkerEntry = null,
+	// Sources named while CREATING a place, before it has a public_id to hang them on (bug #41).
+	// Held by the "Ort bearbeiten" dialog and replayed right after create_point succeeds.
+	locationEditPendingSourceStore = null,
 	isLocationEditSubmissionPending = false,
 	pendingCrossingConversionPublicId = null,
 	pendingCrossingConversionName = "",

@@ -552,7 +552,8 @@ function openLocationEditDialog(options = {}) {
 // fresh mount node for free -- so we clone-replace the container first: mountFeatureSourceEditor
 // binds one click listener per call, and re-opening the dialog would otherwise stack duplicate
 // listeners (and leave the previous feature's rows on screen). A place with no saved public_id has
-// no feature to attach sources to, so the container just stays empty until it is first saved.
+// no feature to attach sources to yet, so it gets the same widget over a local buffer instead
+// (bug #41) -- see the pending branch below.
 function mountLocationEditFeatureSources() {
 	const container = document.getElementById("location-edit-feature-sources");
 	if (!container) {
@@ -560,8 +561,23 @@ function mountLocationEditFeatureSources() {
 	}
 	const fresh = container.cloneNode(false); // drops the previous mount's listener + rendered rows
 	container.replaceWith(fresh);
+	locationEditPendingSourceStore = null;
 	const publicId = document.getElementById("location-edit-public-id")?.value || "";
-	if (!publicId || typeof mountFeatureSourceEditor !== "function") {
+	if (typeof mountFeatureSourceEditor !== "function") {
+		return;
+	}
+	// Bug #41: a place being CREATED has no public_id yet, so there is no feature to attach a source
+	// to. Mount the same widget over a local buffer instead -- the editor names its sources right
+	// away, and handleLocationEditFormSubmit replays them the moment create_point returns an id.
+	if (!publicId) {
+		if (typeof createPendingFeatureSourceStore !== "function") {
+			return;
+		}
+		locationEditPendingSourceStore = createPendingFeatureSourceStore();
+		void mountFeatureSourceEditor(fresh, "settlement", () => "", {
+			escape: escapeHtml,
+			store: locationEditPendingSourceStore,
+		});
 		return;
 	}
 	const markerEntry = locationEditMarkerEntry;

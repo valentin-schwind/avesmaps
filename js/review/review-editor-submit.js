@@ -83,6 +83,34 @@ async function handleLocationEditFormSubmit(event) {
 				refreshLocationMarkerPopup(savedMarkerEntry);
 			}
 		}
+		// Bug #41: sources the editor named while CREATING this place were buffered locally, because
+		// there was no public_id yet to attach them to. Now there is one -- replay them through the
+		// same add path the community-report sources above use. The place is already saved at this
+		// point, so a failure must be said out loud rather than swallowing the source.
+		if (connectPublicId && locationEditPendingSourceStore && locationEditPendingSourceStore.count() > 0
+			&& typeof linkCommunityReportSource === "function") {
+			let linkedAnyPending = false;
+			let failedPendingCount = 0;
+			for (const suggestion of locationEditPendingSourceStore.toSuggestions()) {
+				const linked = await linkCommunityReportSource(connectPublicId, suggestion);
+				linkedAnyPending = linkedAnyPending || linked;
+				if (!linked) {
+					failedPendingCount += 1;
+				}
+			}
+			if (linkedAnyPending && savedMarkerEntry && typeof refreshLocationMarkerPopup === "function") {
+				refreshLocationMarkerPopup(savedMarkerEntry);
+			}
+			if (failedPendingCount > 0) {
+				showFeedbackToast?.(
+					failedPendingCount === 1
+						? "Ort wurde angelegt, aber eine Quelle konnte nicht übernommen werden – bitte im Ort nachtragen."
+						: `Ort wurde angelegt, aber ${failedPendingCount} Quellen konnten nicht übernommen werden – bitte im Ort nachtragen.`,
+					"warning"
+				);
+			}
+		}
+		locationEditPendingSourceStore = null;
 		activeReviewReportSourceSuggestions = [];
 		// Change report proposed a new position -> apply it via move_point (update_point does not carry position).
 		if (pendingChangeReportMove && payload.action === "update_point" && typeof saveMovedLocationMarker === "function") {
