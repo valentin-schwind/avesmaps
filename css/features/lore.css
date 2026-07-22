@@ -203,6 +203,19 @@
 	line-height: 1.5;
 }
 
+/* Das Fenster erbt .wiki-sync-conflicts-dialog und damit dessen 1000px -- eine Breite, die
+   fuer die Falliste des Konfliktzentrums gedacht ist, nicht fuer drei Spalten. Neben vier
+   1400px-Editoren stand es damit sichtbar zu klein, und drei Spalten a 330px sind fuer
+   Ortskarten und Feldzeilen zu eng. Es nimmt jetzt die gemeinsamen Editormasse (Spec §3.1)
+   ueber die Variable aus css/components/editor-shell.css -- abschreiben waere die fuenfte
+   Kopie derselben zwei Zahlen. Nur ueber die ID, damit das Konfliktzentrum, das dieselbe
+   Klasse traegt, seine Groesse behaelt. */
+#wiki-sync-lore-dialog {
+	width: var(--avm-editor-w);
+	max-width: none;
+	height: var(--avm-editor-h);
+}
+
 /* ---- Fenster „Natur & Waren" ----
    Der Koerper erbt .wiki-sync-conflicts-dialog__body, und die dreht fuer das
    Konfliktzentrum auf flex-direction:row (Schiene links, Regelgruppen rechts,
@@ -217,11 +230,17 @@
    Uebernimmt .ce-header/.ce-btn2 aus html/citymap-editor.html Token fuer Token: zweizeilige
    Kacheln (t1 fett, t2 klein und gedaempft), linksbuendig, und NUR die Sync-Kachel gefuellt
    (AGENTS.md §12: Hauptaktion filled, der Rest soft). Bewusst dieselben Werte statt eigener
-   -- die drei Menuebaender sind dieselbe Geste und duerfen nicht auseinanderdriften. */
+   -- die drei Menuebaender sind dieselbe Geste und duerfen nicht auseinanderdriften.
+
+   Gitter statt flex-wrap (Spec §3.3): die Kacheln waren so breit wie ihr laengster Text,
+   also fuenf verschiedene Breiten und rechts ein Rest Leerraum. `grid-auto-columns` gibt
+   jeder Kachel dieselbe Spur und dem Band die volle Breite. minmax(0,1fr) statt 1fr, damit
+   eine lange Beschriftung die Spur nicht aufblaeht -- sie kuerzt stattdessen (siehe .t1/.t2). */
 .lore-ribbon {
-	display: flex;
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
 	flex: 0 0 auto;
-	flex-wrap: wrap;
 	gap: var(--space-6);
 	align-items: stretch;
 	padding-bottom: var(--space-8);
@@ -229,11 +248,10 @@
 }
 .lore-btn2 {
 	display: flex;
-	flex: 0 0 auto;
 	flex-direction: column;
 	align-items: flex-start;
 	gap: 2px;
-	width: auto;
+	min-width: 0;
 	margin: 0;
 	padding: var(--space-6) var(--space-10);
 	border: 1px solid var(--color-border);
@@ -251,12 +269,24 @@
 	opacity: 0.6;
 	cursor: default;
 }
+/* Gleich breite Spuren heissen: eine lange Beschriftung muss kuerzen duerfen, sonst
+   sprengt sie ihre Spur und das Band ist wieder ungleich. Dieselbe Behandlung wie
+   .btn2 .t1/.t2 im Siedlungseditor. */
 .lore-btn2 .t1 {
-	font-weight: 700;
+	max-width: 100%;
+	overflow: hidden;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .lore-btn2 .t2 {
-	font-size: var(--font-size-caption);
+	max-width: 100%;
+	overflow: hidden;
 	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 /* Die eine gefuellte Aktion des Menuebands -- spiegelt .ce-btn2--primary. */
 .lore-btn2--primary {
@@ -279,26 +309,86 @@
 	color: var(--color-text-muted);
 }
 
-/* ---- Zwei Spalten im Fenster: links waehlen, rechts bearbeiten ----
-   Uebernimmt .ce-body/.ce-list aus dem Karteneditor. Die 380px sind dort bewusst gesetzt
-   (Wiki-Titel sind lang, bei 300 kuerzte fast jeder genau dort ab, wo er sich vom Nachbarn
-   unterscheidet) -- dieselbe Begruendung gilt hier. */
+/* ---- Statuszeile unter dem Menueband (Spec §3.4) ----
+   Vorbild #settlementStatus im Siedlungseditor, bis auf die Farben wortgleich. Feste
+   Mindesthoehe, weil eine eintreffende Meldung die Spalten darunter sonst nach unten
+   schiebt. Der Koerper hat keine eigene Polsterung (review-panel.css), die Zeile laeuft
+   also von allein randlos durch -- kein negativer Rand noetig. */
+.lore-dlg__status {
+	display: flex;
+	flex: 0 0 auto;
+	gap: var(--space-12);
+	align-items: center;
+	min-height: 30px;
+	padding: var(--space-4) var(--space-12);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-body);
+}
+.lore-dlg__status-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* 💣 Nicht --color-danger/--color-success, obwohl .legal-contact__status genau die nimmt:
+   die stehen dort auf --color-panel, diese Zeile steht auf --color-panel-soft. Gemessen auf
+   diesem Grund faellt --color-danger im DUNKELMODUS auf 3,84:1 und damit unter AA (4,5) --
+   dieselbe Falle wie beim dunklen Hover in Spec §8.2, und ohne Messung nicht zu sehen.
+   Die -soft-text-Varianten sind fuer genau diesen Fall benannt (Text auf weichem Grund) und
+   halten beidseitig: Fehler 7,86 hell / 5,56 dunkel, Erfolg 7,30 hell / 7,22 dunkel. */
+.lore-dlg__status[data-tone="error"] .lore-dlg__status-text {
+	color: var(--color-danger-soft-text);
+}
+.lore-dlg__status[data-tone="success"] .lore-dlg__status-text {
+	color: var(--color-success-soft-text);
+}
+
+/* ---- Drei gleich breite Spalten: waehlen | Stammdaten | Orte (Spec §3.2) ----
+   Die Liste stand auf festen 380px, waehrend Stammdaten und Orte sich den Rest teilten --
+   bei 1400er Fenster also 380 / 480 / 480. `be08016c` hat nur die beiden rechten zueinander
+   gleich gemacht; die dritte Spalte liegt in dieser Regel und war nie beteiligt.
+
+   Gitterspuren statt flex-basis, und zwar mit Absicht: `flex: 1 1 0` haette bei border-box
+   die Basis auf padding+border angehoben und die Spalten damit wieder ungleich gemacht.
+   Aussen 1fr : 2fr, innen 2 x 1fr -- macht drei Spuren zu exakt je einem Drittel. Deshalb
+   traegt auch KEIN Container hier Polsterung; die Kanten sitzen an den Spalten selbst,
+   sonst frisst die Polsterung des Zwischencontainers wieder ein paar Pixel aus den beiden
+   rechten Spuren.
+
+   Der 320px-Boden greift erst, wenn das Fenster unter ~960px faellt: Wiki-Titel sind lang,
+   und eine Liste, in der jeder Eintrag an derselben Stelle abschneidet, ist keine Liste
+   mehr. Auf dem Schirm, fuer den der Editor gebaut ist, bindet er nie. */
 .lore-dlg__tabs {
 	flex: 0 0 auto;
 }
 .lore-dlg__body {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(320px, 1fr) minmax(0, 2fr);
 	flex: 1 1 auto;
-	gap: var(--space-10);
+	gap: 0;
 	min-height: 0;
 }
 .lore-dlg__list {
 	display: flex;
-	flex: 0 0 380px;
 	flex-direction: column;
+	min-width: 0;
 	min-height: 0;
 	padding-right: var(--space-10);
 	border-right: 1px solid var(--color-divider);
+}
+/* Spaltentitel: dieselbe Stufe wie .listhead im Siedlungseditor -- eigene Zeile der Leiter
+   (--font-size-subhead) und --color-accent-strong, damit die drei Titel die Spalten
+   sichtbar anfuehren statt sich unter die Zeilen darunter zu mischen. */
+.lore-dlg__coltitle {
+	flex: 0 0 auto;
+	margin: 0 0 var(--space-6);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--leading-snug);
 }
 .lore-dlg__top {
 	display: flex;
@@ -307,12 +397,14 @@
 }
 .lore-dlg__search {
 	flex: 1 1 auto;
-	padding: var(--space-4) var(--space-8);
+	min-height: 32px;
+	padding: 0 var(--space-8);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	background: var(--color-panel);
 	color: var(--color-text);
 	font: inherit;
+	font-size: var(--font-size-reading);
 }
 .lore-dlg__count {
 	flex: 0 0 auto;
@@ -329,7 +421,7 @@
 /* Die Maske scrollt fuer sich. Ohne min-height:0 sprengt langer Inhalt den Flex-Container,
    statt zu scrollen -- dann waechst das Fenster ueber den Schirm hinaus. */
 .lore-dlg__edit {
-	flex: 1 1 auto;
+	min-width: 0;
 	min-height: 0;
 	overflow-y: auto;
 }
@@ -343,40 +435,46 @@
    Zusammen mit der Liste ergeben sie die drei Spalten des Abenteuereditors. Die Orte
    stehen bewusst eigenstaendig: sie sind die eigentliche Arbeit an einem Eintrag,
    untereinander musste man fuer jede Zuordnung erst an den Feldern vorbeiscrollen. */
+/* Zwei gleiche Spuren, gap 0 -- zusammen mit dem 2fr-Anteil aussen ergibt das drei exakt
+   gleiche Drittel ueber das ganze Fenster (siehe .lore-dlg__body). Ein gap hier waere
+   nicht neutral: er ginge NUR von diesen beiden Spuren ab und machte sie um seine halbe
+   Breite schmaler als die Liste. Die Trennung uebernimmt die Kante an der Ortsspalte. */
 .lore-detail__cols {
-	display: flex;
-	flex: 1 1 auto;
-	gap: var(--space-16);
-	align-items: flex-start;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0;
+	align-items: start;
 	min-height: 0;
 }
 .lore-detail__col {
 	display: flex;
-	flex: 1 1 0;
 	flex-direction: column;
 	gap: var(--space-6);
 	min-width: 0;
+	padding-left: var(--space-10);
 }
 /* War fest 300px und damit schmaler als die Stammdaten daneben -- die drei Spalten des
-   Editors (Liste, Stammdaten, Orte) sollen gleich breit sein (Spec §5). Der Umbruch
+   Editors (Liste, Stammdaten, Orte) sollen gleich breit sein (Spec §3.2). Der Umbruch
    darunter bleibt: schmal rutscht die Ortsspalte weiterhin nach unten. */
 .lore-detail__col--places {
-	flex: 1 1 0;
-	min-width: 0;
-	padding-left: var(--space-16);
 	border-left: 1px solid var(--color-divider);
+}
+/* Die Kopfzeile und der Eintragsname stehen ueber BEIDEN rechten Spalten -- sie gehoeren
+   zum Eintrag, nicht zu einer der beiden. Dieselbe Einruecken wie die Spalten darunter,
+   damit die linke Kante des rechten Bereichs eine Linie bleibt. */
+.lore-detail__head,
+.lore-detail__title {
+	padding-left: var(--space-10);
 }
 /* Schmales Fenster: die Ortsspalte rutscht unter die Stammdaten, statt beide zu quetschen. */
 @media (max-width: 900px) {
 	.lore-detail__cols {
-		flex-direction: column;
+		grid-template-columns: minmax(0, 1fr);
 	}
 	.lore-detail__col--places {
-		flex: 1 1 auto;
-		padding-left: 0;
-		border-left: none;
-		border-top: 1px solid var(--color-divider);
 		padding-top: var(--space-10);
+		border-top: 1px solid var(--color-divider);
+		border-left: none;
 	}
 }
 /* Herkunfts-Pille wie die „manuell"-Marken im Abenteuereditor. */
@@ -525,6 +623,21 @@
 	font-weight: var(--font-weight-bold);
 }
 
+/* Die ERSTE Ueberschrift einer Spalte ist deren Spaltentitel -- „Stammdaten" und „Orte (n)"
+   standen laengst im Markup, sie waren nur nicht als Titel gestaltet und damit von den
+   Zwischenueberschriften („Quellen", „Entfernte Wiki-Orte") nicht zu unterscheiden. Kein
+   Trenner darueber: oben ist nichts zu trennen, und die Linie haette die Spalte optisch vom
+   Eintragsnamen abgeschnitten, zu dem sie gehoert. Gleiche Stufe wie .lore-dlg__coltitle
+   links -- die drei Titel muessen dieselbe Geste sein, sonst sind es keine drei Spalten. */
+.lore-detail__col > .lore-detail__section:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-snug);
+}
+
 .lore-detail__hint {
 	margin: 0;
 	color: var(--color-text-muted);
@@ -560,7 +673,7 @@
 .lore-detail__place-name {
 	flex: 1 1 100%;
 	min-width: 0;
-	font-weight: 600;
+	font-weight: var(--font-weight-bold);
 }
 
 /* Grabsteine sind sichtbar anders: sie sind eine Entscheidung, kein Datenverlust. */
@@ -571,7 +684,7 @@
 
 .lore-detail__add {
 	display: flex;
-	gap: 0.4rem;
+	gap: var(--space-6);
 }
 
 .lore-detail__add .lore-detail__input {

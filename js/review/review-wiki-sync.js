@@ -2288,6 +2288,50 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 
 var avesmapsLoreDetailKey = "";
 
+/**
+ * Meldung in die Statuszeile des Vorkommen-Fensters schreiben (Spec §3.4).
+ *
+ * 💣 Diese Zeile ist nicht bloß Struktur. Die drei Schreibwege dieses Editors --
+ * `set_field`, `add_place`, `remove_place` -- haben einen Fehlschlag bis 2026-07-23
+ * NIRGENDS gemeldet: `loreEditAction` liefert bei Netzfehler, Zeitüberschreitung oder
+ * Abbruch `null`, und der Aufrufer hat daraufhin nur den Knopf wieder freigegeben. Wer
+ * offline oder mit abgelaufener Sitzung speicherte, sah ein Feld, das auf den alten Wert
+ * zurücksprang, und bekam keinen Grund dafür genannt.
+ *
+ * Ohne Argument fällt sie auf „Bereit." zurück -- eine leere Statuszeile sieht aus wie ein
+ * Fehler, genau wie die leere Editorspalte daneben (siehe #lore-dlg-placeholder).
+ */
+function setLoreDialogStatus(message, tone) {
+	var statusElement = document.getElementById("lore-dlg-status");
+	var textElement = document.getElementById("lore-dlg-status-text");
+	if (!statusElement || !textElement) {
+		return;
+	}
+	textElement.textContent = message || "Bereit.";
+	statusElement.dataset.tone = tone || "";
+}
+
+/**
+ * Antwort von `loreEditAction` auf eine anzeigbare Fehlermeldung reduzieren.
+ *
+ * Der Umschlag ist im Umbau (AGENTS.md §4): manche Endpunkte liefern `error` als Zeichenkette,
+ * die neueren als `{ code, message }`. Beides wird hier genommen; `null` heißt, die Anfrage kam
+ * gar nicht erst durch.
+ */
+function loreEditErrorText(data) {
+	if (!data) {
+		return "Keine Verbindung – nicht gespeichert.";
+	}
+	var error = data.error;
+	if (error && typeof error === "object" && error.message) {
+		return String(error.message);
+	}
+	if (typeof error === "string" && error) {
+		return error;
+	}
+	return "Nicht gespeichert.";
+}
+
 function loreEditAction(action, payload) {
 	return avesmapsLoreFetchWithTimeout("api/edit/map/lore.php", {
 		method: "POST",
@@ -2432,11 +2476,16 @@ function openLoreDetail(wikiKey) {
 	if (placeholder) { placeholder.hidden = true; }
 	detail.hidden = false;
 	detail.innerHTML = '<p class="wiki-sync-panel__summary">Wird geladen …</p>';
+	// Zurueck auf Anfang: eine Erfolgsmeldung vom vorigen Eintrag ueber dem neuen stehen zu
+	// lassen, behauptet etwas ueber diesen hier.
+	setLoreDialogStatus();
 	loreEditAction("detail", { wiki_key: wikiKey }).then(function (data) {
 		if (avesmapsLoreDetailKey !== wikiKey) { return; }
 		if (!data || data.ok !== true || !data.entry) {
 			// 401 = nicht eingeloggt. Das ist die häufigste Ursache und verdient eine
-			// klare Ansage statt eines allgemeinen Fehlers.
+			// klare Ansage statt eines allgemeinen Fehlers. Die Statuszeile bleibt hier
+			// bewusst stumm: dieselbe Ansage zweimal im selben Fenster liest sich wie ein
+			// Fehler im Fehler, und der Rueckweg-Knopf gehoert an die Maske, nicht in die Zeile.
 			detail.innerHTML = '<p class="wiki-sync-panel__summary">'
 				+ '<button type="button" class="lore-detail__back" id="lore-detail-back">← Zurück</button><br>'
 				+ "Bearbeiten geht nur angemeldet und mit Editorrecht.</p>";
@@ -2507,8 +2556,13 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
 				place_wiki_key: placeBtn.getAttribute("data-lore-place-key") || "",
 				relation: placeBtn.getAttribute("data-lore-place-rel") || "verbreitung",
 			}).then(function (data) {
-				if (data && data.ok && data.entry) { renderLoreDetail(data.entry); }
-				else { placeBtn.disabled = false; }
+				if (data && data.ok && data.entry) {
+					renderLoreDetail(data.entry);
+					setLoreDialogStatus(isAdd ? "Ort wieder aufgenommen." : "Ort entfernt.", "success");
+				} else {
+					placeBtn.disabled = false;
+					setLoreDialogStatus(loreEditErrorText(data), "error");
+				}
 			});
 			return;
 		}
@@ -2518,7 +2572,12 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
 			if (!value) { return; }
 			loreEditAction("add_place", { wiki_key: avesmapsLoreDetailKey, place_title: value })
 				.then(function (data) {
-					if (data && data.ok && data.entry) { renderLoreDetail(data.entry); }
+					if (data && data.ok && data.entry) {
+						renderLoreDetail(data.entry);
+						setLoreDialogStatus("Ort „" + value + "“ hinzugefügt.", "success");
+					} else {
+						setLoreDialogStatus(loreEditErrorText(data), "error");
+					}
 				});
 		}
 	});
@@ -2530,12 +2589,20 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreEditBound) {
 		if (!input || !input.getAttribute || !input.getAttribute("data-lore-field") || !avesmapsLoreDetailKey) {
 			return;
 		}
+		var fieldName = input.getAttribute("data-lore-field");
 		loreEditAction("set_field", {
 			wiki_key: avesmapsLoreDetailKey,
-			field: input.getAttribute("data-lore-field"),
+			field: fieldName,
 			value: input.value,
 		}).then(function (data) {
-			if (data && data.ok && data.entry) { renderLoreDetail(data.entry); }
+			if (data && data.ok && data.entry) {
+				renderLoreDetail(data.entry);
+				// Ohne Rueckmeldung sieht ein erfolgreiches Speichern genauso aus wie ein
+				// fehlgeschlagenes: die Maske wird neu gebaut, das war es.
+				setLoreDialogStatus("„" + fieldName + "“ gespeichert.", "success");
+			} else {
+				setLoreDialogStatus(loreEditErrorText(data), "error");
+			}
 		});
 	});
 }

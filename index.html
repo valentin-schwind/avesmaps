@@ -834,20 +834,33 @@
 						<button class="lore-btn2" type="button" data-lore-toggle="ware" aria-pressed="true" title="Blendet Waren in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten – Wiedereinschalten stellt sie vollständig her."><span class="t1">Waren: AN</span><span class="t2">öffentliche Anzeige</span></button>
 						<button class="lore-btn2" type="button" data-lore-toggle="spezies" aria-pressed="false" title="Spezies ist aus: das Wiki-Feld „Regionen“ der Infobox Spezies ist zu schlecht gepflegt. Die Daten liegen vollständig vor und kommen beim Einschalten sofort zurück."><span class="t1">Spezies: AUS</span><span class="t2">öffentliche Anzeige</span></button>
 					</div>
+					<!-- Statuszeile unter dem Menueband, volle Breite (Spec §3.1/§3.4, Vorbild
+					     #settlementStatus). Sie ist hier nicht bloss Struktur: die drei Schreibwege
+					     dieses Editors (Feld speichern, Ort anlegen, Ort entfernen) haben einen
+					     Fehlschlag bis 2026-07-23 NIRGENDS gemeldet -- der Knopf wurde stumm wieder
+					     freigegeben. setLoreDialogStatus() schreibt hier hinein. -->
+					<div class="lore-dlg__status" id="lore-dlg-status">
+						<span class="lore-dlg__status-text" id="lore-dlg-status-text">Bereit.</span>
+					</div>
 					<!-- Reiter fuer ALLE VIER Arten -- auch Spezies, obwohl es oeffentlich aus ist:
 					     der Schalter im Menueband steuert die Karte, nicht den Editor. Die Daten sind
-					     vollstaendig da und muessen bearbeitbar bleiben. -->
+					     vollstaendig da und muessen bearbeitbar bleiben. Ihr Platz zwischen Statuszeile
+					     und Spalten ist Absicht (Spec §3.1): sie schalten den GANZEN Editor um, nicht
+					     nur die Liste. -->
 					<div class="wiki-sync-panel__tabs lore-dlg__tabs">
 						<button class="wiki-sync-panel__tab is-active" type="button" data-lore-dlg-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="fauna"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="flora">Flora <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="flora"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="ware">Waren <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="ware"></span></button>
 						<button class="wiki-sync-panel__tab" type="button" data-lore-dlg-kind="spezies">Spezies <span class="wiki-sync-panel__tab-count" data-lore-dlg-count="spezies"></span></button>
 					</div>
-					<!-- Zwei Spalten wie im Karteneditor (.ce-body/.ce-list): links waehlen, rechts
-					     bearbeiten. Die Maske ersetzt damit nicht mehr die Liste -- man sieht beim
+					<!-- DREI gleich breite Spalten (Spec §3.2): waehlen | Stammdaten | Orte. Die
+					     beiden rechten stehen im JS-Markup von renderLoreDetail, weil es sie erst
+					     mit ausgewaehltem Eintrag gibt; die Breite kommt fuer alle drei aus
+					     css/features/lore.css. Die Maske ersetzt die Liste nicht -- man sieht beim
 					     Bearbeiten weiterhin, wo man steht. -->
 					<div class="lore-dlg__body">
 						<div class="lore-dlg__list">
+							<h3 class="lore-dlg__coltitle">Vorkommen</h3>
 							<div class="lore-dlg__top">
 								<input type="search" id="lore-dlg-search" class="lore-dlg__search" placeholder="Name oder Art suchen …" autocomplete="off">
 							</div>

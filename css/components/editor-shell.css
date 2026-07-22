@@ -16,6 +16,16 @@
    `[hidden] { display: none !important }`, das schlägt das `display: flex` hier. Die
    ID-Liste in dialog-overlays.css:6-19 ist deshalb überflüssig — nicht erweitern. */
 
+/* Die Maße als Variable, nicht als Literal: das Vorkommen-Fenster (css/features/lore.css)
+   ist als einziges KEIN iframe-Editor und kann .avm-editor-dialog deshalb nicht einfach
+   tragen -- es braucht aber dieselbe Größe, sonst steht ein 1000px-Fenster neben vier
+   1400px-Fenstern. Über die Variable nimmt es die Maße, ohne sie abzuschreiben; sie stehen
+   weiterhin an genau einer Stelle. */
+:root {
+	--avm-editor-w: min(1400px, calc(100vw - 24px));
+	--avm-editor-h: min(880px, calc(100vh - 24px));
+}
+
 .avm-editor-overlay {
 	position: fixed;
 	inset: 0;
@@ -32,8 +42,8 @@
 	display: grid;
 	grid-template-rows: auto minmax(0, 1fr);
 	/* Die eine Stelle, an der die Editorgröße steht. */
-	width: min(1400px, calc(100vw - 24px));
-	height: min(880px, calc(100vh - 24px));
+	width: var(--avm-editor-w);
+	height: var(--avm-editor-h);
 	overflow: hidden;
 	border: 1px solid var(--color-border-strong);
 	/* Spec §4.2: Hülle --radius-sm, Bedienelemente --radius-md. Vorher --radius-lg. */
