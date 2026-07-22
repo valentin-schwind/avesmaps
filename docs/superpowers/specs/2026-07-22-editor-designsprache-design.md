@@ -221,6 +221,14 @@ De-iframe-Umbau, nicht hierher.
 | Listenzeile | `padding: var(--space-2) var(--space-4)`, `border-radius: var(--radius-md)`, `border: 1px solid transparent`, gewählt `border-color: var(--color-accent)` | 4/6 |
 | Listenspalte | **kein eigener Hintergrund** — die Trennlinie genügt | — |
 
+**Diese Werte stehen als Token in `css/components/editor-page.css`** — nicht in
+den Editorseiten: `--avm-ribbon-pad`, `--avm-ribbon-gap`, `--avm-status-pad`,
+`--avm-status-min-h`, `--avm-col-pad`, `--avm-row-pad`, `--avm-control-h`. Ein
+Editor benutzt sie, er wiederholt sie nicht. Vor dem Umzug standen sie **elfmal**
+über drei Dateien verstreut und die Bedienhöhe unter **drei Namen** — das ist
+keine Kopie, das ist eine Divergenz-Fabrik. Wer einen weiteren Editor anschließt,
+verlinkt die Datei und greift zu; wer einen Wert ändern will, ändert ihn dort.
+
 **Zwei Regeln dazu, beide teuer gelernt:**
 
 1. **Der Spaltentitel steht AUSSERHALB des Scrollbereichs**, nicht als
@@ -438,8 +446,18 @@ aussieht, steht im Kasten darunter.
 > App ringsum bleibt auf `base.css`' 7px. Das ist ein **Unterschied mit Absicht**
 > (die Editoren sind Arbeitsflächen mit vielen Scrollbereichen), kein Rest.
 >
-> **Zu tun bleibt** nur noch das Zusammenlegen der drei gleichen Kopien in ein
-> Stylesheet, das die Editorseiten binden — Aufräumen, kein sichtbarer Effekt.
+> ✅ **Erledigt.** Das fehlende Stylesheet gibt es jetzt:
+> **`css/components/editor-page.css`**, verlinkt von allen drei Editorseiten. Es
+> trägt den Bildlaufleisten-Block **einmal** und dazu die Hüllenmaße aus §3.1a als
+> `--avm-*`-Token. Die drei Kopien sind raus, ebenso die drei lokalen Namen für
+> dieselbe Bedienhöhe (`--se-` / `--ae-` / `--ce-control-h` → `--avm-control-h`).
+> Gemessen: alle Zahlen unverändert, Abweichungen weiterhin 0/0.
+>
+> 💣 **`editor-page.css` ≠ `editor-shell.css`.** Die Namen klingen gleich und
+> meinen Gegenteiliges: `-shell` kommt über `styles.css` in die **App-Hülle**
+> (index.html) und stylt das äußere Overlay; `-page` verlinken die **Editorseiten**
+> selbst, es gilt also *im* iframe. Genau diese Verwechslung steckte in der alten
+> Fassung dieses Abschnitts.
 
 ### 4.7 Hell und Dunkel
 

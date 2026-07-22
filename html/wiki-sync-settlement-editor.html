@@ -38,20 +38,21 @@
 <!-- Source typeahead (instruction 5a). This iframe links tokens.css but NOT styles.css, so the
      component's own stylesheet has to be pulled in explicitly -- the dropdown is appended to THIS
      document's body and would otherwise render unstyled. Also stamped by the deploy. -->
+<link rel="stylesheet" href="/css/components/editor-page.css">
 <link rel="stylesheet" href="/css/components/source-autocomplete.css">
 <style>
   /* Local short names are now ALIASES of the real design tokens (css/base/tokens.css) instead of a
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
   :root { --bg:var(--color-page-bg); --panel:var(--color-panel); --soft:var(--color-panel-soft); --line:var(--color-border); --line2:var(--color-border-strong); --fg:var(--color-text-strong); --mut:var(--color-text-muted); --accent:var(--color-link); --accent-hover:var(--color-link-hover); --warn:var(--color-warning); --bad:var(--color-danger); --ok:var(--color-success); --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
-  /* Eine Bedienhoehe fuer Knoepfe, Eingaben und Auswahlfelder (Spec §4.3): sie stehen staendig
-     nebeneinander in .bar und .timefilter, und 30/28/26 nebeneinander liest sich als Unfall. */
-  :root { --se-control-h:32px; }
+  /* --avm-control-h (32px) kommt jetzt aus css/components/editor-page.css und gilt fuer alle
+     Editorseiten. Hiess hier --se-control-h, im Abenteuer-Editor --ae-, im Karten-Editor --ce- --
+     dieselbe Entscheidung unter drei Namen, also dreimal verhandelbar. */
   body { margin:0; font:var(--font-size-body)/var(--leading-normal) var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
-  header { padding:var(--space-8) var(--space-12); background:var(--panel); border-bottom:1px solid var(--line); }
+  header { padding:var(--avm-ribbon-pad); background:var(--panel); border-bottom:1px solid var(--line); }
   /* Alle Steuer-Buttons in EINER Zeile, gleich breite Spalten (wie im Territoriumseditor). */
-  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--space-4); align-items:stretch; }
-  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--se-control-h); cursor:pointer; font:inherit; }
+  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--avm-ribbon-gap); align-items:stretch; }
+  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--avm-control-h); cursor:pointer; font:inherit; }
   button:hover { background:var(--color-button-soft-hover); }
   button:disabled { opacity:.5; cursor:default; }
   button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
@@ -69,12 +70,12 @@
   .btn2.is-off { background:color-mix(in srgb, var(--bad) 16%, transparent); border-color:var(--bad); }
   .btn2.is-off .t1 { color:var(--bad); }
   /* Feste Mindesthoehe: eine eintreffende Meldung darf die drei Spalten darunter nicht schieben. */
-  #settlementStatus { padding:var(--space-4) var(--space-12); min-height:30px; color:var(--mut); background:var(--soft); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:var(--space-12); }
+  #settlementStatus { padding:var(--avm-status-pad); min-height:var(--avm-status-min-h); color:var(--mut); background:var(--soft); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:var(--space-12); }
   #seStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
   /* flex:1 setzt flex-basis auf 0 -- zusammen mit min-width:0 teilen sich die drei Spalten die
      Breite exakt zu Dritteln, unabhaengig davon, wie lang ihr laengster Eintrag ist (Spec §5). */
-  .col { flex:1 1 0; overflow:hidden; padding:var(--space-6) var(--space-10); display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .col { flex:1 1 0; overflow:hidden; padding:var(--avm-col-pad); display:flex; flex-direction:column; min-height:0; min-width:0; }
   .col + .col { border-left:1px solid var(--line); }
   #seLeft { border-right:1px solid var(--line); max-width:46%; }
   .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
@@ -83,16 +84,11 @@
      Spalten sichtbar anfuehren. */
   .listhead { font-size:var(--font-size-subhead); line-height:var(--leading-snug); font-weight:var(--font-weight-bold); margin:0 0 var(--space-6); color:var(--color-accent-strong); }
   .bar { display:flex; gap:var(--space-4); align-items:center; margin-bottom:var(--space-4); }
-  input[type=search] { height:var(--se-control-h); background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); font:inherit; flex:1; }
+  input[type=search] { height:var(--avm-control-h); background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); font:inherit; flex:1; }
 
-  /* Bildlaufleisten: diese Datei hatte keine, also zeichnete der Browser seine eigenen -- neben
-     Abenteuer- und Kartensammlungs-Editor, die den Block kopiert tragen, sah der Editor fremd aus.
-     Der iframe bindet tokens.css, aber NICHT base.css, wo die globale Regel steht (Spec §4.6). */
-  * { scrollbar-width:thin; scrollbar-color:var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
-  *::-webkit-scrollbar { width:10px; height:10px; }
-  *::-webkit-scrollbar-track { background:var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb { background:var(--color-scrollbar-thumb); border-radius:999px; border:2px solid var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb:hover { background:var(--color-scrollbar-thumb-hover); }
+  /* Bildlaufleisten stehen jetzt in css/components/editor-page.css -- sie waren dreimal
+     abgeschrieben und liefen dabei auseinander (7px/7px/10px). Der iframe bindet tokens.css, aber
+     NICHT base.css, wo die globale Regel steht; darum braucht es die eigene Datei (Spec §4.6). */
   #seTree, #seList, #seDetailBody { flex:1 1 auto; overflow:auto; min-height:0; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
   .dt-empty { color:var(--mut); padding:6px; }
   /* Territorien-Baum (LINKS): read-only Filterbaum mit Tri-State-Checkboxen. */
@@ -122,7 +118,7 @@
   .count { color:var(--mut); font-size:11px; }
   /* Filterleiste ueber dem Baum (Muster .timefilter aus wiki-sync-monitor.html). */
   .timefilter { font-size:var(--font-size-small); color:var(--mut); display:flex; align-items:center; gap:var(--space-4); flex-wrap:wrap; margin-bottom:var(--space-4); }
-  .timefilter input[type=number] { width:60px; height:var(--se-control-h); background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-4); font:inherit; }
+  .timefilter input[type=number] { width:60px; height:var(--avm-control-h); background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-4); font:inherit; }
   .timefilter input:disabled { opacity:.4; }
   .timefilter select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 5px; font:inherit; }
   .timefilter label { display:inline-flex; align-items:center; gap:3px; }
@@ -158,7 +154,7 @@
   /* Siedlungs-Zeilen: zweizeilig, Zeile 2 = Zuordnungsstatus (gruen=zugeordnet, amber=Luecke). */
   /* Radius auf das Token statt 5px (Spec §4.2 kennt nur --radius-sm und --radius-md). Abenteuer- und
      Kartensammlungs-Editor tragen dieselbe Zeilengeometrie -- 4/6, --radius-md, transparenter Rahmen. */
-  .se-row { display:flex; align-items:center; gap:8px; padding:var(--space-2) var(--space-4); border-radius:var(--radius-md); border:1px solid transparent; cursor:pointer; }
+  .se-row { display:flex; align-items:center; gap:8px; padding:var(--avm-row-pad); border-radius:var(--radius-md); border:1px solid transparent; cursor:pointer; }
   .se-row:hover { background:var(--color-hover-wash); }
   .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
   .se-row-coat { flex:0 0 auto; width:22px; height:22px; border-radius:3px; object-fit:contain; background:var(--panel); border:1px solid var(--line2); }

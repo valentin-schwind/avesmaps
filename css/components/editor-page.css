@@ -1,0 +1,62 @@
+/* Editor-SEITEN-Stylesheet — gemeinsame Hüllenmaße der Editor-iframes.
+ *
+ * 💣 NICHT verwechseln mit css/components/editor-shell.css. Die beiden klingen gleich und sind es
+ *    nicht:
+ *      editor-shell.css  → kommt über css/styles.css (@import) in die APP-Hülle (index.html) und
+ *                          stylt das äußere Overlay-Fenster: Rahmen, Titelzeile, ✕.
+ *      editor-page.css   → DIESE Datei, verlinkt von den Editor-SEITEN in html/, also von dem, was
+ *                          IM iframe läuft.
+ *    Spec §4.6 verlangte einmal, den gemeinsamen Block „in editor-shell.css" zu legen, „das jede
+ *    Editor-Seite ohnehin bindet". Keine tut das. Deshalb gibt es diese Datei.
+ *
+ * Warum überhaupt: die Editor-iframes binden css/base/tokens.css, aber NICHT css/base/base.css.
+ * Alles, was dort global steht, erreicht sie nie — jede Editorseite müsste es kopieren, und genau
+ * das ist passiert. Am 2026-07-22 standen die Hüllenmaße dreimal abgeschrieben da und waren
+ * dreimal verschieden (15 gemessene Abweichungen, Spec §3.1a). Werte, die an drei Stellen stehen,
+ * laufen auseinander — nicht vielleicht, sondern verlässlich.
+ *
+ * Ergänzt tokens.css, ersetzt es nicht: hier stehen nur EDITOR-Maße. Farben, Schriftgrade und die
+ * Abstandsskala bleiben in css/base/tokens.css. Ein Wert ohne Token? Erst das Token, dann benutzen
+ * (AGENTS.md §12).
+ */
+
+:root {
+	/* Bedienhöhe: Suchfeld, Eingabe, Auswahl, Knopf (Spec §4.3). Hieß vorher in jedem Editor anders
+	   -- --se-control-h / --ae-control-h / --ce-control-h -- was dieselbe Entscheidung dreimal
+	   verhandelbar machte. */
+	--avm-control-h: 32px;
+
+	/* Hüllenmaße (Spec §3.1a). Die px-Werte daneben sind die IST-Werte der Skala: --space-*
+	   trägt seit einem Owner-Entscheid global +2px, der Name ist die Stufe, nicht die Pixelzahl
+	   (tokens.css:202, Spec §8.1). */
+	--avm-ribbon-pad: var(--space-8) var(--space-12);   /* 10 / 14 */
+	--avm-ribbon-gap: var(--space-4);                   /* 6 */
+	--avm-status-pad: var(--space-4) var(--space-12);   /* 6 / 14 */
+	--avm-status-min-h: 30px;
+	--avm-col-pad: var(--space-6) var(--space-10);      /* 8 / 12 — jede der drei Spalten */
+	--avm-row-pad: var(--space-2) var(--space-4);       /* 4 / 6 — Listenzeile */
+}
+
+/* Bildlaufleisten. Stand bis 2026-07-22 dreimal kopiert in den Editorseiten (zwei davon auf 7px,
+   eine auf 10px). Bewusst NICHT der 7px-Wert aus css/base/base.css: die Editoren sind
+   Arbeitsflächen mit vielen Scrollbereichen, die App ringsum ist es nicht. Die WebKit-
+   Pseudoelemente vererben nicht, daher `*` statt `:root`. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+*::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: 999px;
+	border: 2px solid var(--color-scrollbar-track);
+}
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
+}

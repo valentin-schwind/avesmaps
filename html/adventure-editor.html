@@ -36,25 +36,12 @@
      client on the LIVE P1 endpoints (POST /api/edit/map/adventures.php). Layout C: Liste | Stammdaten | Orte. -->
 <link rel="stylesheet" href="/css/base/fonts.css">
 <link rel="stylesheet" href="/css/base/tokens.css">
+<!-- Gemeinsame Hüllenmaße + Bildlaufleisten aller Editor-SEITEN (Spec §3.1a/§4.6). Trug diese Seite
+     bis 2026-07-22 selbst -- dreimal abgeschrieben, dreimal verschieden. NICHT editor-shell.css,
+     das ist die App-Hülle; der Unterschied steht im Kopf der Datei. -->
+<link rel="stylesheet" href="/css/components/editor-page.css">
 <style>
   * { box-sizing: border-box; }
-  /* Eine Bedienhoehe fuer Suchfeld, Eingabe, Auswahl und Knopf (Spec §4.3, = --se-control-h im
-     Siedlungseditor). Sie stehen staendig nebeneinander -- in .ae-list__top, in .ae-filters, in
-     .ae-add -- und drei verschiedene Hoehen nebeneinander lesen sich als Unfall. */
-  :root { --ae-control-h: 32px; }
-  /* Scrollbars: this iframe links tokens.css but NOT base.css, so its scroll areas showed the
-     browser's default bars while the app around it had the thin warm ones. The WebKit
-     pseudo-elements do not inherit, hence `*`. Measurements now match the settlement editor
-     (6cc567db): 10px wide, round thumb inset by a 2px track-coloured border -- deliberately NOT
-     base.css's 7px, which the app around the editors keeps. All three editor pages now carry this
-     block character for character. Merging them into one stylesheet still needs that stylesheet to
-     exist: editor-shell.css is NOT it, it reaches the app shell via styles.css and no editor page
-     links it (Spec §4.6, corrected). */
-  * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
-  *::-webkit-scrollbar { width: 10px; height: 10px; }
-  *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: 999px; border: 2px solid var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
   html, body { height: 100%; }
   body {
     margin: 0;
@@ -74,8 +61,8 @@
      --color-panel. */
   .ae-header {
     flex: 0 0 auto; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
-    align-items: stretch; gap: var(--space-4);
-    padding: var(--space-8) var(--space-12);
+    align-items: stretch; gap: var(--avm-ribbon-gap);
+    padding: var(--avm-ribbon-pad);
     background: var(--color-panel); border-bottom: 1px solid var(--color-border);
   }
   /* Im Gitter unnoetig -- er wuerde eine eigene Spalte belegen und die Kacheln schmaler machen. */
@@ -105,7 +92,7 @@
      den ganzen Editor betrifft (Liste geladen, Auswahl fehlgeschlagen), nicht den Lauf einer Kachel. */
   .ae-status {
     flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-12);
-    padding: var(--space-4) var(--space-12); min-height: 30px;
+    padding: var(--avm-status-pad); min-height: var(--avm-status-min-h);
     color: var(--color-text-muted); background: var(--color-panel-soft);
     border-bottom: 1px solid var(--color-border);
   }
@@ -136,7 +123,7 @@
      Siedlungen und Karten wie ein fremdes Bauteil aussehen liess. Trennlinie genuegt. */
   .ae-list {
     min-width: 0; min-height: 0; display: flex; flex-direction: column;
-    border-right: 1px solid var(--color-border); padding: var(--space-6) var(--space-10);
+    border-right: 1px solid var(--color-border); padding: var(--avm-col-pad);
   }
   /* Spaltentitel -- fuehrt jede der drei Spalten an (Spec §3.2), auf der eigenen Stufe der Leiter
      (--font-size-subhead, §4.1). Vorbild .listhead im Siedlungseditor: --color-accent-strong statt
@@ -148,7 +135,7 @@
   }
   .ae-list__top { display: flex; gap: var(--space-6); margin-bottom: var(--space-8); }
   .ae-search {
-    flex: 1 1 auto; min-width: 0; height: var(--ae-control-h); font: inherit; color: var(--color-text);
+    flex: 1 1 auto; min-width: 0; height: var(--avm-control-h); font: inherit; color: var(--color-text);
     background: var(--color-panel); border: 1px solid var(--color-border);
     border-radius: var(--radius-md); padding: var(--space-4) var(--space-8);
   }
@@ -169,7 +156,7 @@
     padding: var(--space-2) var(--space-6); font-size: var(--font-size-small); }
   .ae-ac-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
   .ae-year { display: flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; }
-  .ae-year__in { width: 58px; min-width: 0; height: var(--ae-control-h); font: inherit; font-size: var(--font-size-small);
+  .ae-year__in { width: 58px; min-width: 0; height: var(--avm-control-h); font: inherit; font-size: var(--font-size-small);
     color: var(--color-text);
     background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-md);
     padding: var(--space-2) var(--space-6); }
@@ -190,7 +177,7 @@
   .ae-item {
     display: flex; align-items: center; gap: var(--space-8); width: 100%; text-align: left; cursor: pointer; font: inherit;
     background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
-    padding: var(--space-2) var(--space-4); margin-bottom: 1px; line-height: var(--leading-tight);
+    padding: var(--avm-row-pad); margin-bottom: 1px; line-height: var(--leading-tight);
   }
   .ae-item:hover { background: var(--color-hover-wash); }
   .ae-item.is-selected { background: var(--color-active-wash); border-color: var(--color-accent); }
@@ -214,7 +201,7 @@
   .ae-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
   .ae-detail__head {
     flex: 0 0 auto; display: flex; align-items: flex-start; gap: var(--space-10);
-    padding: var(--space-6) var(--space-10); border-bottom: 1px solid var(--color-border);
+    padding: var(--avm-col-pad); border-bottom: 1px solid var(--color-border);
   }
   /* Ohne Auswahl ist der Kopf leer -- die feste Mindesthoehe liess dann ein leeres 40px-Band mit
      Trennlinie ueber den beiden Spalten stehen und schob ihre Titel gegenueber dem Listentitel
@@ -236,7 +223,7 @@
      ausblutende Raender und ohne die Falle, dass ein negativer Aussenrand den Klebepunkt
      mitverschiebt. So loesen es Vorbild und Kartensammlungs-Editor auch (Spec §3.1a). */
   .ae-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
-    padding: var(--space-6) var(--space-10); }
+    padding: var(--avm-col-pad); }
   .ae-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .ae-panel--stamm { border-right: 1px solid var(--color-border); }
   .ae-placeholder { color: var(--color-text-muted); padding: var(--space-16); }
@@ -255,7 +242,7 @@
   .ae-field > label { font-size: var(--font-size-caption); color: var(--color-text-muted);
     display: flex; align-items: center; gap: var(--space-6); }
   .ae-input, .ae-select {
-    font: inherit; height: var(--ae-control-h); color: var(--color-text); background: var(--color-panel);
+    font: inherit; height: var(--avm-control-h); color: var(--color-text); background: var(--color-panel);
     border: 1px solid var(--color-border); border-radius: var(--radius-md);
     padding: var(--space-4) var(--space-8); width: 100%;
   }
@@ -289,7 +276,7 @@
      wird der Knopf 32,84 hoch und die Bedienhoehe stimmt eben NICHT mehr -- min-height ist ein
      Boden, kein Mass. Ohne sie zentriert der Knopf seinen Text ohnehin selbst. */
   .btn { font: inherit; cursor: pointer; border-radius: var(--radius-md); padding: 0 var(--space-12);
-    min-height: var(--ae-control-h);
+    min-height: var(--avm-control-h);
     background: var(--color-button-soft); color: var(--color-button-soft-text); border: 1px solid var(--color-button-soft-border); }
   .btn:hover { background: var(--color-button-soft-hover); }
   .btn--primary { background: var(--color-button); color: var(--color-button-text); border-color: var(--color-button-border); }
@@ -399,7 +386,7 @@
 
   /* ---- save bar ------------------------------------------------------------------------------- */
   .ae-savebar { flex: 0 0 auto; display: flex; align-items: center; gap: var(--space-10);
-    padding: var(--space-6) var(--space-10); border-top: 1px solid var(--color-border); background: var(--color-panel-soft); }
+    padding: var(--avm-col-pad); border-top: 1px solid var(--color-border); background: var(--color-panel-soft); }
   .ae-savebar[hidden] { display: none; } /* author display:flex would otherwise beat the hidden attribute */
   .ae-savebar .ae-spacer { flex: 1 1 auto; }
   .ae-savebar .saved { font-size: var(--font-size-caption); color: var(--color-success); }
