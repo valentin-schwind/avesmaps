@@ -239,16 +239,81 @@ function syncPowerlineLabels() {
 	}
 }
 
+// Die beiden Enden als Gold-Links. Markup und Klick-Ziel sind exakt die des Weges
+// (pathItemStationLinkMarkup, js/map-features/map-features-path-item-links.js), und der Handler
+// haengt global am document (js/routing/routing.js) -- Kraftlinien benutzen ihn einfach mit.
+function powerlineSpanMarkup(powerline) {
+	const span = getPowerlineSpanEndpointIds(powerline);
+	if (!span) {
+		return "";
+	}
+	const linkFor = (publicId) => {
+		const entry = findLocationMarkerByPublicId(publicId);
+		const name = String(entry?.name || "").trim();
+		if (name === "") {
+			return "";
+		}
+		return '<button type="button" class="location-popup__station-link" '
+			+ `data-station-kind="location" data-station-ref="${escapeHtml(publicId)}">`
+			+ `${escapeHtml(name)}</button>`;
+	};
+	const from = linkFor(span.fromPublicId);
+	const to = linkFor(span.toPublicId);
+	if (from === "" || to === "") {
+		return "";
+	}
+	return `${from} ↔ ${to}`;
+}
+
+// Infobox der Kraftlinie -- gleiche .region-info-box-Huelle wie Weg/Region/Gebiet, damit sie
+// Trenner, Breite und Padding der .settlement-popup-Styles erbt. Leere Zeilen fallen weg.
+function powerlineInfoboxMarkup(powerline) {
+	const row = (dtLabel, valueHtml) => {
+		if (!valueHtml || String(valueHtml).trim() === "") {
+			return "";
+		}
+		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${valueHtml}</dd></div>`;
+	};
+	let rows = "";
+	rows += row("Verbindet", powerlineSpanMarkup(powerline));
+	rows += row("Beschreibung", escapeHtml(String(powerline?.properties?.description || "").trim()));
+	// Multi-source system: die Zeile traegt den Wiki-Link UND die Katalog-Quellen, offizielle zuerst.
+	const sourceMarkup = typeof renderFeatureSourceLine === "function"
+		? renderFeatureSourceLine(
+			"powerline",
+			getPowerlinePublicId(powerline),
+			String(powerline?.properties?.wiki_url || "").trim(),
+			"location-popup__wiki-link"
+		)
+		: "";
+	if (rows === "" && sourceMarkup === "") {
+		return "";
+	}
+	return '<div class="region-info-box region-info-box--settlement">'
+		+ `<dl class="region-info-box__data">${rows}</dl>`
+		+ sourceMarkup
+		+ "</div>";
+}
+
 function createPowerlinePopupMarkup(powerline) {
+	const name = getPowerlineDisplayName(powerline);
+	const typeLabel = tr("spotlight.type.powerline", "Kraftlinie");
+	// 16:9-Kopfbild wie beim Weg. EIN Bild fuer alle Kraftlinien -- es gibt keine Subtypen.
+	// showHeaderIcon bleibt false: das Bild ersetzt den Icon-Kopf ohnehin (js/ui/popups.js), und
+	// faellt es je aus, ist ein titelloser Kopf besser als das Dorf-Icon aus locationIconMarkup.
+	const headerImg = typeof infoHeaderImageMarkup === "function"
+		? infoHeaderImageMarkup("powerline", name, typeLabel)
+		: "";
 	return locationPopupMarkup({
-		name: getPowerlineDisplayName(powerline),
+		name,
 		locationType: "dorf",
-		locationTypeLabel: tr("spotlight.type.powerline", "Kraftlinie"),
+		locationTypeLabel: typeLabel,
+		headerImageMarkup: headerImg,
 		showHeaderIcon: false,
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
-		actionsMarkup: IS_EDIT_MODE ? locationPopupActionsMarkup([
+		actionsMarkup: (IS_EDIT_MODE ? locationPopupActionsMarkup([
 			popupActionButtonMarkup({
 				label: "Bearbeiten",
 				attributes: {
@@ -264,7 +329,7 @@ function createPowerlinePopupMarkup(powerline) {
 					"data-public-id": getPowerlinePublicId(powerline),
 				},
 			}),
-		]) : "",
+		]) : "") + powerlineInfoboxMarkup(powerline),
 	});
 }
 
