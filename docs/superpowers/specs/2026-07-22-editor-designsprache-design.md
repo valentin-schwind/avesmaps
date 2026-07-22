@@ -251,13 +251,21 @@ gebaut.
 
 ### 4.6 Bildlaufleisten
 
-Ein Aussehen, beide Themes:
+*Korrektur zur ersten Fassung dieser Spec: hier ist **nichts neu zu erfinden**, und
+`--color-border-strong` wäre der falsche Griff gewesen.* Es gibt bereits Tokens
+(`--color-scrollbar-thumb`, `-thumb-hover`, `-track`, hell **und** dunkel,
+`tokens.css:195`) und eine globale Regel in `css/base/base.css:15-41`.
 
-```css
-scrollbar-width: thin;
-scrollbar-color: var(--color-border-strong) transparent;
-```
-plus die `::-webkit-scrollbar`-Entsprechung.
+**Die eigentliche Ursache der Uneinheitlichkeit:** die Editor-iframes binden
+`tokens.css`, aber **nicht** `base.css` — die globale Regel erreicht sie nie.
+Abenteuer- und Kartensammlungs-Editor haben den Block deshalb in ihr eigenes
+`<style>` **kopiert** (mit Kommentar, warum, z. B. `adventure-editor.html:41`);
+Siedlungs- und Territorien-Editor sowie das Natur-&-Waren-Fenster haben ihn
+**nicht** — dort zeichnet der Browser seine Standardleisten.
+
+**Zu tun:** den Block **einmal** in `editor-shell.css` unterbringen, das jede
+Editor-Seite ohnehin bindet, und die beiden Kopien entfernen. Dabei die Breite
+angleichen — die Kopien setzen `7px`, `base.css` einen anderen Wert.
 
 ### 4.7 Hell und Dunkel
 
@@ -363,20 +371,23 @@ Gemessen bei 390 × 844: genau **eine** Spalte je Schritt, „Zurück" ab Schrit
 
 ## 8. Funde, die sonst später beißen
 
-1. **Spacing-Tokens heißen anders, als sie messen.** `--space-10` ist **12px**,
-   `--space-12` ist **14px**, `--space-16` ist **18px**. `docs/design-language.md`
-   behauptet ausdrücklich „the name is the pixel value". Das ist falsch.
-   **Empfehlung: die Doku korrigieren, die Werte lassen** — Werte ändern würde jede
-   Oberfläche verschieben.
+1. **Spacing-Tokens messen nicht, was sie heißen — aber mit Absicht.**
+   `--space-10` ist 12px, `--space-12` ist 14px, `--space-16` ist 18px.
+   *Korrektur zur ersten Fassung dieser Spec:* das ist **kein Abdriften**, sondern
+   ein dokumentierter Owner-Entscheid, direkt daneben in `tokens.css:202`:
+   „alle Spacing-Vars global +2px (mehr Luft überall). Die Namen bleiben als
+   Skala-Stufen; die WERTE tragen +2. App-weit + reversibel."
+   Offen ist nur, dass `docs/design-language.md` weiterhin „the name is the pixel
+   value" behauptet. **Empfehlung: die Doku nachziehen, die Werte lassen.**
 
-2. **🔴 Dunkler Hover unter der Lesbarkeitsschwelle — heute, im Produkt.**
+2. **✅ ERLEDIGT (`5280619b`). Dunkler Hover lag unter der Lesbarkeitsschwelle.**
    `--color-button-hover` wird im Dunkelmodus *heller* (#797264); gegen
    `--color-button-text` (#f5ebd7) ergibt das **4,03:1**, unter AA (4,5). `.t2`
    trägt zusätzlich `opacity: .8`, liegt also darunter — bei 11px.
-   `.ae-btn2--primary:hover` (`adventure-editor.html:82`) nutzt exakt diese Tokens.
-   **Empfehlung: im Dunkelmodus wird Hover dunkler statt heller.**
-   ⚠️ Globales Token, wirkt auf **jede** Oberfläche → **Owner-Entscheid offen**,
-   eigener kleiner Commit.
+   `.ae-btn2--primary:hover` (`adventure-editor.html:82`) nutzte exakt diese Tokens.
+   Owner gab frei; im Dunkelmodus geht Hover jetzt **dunkler** (`#5e5749`, 6,05:1),
+   `--color-button-active` wanderte mit (`#4f4a3d`, 7,46:1) — der alte Wert hätte
+   praktisch auf dem neuen Hover gelegen. Hell unverändert.
 
 3. **`Art`-Feld zeigt rohes Wikilink-Markup.** Natur & Waren, Feld „Art":
    `[[Fisch]]`, während die Liste sauber „Fisch" zeigt. Die Bereinigung greift nur
@@ -421,8 +432,8 @@ Wer die Spec später liest, prüft den Stand gegen `git log`, statt ihm zu glaub
 
 | # | Schritt | Risiko |
 |---|---|---|
-| 1 | **Knopfleiste**: leere Rasterspalte weg, Abstände auf Tokens, Radius/Gewicht | gering |
-| 2 | **Benennung**: Knöpfe + Dialogtitel + Handbuch (6 Stellen, `Stand:`) | gering |
+| ✅ 1 | **Knopfleiste** — `a505aee8`. Grid → Flex, Literale auf Tokens. Gemessen: Status versteckt → Knopf 100 %, Lücke 0; Status da → 64 % (vorher 66 %), Beschriftung nie abgeschnitten. Prüfgestell `verify-launcher-row.html` | gering |
+| ✅ 2 | **Benennung** — `095ad263`. 5 Knöpfe, 5 Dialogtitel, 4 Seitentitel, Handbuch. Inklusive der zwei Stellen, die die Territorien-Beschriftung nach einem Lauf neu setzen (sonst wäre sie zurückgesprungen). Kein `ASSET_VERSION`-Bump nötig | gering |
 | 3 | **`editor-shell.css`**: Hülle extrahieren, JS-Inline-Maße raus, 2 Dubletten löschen | mittel |
 | 4 | **Je Editor** Typografie/Abstände/Spalten/Menüband, ein Commit pro Editor (Siedlungen → Territorien → Karten → Abenteuer → Natur & Waren) | mittel |
 | 5 | **Herkunft & `↺`** nach §5, zuerst Territorien (dort ist die Datenlage sauber) | mittel |
