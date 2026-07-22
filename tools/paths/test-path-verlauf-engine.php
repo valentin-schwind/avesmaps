@@ -123,6 +123,9 @@ check('missing station not clean', $case['clean'], false);
 // incomplete -- segments only the dropped station would have justified must never be
 // removed (Bug #39: Eisenstraße's three pass stations carried 10 of its 21 segments).
 check('removes suppressed on missing station', $case['removes'], []);
+// Suppressed is not the same as gone: the held-back segments stay visible so the editor sees
+// WHY a way reports nothing to clear, and so a scan can find them again after the repair.
+check('suppressed removes stay reported', array_column($case['flags']['removes_suppressed'], 'public_id'), ['s9']);
 
 // unroutable hop => removes suppressed
 $staging6 = $staging;
@@ -130,6 +133,7 @@ $router6 = static fn(string $f, string $t): array => $f === 'Punin' && $t === 'R
 $case = avesmapsWikiPathVerlaufComputeCase($staging6, $assignments, $lookup, $router6);
 check('unroutable flagged', $case['flags']['unroutable_hops'][0]['reason'], 'no_route');
 check('removes suppressed on unroutable', $case['removes'], []);
+check('suppressed removes reported on unroutable too', array_column($case['flags']['removes_suppressed'], 'public_id'), ['s9']);
 
 // never-synced way (no stored hash) => manual (not clean)
 $assignments7 = $assignments;

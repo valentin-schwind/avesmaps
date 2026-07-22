@@ -645,6 +645,10 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
         // Info only (owner rule): towns the DRAWN line passes through on a traced hop belong
         // to the road even when the wiki box does not list them. Never affects clean.
         'passage_towns' => [],
+        // Info only: removals rules 8/8b held back. Suppressed must not mean invisible -- the
+        // editor needs to see WHY a way reports nothing to clear, and a scan needs to find these
+        // again once the chain is repaired. Never affects clean (its causes already do).
+        'removes_suppressed' => [],
     ];
 
     $baseCase = [
@@ -864,6 +868,7 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
     // section holds 10 of its 21 segments. Removals therefore wait until the chain resolves fully
     // (create or alias the location, then recompute), which is the documented repair order anyway.
     if ($anyUnroutable || $missingStations !== []) {
+        $flags['removes_suppressed'] = $removes;
         $removes = [];
     }
 
