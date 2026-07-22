@@ -339,7 +339,10 @@ function avesmapsFeatureSourcesReadRevision(PDO $pdo, string $entityType, string
     // Only the map_features-backed types have a revision. Territories and citymaps live in their own
     // tables, so their public_id must NEVER be looked up here: it would silently return ANOTHER feature's
     // revision on an id collision, rather than the "no revision" this returns.
-    if (!in_array($entityType, ['settlement', 'region', 'path'], true)) {
+    // A powerline IS a map_features row and has a revision, so it belongs here -- without it the
+    // source editor would get a null locking token. It stays OUT of the two other_source lists
+    // above: that legacy single-source field was never written for powerlines.
+    if (!in_array($entityType, ['settlement', 'region', 'path', 'powerline'], true)) {
         return null;
     }
     $s = $pdo->prepare("SELECT revision FROM map_features WHERE public_id = :id AND is_active = 1 LIMIT 1");
