@@ -186,7 +186,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 21.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 22.07.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -223,6 +223,7 @@
 							<ul>
 								<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz">Abenteuer</a></li>
 								<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig">Kartensammlungen</a></li>
+									<li><a href="#natur-waren" data-keywords="flora fauna spezies handelswaren lore pflanzen tiere waren lebensraum vorkommen verbreitung">Natur &amp; Waren</a></li>
 							</ul>
 						</li>
 					</ul>
@@ -260,7 +261,7 @@
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl">Die Auswahllisten</a></li>
 						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet">Die beiden Kontextmenüs</a></li>
-						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay">Die vier Sync-Editoren</a></li>
+						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay">Die fünf Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
 						<li><a href="#n-hilfe" data-keywords="discord kontakt support fragen">Hilfe &amp; Kontakt</a></li>
 					</ul>
@@ -802,7 +803,7 @@
 
 				<h3 id="materialien" class="hb-sub">Materialien</h3>
 				<p class="hb-path"><strong>Editor → WikiSync → Materialien</strong></p>
-				<p>Unter „Materialien" liegt, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer und veröffentlichte Karten. Beide haben einen eigenen Editor, und beide erreichst du über den Knopf oben — oder per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
+				<p>Unter „Materialien" liegt, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere und Handelswaren. Jeder der drei Reiter hat einen eigenen Editor, den du über den Knopf oben erreichst; bei Abenteuern und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
 
 				<h4 id="abenteuer" class="hb-sub">Abenteuer</h4>
 				<p>Ein Abenteuer ist ein veröffentlichtes DSA-Produkt mit den Orten, an denen es spielt. Auf der Karte taucht es an genau diesen Orten wieder auf.</p>
@@ -837,6 +838,28 @@
 				<p>Öffentlich erscheint eine Vorschau nur bei vier Lizenzen: <strong>Public Domain</strong>, <strong>CC0</strong>, <strong>Von uns KI-generiert</strong> und <strong>Genehmigung erteilt</strong>. Der Knopf <strong>„Hochladen…"</strong> erscheint überhaupt erst, wenn eine solche Lizenz <em>gespeichert</em> ist.</p>
 				<div class="hb-note hb-tip"><strong>„⤓ Autoget" holt kein veröffentlichbares Bild.</strong> Es sucht auf der verlinkten Seite eine Vorschau und legt sie <em>nur für den Editor</em> ab — fremdes Material, das nie öffentlich erscheint. Der Karten-Link selbst wird dagegen immer angezeigt; nur das Bild hängt an der Lizenz.</div>
 				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>„+ Neuer Fundort"</strong> (eine weitere Stelle für eine bekannte Karte). Beide erscheinen erst nach deiner Freigabe im Reiter <a href="#meldungen">Meldungen</a> — bei einer neuen Karte heißt der Knopf dort <strong>„Anlegen"</strong>, bei Fundorten <strong>„Ergänzen"</strong>. Fremde Fundorte kannst du nicht löschen, nur <strong>„Unterdrücken"</strong>; das wirkt sofort, ohne Speichern.</p>
+
+				<h4 id="natur-waren" class="hb-sub">Natur &amp; Waren</h4>
+				<p>Pflanzen, Tiere und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Abenteuer und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen und Gebiete, zu denen es gehört.</p>
+				<p>Der Knopf <strong>„Natur &amp; Waren Syncen &amp; Editieren"</strong> <em>öffnet nur ein Fenster und startet nichts</em>. Syncen und Bearbeiten passieren ausschließlich darin. Daneben steht <strong>„Zuletzt gesynct: …"</strong> — oder „Noch nie gesynct", solange der Bestand leer ist.</p>
+				<div class="hb-note hb-tip"><strong>Warum der Umweg über ein Fenster?</strong> Der Sync liest den kompletten Wiki-Dump und läuft mehrere Minuten. Solange er direkt am Reiter hing, startete ihn der erste Klick — eine schwere Aktion ohne Zwischenschritt. Der Einstiegsknopf ist deshalb mit Absicht harmlos.</div>
+
+				<h5>Das Fenster</h5>
+				<p>Oben das <a href="#n-editoren">Menüband</a>: links die 🚨-Kachel <strong>„Natur &amp; Waren syncen"</strong>, rechts daneben vier Schalter <strong>Fauna · Flora · Waren · Spezies</strong>. Die Schalter steuern nur die <em>öffentliche Anzeige</em> — die Daten bleiben vollständig liegen und sind sofort wieder da, wenn du zurückschaltest.</p>
+				<p>Darunter die Reiter <strong>Fauna / Flora / Waren / Spezies</strong> mit der jeweiligen Anzahl, ein Suchfeld und die Liste. Jede Zeile nennt die Art und die zugeordneten Orte im Klartext — „Weiden, Kosch, Nordmarken" statt „3 Orte".</p>
+				<p><strong>Ein Klick auf eine Listenzeile öffnet den Editor</strong> für diesen Eintrag; er erscheint rechts neben der Liste, wie im Karteneditor. <strong>„← Zurück zur Liste"</strong> leert die rechte Spalte wieder — das Fenster bleibt dabei offen. Das gilt auch für die Liste im Reiter dahinter: Ein Klick dort öffnet das Fenster gleich mit dem passenden Eintrag.</p>
+				<div class="hb-note hb-warn"><strong>Solange rechts ein Eintrag offen ist, reagiert die Liste nicht.</strong> Ein Klick auf eine andere Zeile tut dann schlicht nichts. Erst <strong>„← Zurück zur Liste"</strong>, dann den nächsten wählen.</div>
+
+				<h5>Einen Eintrag bearbeiten</h5>
+				<p>Überschreibbar sind <strong>Name</strong>, <strong>Art</strong>, <strong>Lebensraum</strong> und <strong>Weitere Namen</strong>, bei Waren zusätzlich der <strong>Gegenstandstyp</strong>. <strong>Es gibt keinen Speichern-Knopf</strong> — ein Feld wird gespeichert, sobald es den Fokus verliert. Ein überschriebenes Feld trägt danach die Marke <strong>„von Hand"</strong>.</p>
+				<p>Darunter die <strong>Orte</strong>. Einen neuen trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„zuordnen"</strong>; <strong>„entfernen"</strong> nimmt einen wieder weg. Ganz unten stehen die <strong>Quellen</strong> mit Seitenzahl — sie kommen aus dem Publikationsteil des Wiki-Artikels und sind hier nur zu lesen.</p>
+				<div class="hb-note hb-tip"><strong>Hier gibt es keine Vorschlagsliste.</strong> Anders als beim Abenteuer-Editor ist das Ortsfeld ein reines Textfeld — der Name muss also stimmen. Schau im Zweifel vorher nach, wie der Ort auf der Karte heißt.</div>
+				<div class="hb-note hb-warn"><strong>Was du von Hand tust, überlebt jeden weiteren Sync.</strong> Überschriebene Felder bleiben stehen. Ein entfernter Wiki-Ort wandert unter <strong>„Entfernte Wiki-Orte"</strong> und kommt nicht zurück, auch wenn das Wiki ihn weiter nennt — mit <strong>„wieder aufnehmen"</strong> holst du ihn selbst zurück. Und ein Feld, das du wieder <em>leerst</em>, gibst du damit ans Wiki zurück: Beim nächsten Sync steht dort erneut der Wiki-Wert.</div>
+
+				<h5>Der Sync</h5>
+				<p>Ein Klick auf die 🚨-Kachel erledigt beides hintereinander: erst den Dump lesen, dann übernehmen. Der Fortschritt läuft in der Kachel selbst mit („Dump lesen … 12.000 Seiten · 900 Einträge", dann „übernehmen … 300/5100"), damit darunter nichts verspringt. Am Ende steht, was passiert ist: neu, aktualisiert, stillgelegt, dazu Orte und Quellen.</p>
+				<p><strong>Ein vorheriges „Dump holen" ist nicht nötig</strong> — der Knopf arbeitet auf der zwischengespeicherten Dump-Kopie und holt sie nur nach, wenn sie älter als einen Tag ist. Ein zweiter Klick während des Laufs bleibt wirkungslos. Geht etwas schief, steht der Grund in der Kachel und bleibt dort bis zum nächsten Versuch stehen.</p>
+				<div class="hb-note hb-tip"><strong>„Spezies: AUS" ist kein Fehler und braucht keine Reparatur.</strong> Die Spezies-Einträge sind vollständig da und im Fenster ganz normal bearbeitbar — öffentlich zeigen wir sie nur nicht, weil das Wiki-Feld „Regionen" der <em>Infobox Spezies</em> zu dünn gepflegt ist. Das ist eine Entscheidung, kein offener Posten.</div>
 			</section>
 
 			<!-- ============================= 3. AUFGABEN ============================= -->
@@ -1157,8 +1180,8 @@
 				<h4>Das Gebiets-Menü</h4>
 				<p>Rechtsklick auf ein Herrschaftsgebiet, nur im Bearbeiten-Modus: Grenzen bearbeiten · Territoriumseditor öffnen · Grenzen berechnen · Siedlungen hier zuordnen · Infobox anzeigen · Verschieben · Gebiet zerschneiden · Mit anderem vereinigen · Von anderem ausschneiden (drei Varianten) · Neues Gebiet herauslösen · Löschen.</p>
 
-				<h3 id="n-editoren" class="hb-sub">Die vier Sync-Editoren</h3>
-				<p>Alle vier öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert.</p>
+				<h3 id="n-editoren" class="hb-sub">Die fünf Sync-Editoren</h3>
+				<p>Alle fünf öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert.</p>
 				<figure class="hb-shot">
 					<img src="screenshots/16-menueband.png" alt="Das Menueband eines Sync-Editors mit Kacheln, jede mit Titel und Unterzeile, darunter die Syncen-Kachel und ein AN-AUS-Schalter" />
 					<figcaption>Ein <strong>Menüband</strong>: Kacheln mit Titel und erklärender Unterzeile. Links die <strong>🚨-Kachel</strong> (Betreiber-Aktion), rechts davon Werkzeuge und AN/AUS-Schalter.</figcaption>
@@ -1169,6 +1192,7 @@
 					<tr><td><strong>Territorien</strong></td><td>WikiSync → Territorien → „Territorien Syncen &amp; Editieren"</td></tr>
 					<tr><td><strong>Abenteuer</strong></td><td>WikiSync → Materialien → Abenteuer → Knopf oder Doppelklick</td></tr>
 					<tr><td><strong>Kartensammlung</strong></td><td>WikiSync → Materialien → Karten → Knopf oder Doppelklick</td></tr>
+					<tr><td><strong>Natur &amp; Waren</strong></td><td>WikiSync → Materialien → Natur &amp; Waren → Knopf oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
 				</table>
 				<p>Wiederkehrende Kacheln: <strong>🔗 Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), <strong>Wappen lokalisieren</strong> und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
 				<div class="hb-note hb-warn"><strong>Massenläufe nicht in Schleife anstoßen.</strong> „Vorschauen holen" und die Sync-Läufe arbeiten in Etappen und lassen jeweils nur <em>einen</em> Lauf gleichzeitig zu. Ein zweiter Klick bringt nichts außer Last auf dem Server — und der ist geteilt.</div>
