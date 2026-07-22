@@ -68,10 +68,6 @@
 	content: "\25CF";
 }
 
-.map-context-menu__item[data-context-action="create-location-from-wiki"]::before {
-	content: "\2605";
-}
-
 .map-context-menu__item[data-context-action="create-crossing"]::before {
 	content: "\271A";
 }

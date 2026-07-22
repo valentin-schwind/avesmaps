@@ -640,12 +640,6 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		return;
 	}
 
-	if (action === "create-location-from-wiki" && contextMenuLatLng) {
-		closeMapContextMenu();
-		startWikiSyncCreateLocationSelection(contextMenuLatLng);
-		return;
-	}
-
 	if (action === "create-crossing" && contextMenuLatLng) {
 		closeMapContextMenu();
 		void createCrossingAt(contextMenuLatLng);
