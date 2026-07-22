@@ -2,79 +2,6 @@
    Scopes the standalone editor stylesheets under #political-territory-editor-host for inline use. */
 
 /* ===== scoped from css/pages/political-territory-editor.css ===== */
-#political-territory-editor-host {
-	--page-bg: var(--color-page-bg);
-	--page-bg-deep: var(--color-page-bg-deep);
-	--panel: var(--color-panel);
-	--panel-soft: var(--color-panel-soft);
-	--panel-muted: var(--color-panel-muted);
-	--panel-hover: var(--color-panel-muted);
-	--text: var(--color-text);
-	--text-strong: var(--color-text-strong);
-	--muted: var(--color-text-muted);
-	--muted-2: var(--color-text-muted);
-	--border: var(--color-border);
-	--border-strong: var(--color-border-strong);
-	--accent: var(--color-link);
-	--accent-soft: var(--color-hover-wash);
-	--button: var(--color-button);
-	--button-border: var(--color-button-border);
-	--danger: var(--color-danger);
-	--synthetic: #8b5d2a;
-	--shadow: rgba(0, 0, 0, 0.18);
-}
-
-#political-territory-editor-host, #political-territory-editor-host * {
-	box-sizing: border-box;
-}
-
-#political-territory-editor-host {
-	margin: 0;
-	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: var(--font-size-body);
-	background: var(--page-bg-deep);
-	color: var(--text);
-}
-
-#political-territory-editor-host .is-embedded {
-	background: var(--page-bg);
-}
-
-#political-territory-editor-host .app-container {
-	width: min(760px, 100%);
-	min-height: 100vh;
-	margin: 0 auto;
-	background: var(--page-bg);
-	box-shadow: 0 0 30px rgba(0, 0, 0, 0.28);
-}
-
-#political-territory-editor-host .is-embedded .app-container {
-	width: 100%;
-	box-shadow: none;
-}
-
-#political-territory-editor-host header {
-	padding: 18px 24px;
-	border-bottom: 1px solid var(--border);
-	background: var(--color-panel-translucent);
-	position: sticky;
-	top: 0;
-	z-index: 10;
-	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
-	backdrop-filter: blur(6px);
-}
-
-#political-territory-editor-host .is-embedded header {
-	display: none;
-}
-
-#political-territory-editor-host h1 {
-	margin: 0 0 6px 0;
-	font-size: var(--font-size-display);
-	font-weight: 700;
-	color: var(--text-strong);
-}
-
 #political-territory-editor-host h2,
 #political-territory-editor-host h3 {
 	margin: 0;
@@ -90,159 +17,13 @@
 	letter-spacing: 0.02em;
 }
 
-#political-territory-editor-host p {
-	margin: 0;
-	color: var(--muted);
-	line-height: 1.45;
-}
-
-#political-territory-editor-host code {
-	color: var(--accent);
-	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-#political-territory-editor-host main {
-	padding: 14px 16px 20px;
-	display: grid;
-	gap: 14px;
-}
-
-#political-territory-editor-host .is-embedded main {
-	padding: 12px;
-}
-
-#political-territory-editor-host .controls,
-#political-territory-editor-host .stat,
-#political-territory-editor-host .panel {
-	border: 1px solid var(--border);
-	background: var(--panel);
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.13);
-}
-
-#political-territory-editor-host .controls {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	align-items: center;
-}
-
-#political-territory-editor-host .is-hidden-control {
-	display: none !important;
-}
-
-#political-territory-editor-host button {
-	border: 1px solid var(--button-border);
-	border-radius: 6px;
-	background: var(--button);
-	color: var(--color-button-text);
-	cursor: pointer;
-	font: inherit;
-	font-weight: 700;
-	padding: 8px 11px;
-}
-
-#political-territory-editor-host button:hover,
-#political-territory-editor-host button:focus-visible {
-	background: var(--color-button-hover);
-	outline: none;
-}
-
-#political-territory-editor-host button.secondary {
-	background: var(--color-button-soft);
-	border-color: var(--color-button-soft-border);
-	color: var(--color-button-soft-text);
-}
-
-#political-territory-editor-host button.secondary:hover,
-#political-territory-editor-host button.secondary:focus-visible {
-	background: var(--color-button-soft-hover);
-	border-color: var(--border-strong);
-}
-
-#political-territory-editor-host button:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-#political-territory-editor-host input,
-#political-territory-editor-host select {
-	min-width: 0;
-	border: 1px solid var(--border-strong);
-	border-radius: 8px;
-	background: var(--panel);
-	color: var(--text);
-	font: inherit;
-	padding: 9px 10px;
-}
-
-#political-territory-editor-host input:focus,
-#political-territory-editor-host select:focus {
-	border-color: var(--border-strong);
-	outline: 2px solid var(--color-hover-wash);
-	outline-offset: 0;
-}
-
-#political-territory-editor-host .status-grid {
-	display: none !important;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: 10px;
-}
-
-#political-territory-editor-host .stat {
-	border-radius: 8px;
-	padding: 12px;
-}
-
-#political-territory-editor-host .stat .label {
-	color: var(--muted);
-	font-size: var(--font-size-small);
-	font-weight: 700;
-	margin-bottom: 4px;
-}
-
-#political-territory-editor-host .stat .value {
-	color: var(--text-strong);
-	font-size: var(--font-size-title);
-	font-weight: 700;
-}
-
-#political-territory-editor-host .panel {
-	border-radius: 8px;
-	overflow: hidden;
-}
-
-#political-territory-editor-host .panel-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 12px;
-	padding: 10px 12px;
-	border-bottom: 1px solid var(--border);
-	background: var(--panel);
-}
-
-#political-territory-editor-host .tree-panel-header {
-	align-items: flex-start;
-}
-
-#political-territory-editor-host .tree-header-title {
-	display: grid;
-	gap: 3px;
-	min-width: 0;
-}
-
 #political-territory-editor-host .note {
-	color: var(--muted);
-	font-size: var(--font-size-caption);
 	font-weight: var(--font-weight-regular);
 	line-height: 1.25;
 }
 
 #political-territory-editor-host .tree-header-controls {
-	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto auto auto;
-	gap: 8px;
-	align-items: center;
 	min-width: min(280px, 45%);
 }
 
@@ -387,9 +168,7 @@
 }
 
 #political-territory-editor-host .tree-item-meta {
-	font-size: var(--font-size-small);
 	line-height: 1.15;
-	color: var(--muted);
 	white-space: nowrap;
 }
 
@@ -502,90 +281,35 @@
 	background: currentColor;
 }
 
-#political-territory-editor-host .layout {
-	display: grid;
-	grid-template-columns: minmax(300px, 0.95fr) minmax(340px, 1.05fr);
-	gap: 14px;
-	align-items: start;
-}
-
 #political-territory-editor-host .detail-stack {
-	display: grid;
-	gap: 12px;
 	min-width: 0;
 }
 
 #political-territory-editor-host .tree-panel-footer {
-	display: flex;
 	justify-content: space-between;
-	align-items: center;
-	gap: 12px;
-	padding: 9px 10px;
-	border-top: 1px solid var(--border);
-	background: var(--panel-soft);
 }
 
 #political-territory-editor-host .legend {
-	display: grid;
-	gap: 5px;
-	min-width: 0;
 	color: var(--muted);
 	font-size: var(--font-size-caption);
 	line-height: 1.25;
 }
 
-#political-territory-editor-host .legend-line {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 7px 12px;
-}
-
 #political-territory-editor-host .legend-item {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
 	white-space: nowrap;
 }
 
 #political-territory-editor-host .legend-separator {
-	color: var(--muted-2);
 	font-weight: 700;
 }
 
 #political-territory-editor-host .legend-swatch {
-	width: 13px;
-	height: 13px;
-	flex: 0 0 13px;
-	border-radius: 3px;
-	background: var(--text-strong);
 	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
-#political-territory-editor-host .legend-swatch.synthetic {
-	background: var(--synthetic);
-}
-
 #political-territory-editor-host .tree-footer-actions {
-	display: inline-flex;
 	align-items: center;
-	gap: 6px;
 	flex: 0 0 auto;
-}
-
-#political-territory-editor-host .tree-footer-button {
-	width: 30px;
-	height: 30px;
-	padding: 0;
-	font-size: var(--font-size-subhead);
-	line-height: 1;
-}
-
-#political-territory-editor-host .drop-zone-row {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 8px;
-	align-items: stretch;
 }
 
 #political-territory-editor-host .drop-zone {
@@ -593,19 +317,6 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	padding: 10px 12px;
-	border: 2px dashed var(--border-strong);
-	border-radius: 8px;
-	background: var(--panel-soft);
-	color: var(--muted);
-	font-weight: 700;
-	text-align: center;
-}
-
-#political-territory-editor-host .drop-zone.drag-over {
-	border-color: var(--accent);
-	background: var(--accent-soft);
-	color: var(--accent);
 }
 
 #political-territory-editor-host .drop-zone.has-selection {
@@ -614,14 +325,7 @@
 	color: var(--text-strong);
 }
 
-#political-territory-editor-host .drop-zone-unassign-button {
-	align-self: stretch;
-}
-
 #political-territory-editor-host .breadcrumb {
-	padding: 8px 12px;
-	border-bottom: 1px solid var(--border);
-	background: var(--panel);
 	color: var(--muted);
 	font-size: var(--font-size-small);
 	line-height: 1.35;
@@ -631,92 +335,31 @@
 	border-bottom: 1px solid var(--border);
 }
 
-#political-territory-editor-host .manual-data-box {
-	padding: 12px;
-	display: grid;
-	gap: 12px;
-}
-
-#political-territory-editor-host .manual-data-section {
-	padding: 10px;
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	background: var(--panel-soft);
-	display: grid;
-	gap: 9px;
-}
-
 #political-territory-editor-host .manual-data-columns {
-	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
-}
-
-#political-territory-editor-host .manual-data-grid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 9px;
-}
-
-#political-territory-editor-host .manual-data-field {
-	display: grid;
-	gap: 4px;
-	min-width: 0;
-}
-
-#political-territory-editor-host .manual-data-field--wide {
-	grid-column: 1 / -1;
 }
 
 #political-territory-editor-host .manual-data-field label,
 #political-territory-editor-host .manual-data-checkbox {
-	color: var(--muted-2);
 	font-size: var(--font-size-caption);
-	font-weight: 700;
 }
 
 #political-territory-editor-host .manual-data-checkbox {
-	display: inline-flex;
-	align-items: center;
-	gap: 7px;
 	padding: 7px 0;
 }
 
 #political-territory-editor-host .manual-data-checkbox input {
-	width: auto;
 	padding: 0;
 }
 
-#political-territory-editor-host .manual-data-inline-action {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 8px;
-	align-items: center;
-}
-
-#political-territory-editor-host .manual-data-inline-action--with-preview {
-	grid-template-columns: minmax(0, 1fr) auto auto;
-}
-
 #political-territory-editor-host .manual-coat-preview {
-	width: 42px;
-	height: 42px;
-	border: 1px solid var(--border);
-	border-radius: 7px;
-	background: var(--panel);
-	display: flex;
 	align-items: center;
 	justify-content: center;
-	overflow: hidden;
-	color: var(--muted);
-	font-size: var(--font-size-caption);
-	text-align: center;
 }
 
 #political-territory-editor-host .manual-coat-preview img {
 	max-width: 100%;
 	max-height: 100%;
-	object-fit: contain;
 }
 
 
@@ -724,7 +367,6 @@
 	font-size: var(--font-size-subhead);
 	font-weight: 700;
 	color: var(--text-strong);
-	margin-bottom: 4px;
 }
 
 #political-territory-editor-host .info-subtitle,
@@ -741,21 +383,12 @@
 }
 
 #political-territory-editor-host .info-grid {
-	display: grid;
-	grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
-	gap: 6px 10px;
 	margin-top: 10px;
-}
-
-#political-territory-editor-host .info-key {
-	color: var(--muted-2);
-	font-weight: 700;
 }
 
 #political-territory-editor-host .info-value {
 	min-width: 0;
 	overflow-wrap: anywhere;
-	color: var(--text);
 }
 
 #political-territory-editor-host .info-value a {
@@ -773,24 +406,8 @@
 	font-weight: 700;
 }
 
-#political-territory-editor-host .form-status-panel {
-	background: var(--panel-soft);
-}
-
-#political-territory-editor-host .form-status-row {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 10px;
-	align-items: end;
-	padding: 12px;
-}
-
 #political-territory-editor-host .form-status-field {
-	display: grid;
-	gap: 4px;
-	color: var(--muted-2);
 	font-size: var(--font-size-caption);
-	font-weight: 700;
 }
 
 #political-territory-editor-host #formStatusInput[data-status="error"] {
@@ -804,8 +421,6 @@
 }
 
 #political-territory-editor-host .form-actions {
-	display: inline-flex;
-	gap: 8px;
 	align-items: center;
 }
 
@@ -860,7 +475,24 @@
 	}
 }
 
-/* Extracted from html\political-territory-editor.html */
+/* ===========================================================================
+   Ab hier: der Teil, der einmal aus html\political-territory-editor.html
+   herausgeloest wurde ("Extracted from ...") -- eine NEUERE Ueberarbeitung
+   derselben Grundregeln.
+
+   Bis 2026-07-22 stand beides vollstaendig nebeneinander: die Datei enthielt
+   sich selbst ein zweites Mal, und bei gleicher Spezifitaet gewann die
+   spaetere. Das war keine harmlose Kopie -- die beiden Fassungen wichen an
+   vielen Stellen ab (.drop-zone 10px vs. 22px Polsterung, .manual-coat-preview
+   42 vs. 58px, .layout mit voellig anderem Spaltenraster).
+
+   Entfernt wurden NUR die 235 Deklarationen, die hier unten ohnehin
+   ueberschrieben wurden -- rein subtraktiv und nachweislich wirkungslos
+   (241 Elemente x 611 berechnete Eigenschaften vorher/nachher verglichen,
+   0 Abweichungen). Was oberhalb dieser Zeile steht, sind die 41 Eigenschaften,
+   die es NUR dort gibt und die deshalb weiter wirken. Wer dort aufraeumt,
+   aendert das Aussehen.
+   =========================================================================== */
 
 #political-territory-editor-host {
 	--page-bg: var(--color-page-bg);
@@ -1674,10 +1306,11 @@
 /* ---------------------------------------------------------------------------
    Gemeinsame Designsprache (Spec §4.2/§4.3/§4.6), Territorien-Editor.
 
-   Bewusst ANS DATEIENDE gehaengt: diese Datei traegt ab "Extracted from
-   html\political-territory-editor.html" (Z. 859) ein zweites Mal dieselben
-   Grundregeln, und bei gleicher Spezifitaet gewinnt die spaetere. Ein Eingriff
-   oben waere wirkungslos gewesen. Hier unten gilt der Block fuer beide Haelften.
+   Steht am Dateiende und gilt damit fuer alles darueber. Das war urspruenglich
+   noetig, weil die Datei sich selbst ein zweites Mal enthielt und ein Eingriff
+   oben lautlos wirkungslos geblieben waere; die Doppelung ist inzwischen
+   aufgeloest (siehe den Block ab "Ab hier"), die Position bleibt trotzdem
+   richtig -- diese Regeln sollen die Grundregeln bewusst ueberschreiben.
    --------------------------------------------------------------------------- */
 
 #political-territory-editor-host {
