@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require_once __DIR__ . '/../../_internal/wiki/paths.php';
 require_once __DIR__ . '/../../_internal/wiki/path-verlauf.php';
 require_once __DIR__ . '/../../_internal/wiki/path-flow.php';
+require_once __DIR__ . '/../../_internal/wiki/path-outliers.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -201,6 +202,9 @@ try {
             'limit' => (int) ($_GET['limit'] ?? 500),
         ]),
         'search' => avesmapsWikiPathSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
+        // Geometric outlier list ("Ausreißer" tab): read-only, no routing, one pass over the
+        // assigned segments -- so it also covers the ways the verlauf scan never reaches.
+        'outliers' => avesmapsWikiPathOutlierList($pdo),
         'verlauf_cases' => avesmapsWikiPathVerlaufListCases($pdo, $config, [
             'cursor' => (int) ($_GET['cursor'] ?? 0),
             'limit' => (int) ($_GET['limit'] ?? 20),
