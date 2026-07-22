@@ -15,6 +15,85 @@ function getPowerlineDisplayName(powerline) {
 	return String(powerline?.properties?.name || "Kraftlinie").trim() || "Kraftlinie";
 }
 
+// Eine Kraftlinie liegt als VIELE powerline-Zeilen in der Karte (Basiliuslinie = 14 Segmente,
+// Faecher der Macht = 11). Der Name ist das einzige Band zwischen ihnen -- dieselbe
+// 1-zu-N-Form wie bei Strassen. Namenlose Segmente bilden bewusst KEINE Gruppe, sonst
+// waeren sie alle eine einzige Linie.
+function getPowerlineSegmentsSharingName(powerline) {
+	const name = String(powerline?.properties?.name || "").trim();
+	if (name === "") {
+		return [];
+	}
+	return powerlineData.filter((entry) => String(entry?.properties?.name || "").trim() === name);
+}
+
+// Nachbarschaft ueber die Nodix-Endpunkte aller Segmente einer Linie.
+function buildPowerlineAdjacency(segments) {
+	const adjacency = new Map();
+	segments.forEach((segment) => {
+		const from = segment?.properties?.from_public_id || "";
+		const to = segment?.properties?.to_public_id || "";
+		if (!from || !to) {
+			return;
+		}
+		if (!adjacency.has(from)) {
+			adjacency.set(from, []);
+		}
+		if (!adjacency.has(to)) {
+			adjacency.set(to, []);
+		}
+		adjacency.get(from).push(to);
+		adjacency.get(to).push(from);
+	});
+	return adjacency;
+}
+
+// Eine reine Kreuzung ist kein Ziel, das man benennen kann: mehrere Segmente heissen heute
+// woertlich "Kreuzung - Kreuzung", und "Verbindet: Kreuzung <-> Kreuzung" waere Laerm.
+function isNamedPowerlineEndpoint(publicId) {
+	const entry = findLocationMarkerByPublicId(publicId);
+	if (!entry || entry.locationType === CROSSING_LOCATION_TYPE) {
+		return false;
+	}
+	return String(entry.name || "").trim() !== "";
+}
+
+// Vom Kettenende nach innen laufen, bis ein benannter Punkt kommt.
+function walkToNamedPowerlineEndpoint(adjacency, startPublicId) {
+	const visited = new Set();
+	let current = startPublicId;
+	while (current && !visited.has(current)) {
+		visited.add(current);
+		if (isNamedPowerlineEndpoint(current)) {
+			return current;
+		}
+		current = (adjacency.get(current) || []).find((id) => !visited.has(id)) || "";
+	}
+	return "";
+}
+
+// Die Spanne der GANZEN Linie, nicht des angeklickten Segments: wer die Basiliuslinie anklickt,
+// will ihre beiden Enden wissen, nicht welchen von vierzehn Hops er getroffen hat.
+// Verzweigt die Kette oder ist sie ein Ring (!== 2 Enden mit Grad 1), geben wir null zurueck --
+// lieber keine Zeile als eine falsche.
+function getPowerlineSpanEndpointIds(powerline) {
+	const segments = getPowerlineSegmentsSharingName(powerline);
+	if (segments.length === 0) {
+		return null;
+	}
+	const adjacency = buildPowerlineAdjacency(segments);
+	const chainEnds = [...adjacency.keys()].filter((id) => (adjacency.get(id) || []).length === 1);
+	if (chainEnds.length !== 2) {
+		return null;
+	}
+	const fromPublicId = walkToNamedPowerlineEndpoint(adjacency, chainEnds[0]);
+	const toPublicId = walkToNamedPowerlineEndpoint(adjacency, chainEnds[1]);
+	if (!fromPublicId || !toPublicId || fromPublicId === toPublicId) {
+		return null;
+	}
+	return { fromPublicId, toPublicId };
+}
+
 function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
 	if (latLngs.length < 2) {
 		return latLngs;
