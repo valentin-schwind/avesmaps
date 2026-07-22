@@ -119,6 +119,10 @@ $router5 = static fn(string $f, string $t): array => $routes[$f . '|' . $t] ?? [
 $case = avesmapsWikiPathVerlaufComputeCase($staging5, $assignments, $lookup, $router5);
 check('missing station flagged', $case['flags']['missing_stations'], ['Phantasia']);
 check('missing station not clean', $case['clean'], false);
+// Rule 8b: a station the map does not know shrinks the chain, so the Soll is provably
+// incomplete -- segments only the dropped station would have justified must never be
+// removed (Bug #39: Eisenstraße's three pass stations carried 10 of its 21 segments).
+check('removes suppressed on missing station', $case['removes'], []);
 
 // unroutable hop => removes suppressed
 $staging6 = $staging;

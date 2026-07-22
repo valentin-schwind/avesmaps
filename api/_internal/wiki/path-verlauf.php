@@ -856,7 +856,14 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
 
     // Rule 8: any unroutable hop forces removes empty (a partial Soll must never trigger removals);
     // adds stay (additive is safe). The case is not clean anyway.
-    if ($anyUnroutable) {
+    //
+    // Rule 8b (same reason, second cause): a station the map does not know is dropped from the chain
+    // in rule 4, so the hops that station would have anchored are never routed and their segments
+    // never enter the Soll -- they would look like strays and be removed. Bug #39 hit exactly this:
+    // the Eisenstraße is missing Pass von Amradosch / Burg Harschberg / Hexenschritt, whose pass
+    // section holds 10 of its 21 segments. Removals therefore wait until the chain resolves fully
+    // (create or alias the location, then recompute), which is the documented repair order anyway.
+    if ($anyUnroutable || $missingStations !== []) {
         $removes = [];
     }
 
