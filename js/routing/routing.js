@@ -70,7 +70,12 @@ const prepareLocationData = (data) => {
 				locationType,
 				locationTypeLabel: isCrossing
 					? tr("locationType.crossing", "Kreuzung")
-					: tr(`type.${locationType}.singular`, feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf"),
+					// settlement_class_label is a DENORMALIZED display string persisted with the feature,
+					// written by two different savers (map editor vs WikiSync) that had drifted apart --
+					// which is how 38 places ended up stuck on the old "Grosse Stadt"/"Kleine Stadt"
+					// wording (Discord #42). The type is always derivable from settlement_class, so the
+					// config label wins; the stored string is only a last resort for an unmapped type.
+					: tr(`type.${locationType}.singular`, locationConfig?.singularLabel || feature.properties.settlement_class_label || "Dorf"),
 				description: feature.properties.description || "",
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				otherSource: readFeatureOtherSource(feature.properties),
