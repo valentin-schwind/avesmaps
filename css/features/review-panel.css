@@ -1743,6 +1743,12 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 .wiki-sync-verbs:empty {
 	display: none;
 }
+/* Die Kachel, aus der der Knopf in die Verbzeile umgezogen ist, bleibt als leeres Element
+   zurück -- und .wiki-sync-panel__actions trägt einen senkrechten Rand, der ohne Inhalt eine
+   tote Lücke wäre. Betrifft jede der acht Sektionen. */
+.wiki-sync-panel__actions:empty {
+	display: none;
+}
 
 /* Greyed = not shown publicly (today only Spezies). Deliberately NOT disabled: the data is
    complete and stays editable, only the public display is off. The reason sits in the tooltip. */
