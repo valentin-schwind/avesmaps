@@ -256,27 +256,20 @@ Ziel ist `icons/header/powerline.webp` — **kleingeschrieben und gleich dem Sub
 so wie die Tabelle es vorschreibt (`js/ui/popups.js:237-248`, Kommentar: „Dateiname = unser
 Subtyp-Schlüssel"). Unser Schlüssel ist `powerline`.
 
-Ein Werkzeug wählen, das vorhanden ist (in dieser Reihenfolge probieren):
+ImageMagick ist auf dieser Maschine vorhanden (`magick`, am 2026-07-22 geprüft):
 
 ```bash
-# 1. ImageMagick
 magick "C:/GIT/avesmaps-map-processing/icons/info_header_graphics/Kraftlinien.png" -quality 82 icons/header/powerline.webp
-# 2. cwebp
-cwebp -q 82 "C:/GIT/avesmaps-map-processing/icons/info_header_graphics/Kraftlinien.png" -o icons/header/powerline.webp
-# 3. Python + Pillow
-python -c "from PIL import Image; Image.open(r'C:\GIT\avesmaps-map-processing\icons\info_header_graphics\Kraftlinien.png').save('icons/header/powerline.webp','WEBP',quality=82)"
 ```
 
 Prüfen, dass die Datei existiert und plausibel groß ist (die vorhandenen Kopfbilder liegen im
 zweistelligen KB-Bereich):
 
-Run: `ls -l icons/header/powerline.webp`
-Expected: eine Datei > 5 KB
+Run: `ls -l icons/header/powerline.webp && magick identify icons/header/powerline.webp`
+Expected: eine Datei > 5 KB, Format WEBP, Seitenverhältnis nahe 16:9
 
-> 🔧 **Owner, falls keines der drei Werkzeuge vorhanden ist:** Alle 31 bestehenden
-> `icons/header/*.webp` stammen aus deiner `avesmaps-map-processing`-Pipeline. Dann bitte
-> `Kraftlinien.png` dort konvertieren und als `icons/header/powerline.webp` ins Repo legen.
-> **Bis die Datei existiert, ist Task 2 nicht fertig** — ohne sie zeigt der Kopf ein totes Bild.
+Weicht das Seitenverhältnis stark ab, vor dem Konvertieren auf 16:9 beschneiden — der Kopf ist
+eine 16:9-Fläche, ein anderes Verhältnis wird gestaucht oder beschnitten.
 
 - [ ] **Step 2: Die Infobox bauen**
 
