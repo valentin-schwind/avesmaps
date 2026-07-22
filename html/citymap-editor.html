@@ -51,15 +51,19 @@
      nebeneinander, und drei verschiedene Hoehen lesen sich als Unfall. Die kompakten Zeilen-Knoepfe
      (.btn--sm/.btn--icon) bleiben bewusst klein -- die sitzen IN einer Zeile, nicht neben dem Suchfeld. */
   :root { --ce-control-h: 32px; }
-  /* Scrollbars, copied from css/base/base.css. This iframe links tokens.css but NOT base.css, so every
-     scroll area in here fell back to the browser's default bars while the app around it had the thin
-     warm ones -- the single most obvious "this dialog is from somewhere else" tell (owner 2026-07-17:
-     "einheitliche ui z.B. die scrollbalken des design templates"). The WebKit pseudo-elements do not
-     inherit, hence `*`. Same tokens, so both themes come along. */
-  :root { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
-  *::-webkit-scrollbar { width: 7px; height: 7px; }
+  /* Scrollbars: this iframe links tokens.css but NOT base.css, so every scroll area in here fell back
+     to the browser's default bars while the app around it had the thin warm ones -- the single most
+     obvious "this dialog is from somewhere else" tell (owner 2026-07-17: "einheitliche ui z.B. die
+     scrollbalken des design templates"). The WebKit pseudo-elements do not inherit, hence `*`.
+     Maße wie im Siedlungs- (6cc567db) und Abenteuer-Editor (952fb225): 10px, runder Daumen mit 2px
+     Rand in Spurfarbe. Das ist bewusst NICHT der 7px-Wert aus base.css -- die drei Editoren gleichen
+     sich untereinander an. Spec §4.6 will am Ende EINEN Block statt drei Kopien; sein Vorschlag
+     (editor-shell.css) trägt aber nicht: die Datei kommt über styles.css in die App-Hülle und wird
+     von keiner Editor-Seite eingebunden. Dafür bräuchte es ein eigenes Editor-Seiten-Stylesheet. */
+  * { scrollbar-width: thin; scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
-  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: var(--radius-sm); }
+  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border-radius: 999px; border: 2px solid var(--color-scrollbar-track); }
   *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
   html, body { height: 100%; }
   body {
@@ -129,14 +133,18 @@
   }
   .ce-status.error { color: var(--color-danger); }
 
-  .ce-body { flex: 1 1 auto; display: flex; min-height: 0; }
+  /* Gitterspuren statt flex:1/2 -- 💣 `flex: 1 1 0` macht die Spalten NICHT gleich breit, sobald eine
+     davon eigene Polsterung oder einen Rahmen traegt: box-sizing:border-box hebt die flex-basis auf
+     padding+border an statt auf 0. Hier ist es der 1px-Trenner der Liste; gemessen kam sie dadurch auf
+     459,33 gegen 457,83/458,84. Spuren werden unabhaengig vom box-sizing der Kinder bemessen, also ist
+     minmax(0,1fr) minmax(0,2fr) exakt 1:2. Gleiche Loesung wie im Abenteuer-Editor (952fb225). */
+  .ce-body { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); min-height: 0; }
   .ce-list {
     /* War fest 380px (Owner 2026-07-17: Wiki-Titel sind lang, weil die Quelle Teil des Namens ist --
        "Stadtplan von Al'Anfa (Al'Anfa und der tiefe Süden)" -- und bei 300 kuerzte fast jeder genau
        dort, wo er sich vom Nachbarn zu unterscheiden beginnt). Jetzt ein Drittel wie die anderen
        beiden Spalten (Spec §5). Das Anliegen bleibt erfuellt: im 1400er Dialog sind das ~466px,
        also MEHR als die 380 -- die Titel bekommen Platz, nicht weniger. */
-    flex: 1 1 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -212,7 +220,7 @@
   /* 2 statt auto: die Detailspalte traegt ZWEI Panels (Stammdaten + Orte), die Liste eines.
      1 : 2 mit je 50 % innen ergibt drei gleich breite Spalten, ohne die Kopfzeile und die
      Speicherleiste auseinanderzureissen -- die spannen bewusst ueber beide Panels (Spec §5). */
-  .ce-detail { flex: 2 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .ce-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   /* Die Ueberschrift der gewaehlten Karte -- Detail-Ueberschrift, also dieselbe Stufe wie die
      Spaltentitel (Spec §4.1), aber in --color-text-strong statt Gold: sie benennt einen Datensatz,
      kein Fach. Vorher trug sie nur font-weight und blieb damit auf Listenzeilen-Groesse. */
@@ -225,12 +233,12 @@
     font-weight: var(--font-weight-bold);
     color: var(--color-text-strong);
   }
-  .ce-panels { flex: 1 1 auto; display: flex; min-height: 0; }
-  /* flex-basis 0 fuer BEIDE Panels. Vorher stand hier 50 %, waehrend .ce-panel--orte auf 0 stand --
-     zwei verschiedene Basen in derselben Zeile, und der freie Rest wurde dann noch einmal gleich
-     verteilt. Ergebnis waren nicht Drittel, sondern ein breites Stammdaten- und ein schmales
-     Orte-Panel (gemessen, siehe Commit). Mit gleicher Basis 0 teilen sie die Detailspalte exakt. */
-  .ce-panel { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  /* Auch hier Spuren statt flex: der Orte-Trenner ist derselbe 1px-Sockel wie in .ce-body. Vorher stand
+     an .ce-panel flex-basis 50 %, waehrend .ce-panel--orte auf 0 uebersteuerte -- zwei verschiedene
+     Basen in derselben Zeile, und der freie Rest wurde dann noch einmal gleich verteilt. Ergebnis waren
+     nicht Drittel, sondern ein breites Stammdaten- und ein schmales Orte-Panel (gemessen: 673 / 244). */
+  .ce-panels { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 0; }
+  .ce-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   /* Das Panel selbst scrollt nicht mehr -- sonst wanderte der Spaltentitel mit dem Inhalt weg.
      Es scrollt der innere Kasten, der auch die id traegt. */
   .ce-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 var(--space-12) var(--space-12); }
