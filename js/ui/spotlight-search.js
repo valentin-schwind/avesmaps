@@ -28,7 +28,12 @@ const SPOTLIGHT_PATH_HIGHLIGHT_STYLE = {
 // would wipe it in the very same click. (A search result escapes that only by accident -- its list is
 // emptied before we run, so !target.isConnected catches it. A panel button stays in the DOM.) Clicking
 // inside the infobox of the very way that is highlighted is not "somewhere else" anyway.
-const SPOTLIGHT_SELECTION_KEEPING_CLICK_SELECTOR = "#spotlight-search-overlay, #map-context-menu, .avesmaps-infopanel, .leaflet-popup";
+// #review-panel joins for the same reason as the infobox: its lists (WikiSync „Ausreißer" and
+// „Konflikte") draw a way highlight on a row click, and this handler sits on document just like
+// theirs -- so without the exemption we wiped the highlight in the very same click and the row
+// looked dead. Clicking a review row is also not "somewhere else": that panel exists to inspect
+// the very object being highlighted.
+const SPOTLIGHT_SELECTION_KEEPING_CLICK_SELECTOR = "#spotlight-search-overlay, #map-context-menu, .avesmaps-infopanel, .leaflet-popup, #review-panel";
 
 let spotlightRenderedEntries = [];
 let spotlightActiveResultIndex = -1;
