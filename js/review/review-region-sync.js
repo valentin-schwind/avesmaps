@@ -205,7 +205,9 @@ function renderRegionSyncList() {
 	const matchedCount = ((regionSyncData && regionSyncData.matched) || []).filter(regionRowMatchesFilters).length;
 	const ambiguousCount = ((regionSyncData && regionSyncData.ambiguous) || []).filter(regionRowMatchesFilters).length;
 	const mapOnlyCount = regionMapOnlyRows().filter(regionRowMatchesFilters).length;
-	const tabsHost = regionSyncElement("region-sync-tabs");
+	// The shared strip lives at panel level, OUTSIDE this section, so the section-scoped
+	// regionSyncElement helper cannot reach it -- deliberately document.getElementById here.
+	const tabsHost = wikiSyncViewTabsHostFor("regions");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
 			`<button type="button" data-region-view="${view}" class="region-sync__viewtab${regionSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;

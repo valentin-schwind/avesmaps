@@ -35,9 +35,12 @@ const fakeNode = (dataset) => ({
 const tabNodes = ["locations", "territories", "regions", "paths", "powerlines", "adventures", "citymaps", "lore"]
 	.map((key) => fakeNode({ wikiSyncPanelTab: key }));
 
+// The shared view-tab strip is emptied on every switch, so the fake DOM has to answer for it.
+const viewTabsHost = { innerHTML: "unchanged" };
 const context = vm.createContext({
 	document: {
 		querySelectorAll: (selector) => (selector.includes("panel-tab") ? tabNodes : []),
+		getElementById: (id) => (id === "wiki-sync-view-tabs" ? viewTabsHost : null),
 	},
 	console,
 });
@@ -63,6 +66,27 @@ const set = (key) => vm.runInContext(`setWikiSyncPanelTab(${JSON.stringify(key)}
 	set(key);
 	assert.equal(active(), "locations", `unknown key ${String(key)} falls back to locations`);
 });
+
+// Switching subject clears the shared strip. Abenteuer, Karten and Kraftlinien have no views of
+// their own, so whatever the previous subject rendered must not survive the switch -- it would
+// offer "Platziert / Fehlt" on a list that has no such distinction.
+viewTabsHost.innerHTML = '<button data-path-view="all">Alle (17)</button>';
+set("adventures");
+assert.equal(viewTabsHost.innerHTML, "", "a subject without views must leave the strip empty");
+
+// The shared strip needs an owner. The lists load asynchronously, so an answer that arrives
+// after the user has already switched subject would paint over the strip of the NEW one.
+// Observed in the browser before this guard existed: choosing Vorkommen and switching to
+// Siedlungen left "Alle | Fauna | Flora | Waren | Spezies" standing above the settlement list.
+vm.runInContext(sliceFunction("wikiSyncViewTabsHostFor"), context);
+const hostFor = (key) => vm.runInContext(`wikiSyncViewTabsHostFor(${JSON.stringify(key)})`, context);
+set("locations");
+assert.equal(hostFor("lore"), null, "a renderer whose subject was left must get no host");
+assert.equal(hostFor("paths"), null);
+assert.ok(hostFor("locations"), "the active subject's renderer must get the host");
+set("paths");
+assert.ok(hostFor("paths"), "and it follows the switch");
+assert.equal(hostFor("locations"), null);
 
 // The active class really lands on the matching tab node and nowhere else.
 set("lore");

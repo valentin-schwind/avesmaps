@@ -355,6 +355,15 @@ function setWikiSyncPanelTab(tabName) {
 		sectionElement.classList.toggle("is-active", sectionElement.dataset.wikiSyncPanelSection === activeWikiSyncPanelTab);
 	});
 
+	// The shared strip belongs to whichever list is showing, so it is emptied on every switch and
+	// refilled by that subject's own renderer. Without this, Abenteuer/Karten/Kraftlinien -- which
+	// have no views at all -- would inherit the previous subject's tabs and silently offer
+	// "Platziert / Fehlt" on a list that has no such thing.
+	const viewTabsHost = document.getElementById("wiki-sync-view-tabs");
+	if (viewTabsHost) {
+		viewTabsHost.innerHTML = "";
+	}
+
 	// Which list to (lazily) load for which subject. Loaders stay optional -- some are defined in
 	// files that only load in edit mode, so a missing one must be skipped, not crash. The guards
 	// also mean a MISSPELLED loader silently does nothing, so the panel-tab test checks every name
@@ -422,7 +431,7 @@ function setWikiSyncTerritoryMapStatus(value) {
 }
 
 function renderWikiSyncTerritoryMapStatusTabs(total, placed, missing) {
-	const host = document.getElementById("wiki-sync-territory-tabs");
+	const host = wikiSyncViewTabsHostFor("territories");
 	if (!host) {
 		return;
 	}
@@ -1971,8 +1980,12 @@ async function startWikiSyncLoreSync() {
  * derselben id wären ein DOM-Fehler, und getElementById träfe stets nur das erste), die
  * Logik nicht. Deshalb steht hier nur, WO die Elemente sitzen; alles Übrige ist geteilt.
  *
- * Nur das Fenster kennt „spezies": der Menüband-Schalter steuert die öffentliche Anzeige,
- * nicht die Bearbeitbarkeit. Im Reiter bleiben die drei sichtbaren Arten.
+ * BEIDE kennen „spezies" -- seit 2026-07-22 (Owner) auch der Reiterstreifen im Panel, dort
+ * ausgegraut. Vorher stand hier das Gegenteil („nur das Fenster kennt spezies"), weil der
+ * Menüband-Schalter die öffentliche ANZEIGE steuert und nicht die Bearbeitbarkeit. Genau das
+ * ist der Grund, warum Spezies jetzt sichtbar, aber grau ist: nicht öffentlich, sehr wohl
+ * bearbeitbar. Die Begründung steht im Tooltip des Reiters, damit sie niemand wegräumt.
+ * Der Panel-Streifen kennt zusätzlich „all" (keine Art-Einschränkung), das Fenster nicht.
  */
 var AVESMAPS_LORE_VIEWS = {
 	panel: {
@@ -2099,6 +2112,59 @@ function renderLoreLastSynced(data) {
 	syncedEl.hidden = false;
 }
 
+// Der Reiterstreifen ist GETEILT, die Listen laden aber asynchron. Eine Antwort, die eintrifft,
+// nachdem der Benutzer das Subjekt schon gewechselt hat, würde sonst über den Streifen des neuen
+// Subjekts malen -- beobachtet: nach Vorkommen → Siedlungen standen die Lore-Arten über der
+// Siedlungsliste. Jeder Renderer holt seinen Container deshalb hierüber und bekommt null, wenn
+// er nicht mehr dran ist.
+function wikiSyncViewTabsHostFor(subjectKey) {
+	if (activeWikiSyncPanelTab !== subjectKey) {
+		return null;
+	}
+	return document.getElementById("wiki-sync-view-tabs");
+}
+
+// Vorkommen rendert seine Arten in DENSELBEN Streifen wie jedes andere Subjekt. Spezies steht
+// ausgegraut darin statt zu fehlen: die öffentliche Anzeige ist aus (Owner 2026-07-21), die
+// Daten sind vollständig und bleiben bearbeitbar. Die Begründung gehört in den Tooltip -- eine
+// ausgegraute Fläche ohne Begründung wird irgendwann „aufräumend" umgelegt.
+// Die Zahlen kommen aus derselben Antwort wie die Liste; gemerkt, damit ein Neuzeichnen ohne
+// frischen Abruf (Subjektwechsel) nicht auf „?" zurückfällt.
+var avesmapsLoreCountsCache = null;
+
+function renderWikiSyncLoreViewTabs(countsByKind) {
+	var host = wikiSyncViewTabsHostFor("lore");
+	if (!host) {
+		return;
+	}
+	if (countsByKind) {
+		avesmapsLoreCountsCache = countsByKind;
+	}
+	var counts = avesmapsLoreCountsCache || {};
+	var activeKind = avesmapsLoreListKind.panel;
+	// Bewusst OHNE data-lore-count: die Zahlen setzt diese Funktion selbst (deutsch gruppiert).
+	// Ein data-lore-count hier würde von der Zähler-Schleife in loadLoreList überschrieben und
+	// die Gruppierung wieder verlieren. Die Chips des FENSTERS tragen data-lore-dlg-count und
+	// werden dort weiterhin bedient.
+	host.innerHTML = wikiSyncSubjectViewTabs("lore").map(function (viewTab) {
+		// „Alle" ohne bekannte Zahlen ist „?", NICHT 0: eine Summe über ein leeres Objekt ist
+		// rechnerisch null, behauptet aber „es gibt keine" -- und das weiß hier noch niemand.
+		var count = viewTab.key === "all"
+			? (avesmapsLoreCountsCache
+				? Object.keys(counts).reduce(function (sum, k) { return sum + Number(counts[k] || 0); }, 0)
+				: undefined)
+			: counts[viewTab.key];
+		return '<button type="button" data-lore-kind="' + viewTab.key + '"'
+			+ ' class="wiki-sync-panel__tab' + (viewTab.off ? " is-off" : "")
+			+ (activeKind === viewTab.key ? " is-active" : "") + '"'
+			+ (viewTab.off ? ' title="' + escapeHtml(viewTab.reason) + '"' : "")
+			+ '>' + escapeHtml(viewTab.label)
+			+ ' <span class="wiki-sync-panel__tab-count">('
+			+ (typeof count === "number" && Number.isFinite(count) ? count.toLocaleString("de-DE") : "?")
+			+ ')</span></button>';
+	}).join("");
+}
+
 function loadLoreList(view) {
 	view = view === "dialog" ? "dialog" : "panel";
 	var ids = AVESMAPS_LORE_VIEWS[view];
@@ -2106,12 +2172,22 @@ function loadLoreList(view) {
 	if (!scroll) {
 		return;
 	}
+	if (view === "panel") {
+		// Sofort zeichnen, damit der Streifen beim Subjektwechsel nicht leer bleibt, bis die
+		// Antwort da ist. Die Zahlen kommen aus dem Zwischenspeicher.
+		renderWikiSyncLoreViewTabs(null);
+	}
 	var input = document.getElementById(ids.search);
 	var query = input ? input.value.trim() : "";
 	// Staleness-Token JE ANSICHT: sonst würde ein Abruf im Fenster die Antwort für den
 	// Reiter verwerfen (und umgekehrt), weil beide denselben Zähler hochzählen.
 	var token = ++avesmapsLoreListToken[view];
-	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(avesmapsLoreListKind[view])
+	// „Alle" heißt: keine Art-Einschränkung, also ein LEERER kind-Parameter. Ausdrücklich, nicht
+	// dem Zufall überlassen: der Katalog verwirft zwar jeden Wert, der nicht in
+	// AVESMAPS_LORE_KINDS steht (api/_internal/app/lore.php:142), und täte damit versehentlich
+	// das Richtige -- aber ein Verhalten, das auf einer Whitelist-Lücke beruht, ist kein Vertrag.
+	var kindParam = avesmapsLoreListKind[view] === "all" ? "" : avesmapsLoreListKind[view];
+	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(kindParam)
 		+ "&q=" + encodeURIComponent(query) + "&limit=200";
 	avesmapsLoreFetchWithTimeout(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
 		.then(function (r) { return r.ok ? r.json() : null; })
@@ -2134,6 +2210,11 @@ function loadLoreList(view) {
 						.querySelectorAll('[data-lore-count="' + kind + '"], [data-lore-dlg-count="' + kind + '"]')
 						.forEach(function (chip) { chip.textContent = "(" + counts[kind] + ")"; });
 				});
+			}
+			if (view === "panel") {
+				// Der gemeinsame Streifen zeichnet sich mit den frischen Zahlen neu -- er trägt
+				// bewusst keine data-lore-count-Chips, die die Schleife oben bedienen könnte.
+				renderWikiSyncLoreViewTabs(counts);
 			}
 		})
 		.catch(function () {

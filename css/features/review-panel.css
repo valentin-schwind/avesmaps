@@ -1754,3 +1754,7 @@ body.modal-dialog-open #wiki-sync-conflicts-overlay.is-minimized ~ * {
 	border-color: var(--color-button-border);
 	font-weight: var(--font-weight-bold);
 }
+
+/* Greyed = not shown publicly (today only Spezies). Deliberately NOT disabled: the data is
+   complete and stays editable, only the public display is off. The reason sits in the tooltip. */
+.wiki-sync-views .wiki-sync-panel__tab.is-off { opacity: 0.5; }

@@ -346,7 +346,10 @@ $("#wiki-sync-filter").on("input search", function () {
 $("#wiki-sync-territory-filter").on("input search", function () {
     setWikiSyncTerritoryFilterQuery(this.value || "");
 });
-$("#wiki-sync-territory-tabs").on("click", "[data-territory-mapstatus]", function () {
+// Delegated from the SHARED view-tab strip. It used to hang on #wiki-sync-territory-tabs, which
+// no longer exists -- and because jQuery binds the host element itself at load time, a stale id
+// here does not error, it just silently stops responding to clicks.
+$("#wiki-sync-view-tabs").on("click", "[data-territory-mapstatus]", function () {
     setWikiSyncTerritoryMapStatus(this.dataset.territoryMapstatus || "all");
 });
 $("#wiki-sync-territory-time-from, #wiki-sync-territory-time-to").on("input", function () {

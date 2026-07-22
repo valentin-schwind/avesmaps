@@ -387,6 +387,16 @@
 				     progress handler untouched -- including #wiki-sync-sync-lore, which migrates
 				     into the lore window's ribbon on first open and is still found by id there. -->
 				<div class="wiki-sync-verbs" id="wiki-sync-verbs"></div>
+				<!-- THE tab strip -- there is exactly one, and it belongs to the LIST, not to
+				     navigation (spec §2 rule 5). Every subject's list renders its own views into
+				     this one container: Alle/Platziert/Fehlt for the map objects, two more for
+				     Wege, the kinds for Vorkommen. A subject with no views leaves it empty rather
+				     than inventing a lone "Alle".
+				     It sits at panel level because each section carries its own search row and
+				     list, so a single strip cannot physically stand between all seven of them.
+				     The lore window's own tabs (data-lore-dlg-kind) are a separate strip and stay
+				     untouched -- that one works, it is the PANEL copy that was the duplicate. -->
+				<div class="wiki-sync-panel__tabs wiki-sync-views" id="wiki-sync-view-tabs"></div>
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
@@ -397,7 +407,6 @@
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
 								<div class="type-filter"><button type="button" id="path-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="path-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="path-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="path-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="path-source-filter-menu"></div></div></div></div>
 						</div>
-						<div id="path-sync-tabs" class="region-sync__viewtabs settlement-list__tabs"></div>
 						<div id="path-sync-list" class="review-panel__list wikisync-itemlist"></div>
 					</div>
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="adventures">
@@ -430,12 +439,11 @@
 								<div class="wiki-sync-panel__actions">
 									<button id="wiki-sync-sync-lore" class="lore-btn2 lore-btn2--primary" type="button" title="Liest den Dump und übernimmt Flora, Fauna, Spezies und Handelswaren override-sicher in die Lore-Tabellen. Ein vorheriges „Dump holen“ ist nicht nötig. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf." hidden><span class="t1">🚨 Natur &amp; Waren syncen</span><span class="t2" id="wiki-sync-lore-sub">bereit</span></button>
 								</div>
-																<div class="wiki-sync-panel__tabs">
-									<button class="wiki-sync-panel__tab is-active" type="button" data-lore-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-count="fauna"></span></button>
-									<button class="wiki-sync-panel__tab" type="button" data-lore-kind="flora">Flora <span class="wiki-sync-panel__tab-count" data-lore-count="flora"></span></button>
-									<button class="wiki-sync-panel__tab" type="button" data-lore-kind="ware">Waren <span class="wiki-sync-panel__tab-count" data-lore-count="ware"></span></button>
-									<!-- Spezies ausgeblendet (Owner 2026-07-21): das Feld „Regionen" der {{Infobox Spezies}} ist im Wiki zu schlecht gepflegt. Gilt genauso in der Karten-Infobox. Die Daten bleiben in Katalog, Sync und API -- nur die Reiter fehlen. -->
-								</div>
+								<!-- Die Arten standen hier als ZWEITER Reiterstreifen. Sie rendern jetzt in den
+								     gemeinsamen Streifen (#wiki-sync-view-tabs), zusammen mit einem führenden
+								     „Alle" und Spezies als ausgegrautem Reiter -- siehe renderWikiSyncLoreViewTabs
+								     in js/review/review-wiki-sync.js. Die Reiter des FENSTERS
+								     (data-lore-dlg-kind) bleiben unberührt. -->
 								<div class="wiki-sync-adv-picker">
 									<div class="wiki-sync-adv-picker__top">
 										<input type="search" id="lore-list-search" class="wiki-sync-adv-picker__search" placeholder="Name oder Art suchen …" autocomplete="off">
@@ -494,7 +502,6 @@
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
 							<div class="type-filter"><button type="button" id="region-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="region-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="region-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="region-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="region-source-filter-menu"></div></div></div></div>
 						</div>
-						<div id="region-sync-tabs" class="region-sync__viewtabs settlement-list__tabs"></div>
 						<div id="region-sync-list" class="review-panel__list wikisync-itemlist"></div>
 					</div>
 
@@ -527,7 +534,6 @@
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
 								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div></div></div>
 							</div>
-							<div id="settlement-list-tabs" class="region-sync__viewtabs settlement-list__tabs"></div>
 							<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
 				</div>
@@ -547,7 +553,6 @@
 						<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
 					</div>
 					<div class="wiki-sync-panel__timefilter">Zeige nur: <input type="number" id="wiki-sync-territory-time-from" placeholder="von" aria-label="Zeitfilter von (BF)" disabled> – <input type="number" id="wiki-sync-territory-time-to" placeholder="bis" aria-label="Zeitfilter bis (BF)" disabled> BF <label><input type="checkbox" id="wiki-sync-territory-time-today" checked> heute</label> <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="wiki-sync-territory-flaechenland"> nur Flächenländer</label></div>
-						<div id="wiki-sync-territory-tabs" class="region-sync__viewtabs settlement-list__tabs"></div>
 						<div id="wiki-sync-territory-tree" class="tree-wrap wiki-sync-territory-tree" role="tree"></div>
 				</div>
 			</section>

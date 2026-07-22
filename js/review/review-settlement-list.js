@@ -197,7 +197,7 @@ function renderSettlementList() {
 
 	// Toggle-Buttons (gegenseitig exklusiv, einer aktiv) — in eigenem Container unter dem
 	// Suchfeld, NICHT in der scrollbaren Liste.
-	const tabsHost = document.getElementById("settlement-list-tabs");
+	const tabsHost = wikiSyncViewTabsHostFor("locations");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
 			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;

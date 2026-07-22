@@ -246,7 +246,10 @@ function renderPathSyncList() {
 	const missingCount = ((pathSyncData && pathSyncData.missing) || []).filter(pathRowMatchesFilters).length;
 	const mapOnlyCount = pathMapOnlyRows().filter(pathRowMatchesFilters).length;
 	const openCasesCount = verlaufCasesByStatus("open").length;
-	const tabsHost = pathSyncElement("path-sync-tabs");
+	// The shared strip lives at panel level, OUTSIDE this section, so the section-scoped
+	// pathSyncElement helper cannot reach it. wikiSyncViewTabsHostFor returns null once this
+	// is no longer the active subject, so a late answer cannot paint over another list.
+	const tabsHost = wikiSyncViewTabsHostFor("paths");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
 			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
