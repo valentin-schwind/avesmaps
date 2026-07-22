@@ -1570,7 +1570,6 @@ function moveLoreSectionIntoDialog() {
 	if (ribbon && syncButton && syncButton.parentElement !== ribbon) {
 		ribbon.insertBefore(syncButton, ribbon.firstChild);
 		syncButton.hidden = false;
-		syncButton.classList.add("lore-ribbon__sync");
 	}
 	if (!body || !detail || detail.parentElement === body) {
 		return; // schon umgezogen (oder Markup fehlt)
@@ -1600,12 +1599,15 @@ function renderLoreKindToggles(kinds) {
 			return;
 		}
 		var on = !!kinds[kind];
+		// Nur die OBERE Zeile (.t1) wird geschrieben. Ein textContent auf den Knopf würde
+		// beide Spans der Kachel ersetzen und die Zweizeiligkeit zerstören.
+		var title = button.querySelector(".t1") || button;
 		var label = button.getAttribute("data-lore-label")
-			|| button.textContent.replace(/:\s*(AN|AUS)\s*$/, "").trim();
+			|| title.textContent.replace(/:\s*(AN|AUS)\s*$/, "").trim();
 		button.setAttribute("data-lore-label", label);
 		button.setAttribute("aria-pressed", on ? "true" : "false");
 		button.classList.toggle("is-off", !on);
-		button.textContent = label + ": " + (on ? "AN" : "AUS");
+		title.textContent = label + ": " + (on ? "AN" : "AUS");
 	});
 }
 
@@ -1624,6 +1626,35 @@ function setWikiSyncLoreDialogOpen(isOpen) {
 	}
 }
 
+/**
+ * Fortschritt in die UNTERE Zeile der Sync-Kachel schreiben.
+ *
+ * 💣 Die Kachel besteht aus zwei Spans (.t1 Titel, .t2 Status) wie im Abenteuer- und
+ * Karteneditor. Ein textContent auf den Knopf würde beide ersetzen und aus der Kachel
+ * einen einzeiligen Knopf machen -- sichtbar erst, wenn ein Sync läuft. Die Beschriftung
+ * .t1 bleibt deshalb stehen; nur .t2 erzählt, was gerade passiert. Fehlt .t2 (etwa weil
+ * das Markup älter ist), fällt es auf den Knopf selbst zurück.
+ */
+function setLoreSyncStatusLabel(button, text) {
+	if (!button) {
+		return;
+	}
+	var slot = button.querySelector(".t2");
+	if (slot) {
+		slot.textContent = text;
+		return;
+	}
+	button.textContent = text;
+}
+
+function loreSyncStatusLabel(button) {
+	if (!button) {
+		return "";
+	}
+	var slot = button.querySelector(".t2");
+	return slot ? slot.textContent : button.textContent;
+}
+
 // Entry point for #wiki-sync-sync-lore. Re-entrancy guarded, so a double click is a
 // no-op. The progress rides IN the button label rather than in an extra line, so
 // nothing below it shifts around while the ~35 steps run.
@@ -1634,10 +1665,10 @@ async function startWikiSyncLoreSync() {
 	isWikiSyncLoreRunning = true;
 
 	const button = document.getElementById("wiki-sync-sync-lore");
-	const originalLabel = button ? button.textContent : "";
+	const originalLabel = loreSyncStatusLabel(button);
 	if (button) {
 		button.disabled = true;
-		button.textContent = "Natur & Waren werden übernommen …";
+		setLoreSyncStatusLabel(button, "wird übernommen …");
 	}
 	setWikiSyncStatus("Natur & Waren werden übernommen …", "pending");
 
@@ -1646,9 +1677,7 @@ async function startWikiSyncLoreSync() {
 		// idempotent und macht den Knopf unabhängig davon, ob „Dump holen" bis zur
 		// lore-Phase durchgelaufen ist.
 		const build = await runWikiSyncLoreBuildLoop((label) => {
-			if (button) {
-				button.textContent = `Dump lesen … ${label}`;
-			}
+			setLoreSyncStatusLabel(button, `Dump lesen … ${label}`);
 		});
 		if (!build || build.found === 0) {
 			throw new Error("Der Dump enthält keine Lore-Einträge – das sollte nicht passieren, bitte melden.");
@@ -1656,9 +1685,7 @@ async function startWikiSyncLoreSync() {
 
 		// SCHRITT 2: Staging override-sicher in die Live-Tabellen übernehmen.
 		const result = await runWikiSyncLoreSyncLoop((label) => {
-			if (button) {
-				button.textContent = `Natur & Waren … ${label}`;
-			}
+			setLoreSyncStatusLabel(button, `übernehmen … ${label}`);
 		});
 		const t = (result && result.totals) || { added: 0, updated: 0, retired: 0, placesAdded: 0, sourcesAdded: 0 };
 		const note = ` (+${t.added} neu / ~${t.updated} aktualisiert / -${t.retired} stillgelegt · Orte +${t.placesAdded} · Quellen +${t.sourcesAdded})`;
@@ -1678,17 +1705,17 @@ async function startWikiSyncLoreSync() {
 		setWikiSyncStatus(message, "error");
 		showFeedbackToast(message, "warning");
 		if (button) {
-			// Der Grund bleibt im Knopf stehen, bis der nächste Versuch startet.
-			button.textContent = "⚠ " + message.slice(0, 80);
+			// Der Grund bleibt in der Statuszeile der Kachel stehen, bis der nächste Versuch startet.
+			setLoreSyncStatusLabel(button, "⚠ " + message.slice(0, 80));
 			button.disabled = false;
 		}
 		isWikiSyncLoreRunning = false;
 		return;
 	} finally {
 		isWikiSyncLoreRunning = false;
-		if (button && !button.textContent.startsWith("⚠")) {
+		if (button && !loreSyncStatusLabel(button).startsWith("⚠")) {
 			button.disabled = false;
-			button.textContent = originalLabel || "Natur & Waren syncen";
+			setLoreSyncStatusLabel(button, originalLabel || "bereit");
 		}
 	}
 }

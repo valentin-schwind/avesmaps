@@ -213,38 +213,70 @@
 	flex-direction: column;
 	gap: var(--space-10);
 }
-/* Menueband: Sync-Kachel links, danach die Schalter je Art. Gleiche Anordnung wie im
-   Abenteuer- und Karteneditor -- linksbuendig, umbruchfaehig, EIN Abstand. */
+/* ---- Menueband im Fenster ----
+   Uebernimmt .ce-header/.ce-btn2 aus html/citymap-editor.html Token fuer Token: zweizeilige
+   Kacheln (t1 fett, t2 klein und gedaempft), linksbuendig, und NUR die Sync-Kachel gefuellt
+   (AGENTS.md §12: Hauptaktion filled, der Rest soft). Bewusst dieselben Werte statt eigener
+   -- die drei Menuebaender sind dieselbe Geste und duerfen nicht auseinanderdriften. */
 .lore-ribbon {
 	display: flex;
 	flex: 0 0 auto;
 	flex-wrap: wrap;
 	gap: var(--space-6);
-	align-items: center;
+	align-items: stretch;
 	padding-bottom: var(--space-8);
-	border-bottom: 1px solid var(--color-divider);
+	border-bottom: 1px solid var(--color-border);
 }
-.lore-ribbon__toggle {
-	padding: var(--space-4) var(--space-10);
+.lore-btn2 {
+	display: flex;
+	flex: 0 0 auto;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	width: auto;
+	margin: 0;
+	padding: var(--space-6) var(--space-10);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
 	color: var(--color-text);
 	font: inherit;
+	text-align: left;
 	cursor: pointer;
 }
-.lore-ribbon__toggle:hover {
-	border-color: var(--color-link);
+.lore-btn2:hover:not(:disabled) {
+	background: var(--color-button-soft-hover);
+}
+.lore-btn2:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.lore-btn2 .t1 {
+	font-weight: 700;
+}
+.lore-btn2 .t2 {
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+/* Die eine gefuellte Aktion des Menuebands -- spiegelt .ce-btn2--primary. */
+.lore-btn2--primary {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+}
+.lore-btn2--primary:hover:not(:disabled) {
+	background: var(--color-button-hover);
+	box-shadow: var(--shadow-button-hover-strong);
+}
+.lore-btn2--primary .t2 {
+	color: var(--color-button-text);
+	opacity: 0.8;
 }
 /* AUS ist ein Zustand, kein Fehler: gedaempft, aber lesbar -- und nicht rot, sonst liest
    sich eine bewusste Owner-Entscheidung wie eine Stoerung. */
-.lore-ribbon__toggle.is-off {
+.lore-btn2.is-off {
 	background: var(--color-panel-muted);
 	color: var(--color-text-muted);
-}
-.lore-ribbon__toggle:disabled {
-	opacity: 0.6;
-	cursor: progress;
 }
 
 /* Knopfzeile und Reiter behalten ihre Hoehe; nur die Liste waechst und scrollt. */

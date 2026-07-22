@@ -427,7 +427,7 @@
 								     Listen (Fauna, Flora, Waren) kommen in einem eigenen Schritt hierher, sobald
 								     Daten da sind -- ein Editor ohne Datensatz hat nichts zu bearbeiten. -->
 								<div class="wiki-sync-panel__actions">
-									<button id="wiki-sync-sync-lore" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Liest den Dump und übernimmt Flora, Fauna, Spezies und Handelswaren override-sicher in die Lore-Tabellen. Ein vorheriges „Dump holen“ ist nicht nötig. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf." hidden>Natur &amp; Waren syncen</button>
+									<button id="wiki-sync-sync-lore" class="lore-btn2 lore-btn2--primary" type="button" title="Liest den Dump und übernimmt Flora, Fauna, Spezies und Handelswaren override-sicher in die Lore-Tabellen. Ein vorheriges „Dump holen“ ist nicht nötig. Manuelle und unterdrückte Einträge bleiben unangetastet. Läuft in Teilschritten – der Fortschritt steht im Knopf." hidden><span class="t1">🚨 Natur &amp; Waren syncen</span><span class="t2" id="wiki-sync-lore-sub">bereit</span></button>
 								</div>
 																<div class="wiki-sync-panel__tabs">
 									<button class="wiki-sync-panel__tab is-active" type="button" data-lore-kind="fauna">Fauna <span class="wiki-sync-panel__tab-count" data-lore-count="fauna"></span></button>
@@ -807,10 +807,10 @@
 					     die uebrigen sind rein textliche Schalter (Owner-Entscheid, siehe Menueband-Konsistenz).
 					     Der Sync-Knopf selbst zieht per JS aus dem Reiter hierher -- er darf NUR hier stehen. -->
 					<div class="lore-ribbon" id="lore-ribbon">
-						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="fauna" aria-pressed="true">Fauna: AN</button>
-						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="flora" aria-pressed="true">Flora: AN</button>
-						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="ware" aria-pressed="true">Waren: AN</button>
-						<button class="lore-ribbon__toggle" type="button" data-lore-toggle="spezies" aria-pressed="false">Spezies: AUS</button>
+						<button class="lore-btn2" type="button" data-lore-toggle="fauna" aria-pressed="true" title="Blendet Fauna in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten -- Wiedereinschalten stellt sie vollstaendig her."><span class="t1">Fauna: AN</span><span class="t2">oeffentliche Anzeige</span></button>
+						<button class="lore-btn2" type="button" data-lore-toggle="flora" aria-pressed="true" title="Blendet Flora in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten -- Wiedereinschalten stellt sie vollstaendig her."><span class="t1">Flora: AN</span><span class="t2">oeffentliche Anzeige</span></button>
+						<button class="lore-btn2" type="button" data-lore-toggle="ware" aria-pressed="true" title="Blendet Waren in Infobox und Dialog ein oder aus. Die Daten bleiben erhalten -- Wiedereinschalten stellt sie vollstaendig her."><span class="t1">Waren: AN</span><span class="t2">oeffentliche Anzeige</span></button>
+						<button class="lore-btn2" type="button" data-lore-toggle="spezies" aria-pressed="false" title="Spezies ist aus: das Wiki-Feld „Regionen“ der Infobox Spezies ist zu schlecht gepflegt. Die Daten liegen vollstaendig vor und kommen beim Einschalten sofort zurueck."><span class="t1">Spezies: AUS</span><span class="t2">oeffentliche Anzeige</span></button>
 					</div>
 				</div>
 			</div>
