@@ -186,6 +186,27 @@ unverändert: zweizeilig (`.t1` fett, `.t2` gedämpft), **nur die Sync-Kachel tr
 ein Icon (🚨)** und `--primary` — Owner-Entscheid aus der Menüband-Session
 2026-07-17, nicht neu verhandeln.
 
+> 💣 **`--primary` braucht eine eigene Hover-Regel**, und sie muss *nach* der
+> allgemeinen stehen. Fehlt sie, gewinnt der allgemeine Hover mit hellem Grund,
+> während die Schrift cremefarben bleibt — hell auf hell, unlesbar. Beim Bau des
+> Musters genau so passiert und ohne Kontrastmessung nicht zu sehen gewesen.
+
+**Die Startknöpfe der Übersicht tragen dasselbe Muster** (`48438139`, Owner
+2026-07-22): Beschriftung oben, „Zuletzt gesynct" klein darunter. Das kehrt den
+Stand vom 2026-07-19 um, als das Datum neben den Knopf wanderte — damals ging es
+darum, dass Regionen/Wege anders aussahen als Siedlungen/Territorien; jetzt sind
+alle gleich zweizeilig, also entsteht dieser Unterschied nicht. Owner dazu: „die
+entscheidung ist in einem anderen kontext entstanden".
+
+> 💣 Der Zeitstempel-Span wurde **in** den Knopf verschoben, nicht neu gebaut — er
+> behält seine id, also schreibt `refreshWikiSyncKindSyncedStatus` unverändert
+> hinein. Aber: `buttonElement.textContent = …` löscht damit **beide** Kinder, der
+> Zeitstempel wäre nach dem ersten Sync-Lauf weg. Dafür gibt es
+> `setWikiSyncStartButtonLabel()` (`review-wiki-sync.js:90`), die nur die
+> Titelzeile anfasst. **Wer künftig eine Startknopf-Beschriftung setzt, benutzt
+> sie.** Ebenso trägt der Knopf `min-height: 44px`, damit er nicht wächst, wenn
+> der Statusabruf zurückkommt, und alles darunter verschiebt.
+
 ### 3.4 Statuszeile
 
 Eigene Zeile **unter dem Menüband**, volle Breite (Vorbild Siedlungeneditor,
@@ -434,6 +455,7 @@ Wer die Spec später liest, prüft den Stand gegen `git log`, statt ihm zu glaub
 |---|---|---|
 | ✅ 1 | **Knopfleiste** — `a505aee8`. Grid → Flex, Literale auf Tokens. Gemessen: Status versteckt → Knopf 100 %, Lücke 0; Status da → 64 % (vorher 66 %), Beschriftung nie abgeschnitten. Prüfgestell `verify-launcher-row.html` | gering |
 | ✅ 2 | **Benennung** — `095ad263`. 5 Knöpfe, 5 Dialogtitel, 4 Seitentitel, Handbuch. Inklusive der zwei Stellen, die die Territorien-Beschriftung nach einem Lauf neu setzen (sonst wäre sie zurückgesprungen). Kein `ASSET_VERSION`-Bump nötig | gering |
+| ✅ 2b | **Zweizeilige Startkachel** — `48438139`. „Zuletzt gesynct" wandert in den Knopf, Status-Span verschoben statt neu gebaut, `setWikiSyncStartButtonLabel()` schützt die Struktur (§3.3). Gemessen: volle Breite in jedem Zustand, Höhe konstant 44 (kein Springen), Zeitstempel überlebt einen Sync-Lauf. Owner live bestätigt: „die zweizeilige Kachel passt" | gering |
 | 3 | **`editor-shell.css`**: Hülle extrahieren, JS-Inline-Maße raus, 2 Dubletten löschen | mittel |
 | 4 | **Je Editor** Typografie/Abstände/Spalten/Menüband, ein Commit pro Editor (Siedlungen → Territorien → Karten → Abenteuer → Natur & Waren) | mittel |
 | 5 | **Herkunft & `↺`** nach §5, zuerst Territorien (dort ist die Datenlage sauber) | mittel |
@@ -466,6 +488,16 @@ Am Muster `verify-editor-shell.html` (zieht die echten `css/base/tokens.css`)
 | Mobil 390 × 844 | 1 Spalte je Schritt, „Zurück" ab 2, **0 px Überlappung** |
 | Hover Sync-Kachel hell | 5,21:1 |
 | Wappen | 56 × 56 |
+| Reiterzeile (Natur & Waren) | 39 hoch, aktiver Reiter unterstrichen |
+
+Am Prüfgestell `verify-launcher-row.html` **gemessen** (Startknöpfe, alle Zustände):
+
+| | Ergebnis |
+|---|---|
+| Kein Status / Status da / während Sync / danach | Knopf je 100 % Breite, Lücke rechts 0 |
+| Höhe | konstant 44 in allen vier Zuständen — nichts springt, wenn das Datum eintrifft |
+| Zeitstempel nach simuliertem Sync-Lauf | überlebt, Text unverändert |
+| Beschriftung | wechselt korrekt auf „Synchronisiert…" und zurück |
 
 **Nicht verifiziert** (Klassifizierer-Ausfälle während der Sitzung): Tippziele auf
 schmalem Schirm, die vereinheitlichten Bildlaufleisten im echten Editor, und
