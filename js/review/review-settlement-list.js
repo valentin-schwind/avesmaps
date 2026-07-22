@@ -654,6 +654,10 @@ var avesmapsAdvPickerWired = false;
 function avesmapsSetMaterialCount(kind, n) {
 	var el = document.querySelector('[data-material-count="' + kind + '"]');
 	if (el) { el.textContent = "(" + n + ")"; }
+	// The pills those counts were written for are gone (the subjects are top level now), so the
+	// number goes to the subject rail instead. Kept as one function because both callers already
+	// compute exactly this total.
+	if (typeof setWikiSyncSubjectCount === "function") { setWikiSyncSubjectCount(kind, n); }
 }
 
 function avesmapsRenderAdventurePicker() {

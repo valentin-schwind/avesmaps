@@ -231,6 +231,82 @@ window.refreshActiveWikiSyncPanelAfterAssignment = refreshActiveWikiSyncPanelAft
 	tryRegister();
 })();
 
+// --- The subject rail (level 2) --------------------------------------------------------------
+// Built from the registry; index.html holds only the empty container. Counts and last-synced come
+// from the callers that already fetch them. Two empty cases stay APART, the same distinction
+// wikiSyncKindSyncedLabel already draws: no answer yet is an em dash / blank, a server-side null
+// is "nie". Collapsing them would make the rail claim a "never synced" it was never told.
+var wikiSyncSubjectCounts = {};
+var wikiSyncKindSyncedRaw = null;
+
+// Short form for the narrow date column ("22.07."). The full sentence rides in the row's title,
+// so the compact form never has to carry "Zuletzt gesynct: unbekannt" in 46px.
+function wikiSyncRailDateText(subjectKey) {
+	const kind = wikiSyncSubjectSyncKind(subjectKey);
+	if (!kind || !wikiSyncKindSyncedRaw || !Object.prototype.hasOwnProperty.call(wikiSyncKindSyncedRaw, kind)) {
+		return "";
+	}
+	const raw = wikiSyncKindSyncedRaw[kind];
+	if (!raw) {
+		return "nie";
+	}
+	const parsed = new Date(String(raw).replace(" ", "T"));
+	if (Number.isNaN(parsed.getTime())) {
+		return "";
+	}
+	return String(parsed.getDate()).padStart(2, "0") + "." + String(parsed.getMonth() + 1).padStart(2, "0") + ".";
+}
+
+// Deliberately NOT called from setWikiSyncPanelTab: the active marker is already moved by the
+// [data-wiki-sync-panel-tab] loop in there, which now finds these rows too. Re-rendering on every
+// click would throw the rows away and rebuild them for nothing.
+function renderWikiSyncSubjectRail() {
+	const host = document.getElementById("wiki-sync-subject-rail");
+	if (!host) {
+		return;
+	}
+	host.innerHTML = "";
+	WIKI_SYNC_SUBJECTS.forEach((subject) => {
+		const count = wikiSyncSubjectCounts[subject.key];
+		const isActive = subject.key === activeWikiSyncPanelTab;
+		const row = document.createElement("button");
+		row.type = "button";
+		row.className = "wiki-sync-rail__row" + (isActive ? " is-active" : "");
+		// The cascade recognises a tab by exactly this attribute (js/ui/ui-controls.js), and
+		// setWikiSyncPanelTab marks the active one through it. Without it a row is not a tab.
+		row.setAttribute("data-wiki-sync-panel-tab", subject.key);
+		row.setAttribute("aria-selected", isActive ? "true" : "false");
+		const kind = wikiSyncSubjectSyncKind(subject.key);
+		if (kind) {
+			row.title = subject.label + " — " + wikiSyncKindSyncedLabel(wikiSyncKindSyncedRaw, kind);
+		}
+		row.innerHTML =
+			'<span>' + escapeHtml(subject.label) + '</span>'
+			+ '<span class="wiki-sync-rail__count">'
+			+ (typeof count === "number" ? count.toLocaleString("de-DE") : "—") + '</span>'
+			+ '<span class="wiki-sync-rail__date">' + escapeHtml(wikiSyncRailDateText(subject.key)) + '</span>';
+		// bootstrap.js binds [data-wiki-sync-panel-tab] DIRECTLY, not delegated, so it only ever
+		// sees elements that existed at load. These rows do not, hence their own listener.
+		row.addEventListener("click", () => setWikiSyncPanelTab(subject.key));
+		host.appendChild(row);
+	});
+}
+
+// Records a subject's total so the rail can show it. Called from the list loaders that already
+// know the number; a subject nobody reports stays absent and renders as an em dash.
+function setWikiSyncSubjectCount(subjectKey, total) {
+	if (!wikiSyncIsKnownSubject(subjectKey) || typeof total !== "number" || !Number.isFinite(total)) {
+		return;
+	}
+	wikiSyncSubjectCounts[subjectKey] = total;
+	renderWikiSyncSubjectRail();
+}
+
+// Rendered once here, during parse. It has to exist before ui-controls' DOMContentLoaded handler
+// restores the remembered tab -- that looks the button up with querySelector and clicks it, so an
+// empty container would silently drop the whole "remember where I was" feature for WikiSync.
+renderWikiSyncSubjectRail();
+
 function setWikiSyncPanelTab(tabName) {
 	// Valid = "the registry knows it" (js/review/review-subjects.js). Never a literal list here:
 	// a key missing from such a list makes its tab silently fall back to Siedlungen, which is how
@@ -610,6 +686,10 @@ function wikiSyncKindSyncedLabel(synced, kind) {
 async function refreshWikiSyncKindSyncedStatus() {
 	try {
 		const synced = await fetchWikiSyncKindLastSynced();
+		// Same answer, second reader: the rail shows one date per subject and translates the
+		// subject key to this map's sync kind through the registry (wikiSyncSubjectSyncKind).
+		wikiSyncKindSyncedRaw = synced;
+		renderWikiSyncSubjectRail();
 		// Das DATUM steht rechts neben dem Knopf -- bei allen sechs Reitern gleich (Owner 2026-07-19,
 		// Vorbild Siedlungen/Territorien). Das ist kein Widerspruch zur Regel an setWikiSyncButtonState:
 		// die gilt dem LAUFENDEN Zustand (Beschriftung, Fortschritt, blockiert), der beim Klick

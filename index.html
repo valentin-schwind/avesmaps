@@ -358,12 +358,9 @@
 					<div class="wiki-sync-dump-solo">
 						<button id="wiki-sync-conflicts-open" class="wiki-sync-panel__start" type="button" title="Öffnet die Konfliktlösung: Fälle, bei denen sich Karte und Wiki Aventurica widersprechen — objektartübergreifend.">⚖️ Konflikte</button>
 					</div>
-					<!-- Kraftlinien haben keinen eigenen Reiter (23 Wiki-Artikel, 61 Namen auf der Karte),
-					     darum sitzt ihr scharfer Abgleich hier bei den objektartuebergreifenden Aktionen.
-					     Braucht ein vorheriges "Dump holen" -- ohne Staging meldet er das im Klartext. -->
-					<div class="wiki-sync-dump-solo">
-						<button id="wiki-sync-powerlines-sync" class="wiki-sync-panel__start" type="button" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Zugeordnet wird über den Namen. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet.">⚡ Kraftlinien syncen</button>
-					</div>
+					<!-- Kraftlinien sat HERE, among the cross-subject actions, only because a sixth
+					     horizontal tab did not fit. It is not cross-subject at all, so it moved down
+					     into its own section (data-wiki-sync-panel-section="powerlines"). -->
 					<!-- SHARP reconcile of the wiki publication sources into feature_sources
 					     (origin=wiki_publication) is now step 4/4 of "Dump holen" above -- folded in,
 					     no separate trigger. This progress bar + status line are driven by that same
@@ -375,17 +372,15 @@
 				     setPanelStateStatus() no-ops on a null node — so ALL of those messages were dropped
 				     silently, incl. load errors (a broken list looked exactly like an empty one). Sits above
 				     the sub-tabs because every sub-tab's flow writes to it. -->
-				<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
-					<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
-					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Territorien</button>
-					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="regions">Regionen</button>
-					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="paths">Wege</button>
-					<!-- Label "Materialien", key still "adventures": the key is the internal wiring
-					     (setWikiSyncPanelTab, the lazy list load, the section's data attribute) and
-					     renaming it buys nothing but a chance to miss one. The tab holds Abenteuer AND
-					     Karten since the citymap sync landed, hence the label. -->
-					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="adventures">Materialien</button>
-				</nav>
+				<!-- Level 2. Was a horizontal tab strip and ran out of width at five short words
+				     (378px inner, 356px used, 22px left) -- which is the whole reason "Materialien"
+				     existed and why Kraftlinien never got a tab at all. A two-column grid has no
+				     width budget, so all eight subjects are siblings.
+				     The rows are built by renderWikiSyncSubjectRail() from js/review/review-subjects.js
+				     and must NOT be hand-written here: the moment a row exists in the markup, the
+				     registry has stopped being the single source and the two can disagree.
+				     Spec: docs/superpowers/specs/2026-07-22-editor-navigation-design.md -->
+				<nav class="wiki-sync-rail" id="wiki-sync-subject-rail" aria-label="WikiSync-Subjekte"></nav>
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
@@ -400,14 +395,8 @@
 						<div id="path-sync-list" class="review-panel__list wikisync-itemlist"></div>
 					</div>
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="adventures">
-						<!-- Sub-tabs, same markup + wiring as the "Meldungen" tab's pills. Two kinds of
-						     material now live here, and stacking both lists in one pane meant neither
-						     could reach the panel bottom. -->
-						<div class="wiki-sync-panel__tabs">
-							<button class="wiki-sync-panel__tab is-active" type="button" data-material-subtab="adventures">Abenteuer <span class="wiki-sync-panel__tab-count" data-material-count="adventures"></span></button>
-							<button class="wiki-sync-panel__tab" type="button" data-material-subtab="citymaps">Karten <span class="wiki-sync-panel__tab-count" data-material-count="citymaps"></span></button><button class="wiki-sync-panel__tab" type="button" data-material-subtab="lore">Natur &amp; Waren <span class="wiki-sync-panel__tab-count" data-material-count="lore"></span></button>
-						</div>
-						<div class="wiki-sync-panel__tab-panel is-active" data-material-subtab-section="adventures">
+						<!-- The material sub-tab row (level 3) is gone: Abenteuer, Karten and Vorkommen
+						     are top-level subjects now, each with its own section below. -->
 						<div class="wiki-sync-panel__actions">
 							<button type="button" id="adventure-editor-open" class="wiki-sync-panel__start" title="Öffnet den Abenteuereditor (anlegen/bearbeiten, Orte zuordnen, enthält jetzt auch Syncen + Zuletzt gesynct)."><span class="t1">Abenteuer bearbeiten</span><span id="adventure-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
 						</div>
@@ -428,7 +417,7 @@
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Abenteuereditor direkt dort.</p>
 						</div>
 						</div>
-						<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="lore"><div class="wiki-sync-panel__actions" id="wiki-sync-lore-open-wrap"><button id="wiki-sync-lore-open" class="wiki-sync-panel__start" type="button" title="Öffnet das Fenster für Natur &amp; Waren. Startet NICHTS: Syncen und Bearbeiten passieren erst im Fenster."><span class="t1">Natur &amp; Waren bearbeiten</span><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span></button></div>
+						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="lore"><div class="wiki-sync-panel__actions" id="wiki-sync-lore-open-wrap"><button id="wiki-sync-lore-open" class="wiki-sync-panel__start" type="button" title="Öffnet das Fenster für Natur &amp; Waren. Startet NICHTS: Syncen und Bearbeiten passieren erst im Fenster."><span class="t1">Natur &amp; Waren bearbeiten</span><span id="wiki-sync-lore-synced" class="wiki-sync-panel__summary" hidden></span></button></div>
 								<!-- Flora / Fauna / Spezies / Handelswaren. Vorerst NUR der Sync-Knopf: die drei
 								     Listen (Fauna, Flora, Waren) kommen in einem eigenen Schritt hierher, sobald
 								     Daten da sind -- ein Editor ohne Datensatz hat nichts zu bearbeiten. -->
@@ -455,9 +444,19 @@
 										<div class="lore-detail" id="lore-detail" hidden></div>
 																	</div>
 							</div>
-							<div class="wiki-sync-panel__tab-panel" data-material-subtab-section="citymaps">
+							<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="citymaps">
 							<div class="wiki-sync-panel__actions">
 								<button type="button" id="citymaps-editor-open" class="wiki-sync-panel__start" title="Öffnet den Kartensammlungs-Editor (Karten anlegen/bearbeiten, Orte zuordnen, Bilder hochladen, Links prüfen, aus dem Wiki syncen)."><span class="t1">Karten bearbeiten</span><span id="citymaps-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
+							</div>
+							<!-- Karten was the ONE subject with no sync button anywhere in the panel: its
+							     only trigger is "Karten syncen" inside the citymap editor, which calls
+							     window.parent.startWikiSyncCitymapsSync() (review-wiki-sync.js:1477). The
+							     verb row delegates to a real button by id, so without this the row would
+							     render a Syncen that does nothing -- the dead button spec §3.2 forbids.
+							     Hidden and wired exactly like #wiki-sync-sync-adventure above: the editor
+							     toolbar stays the visible trigger, this is the id the row can click. -->
+							<div class="wiki-sync-panel__actions" hidden>
+								<button id="wiki-sync-sync-citymap" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Karten aus dem zuletzt geholten Dump override-sicher in die Karten-Tabellen. Manuelle und unterdrückte Einträge bleiben unangetastet.">🚨 Syncen</button>
 							</div>
 							<!-- Same component as the adventure list above (.wiki-sync-adv-picker), not a
 							     lookalike: one stylesheet, one row height, one behaviour. Only the ids
@@ -471,7 +470,15 @@
 								<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Karteneditor direkt dort.</p>
 							</div>
 						</div>
-					</div>
+						<!-- Kraftlinien: moved down from the cross-subject actions at the top of the
+						     panel, where it only ever sat because a sixth horizontal tab did not fit.
+						     Sync-only, no list and no editor -- the verb row shows Syncen alone. -->
+						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="powerlines">
+							<div class="wiki-sync-panel__actions">
+								<button id="wiki-sync-powerlines-sync" class="wiki-sync-panel__start" type="button" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Zugeordnet wird über den Namen. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet.">⚡ Kraftlinien syncen</button>
+							</div>
+							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Braucht ein vorheriges „Dump holen“ – ohne Staging meldet der Lauf das im Klartext.</p>
+						</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
 								<button id="wiki-sync-sync-region" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>

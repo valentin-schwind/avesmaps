@@ -284,6 +284,10 @@ $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
 $("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
 // Abenteuer (Phase 4): its OWN reconcile action (sync_adventures), not a sync_kind -- so its own handler.
 $("#wiki-sync-sync-adventure").on("click", () => startWikiSyncAdventuresSync());
+// Karten: same shape as Abenteuer -- its own reconcile action (sync_citymaps), driven in steps by
+// startWikiSyncCitymapsSync. The visible trigger stays the editor toolbar's "Karten syncen"; this
+// hidden button is what the subject verb row clicks, and it had no handler because it had no button.
+$("#wiki-sync-sync-citymap").on("click", () => startWikiSyncCitymapsSync());
 // Natur & Waren (Flora/Fauna/Spezies/Handelswaren): likewise its OWN reconcile action
 // (sync_lore), driven in ~35 bounded steps -- see runWikiSyncLoreSyncLoop.
 // Der Sync bleibt an DIESE id gebunden. Der Knopf zieht beim ersten Oeffnen mit ins
