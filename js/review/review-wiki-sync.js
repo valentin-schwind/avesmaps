@@ -1615,11 +1615,20 @@ function renderLoreKindToggles(kinds) {
 }
 
 function setWikiSyncLoreDialogOpen(isOpen) {
+	var overlay = document.getElementById("wiki-sync-lore-overlay");
+	// War das Fenster schon offen? Dann NICHT neu laden. openLoreDetail ruft hier durch,
+	// also feuerte sonst jeder Klick auf eine Listenzeile einen weiteren Katalogabruf über
+	// 200 Einträge -- und ersetzte dabei die Zeile, die man gerade angeklickt hat, unter dem
+	// Cursor. Auf STRATO ist ein Request pro Klick kein Rundungsfehler.
+	var wasOpen = !!overlay && !overlay.hidden;
 	if (isOpen) {
 		moveLoreSectionIntoDialog();
 	}
 	$("#wiki-sync-lore-overlay").prop("hidden", !isOpen);
 	syncModalDialogBodyState();
+	if (isOpen && wasOpen) {
+		return;
+	}
 	if (isOpen) {
 		document.getElementById("wiki-sync-lore-dialog")?.focus();
 		// Nur LESEN (GET api/app/lore.php?catalog=1): füllt Liste, Reiterzahlen und den
