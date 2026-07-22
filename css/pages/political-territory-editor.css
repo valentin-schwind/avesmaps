@@ -27,7 +27,7 @@
 body {
 	margin: 0;
 	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: 10pt;
+	font-size: var(--font-size-body);
 	background: var(--page-bg-deep);
 	color: var(--text);
 }
@@ -66,7 +66,7 @@ body.is-embedded header {
 
 h1 {
 	margin: 0 0 6px 0;
-	font-size: 22px;
+	font-size: var(--font-size-display);
 	font-weight: 700;
 	color: var(--text-strong);
 }
@@ -78,11 +78,11 @@ h3 {
 }
 
 h2 {
-	font-size: 15px;
+	font-size: var(--font-size-subhead);
 }
 
 h3 {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	letter-spacing: 0.02em;
 }
 
@@ -191,14 +191,14 @@ select:focus {
 
 .stat .label {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	margin-bottom: 4px;
 }
 
 .stat .value {
 	color: var(--text-strong);
-	font-size: 20px;
+	font-size: var(--font-size-title);
 	font-weight: 700;
 }
 
@@ -229,8 +229,8 @@ select:focus {
 
 .note {
 	color: var(--muted);
-	font-size: 11px;
-	font-weight: 500;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
 	line-height: 1.25;
 }
 
@@ -248,7 +248,7 @@ select:focus {
 	flex-wrap: wrap;
 	gap: 6px;
 	margin: 8px 12px 10px;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -383,7 +383,7 @@ details[open] > summary .tree-toggle::before {
 }
 
 .tree-item-meta {
-	font-size: 0.75rem;
+	font-size: var(--font-size-small);
 	line-height: 1.15;
 	color: var(--muted);
 	white-space: nowrap;
@@ -431,7 +431,7 @@ details[open] > summary .tree-toggle::before {
 	margin: 9px 0 6px 0;
 	padding: 0 8px;
 	color: var(--muted-2);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	letter-spacing: 0.04em;
 }
@@ -455,7 +455,7 @@ details[open] > summary .tree-toggle::before {
 }
 
 .drag-handle {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted-2);
 	letter-spacing: -1px;
 }
@@ -526,7 +526,7 @@ details[open] > summary .tree-toggle::before {
 	gap: 5px;
 	min-width: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	line-height: 1.25;
 }
 
@@ -573,7 +573,7 @@ details[open] > summary .tree-toggle::before {
 	width: 30px;
 	height: 30px;
 	padding: 0;
-	font-size: 16px;
+	font-size: var(--font-size-subhead);
 	line-height: 1;
 }
 
@@ -619,7 +619,7 @@ details[open] > summary .tree-toggle::before {
 	border-bottom: 1px solid var(--border);
 	background: var(--panel);
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	line-height: 1.35;
 }
 
@@ -667,7 +667,7 @@ details[open] > summary .tree-toggle::before {
 .manual-data-field label,
 .manual-data-checkbox {
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 }
 
@@ -705,7 +705,7 @@ details[open] > summary .tree-toggle::before {
 	justify-content: center;
 	overflow: hidden;
 	color: var(--muted);
-	font-size: 9px;
+	font-size: var(--font-size-caption);
 	text-align: center;
 }
 
@@ -717,7 +717,7 @@ details[open] > summary .tree-toggle::before {
 
 
 .info-title {
-	font-size: 16px;
+	font-size: var(--font-size-subhead);
 	font-weight: 700;
 	color: var(--text-strong);
 	margin-bottom: 4px;
@@ -785,7 +785,7 @@ details[open] > summary .tree-toggle::before {
 	display: grid;
 	gap: 4px;
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 }
 
@@ -887,7 +887,7 @@ details[open] > summary .tree-toggle::before {
 body {
 	margin: 0;
 	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: 10pt;
+	font-size: var(--font-size-body);
 	background: var(--page-bg-deep);
 	color: var(--text);
 }
@@ -926,7 +926,7 @@ body.is-embedded header {
 
 h1 {
 	margin: 0 0 6px 0;
-	font-size: 22px;
+	font-size: var(--font-size-display);
 	font-weight: 700;
 	color: var(--text-strong);
 }
@@ -1036,14 +1036,14 @@ select:focus {
 
 .stat .label {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	margin-bottom: 4px;
 }
 
 .stat .value {
 	color: var(--text-strong);
-	font-size: 20px;
+	font-size: var(--font-size-title);
 	font-weight: 700;
 }
 
@@ -1092,18 +1092,18 @@ select:focus {
 	height: 30px;
 	padding: 0;
 	border-radius: 6px;
-	font-size: 18px;
+	font-size: var(--font-size-subhead);
 	line-height: 1;
 }
 
 .panel-header h2 {
 	margin: 0;
 	color: var(--text-strong);
-	font-size: 16px;
+	font-size: var(--font-size-subhead);
 }
 
 .note {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -1174,11 +1174,11 @@ select:focus {
 }
 
 .dropped-node-name {
-	font-weight: 800;
+	font-weight: var(--font-weight-bold);
 }
 
 .dropped-node-kind {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -1194,7 +1194,7 @@ select:focus {
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -1260,7 +1260,7 @@ select:focus {
 	border-radius: 8px;
 	background: var(--panel);
 	color: var(--text-strong);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 }
 
@@ -1283,7 +1283,7 @@ select:focus {
 	display: inline-flex;
 	flex-wrap: wrap;
 	gap: 2px;
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	color: var(--muted);
 }
 
@@ -1307,12 +1307,12 @@ select:focus {
 .info-title h3 {
 	margin: 0 0 4px 0;
 	color: var(--text-strong);
-	font-size: 20px;
+	font-size: var(--font-size-title);
 }
 
 .info-title .kind {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 }
 
 .wappen {
@@ -1334,7 +1334,7 @@ select:focus {
 	border: 1px solid var(--border);
 	border-radius: 8px;
 	overflow: hidden;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 }
 
 .info-details {
@@ -1422,7 +1422,7 @@ select:focus {
 .manual-data-section h3 {
 	margin: 0;
 	color: var(--text-strong);
-	font-size: 14px;
+	font-size: var(--font-size-subhead);
 }
 
 .manual-data-grid {
@@ -1461,7 +1461,7 @@ select:focus {
 	border-radius: 8px;
 	background: transparent;
 	color: var(--muted-2);
-	font-size: 10px;
+	font-size: var(--font-size-caption);
 	line-height: 1.15;
 	text-align: center;
 	overflow: hidden;
@@ -1486,13 +1486,16 @@ select:focus {
 
 .manual-data-field small {
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 }
 
 .manual-data-field input[type="color"] {
 	width: 100%;
-	height: 40px;
-	padding: 3px;
+	/* Auf die eine Bedienhoehe (Spec §4.3). War 40 und damit das einzige Feld, das aus
+	   der Zeile herausstand -- diese Regel ist spezifischer als die allgemeine unten und
+	   hat sie geschlagen, darum steht der Wert hier und nicht dort. */
+	height: var(--pte-control-h);
+	padding: var(--space-2);
 }
 
 .manual-data-field input[type="range"] {
@@ -1542,7 +1545,7 @@ select:focus {
 }
 
 .manual-data-variance-input label {
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 	color: var(--muted);
 }
@@ -1554,7 +1557,7 @@ select:focus {
 .manual-data-inline-hint {
 	display: block;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	line-height: 1.35;
 }
 
@@ -1662,4 +1665,109 @@ a:hover,
 a:focus-visible {
 	color: var(--color-link-hover);
 	text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+   Gemeinsame Designsprache (Spec §4.2/§4.3/§4.6), Territorien-Editor.
+
+   Bewusst ANS DATEIENDE gehaengt: diese Datei traegt ab "Extracted from
+   html\political-territory-editor.html" (Z. 859) ein zweites Mal dieselben
+   Grundregeln, und bei gleicher Spezifitaet gewinnt die spaetere. Ein Eingriff
+   oben waere wirkungslos gewesen. Hier unten gilt der Block fuer beide Haelften.
+   --------------------------------------------------------------------------- */
+
+:root {
+	/* Eine Bedienhoehe fuer Knoepfe, Eingaben und Auswahlfelder (Spec §4.3).
+	   Vorher: Knopf 8px+11px-Polsterung, Eingabe 9px+10px, Suchfeld 6px+9px,
+	   Zahlenfeld 4px+6px -- vier Hoehen nebeneinander in derselben Zeile. */
+	--pte-control-h: 32px;
+}
+
+/* Nur die Typen, die wirklich Textfelder sind. Ein pauschales `input` traefe
+   auch Ankreuzfelder und den Transparenz-Schieber und wuerde sie verunstalten. */
+button:not(.tree-footer-button):not(.breadcrumb-cycle),
+select,
+input[type="text"],
+input[type="url"],
+input[type="search"],
+input[type="number"],
+input[type="color"] {
+	min-height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+button:not(.tree-footer-button):not(.breadcrumb-cycle) {
+	padding: 0 var(--space-8);
+}
+
+select,
+input[type="text"],
+input[type="url"],
+input[type="search"],
+input[type="number"] {
+	padding: 0 var(--space-6);
+}
+
+/* Der Farbwaehler behaelt einen kleinen Innenabstand (sonst klebt die Farbflaeche am
+   Rahmen), braucht aber eine feste Hoehe: mit der alten 9px-Polsterung aus der
+   input-Regel mass er 40 und stand damit als einziges Feld aus der Zeile heraus. */
+input[type="color"] {
+	height: var(--pte-control-h);
+	padding: var(--space-2);
+}
+
+/* Die beiden Ausnahmen behalten ihre Geometrie, ruecken aber auf die Skala:
+   die Baumfuss-Knoepfe (+/-) sind quadratisch, die Breadcrumb-Pfeile liegen in
+   festen 20px-Rasterzeilen (css/components/political-territory-editor-columns.css)
+   -- eine Mindesthoehe von 32 wuerde dieses Raster sprengen. */
+.tree-footer-button {
+	width: var(--pte-control-h);
+	height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+/* Suchfeld und Zahlenfelder der Baum-Filterzeile: gleiche Hoehe wie der Rest,
+   damit die Zeile nicht dreistufig wirkt. */
+.tree-time-filter .tree-search-input,
+.tree-time-filter input[type="number"] {
+	height: var(--pte-control-h);
+	padding: 0 var(--space-6);
+	border-radius: var(--radius-md);
+}
+
+/* Bildlaufleisten (Spec §4.6): der eingebettete Editor bindet tokens.css, aber
+   NICHT base.css -- die globale Regel aus css/base/base.css erreicht ihn nie, und
+   der Browser zeichnete hier seine eigenen Leisten. Werte 1:1 wie im
+   Siedlungseditor (html/wiki-sync-settlement-editor.html), damit die beiden
+   Editoren nicht unterschiedlich scrollen. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: 999px;
+	border: 2px solid var(--color-scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
+}
+
+/* Spaltentitel (Spec §3.2): die Abschnitte der Eigenschaften-Spalte fuehren ihre
+   Spalte an, statt sich von den Feldbeschriftungen darunter nur durch Fettung zu
+   unterscheiden. Groesse kommt aus der Leiter (--font-size-subhead, s. o.). */
+.manual-data-section h3 {
+	color: var(--color-accent-strong);
+	line-height: var(--leading-snug);
 }

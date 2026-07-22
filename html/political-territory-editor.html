@@ -5,6 +5,13 @@
 	<meta name="robots" content="noindex, nofollow" />
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Avesmaps - Herrschaftsgebiete aus dem Wiki</title>
+	<!-- Die echten Design-Tokens. Diese Seite band sie bisher NICHT ein: alle --color-*-Aliase
+	     der Editor-CSS liefen hier ins Leere, und mit der Umstellung auf die Typo-Leiter waeren
+	     auch die --font-size-*-Werte still weggefallen (eine unaufloesbare var() macht die ganze
+	     Deklaration ungueltig). Der eingebettete Editor ist davon unberuehrt -- er holt nur den
+	     .app-container aus dieser Datei (territory-editor-inline-host.js) und erbt die Tokens der
+	     Hauptseite. Der Deploy stempelt die Referenz mit einem Inhalts-Hash, nichts von Hand. -->
+	<link rel="stylesheet" href="/css/base/tokens.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-editor.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-editor-layout.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-wiki-tree.css">

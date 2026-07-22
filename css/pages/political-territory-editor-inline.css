@@ -31,7 +31,7 @@
 #political-territory-editor-host {
 	margin: 0;
 	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: 10pt;
+	font-size: var(--font-size-body);
 	background: var(--page-bg-deep);
 	color: var(--text);
 }
@@ -70,7 +70,7 @@
 
 #political-territory-editor-host h1 {
 	margin: 0 0 6px 0;
-	font-size: 22px;
+	font-size: var(--font-size-display);
 	font-weight: 700;
 	color: var(--text-strong);
 }
@@ -82,11 +82,11 @@
 }
 
 #political-territory-editor-host h2 {
-	font-size: 15px;
+	font-size: var(--font-size-subhead);
 }
 
 #political-territory-editor-host h3 {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	letter-spacing: 0.02em;
 }
 
@@ -195,14 +195,14 @@
 
 #political-territory-editor-host .stat .label {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	margin-bottom: 4px;
 }
 
 #political-territory-editor-host .stat .value {
 	color: var(--text-strong);
-	font-size: 20px;
+	font-size: var(--font-size-title);
 	font-weight: 700;
 }
 
@@ -233,8 +233,8 @@
 
 #political-territory-editor-host .note {
 	color: var(--muted);
-	font-size: 11px;
-	font-weight: 500;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
 	line-height: 1.25;
 }
 
@@ -252,7 +252,7 @@
 	flex-wrap: wrap;
 	gap: 6px;
 	margin: 8px 12px 10px;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -387,7 +387,7 @@
 }
 
 #political-territory-editor-host .tree-item-meta {
-	font-size: 0.75rem;
+	font-size: var(--font-size-small);
 	line-height: 1.15;
 	color: var(--muted);
 	white-space: nowrap;
@@ -435,7 +435,7 @@
 	margin: 9px 0 6px 0;
 	padding: 0 8px;
 	color: var(--muted-2);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	letter-spacing: 0.04em;
 }
@@ -459,7 +459,7 @@
 }
 
 #political-territory-editor-host .drag-handle {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted-2);
 	letter-spacing: -1px;
 }
@@ -530,7 +530,7 @@
 	gap: 5px;
 	min-width: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	line-height: 1.25;
 }
 
@@ -577,7 +577,7 @@
 	width: 30px;
 	height: 30px;
 	padding: 0;
-	font-size: 16px;
+	font-size: var(--font-size-subhead);
 	line-height: 1;
 }
 
@@ -623,7 +623,7 @@
 	border-bottom: 1px solid var(--border);
 	background: var(--panel);
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	line-height: 1.35;
 }
 
@@ -671,7 +671,7 @@
 #political-territory-editor-host .manual-data-field label,
 #political-territory-editor-host .manual-data-checkbox {
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 }
 
@@ -709,7 +709,7 @@
 	justify-content: center;
 	overflow: hidden;
 	color: var(--muted);
-	font-size: 9px;
+	font-size: var(--font-size-caption);
 	text-align: center;
 }
 
@@ -721,7 +721,7 @@
 
 
 #political-territory-editor-host .info-title {
-	font-size: 16px;
+	font-size: var(--font-size-subhead);
 	font-weight: 700;
 	color: var(--text-strong);
 	margin-bottom: 4px;
@@ -789,7 +789,7 @@
 	display: grid;
 	gap: 4px;
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 }
 
@@ -891,7 +891,7 @@
 #political-territory-editor-host {
 	margin: 0;
 	font-family: "Faculty Glyphic", Arial, sans-serif;
-	font-size: 10pt;
+	font-size: var(--font-size-body);
 	background: var(--page-bg-deep);
 	color: var(--text);
 }
@@ -930,7 +930,7 @@
 
 #political-territory-editor-host h1 {
 	margin: 0 0 6px 0;
-	font-size: 22px;
+	font-size: var(--font-size-display);
 	font-weight: 700;
 	color: var(--text-strong);
 }
@@ -1040,14 +1040,14 @@
 
 #political-territory-editor-host .stat .label {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	margin-bottom: 4px;
 }
 
 #political-territory-editor-host .stat .value {
 	color: var(--text-strong);
-	font-size: 20px;
+	font-size: var(--font-size-title);
 	font-weight: 700;
 }
 
@@ -1096,18 +1096,18 @@
 	height: 30px;
 	padding: 0;
 	border-radius: 6px;
-	font-size: 18px;
+	font-size: var(--font-size-subhead);
 	line-height: 1;
 }
 
 #political-territory-editor-host .panel-header h2 {
 	margin: 0;
 	color: var(--text-strong);
-	font-size: 16px;
+	font-size: var(--font-size-subhead);
 }
 
 #political-territory-editor-host .note {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -1178,11 +1178,11 @@
 }
 
 #political-territory-editor-host .dropped-node-name {
-	font-weight: 800;
+	font-weight: var(--font-weight-bold);
 }
 
 #political-territory-editor-host .dropped-node-kind {
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -1198,7 +1198,7 @@
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted);
 }
 
@@ -1264,7 +1264,7 @@
 	border-radius: 8px;
 	background: var(--panel);
 	color: var(--text-strong);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 }
 
@@ -1287,7 +1287,7 @@
 	display: inline-flex;
 	flex-wrap: wrap;
 	gap: 2px;
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	color: var(--muted);
 }
 
@@ -1311,12 +1311,12 @@
 #political-territory-editor-host .info-title h3 {
 	margin: 0 0 4px 0;
 	color: var(--text-strong);
-	font-size: 20px;
+	font-size: var(--font-size-title);
 }
 
 #political-territory-editor-host .info-title .kind {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 }
 
 #political-territory-editor-host .wappen {
@@ -1338,7 +1338,7 @@
 	border: 1px solid var(--border);
 	border-radius: 8px;
 	overflow: hidden;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 }
 
 #political-territory-editor-host .info-details {
@@ -1426,7 +1426,7 @@
 #political-territory-editor-host .manual-data-section h3 {
 	margin: 0;
 	color: var(--text-strong);
-	font-size: 14px;
+	font-size: var(--font-size-subhead);
 }
 
 #political-territory-editor-host .manual-data-grid {
@@ -1465,7 +1465,7 @@
 	border-radius: 8px;
 	background: transparent;
 	color: var(--muted-2);
-	font-size: 10px;
+	font-size: var(--font-size-caption);
 	line-height: 1.15;
 	text-align: center;
 	overflow: hidden;
@@ -1490,13 +1490,16 @@
 
 #political-territory-editor-host .manual-data-field small {
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 }
 
 #political-territory-editor-host .manual-data-field input[type="color"] {
 	width: 100%;
-	height: 40px;
-	padding: 3px;
+	/* Auf die eine Bedienhoehe (Spec §4.3). War 40 und damit das einzige Feld, das aus
+	   der Zeile herausstand -- diese Regel ist spezifischer als die allgemeine unten und
+	   hat sie geschlagen, darum steht der Wert hier und nicht dort. */
+	height: var(--pte-control-h);
+	padding: var(--space-2);
 }
 
 #political-territory-editor-host .manual-data-field input[type="range"] {
@@ -1546,7 +1549,7 @@
 }
 
 #political-territory-editor-host .manual-data-variance-input label {
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 	color: var(--muted);
 }
@@ -1558,7 +1561,7 @@
 #political-territory-editor-host .manual-data-inline-hint {
 	display: block;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	line-height: 1.35;
 }
 
@@ -1668,6 +1671,111 @@
 	text-decoration: underline;
 }
 
+/* ---------------------------------------------------------------------------
+   Gemeinsame Designsprache (Spec §4.2/§4.3/§4.6), Territorien-Editor.
+
+   Bewusst ANS DATEIENDE gehaengt: diese Datei traegt ab "Extracted from
+   html\political-territory-editor.html" (Z. 859) ein zweites Mal dieselben
+   Grundregeln, und bei gleicher Spezifitaet gewinnt die spaetere. Ein Eingriff
+   oben waere wirkungslos gewesen. Hier unten gilt der Block fuer beide Haelften.
+   --------------------------------------------------------------------------- */
+
+#political-territory-editor-host {
+	/* Eine Bedienhoehe fuer Knoepfe, Eingaben und Auswahlfelder (Spec §4.3).
+	   Vorher: Knopf 8px+11px-Polsterung, Eingabe 9px+10px, Suchfeld 6px+9px,
+	   Zahlenfeld 4px+6px -- vier Hoehen nebeneinander in derselben Zeile. */
+	--pte-control-h: 32px;
+}
+
+/* Nur die Typen, die wirklich Textfelder sind. Ein pauschales `input` traefe
+   auch Ankreuzfelder und den Transparenz-Schieber und wuerde sie verunstalten. */
+#political-territory-editor-host button:not(.tree-footer-button):not(.breadcrumb-cycle),
+#political-territory-editor-host select,
+#political-territory-editor-host input[type="text"],
+#political-territory-editor-host input[type="url"],
+#political-territory-editor-host input[type="search"],
+#political-territory-editor-host input[type="number"],
+#political-territory-editor-host input[type="color"] {
+	min-height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+#political-territory-editor-host button:not(.tree-footer-button):not(.breadcrumb-cycle) {
+	padding: 0 var(--space-8);
+}
+
+#political-territory-editor-host select,
+#political-territory-editor-host input[type="text"],
+#political-territory-editor-host input[type="url"],
+#political-territory-editor-host input[type="search"],
+#political-territory-editor-host input[type="number"] {
+	padding: 0 var(--space-6);
+}
+
+/* Der Farbwaehler behaelt einen kleinen Innenabstand (sonst klebt die Farbflaeche am
+   Rahmen), braucht aber eine feste Hoehe: mit der alten 9px-Polsterung aus der
+   input-Regel mass er 40 und stand damit als einziges Feld aus der Zeile heraus. */
+#political-territory-editor-host input[type="color"] {
+	height: var(--pte-control-h);
+	padding: var(--space-2);
+}
+
+/* Die beiden Ausnahmen behalten ihre Geometrie, ruecken aber auf die Skala:
+   die Baumfuss-Knoepfe (+/-) sind quadratisch, die Breadcrumb-Pfeile liegen in
+   festen 20px-Rasterzeilen (css/components/political-territory-editor-columns.css)
+   -- eine Mindesthoehe von 32 wuerde dieses Raster sprengen. */
+#political-territory-editor-host .tree-footer-button {
+	width: var(--pte-control-h);
+	height: var(--pte-control-h);
+	border-radius: var(--radius-md);
+}
+
+/* Suchfeld und Zahlenfelder der Baum-Filterzeile: gleiche Hoehe wie der Rest,
+   damit die Zeile nicht dreistufig wirkt. */
+#political-territory-editor-host .tree-time-filter .tree-search-input,
+#political-territory-editor-host .tree-time-filter input[type="number"] {
+	height: var(--pte-control-h);
+	padding: 0 var(--space-6);
+	border-radius: var(--radius-md);
+}
+
+/* Bildlaufleisten (Spec §4.6): der eingebettete Editor bindet tokens.css, aber
+   NICHT base.css -- die globale Regel aus css/base/base.css erreicht ihn nie, und
+   der Browser zeichnete hier seine eigenen Leisten. Werte 1:1 wie im
+   Siedlungseditor (html/wiki-sync-settlement-editor.html), damit die beiden
+   Editoren nicht unterschiedlich scrollen. */
+#political-territory-editor-host, #political-territory-editor-host * {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+
+#political-territory-editor-host *::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+#political-territory-editor-host *::-webkit-scrollbar-track {
+	background: var(--color-scrollbar-track);
+}
+
+#political-territory-editor-host *::-webkit-scrollbar-thumb {
+	background: var(--color-scrollbar-thumb);
+	border-radius: 999px;
+	border: 2px solid var(--color-scrollbar-track);
+}
+
+#political-territory-editor-host *::-webkit-scrollbar-thumb:hover {
+	background: var(--color-scrollbar-thumb-hover);
+}
+
+/* Spaltentitel (Spec §3.2): die Abschnitte der Eigenschaften-Spalte fuehren ihre
+   Spalte an, statt sich von den Feldbeschriftungen darunter nur durch Fettung zu
+   unterscheiden. Groesse kommt aus der Leiter (--font-size-subhead, s. o.). */
+#political-territory-editor-host .manual-data-section h3 {
+	color: var(--color-accent-strong);
+	line-height: var(--leading-snug);
+}
+
 
 /* ===== scoped from css/pages/political-territory-editor-layout.css ===== */
 /* Layout override for the territory display property panels.
@@ -1711,7 +1819,7 @@
 }
 
 #political-territory-editor-host .deferred-subtree-checkbox {
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
@@ -1742,7 +1850,7 @@
 
 #political-territory-editor-host .deferred-subtree-preview-title {
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 }
 
@@ -1766,7 +1874,7 @@
 #political-territory-editor-host .deferred-subtree-table th {
 	background: var(--panel-soft);
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 }
 
 #political-territory-editor-host .deferred-subtree-table tr:last-child th,
@@ -1789,7 +1897,7 @@
 
 #political-territory-editor-host .deferred-subtree-empty {
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	line-height: 1.35;
 }
 
@@ -1820,7 +1928,7 @@
 	max-height: 30vh;
 	overflow: auto;
 	padding: 8px;
-	background: var(--panel);
+	background: var(--color-panel);
 }
 
 #political-territory-editor-host .tree-root,
@@ -1923,7 +2031,7 @@
 
 #political-territory-editor-host .tree-item-meta {
 	flex: 0 0 auto;
-	font-size: 0.85em;
+	font-size: var(--font-size-caption);
 	color: var(--muted);
 	white-space: nowrap;
 }
@@ -1964,17 +2072,17 @@
 	vertical-align: -2px;
 	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
-	background: var(--panel);
+	background: var(--color-panel);
 	box-sizing: border-box;
 	color: var(--color-map-presence);
 }
 
 #political-territory-editor-host #wiki-sync-territory-tree .tree-item:has(.tree-map-status--children-only) .tree-item-name::after {
-	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--panel) 50% 100%);
+	background: linear-gradient(to right, var(--color-map-presence) 0 50%, var(--color-panel) 50% 100%);
 }
 
 #political-territory-editor-host #wiki-sync-territory-tree .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
-	background: linear-gradient(to right, var(--panel) 0 50%, var(--color-map-presence) 50% 100%);
+	background: linear-gradient(to right, var(--color-panel) 0 50%, var(--color-map-presence) 50% 100%);
 }
 
 #political-territory-editor-host #wiki-sync-territory-tree .tree-item:has(.tree-map-status--all) .tree-item-name::after {
@@ -1984,8 +2092,8 @@
 #political-territory-editor-host #wiki-sync-territory-tree .tree-item-meta {
 	grid-column: 2;
 	grid-row: 2;
-	font-size: 0.78em;
-	font-weight: 600;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
 	line-height: 1.2;
 	white-space: normal;
 }
@@ -2002,7 +2110,7 @@
 	flex: 0 0 13px;
 	border: 2px solid var(--color-map-presence);
 	border-radius: 50%;
-	background: var(--panel);
+	background: var(--color-panel);
 	box-sizing: border-box;
 	color: var(--color-map-presence);
 	overflow: hidden;
@@ -2042,7 +2150,7 @@
 	margin: 9px 0 6px 0;
 	padding: 0 8px;
 	color: var(--muted-2);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	letter-spacing: 0.04em;
 }
@@ -2067,7 +2175,7 @@
 
 #political-territory-editor-host .drag-handle {
 	flex: 0 0 auto;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted-2);
 	letter-spacing: -1px;
 }

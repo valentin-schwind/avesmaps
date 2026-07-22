@@ -105,7 +105,7 @@ details[open] > summary .tree-toggle::before {
 
 .tree-item-meta {
 	flex: 0 0 auto;
-	font-size: 0.85em;
+	font-size: var(--font-size-caption);
 	color: var(--muted);
 	white-space: nowrap;
 }
@@ -166,8 +166,8 @@ details[open] > summary .tree-toggle::before {
 #wiki-sync-territory-tree .tree-item-meta {
 	grid-column: 2;
 	grid-row: 2;
-	font-size: 0.78em;
-	font-weight: 600;
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
 	line-height: 1.2;
 	white-space: normal;
 }
@@ -224,7 +224,7 @@ details[open] > summary .tree-toggle::before {
 	margin: 9px 0 6px 0;
 	padding: 0 8px;
 	color: var(--muted-2);
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	font-weight: 700;
 	letter-spacing: 0.04em;
 }
@@ -249,7 +249,7 @@ details[open] > summary .tree-toggle::before {
 
 .drag-handle {
 	flex: 0 0 auto;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	color: var(--muted-2);
 	letter-spacing: -1px;
 }

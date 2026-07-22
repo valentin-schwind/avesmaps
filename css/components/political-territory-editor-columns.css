@@ -166,7 +166,7 @@
 	width: 100%;
 	min-width: 0;
 	padding: 4px 6px;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	line-height: 1.2;
 	text-align: center;
 	white-space: normal;
@@ -185,7 +185,7 @@
 	width: 100%;
 	padding: 0 4px;
 	line-height: 1.05;
-	font-size: 12px;
+	font-size: var(--font-size-small);
 	opacity: 0.55;
 }
 #political-territory-editor-host .breadcrumb-cycle:hover,

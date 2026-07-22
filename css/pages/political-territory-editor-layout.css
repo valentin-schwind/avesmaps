@@ -39,7 +39,7 @@
 }
 
 .deferred-subtree-checkbox {
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
@@ -70,7 +70,7 @@
 
 .deferred-subtree-preview-title {
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	font-weight: 700;
 }
 
@@ -94,7 +94,7 @@
 .deferred-subtree-table th {
 	background: var(--panel-soft);
 	color: var(--muted-2);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 }
 
 .deferred-subtree-table tr:last-child th,
@@ -117,7 +117,7 @@
 
 .deferred-subtree-empty {
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--font-size-caption);
 	line-height: 1.35;
 }
 

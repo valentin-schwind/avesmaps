@@ -40,25 +40,33 @@
      pinned light palette, so every rule below follows the light/dark theme without being rewritten. */
   :root { --bg:var(--color-page-bg); --panel:var(--color-panel); --soft:var(--color-panel-soft); --line:var(--color-border); --line2:var(--color-border-strong); --fg:var(--color-text-strong); --mut:var(--color-text-muted); --accent:var(--color-link); --accent-hover:var(--color-link-hover); --warn:var(--color-warning); --bad:var(--color-danger); --ok:var(--color-success); --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
-  body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
+  /* Eine Bedienhoehe fuer Knoepfe, Eingaben und Auswahlfelder (Spec §4.3): sie stehen staendig nebeneinander in .bar und .timefilter, und 30/28/26 nebeneinander liest sich als Unfall. Gleicher Wert und gleiche Begruendung wie --se-control-h im Siedlungseditor. */
+  :root { --wsm-control-h:32px; }
+  body { margin:0; font:var(--font-size-body)/var(--leading-normal) var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
+  /* Bildlaufleisten (Spec §4.6): dieser iframe bindet tokens.css, aber NICHT base.css, wo die globale Regel steht -- der Browser zeichnete hier seine eigenen Leisten, waehrend die App ringsum die schmalen warmen hatte. Werte 1:1 wie im Siedlungseditor, damit die beiden Editoren nicht unterschiedlich scrollen. */
+  * { scrollbar-width:thin; scrollbar-color:var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+  *::-webkit-scrollbar { width:10px; height:10px; }
+  *::-webkit-scrollbar-track { background:var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb { background:var(--color-scrollbar-thumb); border-radius:999px; border:2px solid var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb:hover { background:var(--color-scrollbar-thumb-hover); }
   header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
-  h1 { font-size:15px; margin:0 0 8px; color:var(--color-text-strong); }
+  h1 { font-size:var(--font-size-subhead); margin:0 0 8px; color:var(--color-text-strong); }
   /* Alle Steuer-Buttons in EINER Zeile, gleich breite Spalten, automatisch so viele wie Kinder
      (Dropdown + N Buttons) -- so wandert ein neuer Button nie in eine zweite Reihe. */
-  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; align-items:stretch; }
+  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--space-4); align-items:stretch; }
   .controls > .dd > summary, .controls > .dd { width:100%; box-sizing:border-box; }
-  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
+  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--wsm-control-h); cursor:pointer; font:inherit; }
   button:hover { background:var(--color-button-soft-hover); }
   button:disabled { opacity:.5; cursor:default; }
   button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
   button.primary:hover { background:var(--color-button-hover); }
-  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:5px 11px; gap:1px; line-height:1.15; }
-  .btn2 .t1 { font-size:13px; font-weight:bold; }
-  .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
+  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:var(--space-4) var(--space-8); gap:1px; line-height:var(--leading-tight); }
+  .btn2 .t1 { font-size:var(--font-size-body); font-weight:bold; }
+  .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; }
   .btn2.primary .t2 { color:var(--color-on-button-muted); }
   #statusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #contDD { flex:0 0 auto; align-self:center; }
-  .timefilter { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; }
+  .timefilter { font-size:var(--font-size-small); color:var(--mut); display:flex; align-items:center; gap:5px; }
   .timefilter input[type=number] { width:62px; }
   .timefilter input:disabled { opacity:.4; }
   textarea {width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
@@ -70,28 +78,28 @@
   #list, #tree { background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
   #left { border-right:1px solid var(--line); max-width:46%; }
   .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
-  input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
+  input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); height:var(--wsm-control-h); font:inherit; }
   input[type=search] { flex:1; }
   /* Kombiniertes „Filter ▾"-Dropdown des Hierarchie-Baums -- die .type-filter*-Regeln sind 1:1 die
      des Siedlungseditors (html/wiki-sync-settlement-editor.html, dort seinerseits aus
      css/features/review-panel.css portiert), damit die Filtermaske in beiden Editoren identisch
      aussieht. Padding am Toggle bewusst enger als dort: diese Bar ist kompakter. */
   .type-filter { position:relative; flex:0 0 auto; display:flex; }
-  .type-filter__toggle { padding:4px 8px; font-size:12px; border:1px solid var(--line2); border-radius:5px; background:var(--soft); color:var(--color-button-soft-text); cursor:pointer; white-space:nowrap; font:inherit; }
+  .type-filter__toggle { padding:4px 8px; font-size:var(--font-size-small); border:1px solid var(--line2); border-radius:5px; background:var(--soft); color:var(--color-button-soft-text); cursor:pointer; white-space:nowrap; font:inherit; }
   .type-filter__toggle:hover { background:var(--color-button-soft-hover); }
   .type-filter__menu { position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:170px; max-height:260px; overflow-y:auto; padding:4px; background:var(--color-panel); border:1px solid var(--line2); border-radius:8px; box-shadow:0 6px 16px rgba(0,0,0,.18); }
   .type-filter__menu[hidden] { display:none; }
-  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:12px; color:var(--color-text); cursor:pointer; border-radius:4px; }
+  .type-filter__opt { display:flex; align-items:center; gap:6px; padding:4px 6px; font-size:var(--font-size-small); color:var(--color-text); cursor:pointer; border-radius:4px; }
   .type-filter__opt:hover { background:var(--color-hover-wash); }
   .type-filter__label { flex:1 1 auto; min-width:0; }
-  .type-filter__section-title { font-size:11px; font-weight:600; color:var(--color-text-muted); padding:4px 6px 2px; }
+  .type-filter__section-title { font-size:var(--font-size-caption); font-weight:var(--font-weight-bold); color:var(--color-text-muted); padding:4px 6px 2px; }
   .type-filter__section + .type-filter__section { border-top:1px solid var(--color-divider); margin-top:4px; padding-top:2px; }
   .row { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:3px 5px; border-radius:4px; cursor:grab; }
   .row:hover { background:var(--color-hover-wash); }
   /* Gebietsname hat Vorrang: Mindestbreite + fett, damit er nicht von langen Eltern-/Konflikt-Tags
      zerquetscht wird. Tags brechen bei Bedarf in die nächste Zeile um (flex-wrap am .row). */
-  .row .nm { flex:1 1 9.5em; min-width:9.5em; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tag { font-size:10px; padding:1px 5px; border-radius:8px; border:1px solid var(--line2); color:var(--mut); }
+  .row .nm { flex:1 1 9.5em; min-width:9.5em; font-weight:var(--font-weight-bold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tag { font-size:var(--font-size-caption); padding:1px 5px; border-radius:8px; border:1px solid var(--line2); color:var(--mut); }
   .tag.lock { color:var(--accent); border-color:var(--accent); }
   .tag.div { color:var(--warn); border-color:var(--warn); }
   .tag.conf { color:var(--bad); border-color:var(--bad); }
@@ -106,10 +114,10 @@
   .node.drop { outline:2px dashed var(--accent); }
   .twist { cursor:pointer; color:var(--mut); width:12px; display:inline-block; user-select:none; }
   .muted { color:var(--mut); }
-  a.wl { color:var(--accent); text-decoration:none; font-size:11px; padding:0 2px; }
+  a.wl { color:var(--accent); text-decoration:none; font-size:var(--font-size-caption); padding:0 2px; }
   a.wl:hover, a.wl:focus-visible { color:var(--accent-hover); }
   a.wl:hover { color:var(--accent); }
-  .count { color:var(--mut); font-size:11px; }
+  .count { color:var(--mut); font-size:var(--font-size-caption); }
   #dropRoot, #dropExclude { margin:6px 0 0; padding:6px; border:1px dashed var(--line2); border-radius:5px; text-align:center; color:var(--mut); }
   #dropExclude { border-color:var(--color-danger-soft-border); }
   #dropRoot.drop, #dropExclude.drop { outline:2px dashed var(--accent); }
@@ -120,7 +128,7 @@
   .dd { position:relative; }
   .dd > summary { list-style:none; cursor:pointer; background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:5px; padding:5px 10px; }
   .dd > summary::-webkit-details-marker { display:none; }
-  .dd > summary::after { content:"▾"; margin-left:6px; font-size:10px; color:var(--mut); }
+  .dd > summary::after { content:"▾"; margin-left:6px; font-size:var(--font-size-caption); color:var(--mut); }
   .dd[open] > summary::after { content:"▴"; }
   .dd[open] > summary { background:var(--color-button-soft-hover); }
   .dd-menu { position:absolute; z-index:20; top:100%; left:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
@@ -128,16 +136,19 @@
   .dropdown2 { position:relative; }
   .ddbtn { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:5px; }
   .ddbtn:hover { background:var(--color-button-soft-hover); }
-  .ddcaret { font-size:10px; color:var(--mut); }
+  .ddcaret { font-size:var(--font-size-caption); color:var(--mut); }
   .dropdown2 .dd-menu[hidden] { display:none; }
   .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
-  .dd-menu .grp { font-size:11px; color:var(--mut); margin:5px 2px 2px; border-top:1px solid var(--line); padding-top:4px; }
+  .dd-menu .grp { font-size:var(--font-size-caption); color:var(--mut); margin:5px 2px 2px; border-top:1px solid var(--line); padding-top:4px; }
   .dd-menu .grp:first-child { border-top:none; margin-top:0; }
   .dd-menu .ddtools { display:flex; gap:8px; margin:2px 2px 4px; }
-  .dd-menu .ddtools a { color:var(--accent); cursor:pointer; font-size:11px; text-decoration:underline; }
-  .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:var(--color-text-strong); }
-  .info { font-size:11px; color:var(--mut); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:4px 7px; margin-bottom:6px; }
-  label.ck { font-size:12px; color:var(--mut); display:inline-flex; align-items:center; gap:4px; }
+  .dd-menu .ddtools a { color:var(--accent); cursor:pointer; font-size:var(--font-size-caption); text-decoration:underline; }
+  /* Spaltentitel: eigene Stufe der Leiter (Spec §4.1) -- vorher 13px und damit von den Listenzeilen
+     darunter nicht zu unterscheiden. --color-accent-strong statt --fg, damit die drei Titel die
+     Spalten sichtbar anfuehren. Gleiche Regel wie im Siedlungseditor. */
+  .listhead { font-size:var(--font-size-subhead); line-height:var(--leading-snug); font-weight:var(--font-weight-bold); margin:0 0 var(--space-6); color:var(--color-accent-strong); }
+  .info { font-size:var(--font-size-caption); color:var(--mut); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:4px 7px; margin-bottom:6px; }
+  label.ck { font-size:var(--font-size-small); color:var(--mut); display:inline-flex; align-items:center; gap:4px; }
   /* 3-Spalten-Layout (gleich breit) */
   .cols { flex:1 1 auto; min-height:0; }
   .col { min-width:0; }
@@ -146,7 +157,7 @@
   #right { flex:1 1 0; }
   #detail { flex:1 1 0; border-left:1px solid var(--line); background:var(--soft); }
   .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
-  .listsub { font-size:11px; color:var(--mut); margin:-4px 0 6px; }
+  .listsub { font-size:var(--font-size-caption); color:var(--mut); margin:-4px 0 6px; }
   /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
   .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid var(--color-map-presence); border-radius:50%; background:var(--soft); box-sizing:border-box; color:var(--color-map-presence); overflow:hidden; display:inline-block; vertical-align:middle; }
   .cov.all { background:currentColor; }
@@ -163,49 +174,49 @@
   .dt-head { display:flex; gap:10px; align-items:flex-start; margin-bottom:6px; }
   .dt-wappen { width:56px; height:56px; flex:0 0 56px; object-fit:contain; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; }
   .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
-  .dt-title { font-size:15px; font-weight:bold; color:var(--color-text-strong); line-height:1.2; }
-  .dt-sub { color:var(--mut); font-size:12px; margin-top:2px; }
-  .dt-grid { display:grid; grid-template-columns:minmax(110px,0.35fr) minmax(0,1fr); gap:0; font-size:12px; margin:8px 0; border:1px solid var(--color-border); border-radius:8px; overflow:hidden; }
+  .dt-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); line-height:1.2; }
+  .dt-sub { color:var(--mut); font-size:var(--font-size-small); margin-top:2px; }
+  .dt-grid { display:grid; grid-template-columns:minmax(110px,0.35fr) minmax(0,1fr); gap:0; font-size:var(--font-size-small); margin:8px 0; border:1px solid var(--color-border); border-radius:8px; overflow:hidden; }
   .dt-grid .k { color:var(--color-text-muted); background:var(--color-panel-soft); font-weight:700; white-space:nowrap; padding:8px 8px; border-bottom:1px solid var(--color-border); }
   .dt-grid > div:not(.k) { padding:8px 8px; border-bottom:1px solid var(--color-border); color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
-  .dt-lic { margin-top:8px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:11px; }
+  .dt-lic { margin-top:8px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:var(--font-size-caption); }
   .dt-lic.pd { border-color:var(--color-success-soft-border); }
   .dt-lic.cc { border-color:var(--warn); }
   .dt-conf { color:var(--bad); }
   .dt-actions { margin:7px 0 2px; display:flex; gap:6px; flex-wrap:wrap; }
-  .lockbtn, .edbtn { font-size:11px; padding:3px 9px; }
+  .lockbtn, .edbtn { font-size:var(--font-size-caption); padding:3px 9px; }
   /* Edit-Modus Wiki-Details */
-  .ov-badge { font-size:10px; color:var(--color-accent-brown-text); background:var(--color-accent-brown); border-radius:3px; padding:0 4px; margin-left:5px; cursor:help; }
-  .dt-reset { cursor:pointer; color:var(--mut); font-size:11px; margin-left:6px; text-decoration:underline; }
-  .dt-grid input.dt-in { width:100%; font-size:12px; padding:2px 5px; box-sizing:border-box; font-family:inherit; }
+  .ov-badge { font-size:var(--font-size-caption); color:var(--color-accent-brown-text); background:var(--color-accent-brown); border-radius:3px; padding:0 4px; margin-left:5px; cursor:help; }
+  .dt-reset { cursor:pointer; color:var(--mut); font-size:var(--font-size-caption); margin-left:6px; text-decoration:underline; }
+  .dt-grid input.dt-in { width:100%; font-size:var(--font-size-small); padding:2px 5px; box-sizing:border-box; font-family:inherit; }
   .dt-grid .k.ovr { color:var(--color-accent-brown); font-weight:bold; }
   .dt-old { color:var(--bad); text-decoration:line-through; }
   .dt-arrow { color:var(--mut); margin:0 3px; }
-  .dt-new { font-weight:600; }
-  .dt-edit-hint { font-size:11px; color:var(--mut); margin:6px 0; }
-  .dt-cap-link { font-size:11px; margin-left:6px; }
+  .dt-new { font-weight:var(--font-weight-bold); }
+  .dt-edit-hint { font-size:var(--font-size-caption); color:var(--mut); margin:6px 0; }
+  .dt-cap-link { font-size:var(--font-size-caption); margin-left:6px; }
   .dt-cap-pick { margin-top:4px; }
-  .dt-cap-pick input { width:100%; font-size:12px; padding:2px 5px; box-sizing:border-box; }
+  .dt-cap-pick input { width:100%; font-size:var(--font-size-small); padding:2px 5px; box-sizing:border-box; }
   .dt-cap-results { border:1px solid var(--line); border-radius:5px; margin-top:3px; max-height:140px; overflow:auto; background:var(--panel); }
-  .dt-cap-results div { padding:3px 6px; cursor:pointer; font-size:12px; }
+  .dt-cap-results div { padding:3px 6px; cursor:pointer; font-size:var(--font-size-small); }
   .dt-cap-results div:hover { background:var(--color-hover-wash); }
   .dt-save-row { display:flex; gap:8px; margin:10px 0 2px; }
-  .dt-bf { width:84px; font-size:12px; padding:2px 5px; box-sizing:border-box; font-family:inherit; }
-  .dt-bf-sign { font-size:12px; margin-left:4px; }
+  .dt-bf { width:84px; font-size:var(--font-size-small); padding:2px 5px; box-sizing:border-box; font-family:inherit; }
+  .dt-bf-sign { font-size:var(--font-size-small); margin-left:4px; }
   .dt-bf-wiki { margin-top:2px; }
-  .dt-bf-today { display:inline-flex; align-items:center; gap:4px; font-size:12px; margin-bottom:3px; }
+  .dt-bf-today { display:inline-flex; align-items:center; gap:4px; font-size:var(--font-size-small); margin-bottom:3px; }
   .dt-bf-today input { margin:0; }
   .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
-  .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:var(--color-button-text); font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
+  .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:var(--color-button-text); font-size:var(--font-size-caption); border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
   .dt-wappen-box:hover .dt-wappen-edit { display:flex; }
   .dt-lic-wrap { margin-top:6px; }
   /* Upload-Dialog */
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
   .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:390px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
-  .modal-title { font-size:15px; font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; }
-  .modal-sub { color:var(--mut); font-size:12px; margin-bottom:10px; }
-  .fld { display:block; margin:8px 0; font-size:12px; }
+  .modal-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; }
+  .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:10px; }
+  .fld { display:block; margin:8px 0; font-size:var(--font-size-small); }
   .fld input[type=text], .fld input[type=file] { display:block; width:100%; margin-top:4px; }
   fieldset.fld { border:1px solid var(--line); border-radius:6px; padding:8px; }
   fieldset.fld legend { color:var(--mut); padding:0 4px; }
@@ -215,14 +226,14 @@
   .ident-box { width:920px; max-width:94vw; }
   .ident-controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:6px 0 8px; }
   .ident-chips { display:flex; gap:6px; flex-wrap:wrap; }
-  .ident-chip { font-size:11px; padding:3px 9px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; }
+  .ident-chip { font-size:var(--font-size-caption); padding:3px 9px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; }
   .ident-chip.active { background:var(--color-button); color:var(--color-button-text); border-color:var(--color-button-border); }
-  #identSearch { font-size:12px; padding:4px 8px; flex:1 1 180px; min-width:140px; }
+  #identSearch { font-size:var(--font-size-small); padding:4px 8px; flex:1 1 180px; min-width:140px; }
   .ident-table { max-height:60vh; overflow:auto; border:1px solid var(--line); border-radius:6px; }
-  .ident-row { padding:6px 9px; border-bottom:1px solid var(--line); font-size:12px; }
+  .ident-row { padding:6px 9px; border-bottom:1px solid var(--line); font-size:var(--font-size-small); }
   .ident-row:last-child { border-bottom:none; }
   .ident-name { font-weight:bold; color:var(--color-text-strong); }
-  .ident-wk { color:var(--mut); font-size:11px; margin-left:6px; }
+  .ident-wk { color:var(--mut); font-size:var(--font-size-caption); margin-left:6px; }
   .ident-changes { display:grid; grid-template-columns:auto 1fr; gap:1px 8px; margin-top:3px; }
   .ident-fld { color:var(--mut); white-space:nowrap; }
   .ident-old { color:var(--bad); }
@@ -300,14 +311,14 @@
   <div class="modal-box">
     <div class="modal-title">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="wappenFor">—</div>
-    <div class="muted" id="wappenCur" style="font-size:11px"></div>
+    <div class="muted" id="wappenCur" style="font-size:var(--font-size-caption)"></div>
     <label class="fld">Bilddatei (PNG / JPG / SVG / GIF / WEBP)
       <input type="file" id="wappenFile" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp">
     </label>
     <label class="fld">…oder Bild-URL
       <input type="url" id="wappenUrl" placeholder="https://…/wappen.png">
     </label>
-    <div class="muted" id="wappenLimits" style="font-size:11px">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
+    <div class="muted" id="wappenLimits" style="font-size:var(--font-size-caption)">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
     <fieldset class="fld">
       <legend>Unter welcher Lizenz lädst du hoch?</legend>
       <label><input type="radio" name="wpLic" value="public_domain" checked> Gemeinfrei (frei verwendbar)</label>
@@ -694,7 +705,7 @@ function buildDetailLicense(n){
   else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${author?' – Urheber: '+esc(author):''}${(n.coat_of_arms_attribution&&!licOv)?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
   else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen wird im Frontend nicht angezeigt.</div>`;
   // Bei eigenem Lizenz-Override: alte (Wiki-)Lizenz durchgestrichen -> neue.
-  const strike=licOv?`<div style="font-size:11px;margin-top:2px"><span class="dt-old">${esc(licName(n.license_status))}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(licName(ls))}</span></div>`:'';
+  const strike=licOv?`<div style="font-size:var(--font-size-caption);margin-top:2px"><span class="dt-old">${esc(licName(n.license_status))}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(licName(ls))}</span></div>`:'';
   return `<div class="dt-lic-wrap">${lic}${strike}</div>`;
 }
 // Fußleiste „eigene Knoten" (unten links): Löschen nur aktiv, wenn ein nicht-platzierter
