@@ -429,6 +429,42 @@ async function loadOutliers() {
 	}
 }
 
+// „gehört zum Weg" bestätigen: schreibt die durable Entscheidung und lädt die Liste neu, sodass der
+// Klumpen (und der Weg, falls es sein einziges Problem war) verschwindet.
+async function approveOutlier(wikiKey, fingerprint, wayName) {
+	if (!fingerprint) {
+		return;
+	}
+	const result = await pathSyncPost({ action: "approve_outlier", wiki_key: wikiKey, fingerprint, title: wayName });
+	if (!result || result.ok !== true) {
+		const status = pathSyncElement("path-sync-summary");
+		if (status) {
+			status.textContent = "Fehler: " + apiErrorMessage(result, "");
+		}
+		return;
+	}
+	outlierLoaded = false;
+	outlierData = null;
+	void loadOutliers();
+}
+
+async function reopenOutlier(fingerprint) {
+	if (!fingerprint) {
+		return;
+	}
+	const result = await pathSyncPost({ action: "reopen_outlier", fingerprint });
+	if (!result || result.ok !== true) {
+		const status = pathSyncElement("path-sync-summary");
+		if (status) {
+			status.textContent = "Fehler: " + apiErrorMessage(result, "");
+		}
+		return;
+	}
+	outlierLoaded = false;
+	outlierData = null;
+	void loadOutliers();
+}
+
 function renderOutlierList(list) {
 	if (!list) {
 		return;
@@ -473,7 +509,9 @@ function renderOutlierList(list) {
 		const clusters = (way.detached || []).map((cluster) =>
 			'<div class="region-sync__map">' +
 			`<span class="region-sync__badge">${cluster.size} Segment${cluster.size === 1 ? "" : "e"} · Abstand ${pathSyncEscapeText(String(cluster.distance ?? "?"))}</span> ` +
-			(cluster.segments || []).map(chip).join(" ") +
+			`<span class="region-sync__cand region-sync__cand--conflict">${way.has_course ? "liegt bei keiner Verlauf-Station" : "kein Wiki-Verlauf zum Abgleich"}</span> ` +
+			(cluster.segments || []).map(chip).join(" ") + " " +
+			`<button type="button" class="region-sync__cand" data-outlier-approve="${pathSyncEscapeAttr(way.wiki_key)}" data-fingerprint="${pathSyncEscapeAttr(cluster.fingerprint || "")}" data-way-name="${pathSyncEscapeAttr(way.name || way.wiki_key)}" title="Bestätigen, dass dieser Klumpen zum Weg gehört — verschwindet aus der Liste, öffnet sich wieder, wenn der Weg neu gezeichnet wird">gehört zum Weg</button>` +
 			"</div>").join("");
 		return (
 			`<div class="tree-item region-sync__item" data-focus-way="${pathSyncEscapeAttr(way.wiki_key)}"` +
@@ -492,10 +530,26 @@ function renderOutlierList(list) {
 		);
 	}).join("");
 
+	const resolvedWays = outlierData.resolved || [];
+	const resolvedFooter = resolvedWays.length
+		? '<details class="review-panel__resolved-outliers"><summary>' +
+			`${resolvedWays.length} Weg${resolvedWays.length === 1 ? "" : "e"} als „gehört zum Weg" bestätigt · anzeigen</summary>` +
+			resolvedWays.map((way) =>
+				'<div class="tree-item region-sync__item">' +
+				`<span class="tree-item-name">${pathSyncEscapeText(way.name || way.wiki_key)}</span> ` +
+				(way.clusters || []).map((cluster) =>
+					`<button type="button" class="region-sync__cand" data-outlier-reopen="${pathSyncEscapeAttr(cluster.fingerprint || "")}"` +
+					' title="Wieder als Ausreißer öffnen">↩ wieder öffnen</button>').join(" ") +
+				"</div>").join("") +
+			"</details>"
+		: "";
+
 	list.innerHTML = topBar +
 		'<p class="review-panel__status">Die Segmente eines Weges sollten eine durchgehende Kette bilden. ' +
-		'Hier hängen sie in getrennten Klumpen — je größer der Abstand, desto sicherer die Fehlzuweisung.</p>' +
-		items;
+		'Hier hängen sie in getrennten Klumpen — je größer der Abstand, desto sicherer die Fehlzuweisung. ' +
+		'Liegt ein Klumpen aber auf dem Wiki-Verlauf, gilt er nicht als Ausreißer.</p>' +
+		items +
+		resolvedFooter;
 }
 
 function renderFlowUnknownList(list) {
@@ -1290,6 +1344,16 @@ document.addEventListener("click", (event) => {
 			outlierData = null;
 			void loadOutliers();
 		}
+		return;
+	}
+	const approveBtn = event.target.closest("[data-outlier-approve]");
+	if (approveBtn) {
+		void approveOutlier(approveBtn.dataset.outlierApprove, approveBtn.dataset.fingerprint, approveBtn.dataset.wayName || "");
+		return;
+	}
+	const reopenBtn = event.target.closest("[data-outlier-reopen]");
+	if (reopenBtn) {
+		void reopenOutlier(reopenBtn.dataset.outlierReopen);
 		return;
 	}
 	// NOTE: the "apply-clean" branch below is no longer reachable -- its button was removed on
