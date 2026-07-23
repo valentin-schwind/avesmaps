@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Kraftlinien bearbeiten</title>
+<script>
+  /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved
+     choice wins, otherwise follow the OS scheme. Runs before the stylesheet paints so this overlay
+     iframe never flashes the wrong theme. Same guard as html/wiki-sync-settlement-editor.html. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css">
+<link rel="stylesheet" href="/css/components/editor-page.css">
+<link rel="stylesheet" href="/css/components/source-autocomplete.css">
+<link rel="stylesheet" href="/css/features/feature-sources.css">
+<style>
+  /* Local short names alias the real design tokens, exactly like html/wiki-sync-settlement-editor.html. */
+  :root { --bg:var(--color-page-bg); --panel:var(--color-panel); --soft:var(--color-panel-soft); --line:var(--color-border); --line2:var(--color-border-strong); --fg:var(--color-text-strong); --mut:var(--color-text-muted); --accent:var(--color-link); --warn:var(--color-warning); --bad:var(--color-danger); --ok:var(--color-success); --font-ui:"Faculty Glyphic","Arial",sans-serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:var(--font-size-body)/var(--leading-normal) var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
+  header { padding:var(--avm-ribbon-pad); background:var(--panel); border-bottom:1px solid var(--line); }
+  .controls { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:var(--avm-ribbon-gap); align-items:stretch; }
+  button { background:var(--color-button-soft); color:var(--color-button-soft-text); border:1px solid var(--color-button-soft-border); border-radius:var(--radius-md); padding:0 var(--space-8); min-height:var(--avm-control-h); cursor:pointer; font:inherit; }
+  button:hover { background:var(--color-button-soft-hover); }
+  button:disabled { opacity:.5; cursor:default; }
+  button.primary { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
+  button.primary:hover { background:var(--color-button-hover); }
+  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:var(--space-4) var(--space-8); gap:1px; line-height:var(--leading-tight); }
+  .btn2 .t1 { font-size:var(--font-size-body); font-weight:var(--font-weight-bold); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+  .btn2.primary .t2 { color:var(--color-on-button-muted); }
+  .btn2.is-active { background:var(--color-button); border-color:var(--color-button-border); color:var(--color-button-text); }
+  .btn2.is-active .t2 { color:var(--color-on-button-muted); }
+  #plStatus { padding:var(--avm-status-pad); min-height:var(--avm-status-min-h); color:var(--mut); background:var(--soft); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:var(--space-12); }
+  #plStatusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* Drei GLEICHE Spalten per GRID (Owner-Regel), nicht flex:1 1 0. Spaltenflaeche = dunkleres
+     --color-page-bg (der Body-Grund), die Scroll-/Listenkaesten das hellere --color-panel -- genau
+     wie im Siedlungseditor. */
+  .cols { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); flex:1 1 auto; min-height:0; }
+  .col { overflow:hidden; padding:var(--avm-col-pad); display:flex; flex-direction:column; min-height:0; min-width:0; }
+  .col + .col { border-left:1px solid var(--line); }
+  .listhead { font-size:var(--font-size-subhead); line-height:var(--leading-snug); font-weight:var(--font-weight-bold); margin:0 0 var(--space-6); color:var(--color-accent-strong); }
+  .bar { display:flex; gap:var(--space-4); align-items:center; margin-bottom:var(--space-4); }
+  input[type=search], input[type=text], input[type=url], textarea, select { font:inherit; color:var(--fg); background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); }
+  input[type=search] { height:var(--avm-control-h); padding:0 var(--space-6); flex:1; }
+  .scrollbox { flex:1 1 auto; overflow:auto; min-height:0; background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
+
+  /* Listenzeilen (Referenz .se-row) */
+  .se-row { display:flex; align-items:center; gap:8px; padding:var(--avm-row-pad); border-radius:var(--radius-md); border:1px solid transparent; cursor:pointer; }
+  .se-row:hover { background:var(--color-hover-wash); }
+  .se-row.is-selected { background:var(--color-active-wash); border-color:var(--color-accent); }
+  .se-row-text { flex:1 1 auto; min-width:0; }
+  .se-row-l1 { display:flex; align-items:baseline; gap:6px; }
+  .se-row-name { font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .se-row-type { font-size:10px; color:var(--mut); margin-left:auto; white-space:nowrap; }
+  .se-row-l2 { font-size:10px; margin-top:1px; display:flex; align-items:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .se-row-l2.ok { color:var(--ok); }
+  .se-row-l2.warn { color:var(--warn); }
+  .se-row-l2.mut { color:var(--mut); }
+  .se-empty { color:var(--mut); padding:8px; }
+  .se-error { color:var(--bad); padding:8px; }
+
+  /* Detail/Eigenschaften (Referenz .dt-*) */
+  .dt-grp { font-size:11px; font-weight:bold; color:var(--mut); border-top:1px solid var(--line); padding-top:6px; margin-top:10px; display:flex; align-items:center; gap:6px; }
+  .dt-grp:first-of-type { border-top:none; margin-top:0; }
+  .dt-grid { display:grid; grid-template-columns:var(--avm-field-label-w) minmax(0,1fr); gap:0; font-size:12px; margin:4px 0 0; }
+  .dt-grid.stack { grid-template-columns:1fr; }
+  .dt-grid .k { color:var(--color-text-muted); font-weight:bold; white-space:nowrap; padding:5px 6px 5px 0; }
+  .dt-grid > div:not(.k) { padding:5px 0; color:var(--color-text); min-width:0; overflow-wrap:anywhere; }
+  .dt-grid input[type=text], .dt-grid input[type=url], .dt-grid textarea { width:100%; padding:4px 6px; }
+  .dt-grid textarea { resize:vertical; min-height:52px; }
+  .dt-badge { font-size:10px; color:var(--mut); border:1px solid var(--line2); border-radius:8px; padding:0 6px; white-space:nowrap; font-weight:normal; }
+  .dt-badge.warn { color:var(--warn); border-color:var(--color-warning-soft-border); }
+  .dt-link { color:var(--accent); text-decoration:none; }
+  .dt-check { display:flex; align-items:center; gap:6px; padding:5px 0; font-size:12px; }
+  .dt-check input { cursor:pointer; }
+  .dt-actions { display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .dt-msg { font-size:11px; }
+  .dt-msg.ok { color:var(--ok); }
+  .dt-msg.bad { color:var(--bad); }
+  .pl-hint { font-size:10px; color:var(--mut); margin-top:3px; }
+  .pl-hint b { color:var(--color-accent-strong); }
+  .dt-empty { color:var(--mut); padding:10px 4px; }
+
+  /* Knoten-Spalte */
+  .pl-topo-note { font-size:11px; color:var(--mut); background:var(--color-panel-soft); border:1px solid var(--line); border-left:3px solid var(--color-accent); border-radius:6px; padding:6px 9px; margin-bottom:8px; }
+  .pl-end-label { font-size:9px; color:var(--color-accent-strong); text-transform:uppercase; letter-spacing:.04em; margin:0 0 3px 2px; font-weight:bold; }
+  .pl-node { display:flex; align-items:center; gap:7px; padding:6px 8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); box-shadow:0 1px 2px rgba(0,0,0,.06); }
+  .pl-node.is-end { border-color:var(--color-accent); }
+  .pl-node-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .pl-node-flag { flex:0 0 auto; color:var(--warn); font-size:11px; }
+  .pl-icon-btn { flex:0 0 auto; width:22px; height:22px; padding:0; display:grid; place-items:center; border:1px solid var(--line2); border-radius:6px; background:var(--soft); color:var(--mut); cursor:pointer; font-size:12px; min-height:0; }
+  .pl-icon-btn:hover { background:var(--color-hover-wash); }
+  .pl-icon-btn.del:hover { color:var(--bad); border-color:var(--bad); }
+  .pl-icon-btn:disabled { opacity:.3; cursor:default; }
+  .pl-conn { width:2px; height:12px; background:var(--line2); margin:0 0 0 16px; }
+  .pl-edge { display:flex; align-items:center; gap:7px; padding:5px 8px; background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); margin-bottom:5px; font-size:12px; }
+  .pl-edge .a { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pl-edge .arw { color:var(--mut); flex:0 0 auto; }
+  .pl-edge .pl-icon-btn { margin-left:auto; }
+  .pl-add { margin-top:10px; }
+  .pl-add-toggle { width:100%; text-align:center; border:1.5px dashed var(--line2); border-radius:6px; padding:8px; color:var(--mut); background:transparent; }
+  .pl-add-toggle:hover { border-color:var(--color-accent); color:var(--color-accent-strong); }
+  .pl-add-panel { margin-top:6px; border:1px solid var(--line); border-radius:6px; padding:8px; background:var(--panel); display:flex; flex-direction:column; gap:6px; }
+  .pl-add-panel[hidden] { display:none; }
+  .pl-add-panel label { font-size:11px; color:var(--mut); display:flex; flex-direction:column; gap:2px; }
+  .pl-add-panel select, .pl-add-panel input[type=search] { width:100%; height:var(--avm-control-h); padding:0 6px; }
+  .pl-results { border:1px solid var(--line); border-radius:5px; max-height:150px; overflow:auto; background:var(--panel); }
+  .pl-results div { padding:4px 7px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .pl-results div:hover { background:var(--color-hover-wash); }
+  .pl-results div.is-picked { background:var(--color-active-wash); }
+</style>
+</head>
+<body>
+<header>
+  <div class="controls">
+    <button class="btn2 primary" id="plSync" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet."><span class="t1">⚡ Kraftlinien syncen</span><span class="t2" id="plSyncInfo">Stärke, Affinität, Länge, Regionen aus dem Wiki</span></button>
+    <button class="btn2" id="plDupes" title="Zeigt nur Kraftlinien mit einem Warnhinweis (Beinahe-Dublette, Tippfehler, URL im Namen)"><span class="t1">Dubletten zeigen</span><span class="t2" id="plDupesInfo">Beinahe-gleiche Namen zusammenführen</span></button>
+    <button class="btn2" id="plMapFilter" title="Zeigt auf der Live-Karte nur die gewählte Kraftlinie"><span class="t1">Nur Auswahl auf Karte</span><span class="t2">Karte folgt der Auswahl</span></button>
+  </div>
+</header>
+<div id="plStatus"><span id="plStatusText">Wird geladen…</span></div>
+<div class="cols">
+  <div class="col" id="plColLines">
+    <h2 class="listhead">Kraftlinien</h2>
+    <div class="bar"><input type="search" id="plSearch" placeholder="Kraftlinie suchen …"></div>
+    <div class="scrollbox" id="plList"><div class="se-empty">Wird geladen…</div></div>
+  </div>
+  <div class="col" id="plColProps">
+    <h2 class="listhead">Eigenschaften</h2>
+    <div class="scrollbox" id="plDetail" style="padding:10px 12px;"><div class="dt-empty">Links eine Kraftlinie wählen.</div></div>
+  </div>
+  <div class="col" id="plColNodes">
+    <h2 class="listhead">Knoten</h2>
+    <div class="scrollbox" id="plNodes" style="padding:8px 10px;"><div class="dt-empty">Links eine Kraftlinie wählen.</div></div>
+  </div>
+</div>
+
+<!-- Shared multi-source editor widget (mountFeatureSourceEditor) + its typeahead. Absolute paths
+     like the settlement editor: this iframe is fetched with ?v=Date.now(), not through index.html's
+     asset-versioning pass. -->
+<script src="/js/ui/source-autocomplete.js"></script>
+<script src="/js/review/review-feature-sources.js"></script>
+<!-- Shared pure powerline topology helpers (same file the live map delegates to). -->
+<script src="/js/map-features/powerline-topology.js"></script>
+<script>
+"use strict";
+(function () {
+
+// ---- Small helpers ---------------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const READ_API = "/api/edit/map/powerlines.php";
+const MAP_FEATURES_EDIT_API = "/api/edit/map/features.php";
+function esc(s) {
+	return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+async function mapFeaturesEditPost(body) {
+	const response = await fetch(MAP_FEATURES_EDIT_API, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	let data = null;
+	try { data = await response.json(); } catch (e) { /* non-JSON error body */ }
+	if (!response.ok || (data && data.ok === false)) {
+		const msg = (data && data.error && data.error.message) || (data && data.error) || ("HTTP " + response.status);
+		throw new Error(msg);
+	}
+	return data || {};
+}
+
+// ---- State -----------------------------------------------------------------------------------
+let segments = [];          // [{public_id,name,from_public_id,to_public_id,show_label,description,wiki_url,wiki_powerline,revision}]
+let nodesMap = {};          // { public_id: {name,type,is_nodix} }
+let candidates = [];        // [{public_id,name,type}]
+let lines = [];             // grouped, see groupLines()
+let selectedName = null;
+let showDupesOnly = false;
+let searchTerm = "";
+let pendingSelectName = null;  // set by the host's "Bearbeiten" postMessage before data has loaded
+
+// nodeLookup for the shared pure topology helpers.
+function nodeLookup(publicId) {
+	const n = nodesMap[publicId];
+	if (!n) { return null; }
+	return { name: n.name, isCrossing: n.type === "crossing" };
+}
+function nodeName(publicId) {
+	const n = nodesMap[publicId];
+	return (n && n.name) ? n.name : (publicId || "?");
+}
+function nodeIsCrossing(publicId) {
+	const n = nodesMap[publicId];
+	return !!(n && n.type === "crossing");
+}
+
+// ---- Grouping: segments -> lines -------------------------------------------------------------
+// Two names count as near-duplicates when their normalized form (lowercased, punctuation and
+// whitespace stripped) collides. That catches "Elementares Hexagramm" vs "Elementare Hexagramm"
+// and "Elemntarlinie" only partially -- exact typo detection is a separate job; this flags the
+// obvious collisions plus any name carrying a URL.
+function normName(name) {
+	return String(name || "").toLowerCase().replace(/https?:\/\/\S+/g, "").replace(/[^a-z0-9äöüß]/g, "");
+}
+function levenshtein(a, b) {
+	const m = a.length, n = b.length;
+	if (m === 0) { return n; }
+	if (n === 0) { return m; }
+	let prev = Array.from({ length: n + 1 }, (_, i) => i);
+	for (let i = 1; i <= m; i++) {
+		const cur = [i];
+		for (let j = 1; j <= n; j++) {
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+		}
+		prev = cur;
+	}
+	return prev[n];
+}
+function groupLines() {
+	const byName = new Map();
+	segments.forEach((seg) => {
+		const name = String(seg.name || "").trim();
+		if (name === "") { return; }
+		if (!byName.has(name)) { byName.set(name, []); }
+		byName.get(name).push(seg);
+	});
+	const names = [...byName.keys()];
+	// Near-duplicate: two DISTINCT names whose normalized forms are within edit distance 2 (and long
+	// enough that the distance is meaningful). Catches "Elementares/Elementare Hexagramm" and
+	// "Elemntarlinie/Elementarlinie"; the fix is a rename onto the canonical name (= merge).
+	const nearDupe = new Set();
+	const norms = names.map(normName);
+	for (let i = 0; i < names.length; i++) {
+		for (let j = i + 1; j < names.length; j++) {
+			const a = norms[i], b = norms[j];
+			if (a === "" || b === "" || Math.min(a.length, b.length) < 5) { continue; }
+			const d = levenshtein(a, b);
+			if (d >= 1 && d <= 2) { nearDupe.add(names[i]); nearDupe.add(names[j]); }
+		}
+	}
+	lines = names.map((name) => {
+		const segs = byName.get(name);
+		const topo = avesmapsPowerlineTopology(segs, nodeLookup);
+		const anchor = segs.map((s) => s.public_id).sort()[0];
+		const warnings = [];
+		if (/https?:\/\//i.test(name)) { warnings.push("URL im Namen — bereinigen"); }
+		if (nearDupe.has(name)) { warnings.push("Beinahe-Dublette — zusammenführen?"); }
+		return { name, segments: segs, topology: topo, anchor, warnings };
+	}).sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+function lineByName(name) {
+	return lines.find((l) => l.name === name) || null;
+}
+function shapeLabel(shape) {
+	return shape === "ring" ? "Ring" : shape === "branched" ? "verzweigt" : "Strang";
+}
+
+// ---- Column 1: the line list -----------------------------------------------------------------
+function spanText(line) {
+	const t = line.topology;
+	if (!t) { return ""; }
+	if (t.endpointIds.length === 2) { return nodeName(t.endpointIds[0]) + " ↔ " + nodeName(t.endpointIds[1]); }
+	if (t.isRing) { return "geschlossen"; }
+	if (t.endpointIds.length > 0) { return t.endpointIds.length + " Enden"; }
+	return "";
+}
+function renderList() {
+	const host = $("plList");
+	const term = searchTerm.trim().toLowerCase();
+	const visible = lines.filter((l) => {
+		if (showDupesOnly && l.warnings.length === 0) { return false; }
+		if (term && l.name.toLowerCase().indexOf(term) === -1) { return false; }
+		return true;
+	});
+	if (visible.length === 0) {
+		host.innerHTML = '<div class="se-empty">' + (lines.length === 0 ? "Keine Kraftlinien." : "Nichts gefunden.") + "</div>";
+		return;
+	}
+	host.innerHTML = visible.map((l) => {
+		const nodeCount = l.topology ? l.topology.adjacency.size : 0;
+		const l2 = l.warnings.length > 0
+			? '<div class="se-row-l2 warn">⚠ ' + esc(l.warnings[0]) + "</div>"
+			: '<div class="se-row-l2 ok">' + nodeCount + " Knoten · " + l.segments.length + " Segmente · " + esc(spanText(l)) + "</div>";
+		return '<div class="se-row' + (l.name === selectedName ? " is-selected" : "") + '" data-name="' + esc(l.name) + '">'
+			+ '<div class="se-row-text"><div class="se-row-l1"><span class="se-row-name">' + esc(l.name) + '</span>'
+			+ '<span class="se-row-type">' + (l.topology ? shapeLabel(l.topology.shape) : "") + "</span></div>"
+			+ l2 + "</div></div>";
+	}).join("");
+	host.querySelectorAll(".se-row").forEach((row) => {
+		row.addEventListener("click", () => selectLine(row.getAttribute("data-name")));
+	});
+}
+
+// ---- Column 2: properties --------------------------------------------------------------------
+function selectLine(name) {
+	selectedName = name;
+	renderList();
+	renderDetail();
+	renderNodes();
+}
+function fieldSample(line, key) {
+	// A line-level scalar: all segments carry the same value, so read the first non-empty.
+	for (const s of line.segments) { if (s[key]) { return s[key]; } }
+	return "";
+}
+function renderDetail() {
+	const host = $("plDetail");
+	const line = lineByName(selectedName);
+	if (!line) { host.innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; return; }
+	const showLabel = line.segments.some((s) => s.show_label);
+	const description = fieldSample(line, "description");
+	const wikiUrl = fieldSample(line, "wiki_url");
+	const wiki = line.segments.map((s) => s.wiki_powerline).find((w) => w && typeof w === "object") || {};
+	const wikiRow = (k, v) => (v && String(v).trim() !== "") ? '<div class="k">' + esc(k) + '</div><div>' + esc(v) + "</div>" : "";
+	const wikiBlock = [wikiRow("Stärke", wiki.staerke), wikiRow("Affinität", wiki.affinitaet), wikiRow("Länge", wiki.laenge), wikiRow("Regionen", wiki.regionen)].join("");
+	host.innerHTML =
+		'<div class="dt-grp">Identität</div>'
+		+ '<div class="dt-grid"><div class="k">Name</div><div>'
+			+ '<input type="text" id="plName" maxlength="160" value="' + esc(line.name) + '">'
+			+ '<div class="pl-hint">Schreibt auf <b>alle ' + line.segments.length + ' Segmente</b>. Exakt gleicher Name wie eine andere Linie ⇒ <b>beide verschmelzen</b>.</div>'
+		+ "</div></div>"
+		+ '<div class="dt-check"><input type="checkbox" id="plShowLabel"' + (showLabel ? " checked" : "") + "><span>Name auf der Karte anzeigen</span></div>"
+		+ '<div class="dt-grid"><div class="k">Wiki-Link</div><div>'
+			+ '<input type="url" id="plWikiUrl" maxlength="500" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(wikiUrl) + '">'
+			+ '<div class="pl-hint">Ausdrücklich gesetzt, nie geraten.' + (wikiUrl ? ' <a class="dt-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">Öffnen ↗</a>' : "") + "</div>"
+		+ "</div></div>"
+		+ '<div class="dt-grp">Beschreibung</div>'
+		+ '<div class="dt-grid stack"><div><textarea id="plDescription" maxlength="2000">' + esc(description) + "</textarea></div></div>"
+		+ '<div class="dt-grp">Quellen</div>'
+		+ '<div id="plSources"></div>'
+		+ (wikiBlock ? '<div class="dt-grp">Aus dem Wiki <span class="dt-badge">Sync · nicht editierbar</span></div><div class="dt-grid">' + wikiBlock + "</div>" : "")
+		+ '<div class="dt-actions">'
+			+ '<button class="primary" id="plSave">Speichern</button>'
+			+ '<button id="plDelete">Linie löschen</button>'
+			+ '<span class="dt-msg" id="plSaveMsg"></span>'
+		+ "</div>";
+	$("plSave").addEventListener("click", saveLine);
+	$("plDelete").addEventListener("click", deleteLine);
+	// Shared multi-source widget, anchored on the line's canonical segment (smallest public_id).
+	if (typeof mountFeatureSourceEditor === "function" && $("plSources")) {
+		mountFeatureSourceEditor($("plSources"), "powerline", () => line.anchor, { escape: esc });
+	} else if ($("plSources")) {
+		$("plSources").innerHTML = '<div class="pl-hint">Quellen-Editor nicht geladen.</div>';
+	}
+}
+function setSaveMsg(text, cls) {
+	const el = $("plSaveMsg"); if (!el) { return; }
+	el.textContent = text; el.className = "dt-msg" + (cls ? " " + cls : "");
+}
+async function saveLine() {
+	const line = lineByName(selectedName);
+	if (!line) { return; }
+	const newName = $("plName").value.trim();
+	if (newName === "") { setSaveMsg("Name darf nicht leer sein.", "bad"); return; }
+	setSaveMsg("Speichert…", "");
+	try {
+		await mapFeaturesEditPost({
+			action: "update_powerline_line",
+			current_name: line.name,
+			new_name: newName,
+			show_label: $("plShowLabel").checked,
+			description: $("plDescription").value,
+			wiki_url: $("plWikiUrl").value.trim(),
+		});
+		const merged = newName !== line.name && lines.some((l) => l.name === newName);
+		await reload(newName);
+		setSaveMsg(merged ? "Gespeichert – mit „" + newName + "“ verschmolzen." : "Gespeichert – auf alle Segmente geschrieben.", "ok");
+	} catch (e) {
+		setSaveMsg(e.message || "Speichern fehlgeschlagen.", "bad");
+	}
+}
+async function deleteLine() {
+	const line = lineByName(selectedName);
+	if (!line) { return; }
+	if (!window.confirm('„' + line.name + '“ mit allen ' + line.segments.length + " Segmenten löschen?")) { return; }
+	setSaveMsg("Löscht…", "");
+	try {
+		for (const seg of line.segments) {
+			await mapFeaturesEditPost({ action: "delete_feature", public_id: seg.public_id });
+		}
+		selectedName = null;
+		await reload(null);
+	} catch (e) {
+		setSaveMsg(e.message || "Löschen fehlgeschlagen.", "bad");
+	}
+}
+
+// ---- Column 3: nodes -------------------------------------------------------------------------
+function flyBtn(pid) {
+	return '<button class="pl-icon-btn" title="Auf Karte zeigen" data-fly="' + esc(pid) + '">◎</button>';
+}
+function nodeBadge(pid) {
+	return nodeIsCrossing(pid) ? '<span class="dt-badge warn">Kreuzung</span>' : '<span class="dt-badge">Nodix</span>';
+}
+function renderNodes() {
+	const host = $("plNodes");
+	const line = lineByName(selectedName);
+	if (!line || !line.topology) { host.innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; return; }
+	const t = line.topology;
+	let html = "";
+	if (t.shape === "strand") {
+		const chain = avesmapsPowerlineOrderedChain(t) || [];
+		html += '<div class="pl-topo-note">Strang mit 2 Enden · Reihenfolge = Verlauf. ✕ entfernt einen Knoten (löscht seine Segmente); „+ Knoten hinzufügen" verlängert die Linie.</div>';
+		chain.forEach((pid, i) => {
+			const isEnd = i === 0 || i === chain.length - 1;
+			if (isEnd) { html += '<div class="pl-end-label">Ende</div>'; }
+			html += '<div class="pl-node' + (isEnd ? " is-end" : "") + '">'
+				+ '<span class="pl-node-name">' + esc(nodeName(pid)) + "</span>"
+				+ nodeBadge(pid)
+				+ flyBtn(pid)
+				+ '<button class="pl-icon-btn del" title="Knoten entfernen" data-remove-node="' + esc(pid) + '">✕</button>'
+				+ "</div>";
+			if (i < chain.length - 1) { html += '<div class="pl-conn"></div>'; }
+		});
+	} else {
+		const note = t.isRing ? "Geschlossener Ring · " + line.segments.length + " Segmente · keine Enden"
+			: "Verzweigte Linie · " + t.endpointIds.length + " Enden · als Kantenliste bearbeiten";
+		html += '<div class="pl-topo-note">' + note + " ✕ entfernt eine Kante.</div>";
+		line.segments.forEach((seg) => {
+			html += '<div class="pl-edge"><span class="a">' + esc(nodeName(seg.from_public_id)) + '</span><span class="arw">—</span><span class="a">' + esc(nodeName(seg.to_public_id)) + "</span>"
+				+ flyBtn(seg.from_public_id)
+				+ '<button class="pl-icon-btn del" title="Kante entfernen" data-remove-seg="' + esc(seg.public_id) + '">✕</button></div>';
+		});
+	}
+	html += renderAddPanel(line);
+	host.innerHTML = html;
+	wireNodeActions(line);
+}
+function renderAddPanel(line) {
+	const nodeOptions = [...line.topology.adjacency.keys()].map((pid) => '<option value="' + esc(pid) + '">' + esc(nodeName(pid)) + "</option>").join("");
+	return '<div class="pl-add">'
+		+ '<button class="pl-add-toggle" id="plAddToggle">+ Knoten hinzufügen</button>'
+		+ '<div class="pl-add-panel" id="plAddPanel" hidden>'
+			+ '<label>Verbinden von<select id="plAddFrom">' + nodeOptions + "</select></label>"
+			+ '<label>nach (Nodix-Ort oder Kreuzung)<input type="search" id="plAddSearch" placeholder="suchen …" autocomplete="off"></label>'
+			+ '<div class="pl-results" id="plAddResults"></div>'
+			+ '<div class="dt-actions"><button class="primary" id="plAddConfirm" disabled>Knoten anfügen</button><button id="plAddCancel">Abbrechen</button><span class="dt-msg" id="plAddMsg"></span></div>'
+		+ "</div></div>";
+}
+let addPick = null;
+function wireNodeActions(line) {
+	$("plNodes").querySelectorAll("[data-fly]").forEach((b) => b.addEventListener("click", () => flyToNode(b.getAttribute("data-fly"))));
+	$("plNodes").querySelectorAll("[data-remove-node]").forEach((b) => b.addEventListener("click", () => removeNode(b.getAttribute("data-remove-node"))));
+	$("plNodes").querySelectorAll("[data-remove-seg]").forEach((b) => b.addEventListener("click", () => removeSegment(b.getAttribute("data-remove-seg"))));
+	const toggle = $("plAddToggle");
+	if (toggle) {
+		toggle.addEventListener("click", () => { const p = $("plAddPanel"); p.hidden = !p.hidden; if (!p.hidden) { $("plAddSearch").focus(); } });
+		$("plAddCancel").addEventListener("click", () => { $("plAddPanel").hidden = true; });
+		addPick = null;
+		$("plAddSearch").addEventListener("input", () => renderAddResults(line));
+		$("plAddConfirm").addEventListener("click", () => addNode(line));
+		renderAddResults(line);
+	}
+}
+function renderAddResults(line) {
+	const term = $("plAddSearch").value.trim().toLowerCase();
+	const inLine = new Set(line.topology.adjacency.keys());
+	const matches = candidates
+		.filter((c) => !inLine.has(c.public_id))
+		.filter((c) => term === "" ? true : c.name.toLowerCase().indexOf(term) !== -1)
+		.slice(0, 30);
+	$("plAddResults").innerHTML = matches.length === 0
+		? '<div style="padding:5px 7px;color:var(--mut);font-size:11px;">Keine Kandidaten.</div>'
+		: matches.map((c) => '<div data-pick="' + esc(c.public_id) + '"' + (addPick === c.public_id ? ' class="is-picked"' : "") + ">" + esc(c.name) + " " + (c.type === "crossing" ? '<span class="dt-badge warn">Kreuzung</span>' : '<span class="dt-badge">Nodix</span>') + "</div>").join("");
+	$("plAddResults").querySelectorAll("[data-pick]").forEach((d) => d.addEventListener("click", () => {
+		addPick = d.getAttribute("data-pick");
+		$("plAddConfirm").disabled = false;
+		renderAddResults(line);
+	}));
+}
+async function addNode(line) {
+	if (!addPick) { return; }
+	const from = $("plAddFrom").value;
+	const msg = $("plAddMsg");
+	msg.textContent = "Fügt an…"; msg.className = "dt-msg";
+	try {
+		await mapFeaturesEditPost({ action: "create_powerline", from_public_id: from, to_public_id: addPick, name: line.name });
+		await reload(line.name);
+	} catch (e) {
+		msg.textContent = e.message || "Fehlgeschlagen."; msg.className = "dt-msg bad";
+	}
+}
+async function removeSegment(publicId) {
+	if (!window.confirm("Diese Kante entfernen?")) { return; }
+	try { await mapFeaturesEditPost({ action: "delete_feature", public_id: publicId }); await reload(selectedName); }
+	catch (e) { setSaveMsg(e.message || "Fehlgeschlagen.", "bad"); }
+}
+async function removeNode(pid) {
+	const line = lineByName(selectedName);
+	if (!line) { return; }
+	const incident = line.segments.filter((s) => s.from_public_id === pid || s.to_public_id === pid);
+	if (!window.confirm("„" + nodeName(pid) + "“ entfernen? Löscht " + incident.length + " Segment(e); die Linie kann dabei zerfallen.")) { return; }
+	try {
+		for (const seg of incident) { await mapFeaturesEditPost({ action: "delete_feature", public_id: seg.public_id }); }
+		await reload(selectedName);
+	} catch (e) { setSaveMsg(e.message || "Fehlgeschlagen.", "bad"); }
+}
+function flyToNode(pid) {
+	// The editor lives in an iframe; ask the parent app to fly to this map location.
+	try {
+		if (window.parent && typeof window.parent.avesmapsFlyToLocationPublicId === "function") {
+			window.parent.avesmapsFlyToLocationPublicId(pid);
+		}
+	} catch (e) { /* cross-frame or not available: silent */ }
+}
+
+// ---- Ribbon ----------------------------------------------------------------------------------
+function wireRibbon() {
+	$("plSync").addEventListener("click", () => {
+		try { if (window.parent && typeof window.parent.startWikiSyncPowerlines === "function") { window.parent.startWikiSyncPowerlines(); } }
+		catch (e) { /* silent */ }
+	});
+	$("plDupes").addEventListener("click", () => {
+		showDupesOnly = !showDupesOnly;
+		$("plDupes").classList.toggle("is-active", showDupesOnly);
+		renderList();
+	});
+	$("plMapFilter").addEventListener("click", () => {
+		$("plMapFilter").classList.toggle("is-active");
+		// Live map filter is a parent-window concern; wired when the parent exposes it.
+	});
+	$("plSearch").addEventListener("input", () => { searchTerm = $("plSearch").value; renderList(); });
+}
+
+// ---- Load ------------------------------------------------------------------------------------
+function setStatus(text) { $("plStatusText").textContent = text; }
+function ingest(data) {
+	segments = Array.isArray(data.segments) ? data.segments : [];
+	nodesMap = (data.nodes && typeof data.nodes === "object") ? data.nodes : {};
+	candidates = Array.isArray(data.nodix_candidates) ? data.nodix_candidates : [];
+	groupLines();
+	const dupeCount = lines.filter((l) => l.warnings.length > 0).length;
+	setStatus(lines.length + " Kraftlinien · " + segments.length + " Segmente" + (dupeCount ? " · " + dupeCount + " Warnungen" : ""));
+	$("plDupesInfo").textContent = dupeCount ? dupeCount + " zu prüfen" : "keine gefunden";
+	if (pendingSelectName && lineByName(pendingSelectName)) { selectedName = pendingSelectName; pendingSelectName = null; }
+	renderList();
+	if (selectedName && lineByName(selectedName)) { renderDetail(); renderNodes(); }
+	else { selectedName = null; $("plDetail").innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; $("plNodes").innerHTML = '<div class="dt-empty">Links eine Kraftlinie wählen.</div>'; }
+}
+async function reload(selectName) {
+	if (selectName !== undefined) { selectedName = selectName; }
+	await loadData();
+}
+async function loadData() {
+	if (new URLSearchParams(location.search).has("demo")) { ingest(demoData()); return; }
+	try {
+		const response = await fetch(READ_API, { credentials: "same-origin", headers: { "Accept": "application/json" } });
+		const data = await response.json();
+		if (!response.ok || data.ok === false) { throw new Error((data.error && data.error.message) || ("HTTP " + response.status)); }
+		ingest(data);
+	} catch (e) {
+		$("plList").innerHTML = '<div class="se-error">Konnte Kraftlinien nicht laden: ' + esc(e.message) + "</div>";
+		setStatus("Fehler beim Laden.");
+	}
+}
+
+// ---- Demo data (?demo=1): renders every path without a backend/login ---------------------------
+function demoData() {
+	const N = (id, name, type, nodix) => [id, { name, type, is_nodix: !!nodix }];
+	const nodes = Object.fromEntries([
+		N("gareth", "Gareth", "grossstadt", true), N("k7", "Kreuzung-7", "crossing", false),
+		N("kuslik", "Kuslik", "grossstadt", true), N("punin", "Punin", "grossstadt", true),
+		N("m", "Nadoret", "stadt", true), N("x", "Mendena", "stadt", true), N("y", "Riva", "stadt", true), N("z", "Festum", "stadt", true), N("k4", "Kreuzung-4", "crossing", false),
+		N("a", "Brustlooge", "dorf", true), N("b", "Donnerbach", "dorf", true), N("c", "Aubruch", "dorf", true),
+		N("e1", "Elem-A", "dorf", true), N("e2", "Elem-B", "dorf", true),
+		N("vin", "Vinsalt", "grossstadt", true), N("bel", "Belhanka", "stadt", true),
+	]);
+	const seg = (pid, name, from, to, extra) => Object.assign({ public_id: pid, name, from_public_id: from, to_public_id: to, show_label: false, description: "", wiki_url: "", wiki_powerline: null, revision: 1 }, extra || {});
+	const segs = [
+		seg("s1", "Konzilslinie", "gareth", "k7", { description: "Verbindet die Konzilsstädte des Mittelreichs.", wiki_url: "https://de.wiki-aventurica.de/wiki/Konzilslinie", wiki_powerline: { staerke: "kontinental", laenge: "ca. 3000 Meilen", regionen: "Kosch · Almada" } }),
+		seg("s2", "Konzilslinie", "k7", "kuslik"), seg("s3", "Konzilslinie", "kuslik", "punin"),
+		seg("f1", "Fächer der Macht", "k4", "m"), seg("f2", "Fächer der Macht", "k4", "x"), seg("f3", "Fächer der Macht", "k4", "y"), seg("f4", "Fächer der Macht", "k4", "z"),
+		seg("h1", "Hexenband", "a", "b"), seg("h2", "Hexenband", "b", "c"), seg("h3", "Hexenband", "c", "a"),
+		seg("d1", "Elementares Hexagramm", "e1", "e2"), seg("d2", "Elementare Hexagramm", "e1", "e2"),
+		seg("u1", "Septima - https://de.wiki-aventurica.de/wiki/Septima", "vin", "bel"),
+	];
+	return { segments: segs, nodes, nodix_candidates: Object.entries(nodes).filter(([, n]) => n.is_nodix || n.type === "crossing").map(([id, n]) => ({ public_id: id, name: n.name, type: n.type })) };
+}
+
+// ---- Boot ------------------------------------------------------------------------------------
+function boot() {
+	wireRibbon();
+	// The host may ask us to jump to a line by name (map popup "Bearbeiten"). Remember it; if the
+	// list is already loaded, jump right away.
+	window.addEventListener("message", (event) => {
+		if (event.origin !== location.origin) { return; }
+		const name = event.data && event.data.avesmapsPowerlineSelect;
+		if (!name) { return; }
+		pendingSelectName = String(name);
+		if (lineByName(pendingSelectName)) { selectLine(pendingSelectName); pendingSelectName = null; }
+	});
+	loadData();
+}
+if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", boot); } else { boot(); }
+
+})();
+</script>
+</body>
+</html>
