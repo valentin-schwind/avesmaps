@@ -197,10 +197,21 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
     }
     sort($unmatched);
 
+    // Diagnostics so a single click pinpoints the failing layer when nothing links:
+    //   sandbox_rows = 0  -> "Dump holen" staged no powerline pages (its run predates the
+    //                        classifier fix, or the collect phase never saw them).
+    //   sandbox_rows > 0 but staged = 0 -> the parser dropped every page (encoding / infobox).
+    //   staged > 0 but matched_names = 0 -> names on the map differ from the wiki titles.
+    // run_completed_at tells whether the dump that filled the sandbox is recent enough.
+    $runRow = avesmapsWikiDumpSyncKindFetchRunById($pdo, $runId);
+
     return $counts + [
         'staged' => count($staged),
         'matched_names' => count($matchedKeys),
         'unmatched_names' => $unmatched,
+        'sandbox_rows' => count($sandboxRows),
+        'run_id' => $runId,
+        'run_completed_at' => (string) ($runRow['completed_at'] ?? ''),
     ];
 }
 

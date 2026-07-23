@@ -639,6 +639,10 @@ try {
                 // Wiki lines with no segment on our map. Reported, not an error: nobody may have
                 // drawn them yet, or our spelling differs ("Bruecke nach/von Akrabaal").
                 'unmatched_names' => array_values((array) ($powerlineResult['unmatched_names'] ?? [])),
+                // Diagnostics: which layer is empty (see avesmapsWikiPowerlineReconcile).
+                'sandbox_rows' => (int) ($powerlineResult['sandbox_rows'] ?? 0),
+                'run_id' => (int) ($powerlineResult['run_id'] ?? 0),
+                'run_completed_at' => (string) ($powerlineResult['run_completed_at'] ?? ''),
             ]);
             // no break -- avesmapsJsonResponse exits.
 

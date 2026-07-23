@@ -1380,9 +1380,24 @@ async function startWikiSyncPowerlines() {
 		const result = await submitWikiSyncDumpAction("sync_powerlines", {});
 		const staged = Number(result.staged ?? 0);
 		if (staged === 0) {
-			// Leeres Staging ist ein ZUSTAND, kein Fehler -- und der Grund gehört dazu,
-			// sonst sucht der Owner den Fehler im Abgleich statt im fehlenden Dump-Lauf.
-			setWikiSyncStatus("Keine Kraftlinien im Zwischenspeicher. Bitte zuerst „📥 Dump holen“ laufen lassen.", "error");
+			// Leeres Ergebnis ist ein ZUSTAND, kein Fehler -- aber WELCHE Schicht leer ist,
+			// gehört dazu, sonst sucht der Owner am falschen Ende. sandbox_rows unterscheidet
+			// „Dump hat nichts abgelegt" von „Parser hat alles verworfen".
+			const sandbox = Number(result.sandbox_rows ?? 0);
+			const runDate = String(result.run_completed_at ?? "").trim();
+			if (sandbox === 0) {
+				setWikiSyncStatus(
+					`Der Dump-Lauf${runDate ? ` vom ${runDate}` : ""} hat keine Kraftlinien abgelegt. `
+					+ "Bitte „📥 Dump holen“ erneut laufen lassen (der Lauf muss nach dem 22.07. sein) und dann erneut syncen.",
+					"error"
+				);
+			} else {
+				setWikiSyncStatus(
+					`${sandbox} Kraftlinien im Zwischenspeicher, aber keine ließ sich auswerten — bitte melden. `
+					+ `(Lauf ${result.run_id ?? "?"}${runDate ? `, ${runDate}` : ""})`,
+					"error"
+				);
+			}
 			return;
 		}
 		const linked = Number(result.linked ?? 0);
