@@ -173,11 +173,15 @@ function avesmapsWikiDumpResolveStreamUri(string $path): string
  * Only one page is held in memory at a time; nothing is accumulated. Uses the
  * XMLReader pull API (read()/name/nodeType), never DOM/SimpleXML.
  *
- * Skip-to-cursor resume: the first $skipPages fully-parsed pages are counted and
- * discarded cheaply (their text is still parsed to advance the cursor, but not
- * yielded), then up to $maxPages pages are yielded. This supports the
- * "reopen-from-start, skip N, process the next batch" resume model, since
- * XMLReader is not seekable and bz2 is not byte-seekable.
+ * Skip-to-cursor resume: the first $skipPages <page> elements are counted and
+ * JUMPED via XMLReader::next() -- their subtree (crucially the multi-kilobyte
+ * <text> revision body) is never parsed; only the opening <page> tags are counted
+ * to advance the cursor. Then up to $maxPages pages are fully parsed and yielded.
+ * This supports the "reopen-from-start, skip N, process the next batch" resume
+ * model, since XMLReader is not seekable and bz2 is not byte-seekable. Parsing the
+ * skipped bodies was pure waste and the dominant cost of the resume: reopen+skip is
+ * inherently O(n^2) over the dump (a later step re-skips everything the earlier
+ * steps already consumed), so the skip must be a tag-scan, never a body-read.
  *
  * @param int      $skipPages number of leading <page> elements to skip (cursor).
  * @param int|null $maxPages  max pages to yield after skipping (null = no limit).
@@ -193,22 +197,47 @@ function avesmapsWikiDumpIteratePages(XMLReader $reader, int $skipPages = 0, ?in
     $seen = 0;     // total <page> elements encountered
     $yielded = 0;  // pages actually yielded (after skipping)
 
-    while ($reader->read()) {
+    // Drive the cursor by hand instead of a plain while($reader->read()) so a
+    // SKIPPED page can be jumped with next() -- which discards its whole subtree,
+    // INCLUDING the <text> body, unread -- while a yielded page is still fully
+    // parsed. next() already leaves the reader on the FOLLOWING node, so that
+    // branch must NOT read() again; the yield branch leaves the reader on </page>
+    // (avesmapsWikiDumpReadPageElement stops there) and read()s past it.
+    if (!$reader->read()) {
+        return;
+    }
+
+    while (true) {
         if ($reader->nodeType !== XMLReader::ELEMENT || $reader->localName !== 'page') {
+            if (!$reader->read()) {
+                return;
+            }
             continue;
         }
 
-        $page = avesmapsWikiDumpReadPageElement($reader);
         $seen++;
 
         if ($seen <= $skipPages) {
-            continue; // already-processed page -> advance cursor, do not yield
+            // Already-processed page (cursor): count it, then jump its entire
+            // subtree UNREAD. This is the O(n^2) hot path of every resumed step --
+            // parsing the skipped <text> bodies here was the dominant cost and, on
+            // a late step that skips almost the whole dump, what tipped the request
+            // over STRATO's per-request worker kill.
+            if (!$reader->next()) {
+                return; // no node after this subtree -> stream exhausted
+            }
+            continue; // reader is already on the next node -> do NOT read() again
         }
 
-        yield $page;
+        yield avesmapsWikiDumpReadPageElement($reader);
         $yielded++;
 
         if ($maxPages !== null && $yielded >= $maxPages) {
+            return;
+        }
+
+        // avesmapsWikiDumpReadPageElement left the reader on </page>; step past it.
+        if (!$reader->read()) {
             return;
         }
     }

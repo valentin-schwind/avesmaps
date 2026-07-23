@@ -508,7 +508,7 @@ function avesmapsWikiDumpHybridLoadTitleAliases(PDO $pdo, int $runId): array
 
 /**
  * Process ONE bounded redirect_aliases step: reopen the dump, skip $cursor
- * pages, stream up to the page/time budget, and for every <redirect> page
+ * pages, stream up to the ~25s time budget, and for every <redirect> page
  * persist BOTH (a) the title->title alias (via H4a's pure extractor +
  * avesmapsWikiDumpHybridPersistTitleAliases) so wikitext_collect can resolve a
  * wanted title that is itself a redirect, AND (b) the slug-keyed alias
@@ -516,10 +516,16 @@ function avesmapsWikiDumpHybridLoadTitleAliases(PDO $pdo, int $runId): array
  * upsert Pass A uses -- verbatim, so the existing wiki_redirect_alias output is
  * unchanged for any territory consumer.
  *
- * This mirrors avesmapsWikiDumpRunPassAStep's reopen+skip+cursor+budget
- * discipline EXACTLY, but does NOT own the run row's phase/status (the driver
- * does). Cursor = a page counter (stats['dump_cursor']). done=true iff the
- * stream ran to exhaustion within the budget.
+ * The step is bounded by a TIME budget (~25s, exactly like wikitext_collect),
+ * NOT the old fixed 2000-page cap it once shared with Pass A: it scans as many
+ * pages as fit the window, so one full dump pass is a handful of big steps, not
+ * ~112 tiny ones. That is the whole fix -- the reopen+skip is inherently O(n^2),
+ * and with ~112 steps the late ones each re-skip almost the entire dump, which on
+ * 2026-07-23 tipped a read_step over STRATO's per-request worker kill (redirect_
+ * aliases was the LAST dump-scan phase still on the page cap; every sibling phase
+ * had already moved to this time cap). It does NOT own the run row's phase/status
+ * (the driver does). Cursor = a page counter (stats['dump_cursor']). done=true iff
+ * the stream ran to exhaustion before the time budget.
  *
  * @param PDO           $pdo
  * @param string        $dumpPath path to the .bz2/.gz/.xml dump
@@ -536,7 +542,7 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
     ?callable $pageSource = null
 ): array {
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
-    $deadline = microtime(true) + (float) AVESMAPS_WIKI_DUMP_STEP_SECONDS;
+    $deadline = microtime(true) + (float) max(1, AVESMAPS_WIKI_DUMP_STEP_SECONDS - 3);
 
     avesmapsWikiDumpHybridEnsureTitleAliasTable($pdo);
 
@@ -549,20 +555,48 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
         }
     };
 
+    // Persisting is INTERLEAVED with the scan (flush every $flushEvery redirect
+    // pages), NOT batched at the very end. That keeps the DB writes INSIDE the ~25s
+    // budget, exactly like wikitext_collect's per-entity upsert: a time-capped window
+    // can span most of the dump, and a wiki has many thousands of redirects, so one
+    // end-of-step batch of that many INSERTs would run AFTER the deadline and re-tip
+    // the request over STRATO's worker kill -- relocating the crash, not fixing it.
+    // Both persist paths are INSERT ... ON DUPLICATE KEY UPDATE and every redirect
+    // page title is unique within a pass, so flushing in chunks is identical in
+    // effect to one big batch (nothing to dedup across chunks).
+    $flushEvery = 2000;
     $pagesScanned = 0;
-    $redirectPages = [];                 // only the <redirect> pages in this window (title + redirect fields only -- no wikitext bodies held)
-    $slugTitlesByCanonical = [];         // canonical_wiki_key => [alias page titles] (Pass A shape)
+    $pendingRedirects = 0;               // redirects buffered since the last flush
+    $redirectPages = [];                 // <redirect> pages since the last flush (title + redirect only -- no wikitext bodies held)
+    $slugTitlesByCanonical = [];         // canonical_wiki_key => [alias page titles] (Pass A shape), since the last flush
+    $titleAliasesWritten = 0;
+    $slugAliasesWritten = 0;
     $streamExhausted = true;
+
+    // Persist + clear whatever is buffered. Reused verbatim: H4a's extractor + the
+    // run-scoped title-alias upsert, and Pass A's slug-alias upsert -- all idempotent.
+    $flush = static function () use (
+        $pdo, $runId, &$redirectPages, &$slugTitlesByCanonical, &$titleAliasesWritten, &$slugAliasesWritten
+    ): void {
+        if ($redirectPages !== []) {
+            $titleAliasBatch = avesmapsWikiDumpCollectRedirectTitleAliases($redirectPages);
+            $titleAliasesWritten += avesmapsWikiDumpHybridPersistTitleAliases($pdo, $runId, $titleAliasBatch);
+            $redirectPages = [];
+        }
+        foreach ($slugTitlesByCanonical as $canonicalWikiKey => $titles) {
+            avesmapsWikiSyncMonitorStoreAlias($pdo, $titles, (string) $canonicalWikiKey);
+            $slugAliasesWritten++;
+        }
+        $slugTitlesByCanonical = [];
+    };
 
     foreach ($source($dumpPath, max(0, $cursor)) as $page) {
         $pagesScanned++;
 
         $target = avesmapsWikiDumpPageRedirectTarget($page);
         if ($target !== null && trim((string) ($page['title'] ?? '')) !== '') {
-            // (a) title->title: keep the minimal shape H4a's extractor reads (title +
-            //     redirect only -- never the wikitext body, so memory stays bounded);
-            //     the extractor is called ONCE over the whole window below so its
-            //     native last-write-wins semantics apply, verbatim.
+            // (a) title->title: minimal shape H4a's extractor reads (title + redirect
+            //     only -- never the wikitext body, so memory stays bounded).
             $redirectPages[] = ['title' => (string) $page['title'], 'redirect' => $target];
 
             // (b) slug-keyed: EXACTLY Pass A's derivation + upsert grouping.
@@ -570,25 +604,22 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
             if ($canonical !== '') {
                 $slugTitlesByCanonical[$canonical][] = (string) $page['title'];
             }
+
+            if (++$pendingRedirects >= $flushEvery) {
+                $flush();
+                $pendingRedirects = 0;
+            }
         }
 
-        if ($pagesScanned >= AVESMAPS_WIKI_DUMP_STEP_PAGE_BUDGET || microtime(true) >= $deadline) {
+        if (microtime(true) >= $deadline) {
             $streamExhausted = false;
             break;
         }
     }
 
-    // Persist this window's title->title aliases (new table) + slug aliases (reused
-    // Pass A upsert, verbatim). H4a's extractor runs over the whole window at once
-    // so a duplicate alias within the window resolves last-write-wins as documented.
-    $titleAliasBatch = avesmapsWikiDumpCollectRedirectTitleAliases($redirectPages);
-    $titleAliasesWritten = avesmapsWikiDumpHybridPersistTitleAliases($pdo, $runId, $titleAliasBatch);
-
-    $slugAliasesWritten = 0;
-    foreach ($slugTitlesByCanonical as $canonicalWikiKey => $titles) {
-        avesmapsWikiSyncMonitorStoreAlias($pdo, $titles, (string) $canonicalWikiKey);
-        $slugAliasesWritten++;
-    }
+    // Final flush: persist whatever this step buffered since the last threshold flush
+    // (and everything, when the window held fewer than $flushEvery redirects).
+    $flush();
 
     $done = $streamExhausted;
     $nextCursor = max(0, $cursor) + $pagesScanned;
