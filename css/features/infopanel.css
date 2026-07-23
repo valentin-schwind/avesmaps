@@ -454,7 +454,7 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    divider below, "Liegt in" tucks into the gap -- between the buttons' divider (above) and its own (below,
    which also cleanly separates it from the Einwohner/Oberhaupt data). Owner: "Liegt in + Inhalte zwischen die
    zwei Trenner darüber schieben". Full-bleed via the list above. Each level is a gold fly-to link
-   (.location-popup__political-link); "›" separates them; the chain wraps in the narrow panel. */
+   (.location-popup__political-link); the chain is rendered as a root -> leaf staircase (see -chain below). */
 .avesmaps-infopanel .location-popup__breadcrumb {
 	margin-bottom: 12px;
 	padding-bottom: 11px;
@@ -466,17 +466,34 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
 	font-weight: 700;
 	color: var(--color-text-strong);
 }
+/* Root -> leaf staircase: the outermost realm sits on top at full width, each inner level indented one
+   --breadcrumb-step and joined to its parent by a faint elbow. Vertical layout never runs out of width in
+   the narrow panel, and the single long name (the realm, on top) wraps cleanly with no orphaned separator.
+   --breadcrumb-depth is set per row inline by buildSettlementHierarchyMarkup (0 = the realm row). */
 .location-popup__breadcrumb-chain {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 2px 6px;
+	--breadcrumb-step: 14px;
 	font-size: 13px;
-	line-height: 1.5;
+	line-height: 1.45;
 }
-.location-popup__breadcrumb-sep {
-	color: var(--color-text-muted);
-	user-select: none;
+.location-popup__breadcrumb-row {
+	position: relative;
+	padding-left: calc(var(--breadcrumb-depth, 0) * var(--breadcrumb-step));
+}
+.location-popup__breadcrumb-row + .location-popup__breadcrumb-row {
+	margin-top: 4px;
+}
+/* Faint elbow line pointing up to the parent level; the top realm row (depth 0) carries none. */
+.location-popup__breadcrumb-row:not(:first-child)::before {
+	content: "";
+	position: absolute;
+	top: -5px;
+	left: calc(var(--breadcrumb-depth, 0) * var(--breadcrumb-step) - 9px);
+	width: 7px;
+	height: 14px;
+	border-left: 1.5px solid var(--color-text-muted);
+	border-bottom: 1.5px solid var(--color-text-muted);
+	border-bottom-left-radius: var(--radius-sm);
+	pointer-events: none;
 }
 /* Small public-domain coat thumbnail before a breadcrumb territory name (decorative). Sits inside the gold
    fly-to link, vertically centred with the name; the link keeps its text baseline so the "›" chain stays

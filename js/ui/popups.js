@@ -708,24 +708,31 @@ function buildSettlementPoliticalLineMarkup(political) {
 	return `${escapeHtml(prefix)} ${link}`;
 }
 
-// "Liegt in" breadcrumb (Owner Variante A): the full leaf -> root territory chain, each level a gold
-// fly-to link separated by "›", rendered as its own labelled section in the panel infobox. hierarchy =
-// [{name, type, territory_public_id}] from map-features.php (the parent_id walk). Empty -> "" (no section).
+// "Liegt in" territory staircase: the settlement's full territory chain rendered root -> leaf -- the
+// outermost realm on top at full width, each inner level indented one step and joined by a faint elbow
+// line. Each level is a gold fly-to link. hierarchy = [{name, type, territory_public_id, coat_url}] is
+// delivered leaf -> root by map-features.php (the parent_id walk), so we reverse it. Empty -> "".
 function buildSettlementHierarchyMarkup(hierarchy) {
 	if (!Array.isArray(hierarchy) || hierarchy.length === 0) {
 		return "";
 	}
-	const links = hierarchy
-		.map(function (node) { return settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link", { withCoat: true }); })
-		.filter(Boolean);
-	if (links.length === 0) {
+	const rows = [];
+	hierarchy.slice().reverse().forEach(function (node) {
+		const link = settlementTerritoryLinkMarkup(node, "location-popup__breadcrumb-link", { withCoat: true });
+		if (link === "") {
+			return;
+		}
+		// depth = position among kept rows, so a skipped (empty-name) level leaves no indent gap
+		const depth = rows.length;
+		rows.push(`<div class="location-popup__breadcrumb-row" style="--breadcrumb-depth:${depth}">${link}</div>`);
+	});
+	if (rows.length === 0) {
 		return "";
 	}
-	const sep = `<span class="location-popup__breadcrumb-sep" aria-hidden="true">›</span>`;
 	const label = tr("popup.locatedIn", "Liegt in");
 	return `<div class="location-popup__breadcrumb">`
 		+ `<div class="location-popup__breadcrumb-label">${escapeHtml(label)}</div>`
-		+ `<div class="location-popup__breadcrumb-chain">${links.join(sep)}</div>`
+		+ `<div class="location-popup__breadcrumb-chain">${rows.join("")}</div>`
 		+ `</div>`;
 }
 
