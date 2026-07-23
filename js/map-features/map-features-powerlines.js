@@ -312,10 +312,17 @@ function powerlineInfoboxMarkup(powerline) {
 	// Auch hier gewinnt der handgesetzte Link vor dem aus dem Wiki.
 	const wikiUrl = String(powerline?.properties?.wiki_url || "").trim()
 		|| String(wiki.wiki_url || "").trim();
+	// Quellen haengen am ANKER-Segment der Linie (kleinste public_id der Namensgruppe), nicht am
+	// angeklickten -- so zeigt jeder Klick auf die Linie ihre Quellen, und der Kraftlinien-Editor
+	// schreibt gegen denselben Anker (docs/superpowers/specs/2026-07-23-kraftlinien-editor-design.md §10).
+	const powerlineSourceAnchorId = (function () {
+		const ids = getPowerlineSegmentsSharingName(powerline).map(getPowerlinePublicId).filter((id) => id !== "");
+		return ids.length ? ids.slice().sort()[0] : getPowerlinePublicId(powerline);
+	})();
 	const sourceMarkup = typeof renderFeatureSourceLine === "function"
 		? renderFeatureSourceLine(
 			"powerline",
-			getPowerlinePublicId(powerline),
+			powerlineSourceAnchorId,
 			wikiUrl,
 			"location-popup__wiki-link"
 		)
