@@ -313,7 +313,7 @@ echo "\n-- (c) continent fill step: nextCursor/done pass-through (H1 contract, n
 // and $result['done'] from avesmapsWikiDumpCategoryFetchContinentMap()
 // UNCHANGED (no re-interpretation, no re-derivation of the cursor) -- i.e.
 // this is a structural check, not just a numeric example.
-$hybridStateSource = (string) file_get_contents($repoRoot . '/api/_internal/wiki/dump-hybrid-state.php');
+$hybridStateSource = str_replace(chr(13), '', (string) file_get_contents($repoRoot . '/api/_internal/wiki/dump-hybrid-state.php'));
 $fillContinentSource = '';
 if (preg_match(
     '/function avesmapsWikiDumpHybridFillContinentMapStep\([^)]*\)[^{]*\{(.*?)\n\}\n/s',
@@ -343,10 +343,10 @@ $check(
 
 // Now prove H1's OWN contract holds for a concrete case (no PDO, no HTTP --
 // a fake batch fetcher), so the pass-through proven structurally above
-// carries real numeric meaning: a 45-title list, callBudget=1 (batch size 20)
-// stops after exactly one batch (nextCursor=20, done=false); resuming from
-// cursor=20 with a generous budget finishes (done=true).
-$fakeTitles = array_map(static fn(int $i): string => "Titel {$i}", range(1, 45));
+// carries real numeric meaning: a 120-title list, callBudget=1 (batch size 50)
+// stops after exactly one batch (nextCursor=50, done=false); resuming from
+// cursor=50 with a generous budget finishes (done=true, 70 remaining).
+$fakeTitles = array_map(static fn(int $i): string => "Titel {$i}", range(1, 120));
 $fakeBatchFetcher = static function (array $batchTitles): array {
     $pages = [];
     foreach ($batchTitles as $title) {
@@ -357,18 +357,18 @@ $fakeBatchFetcher = static function (array $batchTitles): array {
 
 $step1 = avesmapsWikiDumpCategoryFetchContinentMap($fakeTitles, 0, 1, $fakeBatchFetcher);
 $check(
-    '(c4) H1 continent map, cursor=0, callBudget=1, batch=20: nextCursor=20 done=false',
-    ['nextCursor' => 20, 'done' => false, 'mapSize' => 20],
+    '(c4) H1 continent map, cursor=0, callBudget=1, batch=50: nextCursor=50 done=false',
+    ['nextCursor' => 50, 'done' => false, 'mapSize' => 50],
     ['nextCursor' => $step1['nextCursor'], 'done' => $step1['done'], 'mapSize' => count($step1['map'])],
     'exactly the value avesmapsWikiDumpHybridFillContinentMapStep() must pass through unchanged from this same call shape'
 );
 
 $step2 = avesmapsWikiDumpCategoryFetchContinentMap($fakeTitles, $step1['nextCursor'], 10, $fakeBatchFetcher);
 $check(
-    '(c5) H1 continent map, resumed from nextCursor=20, generous budget: done=true, remaining 25 titles found',
-    ['done' => true, 'mapSize' => 25],
+    '(c5) H1 continent map, resumed from nextCursor=50, generous budget: done=true, remaining 70 titles found',
+    ['done' => true, 'mapSize' => 70],
     ['done' => $step2['done'], 'mapSize' => count($step2['map'])],
-    'resuming with $cursor=$step1[\'nextCursor\'] (the exact value the fill-step would have persisted) finishes the 45-title list'
+    'resuming with $cursor=$step1[\'nextCursor\'] (the exact value the fill-step would have persisted) finishes the 120-title list'
 );
 
 // ===========================================================================

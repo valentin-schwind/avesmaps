@@ -99,6 +99,7 @@ jobs:
             "map"
             "politics"
             "scripts"
+            "tools/wikidump"
           )
 
           copy_item() {
