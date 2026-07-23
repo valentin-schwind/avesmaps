@@ -2422,6 +2422,29 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
             'is_active' => 0,
             'revision' => $revision,
         ]));
+
+        // Powerline anchor preservation: a line's sources ride its anchor segment (smallest public_id of
+        // the name group; see powerlineInfoboxMarkup + the editor's mountFeatureSourceEditor). If the
+        // segment just deleted was that anchor, move its feature_sources onto the new anchor (smallest
+        // remaining active segment of the same name) so the infobox keeps showing them. A non-anchor
+        // segment carries no sources, so the update simply moves nothing; with no segment left, the line
+        // is gone and there is nowhere to move them. See design section 10.
+        if ((string) ($feature['feature_type'] ?? '') === 'powerline') {
+            $newAnchorStatement = $pdo->prepare(
+                "SELECT MIN(public_id) FROM map_features
+                 WHERE feature_type = 'powerline' AND is_active = 1 AND name = :name AND id <> :id"
+            );
+            $newAnchorStatement->execute(['name' => (string) ($feature['name'] ?? ''), 'id' => (int) $feature['id']]);
+            $newAnchor = $newAnchorStatement->fetchColumn();
+            if (is_string($newAnchor) && $newAnchor !== '') {
+                $moveSources = $pdo->prepare(
+                    "UPDATE feature_sources SET entity_public_id = :new
+                     WHERE entity_type = 'powerline' AND entity_public_id = :old"
+                );
+                $moveSources->execute(['new' => $newAnchor, 'old' => $publicId]);
+            }
+        }
+
         $pdo->commit();
 
         return [
