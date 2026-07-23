@@ -169,7 +169,10 @@
     font: inherit;
   }
   .ce-list__count { margin: 0; padding: 0 0 var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
-  .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+  /* Gerahmter Scrollkasten wie #seList im Siedlungseditor (Vorbild): helleres --color-panel auf dem
+     dunkleren Seitengrund, 1px-Kante, --radius-sm (die "panel shell"-Stufe). Das ist die warme
+     Schichtung, an der die drei Spalten als eingefasste Flaechen lesbar werden statt flach zu laufen. */
+  .ce-list__scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2); }
   /* Schwebende, gerundete Zeile wie .se-row im Vorbild und .ae-item im Abenteuer-Editor. Vorher
      randlos mit Trennlinie unten -- das war der auffaelligste Unterschied der beiden Editoren
      nebeneinander (Spec §3.1a). Der transparente Rahmen haelt die Zeile beim Auswaehlen ruhig:
@@ -236,7 +239,7 @@
   .ce-detail__head:empty { display: none; }
   /* Das Panel selbst scrollt nicht mehr -- sonst wanderte der Spaltentitel mit dem Inhalt weg.
      Es scrollt der innere Kasten, der auch die id traegt. */
-  .ce-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .ce-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--color-panel); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2); }
   .ce-panel--orte { border-left: 1px solid var(--color-border); }
   .ce-placeholder { color: var(--color-text-muted); }
 
@@ -447,8 +450,7 @@
     grid-template-columns: 44px minmax(0, 1fr) auto;
     gap: var(--space-6);
     align-items: start;
-    padding: var(--space-6) 0;
-    border-bottom: 1px solid var(--color-divider);
+    padding: var(--space-8); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-panel); margin-bottom: var(--space-6);
   }
   .ce-place.is-hidden { opacity: 0.55; }
   .ce-place__order { display: flex; align-items: center; gap: 2px; color: var(--color-text-muted); }
