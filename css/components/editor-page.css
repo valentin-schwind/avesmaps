@@ -141,3 +141,32 @@
 	padding-top: 2px;
 	border-top: 1px solid var(--color-divider);
 }
+/* Zahlenbereich im Trichter (BF-Zeitraum), gespiegelt aus css/features/review-panel.css --
+   dieselbe Komponente (js/ui/filter-menu.js) wird von den Editor-iframes UND dem Panel geladen,
+   und jede Seite bringt ihre eigenen .type-filter__*-Regeln mit. Die zwei Felder stehen UNTER den
+   Vorauswahlen „Alle / heute / Zeitraum"; Hineintippen schaltet die Vorauswahl selbst auf „Zeitraum". */
+.type-filter__range {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+}
+.type-filter__rangefield {
+	flex: 1 1 0;
+	min-width: 0;
+	width: 100%;
+	height: var(--avm-control-h);
+	padding: 0 var(--space-4);
+	font: inherit;
+	font-size: var(--font-size-small);
+	color: var(--color-text);
+	background: var(--color-input-bg, var(--soft, var(--color-panel)));
+	border: 1px solid var(--color-border, var(--line));
+	border-radius: var(--radius-md);
+}
+.type-filter__rangedash,
+.type-filter__rangeunit {
+	flex: 0 0 auto;
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}

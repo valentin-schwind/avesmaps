@@ -297,10 +297,11 @@
   <div class="col" id="seLeft">
     <div class="colhead">
       <h2 class="listhead">Territorien</h2>
-      <div class="bar"><input type="search" id="seTreeSearch" placeholder="In Territorien suchen…"></div>
-      <div class="timefilter">Zeige nur: <input type="number" id="seTimeFrom" placeholder="von"> – <input type="number" id="seTimeTo" placeholder="bis"> BF <label><input type="checkbox" id="seTimeToday"> heute</label>
-        <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="seFlaech"> nur Flächenländer</label>
-        <label>Quelle: <select id="seSourceOrigin"><option value="alle">alle</option><option value="eigene">eigene</option><option value="wiki">wiki</option></select></label>
+      <!-- Zeitraum + „nur Flächenländer" + Quelle liegen jetzt IM Trichter statt als „Zeige nur"-Zeile
+           unter der Suche: eine ausklappende Zeile schöbe den Baum nach unten. Die Abschnitte füllt
+           avmFilterMenuAttach (js/ui/filter-menu.js), verdrahtet im Inline-Skript unten. -->
+      <div class="bar"><input type="search" id="seTreeSearch" placeholder="In Territorien suchen…">
+        <div class="type-filter"><button type="button" id="seTreeFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="seTreeFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Zeitraum</div><div id="seTreeTimeMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Flächenländer</div><div id="seTreeFlaechMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="seTreeSourceMenu"></div></div></div></div>
       </div>
     </div>
     <div id="seTree"></div>
@@ -354,6 +355,10 @@
 <link rel="stylesheet" href="/css/features/feature-sources.css" />
 <script src="/js/ui/source-autocomplete.js"></script>
 <script src="/js/review/review-feature-sources.js"></script>
+<!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Dieselbe Datei lädt
+     auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript
+     unten, das ihn für die linke Spalte verdrahtet. -->
+<script src="/js/ui/filter-menu.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
 // Same curated model-tree endpoint as territory-wiki-tree.js / review-wiki-sync.js
@@ -2625,53 +2630,31 @@ document.addEventListener("click", (event) => {
 	if (!insideButton && !menu.contains(event.target)) menu.hidden = true;
 });
 
-// BF-Zeitfilter anwenden (Muster applyTime in wiki-sync-monitor.html): "heute"-Haekchen deaktiviert
-// die von/bis-Felder und schaltet auf mode="today"; sonst range, wenn mind. eines gesetzt ist.
-function applySettlementTreeTimeFilter() {
-	const todayBox = $("seTimeToday");
-	const fromInput = $("seTimeFrom");
-	const toInput = $("seTimeTo");
-	if (!todayBox || !fromInput || !toInput) return;
-	const today = todayBox.checked;
-	fromInput.disabled = today;
-	toInput.disabled = today;
-	if (today) {
-		settlementTreeTimeFilter.mode = "today";
-	} else {
-		const from = parseInt(fromInput.value, 10), to = parseInt(toInput.value, 10);
-		if (!isNaN(from) || !isNaN(to)) {
-			settlementTreeTimeFilter.mode = "range";
-			settlementTreeTimeFilter.from = isNaN(from) ? -Infinity : from;
-			settlementTreeTimeFilter.to = isNaN(to) ? Infinity : to;
-		} else {
-			settlementTreeTimeFilter.mode = "off";
-		}
-	}
+// Zeitraum + „nur Flächenländer" + Quelle sitzen jetzt im gemeinsamen Trichter (js/ui/filter-menu.js)
+// statt in der „Zeige nur"-Zeile. Der Trichter hält seinen eigenen Zustand; die drei Consumer-Werte
+// oben (settlementTreeTimeFilter / …FlaechenlandOnly / …SourceFilter) werden vor jedem Anwenden aus
+// ihm abgeleitet, sodass settlementVisibleByTime & Co. unverändert bleiben. Vorgabe „Alle" (mode
+// "off") wie das alte, NICHT vorangekreuzte „heute"-Häkchen dieses Editors.
+const seTreeTimeState = avmRangeStateCreate("off");
+const seTreeFlaechState = { value: "" };            // "" = alle | "ja" = nur Flächenländer
+const seTreeSourceState = { value: "" };            // "" = alle | "eigene" | "wiki"
+
+function applySettlementTreeFunnelFilter() {
+	Object.assign(settlementTreeTimeFilter, avmRangeValue(seTreeTimeState));
+	settlementTreeFlaechenlandOnly = seTreeFlaechState.value === "ja";
+	settlementTreeSourceFilter = seTreeSourceState.value || "alle";
 	applyTerritoryTreeSearchFilter();
 }
 
 function wireTerritoryFilterBar() {
 	const treeSearchInput = $("seTreeSearch");
 	if (treeSearchInput) treeSearchInput.addEventListener("input", applyTerritoryTreeSearchFilter);
-	for (const id of ["seTimeFrom", "seTimeTo"]) {
-		const input = $(id);
-		if (input) input.addEventListener("input", applySettlementTreeTimeFilter);
-	}
-	const todayBox = $("seTimeToday");
-	if (todayBox) todayBox.addEventListener("change", applySettlementTreeTimeFilter);
-	const flaechBox = $("seFlaech");
-	if (flaechBox) {
-		flaechBox.addEventListener("change", () => {
-			settlementTreeFlaechenlandOnly = flaechBox.checked;
-			applyTerritoryTreeSearchFilter();
-		});
-	}
-	const sourceSelect = $("seSourceOrigin");
-	if (sourceSelect) {
-		sourceSelect.addEventListener("change", () => {
-			settlementTreeSourceFilter = sourceSelect.value || "alle";
-			applyTerritoryTreeSearchFilter();
-		});
+	if (typeof avmFilterMenuAttach === "function") {
+		avmFilterMenuAttach("seTreeFilterToggle", "seTreeFilterMenu", [
+			{ menuId: "seTreeTimeMenu", kind: "range", state: seTreeTimeState, label: "Zeitraum" },
+			{ menuId: "seTreeFlaechMenu", kind: "single", state: seTreeFlaechState, options: [{ value: "ja", label: "nur Flächenländer" }], label: "Flächenländer" },
+			{ menuId: "seTreeSourceMenu", kind: "single", state: seTreeSourceState, options: [{ value: "eigene", label: "eigene" }, { value: "wiki", label: "wiki" }], label: "Quelle" },
+		], applySettlementTreeFunnelFilter, "Filter");
 	}
 }
 
