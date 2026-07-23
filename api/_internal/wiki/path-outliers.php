@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// The durable "gehört zum Weg" decision lives in the shared conflict_decision store, not a second
+// table (AGENTS.md §5 ethos): rule_id='path_outlier', decision='approved', fingerprint per cluster.
+require_once __DIR__ . '/../conflicts/store.php';
+
 /**
  * Geometric outlier detection for wiki way assignments (Bug #39).
  *
@@ -249,6 +253,23 @@ function avesmapsWikiPathOutlierStationCoords(string $verlauf, array $nameIndex)
  * Returns ways that have at least one detached cluster, worst distance first.
  */
 function avesmapsWikiPathOutlierList(PDO $pdo): array {
+    // Name -> [coords] over the places a road can pass (settlements + crossings), built ONCE. The
+    // only extra read this feature adds; keeps the "no routing, one pass" promise on STRATO.
+    $nameIndex = [];
+    $locStatement = $pdo->query(
+        "SELECT name, geometry_json FROM map_features
+        WHERE is_active = 1 AND feature_type IN ('location','crossing') AND name <> ''"
+    );
+    foreach ($locStatement->fetchAll(PDO::FETCH_ASSOC) as $loc) {
+        $geometry = json_decode((string) ($loc['geometry_json'] ?? ''), true);
+        $points = avesmapsWikiPathOutlierPoints(is_array($geometry) ? $geometry : null);
+        if ($points !== [] && is_numeric($points[0][0] ?? null) && is_numeric($points[0][1] ?? null)) {
+            $nameIndex[(string) $loc['name']][] = [(float) $points[0][0], (float) $points[0][1]];
+        }
+    }
+
+    $decisions = avesmapsConflictReadDecisions($pdo);
+
     // The LIKE prefilter keeps the JSON decode off the ~3400 unassigned segments (STRATO).
     $statement = $pdo->query(
         "SELECT public_id, name, geometry_json, properties_json
@@ -273,6 +294,8 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
         // from wiki_url, not by wiki_key.
         $byWay[$wikiKey]['wiki_url'] = (string) ($wikiPath['wiki_url'] ?? '');
         $byWay[$wikiKey]['kind'] = (string) ($wikiPath['kind'] ?? '');
+        // The parsed course chain travels on every segment's wiki_path; last write wins, they agree.
+        $byWay[$wikiKey]['verlauf'] = (string) ($wikiPath['verlauf'] ?? '');
         $byWay[$wikiKey]['segments'][] = [
             'public_id' => (string) ($row['public_id'] ?? ''),
             'name' => (string) ($row['name'] ?? ''),
@@ -282,8 +305,10 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
     }
 
     $ways = [];
+    $resolved = [];
     foreach ($byWay as $wikiKey => $way) {
-        $analysis = avesmapsWikiPathOutlierAnalyseWay($way['segments']);
+        $stationCoords = avesmapsWikiPathOutlierStationCoords((string) ($way['verlauf'] ?? ''), $nameIndex);
+        $analysis = avesmapsWikiPathOutlierAnalyseWay($way['segments'], $stationCoords);
         if ($analysis['outlier_count'] === 0) {
             continue;
         }
@@ -293,9 +318,26 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
         foreach ($way['segments'] as $segment) {
             $sourceById[$segment['public_id']] = $segment['source'];
         }
-        $detached = [];
+
+        $openDetached = [];
+        $wayResolved = [];
         foreach (array_slice($analysis['components'], 1) as $component) {
-            $detached[] = [
+            $fingerprint = avesmapsWikiPathOutlierFingerprint((string) $wikiKey, $component['segments']);
+            // A cluster the wiki course confirms is a real section of the road -- never a stray.
+            if (($component['on_course'] ?? false) === true) {
+                continue;
+            }
+            $decision = $decisions['path_outlier|' . $fingerprint] ?? null;
+            if ($decision !== null && (string) ($decision['decision'] ?? '') === 'approved') {
+                $wayResolved[] = [
+                    'fingerprint' => $fingerprint,
+                    'size' => $component['size'],
+                    'distance' => $component['distance'] === null ? null : round($component['distance'], 2),
+                ];
+                continue;
+            }
+            $openDetached[] = [
+                'fingerprint' => $fingerprint,
                 'size' => $component['size'],
                 'distance' => $component['distance'] === null ? null : round($component['distance'], 2),
                 'segments' => array_map(
@@ -304,6 +346,32 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
                 ),
             ];
         }
+
+        if ($openDetached === []) {
+            // Nothing left to flag: on-course and/or acknowledged. Carry the acknowledged ones so the
+            // panel can offer an inline "reopen" without a second tab.
+            if ($wayResolved !== []) {
+                $resolved[] = [
+                    'wiki_key' => (string) $wikiKey,
+                    'name' => (string) ($way['name'] ?? ''),
+                    'wiki_url' => (string) ($way['wiki_url'] ?? ''),
+                    'clusters' => $wayResolved,
+                ];
+            }
+            continue;
+        }
+
+        // Recompute the headline numbers from the OPEN strays only -- on-course/acknowledged pieces
+        // are no longer "abseits", and the list still ranks by distance.
+        $openOutlierCount = 0;
+        $openMaxDistance = null;
+        foreach ($openDetached as $component) {
+            $openOutlierCount += $component['size'];
+            if ($component['distance'] !== null && ($openMaxDistance === null || $component['distance'] > $openMaxDistance)) {
+                $openMaxDistance = $component['distance'];
+            }
+        }
+
         $ways[] = [
             'wiki_key' => (string) $wikiKey,
             'name' => (string) ($way['name'] ?? ''),
@@ -311,13 +379,33 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
             'kind' => (string) ($way['kind'] ?? ''),
             'total' => count($way['segments']),
             'main_size' => $analysis['components'][0]['size'],
-            'outlier_count' => $analysis['outlier_count'],
-            'max_distance' => $analysis['max_distance'] === null ? null : round($analysis['max_distance'], 2),
+            'outlier_count' => $openOutlierCount,
+            'max_distance' => $openMaxDistance,
             'ambiguous' => $analysis['ambiguous'],
-            'detached' => $detached,
+            // Honest evidence label in the UI: "off the course" vs. "no course to check against".
+            'has_course' => $stationCoords !== [],
+            'detached' => $openDetached,
         ];
     }
     usort($ways, static fn(array $a, array $b): int => ($b['max_distance'] ?? 0.0) <=> ($a['max_distance'] ?? 0.0));
 
-    return ['ok' => true, 'ways' => $ways, 'scanned' => $scanned, 'flagged' => count($ways)];
+    return ['ok' => true, 'ways' => $ways, 'resolved' => $resolved, 'scanned' => $scanned, 'flagged' => count($ways)];
+}
+
+// "gehört zum Weg (gelöst)": record a durable acknowledgement in the shared decision store. Writes
+// NOTHING to map_features -- the segments stay assigned; only the outlier verdict is set aside.
+function avesmapsWikiPathOutlierApprove(PDO $pdo, string $wikiKey, string $fingerprint, string $title, int $userId, string $userName): array {
+    return avesmapsConflictRecordDecision($pdo, [
+        'rule_id' => 'path_outlier',
+        'fingerprint' => $fingerprint,
+        'decision' => 'approved',
+        'subject_type' => 'path',
+        'subject_id' => $wikiKey,
+        'title' => $title,
+    ], $userId, $userName);
+}
+
+// Undo: drop the acknowledgement so the cluster returns as an open outlier.
+function avesmapsWikiPathOutlierReopen(PDO $pdo, string $fingerprint): array {
+    return avesmapsConflictClearDecision($pdo, 'path_outlier', $fingerprint);
 }

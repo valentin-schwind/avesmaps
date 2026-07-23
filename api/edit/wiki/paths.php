@@ -168,6 +168,21 @@ try {
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0)
             ),
+            // "Ausreißer"-Reiter: acknowledge a detached cluster as a legitimate part of the way, or
+            // reopen it. Writes conflict_decision only -- never map_features, so it is deliberately
+            // absent from the cache-invalidation list below (like defer_verlauf_case).
+            'approve_outlier' => avesmapsWikiPathOutlierApprove(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['fingerprint'] ?? ''),
+                (string) ($payload['title'] ?? ''),
+                (int) ($user['id'] ?? 0),
+                trim((string) ($user['username'] ?? $user['name'] ?? ''))
+            ),
+            'reopen_outlier' => avesmapsWikiPathOutlierReopen(
+                $pdo,
+                (string) ($payload['fingerprint'] ?? '')
+            ),
             default => null,
         };
 
