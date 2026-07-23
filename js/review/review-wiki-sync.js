@@ -962,6 +962,11 @@ async function startWikiSyncDumpRead() {
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
 		await refreshWikiSyncDumpFetchedStatus();
+
+		// Dump-Report: after a full run, open the in-editor self-test report so editors
+		// can watch the code's self-tests go green/red in the browser (no shell on STRATO).
+		// Fire-and-forget + fully guarded so a report bug can NEVER affect the dump flow.
+		try { void avesmapsOpenDumpReport(); } catch (reportError) { console.error("Dump-Report:", reportError); }
 	} catch (error) {
 		console.error("Dump holen fehlgeschlagen:", error);
 		isWikiSyncDumpRunning = false;
@@ -969,6 +974,248 @@ async function startWikiSyncDumpRead() {
 		setWikiSyncStatus(error.message || "Dump holen fehlgeschlagen.", "error");
 		showFeedbackToast(error.message || "Dump holen fehlgeschlagen.", "warning");
 	}
+}
+
+// ===========================================================================
+// Dump-Report: after a full "Dump holen" run, show the code's self-tests
+// (api/edit/wiki/selftest.php) green/red in the browser -- editors have no shell
+// on STRATO. Self-contained: the overlay is BUILT IN JS and appended to <body>,
+// styled from the design tokens (css/base/tokens.css); it never touches index.html
+// and the caller fires it guarded + fire-and-forget, so nothing here can affect
+// the dump flow. Run statistics + the dump-vs-live comparison are a planned
+// follow-up; this ships the self-test section. window.avesmapsOpenDumpReport is
+// exposed so the report can also be opened manually.
+// ===========================================================================
+let avesmapsDumpReportStylesInjected = false;
+function avesmapsDumpReportInjectStyles() {
+	if (avesmapsDumpReportStylesInjected) {
+		return;
+	}
+	avesmapsDumpReportStylesInjected = true;
+	const css = `
+.avm-dr-overlay{position:fixed;inset:0;z-index:var(--z-modal,5000);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;background:rgba(40,28,14,.45);}
+.avm-dr-card{position:relative;width:100%;max-width:720px;background:var(--color-panel);color:var(--color-text);border:1px solid var(--color-border);border-radius:var(--radius-lg,10px);box-shadow:var(--shadow-dialog,0 10px 30px rgba(0,0,0,.3));padding:20px 22px 16px;font-family:var(--font-ui,"Faculty Glyphic",sans-serif);}
+.avm-dr-x{position:absolute;top:10px;right:12px;border:0;background:transparent;color:var(--color-text-muted);font-size:22px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:var(--radius-md,8px);}
+.avm-dr-x:hover{background:var(--color-hover-wash,rgba(0,0,0,.06));}
+.avm-dr-h1{font-size:var(--font-size-title,20px);font-weight:700;margin:0 0 3px;color:var(--color-text-strong);}
+.avm-dr-meta{font-size:var(--font-size-small,12px);color:var(--color-text-muted);margin:0;}
+.avm-dr-h2{font-size:var(--font-size-caption,11px);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--color-accent-strong);margin:18px 0 0;}
+.avm-dr-rule{height:1px;background:var(--color-divider);margin:6px 0 12px;border:0;}
+.avm-dr-summary{font-size:var(--font-size-small,12px);color:var(--color-text-muted);margin:0 0 8px;}
+.avm-dr-summary b{color:var(--color-text-strong);}
+.avm-dr-tests{list-style:none;margin:0;padding:0;}
+.avm-dr-tests li{padding:6px 0;border-bottom:1px solid var(--color-divider);}
+.avm-dr-tests li:last-child{border-bottom:0;}
+.avm-dr-row{display:flex;align-items:center;gap:10px;font-size:var(--font-size-small,12px);}
+.avm-dr-name{flex:1;min-width:0;color:var(--color-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.avm-dr-pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius-md,8px);white-space:nowrap;}
+.avm-dr-pill.ok{color:var(--color-success-soft-text,#3c5a1c);background:var(--color-success-soft,#eef6e2);border:1px solid var(--color-success-soft-border,#a9c07f);}
+.avm-dr-pill.bad{color:var(--color-danger-soft-text,#8a2d22);background:var(--color-danger-soft,#fbeae6);border:1px solid var(--color-danger-soft-border,#d3a79c);}
+.avm-dr-pill.pending{color:var(--color-text-muted);background:var(--color-panel-soft);border:1px solid var(--color-border);}
+.avm-dr-fail{margin:6px 0 0;padding:9px 11px;background:var(--color-danger-soft,#fbeae6);border-left:3px solid var(--color-danger,#9d3a2e);border-radius:0 var(--radius-md,8px) var(--radius-md,8px) 0;font-size:11px;color:var(--color-danger-soft-text,#8a2d22);white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;max-height:180px;overflow:auto;}
+.avm-dr-note{font-size:var(--font-size-small,12px);color:var(--color-text-muted);margin:16px 0 0;padding-top:12px;border-top:1px solid var(--color-divider);}
+.avm-dr-foot{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px;}
+.avm-dr-btn{font:inherit;font-size:var(--font-size-body,13px);font-weight:700;border-radius:var(--radius-md,8px);padding:8px 15px;cursor:pointer;border:1px solid var(--color-button-soft-border);background:var(--color-button-soft);color:var(--color-button-soft-text);}
+.avm-dr-btn.primary{background:var(--color-button);color:var(--color-button-text);border-color:var(--color-button-border);}
+`;
+	const style = document.createElement("style");
+	style.id = "avm-dump-report-styles";
+	style.textContent = css;
+	document.head.appendChild(style);
+}
+
+function avesmapsDumpReportOnKey(event) {
+	if (event.key === "Escape") {
+		avesmapsDumpReportClose();
+	}
+}
+
+function avesmapsDumpReportClose() {
+	const overlay = document.getElementById("avm-dump-report-overlay");
+	if (overlay && overlay.parentNode) {
+		overlay.parentNode.removeChild(overlay);
+	}
+	document.removeEventListener("keydown", avesmapsDumpReportOnKey);
+}
+
+async function avesmapsDumpReportFetchJson(url) {
+	const response = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } });
+	let data = null;
+	try {
+		data = await response.json();
+	} catch (parseError) {
+		data = null;
+	}
+	return { status: response.status, data };
+}
+
+// Set the summary line from a bold lead + plain rest, via safe DOM (no innerHTML).
+function avesmapsDumpReportSetSummary(el, boldText, restText) {
+	el.textContent = "";
+	if (boldText) {
+		const strong = document.createElement("b");
+		strong.textContent = boldText;
+		el.appendChild(strong);
+	}
+	if (restText) {
+		el.appendChild(document.createTextNode(restText));
+	}
+}
+
+async function avesmapsDumpReportRunTests() {
+	const listEl = document.getElementById("avm-dr-tests");
+	const summaryEl = document.getElementById("avm-dr-summary");
+	if (!listEl || !summaryEl) {
+		return;
+	}
+	listEl.innerHTML = "";
+	summaryEl.textContent = "Tests werden geprüft …";
+
+	let manifest;
+	try {
+		manifest = await avesmapsDumpReportFetchJson("/api/edit/wiki/selftest.php?action=manifest");
+	} catch (networkError) {
+		avesmapsDumpReportSetSummary(summaryEl, "Test-Runner nicht erreichbar.");
+		return;
+	}
+	if (manifest.status === 401 || manifest.status === 403) {
+		avesmapsDumpReportSetSummary(summaryEl, "Editor-Login nötig", " — im Editor anmelden und erneut prüfen.");
+		return;
+	}
+	if (!manifest.data || manifest.data.ok !== true || !Array.isArray(manifest.data.tests)) {
+		const code = manifest.data && manifest.data.error ? manifest.data.error.code : "unbekannt";
+		avesmapsDumpReportSetSummary(summaryEl, "Test-Liste nicht verfügbar", ` (${code}). Ist ein vollständiger Deploy gelaufen?`);
+		return;
+	}
+
+	const tests = manifest.data.tests;
+	let green = 0;
+	let red = 0;
+	summaryEl.textContent = `Läuft … 0/${tests.length}`;
+
+	// One request per test, SEQUENTIAL -- gentle on STRATO (never fan out).
+	for (let i = 0; i < tests.length; i++) {
+		const test = tests[i];
+		const li = document.createElement("li");
+		const row = document.createElement("div");
+		row.className = "avm-dr-row";
+		const name = document.createElement("span");
+		name.className = "avm-dr-name";
+		name.textContent = test.label || test.key;
+		const pill = document.createElement("span");
+		pill.className = "avm-dr-pill pending";
+		pill.textContent = "…";
+		row.appendChild(name);
+		row.appendChild(pill);
+		li.appendChild(row);
+		listEl.appendChild(li);
+
+		let run;
+		try {
+			run = await avesmapsDumpReportFetchJson("/api/edit/wiki/selftest.php?action=run&test=" + encodeURIComponent(test.key));
+		} catch (networkError) {
+			run = { status: 0, data: null };
+		}
+
+		const d = run.data;
+		if (d && d.ok === true && d.fatal === null && typeof d.passed === "number" && d.failed === 0) {
+			pill.className = "avm-dr-pill ok";
+			pill.textContent = `✓ ${d.passed}/${d.passed}`;
+			green++;
+		} else {
+			red++;
+			pill.className = "avm-dr-pill bad";
+			if (d && typeof d.passed === "number" && typeof d.failed === "number") {
+				pill.textContent = `✗ ${d.passed}/${d.passed + d.failed}`;
+			} else if (run.status === 500 && d && d.error && d.error.code === "test_missing") {
+				pill.textContent = "fehlt am Server";
+			} else if (run.status === 401 || run.status === 403) {
+				pill.textContent = "Login?";
+			} else {
+				pill.textContent = "Fehler";
+			}
+
+			const detail = document.createElement("div");
+			detail.className = "avm-dr-fail";
+			if (d && d.fatal) {
+				detail.textContent = "FATAL: " + d.fatal;
+			} else if (d && typeof d.output === "string" && d.output !== "") {
+				const failLines = d.output.split("\n").filter((line) => /FAIL|RESULT|expected|actual/i.test(line));
+				detail.textContent = (failLines.length ? failLines.join("\n") : d.output).slice(0, 4000);
+			} else if (run.status === 500 && d && d.error && d.error.code === "test_missing") {
+				detail.textContent = "Die Testdateien liegen noch nicht auf dem Server. Einmal einen vollständigen Deploy (GitHub Actions → „Deploy Avesmaps to STRATO“ → Run workflow) auslösen.";
+			} else {
+				detail.textContent = d && d.error && d.error.message ? d.error.message : "Unbekannter Fehler beim Ausführen des Tests.";
+			}
+			li.appendChild(detail);
+		}
+		summaryEl.textContent = `Läuft … ${i + 1}/${tests.length}`;
+	}
+
+	summaryEl.textContent = "";
+	const totalB = document.createElement("b");
+	totalB.textContent = String(tests.length);
+	summaryEl.appendChild(totalB);
+	summaryEl.appendChild(document.createTextNode(" Test-Dateien · "));
+	const greenB = document.createElement("b");
+	greenB.textContent = `${green} grün`;
+	greenB.style.color = "var(--color-success)";
+	summaryEl.appendChild(greenB);
+	if (red) {
+		summaryEl.appendChild(document.createTextNode(" · "));
+		const redB = document.createElement("b");
+		redB.textContent = `${red} rot`;
+		redB.style.color = "var(--color-danger)";
+		summaryEl.appendChild(redB);
+	}
+}
+
+async function avesmapsOpenDumpReport() {
+	try {
+		avesmapsDumpReportInjectStyles();
+		avesmapsDumpReportClose(); // replace any existing report (re-run / a second dump)
+
+		const overlay = document.createElement("div");
+		overlay.id = "avm-dump-report-overlay";
+		overlay.className = "avm-dr-overlay";
+		overlay.addEventListener("click", (event) => {
+			if (event.target === overlay) {
+				avesmapsDumpReportClose();
+			}
+		});
+
+		const card = document.createElement("div");
+		card.className = "avm-dr-card";
+		card.setAttribute("role", "dialog");
+		card.setAttribute("aria-modal", "true");
+		card.innerHTML = `
+			<button class="avm-dr-x" type="button" aria-label="Schließen">×</button>
+			<div class="avm-dr-h1">📜 Dump-Report</div>
+			<p class="avm-dr-meta">Selbsttests nach dem Dump-Lauf</p>
+			<div class="avm-dr-h2">Selbsttests</div>
+			<hr class="avm-dr-rule">
+			<p class="avm-dr-summary" id="avm-dr-summary">Tests werden geprüft …</p>
+			<ul class="avm-dr-tests" id="avm-dr-tests"></ul>
+			<p class="avm-dr-note">🛈 Reines Ansehen — nichts hier schreibt an der Karte.</p>
+			<div class="avm-dr-foot">
+				<button class="avm-dr-btn primary" id="avm-dr-ok" type="button">OK · schließen</button>
+				<button class="avm-dr-btn" id="avm-dr-rerun" type="button">Tests erneut prüfen</button>
+			</div>`;
+		overlay.appendChild(card);
+		document.body.appendChild(overlay);
+		document.addEventListener("keydown", avesmapsDumpReportOnKey);
+
+		card.querySelector(".avm-dr-x").addEventListener("click", avesmapsDumpReportClose);
+		card.querySelector("#avm-dr-ok").addEventListener("click", avesmapsDumpReportClose);
+		card.querySelector("#avm-dr-rerun").addEventListener("click", () => { void avesmapsDumpReportRunTests(); });
+
+		await avesmapsDumpReportRunTests();
+	} catch (error) {
+		console.error("Dump-Report konnte nicht geöffnet werden:", error);
+	}
+}
+if (typeof window !== "undefined") {
+	window.avesmapsOpenDumpReport = avesmapsOpenDumpReport;
 }
 
 // ===========================================================================
