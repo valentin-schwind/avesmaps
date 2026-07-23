@@ -80,8 +80,11 @@
   .col { flex:1 1 0; overflow:hidden; padding:var(--avm-col-pad); display:flex; flex-direction:column; min-height:0; min-width:0; }
   .col + .col { border-left:1px solid var(--line); }
   #list, #tree, #detailBody { flex:1 1 auto; overflow:auto; min-height:0; }
-  /* Listen-Hintergrund weiß wie im Haupt-Tool (statt der beigen Seitenfarbe). */
-  #list, #tree { background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
+  /* Alle drei Spalten-Inhalte sitzen im GLEICHEN gerahmten Panel (warmes --color-panel, Rahmen, Radius,
+     Polster) -- 1:1 wie #seTree/#seList/#seDetailBody im Siedlungseditor. #detailBody fehlte hier, die
+     Detailspalte war dadurch ein flacher --soft-Kasten ohne Rahmen und wirkte als einzige anders
+     ("das braun im Hintergrund und die schoenen Rahmen"). */
+  #list, #tree, #detailBody { background:var(--color-panel); border:1px solid var(--line); border-radius:6px; padding:4px; }
   /* Trenner kommen jetzt ausschliesslich aus `.col + .col` -- das hier setzte zusaetzlich einen
      border-right, sodass zwischen Spalte 1 und 2 zwei Linien uebereinanderlagen (Designsprache:
      genau EINE Linie je Abschnitt). max-width:46% ist weiter unten ohnehin auf none gesetzt. */
@@ -162,7 +165,7 @@
   #left, #right { background:var(--bg); }
   #left { max-width:none; flex:1 1 0; }
   #right { flex:1 1 0; }
-  #detail { flex:1 1 0; background:var(--soft); }
+  #detail { flex:1 1 0; background:var(--bg); }
   .colhead { margin-bottom:0; padding-bottom:0; flex:0 0 auto; }
   .listsub { font-size:var(--font-size-caption); color:var(--mut); margin:-4px 0 6px; }
   /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
@@ -295,9 +298,11 @@
           <option value="all">Alle</option>
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
+        <!-- Zeitraum + „nur Flächenländer" IM Trichter statt als „Zeige nur"-Zeile darunter --
+             eine ausklappende Zeile schöbe die Liste nach unten. Gefüllt von avmFilterMenuAttach. -->
+        <div class="type-filter"><button type="button" id="leftFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="leftFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Zeitraum</div><div id="leftTimeMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Flächenländer</div><div id="leftFlaechMenu"></div></div></div></div>
       </div>
       <div id="filterInfo" class="info"></div>
-      <div class="timefilter">Zeige nur: <input type="number" id="timeLeftFrom" placeholder="von"> – <input type="number" id="timeLeftTo" placeholder="bis"> BF <label><input type="checkbox" id="timeLeftToday"> heute</label> <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="flaechLeft"> nur Flächenländer</label></div>
       <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     </div>
     <div id="list"></div>
@@ -310,8 +315,10 @@
     <div class="colhead">
       <h2 class="listhead">Hierarchiemodell der Herrschaftsgebiete</h2>
       <div class="listsub" id="treeCount"></div>
-      <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"><div class="type-filter"><button type="button" id="treeFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="treeFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="treeSourceFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="treeCoatFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Hierarchie</div><div id="treeHierarchyFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Zugewiesen</div><div id="treeAssignedFilterMenu"></div></div></div></div></div>
-      <div class="timefilter">Zeige nur: <input type="number" id="timeRightFrom" placeholder="von" disabled> – <input type="number" id="timeRightTo" placeholder="bis" disabled> BF <label><input type="checkbox" id="timeRightToday" checked> heute</label> <label title="Promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden – nur echte Flächenländer zeigen"><input type="checkbox" id="flaechRight"> nur Flächenländer</label></div>
+      <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"><div class="type-filter"><button type="button" id="treeFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="treeFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Zeitraum</div><div id="rightTimeMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Flächenländer</div><div id="rightFlaechMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="treeSourceFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="treeCoatFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Hierarchie</div><div id="treeHierarchyFilterMenu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Zugewiesen</div><div id="treeAssignedFilterMenu"></div></div></div></div></div>
+      <!-- Zeitraum + „nur Flächenländer" sind in den Trichter oben gewandert (erste zwei Abschnitte),
+           statt als „Zeige nur"-Zeile hier zu stehen. -->
+      <div id="treeTimeMenuNote" hidden></div>
       <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     </div>
     <div id="tree"></div>
@@ -372,6 +379,9 @@
     </div>
   </div>
 </div>
+<!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Ersetzt die lokale
+     Trichter-Nachimplementierung dieser Seite und die zwei „Zeige nur"-Zeilen. -->
+<script src="/js/ui/filter-menu.js"></script>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 // Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
@@ -901,14 +911,8 @@ function visibleByTime(n, t){
   const s=(iv.f==null?-Infinity:iv.f), e=(iv.ongoing?Infinity:(iv.d==null?Infinity:iv.d));
   return s<=t.to && e>=t.from;
 }
-function applyTime(prefix, state, rerender){
-  const today=$(prefix+'Today').checked;
-  $(prefix+'From').disabled=today; $(prefix+'To').disabled=today;
-  if(today){ state.mode='today'; }
-  else { const a=parseInt($(prefix+'From').value,10), b=parseInt($(prefix+'To').value,10);
-    if(!isNaN(a)||!isNaN(b)){ state.mode='range'; state.from=isNaN(a)?-Infinity:a; state.to=isNaN(b)?Infinity:b; } else { state.mode='off'; } }
-  rerender();
-}
+// applyTime() (BF-von/bis/heute aus den DOM-Eingaben) ist entfallen: der gemeinsame Trichter
+// (js/ui/filter-menu.js, avmRangeValue) erzeugt dasselbe {mode,from,to}, das visibleByTime konsumiert.
 function matchesFilter(n, f) {
   if (f==='own') return !!n.is_own_node;            // eigene Knoten: auch noch-nicht-platzierte zeigen
   if (f==='excluded') return !!n.excluded;
@@ -1025,29 +1029,17 @@ function treeAssignedCategory(n){
   if(k==='none') return 'nein';
   return 'teilweise';
 }
+// match-Praedikate der vier Struktur-Abschnitte. label kommt fuer den gemeinsamen Trichter dazu
+// (js/ui/filter-menu.js); die Zeit-/Flaechen-Abschnitte stehen NICHT hier, weil sie ueber
+// nodeHidden/covTime laufen und nicht ueber matchesTreeFilters (siehe renderTree).
 const TREE_FILTER_SECTIONS = [
-  { menuId:'treeSourceFilterMenu', state:treeSourceFilter, options:[{value:'wiki',label:'Wiki'},{value:'andere',label:'Andere'},{value:'keine',label:'Keine'}], match:(n,v)=>treeSourceCategory(n)===v },
-  { menuId:'treeCoatFilterMenu', state:treeCoatFilter, options:[{value:'ja',label:'ja'},{value:'nein',label:'nein'}], match:(n,v)=>(!!n.coat_of_arms_url)===(v==='ja') },
-  { menuId:'treeHierarchyFilterMenu', state:treeHierarchyFilter, options:[{value:'mit',label:'mit Kindern'},{value:'ohne',label:'ohne Kinder'}], match:(n,v)=>treeHasChildren(n)===(v==='mit') },
-  { menuId:'treeAssignedFilterMenu', state:treeAssignedFilter, options:[{value:'ja',label:'ja'},{value:'teilweise',label:'teilweise'},{value:'nein',label:'nein'}], match:(n,v)=>treeAssignedCategory(n)===v },
+  { menuId:'treeSourceFilterMenu', label:'Quelle', kind:'single', state:treeSourceFilter, options:[{value:'wiki',label:'Wiki'},{value:'andere',label:'Andere'},{value:'keine',label:'Keine'}], match:(n,v)=>treeSourceCategory(n)===v },
+  { menuId:'treeCoatFilterMenu', label:'Wappen', kind:'single', state:treeCoatFilter, options:[{value:'ja',label:'ja'},{value:'nein',label:'nein'}], match:(n,v)=>(!!n.coat_of_arms_url)===(v==='ja') },
+  { menuId:'treeHierarchyFilterMenu', label:'Hierarchie', kind:'single', state:treeHierarchyFilter, options:[{value:'mit',label:'mit Kindern'},{value:'ohne',label:'ohne Kinder'}], match:(n,v)=>treeHasChildren(n)===(v==='mit') },
+  { menuId:'treeAssignedFilterMenu', label:'Zugewiesen', kind:'single', state:treeAssignedFilter, options:[{value:'ja',label:'ja'},{value:'teilweise',label:'teilweise'},{value:'nein',label:'nein'}], match:(n,v)=>treeAssignedCategory(n)===v },
 ];
 function treeFiltersActive(){ return TREE_FILTER_SECTIONS.some(s=>Boolean(s.state.value)); }
 function matchesTreeFilters(n){ return TREE_FILTER_SECTIONS.every(s=>!s.state.value || s.match(n, s.state.value)); }
-// Baut die vier Optionslisten neu und stempelt die Zahl abweichender Abschnitte auf den Toggle.
-// Nur die inneren Abschnitts-Container werden ersetzt, nicht das Panel selbst -- ein offenes Menue
-// bleibt offen und der delegierte change-Listener am Panel ueberlebt.
-function renderTreeFilterSections(){
-  let active = 0;
-  for(const s of TREE_FILTER_SECTIONS){
-    const menu = $(s.menuId); if(!menu) continue;
-    const parts = [`<label class="type-filter__opt"><input type="radio" name="${s.menuId}" value="__all__"${!s.state.value?' checked':''}><span class="type-filter__label">Alle</span></label>`];
-    for(const opt of s.options) parts.push(`<label class="type-filter__opt"><input type="radio" name="${s.menuId}" value="${esc(opt.value)}"${s.state.value===opt.value?' checked':''}><span class="type-filter__label">${esc(opt.label)}</span></label>`);
-    menu.innerHTML = parts.join('');
-    if(s.state.value) active += 1;
-  }
-  const toggle = $('treeFilterToggle');
-  if(toggle){ toggle.textContent = active>0 ? `Filter (${active}) ▾` : 'Filter ▾'; toggle.title = active>0 ? `Filter (${active} aktiv)` : 'Filter'; }
-}
 function renderTree() {
   covTime = rightTime; covFlaech = rightFlaech; covCache.clear();
   // Lücken (Eltern nicht im Modell) erscheinen NICHT im Hierarchie-Baum – nur in der linken
@@ -1079,7 +1071,8 @@ function renderTree() {
     }
   }
   const shown = roots.filter(r=>!treeKeep || treeKeep.has(r.wiki_key)).sort((a,b)=>a.name.localeCompare(b.name));
-  renderTreeFilterSections();
+  // Der Trichter rendert sich selbst (avmFilterMenuAttach) -- seine Optionen sind statisch und
+  // muessen nicht bei jedem Baum-Neuaufbau nachgezogen werden.
   $('treeCount').textContent = `${NODES.length} Knoten · ${roots.length} Wurzelknoten${treeKeep ? ` · ${hits} Treffer` : ''}`;
   $('tree').innerHTML = shown.length ? `<ul class="tree">${shown.map(r=>buildTreeNode(r,0)).join('')}</ul>` : '<div class="muted">— keine —</div>';
 }
@@ -1311,29 +1304,26 @@ $('btnDelOwn').onclick = ()=>{ if(selectedKey) deleteOwnNode(selectedKey); };
 $('search').oninput = renderList;
 $('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
 $('treeSearch').oninput = ()=>{ treeQuery = $('treeSearch').value; renderTree(); };
-$('timeLeftToday').onchange = ()=>applyTime('timeLeft', leftTime, renderList);
-$('timeLeftFrom').oninput = ()=>applyTime('timeLeft', leftTime, renderList);
-$('timeLeftTo').oninput = ()=>applyTime('timeLeft', leftTime, renderList);
-$('flaechLeft').onchange = ()=>{ leftFlaech = $('flaechLeft').checked; renderList(); };
-$('timeRightToday').onchange = ()=>applyTime('timeRight', rightTime, renderTree);
-$('timeRightFrom').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
-$('timeRightTo').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
-$('flaechRight').onchange = ()=>{ rightFlaech = $('flaechRight').checked; renderTree(); };
-// Filtermenue des Baums: Toggle auf/zu, Klick daneben schliesst, Auswahl baut den Baum neu. Der
-// change-Handler haengt am Panel (Delegation) -- renderTreeFilterSections() ersetzt nur die inneren
-// Abschnitts-Container, das Panel selbst bleibt bestehen.
-$('treeFilterToggle').onclick = (e)=>{ e.stopPropagation(); const m=$('treeFilterMenu'); m.hidden = !m.hidden; };
-document.addEventListener('click', (e)=>{ const m=$('treeFilterMenu'), t=$('treeFilterToggle'); if(m && !m.hidden && !m.contains(e.target) && !t.contains(e.target)) m.hidden = true; });
-$('treeFilterMenu').addEventListener('change', (e)=>{
-  const input = e.target; if(!input || input.type!=='radio') return;
-  const section = TREE_FILTER_SECTIONS.find(s=>{ const c=$(s.menuId); return c && c.contains(input); });
-  if(!section) return;
-  section.state.value = input.value==='__all__' ? '' : input.value;
-  renderTree();
-});
-// Einmal beim Start fuellen: renderTree() laeuft erst nach loadModel(), das Menue soll aber auch
-// dann Optionen zeigen, wenn das Laden fehlschlaegt.
-renderTreeFilterSections();
+// Zeitraum + „nur Flächenländer" + (rechts) die vier Struktur-Abschnitte hängen jetzt am
+// gemeinsamen Trichter (js/ui/filter-menu.js). Die Consumer-Werte leftTime/rightTime (Zeit-Objekt)
+// und leftFlaech/rightFlaech werden vor jedem Neuzeichnen aus dem Trichterzustand abgeleitet, sodass
+// visibleByTime/nodeHidden unverändert bleiben. Die vier Struktur-Zustände (treeSourceFilter …)
+// schreibt der Trichter direkt; matchesTreeFilters liest sie wie zuvor.
+const leftTimeState = avmRangeStateCreate('off');    // linke Liste startet ohne Zeitfilter
+const leftFlaechState = { value:'' };
+const rightTimeState = avmRangeStateCreate('today'); // Hierarchie-Baum startet auf „heute"
+const rightFlaechState = { value:'' };
+
+avmFilterMenuAttach('leftFilterToggle', 'leftFilterMenu', [
+  { menuId:'leftTimeMenu', kind:'range', state:leftTimeState, label:'Zeitraum' },
+  { menuId:'leftFlaechMenu', kind:'single', state:leftFlaechState, options:[{value:'ja',label:'nur Flächenländer'}], label:'Flächenländer' },
+], ()=>{ Object.assign(leftTime, avmRangeValue(leftTimeState)); leftFlaech = leftFlaechState.value==='ja'; renderList(); }, 'Filter');
+
+avmFilterMenuAttach('treeFilterToggle', 'treeFilterMenu', [
+  { menuId:'rightTimeMenu', kind:'range', state:rightTimeState, label:'Zeitraum' },
+  { menuId:'rightFlaechMenu', kind:'single', state:rightFlaechState, options:[{value:'ja',label:'nur Flächenländer'}], label:'Flächenländer' },
+  ...TREE_FILTER_SECTIONS.map(s=>({ menuId:s.menuId, kind:s.kind, state:s.state, options:s.options, label:s.label })),
+], ()=>{ Object.assign(rightTime, avmRangeValue(rightTimeState)); rightFlaech = rightFlaechState.value==='ja'; renderTree(); }, 'Filter');
 
 // Kontinente-Dropdown
 $('contMenu').addEventListener('click', e=>{
