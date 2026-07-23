@@ -364,20 +364,37 @@
 .lore-dlg__tabs {
 	flex: 0 0 auto;
 }
+/* Warmer Parchmentgrund hinter den drei Spalten -- erst auf ihm werden die hellen,
+   gerahmten Spaltenkaesten als eingefasste Flaechen lesbar, statt flach weiss auf weiss
+   zu laufen. Dieselbe warme Schichtung wie im Karten- und Siedlungseditor (dort
+   --color-page-bg als body-Grund unter den .ce-list__scroll-Kaesten). gap bleibt 0 --
+   die Fugen zwischen den Kaesten stellt deren gleicher Rand (margin), nicht eine
+   Gitterluecke, sonst waeren die beiden rechten Spuren schmaler als die Liste. */
 .lore-dlg__body {
 	display: grid;
 	grid-template-columns: minmax(320px, 1fr) minmax(0, 2fr);
 	flex: 1 1 auto;
 	gap: 0;
 	min-height: 0;
+	padding: var(--space-4);
+	background: var(--color-page-bg);
 }
+/* Heller, gerahmter Kasten auf dem warmen Grund -- die "panel shell"-Stufe (--radius-sm,
+   1px --color-border) wie #seList/.ce-list__scroll. Der gleiche Rand rundum (margin) an
+   allen drei Spaltenkaesten laesst den warmen Grund als symmetrische Fuge durchscheinen und
+   haelt sie zugleich exakt gleich breit: er geht von jeder Gitterspur um denselben Betrag
+   ab, die 1:2/1:1-Drittelung darunter bleibt unberuehrt. Fruehere Trennung (border-right +
+   padding-right) entfaellt -- das leistet jetzt der Kastenrand. */
 .lore-dlg__list {
 	display: flex;
 	flex-direction: column;
 	min-width: 0;
 	min-height: 0;
-	padding-right: var(--space-10);
-	border-right: 1px solid var(--color-divider);
+	margin: var(--space-4);
+	padding: var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
 }
 /* Spaltentitel: dieselbe Stufe wie .listhead im Siedlungseditor -- eigene Zeile der Leiter
    (--font-size-subhead) und --color-accent-strong, damit die drei Titel die Spalten
@@ -446,35 +463,38 @@
 	align-items: start;
 	min-height: 0;
 }
+/* Stammdaten und Orte tragen denselben hellen Kasten wie die Liste -- drei gleich breite,
+   eingefasste Flaechen auf dem warmen Grund. Der gleiche margin wie links haelt sie exakt
+   auf Spurbreite; das fruehere padding-left (Einrueckung zur Trennlinie) weicht dem
+   symmetrischen Kasten-Innenrand. */
 .lore-detail__col {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-6);
 	min-width: 0;
-	padding-left: var(--space-10);
+	margin: var(--space-4);
+	padding: var(--space-8);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel);
 }
-/* War fest 300px und damit schmaler als die Stammdaten daneben -- die drei Spalten des
-   Editors (Liste, Stammdaten, Orte) sollen gleich breit sein (Spec §3.2). Der Umbruch
-   darunter bleibt: schmal rutscht die Ortsspalte weiterhin nach unten. */
-.lore-detail__col--places {
-	border-left: 1px solid var(--color-divider);
-}
-/* Die Kopfzeile und der Eintragsname stehen ueber BEIDEN rechten Spalten -- sie gehoeren
-   zum Eintrag, nicht zu einer der beiden. Dieselbe Einruecken wie die Spalten darunter,
+/* Die Ortsspalte ist ein gleich breiter Kasten wie die Stammdaten (Spec §3.2); ihre fruehere
+   border-left-Trennlinie entfaellt -- das leistet jetzt der Kastenrand. Der Umbruch darunter
+   bleibt: schmal rutscht sie unter die Stammdaten (Media-Query unten). */
+
+/* Die Kopfzeile und der Eintragsname stehen ueber BEIDEN rechten Kaesten -- sie gehoeren
+   zum Eintrag, nicht zu einer der beiden. Gleiche Einrueckung wie der Kastenrand (margin),
    damit die linke Kante des rechten Bereichs eine Linie bleibt. */
 .lore-detail__head,
 .lore-detail__title {
-	padding-left: var(--space-10);
+	padding-left: var(--space-4);
 }
-/* Schmales Fenster: die Ortsspalte rutscht unter die Stammdaten, statt beide zu quetschen. */
+/* Schmales Fenster: die Ortsspalte rutscht unter die Stammdaten, statt beide zu quetschen.
+   Der Abstand zwischen den gestapelten Kaesten kommt aus ihrem margin -- keine eigene
+   Trennlinie mehr noetig. */
 @media (max-width: 900px) {
 	.lore-detail__cols {
 		grid-template-columns: minmax(0, 1fr);
-	}
-	.lore-detail__col--places {
-		padding-top: var(--space-10);
-		border-top: 1px solid var(--color-divider);
-		border-left: none;
 	}
 }
 /* Herkunfts-Pille wie die „manuell"-Marken im Abenteuereditor. */
@@ -657,7 +677,10 @@
 	gap: var(--space-4);
 }
 
-/* Gerahmte Karte statt Tabellenzeile -- wie die Ortskarten im Abenteuereditor. */
+/* Gerahmte Karte statt Tabellenzeile -- wie die Ortskarten im Abenteuereditor. Leicht
+   getoent (--color-panel-soft) statt weiss, damit sie sich auf dem weissen Spaltenkasten
+   abhebt: sonst waere es wieder weiss auf weiss und der Rahmen verschwaende -- genau der
+   fehlende Kontrast, der das Fenster flach wirken liess. */
 .lore-detail__place {
 	display: flex;
 	align-items: flex-start;
@@ -665,7 +688,7 @@
 	padding: var(--space-6) var(--space-8);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
-	background: var(--color-panel);
+	background: var(--color-panel-soft);
 }
 
 /* Der Name darf umbrechen: „Meer der Schwimmenden Inseln" in einer 300px-Spalte sonst
