@@ -162,7 +162,9 @@ function avmFilterMenuAttach(toggleId, panelId, sections, applyFilter, label = "
 			}
 			if (avmFilterSectionIsActive(section)) active += 1;
 		});
-		toggle.innerHTML = `${AVM_FILTER_ICON} ${avmFilterEscape(label)}${active > 0 ? ` <span class="type-filter__count">${active}</span>` : ""} ▾`;
+		// Zähler in Klammern (Owner 2026-07-23): eine nackte „1" in der schmalen, gedämpften
+		// Zählerschrift ist nur ~3px breit und liest sich wie ein „|" -- „(1)" ist eindeutig eine Zahl.
+		toggle.innerHTML = `${AVM_FILTER_ICON} ${avmFilterEscape(label)}${active > 0 ? ` <span class="type-filter__count">(${active})</span>` : ""} ▾`;
 		toggle.title = active > 0 ? `${label} (${active})` : label;
 		toggle.setAttribute("aria-label", toggle.title);
 	};

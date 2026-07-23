@@ -2450,7 +2450,7 @@ function renderSettlementFilterSections() {
 	if (toggle) {
 		// Trichter-Icon wie überall (Owner 2026-07-23). AVM_FILTER_ICON kommt aus filter-menu.js,
 		// das diese Seite lädt und dessen Icon die LINKE Spalte schon rendert -- garantiert verfügbar.
-		toggle.innerHTML = AVM_FILTER_ICON + " " + (activeCount > 0 ? `Filter (${activeCount}) ▾` : "Filter ▾");
+		toggle.innerHTML = AVM_FILTER_ICON + " Filter" + (activeCount > 0 ? ` <span class="type-filter__count">(${activeCount})</span>` : "") + " ▾";
 		toggle.title = activeCount > 0 ? `Filter (${activeCount} aktiv)` : "Filter";
 	}
 }

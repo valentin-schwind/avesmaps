@@ -1232,11 +1232,15 @@
     return ["type", "edition", "cover", "fshop", "region", "ortId"].filter((k) => f[k]).length
       + (f.yearFrom !== "" ? 1 : 0) + (f.yearTo !== "" ? 1 : 0);
   }
+  // Diese Seite lädt kein filter-menu.js, daher das Trichter-Icon lokal (dasselbe SVG wie
+  // AVM_FILTER_ICON). textContent hätte das Icon-SVG im Knopf gelöscht -- deshalb innerHTML, und
+  // der Zähler in Klammern wie überall (Owner 2026-07-23), gedämpfte type-filter__count-Schrift.
+  const AE_FILTER_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v5l-4 2v-7z"/></svg>';
   function renderFilterToggle() {
     const btn = document.getElementById("aeFilterToggle");
     if (!btn) return;
     const n = aeActiveFilterCount();
-    btn.textContent = n ? `Filter (${n}) ▾` : "Filter ▾";
+    btn.innerHTML = AE_FILTER_ICON + " Filter" + (n ? ` <span class="type-filter__count">(${n})</span>` : "") + " ▾";
     btn.classList.toggle("is-active", n > 0);
   }
   function setFilterMenuOpen(open) {

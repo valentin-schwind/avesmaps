@@ -148,7 +148,9 @@ function attachFilterMenu(toggleId, panelId, sections, applyFilter, label = "Fil
 				active += 1;
 			}
 		});
-		toggle.innerHTML = `${SOURCE_FILTER_ICON} ${escapeHtml(label)}${active > 0 ? ` <span class="type-filter__count">${active}</span>` : ""} ▾`;
+		// Zähler in Klammern (Owner 2026-07-23): eine nackte „1" liest sich in der schmalen
+		// gedämpften Zählerschrift wie ein „|"; „(1)" ist eindeutig eine Zahl.
+		toggle.innerHTML = `${SOURCE_FILTER_ICON} ${escapeHtml(label)}${active > 0 ? ` <span class="type-filter__count">(${active})</span>` : ""} ▾`;
 		toggle.title = active > 0 ? `${label} (${active})` : label;
 		toggle.setAttribute("aria-label", toggle.title);
 	};
