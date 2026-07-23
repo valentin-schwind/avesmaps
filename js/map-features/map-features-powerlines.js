@@ -595,6 +595,8 @@ const preparePowerlineData = (data) => {
 		powerlineLayers.push(layer);
 	});
 	syncPowerlineVisibility();
+	// Refresh the WikiSync „Kraftlinien"-Panel-Liste, jetzt wo die Daten da sind (review-powerline-list.js).
+	if (typeof renderPowerlineSyncList === "function") { renderPowerlineSyncList(); }
 };
 
 function applyLivePowerlineFeature(feature) {
@@ -610,6 +612,7 @@ function applyLivePowerlineFeature(feature) {
 	powerlineData.push(powerline);
 	powerlineLayers.push(layer);
 	syncPowerlineVisibility();
+	if (typeof renderPowerlineSyncList === "function") { renderPowerlineSyncList(); }
 }
 
 function findPowerlineByPublicId(publicId) {

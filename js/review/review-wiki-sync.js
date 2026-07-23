@@ -372,7 +372,9 @@ function setWikiSyncPanelTab(tabName) {
 	// also mean a MISSPELLED loader silently does nothing, so the panel-tab test checks every name
 	// here against the real definitions.
 	//
-	// Kraftlinien deliberately has no entry: it is a sync-only subject with no list to load.
+	// Kraftlinien loads a navigation list (renderPowerlineSyncList, review-powerline-list.js) grouped
+	// from powerlineData; double-clicking a line zooms to it in powerline mode. No API -- the segments
+	// are already in the app -- so the loader just renders what is there.
 	// The old adventures branch also loaded the citymap list, so both "Materialien" pills showed
 	// their count at once. That is gone on purpose -- Karten is its own subject now and loads on
 	// its own click.
@@ -384,6 +386,7 @@ function setWikiSyncPanelTab(tabName) {
 		territories: () => (typeof renderWikiSyncTerritoryTree === "function") && renderWikiSyncTerritoryTree(),
 		regions: () => (typeof loadRegionWikiSync === "function") && loadRegionWikiSync(),
 		paths: () => (typeof loadPathWikiSync === "function") && loadPathWikiSync(),
+		powerlines: () => (typeof renderPowerlineSyncList === "function") && renderPowerlineSyncList(),
 		adventures: () => (typeof loadWikiSyncAdventureList === "function") && loadWikiSyncAdventureList(),
 		citymaps: () => (typeof loadWikiSyncCitymapList === "function") && loadWikiSyncCitymapList(),
 		lore: () => (typeof loadLoreList === "function") && loadLoreList("panel"),

@@ -491,7 +491,11 @@
 							<div class="wiki-sync-panel__actions" hidden>
 								<button id="wiki-sync-powerlines-sync" class="wiki-sync-panel__start" type="button" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Zugeordnet wird über den Namen. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet.">⚡ Kraftlinien syncen</button>
 							</div>
-							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Braucht ein vorheriges „Dump holen“ – ohne Staging meldet der Lauf das im Klartext.</p>
+							<span id="powerline-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Kraftlinien werden geladen …</span>
+							<div class="wiki-sync-panel__filter">
+								<input id="powerline-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Kraftlinie suchen …" aria-label="Kraftlinien durchsuchen" />
+							</div>
+							<div id="powerline-sync-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
