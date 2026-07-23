@@ -1333,6 +1333,73 @@ function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): a
     }
 }
 
+// Direction-independent edge key -- mirrors avesmapsPowerlineEdgeKey in
+// js/map-features/powerline-topology.js so the client's reorder preview and this server-side recompute
+// classify segments into the same undirected edges (a segment A->B and the ordered pair B->A collapse).
+function avesmapsPowerlineUndirectedEdgeKey(string $a, string $b): string {
+    return $a < $b ? $a . ' ' . $b : $b . ' ' . $a;
+}
+
+// One powerline segment INSERT (+ bounds, sort order, create audit) with NO transaction and NO revision
+// bump -- the caller owns those. avesmapsCreatePowerlineFeature and avesmapsReorderPowerlineLine share
+// this single insert path so a segment is built identically whichever route creates it. Returns the new
+// feature id.
+function avesmapsInsertPowerlineFeatureRow(
+    PDO $pdo,
+    string $publicId,
+    string $name,
+    array $geometry,
+    array $properties,
+    int $revision,
+    int $userId
+): int {
+    $coordinates = $geometry['coordinates'] ?? [];
+    $xValues = array_map(static fn(array $coordinate): float => (float) $coordinate[0], $coordinates);
+    $yValues = array_map(static fn(array $coordinate): float => (float) $coordinate[1], $coordinates);
+    $sortOrder = avesmapsNextMapSortOrder($pdo);
+    $statement = $pdo->prepare(
+        'INSERT INTO map_features (
+            public_id, feature_type, feature_subtype, name, geometry_type,
+            geometry_json, properties_json, min_x, min_y, max_x, max_y,
+            sort_order, revision, created_by, updated_by
+        ) VALUES (
+            :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+            :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+            :sort_order, :revision, :created_by, :updated_by
+        )'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+        'feature_type' => 'powerline',
+        'feature_subtype' => 'powerline',
+        'name' => $name,
+        'geometry_type' => 'LineString',
+        'geometry_json' => avesmapsEncodeJson($geometry),
+        'properties_json' => avesmapsEncodeJson($properties),
+        'min_x' => $xValues === [] ? 0 : min($xValues),
+        'min_y' => $yValues === [] ? 0 : min($yValues),
+        'max_x' => $xValues === [] ? 0 : max($xValues),
+        'max_y' => $yValues === [] ? 0 : max($yValues),
+        'sort_order' => $sortOrder,
+        'revision' => $revision,
+        'created_by' => $userId,
+        'updated_by' => $userId,
+    ]);
+
+    $featureId = (int) $pdo->lastInsertId();
+    avesmapsWriteMapAuditLog($pdo, $featureId, 'create_powerline', $userId, '{}', avesmapsEncodeAuditJson([
+        'public_id' => $publicId,
+        'feature_type' => 'powerline',
+        'feature_subtype' => 'powerline',
+        'name' => $name,
+        'geometry_json' => $geometry,
+        'properties_json' => $properties,
+        'revision' => $revision,
+    ]));
+
+    return $featureId;
+}
+
 function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): array {
     $fromPublicId = avesmapsReadMapFeaturePublicId($payload['from_public_id'] ?? '');
     $toPublicId = avesmapsReadMapFeaturePublicId($payload['to_public_id'] ?? '');
@@ -1397,46 +1464,7 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
             'to_public_id' => $toPublicId,
         ];
         $revision = avesmapsNextMapRevision($pdo);
-        $sortOrder = avesmapsNextMapSortOrder($pdo);
-        $statement = $pdo->prepare(
-            'INSERT INTO map_features (
-                public_id, feature_type, feature_subtype, name, geometry_type,
-                geometry_json, properties_json, min_x, min_y, max_x, max_y,
-                sort_order, revision, created_by, updated_by
-            ) VALUES (
-                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
-                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
-                :sort_order, :revision, :created_by, :updated_by
-            )'
-        );
-        $statement->execute([
-            'public_id' => $publicId,
-            'feature_type' => 'powerline',
-            'feature_subtype' => 'powerline',
-            'name' => $name,
-            'geometry_type' => 'LineString',
-            'geometry_json' => avesmapsEncodeJson($geometry),
-            'properties_json' => avesmapsEncodeJson($properties),
-            'min_x' => min($fromLng, $toLng),
-            'min_y' => min($fromLat, $toLat),
-            'max_x' => max($fromLng, $toLng),
-            'max_y' => max($fromLat, $toLat),
-            'sort_order' => $sortOrder,
-            'revision' => $revision,
-            'created_by' => (int) $user['id'],
-            'updated_by' => (int) $user['id'],
-        ]);
-
-        $featureId = (int) $pdo->lastInsertId();
-        avesmapsWriteMapAuditLog($pdo, $featureId, 'create_powerline', (int) $user['id'], '{}', avesmapsEncodeAuditJson([
-            'public_id' => $publicId,
-            'feature_type' => 'powerline',
-            'feature_subtype' => 'powerline',
-            'name' => $name,
-            'geometry_json' => $geometry,
-            'properties_json' => $properties,
-            'revision' => $revision,
-        ]));
+        avesmapsInsertPowerlineFeatureRow($pdo, $publicId, $name, $geometry, $properties, $revision, (int) $user['id']);
         $pdo->commit();
 
         return avesmapsBuildPowerlineFeatureResponse($publicId, $name, $geometry, $properties, $revision);
@@ -1582,6 +1610,221 @@ function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): arr
             'previous_name' => $currentName,
             'segment_count' => count($rows),
             'merged' => $newName !== $currentName,
+            'revision' => $revision,
+        ];
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+// Reorder a STRAND: given the new node order, recompute the edge set, diff it against the line's current
+// segments and apply the difference ATOMICALLY -- new consecutive edges become straight powerline
+// segments (inheriting the line's scalar fields), edges no longer on the path are soft-deleted. One
+// transaction, so a partial rewire can never leave the line mangled. Guards: the node SET must stay the
+// same (adding/removing nodes is a separate action), and the line must ALREADY be a simple path --
+// linearising a branched line or a ring would silently drop structure, so we refuse it. Sources ride the
+// anchor (smallest public_id of the name group); after the rewire they move onto the new anchor if it
+// changed (a deleted anchor, or a freshly created segment whose uuid sorts smaller). See design §8/§10.
+function avesmapsReorderPowerlineLine(PDO $pdo, array $payload, array $user): array {
+    $currentName = trim((string) ($payload['current_name'] ?? ''));
+    if ($currentName === '') {
+        throw new InvalidArgumentException('Der Name der Kraftlinie fehlt.');
+    }
+    $orderedRaw = $payload['ordered_public_ids'] ?? null;
+    if (!is_array($orderedRaw) || count($orderedRaw) < 2) {
+        throw new InvalidArgumentException('Zum Umsortieren werden mindestens zwei Nodices in Reihenfolge gebraucht.');
+    }
+    $ordered = [];
+    foreach ($orderedRaw as $value) {
+        $ordered[] = avesmapsReadMapFeaturePublicId($value);
+    }
+    if (count(array_unique($ordered)) !== count($ordered)) {
+        throw new InvalidArgumentException('Ein Nodix darf in der Reihenfolge nur einmal vorkommen.');
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $select = $pdo->prepare(
+            "SELECT id, public_id, properties_json
+             FROM map_features
+             WHERE feature_type = 'powerline' AND is_active = 1 AND name = :name
+             FOR UPDATE"
+        );
+        $select->execute(['name' => $currentName]);
+        $rows = $select->fetchAll(PDO::FETCH_ASSOC);
+        if ($rows === []) {
+            throw new InvalidArgumentException('Zu diesem Namen gibt es keine Kraftlinien-Segmente mehr. Bitte neu laden.');
+        }
+
+        // Current edges + node degrees from the segment endpoints, plus the line's scalar fields to
+        // inherit onto any newly created segment (all segments of a line carry the same ones).
+        $degree = [];
+        $currentEdges = [];
+        $inheritShowLabel = false;
+        $inheritDescription = '';
+        $inheritWikiUrl = '';
+        $haveInherit = false;
+        foreach ($rows as $row) {
+            $properties = avesmapsDecodeJsonColumnForEdit($row['properties_json'] ?? null);
+            $from = (string) ($properties['from_public_id'] ?? '');
+            $to = (string) ($properties['to_public_id'] ?? '');
+            if ($from === '' || $to === '') {
+                throw new InvalidArgumentException('Ein Segment ohne Endpunkte laesst sich nicht umsortieren. Bitte neu laden.');
+            }
+            $degree[$from] = ($degree[$from] ?? 0) + 1;
+            $degree[$to] = ($degree[$to] ?? 0) + 1;
+            $currentEdges[] = [
+                'id' => (int) $row['id'],
+                'public_id' => (string) $row['public_id'],
+                'from' => $from,
+                'to' => $to,
+                'key' => avesmapsPowerlineUndirectedEdgeKey($from, $to),
+            ];
+            if (!$haveInherit) {
+                $inheritShowLabel = (bool) ($properties['show_label'] ?? false);
+                $inheritDescription = (string) ($properties['description'] ?? '');
+                $inheritWikiUrl = (string) ($properties['wiki_url'] ?? '');
+                $haveInherit = true;
+            }
+        }
+        $currentNodes = array_keys($degree);
+
+        // The node set may not change here (add/remove is a separate action).
+        if (
+            count($ordered) !== count($currentNodes)
+            || array_diff($ordered, $currentNodes) !== []
+            || array_diff($currentNodes, $ordered) !== []
+        ) {
+            throw new InvalidArgumentException('Beim Umsortieren muss die Nodix-Menge gleich bleiben (zum Hinzufuegen/Entfernen die eigenen Aktionen nutzen).');
+        }
+        // Refuse anything that is not already a simple path (strand): exactly two degree-1 ends, every
+        // other node degree 2, and n-1 edges. That uniquely characterises a single path -- a ring has no
+        // ends, a branch more than two, and either would be silently linearised otherwise.
+        $ends = 0;
+        foreach ($degree as $nodeDegree) {
+            if ($nodeDegree === 1) {
+                $ends++;
+                continue;
+            }
+            if ($nodeDegree !== 2) {
+                throw new InvalidArgumentException('Umsortieren gibt es nur fuer Straenge (jeder Nodix mit hoechstens zwei Nachbarn).');
+            }
+        }
+        if ($ends !== 2 || count($currentEdges) !== count($currentNodes) - 1) {
+            throw new InvalidArgumentException('Umsortieren gibt es nur fuer Straenge mit genau zwei Enden.');
+        }
+
+        // Diff: wanted consecutive edges vs. the current segments (keep one segment per wanted edge).
+        $wanted = [];
+        for ($i = 0; $i < count($ordered) - 1; $i++) {
+            $wanted[avesmapsPowerlineUndirectedEdgeKey($ordered[$i], $ordered[$i + 1])] = [
+                'from' => $ordered[$i],
+                'to' => $ordered[$i + 1],
+            ];
+        }
+        $satisfied = [];
+        $toDelete = [];
+        foreach ($currentEdges as $edge) {
+            if (isset($wanted[$edge['key']]) && !isset($satisfied[$edge['key']])) {
+                $satisfied[$edge['key']] = true;
+            } else {
+                $toDelete[] = $edge;
+            }
+        }
+        $toCreate = [];
+        foreach ($wanted as $key => $edge) {
+            if (!isset($satisfied[$key])) {
+                $toCreate[] = $edge;
+            }
+        }
+
+        // Anchor before the rewire (smallest public_id, SORT_STRING so it matches the client's .sort()
+        // and MySQL MIN over these uuid strings).
+        $publicIds = array_map(static fn(array $row): string => (string) $row['public_id'], $rows);
+        sort($publicIds, SORT_STRING);
+        $oldAnchor = $publicIds[0];
+
+        $revision = avesmapsNextMapRevision($pdo);
+
+        // Soft-delete the dropped edges.
+        $delete = $pdo->prepare(
+            'UPDATE map_features SET is_active = 0, revision = :revision, updated_by = :updated_by WHERE id = :id'
+        );
+        foreach ($toDelete as $edge) {
+            $delete->execute([
+                'id' => $edge['id'],
+                'revision' => $revision,
+                'updated_by' => (int) $user['id'],
+            ]);
+            avesmapsWriteMapAuditLog(
+                $pdo,
+                $edge['id'],
+                'delete_feature',
+                (int) $user['id'],
+                avesmapsEncodeAuditJson(['public_id' => $edge['public_id']]),
+                avesmapsEncodeAuditJson([
+                    'public_id' => $edge['public_id'],
+                    'is_active' => 0,
+                    'revision' => $revision,
+                    'reason' => 'reorder_powerline_line',
+                ])
+            );
+        }
+
+        // Create the new edges as straight segments between the two nodes (each node fetched once).
+        $pointCache = [];
+        foreach ($toCreate as $edge) {
+            foreach (['from', 'to'] as $sideKey) {
+                $nodeId = $edge[$sideKey];
+                if (!isset($pointCache[$nodeId])) {
+                    $pointCache[$nodeId] = avesmapsFetchEditablePointFeature($pdo, $nodeId);
+                }
+            }
+            [$fromLng, $fromLat] = avesmapsReadPointCoordinatesFromGeometry(
+                avesmapsDecodeJsonColumnForEdit($pointCache[$edge['from']]['geometry_json'] ?? null)
+            );
+            [$toLng, $toLat] = avesmapsReadPointCoordinatesFromGeometry(
+                avesmapsDecodeJsonColumnForEdit($pointCache[$edge['to']]['geometry_json'] ?? null)
+            );
+            $publicId = avesmapsUuidV4();
+            $geometry = [
+                'type' => 'LineString',
+                'coordinates' => [[$fromLng, $fromLat], [$toLng, $toLat]],
+            ];
+            $properties = [
+                'name' => $currentName,
+                'feature_type' => 'powerline',
+                'feature_subtype' => 'powerline',
+                'show_label' => $inheritShowLabel,
+                'description' => $inheritDescription,
+                'wiki_url' => $inheritWikiUrl,
+                'from_public_id' => $edge['from'],
+                'to_public_id' => $edge['to'],
+            ];
+            avesmapsInsertPowerlineFeatureRow($pdo, $publicId, $currentName, $geometry, $properties, $revision, (int) $user['id']);
+        }
+
+        // Anchor preservation: if the anchor moved (its segment was deleted, or a new segment sorts
+        // smaller), move the line's feature_sources onto the new anchor so the infobox keeps showing them.
+        $anchorStatement = $pdo->prepare(
+            "SELECT MIN(public_id) FROM map_features WHERE feature_type = 'powerline' AND is_active = 1 AND name = :name"
+        );
+        $anchorStatement->execute(['name' => $currentName]);
+        $newAnchor = $anchorStatement->fetchColumn();
+        if (is_string($newAnchor) && $newAnchor !== '' && $newAnchor !== $oldAnchor) {
+            $move = $pdo->prepare(
+                "UPDATE feature_sources SET entity_public_id = :new WHERE entity_type = 'powerline' AND entity_public_id = :old"
+            );
+            $move->execute(['new' => $newAnchor, 'old' => $oldAnchor]);
+        }
+
+        $pdo->commit();
+
+        return [
+            'name' => $currentName,
+            'created' => count($toCreate),
+            'removed' => count($toDelete),
+            'anchor' => is_string($newAnchor) && $newAnchor !== '' ? $newAnchor : $oldAnchor,
             'revision' => $revision,
         ];
     } catch (Throwable $exception) {
