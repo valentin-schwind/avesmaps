@@ -19,8 +19,13 @@
 // (a second top-level declaration of the same name would break the page -- see the browser global
 // collision note in the project memory). A guarded module.exports keeps `require()` tests clean.
 
+// Two callers, two segment shapes: the live map holds { properties: { name, from_public_id, ... } }
+// (GeoJSON), the editor holds flat rows { name, from_public_id, ... } from the read endpoint. These
+// readers accept BOTH so the topology logic stays the single source without an adapter layer.
 function avesmapsPowerlineSegmentName(segment) {
-	return String((segment && segment.properties && segment.properties.name) || "").trim();
+	const nested = segment && segment.properties && segment.properties.name;
+	const name = (nested != null) ? nested : (segment && segment.name);
+	return String(name || "").trim();
 }
 
 // Every segment carrying the exact same (trimmed) name. Nameless segments never group -- an empty
@@ -37,8 +42,9 @@ function avesmapsPowerlineSegmentsSharingName(name, allSegments) {
 function avesmapsPowerlineBuildAdjacency(segments) {
 	const adjacency = new Map();
 	(segments || []).forEach((segment) => {
-		const from = (segment && segment.properties && segment.properties.from_public_id) || "";
-		const to = (segment && segment.properties && segment.properties.to_public_id) || "";
+		const props = segment && segment.properties;
+		const from = ((props && props.from_public_id) || (segment && segment.from_public_id)) || "";
+		const to = ((props && props.to_public_id) || (segment && segment.to_public_id)) || "";
 		if (!from || !to) {
 			return;
 		}
