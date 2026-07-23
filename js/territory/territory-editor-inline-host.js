@@ -20,13 +20,16 @@
 	const HOST_ID = "political-territory-editor-host";
 	// Cache-Buster für die dynamisch geladenen Editor-Assets: bei jeder Änderung
 	// an Editor-JS/CSS hochzählen, damit Deploys sofort greifen (kein Hard-Reload).
-	const ASSET_VERSION = "20260722c";
+	const ASSET_VERSION = "20260723a";
 	function withVersion(url) {
 		return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + ASSET_VERSION;
 	}
 
 	// Reihenfolge wie im bisherigen iframe-HTML (Abhängigkeiten beachtet).
+	// filter-menu.js VOR embedded.js: dieses verdrahtet den geteilten Zeitfilter-Trichter beim
+	// Auswerten (avmFilterMenuAttach). Ohne Abhängigkeiten, daher ganz vorn.
 	const EDITOR_SCRIPTS = [
+		"/js/ui/filter-menu.js",
 		"/js/territory/territory-editor-context.js",
 		"/js/territory/territory-editor-active-node.js",
 		"/js/territory/territory-wiki-tree.js",

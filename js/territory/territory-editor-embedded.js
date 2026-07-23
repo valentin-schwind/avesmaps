@@ -130,12 +130,17 @@
 			updateCoatButton: document.getElementById("updateCoatButton"),
 			inheritColorVarianceButton: inheritColorVarianceButtonElement,
 			inheritOpacityButton: inheritOpacityButtonElement,
-			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo"),
-			treeTimeFrom: document.getElementById("treeTimeFrom"),
-			treeTimeTo: document.getElementById("treeTimeTo"),
-			treeTimeToday: document.getElementById("treeTimeToday"),
-			treeFlaechenland: document.getElementById("treeFlaechenland")
+			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo")
 		};
+
+		// Zeitraum + „nur Flächenländer" liegen jetzt im gemeinsamen Trichter (js/ui/filter-menu.js)
+		// statt in der „Zeige nur"-Zeile. Ihr Zustand lebt hier; getFilteredRows leitet daraus dasselbe
+		// {mode,from,to}-Objekt ab, das readTimeFilter früher lieferte -- doesRowMatchTimeFilter bleibt
+		// unberührt. Vorgabe „heute", wie das alte vorangekreuzte Häkchen.
+		const treeTimeState = (typeof avmRangeStateCreate === "function")
+			? avmRangeStateCreate("today")
+			: { mode: "today", fromText: "", toText: "" };
+		const treeFlaechState = { value: "" }; // "" = alle | "ja" = nur Flächenländer
 
 		function ensureInheritOpacityButton(referenceButton) {
 			const existingButton = document.getElementById("inheritOpacityButton");
@@ -164,15 +169,12 @@
 		els.continentFilter.addEventListener("change", render);
 		els.typeFilter.addEventListener("change", render);
 		els.statusFilter.addEventListener("change", render);
-		if (els.treeTimeFrom) els.treeTimeFrom.addEventListener("input", render);
-		if (els.treeTimeTo) els.treeTimeTo.addEventListener("input", render);
-		if (els.treeFlaechenland) els.treeFlaechenland.addEventListener("change", render);
-		if (els.treeTimeToday) els.treeTimeToday.addEventListener("change", () => {
-			const today = els.treeTimeToday.checked;
-			if (els.treeTimeFrom) els.treeTimeFrom.disabled = today;
-			if (els.treeTimeTo) els.treeTimeTo.disabled = today;
-			render();
-		});
+		if (typeof avmFilterMenuAttach === "function") {
+			avmFilterMenuAttach("treeTimeFilterToggle", "treeTimeFilterMenu", [
+				{ menuId: "treeTimeRangeMenu", kind: "range", state: treeTimeState, label: "Zeitraum" },
+				{ menuId: "treeTimeFlaechMenu", kind: "single", state: treeFlaechState, options: [{ value: "ja", label: "nur Flächenländer" }], label: "Flächenländer" },
+			], render, "Filter");
+		}
 
 		const existsUntilTodayInput = document.getElementById("existsUntilTodayInput");
 		const endYearInput = document.getElementById("endYearInput");
@@ -2164,11 +2166,11 @@
 			const continent = els.continentFilter.value;
 			const type = els.typeFilter.value;
 			const status = normalizeText(els.statusFilter.value).toLowerCase();
-			const flaechenlaenderOnly = Boolean(els.treeFlaechenland && els.treeFlaechenland.checked);
+			const flaechenlaenderOnly = treeFlaechState.value === "ja";
 			const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
-			const timeFilter = (treeModule && typeof treeModule.readTimeFilter === "function")
-				? treeModule.readTimeFilter(els.treeTimeFrom, els.treeTimeTo, els.treeTimeToday)
-				: null;
+			// Dasselbe {mode,from,to}, das früher readTimeFilter aus den DOM-Feldern las -- jetzt aus
+			// dem Trichterzustand. „today" bleibt „today" (identisches Objekt), der Consumer unverändert.
+			const timeFilter = (typeof avmRangeValue === "function") ? avmRangeValue(treeTimeState) : null;
 
 			return allRows.filter(row => {
 				if (timeFilter && treeModule && typeof treeModule.doesRowMatchTimeFilter === "function"
