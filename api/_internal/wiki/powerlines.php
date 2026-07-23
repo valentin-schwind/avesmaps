@@ -31,44 +31,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/paths.php';
 
-const AVESMAPS_WIKI_POWERLINE_STAGING_TABLE = 'wiki_powerline_staging';
-
-/**
- * Staging table (inline DDL, the project idiom). Sandbox only -- nothing here ever touches
- * map_features. There is deliberately NO queue table: powerlines arrive via the dump, not
- * via the online crawler, so the crawl queue paths.php carries has no counterpart here.
- */
-function avesmapsWikiPowerlineEnsureTables(PDO $pdo): void
-{
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_WIKI_POWERLINE_STAGING_TABLE . ' (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            wiki_key VARCHAR(255) NOT NULL,
-            title VARCHAR(255) NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            match_key VARCHAR(255) NOT NULL DEFAULT \'\',
-            staerke VARCHAR(120) NULL,
-            affinitaet VARCHAR(120) NULL,
-            laenge VARCHAR(120) NULL,
-            regionen VARCHAR(500) NULL,
-            continent VARCHAR(120) NULL,
-            verlauf TEXT NULL,
-            description TEXT NULL,
-            synonyms_json JSON NULL,
-            source_categories_json JSON NULL,
-            image_url VARCHAR(500) NULL,
-            wiki_url VARCHAR(500) NULL,
-            raw_json JSON NULL,
-            synced_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_wiki_powerline_staging_key (wiki_key),
-            KEY idx_wiki_powerline_staging_match (match_key)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-    );
-}
-
 /**
  * PURE: the wiki nest a staging row should produce on a matching map segment.
  * Everything the wiki knows lives under properties.wiki_powerline -- never in the
@@ -240,45 +202,6 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
         'matched_names' => count($matchedKeys),
         'unmatched_names' => $unmatched,
     ];
-}
-
-function avesmapsWikiPowerlineUpsertRecord(PDO $pdo, array $record): void
-{
-    $statement = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_WIKI_POWERLINE_STAGING_TABLE . '
-            (wiki_key, title, name, match_key, staerke, affinitaet, laenge, regionen, continent,
-             verlauf, description, synonyms_json, source_categories_json, image_url, wiki_url,
-             raw_json, synced_at)
-        VALUES
-            (:wiki_key, :title, :name, :match_key, :staerke, :affinitaet, :laenge, :regionen, :continent,
-             :verlauf, :description, :synonyms_json, :source_categories_json, :image_url, :wiki_url,
-             :raw_json, CURRENT_TIMESTAMP(3))
-        ON DUPLICATE KEY UPDATE
-            title = VALUES(title), name = VALUES(name), match_key = VALUES(match_key),
-            staerke = VALUES(staerke), affinitaet = VALUES(affinitaet), laenge = VALUES(laenge),
-            regionen = VALUES(regionen), continent = VALUES(continent), verlauf = VALUES(verlauf),
-            description = VALUES(description), synonyms_json = VALUES(synonyms_json),
-            source_categories_json = VALUES(source_categories_json), image_url = VALUES(image_url),
-            wiki_url = VALUES(wiki_url), raw_json = VALUES(raw_json), synced_at = CURRENT_TIMESTAMP(3)'
-    );
-    $statement->execute([
-        'wiki_key' => (string) $record['wiki_key'],
-        'title' => (string) $record['title'],
-        'name' => (string) $record['name'],
-        'match_key' => (string) $record['match_key'],
-        'staerke' => (string) ($record['staerke'] ?? ''),
-        'affinitaet' => (string) ($record['affinitaet'] ?? ''),
-        'laenge' => (string) ($record['laenge'] ?? ''),
-        'regionen' => (string) ($record['regionen'] ?? ''),
-        'continent' => (string) ($record['continent'] ?? ''),
-        'verlauf' => (string) ($record['verlauf'] ?? ''),
-        'description' => (string) ($record['description'] ?? ''),
-        'synonyms_json' => avesmapsWikiSyncEncodeJson($record['synonyms_json'] ?? []),
-        'source_categories_json' => avesmapsWikiSyncEncodeJson($record['source_categories_json'] ?? []),
-        'image_url' => (string) ($record['image_url'] ?? ''),
-        'wiki_url' => (string) ($record['wiki_url'] ?? ''),
-        'raw_json' => avesmapsWikiSyncEncodeJson($record['raw_json'] ?? []),
-    ]);
 }
 
 /**

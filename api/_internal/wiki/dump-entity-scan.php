@@ -1372,33 +1372,6 @@ function avesmapsWikiDumpPersistPathRecords(PDO $pdo, iterable $pages): int
 }
 
 /**
- * THIN persistence for the POWERLINE handler -- the analogue of
- * avesmapsWikiDumpPersistPathRecords(). Staging only; nothing here touches map_features.
- *
- * DB-backed -> NOT covered by the fixture test; verified on a real "Dump holen" run.
- *
- * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of powerline records upserted
- */
-function avesmapsWikiDumpPersistPowerlineRecords(PDO $pdo, iterable $pages): int
-{
-    avesmapsWikiPowerlineEnsureTables($pdo);
-    $written = 0;
-    foreach ($pages as $page) {
-        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE) {
-            continue;
-        }
-        $result = avesmapsWikiDumpParsePowerlinePage($page);
-        if ($result['kept'] && is_array($result['record'])) {
-            avesmapsWikiPowerlineUpsertRecord($pdo, $result['record']);
-            $written++;
-        }
-    }
-
-    return $written;
-}
-
-/**
  * THIN persistence for the REGION handler -- the analogue of
  * avesmapsWikiDumpPersistPathRecords(). For each page in the stream, run the pure
  * region handler and, for kept records, upsert into wiki_region_staging by REUSING

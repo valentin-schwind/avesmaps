@@ -579,9 +579,6 @@ function avesmapsWikiDumpHybridParseUpsertStep(
         // Guard the enrichment/schema columns exactly as Pass B does before its
         // settlement/building upserts (idempotent).
         avesmapsWikiSettlementEnsureSchema($pdo);
-        // Same guard for the powerline staging table: the upsert below would otherwise hit a
-        // missing table on the very first sharp run. Idempotent, once per step, not per row.
-        avesmapsWikiPowerlineEnsureTables($pdo);
     } else {
         avesmapsWikiDumpHybridEnsureStateTable($pdo);
     }
@@ -706,10 +703,9 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
             avesmapsWikiPathUpsertRecord($pdo, $record); // reused Pass B upsert
             break;
 
-        case AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE:
-            avesmapsWikiPowerlineUpsertRecord($pdo, $record); // staging only
-            break;
-
+        // No AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE case: powerlines are not promoted to a per-kind
+        // staging table on apply. Their production reconcile (sync_powerlines) reads the sandbox
+        // (wiki_dump_hybrid_state) directly -- there is no wiki_powerline_staging to fill.
         case AVESMAPS_WIKI_DUMP_ENTITY_REGION:
             avesmapsWikiRegionUpsertRecord($pdo, $record); // reused Pass B upsert
             break;
