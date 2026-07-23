@@ -115,6 +115,9 @@
   .pl-icon-btn.del:hover { color:var(--bad); border-color:var(--bad); }
   .pl-icon-btn:disabled { opacity:.3; cursor:default; }
   .pl-conn { width:2px; height:12px; background:var(--line2); margin:0 0 0 16px; }
+  .pl-reorder-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 8px; padding:6px 9px; background:var(--color-active-wash); border:1px solid var(--color-accent); border-radius:6px; }
+  .pl-reorder-lead { font-size:11px; font-weight:bold; color:var(--color-accent-strong); margin-right:auto; }
+  .pl-reorder-bar button { min-height:26px; padding:0 10px; font-size:12px; }
   .pl-edge { display:flex; align-items:center; gap:7px; padding:5px 8px; background:var(--soft); border:1px solid var(--line); border-radius:var(--radius-md); margin-bottom:5px; font-size:12px; }
   .pl-edge .a { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .pl-edge .arw { color:var(--mut); flex:0 0 auto; }
@@ -175,6 +178,9 @@ const MAP_FEATURES_EDIT_API = "/api/edit/map/features.php";
 function esc(s) {
 	return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
+function arraysEqual(a, b) {
+	return a.length === b.length && a.every((value, index) => value === b[index]);
+}
 async function mapFeaturesEditPost(body) {
 	const response = await fetch(MAP_FEATURES_EDIT_API, {
 		method: "POST",
@@ -200,6 +206,7 @@ let selectedName = null;
 let showDupesOnly = false;
 let searchTerm = "";
 let pendingSelectName = null;  // set by the host's "Bearbeiten" postMessage before data has loaded
+let reorderDraft = null;       // strand node order the user is arranging (▲▼); null = the true stored order
 
 // nodeLookup for the shared pure topology helpers.
 function nodeLookup(publicId) {
@@ -317,6 +324,7 @@ function renderList() {
 // ---- Column 2: properties --------------------------------------------------------------------
 function selectLine(name) {
 	selectedName = name;
+	reorderDraft = null;
 	renderList();
 	renderDetail();
 	renderNodes();
@@ -422,14 +430,27 @@ function renderNodes() {
 	const t = line.topology;
 	let html = "";
 	if (t.shape === "strand") {
-		const chain = avesmapsPowerlineOrderedChain(t) || [];
-		html += '<div class="pl-topo-note">Strang mit 2 Enden · Reihenfolge = Verlauf. ✕ entfernt einen Nodix (löscht seine Segmente); „+ Nodix hinzufügen" verlängert die Linie.</div>';
+		const trueChain = avesmapsPowerlineOrderedChain(t) || [];
+		const chain = (reorderDraft && reorderDraft.length === trueChain.length) ? reorderDraft : trueChain;
+		const canReorder = chain.length >= 3;
+		const dirty = !!reorderDraft && !arraysEqual(chain, trueChain);
+		html += '<div class="pl-topo-note">Strang mit 2 Enden · Reihenfolge = Verlauf.' + (canReorder ? " ▲▼ sortiert um," : "") + ' ✕ entfernt einen Nodix (löscht seine Segmente); „+ Nodix hinzufügen" verlängert die Linie.</div>';
+		if (dirty) {
+			html += '<div class="pl-reorder-bar"><span class="pl-reorder-lead">Reihenfolge geändert</span>'
+				+ '<button class="primary" id="plReorderSave">Speichern</button>'
+				+ '<button id="plReorderReset">Zurücksetzen</button>'
+				+ '<span class="dt-msg" id="plReorderMsg"></span></div>';
+		}
 		chain.forEach((pid, i) => {
 			const isEnd = i === 0 || i === chain.length - 1;
 			if (isEnd) { html += '<div class="pl-end-label">Ende</div>'; }
 			html += '<div class="pl-node' + (isEnd ? " is-end" : "") + '">'
 				+ '<span class="pl-node-name">' + esc(nodeName(pid)) + "</span>"
 				+ nodeBadge(pid)
+				+ (canReorder
+					? '<button class="pl-icon-btn" title="Nach oben" data-move-up="' + i + '"' + (i === 0 ? " disabled" : "") + ">▲</button>"
+						+ '<button class="pl-icon-btn" title="Nach unten" data-move-down="' + i + '"' + (i === chain.length - 1 ? " disabled" : "") + ">▼</button>"
+					: "")
 				+ flyBtn(pid)
 				+ '<button class="pl-icon-btn del" title="Nodix entfernen" data-remove-node="' + esc(pid) + '">✕</button>'
 				+ "</div>";
@@ -465,6 +486,12 @@ function wireNodeActions(line) {
 	$("plNodes").querySelectorAll("[data-fly]").forEach((b) => b.addEventListener("click", () => flyToNode(b.getAttribute("data-fly"))));
 	$("plNodes").querySelectorAll("[data-remove-node]").forEach((b) => b.addEventListener("click", () => removeNode(b.getAttribute("data-remove-node"))));
 	$("plNodes").querySelectorAll("[data-remove-seg]").forEach((b) => b.addEventListener("click", () => removeSegment(b.getAttribute("data-remove-seg"))));
+	$("plNodes").querySelectorAll("[data-move-up]").forEach((b) => b.addEventListener("click", () => moveNode(parseInt(b.getAttribute("data-move-up"), 10), -1)));
+	$("plNodes").querySelectorAll("[data-move-down]").forEach((b) => b.addEventListener("click", () => moveNode(parseInt(b.getAttribute("data-move-down"), 10), 1)));
+	const reorderSave = $("plReorderSave");
+	if (reorderSave) { reorderSave.addEventListener("click", saveReorder); }
+	const reorderReset = $("plReorderReset");
+	if (reorderReset) { reorderReset.addEventListener("click", () => { reorderDraft = null; renderNodes(); }); }
 	const toggle = $("plAddToggle");
 	if (toggle) {
 		toggle.addEventListener("click", () => { const p = $("plAddPanel"); p.hidden = !p.hidden; if (!p.hidden) { $("plAddSearch").focus(); } });
@@ -518,6 +545,39 @@ async function removeNode(pid) {
 		await reload(selectedName);
 	} catch (e) { setSaveMsg(e.message || "Fehlgeschlagen.", "bad"); }
 }
+// ▲▼ swap two adjacent Nodices of a strand into a tentative order (reorderDraft). Only adjacent swaps,
+// so any permutation is reachable step by step and each step is obvious. Nothing is written until
+// "Speichern" -- this is a destructive rewire, so it stays staged behind a confirmation.
+function moveNode(index, delta) {
+	const line = lineByName(selectedName);
+	if (!line || !line.topology) { return; }
+	const trueChain = avesmapsPowerlineOrderedChain(line.topology) || [];
+	const base = (reorderDraft && reorderDraft.length === trueChain.length) ? reorderDraft : trueChain;
+	const chain = base.slice();
+	const target = index + delta;
+	if (index < 0 || index >= chain.length || target < 0 || target >= chain.length) { return; }
+	const swap = chain[index]; chain[index] = chain[target]; chain[target] = swap;
+	reorderDraft = chain;
+	renderNodes();
+}
+async function saveReorder() {
+	const line = lineByName(selectedName);
+	if (!line || !line.topology) { return; }
+	const trueChain = avesmapsPowerlineOrderedChain(line.topology) || [];
+	const order = (reorderDraft && reorderDraft.length === trueChain.length) ? reorderDraft : trueChain;
+	const diff = (typeof avesmapsPowerlineReorderDiff === "function") ? avesmapsPowerlineReorderDiff(line.segments, order) : { create: [], remove: [] };
+	if (diff.create.length === 0 && diff.remove.length === 0) { reorderDraft = null; renderNodes(); return; }
+	if (!window.confirm("Reihenfolge von „" + line.name + "“ ändern?\n\n" + diff.create.length + " Segment(e) werden neu angelegt, " + diff.remove.length + " entfernt.")) { return; }
+	const msg = $("plReorderMsg"); if (msg) { msg.textContent = "Speichert…"; msg.className = "dt-msg"; }
+	try {
+		await mapFeaturesEditPost({ action: "reorder_powerline_line", current_name: line.name, ordered_public_ids: order });
+		reorderDraft = null;
+		await reload(line.name);
+	} catch (e) {
+		const failed = $("plReorderMsg");
+		if (failed) { failed.textContent = e.message || "Umsortieren fehlgeschlagen."; failed.className = "dt-msg bad"; }
+	}
+}
 function flyToNode(pid) {
 	// The editor lives in an iframe; ask the parent app to fly to this map location.
 	try {
@@ -569,6 +629,7 @@ function flashStatus(message) {
 	plFlashTimer = setTimeout(() => { setStatus(statusCountsText()); }, 7000);
 }
 function ingest(data) {
+	reorderDraft = null;  // fresh data supersedes any half-arranged order
 	segments = Array.isArray(data.segments) ? data.segments : [];
 	nodesMap = (data.nodes && typeof data.nodes === "object") ? data.nodes : {};
 	candidates = Array.isArray(data.nodix_candidates) ? data.nodix_candidates : [];
