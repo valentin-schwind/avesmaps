@@ -127,6 +127,11 @@ Lesen/Anwenden/Schreiben/Löschen laufen über die vorhandenen
   Knopf **„gehört zum Weg (gelöst)"** schreibt die Entscheidung, der Klumpen (und
   der Weg, falls es sein einziges Problem war) fällt raus. On-course-Klumpen
   werden gar nicht erst als Problem gezeigt.
+  **🔒 Owner-Vorgabe: keine neuen Reiter im „Wege"-Panel.** Alles bleibt im
+  bestehenden „Ausreißer"-Reiter — der „gelöst"-Knopf sitzt in der Wegzeile, kein
+  eigener „Gelöst"-Reiter. Bestätigte Fälle fallen aus der Liste; das Rückgängig
+  passiert **inline** (Fußzeile „N als ‚gehört zum Weg' bestätigt · anzeigen",
+  klappt die Fälle mit einem Reopen-Knopf auf), nicht über einen Reiter.
 
 ## 6. Sicherheit & Tests
 
@@ -140,12 +145,13 @@ falsch.
 * **Unit-Tests** in `tools/paths/test-path-outliers.php`: RS2-Klumpen fällt raus,
   Eisenstraße-Strandsegment bleibt, Eisenstraße-Punin-Stück fällt raus, `approved`
   blendet aus, geänderter Segmentbestand öffnet wieder.
-* **🔧 Owner/Prüfer — voller Durchlauf vor „scharf":** die neue Klassifikation
-  einmal über **alle** gemeldeten Wege laufen lassen und prüfen, dass **kein
-  bekannter echter Streuner** exoneriert wird. Erst danach `OUTLIER_ONCOURSE_TOL`
-  festzurren. Fällt dabei ein Klumpen zu Unrecht raus, härten: **≥2** Stationen
-  verlangen oder Kontiguität in der Verlauf-Reihenfolge fordern (in dieser
-  Stichprobe nicht nötig — RS2 & Eisenstraße trennen schon bei „≥1").
+* **Beobachten statt vorab festzurren (Owner 2026-07-23):** mit `TOL = 2,0`
+  ausliefern; beim Ausliefern eine **Vorher/Nachher-Liste** der gemeldeten Wege
+  erzeugen (welche fallen durch die Validierung raus) und einmal drüberschauen,
+  dass nichts Verdächtiges dabei ist. Kein harter Vorab-Prüf-Gate. Fällt später
+  ein **echter** Streuner zu Unrecht raus, ist der Hebel bekannt: **≥2** Stationen
+  verlangen oder Kontiguität in der Verlauf-Reihenfolge fordern (in RS2 &
+  Eisenstraße nicht nötig — sie trennen schon bei „≥1").
 
 ## 7. Nicht in diesem Umbau (YAGNI)
 
@@ -156,10 +162,12 @@ falsch.
 * Die Verlauf-Namensauflösung verbessern (Klammer-Zusätze wie „(Almada)") — das
   Design ist ohne das robust; eine Fehlauflösung wird ignoriert, nicht falsch
   gewertet.
+* **Keine neuen Reiter im „Wege"-Panel** (Owner-Vorgabe) — auch keine
+  „Lücken"-Ansicht und kein „Gelöst"-Reiter. Siehe §5.
 
-## 8. Offene Punkte
+## 8. Owner-Entscheidungen (2026-07-23)
 
-* Startwert `OUTLIER_ONCOURSE_TOL = 2,0` — im Prüf-Durchlauf (§6) bestätigen.
-* Bleibt ein on-course-Weg irgendwo auffindbar (Transparenz „hat eine Lücke"),
-  oder verschwindet er restlos? Vorschlag: restlos (die Zahl soll sinken); eine
-  „Lücken"-Ansicht erst, wenn der Owner sie vermisst.
+* **Toleranz:** `OUTLIER_ONCOURSE_TOL = 2,0` fest als Startwert — ausliefern und
+  beobachten (§6), nicht vorab durchtunen. Nachträglich änderbar, falls nötig.
+* **Keine „Lücken"-Ansicht.** On-course-Wege verschwinden restlos aus der Liste
+  (die Kopfzahl soll sinken); eine Lücken-Sicht erst, wenn der Owner sie vermisst.
