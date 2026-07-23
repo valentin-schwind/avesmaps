@@ -910,12 +910,25 @@ try {
     if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
         try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
     }
-    avesmapsServerErrorResponse($exception, 'wiki-dump');
+    // TEMP DIAGNOSTIC (REVERT): STRATO's error log lags hours/a day, so surface the
+    // real exception to the capability-gated (owner-only) client to pinpoint the
+    // post-fix continent-phase 500. Revert to: avesmapsServerErrorResponse($exception, 'wiki-dump');
+    error_log('avesmaps wiki-dump DEBUG: ' . $exception::class . ': ' . $exception->getMessage() . ' @ ' . $exception->getFile() . ':' . $exception->getLine());
+    avesmapsErrorResponse(500, 'server_error_debug',
+        $exception::class . ': ' . $exception->getMessage()
+        . ' @ ' . basename($exception->getFile()) . ':' . $exception->getLine()
+        . ' || ' . substr($exception->getTraceAsString(), 0, 1500));
 } catch (Throwable $error) {
     // ANY other failure in a mutating flow releases the lock so a crash cannot
     // wedge the pipeline (the stale-takeover is the backstop if even this fails).
     if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
         try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
     }
-    avesmapsServerErrorResponse($error, 'wiki-dump');
+    // TEMP DIAGNOSTIC (REVERT): see the PDOException catch above. Revert to:
+    // avesmapsServerErrorResponse($error, 'wiki-dump');
+    error_log('avesmaps wiki-dump DEBUG: ' . $error::class . ': ' . $error->getMessage() . ' @ ' . $error->getFile() . ':' . $error->getLine());
+    avesmapsErrorResponse(500, 'server_error_debug',
+        $error::class . ': ' . $error->getMessage()
+        . ' @ ' . basename($error->getFile()) . ':' . $error->getLine()
+        . ' || ' . substr($error->getTraceAsString(), 0, 1500));
 }
