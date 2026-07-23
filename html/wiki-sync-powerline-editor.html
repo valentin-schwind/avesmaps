@@ -103,7 +103,7 @@
   .pl-hint b { color:var(--color-accent-strong); }
   .dt-empty { color:var(--mut); padding:10px 4px; }
 
-  /* Knoten-Spalte */
+  /* Nodices-Spalte (Domänenbegriff für die Knotenpunkte einer Kraftlinie) */
   .pl-topo-note { font-size:11px; color:var(--mut); background:var(--color-panel-soft); border:1px solid var(--line); border-left:3px solid var(--color-accent); border-radius:6px; padding:6px 9px; margin-bottom:8px; }
   .pl-end-label { font-size:9px; color:var(--color-accent-strong); text-transform:uppercase; letter-spacing:.04em; margin:0 0 3px 2px; font-weight:bold; }
   .pl-node { display:flex; align-items:center; gap:7px; padding:6px 8px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); box-shadow:0 1px 2px rgba(0,0,0,.06); }
@@ -152,7 +152,7 @@
     <div class="scrollbox" id="plDetail" style="padding:10px 12px;"><div class="dt-empty">Links eine Kraftlinie wählen.</div></div>
   </div>
   <div class="col" id="plColNodes">
-    <h2 class="listhead">Knoten</h2>
+    <h2 class="listhead">Nodices</h2>
     <div class="scrollbox" id="plNodes" style="padding:8px 10px;"><div class="dt-empty">Links eine Kraftlinie wählen.</div></div>
   </div>
 </div>
@@ -303,7 +303,7 @@ function renderList() {
 		const nodeCount = l.topology ? l.topology.adjacency.size : 0;
 		const l2 = l.warnings.length > 0
 			? '<div class="se-row-l2 warn">⚠ ' + esc(l.warnings[0]) + "</div>"
-			: '<div class="se-row-l2 ok">' + nodeCount + " Knoten · " + l.segments.length + " Segmente · " + esc(spanText(l)) + "</div>";
+			: '<div class="se-row-l2 ok">' + nodeCount + " Nodices · " + l.segments.length + " Segmente · " + esc(spanText(l)) + "</div>";
 		return '<div class="se-row' + (l.name === selectedName ? " is-selected" : "") + '" data-name="' + esc(l.name) + '">'
 			+ '<div class="se-row-text"><div class="se-row-l1"><span class="se-row-name">' + esc(l.name) + '</span>'
 			+ '<span class="se-row-type">' + (l.topology ? shapeLabel(l.topology.shape) : "") + "</span></div>"
@@ -423,7 +423,7 @@ function renderNodes() {
 	let html = "";
 	if (t.shape === "strand") {
 		const chain = avesmapsPowerlineOrderedChain(t) || [];
-		html += '<div class="pl-topo-note">Strang mit 2 Enden · Reihenfolge = Verlauf. ✕ entfernt einen Knoten (löscht seine Segmente); „+ Knoten hinzufügen" verlängert die Linie.</div>';
+		html += '<div class="pl-topo-note">Strang mit 2 Enden · Reihenfolge = Verlauf. ✕ entfernt einen Nodix (löscht seine Segmente); „+ Nodix hinzufügen" verlängert die Linie.</div>';
 		chain.forEach((pid, i) => {
 			const isEnd = i === 0 || i === chain.length - 1;
 			if (isEnd) { html += '<div class="pl-end-label">Ende</div>'; }
@@ -431,7 +431,7 @@ function renderNodes() {
 				+ '<span class="pl-node-name">' + esc(nodeName(pid)) + "</span>"
 				+ nodeBadge(pid)
 				+ flyBtn(pid)
-				+ '<button class="pl-icon-btn del" title="Knoten entfernen" data-remove-node="' + esc(pid) + '">✕</button>'
+				+ '<button class="pl-icon-btn del" title="Nodix entfernen" data-remove-node="' + esc(pid) + '">✕</button>'
 				+ "</div>";
 			if (i < chain.length - 1) { html += '<div class="pl-conn"></div>'; }
 		});
@@ -452,12 +452,12 @@ function renderNodes() {
 function renderAddPanel(line) {
 	const nodeOptions = [...line.topology.adjacency.keys()].map((pid) => '<option value="' + esc(pid) + '">' + esc(nodeName(pid)) + "</option>").join("");
 	return '<div class="pl-add">'
-		+ '<button class="pl-add-toggle" id="plAddToggle">+ Knoten hinzufügen</button>'
+		+ '<button class="pl-add-toggle" id="plAddToggle">+ Nodix hinzufügen</button>'
 		+ '<div class="pl-add-panel" id="plAddPanel" hidden>'
 			+ '<label>Verbinden von<select id="plAddFrom">' + nodeOptions + "</select></label>"
 			+ '<label>nach (Nodix-Ort oder Kreuzung)<input type="search" id="plAddSearch" placeholder="suchen …" autocomplete="off"></label>'
 			+ '<div class="pl-results" id="plAddResults"></div>'
-			+ '<div class="dt-actions"><button class="primary" id="plAddConfirm" disabled>Knoten anfügen</button><button id="plAddCancel">Abbrechen</button><span class="dt-msg" id="plAddMsg"></span></div>'
+			+ '<div class="dt-actions"><button class="primary" id="plAddConfirm" disabled>Nodix anfügen</button><button id="plAddCancel">Abbrechen</button><span class="dt-msg" id="plAddMsg"></span></div>'
 		+ "</div></div>";
 }
 let addPick = null;
