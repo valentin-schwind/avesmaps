@@ -40,6 +40,18 @@
 	text-decoration: underline;
 }
 
+/* Text-Button in der Weg-Meta-Zeile ("Namen vereinheitlichen") -- teilt sich die Link-Optik
+   mit .region-sync__link (Farbe/Hover), strippt nur die Button-Chrome. Kein eigener Farbwert. */
+.path-sync__normalize {
+	appearance: none;
+	-webkit-appearance: none;
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	cursor: pointer;
+}
+
 .region-sync__badge {
 	font-size: 12px;
 	opacity: 0.8;

@@ -319,6 +319,13 @@ function renderPathSyncList() {
 				const wikiLink = `<a class="region-sync__link" href="${pathSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 			}
+			// Owner 2026-07-23: Ein-Klick "alle Segmente dieses Wegs auf den Wiki-Namen vereinheitlichen".
+			// Oberflaeche fuer die vorhandene Ganz-Weg-Zuweisung (assignPathWiki) -- nur bei einem Weg, der
+			// wiki-verlinkt UND auf der Karte ist; sonst gibt es keinen kanonischen Namen zum Angleichen.
+			if (onMap && row.wiki_key) {
+				const normalizeBtn = `<button type="button" class="region-sync__link path-sync__normalize" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}" title="Alle Segmente auf den Wiki-Namen „${pathSyncEscapeAttr(row.name)}" vereinheitlichen">Namen vereinheitlichen</button>`;
+				metaHtml = metaHtml ? `${metaHtml} · ${normalizeBtn}` : normalizeBtn;
+			}
 			// Zuordnen-Button als Chip in derselben Zeile/Größe wie die Segment-Chips.
 			// Bei bereits zugeordneten Wegen nur „+" (= neu zuordnen), sonst „Zuordnen".
 			const assignChip = `<button type="button" class="region-sync__cand path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}" title="${onMap ? "Neu zuordnen" : "Zuordnen"}">${onMap ? "+" : "Zuordnen"}</button>`;
@@ -927,7 +934,7 @@ async function applyAllCleanVerlaufCases() {
 	}
 }
 
-// Bulk-Zuordnung (mehrere Segmente per wiki_key). Backend liefert hier bewusst KEIN segments_updated;
+// "Namen vereinheitlichen": die vorhandene Ganz-Weg-Zuweisung (R1) zieht alle zugehoerigen Segmente auf den kanonischen Wiki-Namen (z. B. "Reichsstrasse 2" -> "Reichsstraße 2"); die ss-Schluessel (feature_subtype/match_key) bleiben unberuehrt.
 // lokale pathData zieht stattdessen ueber Reload/Live-Updates nach (loadPathWikiSync + normaler Map-Refresh).
 async function assignPathWiki(wikiKey) {
 	if (pathSyncBusy || !wikiKey) {
@@ -944,7 +951,7 @@ async function assignPathWiki(wikiKey) {
 			}
 			return;
 		}
-		if (!window.confirm(`„${preview.wiki_name}" mit allen ${segs} gleichnamigen Weg-Abschnitten auf der Karte verknüpfen? Sie bekommen die Wiki-Infobox.`)) {
+		if (!window.confirm(`„${preview.wiki_display_name || preview.wiki_name}": alle ${segs} zugehörigen Segmente auf diesen Wiki-Namen vereinheitlichen?\n\nAbweichende Schreibweisen (z. B. „Reichsstrasse 2") werden angeglichen; die Typ-Schlüssel (feature_subtype) bleiben unberührt.`)) {
 			return;
 		}
 		const result = await pathSyncPost({ action: "assign", wiki_key: wikiKey, dry_run: false, confirm: "apply" });
@@ -1246,6 +1253,12 @@ document.addEventListener("click", (event) => {
 	if (assignBtn) {
 		event.stopPropagation();
 		startPathWikiAssignPick(assignBtn.dataset.wikiKey);
+		return;
+	}
+	const normalizeBtn = event.target.closest(".path-sync__normalize");
+	if (normalizeBtn) {
+		event.stopPropagation();
+		void assignPathWiki(normalizeBtn.dataset.wikiKey);
 		return;
 	}
 	const candidate = event.target.closest(".region-sync__cand[data-path-id]");
