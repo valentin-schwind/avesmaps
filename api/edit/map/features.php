@@ -42,6 +42,7 @@ try {
         'create_crossing' => avesmapsCreateCrossingFeature($pdo, $payload, $user),
         'create_powerline' => avesmapsCreatePowerlineFeature($pdo, $payload, $user),
         'update_powerline_details' => avesmapsUpdatePowerlineFeatureDetails($pdo, $payload, $user),
+        'update_powerline_line' => avesmapsUpdatePowerlineLine($pdo, $payload, $user),
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
         'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
         'update_path_geometry' => avesmapsUpdatePathFeatureGeometry($pdo, $payload, $user),

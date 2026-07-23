@@ -1357,7 +1357,31 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
         [$fromLng, $fromLat] = avesmapsReadPointCoordinatesFromGeometry($fromGeometry);
         [$toLng, $toLat] = avesmapsReadPointCoordinatesFromGeometry($toGeometry);
         $publicId = avesmapsUuidV4();
-        $name = trim((string) ($fromFeature['name'] ?? 'Nodix') . ' - ' . (string) ($toFeature['name'] ?? 'Nodix'));
+        // A caller (the Kraftlinien editor's "add node") may pass an explicit name so the new segment
+        // joins an existing line; otherwise fall back to the auto "A - B" name. When it joins a line,
+        // inherit that line's scalar fields so the new segment is consistent at once -- the infobox
+        // reads them per-segment. Sources live on the line's anchor segment and are untouched here.
+        $providedName = trim((string) ($payload['name'] ?? ''));
+        $name = $providedName !== ''
+            ? avesmapsReadFeatureName($providedName, 'Der Name der Kraftlinie')
+            : trim((string) ($fromFeature['name'] ?? 'Nodix') . ' - ' . (string) ($toFeature['name'] ?? 'Nodix'));
+        $inheritedShowLabel = false;
+        $inheritedDescription = '';
+        $inheritedWikiUrl = '';
+        if ($providedName !== '') {
+            $peek = $pdo->prepare(
+                "SELECT properties_json FROM map_features
+                 WHERE feature_type = 'powerline' AND is_active = 1 AND name = :name LIMIT 1"
+            );
+            $peek->execute(['name' => $name]);
+            $peekRow = $peek->fetch(PDO::FETCH_ASSOC);
+            if (is_array($peekRow)) {
+                $peekProps = avesmapsDecodeJsonColumnForEdit($peekRow['properties_json'] ?? null);
+                $inheritedShowLabel = (bool) ($peekProps['show_label'] ?? false);
+                $inheritedDescription = (string) ($peekProps['description'] ?? '');
+                $inheritedWikiUrl = (string) ($peekProps['wiki_url'] ?? '');
+            }
+        }
         $geometry = [
             'type' => 'LineString',
             'coordinates' => [[$fromLng, $fromLat], [$toLng, $toLat]],
@@ -1366,7 +1390,9 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
             'name' => $name,
             'feature_type' => 'powerline',
             'feature_subtype' => 'powerline',
-            'show_label' => false,
+            'show_label' => $inheritedShowLabel,
+            'description' => $inheritedDescription,
+            'wiki_url' => $inheritedWikiUrl,
             'from_public_id' => $fromPublicId,
             'to_public_id' => $toPublicId,
         ];
@@ -1476,6 +1502,88 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
         $pdo->commit();
 
         return avesmapsBuildPowerlineFeatureResponse($publicId, $name, $geometry, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+// Line-level write: a Kraftlinie is many segments sharing one name, so the editor writes the line's
+// scalar fields (name, show_label, description, wiki_url) onto ALL of them at once. Renaming to an
+// existing name makes both groups share a name -- they merge, and every segment of the resulting line
+// gets the same fields (the OR in the SELECT covers the merge target too). Sources are NOT touched
+// here: they live on the line's anchor segment (see the editor + powerlineInfoboxMarkup).
+function avesmapsUpdatePowerlineLine(PDO $pdo, array $payload, array $user): array {
+    $currentName = trim((string) ($payload['current_name'] ?? ''));
+    if ($currentName === '') {
+        throw new InvalidArgumentException('Der aktuelle Name der Kraftlinie fehlt.');
+    }
+    $newName = avesmapsReadFeatureName($payload['new_name'] ?? '', 'Der Name der Kraftlinie');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
+    $description = trim((string) ($payload['description'] ?? ''));
+    $wikiUrl = trim((string) ($payload['wiki_url'] ?? ''));
+
+    $pdo->beginTransaction();
+    try {
+        // Every active segment of the current name OR the target name (so a merge unifies both).
+        $select = $pdo->prepare(
+            "SELECT id, public_id, properties_json, revision
+             FROM map_features
+             WHERE feature_type = 'powerline' AND is_active = 1 AND (name = :current OR name = :new)
+             FOR UPDATE"
+        );
+        $select->execute(['current' => $currentName, 'new' => $newName]);
+        $rows = $select->fetchAll(PDO::FETCH_ASSOC);
+        if ($rows === []) {
+            throw new InvalidArgumentException('Zu diesem Namen gibt es keine Kraftlinien-Segmente mehr. Bitte neu laden.');
+        }
+
+        $revision = avesmapsNextMapRevision($pdo);
+        $update = $pdo->prepare(
+            'UPDATE map_features
+             SET name = :name, properties_json = :properties_json, revision = :revision, updated_by = :updated_by
+             WHERE id = :id'
+        );
+        foreach ($rows as $row) {
+            $properties = avesmapsDecodeJsonColumnForEdit($row['properties_json'] ?? null);
+            $properties['name'] = $newName;
+            $properties['feature_type'] = 'powerline';
+            $properties['feature_subtype'] = 'powerline';
+            $properties['show_label'] = $showLabel;
+            $properties['description'] = $description;
+            $properties['wiki_url'] = $wikiUrl;
+            $update->execute([
+                'id' => (int) $row['id'],
+                'name' => $newName,
+                'properties_json' => avesmapsEncodeJson($properties),
+                'revision' => $revision,
+                'updated_by' => (int) $user['id'],
+            ]);
+            avesmapsWriteMapAuditLog(
+                $pdo,
+                (int) $row['id'],
+                'update_powerline_line',
+                (int) $user['id'],
+                avesmapsEncodeAuditJson($row),
+                avesmapsEncodeAuditJson([
+                    'public_id' => (string) $row['public_id'],
+                    'name' => $newName,
+                    'show_label' => $showLabel,
+                    'description' => $description,
+                    'wiki_url' => $wikiUrl,
+                    'properties_json' => $properties,
+                    'revision' => $revision,
+                ])
+            );
+        }
+        $pdo->commit();
+
+        return [
+            'name' => $newName,
+            'previous_name' => $currentName,
+            'segment_count' => count($rows),
+            'merged' => $newName !== $currentName,
+            'revision' => $revision,
+        ];
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);
     }
