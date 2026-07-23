@@ -1386,11 +1386,25 @@ async function startWikiSyncPowerlines() {
 			const sandbox = Number(result.sandbox_rows ?? 0);
 			const runDate = String(result.run_completed_at ?? "").trim();
 			if (sandbox === 0) {
-				setWikiSyncStatus(
-					`Der Dump-Lauf${runDate ? ` vom ${runDate}` : ""} hat keine Kraftlinien abgelegt. `
-					+ "Bitte „📥 Dump holen“ erneut laufen lassen (der Lauf muss nach dem 22.07. sein) und dann erneut syncen.",
-					"error"
-				);
+				// Ist der NEUESTE Dump-Lauf auf „running" hängengeblieben, ist er abgestürzt
+				// (der Status kennt kein „error"). Dann ist die abgelesene completed-Zeile alt,
+				// und die Phase des hängenden Laufs sagt, WO „Dump holen" stirbt.
+				const latestStatus = String(result.latest_run_status ?? "").trim();
+				const latestPhase = String(result.latest_run_phase ?? "").trim();
+				const latestUpd = String(result.latest_run_updated_at ?? "").trim();
+				if (latestStatus === "running") {
+					setWikiSyncStatus(
+						`„Dump holen“ ist abgestürzt: der neueste Lauf hängt seit ${latestUpd || "?"} in Phase „${latestPhase || "?"}“ `
+						+ `(gelesen wurde der letzte VOLLSTÄNDIGE Lauf${runDate ? ` vom ${runDate}` : ""}). Bitte diese Phase melden.`,
+						"error"
+					);
+				} else {
+					setWikiSyncStatus(
+						`Der Dump-Lauf${runDate ? ` vom ${runDate}` : ""} hat keine Kraftlinien abgelegt. `
+						+ "Bitte „📥 Dump holen“ erneut laufen lassen (der Lauf muss nach dem 22.07. sein) und dann erneut syncen.",
+						"error"
+					);
+				}
 			} else {
 				setWikiSyncStatus(
 					`${sandbox} Kraftlinien im Zwischenspeicher, aber keine ließ sich auswerten — bitte melden. `

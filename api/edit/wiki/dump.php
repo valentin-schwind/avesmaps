@@ -643,6 +643,12 @@ try {
                 'sandbox_rows' => (int) ($powerlineResult['sandbox_rows'] ?? 0),
                 'run_id' => (int) ($powerlineResult['run_id'] ?? 0),
                 'run_completed_at' => (string) ($powerlineResult['run_completed_at'] ?? ''),
+                // The newest dump run of ANY status -- reveals a crashed 'running' run and the
+                // phase it died in (a completed-only view hides that "Dump holen" is failing).
+                'latest_run_status' => (string) ($powerlineResult['latest_run_status'] ?? ''),
+                'latest_run_phase' => (string) ($powerlineResult['latest_run_phase'] ?? ''),
+                'latest_run_message' => (string) ($powerlineResult['latest_run_message'] ?? ''),
+                'latest_run_updated_at' => (string) ($powerlineResult['latest_run_updated_at'] ?? ''),
             ]);
             // no break -- avesmapsJsonResponse exits.
 

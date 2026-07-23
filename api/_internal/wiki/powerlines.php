@@ -205,6 +205,33 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
     // run_completed_at tells whether the dump that filled the sandbox is recent enough.
     $runRow = avesmapsWikiDumpSyncKindFetchRunById($pdo, $runId);
 
+    // The newest dump_read run of ANY status. A run that CRASHED mid-scan is never marked
+    // 'error' (the status is only ever 'running' or 'completed'), so it sits stuck at 'running'
+    // with the phase it died in -- and the resolver above then falls back to an older COMPLETED
+    // run. Surfacing status+phase+updated_at here tells us WHERE "Dump holen" is dying, which a
+    // completed-run-only view hides entirely.
+    $latest = ['status' => '', 'phase' => '', 'message' => '', 'updated_at' => ''];
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT status, phase, message, updated_at
+               FROM wiki_sync_runs
+              WHERE sync_type = :t
+              ORDER BY id DESC LIMIT 1"
+        );
+        $stmt->execute(['t' => AVESMAPS_WIKI_DUMP_SYNC_TYPE]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (is_array($row)) {
+            $latest = [
+                'status' => (string) ($row['status'] ?? ''),
+                'phase' => (string) ($row['phase'] ?? ''),
+                'message' => (string) ($row['message'] ?? ''),
+                'updated_at' => (string) ($row['updated_at'] ?? ''),
+            ];
+        }
+    } catch (Throwable) {
+        // Diagnostics are best-effort -- never let them break the reconcile response.
+    }
+
     return $counts + [
         'staged' => count($staged),
         'matched_names' => count($matchedKeys),
@@ -212,6 +239,10 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
         'sandbox_rows' => count($sandboxRows),
         'run_id' => $runId,
         'run_completed_at' => (string) ($runRow['completed_at'] ?? ''),
+        'latest_run_status' => $latest['status'],
+        'latest_run_phase' => $latest['phase'],
+        'latest_run_message' => $latest['message'],
+        'latest_run_updated_at' => $latest['updated_at'],
     ];
 }
 
