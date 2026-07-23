@@ -20,56 +20,20 @@ function getPowerlineDisplayName(powerline) {
 // 1-zu-N-Form wie bei Strassen. Namenlose Segmente bilden bewusst KEINE Gruppe, sonst
 // waeren sie alle eine einzige Linie.
 function getPowerlineSegmentsSharingName(powerline) {
-	const name = String(powerline?.properties?.name || "").trim();
-	if (name === "") {
-		return [];
-	}
-	return powerlineData.filter((entry) => String(entry?.properties?.name || "").trim() === name);
+	// Delegiert an den geteilten reinen Helfer (js/map-features/powerline-topology.js), damit Karte
+	// und Kraftlinien-Editor Linien exakt gleich ueber den Namen gruppieren.
+	return avesmapsPowerlineSegmentsSharingName(powerline?.properties?.name, powerlineData);
 }
 
-// Nachbarschaft ueber die Nodix-Endpunkte aller Segmente einer Linie.
-function buildPowerlineAdjacency(segments) {
-	const adjacency = new Map();
-	segments.forEach((segment) => {
-		const from = segment?.properties?.from_public_id || "";
-		const to = segment?.properties?.to_public_id || "";
-		if (!from || !to) {
-			return;
-		}
-		if (!adjacency.has(from)) {
-			adjacency.set(from, []);
-		}
-		if (!adjacency.has(to)) {
-			adjacency.set(to, []);
-		}
-		adjacency.get(from).push(to);
-		adjacency.get(to).push(from);
-	});
-	return adjacency;
-}
-
-// Eine reine Kreuzung ist kein Ziel, das man benennen kann: mehrere Segmente heissen heute
-// woertlich "Kreuzung - Kreuzung", und "Verbindet: Kreuzung <-> Kreuzung" waere Laerm.
-function isNamedPowerlineEndpoint(publicId) {
+// Wie die reinen Topologie-Helfer einen Knoten sehen: Name + ob es eine reine Kreuzung ist. Auf
+// der Karte kommt das aus dem Marker-Index; der Editor reicht denselben Nachschlag aus seinem
+// Endpunkt herein (docs/superpowers/specs/2026-07-23-kraftlinien-editor-design.md §12).
+function powerlineAppNodeLookup(publicId) {
 	const entry = findLocationMarkerByPublicId(publicId);
-	if (!entry || entry.locationType === CROSSING_LOCATION_TYPE) {
-		return false;
+	if (!entry) {
+		return null;
 	}
-	return String(entry.name || "").trim() !== "";
-}
-
-// Vom Kettenende nach innen laufen, bis ein benannter Punkt kommt.
-function walkToNamedPowerlineEndpoint(adjacency, startPublicId) {
-	const visited = new Set();
-	let current = startPublicId;
-	while (current && !visited.has(current)) {
-		visited.add(current);
-		if (isNamedPowerlineEndpoint(current)) {
-			return current;
-		}
-		current = (adjacency.get(current) || []).find((id) => !visited.has(id)) || "";
-	}
-	return "";
+	return { name: entry.name, isCrossing: entry.locationType === CROSSING_LOCATION_TYPE };
 }
 
 // Die Gestalt der GANZEN Linie, nicht des angeklickten Segments: wer die Basiliuslinie anklickt,
@@ -78,39 +42,13 @@ function walkToNamedPowerlineEndpoint(adjacency, startPublicId) {
 // 💣 AM LIVE-BESTAND GEMESSEN (2026-07-22, 162 Segmente / 61 Namen): Kraftlinien sind KEINE
 // Straengen wie Strassen. 54 Namen sind Straenge (2 Enden), 6 sind VERZWEIGT (bis zu 6 Enden --
 // Basiliuslinie, Yaquirlinie, Elementares Hexagramm, Strick des Schwarzen Mannes) und einer ist
-// ein RING (0 Enden, Hexenband(-schleife)). Eine erste Fassung verlangte genau zwei Enden und gab
-// sonst nichts zurueck -- das schwieg ausgerechnet die groessten Linien tot, 44 von 162 Segmenten.
-// Darum beschreibt diese Funktion die Topologie, statt sie abzulehnen.
-//
-// @return {{segmentCount:number, endpointIds:string[], stationIds:string[], isRing:boolean}|null}
+// ein RING (0 Enden, Hexenband(-schleife)). Die Berechnung selbst liegt jetzt in der geteilten
+// reinen Datei (js/map-features/powerline-topology.js), damit Karte UND Kraftlinien-Editor
+// dieselbe Wahrheit nutzen; der Rueckgabewert ist ein Superset des frueheren (zusaetzlich
+// adjacency / chainEndIds / shape). @return dieselben Felder wie zuvor + jene, oder null.
 function getPowerlineTopology(powerline) {
 	const segments = getPowerlineSegmentsSharingName(powerline);
-	if (segments.length === 0) {
-		return null;
-	}
-	const adjacency = buildPowerlineAdjacency(segments);
-	const chainEnds = [...adjacency.keys()].filter((id) => (adjacency.get(id) || []).length === 1);
-
-	// Jedes Kettenende nach innen laufen lassen, bis ein BENANNTER Punkt kommt (reine Kreuzungen
-	// ueberspringen). Mehrere Enden koennen auf denselben benannten Punkt zulaufen -> dedupliziert.
-	const endpointIds = [];
-	chainEnds.forEach((endId) => {
-		const named = walkToNamedPowerlineEndpoint(adjacency, endId);
-		if (named && !endpointIds.includes(named)) {
-			endpointIds.push(named);
-		}
-	});
-
-	// Alles Benannte dazwischen -- das traegt den Ring (der gar keine Enden hat) und macht auch
-	// bei Straengen sichtbar, woran die Linie unterwegs vorbeikommt.
-	const stationIds = [...adjacency.keys()].filter((id) => !endpointIds.includes(id) && isNamedPowerlineEndpoint(id));
-
-	return {
-		segmentCount: segments.length,
-		endpointIds,
-		stationIds,
-		isRing: chainEnds.length === 0,
-	};
+	return avesmapsPowerlineTopology(segments, powerlineAppNodeLookup);
 }
 
 // Rueckwaertskompatibel: der saubere Zwei-Enden-Fall (54 der 61 Namen).

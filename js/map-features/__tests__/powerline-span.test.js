@@ -20,6 +20,8 @@ const loadBrowserScript = (relativePath) => {
 loadBrowserScript("../../config.js");
 loadBrowserScript("../../app/runtime-state.js");
 loadBrowserScript("../map-features-location-lookup.js");
+// Shared pure topology helpers must load BEFORE the map module, which now delegates to them.
+loadBrowserScript("../powerline-topology.js");
 loadBrowserScript("../map-features-powerlines.js");
 
 const segment = (name, from, to) => ({ properties: { name, from_public_id: from, to_public_id: to } });
@@ -92,5 +94,42 @@ assert.strictEqual(ring.segmentCount, 3);
 locationMarkers = [crossing("k1"), crossing("k2")];
 powerlineData = [segment("Namenlos-Kette", "k1", "k2")];
 assert.strictEqual(getPowerlineSpanEndpointIds(powerlineData[0]), null, "a chain of bare crossings reports no span");
+
+// --- Shape-Klassifizierung + geordnete Kette (die neuen geteilten Helfer, vom Editor gebraucht) ---
+// Strang: zwei Enden, geordnete Reihenfolge von Ende zu Ende (der "Faden" der Knoten-Spalte).
+locationMarkers = [place("eis", "Ewiges Eis"), crossing("k1"), place("meer", "Südmeer")];
+powerlineData = [
+	segment("Basiliuslinie", "eis", "k1"),
+	segment("Basiliuslinie", "k1", "meer"),
+];
+const strand = getPowerlineTopology(powerlineData[0]);
+assert.strictEqual(strand.shape, "strand", "two chain ends => strand");
+assert.deepStrictEqual(
+	avesmapsPowerlineOrderedChain(strand),
+	["eis", "k1", "meer"],
+	"the ordered chain runs end to end, crossings included"
+);
+
+// Verzweigt: KEINE geordnete Kette (der Editor zeigt sie als Kantenliste).
+locationMarkers = [place("m", "Mitte"), place("x", "X"), place("y", "Y"), place("z", "Z")];
+powerlineData = [
+	segment("Fächer der Macht", "m", "x"),
+	segment("Fächer der Macht", "m", "y"),
+	segment("Fächer der Macht", "m", "z"),
+];
+const fan = getPowerlineTopology(powerlineData[0]);
+assert.strictEqual(fan.shape, "branched", "three ends => branched");
+assert.strictEqual(avesmapsPowerlineOrderedChain(fan), null, "a branched line has no single ordered chain");
+
+// Ring: ebenfalls keine geordnete Kette.
+locationMarkers = [place("a", "A"), place("b", "B"), place("c", "C")];
+powerlineData = [
+	segment("Ring", "a", "b"),
+	segment("Ring", "b", "c"),
+	segment("Ring", "c", "a"),
+];
+const ringShape = getPowerlineTopology(powerlineData[0]);
+assert.strictEqual(ringShape.shape, "ring", "no chain ends => ring");
+assert.strictEqual(avesmapsPowerlineOrderedChain(ringShape), null, "a ring has no single ordered chain");
 
 console.log("powerline span tests passed");
