@@ -123,5 +123,15 @@ check('resolves known stations in order, drops the unknown one',
     [[551.0, 533.0], [518.0, 441.0]]);
 check('empty verlauf yields no coords', avesmapsWikiPathOutlierStationCoords('', $index), []);
 
+// --- Ambiguous 1/1 split whose detached half sits on a station: BOTH signals must surface, so the
+//     list layer can keep it for a human instead of auto-dropping it (bug #39: Avesweg, Angra). ---
+
+// Station sits ON a vertex of the detached half (100,0) -- on-course is measured to segment
+// vertices, and on real data a settlement lies at a segment endpoint/shape point (RS2: 32/33 at ~0).
+$evenOnStation = [$seg('a', 0, 0, 10, 0), $seg('b', 100, 0, 110, 0)];
+$r = avesmapsWikiPathOutlierAnalyseWay($evenOnStation, [[100.0, 0.0]]);
+check('even split stays ambiguous even with a station on one half', $r['ambiguous'], true);
+check('the on-station half is reported on_course', $r['components'][1]['on_course'], true);
+
 echo $failures === 0 ? "\n{$total}/{$total} checks passed\n" : "\n{$failures} of {$total} checks FAILED\n";
 exit($failures === 0 ? 0 : 1);

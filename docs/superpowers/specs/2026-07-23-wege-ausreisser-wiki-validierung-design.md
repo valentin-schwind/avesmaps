@@ -65,7 +65,12 @@ statt ihn pauschal zu melden:
 Ein abgetrennter Klumpen gilt als *legitimer Abschnitt* (kein Ausreißer), wenn ≥1
 Verlauf-Station des Weges innerhalb von `OUTLIER_ONCOURSE_TOL` (Start **2,0**
 Karteneinheiten) auf seiner **gezeichneten Geometrie** liegt. Besitzt er **keine**
-Verlauf-Station, bleibt er ein *Streuner-Kandidat*.
+Verlauf-Station, bleibt er ein *Streuner-Kandidat*. **Ausnahme:** bei einem Weg,
+der in zwei **gleich große** Hälften zerfällt (`ambiguous`), greift die
+Auto-Validierung nicht — dort ist „die Straße" nicht bestimmbar, eine on-course
+liegende Hälfte beweist nicht, dass die andere kein Streuner ist. Solche Wege
+bleiben für die Handentscheidung (Teil B) stehen (Bug #39: Avesweg, Angra sind
+1/1; live gemessen, hätten sonst mit 371 u / 160 u fälschlich freigesprochen).
 
 **Teil B — manuelles „gelöst" (Auffangnetz):**
 Für die Fälle, die Teil A nicht klären kann — Wege ohne (auflösbaren) Verlauf, die

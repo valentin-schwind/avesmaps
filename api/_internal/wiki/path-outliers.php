@@ -321,10 +321,16 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
 
         $openDetached = [];
         $wayResolved = [];
+        // When a way splits into equal halves the biggest cluster ("the road") is arbitrary, so an
+        // on-course half cannot prove the OTHER half is not the stray -- these stay for a human to
+        // judge (bug #39: Avesweg, Angra are 1/1 and no mechanic can decide them).
+        $ambiguous = ($analysis['ambiguous'] ?? false) === true;
         foreach (array_slice($analysis['components'], 1) as $component) {
             $fingerprint = avesmapsWikiPathOutlierFingerprint((string) $wikiKey, $component['segments']);
-            // A cluster the wiki course confirms is a real section of the road -- never a stray.
-            if (($component['on_course'] ?? false) === true) {
+            $onCourse = ($component['on_course'] ?? false) === true;
+            // The wiki course confirms this cluster is a real section of the road -- never a stray.
+            // Suspended for ambiguous ways (see above): there the confirmation is not conclusive.
+            if ($onCourse && !$ambiguous) {
                 continue;
             }
             $decision = $decisions['path_outlier|' . $fingerprint] ?? null;
@@ -338,6 +344,7 @@ function avesmapsWikiPathOutlierList(PDO $pdo): array {
             }
             $openDetached[] = [
                 'fingerprint' => $fingerprint,
+                'on_course' => $onCourse,
                 'size' => $component['size'],
                 'distance' => $component['distance'] === null ? null : round($component['distance'], 2),
                 'segments' => array_map(

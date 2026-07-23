@@ -509,7 +509,7 @@ function renderOutlierList(list) {
 		const clusters = (way.detached || []).map((cluster) =>
 			'<div class="region-sync__map">' +
 			`<span class="region-sync__badge">${cluster.size} Segment${cluster.size === 1 ? "" : "e"} · Abstand ${pathSyncEscapeText(String(cluster.distance ?? "?"))}</span> ` +
-			`<span class="region-sync__cand region-sync__cand--conflict">${way.has_course ? "liegt bei keiner Verlauf-Station" : "kein Wiki-Verlauf zum Abgleich"}</span> ` +
+			`<span class="region-sync__cand region-sync__cand--conflict">${cluster.on_course ? "liegt auf dem Verlauf, aber Zuordnung mehrdeutig" : (way.has_course ? "liegt bei keiner Verlauf-Station" : "kein Wiki-Verlauf zum Abgleich")}</span> ` +
 			(cluster.segments || []).map(chip).join(" ") + " " +
 			`<button type="button" class="region-sync__cand" data-outlier-approve="${pathSyncEscapeAttr(way.wiki_key)}" data-fingerprint="${pathSyncEscapeAttr(cluster.fingerprint || "")}" data-way-name="${pathSyncEscapeAttr(way.name || way.wiki_key)}" title="Bestätigen, dass dieser Klumpen zum Weg gehört — verschwindet aus der Liste, öffnet sich wieder, wenn der Weg neu gezeichnet wird">gehört zum Weg</button>` +
 			"</div>").join("");
