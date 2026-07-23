@@ -16,7 +16,10 @@ require_once __DIR__ . '/../_internal/coat-url.php';
 // 7: breadcrumb coat_url carries ?v=<mtime> for locally re-uploaded coats. A VALUE change rather than a
 //    shape change, but with the same consequence -- without a bump, a 304'd client keeps the unversioned
 //    URL and still shows the previous coat.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 7;
+// 8: the "Liegt in" resolver LEFT-JOINs political_territory_wiki now, so a settlement under a wiki-unlinked
+//    territory (no wiki row, e.g. Festum) still gets a political line via the intact parent_id backbone --
+//    new `political` objects appear on features that previously had none, so cached clients must revalidate.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 8;
 
 // Coat-of-arms staging + model tables for the settlement "Liegt in" breadcrumb. These MIRROR the constants
 // of api/app/territory-detail.php EXACTLY. The public-domain GATE itself now lives once in the shared
@@ -454,9 +457,9 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
         $statement = $pdo->query(
             'SELECT t.id, t.public_id, t.wiki_key, t.parent_id, t.valid_to_bf, t.short_name,
                     t.coat_of_arms_url,
-                    w.name, w.type, w.capital_name
+                    w.name AS wiki_name, w.type AS wiki_type, w.capital_name, t.name AS territory_name, t.type AS territory_type
                FROM political_territory t
-               JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
+               LEFT JOIN political_territory_wiki w ON w.wiki_key = t.wiki_key
               WHERE t.wiki_key IS NOT NULL AND t.wiki_key <> \'\''
         );
     } catch (Throwable) {
@@ -481,7 +484,7 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $id = (int) ($row['id'] ?? 0);
         $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
-        $name = trim((string) ($row['name'] ?? ''));
+        $name = trim((string) ($row['wiki_name'] ?? '')); if ($name === '') { $name = trim((string) ($row['territory_name'] ?? '')); } // wiki-orphan fallback (LEFT JOIN): use the territory's own name when no political_territory_wiki row exists (e.g. Festum), so the parent_id backbone still resolves the political line
         if ($id === 0 || $wikiKey === '' || $name === '') {
             continue;
         }
@@ -494,7 +497,7 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
             'parent_id' => ($row['parent_id'] !== null && $row['parent_id'] !== '') ? (int) $row['parent_id'] : 0,
             'name' => $name,
             'short_name' => trim((string) ($row['short_name'] ?? '')),
-            'type' => trim((string) ($row['type'] ?? '')),
+            'type' => trim((string) ($row['wiki_type'] ?? '')) ?: trim((string) ($row['territory_type'] ?? '')),
             'capital_key' => $capitalName !== '' ? avesmapsPoliticalNameKey($capitalName) : '',
             // Public-domain-gated coat URL (or '' when none/not allowed), mirroring territory-detail.php.
             'coat_url' => avesmapsSettlementTerritoryCoatUrl(
