@@ -2448,7 +2448,9 @@ function renderSettlementFilterSections() {
 	}
 	const toggle = $("seFilterToggle");
 	if (toggle) {
-		toggle.textContent = activeCount > 0 ? `Filter (${activeCount}) ▾` : "Filter ▾";
+		// Trichter-Icon wie überall (Owner 2026-07-23). AVM_FILTER_ICON kommt aus filter-menu.js,
+		// das diese Seite lädt und dessen Icon die LINKE Spalte schon rendert -- garantiert verfügbar.
+		toggle.innerHTML = AVM_FILTER_ICON + " " + (activeCount > 0 ? `Filter (${activeCount}) ▾` : "Filter ▾");
 		toggle.title = activeCount > 0 ? `Filter (${activeCount} aktiv)` : "Filter";
 	}
 }

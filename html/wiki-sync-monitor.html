@@ -90,7 +90,11 @@
      genau EINE Linie je Abschnitt). max-width:46% ist weiter unten ohnehin auf none gesetzt. */
   .bar { display:flex; gap:var(--space-4); align-items:center; margin-bottom:var(--space-4); }
   input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:var(--radius-md); padding:0 var(--space-6); height:var(--avm-control-h); font:inherit; }
-  input[type=search] { flex:1; }
+  /* min-width:0 ist load-bearing: ohne es schrumpft das Suchfeld NICHT unter seine
+     Inhalts-Mindestbreite, und der Filter-Trichter daneben wird aus der schmalen linken
+     Spalte hinausgedrückt (gemessen: 50px über den Spaltenrand). Mit min-width:0 gibt das
+     Feld nach und der Trichter bleibt im Rahmen. */
+  input[type=search] { flex:1; min-width:0; }
   /* Kombiniertes „Filter ▾"-Dropdown des Hierarchie-Baums -- die .type-filter*-Regeln sind 1:1 die
      des Siedlungseditors (html/wiki-sync-settlement-editor.html, dort seinerseits aus
      css/features/review-panel.css portiert), damit die Filtermaske in beiden Editoren identisch

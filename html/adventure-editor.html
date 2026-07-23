@@ -448,7 +448,9 @@
       <div class="ae-list__top">
         <input class="ae-search" id="aeSearch" type="search" placeholder="Abenteuer suchen …">
         <div class="type-filter">
-          <button type="button" class="type-filter__toggle" id="aeFilterToggle" aria-expanded="false" aria-label="Filter">Filter ▾</button>
+          <!-- Trichter-Icon wie bei allen anderen Filterknöpfen (Owner 2026-07-23: „überall das
+               Filter-Icon"). Dasselbe SVG wie AVM_FILTER_ICON (js/ui/filter-menu.js) / utils.js. -->
+          <button type="button" class="type-filter__toggle" id="aeFilterToggle" aria-expanded="false" aria-label="Filter"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v5l-4 2v-7z"/></svg> Filter ▾</button>
           <div class="ae-filters type-filter__menu" id="aeFilters" hidden>
         <div class="ae-filter">
           <label class="ae-filter__lbl" for="aeFType">Typ</label>
