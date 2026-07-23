@@ -91,5 +91,21 @@ check('even split still reports both clusters', count($r['components']), 2);
 check('even split is marked ambiguous', $r['ambiguous'], true);
 check('lopsided split is not ambiguous', avesmapsWikiPathOutlierAnalyseWay($withStray)['ambiguous'], false);
 
+// --- Course validation: a detached cluster carrying a wiki course station is on_course ---
+// $withStray = chain (a,b,c along y=0) + stray 'x' from (300,100) to (305,100).
+
+$r = avesmapsWikiPathOutlierAnalyseWay($withStray, [[302.0, 100.0]]);
+check('cluster carrying a course station is on_course', $r['components'][1]['on_course'], true);
+check('on_course_count reflects the hit', $r['components'][1]['on_course_count'], 1);
+
+$r = avesmapsWikiPathOutlierAnalyseWay($withStray, [[0.0, 0.0]]);
+check('a station only on the main cluster leaves the stray off-course', $r['components'][1]['on_course'], false);
+
+$r = avesmapsWikiPathOutlierAnalyseWay($withStray, [[302.0, 130.0]]);
+check('a station beyond tolerance is ignored (misresolved place)', $r['components'][1]['on_course'], false);
+
+$r = avesmapsWikiPathOutlierAnalyseWay($withStray);
+check('no station list keeps the old behaviour (off-course)', $r['components'][1]['on_course'], false);
+
 echo $failures === 0 ? "\n{$total}/{$total} checks passed\n" : "\n{$failures} of {$total} checks FAILED\n";
 exit($failures === 0 ? 0 : 1);

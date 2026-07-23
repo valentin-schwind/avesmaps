@@ -28,6 +28,12 @@ declare(strict_types=1);
 // to the bottom of the distance-ranked list on its own.
 const AVESMAPS_WIKI_PATH_OUTLIER_WELD = 0.05;
 
+// A wiki course station this close to a detached cluster's drawn line counts as lying ON it, so the
+// cluster is a real section of the described road, not a stray. Tight on purpose: a misresolved
+// station (e.g. the wrong "Grünau", 121 units off) lands far and is ignored -- one true station is
+// enough. Owner-set starting value 2026-07-23; adjustable if a real stray is ever wrongly cleared.
+const AVESMAPS_WIKI_PATH_OUTLIER_ONCOURSE_TOL = 2.0;
+
 /**
  * Splits one way's segments into connected clusters and measures how far each detached cluster
  * sits from the biggest one.
@@ -46,7 +52,7 @@ const AVESMAPS_WIKI_PATH_OUTLIER_WELD = 0.05;
  *                      the way is then split evenly and NOTHING should be presented as the
  *                      wrong half without a human look.
  */
-function avesmapsWikiPathOutlierAnalyseWay(array $segments, float $weld = AVESMAPS_WIKI_PATH_OUTLIER_WELD): array {
+function avesmapsWikiPathOutlierAnalyseWay(array $segments, array $stationCoords = [], float $weld = AVESMAPS_WIKI_PATH_OUTLIER_WELD, float $onCourseTol = AVESMAPS_WIKI_PATH_OUTLIER_ONCOURSE_TOL): array {
     $usable = [];
     foreach ($segments as $segment) {
         $points = [];
@@ -129,14 +135,33 @@ function avesmapsWikiPathOutlierAnalyseWay(array $segments, float $weld = AVESMA
 
     $detached = [];
     foreach (array_slice($groups, 1) as $group) {
-        $best = INF;
+        $groupPoints = [];
         foreach ($group as $index) {
-            foreach ($usable[$index]['points'] as $a) {
-                foreach ($mainPoints as $b) {
-                    $d = hypot($a[0] - $b[0], $a[1] - $b[1]);
-                    if ($d < $best) {
-                        $best = $d;
-                    }
+            foreach ($usable[$index]['points'] as $point) {
+                $groupPoints[] = $point;
+            }
+        }
+        $best = INF;
+        foreach ($groupPoints as $a) {
+            foreach ($mainPoints as $b) {
+                $d = hypot($a[0] - $b[0], $a[1] - $b[1]);
+                if ($d < $best) {
+                    $best = $d;
+                }
+            }
+        }
+        // On-course: does at least one wiki course station lie essentially ON this cluster's drawn
+        // geometry? Endpoints are not enough here -- a station can sit mid-segment -- so every vertex
+        // is a candidate. One hit is enough; a misresolved station lands far and never counts.
+        $onCourseCount = 0;
+        foreach ($stationCoords as $st) {
+            if (!is_array($st) || !is_numeric($st[0] ?? null) || !is_numeric($st[1] ?? null)) {
+                continue;
+            }
+            foreach ($groupPoints as $p) {
+                if (hypot((float) $st[0] - $p[0], (float) $st[1] - $p[1]) <= $onCourseTol) {
+                    $onCourseCount++;
+                    break;
                 }
             }
         }
@@ -144,6 +169,8 @@ function avesmapsWikiPathOutlierAnalyseWay(array $segments, float $weld = AVESMA
             'segments' => array_map(static fn(int $i): string => $usable[$i]['public_id'], $group),
             'size' => count($group),
             'distance' => $best === INF ? null : $best,
+            'on_course' => $onCourseCount > 0,
+            'on_course_count' => $onCourseCount,
         ];
     }
     usort($detached, static fn(array $a, array $b): int => ($b['distance'] ?? 0.0) <=> ($a['distance'] ?? 0.0));
