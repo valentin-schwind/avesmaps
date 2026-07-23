@@ -148,4 +148,23 @@ assert($both['wiki_url'] === 'https://example.invalid/hand');
 assert(!isset($both['wiki_powerline']));
 echo "override guarantee ok\n";
 
+// ------------------------------------------------ SANDBOX -> DESIRED NESTS ---
+// The step that had NO end-to-end coverage and hid the bug: "Dump holen" stages powerline pages
+// in wiki_dump_hybrid_state carrying their raw wikitext, and this turns those sandbox rows into
+// the match_key -> nest map the reconcile writes. A sandbox row is {normalized_title, wikitext}.
+$sandbox = [
+    ['normalized_title' => 'Basiliuslinie', 'wikitext' => $basiliuslinie],
+    // A non-powerline page that somehow shares the kind bucket must be dropped, not crash.
+    ['normalized_title' => 'Reichsstraße 2', 'wikitext' => "{{Infobox Straße\n|Name=Reichsstraße 2\n}}\nStraße."],
+    // An empty row is skipped.
+    ['normalized_title' => '', 'wikitext' => ''],
+];
+$byKey = avesmapsWikiPowerlineDesiredNestsByMatchKey($sandbox);
+$basiKey = avesmapsWikiSyncCreateMatchKey('Basiliuslinie');
+assert(isset($byKey[$basiKey]), 'the Basiliuslinie wikitext must yield a keyed nest');
+assert($byKey[$basiKey]['name'] === 'Basiliuslinie', 'name: ' . $byKey[$basiKey]['name']);
+assert($byKey[$basiKey]['nest']['staerke'] === 'kontinental', 'nest carries the parsed fields');
+assert(count($byKey) === 1, 'only the powerline page produces a nest, not the road: ' . count($byKey));
+echo "sandbox->nests ok\n";
+
 echo "powerline parsing tests passed\n";

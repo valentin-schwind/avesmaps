@@ -124,8 +124,51 @@ function avesmapsWikiPowerlineMergeProperties(array $properties, ?array $desired
 }
 
 /**
- * OWNER-TRIGGERED production reconcile: wiki_powerline_staging -> map_features.properties.
- * One shot, no cursor: 23 staged articles against 162 segments fit in a single request.
+ * PURE: turn sandbox rows (each carrying a page's raw wikitext) into a match_key -> {name, nest}
+ * map. This is the step that had NO end-to-end coverage and hid the "staging leer" bug: "Dump
+ * holen" stages powerline pages in wiki_dump_hybrid_state with their wikitext, and this parses
+ * them into the nest the reconcile writes. Keyed by match_key so a map segment finds its article
+ * by name. Non-powerline pages and empty rows are skipped, never fatal.
+ *
+ * @param list<array<string,mixed>> $sandboxRows rows of {normalized_title, wikitext}
+ * @return array<string, array{name:string, nest:array}>
+ */
+function avesmapsWikiPowerlineDesiredNestsByMatchKey(array $sandboxRows): array
+{
+    $byKey = [];
+    foreach ($sandboxRows as $row) {
+        $title = (string) ($row['normalized_title'] ?? '');
+        $wikitext = (string) ($row['wikitext'] ?? '');
+        if ($title === '' || $wikitext === '') {
+            continue;
+        }
+        $parsed = avesmapsWikiPowerlineParsePage($title, $wikitext, $title, 'dump', '');
+        if (empty($parsed['is_powerline']) || !is_array($parsed['record'] ?? null)) {
+            continue;
+        }
+        $record = $parsed['record'];
+        $matchKey = trim((string) ($record['match_key'] ?? ''));
+        if ($matchKey === '') {
+            continue;
+        }
+        $byKey[$matchKey] = [
+            'name' => (string) ($record['name'] ?? ''),
+            'nest' => avesmapsWikiPowerlineDesiredNest($record),
+        ];
+    }
+
+    return $byKey;
+}
+
+/**
+ * OWNER-TRIGGERED production reconcile: the powerline pages "Dump holen" left in the sandbox
+ * (wiki_dump_hybrid_state, entity_kind='powerline', with wikitext) -> map_features.properties.
+ * One shot, no cursor: 23 articles against 162 segments fit in a single request.
+ *
+ * 💣 Reads the SANDBOX, not a per-kind staging table. There is no powerline staging table to fill:
+ * "Dump holen" only ever populates the sandbox, exactly as the per-kind "Syncen" reads it
+ * (avesmapsWikiDumpSyncKindFetchRows). An earlier design read wiki_powerline_staging, which nothing
+ * filled -- hence "Keine Kraftlinien im Zwischenspeicher" after a successful dump.
  *
  * The join is the NAME (avesmapsWikiSyncCreateMatchKey), because a powerline is many segments
  * sharing one lore name -- the same 1-to-N shape roads have.
@@ -134,16 +177,13 @@ function avesmapsWikiPowerlineMergeProperties(array $properties, ?array $desired
  */
 function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
 {
-    avesmapsWikiPowerlineEnsureTables($pdo);
-
-    $staged = [];
-    $statement = $pdo->query('SELECT * FROM ' . AVESMAPS_WIKI_POWERLINE_STAGING_TABLE);
-    foreach (($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
-        $key = trim((string) ($row['match_key'] ?? ''));
-        if ($key !== '') {
-            $staged[$key] = $row;
-        }
-    }
+    // Newest completed dump_read run = the sandbox "Dump holen" left behind. Throws with a clear
+    // message if none has ever completed (the endpoint surfaces it), which is the honest signal
+    // rather than a silent empty result.
+    $runId = avesmapsWikiDumpSyncKindResolveDumpRunId($pdo);
+    // 5000 is a safe ceiling: there are ~23 powerline pages, far under one request's reach.
+    $sandboxRows = avesmapsWikiDumpSyncKindFetchRows($pdo, $runId, [AVESMAPS_WIKI_DUMP_ENTITY_POWERLINE], 0, 5000);
+    $staged = avesmapsWikiPowerlineDesiredNestsByMatchKey($sandboxRows);
 
     $segments = $pdo->query(
         "SELECT id, public_id, name, properties_json FROM map_features
@@ -163,14 +203,14 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
             $properties = [];
         }
         $matchKey = avesmapsWikiSyncCreateMatchKey((string) ($row['name'] ?? ''));
-        $stagingRow = ($matchKey !== '' && isset($staged[$matchKey])) ? $staged[$matchKey] : null;
-        if ($stagingRow !== null) {
+        $entry = ($matchKey !== '' && isset($staged[$matchKey])) ? $staged[$matchKey] : null;
+        if ($entry !== null) {
             $matchedKeys[$matchKey] = true;
         }
 
         $merged = avesmapsWikiPowerlineMergeProperties(
             $properties,
-            $stagingRow === null ? null : avesmapsWikiPowerlineDesiredNest($stagingRow)
+            $entry === null ? null : $entry['nest']
         );
         if (!$merged['changed']) {
             $counts['unchanged']++;
@@ -188,9 +228,9 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
     // Wiki lines with no segment on our map -- reported, not an error: the article may describe a
     // line nobody has drawn yet, or our name differs slightly ("Bruecke nach/von Akrabaal").
     $unmatched = [];
-    foreach ($staged as $key => $row) {
+    foreach ($staged as $key => $entry) {
         if (!isset($matchedKeys[$key])) {
-            $unmatched[] = (string) ($row['name'] ?? $key);
+            $unmatched[] = $entry['name'] !== '' ? $entry['name'] : $key;
         }
     }
     sort($unmatched);
