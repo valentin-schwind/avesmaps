@@ -291,6 +291,48 @@ eines hohen Kastens.
 | `--wiki` | Herkunft: aus der Datengrundlage | ruhig, randlos |
 | `--unresolved` | offener Punkt | **Warnfarbe**, nicht `--color-danger` — Rot bleibt dem echten Fehler |
 
+### 3.1d Der warme gerahmte Inhaltskasten — das, was „schön" aussieht
+
+> 💣 **Der eigentliche Grund, warum ein Editor „nach einem anderen Programm"
+> aussieht.** Der Owner beim Vergleich zweier Fenster: *„das braun im hintergrund
+> und die schönen rahmen … es geht mir nur um form, farben, abstände, layout,
+> ähnliche strukturen."* Nicht Maße — die **Schichtung**: dunkler Dialoggrund,
+> darauf helle gerahmte Kästen, in denen der scrollende Spalteninhalt sitzt. Ohne
+> sie läuft der Inhalt flach und kühl.
+
+**Regel (word-for-word aus dem Siedlungseditor `#seTree/#seList/#seDetailBody`):**
+
+```css
+/* Dialog-Grund */                body      { background: var(--color-page-bg); }   /* dunkles Braun */
+/* Spalte selbst */               .col      { background: transparent; }             /* zeigt den Grund */
+/* scrollender Inhalt je Spalte */ .…__scroll { background: var(--color-panel);       /* heller Kasten */
+                                              border: 1px solid var(--color-border);
+                                              border-radius: 6px; padding: var(--space-2); }
+```
+
+Der Effekt lebt vom **Kontrast**: heller `--color-panel`-Kasten auf dunklem
+`--color-page-bg`. Deshalb ist der Dialoggrund Teil der Regel — ein Editor auf
+`--color-panel` (Abenteuer war der einzige) lässt den Rahmen im Nichts hängen.
+
+> **`border-radius: 6px` ist bewusst der harte Wert**, nicht `--radius-sm` (5) oder
+> `--radius-md` (8). Siedlungen trägt ihn seit jeher, Territorien hat ihn in
+> `673413ce` exakt übernommen, und der Owner nennt beide als Vorbild. Word-for-word
+> heißt hier: **auf denselben Pixel**. (Die Token-Leiter aus §4.2 verliert an
+> genau dieser Stelle gegen das benannte Vorbild — notiert, nicht „korrigiert".)
+
+**Lokal je Editor, nicht als gemeinsame Klasse.** Siedlungen, Territorien und der
+Kartensammlungs-Editor tragen die Regel je in ihrer eigenen Datei, wortgleich.
+Der erste Versuch, sie als `.avm-scrollbox` in `editor-page.css` zu zentralisieren,
+wurde **zurückgenommen**: er drängte eine Abstraktion in eine Datei, an der
+parallel gebaut wird, und wählte `--radius-md` statt der 6px des Vorbilds. Eine
+spätere Zusammenlegung ist möglich — aber erst, wenn alle Editoren stehen und
+niemand mehr an ihnen arbeitet, nicht mittendrin.
+
+> ⚠️ **Stand 2026-07-23:** Abenteuer trägt die Kästen jetzt (word-for-word, 6px).
+> **Karten weicht um 1px ab** — die Parallel-Session, die dort die Kästen einbaut,
+> wählte `--radius-sm` (5px) statt der 6px des Vorbilds. Gemessen 5 gegen 6; sollte
+> an Siedlungen/Territorien angeglichen werden, sobald die Datei frei ist.
+
 ### 3.2 Drei gleiche Spalten — verbindlich
 
 ```css
@@ -809,14 +851,18 @@ Vorbild**, nicht gegen die Mehrheit.
 | `.pill--kind` | grau · Gold | beide grau |
 
 > **Warum nicht einfach „mach's wie den Siedlungseditor":** das Vorbild trägt an
-> genau diesen Stellen selbst noch `border-radius: 5px`, viermal `font-size: 10px`
-> und `font-weight: 600` — Werte, die §4.1/§4.2 anderswo ausdrücklich streichen.
-> Übernommen wurden deshalb **nur seine Polstermaße** (die liegen auf der Skala);
-> der Zeilenradius ging bei allen dreien auf `--radius-md`, und seine gerahmten
-> Scrollkästen (`#seList` & Co. mit Rahmen + Radius auf eigenem Grund) wurden
-> **nicht** übernommen — sie widersprechen AGENTS.md §12 („nach Trennern gruppieren,
-> nicht nach gerahmten Kästen"). **Offen und noch im Vorbild:** diese Kästen und
-> die 10px-Schriften.
+> einigen Stellen `font-size: 10px` und `font-weight: 600` — Werte, die §4.1/§4.2
+> anderswo streichen. Diese wurden nicht übernommen.
+>
+> ⚠️ **Korrektur 2026-07-23.** Frühere Fassungen dieses Absatzes zählten die
+> **gerahmten Scrollkästen** (`#seList` & Co.) zu den „nicht zu übernehmenden"
+> Dingen und beriefen sich auf AGENTS.md §12 („nach Trennern gruppieren, nicht
+> nach gerahmten Kästen"). **Das war falsch, und der Owner hat es zweimal
+> korrigiert** — mündlich („das braun im hintergrund und die schönen rahmen") und
+> im Vergleich mit Territorien, das die Kästen in `673413ce` „word-for-word" vom
+> Siedlungseditor übernommen hat. Die Kästen sind **Teil der Sprache**, nicht ihr
+> Verstoß; §12 galt für Buttons/Popups, nicht für die Editor-Spalten. Sie sind
+> jetzt in §3.1d verbindlich.
 
 > 💣 **Die Lehre aus §3.1c: „0 Abweichungen" ist keine Aussage über das Ganze,
 > sondern über die Liste, die man geprüft hat.** Nach der Hüllen-Angleichung stand

@@ -47,7 +47,11 @@
     margin: 0;
     font: var(--font-size-body)/var(--leading-normal) var(--font-ui);
     color: var(--color-text);
-    background: var(--color-panel);
+    /* Dunkles warmes Braun wie Siedlungen und Karten (--color-page-bg), NICHT das hellere
+       --color-panel. Erst auf diesem Grund heben sich die gerahmten Inhaltskästen ab (Spec §3.1d);
+       auf --color-panel haetten Kasten und Hintergrund dieselbe Farbe. Abenteuer war der einzige
+       Editor auf dem hellen Grund. */
+    background: var(--color-page-bg);
     display: flex; flex-direction: column;
   }
 
@@ -142,7 +146,16 @@
   .ae-search::placeholder { color: var(--color-placeholder); }
   .ae-search:focus-visible { outline: none; border-color: var(--color-border-strong); box-shadow: var(--focus-ring); }
   .ae-list__count { font-size: var(--font-size-caption); color: var(--color-text-muted); margin: 0 0 var(--space-6); }
-  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0; margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
+  /* Gerahmter, warmer Inhaltskasten -- WORT FUER WORT wie #seTree/#seList/#seDetailBody im
+     Siedlungseditor und wie der Territorien-Editor ihn in 673413ce uebernommen hat: helleres
+     --color-panel auf dem dunkleren Seitengrund, 1px-Kante, radius 6px, padding 4px. Der Owner
+     hat genau diese Schichtung benannt ("das braun im hintergrund und die schoenen rahmen") und
+     Siedlungen/Territorien als Vorbild. 6px ist bewusst der HARTE Wert der beiden -- nicht
+     --radius-sm/-md -- damit Abenteuer sich nicht um einen Pixel von ihnen unterscheidet. Der
+     fruehere negative Aussenrand (Fokusring-Trick) entfaellt: mit sichtbarer Kante muss der Rand
+     genau sitzen, die 4px Innenpolsterung liefert jetzt der Kasten. */
+  .ae-list__scroll { flex: 1 1 auto; overflow: auto; min-height: 0;
+    background: var(--color-panel); border: 1px solid var(--color-border); border-radius: 6px; padding: var(--space-2); }
 
   /* ---- list filters (Typ / DSA-Version / Jahr / Cover / F-Shop / Region / Ort) ----------------- */
   /* Nur noch das Raster -- Rahmen, Grund, Radius und Schatten kommen jetzt von .type-filter__menu.
@@ -229,7 +242,10 @@
      mitverschiebt. So loesen es Vorbild und Kartensammlungs-Editor auch (Spec §3.1a). */
   .ae-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
     padding: var(--avm-col-pad); }
-  .ae-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* Derselbe warme Kasten wie in der Liste -- die Detailspalte war der Teil, der laut Owner "off"
+     aussah (so auch im Territorien-Editor, 673413ce). Word-for-word Vorbild-Werte. */
+  .ae-panel__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto;
+    background: var(--color-panel); border: 1px solid var(--color-border); border-radius: 6px; padding: var(--space-2); }
   .ae-panel--stamm { border-right: 1px solid var(--color-border); }
   .ae-placeholder { color: var(--color-text-muted); padding: var(--space-16); }
 
