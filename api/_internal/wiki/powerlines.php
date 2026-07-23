@@ -31,6 +31,29 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/paths.php';
 
+/** app_setting key: when "Kraftlinien syncen" (avesmapsWikiPowerlineReconcile) last ran. */
+const AVESMAPS_POWERLINE_LAST_SYNCED_SETTING = 'powerline_last_synced';
+
+/**
+ * When the powerline reconcile last ran, or null. Reads the same app_setting row the reconcile
+ * writes, guarded so a context without the app-setting lib (or table) just returns null. Mirrors
+ * avesmapsLoreLastSynced -- powerlines are not a task-facing dump sync_kind, so the panel's
+ * "Zuletzt gesynct" rail fills the 'powerline' slot from here (avesmapsWikiDumpSyncKindLastSynced).
+ */
+function avesmapsWikiPowerlineLastSynced(PDO $pdo): ?string
+{
+    if (!function_exists('avesmapsAppSettingGet')) {
+        return null;
+    }
+    try {
+        $value = trim(avesmapsAppSettingGet($pdo, AVESMAPS_POWERLINE_LAST_SYNCED_SETTING, ''));
+    } catch (Throwable) {
+        return null;
+    }
+
+    return $value === '' ? null : $value;
+}
+
 /**
  * PURE: the wiki nest a staging row should produce on a matching map segment.
  * Everything the wiki knows lives under properties.wiki_powerline -- never in the
@@ -230,6 +253,17 @@ function avesmapsWikiPowerlineReconcile(PDO $pdo, int $userId): array
         }
     } catch (Throwable) {
         // Diagnostics are best-effort -- never let them break the reconcile response.
+    }
+
+    // Stamp "last synced" so the panel's overview rail can show a date for Kraftlinien (mirrors the
+    // adventure/citymap/lore reconciles). Guarded + best-effort: a missing app_setting table must not
+    // break the reconcile. gmdate matches the UTC the rail's date parser expects.
+    if (function_exists('avesmapsAppSettingSet')) {
+        try {
+            avesmapsAppSettingSet($pdo, AVESMAPS_POWERLINE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+        } catch (Throwable) {
+            // No timestamp, but the sync itself succeeded -- carry on.
+        }
     }
 
     return $counts + [

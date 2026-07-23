@@ -190,6 +190,12 @@ function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
     if (function_exists('avesmapsCitymapLastStaged')) {
         $result['citymap_staged'] = avesmapsCitymapLastStaged($pdo);
     }
+    // Kraftlinien are not a task-facing sync_kind either (no entity sandbox); the panel reuses this
+    // map. Fill it from the powerline reconcile timestamp (avesmapsWikiPowerlineLastSynced, loaded by
+    // the dump endpoint). Guarded so a context without the powerline lib returns the other kinds unchanged.
+    if (function_exists('avesmapsWikiPowerlineLastSynced')) {
+        $result['powerline'] = avesmapsWikiPowerlineLastSynced($pdo);
+    }
 
     return $result;
 }

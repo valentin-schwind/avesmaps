@@ -56,14 +56,16 @@ const WIKI_SYNC_LORE_VIEWS = [
 // syncKind is the key the SERVER answers "last synced" under
 // (avesmapsWikiDumpSyncKindLastSynced, api/_internal/wiki/dump-sync-kind.php): singular and
 // spelled differently from the subject key, so the rail must translate rather than guess. null
-// means the server has no kind for this subject -- powerlines and lore genuinely have none, and
-// inventing one would make the rail claim a date it never received.
+// means no date source at all. powerlines now records a reconcile timestamp
+// (avesmapsWikiPowerlineLastSynced, wired into avesmapsWikiDumpSyncKindLastSynced like
+// adventure/citymap), so it carries syncKind "powerline"; lore's date comes from a separate
+// injection (loadLoreList), not from that server map.
 const WIKI_SYNC_SUBJECTS = [
 	{ key: "locations",   label: "Siedlungen",  syncButtonId: "wiki-sync-sync-settlement",  editorButtonId: "settlement-editor-open", syncKind: "settlement", views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "territories", label: "Territorien", syncButtonId: "wiki-sync-territories",      editorButtonId: null,                     syncKind: "territory",  views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "regions",     label: "Regionen",    syncButtonId: "wiki-sync-sync-region",      editorButtonId: null,                     syncKind: "region",     views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "paths",       label: "Wege",        syncButtonId: "wiki-sync-sync-path",        editorButtonId: null,                     syncKind: "path",       views: WIKI_SYNC_PATH_VIEWS },
-	{ key: "powerlines",  label: "Kraftlinien", syncButtonId: "wiki-sync-powerlines-sync",  editorButtonId: "powerline-editor-open", syncKind: null,         views: [] },
+	{ key: "powerlines",  label: "Kraftlinien", syncButtonId: "wiki-sync-powerlines-sync",  editorButtonId: "powerline-editor-open", syncKind: "powerline",  views: [] },
 	{ key: "adventures",  label: "Abenteuer",   syncButtonId: "wiki-sync-sync-adventure",   editorButtonId: "adventure-editor-open",  syncKind: "adventure",  views: [] },
 	{ key: "citymaps",    label: "Karten",      syncButtonId: null,                         editorButtonId: "citymaps-editor-open",   syncKind: "citymap",    views: [] },
 	// Label "Vorkommen", key stays `lore`: renaming the key buys nothing but a chance to miss
