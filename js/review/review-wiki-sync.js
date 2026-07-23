@@ -1437,6 +1437,10 @@ async function startWikiSyncPowerlines() {
 		// zweiter Aufruf würde Layer doppeln. Der Hinweis ist ehrlicher als ein erfundener
 		// Nachladepfad -- die neuen Wiki-Zeilen stehen nach einem Neuladen im Infopanel.
 		setWikiSyncStatus(`Kraftlinien abgeglichen — ${parts.join(" · ")}. Seite neu laden, um sie im Infopanel zu sehen.`, "success");
+		// Übersichts-Leiste sofort auffrischen: der Reconcile hat gerade „zuletzt gesynct" in app_setting
+		// gestempelt, also soll die „Kraftlinien"-Zelle ihr Datum ohne Neuladen zeigen (holt
+		// ?action=last_synced neu und zeichnet die Leiste via renderWikiSyncSubjectRail).
+		void refreshWikiSyncKindSyncedStatus();
 	} catch (error) {
 		console.error("Kraftlinien-Abgleich fehlgeschlagen:", error);
 		setWikiSyncStatus(error?.message || "Der Kraftlinien-Abgleich ist fehlgeschlagen.", "error");

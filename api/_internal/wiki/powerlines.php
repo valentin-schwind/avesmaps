@@ -30,6 +30,11 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/paths.php';
+// The reconcile stamps a "last synced" timestamp into app_setting so the panel's overview rail can
+// show a date for Kraftlinien. Require it explicitly rather than trust a function_exists coincidence:
+// the dump endpoint loads app-setting only transitively (via adventures/citymaps), and a guard
+// without a require would silently swallow the stamp -- the exact trap lore-sync.php documents.
+require_once __DIR__ . '/../app/app-setting.php';
 
 /** app_setting key: when "Kraftlinien syncen" (avesmapsWikiPowerlineReconcile) last ran. */
 const AVESMAPS_POWERLINE_LAST_SYNCED_SETTING = 'powerline_last_synced';
