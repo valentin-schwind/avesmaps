@@ -819,7 +819,11 @@ const settlementCoatFilter = { value: "" }; // "" = all | "yes" | "no" (has_coat
 const settlementImageFilter = { value: "" }; // "" = all | "yes" | "no" (image_count > 0)
 const SETTLEMENT_COAT_OPTIONS = [{ value: "yes", label: "ja" }, { value: "no", label: "nein" }];
 const SETTLEMENT_IMAGE_OPTIONS = [{ value: "yes", label: "ja" }, { value: "no", label: "nein" }];
-let unassignedOnly = false; // the amber "Nicht zugeordnet" chip -- bypasses the tree filter when on
+// Assignment axis -- now a funnel section (Alle / Zugeordnet / Nicht zugeordnet) instead of the old
+// standalone amber chip. "" = all | "assigned" (has a territory) | "unassigned" (a real gap: on the
+// map, no territory). "unassigned" deliberately bypasses the tree selection (a gap sits under no tree
+// node); "assigned" narrows the normal tree selection to territory-bearing rows.
+const settlementAssignmentFilter = { value: "" };
 
 // Kontinent eines Eintrags; leer -> Aventurien (mirrors settlementItemContinent in the sibling list).
 function settlementItemContinent(item) {
@@ -909,10 +913,10 @@ const SETTLEMENT_SOURCE_OPTIONS = [
 	{ value: "keine", label: "Keine" },
 ];
 
-// Full per-item visibility predicate (task spec §7): continent + on_map-tab + search + type +
-// source are always applied; the LAST axis is either the "Nicht zugeordnet" chip (which
-// deliberately bypasses the tree selection) or the tree containment filter.
-function isSettlementVisible(item) {
+// Does one item pass every filter EXCEPT the assignment axis? (continent + on-map-tab + search +
+// type + source + coat + image). Factored out so the visibility predicate and the assignment counts
+// share ONE definition -- otherwise the two copies drift and a count stops matching its own filter.
+function settlementPassesBaseFilters(item) {
 	if (!settlementContinentFilterMid.has(settlementItemContinent(item))) return false;
 	if (!settlementViewMatch(item)) return false;
 	if (!settlementSearchMatch(item)) return false;
@@ -922,28 +926,47 @@ function isSettlementVisible(item) {
 	if (settlementCoatFilter.value === "no" && item.has_coat) return false;
 	if (settlementImageFilter.value === "yes" && !(Number(item.image_count) > 0)) return false;
 	if (settlementImageFilter.value === "no" && Number(item.image_count) > 0) return false;
-	if (unassignedOnly) return isSettlementGap(item);
+	return true;
+}
+
+// Is this settlement assigned to a territory at all? (The row's green "zugeordnet" state.)
+function isSettlementAssigned(item) {
+	return Boolean(item && item.territory_wiki_key);
+}
+
+// Full per-item visibility predicate: the base filters, then the assignment axis. "unassigned" shows
+// only real gaps and deliberately bypasses the tree selection (a gap sits under no node); "assigned"
+// narrows the normal tree selection to territory-bearing rows; "" leaves the tree selection as-is.
+function isSettlementVisible(item) {
+	if (!settlementPassesBaseFilters(item)) return false;
+	if (settlementAssignmentFilter.value === "unassigned") return isSettlementGap(item);
+	if (settlementAssignmentFilter.value === "assigned" && !isSettlementAssigned(item)) return false;
 	return settlementMatchesTreeSelection(item);
 }
 
-// Live count of gaps under the OTHER active filters (continent/view/search/type/source), used as
-// the chip's "(N)" -- independent of unassignedOnly itself and independent of the tree selection
-// (the chip's whole point is to bypass the tree), per task spec point 5.
-function settlementGapCountUnderOtherFilters() {
-	let count = 0;
+// Live counts for the assignment section's two non-"Alle" options, each computed under the OTHER
+// filters so the number equals EXACTLY what picking that option would show: "Nicht zugeordnet" counts
+// gaps (tree-bypassed, like its filter); "Zugeordnet" counts territory-bearing rows that also pass
+// the tree selection (like its filter). Recomputed on every render.
+function settlementAssignmentCounts() {
+	let assigned = 0;
+	let unassigned = 0;
 	for (const item of settlementItems) {
-		if (!settlementContinentFilterMid.has(settlementItemContinent(item))) continue;
-		if (!settlementViewMatch(item)) continue;
-		if (!settlementSearchMatch(item)) continue;
-		if (settlementTypeFilter.size > 0 && !settlementTypeFilter.has(item.settlement_label || "—")) continue;
-		if (settlementSourceFilter.value && item.source_category !== settlementSourceFilter.value) continue;
-		if (settlementCoatFilter.value === "yes" && !item.has_coat) continue;
-		if (settlementCoatFilter.value === "no" && item.has_coat) continue;
-		if (settlementImageFilter.value === "yes" && !(Number(item.image_count) > 0)) continue;
-		if (settlementImageFilter.value === "no" && Number(item.image_count) > 0) continue;
-		if (isSettlementGap(item)) count += 1;
+		if (!settlementPassesBaseFilters(item)) continue;
+		if (isSettlementGap(item)) unassigned += 1;
+		if (isSettlementAssigned(item) && settlementMatchesTreeSelection(item)) assigned += 1;
 	}
-	return count;
+	return { assigned, unassigned };
+}
+
+// The assignment section's two options, carrying their live counts (Alle is added by the radio
+// renderer). getOptions rather than a static list so the counts refresh on every render.
+function settlementAssignmentOptions() {
+	const counts = settlementAssignmentCounts();
+	return [
+		{ value: "assigned", label: "Zugeordnet", count: counts.assigned },
+		{ value: "unassigned", label: "Nicht zugeordnet", count: counts.unassigned },
+	];
 }
 
 function settlementEscape(value) {
@@ -2405,6 +2428,7 @@ function renderSettlementTabs() {
 // iframe document with no access to the parent's module state -- same reasoning as the rest of
 // this section's pre-existing local reimplementations.
 const SETTLEMENT_FILTER_SECTIONS = [
+	{ menuId: "seAssignmentFilterMenu", kind: "single", state: settlementAssignmentFilter, getOptions: settlementAssignmentOptions, label: "Zuordnung", isActive: () => Boolean(settlementAssignmentFilter.value) },
 	{ menuId: "seTypeFilterMenu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
 	{ menuId: "seContinentFilterMenu", kind: "multi", state: settlementContinentFilterMid, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilterMid.size === 1 && settlementContinentFilterMid.has("Aventurien")) },
 	{ menuId: "seSourceFilterMenu", kind: "single", state: settlementSourceFilter, options: SETTLEMENT_SOURCE_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
@@ -2430,10 +2454,12 @@ function renderSettlementCheckboxSection(section) {
 function renderSettlementRadioSection(section) {
 	const menu = $(section.menuId);
 	if (!menu) return;
+	const options = section.getOptions ? section.getOptions() : section.options;
 	const parts = [`<label class="type-filter__opt"><input type="radio" name="${section.menuId}" value="__all__"${!section.state.value ? " checked" : ""} data-filter-all><span class="type-filter__label">Alle</span></label>`];
-	for (const opt of section.options) {
+	for (const opt of options) {
+		const count = opt.count === null || opt.count === undefined ? "" : `<span class="type-filter__count">${settlementEscape(opt.count)}</span>`;
 		parts.push(
-			`<label class="type-filter__opt"><input type="radio" name="${section.menuId}" value="${settlementEscape(opt.value)}"${section.state.value === opt.value ? " checked" : ""} data-filter-opt><span class="type-filter__label">${settlementEscape(opt.label)}</span></label>`
+			`<label class="type-filter__opt"><input type="radio" name="${section.menuId}" value="${settlementEscape(opt.value)}"${section.state.value === opt.value ? " checked" : ""} data-filter-opt><span class="type-filter__label">${settlementEscape(opt.label)}</span>${count}</label>`
 		);
 	}
 	menu.innerHTML = parts.join("");
@@ -2497,20 +2523,19 @@ function renderSettlementFilters() {
 	const searchSelectionEnd = searchHadFocus ? document.activeElement.selectionEnd : null;
 	// Same reasoning for the open filter panel: don't snap it shut on an unrelated re-render.
 	const filterMenuWasOpen = $("seFilterMenu") && !$("seFilterMenu").hidden;
-	const gapCount = settlementGapCountUnderOtherFilters();
 
 	host.innerHTML =
 		`<input type="search" id="seListSearch" placeholder="Name suchen…" value="${settlementEscape(settlementSearchState.value)}">` +
 		`<div class="type-filter">` +
 		`<button type="button" id="seFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button>` +
 		`<div id="seFilterMenu" class="type-filter__menu" hidden>` +
+		`<div class="type-filter__section"><div class="type-filter__section-title">Zuordnung</div><div id="seAssignmentFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="seTypeFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="seContinentFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="seSourceFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="seCoatFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="seImageFilterMenu"></div></div>` +
-		`</div></div>` +
-		`<span class="chip-toggle warn${unassignedOnly ? " is-active" : ""}" id="seUnassignedChip" title="Nur auf der Karte platzierte Siedlungen ohne Territorium; blendet die Baum-Auswahl links aus">⚠ Nicht zugeordnet (${gapCount})</span>`;
+		`</div></div>`;
 
 	renderSettlementFilterSections();
 	wireSettlementFilterPanel();
@@ -2533,10 +2558,6 @@ function renderSettlementFilters() {
 		const menu = $("seFilterMenu");
 		if (menu) menu.hidden = !menu.hidden;
 	});
-	$("seUnassignedChip")?.addEventListener("click", () => {
-		unassignedOnly = !unassignedOnly;
-		renderSettlementMid();
-	});
 }
 
 // Full render: tabs (with their own continent-scoped counts) + filter bar (dropdowns rebuilt with
@@ -2549,7 +2570,7 @@ function renderSettlementMid() {
 	renderSettlementFilters();
 
 	const bypassHint = $("seTreeBypassHint");
-	if (bypassHint) bypassHint.hidden = !(unassignedOnly && checkedTerritoryKeys.size > 0);
+	if (bypassHint) bypassHint.hidden = !(settlementAssignmentFilter.value === "unassigned" && checkedTerritoryKeys.size > 0);
 
 	const visible = settlementItems.filter(isSettlementVisible);
 	list.innerHTML = "";
