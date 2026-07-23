@@ -107,5 +107,21 @@ check('a station beyond tolerance is ignored (misresolved place)', $r['component
 $r = avesmapsWikiPathOutlierAnalyseWay($withStray);
 check('no station list keeps the old behaviour (off-course)', $r['components'][1]['on_course'], false);
 
+// --- Fingerprint: stable, order-independent, 64 hex, changes with the set or the way ---
+
+$fp = avesmapsWikiPathOutlierFingerprint('reichsstrasse-2', ['b', 'a', 'c']);
+check('fingerprint is order-independent', avesmapsWikiPathOutlierFingerprint('reichsstrasse-2', ['c', 'a', 'b']), $fp);
+check('fingerprint is 64 hex chars', (bool) preg_match('/^[a-f0-9]{64}$/', $fp), true);
+check('fingerprint changes with the segment set', avesmapsWikiPathOutlierFingerprint('reichsstrasse-2', ['a', 'b']) === $fp, false);
+check('fingerprint changes with the way', avesmapsWikiPathOutlierFingerprint('eisenstrasse', ['a', 'b', 'c']) === $fp, false);
+
+// --- Station resolution: known names in, unknown dropped, arrow-split tolerant of spacing ---
+
+$index = ['Punin' => [[518.0, 441.0]], 'Gareth' => [[551.0, 533.0]]];
+check('resolves known stations in order, drops the unknown one',
+    avesmapsWikiPathOutlierStationCoords('Gareth → Nirgendwo → Punin', $index),
+    [[551.0, 533.0], [518.0, 441.0]]);
+check('empty verlauf yields no coords', avesmapsWikiPathOutlierStationCoords('', $index), []);
+
 echo $failures === 0 ? "\n{$total}/{$total} checks passed\n" : "\n{$failures} of {$total} checks FAILED\n";
 exit($failures === 0 ? 0 : 1);

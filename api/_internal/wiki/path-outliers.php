@@ -211,6 +211,34 @@ function avesmapsWikiPathOutlierPoints(?array $geometry): array {
     return [];
 }
 
+// Stable identity of ONE detached cluster: the way plus its segment set, order-independent. A
+// sha256 so it drops straight into the shared conflict_decision.fingerprint (CHAR(64)). When the
+// cluster's segments change (a segment reassigned, split or moved), the fingerprint stops matching
+// and the "approved" decision correctly reopens the case.
+function avesmapsWikiPathOutlierFingerprint(string $wikiKey, array $segmentIds): string {
+    $ids = array_values(array_filter(array_map('strval', $segmentIds), static fn(string $s): bool => $s !== ''));
+    sort($ids, SORT_STRING);
+    return hash('sha256', $wikiKey . '|' . implode(',', $ids));
+}
+
+// Resolves a way's parsed verlauf ("A → B → C") to the coordinates of the stations that exist as
+// places on the map. Names that do not resolve (wiki typos, "(Almada)"-style disambiguators lost
+// from the display text) are dropped -- the on-course test needs only ONE real station on a cluster,
+// so a partial resolution is enough and a wrong one lands far away and is ignored.
+function avesmapsWikiPathOutlierStationCoords(string $verlauf, array $nameIndex): array {
+    $coords = [];
+    foreach (explode('→', $verlauf) as $rawName) {
+        $name = trim($rawName);
+        if ($name === '' || !isset($nameIndex[$name])) {
+            continue;
+        }
+        foreach ($nameIndex[$name] as $coord) {
+            $coords[] = $coord;
+        }
+    }
+    return $coords;
+}
+
 /**
  * Builds the editor-facing outlier list over every wiki-assigned path segment.
  *
