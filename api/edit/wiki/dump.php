@@ -169,12 +169,13 @@ function avesmapsWikiDumpEnsureDumpPresentOrFail(PDO $pdo): string
 {
     $path = avesmapsWikiDumpStoragePath();
     if (is_file($path)) {
-        return $path;
+        // ETAPPE 2: prefer the plain-xml speed cache when it is fresh; else the .bz2.
+        return avesmapsWikiDumpPreferredReadPath();
     }
 
     $result = avesmapsWikiDumpFetch($pdo, false);
     if (($result['ok'] ?? false) === true && is_file($path)) {
-        return $path;
+        return avesmapsWikiDumpPreferredReadPath();
     }
 
     $code = (string) ($result['code'] ?? 'dump_fetch_failed');
@@ -262,6 +263,11 @@ try {
             $result = avesmapsWikiDumpFetch($pdo, $forceRefresh);
 
             if (($result['ok'] ?? false) === true) {
+                // ETAPPE 2: decompress the .bz2 to a plain .xml ONCE here. fetch_dump
+                // already tolerates the multi-minute download, so this ~15-30 s job is
+                // safe (not a bounded read_step). Best-effort: on failure every reader
+                // falls back to the .bz2 (avesmapsWikiDumpPreferredReadPath).
+                avesmapsWikiDumpEnsureDecompressedXml();
                 avesmapsJsonResponse(200, [
                     'ok' => true,
                     'from_cache' => (bool) ($result['from_cache'] ?? false),

@@ -141,6 +141,115 @@ function avesmapsWikiDumpStoragePath(): string
 }
 
 // ===========================================================================
+// Decompress-once speed cache (a plain .xml beside the .bz2).
+//
+// The reopen+skip every dump-read phase does is inherently O(n^2) over the dump,
+// so the per-byte skip cost dominates. Reading a plain .xml spares every skip the
+// bz2 decompression (and the OS page-cache keeps it warm across the rapid
+// read_step requests). This is a BEST-EFFORT SPEED CACHE only: the .bz2 stays
+// authoritative (fetch + 24h freshness key off it), and if the .xml is
+// missing/stale for ANY reason every reader falls back to the .bz2 unchanged --
+// so this can only make "Dump holen" faster, never break it.
+// ===========================================================================
+
+/**
+ * Path of the plain-XML copy, derived from the .bz2 storage path
+ * (dewa_dump_small.xml.bz2 -> dewa_dump_small.xml). Pure string logic.
+ */
+function avesmapsWikiDumpDecompressedXmlPath(): string
+{
+    $bz2 = avesmapsWikiDumpStoragePath();
+    $xml = preg_replace('/\.bz2$/i', '', $bz2);
+
+    return (is_string($xml) && $xml !== '' && $xml !== $bz2) ? $xml : ($bz2 . '.xml');
+}
+
+/**
+ * The path a reader should OPEN: the plain .xml iff it exists, is non-empty and is
+ * at least as new as the .bz2 (so a freshly re-fetched dump is never read from a
+ * stale .xml); otherwise the .bz2. NEVER decompresses -- a long, output-less
+ * decompress inside a bounded read_step is exactly the STRATO worker-kill this
+ * project just fixed, so the one-time decompress lives in fetch_dump instead
+ * (avesmapsWikiDumpEnsureDecompressedXml). Pure filesystem decision.
+ */
+function avesmapsWikiDumpPreferredReadPath(): string
+{
+    $bz2 = avesmapsWikiDumpStoragePath();
+    $xml = avesmapsWikiDumpDecompressedXmlPath();
+
+    if (
+        is_file($xml)
+        && is_file($bz2)
+        && (int) @filesize($xml) > 0
+        && (int) @filemtime($xml) >= (int) @filemtime($bz2)
+    ) {
+        return $xml;
+    }
+
+    return $bz2;
+}
+
+/**
+ * Decompress the cached .bz2 to a plain .xml ONCE. SAFE-BY-DESIGN: on ANY failure
+ * (no ext/bz2, open/copy/rename fails, disk full) it leaves the .xml absent/stale
+ * and returns false -- the reader then reads the .bz2, i.e. the exact pre-cache
+ * behaviour. Streams via stream_copy_to_stream (constant memory) and publishes
+ * atomically via rename, so a concurrent reader never sees a half-written .xml.
+ * Called ONLY from the fetch_dump action, which already lifts set_time_limit for
+ * the multi-minute download -- so this ~15-30 s job is not in a bounded read_step.
+ *
+ * @return bool true iff a fresh .xml is present afterwards (written or already
+ *              up to date); false iff the reader must fall back to the .bz2.
+ */
+function avesmapsWikiDumpEnsureDecompressedXml(): bool
+{
+    $bz2 = avesmapsWikiDumpStoragePath();
+    if (!is_file($bz2)) {
+        return false;
+    }
+
+    $xml = avesmapsWikiDumpDecompressedXmlPath();
+    // Already fresh -> nothing to do (the common case after the first "Dump holen").
+    if (is_file($xml) && (int) @filesize($xml) > 0 && (int) @filemtime($xml) >= (int) @filemtime($bz2)) {
+        return true;
+    }
+
+    if (!extension_loaded('bz2')) {
+        return false; // cannot decompress here; the reader reads the .bz2 directly
+    }
+
+    // One-time job; generous headroom (the ~39 MB .bz2 expands to ~315 MB of xml).
+    @set_time_limit(300);
+
+    $tmp = $xml . '.tmp.' . getmypid() . '.' . bin2hex(random_bytes(4));
+    $in = @fopen('compress.bzip2://' . $bz2, 'rb');
+    if ($in === false) {
+        return false;
+    }
+    $out = @fopen($tmp, 'wb');
+    if ($out === false) {
+        @fclose($in);
+        return false;
+    }
+
+    $copied = @stream_copy_to_stream($in, $out);
+    @fclose($in);
+    @fclose($out);
+
+    if ($copied === false || !is_file($tmp) || (int) @filesize($tmp) === 0) {
+        @unlink($tmp);
+        return false;
+    }
+
+    if (!@rename($tmp, $xml)) {
+        @unlink($tmp);
+        return false;
+    }
+
+    return true;
+}
+
+// ===========================================================================
 // Pure, offline-testable decision helpers.
 // ===========================================================================
 
