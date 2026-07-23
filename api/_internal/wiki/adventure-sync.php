@@ -160,6 +160,10 @@ function avesmapsAdventurePlacePlan(array $currentPlaces, array $desiredPlaces):
 const AVESMAPS_ADVENTURE_RECONCILE_STEP_BUDGET = 40;
 // Covers display far larger than coats (infobox header / list thumbnail), so keep a bigger long edge.
 const AVESMAPS_ADVENTURE_COVER_MAX_EDGE = 600;
+// "Owner ran a full sync" run stamp -- set on $done in the reconcile step, read by
+// avesmapsAdventureLastSynced. Mirrors AVESMAPS_CITYMAP_LAST_SYNCED_SETTING; see that function's
+// docblock for why a run stamp is needed instead of MAX(synced_at).
+const AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING = 'adventures_last_synced';
 
 /**
  * Self-healing staging schema. wiki_adventure_catalog: one row per adventure {{Infobox Produkt}} page
@@ -702,6 +706,18 @@ function avesmapsAdventureReconcileStep(PDO $pdo, string $cursor, int $userId, ?
 
     $changed = $totals['adv_created'] + $totals['adv_updated'] + $totals['places_added'] + $totals['places_updated'] + $totals['places_removed'] + $totals['covers_fetched'];
     if ($done) {
+        // Stamp the run the moment the catalog is drained, whether or not anything changed -- this is
+        // what "Letzte Sync" reads (avesmapsAdventureLastSynced). Without it the label only moved when
+        // a row's synced_at was bumped (i.e. on a real change), so a repeat/no-op sync left it stuck on
+        // the old date. Mirrors sync_citymaps exactly. Best-effort: a missing timestamp is cosmetic and
+        // must never fail the reconcile.
+        if (function_exists('avesmapsAppSettingSet')) {
+            try {
+                avesmapsAppSettingSet($pdo, AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING, gmdate('Y-m-d H:i:s'));
+            } catch (Throwable) {
+                // cosmetic timestamp; swallow
+            }
+        }
         if (function_exists('avesmapsAdventureResolveAll')) {
             avesmapsAdventureResolveAll($pdo); // resolve freshly-added wiki place names -> entities (once)
         }
@@ -723,9 +739,32 @@ function avesmapsAdventureCountCatalog(PDO $pdo): int
     return (int) $pdo->query('SELECT COUNT(*) FROM wiki_adventure_catalog')->fetchColumn();
 }
 
-/** Last time an adventure was reconciled from the wiki (MAX synced_at over origin='wiki' rows), or null. */
+/**
+ * When the owner last RAN a full adventure sync -- not when a row last changed.
+ *
+ * 💣 The two are different, and the difference was a bug: the "Letzte Sync" label read
+ * MAX(synced_at) over origin='wiki' rows, but synced_at is only bumped inside the field-reconcile's
+ * `if ($plan['set'] !== [])` guard -- i.e. only when a row actually changes. A repeat/no-op sync
+ * (nothing new in the dump) therefore left the label stuck on the old date, reading as "the sync
+ * did nothing". Fix mirrors avesmapsCitymapLastSynced exactly: the reconcile stamps a run timestamp
+ * on `$done` (whether or not anything changed), and this reads it first.
+ *
+ * Fallback to MAX(synced_at) when the setting is empty: a system that synced adventures BEFORE this
+ * stamp existed still has row timestamps, so the label shows the real last-change date instead of
+ * "nie" until the next sync writes the run stamp.
+ */
 function avesmapsAdventureLastSynced(PDO $pdo): ?string
 {
+    if (function_exists('avesmapsAppSettingGet')) {
+        try {
+            $value = trim(avesmapsAppSettingGet($pdo, AVESMAPS_ADVENTURE_LAST_SYNCED_SETTING, ''));
+            if ($value !== '') {
+                return $value;
+            }
+        } catch (Throwable) {
+            // fall through to the row-based estimate below
+        }
+    }
     try {
         $stmt = $pdo->query("SELECT MAX(synced_at) FROM adventure WHERE origin = 'wiki'");
         $value = $stmt !== false ? $stmt->fetchColumn() : false;
