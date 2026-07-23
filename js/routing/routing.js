@@ -1013,7 +1013,14 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		openPowerlineEditDialog(powerline);
+		// The line editor owns editing now (docs/superpowers/specs/2026-07-23-kraftlinien-editor-design.md
+		// §11): with "line = all segments", renaming a single segment via the old one-segment dialog
+		// would split the line, so open the list editor on this line instead. Fall back if unavailable.
+		if (typeof openAvesmapsPowerlineEditorOverlay === "function") {
+			openAvesmapsPowerlineEditorOverlay(getPowerlineDisplayName(powerline));
+		} else {
+			openPowerlineEditDialog(powerline);
+		}
 		return;
 	}
 

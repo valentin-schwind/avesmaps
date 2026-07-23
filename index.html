@@ -477,11 +477,18 @@
 								<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Doppelklick auf einen Eintrag öffnet den Karteneditor direkt dort.</p>
 							</div>
 						</div>
-						<!-- Kraftlinien: moved down from the cross-subject actions at the top of the
-						     panel, where it only ever sat because a sixth horizontal tab did not fit.
-						     Sync-only, no list and no editor -- the verb row shows Syncen alone. -->
+						<!-- Kraftlinien: sixth editor (2026-07-23). The editor-open button is the subject's
+						     one verb-row button (js/review/review-subjects.js); renderWikiSyncVerbs moves it
+						     into place. Syncen keeps running from the editor's own ribbon tile via
+						     window.parent.startWikiSyncPowerlines() -- same pattern as the settlement editor. -->
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="powerlines">
 							<div class="wiki-sync-panel__actions">
+								<button type="button" id="powerline-editor-open" class="wiki-sync-panel__start" title="Öffnet den Kraftlinien-Editor: Liste der Linien, Eigenschaften und Knoten. Syncen liegt im Fenster."><span class="t1">Kraftlinien bearbeiten</span></button>
+							</div>
+							<!-- Kept hidden, NOT removed: startWikiSyncPowerlines (js/review/review-wiki-sync.js)
+							     targets this exact id for its progress display and must never null-deref. The
+							     visible trigger now lives in the editor ribbon. -->
+							<div class="wiki-sync-panel__actions" hidden>
 								<button id="wiki-sync-powerlines-sync" class="wiki-sync-panel__start" type="button" title="Übernimmt die Kraftlinien-Angaben aus dem Wiki (Stärke, Affinität, Länge, Regionen, Verlauf) auf die Kraftlinien der Karte. Zugeordnet wird über den Namen. Von Hand gesetzte Wiki-Links und Beschreibungen bleiben unangetastet.">⚡ Kraftlinien syncen</button>
 							</div>
 							<p class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Braucht ein vorheriges „Dump holen“ – ohne Staging meldet der Lauf das im Klartext.</p>
@@ -1658,6 +1665,10 @@
 		<script src="js/review/review-path-flow.js"></script>
 		<!-- Die Subjekt-Registry MUSS vor ihren Lesern stehen: review-settlement-list.js und review-wiki-sync.js rufen wikiSyncSubjectFacets() schon beim Auswerten auf (Beschriftungen der Listenfilter). Sie stand bis 2026-07-23 unter beiden; das Listenmodul waere beim ersten Laden mit einem ReferenceError komplett ausgefallen. Die Datei selbst haengt von nichts ab -- reine Daten. --><script src="js/review/review-subjects.js"></script><script src="js/review/review-settlement-wiki.js"></script>
 		<script src="js/review/review-settlement-list.js"></script>
+		<!-- Sixth editor: the Kraftlinien-Editor overlay factory (openAvesmapsPowerlineEditorOverlay)
+		     + the parent fly-to helper the iframe calls. Self-contained; uses map/marker globals at
+		     runtime only, so load order among the review-* modules does not matter. -->
+		<script src="js/review/review-powerline-list.js"></script>
 			<script src="js/review/review-capitals-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<!-- review-subjects.js ist nach OBEN gezogen, vor seine beiden Leser -- siehe dort. -->
