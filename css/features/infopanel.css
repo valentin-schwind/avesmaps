@@ -472,7 +472,7 @@ html.avesmaps-any-panel-open .avesmaps-infopanel__handle {
    --breadcrumb-depth is set per row inline by buildSettlementHierarchyMarkup (0 = the realm row). */
 .location-popup__breadcrumb-chain {
 	--breadcrumb-step: 14px;
-	font-size: 13px;
+	font-size: 12.5px;
 	line-height: 1.45;
 }
 .location-popup__breadcrumb-row {
