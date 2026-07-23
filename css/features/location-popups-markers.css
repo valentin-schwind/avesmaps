@@ -495,6 +495,11 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
    Measured ~315px: none [286,42] (orphan "Gareth") -> pretty [269,59] (full line 1, last line "zu Gareth"). */
 .location-popup__breadcrumb-link {
 	text-wrap: pretty;
+	/* Hanging indent: a wrapped continuation line hangs under the name, not under the coat.
+	   padding-left = coat width (15px) + its margin (4px); the negative text-indent pulls line 1
+	   (coat + first words) back to the row's indent edge. */
+	padding-left: 19px;
+	text-indent: -19px;
 }
 
 .location-popup__actions {
