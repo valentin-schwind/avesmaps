@@ -529,9 +529,17 @@ function flyToNode(pid) {
 
 // ---- Ribbon ----------------------------------------------------------------------------------
 function wireRibbon() {
-	$("plSync").addEventListener("click", () => {
-		try { if (window.parent && typeof window.parent.startWikiSyncPowerlines === "function") { window.parent.startWikiSyncPowerlines(); } }
-		catch (e) { /* silent */ }
+	$("plSync").addEventListener("click", async () => {
+		const sync = (window.parent && typeof window.parent.startWikiSyncPowerlines === "function") ? window.parent.startWikiSyncPowerlines : null;
+		if (!sync) { return; }
+		try {
+			setStatus("⚡ Kraftlinien werden abgeglichen …");
+			const res = await sync();                 // runs the sync in the parent; returns { type, message }
+			await reload(selectedName);               // pull the freshly synced wiki fields into the editor
+			flashStatus(res && res.message ? res.message : "Kraftlinien abgeglichen.");
+		} catch (e) {
+			flashStatus("Kraftlinien-Abgleich fehlgeschlagen.");
+		}
 	});
 	$("plDupes").addEventListener("click", () => {
 		showDupesOnly = !showDupesOnly;
@@ -547,13 +555,26 @@ function wireRibbon() {
 
 // ---- Load ------------------------------------------------------------------------------------
 function setStatus(text) { $("plStatusText").textContent = text; }
+function statusCountsText() {
+	const dupeCount = lines.filter((l) => l.warnings.length > 0).length;
+	return lines.length + " Kraftlinien · " + segments.length + " Segmente" + (dupeCount ? " · " + dupeCount + " Warnungen" : "");
+}
+// Show a message in the editor's OWN status bar for a few seconds, then fall back to the counts. Used
+// for the "Kraftlinien syncen" result so it appears IN the editor -- the panel status sits behind the
+// overlay and the owner never sees it there.
+let plFlashTimer = null;
+function flashStatus(message) {
+	setStatus(message);
+	if (plFlashTimer) { clearTimeout(plFlashTimer); }
+	plFlashTimer = setTimeout(() => { setStatus(statusCountsText()); }, 7000);
+}
 function ingest(data) {
 	segments = Array.isArray(data.segments) ? data.segments : [];
 	nodesMap = (data.nodes && typeof data.nodes === "object") ? data.nodes : {};
 	candidates = Array.isArray(data.nodix_candidates) ? data.nodix_candidates : [];
 	groupLines();
 	const dupeCount = lines.filter((l) => l.warnings.length > 0).length;
-	setStatus(lines.length + " Kraftlinien · " + segments.length + " Segmente" + (dupeCount ? " · " + dupeCount + " Warnungen" : ""));
+	setStatus(statusCountsText());
 	$("plDupesInfo").textContent = dupeCount ? dupeCount + " zu prüfen" : "keine gefunden";
 	if (pendingSelectName && lineByName(pendingSelectName)) { selectedName = pendingSelectName; pendingSelectName = null; }
 	renderList();

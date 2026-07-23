@@ -1375,7 +1375,11 @@ async function startWikiSyncPowerlines() {
 	if (button) {
 		button.disabled = true;
 	}
-	setWikiSyncStatus("Kraftlinien werden abgeglichen …", "pending");
+	// Capture the final { type, message } and return it so a caller in the editor iframe can show it
+	// there -- the panel status sits behind the editor overlay, where the owner never sees it.
+	let finalStatus = null;
+	const report = (message, type) => { setWikiSyncStatus(message, type); finalStatus = { message, type }; };
+	report("Kraftlinien werden abgeglichen …", "pending");
 	try {
 		const result = await submitWikiSyncDumpAction("sync_powerlines", {});
 		const staged = Number(result.staged ?? 0);
@@ -1393,26 +1397,26 @@ async function startWikiSyncPowerlines() {
 				const latestPhase = String(result.latest_run_phase ?? "").trim();
 				const latestUpd = String(result.latest_run_updated_at ?? "").trim();
 				if (latestStatus === "running") {
-					setWikiSyncStatus(
+					report(
 						`„Dump holen“ ist abgestürzt: der neueste Lauf hängt seit ${latestUpd || "?"} in Phase „${latestPhase || "?"}“ `
 						+ `(gelesen wurde der letzte VOLLSTÄNDIGE Lauf${runDate ? ` vom ${runDate}` : ""}). Bitte diese Phase melden.`,
 						"error"
 					);
 				} else {
-					setWikiSyncStatus(
+					report(
 						`Der Dump-Lauf${runDate ? ` vom ${runDate}` : ""} hat keine Kraftlinien abgelegt. `
 						+ "Bitte „📥 Dump holen“ erneut laufen lassen (der Lauf muss nach dem 22.07. sein) und dann erneut syncen.",
 						"error"
 					);
 				}
 			} else {
-				setWikiSyncStatus(
+				report(
 					`${sandbox} Kraftlinien im Zwischenspeicher, aber keine ließ sich auswerten — bitte melden. `
 					+ `(Lauf ${result.run_id ?? "?"}${runDate ? `, ${runDate}` : ""})`,
 					"error"
 				);
 			}
-			return;
+			return finalStatus;
 		}
 		const linked = Number(result.linked ?? 0);
 		const updated = Number(result.updated ?? 0);
@@ -1436,20 +1440,21 @@ async function startWikiSyncPowerlines() {
 		// Bewusst KEIN Nachladen: die Kartendaten holt loadRouteData() einmal beim Start, ein
 		// zweiter Aufruf würde Layer doppeln. Der Hinweis ist ehrlicher als ein erfundener
 		// Nachladepfad -- die neuen Wiki-Zeilen stehen nach einem Neuladen im Infopanel.
-		setWikiSyncStatus(`Kraftlinien abgeglichen — ${parts.join(" · ")}. Seite neu laden, um sie im Infopanel zu sehen.`, "success");
+		report(`Kraftlinien abgeglichen — ${parts.join(" · ")}. Seite neu laden, um sie im Infopanel zu sehen.`, "success");
 		// Übersichts-Leiste sofort auffrischen: der Reconcile hat gerade „zuletzt gesynct" in app_setting
 		// gestempelt, also soll die „Kraftlinien"-Zelle ihr Datum ohne Neuladen zeigen (holt
 		// ?action=last_synced neu und zeichnet die Leiste via renderWikiSyncSubjectRail).
 		void refreshWikiSyncKindSyncedStatus();
 	} catch (error) {
 		console.error("Kraftlinien-Abgleich fehlgeschlagen:", error);
-		setWikiSyncStatus(error?.message || "Der Kraftlinien-Abgleich ist fehlgeschlagen.", "error");
+		report(error?.message || "Der Kraftlinien-Abgleich ist fehlgeschlagen.", "error");
 	} finally {
 		isWikiSyncPowerlinesRunning = false;
 		if (button) {
 			button.disabled = false;
 		}
 	}
+	return finalStatus;
 }
 
 // Abenteuer syncen (Phase 4): the SHARP reconcile of the wiki adventure catalog
