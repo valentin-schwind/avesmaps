@@ -109,8 +109,18 @@ function applyLiveMapFeatureUpdate(feature) {
 		const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry?.publicId === publicId);
 		if (regionEntry) {
 			applyRegionFeatureResponse(regionEntry, feature);
+		} else {
+			// A region another editor just CREATED has no entry here yet. Paths and labels have
+			// always built one in that case; regions were the only branch that just dropped the
+			// feature, so a new region stayed invisible until a reload. Same builder the initial
+			// load uses (prepareLegacyRegionData), which registers it in regionPolygons so the next
+			// update and removeLiveFeature() find it.
+			addRegionFeatureToMap(feature, normalizeRegionFeature(feature));
 		}
-	} else if (feature.geometry?.type === "Point") {
+	} else if (properties.feature_type === "junction" || feature.geometry?.type === "Point") {
+		// 'junction' is named explicitly: it reached this branch only because a crossing happens to
+		// be a Point, which is why nothing downstream ever asked what the server had actually
+		// written (Discord #48). Geometry decides the SHAPE, feature_type decides the KIND.
 		applyLiveLocationFeature(feature);
 	}
 }

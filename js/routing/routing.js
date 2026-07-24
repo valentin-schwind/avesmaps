@@ -30,8 +30,17 @@ function resolveSpeedForRouteType(routeType, transportOption) {
 	return SPEED_TABLE[transportOption]?.[routeType];
 }
 
+// Validates a SETTLEMENT key. It is deliberately not a classifier: use
+// resolveLocationTypeFromFeature() to find out what a feature is (crossings included), and this one
+// only to check an already-resolved settlement type. Anything unknown is reported instead of
+// silently becoming a village -- that silence hid Discord #48 for as long as it lived.
 function normalizeLocationType(value) {
-	return LOCATION_TYPE_KEYS.includes(value) ? value : "dorf";
+	if (isKnownLocationTypeKey(value)) {
+		return value;
+	}
+
+	reportUnknownLocationType(value, "normalizeLocationType");
+	return DEFAULT_LOCATION_TYPE;
 }
 
 function locationTypeFromProperties(properties) {
@@ -60,8 +69,11 @@ const prepareLocationData = (data) => {
 	locationData = data.features
 		.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name && feature.properties?.feature_type !== "label")
 		.map((feature) => {
-			const isCrossing = feature.properties.name.startsWith("Kreuzung");
-			const locationType = isCrossing ? CROSSING_LOCATION_TYPE : locationTypeFromProperties(feature.properties);
+			// Shared classifier first (server truth: feature_type/feature_subtype, name only as the
+			// legacy fallback); locationTypeFromProperties keeps the older data-place-type mapping
+			// for rows that carry neither.
+			const locationType = resolveLocationTypeFromFeature(feature) || locationTypeFromProperties(feature.properties);
+			const isCrossing = locationType === CROSSING_LOCATION_TYPE;
 			const locationConfig = locationType ? LOCATION_TYPE_CONFIG[locationType] : null;
 			return {
 				publicId: feature.id || feature.properties.public_id || "",

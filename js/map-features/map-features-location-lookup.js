@@ -3,12 +3,108 @@
  * This file contains only function declarations and no top-level execution.
  */
 
+/*
+ * One answer to "what kind of point is this?" for every surface that asks: the initial load
+ * (prepareLocationData), the live update of an existing marker (applyFeatureResponseToMarker),
+ * the live create of a new one (addCreatedLocationMarker) and isCrossingLocation() below.
+ * Until Discord #48 those four asked four different questions, and the update path asked none at
+ * all -- it ran the type through the settlement whitelist, which answers "dorf" for a crossing.
+ *
+ * The rule is the SERVER's vocabulary, not the display name. A crossing is written as
+ * feature_type 'junction' + feature_subtype 'crossing' (api/_internal/map/features.php,
+ * avesmapsCreateCrossingFeature). Three details make the SUBTYPE the primary key, not the type:
+ *   - 798 live rows still carry the older feature_type 'crossing' next to 1118 'junction' rows
+ *     (api/_internal/wiki/path-outliers.php still reads feature_type IN ('location','crossing'));
+ *   - avesmapsBuildPointFeatureResponse() hardcodes feature_type 'location' for EVERY point, so an
+ *     edit response calls a freshly created crossing a location -- only its subtype stays honest;
+ *   - the same builder labels it 'Dorf' (default arm of avesmapsLocationSubtypeLabel).
+ * The "Kreuzung" name prefix stays as the LAST fallback for rows that predate the subtype (~200 of
+ * them are named "Kreuzung-auto-<n>", which the stricter isCrossingName() below does not match). It
+ * must not lead: four live powerlines are named "Kreuzung - <place>", and a name is editable data.
+ */
+
+const DEFAULT_LOCATION_TYPE = "dorf";
+// Both spellings the map data uses for a junction row (see the comment above).
+const CROSSING_FEATURE_TYPES = ["junction", "crossing"];
+
+function isKnownLocationTypeKey(value) {
+	return typeof value === "string" && LOCATION_TYPE_KEYS.includes(value);
+}
+
+// Reads the type-carrying fields out of any of the three shapes the app passes around: a GeoJSON
+// feature (fields under .properties), the flat edit-/live-payload, and an already normalised
+// location or marker entry (locationType).
+function readLocationTypeSignals(source) {
+	const feature = source && typeof source === "object" ? source : {};
+	const properties = feature.properties && typeof feature.properties === "object" ? feature.properties : {};
+	const readString = (...keys) => {
+		for (const key of keys) {
+			const value = properties[key] ?? feature[key];
+			if (typeof value === "string" && value.trim() !== "") {
+				return value.trim();
+			}
+		}
+		return "";
+	};
+
+	return {
+		featureType: readString("feature_type").toLowerCase(),
+		// The key order the four call sites used before they shared this function. No live row
+		// disagrees between them (0 of 2607 locations have settlement_class != feature_subtype).
+		subtype: readString("location_type", "settlement_class", "feature_subtype", "locationType").toLowerCase(),
+		name: readString("name"),
+	};
+}
+
+// Resolves the locationType a point feature renders as, or "" when the input says nothing about it
+// -- callers keep their own fallback rather than getting a guess. Several sources may be passed
+// (e.g. the incoming feature and the marker entry it updates); the first one with an answer wins.
+function resolveLocationTypeFromFeature(...sources) {
+	for (const source of sources) {
+		const { featureType, subtype, name } = readLocationTypeSignals(source);
+		if (subtype === CROSSING_LOCATION_TYPE || CROSSING_FEATURE_TYPES.includes(featureType)) {
+			return CROSSING_LOCATION_TYPE;
+		}
+		if (isKnownLocationTypeKey(subtype)) {
+			return subtype;
+		}
+		if (name.startsWith("Kreuzung")) {
+			return CROSSING_LOCATION_TYPE;
+		}
+	}
+
+	return "";
+}
+
+// A silently defaulted type is what hid #48: normalizeLocationType() answered "dorf" for everything
+// outside the settlement whitelist, so a crossing became a village without a line of output.
+// Reported once per distinct value so a full map load cannot flood the console.
+const reportedUnknownLocationTypes = new Set();
+function reportUnknownLocationType(value, context) {
+	const unknownType = String(value ?? "");
+	if (unknownType === "" || reportedUnknownLocationTypes.has(unknownType)) {
+		return false;
+	}
+
+	reportedUnknownLocationTypes.add(unknownType);
+	console.warn(`${context}: unknown location type "${unknownType}" -- falling back to "${DEFAULT_LOCATION_TYPE}". Server truth is feature_type/feature_subtype: add the type to LOCATION_TYPE_CONFIG or classify it in resolveLocationTypeFromFeature().`);
+	return true;
+}
+
+// Pure NAME predicate (the numbering scheme prepareLocationData writes). Kept separate from the
+// classifier above: this one answers "does this string look like a crossing name", not "is this a
+// crossing".
 function isCrossingName(name) {
 	return typeof name === "string" && /^Kreuzung(?:-\d+)?$/i.test(name);
 }
 
+// Same rule as everywhere else (resolveLocationTypeFromFeature above): locationType/subtype first, the
+// "Kreuzung" name only as the fallback for legacy rows. Stricter than the old
+// `locationType === crossing || isCrossingName(name)` in exactly one case -- a point that claims a
+// settlement type AND carries a crossing name. That combination is what #48 produced, and no live
+// row has it (0 of 2607 settlements are named "Kreuzung*").
 function isCrossingLocation(location) {
-	return location?.locationType === CROSSING_LOCATION_TYPE || isCrossingName(location?.name);
+	return resolveLocationTypeFromFeature(location) === CROSSING_LOCATION_TYPE;
 }
 
 function isNodixLocation(location) {

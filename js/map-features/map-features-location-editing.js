@@ -181,7 +181,14 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 	const previousLocation = markerEntry.location;
 	const wasCrossing = isCrossingLocation(previousLocation);
 	const wasPopupOpen = markerEntry.marker.isPopupOpen();
-	const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
+	// Discord #48: this path used to run the type through normalizeLocationType() alone, whose
+	// whitelist knows only settlements -- so every live update of an existing CROSSING (another
+	// editor moving it, a wiki/link save touching it) came back as "dorf" and the crossing turned
+	// into a village on the other editor's map. The shared classifier reads the server's own
+	// feature_type/feature_subtype; the marker is the fallback for a payload that carries no type
+	// at all, and normalizeLocationType stays for an unknown settlement key (now audibly).
+	const locationType = resolveLocationTypeFromFeature(feature, markerEntry)
+		|| normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
 	const latLng = [Number(feature.lat), Number(feature.lng)];
 	markerEntry.name = feature.name || markerEntry.name;
 	markerEntry.publicId = feature.public_id || markerEntry.publicId;
@@ -192,7 +199,13 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		name: markerEntry.name,
 		coordinates: latLng,
 		locationType,
-		locationTypeLabel: tr(`type.${locationType}.singular`, feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf"),
+		// Same two-case label as the load and create paths. A crossing needs its own arm: it has no
+		// LOCATION_TYPE_CONFIG entry, and the server sends location_type_label 'Dorf' for it
+		// (avesmapsLocationSubtypeLabel has no crossing arm, so it hits the default) -- so without
+		// this the infobox called a correctly typed crossing a village anyway.
+		locationTypeLabel: locationType === CROSSING_LOCATION_TYPE
+			? tr("locationType.crossing", "Kreuzung")
+			: tr(`type.${locationType}.singular`, feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf"),
 		description: feature.description || "",
 		wikiUrl: feature.wiki_url || "",
 		otherSource: feature.other_source || null,
@@ -282,9 +295,8 @@ async function deleteLocationMarker(markerEntry) {
 }
 
 function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
-	const locationType = feature.feature_subtype === CROSSING_LOCATION_TYPE || String(feature.name || "").startsWith("Kreuzung")
-		? CROSSING_LOCATION_TYPE
-		: normalizeLocationType(feature.location_type || feature.feature_subtype || "dorf");
+	const locationType = resolveLocationTypeFromFeature(feature)
+		|| normalizeLocationType(feature.location_type || feature.feature_subtype || DEFAULT_LOCATION_TYPE);
 	const location = {
 		publicId: feature.public_id,
 		name: feature.name,
