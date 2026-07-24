@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../text/ascii-fold.php';
+
 const AVESMAPS_POLITICAL_DEFAULT_CONTINENT = 'Aventurien';
 const AVESMAPS_POLITICAL_DEFAULT_YEAR_BF = 1049;
 
@@ -1058,12 +1060,11 @@ function avesmapsPoliticalDecodeJson(mixed $value): array {
 function avesmapsPoliticalSlug(string $value): string {
     $slug = mb_strtolower(trim($value));
     $slug = str_replace('ß', 'ss', $slug);
-    if (function_exists('iconv')) {
-        $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $slug);
-        if (is_string($transliterated)) {
-            $slug = $transliterated;
-        }
-    }
+    // Deterministic table, NOT iconv//TRANSLIT: that was libc-dependent, so the
+    // same name keyed differently here and on STRATO. Umlauts fold to '?' and
+    // become a hyphen below ('Fürstentum Kosch' -> 'f-rstentum-kosch') -- the
+    // form the live keys are stored in. See api/_internal/text/ascii-fold.php.
+    $slug = avesmapsFoldToAscii($slug);
     $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
     $slug = trim($slug, '-');
     $slug = str_replace('marktgrafschaft', 'markgrafschaft', $slug);

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../text/ascii-fold.php';
+
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
 const AVESMAPS_WIKI_USER_AGENT = 'Avesmaps WikiSync/1.0';
@@ -244,12 +246,10 @@ function avesmapsWikiSyncCreateMatchKeyInternal(string $value, bool $preserveHis
         : avesmapsWikiSyncStripParentheticalSuffix($value);
     $value = mb_strtolower($value);
     $value = str_replace(["\u{00DF}", "\u{00E6}", "\u{0153}", "\u{00F8}", "\u{00F0}", "\u{00FE}"], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
-    if (function_exists('iconv')) {
-        $transliteratedValue = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
-        if (is_string($transliteratedValue)) {
-            $value = $transliteratedValue;
-        }
-    }
+    // Deterministic table, NOT iconv//TRANSLIT (libc-dependent -- the match key
+    // differed between the dev machine and STRATO). Umlauts fold to '?' and are
+    // dropped by the final pass: 'Fürstentum Kosch' -> 'frstentumkosch'.
+    $value = avesmapsFoldToAscii($value);
     $value = preg_replace('/[\s_\-\'\x{2019}\x{02BC}`\x{00B4}]+/u', '', $value) ?? '';
     $value = preg_replace('/[^a-z0-9]+/u', '', $value) ?? '';
 

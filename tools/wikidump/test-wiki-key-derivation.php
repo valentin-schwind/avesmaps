@@ -31,28 +31,30 @@ declare(strict_types=1);
  *      and non-[a-z0-9] char -- i.e. they VANISH, no hyphen. So a space becomes
  *      `-` in the territory slug but disappears entirely in the match key.
  *
- * THE UMLAUT ("swallow") QUIRK -- THE WHOLE POINT, and environment-dependent.
+ * THE UMLAUT ("swallow") QUIRK -- THE WHOLE POINT, and no longer environment-
+ * dependent.
  *   Neither scheme maps oe/ae/ue for German umlauts explicitly (only sz/ligature
  *   chars are in the explicit str_replace: ss/ae/oe/o/d/th for ss/aesc/oe-lig/
- *   slash-o/eth/thorn). The fate of oe/ae/ue therefore falls to
- *   iconv('UTF-8','ASCII//TRANSLIT//IGNORE', ...) and is LOCALE/BUILD-DEPENDENT:
- *   - A "clean" glibc iconv typically yields the bare base letter (o/a/u).
- *   - This Windows PHP 8.5 build emits an artifact: it prepends a literal
- *     double-quote to the base letter (ue -> ["u], oe -> ["o], ae -> ["a]).
- *     The slug scheme turns that '"' into a hyphen; the match-key scheme drops
- *     it in the final non-[a-z0-9] pass. Either way the base letter survives and
- *     the German digraph (ue/oe/ae) does NOT appear.
- *   - If iconv were unavailable/failing, //IGNORE + the final regex would drop
- *     the char entirely (e.g. "Koeln" -> "koln" or "kln").
+ *   slash-o/eth/thorn). The fate of oe/ae/ue therefore falls to the ASCII fold.
  *
- *   Because this is environment-dependent, the umlaut expectations below are
- *   hand-derived against THIS runtime's observed iconv behavior (printed in the
- *   diagnostic banner), NOT by asserting the function equals itself. The
- *   AUTHORITATIVE cross-check against real STRATO-derived DB `wiki_key` values
- *   happens later in the migration's compare-test (assert A1); STRATO's own
- *   iconv behavior is verified in Task 2. If STRATO's iconv differs from this
- *   box, the umlaut rows here may need re-deriving -- that is expected and is
- *   exactly why the diagnostic banner records the local iconv sample.
+ *   Until 2026-07-24 that fold was iconv('UTF-8','ASCII//TRANSLIT//IGNORE', ...),
+ *   whose umlaut handling is LIBC-dependent -- so this test passed 22/22 on the
+ *   dev machine and 16/22 on STRATO, having frozen the dev machine's artifact
+ *   ('ue' -> '"u') as the expectation. It now calls avesmapsFoldToAscii()
+ *   (api/_internal/text/ascii-fold.php), which is a fixed table:
+ *
+ *   - Umlauts and accented letters fold to a single '?'. The BASE LETTER IS
+ *     LOST: the slug scheme turns the '?' into a hyphen ('f-rstentum-kosch'),
+ *     the match-key scheme drops it in the final non-[a-z0-9] pass
+ *     ('frstentumkosch'). The German digraph (ue/oe/ae) never appears.
+ *   - 'aesc' and the other latin ligatures keep their alphanumeric expansion.
+ *
+ *   That is the SERVER's form, not a prettier one: it reproduces what production
+ *   has stored since day one, verified against 1384 of 1384 live territory rows.
+ *   Making it "nicer" here would silently change the key of every umlaut-bearing
+ *   row. The expectations below are hand-derived from that table, and they now
+ *   hold in BOTH environments -- which is the whole point of the change.
+ *   See docs/superpowers/specs/2026-07-24-wiki-key-deterministische-transliteration-design.md
  *
  * DEPENDENCIES / HOW TO RUN
  *   The production functions call mb_strtolower()/mb_substr(), so the mbstring
@@ -90,7 +92,7 @@ $repoRoot = dirname(__DIR__, 2); // tools/wikidump -> tools -> <repo root>
 require $repoRoot . '/api/_internal/political/territory.php';
 require $repoRoot . '/api/_internal/wiki/sync.php';
 
-foreach (['avesmapsPoliticalBuildWikiKey', 'avesmapsPoliticalSlug', 'avesmapsWikiSyncCreateMatchKey'] as $required) {
+foreach (['avesmapsPoliticalBuildWikiKey', 'avesmapsPoliticalSlug', 'avesmapsWikiSyncCreateMatchKey', 'avesmapsFoldToAscii'] as $required) {
     if (!function_exists($required)) {
         fwrite(STDERR, "FATAL: expected function {$required}() was not defined by the included libraries.\n");
         exit(2);
@@ -98,31 +100,27 @@ foreach (['avesmapsPoliticalBuildWikiKey', 'avesmapsPoliticalSlug', 'avesmapsWik
 }
 
 // ---------------------------------------------------------------------------
-// 2. Diagnostic banner -- records the environment-dependent iconv behavior so a
-//    future reader can tell WHY the umlaut rows expect what they expect.
+// 2. Diagnostic banner -- records the fold's behavior so a future reader can
+//    tell WHY the umlaut rows expect what they expect. It prints the FOLD, not
+//    iconv: the derivation no longer depends on the environment, and a banner
+//    recording a machine-specific artifact is what made this test lie before.
 // ---------------------------------------------------------------------------
-$iconvAvailable = function_exists('iconv');
 $umlautSampleIn = 'Köln Ärger Übel Fürstentum';
-$umlautSampleOut = $iconvAvailable
-    ? (static function (string $s): string {
-        $r = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
-        return is_string($r) ? $r : '(iconv returned false)';
-    })($umlautSampleIn)
-    : '(iconv unavailable)';
+$umlautSampleOut = avesmapsFoldToAscii($umlautSampleIn);
 
 echo "================================================================\n";
 echo " wiki_key derivation characterization test (invariant I1)\n";
 echo "================================================================\n";
 echo 'PHP version        : ' . PHP_VERSION . "\n";
 echo 'mbstring loaded    : ' . (extension_loaded('mbstring') ? 'yes' : 'no') . "\n";
-echo 'iconv available    : ' . ($iconvAvailable ? 'yes' : 'no') . "\n";
-echo "iconv umlaut sample: iconv('UTF-8','ASCII//TRANSLIT//IGNORE',\n";
+echo 'iconv present      : ' . (function_exists('iconv') ? 'yes (unused by the derivation)' : 'no (irrelevant)') . "\n";
+echo "fold umlaut sample : avesmapsFoldToAscii(\n";
 echo "                       '{$umlautSampleIn}')\n";
 echo "                   = '{$umlautSampleOut}'\n";
-echo "NOTE: umlaut (oe/ae/ue) outcomes are iconv/locale-dependent. Expectations\n";
-echo "      below are hand-derived against THIS runtime. The authoritative\n";
-echo "      cross-check vs. real STRATO DB values is the later compare-test\n";
-echo "      (assert A1); STRATO iconv is verified in Task 2.\n";
+echo "NOTE: the fold is a fixed table, so umlaut (oe/ae/ue) outcomes are the same\n";
+echo "      on every machine. Expectations below are hand-derived from that table\n";
+echo "      and reproduce the form the LIVE keys are stored in (verified against\n";
+echo "      1384 of 1384 production territory rows on 2026-07-24).\n";
 echo "----------------------------------------------------------------\n\n";
 
 // ---------------------------------------------------------------------------
@@ -165,12 +163,14 @@ $check(
 
 // (b) wiki: from URL with percent-encoded umlaut + underscore -> space, then slug.
 //     'F%C3%BCrstentum_Kosch' -rawurldecode-> 'Fürstentum_Kosch' -_->space->
-//     'Fürstentum Kosch'; ü -iconv-> ["u]; '"' and space -> '-' => 'f-urstentum-kosch'.
+//     'Fürstentum Kosch'; ü -fold-> '?'; '?' and space -> '-' => 'f-rstentum-kosch'.
+//     This is the key production actually stores -- spot-check:
+//     GET /api/app/territory-detail.php?wiki_key=wiki:f-rstentum-kosch returns Kosch.
 $check(
     'wiki: URL, encoded umlaut + underscore (Fuerstentum Kosch)',
-    'wiki:f-urstentum-kosch', // rawurldecode + '_'->' ' + umlaut '"u' artifact -> '-' + space -> '-'
+    'wiki:f-rstentum-kosch', // rawurldecode + '_'->' ' + umlaut -> '?' -> '-' + space -> '-'
     avesmapsPoliticalBuildWikiKey('https://de.wiki-aventurica.de/wiki/F%C3%BCrstentum_Kosch', 'Fürstentum Kosch'),
-    "underscore->space, umlaut '\"u' artifact->hyphen"
+    "underscore->space, umlaut '?'->hyphen (base letter lost)"
 );
 
 // (c) wiki: from URL whose page has a parenthetical -- slug does NOT strip it;
@@ -203,7 +203,7 @@ $check(
 //     different prefix, proving prefix selection is URL-driven.
 $check(
     'name: fallback, multi-word umlaut (Fuerstentum Kosch)',
-    'name:f-urstentum-kosch', // 'name:' + slug: space->'-', ü '"u' artifact->'-'
+    'name:f-rstentum-kosch', // 'name:' + slug: space->'-', ü '?'->'-'
     avesmapsPoliticalBuildWikiKey('', 'Fürstentum Kosch'),
     "same slug body as (b), 'name:' prefix"
 );
@@ -227,9 +227,9 @@ echo "\n-- Scheme 2: match key (avesmapsWikiSyncCreateMatchKey) --\n";
 //     space and the umlaut artifact are REMOVED (not hyphenated) -> one token.
 $check(
     'match key, multi-word umlaut (Fuerstentum Kosch)',
-    'furstentumkosch', // space removed by separator regex; ü '"u' -> final regex drops '"' , keeps 'u'
+    'frstentumkosch', // space removed by separator regex; ü -> '?' -> final regex drops it, base letter gone
     avesmapsWikiSyncCreateMatchKey('Fürstentum Kosch'),
-    "space + umlaut artifact VANISH (contrast slug 'f-urstentum-kosch')"
+    "space + umlaut VANISH (contrast slug 'f-rstentum-kosch')"
 );
 
 // (i) parenthetical suffix is stripped before keying.
@@ -298,20 +298,20 @@ $check(
     "ASCII apostrophe + hyphen removed"
 );
 
-// (q) umlaut ö at the START of a word -- artifact-then-base 'o' survives.
+// (q) umlaut ö inside a word -- it vanishes entirely, base letter included.
 $check(
-    'match key, leading umlaut (Koenigreich)',
-    'konigreich', // 'Königreich' -> ö '"o' -> final regex drops '"', keeps 'o'
+    'match key, umlaut mid-word (Koenigreich)',
+    'knigreich', // 'Königreich' -> ö '?' -> final regex drops it => no 'o' at all
     avesmapsWikiSyncCreateMatchKey('Königreich'),
-    "ö -> 'o' (digraph 'oe' does NOT appear)"
+    "ö vanishes (neither 'oe' nor 'o' appears)"
 );
 
-// (r) underscores collapse to nothing (separator class) + umlaut ü -> 'u'.
+// (r) underscores collapse to nothing (separator class) + leading umlaut vanishes.
 $check(
     'match key, underscores + umlaut (Ueber den Wolken)',
-    'uberdenwolken', // '_' in separator class -> removed; ü -> 'u'
+    'berdenwolken', // '_' in separator class -> removed; leading Ü -> '?' -> dropped
     avesmapsWikiSyncCreateMatchKey('Über_den_Wolken'),
-    "underscores removed (contrast: territory '_'->space)"
+    "underscores removed; word-initial umlaut leaves nothing behind"
 );
 
 // (s) parenthetical strip + sharp-s together.
@@ -330,12 +330,14 @@ $check(
     "aesc ligature -> 'ae' (explicit str_replace)"
 );
 
-// (u) all-umlaut word -> all three base letters survive, no digraphs, no seps.
+// (u) all-umlaut word -> NOTHING survives. The starkest illustration of the
+//     server's fold: a title made only of umlauts keys to the empty string, so
+//     'ÄÖÜ' and 'ÖÄÜ' collide. That is pre-existing live behaviour, not new.
 $check(
     'match key, all umlauts (aeoeue)',
-    'aou', // 'äöü' -> each artifact '"x' -> final regex keeps base a/o/u only
+    '', // 'äöü' -> '???' -> final regex drops all three => empty key
     avesmapsWikiSyncCreateMatchKey('ÄÖÜ'),
-    "ä/ö/ü -> a/o/u (all digraphs suppressed)"
+    "ä/ö/ü all vanish -> empty key (no digraph, no base letter)"
 );
 
 // (v) STRIP-REGEX EDGE CASE (empirically discovered while writing this test):
