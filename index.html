@@ -21,6 +21,12 @@
 				}
 			} catch (e) {}
 		</script>
+		<!-- Declare the icon explicitly instead of relying on the browser's implicit /favicon.ico probe.
+		     That probe is fetched rarely and its RESULT is cached hard -- a single failed request (the site
+		     was behind a maintenance redirect during the 2026-07-24 outage) leaves the tab iconless for a
+		     long time, with the file itself perfectly fine on the server. The deploy's asset stamping adds
+		     the ?v= hash here, so a changed icon also busts that cache. -->
+		<link rel="icon" href="favicon.ico" sizes="any" />
 		<link rel="canonical" href="https://avesmaps.de/" />
 		<link rel="alternate" hreflang="de" href="https://avesmaps.de/" />
 		<link rel="alternate" hreflang="en" href="https://avesmaps.de/?lang=en" />
