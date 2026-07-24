@@ -57,6 +57,7 @@ $TESTS = [
     'category-layer'   => ['file' => 'test-dump-category-layer.php',          'label' => 'Kategorie-/Kontinent-Schicht'],
     'reader'           => ['file' => 'test-dump-reader.php',                  'label' => 'Dump-XML-Leser'],
     'wiki-key'         => ['file' => 'test-wiki-key-derivation.php',          'label' => 'Wiki-Key-Ableitung'],
+    'ascii-fold'       => ['file' => 'test-ascii-fold.php',                   'label' => 'ASCII-Faltung (Umschrift-Tabelle)'],
 ];
 
 /** Emit a JSON envelope + exit. Own helper (bootstrap's is deliberately not loaded). */
