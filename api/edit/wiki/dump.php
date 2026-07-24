@@ -894,6 +894,38 @@ try {
             ]);
             // no break -- avesmapsJsonResponse exits.
 
+        case 'save_report':
+            // Writes down what the run just did, so its result outlives the toast. The client
+            // drives "Dump holen" step by step and therefore already holds the per-step totals;
+            // it posts them here ONCE, after cleanup_state.
+            //
+            // Deliberately NO lock: the "Dump holen" chain releases the pipeline lock at
+            // cleanup_state, and this call comes after it. Taking the lock again would let a
+            // bookkeeping write block the next editor's real work.
+            //
+            // A failure here must never look like a failed dump -- the run already succeeded and
+            // is never rolled back. The client treats this call as best-effort (see
+            // review-wiki-sync.js) and still shows the numbers it holds in memory.
+            require_once __DIR__ . '/../../_internal/wiki/dump-report.php';
+            $reportRunPublicId = avesmapsWikiSyncReadPublicId($payload['run_id'] ?? '');
+            $reportRunStatement = $pdo->prepare('SELECT id FROM wiki_sync_runs WHERE public_id = :public_id LIMIT 1');
+            $reportRunStatement->execute(['public_id' => $reportRunPublicId]);
+            $reportRunId = (int) $reportRunStatement->fetchColumn();
+            if ($reportRunId <= 0) {
+                avesmapsErrorResponse(404, 'run_not_found', 'Zu dieser Lauf-Kennung gibt es keinen Eintrag.');
+            }
+            $reportPayload = $payload['report'] ?? null;
+            if (!is_array($reportPayload)) {
+                avesmapsErrorResponse(400, 'invalid_request', 'report muss ein Objekt sein.');
+            }
+            $reportVerdict = avesmapsDumpReportStore($pdo, $reportRunId, $reportPayload);
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'notable' => $reportVerdict['notable'],
+                'reason' => $reportVerdict['reason'],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
         default:
             avesmapsErrorResponse(400, 'invalid_request', 'Unknown dump action.');
     }

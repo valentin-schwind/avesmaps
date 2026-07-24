@@ -23,6 +23,7 @@ require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/conflicts/rules.php';
 require_once __DIR__ . '/../../_internal/conflicts/store.php';
 require_once __DIR__ . '/../../_internal/conflicts/repair.php';
+require_once __DIR__ . '/../../_internal/wiki/dump-report.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -130,6 +131,13 @@ try {
     avesmapsJsonResponse(200, [
         'ok' => true,
         'rules' => avesmapsConflictRuleCatalog(),
+        // The last dump run's report -- its OWN top-level key, deliberately NOT an entry in
+        // `conflicts`. A report is a snapshot of a moment; a conflict is computed fresh every
+        // time and disappears by itself once repaired. Mixing them would break that invariant
+        // AND poison `summary` (total / by_severity / by_status / by_type all count over
+        // `conflicts`), so a protocol row would inflate the very numbers the filter rail shows.
+        // null when no run has been reported yet -- the client renders "kein Bericht vorhanden".
+        'dump_report' => avesmapsDumpReportLatest($pdo),
         'type_labels' => AVESMAPS_CONFLICT_TYPE_LABELS,
         'conflicts' => $conflicts,
         'summary' => [
