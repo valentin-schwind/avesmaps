@@ -274,24 +274,24 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $territoryMaxZoom = avesmapsPoliticalNullableInt($row['territory_max_zoom'] ?? null);
         $inTerritoryLabelBand = ($territoryMinZoom === null || $territoryMinZoom <= $zoom)
             && ($territoryMaxZoom === null || $territoryMaxZoom >= $zoom);
-        // Fuellung MINDESTENS im Territoriums-Band (Editor-autoritativ) zeigen. Die Derived-Geometrie traegt
-        // teils ein STALES, zu niedriges Zoom-Band (erzeugt als das Territorium noch max_zoom=1 hatte, spaeter
-        // auf 2 angehoben) -> sonst Loch zwischen Reich-Ende und Kinder-Start (z. B. Horasreich bei Zoom 2).
-        // Union der Baender: fuellt auch im Territoriums-Band, behaelt aber "nach oben sichtbar" (Derived hoeher).
-        $inFillBand = $inFillBand || $inTerritoryLabelBand;
+        // The TERRITORY band (the editor's "Zoom von/bis") WINS whenever it is set. The stored hull carries its
+        // own band, frozen when it was generated, and it drifts from the editor value. The old code unioned the
+        // two so the hull could only ever be WIDENED -- which made shrinking a band impossible: Grafschaft Bomed
+        // read 2-3 in the editor but the layer served 2-6, so the hull stayed inside its baronies' band and
+        // (a) filled a SECOND time over them (0.45 over 0.45 = 0.70 measured, so the configured 0.7 rendered as
+        // 0.91), (b) never disappeared when the children took over, and (c) swallowed their clicks (Discord #13,
+        // 104 aggregates at zoom 5). Holes are no longer the hull's job: POLITICAL_LEAF_BACKGROUND_MIN_ZOOM
+        // (config.js, zoom >= 4) makes a handing-over area fill solid as a background, which is what the union
+        // was compensating for. Fall back to the derived band only when the territory has none.
+        $inFillBand = ($territoryMinZoom !== null || $territoryMaxZoom !== null)
+            ? $inTerritoryLabelBand
+            : $inFillBand;
         $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
-        // The feature's own min/max_zoom comes from avesmapsPoliticalLayerRowToFeature = derived.min/max_zoom,
-        // which can be STALE (frozen when the territory still had e.g. max_zoom=1). The frontend gates BOTH the
-        // polygon AND the label purely on these props (syncRegionVisibility -> isVisibleAtZoom), so a stale derived
-        // band hides the whole aggregate above it even though derived_fill_active says show. Widen them to the
-        // UNION of the derived band and the territory band (editor-authoritative) so visibility matches the fill
-        // band computed above (a null bound means "no limit" -> stays the most permissive).
-        $feature['properties']['min_zoom'] = ($derivedMinZoom === null || $territoryMinZoom === null)
-            ? null
-            : min($derivedMinZoom, $territoryMinZoom);
-        $feature['properties']['max_zoom'] = ($derivedMaxZoom === null || $territoryMaxZoom === null)
-            ? null
-            : max($derivedMaxZoom, $territoryMaxZoom);
+        // The frontend gates the polygon, the label AND interactivity purely on these two props
+        // (syncRegionVisibility -> isVisibleAtZoom, isAtActiveDisplayZoom). They must therefore carry the same
+        // band the fill uses above: the editor's territory band when it exists, the stored hull band otherwise.
+        $feature['properties']['min_zoom'] = $territoryMinZoom ?? $derivedMinZoom;
+        $feature['properties']['max_zoom'] = $territoryMaxZoom ?? $derivedMaxZoom;
         $feature['id'] = 'derived:' . (string) $row['geometry_public_id'];
         $feature['properties']['public_id'] = (string) $row['geometry_public_id'];
         $feature['properties']['geometry_public_id'] = (string) $row['geometry_public_id'];
