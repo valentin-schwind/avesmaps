@@ -237,7 +237,7 @@ window.AVESMAPS_I18N_EN = {
 	"report.statusSendFailed": "The report could not be sent.",
 	"report.statusNotConfigured": "The report form is not yet connected to the Avesmaps server.",
 	"report.statusInvalidPosition": "The selected position is invalid.",
-	"report.statusDuplicate": "A location named \"{name}\" already exists.",
+	"report.statusDuplicate": "A location named \"{name}\" already exists. Location names stay unique - give the second place a parenthetical qualifier, the way the wiki does (e.g. \"{name} (Region)\").",
 	"report.statusSending": "Sending report...",
 	"report.typeOption.weg": "Path/Road",
 	"report.typeOption.territorium": "Territory",

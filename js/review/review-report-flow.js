@@ -266,7 +266,7 @@ async function handleLocationReportFormSubmit(event) {
 	if (!isChangeMode && payload.report_type === "location") {
 		const duplicateLocation = findDuplicateLocationByName(payload.name);
 		if (duplicateLocation) {
-			setLocationReportStatus(tr("report.statusDuplicate", `Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, { name: duplicateLocation.name }), "error");
+			setLocationReportStatus(tr("report.statusDuplicate", duplicateLocationNameMessage(duplicateLocation.name), { name: duplicateLocation.name }), "error");
 			return;
 		}
 	}

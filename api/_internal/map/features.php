@@ -34,6 +34,24 @@ function avesmapsNormalizeDuplicateLocationName(string $value): string {
     return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
 }
 
+// Bug #46: a rejected name must not be a dead end. Location names stay unique because the ROUTE
+// GRAPH IS KEYED BY NAME on both ends -- api/_internal/routing/client-graph.php builds
+// $graph[$name] and js/routing/route-graph-routing.js mirrors it -- so two active locations
+// sharing a name collapse into ONE graph node and a route would walk in at one place and out at
+// the other. Rather than forbid the second place outright, point the editor at the convention
+// Wiki Aventurica itself uses: a parenthetical qualifier. "(Region)" is a visible PLACEHOLDER,
+// not a proposed region -- resolving the real one would mean querying the political layer, a
+// known performance hotspot. Kept ASCII like every other message in this file; the identical
+// wording lives in js/routing/routing.js duplicateLocationNameMessage().
+function avesmapsDuplicateLocationNameMessage(string $existingName): string {
+    return sprintf(
+        'Ein Ort namens "%s" existiert bereits. Ortsnamen bleiben eindeutig - gib dem zweiten Ort'
+        . ' einen Zusatz in Klammern, so wie im Wiki (z. B. "%s (Region)").',
+        $existingName,
+        $existingName
+    );
+}
+
 function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
     $normalizedName = avesmapsNormalizeDuplicateLocationName($name);
     if ($normalizedName === '') {
@@ -62,7 +80,7 @@ function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $exclu
         }
 
         if (avesmapsNormalizeDuplicateLocationName($existingName) === $normalizedName) {
-            throw new InvalidArgumentException('Ein Ort mit diesem Namen existiert bereits.');
+            throw new InvalidArgumentException(avesmapsDuplicateLocationNameMessage($existingName));
         }
     }
 }

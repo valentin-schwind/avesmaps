@@ -1095,6 +1095,23 @@ const normalizeLocationDuplicateName = (name) => {
 		: "";
 };
 
+// Mirrors the SERVER duplicate rule 1:1 (avesmapsNormalizeDuplicateLocationName,
+// api/_internal/map/features.php): lowercase, then drop everything that is neither a letter nor a
+// digit. Deliberately NOT normalizeLocationDuplicateName above -- that one also strips accents, so
+// it folded "Grötz" onto "Grotz" and refused names the server would happily have accepted. The
+// accent-folding variant stays where being generous is the point (matching what a user typed into
+// a waypoint field); the duplicate CHECK must predict the server exactly, or the editor is told
+// "already exists" about a name that is in fact free.
+const normalizeServerDuplicateLocationName = (name) => {
+	return typeof name === "string" ? name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "") : "";
+};
+
+// Same sentence the server throws (avesmapsDuplicateLocationNameMessage) -- one rule, one wording,
+// whichever side rejects first. Bug #46: name the place that blocks, then say what to do about it.
+function duplicateLocationNameMessage(existingName) {
+	return `Ein Ort namens "${existingName}" existiert bereits. Ortsnamen bleiben eindeutig - gib dem zweiten Ort einen Zusatz in Klammern, so wie im Wiki (z. B. "${existingName} (Region)").`;
+}
+
 const validateLocation = (name) => {
 	const normalizedName = normalizeLocationSearchName(name);
 
@@ -1106,17 +1123,21 @@ const validateLocation = (name) => {
 };
 
 function findDuplicateLocationByName(name, { excludePublicId = "", allowCurrentName = "" } = {}) {
-	const normalizedName = normalizeLocationDuplicateName(name);
+	const normalizedName = normalizeServerDuplicateLocationName(name);
 	if (!normalizedName) {
 		return null;
 	}
 
-	const normalizedCurrentName = normalizeLocationDuplicateName(allowCurrentName);
+	const normalizedCurrentName = normalizeServerDuplicateLocationName(allowCurrentName);
 	if (normalizedCurrentName !== "" && normalizedCurrentName === normalizedName) {
 		return null;
 	}
 
 	return locationData.find((location) => {
+		// Crossings are skipped even though the server DOES compare against them: prepareLocationData
+		// renumbers them client-side (`Kreuzung-${crossingCount++}`), so the names in locationData are
+		// synthetic labels, not the stored ones. Checking them here would compare against fabricated
+		// data. A settlement colliding with a real crossing name is caught server-side instead.
 		if (isCrossingLocation(location)) {
 			return false;
 		}
@@ -1125,7 +1146,7 @@ function findDuplicateLocationByName(name, { excludePublicId = "", allowCurrentN
 			return false;
 		}
 
-		return normalizeLocationDuplicateName(location.name) === normalizedName;
+		return normalizeServerDuplicateLocationName(location.name) === normalizedName;
 	}) || null;
 }
 

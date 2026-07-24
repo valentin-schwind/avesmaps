@@ -548,7 +548,7 @@ async function handleWikiSyncResolveFormSubmit(event) {
 		allowCurrentName: activeWikiSyncSelectedMap?.name || "",
 	});
 	if (duplicateLocation) {
-		setWikiSyncResolveStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
+		setWikiSyncResolveStatus(duplicateLocationNameMessage(duplicateLocation.name), "error");
 		return;
 	}
 

@@ -14,7 +14,7 @@ async function handleLocationEditFormSubmit(event) {
 		allowCurrentName: locationEditMarkerEntry?.location?.name || locationEditMarkerEntry?.name || "",
 	});
 	if (duplicateLocation) {
-		setLocationEditStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
+		setLocationEditStatus(duplicateLocationNameMessage(duplicateLocation.name), "error");
 		return;
 	}
 	setLocationEditStatus("Ort wird gespeichert...", "pending");
