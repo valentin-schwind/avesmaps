@@ -333,8 +333,12 @@ function avesmapsDumpReportPreviousDecoded(PDO $pdo, int $beforeId): ?array
  * Store one run's report: normalize -> classify against the previous one -> upsert -> prune.
  * Idempotent per run_id (a repeated save of the same run overwrites rather than duplicating).
  *
+ * Returns the STORED report and its delta alongside the verdict, so the caller can render
+ * exactly what was persisted. The client cannot build this itself: by_kind/entries are derived
+ * here, so a client that renders its own draft shows a report with no counts in it at all.
+ *
  * @param array<string,mixed> $raw
- * @return array{notable:bool, reason:string}
+ * @return array{notable:bool, reason:string, report:array<string,mixed>, delta:array<string,mixed>}
  */
 function avesmapsDumpReportStore(PDO $pdo, int $runId, array $raw): array
 {
@@ -348,6 +352,7 @@ function avesmapsDumpReportStore(PDO $pdo, int $runId, array $raw): array
     if ($byKind !== []) {
         $report['steps']['read'] = ($report['steps']['read'] ?? []) + [];
         $report['steps']['read']['by_kind'] = $byKind;
+        $report['steps']['read']['entries'] = array_sum($byKind);
     }
     // Compare against the newest EXISTING row. Done before the upsert so that re-saving the same
     // run does not end up comparing the run against itself.
@@ -383,7 +388,10 @@ function avesmapsDumpReportStore(PDO $pdo, int $runId, array $raw): array
 
     avesmapsDumpReportPrune($pdo);
 
-    return $verdict;
+    return $verdict + [
+        'report' => $report,
+        'delta' => avesmapsDumpReportDelta($report, is_array($previous) ? $previous : null),
+    ];
 }
 
 /**

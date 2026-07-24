@@ -965,14 +965,12 @@ async function startWikiSyncDumpRead() {
 		setWikiSyncDumpButtonsDisabled(true, "Liest Dump...");
 		setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
 		const readRun = await runWikiSyncDumpLoop("read_step");
-		// The run's public id is what save_report keys on. per-kind counts are NOT taken from
-		// here on purpose -- the progress envelope does not carry them; the server derives them
-		// from the run's own sandbox rows (avesmapsDumpReportKindCountsForRun).
+		// The run's public id is what save_report keys on. The loop returns the RUN row, and
+		// `progress` is a SIBLING of `run` in the step response, not a child -- so there is no
+		// page count to read here. The counts (by_kind/entries) are derived server-side from the
+		// run's own sandbox rows and come back in the save_report response.
 		dumpReportRunId = (readRun && readRun.public_id) || null;
-		dumpReportDraft.steps.read = {
-			ok: true,
-			pages_scanned: Number((readRun && readRun.progress && readRun.progress.pages_scanned) || 0),
-		};
+		dumpReportDraft.steps.read = { ok: true };
 
 		// Step 3/4: prune old sandbox state now that this scan succeeded. A cleanup
 		// failure is reported but does NOT roll back the scan that already completed
@@ -1010,19 +1008,30 @@ async function startWikiSyncDumpRead() {
 		// Persist the report. BEST-EFFORT on purpose: the run itself already succeeded and is
 		// never rolled back, so a failed save must not turn a good run into a failed one. The
 		// overlay below still shows the numbers it holds in memory either way.
+		// What we RENDER is what the server stored, not our draft: the per-kind counts and the
+		// comparison to the previous run are derived server-side, so rendering the draft would
+		// show a report with no counts in it at all.
+		let dumpReportShown = dumpReportDraft;
+		let dumpReportDelta = null;
 		if (dumpReportRunId) {
 			try {
-				await submitWikiSyncDumpAction("save_report", { run_id: dumpReportRunId, report: dumpReportDraft });
+				const saved = await submitWikiSyncDumpAction("save_report", { run_id: dumpReportRunId, report: dumpReportDraft });
+				dumpReportShown = (saved && saved.report) || dumpReportDraft;
+				dumpReportDelta = (saved && saved.delta) || null;
 			} catch (saveError) {
 				console.error("Dump-Report speichern fehlgeschlagen:", saveError);
 				dumpReportDraft.save_failed = true;
 			}
+		} else {
+			// No run id means save_report was never called -- say so instead of showing a
+			// countless report that looks like the run did nothing.
+			dumpReportDraft.save_failed = true;
 		}
 
 		// Dump-Report: after a full run, open the in-editor report -- the run's own numbers plus
 		// the code's self-tests green/red in the browser (no shell on STRATO).
 		// Fire-and-forget + fully guarded so a report bug can NEVER affect the dump flow.
-		try { void avesmapsOpenDumpReport(dumpReportDraft); } catch (reportError) { console.error("Dump-Report:", reportError); }
+		try { void avesmapsOpenDumpReport(dumpReportShown, dumpReportDelta); } catch (reportError) { console.error("Dump-Report:", reportError); }
 	} catch (error) {
 		console.error("Dump holen fehlgeschlagen:", error);
 		isWikiSyncDumpRunning = false;
@@ -1205,7 +1214,11 @@ async function avesmapsDumpReportRunTests() {
 				const failLines = d.output.split("\n").filter((line) => /FAIL|RESULT|expected|actual/i.test(line));
 				detail.textContent = (failLines.length ? failLines.join("\n") : d.output).slice(0, 4000);
 			} else if (run.status === 500 && d && d.error && d.error.code === "test_missing") {
-				detail.textContent = "Die Testdateien liegen noch nicht auf dem Server. Einmal einen vollständigen Deploy (GitHub Actions → „Deploy Avesmaps to STRATO“ → Run workflow) auslösen.";
+				// Wording matters here: the automatic deploy on every push IS a deploy, so
+				// "einen Deploy auslösen" reads as already done and the message looks broken.
+				// It has to name the ONE thing that is different -- push = only changed files,
+				// and the manual run defaults to dry_run=true, which uploads nothing at all.
+				detail.textContent = "Die Testdateien liegen noch nicht auf dem Server. Der automatische Deploy beim Push überträgt nur GEÄNDERTE Dateien — Testdateien, die sich nie ändern, kommen so nie an. Einmalig nötig: GitHub Actions → „Deploy Avesmaps to STRATO“ → Run workflow, dabei „dry_run“ auf false stellen (Standard ist true und lädt nichts hoch).";
 			} else {
 				detail.textContent = d && d.error && d.error.message ? d.error.message : "Unbekannter Fehler beim Ausführen des Tests.";
 			}
@@ -1244,9 +1257,9 @@ function avesmapsDumpReportRunSectionHtml(report, delta) {
 	const pub = steps.sync_publications || {};
 	const rows = [];
 
-	const scanned = Number((steps.read && steps.read.pages_scanned) || 0);
-	if (scanned > 0) {
-		rows.push(`<li><span>Seiten gelesen</span><b>${scanned.toLocaleString("de-DE")}</b></li>`);
+	const entries = Number((steps.read && steps.read.entries) || 0);
+	if (entries > 0) {
+		rows.push(`<li><span>Einträge im Dump</span><b>${entries.toLocaleString("de-DE")}</b></li>`);
 	}
 	rows.push(`<li><span>Publikationsquellen</span><b>+${Number(pub.added || 0)} / ~${Number(pub.updated || 0)} / −${Number(pub.removed || 0)}</b></li>`);
 

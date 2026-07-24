@@ -923,6 +923,10 @@ try {
                 'ok' => true,
                 'notable' => $reportVerdict['notable'],
                 'reason' => $reportVerdict['reason'],
+                // Echo the STORED report back: by_kind/entries are derived server-side, so a
+                // client rendering its own draft would show a report with no counts in it.
+                'report' => $reportVerdict['report'],
+                'delta' => $reportVerdict['delta'],
             ]);
             // no break -- avesmapsJsonResponse exits.
 
