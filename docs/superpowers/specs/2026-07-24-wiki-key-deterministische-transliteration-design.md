@@ -3,6 +3,10 @@
 **Datum:** 2026-07-24 · **Auftraggeber:** Owner · **Bezug:** AGENTS.md §10
 (bekannte Fragilitäten), `docs/konfliktmanagement-design.md` (Dump-Bericht)
 
+**Status:** umgesetzt 2026-07-24 · alle 11 Selbsttests lokal grün ·
+Live-Parität 1384/1384 · Plan:
+`docs/superpowers/plans/2026-07-24-wiki-key-deterministische-transliteration.md`
+
 ## 1. Ausgangslage
 
 `avesmapsPoliticalSlug()` (`api/_internal/political/territory.php:1058-1072`)

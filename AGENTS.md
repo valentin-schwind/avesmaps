@@ -136,6 +136,17 @@ DDL in PHP** (self-healing pattern), partially mirrored in `sql/`. Key tables:
 > The tell: if you are about to write `CREATE TABLE <feature>_source`, stop — the
 > answer is one more `entity_type`.
 
+**`wiki_key` derivation is a fixed table, never a locale.** `avesmapsPoliticalSlug()`
+and the WikiSync match key fold non-ASCII through `avesmapsFoldToAscii()`
+(`api/_internal/text/ascii-fold.php`) — **not** `iconv//TRANSLIT`, which is
+libc-dependent and keyed the same name differently on the dev machine and on
+STRATO. The table reproduces the **server's** form: umlauts fold to `'?'` and
+lose their base letter (`Fürstentum Kosch` → `wiki:f-rstentum-kosch`), verified
+against 1384/1384 live rows. Making it "nicer" rewrites every umlaut-bearing key
+and silently breaks every join using one — that is a data migration across ~10
+tables, not an edit to the table. Guarded by `tools/wikidump/test-ascii-fold.php`
+(self-test panel) and `tools/wikidump/verify-live-key-parity.php` (against prod).
+
 **Coordinate convention:** GeoJSON stores `[x, y]`; Leaflet `L.CRS.Simple` uses
 `[lat, lng] = [y, x]`. Always swap consciously.
 
