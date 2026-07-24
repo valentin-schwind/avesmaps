@@ -141,6 +141,11 @@
 	   IMMER-hellen Kartenkacheln, nicht auf einem Theme-Panel, also kein Dark-Override. */
 	--color-marker-unconnected-ring: #e0559a;
 	--color-marker-sparse-crossing-ring: #0fb9b1;
+	/* Discord #43 -- bernstein = "offenes Wegende": ein per Strg vom Ort getrenntes Wegende, das noch
+	   an nichts haengt. Gleiche Begruendung wie oben (helle Kacheln, kein Dark-Override). Bewusst
+	   NICHT --color-accent: das Gold markiert waehrend des Ziehens den Marker, das Bernstein danach
+	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
+	--color-marker-open-path-end-ring: #e8850c;
 
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);

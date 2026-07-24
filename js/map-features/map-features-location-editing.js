@@ -35,13 +35,21 @@ function setLocationEditActive(markerEntry, isActive) {
 		};
 		markerEntry.marker.dragging.enable();
 		markerEntry.marker.closePopup();
-		showFeedbackToast(`${markerEntry.name}: Marker verschieben, Loslassen speichert.`, "info");
+		// Discord #43: this is the ONE funnel through which a marker becomes draggable, so it is
+		// where the Ctrl-detach tracking is armed and disarmed (see map-features-location-detach-edit.js).
+		if (typeof avesmapsArmLocationDetachTracking === "function") {
+			avesmapsArmLocationDetachTracking(markerEntry);
+		}
+		showFeedbackToast(`${markerEntry.name}: Marker verschieben, Loslassen speichert. Mit Strg bleiben angeschlossene Wege liegen.`, "info");
 		return;
 	}
 
 	if (activeLocationEdit?.markerEntry === markerEntry) {
 		void releaseFeatureSoftLock(activeLocationEdit.markerEntry.publicId);
 		activeLocationEdit = null;
+	}
+	if (typeof avesmapsDisarmLocationDetachTracking === "function") {
+		avesmapsDisarmLocationDetachTracking();
 	}
 	markerEntry.marker.dragging.disable();
 }
@@ -139,6 +147,12 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 	}
 
 	const previousCoordinates = Array.isArray(markerEntry.location?.coordinates) ? [...markerEntry.location.coordinates] : null;
+	// Discord #43: with Ctrl held during the drag the connected way ends stay put, so a place can be
+	// pulled off its ways for a moment instead of dragging them across the map. Read BEFORE the first
+	// await -- ending the edit clears the intent, and the change-report path (review-editor-submit.js)
+	// calls this function without a drag at all, where it is correctly false.
+	const shouldDetachConnectedPaths = typeof avesmapsConsumeLocationDetachIntent === "function"
+		&& avesmapsConsumeLocationDetachIntent();
 
 	try {
 		const payload = await submitMapFeatureEdit({
@@ -152,7 +166,11 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 		markerEntry.location.revision = Number(payload.feature?.revision) || markerEntry.location.revision || null;
 		markerEntry.marker.setLatLng(normalizedLatLng);
 		updateRevisionFromEditResponse(payload);
-		const pathMoveSummary = previousCoordinates
+		// Registered only after the move actually saved -- a failed save leaves no gap to watch.
+		const detachedPathEndCount = shouldDetachConnectedPaths && previousCoordinates && typeof avesmapsRegisterDetachedPathEnds === "function"
+			? avesmapsRegisterDetachedPathEnds(previousCoordinates)
+			: 0;
+		const pathMoveSummary = previousCoordinates && !shouldDetachConnectedPaths
 			? await moveConnectedPathEndpointsForLocation(previousCoordinates, markerEntry.location.coordinates)
 			: {
 				movedPathCount: 0,
@@ -160,6 +178,17 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 			};
 		syncLocationNameLabelVisibility();
 		refreshPlannerAfterFeatureChange({ updateRoute: true });
+		if (shouldDetachConnectedPaths) {
+			// Warning tone on purpose: the separation is a working state on borrowed time, and the
+			// counter on the map keeps saying so until the last end hangs on a place again.
+			showFeedbackToast(
+				detachedPathEndCount > 0
+					? `${markerEntry.name} verschoben — ${detachedPathEndCount} ${detachedPathEndCount === 1 ? "Wegende blieb" : "Wegenden blieben"} liegen (Strg).`
+					: `${markerEntry.name} gespeichert.`,
+				detachedPathEndCount > 0 ? "warning" : "success"
+			);
+			return true;
+		}
 		const movedPathText = pathMoveSummary.movedPathCount > 0
 			? ` und ${pathMoveSummary.movedPathCount} ${pathMoveSummary.movedPathCount === 1 ? "angeschlossener Weg" : "angeschlossene Wege"} mitverschoben`
 			: "";

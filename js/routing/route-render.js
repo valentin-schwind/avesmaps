@@ -332,6 +332,11 @@ function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 	locationConnectivityIndex = null;
 	refreshWaypointAutocompleteSources();
 	syncPlannerStateToUrl();
+	// Discord #43: the central point after ANY feature change, so a way end that was reattached in
+	// the meantime drops off the "open ends" counter by itself (map-features-location-detach-edit.js).
+	if (typeof avesmapsRefreshOpenPathEnds === "function") {
+		avesmapsRefreshOpenPathEnds();
+	}
 
 	if (updateRoute && getWaypointInputValues().length) {
 		updateRouteKeepingCurrentMapView();

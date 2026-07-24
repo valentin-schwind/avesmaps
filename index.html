@@ -587,6 +587,13 @@
 			<span id="region-operation-chip-text"></span>
 			<button id="region-operation-cancel" type="button">Abbrechen</button>
 		</div>
+		<!-- Discord #43: zaehlt die Wegenden, die per Strg vom Ort getrennt wurden und noch an
+		     keinem Ort haengen. Steht nur im Editiermodus und nur, solange etwas offen ist. -->
+		<div id="open-path-ends-chip" class="open-path-ends-chip" role="status" aria-live="polite" hidden>
+			<span class="open-path-ends-chip__dot" aria-hidden="true"></span>
+			<span id="open-path-ends-chip-text"></span>
+			<button id="open-path-ends-chip-next" type="button">Zum nächsten</button>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -1730,6 +1737,7 @@
 		<script src="js/map-features/map-features-region-crud.js"></script>
 		<script src="js/map-features/map-features-location-lookup.js"></script>
 		<script src="js/map-features/map-features-location-marker-entry.js"></script>
+		<script src="js/map-features/map-features-location-detach-edit.js"></script>
 		<script src="js/map-features/map-features-place-extras.js"></script>
 		<script src="js/map-features/map-features-region-operation-chip.js"></script>
 		<script src="js/map-features/map-features-region-context-menu.js"></script>
