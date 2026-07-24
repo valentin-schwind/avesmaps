@@ -310,6 +310,10 @@ const CONFLICTS_API_URL = window.AVESMAPS_CONFLICTS_ENDPOINT || "api/edit/map/co
 const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
 const EDIT_MODE_MAP_STYLE_STORAGE_KEY = "avesmaps.edit.mapStyle";
+// Persisted edit-mode map frame: {"lat":…,"lng":…,"zoom":…}. Deliberately its OWN key, NOT folded into
+// avesmaps.edit.plannerState -- that string is built by buildPlannerSearchParams(), which also builds the
+// ?s= share links, so a lat/lng/zoom there would leak into every share link an editor creates.
+const EDIT_MODE_MAP_VIEW_STORAGE_KEY = "avesmaps.edit.mapView";
 const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 const MAX_SHARED_WAYPOINTS = 25;
 const DEFAULT_SHARE_PIN_ZOOM = 4;

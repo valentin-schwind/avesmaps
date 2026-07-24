@@ -1,5 +1,38 @@
 
 // Initialisierung der Karte 
+// Seed the initial view from a persisted edit-mode frame (avesmaps.edit.mapView) so a reload lands on the
+// same center + zoom WITHOUT a visible jump. config.js loads before this file, so IS_EDIT_MODE, the storage
+// key and MAP_BOUNDS are ready here. Seeding (instead of flying there after load) also sidesteps the entire
+// precedence question: everything that navigates on start -- ?s= share links, wiki deep-links, ?place=,
+// ?route=, spotlight focus -- runs AFTER map creation and overrides this seed exactly as it overrides the
+// hardcoded default. Not edit mode, no stored frame, or a corrupt / out-of-bounds one -> the default, quietly.
+const AVESMAPS_DEFAULT_MAP_CENTER = [478.0, 539.0];
+const AVESMAPS_DEFAULT_MAP_ZOOM = 2;
+function getInitialEditMapView() {
+    if (!IS_EDIT_MODE) {
+        return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
+    }
+    try {
+        const raw = window.localStorage?.getItem(EDIT_MODE_MAP_VIEW_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            const lat = Number(parsed?.lat);
+            const lng = Number(parsed?.lng);
+            const zoom = Number(parsed?.zoom);
+            const centerOk = Number.isFinite(lat) && Number.isFinite(lng)
+                && L.latLngBounds(MAP_BOUNDS).contains([lat, lng]);
+            const zoomOk = Number.isFinite(zoom) && zoom >= 0 && zoom <= 7; // maxZoom is 7 (see the L.map options below)
+            if (centerOk && zoomOk) {
+                return { center: [lat, lng], zoom };
+            }
+        }
+    } catch (error) {
+        // Corrupt JSON or blocked storage -> fall through to the default, no console noise.
+    }
+    return { center: AVESMAPS_DEFAULT_MAP_CENTER, zoom: AVESMAPS_DEFAULT_MAP_ZOOM };
+}
+const avesmapsInitialMapView = getInitialEditMapView();
+
 const map = L.map("map", {
     crs: L.CRS.Simple,
     minZoom: 0,
@@ -10,7 +43,7 @@ const map = L.map("map", {
     continuousWorld: false,
     noWrap: true,
     zoomControl: false,
-}).setView([478.0, 539.0], 2);
+}).setView(avesmapsInitialMapView.center, avesmapsInitialMapView.zoom);
 
 // Rendering-Reihenfolge
 map.createPane("regionsPane");
@@ -66,6 +99,37 @@ map.on("moveend", () => {
     syncLabelVisibility();
     schedulePoliticalTerritoryLayerReload();
 });
+
+// Persist the edit-mode map view (center + zoom) so a reload restores the same frame (read back by
+// getInitialEditMapView above). Throttled ~400ms, mirroring syncPlannerStateToUrl; wired only in edit
+// mode. NaN-guarded before every write: a NaN pan once crashed the routing path, so a non-finite center
+// or zoom must never reach storage. The address bar is intentionally untouched -- this is storage only.
+let avesmapsMapViewPersistTimer = null;
+function persistEditMapView() {
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    if (!center || !Number.isFinite(center.lat) || !Number.isFinite(center.lng) || !Number.isFinite(zoom)) {
+        return;
+    }
+    try {
+        window.localStorage?.setItem(
+            EDIT_MODE_MAP_VIEW_STORAGE_KEY,
+            JSON.stringify({ lat: center.lat, lng: center.lng, zoom })
+        );
+    } catch (error) {
+        // storage blocked/full -> the view simply won't persist this time.
+    }
+}
+function scheduleEditMapViewPersist() {
+    if (avesmapsMapViewPersistTimer) {
+        window.clearTimeout(avesmapsMapViewPersistTimer);
+    }
+    avesmapsMapViewPersistTimer = window.setTimeout(persistEditMapView, 400);
+}
+if (IS_EDIT_MODE) {
+    map.on("moveend", scheduleEditMapViewPersist);
+    map.on("zoomend", scheduleEditMapViewPersist);
+}
 map.on("click", () => {
     closeRegionCompactTooltip();
     if (IS_EDIT_MODE && !pendingRegionOperation && !pendingRegionMoveState) {
