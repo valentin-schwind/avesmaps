@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../text/ascii-fold.php';
+
 function makeStableKey(string $value): string {
     $value = trim($value);
     if ($value === '') {
@@ -11,12 +13,10 @@ function makeStableKey(string $value): string {
     $value = mb_strtolower($value, 'UTF-8');
     $value = str_replace(['ä', 'ö', 'ü', 'ß', 'æ', 'œ', 'ø', 'ð', 'þ'], ['ae', 'oe', 'ue', 'ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
 
-    if (function_exists('iconv')) {
-        $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
-        if (is_string($transliterated)) {
-            $value = $transliterated;
-        }
-    }
+    // Deterministic table, NOT iconv//TRANSLIT. ä/ö/ü are already mapped to
+    // ae/oe/ue above, so the fold only sees residual accents here -- for those
+    // it reproduces what the server produced before ('Côte' -> 'c-te').
+    $value = avesmapsFoldToAscii($value);
 
     $value = preg_replace('/[^a-z0-9]+/u', '-', $value) ?? '';
     $value = trim($value, '-');

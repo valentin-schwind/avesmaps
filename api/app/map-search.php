@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
+require_once __DIR__ . '/../_internal/text/ascii-fold.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
 
@@ -388,12 +389,11 @@ function avesmapsNormalizeSearchText(string $value): string {
         ['ss', 'ae', 'oe', 'ue', 'a', 'a', 'a', 'e', 'e', 'e', 'i', 'i', 'i', 'o', 'o', 'o', 'u', 'u', 'u'],
         $normalizedValue
     );
-    if (function_exists('iconv')) {
-        $transliteratedValue = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalizedValue);
-        if (is_string($transliteratedValue) && $transliteratedValue !== '') {
-            $normalizedValue = $transliteratedValue;
-        }
-    }
+    // Deterministic table, NOT iconv//TRANSLIT. The German umlauts and the
+    // common accents are already mapped above, so the fold only catches the
+    // leftovers -- and turns them into a word separator, exactly as the
+    // server's iconv did. Query and haystack run through the same function.
+    $normalizedValue = avesmapsFoldToAscii($normalizedValue);
 
     return trim(preg_replace('/[^a-z0-9]+/', ' ', $normalizedValue) ?? '');
 }

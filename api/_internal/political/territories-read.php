@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../text/ascii-fold.php';
+
 function avesmapsPoliticalResolveDisplayStateForTerritory(array $displays, array $territory, int $index): array {
     $territoryPublicId = trim((string) ($territory['public_id'] ?? ''));
     $territorySlug = trim((string) ($territory['slug'] ?? ''));
@@ -1108,12 +1110,11 @@ function avesmapsPoliticalNormalizeHierarchyRootKey(string $value): string {
     }
 
     $normalized = str_replace('ß', 'ss', $normalized);
-    if (function_exists('iconv')) {
-        $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
-        if (is_string($transliterated)) {
-            $normalized = $transliterated;
-        }
-    }
+    // Deterministic table, NOT iconv//TRANSLIT. Umlauts fold to '?' and are then
+    // dropped: 'unabhängig' -> 'unabhngig'. That is why the hard-coded list in
+    // avesmapsPoliticalIsUnassignedRootKey() carries BOTH spellings -- it was
+    // written to survive the two libc forms this change removes.
+    $normalized = avesmapsFoldToAscii($normalized);
 
     $normalized = preg_replace('/[^a-z0-9]+/i', '', $normalized) ?? '';
 

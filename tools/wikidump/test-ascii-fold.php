@@ -235,6 +235,62 @@ $check('leading and trailing',      '?a?',              avesmapsFoldToAscii('üa
 // the combining mark does not. Same shape iconv produced.
 $check('decomposed umlaut',         'u?',               avesmapsFoldToAscii("u\u{0308}"),         'combining mark folds, ASCII base survives');
 
+// ===========================================================================
+// E. The two transient callers that can be included stand-alone.
+//    (The third, avesmapsNormalizeSearchText() in api/app/map-search.php, lives
+//    in an endpoint file that executes on include and cannot be unit-tested
+//    without refactoring it -- out of scope here. It pre-maps ä/ö/ü itself, so
+//    the fold only ever sees residual accents there, exactly as below.)
+// ===========================================================================
+echo "\n-- E: transient callers --\n";
+
+require $repoRoot . '/api/_internal/political/wiki-browser-support.php';
+require $repoRoot . '/api/_internal/political/territories-read.php';
+
+foreach (['makeStableKey', 'avesmapsPoliticalNormalizeHierarchyRootKey'] as $requiredFn) {
+    if (!function_exists($requiredFn)) {
+        fwrite(STDERR, "FATAL: expected function {$requiredFn}() was not defined by the included libraries.\n");
+        exit(2);
+    }
+}
+
+// makeStableKey maps ä/ö/ü -> ae/oe/ue ITSELF, before the fold. So for umlauts
+// it is a genuine no-op: identical before and after this change, on both
+// machines. Pinned so a later "cleanup" cannot quietly route umlauts through
+// the fold here and turn 'fuerstentum-kosch' into 'f-rstentum-kosch'.
+$check(
+    'stable key, umlaut pre-mapped',
+    'fuerstentum-kosch',
+    makeStableKey('Fürstentum Kosch'),
+    'ue is pre-mapped -> the fold never sees it (NO-OP)'
+);
+
+// ô is NOT in makeStableKey's pre-map, so it does reach the fold. This is the
+// case that differed: dev machine produced 'c-ote-d-or', STRATO 'c-te-d-or'.
+$check(
+    'stable key, residual accent',
+    'c-te-d-or',
+    makeStableKey("C\u{00F4}te d\u{2019}Or"),
+    "o-circumflex reaches the fold -> '?' -> hyphen (the SERVER's form)"
+);
+
+// This one is why api/_internal/political/territories-read.php:1095 lists BOTH
+// 'unabhangig' AND 'unabhngig': someone hit the two libc forms and defended
+// against them without naming the cause.
+$check(
+    'root key, umlaut',
+    'unabhngig',
+    avesmapsPoliticalNormalizeHierarchyRootKey('unabhängig'),
+    "SERVER form -- the reason line 1095 carries both spellings"
+);
+
+$check(
+    'root key, second both-forms entry',
+    'ungeklrt',
+    avesmapsPoliticalNormalizeHierarchyRootKey('ungeklärt'),
+    'same, for the other hard-coded root key'
+);
+
 // ---------------------------------------------------------------------------
 // 3. Summary + exit code.
 // ---------------------------------------------------------------------------
