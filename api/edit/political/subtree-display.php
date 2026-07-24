@@ -183,6 +183,7 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
     );
 
     $changed = 0;
+    $zoomByPublicId = [];
     foreach ($updates as $update) {
         $minZoom = avesmapsPoliticalSubtreeDisplayReadOptionalZoom($update['min_zoom'] ?? $update['minZoom'] ?? null);
         $maxZoom = avesmapsPoliticalSubtreeDisplayReadOptionalZoom($update['max_zoom'] ?? $update['maxZoom'] ?? null);
@@ -202,13 +203,91 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
             ':max_zoom' => $maxZoom,
             ':public_id' => strtolower((string) $publicId),
         ]);
+        $zoomByPublicId[strtolower((string) $publicId)] = ['zoomMin' => $minZoom, 'zoomMax' => $maxZoom];
     }
+
+    // CRITICAL: the two columns above are what the MAP reads -- but the EDITOR reads the display band in
+    // political_territory_geometry.style_json (assignmentDisplays[].zoomMin/zoomMax). Writing only the
+    // columns (as this used to) left that band stale, so "reset super-/sub-regions to the default zoom
+    // rules" and "adopt for all sibling regions" changed the map but the editor kept showing the OLD
+    // numbers on the next open -- indistinguishable from "it did not save". Write the third place too,
+    // exactly like assignment-zoom-sync does on an editor save.
+    $updatedDisplays = avesmapsPoliticalSubtreeDisplayWriteZoomToAssignmentDisplays($pdo, $zoomByPublicId);
 
     return [
         'ok' => true,
         'changed' => $changed,
         'received' => count($updates),
+        'updated_displays' => $updatedDisplays,
     ];
+}
+
+/**
+ * Mirror an explicit {publicId => zoom band} map into every active geometry's assignmentDisplays.
+ *
+ * Deliberately ONE pass over the geometries regardless of how many territories are being updated (a
+ * reset can carry hundreds) -- STRATO shared hosting punishes per-row fan-out. Only the zoom keys of
+ * entries whose territoryPublicId is in the map are touched; colour, opacity and everything else in
+ * style_json stay exactly as they are, and a malformed style is skipped rather than rewritten.
+ */
+function avesmapsPoliticalSubtreeDisplayWriteZoomToAssignmentDisplays(PDO $pdo, array $zoomByPublicId): int {
+    if ($zoomByPublicId === []) {
+        return 0;
+    }
+
+    $selectStatement = $pdo->query('SELECT id, style_json FROM political_territory_geometry WHERE is_active = 1 AND style_json IS NOT NULL');
+    if ($selectStatement === false) {
+        return 0;
+    }
+
+    $updateStatement = $pdo->prepare('UPDATE political_territory_geometry SET style_json = :style_json WHERE id = :id');
+    $updatedDisplays = 0;
+
+    foreach ($selectStatement->fetchAll(PDO::FETCH_ASSOC) as $geometry) {
+        $style = json_decode((string) ($geometry['style_json'] ?? ''), true);
+        if (!is_array($style)) {
+            continue;
+        }
+
+        $key = isset($style['assignmentDisplays']) && is_array($style['assignmentDisplays'])
+            ? 'assignmentDisplays'
+            : (isset($style['assignment_displays']) && is_array($style['assignment_displays']) ? 'assignment_displays' : '');
+        if ($key === '') {
+            continue;
+        }
+
+        $changed = false;
+        foreach ($style[$key] as $index => $display) {
+            if (!is_array($display)) {
+                continue;
+            }
+            $displayPublicId = strtolower(trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? '')));
+            if ($displayPublicId === '' || !isset($zoomByPublicId[$displayPublicId])) {
+                continue;
+            }
+            $zoom = $zoomByPublicId[$displayPublicId];
+            if (($display['zoomMin'] ?? null) === $zoom['zoomMin'] && ($display['zoomMax'] ?? null) === $zoom['zoomMax']) {
+                continue;
+            }
+            $style[$key][$index]['zoomMin'] = $zoom['zoomMin'];
+            $style[$key][$index]['zoomMax'] = $zoom['zoomMax'];
+            unset($style[$key][$index]['zoom_min'], $style[$key][$index]['zoom_max']);
+            $changed = true;
+            $updatedDisplays++;
+        }
+
+        if (!$changed) {
+            continue;
+        }
+
+        $encoded = json_encode($style, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($encoded === false) {
+            continue; // leave a malformed style untouched rather than corrupt it
+        }
+        $updateStatement->execute([':style_json' => $encoded, ':id' => (int) $geometry['id']]);
+    }
+
+    return $updatedDisplays;
 }
 
 /**
