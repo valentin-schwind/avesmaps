@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Ort vom Weg trennen (Discord-Idee #43)</title>
+<link rel="stylesheet" href="css/base/tokens.css">
+<style>
+	/* Entwurfs-Kopie der genutzten Tokens, damit die Seite auch ohne den CSS-Baum steht.
+	   Werte 1:1 aus css/base/tokens.css — die echte Umsetzung nutzt NUR die Tokens. */
+	:root {
+		--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+		--font-size-caption: 11px; --font-size-small: 12px; --font-size-body: 13px;
+		--font-size-subhead: 16px; --font-size-title: 20px;
+		--leading-normal: 1.45; --font-weight-bold: 700;
+		--color-page-bg: #f3f0e8; --color-panel: #fffdf9; --color-panel-muted: #f1ece1;
+		--color-text: #2e271e; --color-text-strong: #3c3327; --color-text-muted: #706557;
+		--color-border: #ddd3c3; --color-border-strong: #cdbfa8;
+		--color-divider: rgba(125, 115, 96, 0.30);
+		--color-button-soft: #efe9db; --color-button-soft-text: #564b3b; --color-button-soft-border: #cdbda0;
+		--color-accent: #bfa03a; --color-accent-strong: #9c7f22;
+		--color-warning-soft: #faeeda; --color-warning-soft-border: #ef9f27; --color-warning-soft-text: #854f0b;
+		--radius-sm: 5px; --radius-md: 8px;
+	}
+	body {
+		margin: 0;
+		padding: 28px 32px 60px;
+		background: var(--color-page-bg);
+		color: var(--color-text);
+		font-family: var(--font-ui);
+		font-size: var(--font-size-body);
+	}
+	h1 {
+		margin: 0 0 4px;
+		font-size: var(--font-size-title);
+		color: var(--color-text-strong);
+		font-weight: var(--font-weight-bold);
+	}
+	.sub {
+		margin: 0 0 24px;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-small);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 18px;
+		max-width: 1080px;
+	}
+	.card {
+		background: var(--color-panel);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md, 8px);
+		padding: 14px 16px 16px;
+	}
+	.card h2 {
+		margin: 0 0 2px;
+		font-size: var(--font-size-subhead);
+		color: var(--color-text-strong);
+		font-weight: var(--font-weight-bold);
+	}
+	.card p.note {
+		margin: 0 0 10px;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-small);
+		line-height: var(--leading-normal);
+	}
+	.divider {
+		border: 0;
+		border-top: 1px solid var(--color-divider);
+		margin: 14px -16px;
+	}
+	svg { display: block; width: 100%; height: auto; }
+	.legend {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 18px;
+		margin-top: 10px;
+		font-size: var(--font-size-caption);
+		color: var(--color-text-muted);
+	}
+	.legend span { display: inline-flex; align-items: center; gap: 6px; }
+	.swatch { width: 12px; height: 12px; border-radius: 50%; }
+
+	/* --- Chip: offene Wegenden (Erinnerung) --- */
+	.openends-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px 12px;
+		border: 1px solid var(--color-warning-soft-border);
+		border-radius: var(--radius-md, 8px);
+		background: var(--color-warning-soft);
+		color: var(--color-warning-soft-text);
+		font-size: var(--font-size-small);
+		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+	}
+	.openends-chip__dot {
+		width: 12px; height: 12px; border-radius: 50%;
+		border: 3px solid var(--color-warning-soft-border);
+		background: transparent;
+	}
+	.openends-chip__action {
+		padding: 3px 9px;
+		border: 1px solid var(--color-button-soft-border);
+		border-radius: var(--radius-sm, 5px);
+		background: var(--color-button-soft);
+		color: var(--color-button-soft-text);
+		font-size: var(--font-size-caption);
+	}
+	.tooltip-skin {
+		display: inline-block;
+		padding: 5px 9px;
+		border: 1px solid var(--color-border-strong);
+		border-radius: var(--radius-sm, 5px);
+		background: var(--color-panel);
+		color: var(--color-text);
+		font-size: var(--font-size-caption);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+	}
+	.toast-skin {
+		display: inline-block;
+		padding: 9px 13px;
+		border: 1px solid var(--color-warning-soft-border);
+		border-radius: var(--radius-md, 8px);
+		background: var(--color-warning-soft);
+		color: var(--color-warning-soft-text);
+		font-size: var(--font-size-small);
+	}
+	.stack { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+	.kbd {
+		display: inline-block;
+		padding: 1px 6px;
+		border: 1px solid var(--color-border-strong);
+		border-bottom-width: 2px;
+		border-radius: 4px;
+		background: var(--color-panel-muted);
+		font-size: var(--font-size-caption);
+		color: var(--color-text-strong);
+	}
+	.wide { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<h1>Ort vom Weg trennen</h1>
+<p class="sub">Neu im Editor seit 24.07. · <span class="kbd">Strg</span> beim Ziehen eines Ortes oder einer Kreuzung · Idee von Drachenschuppe (Discord&nbsp;#43)</p>
+
+<div class="grid">
+
+	<!-- 1: heute -->
+	<div class="card">
+		<h2>Ohne Strg — wie bisher</h2>
+		<p class="note">Der Ort wird verschoben, <strong>alle angeschlossenen Wegenden wandern mit</strong>. Bei einem weiten Sprung zieht sich der Weg quer über die Karte.</p>
+		<svg viewBox="0 0 380 210" role="img" aria-label="Ort verschoben, Wege werden mitgezogen">
+			<rect x="0" y="0" width="380" height="210" fill="var(--color-panel-muted)" rx="6"/>
+			<!-- alte Wege (blass) -->
+			<path d="M22 62 L96 96" stroke="var(--color-border-strong)" stroke-width="7" fill="none" stroke-linecap="round" opacity=".45"/>
+			<path d="M30 168 L96 96" stroke="var(--color-border-strong)" stroke-width="7" fill="none" stroke-linecap="round" opacity=".45"/>
+			<!-- mitgezogene Wege -->
+			<path d="M22 62 L300 74" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M22 62 L300 74" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<path d="M30 168 L300 74" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M30 168 L300 74" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<!-- alte Ortsposition -->
+			<circle cx="96" cy="96" r="7" fill="none" stroke="var(--color-text-muted)" stroke-width="2" stroke-dasharray="3 3"/>
+			<!-- Zugpfeil -->
+			<path d="M110 92 C 180 60, 240 60, 288 70" stroke="var(--color-text-muted)" stroke-width="1.5" fill="none" stroke-dasharray="5 4"/>
+			<path d="M288 70 l-9 -4 l1 8 z" fill="var(--color-text-muted)"/>
+			<!-- neuer Ort -->
+			<circle cx="300" cy="74" r="9" fill="#8a6d3b" stroke="#fffdf9" stroke-width="3"/>
+			<text x="314" y="78" font-size="12" fill="var(--color-text)" font-family="var(--font-ui)">Havena</text>
+			<text x="96" y="122" font-size="11" fill="var(--color-text-muted)" text-anchor="middle" font-family="var(--font-ui)">vorher</text>
+		</svg>
+		<div class="legend">
+			<span><span class="swatch" style="background:#c9a227"></span> Weg wird mitgezogen</span>
+		</div>
+	</div>
+
+	<!-- 2: neu -->
+	<div class="card">
+		<h2>Mit <span class="kbd">Strg</span> — neu</h2>
+		<p class="note">Der Ort wird verschoben, <strong>die Wege bleiben genau liegen</strong>. Jedes zurückgebliebene Wegende bekommt sofort einen <strong>Offen-Ring</strong> — die Trennung ist nie still.</p>
+		<svg viewBox="0 0 380 210" role="img" aria-label="Ort verschoben, Wege bleiben liegen, offene Enden markiert">
+			<rect x="0" y="0" width="380" height="210" fill="var(--color-panel-muted)" rx="6"/>
+			<!-- Wege bleiben liegen -->
+			<path d="M22 62 L96 96" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M22 62 L96 96" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<path d="M30 168 L96 96" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M30 168 L96 96" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<!-- offenes Ende -->
+			<circle cx="96" cy="96" r="9" fill="none" stroke="var(--color-warning-soft-border)" stroke-width="4" stroke-dasharray="10 6"/>
+			<circle cx="96" cy="96" r="15" fill="none" stroke="var(--color-warning-soft-border)" stroke-width="1.5" opacity=".55"/>
+			<!-- Zugpfeil -->
+			<path d="M112 92 C 180 60, 240 60, 288 70" stroke="var(--color-text-muted)" stroke-width="1.5" fill="none" stroke-dasharray="5 4"/>
+			<path d="M288 70 l-9 -4 l1 8 z" fill="var(--color-text-muted)"/>
+			<!-- neuer Ort -->
+			<circle cx="300" cy="74" r="9" fill="#8a6d3b" stroke="#fffdf9" stroke-width="3"/>
+			<text x="314" y="78" font-size="12" fill="var(--color-text)" font-family="var(--font-ui)">Havena</text>
+			<text x="96" y="132" font-size="11" fill="var(--color-warning-soft-text)" text-anchor="middle" font-family="var(--font-ui)">2 offene Enden</text>
+		</svg>
+		<div class="legend">
+			<span><span class="swatch" style="background:transparent;border:3px solid var(--color-warning-soft-border)"></span> offenes Wegende</span>
+			<span><span class="swatch" style="background:#c9a227"></span> Weg bleibt, wo er ist</span>
+		</div>
+	</div>
+
+	<!-- 3: während des Ziehens -->
+	<div class="card">
+		<h2>Während des Ziehens</h2>
+		<p class="note">Solange <span class="kbd">Strg</span> gedrückt ist, trägt der Marker einen goldenen Trenn-Ring — man sieht <em>vor</em> dem Loslassen, was passieren wird. Einmal Strg genügt: irgendwann während des Ziehens gedrückt = getrennt.</p>
+		<svg viewBox="0 0 380 150" role="img" aria-label="Marker mit goldenem Trennring">
+			<rect x="0" y="0" width="380" height="150" fill="var(--color-panel-muted)" rx="6"/>
+			<path d="M28 40 L120 75" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M28 40 L120 75" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<path d="M34 122 L120 75" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M34 122 L120 75" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<circle cx="120" cy="75" r="17" fill="none" stroke="var(--color-accent)" stroke-width="4" opacity=".95"/>
+			<circle cx="120" cy="75" r="23" fill="none" stroke="var(--color-accent)" stroke-width="2" opacity=".35"/>
+			<circle cx="120" cy="75" r="9" fill="#8a6d3b" stroke="#fffdf9" stroke-width="3"/>
+			<foreignObject x="152" y="52" width="216" height="48">
+				<div xmlns="http://www.w3.org/1999/xhtml" class="tooltip-skin" style="font-family:var(--font-ui)">
+					<strong>Havena</strong> — Strg: Wege bleiben liegen
+				</div>
+			</foreignObject>
+		</svg>
+	</div>
+
+	<!-- 4: Erinnerung -->
+	<div class="card">
+		<h2>Die Erinnerung</h2>
+		<p class="note">Unten auf der Karte steht, solange etwas offen ist, ein Zähler. Klick springt zum nächsten offenen Ende. Er überlebt einen Seiten-Neuladen und <strong>verschwindet von selbst</strong>, sobald das Ende wieder an einem Ort oder einer Kreuzung hängt — nichts wird als „erledigt“ gespeichert.</p>
+		<div class="stack">
+			<div class="openends-chip">
+				<span class="openends-chip__dot"></span>
+				<span><strong>2 offene Wegenden</strong> — noch nicht wieder angeschlossen</span>
+				<span class="openends-chip__action">Zum nächsten →</span>
+			</div>
+			<div class="toast-skin">Havena verschoben — 2 Wegenden blieben liegen (Strg).</div>
+			<div class="tooltip-skin"><strong>Offenes Wegende</strong> — Reichsstraße von Havena nach Gareth.<br>Klick: Weg bearbeiten und Ende wieder anschließen.</div>
+		</div>
+	</div>
+
+	<!-- 5: Rückweg -->
+	<div class="card wide">
+		<h2>Der Rückweg — Lücke wieder schließen</h2>
+		<p class="note">Klick auf den Offen-Ring öffnet die Geometrie-Bearbeitung genau dieses Weges. Das Ende auf den Ort ziehen — es rastet wie gewohnt ein (Endpunkte müssen auf Orte oder Kreuzungen einrasten), der Offen-Ring verschwindet, der Zähler zählt runter.</p>
+		<svg viewBox="0 0 760 140" role="img" aria-label="Offenes Ende wieder anschliessen">
+			<rect x="0" y="0" width="760" height="140" fill="var(--color-panel-muted)" rx="6"/>
+
+			<!-- Schritt 1 -->
+			<path d="M30 40 L110 82" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M30 40 L110 82" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<circle cx="110" cy="82" r="9" fill="none" stroke="var(--color-warning-soft-border)" stroke-width="4" stroke-dasharray="10 6"/>
+			<circle cx="215" cy="60" r="9" fill="#8a6d3b" stroke="#fffdf9" stroke-width="3"/>
+			<text x="120" y="118" font-size="11" fill="var(--color-text-muted)" font-family="var(--font-ui)">1 — Ring anklicken</text>
+
+			<!-- Schritt 2 -->
+			<path d="M300 40 L380 82" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M300 40 L380 82" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<circle cx="380" cy="82" r="6" fill="var(--color-panel)" stroke="var(--color-accent-strong)" stroke-width="3"/>
+			<circle cx="300" cy="40" r="6" fill="var(--color-panel)" stroke="var(--color-accent-strong)" stroke-width="3"/>
+			<path d="M392 78 C 420 66, 448 60, 470 58" stroke="var(--color-text-muted)" stroke-width="1.5" fill="none" stroke-dasharray="5 4"/>
+			<path d="M470 58 l-8 -4 l0 8 z" fill="var(--color-text-muted)"/>
+			<circle cx="482" cy="58" r="9" fill="#8a6d3b" stroke="#fffdf9" stroke-width="3"/>
+			<text x="300" y="118" font-size="11" fill="var(--color-text-muted)" font-family="var(--font-ui)">2 — Ende auf den Ort ziehen</text>
+
+			<!-- Schritt 3 -->
+			<path d="M570 40 L660 58" stroke="#f0f0ec" stroke-width="8" fill="none" stroke-linecap="round"/>
+			<path d="M570 40 L660 58" stroke="#c9a227" stroke-width="4" fill="none" stroke-linecap="round"/>
+			<circle cx="660" cy="58" r="9" fill="#8a6d3b" stroke="#fffdf9" stroke-width="3"/>
+			<text x="570" y="118" font-size="11" fill="var(--color-text-muted)" font-family="var(--font-ui)">3 — eingerastet, Ring weg</text>
+		</svg>
+	</div>
+
+</div>
+
+</body>
+</html>
