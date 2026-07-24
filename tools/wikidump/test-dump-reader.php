@@ -81,16 +81,13 @@ if (!is_file($fixturePath)) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Diagnostic banner -- record the environment (bz2/zlib availability + the
-//    iconv umlaut behavior) so a future reader knows WHY expectations hold.
+// 2. Diagnostic banner -- record the environment (bz2/zlib availability) and the
+//    ASCII fold, so a future reader knows WHY the expectations hold. The fold
+//    used to be iconv, whose umlaut handling is libc-dependent; since 2026-07-24
+//    it is a fixed table and the umlaut expectations hold on every machine.
 // ---------------------------------------------------------------------------
 $bz2Loaded = extension_loaded('bz2');
-$iconvSample = function_exists('iconv')
-    ? (static function (string $s): string {
-        $r = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
-        return is_string($r) ? $r : '(iconv false)';
-    })('Königreich')
-    : '(iconv unavailable)';
+$foldSample = avesmapsFoldToAscii('Königreich Kosch (historisch)');
 
 echo "================================================================\n";
 echo " dump-reader skeleton unit test (WikiDump migration, Task 3)\n";
@@ -100,7 +97,7 @@ echo 'mbstring loaded    : ' . (extension_loaded('mbstring') ? 'yes' : 'no') . "
 echo 'xmlreader loaded   : ' . (extension_loaded('xmlreader') ? 'yes' : 'no') . "\n";
 echo 'zlib loaded        : ' . (extension_loaded('zlib') ? 'yes' : 'no') . "\n";
 echo 'bz2 loaded         : ' . ($bz2Loaded ? 'yes' : 'no (bz2 path is STRATO-verified, see Task 2)') . "\n";
-echo "iconv('Koenigreich') = '{$iconvSample}'  (umlaut outcome is env-dependent)\n";
+echo "ascii fold sample  : '{$foldSample}'  (fixed table -- same on every machine)\n";
 echo "----------------------------------------------------------------\n\n";
 
 // ---------------------------------------------------------------------------
@@ -257,8 +254,8 @@ $check(
 $check(
     '(d3) umlaut+parenthetical alias slug -> canonical wiki_key',
     'wiki:kosch',
-    $aliasMap['k-onigreich-kosch-historisch'] ?? '(missing)',
-    "normalize keeps parenthetical; slug: umlaut 'oe'->'-o', parens+spaces->'-'"
+    $aliasMap['k-nigreich-kosch-historisch'] ?? '(missing)',
+    "normalize keeps parenthetical; slug: umlaut -> '-' (base letter lost), parens+spaces->'-'"
 );
 // Independent re-derivation cross-check (proves the map used the real functions,
 // not a hard-coded literal): rebuild the two expected keys via the real funcs.

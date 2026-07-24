@@ -230,15 +230,11 @@ if (!is_file($fixturePath)) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Diagnostic banner -- record the environment (the iconv umlaut behaviour is
-//    what makes the key derivations environment-dependent; see Task 1's banner).
+// 2. Diagnostic banner -- record the ASCII fold. It used to record iconv, whose
+//    umlaut handling is libc-dependent and made the key derivations (and this
+//    test) environment-dependent; since 2026-07-24 the fold is a fixed table.
 // ---------------------------------------------------------------------------
-$iconvSample = function_exists('iconv')
-    ? (static function (string $s): string {
-        $r = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
-        return is_string($r) ? $r : '(iconv false)';
-    })('Reichsstraße')
-    : '(iconv unavailable)';
+$foldSample = avesmapsFoldToAscii('Reichsstraße / Baronie Hügelland');
 
 echo "================================================================\n";
 echo " dump-reader Pass B unit test (WikiDump migration, Tasks 4a-4d)\n";
@@ -246,7 +242,7 @@ echo "================================================================\n";
 echo 'PHP version        : ' . PHP_VERSION . "\n";
 echo 'mbstring loaded    : ' . (extension_loaded('mbstring') ? 'yes' : 'no') . "\n";
 echo 'xmlreader loaded   : ' . (extension_loaded('xmlreader') ? 'yes' : 'no') . "\n";
-echo "iconv('Reichsstrasse') = '{$iconvSample}'  (umlaut outcome is env-dependent)\n";
+echo "ascii fold sample  : '{$foldSample}'  (fixed table -- same on every machine)\n";
 echo 'default continent  : ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT . "\n";
 echo "----------------------------------------------------------------\n\n";
 
@@ -1276,14 +1272,16 @@ $check(
 
 // -- Baronie Hügelland (COLON-PATH |Staat=[[Grafschaft Ferdok]]: [[Mittelreich]]).
 //    Hand-derived: affiliation splits on ':' -> path ['Grafschaft Ferdok','Mittelreich'],
-//    root 'Grafschaft Ferdok'; wiki_key 'wiki:baronie-h-ugelland' (umlaut ü -> '-u' via
-//    iconv, env-dependent -- the same env this test's other umlaut keys rely on).
-$baronie = $terByKey['wiki:baronie-h-ugelland'] ?? null;
+//    root 'Grafschaft Ferdok'; wiki_key 'wiki:baronie-h-gelland' -- the umlaut folds
+//    to '?' and then to a hyphen, so the base letter is GONE. Deterministic since
+//    2026-07-24, and this is the key production actually stores: it appears verbatim
+//    in GET /api/app/lore.php?expand=kosch.
+$baronie = $terByKey['wiki:baronie-h-gelland'] ?? null;
 $check(
-    '(i11) Baronie Hügelland present under wiki_key "wiki:baronie-h-ugelland"',
+    '(i11) Baronie Hügelland present under wiki_key "wiki:baronie-h-gelland"',
     true,
     is_array($baronie),
-    "wiki_key = 'wiki:'.slug('Baronie Hügelland') = 'wiki:baronie-h-ugelland' (umlaut -> '-u')"
+    "wiki_key = 'wiki:'.slug('Baronie Hügelland') = 'wiki:baronie-h-gelland' (umlaut -> '-')"
 );
 $check('(i12) Baronie Hügelland.type', 'Baronie', (string) ($baronie['type'] ?? '(none)'), 'Art= -> type');
 $check(
