@@ -186,7 +186,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 24.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 25.07.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -216,7 +216,7 @@
 				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten">Karten-Features</a>
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
-						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen">Siedlungen</a></li>
+						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern">Siedlungen</a></li>
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie kraftlinie wald gebirge meer">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
@@ -228,7 +228,7 @@
 				</li>
 				<li><a href="#aufgaben" data-keywords="posteingang arbeit community">Aufgaben</a>
 					<ul>
-						<li><a href="#konflikte" data-keywords="konflikt konflikte wiki artikel doppelt verknüpfung trennen genehmigt kein wiki-eintrag widerspruch">Konflikte</a></li>
+						<li><a href="#konflikte" data-keywords="konflikt konflikte wiki artikel doppelt verknüpfung trennen genehmigt kein wiki-eintrag widerspruch dump-lauf dump-bericht bericht auffällig">Konflikte</a></li>
 						<li><a href="#bug-system" data-keywords="discord fehler bug idee frage offen erledigt bot">Das automatische Bug-System</a></li>
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community">Bewertungen</a></li>
@@ -419,7 +419,7 @@
 				<h3>Zwei Knöpfe, die überall gleich funktionieren</h3>
 				<p>Im Reiter <strong>WikiSync</strong> stehen über den Sorten-Reitern zwei Aktionen, die für alle Sorten dasselbe bedeuten:</p>
 				<ul class="hb-steps">
-					<li><strong>„📥 Dump holen"</strong> — lädt den aktuellen Wiki-Dump und liest ihn in eine Sandbox ein. <em>Schreibt noch nichts Scharfes.</em></li>
+					<li><strong>„📥 Dump holen"</strong> — lädt den aktuellen Wiki-Dump und liest ihn in eine Sandbox ein. <em>Schreibt noch nichts Scharfes.</em> Was der Lauf gefunden hat, bleibt danach als <strong>„Letzter Dump-Lauf"</strong> ganz oben in <a href="#konflikte">⚖️ Konflikte</a> nachlesbar.</li>
 					<li><strong>„🚨 Syncen"</strong> — übernimmt die Objekte der gewählten Sorte aus dem Dump in unsere Tabellen. Bei Siedlungen, Kraftlinien, Abenteuern, Karten und Vorkommen sitzt dieser Knopf nicht im Reiter, sondern im jeweiligen Editorfenster.</li>
 				</ul>
 				<div class="hb-note hb-warn"><strong>Beides löst der Betreiber aus, nicht du.</strong> Ein Dump-Lauf zieht den ganzen Wiki-Bestand durch und belastet den Server erheblich. Wenn dir auffällt, dass ein Sync nötig wäre, sag Bescheid — klick ihn nicht selbst an, und niemals mehrfach hintereinander.</div>
@@ -475,6 +475,7 @@
 				<h3 id="siedlungen" class="hb-sub">Siedlungen</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick → Infopanel → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Ort" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Siedlungen</p>
 				<p>Siedlungen sind Dörfer, Städte, Metropolen und besondere Bauwerke. Sie sind der häufigste Bearbeitungsfall.</p>
+				<div class="hb-note hb-tip"><strong>Ortsnamen müssen eindeutig bleiben.</strong> Legst du einen zweiten Ort mit einem schon vergebenen Namen an, nennt dir der Editor den blockierenden Ort und schlägt den Ausweg vor, den das Wiki selbst benutzt: ein <strong>Zusatz in Klammern</strong>, also <em>„Ortsname (Region)"</em>. Das ist keine Schikane — die Reiseplanung führt ihre Orte <em>über den Namen</em>. Zwei Orte mit demselben Namen fallen darin zu <em>einem</em> Punkt zusammen, und eine Route liefe unbemerkt beim einen hinein und beim anderen wieder heraus.</div>
 
 				<h4>Der Dialog „Siedlung bearbeiten"</h4>
 				<ul class="hb-steps">
@@ -486,6 +487,16 @@
 					<li><strong>Optionen</strong> — „Ort ist ein Nodix", „Ruine/zerstört".</li>
 				</ul>
 				<div class="hb-note hb-warn"><strong>Wappen werden nur öffentlich gezeigt, wenn die Lizenz gemeinfrei ist.</strong> Lädt jemand ein Wappen hoch, dessen Lizenz unklar ist, bleibt es unsichtbar — das ist kein Fehler, sondern Absicht. Mehr unter <a href="#v-lizenzen">Bilder &amp; Lizenzen</a>.</div>
+
+				<h4>Einen Ort verschieben — und die Wege dabei liegen lassen</h4>
+				<p>Ziehst du einen Ort (oder eine Kreuzung) auf der Karte, <strong>wandern alle angeschlossenen Wegenden mit</strong>. Das ist der Normalfall und hält das Wegenetz dicht. Bei einem weiten Zug ist es aber genau das Falsche: Die Straßen werden quer über die Karte gedehnt, oder ein Ende landet an etwas, mit dem es nichts zu tun hat.</p>
+				<p><strong>Hältst du beim Ziehen Strg</strong> (auf dem Mac Cmd), bleiben die Wege liegen, wo sie sind — der Ort löst sich von ihnen. Damit dieser Zustand nicht untergeht, sagt die Karte ihn dir laufend an:</p>
+				<ul class="hb-steps">
+					<li>Jedes zurückgelassene Wegende bekommt einen <strong>Ring</strong> auf der Karte. Ein <strong>Klick darauf öffnet den Verlauf dieses Weges</strong>, damit du das Ende wieder auf den Ort ziehen kannst.</li>
+					<li>Oben sitzt ein Zähler — <em>„2 offene Wegenden — noch nicht wieder angeschlossen"</em> — mit dem Knopf <strong>„Zum nächsten"</strong>. Er springt der Reihe nach alle offenen Enden an.</li>
+					<li>Der Zähler <strong>überlebt das Neuladen</strong> und verschwindet erst, wenn das letzte Ende wieder hängt.</li>
+				</ul>
+				<div class="hb-note hb-warn"><strong>Strg trennt — es ist kein „vorsichtigeres Ziehen".</strong> Ein offenes Wegende ist genau der Fehler aus <a href="#wege">Regel 4</a>: Der Weg endet neben dem Ort statt auf ihm, und die Reiseplanung kommt dort nicht mehr durch. Der Griff ist für einen <em>Moment</em> gedacht, in dem du den Ort freistellst — schließ die Lücken, bevor du weitermachst. Ohne Strg ändert sich nichts am gewohnten Verhalten.</div>
 
 				<h4>Der Siedlungseditor</h4>
 				<p class="hb-path"><strong>Editor → WikiSync → Siedlungen → „Siedlungen bearbeiten"</strong></p>
@@ -905,6 +916,9 @@
 				<p class="hb-path"><strong>Editor → WikiSync → ⚖️ Konflikte</strong></p>
 				<p>Widersprüche zwischen unserer Karte und dem Wiki Aventurica — an einem Ort, quer über alle Objektarten. Das Fenster <strong>findet</strong> sie; entscheiden musst du. Es ändert von sich aus nie etwas.</p>
 				<p>Beim Öffnen läuft die Prüfung einmal automatisch. <strong>Neu prüfen</strong> oben rechts wiederholt sie — nötig, nachdem du etwas repariert hast oder ein Sync gelaufen ist.</p>
+				<h4>Die Zeile „Letzter Dump-Lauf" ganz oben</h4>
+				<p>Über den Fällen sitzt fest verankert eine Zeile, die <em>kein</em> Fall ist: der Bericht des letzten <strong>„📥 Dump holen"</strong>. Sie nennt den Zeitpunkt und ob der Lauf <strong>unauffällig</strong> war oder <strong>auffällig</strong> — dann steht der Grund gleich daneben, etwa <em>„1 Selbsttest rot"</em>, <em>„Schritt … nicht abgeschlossen"</em> oder <em>„… weniger als im vorigen Lauf"</em>. Ein Klick öffnet die vollen Zahlen des Laufs. Gab es noch keinen Bericht, steht dort <em>„kein Bericht vorhanden"</em>.</p>
+				<div class="hb-note hb-tip"><strong>Die Zeile ist zum Lesen da, nicht zum Entscheiden.</strong> Sie hat keine Knöpfe wie ein Fall, zählt in keinem Zähler mit und bleibt auch dann stehen, wenn es gerade gar keine Konflikte gibt — genau dann will man ja wissen, was der zehnminütige Lauf getan hat. Ein <em>auffälliger</em> Bericht ist ein Hinweis an den Betreiber, keine Aufgabe für dich.</div>
 				<h4>Die Leiste links</h4>
 				<p>Drei Filter, die sich kombinieren lassen. <strong>Objektart</strong> zeigt, was betroffen ist — ein Fall zwischen einem Ort und einem Territorium erscheint unter <em>beiden</em>. <strong>Schweregrad</strong> sagt, wie dringend hingeschaut werden sollte — nicht, wer recht hat. <em>Wichtig</em> heißt: hier stimmt etwas nachweislich nicht zusammen (zwei Objekte auf einem Artikel). Ob das <em>falsch</em> ist, entscheidest du — manches ist gewollt. <em>Abweichung</em> heißt: Karte und Wiki sind verschiedener Meinung. <em>Ungeprüft</em> heißt: hat nur noch niemand angesehen. <strong>Status</strong> ist die Zustandsanzeige eines Falls:</p>
 				<table class="hb-table">
