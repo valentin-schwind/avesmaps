@@ -243,6 +243,38 @@ function avesmapsEnsureDumpReportTable(PDO $pdo): void
 }
 
 /**
+ * Per-kind counts for one run, straight from the sandbox state table.
+ *
+ * 💣 This is SERVER-derived on purpose. The client cannot supply it: the read loop's progress
+ * envelope carries phase cursors and per-step counters, never per-kind totals -- so a
+ * client-built by_kind would be guesswork, and the collapse rule (avesmapsDumpReportClassify
+ * rule 3) would have nothing to stand on. One GROUP BY over the run's own rows is both cheaper
+ * and authoritative.
+ *
+ * Safe to call after cleanup_state: that step deletes every OTHER run's sandbox rows and keeps
+ * the newest completed one -- which is exactly this run.
+ *
+ * @return array<string,int>
+ */
+function avesmapsDumpReportKindCountsForRun(PDO $pdo, int $runId): array
+{
+    $statement = $pdo->prepare(
+        "SELECT entity_kind, COUNT(*) AS n
+           FROM wiki_dump_hybrid_state
+          WHERE run_id = :run AND entity_kind IS NOT NULL AND entity_kind <> ''
+       GROUP BY entity_kind"
+    );
+    $statement->execute(['run' => $runId]);
+
+    $counts = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $counts[(string) $row['entity_kind']] = (int) $row['n'];
+    }
+
+    return $counts;
+}
+
+/**
  * The newest stored report, decoded, or null when there is none.
  *
  * A row whose report_json is unreadable is treated as absent rather than thrown: a report is a
@@ -309,6 +341,14 @@ function avesmapsDumpReportStore(PDO $pdo, int $runId, array $raw): array
     avesmapsEnsureDumpReportTable($pdo);
 
     $report = avesmapsDumpReportNormalize($raw);
+    // Fill the per-kind counts server-side, overriding whatever the client sent. See
+    // avesmapsDumpReportKindCountsForRun: the client has no access to these numbers, so this is
+    // the only place they can come from -- and the collapse rule depends on them being real.
+    $byKind = avesmapsDumpReportKindCountsForRun($pdo, $runId);
+    if ($byKind !== []) {
+        $report['steps']['read'] = ($report['steps']['read'] ?? []) + [];
+        $report['steps']['read']['by_kind'] = $byKind;
+    }
     // Compare against the newest EXISTING row. Done before the upsert so that re-saving the same
     // run does not end up comparing the run against itself.
     $previousJson = $pdo->prepare(

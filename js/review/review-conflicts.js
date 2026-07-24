@@ -108,6 +108,7 @@ async function loadConflicts({ rescan = false } = {}) {
 			conflicts: Array.isArray(data.conflicts) ? data.conflicts : [],
 			summary: data.summary || null,
 			typeLabels: data.type_labels || {},
+			dumpReport: data.dump_report || null,
 		};
 		renderConflicts();
 	} catch (error) {
@@ -843,6 +844,61 @@ function renderConflictFootSummary(all) {
 	element.textContent = parts.length ? parts.join(" · ") : "";
 }
 
+// The last dump run's report, pinned to the top of the list as its OWN category.
+//
+// 💣 It is deliberately NOT a conflict. Conflicts are computed fresh on every read and vanish by
+// themselves once repaired; a report is a snapshot of a moment that must stay exactly as it was.
+// So it carries no decision verbs, is not counted in the rail or the summary, and only READS.
+// It exists because "Dump holen" runs for ten minutes and its result used to live in a
+// three-second toast -- nobody ever saw it.
+function renderDumpReportRow(list) {
+	const stored = conflictData.dumpReport;
+	const row = document.createElement("div");
+	row.className = "conflict-dumprow";
+
+	if (!stored) {
+		row.classList.add("is-empty");
+		const title = document.createElement("b");
+		title.textContent = "Letzter Dump-Lauf";
+		const note = document.createElement("span");
+		note.textContent = "kein Bericht vorhanden";
+		row.append(title, note);
+		list.appendChild(row);
+		return;
+	}
+
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "conflict-dumprow__open";
+
+	const title = document.createElement("b");
+	title.textContent = "Letzter Dump-Lauf";
+
+	const when = document.createElement("span");
+	when.className = "conflict-dumprow__when";
+	when.textContent = String(stored.created_at || "").replace("T", " ").slice(0, 16);
+
+	const state = document.createElement("span");
+	if (stored.notable) {
+		row.classList.add("is-notable");
+		// The reason is the whole point of the marker -- "1 Selbsttest rot" or
+		// "adventure: 430 weniger als im vorigen Lauf". textContent, never innerHTML.
+		state.textContent = stored.notable_reason || "auffällig";
+	} else {
+		state.className = "conflict-dumprow__quiet";
+		state.textContent = "unauffällig";
+	}
+
+	button.append(title, when, state);
+	button.addEventListener("click", () => {
+		if (typeof window.avesmapsOpenDumpReport === "function") {
+			void window.avesmapsOpenDumpReport(stored.report || null, stored.delta || null);
+		}
+	});
+	row.appendChild(button);
+	list.appendChild(row);
+}
+
 function renderConflicts() {
 	renderConflictRail();
 	renderConflictFootSummary(getAllConflicts());
@@ -851,6 +907,9 @@ function renderConflicts() {
 		return;
 	}
 	list.textContent = "";
+	// Pinned ABOVE the empty-check on purpose: after a clean run there may be no conflicts at
+	// all, and that is exactly when an editor still wants to see what the ten-minute dump did.
+	renderDumpReportRow(list);
 
 	const filtered = getFilteredConflicts();
 	if (filtered.length < 1) {

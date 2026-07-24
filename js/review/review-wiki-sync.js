@@ -82,11 +82,21 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 	syncWikiSyncPanelHeaderState();
 }
 
+// Ruhe-Beschriftung des Territorien-Knopfs. Sie steht an ZWEI Stellen: hier und in
+// index.html -- von hier wird sie nach jedem Lauf zurueckgeschrieben. Beim Umbenennen
+// auf "Syncen" (fefa1223) wurde diese Seite uebersehen, sodass die Beschriftung nach
+// dem ersten Territorien-Sync auf den alten Namen zurueckgesprungen waere. Inzwischen
+// steht wieder "Territorien bearbeiten" (Owner 2026-07-22): der Knopf oeffnet ein
+// Fenster und startet keinen Lauf, darf also nicht nach dem Syncen heissen -- die
+// Begruendung steht in der Spec §2. Wer sie aendert, aendert BEIDE Stellen.
+const WIKI_SYNC_TERRITORIES_IDLE_LABEL = "Territorien bearbeiten";
+
 // Die Startknoepfe der Editoren tragen seit 2026-07-22 eine feste Struktur:
 // <span class="t1">Beschriftung</span> plus den eigenstaendigen "Zuletzt gesynct"-Span
 // (dessen id refreshWikiSyncKindSyncedStatus weiter direkt anspricht). Ein textContent
 // auf den KNOPF wuerde beide Kinder entfernen -- der Zeitstempel waere nach dem ersten
 // Sync-Lauf weg und kaeme erst beim naechsten Laden wieder. Darum nur die Titelzeile.
+
 function setWikiSyncStartButtonLabel(buttonElement, label) {
 	if (!buttonElement) {
 		return;
@@ -105,7 +115,7 @@ function setWikiSyncTerritoriesRunning(isRunning) {
 	const buttonElement = document.getElementById("wiki-sync-territories");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
-		setWikiSyncStartButtonLabel(buttonElement, isRunning ? "Synchronisiert..." : "Territorien bearbeiten");
+		setWikiSyncStartButtonLabel(buttonElement, isRunning ? "Synchronisiert..." : WIKI_SYNC_TERRITORIES_IDLE_LABEL);
 	}
 
 	const progressElement = document.getElementById("wiki-sync-territories-progress");
@@ -932,16 +942,37 @@ async function startWikiSyncDumpRead() {
 	}
 	isWikiSyncDumpRunning = true;
 
+	// Dump-Report: the numbers this run produced, collected as we go. They exist only here --
+	// the run is client-driven, so nothing else sees all four steps. Written down once at the
+	// end (save_report), because a ten-minute job whose result lives in a three-second toast
+	// has no result at all.
+	const dumpReportDraft = {
+		started_at: new Date().toISOString(),
+		finished_at: "",
+		steps: {},
+		selftests: { total: 0, green: 0, red: 0, failed: [] },
+	};
+	let dumpReportRunId = null;
+
 	try {
 		// Step 1/4: server-fetch (re-download from the wiki).
 		setWikiSyncDumpButtonsDisabled(true, "Lädt Dump herunter...");
 		setWikiSyncStatus("Dump wird vom Wiki heruntergeladen …", "pending");
 		await submitWikiSyncDumpAction("fetch_dump");
+		dumpReportDraft.steps.fetch_dump = { ok: true };
 
 		// Step 2/4: the sandbox-safe scan loop (dryRun=true throughout).
 		setWikiSyncDumpButtonsDisabled(true, "Liest Dump...");
 		setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
-		await runWikiSyncDumpLoop("read_step");
+		const readRun = await runWikiSyncDumpLoop("read_step");
+		// The run's public id is what save_report keys on. per-kind counts are NOT taken from
+		// here on purpose -- the progress envelope does not carry them; the server derives them
+		// from the run's own sandbox rows (avesmapsDumpReportKindCountsForRun).
+		dumpReportRunId = (readRun && readRun.public_id) || null;
+		dumpReportDraft.steps.read = {
+			ok: true,
+			pages_scanned: Number((readRun && readRun.progress && readRun.progress.pages_scanned) || 0),
+		};
 
 		// Step 3/4: prune old sandbox state now that this scan succeeded. A cleanup
 		// failure is reported but does NOT roll back the scan that already completed
@@ -949,6 +980,7 @@ async function startWikiSyncDumpRead() {
 		setWikiSyncDumpButtonsDisabled(true, "Räumt alte Dump-Stände auf...");
 		setWikiSyncStatus("Alte Dump-Stände werden aufgeräumt …", "pending");
 		await submitWikiSyncDumpAction("cleanup_state");
+		dumpReportDraft.steps.cleanup_state = { ok: true };
 
 		// Step 4/4: reconcile the wiki publication sources into feature_sources now
 		// that this dump's scan is the newest completed run. A failure here surfaces
@@ -966,10 +998,31 @@ async function startWikiSyncDumpRead() {
 		setWikiSyncDumpButtonsDisabled(false);
 		await refreshWikiSyncDumpFetchedStatus();
 
-		// Dump-Report: after a full run, open the in-editor self-test report so editors
-		// can watch the code's self-tests go green/red in the browser (no shell on STRATO).
+		dumpReportDraft.steps.sync_publications = {
+			ok: true,
+			processed: Number(totals.processed || 0),
+			added: Number(totals.added || 0),
+			updated: Number(totals.updated || 0),
+			removed: Number(totals.removed || 0),
+		};
+		dumpReportDraft.finished_at = new Date().toISOString();
+
+		// Persist the report. BEST-EFFORT on purpose: the run itself already succeeded and is
+		// never rolled back, so a failed save must not turn a good run into a failed one. The
+		// overlay below still shows the numbers it holds in memory either way.
+		if (dumpReportRunId) {
+			try {
+				await submitWikiSyncDumpAction("save_report", { run_id: dumpReportRunId, report: dumpReportDraft });
+			} catch (saveError) {
+				console.error("Dump-Report speichern fehlgeschlagen:", saveError);
+				dumpReportDraft.save_failed = true;
+			}
+		}
+
+		// Dump-Report: after a full run, open the in-editor report -- the run's own numbers plus
+		// the code's self-tests green/red in the browser (no shell on STRATO).
 		// Fire-and-forget + fully guarded so a report bug can NEVER affect the dump flow.
-		try { void avesmapsOpenDumpReport(); } catch (reportError) { console.error("Dump-Report:", reportError); }
+		try { void avesmapsOpenDumpReport(dumpReportDraft); } catch (reportError) { console.error("Dump-Report:", reportError); }
 	} catch (error) {
 		console.error("Dump holen fehlgeschlagen:", error);
 		isWikiSyncDumpRunning = false;
@@ -1006,6 +1059,12 @@ function avesmapsDumpReportInjectStyles() {
 .avm-dr-rule{height:1px;background:var(--color-divider);margin:6px 0 12px;border:0;}
 .avm-dr-summary{font-size:var(--font-size-small,12px);color:var(--color-text-muted);margin:0 0 8px;}
 .avm-dr-summary b{color:var(--color-text-strong);}
+.avm-dr-run{list-style:none;margin:0 0 4px 0;padding:0;}
+.avm-dr-run li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--color-divider);}
+.avm-dr-run li b{font-variant-numeric:tabular-nums;}
+.avm-dr-run i{font-style:normal;opacity:.85;}
+.avm-dr-down{color:var(--color-danger-soft-text);}
+.avm-dr-up{color:var(--color-success-soft-text);}
 .avm-dr-tests{list-style:none;margin:0;padding:0;}
 .avm-dr-tests li{padding:6px 0;border-bottom:1px solid var(--color-divider);}
 .avm-dr-tests li:last-child{border-bottom:0;}
@@ -1173,7 +1232,50 @@ async function avesmapsDumpReportRunTests() {
 	}
 }
 
-async function avesmapsOpenDumpReport() {
+// Renders the "Lauf" section: what this run actually did. Returns HTML (safe -- every value is
+// coerced to a number or picked from a fixed label map, no user text reaches innerHTML).
+// `report` is either the draft the dump flow just built, or a stored one loaded from
+// conflicts.php (same shape, plus an optional `delta` map from the server).
+function avesmapsDumpReportRunSectionHtml(report, delta) {
+	if (!report || typeof report !== "object") {
+		return "";
+	}
+	const steps = report.steps || {};
+	const pub = steps.sync_publications || {};
+	const rows = [];
+
+	const scanned = Number((steps.read && steps.read.pages_scanned) || 0);
+	if (scanned > 0) {
+		rows.push(`<li><span>Seiten gelesen</span><b>${scanned.toLocaleString("de-DE")}</b></li>`);
+	}
+	rows.push(`<li><span>Publikationsquellen</span><b>+${Number(pub.added || 0)} / ~${Number(pub.updated || 0)} / −${Number(pub.removed || 0)}</b></li>`);
+
+	// Per-kind counts with the comparison to the previous run. A drop is what matters here --
+	// the Art-gate incident swallowed ~430 adventures while the run reported success.
+	const byKind = (steps.read && steps.read.by_kind) || {};
+	Object.keys(byKind).sort().forEach((kind) => {
+		const now = Number(byKind[kind] || 0);
+		const d = delta && delta[kind] ? delta[kind] : null;
+		let diffText = "";
+		if (d && d.diff !== null && d.diff !== undefined && Number(d.diff) !== 0) {
+			const diff = Number(d.diff);
+			diffText = ` <i class="${diff < 0 ? "avm-dr-down" : "avm-dr-up"}">${diff > 0 ? "+" : "−"}${Math.abs(diff).toLocaleString("de-DE")}</i>`;
+		}
+		rows.push(`<li><span>${kind}</span><b>${now.toLocaleString("de-DE")}${diffText}</b></li>`);
+	});
+
+	const saveNote = report.save_failed
+		? `<p class="avm-dr-summary">⚠️ Der Bericht konnte nicht gespeichert werden — der Lauf selbst ist davon unberührt.</p>`
+		: "";
+
+	return `
+		<div class="avm-dr-h2">Lauf</div>
+		<hr class="avm-dr-rule">
+		<ul class="avm-dr-run">${rows.join("")}</ul>
+		${saveNote}`;
+}
+
+async function avesmapsOpenDumpReport(report, delta) {
 	try {
 		avesmapsDumpReportInjectStyles();
 		avesmapsDumpReportClose(); // replace any existing report (re-run / a second dump)
@@ -1194,7 +1296,8 @@ async function avesmapsOpenDumpReport() {
 		card.innerHTML = `
 			<button class="avm-dr-x" type="button" aria-label="Schließen">×</button>
 			<div class="avm-dr-h1">📜 Dump-Report</div>
-			<p class="avm-dr-meta">Selbsttests nach dem Dump-Lauf</p>
+			<p class="avm-dr-meta">Ergebnis des Dump-Laufs</p>
+			${avesmapsDumpReportRunSectionHtml(report, delta)}
 			<div class="avm-dr-h2">Selbsttests</div>
 			<hr class="avm-dr-rule">
 			<p class="avm-dr-summary" id="avm-dr-summary">Tests werden geprüft …</p>
@@ -3119,7 +3222,7 @@ function syncWikiSyncActionButtonLabels() {
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
 	if (territoriesButtonElement) {
-		setWikiSyncStartButtonLabel(territoriesButtonElement, isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "Territorien bearbeiten");
+		setWikiSyncStartButtonLabel(territoriesButtonElement, isWikiSyncTerritoriesRunning ? "Synchronisiert..." : WIKI_SYNC_TERRITORIES_IDLE_LABEL);
 	}
 }
 

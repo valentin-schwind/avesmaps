@@ -761,6 +761,22 @@
 	color: var(--color-text-muted);
 	font-size: 13px;
 }
+/* The last dump run, pinned above the conflict groups. Not a conflict: it reads, it has no
+   decision verbs, and it stays quiet unless the run looked wrong -- so it must NOT compete
+   visually with real cases. Grouped by divider like everything else, no framed box. */
+.conflict-dumprow { padding: 8px 0; }
+.conflict-dumprow.is-empty { display: flex; justify-content: space-between; gap: 12px; color: var(--color-text-muted); }
+.conflict-dumprow__open {
+	display: flex; align-items: baseline; gap: 10px; width: 100%;
+	background: none; border: none; padding: 4px 0; cursor: pointer;
+	text-align: left; color: inherit; font: inherit; border-radius: var(--radius-md);
+}
+.conflict-dumprow__open:hover { color: var(--color-link); }
+.conflict-dumprow__when { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.conflict-dumprow__quiet { color: var(--color-text-muted); }
+.conflict-dumprow.is-notable .conflict-dumprow__open > span:last-child { color: var(--color-danger-soft-text); }
+.conflict-dumprow__open > span:last-child { margin-left: auto; }
+
 .conflict-group { border-top: 1px solid var(--color-divider); padding: 8px 0; }
 .conflict-group:first-child { border-top: none; }
 .conflict-group > summary {
