@@ -176,3 +176,38 @@ assert(avesmapsWikiPublicationDisplayTitle('Hallen aus Gold', 'Hallen aus Gold',
 assert(avesmapsWikiPublicationDisplayTitle('Das Herzogtum Weiden', 'Das Herzogtum Weiden', '') === 'Das Herzogtum Weiden'); // no subtitle -> unchanged
 assert(avesmapsWikiPublicationDisplayTitle('Die Flusslande', '', '') === 'Die Flusslande');                                 // no |Titel -> page name (existing fallback)
 echo "display title ok\n";
+
+// --- Discord #47: HTML entities in the plain-text infobox fields -------------------------------
+// REAL wikitext: revision 3224238 of "Verräter & Geächtete", which was the LIVE text from
+// 2026-04-13 until a wiki editor replaced the entity by hand on 2026-07-23 (rev 3252310) -- one
+// day before the report. That single page therefore heals on its own; the HABIT does not.
+// "Ban'Shi" still carries |Name=Ban&#39;Shi today, which is exactly what the lore fix (eefcd054)
+// was about -- publications and adventures never got the same treatment.
+//
+// The entity reached the DB verbatim and the client then displayed it precisely BECAUSE it
+// escapes correctly: its "&"-first turns "Verräter &#38; Geächtete" into the markup
+// "Verräter &amp;#38; Geächtete", which the browser renders back as the reported "&#38;".
+$vg = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Nr={{SortNr|(VA22)}}\n|Titel=Verräter &#38; Geächtete\n|Untertitel=\n|Bild={{ProdCover|AB VA22.jpg}}\n|Art=Anthologie\n|Regeln=DSA5\n|Genre=Intrige &#38; Verrat\n|Ort=[[Al&#39;Anfa]], [[Festum]]\n|Autoren=[[Nikolai Hoch]], [[Marie Mönkemeyer]]\n|Verlag=[[Ulisses]]\n}}");
+assert($vg !== null);
+assert($vg['title'] === 'Verräter & Geächtete', 'Discord #47: |Titel entity resolved');
+// The label the catalog actually stores runs through the display-title picker -- it must stay clean.
+assert(avesmapsWikiPublicationDisplayTitle('Verräter & Geächtete', $vg['title'], $vg['subtitle']) === 'Verräter & Geächtete');
+// ONE choke point, not one field: the adventure sub-payload is built from the SAME $params, so
+// decoding there covers publications AND adventures at once (Ort feeds the ordered place list --
+// an entity in a place name would also miss its map feature).
+assert(is_array($vg['adventure'] ?? null));
+assert($vg['adventure']['genre'] === 'Intrige & Verrat', 'Discord #47: adventure fields too');
+assert($vg['adventure']['places'] === ["Al'Anfa", 'Festum'], 'Discord #47: place links too');
+// 🪤 EXACTLY ONCE, never in a loop. "&amp;#38;" is what the wiki itself renders as the literal
+// TEXT "&#38;"; a second pass would turn it into "&" and diverge from the source.
+$once = avesmapsWikiParseProductInfobox("{{Infobox Produkt\n|Titel=Doppelt &amp;#38; Dekodiert\n|Art=Anthologie\n}}");
+assert($once['title'] === 'Doppelt &#38; Dekodiert', 'exactly one decode pass');
+// The SECOND source of publication titles. Here the title is not displayed but SLUGGED into the
+// join key (avesmapsPublicationResolvePublicationKey), so an undecoded entity does not render
+// wrong -- it silently drops the source link, because the slug never matches the catalog row.
+$sec = avesmapsWikiParsePublicationsSection("==Publikationen==\n===Ausführliche Quellen===\n*[[Verräter &#38; Geächtete]] Seite 12 <small>(Al&#39;Anfa)</small>\n");
+assert(count($sec) === 1);
+assert($sec[0]['title'] === 'Verräter & Geächtete', 'Discord #47: ==Publikationen== link title');
+assert($sec[0]['note'] === "Al'Anfa", 'Discord #47: note text too');
+assert($sec[0]['pages'] === '12');
+echo "entity decode ok\n";

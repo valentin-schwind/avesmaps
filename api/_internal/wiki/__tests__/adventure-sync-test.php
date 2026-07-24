@@ -81,4 +81,25 @@ $plan = avesmapsAdventurePlacePlan($currentPlaces, [['sort_order' => 0, 'raw_nam
 assert($plan['add'] === [] && $plan['update'] === [] && $plan['remove'] === []);
 echo "placeplan-tombstone ok\n";
 
+// --- Discord #47 self-heal: a corrected title reaches the live row -----------------------------
+// The entity fix lands in the PARSER, so the repair only becomes visible if the reconcile actually
+// WRITES a changed title. It does: 'title' is in AVESMAPS_ADVENTURE_WIKI_FIELDS and the plan writes
+// every non-manual field whose value differs -- adventures are NOT insert-only. (Checked because
+// this project has had the opposite case: the citymap sync's place set was insert-only.)
+$plan = avesmapsAdventureFieldPlan(
+    ['title' => 'Verräter &#38; Geächtete'],
+    ['title' => 'Verräter & Geächtete'],
+    []
+);
+assert($plan['set'] === ['title' => 'Verräter & Geächtete'], 'Discord #47: corrected title is written');
+assert($plan['origins'] === ['title' => 'wiki']);
+// ...unless the owner hand-edited that title, which still wins.
+$plan = avesmapsAdventureFieldPlan(
+    ['title' => 'Verräter &#38; Geächtete'],
+    ['title' => 'Verräter & Geächtete'],
+    ['title' => 'manual']
+);
+assert($plan['set'] === [], 'manual title override still protected');
+echo "fieldplan-entity-repair ok\n";
+
 echo "ALL ADVENTURE-SYNC DIFF TESTS PASSED\n";

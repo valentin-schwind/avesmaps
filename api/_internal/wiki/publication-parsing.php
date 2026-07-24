@@ -15,6 +15,30 @@ declare(strict_types=1);
 // lowercase/umlaut-stripped comparison key (used here for subsection-heading and Art matching).
 require_once __DIR__ . '/sync-monitor-parsing.php';
 
+// Resolves the HTML entities wiki authors write into the PLAIN-TEXT fields of an infobox.
+//
+// 💣 The habit is real and measured, not defensive coding: revision 3224238 of
+// "Verräter & Geächtete" -- live from 2026-04-13 until an editor replaced it by hand on
+// 2026-07-23 -- literally carried "|Titel=Verräter &#38; Geächtete", and "Ban'Shi" still carries
+// "|Name=Ban&#39;Shi" today. In the SAME infoboxes the wikilinks use the real character, so this
+// is not two code paths, it is two spellings in the source (Discord #47, and #eefcd054 for lore).
+//
+// Without this the entity reaches the DB verbatim and the client displays it precisely BECAUSE it
+// escapes correctly: its "&"-first turns "Verräter &#38; Geächtete" into the markup
+// "Verräter &amp;#38; Geächtete", which the browser renders back as "Verräter &#38; Geächtete".
+//
+// 🪤 GENAU EINMAL dekodieren, nie in einer Schleife. One pass is exactly what the wiki itself
+// renders -- it shows "&amp;#38;" as the TEXT "&#38;". A second pass would turn that into "&" and
+// diverge from the source. Nothing below this decodes again (neither
+// avesmapsWikiSyncMonitorParseTemplateParams nor avesmapsWikiStripWikiInlineMarkup nor either
+// sync file), so there is exactly one pass. The lore layer has its own twin of this function
+// (avesmapsLoreDecodeEntities) because it decodes its own $params at its own call site.
+function avesmapsWikiDecodeEntities(string $value): string {
+    return str_contains($value, '&')
+        ? html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8')
+        : $value;
+}
+
 // Parses a page/note fragment that trails a publication wikilink on an entity's
 // "==Publikationen==" line, e.g. "Seite 54", "Seiten 40, '''145'''", or
 // "Seite 176 <small>(Zerstörung)</small>". Bold markup ('''...''') is stripped as pure
@@ -102,6 +126,13 @@ function avesmapsWikiParsePublicationsSection(string $wikitext): array {
             if ($line === '' || $line[0] !== '*') {
                 continue;
             }
+            // The SECOND entry point for publication titles (Discord #47), decoded once for the
+            // whole line so title, pages and note are covered together. The stake here is
+            // different from the infobox: this title is not displayed, it is SLUGGED into the
+            // catalog join key (avesmapsPublicationResolvePublicationKey), so an undecoded entity
+            // does not render wrong -- it silently DROPS the source link, because the slug never
+            // matches the catalog row that was keyed off the clean page name.
+            $line = avesmapsWikiDecodeEntities($line);
             if (preg_match('/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]\s*(.*)$/u', $line, $lineMatch) !== 1) {
                 continue; // no wikilink on this bullet -- nothing to key a title off
             }
@@ -318,6 +349,11 @@ function avesmapsWikiParseProductInfobox(string $wikitext): ?array {
         return null;
     }
     $params = avesmapsWikiSyncMonitorParseTemplateParams($block);
+    // ONE choke point for ALL field values (Discord #47): title, subtitle, publisher, the shop-id
+    // params AND the whole adventure sub-payload below hang off $params. Decoding the title alone
+    // would bring the same bug back with the next field -- which is the lesson the lore fix
+    // (eefcd054) already paid for. Exactly one pass; see avesmapsWikiDecodeEntities.
+    $params = array_map('avesmapsWikiDecodeEntities', $params);
 
     $title = trim((string) ($params['Titel'] ?? ''));
     $art = trim((string) ($params['Art'] ?? ''));
