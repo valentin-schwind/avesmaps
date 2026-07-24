@@ -58,8 +58,14 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		assignment: value,
 	});
 
+	// The zoom sync (territory + geometry COLUMNS and the display band across all geometries) used to
+	// hang in the shouldPromote branch. Its only trigger was the override-footer's "adopt globally"
+	// button, which was disabled in 06c27359 and deleted in 8e5db6ea -> shouldPromote can no longer
+	// become true anywhere, so the sync NEVER ran. The band then stayed local to the one edited
+	// geometry while the map (which reads the columns) and the editor (which reads the display band)
+	// both kept the old value -- the "it does not save" report. The sync belongs on EVERY save.
+	await syncPoliticalTerritoryEditorAssignmentZooms(value);
 	if (shouldPromote) {
-		await syncPoliticalTerritoryEditorAssignmentZooms(value);
 		await clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId);
 		suppressPoliticalTerritoryEditorOverrideFooter();
 	} else {
