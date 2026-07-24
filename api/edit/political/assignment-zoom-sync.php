@@ -75,10 +75,27 @@ function avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries(PDO $pdo, array $z
         return ['updated_geometries' => 0, 'updated_displays' => 0];
     }
 
-    $selectStatement = $pdo->query('SELECT id, style_json FROM political_territory_geometry WHERE is_active = 1 AND style_json IS NOT NULL');
+    // Only fetch the geometries that actually MENTION one of these territories. This used to read EVERY
+    // active geometry's style_json and JSON-decode all of them on every call -- on STRATO's shared hosting
+    // that is a needless per-save load spike, and this runs on every editor save. A territory's public_id
+    // is a literal substring of the style_json whenever it appears in assignmentDisplays, so a LIKE filter
+    // narrows the result set to the handful of rows we can actually change. The decode below still verifies
+    // the real structure, so a coincidental substring match is simply skipped -- the filter can only ever
+    // reduce work, never change the outcome.
+    $conditions = [];
+    $parameters = [];
+    foreach (array_keys($zoomByTerritory) as $index => $territoryPublicId) {
+        $conditions[] = 'style_json LIKE :needle' . $index;
+        $parameters[':needle' . $index] = '%' . $territoryPublicId . '%';
+    }
+    $selectStatement = $pdo->prepare(
+        'SELECT id, style_json FROM political_territory_geometry
+         WHERE is_active = 1 AND style_json IS NOT NULL AND (' . implode(' OR ', $conditions) . ')'
+    );
     if ($selectStatement === false) {
         return ['updated_geometries' => 0, 'updated_displays' => 0];
     }
+    $selectStatement->execute($parameters);
 
     $updateStatement = $pdo->prepare('UPDATE political_territory_geometry SET style_json = :style_json WHERE id = :id');
     $updatedGeometries = 0;

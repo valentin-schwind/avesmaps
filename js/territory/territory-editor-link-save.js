@@ -58,8 +58,15 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		assignment: value,
 	});
 
+	// The zoom sync (territory + geometry COLUMNS, which the map reads, and the display band in style_json,
+	// which the EDITOR reads back) used to sit in the shouldPromote branch. Its only trigger was the override
+	// footer's "adopt globally" button, disabled in 06c27359 and deleted in 8e5db6ea -- nothing sets
+	// activePoliticalTerritoryEditorPromoteNextSave to true any more, so the sync NEVER ran and a typed zoom
+	// band stayed local to the one edited geometry: the map kept the old band and the editor showed the old
+	// numbers on reopen. It belongs on EVERY save. The endpoint now filters to the affected geometries
+	// instead of scanning the whole table, so this stays cheap even with several editors saving at once.
+	await syncPoliticalTerritoryEditorAssignmentZooms(value);
 	if (shouldPromote) {
-		await syncPoliticalTerritoryEditorAssignmentZooms(value);
 		await clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId);
 		suppressPoliticalTerritoryEditorOverrideFooter();
 	} else {
