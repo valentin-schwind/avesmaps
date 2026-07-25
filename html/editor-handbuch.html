@@ -186,7 +186,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 25.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 26.07.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -884,7 +884,7 @@
 				<h3 id="natur-waren" class="hb-sub">Vorkommen</h3>
 				<p>Pflanzen, Tiere und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Abenteuer und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen und Gebiete, zu denen es gehört.</p>
 				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
-				<div class="hb-note hb-tip"><strong>Der scharfe Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump, braucht mehrere Minuten und soll nicht von einem ersten, neugierigen Klick ausgelöst werden. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die fünf Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
+				<div class="hb-note hb-tip"><strong>Der scharfe Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump, braucht mehrere Minuten und soll nicht von einem ersten, neugierigen Klick ausgelöst werden. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die sechs Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
 				<p>Über der Liste stehen die Arten als Reiter: <strong>Alle · Fauna · Flora · Waren · Spezies</strong>. <strong>Spezies ist ausgegraut</strong>, aber anklickbar: die öffentliche Anzeige ist aus, weil das Wiki-Feld „Regionen" der <em>Infobox Spezies</em> zu schlecht gepflegt ist — die Daten sind vollständig da und bleiben bearbeitbar. Die Begründung steht im Tooltip des Reiters.</p>
 
 				<h5>Das Fenster</h5>
@@ -895,7 +895,7 @@
 
 				<h5>Einen Eintrag bearbeiten</h5>
 				<p>Überschreibbar sind <strong>Name</strong>, <strong>Gruppe</strong> (hieß bis zum 22.07.2026 „Art" — sie wurde umbenannt, weil sie mit den Arten-Reitern darüber nichts zu tun hat), <strong>Lebensraum</strong> und <strong>Weitere Namen</strong>, bei Waren zusätzlich der <strong>Gegenstandstyp</strong>. <strong>Es gibt keinen Speichern-Knopf</strong> — ein Feld wird gespeichert, sobald es den Fokus verliert. Ein überschriebenes Feld trägt danach die Marke <strong>„von Hand"</strong>.</p>
-				<p>Darunter die <strong>Orte</strong>. Einen neuen trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„zuordnen"</strong>; <strong>„entfernen"</strong> nimmt einen wieder weg.</p>
+				<p>Darunter die <strong>Orte</strong>. Einen neuen trägst du unten ins Feld <em>„Ort, Region oder Gebiet …"</em> und drückst <strong>„+ Ort"</strong>; das <strong>„×"</strong> am Ende einer Zeile nimmt einen wieder weg.</p>
 				<p>Unter den Stammdaten stehen die <strong>Quellen</strong> — <strong>dieselbe Quellenverwaltung wie beim Ort, der Region, dem Weg und dem Gebiet</strong>, mit allem, was du von dort kennst: hinzufügen mit Titel, Link, Art und Seitenzahl, entfernen, und eine Vorschlagsliste, die den geteilten Quellenkatalog durchsucht. Was aus dem Publikationsteil des Wiki-Artikels stammt, steht unter <strong>„automatisch"</strong> — was du selbst einträgst, darunter.</p>
 				<div class="hb-note hb-tip"><strong>Nimm eine Quelle aus der Vorschlagsliste, wenn sie dort auftaucht.</strong> Dann hängt dein Eintrag an <em>demselben</em> Buch wie alle anderen, statt eine zweite Zeile für dasselbe Werk anzulegen. Der Katalog ist projektweit — ein Titel, den du hier sauber verknüpfst, ist überall sauber.</div>
 				<div class="hb-note hb-tip"><strong>Beim Ortsfeld gibt es keine Vorschlagsliste.</strong> Anders als die Quellen darüber und anders als beim Abenteuer-Editor ist es ein reines Textfeld — der Name muss also stimmen. Schau im Zweifel vorher nach, wie der Ort auf der Karte heißt.</div>
