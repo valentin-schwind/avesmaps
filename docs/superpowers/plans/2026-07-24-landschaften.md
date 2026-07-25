@@ -1,13 +1,29 @@
 # Landschaften — Implementierungsplan
 
-> **Für agentische Arbeiter:** Dieser Plan ist in **fünf eigenständige Vorhaben**
+> **Für agentische Arbeiter:** Dieser Plan ist in **sechs eigenständige Vorhaben**
 > geschnitten. Jedes ist für sich nützlich und wird **einzeln beauftragt**. Ein Agent
 > bearbeitet **eine Aufgabe je Sitzung**; nach jeder Abnahme beginnt eine neue Sitzung.
 > Sub-Skill: `superpowers:subagent-driven-development`.
 
-**Grundlage:** `docs/superpowers/specs/2026-07-24-landschaften-machbarkeitsanalyse.md`
-(inkl. §8, der Revision nach adversarialer Prüfung). Vorarbeit: `docs/oekosystem-*.md`,
-Demo `html/landschaften-modell.html`.
+**Stand:** 2026-07-25, zweite Überarbeitung nach der Rollen-Prüfung gegen HEAD `b9e4bf1c`.
+
+**Grundlage** (das jeweils neuere Dokument gewinnt bei jedem Widerspruch):
+- `docs/superpowers/specs/2026-07-25-landschaften-planpruefung-2.md` — **der zweite
+  Prüfbericht** (Datenbank / Editor / öffentlicher Betrieb). **Er ist der neueste und
+  gewinnt.** Enthält in §G die Owner-Entscheidungen vom 2026-07-25.
+- `docs/superpowers/specs/2026-07-24-landschaften-planpruefung.md` — der erste Prüfbericht.
+- `docs/superpowers/specs/2026-07-24-landschaften-machbarkeitsanalyse.md` (inkl. §8) —
+  die Begründungen. Ihre Zahlen sind überholt, siehe die Zahlen-Tabelle unten.
+- Vorarbeit: `docs/oekosystem-*.md`, Demo `html/landschaften-modell.html`.
+
+**Owner-Entscheidungen 2026-07-25** — sie sind getroffen, nicht mehr offen:
+
+| | Entscheidung | Wirkung im Plan |
+|---|---|---|
+| **1** | **Eine Region trägt mehrere Flächen**, und eine einzelne Fläche darf selbst ein MultiPolygon sein. | `is_trial` wandert auf die Fläche (V2.1); **V3.0b ist neu** und Pflicht; Lesepfad joint; V3.6 braucht ein Ziel-Region-Konzept. |
+| **2** | Owner-Entscheidung 4 des Masterplans (*„Diagnostics endpoints: stay public"*) **wird aufgehoben**. | V-1 ist freigegeben und trägt den Nachzug im Masterplan. |
+| **3** | Sichtbarkeit der Erprobung: `?landschaften=1` genügt, keine JS-Injektion. | V1.1 Schritt 6 bleibt im Markup. |
+| **4** | Der F5-Zustand wird repariert — **als eigenes Vorhaben**, nicht hier. | `docs/edit-ansicht-persistenz-auftrag.md`. V3.5 hängt davon ab. |
 
 **Ziel:** Eine Kartenebene „Landschaften" im Edit-Modus, in der Editoren
 Vegetations-, Topographie- und Regionsflächen zeichnen — als Grundlage für
@@ -22,6 +38,30 @@ auf STRATO Shared Hosting, `polygon-clipping` (bereits im Haus).
 
 ---
 
+## Namensgebung
+
+**Code englisch, Oberfläche deutsch** (AGENTS.md §8). Eine Sache, ein Wort:
+
+| Schicht | Name |
+|---|---|
+| Tabellen | `ecosystem_region`, `ecosystem_area`, `ecosystem_region_type`, `ecosystem_revision` |
+| Endpunkte | `api/app/ecosystem-areas.php`, `api/edit/map/ecosystem.php` |
+| Quellen-Whitelist | `entity_type = 'ecosystem'` |
+| JS-Dateien | `js/map-features/map-features-ecosystem-*.js` |
+| Globale Namen | `ecosystemLayers`, `syncEcosystemVisibility`, `ecosystemPane`, `IS_ECOSYSTEM_ENABLED` |
+| Moduswert | `mapLayerMode=ecosystem` |
+| **Oberfläche** | „Landschaften (Erprobung)" |
+| **Query-Flag** | **`?landschaften=1`** |
+
+> Das Flag ist die **eine bewusste Ausnahme**: Es steht in dem Link, den der Owner den
+> Editoren schickt, ist also Oberfläche und bleibt deutsch. Alles andere ist Code.
+>
+> Die `kind`-Werte `derographisch | vegetation | topographie` bleiben ebenfalls deutsch —
+> sie sind **Domänenvokabular** wie `PATH_SUBTYPE_KEYS` (AGENTS.md §2). „Derographisch"
+> ist eine Wiki-Aventurica-Kategorie, kein übersetzbares Wort.
+
+---
+
 ## Globale Regeln
 
 Diese gelten in **jeder** Aufgabe, ohne dass sie dort wiederholt werden.
@@ -32,18 +72,40 @@ Diese gelten in **jeder** Aufgabe, ohne dass sie dort wiederholt werden.
    Auch die „reine Mathematik" nicht — ein Aufruf koppelt in die Gegenrichtung.
    Prüfung: `git status` zeigt keine politische Datei.
 2. 🔴 **Quellen laufen über `sources` + `feature_sources`.**
-   `CREATE TABLE ecosystem_source` ist verboten (AGENTS.md §5). Der Anschluss ist je
-   eine Zeile in `api/edit/map/feature-sources.php` und `api/app/feature-sources.php`.
+   `CREATE TABLE ecosystem_source` ist verboten (AGENTS.md §5).
 3. 🔴 **Ein Flächen-Save fasst `map_revision` niemals an.** Eigener Zähler
-   `ecosystem_revision`, eigener ETag, eigener Endpunkt. Begründung: 2.000
-   Speichervorgänge × 14 MB Payload-Invalidierung für alle Besucher.
-4. 🔴 **Der Totmannschalter greift an vier Stellen** — Modus-Eintrag, öffentlicher
-   Lesepfad (serverseitig, Zeilen verlassen die Box nicht), Routing-Wirkung, Payload.
+   `ecosystem_revision`, eigener ETag, eigener Endpunkt. Begründung: ~2.000
+   Speichervorgänge während des Zeichenfeldzugs × **29,65 MB** Payload-Invalidierung
+   für jeden Besucher.
+
+   > 🪤 **Geprüft wird das an `revision`, nicht an der Byte-Zahl.** Die Nutzlast driftet
+   > durch gewöhnliche Editorarbeit dauernd (gemessen: **+4.557 B an einem Tag**, ohne
+   > jede Landschaft) — eine Byte-Probe schlägt immer an und beweist nichts. Der Wächter
+   > ist das Feld **`revision`** im Payload-Kopf; genau daraus wird der ETag gesät
+   > (`api/app/map-features.php:225–228`).
+   >
+   > 💣 **Der zweite Schreibpfad ist `feature_sources`.** `avesmapsNextMapRevision()` wird
+   > auch von `api/_internal/app/feature-sources.php:428` (Quelle hinzufügen), `:468`
+   > (entfernen) und `:512` gerufen — der Kommentar bei `:421–427` sagt warum: die
+   > Quellenliste *„rides in the ETag-cached map-features payload"*. Deshalb ist **V2.4
+   > hinter V4 verschoben**.
+4. 🔴 **Der Totmannschalter greift an sechs Stellen** — Modus-Eintrag, öffentlicher
+   Lesepfad (serverseitig, Zeilen verlassen die Box nicht), Routing-Wirkung, Payload,
+   **`api/app/feature-sources.php`** (keine Auth, kein Kill-Switch, Allowlist `:33`) und
+   **der Segmentschalter** (V3.0 — die Vorlage `map-features-political-timeline.js:19`
+   hat zwei Tore, nicht eins).
    `?landschaften=1` ist ein **Client**-Flag und sichert nichts; die Sicherung ist
-   `app_setting`.
+   `app_setting['ecosystem_enabled']`.
+
+   > ⚠️ **Der Payload liest `feature_sources` ohne `entity_type`-Filter**
+   > (`api/app/map-features.php:754–761`, Katalog `:722–731`). Live reiten dort heute
+   > 10.721 Refs und 1.526 Katalogeinträge mit. Ein `ecosystem`-Eintrag in der Allowlist
+   > tritt damit **am Kill-Switch vorbei** nach außen — dieselbe Lücke, die `citymap`
+   > bereits hat. Deshalb V2.4 hinter V4.
 5. **Geteilter Arbeitsbaum:** nie `git add -A`. Nur eigene Pfade einzeln stagen.
-   Eigener Worktree empfohlen — `git status` zeigt derzeit fremde offene Arbeit,
-   darunter `js/review/review-wiki-sync.js`.
+   Eigener Worktree empfohlen. 💣 **`index.html` trägt gerade fremde unkommittierte
+   Arbeit** — deshalb nennt dieser Plan für `index.html` **keine Zeilennummern,
+   sondern Anker** (den Text, neben dem eingefügt wird).
 6. **Jeder neue Top-Level-Name wird vor dem Commit gegen `grep` über `js/` geprüft.**
    164 klassische `<script>`-Tags teilen einen globalen Scope; ein doppelter `const`
    killt eine Datei still, und Node-Tests sehen das prinzipiell nie.
@@ -52,8 +114,49 @@ Diese gelten in **jeder** Aufgabe, ohne dass sie dort wiederholt werden.
    (`api/config.local.php` fehlt) — jeder DB-Pfad ist nur live prüfbar.
 8. **Deutsch in der Oberfläche, Englisch in Code, Kommentaren und Commits.** Neue
    UI-Strings gehören zusätzlich in `js/app/i18n-en.js`.
-9. **Kein `?v=` von Hand.** Ausnahme: `edit/index.php` (der Stamper erreicht keine
-   `.php`-Seite) und `ASSET_VERSION` in `js/territory/territory-editor-inline-host.js`.
+9. **Kein `?v=` von Hand.** Ausnahme: `edit/index.php` und `ASSET_VERSION` in
+   `js/territory/territory-editor-inline-host.js`.
+10. 🔴 **NICHT aufrufen:** `GET /api/route/?diagnostic=graph-data`,
+    `?diagnostic=route-name-data`, `?diagnostic=dijkstra-data`,
+    `?diagnostic=location-node-data`, `?diagnostic=map-data`, `?diagnostic=network-data`.
+    **Alle sechs** lösen `avesmapsLoadRouteMapData` aus (62 MB resident, Peak 152 MB);
+    `graph-data` zusätzlich acht Graphbauten. Keiner davon ist „leicht".
+
+---
+
+## Zahlen (gemessen 2026-07-25, zweiter Prüfbericht §D)
+
+Diese ersetzen alle älteren Angaben. Wo Analyse oder erster Prüfbericht abweichen, gilt
+diese Tabelle.
+
+| | alt | **gemessen 2026-07-25** |
+|---|---:|---:|
+| Payload roh | „~14 MB" → 29.646.676 B | **29.651.233 B** |
+| `revision` (Top-Level, der ETag-Same) | — | **35.074** |
+| Features gesamt | 10.746 | **10.745** |
+| ⤷ `location` / `crossing` / `junction` | — | 2.608 / 798 / 1.125 |
+| Landschafts-Labels | 538 | **540** |
+| ⤷ derographisch / topographie / vegetation | 234/180/119 | **234 / 181 / 119** |
+| ⤷ `berggipfel` | 33 | **34** (auf 61 `gebirge`) |
+| ⤷ `tundra` | 0 | **0** — bestätigt |
+| ⤷ **`ebene`** | **0** | 🪤 **1** — „Zwergenpforte", mit Wiki-Link |
+| Orte im Routing-Sinn | 4.531 | **4.531** |
+| routingfähige Wege | 5.515 | **5.512** |
+| Powerline-Zeilen | 162 | **162** = 1,51 % |
+| `source_catalog` / `feature_sources` im Payload | — | **1.526** / **10.721** |
+| `map-features-region-*.js` | 20 Dateien | **19**, 4.104 Z., **172** Deklarationen |
+| `filter-menu.js` / `review-wiki-sync.js` | 238 / 3.192 Z. | **237** / **3.298** Z. |
+
+**Abgeleitete Zahlen — die alten waren nicht mitgezogen:**
+
+| stand da | woher | **richtig** |
+|---|---|---|
+| „**282** Zwillinge" | 166 + 116 aus der Tabelle von 07-17 | 181 + 119 = 300, ohne die 34 `berggipfel` (Punkte, keine Flächen) = **266** |
+| „V5 nimmt **147** Flächen ab" | alte Zahlen ohne `wueste` | `insel` 95 + `see` 46 + `kueste` 2 + `kontinent` 2 + `wueste` 4 = **149** |
+| „**500** Flächen" | — | 234 + 181 + 119 − 34 = **500** ✅ |
+
+> Die 266 trägt V3.6, die 149 trägt V5. **Keine der beiden ist stabil genug, um eine
+> Aufgabe allein zu begründen** — sie ändern sich mit jedem WikiSync-Lauf.
 
 ---
 
@@ -61,309 +164,703 @@ Diese gelten in **jeder** Aufgabe, ohne dass sie dort wiederholt werden.
 
 | | Vorhaben | Ergebnis | Umfang |
 |---|---|---|---|
-| **V0** | Routing entlasten | schneller, **auch ohne Landschaften** | ~200 Z. |
-| **V1** | Die Ebene existiert | Modus umschaltbar, leer, Flag wirkt | ~250 Z. |
-| **V2** | Daten und API | Fläche per API anlegen/lesen/ändern/löschen | ~800 Z. |
-| **V3** | Zeichnen | Fläche entsteht mit Klicks und überlebt Reload | ~1.400 Z. |
-| **V4** | Abnahme + Messung | **20 Flächen, Zeit gestoppt** | kein Code |
+| **V-1** | Diagnosen absichern | öffentliche Bestandsänderung, **eigene Abnahme** | ~60 Z. |
+| **V0** | Routing entlasten | schneller, **auch ohne Landschaften** | ~220 Z. |
+| **V1** | Die Ebene existiert | Modus umschaltbar, leer, Flag wirkt | ~320 Z. |
+| **V2** | Daten und API | Fläche per API anlegen/lesen/ändern/löschen | ~900 Z. |
+| **V3** | Zeichnen und Anzeigen | Fläche entsteht **mit Region und Namen**, wird geladen, überlebt Reload | ~1.950 Z. |
+| **V4** | Abnahme + Messung | **2 × 10 Flächen, Zeit gestoppt** | kein Code |
+| **V4a** | Quellen anschließen (ex V2.4) | `entity_type='ecosystem'` | ~10 Z. |
 
-> **V0–V4 sind das ganze erste Vorhaben.** Alles Weitere — Editor, Topographie,
-> Vorberechnung, Routing-Wirkung, Suche — wird **neu beauftragt**, wenn echte Flächen
-> auf der Karte liegen und sich das Zeichnen gut anfühlt. Skizze am Ende.
+> **V-1 bis V4 sind das ganze erste Vorhaben.** Alles Weitere wird **neu beauftragt**,
+> wenn echte Flächen auf der Karte liegen und sich das Zeichnen gut anfühlt.
+
+**Zwei Verschiebungen gegenüber der ersten Überarbeitung** (Entscheidungen 1 und die
+Payload-Befunde):
+
+- **V3.0b ist neu und Pflicht.** Entscheidung 1 („eine Region, mehrere Flächen") heißt,
+  dass der Zeichenvorgang wissen muss, in welche Region die Fläche geht. Ohne eine
+  Regionsauswahl entstehen namenlose Zeilen. **+150–250 Z.**
+- **V2.4 → V4a, hinter die Messung.** Die Quellen-Allowlist öffnet zwei Türen (Regel 3
+  und Regel 4) und kauft vor V6 nichts — vor dem Landschaftseditor kann niemand eine
+  Quelle anhängen.
+
+---
+
+# V-1 — Diagnosen absichern
+
+> ⚠️ **Dies ist eine Änderung an öffentlichem Bestandsverhalten** (heute 200, danach
+> 401) und hat mit den Landschaften nichts zu tun. Deshalb ein eigenes Vorhaben mit
+> eigener Abnahme — und unabhängig freigebbar.
+>
+> 🔴 **Es hebt Owner-Entscheidung 4 auf** (`docs/refactoring-masterplan.md:73`,
+> festgeschrieben 2026-06-13: *„Diagnostics endpoints: stay public. … M1 still closes the
+> exception-payload leaks (content, not access)."*). **Owner hat sie am 2026-07-25
+> aufgehoben** — eine Begründung war nie festgehalten, und die 62 MB je Aufruf hatte
+> damals niemand gemessen. Der Nachzug im Masterplan ist Teil dieser Aufgabe (Schritt 6).
+>
+> Der **Vertrag** ist nicht betroffen: `api/README.md:95` — *„They are not part of the
+> stable external API contract."*
+>
+> ⚠️ **Die Entscheidung deckt mehr ab, als diese Aufgabe anfasst.** Das Inventar bei
+> `refactoring-masterplan.md:79–92` listet außerdem
+> `api/app/political-derived-geometry-debug.php`, sieben `political-territories.php?action=`-Zweige,
+> `?debug_errors=1` an zwei Stellen und die öffentliche `html/political-boundary-diagnostics.html`.
+> **V-1 schließt nur die sechs Routing-Zweige.** Der politische Rest ist der teurere Teil
+> und gehört in eine eigene Aufgabe — hier nur benannt, nicht mitgemeint.
+>
+> ✅ **Kein interner Aufrufer.** `grep` über `js/`, `html/`, `tools/`, `index.html` nach
+> `diagnostic=`: **0 Treffer**. `sitemap.xml` hat ein einziges `<loc>`, `robots.txt`
+> sperrt nur `/admin/`.
+
+### Aufgabe V-1.1 — Alle sechs Diagnose-Zweige hinter die Fähigkeitsprüfung
+
+**Dateien:** Ändern `api/route/index.php:24–310`
+
+**Warum alle sechs, nicht drei:** Der Plan behauptete früher, `map-data` und
+`network-data` seien „leicht". Das ist falsch — **jeder** der sechs Zweige ruft
+`avesmapsLoadRouteMapData`:
+
+| Zweig | Zeile | Volltabellen-Scan |
+|---|---|---|
+| `map-data` | `:25` | `:26` |
+| `network-data` | `:46` | `:47` |
+| `location-node-data` | `:64` | `:70` |
+| `route-name-data` | `:104` | `:133` |
+| `dijkstra-data` | `:126` | `:157` |
+| `graph-data` | `:156` | `:160` + acht Graphbauten |
+
+Gemessen: 62 MB resident, Peak 152 MB je Aufruf; `graph-data` zusätzlich 11,3 s bei
+10.000 Knoten. Unauthentifiziert, ohne Rate-Limit, und `api/route/` hat **kein**
+`.htaccess` (`api/diagnostics/` hat eins).
+
+> 💣 **Die erste Fassung dieser Aufgabe war nicht lauffähig** — drei unabhängige Fehler in
+> fünf Zeilen, und `catch (Throwable)` bei `api/route/index.php:341–342` hätte sie zu
+> **500 statt 401** verschluckt. Alle drei sind unten aufgelöst.
+
+- [ ] **Schritt 1: `auth.php` einbinden.** `api/route/index.php:5–10` lädt bootstrap,
+      request, map-data, network-data, graph, response — **nicht** `auth.php`. Ohne
+      zusätzliches `require_once` ist die Funktion undefiniert.
+
+```php
+// api/route/index.php, zu den bestehenden requires (:5-10)
+require_once __DIR__ . '/../_internal/auth.php';
+```
+
+- [ ] **Schritt 2: Die GET-Weiche gemeinsam absichern**
+
+```php
+// api/route/index.php, VOR der Zweig-Auswertung.
+// Alle sechs Diagnosen laden die komplette Feature-Tabelle (gemessen 62 MB resident,
+// Peak 152 MB). Sie sind Werkzeuge fuer Entwickler, nicht Teil der oeffentlichen API --
+// der stabile Vertrag ist POST / und GET /api/locations/.
+if ($diagnostic !== '') {
+    avesmapsRequireUserWithCapability('edit');
+}
+```
+
+> 🔴 **EIN Parameter, kein `$pdo`.** Die Signatur ist
+> `avesmapsRequireUserWithCapability(string $capability): array` (`api/_internal/auth.php:94`).
+> Ein Aufruf mit zweien ist ein `TypeError`.
+>
+> 🔴 **Und es gibt in dieser Datei kein `$pdo`.** `$pdo` und `avesmapsCreatePdo` kommen in
+> `api/route/index.php` **null mal** vor — die Verbindung entsteht erst *innerhalb*
+> `avesmapsLoadRouteMapData` (`api/_internal/routing/map-data.php:6`). Es gibt hier nichts
+> zu prüfen und nichts abzuwarten; die Weiche darf ganz vorn stehen.
+
+- [ ] **Schritt 3: 🔧 DU (Owner): Abnahme**
+
+Ohne Session, je ein einzelner Aufruf (nicht in einer Schleife):
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" "https://avesmaps.de/api/route/?diagnostic=map-data"
+```
+Erwartet: **401** — nicht 403 (angemeldet ohne Recht) und vor allem **nicht 500**
+(dann greift einer der drei Fehler oben). Ebenso für `network-data`. **`graph-data` NICHT
+testen** — wenn die Sperre wider Erwarten nicht greift, hängt der Aufruf 11 Sekunden und
+sättigt den Pool.
+
+- [ ] **Schritt 4:** `POST /api/route/` mit einer bekannten Route — **unverändert 200**.
+      Die stabile öffentliche API darf sich nicht ändern. Ebenso
+      `GET /api/locations/` — der **zweite** Vertragsendpunkt, der über
+      `avesmapsLoadRouteMapData` denselben Pfad benutzt (`api/locations/index.php:26`).
+- [ ] **Schritt 5: Den Masterplan nachziehen.** In `docs/refactoring-masterplan.md`
+      Entscheidung 4 (`:73`) als **am 2026-07-25 aufgehoben** kennzeichnen und im Inventar
+      (`:79–92`) vermerken, welche Zweige jetzt geschützt sind und welche noch offen
+      stehen. Eine eingefrorene Entscheidung stillschweigend zu überholen ist genau die
+      Sorte Drift, gegen die der Masterplan geschrieben wurde.
+- [ ] **Schritt 6: Commit** — `fix(routing): gate all six route diagnostics behind edit capability`
 
 ---
 
 # V0 — Routing entlasten
 
-**Warum zuerst:** Der Routing-Pfad trägt heute einen 983-ms-Posten je Anfrage. Terrain
-würde ihn multiplizieren. Und dieses Vorhaben ist **auch dann richtig, wenn die
-Landschaften nie kommen** — es hat mit ihnen nichts zu tun.
+**Warum:** Der Routing-Pfad trägt heute einen ~983-ms-Posten je Anfrage, und bei
+4.531 Orten (statt der gemessenen 3.949 von damals) wächst er weiter. Terrain würde
+ihn multiplizieren. Dieses Vorhaben ist **auch dann richtig, wenn die Landschaften nie
+kommen**.
 
-### Aufgabe V0.1 — Gitter-Hash für die Endpunktsuche
+> 🔴 **Für V0.1 UND V0.2: ein `?s=`-Link ist ein Rezept, kein Ergebnis.**
+>
+> | Stufe | Fundstelle |
+> |---|---|
+> | Wegpunkte gehen als **Namen** in die Query | `js/map-features/map-features-layer-state.js:236` |
+> | `minimizeTransfers` reist mit | `:277–279` |
+> | Der Teilen-Knopf nimmt genau diese Query | `js/app/share-link.js:58–59` |
+> | Der Server legt sie ab | `api/app/share-link.php:128` → `map_share_links.target_query` |
+> | **Kein Verfall** | DDL `api/app/share-link.php:19–31`: kein `expires_at`, kein Cleanup |
+>
+> Jeder geteilte Link wird beim Öffnen **serverseitig neu gerechnet**
+> (`api/_internal/routing/response.php:167–170`). Eine Verhaltensdrift in V0.1
+> (Reihenfolge bei zwei Orten im selben Toleranzfenster) oder V0.2 (Abbruch am Ziel)
+> **verschiebt still eine Route, die jemand vor Wochen geteilt hat** — der Link löst
+> weiter auf und zeichnet weiter eine Route, nur eine andere.
+>
+> **Deshalb ist der Nachweis beider Aufgaben ein Netzlauf, kein Fixture-Test:** dieselben
+> **5–10 echten Routen** vor und nach dem Umbau, Antworten gespeichert, Byte-Vergleich.
+> Einzelne Aufrufe, keine Schleife. Die Narbe steht im eigenen Haus
+> (`docs/oekosystem-instruction.md:217`: *„Neuberechnen andere Reisezeiten liefern und
+> Routen lautlos verschieben"*) und in Analyse §8.9 (2026-06-20: *„Mein isolierter
+> Mock-Test hat das NICHT gefunden"*).
+
+### Aufgabe V0.1 — Zellindex für die Endpunktsuche
+
+> 💣 **Diese Aufgabe war in der ersten Planfassung funktionsunfähig** und ihr eigener
+> Test hätte das nicht gemerkt (Prüfbericht §1.1). Die vier Fehler und ein fünfter,
+> beim Nachlesen gefundener, sind unten einzeln aufgelöst.
 
 **Dateien:**
-- Ändern: `api/_internal/routing/client-graph.php:620–633` (`avesmapsFindClientLocationAtPathEndpoint`)
-- Ändern: `api/_internal/routing/client-graph.php:98–110` (Aufrufstelle, Index einmal bauen)
+- Ändern: `api/_internal/routing/client-graph.php:620–633` (die Suche)
+- Ändern: `api/_internal/routing/client-graph.php:61–67` (dort wird gebaut)
+- Ändern: `api/_internal/routing/client-graph.php:98` (Signatur der Aufrufer-Funktion)
+- Ändern: **drei** Aufrufstellen: `:103`, `:104`, **`:400`**
+- Ändern: `api/_internal/routing/client-graph.php:390` (Signatur von
+  `avesmapsCollectClientSeaBoundLocationNames`)
 - Test: `tools/routing/test-client-graph-endpoint-index.php` (neu)
 
-**Schnittstellen:**
-- Erzeugt: `avesmapsBuildClientLocationCoordinateIndex(array $locations): array` —
-  Schlüssel `"{round(x*2)}:{round(y*2)}"`, Wert = Liste von Ortsindizes.
-- `avesmapsFindClientLocationAtPathEndpoint` behält Signatur und Rückgabe **exakt**;
-  nur die Suche innen wird ersetzt. Der Toleranzwert `THRESHOLD = 0.5` (`js/config.js:2`)
-  bleibt maßgeblich, das Raster ist deshalb `0.5` und es werden **9 Zellen** geprüft.
+**Was tatsächlich im Code steht** (nachgelesen, nicht übernommen):
 
-- [ ] **Schritt 1: Test schreiben, der die alte und neue Suche gegeneinander stellt**
+```php
+// :620  ZWEI Parameter, gibt den Ortssatz oder null zurueck
+function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $point): ?array
+
+// :625-630  Tschebyschow-Test, KEIN Radius: ein offenes 1,0 x 1,0-Kaestchen
+foreach ($locations as $location) {
+    if (abs((float) $location['route_y'] - (float) $y) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
+        && abs((float) $location['route_x'] - (float) $x) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
+        return $location;      // <-- der ERSTE Treffer in $locations-Reihenfolge
+    }
+}
+```
+
+**Fünf Dinge, die stimmen müssen:**
+
+| # | | |
+|---|---|---|
+| 1 | **`route_x` / `route_y`, nicht `coordinates`** | Ein Ortssatz aus `network-data.php:134–141` hat `id, public_id, name, subtype, geometry, properties`. Die Routing-Koordinaten entstehen erst bei `client-graph.php:53–54`. Ein Index über `$location['coordinates']` bliebe **leer** → Graph ohne Kanten → jede Route „nicht gefunden". |
+| 2 | **Die Signatur ändert sich** | Sie bekommt den Index als dritten Parameter. Alle **drei** Aufrufstellen mitziehen — `:400` liegt in `avesmapsCollectClientSeaBoundLocationNames` und ist leicht zu übersehen; ein vergessener Aufruf ist ein **PHP-Fatal**, kein Testfehler. |
+| 3 | **Es gibt schon einen Index** | `$locationCoordinateIndex` (`:61–67`) mit **exakten** Schlüsseln `%.5f:%.5f`, Wert = der Ortssatz selbst. Er dient den Innenknoten-Splits und wird bei `:79` weitergereicht. Der neue heißt **`$locationCellIndex`** und hat eine andere Struktur (Zelle → **Liste von Indizes**). |
+| 4 | **Der Toleranzwert ist `AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD`** (`client-graph.php:5`), **nicht** `THRESHOLD` aus `js/config.js:2` — PHP liest die JS-Datei nie. Beide sind zufällig `0.5`; der Kommentar bei `js/config.js:3–6` nennt sogar `0.15` und ist selbst veraltet. |
+| 5 | 💣 **Die Reihenfolge ist Verhalten** | Die lineare Suche liefert den **ersten** Treffer in `$locations`-Reihenfolge. Ein Zellindex läuft in Zellreihenfolge und liefert bei zwei nahe beieinander liegenden Orten **einen anderen**. Deshalb speichert der Index **Indizes**, und die Suche gibt den mit dem **kleinsten** zurück. *(Diesen Punkt hat auch der Prüfbericht nicht — er fällt nur auf, wenn man die Schleife wörtlich liest.)* |
+
+**9 Zellen genügen — mit null Reserve.** Schlüssel `round(c·2)` ⇒ Zellbreite `0,5`;
+die Toleranz ist damit **eine volle Zellbreite**. Aus `|Δc| < 0,5` folgt
+`round(2c_loc) − round(2c) ∈ {−1, 0, +1}`. Steigt die Toleranz je über `0,5`, reichen
+9 Zellen **stillschweigend** nicht mehr — deshalb Schritt 4.
+
+- [ ] **Schritt 1: Die lineare Referenz als eigene Funktion herausziehen**
 
 ```php
 // tools/routing/test-client-graph-endpoint-index.php
-// Deckungsgleichheit ist die einzige Anforderung: fuer JEDEN Punkt muss die
-// indizierte Suche denselben Ort liefern wie die lineare -- auch bei Fehlschlag.
-$locations = [];
-for ($i = 0; $i < 4000; $i++) {
-    $locations[] = ['name' => "Ort$i", 'coordinates' => [($i * 7) % 1024 + 0.13, ($i * 13) % 1024 + 0.37]];
+// Die Referenz ist eine WOERTLICHE Kopie der Schleife von vor dem Umbau -- sie ist der
+// Massstab, gegen den die indizierte Suche antritt, und darf nie mitoptimiert werden.
+function avesmapsFindClientLocationLinearReference(array $locations, array $point): ?array {
+    $x = filter_var($point[0] ?? null, FILTER_VALIDATE_FLOAT);
+    $y = filter_var($point[1] ?? null, FILTER_VALIDATE_FLOAT);
+    if ($x === false || $y === false) return null;
+    foreach ($locations as $location) {
+        if (abs((float) $location['route_y'] - (float) $y) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
+            && abs((float) $location['route_x'] - (float) $x) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
+            return $location;
+        }
+    }
+    return null;
 }
-$index = avesmapsBuildClientLocationCoordinateIndex($locations);
-$mismatches = 0;
-foreach ($locations as $loc) {
-    $probe = [$loc['coordinates'][0] + 0.2, $loc['coordinates'][1] - 0.2];   // innerhalb THRESHOLD
-    $linear = avesmapsFindClientLocationLinearForTest($locations, $probe);
-    $hashed = avesmapsFindClientLocationAtPathEndpoint($locations, $index, $probe);
-    if (($linear['name'] ?? null) !== ($hashed['name'] ?? null)) { $mismatches++; }
-}
-// Zusaetzlich 1000 Punkte, die GARANTIERT daneben liegen (Fehlschlag muss auch stimmen)
-assert($mismatches === 0, "Indizierte Suche weicht ab: $mismatches Faelle");
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [ ] **Schritt 2: Den Test schreiben — mit den drei Fällen, die wirklich beißen**
+
+```php
+require_once __DIR__ . '/../../api/_internal/routing/client-graph.php';
+
+// (1) Realistische Streuung. route_x/route_y -- NICHT 'coordinates'.
+$locations = [];
+for ($i = 0; $i < 4500; $i++) {
+    $locations[] = [
+        'name' => "Ort$i",
+        'route_x' => (($i * 7) % 1024) + 0.13,
+        'route_y' => (($i * 13) % 1024) + 0.37,
+    ];
+}
+// (2) Zwei Orte im selben Toleranzfenster -- faengt die Reihenfolgen-Falle (#5).
+$locations[] = ['name' => 'ZwillingA', 'route_x' => 500.00, 'route_y' => 500.00];
+$locations[] = ['name' => 'ZwillingB', 'route_x' => 500.30, 'route_y' => 500.30];
+
+$index = avesmapsBuildClientLocationCellIndex($locations);
+$mismatches = [];
+
+// (3) Sonden bei +-0.4999: exakt an der Toleranzgrenze, wo eine zu kleine
+//     Nachbarschaft (nur 4 statt 9 Zellen) auffliegt. +-0.2 wuerde es NICHT zeigen.
+foreach ($locations as $loc) {
+    foreach ([[0.4999, 0.0], [-0.4999, 0.0], [0.0, 0.4999], [0.4999, -0.4999], [0.0, 0.0]] as $d) {
+        $probe  = [$loc['route_x'] + $d[0], $loc['route_y'] + $d[1]];
+        $linear = avesmapsFindClientLocationLinearReference($locations, $probe);
+        $hashed = avesmapsFindClientLocationAtPathEndpoint($locations, $index, $probe);
+        if (($linear['name'] ?? null) !== ($hashed['name'] ?? null)) {
+            $mismatches[] = sprintf('%s @ %+.4f/%+.4f: linear=%s indiziert=%s',
+                $loc['name'], $d[0], $d[1], $linear['name'] ?? 'null', $hashed['name'] ?? 'null');
+        }
+    }
+}
+// (4) 1000 Punkte, die GARANTIERT daneben liegen -- der Fehlschlag muss auch stimmen.
+for ($i = 0; $i < 1000; $i++) {
+    $probe  = [2000.0 + $i, 3000.0 + $i];
+    $linear = avesmapsFindClientLocationLinearReference($locations, $probe);
+    $hashed = avesmapsFindClientLocationAtPathEndpoint($locations, $index, $probe);
+    if (($linear['name'] ?? null) !== ($hashed['name'] ?? null)) { $mismatches[] = "Fehlschlag $i"; }
+}
+
+assert($mismatches === [], "Abweichungen:\n" . implode("\n", array_slice($mismatches, 0, 10)));
+echo "OK: " . (count($locations) * 5 + 1000) . " Sonden deckungsgleich\n";
+```
+
+- [ ] **Schritt 3: Test laufen lassen, Fehlschlag bestätigen**
 
 ```bash
 php -d zend.assertions=1 tools/routing/test-client-graph-endpoint-index.php
 ```
-Erwartet: `Fatal error: Uncaught Error: Call to undefined function avesmapsBuildClientLocationCoordinateIndex`
+Erwartet: `Call to undefined function avesmapsBuildClientLocationCellIndex`
 
 ⚠️ **Ohne `-d zend.assertions=1` prüft `assert()` gar nichts** und der Test meldet grün.
 
-- [ ] **Schritt 3: Index bauen und Suche ersetzen**
+- [ ] **Schritt 4: Index bauen — mit Zusicherung über die Rasterweite**
 
 ```php
-// Raster = THRESHOLD (0.5). Ein Treffer kann in der eigenen oder einer der acht
-// Nachbarzellen liegen, nie weiter -- deshalb genuegen 9 Zellen statt 3.949 Orten.
-function avesmapsBuildClientLocationCoordinateIndex(array $locations): array {
+// Zellbreite 0.5 = die Endpunkt-Toleranz. Ein Treffer liegt damit in der eigenen oder
+// einer der acht Nachbarzellen, nie weiter -- 9 Zellen statt 4.531 Orten.
+// Die Zusicherung ist kein Zierrat: waechst die Toleranz je ueber die Zellbreite,
+// reichen 9 Zellen nicht mehr, und die Suche wuerde still Treffer verlieren.
+const AVESMAPS_ROUTE_CLIENT_CELL_SIZE = 0.5;
+
+function avesmapsBuildClientLocationCellIndex(array $locations): array {
+    assert(AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD <= AVESMAPS_ROUTE_CLIENT_CELL_SIZE,
+        'Endpunkt-Toleranz groesser als die Zellbreite -- 3x3 Zellen reichen nicht mehr.');
+
     $index = [];
     foreach ($locations as $i => $location) {
-        $c = $location['coordinates'] ?? null;
-        if (!is_array($c) || count($c) < 2) { continue; }
-        $key = ((int) round($c[0] * 2)) . ':' . ((int) round($c[1] * 2));
-        $index[$key][] = $i;
+        $x = filter_var($location['route_x'] ?? null, FILTER_VALIDATE_FLOAT);
+        $y = filter_var($location['route_y'] ?? null, FILTER_VALIDATE_FLOAT);
+        if ($x === false || $y === false) continue;
+        $key = ((int) round($x / AVESMAPS_ROUTE_CLIENT_CELL_SIZE)) . ':'
+             . ((int) round($y / AVESMAPS_ROUTE_CLIENT_CELL_SIZE));
+        $index[$key][] = $i;          // INDIZES, nicht Ortssaetze -- siehe Suche
     }
     return $index;
 }
 ```
-Die Suche iteriert `for ($dx = -1; $dx <= 1; $dx++) for ($dy = -1; $dy <= 1; $dy++)`
-über die Kandidaten und behält den **bisherigen** Abstandsvergleich unverändert.
 
-- [ ] **Schritt 4: Test laufen lassen, Erfolg bestätigen**
+- [ ] **Schritt 5: Die Suche ersetzen — Reihenfolge erhalten**
+
+```php
+function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $cellIndex, array $point): ?array {
+    $x = filter_var($point[0] ?? null, FILTER_VALIDATE_FLOAT);
+    $y = filter_var($point[1] ?? null, FILTER_VALIDATE_FLOAT);
+    if ($x === false || $y === false) return null;
+
+    $cx = (int) round($x / AVESMAPS_ROUTE_CLIENT_CELL_SIZE);
+    $cy = (int) round($y / AVESMAPS_ROUTE_CLIENT_CELL_SIZE);
+
+    // Die lineare Suche lieferte den ERSTEN Treffer in $locations-Reihenfolge. Ueber
+    // Zellen gelaufen waere die Reihenfolge eine andere -- bei zwei Orten im selben
+    // Toleranzfenster kaeme ein anderer heraus. Deshalb: kleinster Index gewinnt.
+    $best = null;
+    for ($dx = -1; $dx <= 1; $dx++) {
+        for ($dy = -1; $dy <= 1; $dy++) {
+            foreach ($cellIndex[($cx + $dx) . ':' . ($cy + $dy)] ?? [] as $i) {
+                if ($best !== null && $i >= $best) continue;
+                $location = $locations[$i];
+                if (abs((float) $location['route_y'] - $y) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
+                    && abs((float) $location['route_x'] - $x) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
+                    $best = $i;
+                }
+            }
+        }
+    }
+    return $best === null ? null : $locations[$best];
+}
+```
+
+- [ ] **Schritt 6: Die vier Signatur-/Aufrufstellen nachziehen**
+
+```php
+// :61-67  neben dem vorhandenen $locationCoordinateIndex, nicht statt ihm
+$locationCellIndex = avesmapsBuildClientLocationCellIndex($locations);
+
+// :73   avesmapsAddClientCompatiblePathConnection(..., $locationCellIndex, ...)
+// :79   avesmapsCollectClientSeaBoundLocationNames($networkData, $locations,
+//                                                  $locationCoordinateIndex, $locationCellIndex)
+// :103  avesmapsFindClientLocationAtPathEndpoint($locations, $cellIndex, $coordinates[0])
+// :104  avesmapsFindClientLocationAtPathEndpoint($locations, $cellIndex, $coordinates[$count - 1])
+// :400  avesmapsFindClientLocationAtPathEndpoint($locations, $cellIndex, $endpoint)
+```
+
+- [ ] **Schritt 7: Beide Tests laufen lassen**
 
 ```bash
 php -d zend.assertions=1 tools/routing/test-client-graph-endpoint-index.php
-```
-Erwartet: `OK` und eine ausgegebene Zeitmessung beider Varianten.
-
-- [ ] **Schritt 5: Bestehende Routing-Tests laufen lassen**
-
-```bash
 php -d zend.assertions=1 tools/routing/test-client-graph-flow.php
 ```
-Erwartet: unverändert grün. Der Flow-Test ist das Schutzgeländer.
+Erwartet: beide `OK`. Der Flow-Test ist das Schutzgeländer für die Flussrichtung.
 
-- [ ] **Schritt 6: Commit**
+- [ ] **Schritt 8: Commit**
 
 ```bash
 git add api/_internal/routing/client-graph.php tools/routing/test-client-graph-endpoint-index.php
-git commit -m "perf(routing): grid-hash the endpoint lookup instead of scanning all locations"
+git commit -m "perf(routing): cell-index the endpoint lookup instead of scanning all locations"
 ```
 
-- [ ] **Schritt 7: 🔧 DU (Owner): Live-Abnahme**
+- [ ] **Schritt 9: 🔧 DU (Owner): Live-Abnahme**
 
-Eine bekannte Route planen (z. B. Gareth → Tuzak) und mit einer vor dem Umbau
-gespeicherten Antwort vergleichen. **Identisch**, nur schneller. Ein einzelner
-Aufruf — nicht in einer Schleife.
+Eine Route mit Wegpunkten planen (die zerlegt der Client in N−1 POSTs — dort schlägt
+der Gewinn am stärksten durch) und mit einer vor dem Umbau gespeicherten Antwort
+vergleichen. **Segmentliste identisch**, nur schneller. Einzelne Aufrufe, keine Schleife.
 
-### Aufgabe V0.2 — Dijkstra: Abbruch am Ziel und Settled-Set
+### Aufgabe V0.2 — Dijkstra: Abbruch am Ziel
 
 **Dateien:** Ändern `api/_internal/routing/client-graph.php:743–763`
 
-- [ ] **Schritt 1: Test — dieselbe Route, identisches Ergebnis, weniger Iterationen**
-- [ ] **Schritt 2: `break`, sobald `$currentNode === $endName` extrahiert wurde**
-      (Vorlage: `api/_internal/routing/graph.php:522` hat es bereits)
-- [ ] **Schritt 3: `$settled[$node] = true` beim Extrahieren; veraltete Heap-Einträge überspringen**
-      (Der Client hat diesen Guard bereits: `route-graph-core.js:110`)
-- [ ] **Schritt 4: Flow-Tests laufen lassen — unverändert grün**
-- [ ] **Schritt 5: Commit** — `perf(routing): stop dijkstra at the target and skip settled nodes`
+> 🔴 **Nicht so einfach wie die Vorlage.** Der Heap trägt
+> `['node' => …, 'transport' => …]`, und bei `minimizeTransfers` (`:753`) hängen die
+> Kantenkosten **vom eingehenden Transportmittel** ab. `$distances[$node]` ist dann
+> kein gültiges Label. **Ein Settled-Set, das nur nach Knoten schlüsselt, ändert das
+> Ergebnis.** Die Vorlage `graph.php:522` hat gar kein Transportkonzept und taugt
+> nicht als Beweis.
+
+> 💣 **Die erste Fassung hatte die beiden Hälften vertauscht.** Sie stellte den Abbruch
+> am Ziel unbedingt in Schritt 2 („bei nicht-negativen Kanten immer korrekt, unabhängig
+> vom Transportmodell") und hängte das Settled-Set an eine Bedingung. **Der Satz ist
+> falsch**, und zwar genau unter der Bedingung, vor der der Kasten oben warnt:
+>
+> ```php
+> $currentDistance = $distances[$currentNode] ?? INF;   // :747  das LABEL, nicht die Prioritaet
+> …
+> if ($minimizeTransfers && $currentTransport !== null && $transport !== $currentTransport)
+>     $weight += AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY;  // :753  Kosten am EINGEHENDEN Mittel
+> $queue->insert(['node' => $neighbor, 'transport' => $transport], -$alternative);  // :759
+> ```
+>
+> Der Abbruch am Ziel ist nur sicher, wenn die Prioritäten entlang der Extraktionen
+> monoton wachsen. Hier tun sie das nicht: ein **veralteter** Heap-Eintrag für `u`
+> (eingereiht mit Priorität 10) wird beim Auspacken mit dem inzwischen kleineren
+> `$distances[u] = 7` gerechnet — und mit **seinem eigenen** `transport`. Die daraus
+> entstehende Relaxation `7 + w` kann unter der Priorität liegen, bei der das Ziel bereits
+> extrahiert wurde. Die Vorlage `graph.php:522` hat kein Transportkonzept und beweist nichts.
+
+- [ ] **Schritt 1: Netzlauf-Grundlinie aufnehmen.** 5–10 echte Routen (siehe Kasten am
+      Anfang von V0), je einmal **mit** und **ohne** `minimize_transfers`, Antworten
+      gespeichert. Einzelne Aufrufe, keine Schleife. **Das ist der Maßstab, nicht ein
+      Fixture-Test.**
+- [ ] **Schritt 2: Settled-Set — die sichere Hälfte zuerst.** Geschlüsselt nach
+      **`(node, transport)`**, nicht nach `node`. Ohne `minimizeTransfers` ist das
+      äquivalent zum Knoten-Schlüssel; mit `minimizeTransfers` ist es der einzige
+      korrekte Schlüssel. Netzlauf: alle Antworten byte-gleich.
+- [ ] **Schritt 3: Abbruch am Ziel — nur, wenn er sich beweisen lässt.** Zulässig
+      **ohne** `minimizeTransfers`. Mit `minimizeTransfers` erst dann, wenn der Netzlauf
+      aus Schritt 1 ihn deckt — **im Zweifel weglassen.** Das Settled-Set bringt bereits
+      den Großteil, und eine still verschobene Route kostet mehr als die Millisekunden.
+- [ ] **Schritt 4:** `tools/routing/test-client-graph-flow.php` grün **und** der Netzlauf
+      byte-gleich.
+- [ ] **Schritt 5: Commit** — `perf(routing): settle dijkstra nodes per (node, transport) instead of revisiting them`
 
 ### Aufgabe V0.3 — Typfilter in der Ladequery
 
 **Dateien:** Ändern `api/_internal/routing/map-data.php:41`
 
-- [ ] **Schritt 1:** `AND feature_type <> 'powerline'` ergänzen. Verhaltensgleich —
-      `network-data.php:76/:92` wirft diese Zeilen ohnehin weg — spart Transfer und
-      `json_decode`.
+> **Ehrliche Größenordnung: 162 von 10.746 Zeilen = 1,51 %.** Das ist keine
+> „Entlastung", sondern Hygiene. Und nur `network-data.php:92` trägt das Argument —
+> `:76` wirft **Labels** weg, nicht Powerlines.
+
+- [ ] **Schritt 1:** `AND feature_type <> 'powerline'` ergänzen. Verhaltensgleich.
 - [ ] **Schritt 2:** Flow-Tests grün.
-- [ ] **Schritt 3: Commit** — `perf(routing): stop loading powerline rows the graph discards`
+- [ ] **Schritt 3: Commit** — `perf(routing): stop loading the 162 powerline rows the graph discards`
 
 ### Aufgabe V0.4 — Zeitlimit im Routing-Endpunkt
 
-**Dateien:** Ändern `api/route/index.php` (vor dem POST-Zweig, Zeile ~312)
+**Dateien:** Ändern `api/route/index.php` (vor dem POST-Zweig, `:312`)
 
-- [ ] **Schritt 1:** `@set_time_limit(30);` ergänzen. `api/route/` ist der **einzige**
-      schwere Pfad ohne — 12 andere Batch-Endpunkte haben es.
+- [ ] **Schritt 1:** `@set_time_limit(30);` ergänzen. `api/route/index.php` ruft es
+      **nie** — als einziger schwerer Pfad; im Rest von `api/` gibt es 33 Aufrufe in
+      21 Dateien.
 - [ ] **Schritt 2: Commit** — `fix(routing): give the route endpoint an explicit time limit`
-
-### Aufgabe V0.5 — Die teuren Diagnosen absichern
-
-**Dateien:** Ändern `api/route/index.php:24–310`
-
-**Warum:** `?diagnostic=graph-data` baut acht Graphen und ruft viermal eine offene
-Doppelschleife über alle Knoten — gemessen **11,3 s bei 10.000 Knoten**,
-unauthentifiziert, ohne Rate-Limit. `?diagnostic=route-name-data` fährt einen vollen
-Routenlauf per GET, also von Crawlern indexierbar.
-
-- [ ] **Schritt 1:** Die teuren Zweige (`graph-data`, `route-name-data`, `dijkstra-data`)
-      hinter `avesmapsRequireUserWithCapability($pdo, 'edit')` legen. Die leichten
-      (`map-data`, `network-data`) bleiben offen.
-- [ ] **Schritt 2: 🔧 DU (Owner):** Ohne Session `curl` auf `?diagnostic=graph-data` →
-      **401**, nicht 200 nach 11 Sekunden.
-- [ ] **Schritt 3: Commit** — `fix(routing): gate the expensive route diagnostics behind edit capability`
 
 ---
 
 # V1 — Die Ebene existiert
 
 **Fertig, wenn:** Umschalten auf „Landschaften (Erprobung)" zeigt die Karte
-vollständig, die eigene Pane existiert und ist leer, hin- und zurückschalten
-beschädigt die politische Ebene nicht, und **ohne** `?landschaften=1` ist alles wie
-heute.
+vollständig **inklusive Territoriengrenzen**, die eigene Pane existiert und ist leer,
+hin- und zurückschalten beschädigt die politische Ebene nicht, und **ohne**
+`?landschaften=1` ist alles wie heute.
 
 ### Aufgabe V1.1 — Flag und Modus
 
-**Dateien:**
-- Ändern: `js/config.js:198` (neben `IS_EDIT_MODE`)
-- Ändern: `index.html:1425–1431` (`<option>`)
-- Ändern: `js/map-features/map-features-display-mode.js:155` (Whitelist)
-- Ändern: `js/config.js:509–516` (Icon)
-- Ändern: `js/app/i18n-en.js:79–86` (Übersetzung)
-- Ändern: `js/map-features/map-features.js:31` (Option entfernen, wenn Flag fehlt)
+> 🔴 **Es sind acht Stellen, nicht fünf.** Fehlt eine der ersten fünf, fällt der Modus
+> **stumm** auf `deregraphic` zurück. Fehlen die letzten drei, erscheint der Modus —
+> aber ohne Grenzen und ohne Territoriumsdaten.
 
-> 🔴 **Fünf Stellen müssen übereinstimmen.** Fehlt eine, fällt der Modus **stumm** auf
-> `deregraphic` zurück — kein Fehler, keine Meldung. `js/config.js:483`
-> (Standardmodus) wird **nicht** angefasst.
+| # | Stelle | HEAD | Wirkung, wenn vergessen |
+|---|---|---|---|
+| 1 | `<option>` in der Modusliste | `index.html`, **Anker:** die Zeile mit `value="powerlines"` | Eintrag fehlt |
+| 2 | Whitelist | `js/map-features/map-features-display-mode.js:155` | stummer Rückfall |
+| 3 | Icon | `js/config.js:509–516` | Combobox ohne Bild |
+| 4 | Übersetzung | `js/app/i18n-en.js:79–86` | `?lang=en` zeigt den Schlüssel |
+| 5 | Standardmodus **(nicht ändern!)** | `js/config.js:483` | — |
+| 6 | `applyFrontendLayerModeDefaults` | `map-features-display-mode.js:212–234`, Aufzählung `:232` | **harmlos** — aber nur, weil `:213` bei `IS_EDIT_MODE` vorher aussteigt. Bewusst nichts tun, nicht übersehen. |
+| 7 | `BOUNDARY_OVERLAY_MODES` | `map-features-boundary-canvas-overlay.js:485`, Abbruch `:487–489` | **Grenz-Canvas zeichnet nichts** |
+| 8 | `TERRITORY_BOUNDARY_MODES` | `map-features-political-territory-loader.js:15`, geprüft `:556` und `:600` | **Territoriumsdaten werden gar nicht geladen** |
+
+> **Nebenbefund zu Falle 1 (V1.3):** Weil `schedulePoliticalTerritoryLayerReload` bei
+> `:600` aussteigt, greift „`regionPolygons` wird bei jedem `moveend` geleert" im
+> **neuen** Modus gar nicht — solange 8 nicht gesetzt ist. Der Rat (eigene Registry)
+> bleibt trotzdem richtig; sobald 8 gesetzt ist, greift die Falle wieder voll.
+
+**Dateien:**
+- Ändern: `js/config.js` (neben `IS_EDIT_MODE`, `:198`)
+- Ändern: `index.html` (Anker: `<option value="powerlines">`)
+- Ändern: `js/map-features/map-features-display-mode.js:155`
+- Ändern: `js/config.js:509–516`, `js/app/i18n-en.js:79–86`
+- Ändern: `js/map-features/map-features.js:31` (Muster: es *disabled*, entfernt nicht)
+- Ändern: `js/map-features/map-features-boundary-canvas-overlay.js:485` **und `:42`**
+- Ändern: `js/map-features/map-features-political-territory-loader.js:15`
 
 - [ ] **Schritt 1: Flag lesen**
 
 ```js
-// js/config.js, direkt unter IS_EDIT_MODE
-// Totmannschalter. Client-seitig ist das reine Sichtbarkeit -- die Absicherung des
-// Lesepfads sitzt serverseitig in app_setting (siehe V2.2).
-const IS_LANDSCHAFTEN_ENABLED = INITIAL_SEARCH_PARAMS.get("landschaften") === "1";
+// js/config.js, direkt unter IS_EDIT_MODE (:198)
+// Totmannschalter, Client-Seite. Das ist reine Sichtbarkeit -- die Absicherung des
+// Lesepfads sitzt serverseitig in app_setting['ecosystem_enabled'] (V2.2). Das Flag
+// heisst deutsch, weil es in dem Link steht, den der Owner den Editoren schickt.
+const IS_ECOSYSTEM_ENABLED = INITIAL_SEARCH_PARAMS.get("landschaften") === "1";
 ```
 
-- [ ] **Schritt 2: `<option>` einfügen** (`index.html`, nach `powerlines`)
+> 🔴 **Zusätzlich `"landschaften"` in `ignoredParams`** (`map-features-layer-state.js`,
+> im Set der `hasPlannerStateSearchParams()`, wo seit `d22bd828` schon `_v` steht). Das
+> Flag ist Infrastruktur, kein mitgebrachter Zustand — ohne diese eine Zeile schaltet
+> `?landschaften=1` den Editor-Zustands-Restore ab (genau die Regression, die `d22bd828`
+> für `_v` behoben hat), der Modus fiele auf `deregraphic` zurück und **der Reload-Test in
+> V3.5 schlüge fehl**. Der Kommentar am Set nennt `landschaften` bereits als den nächsten
+> Kandidaten.
+
+- [ ] **Schritt 2: `<option>` einfügen** — direkt nach der `powerlines`-Zeile:
 
 ```html
-<option value="landschaften" data-i18n="view.mode.landschaften">Landschaften (Erprobung)</option>
+<option value="ecosystem" data-i18n="view.mode.ecosystem">Landschaften (Erprobung)</option>
 ```
 
-- [ ] **Schritt 3: Whitelist erweitern**
+- [ ] **Schritt 3: Whitelist erweitern — an das Flag gekoppelt** (`display-mode.js:155`)
 
 ```js
-const normalizedMode = ["none", "political", "deregraphic", "powerlines", "original", "landschaften"]
-    .includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
+// "ecosystem" NUR aufnehmen, wenn der Modus ueberhaupt erlaubt ist. Sonst laesst ein
+// fremder Link ?mapLayerMode=ecosystem einen anonymen Besucher in einen Modus, den die
+// Combobox gar nicht anzeigen kann (Schritt 6) -- der Weg dorthin ist layer-state.js:101.
+const allowedModes = ["none", "political", "deregraphic", "powerlines", "original"];
+if (IS_EDIT_MODE && IS_ECOSYSTEM_ENABLED) { allowedModes.push("ecosystem"); }
+const normalizedMode = allowedModes.includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 ```
 
-- [ ] **Schritt 4: Icon und Übersetzung ergänzen** (`config.js:509`, `i18n-en.js:79`)
+> 🔴 **Das ist die eigentliche Sperre, nicht Schritt 6.** Ohne sie läuft
+> `?mapLayerMode=ecosystem` aus einem fremden Link über `layer-state.js:101` durch, und
+> was dann passiert, hängt nur noch davon ab, was mit dem `<option>` geschehen ist —
+> beide Varianten sind kaputt (siehe Schritt 6).
 
-- [ ] **Schritt 5: Option entfernen, wenn das Flag fehlt**
+- [ ] **Schritt 4: Icon und Übersetzung** (`config.js:509`, `i18n-en.js:79`)
+
+- [ ] **Schritt 5: Die beiden Grenz-Konstanten erweitern**
 
 ```js
-// js/map-features/map-features.js, VOR initializeTransportIconSelects()
-// Muss vor dem Aufbau der Combobox laufen -- sie baut sich aus den <option>-Elementen.
-if (!IS_EDIT_MODE || !IS_LANDSCHAFTEN_ENABLED) {
-    $("#mapLayerModeSelect option[value='landschaften']").remove();
+// map-features-political-territory-loader.js:15
+const TERRITORY_BOUNDARY_MODES = ["political", "deregraphic", "ecosystem"];
+
+// map-features-boundary-canvas-overlay.js:485
+const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "ecosystem"];
+
+// map-features-boundary-canvas-overlay.js:42 -- Grenzen beim Zeichnen dezent,
+// wie in Regionen/Kraftlinien: halbe Deckkraft, duenne Aussenlinie.
+const BOUNDARY_WEAK_MODES = ["deregraphic", "powerlines", "ecosystem"];
+```
+
+- [ ] **Schritt 6: Option abschalten, wenn das Flag fehlt — `disabled`, NICHT `remove`**
+
+```js
+// js/map-features/map-features.js, VOR initializeTransportIconSelects() (:32).
+// Muss davor laufen -- die Combobox baut sich aus den <option>-Elementen.
+// disabled, nicht remove: dasselbe Muster wie :31 fuer "political".
+if (!IS_EDIT_MODE || !IS_ECOSYSTEM_ENABLED) {
+    $("#mapLayerModeSelect option[value='ecosystem']").prop("disabled", true);
 }
 ```
 
-- [ ] **Schritt 6: 🔧 DU (Owner): Browser-Abnahme, nicht Codelesen**
+> 💣 **Die erste Fassung machte `.prop("disabled", true).remove()` — beides zugleich, und
+> beide Hälften versagen verschieden.** Das zitierte Vorbild (`map-features.js:31`) macht
+> **nur** `disabled`.
+>
+> | Variante | was der anonyme Besucher bekommt |
+> |---|---|
+> | nur `disabled`, **ohne** Schritt 3 | jQuery setzt `option.selected` auch auf einer *disabled* Option — das Attribut sperrt die Benutzerauswahl, nicht die programmatische. `getSelectedMapLayerMode()` liefert `"ecosystem"`, er ist **im Modus**, inklusive der in Schritt 5 erweiterten `TERRITORY_BOUNDARY_MODES`. |
+> | mit `remove()` | `.val("ecosystem")` trifft keine Option → `selectedIndex = -1`. Die Karte fällt auf `deregraphic` zurück (`display-mode.js:128`), aber `syncTransportControl` (`js/ui/ui-controls.js:364–377`) findet keine Option: **die Beschriftung wird nie aktualisiert, keine Option bekommt `is-active`/`aria-selected`** — eine Combobox, die gar keine Auswahl anzeigt. |
+>
+> **`disabled` + Schritt 3 ist die einzige Kombination, die beides schließt.** Die Option
+> bleibt im Markup — Owner-Entscheidung 3 (2026-07-25): der Name im Quelltext ist in Ordnung,
+> keine JS-Injektion.
 
-Mit `?edit=1&landschaften=1`: Eintrag da, umschalten funktioniert, Konsole leer.
-Ohne `landschaften=1`: Eintrag weg. In der Konsole `getSelectedMapLayerMode()` —
-muss `"landschaften"` liefern, nicht `"deregraphic"`.
+- [ ] **Schritt 7: 🔧 DU (Owner): Browser-Abnahme, nicht Codelesen**
 
-- [ ] **Schritt 7: Commit** — `feat(landschaften): add the map mode behind ?landschaften=1`
+Mit `?edit=1&landschaften=1`: Eintrag da, umschalten funktioniert, **Territoriengrenzen
+sind sichtbar**, Konsole leer. In der Konsole `getSelectedMapLayerMode()` — muss
+`"ecosystem"` liefern, nicht `"deregraphic"`. Ohne `landschaften=1`: Eintrag weg.
+
+- [ ] **Schritt 8: Commit** — `feat(ecosystem): add the map mode behind ?landschaften=1`
 
 ### Aufgabe V1.2 — Anzeige-Häkchen für Labels und Grenzen
 
 **Dateien:**
-- Ändern: `index.html:1461–1467` (zwei `<label>` in die Häkchenreihe)
+- Ändern: `index.html` (Anker: die Zeile mit `id="togglePathsControl"`)
 - Ändern: `js/map-features/map-features.js:47–53` (sichtbar schalten)
-- Ändern: `js/map-features/map-features-labels.js:494–505` (`shouldShowLabelMarker`)
-- Ändern: `js/map-features/map-features-boundary-canvas-overlay.js` (Sichtbarkeitsprüfung)
+- Ändern: `js/map-features/map-features-labels.js:493–505` (`shouldShowLabelMarker`,
+  Modusprüfung bei `:501`)
+- Ändern: `js/map-features/map-features-boundary-canvas-overlay.js:487–489`
 
-**Warum eigenständig nützlich:** Beim Zeichnen stehen Labels und Territoriengrenzen
-im Weg — beim Landschaften-Zeichnen *und* beim Territorien-Zeichnen. Dieser Baustein
-bleibt auch dann nützlich, wenn die Landschaften nie fertig werden.
+**Warum eigenständig nützlich:** Beim Zeichnen stehen Labels und Territoriengrenzen im
+Weg — beim Landschaften-Zeichnen *und* beim Territorien-Zeichnen. Dieser Baustein
+bleibt nützlich, auch wenn die Landschaften nie fertig werden.
 
-> **Die Haken übersteuern den Modus, sie ergänzen ihn nicht.** Beim Zeichnen von
-> Maraskan will man die Territoriengrenzen **sehen** (als Vorlage für den späteren
-> Grenzimport), obwohl sie im Landschaften-Modus nach Modusregel unsichtbar wären.
+> **Die Haken übersteuern den Modus in beide Richtungen.** Beim Zeichnen von Maraskan
+> will man die Territoriengrenzen **sehen** (als Vorlage für den späteren Grenzimport),
+> beim Feinzeichnen einer Küste will man sie weg. Ohne V1.1 Schritt 5 wären sie im
+> neuen Modus ohnehin unsichtbar — die beiden Aufgaben hängen zusammen.
 
-- [ ] **Schritt 1: Häkchen einfügen**
+- [ ] **Schritt 1: Häkchen einfügen** (nach `togglePathsControl`)
 
 ```html
 <label id="toggleMapLabelsControl" hidden><input type="checkbox" id="toggleMapLabels" checked /> Labels</label>
 <label id="toggleTerritoryBordersControl" hidden><input type="checkbox" id="toggleTerritoryBorders" checked /> Grenzen</label>
 ```
 
-- [ ] **Schritt 2: Nur im Edit-Modus sichtbar schalten** (neben `#togglePathsControl`)
+- [ ] **Schritt 2: Nur im Edit-Modus sichtbar schalten** (`map-features.js:47–53`,
+      neben `#togglePathsControl`)
 
-- [ ] **Schritt 3: Sichtbarkeit übersteuern — additiv, ohne Frontend-Wirkung**
+- [ ] **Schritt 3: Labels übersteuern — nur den MODUS, nicht die anderen drei Bedingungen**
+
+`shouldShowLabelMarker` (`js/map-features/map-features-labels.js:493–505`) ist **ein
+einziges `return` aus vier UND-verknüpften Bedingungen**:
 
 ```js
-// js/map-features/map-features-labels.js, in shouldShowLabelMarker()
-// Der Haken uebersteuert den Kartenmodus in BEIDE Richtungen -- aber nur im Edit-Modus.
-// Im Frontend ist IS_EDIT_MODE false, die Pruefung faellt weg, das Verhalten bleibt exakt wie heute.
-if (IS_EDIT_MODE) {
-    const box = document.getElementById("toggleMapLabels");
-    if (box && !box.checked) { return false; }
-    if (box && box.checked) { return true; }
-}
+return getSelectedMapLayerMode() === "deregraphic"
+    && bandZoom >= minZoom                                              // :502  Zoomband
+    && bandZoom <= maxZoom                                              // :503
+    && isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);  // :504  Viewport-Culling
 ```
 
-- [ ] **Schritt 4: 🔧 DU (Owner):** Haken aus → Labels weg, im politischen *und* im
-      Standard-Modus. Ohne `?edit=1` sind beide Haken nicht da und nichts ändert sich.
-- [ ] **Schritt 5: Commit** — `feat(edit): toggle map labels and territory borders independently of the mode`
+```js
+// RICHTIG: nur den ersten Faktor uebersteuern.
+const editorOverride = IS_EDIT_MODE && document.getElementById("toggleMapLabels")?.checked === true;
+return (getSelectedMapLayerMode() === "deregraphic" || editorOverride)
+    && bandZoom >= minZoom
+    && bandZoom <= maxZoom
+    && isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
+```
+
+> 💣 **Die erste Fassung setzte ein `return box.checked` davor** — das hebelt **alle vier**
+> Bedingungen aus. Mit gesetztem Haken lägen im Edit-Modus alle Label-Marker auf jeder
+> Zoomstufe auf der Karte, und `scheduleLabelCollisionResolution()` (`:524`) liefe über
+> den ganzen Satz. Das ist kein Häkchen mehr, das ist ein Performance-Unfall.
+>
+> ⚠️ **Die Funktion läuft pro Label pro Sync** (`syncLabelVisibility` `:520–525`,
+> `syncLabelIcons` `:527–537`, beide bei jedem Zoom und jedem Move). **Kein
+> `document.getElementById` je Label** — den **Wert** einmal je Sync-Lauf lesen und
+> durchreichen. (Das **Element** zu cachen ist die falsche Reparatur: es hängt in einem
+> `hidden`-Container, der beim Moduswechsel umgeschaltet wird.)
+
+- [ ] **Schritt 4: Grenzen übersteuern — in BEIDE Richtungen**
+
+```js
+// map-features-boundary-canvas-overlay.js, an der BOUNDARY_OVERLAY_MODES-Pruefung (:485-489)
+// IS_EDIT_MODE ist hier garantiert da: js/config.js laedt bei index.html:1644, diese Datei
+// bei :1778, und die Pruefung laeuft erst zur Aufrufzeit. Kein typeof-Guard noetig.
+const editorOverride = IS_EDIT_MODE ? document.getElementById("toggleTerritoryBorders")?.checked : null;
+if (editorOverride === false) { return; }                              // Haken aus -> immer weg
+if (editorOverride !== true && !BOUNDARY_OVERLAY_MODES.includes(mode)) { return; }  // sonst wie bisher
+```
+
+> Die erste Fassung übersteuerte nur in Richtung **aus** — im Widerspruch zu ihrer eigenen
+> Ansage („in **beide** Richtungen"). Ein gesetzter Haken in `none` oder `powerlines`
+> hätte weiterhin nichts gezeichnet.
+- [ ] **Schritt 5:** Beide Haken lösen ein Neuzeichnen aus — `change`-Listener, der
+      `syncLabelVisibility()` bzw. den Overlay-Redraw ruft.
+- [ ] **Schritt 6: 🔧 DU (Owner):** Haken aus → Labels bzw. Grenzen weg, im
+      **politischen**, im **Standard-** und im **neuen** Modus. Ohne `?edit=1` sind
+      beide Haken nicht da und nichts ändert sich.
+- [ ] **Schritt 7: Commit** — `feat(edit): toggle map labels and territory borders independently of the mode`
 
 ### Aufgabe V1.3 — Eigene Pane und eigene Registry
 
 **Dateien:**
 - Ändern: `js/app/bootstrap.js:16–44` (Pane anlegen)
 - Ändern: `js/app/runtime-state.js` (eigene Registry)
-- Erstellen: `js/map-features/map-features-landschaften-visibility.js`
+- Erstellen: `js/map-features/map-features-ecosystem-visibility.js`
+- Ändern: `index.html` (Anker: die `<script>`-Zeile der Kraftlinien-Datei)
 
-> 🔴 **Drei Fallen, alle verifiziert:**
+> 🔴 **Drei Fallen, alle bestätigt:**
 > 1. `regionPolygons` **nicht** mitbenutzen — `clearRenderedRegionLayers()`
->    (`map-features-region-rendering.js:150`) leert es bei **jedem** `moveend`.
-> 2. `syncRegionVisibility` **nicht** erweitern — es ist zweimal definiert, der Loader
->    (`map-features-political-territory-loader.js:473`) gewinnt und überschreibt
->    dreimal zeitverzögert.
+>    (`map-features-region-rendering.js:150`) leert es bei `:156`.
+> 2. `syncRegionVisibility` **nicht** erweitern — zweimal definiert
+>    (`political-region-visibility.js:1` und `loader.js:473`); der Loader gewinnt
+>    (Guard `:469`) und installiert **dreimal zeitverzögert** (`:591`, `[0, 50, 250]`).
 > 3. Eigene Funktionsnamen — `map-features-region-vertex-detach-edit.js` überschreibt
->    sieben Handler zur Laufzeit; ein gleichnamiger Name killt **die politische Ebene**.
+>    **sieben** `window.*`-Handler zur Laufzeit, nachgeladen aus
+>    `route-priority-queue.js:66–77`. Ein gleichnamiger Name killt **die politische Ebene**.
 
-- [ ] **Schritt 1:** Pane `landschaftenPane`, z-index **250** (frei ist 201–299;
-      `regionsPane` liegt bei 200, die nächste Belegung bei 300).
-- [ ] **Schritt 2:** `landschaftenLayers = []` in `runtime-state.js` — eigene Registry.
-- [ ] **Schritt 3:** `syncLandschaftenVisibility()` schreiben und in
-      `setSelectedMapLayerMode()` (`map-features-display-mode.js:184–189`) einhängen.
+- [ ] **Schritt 1:** Pane `ecosystemPane`, z-index **250**. Belegung geprüft:
+      `regionsPane` 200, nächste Belegung 300 (Schraffur) — **201–299 ist frei**.
+      *(V3.0 teilt sie später in drei — 250/251/252 —, weil `pointer-events` eine
+      Pane-Eigenschaft ist. Hier genügt eine.)*
+- [ ] **Schritt 2:** `ecosystemLayers = []` in `runtime-state.js`.
+- [ ] **Schritt 3:** `syncEcosystemVisibility()` schreiben und in
+      `setSelectedMapLayerMode()` (`display-mode.js:184–189`) einhängen.
 - [ ] **Schritt 4: Namensprüfung**
 
 ```bash
-grep -rn "landschaftenLayers\|syncLandschaftenVisibility" js/ --include=*.js | grep -v "landschaften-"
+grep -rn "ecosystemLayers\|syncEcosystemVisibility\|ecosystemPane\|IS_ECOSYSTEM_ENABLED\|activeEcosystemLayerKind\|activeEcosystemRegionId" js/ index.html --include=* | grep -v "ecosystem-"
 ```
-Erwartet: keine Treffer außerhalb der eigenen Dateien.
+Erwartet: keine Treffer außerhalb der eigenen Dateien. *(Am 2026-07-25 für die **neuen**
+`ecosystem*`-Namen bestätigt — der Plan hat nach dem ersten Prüfbericht von `landschaften*`
+auf `ecosystem*` umbenannt; alle sechs Namen sowie `ecosystem_region`/`ecosystem_area`/
+`ecosystem_revision`/`avesmapsNextEcosystemRevision`/`ecosystem_enabled`: je 0 Treffer über
+`js/`, `api/`, `index.html`. Die Zeichenfolge „ecosystem" kommt heute nirgends vor.)*
 
 - [ ] **Schritt 5: 🔧 DU (Owner):** Umschalten hin und zurück, dann eine politische
-      Territoriumsecke ziehen — sie muss sich noch bewegen. Und die Karte
-      **schwenken** (nicht zoomen), denn `clearRenderedRegionLayers` hängt an `moveend`.
-- [ ] **Schritt 6: Commit** — `feat(landschaften): own pane, own registry, own visibility sync`
+      Territoriumsecke ziehen — sie muss sich noch bewegen. Karte **schwenken**
+      (nicht zoomen), denn `clearRenderedRegionLayers` hängt an `moveend`.
+- [ ] **Schritt 6: Commit** — `feat(ecosystem): own pane, own registry, own visibility sync`
 
 ---
 
 # V2 — Daten und API
 
 **Fertig, wenn:** Eine Fläche lässt sich per API anlegen, lesen, ändern und weich
-löschen — **ohne Karte**, mit `curl` verifizierbar.
+löschen — **ohne Karte**, mit `curl` verifizierbar. Und der Kill-Switch lässt sich
+**umlegen**, nicht nur lesen.
 
-### Aufgabe V2.1 — Tabellen
+### Aufgabe V2.1 — Tabellen und Revisionszähler
 
 **Dateien:** Erstellen `api/_internal/app/ecosystem.php` (Inline-DDL, selbstheilend)
 
@@ -375,33 +872,36 @@ CREATE TABLE IF NOT EXISTS ecosystem_region (
   kind VARCHAR(16) NOT NULL,               -- derographisch | vegetation | topographie
   region_type VARCHAR(40) NULL,
   origin VARCHAR(8) NOT NULL DEFAULT 'own',
-  wiki_region_key VARCHAR(190) NULL,
+  wiki_region_key VARCHAR(190) NULL,       -- IMMER via avesmapsPoliticalSlug(), s. u.
   wiki_url VARCHAR(500) NULL,
-  properties_json LONGTEXT NULL,
-  is_trial TINYINT(1) NOT NULL DEFAULT 1,  -- Erprobungsphase, siehe V4
+  label_public_id CHAR(36) NULL,           -- Bruecke zur map_features-Label-Zeile, s. u.
+  properties_json JSON NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
-  created_by VARCHAR(190) NULL, updated_by VARCHAR(190) NULL,
+  created_by BIGINT UNSIGNED NULL, updated_by BIGINT UNSIGNED NULL,
   created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_ecosystem_region_public_id (public_id),
   KEY idx_ecosystem_region_kind_active (kind, is_active),
-  KEY idx_ecosystem_region_wiki (wiki_region_key)
+  KEY idx_ecosystem_region_wiki (wiki_region_key),
+  KEY idx_ecosystem_region_label (label_public_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ecosystem_area (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   public_id CHAR(36) NOT NULL,
   region_id INT UNSIGNED NOT NULL,
-  geometry_geojson LONGTEXT NOT NULL,
+  geometry_geojson JSON NOT NULL,          -- Polygon ODER MultiPolygon (Owner-Entscheidung 1)
   min_x DECIMAL(10,4) NOT NULL, min_y DECIMAL(10,4) NOT NULL,
   max_x DECIMAL(10,4) NOT NULL, max_y DECIMAL(10,4) NOT NULL,
   geometry_revision INT UNSIGNED NOT NULL DEFAULT 1,
+  is_trial TINYINT(1) NOT NULL DEFAULT 0,  -- Erprobungsphase, an der FLAECHE (s. u.)
   is_active TINYINT(1) NOT NULL DEFAULT 1,
-  created_by VARCHAR(190) NULL, updated_by VARCHAR(190) NULL,
+  created_by BIGINT UNSIGNED NULL, updated_by BIGINT UNSIGNED NULL,
   created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uq_ecosystem_area_public_id (public_id),
   KEY idx_ecosystem_area_region (region_id, is_active),
+  KEY idx_ecosystem_area_trial (is_trial, is_active),
   KEY idx_ecosystem_area_bbox (min_x, min_y, max_x, max_y)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -413,166 +913,573 @@ CREATE TABLE IF NOT EXISTS ecosystem_region_type (
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (kind, type_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Eigener Zaehler. Spiegelt map_revision (api/_internal/map/features.php:2531-2545),
+-- ist aber davon UNABHAENGIG -- das ist der ganze Zweck: ein Flaechen-Save darf die
+-- ~29,65-MB-Payload (Feld `revision` im Payload-Kopf) nicht invalidieren.
+CREATE TABLE IF NOT EXISTS ecosystem_revision (
+  id TINYINT UNSIGNED NOT NULL,
+  revision INT UNSIGNED NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
+```php
+// Woertlich nach dem Muster von avesmapsNextMapRevision (features.php:2531).
+function avesmapsNextEcosystemRevision(PDO $pdo): int {
+    $pdo->exec('INSERT INTO ecosystem_revision (id, revision) VALUES (1, 2)
+                ON DUPLICATE KEY UPDATE revision = revision + 1');
+    $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id = 1');
+    $revision = $statement !== false ? $statement->fetchColumn() : false;
+    if ($revision === false) {
+        throw new RuntimeException('Die Landschafts-Revision konnte nicht gelesen werden.');
+    }
+    return (int) $revision;
+}
+
+function avesmapsReadEcosystemRevision(PDO $pdo): int {
+    $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id = 1');
+    $revision = $statement !== false ? $statement->fetchColumn() : false;
+    return $revision === false ? 1 : (int) $revision;
+}
+```
+
+**Sechs Abweichungen von der ersten Fassung — jede einzeln begründet:**
+
+| # | | Warum |
+|---|---|---|
+| 1 | **`is_trial` sitzt auf `ecosystem_area`, nicht auf der Region** | Owner-Entscheidung 1: eine Region trägt mehrere Flächen. Auf der Region wäre `promote_trial discard` unbrauchbar — **eine** misslungene Fläche würde 40 gute derselben Region mitreißen, und eine bereits übernommene Region würde jede neue Fläche als „alt" ausgeben. |
+| 2 | **`DEFAULT 0`, nicht `1`** | Ein `DEFAULT 1` überlebt die Erprobung: nach `promote_trial keep` steht alles auf 0, die nächste Fläche bekommt wieder eine 1, und ein zweiter `discard` — Monate später, aus einem Skript — löscht sie weich. Der Zustand „Erprobung läuft" gehört in **eine** Zeile: `app_setting['ecosystem_trial']`, vom Client beim Anlegen gelesen. |
+| 3 | **`JSON` statt `LONGTEXT`** | Das **ganze Haus** speichert Geometrie als `JSON`: `map_features.geometry_json` (`sql/schema.sql:71`), `political_territory_geometry` (`api/_internal/political/territory.php:65`), `political_territory_derived_geometry` (`sql/schema.sql:440`), `adventure_place`/`citymap_place`. `LONGTEXT` kommt in `api/` zweimal vor und nie für Geometrie. MySQL validiert `JSON` beim Schreiben; `LONGTEXT` nimmt auch ein halbes Polygon — die Zeile existiert, die bbox ist gefüllt, die Fläche ist weg, und man kann in SQL **nicht einmal fragen, ob die Geometrie parst**. Mit `JSON` gibt es `JSON_VALID` und „stimmt die gespeicherte bbox noch zur Geometrie?". Nach Entscheidung 1 zusätzlich: `JSON_LENGTH` beantwortet „wie viele Teile hat diese Fläche?". |
+| 4 | **`created_by`/`updated_by` als `BIGINT UNSIGNED`** | Eine `users.id`, wie im ganzen Haus (`sql/schema.sql:81–82`, `:381–382`). Der Audit-Leser holt den Namen per `LEFT JOIN users ON users.id = …` (`api/edit/map/audit-log.php:62`); ein `VARCHAR(190)`-Klartextname ist nicht joinbar, nicht umbenennbar und nimmt jeden Müll. |
+| 5 | **`label_public_id` als Brücke** | Die 540 Landschafts-Labels existieren bereits als `map_features`-Zeilen mit Name, Position und Wiki-Bezug (Allowlist `api/_internal/map/features.php:767`). Ohne diese Spalte trägt „Farindel" seine Identität **zweimal**, mit zwei unabhängig pflegbaren Wiki-Links, und die einzige Brücke wäre Namensgleichheit — die in diesem Projekt keine Identität ist. Muster: `citymap_place.target_public_id`/`target_wiki_key` (`api/_internal/app/citymaps.php:192–193`). V5 und V8 brauchen sie. |
+| 6 | **`idx_ecosystem_region_trial` entfällt**, `idx_ecosystem_area_trial` kommt | folgt aus 1. |
+
+> ⚠️ **`wiki_region_key` ist keine freie Wahl.** Er wird **ausschließlich** über
+> `avesmapsPoliticalSlug()` (`api/_internal/political/territory.php:1060`) →
+> `avesmapsFoldToAscii()` (`api/_internal/text/ascii-fold.php:87`) abgeleitet — die feste
+> Tabelle, die den **Server** nachbildet (Umlaute falten auf `'?'`: `Fürstentum Kosch` →
+> `f-rstentum-kosch`). Nicht `iconv//TRANSLIT`, nicht „schöner". Wer das ändert, bricht
+> jeden Join, der einen solchen Schlüssel benutzt (AGENTS.md §5, zwei Schutztests).
+> Solange keine Aufgabe die Spalte **schreibt**, bleibt sie leer — das ist in Ordnung,
+> aber sie darf nicht nebenbei anders befüllt werden.
+
 **Keine Spalten für:** `min_zoom`/`max_zoom`, `parent_id`, `valid_from_bf`/`valid_to_bf`,
-kein `relief`-Feld. Wer sie aus dem politischen Schema mitkopiert, baut den Apparat
-wieder auf, den wir gerade weglassen.
+kein `relief`-Feld.
+
+> 💣 **`CREATE TABLE IF NOT EXISTS` heilt nur den Erstfall.** Kommt später eine Spalte
+> dazu, passiert **nichts** — auf einer Tabelle, die es schon gibt, ist die Anweisung ein
+> No-op. Das Haus löst das mit einem `information_schema`-geführten `ALTER`; wer hier eine
+> Spalte nachrüstet, muss dasselbe Muster benutzen und darf sich nicht auf die DDL
+> verlassen. **Das ist der Grund, die sechs Punkte oben JETZT zu bauen und nicht später.**
 
 **Vokabular als Seed** (drei getrennte Listen, keine gefilterte Gemeinsamkeitsliste):
 - `derographisch`: region, insel, kontinent, sonstiges
 - `topographie`: gebirge, see, meer, kueste, huegelland
 - `vegetation`: wald, suempfe_moore, steppe, tundra, auenlandschaft, wueste, graslandschaft
 
-> `ebene` ist **nicht** dabei — sie verdient ihren Platz erst, wenn ein Faktor sie von
-> „normal" unterscheidet. Alles Ungezeichnete gilt als normal.
+> `tundra` ist dabei, obwohl es **0 Labels** hat: der Typ steht in der Allowlist
+> (`api/_internal/map/features.php:767`) und kann jederzeit auftreten.
+>
+> 🪤 **`ebene` bleibt draußen — aber die Begründung hat sich geändert.** Die erste Fassung
+> stützte sich auf „0 Labels, bestätigt". Am 2026-07-25 gemessen: **ein** Label trägt den
+> Subtyp, **„Zwergenpforte"** (`735a89f2-…`), mit Wiki-Link. Der Typ bleibt trotzdem
+> draußen — das Argument war nie die Stückzahl, sondern dass kein Faktor `ebene` von
+> „normal" unterscheidet. **Folge, ausdrücklich in Kauf genommen:** die Zwergenpforte
+> bekommt vorerst keine Landschaftsfläche. Sobald ein Tempofaktor sie rechtfertigt, ist es
+> eine Seed-Zeile.
+>
+> `berggipfel` (34 Labels) und `fluss` (5) fehlen ebenfalls und bleiben es: Punkte
+> bzw. Linien, keine Flächen. `berggipfel` gehört zu V8.
 
-- [ ] **Schritt 1:** DDL schreiben, Seed einspielen (idempotent).
-- [ ] **Schritt 2: 🔧 DU (Owner):** Endpunkt einmal aufrufen, in phpMyAdmin prüfen,
-      dass alle drei Tabellen existieren und `ecosystem_region_type` 16 Zeilen hat.
-- [ ] **Schritt 3: Commit** — `feat(landschaften): schema for regions, areas and the type vocabulary`
+- [ ] **Schritt 1:** DDL schreiben, Seed einspielen, beide Revisions-Funktionen.
+
+      ⚠️ **Seed als `INSERT IGNORE`, nicht `ON DUPLICATE KEY UPDATE`.** Die Tabelle hat
+      `is_active`; das im Repo häufigste Upsert-Muster (u. a. `app-setting.php:41–42`)
+      würde jede Deaktivierung beim nächsten Endpunkt-Aufruf stillschweigend rückgängig
+      machen. Vorbild für die richtige Form: `api/_internal/app/citymaps.php:1652`.
+
+- [ ] **Schritt 2: 🔧 DU (Owner):** Endpunkt einmal aufrufen, in phpMyAdmin prüfen:
+      vier Tabellen, `ecosystem_region_type` hat **16** Zeilen (4 + 5 + 7).
+- [ ] **Schritt 3: Commit** — `feat(ecosystem): schema, type vocabulary and an independent revision counter`
 
 ### Aufgabe V2.2 — Öffentlicher Lesepfad mit eigenem ETag
 
-**Dateien:** Erstellen `api/app/ecosystem-areas.php` (Vorlage: `api/app/citymaps.php`)
+**Dateien:** Erstellen `api/app/ecosystem-areas.php` — **zwei** Vorlagen, je eine Hälfte:
+
+| Hälfte | Vorlage |
+|---|---|
+| Aufbau, Kill-Switch, Antwortform | `api/app/citymaps.php` |
+| **ETag und 304** | **`api/app/map-features.php`** |
+
+> 🪤 **`api/app/citymaps.php` hat gar kein ETag** (selbst nachgesehen: 0 Treffer für
+> `ETag`/`304`/`If-None-Match`) — es antwortet immer mit dem vollen Katalog (`:75–83`).
+> Die erste Fassung nannte es als alleinige Vorlage und hätte den Bauer bei genau der
+> Sache leer ausgehen lassen, um die es geht.
+>
+> **`api/app/map-features.php` ist der einzige Endpunkt mit ETag — und er ist bbox-fähig**
+> (`:132–142`). Er beantwortet die Frage „ETag global oder am bbox-Parameter?" mit
+> **beidem** (`:225–228`):
+>
+> ```php
+> $seed = (string)($queryParams['since_revision'] ?? '') . '|' . (string)($queryParams['bbox'] ?? '');
+> return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1',$seed),0,10) . '"';
+> ```
+>
+> **Genau so hier:** `ecosystem_revision` × bbox-String. Ein ETag nur aus der Revision
+> wäre für einen bbox-gefilterten Endpunkt falsch.
 
 > 🔴 Der Kill-Switch wird **vor** dem Read geprüft — die Zeilen dürfen die Box nicht
-> verlassen. Muster wörtlich aus `api/app/citymaps.php:41–45`.
+> verlassen. Muster: `api/app/citymaps.php:43–45` (Kommentar `:40–42`), Verbindung eine
+> Zeile davor (`:38`, `avesmapsCreatePdo` — im Schnipsel unten weggelassen, nicht vergessen).
+>
+> ⚠️ **Der Kill-Switch-Check ist selbst eine DDL-Runde.** `avesmapsAppSettingGet`
+> (`api/_internal/app/app-setting.php:28–34`) ruft als **Erstes**
+> `avesmapsAppSettingEnsureTable` (`:17–26`, `CREATE TABLE IF NOT EXISTS`) — auf einem
+> öffentlichen Pfad, auch im ausgeschalteten Zustand. Das ist das Muster, das AGENTS.md §10
+> als Hotspot führt und das M6 schon einmal entfernt hat („DDL out of cache-hit path").
+> Hier tolerierbar, weil der Endpunkt selten und nur im Edit-Modus gerufen wird — **aber
+> bewusst, nicht versehentlich.** Wird er je öffentlich, gehört der Check hinter den ETag.
 
 ```php
-// Eigener Revisionszaehler. NIEMALS avesmapsNextMapRevision() -- das invalidiert die
-// ~14-MB-Payload fuer jeden Besucher, und der Zeichenfeldzug sind ~2.000 Speichervorgaenge.
-// Begruendung wortgleich in api/app/citymaps.php:13-14.
+// Eigener Revisionszaehler, eigener ETag. NIEMALS avesmapsNextMapRevision() --
+// das invalidiert die ~29,65-MB-Payload fuer jeden Besucher, und der Zeichenfeldzug sind
+// ~2.000 Speichervorgaenge. Begruendung wortgleich in api/app/citymaps.php:13-14.
 const AVESMAPS_ECOSYSTEM_SETTING = 'ecosystem_enabled';
+
+// Default '0': AUS, bis der Owner ihn umlegt. avesmapsAppSettingGet nimmt den Default
+// als ARGUMENT (app-setting.php:28) -- die "default-an"-Konvention bei :14-15 ist
+// eine Empfehlung, kein Zwang.
 if (avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') === '0') {
     avesmapsJsonResponse(200, ['ok' => true, 'areas' => [], 'ecosystem_enabled' => false]);
 }
 ```
 
-⚠️ **Der Default ist `'0'`, nicht `'1'`.** `avesmapsAppSettingGet` nimmt den Default als
-Argument — die Polarität ist ein Zeichen, keine Umbaustelle.
+- [ ] **Schritt 1:** Endpunkt mit bbox-Filter (`min_x/min_y/max_x/max_y`).
 
-- [ ] **Schritt 1:** Endpunkt mit bbox-Filter und ETag aus `ecosystem_revision`.
-- [ ] **Schritt 2: 🔧 DU (Owner):** Ohne Session und ohne gesetztes Flag `curl` →
+      🔴 **Der Read joint auf die aktive Region** (Owner-Entscheidung 1: `kind` steht auf
+      `ecosystem_region`, nicht auf der Fläche):
+
+      ```sql
+      SELECT a.*, r.kind, r.name, r.region_type
+        FROM ecosystem_area a
+        INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+       WHERE a.is_active = 1 AND <bbox> ...
+      ```
+
+      Der `INNER JOIN` mit `r.is_active = 1` beantwortet zugleich „aktive Fläche unter
+      gelöschter Region": **unsichtbar**. Hausmuster:
+      `api/_internal/political/territories-derived-geometry-plan.php:238–241`,
+      `territories-claims.php:199`. Nur `WHERE a.is_active = 1` wäre der Fehler.
+
+- [ ] **Schritt 2:** ETag = **`ecosystem_revision` × bbox-String** (Muster
+      `map-features.php:225–228`, s. o.), 304 bei Übereinstimmung.
+- [ ] **Schritt 3: 🔧 DU (Owner):** Ohne Session, Flag noch nicht umgelegt:
       `{"ok":true,"areas":[],"ecosystem_enabled":false}`.
-- [ ] **Schritt 3: Commit** — `feat(landschaften): public read endpoint with its own revision and kill switch`
+- [ ] **Schritt 4: Commit** — `feat(ecosystem): public read endpoint with its own revision and kill switch`
 
 ### Aufgabe V2.3 — Schreibender Endpunkt
 
 **Dateien:** Erstellen `api/edit/map/ecosystem.php` (Vorlage: `api/edit/map/citymaps.php`,
-145 Zeilen, POST-only, `match($action)`, **ohne** DDL-Präambel)
+145 Z., POST-only, `match($action)`, Fähigkeitsprüfung an **einer** Stelle, **ohne**
+DDL-Präambel)
 
 Aktionen: `create_region`, `update_region`, `delete_region`, `create_area`,
-`update_area_geometry`, `delete_area`, `promote_trial` (V4).
+`update_area_geometry`, `delete_area`, **`set_enabled`**, **`promote_trial`**.
+
+> **`set_enabled` ist Pflicht, nicht Kür.** Ohne sie bleibt `ecosystem_enabled`
+> für immer `'0'`, der Lesepfad dauerhaft leer und V3 nicht abnehmbar. Muster:
+> `api/_internal/app/citymaps.php` (`set_citymaps_enabled`).
+
+**Jede schreibende Aktion ruft am Ende `avesmapsNextEcosystemRevision($pdo)`** —
+und **niemals** `avesmapsNextMapRevision`.
 
 **Nicht** vom politischen Endpunkt übernehmen: `PATCH` für alles, DDL bei jedem
 Aufruf, `getMessage()`-Lecks.
 
-- [ ] **Schritt 1–5:** Aktionen einzeln, je mit `curl`-Abnahme.
-- [ ] **Schritt 6: Commit** — `feat(landschaften): write endpoint for regions and areas`
+> 🔴 **Zwei Sachen, die die erste Fassung nicht hatte** (zweiter Prüfbericht C1/C2):
+>
+> **(a) Optimistischer Wächter auf `update_area_geometry` und `delete_area`.** Ohne ihn
+> gewinnt bei zwei gleichzeitigen Speichervorgängen der zweite vollständig, der erste ist
+> **weg — ohne Meldung, ohne Konflikt, ohne Spur.** Das ist kein Randfall: V3.0 zeigt alle
+> drei Ebenen gleichzeitig, V3.6 kopiert, und der Plan rechnet mit ~2.000 Speichervorgängen.
+> Der Client schickt `expected_revision`, der Endpunkt vergleicht gegen
+> `ecosystem_area.geometry_revision` und antwortet bei Abweichung **409**, statt zu
+> überschreiben. ~6 Zeilen, exakt das Muster von
+> `avesmapsAssertFeatureCanBeEdited` (`api/_internal/map/features.php:1007–1011`). Sperren
+> (`map_feature_locks`) sind für eine Erprobung mit zwei Editoren verzichtbar; der Wächter
+> nicht — er ist der Unterschied zwischen „409, lad neu" und stillem Datenverlust. **Das
+> gibt `geometry_revision` endlich einen Leser** (sonst ist die Spalte Dekoration).
+>
+> **(b) Audit-Log.** Beide geometrieführenden Nachbarn haben eins — `map_audit_log`
+> (`sql/schema.sql:106`) und `political_territory_geometry_audit_log`
+> (`api/_internal/political/territory.php:91`) —, und die Editor-Oberfläche „Änderungen"
+> mischt **genau diese zwei und keine dritte** (`js/review/review-panels-change-log.js:42–45`).
+> Ohne ein `ecosystem_geometry_audit_log` ist „wer hat diese Fläche gelöscht, und wie sah
+> sie vorher aus?" nachts per SQL **nicht beantwortbar** — `updated_by` kennt nur den
+> Letzten, und `delete_region` überschreibt ihn auf allen Flächen mit dem Bulk-Auslöser.
+> `before_json`/`after_json`/`actor_user_id` wie die Vorbilder. **~40 Z.**, und sie gehören
+> in V2.3, nicht in eine spätere Aufgabe — ein Save ohne Audit ist unwiederbringlich.
 
-### Aufgabe V2.4 — Quellen anschließen
+- [ ] **Schritt 1:** Verteiler + `create_region` / `create_area`, je mit `curl`-Abnahme.
 
-**Dateien:** Ändern `api/edit/map/feature-sources.php`, `api/app/feature-sources.php`
+      🔴 **`create_area` verlangt eine `region_id`** (Owner-Entscheidung 1). Der Endpunkt
+      prüft, dass sie auf eine **aktive** Region zeigt, sonst 400 — sonst entsteht eine
+      Waise, die der Lesepfad-JOIN unsichtbar macht und die niemand je wieder findet.
+      `create_region` gibt die neue `public_id` zurück, damit der Client sie an das
+      folgende `create_area` hängen kann. **`geometry_geojson` nimmt Polygon UND
+      MultiPolygon** — beim Schreiben validieren (`JSON_VALID` reicht nicht, GeoJSON-Form
+      prüfen) und die bbox über **alle** Teile rechnen.
 
-- [ ] **Schritt 1:** `'landschaft'` in beide `entity_type`-Whitelists. **Zwei Zeilen.**
-- [ ] **Schritt 2: Commit** — `feat(landschaften): join the shared source system as a new entity_type`
+- [ ] **Schritt 2:** `update_region` / `update_area_geometry` (bbox beim Schreiben über
+      alle Teile mitrechnen, `geometry_revision` hochzählen, **`expected_revision`
+      prüfen** — Wächter (a); Audit-Zeile schreiben — (b)).
+- [ ] **Schritt 3:** `delete_region` / `delete_area`, beide weich.
+
+      🔴 **`delete_region` nimmt seine Flächen in EINER Transaktion mit** (`BEGIN` …
+      `is_active=0` auf Region und ihren Flächen … `COMMIT`). Muster
+      `api/_internal/app/adventures.php:1284–1293`. Ohne Transaktion bleibt bei einem
+      Abbruch eine halb gelöschte Region zurück.
+
+- [ ] **Schritt 4:** `set_enabled` — schreibt `app_setting['ecosystem_enabled']`.
+      ⚠️ `api/_internal/app/app-setting.php` **explizit requiren**: ein bloßer
+      `function_exists`-Guard verschluckt den Schreibvorgang sonst lautlos (dieselbe
+      Falle wie bei `lore-sync.php`).
+- [ ] **Schritt 5:** `promote_trial` — **auf `ecosystem_area`**, nicht auf der Region
+      (Entscheidung 1): `keep` setzt `is_trial = 0` für alle Erprobungsflächen, `discard`
+      löscht sie weich. Zwei Modi, ein Parameter. Zusätzlich: `app_setting['ecosystem_trial']`
+      ausschalten, damit neue Flächen nicht wieder als Erprobung entstehen.
+- [ ] **Schritt 6: 🔧 DU (Owner):** Flag umlegen, Lesepfad prüft jetzt echte Zeilen.
+      Zwei Editoren, dieselbe Fläche, zweiter Save mit veraltetem `expected_revision` →
+      **409**, nicht stiller Verlust.
+- [ ] **Schritt 7: Commit** — `feat(ecosystem): write endpoint incl. optimistic guard, audit log, kill switch and trial promotion`
+
+> **V2.4 „Quellen anschließen" ist als V4a hinter die Messung gewandert.** Begründung
+> unter V4a am Ende des ersten Vorhabens — kurz: die Allowlist-Zeile öffnet zwei Löcher im
+> Totmannschalter (Globale Regeln 3 und 4) und kauft vor V6 nichts, weil vor dem
+> Landschaftseditor niemand eine Quelle anhängt.
 
 ---
 
-# V3 — Zeichnen
+# V3 — Zeichnen und Anzeigen
 
-**Fertig, wenn:** Eine mit Klicks gezeichnete Fläche wird gespeichert, überlebt Reload
-und Kartenschwenk — und `git status` zeigt **keine** politische Datei.
+**Fertig, wenn:** Eine mit Klicks gezeichnete Fläche wird gespeichert, **nach einem
+Reload wieder geladen und gezeichnet**, überlebt Kartenschwenk — und `git status`
+zeigt **keine** politische Datei.
+
+> 💣 **V3.0 ist neu und war die Lücke der ersten Fassung.** Ohne sie kann V3 sein
+> eigenes Fertigkriterium nicht erfüllen: keine Aufgabe lud jemals vorhandene Flächen.
+> Die Analyse hatte dafür eine eigene Stufe (§6, L2 „Darstellung", ~450 Z.); im
+> Plan-Schnitt war sie ersatzlos verschwunden, und die Selbstprüfung merkte es nicht.
+
+### Aufgabe V3.0 — Laden, Rendern und der Ebenen-Umschalter
+
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-loader.js`,
+`js/map-features/map-features-ecosystem-rendering.js`,
+`js/map-features/map-features-ecosystem-layer-switch.js`;
+ändern `index.html` (Anker: `<div id="political-timeline">`), `js/app/runtime-state.js`
+
+> 🔴 **Alle drei Ebenen sind von Anfang an sichtbar** (Owner-Entscheidung). Das ist
+> keine Bequemlichkeit, sondern der Trick, mit dem Überlappung harmlos wird:
+>
+> | | Darstellung | nimmt Klicks |
+> |---|---|---|
+> | **aktive** Ebene | voll, mit Griffen | **ja** |
+> | die beiden **ruhenden** | blass, ohne Griffe | **nein** |
+>
+> Man zeichnet das Gebirge und **sieht dabei**, wo der Wald liegt — aber es entsteht
+> nie die Frage „welches Polygon habe ich erwischt", weil immer nur eine Ebene
+> antwortet. Technisch: `pointer-events: none` plus halbe Deckkraft auf den ruhenden
+> Panes.
+
+**Der Umschalter sitzt dort, wo im politischen Modus der Jahres-Slider steht.**
+`#political-timeline` hängt an `getSelectedMapLayerMode() === "political"`
+(`js/map-features/map-features-political-timeline.js:9`) — der neue Segmentschalter
+bekommt dieselbe Stelle mit der Gegenbedingung `=== "ecosystem"`. Beide sind damit nie
+gleichzeitig da, und es gibt keinen Layoutsprung.
+
+> 🔴 **Die Vorlage hat ZWEI Sichtbarkeits-Tore, nicht eins** (Totmannschalter-Stelle 6):
+> `map-features-political-timeline.js:19` — `showTimeline = isPoliticalMode && (interactive || readOnly)`,
+> `interactive` = `IS_EDIT_MODE || …` (`:15`). Der Segmentschalter braucht die
+> Gegenbedingung **und** das Edit-Tor: `mode === "ecosystem" && IS_EDIT_MODE && IS_ECOSYSTEM_ENABLED`.
+> Nur `mode === "ecosystem"` würde ihn einem anonymen Besucher zeigen, der per fremdem
+> Link in den Modus geraten ist.
+>
+> 💣 **§12: der Segmentschalter erbt keine Farbe von der Vorlage.** `political-timeline.css:15–20`
+> kodiert `#b79d7d`, `rgba(250,243,236,0.96)`, `#3f3428`, `border-radius: 8px`, `z-index: 1000`
+> **hart** — wer „dieselbe Stelle" kopiert, kopiert fünf §12-Verstöße mit. Der Schalter
+> nimmt Tokens (`--color-*`, `--radius-md`, `--z-map-ui` = `css/base/tokens.css:249`,
+> Fokus `--color-focus`/`--focus-ring` `:194–197`). Rollenmodell: `role="tablist"` mit
+> `aria-label` und Pfeiltasten-Navigation — zwei Vorlagen im Haus, `index.html:935`
+> (`region-sync__viewtabs`) und `:1267` (`political-territory-tabs`). Tastaturbedienung ist
+> bei einem Werkzeug, das 500-mal benutzt wird, keine Kür.
+
+> **Drei Panes, nicht eine.** V1.3 legt `ecosystemPane` bei z-index 250 an; hier kommen
+> `ecosystemPaneDerographisch` (250), `-Vegetation` (251) und `-Topographie` (252)
+> dazu. Anders ließe sich „aktiv voll, ruhend blass **und** klickdurchlässig" nicht
+> sauber trennen — `pointer-events` ist eine Pane-Eigenschaft, keine Layer-Eigenschaft.
+> 201–299 ist frei, die nächste Belegung liegt bei 300.
+
+- [ ] **Schritt 1:** Segmentschalter „Derographische Region · Vegetation · Topographie"
+      neben `#political-timeline` einfügen, sichtbar nur bei `mode === "ecosystem"`.
+      Aktive Ebene in `activeEcosystemLayerKind` (`runtime-state.js`), gemerkt in
+      `localStorage`; beim ersten Mal **Vegetation** (dort liegt die meiste Arbeit).
+- [ ] **Schritt 2:** Loader — `fetch` auf `api/app/ecosystem-areas.php` mit der
+      aktuellen bbox, nur wenn `getSelectedMapLayerMode() === "ecosystem"`. Holt
+      **alle drei** `kind` in einem Aufruf, nicht drei Aufrufe.
+- [ ] **Schritt 3:** An `moveend` und `zoomend` hängen, mit **eigenem** Debounce.
+      🔴 **Nicht** `schedulePoliticalTerritoryLayerReload` mitbenutzen.
+
+      💣 **Vor dem Rendern entdoppeln — nach `public_id`.** Das politische Vorbild räumt
+      bei **jedem** `moveend` alles ab (`clearRenderedRegionLayers`,
+      `map-features-region-rendering.js:150–163`); V1.3 verbietet, das mitzunehmen (es
+      fasst `regionPolygons` an), nennt aber keinen Ersatz. Ohne Schlüsselung nach
+      `public_id` liegt nach dem dritten Schwenk **jede Fläche dreimal** in
+      `ecosystemLayers` — der Ruckler, der bei Fläche 5 keiner sieht und bei 300 alle. Also:
+      geladene Flächen nach `public_id` in einer Map halten, beim Reload nur Neues rendern
+      und Verschwundenes entfernen.
+- [ ] **Schritt 4:** Rendern in die Pane des jeweiligen `kind`, Layer in
+      `ecosystemLayers` registrieren. Farbe je `kind` (drei Töne aus
+      `css/base/tokens.css`; bei Bedarf Token **anlegen**, nie Hex hartkodieren —
+      AGENTS.md §12).
+- [ ] **Schritt 5:** Umschalten setzt `pointer-events` und Deckkraft der drei Panes —
+      **ohne** neu zu laden und **ohne** eine laufende Bearbeitung zu verwerfen. Eine
+      offene Bearbeitung wird vorher abgeschlossen und gespeichert.
+- [ ] **Schritt 6:** Beim Verlassen des Modus aufräumen — eigene Registry leeren,
+      `regionPolygons` **nicht anfassen**.
+- [ ] **Schritt 7: 🔧 DU (Owner):** Drei per `curl` angelegte Flächen (eine je Ebene)
+      erscheinen nach Reload **alle drei**, zwei davon blass. Umschalten wechselt,
+      welche voll ist. Ein Klick auf eine blasse Fläche wählt sie **nicht** aus.
+      Schwenken und Moduswechsel hin und zurück überstehen es.
+- [ ] **Schritt 8: Commit** — `feat(ecosystem): load and render all three layers, with the active one in front`
+
+### Aufgabe V3.0b — Regionsauswahl (Owner-Entscheidung 1) 🔴 NEU, PFLICHT
+
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-region-picker.js`;
+ändern `index.html` (Anker: der Segmentschalter aus V3.0)
+
+> 🔴 **Ohne diese Aufgabe erzeugt V3.2 namenlose Geometrie.** Entscheidung 1 („eine
+> Region trägt mehrere Flächen") heißt: der Zeichenvorgang muss wissen, in **welche**
+> Region die neue Fläche geht. `create_area` verlangt eine `region_id` (V2.3 Schritt 1);
+> der volle Landschaftseditor mit drei Spalten (V6) ist **nicht** Teil dieses Vorhabens.
+> Diese Aufgabe ist das Minimum, das V3 sein Fertigkriterium („eine **benannte** Fläche")
+> überhaupt erreichbar macht — der herausgelöste, unverzichtbare Kern von V6.
+
+**Verhalten:** Neben dem Segmentschalter eine schmale Auswahl **„aktive Region"** für den
+gerade aktiven `kind`. Zwei Wege, mehr nicht:
+
+- **bestehende Region wählen** — Liste der aktiven Regionen dieses `kind`
+  (`GET`-Ergänzung am Lesepfad oder eigener schlanker Endpunkt; **nicht** den Politik-Layer
+  fragen). Eine neu gezeichnete Fläche hängt sich an die aktive Region.
+- **neue Region anlegen** — kleiner Dialog: Name (Pflicht), `region_type` (aus
+  `ecosystem_region_type` für diesen `kind`), optional Wiki-Zuweisung. Ruft
+  `create_region`, macht die neue Region sofort zur aktiven.
+
+- [ ] **Schritt 1:** Auswahl-Element + „neue Region"-Dialog, token-basiert, tastaturbedienbar,
+      i18n-Schlüssel für die neuen Strings (`js/app/i18n-en.js`).
+- [ ] **Schritt 2:** `activeEcosystemRegionId` in `runtime-state.js`, je `kind` getrennt
+      gemerkt (Wechsel des Segmentschalters wechselt auch die aktive Region), in
+      `localStorage`.
+- [ ] **Schritt 3:** Wiki-Zuweisung schreibt `wiki_region_key` **ausschließlich** über
+      `avesmapsPoliticalSlug()` (serverseitig, im `create_region`/`update_region`-Handler)
+      — nie im Client slugifizieren (AGENTS.md §5).
+- [ ] **Schritt 4: 🔧 DU (Owner):** Neue Region „Farindel" (Vegetation) anlegen, zwei
+      getrennte Flächen hineinzeichnen (V3.2), Reload — **beide** hängen an derselben
+      Region, tragen denselben Namen. Region wechseln, dritte Fläche zeichnet in die andere.
+- [ ] **Schritt 5: Commit** — `feat(ecosystem): pick or create the region a drawn area belongs to`
+
+> **Rückweg aus der falschen Ebene** (zweiter Prüfbericht C6): Diese Aufgabe liefert ihn
+> nicht vollständig — Verschieben einer Fläche zwischen Ebenen bleibt V3.6 („Senden an …")
+> + Löschen. Was sie liefert, ist die **Auswahl vor** dem Zeichnen, sodass der häufige
+> Fall (falsche Ebene aktiv) gar nicht erst entsteht. Ein `delete_area`-Knopf am
+> Kontextmenü der Fläche (V3.4) schließt den Rest.
 
 ### Aufgabe V3.1 — Geometriehelfer, ringfähig von Anfang an
 
-**Dateien:** Erstellen `js/map-features/map-features-landschaften-geometry.js`
-(Vorlage lesen: `map-features-region-geometry-helpers.js`, 405 Z. → ~180 Z.)
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-geometry.js`
+(Vorlage **lesen**: `map-features-region-geometry-helpers.js`, 405 Z. → ~180 Z.)
 
 > 💣 **Multipolygone und Löcher von Anfang an.** Der Prototyp
-> (`landschaften-modell.html`) arbeitet mit **einem** Ring; das reicht für eine
-> Vorführung, nicht für den Farindel. Nachrüsten wäre teurer:
+> (`landschaften-modell.html`) arbeitet mit **einem** Ring (`inPoly` :381,
+> `distEdge` :389). Das reicht für eine Vorführung, nicht für den Farindel:
 >
 > | Funktion | muss | sonst |
 > |---|---|---|
 > | `inPoly` | über alle Ringe, Außen/Loch nach GeoJSON | eine Lichtung zählt als Wald |
-> | `distEdge` | Minimum über **alle** Ringe, auch Lochränder | ein Buckel ragt ins Loch → Höhe am Lochrand ≠ 0, es entsteht eine Klippe |
+> | `distEdge` | Minimum über **alle** Ringe, auch Lochränder | ein Buckel ragt ins Loch → Höhe am Lochrand ≠ 0 → Klippe. Bricht die Invariante, auf der das ganze Höhenfeld ruht — und fällt erst bei Flächen mit Löchern auf, also spät. |
 
-**Nicht mitkopieren:** `applySharedBoundaryVertexMove` — Landschaften erben nichts,
-und ein Waldrand ist keine geteilte Grenze. Überlappung und Lücken sind **erlaubt und
-normal** (Schneckenkamm liegt in den Windhagbergen).
+**Nicht mitkopieren:** `applySharedBoundaryVertexMove` — Landschaften erben nichts, und
+ein Waldrand ist keine geteilte Grenze. Überlappung und Verschachtelung sind **erlaubt
+und normal** (Schneckenkamm liegt in den Windhagbergen).
 
-- [ ] **Schritt 1: Test für Ringfähigkeit** — Punkt in Lichtung ist **draußen**;
-      `distEdge` eines Punkts nahe dem Lochrand ist klein, nicht groß.
+⚠️ `polygon-clipping` **wirft** bei degenerierter Geometrie (selbst gemessen). Ein
+`try/catch` plus eine Plausibilitätsprüfung (Flächenvergleich, Muster
+`map-features-region-boolean-geometry.js:37–63`) gehören von Anfang an dazu.
+
+- [ ] **Schritt 1: Test für Ringfähigkeit** — Punkt in der Lichtung ist **draußen**;
+      `distEdge` nahe dem Lochrand ist **klein**, nicht groß.
 - [ ] **Schritt 2–4:** Implementieren, Test grün, Namensprüfung per `grep`.
-- [ ] **Schritt 5: Commit** — `feat(landschaften): ring-aware geometry helpers (holes and multipolygons)`
+- [ ] **Schritt 5: Commit** — `feat(ecosystem): ring-aware geometry helpers (holes and multipolygons)`
 
 ### Aufgabe V3.2 — Klick-für-Klick-Zeichenwerkzeug
 
-**Dateien:** Erstellen `js/map-features/map-features-landschaften-draw.js`
-(Vorlage lesen: `js/map-features/map-features-path-creation.js:58–104`)
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-draw.js`
+(Vorlage **lesen**: `js/map-features/map-features-path-creation.js:58–104`)
 
-> 🔴 **Das ist die teuerste Einzelentscheidung des Vorhabens.** Es gibt heute **kein**
+> 🔴 **Die teuerste Einzelentscheidung des Vorhabens.** Es gibt heute **kein**
 > Zeichenwerkzeug: `createRegionAt()` (`map-features-region-crud.js:158`) legt ein
-> **Sechseck mit Radius 10** an und speichert sofort. Wer den Farindel damit umfährt,
-> verbiegt sechs Ecken und teilt Kanten — das sind 3–5 Minuten je Fläche und damit
-> 42 Stunden für 500. Klick-für-Klick sind 1–2 Minuten und damit 17.
+> Sechseck mit `radius = 10` an, speichert sofort und erzwingt bei `:159`
+> `setSelectedMapLayerMode("political")`. Wer den Farindel damit umfährt, verbiegt
+> sechs Ecken und teilt Kanten — 3–5 Minuten je Fläche, also 42 Stunden für 500.
+> Klick-für-Klick sind 1–2 Minuten, also 17.
 
 **Verhalten:** Klick setzt einen Punkt, Vorschaulinie läuft mit, **Doppelklick oder
 Enter** schließt ab, **Escape** bricht ab. Gespeichert wird **erst beim Abschluss** —
 damit entstehen keine „Sechseck-Leichen".
 
-- [ ] **Schritt 1–6:** Analog `startPathCreationAt`, aber ohne Graph-Knoten-Bindung
-      und mit Polygon-Abschluss.
-- [ ] **Schritt 7: 🔧 DU (Owner):** Eine Fläche zeichnen, abbrechen mit Escape —
-      es darf **nichts** im Bestand liegen.
-- [ ] **Schritt 8: Commit** — `feat(landschaften): click-to-draw polygons instead of nudging a hexagon`
+> 💣 **Zwei Dinge, die die Vorlage NICHT liefert:**
+> 1. **Die mitlaufende Vorschaulinie ist Neubau.** `path-creation.js:58–104` hat **keinen**
+>    `mousemove`-Handler; `updatePendingPathCreationLine()` (`:36–56`) zeichnet nur durch
+>    die **bereits gesetzten** Punkte, `handlePendingPathCreationClick` hängt an
+>    `map.on("click")` (`:71`). Das Gummiband gegen die Mausposition muss selbst gebaut
+>    werden — und es ist der Teil, der das Zeichnen erträglich macht.
+> 2. **Die Vorlage ist blau.** `#1452F7` **hart** bei `:28` und `:48` — wörtlich kopiert
+>    wandert das in die neue Ebene, gegen AGENTS.md §12. Farbe aus einem Token.
+>
+> ⚠️ **Doppelklick-Kollision.** V3.3 baut den Vertex-Editor nach einer Vorlage, deren
+> Doppelklick eine **Ecke löscht und speichert** (`edit-handles.js:62–66`, `:84–97`).
+> Öffnet der Zeichen-Abschluss sofort die Bearbeitung (`region-crud.js:199` tut das), kann
+> der zweite Klick des abschließenden Doppelklicks den frisch erschienenen Griff treffen.
+> Abschluss und Editier-Öffnung entkoppeln (ein Tick Verzögerung, oder Editor erst bei
+> nächstem Einzelklick).
 
-### Aufgabe V3.3 — Vertex-Editor mit gebündeltem Speichern und Undo
+- [ ] **Schritt 1–6:** Analog `startPathCreationAt`, aber ohne Graph-Knoten-Bindung und
+      mit Polygon-Abschluss (mindestens drei Punkte). Die neue Fläche bekommt die
+      `region_id` der **aktiven Region** (V3.0b); ist keine aktiv, führt der Abschluss in
+      den „neue Region"-Dialog statt in einen fehlschlagenden Save.
+- [ ] **Schritt 7: 🔧 DU (Owner):** Eine Fläche zeichnen, mit Escape abbrechen — es
+      darf **nichts** im Bestand liegen (`curl` auf den Lesepfad).
+- [ ] **Schritt 8: Commit** — `feat(ecosystem): click-to-draw polygons instead of nudging a hexagon`
 
-**Dateien:** Erstellen `js/map-features/map-features-landschaften-edit.js`
+### Aufgabe V3.3 — Vertex-Editor: gebündelt speichern, Undo
 
-Zwei Abweichungen von der Vorlage, beide gemessen begründet:
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-edit.js`
+
+Drei Abweichungen von der Vorlage, alle gemessen begründet:
 
 - **Gebündeltes Speichern.** Heute ist jede gezogene Ecke ein eigener POST plus ein
-  Toast (2,2 s Standzeit, ein Platz) — ein Waldrand mit 40 Ecken sind 40
-  Schreibvorgänge auf STRATO und 40 Blinker. Hier: **800 ms nach dem letzten
-  Loslassen**, ein Schreibvorgang, Zustand in einer ruhigen Statuszeile statt im Toast.
+  Toast (2.200 ms Standzeit, **ein** Platz — `map-features.js:181`), und
+  `edit-handles.js:56–59` speichert zusätzlich **jede** vom
+  `applySharedBoundaryVertexMove` betroffene Nachbarregion. Hier: **800 ms nach dem
+  letzten Loslassen**, ein Schreibvorgang, Zustand in einer ruhigen Statuszeile.
 - **Strg+Klick auf eine Kante setzt EINE Ecke.** Die Vorlage setzt **vier**
-  (`subdivideRegionEditHoveredEdge(4)`) — falsche Körnung für eine Küstenlinie.
-- **Undo-Stapel**, 20 Schritte, im Speicher, Strg+Z. Es gibt **nirgends im Projekt**
-  ein Undo, und ein Doppelklick löscht heute eine Ecke *und speichert*.
+  (`subdivideRegionEditHoveredEdge`, `edge-controls.js:209`, Aufrufe `:67`/`:171`;
+  zur Laufzeit wirksam ist `map-features-region-vertex-detach-edit.js:461`) — falsche
+  Körnung für eine Küstenlinie.
+- **Undo-Stapel**, 20 Schritte, im Speicher. **Die „ruhige Statuszeile" ist keine neue** —
+  `#open-path-ends-chip` (`index.html:604`) existiert bereits: `role="status"
+  aria-live="polite"`, edit-only, **unten mittig** (dort, wo der Blick beim Zeichnen ist,
+  nicht oben), vollständig token-basiert (`css/features/location-popups-markers.css:768–785`).
+  Wiederverwenden oder exakt nachbauen, kein zweites Bauteil.
 
-- [ ] **Schritt 1–8:** Handler, Bündelung, Undo, je mit Test.
-- [ ] **Schritt 9: Commit** — `feat(landschaften): vertex editing with batched saves and an undo stack`
+> 🔴 **Strg+Z ist im Edit-Modus bereits vergeben.** `handleChangeLogUndoShortcut`
+> (`js/review/review-panels-change-log.js:364–376`) macht den letzten
+> Änderungs-Log-Eintrag **serverseitig** rückgängig und konsumiert die Taste mit
+> `preventDefault()` + `stopPropagation()`. Gebunden bei `js/app/bootstrap.js:430–433`
+> per **jQuery, also Bubble-Phase**.
+>
+> **Entscheidung (Owner):** Strg+Z gehört dem Geometrie-Stapel **nur, solange eine
+> Landschaftsfläche in Bearbeitung ist** — sonst weiter dem Audit-Undo.
+>
+> **Umsetzung ohne fremden Code anzufassen:** ein nativer `keydown`-Listener in der
+> **Capture-Phase** auf `document`. Er fährt vor der jQuery-Bindung und ruft
+> `stopImmediatePropagation()` — dasselbe Muster wie
+> `map-features-settlement-context-action.js`.
+
+```js
+// map-features-ecosystem-edit.js
+// Capture-Phase: laeuft VOR der jQuery-Bindung in bootstrap.js:430. Nur wenn wirklich
+// eine Flaeche in Bearbeitung ist -- sonst durchlassen, damit das Audit-Undo
+// (review-panels-change-log.js:364) unveraendert weiterarbeitet.
+document.addEventListener("keydown", (event) => {
+    if (!activeEcosystemGeometryEdit) { return; }
+    const key = String(event.key || "").toLowerCase();
+    if (key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) { return; }
+    if (isTextEditingTarget(event.target)) { return; }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    undoEcosystemGeometryStep();
+}, true);
+```
+
+> ⚠️ **Undo muss nach dem Save auch den Server erreichen.** Der Stapel liegt im Speicher.
+> Nimmt ein Undo einen Eckzug zurück, der bereits gebündelt gespeichert wurde (800 ms),
+> muss es einen **neuen** `update_area_geometry` auslösen — sonst ist die Karte richtig und
+> die Datenbank falsch, und die Abnahme (Schritt 9) prüft nur den Bildschirm. Ein Undo, das
+> über den letzten Save hinaus zurückgeht (Stapel leer), ist ein No-op, kein Fehler.
+
+- [ ] **Schritt 1–8:** Handler, Bündelung, Undo-Stapel (jedes Undo, das eine gespeicherte
+      Geometrie ändert, schreibt erneut), je mit Test.
+- [ ] **Schritt 9: 🔧 DU (Owner):** Strg+Z **während** einer Bearbeitung nimmt einen
+      Eckzug zurück — **und der Lesepfad zeigt danach denselben Stand** (nicht nur der
+      Bildschirm). Strg+Z **ohne** offene Bearbeitung macht weiter den letzten
+      Änderungs-Log-Eintrag rückgängig — unverändert.
+- [ ] **Schritt 10: Commit** — `feat(ecosystem): vertex editing with batched saves and a scoped undo stack`
 
 ### Aufgabe V3.4 — Kontextmenü
 
-**Dateien:** Erstellen `js/map-features/map-features-landschaften-context-action.js`
-(Vorlage lesen: `map-features-settlement-context-action.js`)
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-context-action.js`
+(Vorlage **lesen**: `map-features-settlement-context-action.js`)
 
-> **Ohne `index.html` und ohne `REGION_CONTEXT_ACTIONS` anzufassen.** Eine
-> eigenständige IIFE injiziert ihre Einträge und fängt Klicks in der **Capture-Phase
-> mit `stopImmediatePropagation()`** ab, bevor die jQuery-Delegation greift.
+> **Ohne `index.html` und ohne `REGION_CONTEXT_ACTIONS` anzufassen.** Eine eigenständige
+> IIFE injiziert ihre Einträge und fängt Klicks in der **Capture-Phase mit
+> `stopImmediatePropagation()`** ab, bevor die jQuery-Delegation greift. Das ist auch
+> deshalb richtig, weil `index.html` gerade fremde offene Arbeit trägt.
 
-Drei Einträge: „Neue Derographische Region", „Neue Vegetation", „Neue Topographie" —
-jeder **schaltet die Ebene mit**. Und: „Neues Herrschaftsgebiet" wird ausgeblendet,
-außer der Modus ist `political`.
+Drei Einträge im **Karten**-Kontextmenü: „Neue Derographische Region", „Neue Vegetation",
+„Neue Topographie" — jeder **schaltet die Ebene mit**. Und „Neues Herrschaftsgebiet" wird
+ausgeblendet, außer der Modus ist `political`.
 
-- [ ] **Schritt 1–4:** Injektion, Handler, Ebenen-Umschaltung, Ausblendung.
-- [ ] **Schritt 5: 🔧 DU (Owner):** Im politischen Modus ist „Neues Herrschaftsgebiet"
-      da, im Landschaften-Modus nicht.
-- [ ] **Schritt 6: Commit** — `feat(landschaften): three context entries that switch the layer with them`
+> 💣 **Es gibt DREI Kontextmenüs, und V3.6 braucht ein viertes, das hier entsteht.**
+>
+> | Menü | wo | woran |
+> |---|---|---|
+> | `#map-context-menu` | `index.html:247`, Untermenü „Hier hinzufügen" `:249–256` | Rechtsklick auf leere Karte |
+> | `#region-context-menu` | `index.html:267–278`, **flach** | `polygon.on("contextmenu")`, **politische** Polygone (`map-features.js:491–504`) |
+> | **Flächen-Kontextmenü Landschaften** | **existiert nicht** | muss hier gebaut werden |
+>
+> Die drei „Neue …"-Einträge gehören ins **Karten**-Menü. **Der Rechtsklick auf eine
+> Landschaftsfläche** braucht ein eigenes Menü — und das ist die Voraussetzung für „Senden
+> an …" (V3.6) **und** für den Lösch-Rückweg (V3.0b-Schluss). Es hier gleich mitbauen,
+> mit `delete_area` als erstem Eintrag; V3.6 hängt „Senden an …" daran.
+
+- [ ] **Schritt 1–4:** Injektion der drei Karten-Einträge, Handler, Ebenen-Umschaltung,
+      Ausblendung von „Neues Herrschaftsgebiet".
+- [ ] **Schritt 5: Flächen-Kontextmenü** für Landschaftsflächen anlegen, erster Eintrag
+      **„Fläche löschen"** (`delete_area`, weich) — der Rückweg aus einer falsch
+      platzierten Fläche.
+- [ ] **Schritt 6: 🔧 DU (Owner):** Im politischen Modus ist „Neues Herrschaftsgebiet"
+      da, im neuen Modus nicht. Rechtsklick auf eine Fläche zeigt „Fläche löschen"; danach
+      ist sie weg (Reload).
+- [ ] **Schritt 7: Commit** — `feat(ecosystem): map-menu create entries plus a per-area menu with delete`
 
 ### Aufgabe V3.5 — Erprobungs-Hinweis
 
-**Dateien:** Erstellen `js/map-features/map-features-landschaften-intro.js`
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-intro.js`
 
-> **Eine Warnung ohne Konsequenz wird weggeklickt.** Deshalb dreiteilig: der
-> Moduseintrag heißt dauerhaft „Landschaften (Erprobung)"; der erste Dialog nennt
-> **drei konkrete Schritte** statt einer Bitte um Vorsicht; und jede in dieser Phase
-> entstandene Fläche trägt `is_trial=1`, sodass am Ende **eine** Entscheidung reicht.
+> **Eine Warnung ohne Konsequenz wird weggeklickt** — und die Editoren legen
+> erfahrungsgemäß sofort los. Deshalb dreiteilig: der Moduseintrag heißt dauerhaft
+> „Landschaften (Erprobung)"; der erste Dialog nennt **konkrete Schritte** statt
+> einer Bitte um Vorsicht; und jede in dieser Phase entstandene Fläche trägt
+> `is_trial = 1` (auf `ecosystem_area`, gesteuert über `app_setting['ecosystem_trial']`),
+> sodass am Ende **eine** Entscheidung reicht.
+
+> ✅ **Der „Lade neu"-Schritt trägt jetzt — die Editor-Persistenz ist live** (Commits
+> `d22bd828` + `9d8d844c`, 2026-07-24). `_v` steht in `ignoredParams`, der Modus überlebt
+> F5, Ausschnitt und Zoom auch. **Ein Punkt bleibt für V1.1 zu tun:** `?landschaften=1`
+> gehört aus demselben Grund wie `_v` in `ignoredParams` (`map-features-layer-state.js`,
+> Kommentar steht am Set), sonst schaltet das Flag den Restore wieder ab und der Modus
+> fällt auf `deregraphic`. Mit dieser einen Zeile in V1.1 hält der Reload-Test unten.
 
 ```
 Zeichne eine einzige Fläche. Verschiebe die Karte. Lade neu. Ist sie noch da?
@@ -580,8 +1487,49 @@ Erst wenn das sitzt, die zweite. Bitte noch keine Serie — das Werkzeug ist neu
 und was jetzt entsteht, kann sich noch als falsch erweisen.
 ```
 
-- [ ] **Schritt 1–3:** Dialog (einmalig, `localStorage`), Statuszeile, `is_trial`-Weitergabe.
-- [ ] **Schritt 4: Commit** — `feat(landschaften): trial-phase notice with three concrete steps`
+- [ ] **Schritt 1–3:** Dialog (einmalig, `localStorage` — im Projekt gibt es kein
+      „schon-gesehen"-Muster, das ist Neubau), Statuszeile (das Chip aus V3.3),
+      `is_trial`-Weitergabe: der Client liest `app_setting['ecosystem_trial']` und schickt
+      `is_trial` an jede `create_area`-Aktion.
+- [ ] **Schritt 4: Commit** — `feat(ecosystem): trial-phase notice with concrete steps`
+
+### Aufgabe V3.6 — „Senden an …"
+
+> **Vorgezogen aus V7** (Owner-Entscheidung). Die Analyse nennt das Übernehmen von
+> Geometrie „die wichtigste einzelne Funktion des ganzen Editors" (§4.4) — es hinter
+> die V4-Messung zu schieben hieße, die Zahl, an der alles hängt, ohne das Werkzeug zu
+> erheben, das die ~266 Zwillingsflächen halbieren soll.
+
+**Dateien:** Erstellen `js/map-features/map-features-ecosystem-transfer.js` — hängt „Senden
+an …" an das **Flächen-Kontextmenü aus V3.4**.
+
+**Verhalten:** Rechtsklick auf eine Fläche → „Senden an …" → die beiden anderen Ebenen.
+**Kopie, keine Verknüpfung** — verschiebt später jemand die Quelle, darf sich die
+Kopie nicht mitbewegen. Nach dem Kopieren springt der Editor **in die Kopie**: andere
+Ebene aktiv, Kopie ausgewählt, Panel offen.
+
+> 🔴 **In WELCHE Region der Zielebene?** (Owner-Entscheidung 1). Eine Kopie braucht eine
+> `region_id` der Zielebene — sonst entsteht dort doch wieder eine namenlose Einzelregion.
+> Voreinstellung: eine **neue** Region der Zielebene, benannt wie die Quelle (der häufige
+> Fall: „Farindel"-Vegetation → „Farindel"-Topographie). Der Dialog bietet zusätzlich „an
+> bestehende Region anhängen" für den Fall, dass das Ziel schon existiert.
+
+> 💣 **Der Einzel-Handgriff ist NICHT das Werkzeug für ~266 Zwillinge.** Gerechnet
+> (geschätzt): Rechtsklick + Menü + Ziel + Roundtrip + Sprung in die Kopie + Zurückschalten
+> ≈ **15–18 s reiner Overhead je Fläche**, also **~70–80 Minuten reines Menü** für alle
+> Zwillinge, bevor eine Ecke angepasst ist. Der richtige Massenbetrieb ist ein
+> serverseitiges `copy_regions(kind_from → kind_to)` über eine Auswahl — **ein** Handgriff,
+> Muster `promote_trial`. Das ist aber **nicht Teil dieses Vorhabens**: V3.6 liefert den
+> Einzel-Handgriff für die Ausnahme und für die V4-Messung (Durchgang B); der Stapelbetrieb
+> wird nach V4 beauftragt, wenn die Messung zeigt, dass er sich lohnt. **Hier nur benannt,
+> damit V4 weiß, dass es den teuren Weg misst, nicht den späteren billigen.**
+
+- [ ] **Schritt 1–4:** „Senden an …" am Flächenmenü, Ziel-Region (neu/bestehend), Kopie
+      über den Schreibendpunkt (neue `public_id`, kein Verweis auf die Quelle),
+      Ebenenwechsel, Auswahl der Kopie.
+- [ ] **Schritt 5: 🔧 DU (Owner):** Eine Vegetationsfläche in die Topographie senden,
+      dort eine Ecke ziehen — das Original bleibt unverändert.
+- [ ] **Schritt 6: Commit** — `feat(ecosystem): send a drawn area to the other two layers as a copy`
 
 ---
 
@@ -589,25 +1537,84 @@ und was jetzt entsteht, kann sich noch als falsch erweisen.
 
 **Kein Code.** Diese Stufe entscheidet, ob alles Weitere gebaut wird.
 
-- [ ] **🔧 DU (Owner): Zwanzig Flächen in einer Sitzung zeichnen — Zeit stoppen.**
+- [ ] **🔧 DU (Owner): Zweimal zehn Flächen — getrennt Zeit stoppen.**
 
-> Das ist die einzige Zahl, die darüber entscheidet, ob das Feature je fertig wird.
-> Bei **5 Minuten** je Fläche sind es 42 Stunden für 500 — es wird nicht fertig.
-> Bei **2 Minuten** sind es 17 — es wird.
+| Durchgang | was | wonach gefragt ist |
+|---|---|---|
+| **A** | 10 Flächen **neu gezeichnet** (V3.2), **inkl. Benennen + Region + Wiki** | Wie teuer ist eine **fertige** Fläche von Hand? |
+| **B** | 10 Flächen per **„Senden an …"** (V3.6) übernommen und angepasst | Wie viel spart das Übernehmen wirklich? |
+
+> Das sind die beiden Zahlen, an denen alles hängt. Bei **5 Minuten** je Fläche in
+> Durchgang A sind es 42 Stunden für 500 — es wird nicht fertig. Bei **2 Minuten** sind
+> es 17 — es wird. Und Durchgang B sagt, ob die ~266 Zwillinge halb so teuer sind wie
+> behauptet oder fast genauso teuer.
 >
 > Drei Flächen fühlen sich mit jedem Werkzeug gut an. Zwanzig nicht.
+
+> 🪤 **Zwei Dinge, die die erste Fassung dieser Messung verschwieg:**
+> 1. **Die Zeichenzeit ist nicht die Gesamtzeit.** Klick-für-Klick spart die Geometrie
+>    (gemessen plausibel: 1–2 min statt 3–5). Aber Benennen, `region_type`, Wiki-Zuweisung
+>    (V3.0b) und das Wiederfinden der nächsten Stelle sind **+1,2–1,9 min je Fläche**, die
+>    es vorher gar nicht gab. Realistisch also eher **500 × ~3 min ≈ 25 h** als 17.
+>    **Durchgang A misst die fertige Fläche, nicht nur die Geometrie** — sonst misst V4
+>    2 Minuten und die Wirklichkeit sind 3.
+> 2. **Die ersten zehn sind die leichtesten.** Inseln und Seen sind klein und rundlich;
+>    `region`/`wald`/`gebirge`/`meer` sind groß und zerklüftet. Und V5 nimmt genau die
+>    leichte Klasse ganz aus der Hand. **Die zehn Messflächen sind aus dem schweren Rest zu
+>    wählen** (Wald, Gebirge, Sumpf), nicht aus den Inseln — sonst ist die Zahl geschönt.
 
 - [ ] **Messungen, die vor der nächsten Stufe feststehen müssen:**
 
 | Frage | Verfahren |
 |---|---|
-| Knoten- und Kantenzahl des Graphen | **Nicht** `?diagnostic=graph-data` (11,3 s, ungeschützt). Eine `SELECT COUNT(*)` oder der in V0.5 geschützte Zweig. |
-| Weicht die Route zwischen den Engines heute schon ab? | Eine Route über einen Weg **mit innerem Knoten**, mit und ohne `?clientrouting=1`. Entscheidet, ob die Paritätsforderung gestrichen wird. |
-| Payload-Delta | `curl -s https://avesmaps.de/api/app/map-features.php \| wc -c` vor/nach |
-| Wie viele Querfeldein-Strecken entstehen real? | Entscheidet, ob A\* vorberechenbar ist |
+| Knoten- und Kantenzahl des Graphen | **Nicht** über die Diagnose-Endpunkte. Nach V-1 sind sie fähigkeitsgeschützt — eingeloggt **ein** Aufruf von `?diagnostic=graph-data`, oder besser eine `SELECT COUNT(*)`. |
+| Weicht die Route zwischen den Engines heute schon ab? | Eine Route über einen Weg **mit innerem Knoten**, mit und ohne `?clientrouting=1`. Der Server splittet (`client-graph.php:148–157`), der Client nicht (`route-graph-routing.js:109–112`). Entscheidet, ob die Paritätsforderung gestrichen wird. |
+| Invalidiert ein Flächen-Save die Payload? | 🪤 **NICHT über die Byte-Zahl.** Die driftet durch gewöhnliche Editorarbeit dauernd (gemessen: +4.557 B an einem Tag). `curl -s https://avesmaps.de/api/app/map-features.php`, im Scratchpad das Feld **`revision`** lesen (heute 35.074), einen Flächen-Save auslösen, erneut lesen. **Bleibt `revision` gleich, hält Regel 3.** Ändert sie sich, ruft ein Landschafts-Pfad `avesmapsNextMapRevision`. |
+| Wie viele Querfeldein-Strecken entstehen real? | Entscheidet, ob A\* vorberechenbar ist. |
 
-- [ ] **Entscheidung über die Erprobungsflächen:** alle übernehmen (`is_trial=0`) oder
-      alle wegräumen. Ein Knopf, kein Aufräumen von Hand.
+- [ ] **Entscheidung über die Erprobungsflächen:** `promote_trial` mit `keep` oder
+      `discard`. Ein Aufruf, kein Aufräumen von Hand.
+
+---
+
+# V4a — Quellen anschließen (ex V2.4, hinter die Messung verschoben)
+
+> **Warum hinter V4:** Die Allowlist-Zeile öffnet zwei Löcher im Totmannschalter, und vor
+> dem Landschaftseditor (V6) kann ohnehin niemand eine Quelle an eine Fläche hängen. Vor
+> V4 kauft sie nichts und kostet zwei Risiken.
+>
+> 💣 **Beide müssen mitgelöst werden, sonst bleibt V4a offen:**
+> 1. **`avesmapsNextMapRevision` im Quellen-Schreibpfad.**
+>    `api/_internal/app/feature-sources.php:428`/`:468`/`:512` bumpt bei jedem Add/Remove
+>    die globale Kartenrevision (Regel 3). Für `ecosystem` gehört dort ein Zweig, der
+>    stattdessen `avesmapsNextEcosystemRevision` ruft — oder der Beleg, dass Quellen an
+>    Landschaftsflächen die Frontend-Payload nicht berühren und der Bump entfallen darf.
+> 2. **Der Payload liest `feature_sources` ohne `entity_type`-Filter**
+>    (`api/app/map-features.php:754–761`). Ein `ecosystem`-Ref träte am Kill-Switch vorbei
+>    nach außen. Entweder den Payload-Read auf die freigeschalteten Typen einschränken,
+>    oder den öffentlichen `api/app/feature-sources.php` denselben `ecosystem_enabled`-Check
+>    vorschalten wie dem Lesepfad.
+
+**Dateien:** Ändern `api/edit/map/feature-sources.php`, `api/app/feature-sources.php`
+(+ der Payload-/Revisions-Pfad aus den zwei Punkten oben)
+
+> **Vier Stellen, nicht zwei.** Beide Dateien haben ein Array **und** eine
+> Fehlermeldung im Klartext — und die Meldungen sind schon heute veraltet: sie zählen
+> sechs Typen auf, das Array trägt **sieben** (`powerline` fehlt in beiden Meldungen).
+
+| Datei | Array | Meldung |
+|---|---|---|
+| `api/edit/map/feature-sources.php` | `:49` | `:52` |
+| `api/app/feature-sources.php` | `:33` | `:36` |
+
+- [ ] **Schritt 1:** `'ecosystem'` in beide Arrays.
+- [ ] **Schritt 2:** Beide Fehlermeldungen aus dem Array **generieren** statt sie von
+      Hand zu pflegen: `implode(', ', $allowedTypes)`.
+- [ ] **Schritt 3:** Die zwei Kill-Switch-/Revisions-Löcher oben schließen.
+- [ ] **Schritt 4: 🔧 DU (Owner):** Bei ausgeschaltetem `ecosystem_enabled` liefert
+      `GET /api/app/feature-sources.php?entity_type=ecosystem&…` **nichts nach außen**, und
+      ein Quellen-Save an einer Fläche lässt das Payload-`revision` **unverändert**.
+- [ ] **Schritt 5: Commit** — `feat(ecosystem): join the shared source system without leaking past the kill switch or bumping map_revision`
 
 ---
 
@@ -618,33 +1625,65 @@ abgenommen ist.
 
 | | Vorhaben | Bemerkung |
 |---|---|---|
-| **V5** | Kachel-Ableitung Land/Wasser | Einmaliges Skript, keine Oberfläche. Nimmt **147 Flächen** ganz aus der Handarbeit, macht aus 35 Schneidearbeit, gibt 60 Gebirgen einen Startumriss. Werkzeugkette liegt im Nachbarrepo (`27_polygonize_town_tiles.py`). ⚠️ `dsa5-atlas/` nicht anfassen — Ulisses-Material. |
-| **V6** | Landschaftseditor (3 Spalten) | Realistisch **1.800–2.600 Z.**, nicht 900. Vorlage nur `html/wiki-sync-powerline-editor.html:60` — der „Vorbild"-Siedlungseditor verstößt selbst gegen `display:grid`. Zwei Sitzungen. |
-| **V7** | „Senden an …" und Grenzimport | Geometrie in die beiden anderen Ebenen kopieren; Territoriengrenzen per Hierarchiebaum übernehmen (Kopie, nie Verknüpfung), nach dem Import **vereinfachen** (Douglas-Peucker) — sonst schleppt eine Landschaftsgrenze politische Vertex-Dichte mit. |
-| **V8** | Topographie / Höhenfeld | Buckelsumme aus dem Prototyp portieren (`cellHash`, `level`, `peakWindow`, `rawArea`, `buildArea`, `hAt`). 💣 **`sampleRoute()` nicht übernehmen** — feste Schrittweite, keine Klemmen. 💣 **Enthaltensein-Fensterung** statt `max` oder Summe: der Schneckenkamm ersetzt die Windhagberge lokal, statt sich zu addieren. Eigene Stufe: Gipfel-Sichtbarkeitsregel (öffentliche Bestandsänderung!). |
-| **V9** | Vorberechnung Wege × Flächen | `path_ecosystem` (PK `(path_id, area_id, seq)`, `BIGINT` nicht `VARCHAR(36)`), `path_ecosystem_state` für den Fortschritt. bbox-Vorfilter als **SQL-Join**. Sperre, Budget (4 s, **nicht** 28), `set_time_limit`, serverseitiger Cursor ohne `OFFSET`, Idempotenz. 💣 Leasing-Falle. Gemessen **30–45 s** auf STRATO für den Volllauf. |
-| **V10** | „Führt durch" + Flora am Segment | `buildRouteLegPopupHtml` (`route-plan.js:196`), `buildLoreMarkup` existiert. ⚠️ Nur über den DOM-Observer laden, nie beim Markup-Bau — der Pool-Vorfall vom 2026-07-21. |
-| **V11** | Terrain auf Kantengewichte | Die gefährlichste Stufe. **Drei** Slice-Stellen, nicht zwei. Einheitenfalle (×3 → ×23). Klemme `[0,5…4,0]`, **nicht** die Flussgrenze erben. `from`/`to` bleiben in gespeicherter Orientierung (Verlauf-Sync!). Nachweis ist ein **Netzlauf**, kein Fixture-Test. Zwei Sitzungen. |
-| **V12** | Geschwindigkeitsvektoren | Muster existiert: `map-features-river-flow-arrows.js`, edit-only. Versatz **senkrecht** zur Segmentrichtung. |
-| **V13** | Querfeldein: Wasser meiden | ~50 Zeilen, liefert 90 % des A\*-Nutzens: eine Querfeldein-Kante, die ein `meer`/`see`-Polygon schneidet, entsteht gar nicht erst. |
+| **V5** | Kachel-Ableitung Land/Wasser | Einmaliges Skript, keine Oberfläche. Nimmt **149 Flächen** ganz aus der Handarbeit (`insel` 95 + `see` 46 + `kueste` 2 + `kontinent` 2 + `wueste` 4 = 149 — die alte „147" summierte die neuen Posten nicht), macht aus 35 `meer` Schneidearbeit, gibt 61 `gebirge` einen Startumriss. **Genau diese leichte Klasse darf nicht in die V4-Messung** (sie verzerrt sie nach unten). Werkzeugkette im Nachbarrepo (`27_polygonize_town_tiles.py`). ⚠️ `dsa5-atlas/` nicht anfassen — Ulisses-Material. |
+| **V6** | Landschaftseditor (3 Spalten) | Realistisch **1.800–2.600 Z.** Vorlage nur `html/wiki-sync-powerline-editor.html:60` (`display:grid`) — der „Vorbild"-Siedlungseditor verstößt bei `:75`/`:78` selbst dagegen. Zwei Sitzungen. |
+| **V7** | Grenzimport aus den Territorien | Rechtsklick → Hierarchiebaum mit Häkchen → Geometrien vereinigen und einfügen (Kopie, nie Verknüpfung), danach **vereinfachen** (Douglas-Peucker) — sonst schleppt eine Landschaftsgrenze politische Vertex-Dichte mit. Gemessen: 120 Territorien vereinigen = 47,7 ms; 500 Flächen à 800 Ecken = 14,8 MB (bei ungerundeten Koordinaten; `round(…,4)` beim Schreiben halbiert das). *(„Senden an …" ist nach V3.6 vorgezogen; ein Massen-`copy_regions` für die ~266 Zwillinge ist die andere offene Vorarbeit.)* |
+| **V8** | Topographie / Höhenfeld | Buckelsumme portieren (`cellHash` :402, `level` :413, `peakWindow` :452, `rawArea` :464, `buildArea` :491, `hAt` :578). 💣 **`sampleRoute()` :637 nicht übernehmen** — feste Schrittweite, keine Klemmen. 💣 **Enthaltensein-Fensterung** statt `max` oder Summe. Eigene Stufe: Gipfel-Sichtbarkeitsregel (öffentliche Bestandsänderung!). Basis heute: **34 Gipfel auf 61 Gebirge**. |
+| **V9** | Vorberechnung Wege × Flächen | `path_ecosystem` (PK `(path_id, area_id, seq)`, `BIGINT` nicht `VARCHAR(36)`), `path_ecosystem_state`. bbox-Vorfilter als **SQL-Join**. Sperre, Budget (4 s, **nicht** 28), `set_time_limit`, serverseitiger Cursor ohne `OFFSET`, Idempotenz. 💣 Leasing-Falle (`api/_internal/app/citymaps.php:323–325`). Auf **5.512** Wegen entsprechend länger als die gemessenen 30–45 s. |
+| **V10** | „Führt durch" + Flora am Segment | `buildRouteLegPopupHtml` (`route-plan.js:196`, Zeilen-Helfer `:210`, letzte Zeile `:222`), `buildLoreMarkup` (`lore.js:417`). ⚠️ Nur über den DOM-Observer laden, nie beim Markup-Bau. |
+| **V11** | Terrain auf Kantengewichte | Die gefährlichste Stufe. **Drei** Slice-Stellen: `client-graph.php:144`, `:157`, **`:534–553`** (Geschwindigkeits-Rekonstruktion `$originalDistance / $originalTime` bei `:538`). Einheitenfalle (×3 → ×23). Klemme `[0,5…4,0]`, **nicht** die Flussgrenze erben. `from`/`to` bleiben in gespeicherter Orientierung (`:207–211`, Verlauf-Sync!). Nachweis ist ein **Netzlauf**, kein Fixture-Test. Zwei Sitzungen. |
+| **V12** | Geschwindigkeitsvektoren | Muster: `map-features-river-flow-arrows.js`, edit-only. Versatz **senkrecht** zur Segmentrichtung. Prototyp: 34 px Abstand, `len = 5 + 20·min(1,3, spd)` (`:702–710`). |
+| **V13** | Querfeldein: Wasser meiden | ~50 Z., liefert 90 % des A\*-Nutzens: eine Querfeldein-Kante, die ein `meer`/`see`-Polygon schneidet, entsteht gar nicht erst. |
 | **V14** | A\* für Querfeldein | Nur clientseitig, on demand. Erst nach der Messung aus V4. |
-| **V15** | Spotlight-Schnittmenge | **Vertagt.** Braucht gezeichnete Vegetationsflächen und `relation='vorkommen'` in `lore_place`. |
+| **V15** | Spotlight-Schnittmenge | **Vertagt.** Braucht gezeichnete Vegetationsflächen und `relation='vorkommen'` in `lore_place` (`lore-edit.php:121` hat den Wert bereits freigeschaltet, der Sync schreibt ihn nie). |
 
 ---
 
 ## Selbstprüfung
 
-**Abdeckung:** Die Analyse nennt zehn Bausteine (A–J) plus die Ergänzungen aus §8.
-A → V1. B → V3. C → V6. D → V8. E → V9. F → V11. G → V12. H → V10. I → V15. J → V13/V14.
-Anzeige-Häkchen → V1.2. „Senden an …" und Grenzimport → V7. Kachel-Ableitung → V5.
-Erprobungsphase → V3.5. Routing-Entlastung → V0. **Keine Lücke.**
+**Abdeckung.** Die Analyse nennt zehn Bausteine (A–J) plus die Ergänzungen aus §8:
+A → V1 · B → V3 · C → V6 · D → V8 · E → V9 · F → V11 · G → V12 · H → V10 · I → V15 ·
+J → V13/V14. Anzeige-Häkchen → V1.2 · „Senden an …" → **V3.6** · Grenzimport → V7 ·
+Kachel-Ableitung → V5 · Erprobungsphase → V3.5 · Routing-Entlastung → V0 ·
+Diagnose-Absicherung → **V-1**.
 
-**Typkonsistenz:** `kind` heißt durchgehend `kind` mit den Werten
-`derographisch|vegetation|topographie`. `is_trial` erscheint in V2.1 (Schema),
-V3.5 (Weitergabe), V4 (Entscheidung). `ecosystem_revision` in V2.2 und der globalen
-Regel 3. `AVESMAPS_ECOSYSTEM_SETTING` in V2.2.
+**Erzeuger-Prüfung** (die Lücke der ersten Fassung — jetzt in **beide** Richtungen:
+Verbraucher ohne Erzeuger *und* Spalte ohne Schreiber):
 
-**Offen und bewusst offen:** die konkreten Tempo-Faktoren je Typ (gehören den
-Editoren, nicht diesem Plan), die Buckelzahl des Gebirgskörpers (wird in V8 festgelegt
-und dokumentiert — wegen der Jensen-Steuer kein Schönheitsregler), und die
-Entscheidung über die Paritätsforderung (fällt nach der Messung in V4).
+| gebraucht von | Name | erzeugt von |
+|---|---|---|
+| Regel 3, V2.2 | `ecosystem_revision` + `avesmapsNextEcosystemRevision` | **V2.1** ✅ |
+| V2.2 | `app_setting['ecosystem_enabled']` **umlegen** | **V2.3 Schritt 4** ✅ |
+| V4 | Oberfläche für `promote_trial` | **V2.3 Schritt 5** ✅ |
+| V3 Fertigkriterium | Laden + Rendern vorhandener Flächen | **V3.0** ✅ |
+| V0.2 | Netzlauf-Grundlinie (kein Fixture-Test) | **V0.2 Schritt 1** ✅ |
+| V4 Durchgang B | „Senden an …" | **V3.6** ✅ |
+| **V3.2 (`create_area` braucht `region_id`), V3.6** | **`activeEcosystemRegionId` + Regionsauswahl** | **V3.0b** ✅ |
+| V3.0/V3.4 („welche Ebene ist aktiv?") | `activeEcosystemLayerKind` + Segmentschalter | **V3.0 Schritt 1** ✅ |
+| V3.6, V4 Durchgang A | Flächen-Kontextmenü (Träger für „Senden an …" und „löschen") | **V3.4 Schritt 5** ✅ |
+| V3.5 („Lade neu"-Test) | Editor-Zustand überlebt F5 | ✅ **live** (`d22bd828`+`9d8d844c`); Rest: `?landschaften=1` in `ignoredParams` → **V1.1 Schritt 1** |
+| V2.3 (Wächter), V3.3 (Undo) | `geometry_revision` als **gelesener** `expected_revision` | **V2.3 Schritt 2** ✅ |
+| „wer hat gelöscht?" | `ecosystem_geometry_audit_log` | **V2.3** ✅ |
+| V5, V8 | `label_public_id`-Brücke zur Label-Zeile | **V2.1** ✅ |
+
+**Spalte ohne Schreiber** (die andere Richtung): `wiki_region_key`, `wiki_url` schreibt
+**V3.0b Schritt 3** (via `avesmapsPoliticalSlug`). `properties_json`, `origin` bleiben
+vorerst ungeschrieben — bewusst, kein Verbraucher vor V6; sie stehen im Schema, damit die
+selbstheilende DDL sie nicht später per `ALTER` nachrüsten muss (siehe V2.1).
+
+**Typkonsistenz.** `kind` durchgehend `derographisch|vegetation|topographie`.
+`is_trial` sitzt auf **`ecosystem_area`** (V2.1), gesteuert über `app_setting['ecosystem_trial']`
+(V3.5 Client-Weitergabe, V2.3 `promote_trial`, V4 Entscheidung) — **nicht** auf der Region.
+`AVESMAPS_ECOSYSTEM_SETTING` in V2.2 und V2.3. Geometrie überall **`JSON`**, Polygon
+**und** MultiPolygon. `avesmapsBuildClientLocationCellIndex` / `$locationCellIndex`
+durchgehend — **nicht** zu verwechseln mit dem vorhandenen `$locationCoordinateIndex`
+(`client-graph.php:61`).
+
+**Reihenfolge-Vertrag** (durch die Entscheidungen enger geworden):
+V-1 · V0 (Netzlauf!) · V1 · V2 · **Persistenz-Auftrag** · V3.0 · **V3.0b** · V3.1 · V3.2 ·
+V3.3 · V3.4 · V3.5 · V3.6 · V4 · V4a. V3.0b **vor** V3.2 (sonst namenlose Geometrie),
+Persistenz-Auftrag **vor** V3.5 (sonst scheitert der Reload-Test), V4a **nach** V4.
+
+**Offen und bewusst offen:** die konkreten Tempo-Faktoren je Typ (gehören den Editoren),
+die Buckelzahl des Gebirgskörpers (V8, wegen der Jensen-Steuer kein Schönheitsregler),
+und die Entscheidung über die Paritätsforderung (fällt nach der Messung in V4).
