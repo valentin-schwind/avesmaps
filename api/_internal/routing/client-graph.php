@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
+// Cell width of the endpoint lookup index = the endpoint tolerance. A hit therefore lies in the
+// own cell or one of the eight neighbours, never further -- 9 cells instead of all 4531 locations.
+const AVESMAPS_ROUTE_CLIENT_CELL_SIZE = 0.5;
 const AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY = 100.0;
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE = 'Querfeldein';
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 25.0;
@@ -66,17 +69,22 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         }
     }
 
+    // Separate from the exact round-5 index above and in addition to it: that one answers "is a
+    // location exactly on this interior vertex", this one answers "is a location within the
+    // endpoint tolerance of this path end". Different question, different structure.
+    $locationCellIndex = avesmapsBuildClientLocationCellIndex($locations);
+
     $pathIndex = 0;
     foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
         if (!is_array($path)) continue;
         $pathIndex++;
-        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $path, $pathIndex, $request);
+        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $locationCellIndex, $path, $pathIndex, $request);
     }
 
     // Sea-bound location names come from the RAW paths (before the domain filter drops Seewege), so a
     // water-bound place (island / open sea) is recognised even in a land-only request. Both synthetic
     // land bridges below refuse a water-locked node: crossing open water on foot is never a land route.
-    $seaBoundLocationNames = avesmapsCollectClientSeaBoundLocationNames($networkData, $locations, $locationCoordinateIndex);
+    $seaBoundLocationNames = avesmapsCollectClientSeaBoundLocationNames($networkData, $locations, $locationCoordinateIndex, $locationCellIndex);
 
     $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request, $seaBoundLocationNames);
     // Anchor each travel waypoint that has no land-path edge to the nearest point ON a land path (short
@@ -95,13 +103,13 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     ];
 }
 
-function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $path, int $pathIndex, array $request): void {
+function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $locationCellIndex, array $path, int $pathIndex, array $request): void {
     $coordinates = avesmapsReadRoutePathLineCoordinates($path['geometry'] ?? null);
     if ($coordinates === []) return;
 
     $coordinateCount = count($coordinates);
-    $startNode = avesmapsFindClientLocationAtPathEndpoint($locations, $coordinates[0]);
-    $endNode = avesmapsFindClientLocationAtPathEndpoint($locations, $coordinates[$coordinateCount - 1]);
+    $startNode = avesmapsFindClientLocationAtPathEndpoint($locations, $locationCellIndex, $coordinates[0]);
+    $endNode = avesmapsFindClientLocationAtPathEndpoint($locations, $locationCellIndex, $coordinates[$coordinateCount - 1]);
     if (!is_array($startNode) || !is_array($endNode)) return;
 
     $routeType = avesmapsNormalizeClientRouteSubtype((string) ($path['subtype'] ?? $path['name'] ?? ''));
@@ -387,7 +395,7 @@ function avesmapsFilterOutClientWaterLockedNodes(array $graph, array $nodeNames,
 // BEFORE the transport-domain filter drops disabled edges. This is how a water-bound place (island /
 // open sea) is recognised even in a land-only request, where the built graph carries no Seeweg edge at
 // all. Mirrors the graph's node matching: endpoint tolerance for the two ends, round-5 index interior.
-function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $locations, array $locationCoordinateIndex): array {
+function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $locations, array $locationCoordinateIndex, array $locationCellIndex): array {
     $seaBound = [];
     foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
         if (!is_array($path)) continue;
@@ -397,7 +405,7 @@ function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $l
         $count = count($coordinates);
         if ($count < 2) continue;
         foreach ([$coordinates[0], $coordinates[$count - 1]] as $endpoint) {
-            $location = avesmapsFindClientLocationAtPathEndpoint($locations, $endpoint);
+            $location = avesmapsFindClientLocationAtPathEndpoint($locations, $locationCellIndex, $endpoint);
             if (is_array($location)) $seaBound[(string) $location['name']] = true;
         }
         for ($i = 1; $i < $count - 1; $i++) {
@@ -617,19 +625,54 @@ function avesmapsAddClientCompatibleGraphConnection(array &$graph, string $fromN
     $graph[$fromName][$toName][] = $connection;
 }
 
-function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $point): ?array {
+// Buckets the locations into 0.5-wide cells over route_x/route_y, so the endpoint lookup below can
+// scan 9 cells instead of all locations. Keyed cell -> list of INDICES into $locations (not the
+// location sets themselves), because the lookup has to reproduce the linear scan's order.
+// The assertion is not decoration: should the tolerance ever grow past the cell width, 3x3 cells
+// would no longer cover it and the search would start losing hits silently.
+function avesmapsBuildClientLocationCellIndex(array $locations): array {
+    assert(AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD <= AVESMAPS_ROUTE_CLIENT_CELL_SIZE,
+        'Endpoint tolerance larger than the cell width -- 3x3 cells no longer suffice.');
+
+    $index = [];
+    foreach ($locations as $i => $location) {
+        $x = filter_var($location['route_x'] ?? null, FILTER_VALIDATE_FLOAT);
+        $y = filter_var($location['route_y'] ?? null, FILTER_VALIDATE_FLOAT);
+        if ($x === false || $y === false) continue;
+        $key = ((int) round($x / AVESMAPS_ROUTE_CLIENT_CELL_SIZE)) . ':'
+             . ((int) round($y / AVESMAPS_ROUTE_CLIENT_CELL_SIZE));
+        $index[$key][] = $i;
+    }
+
+    return $index;
+}
+
+function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $cellIndex, array $point): ?array {
     $x = filter_var($point[0] ?? null, FILTER_VALIDATE_FLOAT);
     $y = filter_var($point[1] ?? null, FILTER_VALIDATE_FLOAT);
     if ($x === false || $y === false) return null;
 
-    foreach ($locations as $location) {
-        if (abs((float) $location['route_y'] - (float) $y) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
-            && abs((float) $location['route_x'] - (float) $x) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
-            return $location;
+    $cx = (int) round($x / AVESMAPS_ROUTE_CLIENT_CELL_SIZE);
+    $cy = (int) round($y / AVESMAPS_ROUTE_CLIENT_CELL_SIZE);
+
+    // The linear scan returned the FIRST hit in $locations order. Walking cells the order would be
+    // a different one -- with two locations inside the same tolerance window a different one would
+    // come out, and a shared ?s= link would silently resolve to another route. So: lowest index wins.
+    $best = null;
+    for ($dx = -1; $dx <= 1; $dx++) {
+        for ($dy = -1; $dy <= 1; $dy++) {
+            foreach ($cellIndex[($cx + $dx) . ':' . ($cy + $dy)] ?? [] as $i) {
+                if ($best !== null && $i >= $best) continue;
+                $location = $locations[$i];
+                if (abs((float) $location['route_y'] - $y) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD
+                    && abs((float) $location['route_x'] - $x) < AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD) {
+                    $best = $i;
+                }
+            }
         }
     }
 
-    return null;
+    return $best === null ? null : $locations[$best];
 }
 
 function avesmapsReadRoutePathLineCoordinates(mixed $geometry): array {
