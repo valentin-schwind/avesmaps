@@ -39,6 +39,7 @@ function avesmapsFetchRouteMapFeatures(PDO $pdo): array {
 			updated_at
 		FROM map_features
 		WHERE is_active = 1
+			AND feature_type <> \'powerline\'
 		ORDER BY sort_order ASC, id ASC'
 	);
 	$statement->execute();
