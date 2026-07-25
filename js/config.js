@@ -144,6 +144,7 @@ function getDefaultLocationReportEndpointUrl() {
 const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = getDefaultLocationReportEndpointUrl();
 const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
 const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-features.php" : "");
+const MAP_REVISION_API_URL = window.AVESMAPS_MAP_REVISION_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-revision.php" : "");
 const VISITOR_TRACK_API_URL = window.AVESMAPS_VISITOR_TRACK_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/track.php" : "");
 const VISITOR_METRICS_API_URL = window.AVESMAPS_VISITOR_METRICS_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/visitor-metrics.php" : "");
 const VISITOR_HEARTBEAT_API_URL = window.AVESMAPS_VISITOR_HEARTBEAT_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/heartbeat.php" : "");

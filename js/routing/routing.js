@@ -200,13 +200,36 @@ function loadRouteData() {
 	return loadRouteDataFromApi();
 }
 
+// Pure decision for the live-sync poll: skip the expensive map-features delta fetch only when the cheap
+// revision probe is trustworthy AND reports no advance past what we already have. A failed/omitted probe
+// returns false -> fall through to the delta fetch (old behaviour), never a silent miss.
+function avesmapsLiveSyncShouldSkipDelta(localRevision, probeOk, probeRevision) {
+	const probed = Number(probeRevision);
+	return probeOk === true && Number.isFinite(probed) && probed <= (Number(localRevision) || 0);
+}
+
 async function pollLiveMapUpdates() {
 	if (!IS_EDIT_MODE || !MAP_FEATURES_API_URL || isLiveMapUpdatePending || !mapDataSourceStatus?.revision) {
+		return;
+	}
+	// Hidden tab: nobody is watching -> don't poll. Cuts idle load from backgrounded editor tabs.
+	if (typeof document !== "undefined" && document.hidden) {
 		return;
 	}
 
 	isLiveMapUpdatePending = true;
 	try {
+		// Cheap "did anything change?" probe first. The full delta fetch below runs table-wide enrichment
+		// loaders server-side, so we only pay it when the revision actually advanced. A failed probe falls
+		// through to the delta fetch (unchanged behaviour), never a skipped update.
+		if (MAP_REVISION_API_URL) {
+			const probe = await fetch(MAP_REVISION_API_URL, { headers: { Accept: "application/json" } });
+			const probeData = await probe.json().catch(() => ({}));
+			if (avesmapsLiveSyncShouldSkipDelta(mapDataSourceStatus.revision, probe.ok && probeData?.ok === true, probeData?.revision)) {
+				return; // finally clears isLiveMapUpdatePending
+			}
+		}
+
 		const url = new URL(MAP_FEATURES_API_URL, window.location.href);
 		url.searchParams.set("since_revision", String(mapDataSourceStatus.revision));
 		const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
