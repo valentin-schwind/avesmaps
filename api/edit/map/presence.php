@@ -25,15 +25,30 @@ try {
 
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    avesmapsEnsureEditorPresenceTable($pdo);
 
-    if ($requestMethod === 'POST') {
-        avesmapsWriteEditorPresenceHeartbeat($pdo, $user);
+    // The presence table is created lazily on first miss, NOT on every poll. Every connected editor hits
+    // this endpoint every 30s; a CREATE TABLE IF NOT EXISTS on each call is a metadata probe on the hot
+    // path that multiplies with editor count. Try the normal path first; only when the table is genuinely
+    // absent do we create it once and retry. Steady state runs zero DDL here.
+    try {
+        if ($requestMethod === 'POST') {
+            avesmapsWriteEditorPresenceHeartbeat($pdo, $user);
+        }
+        $onlineEditors = avesmapsListOnlineEditors($pdo);
+    } catch (PDOException $exception) {
+        if (!avesmapsIsMissingTableError($exception)) {
+            throw $exception;
+        }
+        avesmapsEnsureEditorPresenceTable($pdo);
+        if ($requestMethod === 'POST') {
+            avesmapsWriteEditorPresenceHeartbeat($pdo, $user);
+        }
+        $onlineEditors = avesmapsListOnlineEditors($pdo);
     }
 
     avesmapsJsonResponse(200, [
         'ok' => true,
-        'users' => avesmapsListOnlineEditors($pdo),
+        'users' => $onlineEditors,
         'online_seconds' => AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS,
         'visitors' => avesmapsReadVisitorPresence($pdo),
     ]);
@@ -63,6 +78,20 @@ function avesmapsReadVisitorPresence(PDO $pdo): ?array {
     } catch (Throwable $exception) {
         return null;
     }
+}
+
+// True when the exception means "the table does not exist yet" -- across MySQL (SQLSTATE 42S02 / "doesn't
+// exist" / "base table or view not found") and SQLite ("no such table", used by the test harness). Any
+// other error is a real failure and must propagate.
+function avesmapsIsMissingTableError(Throwable $exception): bool
+{
+    if ((string) $exception->getCode() === '42S02') {
+        return true;
+    }
+    $message = strtolower($exception->getMessage());
+    return str_contains($message, "doesn't exist")
+        || str_contains($message, 'base table or view not found')
+        || str_contains($message, 'no such table');
 }
 
 function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {
