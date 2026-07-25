@@ -135,29 +135,117 @@ function avesmapsLoreCountsByKind(PDO $pdo): array
     return $counts;
 }
 
-function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = '', int $limit = 200, int $offset = 0): array
+/**
+ * Selbstheilend die continent-Spalte auf lore_entry sicherstellen, BEVOR der Katalog sie liest
+ * oder filtert. Der Sync legt sie ohnehin an; aber zwischen Deploy und dem ersten „Vorkommen
+ * syncen" wuerde ein SELECT e.continent sonst die ganze Liste sprengen. Einmal je Request
+ * (static), danach ein billiges SHOW COLUMNS -- und das nur auf dem Editor-Katalogpfad, nicht
+ * im heissen ?place=-Pfad (der ruft diese Funktion nicht).
+ */
+function avesmapsLoreEnsureContinentColumn(PDO $pdo): void
 {
-    $where = ["e.status = 'active'"];
-    $params = [];
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    try {
+        $exists = $pdo->query("SHOW COLUMNS FROM lore_entry LIKE 'continent'")->fetchAll();
+        if (!$exists) {
+            $pdo->exec('ALTER TABLE lore_entry ADD COLUMN continent VARCHAR(120) NULL');
+        }
+    } catch (Throwable) {
+        // lore_entry existiert evtl. noch nicht (nie gesynct) -- dann gibt es nichts zu lesen,
+        // und avesmapsLoreReadCatalog faengt seinen eigenen Abfragefehler ohnehin ab.
+    }
+}
+
+/**
+ * @param list<string> $continents ausgewaehlte Kontinente ('Aventurien' schliesst leere mit ein)
+ * @param list<string> $origins    ausgewaehlte Herkuenfte (wiki|manual|community|…)
+ * @param int|null     $hasPlace   1 = nur mit Ortsangabe, 0 = nur ohne, null = egal
+ * @param int|null     $hasSource  1 = nur mit Quelle, 0 = nur ohne, null = egal
+ */
+function avesmapsLoreReadCatalog(
+    PDO $pdo,
+    string $kind = '',
+    string $query = '',
+    int $limit = 200,
+    int $offset = 0,
+    array $continents = [],
+    array $origins = [],
+    ?int $hasPlace = null,
+    ?int $hasSource = null
+): array {
+    avesmapsLoreEnsureContinentColumn($pdo);
+
+    // BASIS: nur Art + Suche. Die Facetten kommen erst danach dazu -- so zaehlt der Trichter die
+    // verfuegbaren Kontinente/Herkuenfte ueber die ganze (Art+Such-)Menge und nicht ueber die schon
+    // gefilterte; sonst raeumte eine Auswahl ihre eigenen Alternativen aus der Liste.
+    $baseWhere = ["e.status = 'active'"];
+    $baseParams = [];
     if ($kind !== '' && in_array($kind, AVESMAPS_LORE_KINDS, true)) {
-        $where[] = 'e.kind = :kind';
-        $params['kind'] = $kind;
+        $baseWhere[] = 'e.kind = :kind';
+        $baseParams['kind'] = $kind;
     }
     $query = trim($query);
     if ($query !== '') {
-        // Name ODER Gruppe ODER Synonym: „Hirsch" soll auch die Tiere finden, deren Art
-        // das ist.
-        // 💣 DREI EIGENE PLATZHALTER, nicht dreimal derselbe: ohne Prepare-Emulation
-        // lehnt MySQL einen mehrfach verwendeten benannten Parameter ab. Die erste
-        // Fassung tat genau das, der Fehler wurde vom catch unten zu „0 Treffer"
-        // verschluckt, und jede Textsuche kam leer zurück -- was aussah, als gäbe es
-        // den gesuchten Eintrag nicht.
-        $where[] = '(e.name LIKE :q1 OR e.gruppe LIKE :q2 OR e.synonyme LIKE :q3)';
-        $params['q1'] = '%' . $query . '%';
-        $params['q2'] = '%' . $query . '%';
-        $params['q3'] = '%' . $query . '%';
+        // Name ODER Gruppe ODER Synonym: „Hirsch" soll auch die Tiere finden, deren Art das ist.
+        // 💣 DREI EIGENE PLATZHALTER, nicht dreimal derselbe: ohne Prepare-Emulation lehnt MySQL
+        // einen mehrfach verwendeten benannten Parameter ab. Die erste Fassung tat genau das, der
+        // Fehler wurde vom catch unten zu „0 Treffer" verschluckt, und jede Textsuche kam leer
+        // zurück -- was aussah, als gäbe es den gesuchten Eintrag nicht.
+        $baseWhere[] = '(e.name LIKE :q1 OR e.gruppe LIKE :q2 OR e.synonyme LIKE :q3)';
+        $baseParams['q1'] = '%' . $query . '%';
+        $baseParams['q2'] = '%' . $query . '%';
+        $baseParams['q3'] = '%' . $query . '%';
     }
+
+    // FACETTEN oben drauf: Kontinent / Herkunft / Ortsangabe / Quelle.
+    $where = $baseWhere;
+    $params = $baseParams;
+
+    $continents = array_values(array_filter(array_map(static fn ($v) => trim((string) $v), $continents), static fn ($v) => $v !== ''));
+    if ($continents !== []) {
+        $placeholders = [];
+        foreach ($continents as $i => $value) {
+            $placeholders[] = ':cont' . $i;
+            $params['cont' . $i] = $value;
+        }
+        $clause = 'e.continent IN (' . implode(', ', $placeholders) . ')';
+        // „Aventurien" schliesst die (noch) leeren Kontinente ein -- vor dem ersten scharfen Sync
+        // ist alles leer, und leer IST Aventurien (die Karten-Identitaet, wie ueberall).
+        if (in_array('Aventurien', $continents, true)) {
+            $clause = '(' . $clause . " OR e.continent IS NULL OR e.continent = '')";
+        }
+        $where[] = $clause;
+    }
+
+    $origins = array_values(array_filter(array_map(static fn ($v) => trim((string) $v), $origins), static fn ($v) => $v !== ''));
+    if ($origins !== []) {
+        $placeholders = [];
+        foreach ($origins as $i => $value) {
+            $placeholders[] = ':orig' . $i;
+            $params['orig' . $i] = $value;
+        }
+        $where[] = 'e.origin IN (' . implode(', ', $placeholders) . ')';
+    }
+
+    if ($hasPlace !== null) {
+        $existsPlace = 'EXISTS (SELECT 1 FROM lore_place lp'
+            . ' WHERE lp.entry_wiki_key = e.wiki_key AND lp.status = \'active\')';
+        $where[] = $hasPlace === 1 ? $existsPlace : 'NOT ' . $existsPlace;
+    }
+
+    if ($hasSource !== null) {
+        $existsSource = 'EXISTS (SELECT 1 FROM feature_sources fs'
+            . ' WHERE fs.entity_type = \'lore\' AND fs.entity_public_id = e.wiki_key'
+            . ' AND fs.status = \'approved\')';
+        $where[] = $hasSource === 1 ? $existsSource : 'NOT ' . $existsSource;
+    }
+
     $whereSql = implode(' AND ', $where);
+    $baseWhereSql = implode(' AND ', $baseWhere);
     $limit = max(1, min(500, $limit));
     $offset = max(0, $offset);
 
@@ -171,7 +259,7 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
         // Einträge, dann Orte und Quellen für genau diese Schlüssel in je EINER
         // Abfrage. Drei Abfragen statt sechshundert, unabhängig von der Seitengröße.
         $statement = $pdo->prepare(
-            'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin
+            'SELECT e.wiki_key, e.kind, e.name, e.wiki_url, e.gruppe, e.typ, e.lebensraum, e.origin, e.continent
              FROM lore_entry e
              WHERE ' . $whereSql . '
              ORDER BY e.name
@@ -213,6 +301,35 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
                 $sourceCounts[(string) $row['entity_public_id']] = (int) $row['n'];
             }
         }
+
+        // Trichter-Optionen: verfuegbare Kontinente und Herkuenfte MIT Zaehlern -- ueber die BASIS
+        // (Art+Suche), nicht ueber die Facetten, damit eine Auswahl ihre eigenen Alternativen nicht
+        // aus dem Trichter raeumt. Nur beim Erst-Laden (offset 0): auf Scroll-Folgeseiten aendern
+        // sie sich nicht und kosten dort nur zwei Aggregate umsonst.
+        $continentOptions = [];
+        $originOptions = [];
+        if ($offset === 0) {
+            $contStatement = $pdo->prepare(
+                "SELECT COALESCE(NULLIF(e.continent, ''), 'Aventurien') AS value, COUNT(*) AS n
+                 FROM lore_entry e WHERE " . $baseWhereSql . "
+                 GROUP BY value ORDER BY (value = 'Aventurien') DESC, value"
+            );
+            $contStatement->execute($baseParams);
+            foreach ($contStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+                $continentOptions[] = ['value' => (string) $r['value'], 'count' => (int) $r['n']];
+            }
+            $originStatement = $pdo->prepare(
+                'SELECT e.origin AS value, COUNT(*) AS n FROM lore_entry e WHERE ' . $baseWhereSql . '
+                 GROUP BY value ORDER BY n DESC'
+            );
+            $originStatement->execute($baseParams);
+            foreach ($originStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+                $value = trim((string) ($r['value'] ?? ''));
+                if ($value !== '') {
+                    $originOptions[] = ['value' => $value, 'count' => (int) $r['n']];
+                }
+            }
+        }
     } catch (Throwable $error) {
         // NICHT still auf 0 Treffer zurückfallen: ein Abfragefehler sieht dann exakt
         // aus wie „gibt es nicht", und man sucht ihn an der falschen Stelle. Genau das
@@ -234,6 +351,7 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
             'typ' => (string) ($row['typ'] ?? ''),
             'lebensraum' => (string) ($row['lebensraum'] ?? ''),
             'origin' => (string) ($row['origin'] ?? 'wiki'),
+            'continent' => (string) ($row['continent'] ?? ''),
             'place_count' => count($placesByEntry[(string) $row['wiki_key']] ?? []),
             // Auf 6 gekappt: eine Zeile soll die Gegend andeuten, nicht 40 Orte
             // ausbreiten. Der Rest steht als Zahl dahinter.
@@ -242,7 +360,13 @@ function avesmapsLoreReadCatalog(PDO $pdo, string $kind = '', string $query = ''
         ];
     }
 
-    return ['items' => $items, 'total' => $total];
+    return [
+        'items' => $items,
+        'total' => $total,
+        // Fuer den Trichter: verfuegbare Werte mit Zaehlern (nur bei offset 0 befuellt).
+        'continents' => $continentOptions,
+        'origins' => $originOptions,
+    ];
 }
 
 /**

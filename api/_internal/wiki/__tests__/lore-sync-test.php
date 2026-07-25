@@ -112,4 +112,32 @@ echo "childplan-mixed ok\n";
 // shared code lives -- __tests__/publication-sync-test.php for the reconcile diff. Re-adding
 // source cases here would mean lore had grown a second source path again. AGENTS.md §5.
 
+// -------------------------------------------------------------- CONTINENT ---
+// PURE Kontext: zieht die Kategorienamen aus dem Wikitext und haengt Titel + Lebensraum an.
+$ctx = avesmapsLoreContinentContext('Taschendrache', "Ein Tier.\n[[Kategorie:Tier]]\n[[Kategorie:Myranor-Artikel]]", 'Wald');
+assert(str_contains($ctx, 'Taschendrache'));
+assert(str_contains($ctx, 'Myranor-Artikel'));
+assert(str_contains($ctx, 'Tier'));
+assert(str_contains($ctx, 'Wald'));
+// 💣 Der Wikitext-FLIESSTEXT fliesst NICHT ein -- nur seine Kategorien (sonst schleppte der
+// Kontext Prosa-Rauschen in die Klassifikation). Ohne Tag bleibt Titel (+ Lebensraum), sauber
+// getrimmt, kein doppelter Leerraum.
+assert(avesmapsLoreContinentContext('Aal', 'ein langer Fliesstext ohne Kategorie', '') === 'Aal');
+assert(avesmapsLoreContinentContext('Aal', 'kein tag', 'Süßwasser') === 'Aal Süßwasser');
+echo "continent-context ok\n";
+
+// Der Erkenner (avesmapsWikiSyncMonitorDetectContinent) kommt ueber die Parsing-Kette schon
+// geladen; ist er es einmal nicht, faellt avesmapsLoreDetectContinent per Guard auf '' zurueck
+// (= im Filter Aventurien). Beide Wege werden hier abgedeckt.
+if (function_exists('avesmapsWikiSyncMonitorDetectContinent')) {
+    assert(avesmapsLoreDetectContinent('Taschendrache', '[[Kategorie:Myranor-Artikel]]', '') === 'Myranor / Güldenland');
+    assert(avesmapsLoreDetectContinent('Riesenkrake', '[[Kategorie:Uthuria-Artikel]]', '') === 'Uthuria');
+    // Ein gewoehnlicher Aventurien-Artikel traegt keine Kontinent-Kategorie -> Default Aventurien.
+    assert(avesmapsLoreDetectContinent('Aal', '[[Kategorie:Tier]]', 'Süßwasser') === 'Aventurien');
+    echo "continent-detect ok\n";
+} else {
+    assert(avesmapsLoreDetectContinent('Taschendrache', '[[Kategorie:Myranor-Artikel]]', '') === '');
+    echo "continent-detect (guard) ok\n";
+}
+
 echo "\nALL OK\n";

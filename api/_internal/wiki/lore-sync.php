@@ -62,7 +62,7 @@ const AVESMAPS_LORE_TABLE_PLACE = 'lore_place';
 /** Die Spalten, die der Wiki-Sync fuellen darf -- je Feld per field_origins_json schuetzbar. */
 const AVESMAPS_LORE_WIKI_FIELDS = [
     'kind', 'wiki_title', 'wiki_url', 'name', 'gruppe', 'typ',
-    'lebensraum', 'synonyme', 'merkmale_json',
+    'lebensraum', 'synonyme', 'merkmale_json', 'continent',
 ];
 
 // ===========================================================================
@@ -196,6 +196,23 @@ function avesmapsLoreWikiKeyForTitle(string $title): string
 // 2. Schema (self-healing, inline DDL wie im Rest des Projekts)
 // ===========================================================================
 
+/**
+ * Selbstheilend eine fehlende Spalte nachruesten -- dasselbe Muster wie citymaps.php
+ * (SHOW COLUMNS, dann ALTER). Idempotent: laeuft die Spalte schon, passiert nichts. Nur mit
+ * KONSTANTEN Tabellen-/Spaltennamen aufrufen (kein Nutzereingabe-Interpolation).
+ */
+function avesmapsLoreEnsureColumn(PDO $pdo, string $table, string $column, string $definition): void
+{
+    try {
+        $exists = $pdo->query('SHOW COLUMNS FROM ' . $table . ' LIKE ' . $pdo->quote($column))->fetchAll();
+        if (!$exists) {
+            $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+        }
+    } catch (Throwable) {
+        // Tabelle existiert evtl. noch nicht -- dann legt das CREATE unten sie mit der Spalte an.
+    }
+}
+
 function avesmapsLoreEnsureStagingTables(PDO $pdo): void
 {
     $pdo->exec(
@@ -210,11 +227,14 @@ function avesmapsLoreEnsureStagingTables(PDO $pdo): void
             synonyme VARCHAR(500) NULL,
             bild VARCHAR(300) NULL,
             merkmale_json JSON NULL,
+            continent VARCHAR(120) NULL,
             wiki_url VARCHAR(500) NULL,
             synced_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
             KEY idx_lore_staging_kind (kind)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    // Bestehende Staging-Kataloge (vor diesem Feature angelegt) nachruesten.
+    avesmapsLoreEnsureColumn($pdo, AVESMAPS_LORE_STAGING_CATALOG, 'continent', 'VARCHAR(120) NULL');
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_LORE_STAGING_PLACES . ' (
@@ -253,6 +273,7 @@ function avesmapsLoreEnsureLiveTables(PDO $pdo): void
             lebensraum VARCHAR(500) NULL,
             synonyme VARCHAR(500) NULL,
             merkmale_json JSON NULL,
+            continent VARCHAR(120) NULL,
             image_url VARCHAR(500) NULL,
             image_license_status VARCHAR(40) NULL,
             image_author VARCHAR(255) NULL,
@@ -267,6 +288,9 @@ function avesmapsLoreEnsureLiveTables(PDO $pdo): void
             KEY idx_lore_entry_match (match_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    // Bestehende lore_entry-Tabellen (vor diesem Feature) nachruesten -- damit der Reconcile den
+    // Kontinent schreiben und der Katalog-Read ihn lesen kann, auch ohne Neuanlage.
+    avesmapsLoreEnsureColumn($pdo, AVESMAPS_LORE_TABLE_ENTRY, 'continent', 'VARCHAR(120) NULL');
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_LORE_TABLE_PLACE . ' (
@@ -313,6 +337,43 @@ function avesmapsLoreDefaultPageSource(): callable
 }
 
 /**
+ * PURE: Kontext-String fuer die Kontinent-Erkennung eines Lore-Eintrags. Zieht die
+ * [[Kategorie:…]]-Namen aus dem Wikitext (das verlaesslichste Signal -- "Myranor-Artikel",
+ * "Uthuria-Artikel" …) und haengt Titel und Lebensraum an. Reiner String-Krempel, DB- und
+ * Bibliotheksfrei; die eigentliche Klassifikation macht avesmapsWikiSyncMonitorDetectContinent
+ * (dieselbe Logik wie Regionen/Wege/Siedlungen). So bleibt der Include side-effect-free.
+ */
+function avesmapsLoreContinentContext(string $title, string $wikitext, string $lebensraum): string
+{
+    $categories = '';
+    if (preg_match_all('/\[\[\s*Kategorie\s*:\s*([^\]|#]+)/iu', $wikitext, $matches)) {
+        $categories = implode(' ', array_map('trim', $matches[1]));
+    }
+    // Nur die nicht-leeren Teile fuegen -- sonst hinterlaesst ein fehlendes Stueck doppelten
+    // Leerraum (harmlos fuer die Erkennung, aber unsauber und schwer zu testen).
+    $pieces = array_filter([trim($title), $categories, trim($lebensraum)], static fn ($piece) => $piece !== '');
+    return implode(' ', $pieces);
+}
+
+/**
+ * Kontinent eines Lore-Eintrags, so weit erkennbar. Leere Rueckgabe = "nicht erkannt", was
+ * der Filter wie Aventurien behandelt (der Default). Der Erkenner ist auf dem Dump-Pfad
+ * geladen (dump.php zieht sync-monitor/paths/regions); fehlt er (isolierter Include im
+ * Unit-Test), bleibt es leer statt zu fatalen -- die Erkennung ist ein Zusatz, kein Muss.
+ */
+function avesmapsLoreDetectContinent(string $title, string $wikitext, string $lebensraum): string
+{
+    if (!function_exists('avesmapsWikiSyncMonitorDetectContinent')) {
+        return '';
+    }
+    $context = avesmapsLoreContinentContext($title, $wikitext, $lebensraum);
+    if ($context === '') {
+        return '';
+    }
+    return mb_substr((string) avesmapsWikiSyncMonitorDetectContinent($context), 0, 120, 'UTF-8');
+}
+
+/**
  * EIN begrenzter Build-Schritt: Dump neu oeffnen, $cursor Seiten ueberspringen und
  * jede Seite mit einer Lore-Infobox ins Staging upserten (Katalogzeile + Orte +
  * Quellen als delete+insert, damit Staging ein treuer Spiegel des Dumps bleibt).
@@ -331,13 +392,13 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
 
     $upsertEntry = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_LORE_STAGING_CATALOG . '
-            (wiki_key, kind, title, name, gruppe, typ, lebensraum, synonyme, bild, merkmale_json, wiki_url, synced_at)
-         VALUES (:wk, :kind, :title, :name, :gruppe, :typ, :leb, :syn, :bild, :merk, :url, CURRENT_TIMESTAMP(3))
+            (wiki_key, kind, title, name, gruppe, typ, lebensraum, synonyme, bild, merkmale_json, continent, wiki_url, synced_at)
+         VALUES (:wk, :kind, :title, :name, :gruppe, :typ, :leb, :syn, :bild, :merk, :cont, :url, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
             kind = VALUES(kind), title = VALUES(title), name = VALUES(name), gruppe = VALUES(gruppe),
             typ = VALUES(typ), lebensraum = VALUES(lebensraum), synonyme = VALUES(synonyme),
-            bild = VALUES(bild), merkmale_json = VALUES(merkmale_json), wiki_url = VALUES(wiki_url),
-            synced_at = CURRENT_TIMESTAMP(3)'
+            bild = VALUES(bild), merkmale_json = VALUES(merkmale_json), continent = VALUES(continent),
+            wiki_url = VALUES(wiki_url), synced_at = CURRENT_TIMESTAMP(3)'
     );
     $deletePlaces = $pdo->prepare('DELETE FROM ' . AVESMAPS_LORE_STAGING_PLACES . ' WHERE entry_wiki_key = :wk');
     $insertPlace = $pdo->prepare(
@@ -376,6 +437,8 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
                         'syn' => mb_substr($rec['synonyme'], 0, 500, 'UTF-8'),
                         'bild' => mb_substr($rec['bild'], 0, 300, 'UTF-8'),
                         'merk' => $rec['merkmale'] === [] ? null : json_encode($rec['merkmale'], JSON_UNESCAPED_UNICODE),
+                        // Kontinent aus Wiki-Kategorien + Titel (leer, wenn der Erkenner nicht geladen ist).
+                        'cont' => avesmapsLoreDetectContinent($pageTitle, $wikitext, $rec['lebensraum']),
                         'url' => mb_substr(AVESMAPS_WIKI_PAGE_BASE_URL
                             . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', $pageTitle))), 0, 500, 'UTF-8'),
                     ]);
@@ -528,8 +591,8 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
     $insertEntryLive = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_LORE_TABLE_ENTRY . '
             (wiki_key, kind, wiki_title, wiki_url, name, match_key, gruppe, typ, lebensraum,
-             synonyme, merkmale_json, origin, status, field_origins_json)
-         VALUES (:wk, :kind, :wt, :url, :name, :mk, :gruppe, :typ, :leb, :syn, :merk, \'wiki\', \'active\', :fo)'
+             synonyme, merkmale_json, continent, origin, status, field_origins_json)
+         VALUES (:wk, :kind, :wt, :url, :name, :mk, :gruppe, :typ, :leb, :syn, :merk, :cont, \'wiki\', \'active\', :fo)'
     );
     $insertPlaceLive = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_LORE_TABLE_PLACE . '
@@ -573,6 +636,7 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
             'lebensraum' => (string) ($row['lebensraum'] ?? ''),
             'synonyme' => (string) ($row['synonyme'] ?? ''),
             'merkmale_json' => $row['merkmale_json'],
+            'continent' => (string) ($row['continent'] ?? ''),
         ];
 
         $selectEntry->execute(['wk' => $wikiKey]);
@@ -591,6 +655,7 @@ function avesmapsLoreReconcileStep(PDO $pdo, string $cursor = '', bool $dryRun =
                     'mk' => mb_substr(avesmapsWikiSyncCreateMatchKey($desired['name']), 0, 300, 'UTF-8'),
                     'gruppe' => $desired['gruppe'], 'typ' => $desired['typ'], 'leb' => $desired['lebensraum'],
                     'syn' => $desired['synonyme'], 'merk' => $desired['merkmale_json'],
+                    'cont' => $desired['continent'],
                     'fo' => json_encode($origins, JSON_UNESCAPED_UNICODE),
                 ]);
             }

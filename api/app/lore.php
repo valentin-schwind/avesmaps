@@ -97,7 +97,25 @@ try {
         $query = trim((string) ($_GET['q'] ?? ''));
         $limit = (int) ($_GET['limit'] ?? 200);
         $offset = (int) ($_GET['offset'] ?? 0);
-        $catalog = avesmapsLoreReadCatalog($pdo, $kind, $query, $limit, $offset);
+        // Trichter-Facetten: Kontinent/Herkunft mehrwertig (|-getrennt, gedeckelt); Ortsangabe/
+        // Quelle dreiwertig (1 = nur mit, 0 = nur ohne, fehlt/leer = egal).
+        $continents = array_slice(array_values(array_filter(
+            array_map('trim', explode('|', (string) ($_GET['continent'] ?? ''))),
+            static fn ($value) => $value !== ''
+        )), 0, 20);
+        $origins = array_slice(array_values(array_filter(
+            array_map('trim', explode('|', (string) ($_GET['origin'] ?? ''))),
+            static fn ($value) => $value !== ''
+        )), 0, 20);
+        $hasPlace = null;
+        if (array_key_exists('has_place', $_GET) && (string) $_GET['has_place'] !== '') {
+            $hasPlace = (string) $_GET['has_place'] === '1' ? 1 : 0;
+        }
+        $hasSource = null;
+        if (array_key_exists('has_source', $_GET) && (string) $_GET['has_source'] !== '') {
+            $hasSource = (string) $_GET['has_source'] === '1' ? 1 : 0;
+        }
+        $catalog = avesmapsLoreReadCatalog($pdo, $kind, $query, $limit, $offset, $continents, $origins, $hasPlace, $hasSource);
         avesmapsJsonResponse(200, [
             'ok' => true,
             'kind' => $kind,
@@ -111,6 +129,9 @@ try {
             // Bestand ALLER Arten, damit die Unterreiter ihre Zahlen sofort tragen und
             // nicht erst, nachdem man sie einzeln angeklickt hat.
             'counts_by_kind' => avesmapsLoreCountsByKind($pdo),
+            // Trichter-Optionen (Werte + Zaehler); leer auf Scroll-Folgeseiten (offset > 0).
+            'continents' => $catalog['continents'] ?? [],
+            'origins' => $catalog['origins'] ?? [],
             // Zeitpunkt des letzten scharfen Syncs für die Zeile neben dem Knopf.
             'last_synced' => avesmapsLoreReadLastSynced($pdo),
             // Zustand der vier Menueband-Schalter, damit sie beim Oeffnen sofort richtig
