@@ -203,14 +203,17 @@ function setSelectedMapLayerMode(mode) {
 		syncLocationMarkerVisibility();
 	}
 	// Landschaften (Erprobung): Ansicht wie Standard -- Labels und Grenzen an --, aber eine leere
-	// Zeichenflaeche: keine Ortschaften, keine Wege. Wer sie braucht, schaltet sie danach von Hand
-	// wieder an (dasselbe Muster wie die Nodices-Zeile darueber). Fluesse und Seewege bleiben
-	// unangetastet -- sie sind beim Zeichnen von Landschaftsgrenzen eine Vorlage, keine Stoerung.
+	// Zeichenflaeche. Aus: Ortschaften, Wege, Seewege. AN: Fluesse -- sie sind beim Zeichnen von
+	// Vegetations- und Topographiegrenzen die Vorlage, an der entlang gezeichnet wird (Owner
+	// 2026-07-26). Wer die anderen braucht, schaltet sie danach von Hand wieder an; dasselbe Muster
+	// wie die Nodices-Zeile darueber.
 	if (IS_EDIT_MODE && normalizedMode === "ecosystem") {
 		if (typeof setAllLocationTypesVisible === "function") {
 			setAllLocationTypesVisible(false);
 		}
 		$("#togglePaths").prop("checked", false);
+		$("#toggleRivers").prop("checked", true);
+		$("#toggleSeaPaths").prop("checked", false);
 	}
 	syncEditorDisplayTogglesToMode(normalizedMode);
 	syncRegionVisibility();
