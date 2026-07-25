@@ -152,7 +152,15 @@ function syncPowerlineMapTint() {
 }
 
 function setSelectedMapLayerMode(mode) {
-	const normalizedMode = ["none", "political", "deregraphic", "powerlines", "original"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
+	// "ecosystem" joins the allowlist ONLY while the mode is actually permitted. This -- not the
+	// disabled <option> in map-features.js -- is the lock: without it a foreign link carrying
+	// ?mapLayerMode=ecosystem walks an anonymous visitor into a mode the combobox cannot even show,
+	// via map-features-layer-state.js (restorePlannerState -> setSelectedMapLayerMode).
+	const allowedModes = ["none", "political", "deregraphic", "powerlines", "original"];
+	if (IS_EDIT_MODE && IS_ECOSYSTEM_ENABLED) {
+		allowedModes.push("ecosystem");
+	}
+	const normalizedMode = allowedModes.includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
 	// "Original" ist die einzige Derographie-Ansicht mit abweichender Basiskarte: sie zeigt die alte

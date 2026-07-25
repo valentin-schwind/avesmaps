@@ -12,7 +12,10 @@ const POLITICAL_TERRITORY_STYLE_CACHE_TTL_MS = 1000;
 // Modi, in denen die abgeleiteten Grenzen (Canvas-Overlay) sichtbar sind. Fuellung/Labels bleiben
 // political-only; deregraphic zeigt nur die Grenzen. "none" ("Nur Karte") und "powerlines" (Kraftlinien-
 // Magiersicht) zeigen GAR KEINE Grenzen -> dort werden die Territoriums-Daten auch nicht geladen.
-const TERRITORY_BOUNDARY_MODES = ["political", "deregraphic"];
+// "ecosystem" (Landschaften-Erprobung, nur Edit-Modus) verhaelt sich wie deregraphic: Grenzen als
+// Zeichenvorlage ja, Fuellung/Labels nein. Ohne diesen Eintrag laedt der Modus GAR KEINE
+// Territoriumsdaten -- die Grenzen fehlen dann, ohne dass irgendwo ein Fehler erscheint.
+const TERRITORY_BOUNDARY_MODES = ["political", "deregraphic", "ecosystem"];
 // Zoomstufe, fuer die der Layer zuletzt geladen wurde -> pan-sicheres Nachladen (Daten sind zoom-, nicht
 // bbox-abhaengig: reines Pannen bei gleichem Zoom braucht keinen erneuten 1.22MB-Fetch).
 let politicalTerritoryLayerLoadedZoom = null;

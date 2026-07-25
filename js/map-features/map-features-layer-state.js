@@ -179,9 +179,11 @@ function hasPlannerStateSearchParams(searchParams) {
 	// UNCONDITIONALLY (694f9929, 2026-07-10), so it is present on every /edit/ load. It is
 	// infrastructure, NOT user-brought state -- counting its mere presence as "the user carried state
 	// in the URL" made this gate skip the localStorage restore on every editor load since that day.
-	// Any future infrastructure-only param (e.g. a planned ?landschaften=1) belongs here for the same
-	// reason: this Set answers "did the user bring their own state?", and a cache-bust token did not.
-	const ignoredParams = new Set(["edit", "debugMap", "_v"]);
+	// Any future infrastructure-only param belongs here for the same reason: this Set answers "did the
+	// user bring their own state?", and a cache-bust token did not. `landschaften` joined on the same
+	// grounds: it switches a mode ON, it does not carry a planner state, and leaving it out would kill
+	// the editor restore for every editor who follows the trial link.
+	const ignoredParams = new Set(["edit", "debugMap", "_v", "landschaften"]);
 	for (const paramName of searchParams.keys()) {
 		if (!ignoredParams.has(paramName)) {
 			return true;

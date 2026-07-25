@@ -197,6 +197,12 @@ window.avesmapsSearchParams = function () {
 };
 const INITIAL_SEARCH_PARAMS = window.avesmapsSearchParams();
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
+// Dead-man switch, client side. This is pure VISIBILITY -- it hides a mode entry, it secures nothing.
+// The read path is secured server-side by app_setting['ecosystem_enabled'] (V2.2). The flag itself is
+// German because it travels in the link the owner sends to editors; everything else here is English
+// code (AGENTS.md §8). The actual lock against a foreign ?mapLayerMode=ecosystem link is the allowlist
+// in map-features-display-mode.js, NOT the disabled <option>.
+const IS_ECOSYSTEM_ENABLED = INITIAL_SEARCH_PARAMS.get("landschaften") === "1";
 // Infopanel is the ONLY experience (Owner 2026-07-17): feature info lands in the collapsible
 // right-edge panel, never in a floating map popup. The ?infopanel=false escape hatch that shipped
 // with the 2026-07-12 default switch is RETIRED -- it had done its job (A/B compare), and a stale
@@ -518,6 +524,7 @@ const TRANSPORT_ICON_PATHS = {
 		deregraphic: "icons/StandardKarte.webp",
 		powerlines: "icons/kraftlinien.webp",
 		original: "icons/OriginalKarte.webp",
+		ecosystem: "icons/RegionenKarte.webp",
 	},
 	landTransport: {
 		caravan: "icons/karavane.webp",

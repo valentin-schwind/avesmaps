@@ -84,6 +84,9 @@ window.AVESMAPS_I18N_EN = {
 	"view.mode.standard": "Standard",
 	"view.mode.powerlines": "Ley lines",
 	"view.mode.original": "Original",
+	// Keyed by the <option> value, not by the German label -- unlike "deregraphic", which is historically
+	// keyed view.mode.standard. Editor-only trial mode behind ?landschaften=1.
+	"view.mode.ecosystem": "Landscapes (trial)",
 
 	// --- spotlight search ---
 	"spotlight.title": "Search",
