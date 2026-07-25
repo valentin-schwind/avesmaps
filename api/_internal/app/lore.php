@@ -238,10 +238,16 @@ function avesmapsLoreReadCatalog(
     }
 
     if ($hasSource !== null) {
-        $existsSource = 'EXISTS (SELECT 1 FROM feature_sources fs'
-            . ' WHERE fs.entity_type = \'lore\' AND fs.entity_public_id = e.wiki_key'
-            . ' AND fs.status = \'approved\')';
-        $where[] = $hasSource === 1 ? $existsSource : 'NOT ' . $existsSource;
+        // 💣 KEIN Spalten-zu-Spalten-Vergleich (fs.entity_public_id = e.wiki_key): feature_sources
+        // traegt die utf8mb4-DEFAULT-Kollation, lore_entry explizit utf8mb4_unicode_ci -- ein direkter
+        // Vergleich wirft „Illegal mix of collations", und der catch unten machte daraus stille 0
+        // Treffer (has_place funktioniert, weil lore_place dieselbe Kollation wie lore_entry hat).
+        // Ueber einen IN-Teilquery mit COLLATE im SELECT ist die Kollation eindeutig, und die
+        // Unterabfrage wird EINMAL materialisiert statt je Zeile ausgewertet. entity_public_id ist
+        // NOT NULL, also ist auch NOT IN gefahrlos (kein NULL-Fallstrick).
+        $sourceSubquery = '(SELECT fs.entity_public_id COLLATE utf8mb4_unicode_ci FROM feature_sources fs'
+            . ' WHERE fs.entity_type = \'lore\' AND fs.status = \'approved\')';
+        $where[] = ($hasSource === 1 ? 'e.wiki_key IN ' : 'e.wiki_key NOT IN ') . $sourceSubquery;
     }
 
     $whereSql = implode(' AND ', $where);
