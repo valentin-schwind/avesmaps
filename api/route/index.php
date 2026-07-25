@@ -318,6 +318,12 @@ try {
 		]);
 	}
 
+	// The heavy path: loading the feature table, building the network and the graph, then the
+	// Dijkstra. api/route/ was the only heavy endpoint that never set a limit, so a pathological
+	// request could sit on a STRATO PHP worker until the hard kill. 30 s is well above a healthy
+	// request (measured ~2.3 s) and well below the point where a stuck worker starts hurting.
+	@set_time_limit(30);
+
 	if ($requestMethod !== 'POST') {
 		avesmapsRouteErrorResponse(405, 'method_not_allowed', 'Nur POST-Anfragen sind fuer Routing erlaubt.');
 	}
