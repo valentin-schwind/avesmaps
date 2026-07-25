@@ -2443,6 +2443,36 @@ var avesmapsLoreListPage = {
 	dialog: { loaded: 0, total: 0, loading: false },
 };
 
+// Trichter-Filter je Ansicht (server-seitig, weil die Liste seitenweise nachlaedt -- ein
+// Browser-Filter saehe nur das geladene Fenster). Kontinent-Vorgabe „Aventurien": leerer
+// Kontinent zaehlt serverseitig als Aventurien, vor dem ersten scharfen Sync blendet die
+// Vorgabe also nichts aus. Herkunft/Ortsangabe/Quelle standardmaessig ohne Einschraenkung.
+var avesmapsLoreFilterState = {
+	panel:  { continent: new Set(["Aventurien"]), origin: new Set(), place: { value: "" }, source: { value: "" } },
+	dialog: { continent: new Set(["Aventurien"]), origin: new Set(), place: { value: "" }, source: { value: "" } },
+};
+// Zuletzt vom Server gemeldete Trichter-Optionen (Wert + Zaehler) je Ansicht; der Katalog
+// berechnet sie ueber die Art+Such-Basis, damit eine Auswahl ihre Alternativen nicht ausblendet.
+var avesmapsLoreFilterOptions = {
+	panel:  { continents: [], origins: [] },
+	dialog: { continents: [], origins: [] },
+};
+// rebuild-Funktion des jeweiligen Trichters (von avmFilterMenuAttach), um ihn nach frischen
+// Optionen neu zu zeichnen.
+var avesmapsLoreFilterRebuild = { panel: null, dialog: null };
+
+// Herkunft (origin) lesbar machen -- die Rohwerte wiki|manual|community|suppressed sind
+// englische Speicherwerte, nicht die UI-Sprache.
+function avesmapsLoreOriginLabel(value) {
+	switch (value) {
+		case "wiki": return "Wiki";
+		case "manual": return "manuell";
+		case "community": return "Community";
+		case "suppressed": return "unterdrückt";
+		default: return value || "";
+	}
+}
+
 // 💣 JEDER Abruf braucht ein Zeitlimit. Ein hängender Request belegt bis zum
 // Servertimeout einen PHP-Worker; mehrere davon legen die gesamte API lahm -- genau
 // so ist der Pool am 21.07. gesättigt worden. Ein Abbruch gibt den Worker sofort frei.
@@ -2715,6 +2745,18 @@ function avesmapsLoreFetchList(view, append) {
 		+ "&q=" + encodeURIComponent(query)
 		+ "&limit=" + AVESMAPS_LORE_PAGE_SIZE
 		+ "&offset=" + offset;
+	// Trichter-Facetten mitschicken -- AUCH auf Scroll-Folgeseiten, damit die Abfrage identisch
+	// bleibt und nicht auf halber Liste ihre Filterung verliert. Kontinent/Herkunft mehrwertig
+	// (|-getrennt), Ortsangabe/Quelle dreiwertig (1 = nur mit, 0 = nur ohne, leer = egal).
+	var filter = avesmapsLoreFilterState[view];
+	if (filter) {
+		var continentParam = Array.from(filter.continent).join("|");
+		var originParam = Array.from(filter.origin).join("|");
+		if (continentParam) { url += "&continent=" + encodeURIComponent(continentParam); }
+		if (originParam) { url += "&origin=" + encodeURIComponent(originParam); }
+		if (filter.place.value) { url += "&has_place=" + encodeURIComponent(filter.place.value); }
+		if (filter.source.value) { url += "&has_source=" + encodeURIComponent(filter.source.value); }
+	}
 	page.loading = true;
 	avesmapsLoreFetchWithTimeout(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
 		.then(function (r) { return r.ok ? r.json() : null; })
@@ -2732,6 +2774,16 @@ function avesmapsLoreFetchList(view, append) {
 			}
 			renderLoreLastSynced(data);
 			renderLoreKindToggles(data && data.ok ? data.kinds_enabled : null);
+			// Trichter-Optionen aus DIESER Antwort uebernehmen und den Trichter neu zeichnen
+			// (frische Zaehler + Aktiv-Badge). Nur beim Erst-Laden -- Scroll-Folgeseiten liefern
+			// sie bewusst leer, sie aendern sich zwischen zwei Seiten derselben Liste nicht.
+			if (data && data.ok && avesmapsLoreFilterOptions[view]) {
+				avesmapsLoreFilterOptions[view].continents = Array.isArray(data.continents) ? data.continents : [];
+				avesmapsLoreFilterOptions[view].origins = Array.isArray(data.origins) ? data.origins : [];
+				if (typeof avesmapsLoreFilterRebuild[view] === "function") {
+					avesmapsLoreFilterRebuild[view]();
+				}
+			}
 			// ALLE Reiterzahlen setzen, nicht nur die des geladenen: sonst bleiben die
 			// übrigen leer, bis man sie einzeln anklickt. Die Zahlen zeigen den
 			// Gesamtbestand und bleiben deshalb auch während einer Suche stehen.
@@ -2823,6 +2875,56 @@ if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
 	// KEIN Doppelklick-Handler mehr: seit der Einfachklick den Editor öffnet, würde ein
 	// Doppelklick beides auslösen -- Editor auf UND Wiki-Tab auf. Der Wiki-Link sitzt
 	// jetzt im Editorkopf, wo er nicht mit einer Geste kollidiert.
+}
+
+// Die Trichter-Filter der Vorkommen-Liste verdrahten (Reiter UND Fenster). Einmal beim
+// Auswerten -- die Huellen (#lore-list-filter-menu / #lore-dlg-filter-menu) stehen statisch in
+// index.html. Jede Aenderung loest einen frischen Listenlauf aus; der Endlos-Scroll traegt die
+// Filter auf Folgeseiten mit. Kontinent/Herkunft sind Mehrfachauswahl (Optionen server-berechnet,
+// siehe loadLoreList), Ortsangabe/Quelle dreiwertig (alle/mit/ohne).
+if (typeof avmFilterMenuAttach === "function" && typeof document !== "undefined") {
+	["panel", "dialog"].forEach(function (view) {
+		var prefix = view === "panel" ? "lore-list" : "lore-dlg";
+		var state = avesmapsLoreFilterState[view];
+		avesmapsLoreFilterRebuild[view] = avmFilterMenuAttach(
+			prefix + "-filter-toggle",
+			prefix + "-filter-menu",
+			[
+				{
+					menuId: prefix + "-continent-menu", kind: "multi", state: state.continent,
+					getOptions: function () {
+						return (avesmapsLoreFilterOptions[view].continents || []).map(function (option) {
+							return { value: option.value, label: option.value, count: option.count };
+						});
+					},
+					// 💣 Kontinent = NUR Aventurien zaehlt NICHT als aktiver Filter: das ist die
+					// Karten-Identitaet, keine Einschraenkung (dieselbe Ausnahme wie im geteilten
+					// Trichter). Jede Abweichung -- anderer Kontinent, „Alle", mehrere -- zaehlt schon.
+					isActive: function () {
+						return !(state.continent.size === 1 && state.continent.has("Aventurien"));
+					},
+				},
+				{
+					menuId: prefix + "-origin-menu", kind: "multi", state: state.origin,
+					getOptions: function () {
+						return (avesmapsLoreFilterOptions[view].origins || []).map(function (option) {
+							return { value: option.value, label: avesmapsLoreOriginLabel(option.value), count: option.count };
+						});
+					},
+				},
+				{
+					menuId: prefix + "-place-menu", kind: "single", state: state.place,
+					options: [{ value: "1", label: "mit Ortsangabe" }, { value: "0", label: "ohne Ortsangabe" }],
+				},
+				{
+					menuId: prefix + "-source-menu", kind: "single", state: state.source,
+					options: [{ value: "1", label: "mit Quelle" }, { value: "0", label: "ohne Quelle" }],
+				},
+			],
+			function () { loadLoreList(view); },
+			"Filter"
+		);
+	});
 }
 
 // ===========================================================================
