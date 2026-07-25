@@ -783,11 +783,41 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
     $queue->setExtractFlags(SplPriorityQueue::EXTR_DATA);
     $queue->insert(['node' => $startName, 'transport' => null], 0.0);
 
+    // Settled state is keyed by (node, transport), never by node alone: with minimize_transfers the
+    // edge weight depends on the INCOMING transport, so $distances[$node] is not a valid label for
+    // the node on its own and a node-keyed set would change the result. Without minimize_transfers
+    // the transport part is simply redundant, not wrong.
+    //
+    // The stored value is the distance the pair was last expanded at, and the skip only fires when
+    // that distance was no better than the current one. That makes it provably behaviour-preserving
+    // rather than merely plausible: if $settled[key] <= $currentDistance, then every relaxation this
+    // pass would produce, $currentDistance + $weight, is >= the value the earlier pass already
+    // produced -- and since $distances only ever decreases, none of them can beat the neighbour's
+    // current label. So the skipped work could not have changed a single distance.
+    $settled = [];
+
     while (!$queue->isEmpty()) {
         $item = $queue->extract();
         $currentNode = (string) ($item['node'] ?? '');
         $currentTransport = $item['transport'] ?? null;
         $currentDistance = $distances[$currentNode] ?? INF;
+
+        // Stopping at the target is sound only while the effective expansion order is monotone.
+        // Without minimize_transfers the weight below does not depend on $currentTransport, so a
+        // stale heap entry can only re-expand a label that was already expanded at that same
+        // distance -- it produces no relaxation the earlier pass did not -- and the first
+        // extraction of the target therefore already carries its final label. With
+        // minimize_transfers that argument collapses: the weight is charged against the incoming
+        // transport, $distances[$node] stops being a valid label for the node, and a relaxation
+        // out of a stale entry can still undercut the distance the target was extracted at. So the
+        // break stays off in that case. graph.php's early exit has no transport concept at all and
+        // proves nothing for this loop.
+        if (!$minimizeTransfers && $currentNode === $endName) break;
+
+        $settledKey = $currentNode . "\0" . ($currentTransport ?? '');
+        if (isset($settled[$settledKey]) && $settled[$settledKey] <= $currentDistance) continue;
+        $settled[$settledKey] = $currentDistance;
+
         foreach (is_array($graph[$currentNode] ?? null) ? $graph[$currentNode] : [] as $neighbor => $connections) {
             foreach (is_array($connections) ? $connections : [] as $connection) {
                 $transport = (string) ($connection['transport_option'] ?? '');
