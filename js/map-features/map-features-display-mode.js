@@ -151,6 +151,19 @@ function syncPowerlineMapTint() {
 	container.style.filter = active ? getLeyMapFilter() : "";
 }
 
+// Die zwei Editor-Haken ("Labels"/"Grenzen") folgen dem Modus: bei jedem Moduswechsel werden sie auf
+// das gesetzt, was der neue Modus von sich aus zeigt. Damit aendert ein Moduswechsel das Kartenbild
+// GENAU so wie bisher -- die Haken sind eine Abweichung NACH dem Wechsel, kein Dauer-Uebersteuern.
+// (Owner 2026-07-26: das bisherige Verhalten bleibt; Politisch behaelt seine Grenzdarstellung.)
+function syncEditorDisplayTogglesToMode(mode) {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+		return;
+	}
+
+	$("#toggleMapLabels").prop("checked", MAP_LABEL_MODES.includes(mode));
+	$("#toggleTerritoryBorders").prop("checked", BOUNDARY_OVERLAY_MODES.includes(mode));
+}
+
 function setSelectedMapLayerMode(mode) {
 	// "ecosystem" joins the allowlist ONLY while the mode is actually permitted. This -- not the
 	// disabled <option> in map-features.js -- is the lock: without it a foreign link carrying
@@ -189,6 +202,17 @@ function setSelectedMapLayerMode(mode) {
 		$("#toggleNodix").prop("checked", true);
 		syncLocationMarkerVisibility();
 	}
+	// Landschaften (Erprobung): Ansicht wie Standard -- Labels und Grenzen an --, aber eine leere
+	// Zeichenflaeche: keine Ortschaften, keine Wege. Wer sie braucht, schaltet sie danach von Hand
+	// wieder an (dasselbe Muster wie die Nodices-Zeile darueber). Fluesse und Seewege bleiben
+	// unangetastet -- sie sind beim Zeichnen von Landschaftsgrenzen eine Vorlage, keine Stoerung.
+	if (IS_EDIT_MODE && normalizedMode === "ecosystem") {
+		if (typeof setAllLocationTypesVisible === "function") {
+			setAllLocationTypesVisible(false);
+		}
+		$("#togglePaths").prop("checked", false);
+	}
+	syncEditorDisplayTogglesToMode(normalizedMode);
 	syncRegionVisibility();
 	// typeof-Guard, anders als bei den Nachbarn darueber/darunter: die Datei ist NEU. Diese Funktion
 	// laeuft bei jedem Seitenaufruf (restorePlannerState -> hier). Wuerde die neue Datei einmal nicht

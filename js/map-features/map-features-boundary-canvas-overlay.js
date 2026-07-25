@@ -40,6 +40,8 @@
 	// Im political-Modus volle Deckkraft. Der Faktor wird pro redraw gesetzt und auch von drawInnerBoundaries
 	// gelesen (gleiche IIFE-Closure). 0.5 hier leicht justierbar (z. B. 0.4/0.6).
 	const BOUNDARY_WEAK_MODES = ["deregraphic", "powerlines", "ecosystem"];
+	// BOUNDARY_OVERLAY_MODES (welche Modi Grenzen zeichnen) steht in js/config.js -- der "Grenzen"-Haken
+	// im Editor wird beim Moduswechsel auf dieselbe Liste gesetzt und muss dieselbe Wahrheit lesen.
 	// Deckkraft der Grenzlinien in Regionen/Kraftlinien je Zoomstufe (0..1): z0 ganz aus, dann zunehmend,
 	// ab z4 gedeckelt. Außenlinie = dieser Wert; Innenlinie proportional (× INNER_LINE_ALPHA, wie bisher).
 	// z3 = 0.5 entspricht dem bisherigen festen Stand. Leicht justierbar.
@@ -482,7 +484,6 @@
 		// In "none" ("Nur Karte") bleibt das (geleerte) Canvas leer -> dort gewollt KEINE Grenzen; ohne
 		// diese Sperre blieben beim Moduswechsel die alten Linien stehen (regionData bleibt bestehen).
 		// Kraftlinien-Modus zeigt KEINE Grenzen mehr (nur Karte entsättigt + Kraftlinien + Nodices).
-		const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "ecosystem"];
 		const currentMapLayerMode = typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "political";
 		// Der "Grenzen"-Haken (nur Edit-Modus) uebersteuert den Modus in BEIDE Richtungen: Haken aus
 		// nimmt die Grenzen auch dort weg, wo der Modus sie zeigt; Haken an zeichnet sie auch dort, wo

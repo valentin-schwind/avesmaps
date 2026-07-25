@@ -490,6 +490,7 @@ function setLabelMoveActive(entry, isActive) {
 	void releaseFeatureSoftLock(entry.label.publicId);
 }
 
+// MAP_LABEL_MODES steht in js/config.js -- der Editor-Haken muss dieselbe Liste lesen.
 // Der "Labels"-Haken (nur Edit-Modus) uebersteuert AUSSCHLIESSLICH die Modus-Bedingung unten --
 // nicht das Zoomband und nicht das Viewport-Culling. Ein vorgezogenes `return box.checked` haette
 // alle vier Bedingungen ausgehebelt: alle Label-Marker auf jeder Zoomstufe auf der Karte, und
@@ -517,7 +518,7 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 		return false;
 	}
 
-	return (getSelectedMapLayerMode() === "deregraphic" || editorOverride === true)
+	return (MAP_LABEL_MODES.includes(getSelectedMapLayerMode()) || editorOverride === true)
 		&& bandZoom >= minZoom
 		&& bandZoom <= maxZoom
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);

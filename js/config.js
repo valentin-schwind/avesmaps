@@ -506,6 +506,15 @@ const DEFAULT_PLANNER_STATE = {
 	allowSea: true,
 	seaTransport: "cargoShip",
 };
+// Welche Kartenmodi Karten-Labels (Landschaftsnamen) bzw. Territoriengrenzen VON SICH AUS zeigen.
+// "ecosystem" sieht in beidem aus wie "deregraphic" -- Owner 2026-07-26: im Landschaftsmodus ist die
+// Ansicht wie bei Standard. Beide Listen stehen hier und nicht bei ihren Zeichnern, weil die zwei
+// Editor-Haken ("Labels"/"Grenzen") beim Moduswechsel auf genau diese Werte gesetzt werden -- eine
+// zweite Kopie der Liste wuerde genau dort auseinanderlaufen, wo es niemandem auffaellt.
+// NICHT zu verwechseln mit TERRITORY_BOUNDARY_MODES (political-territory-loader.js): das ist das
+// LADE-Tor fuer die Territoriumsdaten, dies hier das ZEICHEN-Tor.
+const MAP_LABEL_MODES = ["deregraphic", "ecosystem"];
+const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "ecosystem"];
 const VALID_TRANSPORT_OPTIONS = {
 	land: new Set(["caravan", "groupFoot", "lightWalker", "horseCarriage", "groupHorse", "lightRider"]),
 	river: new Set(["riverSailer", "riverBarge"]),
