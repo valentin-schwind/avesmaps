@@ -165,7 +165,7 @@ diese Tabelle.
 | | Vorhaben | Ergebnis | Umfang |
 |---|---|---|---|
 | **V-1** | Diagnosen absichern | ✅ **erledigt 2026-07-25** (`886efeee`), abgenommen | ~60 Z. |
-| **V0** | Routing entlasten | schneller, **auch ohne Landschaften** | ~220 Z. |
+| **V0** | Routing entlasten | ✅ **erledigt 2026-07-25** (`7dfd6016`), abgenommen | ~220 Z. |
 | **V1** | Die Ebene existiert | Modus umschaltbar, leer, Flag wirkt | ~320 Z. |
 | **V2** | Daten und API | Fläche per API anlegen/lesen/ändern/löschen | ~900 Z. |
 | **V3** | Zeichnen und Anzeigen | Fläche entsteht **mit Region und Namen**, wird geladen, überlebt Reload | ~1.950 Z. |
@@ -304,7 +304,41 @@ sättigt den Pool.
 
 ---
 
-# V0 — Routing entlasten
+# V0 — Routing entlasten ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-25.** Commits `a2e4f7c1` (V0.1), `9ef22032` (V0.2), `2b9a70e8`
+> (V0.3), `7dfd6016` (V0.4). Abnahme durch den Owner: Wegpunkt-Route im Browser
+> (`?route=Gareth&route=Ferdok&route=Havena` — der Wegpunkt-Parameter heißt `route` und
+> wird wiederholt), Segmentanzeige stimmt, Konsole ohne Fehler.
+>
+> **Der Netzlauf, den der Kasten unten verlangt, ist gefahren:** 5 echte Routen × mit und
+> ohne `minimize_transfers`, je einzeln vor und nach dem Umbau — **10/10 byte-gleich**.
+> `map_revision` beide Male **38061**, der Vergleich also gültig und nicht von fremder
+> Editorarbeit verwischt. `GET /api/locations/` ebenfalls byte-gleich (**4546** Orte), was
+> V0.3 direkt abdeckt. Tempo: **2,273 s → 1,095 s** im Mittel (**2,08×**, −52 %).
+>
+> 🪤 **Die Reihenfolgen-Falle (Punkt 5) war real, nicht theoretisch.** Gegen die echten
+> Live-Orte gemessen liegen **234 Paare** in einem gemeinsamen Toleranzfenster, und ein
+> Zellenlauf *ohne* „kleinster Index gewinnt" weicht bei **778 von 22.730** Sonden von der
+> linearen Suche ab. Mit dem Tie-Break: **0 von 59.098**. Ohne diesen Punkt wäre V0.1
+> lautlos falsch geworden.
+>
+> 🪤 **Das Settled-Set trägt zusätzlich eine Distanzschranke.** Es speichert die Distanz
+> der letzten Expansion und überspringt nur, wenn diese nicht besser war als die aktuelle.
+> Damit ist der Übersprung **beweisbar** verhaltensgleich statt nur empirisch: alle
+> Relaxationen des übersprungenen Durchlaufs wären ≥ den bereits erzeugten, und
+> `$distances` fällt monoton. Gegenprobe: 1600 Vergleiche über 400 Zufallsgraphen gegen
+> eine wörtliche Kopie der alten Funktion, `found`/`cost`/`node_ids`/`edge_ids` überall
+> gleich. Der Abbruch am Ziel ist wie vorgesehen **nur bei `!minimize_transfers`** aktiv.
+>
+> 🪤 **`api/route/index.php:312` in V0.4 stimmte nicht mehr:** durch V-1 liegt der
+> POST-Zweig bei **`:321`**. Die Fähigkeitsprüfung für `?diagnostic=` davor blieb
+> unangetastet.
+>
+> ⚠️ **V0 hat keinen Totmannschalter** — der gehört zu den Landschaften ab V1. Die vier
+> Änderungen sind seit dem Deploy für **jeden** Besucher aktiv, auch für geteilte
+> `?s=`-Links, die serverseitig neu gerechnet werden. Genau deshalb war der Netzlauf und
+> nicht ein Fixture-Test der Nachweis.
 
 **Warum:** Der Routing-Pfad trägt heute einen ~983-ms-Posten je Anfrage, und bei
 4.531 Orten (statt der gemessenen 3.949 von damals) wächst er weiter. Terrain würde
@@ -379,7 +413,7 @@ die Toleranz ist damit **eine volle Zellbreite**. Aus `|Δc| < 0,5` folgt
 `round(2c_loc) − round(2c) ∈ {−1, 0, +1}`. Steigt die Toleranz je über `0,5`, reichen
 9 Zellen **stillschweigend** nicht mehr — deshalb Schritt 4.
 
-- [ ] **Schritt 1: Die lineare Referenz als eigene Funktion herausziehen**
+- [x] **Schritt 1: Die lineare Referenz als eigene Funktion herausziehen**
 
 ```php
 // tools/routing/test-client-graph-endpoint-index.php
@@ -399,7 +433,7 @@ function avesmapsFindClientLocationLinearReference(array $locations, array $poin
 }
 ```
 
-- [ ] **Schritt 2: Den Test schreiben — mit den drei Fällen, die wirklich beißen**
+- [x] **Schritt 2: Den Test schreiben — mit den drei Fällen, die wirklich beißen**
 
 ```php
 require_once __DIR__ . '/../../api/_internal/routing/client-graph.php';
@@ -445,7 +479,7 @@ assert($mismatches === [], "Abweichungen:\n" . implode("\n", array_slice($mismat
 echo "OK: " . (count($locations) * 5 + 1000) . " Sonden deckungsgleich\n";
 ```
 
-- [ ] **Schritt 3: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 3: Test laufen lassen, Fehlschlag bestätigen**
 
 ```bash
 php -d zend.assertions=1 tools/routing/test-client-graph-endpoint-index.php
@@ -454,7 +488,7 @@ Erwartet: `Call to undefined function avesmapsBuildClientLocationCellIndex`
 
 ⚠️ **Ohne `-d zend.assertions=1` prüft `assert()` gar nichts** und der Test meldet grün.
 
-- [ ] **Schritt 4: Index bauen — mit Zusicherung über die Rasterweite**
+- [x] **Schritt 4: Index bauen — mit Zusicherung über die Rasterweite**
 
 ```php
 // Zellbreite 0.5 = die Endpunkt-Toleranz. Ein Treffer liegt damit in der eigenen oder
@@ -480,7 +514,7 @@ function avesmapsBuildClientLocationCellIndex(array $locations): array {
 }
 ```
 
-- [ ] **Schritt 5: Die Suche ersetzen — Reihenfolge erhalten**
+- [x] **Schritt 5: Die Suche ersetzen — Reihenfolge erhalten**
 
 ```php
 function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $cellIndex, array $point): ?array {
@@ -511,7 +545,7 @@ function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $cellI
 }
 ```
 
-- [ ] **Schritt 6: Die vier Signatur-/Aufrufstellen nachziehen**
+- [x] **Schritt 6: Die vier Signatur-/Aufrufstellen nachziehen**
 
 ```php
 // :61-67  neben dem vorhandenen $locationCoordinateIndex, nicht statt ihm
@@ -525,7 +559,7 @@ $locationCellIndex = avesmapsBuildClientLocationCellIndex($locations);
 // :400  avesmapsFindClientLocationAtPathEndpoint($locations, $cellIndex, $endpoint)
 ```
 
-- [ ] **Schritt 7: Beide Tests laufen lassen**
+- [x] **Schritt 7: Beide Tests laufen lassen**
 
 ```bash
 php -d zend.assertions=1 tools/routing/test-client-graph-endpoint-index.php
@@ -533,14 +567,14 @@ php -d zend.assertions=1 tools/routing/test-client-graph-flow.php
 ```
 Erwartet: beide `OK`. Der Flow-Test ist das Schutzgeländer für die Flussrichtung.
 
-- [ ] **Schritt 8: Commit**
+- [x] **Schritt 8: Commit**
 
 ```bash
 git add api/_internal/routing/client-graph.php tools/routing/test-client-graph-endpoint-index.php
 git commit -m "perf(routing): cell-index the endpoint lookup instead of scanning all locations"
 ```
 
-- [ ] **Schritt 9: 🔧 DU (Owner): Live-Abnahme**
+- [x] **Schritt 9: 🔧 DU (Owner): Live-Abnahme**
 
 Eine Route mit Wegpunkten planen (die zerlegt der Client in N−1 POSTs — dort schlägt
 der Gewinn am stärksten durch) und mit einer vor dem Umbau gespeicherten Antwort
@@ -577,21 +611,21 @@ vergleichen. **Segmentliste identisch**, nur schneller. Einzelne Aufrufe, keine 
 > entstehende Relaxation `7 + w` kann unter der Priorität liegen, bei der das Ziel bereits
 > extrahiert wurde. Die Vorlage `graph.php:522` hat kein Transportkonzept und beweist nichts.
 
-- [ ] **Schritt 1: Netzlauf-Grundlinie aufnehmen.** 5–10 echte Routen (siehe Kasten am
+- [x] **Schritt 1: Netzlauf-Grundlinie aufnehmen.** 5–10 echte Routen (siehe Kasten am
       Anfang von V0), je einmal **mit** und **ohne** `minimize_transfers`, Antworten
       gespeichert. Einzelne Aufrufe, keine Schleife. **Das ist der Maßstab, nicht ein
       Fixture-Test.**
-- [ ] **Schritt 2: Settled-Set — die sichere Hälfte zuerst.** Geschlüsselt nach
+- [x] **Schritt 2: Settled-Set — die sichere Hälfte zuerst.** Geschlüsselt nach
       **`(node, transport)`**, nicht nach `node`. Ohne `minimizeTransfers` ist das
       äquivalent zum Knoten-Schlüssel; mit `minimizeTransfers` ist es der einzige
       korrekte Schlüssel. Netzlauf: alle Antworten byte-gleich.
-- [ ] **Schritt 3: Abbruch am Ziel — nur, wenn er sich beweisen lässt.** Zulässig
+- [x] **Schritt 3: Abbruch am Ziel — nur, wenn er sich beweisen lässt.** Zulässig
       **ohne** `minimizeTransfers`. Mit `minimizeTransfers` erst dann, wenn der Netzlauf
       aus Schritt 1 ihn deckt — **im Zweifel weglassen.** Das Settled-Set bringt bereits
       den Großteil, und eine still verschobene Route kostet mehr als die Millisekunden.
-- [ ] **Schritt 4:** `tools/routing/test-client-graph-flow.php` grün **und** der Netzlauf
+- [x] **Schritt 4:** `tools/routing/test-client-graph-flow.php` grün **und** der Netzlauf
       byte-gleich.
-- [ ] **Schritt 5: Commit** — `perf(routing): settle dijkstra nodes per (node, transport) instead of revisiting them`
+- [x] **Schritt 5: Commit** — `perf(routing): settle dijkstra nodes per (node, transport) instead of revisiting them`
 
 ### Aufgabe V0.3 — Typfilter in der Ladequery
 
@@ -601,18 +635,18 @@ vergleichen. **Segmentliste identisch**, nur schneller. Einzelne Aufrufe, keine 
 > „Entlastung", sondern Hygiene. Und nur `network-data.php:92` trägt das Argument —
 > `:76` wirft **Labels** weg, nicht Powerlines.
 
-- [ ] **Schritt 1:** `AND feature_type <> 'powerline'` ergänzen. Verhaltensgleich.
-- [ ] **Schritt 2:** Flow-Tests grün.
-- [ ] **Schritt 3: Commit** — `perf(routing): stop loading the 162 powerline rows the graph discards`
+- [x] **Schritt 1:** `AND feature_type <> 'powerline'` ergänzen. Verhaltensgleich.
+- [x] **Schritt 2:** Flow-Tests grün.
+- [x] **Schritt 3: Commit** — `perf(routing): stop loading the 162 powerline rows the graph discards`
 
 ### Aufgabe V0.4 — Zeitlimit im Routing-Endpunkt
 
 **Dateien:** Ändern `api/route/index.php` (vor dem POST-Zweig, `:312`)
 
-- [ ] **Schritt 1:** `@set_time_limit(30);` ergänzen. `api/route/index.php` ruft es
+- [x] **Schritt 1:** `@set_time_limit(30);` ergänzen. `api/route/index.php` ruft es
       **nie** — als einziger schwerer Pfad; im Rest von `api/` gibt es 33 Aufrufe in
       21 Dateien.
-- [ ] **Schritt 2: Commit** — `fix(routing): give the route endpoint an explicit time limit`
+- [x] **Schritt 2: Commit** — `fix(routing): give the route endpoint an explicit time limit`
 
 ---
 
