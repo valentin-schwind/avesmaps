@@ -2431,6 +2431,18 @@ var avesmapsLoreListKind = { panel: "fauna", dialog: "fauna" };
 var avesmapsLoreListTimer = null;
 var avesmapsLoreListToken = { panel: 0, dialog: 0 };
 
+// Bug #53: die Liste holte nur die erste Seite (limit=200, offset=0) und zeigte für Fauna
+// deshalb nur bis „Drehwurm" -- Eintrag 200 von 1382. Der Server kann seitenweise
+// (api/app/lore.php?catalog=… &offset=), also lädt die Liste jetzt beim Scrollen nach.
+// Pro Ansicht: wie viele Zeilen schon im DOM stehen (loaded), der Gesamtbestand (total)
+// und ob gerade eine Folgeseite unterwegs ist (loading -- verhindert Doppel-Abrufe, wenn
+// das Scroll-Ereignis mehrfach feuert).
+var AVESMAPS_LORE_PAGE_SIZE = 200;
+var avesmapsLoreListPage = {
+	panel:  { loaded: 0, total: 0, loading: false },
+	dialog: { loaded: 0, total: 0, loading: false },
+};
+
 // 💣 JEDER Abruf braucht ein Zeitlimit. Ein hängender Request belegt bis zum
 // Servertimeout einen PHP-Worker; mehrere davon legen die gesamte API lahm -- genau
 // so ist der Pool am 21.07. gesättigt worden. Ein Abbruch gibt den Worker sofort frei.
@@ -2468,18 +2480,70 @@ function avesmapsLoreListPlain(value) {
 	}).trim();
 }
 
-function renderLoreList(view, data) {
+// EINE Zeile der Liste. Ausgelagert, damit Erst-Laden (innerHTML ersetzen) und Nachladen
+// (ans Ende hängen) exakt dasselbe Markup erzeugen.
+function avesmapsLoreListRowHtml(item) {
+	var art = avesmapsLoreListPlain(item.typ || item.gruppe || "");
+	var places = Array.isArray(item.places) ? item.places : [];
+	// Die Orte SELBST statt einer Zahl -- danach ist die Zeile erst brauchbar:
+	// „Weiden, Kosch, Nordmarken" beantwortet die Frage, „3 Orte" stellt sie nur.
+	var placeText = places.join(", ");
+	var rest = item.place_count - places.length;
+	if (rest > 0) {
+		placeText += " +" + rest;
+	}
+	if (!placeText) {
+		placeText = "ohne Ortsangabe";
+	}
+	var meta = [art, placeText].filter(Boolean).join(" · ");
+	if (item.origin && item.origin !== "wiki") {
+		meta += " · " + item.origin;
+	}
+	var href = String(item.wiki_url || "");
+	var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
+	return '<button type="button" class="wiki-sync-adv-picker__row" data-lore-entry="'
+		+ avesmapsLoreListEscape(item.wiki_key) + '"'
+		+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
+		+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '">'
+		+ '<span class="wiki-sync-adv-picker__title">' + avesmapsLoreListEscape(item.name) + "</span>"
+		+ '<span class="wiki-sync-adv-picker__meta">' + avesmapsLoreListEscape(meta) + "</span>"
+		+ "</button>";
+}
+
+// Liste zeichnen. append=false ersetzt sie (Erst-Laden, Suche, Reiter-/Artwechsel);
+// append=true hängt die nächste Seite ans Ende, ohne das schon Gezeichnete anzufassen --
+// sonst springt die Scrollposition beim Nachladen.
+function renderLoreList(view, data, append) {
 	var ids = AVESMAPS_LORE_VIEWS[view] || AVESMAPS_LORE_VIEWS.panel;
 	var scroll = document.getElementById(ids.scroll);
 	var counter = document.getElementById(ids.count);
 	if (!scroll) {
 		return;
 	}
+	var page = avesmapsLoreListPage[view] || (avesmapsLoreListPage[view] = { loaded: 0, total: 0, loading: false });
 	var items = (data && data.items) || [];
-	if (counter) {
-		counter.textContent = data ? (items.length + " von " + data.total) : "";
+	if (data && typeof data.total !== "undefined") {
+		page.total = Number(data.total) || 0;
 	}
+	if (append) {
+		// Kam nichts mehr zurück, ist der Bestand erschöpft -- total auf das Geladene ziehen,
+		// damit der Scroll-Handler nicht endlos weiter nachfordert.
+		if (items.length === 0) {
+			page.total = page.loaded;
+		} else {
+			scroll.insertAdjacentHTML("beforeend", items.map(avesmapsLoreListRowHtml).join(""));
+			page.loaded += items.length;
+		}
+		if (counter) {
+			counter.textContent = page.loaded + " von " + page.total;
+		}
+		return;
+	}
+	page.loaded = 0;
 	if (items.length === 0) {
+		if (counter) {
+			counter.textContent = data ? ("0 von " + page.total) : "";
+		}
 		scroll.innerHTML = '<p class="wiki-sync-panel__summary">'
 			+ (data && data.total === 0 && !data.q
 				? "Noch keine Einträge – bitte einmal „Vorkommen syncen“."
@@ -2489,33 +2553,11 @@ function renderLoreList(view, data) {
 	}
 	// Dieselben Klassen wie die Abenteuer- und Kartenliste (wiki-sync-adv-picker__row),
 	// damit die vier Listen im selben Reiter nicht drei verschiedene Zeilen zeigen.
-	scroll.innerHTML = items.map(function (item) {
-		var art = avesmapsLoreListPlain(item.typ || item.gruppe || "");
-		var places = Array.isArray(item.places) ? item.places : [];
-		// Die Orte SELBST statt einer Zahl -- danach ist die Zeile erst brauchbar:
-		// „Weiden, Kosch, Nordmarken" beantwortet die Frage, „3 Orte" stellt sie nur.
-		var placeText = places.join(", ");
-		var rest = item.place_count - places.length;
-		if (rest > 0) {
-			placeText += " +" + rest;
-		}
-		if (!placeText) {
-			placeText = "ohne Ortsangabe";
-		}
-		var meta = [art, placeText].filter(Boolean).join(" · ");
-		if (item.origin && item.origin !== "wiki") {
-			meta += " · " + item.origin;
-		}
-		var href = String(item.wiki_url || "");
-		var safe = href.indexOf("https://de.wiki-aventurica.de/") === 0 ? href : "";
-		return '<button type="button" class="wiki-sync-adv-picker__row" data-lore-entry="'
-			+ avesmapsLoreListEscape(item.wiki_key) + '"'
-			+ (safe ? ' data-lore-url="' + avesmapsLoreListEscape(safe) + '"' : "")
-			+ ' title="' + avesmapsLoreListEscape(item.name + " – klicken zum Bearbeiten") + '">'
-			+ '<span class="wiki-sync-adv-picker__title">' + avesmapsLoreListEscape(item.name) + "</span>"
-			+ '<span class="wiki-sync-adv-picker__meta">' + avesmapsLoreListEscape(meta) + "</span>"
-			+ "</button>";
-	}).join("");
+	scroll.innerHTML = items.map(avesmapsLoreListRowHtml).join("");
+	page.loaded = items.length;
+	if (counter) {
+		counter.textContent = page.loaded + " von " + page.total;
+	}
 }
 
 /**
@@ -2594,37 +2636,100 @@ function renderWikiSyncLoreViewTabs(countsByKind) {
 	}).join("");
 }
 
+// Endlos-Scroll je Ansicht EINMAL verdrahten. Der Container steht in index.html; der
+// Handler wird hier idempotent gesetzt (dataset-Flag), damit er auch nach einem Umbau
+// oder Neurendern genau einmal hängt.
+function avesmapsLoreEnsureInfiniteScroll(view) {
+	var ids = AVESMAPS_LORE_VIEWS[view];
+	if (!ids) {
+		return;
+	}
+	var scroll = document.getElementById(ids.scroll);
+	if (!scroll || scroll.dataset.avmLoreScroll === "1") {
+		return;
+	}
+	scroll.dataset.avmLoreScroll = "1";
+	scroll.addEventListener("scroll", function () {
+		// Nah genug am Ende? Dann die nächste Seite holen. 200px Vorlauf, damit es sich
+		// flüssig anfühlt und nicht erst am allerletzten Pixel nachlädt.
+		if (scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 200) {
+			avesmapsLoreLoadMore(view);
+		}
+	});
+}
+
+// Nächste Seite anfordern (Scroll ans Ende). Nur, wenn nicht schon eine unterwegs ist und
+// überhaupt noch etwas fehlt.
+function avesmapsLoreLoadMore(view) {
+	view = view === "dialog" ? "dialog" : "panel";
+	var page = avesmapsLoreListPage[view];
+	if (!page || page.loading || page.loaded >= page.total) {
+		return;
+	}
+	avesmapsLoreFetchList(view, true);
+}
+
+// Erst-Laden. Setzt den Seitenstand zurück und holt Seite 0.
 function loadLoreList(view) {
+	avesmapsLoreFetchList(view === "dialog" ? "dialog" : "panel", false);
+}
+
+// Erst-Laden (append=false) und Nachladen (append=true) teilen sich einen Codeweg. Der
+// Unterschied: der Offset und dass Nachladen die Rahmen-Elemente (Art-Zähler, „zuletzt
+// gesynct", Reiterstreifen) NICHT neu zeichnet -- die ändern sich zwischen zwei Seiten
+// derselben Liste nicht.
+function avesmapsLoreFetchList(view, append) {
 	view = view === "dialog" ? "dialog" : "panel";
 	var ids = AVESMAPS_LORE_VIEWS[view];
 	var scroll = document.getElementById(ids.scroll);
 	if (!scroll) {
 		return;
 	}
-	if (view === "panel") {
-		// Sofort zeichnen, damit der Streifen beim Subjektwechsel nicht leer bleibt, bis die
-		// Antwort da ist. Die Zahlen kommen aus dem Zwischenspeicher.
-		renderWikiSyncLoreViewTabs(null);
+	avesmapsLoreEnsureInfiniteScroll(view);
+	var page = avesmapsLoreListPage[view] || (avesmapsLoreListPage[view] = { loaded: 0, total: 0, loading: false });
+	if (!append) {
+		// Frischer Lauf: Seitenstand zurücksetzen, damit ein Scroll-Ereignis während des
+		// Ladens nicht mit veraltetem total schon eine Folgeseite auslöst.
+		page.loaded = 0;
+		page.total = 0;
+		if (view === "panel") {
+			// Sofort zeichnen, damit der Streifen beim Subjektwechsel nicht leer bleibt, bis die
+			// Antwort da ist. Die Zahlen kommen aus dem Zwischenspeicher.
+			renderWikiSyncLoreViewTabs(null);
+		}
 	}
 	var input = document.getElementById(ids.search);
 	var query = input ? input.value.trim() : "";
 	// Staleness-Token JE ANSICHT: sonst würde ein Abruf im Fenster die Antwort für den
-	// Reiter verwerfen (und umgekehrt), weil beide denselben Zähler hochzählen.
-	var token = ++avesmapsLoreListToken[view];
+	// Reiter verwerfen (und umgekehrt), weil beide denselben Zähler hochzählen. Nachladen
+	// erhält den aktuellen Token, damit ein frischer Lauf (Suche/Reiterwechsel) eine noch
+	// laufende Folgeseite verwirft, statt sie unten anzuhängen.
+	var token = append ? avesmapsLoreListToken[view] : (++avesmapsLoreListToken[view]);
+	var offset = append ? page.loaded : 0;
 	// „Alle" heißt: keine Art-Einschränkung, also ein LEERER kind-Parameter. Ausdrücklich, nicht
 	// dem Zufall überlassen: der Katalog verwirft zwar jeden Wert, der nicht in
 	// AVESMAPS_LORE_KINDS steht (api/_internal/app/lore.php:142), und täte damit versehentlich
 	// das Richtige -- aber ein Verhalten, das auf einer Whitelist-Lücke beruht, ist kein Vertrag.
 	var kindParam = avesmapsLoreListKind[view] === "all" ? "" : avesmapsLoreListKind[view];
 	var url = "api/app/lore.php?catalog=1&kind=" + encodeURIComponent(kindParam)
-		+ "&q=" + encodeURIComponent(query) + "&limit=200";
+		+ "&q=" + encodeURIComponent(query)
+		+ "&limit=" + AVESMAPS_LORE_PAGE_SIZE
+		+ "&offset=" + offset;
+	page.loading = true;
 	avesmapsLoreFetchWithTimeout(url, { credentials: "same-origin", headers: { Accept: "application/json" } })
 		.then(function (r) { return r.ok ? r.json() : null; })
 		.then(function (data) {
+			page.loading = false;
 			if (token !== avesmapsLoreListToken[view]) {
 				return;
 			}
-			renderLoreList(view, data && data.ok ? data : null);
+			renderLoreList(view, data && data.ok ? data : null, append);
+			if (append) {
+				// Beim Nachladen bleibt alles Übrige stehen -- die Rahmen-Daten ändern sich nicht.
+				// Nur prüfen, ob die frisch angehängte Seite den Container scrollbar gemacht hat.
+				avesmapsLoreMaybeAutoFill(view);
+				return;
+			}
 			renderLoreLastSynced(data);
 			renderLoreKindToggles(data && data.ok ? data.kinds_enabled : null);
 			// ALLE Reiterzahlen setzen, nicht nur die des geladenen: sonst bleiben die
@@ -2652,12 +2757,32 @@ function loadLoreList(view) {
 					renderWikiSyncSubjectRail();
 				}
 			}
+			// Kurze Liste in hohem Container: sofort die nächste Seite, sonst gäbe es keinen
+			// Scrollbalken, mit dem man die restlichen Einträge je erreichen könnte.
+			avesmapsLoreMaybeAutoFill(view);
 		})
 		.catch(function () {
-			if (token === avesmapsLoreListToken[view]) {
+			page.loading = false;
+			if (token === avesmapsLoreListToken[view] && !append) {
 				scroll.innerHTML = '<p class="wiki-sync-panel__summary">Liste konnte nicht geladen werden.</p>';
 			}
 		});
+}
+
+// Füllen die geladenen Zeilen den sichtbaren Bereich nicht aus, gibt es keinen
+// Scrollbalken -- und ohne den käme man nie an die nächste Seite. Dann hier sofort
+// nachziehen. Begrenzt durch loaded<total (in avesmapsLoreLoadMore), also kein Endlos-Lauf;
+// bei verstecktem Container (clientHeight 0) NICHT feuern, sonst zieht ein unsichtbarer
+// Reiter im Hintergrund den ganzen Bestand seitenweise herein.
+function avesmapsLoreMaybeAutoFill(view) {
+	var ids = AVESMAPS_LORE_VIEWS[view];
+	var scroll = ids && document.getElementById(ids.scroll);
+	if (!scroll || scroll.clientHeight <= 0) {
+		return;
+	}
+	if (scroll.scrollHeight <= scroll.clientHeight + 4) {
+		avesmapsLoreLoadMore(view);
+	}
 }
 
 if (typeof document !== "undefined" && !document.__avesmapsLoreListBound) {
