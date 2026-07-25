@@ -190,6 +190,13 @@ function setSelectedMapLayerMode(mode) {
 		syncLocationMarkerVisibility();
 	}
 	syncRegionVisibility();
+	// typeof-Guard, anders als bei den Nachbarn darueber/darunter: die Datei ist NEU. Diese Funktion
+	// laeuft bei jedem Seitenaufruf (restorePlannerState -> hier). Wuerde die neue Datei einmal nicht
+	// ausgeliefert, risse ein blanker Aufruf mit einem ReferenceError den ganzen Zustands-Restore fuer
+	// JEDEN Besucher mit. So verkommt derselbe Fall zu "der Erprobungsmodus tut nichts".
+	if (typeof syncEcosystemVisibility === "function") {
+		syncEcosystemVisibility();
+	}
 	syncLabelVisibility();
 	syncPowerlineVisibility();
 	syncPowerlineMapTint();

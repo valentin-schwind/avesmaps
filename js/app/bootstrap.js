@@ -47,6 +47,7 @@ const map = L.map("map", {
 
 // Rendering-Reihenfolge
 map.createPane("regionsPane");
+map.createPane("ecosystemPane");
 map.createPane("mapDecorationsPane");
 map.createPane("roadsOutlinePane");
 map.createPane("roadsPane");
@@ -60,6 +61,9 @@ map.createPane("locationsPane");
 map.createPane("labelsPane");
 
 map.getPane("regionsPane").style.zIndex = 200;
+// Landschaften (Erprobung): eigene Pane, ueber den politischen Fuellungen (regionsPane 200) und unter
+// der Schraffur (300) / den Grenzen (350) / den Labels (475). 201-299 ist sonst unbelegt -- geprueft.
+map.getPane("ecosystemPane").style.zIndex = 250;
 map.getPane("mapDecorationsPane").style.zIndex = 480;
 map.getPane("roadsOutlinePane").style.zIndex = 350;
 map.getPane("roadsPane").style.zIndex = 400;

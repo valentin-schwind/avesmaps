@@ -73,6 +73,9 @@ let locationData = [],
 	regionLayers = [],
 	regionPolygons = [],
 	regionLabels = [],
+	// Landschaften (Erprobung): EIGENE Registry, bewusst nicht regionPolygons mitbenutzt --
+	// clearRenderedRegionLayers() leert das bei jedem moveend. Siehe map-features-ecosystem-visibility.js.
+	ecosystemLayers = [],
 	// Die Wegpunkt-Marker der geplanten Route (inkl. ihrer Hover-Infobox an marker._routePopup).
 	highlightedRouteNodes = [],
 	isSearchPanelHidden = false,
