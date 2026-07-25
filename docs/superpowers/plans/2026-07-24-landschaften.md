@@ -164,7 +164,7 @@ diese Tabelle.
 
 | | Vorhaben | Ergebnis | Umfang |
 |---|---|---|---|
-| **V-1** | Diagnosen absichern | öffentliche Bestandsänderung, **eigene Abnahme** | ~60 Z. |
+| **V-1** | Diagnosen absichern | ✅ **erledigt 2026-07-25** (`886efeee`), abgenommen | ~60 Z. |
 | **V0** | Routing entlasten | schneller, **auch ohne Landschaften** | ~220 Z. |
 | **V1** | Die Ebene existiert | Modus umschaltbar, leer, Flag wirkt | ~320 Z. |
 | **V2** | Daten und API | Fläche per API anlegen/lesen/ändern/löschen | ~900 Z. |
@@ -187,7 +187,19 @@ Payload-Befunde):
 
 ---
 
-# V-1 — Diagnosen absichern
+# V-1 — Diagnosen absichern ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-25, Commit `886efeee`.** Abnahme durch den Owner:
+> `?diagnostic=map-data` → **401**, `?diagnostic=network-data` → **401**,
+> `POST /api/route/` → **200**, `GET /api/locations/` → **200**. `graph-data` blieb
+> ungetestet (so vorgesehen). Der Masterplan-Nachzug ist mit im selben Commit.
+>
+> 🪤 **Der Code-Schnipsel in Schritt 2 nannte die Variable falsch:** `$diagnostic`
+> existiert in `api/route/index.php` nicht, die Datei heißt sie `$routeDiagnostic`.
+> Unter PHP 8 wäre der undefinierte Name `null` gewesen, `null !== ''` also **wahr** —
+> die Sperre hätte bei *jeder* Anfrage gegriffen, auch bei `POST /api/route/`, und
+> genau den Vertrag gebrochen, den Schritt 4 schützt. Gebaut wurde mit dem echten
+> Namen. Wer den Schnipsel unten liest: er ist die einzige nicht korrigierte Stelle.
 
 > ⚠️ **Dies ist eine Änderung an öffentlichem Bestandsverhalten** (heute 200, danach
 > 401) und hat mit den Landschaften nichts zu tun. Deshalb ein eigenes Vorhaben mit
@@ -238,7 +250,7 @@ Gemessen: 62 MB resident, Peak 152 MB je Aufruf; `graph-data` zusätzlich 11,3 s
 > fünf Zeilen, und `catch (Throwable)` bei `api/route/index.php:341–342` hätte sie zu
 > **500 statt 401** verschluckt. Alle drei sind unten aufgelöst.
 
-- [ ] **Schritt 1: `auth.php` einbinden.** `api/route/index.php:5–10` lädt bootstrap,
+- [x] **Schritt 1: `auth.php` einbinden.** `api/route/index.php:5–10` lädt bootstrap,
       request, map-data, network-data, graph, response — **nicht** `auth.php`. Ohne
       zusätzliches `require_once` ist die Funktion undefiniert.
 
@@ -247,7 +259,7 @@ Gemessen: 62 MB resident, Peak 152 MB je Aufruf; `graph-data` zusätzlich 11,3 s
 require_once __DIR__ . '/../_internal/auth.php';
 ```
 
-- [ ] **Schritt 2: Die GET-Weiche gemeinsam absichern**
+- [x] **Schritt 2: Die GET-Weiche gemeinsam absichern**
 
 ```php
 // api/route/index.php, VOR der Zweig-Auswertung.
@@ -268,7 +280,7 @@ if ($diagnostic !== '') {
 > `avesmapsLoadRouteMapData` (`api/_internal/routing/map-data.php:6`). Es gibt hier nichts
 > zu prüfen und nichts abzuwarten; die Weiche darf ganz vorn stehen.
 
-- [ ] **Schritt 3: 🔧 DU (Owner): Abnahme**
+- [x] **Schritt 3: 🔧 DU (Owner): Abnahme**
 
 Ohne Session, je ein einzelner Aufruf (nicht in einer Schleife):
 ```bash
@@ -279,16 +291,16 @@ Erwartet: **401** — nicht 403 (angemeldet ohne Recht) und vor allem **nicht 50
 testen** — wenn die Sperre wider Erwarten nicht greift, hängt der Aufruf 11 Sekunden und
 sättigt den Pool.
 
-- [ ] **Schritt 4:** `POST /api/route/` mit einer bekannten Route — **unverändert 200**.
+- [x] **Schritt 4:** `POST /api/route/` mit einer bekannten Route — **unverändert 200**.
       Die stabile öffentliche API darf sich nicht ändern. Ebenso
       `GET /api/locations/` — der **zweite** Vertragsendpunkt, der über
       `avesmapsLoadRouteMapData` denselben Pfad benutzt (`api/locations/index.php:26`).
-- [ ] **Schritt 5: Den Masterplan nachziehen.** In `docs/refactoring-masterplan.md`
+- [x] **Schritt 5: Den Masterplan nachziehen.** In `docs/refactoring-masterplan.md`
       Entscheidung 4 (`:73`) als **am 2026-07-25 aufgehoben** kennzeichnen und im Inventar
       (`:79–92`) vermerken, welche Zweige jetzt geschützt sind und welche noch offen
       stehen. Eine eingefrorene Entscheidung stillschweigend zu überholen ist genau die
       Sorte Drift, gegen die der Masterplan geschrieben wurde.
-- [ ] **Schritt 6: Commit** — `fix(routing): gate all six route diagnostics behind edit capability`
+- [x] **Schritt 6: Commit** — `fix(routing): gate all six route diagnostics behind edit capability`
 
 ---
 
