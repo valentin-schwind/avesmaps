@@ -138,6 +138,7 @@ The following endpoints are used by the Avesmaps app. They are reachable, but no
 /api/app/adventures.php
 /api/app/coat.php
 /api/app/contact.php
+/api/app/ecosystem-areas.php
 /api/app/feature-sources.php
 /api/app/link-status.php
 /api/app/location-reviews.php

@@ -1,0 +1,1078 @@
+<?php
+
+declare(strict_types=1);
+
+// Landschaften / ecosystem layer (plan: docs/superpowers/plans/2026-07-24-landschaften.md, V2) --
+// backend entity for the vegetation / topography / deregraphic AREAS editors draw on the map.
+// Self-healing inline DDL, the vocabulary seed, an INDEPENDENT revision counter, the read path and the
+// write handlers. Public read wrapper: api/app/ecosystem-areas.php. Editor writes:
+// api/edit/map/ecosystem.php. Language policy per AGENTS.md §8: code/identifiers/messages EN, domain
+// content (kind values, type labels) DE.
+//
+// 🔴 THE ONE RULE THIS FILE EXISTS FOR: an area save NEVER calls avesmapsNextMapRevision().
+// The map-features payload is ~29.65 MB and its ETag is seeded from `map_revision`
+// (api/app/map-features.php:225-228). The drawing campaign is ~2.000 saves; routing each of them through
+// the map revision would invalidate that payload for EVERY visitor 2.000 times. Hence
+// avesmapsNextEcosystemRevision() below, its own ETag and its own endpoint.
+//
+// COORDINATE ORDER ON THE WIRE: geometry_geojson is GeoJSON and travels as GeoJSON -- positions are
+// [x, y], stored verbatim, never swapped here. Leaflet's L.CRS.Simple uses [lat, lng] = [y, x]
+// (AGENTS.md §5), so the DRAWING CLIENT swaps; the API does not. What you POST is what comes back out.
+//
+// 🔴 NOTHING in this file calls political code (plan, global rule 1). The DDL shape, the audit-log shape
+// and the "INNER JOIN the active parent" read were copied from the political neighbours by READING them.
+
+// Explicit, not a function_exists guard: set_enabled writes through avesmapsAppSettingSet, and a guard
+// around a missing include swallows the write silently (the lore-sync.php trap).
+require_once __DIR__ . '/app-setting.php';
+
+// avesmapsUuidV4() (new public_ids) lives in api/_internal/map/features.php and is loaded by the EDIT
+// dispatcher, not here -- exactly like api/_internal/app/citymaps.php. Pulling a 2.700-line library into
+// this file would drag it onto the public read path for the sake of one 15-line helper.
+
+// Thrown by the optimistic guard; the edit dispatcher maps it to 409. Declared with a guard because
+// api/edit/map/features.php owns the canonical declaration and may or may not be loaded first -- exactly
+// the pattern of api/_internal/wiki/endpoint.php:20.
+if (!class_exists('AvesmapsConflictException')) {
+    class AvesmapsConflictException extends RuntimeException
+    {
+    }
+}
+
+// ---- vocabulary ------------------------------------------------------------------------------------
+// The kind values stay GERMAN: they are domain vocabulary like PATH_SUBTYPE_KEYS (AGENTS.md §2).
+// "Derographisch" is a Wiki-Aventurica category, not a translatable word.
+const AVESMAPS_ECOSYSTEM_KINDS = ['derographisch', 'vegetation', 'topographie'];
+
+// Seeded into ecosystem_region_type: [kind, type_key, label, sort_order]. Every type_key is also a
+// map_features label subtype (allowlist api/_internal/map/features.php:767) so a later task can bridge
+// the 540 existing landscape labels to a region via label_public_id.
+//
+// Deliberately ABSENT and staying absent:
+//   ebene       -- exactly one label carries it ("Zwergenpforte"), but the argument was never the count:
+//                  no travel factor tells `ebene` apart from "normal". Accepted consequence: the
+//                  Zwergenpforte gets no area for now. A factor makes it a seed row.
+//   berggipfel  -- 34 labels, but POINTS, not areas (belongs to V8).
+//   fluss       -- 5 labels, LINES, not areas.
+// `tundra` IS here despite 0 labels: the subtype is in the allowlist and can appear any day.
+const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
+    ['derographisch', 'region', 'Region', 10],
+    ['derographisch', 'insel', 'Insel', 20],
+    ['derographisch', 'kontinent', 'Kontinent', 30],
+    ['derographisch', 'sonstiges', 'Sonstiges', 40],
+
+    ['topographie', 'gebirge', 'Gebirge', 10],
+    ['topographie', 'see', 'See', 20],
+    ['topographie', 'meer', 'Meer', 30],
+    ['topographie', 'kueste', 'Küste', 40],
+    ['topographie', 'huegelland', 'Hügelland', 50],
+
+    ['vegetation', 'wald', 'Wald', 10],
+    ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],
+    ['vegetation', 'steppe', 'Steppe', 30],
+    ['vegetation', 'tundra', 'Tundra', 40],
+    ['vegetation', 'auenlandschaft', 'Auenlandschaft', 50],
+    ['vegetation', 'wueste', 'Wüste', 60],
+    ['vegetation', 'graslandschaft', 'Graslandschaft', 70],
+];
+
+// ---- kill switch + trial flag ----------------------------------------------------------------------
+// 🔴 DEFAULT '0' = OFF, the INVERSE of the citymaps/adventures convention (app-setting.php:14-15 calls
+// default-on a convention, not a rule -- the default is an ARGUMENT). An unfinished, editor-only trial
+// layer must not appear on the public map because somebody deployed it. Only the owner's explicit
+// set_enabled turns it on.
+const AVESMAPS_ECOSYSTEM_SETTING = 'ecosystem_enabled';
+
+// "The trial is running" lives in exactly ONE row, not in a column default. Default '1': while nobody has
+// decided, new areas are trial areas -- otherwise promote_trial would have nothing to keep or discard and
+// V4's measurement could not be undone. promote_trial writes '0' and the state is over for good, which is
+// what keeps ecosystem_area.is_trial DEFAULT 0 safe (plan V2.1, deviation 2).
+const AVESMAPS_ECOSYSTEM_TRIAL_SETTING = 'ecosystem_trial';
+
+// A drawn area is bounded work, not a bulk import. The cap is a guard against a runaway client, not a
+// design limit: 20.000 positions is ~40x the largest political territory ring in the house.
+const AVESMAPS_ECOSYSTEM_MAX_POSITIONS = 20000;
+
+// ---- DDL --------------------------------------------------------------------------------------------
+// Idempotent, runs before every write and before the (enabled) read -- the project idiom, mirror of
+// adventures.php / citymaps.php. See avesmapsEcosystemEnsureTables' notes for the four deliberate
+// departures from the plan's literal DDL.
+function avesmapsEcosystemEnsureTables(PDO $pdo): void
+{
+    // 💣 CREATE TABLE IF NOT EXISTS heals the FIRST case only. On a table that already exists it is a
+    // no-op, so a column added later needs an information_schema-driven ALTER instead. That is why every
+    // decision below is made NOW rather than "when we need it".
+    //
+    // Four departures from the plan's literal DDL, each building the plan's own stated intent:
+    //  (a) COLLATE=utf8mb4_unicode_ci. The plan wrote only CHARSET=utf8mb4, but EVERY table in
+    //      sql/schema.sql -- map_features included -- is utf8mb4_unicode_ci. label_public_id exists to be
+    //      JOINed against map_features.public_id and wiki_region_key against the wiki key tables; a
+    //      cross-table join between two different collations fails with "Illegal mix of collations" or,
+    //      worse, quietly returns 0 rows. feature_sources is the house's scar from omitting this.
+    //  (b) DATETIME(3) with DEFAULT CURRENT_TIMESTAMP(3) / ON UPDATE, not bare `DATETIME NOT NULL`. Both
+    //      geometry-bearing neighbours (map_features, political_territory_geometry) do this. Second
+    //      precision would tie repeatedly across a ~2.000-save campaign, and a NOT NULL column with no
+    //      default rejects any INSERT that forgets it.
+    //  (c) ecosystem_geometry_audit_log records area_public_id / region_public_id as columns. The
+    //      political template keeps identity inside before_json only, which is exactly why "who deleted
+    //      THIS area" is an awkward JSON_EXTRACT scan there.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_region (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            public_id CHAR(36) NOT NULL,
+            name VARCHAR(190) NOT NULL DEFAULT '',
+            kind VARCHAR(16) NOT NULL,
+            region_type VARCHAR(40) NULL,
+            origin VARCHAR(8) NOT NULL DEFAULT 'own',
+            wiki_region_key VARCHAR(190) NULL,
+            wiki_url VARCHAR(500) NULL,
+            label_public_id CHAR(36) NULL,
+            properties_json JSON NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_by BIGINT UNSIGNED NULL,
+            updated_by BIGINT UNSIGNED NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_ecosystem_region_public_id (public_id),
+            KEY idx_ecosystem_region_kind_active (kind, is_active),
+            KEY idx_ecosystem_region_wiki (wiki_region_key),
+            KEY idx_ecosystem_region_label (label_public_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // is_trial sits HERE, on the area, not on the region (plan V2.1, deviation 1): one region carries many
+    // areas (owner decision 1), so a region-level flag would make `promote_trial discard` throw away 40
+    // good areas because of one bad one, and would stamp every new area of an already-promoted region as
+    // old. DEFAULT 0 (deviation 2): the runtime value comes from app_setting['ecosystem_trial'], so a
+    // write that forgets to think about it is NOT a trial area and cannot be swept up months later.
+    // geometry_geojson is JSON, not LONGTEXT (deviation 3): MySQL validates it on write, JSON_VALID and
+    // JSON_LENGTH can be asked about it, and every geometry in this house is JSON.
+    //
+    // region_id is a plain indexed column, NOT a FOREIGN KEY: this codebase has zero FK constraints
+    // (0 in sql/schema.sql; api/_internal/wiki/dump-hybrid-state.php:90 says so out loud), and being the
+    // one table that has one is a surprise nobody needs. Orphans are prevented where they would arise --
+    // create_area resolves the region and refuses an unknown or inactive one.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_area (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            public_id CHAR(36) NOT NULL,
+            region_id INT UNSIGNED NOT NULL,
+            geometry_geojson JSON NOT NULL,
+            min_x DECIMAL(10,4) NOT NULL,
+            min_y DECIMAL(10,4) NOT NULL,
+            max_x DECIMAL(10,4) NOT NULL,
+            max_y DECIMAL(10,4) NOT NULL,
+            geometry_revision INT UNSIGNED NOT NULL DEFAULT 1,
+            is_trial TINYINT(1) NOT NULL DEFAULT 0,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_by BIGINT UNSIGNED NULL,
+            updated_by BIGINT UNSIGNED NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_ecosystem_area_public_id (public_id),
+            KEY idx_ecosystem_area_region (region_id, is_active),
+            KEY idx_ecosystem_area_trial (is_trial, is_active),
+            KEY idx_ecosystem_area_bbox (min_x, min_y, max_x, max_y)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_region_type (
+            kind VARCHAR(16) NOT NULL,
+            type_key VARCHAR(40) NOT NULL,
+            label VARCHAR(190) NOT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            PRIMARY KEY (kind, type_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // The independent counter. Mirrors map_revision (api/_internal/map/features.php:2531-2545) in SHAPE
+    // and is unrelated to it in EFFECT -- that separation is the whole point of this feature's design.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_revision (
+            id TINYINT UNSIGNED NOT NULL,
+            revision INT UNSIGNED NOT NULL,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // Both geometry-bearing neighbours keep an audit log -- map_audit_log (sql/schema.sql:106) and
+    // political_territory_geometry_audit_log (api/_internal/political/territory.php:91). Without one,
+    // "who deleted this area and what did it look like?" has no answer: updated_by only ever knows the
+    // LAST writer, and delete_region overwrites it on every area with whoever triggered the bulk.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_geometry_audit_log (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            action VARCHAR(80) NOT NULL,
+            actor_user_id BIGINT UNSIGNED NULL,
+            area_public_id CHAR(36) NULL,
+            region_public_id CHAR(36) NULL,
+            before_json JSON NOT NULL,
+            after_json JSON NOT NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            KEY idx_ecosystem_audit_created (created_at, id),
+            KEY idx_ecosystem_audit_actor (actor_user_id),
+            KEY idx_ecosystem_audit_area (area_public_id),
+            KEY idx_ecosystem_audit_region (region_public_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    avesmapsEcosystemSeedRegionTypes($pdo);
+}
+
+// ⚠️ INSERT IGNORE, NOT "ON DUPLICATE KEY UPDATE". The table has is_active, and the repo's most common
+// upsert shape (app-setting.php:41-42 among others) would silently undo a deactivation on the next
+// endpoint call -- the owner switches a type off, the next request switches it back on, and nobody can
+// tell why. Right shape copied from api/_internal/app/citymaps.php:1652.
+function avesmapsEcosystemSeedRegionTypes(PDO $pdo): void
+{
+    $insert = $pdo->prepare(
+        'INSERT IGNORE INTO ecosystem_region_type (kind, type_key, label, sort_order)
+         VALUES (:kind, :type_key, :label, :sort_order)'
+    );
+    foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
+        $insert->execute([
+            'kind' => $kind,
+            'type_key' => $typeKey,
+            'label' => $label,
+            'sort_order' => $sortOrder,
+        ]);
+    }
+}
+
+// ---- revision counter -------------------------------------------------------------------------------
+// Word for word after avesmapsNextMapRevision (api/_internal/map/features.php:2531) -- and pointedly NOT
+// that function. See the file header.
+function avesmapsNextEcosystemRevision(PDO $pdo): int
+{
+    $pdo->exec(
+        'INSERT INTO ecosystem_revision (id, revision)
+         VALUES (1, 2)
+         ON DUPLICATE KEY UPDATE revision = revision + 1'
+    );
+
+    $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id = 1');
+    $revision = $statement !== false ? $statement->fetchColumn() : false;
+    if ($revision === false) {
+        throw new RuntimeException('The ecosystem revision could not be read.');
+    }
+
+    return (int) $revision;
+}
+
+function avesmapsReadEcosystemRevision(PDO $pdo): int
+{
+    $statement = $pdo->query('SELECT revision FROM ecosystem_revision WHERE id = 1');
+    $revision = $statement !== false ? $statement->fetchColumn() : false;
+
+    return $revision === false ? 1 : (int) $revision;
+}
+
+// ---- kill switch ------------------------------------------------------------------------------------
+function avesmapsEcosystemEnabled(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') !== '0';
+}
+
+function avesmapsSetEcosystemEnabled(PDO $pdo, bool $enabled): array
+{
+    avesmapsAppSettingSet($pdo, AVESMAPS_ECOSYSTEM_SETTING, $enabled ? '1' : '0');
+
+    return ['ecosystem_enabled' => $enabled];
+}
+
+function avesmapsEcosystemTrialActive(PDO $pdo): bool
+{
+    return avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_TRIAL_SETTING, '1') !== '0';
+}
+
+// ---- pure helpers (unit-tested in __tests__/ecosystem-geometry-test.php) ----------------------------
+
+// bbox=min_x,min_y,max_x,max_y, same wire shape as api/app/map-features.php. Reimplemented rather than
+// required: avesmapsParseOptionalBoundingBox lives INSIDE that endpoint file, and requiring it would run
+// map-features' whole request handler.
+function avesmapsEcosystemParseBoundingBox(string $rawBoundingBox): ?array
+{
+    $normalized = trim($rawBoundingBox);
+    if ($normalized === '') {
+        return null;
+    }
+
+    $parts = array_map('trim', explode(',', $normalized));
+    if (count($parts) !== 4) {
+        throw new InvalidArgumentException('The bbox parameter must contain min_x,min_y,max_x,max_y.');
+    }
+
+    $coordinates = array_map(
+        static function (string $value): float {
+            $parsed = filter_var(str_replace(',', '.', $value), FILTER_VALIDATE_FLOAT);
+            if ($parsed === false) {
+                throw new InvalidArgumentException('The bbox parameter contains invalid coordinates.');
+            }
+
+            return (float) $parsed;
+        },
+        $parts
+    );
+
+    [$minX, $minY, $maxX, $maxY] = $coordinates;
+    if ($minX > $maxX || $minY > $maxY) {
+        throw new InvalidArgumentException('The bbox parameter has swapped bounds.');
+    }
+
+    return ['min_x' => $minX, 'min_y' => $minY, 'max_x' => $maxX, 'max_y' => $maxY];
+}
+
+// Validates a GeoJSON Polygon OR MultiPolygon (owner decision 1: a single area may itself be a
+// MultiPolygon) and returns the normalized geometry plus the bbox over ALL its parts.
+//
+// JSON_VALID is not enough -- it accepts {"type":"Banana"} and half a ring. What is checked here:
+// the type, that every ring has at least 3 distinct positions, that every position is a numeric [x, y]
+// inside the map's 0..1024 bounds, and a position cap. Rings are CLOSED for the caller if they arrive
+// open: a drawing client naturally produces an open ring, closing it is lossless, and rejecting it would
+// only teach the client to close it by hand.
+function avesmapsEcosystemNormalizeGeometry(mixed $geometry): array
+{
+    if (!is_array($geometry)) {
+        throw new InvalidArgumentException('geometry_geojson must be a GeoJSON object.');
+    }
+
+    $type = (string) ($geometry['type'] ?? '');
+    if ($type !== 'Polygon' && $type !== 'MultiPolygon') {
+        throw new InvalidArgumentException('geometry_geojson must be of type Polygon or MultiPolygon.');
+    }
+
+    $coordinates = $geometry['coordinates'] ?? null;
+    if (!is_array($coordinates) || $coordinates === []) {
+        throw new InvalidArgumentException('geometry_geojson has no coordinates.');
+    }
+
+    // One code path for both types: a Polygon is treated as a MultiPolygon with a single part, so the
+    // bbox is computed over all parts either way (plan V2.3, step 1).
+    $polygons = $type === 'Polygon' ? [$coordinates] : $coordinates;
+
+    $normalizedPolygons = [];
+    $positionCount = 0;
+    $xValues = [];
+    $yValues = [];
+
+    foreach ($polygons as $polygonIndex => $polygon) {
+        if (!is_array($polygon) || $polygon === []) {
+            throw new InvalidArgumentException("geometry_geojson part {$polygonIndex} has no rings.");
+        }
+
+        $normalizedRings = [];
+        foreach ($polygon as $ringIndex => $ring) {
+            if (!is_array($ring)) {
+                throw new InvalidArgumentException("geometry_geojson ring {$polygonIndex}/{$ringIndex} is not a list of positions.");
+            }
+
+            $normalizedRing = [];
+            foreach (array_values($ring) as $position) {
+                if (!is_array($position) || count($position) < 2) {
+                    throw new InvalidArgumentException("geometry_geojson ring {$polygonIndex}/{$ringIndex} contains an invalid position.");
+                }
+
+                // [x, y] -- GeoJSON order, NOT swapped. See the file header.
+                $x = avesmapsParseMapCoordinate($position[0] ?? null, "geometry[{$polygonIndex}][{$ringIndex}].x");
+                $y = avesmapsParseMapCoordinate($position[1] ?? null, "geometry[{$polygonIndex}][{$ringIndex}].y");
+                $normalizedRing[] = [$x, $y];
+                $xValues[] = $x;
+                $yValues[] = $y;
+                $positionCount++;
+                if ($positionCount > AVESMAPS_ECOSYSTEM_MAX_POSITIONS) {
+                    throw new InvalidArgumentException('geometry_geojson has too many positions.');
+                }
+            }
+
+            // Drop a trailing duplicate of the first position before counting, so "3 distinct corners"
+            // means the same thing for an open and a closed ring.
+            $ringLength = count($normalizedRing);
+            if ($ringLength >= 2 && $normalizedRing[0] === $normalizedRing[$ringLength - 1]) {
+                array_pop($normalizedRing);
+            }
+            if (count($normalizedRing) < 3) {
+                throw new InvalidArgumentException("geometry_geojson ring {$polygonIndex}/{$ringIndex} needs at least three positions.");
+            }
+
+            $normalizedRing[] = $normalizedRing[0]; // close it again -- GeoJSON requires a closed ring
+            $normalizedRings[] = $normalizedRing;
+        }
+
+        $normalizedPolygons[] = $normalizedRings;
+    }
+
+    return [
+        'geometry' => [
+            'type' => $type,
+            'coordinates' => $type === 'Polygon' ? $normalizedPolygons[0] : $normalizedPolygons,
+        ],
+        'bounds' => [
+            'min_x' => min($xValues),
+            'min_y' => min($yValues),
+            'max_x' => max($xValues),
+            'max_y' => max($yValues),
+        ],
+        'part_count' => count($normalizedPolygons),
+    ];
+}
+
+function avesmapsEcosystemReadPublicId(mixed $value, string $fieldLabel): string
+{
+    $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
+    if (preg_match('/^[a-f0-9-]{36}$/i', $publicId) !== 1) {
+        throw new InvalidArgumentException("{$fieldLabel} is not a valid public id.");
+    }
+
+    return strtolower($publicId);
+}
+
+function avesmapsEcosystemReadKind(mixed $value): string
+{
+    $kind = avesmapsNormalizeSingleLine((string) $value, 16);
+    if (!in_array($kind, AVESMAPS_ECOSYSTEM_KINDS, true)) {
+        throw new InvalidArgumentException('kind must be one of: ' . implode(', ', AVESMAPS_ECOSYSTEM_KINDS) . '.');
+    }
+
+    return $kind;
+}
+
+// 🔴 The optimistic guard, shape of avesmapsAssertFeatureCanBeEdited
+// (api/_internal/map/features.php:1007-1011) with ONE deliberate difference: there expected_revision is
+// optional, here it is REQUIRED on every geometry write and on delete_area.
+//
+// Optional is how the guard silently does not apply. The map editor happens to always send it; this API
+// has exactly one client and it does not exist yet (V3), so there is no legacy caller to break and every
+// reason to make forgetting it a loud 400 instead of a silent overwrite. Without that, the second of two
+// concurrent saves wins completely and the first is gone -- no message, no conflict, no trace.
+function avesmapsEcosystemReadExpectedRevision(mixed $value): int
+{
+    $revision = filter_var($value, FILTER_VALIDATE_INT);
+    if ($revision === false || $revision < 1) {
+        throw new InvalidArgumentException('expected_revision is required and must be the geometry_revision the client last read.');
+    }
+
+    return (int) $revision;
+}
+
+// ---- read path --------------------------------------------------------------------------------------
+// 🔴 INNER JOIN on the ACTIVE region, not just "WHERE a.is_active = 1". An active area under a
+// soft-deleted region has to be invisible; the join answers that in the same breath as fetching the kind
+// (which lives on the region -- owner decision 1). House pattern:
+// api/_internal/political/territories-claims.php:199.
+function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
+{
+    $where = ['a.is_active = 1'];
+    $params = [];
+    if ($bbox !== null) {
+        // Overlap, not containment -- same four comparisons as api/app/map-features.php:134-137, so an
+        // area reaching into the viewport is returned even when its centre is far outside.
+        $where[] = 'a.max_x >= :bbox_min_x';
+        $where[] = 'a.min_x <= :bbox_max_x';
+        $where[] = 'a.max_y >= :bbox_min_y';
+        $where[] = 'a.min_y <= :bbox_max_y';
+        $params['bbox_min_x'] = $bbox['min_x'];
+        $params['bbox_min_y'] = $bbox['min_y'];
+        $params['bbox_max_x'] = $bbox['max_x'];
+        $params['bbox_max_y'] = $bbox['max_y'];
+    }
+
+    // Explicit columns, no `a.*`: the internal ids (a.id, a.region_id) are join keys and must not leave
+    // the box -- public_id is the wire identity everywhere in this house.
+    $statement = $pdo->prepare(
+        'SELECT a.public_id,
+                a.geometry_geojson,
+                a.min_x, a.min_y, a.max_x, a.max_y,
+                a.geometry_revision,
+                a.is_trial,
+                a.updated_at,
+                r.public_id AS region_public_id,
+                r.name AS region_name,
+                r.kind,
+                r.region_type,
+                r.wiki_region_key,
+                r.wiki_url,
+                r.label_public_id
+           FROM ecosystem_area a
+           INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+          WHERE ' . implode(' AND ', $where) . '
+          ORDER BY r.kind ASC, r.name ASC, a.id ASC'
+    );
+    $statement->execute($params);
+
+    $areas = [];
+    foreach ($statement->fetchAll() as $row) {
+        $areas[] = [
+            'public_id' => (string) $row['public_id'],
+            'region_public_id' => (string) $row['region_public_id'],
+            'region_name' => (string) $row['region_name'],
+            'kind' => (string) $row['kind'],
+            'region_type' => $row['region_type'] === null ? null : (string) $row['region_type'],
+            'wiki_region_key' => $row['wiki_region_key'] === null ? null : (string) $row['wiki_region_key'],
+            'wiki_url' => $row['wiki_url'] === null ? null : (string) $row['wiki_url'],
+            'label_public_id' => $row['label_public_id'] === null ? null : (string) $row['label_public_id'],
+            // Decoded so the payload nests a real GeoJSON object rather than a JSON-in-a-string.
+            'geometry' => json_decode((string) $row['geometry_geojson'], true),
+            'bounds' => [
+                'min_x' => (float) $row['min_x'],
+                'min_y' => (float) $row['min_y'],
+                'max_x' => (float) $row['max_x'],
+                'max_y' => (float) $row['max_y'],
+            ],
+            // The client MUST send this back as expected_revision on the next save.
+            'geometry_revision' => (int) $row['geometry_revision'],
+            'is_trial' => (int) $row['is_trial'] === 1,
+            'updated_at' => (string) $row['updated_at'],
+        ];
+    }
+
+    return $areas;
+}
+
+// ---- write path: helpers ----------------------------------------------------------------------------
+//
+// 💣 HOUSE RULE FOR EVERY HANDLER BELOW: no DDL between beginTransaction() and commit(). MySQL commits
+// an open transaction implicitly the moment it sees a CREATE TABLE -- even a no-op IF NOT EXISTS -- which
+// would end the transaction early and silently take everything after it out of the rollback's reach.
+// That means avesmapsEcosystemEnsureTables() and ANY avesmapsAppSetting* call (they each ensure their own
+// table first) belong before the begin or after the commit. Never in between.
+
+function avesmapsEcosystemWriteAuditLog(
+    PDO $pdo,
+    string $action,
+    int $actorUserId,
+    ?string $areaPublicId,
+    ?string $regionPublicId,
+    array $before,
+    array $after
+): void {
+    $statement = $pdo->prepare(
+        'INSERT INTO ecosystem_geometry_audit_log
+            (action, actor_user_id, area_public_id, region_public_id, before_json, after_json)
+         VALUES (:action, :actor_user_id, :area_public_id, :region_public_id, :before_json, :after_json)'
+    );
+    $statement->execute([
+        'action' => $action,
+        'actor_user_id' => $actorUserId > 0 ? $actorUserId : null,
+        'area_public_id' => $areaPublicId,
+        'region_public_id' => $regionPublicId,
+        'before_json' => json_encode($before, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        'after_json' => json_encode($after, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+    ]);
+}
+
+function avesmapsEcosystemRegionRow(PDO $pdo, string $publicId, bool $activeOnly = true): array
+{
+    $statement = $pdo->prepare(
+        'SELECT * FROM ecosystem_region WHERE public_id = :public_id' . ($activeOnly ? ' AND is_active = 1' : '') . ' LIMIT 1'
+    );
+    $statement->execute(['public_id' => $publicId]);
+    $row = $statement->fetch();
+    if (!is_array($row)) {
+        throw new InvalidArgumentException('The ecosystem region was not found.');
+    }
+
+    return $row;
+}
+
+// A region_type is only valid together with its kind: `wald` is vegetation, never topography. Checked
+// against the seeded, still-active vocabulary -- which is what makes the seed load-bearing rather than
+// documentation.
+function avesmapsEcosystemAssertRegionType(PDO $pdo, string $kind, string $regionType): void
+{
+    $statement = $pdo->prepare(
+        'SELECT 1 FROM ecosystem_region_type WHERE kind = :kind AND type_key = :type_key AND is_active = 1 LIMIT 1'
+    );
+    $statement->execute(['kind' => $kind, 'type_key' => $regionType]);
+    if ($statement->fetchColumn() === false) {
+        throw new InvalidArgumentException("region_type '{$regionType}' is not a known active type for kind '{$kind}'.");
+    }
+}
+
+// The editable field set, shared by create_region and update_region. Returns only the keys that were
+// PRESENT in the payload, so an update never wipes a field the client did not send.
+//
+// wiki_region_key is NOT in here on purpose. It may only ever be derived through avesmapsPoliticalSlug()
+// -> avesmapsFoldToAscii() (AGENTS.md §5: a fixed table reproducing the SERVER's folding, umlauts fold to
+// '?'). No V2 task derives it, so the column stays NULL -- which is fine. What is NOT fine is letting a
+// client hand-write one: every join that uses such a key would break, across ~10 tables.
+function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind): array
+{
+    $fields = [];
+
+    if (array_key_exists('kind', $payload)) {
+        $fields['kind'] = avesmapsEcosystemReadKind($payload['kind']);
+    }
+    if (array_key_exists('name', $payload)) {
+        $fields['name'] = avesmapsNormalizeSingleLine((string) $payload['name'], 190);
+    }
+    if (array_key_exists('region_type', $payload)) {
+        $regionType = avesmapsNormalizeSingleLine((string) ($payload['region_type'] ?? ''), 40);
+        $fields['region_type'] = $regionType === '' ? null : $regionType;
+    }
+    if (array_key_exists('wiki_url', $payload)) {
+        $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 500, 'wiki_url');
+        $fields['wiki_url'] = $wikiUrl === '' ? null : $wikiUrl;
+    }
+    if (array_key_exists('label_public_id', $payload)) {
+        $labelPublicId = trim((string) ($payload['label_public_id'] ?? ''));
+        $fields['label_public_id'] = $labelPublicId === ''
+            ? null
+            : avesmapsEcosystemReadPublicId($labelPublicId, 'label_public_id');
+    }
+    if (array_key_exists('properties', $payload)) {
+        $properties = $payload['properties'];
+        if ($properties !== null && !is_array($properties)) {
+            throw new InvalidArgumentException('properties must be an object.');
+        }
+        $fields['properties_json'] = ($properties === null || $properties === [])
+            ? null
+            : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    }
+
+    $effectiveKind = $fields['kind'] ?? $currentKind;
+    if (($fields['region_type'] ?? null) !== null && $effectiveKind === null) {
+        throw new InvalidArgumentException('region_type needs a kind.');
+    }
+
+    return $fields;
+}
+
+// ---- write path: regions -----------------------------------------------------------------------------
+
+function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $fields = avesmapsEcosystemReadRegionFields($payload, null);
+    if (!isset($fields['kind'])) {
+        throw new InvalidArgumentException('kind is required.');
+    }
+    if (($fields['region_type'] ?? null) !== null) {
+        avesmapsEcosystemAssertRegionType($pdo, $fields['kind'], $fields['region_type']);
+    }
+
+    $publicId = avesmapsUuidV4();
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare(
+            'INSERT INTO ecosystem_region
+                (public_id, name, kind, region_type, wiki_url, label_public_id, properties_json, created_by, updated_by)
+             VALUES (:public_id, :name, :kind, :region_type, :wiki_url, :label_public_id, :properties_json, :user_id, :user_id2)'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'name' => $fields['name'] ?? '',
+            'kind' => $fields['kind'],
+            'region_type' => $fields['region_type'] ?? null,
+            'wiki_url' => $fields['wiki_url'] ?? null,
+            'label_public_id' => $fields['label_public_id'] ?? null,
+            'properties_json' => $fields['properties_json'] ?? null,
+            'user_id' => $userId > 0 ? $userId : null,
+            'user_id2' => $userId > 0 ? $userId : null,
+        ]);
+
+        $row = avesmapsEcosystemRegionRow($pdo, $publicId);
+        avesmapsEcosystemWriteAuditLog($pdo, 'create_region', $userId, null, $publicId, [], avesmapsEcosystemRegionSnapshot($row));
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['region' => avesmapsEcosystemRegionSnapshot($row), 'revision' => $revision];
+}
+
+function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+    $before = avesmapsEcosystemRegionRow($pdo, $publicId);
+    $fields = avesmapsEcosystemReadRegionFields($payload, (string) $before['kind']);
+    if ($fields === []) {
+        throw new InvalidArgumentException('No updatable field was sent.');
+    }
+
+    $effectiveKind = $fields['kind'] ?? (string) $before['kind'];
+    // Two ways to end up with a mismatched pair: change the type, or change the kind under an existing
+    // type. Both are checked, so `wald` can never sit on a topographie region.
+    $effectiveType = array_key_exists('region_type', $fields)
+        ? $fields['region_type']
+        : ($before['region_type'] === null ? null : (string) $before['region_type']);
+    if ($effectiveType !== null) {
+        avesmapsEcosystemAssertRegionType($pdo, $effectiveKind, $effectiveType);
+    }
+
+    $assignments = [];
+    $params = ['public_id' => $publicId, 'user_id' => $userId > 0 ? $userId : null];
+    foreach ($fields as $column => $value) {
+        $assignments[] = "{$column} = :{$column}";
+        $params[$column] = $value;
+    }
+    $assignments[] = 'updated_by = :user_id';
+
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare(
+            'UPDATE ecosystem_region SET ' . implode(', ', $assignments) . ' WHERE public_id = :public_id AND is_active = 1'
+        );
+        $statement->execute($params);
+
+        $after = avesmapsEcosystemRegionRow($pdo, $publicId);
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'update_region',
+            $userId,
+            null,
+            $publicId,
+            avesmapsEcosystemRegionSnapshot($before),
+            avesmapsEcosystemRegionSnapshot($after)
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['region' => avesmapsEcosystemRegionSnapshot($after), 'revision' => $revision];
+}
+
+// 🔴 Soft delete, and it takes its areas with it in ONE transaction (house pattern
+// api/_internal/app/adventures.php:1284-1293). Without the transaction an abort leaves a half-deleted
+// region: the region gone, its areas still active but invisible behind the read's INNER JOIN -- rows
+// nobody can see and nobody can find again.
+function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+    $before = avesmapsEcosystemRegionRow($pdo, $publicId);
+    $regionId = (int) $before['id'];
+
+    $pdo->beginTransaction();
+    try {
+        // Audit every area BEFORE it is deactivated -- afterwards updated_by only knows the bulk trigger
+        // and the geometry is no longer reachable through the read path.
+        $areasStatement = $pdo->prepare(
+            'SELECT * FROM ecosystem_area WHERE region_id = :region_id AND is_active = 1'
+        );
+        $areasStatement->execute(['region_id' => $regionId]);
+        $areas = $areasStatement->fetchAll();
+        foreach ($areas as $area) {
+            avesmapsEcosystemWriteAuditLog(
+                $pdo,
+                'delete_area_with_region',
+                $userId,
+                (string) $area['public_id'],
+                $publicId,
+                avesmapsEcosystemAreaSnapshot($area),
+                []
+            );
+        }
+
+        $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, updated_by = :user_id WHERE region_id = :region_id AND is_active = 1')
+            ->execute(['region_id' => $regionId, 'user_id' => $userId > 0 ? $userId : null]);
+        $pdo->prepare('UPDATE ecosystem_region SET is_active = 0, updated_by = :user_id WHERE id = :region_id')
+            ->execute(['region_id' => $regionId, 'user_id' => $userId > 0 ? $userId : null]);
+
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'delete_region',
+            $userId,
+            null,
+            $publicId,
+            avesmapsEcosystemRegionSnapshot($before),
+            []
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return [
+        'deleted' => true,
+        'public_id' => $publicId,
+        'areas_deleted' => count($areas),
+        'revision' => $revision,
+    ];
+}
+
+// ---- write path: areas -------------------------------------------------------------------------------
+
+// 🔴 An area ALWAYS belongs to a region (owner decision 1). The region must exist and be active, or the
+// answer is 400 -- an orphan would be invisible behind the read's INNER JOIN and unfindable forever.
+// On the wire the field is region_public_id (create_region hands back a public_id, not the internal FK);
+// `region_id` is accepted as an alias because the plan names it that way.
+function avesmapsCreateEcosystemArea(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $regionPublicId = avesmapsEcosystemReadPublicId(
+        $payload['region_public_id'] ?? $payload['region_id'] ?? '',
+        'region_public_id'
+    );
+    $region = avesmapsEcosystemRegionRow($pdo, $regionPublicId);
+
+    $normalized = avesmapsEcosystemNormalizeGeometry($payload['geometry_geojson'] ?? $payload['geometry'] ?? null);
+
+    // The trial state lives in app_setting, never in a column default (plan V2.1, deviation 2). The client
+    // may state it explicitly; if it stays silent the server decides, so a client that never heard of the
+    // trial cannot smuggle a permanent area into a trial run or the other way round.
+    $isTrial = array_key_exists('is_trial', $payload)
+        ? (bool) $payload['is_trial']
+        : avesmapsEcosystemTrialActive($pdo);
+
+    $publicId = avesmapsUuidV4();
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare(
+            'INSERT INTO ecosystem_area
+                (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_trial, created_by, updated_by)
+             VALUES (:public_id, :region_id, :geometry, :min_x, :min_y, :max_x, :max_y, :is_trial, :user_id, :user_id2)'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'region_id' => (int) $region['id'],
+            'geometry' => json_encode($normalized['geometry'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'min_x' => $normalized['bounds']['min_x'],
+            'min_y' => $normalized['bounds']['min_y'],
+            'max_x' => $normalized['bounds']['max_x'],
+            'max_y' => $normalized['bounds']['max_y'],
+            'is_trial' => $isTrial ? 1 : 0,
+            'user_id' => $userId > 0 ? $userId : null,
+            'user_id2' => $userId > 0 ? $userId : null,
+        ]);
+
+        $row = avesmapsEcosystemAreaRow($pdo, $publicId);
+        avesmapsEcosystemWriteAuditLog($pdo, 'create_area', $userId, $publicId, $regionPublicId, [], avesmapsEcosystemAreaSnapshot($row));
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return [
+        'area' => avesmapsEcosystemAreaSnapshot($row) + ['region_public_id' => $regionPublicId],
+        'revision' => $revision,
+    ];
+}
+
+function avesmapsUpdateEcosystemAreaGeometry(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+    $expectedRevision = avesmapsEcosystemReadExpectedRevision($payload['expected_revision'] ?? null);
+    $normalized = avesmapsEcosystemNormalizeGeometry($payload['geometry_geojson'] ?? $payload['geometry'] ?? null);
+
+    $pdo->beginTransaction();
+    try {
+        // FOR UPDATE, so the read-compare-write is atomic rather than merely optimistic: two editors
+        // saving the same area in the same second get a real 409, not a coin flip.
+        $before = avesmapsEcosystemAreaRow($pdo, $publicId, true, true);
+        avesmapsEcosystemAssertRevision($before, $expectedRevision);
+
+        $statement = $pdo->prepare(
+            'UPDATE ecosystem_area
+                SET geometry_geojson = :geometry,
+                    min_x = :min_x, min_y = :min_y, max_x = :max_x, max_y = :max_y,
+                    geometry_revision = geometry_revision + 1,
+                    updated_by = :user_id
+              WHERE id = :id'
+        );
+        $statement->execute([
+            'geometry' => json_encode($normalized['geometry'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'min_x' => $normalized['bounds']['min_x'],
+            'min_y' => $normalized['bounds']['min_y'],
+            'max_x' => $normalized['bounds']['max_x'],
+            'max_y' => $normalized['bounds']['max_y'],
+            'user_id' => $userId > 0 ? $userId : null,
+            'id' => (int) $before['id'],
+        ]);
+
+        $after = avesmapsEcosystemAreaRow($pdo, $publicId);
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'update_area_geometry',
+            $userId,
+            $publicId,
+            null,
+            avesmapsEcosystemAreaSnapshot($before),
+            avesmapsEcosystemAreaSnapshot($after)
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['area' => avesmapsEcosystemAreaSnapshot($after), 'revision' => $revision];
+}
+
+function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
+    $expectedRevision = avesmapsEcosystemReadExpectedRevision($payload['expected_revision'] ?? null);
+
+    $pdo->beginTransaction();
+    try {
+        $before = avesmapsEcosystemAreaRow($pdo, $publicId, true, true);
+        avesmapsEcosystemAssertRevision($before, $expectedRevision);
+
+        $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, updated_by = :user_id WHERE id = :id')
+            ->execute(['user_id' => $userId > 0 ? $userId : null, 'id' => (int) $before['id']]);
+
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'delete_area',
+            $userId,
+            $publicId,
+            null,
+            avesmapsEcosystemAreaSnapshot($before),
+            []
+        );
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['deleted' => true, 'public_id' => $publicId, 'revision' => $revision];
+}
+
+// 🔴 promote_trial acts on AREAS, not on regions (owner decision 1). `keep` clears the trial mark and the
+// areas stay; `discard` soft-deletes them. Either way app_setting['ecosystem_trial'] goes off, so the next
+// area is a normal one and a second `discard` months later cannot reach it.
+function avesmapsPromoteEcosystemTrial(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $mode = avesmapsNormalizeSingleLine((string) ($payload['mode'] ?? ''), 16);
+    if ($mode !== 'keep' && $mode !== 'discard') {
+        throw new InvalidArgumentException("mode must be 'keep' or 'discard'.");
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->query('SELECT * FROM ecosystem_area WHERE is_trial = 1 AND is_active = 1');
+        $areas = $statement === false ? [] : $statement->fetchAll();
+
+        if ($mode === 'discard') {
+            // A discard destroys work, so every single area gets its own audit row -- "how did it look
+            // before" has to survive a bulk sweep.
+            foreach ($areas as $area) {
+                avesmapsEcosystemWriteAuditLog(
+                    $pdo,
+                    'discard_trial_area',
+                    $userId,
+                    (string) $area['public_id'],
+                    null,
+                    avesmapsEcosystemAreaSnapshot($area),
+                    []
+                );
+            }
+            $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, is_trial = 0, updated_by = :user_id WHERE is_trial = 1 AND is_active = 1')
+                ->execute(['user_id' => $userId > 0 ? $userId : null]);
+        } else {
+            // keep only flips a flag; nothing is lost, so no per-area audit row.
+            $pdo->prepare('UPDATE ecosystem_area SET is_trial = 0, updated_by = :user_id WHERE is_trial = 1 AND is_active = 1')
+                ->execute(['user_id' => $userId > 0 ? $userId : null]);
+        }
+
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    // 💣 AFTER the commit, not inside it. avesmapsAppSettingSet calls avesmapsAppSettingEnsureTable first
+    // (app-setting.php:39), and a CREATE TABLE is DDL -- MySQL commits the open transaction implicitly
+    // when it sees one, no-op or not. Written inside the block above, this single line would end the
+    // transaction early and take the audit rows and the soft deletes out from under the rollback.
+    //
+    // The window it buys instead is harmless and self-healing: a crash between the commit and this line
+    // leaves the areas dealt with and the trial flag still on. Running promote_trial again then finds no
+    // trial areas, does nothing, and sets the flag. Nothing is lost either way.
+    avesmapsAppSettingSet($pdo, AVESMAPS_ECOSYSTEM_TRIAL_SETTING, '0');
+
+    return ['mode' => $mode, 'areas_affected' => count($areas), 'revision' => $revision];
+}
+
+// ---- row helpers -------------------------------------------------------------------------------------
+
+function avesmapsEcosystemAreaRow(PDO $pdo, string $publicId, bool $activeOnly = true, bool $forUpdate = false): array
+{
+    $statement = $pdo->prepare(
+        'SELECT * FROM ecosystem_area WHERE public_id = :public_id'
+        . ($activeOnly ? ' AND is_active = 1' : '')
+        . ' LIMIT 1'
+        . ($forUpdate ? ' FOR UPDATE' : '')
+    );
+    $statement->execute(['public_id' => $publicId]);
+    $row = $statement->fetch();
+    if (!is_array($row)) {
+        throw new InvalidArgumentException('The ecosystem area was not found.');
+    }
+
+    return $row;
+}
+
+function avesmapsEcosystemAssertRevision(array $areaRow, int $expectedRevision): void
+{
+    if ((int) $areaRow['geometry_revision'] !== $expectedRevision) {
+        throw new AvesmapsConflictException(
+            'Diese Flaeche wurde inzwischen geaendert. Bitte neu laden.'
+        );
+    }
+}
+
+// Snapshots leave the internal ids behind -- they are what goes into the audit log AND back to the client.
+function avesmapsEcosystemRegionSnapshot(array $row): array
+{
+    return [
+        'public_id' => (string) $row['public_id'],
+        'name' => (string) $row['name'],
+        'kind' => (string) $row['kind'],
+        'region_type' => $row['region_type'] === null ? null : (string) $row['region_type'],
+        'origin' => (string) $row['origin'],
+        'wiki_region_key' => $row['wiki_region_key'] === null ? null : (string) $row['wiki_region_key'],
+        'wiki_url' => $row['wiki_url'] === null ? null : (string) $row['wiki_url'],
+        'label_public_id' => $row['label_public_id'] === null ? null : (string) $row['label_public_id'],
+        'properties' => $row['properties_json'] === null ? null : json_decode((string) $row['properties_json'], true),
+        'is_active' => (int) $row['is_active'] === 1,
+        'updated_at' => (string) $row['updated_at'],
+    ];
+}
+
+function avesmapsEcosystemAreaSnapshot(array $row): array
+{
+    return [
+        'public_id' => (string) $row['public_id'],
+        'geometry' => json_decode((string) $row['geometry_geojson'], true),
+        'bounds' => [
+            'min_x' => (float) $row['min_x'],
+            'min_y' => (float) $row['min_y'],
+            'max_x' => (float) $row['max_x'],
+            'max_y' => (float) $row['max_y'],
+        ],
+        'geometry_revision' => (int) $row['geometry_revision'],
+        'is_trial' => (int) $row['is_trial'] === 1,
+        'is_active' => (int) $row['is_active'] === 1,
+        'updated_at' => (string) $row['updated_at'],
+    ];
+}
