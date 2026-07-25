@@ -490,7 +490,20 @@ function setLabelMoveActive(entry, isActive) {
 	void releaseFeatureSoftLock(entry.label.publicId);
 }
 
-function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
+// Der "Labels"-Haken (nur Edit-Modus) uebersteuert AUSSCHLIESSLICH die Modus-Bedingung unten --
+// nicht das Zoomband und nicht das Viewport-Culling. Ein vorgezogenes `return box.checked` haette
+// alle vier Bedingungen ausgehebelt: alle Label-Marker auf jeder Zoomstufe auf der Karte, und
+// scheduleLabelCollisionResolution() ueber den ganzen Satz -- kein Haken mehr, ein Perf-Unfall.
+// Der WERT wird einmal je Sync-Lauf gelesen und durchgereicht; shouldShowLabelMarker laeuft pro
+// Label pro Sync (jeder Zoom, jeder Move). Das ELEMENT zu cachen waere die falsche Reparatur: es
+// haengt in einem hidden-Container, den der Moduswechsel umschaltet.
+// Dreiwertig wie beim Grenzen-Haken: true = zeigen, false = verbergen, null = kein Haken da
+// (Frontend) -> allein der Modus entscheidet, exakt wie bisher.
+function isMapLabelEditorOverrideActive() {
+	return IS_EDIT_MODE ? document.getElementById("toggleMapLabels")?.checked : null;
+}
+
+function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
 	// Sichtbarkeits-Band gegen die ECHTE Zoomstufe pruefen (Karte geht bis 7), NICHT gegen den auf
@@ -498,14 +511,20 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// und "Sichtbar bis Zoom" hat oben keinen Effekt (5 <= maxZoom ist fuer maxZoom>=5 immer wahr). Die
 	// Label-GROESSE skaliert weiter ueber den Visual-Zoom (s. getScaledLabelSize).
 	const bandZoom = Math.max(0, Math.round(Number(zoomLevel)));
-	return getSelectedMapLayerMode() === "deregraphic"
+	// Haken aus -> immer weg. `return false` und NICHT `return box.checked`: ein wahrheitswertiges
+	// Vorab-return wuerde Zoomband und Culling mit aushebeln; false kann nur verbergen, nie zeigen.
+	if (editorOverride === false) {
+		return false;
+	}
+
+	return (getSelectedMapLayerMode() === "deregraphic" || editorOverride === true)
 		&& bandZoom >= minZoom
 		&& bandZoom <= maxZoom
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 
-function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
-	const shouldShow = shouldShowLabelMarker(entry, zoomLevel, renderBounds);
+function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
+	const shouldShow = shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride);
 	const isVisible = map.hasLayer(entry.marker);
 	if (shouldShow && !isVisible) {
 		entry.marker.addTo(map);
@@ -520,18 +539,20 @@ function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBound
 function syncLabelVisibility() {
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
-	labelMarkers.forEach((entry) => syncLabelMarkerVisibility(entry, zoomLevel, renderBounds));
+	const editorOverride = isMapLabelEditorOverrideActive();
+	labelMarkers.forEach((entry) => syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride));
 	scheduleLabelCollisionResolution();
 }
 
 function syncLabelIcons() {
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
+	const editorOverride = isMapLabelEditorOverrideActive();
 	labelMarkers.forEach((entry) => {
-		if (shouldShowLabelMarker(entry, zoomLevel, renderBounds) || map.hasLayer(entry.marker)) {
+		if (shouldShowLabelMarker(entry, zoomLevel, renderBounds, editorOverride) || map.hasLayer(entry.marker)) {
 			entry.marker.setIcon(createLabelIcon(entry.label));
 		}
-		syncLabelMarkerVisibility(entry, zoomLevel, renderBounds);
+		syncLabelMarkerVisibility(entry, zoomLevel, renderBounds, editorOverride);
 	});
 	scheduleLabelCollisionResolution();
 }

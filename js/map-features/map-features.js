@@ -52,12 +52,21 @@ $("#mapStyleSelect").on("change", function () {
 $("#togglePaths").change(syncPathVisibility);
 $("#toggleRivers").change(syncPathVisibility);
 $("#toggleSeaPaths").change(syncPathVisibility);
+$("#toggleMapLabels").change(syncLabelVisibility);
+// force=true: ein Haken loest weder moveend noch zoomend aus, und redraw() steigt ohne force aus,
+// solange cssZoomActive steht -- ohne das Flag bliebe die Leinwand bis zum naechsten Schwenk stehen.
+$("#toggleTerritoryBorders").change(() => window.AvesmapsBoundaryCanvasOverlay?.redraw(true));
 if (IS_EDIT_MODE) {
 	// Im Editmode bleiben Wege/Flüsse/Seewege als Haken steuerbar; im Frontend sind sie ausgeblendet
 	// (Sichtbarkeit wird dort vom Kartenmodus gesetzt, siehe applyFrontendLayerModeDefaults).
 	$("#toggleSeaPathsControl").prop("hidden", false);
 	$("#togglePathsControl").prop("hidden", false);
 	$("#toggleRiversControl").prop("hidden", false);
+	// Labels und Territoriengrenzen stehen beim Zeichnen im Weg -- beim Landschaften- wie beim
+	// Territorien-Zeichnen. Beide Haken uebersteuern den Modus in BEIDE Richtungen und gibt es nur
+	// im Edit-Modus; im Frontend bestimmt weiter allein der Kartenmodus, was sichtbar ist.
+	$("#toggleMapLabelsControl").prop("hidden", false);
+	$("#toggleTerritoryBordersControl").prop("hidden", false);
 }
 
 

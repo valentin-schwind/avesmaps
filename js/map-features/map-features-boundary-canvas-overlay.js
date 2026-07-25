@@ -484,7 +484,17 @@
 		// Kraftlinien-Modus zeigt KEINE Grenzen mehr (nur Karte entsättigt + Kraftlinien + Nodices).
 		const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "ecosystem"];
 		const currentMapLayerMode = typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "political";
-		if (!BOUNDARY_OVERLAY_MODES.includes(currentMapLayerMode)) {
+		// Der "Grenzen"-Haken (nur Edit-Modus) uebersteuert den Modus in BEIDE Richtungen: Haken aus
+		// nimmt die Grenzen auch dort weg, wo der Modus sie zeigt; Haken an zeichnet sie auch dort, wo
+		// er sie sonst unterdrueckt. IS_EDIT_MODE ist hier garantiert da -- js/config.js laedt frueher
+		// als diese Datei, und die Pruefung laeuft erst zur Aufrufzeit.
+		// ⚠️ Haken an in "none"/"powerlines" zeichnet nur, was bereits geladen IST: das Laden haengt an
+		// TERRITORY_BOUNDARY_MODES (political-territory-loader.js), das dieser Haken nicht anfasst.
+		const editorOverride = IS_EDIT_MODE ? document.getElementById("toggleTerritoryBorders")?.checked : null;
+		if (editorOverride === false) {
+			return;
+		}
+		if (editorOverride !== true && !BOUNDARY_OVERLAY_MODES.includes(currentMapLayerMode)) {
 			return;
 		}
 		// Regionen/Kraftlinien: Linien halb so deckend + Außenlinien uniform duenn; political: voll/abgestuft.
