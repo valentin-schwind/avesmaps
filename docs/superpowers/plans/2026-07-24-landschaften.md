@@ -23,7 +23,7 @@
 | **1** | **Eine Region trägt mehrere Flächen**, und eine einzelne Fläche darf selbst ein MultiPolygon sein. | `is_trial` wandert auf die Fläche (V2.1); **V3.0b ist neu** und Pflicht; Lesepfad joint; V3.6 braucht ein Ziel-Region-Konzept. |
 | **2** | Owner-Entscheidung 4 des Masterplans (*„Diagnostics endpoints: stay public"*) **wird aufgehoben**. | V-1 ist freigegeben und trägt den Nachzug im Masterplan. |
 | **3** | Sichtbarkeit der Erprobung: `?landschaften=1` genügt, keine JS-Injektion. | V1.1 Schritt 6 bleibt im Markup. |
-| **4** | Der F5-Zustand wird repariert — **als eigenes Vorhaben**, nicht hier. | `docs/edit-ansicht-persistenz-auftrag.md`. V3.5 hängt davon ab. |
+| **4** | Der F5-Zustand wird repariert. | ✅ **live** seit `d22bd828`+`9d8d844c` (2026-07-24). Rest: `?landschaften=1` in `ignoredParams` → V1.1 Schritt 1. |
 
 **Ziel:** Eine Kartenebene „Landschaften" im Edit-Modus, in der Editoren
 Vegetations-, Topographie- und Regionsflächen zeichnen — als Grundlage für
