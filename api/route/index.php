@@ -8,6 +8,7 @@ require __DIR__ . '/../_internal/routing/map-data.php';
 require __DIR__ . '/../_internal/routing/network-data.php';
 require __DIR__ . '/../_internal/routing/graph.php';
 require __DIR__ . '/../_internal/routing/response.php';
+require_once __DIR__ . '/../_internal/auth.php';
 
 try {
 	$config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -22,6 +23,14 @@ try {
 	}
 
 	$routeDiagnostic = trim((string) ($_GET['diagnostic'] ?? ''));
+	// Every one of the six diagnostics loads the complete feature table (measured: 62 MB
+	// resident, peak 152 MB per call; graph-data additionally builds the graph eight times).
+	// They are developer tools, not part of the public API -- the stable contract is
+	// POST / and GET /api/locations/, and neither passes a diagnostic parameter.
+	if ($routeDiagnostic !== '') {
+		avesmapsRequireUserWithCapability('edit');
+	}
+
 	if ($requestMethod === 'GET' && $routeDiagnostic === 'map-data') {
 		$routeMapData = avesmapsLoadRouteMapData($config);
 		$firstFeature = $routeMapData['features'][0] ?? [];

@@ -70,16 +70,36 @@ steps, STRATO caution (no looping heavy endpoints).
    `avesmaps.de/edit → WikiSync` (which runs via `api/edit/wiki/sync.php` +
    `territories-dom.php`, both kept) uses none of it.
 3. **API breaking changes:** approved.
-4. **Diagnostics endpoints:** stay public. A full inventory is maintained (see
-   below). M1 still closes the exception-payload *leaks* (content, not access).
+4. **Diagnostics endpoints:** ~~stay public~~ — **lifted by the owner on 2026-07-25.**
+   The 2026-06-13 decision recorded no rationale, and the cost had never been
+   measured: *every* one of the six `GET /api/route/?diagnostic=` branches calls
+   `avesmapsLoadRouteMapData` (62 MB resident, 152 MB peak per call; `graph-data`
+   additionally builds the graph eight times, 11.3 s at 10k nodes) — unauthenticated,
+   without a rate limit, and `api/route/` has no `.htaccess`. Those six are now gated
+   behind `avesmapsRequireUserWithCapability('edit')`; the rest of the inventory below
+   is deliberately untouched and stays public for now (the political half is the more
+   expensive part and needs its own session). The stable contract is unaffected —
+   `api/README.md:95` already states the diagnostics are not part of it. A full
+   inventory is maintained (see below). M1 still closes the exception-payload *leaks*
+   (content, not access).
 5. **Terrain/type labels:** handled via the i18n overlay (same as decision 1).
 6. **Schema strategy:** keep self-healing inline ensure-tables; drop dead
    schemas; in M7 inspect the live DB (read-only) for unused tables.
 
-## Diagnostics endpoint inventory (kept public per decision 4)
+## Diagnostics endpoint inventory (access status per decision 4, revised 2026-07-25)
+
+**🔒 Gated (capability `edit`, since 2026-07-25):**
 
 - `GET /api/route/?diagnostic=` → `map-data`, `network-data`,
-  `location-node-data`, `route-name-data`, `dijkstra-data`, `graph-data`.
+  `location-node-data`, `route-name-data`, `dijkstra-data`, `graph-data` — **all six**.
+  Anonymous callers now get `401 unauthenticated`; editors/admins still get the data.
+  `POST /api/route/` and `GET /api/locations/` are untouched (the gate only fires when
+  a non-empty `diagnostic` parameter is present). No internal caller existed: `grep`
+  for `diagnostic=` across `js/`, `html/`, `tools/`, `index.html` returns 0 hits.
+
+**🔓 Still public (not part of the 2026-07-25 change — the political half is the more
+expensive part and belongs in its own session):**
+
 - `GET /api/app/political-derived-geometry-debug.php` (leaks exception payload — fix in M1).
 - `GET /api/diagnostics/political-schema.php` (admin-gated; no JS caller).
 - `api/app/political-territories.php?action=` → `debug`, `audit`,
