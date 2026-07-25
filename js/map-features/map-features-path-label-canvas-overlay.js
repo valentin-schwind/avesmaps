@@ -43,7 +43,7 @@
 	if (!map.getPane(PANE)) {
 		map.createPane(PANE);
 		const pane = map.getPane(PANE);
-		pane.style.zIndex = 640;           // über Wegen/Markern, unter den Orts-/Regionen-Namen (labelsPane 650)
+		pane.style.zIndex = 470;           // unter Wappen/Territoriumslabels (regionLabelsPane 475), noch über Wegen/Route -- politische Labels verdecken die (unwichtigen) Wegnamen
 		pane.style.pointerEvents = "none"; // nicht-interaktiv
 	}
 
