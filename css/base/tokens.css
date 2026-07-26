@@ -147,6 +147,14 @@
 	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
 	--color-marker-open-path-end-ring: #e8850c;
 
+	/* "Edit in progress" blue -- the ring of every drag handle on the map (.path-edit-handle-marker__dot
+	   in css/features/path-editor.css, used by the path, region and landscape editors). This is one of
+	   the two documented no-blue EXCEPTIONS in docs/design-language.md: it encodes a STATE, not chrome,
+	   and must not be "corrected" to a warm tone. It is a token so the contour of an area being edited
+	   can say the same thing in the same colour instead of writing the literal a second time. Pinned:
+	   drawn on the always-light map tiles. */
+	--color-edit-handle: #1452f7;
+
 	/* Landschaften (Erprobung), colours per Owner 2026-07-26. All three layers are on at once, so the
 	   tones must stay tellable apart -- but they are not three peers: the derographic layer draws
 	   administrative CONTAINERS (grey, and unfilled while it rests), topography draws relief, and only
@@ -169,6 +177,12 @@
 	--color-ecosystem-vegetation-wueste: #d8bd7e;           /* desert sand */
 	--color-ecosystem-vegetation-suempfe-moore: #4d5a3b;    /* swamp and moor, murky */
 	--color-ecosystem-vegetation-tundra: #93a48f;           /* tundra, cold and pale */
+	/* Selection contour (Owner 2026-07-26): a SELECTED area is outlined in white, an area whose corners
+	   are open for editing in the handle blue above. Two states, two contours -- the same principle as
+	   the two marker rings further up, and the reason the fill keeps its own tone in both cases: the
+	   colour says "which area", the contour says "what can I do with it". White because it reads on
+	   every one of the ten ground tones below/above it; pinned for the usual reason (light tiles). */
+	--color-ecosystem-selected-outline: #ffffff;
 
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);

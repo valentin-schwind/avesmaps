@@ -454,10 +454,25 @@
 	transition: fill-opacity 0.15s ease, stroke-opacity 0.15s ease;
 }
 
-/* Selection is an opacity step, not a second colour: the area keeps its own tone and simply comes
-   forward. One class more than the rules above, so it wins regardless of source order. */
+/* Selection comes forward by opacity AND takes a WHITE contour (Owner 2026-07-26). The FILL still keeps
+   the area's own tone in every state -- the colour answers "which area is this", the contour answers
+   "what can I do with it right now". One class more than the rules above, so it wins regardless of
+   source order.
+
+   🪤 Leaflet writes stroke/fill as SVG presentation ATTRIBUTES, which CSS outranks -- which is why the
+   contour can be overridden here without a second set of numbers in ecosystemAreaStyle(). */
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
 	fill-opacity: var(--eco-fill-selected, 0.9);
+	stroke-opacity: 1;
+	stroke: var(--color-ecosystem-selected-outline);
+}
+
+/* Open for editing: the contour switches to the SAME blue as the drag handles sitting on it, so the
+   area and its corners read as one object in one state. Two classes, so it beats the white above
+   regardless of source order (an area being edited is always selected as well). */
+.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected.ecosystem-area--editing,
+.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--editing {
+	stroke: var(--color-edit-handle);
 	stroke-opacity: 1;
 }
 

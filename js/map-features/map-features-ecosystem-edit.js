@@ -280,6 +280,14 @@ function refreshEcosystemEditHandles() {
 	});
 }
 
+// The contour state (Owner 2026-07-26): selected is white, open-for-editing is the handle blue. Only the
+// class is set here -- both colours live in the matrix in css/features/ecosystem-layer.css, so there is
+// never a second set of values in JS to keep in step.
+function applyEcosystemEditClass(layer, isEditing) {
+	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+	element?.classList.toggle("ecosystem-area--editing", isEditing === true);
+}
+
 function applyEcosystemEditGeometryToLayer(session) {
 	if (!session?.layer || typeof ecosystemAreaLatLngs !== "function") {
 		return;
@@ -293,6 +301,7 @@ function applyEcosystemEditGeometryToLayer(session) {
 	if (typeof applyEcosystemSelectionClass === "function") {
 		applyEcosystemSelectionClass(session.layer);
 	}
+	applyEcosystemEditClass(session.layer, true);
 }
 
 // ---- adding and deleting corners -------------------------------------------------------------------
@@ -498,6 +507,7 @@ function openEcosystemGeometryEdit(publicId) {
 		map.doubleClickZoom.disable();
 	}
 
+	applyEcosystemEditClass(layer, true);
 	refreshEcosystemEditHandles();
 	sayEcosystemEdit("Ecken ziehen · Strg+Klick auf eine Kante setzt eine Ecke · Doppelklick löscht sie · Doppelklick daneben beendet.");
 }
@@ -514,6 +524,8 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 	}
 
 	clearEcosystemEditHandles();
+	// Back to the white selection contour (or to none, when the deselect follows straight after).
+	applyEcosystemEditClass(session.layer, false);
 	session.layer?.off?.("click", handleEcosystemEditEdgeClick);
 	if (typeof map !== "undefined" && map) {
 		map.off("dblclick", handleEcosystemEditFinishDoubleClick);
