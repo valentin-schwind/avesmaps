@@ -186,7 +186,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 26.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 27.07.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -233,7 +233,7 @@
 						<li><a href="#meldungen" data-keywords="community änderung vorschlagen position melden report">Meldungen</a></li>
 						<li><a href="#bewertungen" data-keywords="sterne rating community">Bewertungen</a></li>
 						<li><a href="#mails" data-keywords="postfach kontakt empfangen gesendet">Mails</a></li>
-						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo strg+z verlauf">Änderungen</a></li>
+						<li><a href="#aenderungen" data-keywords="audit protokoll rückgängig undo redo wiederherstellen strg+z verlauf">Änderungen</a></li>
 						<li><a href="#status" data-keywords="präsenz aktivität">Status</a>
 							<ul>
 								<li><a href="#status-besucher" data-keywords="statistik dashboard aufrufe zahlen analytics online jetzt live gleichzeitig anwesend">Besucher</a></li>
@@ -257,7 +257,7 @@
 				<li><a href="#nachschlagen" data-keywords="referenz listen tabelle">Nachschlagen</a>
 					<ul>
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl">Die Auswahllisten</a></li>
-						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices">Die Prüf-Häkchen</a></li>
+						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet">Die beiden Kontextmenüs</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay">Die sechs Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
@@ -583,6 +583,7 @@
 					<tr><td><strong>auf die Linie klicken</strong></td><td>Setzt <strong>vier</strong> gleichmäßig verteilte Punkte hinein; aus einer Kante werden fünf Abschnitte. So bekommst du Material zum Formen, wo vorher eine gerade Strecke war.</td></tr>
 				</table>
 				<div class="hb-note hb-warn"><strong>Ohne Strg bearbeitest du unter Umständen mehrere Gebiete gleichzeitig.</strong> Das ist so gewollt — es hält Grenzen dicht —, aber es heißt auch: Ein Zug an der falschen Ecke verschiebt die Grenze des Nachbarn mit, und beide werden gespeichert. Willst du <em>nur</em> dein Gebiet bewegen, halte Strg.</div>
+				<div class="hb-note hb-tip"><strong>Strg+Z nimmt den letzten Schritt zurück</strong>, solange „Grenzen bearbeiten" offen ist — bis zu 20 Schritte weit. Zurückgenommen wird, was der Schritt <em>wirklich</em> angefasst hat: also auch jedes Nachbargebiet, das beim Ziehen mitgewandert ist. Alle betroffenen Gebiete werden dabei erneut gespeichert. Ist nichts mehr da, sagt es dir das. Die Zwischenschritte stehen <em>nicht</em> im Reiter <a href="#aenderungen">Änderungen</a> — dort landet nur das Ergebnis, genau wie bei einem gewöhnlichen Zug.</div>
 				<div class="hb-note hb-tip"><strong>Abgeleitete Außengrenzen ziehen nie mit.</strong> Sie sind berechnet, nicht gezeichnet, und kommen über <strong>„Grenzen berechnen"</strong> nach.</div>
 
 				<h4>Die Formwerkzeuge</h4>
@@ -831,7 +832,7 @@
 						<text x="655" y="806" font-size="12" text-anchor="middle" fill="var(--hb-good)">ein Weg bindet den Ort ans Netz an</text>
 					</svg>
 				</div>
-				<div class="hb-note hb-check"><strong>Selbst prüfen:</strong> Im Bearbeiten-Modus markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte. Alle sieben Häkchen stehen unter <a href="#n-haekchen">Die Prüf-Häkchen</a>.</div>
+				<div class="hb-note hb-check"><strong>Selbst prüfen:</strong> Im Bearbeiten-Modus markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte. Alle neun Häkchen stehen unter <a href="#n-haekchen">Die Prüf-Häkchen</a>.</div>
 				<p>Die Wege-Liste im WikiSync-Reiter hat drei Ansichten mehr als die anderen Sorten: <strong>„Konflikte"</strong>, <strong>„Ausreißer"</strong> und <strong>„Flussrichtung unbekannt"</strong> — alle drei fertige Arbeitslisten.</p>
 				<p><strong>„Ausreißer"</strong> findet rein geometrisch Segmente, die weitab vom Rest ihres Weges liegen — also vermutlich dem falschen Wiki-Weg zugeordnet sind. Kennt das Wiki einen Verlauf, gleicht die Liste zusätzlich damit ab: Klumpen, die dem Verlauf sauber folgen, sortiert sie von selbst aus, mehrdeutige bleiben mit einem Hinweis stehen. Ein Klick auf eine Zeile hebt den <em>ganzen</em> Weg auf der Karte hervor; das abliegende Stück fällt darin von selbst auf. Gehört ein Klumpen doch zum Weg, nimmst du ihn mit <strong>„gehört zum Weg"</strong> dauerhaft aus der Liste — er taucht erst wieder auf, wenn der Weg neu gezeichnet wird. Sonst korrigierst du von Hand, Segment für Segment: einen Sammelknopf, der alle Treffer auf einmal umschreibt, gibt es bewusst nicht.</p>
 
@@ -1019,7 +1020,8 @@
 				<h3 id="aenderungen" class="hb-sub">Änderungen</h3>
 				<p class="hb-path"><strong>Editor → Änderungen</strong></p>
 				<p>Das Protokoll aller Editor-Änderungen: wer, was, wann — die letzten 200 Einträge. Deine erste Anlaufstelle, um eine Änderung nachzuvollziehen <em>oder rückgängig zu machen</em>.</p>
-				<div class="hb-note hb-warn"><strong>Vorsicht mit Strg+Z.</strong> Das macht die jeweils letzte Aktion rückgängig — und zwar global, also auch die <em>anderer Editoren</em>. Willst du gezielt <em>deine</em> Änderung zurücknehmen, nutz den Reiter „Änderungen".</div>
+				<p>Jeder Eintrag, der sich zurücknehmen lässt, trägt den Knopf <strong>„Rückgängig"</strong>. Danach steht in der Zeile <em>„Rückgängig gemacht"</em>, und oben entsteht ein <em>neuer</em> Eintrag <em>„Rückgängig: …"</em>. Auch der hat einen Knopf — dort heißt er <strong>„Wiederherstellen"</strong> und holt den Stand von davor zurück. Aus einem versehentlichen Rückgängig kommst du also wieder heraus, ohne die Änderung von Hand nachzubauen.</p>
+				<div class="hb-note hb-warn"><strong>Strg+Z wirkt hier nicht — mit Absicht.</strong> Früher nahm die Tastenkombination den obersten noch zurücknehmbaren Eintrag zurück: sofort auf dem Server, ohne Rückfrage, gleich wessen Eintrag es war. Und weil der nächste nachrückt, sobald einer abgehakt ist, arbeiteten sich mehrere Anschläge durch die Historie <em>nach unten</em>. Das Protokoll nimmt deshalb nur noch den ausdrücklichen Klick auf den benannten Eintrag an. Strg+Z gehört jetzt allein dem Zeichnen von Grenzen (siehe <a href="#territorien">Territorien</a>).</div>
 
 				<h3 id="status" class="hb-sub">Status</h3>
 				<p class="hb-path"><strong>Editor → Status</strong></p>
@@ -1206,6 +1208,8 @@
 				<table class="hb-table">
 					<tr><th>Häkchen</th><th>Zeigt</th></tr>
 					<tr><td><strong>Wege</strong> / <strong>Flüsse</strong> / <strong>Seewege</strong></td><td>Die Linien der jeweiligen Sorte.</td></tr>
+					<tr><td><strong>Labels</strong></td><td>Die Beschriftungen der Karte. <em>Übersteuert den Kartenmodus in beide Richtungen:</em> abgehakt sind sie weg, wo der Modus sie zeigen würde — angehakt da, wo er sie unterdrückt.</td></tr>
+					<tr><td><strong>Grenzen</strong></td><td>Die Territoriengrenzen, ebenfalls als Übersteuerung des Modus. Beide Haken gibt es, weil Beschriftungen und Grenzen beim Zeichnen im Weg stehen.</td></tr>
 					<tr><td><strong>Kreuzungen</strong></td><td>Alle Knotenpunkte des Wegenetzes.</td></tr>
 					<tr><td><strong>Unverbunden</strong></td><td><em>Pinker Ring:</em> Ort oder Kreuzung ohne Anschluss ans Wegenetz (Regel 5).</td></tr>
 					<tr><td><strong>Kreuzungen ≤ 2 Wege</strong></td><td><em>Türkiser Ring:</em> Kreuzung, die nichts verbindet (Regel 2).</td></tr>
@@ -1213,6 +1217,7 @@
 					<tr><td><strong>Mapstil</strong></td><td>Kein Häkchen, sondern eine Auswahl: Stylized · Original · Politics.</td></tr>
 				</table>
 				<p>Trägt ein Marker beide Fehler, gewinnt der pinke Ring — es wird immer nur einer gezeigt.</p>
+				<div class="hb-note hb-tip"><strong>„Labels" und „Grenzen" halten nicht über einen Moduswechsel hinweg.</strong> Bei jedem Wechsel des Kartenmodus springen beide auf das zurück, was der neue Modus von sich aus zeigt. Sie sind eine Abweichung <em>nach</em> dem Wechsel, kein Dauerzustand — ein Moduswechsel verändert das Kartenbild also genau so wie eh und je.</div>
 
 				<h3 id="n-menues" class="hb-sub">Die beiden Kontextmenüs</h3>
 				<p>Es gibt genau zwei, nicht mehr.</p>
