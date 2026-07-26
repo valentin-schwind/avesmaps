@@ -337,38 +337,45 @@ function avesmapsLoreDefaultPageSource(): callable
 }
 
 /**
- * PURE: Kontext-String fuer die Kontinent-Erkennung eines Lore-Eintrags -- AUSSCHLIESSLICH die
- * [[Kategorie:…]]-Namen aus dem Wikitext. Das ist das verlaessliche Signal ("Myranor-Artikel",
- * "Uthuria-Artikel" …).
+ * PURE: Kontext-String fuer die Kontinent-Erkennung eines Lore-Eintrags. Zwei Signale, die im
+ * Dump verlaesslich UND fehltreffer-frei sind:
+ *   1. die KLAMMER-Zusaetze des Titels -- „Fischerspinne (Myranor)" -> „Myranor". Der
+ *      Disambiguator ist ein sauberes Signal; ein blosser Name ist es NICHT.
+ *   2. etwaige LITERALE [[Kategorie:…]] im Wikitext (selten -- die verlaesslichen
+ *      „Myranor-Artikel"-Kategorien erzeugt eine Vorlage wie {{My4}} und stehen daher NICHT
+ *      im Dump-Wikitext; wo doch eine literale steht, wird sie mitgenommen).
  *
- * 💣 Titel und Lebensraum flossen bis 2026-07-26 mit ein und kaperten die Erkennung: die
- * Aventurien-Weine „…er Güldenländer" (Al'Anfaner/Maraskaner/Khunchomer …) tragen KEINE
- * Kontinent-Kategorie, wurden aber ueber die 'guldenland'-Nadel im NAMEN faelschlich zu Myranor
- * (gegen den echten Wiki-Kategorien-Bestand gegengeprueft: die echten Myranor-Tiere haben
- * `Myranor-Artikel`, die Weine haben nichts). Nur Kategorien = keine Namens-Fehltreffer, und die
- * echten Fremdkontinente bleiben erhalten. Klassifikation: avesmapsWikiSyncMonitorDetectContinent
- * (wie Regionen/Wege/Siedlungen). Reiner String-Krempel, DB- und bibliotheksfrei.
+ * 💣 Weder der Bar-Name noch der Lebensraum fliessen ein. Bis 2026-07-26 tat der ganze Titel es:
+ * die Aventurien-Weine „…er Güldenländer" (Al'Anfaner/Maraskaner/…) haben keine Kontinent-
+ * Kategorie, wurden aber ueber die 'guldenland'-Nadel im NAMEN faelschlich zu Myranor. Am
+ * Live-Bestand + Roh-Wikitext gegengeprueft; die Klammer trifft nur echte Kontinentnamen
+ * („(Gewürz)", „(Al'Anfa)" bleiben Aventurien). Klassifikation macht
+ * avesmapsWikiSyncMonitorDetectContinent. Reiner String-Krempel, DB- und bibliotheksfrei.
  */
-function avesmapsLoreContinentContext(string $wikitext): string
+function avesmapsLoreContinentContext(string $title, string $wikitext): string
 {
-    if (preg_match_all('/\[\[\s*Kategorie\s*:\s*([^\]|#]+)/iu', $wikitext, $matches)) {
-        return implode(' ', array_map('trim', $matches[1]));
+    $pieces = [];
+    if (preg_match_all('/\(([^)]+)\)/u', $title, $paren)) {
+        $pieces = array_merge($pieces, array_map('trim', $paren[1]));
     }
-    return '';
+    if (preg_match_all('/\[\[\s*Kategorie\s*:\s*([^\]|#]+)/iu', $wikitext, $cats)) {
+        $pieces = array_merge($pieces, array_map('trim', $cats[1]));
+    }
+    return implode(' ', array_filter($pieces, static fn ($piece) => $piece !== ''));
 }
 
 /**
- * Kontinent eines Lore-Eintrags, so weit erkennbar. Leere Rueckgabe = "nicht erkannt", was
- * der Filter wie Aventurien behandelt (der Default). Der Erkenner ist auf dem Dump-Pfad
- * geladen (dump.php zieht sync-monitor/paths/regions); fehlt er (isolierter Include im
- * Unit-Test), bleibt es leer statt zu fatalen -- die Erkennung ist ein Zusatz, kein Muss.
+ * Kontinent eines Lore-Eintrags, so weit aus Titel-Klammer + literalen Kategorien erkennbar.
+ * Leere Rueckgabe = "nicht erkannt" (kein Signal, oder Erkenner nicht geladen), was der Filter
+ * wie Aventurien behandelt -- der Default. Der Erkenner ist auf dem Dump-Pfad geladen (dump.php
+ * zieht sync-monitor/paths/regions); fehlt er (isolierter Include im Unit-Test), bleibt es leer.
  */
-function avesmapsLoreDetectContinent(string $wikitext): string
+function avesmapsLoreDetectContinent(string $title, string $wikitext): string
 {
     if (!function_exists('avesmapsWikiSyncMonitorDetectContinent')) {
         return '';
     }
-    $context = avesmapsLoreContinentContext($wikitext);
+    $context = avesmapsLoreContinentContext($title, $wikitext);
     if ($context === '') {
         return '';
     }
@@ -439,8 +446,9 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
                         'syn' => mb_substr($rec['synonyme'], 0, 500, 'UTF-8'),
                         'bild' => mb_substr($rec['bild'], 0, 300, 'UTF-8'),
                         'merk' => $rec['merkmale'] === [] ? null : json_encode($rec['merkmale'], JSON_UNESCAPED_UNICODE),
-                        // Kontinent aus den Wiki-Kategorien (leer, wenn der Erkenner nicht geladen ist).
-                        'cont' => avesmapsLoreDetectContinent($wikitext),
+                        // Kontinent aus Titel-Klammer „(Myranor)" + literalen Kategorien (leer, wenn kein
+                        // Signal oder der Erkenner nicht geladen ist).
+                        'cont' => avesmapsLoreDetectContinent($pageTitle, $wikitext),
                         'url' => mb_substr(AVESMAPS_WIKI_PAGE_BASE_URL
                             . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', $pageTitle))), 0, 500, 'UTF-8'),
                     ]);
