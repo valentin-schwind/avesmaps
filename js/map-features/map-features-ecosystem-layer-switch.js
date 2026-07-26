@@ -169,4 +169,9 @@ function syncEcosystemControlsVisibility() {
 
 	syncEcosystemLayerSwitchControls();
 	syncEcosystemPaneStates();
+	// V3.0b: the region picker lives in the same box and follows the active kind. Entering the mode
+	// refetches, so the area counts in the row are the current ones.
+	if (typeof syncEcosystemRegionPicker === "function") {
+		syncEcosystemRegionPicker({ refresh: true });
+	}
 }

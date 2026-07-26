@@ -95,6 +95,17 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.kind.vegetation": "Vegetation",
 	"ecosystem.kind.topographie": "Topography",
 
+	// --- Landschaften: which region does the next drawn area go into (V3.0b) ---
+	"ecosystem.region.label": "Active region",
+	"ecosystem.region.new": "New region …",
+	"ecosystem.region.dialogTitle": "New region",
+	"ecosystem.region.closeAria": "Close dialog",
+	"ecosystem.region.nameLabel": "Name *",
+	"ecosystem.region.typeLabel": "Kind",
+	"ecosystem.region.wikiLabel": "Wiki article (optional)",
+	"ecosystem.region.cancel": "Cancel",
+	"ecosystem.region.save": "Create",
+
 	// --- spotlight search ---
 	"spotlight.title": "Search",
 	"spotlight.placeholder": "Search the map",

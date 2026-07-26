@@ -16,6 +16,7 @@ body.modal-dialog-open {
 #label-edit-overlay[hidden],
 #region-edit-overlay[hidden],
 #region-wiki-picker-overlay[hidden],
+#ecosystem-region-overlay[hidden],
 #review-overlay[hidden] {
 	display: none !important;
 }
@@ -31,6 +32,7 @@ body.modal-dialog-open {
 #label-edit-overlay,
 #region-edit-overlay,
 #region-wiki-picker-overlay,
+#ecosystem-region-overlay,
 #review-overlay {
 	position: fixed;
 	inset: 0;
@@ -58,6 +60,7 @@ body.modal-dialog-open {
 #label-edit-overlay,
 #region-edit-overlay,
 #region-wiki-picker-overlay,
+#ecosystem-region-overlay,
 #review-overlay {
 	z-index: 1260;
 }

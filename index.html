@@ -610,10 +610,47 @@
 				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="vegetation" aria-selected="true" tabindex="0" data-i18n="ecosystem.kind.vegetation">Vegetation</button>
 				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="topographie" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.topographie">Topographie</button>
 			</div>
+			<!-- V3.0b: in WELCHE Region geht die naechste gezeichnete Flaeche? Eine Region traegt mehrere
+			     Flaechen (Owner-Entscheidung 1), also muss das vor dem Zeichnen feststehen -- sonst
+			     entstehen namenlose Zeilen. Je Ebene eine eigene aktive Region; der Segmentschalter
+			     darueber wechselt beides zugleich. -->
+			<div class="ecosystem-region-picker">
+				<label class="ecosystem-region-picker__label" for="ecosystem-region-select" data-i18n="ecosystem.region.label">Aktive Region</label>
+				<select id="ecosystem-region-select" class="ecosystem-region-picker__select"></select>
+				<button id="ecosystem-region-new" class="ecosystem-region-picker__new" type="button" data-i18n="ecosystem.region.new">Neue Region …</button>
+			</div>
 			<!-- Nur sichtbar, wenn der SERVER die Ebene abgeschaltet meldet. Ohne diese Zeile sieht der
 			     Editor eine leere Karte und kann "noch keine Flaechen" nicht von "Totmannschalter aus"
 			     unterscheiden -- ?landschaften=1 sagt darueber naemlich nichts. -->
 			<p id="ecosystem-controls-note" class="ecosystem-controls__note" role="status" hidden></p>
+		</div>
+		<div id="ecosystem-region-overlay" hidden>
+			<div id="ecosystem-region-dialog" class="ecosystem-region-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-region-title" tabindex="-1">
+				<div class="ecosystem-region-dialog__header">
+					<h2 id="ecosystem-region-title" data-i18n="ecosystem.region.dialogTitle">Neue Region</h2>
+					<button id="ecosystem-region-close" class="ecosystem-region-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.region.closeAria">×</button>
+				</div>
+				<form id="ecosystem-region-form" class="ecosystem-region-dialog__form">
+					<label class="ecosystem-region-dialog__field">
+						<span data-i18n="ecosystem.region.nameLabel">Name *</span>
+						<input id="ecosystem-region-name" name="name" type="text" maxlength="190" required autocomplete="off" />
+					</label>
+					<label class="ecosystem-region-dialog__field">
+						<span data-i18n="ecosystem.region.typeLabel">Art</span>
+						<!-- Wird aus ecosystem_region_type gefuellt, nie aus einer Liste im Client. -->
+						<select id="ecosystem-region-type" name="region_type"></select>
+					</label>
+					<label class="ecosystem-region-dialog__field">
+						<span data-i18n="ecosystem.region.wikiLabel">Wiki-Artikel (optional)</span>
+						<input id="ecosystem-region-wiki-url" name="wiki_url" type="url" maxlength="500" autocomplete="off" placeholder="https://de.wiki-aventurica.de/wiki/…" />
+					</label>
+					<p id="ecosystem-region-error" class="ecosystem-region-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-region-dialog__actions">
+						<button id="ecosystem-region-cancel" class="ecosystem-region-dialog__button" type="button" data-i18n="ecosystem.region.cancel">Abbrechen</button>
+						<button id="ecosystem-region-save" class="ecosystem-region-dialog__button ecosystem-region-dialog__button--primary" type="submit" data-i18n="ecosystem.region.save">Anlegen</button>
+					</div>
+				</form>
+			</div>
 		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
@@ -1743,6 +1780,7 @@
 		<script src="js/map-features/map-features-ecosystem-rendering.js"></script>
 		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>
 		<script src="js/map-features/map-features-ecosystem-loader.js"></script>
+		<script src="js/map-features/map-features-ecosystem-region-picker.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>

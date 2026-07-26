@@ -153,6 +153,10 @@ const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDP
 // neighbours -- empty string off the SQL hosts, so the loader simply does nothing there. The layer's
 // real lock is server-side (app_setting['ecosystem_enabled']), not this constant.
 const ECOSYSTEM_AREAS_API_URL = window.AVESMAPS_ECOSYSTEM_AREAS_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/ecosystem-areas.php" : "");
+// V3.0b: the capability-gated write endpoint. The region picker reads its list from here (action
+// list_regions) rather than from the public path -- "which region does my next area go into" is an
+// editor question and has no business widening the public surface.
+const ECOSYSTEM_EDIT_API_URL = window.AVESMAPS_ECOSYSTEM_EDIT_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/edit/map/ecosystem.php" : "");
 // Politische Zeitleiste im FRONTEND vorerst deaktiviert (zu wenig Zeitdaten für eine gute
 // Darstellung). Im Editor bleibt sie immer aktiv. Auf true setzen, um sie später im Frontend
 // wieder freizuschalten (Jahr bleibt sonst auf dem Standard 1049).

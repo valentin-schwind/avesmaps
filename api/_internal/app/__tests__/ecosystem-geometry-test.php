@@ -228,4 +228,53 @@ foreach (['ebene', 'berggipfel', 'fluss'] as $excluded) {
         && !isset($seen['vegetation|' . $excluded]), "{$excluded} stays out of the seed");
 }
 
-echo "OK: ecosystem geometry, bbox, revision guard and vocabulary\n";
+// ---- wiki_region_key: parity with the derivation that keyed the wiki tables (V3.0b) ------------------
+//
+// 🔴 THIS IS THE POINT OF THE WHOLE TRANSCRIPTION. avesmapsEcosystemWikiSlug is a hand copy of
+// avesmapsPoliticalSlug, because the plan's global rule 1 forbids CALLING political code at runtime while
+// AGENTS.md §5 forbids inventing a second key derivation. Copy plus rule = a silent drift risk, and this
+// is the guard against it: if the two ever disagree for any input, every join built on the key breaks --
+// across ~10 tables, and quietly.
+//
+// The political library is required HERE and nowhere else: a test is not runtime, and a copy of the
+// original inside the test would prove nothing at all.
+require __DIR__ . '/../../political/territory.php';
+
+$slugSamples = [
+    'Farindel', 'Fürstentum Kosch', 'Große Wüste', 'Salamandersteine', 'Trollzacken',
+    'Sümpfe von Ssikhrhaz', 'Weiden-See', 'Bornland', 'Áuris  Öl', 'Marktgrafschaft Tobrien',
+    'Nördliche Windhag-Küste', '  führende und folgende Leerzeichen  ', 'ÄÖÜäöüß', 'Éclair-Straße',
+    '', '---', 'a', str_repeat('Ödland ', 40),
+];
+foreach ($slugSamples as $sample) {
+    assert(
+        avesmapsEcosystemWikiSlug($sample) === avesmapsPoliticalSlug($sample),
+        "the transcribed slug drifted from avesmapsPoliticalSlug for: {$sample}"
+    );
+}
+
+// The wire form: a Wiki-Aventurica URL yields the article's BARE slug -- no 'wiki:' prefix. That prefix
+// belongs to the political identity keys (avesmapsPoliticalBuildWikiKey); the table this key is meant to
+// join, wiki_region_staging, stores avesmapsPoliticalSlug($canonical) without one.
+assert(avesmapsEcosystemWikiRegionKey('https://de.wiki-aventurica.de/wiki/Farindel') === 'farindel');
+assert(avesmapsEcosystemWikiRegionKey('https://de.wiki-aventurica.de/wiki/Gro%C3%9Fe_W%C3%BCste')
+    === avesmapsPoliticalSlug('Große Wüste'), 'percent-encoded umlauts and underscores fold like the wiki key');
+// No link -> no key. Deliberately no name-derived fallback: a key that joins to nothing looks like a link.
+assert(avesmapsEcosystemWikiRegionKey('') === null);
+assert(avesmapsEcosystemWikiRegionKey('   ') === null);
+assert(avesmapsEcosystemWikiRegionKey('https://de.wiki-aventurica.de/wiki/') === null);
+
+// The client can never write the key: only wiki_url is read, and it always rewrites the key.
+$derived = avesmapsEcosystemReadRegionFields(
+    ['kind' => 'vegetation', 'wiki_url' => 'https://de.wiki-aventurica.de/wiki/Farindel', 'wiki_region_key' => 'gefaelscht'],
+    null
+);
+assert(($derived['wiki_region_key'] ?? null) === 'farindel', 'a hand-written wiki_region_key is ignored');
+// Clearing the link clears the key -- the two must never drift apart.
+$cleared = avesmapsEcosystemReadRegionFields(['wiki_url' => ''], 'vegetation');
+assert(array_key_exists('wiki_region_key', $cleared) && $cleared['wiki_region_key'] === null);
+// A payload without wiki_url does not touch the key at all (partial update).
+$untouched = avesmapsEcosystemReadRegionFields(['name' => 'Farindel'], 'vegetation');
+assert(!array_key_exists('wiki_region_key', $untouched), 'a partial update leaves the key alone');
+
+echo "OK: ecosystem geometry, bbox, revision guard, vocabulary and wiki-key parity\n";

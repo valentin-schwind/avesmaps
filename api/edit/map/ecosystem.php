@@ -41,8 +41,14 @@ try {
     $userId = (int) ($user['id'] ?? 0);
 
     $result = match ($action) {
+        // The region picker's list (V3.0b): active regions of one kind plus the region-type vocabulary
+        // for that kind. It sits HERE, behind the capability check, and not on the public read path --
+        // "which region does my next area go into" is an editor question and does not widen the public
+        // surface. Optional filter: kind.
+        'list_regions' => avesmapsListEcosystemRegions($pdo, $payload),
         // A region carries the name, the kind and the wiki bridge; it may hold MANY areas (owner
         // decision 1). Returns the new public_id so the client can hang the following create_area on it.
+        // wiki_region_key is DERIVED from wiki_url server-side and never read from the payload.
         'create_region' => avesmapsCreateEcosystemRegion($pdo, $payload, $userId),
         // Partial: only the fields actually present in the payload are written, so an update never wipes
         // what the client did not send.

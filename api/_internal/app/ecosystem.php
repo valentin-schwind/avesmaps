@@ -26,6 +26,16 @@ declare(strict_types=1);
 // around a missing include swallows the write silently (the lore-sync.php trap).
 require_once __DIR__ . '/app-setting.php';
 
+// 🔴 The fold table, NOT the political library. wiki_region_key has to come out of the SAME derivation
+// that keyed wiki_region_staging.wiki_key (api/_internal/wiki/regions.php:507 -> avesmapsPoliticalSlug),
+// or the join it exists for finds nothing. But the plan's global rule 1 forbids CALLING political code
+// at runtime, "not even the pure maths" -- a call couples in the other direction. So the slug is
+// transcribed below (avesmapsEcosystemWikiSlug) and only avesmapsFoldToAscii() is shared: that lives in
+// api/_internal/text/ascii-fold.php, is neutral text code, and AGENTS.md §5 names it as the one fold
+// everybody must use (never iconv//TRANSLIT -- libc-dependent, and it keyed the same name differently
+// on the dev machine and on STRATO).
+require_once __DIR__ . '/../text/ascii-fold.php';
+
 // avesmapsUuidV4() (new public_ids) lives in api/_internal/map/features.php and is loaded by the EDIT
 // dispatcher, not here -- exactly like api/_internal/app/citymaps.php. Pulling a 2.700-line library into
 // this file would drag it onto the public read path for the sake of one 15-line helper.
@@ -602,10 +612,10 @@ function avesmapsEcosystemAssertRegionType(PDO $pdo, string $kind, string $regio
 // The editable field set, shared by create_region and update_region. Returns only the keys that were
 // PRESENT in the payload, so an update never wipes a field the client did not send.
 //
-// wiki_region_key is NOT in here on purpose. It may only ever be derived through avesmapsPoliticalSlug()
-// -> avesmapsFoldToAscii() (AGENTS.md §5: a fixed table reproducing the SERVER's folding, umlauts fold to
-// '?'). No V2 task derives it, so the column stays NULL -- which is fine. What is NOT fine is letting a
-// client hand-write one: every join that uses such a key would break, across ~10 tables.
+// 🔴 wiki_region_key is never READ from the payload -- only DERIVED here, from wiki_url, through the
+// fixed fold table (AGENTS.md §5: it reproduces the SERVER's folding, umlauts fold to '?'). A
+// client-written key would break every join that uses one, across ~10 tables. Sending wiki_url therefore
+// always rewrites the key, and clearing wiki_url clears it: the two must never drift apart.
 function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind): array
 {
     $fields = [];
@@ -623,6 +633,7 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
     if (array_key_exists('wiki_url', $payload)) {
         $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 500, 'wiki_url');
         $fields['wiki_url'] = $wikiUrl === '' ? null : $wikiUrl;
+        $fields['wiki_region_key'] = avesmapsEcosystemWikiRegionKey($wikiUrl);
     }
     if (array_key_exists('label_public_id', $payload)) {
         $labelPublicId = trim((string) ($payload['label_public_id'] ?? ''));
@@ -648,6 +659,118 @@ function avesmapsEcosystemReadRegionFields(array $payload, ?string $currentKind)
     return $fields;
 }
 
+// ---- wiki key ----------------------------------------------------------------------------------------
+// Transcription of avesmapsPoliticalSlug (api/_internal/political/territory.php:1060), word for word and
+// deliberately NOT a call -- see the require note at the top of this file. Copied verbatim INCLUDING the
+// marktgrafschaft/markgrafschaft correction: the point is not that a landscape is ever called that, the
+// point is that both derivations must produce the identical string for the identical input. A "cleaned
+// up" copy is a second, subtly different key derivation, which is exactly the failure mode AGENTS.md §5
+// warns about.
+function avesmapsEcosystemWikiSlug(string $value): string
+{
+    $slug = mb_strtolower(trim($value));
+    $slug = str_replace('ß', 'ss', $slug);
+    $slug = avesmapsFoldToAscii($slug);
+    $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
+    $slug = trim($slug, '-');
+    $slug = str_replace('marktgrafschaft', 'markgrafschaft', $slug);
+
+    return mb_substr($slug, 0, 180);
+}
+
+// The article name out of a Wiki-Aventurica URL, folded to the key form. Bare slug, NO 'wiki:' prefix:
+// the table this is meant to join is wiki_region_staging, whose wiki_key is a bare
+// avesmapsPoliticalSlug($canonical). The 'wiki:'/'name:' prefixes belong to the POLITICAL identity keys
+// (avesmapsPoliticalBuildWikiKey) and would join to nothing here.
+//
+// No wiki_url -> no key (NULL). There is deliberately no name-derived fallback: a key nobody can join
+// against is worse than an empty column, because it looks like a link.
+function avesmapsEcosystemWikiRegionKey(string $wikiUrl): ?string
+{
+    if (trim($wikiUrl) === '') {
+        return null;
+    }
+
+    $path = parse_url($wikiUrl, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return null;
+    }
+
+    $page = preg_replace('/^.*\/wiki\//', '', rawurldecode($path)) ?? '';
+    $slug = avesmapsEcosystemWikiSlug(str_replace('_', ' ', $page));
+
+    return $slug === '' ? null : $slug;
+}
+
+// ---- read path: regions (editor only, via api/edit/map/ecosystem.php) ---------------------------------
+// 🔴 Deliberately NOT hung onto the public read path. The region list is an EDITOR need (which region does
+// the next drawn area go into), and putting it in the public payload would widen the public surface for
+// nothing -- the dead-man switch has six stations already (plan, global rule 4).
+function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $where = ['r.is_active = 1'];
+    $params = [];
+    if (($payload['kind'] ?? '') !== '') {
+        $where[] = 'r.kind = :kind';
+        $params['kind'] = avesmapsEcosystemReadKind($payload['kind']);
+    }
+
+    // The area count travels with the row so the picker can say "Farindel (2 Flächen)" without a second
+    // request per region. Counted over ACTIVE areas only, matching what the public read path returns.
+    $statement = $pdo->prepare(
+        'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.updated_at,
+                (SELECT COUNT(*) FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1) AS area_count
+           FROM ecosystem_region r
+          WHERE ' . implode(' AND ', $where) . '
+          ORDER BY r.kind ASC, r.name ASC, r.id ASC'
+    );
+    $statement->execute($params);
+
+    $regions = [];
+    foreach ($statement->fetchAll() as $row) {
+        $regions[] = [
+            'public_id' => (string) $row['public_id'],
+            'name' => (string) $row['name'],
+            'kind' => (string) $row['kind'],
+            'region_type' => $row['region_type'] === null ? null : (string) $row['region_type'],
+            'wiki_region_key' => $row['wiki_region_key'] === null ? null : (string) $row['wiki_region_key'],
+            'wiki_url' => $row['wiki_url'] === null ? null : (string) $row['wiki_url'],
+            'area_count' => (int) $row['area_count'],
+            'updated_at' => (string) $row['updated_at'],
+        ];
+    }
+
+    // The vocabulary rides along: the "new region" dialog fills its Art select from THIS, never from a
+    // list written into the client. ecosystem_region_type is the one place the types are defined, and
+    // avesmapsEcosystemAssertRegionType validates writes against the same rows.
+    return ['regions' => $regions, 'region_types' => avesmapsEcosystemReadRegionTypes($pdo, $params['kind'] ?? null)];
+}
+
+function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
+{
+    $sql = 'SELECT kind, type_key, label, sort_order FROM ecosystem_region_type WHERE is_active = 1';
+    $params = [];
+    if ($kind !== null) {
+        $sql .= ' AND kind = :kind';
+        $params['kind'] = $kind;
+    }
+    $sql .= ' ORDER BY kind ASC, sort_order ASC, label ASC';
+
+    $statement = $pdo->prepare($sql);
+    $statement->execute($params);
+
+    return array_map(
+        static fn(array $row): array => [
+            'kind' => (string) $row['kind'],
+            'type_key' => (string) $row['type_key'],
+            'label' => (string) $row['label'],
+        ],
+        $statement->fetchAll()
+    );
+}
+
 // ---- write path: regions -----------------------------------------------------------------------------
 
 function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): array
@@ -667,14 +790,15 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     try {
         $statement = $pdo->prepare(
             'INSERT INTO ecosystem_region
-                (public_id, name, kind, region_type, wiki_url, label_public_id, properties_json, created_by, updated_by)
-             VALUES (:public_id, :name, :kind, :region_type, :wiki_url, :label_public_id, :properties_json, :user_id, :user_id2)'
+                (public_id, name, kind, region_type, wiki_region_key, wiki_url, label_public_id, properties_json, created_by, updated_by)
+             VALUES (:public_id, :name, :kind, :region_type, :wiki_region_key, :wiki_url, :label_public_id, :properties_json, :user_id, :user_id2)'
         );
         $statement->execute([
             'public_id' => $publicId,
             'name' => $fields['name'] ?? '',
             'kind' => $fields['kind'],
             'region_type' => $fields['region_type'] ?? null,
+            'wiki_region_key' => $fields['wiki_region_key'] ?? null,
             'wiki_url' => $fields['wiki_url'] ?? null,
             'label_public_id' => $fields['label_public_id'] ?? null,
             'properties_json' => $fields['properties_json'] ?? null,
