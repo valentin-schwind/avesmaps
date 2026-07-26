@@ -280,9 +280,15 @@ function avesmapsEcosystemEnabled(PDO $pdo): bool
 
 function avesmapsSetEcosystemEnabled(PDO $pdo, bool $enabled): array
 {
+    // The schema materializes HERE, on the owner's deliberate action, not as a side effect of whichever
+    // request happens to arrive first. Without this, the tables would only appear on the first write or
+    // on the first read AFTER the switch is already on -- so "flip the switch, then look at phpMyAdmin"
+    // would show nothing and the V2.1 acceptance step could not be taken at all.
+    // No transaction is open here, so the DDL is safe (see the house rule at the write-path helpers).
+    avesmapsEcosystemEnsureTables($pdo);
     avesmapsAppSettingSet($pdo, AVESMAPS_ECOSYSTEM_SETTING, $enabled ? '1' : '0');
 
-    return ['ecosystem_enabled' => $enabled];
+    return ['ecosystem_enabled' => $enabled, 'tables_ready' => true];
 }
 
 function avesmapsEcosystemTrialActive(PDO $pdo): bool
