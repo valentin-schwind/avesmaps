@@ -1834,7 +1834,53 @@ ausgeblendet, außer der Modus ist `political`.
       ist sie weg (Reload). — Abgenommen: *„fläche löschen geht."*
 - [x] **Schritt 7: Commit** — `feat(ecosystem): map-menu create entries plus a per-area menu with delete`
 
-### Aufgabe V3.5 — Erprobungs-Hinweis
+### Aufgabe V3.5 — Erprobungs-Hinweis ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26, Commit `c9e2be92`.** **Abnahme durch den Owner, wörtlich:** *„ja ist da
+> aber nicht sonderlich sinnvoll, aber egal weiter geht's."*
+>
+> 🔴 **Das ist eine halbe Abnahme, und sie steht hier, damit niemand sie als Erfolg liest.** Der
+> Dialog erscheint und funktioniert; sein **Nutzen** ist vom Owner ausdrücklich in Frage gestellt.
+> Er bleibt stehen („egal") — aber **niemand baut hier weiter aus**, und wer später eine zweite
+> Hinweis-Fläche erwägt (Tooltips, Merkzettel, Onboarding-Kette), hat hier die Antwort schon: der
+> Owner wollte sie nicht. Umgekehrt gilt: **auch nicht wieder ausbauen**, solange er es nicht sagt.
+>
+> ⚠️ **Der Grund ist plausibel und liegt nicht am Dialog:** die drei Schritte („zeichne, schwenke,
+> lade neu") prüfen eine Kette, die **seit V3.0 sowieso hält** — der Owner hat sie beim Zeichnen
+> längst hundertmal ungeplant durchlaufen. Der Hinweis kommt für den einen Editor, der ihn
+> gebraucht hätte, zu spät. Das ist ein Argument gegen den **Zeitpunkt** im Schnitt, nicht gegen die
+> Umsetzung — und es ist ein Hinweis für V4: eine Belehrung ohne neue Information verbraucht
+> Aufmerksamkeit, die die Messung braucht.
+>
+> ⭐ **Ein echter Fund, den nur der Browser zeigen konnte:** der Fokus muss **um einen Tick
+> verzögert** gesetzt werden. Der Weg in den Modus ist die Ebenen-Combobox, und
+> `js/ui/ui-controls.js:474–476` feuert `trigger("change")` **synchron** und holt danach den Fokus
+> auf seinen **eigenen** Knopf zurück (`control.buttonElement.focus()`). Die ganze Kette bis zum
+> `.focus()` des Dialogs läuft also **innerhalb** von Zeile 474 — direkt fokussiert stand ein
+> `aria-modal`-Dialog offen, während die Tastatur hinter seinem eigenen Scrim saß. `setTimeout`, **nicht**
+> `requestAnimationFrame`: das feuert im unsichtbaren Prüf-Pane nicht. Gilt für **jeden** künftigen
+> Dialog, der aus einem Moduswechsel aufgeht.
+>
+> 💣 **Neben dem `localStorage`-Merker steht ein Sitzungs-Flag im Speicher, und es ist NICHT
+> redundant.** Bei gesperrtem Speicher (privater Modus) antwortet der Lesepfad dauerhaft „nicht
+> gesehen" — ohne das zweite Flag käme der Hinweis bei **jedem** Moduswechsel zurück, und Modi
+> wechselt ein Editor ständig. Als „doppelter Zustand" aufgeräumt macht es aus dem Einmal-Hinweis
+> einen Dauer-Hinweis, genau für die Nutzer, die ihn nicht abstellen können. Geschrieben wird beim
+> **Schließen**, nicht beim Öffnen: ein Hinweis, dessen Zweck das Gelesen-Werden ist, muss einen
+> Reload überleben, der vor dem Lesen passiert.
+>
+> ⭐ **Zwei Dialoge, EIN Regelsatz.** Der Hinweis erklärt seine Hülle nicht neu, sondern steht in
+> denselben Selektorlisten wie `.ecosystem-region-dialog` (`css/features/ecosystem-layer.css`) — eine
+> Kopie ist, wie zwei Dialoge eines Features auseinanderdriften (§12). Die Overlay-Hülle kommt wie
+> immer aus den **drei** Listen in `css/components/dialog-overlays.css`.
+>
+> 🪤 **Nebenbefund, NICHT von dieser Aufgabe verursacht und offen:** auf localhost stellt der
+> Edit-Modus-Restore `mapLayerMode=ecosystem` **nicht** wieder her — er fällt auf `deregraphic`,
+> obwohl `avesmaps.edit.plannerState` den Wert trägt, `landschaften` in `ignoredParams` steht
+> (`map-features-layer-state.js:186`) und `getInitialPlannerSearchParams()` korrekt auflöst. Per
+> Stash gegengeprüft: der Baseline-Stand `aa48db1f` verhält sich **identisch**, es ist also keine
+> Regression aus V3.x. Ursache unbestimmt, evtl. localhost-Artefakt (keine DB). Braucht eine Probe
+> im echten `/edit/` — eigene Sitzung.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-intro.js`
 
@@ -1880,11 +1926,17 @@ und was jetzt entsteht, kann sich noch als falsch erweisen.
 > **Es bleibt also EINE Teilaufgabe:** der einmalige Dialog mit den konkreten Schritten
 > (`localStorage`, „schon gesehen" ist Neubau). Der Rest von V3.5 steht bereits.
 
-- [ ] **Schritt 1–3:** Dialog (einmalig, `localStorage` — im Projekt gibt es kein
+- [x] **Schritt 1–3:** Dialog (einmalig, `localStorage` — im Projekt gibt es kein
       „schon-gesehen"-Muster, das ist Neubau), ~~Statuszeile (das Chip aus V3.3)~~,
       ~~`is_trial`-Weitergabe: der Client liest `app_setting['ecosystem_trial']` und schickt
       `is_trial` an jede `create_area`-Aktion~~ — **beide gestrichen, siehe den Block darüber.**
-- [ ] **Schritt 4: Commit** — `feat(ecosystem): trial-phase notice with concrete steps`
+      Test: `node js/map-features/__tests__/ecosystem-intro.test.js` (der „einmalig"-Vertrag: vier
+      unabhängige Gründe, den Hinweis **nicht** zu zeigen — Merker, Sitzungs-Flag, Ebene inaktiv,
+      schon offen — plus der argumentlose Aufruf). Der zustandsbehaftete Rest (Öffnen beim
+      Modus-Eintritt, vier Schließwege, Fokus, Reload, `?lang=en`, beide Themes, Ränder bis 375 px)
+      ist im Browser an `?edit=1&landschaften=1` geprüft; eine DB braucht diese Aufgabe nicht, das
+      Ebenen-Tor ist das Client-Flag.
+- [x] **Schritt 4: Commit** — `feat(ecosystem): trial-phase notice with concrete steps`
 
 ### Aufgabe V3.6 — „Senden an …"
 
