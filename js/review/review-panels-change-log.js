@@ -140,7 +140,10 @@ function renderChangeLog() {
 			const undoButtonElement = document.createElement("button");
 			undoButtonElement.type = "button";
 			undoButtonElement.className = "change-log-entry__undo";
-			undoButtonElement.textContent = "Rückgängig";
+			// On a "Rückgängig: …" entry the same action is a REDO, so it says what it does. Calling it
+			// "Rückgängig" there would read as "undo the undo of …" and leave the editor guessing which
+			// direction they are about to move -- exactly the moment somebody is already unsure.
+			undoButtonElement.textContent = isUndoChangeLogEntry(entry) ? "Wiederherstellen" : "Rückgängig";
 			actionsElement.appendChild(undoButtonElement);
 		} else {
 			actionsElement.hidden = true;
@@ -300,8 +303,17 @@ function focusChangeLogEntry(entry) {
 	showFeedbackToast("Objekt ist nicht mehr aktiv oder wurde noch nicht neu geladen.", "warning");
 }
 
+function isUndoChangeLogEntry(entry) {
+	return String(entry?.action || "").startsWith("undo_");
+}
+
+// 💣 THE SHORTCUT MUST NOT PICK UP A "Rückgängig: …" ENTRY. Those became undoable so the panel can
+// offer a Wiederherstellen button -- but Ctrl+Z asking for "the last undoable thing" would then find
+// the undo you just made and silently REDO it, so the key would flip direction depending on what
+// happened last. Restoring is a deliberate act on a named entry; the blind keyboard shortcut only ever
+// moves backwards.
 function getLatestUndoableChangeLogEntry() {
-	return changeLogEntries.find((entry) => entry?.can_undo) || null;
+	return changeLogEntries.find((entry) => entry?.can_undo && !isUndoChangeLogEntry(entry)) || null;
 }
 
 async function undoLastChangeLogEntry() {
@@ -328,7 +340,11 @@ async function undoChangeLogEntry(entry) {
 	}
 
 	isChangeUndoPending = true;
-	setChangePanelStatus("Änderung wird rückgängig gemacht...", "pending");
+	// Undoing an "undo_X" entry moves the other way, so every line the editor reads has to say so --
+	// otherwise the confirmation for a restore reads "Rückgängig: Ort geändert rückgängig gemacht".
+	const isRedo = isUndoChangeLogEntry(entry);
+	const undoneLabel = isRedo ? formatChangeAction(String(entry.action).replace(/^undo_/, "")) : formatChangeAction(entry.action);
+	setChangePanelStatus(isRedo ? "Änderung wird wiederhergestellt..." : "Änderung wird rückgängig gemacht...", "pending");
 	try {
 		const auditSource = String(entry.audit_source || "map_feature");
 		if (auditSource === "political_territory") {
@@ -342,7 +358,7 @@ async function undoChangeLogEntry(entry) {
 		await loadChangeLog();
 		void loadReviewReports();
 		void loadWikiSyncCases();
-		showFeedbackToast(`${formatChangeAction(entry.action)} rückgängig gemacht.`, "success");
+		showFeedbackToast(`${undoneLabel} ${isRedo ? "wiederhergestellt" : "rückgängig gemacht"}.`, "success");
 	} catch (error) {
 		console.error("Änderung konnte nicht rückgängig gemacht werden:", error);
 		showFeedbackToast(error.message || "Änderung konnte nicht rückgängig gemacht werden.", "warning");

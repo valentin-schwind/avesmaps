@@ -259,9 +259,49 @@ function avesmapsBuildAuditAfterSnapshot(array $snapshot, array $payload): array
 }
 
 function avesmapsCanUndoAuditAction(string $action): bool {
+    // 🔴 EXACTLY ONE REDO, NEVER TWO. Undoing an "undo_X" entry is the redo button; undoing the
+    // resulting "undo_undo_X" would be a third level, and avesmapsBuildUndoAuditAction() cuts the
+    // action name at 40 characters -- "undo_undo_undo_undo_wiki_sync_update_point" is 42 and would be
+    // silently truncated into a name that no longer round-trips. One flip back is also all anybody
+    // needs; flip-flopping is not a use case, it is a way to lose track of what the current state is.
+    // The rule lives HERE and not in the endpoint so the client's can_undo flag and the server's
+    // refusal can never disagree -- a button that appears and then errors is worse than no button.
+    if (str_starts_with($action, 'undo_undo_')) {
+        return false;
+    }
+
     return avesmapsIsCreateAuditAction($action)
         || $action === 'delete_feature'
         || avesmapsUndoColumnsForAuditAction($action) !== [];
+}
+
+// The columns a "delete_feature" undo restores -- the whole row, because a deletion took the whole row
+// away. Named rather than inlined because the redo resolver below needs the same list.
+function avesmapsDeleteFeatureUndoColumns(): array {
+    return ['feature_type', 'feature_subtype', 'name', 'geometry_type', 'geometry_json', 'properties_json', 'style_json', 'min_x', 'min_y', 'max_x', 'max_y', 'is_active'];
+}
+
+// 💣 THE WHOLE REDO IN ONE FUNCTION. Undoing an "undo_X" entry has to write back exactly the columns
+// that X's undo wrote -- no more (or it would clobber unrelated edits made since) and no less (or the
+// restore would be half a restore). So the question "what does a redo touch?" is the same question as
+// "what did that undo touch?", asked of the original action:
+//
+//   X was a create      -> its undo only set is_active = 0, so the redo only sets is_active back
+//   X was delete_feature -> its undo restored the whole row, so the redo writes the whole row
+//   otherwise            -> the same column list the undo used
+//
+// The values themselves come from the undo entry's before_json, which is the feature exactly as it
+// stood the moment before the undo ran (avesmapsUndoAuditChange writes it there). Nothing has to be
+// recomputed or guessed.
+function avesmapsRedoColumnsForUndoneAction(string $undoneAction): array {
+    if (avesmapsIsCreateAuditAction($undoneAction)) {
+        return ['is_active'];
+    }
+    if ($undoneAction === 'delete_feature') {
+        return avesmapsDeleteFeatureUndoColumns();
+    }
+
+    return avesmapsUndoColumnsForAuditAction($undoneAction);
 }
 
 function avesmapsIsCreateAuditAction(string $action): bool {
@@ -285,6 +325,12 @@ function avesmapsCreateUndoColumnsForAuditAction(string $action): array {
 }
 
 function avesmapsUndoColumnsForAuditAction(string $action): array {
+    // A "Rückgängig: …" entry is undoable too -- that is the redo button in the change log. It restores
+    // whatever its own undo overwrote; see avesmapsRedoColumnsForUndoneAction.
+    if (str_starts_with($action, 'undo_')) {
+        return avesmapsRedoColumnsForUndoneAction(substr($action, 5));
+    }
+
     return match ($action) {
         'move_point',
         'move_label',
@@ -308,7 +354,10 @@ function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
     try {
         $auditEntry = avesmapsFetchAuditEntryForUndo($pdo, $auditId);
         $action = (string) $auditEntry['action'];
-        if (!avesmapsCanUndoAuditAction($action) || str_starts_with($action, 'undo_')) {
+        // The blanket "never an undo_ entry" ban is gone: undoing one IS the redo the change log was
+        // missing. The one-level cap now lives in avesmapsCanUndoAuditAction, so this single check
+        // covers both, and the client's can_undo flag is derived from the very same function.
+        if (!avesmapsCanUndoAuditAction($action)) {
             throw new InvalidArgumentException('Diese Änderung kann nicht rückgängig gemacht werden.');
         }
         if (!empty($auditEntry['undone_at'])) {
@@ -398,7 +447,7 @@ function avesmapsBuildUndoFeatureUpdates(string $action, array $feature, array $
     }
 
     $columns = $action === 'delete_feature'
-        ? ['feature_type', 'feature_subtype', 'name', 'geometry_type', 'geometry_json', 'properties_json', 'style_json', 'min_x', 'min_y', 'max_x', 'max_y', 'is_active']
+        ? avesmapsDeleteFeatureUndoColumns()
         : avesmapsUndoColumnsForAuditAction($action);
     if ($columns === []) {
         throw new InvalidArgumentException('Diese Änderung kann nicht rückgängig gemacht werden.');
