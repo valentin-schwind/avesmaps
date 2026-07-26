@@ -161,10 +161,16 @@
 	   vegetation carries real ground cover, which is why it is the one that gets a tone per type
 	   instead of a single colour. Pinned in both themes for the same reason as the marker rings above:
 	   these are painted ON the always-light map tiles, never on a themed panel. */
-	--color-ecosystem-derographisch: #8c8c8c; /* neutral grey -- regions, islands, continents */
+	--color-ecosystem-derographisch: #575757; /* neutral grey -- regions, islands, continents */
 	/* Placeholder. The height map (high -> white) replaces this per the concept; until then one
 	   brown-grey stands in for the whole relief layer. */
-	--color-ecosystem-topographie: #8c7d6e;   /* brown-grey -- mountains, hills, coast, sea */
+	--color-ecosystem-topographie: #7a6c5e;   /* brown-grey -- mountains, hills, coast, sea */
+	/* CONTOURS for those two, markedly darker than their own fill (Owner 2026-07-26). Only these two
+	   have one: vegetation carries a tone per type, and its contour follows that tone -- see
+	   ecosystemAreaColor(). A missing token here means "use the fill colour", which is what keeps the
+	   rule one rule instead of a second table. */
+	--color-ecosystem-derographisch-contour: #2e2e2e;
+	--color-ecosystem-topographie-contour: #3d3329;
 	/* The fallback for a vegetation region with no type set. The per-type tones below win when the
 	   region has one; they are looked up BY RULE from the type_key
 	   (--color-ecosystem-vegetation-<type_key with _ as ->), so a newly seeded type needs a token here

@@ -96,10 +96,21 @@ function ecosystemAreaLatLngs(geometry) {
 // and are deliberately NOT passed here: they depend on the pane's state (resting / active / selected),
 // and a second set of numbers in JS would have to be kept in step with that table forever. Leaflet writes
 // its style as SVG presentation ATTRIBUTES, which CSS outranks, so the stylesheet wins cleanly.
-function ecosystemAreaStyle(kind, regionType) {
-	const color = ecosystemAreaColor(kind, regionType);
+// The contour of an area. Derographic and topographic areas carry their own, markedly darker line
+// (Owner 2026-07-26) -- a wash at 30% opacity does not tell you where the boundary runs, and those two
+// are the layers whose edges you trace against the terrain. Vegetation has no contour token: its tone
+// already varies per region_type, so its contour follows that tone. A missing token means "use the
+// fill", which is why this is one lookup and not a second colour table.
+function ecosystemAreaContourColor(kind, regionType) {
+	return readEcosystemColorToken(`--color-ecosystem-${kind}-contour`) || ecosystemAreaColor(kind, regionType);
+}
 
-	return { color, fillColor: color, weight: 2 };
+function ecosystemAreaStyle(kind, regionType) {
+	return {
+		color: ecosystemAreaContourColor(kind, regionType),
+		fillColor: ecosystemAreaColor(kind, regionType),
+		weight: 2,
+	};
 }
 
 // Selection is a class on the path, not a style: the matrix in the stylesheet turns it into the
