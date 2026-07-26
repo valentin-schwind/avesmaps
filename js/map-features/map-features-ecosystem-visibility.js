@@ -59,6 +59,11 @@ function syncEcosystemVisibility() {
 	if (typeof hookEcosystemViewportReload === "function") {
 		hookEcosystemViewportReload();
 	}
+	// V3.3: Klick auf die leere Karte hebt die Auswahl auf. Genauso lazy wie der Zeilen darueber --
+	// `map` entsteht als Letztes, ein map.on() zur Ladezeit gaebe es nicht.
+	if (typeof hookEcosystemSelectionGestures === "function") {
+		hookEcosystemSelectionGestures();
+	}
 	if (typeof scheduleEcosystemAreaReload === "function") {
 		// Sofort: der Moduswechsel ist die Nutzeraktion, auf die eine leere Karte folgen wuerde. Die
 		// Entprellung gilt dem Schwenken, nicht dem Einschalten.

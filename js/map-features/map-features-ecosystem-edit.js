@@ -568,6 +568,41 @@ function syncEcosystemGeometryEdit() {
 	}
 }
 
+// ---- letting go of a selection ---------------------------------------------------------------------
+// Selecting an area was reachable from the start, dropping it was not: the only ways out were picking a
+// DIFFERENT area, switching layer or leaving the mode (owner 2026-07-26). Both gestures below are the
+// ones every map application uses, and both route through setSelectedEcosystemArea(""), so an open
+// vertex session is closed AND flushed on the way out -- letting go never costs a dragged corner.
+
+let ecosystemSelectionGesturesHooked = false;
+
+function handleEcosystemMapClickDeselect() {
+	// 💣 A click on an AREA never gets here: the layer's own handler stops the event, which is what
+	// keeps Leaflet from bubbling it to the map. So reaching this point means empty map.
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return;
+	}
+	// While the drawing tool runs, a click on the map is a CORNER, not a gesture about selection.
+	if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
+		return;
+	}
+	if (typeof getSelectedEcosystemAreaPublicId !== "function" || !getSelectedEcosystemAreaPublicId()) {
+		return;
+	}
+
+	setSelectedEcosystemArea("");
+}
+
+// Lazily, like hookEcosystemViewportReload: `map` is built LAST, after every map-features file has
+// loaded, so there is no top-level moment at which map.on() could be called from here.
+function hookEcosystemSelectionGestures() {
+	if (ecosystemSelectionGesturesHooked || typeof map === "undefined" || !map || typeof map.on !== "function") {
+		return;
+	}
+	ecosystemSelectionGesturesHooked = true;
+	map.on("click", handleEcosystemMapClickDeselect);
+}
+
 // 🪤 There is deliberately NO second hook for "the loader rebuilt my layer". It looks necessary -- an
 // open session holds ONE layer object -- but it can never fire: every rebuild and every removal goes
 // through removeEcosystemAreaLayer, which deselects, and the deselect arrives here as
@@ -622,6 +657,24 @@ if (typeof document !== "undefined") {
 		// Deliberately says what DID NOT happen: the whole point is that the editor can tell "my undo
 		// did nothing" from "my undo silently changed something else".
 		sayEcosystemEdit("Keine Fläche in Bearbeitung — es wurde nichts rückgängig gemacht. Doppelklick auf eine Fläche öffnet ihre Ecken.");
+	}, true);
+
+	// Escape drops the selection (and with it an open vertex session). Deliberately does NOT
+	// preventDefault or stop propagation: Escape is a shared key -- dialogs, the drawing tool and the
+	// browser all answer to it -- and this is the quietest possible participant. It bails on every
+	// other claimant rather than out-shouting them.
+	document.addEventListener("keydown", (event) => {
+		if (event.key !== "Escape") { return; }
+		// The drawing tool owns Escape while it runs (it aborts the outline); its own listener is
+		// registered on start, so it sits AFTER this one and would otherwise never see the key alone.
+		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) { return; }
+		if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) { return; }
+		if (isEcosystemEditTextTarget(event.target)) { return; }
+		// An open dialog gets to close itself first; Escape means "the innermost thing", not "everything".
+		if (document.getElementById("ecosystem-region-overlay")?.hidden === false) { return; }
+		if (typeof getSelectedEcosystemAreaPublicId !== "function" || !getSelectedEcosystemAreaPublicId()) { return; }
+
+		setSelectedEcosystemArea("");
 	}, true);
 
 	// Navigating away inside the 800 ms window would drop the last gesture. Firing the pending write now
