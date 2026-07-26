@@ -340,13 +340,22 @@
 	transition: opacity 0.15s ease;
 }
 
+/* 0.65, not 0.4. The first value looked right in isolation and disappeared on the real map: 0.4 pane
+   opacity on a 0.3 fill leaves ~12% over fully painted terrain, and a resting layer showed up only
+   where it happened to cross open water. A layer you cannot see cannot tell you where the forest is
+   while you draw the mountains -- which is the entire reason all three are on at once. */
 .ecosystem-pane--resting {
-	opacity: 0.4;
+	opacity: 0.65;
 }
 
+/* So "resting" reads as a STATE and not merely as "washed out": the two inactive layers are dashed,
+   the active one is solid. That survives any opacity value and works for anyone who cannot tell the
+   three tones apart. Leaflet only writes a stroke-dasharray ATTRIBUTE when the dashArray option is
+   set -- it is not, so this rule owns the dashes and switching still costs no layer rebuild. */
 .leaflet-pane.ecosystem-pane--resting > svg path.leaflet-interactive {
 	pointer-events: none;
 	cursor: default;
+	stroke-dasharray: 7 5;
 }
 
 .leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {
