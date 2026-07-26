@@ -337,22 +337,24 @@ function avesmapsLoreDefaultPageSource(): callable
 }
 
 /**
- * PURE: Kontext-String fuer die Kontinent-Erkennung eines Lore-Eintrags. Zieht die
- * [[Kategorie:…]]-Namen aus dem Wikitext (das verlaesslichste Signal -- "Myranor-Artikel",
- * "Uthuria-Artikel" …) und haengt Titel und Lebensraum an. Reiner String-Krempel, DB- und
- * Bibliotheksfrei; die eigentliche Klassifikation macht avesmapsWikiSyncMonitorDetectContinent
- * (dieselbe Logik wie Regionen/Wege/Siedlungen). So bleibt der Include side-effect-free.
+ * PURE: Kontext-String fuer die Kontinent-Erkennung eines Lore-Eintrags -- AUSSCHLIESSLICH die
+ * [[Kategorie:…]]-Namen aus dem Wikitext. Das ist das verlaessliche Signal ("Myranor-Artikel",
+ * "Uthuria-Artikel" …).
+ *
+ * 💣 Titel und Lebensraum flossen bis 2026-07-26 mit ein und kaperten die Erkennung: die
+ * Aventurien-Weine „…er Güldenländer" (Al'Anfaner/Maraskaner/Khunchomer …) tragen KEINE
+ * Kontinent-Kategorie, wurden aber ueber die 'guldenland'-Nadel im NAMEN faelschlich zu Myranor
+ * (gegen den echten Wiki-Kategorien-Bestand gegengeprueft: die echten Myranor-Tiere haben
+ * `Myranor-Artikel`, die Weine haben nichts). Nur Kategorien = keine Namens-Fehltreffer, und die
+ * echten Fremdkontinente bleiben erhalten. Klassifikation: avesmapsWikiSyncMonitorDetectContinent
+ * (wie Regionen/Wege/Siedlungen). Reiner String-Krempel, DB- und bibliotheksfrei.
  */
-function avesmapsLoreContinentContext(string $title, string $wikitext, string $lebensraum): string
+function avesmapsLoreContinentContext(string $wikitext): string
 {
-    $categories = '';
     if (preg_match_all('/\[\[\s*Kategorie\s*:\s*([^\]|#]+)/iu', $wikitext, $matches)) {
-        $categories = implode(' ', array_map('trim', $matches[1]));
+        return implode(' ', array_map('trim', $matches[1]));
     }
-    // Nur die nicht-leeren Teile fuegen -- sonst hinterlaesst ein fehlendes Stueck doppelten
-    // Leerraum (harmlos fuer die Erkennung, aber unsauber und schwer zu testen).
-    $pieces = array_filter([trim($title), $categories, trim($lebensraum)], static fn ($piece) => $piece !== '');
-    return implode(' ', $pieces);
+    return '';
 }
 
 /**
@@ -361,12 +363,12 @@ function avesmapsLoreContinentContext(string $title, string $wikitext, string $l
  * geladen (dump.php zieht sync-monitor/paths/regions); fehlt er (isolierter Include im
  * Unit-Test), bleibt es leer statt zu fatalen -- die Erkennung ist ein Zusatz, kein Muss.
  */
-function avesmapsLoreDetectContinent(string $title, string $wikitext, string $lebensraum): string
+function avesmapsLoreDetectContinent(string $wikitext): string
 {
     if (!function_exists('avesmapsWikiSyncMonitorDetectContinent')) {
         return '';
     }
-    $context = avesmapsLoreContinentContext($title, $wikitext, $lebensraum);
+    $context = avesmapsLoreContinentContext($wikitext);
     if ($context === '') {
         return '';
     }
@@ -437,8 +439,8 @@ function avesmapsLoreBuildCatalogStep(PDO $pdo, string $dumpPath, int $cursor = 
                         'syn' => mb_substr($rec['synonyme'], 0, 500, 'UTF-8'),
                         'bild' => mb_substr($rec['bild'], 0, 300, 'UTF-8'),
                         'merk' => $rec['merkmale'] === [] ? null : json_encode($rec['merkmale'], JSON_UNESCAPED_UNICODE),
-                        // Kontinent aus Wiki-Kategorien + Titel (leer, wenn der Erkenner nicht geladen ist).
-                        'cont' => avesmapsLoreDetectContinent($pageTitle, $wikitext, $rec['lebensraum']),
+                        // Kontinent aus den Wiki-Kategorien (leer, wenn der Erkenner nicht geladen ist).
+                        'cont' => avesmapsLoreDetectContinent($wikitext),
                         'url' => mb_substr(AVESMAPS_WIKI_PAGE_BASE_URL
                             . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', $pageTitle))), 0, 500, 'UTF-8'),
                     ]);

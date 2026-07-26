@@ -113,30 +113,28 @@ echo "childplan-mixed ok\n";
 // source cases here would mean lore had grown a second source path again. AGENTS.md §5.
 
 // -------------------------------------------------------------- CONTINENT ---
-// PURE Kontext: zieht die Kategorienamen aus dem Wikitext und haengt Titel + Lebensraum an.
-$ctx = avesmapsLoreContinentContext('Taschendrache', "Ein Tier.\n[[Kategorie:Tier]]\n[[Kategorie:Myranor-Artikel]]", 'Wald');
-assert(str_contains($ctx, 'Taschendrache'));
-assert(str_contains($ctx, 'Myranor-Artikel'));
-assert(str_contains($ctx, 'Tier'));
-assert(str_contains($ctx, 'Wald'));
-// 💣 Der Wikitext-FLIESSTEXT fliesst NICHT ein -- nur seine Kategorien (sonst schleppte der
-// Kontext Prosa-Rauschen in die Klassifikation). Ohne Tag bleibt Titel (+ Lebensraum), sauber
-// getrimmt, kein doppelter Leerraum.
-assert(avesmapsLoreContinentContext('Aal', 'ein langer Fliesstext ohne Kategorie', '') === 'Aal');
-assert(avesmapsLoreContinentContext('Aal', 'kein tag', 'Süßwasser') === 'Aal Süßwasser');
+// PURE Kontext = NUR die Kategorienamen aus dem Wikitext (NICHT Titel/Lebensraum, sonst kapert
+// ein Name wie die Aventurien-Weine „…er Güldenländer" die Erkennung via 'guldenland'-Nadel).
+$ctx = avesmapsLoreContinentContext("Ein Tier.\n[[Kategorie:Tier]]\n[[Kategorie:Myranor-Artikel]]");
+assert($ctx === 'Tier Myranor-Artikel');
+assert(avesmapsLoreContinentContext('ein langer Fliesstext ganz ohne Kategorie') === '');
 echo "continent-context ok\n";
 
 // Der Erkenner (avesmapsWikiSyncMonitorDetectContinent) kommt ueber die Parsing-Kette schon
 // geladen; ist er es einmal nicht, faellt avesmapsLoreDetectContinent per Guard auf '' zurueck
 // (= im Filter Aventurien). Beide Wege werden hier abgedeckt.
 if (function_exists('avesmapsWikiSyncMonitorDetectContinent')) {
-    assert(avesmapsLoreDetectContinent('Taschendrache', '[[Kategorie:Myranor-Artikel]]', '') === 'Myranor / Güldenland');
-    assert(avesmapsLoreDetectContinent('Riesenkrake', '[[Kategorie:Uthuria-Artikel]]', '') === 'Uthuria');
+    assert(avesmapsLoreDetectContinent('[[Kategorie:Myranor-Artikel]]') === 'Myranor / Güldenland');
+    assert(avesmapsLoreDetectContinent('[[Kategorie:Uthuria-Artikel]]') === 'Uthuria');
     // Ein gewoehnlicher Aventurien-Artikel traegt keine Kontinent-Kategorie -> Default Aventurien.
-    assert(avesmapsLoreDetectContinent('Aal', '[[Kategorie:Tier]]', 'Süßwasser') === 'Aventurien');
+    assert(avesmapsLoreDetectContinent('[[Kategorie:Tier]]') === 'Aventurien');
+    // 💣 REGRESSION (live 2026-07-26): ein Aventurien-Wein „Al'Anfaner Güldenländer" hat KEINE
+    // Kontinent-Kategorie -> bleibt Aventurien. Der NAME fliesst nicht mehr ein, also kein
+    // 'guldenland'-Fehltreffer mehr.
+    assert(avesmapsLoreDetectContinent("[[Kategorie:Getränk]]\n[[Kategorie:Weinsorte]]") === 'Aventurien');
     echo "continent-detect ok\n";
 } else {
-    assert(avesmapsLoreDetectContinent('Taschendrache', '[[Kategorie:Myranor-Artikel]]', '') === '');
+    assert(avesmapsLoreDetectContinent('[[Kategorie:Myranor-Artikel]]') === '');
     echo "continent-detect (guard) ok\n";
 }
 
