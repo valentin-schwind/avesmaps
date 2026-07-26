@@ -109,6 +109,13 @@ window.AVESMAPS_I18N_EN = {
 	// --- Landschaften: the click-by-click draw tool (V3.2) ---
 	"ecosystem.draw.start": "Draw area",
 
+	// --- Landschaften: the context-menu entries (V3.4). Resolved through tr() at injection time rather
+	//     than data-i18n, because these nodes are created by JS after the data-i18n walk has run. ---
+	"ecosystem.ctxmenu.newDerographisch": "New deregraphic region",
+	"ecosystem.ctxmenu.newVegetation": "New vegetation",
+	"ecosystem.ctxmenu.newTopographie": "New topography",
+	"ecosystem.ctxmenu.deleteArea": "Delete area",
+
 	// --- spotlight search ---
 	"spotlight.title": "Search",
 	"spotlight.placeholder": "Search the map",

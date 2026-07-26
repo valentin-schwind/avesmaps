@@ -84,6 +84,27 @@
 	content: "\0041";
 }
 
+/* Landschaften (Erprobung), V3.4. These entries are injected by
+   js/map-features/map-features-ecosystem-context-action.js, so they carry their own action attributes --
+   but they are .map-context-menu__item like every other entry, which means the grid needs a glyph in
+   column 1. Without one the ::before is never generated and the LABEL becomes the first grid item, in a
+   1.45em track. Same monochrome geometric set as the other editor entries, no emoji. */
+.map-context-menu__item[data-ecosystem-new-kind="derographisch"]::before {
+	content: "\25AD";
+}
+
+.map-context-menu__item[data-ecosystem-new-kind="vegetation"]::before {
+	content: "\2663";
+}
+
+.map-context-menu__item[data-ecosystem-new-kind="topographie"]::before {
+	content: "\25B3";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="delete"]::before {
+	content: "\2715";
+}
+
 .map-context-menu__item[data-region-context-action="edit-geometry"]::before {
 	content: "\270E";
 }

@@ -169,7 +169,10 @@ function handleEcosystemDrawKeydown(event) {
 	}
 }
 
-function startEcosystemAreaDrawing() {
+// `startLatLng` (V3.4): the map context menu's three "Neue ..." entries sit in the "Hier hinzufügen"
+// submenu, so "hier" has to mean something -- the right-clicked point becomes the first corner. Called
+// without it (the "Fläche zeichnen" button) the tool starts empty exactly as before.
+function startEcosystemAreaDrawing({ startLatLng = null } = {}) {
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive() || ecosystemDrawActive) {
 		return;
 	}
@@ -196,6 +199,13 @@ function startEcosystemAreaDrawing() {
 	map.on("dblclick", handleEcosystemDrawDoubleClick);
 	document.addEventListener("keydown", handleEcosystemDrawKeydown, true);
 	syncEcosystemDrawButton();
+	// The seeded corner is set AFTER the handlers are live, so the preview is drawn by the same code path
+	// a clicked corner uses -- and it is not run through the echo-click filter, because it is not a click:
+	// the next real click has to count even if it lands on the same spot within 350 ms.
+	if (startLatLng) {
+		ecosystemDrawPoints.push(L.latLng(startLatLng));
+		updateEcosystemDrawPreview(null);
+	}
 	showFeedbackToast?.("Klicken setzt Punkte. Doppelklick oder Enter schließt ab, Escape bricht ab.");
 }
 

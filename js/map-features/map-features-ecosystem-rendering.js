@@ -217,5 +217,26 @@ function buildEcosystemAreaLayer(area) {
 		}
 	});
 
+	// V3.4: a landscape area has its OWN context menu (delete first, "Senden an ..." from V3.6). Stopping
+	// the event is what keeps #map-context-menu from opening on top of it -- Leaflet would otherwise carry
+	// the contextmenu on to map.on("contextmenu") (js/app/bootstrap.js:701), and L.DomEvent.stop is also
+	// what suppresses the browser's own menu, since the map handler that normally does that never runs.
+	//
+	// 💣 While DRAWING it bails without stopping, exactly like the click handler above: a right-click is
+	// not a corner, so the map menu staying reachable is the status quo, and swallowing the event here
+	// would be a rule about a gesture this file has no opinion on.
+	layer.on("contextmenu", (event) => {
+		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
+			return;
+		}
+		if (!window.AvesmapsEcosystemAreaMenu) {
+			return;
+		}
+		if (event?.originalEvent) {
+			L.DomEvent.stop(event);
+		}
+		window.AvesmapsEcosystemAreaMenu.open(area, event);
+	});
+
 	return layer;
 }
