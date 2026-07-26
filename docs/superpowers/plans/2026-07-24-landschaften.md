@@ -1580,7 +1580,70 @@ damit entstehen keine „Sechseck-Leichen".
       darf **nichts** im Bestand liegen (`curl` auf den Lesepfad).
 - [x] **Schritt 8: Commit** — `feat(ecosystem): click-to-draw polygons instead of nudging a hexagon`
 
-### Aufgabe V3.3 — Vertex-Editor: gebündelt speichern, Undo
+### Aufgabe V3.3 — Vertex-Editor: gebündelt speichern, Undo ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26**, Commits `22eaa047` (Kern) sowie `56f14662`, `6964faed`,
+> `ca6dcf95`, `40460668`, `fb20099a` und `298413ef` (Owner-Nachbesserungen nach der Sicht auf
+> der Live-Seite). **Abnahme durch den Owner:** *„strg-z verhält sich jetzt glaub richtig, wir
+> können weitermachen."*
+>
+> 🔴 **Der Schnipsel unten war FALSCH und still gefährlich.** Er rief `isTextEditingTarget` —
+> die Funktion heißt `isTextEditingShortcutTarget` (`review-panels-change-log.js:355`). Wörtlich
+> übernommen wirft der Capture-Listener einen ReferenceError **vor** `preventDefault()`, die
+> Taste fällt zur jQuery-Bindung durch, und Strg+Z macht während einer Geometrie-Bearbeitung
+> serverseitig den letzten Änderungs-Log-Eintrag rückgängig statt einen Eckzug. Kein Fehler auf
+> dem Bildschirm, echter Datenverlust woanders. Der Schnipsel ist unten korrigiert.
+>
+> **Vier Owner-Entscheidungen haben diese Aufgabe während der Umsetzung verändert** — die
+> Absätze darunter sind entsprechend berichtigt, damit der Plan nicht das Gegenteil des Codes
+> behauptet:
+>
+> 1. **Die „ruhige Statuszeile" entfällt.** Ein eigener Chip wurde gebaut und wieder entfernt:
+>    *„dein neues toast-system ist albern, du hättest die normalen toasts/chips verwenden
+>    können."* Meldungen laufen über `showFeedbackToast`; die Griffe auf der Karte sind die
+>    Dauer-Anzeige „hier wird bearbeitet", eine zweite daneben ist Möblierung.
+> 2. **Bearbeiten hängt am DOPPELKLICK auf die Fläche, nicht an der Auswahl** (einfacher Klick
+>    wählt nur aus, Doppelklick daneben beendet, ESC oder Klick auf leere Karte lässt los).
+>    Das löst zugleich die Kollision, vor der V3.2 warnt: bei „Auswahl öffnet die Griffe" hebt
+>    der ERSTE Klick eines Doppelklicks die Griffe und der zweite landet auf einem gerade
+>    erschienenen — und Doppelklick auf einen Griff löscht eine Ecke.
+> 3. **Strg+Z verlässt das Audit-System ganz.** Owner-Regel: *„das audit system … kann von jedem
+>    rückgängig gemacht werden -> aber NUR durch den klick auf ‚Rückgängig', nicht mit strg-Z."*
+>    Die jQuery-Bindung in `bootstrap.js` ist entfernt, ebenso `handleChangeLogUndoShortcut`,
+>    `undoLastChangeLogEntry` und `getLatestUndoableChangeLogEntry`. 💣 Grund aus der Praxis:
+>    „der neueste noch rückgängig-machbare Eintrag" rückt weiter, sobald einer als erledigt
+>    markiert ist — drei Anschläge fraßen sich **abwärts durch die Historie**, zwei davon in
+>    fremde Ortsänderungen. Ein „Wiederherstellen"-Knopf an `undo_*`-Einträgen ist nachgerüstet
+>    (`63e2d35e`, `e63c7d20`); der gehört nicht in diesen Plan, sondern ins Audit-System.
+> 4. **Strg+Klick auf eine Kante setzt VIER Ecken** (Vorlagen-Körnung), **Doppelklick auf eine
+>    Kante setzt EINE** genau dort. Damit ist der Einwand des Plans („vier ist die falsche
+>    Körnung") beantwortet statt überstimmt: vier ist nicht mehr die einzige Option.
+>
+> 🪤 **Zwei Dinge, die nur der Browser zeigen konnte:**
+> 1. **Löschen hängt an einem NATIVEN `dblclick`-Listener.** Leaflet liefert Markerereignisse
+>    über den Kartencontainer aus, also schneidet das nötige `disableClickPropagation` die
+>    Leaflet-Ebene vorher ab. Deshalb trägt die Vorlage **beide** Listener
+>    (`edit-handles.js:62` und `:72`) — nur der native läuft. Wer beim Abschreiben „die
+>    Dublette aufräumt", baut ein stumm kaputtes Löschen.
+> 2. **Kein Loader-Haken für „mein Layer wurde neu gebaut" nötig** — er wäre toter Code.
+>    `removeEcosystemAreaLayer` wählt bereits ab, und das Abwählen schließt die Sitzung **mit
+>    Flush**. Genau das rettet die Ecke, die kurz vor dem Wegschwenken gezogen wurde.
+>
+> 💣 **Die Bündel-Falle, die der Plan richtig vorhergesagt hat:** Nach jedem Save ist
+> `geometry_revision` serverseitig eins höher. Der zweite gebündelte Save derselben Sitzung
+> **muss** den neuen Wert schicken — aus `result.area.geometry_revision`, nie aus dem Loader.
+>
+> ⚠️ **Beim Zeichnen und Bearbeiten ist der Rest der Karte klickdurchlässig** (`fb20099a`,
+> Owner): Flüsse und Labels bleiben sichtbar, fangen aber keine Klicks mehr ab. Nicht nur die
+> Labels lagen im Weg — Griffe liegen bei z 520, darüber `marker-pane` 600 und `labels-pane`
+> 650, darunter aber über den Flächen Wege 400 / Route 450 / Orte 500, die den Strg-Klick auf
+> eine Kante stehlen. Regel deshalb „alle Panes aus, drei zurückgeben", nicht eine Pane-Liste.
+>
+> 🔧 **Bewusst NICHT gebaut:** „Strg beim Ziehen eines Vertex löst vom Snap" (Owner-Wunsch,
+> Territorien-Verhalten). Es gibt in dieser Ebene **kein Snapping**, also nichts zu lösen;
+> Owner am 2026-07-26: *„snapping brauchen wir erstmal nicht."* Die Anforderung ist im Kopf von
+> `map-features-ecosystem-edit.js` vermerkt, samt der Kollision: Strg auf einer KANTE heißt
+> „vier Ecken", Strg auf einem GRIFF soll „Snap ignorieren" heißen.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-edit.js`
 
@@ -1590,16 +1653,24 @@ Drei Abweichungen von der Vorlage, alle gemessen begründet:
   Toast (2.200 ms Standzeit, **ein** Platz — `map-features.js:181`), und
   `edit-handles.js:56–59` speichert zusätzlich **jede** vom
   `applySharedBoundaryVertexMove` betroffene Nachbarregion. Hier: **800 ms nach dem
-  letzten Loslassen**, ein Schreibvorgang, Zustand in einer ruhigen Statuszeile.
-- **Strg+Klick auf eine Kante setzt EINE Ecke.** Die Vorlage setzt **vier**
-  (`subdivideRegionEditHoveredEdge`, `edge-controls.js:209`, Aufrufe `:67`/`:171`;
-  zur Laufzeit wirksam ist `map-features-region-vertex-detach-edit.js:461`) — falsche
-  Körnung für eine Küstenlinie.
-- **Undo-Stapel**, 20 Schritte, im Speicher. **Die „ruhige Statuszeile" ist keine neue** —
-  `#open-path-ends-chip` (`index.html:604`) existiert bereits: `role="status"
-  aria-live="polite"`, edit-only, **unten mittig** (dort, wo der Blick beim Zeichnen ist,
-  nicht oben), vollständig token-basiert (`css/features/location-popups-markers.css:768–785`).
-  Wiederverwenden oder exakt nachbauen, kein zweites Bauteil.
+  letzten Loslassen**, ein Schreibvorgang. ~~Zustand in einer ruhigen Statuszeile.~~
+  **Berichtigt (Owner, Entscheidung 1 oben):** Zustand über den **Haus-Toast**
+  `showFeedbackToast`, kein eigenes Bauteil. Der ursprüngliche Absatz verwies auf
+  `#open-path-ends-chip` als Vorbild zum Wiederverwenden-oder-exakt-Nachbauen; nachgebaut
+  wurde er und flog wieder raus. Es sind kurze, seltene Meldungen — und die Griffe auf der
+  Karte sind bereits die Dauer-Anzeige „hier wird bearbeitet".
+- ~~**Strg+Klick auf eine Kante setzt EINE Ecke.**~~ **Berichtigt (Owner, Entscheidung 4
+  oben): ZWEI Körnungen, zwei Gesten.** **Strg+Klick setzt VIER** — die Vorlagen-Körnung
+  (`subdivideRegionEditHoveredEdge`, `edge-controls.js:209`, Aufrufe `:67`/`:171`; zur
+  Laufzeit wirksam ist `map-features-region-vertex-detach-edit.js:461`) —, **Doppelklick auf
+  die Kante setzt EINE**, genau an der gezielten Stelle. Der ursprüngliche Einwand richtete
+  sich dagegen, dass vier die *einzige* Option ist; mit beiden Gesten trifft er nicht mehr zu.
+  Die überfahrene Kante wird gestrichelt markiert (mit Strg zusätzlich die Vierer-Vorschau),
+  und zwar die ganze Sitzung lang — die Vorlage zeigt sie nur bei gedrücktem Strg (`:33`),
+  was reicht, solange Strg die einzige Kantengeste ist.
+- **Undo-Stapel**, 20 Schritte, im Speicher. Jedes Undo, das eine bereits geschriebene
+  Geometrie ändert, löst einen **neuen** Save aus; ein Undo über den letzten Save hinaus
+  (Stapel leer) ist ein No-op. Ein Vierer-Fächer geht als **ein** Schritt zurück.
 
 > 🔴 **Strg+Z ist im Edit-Modus bereits vergeben.** `handleChangeLogUndoShortcut`
 > (`js/review/review-panels-change-log.js:364–376`) macht den letzten
@@ -1607,27 +1678,36 @@ Drei Abweichungen von der Vorlage, alle gemessen begründet:
 > `preventDefault()` + `stopPropagation()`. Gebunden bei `js/app/bootstrap.js:430–433`
 > per **jQuery, also Bubble-Phase**.
 >
-> **Entscheidung (Owner):** Strg+Z gehört dem Geometrie-Stapel **nur, solange eine
-> Landschaftsfläche in Bearbeitung ist** — sonst weiter dem Audit-Undo.
+> ~~**Entscheidung (Owner):** Strg+Z gehört dem Geometrie-Stapel **nur, solange eine
+> Landschaftsfläche in Bearbeitung ist** — sonst weiter dem Audit-Undo.~~
 >
-> **Umsetzung ohne fremden Code anzufassen:** ein nativer `keydown`-Listener in der
-> **Capture-Phase** auf `document`. Er fährt vor der jQuery-Bindung und ruft
-> `stopImmediatePropagation()` — dasselbe Muster wie
-> `map-features-settlement-context-action.js`.
+> 🔴 **ÜBERHOLT (Owner 2026-07-26, Entscheidung 3 oben): Strg+Z erreicht das Audit-System
+> überhaupt nicht mehr.** Die jQuery-Bindung ist entfernt. Die Taste gehört jetzt der ganzen
+> Landschaften-Ebene: mit offener Bearbeitung nimmt sie einen Eckzug zurück, ohne sagt sie
+> ausdrücklich, dass **nichts** passiert ist. Grund für „ganze Ebene statt nur offene Sitzung":
+> ein Anschlag kurz nach dem Abwählen fiel sonst durch — daneben greifen kostet hier nichts und
+> dort etwas Unwiederbringliches.
+>
+> **Umsetzung:** ein nativer `keydown`-Listener in der **Capture-Phase** auf `document`, der
+> `stopImmediatePropagation()` ruft — dasselbe Muster wie
+> `map-features-settlement-context-action.js:114–116` (dort ein Klick; die Phase ist der Punkt).
+> Heute konkurriert nichts mehr um die Taste; die Capture-Phase bleibt, damit ein später
+> hinzugefügter Handler nicht still Eckzüge geschenkt bekommt.
 
 ```js
-// map-features-ecosystem-edit.js
-// Capture-Phase: laeuft VOR der jQuery-Bindung in bootstrap.js:430. Nur wenn wirklich
-// eine Flaeche in Bearbeitung ist -- sonst durchlassen, damit das Audit-Undo
-// (review-panels-change-log.js:364) unveraendert weiterarbeitet.
+// map-features-ecosystem-edit.js -- KORRIGIERTE Fassung (die urspruengliche rief
+// isTextEditingTarget; die Funktion heisst isTextEditingShortcutTarget, siehe oben).
 document.addEventListener("keydown", (event) => {
-    if (!activeEcosystemGeometryEdit) { return; }
     const key = String(event.key || "").toLowerCase();
     if (key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) { return; }
-    if (isTextEditingTarget(event.target)) { return; }
+    if (isEcosystemEditTextTarget(event.target)) { return; }   // ruft isTextEditingShortcutTarget, typeof-gewacht
+    const session = activeEcosystemGeometryEdit;
+    const inEcosystemMode = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+    if (!session && !inEcosystemMode) { return; }
     event.preventDefault();
     event.stopImmediatePropagation();
-    undoEcosystemGeometryStep();
+    if (session) { undoEcosystemGeometryStep(); return; }
+    sayEcosystemEdit("Keine Fläche in Bearbeitung — es wurde nichts rückgängig gemacht. …");
 }, true);
 ```
 
@@ -1637,13 +1717,21 @@ document.addEventListener("keydown", (event) => {
 > die Datenbank falsch, und die Abnahme (Schritt 9) prüft nur den Bildschirm. Ein Undo, das
 > über den letzten Save hinaus zurückgeht (Stapel leer), ist ein No-op, kein Fehler.
 
-- [ ] **Schritt 1–8:** Handler, Bündelung, Undo-Stapel (jedes Undo, das eine gespeicherte
+- [x] **Schritt 1–8:** Handler, Bündelung, Undo-Stapel (jedes Undo, das eine gespeicherte
       Geometrie ändert, schreibt erneut), je mit Test.
-- [ ] **Schritt 9: 🔧 DU (Owner):** Strg+Z **während** einer Bearbeitung nimmt einen
+      Test: `node js/map-features/__tests__/ecosystem-edit.test.js` (Ringmathematik: schließende
+      Dublette, Einfügen einzeln und als Vierer-Fächer, Lösch-Boden, nächste Kante über Löcher und
+      Multipolygone, Tiefkopie und Deckel des Undo-Stapels). Er hat beim Schreiben einen echten
+      Fehler gefunden: Ecke 0 riss den Ring auf, weil die Geschlossenheit **nach** dem Schreiben
+      geprüft wurde. Das Zustandsbehaftete (Bündelung, Revisions-Übergabe, Undo→Server) ist im
+      Browser gegen gestubbtes `postEcosystemEdit` geprüft — es braucht Leaflet, DOM und fetch.
+- [x] **Schritt 9: 🔧 DU (Owner):** Strg+Z **während** einer Bearbeitung nimmt einen
       Eckzug zurück — **und der Lesepfad zeigt danach denselben Stand** (nicht nur der
-      Bildschirm). Strg+Z **ohne** offene Bearbeitung macht weiter den letzten
-      Änderungs-Log-Eintrag rückgängig — unverändert.
-- [ ] **Schritt 10: Commit** — `feat(ecosystem): vertex editing with batched saves and a scoped undo stack`
+      Bildschirm). ~~Strg+Z **ohne** offene Bearbeitung macht weiter den letzten
+      Änderungs-Log-Eintrag rückgängig — unverändert.~~ **Der zweite Satz ist überholt**
+      (Entscheidung 3 oben): Strg+Z ohne offene Bearbeitung macht jetzt **nichts** und sagt das
+      auch. Abgenommen: *„strg-z verhält sich jetzt glaub richtig, wir können weitermachen."*
+- [x] **Schritt 10: Commit** — `feat(ecosystem): vertex editing with batched saves and a scoped undo stack`
 
 ### Aufgabe V3.4 — Kontextmenü
 
