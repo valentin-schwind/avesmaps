@@ -199,10 +199,14 @@ def test_multipart_becomes_multipolygon():
     assert len(geometry["coordinates"]) == 2
 
 
-def test_positions_are_rounded_to_four_decimals():
+def test_positions_are_rounded_the_way_the_server_stores_them():
+    """🪤 The server rounds to 3 decimals (api/_internal/bootstrap.php:301). Writing 4 means the
+    manifest and the stored row never compare equal -- verified on the live import: all 52 areas
+    had identical vertex counts, but 761.4375 came back as 761.438, so a re-check reported 0 of
+    52 matching."""
     geometry = build_geometry(component_rings(square_with_hole()), size=512, ratio=0.002)
     for x, y in geometry["coordinates"][0]:
-        assert x == round(x, 4) and y == round(y, 4)
+        assert x == round(x, 3) and y == round(y, 3)
 
 
 def test_count_positions_covers_holes_and_parts():

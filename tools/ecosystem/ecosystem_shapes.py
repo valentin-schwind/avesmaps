@@ -87,8 +87,17 @@ def simplify_ring(ring: np.ndarray, ratio: float = SIMPLIFY_RATIO,
     return simplified if len(simplified) >= MIN_RING_POSITIONS else ring
 
 
+# 🪤 THREE decimals, not four: the server rounds every coordinate to 3
+# (avesmapsParseMapCoordinate, api/_internal/bootstrap.php:301). Writing 4 means the manifest and
+# the stored row never compare equal -- verified on the live import, where all 52 areas had
+# identical vertex counts but 761.4375 came back as 761.438, so a re-check reported 0 of 52
+# matching. Rounding here makes the manifest say what the database will hold. The precision loss
+# is 0.0005 map units against a raster resolution of 0.125 -- 250x finer than the source.
+COORDINATE_DECIMALS = 3
+
+
 def build_geometry(parts: list[list[np.ndarray]], size: int,
-                   ratio: float = SIMPLIFY_RATIO, decimals: int = 4) -> dict:
+                   ratio: float = SIMPLIFY_RATIO, decimals: int = COORDINATE_DECIMALS) -> dict:
     """GeoJSON Polygon / MultiPolygon in [x, y] order, every ring closed.
 
     🔴 [x, y], NOT swapped. Leaflet's L.CRS.Simple wants [lat, lng] = [y, x]; the swap happens in
