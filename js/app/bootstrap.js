@@ -513,11 +513,14 @@ $("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen
 $("#powerline-edit-close, #powerline-edit-cancel").on("click", () => setPowerlineEditDialogOpen(false, { resetForm: true }));
 $("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
 $("#region-edit-close, #region-edit-cancel").on("click", () => setRegionEditDialogOpen(false, { resetForm: true }));
+// 🔴 Ctrl+Z IS NOT AN AUDIT SHORTCUT (Owner 2026-07-26). It used to call
+// handleChangeLogUndoShortcut here, which reverted the newest still-undoable change-log entry --
+// server-side, without a dialog, whoever had made it. Repeated presses walked DOWN the history,
+// because "the newest undoable entry" moves on as soon as the previous one is marked undone; three
+// strokes ate three entries, two of them another editor's. The audit log is undone by the deliberate
+// "Rückgängig" button on the named entry and by nothing else. Ctrl+Z now belongs exclusively to local
+// geometry editing (js/map-features/map-features-ecosystem-edit.js), where a miss costs nothing.
 $(document).on("keydown", (event) => {
-    if (handleChangeLogUndoShortcut(event)) {
-        return;
-    }
-
     if (event.key === "Escape" && isLocationReportDialogOpen()) {
         setLocationReportDialogOpen(false, { resetForm: true });
         return;

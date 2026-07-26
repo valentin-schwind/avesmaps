@@ -576,20 +576,21 @@ function syncEcosystemGeometryEdit() {
 // code that reads like a safety net.
 
 // ---- Ctrl+Z ----------------------------------------------------------------------------------------
-// 🔴 THE KEY IS ALREADY TAKEN. handleChangeLogUndoShortcut (js/review/review-panels-change-log.js:364)
-// undoes the last change-log entry SERVER-SIDE and consumes the key with preventDefault() +
-// stopPropagation(); it is bound in js/app/bootstrap.js:516-518 through jQuery, so in the BUBBLE phase.
+// 🔴 THE KEY IS NOW THIS FILE'S, AND ONLY THIS FILE'S (Owner 2026-07-26). It used to be shared with
+// handleChangeLogUndoShortcut, which reverted the newest change-log entry server-side -- that binding is
+// gone (js/app/bootstrap.js), because a near-miss there cost somebody else's edit while a near-miss here
+// costs nothing. The rule now: the audit log is undone by clicking "Rückgängig" on the named entry and
+// by nothing else; Ctrl+Z is local geometry editing, and only the resulting SAVE reaches the audit, not
+// the individual steps.
 //
-// Owner decision: Ctrl+Z belongs to the geometry stack ONLY while a landscape area is being edited --
-// otherwise it stays with the audit undo. A capture-phase listener runs before the jQuery binding and
-// calls stopImmediatePropagation(); the same shape as the capture click listener in
+// The listener still runs in the CAPTURE phase and still calls stopImmediatePropagation(): nothing is
+// competing for the key today, but a keydown handler added later would otherwise silently start
+// receiving corner undos. Same shape as the capture click listener in
 // map-features-settlement-context-action.js:114-116 (that one is a click, the phase is the point).
 //
-// 💣 The function is isTextEditingShortcutTarget, NOT isTextEditingTarget. Getting that wrong throws a
-// ReferenceError BEFORE preventDefault(), the key falls through to the jQuery binding, and Ctrl+Z during
-// a geometry edit silently undoes the last CHANGE-LOG entry instead of a corner move. Nothing on screen,
-// real data loss elsewhere -- hence the typeof guard as well: a missing global degrades to "the text
-// check is skipped", never to a thrown listener.
+// 💣 The function is isTextEditingShortcutTarget, NOT isTextEditingTarget -- the latter does not exist.
+// Naming it wrong throws a ReferenceError BEFORE preventDefault(), which is why the typeof guard is
+// here too: a missing global degrades to "the text check is skipped", never to a thrown listener.
 function isEcosystemEditTextTarget(target) {
 	if (typeof isTextEditingShortcutTarget === "function") {
 		return isTextEditingShortcutTarget(target);
@@ -605,14 +606,9 @@ if (typeof document !== "undefined") {
 		if (key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) { return; }
 		if (isEcosystemEditTextTarget(event.target)) { return; }
 
-		// 💣 THE KEY IS TAKEN FOR THE WHOLE MODE, NOT JUST FOR AN OPEN SESSION -- and that is a safety
-		// rule, not a convenience. The first version only claimed it while an area was actually being
-		// edited, exactly as the plan asked. In practice (owner, 2026-07-26) a Ctrl+Z aimed at a corner
-		// but fired a moment after the area had been deselected fell through to
-		// handleChangeLogUndoShortcut and reverted the last CHANGE-LOG entry instead -- somebody's
-		// LOCATION edit, server-side, with no dialog. The miss costs nothing here and something
-		// unrelated and irreversible-by-click there, so inside the landscape mode the key never leaves
-		// this file. Everywhere else the audit undo is untouched.
+		// The key is claimed for the whole MODE, not just for an open session: a stroke that lands a
+		// moment after the area was deselected should say "nothing happened", not fall through to the
+		// browser's own undo or to whatever binds the key next.
 		const session = activeEcosystemGeometryEdit;
 		const inEcosystemMode = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
 		if (!session && !inEcosystemMode) { return; }

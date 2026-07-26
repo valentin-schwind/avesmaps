@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
+// 💣 THE UNDO GATE HAS TO BE THE SAME FUNCTION ON BOTH SIDES. This file used to carry its own copy of
+// avesmapsCanUndoAuditAction (a hardcoded whitelist) next to the one the write path uses (derived from
+// the undo column map). Nothing loaded both, so nothing ever failed loudly -- they simply drifted, and
+// on 2026-07-26 the read copy said "no" to entries the write path had just learned to accept, so the
+// Wiederherstellen button never appeared. avesmapsEnsureMapAuditUndoColumns and
+// avesmapsFetchTableColumnNames were byte-identical duplicates of the same kind and are gone too.
+require_once __DIR__ . '/../../_internal/map/features.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -97,68 +104,6 @@ function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
         'name' => (string) ($row['name'] ?? ($after['name'] ?? $before['name'] ?? '')),
         'focus' => avesmapsBuildAuditFocusTarget($row, $before, $after),
     ];
-}
-
-function avesmapsEnsureMapAuditUndoColumns(PDO $pdo): void {
-    $columns = avesmapsFetchTableColumnNames($pdo, 'map_audit_log');
-    $missingDefinitions = [];
-    if (!isset($columns['undone_at'])) {
-        $missingDefinitions[] = 'ADD COLUMN undone_at DATETIME(3) NULL';
-    }
-    if (!isset($columns['undone_by'])) {
-        $missingDefinitions[] = 'ADD COLUMN undone_by BIGINT UNSIGNED NULL';
-    }
-    if (!isset($columns['undo_audit_id'])) {
-        $missingDefinitions[] = 'ADD COLUMN undo_audit_id BIGINT UNSIGNED NULL';
-    }
-
-    if ($missingDefinitions !== []) {
-        $pdo->exec('ALTER TABLE map_audit_log ' . implode(', ', $missingDefinitions));
-    }
-}
-
-function avesmapsFetchTableColumnNames(PDO $pdo, string $tableName): array {
-    if (preg_match('/^[a-z0-9_]+$/i', $tableName) !== 1) {
-        throw new InvalidArgumentException('Der Tabellenname ist ungueltig.');
-    }
-
-    $statement = $pdo->query("SHOW COLUMNS FROM {$tableName}");
-    $columns = [];
-    foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
-        $columnName = (string) ($row['Field'] ?? '');
-        if ($columnName !== '') {
-            $columns[$columnName] = true;
-        }
-    }
-
-    return $columns;
-}
-
-function avesmapsCanUndoAuditAction(string $action): bool {
-    if (str_starts_with($action, 'undo_')) {
-        return false;
-    }
-
-    return in_array($action, [
-        'move_point',
-        'update_point',
-        'wiki_sync_update_point',
-        'create_point',
-        'wiki_sync_create_point',
-        'create_crossing',
-        'create_powerline',
-        'update_powerline_details',
-        'create_path',
-        'update_path_details',
-        'update_path_geometry',
-        'create_label',
-        'update_label',
-        'move_label',
-        'create_region',
-        'update_region',
-        'update_region_geometry',
-        'delete_feature',
-    ], true);
 }
 
 function avesmapsBuildAuditFocusTarget(array $row, array $before, array $after): ?array {

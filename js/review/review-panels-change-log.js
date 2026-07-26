@@ -307,29 +307,13 @@ function isUndoChangeLogEntry(entry) {
 	return String(entry?.action || "").startsWith("undo_");
 }
 
-// 💣 THE SHORTCUT MUST NOT PICK UP A "Rückgängig: …" ENTRY. Those became undoable so the panel can
-// offer a Wiederherstellen button -- but Ctrl+Z asking for "the last undoable thing" would then find
-// the undo you just made and silently REDO it, so the key would flip direction depending on what
-// happened last. Restoring is a deliberate act on a named entry; the blind keyboard shortcut only ever
-// moves backwards.
-function getLatestUndoableChangeLogEntry() {
-	return changeLogEntries.find((entry) => entry?.can_undo && !isUndoChangeLogEntry(entry)) || null;
-}
-
-async function undoLastChangeLogEntry() {
-	let entry = getLatestUndoableChangeLogEntry();
-	if (!entry) {
-		await loadChangeLog();
-		entry = getLatestUndoableChangeLogEntry();
-	}
-	if (!entry) {
-		showFeedbackToast("Keine Änderung zum Rückgängigmachen.", "info");
-		return;
-	}
-
-	await undoChangeLogEntry(entry);
-}
-
+// 🔴 THERE IS NO KEYBOARD PATH INTO THE AUDIT LOG (Owner 2026-07-26). getLatestUndoableChangeLogEntry,
+// undoLastChangeLogEntry and handleChangeLogUndoShortcut used to sit here and were bound to Ctrl+Z in
+// bootstrap.js. "The newest still-undoable entry" moves on as soon as one is marked undone, so repeated
+// presses walked DOWN the history and across users -- three strokes reverted three edits, two of them
+// another editor's, server-side and without a dialog. The audit log records the central steps (created,
+// edited, deleted, moved), anyone may undo them, but only by clicking "Rückgängig" on the named entry.
+// Ctrl+Z belongs to local geometry editing only, where a miss costs nothing.
 async function undoChangeLogEntry(entry) {
 	if (isChangeUndoPending) {
 		return;
@@ -368,6 +352,10 @@ async function undoChangeLogEntry(entry) {
 	}
 }
 
+// Kept although the audit shortcut is gone: the landscape vertex editor's own Ctrl+Z asks this before
+// it claims the key, so typing an undo inside a name field stays an undo of the TEXT
+// (map-features-ecosystem-edit.js). One definition, so both readings of "is the caret in a field?"
+// cannot drift.
 function isTextEditingShortcutTarget(target) {
 	const element = target instanceof Element ? target : null;
 	if (!element) {
@@ -375,19 +363,4 @@ function isTextEditingShortcutTarget(target) {
 	}
 
 	return Boolean(element.isContentEditable || element.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'));
-}
-
-function handleChangeLogUndoShortcut(event) {
-	const key = String(event.key || "").toLowerCase();
-	if (!IS_EDIT_MODE || key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) {
-		return false;
-	}
-	if (isTextEditingShortcutTarget(event.target)) {
-		return false;
-	}
-
-	event.preventDefault();
-	event.stopPropagation();
-	void undoLastChangeLogEntry();
-	return true;
 }
