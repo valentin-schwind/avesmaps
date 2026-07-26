@@ -1470,7 +1470,26 @@ gerade aktiven `kind`. Zwei Wege, mehr nicht:
 > Fall (falsche Ebene aktiv) gar nicht erst entsteht. Ein `delete_area`-Knopf am
 > Kontextmenü der Fläche (V3.4) schließt den Rest.
 
-### Aufgabe V3.1 — Geometriehelfer, ringfähig von Anfang an
+### Aufgabe V3.1 — Geometriehelfer, ringfähig von Anfang an ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26, Commit `491e8562`.** Test:
+> `node js/map-features/__tests__/ecosystem-geometry.test.js`.
+>
+> 🪤 **Die Hälfte dieser Aufgabe war schon gebaut.** Das geforderte „`inPoly` über alle
+> Ringe, Außen/Loch nach GeoJSON" ist `pointInGeometry`
+> (`js/map-features/map-features-point-in-polygon.js`): loch- und multipolygonfähig,
+> abhängigkeitsfrei, unit-getestet („in hole => outside") und von `index.html` bereits
+> geladen. Ein zweites Punkt-in-Polygon wäre genau die Dublette gewesen, vor der
+> AGENTS.md warnt — die Ebene benutzt das vorhandene, der neue Test prüft es gegen die
+> Anforderung des Plans, und gebaut wurde nur, was fehlte. **Merke für die Folgeaufgaben:
+> Die Bestandsprüfung gehört VOR das Schreiben, nicht danach.**
+>
+> 💣 **Die Plausibilitätsprüfung der Reparatur liegt auf den GRENZEN, nicht auf der
+> Fläche.** Die Schleifen-Fläche („bowtie") hat als Shoelace-Wert die **Differenz** ihrer
+> beiden Lappen — bei gleich großen Lappen also 0 —, während die korrekte Reparatur ihre
+> **Summe** liefert (im Test 50). Eine Regel „das Ergebnis darf nicht größer werden" würde
+> also genau den Fall abweisen, für den die Funktion existiert. Was nicht passieren kann:
+> dass das Ergebnis die Bounding-Box der Eingabe verlässt.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-geometry.js`
 (Vorlage **lesen**: `map-features-region-geometry-helpers.js`, 405 Z. → ~180 Z.)
@@ -1492,12 +1511,36 @@ und normal** (Schneckenkamm liegt in den Windhagbergen).
 `try/catch` plus eine Plausibilitätsprüfung (Flächenvergleich, Muster
 `map-features-region-boolean-geometry.js:37–63`) gehören von Anfang an dazu.
 
-- [ ] **Schritt 1: Test für Ringfähigkeit** — Punkt in der Lichtung ist **draußen**;
+- [x] **Schritt 1: Test für Ringfähigkeit** — Punkt in der Lichtung ist **draußen**;
       `distEdge` nahe dem Lochrand ist **klein**, nicht groß.
-- [ ] **Schritt 2–4:** Implementieren, Test grün, Namensprüfung per `grep`.
-- [ ] **Schritt 5: Commit** — `feat(ecosystem): ring-aware geometry helpers (holes and multipolygons)`
+- [x] **Schritt 2–4:** Implementieren, Test grün, Namensprüfung per `grep`.
+- [x] **Schritt 5: Commit** — `feat(ecosystem): ring-aware geometry helpers (holes and multipolygons)`
 
-### Aufgabe V3.2 — Klick-für-Klick-Zeichenwerkzeug
+### Aufgabe V3.2 — Klick-für-Klick-Zeichenwerkzeug ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26, Commit `1a825a2e`.** **Abnahme durch den Owner:** Escape lässt
+> nichts liegen — der Lesepfad meldete nach dem Abbruch unverändert 6 Flächen bei 6
+> gezeichneten, Server und Karte also einig; und „Fläche zeichnen geht".
+>
+> 💣 **Ein Doppelklick feuert `click, click, dblclick`.** Ungebremst setzt die
+> Abschlussgeste zwei zusätzliche Ecken, die zweite ein Pixel neben der ersten — ein Sporn
+> an **jeder** Fläche. Der Echo-Klick wird nach Ort und Zeit verworfen (< 350 ms, ≤ 6 px),
+> `doubleClickZoom` ist für die Dauer aus, sonst zoomt der Abschluss mit.
+>
+> 💣 **Ein Klick auf eine BESTEHENDE Fläche ist beim Zeichnen eine Ecke, keine Auswahl.**
+> Der Klick-Handler der Fläche steigt in diesem Zustand früh aus — ohne auszuwählen **und
+> ohne das Ereignis zu stoppen**, sonst ließe sich nie über eine vorhandene Fläche
+> zeichnen. Überlappung und Verschachtelung sind hier der Normalfall (Schneckenkamm liegt
+> in den Windhagbergen), nicht die Ausnahme.
+>
+> ⭐ **Ohne aktive Region führt der Abschluss in den Dialog und HÄLT den Umriss fest** —
+> nicht in einen Save, den der Server mit 400 beantwortet. Nach `create_region` wird
+> gespeichert; auch ein fehlgeschlagener Save behält den Umriss, damit eine andere Region
+> gewählt werden kann, statt neu zu zeichnen.
+>
+> ⚠️ **Für V3.3:** die Griffe NICHT direkt aus dem Abschluss öffnen — der zweite Klick des
+> abschließenden Doppelklicks träfe einen gerade erschienenen Griff, und dessen Vorlage
+> löscht bei Doppelklick eine Ecke und speichert.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-draw.js`
 (Vorlage **lesen**: `js/map-features/map-features-path-creation.js:58–104`)
@@ -1529,13 +1572,13 @@ damit entstehen keine „Sechseck-Leichen".
 > Abschluss und Editier-Öffnung entkoppeln (ein Tick Verzögerung, oder Editor erst bei
 > nächstem Einzelklick).
 
-- [ ] **Schritt 1–6:** Analog `startPathCreationAt`, aber ohne Graph-Knoten-Bindung und
+- [x] **Schritt 1–6:** Analog `startPathCreationAt`, aber ohne Graph-Knoten-Bindung und
       mit Polygon-Abschluss (mindestens drei Punkte). Die neue Fläche bekommt die
       `region_id` der **aktiven Region** (V3.0b); ist keine aktiv, führt der Abschluss in
       den „neue Region"-Dialog statt in einen fehlschlagenden Save.
-- [ ] **Schritt 7: 🔧 DU (Owner):** Eine Fläche zeichnen, mit Escape abbrechen — es
+- [x] **Schritt 7: 🔧 DU (Owner):** Eine Fläche zeichnen, mit Escape abbrechen — es
       darf **nichts** im Bestand liegen (`curl` auf den Lesepfad).
-- [ ] **Schritt 8: Commit** — `feat(ecosystem): click-to-draw polygons instead of nudging a hexagon`
+- [x] **Schritt 8: Commit** — `feat(ecosystem): click-to-draw polygons instead of nudging a hexagon`
 
 ### Aufgabe V3.3 — Vertex-Editor: gebündelt speichern, Undo
 
