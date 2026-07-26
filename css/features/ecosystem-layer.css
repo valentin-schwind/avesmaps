@@ -78,6 +78,101 @@
 	font-weight: var(--font-weight-bold);
 }
 
+/* ---- underground slider (Owner 2026-07-26) ---------------------------------------------------------
+   💣 NOT copied from political-timeline.css, which is the other range control in the house: it
+   hardcodes its track, its thumb (#5b4633), a 999px radius and a white 2px ring. Every value here is a
+   token, and the thumb keeps --radius-md instead of a pill (§12: no 999px shapes anywhere). */
+.ecosystem-underground {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--space-6);
+	min-width: 0;
+}
+
+.ecosystem-underground__label {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+	white-space: nowrap;
+}
+
+/* Right-aligned and on a fixed width, so the row does not jump a pixel sideways on every step of the
+   drag -- which is exactly when the eye is on the map and not on the number. */
+.ecosystem-underground__value {
+	width: 5ch;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.ecosystem-underground__range {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 100%;
+	min-width: 0;
+	height: var(--space-16);
+	margin: 0;
+	background: none;
+	cursor: pointer;
+}
+
+.ecosystem-underground__range:focus-visible {
+	outline: none;
+	border-radius: var(--radius-md);
+	box-shadow: var(--focus-ring);
+}
+
+.ecosystem-underground__range::-webkit-slider-runnable-track {
+	height: var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-soft);
+}
+
+.ecosystem-underground__range::-moz-range-track {
+	height: var(--space-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-soft);
+}
+
+.ecosystem-underground__range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: var(--space-12);
+	height: var(--space-12);
+	/* Centres the thumb on the track: half the difference between the two heights, minus the border. */
+	margin-top: calc((var(--space-4) - var(--space-12)) / 2 - 1px);
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+}
+
+.ecosystem-underground__range::-moz-range-thumb {
+	width: var(--space-12);
+	height: var(--space-12);
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+}
+
+/* ---- map labels while vegetation or topography is active -------------------------------------------
+   The labels name DEROGRAPHIC areas, so in the other two layers they are noise -- and because they sit
+   above the areas (deliberately, so they stay readable) they also swallow the click meant for the
+   polygon underneath. Dimmed AND click-through there; untouched in the derographic layer.
+   🪤 The pointer-events rule needs .leaflet-pane in the selector for the same reason the area rule does:
+   Leaflet re-enables pointer events on .leaflet-marker-icon at a specificity a single class loses to. */
+.ecosystem-labels-dimmed {
+	opacity: 0.25;
+	transition: opacity 0.15s ease;
+}
+
+.leaflet-pane.ecosystem-labels-dimmed > .leaflet-marker-icon {
+	pointer-events: none;
+}
+
 /* ---- active-region picker (V3.0b) -----------------------------------------------------------------
    Label / select / button in one row. The middle track is minmax(0, 1fr) so the select absorbs the
    leftover width instead of a fixed track pushing the button past the box's right inset -- the exact

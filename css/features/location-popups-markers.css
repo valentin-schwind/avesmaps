@@ -9,6 +9,26 @@
 	opacity: 1;
 }
 
+/* The little arrow under the tooltip. leaflet.css:630-638 hardcodes its border colour as #fff, while
+   the box above takes --color-panel -- so in the dark theme the box went dark and the arrow stayed
+   white. Affects EVERY tooltip on the map, not just the landscape ones; fixed here, next to the rule
+   that sets the box, so the two can no longer drift apart. */
+.leaflet-tooltip-top:before {
+	border-top-color: var(--color-panel);
+}
+
+.leaflet-tooltip-bottom:before {
+	border-bottom-color: var(--color-panel);
+}
+
+.leaflet-tooltip-left:before {
+	border-left-color: var(--color-panel);
+}
+
+.leaflet-tooltip-right:before {
+	border-right-color: var(--color-panel);
+}
+
 .leaflet-popup-content {
 	margin: 0 10px 5px 10px;
 }

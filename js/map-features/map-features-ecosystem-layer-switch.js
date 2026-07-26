@@ -69,6 +69,95 @@ function syncEcosystemPaneStates() {
 		pane.classList.toggle("ecosystem-pane--active", kind === activeKind);
 		pane.classList.toggle("ecosystem-pane--resting", kind !== activeKind);
 	});
+
+	// Owner 2026-07-26: map labels belong to the DEROGRAPHIC layer -- that is the one whose areas they
+	// name. While vegetation or topography is being drawn they are noise, and worse: they sit above the
+	// areas (deliberately) and swallow the click meant for the polygon underneath. So they are dimmed
+	// AND made click-through in those two layers, and stay untouched in the derographic one.
+	const labelsPane = map.getPane("labelsPane");
+	if (labelsPane) {
+		labelsPane.classList.toggle("ecosystem-labels-dimmed", isEcosystemLayerModeActive() && activeKind !== "derographisch");
+	}
+}
+
+// ---- underground opacity (Owner 2026-07-26) --------------------------------------------------------
+// The painted terrain and the drawn areas are hard to tell apart, so the base tiles can be faded out
+// towards white until the areas stand alone. 0% looks like no base map at all.
+//
+// 🔴 On the tilePane, NOT on baseTileLayer.getContainer(). setMapStyle() DESTROYS and recreates that
+// container on every style switch (bootstrap.js) -- which is exactly why syncPowerlineMapTint has to be
+// re-applied there. The pane survives, so this needs no second call site and cannot fall out of sync.
+const ECOSYSTEM_UNDERGROUND_STORAGE_KEY = "avesmaps.ecosystem.undergroundOpacity";
+
+// 🪤 The raw string is checked for "nothing stored" BEFORE the number conversion. Number(null) is 0 --
+// a perfectly finite 0 that passes a 0..100 range check, so converting first made an editor entering
+// the layer for the very first time land on 0% and stare at a blank white map. Same shape of trap as
+// the active kind, which starts empty for the mirror-image reason.
+function readStoredEcosystemUndergroundOpacity() {
+	try {
+		const raw = window.localStorage?.getItem(ECOSYSTEM_UNDERGROUND_STORAGE_KEY);
+		if (raw === null || raw === undefined || String(raw).trim() === "") {
+			return 100;
+		}
+		const stored = Number(raw);
+		return Number.isFinite(stored) && stored >= 0 && stored <= 100 ? stored : 100;
+	} catch (error) {
+		return 100;
+	}
+}
+
+function storeEcosystemUndergroundOpacity(percent) {
+	try {
+		window.localStorage?.setItem(ECOSYSTEM_UNDERGROUND_STORAGE_KEY, String(percent));
+	} catch (error) {
+		// blocked storage -- the slider still works, it just forgets across reloads
+	}
+}
+
+// `active` false restores the map completely: this must never leak into the other view modes, where a
+// half-faded base map would look like a broken tile server.
+function applyEcosystemUndergroundOpacity(active) {
+	if (typeof map === "undefined" || !map || typeof map.getPane !== "function") {
+		return;
+	}
+
+	const tilePane = map.getPane("tilePane");
+	const container = typeof map.getContainer === "function" ? map.getContainer() : null;
+	const percent = active ? readStoredEcosystemUndergroundOpacity() : 100;
+
+	if (tilePane) {
+		tilePane.style.opacity = percent >= 100 ? "" : String(percent / 100);
+	}
+	if (container) {
+		// The white shows THROUGH the fading tiles, so it has to sit behind them. Set after
+		// setSelectedMapLayerMode has written its own background, which is why this runs from
+		// syncEcosystemControlsVisibility and not from the mode setter.
+		container.style.background = (active && percent < 100)
+			? getComputedStyle(document.documentElement).getPropertyValue("--color-ecosystem-underground").trim()
+			: "";
+	}
+}
+
+function syncEcosystemUndergroundControl() {
+	const rangeElement = document.getElementById("ecosystem-underground-range");
+	const valueElement = document.getElementById("ecosystem-underground-value");
+	const percent = readStoredEcosystemUndergroundOpacity();
+	if (rangeElement) {
+		rangeElement.value = String(percent);
+	}
+	if (valueElement) {
+		valueElement.textContent = `${percent} %`;
+	}
+}
+
+function setEcosystemUndergroundOpacity(percent) {
+	const normalized = Math.max(0, Math.min(100, Math.round(Number(percent))));
+	if (!Number.isFinite(normalized)) {
+		return;
+	}
+	storeEcosystemUndergroundOpacity(normalized);
+	syncEcosystemUndergroundControl();
+	applyEcosystemUndergroundOpacity(true);
 }
 
 function syncEcosystemLayerSwitchControls() {
@@ -150,6 +239,10 @@ function bindEcosystemLayerSwitch() {
 		}
 	});
 	switchElement.addEventListener("keydown", handleEcosystemLayerSwitchKeydown);
+
+	// `input`, not `change`: the whole point of the slider is watching the terrain go while dragging.
+	document.getElementById("ecosystem-underground-range")
+		?.addEventListener("input", (event) => setEcosystemUndergroundOpacity(event.target.value));
 }
 
 // Called by syncEcosystemVisibility on every mode change -- the one entry point this feature has.
@@ -163,11 +256,16 @@ function syncEcosystemControlsVisibility() {
 	const shouldShow = isEcosystemLayerModeActive();
 	controlsElement.hidden = !shouldShow;
 
+	// Both effects are restored on the way OUT, before the early return: a half-faded base map or a
+	// dimmed label pane left behind in "Politisch" would read as a broken map, not as a setting.
+	applyEcosystemUndergroundOpacity(shouldShow);
 	if (!shouldShow) {
+		syncEcosystemPaneStates();
 		return;
 	}
 
 	syncEcosystemLayerSwitchControls();
+	syncEcosystemUndergroundControl();
 	syncEcosystemPaneStates();
 	// V3.0b: the region picker lives in the same box and follows the active kind. Entering the mode
 	// refetches, so the area counts in the row are the current ones.
