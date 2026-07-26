@@ -508,6 +508,7 @@ function openEcosystemGeometryEdit(publicId) {
 	}
 
 	applyEcosystemEditClass(layer, true);
+	syncEcosystemMapEditingClass();
 	refreshEcosystemEditHandles();
 	sayEcosystemEdit("Ecken ziehen · Strg+Klick auf eine Kante setzt eine Ecke · Doppelklick löscht sie · Doppelklick daneben beendet.");
 }
@@ -539,6 +540,7 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 	}
 
 	activeEcosystemGeometryEdit = null;
+	syncEcosystemMapEditingClass();
 }
 
 // A double-click that did NOT land on an area finishes the session. A double-click ON an area never
@@ -575,6 +577,21 @@ function syncEcosystemGeometryEdit() {
 // vertex session is closed AND flushed on the way out -- letting go never costs a dragged corner.
 
 let ecosystemSelectionGesturesHooked = false;
+
+// While an area is being drawn or its corners edited, the map is a drawing surface: everything else
+// stays VISIBLE but stops taking clicks, so a river or a label cannot swallow the click meant for a
+// vertex (Owner 2026-07-26). The whole rule set is one class in css/features/ecosystem-layer.css --
+// nothing here enumerates panes, because that list would go stale.
+function syncEcosystemMapEditingClass() {
+	const container = typeof map !== "undefined" && map && typeof map.getContainer === "function" ? map.getContainer() : null;
+	if (!container) {
+		return;
+	}
+
+	const isEditing = Boolean(activeEcosystemGeometryEdit)
+		|| (typeof isEcosystemDrawing === "function" && isEcosystemDrawing());
+	container.classList.toggle("ecosystem-geometry-editing", isEditing);
+}
 
 function handleEcosystemMapClickDeselect() {
 	// 💣 A click on an AREA never gets here: the layer's own handler stops the event, which is what

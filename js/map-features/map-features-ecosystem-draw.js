@@ -187,6 +187,10 @@ function startEcosystemAreaDrawing() {
 	ecosystemDrawLastClick = null;
 	map.doubleClickZoom.disable();
 	map.getContainer().classList.add("ecosystem-draw-cursor");
+	// Everything else on the map stays visible but stops taking clicks -- otherwise a click meant as a
+	// corner lands on the river it crosses and never reaches map.on("click"). Same rule the vertex
+	// editor uses; the CSS lives in ecosystem-layer.css.
+	syncEcosystemMapEditingClass?.();
 	map.on("click", handleEcosystemDrawClick);
 	map.on("mousemove", handleEcosystemDrawMouseMove);
 	map.on("dblclick", handleEcosystemDrawDoubleClick);
@@ -203,6 +207,7 @@ function stopEcosystemAreaDrawing() {
 	if (typeof map !== "undefined" && map) {
 		map.doubleClickZoom.enable();
 		map.getContainer().classList.remove("ecosystem-draw-cursor");
+		syncEcosystemMapEditingClass?.();
 		map.off("click", handleEcosystemDrawClick);
 		map.off("mousemove", handleEcosystemDrawMouseMove);
 		map.off("dblclick", handleEcosystemDrawDoubleClick);

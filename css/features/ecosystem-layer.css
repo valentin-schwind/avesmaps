@@ -398,6 +398,54 @@
 	cursor: grabbing;
 }
 
+/* ---- while drawing or editing: everything else stays VISIBLE but stops taking clicks ---------------
+
+   Owner 2026-07-26: rivers, labels and anything else that covers an area or a point must still be seen
+   -- you draw a coast BECAUSE you can see the river -- but they must not swallow the click meant for a
+   vertex.
+
+   Measured pane stack (bootstrap.js): the handles sit at z-index 520. ABOVE them, and therefore
+   covering them outright, are leaflet-marker-pane (600) and leaflet-labels-pane (650). BELOW them but
+   above the areas (250-252) sit roads (400), powerlines (430), route (445/450), measurement (460),
+   region labels (475), decorations (480), shadow and locations (500) -- those cannot cover a handle,
+   but they do steal the Ctrl+click meant for an EDGE that happens to run under a road, and every
+   drawing click that lands on one.
+
+   🪤 Written as "switch everything off, hand back three things" rather than as a list of the panes
+   above, because that list is exactly the kind that goes stale: the four canvas panes here are already
+   pointer-events:none for their own reasons, a fifth will appear, and nobody will remember this file.
+
+   🪤 The path rule has to out-specify Leaflet's own `.leaflet-pane > svg path.leaflet-interactive`
+   (0,2,2) -- the same trap the resting-pane rule further down documents. (0,3,2) here, and the
+   hand-backs are one class higher again.
+
+   pointer-events is the ONE property where a descendant may overrule a switched-off ancestor, which is
+   what makes this shape work at all -- with opacity it would not. */
+.ecosystem-geometry-editing .leaflet-pane,
+.ecosystem-geometry-editing .leaflet-pane > canvas,
+.ecosystem-geometry-editing .leaflet-marker-icon,
+.ecosystem-geometry-editing .leaflet-marker-shadow,
+.ecosystem-geometry-editing .leaflet-pane > svg path.leaflet-interactive {
+	pointer-events: none;
+}
+
+/* 1. The drag handles -- the whole point of the exercise. */
+.ecosystem-geometry-editing .leaflet-pane.leaflet-measurementHandles-pane,
+.ecosystem-geometry-editing .leaflet-pane.leaflet-measurementHandles-pane .leaflet-marker-icon {
+	pointer-events: auto;
+}
+
+/* 2. The active layer's own areas, so selecting one and Ctrl+clicking its edge still work. The two
+      resting layers stay unclickable exactly as they already were. */
+.ecosystem-geometry-editing .leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {
+	pointer-events: auto;
+}
+
+/* 3. An open popup stays usable -- it is a window, not map furniture. */
+.ecosystem-geometry-editing .leaflet-pane.leaflet-popup-pane {
+	pointer-events: auto;
+}
+
 /* ---- the three area panes -------------------------------------------------------------------------
 
    All three layers are visible at once; the two resting ones are pale AND click-through, so drawing a
