@@ -13,6 +13,7 @@ const {
 	ecosystemEditInsertVertex,
 	ecosystemEditRemoveVertex,
 	ecosystemEditNearestEdge,
+	ecosystemEditSubdivideEdge,
 	pushEcosystemGeometryUndoStep,
 	ECOSYSTEM_GEOMETRY_UNDO_LIMIT,
 } = require("../map-features-ecosystem-edit.js");
@@ -98,6 +99,36 @@ const twoIslands = {
 	],
 };
 assert.strictEqual(ecosystemEditNearestEdge([105, 99], twoIslands).partIndex, 1, "second island wins");
+
+// ---- Ctrl+click lays FOUR corners, evenly spaced ------------------------------------------------
+// Two grains, two gestures (owner 2026-07-26): the double-click above places one corner exactly where
+// it was aimed, Ctrl+click fans four along the whole segment so a straight edge can become a curve.
+const fanned = square();
+const southEdge = ecosystemEditNearestEdge([50, 3], square());
+assert.strictEqual(ecosystemEditSubdivideEdge(fanned, southEdge, 4), true);
+assert.strictEqual(ecosystemEditVertexCount(fanned.coordinates[0]), 8, "4 corners -> 8");
+assert.deepStrictEqual(
+	fanned.coordinates[0].slice(1, 5),
+	[[20, 0], [40, 0], [60, 0], [80, 0]],
+	"evenly spaced along the segment, endpoints untouched"
+);
+assert.deepStrictEqual(fanned.coordinates[0][0], [0, 0], "the segment start stays put");
+assert.deepStrictEqual(fanned.coordinates[0][5], [100, 0], "and so does its end");
+assert.strictEqual(ecosystemEditRingIsClosed(fanned.coordinates[0]), true, "ring still closed");
+
+// The same call on a hole edge subdivides the HOLE, not the outer ring.
+const fannedHole = woodWithClearing();
+assert.strictEqual(ecosystemEditSubdivideEdge(fannedHole, ecosystemEditNearestEdge([50, 41], woodWithClearing()), 4), true);
+assert.strictEqual(ecosystemEditVertexCount(fannedHole.coordinates[1]), 8, "the clearing gained four");
+assert.strictEqual(ecosystemEditVertexCount(fannedHole.coordinates[0]), 4, "the outer ring gained none");
+
+// count is honoured, and a nonsensical one is refused rather than silently treated as 4.
+const fannedOne = square();
+assert.strictEqual(ecosystemEditSubdivideEdge(fannedOne, southEdge, 1), true);
+assert.strictEqual(ecosystemEditVertexCount(fannedOne.coordinates[0]), 5, "count = 1 inserts one");
+assert.deepStrictEqual(fannedOne.coordinates[0][1], [50, 0], "and it lands mid-segment");
+assert.strictEqual(ecosystemEditSubdivideEdge(square(), southEdge, 0), false, "count = 0 is refused");
+assert.strictEqual(ecosystemEditSubdivideEdge(square(), { insertAt: 0 }, 4), false, "insertAt 0 has no segment before it");
 
 // ---- deleting a corner ---------------------------------------------------------------------------
 const shrinking = square();

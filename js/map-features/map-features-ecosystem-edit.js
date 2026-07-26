@@ -38,6 +38,18 @@ const ECOSYSTEM_GEOMETRY_UNDO_LIMIT = 20;
 // Ctrl+click closer than this to an edge (in map units, which L.CRS.Simple keeps linear) counts as a hit
 // on that edge. Far enough away is not an edge click and is left alone.
 const ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE = 12;
+// How many corners a Ctrl+click lays along one edge -- the template's number (owner 2026-07-26).
+const ECOSYSTEM_EDIT_SUBDIVIDE_COUNT = 4;
+// 💣 A double-click fires click, click, dblclick. Without this gate the two clicks of a Ctrl+double
+// would each drop a full set of four. Same guard, same reason as the template's (edge-controls.js:215).
+const ECOSYSTEM_EDIT_INSERTION_GATE_MS = 350;
+
+// 🔧 OPEN, and deliberately written down here rather than left to memory: there is NO SNAPPING in this
+// editor yet. When it arrives, Ctrl while DRAGGING a handle must detach the corner from any snap
+// (owner 2026-07-26, the territory editor's behaviour -- the runtime copy is
+// map-features-region-vertex-detach-edit.js:366, which picks findNearestRegionSnapPoint only when Ctrl
+// is NOT held). Note that Ctrl already means "subdivide" on an EDGE here, so the two must not be
+// confused: edge + Ctrl+click = four corners, handle + Ctrl+drag = ignore snapping.
 
 // The open session, or null. The Ctrl+Z capture listener at the bottom of this file asks exactly this
 // question -- it is what keeps the key with the audit undo whenever nothing is being edited.
@@ -102,6 +114,42 @@ function ecosystemEditInsertVertex(geometry, { partIndex = 0, ringIndex = 0, ins
 	}
 
 	ring.splice(insertAt, 0, [Number(position[0]), Number(position[1])]);
+	return true;
+}
+
+// Ctrl+click drops SEVERAL corners at once, spread evenly along the whole segment -- the template's
+// behaviour (subdivideRegionEditHoveredEdge, map-features-region-edit-edge-controls.js:209, called with
+// 4 at map-features-region-vertex-detach-edit.js:461).
+//
+// 🔴 The plan's V3.3 argued for one corner per click because four is the wrong grain for a coastline.
+// That objection was against four being the ONLY option: with a double-click placing a single corner
+// exactly where you aimed (ecosystemEditInsertVertex above) and Ctrl+click laying out four in one go,
+// both grains exist and each has its own gesture. Owner decision 2026-07-26.
+//
+// Evenly spaced, NOT at the cursor: a run of four corners is asked for when a straight segment needs to
+// become a curve, and starting from an even fan is what makes that fast.
+function ecosystemEditSubdivideEdge(geometry, { partIndex = 0, ringIndex = 0, insertAt = 0 } = {}, count = 4) {
+	const ring = ecosystemEditRingAt(geometry, partIndex, ringIndex);
+	if (!ring || count < 1 || insertAt < 1 || insertAt > ring.length - 1) {
+		return false;
+	}
+
+	const start = ring[insertAt - 1];
+	const end = ring[insertAt];
+	if (!Array.isArray(start) || !Array.isArray(end)) {
+		return false;
+	}
+
+	const inserted = [];
+	for (let offset = 1; offset <= count; offset += 1) {
+		const ratio = offset / (count + 1);
+		inserted.push([
+			start[0] + ((end[0] - start[0]) * ratio),
+			start[1] + ((end[1] - start[1]) * ratio),
+		]);
+	}
+	ring.splice(insertAt, 0, ...inserted);
+
 	return true;
 }
 
@@ -324,6 +372,124 @@ function deleteEcosystemEditVertex(partIndex, ringIndex, vertexIndex) {
 	scheduleEcosystemGeometrySave();
 }
 
+// The edge under the cursor, or null. Shown as long as an area is being edited, so it is always clear
+// WHICH segment the next gesture will hit -- the template only shows it while Ctrl is down
+// (map-features-region-edit-edge-controls.js:33), which is fine when Ctrl is the only edge gesture, but
+// here a plain double-click also acts on an edge.
+function ecosystemEditHoveredEdge(latLng) {
+	const session = activeEcosystemGeometryEdit;
+	if (!session || !latLng) {
+		return null;
+	}
+	// [lat, lng] -> GeoJSON [x, y].
+	const edge = ecosystemEditNearestEdge([latLng.lng, latLng.lat], session.geometry);
+
+	return edge && edge.distance <= ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE ? edge : null;
+}
+
+function clearEcosystemEditEdgeHover() {
+	const session = activeEcosystemGeometryEdit;
+	if (!session) {
+		return;
+	}
+	[session.edgeHighlightLayer, session.edgePreviewLayer].forEach((layer) => {
+		if (layer && typeof map !== "undefined" && map && map.hasLayer(layer)) {
+			map.removeLayer(layer);
+		}
+	});
+	session.edgeHighlightLayer = null;
+	session.edgePreviewLayer = null;
+	session.edgeHover = null;
+}
+
+// 🔴 Purely visual: interactive:false on both layers. The template makes its highlight interactive and
+// has to bind click AND dblclick on it as well (edge-controls.js:127-128) because it sits on top of the
+// polygon and would otherwise swallow the very gestures it advertises. Leaving it click-through means
+// the area's own handlers keep receiving everything and there is one code path per gesture, not two.
+function renderEcosystemEditEdgeHover(edge, withSubdivisionPreview) {
+	const session = activeEcosystemGeometryEdit;
+	if (!session || typeof map === "undefined" || !map) {
+		return;
+	}
+
+	clearEcosystemEditEdgeHover();
+	session.edgeHover = edge;
+	if (!edge) {
+		return;
+	}
+
+	const ring = ecosystemEditRingAt(session.geometry, edge.partIndex, edge.ringIndex);
+	const start = ring?.[edge.insertAt - 1];
+	const end = ring?.[edge.insertAt];
+	if (!Array.isArray(start) || !Array.isArray(end)) {
+		return;
+	}
+
+	const color = getComputedStyle(document.documentElement).getPropertyValue("--color-edit-handle").trim();
+	session.edgeHighlightLayer = L.polyline([[start[1], start[0]], [end[1], end[0]]], {
+		pane: "measurementHandlesPane",
+		color,
+		weight: 6,
+		opacity: 0.9,
+		dashArray: "8 5",
+		interactive: false,
+	}).addTo(map);
+
+	// Ctrl is held: show the four corners it would drop, so the result is visible before committing.
+	if (!withSubdivisionPreview) {
+		return;
+	}
+	const previews = [];
+	for (let offset = 1; offset <= ECOSYSTEM_EDIT_SUBDIVIDE_COUNT; offset += 1) {
+		const ratio = offset / (ECOSYSTEM_EDIT_SUBDIVIDE_COUNT + 1);
+		previews.push(L.circleMarker(
+			[start[1] + ((end[1] - start[1]) * ratio), start[0] + ((end[0] - start[0]) * ratio)],
+			{ pane: "measurementHandlesPane", radius: 4, color, weight: 2, fillColor: color, fillOpacity: 0.95, interactive: false }
+		));
+	}
+	session.edgePreviewLayer = L.layerGroup(previews).addTo(map);
+}
+
+function handleEcosystemEditMouseMove(event) {
+	if (!activeEcosystemGeometryEdit) {
+		return;
+	}
+	const edge = ecosystemEditHoveredEdge(event?.latlng);
+	renderEcosystemEditEdgeHover(edge, Boolean(event?.originalEvent?.ctrlKey));
+}
+
+// Adds corners to the hovered edge: `count` of them, evenly spaced, or ONE at the point aimed at.
+// 💣 The 350 ms gate is the template's (edge-controls.js:215) and it is load-bearing here too: a
+// double-click fires click, click, dblclick, so with Ctrl held the two clicks would each lay down a
+// full set.
+function applyEcosystemEditEdgeInsertion(edge, count, atPoint) {
+	const session = activeEcosystemGeometryEdit;
+	if (!session || !edge) {
+		return false;
+	}
+	const now = typeof performance !== "undefined" ? performance.now() : 0;
+	if (session.lastEdgeInsertionAt && (now - session.lastEdgeInsertionAt) < ECOSYSTEM_EDIT_INSERTION_GATE_MS) {
+		return false;
+	}
+	session.lastEdgeInsertionAt = now;
+
+	const before = JSON.parse(JSON.stringify(session.geometry));
+	const changed = atPoint
+		? ecosystemEditInsertVertex(session.geometry, edge)
+		: ecosystemEditSubdivideEdge(session.geometry, edge, count);
+	if (!changed) {
+		return false;
+	}
+
+	pushEcosystemGeometryUndoStep(session.undoStack, before);
+	clearEcosystemEditEdgeHover();
+	applyEcosystemEditGeometryToLayer(session);
+	refreshEcosystemEditHandles();
+	scheduleEcosystemGeometrySave();
+	return true;
+}
+
+// Ctrl+click on the highlighted edge -> four corners at once (owner 2026-07-26, the template's grain).
 function handleEcosystemEditEdgeClick(event) {
 	const session = activeEcosystemGeometryEdit;
 	if (!session || !event?.originalEvent?.ctrlKey || !event.latlng) {
@@ -331,25 +497,28 @@ function handleEcosystemEditEdgeClick(event) {
 	}
 
 	L.DomEvent.stop(event);
-	// [lat, lng] -> GeoJSON [x, y].
-	const point = [event.latlng.lng, event.latlng.lat];
-	const edge = ecosystemEditNearestEdge(point, session.geometry);
-	if (!edge || edge.distance > ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE) {
+	const edge = session.edgeHover || ecosystemEditHoveredEdge(event.latlng);
+	if (!edge) {
 		sayEcosystemEdit("Keine Kante in der Nähe — näher an den Rand klicken.", "warning");
 		return;
 	}
 
-	const before = JSON.parse(JSON.stringify(session.geometry));
-	// The corner lands on the edge, not under the cursor: a corner that jumps sideways the moment it
-	// appears is impossible to place accurately. No toast -- the new handle is the feedback.
-	if (!ecosystemEditInsertVertex(session.geometry, edge)) {
-		return;
+	applyEcosystemEditEdgeInsertion(edge, ECOSYSTEM_EDIT_SUBDIVIDE_COUNT, false);
+}
+
+// Double-click on the highlighted edge -> exactly one corner, where you aimed (owner 2026-07-26).
+// Returns whether it acted, so the area's dblclick handler knows not to also treat it as "open me".
+function handleEcosystemEditEdgeDoubleClick(event) {
+	const session = activeEcosystemGeometryEdit;
+	if (!session || !event?.latlng) {
+		return false;
+	}
+	const edge = session.edgeHover || ecosystemEditHoveredEdge(event.latlng);
+	if (!edge) {
+		return false;
 	}
 
-	pushEcosystemGeometryUndoStep(session.undoStack, before);
-	applyEcosystemEditGeometryToLayer(session);
-	refreshEcosystemEditHandles();
-	scheduleEcosystemGeometrySave();
+	return applyEcosystemEditEdgeInsertion(edge, 1, true);
 }
 
 // ---- saving --------------------------------------------------------------------------------------
@@ -466,6 +635,10 @@ function undoEcosystemGeometryStep() {
 
 // ---- session lifecycle -----------------------------------------------------------------------------
 
+function isEcosystemGeometryEditOpen(publicId) {
+	return Boolean(activeEcosystemGeometryEdit) && activeEcosystemGeometryEdit.publicId === String(publicId || "");
+}
+
 // Called from the area's dblclick (wired in map-features-ecosystem-rendering.js).
 function openEcosystemGeometryEdit(publicId) {
 	const areaId = String(publicId || "");
@@ -499,6 +672,12 @@ function openEcosystemGeometryEdit(publicId) {
 
 	layer.on("click", handleEcosystemEditEdgeClick);
 	if (typeof map !== "undefined" && map) {
+		// The edge under the cursor is highlighted for as long as the session lasts, so it is always
+		// clear which segment the next gesture acts on.
+		map.on("mousemove", handleEcosystemEditMouseMove);
+		map.on("mouseout", clearEcosystemEditEdgeHover);
+	}
+	if (typeof map !== "undefined" && map) {
 		// A double-click elsewhere finishes (owner). Bound only for the length of the session, which
 		// also sidesteps the "map is created last" problem -- by now it certainly exists.
 		map.on("dblclick", handleEcosystemEditFinishDoubleClick);
@@ -524,11 +703,14 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 		ecosystemGeometrySaveTimeoutId = null;
 	}
 
+	clearEcosystemEditEdgeHover();
 	clearEcosystemEditHandles();
 	// Back to the white selection contour (or to none, when the deselect follows straight after).
 	applyEcosystemEditClass(session.layer, false);
 	session.layer?.off?.("click", handleEcosystemEditEdgeClick);
 	if (typeof map !== "undefined" && map) {
+		map.off("mousemove", handleEcosystemEditMouseMove);
+		map.off("mouseout", clearEcosystemEditEdgeHover);
 		map.off("dblclick", handleEcosystemEditFinishDoubleClick);
 		map.doubleClickZoom.enable();
 	}
@@ -712,6 +894,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ecosystemEditInsertVertex,
 		ecosystemEditRemoveVertex,
 		ecosystemEditNearestEdge,
+		ecosystemEditSubdivideEdge,
 		pushEcosystemGeometryUndoStep,
 		ECOSYSTEM_GEOMETRY_UNDO_LIMIT,
 	};

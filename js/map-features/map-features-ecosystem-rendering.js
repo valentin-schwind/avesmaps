@@ -202,6 +202,16 @@ function buildEcosystemAreaLayer(area) {
 		if (event?.originalEvent) {
 			L.DomEvent.stop(event);
 		}
+		// Already editing? Then a double-click on an EDGE inserts one corner there (owner 2026-07-26).
+		if (typeof handleEcosystemEditEdgeDoubleClick === "function" && handleEcosystemEditEdgeDoubleClick(event)) {
+			return;
+		}
+		// 💣 And a double-click anywhere ELSE inside an area already being edited does NOTHING. Calling
+		// open again would close and re-open the session, which throws the undo stack away -- a second
+		// double-click would silently cost every step you could still have taken back.
+		if (typeof isEcosystemGeometryEditOpen === "function" && isEcosystemGeometryEditOpen(area.public_id)) {
+			return;
+		}
 		if (typeof openEcosystemGeometryEdit === "function") {
 			openEcosystemGeometryEdit(area.public_id);
 		}
