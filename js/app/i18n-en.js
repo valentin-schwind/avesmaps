@@ -126,6 +126,25 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.newVegetation": "New vegetation",
 	"ecosystem.ctxmenu.newTopographie": "New topography",
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
+	"ecosystem.ctxmenu.sendTo": "Send to …",
+
+	// --- Landschaften: sending an area to one of the other two layers, as a COPY (V3.6). The dialog
+	//     asks for target layer and target region at once; the strings resolved through tr() are the ones
+	//     on nodes this feature creates itself. ---
+	"ecosystem.transfer.dialogTitle": "Send area",
+	"ecosystem.transfer.closeAria": "Close dialog",
+	"ecosystem.transfer.kindLabel": "Target layer",
+	"ecosystem.transfer.regionLabel": "Target region",
+	"ecosystem.transfer.regionNew": "Create new region",
+	"ecosystem.transfer.regionLoading": "Loading regions …",
+	"ecosystem.transfer.nameLabel": "Name of the new region *",
+	"ecosystem.transfer.typeLabel": "Kind",
+	"ecosystem.transfer.typeNone": "— no kind —",
+	"ecosystem.transfer.wikiKept": "The source's wiki article is carried over.",
+	"ecosystem.transfer.wikiDropped": "Different name from the source — the wiki article is not carried over.",
+	"ecosystem.transfer.cancel": "Cancel",
+	"ecosystem.transfer.save": "Send",
+	"ecosystem.transfer.saving": "Sending …",
 
 	// --- spotlight search ---
 	"spotlight.title": "Search",

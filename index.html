@@ -681,6 +681,49 @@
 				</div>
 			</div>
 		</div>
+		<!-- V3.6: "Senden an ..." -- dieselbe Flaeche noch einmal in einer der beiden anderen Ebenen, als
+		     KOPIE mit eigener public_id. Ein Eintrag, EIN Dialog: die Zielebene steht hier drin statt in
+		     einem Untermenue, weil die Zielregion ohnehin gefragt werden muss (eine Region traegt mehrere
+		     Flaechen). Huelle/Scrim/z-index kommen aus css/components/dialog-overlays.css, wo die ID in
+		     allen DREI Selektorlisten steht -- ein neues Overlay-<div> erbt sonst NICHTS. -->
+		<div id="ecosystem-transfer-overlay" hidden>
+			<div id="ecosystem-transfer-dialog" class="ecosystem-transfer-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-transfer-title" tabindex="-1">
+				<div class="ecosystem-transfer-dialog__header">
+					<h2 id="ecosystem-transfer-title" data-i18n="ecosystem.transfer.dialogTitle">Fläche senden</h2>
+					<button id="ecosystem-transfer-close" class="ecosystem-transfer-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.transfer.closeAria">×</button>
+				</div>
+				<form id="ecosystem-transfer-form" class="ecosystem-transfer-dialog__form">
+					<p id="ecosystem-transfer-source" class="ecosystem-transfer-dialog__source"></p>
+					<label class="ecosystem-transfer-dialog__field">
+						<span data-i18n="ecosystem.transfer.kindLabel">Zielebene</span>
+						<!-- Die beiden anderen Ebenen, Zwilling zuerst (Vegetation <-> Topographie). -->
+						<select id="ecosystem-transfer-kind" name="kind"></select>
+					</label>
+					<label class="ecosystem-transfer-dialog__field">
+						<span data-i18n="ecosystem.transfer.regionLabel">Zielregion</span>
+						<select id="ecosystem-transfer-region" name="region"></select>
+					</label>
+					<!-- Nur bei "Neue Region anlegen" sichtbar. KEIN required-Attribut: ein verstecktes
+					     Pflichtfeld blockiert das Absenden mit einer Meldung, die niemand sehen kann --
+					     geprueft wird in ecosystemTransferPlan(). -->
+					<label id="ecosystem-transfer-name-field" class="ecosystem-transfer-dialog__field">
+						<span data-i18n="ecosystem.transfer.nameLabel">Name der neuen Region *</span>
+						<input id="ecosystem-transfer-name" name="name" type="text" maxlength="190" autocomplete="off" />
+					</label>
+					<label id="ecosystem-transfer-type-field" class="ecosystem-transfer-dialog__field">
+						<span data-i18n="ecosystem.transfer.typeLabel">Art</span>
+						<!-- Aus ecosystem_region_type der ZIELebene; die Art der Quelle passt dort nie. -->
+						<select id="ecosystem-transfer-type" name="region_type"></select>
+					</label>
+					<p id="ecosystem-transfer-wiki-note" class="ecosystem-transfer-dialog__note" hidden></p>
+					<p id="ecosystem-transfer-error" class="ecosystem-transfer-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-transfer-dialog__actions">
+						<button id="ecosystem-transfer-cancel" class="ecosystem-transfer-dialog__button" type="button" data-i18n="ecosystem.transfer.cancel">Abbrechen</button>
+						<button id="ecosystem-transfer-save" class="ecosystem-transfer-dialog__button ecosystem-transfer-dialog__button--primary" type="submit" data-i18n="ecosystem.transfer.save">Senden</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -1816,6 +1859,7 @@
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-ecosystem-context-action.js"></script>
 		<script src="js/map-features/map-features-ecosystem-intro.js"></script>
+		<script src="js/map-features/map-features-ecosystem-transfer.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>

@@ -18,6 +18,7 @@ body.modal-dialog-open {
 #region-wiki-picker-overlay[hidden],
 #ecosystem-region-overlay[hidden],
 #ecosystem-intro-overlay[hidden],
+#ecosystem-transfer-overlay[hidden],
 #review-overlay[hidden] {
 	display: none !important;
 }
@@ -35,6 +36,7 @@ body.modal-dialog-open {
 #region-wiki-picker-overlay,
 #ecosystem-region-overlay,
 #ecosystem-intro-overlay,
+#ecosystem-transfer-overlay,
 #review-overlay {
 	position: fixed;
 	inset: 0;
@@ -64,6 +66,7 @@ body.modal-dialog-open {
 #region-wiki-picker-overlay,
 #ecosystem-region-overlay,
 #ecosystem-intro-overlay,
+#ecosystem-transfer-overlay,
 #review-overlay {
 	z-index: 1260;
 }

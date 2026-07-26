@@ -211,18 +211,20 @@
 	cursor: crosshair !important;
 }
 
-/* ---- the two dialogs of this layer -----------------------------------------------------------------
-   "Neue Region" (V3.0b) and the one-time trial notice (V3.5) share ONE set of shell rules -- shell,
-   header, close, actions, buttons. Both class names are listed on every shared rule instead of the
-   notice re-declaring its own copy: two dialogs of the same feature drifting apart is exactly what §12
-   is about, and a copy is how it starts. Only what genuinely differs gets its own rule (the notice's
-   prose body below; the region dialog's form fields and error line further down).
+/* ---- the three dialogs of this layer ---------------------------------------------------------------
+   "Neue Region" (V3.0b), the one-time trial notice (V3.5) and "Fläche senden" (V3.6) share ONE set of
+   shell rules -- shell, header, close, form, fields, error, actions, buttons. Every class name is listed
+   on every shared rule instead of a later dialog re-declaring its own copy: dialogs of the same feature
+   drifting apart is exactly what §12 is about, and a copy is how it starts. A FOURTH dialog extends
+   these same lists. Only what genuinely differs gets its own rule (the notice's prose body below; the
+   send dialog's source line and its optional fields further down).
 
-   The overlays themselves (position/scrim/z-index) are NOT styled here: #ecosystem-region-overlay and
-   #ecosystem-intro-overlay are entered into the three selector lists in
+   The overlays themselves (position/scrim/z-index) are NOT styled here: #ecosystem-region-overlay,
+   #ecosystem-intro-overlay and #ecosystem-transfer-overlay are entered into the three selector lists in
    css/components/dialog-overlays.css, so they inherit the shared scrim and stacking. */
 .ecosystem-region-dialog,
-.ecosystem-intro-dialog {
+.ecosystem-intro-dialog,
+.ecosystem-transfer-dialog {
 	width: min(420px, 100%);
 	max-height: 100%;
 	overflow: auto;
@@ -235,7 +237,8 @@
 }
 
 .ecosystem-region-dialog__header,
-.ecosystem-intro-dialog__header {
+.ecosystem-intro-dialog__header,
+.ecosystem-transfer-dialog__header {
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
@@ -246,7 +249,8 @@
 }
 
 .ecosystem-region-dialog__header h2,
-.ecosystem-intro-dialog__header h2 {
+.ecosystem-intro-dialog__header h2,
+.ecosystem-transfer-dialog__header h2 {
 	margin: 0;
 	color: var(--color-text-strong);
 	font-size: var(--font-size-title);
@@ -254,7 +258,8 @@
 }
 
 .ecosystem-region-dialog__close,
-.ecosystem-intro-dialog__close {
+.ecosystem-intro-dialog__close,
+.ecosystem-transfer-dialog__close {
 	appearance: none;
 	-webkit-appearance: none;
 	padding: 0 var(--space-4);
@@ -269,22 +274,34 @@
 }
 
 .ecosystem-region-dialog__close:hover,
-.ecosystem-intro-dialog__close:hover {
+.ecosystem-intro-dialog__close:hover,
+.ecosystem-transfer-dialog__close:hover {
 	color: var(--color-text-strong);
 }
 
 .ecosystem-region-dialog__close:focus-visible,
-.ecosystem-intro-dialog__close:focus-visible {
+.ecosystem-intro-dialog__close:focus-visible,
+.ecosystem-transfer-dialog__close:focus-visible {
 	outline: none;
 	box-shadow: var(--focus-ring);
 }
 
-.ecosystem-region-dialog__form {
+.ecosystem-region-dialog__form,
+.ecosystem-transfer-dialog__form {
 	display: grid;
 	gap: var(--space-10);
 }
 
-.ecosystem-region-dialog__field {
+/* 🪤 The [hidden] guard is NOT redundant. `display: grid` below beats the UA sheet's [hidden] rule, so
+   the send dialog's two optional fields would stay on screen with the attribute set. Same reason the
+   error line further down carries one. */
+.ecosystem-transfer-dialog__field[hidden],
+.ecosystem-transfer-dialog__note[hidden] {
+	display: none !important;
+}
+
+.ecosystem-region-dialog__field,
+.ecosystem-transfer-dialog__field {
 	display: grid;
 	gap: var(--space-4);
 	font-size: var(--font-size-small);
@@ -292,7 +309,9 @@
 }
 
 .ecosystem-region-dialog__field input,
-.ecosystem-region-dialog__field select {
+.ecosystem-region-dialog__field select,
+.ecosystem-transfer-dialog__field input,
+.ecosystem-transfer-dialog__field select {
 	padding: var(--space-6) var(--space-8);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
@@ -302,27 +321,34 @@
 	font-size: var(--font-size-reading);
 }
 
-.ecosystem-region-dialog__field input::placeholder {
+.ecosystem-region-dialog__field input::placeholder,
+.ecosystem-transfer-dialog__field input::placeholder {
 	color: var(--color-placeholder);
 }
 
 .ecosystem-region-dialog__field input:hover,
-.ecosystem-region-dialog__field select:hover {
+.ecosystem-region-dialog__field select:hover,
+.ecosystem-transfer-dialog__field input:hover,
+.ecosystem-transfer-dialog__field select:hover {
 	border-color: var(--color-border-strong);
 }
 
 .ecosystem-region-dialog__field input:focus-visible,
-.ecosystem-region-dialog__field select:focus-visible {
+.ecosystem-region-dialog__field select:focus-visible,
+.ecosystem-transfer-dialog__field input:focus-visible,
+.ecosystem-transfer-dialog__field select:focus-visible {
 	outline: none;
 	border-color: var(--color-border-strong);
 	box-shadow: var(--focus-ring);
 }
 
-.ecosystem-region-dialog__error[hidden] {
+.ecosystem-region-dialog__error[hidden],
+.ecosystem-transfer-dialog__error[hidden] {
 	display: none !important;
 }
 
-.ecosystem-region-dialog__error {
+.ecosystem-region-dialog__error,
+.ecosystem-transfer-dialog__error {
 	margin: 0;
 	padding: var(--space-6) var(--space-8);
 	border: 1px solid var(--color-danger-soft-border);
@@ -334,7 +360,8 @@
 }
 
 .ecosystem-region-dialog__actions,
-.ecosystem-intro-dialog__actions {
+.ecosystem-intro-dialog__actions,
+.ecosystem-transfer-dialog__actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: var(--space-6);
@@ -343,7 +370,8 @@
 }
 
 .ecosystem-region-dialog__button,
-.ecosystem-intro-dialog__button {
+.ecosystem-intro-dialog__button,
+.ecosystem-transfer-dialog__button {
 	appearance: none;
 	-webkit-appearance: none;
 	padding: var(--space-6) var(--space-10);
@@ -357,30 +385,35 @@
 }
 
 .ecosystem-region-dialog__button:hover,
-.ecosystem-intro-dialog__button:hover {
+.ecosystem-intro-dialog__button:hover,
+.ecosystem-transfer-dialog__button:hover {
 	background: var(--color-button-soft-hover);
 }
 
 .ecosystem-region-dialog__button:focus-visible,
-.ecosystem-intro-dialog__button:focus-visible {
+.ecosystem-intro-dialog__button:focus-visible,
+.ecosystem-transfer-dialog__button:focus-visible {
 	outline: none;
 	box-shadow: var(--focus-ring);
 }
 
 /* The one main action of this dialog is filled; "Abbrechen" stays soft (§12 button hierarchy). */
 .ecosystem-region-dialog__button--primary,
-.ecosystem-intro-dialog__button--primary {
+.ecosystem-intro-dialog__button--primary,
+.ecosystem-transfer-dialog__button--primary {
 	border-color: var(--color-button-border);
 	background: var(--color-button);
 	color: var(--color-button-text);
 }
 
 .ecosystem-region-dialog__button--primary:hover,
-.ecosystem-intro-dialog__button--primary:hover {
+.ecosystem-intro-dialog__button--primary:hover,
+.ecosystem-transfer-dialog__button--primary:hover {
 	background: var(--color-button-hover);
 }
 
-.ecosystem-region-dialog__button:disabled {
+.ecosystem-region-dialog__button:disabled,
+.ecosystem-transfer-dialog__button:disabled {
 	border-color: var(--color-disabled-border);
 	background: var(--color-disabled-bg);
 	color: var(--color-disabled-text);
@@ -420,6 +453,28 @@
 }
 
 .ecosystem-intro-dialog__note {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-normal);
+	hyphens: auto;
+	overflow-wrap: break-word;
+}
+
+/* ---- send dialog, the part that is NOT shared (V3.6) -----------------------------------------------
+   Two lines of prose in a form. Both are explanatory text and take the ONE token for that role
+   (--color-text-muted) -- the source line says what was right-clicked, the note says what the wiki link
+   will do. Neither is a status of its own: failures go to the shared error line above them. */
+.ecosystem-transfer-dialog__source {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+	hyphens: auto;
+	overflow-wrap: break-word;
+}
+
+.ecosystem-transfer-dialog__note {
 	margin: 0;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);

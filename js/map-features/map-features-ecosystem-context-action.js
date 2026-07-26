@@ -21,7 +21,10 @@
  *   (none)                             landscape areas             <- built here, delete first
  *
  * The area menu is the prerequisite for V3.6 ("Senden an ...") AND the way back out of an area put in
- * the wrong place, which V3.0b left open on purpose.
+ * the wrong place, which V3.0b left open on purpose. It is built and owned here, so a sibling feature
+ * adds its entry through window.AvesmapsEcosystemAreaMenu.addEntry() -- the one seam this file offers.
+ * V3.6 uses it; wrapping open() from outside would be the alternative, and it would break on the next
+ * change in here.
  */
 (function initEcosystemContextAction() {
 	"use strict";
@@ -52,6 +55,12 @@
 	// BEFORE the menu is closed -- closing clears it.
 	let activeEcosystemAreaMenuPublicId = "";
 	let ecosystemAreaMenuMapHooked = false;
+
+	// V3.6 extension point: action -> handler, for entries a SIBLING file hangs into this menu. The menu
+	// is built in JS and everything around it is private to this IIFE, so without a registry the only way
+	// in from outside would be monkey-patching window.AvesmapsEcosystemAreaMenu.open -- which would run
+	// on every open, after the entry was needed, and would break the moment this file changes.
+	const areaMenuEntryHandlers = new Map();
 
 	function label(key, german) {
 		return typeof tr === "function" ? tr(key, german) : german;
@@ -265,6 +274,43 @@
 		return menu;
 	}
 
+	// Adds one entry to the area menu on behalf of another file (V3.6: "Senden an ..."). Idempotent by
+	// action, exactly like ensureAreaMenuElement is by element -- both may run again after a reload of
+	// the calling file without producing a second entry.
+	//
+	// 🪤 INSERTED BEFORE THE FIRST DANGER ENTRY, not appended. "Fläche löschen" is built first here, and
+	// an appended entry would land below it; destructive actions belong last in every menu in this house
+	// (#region-context-menu ends on `delete` too). The caller must not have to know that.
+	function addEcosystemAreaMenuEntry({ action = "", label: entryLabel = "", onClick = null } = {}) {
+		const actionName = String(action).trim();
+		if (!actionName || typeof onClick !== "function") {
+			return null;
+		}
+
+		areaMenuEntryHandlers.set(actionName, onClick);
+
+		const menu = ensureAreaMenuElement();
+		const existing = menu.querySelector(`[${AREA_ACTION_ATTRIBUTE}="${actionName}"]`);
+		if (existing) {
+			return existing;
+		}
+
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "map-context-menu__item";
+		button.setAttribute(AREA_ACTION_ATTRIBUTE, actionName);
+		button.textContent = String(entryLabel || actionName);
+
+		const firstDanger = menu.querySelector(".map-context-menu__item--danger");
+		if (firstDanger) {
+			menu.insertBefore(button, firstDanger);
+		} else {
+			menu.appendChild(button);
+		}
+
+		return button;
+	}
+
 	// Copied from positionContextMenuElement (map-features-region-context-menu.js:41-51), NOT called --
 	// see the header. Offsets and padding come from js/config.js, so all three menus keep landing in the
 	// same spot relative to the cursor.
@@ -396,11 +442,20 @@
 		event.stopPropagation();
 		event.stopImmediatePropagation();
 
+		// 💣 Read BEFORE closing -- closeEcosystemAreaContextMenu() clears it, and every handler below
+		// needs to know which area the menu was opened on.
 		const publicId = activeEcosystemAreaMenuPublicId;
+		const action = actionElement.getAttribute(AREA_ACTION_ATTRIBUTE);
 		closeEcosystemAreaContextMenu();
-		if (actionElement.getAttribute(AREA_ACTION_ATTRIBUTE) === DELETE_AREA_ACTION) {
+		if (action === DELETE_AREA_ACTION) {
 			void deleteEcosystemArea(publicId);
+			return true;
 		}
+
+		// Registered by a sibling file through addEntry. It gets the public_id and looks the row up
+		// itself (layer._ecosystemArea), the same way deleteEcosystemArea does -- a narrow contract that
+		// cannot go stale when the area shape changes.
+		areaMenuEntryHandlers.get(action)?.(publicId);
 
 		return true;
 	}
@@ -453,6 +508,9 @@
 			open: openEcosystemAreaContextMenu,
 			close: closeEcosystemAreaContextMenu,
 			isOpen: isEcosystemAreaContextMenuOpen,
+			// V3.6 and anything after it: one entry point for adding an entry, so a sibling feature never
+			// has to reach into this file's DOM or wrap its open().
+			addEntry: addEcosystemAreaMenuEntry,
 		};
 	}
 
