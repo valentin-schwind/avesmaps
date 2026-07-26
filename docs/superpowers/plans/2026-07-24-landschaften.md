@@ -1468,7 +1468,7 @@ gerade aktiven `kind`. Zwei Wege, mehr nicht:
 > nicht vollständig — Verschieben einer Fläche zwischen Ebenen bleibt V3.6 („Senden an …")
 > + Löschen. Was sie liefert, ist die **Auswahl vor** dem Zeichnen, sodass der häufige
 > Fall (falsche Ebene aktiv) gar nicht erst entsteht. Ein `delete_area`-Knopf am
-> Kontextmenü der Fläche (V3.4) schließt den Rest.
+> Kontextmenü der Fläche (V3.4) schließt den Rest — ✅ **gebaut und abgenommen 2026-07-26**.
 
 ### Aufgabe V3.1 — Geometriehelfer, ringfähig von Anfang an ✅ ERLEDIGT
 
@@ -1733,7 +1733,63 @@ document.addEventListener("keydown", (event) => {
       auch. Abgenommen: *„strg-z verhält sich jetzt glaub richtig, wir können weitermachen."*
 - [x] **Schritt 10: Commit** — `feat(ecosystem): vertex editing with batched saves and a scoped undo stack`
 
-### Aufgabe V3.4 — Kontextmenü
+### Aufgabe V3.4 — Kontextmenü ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26, Commit `2821fd1f`.** **Abnahme durch den Owner:** *„fläche löschen
+> geht."* — geprüft wurde damit ausdrücklich der Lösch-Rückweg (das Kernstück von Schritt 6);
+> die Modus-Sichtbarkeit ist gegen die Live-Bedingung gemessen, aber nicht eigens bestätigt.
+>
+> **Der Dateizettel oben stimmte nicht — es sind fünf, nicht einer.** Was tatsächlich nötig war,
+> und jeweils warum:
+>
+> | Datei | warum sie doch dran musste |
+> |---|---|
+> | `map-features-ecosystem-context-action.js` | die IIFE selbst (466 Z.) |
+> | `index.html` | **eine** Zeile: das `<script>`-Tag. Es gibt keinen Build und keinen Lader für `map-features/*` — „ohne `index.html`" kann nur „ohne Menü-Umbau" heißen, und so ist es umgesetzt (Textanker, nicht Zeilennummer). |
+> | `css/components/map-context-menu.css` | 4 Glyphenregeln, s. u. — ohne sie rutscht das Label in die 1,45-em-Spalte |
+> | `map-features-ecosystem-rendering.js` | `layer.on("contextmenu")` → gewachter Aufruf, wie V3.3 sich dort eingehängt hat |
+> | `map-features-ecosystem-draw.js` | `startEcosystemAreaDrawing({startLatLng})`, s. „erste Ecke" |
+>
+> 🪤 **`data-ecosystem-kind` war NICHT benutzbar** — der naheliegende Attributname.
+> `syncEcosystemLayerSwitchControls` fragt **dokumentweit**
+> `querySelectorAll("[data-ecosystem-kind]")` (`map-features-ecosystem-layer-switch.js:76`) und
+> stempelt `is-active` / `aria-selected` / `tabindex` auf **jeden** Treffer. Ein Menüeintrag mit
+> diesem Attribut wäre still als vierter Reiter des Segmentschalters behandelt worden. Deshalb
+> `data-ecosystem-new-kind`.
+>
+> 🪤 **Ein injizierter `.map-context-menu__item` braucht eine `::before`-Glyphenregel.** Die
+> Grundregel ist `grid-template-columns: 1.45em minmax(0,1fr) auto`; ohne `content` wird das
+> `::before` **nicht erzeugt**, und dann wird der Beschriftungstext selbst zum ersten
+> Rasterelement — in einer 1,45 em breiten Spalte, mit `white-space: nowrap`. Deshalb gehört zu
+> jedem neuen Eintrag eine Zeile in `map-context-menu.css`; dasselbe gilt für V3.6.
+>
+> 💣 **Löschen schließt eine offene Eckenbearbeitung OHNE Flush** (`{flush: false}`). Mit Flush
+> würde der gebündelte Save (800 ms) nach dem Löschen auf eine Zeile mit `is_active = 0` treffen
+> und als Fehlermeldung über eine Fläche zurückkommen, die der Editor gerade absichtlich
+> entfernt hat. Im Browser gegengeprüft: es geht **genau ein** Aufruf raus, `delete_area`.
+>
+> ⭐ **Der rechtsgeklickte Punkt wird die erste Ecke.** Die Einträge sitzen im Untermenü „Hier
+> hinzufügen" — ohne das wären sie die einzigen darin, die ignorieren, wo sie geöffnet wurden.
+> Der Knopf „Fläche zeichnen" startet unverändert leer.
+>
+> **Nicht gebaut, absichtlich:** das Flächenmenü hat **einen** Eintrag. „Senden an …" hängt V3.6
+> daran, „Ecken bearbeiten" bleibt beim Doppelklick (V3.3).
+>
+> 🪤 **Drei Prüffallen, alle im unsichtbaren Browser-Bereich** (Einzelheiten samt Rezept in der
+> Sitzungsnotiz `leaflet-synthetic-drag-target-trap`):
+> 1. Die Panes starten **0×0**, also liefert `document.elementFromPoint` `null`.
+>    `resize_window{preset:"desktop"}` hilft nicht — explizite Maße setzen, dann
+>    `map.invalidateSize()`.
+> 2. Danach lag die Fläche außerhalb des Ausschnitts und `map.setView` bewegte nichts. **Lösung:
+>    nicht hit-testen** — das Ereignis direkt auf `layer.getElement()` feuern, Leaflet findet sein
+>    Ziel über `e.target`.
+> 3. `<option value="political">` ist **ohne DB `disabled`**, und der jQuery-Getter überspringt
+>    disabled: `getSelectedMapLayerMode()` bleibt auf dem alten Wert, während `select.value` schon
+>    steht. Zum Prüfen `option.disabled = false` setzen.
+>
+> ⭐ **`stopImmediatePropagation` beweist man am verhinderten Seiteneffekt:** dass der Klick auf
+> den Menüeintrag **keine** Zeichen-Ecke setzte (ein Punkt, nicht zwei), ist der Nachweis, dass er
+> die jQuery-Delegation nie erreicht hat. Direkt abfragbar ist es nicht.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-context-action.js`
 (Vorlage **lesen**: `map-features-settlement-context-action.js`)
@@ -1760,15 +1816,23 @@ ausgeblendet, außer der Modus ist `political`.
 > an …" (V3.6) **und** für den Lösch-Rückweg (V3.0b-Schluss). Es hier gleich mitbauen,
 > mit `delete_area` als erstem Eintrag; V3.6 hängt „Senden an …" daran.
 
-- [ ] **Schritt 1–4:** Injektion der drei Karten-Einträge, Handler, Ebenen-Umschaltung,
+- [x] **Schritt 1–4:** Injektion der drei Karten-Einträge, Handler, Ebenen-Umschaltung,
       Ausblendung von „Neues Herrschaftsgebiet".
-- [ ] **Schritt 5: Flächen-Kontextmenü** für Landschaftsflächen anlegen, erster Eintrag
+- [x] **Schritt 5: Flächen-Kontextmenü** für Landschaftsflächen anlegen, erster Eintrag
       **„Fläche löschen"** (`delete_area`, weich) — der Rückweg aus einer falsch
       platzierten Fläche.
-- [ ] **Schritt 6: 🔧 DU (Owner):** Im politischen Modus ist „Neues Herrschaftsgebiet"
+      Test: `node js/map-features/__tests__/ecosystem-context-menu.test.js` (Sichtbarkeits-Entscheid
+      je Modus, Bau der Lösch-Anfrage, Bestätigungstext). 💣 Er hat beim Schreiben **mich** statt den
+      Code korrigiert: die Behauptung „ein String-`geometry_revision` muss abgewiesen werden" ist
+      falsch — der Server castet in **beiden** Pfaden `(int)`
+      (`api/_internal/app/ecosystem.php:543` und `:1203`), Abweisen hätte ein funktionierendes
+      Löschen in „nicht mehr geladen" verwandelt. Abgewiesen wird, was der Server mit 400
+      beantwortet: fehlend, 0, leer, gebrochen. Der Zustandsbehaftete Teil (Menü-DOM, Capture-Phase,
+      Löschpfad, 409) ist im Browser gegen gestubbtes `postEcosystemEdit` geprüft.
+- [x] **Schritt 6: 🔧 DU (Owner):** Im politischen Modus ist „Neues Herrschaftsgebiet"
       da, im neuen Modus nicht. Rechtsklick auf eine Fläche zeigt „Fläche löschen"; danach
-      ist sie weg (Reload).
-- [ ] **Schritt 7: Commit** — `feat(ecosystem): map-menu create entries plus a per-area menu with delete`
+      ist sie weg (Reload). — Abgenommen: *„fläche löschen geht."*
+- [x] **Schritt 7: Commit** — `feat(ecosystem): map-menu create entries plus a per-area menu with delete`
 
 ### Aufgabe V3.5 — Erprobungs-Hinweis
 
