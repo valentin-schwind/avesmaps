@@ -1858,10 +1858,32 @@ Erst wenn das sitzt, die zweite. Bitte noch keine Serie — das Werkzeug ist neu
 und was jetzt entsteht, kann sich noch als falsch erweisen.
 ```
 
+> 🔴 **ZWEI der drei Teilaufgaben unten sind überholt — nachgemessen am 2026-07-26 (nach V3.4),
+> gegen `2821fd1f`. Wer sie wörtlich abarbeitet, baut einmal etwas, das der Owner schon
+> verworfen hat, und einmal etwas, das die Sache VERSCHLECHTERT.**
+>
+> 1. ~~„Statuszeile (das Chip aus V3.3)"~~ — **es gibt kein Chip aus V3.3.** Es wurde gebaut und
+>    auf Owner-Wunsch wieder entfernt: *„dein neues toast-system ist albern, du hättest die
+>    normalen toasts/chips verwenden können"* (V3.3, Entscheidung 1). Meldungen laufen über
+>    `showFeedbackToast`. Ein Hinweis-Dialog braucht ohnehin keine Statuszeile.
+> 2. ~~„der Client liest `app_setting['ecosystem_trial']` und schickt `is_trial` an jede
+>    `create_area`-Aktion"~~ — **das macht der Server längst selbst und besser.**
+>    `api/_internal/app/ecosystem.php:960–962`: fehlt `is_trial` im Payload, entscheidet
+>    `avesmapsEcosystemTrialActive()` (`:304–307`). Der Kommentar daneben nennt den Grund, und er
+>    ist ein Sicherheitsargument, keine Bequemlichkeit: *„a client that never heard of the trial
+>    cannot smuggle a permanent area into a trial run or the other way round."* Ein Client, der
+>    `is_trial` mitschickt, **schaltet diesen Schutz ab**. Dazu müsste er `app_setting` überhaupt
+>    lesen können — es gibt dafür keinen Lesepfad, und einen zu bauen wäre der zweite Fehler.
+>    ⭐ Der Lesepfad **liefert** `is_trial` je Fläche schon (`:544`), und die Kachel zeigt es
+>    („· Erprobung", `map-features-ecosystem-rendering.js:120`).
+>
+> **Es bleibt also EINE Teilaufgabe:** der einmalige Dialog mit den konkreten Schritten
+> (`localStorage`, „schon gesehen" ist Neubau). Der Rest von V3.5 steht bereits.
+
 - [ ] **Schritt 1–3:** Dialog (einmalig, `localStorage` — im Projekt gibt es kein
-      „schon-gesehen"-Muster, das ist Neubau), Statuszeile (das Chip aus V3.3),
-      `is_trial`-Weitergabe: der Client liest `app_setting['ecosystem_trial']` und schickt
-      `is_trial` an jede `create_area`-Aktion.
+      „schon-gesehen"-Muster, das ist Neubau), ~~Statuszeile (das Chip aus V3.3)~~,
+      ~~`is_trial`-Weitergabe: der Client liest `app_setting['ecosystem_trial']` und schickt
+      `is_trial` an jede `create_area`-Aktion~~ — **beide gestrichen, siehe den Block darüber.**
 - [ ] **Schritt 4: Commit** — `feat(ecosystem): trial-phase notice with concrete steps`
 
 ### Aufgabe V3.6 — „Senden an …"
