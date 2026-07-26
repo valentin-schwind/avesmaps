@@ -225,7 +225,8 @@ y = 1024 − row / ppu          # ppu = Bildbreite / 1024
 ### Frage 3 — Wie stark wird vereinfacht?
 
 **Douglas-Peucker (`cv2.approxPolyDP`), ε aber nicht absolut, sondern als Anteil am
-Umfang der Form: `ε = Umfang × 0,004`, Untergrenze 0,75 px.**
+Umfang der Form: `ε = Umfang × 0,002`, Untergrenze 0,75 px.
+**Vom Owner abgenommen am 2026-07-27.****
 
 > 🔴 **Ein absolutes ε ist hier falsch, und das ist gemessen, nicht gemeint.** Die Formen
 > unterscheiden sich um den Faktor 28 im Umfang — Maraskan hat 5.602 Rohecken, die Insel
@@ -257,11 +258,28 @@ Zoom 0 kosten 56 ms je Zoomschritt und 150 ms für einen 8-Schritt-Pan; die poli
 zeichnet heute 88.571 Ecken. 122 Flächen à ~35 Ecken sind rund **4.300** — ein Zwanzigstel
 dessen, was die politische Ebene heute zeichnet.
 
-> ⚠️ **Das Verhältnis ist ein CLI-Argument (`--simplify-ratio`, Vorgabe 0,004) und der
-> eigentliche Gegenstand der Entwurfsrunde (Aufgabe 6).** Wer gröber will, nimmt 0,008
-> (jede Form ~20 Ecken); 0,015 ist messbar zu grob — Ochsenwasser schneidet dort über das
-> Ufer. Genau deshalb wird der Entwurf **vor** dem Massenimport gezeigt: „Ein Massenimport
-> in falscher Vereinfachungsstufe ist teurer rückgängig zu machen als noch einmal zu rechnen."
+**Warum 0,002 und nicht feiner** — gemessen über alle 122 Formen, gegen die Baronie-Referenz
+(Median 49 / p90 85 / max 147):
+
+| Verhältnis | Median | p90 | max | Summe Ecken |
+|---|---:|---:|---:|---:|
+| 0,001 | 32 | **105** ⚠️ | **203** ⚠️ | 5.585 |
+| **0,002** ✅ | 32 | **66** | **115** | **4.575** |
+| 0,004 | 28 | 37 | 60 | 3.202 |
+| 0,008 | 17 | 22 | 28 | 2.046 |
+
+> 🪤 **Unter 0,002 ändert sich bei den kleinen Formen nichts mehr** — sie laufen gegen die
+> Untergrenze von 0,75 px. Sigorast hat bei 0,001 und 0,002 dieselben 38 Ecken, Buli bei
+> 0,001 bis 0,004 dieselben 23. Feiner stellen wirkt **nur** auf die großen Formen, und
+> genau dort reißt 0,001 über die Referenz aus (p90 105 gegen 85, max 203 gegen 147). 0,002
+> ist damit die feinste Stufe, die die Referenz auf allen drei Maßen einhält.
+
+> ⚠️ **Das Verhältnis bleibt ein CLI-Argument (`--simplify-ratio`).** Vorgabe 0,002, vom
+> Owner am 2026-07-27 an drei Formen im Bild abgenommen (Maraskan 84 Ecken, Ochsenwasser 56,
+> Angbarer See 69). Wer gröber will, nimmt 0,004; 0,015 ist messbar zu grob — Ochsenwasser
+> schneidet dort über das Ufer. Der Entwurf wird trotzdem **vor** dem Massenimport gezeigt
+> (Aufgabe 6): „Ein Massenimport in falscher Vereinfachungsstufe ist teurer rückgängig zu
+> machen als noch einmal zu rechnen."
 
 ### Frage 4 — Auf welchem Weg landen die Flächen in `ecosystem_region` / `ecosystem_area`?
 
@@ -324,7 +342,7 @@ Der Hauptplan nennt **149** (`insel` 95 + `see` 46 + `kueste` 2 + `kontinent` 2 
 Gemessen an den echten Kacheln trägt diese Summe nicht. **Das ist der wichtigste Befund
 dieser Vorbereitung, und er gehört vor das GO, nicht hinter den Import.**
 
-Gemessen bei der **empfohlenen** Einstellung (z3, `B ≥ G−20`, Vereinfachung Umfang × 0,004):
+Gemessen bei der **abgenommenen** Einstellung (z3, `B ≥ G−20`, Vereinfachung Umfang × 0,002):
 
 | Klasse | Plan | **gemessen ableitbar** | Befund |
 |---|---:|---:|---|
@@ -1447,7 +1465,7 @@ def main() -> None:
     parser.add_argument("--tiles", default=r"C:\GIT\avesmaps\tiles\stylized")
     parser.add_argument("--payload", required=True)
     parser.add_argument("--zoom", type=int, default=3)
-    parser.add_argument("--simplify-ratio", type=float, default=0.004,
+    parser.add_argument("--simplify-ratio", type=float, default=0.002,
                         help="Douglas-Peucker epsilon as a fraction of each ring's own perimeter.")
     parser.add_argument("--blue-over-green", type=int, default=WATER_BLUE_OVER_GREEN)
     parser.add_argument("--only", nargs="+", default=None, help="Restrict to these label names.")
@@ -1507,11 +1525,11 @@ Erwartet: 24 passed.
 - [ ] **Schritt 5: Den echten Lauf ausführen und die Zahlen gegen die Messung prüfen**
 
 ```bash
-cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --simplify-ratio 0.004 --out "$SCRATCH/manifest.json" --report "$SCRATCH/report.md"
+cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --simplify-ratio 0.002 --out "$SCRATCH/manifest.json" --report "$SCRATCH/report.md"
 ```
 
 Erwartet, gegen die Vorabmessung vom 2026-07-26 bei genau dieser Einstellung
-(z3, `B ≥ G−20`, Umfang × 0,004):
+(z3, `B ≥ G−20`, Umfang × 0,002):
 
 | | erwartet |
 |---|---:|
@@ -1557,7 +1575,7 @@ Nicht die fünf schönsten, sondern die fünf, die etwas beweisen:
 | 5 | **Buli** (`insel`, winzig, Label steht daneben) | ob die Vorwärtssuche die richtige Kleininsel greift |
 
 ```bash
-cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --simplify-ratio 0.004 --only "Angbarer See" "Ochsenwasser" "Maraskan" "Sigorast" "Buli" --out "$SCRATCH/entwurf.json" --report "$SCRATCH/entwurf.md"
+cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --simplify-ratio 0.002 --only "Angbarer See" "Ochsenwasser" "Maraskan" "Sigorast" "Buli" --out "$SCRATCH/entwurf.json" --report "$SCRATCH/entwurf.md"
 ```
 
 - [ ] **Schritt 2: Die Vorschauseite schreiben**
@@ -1625,8 +1643,8 @@ Drei mögliche Antworten, alle billig:
 | Antwort | was passiert |
 |---|---|
 | „passt" | weiter zu Aufgabe 7 |
-| „zu grob" | `--simplify-ratio 0.002` und Aufgabe 6 wiederholen (Rechenzeit ~3 min, kein Rückbau) |
-| „zu fein" | `--simplify-ratio 0.008` und Aufgabe 6 wiederholen |
+| „zu grob" | `--simplify-ratio 0.001` und Aufgabe 6 wiederholen (Rechenzeit ~3 min, kein Rückbau) |
+| „zu fein" | `--simplify-ratio 0.004` und Aufgabe 6 wiederholen |
 
 🔴 **Vor dieser Abnahme wird nichts importiert.**
 
@@ -1900,7 +1918,7 @@ git commit -m "feat(ecosystem): throttled, resumable import of derived areas thr
 
 Inhalt, knapp: der Ablauf in vier Befehlen (Nutzlast holen → `verify_orientation.py` →
 `derive_areas.py` → `import_areas.py`), die drei Grenzwerte mit ihren gemessenen Vorgaben
-(`--zoom 3`, `--simplify-ratio 0.004`, `--blue-over-green -20`) und **je einem Satz, warum**, plus der
+(`--zoom 3`, `--simplify-ratio 0.002`, `--blue-over-green -20`) und **je einem Satz, warum**, plus der
 Hinweis, dass `import_areas.py` ohne `--commit` nichts tut und eine Owner-Sitzung braucht.
 
 - [ ] **Schritt 2: `docs/stylized-map-tiles.md` um einen Abschnitt ergänzen**
