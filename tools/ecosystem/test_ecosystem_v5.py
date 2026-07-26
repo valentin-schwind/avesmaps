@@ -32,6 +32,7 @@ from ecosystem_labels import (
     resolve,
 )
 from derive_areas import build_manifest
+from import_areas import build_requests, pending_entries
 from ecosystem_shapes import build_geometry, component_rings, count_positions, simplify_ring
 
 DEEP_WATER = (40, 90, 170)      # deep ocean blue: B-G=80, B-R=130, hue ~108
@@ -370,6 +371,54 @@ def test_manifest_geometry_stays_inside_the_map():
     for ring in manifest["entries"][0]["geometry"]["coordinates"]:
         for x, y in ring:
             assert 0.0 <= x <= 1024.0 and 0.0 <= y <= 1024.0, f"out of bounds: {x}, {y}"
+
+
+def sample_entry():
+    return {
+        "name": "Angbarer See", "subtype": "see", "kind": "topographie", "region_type": "see",
+        "wiki_url": "https://de.wiki-aventurica.de/wiki/Angbarer_See",
+        "label_public_id": "label-42",
+        "geometry": {"type": "Polygon",
+                     "coordinates": [[[1.0, 2.0], [3.0, 2.0], [3.0, 4.0], [1.0, 2.0]]]},
+        "position_count": 4, "component_area_px": 900,
+    }
+
+
+def test_region_request_sends_wiki_url_and_never_a_key():
+    region, area = build_requests(sample_entry())
+    assert region["action"] == "create_region"
+    assert region["kind"] == "topographie" and region["region_type"] == "see"
+    assert region["wiki_url"].endswith("/Angbarer_See")
+    assert region["label_public_id"] == "label-42"
+    assert "wiki_region_key" not in region, "the server derives it (ecosystem.php:636)"
+    assert area["action"] == "create_area"
+
+
+def test_area_request_states_is_trial_false_explicitly():
+    """Otherwise create_area falls back to app_setting['ecosystem_trial'] (ecosystem.php:960)
+    and the import would depend on whether the owner already ran promote_trial."""
+    _, area = build_requests(sample_entry())
+    assert area["is_trial"] is False
+
+
+def test_empty_wiki_url_is_omitted_not_sent_empty():
+    entry = dict(sample_entry(), wiki_url="")
+    region, _ = build_requests(entry)
+    assert "wiki_url" not in region, "19 of 149 labels have none -- an empty string is not a URL"
+
+
+def test_already_imported_entries_are_skipped():
+    state = {"label-42": {"region_public_id": "r1", "area_public_id": "a1"}}
+    assert pending_entries([sample_entry()], state) == []
+    assert len(pending_entries([sample_entry()], {})) == 1
+
+
+def test_half_finished_entry_resumes_at_the_area():
+    """A region written but no area yet must be FINISHED, not skipped -- otherwise a broken run
+    leaves a nameless region behind and the area never arrives."""
+    state = {"label-42": {"region_public_id": "r1"}}
+    pending = pending_entries([sample_entry()], state)
+    assert len(pending) == 1
 
 
 def _run() -> int:
