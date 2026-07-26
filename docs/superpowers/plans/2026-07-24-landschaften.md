@@ -1969,12 +1969,36 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 > wird nach V4 beauftragt, wenn die Messung zeigt, dass er sich lohnt. **Hier nur benannt,
 > damit V4 weiß, dass es den teuren Weg misst, nicht den späteren billigen.**
 
-- [ ] **Schritt 1–4:** „Senden an …" am Flächenmenü, Ziel-Region (neu/bestehend), Kopie
+- [x] **Schritt 1–4:** „Senden an …" am Flächenmenü, Ziel-Region (neu/bestehend), Kopie
       über den Schreibendpunkt (neue `public_id`, kein Verweis auf die Quelle),
       Ebenenwechsel, Auswahl der Kopie.
-- [ ] **Schritt 5: 🔧 DU (Owner):** Eine Vegetationsfläche in die Topographie senden,
-      dort eine Ecke ziehen — das Original bleibt unverändert.
-- [ ] **Schritt 6: Commit** — `feat(ecosystem): send a drawn area to the other two layers as a copy`
+- [x] **Schritt 5: 🔧 DU (Owner):** Eine Vegetationsfläche in die Topographie senden,
+      dort eine Ecke ziehen — das Original bleibt unverändert. **Abgenommen 2026-07-26**
+      („passt, funktioniert").
+- [x] **Schritt 6: Commit** — `feat(ecosystem): send a drawn area to the other two layers as a copy`
+      (`9ad8bf14`)
+
+> **Drei Abweichungen vom Aufgabentext, alle gemessen begründet:**
+> 1. **Es ist keine Datei, sondern ein Erweiterungspunkt plus eine Datei.** Das Flächenmenü
+>    wird in JS gebaut und ist IIFE-privat; eine fremde Datei hat keinen Weg hinein. Es hat
+>    deshalb `AvesmapsEcosystemAreaMenu.addEntry({action, label, onClick})` bekommen, das
+>    destruktive Einträge von selbst hinten hält. `open()` zu umwickeln wäre die naheliegende
+>    und falsche Alternative gewesen.
+> 2. **Ein Eintrag, ein Dialog** (Zielebene *und* Zielregion) statt Untermenü + Dialog: das
+>    Flächenmenü ist flach, das Untermenü des Kartenmenüs ist statisches Markup und nicht
+>    wiederverwendbar — und die Zielregion muss ohnehin gefragt werden.
+> 3. **`region_type` reist NICHT mit.** `wald` ist Vegetation; auf einer Topographie-Region
+>    antwortet `avesmapsEcosystemAssertRegionType` mit 400. Die Art-Liste kommt aus dem
+>    Vokabular der Zielebene. Der Wiki-Artikel reist mit, aber nur solange der Name der Name
+>    der Quelle ist — sonst zeigte der serverseitig abgeleitete `wiki_region_key` auf einen
+>    fremden Artikel.
+>
+> 🪤 **Zwei Fehler, die erst die Messung im Browser zeigte** — beide behoben, beide in einer
+> Sitzung ohne Browserprüfung durchgerutscht wären: der Ebenenwechsel zeichnet die
+> Regionszeile aus dem Cache neu und fiel auf die **erste** Region der Zielebene zurück (die
+> Leiste nannte eine andere Region als die, in die die nächste Fläche gegangen wäre); und ein
+> `<select>` behält seinen Wert über Schließen/Öffnen hinweg, sodass der zweite „Senden an …"
+> anbot, an die Region des ersten anzuhängen.
 
 ---
 
