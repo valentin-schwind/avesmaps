@@ -516,43 +516,43 @@
    `.ecosystem-pane--resting path` would LOSE that cascade and the pale layers would still swallow
    clicks -- which is the whole failure this design exists to prevent. Hence the .leaflet-pane in the
    selector: three classes beat two. */
-/* THE OPACITY MATRIX (Owner 2026-07-26) — fill / contour, per layer and state:
+/* THE OPACITY MATRIX (Owner 2026-07-26, second pass) — fill / contour, per layer and state:
 
                         |   resting   |   active    |  selected
-     derographisch      |   0% / 70%  |  40% / 70%  |  70% / 100%
-     vegetation         |  50% / 70%  |  70% / 80%  |  90% / 100%
-     topographie        |  50% / 70%  |  70% / 80%  |  90% / 100%
+     derographisch      |   0% / 70%  |  30% / 70%  |  30% / 100% white
+     vegetation         |  30% / 70%  |  50% / 70%  |  50% / 100% white
+     topographie        |  30% / 70%  |  50% / 70%  |  50% / 100% white
 
    🔴 The state lives on the PANE, the values are absolute, and therefore this can NOT be `opacity` on
-   the pane the way it was until today: pane opacity MULTIPLIES with the path's own fill-opacity, so a
-   figure like "40%" would silently become 40% of something else. Fill and contour are set on the paths
-   instead, and the pane only carries the state class -- switching layers still costs no layer rebuild
-   and pointer-events stays a pane property, which is the load-bearing part.
+   the pane: pane opacity MULTIPLIES with the path's own fill-opacity, so a figure like "30%" would
+   silently become 30% of something else. Fill and contour are set on the paths instead, and the pane
+   only carries the state class -- switching layers still costs no layer rebuild and pointer-events
+   stays a pane property, which is the load-bearing part.
 
-   Custom properties inherit into the pane's <svg>, so the whole matrix is these few declarations and
+   Custom properties inherit into the pane's <svg>, so the whole matrix is these four declarations and
    one rule that reads them. A derographic area at rest is an OUTLINE and nothing else (0% fill): it
    marks a container, and containers must not tint the map somebody else is drawing on.
 
-   The dashed resting outline from earlier today is gone. It was a workaround for "the resting layers
-   are invisible"; the matrix above solves that properly, and encoding one state twice over-signals. */
+   ⭐ Selection no longer touches the FILL at all -- the selected value equals the active one in both
+   groups, so clicking an area makes nothing jump inside it. The whole signal is the outline: full
+   opacity and WHITE, which reads on every one of the tones below and needs no per-kind variant.
+   That also removed --eco-fill-selected: a custom property whose two values had become the two values
+   it was overriding. */
 .ecosystem-pane {
-	--eco-fill: 0.5;
+	--eco-fill: 0.3;
 	--eco-contour: 0.7;
 }
 
 .ecosystem-pane--active {
-	--eco-fill: 0.7;
-	--eco-contour: 0.8;
+	--eco-fill: 0.5;
 }
 
 .ecosystem-pane--derographisch {
 	--eco-fill: 0;
-	--eco-fill-selected: 0.7;
 }
 
 .ecosystem-pane--derographisch.ecosystem-pane--active {
-	--eco-fill: 0.4;
-	--eco-contour: 0.7;
+	--eco-fill: 0.3;
 }
 
 .ecosystem-pane > svg path.leaflet-interactive {
@@ -561,17 +561,17 @@
 	transition: fill-opacity 0.15s ease, stroke-opacity 0.15s ease;
 }
 
-/* Selection comes forward by opacity AND takes a WHITE contour (Owner 2026-07-26). The FILL still keeps
-   the area's own tone in every state -- the colour answers "which area is this", the contour answers
-   "what can I do with it right now". One class more than the rules above, so it wins regardless of
-   source order.
+/* Selection takes a WHITE contour at full opacity (Owner 2026-07-26). The FILL is deliberately NOT
+   touched: with the second-pass matrix the selected value EQUALS the active one in both groups, so
+   clicking an area makes nothing jump inside it -- the colour answers "which area is this", the contour
+   answers "what can I do with it right now". One class more than the rules above, so it wins regardless
+   of source order.
 
    🪤 Leaflet writes stroke/fill as SVG presentation ATTRIBUTES, which CSS outranks -- which is why the
    contour can be overridden here without a second set of numbers in ecosystemAreaStyle(). */
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
-	fill-opacity: var(--eco-fill-selected, 0.9);
-	stroke-opacity: 1;
 	stroke: var(--color-ecosystem-selected-outline);
+	stroke-opacity: 1;
 }
 
 /* Open for editing: the contour switches to the SAME blue as the drag handles sitting on it, so the
