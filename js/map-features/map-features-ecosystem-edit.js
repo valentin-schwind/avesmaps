@@ -601,13 +601,31 @@ function isEcosystemEditTextTarget(target) {
 
 if (typeof document !== "undefined") {
 	document.addEventListener("keydown", (event) => {
-		if (!activeEcosystemGeometryEdit) { return; }
 		const key = String(event.key || "").toLowerCase();
 		if (key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) { return; }
 		if (isEcosystemEditTextTarget(event.target)) { return; }
+
+		// 💣 THE KEY IS TAKEN FOR THE WHOLE MODE, NOT JUST FOR AN OPEN SESSION -- and that is a safety
+		// rule, not a convenience. The first version only claimed it while an area was actually being
+		// edited, exactly as the plan asked. In practice (owner, 2026-07-26) a Ctrl+Z aimed at a corner
+		// but fired a moment after the area had been deselected fell through to
+		// handleChangeLogUndoShortcut and reverted the last CHANGE-LOG entry instead -- somebody's
+		// LOCATION edit, server-side, with no dialog. The miss costs nothing here and something
+		// unrelated and irreversible-by-click there, so inside the landscape mode the key never leaves
+		// this file. Everywhere else the audit undo is untouched.
+		const session = activeEcosystemGeometryEdit;
+		const inEcosystemMode = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+		if (!session && !inEcosystemMode) { return; }
+
 		event.preventDefault();
 		event.stopImmediatePropagation();
-		undoEcosystemGeometryStep();
+		if (session) {
+			undoEcosystemGeometryStep();
+			return;
+		}
+		// Deliberately says what DID NOT happen: the whole point is that the editor can tell "my undo
+		// did nothing" from "my undo silently changed something else".
+		sayEcosystemEdit("Keine Fläche in Bearbeitung — es wurde nichts rückgängig gemacht. Doppelklick auf eine Fläche öffnet ihre Ecken.");
 	}, true);
 
 	// Navigating away inside the 800 ms window would drop the last gesture. Firing the pending write now
