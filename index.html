@@ -655,6 +655,32 @@
 				</form>
 			</div>
 		</div>
+		<!-- V3.5: der einmalige Hinweis beim ERSTEN Betreten der Landschaften-Ebene. Er nennt konkrete
+		     Schritte, statt um Vorsicht zu bitten -- eine Warnung ohne Konsequenz wird weggeklickt.
+		     Gemerkt in localStorage (map-features-ecosystem-intro.js). Die Overlay-Huelle (Position,
+		     Scrim, z-index) kommt aus css/components/dialog-overlays.css, wo die ID in allen DREI
+		     Selektorlisten steht -- ein neues Overlay-<div> erbt sonst NICHTS. -->
+		<div id="ecosystem-intro-overlay" hidden>
+			<div id="ecosystem-intro-dialog" class="ecosystem-intro-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-intro-title" aria-describedby="ecosystem-intro-body" tabindex="-1">
+				<div class="ecosystem-intro-dialog__header">
+					<h2 id="ecosystem-intro-title" data-i18n="ecosystem.intro.title">Landschaften (Erprobung)</h2>
+					<button id="ecosystem-intro-close" class="ecosystem-intro-dialog__close" type="button" aria-label="Hinweis schließen" data-i18n-aria-label="ecosystem.intro.closeAria">×</button>
+				</div>
+				<div id="ecosystem-intro-body" class="ecosystem-intro-dialog__body">
+					<p class="ecosystem-intro-dialog__lead" data-i18n="ecosystem.intro.lead">Fang mit einem einzigen Durchgang an:</p>
+					<ol class="ecosystem-intro-dialog__steps">
+						<li data-i18n="ecosystem.intro.step1">Zeichne eine einzige Fläche.</li>
+						<li data-i18n="ecosystem.intro.step2">Verschiebe die Karte.</li>
+						<li data-i18n="ecosystem.intro.step3">Lade die Seite neu.</li>
+					</ol>
+					<p class="ecosystem-intro-dialog__check" data-i18n="ecosystem.intro.check">Ist sie noch da?</p>
+					<p class="ecosystem-intro-dialog__note" data-i18n="ecosystem.intro.note">Erst wenn das sitzt, die zweite. Bitte noch keine Serie — das Werkzeug ist neu, und was jetzt entsteht, kann sich noch als falsch erweisen.</p>
+				</div>
+				<div class="ecosystem-intro-dialog__actions">
+					<button id="ecosystem-intro-confirm" class="ecosystem-intro-dialog__button ecosystem-intro-dialog__button--primary" type="button" data-i18n="ecosystem.intro.confirm">Verstanden</button>
+				</div>
+			</div>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -1789,6 +1815,7 @@
 		<script src="js/map-features/map-features-ecosystem-edit.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-ecosystem-context-action.js"></script>
+		<script src="js/map-features/map-features-ecosystem-intro.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>

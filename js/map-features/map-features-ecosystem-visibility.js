@@ -69,4 +69,11 @@ function syncEcosystemVisibility() {
 		// Entprellung gilt dem Schwenken, nicht dem Einschalten.
 		scheduleEcosystemAreaReload({ immediate: true });
 	}
+	// V3.5: beim ERSTEN Betreten der Ebene einmalig der Hinweis mit den konkreten Schritten. Hier und
+	// nicht in bootstrap.js, weil er zum Betreten der Ebene gehoert, nicht zum Laden der Seite -- diese
+	// Funktion laeuft auch beim Zustands-Restore nach F5. Als Letztes, damit ein Fehler im Hinweis das
+	// Laden der Flaechen nicht mehr treffen kann; "schon gesehen" merkt sich die Datei selbst.
+	if (typeof AvesmapsEcosystemIntro !== "undefined" && typeof AvesmapsEcosystemIntro?.maybeShow === "function") {
+		AvesmapsEcosystemIntro.maybeShow();
+	}
 }

@@ -106,6 +106,17 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.region.cancel": "Cancel",
 	"ecosystem.region.save": "Create",
 
+	// --- Landschaften: the one-time trial notice on first entering the layer (V3.5) ---
+	"ecosystem.intro.title": "Landscapes (trial)",
+	"ecosystem.intro.closeAria": "Close notice",
+	"ecosystem.intro.lead": "Start with a single run-through:",
+	"ecosystem.intro.step1": "Draw one single area.",
+	"ecosystem.intro.step2": "Pan the map.",
+	"ecosystem.intro.step3": "Reload the page.",
+	"ecosystem.intro.check": "Is it still there?",
+	"ecosystem.intro.note": "Only once that holds, draw the second. Please no series yet — the tool is new, and what you create now may still turn out to be wrong.",
+	"ecosystem.intro.confirm": "Got it",
+
 	// --- Landschaften: the click-by-click draw tool (V3.2) ---
 	"ecosystem.draw.start": "Draw area",
 
