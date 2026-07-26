@@ -169,7 +169,7 @@ diese Tabelle.
 | **V1** | Die Ebene existiert | Modus umschaltbar, leer, Flag wirkt | ~320 Z. |
 | **V2** | Daten und API | ✅ **erledigt 2026-07-26** (`956d53ee`+`9c3926d6`), abgenommen | ~1.520 Z. |
 | **V3** | Zeichnen und Anzeigen | Fläche entsteht **mit Region und Namen**, wird geladen, überlebt Reload | ~1.950 Z. |
-| **V4** | Abnahme + Messung | **2 × 10 Flächen, Zeit gestoppt** | kein Code |
+| **V4** | Abnahme + Messung | ✅ **erledigt 2026-07-26** — vier Vorabmessungen, sechs Entscheidungen; Durchgang A/B verworfen | kein Code |
 | **V4a** | Quellen anschließen (ex V2.4) | `entity_type='ecosystem'` | ~10 Z. |
 
 > **V-1 bis V4 sind das ganze erste Vorhaben.** Alles Weitere wird **neu beauftragt**,
@@ -1965,9 +1965,12 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 > Zwillinge, bevor eine Ecke angepasst ist. Der richtige Massenbetrieb ist ein
 > serverseitiges `copy_regions(kind_from → kind_to)` über eine Auswahl — **ein** Handgriff,
 > Muster `promote_trial`. Das ist aber **nicht Teil dieses Vorhabens**: V3.6 liefert den
-> Einzel-Handgriff für die Ausnahme und für die V4-Messung (Durchgang B); der Stapelbetrieb
-> wird nach V4 beauftragt, wenn die Messung zeigt, dass er sich lohnt. **Hier nur benannt,
-> damit V4 weiß, dass es den teuren Weg misst, nicht den späteren billigen.**
+> Einzel-Handgriff für die Ausnahme.
+>
+> 🔴 **Nachtrag 2026-07-26: `copy_regions` wird nicht gebaut.** Der Stapelbetrieb spart
+> über die volle plausible Spanne des Overheads nur **0,7–1,8 h** (Messung §7) — gegen
+> eigenen Endpunkt, Zuordnungslogik, Transaktion, Audit und Abnahme. Damit bleibt der
+> Einzel-Handgriff aus V3.6 das einzige Werkzeug für die Zwillinge.
 
 - [x] **Schritt 1–4:** „Senden an …" am Flächenmenü, Ziel-Region (neu/bestehend), Kopie
       über den Schreibendpunkt (neue `public_id`, kein Verweis auf die Quelle),
@@ -2002,43 +2005,44 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 
 ---
 
-# V4 — Abnahme und Messung
+# V4 — Abnahme und Messung ✅ ERLEDIGT
 
-**Kein Code.** Diese Stufe entscheidet, ob alles Weitere gebaut wird.
+**Kein Code.** Diese Stufe entscheidet, ob alles Weitere gebaut wird. **Sie hat
+entschieden: weiterbauen, V5 zuerst.**
 
 > 📄 **Ergebnisdokument: `docs/superpowers/specs/2026-07-26-landschaften-v4-messung.md`.**
-> Dort stehen die vier Vorabmessungen mit Zahlen, die zehn Messflächen, das Protokoll für
-> A und B mit vorgerechneter Hochrechnung, und die Erprobungs-Entscheidung. Stand
-> 2026-07-26: Vorabmessungen **erledigt**, A/B und `promote_trial` liegen beim Owner.
+> Dort stehen die vier Vorabmessungen mit Zahlen (§2–§5), die vorgerechnete Hochrechnung
+> (§7) und die **sechs Entscheidungen in §9**. Stand 2026-07-26, zweite Fassung.
 
-- [ ] **🔧 DU (Owner): Zweimal zehn Flächen — getrennt Zeit stoppen.**
-      Die zehn Messflächen sind gezogen und stehen in der Messung §6.1 (schwere Klasse,
-      alle mit Wiki-Link). ⭐ **A liefert die Quellen für B** — dieselben zehn Formen in
-      beiden Durchgängen, sonst sind die zwei Zahlen nicht vergleichbar.
+- [x] **Die sechs Entscheidungen** — ✅ **getroffen 2026-07-26**, Messung §9:
 
-| Durchgang | was | wonach gefragt ist |
-|---|---|---|
-| **A** | 10 Flächen **neu gezeichnet** (V3.2), **inkl. Benennen + Region + Wiki** | Wie teuer ist eine **fertige** Fläche von Hand? |
-| **B** | 10 Flächen per **„Senden an …"** (V3.6) übernommen und angepasst | Wie viel spart das Übernehmen wirklich? |
+| Frage | Entscheidung |
+|---|---|
+| Weiterbauen? | ✅ **Ja** |
+| Was als Nächstes? | ✅ **V5**, vor V6 und V7 — 149 von 501 Flächen ohne einen Klick |
+| Paritätsforderung an V11 | 🔴 **gestrichen** — heute schon um Faktor 11 gebrochen. Ersatz: *der Server ist die Wahrheit, der Client die Vorschau*; Nachweis bleibt der Netzlauf gegen den Server |
+| `copy_regions` (266 Zwillinge) | 🔴 **wird nicht gebaut** — Gewinn 0,7–1,8 h gegen Endpunkt + Zuordnungslogik + Transaktion + Audit |
+| Querfeldein vorberechnen (V14) | 🔴 **nein** — 858–1.129 Kanten, zur Laufzeit veränderlich; „nur clientseitig, on demand" bleibt richtig |
+| Regel 3 (`map_revision`) | ✅ **hält** |
 
-> Das sind die beiden Zahlen, an denen alles hängt. Bei **5 Minuten** je Fläche in
-> Durchgang A sind es 42 Stunden für 500 — es wird nicht fertig. Bei **2 Minuten** sind
-> es 17 — es wird. Und Durchgang B sagt, ob die ~266 Zwillinge halb so teuer sind wie
-> behauptet oder fast genauso teuer.
->
-> Drei Flächen fühlen sich mit jedem Werkzeug gut an. Zwanzig nicht.
+- [x] **🔴 Durchgang A und B (2 × 10 Flächen mit Stoppuhr) — vom Owner verworfen
+      2026-07-26. Nicht ausführen.** Die vorab festgelegte Entscheidungsregel (Messung §9)
+      verzweigt an t_A, und **alle drei Zweige enden bei V5** — unter 20 h „wie geplant",
+      20–30 h „V5 vor V6/V7", über 30 h „V5 bauen, die 149 nehmen, den Rest nur bei
+      Bedarf". Eine Stunde Stoppuhr hätte den nächsten Schritt nicht verändert. Begründung
+      und was aus dem Abschnitt gültig bleibt: Messung §6.
 
-> 🪤 **Zwei Dinge, die die erste Fassung dieser Messung verschwieg:**
+> 🪤 **Was von der gestrichenen Messung als Einsicht bleibt** — unabhängig von der
+> Stoppuhr wahr:
 > 1. **Die Zeichenzeit ist nicht die Gesamtzeit.** Klick-für-Klick spart die Geometrie
->    (gemessen plausibel: 1–2 min statt 3–5). Aber Benennen, `region_type`, Wiki-Zuweisung
->    (V3.0b) und das Wiederfinden der nächsten Stelle sind **+1,2–1,9 min je Fläche**, die
->    es vorher gar nicht gab. Realistisch also eher **500 × ~3 min ≈ 25 h** als 17.
->    **Durchgang A misst die fertige Fläche, nicht nur die Geometrie** — sonst misst V4
->    2 Minuten und die Wirklichkeit sind 3.
-> 2. **Die ersten zehn sind die leichtesten.** Inseln und Seen sind klein und rundlich;
->    `region`/`wald`/`gebirge`/`meer` sind groß und zerklüftet. Und V5 nimmt genau die
->    leichte Klasse ganz aus der Hand. **Die zehn Messflächen sind aus dem schweren Rest zu
->    wählen** (Wald, Gebirge, Sumpf), nicht aus den Inseln — sonst ist die Zahl geschönt.
+>    (1–2 min statt 3–5). Aber Benennen, `region_type`, Wiki-Zuweisung (V3.0b) und das
+>    Wiederfinden der nächsten Stelle sind **+1,2–1,9 min je Fläche**, die es vorher gar
+>    nicht gab. Die Hochrechnung rechnet deshalb mit **~3 min je fertiger Fläche**, nicht
+>    mit 2.
+> 2. **Die leichte Klasse ist kein Maßstab.** Inseln und Seen sind klein und rundlich;
+>    `region`/`wald`/`gebirge`/`meer` sind groß und zerklüftet. V5 nimmt genau die leichte
+>    Klasse ganz aus der Hand — was von der Handarbeit übrig bleibt, ist die **schwere**
+>    Klasse (`wald` 68 + `gebirge` 60 + `suempfe_moore` 28 = 156).
 
 - [x] **Messungen, die vor der nächsten Stufe feststehen müssen** — ✅ **erledigt
       2026-07-26.** Alle vier ohne einen einzigen Diagnose-Aufruf; Serverlast insgesamt
@@ -2052,15 +2056,16 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 | Invalidiert ein Flächen-Save die Payload? | **Nein — Regel 3 hält.** `avesmapsNextMapRevision` kommt in `api/_internal/app/ecosystem.php` nur in zwei **Kommentaren** vor, null Aufrufe; stattdessen 9 × `avesmapsNextEcosystemRevision`. Zähler laufen getrennt: `ecosystem_revision` 276 gegen `map_revision` 40.455. 🪤 **Die vorgeschlagene Probe war doppelt untauglich:** sie zog 2 × 29,7 MB (unnötig — `If-None-Match` steigt bei `map-features.php:62–64` mit 304 **vor** der Query aus), und ein 200 hätte nichts bewiesen — `map_revision` wuchs an einem Tag um **5.381** durch fremde Editorarbeit. Die Save-Probe braucht deshalb eine **Leerlauf-Grundlinie**; sie ist aufgenommen (3 × 304 über 5 min 48 s) und das Verfahren steht in der Messung §4.3. |
 | Wie viele Querfeldein-Strecken entstehen real? | **858 bis 1.129**, je nach Transportauswahl des Nutzers — 14,1 % der Kanten bei allen Domänen, **25,0 % bei „nur Land"**. → **Nicht vorberechenbar**, weil zur Laufzeit veränderlich; V14 bleibt richtig als „nur clientseitig, on demand". |
 
-- [ ] **Entscheidung über die Erprobungsflächen:** `promote_trial` mit `keep` oder
-      `discard`. Ein Aufruf, kein Aufräumen von Hand.
+- [x] **Entscheidung über die Erprobungsflächen** — ✅ **entschieden 2026-07-26:** die
+      fünf Entwicklungsproben von Hand löschen, **danach** `promote_trial` mit
+      `mode=keep`. Ausführung 🔧 **DU (Owner)**, Verfahren in der Messung §8.
 
 > ⚠️ **`promote_trial` ist alles-oder-nichts über `is_trial = 1`, es gibt keine Auswahl je
-> Fläche.** Dort liegen heute schon **5 Entwicklungsproben** („Probe Derographisch",
-> „Probe Topographie", „Probe Vegetation", 2 × „Farinedel" mit Tippfehler, alle ohne
-> Wiki-Link) — nach den Durchgängen also 25 Flächen. `keep` macht die fünf Proben zu
-> dauerhaften Inhaltsdaten, `discard` wirft die 20 Messflächen mit weg. Ausweg und
-> Empfehlung in der Messung §8: die fünf Proben vorher von Hand löschen, dann `keep`.
+> Fläche.** Dort liegen **5 Entwicklungsproben** („Probe Derographisch", „Probe
+> Topographie", „Probe Vegetation", 2 × „Farinedel" mit Tippfehler, alle ohne Wiki-Link)
+> und sonst nichts — die 20 Messflächen aus den Durchgängen entstehen nicht mehr. Deshalb
+> die Reihenfolge: `keep` **vor** dem Löschen machte die fünf Proben zu dauerhaften
+> Inhaltsdaten.
 
 ---
 
@@ -2108,20 +2113,21 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 # Danach — Skizze, noch nicht beauftragt
 
 Jedes dieser Vorhaben bekommt einen **eigenen Plan**, geschrieben erst wenn V4
-abgenommen ist.
+abgenommen ist. ✅ **V4 ist seit 2026-07-26 abgeschlossen — V5 ist beauftragt und der
+Nächste in der Reihe** (Messung §9).
 
 | | Vorhaben | Bemerkung |
 |---|---|---|
-| **V5** | Kachel-Ableitung Land/Wasser | Einmaliges Skript, keine Oberfläche. Nimmt **149 Flächen** ganz aus der Handarbeit (`insel` 95 + `see` 46 + `kueste` 2 + `kontinent` 2 + `wueste` 4 = 149 — die alte „147" summierte die neuen Posten nicht), macht aus 35 `meer` Schneidearbeit, gibt 61 `gebirge` einen Startumriss. **Genau diese leichte Klasse darf nicht in die V4-Messung** (sie verzerrt sie nach unten). Werkzeugkette im Nachbarrepo (`27_polygonize_town_tiles.py`). ⚠️ `dsa5-atlas/` nicht anfassen — Ulisses-Material. |
+| **V5** | Kachel-Ableitung Land/Wasser | 🔵 **BEAUFTRAGT 2026-07-26 — der nächste Schritt.** Einmaliges Skript, keine Oberfläche. Nimmt **149 Flächen** ganz aus der Handarbeit (`insel` 95 + `see` 46 + `kueste` 2 + `kontinent` 2 + `wueste` 4 = 149 — die alte „147" summierte die neuen Posten nicht), macht aus 35 `meer` Schneidearbeit, gibt 61 `gebirge` einen Startumriss. Werkzeugkette im Nachbarrepo (`13_make_landmass_rgba.py`, `24_make_water_rgba_from_original_sea_mask.py`, `27_polygonize_town_tiles.py`). ⚠️ `dsa5-atlas/` nicht anfassen — Ulisses-Material. |
 | **V6** | Landschaftseditor (3 Spalten) | Realistisch **1.800–2.600 Z.** Vorlage nur `html/wiki-sync-powerline-editor.html:60` (`display:grid`) — der „Vorbild"-Siedlungseditor verstößt bei `:75`/`:78` selbst dagegen. Zwei Sitzungen. |
-| **V7** | Grenzimport aus den Territorien | Rechtsklick → Hierarchiebaum mit Häkchen → Geometrien vereinigen und einfügen (Kopie, nie Verknüpfung), danach **vereinfachen** (Douglas-Peucker) — sonst schleppt eine Landschaftsgrenze politische Vertex-Dichte mit. Gemessen: 120 Territorien vereinigen = 47,7 ms; 500 Flächen à 800 Ecken = 14,8 MB (bei ungerundeten Koordinaten; `round(…,4)` beim Schreiben halbiert das). *(„Senden an …" ist nach V3.6 vorgezogen; ein Massen-`copy_regions` für die ~266 Zwillinge ist die andere offene Vorarbeit.)* |
+| **V7** | Grenzimport aus den Territorien | Rechtsklick → Hierarchiebaum mit Häkchen → Geometrien vereinigen und einfügen (Kopie, nie Verknüpfung), danach **vereinfachen** (Douglas-Peucker) — sonst schleppt eine Landschaftsgrenze politische Vertex-Dichte mit. Gemessen: 120 Territorien vereinigen = 47,7 ms; 500 Flächen à 800 Ecken = 14,8 MB (bei ungerundeten Koordinaten; `round(…,4)` beim Schreiben halbiert das). *(„Senden an …" ist nach V3.6 vorgezogen; ein Massen-`copy_regions` ist durch V4 **gestrichen**.)* |
 | **V8** | Topographie / Höhenfeld | Buckelsumme portieren (`cellHash` :402, `level` :413, `peakWindow` :452, `rawArea` :464, `buildArea` :491, `hAt` :578). 💣 **`sampleRoute()` :637 nicht übernehmen** — feste Schrittweite, keine Klemmen. 💣 **Enthaltensein-Fensterung** statt `max` oder Summe. Eigene Stufe: Gipfel-Sichtbarkeitsregel (öffentliche Bestandsänderung!). Basis heute: **34 Gipfel auf 61 Gebirge**. |
 | **V9** | Vorberechnung Wege × Flächen | `path_ecosystem` (PK `(path_id, area_id, seq)`, `BIGINT` nicht `VARCHAR(36)`), `path_ecosystem_state`. bbox-Vorfilter als **SQL-Join**. Sperre, Budget (4 s, **nicht** 28), `set_time_limit`, serverseitiger Cursor ohne `OFFSET`, Idempotenz. 💣 Leasing-Falle (`api/_internal/app/citymaps.php:323–325`). Auf **5.512** Wegen entsprechend länger als die gemessenen 30–45 s. |
 | **V10** | „Führt durch" + Flora am Segment | `buildRouteLegPopupHtml` (`route-plan.js:196`, Zeilen-Helfer `:210`, letzte Zeile `:222`), `buildLoreMarkup` (`lore.js:417`). ⚠️ Nur über den DOM-Observer laden, nie beim Markup-Bau. |
 | **V11** | Terrain auf Kantengewichte | Die gefährlichste Stufe. **Drei** Slice-Stellen: `client-graph.php:144`, `:157`, **`:534–553`** (Geschwindigkeits-Rekonstruktion `$originalDistance / $originalTime` bei `:538`). Einheitenfalle (×3 → ×23). Klemme `[0,5…4,0]`, **nicht** die Flussgrenze erben. `from`/`to` bleiben in gespeicherter Orientierung (`:207–211`, Verlauf-Sync!). Nachweis ist ein **Netzlauf**, kein Fixture-Test. Zwei Sitzungen. |
 | **V12** | Geschwindigkeitsvektoren | Muster: `map-features-river-flow-arrows.js`, edit-only. Versatz **senkrecht** zur Segmentrichtung. Prototyp: 34 px Abstand, `len = 5 + 20·min(1,3, spd)` (`:702–710`). |
 | **V13** | Querfeldein: Wasser meiden | ~50 Z., liefert 90 % des A\*-Nutzens: eine Querfeldein-Kante, die ein `meer`/`see`-Polygon schneidet, entsteht gar nicht erst. |
-| **V14** | A\* für Querfeldein | Nur clientseitig, on demand. Erst nach der Messung aus V4. |
+| **V14** | A\* für Querfeldein | Nur clientseitig, on demand. ✅ **Bestätigt durch V4** (Messung §5/§9): **nicht** vorberechnen — 858–1.129 Querfeldein-Kanten, abhängig von der Transportauswahl des Nutzers und damit zur Laufzeit veränderlich. |
 | **V15** | Spotlight-Schnittmenge | **Vertagt.** Braucht gezeichnete Vegetationsflächen und `relation='vorkommen'` in `lore_place` (`lore-edit.php:121` hat den Wert bereits freigeschaltet, der Sync schreibt ihn nie). |
 
 ---
@@ -2171,6 +2177,6 @@ V-1 · V0 (Netzlauf!) · V1 · V2 · **Persistenz-Auftrag** · V3.0 · **V3.0b**
 V3.3 · V3.4 · V3.5 · V3.6 · V4 · V4a. V3.0b **vor** V3.2 (sonst namenlose Geometrie),
 Persistenz-Auftrag **vor** V3.5 (sonst scheitert der Reload-Test), V4a **nach** V4.
 
-**Offen und bewusst offen:** die konkreten Tempo-Faktoren je Typ (gehören den Editoren),
-die Buckelzahl des Gebirgskörpers (V8, wegen der Jensen-Steuer kein Schönheitsregler),
-und die Entscheidung über die Paritätsforderung (fällt nach der Messung in V4).
+**Offen und bewusst offen:** die konkreten Tempo-Faktoren je Typ (gehören den Editoren)
+und die Buckelzahl des Gebirgskörpers (V8, wegen der Jensen-Steuer kein Schönheitsregler).
+Die Paritätsforderung ist **entschieden und gestrichen** (V4 / Messung §9).

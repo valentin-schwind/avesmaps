@@ -1,14 +1,17 @@
 # Landschaften V4 — Messung und Entscheidungsgrundlage
 
-**Stand:** 2026-07-26. Gemessen gegen `origin/master` = `4d06db8d` (enthält `ea27cf1a`,
-den Abschluss von V3.6). Plan: `docs/superpowers/plans/2026-07-24-landschaften.md`.
+**Stand:** 2026-07-26, zweite Fassung: Entscheidungen eingetragen, Durchgang A/B gestrichen.
+Gemessen gegen `origin/master` = `4d06db8d` (enthält `ea27cf1a`, den Abschluss von V3.6).
+Plan: `docs/superpowers/plans/2026-07-24-landschaften.md`.
 
-> **Wozu dieses Dokument.** V4 schreibt keinen Code. Es ist die Stufe, die entscheidet,
-> ob V5–V15 überhaupt gebaut werden. Alles hängt an zwei Zahlen: was eine fertige
-> Landschaftsfläche von Hand kostet (Durchgang A) und was das Übernehmen per
-> „Senden an …" davon einspart (Durchgang B). Dieses Dokument hält die vier
-> Vorabmessungen fest, stellt das Protokoll für A und B bereit und rechnet die
-> Hochrechnung vor, damit die gemessenen Zeiten ohne Zwischenschritt einsortierbar sind.
+> **Wozu dieses Dokument.** V4 schreibt keinen Code. Es ist die Stufe, die entscheidet, ob
+> V5–V15 überhaupt gebaut werden. Es hält die vier Vorabmessungen mit Zahlen fest (§2–§5),
+> rechnet die Hochrechnung vor (§7) und trägt in **§9 die sechs Entscheidungen**, die daraus
+> gefallen sind.
+>
+> **Die Antwort ist: weiterbauen, V5 zuerst.** Die ursprünglich geplanten zwei
+> Handmessungen (Durchgang A und B, je zehn Flächen mit Stoppuhr) hat der Owner am
+> 2026-07-26 **verworfen** — sie hätten den nächsten Schritt nicht mehr verändert (§6).
 
 **Was hier gemessen ist und was noch fehlt:**
 
@@ -18,8 +21,9 @@ den Abschluss von V3.6). Plan: `docs/superpowers/plans/2026-07-24-landschaften.m
 | Vorabmessung 2 — Engine-Abweichung | ✅ gemessen |
 | Vorabmessung 3 — `revision` bei einem Flächen-Save | ✅ statisch bewiesen + Leerlauf-Grundlinie aufgenommen; die Save-Probe steht beim Owner |
 | Vorabmessung 4 — Querfeldein-Strecken | ✅ gemessen |
-| Durchgang A / B (2 × 10 Flächen) | 🔧 **DU (Owner)** — Protokoll unten |
-| Erprobungs-Entscheidung `promote_trial` | 🔧 **DU (Owner)** — erst nachdem A und B im Dokument stehen |
+| Durchgang A / B (2 × 10 Flächen) | 🔴 **verworfen vom Owner am 2026-07-26** — nicht ausführen, Begründung in §6 |
+| Erprobungs-Entscheidung `promote_trial` | ✅ **entschieden:** 5 Proben von Hand löschen, dann `mode=keep` (§8). Ausführung 🔧 **DU (Owner)** |
+| Empfehlung „weiterbauen?" | ✅ **entschieden 2026-07-26** — ja, V5 zuerst (§9) |
 
 ---
 
@@ -238,7 +242,8 @@ Editorarbeit anderer Sitzungen. Ohne Leerlauf-Grundlinie misst der Test fremde A
 
 ### 4.3 🔧 DU (Owner): die Save-Probe
 
-Vor Durchgang A, einzelne Aufrufe, keine Schleife:
+Optional — der statische Beweis in §4.1 trägt bereits allein. Einzelne Aufrufe, keine
+Schleife; sinnvoll beim nächsten Flächen-Save, der ohnehin ansteht:
 
 ```bash
 curl -s -o /dev/null -D - -H 'If-None-Match: W/"mf-8-40455-3eb416223e"' -w "http=%{http_code}\n" "https://avesmaps.de/api/app/map-features.php"
@@ -282,85 +287,42 @@ die Live-Probe validiert war (858 = 858):
 
 ---
 
-## 6. 🔧 DU (Owner): Durchgang A und B
+## 6. 🔴 Durchgang A und B — vom Owner verworfen (2026-07-26)
 
-### 6.1 Die zehn Messflächen
+> **Nicht ausführen.** Die zwei Durchgänge mit je zehn Flächen und Stoppuhr sind gestrichen.
+> Dieser Abschnitt steht nur noch da, damit die nächste Sitzung sie nicht pflichtschuldig
+> abarbeitet. Die Protokolltabellen und die Kandidatenliste sind entfernt.
 
-🪤 **Aus der schweren Klasse**, nicht aus Inseln und Seen: die leichte Klasse ist klein und
-rundlich, und V5 nimmt sie ohnehin ganz aus der Hand (149 Flächen). Zehn Inseln messen
-90 Sekunden und begründen ein Projekt, das an Wäldern scheitert.
+**Die Begründung, warum das kein Verlust ist** — sie steht in §9 dieses Dokuments, in der
+Entscheidungsregel, die **vor** der Messung festgelegt wurde, damit sie nicht nachträglich
+passend gemacht werden kann. Die Regel verzweigt an t_A, und alle drei Zweige enden am
+selben nächsten Schritt:
 
-Die zehn sind aus den 156 Labels der schweren Klasse gezogen — alle mit Wiki-Link (V3.0b
-braucht ihn), über die Karte verteilt, mengenmäßig im Verhältnis der Subtypen (68/60/28):
+| Ergebnis der Messung | was §9 daraus gefolgert hätte | nächster Schritt |
+|---|---|---|
+| unter ~20 h | weiterbauen wie geplant | **V5** |
+| 20–30 h | weiterbauen, V5 **vor** V6/V7 ziehen | **V5** |
+| über ~30 h | kein Handarbeitsprojekt; V5 bauen, die 149 nehmen, den Rest nur bei Bedarf | **V5** |
 
-| # | Landschaft | Subtyp | Ebene | x | y |
-|---|---|---|---|---:|---:|
-| 1 | Farindelwald | `wald` | vegetation | 401,5 | 546,0 |
-| 2 | Kupfertann | `wald` | vegetation | 494,6 | 471,2 |
-| 3 | Iseholz | `wald` | vegetation | 548,8 | 628,1 |
-| 4 | Altnordener Forst | `wald` | vegetation | 604,1 | 621,1 |
-| 5 | Donnerzacken | `gebirge` | topographie | 398,3 | 760,9 |
-| 6 | Tosch Mur | `gebirge` | topographie | 467,9 | 458,2 |
-| 7 | Thalus-Massiv | `gebirge` | topographie | 606,4 | 287,4 |
-| 8 | Beilunker Berge | `gebirge` | topographie | 707,0 | 525,9 |
-| 9 | Drei Klageweiber | `suempfe_moore` | vegetation | 434,5 | 772,1 |
-| 10 | Rashduler Sümpfe | `suempfe_moore` | vegetation | 647,9 | 344,5 |
+**Eine Stunde Stoppuhr hätte den nächsten Schritt nicht verändert.** Das ist der ganze
+Grund. Auch die beiden anderen Fragen, die A und B tragen sollten, sind ohne sie
+entschieden: `copy_regions` gewinnt über die volle plausible Spanne des Overheads
+0,7–1,8 h (§7) und lohnt sich in keinem Fall; und dass V5 der größere Hebel ist als
+„Senden an …", zeigt §7 bei **jedem** t_A, nicht nur bei einem gemessenen.
 
-Am schnellsten zu finden über die Spotlight-Suche nach dem Namen. Die Verteilung über die
-Karte ist Absicht: „das Wiederfinden der nächsten Stelle" gehört zu den Kosten.
+**Was die Messung tatsächlich beantwortet hätte**, ist die Frage *nach* V5: ob die
+verbleibenden 352 Flächen der schweren Klasse flächendeckend von Hand entstehen oder nur
+dort, wo eine Fläche konkret gebraucht wird. Diese Frage stellt sich erst, wenn die 149
+abgeleiteten Flächen liegen — und dann beantwortet sie die echte Arbeit an echten
+Landschaften ehrlicher als zwanzig Flächen gegen die Uhr. **Das ist eine Feststellung,
+kein wiederauflebender Auftrag.**
 
-### 6.2 Durchgang A — zehn Flächen neu
-
-**Gemessen wird die fertige Fläche, nicht die Geometrie.** Also je Fläche: Region wählen
-oder anlegen, Art (`region_type`) setzen, Wiki zuweisen, zeichnen, benennen, speichern.
-Die Uhr läuft ab „ich fange mit dieser Landschaft an" bis „gespeichert".
-
-⏱️ **Zusätzlich getrennt notieren: der Overhead-Anteil** — die Zeit, die auf Menü,
-Regionsauswahl, Art und Wiki geht, ohne das Zeichnen selbst. Der Plan schätzt sie auf
-15–18 s je Fläche. Das ist die Zahl, die den späteren Stapelbetrieb (`copy_regions`)
-begründet oder erledigt, und sie geht im Gesamtwert unter.
-
-| # | Landschaft | Gesamt (s) | davon Overhead (s) | Bemerkung |
-|---|---|---:|---:|---|
-| 1 | Farindelwald | | | |
-| 2 | Kupfertann | | | |
-| 3 | Iseholz | | | |
-| 4 | Altnordener Forst | | | |
-| 5 | Donnerzacken | | | |
-| 6 | Tosch Mur | | | |
-| 7 | Thalus-Massiv | | | |
-| 8 | Beilunker Berge | | | |
-| 9 | Drei Klageweiber | | | |
-| 10 | Rashduler Sümpfe | | | |
-
-### 6.3 Durchgang B — dieselben zehn per „Senden an …" übernehmen
-
-⭐ **A liefert die Quellen für B.** Genau die zehn Flächen aus A werden per „Senden an …"
-(V3.6, Kontextmenü an der Fläche) auf die derographische Ebene kopiert — das sind die
-Zwillingsfälle. Gleiche Formen in beiden Durchgängen machen die zwei Zahlen überhaupt erst
-vergleichbar.
-
-💣 **B misst „senden **und anpassen**", nicht „senden".** Ein Vegetations-Umriss ist nicht
-derselbe wie der Umriss des Namens — der Name reicht meist weiter als der Bewuchs. Wer
-beim Toast stoppt, misst 15 Sekunden, und die Wirklichkeit sind 90. Die Uhr läuft bis die
-kopierte Fläche **an ihrem neuen Platz stimmt** und gespeichert ist.
-
-| # | Landschaft | Gesamt (s) | davon Anpassen (s) | Bemerkung |
-|---|---|---:|---:|---|
-| 1 | Farindelwald | | | |
-| 2 | Kupfertann | | | |
-| 3 | Iseholz | | | |
-| 4 | Altnordener Forst | | | |
-| 5 | Donnerzacken | | | |
-| 6 | Tosch Mur | | | |
-| 7 | Thalus-Massiv | | | |
-| 8 | Beilunker Berge | | | |
-| 9 | Drei Klageweiber | | | |
-| 10 | Rashduler Sümpfe | | | |
-
-> ⭐ **Roh notieren, nicht mitteln.** Die Streuung sagt mehr als der Schnitt: zehnmal
-> 3 Minuten heißt „planbar", und 8× 90 s + 2× 9 min heißt „an den zerklüfteten Fällen
-> scheitert es" — und *das* wäre der Befund, der über V5 und V7 entscheidet.
+🪤 **Was aus diesem Abschnitt gültig bleibt**, weil es unabhängig von der Stoppuhr wahr
+ist: Die leichte Klasse (`insel`, `see`, `kueste`, `kontinent`, `wueste`) ist klein und
+rundlich und taugt nicht als Maßstab für Wälder und Gebirge — sie hätte jede Zahl nach
+unten verzerrt. Genau deshalb nimmt V5 sie ganz aus der Hand, und genau deshalb ist die
+schwere Klasse (`wald` 68 + `gebirge` 60 + `suempfe_moore` 28 = **156**, §1) das, was von
+der Handarbeit übrig bleibt.
 
 ---
 
@@ -371,13 +333,15 @@ bleiben von Hand. Dazu **266 Zwillinge** — die zweite Fläche derselben Landsc
 derographischen Ebene, die laut Machbarkeitsanalyse §2.1 („Der Farindel … wird zweimal
 gezeichnet") zusätzlich entsteht und die V3.6 / `copy_regions` billiger machen soll.
 
-> ⚠️ **Eine Modellannahme, die der Plan offenlässt und die der Owner treffen muss:**
-> Sind die 266 Zwillinge **zusätzlich** zu den 501 (so liest es die Analyse: eine Fläche
-> für den Namen, eine für den Bewuchs), oder sind sie **in** den 501 enthalten? Die
-> Tabellen unten rechnen die additive Lesart; ist sie falsch, fällt der Zwillingsanteil
-> ganz weg und es bleiben allein die Spalten „Grundlast".
+> ⚠️ **Eine Modellannahme, die der Plan offenlässt:** Sind die 266 Zwillinge **zusätzlich**
+> zu den 501 (so liest es die Analyse: eine Fläche für den Namen, eine für den Bewuchs),
+> oder sind sie **in** den 501 enthalten? Die Tabellen unten rechnen die additive Lesart;
+> ist sie falsch, fällt der Zwillingsanteil ganz weg und es bleiben allein die Spalten
+> „Grundlast". **Seit dem 2026-07-26 hängt daran keine Entscheidung mehr** — die Annahme
+> verschiebt nur den Gesamtwert, nicht die Reihenfolge, und `copy_regions` ist ohnehin
+> gestrichen. Sie bleibt hier als Lesehilfe für die Tabellen stehen, nicht als offene Frage.
 
-**Grundlast** — nur die Label-Flächen, ein Durchgang A je Fläche:
+**Grundlast** — nur die Label-Flächen, eine fertig gezeichnete Fläche von Hand (t_A) je Zeile:
 
 | t_A je Fläche | ohne V5 (501) | **mit V5 (352)** |
 |---|---:|---:|
@@ -425,16 +389,17 @@ das Anpassen. Sein Gewinn ist also ≈ 266 × Overhead-Anteil:
 | 18 s | 1,3 h |
 | 25 s | 1,8 h |
 
-> 🔴 **Vorwegnahme, die die Messung wahrscheinlich bestätigen wird: `copy_regions` lohnt
-> sich nicht.** Selbst bei 25 s Overhead spart ein serverseitiger Massenlauf ~1,8 Stunden —
-> gegen eine Aufgabe mit eigenem Endpunkt, eigener Zuordnungslogik (welcher Zwilling gehört
-> zu welchem Label?), Transaktion, Audit und Abnahme. Das ist der schlechteste Tauschkurs
-> im ganzen Plan. **Der Overhead-Wert aus §6.2 entscheidet das endgültig** — deshalb steht
-> er dort in einer eigenen Spalte.
+> 🔴 **Entschieden: `copy_regions` wird nicht gebaut.** Selbst bei 25 s Overhead spart ein
+> serverseitiger Massenlauf ~1,8 Stunden — gegen eine Aufgabe mit eigenem Endpunkt, eigener
+> Zuordnungslogik (welcher Zwilling gehört zu welchem Label?), Transaktion, Audit und
+> Abnahme. Das ist der schlechteste Tauschkurs im ganzen Plan, und zwar **über die ganze
+> Spanne** der Tabelle: 0,7 h bis 1,8 h. Es gibt keinen Overhead-Wert in dieser Spanne, bei
+> dem sich das Vorhaben rechnet — deshalb braucht es die Messung dafür nicht.
 >
-> Die Gegenrechnung, die ihn doch retten würde: wenn der Overhead nicht 15–18 s, sondern
-> deutlich mehr ist, weil die Regionsauswahl bei 266 Zwillingen jedes Mal neu gesucht
-> werden muss. Genau deshalb wird er gemessen und nicht geschätzt.
+> Die Gegenrechnung, die ihn hätte retten können: ein Overhead **deutlich über** 25 s, weil
+> die Regionsauswahl bei 266 Zwillingen jedes Mal neu gesucht werden muss. Das ist mit den
+> heutigen Werkzeugen (V3.0b Regionsauswahl, V3.6 „Senden an …") nicht plausibel, und
+> „Senden an …" nimmt genau diesen Handgriff bereits ab.
 
 ---
 
@@ -450,39 +415,44 @@ Ein Aufruf, kein Aufräumen von Hand: `POST /api/edit/map/ecosystem.php` mit
 
 Beide setzen `app_setting['ecosystem_trial']` auf `0`.
 
-> ⚠️ **`promote_trial` ist alles-oder-nichts über `is_trial = 1` — es gibt keine Auswahl
-> je Fläche.** Nach den Durchgängen stehen dort **25** Flächen: die 20 Messflächen **und
-> die 5 Entwicklungsproben** aus §1 („Probe Derographisch", „Probe Topographie",
-> „Probe Vegetation", 2 × „Farinedel" mit Tippfehler, alle ohne Wiki-Link).
+✅ **Entschieden am 2026-07-26: die fünf Entwicklungsproben von Hand löschen, danach
+`mode=keep`.** Ausführung 🔧 **DU (Owner)** — zwei Handgriffe, in dieser Reihenfolge:
+
+1. **Die fünf Proben löschen** (Kontextmenü an der Fläche, V3.4). Sie sind an ihren Namen
+   zweifelsfrei erkennbar: „Probe Derographisch", „Probe Topographie", „Probe Vegetation"
+   und **zweimal** „Farinedel" (Tippfehler, ohne Wiki-Link, ohne `label_public_id`).
+2. **Dann** `POST /api/edit/map/ecosystem.php` mit `{"action":"promote_trial","mode":"keep"}`.
+
+> ⚠️ **`promote_trial` ist alles-oder-nichts über `is_trial = 1` — es gibt keine Auswahl je
+> Fläche.** Genau deshalb die Reihenfolge: `keep` **vor** dem Löschen würde die fünf Proben
+> zu dauerhaften Inhaltsdaten machen; `discard` **statt** des Löschens wäre heute zwar
+> gleichwertig (es liegen nur diese fünf Flächen und keine Inhaltsarbeit vor), schriebe
+> aber je Fläche eine Audit-Zeile und stellte die Marke auf „soft-gelöscht" statt die Zeile
+> zu entfernen. Löschen + `keep` lässt den Bestand sauber und leer zurück.
 >
-> - `keep` macht die fünf Proben zu dauerhaften Inhaltsdaten.
-> - `discard` wirft die 20 Messflächen mit weg — und das ist echte Arbeit an echten
->   Landschaften mit Namen, Region, Art und Wiki-Zuweisung.
->
-> **Empfehlung: die fünf Proben vorher von Hand löschen** (Kontextmenü an der Fläche,
-> V3.4 — sie sind an ihren Namen zweifelsfrei erkennbar), **dann `mode=keep`.** So bleibt
-> die Messarbeit erhalten und der Datenbestand sauber.
->
-> 🔴 **Erst entscheiden, wenn die Zahlen in §6 stehen.** Die 20 Messflächen tragen
-> `is_trial = 1`; ein `discard` vor der Auswertung nimmt die Grundlage mit.
+> 🪤 **Die Zahl 25 aus der ersten Fassung ist hinfällig.** Sie ging von 20 Messflächen aus
+> den verworfenen Durchgängen aus (§6). Es sind **fünf**.
 
 ---
 
-## 9. Empfehlung — weiterbauen oder nicht
+## 9. Entscheidung — 2026-07-26
 
-*Wird ausgefüllt, sobald Durchgang A und B gemessen sind.* Was schon feststeht:
+**Alle sechs Fragen sind entschieden.** Die Durchgänge A und B, an denen die letzte Frage
+noch hing, sind verworfen (§6) — die Entscheidungsregel unten zeigt, warum sie den nächsten
+Schritt nicht mehr hätten ändern können.
 
-| Frage | Stand |
+| Frage | Entscheidung |
 |---|---|
-| Paritätsforderung an V11 streichen? | **Ja** — sie ist heute schon um Faktor 11 gebrochen (§3). Ersatzforderung: der Server ist die Wahrheit, Nachweis bleibt der Netzlauf gegen den Server. |
-| Querfeldein vorberechnen (V14 als Tabelle)? | **Nein** — 858–1.129 Kanten, abhängig von der Transportauswahl des Nutzers, also zur Laufzeit veränderlich. Der Plan liegt mit „nur clientseitig, on demand" richtig (§5). |
-| `copy_regions` für die 266 Zwillinge bauen? | **Wahrscheinlich nein** — Gewinn ≈ 0,7–1,8 h (§7). Endgültig nach dem Overhead-Wert aus §6.2. |
-| Regel 3 (Flächen-Save fasst `map_revision` nicht an) | **Hält** (§4). |
-| V5 vor V6/V7 ziehen? | **Ja, deutlich** — V5 ist mit 7,5 h bei t_A = 3 min der größte Einzelhebel und der einzige, der ohne Handarbeit skaliert (§7). |
-| Weiterbauen? | ⏳ hängt an t_A und t_B. |
+| **Weiterbauen?** | ✅ **Ja.** Der Bau geht weiter. |
+| **Was als Nächstes?** | ✅ **V5 — Kachel-Ableitung Land/Wasser.** Vor V6 und V7. Größter Einzelhebel (7,5 h bei t_A = 3 min, §7) und der einzige Schritt, der ohne Handarbeit skaliert: 149 von 501 Flächen entstehen ohne einen einzigen Klick. |
+| Paritätsforderung an V11 streichen? | ✅ **Gestrichen.** Sie ist heute schon um **Faktor 11** gebrochen (§3), verlangte also die Herstellung eines Zustands, den es nie gab. **Ersatzforderung: der Server ist die Wahrheit, der Client ist die Vorschau.** Nachweis für V11 bleibt der Netzlauf gegen den **Server** (wie in V0.2), nicht ein Abgleich der beiden Engines. |
+| `copy_regions` für die 266 Zwillinge bauen? | 🔴 **Nein.** Gewinn 0,7–1,8 h über die volle Spanne (§7), gegen eigenen Endpunkt, Zuordnungslogik, Transaktion, Audit und Abnahme. Der schlechteste Tauschkurs im Plan. „Senden an …" (V3.6) deckt den Einzelfall bereits ab. |
+| Querfeldein vorberechnen (V14 als Tabelle)? | 🔴 **Nein.** 858–1.129 Kanten, abhängig von der Transportauswahl des Nutzers und damit **zur Laufzeit veränderlich** (§5). Der Plan liegt mit „nur clientseitig, on demand" richtig. |
+| Regel 3 (Flächen-Save fasst `map_revision` nicht an) | ✅ **Hält** (§4). Zwei getrennte Zähler, null Aufrufe von `avesmapsNextMapRevision` im Landschafts-Pfad. |
 
 **Die Entscheidungsregel, vorab festgelegt, damit sie nicht nachträglich passend gemacht
-wird:** Gesamtaufwand *mit V5* aus §7 ablesen.
+wird** — sie steht hier unverändert, weil sie das Argument für §6 trägt: Gesamtaufwand
+*mit V5* aus §7 ablesen.
 
 - **unter ~20 h** → weiterbauen wie geplant.
 - **20–30 h** → weiterbauen, aber V5 **vor** V6/V7 ziehen und die schwere Klasse zuerst
@@ -490,6 +460,24 @@ wird:** Gesamtaufwand *mit V5* aus §7 ablesen.
 - **über ~30 h** → nicht als Handarbeitsprojekt weiterbauen. Dann ist die ehrliche Antwort,
   V5 zu bauen, die 149 abgeleiteten Flächen zu nehmen und den Rest **nicht** flächendeckend
   zu erfassen, sondern nur dort, wo eine Fläche konkret gebraucht wird.
+
+⭐ **Jeder Zweig endet bei V5.** Deshalb konnte die Messung den nächsten Schritt nicht mehr
+beeinflussen, und deshalb ist sie gestrichen statt verschoben. Was sie unterscheidet — ob
+die **352** Flächen der schweren Klasse nach V5 flächendeckend entstehen oder nur bei
+Bedarf — ist eine Frage, die sich erst stellt, wenn die 149 liegen.
+
+---
+
+## 10. Was V4 abschließt
+
+| | |
+|---|---|
+| Vorabmessungen 1–4 | ✅ gemessen (§2–§5) |
+| Durchgänge A / B | 🔴 verworfen (§6) |
+| Sechs Entscheidungen | ✅ getroffen (§9) |
+| Erprobungsflächen | ✅ entschieden, Ausführung 🔧 **DU (Owner)** (§8) |
+
+**V4 ist damit abgeschlossen.** Der nächste Auftrag ist **V5**.
 
 ---
 
