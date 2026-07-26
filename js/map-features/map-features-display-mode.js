@@ -202,17 +202,22 @@ function setSelectedMapLayerMode(mode) {
 		$("#toggleNodix").prop("checked", true);
 		syncLocationMarkerVisibility();
 	}
-	// Landschaften (Erprobung): Ansicht wie Standard -- Labels und Grenzen an --, aber eine leere
-	// Zeichenflaeche. Aus: Ortschaften, Wege, Seewege. AN: Fluesse -- sie sind beim Zeichnen von
-	// Vegetations- und Topographiegrenzen die Vorlage, an der entlang gezeichnet wird (Owner
-	// 2026-07-26). Wer die anderen braucht, schaltet sie danach von Hand wieder an; dasselbe Muster
-	// wie die Nodices-Zeile darueber.
+	// Landschaften (Erprobung): eine moeglichst leere Zeichenflaeche. Aus sind Ortschaften, Wege,
+	// Seewege, Fluesse (hier) und Grenzen (BOUNDARY_OVERLAY_MODES in js/config.js); an bleiben nur die
+	// Labels, weil sie die derographischen Flaechen benennen. Stand 2026-07-26 nach dem ersten echten
+	// Zeichenlauf -- am Vormittag waren Fluesse und Grenzen noch an. Alles hier ist nur die
+	// VOREINSTELLUNG beim Betreten; wer eine Ebene braucht, schaltet ihren Haken von Hand zurueck --
+	// dasselbe Muster wie die Nodices-Zeile darueber.
 	if (IS_EDIT_MODE && normalizedMode === "ecosystem") {
 		if (typeof setAllLocationTypesVisible === "function") {
 			setAllLocationTypesVisible(false);
 		}
 		$("#togglePaths").prop("checked", false);
-		$("#toggleRivers").prop("checked", true);
+		// Fluesse gehen jetzt AUS. Das kehrt die Entscheidung vom Vormittag (2026-07-26) um, sie als
+		// Zeichenvorlage anzulassen -- nach dem ersten echten Zeichnen entschied der Owner am selben Tag
+		// anders: die blauen Linien laufen quer durch jede Flaeche, die man gerade zieht. Wie alle Zeilen
+		// hier ist das nur die Voreinstellung beim Betreten; der Haken schaltet sie von Hand zurueck.
+		$("#toggleRivers").prop("checked", false);
 		$("#toggleSeaPaths").prop("checked", false);
 	}
 	syncEditorDisplayTogglesToMode(normalizedMode);

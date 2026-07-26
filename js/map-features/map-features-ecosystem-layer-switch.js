@@ -53,8 +53,10 @@ function isEcosystemLayerModeActive() {
 		&& typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED;
 }
 
-// Active pane: full opacity, takes clicks. The two resting ones: pale and click-through, so the
-// question "which polygon did I just hit" cannot arise while three layers overlap.
+// Active pane: visible and takes clicks. The two resting ones: drawn at 0% fill AND 0% contour, so you
+// only ever see the layer you are working in (Owner 2026-07-26, third pass). They stay on the map as
+// layers -- switching back is a class swap, not a reload -- and stay click-through, so the question
+// "which polygon did I just hit" cannot arise even while something invisible lies underneath.
 function syncEcosystemPaneStates() {
 	if (typeof map === "undefined" || !map || typeof map.getPane !== "function") {
 		return;
@@ -88,6 +90,11 @@ function syncEcosystemPaneStates() {
 // container on every style switch (bootstrap.js) -- which is exactly why syncPowerlineMapTint has to be
 // re-applied there. The pane survives, so this needs no second call site and cannot fall out of sync.
 const ECOSYSTEM_UNDERGROUND_STORAGE_KEY = "avesmaps.ecosystem.undergroundOpacity";
+// 50%, not 100% (Owner 2026-07-26): the layer is entered to draw on it, and at full strength the
+// painted terrain and the drawn areas are hard to tell apart -- which is what the slider exists for.
+// Half is where the terrain still guides the pen without competing with it. The slider stays, so
+// anyone who wants the full map back is one drag away.
+const ECOSYSTEM_UNDERGROUND_DEFAULT = 50;
 
 // 🪤 The raw string is checked for "nothing stored" BEFORE the number conversion. Number(null) is 0 --
 // a perfectly finite 0 that passes a 0..100 range check, so converting first made an editor entering
@@ -97,12 +104,12 @@ function readStoredEcosystemUndergroundOpacity() {
 	try {
 		const raw = window.localStorage?.getItem(ECOSYSTEM_UNDERGROUND_STORAGE_KEY);
 		if (raw === null || raw === undefined || String(raw).trim() === "") {
-			return 100;
+			return ECOSYSTEM_UNDERGROUND_DEFAULT;
 		}
 		const stored = Number(raw);
-		return Number.isFinite(stored) && stored >= 0 && stored <= 100 ? stored : 100;
+		return Number.isFinite(stored) && stored >= 0 && stored <= 100 ? stored : ECOSYSTEM_UNDERGROUND_DEFAULT;
 	} catch (error) {
-		return 100;
+		return ECOSYSTEM_UNDERGROUND_DEFAULT;
 	}
 }
 
