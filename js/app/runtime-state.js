@@ -75,7 +75,19 @@ let locationData = [],
 	regionLabels = [],
 	// Landschaften (Erprobung): EIGENE Registry, bewusst nicht regionPolygons mitbenutzt --
 	// clearRenderedRegionLayers() leert das bei jedem moveend. Siehe map-features-ecosystem-visibility.js.
-	ecosystemLayers = [],
+	// 💣 Map, KEIN Array (V3.0): der Loader laeuft bei jedem Schwenk erneut und liefert dieselben
+	// Flaechen wieder mit. Ohne Schluesselung nach public_id laege nach dem dritten Schwenk jede
+	// Flaeche dreimal drin -- der Ruckler, den bei 5 Flaechen keiner sieht und bei 300 alle.
+	ecosystemLayers = new Map(),
+	// Aktive Ebene des Segmentschalters (V3.0) -- eine der drei `kind`. Die beiden ruhenden bleiben
+	// sichtbar, nehmen aber keine Klicks. Startet LEER, nicht auf "vegetation": ein hier eingetragener
+	// gueltiger Wert waere nie ungueltig, und getActiveEcosystemLayerKind() kaeme nie dazu, den
+	// gemerkten Wert aus dem localStorage zu holen -- der Schalter haette das Gedaechtnis verloren,
+	// das er laut Plan haben soll.
+	activeEcosystemLayerKind = "",
+	// Aktive Region JE `kind` (V3.0b): { derographisch: "<public_id>", vegetation: …, topographie: … }.
+	// Der Segmentschalter wechselt damit auch die Region, in die eine neue Flaeche geht.
+	activeEcosystemRegionId = {},
 	// Die Wegpunkt-Marker der geplanten Route (inkl. ihrer Hover-Infobox an marker._routePopup).
 	highlightedRouteNodes = [],
 	isSearchPanelHidden = false,

@@ -48,6 +48,9 @@ const map = L.map("map", {
 // Rendering-Reihenfolge
 map.createPane("regionsPane");
 map.createPane("ecosystemPane");
+map.createPane("ecosystemPaneDerographisch");
+map.createPane("ecosystemPaneVegetation");
+map.createPane("ecosystemPaneTopographie");
 map.createPane("mapDecorationsPane");
 map.createPane("roadsOutlinePane");
 map.createPane("roadsPane");
@@ -64,6 +67,17 @@ map.getPane("regionsPane").style.zIndex = 200;
 // Landschaften (Erprobung): eigene Pane, ueber den politischen Fuellungen (regionsPane 200) und unter
 // der Schraffur (300) / den Grenzen (350) / den Labels (475). 201-299 ist sonst unbelegt -- geprueft.
 map.getPane("ecosystemPane").style.zIndex = 250;
+// V3.0: EINE Pane je `kind`, nicht eine Layergruppe je `kind` in der Pane oben. Alle drei Ebenen sind
+// gleichzeitig sichtbar; nur die aktive nimmt Klicks -- und `pointer-events` ist eine Eigenschaft der
+// PANE, nicht des Layers. Mit einer gemeinsamen Pane liesse sich "aktiv voll, ruhend blass UND
+// klickdurchlaessig" nur ueber ein Neuaufbauen aller Layer bei jedem Umschalten loesen.
+// ecosystemPane (250) bleibt als reservierter Bandanfang aus V1.3 bestehen und traegt selbst nichts.
+map.getPane("ecosystemPaneDerographisch").style.zIndex = 250;
+map.getPane("ecosystemPaneVegetation").style.zIndex = 251;
+map.getPane("ecosystemPaneTopographie").style.zIndex = 252;
+["ecosystemPaneDerographisch", "ecosystemPaneVegetation", "ecosystemPaneTopographie"].forEach((paneName) => {
+    map.getPane(paneName).classList.add("ecosystem-pane");
+});
 map.getPane("mapDecorationsPane").style.zIndex = 480;
 map.getPane("roadsOutlinePane").style.zIndex = 350;
 map.getPane("roadsPane").style.zIndex = 400;

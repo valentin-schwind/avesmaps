@@ -14,30 +14,40 @@
 //  3. Gleichnamige Funktionen gehen nicht: map-features-region-vertex-detach-edit.js ueberschreibt
 //     sieben window.*-Handler zur Laufzeit. Ein doppelter Name killt die POLITISCHE Ebene, nicht diese.
 //
-// In V1 ist die Registry immer leer -- es gibt noch nichts zu zeichnen. Die Funktion ist trotzdem
-// vollstaendig, damit V3 nur noch fuellt und nicht auch noch die Schaltung nachbaut.
+// Seit V3.0 ist das hier der EINE Eintrittspunkt der Ebene: setSelectedMapLayerMode ruft diese
+// Funktion, und sie verteilt an Schalter (map-features-ecosystem-layer-switch.js) und Loader
+// (map-features-ecosystem-loader.js). Beide sind mit typeof geschuetzt -- faellt eine der neuen
+// Dateien einmal aus, verkommt derselbe Fall zu "der Erprobungsmodus tut nichts" statt zu einem
+// ReferenceError, der jedem Besucher den Zustands-Restore mitreisst.
 
 function syncEcosystemVisibility() {
 	// `map` entsteht als Letztes (bootstrap.js laedt nach den map-features-Dateien); vor dem ersten
 	// Kartenaufbau kann setSelectedMapLayerMode bereits laufen.
-	if (typeof map === "undefined" || !map || !Array.isArray(ecosystemLayers)) {
+	if (typeof map === "undefined" || !map || !(ecosystemLayers instanceof Map)) {
 		return;
 	}
 
-	const shouldShow = typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "ecosystem";
-	ecosystemLayers.forEach((layer) => {
-		if (!layer) {
-			return;
-		}
+	// Drei Tore, nicht eins (Totmannschalter, Plan Regel 4): Modus UND Edit-Modus UND ?landschaften=1.
+	const shouldShow = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
 
-		const isOnMap = map.hasLayer(layer);
-		if (shouldShow && !isOnMap) {
-			layer.addTo(map);
-			return;
-		}
+	if (typeof syncEcosystemControlsVisibility === "function") {
+		syncEcosystemControlsVisibility();
+	}
 
-		if (!shouldShow && isOnMap) {
-			map.removeLayer(layer);
+	if (!shouldShow) {
+		// Modus verlassen -> eigene Registry leeren. 🔴 `regionPolygons` bleibt unangetastet.
+		if (typeof clearEcosystemAreaLayers === "function") {
+			clearEcosystemAreaLayers();
 		}
-	});
+		return;
+	}
+
+	if (typeof hookEcosystemViewportReload === "function") {
+		hookEcosystemViewportReload();
+	}
+	if (typeof scheduleEcosystemAreaReload === "function") {
+		// Sofort: der Moduswechsel ist die Nutzeraktion, auf die eine leere Karte folgen wuerde. Die
+		// Entprellung gilt dem Schwenken, nicht dem Einschalten.
+		scheduleEcosystemAreaReload({ immediate: true });
+	}
 }

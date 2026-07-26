@@ -600,6 +600,21 @@
 			<span id="open-path-ends-chip-text"></span>
 			<button id="open-path-ends-chip-next" type="button">Zum nächsten</button>
 		</div>
+		<!-- Landschaften (Erprobung), V3.0: sitzt an DERSELBEN Stelle wie der politische Jahres-Schieber
+		     direkt darunter -- beide haengen an ihrem Modus, koennen also nie gleichzeitig da sein, und
+		     es gibt keinen Layoutsprung. Sichtbar nur bei mapLayerMode=ecosystem UND ?edit=1 UND
+		     ?landschaften=1 (drei Tore, siehe map-features-ecosystem-layer-switch.js). -->
+		<div id="ecosystem-controls" class="ecosystem-controls" hidden>
+			<div id="ecosystem-layer-switch" class="ecosystem-layer-switch" role="tablist" aria-label="Landschafts-Ebene" data-i18n-aria-label="ecosystem.layerSwitch.aria">
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="derographisch" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.derographisch">Derographische Region</button>
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="vegetation" aria-selected="true" tabindex="0" data-i18n="ecosystem.kind.vegetation">Vegetation</button>
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="topographie" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.topographie">Topographie</button>
+			</div>
+			<!-- Nur sichtbar, wenn der SERVER die Ebene abgeschaltet meldet. Ohne diese Zeile sieht der
+			     Editor eine leere Karte und kann "noch keine Flaechen" nicht von "Totmannschalter aus"
+			     unterscheiden -- ?landschaften=1 sagt darueber naemlich nichts. -->
+			<p id="ecosystem-controls-note" class="ecosystem-controls__note" role="status" hidden></p>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -1722,6 +1737,12 @@
 		     und ebenso vom Kraftlinien-Editor-iframe geladen werden (eine Wahrheit, kein zweites Mal). -->
 		<script src="js/map-features/powerline-topology.js"></script>
 		<script src="js/map-features/map-features-powerlines.js"></script>
+		<!-- Landschaften (Erprobung). Reihenfolge innerhalb der Gruppe ist tragend: rendering liefert
+		     ECOSYSTEM_KINDS/ECOSYSTEM_KIND_PANES, layer-switch und loader lesen sie, visibility verteilt
+		     an beide. Die ganze Gruppe steht VOR display-mode.js, das syncEcosystemVisibility ruft. -->
+		<script src="js/map-features/map-features-ecosystem-rendering.js"></script>
+		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>
+		<script src="js/map-features/map-features-ecosystem-loader.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>

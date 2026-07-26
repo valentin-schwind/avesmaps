@@ -147,6 +147,15 @@
 	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
 	--color-marker-open-path-end-ring: #e8850c;
 
+	/* Landschaften (Erprobung) -- one tone per `kind`, because all three layers are visible at the
+	   same time (V3.0) and only the active one is opaque. The three have to stay tellable apart at
+	   40% opacity, so they sit far apart on the hue circle while staying inside the warm family --
+	   no blue (§12). Pinned in both themes for the same reason as the marker rings above: these are
+	   painted ON the always-light map tiles, never on a themed panel. */
+	--color-ecosystem-derographisch: #b0862e; /* ochre gold -- regions, islands, continents */
+	--color-ecosystem-vegetation: #5f7d33;    /* leaf green -- forest, steppe, swamp, desert */
+	--color-ecosystem-topographie: #9a5b3d;   /* terracotta -- mountains, hills, coast, sea */
+
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
 

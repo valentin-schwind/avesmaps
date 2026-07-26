@@ -1,0 +1,118 @@
+/* Landschaften (Erprobung) -- the segment switch above the map and the three area panes (plan V3.0).
+
+   💣 DELIBERATELY NOT COPIED FROM political-timeline.css, although this box sits in exactly the same
+   spot. That file hardcodes #b79d7d, rgba(250,243,236,0.96), #3f3428, border-radius: 8px and
+   z-index: 1000 -- five §12 violations that "same place, same look" would have carried over. Every
+   value below is a token from css/base/tokens.css. */
+
+.ecosystem-controls[hidden] {
+	display: none !important;
+}
+
+.ecosystem-controls {
+	position: fixed;
+	top: var(--space-8);
+	left: 50%;
+	z-index: var(--z-map-ui);
+	display: grid;
+	gap: var(--space-8);
+	width: min(560px, calc(100vw - var(--space-24) - var(--space-8)));
+	padding: var(--space-8) var(--space-10);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	transform: translateX(-50%);
+}
+
+/* Segmented control, not the panel sub-tab underline (.region-sync__viewtabs): this one floats over
+   the map, where an underline row has no panel edge to sit on. Equal columns so the three landscape
+   layers read as three peers -- minmax(0, 1fr), because a fixed 1fr would let the longest label
+   ("Derographische Region") push its column wider than the other two. */
+.ecosystem-layer-switch {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--space-2);
+	padding: var(--space-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+
+.ecosystem-layer-switch__tab {
+	appearance: none;
+	-webkit-appearance: none;
+	min-width: 0;
+	padding: var(--space-6) var(--space-8);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: none;
+	color: var(--color-button-soft-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-snug);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ecosystem-layer-switch__tab:hover {
+	background: var(--color-hover-wash);
+	color: var(--color-text-strong);
+}
+
+.ecosystem-layer-switch__tab:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring);
+}
+
+/* The active segment is the ONE filled thing in this bar -- everything else stays soft (§12 button
+   hierarchy). Only one layer answers clicks, and this is what says which. */
+.ecosystem-layer-switch__tab.is-active {
+	border-color: var(--color-button-border);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font-weight: var(--font-weight-bold);
+}
+
+.ecosystem-controls__note[hidden] {
+	display: none !important;
+}
+
+.ecosystem-controls__note {
+	margin: 0;
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-small);
+	line-height: var(--leading-snug);
+}
+
+/* ---- the three area panes -------------------------------------------------------------------------
+
+   All three layers are visible at once; the two resting ones are pale AND click-through, so drawing a
+   mountain range shows where the forest is without ever raising the question "which polygon did I just
+   hit". opacity + pointer-events on the PANE, which is why there are three panes and not one.
+
+   🪤 The pointer-events rule has to out-specify Leaflet's own
+   `.leaflet-pane > svg path.leaflet-interactive { pointer-events: auto }` (leaflet.css). A plain
+   `.ecosystem-pane--resting path` would LOSE that cascade and the pale layers would still swallow
+   clicks -- which is the whole failure this design exists to prevent. Hence the .leaflet-pane in the
+   selector: three classes beat two. */
+.ecosystem-pane {
+	transition: opacity 0.15s ease;
+}
+
+.ecosystem-pane--resting {
+	opacity: 0.4;
+}
+
+.leaflet-pane.ecosystem-pane--resting > svg path.leaflet-interactive {
+	pointer-events: none;
+	cursor: default;
+}
+
+.leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {
+	cursor: pointer;
+}
