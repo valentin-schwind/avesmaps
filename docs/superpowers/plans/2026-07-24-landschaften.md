@@ -1271,7 +1271,50 @@ zeigt **keine** politische Datei.
 > Die Analyse hatte dafür eine eigene Stufe (§6, L2 „Darstellung", ~450 Z.); im
 > Plan-Schnitt war sie ersatzlos verschwunden, und die Selbstprüfung merkte es nicht.
 
-### Aufgabe V3.0 — Laden, Rendern und der Ebenen-Umschalter
+### Aufgabe V3.0 — Laden, Rendern und der Ebenen-Umschalter ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26.** Commits `56bd2f91` (Kern), `f986c48b` und `52d47f9d`
+> (Optik nach der Abnahme). **Abnahme durch den Owner:** drei per API angelegte Flächen,
+> eine je Ebene, erscheinen nach Reload alle drei; Auswahl funktioniert in **allen drei**
+> Ebenen („topographie(auswahl) geht, derographie(auswahl) geht", Vegetation nachgereicht);
+> „standard → landschaften → standard" übersteht den Moduswechsel.
+>
+> 🪤 **Vier Stellen, an denen der Plan seine eigene Ansage verfehlt hätte:**
+> 1. Schritt 3 verlangt Entdopplung nach `public_id`, `ecosystemLayers` war aber ein
+>    **Array** (`runtime-state.js`). Jetzt eine `Map`.
+> 2. `activeEcosystemLayerKind` mit „vegetation" vorbelegt wäre **nie ungültig** gewesen —
+>    der localStorage-Lesepfad wäre nie erreicht worden und der Schalter hätte sein
+>    Gedächtnis verloren. Startet leer; „vegetation" ist jetzt der Fallback des Lesens.
+> 3. `pointer-events: none` auf der Pane genügt **nicht**. Leaflets eigene Regel
+>    `.leaflet-pane > svg path.leaflet-interactive` schaltet Klicks bei Spezifität (0,2,2)
+>    wieder an; der naheliegende Zwei-Klassen-Selektor verliert und die blassen Ebenen
+>    schlucken weiter Klicks — genau der Fehler, gegen den die drei Panes existieren.
+>    Der Selektor trägt deshalb `.leaflet-pane` mit.
+> 4. **Deckkraft darf nicht an der Pane hängen.** Pane-Deckkraft *multipliziert* sich mit
+>    der Füllung des Pfads; die Owner-Matrix unten nennt absolute Werte, „40 %" wäre also
+>    40 % von etwas anderem geworden. Füllung/Kontur sitzen auf den **Pfaden**, die Pane
+>    trägt nur die Zustandsklasse — `pointer-events` bleibt Pane-Eigenschaft, und
+>    Umschalten baut weiterhin keinen Layer neu.
+>
+> **Optik-Matrix, Owner 2026-07-26** (Füllung / Kontur), in `css/features/ecosystem-layer.css`
+> als **eine** Tabelle aus vererbten Custom-Properties — nicht ein zweites Mal in JS:
+>
+> | | ruhend | aktiv | ausgewählt |
+> |---|---|---|---|
+> | derographisch | 0 % / 70 % | 40 % / 70 % | 70 % / 100 % |
+> | vegetation | 50 % / 70 % | 70 % / 80 % | 90 % / 100 % |
+> | topographie | 50 % / 70 % | 70 % / 80 % | 90 % / 100 % |
+>
+> Eine ruhende derographische Fläche ist **nur Kontur**: sie markiert einen Behälter, und
+> ein Behälter darf die Karte nicht einfärben, auf der jemand anderes zeichnet. Auswahl ist
+> ein Deckkraft-Schritt, kein zweiter Farbton. Farben: derographisch **grau**, topographie
+> **braungrau** (Platzhalter bis zur Höhenkarte, hoch → weiß), vegetation **ein Ton je
+> `region_type`** (Wald/Auen/Gras/Steppe/Wüste/Sümpfe/Tundra), per Regel aus dem `type_key`
+> aufgelöst — ein neu gesäter Typ braucht nur seinen Token, keine Liste im Client.
+>
+> 🪤 **Verifikationsfalle, zweimal reingefallen:** Die `fill-opacity`/`opacity`-Übergänge
+> **frieren im unsichtbaren MCP-Browser-Pane ein**, `getComputedStyle` liefert dort den
+> START-Wert. Wer die Matrix nachmisst, schaltet den Übergang für die Messung ab.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-loader.js`,
 `js/map-features/map-features-ecosystem-rendering.js`,
@@ -1319,14 +1362,14 @@ gleichzeitig da, und es gibt keinen Layoutsprung.
 > sauber trennen — `pointer-events` ist eine Pane-Eigenschaft, keine Layer-Eigenschaft.
 > 201–299 ist frei, die nächste Belegung liegt bei 300.
 
-- [ ] **Schritt 1:** Segmentschalter „Derographische Region · Vegetation · Topographie"
+- [x] **Schritt 1:** Segmentschalter „Derographische Region · Vegetation · Topographie"
       neben `#political-timeline` einfügen, sichtbar nur bei `mode === "ecosystem"`.
       Aktive Ebene in `activeEcosystemLayerKind` (`runtime-state.js`), gemerkt in
       `localStorage`; beim ersten Mal **Vegetation** (dort liegt die meiste Arbeit).
-- [ ] **Schritt 2:** Loader — `fetch` auf `api/app/ecosystem-areas.php` mit der
+- [x] **Schritt 2:** Loader — `fetch` auf `api/app/ecosystem-areas.php` mit der
       aktuellen bbox, nur wenn `getSelectedMapLayerMode() === "ecosystem"`. Holt
       **alle drei** `kind` in einem Aufruf, nicht drei Aufrufe.
-- [ ] **Schritt 3:** An `moveend` und `zoomend` hängen, mit **eigenem** Debounce.
+- [x] **Schritt 3:** An `moveend` und `zoomend` hängen, mit **eigenem** Debounce.
       🔴 **Nicht** `schedulePoliticalTerritoryLayerReload` mitbenutzen.
 
       💣 **Vor dem Rendern entdoppeln — nach `public_id`.** Das politische Vorbild räumt
@@ -1337,22 +1380,56 @@ gleichzeitig da, und es gibt keinen Layoutsprung.
       `ecosystemLayers` — der Ruckler, der bei Fläche 5 keiner sieht und bei 300 alle. Also:
       geladene Flächen nach `public_id` in einer Map halten, beim Reload nur Neues rendern
       und Verschwundenes entfernen.
-- [ ] **Schritt 4:** Rendern in die Pane des jeweiligen `kind`, Layer in
+- [x] **Schritt 4:** Rendern in die Pane des jeweiligen `kind`, Layer in
       `ecosystemLayers` registrieren. Farbe je `kind` (drei Töne aus
       `css/base/tokens.css`; bei Bedarf Token **anlegen**, nie Hex hartkodieren —
       AGENTS.md §12).
-- [ ] **Schritt 5:** Umschalten setzt `pointer-events` und Deckkraft der drei Panes —
+- [x] **Schritt 5:** Umschalten setzt `pointer-events` und Deckkraft der drei Panes —
       **ohne** neu zu laden und **ohne** eine laufende Bearbeitung zu verwerfen. Eine
       offene Bearbeitung wird vorher abgeschlossen und gespeichert.
-- [ ] **Schritt 6:** Beim Verlassen des Modus aufräumen — eigene Registry leeren,
+- [x] **Schritt 6:** Beim Verlassen des Modus aufräumen — eigene Registry leeren,
       `regionPolygons` **nicht anfassen**.
-- [ ] **Schritt 7: 🔧 DU (Owner):** Drei per `curl` angelegte Flächen (eine je Ebene)
+- [x] **Schritt 7: 🔧 DU (Owner):** Drei per `curl` angelegte Flächen (eine je Ebene)
       erscheinen nach Reload **alle drei**, zwei davon blass. Umschalten wechselt,
       welche voll ist. Ein Klick auf eine blasse Fläche wählt sie **nicht** aus.
       Schwenken und Moduswechsel hin und zurück überstehen es.
-- [ ] **Schritt 8: Commit** — `feat(ecosystem): load and render all three layers, with the active one in front`
+- [x] **Schritt 8: Commit** — `feat(ecosystem): load and render all three layers, with the active one in front`
 
-### Aufgabe V3.0b — Regionsauswahl (Owner-Entscheidung 1) 🔴 NEU, PFLICHT
+### Aufgabe V3.0b — Regionsauswahl (Owner-Entscheidung 1) ✅ ERLEDIGT, Oberfläche zieht um
+
+> ✅ **Live seit 2026-07-26**, Commits `6468f454` und `6808a11f`. Owner hat Region
+> „Farinedel" (Vegetation) angelegt und drei Flächen hineingehängt; sie hängen alle an
+> derselben Region.
+>
+> 🔴 **Owner-Entscheidung 2026-07-26, direkt nach der Abnahme:** *„die ‚aktive Region…' und
+> ‚neue Region' braucht es nicht oben bei der Toggle-Auswahl. Wir haben in der seitlichen
+> Liste ja schon eine komplette Übersicht über alle Regionen, du kannst dich gern dessen
+> bedienen und die Anzeige erweitern / ergänzen (z. B. Farindelwald automatisch selektieren
+> + Flächen listen)."*
+>
+> Die **Kopfleisten-Auswahl entfällt damit** — sie war ausdrücklich „der herausgelöste,
+> unverzichtbare Kern von V6", und V6 hat jetzt eine Heimat: die Liste **WikiSync →
+> Regionen** (`js/review/review-region-sync.js`, 457 Z., Endpunkt
+> `/api/edit/wiki/regions.php`, 1843 Regionen · 543 Karten-Labels). ⚠️ **Nicht löschen,
+> bevor der Ersatz steht:** ohne eine Zielregion kann V3.2 keine Fläche anlegen
+> (`create_area` weist eine fehlende `region_public_id` mit 400 ab).
+>
+> ⭐ **Die Brücke existiert schon und ist geprüft.** `ecosystem_region.wiki_region_key`
+> entsteht seit diesem Commit serverseitig über die **wortgleiche Abschrift** von
+> `avesmapsPoliticalSlug` — dieselbe Ableitung, die `wiki_region_staging.wiki_key`
+> geschlüsselt hat (`api/_internal/wiki/regions.php:507`). Eine Wiki-Regionszeile und eine
+> Landschaftsregion sind also **heute schon über einen Gleichheitsvergleich** verbindbar,
+> ohne neue Spalte und ohne zweite Ableitung. Der Unit-Test vergleicht beide Ableitungen
+> über 18 Eingaben (Umlaute, ß, Akzente, leer, überlang) — er ist das Einzige, was die
+> Abschrift vor stillem Auseinanderdriften schützt.
+>
+> **Was bleibt und weiterbenutzt wird:** die Aktion `list_regions`
+> (`api/edit/map/ecosystem.php`, fähigkeitsgeprüft, liefert die aktiven Regionen eines
+> `kind` mit Flächenzahl **plus** die `region_type`-Wortliste), `activeEcosystemRegionId`
+> (je `kind`, localStorage) und die Revisions-Invalidierung: jeder Schreibvorgang hebt
+> `ecosystem_revision`, der Flächen-Loader sieht das im Payload-Kopf und holt die
+> Regionsliste genau dann neu — sonst nie. Ohne die stand nach zwei gezeichneten Flächen
+> weiter „0 Flächen" in der Zeile.
 
 **Dateien:** Erstellen `js/map-features/map-features-ecosystem-region-picker.js`;
 ändern `index.html` (Anker: der Segmentschalter aus V3.0)
@@ -1374,18 +1451,18 @@ gerade aktiven `kind`. Zwei Wege, mehr nicht:
   `ecosystem_region_type` für diesen `kind`), optional Wiki-Zuweisung. Ruft
   `create_region`, macht die neue Region sofort zur aktiven.
 
-- [ ] **Schritt 1:** Auswahl-Element + „neue Region"-Dialog, token-basiert, tastaturbedienbar,
+- [x] **Schritt 1:** Auswahl-Element + „neue Region"-Dialog, token-basiert, tastaturbedienbar,
       i18n-Schlüssel für die neuen Strings (`js/app/i18n-en.js`).
-- [ ] **Schritt 2:** `activeEcosystemRegionId` in `runtime-state.js`, je `kind` getrennt
+- [x] **Schritt 2:** `activeEcosystemRegionId` in `runtime-state.js`, je `kind` getrennt
       gemerkt (Wechsel des Segmentschalters wechselt auch die aktive Region), in
       `localStorage`.
-- [ ] **Schritt 3:** Wiki-Zuweisung schreibt `wiki_region_key` **ausschließlich** über
+- [x] **Schritt 3:** Wiki-Zuweisung schreibt `wiki_region_key` **ausschließlich** über
       `avesmapsPoliticalSlug()` (serverseitig, im `create_region`/`update_region`-Handler)
       — nie im Client slugifizieren (AGENTS.md §5).
-- [ ] **Schritt 4: 🔧 DU (Owner):** Neue Region „Farindel" (Vegetation) anlegen, zwei
+- [x] **Schritt 4: 🔧 DU (Owner):** Neue Region „Farindel" (Vegetation) anlegen, zwei
       getrennte Flächen hineinzeichnen (V3.2), Reload — **beide** hängen an derselben
       Region, tragen denselben Namen. Region wechseln, dritte Fläche zeichnet in die andere.
-- [ ] **Schritt 5: Commit** — `feat(ecosystem): pick or create the region a drawn area belongs to`
+- [x] **Schritt 5: Commit** — `feat(ecosystem): pick or create the region a drawn area belongs to`
 
 > **Rückweg aus der falschen Ebene** (zweiter Prüfbericht C6): Diese Aufgabe liefert ihn
 > nicht vollständig — Verschieben einer Fläche zwischen Ebenen bleibt V3.6 („Senden an …")
