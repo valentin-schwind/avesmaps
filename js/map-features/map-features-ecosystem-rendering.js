@@ -165,6 +165,13 @@ function buildEcosystemAreaLayer(area) {
 	layer._ecosystemArea = area;
 	layer.bindTooltip(formatEcosystemAreaTooltip(area), { sticky: true, direction: "top" });
 	layer.on("click", (event) => {
+		// 💣 While the drawing tool is running, a click on an existing area is a CORNER, not a
+		// selection -- so this handler must neither select nor stop the event, or no area could ever
+		// be drawn across another one. Overlap and nesting are normal here (Schneckenkamm lies inside
+		// the Windhagberge), so that case is the rule, not the exception.
+		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
+			return;
+		}
 		if (event?.originalEvent && typeof L?.DomEvent?.stopPropagation === "function") {
 			L.DomEvent.stopPropagation(event);
 		}

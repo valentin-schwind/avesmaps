@@ -619,6 +619,9 @@
 				<select id="ecosystem-region-select" class="ecosystem-region-picker__select"></select>
 				<button id="ecosystem-region-new" class="ecosystem-region-picker__new" type="button" data-i18n="ecosystem.region.new">Neue Region …</button>
 			</div>
+			<!-- V3.2: die Hauptaktion dieser Leiste. Klick setzt Punkte, Doppelklick oder Enter schliesst
+			     ab, Escape bricht ab -- gespeichert wird ERST beim Abschluss. -->
+			<button id="ecosystem-draw-toggle" class="ecosystem-draw-toggle" type="button" aria-pressed="false" data-i18n="ecosystem.draw.start">Fläche zeichnen</button>
 			<!-- Nur sichtbar, wenn der SERVER die Ebene abgeschaltet meldet. Ohne diese Zeile sieht der
 			     Editor eine leere Karte und kann "noch keine Flaechen" nicht von "Totmannschalter aus"
 			     unterscheiden -- ?landschaften=1 sagt darueber naemlich nichts. -->
@@ -1782,6 +1785,7 @@
 		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>
 		<script src="js/map-features/map-features-ecosystem-loader.js"></script>
 		<script src="js/map-features/map-features-ecosystem-region-picker.js"></script>
+		<script src="js/map-features/map-features-ecosystem-draw.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>

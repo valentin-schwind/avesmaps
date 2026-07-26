@@ -106,6 +106,9 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.region.cancel": "Cancel",
 	"ecosystem.region.save": "Create",
 
+	// --- Landschaften: the click-by-click draw tool (V3.2) ---
+	"ecosystem.draw.start": "Draw area",
+
 	// --- spotlight search ---
 	"spotlight.title": "Search",
 	"spotlight.placeholder": "Search the map",

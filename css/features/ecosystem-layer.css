@@ -156,6 +156,61 @@
 	box-shadow: var(--focus-ring), var(--shadow-button-hover);
 }
 
+/* ---- draw tool (V3.2) -----------------------------------------------------------------------------
+   The one ACTION of this bar, so it is the filled one (§12 button hierarchy). The filled layer tab
+   above it encodes a selection, not an action -- two different things that happen to share a fill. */
+.ecosystem-draw-toggle {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 100%;
+	padding: var(--space-6) var(--space-10);
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+	line-height: var(--leading-snug);
+}
+
+.ecosystem-draw-toggle:hover {
+	background: var(--color-button-hover);
+	box-shadow: var(--shadow-button-hover-strong);
+	transform: translateY(-1px);
+}
+
+.ecosystem-draw-toggle:active {
+	background: var(--color-button-active);
+	box-shadow: inset 0 1px 3px rgb(0 0 0 / 22%);
+	transform: none;
+}
+
+.ecosystem-draw-toggle:focus-visible {
+	outline: none;
+	box-shadow: var(--focus-ring), var(--shadow-button-hover-strong);
+}
+
+/* Running: the button turns into "cancel" and drops to the soft tier -- while drawing, the action on
+   the map is the main thing, and the button is only the way out of it. */
+.ecosystem-draw-toggle.is-active {
+	border-color: var(--color-button-soft-border);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+}
+
+.ecosystem-draw-toggle.is-active:hover {
+	background: var(--color-button-soft-hover);
+}
+
+/* Crosshair over the whole map INCLUDING the interactive paths -- otherwise the cursor would flip
+   back to a hand exactly over the areas one draws across. Same shape as .path-creation-cursor. */
+.ecosystem-draw-cursor,
+.ecosystem-draw-cursor .leaflet-interactive {
+	cursor: crosshair !important;
+}
+
 /* ---- "new region" dialog --------------------------------------------------------------------------
    The overlay itself (position/scrim/z-index) is NOT styled here: #ecosystem-region-overlay is entered
    into the three selector lists in css/components/dialog-overlays.css, so it inherits the shared scrim

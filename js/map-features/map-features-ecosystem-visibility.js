@@ -35,6 +35,12 @@ function syncEcosystemVisibility() {
 	}
 
 	if (!shouldShow) {
+		// Ein laufendes Zeichnen gehoert zum Modus: der Moduswechsel beendet es, sonst haengen
+		// Klick-/Tastatur-Handler weiter an einer Karte, auf der es keine Landschaftsebene mehr gibt.
+		// Gespeichert wird dabei nichts -- der Entwurf ist bis zum Abschluss ohnehin fluechtig.
+		if (typeof cancelEcosystemAreaDrawing === "function") {
+			cancelEcosystemAreaDrawing();
+		}
 		// Modus verlassen -> eigene Registry leeren. 🔴 `regionPolygons` bleibt unangetastet.
 		if (typeof clearEcosystemAreaLayers === "function") {
 			clearEcosystemAreaLayers();

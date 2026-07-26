@@ -270,6 +270,11 @@ async function submitEcosystemRegionDialog(event) {
 		if (typeof showFeedbackToast === "function") {
 			showFeedbackToast(`Region „${name}" angelegt.`);
 		}
+		// V3.2: a finished outline waiting for a region gets saved now. Guarded, so neither file has
+		// to exist for the other to work.
+		if (typeof resumePendingEcosystemAreaSave === "function") {
+			resumePendingEcosystemAreaSave();
+		}
 	} catch (error) {
 		setEcosystemRegionDialogError(error?.message || "Die Region konnte nicht angelegt werden.");
 	} finally {
