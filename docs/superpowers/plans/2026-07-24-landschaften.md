@@ -167,7 +167,7 @@ diese Tabelle.
 | **V-1** | Diagnosen absichern | ✅ **erledigt 2026-07-25** (`886efeee`), abgenommen | ~60 Z. |
 | **V0** | Routing entlasten | ✅ **erledigt 2026-07-25** (`7dfd6016`), abgenommen | ~220 Z. |
 | **V1** | Die Ebene existiert | Modus umschaltbar, leer, Flag wirkt | ~320 Z. |
-| **V2** | Daten und API | Fläche per API anlegen/lesen/ändern/löschen | ~900 Z. |
+| **V2** | Daten und API | ✅ **erledigt 2026-07-26** (`956d53ee`+`9c3926d6`), abgenommen | ~1.520 Z. |
 | **V3** | Zeichnen und Anzeigen | Fläche entsteht **mit Region und Namen**, wird geladen, überlebt Reload | ~1.950 Z. |
 | **V4** | Abnahme + Messung | **2 × 10 Flächen, Zeit gestoppt** | kein Code |
 | **V4a** | Quellen anschließen (ex V2.4) | `entity_type='ecosystem'` | ~10 Z. |
@@ -900,7 +900,60 @@ auf `ecosystem*` umbenannt; alle sechs Namen sowie `ecosystem_region`/`ecosystem
 
 ---
 
-# V2 — Daten und API
+# V2 — Daten und API ✅ ERLEDIGT
+
+> ✅ **Live seit 2026-07-26.** Commits `956d53ee` (V2.1–V2.3 zusammen) und `9c3926d6`
+> (Nachtrag, s. u.). **Abnahme durch den Owner, alle drei Prüfpunkte:** Schema mit
+> `ecosystem_region_type` = **4 / 5 / 7 = 16** Zeilen; ohne Session und mit
+> ausgeschaltetem Flag `{"ok":true,"areas":[],"ecosystem_enabled":false}`; Flag umgelegt,
+> Region + Fläche angelegt, erster Save **200**, zweiter Save mit veraltetem
+> `expected_revision` **409** statt stillem Verlust; Audit-Log fünf Zeilen in der
+> richtigen Reihenfolge; Aufräumen zurück auf `areas: []`.
+>
+> **Die Kernregel hält, statisch bewiesen:** `avesmapsNextMapRevision` kommt in den drei
+> V2-Dateien **null mal als Aufruf** vor (zwei Treffer, beide Kommentare). Der Zähler
+> lief in der Abnahme sauber 1 → 6 durch, ohne Lücke — der fehlgeschlagene Save hat
+> keine Revision verbraucht, weil der Wächter vor dem Hochzählen wirft.
+>
+> 🪤 **`set_enabled` legte die Tabellen nicht an.** Die Aktion schrieb nur die
+> `app_setting`-Zeile; das Schema wäre erst beim ersten *Schreib*aufruf oder beim ersten
+> Lesen *nach* dem Einschalten entstanden. Damit war Schritt 2 („Endpunkt einmal aufrufen,
+> dann phpMyAdmin") **nicht durchführbar** — man legt das Flag um und findet ein leeres
+> Schema. Behoben in `9c3926d6`: das Schema entsteht bei der bewussten Owner-Aktion.
+> *Nebenbefund:* V2.1 Schritt 2 war ohnehin erst nach V2.3 erreichbar — V2.1 liefert eine
+> Bibliothek ohne Aufrufer.
+>
+> 💣 **DDL beendet eine offene Transaktion still.** `promote_trial` schrieb
+> `app_setting['ecosystem_trial']` *innerhalb* der Transaktion — und
+> `avesmapsAppSettingSet` legt zuerst seine Tabelle an. MySQL committet bei jedem
+> `CREATE TABLE` implizit, auch bei einem No-op, und hätte Audit-Zeilen und Soft-Deletes
+> aus der Reichweite des `rollBack()` genommen. Die Zeile steht jetzt **nach** dem Commit;
+> das Fenster ist selbstheilend. **Hausregel für jeden Schreib-Handler: kein DDL zwischen
+> `beginTransaction()` und `commit()`** — das betrifft `*EnsureTables` **und** jeden
+> `avesmapsAppSetting*`-Aufruf.
+>
+> **Sechs Abweichungen von den Schnipseln, jede baut deren erklärte Absicht:**
+>
+> | | |
+> |---|---|
+> | `COLLATE=utf8mb4_unicode_ci` auf allen fünf Tabellen | Der Schnipsel nannte nur `CHARSET`. Aber `label_public_id` und `wiki_region_key` existieren zum **Joinen** gegen `map_features` bzw. die Wiki-Tabellen, und die sind sämtlich `unicode_ci` (`sql/schema.sql`, 20 von 20). Ein Cross-Collation-Join liefert „Illegal mix" oder still 0 Zeilen — die Narbe, die `feature_sources` trägt. Nachträglich nur per `ALTER` heilbar. |
+> | `DATETIME(3)` mit `DEFAULT CURRENT_TIMESTAMP(3)` / `ON UPDATE` | Der Schnipsel schrieb `DATETIME NOT NULL` ohne Default — das weist jedes INSERT ab, das die Spalte auslässt, und Sekundengenauigkeit kollidiert über ~2.000 Speichervorgänge. Beide geometrieführenden Nachbarn machen es so. |
+> | `expected_revision` ist **Pflicht** statt optional | Die Vorlage `avesmapsAssertFeatureCanBeEdited` lässt sie weg-lassbar. Genau so greift ein Wächter still nicht — und es gibt keinen Altbestands-Aufrufer, den Pflicht brechen könnte. Dazu `SELECT … FOR UPDATE`, damit der Vergleich atomar statt nur optimistisch ist. |
+> | Kein `FOREIGN KEY` auf `region_id` | Der Bestand hat **null** FK-Constraints (0 in `sql/schema.sql`; `dump-hybrid-state.php:90` sagt es ausdrücklich). `create_area` weist eine unbekannte oder inaktive Region stattdessen ab. |
+> | Drahtfeld heißt `region_public_id` (`region_id` als Alias) | `create_region` gibt eine `public_id` zurück, keinen internen FK — und interne Ids verlassen die Box nirgends in diesem Haus. |
+> | `ecosystem_geometry_audit_log` führt `area_public_id` / `region_public_id` als Spalten | Die politische Vorlage hält die Identität nur im `before_json`, weshalb dort „wer hat DIESE Fläche gelöscht" ein `JSON_EXTRACT`-Scan ist. |
+>
+> **Ein Commit statt drei:** die Bibliothek trägt V2.1, V2.2 und V2.3, und pfadgenaues
+> Stagen kann eine Datei nicht teilen; eine halbe Bibliothek liefe nicht.
+>
+> ⭐ **Was V3 wissen muss.** Drahtformat ist **GeoJSON `[x, y]`, ungetauscht** — die
+> Leaflet-Vertauschung `[lat,lng] = [y,x]` macht der Client, nicht die API. Offene Ringe
+> schließt der Server. `create_area` verlangt `region_public_id`;
+> `update_area_geometry`/`delete_area` verlangen `expected_revision` (fehlt → **400**,
+> veraltet → **409**). Der Lesepfad liefert je Fläche `geometry_revision` — genau das muss
+> der Client beim nächsten Speichern zurückschicken. `is_trial` steht per **DEFAULT 0** an
+> der Fläche; „Erprobung läuft" ist `app_setting['ecosystem_trial']` (Default `'1'`).
+> Der Schalter `ecosystem_enabled` ist seit der Abnahme **an**.
 
 **Fertig, wenn:** Eine Fläche lässt sich per API anlegen, lesen, ändern und weich
 löschen — **ohne Karte**, mit `curl` verifizierbar. Und der Kill-Switch lässt sich
@@ -1038,16 +1091,16 @@ kein `relief`-Feld.
 > `berggipfel` (34 Labels) und `fluss` (5) fehlen ebenfalls und bleiben es: Punkte
 > bzw. Linien, keine Flächen. `berggipfel` gehört zu V8.
 
-- [ ] **Schritt 1:** DDL schreiben, Seed einspielen, beide Revisions-Funktionen.
+- [x] **Schritt 1:** DDL schreiben, Seed einspielen, beide Revisions-Funktionen.
 
       ⚠️ **Seed als `INSERT IGNORE`, nicht `ON DUPLICATE KEY UPDATE`.** Die Tabelle hat
       `is_active`; das im Repo häufigste Upsert-Muster (u. a. `app-setting.php:41–42`)
       würde jede Deaktivierung beim nächsten Endpunkt-Aufruf stillschweigend rückgängig
       machen. Vorbild für die richtige Form: `api/_internal/app/citymaps.php:1652`.
 
-- [ ] **Schritt 2: 🔧 DU (Owner):** Endpunkt einmal aufrufen, in phpMyAdmin prüfen:
+- [x] **Schritt 2: 🔧 DU (Owner):** Endpunkt einmal aufrufen, in phpMyAdmin prüfen:
       vier Tabellen, `ecosystem_region_type` hat **16** Zeilen (4 + 5 + 7).
-- [ ] **Schritt 3: Commit** — `feat(ecosystem): schema, type vocabulary and an independent revision counter`
+- [x] **Schritt 3: Commit** — `feat(ecosystem): schema, type vocabulary and an independent revision counter`
 
 ### Aufgabe V2.2 — Öffentlicher Lesepfad mit eigenem ETag
 
@@ -1101,7 +1154,7 @@ if (avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') === '0') {
 }
 ```
 
-- [ ] **Schritt 1:** Endpunkt mit bbox-Filter (`min_x/min_y/max_x/max_y`).
+- [x] **Schritt 1:** Endpunkt mit bbox-Filter (`min_x/min_y/max_x/max_y`).
 
       🔴 **Der Read joint auf die aktive Region** (Owner-Entscheidung 1: `kind` steht auf
       `ecosystem_region`, nicht auf der Fläche):
@@ -1118,11 +1171,11 @@ if (avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') === '0') {
       `api/_internal/political/territories-derived-geometry-plan.php:238–241`,
       `territories-claims.php:199`. Nur `WHERE a.is_active = 1` wäre der Fehler.
 
-- [ ] **Schritt 2:** ETag = **`ecosystem_revision` × bbox-String** (Muster
+- [x] **Schritt 2:** ETag = **`ecosystem_revision` × bbox-String** (Muster
       `map-features.php:225–228`, s. o.), 304 bei Übereinstimmung.
-- [ ] **Schritt 3: 🔧 DU (Owner):** Ohne Session, Flag noch nicht umgelegt:
+- [x] **Schritt 3: 🔧 DU (Owner):** Ohne Session, Flag noch nicht umgelegt:
       `{"ok":true,"areas":[],"ecosystem_enabled":false}`.
-- [ ] **Schritt 4: Commit** — `feat(ecosystem): public read endpoint with its own revision and kill switch`
+- [x] **Schritt 4: Commit** — `feat(ecosystem): public read endpoint with its own revision and kill switch`
 
 ### Aufgabe V2.3 — Schreibender Endpunkt
 
@@ -1167,7 +1220,7 @@ Aufruf, `getMessage()`-Lecks.
 > `before_json`/`after_json`/`actor_user_id` wie die Vorbilder. **~40 Z.**, und sie gehören
 > in V2.3, nicht in eine spätere Aufgabe — ein Save ohne Audit ist unwiederbringlich.
 
-- [ ] **Schritt 1:** Verteiler + `create_region` / `create_area`, je mit `curl`-Abnahme.
+- [x] **Schritt 1:** Verteiler + `create_region` / `create_area`, je mit `curl`-Abnahme.
 
       🔴 **`create_area` verlangt eine `region_id`** (Owner-Entscheidung 1). Der Endpunkt
       prüft, dass sie auf eine **aktive** Region zeigt, sonst 400 — sonst entsteht eine
@@ -1177,28 +1230,28 @@ Aufruf, `getMessage()`-Lecks.
       MultiPolygon** — beim Schreiben validieren (`JSON_VALID` reicht nicht, GeoJSON-Form
       prüfen) und die bbox über **alle** Teile rechnen.
 
-- [ ] **Schritt 2:** `update_region` / `update_area_geometry` (bbox beim Schreiben über
+- [x] **Schritt 2:** `update_region` / `update_area_geometry` (bbox beim Schreiben über
       alle Teile mitrechnen, `geometry_revision` hochzählen, **`expected_revision`
       prüfen** — Wächter (a); Audit-Zeile schreiben — (b)).
-- [ ] **Schritt 3:** `delete_region` / `delete_area`, beide weich.
+- [x] **Schritt 3:** `delete_region` / `delete_area`, beide weich.
 
       🔴 **`delete_region` nimmt seine Flächen in EINER Transaktion mit** (`BEGIN` …
       `is_active=0` auf Region und ihren Flächen … `COMMIT`). Muster
       `api/_internal/app/adventures.php:1284–1293`. Ohne Transaktion bleibt bei einem
       Abbruch eine halb gelöschte Region zurück.
 
-- [ ] **Schritt 4:** `set_enabled` — schreibt `app_setting['ecosystem_enabled']`.
+- [x] **Schritt 4:** `set_enabled` — schreibt `app_setting['ecosystem_enabled']`.
       ⚠️ `api/_internal/app/app-setting.php` **explizit requiren**: ein bloßer
       `function_exists`-Guard verschluckt den Schreibvorgang sonst lautlos (dieselbe
       Falle wie bei `lore-sync.php`).
-- [ ] **Schritt 5:** `promote_trial` — **auf `ecosystem_area`**, nicht auf der Region
+- [x] **Schritt 5:** `promote_trial` — **auf `ecosystem_area`**, nicht auf der Region
       (Entscheidung 1): `keep` setzt `is_trial = 0` für alle Erprobungsflächen, `discard`
       löscht sie weich. Zwei Modi, ein Parameter. Zusätzlich: `app_setting['ecosystem_trial']`
       ausschalten, damit neue Flächen nicht wieder als Erprobung entstehen.
-- [ ] **Schritt 6: 🔧 DU (Owner):** Flag umlegen, Lesepfad prüft jetzt echte Zeilen.
+- [x] **Schritt 6: 🔧 DU (Owner):** Flag umlegen, Lesepfad prüft jetzt echte Zeilen.
       Zwei Editoren, dieselbe Fläche, zweiter Save mit veraltetem `expected_revision` →
       **409**, nicht stiller Verlust.
-- [ ] **Schritt 7: Commit** — `feat(ecosystem): write endpoint incl. optimistic guard, audit log, kill switch and trial promotion`
+- [x] **Schritt 7: Commit** — `feat(ecosystem): write endpoint incl. optimistic guard, audit log, kill switch and trial promotion`
 
 > **V2.4 „Quellen anschließen" ist als V4a hinter die Messung gewandert.** Begründung
 > unter V4a am Ende des ersten Vorhabens — kurz: die Allowlist-Zeile öffnet zwei Löcher im
