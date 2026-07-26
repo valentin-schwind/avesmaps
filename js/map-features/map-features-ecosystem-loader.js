@@ -21,6 +21,10 @@ let ecosystemViewportReloadHooked = false;
 // What the SERVER said about app_setting['ecosystem_enabled'] on the last answer. ?landschaften=1 is
 // a client flag and secures nothing; this is the dead-man switch talking back (global rule 4).
 let ecosystemLayerEnabledOnServer = null;
+// The ecosystem_revision of the last answer. Every write bumps it, so a change is the cheap signal that
+// anything cached ALONGSIDE the areas -- the region picker's rows and their area counts -- is stale.
+// null = nothing seen yet, so the first answer never counts as a change.
+let ecosystemLastSeenRevision = null;
 
 // bbox=min_x,min_y,max_x,max_y in GeoJSON order. L.CRS.Simple maps lat->y and lng->x, so west/east are
 // the X bounds and south/north the Y bounds. 25% padding, the same cushion the path viewport culling
@@ -66,6 +70,9 @@ function clearEcosystemAreaLayers() {
 	}
 	// Invalidates any request still in flight, so a late answer cannot repopulate an emptied registry.
 	ecosystemAreaRequestToken += 1;
+	// Re-entering the mode refetches the regions anyway; without this reset the first answer after the
+	// return would compare against a revision from before and order a second, pointless refetch.
+	ecosystemLastSeenRevision = null;
 
 	if (ecosystemLayers instanceof Map) {
 		Array.from(ecosystemLayers.keys()).forEach(removeEcosystemAreaLayer);
@@ -95,6 +102,18 @@ function syncEcosystemServerStateNote() {
 function applyEcosystemAreaPayload(payload) {
 	ecosystemLayerEnabledOnServer = payload?.ecosystem_enabled === true;
 	syncEcosystemServerStateNote();
+
+	// A changed revision means somebody wrote -- a new area, a renamed region, a deletion. The region
+	// picker caches its rows including each region's area count, and that count is exactly what goes
+	// wrong first: draw an area and the row keeps saying "0 Flächen" until the mode is re-entered.
+	// This is the one signal that says "refetch", and it stays quiet when nothing changed.
+	const revision = Number(payload?.revision || 0);
+	if (ecosystemLastSeenRevision !== null && revision !== ecosystemLastSeenRevision
+		&& typeof invalidateEcosystemRegionCache === "function") {
+		invalidateEcosystemRegionCache();
+	}
+	ecosystemLastSeenRevision = revision;
+
 	const areas = Array.isArray(payload?.areas) ? payload.areas : [];
 	const seenPublicIds = new Set();
 

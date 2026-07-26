@@ -154,6 +154,16 @@ async function loadEcosystemRegions(kind, { force = false } = {}) {
 	}
 }
 
+// Every write bumps ecosystem_revision, and the area loader sees that in the payload head. When it
+// changes, the cached region rows are stale -- above all their area counts, which is what the row shows.
+// Dropping ALL kinds, not just the active one: a switch to another layer must not hand back a count from
+// before the write.
+function invalidateEcosystemRegionCache() {
+	ecosystemRegionsByKind = {};
+	ecosystemRegionTypesByKind = {};
+	syncEcosystemRegionPicker({ refresh: true });
+}
+
 // Called on every mode change and on every layer switch (map-features-ecosystem-layer-switch.js).
 // `refresh` only on ENTERING the mode: the row carries each region's area count, and that goes stale as
 // soon as areas are drawn. Flipping the segment switch reads the cache instead -- switching layers is
