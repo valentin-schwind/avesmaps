@@ -2006,7 +2006,15 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 
 **Kein Code.** Diese Stufe entscheidet, ob alles Weitere gebaut wird.
 
+> 📄 **Ergebnisdokument: `docs/superpowers/specs/2026-07-26-landschaften-v4-messung.md`.**
+> Dort stehen die vier Vorabmessungen mit Zahlen, die zehn Messflächen, das Protokoll für
+> A und B mit vorgerechneter Hochrechnung, und die Erprobungs-Entscheidung. Stand
+> 2026-07-26: Vorabmessungen **erledigt**, A/B und `promote_trial` liegen beim Owner.
+
 - [ ] **🔧 DU (Owner): Zweimal zehn Flächen — getrennt Zeit stoppen.**
+      Die zehn Messflächen sind gezogen und stehen in der Messung §6.1 (schwere Klasse,
+      alle mit Wiki-Link). ⭐ **A liefert die Quellen für B** — dieselben zehn Formen in
+      beiden Durchgängen, sonst sind die zwei Zahlen nicht vergleichbar.
 
 | Durchgang | was | wonach gefragt ist |
 |---|---|---|
@@ -2032,17 +2040,27 @@ Ebene aktiv, Kopie ausgewählt, Panel offen.
 >    leichte Klasse ganz aus der Hand. **Die zehn Messflächen sind aus dem schweren Rest zu
 >    wählen** (Wald, Gebirge, Sumpf), nicht aus den Inseln — sonst ist die Zahl geschönt.
 
-- [ ] **Messungen, die vor der nächsten Stufe feststehen müssen:**
+- [x] **Messungen, die vor der nächsten Stufe feststehen müssen** — ✅ **erledigt
+      2026-07-26.** Alle vier ohne einen einzigen Diagnose-Aufruf; Serverlast insgesamt
+      eine Leseanfrage, ein `POST /api/route/`, ein `ecosystem-areas`, drei 304-Proben und
+      vier Seitenaufrufe. Herleitung in der Messung §0–§5.
 
-| Frage | Verfahren |
+| Frage | **Ergebnis 2026-07-26** |
 |---|---|
-| Knoten- und Kantenzahl des Graphen | **Nicht** über die Diagnose-Endpunkte. Nach V-1 sind sie fähigkeitsgeschützt — eingeloggt **ein** Aufruf von `?diagnostic=graph-data`, oder besser eine `SELECT COUNT(*)`. |
-| Weicht die Route zwischen den Engines heute schon ab? | Eine Route über einen Weg **mit innerem Knoten**, mit und ohne `?clientrouting=1`. Der Server splittet (`client-graph.php:148–157`), der Client nicht (`route-graph-routing.js:109–112`). Entscheidet, ob die Paritätsforderung gestrichen wird. |
-| Invalidiert ein Flächen-Save die Payload? | 🪤 **NICHT über die Byte-Zahl.** Die driftet durch gewöhnliche Editorarbeit dauernd (gemessen: +4.557 B an einem Tag). `curl -s https://avesmaps.de/api/app/map-features.php`, im Scratchpad das Feld **`revision`** lesen (heute 35.074), einen Flächen-Save auslösen, erneut lesen. **Bleibt `revision` gleich, hält Regel 3.** Ändert sie sich, ruft ein Landschafts-Pfad `avesmapsNextMapRevision`. |
-| Wie viele Querfeldein-Strecken entstehen real? | Entscheidet, ob A\* vorberechenbar ist. |
+| Knoten- und Kantenzahl des Graphen | **4.557 Knoten, 6.069 Kanten** (12.138 gerichtet), davon 858 Querfeldein und 403 Teilstücke aus 191 aufgeteilten Wegen. 🔴 **Die Verfahrensangabe war nicht ausführbar:** „ein Aufruf von `?diagnostic=graph-data`" widerspricht Regel 10 desselben Plans, und die Regel gewinnt. `SELECT COUNT(*)` beantwortet die Frage ebenfalls nicht — es zählt Tabellenzeilen, nicht Graphkanten; die Aufteilung an Innenknoten sieht SQL nicht. Gemessen wurde stattdessen **offline mit den Produktionsfunktionen**, validiert gegen die Statistik im regulären `POST /api/route/` (fünf Zahlen exakt gleich). |
+| Weicht die Route zwischen den Engines heute schon ab? | **Ja, um Faktor 11.** `Quirod → Retingen` (Innenknoten der Eisenstraße): Server **4,15 Meilen / 1 Segment**, Client **45,4 Meilen / 3 Segmente**. Strukturell teilt der Server **191 von 4.999** Weg-Kanten auf (3,8 %), der Client keine. → **Empfehlung: Paritätsforderung streichen**, Ersatz: der Server ist die Wahrheit, der Client die Vorschau. |
+| Invalidiert ein Flächen-Save die Payload? | **Nein — Regel 3 hält.** `avesmapsNextMapRevision` kommt in `api/_internal/app/ecosystem.php` nur in zwei **Kommentaren** vor, null Aufrufe; stattdessen 9 × `avesmapsNextEcosystemRevision`. Zähler laufen getrennt: `ecosystem_revision` 276 gegen `map_revision` 40.455. 🪤 **Die vorgeschlagene Probe war doppelt untauglich:** sie zog 2 × 29,7 MB (unnötig — `If-None-Match` steigt bei `map-features.php:62–64` mit 304 **vor** der Query aus), und ein 200 hätte nichts bewiesen — `map_revision` wuchs an einem Tag um **5.381** durch fremde Editorarbeit. Die Save-Probe braucht deshalb eine **Leerlauf-Grundlinie**; sie ist aufgenommen (3 × 304 über 5 min 48 s) und das Verfahren steht in der Messung §4.3. |
+| Wie viele Querfeldein-Strecken entstehen real? | **858 bis 1.129**, je nach Transportauswahl des Nutzers — 14,1 % der Kanten bei allen Domänen, **25,0 % bei „nur Land"**. → **Nicht vorberechenbar**, weil zur Laufzeit veränderlich; V14 bleibt richtig als „nur clientseitig, on demand". |
 
 - [ ] **Entscheidung über die Erprobungsflächen:** `promote_trial` mit `keep` oder
       `discard`. Ein Aufruf, kein Aufräumen von Hand.
+
+> ⚠️ **`promote_trial` ist alles-oder-nichts über `is_trial = 1`, es gibt keine Auswahl je
+> Fläche.** Dort liegen heute schon **5 Entwicklungsproben** („Probe Derographisch",
+> „Probe Topographie", „Probe Vegetation", 2 × „Farinedel" mit Tippfehler, alle ohne
+> Wiki-Link) — nach den Durchgängen also 25 Flächen. `keep` macht die fünf Proben zu
+> dauerhaften Inhaltsdaten, `discard` wirft die 20 Messflächen mit weg. Ausweg und
+> Empfehlung in der Messung §8: die fünf Proben vorher von Hand löschen, dann `keep`.
 
 ---
 
