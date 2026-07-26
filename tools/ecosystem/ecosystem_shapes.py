@@ -14,13 +14,28 @@ import numpy as np
 from ecosystem_raster import pixel_to_map
 
 MIN_RING_POSITIONS = 3          # api/_internal/app/ecosystem.php:414 refuses anything smaller
-MIN_HOLE_AREA_PX = 16           # below this a "hole" is mask noise, not a lake
 SIMPLIFY_FLOOR_PX = 0.75        # 27_polygonize_town_tiles.py:139 uses the same floor
 SIMPLIFY_RATIO = 0.002          # owner-approved 2026-07-27, see the plan's question 3
 
+# 🪤 Hole threshold in MAP UNITS squared, not pixels -- a pixel threshold means something
+# different at every zoom. Anchored to the live data instead of guessed: the 42 named lakes span
+# 0.08 to 498 map units^2 with a median of 12.9, and 2.0 keeps holes the size of 37 of them.
+# In other words, a hole is punched out of an island only if it is at least as large as the
+# smallest lakes somebody bothered to give a name.
+#
+# 💣 Without this the count explodes and the shape stops meaning what it says: at 0.25 u^2
+# Maraskan came out with an 85-corner coastline and 172 HOLES totalling 1753 corners -- every
+# pond and every stream on the island. 45 % of the whole run's vertex budget sat in holes, and a
+# route crossing the island would fall out of it at every brook.
+MIN_HOLE_AREA_UNITS = 2.0
 
-def component_rings(component: np.ndarray) -> list[list[np.ndarray]]:
-    """[[outer, hole, hole, ...], [outer, ...]] in pixel coordinates, one entry per part."""
+
+def component_rings(component: np.ndarray, min_hole_area_px: float = 16.0) -> list[list[np.ndarray]]:
+    """[[outer, hole, hole, ...], [outer, ...]] in pixel coordinates, one entry per part.
+
+    min_hole_area_px is normally derived from MIN_HOLE_AREA_UNITS by the caller, which knows the
+    raster size; the default here only serves the synthetic unit tests.
+    """
     contours, hierarchy = cv2.findContours(
         component.astype(np.uint8), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE
     )
@@ -43,7 +58,7 @@ def component_rings(component: np.ndarray) -> list[list[np.ndarray]]:
         parent = int(node[3])
         if parent == -1 or parent not in index_of_outer:
             continue
-        if len(contour) < MIN_RING_POSITIONS or cv2.contourArea(contour) < MIN_HOLE_AREA_PX:
+        if len(contour) < MIN_RING_POSITIONS or cv2.contourArea(contour) < min_hole_area_px:
             continue
         parts[index_of_outer[parent]].append(contour.reshape(-1, 2))
 

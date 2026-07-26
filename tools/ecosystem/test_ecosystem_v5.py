@@ -31,6 +31,7 @@ from ecosystem_labels import (
     read_labels,
     resolve,
 )
+from derive_areas import build_manifest
 from ecosystem_shapes import build_geometry, component_rings, count_positions, simplify_ring
 
 DEEP_WATER = (40, 90, 170)      # deep ocean blue: B-G=80, B-R=130, hue ~108
@@ -117,6 +118,21 @@ def test_rings_find_the_hole():
     parts = component_rings(square_with_hole())
     assert len(parts) == 1, "one connected component"
     assert len(parts[0]) == 2, "an outer ring and one hole"
+
+
+def test_small_holes_are_dropped():
+    """💣 Without a hole threshold every pond and stream punches a hole. Measured on the real
+    run: Maraskan came out with an 85-corner coastline and 172 holes worth 1753 corners, and
+    45 % of the whole run's vertices sat in holes. A route crossing the island would fall out
+    of it at every brook."""
+    mask = np.zeros((64, 64), dtype=bool)
+    mask[10:50, 10:50] = True
+    mask[20:30, 20:30] = False        # 100 px -- a real lake
+    mask[40:42, 40:42] = False        # 4 px -- a pond, must be ignored
+    kept = component_rings(mask, min_hole_area_px=16.0)
+    assert len(kept[0]) == 2, f"only the large hole survives, got {len(kept[0]) - 1} holes"
+    both = component_rings(mask, min_hole_area_px=1.0)
+    assert len(both[0]) == 3, "with a low threshold both holes are kept"
 
 
 def test_simplify_reduces_a_square_to_its_corners():
@@ -288,6 +304,72 @@ def test_read_labels_keeps_only_points_of_the_wanted_subtypes():
     found = read_labels(payload, {"see"})
     assert [label.name for label in found] == ["L"]
     assert found[0].x == 10.0 and found[0].y == 20.0 and found[0].public_id == "p1"
+
+
+def _single_blob():
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    mask[100:140, 100:140] = 1
+    _, components, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    return components, stats
+
+
+def test_manifest_entry_carries_label_identity_and_no_wiki_key():
+    """🔴 wiki_region_key is derived server-side (api/_internal/app/ecosystem.php:688).
+    A manifest that ships one would be a second, divergent key derivation."""
+    components, stats = _single_blob()
+    label = LandscapeLabel("Testinsel", "insel", 241.0, 1024.0 - 241.0,
+                           "https://de.wiki-aventurica.de/wiki/Testinsel", "label-1")
+
+    manifest = build_manifest([label], components, stats, size=512, simplify_ratio=0.002,
+                              zoom=1, revision=40455, blue_over_green=-20)
+
+    assert len(manifest["entries"]) == 1
+    entry = manifest["entries"][0]
+    assert entry["name"] == "Testinsel"
+    assert entry["kind"] == "derographisch" and entry["region_type"] == "insel"
+    assert entry["wiki_url"].endswith("/Testinsel")
+    assert entry["label_public_id"] == "label-1"
+    assert "wiki_region_key" not in entry, "the key belongs to the server, never to the manifest"
+    assert entry["geometry"]["type"] == "Polygon"
+    assert entry["position_count"] >= 4
+
+
+def test_manifest_skips_contested_components():
+    components, stats = _single_blob()
+    first = LandscapeLabel("A1", "insel", 241.0, 1024.0 - 241.0, "", "l1")
+    second = LandscapeLabel("A2", "insel", 243.0, 1024.0 - 243.0, "", "l2")
+
+    manifest = build_manifest([first, second], components, stats, size=512, simplify_ratio=0.002,
+                              zoom=1, revision=1, blue_over_green=-20)
+
+    assert manifest["entries"] == []
+    assert len(manifest["contested"]) == 1
+    assert sorted(manifest["contested"][0]["names"]) == ["A1", "A2"]
+
+
+def test_manifest_records_the_settings_it_was_built_with():
+    components, stats = _single_blob()
+    manifest = build_manifest([], components, stats, size=512, simplify_ratio=0.008,
+                              zoom=3, revision=40455, blue_over_green=-20)
+    assert manifest["simplify_ratio"] == 0.008
+    assert manifest["zoom"] == 3
+    assert manifest["blue_over_green"] == -20
+    assert manifest["generated_for_revision"] == 40455
+
+
+def test_manifest_geometry_stays_inside_the_map():
+    """Every position must survive avesmapsParseMapCoordinate's 0..1024 bound
+    (api/_internal/app/ecosystem.php). A shape touching the raster edge is the risky case."""
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    mask[0:40, 0:40] = 1                       # flush against the top-left corner
+    _, components, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    label = LandscapeLabel("Ecke", "insel", 40.0, 1024.0 - 40.0, "", "l-edge")
+    manifest = build_manifest([label], components, stats, size=512, simplify_ratio=0.002,
+                              zoom=1, revision=1, blue_over_green=-20)
+    assert len(manifest["entries"]) == 1
+    for ring in manifest["entries"][0]["geometry"]["coordinates"]:
+        for x, y in ring:
+            assert 0.0 <= x <= 1024.0 and 0.0 <= y <= 1024.0, f"out of bounds: {x}, {y}"
 
 
 def _run() -> int:
