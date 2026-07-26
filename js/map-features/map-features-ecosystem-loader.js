@@ -134,6 +134,12 @@ function applyEcosystemAreaPayload(payload) {
 				if (typeof existingLayer.setTooltipContent === "function") {
 					existingLayer.setTooltipContent(formatEcosystemAreaTooltip(area));
 				}
+				// The tone follows region_type for vegetation, so an area whose region was re-typed has
+				// to be recoloured -- but only then. Restyling every area on every pan would be N
+				// attribute writes per pan for nothing.
+				if (previous.region_type !== area.region_type) {
+					existingLayer.setStyle(ecosystemAreaStyle(area.kind, area.region_type));
+				}
 				return;
 			}
 			removeEcosystemAreaLayer(publicId);
@@ -146,6 +152,9 @@ function applyEcosystemAreaPayload(payload) {
 		}
 		ecosystemLayers.set(publicId, layer);
 		layer.addTo(map);
+		// Only now does the <path> element exist. A rebuilt area that was selected has to get its class
+		// back, otherwise saving a geometry would silently drop the selection ring.
+		applyEcosystemSelectionClass(layer);
 	});
 
 	// Gone from the answer = gone from the viewport (the endpoint filters by bbox overlap). Removing

@@ -336,26 +336,61 @@
    `.ecosystem-pane--resting path` would LOSE that cascade and the pale layers would still swallow
    clicks -- which is the whole failure this design exists to prevent. Hence the .leaflet-pane in the
    selector: three classes beat two. */
+/* THE OPACITY MATRIX (Owner 2026-07-26) — fill / contour, per layer and state:
+
+                        |   resting   |   active    |  selected
+     derographisch      |   0% / 70%  |  40% / 70%  |  70% / 100%
+     vegetation         |  50% / 70%  |  70% / 80%  |  90% / 100%
+     topographie        |  50% / 70%  |  70% / 80%  |  90% / 100%
+
+   🔴 The state lives on the PANE, the values are absolute, and therefore this can NOT be `opacity` on
+   the pane the way it was until today: pane opacity MULTIPLIES with the path's own fill-opacity, so a
+   figure like "40%" would silently become 40% of something else. Fill and contour are set on the paths
+   instead, and the pane only carries the state class -- switching layers still costs no layer rebuild
+   and pointer-events stays a pane property, which is the load-bearing part.
+
+   Custom properties inherit into the pane's <svg>, so the whole matrix is these few declarations and
+   one rule that reads them. A derographic area at rest is an OUTLINE and nothing else (0% fill): it
+   marks a container, and containers must not tint the map somebody else is drawing on.
+
+   The dashed resting outline from earlier today is gone. It was a workaround for "the resting layers
+   are invisible"; the matrix above solves that properly, and encoding one state twice over-signals. */
 .ecosystem-pane {
-	transition: opacity 0.15s ease;
+	--eco-fill: 0.5;
+	--eco-contour: 0.7;
 }
 
-/* 0.65, not 0.4. The first value looked right in isolation and disappeared on the real map: 0.4 pane
-   opacity on a 0.3 fill leaves ~12% over fully painted terrain, and a resting layer showed up only
-   where it happened to cross open water. A layer you cannot see cannot tell you where the forest is
-   while you draw the mountains -- which is the entire reason all three are on at once. */
-.ecosystem-pane--resting {
-	opacity: 0.65;
+.ecosystem-pane--active {
+	--eco-fill: 0.7;
+	--eco-contour: 0.8;
 }
 
-/* So "resting" reads as a STATE and not merely as "washed out": the two inactive layers are dashed,
-   the active one is solid. That survives any opacity value and works for anyone who cannot tell the
-   three tones apart. Leaflet only writes a stroke-dasharray ATTRIBUTE when the dashArray option is
-   set -- it is not, so this rule owns the dashes and switching still costs no layer rebuild. */
+.ecosystem-pane--derographisch {
+	--eco-fill: 0;
+	--eco-fill-selected: 0.7;
+}
+
+.ecosystem-pane--derographisch.ecosystem-pane--active {
+	--eco-fill: 0.4;
+	--eco-contour: 0.7;
+}
+
+.ecosystem-pane > svg path.leaflet-interactive {
+	fill-opacity: var(--eco-fill);
+	stroke-opacity: var(--eco-contour);
+	transition: fill-opacity 0.15s ease, stroke-opacity 0.15s ease;
+}
+
+/* Selection is an opacity step, not a second colour: the area keeps its own tone and simply comes
+   forward. One class more than the rules above, so it wins regardless of source order. */
+.ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
+	fill-opacity: var(--eco-fill-selected, 0.9);
+	stroke-opacity: 1;
+}
+
 .leaflet-pane.ecosystem-pane--resting > svg path.leaflet-interactive {
 	pointer-events: none;
 	cursor: default;
-	stroke-dasharray: 7 5;
 }
 
 .leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {

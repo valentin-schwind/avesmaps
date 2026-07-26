@@ -42,14 +42,27 @@ function isKnownEcosystemKind(kind) {
 	return ECOSYSTEM_KINDS.includes(String(kind || ""));
 }
 
-// Reads the kind tone out of the token, with the token's own value as the written-down fallback in
-// case the stylesheet has not applied yet (first paint) -- same shape as getActiveMarkerColor().
-function ecosystemKindColor(kind) {
-	const token = ECOSYSTEM_KIND_COLOR_TOKENS[kind];
-	if (!token) {
-		return "";
+function readEcosystemColorToken(token) {
+	return token ? getComputedStyle(document.documentElement).getPropertyValue(token).trim() : "";
+}
+
+// The tone of one area. Vegetation carries a tone per region_type -- Wald green, Wüste sand, Sümpfe
+// murky (Owner 2026-07-26) -- because it is the layer that draws real ground cover; the other two draw
+// containers and relief and get one colour each.
+//
+// The type token is derived BY RULE from the type_key, so a newly seeded type needs a token in
+// tokens.css and nothing else: there is no type list in this file that could fall behind
+// ecosystem_region_type. A type without a token, or a region without a type, falls back to the layer's
+// base tone.
+function ecosystemAreaColor(kind, regionType) {
+	if (kind === "vegetation" && regionType) {
+		const typeColor = readEcosystemColorToken(`--color-ecosystem-vegetation-${String(regionType).replace(/_/g, "-")}`);
+		if (typeColor) {
+			return typeColor;
+		}
 	}
-	return getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+
+	return readEcosystemColorToken(ECOSYSTEM_KIND_COLOR_TOKENS[kind]);
 }
 
 // GeoJSON Polygon | MultiPolygon -> Leaflet latlngs, [x, y] -> [y, x]. A Polygon becomes a
@@ -79,29 +92,25 @@ function ecosystemAreaLatLngs(geometry) {
 	return hasBrokenPosition ? null : latlngs;
 }
 
-function ecosystemAreaStyle(kind, isSelected) {
-	const color = ecosystemKindColor(kind);
+// 🔴 COLOUR ONLY. fill-opacity and stroke-opacity belong to the matrix in css/features/ecosystem-layer.css
+// and are deliberately NOT passed here: they depend on the pane's state (resting / active / selected),
+// and a second set of numbers in JS would have to be kept in step with that table forever. Leaflet writes
+// its style as SVG presentation ATTRIBUTES, which CSS outranks, so the stylesheet wins cleanly.
+function ecosystemAreaStyle(kind, regionType) {
+	const color = ecosystemAreaColor(kind, regionType);
 
-	return {
-		color,
-		weight: isSelected ? 4 : 2,
-		opacity: 0.9,
-		fillColor: color,
-		fillOpacity: 0.3,
-		// The gold "this one is selected" ring is the same token the clicked settlement marker uses,
-		// so selection reads identically everywhere on the map.
-		...(isSelected
-			? { color: getComputedStyle(document.documentElement).getPropertyValue("--color-marker-active").trim() || color }
-			: {}),
-	};
+	return { color, fillColor: color, weight: 2 };
 }
 
-function applyEcosystemAreaStyle(layer) {
-	const area = layer?._ecosystemArea;
-	if (!layer || !area || typeof layer.setStyle !== "function") {
+// Selection is a class on the path, not a style: the matrix in the stylesheet turns it into the
+// stronger fill and the full contour. Re-applied after every (re)build, because a rebuilt layer gets a
+// fresh <path> element.
+function applyEcosystemSelectionClass(layer) {
+	const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+	if (!element) {
 		return;
 	}
-	layer.setStyle(ecosystemAreaStyle(area.kind, area.public_id === selectedEcosystemAreaPublicId));
+	element.classList.toggle("ecosystem-area--selected", layer._ecosystemArea?.public_id === selectedEcosystemAreaPublicId);
 }
 
 function formatEcosystemAreaTooltip(area) {
@@ -126,7 +135,7 @@ function setSelectedEcosystemArea(publicId) {
 	[previousId, nextId].forEach((id) => {
 		const layer = id && ecosystemLayers instanceof Map ? ecosystemLayers.get(id) : null;
 		if (layer) {
-			applyEcosystemAreaStyle(layer);
+			applyEcosystemSelectionClass(layer);
 		}
 	});
 }
@@ -150,7 +159,7 @@ function buildEcosystemAreaLayer(area) {
 		// (see .ecosystem-pane--resting in css/features/ecosystem-layer.css). That is the whole reason
 		// there are three panes: switching must not have to rebuild layers.
 		interactive: true,
-		...ecosystemAreaStyle(kind, area.public_id === selectedEcosystemAreaPublicId),
+		...ecosystemAreaStyle(kind, area.region_type),
 	});
 
 	layer._ecosystemArea = area;

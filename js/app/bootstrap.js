@@ -75,9 +75,13 @@ map.getPane("ecosystemPane").style.zIndex = 250;
 map.getPane("ecosystemPaneDerographisch").style.zIndex = 250;
 map.getPane("ecosystemPaneVegetation").style.zIndex = 251;
 map.getPane("ecosystemPaneTopographie").style.zIndex = 252;
-["ecosystemPaneDerographisch", "ecosystemPaneVegetation", "ecosystemPaneTopographie"].forEach((paneName) => {
-    map.getPane(paneName).classList.add("ecosystem-pane");
-});
+// Beide Klassen sind tragend: `ecosystem-pane` traegt den gemeinsamen Zustand, der `--<kind>`-Modifier
+// die Deckkraft-Matrix (Owner 2026-07-26 -- derographische Flaechen fuellen anders als Vegetation und
+// Topographie). Siehe css/features/ecosystem-layer.css.
+[["ecosystemPaneDerographisch", "derographisch"], ["ecosystemPaneVegetation", "vegetation"], ["ecosystemPaneTopographie", "topographie"]]
+    .forEach(([paneName, kind]) => {
+        map.getPane(paneName).classList.add("ecosystem-pane", `ecosystem-pane--${kind}`);
+    });
 map.getPane("mapDecorationsPane").style.zIndex = 480;
 map.getPane("roadsOutlinePane").style.zIndex = 350;
 map.getPane("roadsPane").style.zIndex = 400;

@@ -147,14 +147,28 @@
 	   die zurueckgebliebene Luecke -- zwei Zustaende, zwei Toene. */
 	--color-marker-open-path-end-ring: #e8850c;
 
-	/* Landschaften (Erprobung) -- one tone per `kind`, because all three layers are visible at the
-	   same time (V3.0) and only the active one is opaque. The three have to stay tellable apart at
-	   40% opacity, so they sit far apart on the hue circle while staying inside the warm family --
-	   no blue (§12). Pinned in both themes for the same reason as the marker rings above: these are
-	   painted ON the always-light map tiles, never on a themed panel. */
-	--color-ecosystem-derographisch: #b0862e; /* ochre gold -- regions, islands, continents */
-	--color-ecosystem-vegetation: #5f7d33;    /* leaf green -- forest, steppe, swamp, desert */
-	--color-ecosystem-topographie: #9a5b3d;   /* terracotta -- mountains, hills, coast, sea */
+	/* Landschaften (Erprobung), colours per Owner 2026-07-26. All three layers are on at once, so the
+	   tones must stay tellable apart -- but they are not three peers: the derographic layer draws
+	   administrative CONTAINERS (grey, and unfilled while it rests), topography draws relief, and only
+	   vegetation carries real ground cover, which is why it is the one that gets a tone per type
+	   instead of a single colour. Pinned in both themes for the same reason as the marker rings above:
+	   these are painted ON the always-light map tiles, never on a themed panel. */
+	--color-ecosystem-derographisch: #8c8c8c; /* neutral grey -- regions, islands, continents */
+	/* Placeholder. The height map (high -> white) replaces this per the concept; until then one
+	   brown-grey stands in for the whole relief layer. */
+	--color-ecosystem-topographie: #8c7d6e;   /* brown-grey -- mountains, hills, coast, sea */
+	/* The fallback for a vegetation region with no type set. The per-type tones below win when the
+	   region has one; they are looked up BY RULE from the type_key
+	   (--color-ecosystem-vegetation-<type_key with _ as ->), so a newly seeded type needs a token here
+	   and nothing else -- there is no list of them in the client to keep in sync. */
+	--color-ecosystem-vegetation: #5f7d33;
+	--color-ecosystem-vegetation-wald: #3f6b2c;             /* dense forest */
+	--color-ecosystem-vegetation-auenlandschaft: #6f9c4e;   /* floodplain, lighter and fresher */
+	--color-ecosystem-vegetation-graslandschaft: #93ad55;   /* grassland */
+	--color-ecosystem-vegetation-steppe: #b0a052;           /* dry steppe, yellowing */
+	--color-ecosystem-vegetation-wueste: #d8bd7e;           /* desert sand */
+	--color-ecosystem-vegetation-suempfe-moore: #4d5a3b;    /* swamp and moor, murky */
+	--color-ecosystem-vegetation-tundra: #93a48f;           /* tundra, cold and pale */
 
 	/* Modal scrim (behind centred dialogs) */
 	--color-scrim: rgba(38, 28, 16, 0.5);
