@@ -41,6 +41,23 @@ Gelten in **jeder** Aufgabe, zusätzlich zu den „Globalen Regeln" des Hauptpla
 4. 🔴 **Namen und Wiki-Links werden nicht erfunden.** Beide kommen aus dem zugeordneten
    `map_features`-Label. Eine Fläche ohne Label bekommt keinen Namen und wird **nicht**
    importiert, sondern gemeldet.
+4a. 🔴 **Land und Wasser landen in verschiedenen Ebenen und dürfen nie vermischt werden.**
+   Eine Insel ist **derographisch**, ein See ist **topographie** — zwei `kind`-Werte, zwei
+   `ecosystem_region`-Zeilen, zwei Leaflet-Panes (`ecosystemPaneDerographisch` z-index 250,
+   `ecosystemPaneTopographie` 252, `js/app/bootstrap.js:75–77`). Durchgesetzt an **einer**
+   Stelle, `REGION_KIND_BY_SUBTYPE` (Aufgabe 4), und dort per Test festgenagelt:
+
+   | Label-Subtyp | `kind` | woher die Form kommt |
+   |---|---|---|
+   | `insel`, `kontinent` | **derographisch** | aus der **Land**maske, Festland ausgeschlossen |
+   | `see`, `kueste` | **topographie** | aus der **Wasser**maske, Ozean ausgeschlossen |
+   | `wueste` | vegetation | (nicht ableitbar, siehe unten) |
+
+   💣 **Die Falle, die das verhindert:** Insel und umgebender See teilen sich dieselbe
+   Pixelkante. Ohne die Trennung nach `kind` entstünden zwei Flächen mit demselben Umriss in
+   derselben Ebene — eine sichtbare Doppelung, die niemand mehr auseinanderhält. Deshalb
+   laufen die beiden Klassen durch **getrennte Komponentenmengen** (`land` bzw. `lake`) und
+   werden in `derive_areas.py` getrennt verarbeitet, nicht in einem gemeinsamen Durchlauf.
 5. 🔴 **149 Flächen sind kein Schleifenbetrieb gegen STRATO.** Ein Lauf, gedrosselt
    (Standard 1,0 s zwischen zwei Schreibaufrufen), wiederaufsetzbar über eine
    Zustandsdatei. Die Ableitung selbst ist vollständig offline und braucht **null**
@@ -160,6 +177,15 @@ davon 7 randberührend → Ozean; 867 Seen.
 > bei **8 Karteneinheiten**. Was kein Label findet, wird nie zu einer Fläche. Damit sind die
 > Flüsse in einem Zug erledigt *und* die Namensfrage beantwortet.
 
+> 🪤 **Bekannte Grenze, sichtbar am Ochsenwasser:** ein Fluss, der in einen See mündet und den
+> Bildrand nicht erreicht, gehört zur **selben** Wasserkomponente wie der See — die abgeleitete
+> Seefläche trägt dann einen Flussarm mit. Das ist keine Fehlfunktion der Schwelle, sondern die
+> ehrliche Folge der Randregel. Es ist **nicht** automatisch reparierbar, ohne eine
+> Formheuristik zu erfinden; ein Öffnungsschritt (`MORPH_OPEN`) würde dünne Arme kappen und
+> zugleich schmale echte Seen zerschneiden. **Behandlung:** die Entwurfsrunde (Aufgabe 6)
+> enthält Ochsenwasser genau deshalb als Fall 2, und betroffene Flächen werden im Bericht
+> benannt, damit ein Editor den Arm in zwei Handgriffen wegzieht (V3.3 Vertex-Editor steht).
+
 Zwei Feinheiten, beide gemessen:
 
 - **Inseln liegen selten unter ihrem Label.** Nur **14 von 95** `insel`-Labelpunkten liegen
@@ -198,34 +224,44 @@ y = 1024 − row / ppu          # ppu = Bildbreite / 1024
 
 ### Frage 3 — Wie stark wird vereinfacht?
 
-**Douglas-Peucker (`cv2.approxPolyDP`), ε in Karteneinheiten, Vorgabe `ε = 0,25`.**
+**Douglas-Peucker (`cv2.approxPolyDP`), ε aber nicht absolut, sondern als Anteil am
+Umfang der Form: `ε = Umfang × 0,004`, Untergrenze 0,75 px.**
 
-Gemessen bei z3 über alle Kandidatenkomponenten:
-
-| ε (Karteneinheiten) | `see`: Median / p90 / max | `insel`: Median / p90 / max |
-|---|---|---|
-| roh (unvereinfacht) | 158 / — / — | 135 / — / — |
-| **0,25** | **16 / 53 / 775** | **10 / 29 / 353** |
-| 0,50 | 9 / 30 / 393 | 6 / 16 / 179 |
-| 1,00 | 5 / 13 / 200 | 4 / 10 / 98 |
-| 2,00 | 3 / 7 / 108 | 3 / 6 / 65 |
+> 🔴 **Ein absolutes ε ist hier falsch, und das ist gemessen, nicht gemeint.** Die Formen
+> unterscheiden sich um den Faktor 28 im Umfang — Maraskan hat 5.602 Rohecken, die Insel
+> Sigorast 200. Ein ε, das Maraskan gut tut, macht aus Sigorast ein Dreieck:
+>
+> | Form | roh | abs. ε = 0,5 | abs. ε = 1,0 | abs. ε = 2,0 | **Umfang × 0,004** | Umfang × 0,008 |
+> |---|---:|---:|---:|---:|---:|---:|
+> | Maraskan (Insel) | 5.602 | 254 | 126 | 74 | **46** | 24 |
+> | Ochsenwasser (See) | 830 | 28 | 18 | 11 | **28** | 19 |
+> | Angbarer See | 408 | 22 | 10 | 4 | **37** | 23 |
+> | Sigorast (kleine Insel) | 200 | 11 | **4** 💥 | **3** 💥 | **34** | 19 |
+>
+> Bei absolut ε = 1,0 ist Sigorast ein Viereck und der Angbarer See ein Zehneck, das quer
+> über das Ufer schneidet. Die umfangsrelative Vereinfachung hält **jede** Form bei einer
+> vergleichbaren Eckenzahl, unabhängig von ihrer Größe.
+>
+> Das ist zugleich das Hausmuster: `27_polygonize_town_tiles.py:139` rechnet genauso
+> (`epsilon = max(0.75, perimeter * simplify_ratio)`).
 
 **Der Maßstab, gegen den das geprüft wird**, ist die live gemessene Baronie-Dichte:
-**Median 49 Ecken je Fläche, p90 85, max 147.** Bei ε = 0,25 liegen Seen (Median 16) und
-Inseln (Median 10) **deutlich darunter** — die abgeleiteten Flächen sind also gröber als eine
-Baronie, nicht feiner. Das ist gewollt: die Ebene ist edit-only, Besucher sehen die Polygone
-nie, sondern nur ihre Wirkungen (Reisezeit, „führt durch …", Suche). Ein Waldrand muss
-ungefähr stimmen, nicht genau.
+**Median 49 Ecken je Fläche, p90 85, max 147.** Bei Verhältnis 0,004 liegen alle vier
+Probeformen zwischen **28 und 46 Ecken** — also unter der Baronie-Dichte, und um den Faktor
+10 bis 120 unter der rohen Pixelkante. Das ist gewollt: die Ebene ist edit-only, Besucher
+sehen die Polygone nie, sondern nur ihre Wirkungen (Reisezeit, „führt durch …", Suche). Ein
+Waldrand muss ungefähr stimmen, nicht genau.
 
 **Das Renderbudget hält mit großem Abstand.** Gemessen: 500 Flächen mit 27.347 Ecken bei
 Zoom 0 kosten 56 ms je Zoomschritt und 150 ms für einen 8-Schritt-Pan; die politische Ebene
-zeichnet heute 88.571 Ecken. Der ganze V5-Bestand landet bei ε = 0,25 in der Größenordnung
-**einiger tausend** Ecken.
+zeichnet heute 88.571 Ecken. 122 Flächen à ~35 Ecken sind rund **4.300** — ein Zwanzigstel
+dessen, was die politische Ebene heute zeichnet.
 
-> ⚠️ **ε ist ein CLI-Argument mit Vorgabe 0,25 und der eigentliche Gegenstand der
-> Entwurfsrunde (Aufgabe 6).** Genau deshalb wird der Entwurf **vor** dem Massenimport
-> gezeigt: „Ein Massenimport in falscher Vereinfachungsstufe ist teurer rückgängig zu machen
-> als noch einmal zu rechnen."
+> ⚠️ **Das Verhältnis ist ein CLI-Argument (`--simplify-ratio`, Vorgabe 0,004) und der
+> eigentliche Gegenstand der Entwurfsrunde (Aufgabe 6).** Wer gröber will, nimmt 0,008
+> (jede Form ~20 Ecken); 0,015 ist messbar zu grob — Ochsenwasser schneidet dort über das
+> Ufer. Genau deshalb wird der Entwurf **vor** dem Massenimport gezeigt: „Ein Massenimport
+> in falscher Vereinfachungsstufe ist teurer rückgängig zu machen als noch einmal zu rechnen."
 
 ### Frage 4 — Auf welchem Weg landen die Flächen in `ecosystem_region` / `ecosystem_area`?
 
@@ -288,13 +324,13 @@ Der Hauptplan nennt **149** (`insel` 95 + `see` 46 + `kueste` 2 + `kontinent` 2 
 Gemessen an den echten Kacheln trägt diese Summe nicht. **Das ist der wichtigste Befund
 dieser Vorbereitung, und er gehört vor das GO, nicht hinter den Import.**
 
-Gemessen bei der **empfohlenen** Einstellung (z3, `B ≥ G−20`, ε = 0,25):
+Gemessen bei der **empfohlenen** Einstellung (z3, `B ≥ G−20`, Vereinfachung Umfang × 0,004):
 
 | Klasse | Plan | **gemessen ableitbar** | Befund |
 |---|---:|---:|---|
 | `see` | 46 | **42** | 44 Label finden eine Komponente, 43 Formen — **eine** Form trägt zwei Namen und fällt damit auf die Prüfliste. 2 ohne Komponente: „Cichanebi-Salzsee", „Al'Birkabrah". Max. Suchradius 1,88 Einheiten |
 | `insel` | 95 | **80** | 92 Label finden eine Komponente, 86 Formen — **6** Formen tragen je zwei Namen (Archipele unter Einzelnamen) und fallen auf die Prüfliste. 3 ohne Komponente, darunter „Zyklopeninseln", „Olportsteine" |
-| `kontinent` | 2 | **0–1** | 🔴 **Aventurien und Riesland treffen dieselbe Komponente** (20,2 Mio. px). Das Raster trennt sie nicht — sie hängen zusammen. Und ein Kontinent ist mit 4.877 Ecken bei ε = 0,25 ein anderes Tier als ein 16-Ecken-See |
+| `kontinent` | 2 | **0–1** | 🔴 **Aventurien und Riesland treffen dieselbe Komponente** (20,2 Mio. px). Das Raster trennt sie nicht — sie hängen zusammen. Und ein Kontinent ist mit ~70.000 Rohecken ein anderes Tier als ein 400-Ecken-See |
 | `kueste` | 2 | **0** | 🔴 Beide Labelpunkte liegen **im Wasser** (Kap Sanin RGB 52,122,150; Schwadenküste 26,107,149). Eine Küste ist eine **Linie**, keine Rasterfläche |
 | `wueste` | 4 | **0** | 🔴 Wüsten sind **Land**. Keine Farbschwelle trennt sie: „Gor" (169,120,97) und „Khôm" (160,136,82) sind sandig, „Wüstenei von Dragenfeld" (65,81,61) und „Tote Lande" (94,114,45) sind von Wald und Steppe nicht zu unterscheiden — und „Gorische Steppe" (153,138,76) sieht sandiger aus als zwei der vier Wüsten |
 | **Summe** | **149** | **122** | dazu **7 Formen auf der Prüfliste** und **5 ohne Komponente** |
@@ -719,8 +755,8 @@ git commit -m "feat(ecosystem): pixel<->map coordinates with a live orientation 
 **Interfaces:**
 - Consumes: `pixel_to_map`, `pixels_per_unit` aus Task 2.
 - Produces: `component_rings(component: np.ndarray) -> list[list[np.ndarray]]` (je Teil: äußerer Ring, dann Löcher, in Pixelkoordinaten);
-  `simplify_ring(ring, epsilon_units, size) -> np.ndarray`;
-  `build_geometry(parts, size, epsilon_units, decimals=4) -> dict` (GeoJSON `Polygon` oder `MultiPolygon`, `[x, y]`, geschlossene Ringe).
+  `simplify_ring(ring, ratio, floor_px=0.75) -> np.ndarray`;
+  `build_geometry(parts, size, ratio, decimals=4) -> dict` (GeoJSON `Polygon` oder `MultiPolygon`, `[x, y]`, geschlossene Ringe).
 
 - [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
 
@@ -744,12 +780,28 @@ def test_rings_find_the_hole():
 
 def test_simplify_reduces_a_square_to_its_corners():
     parts = component_rings(square_with_hole())
-    simplified = simplify_ring(parts[0][0], epsilon_units=0.25, size=512)
+    simplified = simplify_ring(parts[0][0], ratio=0.004)
     assert len(simplified) == 4, f"a square simplifies to 4 corners, got {len(simplified)}"
 
 
+def test_relative_epsilon_treats_a_small_shape_like_a_large_one():
+    """🔴 The reason simplification is relative, not absolute. A big and a small blob of the
+    SAME shape must end up with the SAME corner count -- an absolute epsilon would flatten the
+    small one into a triangle (measured: Sigorast 200 raw corners -> 4 at absolute eps 1.0)."""
+    def disc(radius: int) -> np.ndarray:
+        size = radius * 4
+        mask = np.zeros((size, size), dtype=np.uint8)
+        cv2.circle(mask, (size // 2, size // 2), radius, 1, -1)
+        return mask.astype(bool)
+
+    small = simplify_ring(component_rings(disc(12))[0][0], ratio=0.004)
+    large = simplify_ring(component_rings(disc(120))[0][0], ratio=0.004)
+    assert abs(len(small) - len(large)) <= 4, (
+        f"relative simplification must not depend on size: {len(small)} vs {len(large)}")
+
+
 def test_geometry_is_closed_and_in_geojson_order():
-    geometry = build_geometry(component_rings(square_with_hole()), size=512, epsilon_units=0.25)
+    geometry = build_geometry(component_rings(square_with_hole()), size=512, ratio=0.004)
     assert geometry["type"] == "Polygon"
     outer = geometry["coordinates"][0]
     assert outer[0] == outer[-1], "GeoJSON rings must be closed"
@@ -766,13 +818,13 @@ def test_multipart_becomes_multipolygon():
     mask[5:15, 5:15] = True
     mask[40:50, 40:50] = True
     parts = component_rings(mask)
-    geometry = build_geometry(parts, size=512, epsilon_units=0.25)
+    geometry = build_geometry(parts, size=512, ratio=0.004)
     assert geometry["type"] == "MultiPolygon"
     assert len(geometry["coordinates"]) == 2
 
 
 def test_positions_are_rounded_to_four_decimals():
-    geometry = build_geometry(component_rings(square_with_hole()), size=512, epsilon_units=0.25)
+    geometry = build_geometry(component_rings(square_with_hole()), size=512, ratio=0.004)
     for x, y in geometry["coordinates"][0]:
         assert x == round(x, 4) and y == round(y, 4)
 ```
@@ -806,6 +858,7 @@ from ecosystem_raster import pixel_to_map, pixels_per_unit
 
 MIN_RING_POSITIONS = 3          # api/_internal/app/ecosystem.php:414 refuses anything smaller
 MIN_HOLE_AREA_PX = 16           # below this a "hole" is mask noise, not a lake
+SIMPLIFY_FLOOR_PX = 0.75        # 27_polygonize_town_tiles.py:139 uses the same floor
 
 
 def component_rings(component: np.ndarray) -> list[list[np.ndarray]]:
@@ -840,21 +893,25 @@ def component_rings(component: np.ndarray) -> list[list[np.ndarray]]:
     return parts
 
 
-def simplify_ring(ring: np.ndarray, epsilon_units: float, size: int) -> np.ndarray:
-    """Douglas-Peucker with epsilon expressed in MAP UNITS, not pixels.
+def simplify_ring(ring: np.ndarray, ratio: float, floor_px: float = SIMPLIFY_FLOOR_PX) -> np.ndarray:
+    """Douglas-Peucker with epsilon as a FRACTION OF THE RING'S OWN PERIMETER.
 
-    Measured at zoom 3 (8 px/unit): epsilon 0.25 gives a median of 16 corners for lakes and 10
-    for islands -- well under the live baronie density (median 49, p90 85, max 147), which is the
-    reference this layer is allowed to be coarser than. Nobody ever sees these polygons; the
-    layer is edit-only and visitors get effects, not outlines.
+    🔴 Not an absolute epsilon. The shapes differ by a factor of 28 in perimeter (Maraskan 5602
+    raw corners, the island Sigorast 200), so one absolute value cannot serve both: at eps = 1.0
+    map units Maraskan keeps 126 corners while Sigorast collapses to 4 and the Angbarer See to a
+    10-gon cutting across its own shore. Relative keeps every shape at a comparable corner count:
+    at ratio 0.004 the same four shapes land at 46 / 28 / 37 / 34.
+
+    Same arithmetic as 27_polygonize_town_tiles.py:139 in the neighbouring repo.
     """
-    epsilon_px = max(epsilon_units * pixels_per_unit(size), 0.5)
-    simplified = cv2.approxPolyDP(ring.astype(np.int32), epsilon_px, True).reshape(-1, 2)
+    contour = ring.astype(np.int32)
+    epsilon = max(cv2.arcLength(contour, True) * ratio, floor_px)
+    simplified = cv2.approxPolyDP(contour, epsilon, True).reshape(-1, 2)
     return simplified if len(simplified) >= MIN_RING_POSITIONS else ring
 
 
 def build_geometry(
-    parts: list[list[np.ndarray]], size: int, epsilon_units: float, decimals: int = 4
+    parts: list[list[np.ndarray]], size: int, ratio: float, decimals: int = 4
 ) -> dict:
     """GeoJSON Polygon / MultiPolygon in [x, y] order, every ring closed.
 
@@ -866,7 +923,7 @@ def build_geometry(
     for rings in parts:
         built: list[list[list[float]]] = []
         for ring in rings:
-            simplified = simplify_ring(ring, epsilon_units, size)
+            simplified = simplify_ring(ring, ratio)
             positions = []
             for col, row in simplified:
                 x, y = pixel_to_map(int(row), int(col), size)
@@ -999,6 +1056,17 @@ def test_subtype_maps_to_the_seeded_kind():
         "kueste": "topographie",
         "wueste": "vegetation",
     }
+
+
+def test_land_and_water_never_share_a_kind():
+    """🔴 An island and the water around it share the same pixel edge. If both ended up in the
+    same kind, two areas with the same outline would sit in the same Leaflet pane and nobody
+    could tell them apart. Land is derographisch, water is topographie -- always."""
+    land_kinds = {REGION_KIND_BY_SUBTYPE[s] for s in ("insel", "kontinent")}
+    water_kinds = {REGION_KIND_BY_SUBTYPE[s] for s in ("see", "kueste")}
+    assert land_kinds == {"derographisch"}
+    assert water_kinds == {"topographie"}
+    assert not (land_kinds & water_kinds)
 
 
 def test_read_labels_keeps_only_points_of_the_wanted_subtypes():
@@ -1160,7 +1228,7 @@ git commit -m "feat(ecosystem): labels claim raster components, contested ones a
 
 **Interfaces:**
 - Consumes: alles aus Task 1–4.
-- Produces: `manifest.json` mit `{"generated_for_revision": int, "zoom": int, "epsilon_units": float,
+- Produces: `manifest.json` mit `{"generated_for_revision": int, "zoom": int, "simplify_ratio": float,
   "blue_over_green": int, "entries": [{ "name", "subtype", "kind", "region_type", "wiki_url",
   "label_public_id", "geometry", "position_count", "component_area_px" }], "contested": [...],
   "unresolved": [...]}` und `report.md`.
@@ -1182,7 +1250,7 @@ def test_manifest_entry_carries_label_identity_and_no_wiki_key():
     label = LandscapeLabel("Testinsel", "insel", 241.0, 1024.0 - 241.0,
                            "https://de.wiki-aventurica.de/wiki/Testinsel", "label-1")
 
-    manifest = build_manifest([label], components, stats, size=512, epsilon_units=0.25,
+    manifest = build_manifest([label], components, stats, size=512, simplify_ratio=0.004,
                               zoom=1, revision=40455, blue_over_green=-20)
 
     assert len(manifest["entries"]) == 1
@@ -1204,7 +1272,7 @@ def test_manifest_skips_contested_components():
     first = LandscapeLabel("A1", "insel", 241.0, 1024.0 - 241.0, "", "l1")
     second = LandscapeLabel("A2", "insel", 243.0, 1024.0 - 243.0, "", "l2")
 
-    manifest = build_manifest([first, second], components, stats, size=512, epsilon_units=0.25,
+    manifest = build_manifest([first, second], components, stats, size=512, simplify_ratio=0.004,
                               zoom=1, revision=1, blue_over_green=-20)
 
     assert manifest["entries"] == []
@@ -1217,9 +1285,9 @@ def test_manifest_records_the_settings_it_was_built_with():
     mask = np.zeros((512, 512), dtype=np.uint8)
     mask[100:140, 100:140] = 1
     _, components, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    manifest = build_manifest([], components, stats, size=512, epsilon_units=0.5,
+    manifest = build_manifest([], components, stats, size=512, simplify_ratio=0.008,
                               zoom=3, revision=40455, blue_over_green=-20)
-    assert manifest["epsilon_units"] == 0.5
+    assert manifest["simplify_ratio"] == 0.008
     assert manifest["zoom"] == 3
     assert manifest["blue_over_green"] == -20
     assert manifest["generated_for_revision"] == 40455
@@ -1267,7 +1335,7 @@ def build_manifest(
     components: np.ndarray,
     stats: np.ndarray,
     size: int,
-    epsilon_units: float,
+    simplify_ratio: float,
     zoom: int,
     revision: int,
     blue_over_green: int,
@@ -1295,7 +1363,7 @@ def build_manifest(
         shifted = [[ring + np.array([left - 1, top - 1]) for ring in rings] for rings in parts]
 
         try:
-            geometry = build_geometry(shifted, size, epsilon_units)
+            geometry = build_geometry(shifted, size, simplify_ratio)
         except ValueError:
             continue
 
@@ -1314,7 +1382,7 @@ def build_manifest(
     return {
         "generated_for_revision": revision,
         "zoom": zoom,
-        "epsilon_units": epsilon_units,
+        "simplify_ratio": simplify_ratio,
         "blue_over_green": blue_over_green,
         "entries": entries,
         "contested": [
@@ -1338,12 +1406,22 @@ def write_report(path: Path, manifest: dict) -> None:
         "# Landschaften V5 -- Ableitungsbericht",
         "",
         f"- Zoom: {manifest['zoom']}  (Kartenaufloesung {4 * 2 ** manifest['zoom'] * 256} px)",
-        f"- Vereinfachung: epsilon = {manifest['epsilon_units']} Karteneinheiten",
+        f"- Vereinfachung: epsilon = Umfang x {manifest['simplify_ratio']}",
         f"- Wasserschwelle: B >= G {manifest['blue_over_green']:+d}",
         f"- Nutzlast-Revision: {manifest['generated_for_revision']}",
         "",
         f"**{len(entries)} Flaechen abgeleitet**  "
         + ", ".join(f"{key}: {value}" for key, value in sorted(by_subtype.items())),
+        "",
+        "Je Ebene (Land und Wasser muessen getrennt bleiben, global constraint 4a):",
+        "",
+    ]
+    by_kind: dict[str, int] = {}
+    for entry in entries:
+        by_kind[entry["kind"]] = by_kind.get(entry["kind"], 0) + 1
+    for kind, value in sorted(by_kind.items()):
+        lines.append(f"- {kind}: {value}")
+    lines += [
         "",
         f"- Ecken je Flaeche: Median {int(np.median(counts))}, "
         f"p90 {int(np.percentile(counts, 90))}, max {max(counts)}, Summe {sum(counts)}",
@@ -1369,7 +1447,8 @@ def main() -> None:
     parser.add_argument("--tiles", default=r"C:\GIT\avesmaps\tiles\stylized")
     parser.add_argument("--payload", required=True)
     parser.add_argument("--zoom", type=int, default=3)
-    parser.add_argument("--epsilon", type=float, default=0.25, help="Douglas-Peucker, in map units.")
+    parser.add_argument("--simplify-ratio", type=float, default=0.004,
+                        help="Douglas-Peucker epsilon as a fraction of each ring's own perimeter.")
     parser.add_argument("--blue-over-green", type=int, default=WATER_BLUE_OVER_GREEN)
     parser.add_argument("--only", nargs="+", default=None, help="Restrict to these label names.")
     parser.add_argument("--out", default="manifest.json")
@@ -1397,10 +1476,10 @@ def main() -> None:
 
     water_manifest = build_manifest(
         pick(read_labels(payload, WATER_SUBTYPES)), lake_components, lake_stats,
-        size, args.epsilon, args.zoom, revision, args.blue_over_green)
+        size, args.simplify_ratio, args.zoom, revision, args.blue_over_green)
     land_manifest = build_manifest(
         pick(read_labels(payload, LAND_SUBTYPES)), land_components, land_stats,
-        size, args.epsilon, args.zoom, revision, args.blue_over_green, exclude=mainland)
+        size, args.simplify_ratio, args.zoom, revision, args.blue_over_green, exclude=mainland)
 
     manifest = water_manifest
     manifest["entries"] += land_manifest["entries"]
@@ -1428,11 +1507,11 @@ Erwartet: 24 passed.
 - [ ] **Schritt 5: Den echten Lauf ausführen und die Zahlen gegen die Messung prüfen**
 
 ```bash
-cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --epsilon 0.25 --out "$SCRATCH/manifest.json" --report "$SCRATCH/report.md"
+cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --simplify-ratio 0.004 --out "$SCRATCH/manifest.json" --report "$SCRATCH/report.md"
 ```
 
 Erwartet, gegen die Vorabmessung vom 2026-07-26 bei genau dieser Einstellung
-(z3, `B ≥ G−20`, ε = 0,25):
+(z3, `B ≥ G−20`, Umfang × 0,004):
 
 | | erwartet |
 |---|---:|
@@ -1472,13 +1551,13 @@ Nicht die fünf schönsten, sondern die fünf, die etwas beweisen:
 | # | Fall | was er zeigt |
 |---|---|---|
 | 1 | **Angbarer See** (`see`, Labelpunkt direkt drauf) | der einfache Normalfall |
-| 2 | **Ochsenwasser** (`see`, größte Seefläche im Bestand) | ob ε = 0,25 bei einer großen, zerklüfteten Form noch trägt |
+| 2 | **Ochsenwasser** (`see`, 830 Rohecken, mit angehängtem Flussarm) | ob die Vereinfachung bei einer zerklüfteten Form am Ufer bleibt |
 | 3 | **Maraskan** (`insel`, große Insel mit Binnenstruktur) | ob Löcher und Küstenlinie stimmen |
 | 4 | **Sigorast** (`insel`, aus Archipel A) | ob die Schwellen-Korrektur die Nachbarinsel wirklich abtrennt |
 | 5 | **Buli** (`insel`, winzig, Label steht daneben) | ob die Vorwärtssuche die richtige Kleininsel greift |
 
 ```bash
-cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --epsilon 0.25 --only "Angbarer See" "Ochsenwasser" "Maraskan" "Sigorast" "Buli" --out "$SCRATCH/entwurf.json" --report "$SCRATCH/entwurf.md"
+cd C:/GIT/avesmaps/.claude/worktrees/landschaften-v5/tools/ecosystem && python derive_areas.py --payload "$SCRATCH/map-features.json" --zoom 3 --simplify-ratio 0.004 --only "Angbarer See" "Ochsenwasser" "Maraskan" "Sigorast" "Buli" --out "$SCRATCH/entwurf.json" --report "$SCRATCH/entwurf.md"
 ```
 
 - [ ] **Schritt 2: Die Vorschauseite schreiben**
@@ -1513,7 +1592,7 @@ const toLatLngs = g => g.type === "Polygon" ? g.coordinates.map(swap)
 
 fetch("entwurf.json").then(r => r.json()).then(manifest => {
   document.getElementById("meta").textContent =
-    `zoom ${manifest.zoom}\nepsilon ${manifest.epsilon_units}\nB>=G ${manifest.blue_over_green}`;
+    `zoom ${manifest.zoom}\nUmfang x ${manifest.simplify_ratio}\nB>=G ${manifest.blue_over_green}`;
   const list = document.getElementById("list");
   manifest.entries.forEach(entry => {
     const layer = L.polygon(toLatLngs(entry.geometry), {
@@ -1546,8 +1625,8 @@ Drei mögliche Antworten, alle billig:
 | Antwort | was passiert |
 |---|---|
 | „passt" | weiter zu Aufgabe 7 |
-| „zu grob" | `--epsilon 0.1` und Aufgabe 6 wiederholen (Rechenzeit ~3 min, kein Rückbau) |
-| „zu fein" | `--epsilon 0.5` und Aufgabe 6 wiederholen |
+| „zu grob" | `--simplify-ratio 0.002` und Aufgabe 6 wiederholen (Rechenzeit ~3 min, kein Rückbau) |
+| „zu fein" | `--simplify-ratio 0.008` und Aufgabe 6 wiederholen |
 
 🔴 **Vor dieser Abnahme wird nichts importiert.**
 
@@ -1821,7 +1900,7 @@ git commit -m "feat(ecosystem): throttled, resumable import of derived areas thr
 
 Inhalt, knapp: der Ablauf in vier Befehlen (Nutzlast holen → `verify_orientation.py` →
 `derive_areas.py` → `import_areas.py`), die drei Grenzwerte mit ihren gemessenen Vorgaben
-(`--zoom 3`, `--epsilon 0.25`, `--blue-over-green -20`) und **je einem Satz, warum**, plus der
+(`--zoom 3`, `--simplify-ratio 0.004`, `--blue-over-green -20`) und **je einem Satz, warum**, plus der
 Hinweis, dass `import_areas.py` ohne `--commit` nichts tut und eine Owner-Sitzung braucht.
 
 - [ ] **Schritt 2: `docs/stylized-map-tiles.md` um einen Abschnitt ergänzen**
@@ -1863,6 +1942,38 @@ Ausdrücklich benannt, damit es nicht hineinwächst:
   Raster nicht existieren. Eigenes Vorhaben.
 - **`gebirge` (60 Labels)** — „Startumriss" laut Hauptplan. Ein Gebirge ist keine Farbfläche,
   sondern Relief; das ist **V8** (Höhenfeld), nicht V5.
+
+> 📐 **Vorabmessung 2026-07-26 zu „ließen sich Wälder und Gebirge auch erkennen?"** — auf
+> Nachfrage des Owners gemessen, damit die Antwort nicht geraten werden muss. **Sie sind
+> trennbar, aber nicht mit einer Schwelle**, und deshalb ist es kein V5-Nachschlag, sondern
+> ein eigenes Vorhaben. Gemessen an 33×33-px-Fenstern um jeden Labelpunkt (z3):
+>
+> | | Farbton | Sättigung | G−R | Textur (σ Laplace) |
+> |---|---:|---:|---:|---:|
+> | `wald` (68) | 55,5 | 103 | **23,6** | 41,8 |
+> | `gebirge` (60) | 36,5 | 82 | **4,7** | **62,2** |
+> | `steppe` (10) | 36,0 | 125 | 10,8 | **18,9** |
+> | `suempfe_moore` (28) | 46,5 | 109 | 18,4 | 35,9 |
+>
+> Bester **einzelner** Schwellenwert Wald gegen Gebirge: `G−R` trennt **89,1 %** richtig,
+> Textur 84,4 %, Farbton 81,2 %. Steppe und Gebirge haben denselben Farbton (36) und sind
+> nur über Sättigung und Textur zu trennen — ein Gebirge ist rau, eine Steppe glatt.
+>
+> **Was daraus folgt:** ein kleiner Klassifikator über Farbe **und** Textur (nicht eine
+> Schwelle) käme grob in die Gegend von 90 % je Bildfenster. Das reicht für einen
+> **Startumriss**, den ein Editor korrigiert — es reicht **nicht** für den V5-Weg „ableiten
+> und ungesehen importieren". Drei Gründe, alle unabhängig:
+> 1. **90 % je Fenster heißt gesprenkelt**, nicht 90 % richtige Fläche. Der Rand ist die
+>    eigentliche Aufgabe, und der Rand ist genau dort am unsichersten, wo Wald ausdünnt.
+> 2. **Wald und Gebirge überlappen physisch** — ein bewaldeter Hang ist beides. Die
+>    V5-Grundannahme „ein Label = eine Form" bricht hier.
+> 3. **Es gibt keine Randregel wie bei Land/Wasser.** Die Meer-See-Trennung war umsonst zu
+>    haben, weil „berührt den Bildrand" eine harte, richtige Regel ist. Für Wälder existiert
+>    nichts Vergleichbares.
+>
+> Das gehört damit zu **V7/V8** („gibt 61 `gebirge` einen Startumriss") und wird als eigenes
+> Vorhaben beauftragt — mit einem eigenen Entwurfstor, weil ein 90-%-Umriss eine ganz andere
+> Abnahme braucht als eine Küstenlinie.
 - **V4a Quellen** (`entity_type='ecosystem'`) — eigene Aufgabe, hinter V4.
 - **`copy_regions`** — durch V4 gestrichen.
 - Jede Änderung am Client, an den Endpunkten oder am Schema. V5 schreibt **nur** in
