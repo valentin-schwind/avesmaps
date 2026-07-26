@@ -64,6 +64,11 @@ function applySharedBoundaryVertexMove(ownRegion, originalLatLng, targetLatLng) 
 			return;
 		}
 
+		// 💣 Ctrl+Z: this is the ONLY moment at which this neighbour's pre-move geometry still exists.
+		// It goes into the undo step the drag opened, so undoing the move puts the shared boundary back
+		// on every region it displaced -- not just on the one being edited, whose handles are the only
+		// ones on screen. Must stay ABOVE setLatLngs.
+		if (typeof addRegionGeometryUndoRegion === "function") { addRegionGeometryUndoRegion(regionEntry, polygon); }
 		polygon.setLatLngs(updateResult.latLngs);
 		updateRegionLabelPosition(regionEntry);
 		affectedRegions.add(regionEntry);

@@ -227,6 +227,8 @@ function subdivideRegionEditHoveredEdge(pointCount) {
 	}
 
 	activeRegionGeometryEdit.editRingIndex = ringIndex;
+	// Ctrl+Z: a subdivision is one step, so undoing it takes back all inserted corners at once.
+	if (typeof pushRegionGeometryUndoStep === "function") { pushRegionGeometryUndoStep(activeRegionGeometryEdit.regionEntry); }
 	const start = L.latLng(latLngs[edge.index]);
 	const endIndex = (edge.index + 1) % latLngs.length;
 	const end = L.latLng(latLngs[endIndex]);

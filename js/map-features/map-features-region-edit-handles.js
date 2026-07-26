@@ -32,6 +32,9 @@ function refreshRegionEditHandles() {
 			
 			handle.on("dragstart", () => {
 				activeRegionGeometryEdit.editRingIndex = ringIndex;
+				// Ctrl+Z: opens the step before the drag. Also present in the detach-edit copy that wins
+				// at runtime -- both need it, because either may be the one actually installed.
+				if (typeof pushRegionGeometryUndoStep === "function") { pushRegionGeometryUndoStep(activeRegionGeometryEdit.regionEntry); }
 				clearRegionEditEdgeHover();
 			});
 
@@ -89,6 +92,7 @@ function deleteRegionNode(index, ringIndex = null) {
 		return;
 	}
 	activeRegionGeometryEdit.editRingIndex = resolvedRingIndex;
+	if (typeof pushRegionGeometryUndoStep === "function") { pushRegionGeometryUndoStep(activeRegionGeometryEdit.regionEntry); }
 	latLngs.splice(index, 1);
 	setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs, resolvedRingIndex);
 	updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);

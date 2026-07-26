@@ -336,6 +336,10 @@
 
 					handle.on("dragstart", (event) => {
 						activeRegionGeometryEdit.editRingIndex = ringIndex;
+						// Ctrl+Z: the step opens BEFORE the drag, while the rings are still pristine.
+						// Neighbours a shared boundary drags along are appended to this same step from
+						// inside applySharedBoundaryVertexMove (map-features-region-geometry-undo.js).
+						if (typeof pushRegionGeometryUndoStep === "function") { pushRegionGeometryUndoStep(activeRegionGeometryEdit.regionEntry); }
 						handle._regionDetachDrag = Boolean(handle._regionDetachMouseDownCtrl || shouldDetachRegionVertexDrag(handle, event));
 						clearRegionEditVertexDetachPreview();
 						clearRegionEditEdgeHover();
