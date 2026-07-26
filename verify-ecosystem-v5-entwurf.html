@@ -1,0 +1,86 @@
+<!doctype html>
+<!-- Landschaften V5 -- local draft review before any import. Never deployed, never linked. -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Landschaften V5 — Entwurf</title>
+<link rel="stylesheet" href="css/third-party/leaflet.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #1b1512; color: #efe6d8;
+               font: 14px/1.5 system-ui, sans-serif; }
+  #map { position: absolute; inset: 0 300px 0 0; }
+  #side { position: absolute; inset: 0 0 0 auto; width: 300px; overflow: auto;
+          padding: 14px 16px; border-left: 1px solid #4a3a2c; }
+  h1 { font-size: 15px; margin: 0 0 4px; color: #e0b45f; }
+  p.sub { margin: 0 0 14px; font-size: 12px; color: #b6a793; }
+  button { display: block; width: 100%; margin: 5px 0; padding: 7px 9px; cursor: pointer;
+           text-align: left; background: #2c231c; color: #efe6d8; border: 1px solid #4a3a2c;
+           border-radius: 6px; font: inherit; }
+  button:hover { background: #3a2e24; }
+  button b { color: #e0b45f; font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; font-size: 12px; color: #b6a793; }
+  pre { font-size: 11px; color: #9c8f7d; white-space: pre-wrap; margin-top: 16px;
+        border-top: 1px solid #4a3a2c; padding-top: 10px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="side">
+  <h1>V5-Entwurf</h1>
+  <p class="sub">Abgeleitete Umrisse auf den echten Kacheln. Nichts davon ist gespeichert.</p>
+  <div id="list"></div>
+  <pre id="meta"></pre>
+</div>
+<script src="js/third-party/leaflet.js"></script>
+<script>
+const map = L.map("map", {
+  crs: L.CRS.Simple, minZoom: 0, maxZoom: 7,
+  bounds: [[0, 0], [1024, 1024]], noWrap: true,
+}).setView([500, 520], 3);
+
+L.tileLayer("tiles/stylized/{z}/map_{x}_{y}.webp", {
+  tileSize: 256, minZoom: 0, maxZoom: 7, maxNativeZoom: 5,
+  noWrap: true, bounds: [[0, 0], [1024, 1024]],
+}).addTo(map);
+
+// 🔴 GeoJSON is [x, y]; L.CRS.Simple wants [lat, lng] = [y, x]. The swap happens HERE and only
+// here -- exactly as js/map-features/map-features-ecosystem-rendering.js does it in the app.
+const swap = ring => ring.map(([x, y]) => [y, x]);
+const toLatLngs = g => g.type === "Polygon" ? g.coordinates.map(swap)
+                                            : g.coordinates.map(part => part.map(swap));
+
+// The two kinds must read differently -- an island and the lake beside it share a pixel edge.
+const STYLE = {
+  derographisch: { color: "#e0b45f", fillColor: "#e0b45f" },
+  topographie:   { color: "#7fc4d8", fillColor: "#7fc4d8" },
+};
+
+fetch("entwurf.json").then(response => response.json()).then(manifest => {
+  document.getElementById("meta").textContent =
+    `zoom            ${manifest.zoom}\n` +
+    `Vereinfachung   Umfang x ${manifest.simplify_ratio}\n` +
+    `Wasserschwelle  B >= G ${manifest.blue_over_green}\n` +
+    `Revision        ${manifest.generated_for_revision}`;
+
+  const list = document.getElementById("list");
+  manifest.entries.forEach(entry => {
+    const style = STYLE[entry.kind] || STYLE.derographisch;
+    const layer = L.polygon(toLatLngs(entry.geometry), {
+      color: style.color, weight: 2, fillColor: style.fillColor, fillOpacity: 0.25,
+    }).addTo(map).bindTooltip(`${entry.name} — ${entry.position_count} Ecken`);
+
+    const button = document.createElement("button");
+    button.innerHTML = `<b>${entry.name}</b><br>`
+      + `<span class="num">${entry.kind} · ${entry.position_count} Ecken</span>`;
+    button.onclick = () => map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+    list.appendChild(button);
+  });
+
+  const all = manifest.entries.map(e => L.polygon(toLatLngs(e.geometry)).getBounds());
+  if (all.length) {
+    map.fitBounds(all.reduce((acc, b) => acc.extend(b)), { padding: [40, 40] });
+  }
+});
+</script>
+</body>
+</html>
