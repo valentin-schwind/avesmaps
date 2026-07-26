@@ -126,7 +126,15 @@ def main() -> None:
 
     if not args.cookie_file:
         raise SystemExit("--commit needs --cookie-file")
-    cookie = Path(args.cookie_file).read_text(encoding="utf-8").strip()
+    # 💣 utf-8-sig, not utf-8: on Windows, Out-File and Set-Content happily write a BOM, and a
+    # BOM is NOT whitespace -- str.strip() leaves it in place and it rides along in the Cookie
+    # header, which then silently fails to authenticate. utf-8-sig eats it if present.
+    cookie = Path(args.cookie_file).read_text(encoding="utf-8-sig").strip()
+    if not cookie:
+        raise SystemExit(f"{args.cookie_file} is empty")
+    if "PHPSESSID" not in cookie:
+        raise SystemExit(f"{args.cookie_file} does not look like a Cookie header "
+                         "(expected something like 'PHPSESSID=...')")
 
     for index, entry in enumerate(todo, start=1):
         key = entry["label_public_id"]

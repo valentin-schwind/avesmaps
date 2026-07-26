@@ -42,15 +42,22 @@ eine Annahme nicht — dann **nicht** importieren, sondern nachsehen.
 Cookie-Datei schreibt der Owner selbst; das Skript fragt nie nach Zugangsdaten, gibt den Wert
 nie aus und enthält keinen:
 
-```bash
+⚠️ **PowerShell**, nicht Bash — dieses Projekt läuft auf Windows PowerShell 5.1, dort gibt es
+kein `&&`, und `Out-File` schreibt gern ein BOM. Deshalb `-Encoding ascii`:
+
+```powershell
 # In Chrome, angemeldet auf avesmaps.de:
 #   DevTools -> Application -> Cookies -> PHPSESSID kopieren
-echo "PHPSESSID=<wert>" > cookie.txt
+Set-Location C:\GIT\avesmaps\.claude\worktrees\landschaften-v5\tools\ecosystem
+"PHPSESSID=<wert>" | Out-File cookie.txt -Encoding ascii
 ```
+
+(Das Skript liest die Datei mit `utf-8-sig` und verträgt ein BOM trotzdem — ein BOM ist **kein**
+Leerzeichen, `strip()` entfernt es nicht, und im Cookie-Kopf scheitert die Anmeldung dann still.)
 
 Danach **erst drei Flächen**, im Editor unter `?landschaften=1` ansehen, dann der Rest:
 
-```bash
+```powershell
 python import_areas.py --manifest manifest.json --cookie-file cookie.txt --commit --limit 3
 python import_areas.py --manifest manifest.json --cookie-file cookie.txt --commit
 ```
