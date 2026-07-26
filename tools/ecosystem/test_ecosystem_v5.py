@@ -24,6 +24,7 @@ from ecosystem_raster import (
     split_water,
     water_mask,
 )
+from ecosystem_shapes import build_geometry, component_rings, count_positions, simplify_ring
 
 DEEP_WATER = (40, 90, 170)      # deep ocean blue: B-G=80, B-R=130, hue ~108
 SHALLOW = (91, 171, 158)        # measured shallow shelf: B-G=-13 -> the whole point
@@ -96,6 +97,98 @@ def test_roundtrip_is_stable():
 def test_pixels_per_unit():
     assert pixels_per_unit(8192) == 8.0
     assert pixels_per_unit(4096) == 4.0
+
+
+def square_with_hole():
+    mask = np.zeros((64, 64), dtype=bool)
+    mask[10:50, 10:50] = True
+    mask[24:34, 24:34] = False        # a hole -> a lake inside an island
+    return mask
+
+
+def test_rings_find_the_hole():
+    parts = component_rings(square_with_hole())
+    assert len(parts) == 1, "one connected component"
+    assert len(parts[0]) == 2, "an outer ring and one hole"
+
+
+def test_simplify_reduces_a_square_to_its_corners():
+    parts = component_rings(square_with_hole())
+    simplified = simplify_ring(parts[0][0], ratio=0.002)
+    assert len(simplified) == 4, f"a square simplifies to 4 corners, got {len(simplified)}"
+
+
+def _disc(radius: int) -> np.ndarray:
+    size = radius * 4
+    mask = np.zeros((size, size), dtype=np.uint8)
+    cv2.circle(mask, (size // 2, size // 2), radius, 1, -1)
+    return mask.astype(bool)
+
+
+def test_relative_simplification_narrows_the_spread_between_sizes():
+    """The reason simplification is relative and not absolute.
+
+    An absolute epsilon is a fixed DISTANCE, so it eats a large fraction of a small shape and a
+    tiny fraction of a large one -- the corner counts fan out. A relative epsilon scales with the
+    shape, so large and small land closer together. That is the whole property, and it is what
+    keeps a small island from being flattened into a triangle while a big one keeps its bays.
+
+    Measured on the real shapes: at absolute eps 1.0 map units Maraskan keeps 126 corners and the
+    island Sigorast 4 -- a spread of 31x. At ratio 0.002 it is 84 against 38, a spread of 2.2x.
+
+    (The 0.75 px floor takes over below a perimeter of ~375 px, so a very small shape is capped
+    at its maximum available detail. That narrows the spread further, it does not widen it.)"""
+    rings = {radius: component_rings(_disc(radius))[0][0] for radius in (12, 120)}
+
+    relative = {r: len(simplify_ring(ring, ratio=0.002)) for r, ring in rings.items()}
+    absolute = {r: len(cv2.approxPolyDP(ring.astype(np.int32), 1.5, True)) for r, ring in rings.items()}
+
+    relative_spread = max(relative.values()) / min(relative.values())
+    absolute_spread = max(absolute.values()) / min(absolute.values())
+    assert relative_spread < absolute_spread, (
+        f"relative must fan out LESS than absolute: {relative_spread:.2f}x vs {absolute_spread:.2f}x")
+
+    assert relative[12] > absolute[12], (
+        f"the small shape must keep more corners under relative: {relative[12]} vs {absolute[12]}")
+    assert relative[12] >= 8, f"a small disc must keep a usable outline, got {relative[12]}"
+
+
+def test_geometry_is_closed_and_in_geojson_order():
+    geometry = build_geometry(component_rings(square_with_hole()), size=512, ratio=0.002)
+    assert geometry["type"] == "Polygon"
+    outer = geometry["coordinates"][0]
+    assert outer[0] == outer[-1], "GeoJSON rings must be closed"
+    assert len(geometry["coordinates"]) == 2, "outer ring plus hole"
+    xs = [p[0] for p in outer]
+    ys = [p[1] for p in outer]
+    assert all(0.0 <= v <= 1024.0 for v in xs + ys), "every position must sit inside the map"
+    assert max(ys) > min(ys), "y must vary -- a flat ring means the flip collapsed"
+
+
+def test_multipart_becomes_multipolygon():
+    mask = np.zeros((64, 64), dtype=bool)
+    mask[5:15, 5:15] = True
+    mask[40:50, 40:50] = True
+    parts = component_rings(mask)
+    geometry = build_geometry(parts, size=512, ratio=0.002)
+    assert geometry["type"] == "MultiPolygon"
+    assert len(geometry["coordinates"]) == 2
+
+
+def test_positions_are_rounded_to_four_decimals():
+    geometry = build_geometry(component_rings(square_with_hole()), size=512, ratio=0.002)
+    for x, y in geometry["coordinates"][0]:
+        assert x == round(x, 4) and y == round(y, 4)
+
+
+def test_count_positions_covers_holes_and_parts():
+    polygon = build_geometry(component_rings(square_with_hole()), size=512, ratio=0.002)
+    assert count_positions(polygon) == sum(len(ring) for ring in polygon["coordinates"])
+    mask = np.zeros((64, 64), dtype=bool)
+    mask[5:15, 5:15] = True
+    mask[40:50, 40:50] = True
+    multi = build_geometry(component_rings(mask), size=512, ratio=0.002)
+    assert count_positions(multi) == 10, "two closed squares -> 2 x 5 positions"
 
 
 def _run() -> int:
