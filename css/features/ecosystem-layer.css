@@ -616,6 +616,18 @@
 	transition: fill-opacity 0.15s ease, stroke-opacity 0.15s ease;
 }
 
+/* The derographic contour is DASHED (Owner 2026-07-26) -- in every state, because it belongs to the
+   KIND and not to a state: a derographic area is an administrative container, and a container's edge
+   is a convention, not a thing you could walk up to like a forest edge or a ridge. At rest it fills
+   with nothing at all, so this dashed line is the entire layer.
+   🪤 Not to be confused with the dashed RESTING outline that briefly existed earlier today and was
+   removed: that one encoded a state twice over, this one distinguishes a layer. Leaflet writes a
+   stroke-dasharray attribute only when the dashArray option is set -- it is not, so this rule owns the
+   dashes and switching layers still costs no layer rebuild. */
+.ecosystem-pane--derographisch > svg path.leaflet-interactive {
+	stroke-dasharray: 7 5;
+}
+
 /* Selection takes a WHITE contour at full opacity (Owner 2026-07-26). The FILL is deliberately NOT
    touched: with the second-pass matrix the selected value EQUALS the active one in both groups, so
    clicking an area makes nothing jump inside it -- the colour answers "which area is this", the contour
