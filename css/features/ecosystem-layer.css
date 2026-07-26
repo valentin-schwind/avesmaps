@@ -666,11 +666,17 @@
    `.ecosystem-pane--resting path` would LOSE that cascade and the pale layers would still swallow
    clicks -- which is the whole failure this design exists to prevent. Hence the .leaflet-pane in the
    selector: three classes beat two. */
-/* THE OPACITY MATRIX (Owner 2026-07-26, third pass) — fill / contour:
+/* THE OPACITY MATRIX (Owner, in flight — fourth pass 2026-07-27) — fill / contour:
 
      the two layers that are NOT active  |   0% /   0%   (gone, not merely pale)
-     active layer, area not selected     |  30% /  70%
-     active layer, area selected         |  50% / 100%, white contour
+     active layer, area not selected     |  60% /  70%
+     active layer, area selected         |  40% / 100%, white contour
+
+   ⚠️ The SELECTED area is deliberately the more TRANSPARENT one now -- the earlier passes had it the
+   other way round. The owner's reason is the one thing a fill cannot do at high opacity: "man sollte
+   den Untergrund noch sehen". The area under the pen is the one whose terrain you need to read, so it
+   is the one that lets the map through; the rest may sit solid, because nobody is tracing them.
+   These two numbers are being tuned by eye and will move again -- they are two literals, on purpose.
 
    ⭐ ONE set of numbers for all three kinds. The two earlier passes gave each layer its own row and
    the derographic one a special case; this pass removes both, because the resting layers are no longer
@@ -691,7 +697,7 @@
 }
 
 .ecosystem-pane--active {
-	--eco-fill: 0.3;
+	--eco-fill: 0.6;
 	--eco-contour: 0.7;
 }
 
@@ -720,7 +726,7 @@
    🪤 Leaflet writes stroke/fill as SVG presentation ATTRIBUTES, which CSS outranks -- which is why both
    the contour and its opacity can be set here without a second set of numbers in ecosystemAreaStyle(). */
 .ecosystem-pane > svg path.leaflet-interactive.ecosystem-area--selected {
-	fill-opacity: 0.5;
+	fill-opacity: 0.4;
 	stroke: var(--color-ecosystem-selected-outline);
 	stroke-opacity: 1;
 }
