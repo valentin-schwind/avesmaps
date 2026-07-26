@@ -41,6 +41,14 @@ function syncEcosystemVisibility() {
 		if (typeof cancelEcosystemAreaDrawing === "function") {
 			cancelEcosystemAreaDrawing();
 		}
+		// V3.3: eine offene Eckenbearbeitung gehoert ebenso zum Modus -- aber sie hat, anders als der
+		// fluechtige Zeichenentwurf, echte Aenderungen. Deshalb wird sie GESCHLOSSEN UND GESCHRIEBEN,
+		// bevor die Registry faellt: der Buendel-Save wartet bis zu 800 ms, und ein Moduswechsel in
+		// diesem Fenster darf den letzten Eckzug nicht verschlucken. Vor clearEcosystemAreaLayers, weil
+		// das die Auswahl loescht und die Sitzung dann nicht mehr weiss, welche Flaeche sie schreibt.
+		if (typeof closeEcosystemGeometryEdit === "function") {
+			closeEcosystemGeometryEdit({ flush: true });
+		}
 		// Modus verlassen -> eigene Registry leeren. 🔴 `regionPolygons` bleibt unangetastet.
 		if (typeof clearEcosystemAreaLayers === "function") {
 			clearEcosystemAreaLayers();

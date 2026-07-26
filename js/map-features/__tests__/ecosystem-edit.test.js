@@ -1,0 +1,143 @@
+const assert = require("assert");
+
+// The edit module reaches for ecosystemGeometryParts as a browser global (164 <script> tags, one scope).
+// In Node it has to be handed over deliberately -- and it is the REAL one, not a stub, so the test also
+// proves the two files agree about what a "part" is.
+const { ecosystemGeometryParts } = require("../map-features-ecosystem-geometry.js");
+global.ecosystemGeometryParts = ecosystemGeometryParts;
+
+const {
+	ecosystemEditRingIsClosed,
+	ecosystemEditVertexCount,
+	ecosystemEditSetVertex,
+	ecosystemEditInsertVertex,
+	ecosystemEditRemoveVertex,
+	ecosystemEditNearestEdge,
+	pushEcosystemGeometryUndoStep,
+	ECOSYSTEM_GEOMETRY_UNDO_LIMIT,
+} = require("../map-features-ecosystem-edit.js");
+
+const square = () => ({
+	type: "Polygon",
+	coordinates: [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]],
+});
+
+// The Farindel case again: an area with a clearing in it. A hole edge is an edge you can want another
+// corner on, so everything below has to work on ring 1 exactly as it does on ring 0.
+const woodWithClearing = () => ({
+	type: "Polygon",
+	coordinates: [
+		[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]],
+		[[40, 40], [60, 40], [60, 60], [40, 60], [40, 40]],
+	],
+});
+
+// ---- the closing duplicate ---------------------------------------------------------------------
+// 💣 A GeoJSON ring repeats its first position as its last. Counting it as a corner gives two handles
+// on one spot, one of which does nothing; forgetting it when corner 0 moves tears the ring open at
+// exactly the corner being dragged.
+assert.strictEqual(ecosystemEditRingIsClosed([[0, 0], [1, 0], [1, 1], [0, 0]]), true, "closed ring");
+assert.strictEqual(ecosystemEditRingIsClosed([[0, 0], [1, 0], [1, 1]]), false, "open ring");
+assert.strictEqual(ecosystemEditVertexCount([[0, 0], [1, 0], [1, 1], [0, 0]]), 3, "closed ring has 3 grabbable corners");
+assert.strictEqual(ecosystemEditVertexCount([[0, 0], [1, 0], [1, 1]]), 3, "open ring has 3 too");
+
+// ---- moving a corner ----------------------------------------------------------------------------
+const moved = square();
+assert.strictEqual(ecosystemEditSetVertex(moved.coordinates[0], 2, [80, 90]), true, "corner 2 moves");
+assert.deepStrictEqual(moved.coordinates[0][2], [80, 90]);
+assert.deepStrictEqual(moved.coordinates[0][4], [0, 0], "the closing duplicate is untouched by a middle corner");
+
+// 💣 The load-bearing one: corner 0 drags the closing duplicate with it.
+assert.strictEqual(ecosystemEditSetVertex(moved.coordinates[0], 0, [5, 7]), true, "corner 0 moves");
+assert.deepStrictEqual(moved.coordinates[0][0], [5, 7]);
+assert.deepStrictEqual(moved.coordinates[0][4], [5, 7], "ring stays closed after corner 0 moved");
+
+// The closing duplicate is not addressable as a corner of its own.
+assert.strictEqual(ecosystemEditSetVertex(moved.coordinates[0], 4, [1, 1]), false, "index 4 is not a corner");
+assert.strictEqual(ecosystemEditSetVertex(moved.coordinates[0], -1, [1, 1]), false, "negative index refused");
+
+// ---- Ctrl+click sets ONE corner, and it lands ON the edge ---------------------------------------
+// 💣 The template sets FOUR (subdivideRegionEditHoveredEdge, called with 4 at
+// map-features-region-vertex-detach-edit.js:461) -- the wrong grain for a coastline. One is the point
+// of this file, so the count is asserted, not just the position.
+const edge = ecosystemEditNearestEdge([50, 3], square());
+assert.strictEqual(edge.partIndex, 0);
+assert.strictEqual(edge.ringIndex, 0, "the southern edge belongs to the outer ring");
+assert.strictEqual(edge.insertAt, 1, "between corner 0 and corner 1");
+assert.deepStrictEqual(edge.position, [50, 0], "the corner lands ON the edge, not under the cursor");
+assert.strictEqual(edge.distance, 3);
+
+const oneMore = square();
+const cornersBefore = ecosystemEditVertexCount(oneMore.coordinates[0]);
+assert.strictEqual(ecosystemEditInsertVertex(oneMore, edge), true);
+assert.strictEqual(
+	ecosystemEditVertexCount(oneMore.coordinates[0]),
+	cornersBefore + 1,
+	"exactly ONE corner more -- not four"
+);
+assert.deepStrictEqual(oneMore.coordinates[0][1], [50, 0], "the new corner sits where the edge was");
+assert.strictEqual(ecosystemEditRingIsClosed(oneMore.coordinates[0]), true, "ring still closed after inserting");
+
+// A hole edge answers too, with its own ring index -- otherwise a corner meant for the clearing would
+// be spliced into the outer ring and the shape would fold over itself.
+const holeEdge = ecosystemEditNearestEdge([50, 41], woodWithClearing());
+assert.strictEqual(holeEdge.ringIndex, 1, "the clearing's edge is ring 1");
+assert.deepStrictEqual(holeEdge.position, [50, 40]);
+
+const withHoleCorner = woodWithClearing();
+assert.strictEqual(ecosystemEditInsertVertex(withHoleCorner, holeEdge), true);
+assert.strictEqual(ecosystemEditVertexCount(withHoleCorner.coordinates[1]), 5, "the hole gained one corner");
+assert.strictEqual(ecosystemEditVertexCount(withHoleCorner.coordinates[0]), 4, "the outer ring gained none");
+
+// A MultiPolygon reports the part it belongs to; without that the corner lands in the wrong island.
+const twoIslands = {
+	type: "MultiPolygon",
+	coordinates: [
+		[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+		[[[100, 100], [110, 100], [110, 110], [100, 110], [100, 100]]],
+	],
+};
+assert.strictEqual(ecosystemEditNearestEdge([105, 99], twoIslands).partIndex, 1, "second island wins");
+
+// ---- deleting a corner ---------------------------------------------------------------------------
+const shrinking = square();
+assert.strictEqual(ecosystemEditRemoveVertex(shrinking, { vertexIndex: 2 }), true, "4 corners -> 3");
+assert.strictEqual(ecosystemEditVertexCount(shrinking.coordinates[0]), 3);
+// The floor: below three corners it is not a face any more.
+assert.strictEqual(ecosystemEditRemoveVertex(shrinking, { vertexIndex: 0 }), false, "3 corners is the floor");
+assert.strictEqual(ecosystemEditVertexCount(shrinking.coordinates[0]), 3, "the refusal changed nothing");
+
+// 💣 Deleting corner 0 leaves the closing duplicate pointing at a corner that no longer exists.
+const dropFirst = square();
+assert.strictEqual(ecosystemEditRemoveVertex(dropFirst, { vertexIndex: 0 }), true);
+assert.strictEqual(ecosystemEditRingIsClosed(dropFirst.coordinates[0]), true, "ring re-closed against the new first corner");
+assert.deepStrictEqual(dropFirst.coordinates[0][0], [100, 0]);
+assert.deepStrictEqual(dropFirst.coordinates[0][dropFirst.coordinates[0].length - 1], [100, 0]);
+
+// ---- the undo stack ------------------------------------------------------------------------------
+// 💣 The snapshot must be a DEEP COPY. A stack sharing arrays with the live geometry would follow every
+// later drag, and "undo" would restore the present -- a bug that looks like undo doing nothing.
+const live = square();
+const stack = [];
+pushEcosystemGeometryUndoStep(stack, live);
+ecosystemEditSetVertex(live.coordinates[0], 1, [999, 999]);
+assert.deepStrictEqual(stack[0].coordinates[0][1], [100, 0], "the snapshot did not follow the drag");
+assert.deepStrictEqual(live.coordinates[0][1], [999, 999], "the live geometry did move");
+
+// 20 steps, oldest dropped -- the plan's number, and the reason the stack cannot grow without bound
+// during a long coastline.
+const capped = [];
+for (let i = 0; i < ECOSYSTEM_GEOMETRY_UNDO_LIMIT + 5; i += 1) {
+	const step = square();
+	step.coordinates[0][1] = [i, 0];
+	pushEcosystemGeometryUndoStep(capped, step);
+}
+assert.strictEqual(capped.length, ECOSYSTEM_GEOMETRY_UNDO_LIMIT, "stack is capped at 20");
+assert.deepStrictEqual(capped[0].coordinates[0][1], [5, 0], "the oldest steps fell off the bottom, not the newest");
+assert.deepStrictEqual(
+	capped[capped.length - 1].coordinates[0][1],
+	[ECOSYSTEM_GEOMETRY_UNDO_LIMIT + 4, 0],
+	"the newest step is on top"
+);
+
+console.log("ecosystem edit tests passed");

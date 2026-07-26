@@ -109,6 +109,9 @@ window.AVESMAPS_I18N_EN = {
 	// --- Landschaften: the click-by-click draw tool (V3.2) ---
 	"ecosystem.draw.start": "Draw area",
 
+	// --- Landschaften: the vertex editor (V3.3) ---
+	"ecosystem.edit.done": "Done",
+
 	// --- spotlight search ---
 	"spotlight.title": "Search",
 	"spotlight.placeholder": "Search the map",

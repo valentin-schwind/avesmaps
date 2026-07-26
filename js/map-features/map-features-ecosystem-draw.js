@@ -174,6 +174,14 @@ function startEcosystemAreaDrawing() {
 		return;
 	}
 
+	// V3.3: handles and drawing are never open at once -- a handle sits between the cursor and the map,
+	// and a click on one would swallow the corner instead of placing it. Closed WITH a flush, so the last
+	// dragged corner is written rather than dropped.
+	if (typeof closeEcosystemGeometryEdit === "function") {
+		closeEcosystemGeometryEdit({ flush: true });
+		setSelectedEcosystemArea?.("");
+	}
+
 	ecosystemDrawActive = true;
 	ecosystemDrawPoints = [];
 	ecosystemDrawLastClick = null;

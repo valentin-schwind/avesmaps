@@ -159,6 +159,13 @@ function applyEcosystemAreaPayload(payload) {
 
 	// Gone from the answer = gone from the viewport (the endpoint filters by bbox overlap). Removing
 	// them is what keeps the registry bounded instead of growing with every pan.
+	// V3.3 needs NO hook here, and that is worth writing down because the opposite looks obvious. An open
+	// vertex edit holds ONE layer object, so a rebuild would strand its handles -- but every path that
+	// rebuilds or drops a layer goes through removeEcosystemAreaLayer above, which deselects, and the
+	// deselect runs setSelectedEcosystemArea -> syncEcosystemGeometryEdit -> the session closes AND
+	// flushes its pending write. That is what saves the corner somebody dragged just before panning the
+	// area out of the viewport. A layer whose geometry_revision is unchanged keeps its object (the cheap
+	// branch above), so an undisturbed session is never touched at all.
 	Array.from(ecosystemLayers.keys()).forEach((publicId) => {
 		if (!seenPublicIds.has(publicId)) {
 			removeEcosystemAreaLayer(publicId);

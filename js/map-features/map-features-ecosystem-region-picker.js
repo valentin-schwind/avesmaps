@@ -74,7 +74,14 @@ async function postEcosystemEdit(action, payload = {}) {
 	const result = await readJsonResponse(response, null);
 
 	if (!response.ok || result?.ok !== true) {
-		throw new Error(apiErrorMessage(result, `${action} fehlgeschlagen (${response.status}).`));
+		const error = new Error(apiErrorMessage(result, `${action} fehlgeschlagen (${response.status}).`));
+		// V3.3 needs to tell ONE failure apart from the rest: `conflict` (HTTP 409) means somebody else
+		// moved this area, so nothing local can be salvaged and the read path has to decide. Every other
+		// failure is worth retrying with the next gesture. Without the code on the error the caller would
+		// have to match on the German message text.
+		error.code = String(result?.error?.code || "");
+		error.status = response.status;
+		throw error;
 	}
 
 	return result;

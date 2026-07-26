@@ -138,6 +138,14 @@ function setSelectedEcosystemArea(publicId) {
 			applyEcosystemSelectionClass(layer);
 		}
 	});
+
+	// V3.3: the selection IS the vertex-edit session -- a selected area grows handles, a deselected one
+	// loses them and flushes whatever is still pending. Routing it through here means switching the
+	// layer, leaving the mode and clearing the registry all close an open edit without any of them
+	// having to know the editor exists. Guarded, so V3.0's behaviour survives the file being absent.
+	if (typeof syncEcosystemGeometryEdit === "function") {
+		syncEcosystemGeometryEdit();
+	}
 }
 
 function getSelectedEcosystemAreaPublicId() {
