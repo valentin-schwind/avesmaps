@@ -1,21 +1,26 @@
-// Landschaften (Erprobung) -- the vertex editor (plan V3.3): the SELECTED area grows handles, dragging
-// a corner is written 800 ms after the last release in ONE request, and Ctrl+Z takes corner moves back.
+// Landschaften (Erprobung) -- the vertex editor (plan V3.3): DOUBLE-CLICK an area to edit its corners,
+// dragging one is written 800 ms after the last release in ONE request, and Ctrl+Z takes corner moves
+// back. A double-click anywhere else finishes.
 //
 // The template (map-features-region-edit-handles.js) was READ, not called -- global rule 1 keeps the
 // political files at arm's length. Three deliberate departures from it, each one measured:
 //
-//  1. 💣 BATCHED SAVE. There, every dragged corner is its own POST plus a toast (2200 ms standing time,
-//     ONE slot -- map-features.js:178/:198), and dragend additionally saves every neighbouring region
-//     applySharedBoundaryVertexMove touched (:56-59). Tracing a coastline that way is one write per
-//     corner and a toast queue nobody can read. Here: one write, 800 ms after the last release, and the
-//     state lives in a quiet status line instead of the toast slot.
+//  1. 💣 BATCHED SAVE. There, every dragged corner is its own POST plus a toast, and dragend
+//     additionally saves every neighbouring region applySharedBoundaryVertexMove touched (:56-59).
+//     Tracing a coastline that way is one write per corner. Here it is one write per gesture burst.
 //  2. 💣 CTRL+CLICK ON AN EDGE SETS **ONE** CORNER. The template sets four (subdivideRegionEditHoveredEdge,
 //     map-features-region-edit-edge-controls.js:209; the variant actually live at runtime calls it with
-//     4 -- map-features-region-vertex-detach-edit.js:461). Four corners per click is the wrong grain for
-//     a coastline: you get 4 where you wanted 1 and then delete 3.
+//     4 -- map-features-region-vertex-detach-edit.js:461). Four per click is the wrong grain for a
+//     coastline: you get 4 where you wanted 1 and then delete 3.
 //  3. 💣 UNDO STACK, 20 steps, in memory -- and an undo that changes an ALREADY SAVED geometry triggers a
 //     NEW write. Without that the screen is right and the database is wrong, and an acceptance that only
 //     looks at the screen would pass.
+//
+// 🔴 THE GESTURE IS A DOUBLE-CLICK, NOT THE SELECTION (owner 2026-07-26). A single click still only
+// selects, as in V3.0. That is not just taste: opening on the SELECTION means the first click of a
+// double-click raises the handles and the second one lands on a handle that has only just appeared --
+// and a double-click on a handle deletes a corner. This is the same collision V3.2 flagged for the
+// drawing tool. Opening on `dblclick` puts both clicks safely before the handles exist.
 //
 // 🔴 expected_revision IS MANDATORY (V2.3): missing -> 400, stale -> 409. It starts from
 // layer._ecosystemArea.geometry_revision, and 💣 THE SECOND BATCHED SAVE OF A SESSION MUST SEND THE NEW
@@ -38,7 +43,6 @@ const ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE = 12;
 // question -- it is what keeps the key with the audit undo whenever nothing is being edited.
 let activeEcosystemGeometryEdit = null;
 let ecosystemGeometrySaveTimeoutId = null;
-let ecosystemGeometryEditStatusTimeoutId = null;
 
 // ---- pure ring maths (unit-tested in Node, see __tests__/ecosystem-edit.test.js) --------------------
 
@@ -172,52 +176,17 @@ function pushEcosystemGeometryUndoStep(stack, geometry, limit = ECOSYSTEM_GEOMET
 	return stack;
 }
 
-// ---- the status line -------------------------------------------------------------------------------
-// 🪤 NOT A NEW COMPONENT. #open-path-ends-chip already is this thing -- role="status" aria-live="polite",
-// edit-only, bottom centre (where the eye is while drawing, not top), fully token-based
-// (css/features/location-popups-markers.css:768ff). It belongs to the detached-path-ends feature and
-// syncs itself from that state, so sharing the element would mean two features overwriting each other.
-// This is the exact rebuild the plan permits, one slot higher so both can stand at once.
-
-function setEcosystemEditStatus(text, tone = "info") {
-	const chipElement = document.getElementById("ecosystem-edit-chip");
-	const textElement = document.getElementById("ecosystem-edit-chip-text");
-	if (!chipElement || !textElement) {
-		return;
+// ---- saying things ---------------------------------------------------------------------------------
+// 🔴 THE HOUSE TOAST, NOT A COMPONENT OF ITS OWN (owner 2026-07-26). An earlier draft grew a private
+// status chip at the bottom of the map; it was more furniture than the feature is worth. Everything
+// here is a short, occasional message, which is exactly what showFeedbackToast is for -- and the
+// handles on the map are themselves the permanent "you are editing this" signal, so no second one is
+// needed. Quiet by design: no "saving …", no idle hint standing around, one line when something
+// actually happened.
+function sayEcosystemEdit(message, tone = "info") {
+	if (typeof showFeedbackToast === "function" && message) {
+		showFeedbackToast(message, tone);
 	}
-
-	if (ecosystemGeometryEditStatusTimeoutId !== null) {
-		window.clearTimeout(ecosystemGeometryEditStatusTimeoutId);
-		ecosystemGeometryEditStatusTimeoutId = null;
-	}
-
-	if (!text) {
-		chipElement.hidden = true;
-		textElement.textContent = "";
-		return;
-	}
-
-	textElement.textContent = text;
-	chipElement.dataset.tone = tone;
-	chipElement.hidden = false;
-}
-
-// The resting text of an open session: what the three gestures are. It comes back after every transient
-// message, so the line is never empty while handles are on the map.
-function ecosystemEditIdleStatusText() {
-	return "Ecken ziehen · Strg+Klick auf eine Kante setzt eine Ecke · Doppelklick löscht sie · Strg+Z macht rückgängig";
-}
-
-function setEcosystemEditTransientStatus(text, tone = "info") {
-	setEcosystemEditStatus(text, tone);
-	ecosystemGeometryEditStatusTimeoutId = window.setTimeout(() => {
-		ecosystemGeometryEditStatusTimeoutId = null;
-		if (activeEcosystemGeometryEdit) {
-			setEcosystemEditStatus(ecosystemEditIdleStatusText());
-		} else {
-			setEcosystemEditStatus("");
-		}
-	}, 2200);
 }
 
 // ---- handles ---------------------------------------------------------------------------------------
@@ -336,7 +305,7 @@ function deleteEcosystemEditVertex(partIndex, ringIndex, vertexIndex) {
 
 	const before = JSON.parse(JSON.stringify(session.geometry));
 	if (!ecosystemEditRemoveVertex(session.geometry, { partIndex, ringIndex, vertexIndex })) {
-		setEcosystemEditTransientStatus("Eine Fläche braucht mindestens drei Ecken.", "warning");
+		sayEcosystemEdit("Eine Fläche braucht mindestens drei Ecken.", "warning");
 		return;
 	}
 
@@ -348,9 +317,7 @@ function deleteEcosystemEditVertex(partIndex, ringIndex, vertexIndex) {
 
 function handleEcosystemEditEdgeClick(event) {
 	const session = activeEcosystemGeometryEdit;
-	// armed one tick after opening: the very click that SELECTED the area must not also add a corner,
-	// and the second click of a double-click must not either.
-	if (!session || !session.armed || !event?.originalEvent?.ctrlKey || !event.latlng) {
+	if (!session || !event?.originalEvent?.ctrlKey || !event.latlng) {
 		return;
 	}
 
@@ -359,13 +326,13 @@ function handleEcosystemEditEdgeClick(event) {
 	const point = [event.latlng.lng, event.latlng.lat];
 	const edge = ecosystemEditNearestEdge(point, session.geometry);
 	if (!edge || edge.distance > ECOSYSTEM_EDIT_EDGE_HIT_DISTANCE) {
-		setEcosystemEditTransientStatus("Keine Kante in der Nähe — näher an den Rand klicken.", "warning");
+		sayEcosystemEdit("Keine Kante in der Nähe — näher an den Rand klicken.", "warning");
 		return;
 	}
 
 	const before = JSON.parse(JSON.stringify(session.geometry));
 	// The corner lands on the edge, not under the cursor: a corner that jumps sideways the moment it
-	// appears is impossible to place accurately.
+	// appears is impossible to place accurately. No toast -- the new handle is the feedback.
 	if (!ecosystemEditInsertVertex(session.geometry, edge)) {
 		return;
 	}
@@ -374,7 +341,6 @@ function handleEcosystemEditEdgeClick(event) {
 	applyEcosystemEditGeometryToLayer(session);
 	refreshEcosystemEditHandles();
 	scheduleEcosystemGeometrySave();
-	setEcosystemEditTransientStatus("Ecke gesetzt.");
 }
 
 // ---- saving --------------------------------------------------------------------------------------
@@ -393,11 +359,9 @@ function scheduleEcosystemGeometrySave() {
 	// Back at the last state the server was told about -- most often an undo that cancels an unsaved
 	// drag. Nothing to write, and nothing to announce.
 	if (JSON.stringify(session.geometry) === session.savedGeometryJson) {
-		setEcosystemEditStatus(ecosystemEditIdleStatusText());
 		return;
 	}
 
-	setEcosystemEditStatus("Änderung wird gleich gespeichert …", "busy");
 	ecosystemGeometrySaveTimeoutId = window.setTimeout(() => {
 		ecosystemGeometrySaveTimeoutId = null;
 		void flushEcosystemGeometrySave();
@@ -421,7 +385,6 @@ async function flushEcosystemGeometrySave() {
 	}
 
 	session.saving = true;
-	setEcosystemEditStatus("Wird gespeichert …", "busy");
 	try {
 		const result = await postEcosystemEdit("update_area_geometry", {
 			public_id: session.publicId,
@@ -448,18 +411,18 @@ async function flushEcosystemGeometrySave() {
 			session.layer._ecosystemArea.geometry = JSON.parse(geometryJson);
 		}
 
-		setEcosystemEditTransientStatus("Gespeichert.");
+		sayEcosystemEdit("Fläche gespeichert.");
 	} catch (error) {
 		if (error?.code === "conflict") {
 			// Somebody else moved this area. Nothing local can be salvaged -- the read path decides.
 			closeEcosystemGeometryEdit({ flush: false });
-			setEcosystemEditTransientStatus(error.message || "Diese Fläche wurde inzwischen geändert.", "warning");
+			sayEcosystemEdit(error.message || "Diese Fläche wurde inzwischen geändert.", "warning");
 			scheduleEcosystemAreaReload?.({ immediate: true });
 			return;
 		}
 		// The session stays open and the geometry stays unsaved, so the next drag schedules another
 		// attempt instead of the work being silently gone.
-		setEcosystemEditStatus(error?.message || "Die Geometrie konnte nicht gespeichert werden.", "warning");
+		sayEcosystemEdit(error?.message || "Die Geometrie konnte nicht gespeichert werden.", "warning");
 	} finally {
 		session.saving = false;
 	}
@@ -476,7 +439,7 @@ function undoEcosystemGeometryStep() {
 	const previous = session.undoStack.pop();
 	if (!previous) {
 		// Reaching past the first move of the session is a no-op, not an error (plan V3.3).
-		setEcosystemEditTransientStatus("Nichts mehr zum Rückgängigmachen.");
+		sayEcosystemEdit("Nichts mehr zum Rückgängigmachen.");
 		return false;
 	}
 
@@ -488,14 +451,23 @@ function undoEcosystemGeometryStep() {
 	// the screen would never notice. scheduleEcosystemGeometrySave itself decides: it compares against
 	// what was last sent and stays quiet when the undo landed back on it.
 	scheduleEcosystemGeometrySave();
-	setEcosystemEditTransientStatus("Eckzug zurückgenommen.");
+	sayEcosystemEdit("Eckzug zurückgenommen.");
 	return true;
 }
 
 // ---- session lifecycle -----------------------------------------------------------------------------
 
+// Called from the area's dblclick (wired in map-features-ecosystem-rendering.js).
 function openEcosystemGeometryEdit(publicId) {
-	const layer = ecosystemLayers instanceof Map ? ecosystemLayers.get(String(publicId || "")) : null;
+	const areaId = String(publicId || "");
+	// Selecting first, so an open session on ANOTHER area is closed and flushed through the usual hook
+	// before this one is built -- and so the highlight and the handles always agree about the subject.
+	if (typeof setSelectedEcosystemArea === "function") {
+		setSelectedEcosystemArea(areaId);
+	}
+	closeEcosystemGeometryEdit({ flush: true });
+
+	const layer = ecosystemLayers instanceof Map ? ecosystemLayers.get(areaId) : null;
 	const area = layer?._ecosystemArea;
 	const revision = Number(area?.geometry_revision);
 	// 🔴 Without a revision there is no optimistic guard, and a save would answer 400. Better no handles
@@ -504,11 +476,9 @@ function openEcosystemGeometryEdit(publicId) {
 		return;
 	}
 
-	closeEcosystemGeometryEdit({ flush: true });
-
 	const geometry = JSON.parse(JSON.stringify(area.geometry));
 	activeEcosystemGeometryEdit = {
-		publicId: String(publicId),
+		publicId: areaId,
 		layer,
 		geometry,
 		savedGeometryJson: JSON.stringify(geometry),
@@ -516,20 +486,20 @@ function openEcosystemGeometryEdit(publicId) {
 		handles: [],
 		undoStack: [],
 		saving: false,
-		armed: false,
 	};
 
 	layer.on("click", handleEcosystemEditEdgeClick);
-	// One tick later: the click that selected this area is still being dispatched, and it must not also
-	// count as a Ctrl+click on an edge.
-	window.setTimeout(() => {
-		if (activeEcosystemGeometryEdit?.publicId === String(publicId)) {
-			activeEcosystemGeometryEdit.armed = true;
-		}
-	}, 0);
+	if (typeof map !== "undefined" && map) {
+		// A double-click elsewhere finishes (owner). Bound only for the length of the session, which
+		// also sidesteps the "map is created last" problem -- by now it certainly exists.
+		map.on("dblclick", handleEcosystemEditFinishDoubleClick);
+		// Otherwise both the opening and the finishing gesture would zoom the map as well. Same reason
+		// the drawing tool switches it off (map-features-ecosystem-draw.js).
+		map.doubleClickZoom.disable();
+	}
 
 	refreshEcosystemEditHandles();
-	setEcosystemEditStatus(ecosystemEditIdleStatusText());
+	sayEcosystemEdit("Ecken ziehen · Strg+Klick auf eine Kante setzt eine Ecke · Doppelklick löscht sie · Doppelklick daneben beendet.");
 }
 
 function closeEcosystemGeometryEdit({ flush = true } = {}) {
@@ -545,6 +515,10 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 
 	clearEcosystemEditHandles();
 	session.layer?.off?.("click", handleEcosystemEditEdgeClick);
+	if (typeof map !== "undefined" && map) {
+		map.off("dblclick", handleEcosystemEditFinishDoubleClick);
+		map.doubleClickZoom.enable();
+	}
 
 	if (flush && JSON.stringify(session.geometry) !== session.savedGeometryJson) {
 		// Closing inside the 800 ms window must not drop the last gesture. The session object is still
@@ -553,29 +527,39 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 	}
 
 	activeEcosystemGeometryEdit = null;
-	setEcosystemEditStatus("");
 }
 
-// The one entry point: the selection IS the edit session (plan V3.3 -- "a selected area grows handles").
-// Called from setSelectedEcosystemArea, so selecting, deselecting, switching layers and leaving the mode
-// all arrive here without any of them having to know this file exists.
+// A double-click that did NOT land on an area finishes the session. A double-click ON an area never
+// reaches here: its own handler stops the event, which is also what stops Leaflet from bubbling it to
+// the map (Map._fireDOMEvent checks originalEvent._stopped).
+function handleEcosystemEditFinishDoubleClick(event) {
+	if (!activeEcosystemGeometryEdit) {
+		return;
+	}
+	if (event?.originalEvent) {
+		L.DomEvent.stop(event);
+	}
+	closeEcosystemGeometryEdit({ flush: true });
+	if (typeof setSelectedEcosystemArea === "function") {
+		setSelectedEcosystemArea("");
+	}
+	sayEcosystemEdit("Bearbeitung beendet.");
+}
+
+// Called from setSelectedEcosystemArea. It only ever CLOSES -- opening is the double-click's job
+// (owner). Selecting another area, switching the layer, leaving the mode and clearing the registry all
+// arrive here, so a session can never outlive the selection it belongs to.
 function syncEcosystemGeometryEdit() {
 	const publicId = typeof getSelectedEcosystemAreaPublicId === "function" ? getSelectedEcosystemAreaPublicId() : "";
-	if (activeEcosystemGeometryEdit?.publicId === publicId) {
-		return;
-	}
-
-	if (!publicId) {
+	if (activeEcosystemGeometryEdit && activeEcosystemGeometryEdit.publicId !== publicId) {
 		closeEcosystemGeometryEdit({ flush: true });
-		return;
 	}
-	openEcosystemGeometryEdit(publicId);
 }
 
 // 🪤 There is deliberately NO second hook for "the loader rebuilt my layer". It looks necessary -- an
 // open session holds ONE layer object -- but it can never fire: every rebuild and every removal goes
 // through removeEcosystemAreaLayer, which deselects, and the deselect arrives here as
-// syncEcosystemGeometryEdit("") and closes the session WITH a flush. A layer whose geometry_revision is
+// syncEcosystemGeometryEdit and closes the session WITH a flush. A layer whose geometry_revision is
 // unchanged keeps its object, so an undisturbed session is never touched. A hook would have been dead
 // code that reads like a safety net.
 
@@ -613,13 +597,6 @@ if (typeof document !== "undefined") {
 		event.stopImmediatePropagation();
 		undoEcosystemGeometryStep();
 	}, true);
-
-	document.addEventListener("click", (event) => {
-		if (event.target?.closest?.("#ecosystem-edit-chip-done")) {
-			closeEcosystemGeometryEdit({ flush: true });
-			setSelectedEcosystemArea?.("");
-		}
-	});
 
 	// Navigating away inside the 800 ms window would drop the last gesture. Firing the pending write now
 	// is not a guarantee (the browser may still cut the request), but it is strictly better than the

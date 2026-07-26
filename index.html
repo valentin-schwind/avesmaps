@@ -600,16 +600,6 @@
 			<span id="open-path-ends-chip-text"></span>
 			<button id="open-path-ends-chip-next" type="button">Zum nächsten</button>
 		</div>
-		<!-- Landschaften (Erprobung), V3.3: die ruhige Statuszeile des Ecken-Editors. Exakter Nachbau von
-		     #open-path-ends-chip darüber (role="status", edit-only, unten mittig, tokenbasiert) statt
-		     Mitbenutzung: jene Zeile gehört der Wegenden-Anzeige und schreibt sich aus deren Zustand,
-		     beide würden sich gegenseitig überschreiben. Ersetzt bewusst den Toast — 2200 ms Standzeit
-		     und ein einziger Platz taugen nicht für einen Zustand, der eine Kantenfahrt lang gilt. -->
-		<div id="ecosystem-edit-chip" class="ecosystem-edit-chip" role="status" aria-live="polite" hidden>
-			<span class="ecosystem-edit-chip__dot" aria-hidden="true"></span>
-			<span id="ecosystem-edit-chip-text"></span>
-			<button id="ecosystem-edit-chip-done" type="button" data-i18n="ecosystem.edit.done">Fertig</button>
-		</div>
 		<!-- Landschaften (Erprobung), V3.0: sitzt an DERSELBEN Stelle wie der politische Jahres-Schieber
 		     direkt darunter -- beide haengen an ihrem Modus, koennen also nie gleichzeitig da sein, und
 		     es gibt keinen Layoutsprung. Sichtbar nur bei mapLayerMode=ecosystem UND ?edit=1 UND

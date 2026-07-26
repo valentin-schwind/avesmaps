@@ -380,94 +380,14 @@
 	line-height: var(--leading-snug);
 }
 
-/* ---- vertex editor: the quiet status line (V3.3) ---------------------------------------------------
+/* ---- vertex editor (V3.3) --------------------------------------------------------------------------
 
-   🪤 NOT A NEW COMPONENT AND NOT A TOAST. The toast has a 2200 ms standing time and exactly ONE slot
-   (map-features.js:178/:198) -- useless for a state that holds for the length of a coastline. The plan
-   points at #open-path-ends-chip, which already is this thing: role="status" aria-live="polite",
-   edit-only, bottom centre (where the eye is while drawing, not top), fully token-based. That element
-   belongs to the detached-path-ends counter and repaints itself from that state, so sharing it would
-   mean two features overwriting each other's text. This is the exact rebuild the plan permits.
+   🪤 NO STATUS COMPONENT OF ITS OWN. An earlier draft grew a private chip at the bottom of the map;
+   the owner's verdict was that it is more furniture than the feature is worth, and he is right -- the
+   messages are short and occasional, which is what the house toast is for, and the handles on the map
+   are themselves the permanent "you are editing this" signal. Everything below is the handles.
 
-   One slot ABOVE #open-path-ends-chip (132px) which is itself one above .region-operation-chip (86px),
-   for the same reason the comment there gives: all three are edit-mode chips and may stand at once. */
-.ecosystem-edit-chip[hidden] {
-	display: none !important;
-}
-
-.ecosystem-edit-chip {
-	position: fixed;
-	left: 50%;
-	bottom: 178px;
-	z-index: var(--z-dialog);
-	display: flex;
-	align-items: center;
-	gap: var(--space-10);
-	max-width: min(560px, calc(100vw - var(--space-24) - var(--space-8)));
-	padding: var(--space-10) var(--space-12);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-md);
-	background: var(--color-panel);
-	box-shadow: var(--shadow-panel);
-	color: var(--color-text);
-	font-family: var(--font-ui);
-	font-size: var(--font-size-small);
-	line-height: var(--leading-snug);
-	transform: translateX(-50%);
-}
-
-/* Tone is carried by the dot and the border, never by the text: the line is read while the eye is on
-   the map, and a colour change of the whole line would pull attention away from the corner being
-   dragged. Default is the resting hint. */
-.ecosystem-edit-chip__dot {
-	flex: 0 0 auto;
-	width: var(--space-10);
-	height: var(--space-10);
-	border-radius: 50%;
-	background: var(--color-text-muted);
-}
-
-.ecosystem-edit-chip[data-tone="busy"] {
-	border-color: var(--color-accent);
-}
-
-.ecosystem-edit-chip[data-tone="busy"] .ecosystem-edit-chip__dot {
-	background: var(--color-accent);
-}
-
-.ecosystem-edit-chip[data-tone="warning"] {
-	border-color: var(--color-warning-soft-border);
-	background: var(--color-warning-soft);
-	color: var(--color-warning-soft-text);
-}
-
-.ecosystem-edit-chip[data-tone="warning"] .ecosystem-edit-chip__dot {
-	background: var(--color-warning-soft-text);
-}
-
-/* Soft, like every "the rest" button (§12): closing the editor is not the main action of this line --
-   dragging corners is. */
-.ecosystem-edit-chip button {
-	flex: 0 0 auto;
-	padding: var(--space-6) var(--space-8);
-	border: 1px solid var(--color-button-soft-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
-	color: var(--color-button-soft-text);
-	cursor: pointer;
-	font: inherit;
-}
-
-.ecosystem-edit-chip button:hover {
-	background: var(--color-button-soft-hover);
-}
-
-.ecosystem-edit-chip button:focus-visible {
-	outline: none;
-	box-shadow: var(--focus-ring);
-}
-
-/* The drag handles reuse .path-edit-handle-marker (js side). Its blue is the documented
+   The drag handles reuse .path-edit-handle-marker (js side). Its blue is the documented
    "edit in progress" exception in docs/design-language.md, so reusing the class keeps that exception in
    ONE place instead of adding a fourth copy of the colour. Only the cursor is ours. */
 .ecosystem-edit-handle-marker {

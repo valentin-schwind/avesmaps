@@ -189,5 +189,23 @@ function buildEcosystemAreaLayer(area) {
 		}
 	});
 
+	// V3.3: DOUBLE-CLICK opens the vertex editor -- a single click still only selects (owner
+	// 2026-07-26). Not merely taste: opening on the selection would let the FIRST click of a
+	// double-click raise the handles and the second one land on a handle that has just appeared, and a
+	// double-click on a handle deletes a corner. That is the collision V3.2 flagged for the drawing
+	// tool. Stopping the event also keeps it from reaching the map, where doubleClickZoom would fire and
+	// where a double-click means "finish editing".
+	layer.on("dblclick", (event) => {
+		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
+			return;
+		}
+		if (event?.originalEvent) {
+			L.DomEvent.stop(event);
+		}
+		if (typeof openEcosystemGeometryEdit === "function") {
+			openEcosystemGeometryEdit(area.public_id);
+		}
+	});
+
 	return layer;
 }
