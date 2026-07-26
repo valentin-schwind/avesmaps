@@ -24,6 +24,13 @@ from ecosystem_raster import (
     split_water,
     water_mask,
 )
+from ecosystem_labels import (
+    REGION_KIND_BY_SUBTYPE,
+    LandscapeLabel,
+    contested,
+    read_labels,
+    resolve,
+)
 from ecosystem_shapes import build_geometry, component_rings, count_positions, simplify_ring
 
 DEEP_WATER = (40, 90, 170)      # deep ocean blue: B-G=80, B-R=130, hue ~108
@@ -189,6 +196,98 @@ def test_count_positions_covers_holes_and_parts():
     mask[40:50, 40:50] = True
     multi = build_geometry(component_rings(mask), size=512, ratio=0.002)
     assert count_positions(multi) == 10, "two closed squares -> 2 x 5 positions"
+
+
+def three_blob_scene():
+    """A 512px image with three separate blobs; component ids come from OpenCV."""
+    mask = np.zeros((512, 512), dtype=np.uint8)
+    mask[100:140, 100:140] = 1        # blob A
+    mask[100:140, 300:340] = 1        # blob B
+    mask[400:440, 400:440] = 1        # blob C
+    _, labels, _, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    return labels
+
+
+def test_label_on_the_blob_resolves_at_radius_zero():
+    labels = three_blob_scene()
+    # pixel (120,120) at size 512 -> 0.5 px per unit -> x = 120.5/0.5 = 241, y = 1024 - 241
+    point = LandscapeLabel("A", "insel", 241.0, 1024.0 - 241.0, "", "id-a")
+    assignment, unresolved = resolve([point], labels, size=512)
+    assert not unresolved and assignment[0] == labels[120, 120]
+
+
+def test_label_beside_a_small_island_still_finds_it():
+    """Only 14 of 95 island labels sit ON their island; the rest stand beside it, because the
+    island is too small to hold the text. x = 285 lands at column 142 -- blob A ends at column
+    139, so this point is genuinely OUTSIDE the blob, 3 px = 6 map units away."""
+    labels = three_blob_scene()
+    point = LandscapeLabel("A", "insel", 285.0, 1024.0 - 241.0, "", "id-a")
+    assert labels[120, 142] == 0, "the fixture must place this point off the blob"
+    assignment, unresolved = resolve([point], labels, size=512, cap_units=8.0)
+    assert not unresolved and assignment[0] == labels[120, 120]
+
+
+def test_label_beyond_the_cap_stays_unresolved():
+    labels = three_blob_scene()
+    point = LandscapeLabel("nowhere", "insel", 900.0, 900.0, "", "id-x")
+    assignment, unresolved = resolve([point], labels, size=512, cap_units=8.0)
+    assert not assignment and [u.name for u in unresolved] == ["nowhere"]
+
+
+def test_two_labels_on_one_component_are_reported_not_resolved():
+    labels = three_blob_scene()
+    first = LandscapeLabel("A1", "insel", 241.0, 1024.0 - 241.0, "", "l1")
+    second = LandscapeLabel("A2", "insel", 243.0, 1024.0 - 243.0, "", "l2")
+    assignment, _ = resolve([first, second], labels, size=512)
+    conflicts = contested(assignment)
+    assert len(conflicts) == 1 and sorted(next(iter(conflicts.values()))) == [0, 1]
+
+
+def test_excluded_component_is_never_claimed():
+    """The mainland must not be handed to an island label standing on the coast."""
+    labels = three_blob_scene()
+    mainland = labels[120, 120]
+    point = LandscapeLabel("A", "insel", 241.0, 1024.0 - 241.0, "", "id-a")
+    assignment, unresolved = resolve([point], labels, size=512, exclude=mainland)
+    assert not assignment and unresolved
+
+
+def test_subtype_maps_to_the_seeded_kind():
+    assert REGION_KIND_BY_SUBTYPE == {
+        "see": "topographie",
+        "insel": "derographisch",
+        "kontinent": "derographisch",
+        "kueste": "topographie",
+        "wueste": "vegetation",
+    }
+
+
+def test_land_and_water_never_share_a_kind():
+    """🔴 An island and the water around it share the same pixel edge. If both ended up in the
+    same kind, two areas with the same outline would sit in the same Leaflet pane and nobody
+    could tell them apart. Land is derographisch, water is topographie -- always."""
+    land_kinds = {REGION_KIND_BY_SUBTYPE[s] for s in ("insel", "kontinent")}
+    water_kinds = {REGION_KIND_BY_SUBTYPE[s] for s in ("see", "kueste")}
+    assert land_kinds == {"derographisch"}
+    assert water_kinds == {"topographie"}
+    assert not (land_kinds & water_kinds)
+
+
+def test_read_labels_keeps_only_points_of_the_wanted_subtypes():
+    payload = {"features": [
+        {"properties": {"feature_type": "label", "feature_subtype": "see", "name": "L",
+                        "wiki_url": "https://example.invalid/wiki/L", "public_id": "p1"},
+         "geometry": {"type": "Point", "coordinates": [10.0, 20.0]}},
+        {"properties": {"feature_type": "label", "feature_subtype": "wald", "name": "W",
+                        "public_id": "p2"},
+         "geometry": {"type": "Point", "coordinates": [1.0, 2.0]}},
+        {"properties": {"feature_type": "location", "feature_subtype": "see", "name": "X",
+                        "public_id": "p3"},
+         "geometry": {"type": "Point", "coordinates": [3.0, 4.0]}},
+    ]}
+    found = read_labels(payload, {"see"})
+    assert [label.name for label in found] == ["L"]
+    assert found[0].x == 10.0 and found[0].y == 20.0 and found[0].public_id == "p1"
 
 
 def _run() -> int:
