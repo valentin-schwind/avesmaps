@@ -13,11 +13,17 @@ let outlierLoaded = false;
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 const pathSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
-// Lage: innerorts | außerorts | unklar (leer = alle). Der Server entscheidet
+// Lage: innerorts | außerorts | unklar. Der Server entscheidet
 // (api/_internal/wiki/place-scope.php) und liefert place_scope_label je Zeile --
-// hier wird nur gefiltert, nie neu geurteilt. Bewusst NICHT vorbelegt: siehe die
-// Begründung an der Siedlungs-Facette in js/review/review-subjects.js.
-const pathScopeFilter = new Set();
+// hier wird nur gefiltert, nie neu geurteilt.
+//
+// VORBELEGT auf „außerorts + unklar" (Owner 2026-07-27): Gassen und Stadtwege sollen von
+// vornherein aus der Arbeitsliste sein, „unklar" bleibt drin, weil es ungeprüft ist und
+// niemand es übersehen soll. Das ist ein standardmäßig-AN Filter -- erlaubt ist er nur,
+// weil `isActive` ihn mitzählt und der Knopf ihn dadurch als aktiv ausweist („Filter (1)").
+// Ein vorbelegter Filter, den der Knopf verschweigt, wäre der unsichtbare Lügner aus der
+// „heute"-Regel in js/ui/filter-menu.js.
+const pathScopeFilter = new Set(["außerorts", "unklar"]);
 
 // Verlauf cases (Task 6): own list + load state, kept separate from pathSyncData (the match list).
 let verlaufCases = []; // flat list of all loaded cases (open + deferred + archived)

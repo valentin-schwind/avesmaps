@@ -819,6 +819,13 @@ const settlementCoatFilter = { value: "" }; // "" = all | "yes" | "no" (has_coat
 const settlementImageFilter = { value: "" }; // "" = all | "yes" | "no" (image_count > 0)
 const SETTLEMENT_COAT_OPTIONS = [{ value: "yes", label: "ja" }, { value: "no", label: "nein" }];
 const SETTLEMENT_IMAGE_OPTIONS = [{ value: "yes", label: "ja" }, { value: "no", label: "nein" }];
+// Lage: innerorts | außerorts | unklar -- UNTERFILTER der Bauwerke, wirkt NUR auf
+// settlement_class 'gebaeude' (eine Stadt liegt nicht in einer Stadt). Das Urteil kommt vom
+// Server (api/_internal/wiki/place-scope.php, Feld place_scope_label), hier wird nur
+// gefiltert. VORBELEGT auf „außerorts + unklar" (Owner 2026-07-27) -- identisch zur
+// Panel-Liste in js/review/review-settlement-list.js, damit Fenster und Panel dieselbe
+// Frage gleich beantworten; `isActive` zählt die Vorbelegung mit, der Knopf weist sie aus.
+const settlementScopeFilter = new Set(["außerorts", "unklar"]);
 // Assignment axis -- now a funnel section (Alle / Zugeordnet / Nicht zugeordnet) instead of the old
 // standalone amber chip. "" = all | "assigned" (has a territory) | "unassigned" (a real gap: on the
 // map, no territory). "unassigned" deliberately bypasses the tree selection (a gap sits under no tree
@@ -926,7 +933,44 @@ function settlementPassesBaseFilters(item) {
 	if (settlementCoatFilter.value === "no" && item.has_coat) return false;
 	if (settlementImageFilter.value === "yes" && !(Number(item.image_count) > 0)) return false;
 	if (settlementImageFilter.value === "no" && Number(item.image_count) > 0) return false;
+	if (!settlementScopeMatch(item)) return false;
 	return true;
+}
+
+// ===== Lage (innerorts/außerorts) -- Unterfilter der Bauwerke ============================
+
+// Bauwerk? Über den stabilen Slug, NICHT über die Beschriftung: „Besondere Bauwerke/Stätten"
+// ist UI-Text und darf sich ändern, `gebaeude` nicht (AGENTS.md §2/§8).
+function settlementIsBuilding(item) {
+	return String(item && item.settlement_class) === "gebaeude";
+}
+
+// Ohne Urteil (Registry noch nicht neu gesynct) gilt „außerorts" -- die sichere Seite: die
+// Zeile bleibt sichtbar, statt still zu verschwinden.
+function settlementRowScope(item) {
+	return String((item && item.place_scope_label) || "").trim() || "außerorts";
+}
+
+// Wirkt NUR auf Bauwerke: Städte und Dörfer sollen nicht verschwinden, weil sie eine Frage
+// nicht beantworten können, die ihnen niemand gestellt hat.
+function settlementScopeMatch(item) {
+	if (settlementScopeFilter.size === 0 || !settlementIsBuilding(item)) return true;
+	return settlementScopeFilter.has(settlementRowScope(item));
+}
+
+// Zähler NUR aus den Bauwerks-Zeilen, und aus der Menge OHNE die eigene Auswahl -- sonst
+// verschwände „innerorts" aus dem Menü, sobald es abgewählt ist, und man käme aus der
+// Vorbelegung nicht mehr heraus.
+function settlementScopeOptions() {
+	const byScope = new Map();
+	for (const item of settlementBaseFilteredItems()) {
+		if (!settlementIsBuilding(item)) continue;
+		const scope = settlementRowScope(item);
+		if (!byScope.has(scope)) byScope.set(scope, { value: scope, label: scope, count: 0 });
+		byScope.get(scope).count += 1;
+	}
+	const order = ["außerorts", "innerorts", "unklar"];
+	return [...byScope.values()].sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
 }
 
 // Is this settlement assigned to a territory at all? (The row's green "zugeordnet" state.)
@@ -2430,6 +2474,7 @@ function renderSettlementTabs() {
 const SETTLEMENT_FILTER_SECTIONS = [
 	{ menuId: "seAssignmentFilterMenu", kind: "single", state: settlementAssignmentFilter, getOptions: settlementAssignmentOptions, label: "Zuordnung", isActive: () => Boolean(settlementAssignmentFilter.value) },
 	{ menuId: "seTypeFilterMenu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
+	{ menuId: "seScopeFilterMenu", kind: "multi", state: settlementScopeFilter, getOptions: settlementScopeOptions, label: "Lage", isActive: () => settlementScopeFilter.size > 0 },
 	{ menuId: "seContinentFilterMenu", kind: "multi", state: settlementContinentFilterMid, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilterMid.size === 1 && settlementContinentFilterMid.has("Aventurien")) },
 	{ menuId: "seSourceFilterMenu", kind: "single", state: settlementSourceFilter, options: SETTLEMENT_SOURCE_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
 	{ menuId: "seCoatFilterMenu", kind: "single", state: settlementCoatFilter, options: SETTLEMENT_COAT_OPTIONS, label: "Wappen", isActive: () => Boolean(settlementCoatFilter.value) },
@@ -2531,6 +2576,9 @@ function renderSettlementFilters() {
 		`<div id="seFilterMenu" class="type-filter__menu" hidden>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Zuordnung</div><div id="seAssignmentFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="seTypeFilterMenu"></div></div>` +
+		// Lage haengt als UNTERabschnitt am Typ (eingerueckt, ohne Trennstrich): sie gilt nur
+		// fuer Bauwerke. Gleiche Optik wie im Panel (css/features/review-panel.css).
+		`<div class="type-filter__section type-filter__section--sub"><div class="type-filter__section-title">↳ Lage (nur Bauwerke)</div><div id="seScopeFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="seContinentFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="seSourceFilterMenu"></div></div>` +
 		`<div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="seCoatFilterMenu"></div></div>` +

@@ -70,13 +70,16 @@ assert.equal(rowScope({ place_scope_label: "   " }), "außerorts");
 assert.equal(rowScope({ place_scope_label: null }), "außerorts");
 console.log("path-scope-default ok");
 
-// --- the filter is not pre-selected ------------------------------------------------------
-// An on-by-default filter that hides rows is the "invisible liar" the funnel exists to
-// avoid (js/ui/filter-menu.js). The empty Set is load-bearing, not an oversight.
+// --- the filter IS pre-selected, and the button must say so ------------------------------
+// Owner 2026-07-27: "außerorts + unklar" on, "innerorts" off. An on-by-default filter is
+// only allowed because isActive() counts it, so the funnel button reads "Filter (1)" --
+// otherwise it would be the invisible liar the funnel exists to prevent.
+const PRESELECT = /new Set\(\["außerorts", "unklar"\]\)/;
+assert.match(pathSource, PRESELECT, "pathScopeFilter must start with außerorts+unklar selected");
 assert.match(
 	pathSource,
-	/const pathScopeFilter = new Set\(\);/,
-	"pathScopeFilter must start EMPTY (= show everything) -- see the funnel's own rule",
+	/isActive: \(\) => pathScopeFilter\.size > 0/,
+	"the pre-selection MUST make the funnel button show as active",
 );
 // And it must actually be wired into the row check, or the menu would be decoration.
 assert.match(
@@ -146,16 +149,46 @@ assert.equal(matches({ settlement_class: "dorf" }), true);
 // A building without a verdict yet stays on the visible side.
 select("außerorts");
 assert.equal(matches({ settlement_class: "gebaeude" }), true, "no verdict -> stays visible");
+
+// The default selection itself: außerorts + unklar in, innerorts out.
+select("außerorts", "unklar");
+assert.equal(matches(burgAusserorts), true);
+assert.equal(matches({ settlement_class: "gebaeude", place_scope_label: "unklar" }), true,
+	"unklar stays IN by default -- it is unchecked, and nobody should overlook it");
+assert.equal(matches(tempelInnerorts), false);
 console.log("settlement-subfilter ok");
 
-// The section must start hidden in the markup, or it flashes before the first render.
-const indexHtml = readFileSync(path.join(repoRoot, "index.html"), "utf8");
+// --- the pre-selection, in all three surfaces --------------------------------------------
+// Panel list, path list and the settlement editor window must agree; two windows onto the
+// same data that answer the same question differently is worse than no filter at all.
+const editorSource = readFileSync(path.join(repoRoot, "html", "wiki-sync-settlement-editor.html"), "utf8");
+assert.match(settlementSource, PRESELECT, "panel settlement list: pre-selected");
+assert.match(editorSource, PRESELECT, "settlement EDITOR window: same pre-selection");
 assert.match(
-	indexHtml,
-	/id="settlement-scope-filter-section"[^>]*\shidden/,
-	"the Lage sub-section must be hidden by default -- it only belongs to the buildings",
+	settlementSource,
+	/isActive: \(\) => settlementScopeFilter\.size > 0/,
+	"panel: pre-selection must show in the funnel button",
 );
-assert.match(settlementSource, /const settlementScopeFilter = new Set\(\);/, "must start EMPTY");
+assert.match(
+	editorSource,
+	/isActive: \(\) => settlementScopeFilter\.size > 0/,
+	"editor: pre-selection must show in the funnel button",
+);
+// The editor must filter through the same rule, and only for buildings.
+assert.match(editorSource, /if \(!settlementScopeMatch\(item\)\) return false;/, "editor: wired into the row check");
+assert.match(
+	editorSource,
+	/settlementScopeFilter\.size === 0 \|\| !settlementIsBuilding\(item\)/,
+	"editor: must leave non-buildings alone",
+);
+
+// 💣 The sub-section must NOT be hidden any more. With a pre-selection, a hidden section
+// would filter rows away while its checkboxes are unreachable.
+const indexHtml = readFileSync(path.join(repoRoot, "index.html"), "utf8");
+const sectionTag = /(<div class="type-filter__section type-filter__section--sub" id="settlement-scope-filter-section"[^>]*>)/.exec(indexHtml);
+assert.ok(sectionTag, "the Lage sub-section must exist in index.html");
+assert.ok(!/\shidden[\s>]/.test(sectionTag[1]), "the Lage sub-section must be VISIBLE -- it carries a default selection");
+assert.match(editorSource, /type-filter__section--sub/, "editor: Lage renders as an indented sub-section too");
 console.log("settlement-subfilter-markup ok");
 
 console.log("\nALL PLACE-SCOPE FILTER TESTS PASSED");

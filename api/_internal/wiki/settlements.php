@@ -1413,6 +1413,25 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
          FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>'' ORDER BY name ASC"
     )->fetchAll(PDO::FETCH_ASSOC);
 
+    // Innerorts/ausserorts, identisch zu avesmapsWikiSettlementListLocations: EIN Index +
+    // EINE title->standort-Map fuer die ganze Liste, nie je Zeile. Der Siedlungseditor und
+    // die Panel-Liste sind zwei Fenster auf dieselben Daten -- sie muessen dieselbe Antwort
+    // geben, sonst filtert das eine anders als das andere.
+    $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo);
+    $standortByKey = [];
+    $standortRows = $pdo->query('SELECT title, standort FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " WHERE standort IS NOT NULL AND standort <> ''");
+    foreach ($standortRows !== false ? $standortRows->fetchAll(PDO::FETCH_ASSOC) : [] as $standortRow) {
+        $standortKey = avesmapsWikiSyncCreateMatchKey((string) ($standortRow['title'] ?? ''));
+        if ($standortKey !== '') {
+            $standortByKey[$standortKey] = (string) ($standortRow['standort'] ?? '');
+        }
+    }
+    $scopeOf = static function (string $title) use (&$standortByKey, $scopeIndex): array {
+        $key = avesmapsWikiSyncCreateMatchKey($title);
+        $raw = $key !== '' ? ($standortByKey[$key] ?? '') : '';
+        return avesmapsPlaceScopeClassifyWithIndex($raw, $scopeIndex);
+    };
+
     $items = [];
     $mapKeys = [];
     $onMap = 0;
@@ -1501,6 +1520,9 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             }
         }
 
+        // Wie in list_locations: der Registry-TITEL traegt das Wiki-Feld, nicht der Kartenname.
+        $mapScope = $scopeOf(is_array($ws) && !empty($ws['title']) ? (string) $ws['title'] : $name);
+
         $items[] = [
             'public_id' => (string) $row['public_id'],
             'name' => $name,
@@ -1521,6 +1543,9 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
             'other_source' => $otherSource,
             'is_ruined' => !empty($props['is_ruined']),
             'building_type' => (string) ($props['building_type'] ?? ''),
+            'place_scope' => $mapScope['scope'],
+            'place_scope_label' => avesmapsPlaceScopeLabel($mapScope['scope']),
+            'place_settlement' => $mapScope['settlement'],
         ];
     }
 
@@ -1528,7 +1553,7 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
     // Karte liegen — identische Quelle/Filter/Ausschluss/Dedup wie avesmapsWikiSettlementListLocations.
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
     $regRows = $pdo->query(
-        'SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url FROM '
+        'SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url, standort FROM '
         . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC'
     )->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
@@ -1553,6 +1578,7 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         }
         $seen[$bk] = true;
         $wikiOnly++;
+        $regScope = avesmapsPlaceScopeClassifyWithIndex((string) ($r['standort'] ?? ''), $scopeIndex);
 
         $items[] = [
             'public_id' => '',

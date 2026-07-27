@@ -141,6 +141,17 @@
 	padding-top: 2px;
 	border-top: 1px solid var(--color-divider);
 }
+/* Unterabschnitt: gehoert zum Abschnitt DARUEBER, statt neben ihm zu stehen ("Lage" gilt nur
+   fuer Bauwerke und haengt am Typ). Eingerueckt und OHNE den Trennstrich, der sonst zwei
+   gleichrangige Abschnitte scheidet -- der Strich hoebe die Zugehoerigkeit gerade auf.
+   Spiegelbild der Regel in css/features/review-panel.css: dieselbe Komponente, zwei Seiten. */
+.type-filter__section--sub {
+	margin-left: var(--space-4);
+}
+.type-filter__section + .type-filter__section--sub {
+	border-top: 0;
+	margin-top: 0;
+}
 /* Zahlenbereich im Trichter (BF-Zeitraum), gespiegelt aus css/features/review-panel.css --
    dieselbe Komponente (js/ui/filter-menu.js) wird von den Editor-iframes UND dem Panel geladen,
    und jede Seite bringt ihre eigenen .type-filter__*-Regeln mit. Die zwei Felder stehen UNTER den

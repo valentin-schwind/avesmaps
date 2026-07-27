@@ -10,11 +10,19 @@ const settlementContinentFilter = new Set(["Aventurien"]); // Default: nur Avent
 const settlementSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
 const settlementCoatFilter = { value: "" };   // Wappen: "" = alle | "ja" | "nein"
 const settlementImageFilter = { value: "" };  // Bilder: "" = alle | "ja" | "nein"
-// Lage: innerorts | außerorts | unklar (leer = alle). UNTERFILTER von „Typ: Besondere
-// Bauwerke/Stätten" — bei einer Stadt ist die Frage sinnlos (eine Stadt liegt nicht in
-// einer Stadt), deshalb erscheint der Abschnitt nur mit den Bauwerken und wirkt auch nur
-// auf sie. Das Urteil fällt der Server (api/_internal/wiki/place-scope.php).
-const settlementScopeFilter = new Set();
+// Lage: innerorts | außerorts | unklar. UNTERFILTER der Bauwerke -- er steht eingerückt
+// unter „Typ" und wirkt AUSSCHLIESSLICH auf Bauwerks-Zeilen; bei einer Stadt ist die Frage
+// sinnlos, eine Stadt liegt nicht in einer Stadt. Das Urteil fällt der Server
+// (api/_internal/wiki/place-scope.php).
+//
+// VORBELEGT auf „außerorts + unklar" (Owner 2026-07-27): Stadttempel und Gassen sollen von
+// vornherein draußen sein, „unklar" bleibt drin, weil es ungeprüft ist.
+// 💣 Deshalb ist der Abschnitt IMMER sichtbar und hängt NICHT mehr an der Typ-Auswahl: ein
+// vorbelegter Filter, dessen Kästchen man erst über einen anderen Filter hervorholen muss,
+// blendet Zeilen aus, ohne dass irgendetwas das sagt -- genau der unsichtbare Lügner, den
+// die „heute"-Regel in js/ui/filter-menu.js verbietet. `isActive` zählt ihn mit, der Knopf
+// weist ihn also als aktiv aus.
+const settlementScopeFilter = new Set(["außerorts", "unklar"]);
 
 // ===== Facetten-Werte AUS DEN ZEILEN =====================================================
 // Die Registry (js/review/review-subjects.js) sagt, WELCHES Feld eine Facette liest; welche
@@ -256,22 +264,6 @@ function settlementBuildingLabels() {
 	return labels;
 }
 
-// Der Unterfilter ist nur dann überhaupt anwendbar, wenn der Typ-Filter die Bauwerke
-// ausgewählt hat. Genau das macht ihn zum UNTERfilter statt zu einem sechsten
-// gleichrangigen Abschnitt.
-function settlementScopeApplies() {
-	if (settlementTypeFilter.size === 0) {
-		return false;
-	}
-	const buildingLabels = settlementBuildingLabels();
-	for (const label of settlementTypeFilter) {
-		if (buildingLabels.has(label)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 // Lage einer Bauwerks-Zeile. Ohne Urteil (Registry noch nicht neu gesynct) gilt
 // „außerorts" -- die sichere Seite: die Zeile bleibt sichtbar, statt still zu
 // verschwinden. Gleiche Regel wie pathRowScope in review-path-sync.js.
@@ -280,23 +272,11 @@ function settlementRowScope(item) {
 }
 
 // Optionen NUR aus den Bauwerks-Zeilen: sonst zählte der Unterfilter die 2400 Städte und
-// Dörfer als „außerorts" mit und behauptete eine Menge, die er gar nicht filtert.
-// Nebenwirkung mit Absicht: hier wird auch die Sichtbarkeit des Abschnitts nachgeführt.
-// attachFilterMenu (js/app/utils.js) bietet keinen eigenen Haken dafür, ruft aber bei
-// JEDEM rebuild alle getOptions -- das ist die eine Stelle, die zuverlässig mitläuft.
+// Dörfer als „außerorts" mit und behauptete eine Menge, die er gar nicht filtert. Die
+// Basismenge ist bewusst die OHNE die eigene Auswahl -- sonst verschwände „innerorts" aus
+// dem Menü, sobald es abgewählt ist (eine Option entsteht nur für Werte, die vorkommen),
+// und man käme aus der Vorbelegung nicht mehr heraus.
 function settlementScopeOptions() {
-	const applies = settlementScopeApplies();
-	const section = document.getElementById("settlement-scope-filter-section");
-	if (section) {
-		section.hidden = !applies;
-	}
-	if (!applies) {
-		// Gestrandete Auswahl abwählen: eine Auswahl, die weiterfiltert, während ihr
-		// Kästchen unsichtbar ist, ist genau der Filter, den man nicht mehr loswird
-		// (dieselbe Regel wie wikiSyncPruneFacetState).
-		settlementScopeFilter.clear();
-		return [];
-	}
 	const byScope = new Map();
 	settlementBaseFilteredItems().filter(settlementIsBuilding).forEach((item) => {
 		const scope = settlementRowScope(item);
