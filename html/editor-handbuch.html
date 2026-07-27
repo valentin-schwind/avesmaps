@@ -186,7 +186,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 27.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 28.07.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -216,11 +216,11 @@
 				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten">Karten-Features</a>
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
-						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern">Siedlungen</a></li>
+						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter">Siedlungen</a></li>
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur">Territorien</a></li>
-						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie kraftlinie wald gebirge meer">Regionen</a></li>
+						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie kraftlinie wald gebirge meer vulkan tal label zuweisen vorschau">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
-						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen">Wege</a></li>
+						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen lage innerorts außerorts filter">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz produkte publikationen materialien">Abenteuer</a></li>
 						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien">Kartensammlungen</a></li>
 						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle">Vorkommen</a></li>
@@ -256,7 +256,7 @@
 				</li>
 				<li><a href="#nachschlagen" data-keywords="referenz listen tabelle">Nachschlagen</a>
 					<ul>
-						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl">Die Auswahllisten</a></li>
+						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal">Die Auswahllisten</a></li>
 						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet">Die beiden Kontextmenüs</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay">Die sechs Sync-Editoren</a></li>
@@ -515,7 +515,8 @@
 					<tr><td><strong>🔗 Links prüfen</strong></td><td>Prüft die hinterlegten Quellen-Links auf Erreichbarkeit.</td></tr>
 				</table>
 				<h4>Die Liste finden lernen</h4>
-				<p>Die mittlere Spalte hat oben <strong>„Alle"</strong>, <strong>„Platziert"</strong> und <strong>„Fehlt"</strong>, daneben das Suchfeld <em>„Name suchen…"</em> und ein Dropdown <strong>„Filter ▾"</strong> mit sechs Abschnitten: <strong>Zuordnung</strong> („Alle" / „Zugeordnet" / „Nicht zugeordnet"), <strong>Typ</strong>, <strong>Kontinent</strong> (voreingestellt auf Aventurien), <strong>Quelle</strong> („Wiki" / „Andere" / „Keine"), <strong>Wappen</strong> und <strong>Bilder</strong>. Sind Filter aktiv, zeigt der Knopf ihre Anzahl.</p>
+				<p>Die mittlere Spalte hat oben <strong>„Alle"</strong>, <strong>„Platziert"</strong> und <strong>„Fehlt"</strong>, daneben das Suchfeld <em>„Name suchen…"</em> und ein Dropdown <strong>„Filter ▾"</strong> mit sieben Abschnitten: <strong>Zuordnung</strong> („Alle" / „Zugeordnet" / „Nicht zugeordnet"), <strong>Typ</strong>, darunter eingerückt <strong>„↳ Lage (nur Bauwerke)"</strong> („außerorts" / „innerorts" / „unklar"), <strong>Kontinent</strong> (voreingestellt auf Aventurien), <strong>Quelle</strong> („Wiki" / „Andere" / „Keine"), <strong>Wappen</strong> und <strong>Bilder</strong>. Sind Filter aktiv, zeigt der Knopf ihre Anzahl.</p>
+				<div class="hb-note hb-tip"><strong>„Lage" steht von vornherein auf „außerorts" und „unklar".</strong> Bauwerke <em>innerhalb</em> einer Stadt — Gassen, Tempel, Stadthäuser — sind damit von Anfang an aus der Liste; sie gehören nur selten in die Arbeitsliste. Suchst du eines davon und findest es nicht, hak zusätzlich <strong>„innerorts"</strong> an. Verschwiegen wird die Vorbelegung nicht: der Knopf zählt sie als gesetzten Filter mit. Und sie wirkt <em>nur</em> auf Bauwerke — Dörfer und Städte lässt sie unangetastet, auch wenn du sie zusammen mit Bauwerken anzeigst.</div>
 				<div class="hb-note hb-tip"><strong>Die Zähler in den Reitern zählen anders, als du denkst.</strong> Sie beziehen sich nur auf den gewählten Kontinent — Suche, Typ und die übrigen Filter gehen <em>nicht</em> ein. „Platziert (312)" bleibt also stehen, während die Liste darunter drei Zeilen zeigt. Das ist kein Fehler.</div>
 				<p>Im Abschnitt <strong>„Zuordnung"</strong> des Filters zeigt <strong>„Nicht zugeordnet"</strong> die platzierten Siedlungen ohne Territorium — deine Arbeitsliste für die Zuordnung —, <strong>„Zugeordnet"</strong> die mit Territorium. Solange „Nicht zugeordnet" aktiv ist, wird die Baum-Auswahl links ausgeblendet.</p>
 
@@ -618,11 +619,12 @@
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf die Beschriftung → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neues Label" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Regionen</p>
 				<p>„Regionen" sind die <strong>Landschaftsnamen auf der Karte</strong> — das Svellttal, der Farindelwald, das Meer der Sieben Winde. Technisch sind es Beschriftungen, keine Flächen; der Dialog heißt darum <em>„Region bearbeiten"</em>.</p>
 				<ul class="hb-steps">
-					<li><strong>Identität</strong> — <em>Text</em> und <em>Kategorie</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Es gibt 19 Kategorien, nicht nur „Region" — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>.</li>
+					<li><strong>Identität</strong> — <em>Text</em> und <em>Kategorie</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Es gibt 21 Kategorien, nicht nur „Region" — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>.</li>
 					<li><strong>Darstellung</strong> — Größe, Rotation, „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint.</li>
 					<li><strong>Wiki-Landschaft</strong> — „Zuweisen" / „Sync" / „Entfernen".</li>
 					<li><strong>Andere Quelle</strong> — für Belege außerhalb des Wikis, mit frei wählbarem Linktext.</li>
 				</ul>
+				<p>Für viele Beschriftungen auf einmal führt der Weg über die Liste: unter <strong>Editor → WikiSync → Regionen</strong> trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
 				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
 
 				<h3 id="kraftlinien" class="hb-sub">Kraftlinien</h3>
@@ -645,7 +647,7 @@
 					<li><strong>Nicht zugeordnete Artikel</strong> nennt die Statuszeile beim Namen. Meist steckt eine abweichende Schreibweise dahinter („Brücke nach" gegenüber „Brücke von Akrabaal") — das ist eine Aufgabe für dich, kein Fehler.</li>
 					<li>Nach dem Lauf die <strong>Seite neu laden</strong>, damit die neuen Zeilen in der Infobox erscheinen.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Nicht filtern nach „Region".</strong> Die allermeisten Landschaftsbeschriftungen tragen eine der 18 <em>anderen</em> Kategorien. Wer in einer Liste nur nach „Region" sucht, übersieht den größten Teil.</div>
+				<div class="hb-note hb-tip"><strong>Nicht filtern nach „Region".</strong> Die allermeisten Landschaftsbeschriftungen tragen eine der 20 <em>anderen</em> Kategorien. Wer in einer Liste nur nach „Region" sucht, übersieht den größten Teil.</div>
 
 				<h3 id="wege" class="hb-sub">Wege</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf den Weg → „Bearbeiten" / „Verlauf bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege</p>
@@ -835,6 +837,8 @@
 				<div class="hb-note hb-check"><strong>Selbst prüfen:</strong> Im Bearbeiten-Modus markieren die Häkchen <strong>„Unverbunden"</strong> (pinker Ring) und <strong>„Kreuzungen ≤ 2 Wege"</strong> (türkiser Ring) genau diese Fehler direkt auf der Karte. Alle neun Häkchen stehen unter <a href="#n-haekchen">Die Prüf-Häkchen</a>.</div>
 				<p>Die Wege-Liste im WikiSync-Reiter hat drei Ansichten mehr als die anderen Sorten: <strong>„Konflikte"</strong>, <strong>„Ausreißer"</strong> und <strong>„Flussrichtung unbekannt"</strong> — alle drei fertige Arbeitslisten.</p>
 				<p><strong>„Ausreißer"</strong> findet rein geometrisch Segmente, die weitab vom Rest ihres Weges liegen — also vermutlich dem falschen Wiki-Weg zugeordnet sind. Kennt das Wiki einen Verlauf, gleicht die Liste zusätzlich damit ab: Klumpen, die dem Verlauf sauber folgen, sortiert sie von selbst aus, mehrdeutige bleiben mit einem Hinweis stehen. Ein Klick auf eine Zeile hebt den <em>ganzen</em> Weg auf der Karte hervor; das abliegende Stück fällt darin von selbst auf. Gehört ein Klumpen doch zum Weg, nimmst du ihn mit <strong>„gehört zum Weg"</strong> dauerhaft aus der Liste — er taucht erst wieder auf, wenn der Weg neu gezeichnet wird. Sonst korrigierst du von Hand, Segment für Segment: einen Sammelknopf, der alle Treffer auf einmal umschreibt, gibt es bewusst nicht.</p>
+
+				<div class="hb-note hb-tip"><strong>Im Filter der Wege-Liste steht „Lage" schon auf „außerorts" und „unklar".</strong> Stadtgassen und Wege <em>innerhalb</em> eines Ortes sind damit von Anfang an ausgeblendet — sie sind für die Reiseplanung ohne Belang und würden die Liste vollschütten. Willst du an einem davon arbeiten, hak <strong>„innerorts"</strong> dazu. Der Knopf weist die Vorbelegung als gesetzten Filter aus, sie versteckt sich also nicht.</div>
 
 				<h4>Kleinigkeiten, die Zeit sparen</h4>
 				<ul class="hb-steps">
@@ -1199,7 +1203,7 @@
 					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten</td></tr>
 					<tr><td><strong>Wegtyp</strong></td><td>Reichsstraße · Straße · Weg · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg</td></tr>
 					<tr><td><strong>Transportmittel</strong></td><td>Karawane · Reisegruppe zu Fuß · Zu Fuß · Kutsche · Reisegruppe beritten · Reiter · Flusssegler · Flusskahn · Lastensegler · Schnellsegler · Galeere</td></tr>
-					<tr><td><strong>Regionen-Kategorie</strong></td><td>Region · Fluss · Meer · Gebirge · Berggipfel · Wald · Steppe · Hügelland · Tundra · Küste · Ebene · Graslandschaft · Auenlandschaft · Kontinent · Wüste · Sümpfe &amp; Moore · See · Insel · Sonstiges</td></tr>
+					<tr><td><strong>Regionen-Kategorie</strong></td><td>Region · Fluss · Meer · Gebirge · Berggipfel · Vulkan · Wald · Steppe · Hügelland · Tal · Tundra · Küste · Ebene · Graslandschaft · Auenlandschaft · Kontinent · Wüste · Sümpfe &amp; Moore · See · Insel · Sonstiges</td></tr>
 					<tr><td><strong>Quellentyp</strong></td><td>Regionalspielhilfe · Abenteuer · Aventurischer Bote · Quellenband · Roman · Briefspiel · Regelbuch · Sonstiges</td></tr>
 				</table>
 
