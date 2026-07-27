@@ -145,6 +145,22 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.newTopographie": "New topography",
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Send to …",
+	"ecosystem.ctxmenu.properties": "Properties …",
+
+	// --- Landschaften: editing an existing region's name, kind and wiki link (V6b). Deliberately NOT
+	//     the label dialog's strings: that one edits a map_features LABEL and carries size, rotation and
+	//     zoom bands, none of which an area has. ---
+	"ecosystem.properties.dialogTitle": "Edit area",
+	"ecosystem.properties.closeAria": "Close dialog",
+	"ecosystem.properties.identity": "Identity",
+	"ecosystem.properties.nameLabel": "Name *",
+	"ecosystem.properties.typeLabel": "Kind",
+	"ecosystem.properties.wikiTitle": "Wiki landscape",
+	"ecosystem.properties.wikiSync": "Sync",
+	"ecosystem.properties.wikiRemove": "Remove",
+	"ecosystem.properties.delete": "Delete",
+	"ecosystem.properties.cancel": "Cancel",
+	"ecosystem.properties.save": "Save",
 
 	// --- Landschaften: sending an area to one of the other two layers, as a COPY (V3.6). The dialog
 	//     asks for target layer and target region at once; the strings resolved through tr() are the ones

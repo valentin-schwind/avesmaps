@@ -322,6 +322,7 @@
    the three selector lists in css/components/dialog-overlays.css, so they inherit the shared scrim and
    stacking. */
 .ecosystem-region-dialog,
+.ecosystem-properties-dialog,
 .ecosystem-assign-dialog,
 .ecosystem-intro-dialog,
 .ecosystem-transfer-dialog {
@@ -337,6 +338,7 @@
 }
 
 .ecosystem-region-dialog__header,
+.ecosystem-properties-dialog__header,
 .ecosystem-assign-dialog__header,
 .ecosystem-intro-dialog__header,
 .ecosystem-transfer-dialog__header {
@@ -350,6 +352,7 @@
 }
 
 .ecosystem-region-dialog__header h2,
+.ecosystem-properties-dialog__header h2,
 .ecosystem-assign-dialog__header h2,
 .ecosystem-intro-dialog__header h2,
 .ecosystem-transfer-dialog__header h2 {
@@ -360,6 +363,7 @@
 }
 
 .ecosystem-region-dialog__close,
+.ecosystem-properties-dialog__close,
 .ecosystem-assign-dialog__close,
 .ecosystem-intro-dialog__close,
 .ecosystem-transfer-dialog__close {
@@ -377,6 +381,7 @@
 }
 
 .ecosystem-region-dialog__close:hover,
+.ecosystem-properties-dialog__close:hover,
 .ecosystem-assign-dialog__close:hover,
 .ecosystem-intro-dialog__close:hover,
 .ecosystem-transfer-dialog__close:hover {
@@ -384,6 +389,7 @@
 }
 
 .ecosystem-region-dialog__close:focus-visible,
+.ecosystem-properties-dialog__close:focus-visible,
 .ecosystem-assign-dialog__close:focus-visible,
 .ecosystem-intro-dialog__close:focus-visible,
 .ecosystem-transfer-dialog__close:focus-visible {
@@ -392,6 +398,7 @@
 }
 
 .ecosystem-region-dialog__form,
+.ecosystem-properties-dialog__form,
 .ecosystem-assign-dialog__form,
 .ecosystem-transfer-dialog__form {
 	display: grid;
@@ -407,6 +414,7 @@
 }
 
 .ecosystem-region-dialog__field,
+.ecosystem-properties-dialog__field,
 .ecosystem-assign-dialog__field,
 .ecosystem-transfer-dialog__field {
 	display: grid;
@@ -416,8 +424,10 @@
 }
 
 .ecosystem-region-dialog__field input,
+.ecosystem-properties-dialog__field input,
 .ecosystem-assign-dialog__field input,
 .ecosystem-region-dialog__field select,
+.ecosystem-properties-dialog__field select,
 .ecosystem-assign-dialog__field select,
 .ecosystem-transfer-dialog__field input,
 .ecosystem-transfer-dialog__field select {
@@ -431,14 +441,17 @@
 }
 
 .ecosystem-region-dialog__field input::placeholder,
+.ecosystem-properties-dialog__field input::placeholder,
 .ecosystem-assign-dialog__field input::placeholder,
 .ecosystem-transfer-dialog__field input::placeholder {
 	color: var(--color-placeholder);
 }
 
 .ecosystem-region-dialog__field input:hover,
+.ecosystem-properties-dialog__field input:hover,
 .ecosystem-assign-dialog__field input:hover,
 .ecosystem-region-dialog__field select:hover,
+.ecosystem-properties-dialog__field select:hover,
 .ecosystem-assign-dialog__field select:hover,
 .ecosystem-transfer-dialog__field input:hover,
 .ecosystem-transfer-dialog__field select:hover {
@@ -446,8 +459,10 @@
 }
 
 .ecosystem-region-dialog__field input:focus-visible,
+.ecosystem-properties-dialog__field input:focus-visible,
 .ecosystem-assign-dialog__field input:focus-visible,
 .ecosystem-region-dialog__field select:focus-visible,
+.ecosystem-properties-dialog__field select:focus-visible,
 .ecosystem-assign-dialog__field select:focus-visible,
 .ecosystem-transfer-dialog__field input:focus-visible,
 .ecosystem-transfer-dialog__field select:focus-visible {
@@ -457,12 +472,14 @@
 }
 
 .ecosystem-region-dialog__error[hidden],
+.ecosystem-properties-dialog__error[hidden],
 .ecosystem-assign-dialog__error[hidden],
 .ecosystem-transfer-dialog__error[hidden] {
 	display: none !important;
 }
 
 .ecosystem-region-dialog__error,
+.ecosystem-properties-dialog__error,
 .ecosystem-assign-dialog__error,
 .ecosystem-transfer-dialog__error {
 	margin: 0;
@@ -476,6 +493,7 @@
 }
 
 .ecosystem-region-dialog__actions,
+.ecosystem-properties-dialog__actions,
 .ecosystem-assign-dialog__actions,
 .ecosystem-intro-dialog__actions,
 .ecosystem-transfer-dialog__actions {
@@ -487,6 +505,7 @@
 }
 
 .ecosystem-region-dialog__button,
+.ecosystem-properties-dialog__button,
 .ecosystem-assign-dialog__button,
 .ecosystem-intro-dialog__button,
 .ecosystem-transfer-dialog__button {
@@ -503,6 +522,7 @@
 }
 
 .ecosystem-region-dialog__button:hover,
+.ecosystem-properties-dialog__button:hover,
 .ecosystem-assign-dialog__button:hover,
 .ecosystem-intro-dialog__button:hover,
 .ecosystem-transfer-dialog__button:hover {
@@ -510,6 +530,7 @@
 }
 
 .ecosystem-region-dialog__button:focus-visible,
+.ecosystem-properties-dialog__button:focus-visible,
 .ecosystem-assign-dialog__button:focus-visible,
 .ecosystem-intro-dialog__button:focus-visible,
 .ecosystem-transfer-dialog__button:focus-visible {
@@ -519,6 +540,7 @@
 
 /* The one main action of this dialog is filled; "Abbrechen" stays soft (§12 button hierarchy). */
 .ecosystem-region-dialog__button--primary,
+.ecosystem-properties-dialog__button--primary,
 .ecosystem-assign-dialog__button--primary,
 .ecosystem-intro-dialog__button--primary,
 .ecosystem-transfer-dialog__button--primary {
@@ -528,6 +550,7 @@
 }
 
 .ecosystem-region-dialog__button--primary:hover,
+.ecosystem-properties-dialog__button--primary:hover,
 .ecosystem-assign-dialog__button--primary:hover,
 .ecosystem-intro-dialog__button--primary:hover,
 .ecosystem-transfer-dialog__button--primary:hover {
@@ -535,6 +558,7 @@
 }
 
 .ecosystem-region-dialog__button:disabled,
+.ecosystem-properties-dialog__button:disabled,
 .ecosystem-assign-dialog__button:disabled,
 .ecosystem-transfer-dialog__button:disabled {
 	border-color: var(--color-disabled-border);
@@ -674,6 +698,73 @@
 
 .ecosystem-assign-dialog__warn {
 	color: var(--color-warning-soft-text);
+}
+
+/* ---- properties dialog, the part that is NOT shared (V6b) -------------------------------------------
+   Gruppen durch Linie und Überschrift, nicht durch Rahmen (§12). Der Wiki-Block darunter benutzt die
+   vorhandenen .label-wiki-reference__*-Regeln, damit er hier genauso aussieht wie im Label-Dialog. */
+.ecosystem-properties-dialog__group {
+	margin: 0;
+	padding: 0 0 var(--divider-gap-tight) 0;
+	border: 0;
+	border-bottom: 1px solid var(--color-divider);
+	display: grid;
+	gap: var(--space-10);
+}
+
+.ecosystem-properties-dialog__group legend {
+	padding: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.ecosystem-properties-dialog__areas {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-properties-dialog__status {
+	margin: 0;
+	min-height: var(--space-16);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+}
+
+/* Die Wiki-Suche liegt IM Dialog, nicht in einem zweiten Fenster darüber. */
+.ecosystem-properties-dialog__search[hidden] {
+	display: none !important;
+}
+
+.ecosystem-properties-dialog__search {
+	display: grid;
+	gap: var(--space-6);
+	margin-top: var(--space-8);
+}
+
+.ecosystem-properties-dialog__searchrow {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: var(--space-6);
+}
+
+/* Löschen links, Abbrechen/Speichern rechts -- der Abstandhalter trennt die zerstörerische Handlung
+   von den beiden harmlosen, damit sie nicht nebeneinander geraten. */
+.ecosystem-properties-dialog__spacer {
+	flex: 1 1 auto;
+}
+
+.ecosystem-properties-dialog__button--danger {
+	border-color: var(--color-danger);
+	color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
+}
+
+.ecosystem-properties-dialog__button--danger:hover {
+	border-color: var(--color-danger-soft-text);
+	background: var(--color-danger-soft);
 }
 
 .ecosystem-controls__note[hidden] {

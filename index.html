@@ -764,6 +764,66 @@
 				</form>
 			</div>
 		</div>
+		<!-- V6b: Rechtsklick auf eine Fläche -> „Eigenschaften …". Aufbau nach #label-edit-overlay
+		     (:1305), aber OHNE dessen Block „Darstellung": Größe, Rotation, Zoom-Bänder und Priorität
+		     sind Eigenschaften einer BESCHRIFTUNG, nicht einer Fläche (oekosystem-editor-verhalten.md
+		     §12, „Keine Zoom-Bänder"). Schreibt update_region / delete_region — beide seit V2.3 gebaut
+		     und bis hierher ohne Aufrufer.
+		     Overlay-Hülle aus css/components/dialog-overlays.css, ID in allen DREI Selektorlisten. -->
+		<div id="ecosystem-properties-overlay" hidden>
+			<div id="ecosystem-properties-dialog" class="ecosystem-properties-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-properties-title" tabindex="-1">
+				<div class="ecosystem-properties-dialog__header">
+					<h2 id="ecosystem-properties-title" data-i18n="ecosystem.properties.dialogTitle">Fläche bearbeiten</h2>
+					<button id="ecosystem-properties-close" class="ecosystem-properties-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.properties.closeAria">×</button>
+				</div>
+				<form id="ecosystem-properties-form" class="ecosystem-properties-dialog__form">
+					<fieldset class="ecosystem-properties-dialog__group">
+						<legend data-i18n="ecosystem.properties.identity">Identität</legend>
+						<label class="ecosystem-properties-dialog__field">
+							<span data-i18n="ecosystem.properties.nameLabel">Name *</span>
+							<input id="ecosystem-properties-name" name="name" type="text" maxlength="190" required autocomplete="off" />
+						</label>
+						<label class="ecosystem-properties-dialog__field">
+							<span data-i18n="ecosystem.properties.typeLabel">Art</span>
+							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->
+							<select id="ecosystem-properties-type" name="region_type"></select>
+						</label>
+						<p id="ecosystem-properties-areas" class="ecosystem-properties-dialog__areas"></p>
+					</fieldset>
+					<!-- Optik aus den vorhandenen .label-wiki-reference__*-Regeln, damit der Block hier und
+					     im Label-Dialog gleich aussieht. -->
+					<div class="label-wiki-reference">
+						<div class="label-wiki-reference__head">
+							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.wikiTitle">Wiki-Landschaft</span>
+							<!-- __buttons, nicht __actions: so heisst die Klasse im Original (:1412). -->
+							<span class="label-wiki-reference__buttons">
+								<button id="ecosystem-properties-wiki-assign" type="button" class="ecosystem-properties-dialog__button">Zuweisen</button>
+								<button id="ecosystem-properties-wiki-sync" type="button" class="ecosystem-properties-dialog__button" hidden data-i18n="ecosystem.properties.wikiSync">Sync</button>
+								<button id="ecosystem-properties-wiki-remove" type="button" class="ecosystem-properties-dialog__button" hidden data-i18n="ecosystem.properties.wikiRemove">Entfernen</button>
+							</span>
+						</div>
+						<div id="ecosystem-properties-wiki-list" class="label-wiki-reference__list"></div>
+						<!-- Inline statt eigenem Overlay: ein zweites Fenster über diesem wäre ein fünftes
+						     Overlay für eine Suche, die drei Zeilen Ergebnis zeigt. -->
+						<div id="ecosystem-properties-wiki-search" class="label-wiki-picker ecosystem-properties-dialog__search" hidden>
+							<div class="ecosystem-properties-dialog__searchrow">
+								<input id="ecosystem-properties-wiki-query" type="search" autocomplete="off" placeholder="Region/Landschaft suchen …" aria-label="Wiki-Landschaft suchen" />
+								<button id="ecosystem-properties-wiki-search-go" type="button" class="ecosystem-properties-dialog__button">Suchen</button>
+							</div>
+							<div id="ecosystem-properties-wiki-results" class="label-wiki-picker-list"></div>
+						</div>
+					</div>
+					<p id="ecosystem-properties-status" class="ecosystem-properties-dialog__status" role="status"></p>
+					<p id="ecosystem-properties-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-properties-dialog__actions">
+						<button id="ecosystem-properties-delete" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--danger" type="button" data-i18n="ecosystem.properties.delete">Löschen</button>
+						<span class="ecosystem-properties-dialog__spacer"></span>
+						<button id="ecosystem-properties-cancel" class="ecosystem-properties-dialog__button" type="button" data-i18n="ecosystem.properties.cancel">Abbrechen</button>
+						<button id="ecosystem-properties-save" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary" type="submit" data-i18n="ecosystem.properties.save">Speichern</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -1904,6 +1964,9 @@
 		<script src="js/map-features/map-features-ecosystem-context-action.js"></script>
 		<script src="js/map-features/map-features-ecosystem-intro.js"></script>
 		<script src="js/map-features/map-features-ecosystem-transfer.js"></script>
+		<!-- V6b: „Eigenschaften …" auf der Fläche. Haengt sich per AvesmapsEcosystemAreaMenu.addEntry an,
+		     steht deshalb NACH map-features-ecosystem-context-action.js -- wie transfer.js daneben. -->
+		<script src="js/map-features/map-features-ecosystem-properties.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>
