@@ -279,10 +279,11 @@ async function saveEcosystemAreaRing(ring) {
 	const geometry = repairEcosystemGeometry({ type: "Polygon", coordinates: [ring] });
 
 	ecosystemDrawSaving = true;
+	const name = ecosystemDraftRegionName();
 	try {
 		const region = await postEcosystemEdit("create_region", {
 			kind,
-			name: ecosystemDraftRegionName(),
+			name,
 			region_type: "",
 		});
 		const regionPublicId = String(region?.region?.public_id || "");
@@ -303,6 +304,13 @@ async function saveEcosystemAreaRing(ring) {
 		if (typeof invalidateEcosystemRegionCache === "function") {
 			invalidateEcosystemRegionCache();
 		}
+		// 🔴 Eine DEROGRAPHISCHE Region bekommt automatisch ihr Karten-Label (Owner 2026-07-27) -- am
+		// Point of Inaccessibility, mit denselben Eigenschaften wie jedes andere Label. Vegetation und
+		// Topographie bekommen keins von selbst; sie dürfen eins haben, aber es ist kein Automatismus.
+		if (kind === "derographisch") {
+			await createEcosystemRegionLabel(regionPublicId, geometry, name);
+		}
+
 		const areaPublicId = String(created?.area?.public_id || "");
 		if (areaPublicId && window.AvesmapsEcosystemProperties?.open) {
 			void window.AvesmapsEcosystemProperties.open(areaPublicId);
@@ -315,6 +323,61 @@ async function saveEcosystemAreaRing(ring) {
 		showFeedbackToast?.(error?.message || "Die Fläche konnte nicht gespeichert werden.", "warning");
 	} finally {
 		ecosystemDrawSaving = false;
+	}
+}
+
+// ---- das Karten-Label einer derographischen Region -------------------------------------------------
+// 🔴 Eine derographische Region IST auch eine Beschriftung auf der Karte (Owner 2026-07-27). Das Label
+// ist eine gewöhnliche `map_features`-Zeile -- dieselbe, die der Label-Editor bearbeitet -- und trägt
+// damit Größe, Rotation, Zoom-Bänder, Priorität und Nodix ohne eine einzige neue Spalte. Verbunden
+// wird über `ecosystem_region.label_public_id`; die Spalte gibt es seit V2.1 und hatte bis heute
+// KEINEN einzigen Leser im Client.
+//
+// Anker ist der **Point of Inaccessibility**: der Punkt mit dem grössten Abstand zu allen Kanten, bei
+// einem Multipolygon im grössten Teil. `avesmapsComputeLabelPoint` ist der projekteigene
+// polylabel-Wrapper aus js/third-party/ -- die Drittanbieter-Datei, nicht das politische Modul, das
+// ihn ebenfalls benutzt (Hauptplan, Regel 1).
+//
+// 🪤 Schlägt das Label fehl, bleibt die FLÄCHE trotzdem stehen. Sie ist das, was gezeichnet wurde;
+// eine fehlende Beschriftung ist ärgerlich, eine verlorene Geometrie wäre der Verlust.
+async function createEcosystemRegionLabel(regionPublicId, geometry, text) {
+	if (typeof avesmapsComputeLabelPoint !== "function" || typeof submitMapFeatureEdit !== "function") {
+		return;
+	}
+	const point = avesmapsComputeLabelPoint(geometry);
+	if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+		showFeedbackToast?.("Für diese Form liess sich kein Beschriftungspunkt bestimmen.", "warning");
+		return;
+	}
+
+	try {
+		// GeoJSON [x, y] -> Leaflet [lat, lng] = [y, x]. Bewusst gedreht (AGENTS.md §5).
+		const result = await submitMapFeatureEdit({
+			action: "create_label",
+			text: String(text || ""),
+			feature_subtype: "region",
+			size: 18,
+			rotation: 0,
+			min_zoom: 0,
+			max_zoom: 5,
+			priority: 3,
+			lat: point.y,
+			lng: point.x,
+		});
+		const labelPublicId = String(result?.feature?.properties?.public_id || result?.feature?.public_id || "");
+		if (!labelPublicId) {
+			return;
+		}
+		await postEcosystemEdit("update_region", { public_id: regionPublicId, label_public_id: labelPublicId });
+		if (typeof addCreatedLabelFeature === "function") {
+			addCreatedLabelFeature(result.feature);
+		}
+		if (typeof updateRevisionFromEditResponse === "function") {
+			updateRevisionFromEditResponse(result);
+		}
+	} catch (error) {
+		console.warn("Das Label der Region konnte nicht angelegt werden:", error);
+		showFeedbackToast?.("Die Fläche steht, aber ihr Label konnte nicht angelegt werden.", "warning");
 	}
 }
 

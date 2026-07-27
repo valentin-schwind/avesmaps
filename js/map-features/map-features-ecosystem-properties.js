@@ -422,6 +422,44 @@
 		}
 	}
 
+	// Das verbundene Karten-Label umbenennen. `update_label` verlangt den vollen Satz Darstellungswerte
+	// (Größe, Rotation, Zoom-Bänder, Priorität) -- die kommen aus dem geladenen Label, nicht aus
+	// Vorgabewerten, sonst setzte ein blosses Umbenennen die Gestaltung des Editors zurück.
+	//
+	// 🪤 Scheitert es, ist das eine Meldung und kein Abbruch: die Region IST gespeichert, und ein
+	// zurückgerollter Namen wäre die schlechtere Antwort als ein Label, das hinterherhinkt.
+	async function renameLinkedEcosystemLabel(area, name) {
+		const labelPublicId = String(area?.label_public_id || "");
+		if (!labelPublicId || typeof submitMapFeatureEdit !== "function"
+			|| typeof findLabelEntryByPublicId !== "function") {
+			return;
+		}
+		const entry = findLabelEntryByPublicId(labelPublicId);
+		const label = entry?.label;
+		if (!label || String(label.text || "") === String(name)) {
+			return;                                  // nicht geladen oder schon gleich
+		}
+
+		try {
+			await submitMapFeatureEdit({
+				action: "update_label",
+				public_id: labelPublicId,
+				text: name,
+				feature_subtype: label.labelType || "region",
+				size: Number(label.size) || 18,
+				rotation: Number(label.rotation) || 0,
+				min_zoom: Number(label.minZoom) || 0,
+				max_zoom: Number(label.maxZoom) || 5,
+				priority: Number(label.priority) || 3,
+				lat: entry.marker?.getLatLng?.().lat,
+				lng: entry.marker?.getLatLng?.().lng,
+			});
+		} catch (error) {
+			console.warn("Das Label der Region konnte nicht umbenannt werden:", error);
+			setPropertiesStatus("Gespeichert — das Karten-Label trägt aber noch den alten Namen.");
+		}
+	}
+
 	// ---- speichern und löschen ------------------------------------------------------------------------
 
 	async function submitEcosystemPropertiesDialog(event) {
@@ -460,6 +498,11 @@
 
 		try {
 			await postEcosystemEdit("update_region", payload);
+			// 🔴 Das verbundene Karten-Label trägt den Namen MIT. Bis heute galt hier der Satz „wer die
+			// Fläche umbenennt, benennt das Label NICHT mit um" -- richtig, solange die beiden nichts
+			// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt
+			// (`label_public_id`), wären zwei Namen für dasselbe Ding schlicht ein Fehler.
+			await renameLinkedEcosystemLabel(area, name);
 			closeEcosystemPropertiesDialog();
 			await refreshAfterEcosystemPropertiesWrite();
 			if (typeof showFeedbackToast === "function") {
