@@ -95,6 +95,14 @@
 <!-- Auto-Name: abgeleitet, nie gespeichert. Dieselbe unit-getestete Regel wie in den
      Karten-Dialogen -- „Wald-001" ist ein Griff, kein Anzeigename. -->
 <script src="/js/map-features/map-features-ecosystem-naming.js"></script>
+<!-- Territorien-Geometrie für „Liegt in". 🔴 Owner-Entscheid 2026-07-28: Regel 1 des Hauptplans
+     („keine politische Datei wird aufgerufen") ist für einen LESENDEN Zugriff gelockert. Geschrieben
+     wird dort nichts.
+     Wiederverwendet statt nachgebaut: dieses Modul kennt schon die Falle, dass Territorien
+     ZOOM-GEBÄNDERT sind — ein einzelner layer-Aufruf liefert nicht alle, es braucht 0..6 und eine
+     Entdopplung. Derselbe Weg, den der Siedlungseditor seit Monaten geht. -->
+<script>window.POLITICAL_TERRITORIES_API_URL = "/api/app/political-territories.php";</script>
+<script src="/js/map-features/map-features-settlement-territory-assign.js"></script>
 <script>
 "use strict";
 (function () {
@@ -425,6 +433,9 @@ let raycast = null;              // Map<region_public_id, [{regionId, name, kind
 let raycastNote = "";
 let selectedPartnerId = null;    // the region picked in "Gemeinsame Regionen mit"
 let moduleEnabled = null;        // null = not asked yet; the tile says so rather than guessing
+let territories = null;          // [{publicId, name, type, parentId, isAggregate, geometry, bounds, area}]
+let territoryHits = null;        // Map<region_public_id, [{territory, share}]>
+let territoryNote = "";
 
 function boundsOverlap(a, b) {
 	return !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
@@ -484,6 +495,85 @@ function computeRaycast(areas) {
 	result.forEach((list) => list.sort((x, y) => y.share - x.share));
 	raycastNote = regions.length + " Regionen · " + pairsTested + " Paare geprüft · " + pairsClipped + " verschnitten";
 	return result;
+}
+
+// ---- „Liegt in": the same raycast against the political territories -------------------------
+// 🔴 Owner 2026-07-28 relaxed the main plan's rule 1 for a READ. This module writes nothing
+// political; it asks api/app/political-territories.php?action=layer through the helper the
+// settlement editor already uses.
+//
+// ⚠️ That helper dedups by territory_public_id and keeps the FIRST geometry a zoom surfaces. A
+// territory therefore appears ONCE -- with the geometry the layer actually shows for it, aggregate
+// or raw. Each hit says which it was rather than pretending both are available.
+//
+// 💣 It fans out over zoom 0..6 because territories are zoom-banded (a single call misses most of
+// them). That is seven requests at the political layer, which CLAUDE.md warns never to loop -- so
+// it stays behind the explicit „Zugehörigkeit rechnen" click and runs at most once per session.
+async function loadTerritories() {
+	if (typeof loadAllTerritoryGeometry !== "function") {
+		throw new Error("Das Territorien-Modul ist nicht geladen.");
+	}
+	const entries = await loadAllTerritoryGeometry();
+	return entries.map((entry) => {
+		const properties = (entry.feature && entry.feature.properties) || {};
+		const geometry = entry.feature && entry.feature.geometry;
+		const bounds = geometry ? ecosystemGeometryBounds(geometry) : null;
+		return {
+			publicId: String(properties.territory_public_id || ""),
+			name: String(properties.name || properties.display_name || ""),
+			type: String(properties.territory_type || properties.feature_subtype || ""),
+			parentId: String(properties.parent_public_id || ""),
+			isAggregate: properties.is_aggregate === true,
+			geometry,
+			bounds,
+			area: geometry ? Math.abs(ecosystemGeometryArea(geometry)) : 0,
+		};
+	}).filter((territory) => territory.publicId !== "" && territory.bounds && territory.area > 0);
+}
+
+// Same rule as the landscape raycast: share of the SMALLER of the two, threshold 10 %. A forest
+// lying wholly inside a realm scores 100 % -- measured against the realm it would be a rounding
+// error and would never show.
+function computeTerritoryHits(areas, allTerritories) {
+	const byRegion = groupAreasByRegion(areas);
+	const result = new Map();
+	let tested = 0, clipped = 0;
+	byRegion.forEach((region) => {
+		const hits = [];
+		allTerritories.forEach((territory) => {
+			let shared = 0;
+			region.areas.forEach((area) => {
+				tested++;
+				if (!boundsOverlap(area.bounds, territory.bounds)) { return; }
+				clipped++;
+				try {
+					shared += Math.abs(ecosystemGeometryArea(ecosystemBooleanGeometry("intersection", area.geometry, territory.geometry)));
+				} catch (error) { /* empty overlap is the normal case */ }
+			});
+			if (shared <= 0) { return; }
+			const share = shared / Math.max(1e-9, Math.min(region.total, territory.area));
+			if (share >= RAYCAST_THRESHOLD) { hits.push({ territory, share }); }
+		});
+		hits.sort((a, b) => b.share - a.share);
+		result.set(region.regionId, hits);
+	});
+	territoryNote = allTerritories.length + " Territorien · " + clipped + " von " + tested + " Paaren verschnitten";
+	return result;
+}
+
+// The ancestor chain, from parent_public_id. 🔴 An ancestor is NOT a finding: if a forest hits a
+// barony, that barony's county and realm contain it by construction. Deriving the chain instead of
+// listing every ancestor as its own hit is what keeps this column readable.
+function territoryChain(territory, index) {
+	const chain = [];
+	const seen = new Set();
+	let current = index.get(territory.parentId);
+	while (current && !seen.has(current.publicId)) {
+		seen.add(current.publicId);
+		chain.push(current);
+		current = index.get(current.parentId);
+	}
+	return chain;
 }
 
 async function loadAreas() {
@@ -671,6 +761,46 @@ function renderDetail() {
 		parts.push("</div>");
 	} else {
 		row.regions.forEach((region) => parts.push(regionEditBlock(region)));
+	}
+
+	// „Liegt in" -- the same raycast against the political territories. Shown as a CHAIN, because a
+	// hit barony implies its county and realm (owner 2026-07-28: „2-3 Baronien, 1 Grafschaft,
+	// 1 Reich"). Listing every ancestor as its own flat entry would say the same thing four times.
+	parts.push('<div class="dt-grp">Liegt in</div>');
+	if (territoryHits === null) {
+		parts.push('<div class="avm-empty">Noch nicht gerechnet — „Zugehörigkeit rechnen" im Menüband.</div>');
+	} else if (row.areaCount === 0) {
+		parts.push('<div class="avm-empty">Ohne gezeichnete Fläche gibt es nichts zu verschneiden.</div>');
+	} else {
+		const index = new Map((territories || []).map((territory) => [territory.publicId, territory]));
+		const hits = [];
+		const seenTerritories = new Set();
+		row.regions.forEach((region) => (territoryHits.get(String(region.public_id)) || []).forEach((hit) => {
+			if (seenTerritories.has(hit.territory.publicId)) { return; }
+			seenTerritories.add(hit.territory.publicId);
+			hits.push(hit);
+		}));
+		// Show the DEEPEST hits and let the ancestors ride along as their chain. A hit whose own
+		// CHILD was also hit is that child's ancestor and would otherwise be named twice -- once as
+		// its own entry and once inside the chain below it.
+		const hitParentIds = new Set(hits.map((hit) => hit.territory.parentId).filter(Boolean));
+		const leaves = hits.filter((hit) => !hitParentIds.has(hit.territory.publicId));
+		leaves.sort((a, b) => b.share - a.share);
+		if (leaves.length === 0) {
+			parts.push('<div class="avm-empty">Kein Territorium über ' + Math.round(RAYCAST_THRESHOLD * 100) + " %.</div>");
+		} else {
+			parts.push('<div class="eco-partners">' + leaves.map((hit) => {
+				const chain = territoryChain(hit.territory, index)
+					.map((ancestor) => esc((ancestor.type ? ancestor.type + " " : "") + ancestor.name)).join(" ← ");
+				return '<div class="eco-terr">'
+					+ '<div class="eco-terr__head"><span class="eco-partner__name">'
+					+ esc((hit.territory.type ? hit.territory.type + " " : "") + hit.territory.name) + "</span>"
+					+ (hit.territory.isAggregate ? '<span class="avm-pill">Aggregat</span>' : "")
+					+ '<span class="eco-partner__share">' + percent(hit.share) + "</span></div>"
+					+ (chain ? '<div class="eco-terr__chain">↳ ' + chain + "</div>" : "")
+					+ "</div>";
+			}).join("") + "</div>");
+		}
 	}
 
 	// „Gemeinsame Regionen mit" -- the raycast result. Every entry is a BUTTON that picks the pair
@@ -888,10 +1018,21 @@ function wireRibbon() {
 			setStatus("Zugehörigkeit wird gerechnet …");
 			if (allAreas === null) { allAreas = await loadAreas(); }
 			raycast = computeRaycast(allAreas);
-			$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · Schwelle " + Math.round(RAYCAST_THRESHOLD * 100) + " %";
+			// The territories are a second, independent question ("liegt in"), and the political
+			// layer is a known hotspot -- a failure there must not throw away the landscape result
+			// that already succeeded.
+			try {
+				setStatus("Territorien werden geladen (Zoom 0–6) …");
+				if (territories === null) { territories = await loadTerritories(); }
+				territoryHits = computeTerritoryHits(allAreas, territories);
+			} catch (error) {
+				territoryHits = null;
+				territoryNote = "Territorien nicht geladen: " + (error && error.message ? error.message : String(error));
+			}
+			$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · " + ((territories || []).length) + " Territorien";
 			renderDetail();
 			renderPreview();
-			flashStatus("Zugehörigkeit gerechnet: " + raycastNote, "ok");
+			flashStatus("Gerechnet: " + raycastNote + (territoryNote ? " · " + territoryNote : ""), "ok");
 		} catch (error) {
 			$("ecoRaycastInfo").textContent = "fehlgeschlagen";
 			flashStatus("Zugehörigkeit rechnen fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
@@ -996,6 +1137,18 @@ function demoData() {
 			rect("a5", "r5", "Sichelwacht", "topographie", "gebirge", 120, 120, 170, 170),
 			rect("a4", "r4", "Wald-001", "vegetation", "wald", 700, 700, 800, 800),
 		],
+		// Nested, the way territories really lie: baronies tile, a county bundles them, a realm
+		// bundles counties. Blautann (200..400) covers both baronies and therefore, by construction,
+		// their county and its realm -- exactly the chain the display has to collapse.
+		territories: [
+			{ publicId: "t-bar-1", name: "Hartsteen", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 180, y1: 180, x2: 300, y2: 300 },
+			{ publicId: "t-bar-2", name: "Grauensee", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 300, y1: 180, x2: 420, y2: 300 },
+			{ publicId: "t-bar-3", name: "Wolfsstein", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 180, y1: 300, x2: 420, y2: 420 },
+			{ publicId: "t-graf", name: "Ferdok", type: "Grafschaft", parentId: "t-reich", isAggregate: true, x1: 180, y1: 180, x2: 420, y2: 420 },
+			{ publicId: "t-reich", name: "Kosch", type: "Königreich", parentId: "", isAggregate: true, x1: 100, y1: 100, x2: 500, y2: 500 },
+			// weit weg -- darf nie auftauchen
+			{ publicId: "t-fern", name: "Al'Anfa", type: "Stadtstaat", parentId: "", isAggregate: false, x1: 800, y1: 800, x2: 900, y2: 900 },
+		],
 		// Two separate vocabularies, never one filtered list: `wald` can never sit on a topographic
 		// region (ecosystem_region_type.kind, checked again server-side).
 		region_types: [
@@ -1062,6 +1215,12 @@ async function loadData(options) {
 		regionTypes = demo.region_types;
 		allAreas = demo.areas;
 		raycast = computeRaycast(allAreas);
+		territories = demo.territories.map((entry) => {
+			const geometry = { type: "Polygon", coordinates: [[[entry.x1, entry.y1], [entry.x2, entry.y1], [entry.x2, entry.y2], [entry.x1, entry.y2], [entry.x1, entry.y1]]] };
+			return { publicId: entry.publicId, name: entry.name, type: entry.type, parentId: entry.parentId, isAggregate: entry.isAggregate,
+				geometry, bounds: ecosystemGeometryBounds(geometry), area: Math.abs(ecosystemGeometryArea(geometry)) };
+		});
+		territoryHits = computeTerritoryHits(allAreas, territories);
 		moduleEnabled = true;
 		renderEnabledTile();
 		$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · Schwelle " + Math.round(RAYCAST_THRESHOLD * 100) + " %";

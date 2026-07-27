@@ -517,6 +517,30 @@ input[type=search] {
 	color: var(--color-accent-strong);
 }
 
+/* „Liegt in": a hit plus its derived ancestor chain. No button -- unlike a shared region, a
+   territory does not drive column 3. */
+.eco-terr {
+	padding: var(--avm-row-pad);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+	background: var(--soft);
+}
+
+.eco-terr__head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+}
+
+.eco-terr__chain {
+	margin-top: 1px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
 /* Intersection thumbnail. Shape copied from the territory preview
    (js/territory/territory-derived-geometry-editor.js:576) -- a POLITICAL file, so copied and never
    called. Its hardcoded rgba() is replaced by tokens here. */
