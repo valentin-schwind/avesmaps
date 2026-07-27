@@ -118,6 +118,49 @@ Liste; im Panel bleibt sie als Feld sichtbar. Ohne Zuweisung ist die Region
 `origin='own'` — für Gebiete, die es bei uns gibt und im Wiki nicht. Das ist
 **kein Mangel**, sondern ein Zustand, der so benannt wird.
 
+## 7a. Wiki-Region zuweisen (V6)
+
+Die Zuweisung hat **keine eigene Oberfläche**. Sie sitzt in der Liste, die die
+Wiki-Regionen ohnehin schon zeigt: **WikiSync → Regionen**. Jede Zeile trägt dort
+eine Angabe *„Fläche(n):"* — ein Chip je Landschaftsregion, die an dieser
+Wiki-Region hängt, mit ihrer Flächenzahl — und daneben den Knopf
+**„Fläche zuweisen"**.
+
+> **Die meisten Zeilen werden „—" zeigen, und das ist richtig so.** Es gibt 1843
+> Wiki-Regionen und 124 abgeleitete Flächen; die allermeisten Wiki-Regionen haben
+> schlicht kein Kartenpendant.
+
+Der Dialog zeigt **alle** aktiven Landschaftsregionen zur Auswahl, nicht nur die
+schon verknüpften — die noch nicht verknüpften zu erreichen ist ja der Zweck.
+Bereits zugewiesene sind vorausgewählt; eine Region, die an einer **anderen**
+Wiki-Region hängt, sagt das in ihrer Zeile, denn Zuweisen hängt sie um.
+
+Gespeichert wird in **zwei Schritten**: der erste Druck rechnet einen
+**Trockenlauf** und zeigt, welche Regionen welchen Schlüssel bekämen; erst der
+zweite schreibt. Ändert sich zwischendurch die Auswahl, verfällt die Vorschau —
+scharf läuft nur, was auch gezeigt wurde.
+
+> 🔴 **Zuweisen setzt `wiki_url`. Den Schlüssel `wiki_region_key` leitet der
+> Server daraus ab** — der Client schickt nie einen. „Eine Wiki-Region auf
+> mehrere Flächen" entsteht dadurch, dass **mehrere Regionen denselben Schlüssel
+> tragen**; `idx_ecosystem_region_wiki` ist absichtlich ein Index und kein UNIQUE.
+>
+> **Es wird nichts verschmolzen, nichts verschoben und nichts gelöscht.** Der
+> V5-Import hat je Fläche eine eigene Region angelegt (129 Regionen für 131
+> Flächen) — „Bilku", „Bilku-Archipel", „Sorak" und „Kossike" sind vier Zeilen,
+> die das Wiki als eine kennt. Der geteilte Schlüssel bringt sie zusammen, ohne
+> dass jemand entscheiden muss, welcher der vier Namen überlebt: jede Fläche
+> bleibt unter ihrem eigenen Namen auffindbar.
+
+Ein leeres `wiki_url` **löscht** die Zuweisung — dasselbe Feld, derselbe Weg
+zurück. Ein Zuweisungs-Save fasst `map_revision` nicht an, nur
+`ecosystem_revision`.
+
+⚠️ Weicht der aus dem Wiki-Link abgeleitete Schlüssel von dem ab, den die
+Listenzeile führt (umbenannter Artikel, Weiterleitung), **sagt die Vorschau das**.
+Ohne den Hinweis würde korrekt geschrieben und erschiene trotzdem nie in dieser
+Zeile.
+
 ## 8. Gipfel
 
 Sichtbar bei aktiver Topographie, **alle** — auch die ohne Wiki-Eintrag, die auf

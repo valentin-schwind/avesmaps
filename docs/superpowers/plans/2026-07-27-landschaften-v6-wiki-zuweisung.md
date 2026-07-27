@@ -23,6 +23,28 @@ Dateien und eine neue.
 
 ---
 
+## ✅ Gebaut 2026-07-27 — und wo diese Instruction danebenlag
+
+Vier Abweichungen, alle beim Nachlesen im Code gefunden. Wer diese Datei später liest:
+der Code gewinnt, nicht die Zeilennummern hier.
+
+| | Instruction sagte | gebaut wurde | warum |
+|---|---|---|---|
+| **1** 💣 | Skript-Tag in `html/wiki-sync-monitor.html`, „direkt nach dem vorhandenen `<script src=…review-region-sync.js>`" | Skript-Tag in **`index.html`** (neben `js/review/review-region-sync.js`, dort `:1815`) | **Diesen Tag gibt es in `wiki-sync-monitor.html` nicht.** Die Datei ist die *separate* Territorien-Editor-Seite, die `review-wiki-sync.js:3342` in ein iframe lädt; sie enthält `review-region-sync.js` nirgends. Die Liste gehört `index.html`. Wäre der Tag dort gelandet, hätte das Modul **nie** geladen — und die Zeile hätte still weiter „—" gezeigt. |
+| **2** | eigenes `fetch("api/edit/map/ecosystem.php", …)` plus `postEcosystemAssign` | das vorhandene **`postEcosystemEdit(action, payload)`** (`map-features-ecosystem-region-picker.js:63`) | Es gibt den Wrapper schon: er kennt `ECOSYSTEM_EDIT_API_URL` (leer auf Hosts ohne API — der relative Pfad hätte dort ins Leere gezeigt), setzt `credentials`, und hängt `error.code`/`error.status` an. Eine zweite Fassung wäre eine Kopie, die driftet. |
+| **3** | Kandidaten über `list_regions` **je `kind`** (drei Aufrufe) | **ein** `list_regions` ohne `kind` | `avesmapsListEcosystemRegions` filtert nur, *wenn* `kind` gesetzt ist (`:715`) — ohne liefert es alle drei Ebenen. Eine Wiki-Region weiß ohnehin nicht, welche unserer Ebenen sie gezeichnet hat. |
+| **4** ⭐ | `window.confirm` mit der **Anzahl** | Trockenlauf **im Dialog**, mit den **Namen** der betroffenen Regionen, dem abgeleiteten Schlüssel und dem Vorher-Schlüssel je Region | Der Owner verlangt ausdrücklich zu sehen, *welche Regionen welchen Schlüssel bekämen*. In einer bloßen Zahl sehen „zuweisen" und „ist schon zugewiesen" gleich aus. Dafür liefert `assign_wiki_region` je Region `wiki_region_key_before` + `changes`. Ein nativer `confirm` bricht außerdem die Designsprache (§12). |
+
+**Zusätzlich gebaut, weil es beim Testen auffiel:** die Vorschau warnt, wenn der aus
+`wiki_url` abgeleitete Schlüssel vom `wiki_key` der Listenzeile **abweicht** (umbenannter
+Artikel, Weiterleitung). Ohne den Hinweis würde korrekt geschrieben und erschiene
+trotzdem nie in dieser Zeile — ein Befund, den von außen niemand erklären kann.
+
+**Nicht gebaut, weil schon da:** `fetchEcosystemAssignCandidates`/`showEcosystemAssignPicker`
+als getrennte Bauteile (der Dialog macht beides), und ein neues Fetch-Muster.
+
+---
+
 ## Global Constraints
 
 1. 🔴 **Keine politische Datei wird bearbeitet oder aufgerufen** (Hauptplan, Regel 1).
@@ -125,7 +147,7 @@ würden zwei Ladewege und zwei Zustandsobjekte um dieselben Renderfunktionen kon
   `['regions_by_wiki_key' => ['<wiki_key>' => [ ['public_id','name','kind','region_type','area_count'] , … ], … ], 'unassigned_count' => int]`
 - Endpunkt-Aktion: `POST /api/edit/map/ecosystem.php {"action":"regions_by_wiki_key"}`
 
-- [ ] **Schritt 1: Den fehlschlagenden Test schreiben**
+- [x] **Schritt 1: Den fehlschlagenden Test schreiben**
 
 ```php
 <?php
@@ -162,7 +184,7 @@ assert(!array_key_exists('', $grouped['regions_by_wiki_key']), 'no empty-string 
 echo "ecosystem wiki assign: all assertions passed\n";
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
 
 ```bash
 php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -170,7 +192,7 @@ php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.
 
 Erwartet: `Call to undefined function avesmapsEcosystemGroupRegionsByWikiKey()`.
 
-- [ ] **Schritt 3: Gruppierung und Lesepfad schreiben**
+- [x] **Schritt 3: Gruppierung und Lesepfad schreiben**
 
 In `api/_internal/app/ecosystem.php`, hinter `avesmapsListEcosystemRegions`:
 
@@ -234,7 +256,7 @@ In `api/edit/map/ecosystem.php`, im `match($action)` hinter `'list_regions'`:
         'regions_by_wiki_key' => avesmapsListEcosystemRegionsByWikiKey($pdo, $payload),
 ```
 
-- [ ] **Schritt 4: Test laufen lassen, grün**
+- [x] **Schritt 4: Test laufen lassen, grün**
 
 ```bash
 php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -242,7 +264,7 @@ php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.
 
 Erwartet: `ecosystem wiki assign: all assertions passed`.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git commit -m "feat(ecosystem): read which landscape regions hang on each wiki region" -- api/_internal/app/ecosystem.php api/edit/map/ecosystem.php api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -263,7 +285,7 @@ git commit -m "feat(ecosystem): read which landscape regions hang on each wiki r
   `['assigned' => int, 'skipped' => int, 'dry_run' => bool, 'wiki_region_key' => ?string, 'revision' => ?int]`
 - Endpunkt-Aktion: `POST … {"action":"assign_wiki_region","region_public_ids":["…"],"wiki_url":"…","dry_run":false,"confirm":"apply"}`
 
-- [ ] **Schritt 1: Den fehlschlagenden Test ergänzen**
+- [x] **Schritt 1: Den fehlschlagenden Test ergänzen**
 
 ```php
 // append to api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -283,7 +305,7 @@ assert(avesmapsEcosystemWikiRegionKey('   ') === null, 'blank clears the key');
 echo "ecosystem wiki assign gate: all assertions passed\n";
 ```
 
-- [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
+- [x] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
 
 ```bash
 php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -291,7 +313,7 @@ php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.
 
 Erwartet: `Call to undefined function avesmapsEcosystemAssignIsDryRun()`.
 
-- [ ] **Schritt 3: Die Schreibaktion schreiben**
+- [x] **Schritt 3: Die Schreibaktion schreiben**
 
 In `api/_internal/app/ecosystem.php`:
 
@@ -403,7 +425,7 @@ In `api/edit/map/ecosystem.php`, hinter `'regions_by_wiki_key'`:
         'assign_wiki_region' => avesmapsAssignEcosystemWikiRegion($pdo, $payload, $userId),
 ```
 
-- [ ] **Schritt 4: Test laufen lassen, grün**
+- [x] **Schritt 4: Test laufen lassen, grün**
 
 ```bash
 php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -411,7 +433,7 @@ php -d zend.assertions=1 api/_internal/app/__tests__/ecosystem-wiki-assign-test.
 
 Erwartet: beide Abschlusszeilen, keine Assertion-Fehler.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git commit -m "feat(ecosystem): assign one wiki region to many landscape regions, dry run by default" -- api/_internal/app/ecosystem.php api/edit/map/ecosystem.php api/_internal/app/__tests__/ecosystem-wiki-assign-test.php
@@ -432,7 +454,7 @@ git commit -m "feat(ecosystem): assign one wiki region to many landscape regions
   `ecosystemAreaBadgeForWikiKey(wikiKey: string): string` (HTML-Fragment),
   `ecosystemRegionsForWikiKey(wikiKey: string): Array<{public_id,name,kind,region_type,area_count}>`
 
-- [ ] **Schritt 1: Das Modul schreiben**
+- [x] **Schritt 1: Das Modul schreiben**
 
 ```javascript
 // js/review/review-region-sync-ecosystem.js
@@ -503,7 +525,7 @@ function ecosystemAreaBadgeForWikiKey(wikiKey) {
 > Beim Schreiben dieser Instruction hatte ich sie zunächst `escapeRegionSyncHtml` genannt —
 > diesen Namen gibt es nicht. Vor dem Benutzen nachsehen, nicht raten.
 
-- [ ] **Schritt 2: Das Modul einhängen**
+- [x] **Schritt 2: Das Modul einhängen**
 
 In `html/wiki-sync-monitor.html`, **direkt nach** dem vorhandenen
 `<script src="../js/review/review-region-sync.js"></script>`:
@@ -512,7 +534,7 @@ In `html/wiki-sync-monitor.html`, **direkt nach** dem vorhandenen
 <script src="../js/review/review-region-sync-ecosystem.js"></script>
 ```
 
-- [ ] **Schritt 3: Die Zeile erweitern**
+- [x] **Schritt 3: Die Zeile erweitern**
 
 In `js/review/review-region-sync.js`, in der Funktion, die eine Zeile baut: hinter der
 vorhandenen Label-Zeile die Flächenzeile ergänzen:
@@ -536,7 +558,7 @@ Rendern ergänzen:
     }
 ```
 
-- [ ] **Schritt 4: Namensprüfung, dann Abnahme im Browser**
+- [x] **Schritt 4: Namensprüfung, dann Abnahme im Browser**
 
 ```bash
 grep -rn "ecosystemRegionsByWikiKey\|ecosystemAreaBadgeForWikiKey\|loadEcosystemRegionsByWikiKey\|ecosystemRegionsForWikiKey" js/ index.html html/ | grep -v review-region-sync-ecosystem.js
@@ -547,7 +569,7 @@ Erwartet: nur die Aufrufe aus Schritt 3, **kein** zweiter `const`/`let` gleichen
 Dann `/edit/` → WikiSync → Regionen öffnen: Konsole ohne `SyntaxError`, und Zeilen wie
 „Angbarer See" tragen `Fläche(n): Angbarer See`. Zeilen ohne Fläche zeigen `—`.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git commit -m "feat(regions): the WikiSync region list shows which landscape areas hang on each wiki region" -- js/review/review-region-sync-ecosystem.js js/review/review-region-sync.js html/wiki-sync-monitor.html
@@ -565,7 +587,7 @@ git commit -m "feat(regions): the WikiSync region list shows which landscape are
 - Consumes: `ecosystemRegionsForWikiKey`, `loadEcosystemRegionsByWikiKey` aus Task 3.
 - Produces: `openEcosystemAssignDialog(wikiKey, wikiUrl, wikiName): void`
 
-- [ ] **Schritt 1: Den Dialog schreiben**
+- [x] **Schritt 1: Den Dialog schreiben**
 
 An `js/review/review-region-sync-ecosystem.js` anhängen:
 
@@ -633,7 +655,7 @@ async function postEcosystemAssign(payload) {
 > `docs/superpowers/specs/2026-07-22-editor-designsprache-design.md`, sonst öffnet es
 > hinter der Karte oder schließt nicht auf Escape.
 
-- [ ] **Schritt 2: Den Knopf in die Zeile hängen**
+- [x] **Schritt 2: Den Knopf in die Zeile hängen**
 
 In `ecosystemAreaBadgeForWikiKey` hinter die Chips:
 
@@ -644,7 +666,7 @@ In `ecosystemAreaBadgeForWikiKey` hinter die Chips:
 und einen delegierten Listener auf der Liste registrieren, der `data-assign-wiki-key` liest
 und `openEcosystemAssignDialog` ruft.
 
-- [ ] **Schritt 3: UI-Strings nach `js/app/i18n-en.js`**
+- [x] **Schritt 3: UI-Strings nach `js/app/i18n-en.js`**
 
 `Fläche zuweisen` → `Assign area`, `Fläche(n)` → `Area(s)`, `zugewiesen` → `assigned`.
 
@@ -659,7 +681,7 @@ und `openEcosystemAssignDialog` ruft.
 4. 🔴 **`map_revision` bleibt unberührt** — ETag vor und nach der Zuweisung vergleichen,
    ein einzelner Aufruf, keine Schleife.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 ```bash
 git commit -m "feat(regions): assign a wiki region to one or more landscape areas from the list" -- js/review/review-region-sync-ecosystem.js js/app/i18n-en.js
@@ -673,15 +695,15 @@ git commit -m "feat(regions): assign a wiki region to one or more landscape area
 - Modify: `docs/oekosystem-editor-verhalten.md`
 - Modify: `docs/superpowers/plans/2026-07-24-landschaften.md`
 
-- [ ] **Schritt 1:** In `docs/oekosystem-editor-verhalten.md` einen Abschnitt „Wiki-Region
+- [x] **Schritt 1:** In `docs/oekosystem-editor-verhalten.md` einen Abschnitt „Wiki-Region
       zuweisen" ergänzen: wo es sitzt, dass mehrere Landschaftsregionen denselben Schlüssel
       tragen dürfen, und dass **nichts verschmolzen oder verschoben** wird.
-- [ ] **Schritt 2:** Die V6-Zeile im Hauptplan auf ✅ setzen — **mit der Korrektur**, dass
+- [x] **Schritt 2:** Die V6-Zeile im Hauptplan auf ✅ setzen — **mit der Korrektur**, dass
       V6 kein eigener 3-Spalten-Editor mit 1.800–2.600 Zeilen geworden ist, sondern eine
       Erweiterung der vorhandenen Liste.
-- [ ] **Schritt 3:** Prüfen, dass keine politische Datei angefasst wurde:
+- [x] **Schritt 3:** Prüfen, dass keine politische Datei angefasst wurde:
       `git diff --name-only origin/master...HEAD | grep -E "map-features-region-|js/territory/|_internal/political/"` → leer.
-- [ ] **Schritt 4: Commit.**
+- [x] **Schritt 4: Commit.**
 
 ---
 
