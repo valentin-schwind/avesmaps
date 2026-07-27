@@ -46,6 +46,9 @@ try {
         // "which region does my next area go into" is an editor question and does not widen the public
         // surface. Optional filter: kind.
         'list_regions' => avesmapsListEcosystemRegions($pdo, $payload),
+        // V6: the WikiSync -> Regionen list's second source -- which landscape regions, and how many
+        // areas, hang on each wiki_region_key. Same capability gate, same reasoning as list_regions.
+        'regions_by_wiki_key' => avesmapsListEcosystemRegionsByWikiKey($pdo, $payload),
         // A region carries the name, the kind and the wiki bridge; it may hold MANY areas (owner
         // decision 1). Returns the new public_id so the client can hang the following create_area on it.
         // wiki_region_key is DERIVED from wiki_url server-side and never read from the payload.

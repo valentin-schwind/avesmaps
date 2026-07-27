@@ -748,6 +748,69 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
     return ['regions' => $regions, 'region_types' => avesmapsEcosystemReadRegionTypes($pdo, $params['kind'] ?? null)];
 }
 
+// ---- read path: which landscape regions hang on which wiki region (plan V6) ---------------------------
+// Pure grouping over region rows -- no PDO, so the unit test can reach it without a database.
+//
+// 🔴 A region WITHOUT a wiki key is COUNTED separately and never lands in an '' bucket. An empty string
+// is not a key: a bucket keyed '' would join against no wiki row while looking, in the payload, exactly
+// like a real assignment. Whitespace is trimmed first for the same reason.
+//
+// Several regions sharing one key is the NORMAL case here, not a collision: that is how "one wiki region,
+// several areas" is expressed (idx_ecosystem_region_wiki is an INDEX, not UNIQUE, deliberately). The V5
+// import left 129 regions for 131 areas -- "Bilku", "Bilku-Archipel", "Sorak" and "Kossike" are four rows
+// the wiki knows as one -- and sharing the key is what brings them together without moving or deleting a
+// single row.
+function avesmapsEcosystemGroupRegionsByWikiKey(array $rows): array
+{
+    $byKey = [];
+    $areaCountByKey = [];
+    $unassigned = 0;
+
+    foreach ($rows as $row) {
+        $key = trim((string) ($row['wiki_region_key'] ?? ''));
+        $areaCount = (int) ($row['area_count'] ?? 0);
+        if ($key === '') {
+            $unassigned++;
+            continue;
+        }
+        $byKey[$key][] = [
+            'public_id' => (string) $row['public_id'],
+            'name' => (string) $row['name'],
+            'kind' => (string) $row['kind'],
+            // Stays nullable: "ohne Art" is a legitimate state (an area can be drawn before anybody
+            // decides what it is), and casting it to '' would make the picker show a type that is not set.
+            'region_type' => $row['region_type'] === null ? null : (string) $row['region_type'],
+            'area_count' => $areaCount,
+        ];
+        $areaCountByKey[$key] = ($areaCountByKey[$key] ?? 0) + $areaCount;
+    }
+
+    return [
+        'regions_by_wiki_key' => $byKey,
+        'area_count_by_wiki_key' => $areaCountByKey,
+        'unassigned_count' => $unassigned,
+    ];
+}
+
+// The WikiSync -> Regionen list's SECOND data source. Editor-only, behind the capability check: "which
+// areas hang on which wiki region" is an editor question and does not widen the public surface (plan,
+// global rule 4). Unfiltered by kind on purpose -- the list is keyed by wiki region, and a wiki region
+// does not know which of our three layers drew it.
+function avesmapsListEcosystemRegionsByWikiKey(PDO $pdo, array $payload): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $statement = $pdo->query(
+        'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key,
+                (SELECT COUNT(*) FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1) AS area_count
+           FROM ecosystem_region r
+          WHERE r.is_active = 1
+          ORDER BY r.name ASC, r.id ASC'
+    );
+
+    return avesmapsEcosystemGroupRegionsByWikiKey($statement->fetchAll(PDO::FETCH_ASSOC));
+}
+
 function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
 {
     $sql = 'SELECT kind, type_key, label, sort_order FROM ecosystem_region_type WHERE is_active = 1';
