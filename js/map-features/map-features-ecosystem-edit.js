@@ -726,11 +726,9 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 	// gerufen hätte sie sich selbst noch als „bearbeitet gerade" gesehen und den Zoom für immer
 	// abgeschaltet gelassen. Sie entscheidet auch NICHT stumpf auf enable() -- ist die Fläche weiterhin
 	// ausgewählt, bleibt der Doppelklick-Zoom aus (map-features-ecosystem-rendering.js).
-	if (typeof syncEcosystemDoubleClickZoom === "function") {
-		syncEcosystemDoubleClickZoom();
-	} else if (typeof map !== "undefined" && map) {
-		map.doubleClickZoom.enable();
-	}
+	// 💣 KEIN enable()-Rückfall daneben. Er wäre in der Landschaften-Ebene immer falsch, und ein
+	// Rückfall, der nur im Fehlerfall greift und dann das Gegenteil tut, ist schlimmer als keiner.
+	syncEcosystemDoubleClickZoom?.();
 }
 
 // A double-click that did NOT land on an area finishes the session. A double-click ON an area never

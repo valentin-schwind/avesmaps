@@ -330,6 +330,12 @@ function syncEcosystemControlsVisibility() {
 	// Both effects are restored on the way OUT, before the early return: a half-faded base map or a
 	// dimmed label pane left behind in "Politisch" would read as a broken map, not as a setting.
 	applyEcosystemUndergroundOpacity(shouldShow);
+	// 🔴 Auf BEIDEN Wegen. Der Doppelklick-Zoom ist in dieser Ebene aus und muss beim Verlassen wieder
+	// an sein -- eine Karte, die nach einem Moduswechsel nicht mehr auf Doppelklick zoomt, wäre für
+	// jeden ausserhalb des Editors einfach kaputt. Deshalb vor dem frühen Return und danach.
+	if (typeof syncEcosystemDoubleClickZoom === "function") {
+		syncEcosystemDoubleClickZoom();
+	}
 	if (!shouldShow) {
 		syncEcosystemPaneStates();
 		return;

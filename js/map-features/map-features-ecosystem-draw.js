@@ -215,7 +215,11 @@ function stopEcosystemAreaDrawing() {
 	ecosystemDrawLastClick = null;
 	clearEcosystemDrawPreview();
 	if (typeof map !== "undefined" && map) {
-		map.doubleClickZoom.enable();
+		// 💣 NICHT stumpf enable(). Ein abgeschlossenes Zeichnen bleibt in der Landschaften-Ebene, und
+		// dort zoomt kein Doppelklick -- sonst wäre der Zoom ausgerechnet nach der Geste wieder scharf,
+		// die aus einem Doppelklick besteht. Die eine zuständige Stelle entscheidet
+		// (map-features-ecosystem-rendering.js).
+		syncEcosystemDoubleClickZoom?.();
 		map.getContainer().classList.remove("ecosystem-draw-cursor");
 		syncEcosystemMapEditingClass?.();
 		map.off("click", handleEcosystemDrawClick);

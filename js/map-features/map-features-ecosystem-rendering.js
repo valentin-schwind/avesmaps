@@ -165,23 +165,27 @@ function setSelectedEcosystemArea(publicId) {
 	syncEcosystemDoubleClickZoom();
 }
 
-// 🔴 Solange eine Fläche ausgewählt ist, gezeichnet oder bearbeitet wird, zoomt ein Doppelklick NICHT.
-// Wer neben eine Kante trifft, hat sich verklickt -- und bekam bisher als Antwort einen Zoomsprung, der
-// die Karte unter der Arbeit wegzieht (Owner 2026-07-27).
+// 🔴 IN DER LANDSCHAFTEN-EBENE ZOOMT EIN DOPPELKLICK ÜBERHAUPT NICHT (Owner 2026-07-27).
 //
-// 💣 EINE Stelle entscheidet, nicht drei. Leaflets doubleClickZoom zählt nicht mit: der Editor schaltet
-// es beim Öffnen aus und beim Schliessen wieder an, und läge die Auswahl-Regel daneben, hätte ein
-// geschlossener Ecken-Vorgang den Zoom auf einer noch ausgewählten Fläche wieder scharf gemacht.
-// Deshalb fragt diese Funktion ALLE drei Zustände ab, und die anderen rufen sie, statt selbst zu
-// schalten.
+// Zuerst hing das an drei Zuständen -- ausgewählt, in Bearbeitung, im Zeichnen. Das war zu fein
+// gedacht: der Doppelklick ist in dieser Ebene eine ARBEITSGESTE und sonst nichts. Er schliesst eine
+// Zeichnung ab, öffnet den Ecken-Editor, löscht eine Ecke, beendet eine Sitzung. Jeder Doppelklick,
+// der keine davon trifft, ist ein Verklicken -- und die Antwort darauf war ein Zoomsprung, der die
+// Karte unter der Arbeit wegzieht. Es gibt in dieser Ebene keinen Doppelklick, der Zoom BEDEUTEN soll.
+//
+// 💣 EINE Stelle entscheidet. Leaflets doubleClickZoom zählt nicht mit, also darf niemand sonst
+// enable() rufen: der Ecken-Editor tat das beim Schliessen und machte den Zoom damit mitten in der
+// Arbeit wieder scharf. Die anderen rufen jetzt diese Funktion.
 function syncEcosystemDoubleClickZoom() {
 	if (typeof map === "undefined" || !map || !map.doubleClickZoom) {
 		return;
 	}
-	const selected = Boolean(selectedEcosystemAreaPublicId);
+	const inEcosystemLayer = typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive();
+	// Zeichnen und Ecken-Bearbeitung sind ohnehin nur dort möglich; sie stehen trotzdem hier, damit die
+	// Antwort auch dann stimmt, wenn der Moduswechsel noch nicht durchgelaufen ist.
 	const editing = typeof activeEcosystemGeometryEdit !== "undefined" && Boolean(activeEcosystemGeometryEdit);
 	const drawing = typeof isEcosystemDrawing === "function" && isEcosystemDrawing();
-	if (selected || editing || drawing) {
+	if (inEcosystemLayer || editing || drawing) {
 		map.doubleClickZoom.disable();
 	} else {
 		map.doubleClickZoom.enable();
