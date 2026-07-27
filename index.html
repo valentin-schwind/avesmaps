@@ -733,6 +733,37 @@
 				</form>
 			</div>
 		</div>
+		<!-- V6: eine Wiki-Region an eine oder mehrere Landschaftsregionen haengen. Aufgerufen aus der
+		     Liste WikiSync -> Regionen (js/review/review-region-sync-ecosystem.js). Zwei Zustaende in
+		     EINEM Fenster: erst auswaehlen, dann der Trockenlauf als Vorschau -- ein Massen-UPDATE ohne
+		     vorherige Sicht ist teurer rueckgaengig zu machen als noch einmal zu rechnen.
+		     Die Overlay-Huelle (Position, Scrim, z-index) kommt aus css/components/dialog-overlays.css,
+		     wo #ecosystem-assign-overlay in allen DREI Selektorlisten steht -- sonst erbt das <div>
+		     NICHTS und oeffnet hinter der Karte. -->
+		<div id="ecosystem-assign-overlay" hidden>
+			<div id="ecosystem-assign-dialog" class="ecosystem-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-assign-title" tabindex="-1">
+				<div class="ecosystem-assign-dialog__header">
+					<h2 id="ecosystem-assign-title" data-i18n="ecosystem.assign.dialogTitle">Fläche zuweisen</h2>
+					<button id="ecosystem-assign-close" class="ecosystem-assign-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.assign.closeAria">×</button>
+				</div>
+				<form id="ecosystem-assign-form" class="ecosystem-assign-dialog__form">
+					<p id="ecosystem-assign-target" class="ecosystem-assign-dialog__target"></p>
+					<label class="ecosystem-assign-dialog__field">
+						<span data-i18n="ecosystem.assign.filterLabel">Landschaftsregion suchen</span>
+						<input id="ecosystem-assign-filter" type="search" autocomplete="off" placeholder="Name …" data-i18n-placeholder="ecosystem.assign.filterPlaceholder" />
+					</label>
+					<!-- Kandidaten sind ALLE aktiven Landschaftsregionen, nicht nur die schon zugewiesenen:
+					     zuweisen ist der Zweck, also muessen die noch nicht verknuepften erreichbar sein. -->
+					<div id="ecosystem-assign-list" class="ecosystem-assign-dialog__list" role="group" aria-labelledby="ecosystem-assign-title"></div>
+					<p id="ecosystem-assign-preview" class="ecosystem-assign-dialog__preview" hidden></p>
+					<p id="ecosystem-assign-error" class="ecosystem-assign-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-assign-dialog__actions">
+						<button id="ecosystem-assign-cancel" class="ecosystem-assign-dialog__button" type="button" data-i18n="ecosystem.assign.cancel">Abbrechen</button>
+						<button id="ecosystem-assign-save" class="ecosystem-assign-dialog__button ecosystem-assign-dialog__button--primary" type="submit" data-i18n="ecosystem.assign.preview">Vorschau</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">

@@ -120,6 +120,20 @@ window.AVESMAPS_I18N_EN = {
 	// --- Landschaften: the click-by-click draw tool (V3.2) ---
 	"ecosystem.draw.start": "Draw area",
 
+	// --- Landschaften: assigning a wiki region to one or more landscape regions (V6). Lives in the
+	//     WikiSync -> Regionen list; the primary button reads "Vorschau" until the dry run has been
+	//     shown, then "Zuweisen" -- both strings are set from JS, so they are here for the dry-run
+	//     state and the row label only. ---
+	"ecosystem.assign.dialogTitle": "Assign area",
+	"ecosystem.assign.closeAria": "Close dialog",
+	"ecosystem.assign.filterLabel": "Find landscape region",
+	"ecosystem.assign.filterPlaceholder": "Name …",
+	"ecosystem.assign.cancel": "Cancel",
+	"ecosystem.assign.preview": "Preview",
+	"ecosystem.assign.apply": "Assign",
+	"ecosystem.assign.rowLabel": "Area(s)",
+	"ecosystem.assign.rowButton": "Assign area",
+
 	// --- Landschaften: fading the base tiles out from under the drawn areas ---
 	"ecosystem.underground.label": "Underground",
 	"ecosystem.underground.aria": "Underground opacity",

@@ -19,6 +19,7 @@ body.modal-dialog-open {
 #ecosystem-region-overlay[hidden],
 #ecosystem-intro-overlay[hidden],
 #ecosystem-transfer-overlay[hidden],
+#ecosystem-assign-overlay[hidden],
 #review-overlay[hidden] {
 	display: none !important;
 }
@@ -37,6 +38,7 @@ body.modal-dialog-open {
 #ecosystem-region-overlay,
 #ecosystem-intro-overlay,
 #ecosystem-transfer-overlay,
+#ecosystem-assign-overlay,
 #review-overlay {
 	position: fixed;
 	inset: 0;
@@ -67,6 +69,7 @@ body.modal-dialog-open {
 #ecosystem-region-overlay,
 #ecosystem-intro-overlay,
 #ecosystem-transfer-overlay,
+#ecosystem-assign-overlay,
 #review-overlay {
 	z-index: 1260;
 }
