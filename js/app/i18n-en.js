@@ -168,6 +168,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.difference-keep-target": "Cut out of another and keep the other",
 	"ecosystem.ctxmenu.intersection": "Cut a new one out of another",
 	"ecosystem.ctxmenu.extract": "Extract a new area",
+	"ecosystem.ctxmenu.delete-part": "Delete part",
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Send to …",
 	"ecosystem.ctxmenu.properties": "Properties …",

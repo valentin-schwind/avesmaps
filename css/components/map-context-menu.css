@@ -145,6 +145,12 @@
 	content: "\2702";
 }
 
+/* Radiergummi statt Kreuz: das Kreuz gehört „Fläche löschen" darunter, und die beiden dürfen sich
+   nicht verwechseln lassen -- der eine Eintrag nimmt ein Stück weg, der andere die ganze Fläche. */
+.map-context-menu__item[data-ecosystem-area-action="delete-part"]::before {
+	content: "\232B";
+}
+
 .map-context-menu__item[data-region-context-action="edit-geometry"]::before {
 	content: "\270E";
 }

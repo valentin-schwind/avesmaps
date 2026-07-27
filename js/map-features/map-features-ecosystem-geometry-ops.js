@@ -372,6 +372,54 @@
 		}
 	}
 
+	// ---- Einen Teil löschen -------------------------------------------------------------------------
+	// Ein Abzug hinterlässt oft einen Krümel: der See schneidet den Wald durch und ein Fetzen bleibt als
+	// eigener Teil stehen. Den wieder loszuwerden ging bisher nur über „Herauslösen" und danach
+	// „Fläche löschen" -- zwei Schritte, von denen der erste eine Zeile anlegt, nur damit der zweite sie
+	// wegwirft.
+	//
+	// Es ist derselbe Schnitt wie beim Herauslösen, nur wird der abgetrennte Teil nicht behalten:
+	// ecosystemExtractPart liefert `remainder` ohnehin schon mit.
+	async function runDeletePart(publicId) {
+		const source = areaByPublicId(publicId);
+		if (!source) {
+			say("Die Fläche ist nicht mehr geladen.", "warning");
+			return;
+		}
+
+		opsBusy = true;
+		try {
+			const geometry = areaGeometry(source);
+			const index = clickedPartIndex(geometry, lastContextLatLng);
+			if (index < 0) {
+				say("Bitte mit der rechten Maustaste auf den Teil klicken, der weg soll.", "warning");
+				return;
+			}
+			const result = ecosystemExtractPart(geometry, index);
+			// 💣 Die Rückfrage nennt den ANTEIL, nicht bloss „ein Teil". Beide Stücke gehören derselben
+			// Fläche, sehen im Menü gleich aus, und der Unterschied zwischen dem Krümel und dem Hauptteil
+			// ist genau das, was man vor dem Klick wissen muss.
+			const teil = ecosystemGeometryArea(result.extracted);
+			const ganz = ecosystemGeometryArea(geometry);
+			const prozent = ganz > 0 ? (teil / ganz) * 100 : 0;
+			// 🪤 Nicht blind runden: gerade der Krümel, den man wegräumen will, landet bei „0 %" -- und
+			// „0 % entfernen?" liest sich, als passiere nichts. Unter einem Prozent wird es benannt statt
+			// gerundet, und der Hauptteil bekommt eine deutliche Warnung.
+			const anteil = prozent < 1 ? "weniger als 1 %" : `${Math.round(prozent)} %`;
+			const warnung = prozent >= 50 ? "\n\nAchtung: das ist der GRÖSSERE Teil." : "";
+			if (!window.confirm(`Diesen Teil der Fläche entfernen? Er macht ${anteil} von „${source.region_name || "dieser Fläche"}" aus.${warnung}`)) {
+				return;
+			}
+			await saveGeometry(source, result.remainder);
+			refreshAfterWrite();
+			say("Teil entfernt.", "success");
+		} catch (error) {
+			failed(error);
+		} finally {
+			opsBusy = false;
+		}
+	}
+
 	// ---- Verschieben --------------------------------------------------------------------------------
 
 	async function completeMove() {
@@ -520,6 +568,7 @@
 		});
 
 		entry("extract", "Neue Fläche herauslösen", (publicId) => void runExtract(publicId));
+		entry("delete-part", "Teil löschen", (publicId) => void runDeletePart(publicId));
 	}
 
 	// ---- Verdrahtung --------------------------------------------------------------------------------
@@ -573,8 +622,12 @@
 	}
 
 	document.addEventListener("contextmenu", (event) => {
-		const button = document.querySelector('[data-ecosystem-area-action="extract"]');
-		if (!button) {
+		// Beide Einträge arbeiten auf EINEM Teil eines mehrteiligen Gebildes -- bei einer einteiligen
+		// Fläche haben sie kein Gegenüber und wären nur ein Angebot, das mit einer Absage endet.
+		const buttons = ["extract", "delete-part"]
+			.map((action) => document.querySelector(`[data-ecosystem-area-action="${action}"]`))
+			.filter(Boolean);
+		if (buttons.length === 0) {
 			return;
 		}
 		const area = areaUnderElement(event.target?.closest?.("path.leaflet-interactive"));
@@ -584,7 +637,7 @@
 		} catch (error) {
 			parts = 0;
 		}
-		button.hidden = parts < 2;
+		buttons.forEach((button) => { button.hidden = parts < 2; });
 	}, true);
 
 	if (typeof window !== "undefined") {
