@@ -87,26 +87,33 @@
 	white-space: nowrap;
 }
 
-/* Innerorts-Treffer (Villa, Platz, Stadttempel, Gasse) tragen ZWEI Angaben: den Typ samt
-   Stadt und den Hinweis, dass das Objekt selbst nicht auf der Karte liegt. In den 150px der
-   einzeiligen Typangabe schneidet die Ellipse genau den Hinweis ab, der die Verwechslung
-   verhindern soll -- also hier mehr Platz und Umbruch statt Abschneiden. */
+/* Innerorts-Treffer (Villa, Platz, Stadttempel, Gasse) tragen ZWEI Angaben untereinander:
+   den Typ samt Stadt und den Hinweis, dass das Objekt selbst nicht auf der Karte liegt.
+   Beide brauchen mehr als die 150px der einzeiligen Typangabe, sonst frisst die Ellipse
+   genau den Hinweis, der die Verwechslung verhindern soll.
+
+   💣 `white-space` bleibt `nowrap`. Die Trefferzeile ist ein Grid (minmax(0,1fr) auto), und
+   mit `normal` faellt die auto-Spalte auf ihre MINIMALbreite zusammen: gemessen 69px statt
+   120px, wodurch beide Angaben zweizeilig umbrachen und die Zeile 54px statt 27px hoch war
+   -- sie sah gequetscht aus, obwohl der Treffer 548px breit ist. Die zwei Zeilen entstehen
+   durch `display:block` am Hinweis, nicht durch Umbruch; jede fuer sich bleibt einzeilig. */
 .spotlight-search__result--not-on-map .spotlight-search__result-type {
-	max-width: 58%;
-	overflow: visible;
+	max-width: 240px;
 	text-align: right;
-	white-space: normal;
 }
 
 /* Der Hinweis steht unter der Typangabe und ist bewusst leiser als sie: er beschreibt eine
-   Einschraenkung, keine Kategorie. `currentColor` erbt die Farbe der Typzeile -- so bleibt
-   der Kontrast in jedem Theme richtig, ohne einen zweiten Farbwert einzufuehren. */
+   Einschraenkung, keine Kategorie. Die Farbe erbt er von der Typzeile -- so bleibt der
+   Kontrast in jedem Theme richtig, ohne einen zweiten Farbwert einzufuehren. */
 .spotlight-search__result-hint {
 	display: block;
+	overflow: hidden;
 	opacity: 0.72;
 	font-size: 10px;
 	font-style: italic;
+	text-overflow: ellipsis;
 	text-transform: none;
+	white-space: nowrap;
 }
 
 .spotlight-search__status {
