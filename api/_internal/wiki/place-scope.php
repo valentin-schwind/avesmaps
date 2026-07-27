@@ -79,7 +79,7 @@ const AVESMAPS_PLACE_SCOPE_OUTSKIRTS_MARKERS = [
     'bei', 'nahe', 'unweit', 'ausserhalb', 'außerhalb', 'vor den toren', 'vor der stadt',
     'nördlich von', 'noerdlich von', 'südlich von', 'suedlich von', 'östlich von', 'oestlich von',
     'westlich von', 'nordöstlich von', 'nordwestlich von', 'südöstlich von', 'südwestlich von',
-    'in der nähe von', 'in der naehe von', 'umgebung von', 'nahe bei',
+    'in der nähe von', 'in der naehe von', 'umgebung von', 'umland von', 'nahe bei',
 ];
 
 /**
@@ -311,7 +311,7 @@ function avesmapsPlaceScopeClassify(string $raw, array $settlementNames, array $
         return $outside;
     }
 
-    foreach (avesmapsPlaceScopeExtractLinksWithContext($raw) as $link) {
+    foreach (avesmapsPlaceScopeExtractLinksWithContext($raw) as $index => $link) {
         $folded = avesmapsPlaceScopeFoldName($link['target']);
         if ($folded === '' || !isset($settlementNames[$folded])) {
             continue;
@@ -320,6 +320,48 @@ function avesmapsPlaceScopeClassify(string $raw, array $settlementNames, array $
             continue;
         }
         if (isset($regionNames[$folded])) {
+            // Name ist Stadt UND Region/Territorium. Die POSITION in der Kette entscheidet,
+            // welche gemeint ist -- gemessen an allen sechs Zweifelsfaellen des Bestands, und
+            // sie trennt exakt:
+            //
+            //   "[[Greifenfurt]]"              -> Stadttor IN Greifenfurt      (Stadt)
+            //   "[[Paavi]]"                    -> Herzogsburg IN Paavi         (Stadt)
+            //   "[[Albernia]]: [[Abagund]]"    -> Burg in der Grafschaft       (unklar)
+            //   "[[Brydia]]: Umland v. [[Paavi]]" -> ausserhalb                (schon oben raus)
+            //
+            // Logik dahinter: eine Kette, die mit einer REGION beginnt, ist geografisch zu
+            // lesen (Region: Unterregion) -- der zweite Name meint dann das Gebiet. Steht der
+            // Name dagegen ganz vorne, ist er die Hauptangabe des Objekts, und ein Gebaeude
+            // liegt in einer STADT, nicht in einer Grafschaft.
+            //
+            // 💣 Ohne diese Unterscheidung verschwinden GANZE STAEDTE: Punin und Ragath tragen
+            // beide den Namen eines gleichnamigen Territoriums, wodurch live alle 43 bzw. 13
+            // ihrer Objekte samt Lotosstieg und Yaquirallee lautlos ausfielen.
+            // 💣 Erste Position allein genuegt NICHT. "[[Greifenfurt]], [[Koenigreich
+            // Garetien]], [[Fuerstentum Kosch]]" (Breitenstieg) beginnt auch mit dem
+            // mehrdeutigen Namen -- ist aber eine AUFZAEHLUNG gleichrangiger Gebiete, also
+            // eine Ueberlandstrasse. Der Unterschied liegt in dem, was FOLGT:
+            //
+            //   "[[Punin]] ([[Goldacker]])"        -> Goldacker ist ein Stadtviertel  (Stadt)
+            //   "[[Ragath]] <small>(Markt…)</small>" -> gar kein Link mehr            (Stadt)
+            //   "[[Greifenfurt]], [[Koenigreich Garetien]]" -> weitere GEBIETE        (unklar)
+            //
+            // Folgt also noch ein bekanntes Gebiet, ist die Kette geografisch zu lesen.
+            $followedByRegion = false;
+            foreach (avesmapsPlaceScopeExtractLinksWithContext($raw) as $laterIndex => $laterLink) {
+                if ($laterIndex <= $index) {
+                    continue;
+                }
+                if (isset($regionNames[avesmapsPlaceScopeFoldName($laterLink['target'])])) {
+                    $followedByRegion = true;
+                    break;
+                }
+            }
+
+            if ($index === 0 && !$followedByRegion) {
+                return ['scope' => AVESMAPS_PLACE_SCOPE_INSIDE, 'settlement' => $link['target']];
+            }
+
             return ['scope' => AVESMAPS_PLACE_SCOPE_AMBIGUOUS, 'settlement' => $link['target']];
         }
 

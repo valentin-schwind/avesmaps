@@ -196,10 +196,12 @@ console.log("settlement-subfilter-markup ok");
 // routing graph -- the object's own name would find nothing. jQuery UI's {label, value} split
 // does this without any special case in the routing itself.
 const waypointSource = readFileSync(path.join(repoRoot, "js", "map-features", "map-features-waypoints.js"), "utf8");
+// "Imdal (Schänke Schnapsfass)" -- the CITY leads, because that is what lands in the field
+// and where the route goes; the object is the reason behind it (owner 2026-07-28).
 assert.match(
 	waypointSource,
-	/label: `\$\{match\.entry\.name\} — in \$\{match\.entry\.settlement\}`, value: match\.entry\.settlement/,
-	"an in-settlement suggestion must show itself but commit its CITY",
+	/label: `\$\{match\.entry\.settlement\} \(\$\{match\.entry\.name\}\)`, value: match\.entry\.settlement/,
+	"an in-settlement suggestion must lead with the city and commit it as the value",
 );
 // A plain place must stay a bare string -- that is the untouched behaviour for the 4600 real ones.
 assert.match(waypointSource, /: match\.entry\.name\)\);/, "an ordinary place stays a plain string");

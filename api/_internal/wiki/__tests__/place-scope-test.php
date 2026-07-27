@@ -31,13 +31,16 @@ require __DIR__ . '/../place-scope.php';
 $settlements = avesmapsPlaceScopeBuildNameSet([
     'Gareth', 'Khunchom', 'Grangor', 'Elenvina', 'Punin', 'Vinsalt', 'Festum', 'Xorlosch',
     'Mengbilla', 'Ragath', 'Andergast', 'Albenhus', 'Fairnhain', 'Abagund', 'Drôl', 'Greifenfurt',
-    'Mendlicum', 'Winhall', "H'Rabaal", 'Yol-Ghurmak',
+    'Mendlicum', 'Winhall', "H'Rabaal", 'Yol-Ghurmak', 'Paavi', 'Beilunk',
 ]);
 $regions = avesmapsPlaceScopeBuildNameSet([
     'Koschberge', 'Greings Klamm', 'Eisenwald', 'Grenzmark', 'Almada', 'Bornland (Region)',
-    'Festenland', 'Lahmaria', 'Ehernes Schwert', 'Südaventurien', 'Liebliches Feld',
-    // The collision set: each of these is ALSO a settlement above.
-    'Abagund', 'Drôl', 'Greifenfurt',
+    'Festenland', 'Lahmaria', 'Ehernes Schwert', 'Südaventurien', 'Liebliches Feld', 'Albernia',
+    'Brydia', 'Königreich Garetien',
+    // The collision set: each of these is ALSO a settlement above. Punin and Ragath are the
+    // live proof that this set is not academic -- they cost 56 objects before the position
+    // rule existed.
+    'Abagund', 'Drôl', 'Greifenfurt', 'Paavi', 'Punin', 'Ragath',
 ]);
 
 $scope = static function (string $raw) use ($settlements, $regions): string {
@@ -100,23 +103,48 @@ assert($scope('[[Vinsalt]] (außerhalb)') === AVESMAPS_PLACE_SCOPE_OUTSIDE);
 // "Beilunk" starts with "bei", and a marker on an EARLIER link must not leak
 // onto a later one.
 assert(!avesmapsPlaceScopeHasOutskirtsMarker('[[Beilunk]]'));
-assert($scope('[[Beilunk]]') === AVESMAPS_PLACE_SCOPE_OUTSIDE); // not a settlement here, but must not crash
+// Beilunk IS a settlement in this index, so the sharper form of the same test: the "bei"
+// marker must not fire on the first syllable of a name and push a real in-town object out.
+assert($scope('[[Beilunk]]') === AVESMAPS_PLACE_SCOPE_INSIDE);
 assert($scope('[[Gareth]]: [[Nordquartier]], im nördlichen Stadtteil') === AVESMAPS_PLACE_SCOPE_INSIDE);
 assert($scope('bei [[Punin]]: [[Gareth]]') === AVESMAPS_PLACE_SCOPE_INSIDE); // only Punin is disqualified
 assert($where('bei [[Punin]]: [[Gareth]]') === 'Gareth');
 echo "outskirts ok\n";
 
 // ---------------------------------------------------------------- AMBIGUOUS ---
-// Name is a settlement AND a region/barony -> never filtered, handed to the editor.
-// These are exactly the cases the measurement could not decide (Burg Draustein,
-// Chalinba, Breitenstieg).
-assert($scope('[[Albernia]]: [[Abagund]]') === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);
+// A name that is a settlement AND a region/barony is decided by its POSITION in the
+// chain. Verified against all six doubtful cases in the live corpus; it separates
+// them exactly, and the reasoning is that a chain STARTING with a region is meant
+// geographically (region: sub-region), while a name standing first is the object's
+// own main location -- and a building sits in a CITY, not in a county.
+
+// Region first -> the second name means the territory: NOT filtered, handed over.
+assert($scope('[[Albernia]]: [[Abagund]]') === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);   // Burg Draustein
 assert($where('[[Albernia]]: [[Abagund]]') === 'Abagund');
-assert($scope('[[Drôl]]') === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);
-assert($scope('[[Greifenfurt]], [[Königreich Garetien]]') === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);
-// An outskirts marker still wins over ambiguity -- "outside" is the safe answer
-// and the one the editor would give.
+assert($scope('[[Albernia]]: [[Abagund]]: [[Irgendwo]]') === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);
+
+// 💣 Name FIRST -> the city is meant. Without this, entire cities vanish: Punin and
+// Ragath share their name with a same-named territory, so live ALL 43 resp. 13 of
+// their objects silently dropped out, Lotosstieg and Yaquirallee among them.
+assert($scope('[[Greifenfurt]]') === AVESMAPS_PLACE_SCOPE_INSIDE);                // Andergaster Tor
+assert($where('[[Greifenfurt]]') === 'Greifenfurt');
+assert($scope('[[Drôl]]') === AVESMAPS_PLACE_SCOPE_INSIDE);
+// 💣 But first position alone is NOT enough. "Breitenstieg" also leads with the
+// ambiguous name, yet lists further TERRITORIES after it -- that is an enumeration
+// of areas along an overland road, not a city with a quarter. What FOLLOWS decides.
+assert($scope('[[Greifenfurt]], [[Königreich Garetien]], [[Fürstentum Kosch]]')
+    === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);
+assert($scope('[[Greifenfurt]], [[Albernia]]') === AVESMAPS_PLACE_SCOPE_AMBIGUOUS);
+// ...while a quarter (unknown as a region) or plain text after it keeps the city reading.
+assert($scope('[[Greifenfurt]] ([[Marktviertel]])') === AVESMAPS_PLACE_SCOPE_INSIDE);
+// The two real cases this recovered, verbatim:
+assert($scope('[[Punin]] ([[Goldacker]])') === AVESMAPS_PLACE_SCOPE_INSIDE);      // Lotosstieg
+assert($where('[[Punin]] ([[Goldacker]])') === 'Punin');
+assert($scope('[[Ragath]] <small>(Marktviertel)</small>') === AVESMAPS_PLACE_SCOPE_INSIDE); // Yaquirallee
+
+// An outskirts marker still beats the position rule -- "outside" is the safe answer.
 assert($scope('bei [[Abagund]]') === AVESMAPS_PLACE_SCOPE_OUTSIDE);
+assert($scope('[[Brydia]]: Umland von [[Paavi]]') === AVESMAPS_PLACE_SCOPE_OUTSIDE); // Schneepalast
 echo "ambiguous ok\n";
 
 // -------------------------------------------------------------- PATHS: |Regionen= ---

@@ -167,9 +167,14 @@ function getWaypointAutocompleteSource(term = "") {
 		})
 		.slice(0, WAYPOINT_AUTOCOMPLETE_MAX_RESULTS)
 		// Ein gewöhnlicher Ort bleibt ein blanker String (unverändertes Verhalten). Ein Innerorts-
-		// Objekt wird zum {label, value}-Paar: sichtbar ist es selbst, ins Feld geht seine STADT.
+		// Objekt wird zum {label, value}-Paar: sichtbar sind beide, ins Feld geht die STADT.
+		//
+		// Reihenfolge „Imdal (Schänke Schnapsfass)" statt „Schänke Schnapsfass — in Imdal“
+		// (Owner 2026-07-28): vorne steht, was gleich im Feld landet und wohin die Route geht;
+		// das gesuchte Objekt ist die Begründung dahinter. So liest sich die Liste in derselben
+		// Richtung, in der sie wirkt.
 		.map((match) => (match.entry.settlement
-			? { label: `${match.entry.name} — in ${match.entry.settlement}`, value: match.entry.settlement }
+			? { label: `${match.entry.settlement} (${match.entry.name})`, value: match.entry.settlement }
 			: match.entry.name));
 }
 
