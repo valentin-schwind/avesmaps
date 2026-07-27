@@ -105,6 +105,14 @@ const WIKI_SYNC_SUBJECT_FACETS = {
 		{ key: "continent", label: "Kontinent", kind: "multi", field: "continent" },
 		// Innerorts/außerorts (api/_internal/wiki/place-scope.php). Ein Tempel IN Grangor
 		// gehört auf keine Weltkarte, stand aber bisher in „Fehlt" wie eine echte Lücke.
+		//
+		// 💣 UNTERFILTER von „Typ: Besondere Bauwerke/Stätten" (Owner 2026-07-27), nicht ein
+		// sechster gleichrangiger Abschnitt: bei einer Stadt ist die Frage sinnlos, eine Stadt
+		// liegt nicht in einer Stadt. Die Zugehörigkeit lebt in review-settlement-list.js
+		// (settlementScopeApplies) -- die Registry kennt Felder und Beschriftungen, keine
+		// Abhängigkeiten. Wer hier eine `parent`-Spalte einführen will: erst prüfen, ob es
+		// einen ZWEITEN Fall gibt, sonst ist die Maschinerie teurer als die eine Funktion.
+		//
 		// Bewusst NICHT vorbelegt: der Trichter nennt die Werte samt Zähler, und ein Filter,
 		// der von selbst Zeilen verschluckt, ist genau der unsichtbare Lügner, den die
 		// „heute"-Regel in js/ui/filter-menu.js vermeiden soll. Ein Klick genügt.

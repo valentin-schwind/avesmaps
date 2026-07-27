@@ -1031,6 +1031,18 @@
 	padding-top: 2px;
 }
 
+/* Unterabschnitt: gehoert zum Abschnitt DARUEBER, statt neben ihm zu stehen ("Lage"
+   haengt an "Typ: Besondere Bauwerke/Staetten" und erscheint nur mit ihm). Deshalb
+   eingerueckt und OHNE den Trennstrich, der sonst zwei gleichrangige Abschnitte
+   scheidet -- der Strich wuerde die Zugehoerigkeit gerade wieder aufheben. */
+.type-filter__section--sub {
+	margin-left: 10px;
+}
+.type-filter__section + .type-filter__section--sub {
+	border-top: 0;
+	margin-top: 0;
+}
+
 .wiki-sync-panel__timefilter {
 	display: flex;
 	align-items: center;

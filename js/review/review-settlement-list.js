@@ -10,6 +10,11 @@ const settlementContinentFilter = new Set(["Aventurien"]); // Default: nur Avent
 const settlementSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
 const settlementCoatFilter = { value: "" };   // Wappen: "" = alle | "ja" | "nein"
 const settlementImageFilter = { value: "" };  // Bilder: "" = alle | "ja" | "nein"
+// Lage: innerorts | außerorts | unklar (leer = alle). UNTERFILTER von „Typ: Besondere
+// Bauwerke/Stätten" — bei einer Stadt ist die Frage sinnlos (eine Stadt liegt nicht in
+// einer Stadt), deshalb erscheint der Abschnitt nur mit den Bauwerken und wirkt auch nur
+// auf sie. Das Urteil fällt der Server (api/_internal/wiki/place-scope.php).
+const settlementScopeFilter = new Set();
 
 // ===== Facetten-Werte AUS DEN ZEILEN =====================================================
 // Die Registry (js/review/review-subjects.js) sagt, WELCHES Feld eine Facette liest; welche
@@ -212,6 +217,7 @@ function settlementItemsIgnoringView() {
 	if (settlementTypeFilter.size > 0) {
 		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
 	}
+	items = items.filter(settlementScopeMatches);
 	if (settlementSourceFilter.value) {
 		items = items.filter((item) => getItemSourceCategory(item) === settlementSourceFilter.value);
 	}
@@ -225,6 +231,93 @@ function settlementItemsIgnoringView() {
 // Liste nicht zwei Fassungen derselben Frage pflegen.
 const SETTLEMENT_COAT_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "coat");
 const SETTLEMENT_IMAGE_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "image");
+const SETTLEMENT_SCOPE_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "scope");
+
+// ===== Lage als UNTERFILTER der Bauwerke ==================================================
+
+// Ist diese Zeile ein Bauwerk? Über den stabilen Slug, NICHT über die Beschriftung --
+// „Besondere Bauwerke/Stätten" ist UI-Text und darf sich ändern, `gebaeude` nicht
+// (AGENTS.md §2/§8).
+function settlementIsBuilding(item) {
+	return String(item && item.settlement_class) === "gebaeude";
+}
+
+// Die Typ-Beschriftung(en) der Bauwerke, AUS DEN DATEN. Der Typ-Filter arbeitet mit
+// settlement_label, die Zugehörigkeitsprüfung braucht also das Label -- aber als zweite
+// Kopie der Serverkonstante (api/edit/wiki/sync.php) liefe es irgendwann auseinander.
+// Kommen keine Bauwerke vor, ist die Menge leer und der Unterabschnitt bleibt zu.
+function settlementBuildingLabels() {
+	const labels = new Set();
+	settlementListItems.forEach((item) => {
+		if (settlementIsBuilding(item)) {
+			labels.add(item.settlement_label || "—");
+		}
+	});
+	return labels;
+}
+
+// Der Unterfilter ist nur dann überhaupt anwendbar, wenn der Typ-Filter die Bauwerke
+// ausgewählt hat. Genau das macht ihn zum UNTERfilter statt zu einem sechsten
+// gleichrangigen Abschnitt.
+function settlementScopeApplies() {
+	if (settlementTypeFilter.size === 0) {
+		return false;
+	}
+	const buildingLabels = settlementBuildingLabels();
+	for (const label of settlementTypeFilter) {
+		if (buildingLabels.has(label)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Lage einer Bauwerks-Zeile. Ohne Urteil (Registry noch nicht neu gesynct) gilt
+// „außerorts" -- die sichere Seite: die Zeile bleibt sichtbar, statt still zu
+// verschwinden. Gleiche Regel wie pathRowScope in review-path-sync.js.
+function settlementRowScope(item) {
+	return String((item && item.place_scope_label) || "").trim() || "außerorts";
+}
+
+// Optionen NUR aus den Bauwerks-Zeilen: sonst zählte der Unterfilter die 2400 Städte und
+// Dörfer als „außerorts" mit und behauptete eine Menge, die er gar nicht filtert.
+// Nebenwirkung mit Absicht: hier wird auch die Sichtbarkeit des Abschnitts nachgeführt.
+// attachFilterMenu (js/app/utils.js) bietet keinen eigenen Haken dafür, ruft aber bei
+// JEDEM rebuild alle getOptions -- das ist die eine Stelle, die zuverlässig mitläuft.
+function settlementScopeOptions() {
+	const applies = settlementScopeApplies();
+	const section = document.getElementById("settlement-scope-filter-section");
+	if (section) {
+		section.hidden = !applies;
+	}
+	if (!applies) {
+		// Gestrandete Auswahl abwählen: eine Auswahl, die weiterfiltert, während ihr
+		// Kästchen unsichtbar ist, ist genau der Filter, den man nicht mehr loswird
+		// (dieselbe Regel wie wikiSyncPruneFacetState).
+		settlementScopeFilter.clear();
+		return [];
+	}
+	const byScope = new Map();
+	settlementBaseFilteredItems().filter(settlementIsBuilding).forEach((item) => {
+		const scope = settlementRowScope(item);
+		if (!byScope.has(scope)) {
+			byScope.set(scope, { value: scope, label: scope, count: 0 });
+		}
+		byScope.get(scope).count += 1;
+	});
+	const order = ["außerorts", "innerorts", "unklar"];
+	return [...byScope.values()].sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
+}
+
+// Trefferprüfung. Wirkt NUR auf Bauwerke: wäre der Typ-Filter einmal auf „Bauwerke +
+// Dörfer" gestellt, sollen die Dörfer nicht stillschweigend mit verschwinden, weil sie
+// eine Frage nicht beantworten können, die ihnen niemand gestellt hat.
+function settlementScopeMatches(item) {
+	if (settlementScopeFilter.size === 0 || !settlementIsBuilding(item)) {
+		return true;
+	}
+	return settlementScopeFilter.has(settlementRowScope(item));
+}
 
 // Ihre Optionen kommen bewusst aus der Basismenge OHNE die eigene Auswahl: sonst verschwindet
 // „nein", sobald „ja" gewaehlt ist (eine Option entsteht ja nur fuer Werte, die vorkommen) -- und
@@ -322,6 +415,15 @@ function renderSettlementRow(item) {
 	if (item.is_ruined) {
 		metaParts.push("Ruine");
 	}
+	// „innerorts: Khunchom" statt nur „innerorts": ein Filter, der Zeilen wegnimmt, muss
+	// auch begründen können, warum -- sonst sieht ein Fehlurteil aus wie fehlende Daten.
+	// Nur an Bauwerken und nur, wenn es etwas zu sagen gibt: „außerorts" ist der Normalfall
+	// und stünde sonst als Rauschen an jeder der 2400 Zeilen.
+	if (settlementIsBuilding(item) && (item.place_scope === "inside" || item.place_scope === "ambiguous")) {
+		metaParts.push(settlementListEscape(
+			settlementRowScope(item) + (item.place_settlement ? ": " + item.place_settlement : "")
+		));
+	}
 	let metaHtml = metaParts.join(" · ");
 	if (item.wiki_url) {
 		const wikiLink = `<a class="settlement-list__wiki" href="${settlementListEscape(item.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
@@ -355,6 +457,10 @@ function renderSettlementList() {
 		.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "de"));
 	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
+	// Der Unterabschnitt muss HIER mitgezeichnet werden, nicht nur beim Öffnen des
+	// Trichters: sein Erscheinen hängt am Typ-Filter, und ein Klick auf „Bauwerke" lässt
+	// das Menü offen. Ohne diese Zeile taucht „Lage" erst beim nächsten Öffnen auf.
+	renderTypeFilter("", "settlement-scope-filter-menu", settlementScopeOptions(), settlementScopeFilter, SETTLEMENT_SCOPE_FACET.label);
 	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");
 	renderRadioFilter("settlement-source-filter-toggle", "settlement-source-filter-menu", SOURCE_FILTER_OPTIONS, settlementSourceFilter, "Quelle");
 	renderRadioFilter("", "settlement-coat-filter-menu", settlementCoatOptions(), settlementCoatFilter, SETTLEMENT_COAT_FACET.label);
@@ -619,6 +725,7 @@ document.addEventListener("dragend", () => {
 
 AVESMAPS_WIKISYNC_FILTER_REBUILDS.push(attachFilterMenu("settlement-filter-toggle", "settlement-filter-menu", [
 	{ menuId: "settlement-type-filter-menu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
+	{ menuId: "settlement-scope-filter-menu", kind: "multi", state: settlementScopeFilter, getOptions: settlementScopeOptions, label: SETTLEMENT_SCOPE_FACET.label, isActive: () => settlementScopeFilter.size > 0 },
 	{ menuId: "settlement-continent-filter-menu", kind: "multi", state: settlementContinentFilter, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilter.size === 1 && settlementContinentFilter.has("Aventurien")) },
 	{ menuId: "settlement-source-filter-menu", kind: "single", state: settlementSourceFilter, options: SOURCE_FILTER_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
 	{ menuId: "settlement-coat-filter-menu", kind: "single", state: settlementCoatFilter, getOptions: settlementCoatOptions, label: SETTLEMENT_COAT_FACET.label, isActive: () => Boolean(settlementCoatFilter.value) },
