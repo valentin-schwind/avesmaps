@@ -2010,6 +2010,10 @@
 		     stehen -- beide rufen sie beim Aufbau ihres Dialogs. Ohne Abhaengigkeiten, deshalb ganz vorn. -->
 		<script src="js/map-features/map-features-ecosystem-naming.js"></script>
 		<script src="js/map-features/map-features-ecosystem-geometry.js"></script>
+		<!-- Reine Geometrie-Rechnerei (vereinigen/ausschneiden/schneiden/zerschneiden/herauslösen/
+		     verschieben), ohne Karte und ohne DOM. MUSS nach ecosystem-geometry.js stehen: sie benutzt
+		     dessen ecosystemGeometryParts/-Area/-Bounds. -->
+		<script src="js/map-features/map-features-ecosystem-boolean.js"></script>
 		<script src="js/map-features/map-features-ecosystem-rendering.js"></script>
 		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>
 		<script src="js/map-features/map-features-ecosystem-loader.js"></script>
@@ -2023,6 +2027,10 @@
 		<!-- V6b: „Eigenschaften …" auf der Fläche. Haengt sich per AvesmapsEcosystemAreaMenu.addEntry an,
 		     steht deshalb NACH map-features-ecosystem-context-action.js -- wie transfer.js daneben. -->
 		<script src="js/map-features/map-features-ecosystem-properties.js"></script>
+		<!-- Die Geste zu den Operationen oben: Menüeinträge, Zielwahl, Schnittpunkte, Verschieben,
+		     Speichern. MUSS nach context-action.js stehen — sie hängt sich über dessen
+		     window.AvesmapsEcosystemAreaMenu.addEntry() ein, und das gibt es erst danach. -->
+		<script src="js/map-features/map-features-ecosystem-geometry-ops.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>

@@ -158,6 +158,15 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.newDerographisch": "New deregraphic region",
 	"ecosystem.ctxmenu.newVegetation": "New vegetation",
 	"ecosystem.ctxmenu.newTopographie": "New topography",
+	// --- Landschaften: the seven geometry operations in the area context menu. Same set the territory
+	//     menu offers, on ecosystem_area instead of political_territory_geometry. ---
+	"ecosystem.ctxmenu.union": "Merge with another area",
+	"ecosystem.ctxmenu.difference": "Cut out of another area",
+	"ecosystem.ctxmenu.difference-keep-target": "Cut out, keep the other",
+	"ecosystem.ctxmenu.intersection": "Intersect with another area",
+	"ecosystem.ctxmenu.split": "Split area",
+	"ecosystem.ctxmenu.extract": "Extract part",
+	"ecosystem.ctxmenu.move": "Move",
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Send to …",
 	"ecosystem.ctxmenu.properties": "Properties …",

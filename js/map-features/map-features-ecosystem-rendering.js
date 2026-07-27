@@ -199,6 +199,13 @@ function buildEcosystemAreaLayer(area) {
 		if (event?.originalEvent && typeof L?.DomEvent?.stopPropagation === "function") {
 			L.DomEvent.stopPropagation(event);
 		}
+		// 🔴 Läuft gerade eine Zwei-Flächen-Operation, IST dieser Klick die Zielwahl -- nicht das
+		// gewohnte Auswählen. Dieselbe Bauart wie der isEcosystemDrawing()-Riegel oben: eine Geste, die
+		// den Klick schon vergeben hat, bekommt ihn zuerst. Gewacht, damit diese Datei ohne
+		// map-features-ecosystem-geometry-ops.js weiterläuft.
+		if (window.AvesmapsEcosystemGeometryOps?.handleAreaClick?.(area.public_id)) {
+			return;
+		}
 		setSelectedEcosystemArea(area.public_id);
 		if (typeof showFeedbackToast === "function") {
 			showFeedbackToast(formatEcosystemAreaTooltip(area));
