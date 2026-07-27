@@ -89,12 +89,21 @@ try {
     // 3) Add-a-node candidates: every Nodix location, plus the crossings already used by a powerline
     //    (so an editor can rewire within the existing structure) -- bounded and meaningful, not every
     //    routing crossing on the map. The LIKE matches the JSON avesmapsEncodeJson writes ("is_nodix":true).
+    //
+    // 🔴 LABELS COUNT TOO (Owner 2026-07-28). Every landscape region carries a map label at its point of
+    //    inaccessibility, and that label IS the region's point -- so a region marked Nodix in the region
+    //    dialog belongs in this list. The write path never needed widening: avesmapsCreatePowerlineFeature
+    //    asks avesmapsFetchEditablePointFeature, which requires a Point and not a location, so a nodix
+    //    label was already a valid endpoint. Only this picker hid them.
     $candidates = [];
     $seenCandidate = [];
     $nodixRows = $pdo->query(
         "SELECT public_id, name, feature_subtype
          FROM map_features
-         WHERE feature_type = 'location' AND is_active = 1 AND properties_json LIKE '%\"is_nodix\":true%'"
+         WHERE feature_type IN ('location', 'label')
+           AND geometry_type = 'Point'
+           AND is_active = 1
+           AND properties_json LIKE '%\"is_nodix\":true%'"
     )->fetchAll(PDO::FETCH_ASSOC);
     foreach ($nodixRows as $row) {
         $pid = (string) $row['public_id'];
