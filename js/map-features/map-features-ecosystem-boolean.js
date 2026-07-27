@@ -201,6 +201,31 @@ function ecosystemExtractPart(geometry, partIndex) {
 	};
 }
 
+// ---- Alle Unterflächen vereinigen -------------------------------------------------------------------
+// Ein Abzug hinterlässt eine Fläche, die aus mehreren Stücken besteht; berühren sie einander, sollen die
+// inneren Kanten weg und eine Umrisslinie übrigbleiben. Das ist die Vereinigung ALLER Teile mit sich
+// selbst -- kein zweites Objekt beteiligt.
+//
+// 🪤 Getrennt liegende Stücke bleiben getrennt. Eine Vereinigung schliesst keine Lücke, sie verschmilzt
+// nur, was sich berührt oder überlappt. Der Aufrufer muss das melden können, deshalb steht die Teilzahl
+// vorher und nachher im Ergebnis statt bloss der Geometrie.
+function ecosystemMergeParts(geometry) {
+	const clipping = typeof window !== "undefined" ? window.polygonClipping : null;
+	if (!clipping) {
+		throw new Error("Die Polygon-Clipping-Bibliothek ist nicht geladen.");
+	}
+
+	const parts = ecosystemGeometryToClipping(geometry, "Die Fläche");
+	if (parts.length < 2) {
+		throw new Error("Diese Fläche besteht nur aus einer Unterfläche.");
+	}
+
+	const merged = clipping.union([parts[0]], ...parts.slice(1).map((part) => [part]));
+	const result = ecosystemClippingToGeometry(merged);
+
+	return { geometry: result, before: parts.length, after: ecosystemGeometryParts(result).length };
+}
+
 // ---- Verschieben ------------------------------------------------------------------------------------
 // Jeder Ring jedes Teils um denselben Versatz. Löcher eingeschlossen -- ein verschobener Wald, der
 // seine Lichtung stehen lässt, wäre der Fehler, den man erst drei Zooms später sieht.
@@ -224,6 +249,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ecosystemSplitCutterGeometry,
 		ecosystemSplitGeometry,
 		ecosystemExtractPart,
+		ecosystemMergeParts,
 		ecosystemMoveGeometry,
 	};
 }

@@ -162,9 +162,11 @@
 		pending = null;
 		clearTargetHighlight();
 		setLayerPicking(false);
+		clearSubareaOverlay();
 		if (typeof map !== "undefined" && map && typeof map.off === "function") {
 			map.off("click", handleMapClick);
 			map.off("mousemove", handleMapMouseMove);
+			map.off("mousemove", handleSubareaMouseMove);
 		}
 		if (!silent) {
 			say("Abgebrochen.", "info");
@@ -345,7 +347,7 @@
 		return -1;
 	}
 
-	async function runExtract(publicId) {
+	async function runExtract(publicId, index) {
 		const source = areaByPublicId(publicId);
 		if (!source) {
 			say("Die Fläche ist nicht mehr geladen.", "warning");
@@ -354,13 +356,7 @@
 
 		opsBusy = true;
 		try {
-			const geometry = areaGeometry(source);
-			const index = clickedPartIndex(geometry, lastContextLatLng);
-			if (index < 0) {
-				say("Bitte mit der rechten Maustaste auf den Teil klicken, der herausgelöst werden soll.", "warning");
-				return;
-			}
-			const result = ecosystemExtractPart(geometry, index);
+			const result = ecosystemExtractPart(areaGeometry(source), index);
 			await saveGeometry(source, result.remainder);
 			await createArea(source, result.extracted);
 			refreshAfterWrite();
@@ -372,6 +368,86 @@
 		}
 	}
 
+	// ---- Unterflächen zeigen und eine davon wählen ---------------------------------------------------
+	// 🔴 Eine mehrteilige Fläche ist EIN Leaflet-Pfad. Ihre Unterflächen einzeln einzufärben geht daher
+	// nicht -- also werden sie für die Dauer der Wahl als eigene Umrisse DARÜBERGELEGT. Die Umrisse sind
+	// bewusst `interactive: false`: welche Unterfläche der Zeiger trifft, rechnet weiter der
+	// Punkt-in-Polygon-Test, und ein zweiter Satz klickbarer Ebenen würde sich nur mit dem darunter
+	// streiten (und mit Leaflets Pane-Reihenfolge).
+	let subareaOverlay = [];
+	let subareaChosen = -1;
+
+	function clearSubareaOverlay() {
+		subareaOverlay.forEach((layer) => { try { map.removeLayer(layer); } catch (error) { /* schon weg */ } });
+		subareaOverlay = [];
+		subareaChosen = -1;
+	}
+
+	function paintSubareaChoice(index) {
+		subareaChosen = index;
+		subareaOverlay.forEach((layer, position) => {
+			const element = typeof layer.getElement === "function" ? layer.getElement() : null;
+			element?.classList.toggle("ecosystem-subarea--chosen", position === index);
+		});
+	}
+
+	function showSubareaOverlay(area, startIndex) {
+		clearSubareaOverlay();
+		const parts = ecosystemGeometryParts(areaGeometry(area));
+		subareaOverlay = parts.map((part) => L.polygon(
+			ecosystemAreaLatLngs({ type: "Polygon", coordinates: part }),
+			{ className: "ecosystem-subarea", interactive: false, fill: false }
+		).addTo(map));
+		paintSubareaChoice(startIndex);
+	}
+
+	// Läuft eine Unterflächen-Wahl, folgt die Hervorhebung dem Zeiger und der Klick nimmt, was
+	// hervorgehoben ist.
+	function handleSubareaMouseMove(event) {
+		if (!pending || pending.operation !== "pick-subarea") {
+			return;
+		}
+		const area = areaByPublicId(pending.sourcePublicId);
+		if (!area) {
+			return;
+		}
+		const index = clickedPartIndex(areaGeometry(area), latLngToPoint(event.latlng));
+		if (index >= 0 && index !== subareaChosen) {
+			paintSubareaChoice(index);
+		}
+	}
+
+	// Der gemeinsame Einstieg für „Unterfläche löschen" und „Neue Fläche herauslösen": beide wählen
+	// EINE Unterfläche, also tun sie es auf dieselbe Weise.
+	function startSubareaPick(publicId, verb, run) {
+		const area = areaByPublicId(publicId);
+		if (!area) {
+			say("Die Fläche ist nicht mehr geladen.", "warning");
+			return;
+		}
+		let parts;
+		try {
+			parts = ecosystemGeometryParts(areaGeometry(area));
+		} catch (error) {
+			failed(error);
+			return;
+		}
+		if (parts.length < 2) {
+			say("Diese Fläche besteht nur aus einer Unterfläche.", "warning");
+			return;
+		}
+
+		startPending("pick-subarea", publicId, { run });
+		// Vorbelegt auf die Unterfläche unter dem Rechtsklick -- meistens ist genau die gemeint, und
+		// dann ist der nächste Klick nur noch eine Bestätigung.
+		showSubareaOverlay(area, Math.max(0, clickedPartIndex(areaGeometry(area), lastContextLatLng)));
+		if (typeof map !== "undefined" && map) {
+			map.on("mousemove", handleSubareaMouseMove);
+			map.on("click", handleMapClick);
+		}
+		say(`${verb}: Unterfläche anklicken. ESC bricht ab.`, "info");
+	}
+
 	// ---- Einen Teil löschen -------------------------------------------------------------------------
 	// Ein Abzug hinterlässt oft einen Krümel: der See schneidet den Wald durch und ein Fetzen bleibt als
 	// eigener Teil stehen. Den wieder loszuwerden ging bisher nur über „Herauslösen" und danach
@@ -380,7 +456,10 @@
 	//
 	// Es ist derselbe Schnitt wie beim Herauslösen, nur wird der abgetrennte Teil nicht behalten:
 	// ecosystemExtractPart liefert `remainder` ohnehin schon mit.
-	async function runDeletePart(publicId) {
+	// 🔴 KEINE Prozentangabe und keine Rückfrage mehr (Owner 2026-07-27). Beides war der Ersatz dafür,
+	// dass man nicht sehen konnte, welche Unterfläche gemeint ist -- jetzt SIEHT man sie, blau
+	// hervorgehoben, bevor der Klick fällt. Eine Zahl daneben wäre nur noch Lärm.
+	async function runDeleteSubarea(publicId, index) {
 		const source = areaByPublicId(publicId);
 		if (!source) {
 			say("Die Fläche ist nicht mehr geladen.", "warning");
@@ -389,30 +468,40 @@
 
 		opsBusy = true;
 		try {
-			const geometry = areaGeometry(source);
-			const index = clickedPartIndex(geometry, lastContextLatLng);
-			if (index < 0) {
-				say("Bitte mit der rechten Maustaste auf den Teil klicken, der weg soll.", "warning");
-				return;
-			}
-			const result = ecosystemExtractPart(geometry, index);
-			// 💣 Die Rückfrage nennt den ANTEIL, nicht bloss „ein Teil". Beide Stücke gehören derselben
-			// Fläche, sehen im Menü gleich aus, und der Unterschied zwischen dem Krümel und dem Hauptteil
-			// ist genau das, was man vor dem Klick wissen muss.
-			const teil = ecosystemGeometryArea(result.extracted);
-			const ganz = ecosystemGeometryArea(geometry);
-			const prozent = ganz > 0 ? (teil / ganz) * 100 : 0;
-			// 🪤 Nicht blind runden: gerade der Krümel, den man wegräumen will, landet bei „0 %" -- und
-			// „0 % entfernen?" liest sich, als passiere nichts. Unter einem Prozent wird es benannt statt
-			// gerundet, und der Hauptteil bekommt eine deutliche Warnung.
-			const anteil = prozent < 1 ? "weniger als 1 %" : `${Math.round(prozent)} %`;
-			const warnung = prozent >= 50 ? "\n\nAchtung: das ist der GRÖSSERE Teil." : "";
-			if (!window.confirm(`Diesen Teil der Fläche entfernen? Er macht ${anteil} von „${source.region_name || "dieser Fläche"}" aus.${warnung}`)) {
-				return;
-			}
+			const result = ecosystemExtractPart(areaGeometry(source), index);
 			await saveGeometry(source, result.remainder);
 			refreshAfterWrite();
-			say("Teil entfernt.", "success");
+			say("Unterfläche gelöscht.", "success");
+		} catch (error) {
+			failed(error);
+		} finally {
+			opsBusy = false;
+		}
+	}
+
+	// ---- Alle Unterflächen vereinigen ---------------------------------------------------------------
+	// Die inneren Kanten weg, ein Umriss übrig. Ohne Auswahl, weil es alle betrifft.
+	async function runMergeSubareas(publicId) {
+		const source = areaByPublicId(publicId);
+		if (!source) {
+			say("Die Fläche ist nicht mehr geladen.", "warning");
+			return;
+		}
+
+		opsBusy = true;
+		try {
+			const result = ecosystemMergeParts(areaGeometry(source));
+			if (result.after === result.before) {
+				// Eine Vereinigung schliesst keine Lücke. Das ist kein Fehler, aber es muss gesagt werden,
+				// sonst sieht es aus, als sei der Klick ins Leere gegangen.
+				say("Diese Unterflächen berühren einander nicht — es gibt nichts zu verschmelzen.", "warning");
+				return;
+			}
+			await saveGeometry(source, result.geometry);
+			refreshAfterWrite();
+			say(result.after === 1
+				? "Unterflächen vereinigt — jetzt eine Fläche."
+				: `Unterflächen vereinigt — von ${result.before} auf ${result.after}.`, "success");
 		} catch (error) {
 			failed(error);
 		} finally {
@@ -474,6 +563,17 @@
 
 		if (pending.operation === "move") {
 			void completeMove();
+			return;
+		}
+		if (pending.operation === "pick-subarea") {
+			// Was blau hervorgehoben ist, ist gemeint -- der Zeiger hat es beim Herfahren gesetzt.
+			const publicId = pending.sourcePublicId;
+			const index = subareaChosen;
+			const run = pending.run;
+			cancelPending({ silent: true });
+			if (index >= 0 && typeof run === "function") {
+				void run(publicId, index);
+			}
 			return;
 		}
 		if (pending.operation !== "split") {
@@ -567,8 +667,10 @@
 			});
 		});
 
-		entry("extract", "Neue Fläche herauslösen", (publicId) => void runExtract(publicId));
-		entry("delete-part", "Teil löschen", (publicId) => void runDeletePart(publicId));
+		// Die drei Unterflächen-Einträge. Sie erscheinen nur, wenn es überhaupt mehrere gibt.
+		entry("merge-subareas", "Alle Unterflächen vereinigen", (publicId) => void runMergeSubareas(publicId));
+		entry("extract", "Unterfläche herauslösen", (publicId) => startSubareaPick(publicId, "Herauslösen", runExtract));
+		entry("delete-part", "Unterfläche löschen", (publicId) => startSubareaPick(publicId, "Löschen", runDeleteSubarea));
 	}
 
 	// ---- Verdrahtung --------------------------------------------------------------------------------
@@ -624,7 +726,7 @@
 	document.addEventListener("contextmenu", (event) => {
 		// Beide Einträge arbeiten auf EINEM Teil eines mehrteiligen Gebildes -- bei einer einteiligen
 		// Fläche haben sie kein Gegenüber und wären nur ein Angebot, das mit einer Absage endet.
-		const buttons = ["extract", "delete-part"]
+		const buttons = ["merge-subareas", "extract", "delete-part"]
 			.map((action) => document.querySelector(`[data-ecosystem-area-action="${action}"]`))
 			.filter(Boolean);
 		if (buttons.length === 0) {

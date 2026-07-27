@@ -151,6 +151,10 @@
 	content: "\232B";
 }
 
+.map-context-menu__item[data-ecosystem-area-action="merge-subareas"]::before {
+	content: "\29CF";
+}
+
 .map-context-menu__item[data-region-context-action="edit-geometry"]::before {
 	content: "\270E";
 }

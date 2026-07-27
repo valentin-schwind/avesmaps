@@ -1002,6 +1002,28 @@
 	cursor: default;
 }
 
+/* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
+   Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
+   einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse
+   darübergelegt (map-features-ecosystem-geometry-ops.js) -- rein zum Zeigen, der Treffer wird weiter
+   rechnerisch bestimmt.
+
+   Die gemeinte Unterfläche trägt das Bearbeitungs-Blau, die übrigen das dunklere: „aus so vielen
+   Stücken besteht diese Fläche, und das hier trifft der nächste Klick." */
+.ecosystem-subarea {
+	fill: none;
+	stroke: var(--color-edit-handle-muted);
+	stroke-width: 3;
+	stroke-opacity: 0.9;
+	pointer-events: none;
+}
+
+.ecosystem-subarea--chosen {
+	stroke: var(--color-edit-handle);
+	stroke-width: 5;
+	stroke-opacity: 1;
+}
+
 /* ---- Zielwahl über Ebenengrenzen hinweg (Owner 2026-07-27) -----------------------------------------
    Solange eine Zwei-Flächen-Operation auf ihr Ziel wartet, kommen die ruhenden Ebenen ZURÜCK: sichtbar
    und anklickbar. Sonst liesse sich ein See (Topographie) nie aus einem Wald (Vegetation) ausschneiden

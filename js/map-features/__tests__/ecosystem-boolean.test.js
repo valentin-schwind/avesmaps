@@ -18,6 +18,7 @@ const {
 	ECOSYSTEM_BOOLEAN_OPERATIONS,
 	ecosystemSplitGeometry,
 	ecosystemExtractPart,
+	ecosystemMergeParts,
 	ecosystemMoveGeometry,
 } = require("../map-features-ecosystem-boolean.js");
 
@@ -157,6 +158,40 @@ assert.strictEqual(Math.round(ecosystemGeometryArea(pulledHoled.extracted)), 960
 // The last remaining part cannot be extracted -- that would leave an area with no geometry at all.
 assert.throws(() => ecosystemExtractPart(box(0, 0, 10, 10), 0), /einzige|letzte/i);
 assert.throws(() => ecosystemExtractPart(twoIslands, 7), /Teil/i, "an index out of range is refused");
+
+// ------------------------------------------------------------ MERGE ALL SUB-AREAS ---
+// Two boxes sharing an edge: the internal boundary goes, one outline remains. This is the case a
+// subtraction leaves behind and the owner wants cleaned up in one gesture.
+const touching = { type: "MultiPolygon", coordinates: [
+	box(0, 0, 50, 50).coordinates[0], box(50, 0, 100, 50).coordinates[0],
+].map((ring) => [ring]) };
+const welded = ecosystemMergeParts(touching);
+assert.strictEqual(welded.geometry.type, "Polygon", "touching sub-areas weld into one");
+assert.strictEqual(welded.before, 2);
+assert.strictEqual(welded.after, 1);
+assert.strictEqual(Math.round(ecosystemGeometryArea(welded.geometry)), 5000, "no area is gained or lost");
+
+// Overlapping ones too, and the overlap is not counted twice.
+const overlapping = ecosystemMergeParts({ type: "MultiPolygon", coordinates: [
+	box(0, 0, 50, 50).coordinates, box(25, 0, 75, 50).coordinates,
+]});
+assert.strictEqual(overlapping.geometry.type, "Polygon");
+assert.strictEqual(Math.round(ecosystemGeometryArea(overlapping.geometry)), 3750);
+
+// 🪤 Separated sub-areas STAY separated -- a union welds what touches, it does not bridge a gap. The
+// caller has to be able to say so, which is why the part count travels with the result.
+const stillApart = ecosystemMergeParts(twoIslands);
+assert.strictEqual(stillApart.after, 2, "a gap is not closed by merging");
+assert.strictEqual(stillApart.before, 2);
+
+// A hole between two welded halves survives.
+const holedMerge = ecosystemMergeParts({ type: "MultiPolygon", coordinates: [
+	clearing.coordinates, box(100, 0, 120, 100).coordinates,
+]});
+assert.ok(ecosystemGeometryParts(holedMerge.geometry).some((part) => part.length === 2), "the clearing is still there");
+
+// One part has nothing to merge with, and saying so beats a silent no-op.
+assert.throws(() => ecosystemMergeParts(box(0, 0, 10, 10)), /Unterfläche/i);
 
 // ----------------------------------------------------------------------------------- MOVE ---
 // Every ring of every part shifts by the same delta -- holes included, or a moved forest would leave

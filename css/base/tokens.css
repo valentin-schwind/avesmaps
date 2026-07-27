@@ -154,6 +154,11 @@
 	   can say the same thing in the same colour instead of writing the literal a second time. Pinned:
 	   drawn on the always-light map tiles. */
 	--color-edit-handle: #1452f7;
+	/* Dieselbe Ausnahme, eine Stufe leiser: die Unterflächen einer mehrteiligen Landschaftsfläche, die
+	   GERADE NICHT gemeint sind. Die gemeinte trägt --color-edit-handle, die übrigen dieses dunklere
+	   Blau — man sieht damit auf einen Blick, aus wie vielen Stücken die Fläche besteht und welches der
+	   nächste Klick trifft (Owner 2026-07-27). Gepinnt, liegt auf hellen Kacheln. */
+	--color-edit-handle-muted: #0b2a80;
 
 	/* Landschaften (Erprobung), colours per Owner 2026-07-26. All three layers are on at once, so the
 	   tones must stay tellable apart -- but they are not three peers: the derographic layer draws
