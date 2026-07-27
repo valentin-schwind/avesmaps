@@ -1006,6 +1006,18 @@
 	cursor: default;
 }
 
+/* In „Alle" nimmt sich die DEROGRAPHISCHE Ebene zurück (Owner 2026-07-27). Ihre Flächen sind die
+   grossen grauen Behälter -- Heldentrutz deckt ein halbes Dutzend Wälder und Seen zu. Bei voller
+   Füllung ersäuft in „Alle" genau das, wofür der Modus da ist. 10 % lassen den Umriss stehen und den
+   Inhalt durch.
+
+   Die ANGEKLICKTE Fläche ist ausgenommen: sie behält ihre Auswahl-Darstellung, sonst verlöre man beim
+   Hineinklicken genau das Stück aus den Augen, das man gerade meint. Drei Klassen plus :not schlagen
+   die allgemeine Regel weiter oben (zwei). */
+.ecosystem-pane--derographisch.ecosystem-pane--showall > svg path.leaflet-interactive:not(.ecosystem-area--selected) {
+	fill-opacity: 0.1;
+}
+
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
    Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
    einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse

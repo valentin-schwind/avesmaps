@@ -76,6 +76,9 @@ function syncEcosystemPaneStates() {
 		// Auswahlkontur.
 		pane.classList.toggle("ecosystem-pane--active", showAll || kind === activeKind);
 		pane.classList.toggle("ecosystem-pane--resting", !showAll && kind !== activeKind);
+		// Eigene Klasse für „Alle", statt es aus „alle drei sind aktiv" zu erraten: das CSS braucht den
+		// Modus, um die derographischen Flächen dort zurückzunehmen (siehe ecosystem-layer.css).
+		pane.classList.toggle("ecosystem-pane--showall", showAll);
 	});
 
 	// Owner 2026-07-26: map labels belong to the DEROGRAPHIC layer -- that is the one whose areas they
