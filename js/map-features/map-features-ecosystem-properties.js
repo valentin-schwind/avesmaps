@@ -9,8 +9,12 @@
 // (index.html:1305, #label-edit-overlay) bearbeitet eine map_features-BESCHRIFTUNG — daher dessen Größe,
 // Rotation, Zoom-Bänder und Priorität, die hier alle fehlen: eine Landschaftsfläche hat keine
 // (oekosystem-editor-verhalten.md §12, „Keine Zoom-Bänder"). Die beiden sind zwei Zeilen in zwei
-// Tabellen; `ecosystem_region.label_public_id` könnte sie koppeln, tut es heute aber nicht. Wer hier
-// umbenennt, benennt das Label auf der Karte NICHT um.
+// Tabellen -- gekoppelt über `ecosystem_region.label_public_id`.
+//
+// ⚠️ Bis V6 stand hier "wer umbenennt, benennt das Label NICHT um". Das gilt nicht mehr: seit jede
+// Region ihr Label bekommt, tragen Name, Art, Nodix und die Wiki-Landschaft von hier ans Label durch
+// (renameLinkedEcosystemLabel). Was NICHT durchträgt, sind Größe, Rotation, Zoom-Band und Priorität --
+// die gehören dem Label allein und werden im Label-Dialog eingestellt.
 //
 // 🔴 Keine politische Datei wird aufgerufen (Hauptplan, Regel 1).
 
@@ -119,6 +123,19 @@
 		}
 
 		return { wiki_key: area.wiki_region_key || "", name: area.region_name || "", wiki_url: area.wiki_url || "" };
+	}
+
+	// Der VOLLE Schnappschuss derselben Zuweisung, wie ihn das Label braucht (Name, Art, Beschreibung,
+	// Bild — davon lebt seine Infobox). Die Region speichert nur Schlüssel und URL, deshalb der Umweg
+	// über dieselbe Staging-Quelle, aus der auch der „Sync"-Knopf im Label-Editor schöpft.
+	async function currentRegionWikiSnapshot() {
+		const wiki = effectiveWikiRegion();
+		const key = String(wiki?.wiki_key || "").trim();
+		if (key === "" || typeof ecosystemWikiRegionSnapshot !== "function") {
+			return null;
+		}
+
+		return await ecosystemWikiRegionSnapshot(key, wiki?.wiki_url || "");
 	}
 
 	function renderWikiReference() {
@@ -377,6 +394,7 @@
 		// Anders als der Auto-Name-Haken braucht dieser hier KEIN Art-Vokabular -- er hängt allein am
 		// verbundenen Label. Deshalb sofort, nicht erst nach list_regions.
 		syncPropertiesShowName(area);
+		syncPropertiesNodix(area);
 		renderWikiReference();
 
 		overlayElement.hidden = false;
@@ -407,9 +425,7 @@
 			}
 			const areasNote = propertiesElement("areas");
 			if (areasNote) {
-				areasNote.textContent = regionAreaCount === 1
-					? "Diese Region trägt 1 Fläche."
-					: `Diese Region trägt ${regionAreaCount} Flächen.`;
+				areasNote.textContent = formatEcosystemRegionCarryNote(regionAreaCount, Boolean(linkedEcosystemLabelEntry(area)));
 			}
 			// 🪤 ERST HIER, nicht beim Öffnen: der Haken hängt an der Art-BEZEICHNUNG, und die kommt mit
 			// list_regions. Vorher wüsste `Wald-001` nicht, dass es zu „Wald" gehört, und der Haken bliebe
@@ -441,6 +457,20 @@
 		return findLabelEntryByPublicId(labelPublicId);
 	}
 
+	// 🔴 Die Zeile nennt BEIDES, was an der Region hängt: ihre Flächen und ihr Label. Bis heute stand hier
+	// nur die Flächenzahl, und das verschwieg die Hälfte -- „Löschen" nimmt das Label genauso mit wie die
+	// Flächen. Die Gegenzeile im Label-Dialog sagt dasselbe von der anderen Seite (renderLabelCarrierNote).
+	//
+	// Ein Label ist es höchstens EINES: label_public_id ist ein einzelner Zeiger, kein N:M.
+	function formatEcosystemRegionCarryNote(areaCount, hasLabel) {
+		const count = Number(areaCount) || 0;
+		const areas = count === 1 ? "1 Fläche" : `${count} Flächen`;
+
+		return hasLabel
+			? `Diese Region trägt ${areas} und 1 Label.`
+			: `Diese Region trägt ${areas}.`;
+	}
+
 	// Der Haken steht auf dem Zustand des Labels, nicht auf einer Vorgabe.
 	//
 	// 🪤 Er ist NICHT gesperrt, wenn die Region noch kein Label hat -- dann LEGT das Anhaken eines an.
@@ -455,6 +485,25 @@
 		const entry = linkedEcosystemLabelEntry(area);
 		box.disabled = false;
 		box.checked = Boolean(entry) && entry.label?.showName !== false;
+	}
+
+	// 🔴 Nodix = Kraftlinien-Knoten. Das Flag sitzt am LABEL, nicht an der Region: eine Kraftlinie
+	// verbindet zwei PUNKTE, und der Punkt einer Region ist ihr Label (am Point of Inaccessibility).
+	// Genau dieses Feld hat der Label-Editor auch — hier ist es nur dort erreichbar, wo Editoren die
+	// Region ohnehin anfassen, statt den Umweg über den Label-Dialog zu verlangen.
+	//
+	// 🪤 Ohne Label kein Nodix: der Haken ist dann gesperrt. Er könnte zwar wie „Regionname anzeigen"
+	// eines anlegen — aber ein Label, das nur entsteht, um unsichtbar ein Flag zu tragen, wäre ein
+	// Geist auf der Karte. Erst „Regionname anzeigen", dann Nodix.
+	function syncPropertiesNodix(area) {
+		const box = propertiesElement("nodix");
+		if (!box) {
+			return;
+		}
+		const entry = linkedEcosystemLabelEntry(area);
+		box.disabled = !entry;
+		box.checked = Boolean(entry) && Boolean(entry.label?.isNodix);
+		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
 	}
 
 	async function renameLinkedEcosystemLabel(area, name) {
@@ -487,7 +536,9 @@
 						geometry,
 						name,
 						true,
-						String(propertiesElement("type")?.value || "")
+						String(propertiesElement("type")?.value || ""),
+						// Die Wiki-Landschaft der Region kommt mit: das Label beschreibt dieselbe.
+						await currentRegionWikiSnapshot()
 					);
 				}
 			}
@@ -499,12 +550,25 @@
 		}
 		const box = propertiesElement("showname");
 		const showName = box && !box.disabled ? Boolean(box.checked) : (label.showName !== false);
+		const nodixBox = propertiesElement("nodix");
+		const nextNodix = nodixBox && !nodixBox.disabled ? Boolean(nodixBox.checked) : Boolean(label.isNodix);
 		const nextSubtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";
+
+		// 🔴 Die Wiki-Landschaft wandert NUR abwärts. Hat die Region eine, bekommt das Label sie -- es
+		// beschreibt dieselbe Landschaft, und zwei Zuweisungen für dasselbe Ding driften auseinander.
+		// 💣 Hat die Region KEINE, bleibt das Label unangetastet. Andersherum löschte jedes Speichern
+		// einer wiki-losen Region genau die Zuweisung, die V6c „Label zuweisen" von Hand gesetzt hat.
+		const regionWikiKey = String(effectiveWikiRegion()?.wiki_key || "").trim();
+		const wikiNeedsPush = regionWikiKey !== "" && regionWikiKey !== String(label.wikiRegion?.wiki_key || "");
+
 		if (String(label.text || "") === String(name)
 			&& showName === (label.showName !== false)
+			&& nextNodix === Boolean(label.isNodix)
+			&& !wikiNeedsPush
 			&& nextSubtype === String(label.labelType || "")) {
-			return;                                  // Name, Anzeige und Art unverändert
+			return;                                  // Name, Anzeige, Nodix, Wiki und Art unverändert
 		}
+		const wikiSnapshot = wikiNeedsPush ? await currentRegionWikiSnapshot() : null;
 
 		// 🔴 Der Subtyp des Labels folgt der ART der Region -- ein Wald soll auch wie ein Waldlabel
 		// aussehen. Und NUR wenn er sich dabei wirklich ändert, kommt die Darstellung dieser Art mit
@@ -526,6 +590,10 @@
 				min_zoom: typeChanged && style ? style.minZoom : (Number(label.minZoom) || 2),
 				max_zoom: Number(label.maxZoom) || 7,
 				priority: Number(label.priority) || 3,
+				is_nodix: nextNodix,
+				// Nur wenn die Region wirklich eine trägt (siehe wikiNeedsPush) -- ein leeres wiki_region
+				// würde die Zuweisung des Labels löschen statt sie zu erben.
+				...(wikiSnapshot ? { wiki_region: wikiSnapshot } : {}),
 				lat: entry.marker?.getLatLng?.().lat,
 				lng: entry.marker?.getLatLng?.().lng,
 			});

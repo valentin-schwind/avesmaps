@@ -720,7 +720,10 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
     // The area count travels with the row so the picker can say "Farindel (2 Flächen)" without a second
     // request per region. Counted over ACTIVE areas only, matching what the public read path returns.
     $statement = $pdo->prepare(
-        'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.updated_at,
+        // label_public_id reist mit, damit beide Dialoge die Kopplung ZEIGEN koennen: die Region sagt
+        // "traegt 1 Flaeche und 1 Label", das Label sagt "wird von N Flaechen getragen" -- ohne je Dialog
+        // eine eigene Abfrage. Es ist derselbe Zeiger, den createEcosystemRegionLabel schreibt.
+        'SELECT r.public_id, r.name, r.kind, r.region_type, r.wiki_region_key, r.wiki_url, r.label_public_id, r.updated_at,
                 (SELECT COUNT(*) FROM ecosystem_area a WHERE a.region_id = r.id AND a.is_active = 1) AS area_count
            FROM ecosystem_region r
           WHERE ' . implode(' AND ', $where) . '
@@ -738,6 +741,7 @@ function avesmapsListEcosystemRegions(PDO $pdo, array $payload): array
             'wiki_region_key' => $row['wiki_region_key'] === null ? null : (string) $row['wiki_region_key'],
             'wiki_url' => $row['wiki_url'] === null ? null : (string) $row['wiki_url'],
             'area_count' => (int) $row['area_count'],
+            'label_public_id' => $row['label_public_id'] === null ? null : (string) $row['label_public_id'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }

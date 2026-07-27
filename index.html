@@ -821,6 +821,12 @@
 							<input id="ecosystem-properties-showname" name="show_name" type="checkbox" />
 							<span data-i18n="ecosystem.properties.showName">Regionname anzeigen</span>
 						</label>
+						<!-- Nodix: ein Kraftlinien-Knoten. Das Flag sitzt am LABEL der Region, weil eine
+						     Kraftlinie zwei Punkte verbindet und das Label der Punkt der Region ist. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-nodix" name="is_nodix" type="checkbox" />
+							<span data-i18n="ecosystem.properties.nodix">Nodix</span>
+						</label>
 						<label class="ecosystem-properties-dialog__field">
 							<span data-i18n="ecosystem.properties.typeLabel">Art</span>
 							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->
@@ -1402,7 +1408,7 @@
 		<div id="label-edit-overlay" hidden>
 			<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="label-edit-title">Region bearbeiten</h2>
+					<h2 id="label-edit-title">Region-Label bearbeiten</h2>
 					<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schließen">×</button>
 				</div>
 				<form id="label-edit-form" class="location-report-form" novalidate>
@@ -1465,19 +1471,12 @@
 									<p id="label-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 								</div>
 						</div>
-						<div class="label-edit-section" id="label-edit-other-source-section" hidden><div class="label-edit-section-title">Andere Quelle</div>
-							<div class="label-wiki-reference">
-								<label class="location-report-form__field">
-									<span>Andere Quelle:</span>
-									<input id="label-edit-other-source-url" type="url" inputmode="url" maxlength="500" placeholder="https://..." autocomplete="off" />
-								</label>
-								<label class="location-report-form__field">
-									<span>Linktext (optional)</span>
-									<input id="label-edit-other-source-label" type="text" maxlength="255" placeholder="Quelle" autocomplete="off" />
-								</label>
-								<div id="label-edit-other-source-preview" class="label-wiki-reference__list"></div>
-							</div>
-						</div>
+						<!-- „Andere Quelle" ist hier weg (Owner 2026-07-28). Es war das Einzelquellen-Feld von
+						     vor dem Mehrquellen-System; Orte haben es im selben Umbau schon verloren. Das
+						     Markup ist entfernt, aber die GESPEICHERTEN Werte bleiben: review-labels.js
+						     schickt den Schlüssel nicht mehr mit, und der Server schreibt nur, was im
+						     Payload steht -- ein leer mitgesendetes Feld hätte sie stillschweigend gelöscht. -->
+						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
 						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>

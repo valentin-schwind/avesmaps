@@ -373,7 +373,39 @@ function ecosystemLabelStyleFor(regionType) {
 	return ECOSYSTEM_LABEL_STYLE_BY_TYPE[String(regionType || "")] || ECOSYSTEM_LABEL_STYLE_DEFAULT;
 }
 
-async function createEcosystemRegionLabel(regionPublicId, geometry, text, showName, regionType) {
+// 🔴 Die Wiki-Landschaft der REGION reist ans Label mit (Owner 2026-07-28). Ein Label, das aus dem
+// Regionsdialog entsteht, beschreibt dieselbe Landschaft wie seine Region -- es dort noch einmal von
+// Hand zuweisen zu müssen, wäre dieselbe Angabe zweimal, und zwei Angaben driften auseinander.
+//
+// Die Region speichert nur `wiki_region_key` + `wiki_url`; das Label will den vollen Schnappschuss
+// (Name, Art, Beschreibung, Bild — daraus lebt seine Infobox). Also dieselbe Quelle anzapfen, aus der
+// der „Sync"-Knopf im Label-Editor schöpft, statt eine zweite Wahrheit zu bauen.
+//
+// 🪤 Schlägt der Abruf fehl, wird trotzdem verknüpft — nur mager. Der SCHLÜSSEL ist die Verbindung;
+// alles andere holt „Sync" nach. Gar nicht zu verknüpfen wäre der schlechtere Ausgang.
+async function ecosystemWikiRegionSnapshot(wikiKey, fallbackUrl) {
+	const key = String(wikiKey || "").trim();
+	if (key === "") {
+		return null;
+	}
+	try {
+		const response = await fetch(
+			`/api/edit/wiki/regions.php?action=staging_sample&wiki_keys=${encodeURIComponent(key)}&limit=1`,
+			{ credentials: "same-origin" }
+		);
+		const data = await response.json();
+		const row = (data.rows || [])[0];
+		if (row && typeof labelWikiRegionFromRow === "function") {
+			return labelWikiRegionFromRow(row);
+		}
+	} catch (error) {
+		console.warn("Wiki-Schnappschuss für das Region-Label nicht ladbar:", error);
+	}
+
+	return { wiki_key: key, wiki_url: String(fallbackUrl || "") };
+}
+
+async function createEcosystemRegionLabel(regionPublicId, geometry, text, showName, regionType, wikiRegion = null) {
 	if (typeof avesmapsComputeLabelPoint !== "function" || typeof submitMapFeatureEdit !== "function") {
 		return;
 	}
@@ -399,6 +431,9 @@ async function createEcosystemRegionLabel(regionPublicId, geometry, text, showNa
 			max_zoom: 7,
 			priority: 3,
 			show_name: Boolean(showName),
+			// Nur mitschicken, wenn die Region wirklich eine Wiki-Landschaft traegt -- ein leer
+			// mitgesendetes wiki_region wuerde am Label eine bestehende Zuweisung loeschen.
+			...(wikiRegion ? { wiki_region: wikiRegion } : {}),
 			lat: point.y,
 			lng: point.x,
 		});

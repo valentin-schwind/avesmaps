@@ -33,9 +33,10 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	if (typeof setLabelWikiRegion === "function") {
 		setLabelWikiRegion(label.wikiRegion || null);
 	}
-	if (typeof writeOtherSourceToForm === "function") {
-		writeOtherSourceToForm("label-edit", label.otherSource);
-	}
+	// „Andere Quelle" ist aus diesem Dialog raus (Owner 2026-07-28) -- weder gelesen noch geschrieben.
+	// Ein bereits gespeicherter Wert bleibt am Feature liegen, weil der Save den Schluessel nicht mehr
+	// mitschickt und der Server nur schreibt, was im Payload steht.
+	renderLabelCarrierNote(label);
 	syncLabelZoomRangeOutputs();
 	syncLabelSliderRowsFromNumbers();
 	syncLabelPriorityOutput();
@@ -44,6 +45,49 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 		document.getElementById("label-edit-lat").value = labelEditLatLng.lat.toFixed(3);
 		document.getElementById("label-edit-lng").value = labelEditLatLng.lng.toFixed(3);
 	}
+}
+
+// 🔴 „Dieses Label wird von N Flächen getragen." — die andere Hälfte der Kopplung. Der Dialog bearbeitet
+// eine Beschriftung, aber seit jede Landschaftsregion ihr Label bekommt, hängt an vielen von ihnen eine
+// Fläche, die mitverschwindet, wenn man hier auf „Löschen" geht. Wer das nicht sieht, löscht blind.
+//
+// Die Zahl kommt aus list_regions (area_count + label_public_id), NICHT aus den geladenen Flächen:
+// ecosystemLayers hält nur, was gerade im Bild ist, und würde bei einer Region, die halb aus dem
+// Ausschnitt ragt, zu wenig zählen.
+async function renderLabelCarrierNote(label) {
+	const note = document.getElementById("label-edit-carriers");
+	if (!note) {
+		return;
+	}
+	note.hidden = true;
+	const publicId = String(label?.publicId || "");
+	if (!publicId || typeof loadEcosystemRegions !== "function" || typeof ecosystemRegionsByKind === "undefined") {
+		return;
+	}
+
+	const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : ["derographisch", "vegetation", "topographie"];
+	await Promise.all(kinds.map((kind) => loadEcosystemRegions(kind)));
+	// Der Dialog kann inzwischen ein anderes Label zeigen -- dann gehört diese Antwort nicht mehr hierher.
+	if (String(document.getElementById("label-edit-public-id")?.value || "") !== publicId) {
+		return;
+	}
+
+	let region = null;
+	kinds.forEach((kind) => {
+		(ecosystemRegionsByKind[kind] || []).forEach((row) => {
+			if (String(row.label_public_id || "") === publicId) {
+				region = row;
+			}
+		});
+	});
+	if (!region) {
+		return;
+	}
+	const count = Number(region.area_count || 0);
+	note.textContent = count === 1
+		? `Dieses Label wird von 1 Fläche getragen („${region.name}").`
+		: `Dieses Label wird von ${count} Flächen getragen („${region.name}").`;
+	note.hidden = false;
 }
 
 function openLabelEditDialog(options = {}) {
@@ -190,7 +234,9 @@ function buildLabelEditPayload(formElement) {
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
 		wiki_region: typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null,
-		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },
+		// 💣 other_source wird bewusst NICHT mehr gesendet (Owner 2026-07-28, wie bei Orten im
+		// Mehrquellen-Umbau). Der Server schreibt nur Felder, die im Payload stehen -- ein leer
+		// mitgeschicktes other_source würde bestehende Werte stillschweigend löschen.
 	};
 
 	if (action === "create_label") {
