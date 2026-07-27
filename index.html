@@ -1813,6 +1813,10 @@
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-panels-change-log.js"></script>
 		<script src="js/review/review-region-sync.js"></script>
+		<!-- V6: der Landschaftsteil derselben Liste (Flaechenspalte + Zuweisen). Eigene Datenquelle
+		     (api/edit/map/ecosystem.php), deshalb eigene Datei. MUSS nach review-region-sync.js stehen:
+		     es benutzt dessen regionSyncEscapeText/-Attr und renderRegionSyncList. -->
+		<script src="js/review/review-region-sync-ecosystem.js"></script>
 		<script src="js/review/review-path-sync.js"></script>
 		<script src="js/review/review-path-wiki.js"></script>
 		<script src="js/review/review-path-flow.js"></script>

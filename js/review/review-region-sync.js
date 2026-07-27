@@ -104,6 +104,12 @@ async function loadRegionWikiSync() {
 			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
 		}
 		regionSyncData = data;
+		// V6: die Flaechen VOR dem Rendern holen, sonst zeigt der erste Aufbau ueberall "—" und
+		// korrigiert sich erst beim naechsten Filtertastendruck. Der Helfer schluckt seine Fehler
+		// selbst -- eine fehlende Landschaftsebene darf diese Liste nicht aufhalten.
+		if (typeof loadEcosystemRegionsByWikiKey === "function") {
+			await loadEcosystemRegionsByWikiKey();
+		}
 		const s = data.summary || {};
 		if (summary) {
 			summary.textContent = `${s.considered || 0} Regionen · ${s.map_labels || 0} Karten-Labels`;
@@ -241,6 +247,15 @@ function renderRegionSyncList() {
 				metaHtml += `<span class="region-sync__map">Karte: ${candidate(row.label)}</span>`;
 			} else if (row.labels && row.labels.length) {
 				metaHtml += `<span class="region-sync__map">Kandidaten: ${row.labels.map(candidate).join(" ")}</span>`;
+			}
+			// V6: welche Landschaftsflaechen an dieser Wiki-Region haengen, plus der Zuweisen-Knopf.
+			// Der Helfer wohnt in review-region-sync-ecosystem.js und liefert "" , wenn die Ebene auf
+			// diesem Host nicht erreichbar ist oder die Zeile gar keinen wiki_key hat.
+			const areaMarkup = typeof ecosystemAreaBadgeForWikiKey === "function"
+				? ecosystemAreaBadgeForWikiKey(row.wiki_key)
+				: "";
+			if (areaMarkup) {
+				metaHtml += areaMarkup;
 			}
 			const image = row.has_image ? ' <span class="region-sync__badge" title="Wiki hat ein Bild">🖼</span>' : "";
 			const draggable = !onMap && row.wiki_key; // nur fehlende Regionen sind ziehbar

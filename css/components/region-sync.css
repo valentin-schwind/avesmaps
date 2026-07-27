@@ -440,6 +440,48 @@
 	background: var(--color-accent-brown-hover);
 }
 
+/* ===== V6: Landschaftsflächen in der Regionen-Zeile ===== */
+/* Eigene Zeile unter der Meta-Zeile, wie .region-sync__map -- die Chips dürfen umbrechen. */
+.region-sync__areas {
+	color: var(--color-text-muted);
+}
+
+.region-sync__areas--none {
+	opacity: 0.7;
+}
+
+/* Ein Chip je Landschaftsregion. Optik von .region-sync__cand, aber NICHT klickbar: der Chip ist eine
+   Angabe, der Knopf daneben ist die Handlung. */
+.region-sync__areachip {
+	display: inline-block;
+	margin: 1px 3px 1px 0;
+	padding: 1px 7px;
+	font-size: 11px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: 10px;
+	background: var(--color-panel);
+	color: var(--color-button-soft-text);
+}
+
+/* Textknopf in der Meta-Zeile, Muster .path-sync__assign -- dieselbe Geste, dieselbe Optik. */
+.region-sync__assign {
+	margin: 1px 3px 1px 0;
+	padding: 1px 8px;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: inherit;
+	border: 1px solid var(--color-accent-brown);
+	border-radius: 10px;
+	background: var(--color-accent-brown);
+	color: var(--color-accent-brown-text);
+	cursor: pointer;
+	vertical-align: baseline;
+}
+
+.region-sync__assign:hover {
+	background: var(--color-accent-brown-hover);
+}
+
 /* Infobox-Popup-Innenabstand (region-info-box selbst hat jetzt padding:0). */
 .label-wiki-infobox-popup .leaflet-popup-content {
 	margin: 8px 10px;
@@ -888,7 +930,8 @@
 	color: var(--link-color-hover);
 }
 /* Kandidaten-Chips dürfen in der Meta-Zeile umbrechen. */
-.wikisync-itemlist .tree-item-meta .region-sync__map {
+.wikisync-itemlist .tree-item-meta .region-sync__map,
+.wikisync-itemlist .tree-item-meta .region-sync__areas {
 	display: block;
 	margin-top: 2px;
 }
