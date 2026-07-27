@@ -266,7 +266,10 @@ function createLabelIcon(label) {
 		: typeStyle;
 	const image = renderMapLabelToImage(label.text, safeSize, labelStyle);
 	return L.divIcon({
-		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}`,
+		// Das Blassmachen fremder Labels in der Landschaftsebene gehört ins Icon, weil dieses Icon bei
+		// jedem Zoomwechsel neu gebaut wird und dabei das DOM-Element ersetzt (siehe
+		// map-features-ecosystem-layer-switch.js). Ohne die Landschaftsebene ist der Zusatz leer.
+		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}${typeof ecosystemLabelMutedClass === "function" ? ecosystemLabelMutedClass(label) : ""}`,
 		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" style="display:block; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);" alt="${escapeHtml(label.text)}">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],

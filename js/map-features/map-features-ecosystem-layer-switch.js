@@ -81,16 +81,72 @@ function syncEcosystemPaneStates() {
 		pane.classList.toggle("ecosystem-pane--showall", showAll);
 	});
 
-	// Owner 2026-07-26: map labels belong to the DEROGRAPHIC layer -- that is the one whose areas they
-	// name. While vegetation or topography is being drawn they are noise, and worse: they sit above the
-	// areas (deliberately) and swallow the click meant for the polygon underneath. So they are dimmed
-	// AND made click-through in those two layers, and stay untouched in the derographic one.
+	// Owner 2026-07-26: Karten-Labels benennen die DEROGRAPHISCHE Ebene. Beim Zeichnen von Vegetation
+	// oder Topographie sind die fremden davon Störung, und schlimmer: sie liegen (gewollt) über den
+	// Flächen und schlucken den Klick, der dem Polygon darunter galt.
+	// Owner 2026-07-27: das Klick-Durchreichen bleibt hier an der Pane -- es gilt für ALLE Labels, auch
+	// die eigenen, denn ein Regionslabel sitzt am Point of Inaccessibility und damit mitten auf seiner
+	// eigenen Fläche. Das Blassmachen ist dagegen ans einzelne Label gewandert (siehe unten).
 	const labelsPane = map.getPane("labelsPane");
 	if (labelsPane) {
-		// In „Alle" ist die derographische Ebene mit an, also gehören ihre Labels dazu und bleiben hell.
 		labelsPane.classList.toggle("ecosystem-labels-dimmed",
 			isEcosystemLayerModeActive() && !showAll && activeKind !== "derographisch");
 	}
+	syncEcosystemLabelMuting();
+}
+
+// 🔴 Welche Labels sind in der gerade bearbeiteten Ebene FREMD? Nur die werden blass. Seit jede Region
+// ihr eigenes Label hat (label_public_id), gehört zu JEDER Ebene ein Teil der Beschriftungen -- ein
+// Waldlabel in der Vegetationsebene blass zu zeichnen war der Fehler, den der Owner gemeldet hat.
+//
+// Die Zugehörigkeit steht in den geladenen FLÄCHEN: jede trägt ihr `label_public_id` und ihren `kind`.
+// Ein Label ohne Fläche (Siedlungen, Gipfel, die grosse Mehrheit) gehört zu keiner Ebene und bleibt
+// blass -- ausser in der derographischen, in der noch nie gedimmt wurde.
+function isEcosystemLabelMuted(labelPublicId) {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return false;
+	}
+	if (isEcosystemShowAllLayers()) {
+		return false;
+	}
+	const activeKind = getActiveEcosystemLayerKind();
+	if (activeKind === "derographisch") {
+		return false;
+	}
+	const publicId = String(labelPublicId || "");
+	if (!publicId || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return true;
+	}
+	let eigen = false;
+	ecosystemLayers.forEach((layer) => {
+		const area = layer?._ecosystemArea;
+		if (area && area.kind === activeKind && String(area.label_public_id || "") === publicId) {
+			eigen = true;
+		}
+	});
+	return !eigen;
+}
+
+// 💣 Die Klasse muss ins ICON, nicht nur aufs Element: `syncLabelIcons` baut das Icon bei jedem
+// Zoomwechsel neu und `syncLabelMarkerVisibility` hängt Marker aus und wieder ein. Beides ersetzt das
+// DOM-Element -- eine Klasse, die nur dort sässe, wäre nach dem ersten Zoom weg. `createLabelIcon`
+// ruft dafür `ecosystemLabelMutedClass()` auf.
+function ecosystemLabelMutedClass(label) {
+	return isEcosystemLabelMuted(label?.publicId) ? " map-label--eco-muted" : "";
+}
+
+// Und der Weg andersherum: beim Ebenenwechsel sollen die schon gezeichneten Labels sofort umschalten,
+// ohne auf einen Icon-Neubau zu warten.
+function syncEcosystemLabelMuting() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return;
+	}
+	labelMarkers.forEach((entry) => {
+		const element = typeof entry?.marker?.getElement === "function" ? entry.marker.getElement() : null;
+		if (element) {
+			element.classList.toggle("map-label--eco-muted", isEcosystemLabelMuted(entry.label?.publicId));
+		}
+	});
 }
 
 // ---- underground opacity (Owner 2026-07-26) --------------------------------------------------------

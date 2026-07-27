@@ -168,7 +168,17 @@
    polygon underneath. Dimmed AND click-through there; untouched in the derographic layer.
    🪤 The pointer-events rule needs .leaflet-pane in the selector for the same reason the area rule does:
    Leaflet re-enables pointer events on .leaflet-marker-icon at a specificity a single class loses to. */
-.ecosystem-labels-dimmed {
+/* 💣 DAS DIMMEN SITZT AM EINZELNEN LABEL, NICHT AN DER PANE (Owner 2026-07-27). Vorher stand hier
+   `opacity: 0.25` auf der ganzen Label-Pane. Das war richtig, solange Karten-Labels ausschliesslich
+   derographische Gebiete benannten -- seit jede Region ihr eigenes Label hat, traf es auch die, die
+   in der gerade bearbeiteten Ebene GENAU HINGEHÖREN: ein Waldlabel war in der Vegetationsebene blass.
+   Und ein Kind kann die Deckkraft seines Elternteils nicht zurücknehmen, eine Ausnahme war also
+   unmöglich. Jetzt trägt jedes fremde Label die Klasse selbst (map-features-ecosystem-layer-switch.js).
+
+   Das Klick-Durchreichen bleibt an der PANE: die Labels sitzen über den Flächen und würden sonst den
+   Klick schlucken, der dem Polygon darunter galt -- das gilt unverändert für alle, auch für die
+   eigenen, denn ein Label sitzt am Point of Inaccessibility und damit mitten auf seiner Fläche. */
+.map-label--eco-muted {
 	opacity: 0.25;
 	transition: opacity 0.15s ease;
 }
