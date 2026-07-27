@@ -242,6 +242,10 @@
 		};
 		setWikiSearchOpen(false);
 		renderWikiReference();
+		// Ab jetzt besitzt die Wiki-Landschaft den Namen: Haken aus und deaktiviert. Das Feld bleibt
+		// bewusst schreibbar -- „Sync" ist hier ein eigener Knopf, kein Automatismus, und ein gesperrtes
+		// Feld neben einem Sync-Knopf wäre widersprüchlich.
+		syncPropertiesAutoName();
 		setPropertiesStatus("Wiki-Landschaft gewählt — noch nicht gespeichert.");
 	}
 
@@ -267,6 +271,58 @@
 		setPropertiesStatus(match || wiki.name
 			? "Aus dem Wiki übernommen — noch nicht gespeichert."
 			: "Das Wiki liefert für diese Ebene keine passende Art.");
+	}
+
+	// ---- Auto-Name --------------------------------------------------------------------------------------
+	// Der Haken wird nicht geladen, sondern ABGELEITET: der Name selbst trägt den Zustand
+	// (map-features-ecosystem-naming.js). „Wald-001" öffnet mit gesetztem Haken und gesperrtem Feld,
+	// „Farindel" mit leerem Haken und schreibbarem Feld.
+	//
+	// 🔴 Eine zugewiesene Wiki-Landschaft schlägt beides: sie besitzt den Namen. Dann ist der Haken
+	// DEAKTIVIERT statt nur leer, damit die Sperre im Formular sichtbar ist -- genau wie beim Weg-Editor
+	// (review-paths.js:229), wo ein zugewiesener Wiki-Weg denselben Vorrang hat.
+
+	// Die Art-Bezeichnung zur gerade gewählten Art. Leer, solange list_regions noch unterwegs ist.
+	function currentPropertiesArtLabel() {
+		const typeKey = String(propertiesElement("type")?.value || "");
+		return String(regionTypesForKind.find((type) => type.type_key === typeKey)?.label || "");
+	}
+
+	function syncPropertiesAutoName({ regenerate = false } = {}) {
+		const nameInput = propertiesElement("name");
+		const autoNameBox = propertiesElement("autoname");
+		if (!nameInput || !autoNameBox) {
+			return;
+		}
+
+		const wiki = effectiveWikiRegion();
+		const wikiName = String(wiki?.name || "").trim();
+		autoNameBox.disabled = wikiName !== "";
+		if (wikiName !== "") {
+			autoNameBox.checked = false;
+			nameInput.readOnly = false;   // der Wiki-Name steht im Feld; „Sync" schreibt ihn hinein
+			return;
+		}
+
+		nameInput.readOnly = autoNameBox.checked;
+		if (autoNameBox.checked && regenerate) {
+			nameInput.value = nextEcosystemRegionAutoName(currentPropertiesArtLabel(), knownRegionNamesForAutoName());
+		}
+	}
+
+	// Die Namen, gegen die die laufende Nummer zählt. Der Regionen-Wähler hält sie ohnehin schon je Ebene;
+	// diese Region selbst wird ausgelassen, sonst zählte ihr eigenes „Wald-001" gegen sie und jedes
+	// Anhaken schöbe die Nummer eine weiter.
+	function knownRegionNamesForAutoName() {
+		const own = String(currentPropertiesArea()?.region_name || "");
+		const all = typeof ecosystemRegionsByKind !== "undefined" && ecosystemRegionsByKind
+			? Object.values(ecosystemRegionsByKind).filter(Array.isArray).flat().map((region) => String(region?.name || ""))
+			: [];
+		const index = all.indexOf(own);
+		if (index !== -1) {
+			all.splice(index, 1);
+		}
+		return all;
 	}
 
 	// ---- öffnen ---------------------------------------------------------------------------------------
@@ -333,6 +389,15 @@
 				areasNote.textContent = regionAreaCount === 1
 					? "Diese Region trägt 1 Fläche."
 					: `Diese Region trägt ${regionAreaCount} Flächen.`;
+			}
+			// 🪤 ERST HIER, nicht beim Öffnen: der Haken hängt an der Art-BEZEICHNUNG, und die kommt mit
+			// list_regions. Vorher wüsste `Wald-001` nicht, dass es zu „Wald" gehört, und der Haken bliebe
+			// fälschlich leer. Nur ableiten, solange das Feld unberührt ist -- wer in dieser Millisekunde
+			// schon getippt hat, soll das nicht überschrieben bekommen.
+			const autoNameBox = propertiesElement("autoname");
+			if (autoNameBox && nameInput && nameInput.value === String(area.region_name || "")) {
+				autoNameBox.checked = isEcosystemRegionAutoName(area.region_name, currentPropertiesArtLabel());
+				syncPropertiesAutoName();
 			}
 		} catch (error) {
 			setPropertiesError(error?.message || "Das Art-Vokabular konnte nicht geladen werden.");
@@ -484,8 +549,15 @@
 		propertiesElement("wiki-remove")?.addEventListener("click", () => {
 			pendingWikiRegion = null;                 // ausdrücklich entfernt, nicht bloss unberührt
 			renderWikiReference();
+			// Ohne Wiki-Landschaft ist der Haken wieder bedienbar. Der Name bleibt stehen, wie er ist --
+			// die Zuweisung zu lösen soll nicht ungefragt umbenennen.
+			syncPropertiesAutoName();
 			setPropertiesStatus("Wiki-Landschaft entfernt — noch nicht gespeichert.");
 		});
+		// Haken umgelegt -> Feld sperren/freigeben, und beim Anhaken einen frischen Griff erzeugen.
+		// Artwechsel -> der Griff folgt der Art, aber nur solange der Haken steht.
+		propertiesElement("autoname")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));
+		propertiesElement("type")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));
 		propertiesElement("wiki-search-go")?.addEventListener("click", () => void runWikiSearch());
 		// Enter im Suchfeld darf NICHT das Formular abschicken -- das würde speichern statt suchen.
 		propertiesElement("wiki-query")?.addEventListener("keydown", (event) => {

@@ -647,6 +647,14 @@
 						<span data-i18n="ecosystem.region.nameLabel">Name *</span>
 						<input id="ecosystem-region-name" name="name" type="text" maxlength="190" required autocomplete="off" />
 					</label>
+					<!-- Auto-Name wie beim Weg-Editor (#path-edit-autoname). Gesetzt = der Name ist ein
+					     interner Griff (`Wald-001`), kein Anzeigename; ein Leser bekommt die Art zu sehen.
+					     Nichts davon wird gespeichert -- der Name selbst traegt den Zustand
+					     (map-features-ecosystem-naming.js). -->
+					<label class="ecosystem-region-dialog__checkbox">
+						<input id="ecosystem-region-autoname" name="autoname" type="checkbox" checked />
+						<span data-i18n="ecosystem.region.autoName">Auto-Name</span>
+					</label>
 					<label class="ecosystem-region-dialog__field">
 						<span data-i18n="ecosystem.region.typeLabel">Art</span>
 						<!-- Wird aus ecosystem_region_type gefuellt, nie aus einer Liste im Client. -->
@@ -818,6 +826,13 @@
 						<label class="ecosystem-properties-dialog__field">
 							<span data-i18n="ecosystem.properties.nameLabel">Name *</span>
 							<input id="ecosystem-properties-name" name="name" type="text" maxlength="190" required autocomplete="off" />
+						</label>
+						<!-- Der Haken wird beim Oeffnen ABGELEITET, nicht geladen: passt der Name auf
+						     `<Art>-<Zahl>`, ist er gesetzt und das Feld schreibgeschuetzt; sonst leer und
+						     schreibbar. „Farindel" oeffnet also als echter Name, „Wald-001" als Griff. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-autoname" name="autoname" type="checkbox" />
+							<span data-i18n="ecosystem.properties.autoName">Auto-Name</span>
 						</label>
 						<label class="ecosystem-properties-dialog__field">
 							<span data-i18n="ecosystem.properties.typeLabel">Art</span>
@@ -1991,6 +2006,9 @@
 		<!-- Landschaften (Erprobung). Reihenfolge innerhalb der Gruppe ist tragend: rendering liefert
 		     ECOSYSTEM_KINDS/ECOSYSTEM_KIND_PANES, layer-switch und loader lesen sie, visibility verteilt
 		     an beide. Die ganze Gruppe steht VOR display-mode.js, das syncEcosystemVisibility ruft. -->
+		<!-- Reine Namenslogik (Auto-Name einer Flaeche). MUSS vor region-picker.js und properties.js
+		     stehen -- beide rufen sie beim Aufbau ihres Dialogs. Ohne Abhaengigkeiten, deshalb ganz vorn. -->
+		<script src="js/map-features/map-features-ecosystem-naming.js"></script>
 		<script src="js/map-features/map-features-ecosystem-geometry.js"></script>
 		<script src="js/map-features/map-features-ecosystem-rendering.js"></script>
 		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>

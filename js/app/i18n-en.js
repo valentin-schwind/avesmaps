@@ -101,6 +101,9 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.region.dialogTitle": "New region",
 	"ecosystem.region.closeAria": "Close dialog",
 	"ecosystem.region.nameLabel": "Name *",
+	// The generated handle stays German (`Wald-001`) -- it is a key the editor types into search boxes,
+	// not prose. Only the checkbox label is translated.
+	"ecosystem.region.autoName": "Auto name",
 	"ecosystem.region.typeLabel": "Kind",
 	"ecosystem.region.wikiLabel": "Wiki article (optional)",
 	"ecosystem.region.cancel": "Cancel",
@@ -166,6 +169,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.properties.closeAria": "Close dialog",
 	"ecosystem.properties.identity": "Identity",
 	"ecosystem.properties.nameLabel": "Name *",
+	"ecosystem.properties.autoName": "Auto name",
 	"ecosystem.properties.typeLabel": "Kind",
 	"ecosystem.properties.wikiTitle": "Wiki landscape",
 	"ecosystem.properties.wikiSync": "Sync",

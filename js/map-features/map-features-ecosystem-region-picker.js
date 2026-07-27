@@ -213,9 +213,57 @@ function openEcosystemRegionDialog() {
 	document.getElementById("ecosystem-region-form")?.reset();
 	typeSelect.value = "";
 	setEcosystemRegionDialogError("");
+	// Eine NEUE Region hat noch keinen Namen, also greift der Auto-Name. Der Haken steht auf an, das Feld
+	// traegt sofort den naechsten Griff -- niemand muss sich einen Namen fuer einen Wald ausdenken, den
+	// das Wiki gar nicht kennt.
+	const autoNameBox = document.getElementById("ecosystem-region-autoname");
+	if (autoNameBox) {
+		autoNameBox.checked = true;
+		autoNameBox.disabled = false;
+	}
+	syncEcosystemRegionAutoName();
 	overlayElement.hidden = false;
 	document.getElementById("ecosystem-region-dialog")?.focus();
 	nameInput.focus();
+}
+
+// Haken und Namensfeld in Einklang bringen. Nach dem Muster von syncPathAutoNameControls
+// (review-paths.js:217): gesetzt -> das Feld ist schreibgeschuetzt und traegt den erzeugten Griff,
+// leer -> freies Feld, und was dort steht, bleibt stehen.
+//
+// 🪤 Bei gesetztem Haken wird IMMER neu erzeugt, ohne Bedingung. Der Weg-Editor prueft dort noch, ob das
+// Feld schon etwas enthaelt -- er braucht das, weil er bestehende Wege mit gesetztem Haken oeffnet und
+// deren Namen nicht ueberschreiben darf. Dieser Dialog legt ausschliesslich NEUE Regionen an, das Feld
+// ist bei gesetztem Haken schreibgeschuetzt und sein Inhalt damit ohnehin immer erzeugt. Mit der
+// Bedingung waere ein Artwechsel still wirkungslos gewesen: „Wald-001" ist unter der Art „Steppe" kein
+// Auto-Name mehr, die Pruefung haette verneint und der Wald-Griff waere auf der Steppe stehengeblieben.
+function syncEcosystemRegionAutoName() {
+	const nameInput = document.getElementById("ecosystem-region-name");
+	const typeSelect = document.getElementById("ecosystem-region-type");
+	const autoNameBox = document.getElementById("ecosystem-region-autoname");
+	if (!nameInput || !typeSelect || !autoNameBox) {
+		return;
+	}
+
+	nameInput.readOnly = autoNameBox.checked;
+	if (!autoNameBox.checked) {
+		return;
+	}
+
+	const kind = getActiveEcosystemLayerKind();
+	const artLabel = (ecosystemRegionTypesByKind[kind] || [])
+		.find((type) => type.type_key === typeSelect.value)?.label || "";
+	nameInput.value = nextEcosystemRegionAutoName(artLabel, ecosystemKnownRegionNames());
+}
+
+// Alle bekannten Regionsnamen, ueber ALLE Ebenen. Die Reihe je Art zaehlt zwar getrennt, aber eine Art
+// gehoert immer genau einer Ebene -- und die Namen der anderen Ebenen mitzulesen kostet nichts und
+// schuetzt davor, dass ein noch nicht geladener Bestand eine Nummer doppelt vergibt.
+function ecosystemKnownRegionNames() {
+	return Object.values(ecosystemRegionsByKind || {})
+		.filter(Array.isArray)
+		.flat()
+		.map((region) => String(region?.name || ""));
 }
 
 function closeEcosystemRegionDialog() {
@@ -309,6 +357,10 @@ function bindEcosystemRegionPicker() {
 	document.getElementById("ecosystem-region-close")?.addEventListener("click", closeEcosystemRegionDialog);
 	document.getElementById("ecosystem-region-cancel")?.addEventListener("click", closeEcosystemRegionDialog);
 	document.getElementById("ecosystem-region-form")?.addEventListener("submit", submitEcosystemRegionDialog);
+	// Haken umgelegt -> Feld sperren/freigeben und den Griff neu erzeugen. Artwechsel -> der Griff folgt
+	// der Art (`Wald-001` wird zu `Steppe-001`), aber nur solange der Haken steht.
+	document.getElementById("ecosystem-region-autoname")?.addEventListener("change", () => syncEcosystemRegionAutoName());
+	document.getElementById("ecosystem-region-type")?.addEventListener("change", () => syncEcosystemRegionAutoName());
 	// Click on the scrim closes; a click inside the dialog must not.
 	overlayElement.addEventListener("click", (event) => {
 		if (event.target === overlayElement) {

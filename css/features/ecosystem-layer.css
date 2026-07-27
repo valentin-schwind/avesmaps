@@ -434,6 +434,25 @@
 	color: var(--color-text-muted);
 }
 
+/* Kontrollkästchen-Zeile („Auto-Name"). Waagerecht statt im Raster der übrigen Felder, weil die
+   Beschriftung neben dem Kästchen steht und nicht darüber -- dieselbe Anordnung wie im Weg-Editor
+   (.location-report-form__field--checkbox). Der Rückzug auf `width: auto` ist nötig, weil die
+   Feldregel darunter jedem input im Dialog volle Breite gibt. */
+.ecosystem-region-dialog__checkbox,
+.ecosystem-properties-dialog__checkbox {
+	display: flex;
+	align-items: center;
+	gap: var(--space-8);
+	font-size: var(--font-size-small);
+	color: var(--color-text-muted);
+}
+
+.ecosystem-region-dialog__checkbox input,
+.ecosystem-properties-dialog__checkbox input {
+	width: auto;
+	margin: 0;
+}
+
 .ecosystem-region-dialog__field input,
 .ecosystem-properties-dialog__field input,
 .ecosystem-assign-dialog__field input,
