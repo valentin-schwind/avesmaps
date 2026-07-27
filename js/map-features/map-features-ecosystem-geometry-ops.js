@@ -360,7 +360,7 @@
 			await saveGeometry(source, result.remainder);
 			await createArea(source, result.extracted);
 			refreshAfterWrite();
-			say("Teil herausgelöst.", "success");
+			say("Unterfläche herausgelöst.", "success");
 		} catch (error) {
 			failed(error);
 		} finally {
@@ -565,15 +565,10 @@
 			void completeMove();
 			return;
 		}
+		// Hier landet nur, was NEBEN die Fläche geklickt wurde -- die Unterfläche selbst schliesst über
+		// handleAreaClick ab. Daneben heisst „doch nicht", nicht „nimm die zuletzt hervorgehobene".
 		if (pending.operation === "pick-subarea") {
-			// Was blau hervorgehoben ist, ist gemeint -- der Zeiger hat es beim Herfahren gesetzt.
-			const publicId = pending.sourcePublicId;
-			const index = subareaChosen;
-			const run = pending.run;
-			cancelPending({ silent: true });
-			if (index >= 0 && typeof run === "function") {
-				void run(publicId, index);
-			}
+			cancelPending();
 			return;
 		}
 		if (pending.operation !== "split") {
@@ -602,6 +597,20 @@
 		}
 		if (pending.operation === "split" || pending.operation === "move") {
 			return false;                       // die laufen über Kartenklicks, nicht über Flächenklicks
+		}
+		// 💣 Die Unterflächen-Wahl MUSS hier abschliessen, nicht über map.on("click"). Die Unterfläche
+		// liegt auf der Fläche, der Klick trifft also deren Leaflet-Ebene -- und die ruft
+		// L.DomEvent.stopPropagation (rendering.js), so dass die Karte ihn nie sieht. Ohne diesen Zweig
+		// fiel der Klick durch bis completeTargetOperation, wo Quelle und Ziel dieselbe Fläche sind:
+		// „Bitte eine andere Fläche wählen."
+		if (pending.operation === "pick-subarea") {
+			const index = subareaChosen;
+			const run = pending.run;
+			cancelPending({ silent: true });
+			if (index >= 0 && typeof run === "function") {
+				void run(publicId, index);
+			}
+			return true;
 		}
 		void completeTargetOperation(publicId);
 		return true;
