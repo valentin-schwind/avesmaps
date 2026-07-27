@@ -412,6 +412,10 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.type.region": "Territory",
 	"spotlight.type.location": "Location",
 	"spotlight.type.powerline": "Powerline",
+	// Hit for an object that lies INSIDE a settlement (a villa, a square, a city temple, an
+	// alley). It has no position of its own, so the hit jumps to its city -- this line is what
+	// keeps that from reading as "the object is marked there".
+	"spotlight.notOnMap": "not on the map",
 	"spotlight.labelType.region": "Region",
 	"spotlight.labelType.fluss": "River",
 	"spotlight.labelType.meer": "Sea",

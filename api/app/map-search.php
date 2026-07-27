@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/text/ascii-fold.php';
+require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
 
@@ -37,7 +38,11 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $rows = avesmapsFetchMapSearchRows($pdo);
     $politicalRows = avesmapsFetchPoliticalTerritorySearchRows($pdo);
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit);
+    // Dritte Quelle: Objekte, die IN einer Stadt liegen und deshalb keine eigene
+    // Kartenposition haben (Villen, Plaetze, Stadttempel, Gassen). Der Ortsindex wird aus
+    // $rows abgeleitet -- keine zusaetzliche Ortsabfrage.
+    $inSettlementRows = avesmapsFetchInSettlementSearchRows($pdo);
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -126,7 +131,14 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
     return $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 
-function avesmapsBuildMapSearchResults(array $rows, array $politicalRows, string $query, int $limit): array {
+function avesmapsBuildMapSearchResults(
+    array $rows,
+    array $politicalRows,
+    string $query,
+    int $limit,
+    array $inSettlementRows = [],
+    ?PDO $pdo = null
+): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
         return [];
@@ -196,6 +208,25 @@ function avesmapsBuildMapSearchResults(array $rows, array $politicalRows, string
         }
         $entry['score'] = $score;
         $results[] = $entry;
+    }
+
+    // Innerorts-Objekte (dritte Quelle). Der Scope-Index braucht die DB (Regionen +
+    // Territorien fuer die Mehrdeutigkeitspruefung); ohne PDO bleibt die Quelle einfach
+    // leer, damit die Funktion rein testbar bleibt.
+    if ($inSettlementRows !== [] && $pdo !== null) {
+        $settlementIndex = avesmapsBuildSettlementLocationIndex($rows);
+        // $rows durchreichen: die Suche hat map_features schon vollstaendig geladen, ein
+        // zweiter Scan derselben Tabelle waere reine Verschwendung. Dieselbe Funktion,
+        // dieselbe Regel wie im Editor -- nur ohne die doppelte Abfrage.
+        $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo, $rows);
+        foreach (avesmapsBuildInSettlementSearchEntries($inSettlementRows, $settlementIndex, $scopeIndex) as $entry) {
+            $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
+            if ($score === null) {
+                continue;
+            }
+            $entry['score'] = $score;
+            $results[] = $entry;
+        }
     }
 
     $results = array_merge($results, array_values($pathGroups));
@@ -421,6 +452,9 @@ function avesmapsSearchKindOrder(string $kind): int {
         'region' => 2,
         'path' => 3,
         'powerline' => 4,
+        // Innerorts-Objekte ganz ans Ende: sie sind KEIN Kartenobjekt, sondern ein
+        // Verweis auf die Stadt. Was wirklich auf der Karte liegt, hat Vorrang.
+        'in_settlement' => 5,
         default => 99,
     };
 }

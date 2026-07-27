@@ -346,31 +346,68 @@ function avesmapsPlaceScopeLabel(string $scope): string
 }
 
 /**
+ * The map_features subtypes that count as a settlement (a container an object can
+ * be inside of). gebaeude is EXCLUDED on purpose -- a building is not a container,
+ * and including them would let one building's name mark another as "inside" it.
+ */
+const AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf'];
+
+/**
  * Load the two name sets the classifier needs, from live data.
  *
- * settlements: every placed location that is an actual settlement. gebaeude is
- *   EXCLUDED on purpose -- a building is not a container, and including them
- *   would let one building's name mark another building as "inside" it.
+ * settlements: every placed location that is an actual settlement.
  * regions: region + label features AND political territories. Territories are
  *   what make the collision check work at all: Abagund and Droel are baronies
  *   that share their name with a settlement, and without the territory list
  *   they read as unambiguous settlements.
  *
- * Both queries are plain indexed reads over small columns and run ONCE per list
- * request -- never per row (STRATO, AGENTS.md §9).
+ * $preloadedFeatureRows lets a caller that ALREADY holds the map_features rows
+ * (the map search loads the whole table anyway) hand them over instead of making
+ * this function scan the same table a second time -- same rule, one code path,
+ * no duplicate query. Rows must carry feature_type / feature_subtype / name.
+ * The territory read always happens; it is a different table.
  *
+ * All reads run ONCE per request -- never per row (STRATO, AGENTS.md §9).
+ *
+ * @param list<array<string,mixed>>|null $preloadedFeatureRows
  * @return array{settlements:array<string,bool>, regions:array<string,bool>}
  */
-function avesmapsPlaceScopeLoadIndex(PDO $pdo): array
+function avesmapsPlaceScopeLoadIndex(PDO $pdo, ?array $preloadedFeatureRows = null): array
 {
-    $settlementClasses = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf'];
-    $placeholders = implode(', ', array_fill(0, count($settlementClasses), '?'));
+    if ($preloadedFeatureRows !== null) {
+        $settlementNames = [];
+        $regionNames = [];
+        foreach ($preloadedFeatureRows as $row) {
+            $featureType = (string) ($row['feature_type'] ?? '');
+            $name = (string) ($row['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            if ($featureType === 'location'
+                && in_array((string) ($row['feature_subtype'] ?? ''), AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES, true)
+            ) {
+                $settlementNames[] = $name;
+            } elseif ($featureType === 'region' || $featureType === 'label') {
+                $regionNames[] = $name;
+            }
+        }
+        $settlements = avesmapsPlaceScopeBuildNameSet($settlementNames);
+
+        return [
+            'settlements' => $settlements,
+            'regions' => avesmapsPlaceScopeBuildNameSet(
+                array_merge($regionNames, avesmapsPlaceScopeReadTerritoryNames($pdo))
+            ),
+        ];
+    }
+
+    $placeholders = implode(', ', array_fill(0, count(AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES), '?'));
 
     $statement = $pdo->prepare(
         'SELECT name FROM map_features
           WHERE feature_type = ? AND is_active = 1 AND feature_subtype IN (' . $placeholders . ')'
     );
-    $statement->execute(array_merge(['location'], $settlementClasses));
+    $statement->execute(array_merge(['location'], AVESMAPS_PLACE_SCOPE_SETTLEMENT_SUBTYPES));
     $settlements = avesmapsPlaceScopeBuildNameSet($statement->fetchAll(PDO::FETCH_COLUMN) ?: []);
 
     $regionStatement = $pdo->query(
@@ -378,21 +415,34 @@ function avesmapsPlaceScopeLoadIndex(PDO $pdo): array
     );
     $regionNames = $regionStatement !== false ? ($regionStatement->fetchAll(PDO::FETCH_COLUMN) ?: []) : [];
 
-    // Territories live in their own table; a missing one (fresh install) must not
-    // break the classifier, it only makes the collision check less sharp.
-    try {
-        $territoryStatement = $pdo->query('SELECT name FROM political_territory');
-        if ($territoryStatement !== false) {
-            $regionNames = array_merge($regionNames, $territoryStatement->fetchAll(PDO::FETCH_COLUMN) ?: []);
-        }
-    } catch (Throwable $exception) {
-        // Intentionally ignored -- see above.
-    }
-
     return [
         'settlements' => $settlements,
-        'regions' => avesmapsPlaceScopeBuildNameSet($regionNames),
+        'regions' => avesmapsPlaceScopeBuildNameSet(
+            array_merge($regionNames, avesmapsPlaceScopeReadTerritoryNames($pdo))
+        ),
     ];
+}
+
+/**
+ * Territory names for the collision check. They live in their own table, so both
+ * paths above need them. A missing table (fresh install) must not break the
+ * classifier -- it only makes the collision check less sharp.
+ *
+ * @return list<string>
+ */
+function avesmapsPlaceScopeReadTerritoryNames(PDO $pdo): array
+{
+    try {
+        $statement = $pdo->query('SELECT name FROM political_territory');
+        if ($statement === false) {
+            return [];
+        }
+        $names = $statement->fetchAll(PDO::FETCH_COLUMN);
+
+        return is_array($names) ? $names : [];
+    } catch (Throwable) {
+        return [];
+    }
 }
 
 /**

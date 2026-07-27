@@ -316,6 +316,43 @@ function buildSyntheticSpotlightRegionEntry(result, publicIds) {
 	};
 }
 
+// Ein Objekt, das IN einer Stadt liegt (Villa Gerbelstein, Plaza der Lüste, Webergasse) hat
+// keine eigene Position auf der Weltkarte -- es steht nur in der Wiki-Registry und ist der
+// Suche deshalb bisher gar nicht begegnet. Der Server kennt aber seine Stadt
+// (api/_internal/wiki/place-scope.php) und schickt deren public_id mit.
+//
+// ⭐ Der Eintrag ERBT den Marker-Eintrag der Stadt und bleibt kind "location". Damit fliegt
+// selectSpotlightSearchEntry über den GANZ NORMALEN Ortspfad (focusSpotlightLocation) --
+// derselbe Flug, dieselbe Infobox, kein zweiter Navigationsweg, der auseinanderlaufen kann.
+// Eigen sind nur Name und Beschriftung: gesucht wurde das Objekt, nicht die Stadt.
+//
+// 💣 Die id MUSS eine eigene sein. Übernähme der Eintrag die id der Stadt, würde er in
+// resolveBackendSpotlightEntries per seenEntryIds gegen den echten Stadt-Treffer verrechnet
+// -- je nach Reihenfolge verschwände einer der beiden.
+function buildInSettlementSpotlightEntry(result) {
+	const settlementPublicId = String(result.settlement_public_id || result.public_id || "");
+	if (!settlementPublicId) {
+		return null;
+	}
+	const { byPublicId } = getSpotlightSearchLookup();
+	const settlementEntry = byPublicId.get(`location:${settlementPublicId}`);
+	if (!settlementEntry) {
+		return null; // Stadt gerade nicht auf der Karte -> nichts zum Anspringen
+	}
+
+	const name = String(result.name || "");
+	return {
+		...settlementEntry,
+		id: `in_settlement:${settlementPublicId}:${name}`,
+		name,
+		typeLabel: String(result.type_label || ""),
+		aliases: [],
+		inSettlementName: String(result.settlement_name || ""),
+		wikiUrl: String(result.wiki_url || ""),
+		notOnMap: true,
+	};
+}
+
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
@@ -344,6 +381,13 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 		// politische Ebene schaltet, hinfliegt und die Infobox per public_id öffnet.
 		if (!entry && kind === "region" && publicIds.length) {
 			entry = buildSyntheticSpotlightRegionEntry(result, publicIds);
+		}
+
+		// Objekt INNERHALB einer Stadt (Villa, Platz, Stadttempel, Gasse). Es hat keine eigene
+		// Kartenposition -- der Treffer trägt deshalb den Namen des Objekts, zeigt aber auf die
+		// Stadt. Siehe buildInSettlementSpotlightEntry.
+		if (!entry && kind === "in_settlement") {
+			entry = buildInSettlementSpotlightEntry(result);
 		}
 
 		if (entry && entry.kind === "region") {
@@ -442,10 +486,17 @@ function renderSpotlightSearchResults(entries) {
 
 function spotlightResultMarkup(entry, index) {
 	const resultId = `spotlight-result-${index}`;
+	// Innerorts-Objekte springen auf ihre STADT, nicht auf sich selbst -- das muss am Treffer
+	// stehen, sonst sucht man nach dem Sprung einen Marker, den es nicht gibt. Der Zusatz hängt
+	// an der Typzeile („Palast in Mengbilla · nicht auf der Karte").
+	const notOnMap = entry.notOnMap
+		? `<span class="spotlight-search__result-hint">${escapeHtml(tr("spotlight.notOnMap", "nicht auf der Karte"))}</span>`
+		: "";
+	const resultClass = "spotlight-search__result" + (entry.notOnMap ? " spotlight-search__result--not-on-map" : "");
 	return `
-		<button id="${resultId}" type="button" class="spotlight-search__result" data-spotlight-result-index="${index}" role="option">
+		<button id="${resultId}" type="button" class="${resultClass}" data-spotlight-result-index="${index}" role="option">
 			<span class="spotlight-search__result-name">${escapeHtml(entry.name)}</span>
-			<span class="spotlight-search__result-type">${escapeHtml(entry.typeLabel)}</span>
+			<span class="spotlight-search__result-type">${escapeHtml(entry.typeLabel)}${notOnMap}</span>
 		</button>`;
 }
 

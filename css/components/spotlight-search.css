@@ -87,6 +87,28 @@
 	white-space: nowrap;
 }
 
+/* Innerorts-Treffer (Villa, Platz, Stadttempel, Gasse) tragen ZWEI Angaben: den Typ samt
+   Stadt und den Hinweis, dass das Objekt selbst nicht auf der Karte liegt. In den 150px der
+   einzeiligen Typangabe schneidet die Ellipse genau den Hinweis ab, der die Verwechslung
+   verhindern soll -- also hier mehr Platz und Umbruch statt Abschneiden. */
+.spotlight-search__result--not-on-map .spotlight-search__result-type {
+	max-width: 58%;
+	overflow: visible;
+	text-align: right;
+	white-space: normal;
+}
+
+/* Der Hinweis steht unter der Typangabe und ist bewusst leiser als sie: er beschreibt eine
+   Einschraenkung, keine Kategorie. `currentColor` erbt die Farbe der Typzeile -- so bleibt
+   der Kontrast in jedem Theme richtig, ohne einen zweiten Farbwert einzufuehren. */
+.spotlight-search__result-hint {
+	display: block;
+	opacity: 0.72;
+	font-size: 10px;
+	font-style: italic;
+	text-transform: none;
+}
+
 .spotlight-search__status {
 	min-height: 20px;
 	margin: 0;
