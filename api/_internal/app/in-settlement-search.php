@@ -141,6 +141,53 @@ function avesmapsBuildSettlementLocationIndex(array $rows): array
 }
 
 /**
+ * PURE: die schlanke Innerorts-Liste fuer den KARTEN-PAYLOAD -- je Objekt nur sein Name und
+ * die Stadt, in der es liegt.
+ *
+ * Der Routenplaner-Autocomplete arbeitet rein lokal (kein Request je Tastendruck, deshalb
+ * fuehlt er sich sofort an). Damit er "Plaza der Lüste" kennt, muss die Liste EINMAL mit den
+ * Kartendaten mitkommen -- ~535 Eintraege a ~50 Byte, also ein paar Dutzend KB neben einem
+ * mehrere MB grossen Payload, und keine zusaetzliche Abfrage im Betrieb.
+ *
+ * Bewusst OHNE public_id/bbox: der Autocomplete schreibt den STADTNAMEN ins Feld, weil
+ * Ortsnamen im Routing-Graphen die Schluessel sind. Mehr braucht er nicht, und was nicht
+ * mitreist, kann auch nicht veralten.
+ *
+ * Die Stadt steht nur dann in `settlement`, wenn der Klassifikator sie EINDEUTIG erkannt hat
+ * (scope = inside); "unklar" faellt raus wie ueberall sonst.
+ *
+ * @param list<array{title:string, raw:string, type_label:string, wiki_url:string}> $registryRows
+ * @param array{settlements:array<string,bool>, regions:array<string,bool>} $scopeIndex
+ * @return list<array{name:string, settlement:string, type:string}>
+ */
+function avesmapsBuildInSettlementPlaceList(array $registryRows, array $scopeIndex): array
+{
+    $places = [];
+    $seen = [];
+
+    foreach ($registryRows as $registryRow) {
+        $title = trim((string) ($registryRow['title'] ?? ''));
+        if ($title === '' || isset($seen[$title])) {
+            continue;
+        }
+
+        $scope = avesmapsPlaceScopeClassifyWithIndex((string) ($registryRow['raw'] ?? ''), $scopeIndex);
+        if ($scope['scope'] !== AVESMAPS_PLACE_SCOPE_INSIDE || $scope['settlement'] === '') {
+            continue;
+        }
+
+        $seen[$title] = true;
+        $places[] = [
+            'name' => $title,
+            'settlement' => $scope['settlement'],
+            'type' => (string) ($registryRow['type_label'] ?? ''),
+        ];
+    }
+
+    return $places;
+}
+
+/**
  * PURE: aus Registry-Zeilen + Ortsindex + Scope-Index die Innerorts-Suchtreffer bauen.
  * Ein Objekt kommt nur mit, wenn der Klassifikator EINDEUTIG "inside" sagt UND die genannte
  * Stadt (eindeutig) auf der Karte liegt.

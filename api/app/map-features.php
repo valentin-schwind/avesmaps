@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
+require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
@@ -30,6 +31,26 @@ const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 8;
 // undefined at call time -> 500.
 const AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE = 'political_territory_wiki_test'; // = AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE
 const AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE = 'wiki_territory_model';            // = AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE
+
+/**
+ * Die Innerorts-Liste fuer den Payload (Name + Stadt je Objekt). Faellt sie aus -- fehlende
+ * Spalte, Sync nie gelaufen --, liefert sie eine leere Liste: die Karte selbst darf daran
+ * NIE scheitern, sie ist die Hauptsache und das hier eine Zutat.
+ *
+ * @return list<array{name:string, settlement:string, type:string}>
+ */
+function avesmapsMapFeaturesInSettlementPlaces(PDO $pdo): array {
+    try {
+        $registryRows = avesmapsFetchInSettlementSearchRows($pdo);
+        if ($registryRows === []) {
+            return [];
+        }
+
+        return avesmapsBuildInSettlementPlaceList($registryRows, avesmapsPlaceScopeLoadIndex($pdo));
+    } catch (Throwable) {
+        return [];
+    }
+}
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -108,6 +129,12 @@ try {
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
         'source_catalog' => (object) $sourceCatalog,
         'feature_sources' => (object) $featureSourceRefs,
+        // Objekte, die IN einer Stadt liegen (Villen, Plaetze, Stadttempel, Gassen) -- je Eintrag
+        // nur Name + Stadt. Sie haben keine eigene Kartenposition und sind deshalb KEINE features;
+        // der Routenplaner-Autocomplete schlaegt sie trotzdem vor und setzt die STADT als Ziel.
+        // Reist EINMAL mit den Kartendaten statt je Tastendruck abgefragt zu werden -- genau das
+        // haelt das Tippen so schnell wie bisher.
+        'in_settlement_places' => avesmapsMapFeaturesInSettlementPlaces($pdo),
     ]);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());

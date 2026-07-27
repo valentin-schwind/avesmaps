@@ -397,6 +397,13 @@ routeDataRequest
 		// in js/ui/popups.js). No lazy per-popup fetch.
 		window.__sourceCatalog = (data && data.source_catalog) || {};
 		window.__featureSourceRefs = (data && data.feature_sources) || {};
+		// Objekte, die IN einer Stadt liegen (Villen, Plätze, Stadttempel, Gassen). Sie sind KEINE
+		// features -- sie haben keine Position --, sondern eine schlanke Namensliste je Stadt. Der
+		// Wegpunkt-Autocomplete schlägt sie vor und setzt die Stadt als Ziel
+		// (getInSettlementWaypointEntries, js/map-features/map-features-waypoints.js).
+		window.avesmapsInSettlementPlaces = (data && Array.isArray(data.in_settlement_places))
+			? data.in_settlement_places
+			: [];
 		prepareLocationData(data);
 		preparePowerlineData(data);
 		// LOAD-BEARING ORDER: labels BEFORE paths. preparePathData pre-builds every way popup

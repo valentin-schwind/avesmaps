@@ -83,21 +83,49 @@ function invalidateWaypointAutocompleteSourceCache() {
 	waypointAutocompleteSourceCacheLength = -1;
 }
 
+// Objekte, die IN einer Stadt liegen (Villa Gerbelstein, Plaza der Lüste, Webergasse). Sie haben
+// keine eigene Position und stehen deshalb nicht in locationData -- sie reisen als schlanke Liste
+// im Kartenpayload mit (api/app/map-features.php: in_settlement_places).
+//
+// ⭐ Sie sind SUCHBAR unter ihrem eigenen Namen, setzen als Wegpunkt aber die STADT ein. Das ist
+// keine Bequemlichkeit, sondern Pflicht: Ortsnamen sind die Schlüssel des Routing-Graphen -- stünde
+// „Plaza der Lüste" im Feld, fände der Graph nichts. jQuery UI trennt dafür `label` (was man sieht)
+// von `value` (was ins Feld geht), also braucht es dafür keinerlei Sonderweg im Routing.
+function getInSettlementWaypointEntries() {
+	const places = Array.isArray(window.avesmapsInSettlementPlaces) ? window.avesmapsInSettlementPlaces : [];
+	return places
+		.map((place) => {
+			const name = String(place?.name || "").trim();
+			const settlement = String(place?.settlement || "").trim();
+			return { name, settlement, normalizedName: normalizeLocationSearchName(name) };
+		})
+		.filter((entry) => entry.name && entry.settlement && entry.normalizedName);
+}
+
 function getWaypointAutocompleteEntries() {
-	if (waypointAutocompleteSourceCache && waypointAutocompleteSourceCacheLength === locationData.length) {
+	const inSettlement = getInSettlementWaypointEntries();
+	const expectedLength = locationData.length + inSettlement.length;
+	if (waypointAutocompleteSourceCache && waypointAutocompleteSourceCacheLength === expectedLength) {
 		return waypointAutocompleteSourceCache;
 	}
 
-	waypointAutocompleteSourceCache = locationData
+	const ownEntries = locationData
 		.map((loc) => String(loc?.name || "").trim())
 		.filter((name) => name && !isCrossingName(name))
 		.map((name) => ({
 			name,
 			normalizedName: normalizeLocationSearchName(name),
 		}))
-		.filter((entry) => entry.normalizedName)
+		.filter((entry) => entry.normalizedName);
+
+	// Ein Innerorts-Objekt, das denselben Namen wie ein echter Kartenort trägt, fällt raus: der
+	// Kartenort ist das genauere Ziel und hat eine eigene Position.
+	const ownNames = new Set(ownEntries.map((entry) => entry.normalizedName));
+
+	waypointAutocompleteSourceCache = ownEntries
+		.concat(inSettlement.filter((entry) => !ownNames.has(entry.normalizedName)))
 		.sort((a, b) => a.name.localeCompare(b.name, "de"));
-	waypointAutocompleteSourceCacheLength = locationData.length;
+	waypointAutocompleteSourceCacheLength = expectedLength;
 	return waypointAutocompleteSourceCache;
 }
 
@@ -138,7 +166,11 @@ function getWaypointAutocompleteSource(term = "") {
 			return left.entry.name.localeCompare(right.entry.name, "de");
 		})
 		.slice(0, WAYPOINT_AUTOCOMPLETE_MAX_RESULTS)
-		.map((match) => match.entry.name);
+		// Ein gewöhnlicher Ort bleibt ein blanker String (unverändertes Verhalten). Ein Innerorts-
+		// Objekt wird zum {label, value}-Paar: sichtbar ist es selbst, ins Feld geht seine STADT.
+		.map((match) => (match.entry.settlement
+			? { label: `${match.entry.name} — in ${match.entry.settlement}`, value: match.entry.settlement }
+			: match.entry.name));
 }
 
 function scrollWaypointInputIntoView($input) {

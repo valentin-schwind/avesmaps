@@ -191,4 +191,32 @@ assert.ok(!/\shidden[\s>]/.test(sectionTag[1]), "the Lage sub-section must be VI
 assert.match(editorSource, /type-filter__section--sub/, "editor: Lage renders as an indented sub-section too");
 console.log("settlement-subfilter-markup ok");
 
+// --- route planner: an in-settlement object sets its CITY as the waypoint ----------------
+// Typing "Plaza der Lüste" must put "Mengbilla" in the field. Place names are the KEYS of the
+// routing graph -- the object's own name would find nothing. jQuery UI's {label, value} split
+// does this without any special case in the routing itself.
+const waypointSource = readFileSync(path.join(repoRoot, "js", "map-features", "map-features-waypoints.js"), "utf8");
+assert.match(
+	waypointSource,
+	/label: `\$\{match\.entry\.name\} — in \$\{match\.entry\.settlement\}`, value: match\.entry\.settlement/,
+	"an in-settlement suggestion must show itself but commit its CITY",
+);
+// A plain place must stay a bare string -- that is the untouched behaviour for the 4600 real ones.
+assert.match(waypointSource, /: match\.entry\.name\)\);/, "an ordinary place stays a plain string");
+// 💣 If an in-settlement object shares its name with a real map place, the real one wins: it has
+// an actual position, the other only points at a city.
+assert.match(
+	waypointSource,
+	/ownNames\.has\(entry\.normalizedName\)/,
+	"a name collision with a real map place must drop the in-settlement entry",
+);
+// The list must come from the payload, never from a per-keystroke request -- that is what keeps
+// typing as fast as it is today (measured: +0.174 ms per keystroke over 5152 entries).
+assert.match(waypointSource, /window\.avesmapsInSettlementPlaces/, "the list rides in the map payload");
+assert.ok(
+	!/fetch\(/.test(waypointSource.slice(waypointSource.indexOf("function getInSettlementWaypointEntries"), waypointSource.indexOf("function getWaypointAutocompleteScore"))),
+	"the waypoint autocomplete must not fetch anything",
+);
+console.log("waypoint-autocomplete ok");
+
 console.log("\nALL PLACE-SCOPE FILTER TESTS PASSED");
