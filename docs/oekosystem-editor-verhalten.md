@@ -130,7 +130,8 @@ wird.
 ungefährliche Eintrag im Haus). Der Dialog zeigt:
 
 ```
-Identität     Name          freies Feld
+Identität     Name          freies Feld — außer bei „Auto-Name" (§7d)
+              Auto-Name     Haken; gesetzt = der Name ist ein interner Griff
               Art           Auswahl aus dem Vokabular DIESER Ebene
               (dazu: wie viele Flächen die Region trägt)
 Wiki-Landschaft             Zuweisen/Ändern · Sync · Entfernen, mit der vollen Wiki-Auskunft
@@ -234,6 +235,38 @@ Den Typ-Konflikt-Wächter des Bulks (Label-Subtyp gegen Wiki-„Art") wiederholt
 dieser Dialog **bewusst nicht**: hier wählt ein Mensch ausdrücklich aus, und diese
 Wahl soll er treffen dürfen. **Eine Zuweisung zu löschen** ist weiterhin Sache des
 Label-Editors; ein leerer Schlüssel wird hier abgewiesen.
+
+## 7d. Auto-Name — der Griff, der kein Anzeigename ist
+
+Eine Fläche ohne Karten-Label braucht trotzdem einen Namen, unter dem der Editor sie
+wiederfindet. Dieser Name ist **kein Anzeigename**. Der Haken **„Auto-Name"** steht in
+beiden Flächen-Dialogen — „Neue Region" und „Fläche bearbeiten" — und wird genauso
+gehandhabt wie beim Weg-Editor:
+
+| Haken | Namensfeld | Bedeutung |
+|---|---|---|
+| gesetzt | gesperrt, trägt `Wald-001` | interner Griff; ein Leser bekommt **die Art** zu sehen („Wald") |
+| leer | frei | der **zugewiesene** Name gilt und wird angezeigt |
+| **deaktiviert** | frei | eine **Wiki-Landschaft** hängt daran und besitzt den Namen |
+
+Bei einer neuen Region steht der Haken auf **an** — niemand soll sich einen Namen für
+einen Wald ausdenken müssen, den das Wiki gar nicht kennt. Die laufende Nummer zählt
+**je Art** (`Wald-001`, `Steppe-001`), und ein Artwechsel zieht den Griff mit.
+
+> 🔴 **Nichts davon wird gespeichert. Der Name selbst trägt den Zustand** — er passt auf
+> `<Art>-<Zahl>` oder er tut es nicht. Genau so halten es die Wege, und genau darauf
+> verlässt sich schon die Rauschfilterung im Konfliktzentrum, die auto-benannte Wege gar
+> nicht erst auf die Merkliste lässt. Eine zusätzliche Spalte wäre eine **zweite Wahrheit
+> über dieselbe Sache**, und die beiden könnten auseinanderlaufen.
+>
+> Angenehme Folge: der Haken wird beim Öffnen **abgeleitet**, nicht geladen. „Farindel"
+> öffnet ohne Haken und schreibbar, „Wald-001" mit Haken und gesperrt — und das Öffnen
+> vergibt **keine neue Nummer**.
+
+⚠️ **Der Bestand ist unangetastet.** Die abgeleiteten Flächen tragen weiter den Namen
+des Karten-Labels, aus dem sie entstanden sind (`tools/ecosystem/derive_areas.py`) —
+eine Fläche, die aus einem Label entstand, **hat** ein Label, und ihr Name ist damit ein
+echter Name. Der Auto-Name ist für die anderen da.
 
 ## 8. Gipfel
 
