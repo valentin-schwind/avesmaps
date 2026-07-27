@@ -811,6 +811,127 @@ function avesmapsListEcosystemRegionsByWikiKey(PDO $pdo, array $payload): array
     return avesmapsEcosystemGroupRegionsByWikiKey($statement->fetchAll(PDO::FETCH_ASSOC));
 }
 
+// ---- write path: assign a wiki region to 1..n landscape regions (plan V6) -----------------------------
+// 🔴 The dry run is the DEFAULT and going sharp needs TWO independent signals. Shape copied from
+// avesmapsWikiRegionAssign (api/_internal/wiki/regions.php:740): one call can rewrite up to 200 regions,
+// and a single mistyped flag must not be enough to trigger that.
+//
+// Only the boolean false disarms it. JSON hands us whatever the client typed, and the STRING "false" is
+// truthy in PHP -- reading it as "not a dry run" would let a sloppy client go sharp by accident.
+function avesmapsEcosystemAssignIsDryRun(array $payload): bool
+{
+    $dryRunOff = array_key_exists('dry_run', $payload) && $payload['dry_run'] === false;
+    $confirmed = (string) ($payload['confirm'] ?? '') === 'apply';
+
+    return !($dryRunOff && $confirmed);
+}
+
+// Assign ONE wiki region to 1..n landscape regions -- which is how "one wiki region, several areas" is
+// expressed: several regions carry the same key. idx_ecosystem_region_wiki is an INDEX, not UNIQUE.
+//
+// 🔴 Nothing is merged, moved or deleted here. Only wiki_url is written, and wiki_region_key is DERIVED
+// from it, never read from the payload (same rule as avesmapsEcosystemReadRegionFields). An empty
+// wiki_url clears both -- that is how an assignment is taken back.
+//
+// 🔴 This bumps ecosystem_revision ONLY. It must never reach avesmapsNextMapRevision(): that would
+// invalidate the ~29.65 MB map-features payload for every visitor, which is the one rule this file exists
+// for (see the header).
+function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId): array
+{
+    // Before the transaction, never inside it: ensure-tables runs CREATE TABLE, and MySQL commits an open
+    // transaction implicitly the moment it sees DDL -- even a no-op IF NOT EXISTS.
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $publicIds = $payload['region_public_ids'] ?? [];
+    if (!is_array($publicIds) || $publicIds === []) {
+        throw new InvalidArgumentException('region_public_ids must be a non-empty list.');
+    }
+    if (count($publicIds) > 200) {
+        throw new InvalidArgumentException('region_public_ids holds too many entries (max 200).');
+    }
+
+    // Empty is allowed and means "clear the assignment"; anything else has to be a real http(s) URL.
+    $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 500, 'wiki_url');
+    $wikiKey = avesmapsEcosystemWikiRegionKey($wikiUrl);
+    $dryRun = avesmapsEcosystemAssignIsDryRun($payload);
+
+    // Every target is resolved BEFORE anything is written: an unknown or inactive public_id throws here,
+    // so a list with one bad entry writes nothing at all instead of half of it. Keyed by public_id, which
+    // also collapses a list that names the same region twice.
+    $targets = [];
+    foreach ($publicIds as $candidate) {
+        $publicId = avesmapsEcosystemReadPublicId($candidate, 'region_public_ids[]');
+        $targets[$publicId] = avesmapsEcosystemRegionRow($pdo, $publicId);
+    }
+
+    // The preview the editor sees before going sharp. It carries each region's CURRENT key next to the one
+    // it would get, because "assign" and "already assigned" look identical in a bare count -- and a bulk
+    // UPDATE is more expensive to undo than to compute twice.
+    $preview = [];
+    foreach ($targets as $publicId => $row) {
+        $currentKey = $row['wiki_region_key'] === null ? null : (string) $row['wiki_region_key'];
+        $preview[] = [
+            'public_id' => (string) $publicId,
+            'name' => (string) $row['name'],
+            'kind' => (string) $row['kind'],
+            'wiki_region_key_before' => $currentKey,
+            'changes' => $currentKey !== $wikiKey,
+        ];
+    }
+
+    if ($dryRun) {
+        return [
+            'dry_run' => true,
+            'assigned' => 0,
+            'would_assign' => count($targets),
+            'wiki_region_key' => $wikiKey,
+            'regions' => $preview,
+        ];
+    }
+
+    $assigned = 0;
+    $pdo->beginTransaction();
+    try {
+        $update = $pdo->prepare(
+            'UPDATE ecosystem_region
+                SET wiki_url = :wiki_url, wiki_region_key = :wiki_region_key, updated_by = :user_id
+              WHERE public_id = :public_id AND is_active = 1'
+        );
+        foreach ($targets as $publicId => $before) {
+            $update->execute([
+                'wiki_url' => $wikiUrl === '' ? null : $wikiUrl,
+                'wiki_region_key' => $wikiKey,
+                'user_id' => $userId > 0 ? $userId : null,
+                'public_id' => $publicId,
+            ]);
+            $after = avesmapsEcosystemRegionRow($pdo, (string) $publicId);
+            avesmapsEcosystemWriteAuditLog(
+                $pdo,
+                'assign_wiki_region',
+                $userId,
+                null,
+                (string) $publicId,
+                avesmapsEcosystemRegionSnapshot($before),
+                avesmapsEcosystemRegionSnapshot($after)
+            );
+            $assigned++;
+        }
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return [
+        'dry_run' => false,
+        'assigned' => $assigned,
+        'wiki_region_key' => $wikiKey,
+        'regions' => $preview,
+        'revision' => $revision,
+    ];
+}
+
 function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
 {
     $sql = 'SELECT kind, type_key, label, sort_order FROM ecosystem_region_type WHERE is_active = 1';

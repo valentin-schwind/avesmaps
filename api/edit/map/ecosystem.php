@@ -49,6 +49,10 @@ try {
         // V6: the WikiSync -> Regionen list's second source -- which landscape regions, and how many
         // areas, hang on each wiki_region_key. Same capability gate, same reasoning as list_regions.
         'regions_by_wiki_key' => avesmapsListEcosystemRegionsByWikiKey($pdo, $payload),
+        // V6: one wiki region -> 1..n landscape regions. Dry run by default; the sharp run needs
+        // dry_run=false AND confirm='apply'. Writes ONLY wiki_url (the key is derived from it) and never
+        // merges, moves or deletes anything -- several regions sharing one key IS the feature.
+        'assign_wiki_region' => avesmapsAssignEcosystemWikiRegion($pdo, $payload, $userId),
         // A region carries the name, the kind and the wiki bridge; it may hold MANY areas (owner
         // decision 1). Returns the new public_id so the client can hang the following create_area on it.
         // wiki_region_key is DERIVED from wiki_url server-side and never read from the payload.

@@ -66,4 +66,24 @@ $noType = avesmapsEcosystemGroupRegionsByWikiKey([
 ]);
 assert($noType['regions_by_wiki_key']['ohne-art'][0]['region_type'] === null, 'no Art stays null, never ""');
 
-echo "OK: ecosystem wiki assign -- key parity, grouping, blank keys\n";
+// ---- the dry-run gate ---------------------------------------------------------------------------------
+// 🔴 Copied in SHAPE from avesmapsWikiRegionAssign (api/_internal/wiki/regions.php:740): the dry run is
+// the DEFAULT, and going sharp needs BOTH dry_run=false AND confirm='apply'. This one call can rewrite up
+// to 200 regions, and one mistyped flag must not be enough to trigger that.
+assert(avesmapsEcosystemAssignIsDryRun([]) === true, 'silence means dry run');
+assert(avesmapsEcosystemAssignIsDryRun(['dry_run' => false]) === true, 'dry_run alone is not enough');
+assert(avesmapsEcosystemAssignIsDryRun(['confirm' => 'apply']) === true, 'confirm alone is not enough');
+assert(avesmapsEcosystemAssignIsDryRun(['dry_run' => false, 'confirm' => 'apply']) === false, 'both -> sharp');
+assert(avesmapsEcosystemAssignIsDryRun(['dry_run' => false, 'confirm' => 'APPLY']) === true, 'confirm is case-sensitive');
+
+// JSON gives us whatever the client typed. Only the boolean false disarms the guard: the STRING "false"
+// is truthy in PHP and must not read as "not a dry run", or a sloppy client goes sharp by accident.
+assert(avesmapsEcosystemAssignIsDryRun(['dry_run' => 'false', 'confirm' => 'apply']) === true, '"false" is not false');
+assert(avesmapsEcosystemAssignIsDryRun(['dry_run' => 0, 'confirm' => 'apply']) === true, '0 is not false');
+assert(avesmapsEcosystemAssignIsDryRun(['dry_run' => null, 'confirm' => 'apply']) === true, 'null is not false');
+
+// Clearing an assignment is an explicit empty wiki_url, not a missing field -- and it must reach the
+// column as NULL, so a cleared region drops out of every bucket instead of hiding in one.
+assert(avesmapsEcosystemWikiRegionKey('   ') === null, 'blank clears the key');
+
+echo "OK: ecosystem wiki assign -- key parity, grouping, blank keys, dry-run gate\n";
