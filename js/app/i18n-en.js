@@ -91,6 +91,7 @@ window.AVESMAPS_I18N_EN = {
 	// --- Landschaften (Erprobung): the layer switch above the map (V3.0). The three kind values stay
 	//     German in the DATA (domain vocabulary, AGENTS.md §2) -- only their LABELS are translated. ---
 	"ecosystem.layerSwitch.aria": "Landscape layer",
+	"ecosystem.kind.all": "All",
 	"ecosystem.kind.derographisch": "Deregraphic region",
 	"ecosystem.kind.vegetation": "Vegetation",
 	"ecosystem.kind.topographie": "Topography",

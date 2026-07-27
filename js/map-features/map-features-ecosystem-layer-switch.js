@@ -63,13 +63,19 @@ function syncEcosystemPaneStates() {
 	}
 
 	const activeKind = getActiveEcosystemLayerKind();
+	const showAll = isEcosystemShowAllLayers();
 	ECOSYSTEM_KINDS.forEach((kind) => {
 		const pane = map.getPane(ECOSYSTEM_KIND_PANES[kind]);
 		if (!pane) {
 			return;
 		}
-		pane.classList.toggle("ecosystem-pane--active", kind === activeKind);
-		pane.classList.toggle("ecosystem-pane--resting", kind !== activeKind);
+		// In „Alle" ist JEDE Ebene aktiv: sichtbar und anklickbar. Die Hausregel „immer nur eine Ebene
+		// antwortet" (§2) wird hier bewusst ausgesetzt -- ihr Zweck ist, beim ZEICHNEN die Frage „welches
+		// Polygon habe ich erwischt" gar nicht erst entstehen zu lassen, und „Alle" ist der Modus, in dem
+		// man genau diese Überlappungen sehen WILL. Was ein Klick trifft, sagt danach die weisse
+		// Auswahlkontur.
+		pane.classList.toggle("ecosystem-pane--active", showAll || kind === activeKind);
+		pane.classList.toggle("ecosystem-pane--resting", !showAll && kind !== activeKind);
 	});
 
 	// Owner 2026-07-26: map labels belong to the DEROGRAPHIC layer -- that is the one whose areas they
@@ -78,7 +84,9 @@ function syncEcosystemPaneStates() {
 	// AND made click-through in those two layers, and stay untouched in the derographic one.
 	const labelsPane = map.getPane("labelsPane");
 	if (labelsPane) {
-		labelsPane.classList.toggle("ecosystem-labels-dimmed", isEcosystemLayerModeActive() && activeKind !== "derographisch");
+		// In „Alle" ist die derographische Ebene mit an, also gehören ihre Labels dazu und bleiben hell.
+		labelsPane.classList.toggle("ecosystem-labels-dimmed",
+			isEcosystemLayerModeActive() && !showAll && activeKind !== "derographisch");
 	}
 }
 
@@ -167,14 +175,55 @@ function setEcosystemUndergroundOpacity(percent) {
 	applyEcosystemUndergroundOpacity(true);
 }
 
+// ---- „Alle" -- alle drei Ebenen gleichzeitig zeigen (Owner 2026-07-27) -----------------------------
+// 🔴 EIN ANZEIGE-FLAG, KEIN VIERTER `kind`. Der Ebenen-Zustand reist zum Server (list_regions,
+// create_region), und AVESMAPS_ECOSYSTEM_KINDS kennt genau drei Werte -- „alle" gäbe dort 400, und
+// isKnownEcosystemKind lehnt ihn ab, sodass der gemerkte Wert still auf die Vorgabe zurückfiele. Die
+// gemerkte Arbeitsebene bleibt also erhalten, „Alle" ändert nur, was SICHTBAR und anklickbar ist.
+//
+// Zweck: Überlappungen sehen. Genau dafür waren die ruhenden Ebenen auf 0 % gesetzt -- das macht das
+// Zeichnen ruhig, verbirgt aber, dass ein Wald über einen See läuft.
+const ECOSYSTEM_SHOW_ALL_STORAGE_KEY = "avesmaps.ecosystem.showAllLayers";
+let ecosystemShowAllLayers = null;   // null = noch nicht aus dem Speicher geholt
+
+function isEcosystemShowAllLayers() {
+	if (ecosystemShowAllLayers === null) {
+		try {
+			ecosystemShowAllLayers = window.localStorage?.getItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY) === "1";
+		} catch (error) {
+			ecosystemShowAllLayers = false;
+		}
+	}
+	return ecosystemShowAllLayers;
+}
+
+function setEcosystemShowAllLayers(on) {
+	ecosystemShowAllLayers = Boolean(on);
+	try {
+		window.localStorage?.setItem(ECOSYSTEM_SHOW_ALL_STORAGE_KEY, ecosystemShowAllLayers ? "1" : "0");
+	} catch (error) {
+		// gesperrter Speicher -- der Schalter wirkt trotzdem, er überlebt nur kein Neuladen
+	}
+	syncEcosystemLayerSwitchControls();
+	syncEcosystemPaneStates();
+}
+
 function syncEcosystemLayerSwitchControls() {
 	const activeKind = getActiveEcosystemLayerKind();
+	const showAll = isEcosystemShowAllLayers();
 	document.querySelectorAll("[data-ecosystem-kind]").forEach((tabElement) => {
-		const isActive = tabElement.dataset.ecosystemKind === activeKind;
+		// In „Alle" trägt KEINE Ebenen-Kachel die Hervorhebung -- sonst sähe es aus, als sei sie allein
+		// aktiv, während alle drei antworten. Die gemerkte Arbeitsebene bleibt darunter bestehen.
+		const isActive = !showAll && tabElement.dataset.ecosystemKind === activeKind;
 		tabElement.classList.toggle("is-active", isActive);
 		tabElement.setAttribute("aria-selected", isActive ? "true" : "false");
 		// Roving tabindex: one stop for the whole tablist, arrow keys move inside it.
 		tabElement.tabIndex = isActive ? 0 : -1;
+	});
+	document.querySelectorAll("[data-ecosystem-show-all]").forEach((tabElement) => {
+		tabElement.classList.toggle("is-active", showAll);
+		tabElement.setAttribute("aria-selected", showAll ? "true" : "false");
+		tabElement.tabIndex = showAll ? 0 : -1;
 	});
 }
 
@@ -189,7 +238,11 @@ function setActiveEcosystemLayerKind(kind, { focusTab = false } = {}) {
 	syncEcosystemLayerSwitchControls();
 	syncEcosystemPaneStates();
 
-	if (changed && typeof setSelectedEcosystemArea === "function") {
+	// 🪤 In „Alle" NICHT abwählen. Der Grund unten gilt dort nicht -- es gibt keine ruhende Pane, die
+	// Fläche bleibt sichtbar und anklickbar. Ohne diese Bedingung verlöre ein Klick auf eine Fläche
+	// einer ANDEREN Ebene seine eigene Auswahl sofort wieder: der Klick stellt die Arbeitsebene um, und
+	// das Umstellen räumte die gerade getroffene Auswahl weg.
+	if (changed && !isEcosystemShowAllLayers() && typeof setSelectedEcosystemArea === "function") {
 		// The selected area just moved into a resting pane, where it can no longer be clicked away.
 		setSelectedEcosystemArea("");
 	}
@@ -240,8 +293,16 @@ function bindEcosystemLayerSwitch() {
 
 	ecosystemLayerSwitchBound = true;
 	switchElement.addEventListener("click", (event) => {
+		if (event.target?.closest?.("[data-ecosystem-show-all]")) {
+			setEcosystemShowAllLayers(true);
+			return;
+		}
 		const tabElement = event.target?.closest?.("[data-ecosystem-kind]");
 		if (tabElement) {
+			// Eine Ebene zu wählen heisst, „Alle" zu verlassen -- die Kacheln sind EINE Auswahl, nicht ein
+			// Schalter neben drei Knöpfen. Erst das Flag, dann die Ebene: sonst räumte der Wechsel noch
+			// unter der alten Bedingung die Auswahl weg.
+			setEcosystemShowAllLayers(false);
 			setActiveEcosystemLayerKind(tabElement.dataset.ecosystemKind);
 		}
 	});

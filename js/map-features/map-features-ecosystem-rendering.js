@@ -233,6 +233,14 @@ function buildEcosystemAreaLayer(area) {
 		if (window.AvesmapsEcosystemGeometryOps?.handleAreaClick?.(area.public_id)) {
 			return;
 		}
+		// In „Alle" antworten alle drei Ebenen. Wer hier eine Fläche anklickt, meint sie -- und meint
+		// damit auch ihre Ebene: die Arbeitsebene zieht mit, sonst legte das nächste „Neue Vegetation"
+		// oder das nächste Zeichnen in einer Ebene an, die niemand mehr im Blick hat. „Alle" bleibt dabei
+		// stehen, und die Auswahl überlebt (der Wechsel räumt sie in diesem Modus nicht weg).
+		if (typeof isEcosystemShowAllLayers === "function" && isEcosystemShowAllLayers()
+			&& typeof setActiveEcosystemLayerKind === "function" && area.kind) {
+			setActiveEcosystemLayerKind(area.kind);
+		}
 		setSelectedEcosystemArea(area.public_id);
 		if (typeof showFeedbackToast === "function") {
 			showFeedbackToast(formatEcosystemAreaTooltip(area));

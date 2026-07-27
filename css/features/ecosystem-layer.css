@@ -31,9 +31,13 @@
    the map, where an underline row has no panel edge to sit on. Equal columns so the three landscape
    layers read as three peers -- minmax(0, 1fr), because a fixed 1fr would let the longest label
    ("Derographische Region") push its column wider than the other two. */
+/* 🪤 `grid-auto-columns` statt `repeat(3, …)`: seit „Alle" (Owner 2026-07-27) sind es VIER Kacheln,
+   und eine feste Drei hätte die vierte in eine zweite Zeile geschoben. Dasselbe Muster wie das
+   Menüband der Editoren -- es passt sich der Anzahl an, ohne dass jemand die Zahl nachziehen muss. */
 .ecosystem-layer-switch {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
 	gap: var(--space-2);
 	padding: var(--space-2);
 	border: 1px solid var(--color-border);
