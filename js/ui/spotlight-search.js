@@ -488,9 +488,10 @@ function spotlightResultMarkup(entry, index) {
 	const resultId = `spotlight-result-${index}`;
 	// Innerorts-Objekte springen auf ihre STADT, nicht auf sich selbst -- das muss am Treffer
 	// stehen, sonst sucht man nach dem Sprung einen Marker, den es nicht gibt. Der Zusatz hängt
-	// an der Typzeile („Palast in Mengbilla · nicht auf der Karte").
+	// unter der Typzeile („Palast in Mengbilla" / „Innerorts") und benutzt dasselbe Wort wie
+	// der Lage-Filter im Editor, statt ein zweites für dieselbe Sache einzuführen.
 	const notOnMap = entry.notOnMap
-		? `<span class="spotlight-search__result-hint">${escapeHtml(tr("spotlight.notOnMap", "nicht auf der Karte"))}</span>`
+		? `<span class="spotlight-search__result-hint">${escapeHtml(tr("spotlight.inSettlement", "Innerorts"))}</span>`
 		: "";
 	const resultClass = "spotlight-search__result" + (entry.notOnMap ? " spotlight-search__result--not-on-map" : "");
 	return `

@@ -88,7 +88,8 @@
 }
 
 /* Innerorts-Treffer (Villa, Platz, Stadttempel, Gasse) tragen ZWEI Angaben untereinander:
-   den Typ samt Stadt und den Hinweis, dass das Objekt selbst nicht auf der Karte liegt.
+   den Typ samt Stadt ("Platz in Mengbilla") und darunter "Innerorts" -- der Hinweis, dass
+   das Objekt selbst keinen Punkt auf der Karte hat und der Treffer auf die STADT springt.
    Beide brauchen mehr als die 150px der einzeiligen Typangabe, sonst frisst die Ellipse
    genau den Hinweis, der die Verwechslung verhindern soll.
 
