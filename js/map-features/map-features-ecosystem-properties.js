@@ -460,11 +460,24 @@
 	async function renameLinkedEcosystemLabel(area, name) {
 		const labelPublicId = String(area?.label_public_id || "");
 
-		// 🔴 Noch KEIN Label, aber „Regionname anzeigen" angehakt -> jetzt eines anlegen, am Point of
+		// Zeiger und Label sind ZWEI Fragen: die Region kann auf ein Label zeigen, das es nicht mehr gibt.
+		const entry = labelPublicId && typeof findLabelEntryByPublicId === "function"
+			? findLabelEntryByPublicId(labelPublicId)
+			: null;
+		const label = entry?.label || null;
+
+		// 🔴 Kein Label da, aber „Regionname anzeigen" angehakt -> jetzt eines anlegen, am Point of
 		// Inaccessibility und im Stil seiner Art. Das ist der Weg, auf dem die neun von Hand gezeichneten
 		// Bestandsflächen ihr Label bekommen: beiläufig, wo jemand die Region ohnehin bearbeitet, statt
 		// als Serienlauf über einen Bestand, der zu 124 von 133 längst versorgt ist.
-		if (!labelPublicId) {
+		//
+		// 💣 „Kein Label" heisst NICHT „kein Zeiger" (Owner 2026-07-27). Wer ein Label von Hand löscht,
+		// lässt den label_public_id der Region verwaist zurück -- der Haken geht danach richtigerweise
+		// aus, aber Wiederanhaken lief vorher in genau diese Stelle und stieg stumm aus: der Zeiger war
+		// gesetzt, also wurde nicht angelegt, und zu ihm gab es nichts mehr zu ändern. Also entscheidet
+		// hier das LABEL, nicht der Zeiger. Repariert wird der Zeiger dabei von selbst, weil
+		// createEcosystemRegionLabel ihn per update_region auf das neue Label umschreibt.
+		if (!label) {
 			const box = propertiesElement("showname");
 			if (box && box.checked && typeof createEcosystemRegionLabel === "function") {
 				const geometry = area?.geometry_geojson || area?.geometry || null;
@@ -481,12 +494,7 @@
 			return;
 		}
 
-		if (typeof submitMapFeatureEdit !== "function" || typeof findLabelEntryByPublicId !== "function") {
-			return;
-		}
-		const entry = findLabelEntryByPublicId(labelPublicId);
-		const label = entry?.label;
-		if (!label) {
+		if (typeof submitMapFeatureEdit !== "function") {
 			return;
 		}
 		const box = propertiesElement("showname");
