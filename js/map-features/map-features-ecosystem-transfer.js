@@ -465,7 +465,7 @@
 
 	// "Danach ist die Zielebene aktiv und die Kopie ausgewählt" -- three pieces of state, in this order.
 	//
-	// 🪤 KIND BEFORE REGION. Switching the layer runs syncEcosystemRegionPicker, which re-renders from the
+	// 🪤 KIND BEFORE REGION. Switching the layer runs syncEcosystemRegionCache, which re-renders from the
 	// cached rows and falls back to the FIRST region of that kind -- setting the active region first would
 	// simply be overwritten a line later.
 	//
@@ -488,15 +488,10 @@
 			const cached = Array.isArray(ecosystemRegionsByKind[targetKind]) ? ecosystemRegionsByKind[targetKind] : [];
 			ecosystemRegionsByKind[targetKind] = cached.concat([{ ...createdRegion, area_count: 1 }]);
 		}
-		if (typeof setActiveEcosystemRegionId === "function" && regionPublicId) {
-			setActiveEcosystemRegionId(regionPublicId, targetKind);
-		}
-		if (typeof renderEcosystemRegionOptions === "function") {
-			// An EXISTING target region is already in the list and stays selected; only its area count is
-			// one behind until the reload below invalidates the cache. That one is self-healing, the
-			// wrong region was not.
-			renderEcosystemRegionOptions();
-		}
+		// Hier wurde die Zielregion früher zur „aktiven" gemacht und der Wähler neu gezeichnet. Beides
+		// gibt es seit dem 2026-07-27 nicht mehr: es gibt keine aktive Region, weil jede gezeichnete
+		// Fläche ihre eigene bekommt (map-features-ecosystem-region-store.js). Die Kopie landet
+		// unverändert in ihrer Zielregion -- sie wird danach nur nicht mehr vorausgewählt.
 
 		if (typeof loadEcosystemAreas === "function") {
 			await loadEcosystemAreas();

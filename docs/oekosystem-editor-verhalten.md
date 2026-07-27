@@ -53,20 +53,34 @@ erhalten und ist beim Zurückschalten noch da.
 
 ## 4. Eine Fläche anlegen
 
-**Rechtsklick auf die Karte → „Landschaftsfläche anlegen".** Kein Knopf in einer
-Werkzeugleiste; derselbe Weg wie bei den Territorien.
+**Rechtsklick auf die Karte → „Neue Vegetation" / „Neue Topographie" / „Neue
+Derographische Region".** Kein Knopf in einer Werkzeugleiste; derselbe Weg wie bei
+Territorien und Siedlungen.
 
-> **Die aktive Ebene entscheidet, wo die Fläche landet.** Das ist die einzige
-> Regel dafür. Wer im Topographie-Modus anlegt, bekommt eine topographische
-> Fläche — es gibt keine Nachfrage und keine Auswahlliste.
+Danach wird **Punkt für Punkt gezeichnet** (Doppelklick oder Enter schließt ab,
+Escape bricht ab). Beim Schließen des Umrisses entsteht eine **eigene Region** mit
+Auto-Namen, und der Eigenschaften-Dialog geht auf — als *„Vegetation bearbeiten"*,
+*„Topographie bearbeiten"* oder *„Derographische Region bearbeiten"*. Was dort
+eingestellt wird, gilt: freier Name, Auto-Name, oder Name samt Wiki-Eintrag.
 
-Es entsteht: eine **neue Region** ohne Namen und ohne Typ, mit **einer** kleinen
-Fläche am Klickpunkt. Das Panel öffnet sich, der Fokus steht im Namensfeld.
+> ⚠️ **Berichtigt 2026-07-27 — hier stand ein Weg, den es nicht mehr gibt.** Früher
+> mussten Region und Zeichnen-Knopf **vor** dem Zeichnen in einer Leiste über der
+> Karte gewählt werden („Aktive Region", „Fläche zeichnen", V3.0b/V3.2). Beides ist
+> **entfernt**. Der Wähler war eine Falle: der Name sitzt auf der **Region**, eine
+> Region trägt viele Flächen — wer ihn übersah, hängte seinen frischen Wald an die
+> zuletzt gewählte Region und bekam ihn nicht wieder los, weil ein Umbenennen dann
+> **alle** ihre Flächen traf. Der Owner ist am 2026-07-27 genau darüber gestolpert.
+>
+> Ebenso gestrichen: *„weitere Fläche zeichnen"* für eine zweite Fläche derselben
+> Region. Dafür gibt es jetzt **Unterflächen** (§7e) — eine Fläche darf mehrteilig
+> sein, und zwei getrennte Stücke werden über *„Mit anderer vereinigen"* zu einer
+> Fläche mit Inseln. Das ist dieselbe Sache, ohne den geteilten Namen.
 
-Eine **zweite Fläche zu einer bestehenden Region** (das Moor in zwei Teilen) wird
-nicht über den Rechtsklick angelegt, sondern im Panel: *„weitere Fläche zeichnen"*.
-Der Grund ist Zweideutigkeit — beim Rechtsklick ins Leere wäre nicht zu erraten,
-zu welcher Region das gehören soll.
+**Jede gezeichnete Fläche bekommt ihre eigene Region.** Das gilt auch für Stücke, die
+durch *Zerschneiden* oder *Unterfläche herauslösen* entstehen — sonst trüge das
+abgetrennte Stück den Namen seines Ursprungs, und ein späteres Umbenennen träfe beide.
+Wer zerschneidet, will zwei Dinge; wollte er eines, hätte er die Fläche mehrteilig
+gelassen.
 
 ## 5. Eine Fläche bearbeiten
 

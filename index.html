@@ -619,58 +619,18 @@
 				<input id="ecosystem-underground-range" class="ecosystem-underground__range" type="range" min="0" max="100" step="5" value="50" aria-label="Deckkraft des Untergrunds" data-i18n-aria-label="ecosystem.underground.aria" />
 				<output id="ecosystem-underground-value" class="ecosystem-underground__value" for="ecosystem-underground-range">100&nbsp;%</output>
 			</label>
-			<!-- V3.0b: in WELCHE Region geht die naechste gezeichnete Flaeche? Eine Region traegt mehrere
-			     Flaechen (Owner-Entscheidung 1), also muss das vor dem Zeichnen feststehen -- sonst
-			     entstehen namenlose Zeilen. Je Ebene eine eigene aktive Region; der Segmentschalter
-			     darueber wechselt beides zugleich. -->
-			<div class="ecosystem-region-picker">
-				<label class="ecosystem-region-picker__label" for="ecosystem-region-select" data-i18n="ecosystem.region.label">Aktive Region</label>
-				<select id="ecosystem-region-select" class="ecosystem-region-picker__select"></select>
-				<button id="ecosystem-region-new" class="ecosystem-region-picker__new" type="button" data-i18n="ecosystem.region.new">Neue Region …</button>
-			</div>
-			<!-- V3.2: die Hauptaktion dieser Leiste. Klick setzt Punkte, Doppelklick oder Enter schliesst
-			     ab, Escape bricht ab -- gespeichert wird ERST beim Abschluss. -->
-			<button id="ecosystem-draw-toggle" class="ecosystem-draw-toggle" type="button" aria-pressed="false" data-i18n="ecosystem.draw.start">Fläche zeichnen</button>
+			<!-- 🔴 HIER STANDEN „Aktive Region" UND „Fläche zeichnen" (V3.0b/V3.2), beide ENTFERNT am
+			     2026-07-27. Sie stammten aus dem ersten Aufbau, als die Region vor dem Zeichnen
+			     feststehen musste. Der Wähler war eine Falle: wer ihn übersah, hängte seinen neuen Wald
+			     an die zuletzt gewählte Region -- und bekam ihn nicht mehr los, weil der Name auf der
+			     REGION sitzt und ein Umbenennen alle ihre Flächen trifft.
+			     Der Weg ist jetzt der von Territorien und Siedlungen: Rechtsklick -> „Neue Vegetation"
+			     usw., zeichnen, und beim Schliessen des Polygons entsteht eine EIGENE Region; der
+			     Eigenschaften-Dialog fragt danach den Steckbrief ab. -->
 			<!-- Nur sichtbar, wenn der SERVER die Ebene abgeschaltet meldet. Ohne diese Zeile sieht der
 			     Editor eine leere Karte und kann "noch keine Flaechen" nicht von "Totmannschalter aus"
 			     unterscheiden -- ?landschaften=1 sagt darueber naemlich nichts. -->
 			<p id="ecosystem-controls-note" class="ecosystem-controls__note" role="status" hidden></p>
-		</div>
-		<div id="ecosystem-region-overlay" hidden>
-			<div id="ecosystem-region-dialog" class="ecosystem-region-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-region-title" tabindex="-1">
-				<div class="ecosystem-region-dialog__header">
-					<h2 id="ecosystem-region-title" data-i18n="ecosystem.region.dialogTitle">Neue Region</h2>
-					<button id="ecosystem-region-close" class="ecosystem-region-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.region.closeAria">×</button>
-				</div>
-				<form id="ecosystem-region-form" class="ecosystem-region-dialog__form">
-					<label class="ecosystem-region-dialog__field">
-						<span data-i18n="ecosystem.region.nameLabel">Name *</span>
-						<input id="ecosystem-region-name" name="name" type="text" maxlength="190" required autocomplete="off" />
-					</label>
-					<!-- Auto-Name wie beim Weg-Editor (#path-edit-autoname). Gesetzt = der Name ist ein
-					     interner Griff (`Wald-001`), kein Anzeigename; ein Leser bekommt die Art zu sehen.
-					     Nichts davon wird gespeichert -- der Name selbst traegt den Zustand
-					     (map-features-ecosystem-naming.js). -->
-					<label class="ecosystem-region-dialog__checkbox">
-						<input id="ecosystem-region-autoname" name="autoname" type="checkbox" checked />
-						<span data-i18n="ecosystem.region.autoName">Auto-Name</span>
-					</label>
-					<label class="ecosystem-region-dialog__field">
-						<span data-i18n="ecosystem.region.typeLabel">Art</span>
-						<!-- Wird aus ecosystem_region_type gefuellt, nie aus einer Liste im Client. -->
-						<select id="ecosystem-region-type" name="region_type"></select>
-					</label>
-					<label class="ecosystem-region-dialog__field">
-						<span data-i18n="ecosystem.region.wikiLabel">Wiki-Artikel (optional)</span>
-						<input id="ecosystem-region-wiki-url" name="wiki_url" type="url" maxlength="500" autocomplete="off" placeholder="https://de.wiki-aventurica.de/wiki/…" />
-					</label>
-					<p id="ecosystem-region-error" class="ecosystem-region-dialog__error" role="alert" hidden></p>
-					<div class="ecosystem-region-dialog__actions">
-						<button id="ecosystem-region-cancel" class="ecosystem-region-dialog__button" type="button" data-i18n="ecosystem.region.cancel">Abbrechen</button>
-						<button id="ecosystem-region-save" class="ecosystem-region-dialog__button ecosystem-region-dialog__button--primary" type="submit" data-i18n="ecosystem.region.save">Anlegen</button>
-					</div>
-				</form>
-			</div>
 		</div>
 		<!-- V3.5: der einmalige Hinweis beim ERSTEN Betreten der Landschaften-Ebene. Er nennt konkrete
 		     Schritte, statt um Vorsicht zu bitten -- eine Warnung ohne Konsequenz wird weggeklickt.
@@ -2008,7 +1968,7 @@
 		<!-- Landschaften (Erprobung). Reihenfolge innerhalb der Gruppe ist tragend: rendering liefert
 		     ECOSYSTEM_KINDS/ECOSYSTEM_KIND_PANES, layer-switch und loader lesen sie, visibility verteilt
 		     an beide. Die ganze Gruppe steht VOR display-mode.js, das syncEcosystemVisibility ruft. -->
-		<!-- Reine Namenslogik (Auto-Name einer Flaeche). MUSS vor region-picker.js und properties.js
+		<!-- Reine Namenslogik (Auto-Name einer Flaeche). MUSS vor region-store.js und properties.js
 		     stehen -- beide rufen sie beim Aufbau ihres Dialogs. Ohne Abhaengigkeiten, deshalb ganz vorn. -->
 		<script src="js/map-features/map-features-ecosystem-naming.js"></script>
 		<script src="js/map-features/map-features-ecosystem-geometry.js"></script>
@@ -2019,7 +1979,7 @@
 		<script src="js/map-features/map-features-ecosystem-rendering.js"></script>
 		<script src="js/map-features/map-features-ecosystem-layer-switch.js"></script>
 		<script src="js/map-features/map-features-ecosystem-loader.js"></script>
-		<script src="js/map-features/map-features-ecosystem-region-picker.js"></script>
+		<script src="js/map-features/map-features-ecosystem-region-store.js"></script>
 		<script src="js/map-features/map-features-ecosystem-draw.js"></script>
 		<script src="js/map-features/map-features-ecosystem-edit.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>

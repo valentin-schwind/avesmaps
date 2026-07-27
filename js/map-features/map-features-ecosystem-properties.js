@@ -354,6 +354,16 @@
 		setWikiSearchOpen(false);
 		setDeleteButtonReady(false);
 
+		// Der Titel nennt die EBENE, nicht „Fläche" (Owner 2026-07-27): „Vegetation bearbeiten",
+		// „Topographie bearbeiten", „Derographische Region bearbeiten". Der Dialog ist seit dem Wegfall
+		// des Regionen-Wählers auch der Ort, an dem eine frisch gezeichnete Fläche ihren Steckbrief
+		// bekommt -- da soll oben stehen, worüber man gerade entscheidet.
+		const titleElement = document.getElementById("ecosystem-properties-title");
+		if (titleElement) {
+			const kindLabel = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[area.kind]) || "Fläche";
+			titleElement.textContent = `${kindLabel} bearbeiten`;
+		}
+
 		const nameInput = propertiesElement("name");
 		if (nameInput) {
 			nameInput.value = String(area.region_name || "");

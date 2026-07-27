@@ -195,8 +195,8 @@ function setActiveEcosystemLayerKind(kind, { focusTab = false } = {}) {
 	}
 	// V3.0b: the active region is remembered per kind, so switching the layer switches the region the
 	// next drawn area goes into. Guarded because V3.0 ships without the picker.
-	if (changed && typeof syncEcosystemRegionPicker === "function") {
-		syncEcosystemRegionPicker();
+	if (changed && typeof syncEcosystemRegionCache === "function") {
+		syncEcosystemRegionCache();
 	}
 
 	if (focusTab) {
@@ -276,7 +276,7 @@ function syncEcosystemControlsVisibility() {
 	syncEcosystemPaneStates();
 	// V3.0b: the region picker lives in the same box and follows the active kind. Entering the mode
 	// refetches, so the area counts in the row are the current ones.
-	if (typeof syncEcosystemRegionPicker === "function") {
-		syncEcosystemRegionPicker({ refresh: true });
+	if (typeof syncEcosystemRegionCache === "function") {
+		syncEcosystemRegionCache({ refresh: true });
 	}
 }

@@ -102,9 +102,27 @@
 		});
 	}
 
+	// 🔴 Das abgetrennte Stück bekommt eine EIGENE Region, nicht die der Quelle (Owner 2026-07-27).
+	// Vorher hiess es hier „zerschneiden teilt eine Form, nicht eine Zugehörigkeit" -- das klang
+	// plausibel und war falsch. Der Name sitzt auf der Region, also trug jedes zerschnittene und jedes
+	// herausgelöste Stück denselben Namen wie sein Ursprung, und ein späteres Umbenennen traf beide.
+	// Genau daran ist der Owner hängengeblieben. Wer zerschneidet, will zwei Dinge; wollte er eines,
+	// hätte er die Fläche als Multipolygon gelassen.
+	//
+	// Auto-benannt und ohne Wiki-Link: ein frisch abgetrenntes Stück hat noch keine Identität, und
+	// genau dafür gibt es den Auto-Namen. Art und Ebene erbt es, denn ein Stück Wald bleibt Wald.
 	async function createArea(area, geometry) {
+		const region = await postEcosystemEdit("create_region", {
+			kind: String(area.kind || ""),
+			name: typeof ecosystemDraftRegionName === "function" ? ecosystemDraftRegionName() : "Neue Fläche",
+			region_type: String(area.region_type || ""),
+		});
+		const regionPublicId = String(region?.region?.public_id || "");
+		if (!regionPublicId) {
+			throw new Error("Die Region für das neue Stück konnte nicht angelegt werden.");
+		}
 		await postEcosystemEdit("create_area", {
-			region_public_id: String(area.region_public_id || ""),
+			region_public_id: regionPublicId,
 			geometry_geojson: geometry,
 		});
 	}
@@ -316,8 +334,8 @@
 		opsBusy = true;
 		try {
 			const result = ecosystemSplitGeometry(areaGeometry(source), points[0], points[1]);
-			// Der größere Rest behält die Zeile, der Rest wird eine NEUE Fläche derselben Region. Die
-			// Region ist bewusst dieselbe: zerschneiden teilt eine Form, nicht eine Zugehörigkeit.
+			// Der größere Rest behält die Zeile, der Rest wird eine NEUE Fläche mit EIGENER Region (siehe
+			// createArea) -- sonst trüge das abgeschnittene Stück den Namen des Ursprungs.
 			await saveGeometry(source, result.kept);
 			await createArea(source, result.split);
 			refreshAfterWrite();

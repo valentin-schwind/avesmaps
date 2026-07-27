@@ -69,15 +69,13 @@
 		return Boolean(overlayElement) && !overlayElement.hidden;
 	}
 
-	// Where focus goes after the notice closes. It cannot go back to whatever opened the dialog -- nothing
-	// did, the mode change did. "Fläche zeichnen" is the action the three steps just asked for, so the
-	// editor lands on it; if the bar is not there, focus is dropped rather than left on a hidden node.
+	// Wohin der Fokus nach dem Hinweis geht. Zurück kann er nicht -- den Dialog hat kein Knopf geöffnet,
+	// sondern der Moduswechsel.
+	//
+	// 🪤 Früher landete er auf „Fläche zeichnen". Den Knopf gibt es seit dem 2026-07-27 nicht mehr; die
+	// erste Handlung ist jetzt ein RECHTSKLICK auf die Karte, und darauf kann man keinen Fokus setzen.
+	// Er wird deshalb abgelegt, statt auf einem Element zu bleiben, das gerade verschwunden ist.
 	function restoreFocusAfterEcosystemIntro() {
-		const drawToggle = document.getElementById("ecosystem-draw-toggle");
-		if (drawToggle && drawToggle.offsetParent !== null) {
-			drawToggle.focus();
-			return;
-		}
 		const active = document.activeElement;
 		if (active && typeof active.blur === "function") {
 			active.blur();

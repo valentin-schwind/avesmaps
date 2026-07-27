@@ -255,18 +255,22 @@ async function finishEcosystemAreaDrawing() {
 
 // ---- saving ----------------------------------------------------------------------------------------
 
+// 🔴 JEDE GEZEICHNETE FLÄCHE BEKOMMT IHRE EIGENE REGION (Owner 2026-07-27). Vorher entschied das ein
+// Wähler „Aktive Region" über der Karte -- und wer ihn übersah, hängte seinen neuen Wald an „Blautann"
+// und bekam ihn nicht wieder los: der Name sitzt auf der Region, ein Umbenennen traf alle ihre Flächen.
+// Der Wähler ist deshalb weg, und die Identität wird NACH dem Zeichnen gesetzt, im Eigenschaften-Dialog.
+// Dasselbe Muster wie bei Territorien und Siedlungen: erst die Geometrie, dann der Steckbrief.
+//
+// Die frische Region trägt den Auto-Namen und noch keine Art. Sobald im Dialog eine Art gewählt wird,
+// zieht der Auto-Name nach (`Fläche-001` wird zu `Wald-005`) -- das kann er schon, und genau dafür.
 async function saveEcosystemAreaRing(ring) {
 	if (ecosystemDrawSaving) {
 		return;
 	}
 
-	const regionPublicId = typeof getActiveEcosystemRegionId === "function" ? getActiveEcosystemRegionId() : "";
-	if (!regionPublicId) {
-		// The plan's rule: no active region leads into the dialog, NOT into a save that answers 400.
-		// The outline waits here until the region exists.
-		ecosystemPendingAreaRing = ring;
-		showFeedbackToast?.("Zuerst eine Region wählen oder anlegen — die Fläche wartet solange.");
-		openEcosystemRegionDialog?.();
+	const kind = typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "";
+	if (!kind) {
+		showFeedbackToast?.("Die Landschaften-Ebene ist nicht bereit.", "warning");
 		return;
 	}
 
@@ -276,15 +280,37 @@ async function saveEcosystemAreaRing(ring) {
 
 	ecosystemDrawSaving = true;
 	try {
-		await postEcosystemEdit("create_area", { region_public_id: regionPublicId, geometry_geojson: geometry });
+		const region = await postEcosystemEdit("create_region", {
+			kind,
+			name: ecosystemDraftRegionName(),
+			region_type: "",
+		});
+		const regionPublicId = String(region?.region?.public_id || "");
+		if (!regionPublicId) {
+			throw new Error("Die Region konnte nicht angelegt werden.");
+		}
+		const created = await postEcosystemEdit("create_area", {
+			region_public_id: regionPublicId,
+			geometry_geojson: geometry,
+		});
 		ecosystemPendingAreaRing = null;
 		// Rendered through the normal read path, never from the answer: one way onto the map, so a
-		// drawn area and a reloaded one can never look or behave differently.
-		scheduleEcosystemAreaReload?.({ immediate: true });
-		showFeedbackToast?.("Fläche gespeichert.");
+		// drawn area and a reloaded one can never look or behave differently. Awaited, because the
+		// properties dialog reads the area from the layer registry the reload fills.
+		if (typeof loadEcosystemAreas === "function") {
+			await loadEcosystemAreas();
+		}
+		if (typeof invalidateEcosystemRegionCache === "function") {
+			invalidateEcosystemRegionCache();
+		}
+		const areaPublicId = String(created?.area?.public_id || "");
+		if (areaPublicId && window.AvesmapsEcosystemProperties?.open) {
+			void window.AvesmapsEcosystemProperties.open(areaPublicId);
+		} else {
+			showFeedbackToast?.("Fläche gespeichert.");
+		}
 	} catch (error) {
-		// The outline is kept, so the editor can pick a different region and try again instead of
-		// re-drawing the whole thing.
+		// Der Umriss bleibt erhalten -- nach einem Fehlschlag soll niemand neu zeichnen müssen.
 		ecosystemPendingAreaRing = ring;
 		showFeedbackToast?.(error?.message || "Die Fläche konnte nicht gespeichert werden.", "warning");
 	} finally {
@@ -292,8 +318,19 @@ async function saveEcosystemAreaRing(ring) {
 	}
 }
 
-// Called by the region dialog after a successful create_region (guarded there, so neither file has to
-// exist for the other to work).
+// Der Arbeitsname der frischen Region. Ohne Art greift der Rückfall („Fläche-001"); die Art kommt im
+// Dialog, und der Haken zieht den Namen dann nach.
+function ecosystemDraftRegionName() {
+	if (typeof nextEcosystemRegionAutoName !== "function") {
+		return "Neue Fläche";
+	}
+	const namen = typeof ecosystemRegionsByKind !== "undefined" && ecosystemRegionsByKind
+		? Object.values(ecosystemRegionsByKind).filter(Array.isArray).flat().map((r) => String(r?.name || ""))
+		: [];
+	return nextEcosystemRegionAutoName("", namen);
+}
+
+// Ein nach einem Fehlschlag gehaltener Umriss wird beim nächsten Versuch weitergereicht.
 function resumePendingEcosystemAreaSave() {
 	if (!ecosystemPendingAreaRing) {
 		return;
@@ -303,28 +340,11 @@ function resumePendingEcosystemAreaSave() {
 	void saveEcosystemAreaRing(ring);
 }
 
-// ---- the button ------------------------------------------------------------------------------------
-
+// ---- der Knopf, den es nicht mehr gibt --------------------------------------------------------------
+// „Fläche zeichnen" ist am 2026-07-27 aus der Leiste geflogen; gezeichnet wird über Rechtsklick ->
+// „Neue Vegetation" usw. Die Funktion bleibt als NO-OP stehen, weil das Zeichenwerkzeug sie an sechs
+// Stellen ruft (Start, Abbruch, Abschluss, Punkt gesetzt ...) und sechs Wächter mehr die Datei nur
+// unruhiger machen würden als eine leere Zeile.
 function syncEcosystemDrawButton() {
-	const button = document.getElementById("ecosystem-draw-toggle");
-	if (!button) {
-		return;
-	}
-	button.classList.toggle("is-active", ecosystemDrawActive);
-	button.setAttribute("aria-pressed", ecosystemDrawActive ? "true" : "false");
-	button.textContent = ecosystemDrawActive ? "Zeichnen abbrechen" : "Fläche zeichnen";
+	/* absichtlich leer -- siehe oben */
 }
-
-function toggleEcosystemAreaDrawing() {
-	if (ecosystemDrawActive) {
-		cancelEcosystemAreaDrawing("Zeichnen abgebrochen — es wurde nichts gespeichert.");
-		return;
-	}
-	startEcosystemAreaDrawing();
-}
-
-document.addEventListener("click", (event) => {
-	if (event.target?.closest?.("#ecosystem-draw-toggle")) {
-		toggleEcosystemAreaDrawing();
-	}
-});
