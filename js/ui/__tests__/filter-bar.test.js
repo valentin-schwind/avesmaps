@@ -23,8 +23,8 @@ const { advFiltersMarkup } = require("../../map-features/map-features-place-extr
 // 1. THE REGRESSION GUARD. advFiltersMarkup was a self-contained ~40-line builder until task C
 //    generalised the grammar out of it. The generalisation is only safe if the ADVENTURE markup did not
 //    move a single byte -- two shipped dialogs (flat + nested) style and wire against it. So: the ORIGINAL
-//    implementation, verbatim from before the change, and a diff against the adapter across the shapes
-//    the real facets actually take.
+//    implementation, and a diff against the adapter across the shapes the real facets actually take. It
+//    is verbatim from before task C except for ONE later, deliberate relabel -- see the official chip below.
 // =====================================================================================================
 function advFiltersMarkupBeforeTaskC(facets) {
   const placeExtrasEscape = (v) => escapeHtml(String(v == null ? "" : v));
@@ -57,7 +57,9 @@ function advFiltersMarkupBeforeTaskC(facets) {
     '<span class="avesmaps-adv-tree__ydash">–</span>' +
     '<input type="number" inputmode="numeric" class="avesmaps-adv-tree__yearin" data-adv-filter="yearTo" placeholder="' + toPh + '"></span>');
   parts.push('<span class="avesmaps-adv-tree__fdiv"></span>');
-  parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "nur offiziell")) + "</span>");
+  // Read "nur offiziell" until 0d237bbc, which renamed it so one bar carries ONE name for the switch both
+  // it and the Kartensammlung bar have. A deliberate relabel, not drift -- the golden string follows it.
+  parts.push('<span class="avesmaps-adv-tree__chip" data-adv-filter="official">' + placeExtrasEscape(tr("adventures.filter.officialOnly", "offiziell")) + "</span>");
   return '<div class="avesmaps-adv-tree__filters">' + parts.join("") + "</div>";
 }
 
@@ -104,7 +106,7 @@ const full = advFiltersMarkup(cases["full facets"]);
 assert.ok(full.includes('data-adv-filter="type"') && full.includes('data-adv-filter="official"'), "full bar has chips + official");
 assert.ok(full.includes('data-adv-value="Gruppenabenteuer"'), "full bar carries the chip value contract");
 assert.ok(!advFiltersMarkup(cases["no types"]).includes('data-adv-filter="type"'), "no types -> no type chips");
-// One rule survives (before "nur offiziell"), the chips' rule does not.
+// One rule survives (before the "offiziell" chip), the chips' rule does not.
 assert.strictEqual((advFiltersMarkup(cases["no types"]).match(/adv-tree__fdiv/g) || []).length, 1, "no types -> exactly one rule");
 assert.strictEqual((full.match(/adv-tree__fdiv/g) || []).length, 2, "with types -> two rules");
 // Escaping really happened (the raw < must not survive anywhere).

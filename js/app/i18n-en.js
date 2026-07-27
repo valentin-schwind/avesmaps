@@ -738,7 +738,7 @@ window.AVESMAPS_I18N_EN = {
 	"adventures.filter.period": "Period (BF)",
 	"adventures.filter.from": "from",
 	"adventures.filter.to": "to",
-	"adventures.filter.officialOnly": "official only",
+	"adventures.filter.officialOnly": "official", // matches cityMaps.filter.officialOnly -- one switch, one name
 
 	// --- link status (linkchecker) ---
 	"linkStatus.online": "(online)",
