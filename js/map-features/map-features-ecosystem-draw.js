@@ -311,7 +311,9 @@ async function saveEcosystemAreaRing(ring) {
 		// Wäldern und Seen wäre sie sofort ein volles Kartenbild. Das Label ist trotzdem da, mit Ort,
 		// Größe und Zoom-Band -- der Haken „Regionname anzeigen" im Eigenschaften-Dialog schaltet es
 		// sichtbar, ohne dass etwas neu entstehen muss.
-		await createEcosystemRegionLabel(regionPublicId, geometry, name, kind === "derographisch");
+		// Art ist beim Zeichnen noch leer -- das Label startet als „region" und zieht nach, sobald im
+		// Dialog eine Art gewählt wird.
+		await createEcosystemRegionLabel(regionPublicId, geometry, name, kind === "derographisch", "");
 
 		const areaPublicId = String(created?.area?.public_id || "");
 		if (areaPublicId && window.AvesmapsEcosystemProperties?.open) {
@@ -342,7 +344,32 @@ async function saveEcosystemAreaRing(ring) {
 //
 // 🪤 Schlägt das Label fehl, bleibt die FLÄCHE trotzdem stehen. Sie ist das, was gezeichnet wurde;
 // eine fehlende Beschriftung ist ärgerlich, eine verlorene Geometrie wäre der Verlust.
-async function createEcosystemRegionLabel(regionPublicId, geometry, text, showName) {
+// 🔴 DIE DARSTELLUNG IST NICHT ERFUNDEN, SONDERN AM BESTAND GEMESSEN (Owner 2026-07-27): 588 Labels
+// live, Median je Subtyp. Zwei Dinge gelten dort AUSNAHMSLOS -- Priorität 3 und Zoom-Band bis 7 --,
+// die übrigen zwei folgen der Grösse des Dings: was gross ist (Insel, Gebirge, Meer) steht ab Zoom 2
+// und in 20 pt, was klein ist (Wald, See, Gipfel) ab Zoom 4 und in 15/16.
+//
+// 💣 Die erste Fassung hatte 18 / 0–5 / 3 fest verdrahtet. Das Band war in BEIDE Richtungen falsch:
+// bis 5 wäre das Label ab Zoom 6 verschwunden, ab 0 hätte es schon in der Kontinentansicht gestanden.
+// Kein einziges vorhandenes Label macht das.
+const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
+	insel: { size: 20, minZoom: 2 },
+	gebirge: { size: 20, minZoom: 2 },
+	meer: { size: 20, minZoom: 2 },
+	tal: { size: 18, minZoom: 2 },
+	steppe: { size: 18, minZoom: 2 },
+	suempfe_moore: { size: 17, minZoom: 3 },
+	see: { size: 16, minZoom: 4 },
+	wald: { size: 15, minZoom: 4 },
+	berggipfel: { size: 15, minZoom: 4 },
+};
+const ECOSYSTEM_LABEL_STYLE_DEFAULT = { size: 18, minZoom: 2 };   // wie „region", der häufigste Subtyp
+
+function ecosystemLabelStyleFor(regionType) {
+	return ECOSYSTEM_LABEL_STYLE_BY_TYPE[String(regionType || "")] || ECOSYSTEM_LABEL_STYLE_DEFAULT;
+}
+
+async function createEcosystemRegionLabel(regionPublicId, geometry, text, showName, regionType) {
 	if (typeof avesmapsComputeLabelPoint !== "function" || typeof submitMapFeatureEdit !== "function") {
 		return;
 	}
@@ -354,14 +381,18 @@ async function createEcosystemRegionLabel(regionPublicId, geometry, text, showNa
 
 	try {
 		// GeoJSON [x, y] -> Leaflet [lat, lng] = [y, x]. Bewusst gedreht (AGENTS.md §5).
+		// Der Subtyp des Labels IST die Art der Region -- `wald` ist beides, und der V5-Import hat die
+		// beiden Vokabulare schon gleichgesetzt. Ohne Art (frisch gezeichnet) fällt es auf „region".
+		const subtype = String(regionType || "") || "region";
+		const style = ecosystemLabelStyleFor(subtype);
 		const result = await submitMapFeatureEdit({
 			action: "create_label",
 			text: String(text || ""),
-			feature_subtype: "region",
-			size: 18,
+			feature_subtype: subtype,
+			size: style.size,
 			rotation: 0,
-			min_zoom: 0,
-			max_zoom: 5,
+			min_zoom: style.minZoom,
+			max_zoom: 7,
 			priority: 3,
 			show_name: Boolean(showName),
 			lat: point.y,

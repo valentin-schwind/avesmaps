@@ -467,9 +467,20 @@
 		}
 		const box = propertiesElement("showname");
 		const showName = box && !box.disabled ? Boolean(box.checked) : (label.showName !== false);
-		if (String(label.text || "") === String(name) && showName === (label.showName !== false)) {
-			return;                                  // weder Name noch Anzeige geändert
+		const nextSubtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";
+		if (String(label.text || "") === String(name)
+			&& showName === (label.showName !== false)
+			&& nextSubtype === String(label.labelType || "")) {
+			return;                                  // Name, Anzeige und Art unverändert
 		}
+
+		// 🔴 Der Subtyp des Labels folgt der ART der Region -- ein Wald soll auch wie ein Waldlabel
+		// aussehen. Und NUR wenn er sich dabei wirklich ändert, kommt die Darstellung dieser Art mit
+		// (Größe, Ab-Zoom, gemessen am Bestand). Sonst behält das Label, was der Editor eingestellt hat:
+		// ein blosses Umbenennen darf keine Handarbeit zurücksetzen.
+		const subtype = String(propertiesElement("type")?.value || "") || label.labelType || "region";
+		const typeChanged = subtype !== String(label.labelType || "");
+		const style = typeof ecosystemLabelStyleFor === "function" ? ecosystemLabelStyleFor(subtype) : null;
 
 		try {
 			await submitMapFeatureEdit({
@@ -477,11 +488,11 @@
 				public_id: labelPublicId,
 				text: name,
 				show_name: showName,
-				feature_subtype: label.labelType || "region",
-				size: Number(label.size) || 18,
+				feature_subtype: subtype,
+				size: typeChanged && style ? style.size : (Number(label.size) || 18),
 				rotation: Number(label.rotation) || 0,
-				min_zoom: Number(label.minZoom) || 0,
-				max_zoom: Number(label.maxZoom) || 5,
+				min_zoom: typeChanged && style ? style.minZoom : (Number(label.minZoom) || 2),
+				max_zoom: Number(label.maxZoom) || 7,
 				priority: Number(label.priority) || 3,
 				lat: entry.marker?.getLatLng?.().lat,
 				lng: entry.marker?.getLatLng?.().lng,
