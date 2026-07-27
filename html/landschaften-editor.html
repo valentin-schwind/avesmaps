@@ -356,6 +356,15 @@ function renderList() {
 		const display = displayOf(row);
 		const kinds = [...rowKinds(row)].join(" · ");
 		const parts = [];
+		// 💣 The row is titled after the WIKI region, because that is what joins several drawn
+		// regions into one line. But a drawn region may carry a DIFFERENT name than the article it
+		// hangs on -- live on 2026-07-28, „Blautann" hangs on „Falkenforst" -- and for one release
+		// the editor's own name then appeared nowhere at all. Verhaltensdoku §7a is explicit that
+		// the shared key must bring regions together "ohne dass jemand entscheiden muss, welcher der
+		// vier Namen überlebt: jede Fläche bleibt unter ihrem eigenen Namen auffindbar".
+		// So every own name that differs from the title is named here, first.
+		const ownNames = row.regions.map((region) => String(region.name || "")).filter((name) => name !== "" && name !== row.name);
+		if (ownNames.length > 0) { parts.push("als " + [...new Set(ownNames)].join(" · ")); }
 		if (row.regions.length > 0) {
 			parts.push(row.regions.length + (row.regions.length === 1 ? " Region" : " Regionen") + " · " + row.areaCount + (row.areaCount === 1 ? " Fläche" : " Flächen"));
 		}
@@ -1170,6 +1179,12 @@ function demoData() {
 				{ public_id: "r4", name: "Wald-001", kind: "vegetation", region_type: "wald", wiki_region_key: null, wiki_url: null, area_count: 1 },
 				// drawn, key points at no staging row (renamed article / redirect)
 				{ public_id: "r5", name: "Sichelwacht", kind: "topographie", region_type: "gebirge", wiki_region_key: "wiki:sichelwacht-alt", wiki_url: "https://…/Sichelwacht", area_count: 1 },
+				// 💣 THE LIVE CASE (2026-07-28): a drawn region whose own name differs from the wiki
+				// article it hangs on -- „Blautann" linked to „Falkenforst". The union merges it onto
+				// the wiki row, and for one release the row then showed ONLY the wiki name, so the
+				// editor could not find their own region at all. Verhaltensdoku §7a is explicit:
+				// „jede Fläche bleibt unter ihrem eigenen Namen auffindbar".
+				{ public_id: "r7", name: "Eichwald", kind: "vegetation", region_type: "wald", wiki_region_key: "wiki:falkenforst", wiki_url: "https://…/Falkenforst", area_count: 1 },
 				// a region WITHOUT areas: in the list, not on the map
 				{ public_id: "r6", name: "Nebelmoor", kind: "derographisch", region_type: "sumpf", wiki_region_key: null, wiki_url: null, area_count: 0 },
 			],
@@ -1185,6 +1200,7 @@ function demoData() {
 			missing: [
 				{ wiki_key: "wiki:heldentrutz", name: "Heldentrutz", art: "Gebirge", continent: "Aventurien", wiki_url: "https://…/Heldentrutz" },
 				{ wiki_key: "wiki:gorische-wueste", name: "Gorische Wüste", art: "Wüste", continent: "Aventurien", wiki_url: "https://…/Gor" },
+				{ wiki_key: "wiki:falkenforst", name: "Falkenforst", art: "Wald", continent: "Aventurien", wiki_url: "https://…/Falkenforst" },
 				{ wiki_key: "wiki:myranor-nord", name: "Nordmyranor", art: "Region", continent: "Myranor", wiki_url: "https://…/Myranor" },
 			],
 			unmatched_map_labels: [
