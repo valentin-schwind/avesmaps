@@ -265,6 +265,30 @@ function displayOf(row) {
 }
 const DISPLAY_LABEL = { label: "Label", area: "Fläche", both: "Label + Fläche", none: "nicht auf der Karte" };
 
+// The drawn names under a row that differ from its wiki title. Empty when the row has no wiki side
+// (then the title IS the drawn name) -- so this only ever flags a real name/article disagreement.
+function rowOwnNames(row) {
+	return [...new Set(row.regions.map((region) => String(region.name || "")).filter((name) => name !== "" && name !== row.name))];
+}
+// 💣 „Der Name weicht ab" is NOT the finding -- several regions under one wiki key is the FEATURE
+// (Verhaltensdoku §7a: „Bilku", „Bilku-Archipel", „Sorak" and „Kossike" are four regions the wiki
+// knows as one, and the shared key is what brings them together). A first version flagged every
+// multi-region row and lit up „Blautann" + „Blautann-Nord", which is entirely normal.
+//
+// The finding is narrower: NOT ONE of the drawn regions relates to the wiki title. That is the
+// Blautann/Falkenforst case -- a single region whose name has nothing to do with its article -- and
+// it leaves the legitimate groupings alone, because one member always carries the shared name.
+function namesRelate(a, b) {
+	const x = String(a || "").toLowerCase().trim();
+	const y = String(b || "").toLowerCase().trim();
+	if (x === "" || y === "") { return false; }
+	return x.includes(y) || y.includes(x);
+}
+function rowNameMismatch(row) {
+	if (row.wikiKey === "" || row.regions.length === 0) { return false; }
+	return !row.regions.some((region) => namesRelate(region.name, row.name));
+}
+
 function rowKinds(row) {
 	return new Set(row.regions.map((area) => String(area.kind || "")).filter(Boolean));
 }
@@ -288,6 +312,7 @@ function visibleRows() {
 		if (filterContinent.size > 0 && !filterContinent.has(row.continent)) { return false; }
 		if (filterWiki.value === "with" && row.wikiKey === "") { return false; }
 		if (filterWiki.value === "without" && row.wikiKey !== "") { return false; }
+		if (filterWiki.value === "mismatch" && !rowNameMismatch(row)) { return false; }
 		if (filterDisplay.value !== "" && displayOf(row) !== filterDisplay.value) { return false; }
 		if (filterArt.size > 0 && !row.regions.some((area) => filterArt.has(String(area.region_type || "")))) { return false; }
 		return true;
@@ -331,9 +356,14 @@ function displayOptions() {
 
 function wikiOptions() {
 	const withWiki = rowsForTab().filter((row) => row.wikiKey !== "").length;
+	// The third value is the sweep the owner asked for after the Blautann/Falkenforst case: find
+	// every row whose drawn region disagrees with its wiki article, in one click, instead of
+	// noticing one by accident.
+	const mismatched = rowsForTab().filter(rowNameMismatch).length;
 	return [
 		{ value: "with", label: "mit Wiki", count: withWiki },
 		{ value: "without", label: "ohne Wiki", count: rowsForTab().length - withWiki },
+		{ value: "mismatch", label: "Name ≠ Artikel", count: mismatched },
 	];
 }
 
@@ -363,8 +393,18 @@ function renderList() {
 		// the shared key must bring regions together "ohne dass jemand entscheiden muss, welcher der
 		// vier Namen überlebt: jede Fläche bleibt unter ihrem eigenen Namen auffindbar".
 		// So every own name that differs from the title is named here, first.
-		const ownNames = row.regions.map((region) => String(region.name || "")).filter((name) => name !== "" && name !== row.name);
-		if (ownNames.length > 0) { parts.push("als " + [...new Set(ownNames)].join(" · ")); }
+		// 🔴 A name that differs from its wiki article is a FINDING, not a nickname. The first wording
+		// here read „als Blautann", which sounds like an alias and made a mis-assignment look like a
+		// naming variant -- the owner read it that way immediately: „die zwei haben nix miteinander
+		// zu tun". Verhaltensdoku §11 already lists this case: „Wiki-Name passt nicht zum Label
+		// darunter -> Zuweisung vermutlich verrutscht". So it is said as that, and it colours the row.
+		const ownNames = rowOwnNames(row);
+		const nameMismatch = rowNameMismatch(row);
+		if (ownNames.length > 0) {
+			parts.push(nameMismatch
+				? "⚠ Fläche heißt „" + ownNames.join(" · ") + "“ — Zuweisung prüfen"
+				: ownNames.join(" · "));
+		}
 		if (row.regions.length > 0) {
 			parts.push(row.regions.length + (row.regions.length === 1 ? " Region" : " Regionen") + " · " + row.areaCount + (row.areaCount === 1 ? " Fläche" : " Flächen"));
 		}
@@ -376,7 +416,7 @@ function renderList() {
 			+ '<div class="avm-row__l1"><span class="avm-row__name">' + esc(row.name) + "</span>"
 			+ '<span class="avm-pill' + (row.orphanKey ? " avm-pill--unresolved" : "") + '">'
 			+ esc(row.orphanKey ? "Schlüssel ohne Wiki-Zeile" : DISPLAY_LABEL[display]) + "</span></div>"
-			+ '<div class="avm-row__l2">' + esc(parts.join(" · ")) + "</div>"
+			+ '<div class="avm-row__l2' + (nameMismatch ? " warn" : "") + '">' + esc(parts.join(" · ")) + "</div>"
 			+ "</div></div>";
 	}).join("");
 	host.querySelectorAll(".avm-row").forEach((element) => {
