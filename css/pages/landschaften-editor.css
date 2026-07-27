@@ -1,0 +1,481 @@
+/* Landschaften-Editor (html/landschaften-editor.html) -- the SEVENTH list editor.
+ * Spec: docs/superpowers/specs/2026-07-22-editor-designsprache-design.md,
+ * plan: docs/superpowers/plans/2026-07-27-landschaften-editor.md.
+ *
+ * Only what the shared files do NOT already cover. The editor page links, in this order:
+ *   css/base/fonts.css, css/base/tokens.css  -> fonts + every colour/size/spacing token
+ *   css/components/editor-page.css           -> --avm-* shell measurements, scrollbars, .type-filter
+ *   THIS file                                -> ribbon, status line, columns, list rows, detail fields
+ *
+ * 💣 Not to be confused with css/components/editor-shell.css: that one reaches the APP hull
+ *    (index.html, via css/styles.css) and styles the outer overlay window -- frame, title bar, ✕.
+ *    This file runs INSIDE the iframe (editor-page.css' own header spells the trap out).
+ *
+ * 🔴 No hardcoded colour, radius or spacing -- always a token (AGENTS.md §12). The single
+ *    deliberate literal is the 6px scroll-box radius; see .avm-scroll.
+ */
+
+/* Local short aliases for the real tokens, exactly like html/wiki-sync-settlement-editor.html and
+   the powerline editor. They alias, they never redefine -- changing a value means changing the
+   token, not this line. */
+:root {
+	--bg: var(--color-page-bg);
+	--panel: var(--color-panel);
+	--soft: var(--color-panel-soft);
+	--line: var(--color-border);
+	--line2: var(--color-border-strong);
+	--fg: var(--color-text-strong);
+	--mut: var(--color-text-muted);
+	--accent: var(--color-link);
+	--warn: var(--color-warning);
+	--bad: var(--color-danger);
+	--ok: var(--color-success);
+	--font-ui: "Faculty Glyphic", "Arial", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	height: 100vh;
+	display: flex;
+	flex-direction: column;
+	font: var(--font-size-body)/var(--leading-normal) var(--font-ui);
+	/* Spec §3.1d: the dark dialog ground is part of the language -- the bright framed scroll boxes
+	   need it to read as boxes at all. An editor on --color-panel leaves them hanging in nothing. */
+	background: var(--bg);
+	color: var(--fg);
+}
+
+/* ---- Ribbon (Spec §3.3, plan §4) -----------------------------------------------------------
+ * All tiles EXACTLY the same width, full width of the dialog. grid-auto-columns, not flex --
+ * same reason as the columns below.
+ */
+.avm-ribbon-bar {
+	padding: var(--avm-ribbon-pad);
+	background: var(--panel);
+	border-bottom: 1px solid var(--line);
+}
+
+.avm-ribbon {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: var(--avm-ribbon-gap);
+	align-items: stretch;
+}
+
+button {
+	font: inherit;
+	min-height: var(--avm-control-h);
+	padding: 0 var(--space-8);
+	cursor: pointer;
+	color: var(--color-button-soft-text);
+	background: var(--color-button-soft);
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+}
+
+button:hover { background: var(--color-button-soft-hover); }
+button:disabled { opacity: .5; cursor: default; }
+
+/* Two-line tile: .t1 bold, .t2 muted (Spec §3.3). The second line is where a tile says what it
+   knows -- state belongs IN the button, not next to it. */
+.avm-tile {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: flex-start;
+	text-align: left;
+	min-height: 48px;
+	padding: var(--space-4) var(--space-8);
+	gap: 1px;
+	line-height: var(--leading-tight);
+}
+
+.avm-tile .t1 {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-body);
+	font-weight: var(--font-weight-bold);
+}
+
+.avm-tile .t2 {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
+/* Only the sync tile carries an icon and --primary (owner decision, ribbon session 2026-07-17). */
+.avm-tile--primary {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.avm-tile--primary .t2 { color: var(--color-on-button-muted); }
+
+/* 💣 --primary needs its OWN hover rule, and it MUST stand AFTER the general `button:hover`.
+   Without it the general hover wins with its light ground while the text stays cream: light on
+   light, unreadable. It is invisible without a contrast measurement -- it happened exactly this
+   way when the pattern was built (Spec §3.3, plan §4). */
+.avm-tile--primary:hover { background: var(--color-button-hover); }
+
+/* ---- Status line (Spec §3.4) ---------------------------------------------------------------
+ * Its own row UNDER the ribbon, full width. One line, ellipsised: a long message must never push
+ * the columns down.
+ */
+.avm-status {
+	display: flex;
+	align-items: center;
+	gap: var(--space-12);
+	padding: var(--avm-status-pad);
+	min-height: var(--avm-status-min-h);
+	color: var(--mut);
+	background: var(--soft);
+	border-bottom: 1px solid var(--line);
+	white-space: nowrap;
+}
+
+.avm-status__text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.avm-status__text.ok { color: var(--ok); }
+.avm-status__text.bad { color: var(--bad); }
+
+/* ---- Three equal columns (Spec §3.2, plan §3) ----------------------------------------------
+ * 💣 grid, NOT flex. `flex: 1 1 0` with box-sizing: border-box was measured twice and was wrong
+ *    twice -- Abenteuer 483/458/458, Karten 459/673/244 -- because a border box cannot shrink
+ *    below its own padding, so the padded column keeps a bigger basis. Grid tracks do not know
+ *    that. The children need min-width/min-height: 0 or a grid item's `auto` minimum pushes the
+ *    track open again.
+ */
+.avm-cols {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.avm-col {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	padding: var(--avm-col-pad);
+}
+
+.avm-col + .avm-col { border-left: 1px solid var(--line); }
+
+/* Spec §3.1a rule 1: the column title stands OUTSIDE the scroll area, not `position: sticky`
+   inside it. Sticky works too but needs an opaque ground, bleeding edges and knows the trap from
+   §8.9 (a negative margin-top moves the sticking point). This construction knows none of them. */
+.avm-col__title {
+	margin: 0 0 var(--space-6);
+	font-size: var(--font-size-subhead);
+	line-height: var(--leading-snug);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-accent-strong);
+}
+
+.avm-col__bar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	margin-bottom: var(--space-4);
+}
+
+/* The bright framed box the scrolling content sits in -- Spec §3.1d, word-for-word from the
+   settlement editor's #seTree/#seList/#seDetailBody.
+   💣 `border-radius: 6px` is the deliberate hard value, NOT --radius-sm (5) or --radius-md (8).
+      Settlements has carried it forever, Territorien copied it to the pixel in 673413ce, and the
+      owner names both as the model. Word-for-word means: on the same pixel. */
+.avm-scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	padding: var(--space-2);
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+}
+
+.avm-scroll--pad { padding: var(--space-6) var(--space-10); }
+
+input[type=search],
+input[type=text],
+input[type=url],
+textarea,
+select {
+	font: inherit;
+	color: var(--fg);
+	background: var(--soft);
+	border: 1px solid var(--line);
+	border-radius: var(--radius-md);
+}
+
+input[type=search] {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: var(--avm-control-h);
+	padding: 0 var(--space-6);
+}
+
+/* ---- List rows (Spec §3.1a rule 2) ----------------------------------------------------------
+ * The row FLOATS -- it does not run edge to edge with a divider. The transparent 1px border is
+ * mandatory: it is always there and only changes colour on selection, otherwise the row jumps by
+ * two pixels the moment it is picked.
+ */
+.avm-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--avm-row-pad);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	cursor: pointer;
+}
+
+.avm-row:hover { background: var(--color-hover-wash); }
+
+.avm-row.is-selected {
+	background: var(--color-active-wash);
+	border-color: var(--color-accent);
+}
+
+.avm-row__text { flex: 1 1 auto; min-width: 0; }
+
+.avm-row__l1 {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+}
+
+.avm-row__name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: var(--font-weight-bold);
+}
+
+.avm-row__kind {
+	margin-left: auto;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
+.avm-row__l2 {
+	margin-top: 1px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
+.avm-row__l2.ok { color: var(--ok); }
+.avm-row__l2.warn { color: var(--warn); }
+
+.avm-empty { padding: var(--space-6); color: var(--mut); }
+.avm-error { padding: var(--space-6); color: var(--bad); }
+
+/* ---- Tab strip (Spec §3.1, "[Reiterzeile] optional") ----------------------------------------
+ * Same underline language as every other editor sub-tab row (css/features/review-panel.css:1374
+ * -- Meldungen, WikiSync, Konfliktlösung, Status). Copied onto the token ladder rather than
+ * imported: that file reaches the app hull, not this iframe.
+ */
+.avm-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-12);
+	margin-bottom: var(--space-4);
+	border-bottom: 1px solid var(--line);
+}
+
+.avm-tab {
+	flex: 0 0 auto;
+	min-height: 0;
+	padding: var(--space-4) 1px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: none;
+	appearance: none;
+	-webkit-appearance: none;
+	color: var(--mut);
+	font: inherit;
+	font-size: var(--font-size-body);
+	line-height: var(--leading-tight);
+	white-space: nowrap;
+}
+
+.avm-tab:hover,
+.avm-tab:focus-visible { background: none; color: var(--color-text-strong); }
+
+.avm-tab.is-active {
+	background: none;
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+	border-bottom-color: var(--color-text-strong);
+}
+
+/* ---- Row badges -----------------------------------------------------------------------------
+ * Spec §3.1b: emphasise the EXCEPTION, not the classification. "Map-Darstellung" is a
+ * classification -- it stays quiet grey. A key that points at no wiki row is a real open point and
+ * gets the warning tone (never --color-danger; red stays with actual errors).
+ */
+.avm-pill {
+	flex: 0 0 auto;
+	padding: 0 var(--space-4);
+	border: 1px solid var(--line2);
+	border-radius: var(--radius-md);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-normal, 400);
+	color: var(--mut);
+	white-space: nowrap;
+}
+
+.avm-pill--unresolved {
+	color: var(--warn);
+	border-color: var(--color-warning-soft-border);
+}
+
+.avm-summary {
+	padding: 0 var(--space-2) var(--space-2);
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
+/* The dead-man's-switch tile carries its state, so it needs a resting look for "on". Same filled
+   treatment as --primary, and -- for the same reason as there -- its own hover rule AFTER the
+   general one, or light-on-light. */
+.avm-tile--on {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.avm-tile--on .t2 { color: var(--color-on-button-muted); }
+.avm-tile--on:hover { background: var(--color-button-hover); }
+
+/* ---- Detail fields (Spec §3.1c) --------------------------------------------------------------
+ * Label LEFT of the field in a fixed --avm-field-label-w column, so the field edges line up across
+ * every group and every editor. The adventure editor was the one that stacked them and that is
+ * exactly why its detail column looked like a different program.
+ * Class names kept as .dt-* on purpose: the settlement editor's, so the two read the same.
+ */
+.dt-grp {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	margin-top: var(--space-8);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--line);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-bold);
+	color: var(--mut);
+}
+
+.dt-grp:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+.dt-grid {
+	display: grid;
+	grid-template-columns: var(--avm-field-label-w) minmax(0, 1fr);
+	margin-top: var(--space-2);
+	font-size: var(--font-size-body);
+}
+
+.dt-grid .k {
+	padding: var(--space-2) var(--space-4) var(--space-2) 0;
+	white-space: nowrap;
+	font-weight: var(--font-weight-bold);
+	color: var(--mut);
+}
+
+.dt-grid > div:not(.k) {
+	padding: var(--space-2) 0;
+	min-width: 0;
+	overflow-wrap: anywhere;
+	color: var(--color-text);
+}
+
+/* External links always carry a trailing ↗ (AGENTS.md §12); the arrow is written in the markup. */
+.dt-link { color: var(--accent); text-decoration: none; }
+.dt-link:hover { text-decoration: underline; }
+
+/* ---- Raycast result: one button per shared region --------------------------------------------
+ * The share is VISIBLE and the list is sorted by it -- then the 10 % threshold is a line one can
+ * argue about instead of magic.
+ */
+.eco-partners {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	margin-top: var(--space-2);
+}
+
+.eco-partner {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+	width: 100%;
+	padding: var(--avm-row-pad);
+	text-align: left;
+	border: 1px solid var(--line);
+	background: var(--soft);
+}
+
+.eco-partner.is-selected {
+	background: var(--color-active-wash);
+	border-color: var(--color-accent);
+}
+
+.eco-partner__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: var(--font-weight-bold);
+}
+
+.eco-partner__meta {
+	flex: 0 0 auto;
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
+.eco-partner__share {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-accent-strong);
+}
+
+/* Intersection thumbnail. Shape copied from the territory preview
+   (js/territory/territory-derived-geometry-editor.js:576) -- a POLITICAL file, so copied and never
+   called. Its hardcoded rgba() is replaced by tokens here. */
+.eco-thumb {
+	display: grid;
+	place-items: center;
+	margin: var(--space-4) 0;
+	padding: var(--space-2);
+	background: var(--soft);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	color: var(--color-accent-strong);
+}
+
+.eco-thumb svg { width: 100%; max-width: 200px; height: auto; }
+.eco-thumb path { fill: var(--color-active-wash); stroke: currentColor; stroke-width: 1.5; }

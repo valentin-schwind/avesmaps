@@ -1,5 +1,10 @@
 # Landschaften-Editor — Verhalten und Funktion
 
+> **Es sind zwei Oberflächen, nicht eine.** §1–§7d beschreiben die **Karte** (Modus
+> „Landschaften", zeichnen, ziehen, Kontextmenü). §7f beschreibt den **Listen-Editor**
+> „Regionen bearbeiten" (`WikiSync → Regionen`), den siebten Listen-Editor des Hauses — dort
+> sitzen die Zugehörigkeitsrechnung, die Vorkommen und der Totmannschalter.
+>
 > Was der Editor **tut**, wenn jemand klickt. Architektur und Bauteile stehen im
 > `oekosystem-editor-leitfaden.md`, das Datenmodell in dessen §1, die Bauphasen in
 > `oekosystem-r1-auftrag.md` und `oekosystem-r2-auftrag.md`.
@@ -291,6 +296,129 @@ einen Wald ausdenken müssen, den das Wiki gar nicht kennt. Die laufende Nummer 
 des Karten-Labels, aus dem sie entstanden sind (`tools/ecosystem/derive_areas.py`) —
 eine Fläche, die aus einem Label entstand, **hat** ein Label, und ihr Name ist damit ein
 echter Name. Der Auto-Name ist für die anderen da.
+
+## 7f. Der Listen-Editor „Regionen bearbeiten" (der siebte Editor)
+
+> ⚠️ **Warum 7f und nicht 7e:** §4 verweist auf „Unterflächen (§7e)", einen Abschnitt, den es in
+> diesem Dokument **nicht gibt** — ein hängender Verweis von vor dem 2026-07-27. Diese Nummer
+> bleibt für ihn reserviert; sie hier zu belegen hieße, den Verweis auf ein anderes Thema zu
+> lenken statt ihn zu reparieren.
+
+Alles bisher Beschriebene passiert **auf der Karte**. Daneben gibt es seit dem 2026-07-27 die
+**Listensicht**: `WikiSync → Regionen → „Regionen bearbeiten"`. Sie beantwortet die Fragen, die
+man auf der Karte nicht sieht — *welche Region hat gar keine Fläche?*, *was liegt in was?* —
+und sie ist der Ort, an dem der **Raycast** sichtbar wird.
+
+Bauart wie der sechste Editor: eigene iframe-Seite `html/landschaften-editor.html`, geladen mit
+`?v=Date.now()`, gemeinsame Hülle `css/components/editor-shell.css` (`avm-editor-*`), drei
+gleich breite Spalten per `display: grid`. Plan:
+`docs/superpowers/plans/2026-07-27-landschaften-editor.md`.
+
+> ⚠️ **Der Sync-Knopf des Reiters ist verschwunden — er ist nicht weg, er ist umgezogen.**
+> Ein Subjekt hat genau **einen** Knopf (`wikiSyncSubjectButtonId`, `js/review/review-subjects.js`):
+> wo es einen Editor gibt, ist es dessen Knopf. „🚨 Syncen" sitzt jetzt im Menüband des Fensters
+> und ruft von dort `window.parent.startWikiSyncKindSync("region")` — dieselbe Maschinerie,
+> derselbe Fortschritt, dieselbe „Zuletzt gesynct"-Angabe. Genau der Weg, den Siedlungen und
+> Kraftlinien vorher gegangen sind. Der alte Knopf steht weiterhin **versteckt** im DOM, weil
+> `renderWikiSyncKindProgress` auf seine id zielt.
+
+### Spalte 1 — die Vereinigung, nicht nur das Gezeichnete
+
+**Owner-Entscheid 2026-07-27.** Die Liste zeigt **drei Dinge nebeneinander**, verbunden über
+`wiki_key`:
+
+| Zeile kommt von | heißt in „Map-Darstellung" |
+|---|---|
+| gezeichnete Fläche (`ecosystem_region` + `ecosystem_area`) | **Fläche** |
+| Karten-Label (`map_features`) | **Label** |
+| beides | **Label + Fläche** |
+| Wiki-Region mit **keinem** von beidem | **nicht auf der Karte** |
+
+Die letzte Zeile ist der Grund für die Vereinigung: nur so hat der Filter „Map-Darstellung:
+keine" überhaupt etwas zu zeigen — und das ist die Lücke, die man sucht. Gelesen wird aus
+**zwei** vorhandenen Pfaden, `list_regions` (Flächen) und `regions.php?action=match`
+(Wiki + Labels); ein neuer Endpunkt war nicht nötig.
+
+> 🔴 **Die Art-Reiter (Derographische Region · Vegetation · Topographie) greifen nur auf
+> gezeichnete Regionen.** Eine Wiki-Region ohne Fläche hat keine Ebene, also kann sie unter
+> keiner stehen — sie erscheint unter „Alle". Dasselbe Verhalten wie „Platziert/Fehlt" anderswo.
+>
+> ⚠️ **Eine Region ohne Fläche zählt als „nicht auf der Karte", nicht als „Fläche".** Sie steht
+> in der Liste und ist auf der Karte nicht da (§10) — das ist kein Fehler, aber es ist auch
+> keine Darstellung.
+
+Der Filtertrichter ist der geteilte (`js/ui/filter-menu.js`, **nicht** die Zwillingsfassung
+`attachFilterMenu` in `js/app/utils.js` — die hängt an den Globalen des Hauptfensters).
+Abschnitte: Wiki · Map-Darstellung · Art (`region_type`) · Kontinent. **Kontinent steht auf
+Aventurien** und zählt bewusst nicht als aktiver Filter — das ist die Identität der Karte, keine
+Einschränkung; dieselbe Ausnahme macht die Panel-Liste. Ein Reiterwechsel **leert die
+Art-Auswahl**, weil jede Ebene ihr eigenes Vokabular hat.
+
+### Spalte 2 — Eigenschaften und „Gemeinsame Regionen mit"
+
+Reihenfolge nach Designsprache-Spec §3.5: Identität → Wiki-Landschaft → Flächen → Zugehörigkeit.
+Der **Auto-Name-Zustand wird abgeleitet**, nicht geladen (§7d) — der Name passt auf
+`<Art>-<Zahl>` oder er tut es nicht.
+
+Darunter das Ergebnis des **Raycasts**: welche anderen Regionen sich mit dieser überschneiden,
+**mit Prozentzahl**, absteigend sortiert. Jeder Eintrag ist ein Knopf und wählt das Paar für
+Spalte 3.
+
+> 🔴 **Die Regel: Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %.**
+> „Kleinere von beiden" deckt den Fall ab, dass ein Gebirgszug über mehrere derographische
+> Regionen läuft — als „Anteil am Gebirge" gerechnet fiele er überall heraus. Gemessen am
+> Muster: eine kleine Fläche vollständig in einer großen ergibt **100 %**; am größeren gemessen
+> wären es 6 % und sie verschwände.
+>
+> **Nicht „≥ 1 Vertex":** das verpasst einen langen Wald, der eine Region quert, ohne eine Ecke
+> darin zu haben, und hängt an der `simplify_ratio` der Rasterverfolgung statt an der Geographie.
+>
+> 🔴 **Gerechnet, nie gespeichert** — wie beim Konfliktzentrum: eine verschobene Grenze
+> korrigiert die Antwort von selbst. Keine Spalte, keine Hierarchie; eine Fläche darf zu zwei
+> Regionen gehören (§12).
+
+Ausgelöst wird per Menüband-Kachel **„Zugehörigkeit rechnen"**, nicht beim Öffnen: der Lauf liest
+**jede** Geometrie im Haus (`api/app/ecosystem-areas.php` **ohne** `bbox`), und dafür soll niemand
+allein durchs Öffnen bezahlen. Ein Bounding-Box-Vorfilter verwirft die Paare vorher; gemessen
+47 ms für den Live-Bestand.
+
+> ⚠️ **Bei ausgeschaltetem Landschaftsmodul liefert der Lesepfad eine LEERE Liste, keinen
+> Fehler.** Der Editor sagt das ausdrücklich, statt „keine Überschneidungen" zu zeigen.
+
+### Spalte 3 — Schnittmenge und Vorkommen
+
+Die **Schnittfläche** des gewählten Paares als Vorschaubild (`ecosystemBooleanGeometry
+("intersection", …)`, dieselbe unit-getestete Rechnung wie überall).
+
+> 🪤 **Die Vorlage ist die Territorien-Vorschau** (`js/territory/territory-derived-geometry-editor.js:576`)
+> — eine **politische** Datei: abgeschrieben, nie aufgerufen (Hauptplan, Regel 1). Zwei bewusste
+> Unterschiede: dort war es immer *union*, hier ist es die *intersection*; und die Farben kommen
+> aus Tokens statt aus dem dortigen harten `rgba()`.
+
+Darunter die **Vorkommen** der Region. Die Brücke Vorkommen ↔ Region läuft über die politische
+Tabelle `political_territory_wiki.geographic` (`api/_internal/app/lore.php:599`) — **der Editor
+fasst sie nicht an**, er ruft den vorhandenen öffentlichen Lesepfad.
+
+> **Geprüft 2026-07-27:** der Parameter ist `GET /api/app/lore.php?place=<schlüssel>`, und
+> `<schlüssel>` ist der `wiki_region_key` **ohne** das Präfix `wiki:`, kleingeschrieben — genau
+> das, was `avesmapsLoreNormalizeKey` (`js/map-features/map-features-lore.js:91`) erzeugt.
+> `&full=1` liefert die vollständigen Listen. Eine Region **ohne** Wiki-Eintrag hat keinen
+> Ortsschlüssel; der Editor sagt das, statt eine leere Liste zu zeigen.
+
+### Menüband
+
+| Kachel | Wirkung |
+|---|---|
+| **🚨 Syncen** | die Sync-Kachel; **einzige** mit Icon und `--primary` |
+| **Zugehörigkeit rechnen** | löst den Raycast aus, Zahl der Flächen und Schwelle stehen in der Kachel |
+| **Landschaftsmodul AN/AUS** | der Totmannschalter — **erste Oberfläche für `set_enabled` überhaupt** |
+
+> 💣 **`set_enabled` gab es serverseitig seit V2.1 und hatte bis zum 2026-07-27 keinen einzigen
+> Aufrufer im Client.** Der Zustand steht **in** der Kachel, nicht daneben, und er kennt drei
+> Werte: AN, AUS und **unbekannt** — solange nicht gefragt wurde, behauptet der Schalter nichts.
+> Gelesen wird er aus `ecosystem_enabled` des öffentlichen Lesepfads, nicht aus einem Schreibruf.
+> **Ausschalten fragt nach** und nennt die Folge: der öffentliche Lesepfad liefert dann keine
+> Flächen mehr, die Landschaften verschwinden für alle von der Karte. Gezeichnet bleibt alles.
 
 ## 8. Gipfel
 

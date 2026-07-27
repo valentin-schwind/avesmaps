@@ -210,6 +210,24 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.transfer.save": "Send",
 	"ecosystem.transfer.saving": "Sending …",
 
+	// --- Landschaften: the seventh list editor (WikiSync -> Regionen -> "Regionen bearbeiten").
+	//     Button and window title read the same words, so they share one key (spec §2). Only the
+	//     strings on nodes the HOST document builds are resolved through tr() today -- the editor page
+	//     itself is an iframe that does not load js/app/i18n.js, so its own labels are collected here
+	//     and wired when the overlay reaches the iframes (milestone M8). ---
+	"ecosystem.editor.title": "Edit regions",
+	"ecosystem.editor.frameTitle": "Landscape editor",
+	"ecosystem.editor.closeAria": "Close",
+	"ecosystem.editor.ribbon.sync": "🚨 Sync",
+	"ecosystem.editor.ribbon.syncInfo": "Regions from the wiki dump",
+	"ecosystem.editor.ribbon.raycast": "Compute membership",
+	"ecosystem.editor.ribbon.enabled": "Landscape module",
+	"ecosystem.editor.col.regions": "Regions",
+	"ecosystem.editor.col.properties": "Properties",
+	"ecosystem.editor.col.preview": "Preview & occurrences",
+	"ecosystem.editor.searchPlaceholder": "Find region …",
+	"ecosystem.editor.pickRegion": "Pick a region on the left.",
+
 	// --- spotlight search ---
 	"spotlight.title": "Search",
 	"spotlight.placeholder": "Search the map",

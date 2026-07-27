@@ -132,12 +132,19 @@ Darunter der **Filtertrichter** (`attachFilterMenu`) mit mindestens:
 
 Inhalt: `Heldentrutz`, `Blautann`, …
 
-> ❓ **Zu klären mit dem Owner, bevor Spalte 1 gebaut wird:** listet sie nur
-> `ecosystem_region`-Zeilen (also gezeichnete Flächen), oder die **Vereinigung** aus
-> gezeichneten Flächen + Karten-Labels + Wiki-Regionen ohne beides? Der Filter
-> „Map-Darstellung: keine" legt die zweite Lesart nahe — dann ist die Liste dieselbe
-> Menge wie „Alle (1461)" im heutigen WikiSync-Reiter, nur anders geschnitten.
-> **Nicht raten.** Die Antwort entscheidet den Lesepfad.
+> ✅ **Geklärt, Owner 2026-07-27: die VEREINIGUNG** aus gezeichneten Flächen + Karten-Labels
+> + Wiki-Regionen ohne beides — **und die Art-Reiter greifen nur auf die gezeichneten.**
+> Eine Wiki-Region ohne Fläche hat keine Ebene, kann also unter keinem der drei Reiter
+> stehen; sie erscheint unter „Alle". Damit hat „Map-Darstellung: keine" überhaupt etwas
+> zu zeigen — die eigentliche Absicht des Filters.
+>
+> Preis, benannt statt versteckt: bei einer Zeile ohne Fläche bleiben Spalte 2 und 3 leer.
+> Der Editor sagt das („steht in der Liste, ist auf der Karte nicht da", „ohne Wiki-Eintrag
+> gibt es keinen Ortsschlüssel") statt eine leere Antwort zu zeigen.
+>
+> **Lesepfad:** zwei vorhandene Quellen, kein neuer Endpunkt — `list_regions` (Flächen)
+> und `GET /api/edit/wiki/regions.php?action=match&continent=&limit=5000` (Wiki + Labels,
+> dieselben Parameter wie die Panel-Liste). Verbunden über `wiki_key`.
 
 ### Spalte 2 — Eigenschaften und Zugehörigkeit
 
@@ -237,22 +244,22 @@ Drei Kacheln, alle gleich breit, zweizeilig (`.t1` fett, `.t2` gedämpft):
 
 ## 7. Aufgaben
 
-- [ ] **1 — Hülle und Einstieg.** Knopf „Regionen bearbeiten" im WikiSync-Reiter,
+- [x] **1 — Hülle und Einstieg.** Knopf „Regionen bearbeiten" im WikiSync-Reiter,
       `editorButtonId` gesetzt, iframe-Seite mit `avm-editor-*`, Menüband mit den drei
       Kacheln, Statuszeile. **Drei leere Spalten, aber gemessen gleich breit** — die
       Messung ist das Fertigkriterium, nicht der Anblick.
-- [ ] **2 — Spalte 1.** Erst die offene Frage aus §3 klären, dann Liste, Reiter,
+- [x] **2 — Spalte 1.** Erst die offene Frage aus §3 klären, dann Liste, Reiter,
       Filtertrichter. `attachFilterMenu` benutzen, keinen eigenen bauen.
-- [ ] **3 — Spalte 2 und der Raycast.** `api/app/ecosystem-areas.php` ohne `bbox`,
+- [x] **3 — Spalte 2 und der Raycast.** `api/app/ecosystem-areas.php` ohne `bbox`,
       Bounding-Box-Vorfilter, `ecosystemBooleanGeometry("intersection", …)`, Anteil an der
       kleineren, Schwelle 10 %, sortiert, Prozent sichtbar. Die Kachel „Zugehörigkeit
       rechnen" löst aus.
-- [ ] **4 — Spalte 3.** Zuerst prüfen, welchen Parameter `api/app/lore.php` für
+- [x] **4 — Spalte 3.** Zuerst prüfen, welchen Parameter `api/app/lore.php` für
       „Vorkommen in Region X" nimmt. Dann Schnittmengen-Vorschau (Territorien-Vorlage
       abgeschrieben) und die Vorkommen-Liste.
-- [ ] **5 — Totmannschalter-Kachel.** Erste Oberfläche für `set_enabled`. Zustand IN der
+- [x] **5 — Totmannschalter-Kachel.** Erste Oberfläche für `set_enabled`. Zustand IN der
       Kachel, nicht daneben.
-- [ ] **6 — Doku.** `docs/oekosystem-editor-verhalten.md` um den Editor ergänzen; die
+- [x] **6 — Doku.** `docs/oekosystem-editor-verhalten.md` um den Editor ergänzen; die
       V6-Verwechslung in `2026-07-24-landschaften.md` richtigstellen, damit der nächste
       Leser nicht wieder glaubt, V6 sei der Editor gewesen und erledigt.
 

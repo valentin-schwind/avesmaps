@@ -503,8 +503,20 @@
 							</div>
 							<div id="powerline-sync-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
+						<!-- Regionen: siebter Editor (2026-07-27). Der Editor-Knopf ist der EINE Verbzeilen-Knopf
+						     des Subjekts (js/review/review-subjects.js); renderWikiSyncVerbs schiebt ihn an
+						     seinen Platz. Syncen läuft weiter, aus dem Menüband des Fensters heraus über
+						     window.parent.startWikiSyncKindSync("region") -- dasselbe Muster wie beim
+						     Siedlungs- und beim Kraftlinien-Editor. -->
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
+								<button type="button" id="ecosystem-editor-open" class="wiki-sync-panel__start" title="Öffnet den Landschaften-Editor: Regionen, Zugehörigkeit von Vegetation und Topographie, Vorschau und Vorkommen. Syncen liegt im Fenster."><span class="t1">Regionen bearbeiten</span><span id="ecosystem-editor-synced" class="wiki-sync-panel__summary" hidden></span></button>
+						</div>
+						<!-- Bleibt versteckt, NICHT entfernt: startWikiSyncKindSync/renderWikiSyncKindProgress/
+						     refreshWikiSyncKindSyncedStatus (js/review/review-wiki-sync.js:1358) zielen auf genau
+						     diese id und dürfen nie ins Leere greifen. Der sichtbare Auslöser sitzt jetzt im
+						     Menüband des Editors. -->
+						<div class="wiki-sync-panel__actions" hidden>
 								<button id="wiki-sync-sync-region" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
 						</div>
 								<span id="region-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
@@ -1947,6 +1959,10 @@
 		     + the parent fly-to helper the iframe calls. Self-contained; uses map/marker globals at
 		     runtime only, so load order among the review-* modules does not matter. -->
 		<script src="js/review/review-powerline-list.js"></script>
+		<!-- Seventh editor: the Landschaften-Editor overlay factory (openAvesmapsEcosystemEditorOverlay).
+		     Self-contained -- the iframe page carries its own logic and reaches back through
+		     window.parent, so load order among the review-* modules does not matter. -->
+		<script src="js/review/review-ecosystem-list.js"></script>
 			<script src="js/review/review-capitals-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<!-- review-subjects.js ist nach OBEN gezogen, vor seine beiden Leser -- siehe dort. -->

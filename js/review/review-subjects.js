@@ -50,8 +50,9 @@ const WIKI_SYNC_LORE_VIEWS = [
 //
 // syncButtonId: null heißt „kein Sync-Knopf im PANEL" -- bei Karten läuft der Sync
 // ausschließlich über „Karten syncen" im Karteneditor (startWikiSyncCitymapsSync).
-// editorButtonId: null heißt „kein Listen-Editor" (Regionen, Wege). Kraftlinien haben seit dem
-// sechsten Editor einen (powerline-editor-open, js/review/review-powerline-list.js).
+// editorButtonId: null heißt „kein Listen-Editor" (nur noch Wege). Kraftlinien haben seit dem
+// sechsten Editor einen (powerline-editor-open, js/review/review-powerline-list.js), Regionen seit
+// dem siebten (ecosystem-editor-open, js/review/review-ecosystem-list.js).
 //
 // syncKind is the key the SERVER answers "last synced" under
 // (avesmapsWikiDumpSyncKindLastSynced, api/_internal/wiki/dump-sync-kind.php): singular and
@@ -63,7 +64,7 @@ const WIKI_SYNC_LORE_VIEWS = [
 const WIKI_SYNC_SUBJECTS = [
 	{ key: "locations",   label: "Siedlungen",  syncButtonId: "wiki-sync-sync-settlement",  editorButtonId: "settlement-editor-open", syncKind: "settlement", views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "territories", label: "Territorien", syncButtonId: "wiki-sync-territories",      editorButtonId: null,                     syncKind: "territory",  views: WIKI_SYNC_MAP_VIEWS },
-	{ key: "regions",     label: "Regionen",    syncButtonId: "wiki-sync-sync-region",      editorButtonId: null,                     syncKind: "region",     views: WIKI_SYNC_MAP_VIEWS },
+	{ key: "regions",     label: "Regionen",    syncButtonId: "wiki-sync-sync-region",      editorButtonId: "ecosystem-editor-open",  syncKind: "region",     views: WIKI_SYNC_MAP_VIEWS },
 	{ key: "paths",       label: "Wege",        syncButtonId: "wiki-sync-sync-path",        editorButtonId: null,                     syncKind: "path",       views: WIKI_SYNC_PATH_VIEWS },
 	{ key: "powerlines",  label: "Kraftlinien", syncButtonId: "wiki-sync-powerlines-sync",  editorButtonId: "powerline-editor-open", syncKind: "powerline",  views: [] },
 	{ key: "adventures",  label: "Abenteuer",   syncButtonId: "wiki-sync-sync-adventure",   editorButtonId: "adventure-editor-open",  syncKind: "adventure",  views: [] },

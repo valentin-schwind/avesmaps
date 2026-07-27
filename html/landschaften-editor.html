@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Regionen bearbeiten</title>
+<script>
+  /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved
+     choice wins, otherwise follow the OS scheme. Runs before the stylesheet paints so this overlay
+     iframe never flashes the wrong theme. Same guard as html/wiki-sync-powerline-editor.html. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 Never a hand-written ?v= here (AGENTS.md §7): the deploy's stamping pass walks index.html
+     AND html/*.html, so it reaches and verifies every link below. The DOCUMENT itself is
+     cache-busted by its host with ?v=Date.now() (js/review/review-ecosystem-list.js). -->
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css">
+<link rel="stylesheet" href="/css/components/editor-page.css">
+<link rel="stylesheet" href="/css/pages/landschaften-editor.css">
+</head>
+<body>
+
+<!-- Menüband: three tiles, all the same width. Only the sync tile carries an icon and --primary. -->
+<div class="avm-ribbon-bar">
+  <div class="avm-ribbon">
+    <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1">🚨 Syncen</span><span class="t2" id="ecoSyncInfo">Regionen aus dem Wiki-Dump</span></button>
+    <button type="button" class="avm-tile" id="ecoRaycast" title="Rechnet, welche Vegetations- und Topographieflächen in welcher derographischen Region liegen: Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %. Gerechnet, nie gespeichert."><span class="t1">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoEnabled" disabled title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo">Zustand unbekannt</span></button>
+  </div>
+</div>
+
+<!-- Statuszeile: own row under the ribbon, full width (Spec §3.4). -->
+<div class="avm-status"><span class="avm-status__text" id="ecoStatusText">Wird geladen…</span></div>
+
+<div class="avm-cols">
+  <div class="avm-col" id="ecoColRegions">
+    <h2 class="avm-col__title">Regionen</h2>
+    <!-- Reiter = ecosystem_region.kind. Sie greifen nur auf GEZEICHNETE Regionen (Owner
+         2026-07-27): eine Wiki-Region ohne Fläche hat keine Ebene, also kann sie unter keiner
+         stehen. „Alle" zeigt die ganze Vereinigung. -->
+    <div class="avm-tabs" id="ecoTabs">
+      <button type="button" class="avm-tab is-active" data-kind="">Alle</button>
+      <button type="button" class="avm-tab" data-kind="derographisch">Derographische Region</button>
+      <button type="button" class="avm-tab" data-kind="vegetation">Vegetation</button>
+      <button type="button" class="avm-tab" data-kind="topographie">Topographie</button>
+    </div>
+    <div class="avm-col__bar">
+      <input type="search" id="ecoSearch" placeholder="Region suchen …" aria-label="Regionen durchsuchen">
+      <div class="type-filter"><button type="button" id="ecoFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="ecoFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Wiki</div><div id="ecoFilterWiki"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Map-Darstellung</div><div id="ecoFilterDisplay"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Art</div><div id="ecoFilterArt"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="ecoFilterContinent"></div></div></div></div>
+    </div>
+    <div class="avm-summary" id="ecoSummary">Keine Daten geladen</div>
+    <div class="avm-scroll" id="ecoList"><div class="avm-empty">Wird geladen…</div></div>
+  </div>
+  <div class="avm-col" id="ecoColProps">
+    <h2 class="avm-col__title">Eigenschaften</h2>
+    <div class="avm-scroll avm-scroll--pad" id="ecoDetail"><div class="avm-empty">Links eine Region wählen.</div></div>
+  </div>
+  <div class="avm-col" id="ecoColPreview">
+    <h2 class="avm-col__title">Vorschau &amp; Vorkommen</h2>
+    <div class="avm-scroll avm-scroll--pad" id="ecoPreview"><div class="avm-empty">Links eine Region wählen.</div></div>
+  </div>
+</div>
+
+<!-- Der EINE Trichter (js/ui/filter-menu.js). Bewusst abhängigkeitsfrei gebaut, damit genau solche
+     iframe-Seiten ihn laden können; sein Kopf sagt es selbst. NICHT attachFilterMenu aus
+     js/app/utils.js -- das ist die Zwillingsfassung für das Hauptfenster und hängt an dessen
+     Globalen (escapeHtml, SOURCE_FILTER_OPTIONS). Eigenen bauen wäre die siebte Kopie. -->
+<script src="/js/ui/filter-menu.js"></script>
+<!-- Die ganze Geometrie-Rechnung liegt schon da und ist unit-getestet
+     (js/map-features/__tests__/ecosystem-boolean.test.js). Der Raycast benutzt genau sie:
+     ecosystemBooleanGeometry("intersection", …), ecosystemGeometryArea, ecosystemGeometryBounds.
+     🔴 KEIN politisches Modul -- map-features-region-boolean-geometry.js rechnet dasselbe, schickt
+     aber unter ?debugMap einen POST an den politischen Endpunkt (Hauptplan, Regel 1). -->
+<script src="/js/third-party/polygon-clipping.umd.min.js"></script>
+<script src="/js/map-features/map-features-ecosystem-geometry.js"></script>
+<script src="/js/map-features/map-features-ecosystem-boolean.js"></script>
+<script>
+"use strict";
+(function () {
+
+// ---- Small helpers ---------------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+function esc(s) {
+	return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// 🔴 The write/read channel is the EXISTING one: postEcosystemEdit in the parent app
+// (js/map-features/map-features-ecosystem-region-store.js). It knows ECOSYSTEM_EDIT_API_URL, sets
+// credentials and attaches error.code / error.status. Rebuilding it here would be a second answer
+// to the same question -- and the second one is the one that drifts.
+function ecoPost(action, payload) {
+	const post = (window.parent && window.parent !== window && typeof window.parent.postEcosystemEdit === "function")
+		? window.parent.postEcosystemEdit
+		: null;
+	if (!post) {
+		return Promise.reject(new Error("Der Landschaften-Editor läuft ohne Hauptfenster; Schreiben und Listen sind hier nicht erreichbar."));
+	}
+	return post(action, payload || {});
+}
+
+// The wiki half of the list. Read straight from the endpoint the WikiSync „Regionen" tab already
+// uses -- same action, same parameters (continent='' = every continent, filtered in the browser so
+// the funnel can offer the choice; limit is clamped to 2000 server-side).
+// 🔴 A wiki file, not a political one (main plan, rule 1).
+const WIKI_REGIONS_API = "/api/edit/wiki/regions.php?action=match&continent=&limit=5000";
+
+// ---- State -----------------------------------------------------------------------------------
+let rows = [];              // the union, see buildRows()
+let selectedKey = null;
+let activeKind = "";        // "" = Alle; otherwise ecosystem_region.kind
+let searchTerm = "";
+let loadError = "";
+
+// Funnel state. Same shapes js/ui/filter-menu.js expects: Set for "multi", {value} for "single".
+const filterWiki = { value: "" };        // "" | "with" | "without"
+const filterDisplay = { value: "" };     // "" | "label" | "area" | "both" | "none"
+const filterArt = new Set();             // ecosystem_region.region_type
+// Aventurien by default, exactly like the panel list (review-region-sync.js:10). The map IS
+// Aventurien -- this is the map's identity, not a restriction, which is why it does not count as an
+// active filter in the funnel's badge.
+const filterContinent = new Set(["Aventurien"]);
+let rebuildFilterMenu = () => {};
+
+// ---- Status line -----------------------------------------------------------------------------
+let ecoFlashTimer = null;
+function setStatus(text, tone) {
+	const el = $("ecoStatusText");
+	el.textContent = text;
+	el.classList.toggle("ok", tone === "ok");
+	el.classList.toggle("bad", tone === "bad");
+}
+// Counts are the resting state; a result message shows for a while and then gives the line back.
+function statusCountsText() {
+	if (loadError) { return loadError; }
+	if (rows.length === 0) { return "Keine Regionen geladen."; }
+	const drawn = rows.filter((row) => row.areaCount > 0).length;
+	const areas = rows.reduce((sum, row) => sum + row.areaCount, 0);
+	return rows.length + " Regionen · " + drawn + " gezeichnet · " + areas + " Flächen";
+}
+function flashStatus(message, tone) {
+	setStatus(message, tone);
+	if (ecoFlashTimer) { clearTimeout(ecoFlashTimer); }
+	ecoFlashTimer = setTimeout(() => { setStatus(statusCountsText()); }, 7000);
+}
+
+// ---- Column 1: the union ---------------------------------------------------------------------
+// Owner decision 2026-07-27: this list is the UNION of three things that each answer "is there a
+// region here" differently --
+//   * gezeichnete Fläche   ecosystem_region (+ ecosystem_area), the editor's own rows
+//   * Karten-Label         a map_features label, what a reader sees on the map
+//   * Wiki-Region          a wiki_region_staging row with neither of the above
+// The join key is wiki_key. A row that has neither a label nor an area is exactly what the filter
+// „Map-Darstellung: keine" is for -- that is why the union, and not just the drawn areas.
+//
+// 🔴 Nothing is merged, moved or written here. This is a read; several drawn regions sharing one
+// wiki key is the normal case (idx_ecosystem_region_wiki is an INDEX, not UNIQUE).
+function emptyRow(key, name) {
+	return {
+		key, name,
+		wikiKey: "", wikiUrl: "", art: "", continent: "",
+		labels: [], regions: [], areaCount: 0,
+		orphanKey: false,
+	};
+}
+
+function buildRows(ecoRegions, wiki) {
+	const byWikiKey = new Map();
+	const out = [];
+
+	const addWikiEntry = (entry, labels) => {
+		const key = String(entry.wiki_key || "").trim();
+		const row = emptyRow("wiki:" + key, String(entry.name || ""));
+		row.wikiKey = key;
+		row.wikiUrl = String(entry.wiki_url || "");
+		row.art = String(entry.art || "");
+		row.continent = String(entry.continent || "").trim() || "Aventurien";
+		row.labels = labels;
+		if (key !== "") { byWikiKey.set(key, row); }
+		out.push(row);
+	};
+
+	(wiki.matched || []).forEach((entry) => addWikiEntry(entry, entry.label ? [entry.label] : []));
+	(wiki.ambiguous || []).forEach((entry) => addWikiEntry(entry, entry.labels || []));
+	(wiki.missing || []).forEach((entry) => addWikiEntry(entry, []));
+
+	// A map label whose name matches no wiki region. It IS on the map, so it belongs in a list that
+	// asks "what is displayed where" -- it simply has no wiki side.
+	(wiki.unmatched_map_labels || []).forEach((label) => {
+		const row = emptyRow("label:" + String(label.public_id || label.name || ""), String(label.name || ""));
+		row.labels = [label];
+		// No wiki row means no continent field. Aventurien, like every other continent-less row
+		// (regionRowContinent in review-region-sync.js does the same).
+		row.continent = "Aventurien";
+		out.push(row);
+	});
+
+	// The drawn regions last: they either hang onto a wiki row that is already here, or they stand
+	// on their own.
+	(ecoRegions || []).forEach((region) => {
+		const key = String(region.wiki_region_key || "").trim();
+		const host = key !== "" ? byWikiKey.get(key) : null;
+		if (host) {
+			host.regions.push(region);
+			return;
+		}
+		const row = emptyRow("eco:" + String(region.public_id || ""), String(region.name || ""));
+		row.regions.push(region);
+		row.wikiKey = key;
+		row.wikiUrl = String(region.wiki_url || "");
+		row.continent = "Aventurien";
+		// ⚠️ A key that points at no staging row: the article was renamed or is a redirect. Writing
+		// would be correct and the row would still never show up under that wiki region -- so it is
+		// named here rather than quietly merged (docs/oekosystem-editor-verhalten.md §7a).
+		row.orphanKey = key !== "";
+		out.push(row);
+	});
+
+	out.forEach((row) => {
+		row.areaCount = row.regions.reduce((sum, area) => sum + Number(area.area_count || 0), 0);
+	});
+	out.sort((a, b) => a.name.localeCompare(b.name, "de"));
+	return out;
+}
+
+// Map-Darstellung: what a reader actually sees. „Fläche" asks for a DRAWN area, so a region row
+// with zero active areas counts as „keine" -- it exists in the list and not on the map, and a
+// region without areas is a valid state (Verhaltensdoku §10), not an error.
+function displayOf(row) {
+	const hasLabel = row.labels.length > 0;
+	const hasArea = row.areaCount > 0;
+	if (hasLabel && hasArea) { return "both"; }
+	if (hasLabel) { return "label"; }
+	if (hasArea) { return "area"; }
+	return "none";
+}
+const DISPLAY_LABEL = { label: "Label", area: "Fläche", both: "Label + Fläche", none: "nicht auf der Karte" };
+
+function rowKinds(row) {
+	return new Set(row.regions.map((area) => String(area.kind || "")).filter(Boolean));
+}
+
+// Everything except the tab: the tab is what the Art/continent option builders count WITHIN, so
+// they must see the tab applied but not the funnel's own section.
+function rowsForTab() {
+	return rows.filter((row) => activeKind === "" || rowKinds(row).has(activeKind));
+}
+
+function matchesSearch(row) {
+	const term = searchTerm.trim().toLowerCase();
+	if (term === "") { return true; }
+	return [row.name, row.art, row.wikiKey].concat(row.regions.map((a) => a.name))
+		.filter(Boolean).some((value) => String(value).toLowerCase().includes(term));
+}
+
+function visibleRows() {
+	return rowsForTab().filter((row) => {
+		if (!matchesSearch(row)) { return false; }
+		if (filterContinent.size > 0 && !filterContinent.has(row.continent)) { return false; }
+		if (filterWiki.value === "with" && row.wikiKey === "") { return false; }
+		if (filterWiki.value === "without" && row.wikiKey !== "") { return false; }
+		if (filterDisplay.value !== "" && displayOf(row) !== filterDisplay.value) { return false; }
+		if (filterArt.size > 0 && !row.regions.some((area) => filterArt.has(String(area.region_type || "")))) { return false; }
+		return true;
+	});
+}
+
+// Option builders read the LOADED rows and carry counts -- never a list written into the program.
+// A fixed list offers values that do not exist and swallows real ones, and an empty result then
+// looks exactly like "there is none" (review-subjects.js:79).
+function artOptions() {
+	const byType = new Map();
+	rowsForTab().forEach((row) => row.regions.forEach((area) => {
+		const type = String(area.region_type || "").trim();
+		if (type === "") { return; }
+		if (!byType.has(type)) { byType.set(type, { value: type, label: type, count: 0 }); }
+		byType.get(type).count += 1;
+	}));
+	return [...byType.values()].sort((a, b) => a.label.localeCompare(b.label, "de"));
+}
+
+function continentOptions() {
+	const byContinent = new Map();
+	rowsForTab().forEach((row) => {
+		if (!byContinent.has(row.continent)) { byContinent.set(row.continent, { value: row.continent, label: row.continent, count: 0 }); }
+		byContinent.get(row.continent).count += 1;
+	});
+	return [...byContinent.values()].sort((a, b) =>
+		/aventurien/i.test(a.value) ? -1 : /aventurien/i.test(b.value) ? 1 : a.label.localeCompare(b.label, "de"));
+}
+
+function displayOptions() {
+	const counted = { label: 0, area: 0, both: 0, none: 0 };
+	rowsForTab().forEach((row) => { counted[displayOf(row)] += 1; });
+	return [
+		{ value: "label", label: "nur Label", count: counted.label },
+		{ value: "area", label: "nur Fläche", count: counted.area },
+		{ value: "both", label: "Label + Fläche", count: counted.both },
+		{ value: "none", label: "keine", count: counted.none },
+	];
+}
+
+function wikiOptions() {
+	const withWiki = rowsForTab().filter((row) => row.wikiKey !== "").length;
+	return [
+		{ value: "with", label: "mit Wiki", count: withWiki },
+		{ value: "without", label: "ohne Wiki", count: rowsForTab().length - withWiki },
+	];
+}
+
+function renderList() {
+	const host = $("ecoList");
+	if (loadError) {
+		host.innerHTML = '<div class="avm-error">' + esc(loadError) + "</div>";
+		$("ecoSummary").textContent = "";
+		return;
+	}
+	const visible = visibleRows();
+	$("ecoSummary").textContent = visible.length === rowsForTab().length
+		? visible.length + " Regionen"
+		: visible.length + " von " + rowsForTab().length + " Regionen";
+	if (visible.length === 0) {
+		host.innerHTML = '<div class="avm-empty">' + (rows.length === 0 ? "Keine Regionen." : "Nichts gefunden.") + "</div>";
+		return;
+	}
+	host.innerHTML = visible.map((row) => {
+		const display = displayOf(row);
+		const kinds = [...rowKinds(row)].join(" · ");
+		const parts = [];
+		if (row.regions.length > 0) {
+			parts.push(row.regions.length + (row.regions.length === 1 ? " Region" : " Regionen") + " · " + row.areaCount + (row.areaCount === 1 ? " Fläche" : " Flächen"));
+		}
+		if (kinds) { parts.push(kinds); }
+		if (row.art) { parts.push(row.art); }
+		if (row.wikiKey === "") { parts.push("ohne Wiki-Eintrag"); }
+		return '<div class="avm-row' + (row.key === selectedKey ? " is-selected" : "") + '" data-key="' + esc(row.key) + '">'
+			+ '<div class="avm-row__text">'
+			+ '<div class="avm-row__l1"><span class="avm-row__name">' + esc(row.name) + "</span>"
+			+ '<span class="avm-pill' + (row.orphanKey ? " avm-pill--unresolved" : "") + '">'
+			+ esc(row.orphanKey ? "Schlüssel ohne Wiki-Zeile" : DISPLAY_LABEL[display]) + "</span></div>"
+			+ '<div class="avm-row__l2">' + esc(parts.join(" · ")) + "</div>"
+			+ "</div></div>";
+	}).join("");
+	host.querySelectorAll(".avm-row").forEach((element) => {
+		element.addEventListener("click", () => selectRow(element.getAttribute("data-key")));
+	});
+}
+
+function selectRow(key) {
+	selectedKey = key;
+	selectedPartnerId = null;   // a new region invalidates the pair column 3 was showing
+	renderList();
+	renderDetail();
+	renderPreview();
+}
+
+function wireTabs() {
+	$("ecoTabs").addEventListener("click", (event) => {
+		const tab = event.target.closest(".avm-tab");
+		if (!tab) { return; }
+		activeKind = tab.getAttribute("data-kind") || "";
+		$("ecoTabs").querySelectorAll(".avm-tab").forEach((element) => element.classList.toggle("is-active", element === tab));
+		// The Art values are per layer, so switching the tab changes which values exist at all. A
+		// selection carried over from the previous tab would filter against a vocabulary that is no
+		// longer offered -- and silently show nothing.
+		filterArt.clear();
+		rebuildFilterMenu();
+		renderList();
+	});
+	$("ecoSearch").addEventListener("input", () => { searchTerm = $("ecoSearch").value; renderList(); });
+}
+
+function wireFilters() {
+	rebuildFilterMenu = avmFilterMenuAttach("ecoFilterToggle", "ecoFilterMenu", [
+		{ menuId: "ecoFilterWiki", kind: "single", state: filterWiki, getOptions: wikiOptions },
+		{ menuId: "ecoFilterDisplay", kind: "single", state: filterDisplay, getOptions: displayOptions },
+		{ menuId: "ecoFilterArt", kind: "multi", state: filterArt, getOptions: artOptions },
+		{
+			menuId: "ecoFilterContinent", kind: "multi", state: filterContinent, getOptions: continentOptions,
+			// Aventurien is the map's identity, not a restriction -- it must not light the funnel's
+			// counter up on every load. Same exception the panel list makes.
+			isActive: () => !(filterContinent.size === 1 && filterContinent.has("Aventurien")) && filterContinent.size > 0,
+		},
+	], renderList);
+}
+
+// ---- Column 2: properties + the raycast ------------------------------------------------------
+// „Zugehörigkeit": which vegetation and topography lies in which derographic region. Computed here,
+// NEVER stored -- exactly like the conflict centre: a moved boundary corrects the answer by itself,
+// and a stored column would be a second truth about the same thing.
+//
+// Rule (owner 2026-07-27, measured): share of the SMALLER of the two areas, threshold 10 %.
+//   * "smaller of the two" also covers a mountain range running through several derographic regions
+//     -- measured as "share of the range" it would drop out everywhere.
+//   * NOT ">= 1 vertex": that misses a long forest crossing a region without having a corner in it,
+//     and it hangs on the raster tracing's simplify_ratio instead of on the geography.
+//   * Measured 47 ms for the whole live stock (124 areas x 20 regions) WITH the bounding-box
+//     pre-filter, which discards 94 % of the pairs before any clipping runs.
+const RAYCAST_THRESHOLD = 0.10;
+const AREAS_API = "/api/app/ecosystem-areas.php";   // no bbox = the whole stock, with geometry
+
+let allAreas = null;             // null = never loaded
+let raycast = null;              // Map<region_public_id, [{regionId, name, kind, regionType, share}]>
+let raycastNote = "";
+let selectedPartnerId = null;    // the region picked in "Gemeinsame Regionen mit"
+let moduleEnabled = null;        // null = not asked yet; the tile says so rather than guessing
+
+function boundsOverlap(a, b) {
+	return !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
+}
+
+// Region -> its areas, its total area, its bounds. One pass, so the pair loop below stays cheap.
+function groupAreasByRegion(areas) {
+	const byRegion = new Map();
+	areas.forEach((area) => {
+		const id = String(area.region_public_id || "");
+		if (id === "") { return; }
+		if (!byRegion.has(id)) {
+			byRegion.set(id, { regionId: id, name: String(area.region_name || ""), kind: String(area.kind || ""), regionType: String(area.region_type || ""), areas: [], total: 0 });
+		}
+		const entry = byRegion.get(id);
+		entry.areas.push(area);
+		entry.total += Math.abs(ecosystemGeometryArea(area.geometry));
+	});
+	return byRegion;
+}
+
+function computeRaycast(areas) {
+	const byRegion = groupAreasByRegion(areas);
+	const regions = [...byRegion.values()];
+	const result = new Map(regions.map((region) => [region.regionId, []]));
+	let pairsTested = 0, pairsClipped = 0;
+
+	for (let i = 0; i < regions.length; i++) {
+		for (let j = i + 1; j < regions.length; j++) {
+			const a = regions[i], b = regions[j];
+			let shared = 0;
+			for (const areaA of a.areas) {
+				for (const areaB of b.areas) {
+					pairsTested++;
+					// The pre-filter. Cheap, and it is what keeps the whole thing at 47 ms.
+					if (!boundsOverlap(areaA.bounds, areaB.bounds)) { continue; }
+					pairsClipped++;
+					try {
+						shared += Math.abs(ecosystemGeometryArea(ecosystemBooleanGeometry("intersection", areaA.geometry, areaB.geometry)));
+					} catch (error) {
+						// An EMPTY intersection is the normal case, not a fault: two bounding boxes may
+						// overlap while the polygons do not. ecosystemClippingToGeometry throws on an
+						// empty result, so it is caught here rather than aborting the whole run.
+					}
+				}
+			}
+			if (shared <= 0) { continue; }
+			// Share of the SMALLER region. Summed over the area pairs and divided by the smaller
+			// TOTAL, so a region made of several pieces is judged as one thing.
+			const share = shared / Math.max(1e-9, Math.min(a.total, b.total));
+			if (share < RAYCAST_THRESHOLD) { continue; }
+			result.get(a.regionId).push({ regionId: b.regionId, name: b.name, kind: b.kind, regionType: b.regionType, share });
+			result.get(b.regionId).push({ regionId: a.regionId, name: a.name, kind: a.kind, regionType: a.regionType, share });
+		}
+	}
+	// Sorted by share, biggest first -- the threshold is then a line one can argue about, not magic.
+	result.forEach((list) => list.sort((x, y) => y.share - x.share));
+	raycastNote = regions.length + " Regionen · " + pairsTested + " Paare geprüft · " + pairsClipped + " verschnitten";
+	return result;
+}
+
+async function loadAreas() {
+	const response = await fetch(AREAS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
+	const data = await response.json();
+	if (!response.ok || data.ok === false) {
+		throw new Error((data.error && data.error.message) || ("HTTP " + response.status));
+	}
+	// 🔴 The kill switch answers first: with app_setting['ecosystem_enabled'] off this endpoint
+	// returns an EMPTY list, not an error. Saying so beats showing "no overlaps".
+	if (data.ecosystem_enabled === false) {
+		throw new Error("Das Landschaftsmodul ist ausgeschaltet — der Lesepfad liefert keine Flächen. Im Menüband einschalten.");
+	}
+	return Array.isArray(data.areas) ? data.areas : [];
+}
+
+function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
+
+function percent(share) { return (share * 100).toFixed(1).replace(".", ",") + " %"; }
+
+const KIND_LABEL = { derographisch: "Derographische Region", vegetation: "Vegetation", topographie: "Topographie" };
+
+function renderDetail() {
+	const host = $("ecoDetail");
+	const row = rowByKey(selectedKey);
+	if (!row) {
+		host.innerHTML = '<div class="avm-empty">Links eine Region wählen.</div>';
+		return;
+	}
+	// Spec §3.5: Wappen → Bilder → Identität → Rest → Quellen. No coat and no images on a landscape
+	// region, so the order starts at Identität.
+	const parts = ['<div class="dt-grp">Identität</div><div class="dt-grid">'];
+	parts.push('<div class="k">Name</div><div>' + esc(row.name) + "</div>");
+	parts.push('<div class="k">Auto-Name</div><div>' + (isAutoName(row) ? "ja — interner Griff" : "nein") + "</div>");
+	parts.push('<div class="k">Art (Wiki)</div><div>' + (row.art ? esc(row.art) : "—") + "</div>");
+	parts.push('<div class="k">Kontinent</div><div>' + esc(row.continent) + "</div>");
+	parts.push('<div class="k">Map-Darstellung</div><div>' + esc(DISPLAY_LABEL[displayOf(row)]) + "</div>");
+	parts.push("</div>");
+
+	parts.push('<div class="dt-grp">Wiki-Landschaft</div><div class="dt-grid">');
+	if (row.wikiKey === "") {
+		// Not a defect: origin='own' is for areas that exist here and not in the wiki
+		// (docs/oekosystem-editor-verhalten.md §7).
+		parts.push('<div class="k">Zuweisung</div><div>ohne Wiki-Eintrag</div>');
+	} else {
+		parts.push('<div class="k">Schlüssel</div><div>' + esc(row.wikiKey) + (row.orphanKey ? ' <span class="avm-pill avm-pill--unresolved">keine Wiki-Zeile</span>' : "") + "</div>");
+		if (row.wikiUrl) {
+			parts.push('<div class="k">Artikel</div><div><a class="dt-link" href="' + esc(row.wikiUrl) + '" target="_blank" rel="noopener">' + esc(row.name) + " ↗</a></div>");
+		}
+	}
+	parts.push("</div>");
+
+	parts.push('<div class="dt-grp">Flächen</div><div class="dt-grid">');
+	if (row.regions.length === 0) {
+		parts.push('<div class="k">Gezeichnet</div><div>keine — steht in der Liste, ist auf der Karte nicht da</div>');
+	} else {
+		row.regions.forEach((area) => {
+			parts.push('<div class="k">' + esc(KIND_LABEL[area.kind] || area.kind) + "</div><div>" + esc(area.name)
+				+ " · " + Number(area.area_count || 0) + (Number(area.area_count) === 1 ? " Fläche" : " Flächen")
+				+ (area.region_type ? " · " + esc(area.region_type) : "") + "</div>");
+		});
+	}
+	parts.push("</div>");
+
+	// „Gemeinsame Regionen mit" -- the raycast result. Every entry is a BUTTON that picks the pair
+	// and drives column 3.
+	parts.push('<div class="dt-grp">Gemeinsame Regionen mit</div>');
+	if (raycast === null) {
+		parts.push('<div class="avm-empty">Noch nicht gerechnet — „Zugehörigkeit rechnen" im Menüband.</div>');
+	} else if (row.areaCount === 0) {
+		// areaCount, NOT regions.length: a region row WITHOUT active areas exists in the list and not
+		// on the map. "Keine Überschneidung" would claim it had been compared -- it had nothing to
+		// compare with.
+		parts.push('<div class="avm-empty">Ohne gezeichnete Fläche gibt es nichts zu verschneiden.</div>');
+	} else {
+		const partners = [];
+		const seen = new Set();
+		row.regions.forEach((area) => (raycast.get(String(area.public_id)) || []).forEach((hit) => {
+			if (seen.has(hit.regionId)) { return; }
+			seen.add(hit.regionId);
+			partners.push(hit);
+		}));
+		partners.sort((a, b) => b.share - a.share);
+		if (partners.length === 0) {
+			parts.push('<div class="avm-empty">Keine Überschneidung über ' + Math.round(RAYCAST_THRESHOLD * 100) + " %.</div>");
+		} else {
+			parts.push('<div class="eco-partners">' + partners.map((hit) =>
+				'<button type="button" class="eco-partner' + (hit.regionId === selectedPartnerId ? " is-selected" : "") + '" data-partner="' + esc(hit.regionId) + '">'
+				+ '<span class="eco-partner__name">' + esc(hit.name) + "</span>"
+				+ '<span class="eco-partner__meta">' + esc(KIND_LABEL[hit.kind] || hit.kind) + "</span>"
+				+ '<span class="eco-partner__share">' + percent(hit.share) + "</span></button>").join("") + "</div>");
+		}
+	}
+	host.innerHTML = parts.join("");
+	host.querySelectorAll(".eco-partner").forEach((button) => {
+		button.addEventListener("click", () => {
+			selectedPartnerId = button.getAttribute("data-partner");
+			renderDetail();
+			renderPreview();
+		});
+	});
+}
+
+// Auto-name: DERIVED from the name, never loaded -- "<Art>-<Zahl>" or it is not one. A stored column
+// would be a second truth about the same thing (Verhaltensdoku §7d).
+function isAutoName(row) {
+	return row.regions.some((area) => new RegExp("^" + String(area.region_type || "[a-zäöüß]+") + "-\\d+$", "i").test(row.name));
+}
+
+// ---- Column 3: intersection preview + Vorkommen ----------------------------------------------
+// 🪤 The TEMPLATE is the territory preview (js/territory/territory-derived-geometry-editor.js:576),
+// and it is a POLITICAL file: copied, never called (main plan, rule 1). Two differences on purpose:
+// there it was always a UNION, here it is the INTERSECTION of the chosen pair; and the colours come
+// from tokens instead of the hardcoded rgba() over there (AGENTS.md §12).
+function geometryToSvg(geometry, width, height, padding) {
+	// ⚠️ ecosystemGeometryBounds returns snake_case -- {min_x, min_y, max_x, max_y}, the same shape
+	// the API's `bounds` field carries -- and null for an empty geometry. Reading it as {minX, …}
+	// yields a path of NaN that still renders as an empty <svg>: silent, and invisible in a
+	// screenshot.
+	const bounds = ecosystemGeometryBounds(geometry);
+	if (!bounds) { return ""; }
+	const spanX = Math.max(0.000001, bounds.max_x - bounds.min_x);
+	const spanY = Math.max(0.000001, bounds.max_y - bounds.min_y);
+	const scale = Math.min((width - padding * 2) / spanX, (height - padding * 2) / spanY);
+	// GeoJSON y points up, SVG y points down -- flipped here, consciously (AGENTS.md §5).
+	const project = (position) => [
+		padding + (Number(position[0]) - bounds.min_x) * scale,
+		height - padding - (Number(position[1]) - bounds.min_y) * scale,
+	];
+	return ecosystemGeometryParts(geometry).map((part) => part.map((ring) =>
+		"M" + ring.map((position) => project(position).map((n) => n.toFixed(2)).join(" ")).join("L") + "Z"
+	).join(" ")).join(" ");
+}
+
+// 💣 row.regions holds ecosystem_region rows (from list_regions) -- they carry NO geometry and no
+// bounds. The drawn areas live in the payload of api/app/ecosystem-areas.php, so both sides of the
+// pair are looked up there by region_public_id.
+function areasOfRegions(regionRows) {
+	const ids = new Set(regionRows.map((region) => String(region.public_id)));
+	return (allAreas || []).filter((area) => ids.has(String(area.region_public_id)));
+}
+
+function pairIntersection(regionRows, partnerId) {
+	const ownAreas = areasOfRegions(regionRows);
+	const partnerAreas = (allAreas || []).filter((area) => String(area.region_public_id) === String(partnerId));
+	const pieces = [];
+	ownAreas.forEach((own) => partnerAreas.forEach((other) => {
+		if (!boundsOverlap(own.bounds, other.bounds)) { return; }
+		try { pieces.push(ecosystemBooleanGeometry("intersection", own.geometry, other.geometry)); } catch (error) { /* empty overlap */ }
+	}));
+	if (pieces.length === 0) { return null; }
+	return pieces.reduce((merged, piece) => (merged === null ? piece : ecosystemBooleanGeometry("union", merged, piece)), null);
+}
+
+// The bridge Vorkommen <-> Region runs over political_territory_wiki.geographic
+// (api/_internal/app/lore.php:599). 💣 The editor does NOT touch that table -- it calls the existing
+// public read path. Parameter (verified): ?place=<wiki_key WITHOUT the "wiki:" prefix, lowercased>,
+// exactly what avesmapsLoreNormalizeKey (map-features-lore.js:91) produces; &full=1 for whole lists.
+function loreKeyOf(row) {
+	const key = String(row.wikiKey || "").trim().toLowerCase().replace(/^wiki:/, "").replace(/^name:/, "");
+	return /^[a-z0-9_-]{1,190}$/.test(key) ? key : "";
+}
+
+const LORE_ROWS = [
+	{ kind: "ware", label: "Waren" },
+	{ kind: "fauna", label: "Fauna" },
+	{ kind: "flora", label: "Flora" },
+];
+
+async function loadLore(row) {
+	const key = loreKeyOf(row);
+	if (key === "") { return null; }
+	const response = await fetch("/api/app/lore.php?place=" + encodeURIComponent(key), { credentials: "same-origin", headers: { Accept: "application/json" } });
+	const data = await response.json();
+	return (data && data.ok === true) ? data : null;
+}
+
+function renderLoreInto(host, row, data) {
+	if (!data || !data.total) {
+		host.innerHTML = '<div class="avm-empty">Keine Vorkommen zu „' + esc(row.name) + '“.</div>';
+		return;
+	}
+	host.innerHTML = LORE_ROWS.map((entry) => {
+		const list = (data.sections && data.sections[entry.kind]) || [];
+		if (list.length === 0) { return ""; }
+		const count = (data.counts && data.counts[entry.kind]) || list.length;
+		return '<div class="dt-grp">' + entry.label + ' <span class="avm-pill">' + count + "</span></div>"
+			+ '<div class="avm-row__l2" style="white-space:normal;">'
+			+ list.map((item) => esc(String(item.name || item.titel || ""))).filter(Boolean).join(" · ") + "</div>";
+	}).join("") || '<div class="avm-empty">Keine Vorkommen zu „' + esc(row.name) + '“.</div>';
+}
+
+function renderPreview() {
+	const host = $("ecoPreview");
+	const row = rowByKey(selectedKey);
+	if (!row) {
+		host.innerHTML = '<div class="avm-empty">Links eine Region wählen.</div>';
+		return;
+	}
+	const parts = [];
+	parts.push('<div class="dt-grp">Schnittmenge</div>');
+	if (!selectedPartnerId) {
+		parts.push('<div class="avm-empty">In Spalte 2 eine gemeinsame Region wählen.</div>');
+	} else {
+		let geometry = null;
+		try { geometry = pairIntersection(row.regions, selectedPartnerId); } catch (error) { geometry = null; }
+		if (!geometry) {
+			parts.push('<div class="avm-empty">Keine Schnittfläche.</div>');
+		} else {
+			parts.push('<div class="eco-thumb"><svg viewBox="0 0 200 130" role="img" aria-label="Schnittmenge der beiden Regionen">'
+				+ '<path d="' + geometryToSvg(geometry, 200, 130, 8) + '" /></svg></div>');
+			parts.push('<div class="avm-row__l2">Fläche ' + Math.abs(ecosystemGeometryArea(geometry)).toFixed(2) + " Karteneinheiten²</div>");
+		}
+	}
+	parts.push('<div class="dt-grp">Vorkommen</div><div id="ecoLore"><div class="avm-empty">Wird geladen…</div></div>');
+	host.innerHTML = parts.join("");
+
+	const loreHost = $("ecoLore");
+	if (loreKeyOf(row) === "") {
+		loreHost.innerHTML = '<div class="avm-empty">Ohne Wiki-Eintrag gibt es keinen Ortsschlüssel — und damit nichts nachzuschlagen.</div>';
+		return;
+	}
+	const requestedFor = selectedKey;
+	loadLore(row).then((data) => {
+		if (selectedKey !== requestedFor) { return; }   // a later selection has overtaken this one
+		renderLoreInto(loreHost, row, data);
+	}).catch(() => {
+		if (selectedKey !== requestedFor) { return; }
+		loreHost.innerHTML = '<div class="avm-empty">Vorkommen konnten nicht geladen werden.</div>';
+	});
+}
+
+// ---- Ribbon ----------------------------------------------------------------------------------
+function wireRibbon() {
+	// Syncen delegates to the SAME machinery the tab's (now-hidden) "🚨 Syncen" button drove --
+	// window.parent.startWikiSyncKindSync("region") -- so there is exactly one sync_kind client loop
+	// in the app and not a second copy here. It has to live in this ribbon at all because the
+	// subject now shows the editor button INSTEAD of its sync button (wikiSyncSubjectButtonId returns
+	// one button per subject); same move the settlement and powerline editors made.
+	//
+	// ⚠️ startWikiSyncKindSync returns NOTHING and swallows its own errors (review-wiki-sync.js:1602
+	// catches and reports). So this line cannot tell success from failure and does not pretend to --
+	// the real outcome message rides the parent's toast (setWikiSyncStatus -> showFeedbackToast),
+	// which overlays instead of pushing. Identical handling to handleSeSyncenClick in
+	// html/wiki-sync-settlement-editor.html:2195; do not "fix" it here alone.
+	$("ecoSync").addEventListener("click", async () => {
+		let parentWindow;
+		try { parentWindow = window.parent; } catch (error) { parentWindow = null; }
+		if (!parentWindow || parentWindow === window || typeof parentWindow.startWikiSyncKindSync !== "function") {
+			flashStatus("Syncen ist nur im eingebetteten Editor verfügbar (nicht standalone geöffnet).", "bad");
+			return;
+		}
+		$("ecoSync").disabled = true;
+		try {
+			setStatus("🚨 Syncen (region) läuft …");
+			await parentWindow.startWikiSyncKindSync("region");
+			flashStatus("Syncen (region) abgeschlossen.", "ok");
+		} catch (error) {
+			flashStatus("Syncen (region) fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
+		} finally {
+			$("ecoSync").disabled = false;
+		}
+	});
+
+	// „Zugehörigkeit rechnen": loads the whole area stock once (no bbox) and runs the raycast.
+	// Deliberately on a button and not on load -- it is a read of every geometry in the house, and
+	// nobody should pay for it just by opening the editor.
+	$("ecoRaycast").addEventListener("click", async () => {
+		$("ecoRaycast").disabled = true;
+		try {
+			setStatus("Zugehörigkeit wird gerechnet …");
+			if (allAreas === null) { allAreas = await loadAreas(); }
+			raycast = computeRaycast(allAreas);
+			$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · Schwelle " + Math.round(RAYCAST_THRESHOLD * 100) + " %";
+			renderDetail();
+			renderPreview();
+			flashStatus("Zugehörigkeit gerechnet: " + raycastNote, "ok");
+		} catch (error) {
+			$("ecoRaycastInfo").textContent = "fehlgeschlagen";
+			flashStatus("Zugehörigkeit rechnen fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
+		} finally {
+			$("ecoRaycast").disabled = false;
+		}
+	});
+
+	// Der Totmannschalter. `set_enabled` existiert serverseitig seit V2.1 und hatte bis heute KEINEN
+	// Aufrufer im Client (grep set_enabled js/ -> leer) -- diese Kachel ist seine erste Oberfläche.
+	// Der Zustand steht IN der Kachel, nicht daneben.
+	$("ecoEnabled").addEventListener("click", async () => {
+		if (moduleEnabled === null) { return; }          // never toggle blind
+		const next = !moduleEnabled;
+		// Switching OFF empties the public read path for everyone -- that deserves a question, and
+		// the question has to name what happens, not ask "sind Sie sicher?".
+		if (!next && !window.confirm("Landschaftsmodul ausschalten?\n\nDer öffentliche Lesepfad liefert dann keine Flächen mehr — die Landschaften verschwinden für alle von der Karte. Gezeichnet bleibt alles; Einschalten holt es zurück.")) {
+			return;
+		}
+		$("ecoEnabled").disabled = true;
+		try {
+			setStatus(next ? "Landschaftsmodul wird eingeschaltet …" : "Landschaftsmodul wird ausgeschaltet …");
+			const result = await ecoPost("set_enabled", { enabled: next });
+			moduleEnabled = result.ecosystem_enabled === true;
+			renderEnabledTile();
+			flashStatus(moduleEnabled ? "Landschaftsmodul ist an." : "Landschaftsmodul ist aus.", "ok");
+		} catch (error) {
+			flashStatus("Schalten fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
+		} finally {
+			$("ecoEnabled").disabled = false;
+			renderEnabledTile();
+		}
+	});
+}
+
+// The tile IS the state display (Owner: status belongs in the button). Three states, and "unknown"
+// is one of them -- a switch that shows "aus" while it simply has not asked yet is a lie.
+function renderEnabledTile() {
+	const tile = $("ecoEnabled");
+	if (moduleEnabled === null) {
+		$("ecoEnabledT1").textContent = "Landschaftsmodul";
+		$("ecoEnabledInfo").textContent = "Zustand unbekannt";
+		tile.disabled = true;
+		tile.classList.remove("avm-tile--on");
+		return;
+	}
+	$("ecoEnabledT1").textContent = moduleEnabled ? "Landschaftsmodul AN" : "Landschaftsmodul AUS";
+	$("ecoEnabledInfo").textContent = moduleEnabled ? "Klick schaltet aus" : "Klick schaltet ein";
+	tile.disabled = false;
+	tile.classList.toggle("avm-tile--on", moduleEnabled);
+	tile.title = moduleEnabled
+		? "Die Landschaften-Ebene ist serverseitig eingeschaltet (app_setting['ecosystem_enabled']=1). Ausschalten leert den öffentlichen Lesepfad für alle."
+		: "Die Landschaften-Ebene ist serverseitig ausgeschaltet (app_setting['ecosystem_enabled']=0). Der öffentliche Lesepfad liefert keine Flächen.";
+}
+
+// The state comes from the PUBLIC read path, which answers `ecosystem_enabled` before anything else
+// -- no extra endpoint, and no write just to find out.
+async function loadModuleEnabled() {
+	try {
+		const response = await fetch(AREAS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
+		const data = await response.json();
+		moduleEnabled = data && data.ok === true ? data.ecosystem_enabled === true : null;
+		// The switched-off answer carries no areas, so nothing is cached from it.
+		if (moduleEnabled === true && Array.isArray(data.areas)) { allAreas = data.areas; }
+	} catch (error) {
+		moduleEnabled = null;
+	}
+	renderEnabledTile();
+}
+
+// ---- Load ------------------------------------------------------------------------------------
+async function loadWikiRegions() {
+	const response = await fetch(WIKI_REGIONS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
+	const data = await response.json();
+	if (!response.ok || data.ok === false) {
+		throw new Error((data.error && data.error.message) || data.error || ("HTTP " + response.status));
+	}
+	return data;
+}
+
+// ?demo=1 renders the whole column without a backend or a login -- same device as the powerline
+// editor. It exists because there is NO local database: every DB path is only verifiable live, so
+// the union logic above would otherwise be unmeasurable until it is deployed. One row per case the
+// union has to get right.
+function demoData() {
+	// Map space is 0..1024; GeoJSON stores [x, y] (AGENTS.md §5).
+	const rect = (publicId, regionId, regionName, kind, regionType, x1, y1, x2, y2) => ({
+		public_id: publicId, region_public_id: regionId, region_name: regionName, kind, region_type: regionType,
+		geometry: { type: "Polygon", coordinates: [[[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]]] },
+		bounds: { min_x: x1, min_y: y1, max_x: x2, max_y: y2 },
+	});
+	return {
+		// Chosen so the two halves of the raycast rule are both visible:
+		//   Heldentrutz x Blautann   -> 10 000 / 40 000 = 25 %  (a normal overlap)
+		//   Heldentrutz x Sichelwacht-> 2 500 / 2 500  = 100 %  (share of the SMALLER; measured
+		//                               against the larger it would be 6,25 % and drop out)
+		//   Wald-001                 -> no overlap at all
+		areas: [
+			rect("a3", "r3", "Heldentrutz", "topographie", "gebirge", 100, 100, 300, 300),
+			rect("a1", "r1", "Blautann", "vegetation", "wald", 200, 200, 400, 400),
+			rect("a2", "r2", "Blautann-Nord", "vegetation", "wald", 200, 400, 300, 500),
+			rect("a5", "r5", "Sichelwacht", "topographie", "gebirge", 120, 120, 170, 170),
+			rect("a4", "r4", "Wald-001", "vegetation", "wald", 700, 700, 800, 800),
+		],
+		eco: {
+			regions: [
+				// drawn + wiki + label: the complete case
+				{ public_id: "r1", name: "Blautann", kind: "vegetation", region_type: "wald", wiki_region_key: "wiki:blautann", wiki_url: "https://…/Blautann", area_count: 2 },
+				// second drawn region on the SAME wiki key -- normal, not a collision
+				{ public_id: "r2", name: "Blautann-Nord", kind: "vegetation", region_type: "wald", wiki_region_key: "wiki:blautann", wiki_url: "https://…/Blautann", area_count: 1 },
+				// drawn + wiki, no map label
+				{ public_id: "r3", name: "Heldentrutz", kind: "topographie", region_type: "gebirge", wiki_region_key: "wiki:heldentrutz", wiki_url: "https://…/Heldentrutz", area_count: 3 },
+				// drawn, no wiki at all (origin='own') -- a valid state, not a defect
+				{ public_id: "r4", name: "Wald-001", kind: "vegetation", region_type: "wald", wiki_region_key: null, wiki_url: null, area_count: 1 },
+				// drawn, key points at no staging row (renamed article / redirect)
+				{ public_id: "r5", name: "Sichelwacht", kind: "topographie", region_type: "gebirge", wiki_region_key: "wiki:sichelwacht-alt", wiki_url: "https://…/Sichelwacht", area_count: 1 },
+				// a region WITHOUT areas: in the list, not on the map
+				{ public_id: "r6", name: "Nebelmoor", kind: "derographisch", region_type: "sumpf", wiki_region_key: null, wiki_url: null, area_count: 0 },
+			],
+		},
+		wiki: {
+			matched: [
+				{ wiki_key: "wiki:blautann", name: "Blautann", art: "Wald", continent: "Aventurien", wiki_url: "https://…/Blautann", label: { public_id: "L1", name: "Blautann", subtype: "wald" } },
+				{ wiki_key: "wiki:svelltal", name: "Svelltal", art: "Tal", continent: "Aventurien", wiki_url: "https://…/Svelltal", label: { public_id: "L2", name: "Svelltal", subtype: "tal" } },
+			],
+			ambiguous: [
+				{ wiki_key: "wiki:bornland", name: "Bornland", art: "Region", continent: "Aventurien", wiki_url: "https://…/Bornland", labels: [{ public_id: "L3", name: "Bornland", subtype: "region" }, { public_id: "L4", name: "Bornland", subtype: "region" }] },
+			],
+			missing: [
+				{ wiki_key: "wiki:heldentrutz", name: "Heldentrutz", art: "Gebirge", continent: "Aventurien", wiki_url: "https://…/Heldentrutz" },
+				{ wiki_key: "wiki:gorische-wueste", name: "Gorische Wüste", art: "Wüste", continent: "Aventurien", wiki_url: "https://…/Gor" },
+				{ wiki_key: "wiki:myranor-nord", name: "Nordmyranor", art: "Region", continent: "Myranor", wiki_url: "https://…/Myranor" },
+			],
+			unmatched_map_labels: [
+				{ public_id: "L9", name: "Trollzacken", subtype: "gebirge" },
+			],
+		},
+	};
+}
+
+async function loadData() {
+	loadError = "";
+	setStatus("Regionen werden geladen …");
+	if (new URLSearchParams(location.search).has("demo")) {
+		const demo = demoData();
+		rows = buildRows(demo.eco.regions, demo.wiki);
+		allAreas = demo.areas;
+		raycast = computeRaycast(allAreas);
+		moduleEnabled = true;
+		renderEnabledTile();
+		$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · Schwelle " + Math.round(RAYCAST_THRESHOLD * 100) + " %";
+		rebuildFilterMenu();
+		renderList();
+		setStatus(statusCountsText());
+		return;
+	}
+	try {
+		// Both halves in parallel -- they are independent reads and the list needs both to exist.
+		// list_regions WITHOUT `kind`: the payload's kind filter is optional, and the tabs filter in
+		// the browser, so one request covers all three layers.
+		const [eco, wiki] = await Promise.all([ecoPost("list_regions", {}), loadWikiRegions()]);
+		rows = buildRows(eco.regions || [], wiki);
+		rebuildFilterMenu();
+		renderList();
+		setStatus(statusCountsText());
+	} catch (error) {
+		rows = [];
+		loadError = "Regionen konnten nicht geladen werden: " + (error && error.message ? error.message : String(error));
+		renderList();
+		setStatus(loadError, "bad");
+	}
+}
+
+// ---- Boot ------------------------------------------------------------------------------------
+function boot() {
+	wireRibbon();
+	wireTabs();
+	wireFilters();
+	renderEnabledTile();
+	loadData();
+	// Independent of the list: the switch must say what it is even if the lists fail to load.
+	if (!new URLSearchParams(location.search).has("demo")) { loadModuleEnabled(); }
+}
+if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", boot); } else { boot(); }
+
+})();
+</script>
+</body>
+</html>
