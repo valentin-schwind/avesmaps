@@ -109,6 +109,42 @@
 	content: "\2715";
 }
 
+/* 🔴 DIESELBEN GLYPHEN wie im Herrschaftsgebiete-Menü darunter, Zeichen für Zeichen. Die Editoren
+   kennen dieses Menü seit Monaten; eine Fläche zu vereinigen muss aussehen wie ein Gebiet zu
+   vereinigen, sonst lernen sie zwei Vokabulare für dieselbe Geste. Reihenfolge und Wortlaut ziehen
+   dort ebenso nach (map-features-ecosystem-geometry-ops.js). */
+.map-context-menu__item[data-ecosystem-area-action="ecosystem-properties"]::before {
+	content: "\2699";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="move"]::before {
+	content: "\2725";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="split"]::before {
+	content: "\2571";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="union"]::before {
+	content: "\222A";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="difference"]::before {
+	content: "\2212";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="difference-keep-target"]::before {
+	content: "\2296";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="intersection"]::before {
+	content: "\2229";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="extract"]::before {
+	content: "\2702";
+}
+
 .map-context-menu__item[data-region-context-action="edit-geometry"]::before {
 	content: "\270E";
 }

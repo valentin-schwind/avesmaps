@@ -206,6 +206,12 @@
 	   colour says "which area", the contour says "what can I do with it". White because it reads on
 	   every one of the ten ground tones below/above it; pinned for the usual reason (light tiles). */
 	--color-ecosystem-selected-outline: #ffffff;
+	/* Das Ziel, über dem die Maus bei einer laufenden booleschen Operation steht. Blasses Gold, damit es
+	   sich von der weissen Auswahlkontur darüber unterscheidet und trotzdem auf allen zehn Grundtönen
+	   liest. Wert übernommen aus der Territorien-Hervorhebung, die ihn hartkodiert im setStyle stehen
+	   hat (map-features-region-pending-highlight.js:16) -- hier steht er einmal als Token, damit die
+	   beiden Ebenen nicht auseinanderlaufen. Gepinnt wie die Nachbarn: liegt auf hellen Kacheln. */
+	--color-ecosystem-target-outline: #fff4a3;
 	/* The paper the map is drawn on. The "Untergrund" slider fades the base tiles out towards THIS, so
 	   at 0% the frame looks like no base map at all and the drawn areas stand alone (Owner 2026-07-26).
 	   Pinned white, deliberately NOT --color-panel: this is map surface, not a panel, and in the dark

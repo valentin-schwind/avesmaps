@@ -162,6 +162,30 @@ function setSelectedEcosystemArea(publicId) {
 	if (typeof syncEcosystemGeometryEdit === "function") {
 		syncEcosystemGeometryEdit();
 	}
+	syncEcosystemDoubleClickZoom();
+}
+
+// 🔴 Solange eine Fläche ausgewählt ist, gezeichnet oder bearbeitet wird, zoomt ein Doppelklick NICHT.
+// Wer neben eine Kante trifft, hat sich verklickt -- und bekam bisher als Antwort einen Zoomsprung, der
+// die Karte unter der Arbeit wegzieht (Owner 2026-07-27).
+//
+// 💣 EINE Stelle entscheidet, nicht drei. Leaflets doubleClickZoom zählt nicht mit: der Editor schaltet
+// es beim Öffnen aus und beim Schliessen wieder an, und läge die Auswahl-Regel daneben, hätte ein
+// geschlossener Ecken-Vorgang den Zoom auf einer noch ausgewählten Fläche wieder scharf gemacht.
+// Deshalb fragt diese Funktion ALLE drei Zustände ab, und die anderen rufen sie, statt selbst zu
+// schalten.
+function syncEcosystemDoubleClickZoom() {
+	if (typeof map === "undefined" || !map || !map.doubleClickZoom) {
+		return;
+	}
+	const selected = Boolean(selectedEcosystemAreaPublicId);
+	const editing = typeof activeEcosystemGeometryEdit !== "undefined" && Boolean(activeEcosystemGeometryEdit);
+	const drawing = typeof isEcosystemDrawing === "function" && isEcosystemDrawing();
+	if (selected || editing || drawing) {
+		map.doubleClickZoom.disable();
+	} else {
+		map.doubleClickZoom.enable();
+	}
 }
 
 function getSelectedEcosystemAreaPublicId() {
@@ -199,6 +223,9 @@ function buildEcosystemAreaLayer(area) {
 		if (event?.originalEvent && typeof L?.DomEvent?.stopPropagation === "function") {
 			L.DomEvent.stopPropagation(event);
 		}
+		// Der Schwebezettel hat seine Arbeit getan, sobald geklickt wurde -- er ist eine Vorschau auf das,
+		// was der Klick trifft. Er bleibt sonst stehen und legt sich über das, was danach aufgeht.
+		layer.closeTooltip?.();
 		// 🔴 Läuft gerade eine Zwei-Flächen-Operation, IST dieser Klick die Zielwahl -- nicht das
 		// gewohnte Auswählen. Dieselbe Bauart wie der isEcosystemDrawing()-Riegel oben: eine Geste, die
 		// den Klick schon vergeben hat, bekommt ihn zuerst. Gewacht, damit diese Datei ohne
@@ -258,6 +285,9 @@ function buildEcosystemAreaLayer(area) {
 		if (event?.originalEvent) {
 			L.DomEvent.stop(event);
 		}
+		// 💣 VOR dem Öffnen des Menüs. Der Zettel ist `sticky` und hängt am Zeiger -- genau dort, wo das
+		// Menü aufgeht. Er verdeckte sonst die oberen Einträge (Owner-Screenshot 2026-07-27).
+		layer.closeTooltip?.();
 		window.AvesmapsEcosystemAreaMenu.open(area, event);
 	});
 

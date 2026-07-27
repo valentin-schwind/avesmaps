@@ -21,13 +21,17 @@
 (function initEcosystemGeometryOps() {
 	"use strict";
 
-	// Zwei-Flächen-Operationen: Quelle wählen, Ziel anklicken. Reihenfolge und Wortlaut nach dem
-	// Territorien-Menü, damit niemand zwei Vokabulare lernen muss.
+	// Zwei-Flächen-Operationen: Quelle wählen, Ziel anklicken.
+	//
+	// 🔴 WORTLAUT UND REIHENFOLGE SIND VOM HERRSCHAFTSGEBIETE-MENÜ ABGESCHRIEBEN (index.html:268-278),
+	// nicht neu erfunden: „Von anderem ausschneiden" heisst hier „Von anderer ausschneiden", weil eine
+	// Fläche weiblich ist -- mehr Unterschied gibt es nicht. Die Editoren bedienen jenes Menü seit
+	// Monaten; zwei Vokabulare für dieselbe Geste wäre die eigentliche Zumutung.
 	const TARGET_OPERATIONS = [
-		{ action: "union", label: "Mit anderer Fläche vereinigen" },
-		{ action: "difference", label: "Von anderer Fläche ausschneiden" },
-		{ action: "difference-keep-target", label: "Ausschneiden, andere behalten" },
-		{ action: "intersection", label: "Schnittmenge mit anderer Fläche" },
+		{ action: "union", label: "Mit anderer vereinigen" },
+		{ action: "difference", label: "Von anderer ausschneiden" },
+		{ action: "difference-keep-target", label: "Von anderer ausschneiden und andere beibehalten" },
+		{ action: "intersection", label: "Neue von anderer ausschneiden" },
 	];
 
 	// Der laufende Zustand. null = nichts vorgemerkt.
@@ -156,6 +160,7 @@
 			previewGeometry(pending.sourcePublicId, pending.moveGeometry);
 		}
 		pending = null;
+		clearTargetHighlight();
 		if (typeof map !== "undefined" && map && typeof map.off === "function") {
 			map.off("click", handleMapClick);
 			map.off("mousemove", handleMapMouseMove);
@@ -185,6 +190,61 @@
 			if (typeof setSelectedEcosystemArea === "function") {
 				setSelectedEcosystemArea("");
 			}
+		});
+	}
+
+	// ---- Ziel-Hervorhebung ---------------------------------------------------------------------------
+	// Während eine Zwei-Flächen-Operation läuft, bekommt die Fläche unter der Maus eine goldene Kontur:
+	// dieselbe Auskunft, die das Herrschaftsgebiete-Menü gibt („welche erwische ich, wenn ich klicke").
+	//
+	// Über eine KLASSE, nicht über layer.setStyle wie dort: die Territorien schreiben `#fff4a3` inline
+	// ins JS (region-pending-highlight.js:16) und müssen den alten Stil hinterher von Hand
+	// wiederherstellen. Eine Klasse kennt der Landschafts-Layer ohnehin (ecosystem-area--selected), sie
+	// braucht kein Zurückschreiben und die Farbe steht als Token da, wo Farben hingehören.
+	let highlightBound = false;
+
+	function targetHighlightElement(publicId) {
+		const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+			? ecosystemLayers.get(String(publicId || ""))
+			: null;
+		return typeof layer?.getElement === "function" ? layer.getElement() : null;
+	}
+
+	function clearTargetHighlight() {
+		document.querySelectorAll(".ecosystem-area--target")
+			.forEach((element) => element.classList.remove("ecosystem-area--target"));
+	}
+
+	// Einmal für alle Flächen, delegiert: die Ebenen werden beim Schwenken neu gebaut, ein Listener je
+	// Ebene wäre nach dem ersten Nachladen tot.
+	//
+	// 💣 AUF `document`, NICHT auf `.ecosystem-pane`. Davon gibt es DREI -- eine je Ebene
+	// (ECOSYSTEM_KIND_PANES) --, und `querySelector` liefert immer die erste, die derographische. Genau
+	// so hing der Listener zuerst an der falschen Pane und die Vegetationsflächen leuchteten nie auf.
+	function bindTargetHighlight() {
+		if (highlightBound) {
+			return;
+		}
+		highlightBound = true;
+		document.addEventListener("mouseover", (event) => {
+			if (!pending || pending.operation === "split" || pending.operation === "move") {
+				return;
+			}
+			// Nur Landschaftsflächen -- eine politische Grenze oder ein Weg unter dem Zeiger ist kein Ziel.
+			const path = event.target?.closest?.(".ecosystem-pane path.leaflet-interactive");
+			if (!path) {
+				return;
+			}
+			// Die Quelle ist nicht ihr eigenes Ziel.
+			const sourceElement = targetHighlightElement(pending.sourcePublicId);
+			clearTargetHighlight();
+			if (path !== sourceElement) {
+				path.classList.add("ecosystem-area--target");
+			}
+		});
+		document.addEventListener("mouseout", (event) => {
+			const path = event.target?.closest?.(".ecosystem-pane path.leaflet-interactive");
+			path?.classList.remove("ecosystem-area--target");
 		});
 	}
 
@@ -381,69 +441,64 @@
 
 	// ---- Menüeinträge -------------------------------------------------------------------------------
 
+	// 🪤 addEntry hängt JEDEN Eintrag vor „Fläche löschen" -- die Reihenfolge ist also die der
+	// Registrierung. Sie folgt Zeile für Zeile dem Territorien-Menü: erst Verschieben und Zerschneiden,
+	// DANN die vier booleschen, zuletzt das Herauslösen. Wer hier etwas einschiebt, verschiebt es dort
+	// mit.
 	function registerEntries() {
 		const menu = window.AvesmapsEcosystemAreaMenu;
 		if (!menu?.addEntry) {
 			return;
 		}
 
-		TARGET_OPERATIONS.forEach((entry) => {
-			menu.addEntry({
-				action: entry.action,
-				label: typeof tr === "function" ? tr(`ecosystem.ctxmenu.${entry.action}`, entry.label) : entry.label,
-				onClick: (publicId) => {
-					startPending(entry.action, publicId);
-					if (typeof map !== "undefined" && map) {
-						map.on("click", handleMapClick);
-					}
-					say("Jetzt die zweite Fläche anklicken. ESC bricht ab.", "info");
-				},
+		const entry = (action, german, onClick) => menu.addEntry({
+			action,
+			label: typeof tr === "function" ? tr(`ecosystem.ctxmenu.${action}`, german) : german,
+			onClick,
+		});
+
+		entry("move", "Verschieben", (publicId) => {
+			const area = areaByPublicId(publicId);
+			if (!area || !lastContextLatLng) {
+				say("Die Fläche ist nicht mehr geladen.", "warning");
+				return;
+			}
+			try {
+				startPending("move", publicId, {
+					moveGeometry: areaGeometry(area),
+					moveOrigin: { x: lastContextLatLng.x, y: lastContextLatLng.y },
+				});
+			} catch (error) {
+				failed(error);
+				return;
+			}
+			if (typeof map !== "undefined" && map) {
+				map.on("mousemove", handleMapMouseMove);
+				map.on("click", handleMapClick);
+			}
+			say("Fläche verschieben. Klick speichert, ESC bricht ab.", "info");
+		});
+
+		entry("split", "Fläche zerschneiden", (publicId) => {
+			startPending("split", publicId, { points: [] });
+			if (typeof map !== "undefined" && map) {
+				map.on("click", handleMapClick);
+			}
+			say("Ersten Schnittpunkt setzen. ESC bricht ab.", "info");
+		});
+
+		TARGET_OPERATIONS.forEach((operation) => {
+			entry(operation.action, operation.label, (publicId) => {
+				startPending(operation.action, publicId);
+				if (typeof map !== "undefined" && map) {
+					map.on("click", handleMapClick);
+				}
+				bindTargetHighlight();
+				say("Jetzt die zweite Fläche anklicken. ESC bricht ab.", "info");
 			});
 		});
 
-		menu.addEntry({
-			action: "split",
-			label: typeof tr === "function" ? tr("ecosystem.ctxmenu.split", "Fläche zerschneiden") : "Fläche zerschneiden",
-			onClick: (publicId) => {
-				startPending("split", publicId, { points: [] });
-				if (typeof map !== "undefined" && map) {
-					map.on("click", handleMapClick);
-				}
-				say("Ersten Schnittpunkt setzen. ESC bricht ab.", "info");
-			},
-		});
-
-		menu.addEntry({
-			action: "extract",
-			label: typeof tr === "function" ? tr("ecosystem.ctxmenu.extract", "Teil herauslösen") : "Teil herauslösen",
-			onClick: (publicId) => void runExtract(publicId),
-		});
-
-		menu.addEntry({
-			action: "move",
-			label: typeof tr === "function" ? tr("ecosystem.ctxmenu.move", "Verschieben") : "Verschieben",
-			onClick: (publicId) => {
-				const area = areaByPublicId(publicId);
-				if (!area || !lastContextLatLng) {
-					say("Die Fläche ist nicht mehr geladen.", "warning");
-					return;
-				}
-				try {
-					startPending("move", publicId, {
-						moveGeometry: areaGeometry(area),
-						moveOrigin: { x: lastContextLatLng.x, y: lastContextLatLng.y },
-					});
-				} catch (error) {
-					failed(error);
-					return;
-				}
-				if (typeof map !== "undefined" && map) {
-					map.on("mousemove", handleMapMouseMove);
-					map.on("click", handleMapClick);
-				}
-				say("Fläche verschieben. Klick speichert, ESC bricht ab.", "info");
-			},
-		});
+		entry("extract", "Neue Fläche herauslösen", (publicId) => void runExtract(publicId));
 	}
 
 	// ---- Verdrahtung --------------------------------------------------------------------------------
@@ -474,6 +529,41 @@
 		if (event.key === "Escape" && pending) {
 			cancelPending();
 		}
+	}, true);
+
+	// „Neue Fläche herauslösen" hat bei einer EINteiligen Fläche kein Ziel -- es gibt nichts zum
+	// Herauslösen, und der Aufruf würde nur mit „das ist der einzige Teil" antworten. Das
+	// Herrschaftsgebiete-Menü blendet seinen extract-Eintrag aus demselben Grund aus
+	// (map-features-region-context-menu.js:21, `layerCount > 1`). Läuft im Capture, also bevor das
+	// Menü sichtbar wird -- sonst blitzte der Eintrag kurz auf.
+	// 🪤 Die Fläche kommt aus dem ELEMENT unter dem Zeiger, nicht aus der Auswahl: dieser Listener läuft
+	// im Capture und damit VOR dem contextmenu der Ebene, das die Auswahl erst setzt. Über
+	// getSelectedEcosystemAreaPublicId() hinge der Eintrag immer eine Fläche hinterher.
+	function areaUnderElement(element) {
+		if (!element || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+			return null;
+		}
+		for (const layer of ecosystemLayers.values()) {
+			if (typeof layer?.getElement === "function" && layer.getElement() === element) {
+				return layer._ecosystemArea || null;
+			}
+		}
+		return null;
+	}
+
+	document.addEventListener("contextmenu", (event) => {
+		const button = document.querySelector('[data-ecosystem-area-action="extract"]');
+		if (!button) {
+			return;
+		}
+		const area = areaUnderElement(event.target?.closest?.("path.leaflet-interactive"));
+		let parts = 0;
+		try {
+			parts = area ? ecosystemGeometryParts(areaGeometry(area)).length : 0;
+		} catch (error) {
+			parts = 0;
+		}
+		button.hidden = parts < 2;
 	}, true);
 
 	if (typeof window !== "undefined") {

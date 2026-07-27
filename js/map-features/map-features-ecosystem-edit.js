@@ -712,7 +712,6 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 		map.off("mousemove", handleEcosystemEditMouseMove);
 		map.off("mouseout", clearEcosystemEditEdgeHover);
 		map.off("dblclick", handleEcosystemEditFinishDoubleClick);
-		map.doubleClickZoom.enable();
 	}
 
 	if (flush && JSON.stringify(session.geometry) !== session.savedGeometryJson) {
@@ -723,6 +722,15 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 
 	activeEcosystemGeometryEdit = null;
 	syncEcosystemMapEditingClass();
+	// 💣 ERST HIER, nach dem Nullen der Sitzung: die Funktion fragt genau diesen Zustand ab, und oben
+	// gerufen hätte sie sich selbst noch als „bearbeitet gerade" gesehen und den Zoom für immer
+	// abgeschaltet gelassen. Sie entscheidet auch NICHT stumpf auf enable() -- ist die Fläche weiterhin
+	// ausgewählt, bleibt der Doppelklick-Zoom aus (map-features-ecosystem-rendering.js).
+	if (typeof syncEcosystemDoubleClickZoom === "function") {
+		syncEcosystemDoubleClickZoom();
+	} else if (typeof map !== "undefined" && map) {
+		map.doubleClickZoom.enable();
+	}
 }
 
 // A double-click that did NOT land on an area finishes the session. A double-click ON an area never
