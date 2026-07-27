@@ -183,6 +183,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.properties.identity": "Identity",
 	"ecosystem.properties.nameLabel": "Name *",
 	"ecosystem.properties.autoName": "Auto name",
+	"ecosystem.properties.showName": "Show region name",
 	"ecosystem.properties.typeLabel": "Kind",
 	"ecosystem.properties.wikiTitle": "Wiki landscape",
 	"ecosystem.properties.wikiSync": "Sync",

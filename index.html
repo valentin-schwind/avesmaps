@@ -802,6 +802,13 @@
 							<input id="ecosystem-properties-autoname" name="autoname" type="checkbox" />
 							<span data-i18n="ecosystem.properties.autoName">Auto-Name</span>
 						</label>
+						<!-- Jede Region HAT ihr Karten-Label (am Point of Inaccessibility); dieser Haken
+						     entscheidet nur, ob es gezeichnet wird. Ausblenden statt löschen, damit Ort,
+						     Größe, Drehung und Zoom-Band beim Wiedereinschalten noch da sind. -->
+						<label class="ecosystem-properties-dialog__checkbox">
+							<input id="ecosystem-properties-showname" name="show_name" type="checkbox" />
+							<span data-i18n="ecosystem.properties.showName">Regionname anzeigen</span>
+						</label>
 						<label class="ecosystem-properties-dialog__field">
 							<span data-i18n="ecosystem.properties.typeLabel">Art</span>
 							<!-- Aus ecosystem_region_type DIESER Ebene, nie aus einer Liste im Client. -->

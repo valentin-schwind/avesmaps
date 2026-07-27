@@ -304,12 +304,14 @@ async function saveEcosystemAreaRing(ring) {
 		if (typeof invalidateEcosystemRegionCache === "function") {
 			invalidateEcosystemRegionCache();
 		}
-		// 🔴 Eine DEROGRAPHISCHE Region bekommt automatisch ihr Karten-Label (Owner 2026-07-27) -- am
-		// Point of Inaccessibility, mit denselben Eigenschaften wie jedes andere Label. Vegetation und
-		// Topographie bekommen keins von selbst; sie dürfen eins haben, aber es ist kein Automatismus.
-		if (kind === "derographisch") {
-			await createEcosystemRegionLabel(regionPublicId, geometry, name);
-		}
+		// 🔴 JEDE Region bekommt automatisch ihr Karten-Label (Owner 2026-07-27) -- am Point of
+		// Inaccessibility, mit denselben Eigenschaften wie jedes andere Label.
+		//
+		// GEZEICHNET wird zunächst nur das der derographischen: dort ist die Beschriftung die Regel, bei
+		// Wäldern und Seen wäre sie sofort ein volles Kartenbild. Das Label ist trotzdem da, mit Ort,
+		// Größe und Zoom-Band -- der Haken „Regionname anzeigen" im Eigenschaften-Dialog schaltet es
+		// sichtbar, ohne dass etwas neu entstehen muss.
+		await createEcosystemRegionLabel(regionPublicId, geometry, name, kind === "derographisch");
 
 		const areaPublicId = String(created?.area?.public_id || "");
 		if (areaPublicId && window.AvesmapsEcosystemProperties?.open) {
@@ -340,7 +342,7 @@ async function saveEcosystemAreaRing(ring) {
 //
 // 🪤 Schlägt das Label fehl, bleibt die FLÄCHE trotzdem stehen. Sie ist das, was gezeichnet wurde;
 // eine fehlende Beschriftung ist ärgerlich, eine verlorene Geometrie wäre der Verlust.
-async function createEcosystemRegionLabel(regionPublicId, geometry, text) {
+async function createEcosystemRegionLabel(regionPublicId, geometry, text, showName) {
 	if (typeof avesmapsComputeLabelPoint !== "function" || typeof submitMapFeatureEdit !== "function") {
 		return;
 	}
@@ -361,6 +363,7 @@ async function createEcosystemRegionLabel(regionPublicId, geometry, text) {
 			min_zoom: 0,
 			max_zoom: 5,
 			priority: 3,
+			show_name: Boolean(showName),
 			lat: point.y,
 			lng: point.x,
 		});

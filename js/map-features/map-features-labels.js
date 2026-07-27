@@ -11,6 +11,9 @@ function normalizeLabelFeature(feature) {
 		maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 7),
 		priority: Number(properties.priority ?? feature.priority ?? 3),
 		isNodix: Boolean(properties.is_nodix ?? feature.is_nodix),
+		// 🔴 Fehlt der Schlüssel, heisst das SICHTBAR. Die 543 Labels von vor dem 2026-07-27 tragen ihn
+		// nicht, und `Boolean(undefined)` hätte sie alle auf einen Schlag von der Karte genommen.
+		showName: (properties.show_name ?? feature.show_name) !== false,
 		revision: Number(properties.revision ?? feature.revision) || null,
 		wikiRegion: properties.wiki_region && typeof properties.wiki_region === "object" ? properties.wiki_region : null,
 		otherSource: readFeatureOtherSource(properties),
@@ -525,6 +528,13 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// Haken aus -> immer weg. `return false` und NICHT `return box.checked`: ein wahrheitswertiges
 	// Vorab-return wuerde Zoomband und Culling mit aushebeln; false kann nur verbergen, nie zeigen.
 	if (editorOverride === false) {
+		return false;
+	}
+
+	// „Regionname anzeigen" aus -> das Label bleibt bestehen, wird aber nicht gezeichnet. Wie der
+	// Editor-Riegel darüber ein `return false` und keine wahrheitswertige Bedingung: es darf nur
+	// verbergen, nie zeigen, sonst höbe es Zoomband und Culling mit aus.
+	if (entry.label.showName === false) {
 		return false;
 	}
 

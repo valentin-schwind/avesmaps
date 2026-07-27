@@ -374,6 +374,9 @@
 			typeSelect.appendChild(new Option("— ohne Art —", "", true, true));
 			typeSelect.disabled = true;
 		}
+		// Anders als der Auto-Name-Haken braucht dieser hier KEIN Art-Vokabular -- er hängt allein am
+		// verbundenen Label. Deshalb sofort, nicht erst nach list_regions.
+		syncPropertiesShowName(area);
 		renderWikiReference();
 
 		overlayElement.hidden = false;
@@ -428,6 +431,29 @@
 	//
 	// 🪤 Scheitert es, ist das eine Meldung und kein Abbruch: die Region IST gespeichert, und ein
 	// zurückgerollter Namen wäre die schlechtere Antwort als ein Label, das hinterherhinkt.
+	// Das verbundene Label, so wie der Label-Layer es hält -- oder null, wenn die Region keins hat oder
+	// es (noch) nicht geladen ist.
+	function linkedEcosystemLabelEntry(area) {
+		const labelPublicId = String(area?.label_public_id || "");
+		if (!labelPublicId || typeof findLabelEntryByPublicId !== "function") {
+			return null;
+		}
+		return findLabelEntryByPublicId(labelPublicId);
+	}
+
+	// Der Haken steht auf dem Zustand des Labels, nicht auf einer Vorgabe. Hat die Region gar kein Label,
+	// ist er tot -- es gibt nichts zu zeigen oder zu verbergen, und ein bedienbarer Haken ohne Wirkung
+	// wäre schlimmer als ein grauer.
+	function syncPropertiesShowName(area) {
+		const box = propertiesElement("showname");
+		if (!box) {
+			return;
+		}
+		const entry = linkedEcosystemLabelEntry(area);
+		box.disabled = !entry;
+		box.checked = Boolean(entry) && entry.label?.showName !== false;
+	}
+
 	async function renameLinkedEcosystemLabel(area, name) {
 		const labelPublicId = String(area?.label_public_id || "");
 		if (!labelPublicId || typeof submitMapFeatureEdit !== "function"
@@ -436,8 +462,13 @@
 		}
 		const entry = findLabelEntryByPublicId(labelPublicId);
 		const label = entry?.label;
-		if (!label || String(label.text || "") === String(name)) {
-			return;                                  // nicht geladen oder schon gleich
+		if (!label) {
+			return;
+		}
+		const box = propertiesElement("showname");
+		const showName = box && !box.disabled ? Boolean(box.checked) : (label.showName !== false);
+		if (String(label.text || "") === String(name) && showName === (label.showName !== false)) {
+			return;                                  // weder Name noch Anzeige geändert
 		}
 
 		try {
@@ -445,6 +476,7 @@
 				action: "update_label",
 				public_id: labelPublicId,
 				text: name,
+				show_name: showName,
 				feature_subtype: label.labelType || "region",
 				size: Number(label.size) || 18,
 				rotation: Number(label.rotation) || 0,

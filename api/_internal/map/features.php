@@ -2127,6 +2127,14 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'max_zoom' => $maxZoom,
         'priority' => $priority,
         'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
+        // Ob der Name auf der Karte ERSCHEINT (Owner 2026-07-27). Seit jede Landschaftsregion
+        // automatisch ihr Label bekommt, gibt es Labels, die es geben SOLL, ohne dass ihr Name die
+        // Karte füllt -- Wälder und Seen zum Beispiel. Das Label behält dabei Ort, Größe, Drehung und
+        // Zoom-Band, es wird nur nicht gezeichnet; ein Ausblenden durch Löschen würde all das verlieren.
+        //
+        // 🔴 Vorgabe TRUE. Die 543 vorhandenen Labels tragen den Schlüssel nicht, und ihr Verhalten darf
+        // sich durch diese Zeile nicht ändern.
+        'show_name' => avesmapsReadBoolean($payload['show_name'] ?? true),
     ];
 
     if (array_key_exists('wiki_region', $payload)) {
@@ -2217,6 +2225,13 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['max_zoom'] = $maxZoom;
         $properties['priority'] = $priority;
         $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
+        // 🪤 Nur schreiben, wenn der Aufrufer es MITSCHICKT -- anders als die Zeilen darüber. Ein
+        // blosses Umbenennen (map-features-ecosystem-properties.js) sendet den Darstellungssatz, aber
+        // kein show_name; mit einem `?? true` würde es eine ausgeschaltete Anzeige stillschweigend
+        // wieder einschalten.
+        if (array_key_exists('show_name', $payload)) {
+            $properties['show_name'] = avesmapsReadBoolean($payload['show_name']);
+        }
         if (array_key_exists('wiki_region', $payload)) {
             $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
             if ($wikiRegion !== null) {
