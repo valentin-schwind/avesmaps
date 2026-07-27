@@ -441,23 +441,47 @@
 		return findLabelEntryByPublicId(labelPublicId);
 	}
 
-	// Der Haken steht auf dem Zustand des Labels, nicht auf einer Vorgabe. Hat die Region gar kein Label,
-	// ist er tot -- es gibt nichts zu zeigen oder zu verbergen, und ein bedienbarer Haken ohne Wirkung
-	// wäre schlimmer als ein grauer.
+	// Der Haken steht auf dem Zustand des Labels, nicht auf einer Vorgabe.
+	//
+	// 🪤 Er ist NICHT gesperrt, wenn die Region noch kein Label hat -- dann LEGT das Anhaken eines an.
+	// Erst war er dort grau, und das war falsch gedacht: der V5-Import hat 124 der 133 Flächen ein Label
+	// gegeben, die übrigen 9 sind von Hand gezeichnete. Für neun Zeilen ein Serien-Nachziehen zu bauen
+	// wäre Unfug; der Haken erledigt sie beiläufig, dort wo jemand die Region ohnehin gerade anfasst.
 	function syncPropertiesShowName(area) {
 		const box = propertiesElement("showname");
 		if (!box) {
 			return;
 		}
 		const entry = linkedEcosystemLabelEntry(area);
-		box.disabled = !entry;
+		box.disabled = false;
 		box.checked = Boolean(entry) && entry.label?.showName !== false;
 	}
 
 	async function renameLinkedEcosystemLabel(area, name) {
 		const labelPublicId = String(area?.label_public_id || "");
-		if (!labelPublicId || typeof submitMapFeatureEdit !== "function"
-			|| typeof findLabelEntryByPublicId !== "function") {
+
+		// 🔴 Noch KEIN Label, aber „Regionname anzeigen" angehakt -> jetzt eines anlegen, am Point of
+		// Inaccessibility und im Stil seiner Art. Das ist der Weg, auf dem die neun von Hand gezeichneten
+		// Bestandsflächen ihr Label bekommen: beiläufig, wo jemand die Region ohnehin bearbeitet, statt
+		// als Serienlauf über einen Bestand, der zu 124 von 133 längst versorgt ist.
+		if (!labelPublicId) {
+			const box = propertiesElement("showname");
+			if (box && box.checked && typeof createEcosystemRegionLabel === "function") {
+				const geometry = area?.geometry_geojson || area?.geometry || null;
+				if (geometry) {
+					await createEcosystemRegionLabel(
+						String(area.region_public_id || ""),
+						geometry,
+						name,
+						true,
+						String(propertiesElement("type")?.value || "")
+					);
+				}
+			}
+			return;
+		}
+
+		if (typeof submitMapFeatureEdit !== "function" || typeof findLabelEntryByPublicId !== "function") {
 			return;
 		}
 		const entry = findLabelEntryByPublicId(labelPublicId);
