@@ -169,12 +169,11 @@ function getWaypointAutocompleteSource(term = "") {
 		// Ein gewöhnlicher Ort bleibt ein blanker String (unverändertes Verhalten). Ein Innerorts-
 		// Objekt wird zum {label, value}-Paar: sichtbar sind beide, ins Feld geht die STADT.
 		//
-		// Reihenfolge „Imdal (Schänke Schnapsfass)" statt „Schänke Schnapsfass — in Imdal“
-		// (Owner 2026-07-28): vorne steht, was gleich im Feld landet und wohin die Route geht;
-		// das gesuchte Objekt ist die Begründung dahinter. So liest sich die Liste in derselben
-		// Richtung, in der sie wirkt.
+		// „Schänke Schnapsfass (Imdal)" (Owner 2026-07-28): das GESUCHTE steht vorne, die Stadt
+		// dahinter in Klammern. Man tippt den Objektnamen -- stünde er hinten, müsste man ihn in
+		// jeder Zeile erst suchen. Die Klammer ist dabei die knappere Form von „— in Imdal“.
 		.map((match) => (match.entry.settlement
-			? { label: `${match.entry.settlement} (${match.entry.name})`, value: match.entry.settlement }
+			? { label: `${match.entry.name} (${match.entry.settlement})`, value: match.entry.settlement }
 			: match.entry.name));
 }
 
