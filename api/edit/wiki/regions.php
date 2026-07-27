@@ -48,6 +48,11 @@ try {
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0)
             ),
+            // V6c: ausdruecklich gewaehlte Labels an EINE Wiki-Region haengen -- die freie Wahl,
+            // die 'assign' (Namens-Match, traegt den Berge-Bulk) nicht leisten kann. Trockenlauf per
+            // Vorgabe; scharf nur mit dry_run=false UND confirm='apply'. Steht bewusst NICHT in der
+            // Nachbump-Liste unten: die Funktion bumpt map_revision selbst, genau einmal pro Aufruf.
+            'assign_labels' => avesmapsWikiRegionAssignLabels($pdo, $payload, (int) ($user['id'] ?? 0)),
             'assign_all' => avesmapsWikiRegionAssignAll(
                 $pdo,
                 array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',

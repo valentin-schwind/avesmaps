@@ -784,6 +784,176 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $
     return ['ok' => true, 'dry_run' => $dryRun, 'wiki_key' => $wikiKey, 'wiki_name' => (string) $row['name'], 'labels' => $matched, 'applied' => $applied];
 }
 
+// ---------------------------------------------------------------------------
+// V6c: EXPLIZIT gewaehlte Labels an eine Wiki-Region haengen.
+//
+// 🔴 Bewusst NEBEN avesmapsWikiRegionAssign (oben), nicht darin. Jene Aktion matcht ausschliesslich
+// ueber den NAMEN (avesmapsWikiSyncCreateMatchKey, s.o.) und traegt damit den „Berge zuordnen"-Bulk.
+// Fuer freie Wahl taugt sie nicht: ein Label, das anders heisst als seine Wiki-Region, ist dort gar
+// nicht erreichbar -- und sie umzubauen wuerde den Bulk mitreissen.
+//
+// Spiegelbild von avesmapsAssignEcosystemWikiRegion (api/_internal/app/ecosystem.php): dieselbe
+// Torschaltung, dieselbe Vorschau, dieselbe „alles oder nichts"-Aufloesung der Ziele. Der EINE
+// Unterschied ist Absicht -- ein Label-Save bumpt map_revision, weil Labels im map-features-Payload
+// reisen; eine Landschaftsflaeche tut das nicht und darf es nicht.
+// ---------------------------------------------------------------------------
+
+// 🔴 Der Trockenlauf ist die VORGABE, scharf braucht ZWEI unabhaengige Signale. Ein Aufruf schreibt
+// bis zu 200 Labels und bumpt map_revision fuer jeden Besucher; ein vertipptes Flag darf dafuer
+// nicht reichen. Nur das boolesche false entschaerft: JSON liefert, was der Client getippt hat, und
+// der STRING "false" ist in PHP wahr -- ihn als „kein Trockenlauf" zu lesen liesse einen schludrigen
+// Client versehentlich scharf schalten.
+function avesmapsWikiRegionAssignLabelsIsDryRun(array $payload): bool {
+    $dryRunOff = array_key_exists('dry_run', $payload) && $payload['dry_run'] === false;
+    $confirmed = (string) ($payload['confirm'] ?? '') === 'apply';
+
+    return !($dryRunOff && $confirmed);
+}
+
+// map_features.public_id ist CHAR(36) (UUID). Streng pruefen, BEVOR irgendetwas geschrieben wird --
+// gleiche Form wie avesmapsEcosystemReadPublicId.
+function avesmapsWikiRegionReadLabelPublicId(mixed $value): string {
+    $publicId = strtolower(trim((string) $value));
+    if (preg_match('/^[a-f0-9-]{36}$/', $publicId) !== 1) {
+        throw new InvalidArgumentException('label_public_ids enthaelt eine ungueltige public_id.');
+    }
+
+    return $publicId;
+}
+
+// Rein: was wuerde sich aendern? Nimmt die schon geholten Label-Zeilen plus den Ziel-Schluessel und
+// liefert je Label den Schluessel VORHER neben dem, den es bekaeme. Ohne PDO, damit der Unit-Test
+// ohne Datenbank herankommt -- eine lokale DB gibt es nicht.
+//
+// Der Vorher-Schluessel steckt in properties_json.wiki_region.wiki_key: derselbe Ort, den auch
+// avesmapsWikiRegionReadMapLabelsByWikiRegion liest. Fehlendes ODER kaputtes JSON heisst „kein
+// Schluessel" -- ein Parse-Fehler darf eine blosse Vorschau nicht abbrechen.
+function avesmapsWikiRegionAssignLabelsPlan(array $labelRows, string $wikiKey): array {
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        // Eine Zuweisung zu LOESCHEN ist Sache des Label-Editors (Wiki-Picker), nicht dieser Aktion.
+        // Ein leerer Schluessel wuerde hier stumm ein wiki_region-Objekt fuer den Schluessel ""
+        // schreiben: unsichtbar in jeder Liste und nur von Hand wieder zu finden.
+        throw new InvalidArgumentException('wiki_key darf nicht leer sein.');
+    }
+
+    $plan = [];
+    foreach ($labelRows as $row) {
+        $props = json_decode((string) ($row['properties_json'] ?? ''), true);
+        $before = is_array($props) ? trim((string) ($props['wiki_region']['wiki_key'] ?? '')) : '';
+        $plan[] = [
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'name' => (string) ($row['name'] ?? ''),
+            'subtype' => (string) ($row['feature_subtype'] ?? ''),
+            'wiki_key_before' => $before === '' ? null : $before,
+            'changes' => $before !== $wikiKey,
+        ];
+    }
+
+    return $plan;
+}
+
+// Haengt EINE Wiki-Region an 1..n ausdruecklich benannte Labels. Gated wie der Rest des Endpunkts.
+function avesmapsWikiRegionAssignLabels(PDO $pdo, array $payload, int $userId = 0): array {
+    // Vor der Transaktion, nie darin: ensure-tables faehrt CREATE TABLE, und MySQL committet eine
+    // offene Transaktion still in dem Moment, in dem es DDL sieht -- auch ein wirkungsloses
+    // IF NOT EXISTS.
+    avesmapsWikiRegionEnsureTables($pdo);
+
+    $wikiKey = trim((string) ($payload['wiki_key'] ?? ''));
+    if ($wikiKey === '') {
+        throw new InvalidArgumentException('wiki_key fehlt.');
+    }
+
+    $publicIds = $payload['label_public_ids'] ?? [];
+    if (!is_array($publicIds) || $publicIds === []) {
+        throw new InvalidArgumentException('label_public_ids muss eine nicht-leere Liste sein.');
+    }
+    if (count($publicIds) > 200) {
+        throw new InvalidArgumentException('label_public_ids hat zu viele Eintraege (max 200).');
+    }
+
+    $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+    $statement->execute(['k' => $wikiKey]);
+    $region = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$region) {
+        throw new RuntimeException('Wiki-Region nicht im Staging: ' . $wikiKey);
+    }
+    $assignObject = avesmapsWikiRegionBuildAssignObject($region);
+
+    // Jedes Ziel wird aufgeloest, BEVOR etwas geschrieben wird: eine unbekannte oder inaktive
+    // public_id fliegt hier raus, also schreibt eine Liste mit einem faulen Eintrag gar nichts statt
+    // der Haelfte. Nach public_id geschluesselt, was eine doppelt genannte Zeile mit einfaengt.
+    $lookup = $pdo->prepare(
+        "SELECT id, public_id, name, feature_subtype, properties_json FROM map_features
+        WHERE public_id = :public_id AND is_active = 1 AND feature_type = 'label' LIMIT 1"
+    );
+    $targets = [];
+    foreach ($publicIds as $candidate) {
+        $publicId = avesmapsWikiRegionReadLabelPublicId($candidate);
+        if (isset($targets[$publicId])) {
+            continue;
+        }
+        $lookup->execute(['public_id' => $publicId]);
+        $labelRow = $lookup->fetch(PDO::FETCH_ASSOC);
+        if (!$labelRow) {
+            throw new RuntimeException('Label nicht gefunden oder nicht aktiv: ' . $publicId);
+        }
+        $targets[$publicId] = $labelRow;
+    }
+
+    // Die Vorschau, die der Editor vor dem scharfen Lauf sieht. Sie traegt je Label den aktuellen
+    // Schluessel neben dem kuenftigen, weil „zuweisen" und „ist schon zugewiesen" in einer blossen
+    // Zahl gleich aussehen -- und ein Massen-UPDATE teurer rueckgaengig zu machen ist als zweimal
+    // zu rechnen.
+    $plan = avesmapsWikiRegionAssignLabelsPlan(array_values($targets), $wikiKey);
+
+    if (avesmapsWikiRegionAssignLabelsIsDryRun($payload)) {
+        return [
+            'ok' => true,
+            'dry_run' => true,
+            'assigned' => 0,
+            'would_assign' => count($targets),
+            'wiki_key' => $wikiKey,
+            'wiki_name' => (string) $region['name'],
+            'labels' => $plan,
+        ];
+    }
+
+    $assigned = 0;
+    $revision = null;
+    $pdo->beginTransaction();
+    try {
+        $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+        foreach ($targets as $labelRow) {
+            $featureId = (int) $labelRow['id'];
+            $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, $featureId);
+            // Eine Revision fuer den ganzen Aufruf, nicht je Label: die Labels reisen gemeinsam im
+            // map-features-Payload, und N Bumps wuerden ihn N-mal fuer jeden Besucher entwerten.
+            $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+            $props = avesmapsWikiSyncDecodeJson($labelRow['properties_json'] ?? null);
+            $props['wiki_region'] = $assignObject;
+            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $featureId]);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
+            $assigned++;
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'assigned' => $assigned,
+        'wiki_key' => $wikiKey,
+        'wiki_name' => (string) $region['name'],
+        'revision' => $revision,
+        'labels' => $plan,
+    ];
+}
+
 // Bulk: verknuepft alle Karten-Labels, deren Name zu einer Staging-Region passt (matched+mehrfach).
 function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dryRun, string $artFilter = ''): array {
     avesmapsWikiRegionEnsureTables($pdo);
