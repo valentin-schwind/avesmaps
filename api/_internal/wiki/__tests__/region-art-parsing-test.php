@@ -141,4 +141,33 @@ try {
 }
 assert($rejected === true, 'a near-miss is still rejected -- the whitelist stays a whitelist');
 
-echo "ok: region art parsing + subtype mapping + vulkan\n";
+// -------------------------------------------------------------- THE FOLDED UMLAUT KEYS ---
+// 💣 The mapping table is keyed by avesmapsWikiSyncCreateMatchKey's OUTPUT, and that folding drops
+// umlauts entirely instead of expanding them. These four asserts pin the folding itself, so that
+// "tidying" the table back to readable ASCII spellings fails loudly instead of silently switching
+// the type check off again for every Wueste/Kueste/Huegelland label.
+assert(avesmapsWikiSyncCreateMatchKey("H\u{00FC}gelland") === 'hgelland', 'the folding DROPS the umlaut, it does not expand it');
+assert(avesmapsWikiSyncCreateMatchKey("W\u{00FC}ste") === 'wste', 'same for Wueste');
+assert(avesmapsWikiSyncCreateMatchKey("K\u{00FC}ste") === 'kste', 'same for Kueste');
+assert(avesmapsWikiSyncCreateMatchKey("Halbw\u{00FC}ste") === 'halbwste', 'same for Halbwueste');
+
+// The four arts now resolve. Before the fix every one of these returned '' -- an unknown art is
+// treated as "no expected subtype", so avesmapsWikiRegionTypeConflict returned false for all of
+// them and the check was silently off. Measured on revision 44492: 18 labels affected.
+assert(avesmapsWikiRegionArtToSubtype("H\u{00FC}gelland") === 'huegelland', 'Huegelland resolves');
+assert(avesmapsWikiRegionArtToSubtype("W\u{00FC}ste") === 'wueste', 'Wueste resolves');
+assert(avesmapsWikiRegionArtToSubtype("K\u{00FC}ste") === 'kueste', 'Kueste resolves');
+assert(avesmapsWikiRegionArtToSubtype("Halbw\u{00FC}ste") === 'wueste', 'Halbwueste is a desert too');
+// The multi-valued live case: Zhandukistan carries "Wueste|Halbwueste, Huegelland".
+assert(avesmapsWikiRegionArtToSubtype("W\u{00FC}ste|Halbw\u{00FC}ste, H\u{00FC}gelland") === 'wueste', 'the first component still wins');
+// The ASCII spellings stay reachable for an art written without the umlaut.
+assert(avesmapsWikiRegionArtToSubtype('Hugelland') === 'huegelland', 'the ASCII spelling still maps');
+assert(avesmapsWikiRegionArtToSubtype('Wuste') === 'wueste', 'the ASCII spelling still maps');
+
+// The intended new signal: 12 of the 18 labels sit on a subtype that disagrees with the wiki.
+assert(avesmapsWikiRegionTypeConflict('region', "H\u{00FC}gelland") === true, 'Huegelland stored as region is now a conflict');
+assert(avesmapsWikiRegionTypeConflict('gebirge', "H\u{00FC}gelland") === true, 'Goblinhoehen: gebirge vs Huegelland is a conflict');
+assert(avesmapsWikiRegionTypeConflict('huegelland', "H\u{00FC}gelland") === false, 'and an agreeing label stays quiet');
+assert(avesmapsWikiRegionTypeConflict('wueste', "W\u{00FC}ste") === false, 'the 6 already-correct labels stay quiet');
+
+echo "ok: region art parsing + subtype mapping + vulkan + folded umlaut keys\n";

@@ -45,6 +45,16 @@ function avesmapsWikiRegionDefaultSeeds(): array {
 // Legt die beiden Sandbox-Tabellen idempotent an. Read-only ausser diesem ensure-Schritt.
 // Mapping Wiki-„Art" (erster Begriff, normalisiert wie der Match-Key: Umlaut-/ß-Faltung, lower,
 // nur Buchstaben/Ziffern) -> Avesmaps Label-Subtype. Steuert den Typ-Check. Nutzer-bestätigt.
+//
+// 💣 The KEY is whatever avesmapsWikiSyncCreateMatchKey produces, and that folding DROPS umlauts
+// instead of expanding them: 'Hügelland' -> 'hgelland', NOT 'hugelland' and NOT 'huegelland'
+// (api/_internal/text/ascii-fold.php -- the table reproduces the server, see its banner). So an
+// ASCII spelling like 'hugelland' can never be produced from the wiki art 'Hügelland' and matches
+// nothing. Measured against the live payload on 2026-07-27 (revision 44492): the four folded keys
+// were absent, so the type check was silently OFF for 18 labels, while the JS mirror
+// (LABEL_WIKI_ART_TO_SUBTYPE in js/review/review-label-wiki.js) keys on the real umlaut and DID
+// match -- server and client disagreed on the same label. Both spellings are listed below: the
+// folded one is what actually fires, the ASCII one covers an art written without the umlaut.
 const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // region (Sammeltopf)
     'region' => 'region', 'mischregion' => 'region', 'grossregion' => 'region',
@@ -66,11 +76,11 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // gras-/auenlandschaft (eigene Grüntöne)
     'graslandschaft' => 'graslandschaft', 'auenlandschaft' => 'auenlandschaft',
     // hügelland (Höhenland)
-    'hugelland' => 'huegelland', 'hochland' => 'huegelland',
+    'hgelland' => 'huegelland', 'hugelland' => 'huegelland', 'hochland' => 'huegelland',
     // tundra
     'tundra' => 'tundra',
     // küste
-    'kuste' => 'kueste', 'klippe' => 'kueste',
+    'kste' => 'kueste', 'kuste' => 'kueste', 'klippe' => 'kueste',
     // ebene (Flachland/Tiefland)
     'ebene' => 'ebene', 'tiefland' => 'ebene', 'flachland' => 'ebene',
     // gebirge / wald
@@ -85,7 +95,7 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // sümpfe/moore
     'sumpf' => 'suempfe_moore', 'moor' => 'suempfe_moore', 'marschland' => 'suempfe_moore',
     // wüste
-    'wuste' => 'wueste', 'halbwuste' => 'wueste',
+    'wste' => 'wueste', 'wuste' => 'wueste', 'halbwste' => 'wueste', 'halbwuste' => 'wueste',
     // berggipfel / kontinent
     'berggipfel' => 'berggipfel', 'kontinent' => 'kontinent',
     // vulkan (own subtype since 2026-07-27) -- drawn exactly like a Berggipfel, peak marker
