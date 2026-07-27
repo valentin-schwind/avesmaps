@@ -1002,6 +1002,32 @@
 	cursor: default;
 }
 
+/* ---- Zielwahl über Ebenengrenzen hinweg (Owner 2026-07-27) -----------------------------------------
+   Solange eine Zwei-Flächen-Operation auf ihr Ziel wartet, kommen die ruhenden Ebenen ZURÜCK: sichtbar
+   und anklickbar. Sonst liesse sich ein See (Topographie) nie aus einem Wald (Vegetation) ausschneiden
+   — man sähe ihn nicht und träfe ihn nicht.
+
+   🔴 Das hebt die Hausregel „immer nur eine Ebene antwortet" (§2) für die Dauer dieser Geste auf, und
+   das ist vertretbar, weil ihr GRUND inzwischen anders gelöst ist: „welches Polygon erwische ich" sagt
+   die goldene Zielkontur, bevor geklickt wird. Ausserdem ist der Zustand ausdrücklich betreten — man hat
+   eine Operation gewählt und wird aufgefordert, das Ziel anzuklicken.
+
+   Blasser als die aktive Ebene (0.3/0.55 gegen 0.6/0.7): sie sind Ziele, nicht die Arbeitsfläche.
+   Die Werte gehen über --eco-fill/--eco-contour auf der Pane, wie jeder Zustand hier oben; nur
+   pointer-events muss am Pfad stehen, weil es Leaflets eigene Regel überstimmen muss.
+
+   🪤 Zwei Klassen schlagen das `.ecosystem-pane { --eco-fill: 0 }` darüber, vier Klassen die
+   pointer-events-Regel darüber (die hat drei). */
+.ecosystem-pane--resting.ecosystem-pane--picking {
+	--eco-fill: 0.3;
+	--eco-contour: 0.55;
+}
+
+.leaflet-pane.ecosystem-pane--resting.ecosystem-pane--picking > svg path.leaflet-interactive {
+	pointer-events: auto;
+	cursor: pointer;
+}
+
 .leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {
 	cursor: pointer;
 }

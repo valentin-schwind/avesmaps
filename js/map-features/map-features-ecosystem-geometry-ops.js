@@ -161,6 +161,7 @@
 		}
 		pending = null;
 		clearTargetHighlight();
+		setLayerPicking(false);
 		if (typeof map !== "undefined" && map && typeof map.off === "function") {
 			map.off("click", handleMapClick);
 			map.off("mousemove", handleMapMouseMove);
@@ -174,6 +175,17 @@
 		cancelPending({ silent: true });
 		pending = { operation, sourcePublicId: String(sourcePublicId), ...extra };
 		hookMap();
+	}
+
+	// Die ruhenden Ebenen für die Dauer der Zielwahl zurückholen -- sichtbar UND anklickbar. Ohne das
+	// liesse sich ein See (Topographie) nie aus einem Wald (Vegetation) ausschneiden: die andere Ebene
+	// ist sonst auf 0% gezeichnet und klickdurchlässig (css/features/ecosystem-layer.css).
+	//
+	// Nur für die Zwei-Flächen-Operationen. Zerschneiden und Verschieben arbeiten auf der EINEN Fläche,
+	// die schon gewählt ist; dort wäre die andere Ebene bloss Unruhe.
+	function setLayerPicking(on) {
+		document.querySelectorAll(".ecosystem-pane")
+			.forEach((pane) => pane.classList.toggle("ecosystem-pane--picking", Boolean(on)));
 	}
 
 	function hookMap() {
@@ -261,6 +273,14 @@
 		}
 		if (source.public_id === target.public_id) {
 			say("Bitte eine andere Fläche wählen.", "warning");
+			return;
+		}
+		// 🔴 Ausschneiden und Schneiden dürfen über Ebenengrenzen gehen -- ein See aus einem Wald ist
+		// genau der Fall, für den die Zielwahl geöffnet wurde. VEREINIGEN darf es nicht: das Ergebnis
+		// landet auf der Quelle und trüge deren Art, der See würde also zu Wald -- und die Vereinigung
+		// LÖSCHT ihr Ziel obendrein. Das ist kein Handgriff, den man versehentlich tun können soll.
+		if (operation === "union" && String(source.kind) !== String(target.kind)) {
+			say("Vereinigen geht nur innerhalb einer Ebene — sonst würde die andere Fläche ihre Art verlieren.", "warning");
 			return;
 		}
 
@@ -494,7 +514,8 @@
 					map.on("click", handleMapClick);
 				}
 				bindTargetHighlight();
-				say("Jetzt die zweite Fläche anklicken. ESC bricht ab.", "info");
+				setLayerPicking(true);
+				say("Jetzt die zweite Fläche anklicken — auch auf einer anderen Ebene. ESC bricht ab.", "info");
 			});
 		});
 
