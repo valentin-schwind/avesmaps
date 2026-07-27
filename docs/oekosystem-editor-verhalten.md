@@ -151,8 +151,11 @@ ungefährliche Eintrag im Haus). Der Dialog zeigt:
 ```
 Identität     Name          freies Feld — außer bei „Auto-Name" (§7d)
               Auto-Name     Haken; gesetzt = der Name ist ein interner Griff
+              Regionname anzeigen   Haken; zeichnet das Karten-Label der Region
+              Nodix                 Haken; Kraftlinien-Knoten. Sitzt am LABEL (ein Punkt),
+                                    daher gesperrt, solange die Region keines hat.
               Art           Auswahl aus dem Vokabular DIESER Ebene
-              (dazu: wie viele Flächen die Region trägt)
+              (dazu: „trägt N Flächen und 1 Label")
 Wiki-Landschaft             Zuweisen/Ändern · Sync · Entfernen, mit der vollen Wiki-Auskunft
                             Löschen · Abbrechen · Speichern
 ```
@@ -162,7 +165,7 @@ hatten bis dahin **keinen einzigen Aufrufer**: Name, Art und Wiki-Link ließen s
 beim Anlegen setzen, und eine Region war überhaupt nicht löschbar.
 
 > 🪤 **Dieser Dialog bearbeitet die FLÄCHE, nicht das Label.** Der optisch fast gleiche
-> *„Region bearbeiten"* (`#label-edit-overlay`) bearbeitet eine **Beschriftung** in
+> *„Region-Label bearbeiten"* (`#label-edit-overlay`) bearbeitet eine **Beschriftung** in
 > `map_features` — daher dessen Größe, Rotation, Zoom-Bänder und Priorität, die hier
 > alle fehlen: eine Fläche hat keine (§12). Es sind zwei Zeilen in zwei Tabellen.
 >
@@ -170,13 +173,27 @@ beim Anlegen setzen, und eine Region war überhaupt nicht löschbar.
 > stand hier das Gegenteil („wer die Fläche umbenennt, benennt das Label nicht mit
 > um"), und das war richtig, solange die beiden nichts voneinander wussten. Seit jede
 > Region ihr Label automatisch bekommt, wären zwei Namen für dasselbe Ding schlicht
-> ein Fehler: Speichern trägt Name und Art ans Label weiter.
+> ein Fehler: Speichern trägt **Name, Art, Nodix und die Wiki-Landschaft** ans Label weiter.
+> Was NICHT durchträgt, sind Größe, Rotation, Zoom-Band und Priorität — die gehören dem
+> Label allein und werden in *„Region-Label bearbeiten"* eingestellt.
+>
+> 💣 **Die Wiki-Zuweisung wandert NUR abwärts.** Hat die Region eine, bekommt das Label sie.
+> Hat die Region **keine**, bleibt das Label unangetastet — andersherum löschte jedes Speichern
+> einer wiki-losen Region genau die Zuweisung, die *„Label zuweisen"* (§7c) von Hand gesetzt hat.
 >
 > 💣 **Der Zeiger kann ins Leere zeigen.** Ein Label lässt sich einzeln löschen; die
 > Region behält dann ihren `label_public_id`. Der Haken *„Regionname anzeigen"* geht
 > daraufhin richtig aus — aber es entscheidet das **Label**, nicht der Zeiger, ob beim
 > Wiederanhaken eins angelegt wird. Wer das umdreht, baut den Fehler von 2026-07-27
 > nach: der Haken ließ sich setzen und es entstand nichts.
+>
+> Der Label-Dialog sagt dasselbe von der anderen Seite: **„Dieses Label wird von N Flächen
+> getragen"**. Die Zahl kommt aus `list_regions`, nicht aus den geladenen Flächen — die halten
+> nur, was gerade im Bild ist, und zählten eine halb aus dem Ausschnitt ragende Region zu klein.
+>
+> *„Andere Quelle"* ist dort **entfernt** (2026-07-28): das Einzelquellen-Feld von vor dem
+> Mehrquellen-System, das Orte im selben Umbau verloren haben. Gespeicherte Werte bleiben liegen,
+> weil der Save den Schlüssel nicht mehr mitschickt.
 
 **Sync** übernimmt Name und Art aus der verbundenen Wiki-Landschaft — die Art nur, wenn
 das Vokabular dieser Ebene sie kennt (`wald` kann nie auf einer topographischen Region
