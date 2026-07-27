@@ -57,11 +57,16 @@ body.edit-mode .map-label img {
 	color: #e2ddd2;
 }
 
-.map-label--berggipfel span {
+/* Vulkane werden wie Berggipfel gezeichnet, Pfeilspitze eingeschlossen -- sie teilen sich diese
+   Regeln bewusst, statt sie zu kopieren. Der Canvas-Renderer liest das ::after generisch aus dem
+   CSS (map-features-labels.js), er braucht also keinen Sonderfall fuer den neuen Subtyp. */
+.map-label--berggipfel span,
+.map-label--vulkan span {
 	color: #f1efe7;
 }
 
-.map-label--berggipfel span::after {
+.map-label--berggipfel span::after,
+.map-label--vulkan span::after {
 	content: "";
 	position: absolute;
 	left: 50%;

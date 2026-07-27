@@ -648,6 +648,7 @@ function getReportTypeLabel(report) {
 		insel: "Insel",
 		gebirge: "Gebirge",
 		berggipfel: "Berggipfel",
+		vulkan: "Vulkan",
 		wald: "Wald",
 		steppe: "Steppe",
 		huegelland: "Hügelland",

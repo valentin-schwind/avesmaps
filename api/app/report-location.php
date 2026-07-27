@@ -20,6 +20,7 @@ const AVESMAPS_REPORT_TYPES = [
     'insel' => ['type' => 'label', 'subtype' => 'insel'],
     'gebirge' => ['type' => 'label', 'subtype' => 'gebirge'],
     'berggipfel' => ['type' => 'label', 'subtype' => 'berggipfel'],
+    'vulkan' => ['type' => 'label', 'subtype' => 'vulkan'],
     'wald' => ['type' => 'label', 'subtype' => 'wald'],
     'steppe' => ['type' => 'label', 'subtype' => 'steppe'],
     'graslandschaft' => ['type' => 'label', 'subtype' => 'graslandschaft'],

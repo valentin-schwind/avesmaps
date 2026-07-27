@@ -95,4 +95,50 @@ assert(avesmapsWikiRegionTypeConflict('tal', 'Tal|Tal') === false, 'the mapping 
 assert(avesmapsWikiRegionArtToSubtype('Krater') === '', 'Krater stays unmapped on purpose');
 assert(avesmapsWikiRegionTypeConflict('region', 'Krater') === false, 'an unmapped art never raises a conflict');
 
-echo "ok: region art parsing + subtype mapping\n";
+// ------------------------------------------------------------------- VULKAN AS ITS OWN TYPE ---
+// Measured 2026-07-27 against Kategorie:Vulkan (40 pages): 34 carry Art=Vulkan and every one of the
+// 40 uses {{Infobox Region}}, so the region parser accepts them -- they simply had no subtype.
+assert(avesmapsWikiRegionArtToSubtype('Vulkan') === 'vulkan', 'Vulkan is its own label category');
+// Depends on the pipe split above: the live page for this one reads "Art=Vulkan|Magmafluss".
+assert(avesmapsWikiRegionArtToSubtype('Vulkan|Magmafluss') === 'vulkan', 'a multi-valued Vulkan still resolves');
+assert(artOf('Vulkan|Magmafluss', 'Rihutu') === 'Vulkan', 'and its stored art is the bare first component');
+// Amran Thjalgyn is the single live label already hanging on a Vulkan article; it sits as
+// "berggipfel" and now reports a conflict until an editor adopts the category.
+assert(avesmapsWikiRegionTypeConflict('berggipfel', 'Vulkan') === true, 'a Vulkan stored as berggipfel is a conflict');
+assert(avesmapsWikiRegionTypeConflict('vulkan', 'Vulkan') === false, 'a Vulkan stored as vulkan is fine');
+// Neighbours in the same category that are deliberately NOT volcanoes must keep their own mapping.
+// Note the composed path: "Berg" never reaches the mapping table -- avesmapsWikiRegionParsePage
+// renames it to "Berggipfel" first, and only that has a table entry. Asserting the table alone
+// would be asserting the wrong contract.
+assert(avesmapsWikiRegionArtToSubtype('Berg') === '', 'the table itself does not know Berg');
+assert(avesmapsWikiRegionArtToSubtype(artOf('Berg', 'Ehernes Schwert')) === 'berggipfel', 'but the parsed art does');
+assert(avesmapsWikiRegionArtToSubtype('Insel') === 'insel', 'the two islands in the category stay islands');
+assert(avesmapsWikiRegionArtToSubtype('Magmastrom') === '', 'a lava flow is not a peak -- deliberately unmapped');
+
+// --------------------------------------------------------------------------- THE CRAWL SEEDS ---
+// 🔴 The structural half of the volcano gap: only 3 of the 40 pages were reachable from the old
+// seeds, so the staging table never learned about volcanoes and the editor's landscape picker
+// could not offer them at all. Kategorie:Anhoehe is the taxonomic parent and has exactly three
+// children -- Berg (the old seed), Eisberg (3 pages) and Vulkan (40) -- so moving the seed up one
+// level closes the gap without widening the crawl into an unrelated branch.
+$seeds = avesmapsWikiRegionDefaultSeeds();
+assert(in_array("Kategorie:Anh\u{00F6}he", $seeds, true), 'the crawl seeds reach Anhoehe (and thus Vulkan)');
+assert(!in_array('Kategorie:Berg', $seeds, true), 'Kategorie:Berg is redundant once Anhoehe is seeded');
+assert(in_array('Kategorie:Derographische Region', $seeds, true), 'the other seeds are untouched');
+assert(in_array('Kategorie:Hydroderographie', $seeds, true), 'the other seeds are untouched');
+
+// -------------------------------------------------------------------------- THE TYPE IS VALID ---
+// The subtype has to survive the server whitelist, otherwise saving a label with it 400s.
+require_once __DIR__ . '/../../bootstrap.php'; // avesmapsNormalizeSingleLine
+require_once __DIR__ . '/../../map/features.php';
+assert(avesmapsReadLabelSubtype('vulkan') === 'vulkan', 'the server accepts the new subtype');
+assert(avesmapsReadLabelSubtype('berggipfel') === 'berggipfel', 'and still accepts the old one');
+$rejected = false;
+try {
+    avesmapsReadLabelSubtype('vulkane');
+} catch (InvalidArgumentException) {
+    $rejected = true;
+}
+assert($rejected === true, 'a near-miss is still rejected -- the whitelist stays a whitelist');
+
+echo "ok: region art parsing + subtype mapping + vulkan\n";

@@ -12,6 +12,7 @@ let labelWikiPickerResults = [];
 const LABEL_WIKI_ART_TO_SUBTYPE = {
 	"gebirge": "gebirge", "gebirgskette": "gebirge",
 	"berg": "berggipfel", "gipfel": "berggipfel", "berggipfel": "berggipfel",
+	"vulkan": "vulkan",
 	"wald": "wald", "forst": "wald",
 	"insel": "insel", "inselgruppe": "insel",
 	"meer": "meer", "meeresteil": "meer", "meerenge": "meer", "bucht": "meer", "golf": "meer",

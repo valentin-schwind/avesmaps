@@ -659,6 +659,7 @@ function getSpotlightLabelTypeLabel(labelType) {
 		meer: "Meer",
 		gebirge: "Gebirge",
 		berggipfel: "Berggipfel",
+		vulkan: "Vulkan",
 		wald: "Wald",
 		steppe: "Steppe",
 		huegelland: "Hügelland",

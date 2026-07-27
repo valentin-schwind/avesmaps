@@ -33,8 +33,12 @@ function avesmapsWikiRegionDefaultSeeds(): array {
         'Kategorie:Derographische Region',
         "Kategorie:Gro\u{00DF}region",
         'Kategorie:Hydroderographie',
-        // Berge (nutzen ebenfalls {{Infobox Region}} mit Art=Berg) -> bei Avesmaps „Berggipfel".
-        'Kategorie:Berg',
+        // Anhöhen (nutzen ebenfalls {{Infobox Region}}) -> bei Avesmaps „Berggipfel" bzw. „Vulkan".
+        // Bewusst die ELTERN-Kategorie statt „Kategorie:Berg": Anhöhe hat genau drei Kinder — Berg
+        // (die frühere Wurzel), Eisberg (3 Seiten) und Vulkan (40). Mit der alten Wurzel waren nur
+        // 3 der 40 Vulkanseiten erreichbar, der Rest kam nie ins Staging und war im Landschafts-
+        // Picker deshalb gar nicht auffindbar (gemessen 2026-07-27).
+        "Kategorie:Anh\u{00F6}he",
     ];
 }
 
@@ -84,6 +88,10 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     'wuste' => 'wueste', 'halbwuste' => 'wueste',
     // berggipfel / kontinent
     'berggipfel' => 'berggipfel', 'kontinent' => 'kontinent',
+    // vulkan (own subtype since 2026-07-27) -- drawn exactly like a Berggipfel, peak marker
+    // included, but kept a category of its own so an editor can classify it and the wiki Art
+    // resolves. 34 of the 40 Kategorie:Vulkan pages carry Art=Vulkan.
+    'vulkan' => 'vulkan',
 ];
 
 // Liefert den erwarteten Label-Subtype zu einer Wiki-Art ('' = unbekannt/kein Mapping).

@@ -443,6 +443,7 @@ function avesmapsLabelSearchTypeLabel(string $subtype): string {
         'meer' => 'Meer',
         'gebirge' => 'Gebirge',
         'berggipfel' => 'Berggipfel',
+        'vulkan' => 'Vulkan',
         'wald' => 'Wald',
         'tal' => 'Tal',
         'kontinent' => 'Kontinent',
