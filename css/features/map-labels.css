@@ -112,6 +112,9 @@ body.edit-mode .map-label img {
 .map-label--auenlandschaft span {
 	color: #c2e8d0; /* Auenlandschaft: weiches Minz-/Auengrün (Richtung Wasser) */
 }
+.map-label--tal span {
+	color: #c9d3b8; /* Tal: muted shaded green-grey -- sits lower than the brighter Ebene above */
+}
 
 .map-label--suempfe_moore span {
 	color: #9fccad;

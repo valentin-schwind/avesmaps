@@ -24,7 +24,8 @@ const LABEL_WIKI_ART_TO_SUBTYPE = {
 	"küste": "kueste", "kueste": "kueste", "klippe": "kueste",
 	"ebene": "ebene", "tiefland": "ebene", "flachland": "ebene",
 	"region": "region", "mischregion": "region", "großregion": "region", "grossregion": "region",
-	"flusstal": "region", "tal": "region", "halbinsel": "region",
+	"halbinsel": "region",
+	"tal": "tal", "flusstal": "tal",
 	"auenlandschaft": "auenlandschaft",
 	"fluss": "fluss", "kontinent": "kontinent",
 };

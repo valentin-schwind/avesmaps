@@ -26,6 +26,7 @@ const AVESMAPS_REPORT_TYPES = [
     'auenlandschaft' => ['type' => 'label', 'subtype' => 'auenlandschaft'],
     'ebene' => ['type' => 'label', 'subtype' => 'ebene'],
     'huegelland' => ['type' => 'label', 'subtype' => 'huegelland'],
+    'tal' => ['type' => 'label', 'subtype' => 'tal'],
     'tundra' => ['type' => 'label', 'subtype' => 'tundra'],
     'kueste' => ['type' => 'label', 'subtype' => 'kueste'],
     'wueste' => ['type' => 'label', 'subtype' => 'wueste'],

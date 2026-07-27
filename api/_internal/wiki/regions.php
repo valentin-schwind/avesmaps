@@ -44,7 +44,13 @@ function avesmapsWikiRegionDefaultSeeds(): array {
 const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // region (Sammeltopf)
     'region' => 'region', 'mischregion' => 'region', 'grossregion' => 'region',
-    'flusstal' => 'region', 'tal' => 'region', 'halbinsel' => 'region',
+    'halbinsel' => 'region',
+    // tal (own subtype since 2026-07-27, Discord #51) -- both used to sit in the 'region' catch-all.
+    // A Flusstal is a valley, so it maps here too. The header IMAGE is unaffected: there 'flusstal'
+    // still resolves to the river picture (INFO_HEADER_IMAGE_BY_ART in js/ui/popups.js).
+    // Consequence: the ~25 labels stored as 'region' whose wiki Art is Tal/Flusstal now report a
+    // type conflict until an editor adopts the category -- that is the intended signal.
+    'tal' => 'tal', 'flusstal' => 'tal',
     // steppe (trockenes Grasland)
     'steppe' => 'steppe',
     // gras-/auenlandschaft (eigene Grüntöne)

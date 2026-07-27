@@ -651,6 +651,7 @@ function getReportTypeLabel(report) {
 		wald: "Wald",
 		steppe: "Steppe",
 		huegelland: "Hügelland",
+		tal: "Tal",
 		tundra: "Tundra",
 		kueste: "Küste",
 		ebene: "Ebene",

@@ -444,6 +444,7 @@ function avesmapsLabelSearchTypeLabel(string $subtype): string {
         'gebirge' => 'Gebirge',
         'berggipfel' => 'Berggipfel',
         'wald' => 'Wald',
+        'tal' => 'Tal',
         'kontinent' => 'Kontinent',
         'wueste' => 'Wueste',
         'suempfe_moore' => 'Sumpf/Moor',
