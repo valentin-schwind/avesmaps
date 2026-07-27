@@ -415,6 +415,60 @@ input[type=search] {
 .dt-link { color: var(--accent); text-decoration: none; }
 .dt-link:hover { text-decoration: underline; }
 
+/* ---- Edit block: ONE per region -------------------------------------------------------------
+ * A list row may carry several regions; each gets its own block and its own save, so "rename" is
+ * never ambiguous. No frame around the block -- grouping is by divider + heading (AGENTS.md §12);
+ * the .dt-grp heading already carries the top rule.
+ */
+.eco-edit + .eco-edit { margin-top: var(--space-6); }
+
+.dt-grid input[type=text],
+.dt-grid input[type=url],
+.dt-grid select {
+	width: 100%;
+	height: var(--avm-control-h);
+	padding: 0 var(--space-4);
+	font-size: var(--font-size-body);
+}
+
+.dt-grid input[readonly] {
+	color: var(--mut);
+	background: var(--color-panel);
+	cursor: default;
+}
+
+.dt-check {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	padding: var(--space-2) 0;
+	font-size: var(--font-size-body);
+	color: var(--mut);
+}
+
+.dt-check input { cursor: pointer; }
+.dt-check input:disabled { cursor: default; }
+
+.dt-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	margin-top: var(--space-6);
+}
+
+.dt-msg { font-size: var(--font-size-caption); }
+.dt-msg.ok { color: var(--ok); }
+.dt-msg.bad { color: var(--bad); }
+
+.pl-hint {
+	margin-top: 2px;
+	font-size: var(--font-size-caption);
+	color: var(--mut);
+}
+
+.pl-hint b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+
 /* ---- Raycast result: one button per shared region --------------------------------------------
  * The share is VISIBLE and the list is sorted by it -- then the 10 % threshold is a line one can
  * argue about instead of magic.

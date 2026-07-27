@@ -92,6 +92,9 @@
 <script src="/js/third-party/polygon-clipping.umd.min.js"></script>
 <script src="/js/map-features/map-features-ecosystem-geometry.js"></script>
 <script src="/js/map-features/map-features-ecosystem-boolean.js"></script>
+<!-- Auto-Name: abgeleitet, nie gespeichert. Dieselbe unit-getestete Regel wie in den
+     Karten-Dialogen -- „Wald-001" ist ein Griff, kein Anzeigename. -->
+<script src="/js/map-features/map-features-ecosystem-naming.js"></script>
 <script>
 "use strict";
 (function () {
@@ -124,6 +127,7 @@ const WIKI_REGIONS_API = "/api/edit/wiki/regions.php?action=match&continent=&lim
 
 // ---- State -----------------------------------------------------------------------------------
 let rows = [];              // the union, see buildRows()
+let regionTypes = [];       // [{kind, type_key, label}] -- the Art vocabulary, per layer
 let selectedKey = null;
 let activeKind = "";        // "" = Alle; otherwise ecosystem_region.kind
 let searchTerm = "";
@@ -502,6 +506,130 @@ function percent(share) { return (share * 100).toFixed(1).replace(".", ",") + " 
 
 const KIND_LABEL = { derographisch: "Derographische Region", vegetation: "Vegetation", topographie: "Topographie" };
 
+// ---- Editing a region (Name · Auto-Name · Art · Wiki-Zuweisung) -------------------------------
+// The server side already existed: `update_region` takes name / region_type / kind / wiki_url and is
+// a PARTIAL write -- it only touches the fields actually present in the payload. Nothing new was
+// needed on the backend; column 2 was simply read-only.
+
+// The Art vocabulary of ONE layer. Two separate lists, never one filtered list: a topographic region
+// can never become „Sumpf" (ecosystem_region_type.kind). The server checks the same pair and answers
+// 400 otherwise, so this select is convenience, not the guard.
+function typesOfKind(kind) {
+	return regionTypes.filter((type) => String(type.kind) === String(kind));
+}
+
+// The auto-name is built from the Art's LABEL, not its key -- „Wald-001", not „wald-001".
+function artLabelOf(region) {
+	const match = typesOfKind(region.kind).find((type) => type.type_key === String(region.region_type || ""));
+	return match ? match.label : "";
+}
+
+// Every region name currently loaded, so a fresh auto-name never collides with one already taken.
+function allRegionNames() {
+	return rows.flatMap((row) => row.regions.map((region) => String(region.name || "")));
+}
+
+function regionEditBlock(region) {
+	const artLabel = artLabelOf(region);
+	const auto = isEcosystemRegionAutoName(region.name, artLabel);
+	// 🔴 A wiki landscape OWNS the name (Verhaltensdoku §7d, row 3): the checkbox is disabled, not
+	// hidden, and the field stays writable.
+	const wikiOwns = String(region.wiki_url || "") !== "";
+	const areaCount = Number(region.area_count || 0);
+	const options = ['<option value="">— ohne Art —</option>'].concat(typesOfKind(region.kind).map((type) =>
+		'<option value="' + esc(type.type_key) + '"' + (type.type_key === String(region.region_type || "") ? " selected" : "") + ">" + esc(type.label) + "</option>"));
+
+	return '<div class="eco-edit" data-region="' + esc(region.public_id) + '">'
+		+ '<div class="dt-grp">' + esc(KIND_LABEL[region.kind] || region.kind)
+		+ ' <span class="avm-pill">' + areaCount + (areaCount === 1 ? " Fläche" : " Flächen") + "</span></div>"
+		+ '<div class="dt-grid">'
+		+ '<div class="k">Name</div><div><input type="text" data-f="name" value="' + esc(region.name) + '"' + (auto ? " readonly" : "") + "></div>"
+		+ '<div class="k">Auto-Name</div><div><label class="dt-check"><input type="checkbox" data-f="auto"' + (auto ? " checked" : "") + (wikiOwns ? " disabled" : "") + ">"
+		+ "<span>" + (wikiOwns ? "die Wiki-Landschaft besitzt den Namen" : "interner Griff — ein Leser sieht die Art") + "</span></label></div>"
+		+ '<div class="k">Art</div><div><select data-f="type">' + options.join("") + "</select></div>"
+		+ '<div class="k">Wiki-Artikel</div><div><input type="url" data-f="wiki" placeholder="https://de.wiki-aventurica.de/wiki/…" value="' + esc(region.wiki_url || "") + '">'
+		+ '<div class="pl-hint">' + (region.wiki_region_key ? "Schlüssel <b>" + esc(region.wiki_region_key) + "</b> — vom Server aus der URL abgeleitet" : "ohne Wiki-Eintrag — ein gültiger Zustand") + "</div></div>"
+		+ "</div>"
+		+ '<div class="dt-actions"><button type="button" data-a="save">Speichern</button>'
+		+ '<button type="button" data-a="wiki-clear"' + (region.wiki_url ? "" : " disabled") + ">Wiki-Zuweisung entfernen</button>"
+		+ '<span class="dt-msg"></span></div>'
+		+ "</div>";
+}
+
+function wireEditBlocks(host) {
+	host.querySelectorAll(".eco-edit").forEach((block) => {
+		const publicId = block.getAttribute("data-region");
+		const region = rows.flatMap((row) => row.regions).find((entry) => String(entry.public_id) === publicId);
+		if (!region) { return; }
+		const field = (name) => block.querySelector('[data-f="' + name + '"]');
+		const message = block.querySelector(".dt-msg");
+		// 💣 `wiki_url` travels ONLY when someone touched it. update_region writes exactly the fields
+		// in the payload, so an always-sent empty field would silently delete an existing assignment.
+		let wikiTouched = false;
+
+		const applyAutoName = () => {
+			const artLabel = (() => {
+				const match = typesOfKind(region.kind).find((type) => type.type_key === field("type").value);
+				return match ? match.label : "";
+			})();
+			if (field("auto").checked) {
+				field("name").value = nextEcosystemRegionAutoName(artLabel, allRegionNames());
+				field("name").readOnly = true;
+			} else {
+				field("name").readOnly = false;
+			}
+		};
+
+		field("auto").addEventListener("change", applyAutoName);
+		// „ein Artwechsel zieht den Griff mit" (§7d): with the checkbox on, changing the Art renames.
+		field("type").addEventListener("change", () => { if (field("auto").checked) { applyAutoName(); } });
+		field("wiki").addEventListener("input", () => { wikiTouched = true; });
+
+		block.querySelector('[data-a="wiki-clear"]').addEventListener("click", () => {
+			field("wiki").value = "";
+			wikiTouched = true;   // deliberate: an empty wiki_url IS the way back (Verhaltensdoku §7a)
+			field("auto").disabled = false;
+			message.textContent = "Zuweisung wird beim Speichern entfernt.";
+			message.className = "dt-msg";
+		});
+
+		block.querySelector('[data-a="save"]').addEventListener("click", async () => {
+			const button = block.querySelector('[data-a="save"]');
+			const payload = {
+				public_id: publicId,
+				name: field("name").value.trim(),
+				region_type: field("type").value,
+			};
+			// 🔴 Only wiki_url -- never wiki_region_key. The server derives the key from the URL
+			// (avesmapsEcosystemWikiRegionKey); a client-sent key is not read at all.
+			if (wikiTouched) { payload.wiki_url = field("wiki").value.trim(); }
+			if (payload.name === "") {
+				message.textContent = "Ein Name ist Pflicht.";
+				message.className = "dt-msg bad";
+				return;
+			}
+			button.disabled = true;
+			message.textContent = "Wird gespeichert …";
+			message.className = "dt-msg";
+			try {
+				await ecoPost("update_region", payload);
+				message.textContent = "Gespeichert.";
+				message.className = "dt-msg ok";
+				// Re-read rather than patch the local copy: names, keys and area counts all move, and
+				// the list, the raycast partners and the search index read from the same rows.
+				await loadData({ keepSelection: true });
+			} catch (error) {
+				// The kind/region_type pair is checked server-side (400) -- that message is the useful
+				// one, so it is shown rather than replaced.
+				message.textContent = "Speichern fehlgeschlagen: " + (error && error.message ? error.message : String(error));
+				message.className = "dt-msg bad";
+			} finally {
+				button.disabled = false;
+			}
+		});
+	});
+}
+
 function renderDetail() {
 	const host = $("ecoDetail");
 	const row = rowByKey(selectedKey);
@@ -532,17 +660,18 @@ function renderDetail() {
 	}
 	parts.push("</div>");
 
-	parts.push('<div class="dt-grp">Flächen</div><div class="dt-grid">');
+	// ---- Editable: ONE block per region (owner decision 2026-07-27) ----------------------------
+	// 💣 A list row may carry SEVERAL regions -- „Blautann" and „Blautann-Nord" share one wiki key.
+	// One shared form would make „rename" ambiguous, and that is exactly the trap the owner hit on
+	// 2026-07-27: the name sits on the REGION, and a region carries many areas, so renaming the
+	// wrong one hits every area under it. Each region therefore gets its own block and its own save.
 	if (row.regions.length === 0) {
-		parts.push('<div class="k">Gezeichnet</div><div>keine — steht in der Liste, ist auf der Karte nicht da</div>');
+		parts.push('<div class="dt-grp">Flächen</div><div class="dt-grid">');
+		parts.push('<div class="k">Gezeichnet</div><div>keine — steht in der Liste, ist auf der Karte nicht da. Bearbeiten lässt sich hier nichts: es gibt keine Landschaftsregion, die die Felder tragen könnte.</div>');
+		parts.push("</div>");
 	} else {
-		row.regions.forEach((area) => {
-			parts.push('<div class="k">' + esc(KIND_LABEL[area.kind] || area.kind) + "</div><div>" + esc(area.name)
-				+ " · " + Number(area.area_count || 0) + (Number(area.area_count) === 1 ? " Fläche" : " Flächen")
-				+ (area.region_type ? " · " + esc(area.region_type) : "") + "</div>");
-		});
+		row.regions.forEach((region) => parts.push(regionEditBlock(region)));
 	}
-	parts.push("</div>");
 
 	// „Gemeinsame Regionen mit" -- the raycast result. Every entry is a BUTTON that picks the pair
 	// and drives column 3.
@@ -574,10 +703,13 @@ function renderDetail() {
 		}
 	}
 	host.innerHTML = parts.join("");
+	wireEditBlocks(host);
 	host.querySelectorAll(".eco-partner").forEach((button) => {
 		button.addEventListener("click", () => {
 			selectedPartnerId = button.getAttribute("data-partner");
-			renderDetail();
+			// ⚠️ Deliberately NOT renderDetail(): a full rebuild would throw away whatever is being
+			// typed in the edit blocks above. Only the selected state moves.
+			host.querySelectorAll(".eco-partner").forEach((other) => other.classList.toggle("is-selected", other === button));
 			renderPreview();
 		});
 	});
@@ -585,8 +717,11 @@ function renderDetail() {
 
 // Auto-name: DERIVED from the name, never loaded -- "<Art>-<Zahl>" or it is not one. A stored column
 // would be a second truth about the same thing (Verhaltensdoku §7d).
+// ⚠️ The pattern is built from the Art's LABEL ("Wald-001"), not its key ("wald"). Delegated to the
+// shared, unit-tested isEcosystemRegionAutoName rather than re-derived here -- a second regex for
+// the same rule is how the two drift apart.
 function isAutoName(row) {
-	return row.regions.some((area) => new RegExp("^" + String(area.region_type || "[a-zäöüß]+") + "-\\d+$", "i").test(row.name));
+	return row.regions.some((region) => isEcosystemRegionAutoName(region.name, artLabelOf(region)));
 }
 
 // ---- Column 3: intersection preview + Vorkommen ----------------------------------------------
@@ -861,6 +996,15 @@ function demoData() {
 			rect("a5", "r5", "Sichelwacht", "topographie", "gebirge", 120, 120, 170, 170),
 			rect("a4", "r4", "Wald-001", "vegetation", "wald", 700, 700, 800, 800),
 		],
+		// Two separate vocabularies, never one filtered list: `wald` can never sit on a topographic
+		// region (ecosystem_region_type.kind, checked again server-side).
+		region_types: [
+			{ kind: "vegetation", type_key: "wald", label: "Wald" },
+			{ kind: "vegetation", type_key: "steppe", label: "Steppe" },
+			{ kind: "topographie", type_key: "gebirge", label: "Gebirge" },
+			{ kind: "topographie", type_key: "huegelland", label: "Hügelland" },
+			{ kind: "derographisch", type_key: "sumpf", label: "Sumpf" },
+		],
 		eco: {
 			regions: [
 				// drawn + wiki + label: the complete case
@@ -897,12 +1041,25 @@ function demoData() {
 	};
 }
 
-async function loadData() {
+async function loadData(options) {
+	const keepSelection = !!(options && options.keepSelection);
+	const previousKey = keepSelection ? selectedKey : null;
+	const previousPartner = keepSelection ? selectedPartnerId : null;
 	loadError = "";
 	setStatus("Regionen werden geladen …");
+	// After a save the selection has to survive the re-read, or every save throws the editor back to
+	// "pick a region on the left" -- with the block you were just working in gone.
+	const restoreSelection = () => {
+		if (!keepSelection) { return; }
+		selectedKey = rowByKey(previousKey) ? previousKey : null;
+		selectedPartnerId = selectedKey ? previousPartner : null;
+		renderDetail();
+		renderPreview();
+	};
 	if (new URLSearchParams(location.search).has("demo")) {
 		const demo = demoData();
 		rows = buildRows(demo.eco.regions, demo.wiki);
+		regionTypes = demo.region_types;
 		allAreas = demo.areas;
 		raycast = computeRaycast(allAreas);
 		moduleEnabled = true;
@@ -910,17 +1067,21 @@ async function loadData() {
 		$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · Schwelle " + Math.round(RAYCAST_THRESHOLD * 100) + " %";
 		rebuildFilterMenu();
 		renderList();
+		restoreSelection();
 		setStatus(statusCountsText());
 		return;
 	}
 	try {
 		// Both halves in parallel -- they are independent reads and the list needs both to exist.
 		// list_regions WITHOUT `kind`: the payload's kind filter is optional, and the tabs filter in
-		// the browser, so one request covers all three layers.
+		// the browser, so one request covers all three layers -- and region_types then carries the
+		// vocabulary of all three, which the per-layer Art select needs.
 		const [eco, wiki] = await Promise.all([ecoPost("list_regions", {}), loadWikiRegions()]);
 		rows = buildRows(eco.regions || [], wiki);
+		regionTypes = Array.isArray(eco.region_types) ? eco.region_types : [];
 		rebuildFilterMenu();
 		renderList();
+		restoreSelection();
 		setStatus(statusCountsText());
 	} catch (error) {
 		rows = [];
