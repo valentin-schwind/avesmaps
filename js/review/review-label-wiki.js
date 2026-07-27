@@ -26,9 +26,18 @@ const LABEL_WIKI_ART_TO_SUBTYPE = {
 	"region": "region", "mischregion": "region", "großregion": "region", "grossregion": "region",
 	"halbinsel": "region",
 	"tal": "tal", "flusstal": "tal",
+	// Talformen, die das Wiki ebenfalls unter Kategorie:Tal führt (Schlucht 19, Talkessel 1,
+	// Klamm 1 von 74 Seiten). Spiegelt AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE.
+	"schlucht": "tal", "klamm": "tal", "talkessel": "tal",
 	"auenlandschaft": "auenlandschaft",
 	"fluss": "fluss", "kontinent": "kontinent",
 };
+
+// Erste Komponente einer mehrwertigen Wiki-Art ("Tal|Grube", "Mischregion, Wald") -- exakt die
+// Aufteilung, die avesmapsWikiRegionArtToSubtype serverseitig macht.
+function labelWikiArtLookupKey(art) {
+	return String(art || "").split(/\s*[|,]\s*/)[0].trim().toLowerCase();
+}
 
 function labelWikiElement(id) {
 	return document.getElementById(id);
@@ -243,7 +252,11 @@ function applyLabelWikiToForm(wiki) {
 		return;
 	}
 	setLabelWikiRegion(wiki);
-	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[String(wiki.art || "").toLowerCase()];
+	// Mirror of avesmapsWikiRegionArtToSubtype (api/_internal/wiki/regions.php): the server maps the
+	// FIRST component of a multi-valued Art. Looking the raw string up missed every "Tal|Tal" /
+	// "Wald|Hain" already stored before the parser learned to split, so the arrow button silently
+	// did nothing on exactly those labels. The server owns the rule; this only follows it.
+	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[labelWikiArtLookupKey(wiki.art)];
 	const typeSelect = labelWikiElement("label-edit-type");
 	if (subtype && typeSelect && Array.from(typeSelect.options).some((option) => option.value === subtype)) {
 		typeSelect.value = subtype;
@@ -303,7 +316,7 @@ function syncLabelCategoryFromWiki() {
 		showFeedbackToast?.("Erst eine Wiki-Landschaft zuweisen.", "info");
 		return;
 	}
-	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[String(currentLabelWikiRegion.art || "").toLowerCase()];
+	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[labelWikiArtLookupKey(currentLabelWikiRegion.art)];
 	const select = labelWikiElement("label-edit-type");
 	if (subtype && select && Array.from(select.options).some((option) => option.value === subtype)) {
 		select.value = subtype;

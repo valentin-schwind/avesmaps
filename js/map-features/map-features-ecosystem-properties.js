@@ -268,7 +268,9 @@
 			nameInput.value = wiki.name;
 		}
 		const typeSelect = propertiesElement("type");
-		const art = String(wiki.art || "").trim().toLowerCase();
+		// Nur die erste Komponente einer mehrwertigen Wiki-Art ("Tal|Grube") -- wie serverseitig in
+		// avesmapsWikiRegionArtToSubtype. Roh verglichen trifft "tal|tal" nie den Typ-Namen "Tal".
+		const art = String(wiki.art || "").split(/\s*[|,]\s*/)[0].trim().toLowerCase();
 		const match = regionTypesForKind.find((type) => String(type.label || "").toLowerCase() === art
 			|| String(type.type_key || "").toLowerCase() === art);
 		if (typeSelect && match) {

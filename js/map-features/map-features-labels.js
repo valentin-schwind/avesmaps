@@ -281,6 +281,16 @@ function labelHasWikiRegion(label) {
 	return Boolean(label && label.wikiRegion && label.wikiRegion.wiki_key);
 }
 
+// Erste Komponente einer mehrwertigen Wiki-Art. „Art=Tal|Grube" sind für MediaWiki ZWEI Parameter
+// (das benannte Art plus ein ungenutzter Positionsparameter) -- das Wiki zeigt nur „Tal". Der
+// Staging-Parser normalisiert das seit 2026-07-27 selbst (avesmapsWikiRegionParsePage), aber die
+// wiki_region am Label ist eine KOPIE aus dem Staging: bereits gespeicherte Kopien tragen den
+// rohen Wert weiter, bis sie neu synchronisiert werden. Ohne diese Lesehilfe stünde bei 12 Labels
+// „Tal|Tal" als Untertitel in der Infobox. Komma bleibt Inhalt („Mischregion, Wald").
+function labelWikiArtPrimary(art) {
+	return String(art || "").split(/\s*\|\s*/)[0].trim();
+}
+
 // Infobox einer Wiki-Landschaft (Ansichtsmodus, Klick auf das Label). Bild nur bei nachweislich
 // freier Lizenz (gemeinfrei); sonst ausgeblendet (konservativ wie bei den Herrschaftsgebieten).
 function labelWikiInfoboxMarkup(label, options = {}) {
@@ -297,7 +307,7 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 
-	const art = String(wiki.art || "").trim();
+	const art = labelWikiArtPrimary(wiki.art);
 	const row = (dtLabel, value) => {
 		if (!value || String(value).trim() === "") {
 			return "";
@@ -365,7 +375,7 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 // landscape/region label shows identical content whether opened by click or by a ?region= deep-link.
 // wikiParam "region" matches the landscape/region deep-link parameter (js/app/wiki-deeplink.js).
 function buildRegionLabelViewPopupHtml(label) {
-	const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
+	const art = labelWikiArtPrimary(label.wikiRegion && label.wikiRegion.art) || "Region";
 	const labelName = label.text || (label.wikiRegion && label.wikiRegion.name) || "Region";
 	// Owner: 16:9 header image (by landscape art) + title overlay instead of the headless title.
 	const headerImg = typeof infoHeaderImageMarkup === "function"

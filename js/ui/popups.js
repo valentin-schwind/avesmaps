@@ -784,7 +784,12 @@ function labelPopupMarkup(entry) {
 	const sourceMarkup = !hasWiki && typeof renderFeatureSourceLine === "function"
 		? renderFeatureSourceLine("region", entry.label.publicId, "", "region-info-box__link")
 		: "";
-	const typeLabel = (hasWiki && entry.label.wikiRegion.art) ? entry.label.wikiRegion.art : tr("popup.labelTypeRegion", "Region");
+	// labelWikiArtPrimary: eine mehrwertige Wiki-Art ("Tal|Grube") auf die erste Komponente kürzen,
+	// wie MediaWiki sie selbst liest (map-features-labels.js).
+	const primaryArt = hasWiki && typeof labelWikiArtPrimary === "function"
+		? labelWikiArtPrimary(entry.label.wikiRegion.art)
+		: (hasWiki ? entry.label.wikiRegion.art : "");
+	const typeLabel = primaryArt || tr("popup.labelTypeRegion", "Region");
 	return locationPopupMarkup({
 		name: entry.label.text || tr("popup.labelNameFallback", "Label"),
 		locationTypeLabel: typeLabel,

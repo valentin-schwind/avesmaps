@@ -51,6 +51,12 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // Consequence: the ~25 labels stored as 'region' whose wiki Art is Tal/Flusstal now report a
     // type conflict until an editor adopts the category -- that is the intended signal.
     'tal' => 'tal', 'flusstal' => 'tal',
+    // The wiki files these valley forms under Kategorie:Tal as well. Measured against the live
+    // category on 2026-07-27 (74 pages): Schlucht 19, Talkessel 1, Klamm 1 -- without them a fifth
+    // of all valleys had no expected subtype, so the "adopt from the wiki landscape" button could
+    // not categorise them and they stayed in the 'region' catch-all. Krater (2 pages, both
+    // off-continent) stays unmapped on purpose: a crater is not a valley.
+    'schlucht' => 'tal', 'klamm' => 'tal', 'talkessel' => 'tal',
     // steppe (trockenes Grasland)
     'steppe' => 'steppe',
     // gras-/auenlandschaft (eigene Grüntöne)
@@ -463,6 +469,14 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
         $name = $canonical;
     }
     $art = $field(['art', 'typ']);
+    // "Art=Tal|Grube" is TWO parameters to MediaWiki: the named Art, plus an unused positional one.
+    // avesmapsWikiSyncMonitorParseTemplateParams is line-based and keeps the whole rest of the
+    // line, so the stored art -- which the infobox renders as its subtitle -- read "Tal|Grube"
+    // while every reader of the wiki sees "Tal" (verified 2026-07-27: the rendered page does not
+    // contain the string at all). Split on the PIPE only; a comma is content, not a separator
+    // ("Mischregion, Wald" is one Art). Do NOT push this into the shared param parser -- multi-line
+    // values such as Verlauf= or Positionskarte= legitimately carry pipes inside templates.
+    $art = trim((preg_split('/\s*\|\s*/u', $art) ?: [''])[0]);
     // Berge heißen bei Avesmaps „Berggipfel" (gleiche Bezeichnung wie die Karten-Labels).
     if (mb_strtolower(trim($art), 'UTF-8') === 'berg') {
         $art = 'Berggipfel';
