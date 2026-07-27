@@ -167,10 +167,14 @@ pills, list rows), `--radius-lg` 10px (menus, cards, autocomplete). The old
   back to the clean hard break — never worse than before (pure progressive enhancement).
   Apply to prose / names only — never buttons, pills, numbers, codes, or `dt` labels.
 - **No blue = UI chrome only.** The no-blue rule covers panels, controls, links and
-  menus. Two deliberate, code-commented exceptions stay and must **not** be
+  menus. Three deliberate, code-commented exceptions stay and must **not** be
   "corrected": the *edit-in-progress* handles (path-edit dots,
-  `REGION_EDIT_EDGE_COLOR`) and the analytics chart's categorical data palette
-  (`#2a78d6` / `#4a3aa7`) — they encode state / data, not chrome.
+  `REGION_EDIT_EDGE_COLOR`), the analytics chart's categorical data palette
+  (`#2a78d6` / `#4a3aa7`), and the **water tones of the Landschaften layer**
+  (`--color-ecosystem-topographie-see` / `-meer` / `-kueste`, plus the blue-green
+  `-vegetation-tundra`) — they encode state / data, not chrome. Water in warm brown
+  is unreadable to anyone who has ever looked at a map, and the map's own rivers
+  have been blue all along.
 - **Selects / inputs**: `--color-panel` background (flat — never the native grey
   browser control), `--color-border` + `--radius-md`; **hover** →
   `--color-border-strong`; **focus / open** → border-strong + `var(--focus-ring)`;

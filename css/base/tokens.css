@@ -168,21 +168,38 @@
 	/* CONTOURS for those two, markedly darker than their own fill (Owner 2026-07-26). Only these two
 	   have one: vegetation carries a tone per type, and its contour follows that tone -- see
 	   ecosystemAreaColor(). A missing token here means "use the fill colour", which is what keeps the
-	   rule one rule instead of a second table. */
+	   rule one rule instead of a second table.
+	   ⚠️ The topographic contour is a neutral dark SLATE, not the brown it started as: since that layer
+	   gained a tone per type it has to sit on brown-grey, grey-green, blue, dark blue and turquoise
+	   alike, and a brown line on a sea reads as dirt. One line per LAYER is still the rule -- the point
+	   of the dark contour is "this is where the area ends", and that answer must not change per type. */
 	--color-ecosystem-derographisch-contour: #2e2e2e;
-	--color-ecosystem-topographie-contour: #3d3329;
+	--color-ecosystem-topographie-contour: #2b3138;
 	/* The fallback for a vegetation region with no type set. The per-type tones below win when the
 	   region has one; they are looked up BY RULE from the type_key
-	   (--color-ecosystem-vegetation-<type_key with _ as ->), so a newly seeded type needs a token here
+	   (--color-ecosystem-<kind>-<type_key with _ as ->), so a newly seeded type needs a token here
 	   and nothing else -- there is no list of them in the client to keep in sync. */
 	--color-ecosystem-vegetation: #5f7d33;
 	--color-ecosystem-vegetation-wald: #3f6b2c;             /* dense forest */
-	--color-ecosystem-vegetation-auenlandschaft: #6f9c4e;   /* floodplain, lighter and fresher */
-	--color-ecosystem-vegetation-graslandschaft: #93ad55;   /* grassland */
-	--color-ecosystem-vegetation-steppe: #b0a052;           /* dry steppe, yellowing */
-	--color-ecosystem-vegetation-wueste: #d8bd7e;           /* desert sand */
-	--color-ecosystem-vegetation-suempfe-moore: #4d5a3b;    /* swamp and moor, murky */
-	--color-ecosystem-vegetation-tundra: #93a48f;           /* tundra, cold and pale */
+	--color-ecosystem-vegetation-suempfe-moore: #2f4a2a;    /* swamp and moor, dark green */
+	--color-ecosystem-vegetation-steppe: #a8bd8a;           /* steppe, pale green */
+	--color-ecosystem-vegetation-tundra: #6f9d94;           /* tundra, blue-green */
+	--color-ecosystem-vegetation-auenlandschaft: #4f9e35;   /* floodplain, vivid green */
+	--color-ecosystem-vegetation-wueste: #e0c74e;           /* desert, yellow */
+	--color-ecosystem-vegetation-graslandschaft: #8fbf6a;   /* grassland, soft green */
+
+	/* Topography per type, same rule (Owner 2026-07-27). Until today the whole layer was one brown-grey;
+	   it draws relief AND water, and those two do not share a colour in any map anyone has ever read.
+	   💣 THE BLUES ARE A DELIBERATE, PERMANENT EXCEPTION TO "no blue" (§12) -- do not "correct" them in a
+	   token sweep. The no-blue rule is about UI chrome: panels, controls, links, menus. These are DATA
+	   painted on the map, in the same category as the analytics chart's categorical palette and the
+	   heraldic red of the route markers, and the map's own rivers have been blue all along. A sea drawn
+	   in warm brown would be unreadable to every editor who has ever seen a map. */
+	--color-ecosystem-topographie-gebirge: #7a6c5e;         /* mountains, brown-grey */
+	--color-ecosystem-topographie-huegelland: #7d8f6e;      /* hills, grey-green */
+	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
+	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
+	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
 	/* Selection contour (Owner 2026-07-26): a SELECTED area is outlined in white, an area whose corners
 	   are open for editing in the handle blue above. Two states, two contours -- the same principle as
 	   the two marker rings further up, and the reason the fill keeps its own tone in both cases: the

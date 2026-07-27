@@ -55,8 +55,13 @@ function readEcosystemColorToken(token) {
 // ecosystem_region_type. A type without a token, or a region without a type, falls back to the layer's
 // base tone.
 function ecosystemAreaColor(kind, regionType) {
-	if (kind === "vegetation" && regionType) {
-		const typeColor = readEcosystemColorToken(`--color-ecosystem-vegetation-${String(regionType).replace(/_/g, "-")}`);
+	// One rule for every layer, not a special case for vegetation: topography draws relief AND water,
+	// which no map has ever painted in one colour, and derographic containers may want the same
+	// treatment tomorrow. A type without a token falls through to the layer's base tone, so adding a
+	// tone is adding a token -- there is no type list in this file that could fall behind
+	// ecosystem_region_type.
+	if (kind && regionType) {
+		const typeColor = readEcosystemColorToken(`--color-ecosystem-${kind}-${String(regionType).replace(/_/g, "-")}`);
 		if (typeColor) {
 			return typeColor;
 		}
