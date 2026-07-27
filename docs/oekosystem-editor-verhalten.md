@@ -160,8 +160,18 @@ beim Anlegen setzen, und eine Region war überhaupt nicht löschbar.
 > *„Region bearbeiten"* (`#label-edit-overlay`) bearbeitet eine **Beschriftung** in
 > `map_features` — daher dessen Größe, Rotation, Zoom-Bänder und Priorität, die hier
 > alle fehlen: eine Fläche hat keine (§12). Es sind zwei Zeilen in zwei Tabellen.
-> **Wer die Fläche umbenennt, benennt das Karten-Label nicht mit um.**
-> `ecosystem_region.label_public_id` könnte beide koppeln, tut es heute nicht.
+>
+> **Gekoppelt sind sie trotzdem** — über `ecosystem_region.label_public_id`. Bis V6
+> stand hier das Gegenteil („wer die Fläche umbenennt, benennt das Label nicht mit
+> um"), und das war richtig, solange die beiden nichts voneinander wussten. Seit jede
+> Region ihr Label automatisch bekommt, wären zwei Namen für dasselbe Ding schlicht
+> ein Fehler: Speichern trägt Name und Art ans Label weiter.
+>
+> 💣 **Der Zeiger kann ins Leere zeigen.** Ein Label lässt sich einzeln löschen; die
+> Region behält dann ihren `label_public_id`. Der Haken *„Regionname anzeigen"* geht
+> daraufhin richtig aus — aber es entscheidet das **Label**, nicht der Zeiger, ob beim
+> Wiederanhaken eins angelegt wird. Wer das umdreht, baut den Fehler von 2026-07-27
+> nach: der Haken ließ sich setzen und es entstand nichts.
 
 **Sync** übernimmt Name und Art aus der verbundenen Wiki-Landschaft — die Art nur, wenn
 das Vokabular dieser Ebene sie kennt (`wald` kann nie auf einer topographischen Region
