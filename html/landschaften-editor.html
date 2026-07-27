@@ -573,6 +573,20 @@ function computeTerritoryHits(areas, allTerritories) {
 // The ancestor chain, from parent_public_id. 🔴 An ancestor is NOT a finding: if a forest hits a
 // barony, that barony's county and realm contain it by construction. Deriving the chain instead of
 // listing every ancestor as its own hit is what keeps this column readable.
+// 💣 The territory NAME already carries its rank -- measured on the live layer: 713 of 945 names
+// start with their exact territory_type, and the remaining ones are self-describing full names
+// ("Alanfanisches Imperium", "Heiliges Neues Kaiserreich vom Greifenthron zu Gareth"). Prefixing the
+// type produced "Baronie Baronie Schneehag" and "Herzogliche Baronie Baronie Herzoglich Waldleuen".
+// The type is appended ONLY where the name genuinely lacks it -- "Thorwal (Reich)". Compared on the
+// head noun, so "Herzogliche Baronie" counts as carried by "Baronie Herzoglich Waldleuen".
+function territoryLabel(territory) {
+	const name = String(territory.name || "").trim();
+	const type = String(territory.type || "").trim();
+	if (name === "" || type === "") { return name || type; }
+	const head = type.split(/[\s,]+/).filter(Boolean).pop() || type;
+	return name.toLowerCase().includes(head.toLowerCase()) ? name : name + " (" + type + ")";
+}
+
 function territoryChain(territory, index) {
 	const chain = [];
 	const seen = new Set();
@@ -800,10 +814,10 @@ function renderDetail() {
 		} else {
 			parts.push('<div class="eco-partners">' + leaves.map((hit) => {
 				const chain = territoryChain(hit.territory, index)
-					.map((ancestor) => esc((ancestor.type ? ancestor.type + " " : "") + ancestor.name)).join(" ← ");
+					.map((ancestor) => esc(territoryLabel(ancestor))).join(" ← ");
 				return '<div class="eco-terr">'
 					+ '<div class="eco-terr__head"><span class="eco-partner__name">'
-					+ esc((hit.territory.type ? hit.territory.type + " " : "") + hit.territory.name) + "</span>"
+					+ esc(territoryLabel(hit.territory)) + "</span>"
 					+ (hit.territory.isAggregate ? '<span class="avm-pill">Aggregat</span>' : "")
 					+ '<span class="eco-partner__share">' + percent(hit.share) + "</span></div>"
 					+ (chain ? '<div class="eco-terr__chain">↳ ' + chain + "</div>" : "")
@@ -1150,10 +1164,14 @@ function demoData() {
 		// bundles counties. Blautann (200..400) covers both baronies and therefore, by construction,
 		// their county and its realm -- exactly the chain the display has to collapse.
 		territories: [
-			{ publicId: "t-bar-1", name: "Hartsteen", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 180, y1: 180, x2: 300, y2: 300 },
-			{ publicId: "t-bar-2", name: "Grauensee", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 300, y1: 180, x2: 420, y2: 300 },
-			{ publicId: "t-bar-3", name: "Wolfsstein", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 180, y1: 300, x2: 420, y2: 420 },
-			{ publicId: "t-graf", name: "Ferdok", type: "Grafschaft", parentId: "t-reich", isAggregate: true, x1: 180, y1: 180, x2: 420, y2: 420 },
+			// Names carry their rank, exactly as the live layer delivers them -- that is the shape
+			// that produced "Baronie Baronie Schneehag" when the type was prefixed.
+			{ publicId: "t-bar-1", name: "Baronie Hartsteen", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 180, y1: 180, x2: 300, y2: 300 },
+			{ publicId: "t-bar-2", name: "Baronie Grauensee", type: "Baronie", parentId: "t-graf", isAggregate: false, x1: 300, y1: 180, x2: 420, y2: 300 },
+			// The awkward live variant: type "Herzogliche Baronie", name starting with plain "Baronie".
+			{ publicId: "t-bar-3", name: "Baronie Herzoglich Wolfsstein", type: "Herzogliche Baronie", parentId: "t-graf", isAggregate: false, x1: 180, y1: 300, x2: 420, y2: 420 },
+			{ publicId: "t-graf", name: "Grafschaft Ferdok", type: "Grafschaft", parentId: "t-reich", isAggregate: true, x1: 180, y1: 180, x2: 420, y2: 420 },
+			// A name that does NOT carry its rank -- here the type is worth appending.
 			{ publicId: "t-reich", name: "Kosch", type: "Königreich", parentId: "", isAggregate: true, x1: 100, y1: 100, x2: 500, y2: 500 },
 			// weit weg -- darf nie auftauchen
 			{ publicId: "t-fern", name: "Al'Anfa", type: "Stadtstaat", parentId: "", isAggregate: false, x1: 800, y1: 800, x2: 900, y2: 900 },
