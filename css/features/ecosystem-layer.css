@@ -314,16 +314,20 @@
    these same lists. Only what genuinely differs gets its own rule (the notice's prose body below; the
    send dialog's source line and its optional fields further down).
 
-   V6 added the fourth (.ecosystem-assign-dialog, "assign a wiki region to areas"); a FIFTH extends the
-   same lists again. Its own rules are the candidate list and the dry-run preview at the end of this file.
+   V6 added .ecosystem-assign-dialog ("assign a wiki region to areas"), V6b .ecosystem-properties-dialog,
+   and V6c .label-assign-dialog ("assign a wiki region to map LABELS") -- the sixth. Each one extended
+   the same lists rather than declaring its own shell. The candidate list and the dry-run preview at the
+   end of this file are shared the same way: the two assign dialogs are the same interaction on two
+   different tables (ecosystem_region vs map_features), so they must not be allowed to look different.
 
    The overlays themselves (position/scrim/z-index) are NOT styled here: #ecosystem-region-overlay,
-   #ecosystem-intro-overlay, #ecosystem-transfer-overlay and #ecosystem-assign-overlay are entered into
-   the three selector lists in css/components/dialog-overlays.css, so they inherit the shared scrim and
-   stacking. */
+   #ecosystem-intro-overlay, #ecosystem-transfer-overlay, #ecosystem-assign-overlay,
+   #ecosystem-properties-overlay and #label-assign-overlay are entered into the three selector lists in
+   css/components/dialog-overlays.css, so they inherit the shared scrim and stacking. */
 .ecosystem-region-dialog,
 .ecosystem-properties-dialog,
 .ecosystem-assign-dialog,
+.label-assign-dialog,
 .ecosystem-intro-dialog,
 .ecosystem-transfer-dialog {
 	width: min(420px, 100%);
@@ -340,6 +344,7 @@
 .ecosystem-region-dialog__header,
 .ecosystem-properties-dialog__header,
 .ecosystem-assign-dialog__header,
+.label-assign-dialog__header,
 .ecosystem-intro-dialog__header,
 .ecosystem-transfer-dialog__header {
 	display: flex;
@@ -354,6 +359,7 @@
 .ecosystem-region-dialog__header h2,
 .ecosystem-properties-dialog__header h2,
 .ecosystem-assign-dialog__header h2,
+.label-assign-dialog__header h2,
 .ecosystem-intro-dialog__header h2,
 .ecosystem-transfer-dialog__header h2 {
 	margin: 0;
@@ -365,6 +371,7 @@
 .ecosystem-region-dialog__close,
 .ecosystem-properties-dialog__close,
 .ecosystem-assign-dialog__close,
+.label-assign-dialog__close,
 .ecosystem-intro-dialog__close,
 .ecosystem-transfer-dialog__close {
 	appearance: none;
@@ -383,6 +390,7 @@
 .ecosystem-region-dialog__close:hover,
 .ecosystem-properties-dialog__close:hover,
 .ecosystem-assign-dialog__close:hover,
+.label-assign-dialog__close:hover,
 .ecosystem-intro-dialog__close:hover,
 .ecosystem-transfer-dialog__close:hover {
 	color: var(--color-text-strong);
@@ -391,6 +399,7 @@
 .ecosystem-region-dialog__close:focus-visible,
 .ecosystem-properties-dialog__close:focus-visible,
 .ecosystem-assign-dialog__close:focus-visible,
+.label-assign-dialog__close:focus-visible,
 .ecosystem-intro-dialog__close:focus-visible,
 .ecosystem-transfer-dialog__close:focus-visible {
 	outline: none;
@@ -400,6 +409,7 @@
 .ecosystem-region-dialog__form,
 .ecosystem-properties-dialog__form,
 .ecosystem-assign-dialog__form,
+.label-assign-dialog__form,
 .ecosystem-transfer-dialog__form {
 	display: grid;
 	gap: var(--space-10);
@@ -416,6 +426,7 @@
 .ecosystem-region-dialog__field,
 .ecosystem-properties-dialog__field,
 .ecosystem-assign-dialog__field,
+.label-assign-dialog__field,
 .ecosystem-transfer-dialog__field {
 	display: grid;
 	gap: var(--space-4);
@@ -426,9 +437,11 @@
 .ecosystem-region-dialog__field input,
 .ecosystem-properties-dialog__field input,
 .ecosystem-assign-dialog__field input,
+.label-assign-dialog__field input,
 .ecosystem-region-dialog__field select,
 .ecosystem-properties-dialog__field select,
 .ecosystem-assign-dialog__field select,
+.label-assign-dialog__field select,
 .ecosystem-transfer-dialog__field input,
 .ecosystem-transfer-dialog__field select {
 	padding: var(--space-6) var(--space-8);
@@ -443,6 +456,7 @@
 .ecosystem-region-dialog__field input::placeholder,
 .ecosystem-properties-dialog__field input::placeholder,
 .ecosystem-assign-dialog__field input::placeholder,
+.label-assign-dialog__field input::placeholder,
 .ecosystem-transfer-dialog__field input::placeholder {
 	color: var(--color-placeholder);
 }
@@ -450,9 +464,11 @@
 .ecosystem-region-dialog__field input:hover,
 .ecosystem-properties-dialog__field input:hover,
 .ecosystem-assign-dialog__field input:hover,
+.label-assign-dialog__field input:hover,
 .ecosystem-region-dialog__field select:hover,
 .ecosystem-properties-dialog__field select:hover,
 .ecosystem-assign-dialog__field select:hover,
+.label-assign-dialog__field select:hover,
 .ecosystem-transfer-dialog__field input:hover,
 .ecosystem-transfer-dialog__field select:hover {
 	border-color: var(--color-border-strong);
@@ -461,9 +477,11 @@
 .ecosystem-region-dialog__field input:focus-visible,
 .ecosystem-properties-dialog__field input:focus-visible,
 .ecosystem-assign-dialog__field input:focus-visible,
+.label-assign-dialog__field input:focus-visible,
 .ecosystem-region-dialog__field select:focus-visible,
 .ecosystem-properties-dialog__field select:focus-visible,
 .ecosystem-assign-dialog__field select:focus-visible,
+.label-assign-dialog__field select:focus-visible,
 .ecosystem-transfer-dialog__field input:focus-visible,
 .ecosystem-transfer-dialog__field select:focus-visible {
 	outline: none;
@@ -474,6 +492,7 @@
 .ecosystem-region-dialog__error[hidden],
 .ecosystem-properties-dialog__error[hidden],
 .ecosystem-assign-dialog__error[hidden],
+.label-assign-dialog__error[hidden],
 .ecosystem-transfer-dialog__error[hidden] {
 	display: none !important;
 }
@@ -481,6 +500,7 @@
 .ecosystem-region-dialog__error,
 .ecosystem-properties-dialog__error,
 .ecosystem-assign-dialog__error,
+.label-assign-dialog__error,
 .ecosystem-transfer-dialog__error {
 	margin: 0;
 	padding: var(--space-6) var(--space-8);
@@ -495,6 +515,7 @@
 .ecosystem-region-dialog__actions,
 .ecosystem-properties-dialog__actions,
 .ecosystem-assign-dialog__actions,
+.label-assign-dialog__actions,
 .ecosystem-intro-dialog__actions,
 .ecosystem-transfer-dialog__actions {
 	display: flex;
@@ -507,6 +528,7 @@
 .ecosystem-region-dialog__button,
 .ecosystem-properties-dialog__button,
 .ecosystem-assign-dialog__button,
+.label-assign-dialog__button,
 .ecosystem-intro-dialog__button,
 .ecosystem-transfer-dialog__button {
 	appearance: none;
@@ -524,6 +546,7 @@
 .ecosystem-region-dialog__button:hover,
 .ecosystem-properties-dialog__button:hover,
 .ecosystem-assign-dialog__button:hover,
+.label-assign-dialog__button:hover,
 .ecosystem-intro-dialog__button:hover,
 .ecosystem-transfer-dialog__button:hover {
 	background: var(--color-button-soft-hover);
@@ -532,6 +555,7 @@
 .ecosystem-region-dialog__button:focus-visible,
 .ecosystem-properties-dialog__button:focus-visible,
 .ecosystem-assign-dialog__button:focus-visible,
+.label-assign-dialog__button:focus-visible,
 .ecosystem-intro-dialog__button:focus-visible,
 .ecosystem-transfer-dialog__button:focus-visible {
 	outline: none;
@@ -542,6 +566,7 @@
 .ecosystem-region-dialog__button--primary,
 .ecosystem-properties-dialog__button--primary,
 .ecosystem-assign-dialog__button--primary,
+.label-assign-dialog__button--primary,
 .ecosystem-intro-dialog__button--primary,
 .ecosystem-transfer-dialog__button--primary {
 	border-color: var(--color-button-border);
@@ -552,6 +577,7 @@
 .ecosystem-region-dialog__button--primary:hover,
 .ecosystem-properties-dialog__button--primary:hover,
 .ecosystem-assign-dialog__button--primary:hover,
+.label-assign-dialog__button--primary:hover,
 .ecosystem-intro-dialog__button--primary:hover,
 .ecosystem-transfer-dialog__button--primary:hover {
 	background: var(--color-button-hover);
@@ -560,6 +586,7 @@
 .ecosystem-region-dialog__button:disabled,
 .ecosystem-properties-dialog__button:disabled,
 .ecosystem-assign-dialog__button:disabled,
+.label-assign-dialog__button:disabled,
 .ecosystem-transfer-dialog__button:disabled {
 	border-color: var(--color-disabled-border);
 	background: var(--color-disabled-bg);
@@ -633,7 +660,8 @@
 /* ---- assign dialog, the part that is NOT shared (V6) -----------------------------------------------
    The candidate list and the dry-run preview. Everything else (shell, header, close, form, field, error,
    actions, buttons) comes from the shared lists at the top of this section. */
-.ecosystem-assign-dialog__target {
+.ecosystem-assign-dialog__target,
+.label-assign-dialog__target {
 	margin: 0;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);
@@ -643,14 +671,16 @@
 
 /* Gescrollt, nicht gestreckt: es sind ~130 Landschaftsregionen, und der Dialog darf davon nicht
    auseinandergezogen werden. Getrennt durch Linien, nicht durch Rahmen (Designsprache §12). */
-.ecosystem-assign-dialog__list {
+.ecosystem-assign-dialog__list,
+.label-assign-dialog__list {
 	max-height: 240px;
 	overflow-y: auto;
 	border-top: 1px solid var(--color-divider);
 	border-bottom: 1px solid var(--color-divider);
 }
 
-.ecosystem-assign-dialog__row {
+.ecosystem-assign-dialog__row,
+.label-assign-dialog__row {
 	display: grid;
 	grid-template-columns: auto 1fr;
 	align-items: baseline;
@@ -659,21 +689,25 @@
 	cursor: pointer;
 }
 
-.ecosystem-assign-dialog__row:hover {
+.ecosystem-assign-dialog__row:hover,
+.label-assign-dialog__row:hover {
 	background: var(--color-panel-soft);
 }
 
-.ecosystem-assign-dialog__rowname {
+.ecosystem-assign-dialog__rowname,
+.label-assign-dialog__rowname {
 	color: var(--color-text-strong);
 }
 
-.ecosystem-assign-dialog__rowmeta {
+.ecosystem-assign-dialog__rowmeta,
+.label-assign-dialog__rowmeta {
 	grid-column: 2;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);
 }
 
-.ecosystem-assign-dialog__empty {
+.ecosystem-assign-dialog__empty,
+.label-assign-dialog__empty {
 	margin: 0;
 	padding: var(--space-8) 0;
 	color: var(--color-text-muted);
@@ -681,11 +715,13 @@
 }
 
 /* Der Trockenlauf. Auf dem weichen Grund tragen Statustöne die -soft-text-Variante. */
-.ecosystem-assign-dialog__preview[hidden] {
+.ecosystem-assign-dialog__preview[hidden],
+.label-assign-dialog__preview[hidden] {
 	display: none !important;
 }
 
-.ecosystem-assign-dialog__preview {
+.ecosystem-assign-dialog__preview,
+.label-assign-dialog__preview {
 	margin: 0;
 	padding: var(--space-8);
 	border-radius: var(--radius-sm);
@@ -696,7 +732,8 @@
 	overflow-wrap: break-word;
 }
 
-.ecosystem-assign-dialog__warn {
+.ecosystem-assign-dialog__warn,
+.label-assign-dialog__warn {
 	color: var(--color-warning-soft-text);
 }
 

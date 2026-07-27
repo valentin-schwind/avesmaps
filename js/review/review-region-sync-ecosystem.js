@@ -1,5 +1,10 @@
-// Der Landschaftsteil der Liste „WikiSync → Regionen" (Plan V6): welche Landschaftsflächen hängen an
-// welcher Wiki-Region, und das Zuweisen selbst.
+// Der Landschaftsteil der Liste „WikiSync → Regionen": welche Landschaftsflächen hängen an welcher
+// Wiki-Region, und das Zuweisen selbst — für FLÄCHEN (V6) wie für KARTEN-LABELS (V6c).
+//
+// Beide Haelften wohnen hier, weil sie sich EINE Listenzeile und zwei Nachbarknoepfe teilen. Sie
+// schreiben aber in verschiedene Tabellen ueber verschiedene Endpunkte: Flaechen nach
+// ecosystem_region (ecosystem.php, bumpt ecosystem_revision), Labels nach map_features
+// (regions.php, bumpt map_revision). Deshalb zwei getrennte Dialoge statt eines mit Moduszaehler.
 //
 // Kept OUT of review-region-sync.js because that file already carries 457 lines and ONE data source
 // (regions.php?action=match). This half has its own source (api/edit/map/ecosystem.php, action
@@ -55,29 +60,46 @@ function ecosystemRegionsForWikiKey(wikiKey) {
 	return ecosystemRegionsByWikiKey[key] || [];
 }
 
-// Die „Fläche(n): …"-Zeile. Ein Chip je Landschaftsregion, ihre Flaechenzahl darin, dahinter der
-// Zuweisen-Knopf. Der Knopf steht auch auf Zeilen OHNE Flaeche -- dort ist er der ganze Zweck.
+// Die „Fläche(n): …"-Zeile plus die beiden Zuweisen-Knoepfe. Ein Chip je Landschaftsregion, ihre
+// Flaechenzahl darin. Die Knoepfe stehen auch auf Zeilen OHNE Flaeche -- dort sind sie der ganze Zweck.
 function ecosystemAreaBadgeForWikiKey(wikiKey) {
 	const key = String(wikiKey || "").trim();
 	// Ohne wiki_key gibt es nichts zu verknuepfen: solche Zeilen sind Karten-Labels ohne Wiki-Eintrag
 	// (regionMapOnlyRows), und ein Zuweisen-Knopf ohne Ziel waere eine Sackgasse.
-	if (!key || !isEcosystemAssignAvailable()) {
+	if (!key) {
 		return "";
 	}
 
-	const regions = ecosystemRegionsForWikiKey(key);
-	const chips = regions
-		.map((region) => {
-			const name = regionSyncEscapeText(region.name);
-			const count = Number(region.area_count || 0);
-			const countText = count === 1 ? "1 Fläche" : `${count} Flächen`;
-			return `<span class="region-sync__areachip" title="${regionSyncEscapeAttr(`${region.name} — ${countText}`)}">${name}${count > 1 ? ` ×${count}` : ""}</span>`;
-		})
-		.join("");
-	const body = chips || '<span class="region-sync__areas--none">—</span>';
-	const assign = `<button type="button" class="region-sync__assign" data-assign-wiki-key="${regionSyncEscapeAttr(key)}" title="Landschaftsflächen mit dieser Wiki-Region verknüpfen">Fläche zuweisen</button>`;
+	// 🪤 Der Riegel gilt NUR fuer den Flaechenteil. Er stand frueher vor der ganzen Funktion, und ein
+	// Host ohne Landschafts-Endpunkt haette damit auch den Label-Knopf still verschluckt -- obwohl
+	// Labels ueber einen voellig anderen Endpunkt laufen (regions.php, nicht ecosystem.php).
+	let areaPart = "";
+	if (isEcosystemAssignAvailable()) {
+		const chips = ecosystemRegionsForWikiKey(key)
+			.map((region) => {
+				const name = regionSyncEscapeText(region.name);
+				const count = Number(region.area_count || 0);
+				const countText = count === 1 ? "1 Fläche" : `${count} Flächen`;
+				return `<span class="region-sync__areachip" title="${regionSyncEscapeAttr(`${region.name} — ${countText}`)}">${name}${count > 1 ? ` ×${count}` : ""}</span>`;
+			})
+			.join("");
+		const body = chips || '<span class="region-sync__areas--none">—</span>';
+		const assign = `<button type="button" class="region-sync__assign" data-assign-wiki-key="${regionSyncEscapeAttr(key)}" title="Landschaftsflächen mit dieser Wiki-Region verknüpfen">Fläche zuweisen</button>`;
+		areaPart = `Fläche(n): ${body} ${assign} `;
+	}
 
-	return `<span class="region-sync__areas">Fläche(n): ${body} ${assign}</span>`;
+	return `<span class="region-sync__areas">${areaPart}${labelAssignButtonForWikiKey(key)}</span>`;
+}
+
+// V6c: der zweite Knopf derselben Zeile. Er verknuepft KARTEN-LABELS statt Flaechen -- zwei Zeilen in
+// zwei Tabellen (map_features vs ecosystem_region), dieselbe Frage „was gehoert zu dieser Wiki-Region".
+// Was schon verknuepft ist, zeigt die Zeile bereits als „Karte: …"; hier steht nur die Handlung.
+function labelAssignButtonForWikiKey(wikiKey) {
+	const key = String(wikiKey || "").trim();
+	if (!key) {
+		return "";
+	}
+	return `<button type="button" class="region-sync__assign" data-assign-label-wiki-key="${regionSyncEscapeAttr(key)}" title="Karten-Labels mit dieser Wiki-Region verknüpfen">Label zuweisen</button>`;
 }
 
 // ---- der Zuweisen-Dialog ------------------------------------------------------------------------------
@@ -361,6 +383,307 @@ function bindEcosystemAssignDialog() {
 		}
 	});
 }
+
+// ---- der Label-Zuweisen-Dialog (V6c) ------------------------------------------------------------------
+// Spiegelbild des Flaechen-Dialogs oben: auswaehlen -> „Vorschau" (Trockenlauf) -> „Zuweisen" (scharf).
+// Bewusst DANEBEN gebaut, nicht als zweiter Modus desselben Dialogs: die beiden haben verschiedene
+// Kandidatenquellen, verschiedene Endpunkte und verschiedene Nutzlasten, und ein Moduszaehler haette
+// jede Funktion oben verzweigt.
+//
+// 🔴 Die Aktion 'assign_labels' schreibt map_features.properties_json.wiki_region und bumpt
+// map_revision -- das ist RICHTIG so und der Unterschied zum Flaechen-Dialog: Labels reisen im
+// map-features-Payload, eine Flaeche tut das nicht.
+
+let labelAssignTarget = null;
+let labelAssignCandidates = [];
+let labelAssignPreview = null;
+let labelAssignBusy = false;
+let labelAssignBound = false;
+
+function labelAssignElement(id) {
+	return document.getElementById(id);
+}
+
+function setLabelAssignError(message) {
+	const element = labelAssignElement("label-assign-error");
+	if (!element) {
+		return;
+	}
+	element.textContent = String(message || "");
+	element.hidden = !message;
+}
+
+function isLabelAssignDialogOpen() {
+	const overlay = labelAssignElement("label-assign-overlay");
+	return Boolean(overlay) && !overlay.hidden;
+}
+
+function closeLabelAssignDialog() {
+	const overlay = labelAssignElement("label-assign-overlay");
+	if (overlay) {
+		overlay.hidden = true;
+	}
+	labelAssignTarget = null;
+	labelAssignPreview = null;
+}
+
+function selectedLabelAssignIds() {
+	return [...document.querySelectorAll("#label-assign-list input[type=checkbox]:checked")].map((box) => box.value);
+}
+
+// Jede Auswahländerung verwirft den Trockenlauf: die Vorschau gehoerte zur alten Auswahl, und scharf
+// laufen darf nur, was auch gezeigt wurde.
+function resetLabelAssignPreview() {
+	labelAssignPreview = null;
+	const preview = labelAssignElement("label-assign-preview");
+	if (preview) {
+		preview.hidden = true;
+		preview.textContent = "";
+	}
+	const save = labelAssignElement("label-assign-save");
+	if (save) {
+		save.textContent = "Vorschau";
+	}
+}
+
+// Kandidaten sind ALLE aktiven Karten-Labels -- aus labelData, derselben Quelle, aus der auch
+// regionMapOnlyRows() liest. Kein eigener Endpunkt: labelData traegt schon den vollstaendigen
+// map-features-Bestand, waehrend die Trefferliste (action=match) nach sampleLimit beschnitten ist und
+// ein Label deshalb schlicht fehlen koennte.
+function labelAssignCandidateRows() {
+	if (typeof labelData === "undefined" || !Array.isArray(labelData)) {
+		return [];
+	}
+	return labelData
+		.map((label) => ({
+			public_id: String(label.publicId || ""),
+			name: String(label.text || "").trim(),
+			subtype: String(label.labelType || label.subtype || ""),
+			wiki_key: String((label.wikiRegion && label.wikiRegion.wiki_key) || ""),
+		}))
+		.filter((label) => label.public_id !== "" && label.name !== "")
+		.sort((a, b) => a.name.localeCompare(b.name, "de"));
+}
+
+function renderLabelAssignCandidates() {
+	const list = labelAssignElement("label-assign-list");
+	if (!list) {
+		return;
+	}
+
+	const filter = String(labelAssignElement("label-assign-filter")?.value || "").trim().toLowerCase();
+	const checked = new Set(selectedLabelAssignIds());
+	const rows = labelAssignCandidates.filter((label) => {
+		if (filter === "") {
+			return true;
+		}
+		return `${label.name} ${label.subtype}`.toLowerCase().includes(filter);
+	});
+
+	if (rows.length === 0) {
+		list.innerHTML = labelAssignCandidates.length === 0
+			? '<p class="label-assign-dialog__empty">Die Karten-Labels sind noch nicht geladen.</p>'
+			: '<p class="label-assign-dialog__empty">Kein Karten-Label gefunden.</p>';
+		return;
+	}
+
+	list.innerHTML = rows
+		.map((label) => {
+			const id = regionSyncEscapeAttr(label.public_id);
+			// Schon mit DIESEM Schluessel verknuepft -> vorausgewaehlt. Mit einem ANDEREN verknuepft ->
+			// sichtbar gemacht, denn Zuweisen wuerde die alte Verknuepfung ersetzen.
+			const isMine = labelAssignTarget && label.wiki_key === labelAssignTarget.wikiKey;
+			const isOther = !isMine && label.wiki_key !== "";
+			const note = isOther ? ` <span class="label-assign-dialog__warn">— hängt an „${regionSyncEscapeText(label.wiki_key)}"</span>` : "";
+			const on = checked.has(label.public_id) || (labelAssignPreview === null && isMine);
+			return (
+				'<label class="label-assign-dialog__row">' +
+				`<input type="checkbox" value="${id}"${on ? " checked" : ""} />` +
+				`<span class="label-assign-dialog__rowname">${regionSyncEscapeText(label.name)}</span>` +
+				`<span class="label-assign-dialog__rowmeta">${regionSyncEscapeText(label.subtype || "ohne Subtyp")}${note}</span>` +
+				"</label>"
+			);
+		})
+		.join("");
+}
+
+function openLabelAssignDialog(wikiKey, wikiName) {
+	const overlay = labelAssignElement("label-assign-overlay");
+	const key = String(wikiKey || "").trim();
+	if (!overlay || !key) {
+		return;
+	}
+
+	bindLabelAssignDialog();
+	labelAssignTarget = { wikiKey: key, wikiName: String(wikiName || key) };
+	labelAssignPreview = null;
+	setLabelAssignError("");
+	resetLabelAssignPreview();
+
+	const target = labelAssignElement("label-assign-target");
+	if (target) {
+		target.innerHTML = `Wiki-Region <strong>${regionSyncEscapeText(labelAssignTarget.wikiName)}</strong>`;
+	}
+	const filterInput = labelAssignElement("label-assign-filter");
+	if (filterInput) {
+		filterInput.value = "";
+	}
+
+	// Anders als beim Flaechen-Dialog braucht es keinen Ladeschritt: labelData liegt schon im Speicher.
+	labelAssignCandidates = labelAssignCandidateRows();
+	overlay.hidden = false;
+	labelAssignElement("label-assign-dialog")?.focus();
+	renderLabelAssignCandidates();
+	filterInput?.focus();
+}
+
+async function postLabelAssign(payload) {
+	const data = await regionSyncPost({ action: "assign_labels", ...payload });
+	if (!data || data.ok !== true) {
+		throw new Error(apiErrorMessage(data, "Die Zuweisung ist fehlgeschlagen."));
+	}
+	return data;
+}
+
+async function submitLabelAssignDialog(event) {
+	event?.preventDefault();
+	if (labelAssignBusy || !labelAssignTarget) {
+		return;
+	}
+
+	const picked = selectedLabelAssignIds();
+	if (picked.length === 0) {
+		setLabelAssignError("Bitte mindestens ein Karten-Label auswählen.");
+		return;
+	}
+
+	const save = labelAssignElement("label-assign-save");
+	labelAssignBusy = true;
+	setLabelAssignError("");
+	if (save) {
+		save.disabled = true;
+	}
+
+	try {
+		if (labelAssignPreview === null) {
+			// Erster Druck: Trockenlauf. Der Endpunkt schreibt hier nichts -- ohne dry_run=false UND
+			// confirm='apply' ist jeder Aufruf eine Probe.
+			const result = await postLabelAssign({
+				label_public_ids: picked,
+				wiki_key: labelAssignTarget.wikiKey,
+			});
+			labelAssignPreview = { ids: picked, result };
+			renderLabelAssignPreview(result);
+			if (save) {
+				save.textContent = "Zuweisen";
+			}
+			return;
+		}
+
+		// Zweiter Druck: scharf -- aber nur fuer genau die Auswahl, die auch gezeigt wurde.
+		const result = await postLabelAssign({
+			label_public_ids: labelAssignPreview.ids,
+			wiki_key: labelAssignTarget.wikiKey,
+			dry_run: false,
+			confirm: "apply",
+		});
+		closeLabelAssignDialog();
+		// Voll neu laden statt nur neu rendern: eine Zuweisung verschiebt die Zeile von „Fehlt" nach
+		// „Platziert", und dieses Urteil faellt der Server (action=match), nicht der Client.
+		if (typeof loadRegionWikiSync === "function") {
+			await loadRegionWikiSync();
+		}
+		if (typeof showFeedbackToast === "function") {
+			const count = Number(result.assigned || 0);
+			showFeedbackToast(`${count} ${count === 1 ? "Label" : "Labels"} zugewiesen — Karte aktualisiert sich.`, "success");
+		}
+	} catch (error) {
+		setLabelAssignError(error?.message || "Die Zuweisung ist fehlgeschlagen.");
+	} finally {
+		labelAssignBusy = false;
+		if (save) {
+			save.disabled = false;
+		}
+	}
+}
+
+// ⭐ Der Trockenlauf, sichtbar: WELCHE Labels bekaemen die Wiki-Region. Der Server liefert je Label den
+// Schluessel VORHER, deshalb kann hier stehen, was sich wirklich aendert -- „zuweisen" und „ist schon
+// zugewiesen" sehen in einer blossen Zahl gleich aus.
+function renderLabelAssignPreview(result) {
+	const preview = labelAssignElement("label-assign-preview");
+	if (!preview) {
+		return;
+	}
+
+	const labels = Array.isArray(result.labels) ? result.labels : [];
+	const changing = labels.filter((label) => label.changes);
+
+	let html = `Wiki-Region: <code>${regionSyncEscapeText(result.wiki_key || "")}</code><br />`;
+	if (changing.length === 0) {
+		html += labels.length === 1
+			? "Das ausgewählte Label hängt schon daran — es ändert sich nichts."
+			: `Alle ${labels.length} ausgewählten Labels hängen schon daran — es ändert sich nichts.`;
+	} else {
+		const names = changing.map((label) => regionSyncEscapeText(label.name)).join(", ");
+		const verb = changing.length === 1 ? "bekommt" : "bekommen";
+		html += `<strong>${changing.length} von ${labels.length}</strong> ${verb} sie neu: ${names}.`;
+		// Ein Label, das schon an einer ANDEREN Wiki-Region haengt, verliert diese Verbindung.
+		const stolen = changing.filter((label) => label.wiki_key_before);
+		if (stolen.length > 0) {
+			html += stolen.length === 1
+				? '<br /><span class="label-assign-dialog__warn">Eines davon hängt bisher woanders und wird umgehängt.</span>'
+				: `<br /><span class="label-assign-dialog__warn">${stolen.length} davon hängen bisher woanders und werden umgehängt.</span>`;
+		}
+	}
+	// Der Typ-Konflikt-Check des Bulks (Label-Subtype vs Wiki-Art) wird hier BEWUSST nicht wiederholt:
+	// dieser Dialog ist die ausdrueckliche Wahl eines Menschen, und die soll er treffen duerfen.
+
+	preview.innerHTML = html;
+	preview.hidden = false;
+}
+
+function bindLabelAssignDialog() {
+	if (labelAssignBound) {
+		return;
+	}
+	const overlay = labelAssignElement("label-assign-overlay");
+	if (!overlay) {
+		return;
+	}
+
+	labelAssignBound = true;
+	labelAssignElement("label-assign-form")?.addEventListener("submit", submitLabelAssignDialog);
+	labelAssignElement("label-assign-close")?.addEventListener("click", closeLabelAssignDialog);
+	labelAssignElement("label-assign-cancel")?.addEventListener("click", closeLabelAssignDialog);
+	// Klick auf den Scrim schliesst; ein Klick IM Dialog darf das nicht.
+	overlay.addEventListener("click", (event) => {
+		if (event.target === overlay) {
+			closeLabelAssignDialog();
+		}
+	});
+	labelAssignElement("label-assign-filter")?.addEventListener("input", renderLabelAssignCandidates);
+	labelAssignElement("label-assign-list")?.addEventListener("change", resetLabelAssignPreview);
+	document.addEventListener("keydown", (event) => {
+		if (event.key === "Escape" && isLabelAssignDialogOpen()) {
+			event.stopPropagation();
+			closeLabelAssignDialog();
+		}
+	});
+}
+
+// Delegiert, weil die Zeilen bei jedem Filtertastendruck neu gebaut werden. Eigenes Attribut, damit der
+// Flaechen-Listener unten ([data-assign-wiki-key]) diesen Knopf NICHT mitfaengt.
+document.addEventListener("click", (event) => {
+	const button = event.target.closest ? event.target.closest("[data-assign-label-wiki-key]") : null;
+	if (!button) {
+		return;
+	}
+	const wikiKey = button.dataset.assignLabelWikiKey || "";
+	const row = (regionSyncData ? [].concat(regionSyncData.missing || [], regionSyncData.matched || [], regionSyncData.ambiguous || []) : [])
+		.find((entry) => String(entry.wiki_key || "") === wikiKey);
+	openLabelAssignDialog(wikiKey, row?.name || wikiKey);
+});
 
 // Delegiert, weil die Zeilen bei jedem Filtertastendruck neu gebaut werden.
 document.addEventListener("click", (event) => {

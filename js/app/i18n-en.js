@@ -134,6 +134,18 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.assign.rowLabel": "Area(s)",
 	"ecosystem.assign.rowButton": "Assign area",
 
+	// --- Landschaften: assigning a wiki region to one or more map LABELS (V6c). The mirror of the
+	//     block above, in the same row of the same list, but a different table: this one writes
+	//     map_features.properties_json.wiki_region, that one ecosystem_region.wiki_url. ---
+	"label.assign.dialogTitle": "Assign label",
+	"label.assign.closeAria": "Close dialog",
+	"label.assign.filterLabel": "Find map label",
+	"label.assign.filterPlaceholder": "Name …",
+	"label.assign.cancel": "Cancel",
+	"label.assign.preview": "Preview",
+	"label.assign.apply": "Assign",
+	"label.assign.rowButton": "Assign label",
+
 	// --- Landschaften: fading the base tiles out from under the drawn areas ---
 	"ecosystem.underground.label": "Underground",
 	"ecosystem.underground.aria": "Underground opacity",

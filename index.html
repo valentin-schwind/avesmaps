@@ -764,6 +764,42 @@
 				</form>
 			</div>
 		</div>
+		<!-- V6c: dasselbe für die andere Seite der Zeile — eine Wiki-Region an ein oder mehrere
+		     KARTEN-LABELS haengen (#ecosystem-assign-overlay daneben tut es fuer Flaechen). Zwei
+		     Zeilen in zwei Tabellen: dieses Fenster schreibt map_features.properties_json.wiki_region,
+		     jenes ecosystem_region.wiki_url. Der Bestand „Fläche(n):" und „Label:" in derselben
+		     Listenzeile ist genau dieser Unterschied.
+		     Aufbau bewusst identisch zum Flaechen-Fenster: dieselbe Zwei-Schritt-Folge (auswaehlen ->
+		     Vorschau/Trockenlauf -> Zuweisen) und dieselben Hüllenregeln aus
+		     css/features/ecosystem-layer.css, wo .label-assign-dialog in denselben Selektorlisten
+		     steht. Die Overlay-Huelle kommt aus css/components/dialog-overlays.css, wo
+		     #label-assign-overlay in allen DREI Listen steht -- sonst erbt das <div> NICHTS und
+		     oeffnet hinter der Karte. -->
+		<div id="label-assign-overlay" hidden>
+			<div id="label-assign-dialog" class="label-assign-dialog" role="dialog" aria-modal="true" aria-labelledby="label-assign-title" tabindex="-1">
+				<div class="label-assign-dialog__header">
+					<h2 id="label-assign-title" data-i18n="label.assign.dialogTitle">Label zuweisen</h2>
+					<button id="label-assign-close" class="label-assign-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="label.assign.closeAria">×</button>
+				</div>
+				<form id="label-assign-form" class="label-assign-dialog__form">
+					<p id="label-assign-target" class="label-assign-dialog__target"></p>
+					<label class="label-assign-dialog__field">
+						<span data-i18n="label.assign.filterLabel">Karten-Label suchen</span>
+						<input id="label-assign-filter" type="search" autocomplete="off" placeholder="Name …" data-i18n-placeholder="label.assign.filterPlaceholder" />
+					</label>
+					<!-- Kandidaten sind ALLE aktiven Karten-Labels, nicht nur die namensgleichen: ein
+					     Label, das anders heisst als seine Wiki-Region, ist ueber den Namens-Match
+					     (Aktion 'assign') gar nicht erreichbar -- das ist der Zweck dieses Fensters. -->
+					<div id="label-assign-list" class="label-assign-dialog__list" role="group" aria-labelledby="label-assign-title"></div>
+					<p id="label-assign-preview" class="label-assign-dialog__preview" hidden></p>
+					<p id="label-assign-error" class="label-assign-dialog__error" role="alert" hidden></p>
+					<div class="label-assign-dialog__actions">
+						<button id="label-assign-cancel" class="label-assign-dialog__button" type="button" data-i18n="label.assign.cancel">Abbrechen</button>
+						<button id="label-assign-save" class="label-assign-dialog__button label-assign-dialog__button--primary" type="submit" data-i18n="label.assign.preview">Vorschau</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<!-- V6b: Rechtsklick auf eine Fläche -> „Eigenschaften …". Aufbau nach #label-edit-overlay
 		     (:1305), aber OHNE dessen Block „Darstellung": Größe, Rotation, Zoom-Bänder und Priorität
 		     sind Eigenschaften einer BESCHRIFTUNG, nicht einer Fläche (oekosystem-editor-verhalten.md

@@ -203,6 +203,38 @@ Listenzeile führt (umbenannter Artikel, Weiterleitung), **sagt die Vorschau das
 Ohne den Hinweis würde korrekt geschrieben und erschiene trotzdem nie in dieser
 Zeile.
 
+## 7c. Label zuweisen (V6c)
+
+Dieselbe Listenzeile trägt einen **zweiten** Knopf: **„Label zuweisen"**. Er tut
+für **Karten-Labels**, was „Fläche zuweisen" für Landschaftsflächen tut — und das
+sind zwei Zeilen in zwei Tabellen: der eine schreibt
+`map_features.properties_json.wiki_region`, der andere `ecosystem_region.wiki_url`.
+Was schon verknüpft ist, steht in derselben Zeile bereits als *„Karte:"* bzw.
+*„Fläche(n):"*.
+
+Der Dialog ist absichtlich baugleich: **auswählen → Vorschau (Trockenlauf) →
+Zuweisen**. Auch hier verfällt die Vorschau, sobald sich die Auswahl ändert.
+
+> 🔴 **Warum das neben der vorhandenen Aktion steht und nicht in ihr.** Die
+> Aktion `assign` (der Knopf „⛰ Berge zuordnen") matcht **ausschließlich über den
+> Namen**. Ein Label, das anders heißt als seine Wiki-Region, ist darüber
+> überhaupt nicht erreichbar — und genau diese Fälle sind der Zweck von V6c. Die
+> Namens-Aktion umzubauen hätte den Berge-Bulk mitgerissen; sie bleibt, wie sie ist.
+
+Die Kandidatenliste zeigt **alle aktiven Karten-Labels**, nicht nur die
+namensgleichen. Schon verknüpfte sind vorausgewählt; ein Label, das an einer
+**anderen** Wiki-Region hängt, sagt das in seiner Zeile, denn Zuweisen hängt es um.
+
+> ⚠️ **Ein Label-Save bumpt `map_revision` — anders als eine Flächen-Zuweisung, und
+> das ist richtig so.** Labels reisen im `map-features`-Payload, Flächen nicht. Der
+> Bump passiert **einmal pro Aufruf**, nicht je Label. Wer das als Fehler „korrigiert",
+> bricht die Aktualisierung der Karte nach dem Zuweisen.
+
+Den Typ-Konflikt-Wächter des Bulks (Label-Subtyp gegen Wiki-„Art") wiederholt
+dieser Dialog **bewusst nicht**: hier wählt ein Mensch ausdrücklich aus, und diese
+Wahl soll er treffen dürfen. **Eine Zuweisung zu löschen** ist weiterhin Sache des
+Label-Editors; ein leerer Schlüssel wird hier abgewiesen.
+
 ## 8. Gipfel
 
 Sichtbar bei aktiver Topographie, **alle** — auch die ohne Wiki-Eintrag, die auf
