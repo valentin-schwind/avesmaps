@@ -14,6 +14,7 @@ declare(strict_types=1);
 // political/territory.php (wie regions.php). map_features wird nur gelesen.
 
 require_once __DIR__ . '/path-naming.php';
+require_once __DIR__ . '/place-scope.php';
 
 const AVESMAPS_WIKI_PATH_STAGING_TABLE = 'wiki_path_staging';
 const AVESMAPS_WIKI_PATH_QUEUE_TABLE = 'wiki_path_queue';
@@ -41,6 +42,7 @@ function avesmapsWikiPathEnsureTables(PDO $pdo): void {
             art VARCHAR(120) NULL,
             continent VARCHAR(120) NULL,
             lage VARCHAR(500) NULL,
+            lage_raw VARCHAR(1000) NULL,
             laenge VARCHAR(120) NULL,
             verlauf TEXT NULL,
             description TEXT NULL,
@@ -63,6 +65,21 @@ function avesmapsWikiPathEnsureTables(PDO $pdo): void {
             KEY idx_wiki_path_staging_kind (kind)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+
+    // Self-healing for installations whose staging table predates lage_raw. `lage`
+    // is the CLEANED value (link markup stripped: "Darpatien: Wildermark"), which
+    // is right for display but unusable for the innerorts/ausserorts decision --
+    // stripping the links also strips the name boundaries, and some values end up
+    // space-separated ("Meridiana Waldinseln Sukkuvelani"). The classifier needs
+    // the raw wikitext, so it is kept alongside rather than replacing `lage`.
+    $lageRawExists = $pdo->query(
+        "SELECT COUNT(*) FROM information_schema.columns
+          WHERE table_schema = DATABASE() AND table_name = '" . AVESMAPS_WIKI_PATH_STAGING_TABLE . "'
+            AND column_name = 'lage_raw'"
+    );
+    if ($lageRawExists !== false && (int) $lageRawExists->fetchColumn() === 0) {
+        $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' ADD COLUMN lage_raw VARCHAR(1000) NULL AFTER lage');
+    }
 
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_WIKI_PATH_QUEUE_TABLE . ' (
@@ -447,6 +464,11 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
     }
     $art = $field(['art', 'typ']);
     $lage = $field(['regionen', 'region', 'lage']);
+    // The SAME field, uncleaned. $field() runs avesmapsWikiSyncCleanPoliticalTerritoryWikiValue,
+    // which strips [[...]] -- and with it the name boundaries the innerorts test
+    // needs (see avesmapsWikiPathEnsureTables). Kept raw for place-scope.php only;
+    // everything user-facing still reads $lage.
+    $lageRaw = avesmapsWikiSyncMonitorField($norm, ['regionen', 'region', 'lage']);
     $laenge = $field(['lange', 'langen', 'lenge']);
 
     // Verlauf: geordnete ON-ROUTE-Stationen der Verlauf-Templatekette (template-aware,
@@ -490,6 +512,7 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
         'art' => mb_substr($art, 0, 120, 'UTF-8'),
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
         'lage' => mb_substr($lage, 0, 500, 'UTF-8'),
+        'lage_raw' => mb_substr($lageRaw, 0, 1000, 'UTF-8'),
         'laenge' => mb_substr($laenge, 0, 120, 'UTF-8'),
         'verlauf' => $verlauf,
         'description' => avesmapsWikiPathExtractDescription($wikitext, $block),
@@ -549,14 +572,15 @@ function avesmapsWikiPathExtractDescription(string $wikitext, string $infoboxBlo
 function avesmapsWikiPathUpsertRecord(PDO $pdo, array $record): void {
     $statement = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . '
-            (wiki_key, title, name, match_key, kind, art, continent, lage, laenge, verlauf, description,
+            (wiki_key, title, name, match_key, kind, art, continent, lage, lage_raw, laenge, verlauf, description,
              synonyms_json, source_categories_json, image_url, wiki_url, raw_json, synced_at)
         VALUES
-            (:wiki_key, :title, :name, :match_key, :kind, :art, :continent, :lage, :laenge, :verlauf, :description,
+            (:wiki_key, :title, :name, :match_key, :kind, :art, :continent, :lage, :lage_raw, :laenge, :verlauf, :description,
              :synonyms_json, :source_categories_json, :image_url, :wiki_url, :raw_json, CURRENT_TIMESTAMP(3))
         ON DUPLICATE KEY UPDATE
             title = VALUES(title), name = VALUES(name), match_key = VALUES(match_key), kind = VALUES(kind),
-            art = VALUES(art), continent = VALUES(continent), lage = VALUES(lage), laenge = VALUES(laenge),
+            art = VALUES(art), continent = VALUES(continent), lage = VALUES(lage), lage_raw = VALUES(lage_raw),
+            laenge = VALUES(laenge),
             verlauf = VALUES(verlauf), description = VALUES(description), synonyms_json = VALUES(synonyms_json),
             source_categories_json = VALUES(source_categories_json), image_url = VALUES(image_url),
             wiki_url = VALUES(wiki_url), raw_json = VALUES(raw_json), synced_at = CURRENT_TIMESTAMP(3)'
@@ -570,6 +594,7 @@ function avesmapsWikiPathUpsertRecord(PDO $pdo, array $record): void {
         'art' => (string) ($record['art'] ?? ''),
         'continent' => (string) ($record['continent'] ?? ''),
         'lage' => (string) ($record['lage'] ?? ''),
+        'lage_raw' => (string) ($record['lage_raw'] ?? ''),
         'laenge' => (string) ($record['laenge'] ?? ''),
         'verlauf' => (string) ($record['verlauf'] ?? ''),
         'description' => (string) ($record['description'] ?? ''),
@@ -730,9 +755,14 @@ function avesmapsWikiPathMatch(PDO $pdo, array $options = []): array {
     $mapPathCount = array_sum(array_map('count', $pathsByKey));
 
     $rows = $pdo->query(
-        'SELECT wiki_key, name, match_key, kind, art, continent, lage, laenge, synonyms_json, image_url, wiki_url
+        'SELECT wiki_key, name, match_key, kind, art, continent, lage, lage_raw, laenge, synonyms_json, image_url, wiki_url
         FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE
     )->fetchAll(PDO::FETCH_ASSOC);
+
+    // Innerorts/ausserorts: loaded ONCE for the whole list, never per row (three
+    // small indexed reads). A street whose |Regionen= names a settlement is a city
+    // street -- it has no place on a world map and must not sit in "Fehlt" forever.
+    $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo);
 
     $matched = [];
     $ambiguous = [];
@@ -759,6 +789,7 @@ function avesmapsWikiPathMatch(PDO $pdo, array $options = []): array {
                 $hits[$path['public_id'] !== '' ? $path['public_id'] : $path['name']] = $path;
             }
         }
+        $scope = avesmapsPlaceScopeClassifyWithIndex((string) ($row['lage_raw'] ?? ''), $scopeIndex);
         $entry = [
             'wiki_key' => (string) $row['wiki_key'],
             'name' => (string) $row['name'],
@@ -769,6 +800,9 @@ function avesmapsWikiPathMatch(PDO $pdo, array $options = []): array {
             'laenge' => (string) ($row['laenge'] ?? ''),
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             'has_image' => trim((string) ($row['image_url'] ?? '')) !== '',
+            'place_scope' => $scope['scope'],
+            'place_scope_label' => avesmapsPlaceScopeLabel($scope['scope']),
+            'place_settlement' => $scope['settlement'],
         ];
         if ($hits === []) {
             $missing[] = $entry;

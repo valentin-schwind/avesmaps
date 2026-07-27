@@ -103,6 +103,12 @@ const WIKI_SYNC_SUBJECT_FACETS = {
 	locations: [
 		{ key: "type", label: "Typ", kind: "multi", field: "settlement_label" },
 		{ key: "continent", label: "Kontinent", kind: "multi", field: "continent" },
+		// Innerorts/außerorts (api/_internal/wiki/place-scope.php). Ein Tempel IN Grangor
+		// gehört auf keine Weltkarte, stand aber bisher in „Fehlt" wie eine echte Lücke.
+		// Bewusst NICHT vorbelegt: der Trichter nennt die Werte samt Zähler, und ein Filter,
+		// der von selbst Zeilen verschluckt, ist genau der unsichtbare Lügner, den die
+		// „heute"-Regel in js/ui/filter-menu.js vermeiden soll. Ein Klick genügt.
+		{ key: "scope", label: "Lage", kind: "multi", field: "place_scope_label" },
 		{ key: "source", label: "Quelle", kind: "source", field: "" },
 		{ key: "coat", label: "Wappen", kind: "flag", field: "has_coat" },
 		{ key: "image", label: "Bilder", kind: "flag", field: "image_count" },

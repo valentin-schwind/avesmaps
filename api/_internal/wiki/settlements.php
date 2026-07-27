@@ -16,6 +16,8 @@ declare(strict_types=1);
 // sync-monitor.php (Infobox-Parser), territories.php (PageContents/CleanWikiValue),
 // locations.php (Settlement-Class-Labels).
 
+require_once __DIR__ . '/place-scope.php';
+
 const AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE = 'wiki_sync_pages';
 
 // Stellt die nullbare Cache-Spalte details_json an wiki_sync_pages sicher (idempotent).
@@ -52,6 +54,13 @@ function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     $addColumn('enriched_at', 'DATETIME NULL');
     // Genauer Bauwerkstyp (Festung/Tempel/Ruine/…) — oberflächlich bleibt alles „gebaeude".
     $addColumn('building_type', 'VARCHAR(120) NULL');
+    // ROHES |Standort= der Bauwerks-Infobox ("[[Gareth]]: [[Arenaviertel]]"), die
+    // Grundlage der innerorts/ausserorts-Entscheidung (place-scope.php). Bewusst
+    // ROH inklusive [[…]]: das Entfernen der Links entfernt auch die Namensgrenzen,
+    // die der Test braucht. Der Online-Bauwerks-Crawl hat die Infobox NIE gelesen —
+    // dieses Feld füllt erst der Dump-Pfad, also bleibt es bis zum nächsten
+    // „Siedlungen syncen" leer (und ein leeres Feld heißt ausserorts, nie innerorts).
+    $addColumn('standort', 'VARCHAR(1000) NULL');
 }
 
 function avesmapsWikiSettlementClassLabel(string $class): string {
@@ -94,19 +103,26 @@ function avesmapsWikiSettlementMatchBuildingType(array $categoryNames): string {
 // nur auf 1 hochgezogen. NB: der Basis-Upsert avesmapsWikiSyncUpsertPageCache taugt hier NICHT — er
 // wuerde settlement_class bedingungslos aus den Kategorien neu ableiten (fuer ein Bauwerk = NULL) und
 // schreibt weder building_type noch is_ruined.
-function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string $buildingType, bool $isRuined): int {
+// $standort: ROHES |Standort= der Bauwerks-Infobox, oder '' wenn der Aufrufer es nicht kennt
+// (der Online-Crawl liest die Infobox nicht). Anders als die drei Felder darüber wird es beim
+// UPDATE bedingungslos geschrieben, SOFERN der neue Wert nicht leer ist: es ist eine reine
+// Wiki-Spiegelung ohne Editor-Eingabe, die es überschreiben könnte, und ein Umzug im Wiki soll
+// ankommen. Ein LEERER neuer Wert lässt den alten stehen — sonst löschte der Online-Crawl, der
+// das Feld gar nicht kennt, die Arbeit des Dump-Laufs wieder weg.
+function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string $buildingType, bool $isRuined, string $standort = ''): int {
     $title = trim($title);
     if ($title === '') {
         return 0;
     }
     $insert = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
-            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
-         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
+            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, standort, fetched_at)
+         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, :st, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
             settlement_class = IF(settlement_class IS NULL OR settlement_class = \'\', VALUES(settlement_class), settlement_class),
             settlement_label = IF(settlement_label IS NULL OR settlement_label = \'\', VALUES(settlement_label), settlement_label),
             building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
+            standort = IF(VALUES(standort) = \'\', standort, VALUES(standort)),
             is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
     );
     $insert->execute([
@@ -117,6 +133,7 @@ function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string
         'lbl' => avesmapsWikiSettlementClassLabel('gebaeude'),
         'bt' => mb_substr($buildingType, 0, 120, 'UTF-8'),
         'ru' => $isRuined ? 1 : 0,
+        'st' => mb_substr(trim($standort), 0, 1000, 'UTF-8'),
     ]);
     return $insert->rowCount();
 }
@@ -1117,6 +1134,26 @@ function avesmapsWikiSettlementFirstTerm(string $value): string {
 function avesmapsWikiSettlementListLocations(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $rows = $pdo->query("SELECT public_id, name, feature_subtype, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>'' ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Innerorts/ausserorts (place-scope.php): der Index einmal fuer die ganze Liste,
+    // nie je Zeile. Die title->standort-Map deckt BEIDE Zweige unten ab -- auch den
+    // On-Map-Zweig, damit ein versehentlich platziertes Stadtobjekt sichtbar bleibt
+    // und nicht dadurch unsichtbar wird, dass es schon auf der Karte liegt.
+    $scopeIndex = avesmapsPlaceScopeLoadIndex($pdo);
+    $standortByKey = [];
+    $standortRows = $pdo->query('SELECT title, standort FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " WHERE standort IS NOT NULL AND standort <> ''");
+    foreach ($standortRows !== false ? $standortRows->fetchAll(PDO::FETCH_ASSOC) : [] as $standortRow) {
+        $standortKey = avesmapsWikiSyncCreateMatchKey((string) ($standortRow['title'] ?? ''));
+        if ($standortKey !== '') {
+            $standortByKey[$standortKey] = (string) ($standortRow['standort'] ?? '');
+        }
+    }
+    $scopeOf = static function (string $title) use (&$standortByKey, $scopeIndex): array {
+        $key = avesmapsWikiSyncCreateMatchKey($title);
+        $raw = $key !== '' ? ($standortByKey[$key] ?? '') : '';
+        return avesmapsPlaceScopeClassifyWithIndex($raw, $scopeIndex);
+    };
+
     $items = [];
     $mapKeys = [];
     foreach ($rows as $r) {
@@ -1161,6 +1198,10 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             }
         }
 
+        // Der Registry-Titel entscheidet, nicht der Kartenname: das Wiki-Feld haengt
+        // am Artikel. Ist die Zeile verbunden, gilt ihr Wiki-Titel, sonst der Name.
+        $mapScope = $scopeOf($connected ? (string) $ws['title'] : $name);
+
         $items[] = [
             'public_id' => (string) $r['public_id'],
             'name' => $name,
@@ -1178,12 +1219,15 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'is_ruined' => !empty($props['is_ruined']),
             'wiki_url' => $connected ? (string) ($ws['wiki_url'] ?? '') : (string) ($props['wiki_url'] ?? ''),
             'other_source' => is_array($props['other_source'] ?? null) ? $props['other_source'] : null,
+            'place_scope' => $mapScope['scope'],
+            'place_scope_label' => avesmapsPlaceScopeLabel($mapScope['scope']),
+            'place_settlement' => $mapScope['settlement'],
         ];
     }
 
     // Fehlende Wiki-Siedlungen (Siedlungs-Klassen + Bauwerke) aus der Registry.
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
-    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type, coat_url, standort FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
@@ -1207,6 +1251,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             continue;
         }
         $seen[$bk] = true;
+        $regScope = avesmapsPlaceScopeClassifyWithIndex((string) ($r['standort'] ?? ''), $scopeIndex);
         $items[] = [
             'public_id' => '',
             'name' => $title,
@@ -1226,6 +1271,9 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'is_ruined' => !empty($r['is_ruined']),
             'building_type' => (string) ($r['building_type'] ?? ''),
             'wiki_url' => (string) ($r['wiki_url'] ?? ''),
+            'place_scope' => $regScope['scope'],
+            'place_scope_label' => avesmapsPlaceScopeLabel($regScope['scope']),
+            'place_settlement' => $regScope['settlement'],
         ];
     }
 

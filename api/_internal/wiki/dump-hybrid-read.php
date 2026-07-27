@@ -743,7 +743,8 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
                 $pdo,
                 (string) ($record['title'] ?? ''),
                 (string) ($record['building_type'] ?? ''),
-                !empty($record['is_ruined'])
+                !empty($record['is_ruined']),
+                (string) ($record['standort'] ?? '')
             );
             break;
 

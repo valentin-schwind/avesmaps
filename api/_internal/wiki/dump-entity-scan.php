@@ -784,6 +784,15 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
     $isRuined = (bool) ($enrichment['is_ruined'] ?? false)
         || ($buildingType !== '' && mb_stripos($buildingType, 'ruine') !== false);
 
+    // |Standort= -- the location chain that decides innerorts/ausserorts
+    // (place-scope.php). Read RAW, links intact: stripping [[...]] also strips the
+    // name boundaries the classifier needs. This is the ONE infobox field the dump
+    // path adds over the online building crawler, which never parsed the building
+    // infobox at all -- so it is additive and cannot change any existing value.
+    $infoboxBlock = avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext);
+    $infoboxFields = avesmapsWikiSyncMonitorNormFields(avesmapsWikiSyncMonitorParseTemplateParams($infoboxBlock));
+    $standort = trim(avesmapsWikiSyncMonitorField($infoboxFields, ['standort', 'lage', 'ort']));
+
     // Assemble the wiki_sync_pages record. Keys/URL are the reused title-derived
     // ones (same as the online building crawler); coat_license_* = NULL (I5).
     $record = [
@@ -794,6 +803,7 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         'settlement_class' => 'gebaeude',
         'settlement_label' => avesmapsWikiSettlementClassLabel('gebaeude'),
         'building_type' => mb_substr($buildingType, 0, 120, 'UTF-8'),
+        'standort' => mb_substr($standort, 0, 1000, 'UTF-8'),
         'categories_json' => $categoryNames,
         'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
         'is_ruined' => $isRuined,
@@ -1514,12 +1524,14 @@ function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
             continue;
         }
         $record = $result['record'];
-        // Reused online building-row upsert (gebaeude class/label/type + is_ruined).
+        // Reused online building-row upsert (gebaeude class/label/type + is_ruined),
+        // plus the dump-only raw |Standort= that drives innerorts/ausserorts.
         avesmapsWikiSettlementUpsertBuildingRow(
             $pdo,
             (string) ($record['title'] ?? ''),
             (string) ($record['building_type'] ?? ''),
-            !empty($record['is_ruined'])
+            !empty($record['is_ruined']),
+            (string) ($record['standort'] ?? '')
         );
         $written++;
     }
@@ -1677,7 +1689,8 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                             $pdo,
                             (string) ($result['record']['title'] ?? ''),
                             (string) ($result['record']['building_type'] ?? ''),
-                            !empty($result['record']['is_ruined'])
+                            !empty($result['record']['is_ruined']),
+                            (string) ($result['record']['standort'] ?? '')
                         );
                         $buildingsWritten++;
                     }

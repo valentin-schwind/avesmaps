@@ -13,6 +13,11 @@ let outlierLoaded = false;
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
 const pathSourceFilter = { value: "" }; // Quelle: "" = alle | "wiki" | "andere" | "keine"
+// Lage: innerorts | außerorts | unklar (leer = alle). Der Server entscheidet
+// (api/_internal/wiki/place-scope.php) und liefert place_scope_label je Zeile --
+// hier wird nur gefiltert, nie neu geurteilt. Bewusst NICHT vorbelegt: siehe die
+// Begründung an der Siedlungs-Facette in js/review/review-subjects.js.
+const pathScopeFilter = new Set();
 
 // Verlauf cases (Task 6): own list + load state, kept separate from pathSyncData (the match list).
 let verlaufCases = []; // flat list of all loaded cases (open + deferred + archived)
@@ -99,6 +104,43 @@ function pathTypeOptions() {
 	}
 	return [...byType.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
+// Lage eines Weges, wie der Server sie geurteilt hat. Eine Zeile ohne Feld (Staging
+// noch nicht neu gesynct, lage_raw leer) zählt als „außerorts" -- die sichere Seite:
+// sie bleibt sichtbar, statt still zu verschwinden.
+function pathRowScope(row) {
+	return String(row.place_scope_label || "").trim() || "außerorts";
+}
+
+// Zähler aus derselben Menge wie die Typ-Optionen, damit beide Abschnitte des
+// Trichters dieselbe Grundgesamtheit beschreiben.
+function pathScopeOptions() {
+	if (!pathSyncData) {
+		return [];
+	}
+	const filterValue = pathSyncQuery();
+	const rows = pathSyncCurrentRows().filter((row) => {
+		if (!pathContinentMatch(row)) {
+			return false;
+		}
+		if (filterValue === "") {
+			return true;
+		}
+		return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
+	});
+	const byScope = new Map();
+	for (const row of rows) {
+		const scope = pathRowScope(row);
+		if (!byScope.has(scope)) {
+			byScope.set(scope, { value: scope, label: scope, count: 0 });
+		}
+		byScope.get(scope).count += 1;
+	}
+	// Feste Reihenfolge statt alphabetisch: „außerorts" ist die Arbeitsmenge und
+	// steht oben, „unklar" als Restkategorie unten.
+	const order = ["außerorts", "innerorts", "unklar"];
+	return [...byScope.values()].sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
+}
+
 let pathSyncBusy = false;
 
 function pathSyncElement(id) {
@@ -219,6 +261,9 @@ function pathRowMatchesFilters(row) {
 	if (pathTypeFilter.size > 0 && !pathTypeFilter.has(pathRowType(row))) {
 		return false;
 	}
+	if (pathScopeFilter.size > 0 && !pathScopeFilter.has(pathRowScope(row))) {
+		return false;
+	}
 	const filterValue = pathSyncQuery();
 	if (filterValue === "") {
 		return true;
@@ -313,7 +358,14 @@ function renderPathSyncList() {
 			}
 			const segs = row.path ? [row.path] : (row.paths || []);
 			const onMap = segs.length > 0; // grüner Punkt = auf Karte (hat Segmente)
-			const metaParts = [row.kind, row.art, row.lage].filter(Boolean).map(pathSyncEscapeText);
+			// „innerorts: Khunchom" statt nur „innerorts": ein Filter, der Zeilen
+			// wegnimmt, muss auch begründen können, warum -- sonst sieht ein
+			// Fehlurteil aus wie fehlende Daten. „außerorts" bleibt ungeschrieben,
+			// das ist der Normalfall und wäre nur Rauschen in jeder Zeile.
+			const scopeNote = row.place_scope === "inside" || row.place_scope === "ambiguous"
+				? pathRowScope(row) + (row.place_settlement ? ": " + row.place_settlement : "")
+				: "";
+			const metaParts = [row.kind, row.art, row.lage, scopeNote].filter(Boolean).map(pathSyncEscapeText);
 			let metaHtml = metaParts.join(" · ");
 			if (row.wiki_url) {
 				const wikiLink = `<a class="region-sync__link" href="${pathSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
@@ -1389,6 +1441,7 @@ document.addEventListener("input", (event) => {
 
 attachFilterMenu("path-filter-toggle", "path-filter-menu", [
 	{ menuId: "path-type-filter-menu", kind: "multi", state: pathTypeFilter, getOptions: pathTypeOptions, label: "Typ", isActive: () => pathTypeFilter.size > 0 },
+	{ menuId: "path-scope-filter-menu", kind: "multi", state: pathScopeFilter, getOptions: pathScopeOptions, label: "Lage", isActive: () => pathScopeFilter.size > 0 },
 	{ menuId: "path-continent-filter-menu", kind: "multi", state: pathContinentFilter, getOptions: pathContinentOptions, label: "Kontinent", isActive: () => !(pathContinentFilter.size === 1 && pathContinentFilter.has("Aventurien")) },
 	{ menuId: "path-source-filter-menu", kind: "single", state: pathSourceFilter, options: SOURCE_FILTER_OPTIONS, label: "Quelle", isActive: () => Boolean(pathSourceFilter.value) },
 ], renderPathSyncList, "Filter");
