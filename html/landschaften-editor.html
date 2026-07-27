@@ -427,6 +427,7 @@ function renderList() {
 function selectRow(key) {
 	selectedKey = key;
 	selectedPartnerId = null;   // a new region invalidates the pair column 3 was showing
+	selectedPartnerKind = "";
 	renderList();
 	renderDetail();
 	renderPreview();
@@ -480,11 +481,13 @@ const AREAS_API = "/api/app/ecosystem-areas.php";   // no bbox = the whole stock
 let allAreas = null;             // null = never loaded
 let raycast = null;              // Map<region_public_id, [{regionId, name, kind, regionType, share}]>
 let raycastNote = "";
-let selectedPartnerId = null;    // the region picked in "Gemeinsame Regionen mit"
+let selectedPartnerId = null;    // the partner picked in "Gemeinsame Regionen mit" or "Liegt in"
+let selectedPartnerKind = "";    // "region" | "territory" -- the two live in different stores
 let moduleEnabled = null;        // null = not asked yet; the tile says so rather than guessing
 let territories = null;          // [{publicId, name, type, parentId, isAggregate, geometry, bounds, area}]
 let territoryHits = null;        // Map<region_public_id, [{territory, share}]>
 let territoryNote = "";
+let ecosystemRevision = null;    // the cache key: every write bumps it, so the answer self-expires
 
 function boundsOverlap(a, b) {
 	return !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
@@ -639,6 +642,69 @@ function territoryChain(territory, index) {
 	return chain;
 }
 
+// ---- Remembering the result -------------------------------------------------------------------
+// Owner 2026-07-28: „ich muss die Zugehörigkeit immer neu rechnen … schön wärs, wenn er sie sich
+// speichert". Kept as a CACHE, not as stored truth, and keyed by `ecosystem_revision`:
+//
+// 🔴 The plan's rule „gerechnet, nie gespeichert" exists for a reason -- a moved boundary must
+// correct the answer by itself, and a stored column would be a second truth that goes stale in
+// silence. A revision-keyed cache keeps both: no recomputation while nothing changed, and an
+// automatic recomputation the moment anything did. Every write bumps ecosystem_revision, so the key
+// invalidates itself; the territory half rides along on the same key plus the territory count.
+const RAYCAST_CACHE_KEY = "avesmaps-ecosystem-raycast";
+
+function raycastCacheStamp() {
+	return JSON.stringify({ rev: ecosystemRevision, areas: (allAreas || []).length, terr: (territories || []).length });
+}
+
+function raycastCacheRead() {
+	try {
+		const raw = localStorage.getItem(RAYCAST_CACHE_KEY);
+		if (!raw) { return null; }
+		const cached = JSON.parse(raw);
+		return (cached && cached.stamp && cached.rev === ecosystemRevision) ? cached : null;
+	} catch (error) { return null; }
+}
+
+function raycastCacheWrite() {
+	try {
+		localStorage.setItem(RAYCAST_CACHE_KEY, JSON.stringify({
+			rev: ecosystemRevision,
+			stamp: raycastCacheStamp(),
+			// Only the ANSWER is kept, never the geometry: the pairs and their shares. Geometry comes
+			// from the read path every time, so nothing here can drift into a stale outline.
+			regions: [...raycast.entries()].map(([id, hits]) => [id, hits.map((h) => ({ regionId: h.regionId, name: h.name, kind: h.kind, regionType: h.regionType, share: h.share }))]),
+			territories: territoryHits ? [...territoryHits.entries()].map(([id, hits]) => [id, hits.map((h) => ({ publicId: h.territory.publicId, share: h.share }))]) : null,
+			// Name/Typ/Elternteil reisen mit -- ohne sie braeuchte schon das ANZEIGEN der Kette beim
+			// Oeffnen wieder den Sieben-Zoom-Faecher an den Politik-Layer. Geometrie NICHT: die waere
+			// eine alternde Zweitkopie, und fuer die Vorschau wird sie ohnehin frisch geholt.
+			territoryIndex: (territories || []).map((t) => ({ publicId: t.publicId, name: t.name, type: t.type, parentId: t.parentId, isAggregate: t.isAggregate })),
+			note: raycastNote,
+			territoryNote,
+		}));
+	} catch (error) { /* a full or disabled storage must never break the editor */ }
+}
+
+// Rebuilding the maps from the cache needs the territory index, so it runs AFTER the territories
+// are loaded. A territory that has since vanished is dropped rather than rendered as a blank.
+function raycastCacheApply(cached) {
+	raycast = new Map(cached.regions.map(([id, hits]) => [id, hits]));
+	raycastNote = cached.note || "";
+	territoryNote = cached.territoryNote || "";
+	// Der Index kommt aus dem Zwischenspeicher, wenn die Territorien (noch) nicht geladen sind --
+	// dann steht die Kette sofort da, ohne den Politik-Layer ueberhaupt anzufassen. Was fehlt, ist
+	// nur die Geometrie; die holt erst die Vorschau nach.
+	if (cached.territories) {
+		const source = (territories && territories.length > 0) ? territories : (cached.territoryIndex || []);
+		if (!territories || territories.length === 0) { territories = source; }
+		const index = new Map(source.map((territory) => [territory.publicId, territory]));
+		territoryHits = new Map(cached.territories.map(([id, hits]) => [
+			id,
+			hits.map((hit) => ({ territory: index.get(hit.publicId), share: hit.share })).filter((hit) => hit.territory),
+		]));
+	}
+}
+
 async function loadAreas() {
 	const response = await fetch(AREAS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
 	const data = await response.json();
@@ -650,6 +716,9 @@ async function loadAreas() {
 	if (data.ecosystem_enabled === false) {
 		throw new Error("Das Landschaftsmodul ist ausgeschaltet — der Lesepfad liefert keine Flächen. Im Menüband einschalten.");
 	}
+	// The cache key travels with the payload the cache describes -- read here, not separately, so
+	// the two can never disagree about which stock was measured.
+	ecosystemRevision = Number(data.revision || 0);
 	return Array.isArray(data.areas) ? data.areas : [];
 }
 
@@ -855,13 +924,17 @@ function renderDetail() {
 			parts.push('<div class="eco-partners">' + leaves.map((hit) => {
 				const chain = territoryChain(hit.territory, index)
 					.map((ancestor) => esc(territoryLabel(ancestor))).join(" ← ");
-				return '<div class="eco-terr">'
+				// A BUTTON, like a shared region: picking it drives the intersection preview in
+				// column 3. Owner 2026-07-28 -- „liegt in liefert noch keine Schnittmenge".
+				return '<button type="button" class="eco-terr'
+					+ (hit.territory.publicId === selectedPartnerId && selectedPartnerKind === "territory" ? " is-selected" : "")
+					+ '" data-territory="' + esc(hit.territory.publicId) + '">'
 					+ '<div class="eco-terr__head"><span class="eco-partner__name">'
 					+ esc(territoryLabel(hit.territory)) + "</span>"
 					+ (hit.territory.isAggregate ? '<span class="avm-pill">Aggregat</span>' : "")
 					+ '<span class="eco-partner__share">' + percent(hit.share) + "</span></div>"
 					+ (chain ? '<div class="eco-terr__chain">↳ ' + chain + "</div>" : "")
-					+ "</div>";
+					+ "</button>";
 			}).join("") + "</div>");
 		}
 	}
@@ -897,9 +970,22 @@ function renderDetail() {
 	}
 	host.innerHTML = parts.join("");
 	wireEditBlocks(host);
+	host.querySelectorAll(".eco-terr").forEach((button) => {
+		button.addEventListener("click", () => {
+			selectedPartnerId = button.getAttribute("data-territory");
+			selectedPartnerKind = "territory";
+			// Same reason as the region partners: a full renderDetail would discard whatever is
+			// being typed in the edit blocks above. Only the selected state moves.
+			host.querySelectorAll(".eco-terr").forEach((other) => other.classList.toggle("is-selected", other === button));
+			host.querySelectorAll(".eco-partner").forEach((other) => other.classList.remove("is-selected"));
+			renderPreview();
+		});
+	});
 	host.querySelectorAll(".eco-partner").forEach((button) => {
 		button.addEventListener("click", () => {
 			selectedPartnerId = button.getAttribute("data-partner");
+			selectedPartnerKind = "region";
+			host.querySelectorAll(".eco-terr").forEach((other) => other.classList.remove("is-selected"));
 			// ⚠️ Deliberately NOT renderDetail(): a full rebuild would throw away whatever is being
 			// typed in the edit blocks above. Only the selected state moves.
 			host.querySelectorAll(".eco-partner").forEach((other) => other.classList.toggle("is-selected", other === button));
@@ -950,9 +1036,16 @@ function areasOfRegions(regionRows) {
 	return (allAreas || []).filter((area) => ids.has(String(area.region_public_id)));
 }
 
-function pairIntersection(regionRows, partnerId) {
+// The partner is either another landscape region (its pieces live in allAreas) or a political
+// territory (one geometry, in `territories`). Same intersection either way -- only the lookup
+// differs, which is why the KIND has to travel with the id: a territory public_id would silently
+// find nothing in allAreas and the preview would just stay empty.
+function pairIntersection(regionRows, partnerId, partnerKind) {
 	const ownAreas = areasOfRegions(regionRows);
-	const partnerAreas = (allAreas || []).filter((area) => String(area.region_public_id) === String(partnerId));
+	const partnerAreas = partnerKind === "territory"
+		? (territories || []).filter((territory) => String(territory.publicId) === String(partnerId) && territory.geometry)
+			.map((territory) => ({ geometry: territory.geometry, bounds: territory.bounds }))
+		: (allAreas || []).filter((area) => String(area.region_public_id) === String(partnerId));
 	const pieces = [];
 	ownAreas.forEach((own) => partnerAreas.forEach((other) => {
 		if (!boundsOverlap(own.bounds, other.bounds)) { return; }
@@ -1013,8 +1106,14 @@ function renderPreview() {
 		parts.push('<div class="avm-empty">In Spalte 2 eine gemeinsame Region wählen.</div>');
 	} else {
 		let geometry = null;
-		try { geometry = pairIntersection(row.regions, selectedPartnerId); } catch (error) { geometry = null; }
-		if (!geometry) {
+		try { geometry = pairIntersection(row.regions, selectedPartnerId, selectedPartnerKind); } catch (error) { geometry = null; }
+		const partnerGeometryMissing = selectedPartnerKind === "territory"
+			&& !(territories || []).some((territory) => String(territory.publicId) === String(selectedPartnerId) && territory.geometry);
+		if (partnerGeometryMissing) {
+			// The remembered answer carries names and shares, not outlines -- deliberately, so no
+			// ageing copy of a boundary can sit here. Drawing this one needs the geometry fetched.
+			parts.push('<div class="avm-empty">Für die Vorschau fehlt die Geometrie dieses Territoriums — „Zugehörigkeit rechnen" holt sie.</div>');
+		} else if (!geometry) {
 			parts.push('<div class="avm-empty">Keine Schnittfläche.</div>');
 		} else {
 			parts.push('<div class="eco-thumb"><svg viewBox="0 0 200 130" role="img" aria-label="Schnittmenge der beiden Regionen">'
@@ -1072,37 +1171,10 @@ function wireRibbon() {
 		}
 	});
 
-	// „Zugehörigkeit rechnen": loads the whole area stock once (no bbox) and runs the raycast.
-	// Deliberately on a button and not on load -- it is a read of every geometry in the house, and
-	// nobody should pay for it just by opening the editor.
-	$("ecoRaycast").addEventListener("click", async () => {
-		$("ecoRaycast").disabled = true;
-		try {
-			setStatus("Zugehörigkeit wird gerechnet …");
-			if (allAreas === null) { allAreas = await loadAreas(); }
-			raycast = computeRaycast(allAreas);
-			// The territories are a second, independent question ("liegt in"), and the political
-			// layer is a known hotspot -- a failure there must not throw away the landscape result
-			// that already succeeded.
-			try {
-				setStatus("Territorien werden geladen (Zoom 0–6) …");
-				if (territories === null) { territories = await loadTerritories(); }
-				territoryHits = computeTerritoryHits(allAreas, territories);
-			} catch (error) {
-				territoryHits = null;
-				territoryNote = "Territorien nicht geladen: " + (error && error.message ? error.message : String(error));
-			}
-			$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · " + ((territories || []).length) + " Territorien";
-			renderDetail();
-			renderPreview();
-			flashStatus("Gerechnet: " + raycastNote + (territoryNote ? " · " + territoryNote : ""), "ok");
-		} catch (error) {
-			$("ecoRaycastInfo").textContent = "fehlgeschlagen";
-			flashStatus("Zugehörigkeit rechnen fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
-		} finally {
-			$("ecoRaycast").disabled = false;
-		}
-	});
+	// „Zugehörigkeit rechnen" recomputes unconditionally. Opening the editor reuses a cached answer
+	// for the SAME ecosystem_revision instead (runRaycast without force), so the common case costs no
+	// clipping and no political-layer fan-out at all.
+	$("ecoRaycast").addEventListener("click", () => { void runRaycast({ force: true }); });
 
 	// Der Totmannschalter. `set_enabled` existiert serverseitig seit V2.1 und hatte bis heute KEINEN
 	// Aufrufer im Client (grep set_enabled js/ -> leer) -- diese Kachel ist seine erste Oberfläche.
@@ -1129,6 +1201,53 @@ function wireRibbon() {
 			renderEnabledTile();
 		}
 	});
+}
+
+// force=true always recomputes (the ribbon tile). Without it a cached answer for the CURRENT
+// ecosystem_revision is reused -- that is what makes the result stand there on open.
+//
+// 🔴 Cache, not stored truth. The plan's „gerechnet, nie gespeichert" survives: the key IS the
+// revision, so any write to a landscape geometry expires the answer by itself and the next open
+// recomputes. Nothing here is a second, ageing copy of a geometry -- only the pairs and their shares.
+async function runRaycast(options) {
+	const force = !!(options && options.force);
+	$("ecoRaycast").disabled = true;
+	try {
+		setStatus(force ? "Zugehörigkeit wird gerechnet …" : "Zugehörigkeit wird geladen …");
+		if (allAreas === null) { allAreas = await loadAreas(); }
+
+		// The territories are a second, independent question („liegt in"), and the political layer is a
+		// known hotspot -- a failure there must not throw away the landscape half that succeeded.
+		try {
+			if (territories === null) {
+				setStatus("Territorien werden geladen (Zoom 0–6) …");
+				territories = await loadTerritories();
+			}
+		} catch (error) {
+			territories = territories || [];
+			territoryNote = "Territorien nicht geladen: " + (error && error.message ? error.message : String(error));
+		}
+
+		const cached = force ? null : raycastCacheRead();
+		if (cached) {
+			raycastCacheApply(cached);
+			flashStatus("Zugehörigkeit aus dem Zwischenspeicher (Stand " + ecosystemRevision + ").", "ok");
+		} else {
+			raycast = computeRaycast(allAreas);
+			if ((territories || []).length > 0) { territoryHits = computeTerritoryHits(allAreas, territories); }
+			raycastCacheWrite();
+			flashStatus("Gerechnet: " + raycastNote + (territoryNote ? " · " + territoryNote : ""), "ok");
+		}
+
+		$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · " + ((territories || []).length) + " Territorien";
+		renderDetail();
+		renderPreview();
+	} catch (error) {
+		$("ecoRaycastInfo").textContent = "fehlgeschlagen";
+		flashStatus("Zugehörigkeit fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
+	} finally {
+		$("ecoRaycast").disabled = false;
+	}
 }
 
 // The tile IS the state display (Owner: status belongs in the button). Three states, and "unknown"
@@ -1159,7 +1278,19 @@ async function loadModuleEnabled() {
 		const data = await response.json();
 		moduleEnabled = data && data.ok === true ? data.ecosystem_enabled === true : null;
 		// The switched-off answer carries no areas, so nothing is cached from it.
-		if (moduleEnabled === true && Array.isArray(data.areas)) { allAreas = data.areas; }
+		if (moduleEnabled === true && Array.isArray(data.areas)) {
+			allAreas = data.areas;
+			ecosystemRevision = Number(data.revision || 0);
+			// This request already paid for everything the cache key needs, so a remembered answer
+			// can be put on screen right here -- no clipping, and no political fan-out at all.
+			const cached = raycastCacheRead();
+			if (cached) {
+				raycastCacheApply(cached);
+				$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · " + ((territories || []).length) + " Territorien · gemerkt";
+				renderDetail();
+				renderPreview();
+			}
+		}
 	} catch (error) {
 		moduleEnabled = null;
 	}
@@ -1272,6 +1403,7 @@ async function loadData(options) {
 	const keepSelection = !!(options && options.keepSelection);
 	const previousKey = keepSelection ? selectedKey : null;
 	const previousPartner = keepSelection ? selectedPartnerId : null;
+	const previousPartnerKind = keepSelection ? selectedPartnerKind : "";
 	loadError = "";
 	setStatus("Regionen werden geladen …");
 	// After a save the selection has to survive the re-read, or every save throws the editor back to
@@ -1280,6 +1412,7 @@ async function loadData(options) {
 		if (!keepSelection) { return; }
 		selectedKey = rowByKey(previousKey) ? previousKey : null;
 		selectedPartnerId = selectedKey ? previousPartner : null;
+		selectedPartnerKind = selectedKey ? previousPartnerKind : "";
 		renderDetail();
 		renderPreview();
 	};

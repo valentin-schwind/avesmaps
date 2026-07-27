@@ -520,10 +520,21 @@ input[type=search] {
 /* „Liegt in": a hit plus its derived ancestor chain. No button -- unlike a shared region, a
    territory does not drive column 3. */
 .eco-terr {
+	display: block;
+	width: 100%;
+	min-height: 0;
+	text-align: left;
 	padding: var(--avm-row-pad);
 	border: 1px solid var(--line);
 	border-radius: var(--radius-md);
 	background: var(--soft);
+}
+
+.eco-terr:hover { background: var(--color-hover-wash); }
+
+.eco-terr.is-selected {
+	background: var(--color-active-wash);
+	border-color: var(--color-accent);
 }
 
 .eco-terr__head {
