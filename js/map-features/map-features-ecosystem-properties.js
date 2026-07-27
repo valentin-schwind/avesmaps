@@ -242,11 +242,17 @@
 		};
 		setWikiSearchOpen(false);
 		renderWikiReference();
-		// Ab jetzt besitzt die Wiki-Landschaft den Namen: Haken aus und deaktiviert. Das Feld bleibt
-		// bewusst schreibbar -- „Sync" ist hier ein eigener Knopf, kein Automatismus, und ein gesperrtes
-		// Feld neben einem Sync-Knopf wäre widersprüchlich.
+		// 🔴 Zuweisen benennt SOFORT um: „ist ein Wiki-Eintrag zugewiesen, heisst das Ding wie im Wiki".
+		// Nicht erst auf „Sync" warten -- ein Knopf, der das Selbstverstaendliche nachholt, wird vergessen,
+		// und dann steht neben „Farindelwald" weiter ein Tippfehler im Namensfeld.
+		const nameInput = propertiesElement("name");
+		if (nameInput && String(row.name || "").trim() !== "") {
+			nameInput.value = String(row.name).trim();
+		}
+		// Haken aus und deaktiviert -- die Wiki-Landschaft besitzt den Namen. Das Feld bleibt aber
+		// SCHREIBBAR: umbenennen darf man danach trotzdem noch, von Hand.
 		syncPropertiesAutoName();
-		setPropertiesStatus("Wiki-Landschaft gewählt — noch nicht gespeichert.");
+		setPropertiesStatus("Wiki-Landschaft gewählt — Name übernommen, noch nicht gespeichert.");
 	}
 
 	// Name und Art aus der verbundenen Wiki-Landschaft übernehmen. Die Art nur, wenn das Vokabular DIESER
