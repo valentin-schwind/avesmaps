@@ -113,10 +113,52 @@ Die **Typenauswahl zeigt nur das Vokabular der eigenen Ebene.** Eine
 topographische Region kann nicht „Sumpf" werden. Das ist kein Filter über einer
 gemeinsamen Liste, sondern zwei getrennte Listen (`ecosystem_region_type.kind`).
 
-**Zuweisung aus dem Wiki** ist R4 und läuft über Ziehen-und-Ablegen aus einer
-Liste; im Panel bleibt sie als Feld sichtbar. Ohne Zuweisung ist die Region
-`origin='own'` — für Gebiete, die es bei uns gibt und im Wiki nicht. Das ist
-**kein Mangel**, sondern ein Zustand, der so benannt wird.
+Ohne Zuweisung ist die Region `origin='own'` — für Gebiete, die es bei uns gibt
+und im Wiki nicht. Das ist **kein Mangel**, sondern ein Zustand, der so benannt
+wird.
+
+> ⚠️ **Berichtigt 2026-07-27.** Hier stand: *„Zuweisung aus dem Wiki ist R4 und
+> läuft über **Ziehen-und-Ablegen** aus einer Liste."* Gebaut wurde sie **nicht**
+> so, sondern über einen Knopf — in der Liste (§7a) und im Eigenschaften-Dialog
+> (§7b). Ziehen-und-Ablegen gibt es in der Regionenliste zwar, es legt aber ein
+> **Label** an (`dropRegionOnMap` → Label-Editor) und rührt keine Fläche an.
+> Ein Ablegen auf einer Fläche ist damit heute nicht möglich; ob es kommt, ist offen.
+
+## 7b. Eigenschaften einer Fläche ändern (V6b)
+
+**Rechtsklick auf die Fläche → „Eigenschaften …"** (über „Fläche löschen", wie jeder
+ungefährliche Eintrag im Haus). Der Dialog zeigt:
+
+```
+Identität     Name          freies Feld
+              Art           Auswahl aus dem Vokabular DIESER Ebene
+              (dazu: wie viele Flächen die Region trägt)
+Wiki-Landschaft             Zuweisen/Ändern · Sync · Entfernen, mit der vollen Wiki-Auskunft
+                            Löschen · Abbrechen · Speichern
+```
+
+Er schreibt `update_region` bzw. `delete_region` — beide waren seit V2.3 gebaut und
+hatten bis dahin **keinen einzigen Aufrufer**: Name, Art und Wiki-Link ließen sich nur
+beim Anlegen setzen, und eine Region war überhaupt nicht löschbar.
+
+> 🪤 **Dieser Dialog bearbeitet die FLÄCHE, nicht das Label.** Der optisch fast gleiche
+> *„Region bearbeiten"* (`#label-edit-overlay`) bearbeitet eine **Beschriftung** in
+> `map_features` — daher dessen Größe, Rotation, Zoom-Bänder und Priorität, die hier
+> alle fehlen: eine Fläche hat keine (§12). Es sind zwei Zeilen in zwei Tabellen.
+> **Wer die Fläche umbenennt, benennt das Karten-Label nicht mit um.**
+> `ecosystem_region.label_public_id` könnte beide koppeln, tut es heute nicht.
+
+**Sync** übernimmt Name und Art aus der verbundenen Wiki-Landschaft — die Art nur, wenn
+das Vokabular dieser Ebene sie kennt (`wald` kann nie auf einer topographischen Region
+landen; der Server prüft dasselbe und antwortete sonst mit 400).
+
+⚠️ **Löschen bleibt gesperrt, bis die Flächenzahl feststeht**, und der Knopf sagt das,
+solange er zählt. Die Rückfrage nennt die Zahl — *„mit 0 Flächen löschen?"* wäre eine
+Entwarnung genau in dem Moment, in dem drei Flächen mit verschwinden.
+
+**Speichern schickt `wiki_url` nur mit, wenn der Link angefasst wurde.** `update_region`
+schreibt ausschließlich die Felder, die im Payload stehen; ein immer mitgeschicktes
+leeres `wiki_url` würde eine bestehende Zuweisung stillschweigend löschen.
 
 ## 7a. Wiki-Region zuweisen (V6)
 
@@ -186,7 +228,8 @@ bei einer geänderten Geometrie, nur mit dem Label als Auslöser.
 | Was | Wann |
 |---|---|
 | Geometrie (Ecke, Kante, neue Fläche) | **sofort beim Loslassen**, ohne Nachfrage |
-| Felder im Panel (Name, Typ, Höhe) | eigener Speichern-Knopf mit Statuszeile |
+| Felder (Name, Typ) | eigener Speichern-Knopf mit Statuszeile — im Dialog aus **§7b** |
+| Höhe | noch nicht gebaut (V8, Höhenfeld) |
 
 Es gibt **keinen Entwurfszustand** und keinen „ungespeicherte Änderungen"-Dialog.
 Geometrie ist entweder gezogen oder nicht. Für die Felder gilt das Muster des
@@ -195,9 +238,10 @@ Statuszeile, Herkunftsangabe daneben.
 
 ## 10. Löschen
 
-**Fläche löschen** — aus dem Panel oder dem Kontextmenü, weich (`is_active=0`).
+**Fläche löschen** — aus dem Kontextmenü, weich (`is_active=0`).
 
-**Region löschen** — löscht **ihre Flächen mit**, und die Rückfrage sagt wie
+**Region löschen** — im Eigenschaften-Dialog (§7b). Löscht **ihre Flächen mit**, und
+die Rückfrage sagt wie
 viele: *„Region ‚Nebelmoor' mit 2 Flächen löschen?"* Eine Region ohne Flächen ist
 kein Fehler (sie ist bloß unsichtbar), aber eine Fläche ohne Region kann es nicht
 geben.
