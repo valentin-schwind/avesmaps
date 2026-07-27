@@ -7,7 +7,8 @@ global.window = { polygonClipping: require(path.join(__dirname, "../../third-par
 
 // Handed over deliberately, as browser globals are (164 <script> tags, one scope). The REAL ones, so
 // the test also proves the two files agree about what a "part" and an "area" are.
-const { ecosystemGeometryParts, ecosystemGeometryArea } = require("../map-features-ecosystem-geometry.js");
+const { ecosystemGeometryParts, ecosystemGeometryArea, ecosystemGeometryBounds } = require("../map-features-ecosystem-geometry.js");
+global.ecosystemGeometryBounds = ecosystemGeometryBounds;
 global.ecosystemGeometryParts = ecosystemGeometryParts;
 global.ecosystemGeometryArea = ecosystemGeometryArea;
 
@@ -15,6 +16,9 @@ const {
 	ecosystemBooleanGeometry,
 	ecosystemBooleanConsumesTarget,
 	ECOSYSTEM_BOOLEAN_OPERATIONS,
+	ecosystemSplitGeometry,
+	ecosystemExtractPart,
+	ecosystemMoveGeometry,
 } = require("../map-features-ecosystem-boolean.js");
 
 const box = (x1, y1, x2, y2) => ({
@@ -88,12 +92,81 @@ assert.throws(() => ecosystemBooleanGeometry("nonsense", box(0, 0, 10, 10), box(
 	/Unbekannte/i, "an unknown operation is refused rather than guessed");
 
 // ------------------------------------------------------------------------ TARGET CONSUMPTION ---
-// 🔴 Only the union eats its target -- otherwise the merged shape would exist twice. Subtracting and
-// intersecting LEAVE the target alone: cutting a lake out of a forest must not delete the lake.
+// 🔴 Union and plain difference eat their target, mirroring the territories: the merged shape would
+// otherwise exist twice, and a subtraction's target is usually a throwaway stencil. The KEEPING
+// variant is the one that leaves the lake standing after it was cut out of the forest.
 assert.strictEqual(ecosystemBooleanConsumesTarget("union"), true);
-assert.strictEqual(ecosystemBooleanConsumesTarget("difference"), false);
 assert.strictEqual(ecosystemBooleanConsumesTarget("intersection"), false);
+assert.strictEqual(ecosystemBooleanConsumesTarget("difference-keep-target"), false);
 assert.deepStrictEqual(ECOSYSTEM_BOOLEAN_OPERATIONS.map((entry) => entry.operation),
-	["union", "difference", "intersection"]);
+	["union", "difference", "difference-keep-target", "intersection"]);
+// The keeping variant computes exactly the same shape -- only the target's fate differs.
+assert.deepStrictEqual(
+	ecosystemBooleanGeometry("difference-keep-target", box(0, 0, 100, 100), box(40, 40, 60, 60)),
+	clearing, "difference-keep-target is the same subtraction");
+assert.strictEqual(ecosystemBooleanConsumesTarget("difference"), true, "plain difference eats the cutter");
+
+// --------------------------------------------------------------------------------- SPLIT ---
+// Two clicks define a line; the line becomes a thin cutter and is subtracted. It only counts as a
+// split if the result has MORE parts than before -- otherwise the line merely nicked the edge.
+const splitStraight = ecosystemSplitGeometry(box(0, 0, 100, 20), { x: 50, y: -10 }, { x: 50, y: 30 });
+assert.strictEqual(splitStraight.kept.type, "Polygon");
+assert.strictEqual(splitStraight.split.type, "Polygon");
+// The larger half stays with the source; the rest becomes the new area. Both halves here are ~equal,
+// so assert on the sum instead of guessing which way the tie fell.
+const splitTotal = ecosystemGeometryArea(splitStraight.kept) + ecosystemGeometryArea(splitStraight.split);
+assert.ok(splitTotal > 1900 && splitTotal < 2000, "the cutter removes only its own hairline width");
+assert.ok(ecosystemGeometryArea(splitStraight.kept) >= ecosystemGeometryArea(splitStraight.split),
+	"the bigger half keeps the original row");
+
+// 🪤 Two points anywhere cut all the way through: the cutter is extended far past the bounding box on
+// purpose, so a short drag still separates. A stubby line inside the shape is therefore a REAL split,
+// not a nick -- the guard is not about the line's length.
+const stubby = ecosystemSplitGeometry(box(0, 0, 100, 20), { x: 10, y: 5 }, { x: 20, y: 8 });
+assert.strictEqual(ecosystemGeometryParts(stubby.kept).length, 1);
+assert.strictEqual(ecosystemGeometryParts(stubby.split).length, 1, "the short drag still cut it in two");
+
+// What the guard IS about: a line whose EXTENDED path still misses the shape. Note the extension is
+// along the line's own direction, so a diagonal far away can still swing back through the shape --
+// this one is horizontal and stays at y=100, well clear of the 0..20 box.
+assert.throws(() => ecosystemSplitGeometry(box(0, 0, 100, 20), { x: 0, y: 100 }, { x: 100, y: 100 }),
+	/trennt/i, "a cut that misses the area is refused, not saved as a no-op");
+assert.throws(() => ecosystemSplitGeometry(box(0, 0, 100, 20), { x: 5, y: 5 }, { x: 5, y: 5 }),
+	/zwei|Punkt/i, "a zero-length line is refused");
+
+// 💣 Splitting a MULTIPART area: the cut must apply to the part it crosses and leave the others whole.
+const splitMulti = ecosystemSplitGeometry(twoIslands, { x: 5, y: -10 }, { x: 5, y: 20 });
+const keptParts = ecosystemGeometryParts(splitMulti.kept).length + ecosystemGeometryParts(splitMulti.split).length;
+assert.strictEqual(keptParts, 3, "one island became two, the far one is untouched");
+
+// -------------------------------------------------------------------------------- EXTRACT ---
+// Pull ONE part out of a multipart area -- the operation that turns an exclave into its own region.
+const pulled = ecosystemExtractPart(twoIslands, 1);
+assert.strictEqual(pulled.extracted.type, "Polygon", "the pulled part is a plain polygon");
+assert.strictEqual(pulled.remainder.type, "Polygon", "one part left behind, so it narrows back");
+assert.strictEqual(Math.round(ecosystemGeometryArea(pulled.extracted)), 100);
+assert.strictEqual(Math.round(ecosystemGeometryArea(pulled.remainder)), 100);
+
+// Holes travel with their part rather than being dropped or left behind.
+const holedTwoParts = ecosystemBooleanGeometry("union", clearing, box(200, 200, 210, 210));
+const holedIndex = ecosystemGeometryParts(holedTwoParts).findIndex((part) => part.length === 2);
+const pulledHoled = ecosystemExtractPart(holedTwoParts, holedIndex);
+assert.strictEqual(ecosystemGeometryParts(pulledHoled.extracted)[0].length, 2, "the hole came along");
+assert.strictEqual(Math.round(ecosystemGeometryArea(pulledHoled.extracted)), 9600);
+
+// The last remaining part cannot be extracted -- that would leave an area with no geometry at all.
+assert.throws(() => ecosystemExtractPart(box(0, 0, 10, 10), 0), /einzige|letzte/i);
+assert.throws(() => ecosystemExtractPart(twoIslands, 7), /Teil/i, "an index out of range is refused");
+
+// ----------------------------------------------------------------------------------- MOVE ---
+// Every ring of every part shifts by the same delta -- holes included, or a moved forest would leave
+// its clearing behind.
+const moved = ecosystemMoveGeometry(clearing, 5, -3);
+assert.strictEqual(ecosystemGeometryParts(moved)[0].length, 2, "the hole moved with it");
+assert.strictEqual(Math.round(ecosystemGeometryArea(moved)), Math.round(ecosystemGeometryArea(clearing)),
+	"moving changes position, never size");
+assert.deepStrictEqual(ecosystemGeometryParts(moved)[0][0][0], [5, -3], "origin corner shifted exactly");
+const movedMulti = ecosystemMoveGeometry(twoIslands, 1000, 1000);
+assert.strictEqual(ecosystemGeometryParts(movedMulti).length, 2, "both parts moved, none dropped");
 
 console.log("ecosystem boolean tests passed");

@@ -21,17 +21,18 @@
 
 // Die Reihenfolge ist die des Kontextmenüs. „difference" zieht das Ziel von der Quelle ab.
 const ECOSYSTEM_BOOLEAN_OPERATIONS = [
-	{ operation: "union", label: "Mit Fläche verschmelzen …" },
-	{ operation: "difference", label: "Fläche abziehen …" },
-	{ operation: "intersection", label: "Schnittmenge mit Fläche …" },
+	{ operation: "union", label: "Mit anderer Fläche vereinigen" },
+	{ operation: "difference", label: "Von anderer Fläche ausschneiden" },
+	{ operation: "difference-keep-target", label: "Ausschneiden und andere behalten" },
+	{ operation: "intersection", label: "Schnittmenge mit anderer Fläche" },
 ];
 
-// 🔴 Nur die Vereinigung frisst ihr Ziel — sonst gäbe es die verschmolzene Form zweimal. Abziehen und
-// Schneiden lassen das Ziel STEHEN: wer einen See aus einem Wald schneidet, will den See behalten.
-// (Die Territorien kennen dafür zwei Varianten, `difference` und `difference-keep-target`. Hier gibt
-// es nur die behaltende — ein Landschaftsobjekt stillschweigend zu löschen ist nie das Erwartete.)
+// 🔴 Vereinigung und einfacher Abzug fressen ihr Ziel: bei der Vereinigung gäbe es die verschmolzene
+// Form sonst zweimal, beim Abzug ist das Ziel die Schablone und meist ein Wegwerf-Umriss.
+// `difference-keep-target` ist die Variante, die den See stehen lässt, aus dem der Wald geschnitten
+// wurde — dieselbe Unterscheidung wie bei den Territorien.
 function ecosystemBooleanConsumesTarget(operation) {
-	return operation === "union";
+	return operation === "union" || operation === "difference";
 }
 
 // GeoJSON Polygon|MultiPolygon -> die Liste von Teilen, die polygon-clipping erwartet. Es ist exakt
@@ -68,7 +69,7 @@ function assertEcosystemBooleanPlausible(operation, sourceGeometry, targetGeomet
 	if (!(resultArea > 0)) {
 		throw new Error("Die Operation ergibt keine Fläche.");
 	}
-	if (operation === "difference" && resultArea - sourceArea > epsilon) {
+	if ((operation === "difference" || operation === "difference-keep-target") && resultArea - sourceArea > epsilon) {
 		throw new Error("Das Abzugs-Ergebnis ist größer als die Ausgangsfläche.");
 	}
 	if (operation === "intersection" && resultArea - Math.min(sourceArea, targetArea) > epsilon) {
@@ -93,7 +94,7 @@ function ecosystemBooleanGeometry(operation, sourceGeometry, targetGeometry) {
 	let result;
 	if (operation === "union") {
 		result = clipping.union(source, target);
-	} else if (operation === "difference") {
+	} else if (operation === "difference" || operation === "difference-keep-target") {
 		result = clipping.difference(source, target);
 	} else if (operation === "intersection") {
 		result = clipping.intersection(source, target);
@@ -106,6 +107,113 @@ function ecosystemBooleanGeometry(operation, sourceGeometry, targetGeometry) {
 	return geometry;
 }
 
+// ---- Zerschneiden ------------------------------------------------------------------------------------
+// Zwei Punkte spannen eine Linie auf; die Linie wird zu einem haarfeinen Rechteck verlängert und
+// abgezogen. Abgeschrieben von buildRegionSplitCutterGeometry (map-features-region-edit-ops.js:203) --
+// derselbe Kniff, aber ohne Leaflet: dort kommen die Punkte als L.latLng herein, hier als {x, y} in
+// Kartenkoordinaten, weil dieser Kern ohne Karte testbar bleiben soll.
+//
+// Die Verlängerung über die Bounding Box hinaus ist der eigentliche Trick: eine Schnittlinie, die nur
+// bis zum Klickpunkt reicht, trennt die Fläche nicht, sondern kerbt sie nur ein.
+function ecosystemSplitCutterGeometry(geometry, startPoint, endPoint) {
+	const dx = endPoint.x - startPoint.x;
+	const dy = endPoint.y - startPoint.y;
+	const lineLength = Math.hypot(dx, dy);
+	if (!(lineLength > 0)) {
+		throw new Error("Die Schnittlinie braucht zwei verschiedene Punkte.");
+	}
+
+	const bounds = ecosystemGeometryBounds(geometry);
+	const diagonal = Math.max(
+		Math.hypot(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y),
+		lineLength
+	);
+	const extension = diagonal * 2;
+	const halfWidth = Math.max(diagonal * 0.0002, 0.25);
+	const unitX = dx / lineLength;
+	const unitY = dy / lineLength;
+	const normalX = -unitY * halfWidth;
+	const normalY = unitX * halfWidth;
+	const fromX = startPoint.x - unitX * extension;
+	const fromY = startPoint.y - unitY * extension;
+	const toX = endPoint.x + unitX * extension;
+	const toY = endPoint.y + unitY * extension;
+
+	return [[[
+		[fromX + normalX, fromY + normalY],
+		[toX + normalX, toY + normalY],
+		[toX - normalX, toY - normalY],
+		[fromX - normalX, fromY - normalY],
+		[fromX + normalX, fromY + normalY],
+	]]];
+}
+
+// Fläche entlang der Linie zerschneiden. Liefert `kept` (bleibt auf der vorhandenen Zeile) und `split`
+// (wird eine neue Fläche). Der GRÖSSERE Rest behält die alte Zeile — so bleibt die ursprüngliche
+// Identität dort, wo die meiste Fläche liegt, statt zufällig mitzuwandern.
+//
+// 🔴 Es gilt nur als Schnitt, wenn hinterher MEHR Teile da sind als vorher. Sonst hat die Linie die
+// Fläche bloss angeritzt, und ein stillschweigendes „nichts passiert" wäre die schlechteste Antwort.
+function ecosystemSplitGeometry(geometry, startPoint, endPoint) {
+	const clipping = typeof window !== "undefined" ? window.polygonClipping : null;
+	if (!clipping) {
+		throw new Error("Die Polygon-Clipping-Bibliothek ist nicht geladen.");
+	}
+
+	const source = ecosystemGeometryToClipping(geometry, "Die Ausgangsfläche");
+	const cutter = ecosystemSplitCutterGeometry(geometry, startPoint, endPoint);
+	const pieces = clipping.difference(source, cutter);
+	if (!Array.isArray(pieces) || pieces.length <= source.length) {
+		throw new Error("Die Schnittlinie trennt die Fläche nicht vollständig.");
+	}
+
+	const sorted = pieces
+		.map((part) => ({ part, area: ecosystemGeometryArea({ type: "Polygon", coordinates: part }) }))
+		.sort((left, right) => right.area - left.area)
+		.map((entry) => entry.part);
+
+	// Der grösste Teil bleibt; alles andere wandert gemeinsam in die neue Fläche. „Alles andere" statt
+	// „der zweite Teil": ein Schnitt durch ein mehrteiliges Gebilde kann drei Stücke hinterlassen.
+	return {
+		kept: ecosystemClippingToGeometry([sorted[0]]),
+		split: ecosystemClippingToGeometry(sorted.slice(1)),
+	};
+}
+
+// ---- Herauslösen ------------------------------------------------------------------------------------
+// EINEN Teil eines mehrteiligen Gebildes zur eigenen Fläche machen. Das ist die Umkehrung der
+// Vereinigung und der Grund, warum sie ungefährlich ist: was zusammengewachsen ist, lässt sich wieder
+// trennen. Löcher reisen mit ihrem Teil -- ein Ring gehört zu genau einem Teil.
+function ecosystemExtractPart(geometry, partIndex) {
+	const parts = ecosystemGeometryToClipping(geometry, "Die Fläche");
+	const index = Number(partIndex);
+	if (!Number.isInteger(index) || index < 0 || index >= parts.length) {
+		throw new Error("Diesen Teil gibt es nicht.");
+	}
+	if (parts.length < 2) {
+		// Sonst bliebe eine Fläche ohne Geometrie zurück, und update_area_geometry nähme das an.
+		throw new Error("Das ist der einzige Teil dieser Fläche — es bleibt nichts übrig.");
+	}
+
+	return {
+		extracted: ecosystemClippingToGeometry([parts[index]]),
+		remainder: ecosystemClippingToGeometry(parts.filter((_, position) => position !== index)),
+	};
+}
+
+// ---- Verschieben ------------------------------------------------------------------------------------
+// Jeder Ring jedes Teils um denselben Versatz. Löcher eingeschlossen -- ein verschobener Wald, der
+// seine Lichtung stehen lässt, wäre der Fehler, den man erst drei Zooms später sieht.
+function ecosystemMoveGeometry(geometry, deltaX, deltaY) {
+	const dx = Number(deltaX) || 0;
+	const dy = Number(deltaY) || 0;
+	const parts = ecosystemGeometryToClipping(geometry, "Die Fläche").map((part) =>
+		part.map((ring) => ring.map((point) => [point[0] + dx, point[1] + dy]))
+	);
+
+	return ecosystemClippingToGeometry(parts);
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		ECOSYSTEM_BOOLEAN_OPERATIONS,
@@ -113,5 +221,9 @@ if (typeof module !== "undefined" && module.exports) {
 		ecosystemBooleanGeometry,
 		ecosystemGeometryToClipping,
 		ecosystemClippingToGeometry,
+		ecosystemSplitCutterGeometry,
+		ecosystemSplitGeometry,
+		ecosystemExtractPart,
+		ecosystemMoveGeometry,
 	};
 }
