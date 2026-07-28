@@ -22,6 +22,29 @@ const ECOSYSTEM_KIND_LABELS = {
 	topographie: "Topographie",
 };
 
+// Die Ebene als BESTIMMUNGSWORT, für zusammengesetzte Titel: „Vegetations-Fläche bearbeiten",
+// „Derographie-Label bearbeiten". Eigene Tabelle statt einer Ableitung aus ECOSYSTEM_KIND_LABELS --
+// die trägt die Ebene als Substantiv („Derographische Region"), und „Derographische Region-Label"
+// wäre kein Deutsch. Die Wörter sind die des Owners (2026-07-28), nicht gebeugte Varianten davon.
+const ECOSYSTEM_KIND_PREFIX = {
+	derographisch: "Derographie",
+	vegetation: "Vegetations",
+	topographie: "Topographie",
+};
+
+// Der Titel eines Bearbeitungsfensters. `subject` ist "flaeche" oder "label".
+//
+// 🪤 Ohne Ebene bleibt es beim allgemeinen Titel: ein Kontinent, ein Meer oder ein freier Kartentitel
+// gehört zu keiner Landschaftsebene, und „Vegetations-Label bearbeiten" darüberzuschreiben wäre eine
+// Zuordnung, die es nicht gibt. Dasselbe gilt, solange die Zugehörigkeit noch nicht aufgelöst ist --
+// deshalb wird der Titel zweistufig gesetzt (erst neutral, dann verfeinert).
+function ecosystemDialogTitle(kind, subject) {
+	const noun = String(subject) === "label" ? "Label" : "Fläche";
+	const prefix = ECOSYSTEM_KIND_PREFIX[String(kind || "")] || "";
+
+	return prefix === "" ? `${noun} bearbeiten` : `${prefix}-${noun} bearbeiten`;
+}
+
 const ECOSYSTEM_KIND_PANES = {
 	derographisch: "ecosystemPaneDerographisch",
 	vegetation: "ecosystemPaneVegetation",
@@ -148,15 +171,79 @@ function applyEcosystemSelectionClass(layer) {
 	element.classList.toggle("ecosystem-area--selected", layer._ecosystemArea?.public_id === selectedEcosystemAreaPublicId);
 }
 
+// 🔴 DIE ART STEHT HIER MIT IHRER BEZEICHNUNG, NICHT MIT IHREM SCHLÜSSEL (Owner 2026-07-28). Bis heute
+// stand `region_type` im Zettel -- das ist ein Verbindungsschlüssel (`wald`, `suempfe_moore`) und
+// kleingeschrieben, weil Schlüssel so aussehen. Im Zettel las sich das wie ein Tippfehler. Die
+// lesbare Form kommt aus `ecosystem_region_type.label` und reist seit heute als `region_type_label`
+// im Lesepfad mit (api/_internal/app/ecosystem.php). Fehlt sie, bleibt der Schlüssel stehen -- besser
+// ein Schlüssel als ein leerer Zettel.
+//
+// 🔴 DIE ZAHLEN KOMMEN VOM SERVER. Die geladenen Ebenen halten nur, was im Ausschnitt liegt (der
+// Endpunkt filtert nach bbox); daraus gezählt hiesse der Zettel „Flächen im Bild" und änderte seine
+// Aussage beim Verschieben der Karte. Dieselbe Lehre steht an der Trägerzeile im Label-Dialog.
+//
+// Der Zusatz „· Erprobung" ist am 2026-07-28 entfallen (Owner: „das Erprobungs-Kennzeichen kann
+// insgesamt raus — die brauchen wir weder in den Flächen noch im Derographiemenü"). Die Spalte
+// `is_trial` bleibt vorerst in der Datenbank; sie wird hier nur nicht mehr angezeigt.
 function formatEcosystemAreaTooltip(area) {
 	const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
 	const kindLabel = ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "");
-	const typeLabel = String(area?.region_type || "").trim();
+	const typeLabel = String(area?.region_type_label || area?.region_type || "").trim();
+	const areaCount = Number(area?.region_area_count) || 0;
+	const labelCount = Number(area?.region_label_count) || 0;
 
-	// Der Zusatz „· Erprobung" ist am 2026-07-28 entfallen (Owner: „das Erprobungs-Kennzeichen kann
-	// insgesamt raus — die brauchen wir weder in den Flächen noch im Derographiemenü"). Die Spalte
-	// `is_trial` bleibt vorerst in der Datenbank; sie wird hier nur nicht mehr angezeigt.
-	return `${regionName} (${typeLabel ? `${typeLabel}, ` : ""}${kindLabel})`;
+	return `${regionName} (${typeLabel ? `${typeLabel}, ` : ""}${kindLabel}) · Flächen (${areaCount}) und Labels (${labelCount})`;
+}
+
+// ---- Stapelreihenfolge (Owner 2026-07-28, Punkt 9) --------------------------------------------------
+//
+// 🔴 GROSS UNTEN, KLEIN OBEN. Derographische Regionen verschachteln sich: Kontinent ⊃ Insel ⊃ Provinz.
+// Alle Flächen einer Ebene liegen in EINER SVG-Gruppe, und dort gewinnt, wer zuletzt gezeichnet wurde --
+// also die Ladereihenfolge. Eine grosse Fläche, die zufällig nach ihrer kleinen kam, deckte diese
+// vollständig zu UND nahm ihren Klick. Nach Flächeninhalt gestapelt liegt die enthaltene Fläche immer
+// obenauf und ist immer erreichbar.
+//
+// 🪤 STABIL bei Gleichstand. Zwei gleich grosse Flächen behalten ihre Eingangsreihenfolge -- sonst
+// würfelte jedes Nachladen die Stapelung neu, und ein Klick träfe beim zweiten Mal etwas anderes.
+// Array.prototype.sort IST seit ES2019 stabil; der Index-Vergleich macht es unabhängig davon explizit.
+//
+// Rein und ohne Leaflet, damit die Regel prüfbar ist: der Aufrufer holt die Flächen in dieser
+// Reihenfolge nach vorn (bringToFront), womit die kleinste zuletzt und damit ganz oben landet.
+function ecosystemStackingOrder(areas) {
+	const list = Array.isArray(areas) ? areas : [];
+	const measured = list.map((area, index) => ({
+		publicId: String(area?.public_id || ""),
+		index,
+		// Eine Fläche ohne brauchbare Geometrie zählt als 0 und landet damit ganz oben -- oben ist der
+		// ungefährliche Platz: sie verdeckt nichts, sie ist nur selbst erreichbar.
+		size: typeof ecosystemGeometryArea === "function" ? (Number(ecosystemGeometryArea(area?.geometry)) || 0) : 0,
+	})).filter((entry) => entry.publicId !== "");
+
+	measured.sort((left, right) => (right.size - left.size) || (left.index - right.index));
+
+	return measured.map((entry) => entry.publicId);
+}
+
+// Die berechnete Reihenfolge auf die Karte anwenden. Getrennt von der Regel, weil hier Leaflet ins
+// Spiel kommt und die Regel ohne Karte testbar bleiben soll.
+function applyEcosystemStackingOrder() {
+	if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+	const areas = [];
+	ecosystemLayers.forEach((layer) => {
+		if (layer?._ecosystemArea) {
+			areas.push(layer._ecosystemArea);
+		}
+	});
+	// Je Ebene getrennt: die drei Panes sind ohnehin gestapelt (derographisch unten, Topographie oben),
+	// und eine gemeinsame Sortierung über alle drei würde nur innerhalb jeder Pane wirken -- aber die
+	// Reihenfolge dazwischen unnötig durcheinanderbringen.
+	ECOSYSTEM_KINDS.forEach((kind) => {
+		ecosystemStackingOrder(areas.filter((area) => String(area?.kind || "") === kind)).forEach((publicId) => {
+			ecosystemLayers.get(publicId)?.bringToFront?.();
+		});
+	});
 }
 
 // Selecting is what proves "only the active layer answers" (plan V3.0, step 7). It is deliberately
@@ -337,4 +424,17 @@ function buildEcosystemAreaLayer(area) {
 	});
 
 	return layer;
+}
+
+// Node-Export für die Einheitentests (Hausmuster, wie map-features-ecosystem-boolean.js). Im Browser
+// existiert `module` nicht, dort bleiben die Funktionen schlicht global.
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = {
+		ECOSYSTEM_KINDS,
+		ECOSYSTEM_KIND_LABELS,
+		ECOSYSTEM_KIND_PREFIX,
+		ecosystemDialogTitle,
+		formatEcosystemAreaTooltip,
+		ecosystemStackingOrder,
+	};
 }

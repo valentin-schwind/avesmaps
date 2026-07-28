@@ -13,6 +13,15 @@ function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	}
 }
 
+// Der Fenstertitel des Label-Dialogs. Leere Ebene -> „Label bearbeiten" (Kontinente, Meere, freie
+// Kartentitel gehören zu keiner Landschaftsebene), sonst „Vegetations-Label bearbeiten" usw.
+function setLabelEditDialogTitle(kind) {
+	const titleElement = document.getElementById("label-edit-title");
+	if (titleElement && typeof ecosystemDialogTitle === "function") {
+		titleElement.textContent = ecosystemDialogTitle(kind, "label");
+	}
+}
+
 function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	labelEditEntry = labelEntry;
 	labelEditLatLng = latlng ? L.latLng(latlng) : labelEntry?.marker.getLatLng() || null;
@@ -39,6 +48,12 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	if (typeof writeOtherSourceToForm === "function") {
 		writeOtherSourceToForm("label-edit", label.otherSource);
 	}
+	// 🪤 ZWEISTUFIG. Der Titel nennt die Ebene des Labels („Vegetations-Label bearbeiten"), aber die
+	// Ebene steht erst fest, wenn die Region aufgelöst ist -- und das ist ein asynchroner Schritt
+	// (renderLabelCarrierNote lädt dafür die Regionslisten). Hier also erst der allgemeine Titel; die
+	// Verfeinerung kommt dort, sobald die Antwort da ist. Ein flackernder Titel wäre schlimmer als ein
+	// später richtiger, und ein Label OHNE Fläche bleibt dauerhaft beim allgemeinen.
+	setLabelEditDialogTitle("");
 	renderLabelCarrierNote(label);
 	syncLabelZoomRangeOutputs();
 	syncLabelSliderRowsFromNumbers();
@@ -80,6 +95,8 @@ async function renderLabelCarrierNote(label) {
 	// Flaeche als heimatlos anzuzeigen -- und genau die sind der Sinn der Sache.
 	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
 	applyLabelTypeVocabulary(region, label);
+	// Die zweite Stufe des Titels (siehe populateLabelEditForm): jetzt ist die Ebene bekannt.
+	setLabelEditDialogTitle(region?.kind || "");
 	if (!region) {
 		return;
 	}

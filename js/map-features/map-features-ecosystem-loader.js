@@ -172,6 +172,15 @@ function applyEcosystemAreaPayload(payload) {
 		}
 	});
 
+	// 🔴 Gross unten, klein oben (Owner 2026-07-28, Punkt 9). Alle Flächen einer Ebene liegen in EINER
+	// SVG-Gruppe, und dort gewinnt die Ladereihenfolge -- eine derographische Region, die zufällig nach
+	// der kleineren kam, deckte diese vollständig zu und nahm ihren Klick gleich mit. Hier, nach dem
+	// Hinzufügen UND nach dem Entfernen: ein Neubau hängt seinen Pfad hinten an, also stimmt die
+	// Reihenfolge sonst schon nach dem ersten Schwenk nicht mehr.
+	if (typeof applyEcosystemStackingOrder === "function") {
+		applyEcosystemStackingOrder();
+	}
+
 	// Welche Labels in dieser Ebene blass sind, hängt an genau dieser Registry: ein Label ist „eigen",
 	// wenn eine geladene Fläche der aktiven Art darauf zeigt. Nach jedem Nachladen kann sich das also
 	// geändert haben -- ohne diesen Aufruf bliebe ein gerade erst hereingepanntes Waldlabel blass.
