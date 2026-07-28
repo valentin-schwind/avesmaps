@@ -91,10 +91,17 @@
 	// Jetzt wächst die Zahl mit der vierten Wurzel-Nähe (Exponent 0,4): 10 px → 6, 40 px → 10,
 	// 80 px → 14, ab ~250 px → 20 als Deckel. Ein grosser Stempel ist damit ein grobes Vieleck, und
 	// genau das genügt, weil die Kante ohnehin unter dem nächsten Stempel verschwindet.
+	// 🔴 Dritte Fassung (Owner 2026-07-28): wieder deutlich glatter. Die zweite war eine Sparfassung gegen
+	// die Punktflut -- seit „Fläche vereinfachen" den Umriss nachträglich ausdünnt, ist die Flut kein
+	// Argument mehr. Die Kanten dürfen also wieder rund aussehen; wem es zu fein wird, der zieht hinterher
+	// einmal am Regler. Der Weg herum wäre der schlechtere: eine Kante, die gar nicht erst entstand, holt
+	// keine Vereinfachung zurück.
+	//
+	// 10 px → 8, 20 px → 12, 40 px → 17, 80 px → 25, ab ~130 px → 32 als Deckel.
 	function brushVertexCount(radiusPx) {
-		const scaled = Math.round(6 * Math.pow(Math.max(1, radiusPx) / 10, 0.4));
+		const scaled = Math.round(8 * Math.pow(Math.max(1, radiusPx) / 10, 0.55));
 
-		return Math.max(6, Math.min(20, scaled));
+		return Math.max(8, Math.min(32, scaled));
 	}
 
 	// Der Stempel als GeoJSON-Polygon in KARTENkoordinaten. Gerechnet wird über Layer-Punkte, damit der
