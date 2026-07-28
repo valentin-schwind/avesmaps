@@ -26,6 +26,11 @@ declare(strict_types=1);
 // around a missing include swallows the write silently (the lore-sync.php trap).
 require_once __DIR__ . '/app-setting.php';
 
+// Which label belongs to which region, resolved from BOTH stored directions. Its own file because
+// api/app/map-features.php needs the same answer and two copies of this rule would be the second truth
+// (see the header there). Pure functions + one reader; nothing runs on include.
+require_once __DIR__ . '/ecosystem-label-link.php';
+
 // 🔴 The fold table, NOT the political library. wiki_region_key has to come out of the SAME derivation
 // that keyed wiki_region_staging.wiki_key (api/_internal/wiki/regions.php:507 -> avesmapsPoliticalSlug),
 // or the join it exists for finds nothing. But the plan's global rule 1 forbids CALLING political code
@@ -546,7 +551,77 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
         ];
     }
 
-    return $areas;
+    return avesmapsEcosystemDecorateAreaRows(
+        $areas,
+        avesmapsEcosystemReadRegionTypeLabels($pdo),
+        avesmapsEcosystemReadRegionAreaCounts($pdo),
+        avesmapsEcosystemReadLabelRegionMap($pdo)['count_by_region']
+    );
+}
+
+// Three region-level facts the area tooltip needs, folded onto every row of the payload. Pure so the
+// fallbacks are testable (api/_internal/app/__tests__/ecosystem-area-decoration-test.php).
+//
+// 🔴 THE ART IS A LABEL HERE, NOT A KEY. region_type is `wald` -- a join key, lowercase because that is
+// what keys look like. The tooltip showed it verbatim and read as a typo ("Mein Wald 1 (wald,
+// Vegetation)"). The human-readable form lives in ecosystem_region_type.label and had no way into the
+// public read path until now.
+//
+// 🔴 THE COUNTS COME FROM THE SERVER, NOT FROM THE LOADED LAYERS. The client's registry holds only what
+// is inside the viewport (the endpoint filters by bbox), so counting layers would produce "areas in
+// view" -- a tooltip that changes its statement when you pan. The carrier note in the label dialog
+// learned this already (js/review/review-labels.js:56-59).
+//
+// @param array<string,string> $typeLabels  "<kind>|<type_key>" => label. Keyed by BOTH, because a
+//                                          type_key is only unique per kind (PRIMARY KEY (kind, type_key)).
+// @param array<string,int> $areaCounts     region public_id => active areas
+// @param array<string,int> $labelCounts    region public_id => resolved labels
+function avesmapsEcosystemDecorateAreaRows(array $rows, array $typeLabels, array $areaCounts, array $labelCounts): array
+{
+    foreach ($rows as $index => $row) {
+        $regionPublicId = (string) ($row['region_public_id'] ?? '');
+        $typeKey = trim((string) ($row['region_type'] ?? ''));
+        // No type is a valid state ("— keine Vegetation —"), and then there is no label either. A type
+        // WITHOUT a label falls back to its own key: showing the raw key is worse than showing nothing,
+        // but showing nothing where an Art exists would hide data.
+        $rows[$index]['region_type_label'] = $typeKey === ''
+            ? ''
+            : (string) ($typeLabels[((string) ($row['kind'] ?? '')) . '|' . $typeKey] ?? $typeKey);
+        $rows[$index]['region_area_count'] = (int) ($areaCounts[$regionPublicId] ?? 0);
+        $rows[$index]['region_label_count'] = (int) ($labelCounts[$regionPublicId] ?? 0);
+    }
+
+    return $rows;
+}
+
+// "<kind>|<type_key>" => label, for avesmapsEcosystemDecorateAreaRows. Small table (~30 rows).
+function avesmapsEcosystemReadRegionTypeLabels(PDO $pdo): array
+{
+    $statement = $pdo->query('SELECT kind, type_key, label FROM ecosystem_region_type WHERE is_active = 1');
+    $labels = [];
+    foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $labels[((string) $row['kind']) . '|' . ((string) $row['type_key'])] = (string) $row['label'];
+    }
+
+    return $labels;
+}
+
+// region public_id => number of ACTIVE areas. One GROUP BY over ~139 regions, never per row.
+function avesmapsEcosystemReadRegionAreaCounts(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        'SELECT r.public_id AS region_public_id, COUNT(*) AS area_count
+           FROM ecosystem_area a
+           INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+          WHERE a.is_active = 1
+          GROUP BY r.public_id'
+    );
+    $counts = [];
+    foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $counts[(string) $row['region_public_id']] = (int) $row['area_count'];
+    }
+
+    return $counts;
 }
 
 // ---- write path: helpers ----------------------------------------------------------------------------

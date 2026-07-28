@@ -24,7 +24,10 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // Bump when the SHAPE of this payload changes without a revision change -- same contract, and same
 // reason, as AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION: the ETag is revision-based, so a cached client would
 // otherwise keep a stale body through 304 and never see a new field.
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 1;
+// 2 (2026-07-28): every area row now also carries region_type_label, region_area_count and
+// region_label_count for the tooltip. Same revision, new shape -> without this bump a warm client would
+// keep the old body through a 304 and its tooltip would silently show "Flächen (0) und Labels (0)".
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 2;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
