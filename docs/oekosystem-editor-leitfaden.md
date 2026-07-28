@@ -181,19 +181,29 @@ Damit trägt der *Amboss* seine Höhe selbst, sichtbar und pflegbar im
 Standard-Layer, unabhängig davon, ob es je ein Ökosystem darüber gibt. Die
 Ökosystem-Ebene liest sie nur.
 
-**Nicht jeder Gipfel gehört auf die öffentliche Karte.** Für ein brauchbares
-Höhenfeld braucht das Modell **mehr** Stützpunkte, als ein Leser sehen will. Daher:
+**Für ein brauchbares Höhenfeld braucht das Modell möglicherweise mehr Stützpunkte,
+als ein Leser sehen will.** Daraus wurde hier zunächst eine Sichtbarkeitsregel
+abgeleitet — wiki-lose Gipfel sollten als Datensatz existieren, aber nicht auf der
+öffentlichen Karte erscheinen.
 
-> Ein `berggipfel`-Label wird im **Standard-Layer** nur gezeichnet, wenn es
-> **wiki-verknüpft** ist. Gipfel ohne Wiki-Eintrag existieren als Datensatz,
-> erscheinen aber **nicht** als Dreieck auf der Karte — sie sind nur in der
-> Ökosystem-Ebene sichtbar und dienen der Berechnung der anisotropen Gebirge.
+> 🔴 **Diese Regel ist gestrichen (Owner-Entscheid 2026-07-28).** Wörtlich: *„Kein
+> Gipfel darf verschwinden. Gipfel sind teil der Topographie - mit oder ohne
+> WikiLink."*
+>
+> **Jedes `berggipfel`-Label bleibt auf der Standardkarte sichtbar**, verknüpft oder
+> nicht. V8 nimmt der öffentlichen Karte nichts weg; die Sichtbarkeit von Labels
+> bleibt exakt wie zuvor.
 
-Damit können Editoren so viele Arbeitspunkte setzen, wie das Gelände braucht, ohne
-die Karte zuzumüllen. Die Regel gilt **nur für `berggipfel`** — andere Label-Typen
-behalten ihr heutiges Verhalten. *(Es gibt bereits eine Wiki-Unterscheidung an
-Labels, sie steuert bisher nur die Darstellung — hier kommt für diesen einen
-Subtyp die Sichtbarkeit dazu.)*
+Die Erwägung darüber bleibt trotzdem stehen, denn sie war richtig: es kann mehr
+Arbeitspunkte geben als Sehenswürdigkeiten. Falsch war nur die Folgerung. Am
+Livebestand nachgezählt (2026-07-28) hätte die Regel **10 von 62** Gipfeln
+entfernt — bei der strengeren Lesart „nur top-level `wiki_url` zählt" sogar **26**.
+Für eine Handvoll Arbeitspunkte, die es heute noch gar nicht gibt, wäre das ein
+sichtbarer Verlust an gepflegtem Bestand gewesen.
+
+*(Wird die Karte irgendwann tatsächlich von Arbeitspunkten überschwemmt, ist das
+eine neue Frage an den Owner — und dann eher eine Frage der Zoomstufe als der
+Wiki-Verknüpfung.)*
 
 **Bearbeiten ist bidirektional.** Wird der Gipfel im Standard-Layer verschoben,
 wandert der Höhenpunkt mit; wird er aus der Ökosystem-Ebene heraus verschoben,

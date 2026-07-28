@@ -1,5 +1,11 @@
 # V8 — Topographie / Höhenfeld — Instruction
 
+> ✅ **VOLLSTÄNDIG GEBAUT am 2026-07-28.** Alle zehn Aufgaben abgehakt, 36/36 JS-Tests
+> und die PHP-Tests grün. Vier Stellen wichen beim Bauen bewusst vom Plan ab; jede trägt
+> ihre Begründung an Ort und Stelle (Aufgabe 2 Schritt 5, Aufgabe 4 Kopf, Aufgabe 6
+> Schritt 3, Aufgabe 9). 🔴 **Noch nicht vom Owner live abgenommen** — der Zweig ist
+> weder gemerged noch gepusht.
+
 > **Für agentische Arbeiter:** PFLICHT-SUB-SKILL: `superpowers:executing-plans` (oder
 > `superpowers:subagent-driven-development`). Schritte tragen `- [ ]` zum Abhaken.
 > **Eigener Worktree auf `origin/master`.**
@@ -254,7 +260,7 @@ ist ein **Tippfehlerschutz** (eine Null zu viel), keine Lore-Aussage. Negatives 
 **Erzeugt:** `avesmapsReadOptionalPeakHeight(mixed $value): ?float` — `null` bei leer/ungültig,
 sonst der geklemmte Wert.
 
-- [ ] **Schritt 1: Den Test schreiben, der fehlschlägt.**
+- [x] **Schritt 1: Den Test schreiben, der fehlschlägt.**
 
 ```php
 <?php
@@ -274,11 +280,11 @@ assert(avesmapsReadOptionalPeakHeight(INF) === null, 'non-finite is rejected');
 echo "label-height: all assertions passed\n";
 ```
 
-- [ ] **Schritt 2: Lauf, er muss fehlschlagen.**
+- [x] **Schritt 2: Lauf, er muss fehlschlagen.**
       `php -d extension=mbstring -d zend.assertions=1 api/_internal/map/__tests__/label-height-test.php`
       Erwartet: `Call to undefined function avesmapsReadOptionalPeakHeight`.
 
-- [ ] **Schritt 3: Die Leserin schreiben**, neben `avesmapsReadOptionalOtherSource` in
+- [x] **Schritt 3: Die Leserin schreiben**, neben `avesmapsReadOptionalOtherSource` in
       `api/_internal/map/features.php`:
 
 ```php
@@ -304,7 +310,7 @@ function avesmapsReadOptionalPeakHeight(mixed $value): ?float {
 }
 ```
 
-- [ ] **Schritt 4: Den bewachten Zweig einhängen** in `avesmapsUpdateLabelFeature`, direkt nach
+- [x] **Schritt 4: Den bewachten Zweig einhängen** in `avesmapsUpdateLabelFeature`, direkt nach
       dem `other_source`-Block (`:2276`). 💣 **`array_key_exists`, nie `??`** — Falle 4:
 
 ```php
@@ -320,15 +326,15 @@ function avesmapsReadOptionalPeakHeight(mixed $value): ?float {
         }
 ```
 
-- [ ] **Schritt 5: Denselben Zweig in `avesmapsCreateLabelFeature`** einhängen, damit ein über
+- [x] **Schritt 5: Denselben Zweig in `avesmapsCreateLabelFeature`** einhängen, damit ein über
       „Höhenpunkt setzen" angelegter Gipfel seine Höhe sofort mitbringen kann. Stelle: dort, wo
       `create_label` die übrigen `properties` zusammensetzt.
 
-- [ ] **Schritt 6: Tests laufen lassen.**
+- [x] **Schritt 6: Tests laufen lassen.**
       `php -d extension=mbstring -d zend.assertions=1 api/_internal/map/__tests__/label-height-test.php`
       Erwartet: `all assertions passed`.
 
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add api/_internal/map/features.php api/_internal/map/__tests__/label-height-test.php
@@ -345,21 +351,21 @@ gesucht) · `js/app/i18n-en.js` (ergänzen)
 
 **Verbraucht:** `height_schritt` aus Aufgabe 1.
 
-- [ ] **Schritt 1: Das Feld ins Dialog-Markup**, als eigene Zeile mit Trenner nach dem Muster
+- [x] **Schritt 1: Das Feld ins Dialog-Markup**, als eigene Zeile mit Trenner nach dem Muster
       der Nachbarfelder. Beschriftung **„Höhe (Schritt)"**, `name="height_schritt"`,
       `type="number"`, `min="0"`, `max="20000"`, `step="1"`, leer erlaubt. Farben und Radien nur
       aus `css/base/tokens.css`.
 
-- [ ] **Schritt 2: Nur für `berggipfel` zeigen.** Die Zeile wird ein-/ausgeblendet, wenn sich
+- [x] **Schritt 2: Nur für `berggipfel` zeigen.** Die Zeile wird ein-/ausgeblendet, wenn sich
       `feature_subtype` ändert — dieselbe Mechanik, mit der der Dialog heute schon
       typabhängige Teile schaltet (`applyLabelTypeVocabulary` `:110`). Bei jedem anderen Subtyp
       bleibt sie verborgen **und der Schlüssel wird nicht gesendet** (Falle 4).
 
-- [ ] **Schritt 3: Befüllen.** In `populateLabelEditForm` den vorhandenen Wert aus
+- [x] **Schritt 3: Befüllen.** In `populateLabelEditForm` den vorhandenen Wert aus
       `labelEntry.properties.height_schritt` in das Feld schreiben; fehlt er, bleibt es leer.
       **Leer ≠ 0.**
 
-- [ ] **Schritt 4: Senden.** In `buildLabelEditPayload` den Schlüssel **nur dann** in die
+- [x] **Schritt 4: Senden.** In `buildLabelEditPayload` den Schlüssel **nur dann** in die
       Nutzlast legen, wenn der Subtyp `berggipfel` ist:
 
 ```js
@@ -381,12 +387,12 @@ gesucht) · `js/app/i18n-en.js` (ergänzen)
       **Regel 4 gilt also für öffentliche Oberflächen, nicht für Editor-Dialoge** — für
       Aufgaben 3 und 5 ebenso zu prüfen, statt sie mechanisch zu ergänzen.
 
-- [ ] **Schritt 6: Im Browser prüfen** (`?edit=1`, ohne Login prüfbar): Dialog an einem
+- [x] **Schritt 6: Im Browser prüfen** (`?edit=1`, ohne Login prüfbar): Dialog an einem
       `berggipfel` öffnen → Zeile da; an einem `wald`-Label → Zeile weg. Subtyp im offenen
       Dialog umstellen → Zeile erscheint/verschwindet. Nutzlast über einen gestubbten
       Schreibweg sichtbar machen und zeigen, dass `height_schritt` **nur** beim Gipfel drin ist.
 
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add js/review/review-labels.js js/app/i18n-en.js
@@ -402,23 +408,23 @@ git commit -m "feat(labels): let the label dialog record a peak height in Schrit
 
 Dasselbe Feld, dieselbe Zeile in der Datenbank, andere Oberfläche (Owner-Entscheid 3).
 
-- [ ] **Schritt 1:** Im Panel einen Abschnitt „Gipfel" ergänzen, der die Gipfel **innerhalb der
+- [x] **Schritt 1:** Im Panel einen Abschnitt „Gipfel" ergänzen, der die Gipfel **innerhalb der
       gewählten Fläche** listet (Name, Höhe). Gefunden über den bbox-Vorfilter: Punkt-Labels
       haben `min_x = max_x`, ihre bbox **ist** ihre Position (`oekosystem-editor-leitfaden.md`
       §1.4, Z. 218–219). Danach exakt mit `pointInGeometry` prüfen.
-- [ ] **Schritt 2:** Je Zeile ein Höhenfeld mit eigenem Speichern-Knopf und eigener Statuszeile
+- [x] **Schritt 2:** Je Zeile ein Höhenfeld mit eigenem Speichern-Knopf und eigener Statuszeile
       — das Muster des Strömungsfaktors bei den Flusswegen
       (`oekosystem-editor-verhalten.md` §9). **Kein Entwurfszustand.**
-- [ ] **Schritt 3:** Speichern sendet `update_label` mit `public_id` und `height_schritt`.
+- [x] **Schritt 3:** Speichern sendet `update_label` mit `public_id` und `height_schritt`.
       💣 Der vorhandene Umbenenn-Pfad schickt den **vollen Darstellungssatz** (`:463`); dieser
       Pfad schickt ihn **auch**, sonst wirft der Server das Label auf Standardgrößen zurück
       (Falle 4 wirkt in beide Richtungen — der Schutz aus Aufgabe 1 deckt nur die Höhe, nicht
       `size`/`priority`). Den vorhandenen Aufruf als Vorlage nehmen, nicht neu erfinden.
-- [ ] **Schritt 4:** Neue UI-Strings nach `js/app/i18n-en.js`.
-- [ ] **Schritt 5: Im Browser prüfen** über `?demo=1`: Fläche wählen → Gipfelliste → Höhe
+- [x] **Schritt 4:** Neue UI-Strings nach `js/app/i18n-en.js`.
+- [x] **Schritt 5: Im Browser prüfen** über `?demo=1`: Fläche wählen → Gipfelliste → Höhe
       eintragen → Statuszeile → Nutzlast enthält `public_id`, `height_schritt` **und** den
       Darstellungssatz.
-- [ ] **Schritt 6: Commit.**
+- [x] **Schritt 6: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-properties.js js/app/i18n-en.js
@@ -450,20 +456,20 @@ keine neue Datei, kein neuer Script-Tag.
 **Erzeugt:** `isEcosystemPeakLabel(publicId)` · `isEcosystemPeakActive(publicId)` ·
 `syncEcosystemPeakDragging()`
 
-- [ ] **Schritt 1:** Alle `berggipfel`-Labels sammeln — **alle 62, ohne Wiki-Filter** (§0).
+- [x] **Schritt 1:** Alle `berggipfel`-Labels sammeln — **alle 62, ohne Wiki-Filter** (§0).
       `height` ist `properties.height_schritt ?? null`.
-- [ ] **Schritt 2:** Sie zeichnen, wenn `activeEcosystemLayerKind === "topographie"`
+- [x] **Schritt 2:** Sie zeichnen, wenn `activeEcosystemLayerKind === "topographie"`
       (`map-features-ecosystem-layer-switch.js:42`). Bei jeder anderen Ebene nicht.
-- [ ] **Schritt 3: Ziehen** schreibt `move_label` auf **dieselbe Zeile** — kein eigener
+- [x] **Schritt 3: Ziehen** schreibt `move_label` auf **dieselbe Zeile** — kein eigener
       Speicherpfad, keine Kopie (§0). Beim Loslassen sofort, ohne Nachfrage
       (`oekosystem-editor-verhalten.md` §9).
-- [ ] **Schritt 4: Klick** öffnet das Panel aus Aufgabe 3 mit Name und Höhe.
-- [ ] **Schritt 5:** 💣 Neue Top-Level-Namen gegen `grep -rn "collectEcosystemPeaks\|
+- [x] **Schritt 4: Klick** öffnet das Panel aus Aufgabe 3 mit Name und Höhe.
+- [x] **Schritt 5:** 💣 Neue Top-Level-Namen gegen `grep -rn "collectEcosystemPeaks\|
       renderEcosystemPeakLayer\|refreshEcosystemPeakLayer" js/` prüfen — muss leer sein.
-- [ ] **Schritt 6: Im Browser prüfen** mit **echten** DOM-Ereignissen (Regel 9): `mousedown` /
+- [x] **Schritt 6: Im Browser prüfen** mit **echten** DOM-Ereignissen (Regel 9): `mousedown` /
       `mousemove` / `mouseup` auf dem **Layer-Element**. Ebene umschalten → Gipfel verschwinden
       und kommen wieder. Prüfen, dass die Standardkarte unverändert bleibt.
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-layer-switch.js js/map-features/map-features-labels.js css/features/ecosystem-layer.css
@@ -492,22 +498,22 @@ feuern. Leaflet merkt sich `e.target` als `_lastTarget` und fasst beim Aufräume
 **Dateien:** `js/map-features/map-features-ecosystem-context-action.js` (ändern) ·
 `css/components/map-context-menu.css` (ändern) · `js/app/i18n-en.js`
 
-- [ ] **Schritt 1:** Einen Eintrag **„Höhenpunkt setzen"** in „Hier hinzufügen" hängen, sichtbar
+- [x] **Schritt 1:** Einen Eintrag **„Höhenpunkt setzen"** in „Hier hinzufügen" hängen, sichtbar
       nur bei aktiver Topographie-Ebene. „Hier" ist der rechtsgeklickte Punkt (`:214`).
-- [ ] **Schritt 2:** Er legt per `create_label` ein `berggipfel`-Label an. **Ohne Wiki-Link — und
+- [x] **Schritt 2:** Er legt per `create_label` ein `berggipfel`-Label an. **Ohne Wiki-Link — und
       es erscheint trotzdem auf der Standardkarte** (§0). Name: der Editor tippt ihn; leer ist
       erlaubt.
-- [ ] **Schritt 3:** 💣 **Glyphenregel** in `css/components/map-context-menu.css` ergänzen (Falle
+- [x] **Schritt 3:** 💣 **Glyphenregel** in `css/components/map-context-menu.css` ergänzen (Falle
       5), im Block ab `:56`. Vorschlag `content: "\25B2"` (▲) — falls belegt (`:60`), eine freie
       Dreiecksvariante wählen und die Wahl im Kommentar begründen.
-- [ ] **Schritt 4:** Prüfen, dass die Beschriftung **nicht** in die Symbolspalte rutscht:
+- [x] **Schritt 4:** Prüfen, dass die Beschriftung **nicht** in die Symbolspalte rutscht:
       `getComputedStyle` auf dem Eintrag, die Textspalte muss ~41 px messen, nicht 12
       (V7-Messung).
-- [ ] **Schritt 5:** Test in `js/map-features/__tests__/ecosystem-context-menu.test.js`
+- [x] **Schritt 5:** Test in `js/map-features/__tests__/ecosystem-context-menu.test.js`
       erweitern — der Eintrag erscheint bei `topographie` und fehlt bei `vegetation`.
       Lauf: `node js/map-features/__tests__/ecosystem-context-menu.test.js`.
-- [ ] **Schritt 6: Im Browser prüfen:** echtes `contextmenu`-Ereignis auf dem Kartencontainer.
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 6: Im Browser prüfen:** echtes `contextmenu`-Ereignis auf dem Kartencontainer.
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-context-action.js css/components/map-context-menu.css js/app/i18n-en.js js/map-features/__tests__/ecosystem-context-menu.test.js
@@ -535,7 +541,7 @@ git commit -m "feat(ecosystem): add a \"Hoehenpunkt setzen\" context entry with 
 > `sampleEcosystemHeightField`, kein gespeicherter Zustand — ohne Angabe `1`, damit eine
 > einzelne Fläche für sich testbar bleibt.
 
-- [ ] **Schritt 1: Die Tests schreiben, die fehlschlagen.**
+- [x] **Schritt 1: Die Tests schreiben, die fehlschlagen.**
 
 ```js
 const assert = require("assert");
@@ -601,10 +607,10 @@ assert.ok(Math.abs(twoPeaks.at(70, 50) - 3000) < 1, "the low peak stays 3000, it
 console.log("ecosystem-height-field: all assertions passed");
 ```
 
-- [ ] **Schritt 2: Lauf, er muss fehlschlagen.**
+- [x] **Schritt 2: Lauf, er muss fehlschlagen.**
       `node js/map-features/__tests__/ecosystem-height-field.test.js` → `Cannot find module`.
 
-- [ ] **Schritt 3: Portieren.** `cellHash` `:402`, `level` `:413`, `peakWindow` `:452`,
+- [x] **Schritt 3: Portieren.** `cellHash` `:402`, `level` `:413`, `peakWindow` `:452`,
       `rawArea` `:464`, `buildArea` `:491` — **wortgleich in der Rechnung**, mit diesen
       Abweichungen:
       - `distEdge` → `distanceToEcosystemEdge(point, geometry)` (Falle 3). Die Prototyp-Fassung
@@ -663,10 +669,10 @@ console.log("ecosystem-height-field: all assertions passed");
 > einer Stelle SOLL das feinere Feld abweichen, dafür sind die Stufen da. Die erste Fassung verglich
 > einen Punkt und schlug an einem korrekten Feld fehl.
 
-- [ ] **Schritt 4: Tests laufen lassen**, bis alle zehn grün sind.
-- [ ] **Schritt 5:** Script-Tag in `index.html`, **nach** `map-features-ecosystem-geometry.js`.
+- [x] **Schritt 4: Tests laufen lassen**, bis alle zehn grün sind.
+- [x] **Schritt 5:** Script-Tag in `index.html`, **nach** `map-features-ecosystem-geometry.js`.
       Namen gegen `grep -rn` über `js/` prüfen (Falle 9).
-- [ ] **Schritt 6: Commit.**
+- [x] **Schritt 6: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-height-field.js js/map-features/__tests__/ecosystem-height-field.test.js index.html
@@ -725,7 +731,7 @@ Mehr nicht. Kein Enthaltensein-Test, kein Baum, keine Eltern-Kind-Fensterung.
 - `W` hat am Gipfel **Steigung null** (`peakWindow` `:452` ist quadratisch im Abstand, nicht
   linear). Bloßes Abschwächen genügte nicht — der Hochpunkt wanderte trotzdem weg.
 
-- [ ] **Schritt 1: Die Tests schreiben, die fehlschlagen.**
+- [x] **Schritt 1: Die Tests schreiben, die fehlschlagen.**
 
 ```js
 const assert = require("assert");
@@ -797,8 +803,8 @@ assert.strictEqual(at(120, 50),
 console.log("ecosystem-height-combine: all assertions passed");
 ```
 
-- [ ] **Schritt 2: Lauf, er muss fehlschlagen.**
-- [ ] **Schritt 3: Den Stapel bauen.** `buildEcosystemHeightStack(areas, peaks)`:
+- [x] **Schritt 2: Lauf, er muss fehlschlagen.**
+- [x] **Schritt 3: Den Stapel bauen.** `buildEcosystemHeightStack(areas, peaks)`:
       1. **Ein** `buildEcosystemPeakWindow(peaks)` über **alle** Gipfel — nicht je Fläche.
       2. Je Fläche die Gipfel bestimmen, die in ihr liegen (`pointInGeometry`; bbox-Vorfilter
          über `ecosystemGeometryBounds` davor, das spart den teuren Test für die meisten).
@@ -808,7 +814,7 @@ console.log("ecosystem-height-combine: all assertions passed");
          **vollständigen** Gipfelliste, damit Klemme und Fenster global bleiben.
       4. Flächen **ohne** Gipfel bekommen kein Feld und liefern überall 0. Kein erfundenes
          Gebirge ohne einen einzigen Stützpunkt.
-- [ ] **Schritt 4: Das Abtasten bauen.** `W` **einmal** je Abfragepunkt rechnen, dann über die
+- [x] **Schritt 4: Das Abtasten bauen.** `W` **einmal** je Abfragepunkt rechnen, dann über die
       Flächen summieren:
 
 ```js
@@ -829,12 +835,12 @@ function sampleEcosystemHeightStack(stack, x, y) {
       hunderttausendfach, und jede Iterator-Allokation kostet dort mehr als die Rechnung
       (Prototyp `:576–577`, dort gemessen: 47 ms statt 8,6).
 
-- [ ] **Schritt 5: Tests laufen lassen**, bis alle sieben grün sind.
+- [x] **Schritt 5: Tests laufen lassen**, bis alle sieben grün sind.
       `node js/map-features/__tests__/ecosystem-height-combine.test.js`
-- [ ] **Schritt 6:** Script-Tag in `index.html` **nach** `…-height-field.js`. Namen gegen
+- [x] **Schritt 6:** Script-Tag in `index.html` **nach** `…-height-field.js`. Namen gegen
       `grep -rn "buildEcosystemHeightStack\|sampleEcosystemHeightStack" js/` prüfen — muss leer
       sein.
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-height-combine.js js/map-features/__tests__/ecosystem-height-combine.test.js index.html
@@ -848,23 +854,23 @@ git commit -m "feat(ecosystem): sum overlapping areas under one global peak wind
 **Dateien:** `js/map-features/map-features-ecosystem-height-render.js` (neu) · `index.html` ·
 `css/base/tokens.css` (nur falls ein Farbton fehlt — **erst Token, dann benutzen**)
 
-- [ ] **Schritt 1:** Bei aktiver Topographie-Ebene das Feld über die `gebirge`-Flächen legen.
+- [x] **Schritt 1:** Bei aktiver Topographie-Ebene das Feld über die `gebirge`-Flächen legen.
       **`is_trial`-Flächen mitzeichnen** — beide Livebeispiele sind Erprobungsflächen (§2.2),
       ohne sie zeigt die Abnahme nichts.
-- [ ] **Schritt 2: Farbrampe.** Die `STOPS` des Prototyps (`:589`) sind warm und passen zur
+- [x] **Schritt 2: Farbrampe.** Die `STOPS` des Prototyps (`:589`) sind warm und passen zur
       Designsprache — aber sie sind **hartkodierte Hex-Werte**. AGENTS.md §12 verbietet das:
       erst Token in `css/base/tokens.css` anlegen, dann über `readEcosystemColorToken`
       (`map-features-ecosystem-rendering.js:45`) lesen. **Kein Blau.**
-- [ ] **Schritt 3: Bezugshöhe je Fläche**, nicht global (`:602–607`): sonst färbt das Verstellen
+- [x] **Schritt 3: Bezugshöhe je Fläche**, nicht global (`:602–607`): sonst färbt das Verstellen
       einer Fläche jede andere um.
-- [ ] **Schritt 4: Budget.** Die Deckel des Prototyps (`ZELLEN_MAX = 240000`,
+- [x] **Schritt 4: Budget.** Die Deckel des Prototyps (`ZELLEN_MAX = 240000`,
       `BUCKEL_MAX = 14000`, `:544`) übernehmen. Wo das Budget gegriffen hat, **sagt es die
       Oberfläche**, statt still weniger zu liefern (`:541–543`).
-- [ ] **Schritt 5: Messen und berichten** — Bildzeit in ms für beide `gebirge`-Flächen, in der
+- [x] **Schritt 5: Messen und berichten** — Bildzeit in ms für beide `gebirge`-Flächen, in der
       Abnahme genannt. Keine geschätzte Zahl.
-- [ ] **Schritt 6: Im Browser prüfen** (`?demo=1` plus die zwei echten Flächen): Ebene an →
+- [x] **Schritt 6: Im Browser prüfen** (`?demo=1` plus die zwei echten Flächen): Ebene an →
       Relief da; Ebene aus → weg; Gipfel ziehen → Feld folgt.
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-height-render.js index.html css/base/tokens.css
@@ -882,20 +888,20 @@ Jede Gipfeländerung — **verschieben, anlegen, löschen, Höhe ändern** — m
 **enthaltenden** Fläche ungültig (`oekosystem-editor-leitfaden.md` Z. 204–207,
 `oekosystem-editor-verhalten.md` §8).
 
-- [ ] **Schritt 1:** 💣 **Keine neue Server-Kopplung.** `ecosystem_revision` darf `map_revision`
+- [x] **Schritt 1:** 💣 **Keine neue Server-Kopplung.** `ecosystem_revision` darf `map_revision`
       nicht anfassen und umgekehrt (Falle 8). Die Invalidierung ist in dieser Stufe
       **clientseitig**: nach einem erfolgreichen `move_label` / `create_label` /
       `update_label` an einem `berggipfel` wird das zwischengespeicherte Feld der
       enthaltenden Fläche verworfen und neu gebaut.
-- [ ] **Schritt 2: Nur die enthaltende Fläche**, nicht alle — „derselbe begrenzte Nachlauf".
+- [x] **Schritt 2: Nur die enthaltende Fläche**, nicht alle — „derselbe begrenzte Nachlauf".
       Beim **Verschieben über eine Grenze** sind es **zwei**: die alte und die neue. Ein
       Gipfel, der in keiner Fläche liegt, invalidiert nichts.
-- [ ] **Schritt 3: Im Browser prüfen:** Gipfel innerhalb einer Fläche ziehen → nur diese wird
+- [x] **Schritt 3: Im Browser prüfen:** Gipfel innerhalb einer Fläche ziehen → nur diese wird
       neu gebaut (über einen Zähler oder `console`-Ausgabe belegen). Gipfel aus der Fläche
       heraus ziehen → **beide** betroffenen werden neu gebaut.
-- [ ] **Schritt 4:** Eine serverseitige Vorberechnung ist **nicht** Gegenstand (§8) — der
+- [x] **Schritt 4:** Eine serverseitige Vorberechnung ist **nicht** Gegenstand (§8) — der
       Kommentar im Code sagt das, damit die nächste Sitzung nicht danach sucht.
-- [ ] **Schritt 5: Commit.**
+- [x] **Schritt 5: Commit.**
 
 ```bash
 git add js/map-features/map-features-ecosystem-peaks.js js/map-features/map-features-ecosystem-height-render.js
@@ -914,16 +920,16 @@ git commit -m "fix(ecosystem): rebuild only the affected areas when a peak moves
 `avesmaps-handbuch-pflege` (AGENTS.md §9). Pflicht ist nur eine Commit-Betreffzeile, die die
 sichtbare Wirkung nennt; das haben die Aufgaben 2–5 bereits.
 
-- [ ] **Schritt 1: Leitfaden §1.4** — die Sichtbarkeitsregel (Z. 187–191) streichen und durch
+- [x] **Schritt 1: Leitfaden §1.4** — die Sichtbarkeitsregel (Z. 187–191) streichen und durch
       den Owner-Entscheid ersetzen: **jeder Gipfel bleibt sichtbar, mit oder ohne Wiki-Eintrag.**
       Die Begründung („mehr Stützpunkte als ein Leser sehen will") **stehen lassen** und den
       Gegenentscheid danebenstellen — die Erwägung war richtig, die Folgerung nicht.
-- [ ] **Schritt 2: Verhalten §8** — Z. 494–495 („die auf der öffentlichen Karte nicht
+- [x] **Schritt 2: Verhalten §8** — Z. 494–495 („die auf der öffentlichen Karte nicht
       erscheinen") streichen. Die Gestentabelle um „Höhe eintragen" in **beiden** Oberflächen
       ergänzen.
-- [ ] **Schritt 3: Verhalten §9** — „Höhe — noch nicht gebaut (V8)" (Z. 518) durch den gebauten
+- [x] **Schritt 3: Verhalten §9** — „Höhe — noch nicht gebaut (V8)" (Z. 518) durch den gebauten
       Stand ersetzen: eigenes Feld, eigener Knopf, eigene Statuszeile.
-- [ ] **Schritt 4: Die Zeichenanleitung aufschreiben**, in `oekosystem-editor-verhalten.md` bei
+- [x] **Schritt 4: Die Zeichenanleitung aufschreiben**, in `oekosystem-editor-verhalten.md` bei
       §5 („Eine Fläche bearbeiten"). Sie folgt aus der Rechnung und ist das Einzige, was der
       Editor über das Verschmelzen wissen muss:
       > **Sollen zwei Gebirge zu einem Zug verschmelzen, lass sie sich großzügig überlappen.**
@@ -932,17 +938,17 @@ sichtbare Wirkung nennt; das haben die Aufgaben 2–5 bereits.
       > sichtbare Kerbe zwischen zwei Bergen, ein breiter einen durchgehenden Zug. Die Höhen
       > selbst spielen dabei keine Rolle: ein 3.000er neben einem 5.000er zieht diesen nicht
       > herunter, und jeder benannte Gipfel behält seine eingetragene Zahl.
-- [ ] **Schritt 5: Die vier falschen Zahlen korrigieren** — `oekosystem-instruction.md:207`
+- [x] **Schritt 5: Die vier falschen Zahlen korrigieren** — `oekosystem-instruction.md:207`
       („23 berggipfel auf 60 gebirge"), die V8-Zeile („34 Gipfel auf 61 Gebirge"), die V5-Zeile
       („gebirge (60)") und `api/_internal/app/ecosystem.php:65` („34 labels"). Richtig ist:
       **62 `berggipfel`-Labels, 68 `gebirge`-Labels, 2 `gebirge`-Flächen** (Stand 2026-07-28).
       Dabei **ausdrücklich** dazuschreiben, dass die alten Zahlen Labels zählten und Flächen
       meinten — sonst wird derselbe Fehler nachgezählt.
-- [ ] **Schritt 6: Die V8-Zeile abhaken** und die gemessenen Zahlen aus Aufgabe 8 eintragen.
+- [x] **Schritt 6: Die V8-Zeile abhaken** und die gemessenen Zahlen aus Aufgabe 8 eintragen.
       💣 Die Zeile behauptet heute „Enthaltensein-Fensterung statt `max` oder Summe". Das ist
       durch den Owner-Entscheid **überholt** — sie wird auf „Flächen summieren, Gipfelfenster
       global" berichtigt, sonst schickt sie die nächste Sitzung in dieselbe Sackgasse.
-- [ ] **Schritt 7: Commit.**
+- [x] **Schritt 7: Commit.**
 
 ```bash
 git add docs/oekosystem-editor-leitfaden.md docs/oekosystem-editor-verhalten.md docs/oekosystem-instruction.md docs/superpowers/plans/2026-07-24-landschaften.md api/_internal/app/ecosystem.php

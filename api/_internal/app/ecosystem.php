@@ -67,7 +67,9 @@ const AVESMAPS_ECOSYSTEM_KINDS = ['derographisch', 'vegetation', 'topographie'];
 //   ebene       -- exactly one label carries it ("Zwergenpforte"), but the argument was never the count:
 //                  no travel factor tells `ebene` apart from "normal". Accepted consequence: the
 //                  Zwergenpforte gets no area for now. A factor makes it a seed row.
-//   berggipfel  -- 34 labels, but POINTS, not areas (belongs to V8).
+//   berggipfel  -- 62 labels (counted live 2026-07-28; "34" here was wrong), but POINTS, not areas.
+//                  V8 gives them a height in properties_json and reads them as the height field's
+//                  support points -- still no area type, and never one.
 //   fluss       -- 5 labels, LINES, not areas.
 // `tundra` IS here despite 0 labels: the subtype is in the allowlist and can appear any day.
 const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
