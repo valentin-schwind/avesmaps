@@ -44,9 +44,16 @@ const ECOSYSTEM_HEIGHT_GRAIN = 3.2;
 // Budget gegriffen hat, sagt es das Feld (`stoppedAtLevel`), statt still weniger zu liefern.
 const ECOSYSTEM_HEIGHT_MAX_CELLS = 240000;
 const ECOSYSTEM_HEIGHT_MAX_BUMPS = 14000;
-// Höhe eines Gipfels ohne erfassten Wert. 🔴 Ein PLATZHALTER, kein Messwert -- er hält die Fläche aus
-// dem NaN heraus und macht sichtbar, dass dort etwas fehlt (Prototyp :509).
-const ECOSYSTEM_HEIGHT_PLACEHOLDER = 1000;
+// 🔴 STANDARDHÖHE eines Gipfels ohne erfassten Wert: 5.000 Schritt (Owner-Entscheid 2026-07-28). Der
+// Prototyp setzte 1.000 als reinen NaN-Schutz (:509); hier ist es mehr als das -- es ist die Höhe, mit
+// der die Karte einen noch unbearbeiteten Gipfel TATSÄCHLICH zeichnet. Live trägt heute kein einziges
+// der 62 Gipfel-Labels eine Höhe, also hängt das ganze erste Kartenbild an dieser Zahl.
+//
+// Der Label-Dialog stellt seinen Regler auf denselben Wert (review-labels.js), damit die angezeigte
+// Zahl und die gerechnete dieselbe sind statt zweier Wahrheiten nebeneinander.
+const ECOSYSTEM_HEIGHT_DEFAULT = 5000;
+// Alter Name, damit ein Aufrufer von aussen nicht bricht. Neue Stellen nehmen ECOSYSTEM_HEIGHT_DEFAULT.
+const ECOSYSTEM_HEIGHT_PLACEHOLDER = ECOSYSTEM_HEIGHT_DEFAULT;
 // Rauschpegel als Anteil des NIEDRIGSTEN Gipfels dieser Fläche. Der Prototyp zieht ihn aus einem Regler
 // je Fläche (`a.avg`, :532); den gibt es hier nicht, weil die Höhe am Gipfel wohnt (Owner-Entscheid
 // 2026-07-28). Damit überragt erfundenes Gelände nie einen benannten Gipfel -- dieselbe Absicht wie
@@ -430,6 +437,7 @@ function sampleEcosystemHeightField(field, x, y, noiseWindow = 1) {
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		ECOSYSTEM_HEIGHT_LEVELS,
+		ECOSYSTEM_HEIGHT_DEFAULT,
 		ECOSYSTEM_HEIGHT_PLACEHOLDER,
 		ECOSYSTEM_PEAK_SUBTYPES,
 		isEcosystemPeakSubtype,

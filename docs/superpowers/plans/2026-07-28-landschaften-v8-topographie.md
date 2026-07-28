@@ -248,6 +248,17 @@ Nicht `height`: V11 trägt eine dokumentierte **Einheitenfalle** (×3 → ×23,
 **Wertebereich:** `null` (nicht gesetzt) oder eine endliche Zahl in `[0, 20000]`. Die Obergrenze
 ist ein **Tippfehlerschutz** (eine Null zu viel), keine Lore-Aussage. Negatives wird abgelehnt.
 
+> 🔴 **Standardhöhe 5.000 Schritt** (Owner-Entscheid 2026-07-28, nach dem Bau):
+> *„gib den gipfeln ne standardhöhe von 5000 schritt, aber die müssen wir natürlich editieren
+> können. sobald ein ort ‚Gipfel/Vulkan' ist, kriegt er einen slider"*.
+>
+> Zwei Stellen, ein Wert: `ECOSYSTEM_HEIGHT_DEFAULT` im Höhenmodul (womit die Karte einen
+> unerfassten Gipfel zeichnet) und der Regler im Label-Dialog (womit er vorbelegt ist). Sie
+> müssen übereinstimmen — sonst zeigt das Feld etwas anderes an, als die Karte rechnet.
+>
+> 🪤 Der Standard greift **nur bei leerem Feld**. Ein Gipfel mit erfasster Höhe behält sie, auch
+> wenn der Dialog nur geöffnet wird; alles andere wäre stiller Datenverlust bei jedem Blick.
+
 ---
 
 ## 7. Aufgaben

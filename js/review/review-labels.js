@@ -252,8 +252,30 @@ function syncLabelHeightRow() {
 	if (!row) {
 		return;
 	}
-	row.hidden = typeof isEcosystemPeakSubtype !== "function"
-		|| !isEcosystemPeakSubtype(document.getElementById("label-edit-type")?.value);
+	const isPeak = typeof isEcosystemPeakSubtype === "function"
+		&& isEcosystemPeakSubtype(document.getElementById("label-edit-type")?.value);
+	row.hidden = !isPeak;
+	if (!isPeak) {
+		return;
+	}
+
+	// 🔴 STANDARDHÖHE 5.000 Schritt (Owner-Entscheid 2026-07-28: „gib den gipfeln ne standardhöhe von
+	// 5000 schritt, aber die müssen wir natürlich editieren können"). Sobald ein Label ein Gipfel oder
+	// Vulkan wird, steht der Regler auf 5.000 statt auf nichts -- der Editor korrigiert von einem
+	// sinnvollen Wert aus, statt bei null anzufangen.
+	//
+	// 🪤 NUR wenn das Feld leer ist. Ein Gipfel mit erfasster Höhe behält seine; ihn beim blossen Öffnen
+	// des Dialogs auf 5.000 zurückzusetzen wäre stiller Datenverlust.
+	// Derselbe Wert steht als ECOSYSTEM_HEIGHT_DEFAULT im Höhenmodul -- das Feld zeigt damit genau die
+	// Zahl, mit der die Karte ohnehin schon rechnet, statt einer zweiten Wahrheit daneben.
+	const input = document.getElementById("label-edit-height");
+	const range = document.getElementById("label-edit-height-range");
+	if (input && String(input.value || "").trim() === "") {
+		input.value = typeof ECOSYSTEM_HEIGHT_DEFAULT === "number" ? String(ECOSYSTEM_HEIGHT_DEFAULT) : "5000";
+	}
+	if (input && range) {
+		range.value = input.value;
+	}
 }
 
 // Delegated, like the slider mirroring below: the dialog markup is static, but binding directly would

@@ -520,9 +520,20 @@ fremdes Label, sondern ihr Arbeitspunkt.
 | Höhe eintragen | in **beiden** Oberflächen: im Label-Dialog (Feld „Höhe (Schritt)", nur bei `berggipfel`) und im Flächendialog unter „Gipfel", je Zeile mit eigenem Knopf und eigener Statuszeile. Beide schreiben `height_schritt` in `properties_json` **desselben** Labels |
 | Rechtsklick → „Höhenpunkt setzen" | öffnet den Label-Dialog als neuen `berggipfel` an der geklickten Stelle. Nur bei aktiver Topographie-Ebene; ohne Wiki-Link — und er erscheint trotzdem auf der Standardkarte |
 
-**Leer ist nicht null.** Ein Gipfel ohne eingetragene Höhe zeigt ein leeres Feld,
-nicht `0`. Für das Höhenfeld gilt er als „nicht erfasst" und bekommt einen
-Platzhalter; eine eingetragene `0` wird dagegen wörtlich genommen.
+**Standardhöhe 5.000 Schritt.** Sobald ein Label die Art **Berggipfel** oder
+**Vulkan** bekommt, erscheint die Höhenzeile mit einem **Regler** — und steht auf
+**5.000**, wenn nichts erfasst ist. Mit genau dieser Zahl rechnet auch die Karte
+für einen noch unbearbeiteten Gipfel; angezeigter und gerechneter Wert sind
+dieselbe Größe, nicht zwei nebeneinander.
+
+Der Regler läuft von 0 bis 20.000 in Fünfziger-Schritten; das Zahlenfeld daneben
+nimmt jeden Wert dazwischen. Beide teilen dieselben Grenzen — ein engerer Regler
+klemmte einen getippten Wert beim ersten Anfassen stillschweigend herunter.
+
+⚠️ **Eine bereits erfasste Höhe wird nicht überschrieben.** Der Standard greift nur
+bei leerem Feld; ein Gipfel mit 2.600 behält seine 2.600, auch wenn der Dialog nur
+geöffnet und wieder geschlossen wird. Eine eingetragene `0` wird wörtlich genommen
+und ist etwas anderes als „nicht erfasst".
 
 > **Es gibt keine zweite Positionsliste.** Der Gipfel ist ein Objekt in zwei
 > Ansichten. Wer ihn hier verschiebt, verschiebt ihn auf der Standardkarte, und

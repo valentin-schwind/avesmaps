@@ -1521,7 +1521,13 @@
 							<option value="sonstiges">Sonstiges</option>
 						</select><button type="button" id="label-edit-wiki-sync-cat" class="location-edit-wiki-mini" disabled title="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
 					</label>
-						<label class="location-report-form__field" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" placeholder="nicht erfasst" /></label>
+						<!-- Sobald die Art „Berggipfel" oder „Vulkan" ist, erscheint diese Zeile mit einem Regler
+						     (Owner 2026-07-28). Zahl UND Regler, wie bei Größe/Rotation/Priorität darunter: die
+						     Spiegelung erledigt der delegierte .label-edit-sliderrow-Handler in review-labels.js.
+						     🪤 Regler und Zahl teilen dieselben Grenzen (0..20000, die Tippfehler-Klemme des
+						     Servers). Ein engerer Regler klemmte einen getippten Wert beim ersten Anfassen
+						     stillschweigend herunter -- Auflösung ist Kosmetik, eine stille Datenänderung nicht. -->
+						<label class="location-report-form__field" id="label-edit-height-row" hidden><span>H&ouml;he (Schritt)</span><div class="label-edit-sliderrow"><input id="label-edit-height" name="height_schritt" type="number" min="0" max="20000" step="1" inputmode="numeric" /><input id="label-edit-height-range" type="range" min="0" max="20000" step="50" aria-label="H&ouml;he in Schritt" /></div></label>
 					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<div class="label-edit-grid">
 							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Groesse" /></div></label>
