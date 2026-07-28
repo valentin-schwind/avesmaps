@@ -921,3 +921,22 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 .wiki-source-credit__arrow {
 	white-space: nowrap;
 }
+
+/* 🔴 „Nur für Editoren: Durch Fläche ersetzen" — im schwebenden Label-Menü, und NUR bei Labels, an
+   denen keine Landschaftsfläche hängt (Owner 2026-07-28). Es steht dort, wo bis dahin die Wiki-Infobox
+   stand: die gehört ins Infopanel, nicht ein zweites Mal in einen schwebenden Kasten. Rot aus dem
+   Token, nie als Literal (AGENTS.md §12). */
+.location-popup__editor-warning {
+	margin: 0 0 var(--space-sm, 8px);
+	padding: var(--space-xs, 6px) var(--space-sm, 8px);
+	border: 1px solid var(--color-danger-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+	font-size: 0.85rem;
+	line-height: 1.35;
+}
+
+.location-popup__editor-warning strong {
+	color: var(--color-danger);
+}

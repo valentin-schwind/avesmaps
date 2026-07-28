@@ -773,33 +773,49 @@ function locationPopupMarkup({
 		</div>`;
 }
 
+// Das schwebende Label-Menue im Edit-Mode. 🔴 OHNE Wiki-Infos (Owner 2026-07-28): die stehen im
+// Infopanel, und ein zweites Mal in einem schwebenden Kasten waren sie nur doppelt -- im Frontend gibt
+// es dieses Menue ohnehin nicht, dort ist das Panel der einzige Ort. Hier zaehlt, was ein Editor beim
+// Klicken wissen muss: welches Label das ist, woran es haengt, und was er damit tun kann.
 function labelPopupMarkup(entry) {
-	const hasWiki = entry.label.wikiRegion && entry.label.wikiRegion.wiki_key;
-	// Kopflose Infobox (Name + Typ zeigt der Popup-Kopf bereits -> kein Doppel-Titel); Infobox oben,
-	// Aktions-Buttons darunter — wie Siedlungs-/Weg-Popup.
-	const wikiInfobox = hasWiki && typeof labelWikiInfoboxMarkup === "function" ? labelWikiInfoboxMarkup(entry.label, { headless: true }) : "";
-	// Multi-source system: without a wiki region, labelWikiInfoboxMarkup never runs (no rows to
-	// show) -- still surface the source line so the edit popup covers non-wiki labels too, same as
-	// the settlement/path popups. Empty wikiUrl is fine: any manual sources still resolve.
-	const sourceMarkup = !hasWiki && typeof renderFeatureSourceLine === "function"
-		? renderFeatureSourceLine("region", entry.label.publicId, "", "region-info-box__link")
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const regionPublicId = String(region?.public_id || "");
+
+	// 🔴 Die Warnung NUR bei den alten -- Labels ohne Landschaftsflaeche. Ein Label mit Flaeche ist
+	// bereits das, was hier verlangt wird; die Warnung dort waere Laerm.
+	const warnung = regionPublicId === ""
+		? '<p class="location-popup__editor-warning"><strong>Nur für Editoren:</strong> Durch Fläche ersetzen</p>'
 		: "";
-	// labelWikiArtPrimary: eine mehrwertige Wiki-Art ("Tal|Grube") auf die erste Komponente kürzen,
-	// wie MediaWiki sie selbst liest (map-features-labels.js).
-	const primaryArt = hasWiki && typeof labelWikiArtPrimary === "function"
-		? labelWikiArtPrimary(entry.label.wikiRegion.art)
-		: (hasWiki ? entry.label.wikiRegion.art : "");
-	const typeLabel = primaryArt || tr("popup.labelTypeRegion", "Region");
+
 	return locationPopupMarkup({
 		name: entry.label.text || tr("popup.labelNameFallback", "Label"),
-		locationTypeLabel: typeLabel,
+		locationTypeLabel: labelPopupSubtitle(entry.label, region),
 		showHeaderIcon: false,
 		compact: true,
-		showType: hasWiki,
+		showType: true,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: wikiInfobox + sourceMarkup + labelActionsMarkup(entry.label.publicId),
+		actionsMarkup: warnung + labelActionsMarkup(entry.label.publicId),
 	});
+}
+
+// Untertitel: Kategorie, und -- wenn das Label an einer Flaeche haengt -- woraus die Region besteht.
+// Die Kategorienamen kommen aus dem Auswahlfeld des Label-Editors, nicht aus einer zweiten Liste hier:
+// eine neue Kategorie waere sonst sofort in einem der beiden Orte vergessen.
+function labelPopupSubtitle(label, region) {
+	const option = document.querySelector('#label-edit-type option[value="' + String(label.labelType || "").replace(/"/g, "") + '"]');
+	const kategorie = option ? option.textContent.trim() : tr("popup.labelTypeRegion", "Region");
+	if (!region?.public_id) {
+		return kategorie;
+	}
+	const flaechen = Number(region.area_count || 0);
+	const labels = typeof countEcosystemRegionLabels === "function" ? countEcosystemRegionLabels(region.public_id) : 0;
+	const teile = [
+		flaechen === 1 ? "1 Fläche" : flaechen + " Flächen",
+		labels === 1 ? "1 Label" : labels + " Labels",
+	];
+
+	return kategorie + " · " + teile.join(", ");
 }
 
 function sharePinPopupMarkup() {

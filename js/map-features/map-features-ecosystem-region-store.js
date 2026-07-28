@@ -25,7 +25,13 @@ let ecosystemRegionsByKind = {};
 let ecosystemRegionTypesByKind = {};
 // Monoton, gleicher Grund wie beim Flächenlader: eine langsame Antwort für eine Ebene, die der Editor
 // längst verlassen hat, darf den Bestand nicht überschreiben.
-let ecosystemRegionRequestToken = 0;
+//
+// 💣 JE EBENE, nicht einer für alle. Mit einem gemeinsamen Zähler verwarfen sich drei parallele
+// Aufrufe gegenseitig: jeder zieht seine Marke SYNCHRON, bevor irgendeine Antwort da ist, also gewann
+// immer nur der letzte und die beiden anderen Ebenen blieben ungeladen. Das war unsichtbar, solange
+// nur die aktive Ebene geladen wurde -- seit Filter, Klon und Trägerzeile alle drei brauchen, fiel
+// genau daran die Wiki-Vererbung des Klons aus (gefunden vom Prüf-Agenten, 2026-07-28).
+const ecosystemRegionRequestTokens = {};
 // Steigt bei JEDER Änderung am Bestand. Wer daraus etwas ableitet (siehe ecosystemPrimaryLabelRegionMap),
 // merkt sich das Ergebnis gegen diesen Zähler statt es je Aufruf neu zu bauen.
 let ecosystemRegionCacheStamp = 0;
@@ -61,17 +67,17 @@ async function loadEcosystemRegions(kind, { force = false } = {}) {
 		return;
 	}
 
-	const requestToken = (ecosystemRegionRequestToken += 1);
+	const requestToken = (ecosystemRegionRequestTokens[kind] = (ecosystemRegionRequestTokens[kind] || 0) + 1);
 	try {
 		const result = await postEcosystemEdit("list_regions", { kind });
-		if (requestToken !== ecosystemRegionRequestToken) {
+		if (requestToken !== ecosystemRegionRequestTokens[kind]) {
 			return;
 		}
 		ecosystemRegionsByKind[kind] = Array.isArray(result.regions) ? result.regions : [];
 		ecosystemRegionTypesByKind[kind] = Array.isArray(result.region_types) ? result.region_types : [];
 		ecosystemRegionCacheStamp += 1;
 	} catch (error) {
-		if (requestToken !== ecosystemRegionRequestToken) {
+		if (requestToken !== ecosystemRegionRequestTokens[kind]) {
 			return;
 		}
 		// Eine LEERE Liste, keine fehlende: sonst warten die Dialoge ewig auf ein Art-Vokabular, das nie

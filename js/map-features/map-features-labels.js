@@ -494,7 +494,22 @@ function refreshLabelMarkerPopup(entry) {
 	// say -- used to get the tile class alone: the tiles then had ~240px to sit in, could not fit four across,
 	// and wrapped into the vertical list. That looked like a layout bug but was a missing width anchor.
 	// labelActionsMarkup renders regardless of hasWiki, so the box is the same box either way.
-	entry.marker.bindPopup(labelPopupMarkup(entry), { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 });
+	// 🪤 Als FUNKTION gebunden, nicht als fertiger Text. Der Kopf nennt jetzt die Zahl der verbundenen
+	// Flaechen und Labels, und die stehen beim Binden noch gar nicht fest -- die Regionslisten kommen
+	// spaeter. Leaflet ruft die Funktion bei jedem Oeffnen, also zaehlt der Stand von JETZT.
+	entry.marker.bindPopup(() => labelPopupMarkup(entry), { className: "settlement-popup floating-location-popup", minWidth: 320, maxWidth: 400 });
+}
+
+// Wie viele Beschriftungen haengen an dieser Flaeche? Ueber ALLE Labels gezaehlt, nicht ueber die
+// sichtbaren: labelData traegt den ganzen Bestand aus der map-features-Nutzlast, waehrend die Marker
+// nach Zoom und Ausschnitt kommen und gehen. Eine Zahl, die beim Zoomen springt, waere keine Auskunft.
+function countEcosystemRegionLabels(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (gesucht === "" || typeof ecosystemRegionOfLabel !== "function") {
+		return 0;
+	}
+
+	return labelData.filter((label) => String(ecosystemRegionOfLabel(label)?.public_id || "") === gesucht).length;
 }
 
 function findLabelEntryByPublicId(publicId) {
