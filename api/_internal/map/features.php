@@ -865,6 +865,24 @@ function avesmapsReadLabelPriority(mixed $value): int {
 // Bereinigt den optionalen Wiki-Landschafts-Datensatz, der per Picker an ein Label geheftet
 // wird (Felder werden ins Label kopiert -> self-contained; wiki_key erlaubt spaeteres Re-Sync).
 // Gibt null zurueck, wenn keine gueltige Zuordnung vorliegt (= Zuordnung entfernen).
+// 🔴 EINE Region, VIELE Labels (Owner 2026-07-28). Ein Gebirge wie der Finsterkamm will im Norden und
+// im Sueden beschriftet werden -- zwei Labels derselben Flaeche, mit eigener Drehung, Groesse und Lage.
+//
+// Die Zugehoerigkeit sitzt deshalb am LABEL und zeigt auf die Region, nicht umgekehrt: `n` Labels
+// koennen auf eine Region zeigen, ein einzelnes `ecosystem_region.label_public_id` kann nur eines
+// halten. Jenes bleibt trotzdem -- es bezeichnet das PRIMAERE Label, also das, welches der
+// Regionsdialog verwaltet ("Regionname anzeigen", Nodix, Umbenennen). Zwei Fragen, zwei Felder:
+// "welche Labels gehoeren zu dieser Flaeche" und "welches davon fuehrt sie".
+//
+// 💣 KEINE neue Tabelle (AGENTS.md §5). Die Beziehung passt in eine Eigenschaft am Label.
+function avesmapsReadLabelEcosystemRegion(array $payload): string {
+    if (!array_key_exists('ecosystem_region_public_id', $payload)) {
+        return '';
+    }
+
+    return avesmapsNormalizeSingleLine((string) ($payload['ecosystem_region_public_id'] ?? ''), 36);
+}
+
 function avesmapsReadLabelWikiRegion(mixed $value): ?array {
     if (!is_array($value)) {
         return null;
@@ -2143,6 +2161,10 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
             $properties['wiki_region'] = $wikiRegion;
         }
     }
+    $ecosystemRegion = avesmapsReadLabelEcosystemRegion($payload);
+    if ($ecosystemRegion !== '') {
+        $properties['ecosystem_region_public_id'] = $ecosystemRegion;
+    }
 
     $pdo->beginTransaction();
     try {
@@ -2240,11 +2262,26 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
                 unset($properties['wiki_region']);
             }
         }
-        $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
-        if ($otherSource === null) {
-            unset($properties['other_source']);
-        } else {
-            $properties['other_source'] = $otherSource;
+        // 💣 NUR anfassen, wenn der Schluessel mitkommt. Bis 2026-07-28 lief das unbedingt: fehlte
+        // `other_source` im Payload, wurde daraus null und die Eigenschaft flog raus. Als der
+        // Label-Dialog das Feld verlor und den Schluessel folgerichtig nicht mehr sendete, loeschte
+        // jedes Speichern die gespeicherte Quelle -- gemeint war das genaue Gegenteil.
+        if (array_key_exists('other_source', $payload)) {
+            $otherSource = avesmapsReadOptionalOtherSource($payload['other_source']);
+            if ($otherSource === null) {
+                unset($properties['other_source']);
+            } else {
+                $properties['other_source'] = $otherSource;
+            }
+        }
+        // Die Flaeche, zu der dieses Label gehoert. Leer mitgeschickt = ausdruecklich geloest.
+        if (array_key_exists('ecosystem_region_public_id', $payload)) {
+            $ecosystemRegion = avesmapsReadLabelEcosystemRegion($payload);
+            if ($ecosystemRegion === '') {
+                unset($properties['ecosystem_region_public_id']);
+            } else {
+                $properties['ecosystem_region_public_id'] = $ecosystemRegion;
+            }
         }
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];

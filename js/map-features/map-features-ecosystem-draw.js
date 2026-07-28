@@ -441,6 +441,10 @@ async function createEcosystemRegionLabel(regionPublicId, geometry, text, showNa
 			// Nur mitschicken, wenn die Region wirklich eine Wiki-Landschaft traegt -- ein leer
 			// mitgesendetes wiki_region wuerde am Label eine bestehende Zuweisung loeschen.
 			...(wikiRegion ? { wiki_region: wikiRegion } : {}),
+			// Der Rueckzeiger von Anfang an: eine Flaeche darf mehrere Labels tragen, und ab hier weiss
+			// jedes selbst, zu welcher es gehoert. Der Zeiger an der Region bezeichnet daneben weiterhin
+			// das PRIMAERE -- das, welches der Regionsdialog verwaltet.
+			ecosystem_region_public_id: String(regionPublicId || ""),
 			lat: point.y,
 			lng: point.x,
 		});

@@ -16,6 +16,11 @@ function normalizeLabelFeature(feature) {
 		showName: (properties.show_name ?? feature.show_name) !== false,
 		revision: Number(properties.revision ?? feature.revision) || null,
 		wikiRegion: properties.wiki_region && typeof properties.wiki_region === "object" ? properties.wiki_region : null,
+		// 🔴 EINE Fläche, VIELE Labels (Owner 2026-07-28): der Finsterkamm will im Norden und im Süden
+		// beschriftet werden, mit eigener Drehung und Lage je Label. Deshalb zeigt das LABEL auf seine
+		// Region -- `ecosystem_region.label_public_id` kann nur eines halten und bezeichnet weiterhin
+		// das PRIMÄRE, also das, welches der Regionsdialog verwaltet.
+		ecosystemRegionPublicId: String(properties.ecosystem_region_public_id || ""),
 		otherSource: readFeatureOtherSource(properties),
 		coordinates: [Number(lat), Number(lng)],
 	};
@@ -524,7 +529,7 @@ function isMapLabelEditorOverrideActive() {
 // Fehlt der Regionenbestand, kann der Filter nichts wissen und gilt als aus: lieber alles zeigen als
 // alles verbergen.
 function isLabelsWithRegionFilterActive() {
-	return typeof ecosystemLabelIdsWithRegion === "function"
+	return typeof ecosystemRegionOfLabel === "function"
 		&& document.getElementById("toggleLabelsWithRegion")?.checked === true;
 }
 
@@ -551,7 +556,7 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 
 	// „nur Labels mit Region": blendet Beschriftungen aus, an denen keine Landschaftsfläche hängt.
 	// Wieder ein `return false` und keine wahrheitswertige Bedingung -- der Haken darf nur verbergen.
-	if (isLabelsWithRegionFilterActive() && !ecosystemLabelIdsWithRegion().has(String(entry.label.publicId || ""))) {
+	if (isLabelsWithRegionFilterActive() && !ecosystemRegionOfLabel(entry.label)) {
 		return false;
 	}
 
@@ -689,7 +694,28 @@ async function duplicateLabelEntry(entry) {
 	}
 
 	const sourceLatLng = entry.marker.getLatLng();
-	const duplicateLatLng = map.layerPointToLatLng(map.latLngToLayerPoint(sourceLatLng).add([24, 24]));
+	// 💣 WEIT GENUG WEG, sonst ist die Kopie unsichtbar. Sie traegt denselben Text, dieselbe Groesse und
+	// dieselbe Drehung wie das Original -- 24 px daneben lag ihr Kasten MITTEN im Kasten des Originals,
+	// die Kollisionsaufloesung fand keinen freien Platz und blendete sie aus (map-labels.css, is-colliding).
+	// Ergebnis: der Editor duplizierte vier Mal und sah kein einziges Mal etwas (Owner 2026-07-28) --
+	// angelegt waren alle vier. Ein Versatz um die eigene Hoehe trennt die beiden achsenparallelen
+	// Kaesten garantiert; gemessen wird das gedrehte Element, nicht geschaetzt.
+	// 🪤 NICHT das Marker-Element messen: das ist ein divIcon mit iconSize [0, 0] und liefert eine Box
+	// der Hoehe 0. Der sichtbare, gedrehte Teil ist das <img> darin -- also dieselbe Messung benutzen,
+	// mit der die Kollisionsaufloesung selbst rechnet, samt ihrer Polsterung.
+	const sourceElement = typeof entry.marker.getElement === "function" ? entry.marker.getElement() : null;
+	const sourceBox = sourceElement && typeof measureLabelCollisionRect === "function"
+		? measureLabelCollisionRect(sourceElement)
+		: null;
+	const stepY = sourceBox && sourceBox.height > 0 ? Math.ceil(sourceBox.height) + 8 : 48;
+	const duplicateLatLng = map.layerPointToLatLng(map.latLngToLayerPoint(sourceLatLng).add([0, stepY]));
+
+	// Die Flaeche des Originals -- aus beiden Richtungen (Zeiger am Label ODER an der Region). Genau das
+	// war der Auftrag: eine grosse Region wie der Finsterkamm soll mehrere Beschriftungen tragen duerfen,
+	// im Norden und im Sueden, jede mit eigener Drehung und Lage.
+	const quellRegion = typeof ecosystemRegionOfLabel === "function"
+		? String(ecosystemRegionOfLabel(entry.label)?.public_id || "")
+		: "";
 	try {
 		const result = await submitMapFeatureEdit({
 			action: "create_label",
@@ -700,6 +726,12 @@ async function duplicateLabelEntry(entry) {
 			min_zoom: Number(entry.label.minZoom) || 0,
 			max_zoom: Number(entry.label.maxZoom) || 5,
 			priority: Number(entry.label.priority) || 3,
+			// Eine KOPIE, kein neues Label: Sichtbarkeit, Wiki-Landschaft und Zugehoerigkeit reisen mit.
+			// Ohne das war die Kopie ein Fremdkoerper -- kein Wiki-Eintrag, keine Flaeche, und damit auch
+			// unsichtbar unter "nur Labels mit Region".
+			show_name: entry.label.showName !== false,
+			...(entry.label.wikiRegion ? { wiki_region: entry.label.wikiRegion } : {}),
+			...(quellRegion ? { ecosystem_region_public_id: quellRegion } : {}),
 			lat: duplicateLatLng.lat,
 			lng: duplicateLatLng.lng,
 		});

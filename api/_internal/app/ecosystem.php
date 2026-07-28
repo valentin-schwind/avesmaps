@@ -1006,11 +1006,14 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     return ['region' => avesmapsEcosystemRegionSnapshot($row), 'revision' => $revision];
 }
 
-// 💣 EINE Region, HÖCHSTENS EIN lebendes Label. Der Riegel gegen die Dublette, nicht bloss gegen ihre
-// Ursache: wer die Region auf ein ANDERES Label zeigen laesst, waehrend das bisherige noch aktiv ist,
-// laesst das alte namenlos auf der Karte zurueck -- und genau so sahen die Dubletten vom 2026-07-28 aus
-// (der Zeichenpfad lud die Flaechen vor dem Anlegen des Labels, der Dialog sah einen leeren Zeiger und
-// legte ein zweites an).
+// 💣 EINE Region, HÖCHSTENS EIN PRIMAERES Label. Nicht "ein Label" -- eine Flaeche DARF viele tragen
+// (der Finsterkamm will im Norden und im Sueden beschriftet werden); die uebrigen zeigen von sich aus
+// auf ihre Region (properties.ecosystem_region_public_id) und brauchen diesen Zeiger nicht.
+//
+// Dieser hier bezeichnet das PRIMAERE: das Label, welches der Regionsdialog verwaltet (Umbenennen,
+// "Regionname anzeigen", Nodix). Es auf ein anderes umzuhaengen, waehrend das bisherige noch lebt,
+// liesse das alte fuehrungslos zurueck -- und ein leerer Zeiger war am 2026-07-28 genau der Grund,
+// aus dem der Dialog ein zweites Label anlegte, statt das vorhandene zu bearbeiten.
 //
 // 🪤 Der GELOESCHTE Fall muss durch: ein Label einzeln zu loeschen setzt is_active = 0 und laesst den
 // Zeiger verwaist zurueck; das Wiederanhaken von „Regionname anzeigen" legt dann zu Recht ein neues an.
@@ -1046,7 +1049,7 @@ function avesmapsEcosystemAssertLabelPointerFree(PDO $pdo, array $before, array 
     $statement->execute(['public_id' => $current]);
     if ($statement->fetchColumn() !== false) {
         throw new InvalidArgumentException(
-            'Diese Region traegt bereits ein Label. Erst das bestehende loesen oder loeschen, dann ein neues zuweisen.'
+            'Diese Region hat bereits ein primaeres Label. Erst das bestehende loesen oder loeschen, dann ein anderes zum primaeren machen. (Weitere Labels derselben Flaeche brauchen diesen Zeiger nicht -- sie tragen ihn selbst.)'
         );
     }
 }

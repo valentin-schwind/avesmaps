@@ -26,7 +26,7 @@ let ecosystemRegionTypesByKind = {};
 // Monoton, gleicher Grund wie beim Flächenlader: eine langsame Antwort für eine Ebene, die der Editor
 // längst verlassen hat, darf den Bestand nicht überschreiben.
 let ecosystemRegionRequestToken = 0;
-// Steigt bei JEDER Änderung am Bestand. Wer daraus etwas ableitet (siehe ecosystemLabelIdsWithRegion),
+// Steigt bei JEDER Änderung am Bestand. Wer daraus etwas ableitet (siehe ecosystemPrimaryLabelRegionMap),
 // merkt sich das Ergebnis gegen diesen Zähler statt es je Aufruf neu zu bauen.
 let ecosystemRegionCacheStamp = 0;
 
@@ -120,25 +120,49 @@ function syncEcosystemRegionCache({ refresh = false } = {}) {
 // jedem Zoom und jedem Verschieben; ein Set über 133 Regionen pro Label wären ~78 000 Durchläufe je
 // Bildwechsel. Der Zähler steigt überall dort, wo der Regionen-Zwischenspeicher sich ändert.
 let ecosystemLabelIdCacheStamp = -1;
-let ecosystemLabelIdCache = new Set();
+let ecosystemLabelIdCache = new Map();
 
-function ecosystemLabelIdsWithRegion() {
+// Label-ID -> Region, aus der Sicht der REGION (ihr primaeres Label). Die andere Richtung -- das Label
+// nennt seine Region selbst -- steht am Label und wird in ecosystemRegionOfLabel() dazugelesen.
+function ecosystemPrimaryLabelRegionMap() {
 	if (ecosystemLabelIdCacheStamp === ecosystemRegionCacheStamp) {
 		return ecosystemLabelIdCache;
 	}
-	const ids = new Set();
+	const byLabel = new Map();
 	Object.keys(ecosystemRegionsByKind || {}).forEach((kind) => {
 		(ecosystemRegionsByKind[kind] || []).forEach((region) => {
 			const labelPublicId = String(region.label_public_id || "");
 			if (labelPublicId !== "") {
-				ids.add(labelPublicId);
+				byLabel.set(labelPublicId, region);
 			}
 		});
 	});
-	ecosystemLabelIdCache = ids;
+	ecosystemLabelIdCache = byLabel;
 	ecosystemLabelIdCacheStamp = ecosystemRegionCacheStamp;
 
-	return ids;
+	return byLabel;
+}
+
+// Die Region eines Labels, aus BEIDEN Richtungen. Der Zeiger am Label ist die kuenftige Wahrheit; der
+// Zeiger an der Region deckt die ~124 Bestandslabels ab, die ihn noch nicht tragen. Kein zweites
+// System, sondern zwei Rollen derselben Beziehung: "wer gehoert zu mir" und "wer fuehrt mich".
+function ecosystemRegionOfLabel(label) {
+	const eigener = String(label?.ecosystemRegionPublicId || "");
+	if (eigener !== "") {
+		const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : [];
+		let treffer = null;
+		kinds.forEach((kind) => {
+			(ecosystemRegionsByKind[kind] || []).forEach((region) => {
+				if (String(region.public_id || "") === eigener) {
+					treffer = region;
+				}
+			});
+		});
+		// Auch ohne geladene Regionsliste gilt die Zugehoerigkeit -- dann eben ohne Namen und Flaechenzahl.
+		return treffer || { public_id: eigener };
+	}
+
+	return ecosystemPrimaryLabelRegionMap().get(String(label?.publicId || "")) || null;
 }
 
 // Beim Einschalten des Hakens: was noch nicht im Zwischenspeicher liegt, nachladen und danach EINMAL neu

@@ -72,14 +72,10 @@ async function renderLabelCarrierNote(label) {
 		return;
 	}
 
-	let region = null;
-	kinds.forEach((kind) => {
-		(ecosystemRegionsByKind[kind] || []).forEach((row) => {
-			if (String(row.label_public_id || "") === publicId) {
-				region = row;
-			}
-		});
-	});
+	// Aus BEIDEN Richtungen: der Zeiger am Label (mehrere Labels je Flaeche) und der an der Region
+	// (ihr primaeres). Nur die Regionsrichtung zu lesen hiesse, das zweite und dritte Label einer
+	// Flaeche als heimatlos anzuzeigen -- und genau die sind der Sinn der Sache.
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
 	if (!region) {
 		return;
 	}
