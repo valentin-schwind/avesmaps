@@ -1036,6 +1036,24 @@
 	fill-opacity: 0.1;
 }
 
+/* Die DEROGRAPHISCHE Ebene bleibt auch im Ruhezustand schwach sichtbar (Owner 2026-07-28): 10 % Füllung
+   statt gar keiner. Die beiden anderen ruhenden Ebenen verschwinden weiterhin ganz.
+
+   Der Unterschied ist, was die Ebene IST. Vegetation und Topographie zeichnen Bodendecke und Relief --
+   beim Arbeiten in der einen ist die andere Störung. Die derographischen Flächen sind Behälter:
+   Kontinente, Inseln, Provinzen. Wer eine Vegetationsfläche zeichnet, will wissen, in welchem Behälter
+   er gerade steht, und bei 0 % war die Antwort unsichtbar.
+
+   🪤 Nur die FÜLLUNG. Die Kontur bleibt bei 0, sonst legte sich die gestrichelte Behälterlinie über die
+   Ebene, in der gearbeitet wird -- ein Hauch Fläche orientiert, eine Linie konkurriert.
+
+   🪤 Über --eco-fill auf der Pane, wie jeder Zustand hier oben, und VOR der Zielwahl-Regel weiter unten:
+   die hat ebenfalls zwei Klassen, und während einer Zwei-Flächen-Operation sollen die ruhenden Ebenen
+   ihre 0.3 bekommen -- bei gleicher Spezifität entscheidet die Reihenfolge. */
+.ecosystem-pane--derographisch.ecosystem-pane--resting {
+	--eco-fill: 0.1;
+}
+
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
    Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
    einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse
