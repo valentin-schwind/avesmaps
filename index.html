@@ -1503,6 +1503,7 @@
 								<option value="kontinent">Kontinent</option>
 							<option value="wueste">Wüste</option>
 							<option value="suempfe_moore">Sümpfe & Moore</option>
+							<option value="flussland_flusstal">Flussland/Flusstal</option>
 							<option value="see">See</option>
 							<option value="insel">Insel</option>
 							<option value="sonstiges">Sonstiges</option>
@@ -1556,6 +1557,18 @@
 							</div>
 						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
+						<!-- Landschaftsflaeche zuweisen. Bis 2026-07-28 bekam ein Label seinen Zeiger NUR beim
+						     Anlegen einer Regionsbeschriftung oder beim Klonen; ein bestehendes liess sich an
+						     keine Flaeche haengen. Genau daran hingen fuenf Finsterkamm-Labels an nichts und
+						     blendeten sich gegenseitig aus. Die Auswahl fuellt sich aus list_regions -- dieselbe
+						     Liste, aus der der Flaechendialog seine Art-Auswahl zieht. -->
+						<div class="label-edit-section" id="label-edit-region-section" hidden>
+							<div class="label-edit-section-title">Landschaftsfläche</div>
+							<label class="location-report-form__field">
+								<span class="location-report-form__label">Gehört zu</span>
+								<select id="label-edit-region"></select>
+							</label>
+						</div>
 						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>

@@ -498,6 +498,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.kontinent": "Continent",
 	"spotlight.labelType.wueste": "Desert",
 	"spotlight.labelType.suempfe_moore": "Swamp/Marsh",
+	"spotlight.labelType.flussland_flusstal": "River Land/Valley",
 	"spotlight.labelType.see": "Lake",
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.sonstiges": "Label",

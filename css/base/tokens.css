@@ -192,6 +192,7 @@
 	--color-ecosystem-vegetation-auenlandschaft: #4f9e35;   /* floodplain, vivid green */
 	--color-ecosystem-vegetation-wueste: #e0c74e;           /* desert, yellow */
 	--color-ecosystem-vegetation-graslandschaft: #8fbf6a;   /* grassland, soft green */
+	--color-ecosystem-vegetation-flussland-flusstal: #4a8f6b; /* river land and valley, green with a water cast */
 
 	/* Topography per type, same rule (Owner 2026-07-27). Until today the whole layer was one brown-grey;
 	   it draws relief AND water, and those two do not share a colour in any map anyone has ever read.

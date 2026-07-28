@@ -97,6 +97,7 @@ async function renderLabelCarrierNote(label) {
 	applyLabelTypeVocabulary(region, label);
 	// Die zweite Stufe des Titels (siehe populateLabelEditForm): jetzt ist die Ebene bekannt.
 	setLabelEditDialogTitle(region?.kind || "");
+	fillLabelRegionSelect(label, region);
 	if (!region) {
 		return;
 	}
@@ -160,6 +161,71 @@ function applyLabelTypeVocabulary(region, label) {
 		select.appendChild(new Option(wanted + " (fremde Art)", wanted));
 	}
 	select.value = wanted;
+}
+
+// 🔴 „Gehört zu": die fehlende Hälfte der Kopplung (Owner 2026-07-28). Bis heute bekam ein Label seinen
+// Zeiger auf eine Landschaftsfläche NUR beim Anlegen einer Regionsbeschriftung
+// (map-features-ecosystem-draw.js) oder beim Klonen -- ein bestehendes liess sich an keine Fläche
+// hängen. `update_label` konnte es die ganze Zeit (api/_internal/map/features.php:2278), es gab bloss
+// keinen Weg dorthin.
+//
+// 💣 Was das kostete, stand live auf der Karte: FÜNF Finsterkamm-Labels, von denen genau eines seine
+// Region kannte. Die übrigen vier fielen damit nicht unter „ein Flächen-Label wird nie ausgeblendet"
+// und auch nicht unter „Labels derselben Fläche dürfen einander überlappen" -- sie blendeten sich
+// gegenseitig aus, und der Editor sah seine Beschriftung verschwinden.
+//
+// Die Auswahl führt ALLE drei Ebenen, nicht nur eine: ein Label gehört zu genau einer Fläche, aber
+// welcher Ebene die angehört, ist die Antwort und nicht die Frage.
+function fillLabelRegionSelect(label, region) {
+	const section = document.getElementById("label-edit-region-section");
+	const select = document.getElementById("label-edit-region");
+	if (!section || !select) {
+		return;
+	}
+
+	const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : [];
+	const alle = typeof ecosystemRegionsByKind !== "undefined" && ecosystemRegionsByKind ? ecosystemRegionsByKind : {};
+	// Ohne geladenes Vokabular gar nicht erst anbieten: eine leere Auswahl, die beim Speichern eine
+	// bestehende Zuweisung löschte, wäre schlimmer als kein Feld.
+	const geladen = kinds.some((kind) => Array.isArray(alle[kind]));
+	section.hidden = !geladen;
+	if (!geladen) {
+		return;
+	}
+
+	select.innerHTML = "";
+	select.appendChild(new Option("— keiner Fläche —", ""));
+	kinds.forEach((kind) => {
+		const zeilen = Array.isArray(alle[kind]) ? alle[kind] : [];
+		if (zeilen.length === 0) {
+			return;
+		}
+		const gruppe = document.createElement("optgroup");
+		gruppe.label = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS[kind]) || kind;
+		zeilen.slice()
+			.sort((links, rechts) => String(links.name || "").localeCompare(String(rechts.name || ""), "de"))
+			.forEach((zeile) => {
+				const anzahl = Number(zeile.area_count) || 0;
+				gruppe.appendChild(new Option(
+					`${zeile.name || "Ohne Namen"} (${anzahl === 1 ? "1 Fläche" : `${anzahl} Flächen`})`,
+					String(zeile.public_id || "")
+				));
+			});
+		select.appendChild(gruppe);
+	});
+
+	// 🪤 Die aufgelöste Region kann über den Zeiger der REGION gefunden worden sein, nicht über den des
+	// Labels. Dann steht sie hier trotzdem drin -- und ein Speichern schreibt sie als eigenen Zeiger
+	// fest. Das ist gewollt: der Zeiger am Label ist die künftige Wahrheit, und ihn beiläufig
+	// nachzuziehen, wo jemand das Label ohnehin anfasst, ist derselbe Weg, auf dem die neun
+	// handgezeichneten Flächen ihr Label bekommen haben.
+	select.value = String(region?.public_id || "");
+	// Zeigt die Region auf etwas, das die Liste nicht kennt (andere Ebene noch nicht geladen), bleibt
+	// sie als eigener Eintrag stehen, statt beim Öffnen still auf „keine" zu fallen.
+	if (select.value === "" && String(region?.public_id || "") !== "") {
+		select.appendChild(new Option(`Fläche ${region.public_id}`, String(region.public_id)));
+		select.value = String(region.public_id);
+	}
 }
 
 function labelEmptyTypeLabel(kind) {
@@ -321,6 +387,17 @@ function buildLabelEditPayload(formElement) {
 		// wenn der Schlüssel mitkommt -- deshalb ist Mitschicken hier sicher und Weglassen wäre es auch.
 		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },
 	};
+
+	// 🔴 Die Zuweisung zur Landschaftsfläche reist NUR mit, wenn das Feld überhaupt gefüllt wurde.
+	// `update_label` schreibt genau die Schlüssel, die im Payload stehen (array_key_exists), und ein
+	// mitgeschicktes leeres Feld löschte damit eine bestehende Zuweisung -- bei jedem Speichern eines
+	// Labels, dessen Auswahl mangels geladener Regionsliste nie befüllt war. Dieselbe Falle, an der
+	// `other_source` schon einmal hing (features.php:2266).
+	const regionSection = document.getElementById("label-edit-region-section");
+	const regionSelect = document.getElementById("label-edit-region");
+	if (regionSection && regionSelect && !regionSection.hidden) {
+		payload.ecosystem_region_public_id = String(regionSelect.value || "");
+	}
 
 	if (action === "create_label") {
 		payload.lat = Number.parseFloat(String(formData.get("lat") || ""));

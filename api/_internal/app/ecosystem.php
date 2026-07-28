@@ -89,6 +89,14 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['vegetation', 'auenlandschaft', 'Auenlandschaft', 50],
     ['vegetation', 'wueste', 'Wüste', 60],
     ['vegetation', 'graslandschaft', 'Graslandschaft', 70],
+    // Owner 2026-07-28. Ein Fluss prägt sein Umland anders als eine Aue: die Aue ist die überflutete
+    // Fläche selbst, das Flussland der fruchtbare Streifen und das Tal, durch das er läuft. Ein
+    // zusammengesetztes Wort wie bei `suempfe_moore` -- die beiden sind dieselbe Landschaft unter zwei
+    // gebräuchlichen Namen, keine zwei Arten.
+    // 💣 INSERT IGNORE: der Seed läuft vor jedem Schreibvorgang. Eine neue Zeile kommt beim nächsten
+    // Editorzugriff von selbst dazu; eine bestehende wird NICHT überschrieben, ein hier geänderter
+    // `label` erreicht also eine schon gesäte Art nicht mehr.
+    ['vegetation', 'flussland_flusstal', 'Flussland/Flusstal', 80],
 ];
 
 // ---- kill switch + trial flag ----------------------------------------------------------------------
