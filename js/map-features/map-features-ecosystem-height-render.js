@@ -44,11 +44,25 @@
 	// Die Einheit ist SCHRITT, nicht Meter, und steht wie überall im Namen (avesmapsReadOptionalPeakHeight,
 	// features.php): V11 multipliziert Höhen in Kantengewichte und trägt dort eine dokumentierte
 	// Einheitenfalle. Der Regler im Label-Dialog läuft 0..20.000, dieser Wert liegt also drin.
-	const HEIGHT_WHITE_SCHRITT = 15000;
+	// 🔴 EINE DARSTELLUNGSSKALA, KEINE AUSSAGE ÜBER DIE DATEN (Owner-Entscheid 2026-07-28).
+	//
+	// Weiss heisst „5.000 Schritt ODER MEHR". Darüber wird gekappt: ein 13.000er sieht aus wie ein
+	// 10.000er. Das ist ein bewusster Tausch, und der Owner hat ihn richtig begründet -- oben ist die
+	// Auflösung verschenkt (den Unterschied sieht niemand), unten entscheidet sie alles (1.000 gegen
+	// 5.000 ist Hügel gegen Wall, und genau dort wohnt der Bestand).
+	//
+	// 💣 DIE ZAHL BLEIBT DIE WAHRHEIT. V11 rechnet Reisezeiten aus `height_schritt`, NIE aus einem
+	// Grauwert. Solange das gilt, darf die Anzeige klemmen und stauchen, ohne dass ein Berg dadurch
+	// niedriger wird. Wer das je umdreht -- Kantengewichte aus dem gemalten Bild ziehen -- macht aus
+	// einer Lesehilfe eine Datenquelle und aus dieser Kappung einen stillen Höhenverlust.
+	const HEIGHT_WHITE_SCHRITT = 5000;
 	// Ab dieser Höhe ist der Schleier voll deckend. Bewusst die VORGABEHÖHE eines Gipfels
 	// (ECOSYSTEM_HEIGHT_DEFAULT): ein unbearbeiteter Gipfel soll deutlich zu sehen sein, sonst prüft
 	// niemand, was er noch eintragen muss. Darüber ändert sich nur noch die FARBE, Richtung Weiss --
 	// ein 10.000er ist damit heller als ein 5.000er, obwohl beide voll decken.
+	// Deckkraft und Farbe fallen jetzt zusammen: bei 5.000 ist beides am Anschlag. Die Konstante
+	// bleibt getrennt, weil die zwei Fragen es sind -- wer den Weisspunkt verschiebt, soll nicht
+	// unbeabsichtigt auch die Lesbarkeit verschieben.
 	const HEIGHT_FULL_VEIL_SCHRITT = 5000;
 
 	function ready() {

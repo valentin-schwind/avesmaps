@@ -611,6 +611,21 @@
 		status.classList.toggle("ecosystem-properties-dialog__error", Boolean(isError));
 	}
 
+	// 💣 Gedrosselt über requestAnimationFrame. Ein Regler feuert `input` bei jeder Mausbewegung --
+	// dutzende Male je Sekunde --, und ein Neubau kostet rund 4 ms plus 25-35 ms Zeichnen. Ungedrosselt
+	// staute sich das zu einem zähen Regler, der dem Zeiger hinterherläuft.
+	let previewFrame = 0;
+	function schedulePreviewRedraw() {
+		if (previewFrame) {
+			return;
+		}
+		previewFrame = window.requestAnimationFrame(() => {
+			previewFrame = 0;
+			window.AvesmapsEcosystemHeightRender?.invalidate?.();
+			window.AvesmapsEcosystemHeightRender?.redraw?.();
+		});
+	}
+
 	async function saveTerrainSettings(reset) {
 		const area = currentPropertiesArea();
 		if (!area || typeof postEcosystemEdit !== "function") {
@@ -1150,7 +1165,20 @@
 			propertiesElement(feld.element)?.addEventListener("input", () => {
 				// Anfassen heisst entscheiden -- ab hier gilt der Regler und nicht mehr die Ableitung.
 				terrainTouched[feld.key] = true;
-				syncTerrainOutput(feld, currentPropertiesArea());
+				const area = currentPropertiesArea();
+				syncTerrainOutput(feld, area);
+				// 🔴 LIVE, nicht erst beim Speichern (Owner 2026-07-28). Ein Geländeregler ohne sofortiges
+				// Bild ist ein Ratespiel: man stellt eine Zahl ein, speichert, schaut, korrigiert. Der Wert
+				// wandert deshalb sofort in die Fläche IM SPEICHER und das Feld wird neu gebaut.
+				//
+				// 🪤 Das ist eine VORSCHAU, keine Speicherung. Die Zeile in der Datenbank ändert sich erst
+				// mit „Gelände speichern"; wer den Dialog abbricht, hat nichts geschrieben -- aber sein
+				// Kartenbild zeigt bis zum nächsten Laden die Vorschau. Das ist der bewusste Preis dafür,
+				// dass man beim Ziehen sieht, was man tut.
+				if (area) {
+					area[feld.key] = Number(propertiesElement(feld.element)?.value);
+					schedulePreviewRedraw();
+				}
 			});
 		});
 		propertiesElement("terrain-save")?.addEventListener("click", () => void saveTerrainSettings(false));
