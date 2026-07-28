@@ -157,6 +157,20 @@ Schreiben nimmt davon unabhängig noch einmal rund ein Drittel der Nutzlast (10,
 > deckungsgleichen Kanten würde das Zeichnen erschweren, ohne irgendetwas zu
 > verbessern.
 
+**Sollen zwei Gebirge zu einem Zug verschmelzen, lass sie sich großzügig
+überlappen.** Jede Fläche läuft an ihrem eigenen Rand auf null aus; im
+Überlappungsstreifen füllen sich die beiden Füße gegenseitig zum Sattel auf. Ein
+schmaler Streifen ergibt eine sichtbare **Kerbe** zwischen zwei Bergen, ein breiter
+einen durchgehenden Zug.
+
+Die Höhen selbst spielen dabei **keine** Rolle: ein 3.000er neben einem 5.000er
+zieht diesen nicht herunter, und jeder benannte Gipfel behält seine eingetragene
+Zahl — auch dort, wo sich zwei Flächen überlagern. Nachgemessen an einem Schnitt
+durch zwei überlappende Züge (2026-07-28): 5.000 bleibt 5.000, 3.000 bleibt 3.000,
+dazwischen ein Sattel, der bei schmalem Streifen bis auf **71 Schritt** abfällt.
+
+*(Das gilt nur für die Topographie — nur dort entsteht ein Höhenfeld.)*
+
 ## 6. Auswählen, wenn sich etwas überlappt
 
 | Fall | Verhalten |
@@ -489,17 +503,37 @@ fasst sie nicht an**, er ruft den vorhandenen öffentlichen Lesepfad.
 > **Ausschalten fragt nach** und nennt die Folge: der öffentliche Lesepfad liefert dann keine
 > Flächen mehr, die Landschaften verschwinden für alle von der Karte. Gezeichnet bleibt alles.
 
-## 8. Gipfel
+## 8. Gipfel (V8 — gebaut)
 
-Sichtbar bei aktiver Topographie, **alle** — auch die ohne Wiki-Eintrag, die auf
-der öffentlichen Karte nicht erscheinen.
+Sichtbar bei aktiver Topographie, **alle**. Sie sind dort weder blass noch
+klickdurchlässig wie die übrigen Labels — ein `berggipfel` ist in dieser Ebene kein
+fremdes Label, sondern ihr Arbeitspunkt.
+
+> 🔴 **Und sie bleiben alle auch auf der Standardkarte** (Owner-Entscheid
+> 2026-07-28). Eine frühere Fassung dieses Abschnitts sagte, wiki-lose Gipfel
+> erschienen dort nicht — **das gilt nicht mehr**, siehe Leitfaden §1.4.
 
 | Geste | Wirkung |
 |---|---|
-| Gipfel ziehen | verschiebt **das Label in `map_features`** — dieselbe Zeile, die der Standard-Layer zeigt |
-| Gipfel anklicken | Panel zeigt Name und Höhe |
-| Höhe eintragen | schreibt in `properties_json` des Labels |
-| Rechtsklick → „Höhenpunkt setzen" | legt ein `berggipfel`-Label **ohne** Wiki-Link an — ein Arbeitspunkt |
+| Gipfel ziehen | verschiebt **das Label in `map_features`** (`move_label`) — dieselbe Zeile, die der Standard-Layer zeigt. Ohne Zwischenschritt: in dieser Ebene ist das Ziehen die Hauptarbeit, nicht der Sonderfall |
+| Gipfel anklicken | öffnet den Label-Dialog mit Name **und Höhe** |
+| Höhe eintragen | in **beiden** Oberflächen: im Label-Dialog (Feld „Höhe (Schritt)", nur bei `berggipfel`) und im Flächendialog unter „Gipfel", je Zeile mit eigenem Knopf und eigener Statuszeile. Beide schreiben `height_schritt` in `properties_json` **desselben** Labels |
+| Rechtsklick → „Höhenpunkt setzen" | öffnet den Label-Dialog als neuen `berggipfel` an der geklickten Stelle. Nur bei aktiver Topographie-Ebene; ohne Wiki-Link — und er erscheint trotzdem auf der Standardkarte |
+
+**Standardhöhe 5.000 Schritt.** Sobald ein Label die Art **Berggipfel** oder
+**Vulkan** bekommt, erscheint die Höhenzeile mit einem **Regler** — und steht auf
+**5.000**, wenn nichts erfasst ist. Mit genau dieser Zahl rechnet auch die Karte
+für einen noch unbearbeiteten Gipfel; angezeigter und gerechneter Wert sind
+dieselbe Größe, nicht zwei nebeneinander.
+
+Der Regler läuft von 0 bis 20.000 in Fünfziger-Schritten; das Zahlenfeld daneben
+nimmt jeden Wert dazwischen. Beide teilen dieselben Grenzen — ein engerer Regler
+klemmte einen getippten Wert beim ersten Anfassen stillschweigend herunter.
+
+⚠️ **Eine bereits erfasste Höhe wird nicht überschrieben.** Der Standard greift nur
+bei leerem Feld; ein Gipfel mit 2.600 behält seine 2.600, auch wenn der Dialog nur
+geöffnet und wieder geschlossen wird. Eine eingetragene `0` wird wörtlich genommen
+und ist etwas anderes als „nicht erfasst".
 
 > **Es gibt keine zweite Positionsliste.** Der Gipfel ist ein Objekt in zwei
 > Ansichten. Wer ihn hier verschiebt, verschiebt ihn auf der Standardkarte, und
@@ -515,7 +549,7 @@ bei einer geänderten Geometrie, nur mit dem Label als Auslöser.
 |---|---|
 | Geometrie (Ecke, Kante, neue Fläche) | **sofort beim Loslassen**, ohne Nachfrage |
 | Felder (Name, Typ) | eigener Speichern-Knopf mit Statuszeile — im Dialog aus **§7b** |
-| Höhe | noch nicht gebaut (V8, Höhenfeld) |
+| Höhe eines Gipfels | eigenes Feld, eigener Knopf, eigene Statuszeile — im Label-Dialog **und** im Flächendialog (§8). ✅ V8, gebaut 2026-07-28 |
 
 Es gibt **keinen Entwurfszustand** und keinen „ungespeicherte Änderungen"-Dialog.
 Geometrie ist entweder gezogen oder nicht. Für die Felder gilt das Muster des

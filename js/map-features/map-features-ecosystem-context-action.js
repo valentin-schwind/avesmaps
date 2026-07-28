@@ -33,6 +33,7 @@
 	const NEW_AREA_ATTRIBUTE = "data-ecosystem-context-action";
 	const AREA_ACTION_ATTRIBUTE = "data-ecosystem-area-action";
 	const NEW_AREA_ACTION = "new-area";
+	const NEW_PEAK_ACTION = "new-peak";
 	const DELETE_AREA_ACTION = "delete";
 
 	// 🪤 NOT data-ecosystem-kind. syncEcosystemLayerSwitchControls does a DOCUMENT-WIDE
@@ -84,10 +85,21 @@
 	//    so the gate is only "may this editor use the layer at all" (IS_EDIT_MODE + IS_ECOSYSTEM_ENABLED,
 	//    the same pair setSelectedMapLayerMode uses to allow the mode in the first place). Offering them
 	//    while the mode is refused would produce entries that switch to the default mode instead.
-	function ecosystemMapMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false } = {}) {
+	// 🔴 „Höhenpunkt setzen" (V8) folgt der GEGENTEILIGEN Regel zu den drei „Neue …"-Einträgen: es hängt
+	// an EINER Ebene. Die drei sind der Weg IN ihre Ebene und dürfen deshalb überall stehen; ein Gipfel
+	// dagegen ist nur in der Topographie sichtbar, ziehbar und wirksam (Leitfaden §1.4). Ihn anderswo
+	// anzubieten legte einen Arbeitspunkt in eine Ebene, die ihn gar nicht zeigt.
+	//
+	// 🪤 `activeKind` allein genügt nicht. Die Ebene wird gemerkt (localStorage), also sagt sie auch im
+	// politischen Modus noch „topographie" -- gemeint ist aber „welche Ebene liegt gerade auf dem
+	// Schirm". Deshalb UND `mode === "ecosystem"`.
+	function ecosystemMapMenuVisibility({ mode = "", isEditMode = false, isEcosystemEnabled = false, activeKind = "" } = {}) {
+		const landscapeAllowed = Boolean(isEditMode) && Boolean(isEcosystemEnabled);
+
 		return {
 			createRegion: mode === "political",
-			newArea: Boolean(isEditMode) && Boolean(isEcosystemEnabled),
+			newArea: landscapeAllowed,
+			newPeak: landscapeAllowed && mode === "ecosystem" && activeKind === "topographie",
 		};
 	}
 
@@ -185,6 +197,20 @@
 			fragment.appendChild(button);
 		});
 
+		// „Höhenpunkt setzen" (V8) reiht sich hinter die drei ein: es legt ebenfalls etwas Neues an,
+		// aber einen PUNKT statt einer Fläche -- deshalb hinten und nicht dazwischen.
+		//
+		// 💣 Ein neuer Eintrag braucht IMMER eine Glyphenregel in css/components/map-context-menu.css.
+		// Ohne `content` entsteht das ::before nicht und die BESCHRIFTUNG rutscht in die 1,45em breite
+		// Symbolspalte (in V7 gemessen: 12 statt 41 px Textbreite).
+		const peakButton = document.createElement("button");
+		peakButton.type = "button";
+		peakButton.className = "map-context-menu__item";
+		peakButton.setAttribute(NEW_AREA_ATTRIBUTE, NEW_PEAK_ACTION);
+		peakButton.hidden = true;
+		peakButton.textContent = label("ecosystem.ctxmenu.newPeak", "Höhenpunkt setzen");
+		fragment.appendChild(peakButton);
+
 		// After "Neues Herrschaftsgebiet": the two are siblings in kind ("draw a new area"), and putting
 		// them last would separate them with nothing in between.
 		const anchor = submenu.querySelector('[data-context-action="create-region"]');
@@ -205,6 +231,10 @@
 			mode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
 			isEditMode: typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE,
 			isEcosystemEnabled: typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED,
+			activeKind: typeof getActiveEcosystemLayerKind === "function" ? getActiveEcosystemLayerKind() : "",
+		});
+		document.querySelectorAll(`[${NEW_AREA_ATTRIBUTE}="${NEW_PEAK_ACTION}"]`).forEach((button) => {
+			button.hidden = !visibility.newPeak;
 		});
 
 		const createRegionElement = document.querySelector('.map-context-submenu [data-context-action="create-region"]');
@@ -257,7 +287,57 @@
 		startEcosystemAreaDrawing({ startLatLng: latlng || null });
 	}
 
+	// „Höhenpunkt setzen": legt einen Arbeitspunkt an, indem es den vorhandenen Label-Dialog als NEUES
+	// `berggipfel`-Label an dieser Stelle öffnet.
+	//
+	// 🔴 Kein stilles Anlegen. Der Dialog fragt nach dem Namen (leer ist erlaubt) und zeigt seit V8 das
+	// Höhenfeld -- damit entstehen Punkt, Name und Höhe in einem Zug statt in drei.
+	// 🔴 Ohne Wiki-Link, und er erscheint TROTZDEM auf der Standardkarte. Es gibt keine
+	// Sichtbarkeitsregel gegen wiki-lose Gipfel (Owner-Entscheid 2026-07-28).
+	function startNewEcosystemPeak(latlng) {
+		if (typeof openLabelEditDialog !== "function") {
+			say("Der Label-Dialog ist nicht bereit.", "warning");
+			return;
+		}
+		openLabelEditDialog({ latlng: latlng || null });
+		const typeSelect = document.getElementById("label-edit-type");
+		if (typeSelect) {
+			typeSelect.value = "berggipfel";
+			// Der Dialog blendet das Höhenfeld an der Art ein. Ein zugewiesener `value` feuert KEIN
+			// change-Ereignis -- ohne diesen Aufruf bliebe die Zeile verborgen, obwohl „Berggipfel" steht.
+			if (typeof syncLabelHeightRow === "function") {
+				syncLabelHeightRow();
+			}
+		}
+	}
+
+	function handleNewPeakMenuClick(event) {
+		const actionElement = event.target?.closest?.(`[${NEW_AREA_ATTRIBUTE}="${NEW_PEAK_ACTION}"]`);
+		if (!actionElement) {
+			return false;
+		}
+
+		event.preventDefault();
+		event.stopPropagation();
+		event.stopImmediatePropagation();
+
+		// 💣 Position VOR dem Schliessen lesen -- closeMapContextMenu() setzt pendingContextMenuLatLng
+		// auf null (js/app/bootstrap.js:627).
+		const latlng = typeof pendingContextMenuLatLng !== "undefined" && pendingContextMenuLatLng
+			? L.latLng(pendingContextMenuLatLng)
+			: null;
+		if (typeof closeMapContextMenu === "function") {
+			closeMapContextMenu();
+		}
+		startNewEcosystemPeak(latlng);
+
+		return true;
+	}
+
 	function handleNewAreaMenuClick(event) {
+		if (handleNewPeakMenuClick(event)) {
+			return true;
+		}
 		const actionElement = event.target?.closest?.(`[${NEW_AREA_ATTRIBUTE}="${NEW_AREA_ACTION}"]`);
 		if (!actionElement) {
 			return false;

@@ -209,6 +209,20 @@
 	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
 	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
+
+	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
+	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,
+	   was AGENTS.md §12 verbietet. Warme Erdtöne, kein Blau: das Relief ist gemalte Karte, nicht
+	   Datenvisualisierung, und es liegt neben Pergament und Wappengold.
+	   🔴 Die Skala ist RELATIV zum höchsten Gipfel DIESER Fläche, nicht absolut. Ein 2.600er Bergland
+	   bekommt damit denselben weissen Gipfel wie ein 5.200er Wall -- bewusst: die Farbe liest sich
+	   innerhalb eines Gebirges, nicht zwischen zweien. Absolut skaliert wäre alles ausser dem höchsten
+	   Massiv Aventuriens ein einziger brauner Fleck. */
+	--color-ecosystem-height-0: #b0be9e;                    /* Fuss, fahles Grün */
+	--color-ecosystem-height-1: #c6be96;                    /* untere Hänge, Sand */
+	--color-ecosystem-height-2: #bea37c;                    /* Mittellage, Braun */
+	--color-ecosystem-height-3: #d6c4b2;                    /* Hochlage, helles Braun */
+	--color-ecosystem-height-4: #f7f3ee;                    /* Firn, fast Weiss */
 	/* Selection contour (Owner 2026-07-26): a SELECTED area is outlined in white, an area whose corners
 	   are open for editing in the handle blue above. Two states, two contours -- the same principle as
 	   the two marker rings further up, and the reason the fill keeps its own tone in both cases: the

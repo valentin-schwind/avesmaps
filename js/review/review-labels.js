@@ -39,6 +39,14 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? remembered.maxZoom ?? 7;
 	document.getElementById("label-edit-priority").value = label.priority ?? remembered.priority ?? 3;
 	document.getElementById("label-edit-is-nodix").checked = Boolean(labelEntry ? label.isNodix : (remembered.isNodix ?? false));
+	// 🔴 Empty is NOT zero. A peak nobody has measured leaves the field blank; writing "0" here would
+	// record sea level as a fact. The height is also NOT remembered for new labels the way the display
+	// values are -- copying the last peak's height onto the next one would invent data.
+	const heightInput = document.getElementById("label-edit-height");
+	if (heightInput) {
+		heightInput.value = label.heightSchritt === null || label.heightSchritt === undefined ? "" : String(label.heightSchritt);
+	}
+	syncLabelHeightRow();
 	if (typeof setLabelWikiRegion === "function") {
 		setLabelWikiRegion(label.wikiRegion || null);
 	}
@@ -137,12 +145,14 @@ function applyLabelTypeVocabulary(region, label) {
 	if (kind === "" || typeof ecosystemRegionTypesByKind === "undefined") {
 		select.innerHTML = labelTypeFullMarkup;    // gehört zu keiner Ebene -> alles erlaubt
 		select.value = String(label?.labelType || "region");
+		syncLabelHeightRow();
 		return;
 	}
 	const types = ecosystemRegionTypesByKind[kind];
 	if (!Array.isArray(types) || types.length === 0) {
 		select.innerHTML = labelTypeFullMarkup;    // Vokabular noch nicht da -- lieber alles als eine falsche Auswahl
 		select.value = String(label?.labelType || "region");
+		syncLabelHeightRow();
 		return;
 	}
 
@@ -161,6 +171,7 @@ function applyLabelTypeVocabulary(region, label) {
 		select.appendChild(new Option(wanted + " (fremde Art)", wanted));
 	}
 	select.value = wanted;
+	syncLabelHeightRow();
 }
 
 // 🔴 „Gehört zu": die fehlende Hälfte der Kopplung (Owner 2026-07-28). Bis heute bekam ein Label seinen
@@ -227,6 +238,54 @@ function fillLabelRegionSelect(label, region) {
 		select.value = String(region.public_id);
 	}
 }
+
+// Only a berggipfel has a height. The row is hidden for every other subtype, and buildLabelEditPayload
+// then omits the key entirely -- the server treats a PRESENT key as "the caller means it", so leaving
+// it in for a wald label would write a height onto something that cannot carry one.
+//
+// 🪤 Called from three places on purpose: on open, on every change of the type select, and at the end
+// of applyLabelTypeVocabulary. That last one is not redundant -- it runs ASYNC (it waits for the region
+// vocabulary) and rewrites the select, so a row synced only on open would be stale by the time the
+// dialog settles.
+function syncLabelHeightRow() {
+	const row = document.getElementById("label-edit-height-row");
+	if (!row) {
+		return;
+	}
+	const isPeak = typeof isEcosystemPeakSubtype === "function"
+		&& isEcosystemPeakSubtype(document.getElementById("label-edit-type")?.value);
+	row.hidden = !isPeak;
+	if (!isPeak) {
+		return;
+	}
+
+	// 🔴 STANDARDHÖHE 5.000 Schritt (Owner-Entscheid 2026-07-28: „gib den gipfeln ne standardhöhe von
+	// 5000 schritt, aber die müssen wir natürlich editieren können"). Sobald ein Label ein Gipfel oder
+	// Vulkan wird, steht der Regler auf 5.000 statt auf nichts -- der Editor korrigiert von einem
+	// sinnvollen Wert aus, statt bei null anzufangen.
+	//
+	// 🪤 NUR wenn das Feld leer ist. Ein Gipfel mit erfasster Höhe behält seine; ihn beim blossen Öffnen
+	// des Dialogs auf 5.000 zurückzusetzen wäre stiller Datenverlust.
+	// Derselbe Wert steht als ECOSYSTEM_HEIGHT_DEFAULT im Höhenmodul -- das Feld zeigt damit genau die
+	// Zahl, mit der die Karte ohnehin schon rechnet, statt einer zweiten Wahrheit daneben.
+	const input = document.getElementById("label-edit-height");
+	const range = document.getElementById("label-edit-height-range");
+	if (input && String(input.value || "").trim() === "") {
+		input.value = typeof ECOSYSTEM_HEIGHT_DEFAULT === "number" ? String(ECOSYSTEM_HEIGHT_DEFAULT) : "5000";
+	}
+	if (input && range) {
+		range.value = input.value;
+	}
+}
+
+// Delegated, like the slider mirroring below: the dialog markup is static, but binding directly would
+// still need a load-order guarantee this file does not have. No focus is moved here -- a `change`
+// handler that grabs focus is how the combobox once stole it from an open dialog.
+document.addEventListener("change", (event) => {
+	if (event.target && event.target.id === "label-edit-type") {
+		syncLabelHeightRow();
+	}
+});
 
 function labelEmptyTypeLabel(kind) {
 	if (kind === "vegetation") {
@@ -397,6 +456,15 @@ function buildLabelEditPayload(formElement) {
 	const regionSelect = document.getElementById("label-edit-region");
 	if (regionSection && regionSelect && !regionSection.hidden) {
 		payload.ecosystem_region_public_id = String(regionSelect.value || "");
+	}
+
+	// 💣 Only ever send the key for peaks. The server treats a PRESENT key as "the caller means it"
+	// (array_key_exists), so sending it for a non-peak label would write a height onto something that
+	// has no business carrying one -- and sending it as `null` from a hidden row would DELETE the
+	// height of a label that was merely retyped and typed back.
+	if (typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(payload.feature_subtype)) {
+		const rawHeight = String(formData.get("height_schritt") ?? "").trim();
+		payload.height_schritt = rawHeight === "" ? null : rawHeight;
 	}
 
 	if (action === "create_label") {

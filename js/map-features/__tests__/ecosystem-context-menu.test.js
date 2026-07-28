@@ -17,19 +17,19 @@ const {
 
 assert.deepStrictEqual(
 	ecosystemMapMenuVisibility({ mode: "political", isEditMode: true, isEcosystemEnabled: true }),
-	{ createRegion: true, newArea: true },
-	"political mode with the layer enabled: both offered"
+	{ createRegion: true, newArea: true, newPeak: false },
+	"political mode with the layer enabled: both offered -- but no peak entry, that needs the topography layer"
 );
 
 assert.deepStrictEqual(
 	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true }),
-	{ createRegion: false, newArea: true },
+	{ createRegion: false, newArea: true, newPeak: false },
 	"in the landscape mode 'Neues Herrschaftsgebiet' is gone -- the owner's acceptance criterion"
 );
 
 assert.deepStrictEqual(
 	ecosystemMapMenuVisibility({ mode: "none", isEditMode: true, isEcosystemEnabled: true }),
-	{ createRegion: false, newArea: true },
+	{ createRegion: false, newArea: true, newPeak: false },
 	"reachable from a neutral mode: the entry switches the mode itself"
 );
 
@@ -37,21 +37,50 @@ assert.deepStrictEqual(
 // it would silently drop the editor into the default mode.
 assert.deepStrictEqual(
 	ecosystemMapMenuVisibility({ mode: "political", isEditMode: true, isEcosystemEnabled: false }),
-	{ createRegion: true, newArea: false },
+	{ createRegion: true, newArea: false, newPeak: false },
 	"layer flag off: no landscape entries, political one untouched"
+);
+
+// ---- "Hoehenpunkt setzen" (V8) --------------------------------------------------------------------
+// 🔴 UNLIKE the three "Neue ..." entries this one is bound to ONE layer, and deliberately so. A peak is
+// only visible, draggable and meaningful in the topography layer (oekosystem-editor-leitfaden.md §1.4);
+// offering it elsewhere would drop a working point into a layer that does not show it.
+
+assert.deepStrictEqual(
+	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true, activeKind: "topographie" }),
+	{ createRegion: false, newArea: true, newPeak: true },
+	"topography layer: the peak entry is offered"
+);
+
+assert.deepStrictEqual(
+	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: true, isEcosystemEnabled: true, activeKind: "vegetation" }),
+	{ createRegion: false, newArea: true, newPeak: false },
+	"vegetation layer: no peak entry -- a peak in a cover area modulates nothing"
+);
+
+assert.deepStrictEqual(
+	ecosystemMapMenuVisibility({ mode: "political", isEditMode: true, isEcosystemEnabled: true, activeKind: "topographie" }),
+	{ createRegion: true, newArea: true, newPeak: false },
+	"the remembered kind alone is not enough: outside the landscape mode there is no topography layer on screen"
+);
+
+assert.deepStrictEqual(
+	ecosystemMapMenuVisibility({ mode: "ecosystem", isEditMode: false, isEcosystemEnabled: true, activeKind: "topographie" }),
+	{ createRegion: false, newArea: false, newPeak: false },
+	"no edit mode: no peak entry either"
 );
 
 // A visitor without the edit mode never sees either -- the group itself stays hidden (bootstrap.js:297),
 // this is the second lock.
 assert.deepStrictEqual(
 	ecosystemMapMenuVisibility({ mode: "political", isEditMode: false, isEcosystemEnabled: true }),
-	{ createRegion: true, newArea: false },
+	{ createRegion: true, newArea: false, newPeak: false },
 	"no edit mode: no landscape entries"
 );
 
 assert.deepStrictEqual(
 	ecosystemMapMenuVisibility(),
-	{ createRegion: false, newArea: false },
+	{ createRegion: false, newArea: false, newPeak: false },
 	"called with nothing: shows nothing, rather than throwing during a right-click"
 );
 

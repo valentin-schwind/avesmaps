@@ -1,3 +1,17 @@
+// Mirror of avesmapsReadOptionalPeakHeight (api/_internal/map/features.php): the SERVER owns the
+// rule, this only has to agree with it. Returns a finite number >= 0, or null for "not recorded".
+// Numeric strings are accepted because a payload that has round-tripped through a form field can
+// arrive as one; anything else -- 0-length string, boolean, array, NaN, negative -- is not a height.
+function readLabelHeightSchritt(properties) {
+	const raw = properties?.height_schritt;
+	if (raw === null || raw === undefined || raw === "" || typeof raw === "boolean") {
+		return null;
+	}
+	const height = Number(raw);
+
+	return Number.isFinite(height) && height >= 0 ? height : null;
+}
+
 function normalizeLabelFeature(feature) {
 	const properties = feature.properties || {};
 	const [lng, lat] = feature.geometry?.coordinates || [feature.lng, feature.lat];
@@ -22,6 +36,11 @@ function normalizeLabelFeature(feature) {
 		// das PRIMÄRE, also das, welches der Regionsdialog verwaltet.
 		ecosystemRegionPublicId: String(properties.ecosystem_region_public_id || ""),
 		otherSource: readFeatureOtherSource(properties),
+		// A berggipfel carries its own height, in Schritt (V8). 🔴 `null` means NOT RECORDED and is
+		// not the same as 0 -- the height field falls back to a placeholder for the former and takes
+		// the latter literally. Neither `Number(undefined)` (NaN) nor `Number(null)` (0) may be
+		// allowed to stand in for "nobody has measured this peak yet".
+		heightSchritt: readLabelHeightSchritt(properties),
 		coordinates: [Number(lat), Number(lng)],
 	};
 }
@@ -437,7 +456,23 @@ function createLabelMarkerEntry(label) {
 			void selectEcosystemAreaOfLabel(label);
 		});
 		marker.on("dragend", () => {
-			void saveLabelPosition(entry);
+			// 🪤 V8: einen Gipfel, der in der Topographie-Ebene DAUERHAFT ziehbar ist, hier nicht
+			// stillzulegen. setLabelMoveActive(false) beendet den einmaligen Verschiebemodus -- auf ihn
+			// angewandt liesse es sich genau einmal verschieben, danach klebte er fest.
+			const isPeak = typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId);
+			// 💣 Die Invalidierung gehört ANS ENDE der Speicherkette, nicht daneben. saveLabelPosition ist
+			// asynchron und schreibt die neue Lage erst in `label.coordinates`, wenn die Antwort da ist
+			// (applyLabelFeatureResponse). Daneben gerufen läse der Neuaufbau des Höhenfelds noch die ALTE
+			// Position -- der Gipfel wäre verschoben, sein Berg bliebe stehen.
+			const saved = saveLabelPosition(entry);
+			if (isPeak) {
+				Promise.resolve(saved).then(() => {
+					if (typeof invalidateEcosystemHeightForPeak === "function") {
+						invalidateEcosystemHeightForPeak(label);
+					}
+				});
+				return;
+			}
 			setLabelMoveActive(entry, false);
 		});
 		// Infopanel (default): in edit mode the floating box carries the EDIT actions, but the right Info
@@ -480,6 +515,16 @@ function createLabelMarkerEntry(label) {
 		}
 	}
 	syncLabelMarkerVisibility(entry);
+	// V8: ein Gipfel, der in die schon aktive Topographie-Ebene hineingeboren wird (frisch angelegt oder
+	// beim Nachladen), ist sofort ziehbar. syncEcosystemLabelMuting läuft nur beim EbenenWECHSEL --
+	// ohne diese Zeile bliebe genau der neue Punkt der einzige unbewegliche.
+	//
+	// 💣 NACH syncLabelMarkerVisibility, nicht davor: `marker.dragging` entsteht bei Leaflet erst in
+	// `onAdd`. Davor ist es `undefined`, und `marker.dragging?.enable()` wäre eine stille Nulloperation --
+	// ohne Fehler, ohne Wirkung, und der Gipfel klebte fest, bis jemand die Ebene wechselt.
+	if (IS_EDIT_MODE && typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId)) {
+		marker.dragging?.enable();
+	}
 	return entry;
 }
 

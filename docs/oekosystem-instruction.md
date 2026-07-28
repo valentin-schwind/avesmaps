@@ -203,9 +203,18 @@ Daraus baut der Generator die Stützpunkte in dieser Reihenfolge:
    **Der nächstgelegene Gipfel bekommt `max_height`** — sonst landet der höchste
    Punkt neben dem benannten Gipfel, und genau das liest die Zielgruppe als Fehler.
 2. **Der Gebirgskörper füllt auf** — breite Buckel auf einem pseudozufälligen
-   Gitter, aber **nur außerhalb der gesperrten Zonen**. Es gibt live nur **23
-   `berggipfel` auf 60 `gebirge`**: zu wenig, um das Gelände allein zu tragen, zu
-   sichtbar, um sie zu ignorieren.
+   Gitter, aber **nur außerhalb der gesperrten Zonen**. Die Gipfel allein tragen das
+   Gelände nicht, sind aber zu sichtbar, um sie zu ignorieren.
+
+   > 💣 **Die frühere Zahl „23 `berggipfel` auf 60 `gebirge`" war falsch** und ist am
+   > 2026-07-28 am Livebestand ersetzt worden. Richtig: **62 `berggipfel`-Labels**,
+   > **68 `gebirge`-LABELS** — und **2 `gebirge`-FLÄCHEN**.
+   >
+   > Der Fehler steckt nicht in der Zahl, sondern im Wort: gezählt wurden
+   > `gebirge`-**Labels** (Schriftzüge), genannt wurden **Gebirge** (Flächen). Wer „60
+   > Gebirge" liest und ein Höhenfeld für 60 Flächen plant, plant für 58, die es nicht
+   > gibt. Dieselbe Verwechslung steht in der V5- und der V8-Zeile des Hauptplans und
+   > stand in `api/_internal/app/ecosystem.php`; alle drei sind mit berichtigt.
 3. **Ein gesetzter Gipfel gewinnt immer** — will man an einer Stelle einen
    Höhenpunkt, legt man dort ein `berggipfel`-Label an. Es gibt genau **einen**
    Mechanismus, und der ist im Standard-Layer sichtbar (Leitfaden §1.4).
