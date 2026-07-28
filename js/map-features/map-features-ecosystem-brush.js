@@ -30,7 +30,13 @@
 	const BRUSH_RADIUS_STEP = 1.18;
 	// Erst weitermalen, wenn der Zeiger ein Stück gewandert ist. Ohne das rechnet jede Mausbewegung eine
 	// Vereinigung, obwohl der neue Kreis fast deckungsgleich im alten liegt.
-	const BRUSH_MIN_TRAVEL_RATIO = 0.28;
+	//
+	// 🔴 Von 0,28 auf 0,55 erhöht (Owner 2026-07-28): nicht die Ecken JE Stempel waren zu viel, sondern
+	// die ZAHL der Stempel -- und jeder hinterlässt seinen Aussenbogen für immer im Umriss. Ein halber
+	// Radius Abstand überlappt immer noch kräftig, die Kette bleibt also glatt ohne Perlenschnur-Effekt;
+	// die Punktmenge eines Strichs halbiert sich dabei. Wo es trotzdem zu fein wird, dünnt
+	// „Fläche vereinfachen" nachträglich aus (map-features-ecosystem-simplify.js).
+	const BRUSH_MIN_TRAVEL_RATIO = 0.55;
 
 	let brushMode = "";                       // "" | "brush" | "eraser"
 	let brushAreaPublicId = "";

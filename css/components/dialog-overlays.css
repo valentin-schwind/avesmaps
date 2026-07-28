@@ -22,6 +22,7 @@ body.modal-dialog-open {
 #ecosystem-assign-overlay[hidden],
 #label-assign-overlay[hidden],
 #ecosystem-properties-overlay[hidden],
+#ecosystem-simplify-overlay[hidden],
 #review-overlay[hidden] {
 	display: none !important;
 }
@@ -43,6 +44,7 @@ body.modal-dialog-open {
 #ecosystem-assign-overlay,
 #label-assign-overlay,
 #ecosystem-properties-overlay,
+#ecosystem-simplify-overlay,
 #review-overlay {
 	position: fixed;
 	inset: 0;
@@ -76,6 +78,7 @@ body.modal-dialog-open {
 #ecosystem-assign-overlay,
 #label-assign-overlay,
 #ecosystem-properties-overlay,
+#ecosystem-simplify-overlay,
 #review-overlay {
 	z-index: 1260;
 }

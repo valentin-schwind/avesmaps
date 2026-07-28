@@ -868,6 +868,30 @@
 				</form>
 			</div>
 		</div>
+		<!-- „Fläche vereinfachen": derselbe Fensterbau wie der Eigenschaften-Dialog darüber, damit er
+		     dessen Optik erbt statt eine zweite zu erfinden. Die ID steht in denselben drei Selektorlisten
+		     in dialog-overlays.css — ohne die wäre es kein Fenster, sondern ein Block im Dokumentfluss. -->
+		<div id="ecosystem-simplify-overlay" hidden>
+			<div id="ecosystem-simplify-dialog" class="ecosystem-properties-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-simplify-title" tabindex="-1">
+				<div class="ecosystem-properties-dialog__header">
+					<h2 id="ecosystem-simplify-title">Fläche vereinfachen</h2>
+					<button id="ecosystem-simplify-close" class="ecosystem-properties-dialog__close" type="button" aria-label="Dialog schließen">×</button>
+				</div>
+				<form id="ecosystem-simplify-form" class="ecosystem-properties-dialog__form">
+					<label class="ecosystem-properties-dialog__field">
+						<span>Stärke</span>
+						<input id="ecosystem-simplify-strength" name="strength" type="range" min="0" max="100" step="1" value="0" />
+					</label>
+					<p id="ecosystem-simplify-count" class="ecosystem-properties-dialog__status" role="status"></p>
+					<p id="ecosystem-simplify-error" class="ecosystem-properties-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-properties-dialog__actions">
+						<span class="ecosystem-properties-dialog__spacer"></span>
+						<button id="ecosystem-simplify-cancel" class="ecosystem-properties-dialog__button" type="button">Abbrechen</button>
+						<button id="ecosystem-simplify-save" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary" type="submit">Übernehmen</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -2029,6 +2053,7 @@
 		<!-- Nach geometry-ops: beide hängen ihre Einträge an dasselbe Menü, und die Reihenfolge im Menü
 		     ist die der Registrierung. Pinsel und Radiergummi gehören ans Ende, vor „Fläche löschen". -->
 		<script src="js/map-features/map-features-ecosystem-brush.js"></script>
+		<script src="js/map-features/map-features-ecosystem-simplify.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>
