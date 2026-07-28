@@ -43,6 +43,20 @@
 	let brushCursorLayer = null;
 	let brushResultLayer = null;
 	let brushBound = false;
+	// 🔴 Strg+Z nimmt Strich für Strich zurück (Owner 2026-07-28). Der Stapel hält den Stand VOR jedem
+	// Strich; er überlebt das Beenden des Pinsels, damit „alles seit dem Benutzen" auch dann noch
+	// zurückgeht, wenn man zwischendurch aus dem Werkzeug raus ist. Geleert wird er erst, wenn der
+	// Pinsel auf einer ANDEREN Fläche anfängt -- ein Rückgängig darf nie auf einer Fläche landen, die
+	// der Editor gar nicht im Sinn hatte.
+	//
+	// 💣 Das ist bewusst NICHT die Audit-Historie. Die Regel des Owners (2026-07-26) lautet: das
+	// Änderungs-Log wird ausschliesslich per „Rückgängig" am benannten Eintrag zurückgenommen, NIE per
+	// Tastenkürzel -- ein Strg+Z, das in die Historie greift, nahm damals zwei Änderungen eines anderen
+	// Editors zurück. Dieser Stapel kennt nur die eigenen Striche dieser Sitzung auf DIESER Fläche.
+	const BRUSH_UNDO_LIMIT = 40;
+	let brushUndoStack = [];
+	let brushUndoAreaPublicId = "";
+	let brushUndoRevision = null;   // die Revision, die der letzte eigene Schreibvorgang hinterliess
 
 	function say(message, tone = "info") {
 		if (typeof showFeedbackToast === "function") {
@@ -62,16 +76,19 @@
 		return area?.geometry_geojson || area?.geometry || null;
 	}
 
-	// 🔴 Wenige Ecken bei kleinem, viele bei grossem Pinsel (Owner 2026-07-28). Nicht aus Sparsamkeit:
-	// ein 8-Eck mit 10 px Radius ist von einem Kreis nicht zu unterscheiden, ein 8-Eck mit 300 px ist
-	// sichtbar ein Achteck. Umgekehrt wären 48 Ecken je Stempel bei einem kleinen Pinsel tausende
-	// Stützpunkte in einer Fläche, die niemand braucht -- und jede davon reist für immer mit.
+	// 🔴 Mehr Ecken bei grossem Pinsel, aber DEUTLICH unterlinear (Owner 2026-07-28, zweite Fassung).
+	// Erste Fassung hielt die Kantenlänge konstant (~12 px je Segment) und kam damit auf 48 Ecken bei
+	// grossem Radius. Das war zu fein: die Stempel eines Strichs werden vereinigt, und was aussen liegt,
+	// bleibt als Stützpunkt in der Fläche -- für immer, in jeder Nutzlast, bei jedem Zeichnen. Ein
+	// perfekter Kreis ist ausdrücklich nicht das Ziel; eine Landschaftsgrenze ist keine Kreislinie.
 	//
-	// Bindeglied ist die Kantenlänge: rund 12 px je Segment, gedeckelt auf 8..48.
+	// Jetzt wächst die Zahl mit der vierten Wurzel-Nähe (Exponent 0,4): 10 px → 6, 40 px → 10,
+	// 80 px → 14, ab ~250 px → 20 als Deckel. Ein grosser Stempel ist damit ein grobes Vieleck, und
+	// genau das genügt, weil die Kante ohnehin unter dem nächsten Stempel verschwindet.
 	function brushVertexCount(radiusPx) {
-		const bySegment = Math.round((2 * Math.PI * Math.max(1, radiusPx)) / 12);
+		const scaled = Math.round(6 * Math.pow(Math.max(1, radiusPx) / 10, 0.4));
 
-		return Math.max(8, Math.min(48, bySegment));
+		return Math.max(6, Math.min(20, scaled));
 	}
 
 	// Der Stempel als GeoJSON-Polygon in KARTENkoordinaten. Gerechnet wird über Layer-Punkte, damit der
@@ -168,6 +185,91 @@
 		}
 	}
 
+	// ---- rückgängig -----------------------------------------------------------------------------------
+
+	function pushBrushUndoStep(geometry) {
+		if (!geometry) {
+			return;
+		}
+		brushUndoStack.push(JSON.parse(JSON.stringify(geometry)));
+		while (brushUndoStack.length > BRUSH_UNDO_LIMIT) {
+			brushUndoStack.shift();
+		}
+	}
+
+	// 💣 Ein Schnappschuss taugt nur zurück, solange die Fläche seither NIEMAND SONST angefasst hat.
+	// `expected_revision` schützt hier nicht: Rückgängig schickt die aktuelle Revision mit und würde eine
+	// fremde Änderung anstandslos überschreiben -- mit einem Stand von vor ihr. Deshalb merkt sich jeder
+	// Schreibvorgang, welche Revision er hinterlassen hat; passt sie nicht mehr, ist der Stapel wertlos
+	// und wird verworfen, statt Schaden anzurichten. Das ist die Übersetzung der Owner-Regel von
+	// 2026-07-26 auf dieses Werkzeug: das Kürzel nimmt EIGENE Arbeit zurück, nie fremde.
+	function brushUndoStackIsStale() {
+		const area = areaByPublicId(brushUndoAreaPublicId);
+		if (!area) {
+			return true;
+		}
+		return brushUndoRevision !== null && Number(area.geometry_revision) !== brushUndoRevision;
+	}
+
+	function canUndoBrush() {
+		if (brushUndoStack.length === 0) {
+			return false;
+		}
+		if (brushUndoStackIsStale()) {
+			brushUndoStack = [];
+			brushUndoRevision = null;
+			return false;
+		}
+
+		return true;
+	}
+
+	// 🪤 Der Strich war bereits GESPEICHERT -- rückgängig heisst hier also nicht „nicht abschicken",
+	// sondern den vorigen Stand zurückschreiben. Ein normaler Geometrie-Schreibvorgang mit der aktuellen
+	// Revision, kein Eingriff in die Historie: was der Editor selbst gemalt hat, nimmt er selbst zurück.
+	async function undoBrushStroke() {
+		if (brushSaving) {
+			return false;
+		}
+		const area = areaByPublicId(brushUndoAreaPublicId);
+		if (!area || brushUndoStack.length === 0) {
+			say("Nichts mehr zum Rückgängigmachen.", "info");
+			return false;
+		}
+
+		const previous = brushUndoStack.pop();
+		brushSaving = true;
+		try {
+			await postEcosystemEdit("update_area_geometry", {
+				public_id: String(area.public_id),
+				expected_revision: Number(area.geometry_revision),
+				geometry_geojson: previous,
+			});
+			if (typeof loadEcosystemAreas === "function") {
+				await loadEcosystemAreas();
+			}
+			if (typeof invalidateEcosystemRegionCache === "function") {
+				invalidateEcosystemRegionCache();
+			}
+			const frisch = areaByPublicId(brushUndoAreaPublicId);
+			brushWorkingGeometry = areaGeometry(frisch) || previous;
+			brushUndoRevision = Number(frisch?.geometry_revision ?? NaN);
+			brushDirty = false;
+			say(brushUndoStack.length > 0
+				? `Strich zurückgenommen — noch ${brushUndoStack.length} zum Zurücknehmen.`
+				: "Strich zurückgenommen — das war der erste.", "info");
+			return true;
+		} catch (error) {
+			// Zurück auf den Stapel: ein fehlgeschlagenes Rückgängig darf den Schritt nicht verbrauchen.
+			brushUndoStack.push(previous);
+			say(error?.message || "Rückgängig ist fehlgeschlagen.", "warning");
+			return false;
+		} finally {
+			brushSaving = false;
+			updateBrushPreview(null);
+		}
+	}
+
 	async function finishStroke() {
 		brushStrokeActive = false;
 		brushLastStampPoint = null;
@@ -197,6 +299,7 @@
 			// weitergehen, sonst rechnet der nächste gegen eine Revision, die es nicht mehr gibt.
 			const frisch = areaByPublicId(brushAreaPublicId);
 			brushWorkingGeometry = areaGeometry(frisch) || brushWorkingGeometry;
+			brushUndoRevision = Number(frisch?.geometry_revision ?? NaN);
 		} catch (error) {
 			say(error?.message || "Der Strich konnte nicht gespeichert werden.", "warning");
 			// Verworfen wird NICHTS: der Editor sieht seinen Stand weiter und kann es erneut versuchen.
@@ -215,6 +318,9 @@
 		L.DomEvent.stop(event);
 		brushStrokeActive = true;
 		brushLastStampPoint = null;
+		// Den Stand VOR diesem Strich merken -- nicht nach jedem Stempel: rückgängig gemacht wird ein
+		// Strich, nicht eine Mausbewegung. Genau das ist auch die Einheit, in der gespeichert wird.
+		pushBrushUndoStep(brushWorkingGeometry);
 		const latlng = map.mouseEventToLatLng(event);
 		stampAt(latlng);
 		brushLastStampPoint = map.latLngToLayerPoint(latlng);
@@ -295,6 +401,15 @@
 
 		brushMode = mode;
 		brushAreaPublicId = String(publicId || "");
+		// 🪤 Der Rückgängig-Stapel gehört der FLÄCHE, nicht dem Werkzeuggang: Pinsel und Radiergummi
+		// abwechselnd auf derselben Fläche sind ein Arbeitsgang und sollen sich gemeinsam zurücknehmen
+		// lassen. Erst der Wechsel auf eine ANDERE Fläche wirft ihn weg -- ein Strg+Z darf niemals auf
+		// einer Fläche landen, an die der Editor gerade gar nicht denkt.
+		if (brushUndoAreaPublicId !== brushAreaPublicId) {
+			brushUndoStack = [];
+			brushUndoAreaPublicId = brushAreaPublicId;
+			brushUndoRevision = null;
+		}
 		brushWorkingGeometry = geometry;
 		brushDirty = false;
 		bindBrushEvents();
@@ -359,5 +474,10 @@
 		radius: () => brushRadiusPx,
 		vertexCount: brushVertexCount,
 		stampGeometry: brushStampGeometry,
+		// Von der Tastenbindung in map-features-ecosystem-edit.js gerufen -- Strg+Z gehört dort dem
+		// ganzen Landschaftsmodus, und dieser Pinsel meldet nur an, dass er etwas zurückzunehmen hat.
+		canUndo: canUndoBrush,
+		undo: undoBrushStroke,
+		undoDepth: () => brushUndoStack.length,
 	};
 })();

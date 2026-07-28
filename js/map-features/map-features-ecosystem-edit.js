@@ -855,6 +855,15 @@ if (typeof document !== "undefined") {
 
 		event.preventDefault();
 		event.stopImmediatePropagation();
+		// 🔴 Der Pinsel zuerst (Owner 2026-07-28). Er und der Ecken-Editor sind nie gleichzeitig offen --
+		// startBrush schliesst die Griffe --, aber der Pinselstapel überlebt das Beenden des Werkzeugs:
+		// wer gemalt hat und danach das Werkzeug verlässt, will seine Striche trotzdem noch zurücknehmen
+		// können. Erst wenn dort nichts mehr liegt, kommt die laufende Ecken-Sitzung dran.
+		const brush = window.AvesmapsEcosystemBrush;
+		if (brush?.canUndo?.()) {
+			void brush.undo();
+			return;
+		}
 		if (session) {
 			undoEcosystemGeometryStep();
 			return;
