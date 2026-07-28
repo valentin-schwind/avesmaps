@@ -160,7 +160,18 @@
 			return null;
 		}
 		heightStack = buildEcosystemHeightStack(topographyAreas(), peakList());
-		stackDirty = false;
+		// 💣 EIN LEERES ERGEBNIS WIRD NICHT GEMERKT. Die Flächen kommen erst, wenn jemand die
+		// Landschaften-Ebene betritt -- die Nachzügler-Durchgänge beim Seitenstart (150/500/1200 ms)
+		// laufen also über eine LEERE `ecosystemLayers`. Wurde dieses Nichts als „sauber" abgelegt, baute
+		// der Stapel nie wieder, und die Topographie blieb für den Rest der Sitzung leer.
+		//
+		// Am Livestand genau so gemessen (2026-07-28): 9 Flächen geladen, davon 2 Gebirge, und trotzdem
+		// `fields: 0` -- ein `invalidate()` von Hand liess sofort 2 Felder und 1.005.335 gemalte Pixel
+		// erscheinen. Die eigene Abnahme hatte das nicht gefunden, weil sie die Flächen VOR dem ersten
+		// Zeichnen einspeiste und damit nie den echten Ablauf durchlief.
+		//
+		// Dieselbe Regel steht in V7 für den Territorien-Fächer, aus demselben Grund.
+		stackDirty = !heightStack || heightStack.fields.length === 0;
 
 		return heightStack;
 	}
