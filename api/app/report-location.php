@@ -33,6 +33,7 @@ const AVESMAPS_REPORT_TYPES = [
     'wueste' => ['type' => 'label', 'subtype' => 'wueste'],
     'suempfe_moore' => ['type' => 'label', 'subtype' => 'suempfe_moore'],
     'flussland_flusstal' => ['type' => 'label', 'subtype' => 'flussland_flusstal'],
+    'dschungel' => ['type' => 'label', 'subtype' => 'dschungel'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],

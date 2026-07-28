@@ -371,6 +371,7 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	steppe: { size: 18, minZoom: 2 },
 	suempfe_moore: { size: 17, minZoom: 3 },
 	flussland_flusstal: { size: 17, minZoom: 3 },
+	dschungel: { size: 15, minZoom: 4 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

@@ -129,6 +129,10 @@ body.edit-mode .map-label img {
 	color: #b5e0c4; /* Flussland/Flusstal: Auengrün mit Wasserstich, heller als Sümpfe und Moore */
 }
 
+.map-label--dschungel span {
+	color: #a3dcae; /* Dschungel: sattes, üppiges Grün -- kräftiger als Graslandschaft, kühler als Wald */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,

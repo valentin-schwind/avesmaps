@@ -97,6 +97,9 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // Editorzugriff von selbst dazu; eine bestehende wird NICHT überschrieben, ein hier geänderter
     // `label` erreicht also eine schon gesäte Art nicht mehr.
     ['vegetation', 'flussland_flusstal', 'Flussland/Flusstal', 80],
+    // Owner 2026-07-28. Eigene Art neben `wald`: der Regenwald von Meridiana ist keine dichtere Version
+    // des Farindel, sondern eine andere Bodendecke -- andere Farbe, anderer Reisewiderstand.
+    ['vegetation', 'dschungel', 'Dschungel', 90],
 ];
 
 // ---- kill switch + trial flag ----------------------------------------------------------------------
