@@ -152,9 +152,11 @@ function formatEcosystemAreaTooltip(area) {
 	const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
 	const kindLabel = ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "");
 	const typeLabel = String(area?.region_type || "").trim();
-	const trialSuffix = area?.is_trial ? " · Erprobung" : "";
 
-	return `${regionName} (${typeLabel ? `${typeLabel}, ` : ""}${kindLabel}${trialSuffix})`;
+	// Der Zusatz „· Erprobung" ist am 2026-07-28 entfallen (Owner: „das Erprobungs-Kennzeichen kann
+	// insgesamt raus — die brauchen wir weder in den Flächen noch im Derographiemenü"). Die Spalte
+	// `is_trial` bleibt vorerst in der Datenbank; sie wird hier nur nicht mehr angezeigt.
+	return `${regionName} (${typeLabel ? `${typeLabel}, ` : ""}${kindLabel})`;
 }
 
 // Selecting is what proves "only the active layer answers" (plan V3.0, step 7). It is deliberately

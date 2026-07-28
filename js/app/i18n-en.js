@@ -86,7 +86,7 @@ window.AVESMAPS_I18N_EN = {
 	"view.mode.original": "Original",
 	// Keyed by the <option> value, not by the German label -- unlike "deregraphic", which is historically
 	// keyed view.mode.standard. Editor-only trial mode behind ?landschaften=1.
-	"view.mode.ecosystem": "Landscapes (trial)",
+	"view.mode.ecosystem": "Landscapes",
 
 	// --- Landschaften (Erprobung): the layer switch above the map (V3.0). The three kind values stay
 	//     German in the DATA (domain vocabulary, AGENTS.md §2) -- only their LABELS are translated. ---
