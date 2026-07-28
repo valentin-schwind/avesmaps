@@ -1445,7 +1445,7 @@
 						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /><button type="button" id="label-edit-wiki-sync-text" class="location-edit-wiki-mini" disabled title="Text aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Text aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
 					</label>
 					<label class="location-report-form__field">
-						<span>Kategorie *</span>
+						<span>Art *</span>
 						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required>
 							<option value="region">Region</option>
 							<option value="fluss">Fluss</option>
@@ -1500,6 +1500,23 @@
 						     Markup ist entfernt, aber die GESPEICHERTEN Werte bleiben: review-labels.js
 						     schickt den Schlüssel nicht mehr mit, und der Server schreibt nur, was im
 						     Payload steht -- ein leer mitgesendetes Feld hätte sie stillschweigend gelöscht. -->
+						<!-- „Andere Quelle" ist WIEDER DA (Owner 2026-07-28). Am 28.07. hatte ich sie auf Zuruf
+						     entfernt; die Ansage war zurückgenommen -- manuelle Quellen an einem Label sollen
+						     bleiben. Sichtbar nur, solange KEINE Wiki-Landschaft zugewiesen ist; das steuert
+						     review-other-source.js, dieselbe Regel wie in jedem anderen Editor des Hauses. -->
+						<div class="label-edit-section" id="label-edit-other-source-section" hidden><div class="label-edit-section-title">Andere Quelle</div>
+							<div class="label-wiki-reference">
+								<label class="location-report-form__field">
+									<span>Andere Quelle:</span>
+									<input id="label-edit-other-source-url" type="url" inputmode="url" maxlength="500" placeholder="https://..." autocomplete="off" />
+								</label>
+								<label class="location-report-form__field">
+									<span>Linktext (optional)</span>
+									<input id="label-edit-other-source-label" type="text" maxlength="255" placeholder="Quelle" autocomplete="off" />
+								</label>
+								<div id="label-edit-other-source-preview" class="label-wiki-reference__list"></div>
+							</div>
+						</div>
 						<p id="label-edit-carriers" class="location-report-form__status" hidden></p>
 						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">

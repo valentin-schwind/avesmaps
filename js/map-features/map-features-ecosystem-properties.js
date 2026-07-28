@@ -125,6 +125,20 @@
 		return { wiki_key: area.wiki_region_key || "", name: area.region_name || "", wiki_url: area.wiki_url || "" };
 	}
 
+	// „Keine Art" heisst je Ebene etwas anderes (Owner 2026-07-28). „— ohne Art —" war eine Formel für
+	// alle drei und sagte in keiner etwas: in der Vegetationsebene ist die Antwort „hier wächst nichts
+	// Bestimmtes", und das schreibt man hin.
+	function emptyTypeLabel(kind) {
+		if (kind === "vegetation") {
+			return "— keine Vegetation —";
+		}
+		if (kind === "topographie") {
+			return "— keine Topographie —";
+		}
+
+		return "— keine Art —";
+	}
+
 	// Der VOLLE Schnappschuss derselben Zuweisung, wie ihn das Label braucht (Name, Art, Beschreibung,
 	// Bild — davon lebt seine Infobox). Die Region speichert nur Schlüssel und URL, deshalb der Umweg
 	// über dieselbe Staging-Quelle, aus der auch der „Sync"-Knopf im Label-Editor schöpft.
@@ -388,7 +402,7 @@
 		const typeSelect = propertiesElement("type");
 		if (typeSelect) {
 			typeSelect.innerHTML = "";
-			typeSelect.appendChild(new Option("— ohne Art —", "", true, true));
+			typeSelect.appendChild(new Option(emptyTypeLabel(area?.kind), "", true, true));
 			typeSelect.disabled = true;
 		}
 		// Anders als der Auto-Name-Haken braucht dieser hier KEIN Art-Vokabular -- er hängt allein am
@@ -416,7 +430,7 @@
 			setDeleteButtonReady(regionAreaCountLoaded);
 			if (typeSelect) {
 				typeSelect.innerHTML = "";
-				typeSelect.appendChild(new Option("— ohne Art —", "", false, false));
+				typeSelect.appendChild(new Option(emptyTypeLabel(area?.kind), "", false, false));
 				regionTypesForKind.forEach((type) => {
 					typeSelect.appendChild(new Option(type.label, type.type_key));
 				});
@@ -433,7 +447,12 @@
 			// schon getippt hat, soll das nicht überschrieben bekommen.
 			const autoNameBox = propertiesElement("autoname");
 			if (autoNameBox && nameInput && nameInput.value === String(area.region_name || "")) {
-				autoNameBox.checked = isEcosystemRegionAutoName(area.region_name, currentPropertiesArtLabel());
+				// 🔴 Bei einer FRISCHEN Fläche bleibt der Haken aus (Owner 2026-07-28). Sie trägt zwar schon
+				// einen Auto-Namen -- irgendwie muss sie ja heissen --, aber sie hat noch keine Art, und
+				// damit ist der Name nur ein Platzhalter, den der Editor gleich überschreibt. Ihn als
+				// „gewollt automatisch" vorzuhaken hiesse, den ersten getippten Namen wieder wegzurechnen.
+				autoNameBox.checked = String(area.region_type || "") !== ""
+					&& isEcosystemRegionAutoName(area.region_name, currentPropertiesArtLabel());
 				syncPropertiesAutoName();
 			}
 		} catch (error) {
@@ -504,6 +523,47 @@
 		box.disabled = !entry;
 		box.checked = Boolean(entry) && Boolean(entry.label?.isNodix);
 		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
+	}
+
+	// 🔴 Die Art der Fläche schlägt auf ALLE ihre Labels durch (Owner 2026-07-28). Seit eine Fläche
+	// mehrere Beschriftungen tragen darf, reicht es nicht, das primäre nachzuziehen: wer den Finsterkamm
+	// zum Wald macht, will nicht ein Wald-Label im Norden und ein Gebirgs-Label im Süden.
+	//
+	// 🪤 Nur den SUBTYP, nicht die Darstellung. Größe, Drehung und Zoom-Band gehören jedem Label selbst --
+	// ein zweites Label ist ja gerade deshalb da, weil es anders stehen soll. Deshalb reisen hier die
+	// eigenen Werte des jeweiligen Labels mit, nicht die des ersten.
+	async function applyRegionTypeToLabels(area, subtype, exceptPublicId) {
+		const regionPublicId = String(area?.region_public_id || "");
+		if (regionPublicId === "" || typeof labelData === "undefined" || !Array.isArray(labelData)
+			|| typeof submitMapFeatureEdit !== "function" || typeof ecosystemRegionOfLabel !== "function") {
+			return;
+		}
+
+		const betroffen = labelData.filter((label) => String(label.publicId || "") !== String(exceptPublicId || "")
+			&& String(ecosystemRegionOfLabel(label)?.public_id || "") === regionPublicId
+			&& String(label.labelType || "") !== String(subtype));
+
+		for (const label of betroffen) {
+			try {
+				await submitMapFeatureEdit({
+					action: "update_label",
+					public_id: label.publicId,
+					text: label.text,
+					show_name: label.showName !== false,
+					feature_subtype: subtype,
+					size: Number(label.size) || 18,
+					rotation: Number(label.rotation) || 0,
+					min_zoom: Number(label.minZoom) || 0,
+					max_zoom: Number(label.maxZoom) || 7,
+					priority: Number(label.priority) || 3,
+					is_nodix: Boolean(label.isNodix),
+					lat: label.coordinates?.[0],
+					lng: label.coordinates?.[1],
+				});
+			} catch (error) {
+				console.warn("Ein weiteres Label der Region konnte die neue Art nicht übernehmen:", error);
+			}
+		}
 	}
 
 	async function renameLinkedEcosystemLabel(area, name) {
@@ -646,6 +706,12 @@
 			// voneinander wussten. Seit eine derographische Region ihr Label automatisch bekommt
 			// (`label_public_id`), wären zwei Namen für dasselbe Ding schlicht ein Fehler.
 			await renameLinkedEcosystemLabel(area, name);
+			// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
+			await applyRegionTypeToLabels(
+				area,
+				String(propertiesElement("type")?.value || "") || "region",
+				String(area.label_public_id || "")
+			);
 			closeEcosystemPropertiesDialog();
 			await refreshAfterEcosystemPropertiesWrite();
 			if (typeof showFeedbackToast === "function") {

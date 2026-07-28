@@ -302,13 +302,13 @@ async function saveEcosystemAreaRing(ring) {
 		// 🔴 JEDE Region bekommt automatisch ihr Karten-Label (Owner 2026-07-27) -- am Point of
 		// Inaccessibility, mit denselben Eigenschaften wie jedes andere Label.
 		//
-		// GEZEICHNET wird zunächst nur das der derographischen: dort ist die Beschriftung die Regel, bei
-		// Wäldern und Seen wäre sie sofort ein volles Kartenbild. Das Label ist trotzdem da, mit Ort,
-		// Größe und Zoom-Band -- der Haken „Regionname anzeigen" im Eigenschaften-Dialog schaltet es
-		// sichtbar, ohne dass etwas neu entstehen muss.
+		// GEZEICHNET wird es von Anfang an, auf allen drei Ebenen (Owner 2026-07-28). Erst war es nur bei
+		// der derographischen sichtbar, aus Sorge um ein volles Kartenbild -- die Sorge war unbegruendet,
+		// weil das Zoom-Band die Menge ohnehin regelt. Der Haken „Regionname anzeigen" im Dialog schaltet
+		// es wieder aus, ohne dass etwas verloren geht.
 		// Art ist beim Zeichnen noch leer -- das Label startet als „region" und zieht nach, sobald im
 		// Dialog eine Art gewählt wird.
-		await createEcosystemRegionLabel(regionPublicId, geometry, name, kind === "derographisch", "");
+		await createEcosystemRegionLabel(regionPublicId, geometry, name, true, "");
 
 		// 💣 ERST das Label, DANN die Flaechen laden -- diese Reihenfolge ist der ganze Punkt.
 		// Umgekehrt (bis 2026-07-28) baute der Reload die Flaechenzeile, bevor createEcosystemRegionLabel

@@ -36,6 +36,9 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	// „Andere Quelle" ist aus diesem Dialog raus (Owner 2026-07-28) -- weder gelesen noch geschrieben.
 	// Ein bereits gespeicherter Wert bleibt am Feature liegen, weil der Save den Schluessel nicht mehr
 	// mitschickt und der Server nur schreibt, was im Payload steht.
+	if (typeof writeOtherSourceToForm === "function") {
+		writeOtherSourceToForm("label-edit", label.otherSource);
+	}
 	renderLabelCarrierNote(label);
 	syncLabelZoomRangeOutputs();
 	syncLabelSliderRowsFromNumbers();
@@ -76,6 +79,7 @@ async function renderLabelCarrierNote(label) {
 	// (ihr primaeres). Nur die Regionsrichtung zu lesen hiesse, das zweite und dritte Label einer
 	// Flaeche als heimatlos anzuzeigen -- und genau die sind der Sinn der Sache.
 	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
+	applyLabelTypeVocabulary(region, label);
 	if (!region) {
 		return;
 	}
@@ -84,6 +88,72 @@ async function renderLabelCarrierNote(label) {
 		? `Dieses Label wird von 1 Fläche getragen („${region.name}").`
 		: `Dieses Label wird von ${count} Flächen getragen („${region.name}").`;
 	note.hidden = false;
+}
+
+// 🔴 Ein Label GEHÖRT einer Ebene -- über seine Region (Owner 2026-07-28). Ein Vegetationslabel darf
+// deshalb nur Vegetations-Arten anbieten: „Gebirge" auf einem Waldstück ist keine Wahl, die jemand
+// treffen können soll. Das Vokabular kommt aus `ecosystem_region_type` DIESER Ebene -- dieselbe Liste,
+// aus der der Flächendialog seine Art-Auswahl füllt, nie eine zweite im Client.
+//
+// 🪤 Nur einschränken, wenn das Label wirklich an einer Fläche hängt. Kontinente, Meere und die freien
+// Karten-Titel gehören zu keiner Ebene und behalten die volle Liste aus dem Markup -- ihnen die
+// Vegetations-Arten vorzusetzen wäre die Einschränkung genau falsch herum.
+//
+// 💣 Der Subtyp des Labels IST der Art-Schlüssel der Region (`wald` ist beides; der V5-Import hat die
+// beiden Vokabulare gleichgesetzt). Wer hier eine Übersetzungstabelle einzieht, baut die zweite
+// Wahrheit, die es bisher nicht gibt.
+// 💣 Die volle Liste EINMAL wegheben. Das Auswahlfeld ist über alle Dialoge dasselbe Element: wer es
+// für ein Vegetationslabel eindampft und danach ein Label OHNE Fläche öffnet, bekäme dessen sieben
+// Vegetations-Arten vorgesetzt -- ein Kontinent hätte plötzlich zwischen Wald und Tundra zu wählen.
+let labelTypeFullMarkup = "";
+
+function applyLabelTypeVocabulary(region, label) {
+	const select = document.getElementById("label-edit-type");
+	if (select && labelTypeFullMarkup === "") {
+		labelTypeFullMarkup = select.innerHTML;
+	}
+	const kind = String(region?.kind || "");
+	if (!select) {
+		return;
+	}
+	if (kind === "" || typeof ecosystemRegionTypesByKind === "undefined") {
+		select.innerHTML = labelTypeFullMarkup;    // gehört zu keiner Ebene -> alles erlaubt
+		select.value = String(label?.labelType || "region");
+		return;
+	}
+	const types = ecosystemRegionTypesByKind[kind];
+	if (!Array.isArray(types) || types.length === 0) {
+		select.innerHTML = labelTypeFullMarkup;    // Vokabular noch nicht da -- lieber alles als eine falsche Auswahl
+		select.value = String(label?.labelType || "region");
+		return;
+	}
+
+	// „Keine Art" heisst beim LABEL der neutrale Subtyp `region`, nicht ein leerer Wert: ein Label ohne
+	// Subtyp hätte keinen Stil und würde ungezeichnet bleiben.
+	const wanted = String(label?.labelType || "region");
+	select.innerHTML = "";
+	select.appendChild(new Option(labelEmptyTypeLabel(kind), "region"));
+	types.forEach((type) => {
+		select.appendChild(new Option(type.label, type.type_key));
+	});
+	// Trägt das Label eine Art, die dieses Vokabular nicht kennt (Altbestand, oder die Region hat die
+	// Ebene gewechselt), bleibt sie als eigener Eintrag stehen -- sonst würde ein blosses Öffnen des
+	// Dialogs sie stillschweigend auf etwas anderes umstellen.
+	if (wanted !== "region" && !types.some((type) => String(type.type_key) === wanted)) {
+		select.appendChild(new Option(wanted + " (fremde Art)", wanted));
+	}
+	select.value = wanted;
+}
+
+function labelEmptyTypeLabel(kind) {
+	if (kind === "vegetation") {
+		return "— keine Vegetation —";
+	}
+	if (kind === "topographie") {
+		return "— keine Topographie —";
+	}
+
+	return "— keine Art —";
 }
 
 function openLabelEditDialog(options = {}) {
@@ -230,9 +300,9 @@ function buildLabelEditPayload(formElement) {
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
 		wiki_region: typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null,
-		// 💣 other_source wird bewusst NICHT mehr gesendet (Owner 2026-07-28, wie bei Orten im
-		// Mehrquellen-Umbau). Der Server schreibt nur Felder, die im Payload stehen -- ein leer
-		// mitgeschicktes other_source würde bestehende Werte stillschweigend löschen.
+		// Manuelle Quellen bleiben am Label (Owner 2026-07-28). Der Server fasst other_source nur an,
+		// wenn der Schlüssel mitkommt -- deshalb ist Mitschicken hier sicher und Weglassen wäre es auch.
+		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("label-edit") : { url: "", label: "" },
 	};
 
 	if (action === "create_label") {
