@@ -75,8 +75,24 @@ function avesmapsWikiSettlementClassLabel(string $class): string {
 // Dump-Bauwerks-Handler (Pass B) denselben Typ-Katalog gegen literale [[Kategorie:]]-Links matcht
 // (der Online-Crawl ergaenzt diese Liste zur Laufzeit noch um die Subkategorien von „Bauwerk nach
 // Art"; der Dump hat keine Kategorie-Enumeration -> literale Kategorie + Art als Quelle).
+// 🔴 DIE REIHENFOLGE IST TRAGEND. avesmapsWikiDumpCategoryAssembleBuildingMap behält den ERSTEN
+// Typ, der einen Titel beansprucht (dump-category-layer.php) -- eine spezifische Art muss also vor
+// ihrer Sammelkategorie stehen, sonst wird jeder Steinkreis als „Kultstätte" abgelegt und der
+// eigene Eintrag ist tote Zeile. Dieselbe Liste speist beide Wege: den (heute aufruferlosen)
+// Online-Crawl und die lebende Dump-Phase `online_building_map`.
 const AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES = [
-    'Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm', 'Bauwerk',
+    'Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm',
+    // Kult- und Höhlenstätten (Owner 2026-07-28, aus dem Abgleich der derographischen Listen).
+    // Zuerst die feinen Arten -- Steinkreis, Hexentanzplatz, Heiligtum, Schrein, Toteninsel und
+    // Borbarad-Kultstätte sind im Wiki Unterkategorien von „Kultstätte", „Pforte des Grauens" eine
+    // von „Unheiligtum". „Tempel" steht schon oben und behält damit seine Seiten wie bisher.
+    'Steinkreis', 'Hexentanzplatz', 'Heiligtum', 'Schrein', 'Toteninsel', 'Borbarad-Kultstätte', 'Pforte des Grauens',
+    // dann die Sammelkategorien
+    'Kultstätte', 'Unheiligtum',
+    // und die überschneidungsfreien. „Dungeon" ist kein Wiki-Begriff: dort gibt es nur Höhle und
+    // Grotte, und die bleiben getrennt (Owner-Entscheid), damit jede Art heißt wie ihre Kategorie.
+    'Höhle', 'Grotte', 'Sphärenruptur', 'Drachenhort', 'Feentor',
+    'Bauwerk',
 ];
 
 // Erster bekannter Bauwerkstyp aus einer Kategorienliste (Vergleich case-insensitiv gegen die

@@ -118,6 +118,12 @@ const WIKI_SYNC_SUBJECT_FACETS = {
 		// der von selbst Zeilen verschluckt, ist genau der unsichtbare Lügner, den die
 		// „heute"-Regel in js/ui/filter-menu.js vermeiden soll. Ein Klick genügt.
 		{ key: "scope", label: "Lage", kind: "multi", field: "place_scope_label" },
+		// Zweiter UNTERFILTER derselben Art: der genaue Bauwerkstyp (Festung/Turm/Steinkreis/…),
+		// den der Bauwerks-Crawl aus der Wiki-Kategorie mitbringt. Bei einer Stadt ist die Frage
+		// wieder sinnlos, deshalb dieselbe Zugehörigkeit wie bei „Lage" (settlementIsBuilding).
+		// NICHT vorbelegt: der Trichter nennt die Werte samt Zähler, und ein Filter, der von
+		// selbst Zeilen verschluckt, ist der unsichtbare Lügner aus js/ui/filter-menu.js.
+		{ key: "buildingType", label: "Art", kind: "multi", field: "building_type" },
 		{ key: "source", label: "Quelle", kind: "source", field: "" },
 		{ key: "coat", label: "Wappen", kind: "flag", field: "has_coat" },
 		{ key: "image", label: "Bilder", kind: "flag", field: "image_count" },

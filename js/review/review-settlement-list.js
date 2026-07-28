@@ -23,6 +23,7 @@ const settlementImageFilter = { value: "" };  // Bilder: "" = alle | "ja" | "nei
 // die „heute"-Regel in js/ui/filter-menu.js verbietet. `isActive` zählt ihn mit, der Knopf
 // weist ihn also als aktiv aus.
 const settlementScopeFilter = new Set(["außerorts", "unklar"]);
+const settlementBuildingTypeFilter = new Set(); // gewählte Bauwerks-Arten (leer = alle)
 
 // ===== Facetten-Werte AUS DEN ZEILEN =====================================================
 // Die Registry (js/review/review-subjects.js) sagt, WELCHES Feld eine Facette liest; welche
@@ -226,6 +227,7 @@ function settlementItemsIgnoringView() {
 		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
 	}
 	items = items.filter(settlementScopeMatches);
+	items = items.filter(settlementBuildingTypeMatches);
 	if (settlementSourceFilter.value) {
 		items = items.filter((item) => getItemSourceCategory(item) === settlementSourceFilter.value);
 	}
@@ -240,6 +242,7 @@ function settlementItemsIgnoringView() {
 const SETTLEMENT_COAT_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "coat");
 const SETTLEMENT_IMAGE_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "image");
 const SETTLEMENT_SCOPE_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "scope");
+const SETTLEMENT_BUILDING_TYPE_FACET = wikiSyncSubjectFacets("locations").find((facet) => facet.key === "buildingType");
 
 // ===== Lage als UNTERFILTER der Bauwerke ==================================================
 
@@ -297,6 +300,45 @@ function settlementScopeMatches(item) {
 		return true;
 	}
 	return settlementScopeFilter.has(settlementRowScope(item));
+}
+
+// ===== Art als zweiter UNTERFILTER der Bauwerke ===========================================
+
+// Der genaue Bauwerkstyp einer Zeile. Leer heißt „die Registry kennt noch keinen" -- das ist
+// eine eigene, filterbare Antwort und kein Fehler: genau daran findet ein Editor die Bauwerke,
+// die der Crawl noch nicht eingeordnet hat. Es als „unbekannt" WEGZULASSEN würde die Zeilen aus
+// dem Trichter kippen, ohne dass jemand sie je zu Gesicht bekommt.
+function settlementRowBuildingType(item) {
+	return String((item && item.building_type) || "").trim() || "ohne Art";
+}
+
+// Optionen NUR aus den Bauwerks-Zeilen -- sonst zählte der Unterfilter die 2400 Städte und
+// Dörfer als „ohne Art" mit und behauptete eine Menge, die er gar nicht filtert. Basismenge
+// bewusst OHNE die eigene Auswahl, gleiche Begründung wie bei settlementScopeOptions.
+function settlementBuildingTypeOptions() {
+	const byType = new Map();
+	settlementBaseFilteredItems().filter(settlementIsBuilding).forEach((item) => {
+		const type = settlementRowBuildingType(item);
+		if (!byType.has(type)) {
+			byType.set(type, { value: type, label: type, count: 0 });
+		}
+		byType.get(type).count += 1;
+	});
+	// Alphabetisch, „ohne Art" ans Ende -- es ist keine Art, sondern deren Fehlen.
+	return [...byType.values()].sort((a, b) => {
+		if (a.value === "ohne Art") return 1;
+		if (b.value === "ohne Art") return -1;
+		return a.label.localeCompare(b.label, "de");
+	});
+}
+
+// Wirkt NUR auf Bauwerke, aus demselben Grund wie settlementScopeMatches: ein Dorf soll nicht
+// verschwinden, weil es eine Frage nicht beantworten kann, die ihm niemand gestellt hat.
+function settlementBuildingTypeMatches(item) {
+	if (settlementBuildingTypeFilter.size === 0 || !settlementIsBuilding(item)) {
+		return true;
+	}
+	return settlementBuildingTypeFilter.has(settlementRowBuildingType(item));
 }
 
 // Ihre Optionen kommen bewusst aus der Basismenge OHNE die eigene Auswahl: sonst verschwindet
@@ -441,6 +483,7 @@ function renderSettlementList() {
 	// Trichters: sein Erscheinen hängt am Typ-Filter, und ein Klick auf „Bauwerke" lässt
 	// das Menü offen. Ohne diese Zeile taucht „Lage" erst beim nächsten Öffnen auf.
 	renderTypeFilter("", "settlement-scope-filter-menu", settlementScopeOptions(), settlementScopeFilter, SETTLEMENT_SCOPE_FACET.label);
+	renderTypeFilter("", "settlement-building-type-filter-menu", settlementBuildingTypeOptions(), settlementBuildingTypeFilter, SETTLEMENT_BUILDING_TYPE_FACET.label);
 	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");
 	renderRadioFilter("settlement-source-filter-toggle", "settlement-source-filter-menu", SOURCE_FILTER_OPTIONS, settlementSourceFilter, "Quelle");
 	renderRadioFilter("", "settlement-coat-filter-menu", settlementCoatOptions(), settlementCoatFilter, SETTLEMENT_COAT_FACET.label);
@@ -706,6 +749,7 @@ document.addEventListener("dragend", () => {
 AVESMAPS_WIKISYNC_FILTER_REBUILDS.push(attachFilterMenu("settlement-filter-toggle", "settlement-filter-menu", [
 	{ menuId: "settlement-type-filter-menu", kind: "multi", state: settlementTypeFilter, getOptions: settlementTypeOptions, label: "Typ", isActive: () => settlementTypeFilter.size > 0 },
 	{ menuId: "settlement-scope-filter-menu", kind: "multi", state: settlementScopeFilter, getOptions: settlementScopeOptions, label: SETTLEMENT_SCOPE_FACET.label, isActive: () => settlementScopeFilter.size > 0 },
+	{ menuId: "settlement-building-type-filter-menu", kind: "multi", state: settlementBuildingTypeFilter, getOptions: settlementBuildingTypeOptions, label: SETTLEMENT_BUILDING_TYPE_FACET.label, isActive: () => settlementBuildingTypeFilter.size > 0 },
 	{ menuId: "settlement-continent-filter-menu", kind: "multi", state: settlementContinentFilter, getOptions: settlementContinentOptions, label: "Kontinent", isActive: () => !(settlementContinentFilter.size === 1 && settlementContinentFilter.has("Aventurien")) },
 	{ menuId: "settlement-source-filter-menu", kind: "single", state: settlementSourceFilter, options: SOURCE_FILTER_OPTIONS, label: "Quelle", isActive: () => Boolean(settlementSourceFilter.value) },
 	{ menuId: "settlement-coat-filter-menu", kind: "single", state: settlementCoatFilter, getOptions: settlementCoatOptions, label: SETTLEMENT_COAT_FACET.label, isActive: () => Boolean(settlementCoatFilter.value) },
