@@ -299,15 +299,6 @@ async function saveEcosystemAreaRing(ring) {
 			geometry_geojson: geometry,
 		});
 		ecosystemPendingAreaRing = null;
-		// Rendered through the normal read path, never from the answer: one way onto the map, so a
-		// drawn area and a reloaded one can never look or behave differently. Awaited, because the
-		// properties dialog reads the area from the layer registry the reload fills.
-		if (typeof loadEcosystemAreas === "function") {
-			await loadEcosystemAreas();
-		}
-		if (typeof invalidateEcosystemRegionCache === "function") {
-			invalidateEcosystemRegionCache();
-		}
 		// 🔴 JEDE Region bekommt automatisch ihr Karten-Label (Owner 2026-07-27) -- am Point of
 		// Inaccessibility, mit denselben Eigenschaften wie jedes andere Label.
 		//
@@ -318,6 +309,22 @@ async function saveEcosystemAreaRing(ring) {
 		// Art ist beim Zeichnen noch leer -- das Label startet als „region" und zieht nach, sobald im
 		// Dialog eine Art gewählt wird.
 		await createEcosystemRegionLabel(regionPublicId, geometry, name, kind === "derographisch", "");
+
+		// 💣 ERST das Label, DANN die Flaechen laden -- diese Reihenfolge ist der ganze Punkt.
+		// Umgekehrt (bis 2026-07-28) baute der Reload die Flaechenzeile, bevor createEcosystemRegionLabel
+		// den label_public_id der Region gesetzt hatte. Der Dialog oeffnete danach auf einem LEEREN Zeiger:
+		// Haken "Regionname anzeigen" aus, Nodix gesperrt -- und beim Speichern legte er ein ZWEITES Label
+		// an, weil ohne Zeiger kein Label zu finden war. Genau so entstanden die Dubletten.
+		//
+		// Ueber den normalen Lesepfad gerendert, nie aus der Antwort: ein Weg auf die Karte, damit eine
+		// gezeichnete und eine nachgeladene Flaeche nie verschieden aussehen. Abgewartet, weil der
+		// Eigenschaften-Dialog die Flaeche aus der Registry liest, die dieser Reload fuellt.
+		if (typeof loadEcosystemAreas === "function") {
+			await loadEcosystemAreas();
+		}
+		if (typeof invalidateEcosystemRegionCache === "function") {
+			invalidateEcosystemRegionCache();
+		}
 
 		const areaPublicId = String(created?.area?.public_id || "");
 		if (areaPublicId && window.AvesmapsEcosystemProperties?.open) {
@@ -441,7 +448,19 @@ async function createEcosystemRegionLabel(regionPublicId, geometry, text, showNa
 		if (!labelPublicId) {
 			return;
 		}
-		await postEcosystemEdit("update_region", { public_id: regionPublicId, label_public_id: labelPublicId });
+		// 💣 Der Server laesst eine Region hoechstens EIN lebendes Label tragen. Weist er hier ab, waere das
+		// eben angelegte eine Waise: sichtbar auf der Karte, von keiner Region gekannt, von keinem Dialog
+		// erreichbar. Also wieder wegnehmen -- lieber gar kein Label als eines, das niemandem gehoert.
+		try {
+			await postEcosystemEdit("update_region", { public_id: regionPublicId, label_public_id: labelPublicId });
+		} catch (pointerError) {
+			try {
+				await submitMapFeatureEdit({ action: "delete_feature", public_id: labelPublicId });
+			} catch (rollbackError) {
+				console.warn("Das ueberzaehlige Label liess sich nicht zuruecknehmen:", rollbackError);
+			}
+			throw pointerError;
+		}
 		if (typeof addCreatedLabelFeature === "function") {
 			addCreatedLabelFeature(result.feature);
 		}
@@ -450,7 +469,12 @@ async function createEcosystemRegionLabel(regionPublicId, geometry, text, showNa
 		}
 	} catch (error) {
 		console.warn("Das Label der Region konnte nicht angelegt werden:", error);
-		showFeedbackToast?.("Die Fläche steht, aber ihr Label konnte nicht angelegt werden.", "warning");
+		// Den Grund des Servers durchreichen, wo er einen nennt -- "traegt bereits ein Label" ist eine
+		// Auskunft, mit der ein Editor etwas anfangen kann, "ging nicht" ist keine.
+		showFeedbackToast?.(
+			error?.message || "Die Fläche steht, aber ihr Label konnte nicht angelegt werden.",
+			"warning"
+		);
 	}
 }
 

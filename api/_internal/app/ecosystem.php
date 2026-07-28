@@ -1006,6 +1006,51 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     return ['region' => avesmapsEcosystemRegionSnapshot($row), 'revision' => $revision];
 }
 
+// 💣 EINE Region, HÖCHSTENS EIN lebendes Label. Der Riegel gegen die Dublette, nicht bloss gegen ihre
+// Ursache: wer die Region auf ein ANDERES Label zeigen laesst, waehrend das bisherige noch aktiv ist,
+// laesst das alte namenlos auf der Karte zurueck -- und genau so sahen die Dubletten vom 2026-07-28 aus
+// (der Zeichenpfad lud die Flaechen vor dem Anlegen des Labels, der Dialog sah einen leeren Zeiger und
+// legte ein zweites an).
+//
+// 🪤 Der GELOESCHTE Fall muss durch: ein Label einzeln zu loeschen setzt is_active = 0 und laesst den
+// Zeiger verwaist zurueck; das Wiederanhaken von „Regionname anzeigen" legt dann zu Recht ein neues an.
+// Deshalb zaehlt nur das LEBENDE Label, nie der blosse Zeiger.
+//
+// Ein Zeiger laesst sich weiterhin loeschen (label_public_id = '') -- danach ist er frei. Das ist der Weg
+// fuer einen bewussten Wechsel: erst loesen, dann neu setzen.
+// Die reine Entscheidung, getrennt von der Abfrage: WELCHES Label muesste noch leben, damit dieser
+// Schreibvorgang eine Dublette waere? '' heisst "keine Pruefung noetig".
+function avesmapsEcosystemLabelPointerToCheck(array $before, array $fields): string
+{
+    if (!array_key_exists('label_public_id', $fields) || $fields['label_public_id'] === null) {
+        return '';                                  // Zeiger nicht angefasst oder ausdruecklich geloest
+    }
+    $current = ($before['label_public_id'] ?? null) === null ? '' : (string) $before['label_public_id'];
+    if ($current === '' || $current === (string) $fields['label_public_id']) {
+        return '';                                  // noch keiner gesetzt, oder derselbe (idempotent)
+    }
+
+    return $current;
+}
+
+function avesmapsEcosystemAssertLabelPointerFree(PDO $pdo, array $before, array $fields): void
+{
+    $current = avesmapsEcosystemLabelPointerToCheck($before, $fields);
+    if ($current === '') {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        "SELECT 1 FROM map_features WHERE public_id = :public_id AND feature_type = 'label' AND is_active = 1 LIMIT 1"
+    );
+    $statement->execute(['public_id' => $current]);
+    if ($statement->fetchColumn() !== false) {
+        throw new InvalidArgumentException(
+            'Diese Region traegt bereits ein Label. Erst das bestehende loesen oder loeschen, dann ein neues zuweisen.'
+        );
+    }
+}
+
 function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): array
 {
     avesmapsEcosystemEnsureTables($pdo);
@@ -1026,6 +1071,7 @@ function avesmapsUpdateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     if ($effectiveType !== null) {
         avesmapsEcosystemAssertRegionType($pdo, $effectiveKind, $effectiveType);
     }
+    avesmapsEcosystemAssertLabelPointerFree($pdo, $before, $fields);
 
     $assignments = [];
     $params = ['public_id' => $publicId, 'user_id' => $userId > 0 ? $userId : null];
