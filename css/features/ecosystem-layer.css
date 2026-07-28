@@ -938,6 +938,61 @@
 	gap: var(--space-6);
 }
 
+/* Gipfelliste (V8). Das RASTER sitzt an der Liste, nicht an der Zeile -- nur so stehen Name, Feld und
+   Knopf über alle Zeilen hinweg in denselben Spalten. Jede Zeile ist `display: contents` und gibt ihre
+   vier Kinder direkt an dieses Raster weiter; am DOM ändert das nichts, `closest("[data-peak-id]")`
+   und `querySelector` arbeiten unverändert.
+
+   💣 Vorher hingen die Zeilen in __searchrow -- zwei Spalten, gebaut für „Feld + Knopf". Mit vier
+   Elementen brach das auseinander: der Knopf bekam eine eigene Zeile über die volle Breite, das
+   Zahlenfeld wurde so schmal, dass der Platzhalter abschnitt, und die Statuszeile ging unter. Genau
+   dadurch sah eine abgelehnte Speicherung aus wie „es passiert nichts". */
+.ecosystem-properties-dialog__peaks-list {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 5.5em auto;
+	align-items: center;
+	column-gap: var(--space-8);
+	row-gap: var(--space-6);
+}
+
+.ecosystem-properties-dialog__peakrow {
+	display: contents;
+}
+
+/* Lange Gipfelnamen kürzen statt das Raster zu sprengen -- der volle Name steht im title. */
+.ecosystem-properties-dialog__peakname {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ecosystem-properties-dialog__peakrow input[type="number"] {
+	width: 100%;
+	text-align: right;
+}
+
+/* Der Knopf schrumpft auf seine Beschriftung. In der alten Zeile streckte ihn das Raster über die
+   volle Breite, was ihn wie die Hauptaktion des Dialogs aussehen liess -- er speichert EINE Höhe. */
+.ecosystem-properties-dialog__peakrow .ecosystem-properties-dialog__button {
+	width: auto;
+	white-space: nowrap;
+}
+
+/* Die Statuszeile läuft über alle drei Spalten und steht damit unter IHRER Zeile. Sie trägt die
+   Antwort des Servers -- auch die abschlägige -- und ist der einzige Ort, an dem ein Editor erfährt,
+   warum eine Höhe nicht ankam. `min-height` aus __status wird hier bewusst aufgehoben: eine leere
+   Zeile je Gipfel wäre wieder der Versatz, um den es ging. */
+.ecosystem-properties-dialog__peakstatus {
+	grid-column: 1 / -1;
+	min-height: 0;
+	font-size: var(--font-size-small);
+}
+
+.ecosystem-properties-dialog__peakstatus[hidden] {
+	display: none;
+}
+
 /* Löschen links, Abbrechen/Speichern rechts -- der Abstandhalter trennt die zerstörerische Handlung
    von den beiden harmlosen, damit sie nicht nebeneinander geraten. */
 .ecosystem-properties-dialog__spacer {

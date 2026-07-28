@@ -597,16 +597,29 @@
 			return;
 		}
 
+		// 🔴 EIN Raster für die ganze Liste, die Zeilen tragen `display: contents` -- so stehen Name,
+		// Feld und Knopf über alle Zeilen hinweg in denselben Spalten. Vorher hing jede Zeile in der
+		// Suchfeld-Klasse (zwei Spalten, gebaut für „Feld + Knopf"), und meine VIER Elemente brachen
+		// daraus aus: der Knopf rutschte auf eine eigene Zeile, das Feld wurde schmal und die
+		// Statuszeile war praktisch unsichtbar. Vom Owner gemeldet 2026-07-28.
+		//
+		// 💣 `display: contents` an der Zeile ändert nichts am DOM: `data-peak-id`, `closest()` und
+		// `querySelector` arbeiten unverändert -- nur die Rasterzellen kommen aus der Liste.
+		const defaultHeight = typeof ECOSYSTEM_HEIGHT_DEFAULT === "number" ? ECOSYSTEM_HEIGHT_DEFAULT : 5000;
 		list.innerHTML = peaks.map((label) => {
 			const height = label.heightSchritt === null || label.heightSchritt === undefined ? "" : String(label.heightSchritt);
 			// 💣 Der Name ist KEIN Schlüssel -- „Horndrachenfels" liegt im Bestand zweimal. Die Zeile
 			// hängt an public_id, angezeigt wird nur der Name.
-			return '<div class="ecosystem-properties-dialog__searchrow" data-peak-id="' + escapeAttr(label.publicId) + '">'
-				+ '<span>' + escapeText(label.text || "(ohne Namen)") + '</span>'
-				+ '<input type="number" min="0" max="20000" step="1" inputmode="numeric" placeholder="nicht erfasst"'
+			return '<div class="ecosystem-properties-dialog__peakrow" data-peak-id="' + escapeAttr(label.publicId) + '">'
+				+ '<span class="ecosystem-properties-dialog__peakname" title="' + escapeAttr(label.text || "") + '">'
+				+ escapeText(label.text || "(ohne Namen)") + '</span>'
+				// Der Platzhalter zeigt die Vorgabe, mit der die Karte ohnehin rechnet -- nicht „nicht
+				// erfasst", was zwar richtig war, aber im schmalen Feld als „nicht erf" ankam.
+				+ '<input type="number" min="0" max="20000" step="1" inputmode="numeric"'
+				+ ' placeholder="' + defaultHeight + '" title="Höhe in Schritt. Leer = Vorgabe ' + defaultHeight + '."'
 				+ ' aria-label="Höhe in Schritt" value="' + escapeAttr(height) + '" />'
 				+ '<button type="button" class="ecosystem-properties-dialog__button" data-peak-save="1">Speichern</button>'
-				+ '<p class="ecosystem-properties-dialog__status" role="status" hidden></p>'
+				+ '<p class="ecosystem-properties-dialog__status ecosystem-properties-dialog__peakstatus" role="status" hidden></p>'
 				+ '</div>';
 		}).join("");
 	}

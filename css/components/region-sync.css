@@ -538,6 +538,14 @@
 	flex: 0 0 auto;
 }
 
+/* 💣 56 px reichen für die Nachbarn in dieser Reihe -- Größe (12–50), Drehung (0–360), Priorität (1–5)
+   sind höchstens dreistellig. Eine Höhe in Schritt ist FÜNFstellig, und „5000" wurde darin zu „500"
+   abgeschnitten (vom Owner gemeldet 2026-07-28). Die Zeile bekommt deshalb ihr eigenes Maß, statt das
+   der ganzen Reihe zu verstellen: die anderen drei sollen schmal bleiben. */
+.label-edit-sliderrow--wide input[type="number"] {
+	width: 5.5em;
+}
+
 .label-edit-sliderrow input[type="range"] {
 	flex: 1 1 auto;
 	min-width: 0;
