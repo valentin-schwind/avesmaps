@@ -1027,6 +1027,16 @@
 		if (propertiesBusy || !area) {
 			return;
 		}
+		// 🔴 KEIN eigener Geländeknopf mehr (Owner 2026-07-28): „ich will kein extra button ‚Gelände
+		// speichern' sondern, dass das gelände gespeichert wird, wenn ich unten auf ‚Speichern' klick."
+		//
+		// 🪤 VOR den Regionsfeldern, und nur wenn wirklich an einem Regler gedreht wurde. Die Reihenfolge
+		// ist bewusst: das Gelände hängt an der FLÄCHE und eigener Aktion, die Felder darunter an der
+		// REGION -- scheitert das Gelände, sagt seine eigene Statuszeile das, und der Rest läuft weiter,
+		// statt eine halb gespeicherte Fläche zu hinterlassen.
+		if (TERRAIN_FIELDS.some((feld) => terrainTouched[feld.key])) {
+			await saveTerrainSettings(false);
+		}
 
 		const name = String(propertiesElement("name")?.value || "").trim();
 		if (name === "") {
@@ -1233,11 +1243,13 @@
 				// dass man beim Ziehen sieht, was man tut.
 				if (area) {
 					area[feld.key] = Number(propertiesElement(feld.element)?.value);
+					// Schleier weg, solange gezogen wird -- beim Einstellen soll das Höhenmodell allein
+					// dastehen, nicht halb durch die Flächenfarbe (Owner 2026-07-28).
+					window.AvesmapsEcosystemHeightRender?.setSolid?.(true);
 					schedulePreviewRedraw();
 				}
 			});
 		});
-		propertiesElement("terrain-save")?.addEventListener("click", () => void saveTerrainSettings(false));
 		propertiesElement("terrain-auto")?.addEventListener("click", () => void saveTerrainSettings(true));
 		propertiesElement("wiki-sync")?.addEventListener("click", syncFromWikiRegion);
 		propertiesElement("wiki-remove")?.addEventListener("click", () => {

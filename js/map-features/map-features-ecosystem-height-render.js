@@ -428,9 +428,24 @@
 	// Die Flächen können nach dem ersten Zeichnen eintreffen; ein paar Nachzügler-Durchgänge holen sie.
 	[150, 500, 1200].forEach((delay) => window.setTimeout(redraw, delay));
 
+	// Von aussen: für die Dauer einer Reglerbewegung den Schleier abschalten (siehe CSS). Ein Zeitgeber
+	// holt ihn zurück, damit ein losgelassener Regler nicht dauerhaft den Vollton stehen lässt --
+	// `change` allein genügt nicht, weil ein Regler auch per Tastatur bewegt wird.
+	let solidTimer = 0;
+	function setHeightCanvasSolid(on) {
+		canvas.classList.toggle("avesmaps-ecosystem-height-canvas--solid", Boolean(on));
+		window.clearTimeout(solidTimer);
+		if (on) {
+			solidTimer = window.setTimeout(() => {
+				canvas.classList.remove("avesmaps-ecosystem-height-canvas--solid");
+			}, 900);
+		}
+	}
+
 	window.AvesmapsEcosystemHeightRender = {
 		redraw,
 		invalidate: invalidateEcosystemHeightField,
+		setSolid: setHeightCanvasSolid,
 		lastPaintMs: () => lastPaintMs,
 		stack: () => heightStack,
 	};
