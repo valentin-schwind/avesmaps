@@ -59,21 +59,27 @@ body.modal-dialog-open {
 	background: var(--color-scrim-dialog);
 }
 
-/* 🔴 ZWEI bewusste Ausnahmen vom Abdunkeln (Owner 2026-07-28): „Fläche vereinfachen" und „Grenze aus
-   Territorien" arbeiten AN der Karte. Beide zeigen ihre Wirkung als Vorschau auf der Fläche darunter --
+/* 🔴 DREI bewusste Ausnahmen vom Abdunkeln (Owner 2026-07-28): „Fläche vereinfachen", „Grenze aus
+   Territorien" und seit V8 auch „Fläche bearbeiten" arbeiten AN der Karte. Beide zeigen ihre Wirkung als Vorschau auf der Fläche darunter --
    der Regler das, was er wegnimmt, der Baum die Vereinigung der angehakten Grenzen -- und ein Schleier
    davor macht genau das unkenntlich, was zu beurteilen ist. Position, Zentrierung und Stapelhöhe kommen
    weiter aus den geteilten Listen; nur der Schleier fällt weg.
    Und die Karte darunter bleibt bedienbar: die Hülle reicht Zeiger durch, das Fenster selbst nicht --
    sonst läge über der ganzen Karte eine unsichtbare Scheibe. */
+/* V8: der Eigenschaften-Dialog kam dazu, als die drei Geländeregler live vorschauen lernten. Wörtlich
+   vom Owner: „genau das dialogfenster darf den hintergrund nicht grau machen, weil ich die veränderungen
+   im höhenmodell sehen will." Dieselbe Begründung wie bei den beiden darüber, nur an einem Regler statt
+   an einer Vorschau -- ein Schleier vor dem Relief macht unkenntlich, was der Regler gerade tut. */
 #ecosystem-simplify-overlay,
-#ecosystem-import-overlay {
+#ecosystem-import-overlay,
+#ecosystem-properties-overlay {
 	background: transparent;
 	pointer-events: none;
 }
 
 #ecosystem-simplify-overlay > *,
-#ecosystem-import-overlay > * {
+#ecosystem-import-overlay > *,
+#ecosystem-properties-overlay > * {
 	pointer-events: auto;
 }
 
