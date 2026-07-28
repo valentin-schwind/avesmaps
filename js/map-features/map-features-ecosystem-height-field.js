@@ -21,6 +21,21 @@
 // Wie viele Verfeinerungsstufen über der groben. Fest verdrahtet und dokumentiert, nicht nach Augenmaß:
 // die Buckelzahl verzerrt das Ergebnis selbst -- der Reisezeit-Faktor steigt monoton mit ihr, und das
 // Vorzeichen der Richtungs-Asymmetrie kippt zwischen 2 und 4 Buckeln (oekosystem-instruction.md §4.1).
+// Welche Label-Subtypen sind für V8 ein Gipfel? 🔴 EINE Liste, von allen fünf Stellen gelesen
+// (Ebenenumschaltung, Label-Dialog, Flächendialog, Zeichnen, Kontextmenü) -- eine zweite wäre die
+// Sorte Doppelpflege, an der `vulkan` schon einmal durchgefallen ist.
+//
+// `vulkan` gehört dazu, seit er am 2026-07-27 ein eigener Subtyp wurde: er wird wie ein Berggipfel
+// gezeichnet, ist ein topographischer PUNKT und hat eine Höhe. Ihn auszunehmen wäre der Sonderfall,
+// nicht ihn aufzunehmen.
+// ⚠️ Am 2026-07-28 gibt es live **kein einziges** `vulkan`-Label (Revision 45280). Die Regel greift
+// also erst, wenn welche gesetzt werden -- sie ist Vorsorge, keine Reparatur.
+const ECOSYSTEM_PEAK_SUBTYPES = ["berggipfel", "vulkan"];
+
+function isEcosystemPeakSubtype(subtype) {
+	return ECOSYSTEM_PEAK_SUBTYPES.includes(String(subtype || ""));
+}
+
 const ECOSYSTEM_HEIGHT_LEVELS = 3;
 // Körnung: Kantenlänge der groben Zelle = längste bbox-Seite / dieser Wert.
 const ECOSYSTEM_HEIGHT_GRAIN = 3.2;
@@ -416,6 +431,8 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		ECOSYSTEM_HEIGHT_LEVELS,
 		ECOSYSTEM_HEIGHT_PLACEHOLDER,
+		ECOSYSTEM_PEAK_SUBTYPES,
+		isEcosystemPeakSubtype,
 		ecosystemHeightSeed,
 		ecosystemHeightCellHash,
 		buildEcosystemPeakWindow,

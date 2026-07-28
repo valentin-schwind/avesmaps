@@ -552,7 +552,7 @@
 				&& y >= Number(bounds.min_y) && y <= Number(bounds.max_y));
 
 		return labelData.filter((label) => {
-			if (String(label.labelType || "") !== "berggipfel") {
+			if (typeof isEcosystemPeakSubtype !== "function" || !isEcosystemPeakSubtype(label.labelType)) {
 				return false;
 			}
 			// 💣 Labels tragen [lat, lng] = [y, x] (Leaflet L.CRS.Simple), GeoJSON will [x, y].
@@ -636,7 +636,10 @@
 				public_id: labelPublicId,
 				text: label.text || "",
 				show_name: label.showName !== false,
-				feature_subtype: "berggipfel",
+				// 💣 SEINEN eigenen Subtyp, nicht "berggipfel" fest. `update_label` setzt den Subtyp
+				// bedingungslos aus dem Payload -- ein `vulkan`, dessen Höhe hier gespeichert wird, wäre
+				// danach ein Berggipfel gewesen. Der Dialog ändert Höhen, nicht Arten.
+				feature_subtype: String(label.labelType || "berggipfel"),
 				size: Number(label.size) || 18,
 				rotation: Number(label.rotation) || 0,
 				min_zoom: Number(label.minZoom) || 0,

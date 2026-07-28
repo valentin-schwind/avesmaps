@@ -129,7 +129,7 @@
 		}
 
 		return labelData
-			.filter((label) => String(label?.labelType || "") === "berggipfel")
+			.filter((label) => isEcosystemPeakSubtype(label?.labelType))
 			.map((label) => ({
 				publicId: String(label.publicId || ""),
 				x: Number(label.coordinates?.[1]),

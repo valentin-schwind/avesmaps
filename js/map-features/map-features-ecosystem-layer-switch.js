@@ -113,8 +113,14 @@ function isEcosystemPeakLabel(labelPublicId) {
 		return false;
 	}
 
+	// 🪤 Bewacht: diese Funktion hängt an syncEcosystemPaneStates, und ein Wurf hier reisst den ganzen
+	// Ebenenwechsel mit. Fehlt das Höhenmodul, gilt „kein Gipfel" -- das Vorverhalten, nicht ein Fehler.
+	if (typeof isEcosystemPeakSubtype !== "function") {
+		return false;
+	}
+
 	return labelData.some((label) => String(label?.publicId || "") === publicId
-		&& String(label?.labelType || "") === "berggipfel");
+		&& isEcosystemPeakSubtype(label?.labelType));
 }
 
 // Ein Gipfel in der Topographie-Ebene: sichtbar, anklickbar und direkt ziehbar. Die Klasse hebt für
@@ -137,10 +143,15 @@ function isEcosystemLabelMuted(labelPublicId) {
 		return false;
 	}
 	const publicId = String(labelPublicId || "");
-	// 🔴 V8: ein `berggipfel` ist in der TOPOGRAPHIE kein fremdes Label, sondern deren Arbeitspunkt.
-	// Er trägt die Höhe, aus der das Höhenfeld entsteht (oekosystem-editor-leitfaden.md §1.4), und wer
-	// ihn blass und klickdurchlässig macht, macht genau das unbedienbar, was diese Ebene bearbeitet.
-	// Die Regel gilt NUR für diesen einen Subtyp -- jeder andere behält sein heutiges Verhalten.
+	// 🔴 V8: ein Gipfel ist in der TOPOGRAPHIE kein fremdes Label, sondern deren Arbeitspunkt. Er trägt
+	// die Höhe, aus der das Höhenfeld entsteht (oekosystem-editor-leitfaden.md §1.4), und wer ihn blass
+	// und klickdurchlässig macht, macht genau das unbedienbar, was diese Ebene bearbeitet.
+	//
+	// Welche Subtypen als Gipfel zählen, steht an EINER Stelle (ECOSYSTEM_PEAK_SUBTYPES): heute
+	// `berggipfel` und `vulkan`. Jeder andere Label-Typ behält sein bisheriges Verhalten.
+	//
+	// 💣 Das ist der Grund, warum in der Topographie „keine Gipfel zu sehen" waren: KEINER der 62 trägt
+	// ein `ecosystem_region_public_id`, sie galten also allesamt als fremd -- blass und klickdurchlässig.
 	if (activeKind === "topographie" && isEcosystemPeakLabel(publicId)) {
 		return false;
 	}

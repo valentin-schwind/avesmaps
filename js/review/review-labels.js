@@ -252,7 +252,8 @@ function syncLabelHeightRow() {
 	if (!row) {
 		return;
 	}
-	row.hidden = String(document.getElementById("label-edit-type")?.value || "") !== "berggipfel";
+	row.hidden = typeof isEcosystemPeakSubtype !== "function"
+		|| !isEcosystemPeakSubtype(document.getElementById("label-edit-type")?.value);
 }
 
 // Delegated, like the slider mirroring below: the dialog markup is static, but binding directly would
@@ -439,7 +440,7 @@ function buildLabelEditPayload(formElement) {
 	// (array_key_exists), so sending it for a non-peak label would write a height onto something that
 	// has no business carrying one -- and sending it as `null` from a hidden row would DELETE the
 	// height of a label that was merely retyped and typed back.
-	if (payload.feature_subtype === "berggipfel") {
+	if (typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(payload.feature_subtype)) {
 		const rawHeight = String(formData.get("height_schritt") ?? "").trim();
 		payload.height_schritt = rawHeight === "" ? null : rawHeight;
 	}
