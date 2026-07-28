@@ -648,7 +648,22 @@ console.log("ecosystem-height-field: all assertions passed");
         zeigt, dass Flächen ohne Gipfel gebraucht werden, ist das eine **eigene Frage an den
         Owner**, keine stille Ergänzung.
 
-- [ ] **Schritt 4: Tests laufen lassen**, bis alle sieben grün sind.
+> 🔴 **BEIM BAUEN GEÄNDERT (2026-07-28): die Dämpfung wandert HINTER alle Stufen.** Der Prototyp
+> bestimmt sie allein aus der groben Stufe (`:521–533`) und wendet sie auf die feinen mit an — die
+> feinen kommen also **obendrauf**. Er weiß das und mildert es mit ×0,35 statt ×0,5 (`:535–538`),
+> behebt es aber nicht. **Hier nachgemessen: derselbe Berg wuchs von 1 auf 3 Stufen um 85 %.**
+>
+> Das ist genau der Fehler, vor dem `oekosystem-instruction.md` §4.1 warnt — „wie fein modelliere
+> ich" darf das Ergebnis nicht verändern, sonst verzerrt die Modellierungstiefe selbst die
+> Reisezeiten. Wird über **alle** Stufen gemessen und **einmal** gedämpft, ist `levels` ein reiner
+> Detailregler. **Nachher gemessen: 3,8 % Abweichung von 1 auf 4 Stufen** (Mittelwert über die
+> Fläche: 867,6 → 900,6 Schritt), und der Gipfel liest weiterhin exakt `3000.000`.
+>
+> 🪤 Und der zugehörige Test misst den **Mittelwert über die Fläche**, nie einen einzelnen Punkt: an
+> einer Stelle SOLL das feinere Feld abweichen, dafür sind die Stufen da. Die erste Fassung verglich
+> einen Punkt und schlug an einem korrekten Feld fehl.
+
+- [ ] **Schritt 4: Tests laufen lassen**, bis alle zehn grün sind.
 - [ ] **Schritt 5:** Script-Tag in `index.html`, **nach** `map-features-ecosystem-geometry.js`.
       Namen gegen `grep -rn` über `js/` prüfen (Falle 9).
 - [ ] **Schritt 6: Commit.**
