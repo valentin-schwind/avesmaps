@@ -142,10 +142,10 @@ try {
 assert($rejected === true, 'a near-miss is still rejected -- the whitelist stays a whitelist');
 
 // -------------------------------------------------------------- THE FOLDED UMLAUT KEYS ---
-// 💣 The mapping table is keyed by avesmapsWikiSyncCreateMatchKey's OUTPUT, and that folding drops
-// umlauts entirely instead of expanding them. These four asserts pin the folding itself, so that
-// "tidying" the table back to readable ASCII spellings fails loudly instead of silently switching
-// the type check off again for every Wueste/Kueste/Huegelland label.
+// 💣 The lookup folds both sides with avesmapsWikiSyncCreateMatchKey, and that folding drops
+// umlauts entirely instead of expanding them. These four asserts pin the folding itself: they are
+// what makes 'Hügelland' and 'Hugelland' two DIFFERENT entries rather than one, which is why both
+// spellings have to stay in the table.
 assert(avesmapsWikiSyncCreateMatchKey("H\u{00FC}gelland") === 'hgelland', 'the folding DROPS the umlaut, it does not expand it');
 assert(avesmapsWikiSyncCreateMatchKey("W\u{00FC}ste") === 'wste', 'same for Wueste');
 assert(avesmapsWikiSyncCreateMatchKey("K\u{00FC}ste") === 'kste', 'same for Kueste');
@@ -170,4 +170,45 @@ assert(avesmapsWikiRegionTypeConflict('gebirge', "H\u{00FC}gelland") === true, '
 assert(avesmapsWikiRegionTypeConflict('huegelland', "H\u{00FC}gelland") === false, 'and an agreeing label stays quiet');
 assert(avesmapsWikiRegionTypeConflict('wueste', "W\u{00FC}ste") === false, 'the 6 already-correct labels stay quiet');
 
-echo "ok: region art parsing + subtype mapping + vulkan + folded umlaut keys\n";
+// ---------------------------------------- THE TABLE'S OWN KEYS GO THROUGH THE SAME FOLDING ---
+// 💣 A lookup key is avesmapsWikiSyncCreateMatchKey's OUTPUT. An entry whose key is not already in
+// that form is DEAD: no wiki art can ever produce it. That is exactly how 'wuste', 'kuste',
+// 'hugelland' and 'halbwuste' sat here unreachable and kept the type check switched off for 18
+// labels. Hand-writing the folded spelling fixes those four but leaves the rule to human memory --
+// the next 'Öde' or 'Höhle' added to the table would be dead again, and silently so.
+// The lookup therefore folds the table's keys with the same function it folds the art with, so the
+// entries are written the way a human writes them and reachability is a property of the code.
+assert(array_key_exists("H\u{00FC}gelland", AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE), 'the table is written in readable German, not in pre-folded form');
+assert(array_key_exists("W\u{00FC}ste", AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE), 'the table is written in readable German, not in pre-folded form');
+
+// The permanent guard: EVERY entry has to be reachable through the public lookup. An art carrying
+// an umlaut, an accent or a sharp s can no longer become a silent no-op.
+foreach (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE as $tableArt => $tableSubtype) {
+    assert(
+        avesmapsWikiRegionArtToSubtype((string) $tableArt) === $tableSubtype,
+        'the entry "' . $tableArt . '" => "' . $tableSubtype . '" is unreachable: the lookup folds it to "'
+            . avesmapsWikiSyncCreateMatchKey((string) $tableArt) . '", which the table does not answer'
+    );
+}
+
+// 'ß' is the one special character the fold EXPANDS (to 'ss', see ascii-fold.php), so a single
+// "Großregion" entry answers both spellings and no ASCII twin is needed -- unlike the umlauts.
+assert(avesmapsWikiRegionArtToSubtype("Gro\u{00DF}region") === 'region', 'the sharp-s spelling resolves');
+assert(avesmapsWikiRegionArtToSubtype('Grossregion') === 'region', 'and so does the ss spelling, through the same entry');
+
+// Folding is lossy, so two readable keys CAN collapse onto one lookup key -- every character it
+// drops is a chance for that ("Öde" and "Ode" both fold to 'de'). Landing on the same subtype is
+// harmless; landing on different ones silently drops whichever entry loses the race, and no caller
+// would ever see the one that lost.
+$seenFoldedKeys = [];
+foreach (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE as $tableArt => $tableSubtype) {
+    $foldedKey = avesmapsWikiSyncCreateMatchKey((string) $tableArt);
+    assert(
+        !isset($seenFoldedKeys[$foldedKey]) || $seenFoldedKeys[$foldedKey][1] === $tableSubtype,
+        'the arts "' . ($seenFoldedKeys[$foldedKey][0] ?? '') . '" and "' . $tableArt . '" both fold to "'
+            . $foldedKey . '" but expect different subtypes -- one of them is unreachable'
+    );
+    $seenFoldedKeys[$foldedKey] = [$tableArt, $tableSubtype];
+}
+
+echo "ok: region art parsing + subtype mapping + vulkan + every table key reachable\n";

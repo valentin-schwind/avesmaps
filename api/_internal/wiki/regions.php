@@ -46,69 +46,91 @@ function avesmapsWikiRegionDefaultSeeds(): array {
 // Mapping Wiki-„Art" (erster Begriff, normalisiert wie der Match-Key: Umlaut-/ß-Faltung, lower,
 // nur Buchstaben/Ziffern) -> Avesmaps Label-Subtype. Steuert den Typ-Check. Nutzer-bestätigt.
 //
-// 💣 The KEY is whatever avesmapsWikiSyncCreateMatchKey produces, and that folding DROPS umlauts
-// instead of expanding them: 'Hügelland' -> 'hgelland', NOT 'hugelland' and NOT 'huegelland'
-// (api/_internal/text/ascii-fold.php -- the table reproduces the server, see its banner). So an
-// ASCII spelling like 'hugelland' can never be produced from the wiki art 'Hügelland' and matches
-// nothing. Measured against the live payload on 2026-07-27 (revision 44492): the four folded keys
-// were absent, so the type check was silently OFF for 18 labels, while the JS mirror
-// (LABEL_WIKI_ART_TO_SUBTYPE in js/review/review-label-wiki.js) keys on the real umlaut and DID
-// match -- server and client disagreed on the same label. Both spellings are listed below: the
-// folded one is what actually fires, the ASCII one covers an art written without the umlaut.
+// Write the keys the way the wiki writes the Art. avesmapsWikiRegionArtLookupTable() folds them
+// with avesmapsWikiSyncCreateMatchKey -- the same function that normalises the incoming art -- so
+// the spelling here never has to match the folded form, and an entry cannot be dead.
+//
+// 💣 Do NOT hand-fold the keys back. The folding DROPS umlauts instead of expanding them
+// ('Hügelland' -> 'hgelland', NOT 'hugelland'; api/_internal/text/ascii-fold.php reproduces the
+// server, see its banner). Until 2026-07-27 the table was keyed by the folded form and carried the
+// ASCII spellings 'hugelland', 'kuste', 'wuste', 'halbwuste', which no art can ever produce: those
+// four resolved to '' and the type check was silently OFF for 18 labels (revision 44492), while the
+// JS mirror (LABEL_WIKI_ART_TO_SUBTYPE in js/review/review-label-wiki.js) keys on the real umlaut
+// and DID match -- server and client disagreed about the same label. Fixing it by writing the
+// folded key by hand worked but left the rule to human memory; the next 'Öde' would be dead again.
+// Both spellings of an umlaut art are still listed: they fold to two different keys, and the ASCII
+// one covers an art typed without the umlaut. region-art-parsing-test.php walks every entry
+// through the lookup, so an unreachable one fails loudly instead of switching a check off.
 const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // region (Sammeltopf)
-    'region' => 'region', 'mischregion' => 'region', 'grossregion' => 'region',
-    'halbinsel' => 'region',
+    'Region' => 'region', 'Mischregion' => 'region', "Gro\u{00DF}region" => 'region',
+    'Halbinsel' => 'region',
     // tal (own subtype since 2026-07-27, Discord #51) -- both used to sit in the 'region' catch-all.
     // A Flusstal is a valley, so it maps here too. The header IMAGE is unaffected: there 'flusstal'
     // still resolves to the river picture (INFO_HEADER_IMAGE_BY_ART in js/ui/popups.js).
     // Consequence: the ~25 labels stored as 'region' whose wiki Art is Tal/Flusstal now report a
     // type conflict until an editor adopts the category -- that is the intended signal.
-    'tal' => 'tal', 'flusstal' => 'tal',
+    'Tal' => 'tal', 'Flusstal' => 'tal',
     // The wiki files these valley forms under Kategorie:Tal as well. Measured against the live
     // category on 2026-07-27 (74 pages): Schlucht 19, Talkessel 1, Klamm 1 -- without them a fifth
     // of all valleys had no expected subtype, so the "adopt from the wiki landscape" button could
     // not categorise them and they stayed in the 'region' catch-all. Krater (2 pages, both
     // off-continent) stays unmapped on purpose: a crater is not a valley.
-    'schlucht' => 'tal', 'klamm' => 'tal', 'talkessel' => 'tal',
+    'Schlucht' => 'tal', 'Klamm' => 'tal', 'Talkessel' => 'tal',
     // steppe (trockenes Grasland)
-    'steppe' => 'steppe',
+    'Steppe' => 'steppe',
     // gras-/auenlandschaft (eigene Grüntöne)
-    'graslandschaft' => 'graslandschaft', 'auenlandschaft' => 'auenlandschaft',
+    'Graslandschaft' => 'graslandschaft', 'Auenlandschaft' => 'auenlandschaft',
     // hügelland (Höhenland)
-    'hgelland' => 'huegelland', 'hugelland' => 'huegelland', 'hochland' => 'huegelland',
+    "H\u{00FC}gelland" => 'huegelland', 'Hugelland' => 'huegelland', 'Hochland' => 'huegelland',
     // tundra
-    'tundra' => 'tundra',
+    'Tundra' => 'tundra',
     // küste
-    'kste' => 'kueste', 'kuste' => 'kueste', 'klippe' => 'kueste',
+    "K\u{00FC}ste" => 'kueste', 'Kuste' => 'kueste', 'Klippe' => 'kueste',
     // ebene (Flachland/Tiefland)
-    'ebene' => 'ebene', 'tiefland' => 'ebene', 'flachland' => 'ebene',
+    'Ebene' => 'ebene', 'Tiefland' => 'ebene', 'Flachland' => 'ebene',
     // gebirge / wald
-    'gebirge' => 'gebirge', 'wald' => 'wald',
+    'Gebirge' => 'gebirge', 'Wald' => 'wald',
     // insel
-    'insel' => 'insel', 'inselgruppe' => 'insel',
+    'Insel' => 'insel', 'Inselgruppe' => 'insel',
     // meer
-    'meer' => 'meer', 'meeresteil' => 'meer', 'meerenge' => 'meer',
-    'bucht' => 'meer', 'golf' => 'meer',
+    'Meer' => 'meer', 'Meeresteil' => 'meer', 'Meerenge' => 'meer',
+    'Bucht' => 'meer', 'Golf' => 'meer',
     // see
-    'see' => 'see', 'seenlandschaft' => 'see',
+    'See' => 'see', 'Seenlandschaft' => 'see',
     // sümpfe/moore
-    'sumpf' => 'suempfe_moore', 'moor' => 'suempfe_moore', 'marschland' => 'suempfe_moore',
-    // wüste
-    'wste' => 'wueste', 'wuste' => 'wueste', 'halbwste' => 'wueste', 'halbwuste' => 'wueste',
+    'Sumpf' => 'suempfe_moore', 'Moor' => 'suempfe_moore', 'Marschland' => 'suempfe_moore',
+    // wüste -- the umlaut spelling is the real wiki art; the ASCII one covers an art written
+    // without it. They fold to two different keys, so both entries are needed and both are live.
+    "W\u{00FC}ste" => 'wueste', 'Wuste' => 'wueste', "Halbw\u{00FC}ste" => 'wueste', 'Halbwuste' => 'wueste',
     // berggipfel / kontinent
-    'berggipfel' => 'berggipfel', 'kontinent' => 'kontinent',
+    'Berggipfel' => 'berggipfel', 'Kontinent' => 'kontinent',
     // vulkan (own subtype since 2026-07-27) -- drawn exactly like a Berggipfel, peak marker
     // included, but kept a category of its own so an editor can classify it and the wiki Art
     // resolves. 34 of the 40 Kategorie:Vulkan pages carry Art=Vulkan.
-    'vulkan' => 'vulkan',
+    'Vulkan' => 'vulkan',
 ];
+
+// The table above, re-keyed by the SAME function that normalises the incoming art. That is the
+// whole point: a key only has to be a spelling of the art, not its folded form, so no entry can be
+// dead. Built once per request (~40 entries) and cached for the rest of it.
+function avesmapsWikiRegionArtLookupTable(): array {
+    static $byMatchKey = null;
+    if ($byMatchKey === null) {
+        $byMatchKey = [];
+        foreach (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE as $art => $subtype) {
+            $byMatchKey[avesmapsWikiSyncCreateMatchKey((string) $art)] = $subtype;
+        }
+    }
+
+    return $byMatchKey;
+}
 
 // Liefert den erwarteten Label-Subtype zu einer Wiki-Art ('' = unbekannt/kein Mapping).
 function avesmapsWikiRegionArtToSubtype(string $art): string {
     $first = (preg_split('/\s*[|,]\s*/u', trim($art)) ?: [''])[0];
     $key = avesmapsWikiSyncCreateMatchKey((string) $first);
-    return AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE[$key] ?? '';
+    return avesmapsWikiRegionArtLookupTable()[$key] ?? '';
 }
 
 // Typ-Konflikt zwischen Karten-Label und Wiki-Art. Unbekannte Art/Subtype => KEIN Konflikt (safe).
