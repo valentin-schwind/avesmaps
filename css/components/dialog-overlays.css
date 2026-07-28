@@ -9,6 +9,7 @@ body.modal-dialog-open {
 #location-report-overlay[hidden],
 #location-edit-overlay[hidden],
 #wiki-sync-resolve-overlay[hidden],
+#wiki-sync-dump-credentials-overlay[hidden],
 #wiki-sync-lore-overlay[hidden],
 #wiki-sync-conflicts-overlay[hidden],
 #path-edit-overlay[hidden],
@@ -32,6 +33,7 @@ body.modal-dialog-open {
 #location-report-overlay,
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
+#wiki-sync-dump-credentials-overlay,
 #wiki-sync-lore-overlay,
 #wiki-sync-conflicts-overlay,
 #path-edit-overlay,
@@ -85,6 +87,7 @@ body.modal-dialog-open {
 
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
+#wiki-sync-dump-credentials-overlay,
 #wiki-sync-lore-overlay,
 #wiki-sync-conflicts-overlay,
 #path-edit-overlay,
@@ -114,4 +117,27 @@ body.modal-dialog-open {
 	padding: min(16vh, 116px) 16px 24px;
 	background: var(--color-scrim-light);
 	backdrop-filter: blur(4px);
+}
+
+/* Verschiebbare Fenster (js/ui/dialog-drag.js): die Titelzeile ist der Griff. Am Aussehen aendert
+   sich nichts -- nur der Zeiger sagt, dass man hier anfassen kann, und die Textmarkierung ist aus,
+   damit das Ziehen nicht die Ueberschrift blau einfaerbt.
+
+   Dieselben Selektoren stehen im Modul; sie sind dort die Bedingung, hier das sichtbare Versprechen.
+   Nach der FORM gesucht statt nach Klassennamen (Begruendung im Modulkopf): so ist jedes kuenftige
+   Fenster ohne Zutun dabei, statt still liegenzubleiben. */
+[role="dialog"] > [class*="__head"],
+[role="dialog"] > [class*="-head"],
+[data-avesmaps-drag-handle] {
+	cursor: move;
+	user-select: none;
+}
+
+/* Eingabefelder in einer Kopfzeile bleiben Eingabefelder -- die Suche im Konflikte-Fenster sitzt
+   dort. Knoepfe brauchen keine Ausnahme: ihr eigenes cursor:pointer schlaegt das geerbte move. */
+[role="dialog"] > [class*="__head"] input,
+[role="dialog"] > [class*="-head"] input,
+[data-avesmaps-drag-handle] input {
+	cursor: auto;
+	user-select: text;
 }

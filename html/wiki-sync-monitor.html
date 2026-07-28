@@ -238,7 +238,8 @@
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
   .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:390px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
-  .modal-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; }
+  /* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js, unten geladen). */
+  .modal-title { font-size:var(--font-size-subhead); font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
   .modal-sub { color:var(--mut); font-size:var(--font-size-small); margin-bottom:10px; }
   .fld { display:block; margin:8px 0; font-size:var(--font-size-small); }
   .fld input[type=text], .fld input[type=file] { display:block; width:100%; margin-top:4px; }
@@ -390,6 +391,9 @@
 <!-- Der geteilte Filter-Trichter (avmFilterMenuAttach + Zeitraum-Abschnitt). Ersetzt die lokale
      Trichter-Nachimplementierung dieser Seite und die zwei „Zeige nur"-Zeilen. -->
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
+     dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
+<script src="/js/ui/dialog-drag.js"></script>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 // Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
