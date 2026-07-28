@@ -1214,3 +1214,13 @@
 .ecosystem-area--simplify-hidden {
 	display: none;
 }
+
+/* Der Höhenschleier (V8). Das Canvas liegt in einer eigenen Pane (z 420) ÜBER den Flächenfüllungen
+   (z 250) und unter den Labels (475). Es malt Graustufen mit voller Pixel-Deckkraft; wie viel
+   Regionsfarbe darunter durchkommt, entscheidet allein dieser eine Wert.
+   🪤 Deckkraft am ELEMENT, nicht als Alpha je Pixel: die Rampe läuft von Schwarz nach Weiss, nicht von
+   durchsichtig nach Weiss. Per-Pixel-Alpha hätte den Fuss eines Berges unsichtbar gemacht statt dunkel
+   -- und damit genau die Aussage verloren, für die 0 Schritt = schwarz überhaupt da ist. */
+.avesmaps-ecosystem-height-canvas {
+	opacity: var(--opacity-ecosystem-height);
+}
