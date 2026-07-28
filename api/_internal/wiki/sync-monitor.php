@@ -26,6 +26,9 @@ require_once __DIR__ . '/sync-monitor-identity.php';
 require_once __DIR__ . '/sync-monitor-model.php';
 // Model tree / audit / wiki-rows view lives in a sibling file (M5 split).
 require_once __DIR__ . '/sync-monitor-tree.php';
+// The global "Wappen: An/Aus" switch: editor_state reports its state, so the reader has to be here and
+// not only in the endpoint -- five other endpoints include this file too.
+require_once __DIR__ . '/../app/coat-display.php';
 
 function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
     // Basis-Wiki-Spiegel sicherstellen (idempotent) + Staging-Tabelle als Kopie davon.
@@ -229,6 +232,9 @@ function avesmapsWikiSyncMonitorEditorState(PDO $pdo): array {
         'diff' => ['new' => $row['diff_new'], 'changed' => $row['diff_changed'], 'deleted' => $row['diff_deleted']],
         'last_test_at' => $row['last_test_at'] ?? null,
         'last_apply_at' => $row['last_apply_at'] ?? null,
+        // State of the global "Wappen: An/Aus" toggle, so the ribbon button can render its label on load
+        // instead of guessing. Same trip as every other button state -- no extra request.
+        'coats_enabled' => avesmapsTerritoryCoatsEnabled($pdo),
         'model_fresh' => $fresh($row['last_rebuild_at'] ?? null),
         'diff_fresh' => $fresh($row['last_diff_at'] ?? null),
         'test_fresh' => $fresh($row['last_test_at'] ?? null),

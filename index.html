@@ -554,7 +554,7 @@
 						<div class="wiki-sync-locations-section">
 							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
-								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-scope-filter-section"><div class="type-filter__section-title">↳ Lage (nur Bauwerke)</div><div id="settlement-scope-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="settlement-coat-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="settlement-image-filter-menu"></div></div></div></div>
+								<div class="type-filter"><button type="button" id="settlement-filter-toggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="settlement-filter-menu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Typ</div><div id="settlement-type-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-scope-filter-section"><div class="type-filter__section-title">↳ Lage (nur Bauwerke)</div><div id="settlement-scope-filter-menu"></div></div><div class="type-filter__section type-filter__section--sub" id="settlement-building-type-filter-section"><div class="type-filter__section-title">↳ Art (nur Bauwerke)</div><div id="settlement-building-type-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="settlement-continent-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Quelle</div><div id="settlement-source-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Wappen</div><div id="settlement-coat-filter-menu"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Bilder</div><div id="settlement-image-filter-menu"></div></div></div></div>
 							</div>
 							<div id="settlement-list" class="review-panel__list wikisync-itemlist"></div>
 						</div>
@@ -888,6 +888,44 @@
 						<span class="ecosystem-properties-dialog__spacer"></span>
 						<button id="ecosystem-simplify-cancel" class="ecosystem-properties-dialog__button" type="button">Abbrechen</button>
 						<button id="ecosystem-simplify-save" class="ecosystem-properties-dialog__button ecosystem-properties-dialog__button--primary" type="submit">Übernehmen</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		<!-- V7: „Grenze aus Territorien …" — eine Landschaftsfläche aus VORHANDENEN Territoriengrenzen,
+		     statt sie nachzuzeichnen. Hierarchiebaum mit Häkchen, die Vereinigung als Vorschau auf der
+		     Karte, und nach dem Einfügen geht „Fläche vereinfachen" darüber auf.
+		     🔴 KOPIE, NIE VERKNÜPFUNG: die eingefügte Fläche folgt ihren Quellterritorien nicht.
+		     Die Overlay-Huelle (Position, Scrim, z-index) kommt aus css/components/dialog-overlays.css,
+		     wo #ecosystem-import-overlay in allen DREI Selektorlisten steht -- sonst erbt das <div>
+		     NICHTS und oeffnet hinter der Karte. -->
+		<div id="ecosystem-import-overlay" hidden>
+			<div id="ecosystem-import-dialog" class="ecosystem-import-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-import-title" tabindex="-1">
+				<div class="ecosystem-import-dialog__header">
+					<h2 id="ecosystem-import-title" data-i18n="ecosystem.import.dialogTitle">Grenze aus Territorien</h2>
+					<button id="ecosystem-import-close" class="ecosystem-import-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.import.closeAria">×</button>
+				</div>
+				<form id="ecosystem-import-form" class="ecosystem-import-dialog__form">
+					<p id="ecosystem-import-demo" class="ecosystem-import-dialog__note" hidden data-i18n="ecosystem.import.demoNote">Attrappen (?demo=1) — der Politik-Layer wird nicht gefragt.</p>
+					<label class="ecosystem-import-dialog__field">
+						<span data-i18n="ecosystem.import.kindLabel">Ebene der neuen Fläche</span>
+						<!-- Vorausgewählt „Derographische Region": politische Grenzen folgen am ehesten der
+						     Landgliederung (Owner-Entscheid 2026-07-28). -->
+						<select id="ecosystem-import-kind" name="kind"></select>
+					</label>
+					<label class="ecosystem-import-dialog__field">
+						<span data-i18n="ecosystem.import.filterLabel">Gebiet suchen</span>
+						<input id="ecosystem-import-filter" type="search" autocomplete="off" placeholder="Name …" data-i18n-placeholder="ecosystem.import.filterPlaceholder" />
+					</label>
+					<!-- Der Baum aus parent_public_id. Ein Häkchen nimmt seinen Teilbaum mit; jede Zeile
+					     sagt, ob der Layer für dieses Gebiet die Außengrenze oder die rohe Grenze hergibt --
+					     wählen lässt sich das nicht (map-features-ecosystem-territory-import.js, Kopf). -->
+					<div id="ecosystem-import-list" class="ecosystem-import-dialog__list" role="group" aria-labelledby="ecosystem-import-title"></div>
+					<p id="ecosystem-import-status" class="ecosystem-import-dialog__summary" role="status"></p>
+					<p id="ecosystem-import-error" class="ecosystem-import-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-import-dialog__actions">
+						<button id="ecosystem-import-cancel" class="ecosystem-import-dialog__button" type="button" data-i18n="ecosystem.import.cancel">Abbrechen</button>
+						<button id="ecosystem-import-save" class="ecosystem-import-dialog__button ecosystem-import-dialog__button--primary" type="submit" data-i18n="ecosystem.import.save" disabled>Einfügen</button>
 					</div>
 				</form>
 			</div>
@@ -1892,7 +1930,7 @@
 						<p class="legal-dialog__discord"><strong data-i18n="legal.discord.lead">Discord.</strong> <span data-i18n="legal.discord.body">Fragen, Feedback oder einfach mitreden? Komm in die Avesmaps-Community auf Discord:</span> <a href="https://discord.gg/BSHEEpn6UX" target="_blank" rel="noopener noreferrer">discord.gg/BSHEEpn6UX</a></p>
 						<h3 class="legal-dialog__group" data-i18n="legal.group.project">Projekt und rechtlicher Status</h3>
 						<p> <strong data-i18n="legal.fanproject.lead">Fanprojekt.</strong> <span data-i18n="legal.fanproject.body">Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge und steht in keiner offiziellen Verbindung zu Ulisses Spiele, der Ulisses Medien & Spiel Distribution GmbH oder anderen Rechteinhabern. Die auf dieser Website enthaltenen Informationen zu Das Schwarze Auge, Aventurien und Dere sind inoffiziell, können unvollständig oder fehlerhaft sein und können offiziellen Publikationen widersprechen.</span> </p>
-						<p><strong data-i18n="legal.responsible.lead">Betreiber.</strong> <span data-i18n="legal.responsible.body">Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind; bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</span></p>
+						<p><strong data-i18n="legal.responsible.lead">Betreiber/Impressum.</strong> <span data-i18n="legal.responsible.body">Entwicklung, Gestaltung, Programmierung und Betrieb erfolgen durch Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); bei der Programmierung wird Claude Code eingesetzt. Verantwortlich für die redaktionelle Pflege der Mapinhalte ist Thomas Braun.</span></p>
 						<p> <strong data-i18n="legal.disclaimer.lead">Distanzierung von offizieller Verbindlichkeit.</strong> <span data-i18n="legal.disclaimer.body">Avesmaps ist ein Hilfsmittel für Spielrunden, Recherche und private Nutzung. Die Website ersetzt keine offiziellen DSA-Publikationen. Maßgeblich für Kanon, Regeln, Geographie, Namen, Grenzen und Beschreibungen bleiben ausschließlich die offiziellen Veröffentlichungen der jeweiligen Rechteinhaber.</span> </p>
 						<h3 class="legal-dialog__group" data-i18n="legal.group.copyright">Urheberrecht und Lizenzen</h3>
 						<p> <strong data-i18n="legal.trademark.lead">Marken- und Rechtehinweis.</strong> <span data-i18n="legal.trademark.body">Artwork © Ulisses Spiele, soweit nicht anders angegeben. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung von Grafiken, Kartenmaterial, Namen und sonstigem DSA-bezogenem Material erfolgt ausschließlich im Rahmen der von Ulisses Spiele erlaubten Richtlinien beziehungsweise einschlägigen Lizenzbedingungen. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen.</span> </p>
@@ -1962,6 +2000,10 @@
 		<script src="js/app/share-link.js"></script>
 		<script src="js/app/wiki-deeplink.js"></script>
 		<script src="js/routing/route-graph-core.js"></script>
+		<!-- Macht jedes Dialogfenster an seiner Titelzeile verschiebbar. Delegiert am document, ohne
+		     Abhängigkeiten und ohne Verdrahtung je Fenster; auch die erst beim Öffnen gebauten
+		     Dialoge sind dadurch dabei. Die Editor-iframes laden dieselbe Datei selbst. -->
+		<script src="js/ui/dialog-drag.js"></script>
 		<script src="js/ui/filter-bar.js"></script>
 		<script src="js/ui/feature-source-markup.js"></script>
 		<script src="js/ui/suggest-change-button.js"></script>
@@ -2071,6 +2113,13 @@
 		     ist die der Registrierung. Pinsel und Radiergummi gehören ans Ende, vor „Fläche löschen". -->
 		<script src="js/map-features/map-features-ecosystem-brush.js"></script>
 		<script src="js/map-features/map-features-ecosystem-simplify.js"></script>
+		<!-- V7 „Grenze aus Territorien …": haengt einen vierten Eintrag in das Untermenue „Hier
+		     hinzufuegen", muss also NACH context-action.js stehen, das die drei „Neue …" davor setzt.
+		     Und nach simplify.js, weil es dessen Eckenzaehlung benutzt und nach dem Einfuegen dessen
+		     Dialog oeffnet. Liest die Territorien ueber loadAllTerritoryGeometry
+		     (map-features-settlement-territory-assign.js, weiter unten geladen -- gerufen wird sie erst
+		     beim Klick, also reicht das). -->
+		<script src="js/map-features/map-features-ecosystem-territory-import.js"></script>
 		<!-- Die Rueckrichtung: was am Label geaendert wird, erreicht seine Flaeche. MUSS nach
 		     map-features-ecosystem-properties.js stehen -- sie ruft dessen
 		     window.AvesmapsEcosystemProperties.applyToLabels(), um die Geschwister nachzuziehen, und das

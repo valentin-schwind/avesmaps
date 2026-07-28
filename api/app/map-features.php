@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
+require_once __DIR__ . '/../_internal/app/coat-display.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 // Which label belongs to which landscape region. ONE definition of that relation, shared with
 // api/app/ecosystem-areas.php -- it is stored twice (once per direction) and neither side alone is
@@ -123,7 +124,16 @@ try {
     // ready-to-render political line for the infobox. Loaded ONCE (one small join over the territory
     // tables), resolved in memory per settlement -> no N+1, no lazy client fetch. See
     // avesmapsLoadSettlementPoliticalContext.
-    $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo);
+    // Global "Wappen: An/Aus" switches (ribbon toggles in the two editors). OFF replaces every coat URL
+    // with the placeholder; edit mode keeps the real ones so an editor still sees what they edit. Read
+    // once here (fail-open), then handed to the two places that emit a coat: the settlement breadcrumb
+    // (territory switch) and properties.coat on the settlement itself (settlement switch).
+    $mapFeaturesEditMode = trim((string) ($_GET['edit_mode'] ?? '')) === '1';
+    $territoryCoatsEnabled = $mapFeaturesEditMode
+        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
+    $settlementCoatsEnabled = $mapFeaturesEditMode
+        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_SETTLEMENT_COATS_SETTING);
+    $politicalContext = avesmapsLoadSettlementPoliticalContext($pdo, $territoryCoatsEnabled);
     // Global settlement-image kill switch (ribbon toggle in the Siedlungseditor): when OFF, no settlement
     // images reach the frontend at all. Read ONCE here (fail-open) and passed into the feature builder.
     $settlementImagesEnabled = avesmapsMapFeaturesSettlementImagesEnabled($pdo);
@@ -147,7 +157,7 @@ try {
     avesmapsMapFeaturesMergeLegacyOtherSources($rows, $sourceCatalog, $featureSourceRefs);
 
     $features = array_map(
-        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled),
+        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled, $settlementCoatsEnabled),
         $rows
     );
     // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
@@ -287,8 +297,17 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 
 // Schwacher ETag aus Revision + payload-bestimmenden Query-Parametern. Schwach (W/), weil gzip- und
 // Identity-Variante semantisch dieselbe Ressource sind. Stabil pro Revision -> 304 bei Reloads.
+// edit_mode is part of the seed because the two variants differ in CONTENT and coexist at the SAME
+// revision: with "Wappen: Aus" the public payload carries placeholder coat URLs while an edit-mode
+// request carries the real ones. Without it, a browser that cached one would be handed a 304 for the
+// other. The switch STATE needs no seed of its own -- flipping it bumps map_revision (see
+// api/edit/wiki/sync-monitor.php), exactly like the settlement-image switch.
 function avesmapsMapFeaturesETag(int $revision, array $queryParams): string {
-    $seed = (string) ($queryParams['since_revision'] ?? '') . '|' . (string) ($queryParams['bbox'] ?? '');
+    // Appended ONLY in edit mode, so the public seed stays byte-identical to what it was before this
+    // switch existed -- otherwise every visitor would re-download the whole payload once after the deploy
+    // for a marker that changes nothing for them.
+    $seed = (string) ($queryParams['since_revision'] ?? '') . '|' . (string) ($queryParams['bbox'] ?? '')
+        . (trim((string) ($queryParams['edit_mode'] ?? '')) === '1' ? '|e=1' : '');
     return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 
@@ -373,7 +392,7 @@ function avesmapsMapFeaturesPublicImageUrls($images): array {
     return $out;
 }
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true): array {
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = [], array $politicalContext = [], bool $settlementImagesEnabled = true, bool $settlementCoatsEnabled = true): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
             'type' => 'Feature',
@@ -414,6 +433,14 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         } else {
             unset($properties['images']);
         }
+    }
+
+    // Global "Wappen: Aus" (settlement switch): drop the coat instead of replacing it with the
+    // placeholder. Here the coat REPLACES the settlement icon (popups.js settlementCoatIconMarkup), so an
+    // empty shield would take information away rather than just the coat -- without properties.coat the
+    // head falls back to the settlement's own icon at its normal size.
+    if (!$settlementCoatsEnabled) {
+        unset($properties['coat']);
     }
 
     // Genauer Bauwerkstyp (Festung/Turm/…) + Ruine aus der Registry an die verbundene Wiki-Siedlung
@@ -523,7 +550,7 @@ function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
 // political_territory can hold several BF-era rows per wiki_key (different public_id, same wiki_key);
 // parent_id is an int FK to political_territory.id. Try/catch -> [] so a missing table/column can never
 // break the hot map-features payload.
-function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
+function avesmapsLoadSettlementPoliticalContext(PDO $pdo, bool $territoryCoatsEnabled = true): array {
     try {
         // t.short_name = manually curated short/colloquial name ("Mittelreich"); the wiki apply-flow NEVER
         // writes it (sync-monitor-identity.php), so it is empty until an editor curates it. Preferred over the
@@ -574,10 +601,15 @@ function avesmapsLoadSettlementPoliticalContext(PDO $pdo): array {
             'type' => trim((string) ($row['wiki_type'] ?? '')) ?: trim((string) ($row['territory_type'] ?? '')),
             'capital_key' => $capitalName !== '' ? avesmapsPoliticalNameKey($capitalName) : '',
             // Public-domain-gated coat URL (or '' when none/not allowed), mirroring territory-detail.php.
-            'coat_url' => avesmapsSettlementTerritoryCoatUrl(
-                trim((string) ($row['coat_of_arms_url'] ?? '')),
-                $coatStaging[$wikiKey] ?? [],
-                $coatOverrides[$wikiKey] ?? []
+            // The global "Wappen: Aus" switch swaps it for the placeholder afterwards -- one wrap here
+            // covers every breadcrumb thumbnail, because the whole "Liegt in" staircase reads byId.
+            'coat_url' => avesmapsCoatDisplayUrl(
+                avesmapsSettlementTerritoryCoatUrl(
+                    trim((string) ($row['coat_of_arms_url'] ?? '')),
+                    $coatStaging[$wikiKey] ?? [],
+                    $coatOverrides[$wikiKey] ?? []
+                ),
+                $territoryCoatsEnabled
             ),
         ];
 

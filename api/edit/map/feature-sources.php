@@ -46,10 +46,17 @@ try {
     // Waren" had shipped its own lore_source table, which duplicated a publication title into every
     // one of ~35.000 rows and cost the editor add/remove/autocomplete. Its entity_public_id is
     // lore_entry.wiki_key -- lore has no public_id, and the wiki_key IS its public identity.
-    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap', 'lore', 'powerline'];
+    //
+    // `ecosystem` joined 2026-07-28 (plan V4a) and is exactly the two-line change AGENTS.md §5
+    // describes: a landscape region needs sources like any other element, so it gets a name in this
+    // list -- NOT a table of its own. Its entity_public_id is ecosystem_region.public_id (a UUID).
+    // 🔴 Deliberately NOT reusing `region`: that one means a map_features REGION LABEL. A landscape
+    // region is a row in ecosystem_region, a different table with different ids -- sharing the key
+    // would silently join sources across two unrelated things.
+    $allowedTypes = ['settlement', 'region', 'path', 'territory', 'citymap', 'lore', 'powerline', 'ecosystem'];
 
     if (!in_array($entityType, $allowedTypes, true)) {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap oder lore sein.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type muss settlement, region, path, territory, citymap, lore, powerline oder ecosystem sein.');
     }
     if ($entityPublicId === '') {
         avesmapsErrorResponse(400, 'invalid_request', 'entity_public_id ist erforderlich.');

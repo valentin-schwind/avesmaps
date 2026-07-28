@@ -9,6 +9,7 @@ body.modal-dialog-open {
 #location-report-overlay[hidden],
 #location-edit-overlay[hidden],
 #wiki-sync-resolve-overlay[hidden],
+#wiki-sync-dump-credentials-overlay[hidden],
 #wiki-sync-lore-overlay[hidden],
 #wiki-sync-conflicts-overlay[hidden],
 #path-edit-overlay[hidden],
@@ -23,6 +24,7 @@ body.modal-dialog-open {
 #label-assign-overlay[hidden],
 #ecosystem-properties-overlay[hidden],
 #ecosystem-simplify-overlay[hidden],
+#ecosystem-import-overlay[hidden],
 #review-overlay[hidden] {
 	display: none !important;
 }
@@ -31,6 +33,7 @@ body.modal-dialog-open {
 #location-report-overlay,
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
+#wiki-sync-dump-credentials-overlay,
 #wiki-sync-lore-overlay,
 #wiki-sync-conflicts-overlay,
 #path-edit-overlay,
@@ -45,6 +48,7 @@ body.modal-dialog-open {
 #label-assign-overlay,
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
+#ecosystem-import-overlay,
 #review-overlay {
 	position: fixed;
 	inset: 0;
@@ -55,18 +59,21 @@ body.modal-dialog-open {
 	background: var(--color-scrim-dialog);
 }
 
-/* 🔴 EINE bewusste Ausnahme vom Abdunkeln (Owner 2026-07-28): „Fläche vereinfachen" arbeitet AN der
-   Karte. Sein Regler zeigt die Wirkung als Vorschau auf der Fläche darunter -- ein Schleier davor macht
-   genau das unkenntlich, was zu beurteilen ist. Position, Zentrierung und Stapelhöhe kommen weiter aus
-   den geteilten Listen; nur der Schleier fällt weg.
-   Und die Fläche darunter bleibt bedienbar: die Hülle reicht Zeiger durch, das Fenster selbst nicht --
+/* 🔴 ZWEI bewusste Ausnahmen vom Abdunkeln (Owner 2026-07-28): „Fläche vereinfachen" und „Grenze aus
+   Territorien" arbeiten AN der Karte. Beide zeigen ihre Wirkung als Vorschau auf der Fläche darunter --
+   der Regler das, was er wegnimmt, der Baum die Vereinigung der angehakten Grenzen -- und ein Schleier
+   davor macht genau das unkenntlich, was zu beurteilen ist. Position, Zentrierung und Stapelhöhe kommen
+   weiter aus den geteilten Listen; nur der Schleier fällt weg.
+   Und die Karte darunter bleibt bedienbar: die Hülle reicht Zeiger durch, das Fenster selbst nicht --
    sonst läge über der ganzen Karte eine unsichtbare Scheibe. */
-#ecosystem-simplify-overlay {
+#ecosystem-simplify-overlay,
+#ecosystem-import-overlay {
 	background: transparent;
 	pointer-events: none;
 }
 
-#ecosystem-simplify-overlay > * {
+#ecosystem-simplify-overlay > *,
+#ecosystem-import-overlay > * {
 	pointer-events: auto;
 }
 
@@ -80,6 +87,7 @@ body.modal-dialog-open {
 
 #location-edit-overlay,
 #wiki-sync-resolve-overlay,
+#wiki-sync-dump-credentials-overlay,
 #wiki-sync-lore-overlay,
 #wiki-sync-conflicts-overlay,
 #path-edit-overlay,
@@ -94,6 +102,7 @@ body.modal-dialog-open {
 #label-assign-overlay,
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
+#ecosystem-import-overlay,
 #review-overlay {
 	z-index: 1260;
 }
@@ -108,4 +117,27 @@ body.modal-dialog-open {
 	padding: min(16vh, 116px) 16px 24px;
 	background: var(--color-scrim-light);
 	backdrop-filter: blur(4px);
+}
+
+/* Verschiebbare Fenster (js/ui/dialog-drag.js): die Titelzeile ist der Griff. Am Aussehen aendert
+   sich nichts -- nur der Zeiger sagt, dass man hier anfassen kann, und die Textmarkierung ist aus,
+   damit das Ziehen nicht die Ueberschrift blau einfaerbt.
+
+   Dieselben Selektoren stehen im Modul; sie sind dort die Bedingung, hier das sichtbare Versprechen.
+   Nach der FORM gesucht statt nach Klassennamen (Begruendung im Modulkopf): so ist jedes kuenftige
+   Fenster ohne Zutun dabei, statt still liegenzubleiben. */
+[role="dialog"] > [class*="__head"],
+[role="dialog"] > [class*="-head"],
+[data-avesmaps-drag-handle] {
+	cursor: move;
+	user-select: none;
+}
+
+/* Eingabefelder in einer Kopfzeile bleiben Eingabefelder -- die Suche im Konflikte-Fenster sitzt
+   dort. Knoepfe brauchen keine Ausnahme: ihr eigenes cursor:pointer schlaegt das geerbte move. */
+[role="dialog"] > [class*="__head"] input,
+[role="dialog"] > [class*="-head"] input,
+[data-avesmaps-drag-handle] input {
+	cursor: auto;
+	user-select: text;
 }

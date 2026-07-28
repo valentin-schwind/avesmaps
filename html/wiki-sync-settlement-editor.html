@@ -231,7 +231,8 @@
   .modal { position:fixed; inset:0; background:var(--color-scrim-dialog); display:flex; align-items:center; justify-content:center; z-index:100; }
   .modal[hidden] { display:none; }
   .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:360px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
-  .modal-title { font-size:15px; font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; }
+  /* Der Titel ist zugleich der Griff zum Verschieben (js/ui/dialog-drag.js, unten geladen). */
+  .modal-title { font-size:15px; font-weight:bold; color:var(--color-text-strong); margin-bottom:2px; cursor:move; user-select:none; }
   .modal-sub { color:var(--mut); font-size:12px; margin-bottom:10px; }
   .modal .fld { display:block; font-size:12px; margin-bottom:9px; }
   .modal .fld input[type=file] { display:block; margin-top:4px; font:inherit; }
@@ -281,6 +282,7 @@
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seLocalizeCoats" title="Drei Schritte in einem: prüft die Wappen-Lizenzen im Wiki neu (nur die bisher unbekannten – sichtbare Wappen bleiben sichtbar), überträgt die gemeinfreien auf die Siedlungen und lädt ihre Bilder dann auf den Avesmaps-Server (verkleinert, max. 512px). Nur gemeinfrei, nur von Wiki Aventurica. Eigene Uploads werden nie angefasst. Läuft in Schüben."><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Siedlungsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
+    <button class="btn2" id="seCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Siedlungswappen im öffentlichen Frontend. Der Kopf der Infobox zeigt dann wieder das Siedlungs-Icon. Der Editor zeigt die Wappen weiter."><span class="t1" id="seCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Siedlungen auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Siedlungen</span></button>
   </div>
 </header>
@@ -359,6 +361,9 @@
      auch das Hauptfenster; das iframe bekommt seine eigene Kopie der Globalen. Vor dem Inline-Skript
      unten, das ihn für die linke Spalte verdrahtet. -->
 <script src="/js/ui/filter-menu.js"></script>
+<!-- Verschiebbare Fenster: greift die .modal-title dieser Seite. Die Fenster der Hauptseite bedient
+     dieselbe Datei dort; ein iframe braucht seine eigene Kopie, sein Dokument ist ein anderes. -->
+<script src="/js/ui/dialog-drag.js"></script>
 <script>
 const SETTLEMENT_EDITOR_API = "/api/edit/wiki/settlements.php";
 // Same curated model-tree endpoint as territory-wiki-tree.js / review-wiki-sync.js
@@ -2449,6 +2454,38 @@ async function toggleSettlementImagesEnabled() {
 }
 $("seImagesToggle")?.addEventListener("click", toggleSettlementImagesEnabled);
 
+// Global settlement-COAT switch (ribbon), same shape as the image one right above. "Off" does not blank
+// the head: without properties.coat the infobox falls back to the settlement's own icon (popups.js), so
+// the switch takes the coat away, not the picture slot.
+function setCoatsToggleState(enabled) {
+	const btn = $("seCoatsToggle");
+	const label = $("seCoatsToggleLabel");
+	if (label) label.textContent = enabled ? "Wappen: An" : "Wappen: Aus";
+	if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
+}
+async function toggleSettlementCoatsEnabled() {
+	const btn = $("seCoatsToggle");
+	if (!btn || btn.disabled) return;
+	const currentlyEnabled = btn.getAttribute("aria-pressed") !== "true";
+	const next = !currentlyEnabled;
+	btn.disabled = true;
+	try {
+		const response = await fetch(SETTLEMENT_EDITOR_API, {
+			method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "set_coats_enabled", enabled: next }),
+		});
+		const payload = await response.json().catch(() => null);
+		if (!response.ok || !payload || payload.ok !== true) throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		setCoatsToggleState(typeof payload.coats_enabled === "boolean" ? payload.coats_enabled : next);
+		setStatusText(next ? "Siedlungswappen im Frontend aktiviert." : "Siedlungswappen im Frontend deaktiviert (Editor zeigt sie weiter).");
+	} catch (error) {
+		setStatusText("Wappen-Schalter fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		btn.disabled = false;
+	}
+}
+$("seCoatsToggle")?.addEventListener("click", toggleSettlementCoatsEnabled);
+
 // Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
 // map's filter on every render (see its own tail call below) -- covers every list-filter change
 // (search/type/source/chip/tree) in one place, without wrapping/reassigning the function.
@@ -2670,6 +2707,7 @@ async function loadSettlementItems() {
 		}
 		settlementItems = Array.isArray(payload.items) ? payload.items : [];
 		if (typeof payload.images_enabled === "boolean") setImagesToggleState(payload.images_enabled);
+		if (typeof payload.coats_enabled === "boolean") setCoatsToggleState(payload.coats_enabled);
 		renderSettlementMid();
 	} catch (error) {
 		if (list) {

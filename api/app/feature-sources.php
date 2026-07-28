@@ -29,11 +29,15 @@ try {
 
     $entityType = trim((string) ($_GET['entity_type'] ?? ''));
     $entityPublicId = trim((string) ($_GET['entity_public_id'] ?? ''));
-    // citymap joined in with the Kartensammlung (Spec §3.2); lore joined 2026-07-22 (AGENTS.md §5).
-    $allowedTypes = ['settlement', 'territory', 'region', 'path', 'citymap', 'lore', 'powerline'];
+    // citymap joined in with the Kartensammlung (Spec §3.2); lore joined 2026-07-22 (AGENTS.md §5);
+    // ecosystem joined 2026-07-28 (plan V4a) -- a landscape region (ecosystem_region.public_id), NOT
+    // the map_features region label that `region` already means.
+    // 🔴 Must stay in step with the write path's list in api/edit/map/feature-sources.php: a type
+    // that may be written but not read stores sources nobody can see again.
+    $allowedTypes = ['settlement', 'territory', 'region', 'path', 'citymap', 'lore', 'powerline', 'ecosystem'];
 
     if (!in_array($entityType, $allowedTypes, true) || $entityPublicId === '') {
-        avesmapsErrorResponse(400, 'invalid_request', 'entity_type (settlement|territory|region|path|citymap|lore) und entity_public_id sind erforderlich.');
+        avesmapsErrorResponse(400, 'invalid_request', 'entity_type (settlement|territory|region|path|citymap|lore|powerline|ecosystem) und entity_public_id sind erforderlich.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);

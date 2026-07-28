@@ -23,6 +23,7 @@ require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
 require_once __DIR__ . '/territories-geometry-inventory.php';
 require_once __DIR__ . '/territories-claims.php';
+require_once __DIR__ . '/../app/coat-display.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -116,6 +117,15 @@ try {
                 }
             }
             $response = avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET);
+            // "Wappen: Aus" (global switch, territory editor): swap every coat URL for the placeholder
+            // BEFORE the payload is cached, so a cache hit serves the same thing a fresh build does.
+            // Edit mode keeps the real coats -- and the cache file is already keyed by edit_mode
+            // (avesmapsPoliticalLayerCacheFile), so the two variants cannot overwrite each other.
+            $response['features'] = avesmapsPoliticalApplyCoatDisplaySwitch(
+                (array) ($response['features'] ?? []),
+                avesmapsPoliticalReadBoolean($_GET['edit_mode'] ?? false)
+                    || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING)
+            );
             try {
                 $encodedLayer = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
                 $tmpLayer = $layerCacheFile . '.' . getmypid() . '.tmp';

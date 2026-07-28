@@ -174,6 +174,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Send to …",
 	"ecosystem.ctxmenu.properties": "Properties …",
+	"ecosystem.ctxmenu.importTerritory": "Boundary from territories …",
 
 	// --- Landschaften: editing an existing region's name, kind and wiki link (V6b). Deliberately NOT
 	//     the label dialog's strings: that one edits a map_features LABEL and carries size, rotation and
@@ -209,6 +210,25 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.transfer.cancel": "Cancel",
 	"ecosystem.transfer.save": "Send",
 	"ecosystem.transfer.saving": "Sending …",
+
+	// --- Landschaften: building an area out of EXISTING territory boundaries (V7). A COPY, never a link
+	//     -- the inserted area does not follow the territories it came from. "Outer boundary"/"Boundary"
+	//     say which geometry the political layer hands out for a given territory, which is not a choice
+	//     (the fan-out keeps one geometry per territory). ---
+	"ecosystem.import.dialogTitle": "Boundary from territories",
+	"ecosystem.import.closeAria": "Close dialog",
+	"ecosystem.import.demoNote": "Mock data (?demo=1) — the political layer is not queried.",
+	"ecosystem.import.kindLabel": "Layer of the new area",
+	"ecosystem.import.filterLabel": "Find a territory",
+	"ecosystem.import.filterPlaceholder": "Name …",
+	"ecosystem.import.loading": "Loading territories — seven requests, this takes a moment …",
+	"ecosystem.import.aggregate": "Outer boundary",
+	"ecosystem.import.raw": "Boundary",
+	"ecosystem.import.emptyAll": "No territories were loaded — the political layer returned nothing. Please try again.",
+	"ecosystem.import.emptyFilter": "No territory matches this search.",
+	"ecosystem.import.cancel": "Cancel",
+	"ecosystem.import.save": "Insert",
+	"ecosystem.import.saving": "Inserting …",
 
 	// --- Landschaften: the seventh list editor (WikiSync -> Regionen -> "Regionen bearbeiten").
 	//     Button and window title read the same words, so they share one key (spec §2). Only the
@@ -523,8 +543,8 @@ window.AVESMAPS_I18N_EN = {
 	"legal.wikiSync.body": "Part of the content — in particular territories, locations, regions and coats of arms — is regularly synchronized internally with Wiki Aventurica. The information found there, such as names, hierarchies, validity periods or coat-of-arms references, is first collected in staging tables, editorially reviewed and only selectively adopted into the map, corrected or supplemented. No automatic, unverified synchronization takes place, and Avesmaps makes no claim to be identical with the current state of Wiki Aventurica. In particular, many of the short descriptions and facts shown in the infoboxes (territories, regions, locations) come from the Wiki Aventurica; the relevant article is linked directly in the infobox (“More here”). The rights to these texts remain with their authors and are governed by the licence stated on the Wiki Aventurica.",
 	"legal.fanproject.lead": "Fan project.",
 	"legal.fanproject.body": "Avesmaps is a private, open, non-commercial fan project by Valentin Schwind. Avesmaps is not an official publication for Das Schwarze Auge and has no official connection to Ulisses Spiele, Ulisses Medien & Spiel Distribution GmbH, or other rights holders. The information about Das Schwarze Auge, Aventurien and Dere contained on this website is unofficial, may be incomplete or incorrect, and may contradict official publications.",
-	"legal.responsible.lead": "Operator.",
-	"legal.responsible.body": "Development, design, programming and operation are carried out by Valentin Schwind; programming is done with Claude Code. Thomas Braun is responsible for the editorial maintenance of the map content.",
+	"legal.responsible.lead": "Operator/Imprint.",
+	"legal.responsible.body": "Development, design, programming and operation are carried out by Valentin Schwind (c/o Nobelstr. 10, D-70569 Stuttgart); programming is done with Claude Code. Thomas Braun is responsible for the editorial maintenance of the map content.",
 	"legal.wappen.lead": "Coats of arms.",
 	"legal.wappen.body": "The coats of arms of the territories shown on the map are taken from Wiki Aventurica (imported via its \"Wappen-Link\" field). Only coats of arms classified as public domain according to the license marking adopted during import are displayed; coats with an unknown or restrictive license status remain hidden. The rights to the coats of arms remain with their respective creators and rights holders; their display on Avesmaps does not establish any rights to them. Upon notice from rights holders, the coats of arms concerned are reviewed and, where necessary, removed or adjusted.",
 	"legal.images.lead": "Images.",

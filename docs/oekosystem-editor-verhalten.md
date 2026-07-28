@@ -87,6 +87,58 @@ abgetrennte Stück den Namen seines Ursprungs, und ein späteres Umbenennen trä
 Wer zerschneidet, will zwei Dinge; wollte er eines, hätte er die Fläche mehrteilig
 gelassen.
 
+## 4a. Eine Fläche aus Territoriengrenzen (V7)
+
+**Rechtsklick auf die Karte → „Grenze aus Territorien …"** — vierter Eintrag im selben Untermenü
+*„Hier hinzufügen"*, hinter den drei *„Neue …"*. Es ist derselbe Vorgang wie §4, nur kommen die
+Ecken nicht aus der Hand, sondern aus vorhandenen Herrschaftsgebieten.
+
+> 🔴 **KOPIE, NIE VERKNÜPFUNG.** Die eingefügte Fläche ist ab dem Einfügen ein eigenständiges Objekt.
+> Sie merkt sich **nicht**, aus welchen Territorien sie entstand, und sie folgt ihnen **nicht**, wenn
+> dort jemand eine Grenze verschiebt. Das ist der Unterschied zwischen den beiden Ebenen: eine
+> politische Grenze *ist* eine Linie und wird verhandelt; ein Waldrand ist keine Grenze (§5). Eine
+> mitwandernde Landschaftsgrenze wäre eine stille Lüge — der Wald zöge um, weil eine Baronie neu
+> vermessen wurde. Wer dafür eine `source_territory_id` einführen will, redet vorher mit dem Owner;
+> das ist eine andere Funktion.
+
+Der Dialog fragt vier Dinge, in dieser Reihenfolge:
+
+| | |
+|---|---|
+| **Ebene der neuen Fläche** | Derographische Region · Vegetation · Topographie. Vorausgewählt ist **derographisch** — politische Grenzen folgen am ehesten der Landgliederung (Owner-Entscheid 2026-07-28). |
+| **Gebiet suchen** | Filter über den Baum. Ein Treffer zieht seine **Vorfahren** mit, sonst stünde er in einer Einrückung, die nichts bedeutet. |
+| **Der Baum** | Hierarchie aus `parent_public_id`, ein Häkchen je Gebiet. Ein Häkchen **nimmt seinen Teilbaum mit**; das Elternteil zeigt danach einen Teilzustand. |
+| **Die Zahlen** | Gewählte Gebiete, Teile, Ecken und die Nutzlast in KB — vor dem Schreiben, nicht danach. |
+
+Das Gebiet **unter dem Klickpunkt** ist vorausgehakt (das tiefste, das ihn enthält) — bei 945
+Gebieten ist das der Unterschied zwischen anhaken und suchen. Trifft der Klick nichts, ist nichts
+vorausgewählt.
+
+Die **Vereinigung liegt währenddessen als Vorschau auf der Karte**, in derselben Farbe wie die
+Vorschau des Vereinfachen-Dialogs. Deshalb hat dieses Fenster — wie jenes — **keinen Schleier**: die
+Karte darunter bleibt sichtbar und bedienbar, man kann während der Auswahl zoomen und verschieben.
+
+**Einfügen** legt eine **eigene Region** mit Auto-Namen und ihr Karten-Label an (wie beim Zeichnen,
+§4), stellt die Karte auf das Ergebnis — und öffnet **danach den vorhandenen Dialog „Fläche
+vereinfachen"** (§7b-Nachbar). Das ist kein Beiwerk: eine übernommene Grenze bringt politische
+Vertex-Dichte mit, und die loszuwerden ist der ganze Zweck. Gemessen an 56 Baronien: 2240 rohe Ecken
+→ 552 nach der Vereinigung → 150 bei Reglerstellung 75. Das Runden auf vier Nachkommastellen beim
+Schreiben nimmt davon unabhängig noch einmal rund ein Drittel der Nutzlast (10,1 statt 15,0 KB).
+
+> 💣 **Die Territorien werden über SIEBEN Anfragen geholt** — sie sind zoom-gebändert, ein einzelner
+> Aufruf liefert die meisten nicht. Deshalb läuft der Fächer nur **hinter dieser ausdrücklichen
+> Aktion** und **je Sitzung höchstens einmal** (dieselbe Regel wie bei „Zugehörigkeit rechnen",
+> §7f). Ein **leeres** Ergebnis wird ausdrücklich *nicht* gemerkt: ein weggebrochener Endpunkt sähe
+> sonst für den Rest der Sitzung aus wie „es gibt keine Territorien".
+>
+> 💣 **Aggregat oder rohe Geometrie ist nicht wählbar.** Der Ladeweg behält eine Geometrie je Gebiet —
+> „erste Zoomstufe, die es zeigt, gewinnt". Jede Zeile sagt deshalb, welche es wurde
+> (*„Außengrenze"* bzw. *„Grenze"*), statt eine Wahl vorzutäuschen.
+>
+> 🔴 **Politische Dateien werden gelesen, nie geschrieben** (Owner-Freigabe 2026-07-28 gilt nur für
+> den Leseweg). Gelesen wird über `loadAllTerritoryGeometry()`, denselben Helfer, den der
+> Siedlungseditor und die Zugehörigkeitsrechnung schon benutzen.
+
 ## 5. Eine Fläche bearbeiten
 
 | Geste | Wirkung |

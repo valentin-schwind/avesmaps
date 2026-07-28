@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
+require_once __DIR__ . '/../_internal/app/coat-display.php';
 
 const AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE = 'wiki_territory_model';
@@ -168,6 +169,19 @@ try {
             'attribution' => trim((string) ($staging['coat_of_arms_attribution'] ?? '')),
             'allowed' => $coatUrlResolved !== '',
         ];
+    }
+
+    // "Wappen: Aus" (global switch, territory editor): the placeholder takes the coat's place, and the
+    // author/attribution travel with the real coat -- crediting the creator of a picture we are NOT
+    // showing would be wrong. Edit mode (the embedded territory editor and the map's ?edit=1 infopanel
+    // pass edit_mode=1) keeps the real coat, so an editor still sees what they are editing.
+    $coatsEnabled = trim((string) ($_GET['edit_mode'] ?? '')) === '1'
+        || avesmapsCoatSwitchEnabledFast($pdo, AVESMAPS_TERRITORY_COATS_SETTING);
+    $coat['url'] = avesmapsCoatDisplayUrl((string) $coat['url'], $coatsEnabled);
+    if (!$coatsEnabled && $coat['url'] !== '') {
+        $coat['license_status'] = '';
+        $coat['author'] = '';
+        $coat['attribution'] = '';
     }
 
     avesmapsJsonResponse(200, [

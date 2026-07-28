@@ -541,16 +541,17 @@
 		}
 	}
 	async function saveIfNeeded(context = {}) {
-		// Schutz gegen den Teufelskreis: nur eingreifen, wenn der Nutzer den
-		// Außengrenzen-Bereich in DIESER Editor-Sitzung bewusst geändert hat.
-		// Sonst würde ein normales Speichern (z. B. nur Farbe/Name) die bestehende
-		// Außengrenze versehentlich per delete_derived_geometry deaktivieren, weil
-		// das Häkchen beim Öffnen über einen Blattknoten faelschlich aus war.
-		if (!state.dirty) return null;
+		// Bug #56: the boundary is recomputed on EVERY save, not only after the editor clicked one
+		// of the boundary checkboxes. Deleting still requires a deliberate un-tick in this session --
+		// that guard is load-bearing, because opening the editor over a leaf node leaves the checkbox
+		// wrongly unchecked and an ungated save would silently drop the boundary.
+		// The decision table lives in territory-derived-geometry-save-order.js (unit-tested).
 		const enabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
+		const boundaryAction = avesmapsDerivedBoundarySaveAction({ enabled, dirty: state.dirty });
+		if (boundaryAction === "none") return null;
 		const targetKey = getTargetKey(context.value);
 		if (!targetKey) return null;
-		if (!enabled) {
+		if (boundaryAction === "delete") {
 			state.dirty = false; return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) });
 		}
 		// Außengrenze erzeugen/aktualisieren läuft IMMER über die geteilte Kaskaden-Engine
@@ -561,18 +562,36 @@
 		if (!cascadeEngine || typeof cascadeEngine.generateOrUpdateForTerritory !== "function") {
 			throw new Error("Außengrenzen-Kaskade ist nicht verfügbar (AvesmapsDerivedBoundaryEditor nicht geladen).");
 		}
+		const innerFlagOverride = avesmapsDerivedBoundaryInnerFlagOverride({
+			touched: state.dirty,
+			canShowInner: state.canShowInnerBoundaries,
+			checked: document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
+		});
 		state.dirty = false;
-		return cascadeEngine.generateOrUpdateForTerritory(saveTargetKey, {
+		const cascadeOptions = {
 			applyToSubregions: document.getElementById("derivedGeometryRecursiveInput")?.checked === true,
 			drawPreview: false,
-			showInnerBoundaries: state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
-		});
+		};
+		// Omitted on a plain save, so the engine preserves the stored inner-boundary flag per node.
+		if (typeof innerFlagOverride === "boolean") {
+			cascadeOptions.showInnerBoundaries = innerFlagOverride;
+		}
+		return cascadeEngine.generateOrUpdateForTerritory(saveTargetKey, cascadeOptions);
 	}
 
 	function install() {
 		ensurePanel();
 		injectStyles();
 		window.AvesmapsPoliticalTerritoryEditorSave?.registerAfterSaveHook?.(async (context) => {
+			// saveIfNeeded is wired to BOTH pipeline stages: the before-save transform in
+			// territory-derived-geometry-save-order.js (which must run before the main assignment)
+			// and this hook as the fallback for when that module is absent. Until #56 the second
+			// run was neutralised by state.dirty already being false; now that a save always
+			// recomputes, the latch is what keeps one save from computing and cascading twice.
+			if (window.__avesmapsDerivedGeometrySavedBeforeMainAssignment === true) {
+				window.__avesmapsDerivedGeometrySavedBeforeMainAssignment = false;
+				return context.result;
+			}
 			await saveIfNeeded(context);
 			return context.result;
 		});

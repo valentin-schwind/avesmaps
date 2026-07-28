@@ -93,6 +93,8 @@ try {
             'clear_territory' => avesmapsWikiSettlementClearTerritory($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             // Global settlement-image kill switch (ribbon toggle). No public_id / dry_run -- always a real write.
             'set_images_enabled' => avesmapsSetSettlementImagesEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
+            // Global settlement-COAT kill switch (second ribbon toggle). Same shape as the image one.
+            'set_coats_enabled' => avesmapsSetSettlementCoatsEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
             default => null,
         };
 
@@ -101,7 +103,8 @@ try {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
         // The image kill switch flips what map-features emits -> always bump so cached clients revalidate.
-        if ($action === 'set_images_enabled' && is_array($response)) {
+        // Same for the coat switch: properties.coat disappears from the payload without any row changing.
+        if (in_array($action, ['set_images_enabled', 'set_coats_enabled'], true) && is_array($response)) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 

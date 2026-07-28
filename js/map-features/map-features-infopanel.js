@@ -760,7 +760,10 @@
 			&& !regionEntry.detail && regionEntry.territoryPublicId;
 		if (needsDetail) {
 			var token = regionEntry;
-			fetch("/api/app/territory-detail.php?territory=" + encodeURIComponent(regionEntry.territoryPublicId), { credentials: "same-origin" })
+			// edit_mode=1: the global "Wappen: Aus" switch replaces coats with a placeholder for the public
+			// side only -- without this the label would show the real coat while the infobox next to it
+			// showed the placeholder.
+			fetch("/api/app/territory-detail.php?territory=" + encodeURIComponent(regionEntry.territoryPublicId) + (IS_EDIT_MODE ? "&edit_mode=1" : ""), { credentials: "same-origin" })
 				.then(function (response) { return response.ok ? response.json() : null; })
 				.then(function (data) {
 					if (!data || data.ok === false || regionDetailToken !== token) {
@@ -784,7 +787,7 @@
 		if (!id || typeof createRegionCompactTooltipMarkup !== "function") {
 			return false;
 		}
-		fetch("/api/app/territory-detail.php?territory=" + encodeURIComponent(id), { credentials: "same-origin" })
+		fetch("/api/app/territory-detail.php?territory=" + encodeURIComponent(id) + (IS_EDIT_MODE ? "&edit_mode=1" : ""), { credentials: "same-origin" })
 			.then(function (response) { return response.ok ? response.json() : null; })
 			.then(function (data) {
 				if (!data || data.ok === false) {

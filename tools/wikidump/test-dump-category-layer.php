@@ -495,6 +495,88 @@ $check(
 );
 
 // ===========================================================================
+// (f) THE CULT-SITE / CAVE TYPES (Owner 2026-07-28)
+//     Eight derographic lists were to become sub-kinds of "Besondere
+//     Bauwerke/Staetten", plus the sub-categories of Kultstaette/Unheiligtum
+//     under their OWN names. They ride the legacy list because the live dump
+//     phase online_building_map reads exactly that constant (line 287 above) --
+//     the older crawl_building_types action has no caller left.
+// ===========================================================================
+echo "\n-- (f) cult-site / cave building types --\n";
+
+$requestedTypes = [
+    // the owner's eight (Dungeon = the wiki's Hoehle + Grotte, kept apart)
+    "H\u{00F6}hle", 'Grotte', 'Unheiligtum', "Kultst\u{00E4}tte", 'Steinkreis',
+    "Sph\u{00E4}renruptur", 'Hexentanzplatz', 'Drachenhort', 'Feentor',
+    // the sub-categories, each under its own wiki name
+    'Heiligtum', 'Schrein', 'Pforte des Grauens', 'Borbarad-Kultst' . "\u{00E4}" . 'tte', 'Toteninsel',
+];
+$missingTypes = array_values(array_diff($requestedTypes, AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES));
+$check(
+    '(f1) every requested type is in the legacy list the dump phase walks',
+    [],
+    $missingTypes,
+    'AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES (settlements.php) feeds avesmapsWikiDumpCategoryFetchBuildingTypeMap'
+);
+
+$wronglyExcluded = array_values(array_filter(
+    $requestedTypes,
+    static fn(string $t): bool => avesmapsWikiSettlementIsExcludedBuildingType($t)
+));
+$check(
+    '(f2) none of them is dropped by the linear-infrastructure filter',
+    [],
+    $wronglyExcluded,
+    'avesmapsWikiSettlementIsExcludedBuildingType only means Strasse/Mauer/Damm/Deich/Kanalisation/Aequadukt'
+);
+
+// 🔴 ORDER IS LOAD-BEARING. avesmapsWikiDumpCategoryAssembleBuildingMap keeps the FIRST type
+// that claims a title. Steinkreis and Hexentanzplatz are themselves sub-categories of
+// Kultstaette in the wiki, and Heiligtum/Schrein/Toteninsel/Borbarad-Kultstaette sit there too --
+// so if the umbrella came first, every stone circle would be filed as "Kultstaette" and the
+// owner's separate entry would be dead weight. Same for Pforte des Grauens under Unheiligtum.
+$sharedTitle = 'Angbarer Steinkreis';
+$umbrellaPairs = [
+    ['Steinkreis', "Kultst\u{00E4}tte"],
+    ['Hexentanzplatz', "Kultst\u{00E4}tte"],
+    ['Heiligtum', "Kultst\u{00E4}tte"],
+    ['Schrein', "Kultst\u{00E4}tte"],
+    ['Toteninsel', "Kultst\u{00E4}tte"],
+    ['Borbarad-Kultst' . "\u{00E4}" . 'tte', "Kultst\u{00E4}tte"],
+    ['Pforte des Grauens', 'Unheiligtum'],
+];
+$orderViolations = [];
+foreach ($umbrellaPairs as [$specific, $umbrella]) {
+    $specificAt = array_search($specific, AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES, true);
+    $umbrellaAt = array_search($umbrella, AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES, true);
+    if ($specificAt === false || $umbrellaAt === false || $specificAt > $umbrellaAt) {
+        $orderViolations[] = $specific . ' must precede ' . $umbrella;
+    }
+}
+$check(
+    '(f3) the specific kind precedes its umbrella in the list',
+    [],
+    $orderViolations,
+    'avesmapsWikiDumpCategoryAssembleBuildingMap keeps the FIRST type per title'
+);
+
+// And prove it through the REAL assembler, not just by index arithmetic: a page that sits in
+// both categories must come out as the specific one.
+$overlapFetcher = static function (string $categoryName) use ($sharedTitle): array {
+    return in_array($categoryName, ['Steinkreis', "Kultst\u{00E4}tte"], true) ? [$sharedTitle] : [];
+};
+$overlapResult = avesmapsWikiDumpCategoryFetchBuildingTypeMap(
+    static fn(string $c): array => [],
+    $overlapFetcher
+);
+$check(
+    '(f4) a page in Steinkreis AND Kultstaette is filed as Steinkreis',
+    'Steinkreis',
+    $overlapResult['map'][avesmapsWikiSyncMonitorNormalizeTitle($sharedTitle)] ?? '(not mapped)',
+    'end-to-end through the real fetcher + assembler, using the real constant order'
+);
+
+// ===========================================================================
 // summary
 // ===========================================================================
 echo "\n----------------------------------------------------------------\n";
