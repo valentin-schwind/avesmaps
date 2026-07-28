@@ -31,7 +31,13 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // themselves from, so the bump matters most on the day the switch is flipped: without it a warm client
 // keeps the old body, reads no flag, and goes on promising that nothing else gets deleted -- while the
 // server has just started deleting it.
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 3;
+// 4 (2026-07-28): `cascade_enabled` flipped from false to true. A VALUE change, not a shape change --
+// and it needs the bump for exactly the reason version 3 predicted and this session then forgot: the
+// ETag is seeded from the revision and this version, so an unchanged revision hands warm clients the
+// OLD body. Measured right after the deploy: the plain request answered `false` while a cache-busted
+// one answered `true`. A client holding that stale `false` shows the reassuring confirmation ("die
+// Region bleibt bestehen") while the server has already started deleting it.
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 4;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
