@@ -79,22 +79,65 @@ function buildEcosystemPeakWindow(peaks) {
 		.filter((peak) => Number.isFinite(Number(peak?.x)) && Number.isFinite(Number(peak?.y)))
 		.map((peak) => ({ x: Number(peak.x), y: Number(peak.y) }));
 
-	let separation = Infinity;
+	// 💣 Abstand JE GIPFEL zu seinem nächsten Nachbarn -- nicht ein globales Minimum über alle.
+	//
+	// Der Prototyp nimmt das globale Minimum (:500-502), und in seiner Welt stimmt das: dort liegen ein
+	// paar Gipfel in EINER Fläche. Über den Livebestand gezogen ist es falsch. Liegen irgendwo zwei
+	// Gipfel dicht beieinander -- bei 62 Stück und zwei gleichnamigen Dubletten ist das der Normalfall --,
+	// dann klemmt dieser eine kleine Abstand JEDEN Radius weltweit. Im Bild sah man es sofort: statt
+	// Bergkuppen standen 9 helle Punkte in einer sonst flachen Fläche.
+	//
+	// Die Invariante bleibt: ist r(A) < 0,72 × dem Abstand von A zu SEINEM nächsten Nachbarn, dann ist
+	// r(A) erst recht kleiner als der Abstand zu jedem anderen Gipfel -- kein Gipfelbuckel reicht also
+	// bis zu einem anderen Gipfel, und jeder liest weiter genau seine eigene Zahl.
+	const separations = new Map();
 	for (let i = 0; i < points.length; i++) {
-		for (let j = i + 1; j < points.length; j++) {
+		let nearest = Infinity;
+		for (let j = 0; j < points.length; j++) {
+			if (i === j) {
+				continue;
+			}
 			const distance = Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
-			if (distance < separation) {
-				separation = distance;
+			if (distance < nearest) {
+				nearest = distance;
 			}
 		}
+		separations.set(points[i], nearest);
 	}
+	// Für Aufrufer, die nur einen Wert wollen (und für die Erklärung): das kleinste Paar überhaupt.
+	let separation = Infinity;
+	separations.forEach((value) => { separation = Math.min(separation, value); });
 
 	return {
 		points,
 		separation,
+		separations,
+		// Abstand dieses Gipfels zu seinem nächsten Nachbarn. Ein einzelner Gipfel weit und breit hat
+		// keinen -- er bekommt Infinity und wird damit allein vom Randabstand und der 150er Obergrenze
+		// geklemmt, was richtig ist: da ist nichts, wovon er sich absetzen müsste.
+		separationAt(x, y) {
+			for (let k = 0; k < this.points.length; k++) {
+				if (this.points[k].x === x && this.points[k].y === y) {
+					return this.separations.get(this.points[k]) ?? Infinity;
+				}
+			}
+
+			return Infinity;
+		},
 		// Radien stehen erst beim Bauen der Felder fest, das Fenster braucht aber schon eine Breite.
 		// Sie wird beim ersten Feldbau eingetragen (siehe buildEcosystemHeightField).
 		radii: new Map(),
+		// 🔴 PERF, gemessen: `sample()` läuft in der Malschleife rund 60.000-mal je Bild. Vor dieser
+		// Verdichtung tastete es JEDEN Gipfel ab -- live 62 --, obwohl nur die einen Radius haben, die
+		// in einer Fläche liegen und dort zum Buckel wurden; das waren 9. Gemessen: 24,1 ms je 60.000
+		// Abfragen, der grösste Einzelposten im Bild.
+		//
+		// Ein Gipfel ohne Radius kann per Definition nichts fenstern. Nach dem Bau aller Felder wird die
+		// Liste deshalb auf die wirksamen eingedampft. Vorher geht das nicht: die Radien entstehen erst
+		// beim Feldbau, und der braucht das Fenster bereits.
+		compact() {
+			this.points = this.points.filter((point) => (this.radii.get(point) || 0) > 0);
+		},
 		sample(x, y) {
 			let smallest = 1;
 			for (let k = 0; k < this.points.length; k++) {
@@ -212,7 +255,6 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		return field;
 	}
 
-	const separation = Number.isFinite(peakWindow?.separation) ? peakWindow.separation : Infinity;
 	const own = (Array.isArray(peaks) ? peaks : []).filter((peak) => {
 		const x = Number(peak?.x);
 		const y = Number(peak?.y);
@@ -232,6 +274,10 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		const height = Number.isFinite(Number(peak.height)) && Number(peak.height) > 0
 			? Number(peak.height)
 			: ECOSYSTEM_HEIGHT_PLACEHOLDER;
+		// Abstand zu SEINEM nächsten Nachbarn, nicht zum global engsten Paar (siehe buildEcosystemPeakWindow).
+		const separation = peakWindow && typeof peakWindow.separationAt === "function"
+			? peakWindow.separationAt(x, y)
+			: Infinity;
 		const radius = Math.min(distanceToEcosystemEdge([x, y], geometry), 0.72 * separation, 150);
 		if (!(radius > 0)) {
 			return;                            // ein Gipfel genau auf dem Rand trägt keinen Buckel

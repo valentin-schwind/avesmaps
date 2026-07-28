@@ -104,6 +104,13 @@ function buildEcosystemHeightStack(areas, peaks) {
 		}
 	});
 
+	// Erst JETZT verdichten -- die Radien entstehen im Feldbau darüber. Ein Gipfel ohne Radius liegt in
+	// keiner Fläche und kann nichts fenstern; ihn weiter abzutasten kostete live das Siebenfache
+	// (62 statt 9 Punkte je Rasterpunkt, gemessen 24,1 ms je 60.000 Abfragen).
+	if (peakWindow && typeof peakWindow.compact === "function") {
+		peakWindow.compact();
+	}
+
 	return { peakWindow, fields, areaIdsByField };
 }
 

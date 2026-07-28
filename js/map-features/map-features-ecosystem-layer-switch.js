@@ -93,6 +93,9 @@ function syncEcosystemPaneStates() {
 			isEcosystemLayerModeActive() && !showAll && activeKind !== "derographisch");
 	}
 	syncEcosystemLabelMuting();
+	// V8: das Relief hängt an derselben Frage wie die Panes -- welche Ebene liegt vorn. Es zeichnet sich
+	// bei jeder anderen Lage leer, das Umschalten löscht es also von selbst.
+	window.AvesmapsEcosystemHeightRender?.redraw?.();
 }
 
 // 🔴 Welche Labels sind in der gerade bearbeiteten Ebene FREMD? Nur die werden blass. Seit jede Region

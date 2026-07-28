@@ -1,0 +1,285 @@
+"use strict";
+
+/*
+ * Landschaften — das Höhenfeld ZEICHNEN (V8).
+ *
+ * Canvas-Overlay über den Topographie-Flächen. Muster: map-features-contested-hatch-overlay.js --
+ * eigene Pane, `leaflet-zoom-animated`, Neuzeichnen auf moveend/zoomend/viewreset/resize.
+ *
+ * 🔴 NUR bei aktiver Landschaften-Ebene UND aktiver Topographie. In jeder anderen Lage ist das Canvas
+ * leer; das Umschalten der Ebene löscht es also von selbst.
+ *
+ * 🔴 `is_trial`-Flächen werden MITGEZEICHNET. Beide `gebirge`-Flächen im Livebestand (Stand 2026-07-28:
+ * „Finsterkamm" und „Random Berge") sind Erprobungsflächen -- sie auszulassen hiesse, dass die Abnahme
+ * eine leere Karte zeigt.
+ *
+ * 🔴 Farben NUR aus css/base/tokens.css (AGENTS.md §12). Der Prototyp trug seine Rampe als rohe
+ * RGB-Tripel im Code (:589); hier steht sie in fünf Token.
+ *
+ * Liest die Globalen `map`, `L`, `ecosystemLayers`, `labelData` sowie die beiden Höhenmodule.
+ */
+(function initEcosystemHeightRender() {
+	const PANE = "avesmapsEcosystemHeightPane";
+	// Rasterschritt in Bildschirmpunkten. Der Prototyp lässt ihn einstellen (:601); hier fest, weil der
+	// Wert eine Perf-Entscheidung ist und keine Gestaltungsfrage. 3 px sieht auf HiDPI weich aus und
+	// hält die Rechnung bei rund einem Neuntel der Pixelzahl.
+	const STEP = 3;
+	const RAMP_TOKENS = [
+		"--color-ecosystem-height-0",
+		"--color-ecosystem-height-1",
+		"--color-ecosystem-height-2",
+		"--color-ecosystem-height-3",
+		"--color-ecosystem-height-4",
+	];
+	// Die Stützstellen des Prototyps (:589). Ungleichmässig: der Übergang ins Firn sitzt spät, damit
+	// nicht jeder Mittelhang schon weiss wird.
+	const RAMP_STOPS = [0, 0.25, 0.55, 0.8, 1];
+
+	function ready() {
+		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
+	}
+	if (!ready()) {
+		window.setTimeout(initEcosystemHeightRender, 50);
+		return;
+	}
+
+	if (!map.getPane(PANE)) {
+		map.createPane(PANE);
+		const created = map.getPane(PANE);
+		// Über den Flächenfüllungen der Ökosystem-Panes, unter den Labels (475) -- die Gipfel müssen
+		// oben bleiben, sie werden ja gezogen.
+		created.style.zIndex = 420;
+		created.style.pointerEvents = "none";
+	}
+
+	const canvas = document.createElement("canvas");
+	canvas.style.position = "absolute";
+	canvas.style.pointerEvents = "none";
+	canvas.style.top = "0";
+	canvas.style.left = "0";
+	canvas.style.transformOrigin = "0 0";
+	canvas.classList.add("leaflet-zoom-animated");
+	map.getPane(PANE).appendChild(canvas);
+	const context = canvas.getContext("2d");
+
+	// Der gebaute Stapel, gültig bis sich Flächen oder Gipfel ändern. Neu zu bauen ist teuer (Buckel,
+	// Index, Dämpfungsmessung je Fläche); neu zu ZEICHNEN ist es nicht.
+	let heightStack = null;
+	let stackDirty = true;
+	let rampCache = null;
+	let lastPaintMs = 0;
+
+	function rampColors() {
+		if (rampCache) {
+			return rampCache;
+		}
+		const style = getComputedStyle(document.documentElement);
+		rampCache = RAMP_TOKENS.map((token) => {
+			const raw = String(style.getPropertyValue(token) || "").trim();
+			const hex = /^#([0-9a-f]{6})$/i.exec(raw);
+			if (!hex) {
+				return [128, 128, 128];
+			}
+			const value = parseInt(hex[1], 16);
+			return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+		});
+
+		return rampCache;
+	}
+
+	// Lineare Interpolation zwischen den fünf Stützstellen (Prototyp ramp() :590).
+	function rampAt(t) {
+		const colors = rampColors();
+		const clamped = Math.max(0, Math.min(1, t));
+		for (let i = 0; i < RAMP_STOPS.length - 1; i++) {
+			const from = RAMP_STOPS[i];
+			const to = RAMP_STOPS[i + 1];
+			if (clamped <= to) {
+				const k = to === from ? 0 : (clamped - from) / (to - from);
+				const a = colors[i];
+				const b = colors[i + 1];
+				return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+			}
+		}
+
+		return colors[colors.length - 1];
+	}
+
+	function topographyAreas() {
+		if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+			return [];
+		}
+		const areas = [];
+		ecosystemLayers.forEach((layer) => {
+			const area = layer?._ecosystemArea;
+			// `is_trial` wird NICHT gefiltert -- siehe Kopf.
+			if (area && area.kind === "topographie" && String(area.region_type || "") === "gebirge") {
+				areas.push(area);
+			}
+		});
+
+		return areas;
+	}
+
+	// Gipfel als flache Liste in KARTENkoordinaten. 💣 Labels tragen [lat, lng] = [y, x], die Geometrie
+	// will [x, y] -- bewusst tauschen (AGENTS.md §5).
+	function peakList() {
+		if (typeof labelData === "undefined" || !Array.isArray(labelData)) {
+			return [];
+		}
+
+		return labelData
+			.filter((label) => String(label?.labelType || "") === "berggipfel")
+			.map((label) => ({
+				publicId: String(label.publicId || ""),
+				x: Number(label.coordinates?.[1]),
+				y: Number(label.coordinates?.[0]),
+				height: label.heightSchritt === undefined ? null : label.heightSchritt,
+			}))
+			.filter((peak) => Number.isFinite(peak.x) && Number.isFinite(peak.y));
+	}
+
+	function ensureStack() {
+		if (!stackDirty && heightStack) {
+			return heightStack;
+		}
+		if (typeof buildEcosystemHeightStack !== "function") {
+			return null;
+		}
+		heightStack = buildEcosystemHeightStack(topographyAreas(), peakList());
+		stackDirty = false;
+
+		return heightStack;
+	}
+
+	// Von aussen: die Felder sind veraltet. Aufgabe 9 ruft es bei jeder Gipfeländerung.
+	function invalidateEcosystemHeightField() {
+		stackDirty = true;
+		heightStack = null;
+	}
+
+	function shouldDraw() {
+		return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+			&& typeof getActiveEcosystemLayerKind === "function"
+			&& getActiveEcosystemLayerKind() === "topographie";
+	}
+
+	function redraw() {
+		if (!map.getPane(PANE)) {
+			return;
+		}
+		const size = map.getSize();
+		// 💣 Eine Karte ohne Ausdehnung. Kommt vor, bevor das Layout steht, in einem verborgenen Reiter
+		// und in jedem Prüfaufbau ohne sichtbaren Rahmen. `createImageData(0, 0)` WIRFT, und der Wurf
+		// reisst den ganzen Ebenenwechsel mit -- redraw() hängt an syncEcosystemPaneStates. Erst
+		// gemessen, dann gefangen: der Fehler trat beim ersten Prüflauf genau so auf.
+		if (!(size.x > 0) || !(size.y > 0)) {
+			return;
+		}
+		const topLeft = map.containerPointToLayerPoint([0, 0]);
+		L.DomUtil.setPosition(canvas, topLeft);
+
+		// HiDPI: Backing-Store in Geräte-Pixeln, CSS-Größe in Layout-Pixeln.
+		const dpr = window.devicePixelRatio || 1;
+		const pixelWidth = Math.round(size.x * dpr);
+		const pixelHeight = Math.round(size.y * dpr);
+		if (canvas.width !== pixelWidth) { canvas.width = pixelWidth; }
+		if (canvas.height !== pixelHeight) { canvas.height = pixelHeight; }
+		if (canvas.style.width !== size.x + "px") { canvas.style.width = size.x + "px"; }
+		if (canvas.style.height !== size.y + "px") { canvas.style.height = size.y + "px"; }
+		context.setTransform(1, 0, 0, 1, 0, 0);
+		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.setTransform(dpr, 0, 0, dpr, 0, 0);
+		if (!shouldDraw()) {
+			return;                          // Canvas ist oben schon geleert -> Ebenenwechsel löscht es
+		}
+
+		const stack = ensureStack();
+		if (!stack || !Array.isArray(stack.fields) || stack.fields.length === 0) {
+			return;
+		}
+
+		const started = performance.now();
+		const image = context.createImageData(pixelWidth, pixelHeight);
+		const data = image.data;
+		const fields = stack.fields;
+		const window_ = stack.peakWindow;
+
+		// EIN Durchgang über das Raster. Je Rasterpunkt einmal in Kartenkoordinaten umrechnen, dann über
+		// die Felder summieren -- und dabei gleich den höchsten Gipfel der TREFFENDEN Flächen merken.
+		//
+		// 🔴 Bezugshöhe je Fläche, nicht global (Prototyp :602-607): eine globale Skala färbte beim
+		// Verstellen EINER Fläche jede andere um.
+		// 🔴 PERF: die Projektion EINMAL aufstellen, nicht je Rasterpunkt. `L.CRS.Simple` ist affin und
+		// dreht nicht -- Bildschirm-x hängt allein an lng, Bildschirm-y allein an lat. Zwei Stützpunkte
+		// genügen also, um daraus eine Schrittweite zu machen. Gemessen kostete
+		// `containerPointToLatLng` je Punkt 10,9 ms auf 60.000 Abfragen; so kostet es zwei Aufrufe.
+		const originLatLng = map.containerPointToLatLng([0, 0]);
+		const stepLatLng = map.containerPointToLatLng([STEP, STEP]);
+		const deltaX = (stepLatLng.lng - originLatLng.lng) / STEP;
+		const deltaY = (stepLatLng.lat - originLatLng.lat) / STEP;
+
+		for (let sy = 0; sy < size.y; sy += STEP) {
+			const y = originLatLng.lat + sy * deltaY;
+			for (let sx = 0; sx < size.x; sx += STEP) {
+				const x = originLatLng.lng + sx * deltaX;
+				const noiseWindow = window_ ? window_.sample(x, y) : 1;
+				let height = 0;
+				let reference = 0;
+				for (let i = 0; i < fields.length; i++) {
+					const value = sampleEcosystemHeightField(fields[i], x, y, noiseWindow);
+					if (value > 0) {
+						height += value;
+						if (fields[i].hmax > reference) {
+							reference = fields[i].hmax;
+						}
+					}
+				}
+				if (height <= 0 || reference <= 0) {
+					continue;
+				}
+				const color = rampAt(height / reference);
+				const r = color[0], g = color[1], b = color[2];
+				// Den Rasterpunkt als STEP×STEP-Block ausfüllen, in Geräte-Pixeln.
+				const px0 = Math.round(sx * dpr);
+				const py0 = Math.round(sy * dpr);
+				const px1 = Math.min(pixelWidth, Math.round((sx + STEP) * dpr));
+				const py1 = Math.min(pixelHeight, Math.round((sy + STEP) * dpr));
+				for (let py = py0; py < py1; py++) {
+					let offset = (py * pixelWidth + px0) * 4;
+					for (let px = px0; px < px1; px++) {
+						data[offset] = r; data[offset + 1] = g; data[offset + 2] = b; data[offset + 3] = 255;
+						offset += 4;
+					}
+				}
+			}
+		}
+		context.setTransform(1, 0, 0, 1, 0, 0);
+		context.putImageData(image, 0, 0);
+		context.setTransform(dpr, 0, 0, dpr, 0, 0);
+		lastPaintMs = performance.now() - started;
+
+		// Wo das Budget gegriffen hat, sagt es das Feld -- statt still weniger zu liefern
+		// (Prototyp :541-543). Einmal je Neuaufbau, nicht bei jedem Bild.
+		fields.forEach((field, index) => {
+			if (field.stoppedAtLevel && !field._budgetReported) {
+				field._budgetReported = true;
+				if (typeof showFeedbackToast === "function") {
+					showFeedbackToast(`Höhenfeld „${stack.areaIdsByField[index]}": Detailstufe ${field.stoppedAtLevel} `
+						+ "wurde ausgelassen, das Rechenbudget war erschöpft.", "info");
+				}
+			}
+		});
+	}
+
+	map.on("moveend zoomend viewreset resize", redraw);
+	// Die Flächen können nach dem ersten Zeichnen eintreffen; ein paar Nachzügler-Durchgänge holen sie.
+	[150, 500, 1200].forEach((delay) => window.setTimeout(redraw, delay));
+
+	window.AvesmapsEcosystemHeightRender = {
+		redraw,
+		invalidate: invalidateEcosystemHeightField,
+		lastPaintMs: () => lastPaintMs,
+		stack: () => heightStack,
+	};
+})();

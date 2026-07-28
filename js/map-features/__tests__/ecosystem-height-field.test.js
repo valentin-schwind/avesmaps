@@ -119,4 +119,30 @@ assert.strictEqual(outsidePeak.at(0, 50), 0, "and it does not break the foot inv
 const twice = [fieldOf(area, peak).at(37, 61), fieldOf(area, peak).at(37, 61)];
 assert.strictEqual(twice[0], twice[1], "deterministic across builds");
 
+// 11. 💣 Two peaks close together somewhere must NOT shrink a lone peak elsewhere.
+//
+// The separation clamp is what keeps one peak's bump from reaching another. Taken as a GLOBAL minimum
+// -- which is what the prototype does, and correct in its world of a few peaks in one area -- a single
+// close pair anywhere clamps every radius on the map. Live that is the normal case: 62 peaks, two of
+// them duplicate names at nearly the same spot. It showed up in the rendered image as nine bright dots
+// on an otherwise flat surface, and no test up to here could see it, because they all used two peaks.
+const bigSquare = { type: "Polygon", coordinates: [[[0, 0], [400, 0], [400, 400], [0, 400], [0, 0]]] };
+const bigArea = { public_id: "big", geometry: bigSquare, geometry_revision: 1 };
+const lonePeak = { publicId: "lone", x: 200, y: 200, height: 4000 };
+const alone = fieldOf(bigArea, [lonePeak]);
+const withDistantPair = fieldOf(bigArea, [
+	lonePeak,
+	{ publicId: "twin-a", x: 20, y: 380, height: 1000 },
+	{ publicId: "twin-b", x: 21, y: 380, height: 1000 }]);
+const radiusAlone = alone.built.peakBumps.find((bump) => bump.x === 200).r;
+const radiusWithPair = withDistantPair.built.peakBumps.find((bump) => bump.x === 200).r;
+assert.strictEqual(radiusAlone, radiusWithPair,
+	`a close pair 250 units away must not shrink the lone peak (${radiusAlone} vs ${radiusWithPair})`);
+
+// And the invariant the clamp exists for still holds: neither twin reaches the other's summit.
+const twinA = withDistantPair.built.peakBumps.find((bump) => bump.x === 20);
+const twinB = withDistantPair.built.peakBumps.find((bump) => bump.x === 21);
+assert.ok(twinA.r < 1 && twinB.r < 1, "the twins clamp each OTHER, tightly");
+assert.ok(Math.abs(withDistantPair.at(20, 380) - 1000) < 1, "and each still reads its own height");
+
 console.log("ecosystem-height-field: all assertions passed");
