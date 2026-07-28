@@ -1005,6 +1005,37 @@ function avesmapsReadOptionalWikiUrl(mixed $value): string {
     return avesmapsNormalizeOptionalUrl((string) $value, 500, 'Der Wiki-Aventurica-Link');
 }
 
+// A peak's own height, in Schritt, stored in properties.height_schritt of a berggipfel label.
+// Returns null for "not recorded", which is NOT the same as zero: an unrecorded peak falls back to
+// a placeholder when the height field is built, a peak recorded as 0 does not. The caller must
+// treat null as "remove the property", never as "write 0".
+//
+// The unit is in the NAME on purpose. V11 will multiply these into edge weights and carries a
+// documented unit trap (x3 vs x23); a bare `height` invites exactly that mistake.
+//
+// The upper bound is a typo guard -- one zero too many -- not a claim about Aventurien. Negative
+// input is REJECTED rather than clamped to 0, because a minus sign is a mistake worth losing the
+// value over, not an intent to record sea level.
+function avesmapsReadOptionalPeakHeight(mixed $value): ?float {
+    if ($value === null || (is_string($value) && trim($value) === '')) {
+        return null;
+    }
+    // Editors type German: a comma is the decimal point. Booleans and arrays fall through to
+    // is_numeric() below and are rejected there -- (float) true would otherwise mean 1 Schritt.
+    if (is_string($value)) {
+        $value = str_replace(',', '.', trim($value));
+    }
+    if (!is_numeric($value)) {
+        return null;
+    }
+    $height = (float) $value;
+    if (!is_finite($height) || $height < 0) {
+        return null;
+    }
+
+    return min($height, 20000.0);
+}
+
 // Optional non-wiki source: a { url, label } object stored in properties.other_source. Returns
 // null when no usable URL was supplied (empty url -> the field is treated as unset). The url must
 // be an absolute http(s) link (same rule as the wiki link); label is a free-form single line.
@@ -2165,6 +2196,15 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
             $properties['wiki_region'] = $wikiRegion;
         }
     }
+    // A peak may arrive with its height already known -- "Hoehenpunkt setzen" in the topography
+    // layer creates the label and records the height in one gesture. Absent or unusable means the
+    // key is simply not written; there is no zero default (see avesmapsReadOptionalPeakHeight).
+    if (array_key_exists('height_schritt', $payload)) {
+        $peakHeight = avesmapsReadOptionalPeakHeight($payload['height_schritt']);
+        if ($peakHeight !== null) {
+            $properties['height_schritt'] = $peakHeight;
+        }
+    }
     $ecosystemRegion = avesmapsReadLabelEcosystemRegion($payload);
     if ($ecosystemRegion !== '') {
         $properties['ecosystem_region_public_id'] = $ecosystemRegion;
@@ -2276,6 +2316,18 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
                 unset($properties['other_source']);
             } else {
                 $properties['other_source'] = $otherSource;
+            }
+        }
+        // 💣 Only when the caller sends the key -- same rule as other_source directly above, for the
+        // same reason. A save that does not mention the height must not erase it, and the height is
+        // edited from TWO surfaces (the label dialog and the landscape panel); each of them omits
+        // the key whenever the other one is the sensible owner of the moment.
+        if (array_key_exists('height_schritt', $payload)) {
+            $peakHeight = avesmapsReadOptionalPeakHeight($payload['height_schritt']);
+            if ($peakHeight === null) {
+                unset($properties['height_schritt']);
+            } else {
+                $properties['height_schritt'] = $peakHeight;
             }
         }
         // Die Flaeche, zu der dieses Label gehoert. Leer mitgeschickt = ausdruecklich geloest.
