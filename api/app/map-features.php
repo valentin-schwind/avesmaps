@@ -32,6 +32,27 @@ const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 8;
 const AVESMAPS_MAP_FEATURES_COAT_STAGING_TABLE = 'political_territory_wiki_test'; // = AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE
 const AVESMAPS_MAP_FEATURES_COAT_MODEL_TABLE = 'wiki_territory_model';            // = AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE
 
+// Die entity_type, die die KARTE aufloest. renderFeatureSourceLine wird ausschliesslich mit
+// diesen fuenf aufgerufen (map-features-labels.js, -location-marker-entry.js, -path-rendering.js,
+// -powerlines.js, -region-info-markup.js, popups.js) -- alles andere laege im Payload, ohne dass
+// es je jemand nachschlaegt. Gelesen von avesmapsLoadFeatureSourceRefs (weiter unten).
+//
+// 💣 STEHT HIER OBEN, NICHT BEI DER FUNKTION. PHP hoistet Funktionsdefinitionen, aber KEINE
+// const auf Dateiebene: eine Konstante entsteht erst, wenn die Zeile ausgefuehrt wird. Der
+// try-Block darunter laeuft aber vorher durch und endet in avesmapsMapFeaturesRespond() + exit,
+// sodass eine weiter unten stehende Zeile nie erreicht wird. Genau das hat den Endpunkt am
+// 2026-07-28 mit HTTP 500 lahmgelegt -- `php -l` findet es nicht, es ist kein Syntaxfehler.
+//
+// 'lore' gehoert NICHT dazu, und das ist der teure Teil: Vorkommen (Flora/Fauna/Waren) sind
+// keine Kartenobjekte, sie haben ihren eigenen, seitenweise ladenden Endpunkt (api/app/lore.php,
+// 200 von ~35.000 Zeilen). Ihre Quellen machten dennoch 3,03 MB von 8,2 MB dieses Blocks aus --
+// 33.981 Referenzen ueber 5.087 Eintraege, allein "lore:ork" 19 KB. Wer hier einen Typ ergaenzt,
+// muss ihn auf der JS-Seite auch wirklich aufloesen.
+//
+// 'citymap' bleibt bewusst drin: 631 Referenzen / 0,04 MB, und der Karteneditor schreibt in
+// denselben Cache (review-feature-sources.js) -- der Gewinn waere Rauschen, das Risiko nicht.
+const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap'];
+
 /**
  * Die Innerorts-Liste fuer den Payload (Name + Stadt je Objekt). Faellt sie aus -- fehlende
  * Spalte, Sync nie gelaufen --, liefert sie eine leere Liste: die Karte selbst darf daran
@@ -782,21 +803,6 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
     }
     return $catalog;
 }
-
-// Die entity_type, die die KARTE aufloest. renderFeatureSourceLine wird ausschliesslich mit
-// diesen fuenf aufgerufen (map-features-labels.js, -location-marker-entry.js, -path-rendering.js,
-// -powerlines.js, -region-info-markup.js, popups.js) -- alles andere laege im Payload, ohne dass
-// es je jemand nachschlaegt.
-//
-// 💣 'lore' gehoert NICHT dazu, und das war teuer: Vorkommen (Flora/Fauna/Waren) sind keine
-// Kartenobjekte, sie haben ihren eigenen, seitenweise ladenden Endpunkt (api/app/lore.php,
-// 200 von ~35.000 Zeilen). Ihre Quellen machten dennoch 3,03 MB von 8,2 MB dieses Blocks aus --
-// 33.981 Referenzen ueber 5.087 Eintraege, allein "lore:ork" 19 KB. Wer hier einen Typ ergaenzt,
-// muss ihn auf der JS-Seite auch wirklich aufloesen.
-//
-// 'citymap' bleibt bewusst drin: 631 Referenzen / 0,04 MB, und der Karteneditor schreibt in
-// denselben Cache (review-feature-sources.js) -- der Gewinn waere Rauschen, das Risiko nicht.
-const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap'];
 
 // Per-entity approved source references grouped in PHP (no N+1): { "<entity_type>:<public_id>" =>
 // [ {source_id[, reference_kind][, pages][, note]} ] }. Ordered official-first then insertion order

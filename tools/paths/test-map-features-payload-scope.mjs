@@ -20,6 +20,21 @@ const listMatch = /const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = \[([^\]]+)\
 assert.ok(listMatch, "die Positivliste der entity_type muss in map-features.php stehen");
 const serverTypes = new Set([...listMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]));
 
+// 💣 Die const MUSS vor ihrem ersten Aufrufer stehen. PHP hoistet Funktionsdefinitionen, aber
+// KEINE const auf Dateiebene -- sie entsteht erst, wenn ihre Zeile ausgefuehrt wird. Der
+// Endpunkt-Bootstrap ganz oben laeuft aber vorher durch und endet in
+// avesmapsMapFeaturesRespond() + exit, sodass eine weiter unten stehende Zeile nie erreicht
+// wird. Genau so ging der Endpunkt am 2026-07-28 mit HTTP 500 offline: die Konstante stand
+// bei der Funktion statt im Kopf. `php -l` sieht das nicht -- es ist kein Syntaxfehler.
+const posConst = php.indexOf("const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES");
+const posErsterAufruf = php.indexOf("avesmapsLoadFeatureSourceRefs($pdo)");
+assert.ok(posErsterAufruf > -1, "der Aufruf von avesmapsLoadFeatureSourceRefs muss auffindbar sein");
+assert.ok(
+	posConst < posErsterAufruf,
+	"AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES steht NACH ihrem ersten Aufrufer -- zur Laufzeit "
+	+ "existiert sie dann nicht und der Endpunkt antwortet mit HTTP 500",
+);
+
 // --- 2. Welche fragt das Frontend nach? --------------------------------------------------
 // Jeder Aufruf von renderFeatureSourceLine("<typ>", …) im ausgelieferten JS.
 const jsDirs = ["js/map-features", "js/ui", "js/review", "js/routing", "js/app"];
