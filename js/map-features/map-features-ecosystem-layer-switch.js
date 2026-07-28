@@ -102,6 +102,26 @@ function syncEcosystemPaneStates() {
 // Die Zugehörigkeit steht in den geladenen FLÄCHEN: jede trägt ihr `label_public_id` und ihren `kind`.
 // Ein Label ohne Fläche (Siedlungen, Gipfel, die grosse Mehrheit) gehört zu keiner Ebene und bleibt
 // blass -- ausser in der derographischen, in der noch nie gedimmt wurde.
+// Ist dieses Label ein Gipfel? Über `labelData` und nicht über den Marker, weil die Frage auch
+// gestellt wird, bevor ein Marker existiert (createLabelIcon baut das Icon mit).
+function isEcosystemPeakLabel(labelPublicId) {
+	const publicId = String(labelPublicId || "");
+	if (!publicId || typeof labelData === "undefined" || !Array.isArray(labelData)) {
+		return false;
+	}
+
+	return labelData.some((label) => String(label?.publicId || "") === publicId
+		&& String(label?.labelType || "") === "berggipfel");
+}
+
+// Ein Gipfel in der Topographie-Ebene: sichtbar, anklickbar und direkt ziehbar. Die Klasse hebt für
+// ihn die Klickdurchlässigkeit der Labels-Pane wieder auf (css/features/ecosystem-layer.css).
+function isEcosystemPeakActive(labelPublicId) {
+	return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+		&& getActiveEcosystemLayerKind() === "topographie"
+		&& isEcosystemPeakLabel(labelPublicId);
+}
+
 function isEcosystemLabelMuted(labelPublicId) {
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
 		return false;
@@ -114,6 +134,13 @@ function isEcosystemLabelMuted(labelPublicId) {
 		return false;
 	}
 	const publicId = String(labelPublicId || "");
+	// 🔴 V8: ein `berggipfel` ist in der TOPOGRAPHIE kein fremdes Label, sondern deren Arbeitspunkt.
+	// Er trägt die Höhe, aus der das Höhenfeld entsteht (oekosystem-editor-leitfaden.md §1.4), und wer
+	// ihn blass und klickdurchlässig macht, macht genau das unbedienbar, was diese Ebene bearbeitet.
+	// Die Regel gilt NUR für diesen einen Subtyp -- jeder andere behält sein heutiges Verhalten.
+	if (activeKind === "topographie" && isEcosystemPeakLabel(publicId)) {
+		return false;
+	}
 	if (!publicId || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
 		return true;
 	}
@@ -132,7 +159,35 @@ function isEcosystemLabelMuted(labelPublicId) {
 // DOM-Element -- eine Klasse, die nur dort sässe, wäre nach dem ersten Zoom weg. `createLabelIcon`
 // ruft dafür `ecosystemLabelMutedClass()` auf.
 function ecosystemLabelMutedClass(label) {
-	return isEcosystemLabelMuted(label?.publicId) ? " map-label--eco-muted" : "";
+	return (isEcosystemLabelMuted(label?.publicId) ? " map-label--eco-muted" : "")
+		+ (isEcosystemPeakActive(label?.publicId) ? " map-label--eco-peak" : "");
+}
+
+// 🔴 Ziehen ohne Zwischenschritt (V8). Ausserhalb der Topographie braucht ein Label erst den
+// Verschiebemodus, damit ein Fehlgriff beim Kartenziehen nicht gleich etwas verrückt. In dieser Ebene
+// ist das Verschieben der Gipfel aber die Hauptarbeit -- dort jedes Mal erst ein Menü aufzumachen wäre
+// dieselbe Zumutung wie ein Zeichenmodus, den man vor jedem Strich einschaltet.
+//
+// 💣 Nicht in setLabelMoveActive einhängen: das nimmt eine Sperre und wirft eine Toast-Meldung. Beim
+// Ebenenwechsel liefen daraus so viele Sperren und Meldungen, wie Gipfel im Bild sind.
+function syncEcosystemPeakDragging() {
+	if (typeof labelMarkers === "undefined" || !Array.isArray(labelMarkers)) {
+		return;
+	}
+	labelMarkers.forEach((entry) => {
+		const dragging = entry?.marker?.dragging;
+		// 🪤 Nur Gipfel anfassen. Ein anderes Label kann gerade im gewöhnlichen Verschiebemodus stehen
+		// (setLabelMoveActive, mit Sperre); es hier mit abzuschalten risse dem Editor das Label unter
+		// der Maus weg, bloss weil er nebenbei die Ebene gewechselt hat.
+		if (!dragging || !isEcosystemPeakLabel(entry.label?.publicId)) {
+			return;
+		}
+		if (isEcosystemPeakActive(entry.label?.publicId)) {
+			dragging.enable();
+		} else {
+			dragging.disable();
+		}
+	});
 }
 
 // Und der Weg andersherum: beim Ebenenwechsel sollen die schon gezeichneten Labels sofort umschalten,
@@ -145,8 +200,10 @@ function syncEcosystemLabelMuting() {
 		const element = typeof entry?.marker?.getElement === "function" ? entry.marker.getElement() : null;
 		if (element) {
 			element.classList.toggle("map-label--eco-muted", isEcosystemLabelMuted(entry.label?.publicId));
+			element.classList.toggle("map-label--eco-peak", isEcosystemPeakActive(entry.label?.publicId));
 		}
 	});
+	syncEcosystemPeakDragging();
 }
 
 // ---- underground opacity (Owner 2026-07-26) --------------------------------------------------------

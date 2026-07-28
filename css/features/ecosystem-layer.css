@@ -191,6 +191,24 @@
 	pointer-events: none;
 }
 
+/* 🔴 Der Gipfel ist die Ausnahme (V8). In der Topographie-Ebene ist ein `berggipfel` kein fremdes
+   Label, das dem Polygon darunter den Klick wegnimmt, sondern der Arbeitspunkt DIESER Ebene: er trägt
+   die Höhe, und er wird hier gezogen. Ohne diese Regel bliebe er zwar sichtbar (die Stummschaltung
+   lässt ihn schon aus), wäre aber unanklickbar -- die Pane-Regel darüber gilt sonst für alle.
+
+   Der Greifzeiger sagt es an, bevor jemand es ausprobiert. */
+.leaflet-pane.ecosystem-labels-dimmed > .leaflet-marker-icon.map-label--eco-peak {
+	pointer-events: auto;
+}
+
+.map-label--eco-peak {
+	cursor: grab;
+}
+
+.map-label--eco-peak:active {
+	cursor: grabbing;
+}
+
 /* ---- active-region picker (V3.0b) -----------------------------------------------------------------
    Label / select / button in one row. The middle track is minmax(0, 1fr) so the select absorbs the
    leftover width instead of a fixed track pushing the button past the box's right inset -- the exact

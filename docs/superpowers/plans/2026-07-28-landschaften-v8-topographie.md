@@ -429,12 +429,26 @@ git commit -m "feat(ecosystem): edit peak heights from the landscape panel, writ
 
 ### Aufgabe 4: Gipfel in der Topographie-Ebene — sichtbar und ziehbar
 
-**Dateien:** `js/map-features/map-features-ecosystem-peaks.js` (neu) ·
-`index.html` (Script-Tag in der Ladereihenfolge **nach**
-`map-features-ecosystem-geometry.js`) · `css/features/…` nach Bedarf, nur Token
+> 🔴 **BEIM BAUEN GEÄNDERT (2026-07-28): kein neues Modul.** Der Plan sah eine eigene
+> Gipfel-Markerebene vor. Beim Lesen des Bestands zeigte sich, dass es sie schon gibt: der
+> Label-Layer zeichnet die `berggipfel` bereits, `setLabelMoveActive` schaltet das Ziehen frei
+> und `saveLabelPosition` schreibt `move_label` auf dieselbe Zeile. Eine zweite Markerebene
+> wäre genau die **zweite Ansicht desselben Objekts**, die §0 verbietet — der vorhandene Marker
+> **ist** der Gipfel. Statt eines Moduls also drei Erweiterungen:
+>
+> 1. `isEcosystemLabelMuted` bekommt eine Ausnahme: ein `berggipfel` ist in der **Topographie**
+>    kein fremdes Label, sondern deren Arbeitspunkt.
+> 2. `css/features/ecosystem-layer.css` nimmt für ihn die Klickdurchlässigkeit der Labels-Pane
+>    zurück (`.map-label--eco-peak`), samt Greifzeiger.
+> 3. `syncEcosystemPeakDragging` schaltet das Ziehen an der Ebene fest — ohne den einmaligen
+>    Verschiebemodus, weil das Ziehen hier die Hauptarbeit ist und nicht der Sonderfall.
 
-**Erzeugt:** `collectEcosystemPeaks()` → `[{publicId, name, x, y, height}]` ·
-`renderEcosystemPeakLayer(map)` · `refreshEcosystemPeakLayer()`
+**Dateien:** `js/map-features/map-features-ecosystem-layer-switch.js` ·
+`js/map-features/map-features-labels.js` · `css/features/ecosystem-layer.css` — alle **geändert**,
+keine neue Datei, kein neuer Script-Tag.
+
+**Erzeugt:** `isEcosystemPeakLabel(publicId)` · `isEcosystemPeakActive(publicId)` ·
+`syncEcosystemPeakDragging()`
 
 - [ ] **Schritt 1:** Alle `berggipfel`-Labels sammeln — **alle 62, ohne Wiki-Filter** (§0).
       `height` ist `properties.height_schritt ?? null`.
@@ -452,9 +466,24 @@ git commit -m "feat(ecosystem): edit peak heights from the landscape panel, writ
 - [ ] **Schritt 7: Commit.**
 
 ```bash
-git add js/map-features/map-features-ecosystem-peaks.js index.html
+git add js/map-features/map-features-ecosystem-layer-switch.js js/map-features/map-features-labels.js css/features/ecosystem-layer.css
 git commit -m "feat(ecosystem): show and drag every peak label in the topography layer"
 ```
+
+**💣 Zwei Fallen, beim Bauen aufgelaufen und behoben — beide würden sich wiederholen:**
+
+1. **`marker.dragging` entsteht erst in `onAdd`.** In `createLabelMarkerEntry` ist es davor
+   `undefined`; `marker.dragging?.enable()` war dort eine **stille Nulloperation** — kein
+   Fehler, keine Wirkung, und genau der frisch angelegte Gipfel klebte fest. Der Aufruf muss
+   **nach** `syncLabelMarkerVisibility(entry)` stehen.
+2. **`dragend` darf einen Dauergipfel nicht stilllegen.** Der vorhandene Handler ruft
+   `setLabelMoveActive(entry, false)`; auf einen dauerhaft ziehbaren Gipfel angewandt liesse er
+   sich **genau einmal** verschieben. Der Handler steigt für aktive Gipfel vorher aus.
+
+**🪤 Prüffalle (kein Produktfehler):** synthetische `mousemove`/`mouseup` **nie auf `document`**
+feuern. Leaflet merkt sich `e.target` als `_lastTarget` und fasst beim Aufräumen dessen
+`className` an — `document.className` gibt es nicht, und der Zug stirbt mit
+`Cannot read properties of undefined (reading 'baseVal')`. Ziel ist das **Marker-Element**.
 
 ---
 

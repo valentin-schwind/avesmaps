@@ -457,6 +457,17 @@ function createLabelMarkerEntry(label) {
 		});
 		marker.on("dragend", () => {
 			void saveLabelPosition(entry);
+			// 🪤 V8: einen Gipfel, der in der Topographie-Ebene DAUERHAFT ziehbar ist, hier nicht
+			// stillzulegen. setLabelMoveActive(false) beendet den einmaligen Verschiebemodus -- auf ihn
+			// angewandt liesse es sich genau einmal verschieben, danach klebte er fest.
+			if (typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId)) {
+				// Die enthaltende Fläche muss neu gerechnet werden (Leitfaden §1.4). Beim Überqueren
+				// einer Grenze sind es zwei -- die alte und die neue; das entscheidet der Empfänger.
+				if (typeof invalidateEcosystemHeightForPeak === "function") {
+					invalidateEcosystemHeightForPeak(label);
+				}
+				return;
+			}
 			setLabelMoveActive(entry, false);
 		});
 		// Infopanel (default): in edit mode the floating box carries the EDIT actions, but the right Info
@@ -499,6 +510,16 @@ function createLabelMarkerEntry(label) {
 		}
 	}
 	syncLabelMarkerVisibility(entry);
+	// V8: ein Gipfel, der in die schon aktive Topographie-Ebene hineingeboren wird (frisch angelegt oder
+	// beim Nachladen), ist sofort ziehbar. syncEcosystemLabelMuting läuft nur beim EbenenWECHSEL --
+	// ohne diese Zeile bliebe genau der neue Punkt der einzige unbewegliche.
+	//
+	// 💣 NACH syncLabelMarkerVisibility, nicht davor: `marker.dragging` entsteht bei Leaflet erst in
+	// `onAdd`. Davor ist es `undefined`, und `marker.dragging?.enable()` wäre eine stille Nulloperation --
+	// ohne Fehler, ohne Wirkung, und der Gipfel klebte fest, bis jemand die Ebene wechselt.
+	if (IS_EDIT_MODE && typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId)) {
+		marker.dragging?.enable();
+	}
 	return entry;
 }
 
