@@ -230,8 +230,22 @@
 	   ändert sich beim Aktivieren am Gebirgsfuss nichts sichtbar und es entsteht der Eindruck, dass
 	   nur das Höhenmodell dazukommt -- vorher wurde ein warm brauner Zug zu einem dunklen Fleck.
 	   Der Wert spiegelt --color-ecosystem-topographie-gebirge; wer den ändert, ändert auch diesen. */
-	--color-ecosystem-height-min: #7a6c5e;                  /* 0 Schritt = Grundton der Fläche */
-	--color-ecosystem-height-max: #ffffff;                  /* Weisspunkt, siehe HEIGHT_WHITE_SCHRITT */
+	/* 🔴 Die FÜNF Stützstellen des Prototyps (html/landschaften-modell.html:589), auf Owner-Wunsch
+	   2026-07-28 wieder eingesetzt -- dort standen sie als rohe RGB-Tripel im Code, was AGENTS.md §12
+	   verbietet. Warme Erdtöne vom Gebirgsfuss bis zum Firn, kein Blau: das Relief ist gemalte Karte.
+
+	   🔴 FARBE UND DECKKRAFT SIND ZWEI DINGE, und das ist der Kern dieser Fassung. Die Farbe kommt aus
+	   dieser Rampe, die Deckkraft aus derselben Höhe: 0 Schritt = durchsichtig, 5.000 = voll. Am
+	   Gebirgsfuss ist der Schleier deshalb unsichtbar, und welche Farbe dort steht, spielt keine Rolle
+	   -- nach oben hin verdichtet er sich und die Rampe kommt zum Vorschein.
+
+	   Die Abstände sind ungleich, so wie im Prototyp: der Übergang ins Firn sitzt spät (0,8), damit
+	   nicht jeder Mittelhang schon weiss wird. */
+	--color-ecosystem-height-0: #b0be9e;                    /* 0 % -- Fuss, fahles Grün */
+	--color-ecosystem-height-1: #c6be96;                    /* 25 % -- untere Hänge, Sand */
+	--color-ecosystem-height-2: #bea37c;                    /* 55 % -- Mittellage, Braun */
+	--color-ecosystem-height-3: #d6c4b2;                    /* 80 % -- Hochlage, helles Braun */
+	--color-ecosystem-height-4: #f7f3ee;                    /* 100 % -- Firn, fast Weiss */
 	/* Deckkraft des Höhenschleiers. Er liegt ÜBER den Flächenfüllungen (Pane 420 über 250), also
 	   entscheidet dieser Wert, wie viel Regionsfarbe noch durchkommt. */
 	--opacity-ecosystem-height: 0.55;

@@ -25,13 +25,20 @@
 	// hält die Rechnung bei rund einem Neuntel der Pixelzahl.
 	const STEP = 3;
 	const RAMP_TOKENS = [
-		"--color-ecosystem-height-min",
-		"--color-ecosystem-height-max",
+		"--color-ecosystem-height-0",
+		"--color-ecosystem-height-1",
+		"--color-ecosystem-height-2",
+		"--color-ecosystem-height-3",
+		"--color-ecosystem-height-4",
 	];
-	// Zwei Stützstellen, linear dazwischen: schwarz bei 0, weiss beim Weisspunkt. Die alte Fünf-Farben-
-	// Rampe hatte ungleiche Stufen, damit nicht jeder Mittelhang schon weiss wurde -- bei einer reinen
-	// Graustufe wäre dieselbe Krümmung eine versteckte Behauptung über Höhen, die die Daten nicht hergibt.
-	const RAMP_STOPS = [0, 1];
+	// 🔴 Die ungleichen Stützstellen des Prototyps (:589), auf Owner-Wunsch zurück. Der Übergang ins
+	// Firn sitzt spät (0,8), damit nicht jeder Mittelhang schon weiss wird.
+	//
+	// Ein früherer Einwand gegen diese Krümmung lautete, sie sei bei einer reinen Graustufe eine
+	// versteckte Behauptung über Höhen. Er trägt hier nicht mehr: die Skala ist nicht mehr die
+	// Datenaussage (die steht in height_schritt), sondern ausdrücklich eine Lesehilfe, und eine
+	// Lesehilfe darf ihre Auflösung dorthin legen, wo man sie braucht.
+	const RAMP_STOPS = [0, 0.25, 0.55, 0.8, 1];
 	// 🔴 Der Weisspunkt in SCHRITT, absolut (Owner 2026-07-28). Vorher war der Bezug der höchste Gipfel
 	// der TREFFENDEN Fläche, die Skala also je Gebirge eine andere -- ein Grauwert bedeutete nichts, was
 	// man zwischen zwei Flächen hätte vergleichen können.
