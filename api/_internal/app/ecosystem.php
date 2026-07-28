@@ -89,6 +89,10 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // wächst, ist Beiwerk -- wo wirklich etwas wächst, ist es eine `wuestenoase`. Beide in dieselbe
     // Ebene zu legen hiesse, genau diese Unterscheidung wieder einzuebnen.
     ['topographie', 'wadi', 'Wadi', 60],
+    // Owner 2026-07-28. Wie das Wadi ein eingeschnittenes BAND, aber aus Fels statt Bett: was eine
+    // Schlucht ausmacht, ist die Tiefe zwischen zwei Wänden. Fürs Reisen ist sie das Gegenteil des
+    // Wadi -- das ist im Trockenen ein Korridor, die Schlucht ein Hindernis mit wenigen Übergängen.
+    ['topographie', 'schlucht', 'Schlucht', 70],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],

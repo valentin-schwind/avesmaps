@@ -377,6 +377,8 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	wuestenoase: { size: 13, minZoom: 5 },
 	// Ein Wadi ist ein BAND, keine Fläche über Meilen -- kleiner als ein Gebirge, größer als eine Oase.
 	wadi: { size: 14, minZoom: 5 },
+	// Dieselbe Körnung wie das Wadi -- beide sind eingeschnittene Bänder, keine Flächen über Meilen.
+	schlucht: { size: 14, minZoom: 5 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

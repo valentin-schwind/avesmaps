@@ -141,6 +141,10 @@ body.edit-mode .map-label img {
 	color: #ddcfa4; /* Wadi: helles Sandgelb -- trockenes Flussbett, wärmer als die grüne Ebene */
 }
 
+.map-label--schlucht span {
+	color: #c8bdb1; /* Schlucht: kühles Steingrau -- Fels im Schatten, kein Sand */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
