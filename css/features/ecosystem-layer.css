@@ -1024,34 +1024,25 @@
 	cursor: default;
 }
 
-/* In „Alle" nimmt sich die DEROGRAPHISCHE Ebene zurück (Owner 2026-07-27). Ihre Flächen sind die
-   grossen grauen Behälter -- Heldentrutz deckt ein halbes Dutzend Wälder und Seen zu. Bei voller
-   Füllung ersäuft in „Alle" genau das, wofür der Modus da ist. 10 % lassen den Umriss stehen und den
-   Inhalt durch.
+/* 🔴 DIE DEROGRAPHISCHE EBENE NIMMT SICH IMMER ZURÜCK -- nicht nur in „Alle" (Owner 2026-07-27,
+   erweitert 2026-07-28). Ihre Flächen sind die grossen Behälter: Kontinente, Inseln, Provinzen. Sie
+   überlagern einander fast vollständig (Kontinent ⊃ Insel ⊃ Provinz), und bei voller Füllung deckt
+   Heldentrutz ein halbes Dutzend Wälder und Seen zu -- in „Alle" ersäuft genau das, wofür der Modus da
+   ist, und in der derographischen Ansicht selbst sieht man die enthaltene Region gar nicht mehr.
+   10 % lassen den Umriss stehen und den Inhalt durch.
+
+   Die Bedingung ist `--active`, und das deckt BEIDE Fälle mit einer Regel ab: in „Alle" trägt jede Pane
+   zusätzlich `--active` (syncEcosystemPaneStates). Eine eigene `--showall`-Regel daneben wäre dieselbe
+   Aussage zweimal.
+
+   🪤 Nur die FÜLLUNG. Die gestrichelte Kontur behält ihre 0.7 -- wo ein Behälter aufhört, ist genau die
+   Auskunft, die diese Ebene gibt; nur sein Inneres darf nichts zudecken.
 
    Die ANGEKLICKTE Fläche ist ausgenommen: sie behält ihre Auswahl-Darstellung, sonst verlöre man beim
    Hineinklicken genau das Stück aus den Augen, das man gerade meint. Drei Klassen plus :not schlagen
    die allgemeine Regel weiter oben (zwei). */
-.ecosystem-pane--derographisch.ecosystem-pane--showall > svg path.leaflet-interactive:not(.ecosystem-area--selected) {
+.ecosystem-pane--derographisch.ecosystem-pane--active > svg path.leaflet-interactive:not(.ecosystem-area--selected) {
 	fill-opacity: 0.1;
-}
-
-/* Die DEROGRAPHISCHE Ebene bleibt auch im Ruhezustand schwach sichtbar (Owner 2026-07-28): 10 % Füllung
-   statt gar keiner. Die beiden anderen ruhenden Ebenen verschwinden weiterhin ganz.
-
-   Der Unterschied ist, was die Ebene IST. Vegetation und Topographie zeichnen Bodendecke und Relief --
-   beim Arbeiten in der einen ist die andere Störung. Die derographischen Flächen sind Behälter:
-   Kontinente, Inseln, Provinzen. Wer eine Vegetationsfläche zeichnet, will wissen, in welchem Behälter
-   er gerade steht, und bei 0 % war die Antwort unsichtbar.
-
-   🪤 Nur die FÜLLUNG. Die Kontur bleibt bei 0, sonst legte sich die gestrichelte Behälterlinie über die
-   Ebene, in der gearbeitet wird -- ein Hauch Fläche orientiert, eine Linie konkurriert.
-
-   🪤 Über --eco-fill auf der Pane, wie jeder Zustand hier oben, und VOR der Zielwahl-Regel weiter unten:
-   die hat ebenfalls zwei Klassen, und während einer Zwei-Flächen-Operation sollen die ruhenden Ebenen
-   ihre 0.3 bekommen -- bei gleicher Spezifität entscheidet die Reihenfolge. */
-.ecosystem-pane--derographisch.ecosystem-pane--resting {
-	--eco-fill: 0.1;
 }
 
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
