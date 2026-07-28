@@ -817,7 +817,7 @@ function avesmapsReadLabelSubtype(mixed $value): string {
     // IST der Art-Schluessel seiner Region (der V5-Import hat die beiden Vokabulare gleichgesetzt). Eine
     // gesaete Art, die hier fehlt, laesst sich an keinem Label speichern -- 400 auf ein Label, dessen
     // Flaeche die Art laengst traegt. ecosystem-geometry-test.php prueft genau diese Deckung.
-    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'tal', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'sonstiges'];
+    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'graslandschaft', 'auenlandschaft', 'flussland_flusstal', 'dschungel', 'wuestenoase', 'tal', 'vulkan', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'sonstiges'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Die Label-Kategorie ist ungueltig.');
     }

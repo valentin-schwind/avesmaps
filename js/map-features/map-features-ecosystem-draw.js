@@ -372,6 +372,9 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	suempfe_moore: { size: 17, minZoom: 3 },
 	flussland_flusstal: { size: 17, minZoom: 3 },
 	dschungel: { size: 15, minZoom: 4 },
+	// 🔴 Die kleinste Art im Vokabular. Eine Oase ist ein Fleck, keine Decke -- ein Label in Waldgröße
+	// ab Zoom 4 behauptete eine Ausdehnung, die es nicht gibt.
+	wuestenoase: { size: 13, minZoom: 5 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

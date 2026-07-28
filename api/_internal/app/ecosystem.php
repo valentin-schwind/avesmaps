@@ -100,6 +100,12 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // Owner 2026-07-28. Eigene Art neben `wald`: der Regenwald von Meridiana ist keine dichtere Version
     // des Farindel, sondern eine andere Bodendecke -- andere Farbe, anderer Reisewiderstand.
     ['vegetation', 'dschungel', 'Dschungel', 90],
+    // Owner 2026-07-28. Die einzige Vegetationsart, die als PUNKT gedacht ist statt als Decke: eine Oase
+    // ist ein Fleck Grün mitten in `wueste`, keine Landschaft, die sich über Meilen zieht. Deshalb
+    // unten auch ein kleineres Label ab höherem Zoom -- eine Oase, die wie ein Wald beschriftet wird,
+    // behauptet eine Ausdehnung, die sie nicht hat.
+    // 🪤 Schlüssel ASCII-gefaltet wie `wueste` (AGENTS.md §5): `wuestenoase`, nie `wüstenoase`.
+    ['vegetation', 'wuestenoase', 'Wüstenoase', 100],
 ];
 
 // ---- kill switch + trial flag ----------------------------------------------------------------------

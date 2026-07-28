@@ -133,6 +133,10 @@ body.edit-mode .map-label img {
 	color: #a3dcae; /* Dschungel: sattes, üppiges Grün -- kräftiger als Graslandschaft, kühler als Wald */
 }
 
+.map-label--wuestenoase span {
+	color: #a9e8d5; /* Wüstenoase: helles Türkisgrün -- Wasser, und es liest sich gegen den Wüstensand */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
