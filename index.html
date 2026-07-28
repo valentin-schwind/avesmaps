@@ -892,6 +892,44 @@
 				</form>
 			</div>
 		</div>
+		<!-- V7: „Grenze aus Territorien …" — eine Landschaftsfläche aus VORHANDENEN Territoriengrenzen,
+		     statt sie nachzuzeichnen. Hierarchiebaum mit Häkchen, die Vereinigung als Vorschau auf der
+		     Karte, und nach dem Einfügen geht „Fläche vereinfachen" darüber auf.
+		     🔴 KOPIE, NIE VERKNÜPFUNG: die eingefügte Fläche folgt ihren Quellterritorien nicht.
+		     Die Overlay-Huelle (Position, Scrim, z-index) kommt aus css/components/dialog-overlays.css,
+		     wo #ecosystem-import-overlay in allen DREI Selektorlisten steht -- sonst erbt das <div>
+		     NICHTS und oeffnet hinter der Karte. -->
+		<div id="ecosystem-import-overlay" hidden>
+			<div id="ecosystem-import-dialog" class="ecosystem-import-dialog" role="dialog" aria-modal="true" aria-labelledby="ecosystem-import-title" tabindex="-1">
+				<div class="ecosystem-import-dialog__header">
+					<h2 id="ecosystem-import-title" data-i18n="ecosystem.import.dialogTitle">Grenze aus Territorien</h2>
+					<button id="ecosystem-import-close" class="ecosystem-import-dialog__close" type="button" aria-label="Dialog schließen" data-i18n-aria-label="ecosystem.import.closeAria">×</button>
+				</div>
+				<form id="ecosystem-import-form" class="ecosystem-import-dialog__form">
+					<p id="ecosystem-import-demo" class="ecosystem-import-dialog__note" hidden data-i18n="ecosystem.import.demoNote">Attrappen (?demo=1) — der Politik-Layer wird nicht gefragt.</p>
+					<label class="ecosystem-import-dialog__field">
+						<span data-i18n="ecosystem.import.kindLabel">Ebene der neuen Fläche</span>
+						<!-- Vorausgewählt „Derographische Region": politische Grenzen folgen am ehesten der
+						     Landgliederung (Owner-Entscheid 2026-07-28). -->
+						<select id="ecosystem-import-kind" name="kind"></select>
+					</label>
+					<label class="ecosystem-import-dialog__field">
+						<span data-i18n="ecosystem.import.filterLabel">Gebiet suchen</span>
+						<input id="ecosystem-import-filter" type="search" autocomplete="off" placeholder="Name …" data-i18n-placeholder="ecosystem.import.filterPlaceholder" />
+					</label>
+					<!-- Der Baum aus parent_public_id. Ein Häkchen nimmt seinen Teilbaum mit; jede Zeile
+					     sagt, ob der Layer für dieses Gebiet die Außengrenze oder die rohe Grenze hergibt --
+					     wählen lässt sich das nicht (map-features-ecosystem-territory-import.js, Kopf). -->
+					<div id="ecosystem-import-list" class="ecosystem-import-dialog__list" role="group" aria-labelledby="ecosystem-import-title"></div>
+					<p id="ecosystem-import-status" class="ecosystem-import-dialog__summary" role="status"></p>
+					<p id="ecosystem-import-error" class="ecosystem-import-dialog__error" role="alert" hidden></p>
+					<div class="ecosystem-import-dialog__actions">
+						<button id="ecosystem-import-cancel" class="ecosystem-import-dialog__button" type="button" data-i18n="ecosystem.import.cancel">Abbrechen</button>
+						<button id="ecosystem-import-save" class="ecosystem-import-dialog__button ecosystem-import-dialog__button--primary" type="submit" data-i18n="ecosystem.import.save" disabled>Einfügen</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<div id="political-timeline" class="political-timeline" hidden>
 			<div id="political-territory-range" class="political-territory-range" hidden>
 				<div class="political-territory-range__header">
@@ -2071,6 +2109,13 @@
 		     ist die der Registrierung. Pinsel und Radiergummi gehören ans Ende, vor „Fläche löschen". -->
 		<script src="js/map-features/map-features-ecosystem-brush.js"></script>
 		<script src="js/map-features/map-features-ecosystem-simplify.js"></script>
+		<!-- V7 „Grenze aus Territorien …": haengt einen vierten Eintrag in das Untermenue „Hier
+		     hinzufuegen", muss also NACH context-action.js stehen, das die drei „Neue …" davor setzt.
+		     Und nach simplify.js, weil es dessen Eckenzaehlung benutzt und nach dem Einfuegen dessen
+		     Dialog oeffnet. Liest die Territorien ueber loadAllTerritoryGeometry
+		     (map-features-settlement-territory-assign.js, weiter unten geladen -- gerufen wird sie erst
+		     beim Klick, also reicht das). -->
+		<script src="js/map-features/map-features-ecosystem-territory-import.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>

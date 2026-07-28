@@ -174,6 +174,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.deleteArea": "Delete area",
 	"ecosystem.ctxmenu.sendTo": "Send to …",
 	"ecosystem.ctxmenu.properties": "Properties …",
+	"ecosystem.ctxmenu.importTerritory": "Boundary from territories …",
 
 	// --- Landschaften: editing an existing region's name, kind and wiki link (V6b). Deliberately NOT
 	//     the label dialog's strings: that one edits a map_features LABEL and carries size, rotation and
@@ -209,6 +210,25 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.transfer.cancel": "Cancel",
 	"ecosystem.transfer.save": "Send",
 	"ecosystem.transfer.saving": "Sending …",
+
+	// --- Landschaften: building an area out of EXISTING territory boundaries (V7). A COPY, never a link
+	//     -- the inserted area does not follow the territories it came from. "Outer boundary"/"Boundary"
+	//     say which geometry the political layer hands out for a given territory, which is not a choice
+	//     (the fan-out keeps one geometry per territory). ---
+	"ecosystem.import.dialogTitle": "Boundary from territories",
+	"ecosystem.import.closeAria": "Close dialog",
+	"ecosystem.import.demoNote": "Mock data (?demo=1) — the political layer is not queried.",
+	"ecosystem.import.kindLabel": "Layer of the new area",
+	"ecosystem.import.filterLabel": "Find a territory",
+	"ecosystem.import.filterPlaceholder": "Name …",
+	"ecosystem.import.loading": "Loading territories — seven requests, this takes a moment …",
+	"ecosystem.import.aggregate": "Outer boundary",
+	"ecosystem.import.raw": "Boundary",
+	"ecosystem.import.emptyAll": "No territories were loaded — the political layer returned nothing. Please try again.",
+	"ecosystem.import.emptyFilter": "No territory matches this search.",
+	"ecosystem.import.cancel": "Cancel",
+	"ecosystem.import.save": "Insert",
+	"ecosystem.import.saving": "Inserting …",
 
 	// --- Landschaften: the seventh list editor (WikiSync -> Regionen -> "Regionen bearbeiten").
 	//     Button and window title read the same words, so they share one key (spec §2). Only the

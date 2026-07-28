@@ -23,6 +23,7 @@ body.modal-dialog-open {
 #label-assign-overlay[hidden],
 #ecosystem-properties-overlay[hidden],
 #ecosystem-simplify-overlay[hidden],
+#ecosystem-import-overlay[hidden],
 #review-overlay[hidden] {
 	display: none !important;
 }
@@ -45,6 +46,7 @@ body.modal-dialog-open {
 #label-assign-overlay,
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
+#ecosystem-import-overlay,
 #review-overlay {
 	position: fixed;
 	inset: 0;
@@ -55,18 +57,21 @@ body.modal-dialog-open {
 	background: var(--color-scrim-dialog);
 }
 
-/* 🔴 EINE bewusste Ausnahme vom Abdunkeln (Owner 2026-07-28): „Fläche vereinfachen" arbeitet AN der
-   Karte. Sein Regler zeigt die Wirkung als Vorschau auf der Fläche darunter -- ein Schleier davor macht
-   genau das unkenntlich, was zu beurteilen ist. Position, Zentrierung und Stapelhöhe kommen weiter aus
-   den geteilten Listen; nur der Schleier fällt weg.
-   Und die Fläche darunter bleibt bedienbar: die Hülle reicht Zeiger durch, das Fenster selbst nicht --
+/* 🔴 ZWEI bewusste Ausnahmen vom Abdunkeln (Owner 2026-07-28): „Fläche vereinfachen" und „Grenze aus
+   Territorien" arbeiten AN der Karte. Beide zeigen ihre Wirkung als Vorschau auf der Fläche darunter --
+   der Regler das, was er wegnimmt, der Baum die Vereinigung der angehakten Grenzen -- und ein Schleier
+   davor macht genau das unkenntlich, was zu beurteilen ist. Position, Zentrierung und Stapelhöhe kommen
+   weiter aus den geteilten Listen; nur der Schleier fällt weg.
+   Und die Karte darunter bleibt bedienbar: die Hülle reicht Zeiger durch, das Fenster selbst nicht --
    sonst läge über der ganzen Karte eine unsichtbare Scheibe. */
-#ecosystem-simplify-overlay {
+#ecosystem-simplify-overlay,
+#ecosystem-import-overlay {
 	background: transparent;
 	pointer-events: none;
 }
 
-#ecosystem-simplify-overlay > * {
+#ecosystem-simplify-overlay > *,
+#ecosystem-import-overlay > * {
 	pointer-events: auto;
 }
 
@@ -94,6 +99,7 @@ body.modal-dialog-open {
 #label-assign-overlay,
 #ecosystem-properties-overlay,
 #ecosystem-simplify-overlay,
+#ecosystem-import-overlay,
 #review-overlay {
 	z-index: 1260;
 }

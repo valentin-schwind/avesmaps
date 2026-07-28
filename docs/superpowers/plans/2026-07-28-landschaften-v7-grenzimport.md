@@ -135,7 +135,17 @@ muss ihn fangen.
 
 ---
 
-## 5. Offene Fragen — VOR dem Bau klären, nicht raten
+## 5. Offene Fragen — ✅ vom Owner beantwortet 2026-07-28, VOR dem Bau
+
+| Frage | Antwort |
+|---|---|
+| **1. Welche Ebene?** | **Der Dialog fragt, vorausgewählt „Derographische Region".** Ein Menüeintrag statt drei; die Wahl steht neben der Auswahl, die sie betrifft. |
+| **2. Aggregat oder roh?** | **Nehmen, was der Layer zeigt.** Keine zweite Anfrage an den Politik-Layer. Jede Baumzeile sagt, welche Geometrie es wurde (*„Außengrenze"* / *„Grenze"*), statt eine Wahl vorzutäuschen. |
+| **3. Wann vereinfachen?** | **Danach, im vorhandenen Dialog.** Erst einfügen, dann öffnet „Fläche vereinfachen" von selbst — mit Regler, Vorschau und „vorher → nachher". Kein zweiter Regler im Import-Dialog. |
+
+*(Der Originaltext der drei Fragen steht unten, damit die Begründung nachlesbar bleibt.)*
+
+## 5a. Die Fragen im Wortlaut
 
 1. **Welche Ebene bekommt die neue Fläche?** Derographische Region, Vegetation oder
    Topographie? Der naheliegende Fall ist *derographisch* (politische Grenzen folgen oft
@@ -153,18 +163,34 @@ muss ihn fangen.
 
 ## 6. Aufgaben
 
-- [ ] **1 — Die drei Fragen aus §5 klären.** Nicht raten; sie entscheiden die Oberfläche.
-- [ ] **2 — Baum-Auswahl.** Kontextmenü-Eintrag + Dialog mit Hierarchiebaum und Häkchen. Die
-      Hierarchie kommt aus `parent_public_id`; Beschriftung über `territoryLabel()`-Muster
-      (§3). Der Ladefächer bleibt hinter dieser ausdrücklichen Aktion.
-- [ ] **3 — Vereinigen und Vereinfachen.** `ecosystemBooleanGeometry("union", …)` über die
-      Auswahl, Leerergebnis fangen, dann `simplifyGeometry`. Vorschau vor dem Schreiben.
-- [ ] **4 — Einfügen.** `create_region` + `create_area`, `round(…, 4)`, Auto-Name aus dem
-      vorhandenen Modul. 🔴 Eigene Region je Fläche.
-- [ ] **5 — Abnahme im Browser** mit Attrappen (`?demo=1`) und danach live durch den Owner.
-      Kanten zählen: vor und nach dem Vereinfachen, und die Nutzlastgröße nennen.
-- [ ] **6 — Doku.** `docs/oekosystem-editor-verhalten.md` um den Weg ergänzen; die V7-Zeile in
-      `2026-07-24-landschaften.md` abhaken.
+- [x] **1 — Die drei Fragen aus §5 klären.** ✅ Vom Owner beantwortet, vor dem ersten Handgriff — die
+      Antworten stehen in §5.
+- [x] **2 — Baum-Auswahl.** `js/map-features/map-features-ecosystem-territory-import.js` hängt einen
+      vierten Eintrag („Grenze aus Territorien …") in das Untermenü „Hier hinzufügen" und öffnet
+      `#ecosystem-import-overlay`: Ebenenwahl, Suchfeld, Hierarchiebaum aus `parent_public_id` mit
+      Häkchen und Teilzustand. Beschriftung nach dem `territoryLabel()`-Muster (wortgleiche
+      Abschrift). Waisen werden Wurzeln, Zyklen sind bewacht. Der Fächer läuft nur hier, je Sitzung
+      einmal — ein **leeres** Ergebnis wird ausdrücklich nicht gemerkt, und zwei Öffnen während des
+      Ladens teilen sich einen Fächer.
+- [x] **3 — Vereinigen und Vereinfachen.** Gefaltete `ecosystemBooleanGeometry("union", …)` über die
+      Auswahl; ein Fehlschlag nennt das Gebiet, an dem es scheiterte. Die Vereinigung liegt als
+      Vorschau auf der Karte (kein Schleier über dem Fenster, wie beim Vereinfachen-Dialog), die
+      Statuszeile nennt Gebiete, Teile, Ecken und KB — **vor** dem Schreiben. Vereinfacht wird nach
+      Entscheid 3 im vorhandenen Dialog.
+- [x] **4 — Einfügen.** `create_region` (eigene Region je Fläche, Auto-Name, keine Art, kein
+      `wiki_url`) + `create_area` mit `round(…, 4)` + Karten-Label wie beim Zeichnen. Eine Region aus
+      einem gescheiterten Versuch wird gehalten, damit ein zweiter Anlauf keine zweite anlegt.
+- [x] **5 — Abnahme im Browser.** Mit Attrappen (`?demo=1`) über **echte** DOM-Ereignisse:
+      `contextmenu` auf dem Kartencontainer → Eintrag sichtbar → Klick → Dialog, Baum, Kaskade,
+      Teilzustand, Suche, Vorschau an den richtigen Weltkoordinaten, Escape. Der Schreibweg mit
+      gestubbtem `postEcosystemEdit` (echter Code-Pfad, sichtbare Nutzlasten) bis in den geöffneten
+      Vereinfachen-Dialog. Maßstab am Livebestand nachgestellt (946 Gebiete): öffnen 9 ms,
+      vereinigen 29 ms, filtern 3 ms. **Ecken:** 56 Baronien = 2240 roh → 552 vereinigt → 405/275/
+      150/37 bei Regler 25/50/75/100. **Nutzlast:** 15,0 KB ungerundet → 10,1 KB gerundet (−33 %,
+      nicht die im Plan behauptete Hälfte) → 2,8 KB bei Regler 75. 🔧 **Live durch den Owner steht
+      aus** — jeder DB-Pfad ist nur dort prüfbar.
+- [x] **6 — Doku.** `docs/oekosystem-editor-verhalten.md` §4a beschreibt den Weg; die V7-Zeile in
+      `2026-07-24-landschaften.md` ist abgehakt und trägt die gemessenen Zahlen.
 
 ---
 
