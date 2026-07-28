@@ -324,7 +324,29 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		const separation = peakWindow && typeof peakWindow.separationAt === "function"
 			? peakWindow.separationAt(x, y)
 			: Infinity;
-		const radius = Math.min(distanceToEcosystemEdge([x, y], geometry), 0.72 * separation, 150);
+		// 💣 EIN MINDESTRADIUS, sonst werden aus Bergen Stecknadelköpfe.
+		//
+		// Die Klemme `0,72 × Gipfelabstand` stammt aus dem Prototyp und erzwingt dort einen Sattel
+		// zwischen zwei Gipfeln. Sie setzt voraus, was im Prototyp galt: wenige, weit auseinander
+		// liegende Gipfel. Am Livebestand stehen sie dicht -- im Finsterkamm 2 bis 7 Einheiten
+		// auseinander --, und dann klemmt jeder den anderen auf 1 bis 5 Einheiten Radius. Auf einer
+		// 1024 Einheiten breiten Karte sind das Punkte. Genau so wurde es gemeldet: „sehn tu ich auch
+		// nur weiße spots", gemessene Radien 2/1/5/2/0/3/1/3.
+		//
+		// 🔴 DER TAUSCH, BEWUSST: dicht stehende Gipfel VERSCHMELZEN jetzt zu einem Massiv, statt sich
+		// gegenseitig kleinzuklemmen. Das ist physisch richtig -- zwei Kuppen drei Einheiten auseinander
+		// SIND ein Massiv -- und kostet die Zusicherung „jeder Gipfel liest exakt seine Zahl" für genau
+		// diesen Fall. Tragbar, seit das Feld ausdrücklich Darstellung ist: V11 rechnet aus
+		// `height_schritt`, nicht aus dem Bild. Weit auseinander liegende Gipfel behalten die Zusicherung.
+		const bounds = ecosystemGeometryBounds(geometry);
+		const minRadius = bounds
+			? 0.25 * Math.min(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y)
+			: 0;
+		const radius = Math.min(
+			distanceToEcosystemEdge([x, y], geometry),
+			Math.max(0.72 * separation, minRadius),
+			150
+		);
 		if (!(radius > 0)) {
 			return;                            // ein Gipfel genau auf dem Rand trägt keinen Buckel
 		}

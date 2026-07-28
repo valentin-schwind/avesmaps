@@ -139,11 +139,23 @@ const radiusWithPair = withDistantPair.built.peakBumps.find((bump) => bump.x ===
 assert.strictEqual(radiusAlone, radiusWithPair,
 	`a close pair 250 units away must not shrink the lone peak (${radiusAlone} vs ${radiusWithPair})`);
 
-// And the invariant the clamp exists for still holds: neither twin reaches the other's summit.
+// 🔴 UND DIE ZWILLINGE VERSCHMELZEN, statt sich gegenseitig auf nichts zu klemmen.
+//
+// Bis 2026-07-28 stand hier das Gegenteil: `twinA.r < 1`, „die Zwillinge klemmen einander eng". Das war
+// die Regel des Prototyps, und am Livebestand machte sie aus jedem Gipfel einen Stecknadelkopf --
+// gemessene Radien 2/1/5/2/0/3/1/3 auf einer 1024 Einheiten breiten Karte. Der Mindestradius kehrt das
+// um: zwei Kuppen eine Einheit auseinander SIND ein Massiv und werden auch so gezeichnet.
+//
+// Der Preis steht im Feldmodul: für dicht stehende Gipfel gilt „jeder liest exakt seine Zahl" nicht
+// mehr. Tragbar, weil das Feld Darstellung ist und V11 aus `height_schritt` rechnet.
 const twinA = withDistantPair.built.peakBumps.find((bump) => bump.x === 20);
 const twinB = withDistantPair.built.peakBumps.find((bump) => bump.x === 21);
-assert.ok(twinA.r < 1 && twinB.r < 1, "the twins clamp each OTHER, tightly");
-assert.ok(Math.abs(withDistantPair.at(20, 380) - 1000) < 1, "and each still reads its own height");
+assert.ok(twinA.r >= 20 && twinB.r >= 20,
+	`die Zwillinge bekommen den Mindestradius statt sich kleinzuklemmen (${twinA.r} / ${twinB.r})`);
+// Der EINZELNE Gipfel weit weg liest trotzdem weiter seine eigene Zahl -- ihn erreicht kein fremder
+// Buckel, und genau dafür ist der Mindestradius am Randabstand mitgeklemmt.
+assert.ok(Math.abs(withDistantPair.at(200, 200) - 4000) < 1,
+	`der einzelne Gipfel behält seine 4000 (${withDistantPair.at(200, 200)})`);
 
 // 12. 🔴 DIE ZWEI INVARIANTEN ÜBERSTEHEN ALLE DREI DARSTELLUNGSVERFAHREN.
 //

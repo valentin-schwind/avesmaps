@@ -44,7 +44,16 @@
 // Welche Art wird wie dargestellt. Absichtlich kurz: was hier NICHT steht, bekommt das additive
 // Rauschen -- das ist die richtige Vorgabe für eine Art, über die noch niemand nachgedacht hat.
 const ECOSYSTEM_TERRAIN_METHOD_BY_TYPE = {
-	gebirge: "slope",
+	// 💣 GEBIRGE STEHT WIEDER AUF ADDITIV. „Exponential Slope Weighting" ist gebaut, getestet und
+	// bleibt verfügbar -- es ist nur nicht bezahlbar: die zentrale Differenz kostet VIER zusätzliche
+	// Feldabfragen je Rasterpunkt, und am echten Viewport des Owners (2560x1271) stieg die Malzeit auf
+	// **248,7 ms**; neun Neuzeichnungen am Stück froren den Tab ein. Meine früheren 25-36 ms stammten
+	// von einem 900x620-Testfenster, also einem Viertel der Pixel -- die Zahl war nie allgemein gültig.
+	//
+	// Sichtbar war der Nutzen ohnehin nicht, solange die Gipfel Stecknadelköpfe waren (siehe die
+	// Radiusklemme im Feldmodul). Wer es zurückholt, misst vorher am GRÖSSTEN Viewport, nicht am
+	// bequemsten -- und braucht entweder ein gröberes Raster oder einen Gradienten ohne Nachbarabfragen.
+	gebirge: "perlin",
 	huegelland: "warp",
 };
 
