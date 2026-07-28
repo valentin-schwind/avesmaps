@@ -27,7 +27,11 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // 2 (2026-07-28): every area row now also carries region_type_label, region_area_count and
 // region_label_count for the tooltip. Same revision, new shape -> without this bump a warm client would
 // keep the old body through a 304 and its tooltip would silently show "Flächen (0) und Labels (0)".
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 2;
+// 3 (2026-07-28): `cascade_enabled` joins the envelope. It is what the delete confirmations word
+// themselves from, so the bump matters most on the day the switch is flipped: without it a warm client
+// keeps the old body, reads no flag, and goes on promising that nothing else gets deleted -- while the
+// server has just started deleting it.
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 3;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -85,6 +89,10 @@ try {
     avesmapsJsonResponse(200, [
         'ok' => true,
         'ecosystem_enabled' => true,
+        // Löscht das Entfernen der letzten Fläche bzw. des letzten Labels die ganze Region mit? Der
+        // Editor MUSS das wissen, sonst kündigen seine Rückfragen etwas an, das nicht passiert -- und
+        // eine Rückfrage, die übertreibt, wird genauso schnell weggeklickt wie eine, die untertreibt.
+        'cascade_enabled' => AVESMAPS_ECOSYSTEM_CASCADE_ENABLED,
         'revision' => $revision,
         'areas' => avesmapsEcosystemReadAreas($pdo, $bbox),
     ]);

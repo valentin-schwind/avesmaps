@@ -126,7 +126,7 @@ const withOthers = formatEcosystemAreaDeleteConfirmation({
 	geometry_revision: 2,
 	region_area_count: 3,
 	region_label_count: 1,
-});
+}, true);
 assert.ok(withOthers.includes("Farindel"), "names the region");
 assert.ok(withOthers.includes("anderen 2 Flächen"), "counts what survives instead of hand-waving at it");
 assert.ok(withOthers.includes("bleiben bestehen"), "says the region and its other areas survive");
@@ -134,14 +134,14 @@ assert.ok(withOthers.includes("bleiben bestehen"), "says the region and its othe
 // Exactly two areas: the survivor is singular, not "anderen 1 Flächen".
 const withOneOther = formatEcosystemAreaDeleteConfirmation({
 	public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 2, region_label_count: 0,
-});
+}, true);
 assert.ok(withOneOther.includes("andere Fläche"), "one survivor reads as singular");
 
 // 💣 THE LAST AREA. On the live stock every region has exactly one area, so this is the NORMAL case --
 // and the sentence has to name the region and its labels going with it.
 const last = formatEcosystemAreaDeleteConfirmation({
 	public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 1, region_label_count: 2,
-});
+}, true);
 assert.ok(last.includes("LETZTE"), "the last area says so");
 assert.ok(last.includes("2 Labels"), "and names how many labels go with it");
 assert.ok(!last.includes("bleiben bestehen"), "and never carries the reassurance that made this wrong");
@@ -149,17 +149,41 @@ assert.ok(!last.includes("bleiben bestehen"), "and never carries the reassurance
 // The last area of a region with no label at all: no "0 Labels", just the region.
 const lastNoLabel = formatEcosystemAreaDeleteConfirmation({
 	public_id: "eca_123", region_name: "Wald-001", kind: "vegetation", region_area_count: 1, region_label_count: 0,
-});
+}, true);
 assert.ok(lastNoLabel.includes("die Region verschwindet mit"), "no label -> the region alone");
 assert.ok(!lastNoLabel.includes("0 Label"), "and never a count of zero");
 
 // 🪤 An area row from a cache that predates the count fields: 0 means UNKNOWN, not "none" -- the area
 // being deleted counts itself, so the smallest true value is 1. It must not reassure.
-const unknown = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9", region_name: "Farindel", kind: "vegetation" });
+const unknown = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9", region_name: "Farindel", kind: "vegetation" }, true);
 assert.ok(!unknown.includes("bleiben bestehen"), "an unknown count never reassures");
 assert.ok(unknown.includes("Ist es die letzte"), "it leaves the consequence open instead");
 
-const namelessConfirmation = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9" });
+// 🔴 KASKADE AUS (der ausgelieferte Zustand, AVESMAPS_ECOSYSTEM_CASCADE_ENABLED = false). Dann bleibt
+// die Region als leere Hülle stehen -- „verschwindet mit" anzukündigen wäre dieselbe Unwahrheit wie die
+// alte Entwarnung, nur in die andere Richtung. Beide Zustände sind hier festgenagelt, weil der Schalter
+// umgelegt werden WIRD und die Rückfrage dann mitwandern muss.
+const letzteOhneKaskade = formatEcosystemAreaDeleteConfirmation({
+	public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 1, region_label_count: 2,
+}, false);
+assert.ok(letzteOhneKaskade.includes("LETZTE"), "es bleibt die letzte Fläche");
+assert.ok(letzteOhneKaskade.includes("die Region bleibt bestehen"), "aber die Region geht NICHT mit");
+assert.ok(!letzteOhneKaskade.includes("verschwinden mit"), "kein angekündigtes Mitlöschen");
+assert.ok(!letzteOhneKaskade.includes("2 Labels"), "und keine Labels, die gar nicht angefasst werden");
+
+// Mehrere Flächen: die Aussage hängt nicht am Schalter, sie ist in beiden Fällen dieselbe.
+assert.strictEqual(
+	formatEcosystemAreaDeleteConfirmation({ public_id: "x", region_name: "F", kind: "vegetation", region_area_count: 3, region_label_count: 1 }, false),
+	formatEcosystemAreaDeleteConfirmation({ public_id: "x", region_name: "F", kind: "vegetation", region_area_count: 3, region_label_count: 1 }, true),
+	"solange etwas übrig bleibt, sagt der Schalter nichts dazu"
+);
+
+// Unbekannte Zahl UND Kaskade aus: gar keine Aussage über die Region, statt zu raten.
+const unbekanntOhneKaskade = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9", region_name: "Farindel", kind: "vegetation" }, false);
+assert.ok(!unbekanntOhneKaskade.includes("Region"), "ohne belastbare Zahl keine Behauptung über die Region");
+assert.ok(unbekanntOhneKaskade.includes("wirklich löschen?"), "die Frage selbst bleibt");
+
+const namelessConfirmation = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9" }, true);
 assert.ok(namelessConfirmation.includes("Ohne Namen"), "a region without a name still produces a sentence");
 assert.ok(!namelessConfirmation.includes("()"), "and no empty bracket where the kind label would be");
 

@@ -142,7 +142,7 @@ async function ecosystemPushLabelChangesToRegion(label) {
 // @param labelText  der Text des Labels
 // @param region     die Regionszeile ({ name, area_count }) oder null für ein Label ohne Fläche
 // @param labelCount wie viele Labels die Region insgesamt trägt (dieses eingeschlossen)
-function formatEcosystemLabelDeleteConfirmation(labelText, region, labelCount) {
+function formatEcosystemLabelDeleteConfirmation(labelText, region, labelCount, kaskade) {
 	const name = String(labelText || "").trim() || "Dieses Label";
 	const kopf = `${name} wirklich löschen?`;
 	if (!region || typeof region.name === "undefined") {
@@ -151,14 +151,23 @@ function formatEcosystemLabelDeleteConfirmation(labelText, region, labelCount) {
 
 	const regionName = String(region.name || "").trim() || "Ohne Namen";
 	const count = Number(labelCount) || 0;
-	// 🪤 Wie bei der Flächen-Rückfrage: 0 heisst „unbekannt", nicht „keines" -- das Label, um das es
-	// geht, zählt selbst mit. Lieber die Folge offenlassen als sie falsch verneinen.
-	if (count <= 0) {
-		return [kopf, "", `Ist es das letzte Label von „${regionName}", verschwindet die Fläche mit.`].join("\n");
-	}
 	if (count > 1) {
 		const rest = count - 1;
 		return [kopf, "", `„${regionName}" behält ${rest === 1 ? "1 weiteres Label" : `${rest} weitere Labels`}.`].join("\n");
+	}
+
+	// 🔴 Ab hier geht es um das LETZTE Label. Ob die Fläche dann mitgeht, entscheidet der Server
+	// (`cascade_enabled`); ist die Kaskade aus, bleibt sie unbeschriftet stehen.
+	if (!kaskade) {
+		// 🪤 0 heisst „unbekannt", nicht „keines" -- das Label, um das es geht, zählt selbst mit.
+		return count <= 0
+			? kopf
+			: [kopf, "", `Das ist das LETZTE Label von „${regionName}" — die Fläche bleibt bestehen, dann ohne Namen auf der Karte.`].join("\n");
+	}
+
+	// 🪤 Unbekannte Zahl bei eingeschalteter Kaskade: die Folge offenlassen statt sie falsch verneinen.
+	if (count <= 0) {
+		return [kopf, "", `Ist es das letzte Label von „${regionName}", verschwindet die Fläche mit.`].join("\n");
 	}
 
 	const areas = Number(region.area_count) || 0;

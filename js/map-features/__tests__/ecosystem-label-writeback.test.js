@@ -133,36 +133,53 @@ assert.deepStrictEqual(
 // zu löschen nimmt die Fläche mit. Was sie verspricht, muss in jedem Zweig wahr sein.
 
 // Ein gewöhnliches Label ohne Fläche behält die schlichte Rückfrage -- die grosse Mehrheit (580 von 590).
-assert.strictEqual(formatEcosystemLabelDeleteConfirmation("Perricum", null, 0), "Perricum wirklich löschen?");
-assert.strictEqual(formatEcosystemLabelDeleteConfirmation("Perricum", {}, 3), "Perricum wirklich löschen?");
+assert.strictEqual(formatEcosystemLabelDeleteConfirmation("Perricum", null, 0, true), "Perricum wirklich löschen?");
+assert.strictEqual(formatEcosystemLabelDeleteConfirmation("Perricum", {}, 3, true), "Perricum wirklich löschen?");
 
 // Mehrere Labels an derselben Fläche: die Fläche bleibt, und die Rückfrage sagt, was übrig bleibt.
-const mehrere = formatEcosystemLabelDeleteConfirmation("Finsterkamm", { name: "Finsterkamm", area_count: 2 }, 3);
+const mehrere = formatEcosystemLabelDeleteConfirmation("Finsterkamm", { name: "Finsterkamm", area_count: 2 }, 3, true);
 assert.ok(mehrere.includes("2 weitere Labels"), "nennt, was der Fläche bleibt");
 assert.ok(!mehrere.includes("LETZTE"), "und behauptet nicht, es sei das letzte");
 
-const nurNochEins = formatEcosystemLabelDeleteConfirmation("Finsterkamm", { name: "Finsterkamm", area_count: 2 }, 2);
+const nurNochEins = formatEcosystemLabelDeleteConfirmation("Finsterkamm", { name: "Finsterkamm", area_count: 2 }, 2, true);
 assert.ok(nurNochEins.includes("1 weiteres Label"), "eines übrig liest sich im Singular");
 
 // 💣 DAS LETZTE. Am Live-Bestand trägt fast jede Region genau ein Label -- das ist der Normalfall.
-const letztes = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 3 }, 1);
+const letztes = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 3 }, 1, true);
 assert.ok(letztes.includes("LETZTE"), "das letzte Label sagt es");
 assert.ok(letztes.includes("3 Flächen"), "und nennt, wie viele Flächen mitgehen");
 
-const letztesEineFlaeche = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 1 }, 1);
+const letztesEineFlaeche = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 1 }, 1, true);
 assert.ok(letztesEineFlaeche.includes("ihre Fläche"), "eine Fläche liest sich im Singular");
 
 // Eine Region ohne Fläche (alle weggezeichnet): kein „0 Flächen", nur die Region.
-const ohneFlaeche = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 0 }, 1);
+const ohneFlaeche = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 0 }, 1, true);
 assert.ok(ohneFlaeche.includes("die Region verschwindet mit"), "ohne Fläche geht nur die Region");
 assert.ok(!ohneFlaeche.includes("0 Fläche"), "und nie eine Null");
 
 // 🪤 0 heisst UNBEKANNT, nicht „keines": das Label, um das es geht, zählt selbst mit. Keine Entwarnung.
-const unbekannt = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 2 }, 0);
+const unbekannt = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 2 }, 0, true);
 assert.ok(unbekannt.includes("Ist es das letzte"), "unbekannte Zahl lässt die Folge offen");
 assert.ok(!unbekannt.includes("behält"), "und gibt keine Entwarnung");
 
 // Ein Label ohne Text ist ein gültiger Zustand und braucht trotzdem eine lesbare Frage.
-assert.ok(formatEcosystemLabelDeleteConfirmation("", null, 0).startsWith("Dieses Label"));
+assert.ok(formatEcosystemLabelDeleteConfirmation("", null, 0, true).startsWith("Dieses Label"));
+
+// 🔴 KASKADE AUS (der ausgelieferte Zustand). Dann bleibt die Fläche stehen -- unbeschriftet, aber da.
+const letztesOhneKaskade = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 3 }, 1, false);
+assert.ok(letztesOhneKaskade.includes("LETZTE"), "es bleibt das letzte Label");
+assert.ok(letztesOhneKaskade.includes("die Fläche bleibt bestehen"), "aber die Fläche geht NICHT mit");
+assert.ok(!letztesOhneKaskade.includes("verschwinden mit"), "kein angekündigtes Mitlöschen");
+
+// Mehrere Labels: der Schalter ändert daran nichts.
+assert.strictEqual(
+	formatEcosystemLabelDeleteConfirmation("F", { name: "F", area_count: 2 }, 3, false),
+	formatEcosystemLabelDeleteConfirmation("F", { name: "F", area_count: 2 }, 3, true),
+	"solange etwas übrig bleibt, sagt der Schalter nichts dazu"
+);
+
+// Unbekannte Zahl UND Kaskade aus: keine Behauptung über die Fläche.
+const unbekanntOhneKaskade = formatEcosystemLabelDeleteConfirmation("F", { name: "F", area_count: 2 }, 0, false);
+assert.strictEqual(unbekanntOhneKaskade, "F wirklich löschen?", "ohne belastbare Zahl nur die Frage");
 
 console.log("ecosystem-label-writeback tests passed");

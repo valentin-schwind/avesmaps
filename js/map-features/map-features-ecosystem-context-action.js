@@ -121,7 +121,7 @@
 	//
 	// Die Zahlen kommen aus der Flächenzeile (region_area_count / region_label_count, seit heute im
 	// Lesepfad), nicht aus den geladenen Ebenen: die halten nur den Ausschnitt.
-	function formatEcosystemAreaDeleteConfirmation(area) {
+	function formatEcosystemAreaDeleteConfirmation(area, kaskade) {
 		const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
 		const kindLabel = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[area?.kind])
 			|| String(area?.kind || "");
@@ -129,15 +129,27 @@
 		const labelCount = Number(area?.region_label_count) || 0;
 		const kopf = `Fläche aus „${regionName}"${kindLabel ? ` (${kindLabel})` : ""} wirklich löschen?`;
 
-		// 🪤 0 heisst „unbekannt", nicht „keine": die Fläche, um die es geht, zählt selbst mit, die
-		// kleinste wahre Zahl ist also 1. Ein Zwischenspeicher von vor der Feldeinführung darf keine
-		// Entwarnung geben -- die Folge offenzulassen ist ehrlicher, als sie falsch zu verneinen.
-		if (areaCount <= 0) {
-			return [kopf, "", "Ist es die letzte Fläche dieser Region, verschwinden die Region und ihre Labels mit."].join("\n");
-		}
 		if (areaCount > 1) {
 			const rest = areaCount - 1;
 			return [kopf, "", `Die Region und ihre ${rest === 1 ? "andere Fläche" : `anderen ${rest} Flächen`} bleiben bestehen.`].join("\n");
+		}
+
+		// 🔴 Ab hier geht es um die LETZTE Fläche, und was dann passiert, entscheidet der Server
+		// (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED, im Lesepfad als `cascade_enabled`). Ist die Kaskade aus,
+		// bleibt die Region als leere Hülle stehen -- das anzukündigen als „verschwindet mit" wäre
+		// genauso falsch wie die alte Entwarnung, nur in die andere Richtung.
+		if (!kaskade) {
+			// 🪤 0 heisst „unbekannt", nicht „keine": die Fläche, um die es geht, zählt selbst mit. Dann
+			// gar keine Aussage über die Region treffen.
+			return areaCount <= 0
+				? kopf
+				: [kopf, "", `Das ist die LETZTE Fläche von „${regionName}" — die Region bleibt bestehen, ohne Fläche.`].join("\n");
+		}
+
+		// 🪤 Unbekannte Zahl bei eingeschalteter Kaskade: die Folge offenlassen ist ehrlicher, als sie
+		// falsch zu verneinen.
+		if (areaCount <= 0) {
+			return [kopf, "", "Ist es die letzte Fläche dieser Region, verschwinden die Region und ihre Labels mit."].join("\n");
 		}
 		if (labelCount <= 0) {
 			return [kopf, "", `Das ist die LETZTE Fläche von „${regionName}" — die Region verschwindet mit.`].join("\n");
@@ -421,7 +433,10 @@
 			return;
 		}
 
-		if (!window.confirm(formatEcosystemAreaDeleteConfirmation(area))) {
+		if (!window.confirm(formatEcosystemAreaDeleteConfirmation(
+			area,
+			typeof isEcosystemCascadeEnabled === "function" && isEcosystemCascadeEnabled()
+		))) {
 			return;
 		}
 

@@ -21,6 +21,16 @@ let ecosystemViewportReloadHooked = false;
 // What the SERVER said about app_setting['ecosystem_enabled'] on the last answer. ?landschaften=1 is
 // a client flag and secures nothing; this is the dead-man switch talking back (global rule 4).
 let ecosystemLayerEnabledOnServer = null;
+// Löscht das Entfernen der letzten Fläche bzw. des letzten Labels die ganze Region mit? Der Server
+// entscheidet das (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED); hier steht nur, was er zuletzt gesagt hat.
+// 🪤 Vorgabe false, nicht null: bevor die erste Antwort da ist, ist „ich weiss es nicht" die
+// vorsichtigere Auskunft -- eine Rückfrage darf lieber zu wenig ankündigen als ein Mitlöschen zu
+// versprechen, das nicht stattfindet.
+let ecosystemCascadeEnabledOnServer = false;
+
+function isEcosystemCascadeEnabled() {
+	return ecosystemCascadeEnabledOnServer === true;
+}
 // The ecosystem_revision of the last answer. Every write bumps it, so a change is the cheap signal that
 // anything cached ALONGSIDE the areas -- the region picker's rows and their area counts -- is stale.
 // null = nothing seen yet, so the first answer never counts as a change.
@@ -101,6 +111,11 @@ function syncEcosystemServerStateNote() {
 
 function applyEcosystemAreaPayload(payload) {
 	ecosystemLayerEnabledOnServer = payload?.ecosystem_enabled === true;
+	// 🔴 Nimmt das Löschen der letzten Fläche die ganze Region mit? Das entscheidet der SERVER
+	// (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED), und die Rückfragen im Editor müssen es wissen -- sonst
+	// kündigen sie ein Mitlöschen an, das nicht stattfindet. Eine Rückfrage, die übertreibt, wird
+	// genauso schnell weggeklickt wie eine, die untertreibt.
+	ecosystemCascadeEnabledOnServer = payload?.cascade_enabled === true;
 	syncEcosystemServerStateNote();
 
 	// A changed revision means somebody wrote -- a new area, a renamed region, a deletion. The region

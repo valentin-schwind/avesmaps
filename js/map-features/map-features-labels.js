@@ -761,7 +761,8 @@ async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 		? formatEcosystemLabelDeleteConfirmation(
 			entry.label.text,
 			ecoRegion,
-			typeof ecosystemLabelCountOfRegion === "function" ? ecosystemLabelCountOfRegion(ecoRegion?.public_id) : 0
+			typeof ecosystemLabelCountOfRegion === "function" ? ecosystemLabelCountOfRegion(ecoRegion?.public_id) : 0,
+			typeof isEcosystemCascadeEnabled === "function" && isEcosystemCascadeEnabled()
 		)
 		: `${entry.label.text} wirklich löschen?`;
 	if (!window.confirm(confirmText)) {

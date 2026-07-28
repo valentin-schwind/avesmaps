@@ -750,20 +750,25 @@
 	// 🔴 Eine Region zu löschen nimmt IHRE FLÄCHEN MIT (avesmapsDeleteEcosystemRegion, eine Transaktion).
 	// Deshalb nennt die Rückfrage die Zahl -- „Region löschen?" verschweigt genau das, was weh tut
 	// (oekosystem-editor-verhalten.md §10).
-	function formatRegionDeleteConfirmation(name, areaCount, labelCount = 0) {
+	function formatRegionDeleteConfirmation(name, areaCount, labelCount = 0, kaskade = false) {
 		const count = Number(areaCount) || 0;
 		const areas = count === 1 ? "1 Fläche" : `${count} Flächen`;
 		const labels = Number(labelCount) || 0;
-		// 🔴 Die Labels stehen jetzt MIT drin. Bis heute nannte die Rückfrage nur die Flächen -- und die
-		// Labels blieben tatsächlich stehen, obwohl der Kommentar daneben das Gegenteil behauptete. Seit
-		// sie mitgelöscht werden (avesmapsEcosystemDeleteLabels), muss die Rückfrage es sagen: eine
-		// Beschriftung, die verschwindet, ohne dass jemand sie genannt hat, ist genau die Überraschung,
-		// gegen die diese Zeile existiert.
-		const was = labels > 0
-			? `${areas} und ${labels === 1 ? "1 Label" : `${labels} Labels`}`
-			: areas;
+		// 🔴 Die Labels stehen MIT drin, sobald sie wirklich mitgehen. Bis heute nannte die Rückfrage nur
+		// die Flächen -- und die Labels blieben tatsächlich stehen, obwohl der Kommentar daneben das
+		// Gegenteil behauptete. Ob sie mitgehen, entscheidet der Server (`cascade_enabled`), und die
+		// Rückfrage sagt beides ehrlich: eine Beschriftung, die verschwindet, ohne dass jemand sie
+		// genannt hat, ist dieselbe Überraschung wie eine, die angekündigt war und stehen bleibt.
+		if (kaskade && labels > 0) {
+			const was = `${areas} und ${labels === 1 ? "1 Label" : `${labels} Labels`}`;
+			return `Region „${name}" mit ${was} löschen?\n\nAlles davon verschwindet mit — auch was gerade nicht im Bild ist.`;
+		}
 
-		return `Region „${name}" mit ${was} löschen?\n\nAlles davon verschwindet mit — auch was gerade nicht im Bild ist.`;
+		const nachsatz = labels > 0
+			? `\n\nDie Flächen verschwinden mit — auch die, die gerade nicht im Bild sind. ${labels === 1 ? "Das Label bleibt" : `Die ${labels} Labels bleiben`} auf der Karte stehen.`
+			: "\n\nDie Flächen verschwinden mit — auch die, die gerade nicht im Bild sind.";
+
+		return `Region „${name}" mit ${areas} löschen?${nachsatz}`;
 	}
 
 	async function requestEcosystemRegionDelete() {
@@ -780,7 +785,12 @@
 		const labelCount = typeof ecosystemLabelCountOfRegion === "function"
 			? ecosystemLabelCountOfRegion(area.region_public_id)
 			: 0;
-		if (!window.confirm(formatRegionDeleteConfirmation(name, regionAreaCount, labelCount))) {
+		if (!window.confirm(formatRegionDeleteConfirmation(
+			name,
+			regionAreaCount,
+			labelCount,
+			typeof isEcosystemCascadeEnabled === "function" && isEcosystemCascadeEnabled()
+		))) {
 			return;
 		}
 

@@ -1273,6 +1273,19 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
 // time anybody deleted one of its areas -- and two of them exist right now (Wald-001, Wald-002, one area
 // each, no label in either direction). That is the difference between the rule and a data loss.
 //
+// 🔴 AUS, BIS DER OWNER SIE EINSCHALTET (Entscheidung 2026-07-28). Die Kaskade ist gebaut und in ihren
+// Regeln geprüft, aber sie ist NIE gegen eine Datenbank gelaufen -- es gibt in dieser Umgebung keine.
+// Sie löscht Regionen, Flächen und Beschriftungen; das ist nichts, was man ungetestet auf einen
+// laufenden Editorbetrieb loslässt, und am Live-Bestand hat jede Region genau EINE Fläche, der
+// auslösende Fall ist also der Normalfall und nicht die Ausnahme.
+//
+// Solange sie false ist, verhalten sich delete_area, delete_region und delete_feature exakt wie vorher.
+// Der Wert reist im Lesepfad mit (api/app/ecosystem-areas.php -> `cascade_enabled`), damit die
+// Rückfragen im Editor die WAHRHEIT sagen statt etwas anzukündigen, das nicht passiert.
+//
+// Einschalten: hier auf true, deployen, an ein, zwei Wegwerf-Flächen ausprobieren.
+const AVESMAPS_ECOSYSTEM_CASCADE_ENABLED = false;
+
 // Pure so it can be tested without a database: this one predicate decides whether work gets destroyed.
 function avesmapsEcosystemCascadeTriggered(string $removed, int $areasLeft, int $labelsLeft): bool
 {
@@ -1340,6 +1353,12 @@ function avesmapsEcosystemRegionLabelPublicIds(PDO $pdo, string $regionPublicId,
 // instead of reloading the whole 21 MB payload to find out which ones went.
 function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $userId): array
 {
+    // Der Schalter greift HIER und in avesmapsEcosystemCascadeAfterRemoval -- zusammen decken die beiden
+    // alle drei Wege ab (delete_area, delete_region, delete_feature), ohne dass ein Aufrufer daran denken
+    // muss. Ein vergessener Aufrufer wäre genau der Fehler, gegen den ein Schalter existiert.
+    if (!AVESMAPS_ECOSYSTEM_CASCADE_ENABLED) {
+        return [];
+    }
     if ($labelPublicIds === []) {
         return [];
     }
@@ -1394,6 +1413,10 @@ function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $use
 // avesmapsEcosystemCascadeTriggered.
 function avesmapsEcosystemCascadeAfterRemoval(PDO $pdo, string $regionPublicId, string $removed, int $userId): array
 {
+    if (!AVESMAPS_ECOSYSTEM_CASCADE_ENABLED) {
+        return ['cascaded' => false, 'areas_left' => 0, 'labels_left' => 0];
+    }
+
     $regionPublicId = trim($regionPublicId);
     if ($regionPublicId === '') {
         return ['cascaded' => false, 'areas_left' => 0, 'labels_left' => 0];
