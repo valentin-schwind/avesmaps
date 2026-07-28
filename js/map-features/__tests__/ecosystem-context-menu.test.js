@@ -109,18 +109,55 @@ assert.strictEqual(ecosystemAreaDeleteRequest(null), null, "no area at all: no r
 assert.strictEqual(ecosystemAreaDeleteRequest(undefined), null, "undefined area: no request");
 
 // ---- the confirmation text ----------------------------------------------------------------------
-// It names the REGION, because that is what the tooltip under the cursor names -- and it says what does
-// NOT happen, since one region carries many areas (owner decision 1) and "delete" could otherwise read
-// as "delete the Farindel".
+// It names the REGION, because that is what the tooltip under the cursor names -- and it says what
+// happens to it, since one region carries many areas (owner decision 1) and "delete" could otherwise
+// read either as "just this shape" or as "delete the Farindel".
+//
+// 🔴 Since 2026-07-28 that answer depends on the COUNT: removing the last area takes the region and its
+// labels with it (avesmapsEcosystemCascadeAfterRemoval). This confirmation is the only brake in front of
+// that, so what it promises has to be true in every branch. It used to say "Die Region und ihre anderen
+// Flächen bleiben bestehen." unconditionally -- a reassurance that was simply false in the one case
+// where it mattered.
 
-const confirmation = formatEcosystemAreaDeleteConfirmation({
+const withOthers = formatEcosystemAreaDeleteConfirmation({
 	public_id: "eca_123",
 	region_name: "Farindel",
 	kind: "vegetation",
 	geometry_revision: 2,
+	region_area_count: 3,
+	region_label_count: 1,
 });
-assert.ok(confirmation.includes("Farindel"), "names the region");
-assert.ok(confirmation.includes("bleiben bestehen"), "says the region and its other areas survive");
+assert.ok(withOthers.includes("Farindel"), "names the region");
+assert.ok(withOthers.includes("anderen 2 Flächen"), "counts what survives instead of hand-waving at it");
+assert.ok(withOthers.includes("bleiben bestehen"), "says the region and its other areas survive");
+
+// Exactly two areas: the survivor is singular, not "anderen 1 Flächen".
+const withOneOther = formatEcosystemAreaDeleteConfirmation({
+	public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 2, region_label_count: 0,
+});
+assert.ok(withOneOther.includes("andere Fläche"), "one survivor reads as singular");
+
+// 💣 THE LAST AREA. On the live stock every region has exactly one area, so this is the NORMAL case --
+// and the sentence has to name the region and its labels going with it.
+const last = formatEcosystemAreaDeleteConfirmation({
+	public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 1, region_label_count: 2,
+});
+assert.ok(last.includes("LETZTE"), "the last area says so");
+assert.ok(last.includes("2 Labels"), "and names how many labels go with it");
+assert.ok(!last.includes("bleiben bestehen"), "and never carries the reassurance that made this wrong");
+
+// The last area of a region with no label at all: no "0 Labels", just the region.
+const lastNoLabel = formatEcosystemAreaDeleteConfirmation({
+	public_id: "eca_123", region_name: "Wald-001", kind: "vegetation", region_area_count: 1, region_label_count: 0,
+});
+assert.ok(lastNoLabel.includes("die Region verschwindet mit"), "no label -> the region alone");
+assert.ok(!lastNoLabel.includes("0 Label"), "and never a count of zero");
+
+// 🪤 An area row from a cache that predates the count fields: 0 means UNKNOWN, not "none" -- the area
+// being deleted counts itself, so the smallest true value is 1. It must not reassure.
+const unknown = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9", region_name: "Farindel", kind: "vegetation" });
+assert.ok(!unknown.includes("bleiben bestehen"), "an unknown count never reassures");
+assert.ok(unknown.includes("Ist es die letzte"), "it leaves the consequence open instead");
 
 const namelessConfirmation = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9" });
 assert.ok(namelessConfirmation.includes("Ohne Namen"), "a region without a name still produces a sentence");

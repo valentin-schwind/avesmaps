@@ -750,11 +750,20 @@
 	// 🔴 Eine Region zu löschen nimmt IHRE FLÄCHEN MIT (avesmapsDeleteEcosystemRegion, eine Transaktion).
 	// Deshalb nennt die Rückfrage die Zahl -- „Region löschen?" verschweigt genau das, was weh tut
 	// (oekosystem-editor-verhalten.md §10).
-	function formatRegionDeleteConfirmation(name, areaCount) {
+	function formatRegionDeleteConfirmation(name, areaCount, labelCount = 0) {
 		const count = Number(areaCount) || 0;
 		const areas = count === 1 ? "1 Fläche" : `${count} Flächen`;
+		const labels = Number(labelCount) || 0;
+		// 🔴 Die Labels stehen jetzt MIT drin. Bis heute nannte die Rückfrage nur die Flächen -- und die
+		// Labels blieben tatsächlich stehen, obwohl der Kommentar daneben das Gegenteil behauptete. Seit
+		// sie mitgelöscht werden (avesmapsEcosystemDeleteLabels), muss die Rückfrage es sagen: eine
+		// Beschriftung, die verschwindet, ohne dass jemand sie genannt hat, ist genau die Überraschung,
+		// gegen die diese Zeile existiert.
+		const was = labels > 0
+			? `${areas} und ${labels === 1 ? "1 Label" : `${labels} Labels`}`
+			: areas;
 
-		return `Region „${name}" mit ${areas} löschen?\n\nDie Flächen verschwinden mit — auch die, die gerade nicht im Bild sind.`;
+		return `Region „${name}" mit ${was} löschen?\n\nAlles davon verschwindet mit — auch was gerade nicht im Bild ist.`;
 	}
 
 	async function requestEcosystemRegionDelete() {
@@ -768,7 +777,10 @@
 			return;
 		}
 		const name = String(propertiesElement("name")?.value || area.region_name || "");
-		if (!window.confirm(formatRegionDeleteConfirmation(name, regionAreaCount))) {
+		const labelCount = typeof ecosystemLabelCountOfRegion === "function"
+			? ecosystemLabelCountOfRegion(area.region_public_id)
+			: 0;
+		if (!window.confirm(formatRegionDeleteConfirmation(name, regionAreaCount, labelCount))) {
 			return;
 		}
 
@@ -776,11 +788,22 @@
 		setPropertiesError("");
 		setPropertiesStatus("Wird gelöscht …");
 		try {
-			await postEcosystemEdit("delete_region", { public_id: area.region_public_id });
+			const ergebnis = await postEcosystemEdit("delete_region", { public_id: area.region_public_id });
+			// Die mitgelöschten Labels sofort von der Karte: sie kommen aus der Kartennutzlast, die
+			// refreshAfterEcosystemPropertiesWrite nicht neu lädt.
+			if (typeof removeEcosystemCascadedLabels === "function") {
+				removeEcosystemCascadedLabels(ergebnis);
+			}
 			closeEcosystemPropertiesDialog();
 			await refreshAfterEcosystemPropertiesWrite();
 			if (typeof showFeedbackToast === "function") {
-				showFeedbackToast(`Region „${name}" gelöscht.`, "success");
+				const mitgegangen = Number(ergebnis?.labels_deleted) || 0;
+				showFeedbackToast(
+					mitgegangen > 0
+						? `Region „${name}" gelöscht — mit ${mitgegangen === 1 ? "ihrem Label" : `ihren ${mitgegangen} Labels`}.`
+						: `Region „${name}" gelöscht.`,
+					"success"
+				);
 			}
 		} catch (error) {
 			setPropertiesError(error?.message || "Die Region konnte nicht gelöscht werden.");
@@ -898,6 +921,10 @@
 			open: openEcosystemPropertiesDialog,
 			close: closeEcosystemPropertiesDialog,
 			isOpen: isEcosystemPropertiesDialogOpen,
+			// Die Geschwister-Verteilung, damit auch die RÜCKRICHTUNG sie benutzt
+			// (map-features-ecosystem-label-writeback.js). Eine zweite Fassung derselben Schleife wäre
+			// die zweite Wahrheit darüber, was von einer Fläche an ihre Labels durchträgt.
+			applyToLabels: applyRegionToLabels,
 		};
 	}
 

@@ -127,11 +127,21 @@
 		});
 	}
 
+	// 🔴 Verschmelzen und einfaches Abziehen FRESSEN ihr Ziel (ecosystemBooleanConsumesTarget). War das
+	// die letzte Fläche seiner Region, nimmt der Server die Region und ihre Labels mit -- die Regel sitzt
+	// in delete_area, also erbt diese Geste sie, ohne sie zu kennen. Was sie selbst tun muss: die
+	// mitgelöschten Labels von der Karte nehmen. Sie kommen aus der Kartennutzlast, und die lädt
+	// refreshAfterWrite nicht neu; ein Name ohne Fläche stünde sonst bis zum nächsten Seitenaufbau da.
 	async function deleteArea(area) {
-		await postEcosystemEdit("delete_area", {
+		const result = await postEcosystemEdit("delete_area", {
 			public_id: String(area.public_id),
 			expected_revision: revisionOf(area),
 		});
+		if (typeof removeEcosystemCascadedLabels === "function") {
+			removeEcosystemCascadedLabels(result);
+		}
+
+		return result;
 	}
 
 	// Nach jedem Schreibvorgang: offene Ecken-Sitzung zu (ohne Nachspülen -- die Geometrie unter ihr ist

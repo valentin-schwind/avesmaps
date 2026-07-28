@@ -1226,7 +1226,7 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         // confirmation both told the editor they would ("Diese Region trägt N Flächen und 1 Label"),
         // and what stayed behind was a label naming an area that no longer exists. Both directions are
         // read, so the second and third label of an area go with the first.
-        $labelsDeleted = avesmapsEcosystemDeleteLabels(
+        $deletedLabelIds = avesmapsEcosystemDeleteLabels(
             $pdo,
             avesmapsEcosystemRegionLabelPublicIds($pdo, $publicId, $before['label_public_id'] ?? null),
             $userId
@@ -1255,7 +1255,8 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         'deleted' => true,
         'public_id' => $publicId,
         'areas_deleted' => count($areas),
-        'labels_deleted' => $labelsDeleted,
+        'labels_deleted' => count($deletedLabelIds),
+        'deleted_label_public_ids' => $deletedLabelIds,
         'revision' => $revision,
     ];
 }
@@ -1335,10 +1336,12 @@ function avesmapsEcosystemRegionLabelPublicIds(PDO $pdo, string $regionPublicId,
 // ~2.000 geometry saves that must not invalidate a 21 MB payload for every visitor. This is not a
 // geometry save: it deletes map_features rows, which ride in exactly that payload. Skipping the bump
 // would leave warm clients showing a label that no longer exists, forever, via a 304.
-function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $userId): int
+// Returns the public_ids it ACTUALLY deleted -- the client takes exactly those markers off the map
+// instead of reloading the whole 21 MB payload to find out which ones went.
+function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $userId): array
 {
     if ($labelPublicIds === []) {
-        return 0;
+        return [];
     }
 
     $placeholders = implode(', ', array_fill(0, count($labelPublicIds), '?'));
@@ -1346,7 +1349,7 @@ function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $use
     $read->execute(array_values($labelPublicIds));
     $rows = $read->fetchAll(PDO::FETCH_ASSOC) ?: [];
     if ($rows === []) {
-        return 0;
+        return [];
     }
 
     $revision = avesmapsNextMapRevision($pdo);
@@ -1376,7 +1379,7 @@ function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $use
         );
     }
 
-    return count($rows);
+    return array_map(static fn(array $row): string => (string) $row['public_id'], $rows);
 }
 
 // The cascade itself.
@@ -1435,7 +1438,7 @@ function avesmapsEcosystemCascadeAfterRemoval(PDO $pdo, string $regionPublicId, 
             ->execute(['region_id' => (int) $region['id'], 'user_id' => $userId > 0 ? $userId : null]);
     }
 
-    $deletedLabels = avesmapsEcosystemDeleteLabels($pdo, $labelIds, $userId);
+    $deletedLabelIds = avesmapsEcosystemDeleteLabels($pdo, $labelIds, $userId);
 
     $pdo->prepare('UPDATE ecosystem_region SET is_active = 0, updated_by = :user_id WHERE id = :region_id')
         ->execute(['region_id' => (int) $region['id'], 'user_id' => $userId > 0 ? $userId : null]);
@@ -1453,7 +1456,11 @@ function avesmapsEcosystemCascadeAfterRemoval(PDO $pdo, string $regionPublicId, 
         'cascaded' => true,
         'region_public_id' => $regionPublicId,
         'areas_deleted' => count($areas),
-        'labels_deleted' => $deletedLabels,
+        'labels_deleted' => count($deletedLabelIds),
+        // The exact ids, so the client takes those markers off the map instead of reloading 21 MB to
+        // work out which ones went. Same reason update_label hands back its feature.
+        'deleted_label_public_ids' => $deletedLabelIds,
+        'deleted_area_public_ids' => array_map(static fn(array $a): string => (string) $a['public_id'], $areas),
         'areas_left' => 0,
         'labels_left' => 0,
     ];
@@ -1642,9 +1649,11 @@ function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): arr
         'deleted' => true,
         'public_id' => $publicId,
         'revision' => $revision,
-        // The client says so out loud rather than letting a region vanish quietly under the editor.
+        // The client says so out loud rather than letting a region vanish quietly under the editor,
+        // and takes exactly these markers off the map instead of reloading to find out which went.
         'region_deleted' => (bool) ($cascade['cascaded'] ?? false),
         'labels_deleted' => (int) ($cascade['labels_deleted'] ?? 0),
+        'deleted_label_public_ids' => $cascade['deleted_label_public_ids'] ?? [],
     ];
 }
 

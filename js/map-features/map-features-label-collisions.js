@@ -244,9 +244,17 @@ function getCollisionEntries() {
 			// der Finsterkamm traegt seinen Namen im Norden UND im Sueden; dass die beiden sich beim Zoomen
 			// zeitweise beruehren, ist kein Konflikt, sondern derselbe Name an zwei Stellen. Ohne diese
 			// Ausnahme blendet die Aufloesung eine der beiden aus -- und genau dafuer wurden sie angelegt.
-			group: typeof ecosystemRegionOfLabel === "function"
-				? String(ecosystemRegionOfLabel(entry.label)?.public_id || "")
-				: "",
+			//
+			// 🔴 DER SERVER LOEST DIE ZUGEHOERIGKEIT AUF, deshalb steht sie zuerst am Label selbst
+			// (properties.ecosystem_region_public_id, api/_internal/app/ecosystem-label-link.php). Das ist
+			// der einzige Weg, auf dem der LESEMODUS sie ueberhaupt kennt: ecosystemRegionOfLabel braucht
+			// die Regionsliste, und die liegt hinter der `edit`-Berechtigung. Der Aufloeser bleibt als
+			// Rueckfall stehen -- fuer den Moment nach einer Bearbeitung, in dem eine frisch angelegte
+			// Zuordnung noch nicht durch die Kartennutzlast gereist ist.
+			group: String(entry.label.ecosystemRegionPublicId || "")
+				|| (typeof ecosystemRegionOfLabel === "function"
+					? String(ecosystemRegionOfLabel(entry.label)?.public_id || "")
+					: ""),
 		}));
 	const locationLabelEntries = locationNameLabels
 		.filter((entry) => map.hasLayer(entry.marker))
@@ -320,9 +328,29 @@ function resolveLabelCollisions(seedRects = []) {
 
 		if (chosen) {
 			writes.push({ element, isLocation, baseOffset, candidate: chosen, colliding: false });
-		} else {
-			writes.push({ element, isLocation, baseOffset, candidate: candidates[0], colliding: true });
+			return;
 		}
+
+		// 🔴 EIN FLAECHEN-LABEL WIRD NIE AUSGEBLENDET (Owner 2026-07-28). Fuer Siedlungen und freie
+		// Labels ist Verstecken die richtige Antwort auf Gedraenge -- es gibt viele davon, und der eine
+		// fehlende Ortsname faellt nicht ins Gewicht. Eine Landschaft ist etwas anderes: ihr Label ist
+		// der einzige garantierte Anfasser ihrer Flaeche. Verschwindet es, ist eine vollstaendig von
+		// einer groesseren ueberdeckte Flaeche gar nicht mehr erreichbar -- genau das, was die
+		// Groessensortierung und dieser Punkt gemeinsam loesen sollen.
+		//
+		// Es weicht weiterhin aus, solange irgendein Platz frei ist (die Schleife oben lief ja); es
+		// bleibt nur stehen, wenn keiner frei war. Und sein Rechteck wandert TROTZDEM in acceptedRects,
+		// damit fremde Labels ihm ausweichen -- es ist sichtbar, also ist es ein Hindernis.
+		const gesetzt = group !== "";
+		if (gesetzt) {
+			const rect = translateLabelRect(
+				collisionRect,
+				isLocation ? (candidates[0].dx - baseOffset.x) : candidates[0].dx,
+				isLocation ? (candidates[0].dy - baseOffset.y) : candidates[0].dy
+			);
+			acceptedRects.push({ ...rect, group });
+		}
+		writes.push({ element, isLocation, baseOffset, candidate: candidates[0], colliding: !gesetzt });
 	});
 
 	// Schreibphase 2: gewählte Offsets + Kollisions-Klasse in einem Rutsch anwenden.

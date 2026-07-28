@@ -110,15 +110,43 @@
 	// Soft delete is still a delete as far as the editor is concerned: it disappears and only the owner
 	// can bring it back, so it is worth a confirm (the house pattern for destructive context actions --
 	// map-features-region-context-menu.js:79).
+	// 🔴 SIE NENNT DIE FOLGE, BEVOR SIE EINTRITT (Owner 2026-07-28). Seit die letzte Fläche einer Region
+	// die Region UND ihre Labels mitnimmt, ist diese Rückfrage die einzige Bremse -- und bis heute stand
+	// hier die Entwarnung „Die Region und ihre anderen Flächen bleiben bestehen.", die im gefährlichsten
+	// Fall schlicht falsch war.
+	//
+	// 💣 Am Live-Bestand hat JEDE der 139 Regionen genau EINE Fläche. „Die letzte" ist damit derzeit der
+	// Normalfall, nicht der Ausnahmefall -- diese Zeilen sind das, was ein Editor tatsächlich zu lesen
+	// bekommt.
+	//
+	// Die Zahlen kommen aus der Flächenzeile (region_area_count / region_label_count, seit heute im
+	// Lesepfad), nicht aus den geladenen Ebenen: die halten nur den Ausschnitt.
 	function formatEcosystemAreaDeleteConfirmation(area) {
 		const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
 		const kindLabel = (typeof ECOSYSTEM_KIND_LABELS !== "undefined" && ECOSYSTEM_KIND_LABELS?.[area?.kind])
 			|| String(area?.kind || "");
+		const areaCount = Number(area?.region_area_count) || 0;
+		const labelCount = Number(area?.region_label_count) || 0;
+		const kopf = `Fläche aus „${regionName}"${kindLabel ? ` (${kindLabel})` : ""} wirklich löschen?`;
+
+		// 🪤 0 heisst „unbekannt", nicht „keine": die Fläche, um die es geht, zählt selbst mit, die
+		// kleinste wahre Zahl ist also 1. Ein Zwischenspeicher von vor der Feldeinführung darf keine
+		// Entwarnung geben -- die Folge offenzulassen ist ehrlicher, als sie falsch zu verneinen.
+		if (areaCount <= 0) {
+			return [kopf, "", "Ist es die letzte Fläche dieser Region, verschwinden die Region und ihre Labels mit."].join("\n");
+		}
+		if (areaCount > 1) {
+			const rest = areaCount - 1;
+			return [kopf, "", `Die Region und ihre ${rest === 1 ? "andere Fläche" : `anderen ${rest} Flächen`} bleiben bestehen.`].join("\n");
+		}
+		if (labelCount <= 0) {
+			return [kopf, "", `Das ist die LETZTE Fläche von „${regionName}" — die Region verschwindet mit.`].join("\n");
+		}
 
 		return [
-			`Fläche aus „${regionName}"${kindLabel ? ` (${kindLabel})` : ""} wirklich löschen?`,
+			kopf,
 			"",
-			"Die Region und ihre anderen Flächen bleiben bestehen.",
+			`Das ist die LETZTE Fläche von „${regionName}" — die Region und ${labelCount === 1 ? "ihr Label" : `ihre ${labelCount} Labels`} verschwinden mit.`,
 		].join("\n");
 	}
 
@@ -406,16 +434,28 @@
 		}
 
 		try {
-			await postEcosystemEdit("delete_area", request);
+			const result = await postEcosystemEdit("delete_area", request);
 			// Off the map immediately, then through the normal read path -- the same two steps the drawing
 			// tool uses. removeEcosystemAreaLayer also deselects, which is what takes any handles with it.
 			if (typeof removeEcosystemAreaLayer === "function") {
 				removeEcosystemAreaLayer(publicId);
 			}
+			// 🔴 War es die letzte Fläche der Region, hat der Server die Region und ihre Labels
+			// mitgelöscht. Die Labels müssen SOFORT weg: sie kommen aus der Kartennutzlast, und die lädt
+			// dieser Weg nicht neu -- ein Name ohne Fläche stünde sonst bis zum nächsten Seitenaufbau da.
+			if (typeof removeEcosystemCascadedLabels === "function") {
+				removeEcosystemCascadedLabels(result);
+			}
+			if (typeof invalidateEcosystemRegionCache === "function") {
+				invalidateEcosystemRegionCache();
+			}
 			if (typeof scheduleEcosystemAreaReload === "function") {
 				scheduleEcosystemAreaReload({ immediate: true });
 			}
-			say("Fläche gelöscht.");
+			const mitgegangen = Number(result?.labels_deleted) || 0;
+			say(result?.region_deleted
+				? `Fläche gelöscht — es war die letzte, also ist die Region${mitgegangen > 0 ? ` mit ${mitgegangen === 1 ? "ihrem Label" : `ihren ${mitgegangen} Labels`}` : ""} mitgegangen.`
+				: "Fläche gelöscht.");
 		} catch (error) {
 			// 409 = somebody else moved this area since it was loaded, so the local copy is worthless and
 			// only the read path can settle it. error.code / error.status are on the error since 56f14662

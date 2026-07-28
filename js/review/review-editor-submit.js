@@ -225,6 +225,18 @@ async function handleLabelEditFormSubmit(event) {
 			savedLabelEntry = addCreatedLabelFeature(result.feature);
 		}
 		updateRevisionFromEditResponse(result);
+		// 🔴 Die Rückrichtung (Owner 2026-07-28): gehört dieses Label zu einer Landschaftsfläche, bekommt
+		// die Fläche Name, Art und Wiki-Zuweisung mit -- und ihre übrigen Labels gleich hinterher. Ohne
+		// das trug ein umbenanntes Label seinen neuen Namen allein, und das nächste Speichern im
+		// Flächendialog machte ihn wieder rückgängig: die Arbeit war weg, ohne Fehlermeldung.
+		//
+		// 🪤 NACH applyLabelFeatureResponse, damit der gespeicherte Stand weitergereicht wird und nicht
+		// der, mit dem der Dialog aufging. Und nur beim ÄNDERN: ein frisch angelegtes Label hat noch
+		// keine Fläche, an die es etwas zurückzugeben hätte.
+		if (payload.action === "update_label" && savedLabelEntry?.label
+			&& typeof ecosystemPushLabelChangesToRegion === "function") {
+			void ecosystemPushLabelChangesToRegion(savedLabelEntry.label);
+		}
 		void loadChangeLog();
 		if (payload.action === "create_label" && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "map_reports");

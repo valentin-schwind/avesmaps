@@ -547,6 +547,44 @@ function findLabelEntryByPublicId(publicId) {
 	return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
 }
 
+// Ein Label von der Karte UND aus beiden Beständen nehmen. Ausgelagert, weil es seit der Landschafts-
+// Kaskade zwei Anlässe gibt: das ausdrücklich gelöschte Label -- und die Geschwister, die der Server
+// mitgelöscht hat, weil mit ihnen die ganze Region ging.
+function removeLabelEntryLocally(entry) {
+	if (!entry) {
+		return;
+	}
+	map.removeLayer(entry.marker);
+	labelData = labelData.filter((label) => label !== entry.label);
+	labelMarkers = labelMarkers.filter((labelEntry) => labelEntry !== entry);
+}
+
+// 🔴 Die Labels, die eine Landschafts-Kaskade mitgenommen hat, sofort von der Karte nehmen. Der Server
+// nennt sie beim Namen (`deleted_label_public_ids`), damit genau diese Marker verschwinden -- statt die
+// 21 MB grosse Kartennutzlast neu zu laden, nur um herauszufinden, welche es waren.
+//
+// 🪤 Ohne das bliebe ein Name ohne Fläche bis zum nächsten Seitenaufbau stehen: Labels kommen aus der
+// Kartennutzlast, und die lädt weder das Kontextmenü noch eine boolesche Operation neu.
+function removeEcosystemCascadedLabels(result) {
+	const publicIds = result?.deleted_label_public_ids;
+	if (!Array.isArray(publicIds) || publicIds.length === 0) {
+		return 0;
+	}
+	let entfernt = 0;
+	publicIds.forEach((publicId) => {
+		const entry = findLabelEntryByPublicId(String(publicId));
+		if (entry) {
+			removeLabelEntryLocally(entry);
+			entfernt += 1;
+		}
+	});
+	if (entfernt > 0) {
+		syncLabelVisibility();
+	}
+
+	return entfernt;
+}
+
 function setLabelMoveActive(entry, isActive) {
 	if (!entry?.marker?.dragging) {
 		return;
@@ -712,7 +750,21 @@ async function saveLabelPosition(entry) {
 }
 
 async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
-	if (!entry || !window.confirm(`${entry.label.text} wirklich löschen?`)) {
+	if (!entry) {
+		return;
+	}
+	// 🔴 Das LETZTE Label einer Landschaftsfläche nimmt die Fläche mit (Owner 2026-07-28, serverseitig
+	// in avesmapsEcosystemCascadeAfterRemoval). Die Rückfrage muss das sagen, bevor sie es tut -- sie
+	// ist die einzige Bremse. Für jedes andere Label bleibt es bei der schlichten Fassung.
+	const ecoRegion = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const confirmText = typeof formatEcosystemLabelDeleteConfirmation === "function"
+		? formatEcosystemLabelDeleteConfirmation(
+			entry.label.text,
+			ecoRegion,
+			typeof ecosystemLabelCountOfRegion === "function" ? ecosystemLabelCountOfRegion(ecoRegion?.public_id) : 0
+		)
+		: `${entry.label.text} wirklich löschen?`;
+	if (!window.confirm(confirmText)) {
 		return;
 	}
 
@@ -721,13 +773,29 @@ async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 			action: "delete_feature",
 			public_id: entry.label.publicId,
 		});
-		map.removeLayer(entry.marker);
-		labelData = labelData.filter((label) => label !== entry.label);
-		labelMarkers = labelMarkers.filter((labelEntry) => labelEntry !== entry);
+		removeLabelEntryLocally(entry);
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
 		if (closeDialog) {
 			setLabelEditDialogOpen(false, { resetForm: true });
+		}
+		// 🔴 War das das letzte Label seiner Fläche, hat der Server die Region samt Flächen mitgelöscht
+		// (avesmapsEcosystemCascadeAfterRemoval). Der Editor erfährt es hier -- eine Fläche, die
+		// stillschweigend verschwindet, wäre die schlechteste Art, es zu erfahren.
+		if (result?.region_deleted) {
+			removeEcosystemCascadedLabels(result);
+			if (typeof invalidateEcosystemRegionCache === "function") {
+				invalidateEcosystemRegionCache();
+			}
+			if (typeof scheduleEcosystemAreaReload === "function") {
+				scheduleEcosystemAreaReload({ immediate: true });
+			}
+			const flaechen = Number(result.areas_deleted) || 0;
+			showFeedbackToast(
+				`Label gelöscht — es war das letzte, also ist die Region mit ${flaechen === 1 ? "ihrer Fläche" : `ihren ${flaechen} Flächen`} mitgegangen.`,
+				"success"
+			);
+			return;
 		}
 		showFeedbackToast("Label gelöscht.", "success");
 	} catch (error) {

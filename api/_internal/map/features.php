@@ -2595,9 +2595,12 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
             'public_id' => $publicId,
             'deleted' => true,
             'revision' => $revision,
-            // Said out loud, so the client can report it instead of letting an area vanish quietly.
+            // Said out loud, so the client can report it instead of letting an area vanish quietly,
+            // and takes exactly these shapes off the map rather than reloading to find out which went.
             'region_deleted' => (bool) ($cascade['cascaded'] ?? false),
             'areas_deleted' => (int) ($cascade['areas_deleted'] ?? 0),
+            'deleted_area_public_ids' => $cascade['deleted_area_public_ids'] ?? [],
+            'deleted_label_public_ids' => $cascade['deleted_label_public_ids'] ?? [],
         ];
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);

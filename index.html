@@ -2071,6 +2071,11 @@
 		     ist die der Registrierung. Pinsel und Radiergummi gehören ans Ende, vor „Fläche löschen". -->
 		<script src="js/map-features/map-features-ecosystem-brush.js"></script>
 		<script src="js/map-features/map-features-ecosystem-simplify.js"></script>
+		<!-- Die Rueckrichtung: was am Label geaendert wird, erreicht seine Flaeche. MUSS nach
+		     map-features-ecosystem-properties.js stehen -- sie ruft dessen
+		     window.AvesmapsEcosystemProperties.applyToLabels(), um die Geschwister nachzuziehen, und das
+		     Objekt entsteht erst dort. Gerufen wird sie aus js/review/review-editor-submit.js. -->
+		<script src="js/map-features/map-features-ecosystem-label-writeback.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>
