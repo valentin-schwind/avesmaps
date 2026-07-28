@@ -25,15 +25,26 @@
 	// hält die Rechnung bei rund einem Neuntel der Pixelzahl.
 	const STEP = 3;
 	const RAMP_TOKENS = [
-		"--color-ecosystem-height-0",
-		"--color-ecosystem-height-1",
-		"--color-ecosystem-height-2",
-		"--color-ecosystem-height-3",
-		"--color-ecosystem-height-4",
+		"--color-ecosystem-height-min",
+		"--color-ecosystem-height-max",
 	];
-	// Die Stützstellen des Prototyps (:589). Ungleichmässig: der Übergang ins Firn sitzt spät, damit
-	// nicht jeder Mittelhang schon weiss wird.
-	const RAMP_STOPS = [0, 0.25, 0.55, 0.8, 1];
+	// Zwei Stützstellen, linear dazwischen: schwarz bei 0, weiss beim Weisspunkt. Die alte Fünf-Farben-
+	// Rampe hatte ungleiche Stufen, damit nicht jeder Mittelhang schon weiss wurde -- bei einer reinen
+	// Graustufe wäre dieselbe Krümmung eine versteckte Behauptung über Höhen, die die Daten nicht hergibt.
+	const RAMP_STOPS = [0, 1];
+	// 🔴 Der Weisspunkt in SCHRITT, absolut (Owner 2026-07-28). Vorher war der Bezug der höchste Gipfel
+	// der TREFFENDEN Fläche, die Skala also je Gebirge eine andere -- ein Grauwert bedeutete nichts, was
+	// man zwischen zwei Flächen hätte vergleichen können.
+	//
+	// 💣 DIES ist die Stellschraube, nicht die Farben. Je höher der Wert, desto dunkler und flacher wird
+	// alles darunter: bei 15.000 und Gipfeln, die per Vorgabe auf 5.000 stehen, spielt sich der halbe
+	// Bestand im unteren Drittel ab. Wer das Relief „zu dunkel" findet, senkt diese Zahl -- er greift
+	// nicht in die Rampe und nicht in die Deckkraft.
+	//
+	// Die Einheit ist SCHRITT, nicht Meter, und steht wie überall im Namen (avesmapsReadOptionalPeakHeight,
+	// features.php): V11 multipliziert Höhen in Kantengewichte und trägt dort eine dokumentierte
+	// Einheitenfalle. Der Regler im Label-Dialog läuft 0..20.000, dieser Wert liegt also drin.
+	const HEIGHT_WHITE_SCHRITT = 15000;
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
@@ -58,7 +69,9 @@
 	canvas.style.top = "0";
 	canvas.style.left = "0";
 	canvas.style.transformOrigin = "0 0";
-	canvas.classList.add("leaflet-zoom-animated");
+	// Die Deckkraft steht im Token, nicht hier: sie ist eine Gestaltungsgrösse (AGENTS.md §12), und der
+	// Schleier soll die Regionsfarbe darunter durchlassen statt sie zu ersetzen.
+	canvas.classList.add("leaflet-zoom-animated", "avesmaps-ecosystem-height-canvas");
 	map.getPane(PANE).appendChild(canvas);
 	const context = canvas.getContext("2d");
 
@@ -206,10 +219,13 @@
 		const window_ = stack.peakWindow;
 
 		// EIN Durchgang über das Raster. Je Rasterpunkt einmal in Kartenkoordinaten umrechnen, dann über
-		// die Felder summieren -- und dabei gleich den höchsten Gipfel der TREFFENDEN Flächen merken.
+		// die Felder summieren.
 		//
-		// 🔴 Bezugshöhe je Fläche, nicht global (Prototyp :602-607): eine globale Skala färbte beim
-		// Verstellen EINER Fläche jede andere um.
+		// 🔴 Bezug ist HEIGHT_WHITE_SCHRITT, global und fest (Owner 2026-07-28). Vorher war es `hmax` der
+		// treffenden Fläche. Der alte Kommentar hielt dagegen, eine globale Skala färbe beim Verstellen
+		// EINER Fläche jede andere um -- das stimmt und ist jetzt gewollt: genau das macht zwei Gebirge
+		// überhaupt erst vergleichbar. Solange der Bezug je Fläche galt, sagte ein Grauwert nur „hoch für
+		// hier" und nie „hoch".
 		// 🔴 PERF: die Projektion EINMAL aufstellen, nicht je Rasterpunkt. `L.CRS.Simple` ist affin und
 		// dreht nicht -- Bildschirm-x hängt allein an lng, Bildschirm-y allein an lat. Zwei Stützpunkte
 		// genügen also, um daraus eine Schrittweite zu machen. Gemessen kostete
@@ -225,20 +241,19 @@
 				const x = originLatLng.lng + sx * deltaX;
 				const noiseWindow = window_ ? window_.sample(x, y) : 1;
 				let height = 0;
-				let reference = 0;
 				for (let i = 0; i < fields.length; i++) {
 					const value = sampleEcosystemHeightField(fields[i], x, y, noiseWindow);
 					if (value > 0) {
 						height += value;
-						if (fields[i].hmax > reference) {
-							reference = fields[i].hmax;
-						}
 					}
 				}
-				if (height <= 0 || reference <= 0) {
+				// 🔴 `continue` heisst: dieser Punkt bleibt UNBERÜHRT, also alpha 0. Nur so bleibt der
+				// Schleier auf die Flächen begrenzt -- ein hier gemaltes Schwarz zöge sich sonst über die
+				// ganze Karte, weil „keine Höhe" und „Höhe 0" denselben Grauwert hätten.
+				if (height <= 0) {
 					continue;
 				}
-				const color = rampAt(height / reference);
+				const color = rampAt(height / HEIGHT_WHITE_SCHRITT);
 				const r = color[0], g = color[1], b = color[2];
 				// Den Rasterpunkt als STEP×STEP-Block ausfüllen, in Geräte-Pixeln.
 				const px0 = Math.round(sx * dpr);
