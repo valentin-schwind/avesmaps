@@ -144,6 +144,19 @@
 		return colors[colors.length - 1];
 	}
 
+	// Welche (Fläche, Stufe) schon gemeldet wurde. Ausserhalb der Felder, damit ein Neubau sie nicht
+	// vergisst -- beim Reglerziehen entstehen sonst Dutzende gleicher Meldungen.
+	const budgetReported = new Set();
+
+	// Der Name, den der Editor kennt -- nicht die UUID.
+	function areaName(publicId) {
+		const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+			? ecosystemLayers.get(String(publicId || ""))
+			: null;
+
+		return String(layer?._ecosystemArea?.region_name || publicId || "Ohne Namen");
+	}
+
 	function topographyAreas() {
 		if (typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
 			return [];
@@ -342,13 +355,27 @@
 
 		// Wo das Budget gegriffen hat, sagt es das Feld -- statt still weniger zu liefern
 		// (Prototyp :541-543). Einmal je Neuaufbau, nicht bei jedem Bild.
+		// 💣 Zwei Dinge, die beim ersten Anlauf falsch waren und beide vom Owner gemeldet wurden:
+		//
+		// 1. Die Meldung nannte die `public_id`. „Höhenfeld fad7a250-0918-…" sagt einem Menschen nichts
+		//    -- dort gehört der Name der Region hin, so wie ihn der Tooltip und der Dialog zeigen.
+		// 2. Die Wiederholungssperre hing am FELD-Objekt. Seit die Geländeregler live vorschauen, wird
+		//    der Stapel bei jedem Zieh-Bild neu gebaut: neue Objekte, Sperre weg, ein Toast je Bild.
+		//    Sie hängt jetzt an (Fläche + Stufe) und überlebt den Neubau.
 		fields.forEach((field, index) => {
-			if (field.stoppedAtLevel && !field._budgetReported) {
-				field._budgetReported = true;
-				if (typeof showFeedbackToast === "function") {
-					showFeedbackToast(`Höhenfeld „${stack.areaIdsByField[index]}": Detailstufe ${field.stoppedAtLevel} `
-						+ "wurde ausgelassen, das Rechenbudget war erschöpft.", "info");
-				}
+			if (!field.stoppedAtLevel) {
+				return;
+			}
+			const areaId = stack.areaIdsByField[index];
+			const schluessel = areaId + "@" + field.stoppedAtLevel;
+			if (budgetReported.has(schluessel)) {
+				return;
+			}
+			budgetReported.add(schluessel);
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast(`Höhenfeld „${areaName(areaId)}": Detailstufe ${field.stoppedAtLevel} wurde `
+					+ "ausgelassen, das Rechenbudget war erschöpft. Weniger Detailstufen oder eine gröbere "
+					+ "Körnung bleiben im Budget.", "info");
 			}
 		});
 	}
