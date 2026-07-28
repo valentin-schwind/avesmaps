@@ -36,6 +36,28 @@ function isEcosystemPeakSubtype(subtype) {
 	return ECOSYSTEM_PEAK_SUBTYPES.includes(String(subtype || ""));
 }
 
+// 🔴 DREI DARSTELLUNGSVERFAHREN, gewählt nach der ART der Fläche (Owner-Entscheid 2026-07-28):
+// Gebirge bekommt „Exponential Slope Weighting", Hügelland „Domain Warping", alles andere das
+// additive Rauschen, das dieses Modul ohnehin baut.
+//
+// 🔴 ES GEHT UM DIE DARSTELLUNG. Alle drei verformen das FELD, nicht die Daten: `height_schritt` am
+// Gipfel bleibt unangetastet, und alle drei lassen die zwei tragenden Invarianten stehen --
+//   - am Gipfel liest man weiter genau seine Zahl -- bei Slope Weighting von selbst (dort ist die
+//     Neigung null), beim Warping NICHT von selbst: dessen Versatz wird eigens mit dem Gipfelfenster
+//     gedämpft, und ohne das las ein 3.000er 2.970 (vom Unit-Test gefangen), und
+//   - am Rand bleibt die Höhe 0 (jedes Verfahren multipliziert oder verschiebt nur, es addiert nichts).
+// Wer hier ein viertes ergänzt, muss beides nachweisen, sonst bricht die Verschmelzung zweier Flächen.
+//
+// ⚠️ V11 soll das später gegen echte Reisezeiten beurteilen und Verbesserungen vorschlagen; bis dahin
+// sind die Parameter gewählt und nicht gemessen.
+const ECOSYSTEM_TERRAIN_METHODS = ["perlin", "warp", "slope"];
+// Wie stark „Exponential Slope Weighting" steile Flanken abflacht (α der Quelle). Klein = sanfte
+// Hügel, gross = zerklüftet. Die Neigung wird auf 0..1 normiert, damit α unabhängig von der Höhe wirkt.
+const ECOSYSTEM_TERRAIN_SLOPE_ALPHA = 0.35;
+// Wie weit „Domain Warping" die Abfragestelle verschiebt, in Kartenkoordinaten. Zu viel macht aus
+// Hügeln Schlieren; das hier verzieht sie sichtbar, ohne die Buckel zu zerreissen.
+const ECOSYSTEM_TERRAIN_WARP_STRENGTH = 6;
+
 const ECOSYSTEM_HEIGHT_LEVELS = 3;
 // Körnung: Kantenlänge der groben Zelle = längste bbox-Seite / dieser Wert.
 const ECOSYSTEM_HEIGHT_GRAIN = 3.2;
@@ -272,6 +294,8 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		grid: null,
 		hmax: 0,
 		stoppedAtLevel: 0,
+		// Welches Darstellungsverfahren diese Fläche benutzt (siehe oben). Unbekannt -> additiv.
+		method: ECOSYSTEM_TERRAIN_METHODS.includes(String(options.method || "")) ? String(options.method) : "perlin",
 	};
 	if (!geometry || !bounds) {
 		return field;
@@ -390,7 +414,9 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 //
 // `noiseWindow` kommt von aussen, weil es über ALLE Flächen gilt (siehe buildEcosystemPeakWindow).
 // Ohne Angabe 1 -- damit bleibt eine einzelne Fläche für sich testbar.
-function sampleEcosystemHeightField(field, x, y, noiseWindow = 1) {
+// Das rohe Feld: Gipfelbuckel plus gefenstertes Rauschen, ohne Darstellungsverfahren. Getrennt, weil
+// „Exponential Slope Weighting" seine eigene Nachbarschaft abtasten muss und sich sonst selbst aufriefe.
+function sampleEcosystemHeightFieldRaw(field, x, y, noiseWindow = 1) {
 	if (!field || !field.geometry) {
 		return 0;
 	}
@@ -440,6 +466,94 @@ function sampleEcosystemHeightField(field, x, y, noiseWindow = 1) {
 	return peaksHeight + noiseWindow * noise;
 }
 
+// Ein glatter, seedfester Versatz für Domain Warping. Bilinear zwischen vier Zellhashes -- billig und
+// stetig; ein roher Hash je Punkt ergäbe Rauschen statt einer Verzerrung.
+function ecosystemWarpOffset(seed, x, y, salt) {
+	const cell = 40;
+	const gx = Math.floor(x / cell);
+	const gy = Math.floor(y / cell);
+	const fx = x / cell - gx;
+	const fy = y / cell - gy;
+	const sx = fx * fx * (3 - 2 * fx);
+	const sy = fy * fy * (3 - 2 * fy);
+	const a = ecosystemHeightCellHash(seed, 90, gx, gy, salt);
+	const b = ecosystemHeightCellHash(seed, 90, gx + 1, gy, salt);
+	const c = ecosystemHeightCellHash(seed, 90, gx, gy + 1, salt);
+	const d = ecosystemHeightCellHash(seed, 90, gx + 1, gy + 1, salt);
+
+	return ((a + (b - a) * sx) + ((c + (d - c) * sx) - (a + (b - a) * sx)) * sy) * 2 - 1;
+}
+
+// Die öffentliche Abfrage: rohes Feld plus das Darstellungsverfahren der Fläche.
+//
+// 💣 Beide Verfahren kosten zusätzliche Abtastungen -- Warping eine, Slope zwei. Das ist der Preis und
+// er ist bekannt: die Malschleife läuft mit 4 px Raster, also rund einem Sechzehntel der Pixel.
+function sampleEcosystemHeightField(field, x, y, noiseWindow = 1) {
+	if (!field || !field.geometry) {
+		return 0;
+	}
+	const method = field.method || "perlin";
+
+	if (method === "warp") {
+		// Domain Warping: das Feld NICHT an der gefragten Stelle lesen, sondern an einer verzogenen.
+		// Aus runden Kuppen werden dadurch gewundene Rücken -- was Hügelland ausmacht.
+		// 🪤 Der Versatz ist seedfest und stetig, sonst flackerte das Bild bei jedem Neubau.
+		//
+		// 💣 AM GIPFEL MUSS DER VERSATZ AUF NULL. Eine frühere Fassung behauptete im Kopfkommentar, das
+		// sei von selbst so -- es ist es nicht: der Warp verschiebt um bis zu 6 Einheiten, und der Gipfel
+		// las dadurch 2.970 statt seiner eingetragenen 3.000. Der Unit-Test hat es gefangen, nicht das
+		// Auge; im Bild wäre es nie aufgefallen und hätte still jede Höhe verfälscht.
+		//
+		// `noiseWindow` ist genau das richtige Dämpfungsmass und liegt schon vor: es ist am Gipfel 0 und
+		// weit weg 1 -- dieselbe Funktion, die dort auch das Rauschen ausblendet, mit Steigung null.
+		// 💣 UND AM RAND EBENSO AUF NULL, aus einem zweiten Grund. Dort ist das Gipfelfenster 1, der
+		// Warp verschöbe also voll -- und läse Höhe von WEITER INNEN an eine Stelle, die exakt 0 sein
+		// muss. Damit bräche die Fusshöhe-0-Invariante, an der die ganze Verschmelzung zweier Flächen
+		// hängt: sichtbar wäre es nur an den Nahtstellen, und dort als Stufe. Auch das hat der
+		// Unit-Test gefangen, nicht das Auge.
+		//
+		// Gedämpft wird mit dem FELD SELBST: wo es null ist, ist der Versatz null, und der Rückgabewert
+		// ist dann ebenfalls null -- die Invariante gilt exakt, nicht näherungsweise. Das kostet eine
+		// zusätzliche Abtastung, dieselbe, die das Slope-Verfahren ohnehin braucht. Ein Randabstand je
+		// Punkt wäre die andere Antwort und liefe über jede Polygonkante -- deutlich teurer für dasselbe.
+		const atPoint = sampleEcosystemHeightFieldRaw(field, x, y, noiseWindow);
+		if (atPoint <= 0) {
+			return 0;
+		}
+		const damp = Math.min(1, atPoint / Math.max(1, 0.25 * field.hmax));
+		const strength = ECOSYSTEM_TERRAIN_WARP_STRENGTH * noiseWindow * damp;
+		const dx = ecosystemWarpOffset(field.seed, x, y, 11) * strength;
+		const dy = ecosystemWarpOffset(field.seed, x, y, 23) * strength;
+
+		return sampleEcosystemHeightFieldRaw(field, x + dx, y + dy, noiseWindow);
+	}
+
+	const here = sampleEcosystemHeightFieldRaw(field, x, y, noiseWindow);
+	if (method !== "slope" || here <= 0) {
+		return here;
+	}
+
+	// Exponential Slope Weighting (amanpriyanshu.github.io/The-Mountains-of-Madness):
+	//   s = |∇h|,  h' = h · e^(−α·s)
+	// Steile Flanken flachen ab, sanfte bleiben. Am GIPFEL ist die Neigung null, dort ändert sich
+	// also nichts -- der Gipfel liest weiter exakt seine eingetragene Höhe. Am Rand ist h = 0 und
+	// bleibt 0. Beide Invarianten überstehen das Verfahren, und genau deshalb ist es hier brauchbar.
+	// 💣 ZENTRALE Differenz, nicht vorwärts. Mathematisch ist die Neigung am Gipfel null; NUMERISCH ist
+	// sie das nur bei einer zentralen Differenz. Die Vorwärtsdifferenz misst dort den Abfall EINER Seite
+	// und meldet eine steile Flanke -- ein 3.000er las dadurch 2.744, und zwar leise, weil ein etwas zu
+	// niedriger Gipfel im Bild wie eine Gestaltungsfrage aussieht und nicht wie ein Rechenfehler.
+	// Der Unit-Test hat auch das gefangen. Preis: vier Abtastungen statt zwei.
+	const step = 1.5;
+	const gx = (sampleEcosystemHeightFieldRaw(field, x + step, y, noiseWindow)
+		- sampleEcosystemHeightFieldRaw(field, x - step, y, noiseWindow)) / (2 * step);
+	const gy = (sampleEcosystemHeightFieldRaw(field, x, y + step, noiseWindow)
+		- sampleEcosystemHeightFieldRaw(field, x, y - step, noiseWindow)) / (2 * step);
+	// Auf die Höhe normiert, damit α nicht davon abhängt, ob ein Berg 2.000 oder 9.000 hoch ist.
+	const slope = Math.hypot(gx, gy) / Math.max(1, field.hmax / 100);
+
+	return here * Math.exp(-ECOSYSTEM_TERRAIN_SLOPE_ALPHA * slope);
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		ECOSYSTEM_HEIGHT_LEVELS,
@@ -452,5 +566,7 @@ if (typeof module !== "undefined" && module.exports) {
 		buildEcosystemPeakWindow,
 		buildEcosystemHeightField,
 		sampleEcosystemHeightField,
+		sampleEcosystemHeightFieldRaw,
+		ECOSYSTEM_TERRAIN_METHODS,
 	};
 }

@@ -41,6 +41,13 @@
 //    wäre einfacher, hinge aber daran, in welcher Reihenfolge die Flächen ankamen -- und damit läge
 //    dasselbe Gelände nach einem Neuladen anders. Genau die Sorte stiller Verschiebung, gegen die
 //    §4.2 den Determinismus verlangt.
+// Welche Art wird wie dargestellt. Absichtlich kurz: was hier NICHT steht, bekommt das additive
+// Rauschen -- das ist die richtige Vorgabe für eine Art, über die noch niemand nachgedacht hat.
+const ECOSYSTEM_TERRAIN_METHOD_BY_TYPE = {
+	gebirge: "slope",
+	huegelland: "warp",
+};
+
 function assignEcosystemPeaksToAreas(areas, peaks) {
 	const sizes = new Map();
 	areas.forEach((area) => {
@@ -101,6 +108,12 @@ function buildEcosystemHeightStack(areas, peaks) {
 			grain: area?.terrain_grain ?? undefined,
 			levels: area?.terrain_levels ?? undefined,
 			avgHeight: area?.terrain_avg_height ?? null,
+			// 🔴 Das Darstellungsverfahren folgt der ART (Owner-Entscheid 2026-07-28): Gebirge bekommt
+			// „Exponential Slope Weighting", Hügelland „Domain Warping", alles andere das additive
+			// Rauschen. Die Zuordnung steht hier und nicht in der Datenbank, weil sie eine Aussage über
+			// das VERFAHREN ist und nicht über die Fläche -- eine neue Art bekommt bewusst das additive
+			// Rauschen, bis jemand entscheidet, dass sie etwas anderes braucht.
+			method: ECOSYSTEM_TERRAIN_METHOD_BY_TYPE[String(area?.region_type || "")] || "perlin",
 		});
 		// Flächen ohne eigenen Gipfel liefern kein Feld. Sie gar nicht erst aufzunehmen spart in der
 		// Malschleife eine Abfrage je Pixel je Fläche.

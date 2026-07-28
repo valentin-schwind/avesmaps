@@ -145,4 +145,26 @@ const twinB = withDistantPair.built.peakBumps.find((bump) => bump.x === 21);
 assert.ok(twinA.r < 1 && twinB.r < 1, "the twins clamp each OTHER, tightly");
 assert.ok(Math.abs(withDistantPair.at(20, 380) - 1000) < 1, "and each still reads its own height");
 
+// 12. 🔴 DIE ZWEI INVARIANTEN ÜBERSTEHEN ALLE DREI DARSTELLUNGSVERFAHREN.
+//
+// Warping verschiebt die Abfragestelle, Slope Weighting multipliziert mit e^(-α·|∇h|). Beide dürfen
+// weder den Gipfel von seiner Zahl holen noch den Rand von der Null -- sonst bricht die Verschmelzung
+// zweier überlappender Flächen, und zwar unsichtbar, weil sie nur an den Nahtstellen auffällt.
+for (const method of ["perlin", "warp", "slope"]) {
+	const w = buildEcosystemPeakWindow(peak);
+	const built = buildEcosystemHeightField(area, peak, w, { method });
+	const at = (x, y) => sampleEcosystemHeightField(built, x, y, w.sample(x, y));
+	assert.strictEqual(built.method, method, `${method}: das Verfahren kommt am Feld an`);
+	assert.ok(Math.abs(at(50, 50) - 3000) < 1,
+		`${method}: der Gipfel liest weiter seine eigene Höhe (${at(50, 50)})`);
+	for (const [x, y] of [[0, 50], [100, 50], [50, 0], [50, 100]]) {
+		assert.strictEqual(at(x, y), 0, `${method}: der Rand bleibt flach bei (${x},${y})`);
+	}
+	assert.ok(Number.isFinite(at(31, 67)), `${method}: keine NaN im Feld`);
+}
+
+// Und ein unbekanntes Verfahren fällt auf das additive Rauschen zurück, statt die Fläche zu verlieren.
+const unbekannt = buildEcosystemHeightField(area, peak, buildEcosystemPeakWindow(peak), { method: "gibtsnicht" });
+assert.strictEqual(unbekannt.method, "perlin", "ein unbekanntes Verfahren fällt auf perlin zurück");
+
 console.log("ecosystem-height-field: all assertions passed");
