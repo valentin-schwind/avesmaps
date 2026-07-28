@@ -804,6 +804,25 @@
 				invalidateEcosystemHeightForPeak(label);
 			}
 		} catch (error) {
+			// 💣 409 IST HIER DER NORMALFALL, nicht die Ausnahme. Am 2026-07-28 im eingeloggten Browser
+			// gemessen: der Client schickt die Revision aus SEINER Kartennutzlast (16069), die Zeile in
+			// der Datenbank steht längst weiter -- jede Höhenspeicherung scheiterte, nicht nur manche.
+			//
+			// Die Nutzlast ist ~21 MB und wird lange gehalten; jede fremde Labeländerung seither macht
+			// die gemerkte Revision alt. `submitMapFeatureEdit` stösst bei 409 bereits
+			// `pollLiveMapUpdates()` an (api-client.js:113) -- die frischen Daten kommen also, nur zu
+			// spät für DIESEN Versuch. Also einmal nachfassen, wenn sie da sind.
+			//
+			// 🔴 GENAU EIN Nachfassen, und nur bei einem Konflikt. Eine Schleife machte aus dem
+			// Sicherheitsnetz gegen zwei gleichzeitige Editoren ein Überschreiben mit Anlauf.
+			const istKonflikt = /409|inzwischen ge/i.test(String(error?.message || ""));
+			if (istKonflikt && !row.dataset.peakRetried) {
+				row.dataset.peakRetried = "1";
+				setPeakRowStatus(row, "Stand war veraltet — versuche erneut …", false);
+				await new Promise((wait) => window.setTimeout(wait, 600));
+				delete row.dataset.peakRetried;
+				return saveEcosystemPeakHeight(row);
+			}
 			setPeakRowStatus(row, error?.message || "Die Höhe konnte nicht gespeichert werden.", true);
 		}
 	}
