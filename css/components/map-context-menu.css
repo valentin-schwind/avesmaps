@@ -141,6 +141,16 @@
 	content: "\2229";
 }
 
+/* Pinsel und Radiergummi. Bewusst KEINE Glyphe aus der booleschen Reihe darüber: die stehen für eine
+   Rechnung zwischen zwei Flächen, diese beiden für eine Geste mit der Hand. */
+.map-context-menu__item[data-ecosystem-area-action="brush"]::before {
+	content: "🖌";
+}
+
+.map-context-menu__item[data-ecosystem-area-action="eraser"]::before {
+	content: "⌫";
+}
+
 .map-context-menu__item[data-ecosystem-area-action="extract"]::before {
 	content: "\2702";
 }

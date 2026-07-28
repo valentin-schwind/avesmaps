@@ -320,6 +320,14 @@
 	cursor: crosshair !important;
 }
 
+/* Pinsel/Radiergummi: derselbe Grund wie oben -- der Zeiger darf über der Fläche, auf der gemalt wird,
+   nicht zur Hand zurückspringen. Fadenkreuz statt eines eigenen Cursors, weil die Vorschau ohnehin die
+   echte Pinselgröße zeigt und ein zweiter Kreis am Zeiger nur doppelt wäre. */
+.ecosystem-brush-cursor,
+.ecosystem-brush-cursor .leaflet-interactive {
+	cursor: crosshair !important;
+}
+
 /* ---- the three dialogs of this layer ---------------------------------------------------------------
    "Neue Region" (V3.0b), the one-time trial notice (V3.5) and "Fläche senden" (V3.6) share ONE set of
    shell rules -- shell, header, close, form, fields, error, actions, buttons. Every class name is listed

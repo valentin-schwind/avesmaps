@@ -2026,6 +2026,9 @@
 		     Speichern. MUSS nach context-action.js stehen — sie hängt sich über dessen
 		     window.AvesmapsEcosystemAreaMenu.addEntry() ein, und das gibt es erst danach. -->
 		<script src="js/map-features/map-features-ecosystem-geometry-ops.js"></script>
+		<!-- Nach geometry-ops: beide hängen ihre Einträge an dasselbe Menü, und die Reihenfolge im Menü
+		     ist die der Registrierung. Pinsel und Radiergummi gehören ans Ende, vor „Fläche löschen". -->
+		<script src="js/map-features/map-features-ecosystem-brush.js"></script>
 		<script src="js/map-features/map-features-layer-state.js"></script>
 		<script src="js/map-features/map-features-display-mode.js"></script>
 		<script src="js/map-features/map-features-location-marker-rendering.js"></script>
