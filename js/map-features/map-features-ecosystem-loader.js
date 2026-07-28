@@ -194,6 +194,23 @@ function applyEcosystemAreaPayload(payload) {
 		}
 	});
 
+	// 💣 V8: DAS HÖHENFELD NEU ZEICHNEN, sobald die Flächen da sind. Ohne diesen Aufruf blieb die
+	// Topographie leer, bis der Editor zufällig verschob -- und genau so wurde es gemeldet
+	// („die höhen sind immer noch nicht sichtbar").
+	//
+	// Die Ursache ist eine Reihenfolge, die von aussen unsichtbar ist: das Relief zeichnet auf
+	// `moveend/zoomend/viewreset/resize` plus drei Nachzügler-Durchgänge beim Seitenstart. Die Flächen
+	// kommen aber ERST, wenn jemand die Landschaften-Ebene betritt -- lange nach den Nachzüglern --,
+	// und das Betreten feuert kein Karten-Ereignis. Der Stapel merkte sich sein Nichts richtigerweise
+	// als „veraltet", nur fragte ihn niemand mehr.
+	//
+	// Live gemessen (2026-07-28): 9 Flächen geladen, `fields: 0`, und ein blankes `redraw()` ohne jede
+	// Invalidierung lieferte sofort 2 Felder und 868.876 gemalte Pixel. Es fehlte nur der Anstoss.
+	//
+	// Hier und nicht im Höhenmodul: DIESE Stelle weiss, wann die Flächen vollständig sind. Ein Poller
+	// dort drüben wäre die schlechtere Antwort auf dieselbe Frage.
+	window.AvesmapsEcosystemHeightRender?.redraw?.();
+
 	// 🔴 Gross unten, klein oben (Owner 2026-07-28, Punkt 9). Alle Flächen einer Ebene liegen in EINER
 	// SVG-Gruppe, und dort gewinnt die Ladereihenfolge -- eine derographische Region, die zufällig nach
 	// der kleineren kam, deckte diese vollständig zu und nahm ihren Klick gleich mit. Hier, nach dem
