@@ -1221,6 +1221,17 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
 
         $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, updated_by = :user_id WHERE region_id = :region_id AND is_active = 1')
             ->execute(['region_id' => $regionId, 'user_id' => $userId > 0 ? $userId : null]);
+
+        // 🔴 The labels go too, and until 2026-07-28 they did not. The dialog's carrier note and the
+        // confirmation both told the editor they would ("Diese Region trägt N Flächen und 1 Label"),
+        // and what stayed behind was a label naming an area that no longer exists. Both directions are
+        // read, so the second and third label of an area go with the first.
+        $labelsDeleted = avesmapsEcosystemDeleteLabels(
+            $pdo,
+            avesmapsEcosystemRegionLabelPublicIds($pdo, $publicId, $before['label_public_id'] ?? null),
+            $userId
+        );
+
         $pdo->prepare('UPDATE ecosystem_region SET is_active = 0, updated_by = :user_id WHERE id = :region_id')
             ->execute(['region_id' => $regionId, 'user_id' => $userId > 0 ? $userId : null]);
 
@@ -1244,8 +1255,225 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
         'deleted' => true,
         'public_id' => $publicId,
         'areas_deleted' => count($areas),
+        'labels_deleted' => $labelsDeleted,
         'revision' => $revision,
     ];
+}
+
+// ---- the delete cascade: an area and its labels live and die together --------------------------------
+//
+// 🔴 THE RULE (owner, 2026-07-28): removing the LAST area of a region takes the region and its remaining
+// labels with it; removing the LAST label takes the region and its remaining areas with it. A landscape
+// and its name are one thing, and half of one is a ghost on the map -- a label naming an area that no
+// longer exists, or an area nobody can select because nothing points at it.
+//
+// 💣 IT IS A TRANSITION, NOT A STATE. The cascade fires only when THIS removal emptied the side it
+// removed from. Keyed off the state alone, a region that never had a label would be swept away the first
+// time anybody deleted one of its areas -- and two of them exist right now (Wald-001, Wald-002, one area
+// each, no label in either direction). That is the difference between the rule and a data loss.
+//
+// Pure so it can be tested without a database: this one predicate decides whether work gets destroyed.
+function avesmapsEcosystemCascadeTriggered(string $removed, int $areasLeft, int $labelsLeft): bool
+{
+    if ($removed === 'area') {
+        return $areasLeft <= 0;
+    }
+    if ($removed === 'label') {
+        return $labelsLeft <= 0;
+    }
+
+    return false;
+}
+
+// The ACTIVE labels of one region, from both stored directions, deduped.
+//
+// 🪤 Coarse LIKE, then EXACT verification -- the house pattern from avesmapsMergeSourceInto
+// (api/_internal/app/feature-sources.php:830). The id lives inside properties_json, so the LIKE is only
+// a pre-filter; a row that merely mentions the id somewhere else must not count.
+//
+// 💣 A POINTER IS NOT A LABEL. ecosystem_region.label_public_id survives a hand-deleted label
+// (map-features-ecosystem-properties.js:587), so the primary pointer only counts once the row behind it
+// is confirmed active. Counting a stale pointer would mean the cascade never fires for that region.
+function avesmapsEcosystemRegionLabelPublicIds(PDO $pdo, string $regionPublicId, ?string $primaryLabelPublicId): array
+{
+    $found = [];
+    if ($regionPublicId !== '') {
+        $needle = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $regionPublicId) . '%';
+        $scan = $pdo->prepare(
+            "SELECT public_id, properties_json FROM map_features
+              WHERE feature_type = 'label' AND is_active = 1 AND properties_json LIKE :needle"
+        );
+        $scan->execute(['needle' => $needle]);
+        foreach ($scan->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $properties = json_decode((string) ($row['properties_json'] ?? ''), true);
+            $pointer = is_array($properties) ? trim((string) ($properties['ecosystem_region_public_id'] ?? '')) : '';
+            if ($pointer === $regionPublicId) {
+                $found[(string) $row['public_id']] = true;
+            }
+        }
+    }
+
+    $primary = trim((string) ($primaryLabelPublicId ?? ''));
+    if ($primary !== '' && !isset($found[$primary])) {
+        $check = $pdo->prepare(
+            "SELECT COUNT(*) FROM map_features
+              WHERE public_id = :public_id AND feature_type = 'label' AND is_active = 1"
+        );
+        $check->execute(['public_id' => $primary]);
+        if ((int) $check->fetchColumn() > 0) {
+            $found[$primary] = true;
+        }
+    }
+
+    return array_keys($found);
+}
+
+// Soft-delete the given labels, with one audit row each and ONE shared map revision.
+//
+// 🔴 THIS IS THE ONE PLACE THE ECOSYSTEM MAY TOUCH map_revision, and the file header's rule ("an area
+// save NEVER calls avesmapsNextMapRevision") still stands. That rule is about the DRAWING CAMPAIGN --
+// ~2.000 geometry saves that must not invalidate a 21 MB payload for every visitor. This is not a
+// geometry save: it deletes map_features rows, which ride in exactly that payload. Skipping the bump
+// would leave warm clients showing a label that no longer exists, forever, via a 304.
+function avesmapsEcosystemDeleteLabels(PDO $pdo, array $labelPublicIds, int $userId): int
+{
+    if ($labelPublicIds === []) {
+        return 0;
+    }
+
+    $placeholders = implode(', ', array_fill(0, count($labelPublicIds), '?'));
+    $read = $pdo->prepare("SELECT * FROM map_features WHERE public_id IN ({$placeholders}) AND is_active = 1");
+    $read->execute(array_values($labelPublicIds));
+    $rows = $read->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($rows === []) {
+        return 0;
+    }
+
+    $revision = avesmapsNextMapRevision($pdo);
+    $update = $pdo->prepare(
+        'UPDATE map_features SET is_active = 0, revision = :revision, updated_by = :updated_by WHERE id = :id'
+    );
+    foreach ($rows as $row) {
+        $update->execute([
+            'id' => (int) $row['id'],
+            'revision' => $revision,
+            'updated_by' => $userId > 0 ? $userId : null,
+        ]);
+        // Same action name and shape as avesmapsDeleteMapFeature, so the change log reads as one kind of
+        // event -- "delete_feature" with the full before-state, whoever triggered it.
+        avesmapsWriteMapAuditLog(
+            $pdo,
+            (int) $row['id'],
+            'delete_feature',
+            $userId,
+            avesmapsEncodeAuditJson($row),
+            avesmapsEncodeAuditJson([
+                'public_id' => (string) $row['public_id'],
+                'is_active' => 0,
+                'revision' => $revision,
+                'reason' => 'ecosystem_cascade',
+            ])
+        );
+    }
+
+    return count($rows);
+}
+
+// The cascade itself.
+//
+// 🔴 RUNS INSIDE THE CALLER'S TRANSACTION and opens none of its own: the removal that triggered it and
+// the cascade are one atomic act, or a crash between them leaves exactly the half-deleted state this
+// exists to prevent. PDO has no nested transactions, so opening one here would throw.
+// 🔴 NO DDL, for the house reason (MySQL commits implicitly on DDL and would split the transaction).
+// The caller has already ensured the tables.
+//
+// $removed is 'area' or 'label' -- WHAT was just removed, not what is left. See
+// avesmapsEcosystemCascadeTriggered.
+function avesmapsEcosystemCascadeAfterRemoval(PDO $pdo, string $regionPublicId, string $removed, int $userId): array
+{
+    $regionPublicId = trim($regionPublicId);
+    if ($regionPublicId === '') {
+        return ['cascaded' => false, 'areas_left' => 0, 'labels_left' => 0];
+    }
+
+    $regionStatement = $pdo->prepare('SELECT * FROM ecosystem_region WHERE public_id = :public_id AND is_active = 1 LIMIT 1');
+    $regionStatement->execute(['public_id' => $regionPublicId]);
+    $region = $regionStatement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($region)) {
+        return ['cascaded' => false, 'areas_left' => 0, 'labels_left' => 0];
+    }
+
+    $areaStatement = $pdo->prepare('SELECT COUNT(*) FROM ecosystem_area WHERE region_id = :region_id AND is_active = 1');
+    $areaStatement->execute(['region_id' => (int) $region['id']]);
+    $areasLeft = (int) $areaStatement->fetchColumn();
+
+    $labelIds = avesmapsEcosystemRegionLabelPublicIds($pdo, $regionPublicId, $region['label_public_id'] ?? null);
+    $labelsLeft = count($labelIds);
+
+    if (!avesmapsEcosystemCascadeTriggered($removed, $areasLeft, $labelsLeft)) {
+        return ['cascaded' => false, 'areas_left' => $areasLeft, 'labels_left' => $labelsLeft];
+    }
+
+    // Audit every remaining area BEFORE deactivating it -- afterwards the geometry is no longer reachable
+    // through the read path and updated_by only knows the bulk trigger. Same order as delete_region.
+    $remaining = $pdo->prepare('SELECT * FROM ecosystem_area WHERE region_id = :region_id AND is_active = 1');
+    $remaining->execute(['region_id' => (int) $region['id']]);
+    $areas = $remaining->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    foreach ($areas as $area) {
+        avesmapsEcosystemWriteAuditLog(
+            $pdo,
+            'delete_area_with_region',
+            $userId,
+            (string) $area['public_id'],
+            $regionPublicId,
+            avesmapsEcosystemAreaSnapshot($area),
+            []
+        );
+    }
+    if ($areas !== []) {
+        $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, updated_by = :user_id WHERE region_id = :region_id AND is_active = 1')
+            ->execute(['region_id' => (int) $region['id'], 'user_id' => $userId > 0 ? $userId : null]);
+    }
+
+    $deletedLabels = avesmapsEcosystemDeleteLabels($pdo, $labelIds, $userId);
+
+    $pdo->prepare('UPDATE ecosystem_region SET is_active = 0, updated_by = :user_id WHERE id = :region_id')
+        ->execute(['region_id' => (int) $region['id'], 'user_id' => $userId > 0 ? $userId : null]);
+    avesmapsEcosystemWriteAuditLog(
+        $pdo,
+        'delete_region_cascade',
+        $userId,
+        null,
+        $regionPublicId,
+        avesmapsEcosystemRegionSnapshot($region),
+        ['trigger' => $removed]
+    );
+
+    return [
+        'cascaded' => true,
+        'region_public_id' => $regionPublicId,
+        'areas_deleted' => count($areas),
+        'labels_deleted' => $deletedLabels,
+        'areas_left' => 0,
+        'labels_left' => 0,
+    ];
+}
+
+// The region a label belongs to, from both directions -- the lookup avesmapsDeleteMapFeature needs to
+// know whether a just-deleted label was a landscape label at all. Empty string = it was not.
+function avesmapsEcosystemRegionPublicIdOfLabel(PDO $pdo, string $labelPublicId, array $properties): string
+{
+    $own = trim((string) ($properties['ecosystem_region_public_id'] ?? ''));
+    if ($own !== '') {
+        return $own;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT public_id FROM ecosystem_region WHERE label_public_id = :label_public_id AND is_active = 1 LIMIT 1'
+    );
+    $statement->execute(['label_public_id' => $labelPublicId]);
+
+    return trim((string) ($statement->fetchColumn() ?: ''));
 }
 
 // ---- write path: areas -------------------------------------------------------------------------------
@@ -1386,6 +1614,23 @@ function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): arr
             avesmapsEcosystemAreaSnapshot($before),
             []
         );
+
+        // Was that the region's last area? Then the region and its labels go with it. AFTER the
+        // deactivation above, so the count already excludes this one -- "left" means left. Inside this
+        // transaction, so the removal and its consequence cannot come apart.
+        //
+        // Every client gesture that makes an area disappear routes through delete_area -- the context
+        // menu, the boolean union/difference that consumes its target, splitting, the eraser. Putting
+        // the rule here rather than in each of them is why none of them has to know about it.
+        $regionStatement = $pdo->prepare('SELECT public_id FROM ecosystem_region WHERE id = :id LIMIT 1');
+        $regionStatement->execute(['id' => (int) $before['region_id']]);
+        $cascade = avesmapsEcosystemCascadeAfterRemoval(
+            $pdo,
+            (string) ($regionStatement->fetchColumn() ?: ''),
+            'area',
+            $userId
+        );
+
         $revision = avesmapsNextEcosystemRevision($pdo);
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -1393,7 +1638,14 @@ function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): arr
         throw $exception;
     }
 
-    return ['deleted' => true, 'public_id' => $publicId, 'revision' => $revision];
+    return [
+        'deleted' => true,
+        'public_id' => $publicId,
+        'revision' => $revision,
+        // The client says so out loud rather than letting a region vanish quietly under the editor.
+        'region_deleted' => (bool) ($cascade['cascaded'] ?? false),
+        'labels_deleted' => (int) ($cascade['labels_deleted'] ?? 0),
+    ];
 }
 
 // 🔴 promote_trial acts on AREAS, not on regions (owner decision 1). `keep` clears the trial mark and the

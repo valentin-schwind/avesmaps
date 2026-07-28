@@ -210,4 +210,37 @@ assert($rows[0]['region_label_count'] === 0);
 // An empty payload stays an empty payload.
 assert(avesmapsEcosystemDecorateAreaRows([], [], [], []) === []);
 
+// ---------------------------------------------------------------- THE DELETE CASCADE RULE ---
+//
+// This one predicate decides whether work gets destroyed: a true here deletes a region, every area
+// under it and every label on it. Both failure directions are expensive, so both are pinned down.
+
+// Removing the last area takes the region with it -- even though labels are still there. That is the
+// point: a label naming an area that no longer exists is a ghost.
+assert(avesmapsEcosystemCascadeTriggered('area', 0, 2) === true);
+// Removing the last label likewise, even with areas left.
+assert(avesmapsEcosystemCascadeTriggered('label', 3, 0) === true);
+// Both empty, either way round.
+assert(avesmapsEcosystemCascadeTriggered('area', 0, 0) === true);
+assert(avesmapsEcosystemCascadeTriggered('label', 0, 0) === true);
+
+// Something is left on the side that was removed from -> nothing happens.
+assert(avesmapsEcosystemCascadeTriggered('area', 2, 1) === false);
+assert(avesmapsEcosystemCascadeTriggered('label', 1, 2) === false);
+
+// 💣 THE TRANSITION, NOT THE STATE. An area was removed and two remain -- but the region never had a
+// label. Keyed off the state ("labelsLeft === 0"), this would delete a live region with two areas.
+// Wald-001 and Wald-002 are exactly this shape on the live stock, and this assert is what protects them.
+assert(avesmapsEcosystemCascadeTriggered('area', 2, 0) === false);
+// The mirror image: a label was removed, one remains, and the region has no area (all drawn away
+// earlier). Removing a label says nothing about areas.
+assert(avesmapsEcosystemCascadeTriggered('label', 0, 1) === false);
+
+// An unknown trigger never destroys anything -- a typo in a call site must fail safe.
+assert(avesmapsEcosystemCascadeTriggered('', 0, 0) === false);
+assert(avesmapsEcosystemCascadeTriggered('region', 0, 0) === false);
+
+// Negative counts cannot happen, but must not flip the answer if they ever did.
+assert(avesmapsEcosystemCascadeTriggered('area', -1, 5) === true);
+
 echo "ecosystem-label-link tests passed\n";

@@ -2564,12 +2564,40 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
             }
         }
 
+        // Landscape cascade (owner, 2026-07-28): a landscape and its name are one thing. Deleting the
+        // LAST label of an area takes the region and its remaining areas with it -- otherwise an area
+        // stays behind that nothing points at and nobody can select once it leaves the viewport.
+        //
+        // AFTER the deactivation above, so the count already excludes this label: the rule is about the
+        // TRANSITION ("this delete emptied it"), never the state. Inside this transaction, so the delete
+        // and its consequence cannot come apart.
+        //
+        // function_exists rather than a require: this library is loaded by several endpoints that can
+        // never delete a label, and dragging the ecosystem library (plus its app-setting chain) into all
+        // of them would be a cost with no purchase. api/edit/map/features.php -- the ONE endpoint that
+        // reaches this line -- requires it explicitly, so the guard is never false in practice.
+        $cascade = [];
+        if ((string) ($feature['feature_type'] ?? '') === 'label' && function_exists('avesmapsEcosystemCascadeAfterRemoval')) {
+            $properties = json_decode((string) ($feature['properties_json'] ?? ''), true);
+            $regionPublicId = avesmapsEcosystemRegionPublicIdOfLabel(
+                $pdo,
+                $publicId,
+                is_array($properties) ? $properties : []
+            );
+            if ($regionPublicId !== '') {
+                $cascade = avesmapsEcosystemCascadeAfterRemoval($pdo, $regionPublicId, 'label', (int) $user['id']);
+            }
+        }
+
         $pdo->commit();
 
         return [
             'public_id' => $publicId,
             'deleted' => true,
             'revision' => $revision,
+            // Said out loud, so the client can report it instead of letting an area vanish quietly.
+            'region_deleted' => (bool) ($cascade['cascaded'] ?? false),
+            'areas_deleted' => (int) ($cascade['areas_deleted'] ?? 0),
         ];
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);

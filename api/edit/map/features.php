@@ -12,6 +12,12 @@ class AvesmapsConflictException extends RuntimeException {
 
 // Map-feature edit handlers live in a sibling library (M5 split).
 require_once __DIR__ . '/../../_internal/map/features.php';
+// Landscape cascade: deleting the LAST label of an area takes its region and remaining areas with it
+// (owner, 2026-07-28). avesmapsDeleteMapFeature calls into this library through a function_exists guard,
+// because the map library is also loaded by endpoints that can never delete a label. This endpoint CAN,
+// so it loads it explicitly -- a guard around a missing include would turn a data-integrity rule into a
+// silent no-op, which is exactly the lore-sync.php trap.
+require_once __DIR__ . '/../../_internal/app/ecosystem.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
