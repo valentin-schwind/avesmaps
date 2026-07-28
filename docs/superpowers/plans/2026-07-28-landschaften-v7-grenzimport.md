@@ -187,8 +187,11 @@ muss ihn fangen.
       Vereinfachen-Dialog. Maßstab am Livebestand nachgestellt (946 Gebiete): öffnen 9 ms,
       vereinigen 29 ms, filtern 3 ms. **Ecken:** 56 Baronien = 2240 roh → 552 vereinigt → 405/275/
       150/37 bei Regler 25/50/75/100. **Nutzlast:** 15,0 KB ungerundet → 10,1 KB gerundet (−33 %,
-      nicht die im Plan behauptete Hälfte) → 2,8 KB bei Regler 75. 🔧 **Live durch den Owner steht
-      aus** — jeder DB-Pfad ist nur dort prüfbar.
+      nicht die im Plan behauptete Hälfte) → 2,8 KB bei Regler 75.
+      ✅ **Live vom Owner abgenommen 2026-07-28** („geil funktioniert"). Nachgereicht: die Glyphe des
+      Menüeintrags (`352189e2`) — ohne sie entsteht das `::before` nicht und die BESCHRIFTUNG rutscht
+      in die 1,45em-Symbolspalte (gemessen 12 statt 41 px). Wer hier einen Eintrag anhängt, braucht
+      immer auch eine Regel in `css/components/map-context-menu.css`.
 - [x] **6 — Doku.** `docs/oekosystem-editor-verhalten.md` §4a beschreibt den Weg; die V7-Zeile in
       `2026-07-24-landschaften.md` ist abgehakt und trägt die gemessenen Zahlen.
 
