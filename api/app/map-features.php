@@ -6,6 +6,11 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
+// Which label belongs to which landscape region. ONE definition of that relation, shared with
+// api/app/ecosystem-areas.php -- it is stored twice (once per direction) and neither side alone is
+// complete, so a second copy of the rule here would be the second truth. Pure functions + one reader;
+// nothing runs on include, and it returns the empty relation when the ecosystem tables are absent.
+require_once __DIR__ . '/../_internal/app/ecosystem-label-link.php';
 
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
@@ -20,7 +25,12 @@ require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 // 8: the "Liegt in" resolver LEFT-JOINs political_territory_wiki now, so a settlement under a wiki-unlinked
 //    territory (no wiki row, e.g. Festum) still gets a political line via the intact parent_id backbone --
 //    new `political` objects appear on features that previously had none, so cached clients must revalidate.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 8;
+// 9: every label that belongs to a landscape region now carries properties.ecosystem_region_public_id,
+//    resolved server-side from BOTH stored directions (10 labels carried it before, ~137 do now). The
+//    read mode depends on it -- a landscape label must not be hidden by the collision resolver, and only
+//    this field says which labels those are. Without a bump, a warm client keeps the old body and its
+//    landscape labels keep vanishing.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 9;
 
 // Coat-of-arms staging + model tables for the settlement "Liegt in" breadcrumb. These MIRROR the constants
 // of api/app/territory-detail.php EXACTLY. The public-domain GATE itself now lives once in the shared
@@ -136,16 +146,23 @@ try {
     // used to provide, without touching any JS.
     avesmapsMapFeaturesMergeLegacyOtherSources($rows, $sourceCatalog, $featureSourceRefs);
 
+    $features = array_map(
+        static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled),
+        $rows
+    );
+    // Landscape membership: fill properties.ecosystem_region_public_id on every label that belongs to a
+    // region, resolved from BOTH stored directions. Applied here rather than inside the row builder
+    // because it needs a relation the builder has no business knowing about -- same shape as the
+    // legacy-other-source merge above.
+    avesmapsEcosystemApplyLabelRegionsToFeatures($features, avesmapsEcosystemReadLabelRegionMap($pdo)['by_label']);
+
     // Kompression (#1): diese Antwort wird vom Server nicht komprimiert (gemessen: content-encoding none)
     // -> hier explizit gzip, wenn der Client es akzeptiert. ~14 MB JSON -> ~1,5-2,5 MB.
     avesmapsMapFeaturesRespond([
         'ok' => true,
         'revision' => $revision,
         'type' => 'FeatureCollection',
-        'features' => array_map(
-            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes, $politicalContext, $settlementImagesEnabled),
-            $rows
-        ),
+        'features' => $features,
         // (object) casts force JSON objects (maps) even when empty (`{}` not `[]`); the nested
         // ref lists stay JSON arrays. Keys: catalog by source_id, refs by "<entity_type>:<public_id>".
         'source_catalog' => (object) $sourceCatalog,

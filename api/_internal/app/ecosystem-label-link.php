@@ -124,3 +124,46 @@ function avesmapsEcosystemReadLabelRegionMap(PDO $pdo): array
 
     return avesmapsEcosystemLabelRegionMap($regionRows, $pointerRows, $activeLabelIds);
 }
+
+// Fill properties.ecosystem_region_public_id on every label feature that belongs to a region.
+//
+// 🔴 EMITTED, NOT STORED. The durable pointers stay where they are (one on the label, one on the
+// region); this is their resolved view. Writing the resolution back onto ~127 label rows would mint a
+// second copy that can drift from the region side -- and this relation is exactly the kind that drifts,
+// which is why it is stored in two places to begin with.
+//
+// 🔴 A LABEL'S OWN VALUE IS NEVER OVERWRITTEN. avesmapsEcosystemLabelRegionMap already settled any
+// disagreement in the label's favour; this second guard means a label with an intact stored pointer
+// comes through untouched no matter how the map was built.
+//
+// Why the READ mode needs this at all: the region cache sits behind the `edit` capability and
+// api/app/ecosystem-areas.php is only fetched inside the Landschaften mode. Without this field an
+// ordinary visitor's client cannot tell a landscape label from any other -- and the collision resolver,
+// which must never hide one, would have nothing to go by.
+//
+// Lives here rather than in api/app/map-features.php because that file is an endpoint: its request
+// handler runs on include, so nothing defined in it can be unit-tested (same reason
+// avesmapsEcosystemETagMatches was reimplemented instead of required).
+//
+// @param list<array<string,mixed>> $features built GeoJSON features (mutated in place)
+// @param array<string,string> $byLabel label public_id => region public_id
+function avesmapsEcosystemApplyLabelRegionsToFeatures(array &$features, array $byLabel): void
+{
+    if ($byLabel === []) {
+        return;
+    }
+    foreach ($features as $index => $feature) {
+        $properties = $feature['properties'] ?? null;
+        if (!is_array($properties) || (string) ($properties['feature_type'] ?? '') !== 'label') {
+            continue;
+        }
+        if (trim((string) ($properties['ecosystem_region_public_id'] ?? '')) !== '') {
+            continue; // the label already says where it belongs
+        }
+        $regionPublicId = (string) ($byLabel[(string) ($properties['public_id'] ?? '')] ?? '');
+        if ($regionPublicId === '') {
+            continue;
+        }
+        $features[$index]['properties']['ecosystem_region_public_id'] = $regionPublicId;
+    }
+}

@@ -110,6 +110,48 @@ assert(!isset($result['count_by_region']['wald-001']));
 assert(!isset($result['count_by_region']['wald-002']));
 assert($result['count_by_region'] === ['r1' => 1]);
 
+// --------------------------------------------------------- THE FIELD ON THE MAP PAYLOAD ---
+
+$feature = static fn(string $type, string $publicId, string $own = ''): array => [
+    'properties' => array_filter([
+        'feature_type' => $type,
+        'public_id' => $publicId,
+        'ecosystem_region_public_id' => $own,
+    ], static fn($value): bool => $value !== ''),
+];
+
+// The plain case: a label with no own pointer gets the resolved one.
+$features = [$feature('label', 'l1')];
+avesmapsEcosystemApplyLabelRegionsToFeatures($features, ['l1' => 'r1']);
+assert($features[0]['properties']['ecosystem_region_public_id'] === 'r1');
+
+// A label that already says where it belongs is left ALONE -- the stored pointer is the durable truth.
+$features = [$feature('label', 'l1', 'r-eigen')];
+avesmapsEcosystemApplyLabelRegionsToFeatures($features, ['l1' => 'r-fremd']);
+assert($features[0]['properties']['ecosystem_region_public_id'] === 'r-eigen');
+
+// A label belonging to no region gets NO field -- absent means "not a landscape label", and an empty
+// string would read as one to every `if (publicId)` on the client.
+$features = [$feature('label', 'l-frei')];
+avesmapsEcosystemApplyLabelRegionsToFeatures($features, ['l1' => 'r1']);
+assert(!isset($features[0]['properties']['ecosystem_region_public_id']));
+
+// 💣 Only LABELS. A settlement whose public_id happens to appear in the map must not be decorated --
+// the relation is about labels, and `region` is the source-system name for a label, not for a place.
+$features = [$feature('location', 'l1')];
+avesmapsEcosystemApplyLabelRegionsToFeatures($features, ['l1' => 'r1']);
+assert(!isset($features[0]['properties']['ecosystem_region_public_id']));
+
+// An empty relation touches nothing at all (the no-ecosystem-tables case).
+$features = [$feature('label', 'l1')];
+avesmapsEcosystemApplyLabelRegionsToFeatures($features, []);
+assert(!isset($features[0]['properties']['ecosystem_region_public_id']));
+
+// A feature without properties must not throw -- the payload also carries rows this code knows nothing about.
+$features = [['geometry' => null], $feature('label', 'l1')];
+avesmapsEcosystemApplyLabelRegionsToFeatures($features, ['l1' => 'r1']);
+assert($features[1]['properties']['ecosystem_region_public_id'] === 'r1');
+
 // ------------------------------------------------------------------- THE AREA DECORATION ---
 
 require_once __DIR__ . '/../app-setting.php';
