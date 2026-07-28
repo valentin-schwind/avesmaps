@@ -375,6 +375,8 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	// 🔴 Die kleinste Art im Vokabular. Eine Oase ist ein Fleck, keine Decke -- ein Label in Waldgröße
 	// ab Zoom 4 behauptete eine Ausdehnung, die es nicht gibt.
 	wuestenoase: { size: 13, minZoom: 5 },
+	// Ein Wadi ist ein BAND, keine Fläche über Meilen -- kleiner als ein Gebirge, größer als eine Oase.
+	wadi: { size: 14, minZoom: 5 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

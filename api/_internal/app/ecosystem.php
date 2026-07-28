@@ -81,6 +81,12 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['topographie', 'meer', 'Meer', 30],
     ['topographie', 'kueste', 'Küste', 40],
     ['topographie', 'huegelland', 'Hügelland', 50],
+    // Owner 2026-07-28, nach dem Wiki: „Wadi … bedeutet Flussbett, das nur gelegentlich Wasser führt."
+    // 🔴 TOPOGRAPHIE, nicht Vegetation, und das ist die ganze Unterscheidung zu `flussland_flusstal`:
+    // ein Wadi ist die FORM (ein eingeschnittener Lauf), das Flussland die DECKE daneben. Was im Wadi
+    // wächst, ist Beiwerk -- wo wirklich etwas wächst, ist es eine `wuestenoase`. Beide in dieselbe
+    // Ebene zu legen hiesse, genau diese Unterscheidung wieder einzuebnen.
+    ['topographie', 'wadi', 'Wadi', 60],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],

@@ -501,6 +501,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.flussland_flusstal": "River Land/Valley",
 	"spotlight.labelType.dschungel": "Jungle",
 	"spotlight.labelType.wuestenoase": "Desert Oasis",
+	"spotlight.labelType.wadi": "Wadi",
 	"spotlight.labelType.see": "Lake",
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.sonstiges": "Label",

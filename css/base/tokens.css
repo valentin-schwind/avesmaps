@@ -208,6 +208,7 @@
 	--color-ecosystem-topographie-see: #4a86b8;             /* lake, blue */
 	--color-ecosystem-topographie-meer: #2d5f8a;            /* sea, dark blue */
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
+	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
 	/* Selection contour (Owner 2026-07-26): a SELECTED area is outlined in white, an area whose corners
 	   are open for editing in the handle blue above. Two states, two contours -- the same principle as
 	   the two marker rings further up, and the reason the fill keeps its own tone in both cases: the

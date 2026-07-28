@@ -35,6 +35,7 @@ const AVESMAPS_REPORT_TYPES = [
     'flussland_flusstal' => ['type' => 'label', 'subtype' => 'flussland_flusstal'],
     'dschungel' => ['type' => 'label', 'subtype' => 'dschungel'],
     'wuestenoase' => ['type' => 'label', 'subtype' => 'wuestenoase'],
+    'wadi' => ['type' => 'label', 'subtype' => 'wadi'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],

@@ -137,6 +137,10 @@ body.edit-mode .map-label img {
 	color: #a9e8d5; /* Wüstenoase: helles Türkisgrün -- Wasser, und es liest sich gegen den Wüstensand */
 }
 
+.map-label--wadi span {
+	color: #ddcfa4; /* Wadi: helles Sandgelb -- trockenes Flussbett, wärmer als die grüne Ebene */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
