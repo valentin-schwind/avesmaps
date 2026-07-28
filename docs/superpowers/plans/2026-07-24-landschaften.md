@@ -170,7 +170,7 @@ diese Tabelle.
 | **V2** | Daten und API | ✅ **erledigt 2026-07-26** (`956d53ee`+`9c3926d6`), abgenommen | ~1.520 Z. |
 | **V3** | Zeichnen und Anzeigen | Fläche entsteht **mit Region und Namen**, wird geladen, überlebt Reload | ~1.950 Z. |
 | **V4** | Abnahme + Messung | ✅ **erledigt 2026-07-26** — vier Vorabmessungen, sechs Entscheidungen; Durchgang A/B verworfen | kein Code |
-| **V4a** | Quellen anschließen (ex V2.4) | `entity_type='ecosystem'` | ~10 Z. |
+| **V4a** | Quellen anschließen (ex V2.4) | ✅ **erledigt 2026-07-28** (`1bfd4f53`). `entity_type='ecosystem'` in beiden Whitelists (`api/edit/map/feature-sources.php`, `api/app/feature-sources.php`) — kein eigener Tabellenbau, genau der Zweizeiler aus AGENTS.md §5. 🔴 **Nicht** `region` mitbenutzt: das meint ein Karten-LABEL, eine Landschaftsregion ist eine Zeile in `ecosystem_region`. Der Payload von `map-features.php` trägt sie bewusst nicht mit (Flächen reisen über `ecosystem-areas.php`); die Anzeige im Editor ist ein eigener Schritt. | ~10 Z. |
 
 > **V-1 bis V4 sind das ganze erste Vorhaben.** Alles Weitere wird **neu beauftragt**,
 > wenn echte Flächen auf der Karte liegen und sich das Zeichnen gut anfühlt.
