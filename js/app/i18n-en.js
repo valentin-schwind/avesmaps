@@ -159,6 +159,8 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.ctxmenu.newDerographisch": "New deregraphic region",
 	"ecosystem.ctxmenu.newVegetation": "New vegetation",
 	"ecosystem.ctxmenu.newTopographie": "New topography",
+	// A working point, not an area -- it creates a berggipfel label at the clicked spot (V8).
+	"ecosystem.ctxmenu.newPeak": "Set height point",
 	// --- Landschaften: the seven geometry operations in the area context menu. Same set the territory
 	//     menu offers, on ecosystem_area instead of political_territory_geometry. ---
 	// Wording mirrors the territory menu one for one -- the editors have used that one for months.
