@@ -546,7 +546,7 @@
 
 		for (const label of betroffen) {
 			try {
-				await submitMapFeatureEdit({
+				const ergebnis = await submitMapFeatureEdit({
 					action: "update_label",
 					public_id: label.publicId,
 					text: name,
@@ -561,6 +561,9 @@
 					lat: label.coordinates?.[0],
 					lng: label.coordinates?.[1],
 				});
+				if (typeof applyLabelFeatureLocally === "function" && ergebnis?.feature) {
+					applyLabelFeatureLocally(ergebnis.feature);
+				}
 			} catch (error) {
 				console.warn("Ein weiteres Label der Region konnte die neue Art nicht übernehmen:", error);
 			}
@@ -649,7 +652,7 @@
 		const style = typeof ecosystemLabelStyleFor === "function" ? ecosystemLabelStyleFor(subtype) : null;
 
 		try {
-			await submitMapFeatureEdit({
+			const ergebnis = await submitMapFeatureEdit({
 				action: "update_label",
 				public_id: labelPublicId,
 				text: name,
@@ -667,6 +670,10 @@
 				lat: entry.marker?.getLatLng?.().lat,
 				lng: entry.marker?.getLatLng?.().lng,
 			});
+			// Sofort auf der Karte, statt bis zum nächsten Live-Sync-Poll den alten Namen stehen zu lassen.
+			if (typeof applyLabelFeatureLocally === "function" && ergebnis?.feature) {
+				applyLabelFeatureLocally(ergebnis.feature);
+			}
 		} catch (error) {
 			console.warn("Das Label der Region konnte nicht umbenannt werden:", error);
 			setPropertiesStatus("Gespeichert — das Karten-Label trägt aber noch den alten Namen.");

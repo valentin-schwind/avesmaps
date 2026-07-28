@@ -512,6 +512,37 @@ function countEcosystemRegionLabels(regionPublicId) {
 	return labelData.filter((label) => String(ecosystemRegionOfLabel(label)?.public_id || "") === gesucht).length;
 }
 
+// 🔴 Ein gespeichertes Label SOFORT auf der Karte nachziehen (Owner 2026-07-28). Vorher wurde die
+// Änderung erst sichtbar, wenn der Live-Sync-Poll die nächste Karten-Nutzlast holte -- also nach bis zu
+// 15 Sekunden. Die Fläche stand längst neu da und ihr Name noch auf dem alten: es sah aus, als hätte
+// das Speichern die Beschriftung vergessen.
+//
+// 🪤 Über normalizeLabelFeature, nicht per Handanlegen an einzelnen Feldern: die Antwort des Servers ist
+// dieselbe Form wie die der Karten-Nutzlast, und nur so bleibt „sofort" und „nach dem nächsten Laden"
+// dasselbe Ergebnis. Wer hier drei Felder einzeln setzt, baut die zweite Wahrheit.
+function applyLabelFeatureLocally(feature) {
+	const publicId = String(feature?.properties?.public_id || feature?.public_id || "");
+	const entry = publicId ? findLabelEntryByPublicId(publicId) : null;
+	if (!entry) {
+		return false;
+	}
+
+	const frisch = normalizeLabelFeature(feature);
+	const index = labelData.indexOf(entry.label);
+	if (index >= 0) {
+		labelData[index] = frisch;
+	}
+	entry.label = frisch;
+	entry.marker.setLatLng(frisch.coordinates);
+	entry.marker.setIcon(createLabelIcon(frisch));
+	refreshLabelMarkerPopup(entry);
+	// Sichtbarkeit UND Kollision neu: ein anderer Name ist ein anderer Kasten, und ein anderer Subtyp
+	// bringt ein anderes Zoom-Band mit.
+	syncLabelVisibility();
+
+	return true;
+}
+
 function findLabelEntryByPublicId(publicId) {
 	return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
 }
