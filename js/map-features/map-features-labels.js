@@ -456,16 +456,21 @@ function createLabelMarkerEntry(label) {
 			void selectEcosystemAreaOfLabel(label);
 		});
 		marker.on("dragend", () => {
-			void saveLabelPosition(entry);
 			// 🪤 V8: einen Gipfel, der in der Topographie-Ebene DAUERHAFT ziehbar ist, hier nicht
 			// stillzulegen. setLabelMoveActive(false) beendet den einmaligen Verschiebemodus -- auf ihn
 			// angewandt liesse es sich genau einmal verschieben, danach klebte er fest.
-			if (typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId)) {
-				// Die enthaltende Fläche muss neu gerechnet werden (Leitfaden §1.4). Beim Überqueren
-				// einer Grenze sind es zwei -- die alte und die neue; das entscheidet der Empfänger.
-				if (typeof invalidateEcosystemHeightForPeak === "function") {
-					invalidateEcosystemHeightForPeak(label);
-				}
+			const isPeak = typeof isEcosystemPeakActive === "function" && isEcosystemPeakActive(label.publicId);
+			// 💣 Die Invalidierung gehört ANS ENDE der Speicherkette, nicht daneben. saveLabelPosition ist
+			// asynchron und schreibt die neue Lage erst in `label.coordinates`, wenn die Antwort da ist
+			// (applyLabelFeatureResponse). Daneben gerufen läse der Neuaufbau des Höhenfelds noch die ALTE
+			// Position -- der Gipfel wäre verschoben, sein Berg bliebe stehen.
+			const saved = saveLabelPosition(entry);
+			if (isPeak) {
+				Promise.resolve(saved).then(() => {
+					if (typeof invalidateEcosystemHeightForPeak === "function") {
+						invalidateEcosystemHeightForPeak(label);
+					}
+				});
 				return;
 			}
 			setLabelMoveActive(entry, false);

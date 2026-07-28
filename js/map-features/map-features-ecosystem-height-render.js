@@ -152,7 +152,7 @@
 		return heightStack;
 	}
 
-	// Von aussen: die Felder sind veraltet. Aufgabe 9 ruft es bei jeder Gipfeländerung.
+	// Von aussen: die Felder sind veraltet.
 	function invalidateEcosystemHeightField() {
 		stackDirty = true;
 		heightStack = null;
@@ -271,6 +271,45 @@
 			}
 		});
 	}
+
+	// ---- Die Invalidierungskante ----------------------------------------------------------------------
+	//
+	// Jede Gipfeländerung -- verschieben, anlegen, löschen, Höhe eintragen -- macht das Höhenfeld
+	// ungültig (oekosystem-editor-leitfaden.md Z. 204-207). Gerufen aus drei Ecken: dem Zug auf der
+	// Karte (map-features-labels.js), dem Höhenfeld im Landschaften-Panel und künftig dem Löschen.
+	//
+	// 🔴 ES WIRD ALLES NEU GEBAUT, NICHT NUR DIE ENTHALTENDE FLÄCHE -- und das ist eine Abweichung vom
+	// Plan, die auf zwei Messungen beruht:
+	//
+	//  1. **Teilweise wäre falsch.** Das Gipfelfenster ist GLOBAL (das ist der Kern von V8), und aus ihm
+	//     kommt die Radiusklemme jedes Gipfels: der Abstand zu seinem nächsten Nachbarn. Verschiebt sich
+	//     ein Gipfel, kann er der neue nächste Nachbar eines Gipfels in einer ganz anderen Fläche
+	//     werden. Nur die enthaltende Fläche neu zu rechnen liesse deren Radius stehen -- ein stiller
+	//     Fehler, sichtbar erst als falsche Bergform irgendwo weit weg.
+	//  2. **Teilweise wäre die Optimierung der billigen Hälfte.** Gemessen am Livebestand (2 Flächen,
+	//     62 Gipfel): Stapel komplett neu = **3,7 ms**, davon das Fenster 0,4 ms. Das anschliessende
+	//     Neuzeichnen kostet **36 ms** -- der Neubau ist ein Zehntel dessen, was ohnehin folgt.
+	//
+	// ⚠️ Das kippt, wenn die Zahl der Gebirgsflächen wächst. Bei den ~60, die der Bestand braucht, läge
+	// der Neubau grob bei 110 ms und wäre den Aufwand wert. Dann ist der richtige Schnitt: Fenster immer
+	// neu (billig), Felder nur dort, wo der Gipfel lag ODER jetzt liegt, PLUS bei jedem Gipfel, dessen
+	// nächster Nachbar sich geändert hat. Vorher nicht -- es wäre Komplexität ohne Gegenwert.
+	function invalidateEcosystemHeightForPeak(label) {
+		// Welche Flächen es betrifft, wird ERMITTELT, bevor der Stapel weggeworfen wird -- danach ist die
+		// Frage nicht mehr beantwortbar. Der Wert ist die Diagnose, nicht die Steuerung.
+		let affected = [];
+		const x = Number(label?.coordinates?.[1]);
+		const y = Number(label?.coordinates?.[0]);
+		if (heightStack && Number.isFinite(x) && Number.isFinite(y)
+			&& typeof ecosystemHeightFieldsAtPoint === "function") {
+			affected = ecosystemHeightFieldsAtPoint(heightStack, x, y);
+		}
+		invalidateEcosystemHeightField();
+		redraw();
+
+		return affected;
+	}
+	window.invalidateEcosystemHeightForPeak = invalidateEcosystemHeightForPeak;
 
 	map.on("moveend zoomend viewreset resize", redraw);
 	// Die Flächen können nach dem ersten Zeichnen eintreffen; ein paar Nachzügler-Durchgänge holen sie.
