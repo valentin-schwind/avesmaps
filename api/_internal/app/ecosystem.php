@@ -264,6 +264,62 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // V8: Geländevorgaben JE ART (Owner 2026-07-28: „einstellungen die bei den dropdown options gewählt
+    // werden"). Wer „Gebirge" wählt, bekommt Werte, die für ein Gebirge passen, statt bei null anzufangen.
+    //
+    // 🔴 IN DIE TABELLE, nicht in eine Liste im Code -- dieselbe Begründung wie bei den Arten selbst
+    // (AGENTS.md: keine hartkodierten Inhalte). „Dschungel" oder „Hochmoor" bekommen ihre Vorgaben damit
+    // ohne Entwickler, und die Zahlen unten sind ein Startpunkt zum Überschreiben, keine Wahrheit.
+    //
+    // 🔴 NULL heisst „keine Vorgabe für diese Art" -- der Dialog bietet dann kein Preset an, statt eines
+    // zu erfinden. Für Wasser (see, meer) ist das richtig: dort entsteht gar kein Höhenfeld.
+    $typeColumnExists = static function (PDO $pdo, string $column): bool {
+        $statement = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecosystem_region_type' AND COLUMN_NAME = :c"
+        );
+        $statement->execute(['c' => $column]);
+
+        return $statement !== false && (int) $statement->fetchColumn() > 0;
+    };
+    $typeColumnsNew = false;
+    foreach ([
+        'terrain_grain' => 'DECIMAL(6,2)',
+        'terrain_levels' => 'TINYINT UNSIGNED',
+        'terrain_avg_height' => 'DECIMAL(8,2)',
+    ] as $column => $type) {
+        if (!$typeColumnExists($pdo, $column)) {
+            $pdo->exec('ALTER TABLE ecosystem_region_type ADD COLUMN ' . $column . ' ' . $type . ' NULL');
+            $typeColumnsNew = true;
+        }
+    }
+    // Startwerte, EINMAL beim Nachrüsten und nur dort. Ein späteres Überschreiben durch den Owner darf
+    // nicht bei jedem Seitenaufruf zurückgesetzt werden -- deshalb nicht in den regulären Seed-Lauf.
+    //
+    // Körnung / Detailstufen / Durchschnittshöhe in Schritt. Gewählt, nicht gemessen:
+    //   gebirge     zerklüftet, hoch          -- die heutigen Modulvorgaben
+    //   huegelland  feiner gewellt, niedrig
+    //   wadi        flach mit Einschnitten
+    //   schlucht    grob, tief liegend
+    //   kueste      fast eben
+    if ($typeColumnsNew) {
+        foreach ([
+            ['gebirge', 3.2, 3, 2000],
+            ['huegelland', 4.5, 2, 600],
+            ['wadi', 5.0, 2, 200],
+            ['schlucht', 3.0, 3, 400],
+            ['kueste', 6.0, 1, 80],
+        ] as [$typeKey, $grain, $levels, $avg]) {
+            $statement = $pdo->prepare(
+                'UPDATE ecosystem_region_type
+                    SET terrain_grain = :g, terrain_levels = :l, terrain_avg_height = :a
+                  WHERE kind = :k AND type_key = :t'
+            );
+            $statement->execute(['g' => $grain, 'l' => $levels, 'a' => $avg,
+                'k' => 'topographie', 't' => $typeKey]);
+        }
+    }
+
     // The independent counter. Mirrors map_revision (api/_internal/map/features.php:2531-2545) in SHAPE
     // and is unrelated to it in EFFECT -- that separation is the whole point of this feature's design.
     $pdo->exec(
@@ -1081,7 +1137,8 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
 
 function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
 {
-    $sql = 'SELECT kind, type_key, label, sort_order FROM ecosystem_region_type WHERE is_active = 1';
+    $sql = 'SELECT kind, type_key, label, sort_order, terrain_grain, terrain_levels, terrain_avg_height
+              FROM ecosystem_region_type WHERE is_active = 1';
     $params = [];
     if ($kind !== null) {
         $sql .= ' AND kind = :kind';
@@ -1097,6 +1154,11 @@ function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
             'kind' => (string) $row['kind'],
             'type_key' => (string) $row['type_key'],
             'label' => (string) $row['label'],
+            // V8: die Geländevorgabe dieser Art. NULL reist als null -- „keine Vorgabe" ist eine
+            // Aussage, keine 0, und der Dialog bietet dann eben kein Preset an.
+            'terrain_grain' => $row['terrain_grain'] === null ? null : (float) $row['terrain_grain'],
+            'terrain_levels' => $row['terrain_levels'] === null ? null : (int) $row['terrain_levels'],
+            'terrain_avg_height' => $row['terrain_avg_height'] === null ? null : (float) $row['terrain_avg_height'],
         ],
         $statement->fetchAll()
     );

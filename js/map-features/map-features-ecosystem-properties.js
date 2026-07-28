@@ -626,6 +626,44 @@
 		});
 	}
 
+	// 🔴 Die Art wählt die Geländevorgabe mit (Owner 2026-07-28). Wer im Auswahlfeld „Gebirge" wählt,
+	// bekommt Werte, die für ein Gebirge passen, statt bei irgendetwas anzufangen.
+	//
+	// Die Zahlen stehen in `ecosystem_region_type` und reisen mit `list_regions` mit -- nicht in einer
+	// Liste hier. Eine neue Art bekommt ihre Vorgabe damit ohne Entwickler, so wie die Art selbst.
+	//
+	// 🪤 Es SETZT die Regler, es speichert nicht. Der Editor sieht sofort, was die Art vorschlägt, kann
+	// nachjustieren und entscheidet mit „Gelände speichern". Und es gilt als Berührung -- die Werte
+	// stehen ab jetzt als Entscheidung da, nicht als Ableitung.
+	function applyTerrainPresetForType() {
+		const wahl = String(propertiesElement("type")?.value || "");
+		const art = regionTypesForKind.find((type) => String(type.type_key) === wahl);
+		if (!art) {
+			return;
+		}
+		// Eine Art ohne Vorgabe (Wasser etwa) schlägt nichts vor, statt etwas zu erfinden.
+		let angewandt = false;
+		TERRAIN_FIELDS.forEach((feld) => {
+			const wert = art[feld.key];
+			const regler = propertiesElement(feld.element);
+			if (wert === null || wert === undefined || !regler) {
+				return;
+			}
+			regler.value = String(wert);
+			terrainTouched[feld.key] = true;
+			syncTerrainOutput(feld, currentPropertiesArea());
+			const area = currentPropertiesArea();
+			if (area) {
+				area[feld.key] = Number(wert);
+			}
+			angewandt = true;
+		});
+		if (angewandt) {
+			schedulePreviewRedraw();
+			setTerrainStatus("Vorgabe der Art übernommen — noch nicht gespeichert.", false);
+		}
+	}
+
 	async function saveTerrainSettings(reset) {
 		const area = currentPropertiesArea();
 		if (!area || typeof postEcosystemEdit !== "function") {
@@ -1213,7 +1251,10 @@
 		// Haken umgelegt -> Feld sperren/freigeben, und beim Anhaken einen frischen Griff erzeugen.
 		// Artwechsel -> der Griff folgt der Art, aber nur solange der Haken steht.
 		propertiesElement("autoname")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));
-		propertiesElement("type")?.addEventListener("change", () => syncPropertiesAutoName({ regenerate: true }));
+		propertiesElement("type")?.addEventListener("change", () => {
+			syncPropertiesAutoName({ regenerate: true });
+			applyTerrainPresetForType();
+		});
 		propertiesElement("wiki-search-go")?.addEventListener("click", () => void runWikiSearch());
 		// Enter im Suchfeld darf NICHT das Formular abschicken -- das würde speichern statt suchen.
 		propertiesElement("wiki-query")?.addEventListener("keydown", (event) => {
