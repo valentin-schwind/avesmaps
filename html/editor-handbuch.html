@@ -142,6 +142,8 @@
 		.hb-path strong { color: var(--hb-fg); }
 		code { background: var(--hb-soft); border: 1px solid var(--hb-line);
 			border-radius: var(--radius-sm); padding: 0 4px; font-size: 0.92em; }
+		/* Ein ganzer Baustein zum Kopieren -- zu lang fuer ein Inline-code, darum eigener Block. */
+		code.hb-block { display: block; padding: 8px 10px; margin: 8px 0; white-space: pre-wrap; }
 
 		/* --- Three distinct callouts. One yellow box for everything hid the difference between
 		       "handy tip" and "this destroys other people's work". --- */
@@ -216,7 +218,7 @@
 				<li><a href="#karten-features" data-keywords="wikisync dump syncen sorten">Karten-Features</a>
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
-						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter">Siedlungen</a></li>
+						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei">Siedlungen</a></li>
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
@@ -555,6 +557,9 @@
 					<figcaption>Das Lizenzfeld eines Bildes, aufgeklappt. Voreingestellt ist <strong>„Von uns KI-generiert"</strong> — die drei oberen Werte werden öffentlich ausgeliefert, der vierte nicht.</figcaption>
 				</figure>
 				<div class="hb-note hb-warn"><strong>Voreingestellt ist „Von uns KI-generiert" — und das ist eine Aussage.</strong> Wer ein fremdes Bild hochlädt und das Feld nicht anfasst, behauptet damit, wir hätten es selbst erzeugt, und veröffentlicht es. Erlaubt sind nur KI-generierte und zweifelsfrei gemeinfreie Bilder; alles unter CC, GNU oder mit Namensnennung gehört nicht hierher. Im Zweifel „Unbekannt/CC/Sonstiges" wählen — dann bleibt es intern.</div>
+				<div class="hb-note hb-tip"><strong>KI-generierte Bilder sind ausdrücklich erwünscht — lad sie gerne hoch.</strong> Fehlt einem Ort ein Bild, erzeug selbst eines: genau dafür ist der Wert <strong>„Von uns KI-generiert"</strong> da, und er ist deshalb auch die Voreinstellung. Mit dem Hochladen erklärst du dich einverstanden, dass das Bild <strong>gemeinfrei</strong> wird — es erscheint öffentlich in der Infobox und steht damit allen zur Verfügung. Ein bewährter Grundbaustein für den Auftrag (erprobt mit ChatGPT, dürfte mit anderen Werkzeugen genauso funktionieren):
+					<code class="hb-block">Consistent style in the following session. Middle Ages. Oil painting. Art work for a pen'n'paper RPG. 16:9. Village with a mill and fields, grassland landscape.</code>
+					Der erste Satz hält den Stil über eine ganze Sitzung zusammen — so passen mehrere Bilder hintereinander zueinander, statt jedes für sich auszusehen. Den letzten Satz tauschst du gegen das, was dein Ort zeigen soll.</div>
 
 				<h4>„Nur Auswahl anzeigen"</h4>
 				<p>Zeigt auf der <em>Karte</em> nur die Orte, die die mittlere Liste gerade anzeigt — mit allen Filtern, dem Reiter und der Baum-Auswahl zusammen. Solange das aktiv ist, sitzt oben rechts auf der Karte der Hinweis <strong>„Gefilterte Ansicht aktiv ✕"</strong>; ein Klick darauf stellt die volle Ansicht wieder her.</p>
@@ -1186,6 +1191,7 @@
 					<li><strong>Siedlungsbilder</strong> brauchen eine Lizenzangabe. Alles, was als „unbekannt" oder unklar eingestuft ist, wird <em>nicht</em> ausgeliefert.</li>
 					<li><strong>Kartenvorschauen</strong> erscheinen nur bei wenigen freien Lizenzen. Der weitaus größte Teil des Materials ist es nicht — die Fakten zur Karte zeigen wir trotzdem, nur eben ohne Bild.</li>
 				</ul>
+				<p>Ein Weg steht dabei immer offen: <strong>selbst KI-generierte Bilder</strong>. Sie werden gemeinfrei und dürfen öffentlich erscheinen — wie du sie erzeugst und hochlädst, steht samt erprobtem Grundbaustein für den Auftrag unter <a href="#siedlungen">Siedlungen</a> bei den Bildern.</p>
 				<div class="hb-note hb-warn"><strong>„Das Bild wird nicht angezeigt" ist meistens kein Fehler.</strong> Es ist fast immer die Lizenz — oder ein Schalter (siehe unten). Bevor du einen Bug meldest, schau in beides.</div>
 
 				<h3 id="v-spoiler" class="hb-sub">Spoiler</h3>
