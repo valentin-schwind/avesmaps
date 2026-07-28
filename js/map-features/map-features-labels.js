@@ -429,6 +429,13 @@ function createLabelMarkerEntry(label) {
 	const entry = { label, marker };
 	if (IS_EDIT_MODE) {
 		refreshLabelMarkerPopup(entry);
+		// 🔴 Ein Klick auf das Label einer verbundenen Flaeche waehlt AUCH die Flaeche aus (Owner
+		// 2026-07-28). Beschriftung und Flaeche sind fuer den Editor ein Ding; ueber das Label an die
+		// Region zu kommen war bisher ein Umweg ueber die Karte, obwohl das Label genau auf ihr sitzt.
+		// Nur im Landschaftsmodus -- ausserhalb gibt es keine aktive Flaeche, die etwas werden koennte.
+		marker.on("click", () => {
+			void selectEcosystemAreaOfLabel(label);
+		});
 		marker.on("dragend", () => {
 			void saveLabelPosition(entry);
 			setLabelMoveActive(entry, false);
@@ -687,6 +694,54 @@ async function deleteActiveLabel() {
 	await deleteLabelEntry(labelEditEntry, { closeDialog: true });
 }
 
+// 🔴 Vom Label zur Flaeche. Die Region kennt der Auflöser aus beiden Richtungen; welche ihrer Flaechen
+// gemeint ist, entscheidet die Naehe -- eine Region kann mehrere tragen, und das Label sitzt auf einer
+// bestimmten davon. Ohne geladene Flaeche passiert nichts: sie kann ausserhalb des Ausschnitts liegen.
+//
+// 🪤 Die Ebene wechselt MIT. Eine Flaeche der Topographie auszuwaehlen, waehrend die Vegetationsebene
+// aktiv ist, hiesse: markiert, aber unanklickbar und ohne Griffe -- die ruhende Ebene nimmt keine Klicks.
+async function selectEcosystemAreaOfLabel(label) {
+	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
+		return;
+	}
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const region = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(label) : null;
+	const regionPublicId = String(region?.public_id || "");
+	if (regionPublicId === "" || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
+		return;
+	}
+
+	const punkt = L.latLng(label.coordinates[0], label.coordinates[1]);
+	let treffer = "";
+	let beste = Infinity;
+	ecosystemLayers.forEach((layer, publicId) => {
+		const area = layer?._ecosystemArea;
+		if (!area || String(area.region_public_id || "") !== regionPublicId) {
+			return;
+		}
+		const mitte = typeof layer.getBounds === "function" ? layer.getBounds().getCenter() : null;
+		const abstand = mitte ? punkt.distanceTo(mitte) : Infinity;
+		if (abstand < beste) {
+			beste = abstand;
+			treffer = publicId;
+		}
+	});
+	if (treffer === "") {
+		return;
+	}
+
+	const kind = String(ecosystemLayers.get(treffer)?._ecosystemArea?.kind || "");
+	if (kind !== "" && typeof setActiveEcosystemLayerKind === "function" && typeof getActiveEcosystemLayerKind === "function"
+		&& kind !== getActiveEcosystemLayerKind()) {
+		setActiveEcosystemLayerKind(kind);
+	}
+	if (typeof setSelectedEcosystemArea === "function") {
+		setSelectedEcosystemArea(treffer);
+	}
+}
+
 async function duplicateLabelEntry(entry) {
 	if (!entry) {
 		showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
@@ -713,9 +768,23 @@ async function duplicateLabelEntry(entry) {
 	// Die Flaeche des Originals -- aus beiden Richtungen (Zeiger am Label ODER an der Region). Genau das
 	// war der Auftrag: eine grosse Region wie der Finsterkamm soll mehrere Beschriftungen tragen duerfen,
 	// im Norden und im Sueden, jede mit eigener Drehung und Lage.
-	const quellRegion = typeof ecosystemRegionOfLabel === "function"
-		? String(ecosystemRegionOfLabel(entry.label)?.public_id || "")
-		: "";
+	// 🪤 Erst die Regionslisten holen. Ausserhalb des Landschaftsmodus sind sie leer, und dann faende der
+	// Klon weder seine Flaeche noch deren Wiki-Landschaft -- "Label duplizieren" gibt es aber ueberall.
+	// Gecacht, also im Regelfall kein Netzverkehr.
+	if (typeof loadEcosystemRegions === "function" && typeof ECOSYSTEM_KINDS !== "undefined") {
+		await Promise.all(ECOSYSTEM_KINDS.map((kind) => loadEcosystemRegions(kind)));
+	}
+	const quellRegionZeile = typeof ecosystemRegionOfLabel === "function" ? ecosystemRegionOfLabel(entry.label) : null;
+	const quellRegion = String(quellRegionZeile?.public_id || "");
+
+	// 🪤 Der Wiki-Eintrag steht oft NICHT am Label, sondern an seiner Region -- die Infobox zeigt ihn
+	// trotzdem, weil sie ihn von dort holt. Ein Klon, der nur `label.wikiRegion` kopiert, kommt deshalb
+	// leer heraus, obwohl das Original vollstaendig aussieht (Owner 2026-07-28). Also dieselbe Leiter wie
+	// beim Anlegen eines Regionslabels: erst das Label selbst, sonst die Wiki-Landschaft seiner Flaeche.
+	let wikiRegion = entry.label.wikiRegion || null;
+	if (!wikiRegion && quellRegionZeile?.wiki_region_key && typeof ecosystemWikiRegionSnapshot === "function") {
+		wikiRegion = await ecosystemWikiRegionSnapshot(quellRegionZeile.wiki_region_key, quellRegionZeile.wiki_url || "");
+	}
 	try {
 		const result = await submitMapFeatureEdit({
 			action: "create_label",
@@ -730,7 +799,7 @@ async function duplicateLabelEntry(entry) {
 			// Ohne das war die Kopie ein Fremdkoerper -- kein Wiki-Eintrag, keine Flaeche, und damit auch
 			// unsichtbar unter "nur Labels mit Region".
 			show_name: entry.label.showName !== false,
-			...(entry.label.wikiRegion ? { wiki_region: entry.label.wikiRegion } : {}),
+			...(wikiRegion ? { wiki_region: wikiRegion } : {}),
 			...(quellRegion ? { ecosystem_region_public_id: quellRegion } : {}),
 			lat: duplicateLatLng.lat,
 			lng: duplicateLatLng.lng,

@@ -240,6 +240,13 @@ function getCollisionEntries() {
 			// ueber allen Staedten, damit sie zuerst platziert werden und Staedtenamen ihnen ausweichen.
 			priority: 1000 + (Number(entry.label.priority) || 3),
 			minZoom: Number(entry.label.minZoom) || 0,
+			// 🔴 Labels DERSELBEN Flaeche duerfen einander ueberlappen (Owner 2026-07-28). Ein Gebirge wie
+			// der Finsterkamm traegt seinen Namen im Norden UND im Sueden; dass die beiden sich beim Zoomen
+			// zeitweise beruehren, ist kein Konflikt, sondern derselbe Name an zwei Stellen. Ohne diese
+			// Ausnahme blendet die Aufloesung eine der beiden aus -- und genau dafuer wurden sie angelegt.
+			group: typeof ecosystemRegionOfLabel === "function"
+				? String(ecosystemRegionOfLabel(entry.label)?.public_id || "")
+				: "",
 		}));
 	const locationLabelEntries = locationNameLabels
 		.filter((entry) => map.hasLayer(entry.marker))
@@ -247,6 +254,7 @@ function getCollisionEntries() {
 			element: entry.marker.getElement(),
 			priority: getLocationNameLabelPriority(entry),
 			minZoom: LOCATION_NAME_LABEL_CONFIG[entry.markerEntry?.locationType]?.minZoom || 0,
+			group: "",                                 // Orte gehoeren zu keiner Flaeche
 		}));
 
 	return [...locationLabelEntries, ...freeLabelEntries].filter(({ element }) => element);
@@ -269,7 +277,7 @@ function resolveLabelCollisions(seedRects = []) {
 			const priorityDiff = right.priority - left.priority;
 			return priorityDiff || left.minZoom - right.minZoom;
 		})
-		.map(({ element }) => {
+		.map(({ element, group }) => {
 			const isLocation = element.classList.contains("location-name-label");
 			const baseRect = measureLabelRect(element);
 			const collisionRect = measureLabelCollisionRect(element);
@@ -277,13 +285,13 @@ function resolveLabelCollisions(seedRects = []) {
 			const candidates = isLocation
 				? getLocationNameLabelOffsets(element, baseRect)
 				: offsetCandidates.map(([offsetX, offsetY]) => ({ dx: offsetX, dy: offsetY }));
-			return { element, isLocation, collisionRect, baseOffset, candidates };
+			return { element, isLocation, collisionRect, baseOffset, candidates, group };
 		});
 
 	// Mit den Regionenlabel-Rechtecken vorbelegen -> Orts-/Frei-Labels weichen ihnen aus (Gegenseite).
 	const acceptedRects = Array.isArray(seedRects) ? seedRects.slice() : [];
 	const writes = [];
-	measured.forEach(({ element, isLocation, collisionRect, baseOffset, candidates }) => {
+	measured.forEach(({ element, isLocation, collisionRect, baseOffset, candidates, group }) => {
 		if (collisionRect.width <= 0 || collisionRect.height <= 0) {
 			writes.push({ element, isLocation, baseOffset, candidate: candidates[0], colliding: false });
 			return;
@@ -295,8 +303,16 @@ function resolveLabelCollisions(seedRects = []) {
 			const translateX = isLocation ? (candidate.dx - baseOffset.x) : candidate.dx;
 			const translateY = isLocation ? (candidate.dy - baseOffset.y) : candidate.dy;
 			const rect = translateLabelRect(collisionRect, translateX, translateY);
-			if (!acceptedRects.some((acceptedRect) => rectanglesOverlap(rect, acceptedRect))) {
-				acceptedRects.push(rect);
+			// Ein Rechteck der EIGENEN Flaeche zaehlt nicht als Hindernis -- siehe getCollisionEntries.
+			// Die Vorbelegung (seedRects) hat kein group und blockiert weiterhin jeden.
+			const blockiert = acceptedRects.some((acceptedRect) => {
+				if (group !== "" && acceptedRect.group === group) {
+					return false;
+				}
+				return rectanglesOverlap(rect, acceptedRect);
+			});
+			if (!blockiert) {
+				acceptedRects.push({ ...rect, group });
 				chosen = candidate;
 				break;
 			}
