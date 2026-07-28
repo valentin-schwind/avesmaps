@@ -68,6 +68,12 @@ try {
         'create_area' => avesmapsCreateEcosystemArea($pdo, $payload, $userId),
         // expected_revision is REQUIRED here and on delete_area -- see avesmapsEcosystemReadExpectedRevision.
         'update_area_geometry' => avesmapsUpdateEcosystemAreaGeometry($pdo, $payload, $userId),
+        // V8: die drei Geländeregler einer Fläche (Körnung, Detailstufen, Durchschnittshöhe). Bewusst
+        // NEBEN update_area_geometry und nicht darin: ein Regler bewegt keine Ecke, und die
+        // geometry_revision bleibt deshalb stehen -- sonst liefe jeder Reglerzug in den optimistischen
+        // Konflikt der nächsten Geometrie-Speicherung. Ein weggelassener Wert bleibt unangetastet, ein
+        // leerer setzt auf NULL zurück = „ableiten wie bisher".
+        'update_area_terrain' => avesmapsUpdateEcosystemAreaTerrain($pdo, $payload, $userId),
         'delete_area' => avesmapsDeleteEcosystemArea($pdo, $payload, $userId),
         // Not optional extra: without it app_setting['ecosystem_enabled'] stays '0' forever, the public
         // read path stays permanently empty, and V3 cannot be accepted at all. Pattern:

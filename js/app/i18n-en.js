@@ -190,6 +190,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.properties.typeLabel": "Kind",
 	// "Schritt" stays -- it is the DSA unit of length, domain content like the BF calendar suffix.
 	"ecosystem.properties.peaksTitle": "Peaks",
+	"ecosystem.properties.terrainTitle": "Terrain",
 	"ecosystem.properties.wikiTitle": "Wiki landscape",
 	"ecosystem.properties.wikiSync": "Sync",
 	"ecosystem.properties.wikiRemove": "Remove",

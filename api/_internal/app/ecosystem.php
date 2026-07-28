@@ -222,6 +222,37 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // V8: the three terrain knobs of ONE area (owner decision 2026-07-28: per AREA, not per region).
+    //
+    // 🔴 ALL THREE ARE NULLABLE, and NULL means "derive it, as before". That is what keeps the 2 live
+    // gebirge areas -- and every area drawn before today -- behaving exactly as they did: grain and
+    // levels fall back to the module constants, and the noise level to 0.4 x the lowest peak of the
+    // area. A non-null value is an editor overriding that derivation, never a default someone forgot.
+    //
+    // terrain_grain      -- coarse cell = longest bbox side / grain. Higher = finer relief.
+    // terrain_levels     -- how many refinement levels ride on the coarse one.
+    // terrain_avg_height -- the noise level in SCHRITT, absolute. Named after the prototype's "avg"
+    //                       slider, which is what it is: the height the invented terrain aims for
+    //                       between the named peaks.
+    $areaColumnExists = static function (PDO $pdo, string $column): bool {
+        $statement = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecosystem_area' AND COLUMN_NAME = :c"
+        );
+        $statement->execute(['c' => $column]);
+
+        return $statement !== false && (int) $statement->fetchColumn() > 0;
+    };
+    foreach ([
+        'terrain_grain' => 'DECIMAL(6,2)',
+        'terrain_levels' => 'TINYINT UNSIGNED',
+        'terrain_avg_height' => 'DECIMAL(8,2)',
+    ] as $column => $type) {
+        if (!$areaColumnExists($pdo, $column)) {
+            $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
+        }
+    }
+
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS ecosystem_region_type (
             kind VARCHAR(16) NOT NULL,
@@ -539,6 +570,9 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
                 a.min_x, a.min_y, a.max_x, a.max_y,
                 a.geometry_revision,
                 a.is_trial,
+                a.terrain_grain,
+                a.terrain_levels,
+                a.terrain_avg_height,
                 a.updated_at,
                 r.public_id AS region_public_id,
                 r.name AS region_name,
@@ -576,6 +610,11 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
             // The client MUST send this back as expected_revision on the next save.
             'geometry_revision' => (int) $row['geometry_revision'],
             'is_trial' => (int) $row['is_trial'] === 1,
+            // 🔴 NULL reist als null, nicht als 0. „Nicht eingestellt" und „auf 0 gestellt" sind zwei
+            // verschiedene Aussagen: das erste heisst „leite ab wie bisher", das zweite waere flach.
+            'terrain_grain' => $row['terrain_grain'] === null ? null : (float) $row['terrain_grain'],
+            'terrain_levels' => $row['terrain_levels'] === null ? null : (int) $row['terrain_levels'],
+            'terrain_avg_height' => $row['terrain_avg_height'] === null ? null : (float) $row['terrain_avg_height'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }
@@ -1815,6 +1854,97 @@ function avesmapsEcosystemRegionSnapshot(array $row): array
         'properties' => $row['properties_json'] === null ? null : json_decode((string) $row['properties_json'], true),
         'is_active' => (int) $row['is_active'] === 1,
         'updated_at' => (string) $row['updated_at'],
+    ];
+}
+
+// V8: die drei Geländeregler EINER Fläche schreiben (Owner-Entscheid 2026-07-28: je Fläche).
+//
+// 🔴 EIGENE AKTION, nicht an update_area_geometry angehängt. Ein Regler darf nie Geometrie berühren,
+// und `geometry_revision` bleibt hier unangetastet: die Fläche hat sich nicht bewegt. Sonst liefe jeder
+// Reglerzug in den optimistischen Konflikt der nächsten Ecken-Speicherung.
+//
+// 🔴 NULL LÖSCHT, und das ist die wichtigste Eigenschaft. Ein leer gelassener Regler heisst „leite ab
+// wie bisher" -- nicht 0. Deshalb wird jeder der drei Werte nur angefasst, wenn sein Schlüssel im
+// Payload steht (dieselbe array_key_exists-Regel wie bei height_schritt am Label), und ein leerer Wert
+// setzt die Spalte auf NULL zurück statt eine 0 zu schreiben.
+function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEnsureEcosystemTables($pdo);
+    $publicId = trim((string) ($payload['public_id'] ?? ''));
+    if ($publicId === '') {
+        throw new InvalidArgumentException('Die Fläche fehlt.');
+    }
+
+    // Klemmen, nicht ablehnen: der Regler kann nichts Ungültiges liefern, ein getippter Wert schon.
+    // Die Grenzen sind Arbeitsbereiche, keine Lore -- eine Körnung unter 1 ergäbe eine einzige Zelle,
+    // über 12 Millionen davon, und mehr als 5 Stufen fängt ohnehin das Zellbudget ab.
+    $lesen = static function (mixed $value, float $min, float $max): ?float {
+        if ($value === null || (is_string($value) && trim($value) === '')) {
+            return null;
+        }
+        if (is_string($value)) {
+            $value = str_replace(',', '.', trim($value));
+        }
+        if (!is_numeric($value)) {
+            return null;
+        }
+        $number = (float) $value;
+
+        return is_finite($number) ? max($min, min($max, $number)) : null;
+    };
+
+    $felder = [];
+    $werte = ['public_id' => $publicId];
+    if (array_key_exists('terrain_grain', $payload)) {
+        $felder[] = 'terrain_grain = :terrain_grain';
+        $werte['terrain_grain'] = $lesen($payload['terrain_grain'], 1.0, 12.0);
+    }
+    if (array_key_exists('terrain_levels', $payload)) {
+        $felder[] = 'terrain_levels = :terrain_levels';
+        $stufen = $lesen($payload['terrain_levels'], 0.0, 5.0);
+        $werte['terrain_levels'] = $stufen === null ? null : (int) round($stufen);
+    }
+    if (array_key_exists('terrain_avg_height', $payload)) {
+        $felder[] = 'terrain_avg_height = :terrain_avg_height';
+        $werte['terrain_avg_height'] = $lesen($payload['terrain_avg_height'], 0.0, 20000.0);
+    }
+    if ($felder === []) {
+        throw new InvalidArgumentException('Es wurde kein Geländewert mitgeschickt.');
+    }
+
+    $statement = $pdo->prepare(
+        'UPDATE ecosystem_area SET ' . implode(', ', $felder) . ', updated_by = :updated_by
+          WHERE public_id = :public_id AND is_active = 1'
+    );
+    $werte['updated_by'] = $userId;
+    $statement->execute($werte);
+    if ($statement->rowCount() === 0) {
+        // Kein Treffer heisst hier NICHT zwingend „gibt es nicht": dieselben Werte noch einmal zu
+        // schreiben ändert keine Zeile. Deshalb nachsehen, statt einen Fehler zu erfinden.
+        $probe = $pdo->prepare('SELECT COUNT(*) FROM ecosystem_area WHERE public_id = :p AND is_active = 1');
+        $probe->execute(['p' => $publicId]);
+        if ((int) $probe->fetchColumn() === 0) {
+            throw new InvalidArgumentException('Diese Fläche gibt es nicht mehr.');
+        }
+    }
+
+    // 🔴 ecosystem_revision, NIE avesmapsNextMapRevision(): das Gelände einer Fläche ist eine
+    // Ökosystem-Angelegenheit und entwertet nicht die Kartennutzlast jedes Besuchers (siehe Kopf).
+    $revision = avesmapsNextEcosystemRevision($pdo);
+
+    $lesenZurueck = $pdo->prepare(
+        'SELECT terrain_grain, terrain_levels, terrain_avg_height
+           FROM ecosystem_area WHERE public_id = :p LIMIT 1'
+    );
+    $lesenZurueck->execute(['p' => $publicId]);
+    $row = $lesenZurueck->fetch() ?: [];
+
+    return [
+        'public_id' => $publicId,
+        'terrain_grain' => ($row['terrain_grain'] ?? null) === null ? null : (float) $row['terrain_grain'],
+        'terrain_levels' => ($row['terrain_levels'] ?? null) === null ? null : (int) $row['terrain_levels'],
+        'terrain_avg_height' => ($row['terrain_avg_height'] ?? null) === null ? null : (float) $row['terrain_avg_height'],
+        'revision' => $revision,
     ];
 }
 

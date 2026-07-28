@@ -947,6 +947,38 @@
    Elementen brach das auseinander: der Knopf bekam eine eigene Zeile über die volle Breite, das
    Zahlenfeld wurde so schmal, dass der Platzhalter abschnitt, und die Statuszeile ging unter. Genau
    dadurch sah eine abgelehnte Speicherung aus wie „es passiert nichts". */
+/* Gelände-Regler (V8). Dieselbe Rasterlogik wie die Gipfelliste: Beschriftung, Regler, Wert in
+   ausgerichteten Spalten. Die Wertspalte ist fest breit, damit sie beim Ziehen nicht wandert und der
+   Regler unter der Hand nicht die Länge wechselt. */
+.ecosystem-properties-dialog__terrain {
+	display: grid;
+	row-gap: var(--space-6);
+}
+
+.ecosystem-properties-dialog__terrainrow {
+	display: grid;
+	grid-template-columns: 9.5em minmax(0, 1fr) 5.5em;
+	align-items: center;
+	column-gap: var(--space-8);
+}
+
+.ecosystem-properties-dialog__terrainrow input[type="range"] {
+	min-width: 0;
+	accent-color: var(--color-accent-brown);
+}
+
+.ecosystem-properties-dialog__terrainrow output {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	text-align: right;
+}
+
+.ecosystem-properties-dialog__terrainactions {
+	display: flex;
+	gap: var(--space-6);
+	justify-content: flex-end;
+}
+
 .ecosystem-properties-dialog__peaks-list {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) 5.5em auto;

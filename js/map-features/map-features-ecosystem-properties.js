@@ -412,6 +412,7 @@
 		syncPropertiesNodix(area);
 		// Wie die beiden Haken: sofort, nicht erst nach list_regions. Die Gipfel hängen an den geladenen
 		// Labels und an der Geometrie der Fläche -- beides liegt schon vor.
+		renderTerrainControls(area);
 		renderEcosystemPeakRows(area);
 		renderWikiReference();
 
@@ -527,6 +528,119 @@
 		box.disabled = !entry;
 		box.checked = Boolean(entry) && Boolean(entry.label?.isNodix);
 		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
+	}
+
+	// ---- Gelände: die drei Regler DIESER Fläche (V8) --------------------------------------------------
+	//
+	// 🔴 JE FLÄCHE, nicht je Region (Owner-Entscheid 2026-07-28). Eine Region kann mehrere Flächen
+	// tragen, und zwei Gebirgsstücke derselben Region dürfen verschieden fein sein.
+	//
+	// 🔴 „Auto" ist kein Zierrat, sondern die Rücknahme. Ein Regler kann nicht leer sein -- ohne einen
+	// ausdrücklichen Weg zurück wäre die abgeleitete Vorgabe nach dem ersten Anfassen für immer weg.
+	const TERRAIN_FIELDS = [
+		{ key: "terrain_grain", element: "grain", decimals: 1 },
+		{ key: "terrain_levels", element: "levels", decimals: 0 },
+		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
+	];
+	// Wird gesetzt, sobald der Editor einen Regler anfasst: ab dann gilt der Regler, nicht die Ableitung.
+	let terrainTouched = {};
+
+	function terrainDefaults(area) {
+		// Dieselben Vorgaben, mit denen das Höhenfeld rechnet -- gelesen, nicht abgeschrieben.
+		const peaks = peaksInsideArea(area);
+		const heights = peaks
+			.map((label) => (label.heightSchritt === null || label.heightSchritt === undefined
+				? (typeof ECOSYSTEM_HEIGHT_DEFAULT === "number" ? ECOSYSTEM_HEIGHT_DEFAULT : 5000)
+				: Number(label.heightSchritt)))
+			.filter((value) => Number.isFinite(value) && value > 0);
+
+		return {
+			terrain_grain: typeof ECOSYSTEM_HEIGHT_GRAIN === "number" ? ECOSYSTEM_HEIGHT_GRAIN : 3.2,
+			terrain_levels: typeof ECOSYSTEM_HEIGHT_LEVELS === "number" ? ECOSYSTEM_HEIGHT_LEVELS : 3,
+			terrain_avg_height: heights.length ? Math.round(0.4 * Math.min(...heights)) : 0,
+		};
+	}
+
+	function renderTerrainControls(area) {
+		const block = propertiesElement("terrain");
+		if (!block) {
+			return;
+		}
+		// Nur wo ein Höhenfeld entsteht. Eine Küstenfläche hat keine Körnung, und drei tote Regler
+		// daran wären eine Behauptung über eine Wirkung, die es nicht gibt.
+		const zeigt = String(area?.kind || "") === "topographie" && String(area?.region_type || "") === "gebirge";
+		block.hidden = !zeigt;
+		if (!zeigt) {
+			return;
+		}
+
+		terrainTouched = {};
+		const vorgabe = terrainDefaults(area);
+		TERRAIN_FIELDS.forEach((feld) => {
+			const regler = propertiesElement(feld.element);
+			if (!regler) {
+				return;
+			}
+			const gesetzt = area?.[feld.key];
+			terrainTouched[feld.key] = gesetzt !== null && gesetzt !== undefined;
+			regler.value = String(terrainTouched[feld.key] ? gesetzt : vorgabe[feld.key]);
+			syncTerrainOutput(feld, area);
+		});
+		setTerrainStatus("");
+	}
+
+	// Die Anzeige sagt AUSDRÜCKLICH, ob der Wert eingestellt oder abgeleitet ist. Ohne das sähe eine
+	// Automatik aus wie eine Entscheidung, und niemand wüsste, was ein Speichern festschreibt.
+	function syncTerrainOutput(feld, area) {
+		const regler = propertiesElement(feld.element);
+		const anzeige = propertiesElement(feld.element + "-out");
+		if (!regler || !anzeige) {
+			return;
+		}
+		const zahl = Number(regler.value).toFixed(feld.decimals);
+		anzeige.textContent = terrainTouched[feld.key] ? zahl : zahl + " (auto)";
+	}
+
+	function setTerrainStatus(message, isError) {
+		const status = propertiesElement("terrain-status");
+		if (!status) {
+			return;
+		}
+		status.textContent = String(message || "");
+		status.hidden = String(message || "") === "";
+		status.classList.toggle("ecosystem-properties-dialog__error", Boolean(isError));
+	}
+
+	async function saveTerrainSettings(reset) {
+		const area = currentPropertiesArea();
+		if (!area || typeof postEcosystemEdit !== "function") {
+			return;
+		}
+		const payload = { public_id: String(area.public_id || "") };
+		TERRAIN_FIELDS.forEach((feld) => {
+			// 🔴 Leerer String = NULL = „ableiten". Der Server unterscheidet das von einer 0, und ein
+			// unberührter Regler darf nie als Entscheidung durchgehen.
+			payload[feld.key] = reset || !terrainTouched[feld.key]
+				? ""
+				: String(propertiesElement(feld.element)?.value || "");
+		});
+
+		setTerrainStatus("Wird gespeichert …", false);
+		try {
+			const ergebnis = await postEcosystemEdit("update_area_terrain", payload);
+			TERRAIN_FIELDS.forEach((feld) => {
+				area[feld.key] = ergebnis?.[feld.key] ?? null;
+			});
+			renderTerrainControls(area);
+			setTerrainStatus(reset ? "Zurück auf Automatik." : "Gelände gespeichert.", false);
+			// Das Feld dieser Fläche ist veraltet -- dieselbe Kante wie bei einer Gipfeländerung.
+			if (window.AvesmapsEcosystemHeightRender?.invalidate) {
+				window.AvesmapsEcosystemHeightRender.invalidate();
+				window.AvesmapsEcosystemHeightRender.redraw();
+			}
+		} catch (error) {
+			setTerrainStatus(error?.message || "Das Gelände konnte nicht gespeichert werden.", true);
+		}
 	}
 
 	// ---- Gipfel in dieser Fläche (V8) -----------------------------------------------------------------
@@ -1032,6 +1146,15 @@
 				void saveEcosystemPeakHeight(row);
 			}
 		});
+		TERRAIN_FIELDS.forEach((feld) => {
+			propertiesElement(feld.element)?.addEventListener("input", () => {
+				// Anfassen heisst entscheiden -- ab hier gilt der Regler und nicht mehr die Ableitung.
+				terrainTouched[feld.key] = true;
+				syncTerrainOutput(feld, currentPropertiesArea());
+			});
+		});
+		propertiesElement("terrain-save")?.addEventListener("click", () => void saveTerrainSettings(false));
+		propertiesElement("terrain-auto")?.addEventListener("click", () => void saveTerrainSettings(true));
 		propertiesElement("wiki-sync")?.addEventListener("click", syncFromWikiRegion);
 		propertiesElement("wiki-remove")?.addEventListener("click", () => {
 			pendingWikiRegion = null;                 // ausdrücklich entfernt, nicht bloss unberührt

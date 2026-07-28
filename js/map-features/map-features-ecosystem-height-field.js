@@ -371,7 +371,13 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 			}
 		}
 	}
-	const target = ECOSYSTEM_HEIGHT_NOISE_SHARE * Math.min(...field.peakBumps.map((bump) => bump.a));
+	// 🔴 Die eingestellte Durchschnittshöhe der Fläche gewinnt, sonst wird abgeleitet (V8, Owner
+	// 2026-07-28: die drei Regler hängen je FLÄCHE). `null`/undefined heisst „ableiten wie bisher" --
+	// eine eingetragene 0 dagegen heisst flach und wird wörtlich genommen, wie überall in diesem Modul.
+	const derivedTarget = ECOSYSTEM_HEIGHT_NOISE_SHARE * Math.min(...field.peakBumps.map((bump) => bump.a));
+	const target = Number.isFinite(Number(options.avgHeight)) && options.avgHeight !== null
+		? Number(options.avgHeight)
+		: derivedTarget;
 	const damping = loudest > 0 ? target / loudest : 0;
 	// Nur die Amplituden skalieren -- Radien und damit der Index bleiben gültig, kein Neuaufbau nötig.
 	noiseBumps.forEach((bump) => { bump.a *= damping; });

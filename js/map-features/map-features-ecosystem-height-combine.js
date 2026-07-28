@@ -94,7 +94,14 @@ function buildEcosystemHeightStack(areas, peaks) {
 	const fields = [];
 	const areaIdsByField = [];
 	list.forEach((area) => {
-		const field = buildEcosystemHeightField(area, assignment.get(area) || [], peakWindow, {});
+		// V8: die drei Geländeregler der FLÄCHE durchreichen. Fehlt einer (null), leitet das Feld ihn
+		// ab wie bisher -- deshalb wird hier nichts mit `|| Vorgabe` aufgefüllt: das machte aus „nicht
+		// eingestellt" stillschweigend einen eingestellten Wert und nähme dem Editor die Rücknahme.
+		const field = buildEcosystemHeightField(area, assignment.get(area) || [], peakWindow, {
+			grain: area?.terrain_grain ?? undefined,
+			levels: area?.terrain_levels ?? undefined,
+			avgHeight: area?.terrain_avg_height ?? null,
+		});
 		// Flächen ohne eigenen Gipfel liefern kein Feld. Sie gar nicht erst aufzunehmen spart in der
 		// Malschleife eine Abfrage je Pixel je Fläche.
 		// 💣 `fields.length` ist deshalb NICHT `areas.length` -- wer über `areas` indiziert, greift daneben.
