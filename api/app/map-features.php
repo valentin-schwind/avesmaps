@@ -432,6 +432,15 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
         $properties['wiki_url'] = trim((string) $properties['data-report-wiki-url']);
     }
 
+    // svg_id ist der WERTGLEICHE Zwilling von id -- bei allen 5421 betroffenen Features
+    // identisch, 0,38 MB im Payload. Im Frontend steht er an genau einer Stelle, als letztes
+    // Glied der Kette `public_id || feature.id || properties.id || properties.svg_id`
+    // (map-features-region-feature-normalization.js) -- und public_id ist bei jedem Feature
+    // gesetzt, dieser Zweig also unerreichbar.
+    // 💣 `id` bleibt: das liest der ROUTING-Graph als Kantenkennung (route-engine.js,
+    // route-graph-routing.js). Nur der Zwilling faellt, nie das Original.
+    unset($properties['svg_id']);
+
     return $properties;
 }
 
@@ -774,19 +783,37 @@ function avesmapsLoadFeatureSourceCatalog(PDO $pdo): array {
     return $catalog;
 }
 
+// Die entity_type, die die KARTE aufloest. renderFeatureSourceLine wird ausschliesslich mit
+// diesen fuenf aufgerufen (map-features-labels.js, -location-marker-entry.js, -path-rendering.js,
+// -powerlines.js, -region-info-markup.js, popups.js) -- alles andere laege im Payload, ohne dass
+// es je jemand nachschlaegt.
+//
+// 💣 'lore' gehoert NICHT dazu, und das war teuer: Vorkommen (Flora/Fauna/Waren) sind keine
+// Kartenobjekte, sie haben ihren eigenen, seitenweise ladenden Endpunkt (api/app/lore.php,
+// 200 von ~35.000 Zeilen). Ihre Quellen machten dennoch 3,03 MB von 8,2 MB dieses Blocks aus --
+// 33.981 Referenzen ueber 5.087 Eintraege, allein "lore:ork" 19 KB. Wer hier einen Typ ergaenzt,
+// muss ihn auf der JS-Seite auch wirklich aufloesen.
+//
+// 'citymap' bleibt bewusst drin: 631 Referenzen / 0,04 MB, und der Karteneditor schreibt in
+// denselben Cache (review-feature-sources.js) -- der Gewinn waere Rauschen, das Risiko nicht.
+const AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES = ['settlement', 'region', 'path', 'territory', 'powerline', 'citymap'];
+
 // Per-entity approved source references grouped in PHP (no N+1): { "<entity_type>:<public_id>" =>
 // [ {source_id[, reference_kind][, pages][, note]} ] }. Ordered official-first then insertion order
 // so buildSourceListMarkup keeps a stable within-group order. Null/empty detail fields are omitted
 // to keep the payload compact. Try/catch -> [] (tables or the Task-1 detail columns may be absent).
 function avesmapsLoadFeatureSourceRefs(PDO $pdo): array {
+    $placeholders = implode(', ', array_fill(0, count(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES), '?'));
     try {
-        $statement = $pdo->query(
+        $statement = $pdo->prepare(
             "SELECT fs.entity_type, fs.entity_public_id, fs.source_id, fs.reference_kind, fs.pages, fs.note
                FROM feature_sources fs
                JOIN sources s ON s.id = fs.source_id
               WHERE fs.status = 'approved'
+                AND fs.entity_type IN (" . $placeholders . ")
               ORDER BY fs.entity_type, fs.entity_public_id, s.is_official DESC, s.created_at ASC, s.id ASC"
         );
+        $statement->execute(AVESMAPS_MAP_FEATURES_SOURCE_ENTITY_TYPES);
     } catch (Throwable $error) {
         return [];
     }
