@@ -226,7 +226,11 @@
 	   wird: je höher der Weisspunkt, desto dunkler und flacher wird ALLES darunter. Bei 15.000 Schritt
 	   und einem Livebestand, dessen Gipfel per Vorgabe auf 5.000 stehen, bleibt der grösste Teil der
 	   Karte im unteren Drittel der Rampe. Das ist die eine Zahl, an der man dreht -- nicht die Farben. */
-	--color-ecosystem-height-min: #000000;                  /* 0 Schritt */
+	/* 🔴 Der untere Anschlag ist die GRUNDFARBE DER FLÄCHE, nicht Schwarz (Owner 2026-07-28). Damit
+	   ändert sich beim Aktivieren am Gebirgsfuss nichts sichtbar und es entsteht der Eindruck, dass
+	   nur das Höhenmodell dazukommt -- vorher wurde ein warm brauner Zug zu einem dunklen Fleck.
+	   Der Wert spiegelt --color-ecosystem-topographie-gebirge; wer den ändert, ändert auch diesen. */
+	--color-ecosystem-height-min: #7a6c5e;                  /* 0 Schritt = Grundton der Fläche */
 	--color-ecosystem-height-max: #ffffff;                  /* Weisspunkt, siehe HEIGHT_WHITE_SCHRITT */
 	/* Deckkraft des Höhenschleiers. Er liegt ÜBER den Flächenfüllungen (Pane 420 über 250), also
 	   entscheidet dieser Wert, wie viel Regionsfarbe noch durchkommt. */

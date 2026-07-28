@@ -264,8 +264,28 @@
 				if (height <= 0) {
 					continue;
 				}
-				const color = rampAt(height / HEIGHT_WHITE_SCHRITT);
+				// 🔴 DIE HÖHE STEUERT AUCH DIE DECKKRAFT, nicht nur die Farbe (Owner 2026-07-28:
+				// „es soll der Eindruck entstehen, dass beim Klicken nur das Höhenmodell der Berge
+				// sichtbar wird").
+				//
+				// Vorher lag der Schleier mit voller Alpha über der Fläche und war unten fast schwarz --
+				// beim Aktivieren wurde ein warm brauner Gebirgszug zu einem dunklen Fleck, und die
+				// Geländekacheln darunter verschwanden mit. Das las sich als „die Fläche schaltet um",
+				// nicht als „das Höhenmodell kommt dazu".
+				//
+				// Jetzt: bei Höhe 0 ist der Schleier DURCHSICHTIG -- die Fläche sieht aus wie im Ruhezustand
+				// --, und er verdichtet sich mit der Höhe bis zum Weisspunkt. Der Fuss eines Gebirges bleibt
+				// also unangetastet, die Kuppen leuchten auf. Zusätzlich beginnt die Rampe nicht mehr bei
+				// Schwarz, sondern bei der Grundfarbe der Fläche selbst (--color-ecosystem-height-min), damit
+				// auch der halbdurchsichtige Bereich dazwischen die Fläche nicht eintrübt.
+				const t = Math.max(0, Math.min(1, height / HEIGHT_WHITE_SCHRITT));
+				const color = rampAt(t);
 				const r = color[0], g = color[1], b = color[2];
+				// Nichtlinear: die Wurzel hebt das untere Drittel an, in dem bei einem Weisspunkt von
+				// 15.000 und Gipfeln um 5.000 der halbe Bestand liegt. Linear wäre dort fast alles
+				// unsichtbar und das Relief bliebe unlesbar -- die Kurve ist der Ausgleich dafür, dass
+				// die Skala absolut ist und der Bestand ihr unteres Ende bewohnt.
+				const alpha = Math.round(255 * Math.sqrt(t));
 				// Den Rasterpunkt als STEP×STEP-Block ausfüllen, in Geräte-Pixeln.
 				const px0 = Math.round(sx * dpr);
 				const py0 = Math.round(sy * dpr);
@@ -274,7 +294,7 @@
 				for (let py = py0; py < py1; py++) {
 					let offset = (py * pixelWidth + px0) * 4;
 					for (let px = px0; px < px1; px++) {
-						data[offset] = r; data[offset + 1] = g; data[offset + 2] = b; data[offset + 3] = 255;
+						data[offset] = r; data[offset + 1] = g; data[offset + 2] = b; data[offset + 3] = alpha;
 						offset += 4;
 					}
 				}
