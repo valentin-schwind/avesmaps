@@ -110,6 +110,25 @@ function ecosystemAreaContourColor(kind, regionType) {
 	return readEcosystemColorToken(`--color-ecosystem-${kind}-contour`) || ecosystemAreaColor(kind, regionType);
 }
 
+// Läuft gerade irgendeine Bearbeitung? Eine Frage, mehrere Werkzeuge -- Zeichnen, Pinsel/Radiergummi,
+// der Ecken-Editor und die Gesten aus dem Kontextmenü (verschieben, zerschneiden, boolesch).
+function isEcosystemEditingInProgress() {
+	if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
+		return true;
+	}
+	if (window.AvesmapsEcosystemBrush?.isActive?.()) {
+		return true;
+	}
+	if (typeof activeEcosystemGeometryEdit !== "undefined" && activeEcosystemGeometryEdit) {
+		return true;
+	}
+	if (window.AvesmapsEcosystemGeometryOps?.isPending?.()) {
+		return true;
+	}
+
+	return false;
+}
+
 function ecosystemAreaStyle(kind, regionType) {
 	return {
 		color: ecosystemAreaContourColor(kind, regionType),
@@ -216,6 +235,18 @@ function buildEcosystemAreaLayer(area) {
 
 	layer._ecosystemArea = area;
 	layer.bindTooltip(formatEcosystemAreaTooltip(area), { sticky: true, direction: "top" });
+	// 🔴 WÄHREND EINER BEARBEITUNG SCHWEIGT ER (Owner 2026-07-28). Der Tooltip ist eine Auskunft für den,
+	// der die Karte LIEST -- beim Malen, Zeichnen, Ziehen oder Eckenschieben klebt er am Zeiger, verdeckt
+	// genau die Stelle, an der gearbeitet wird, und beantwortet eine Frage, die niemand gestellt hat.
+	//
+	// 🪤 Am `tooltipopen` abgefangen und nicht an den Zuständen vorbei entschieden: die Bearbeitung kann
+	// beginnen, während er schon offen steht, und sie kann enden, ohne dass der Zeiger sich bewegt. Hier
+	// wird beides richtig -- er geht sofort zu und kommt erst wieder, wenn wirklich nichts mehr läuft.
+	layer.on("tooltipopen", () => {
+		if (isEcosystemEditingInProgress()) {
+			layer.closeTooltip();
+		}
+	});
 	layer.on("click", (event) => {
 		// 💣 While the drawing tool is running, a click on an existing area is a CORNER, not a
 		// selection -- so this handler must neither select nor stop the event, or no area could ever

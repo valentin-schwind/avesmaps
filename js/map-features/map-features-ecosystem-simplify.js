@@ -40,6 +40,7 @@
 	let simplifyBaseGeometry = null;
 	let simplifyPreviewLayer = null;
 	let simplifyBusy = false;
+	let simplifyHiddenLayer = null;   // die ausgeblendete Originalfläche, solange der Dialog offen ist
 	let simplifyBound = false;
 
 	function element(suffix) {
@@ -177,6 +178,35 @@
 		return result;
 	}
 
+	// 🔴 Solange der Dialog offen ist, ist die ALTE Fläche weg (Owner 2026-07-28). Sonst liegen zwei
+	// Umrisse übereinander -- der alte und die Vorschau -- und man sieht gerade das nicht, worum es geht:
+	// wo der Regler Form wegnimmt. Ausgeblendet, nicht entfernt: die Registry und eine offene Auswahl
+	// bleiben unberührt, und beim Abbrechen ist alles wieder da, wie es war.
+	// 💣 Über eine KLASSE, nicht über setStyle. `ecosystemAreaStyle` kennt nur Farbe und Strichstärke --
+	// Deckkraft und Füllung stehen im CSS der Pane. Ein `setStyle({opacity: 0})` liesse sich damit nicht
+	// zurücknehmen: das Wiederherstellen hätte die Null einfach stehen lassen (genau so gemessen).
+	// Dieselbe Bauart wie applyEcosystemSelectionClass: Zustand als Klasse am <path>, Werte im CSS.
+	function setOriginalAreaHidden(publicId, hidden) {
+		const layer = typeof ecosystemLayers !== "undefined" && ecosystemLayers instanceof Map
+			? ecosystemLayers.get(String(publicId || ""))
+			: null;
+		const element = typeof layer?.getElement === "function" ? layer.getElement() : null;
+		if (!element) {
+			return;
+		}
+		element.classList.toggle("ecosystem-area--simplify-hidden", Boolean(hidden));
+		simplifyHiddenLayer = hidden ? layer : null;
+	}
+
+	function handleSimplifyKeydown(event) {
+		const overlay = document.getElementById(OVERLAY_ELEMENT_ID);
+		if (event.key !== "Escape" || !overlay || overlay.hidden) {
+			return;
+		}
+		event.stopPropagation();
+		closeSimplifyDialog();                       // Abbrechen: alles bleibt, wie es war
+	}
+
 	// ---- Fenster --------------------------------------------------------------------------------------
 
 	function closeSimplifyDialog() {
@@ -185,6 +215,7 @@
 			overlay.hidden = true;
 		}
 		clearSimplifyPreview();
+		setOriginalAreaHidden(simplifyAreaPublicId, false);
 		simplifyAreaPublicId = "";
 		simplifyBaseGeometry = null;
 	}
@@ -248,6 +279,7 @@
 		element("form")?.addEventListener("submit", submitSimplify);
 		element("cancel")?.addEventListener("click", () => closeSimplifyDialog());
 		element("close")?.addEventListener("click", () => closeSimplifyDialog());
+		document.addEventListener("keydown", handleSimplifyKeydown, true);
 		simplifyBound = true;
 	}
 
@@ -272,6 +304,7 @@
 			slider.value = "0";                      // jedes Mal bei null anfangen, nie beim letzten Wert
 		}
 		overlay.hidden = false;
+		setOriginalAreaHidden(simplifyAreaPublicId, true);
 		renderSimplifyPreview();
 		element("strength")?.focus();
 	}

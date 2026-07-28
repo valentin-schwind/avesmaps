@@ -1087,3 +1087,11 @@
 .leaflet-pane.ecosystem-pane--active > svg path.leaflet-interactive {
 	cursor: pointer;
 }
+
+/* Die Originalfläche, solange „Fläche vereinfachen" offen ist. Zwei Umrisse übereinander -- der alte und
+   die Vorschau -- verbergen gerade das, worum es geht: wo der Regler Form wegnimmt. Als Klasse und nicht
+   per setStyle, weil Deckkraft und Füllung hier im CSS stehen und ein Inline-Wert sich nicht sauber
+   zurücknehmen liesse. */
+.ecosystem-area--simplify-hidden {
+	display: none;
+}
