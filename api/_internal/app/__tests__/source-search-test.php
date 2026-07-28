@@ -23,8 +23,14 @@ require __DIR__ . '/../feature-sources.php';
 
 // A Fake PDO/PDOStatement built WITHOUT a driver (empty constructor). It records every prepared
 // query plus its bound parameters and replays scripted rows, so the SQL shape can be asserted with
-// no MySQL anywhere. query() always reports "index/column already exists" so the self-healing DDL
-// stays out of the way.
+// no MySQL anywhere. query() answers every schema probe in avesmapsEnsureFeatureSourceTables the
+// way a fully-migrated database would, so the self-healing DDL stays out of the way.
+//
+// Those probes come in two shapes and ONE canned answer cannot serve both -- the trap that made
+// this test fail once: the COUNT(*) ones ask "does this column/index exist" (1 = yes), while the
+// entity_public_id one asks for its WIDTH, where 1 reads as VARCHAR(1), i.e. "still too narrow",
+// and fires a widening ALTER. A new probe of a third shape needs its own answer here, not a
+// relaxed assertion below.
 final class FakeSearchStmt extends PDOStatement
 {
     public array $bound = [];
@@ -54,7 +60,11 @@ final class FakeSearchPdo extends PDO
     }
     public function query(string $query, ?int $fetchMode = null, mixed ...$args): PDOStatement|false
     {
-        return new FakeSearchStmt([], 1); // "already exists" -> no ALTER
+        // 190 = the width feature_sources.entity_public_id already has (widened for lore keys,
+        // 2026-07-22). Deliberately the exact current width and not a huge sentinel: should the
+        // schema ever target a wider column, this fake fails loudly and gets updated, rather than
+        // silently agreeing with whatever production asks for.
+        return new FakeSearchStmt([], str_contains($query, 'CHARACTER_MAXIMUM_LENGTH') ? 190 : 1);
     }
     public function exec(string $statement): int|false
     {
