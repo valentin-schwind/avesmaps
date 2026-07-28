@@ -504,6 +504,7 @@ const DEFAULT_PLANNER_STATE = {
 	toggleUnconnected: false,
 	toggleSparseCrossings: false,
 	toggleNodix: false,
+	toggleLabelsWithRegion: false,
 	pathType: "fastest",
 	minimizeTransfers: false,
 	restHours: 12,

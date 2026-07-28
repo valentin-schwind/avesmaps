@@ -125,6 +125,13 @@ $("#toggleNodix").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
 });
+// Nicht bloss neu zeichnen: der Filter braucht den Regionenbestand ALLER drei Ebenen, und geladen ist
+// im Normalfall nur die zuletzt aktive. Ohne das Nachladen bliebe der erste Klick wirkungslos.
+$("#toggleLabelsWithRegion").change(() => {
+	syncLabelVisibility();
+	void ensureEcosystemRegionsLoadedForLabelFilter();
+	syncPlannerStateToUrl();
+});
 
 function resetOverview() {
 	$("#overview").html(tr("planner.overview.default", DEFAULT_OVERVIEW_TEXT));

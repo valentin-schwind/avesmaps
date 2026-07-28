@@ -520,6 +520,14 @@ function isMapLabelEditorOverrideActive() {
 	return IS_EDIT_MODE ? document.getElementById("toggleMapLabels")?.checked : null;
 }
 
+// „nur Labels mit Region" — Edit-Mode und nur mit eingeschaltetem Landschaftsmodul (bootstrap.js).
+// Fehlt der Regionenbestand, kann der Filter nichts wissen und gilt als aus: lieber alles zeigen als
+// alles verbergen.
+function isLabelsWithRegionFilterActive() {
+	return typeof ecosystemLabelIdsWithRegion === "function"
+		&& document.getElementById("toggleLabelsWithRegion")?.checked === true;
+}
+
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), editorOverride = isMapLabelEditorOverrideActive()) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
@@ -538,6 +546,12 @@ function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = 
 	// Editor-Riegel darüber ein `return false` und keine wahrheitswertige Bedingung: es darf nur
 	// verbergen, nie zeigen, sonst höbe es Zoomband und Culling mit aus.
 	if (entry.label.showName === false) {
+		return false;
+	}
+
+	// „nur Labels mit Region": blendet Beschriftungen aus, an denen keine Landschaftsfläche hängt.
+	// Wieder ein `return false` und keine wahrheitswertige Bedingung -- der Haken darf nur verbergen.
+	if (isLabelsWithRegionFilterActive() && !ecosystemLabelIdsWithRegion().has(String(entry.label.publicId || ""))) {
 		return false;
 	}
 

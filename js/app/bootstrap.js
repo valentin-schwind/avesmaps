@@ -303,6 +303,13 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleSparseCrossings")?.removeAttribute("disabled");
     document.getElementById("toggleNodixControl")?.removeAttribute("hidden");
     document.getElementById("toggleNodix")?.removeAttribute("disabled");
+    // 🪤 Nur mit eingeschaltetem Landschaftsmodul. Ohne es gibt es keine Regionen, und der Filter
+    // wuerde jede Beschriftung der Karte verbergen -- ein Haken, der alles ausblendet, liest sich
+    // wie ein Fehler, nicht wie ein Filter.
+    if (IS_ECOSYSTEM_ENABLED) {
+        document.getElementById("toggleLabelsWithRegionControl")?.removeAttribute("hidden");
+        document.getElementById("toggleLabelsWithRegion")?.removeAttribute("disabled");
+    }
     document.getElementById("review-panel")?.removeAttribute("hidden");
     document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
     restoreReviewPanelState();
@@ -317,6 +324,7 @@ if (IS_EDIT_MODE) {
     document.getElementById("toggleUnconnected")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleSparseCrossings")?.setAttribute("disabled", "disabled");
     document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");
+    document.getElementById("toggleLabelsWithRegion")?.setAttribute("disabled", "disabled");
 }
 
 // UI-Interaktionen und Events

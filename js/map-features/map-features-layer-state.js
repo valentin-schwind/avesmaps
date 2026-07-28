@@ -109,6 +109,7 @@ function applyPlannerStateFromUrl() {
 	$("#toggleUnconnected").prop("checked", parseBooleanQueryParam(searchParams.get("toggleUnconnected"), DEFAULT_PLANNER_STATE.toggleUnconnected));
 	$("#toggleSparseCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleSparseCrossings"), DEFAULT_PLANNER_STATE.toggleSparseCrossings));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
+	$("#toggleLabelsWithRegion").prop("checked", parseBooleanQueryParam(searchParams.get("toggleLabelsWithRegion"), DEFAULT_PLANNER_STATE.toggleLabelsWithRegion));
 
 	if (pathType === "shortest" || pathType === "fastest") {
 		$(`input[name="pathType"][value="${pathType}"]`).prop("checked", true);
@@ -256,6 +257,9 @@ function buildPlannerSearchParams() {
 	}
 	if (IS_EDIT_MODE && $("#toggleNodix").is(":checked") !== DEFAULT_PLANNER_STATE.toggleNodix) {
 		searchParams.set("toggleNodix", $("#toggleNodix").is(":checked") ? "1" : "0");
+	}
+	if (IS_EDIT_MODE && $("#toggleLabelsWithRegion").is(":checked") !== DEFAULT_PLANNER_STATE.toggleLabelsWithRegion) {
+		searchParams.set("toggleLabelsWithRegion", $("#toggleLabelsWithRegion").is(":checked") ? "1" : "0");
 	}
 
 	if (getSelectedMapLayerMode() !== DEFAULT_PLANNER_STATE.mapLayerMode) {

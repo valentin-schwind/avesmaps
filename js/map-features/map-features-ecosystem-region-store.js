@@ -26,6 +26,9 @@ let ecosystemRegionTypesByKind = {};
 // Monoton, gleicher Grund wie beim Flächenlader: eine langsame Antwort für eine Ebene, die der Editor
 // längst verlassen hat, darf den Bestand nicht überschreiben.
 let ecosystemRegionRequestToken = 0;
+// Steigt bei JEDER Änderung am Bestand. Wer daraus etwas ableitet (siehe ecosystemLabelIdsWithRegion),
+// merkt sich das Ergebnis gegen diesen Zähler statt es je Aufruf neu zu bauen.
+let ecosystemRegionCacheStamp = 0;
 
 async function postEcosystemEdit(action, payload = {}) {
 	if (!ECOSYSTEM_EDIT_API_URL) {
@@ -66,6 +69,7 @@ async function loadEcosystemRegions(kind, { force = false } = {}) {
 		}
 		ecosystemRegionsByKind[kind] = Array.isArray(result.regions) ? result.regions : [];
 		ecosystemRegionTypesByKind[kind] = Array.isArray(result.region_types) ? result.region_types : [];
+		ecosystemRegionCacheStamp += 1;
 	} catch (error) {
 		if (requestToken !== ecosystemRegionRequestToken) {
 			return;
@@ -74,6 +78,7 @@ async function loadEcosystemRegions(kind, { force = false } = {}) {
 		// kommt. Der wahre Grund steht in der Konsole.
 		ecosystemRegionsByKind[kind] = [];
 		ecosystemRegionTypesByKind[kind] = [];
+		ecosystemRegionCacheStamp += 1;
 		console.warn("Landschafts-Regionen konnten nicht geladen werden:", error);
 	}
 }
@@ -84,7 +89,14 @@ async function loadEcosystemRegions(kind, { force = false } = {}) {
 function invalidateEcosystemRegionCache() {
 	ecosystemRegionsByKind = {};
 	ecosystemRegionTypesByKind = {};
+	ecosystemRegionCacheStamp += 1;
 	void loadEcosystemRegions(getActiveEcosystemLayerKind(), { force: true });
+	// 💣 Der Filter „nur Labels mit Region" liest ALLE drei Ebenen, hier nachgeladen wird aber nur die
+	// aktive. Wäre er an, verschwänden die Beschriftungen der beiden anderen Ebenen nach jedem
+	// Schreibvorgang — nicht weil sie keine Region hätten, sondern weil deren Liste gerade leer ist.
+	if (typeof isLabelsWithRegionFilterActive === "function" && isLabelsWithRegionFilterActive()) {
+		void ensureEcosystemRegionsLoadedForLabelFilter();
+	}
 }
 
 // Beim Betreten des Modus und bei jedem Ebenenwechsel gerufen. `refresh` nur beim BETRETEN: die
@@ -92,4 +104,49 @@ function invalidateEcosystemRegionCache() {
 // ständig, und das darf nicht jedes Mal eine Abfrage auf STRATO auslösen.
 function syncEcosystemRegionCache({ refresh = false } = {}) {
 	void loadEcosystemRegions(getActiveEcosystemLayerKind(), { force: refresh });
+}
+
+// ---- „nur Labels mit Region" ------------------------------------------------------------------------
+//
+// 🔴 Welche Beschriftungen hängen an einer Landschaftsfläche? Die Antwort steht in den REGIONEN
+// (`label_public_id`), nicht in den geladenen Flächen: `ecosystemLayers` hält nur, was gerade im Bild
+// ist. Eine Region halb ausserhalb des Ausschnitts zählte sonst als „ohne Label", und ihr Name
+// verschwände beim Wegscrollen — ein Filter, der beim Verschieben der Karte sein Ergebnis ändert, ist
+// schlimmer als keiner.
+//
+// Deshalb ALLE drei Ebenen und nicht nur die aktive: der Filter sitzt in der allgemeinen Kartenanzeige
+// und wirkt auch ausserhalb des Landschaftsmodus.
+// 💣 GEMERKT, nicht je Aufruf gebaut. shouldShowLabelMarker läuft für JEDE der ~590 Beschriftungen bei
+// jedem Zoom und jedem Verschieben; ein Set über 133 Regionen pro Label wären ~78 000 Durchläufe je
+// Bildwechsel. Der Zähler steigt überall dort, wo der Regionen-Zwischenspeicher sich ändert.
+let ecosystemLabelIdCacheStamp = -1;
+let ecosystemLabelIdCache = new Set();
+
+function ecosystemLabelIdsWithRegion() {
+	if (ecosystemLabelIdCacheStamp === ecosystemRegionCacheStamp) {
+		return ecosystemLabelIdCache;
+	}
+	const ids = new Set();
+	Object.keys(ecosystemRegionsByKind || {}).forEach((kind) => {
+		(ecosystemRegionsByKind[kind] || []).forEach((region) => {
+			const labelPublicId = String(region.label_public_id || "");
+			if (labelPublicId !== "") {
+				ids.add(labelPublicId);
+			}
+		});
+	});
+	ecosystemLabelIdCache = ids;
+	ecosystemLabelIdCacheStamp = ecosystemRegionCacheStamp;
+
+	return ids;
+}
+
+// Beim Einschalten des Hakens: was noch nicht im Zwischenspeicher liegt, nachladen und danach EINMAL neu
+// zeichnen. Ohne das wäre der erste Klick wirkungslos, solange nur eine Ebene geladen ist.
+async function ensureEcosystemRegionsLoadedForLabelFilter() {
+	const kinds = typeof ECOSYSTEM_KINDS !== "undefined" ? ECOSYSTEM_KINDS : ["derographisch", "vegetation", "topographie"];
+	await Promise.all(kinds.map((kind) => loadEcosystemRegions(kind)));
+	if (typeof syncLabelVisibility === "function") {
+		syncLabelVisibility();
+	}
 }
