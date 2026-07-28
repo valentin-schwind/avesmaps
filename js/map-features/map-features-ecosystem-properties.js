@@ -525,14 +525,15 @@
 		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
 	}
 
-	// 🔴 Die Art der Fläche schlägt auf ALLE ihre Labels durch (Owner 2026-07-28). Seit eine Fläche
+	// 🔴 Name UND Art der Fläche schlagen auf ALLE ihre Labels durch (Owner 2026-07-28). Seit eine Fläche
 	// mehrere Beschriftungen tragen darf, reicht es nicht, das primäre nachzuziehen: wer den Finsterkamm
-	// zum Wald macht, will nicht ein Wald-Label im Norden und ein Gebirgs-Label im Süden.
+	// zum Wald macht, will nicht ein Wald-Label im Norden und ein Gebirgs-Label im Süden -- und wer sie
+	// umbenennt, erst recht nicht zwei verschiedene Namen für dieselbe Fläche.
 	//
-	// 🪤 Nur den SUBTYP, nicht die Darstellung. Größe, Drehung und Zoom-Band gehören jedem Label selbst --
+	// 🪤 Nur Text und SUBTYP, nicht die Darstellung. Größe, Drehung und Zoom-Band gehören jedem Label selbst --
 	// ein zweites Label ist ja gerade deshalb da, weil es anders stehen soll. Deshalb reisen hier die
 	// eigenen Werte des jeweiligen Labels mit, nicht die des ersten.
-	async function applyRegionTypeToLabels(area, subtype, exceptPublicId) {
+	async function applyRegionToLabels(area, name, subtype, exceptPublicId) {
 		const regionPublicId = String(area?.region_public_id || "");
 		if (regionPublicId === "" || typeof labelData === "undefined" || !Array.isArray(labelData)
 			|| typeof submitMapFeatureEdit !== "function" || typeof ecosystemRegionOfLabel !== "function") {
@@ -541,14 +542,14 @@
 
 		const betroffen = labelData.filter((label) => String(label.publicId || "") !== String(exceptPublicId || "")
 			&& String(ecosystemRegionOfLabel(label)?.public_id || "") === regionPublicId
-			&& String(label.labelType || "") !== String(subtype));
+			&& (String(label.labelType || "") !== String(subtype) || String(label.text || "") !== String(name)));
 
 		for (const label of betroffen) {
 			try {
 				await submitMapFeatureEdit({
 					action: "update_label",
 					public_id: label.publicId,
-					text: label.text,
+					text: name,
 					show_name: label.showName !== false,
 					feature_subtype: subtype,
 					size: Number(label.size) || 18,
@@ -586,9 +587,18 @@
 		// gesetzt, also wurde nicht angelegt, und zu ihm gab es nichts mehr zu ändern. Also entscheidet
 		// hier das LABEL, nicht der Zeiger. Repariert wird der Zeiger dabei von selbst, weil
 		// createEcosystemRegionLabel ihn per update_region auf das neue Label umschreibt.
+		// 💣 Kein PRIMÄRES Label heisst nicht: gar keines. Seit eine Fläche mehrere tragen darf, kann ihr
+		// einziges über den eigenen Rückzeiger hängen (ein Klon zum Beispiel) und der Zeiger an der Region
+		// leer sein. Hier blind anzulegen setzte ihr ein zweites, gleichnamiges obendrauf -- den Namen
+		// bekommt es ohnehin gleich von applyRegionToLabels.
+		const hatIrgendeinLabel = typeof labelData !== "undefined" && Array.isArray(labelData)
+			&& typeof ecosystemRegionOfLabel === "function"
+			&& labelData.some((row) => String(ecosystemRegionOfLabel(row)?.public_id || "") === String(area?.region_public_id || "")
+				&& String(area?.region_public_id || "") !== "");
+
 		if (!label) {
 			const box = propertiesElement("showname");
-			if (box && box.checked && typeof createEcosystemRegionLabel === "function") {
+			if (box && box.checked && !hatIrgendeinLabel && typeof createEcosystemRegionLabel === "function") {
 				const geometry = area?.geometry_geojson || area?.geometry || null;
 				if (geometry) {
 					await createEcosystemRegionLabel(
@@ -707,8 +717,9 @@
 			// (`label_public_id`), wären zwei Namen für dasselbe Ding schlicht ein Fehler.
 			await renameLinkedEcosystemLabel(area, name);
 			// Und die ÜBRIGEN Labels derselben Fläche: das primäre hat die Zeile darüber schon nachgezogen.
-			await applyRegionTypeToLabels(
+			await applyRegionToLabels(
 				area,
+				name,
 				String(propertiesElement("type")?.value || "") || "region",
 				String(area.label_public_id || "")
 			);
