@@ -2109,7 +2109,9 @@
 				? `wiki_key=${encodeURIComponent(wikiKey)}`
 				: `territory=${encodeURIComponent(publicId)}`;
 			const stillSelected = () => (normalizeText(selectedNode?.row?.wiki_key || "") || normalizeText(selectedNode?.row?.public_id || "")) === refId;
-			fetch(`/api/app/territory-detail.php?${query}`)
+			// edit_mode=1 unconditionally: this editor only ever runs in edit mode, and it must keep seeing
+			// the REAL coat even while the global "Wappen: Aus" switch hides coats from the public side.
+			fetch(`/api/app/territory-detail.php?${query}&edit_mode=1`)
 				.then(response => response.json())
 				.then(data => {
 					if (!stillSelected()) {

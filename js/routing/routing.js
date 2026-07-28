@@ -142,7 +142,16 @@ function loadRouteDataFromApi() {
 		return Promise.reject(new Error("Keine Map-Features-API für diese Umgebung konfiguriert."));
 	}
 
-	return fetch(MAP_FEATURES_API_URL, {
+	// edit_mode=1 asks the server for the EDITOR's view of the payload. Today that is exactly one thing:
+	// the global "Wappen: Aus" switch replaces coats with a placeholder for the public side only, so an
+	// editor keeps seeing the real ones. The ETag carries the same marker, so the two variants cannot be
+	// served to each other from the browser cache.
+	const mapFeaturesUrl = new URL(MAP_FEATURES_API_URL, window.location.href);
+	if (IS_EDIT_MODE) {
+		mapFeaturesUrl.searchParams.set("edit_mode", "1");
+	}
+
+	return fetch(mapFeaturesUrl.toString(), {
 		headers: {
 			Accept: "application/json",
 		},
@@ -232,6 +241,7 @@ async function pollLiveMapUpdates() {
 
 		const url = new URL(MAP_FEATURES_API_URL, window.location.href);
 		url.searchParams.set("since_revision", String(mapDataSourceStatus.revision));
+		url.searchParams.set("edit_mode", "1"); // this delta loop only ever runs in edit mode (guard above)
 		const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
 		const data = await response.json().catch(() => ({}));
 		if (!response.ok || data?.ok !== true) {

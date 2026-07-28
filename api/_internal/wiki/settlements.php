@@ -17,6 +17,8 @@ declare(strict_types=1);
 // locations.php (Settlement-Class-Labels).
 
 require_once __DIR__ . '/place-scope.php';
+// The global "Wappen: An/Aus" switch for settlement coats (ribbon toggle next to "Bilder: An").
+require_once __DIR__ . '/../app/coat-display.php';
 
 const AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE = 'wiki_sync_pages';
 
@@ -1616,6 +1618,8 @@ function avesmapsWikiSettlementEditorList(PDO $pdo): array {
         'unassigned' => $unassigned,
         'wiki_only' => $wikiOnly,
         'images_enabled' => avesmapsSettlementImagesGloballyEnabled($pdo),
+        // State of the second ribbon toggle ("Wappen: An/Aus"), on the same trip as the image switch.
+        'coats_enabled' => avesmapsSettlementCoatsEnabled($pdo),
     ];
 }
 

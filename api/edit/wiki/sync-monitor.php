@@ -13,6 +13,10 @@ require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require_once __DIR__ . '/../../_internal/wiki/territories.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
+require_once __DIR__ . '/../../_internal/app/coat-display.php';
+// Only for avesmapsPoliticalInvalidateLayerCache(): the "Wappen: An/Aus" toggle changes what the layer
+// payload contains, and the layer's file cache would otherwise serve the old URLs for up to 300 s.
+require_once __DIR__ . '/../../_internal/political/territories-derived-layer.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -132,6 +136,9 @@ try {
                 (string) ($payload['wiki_key'] ?? '')
             ),
             'localize_coats' => avesmapsWikiSyncMonitorLocalizeCoats($pdo, $options),
+            // Global "Wappen: An/Aus" for the TERRITORY coats (ribbon toggle). No dry_run -- always a real
+            // write, like the settlement-image switch it mirrors.
+            'set_territory_coats_enabled' => avesmapsSetTerritoryCoatsEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
             'upload_coat' => avesmapsWikiSyncMonitorUploadCoat(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
@@ -150,6 +157,14 @@ try {
 
         if ($response === null) {
             avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Sync-Monitor-POST-Action: ' . $action);
+        }
+
+        // The coat switch flips what the public payloads contain without touching a single row the
+        // caches key on. Both of them have to be told, or the change shows up minutes later (or never):
+        // map-features hangs its ETag off map_revision, the political layer keeps a 300 s file cache.
+        if ($action === 'set_territory_coats_enabled' && is_array($response)) {
+            avesmapsWikiSyncNextMapRevision($pdo);
+            avesmapsPoliticalInvalidateLayerCache();
         }
 
         // Editor-Status mitschreiben (Buttons zeigen frisch/veraltet relativ zur letzten Sync).

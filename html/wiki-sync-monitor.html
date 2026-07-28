@@ -64,6 +64,9 @@
   .btn2 .t1 { font-size:var(--font-size-body); font-weight:var(--font-weight-bold); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .btn2 .t2 { font-size:var(--font-size-caption); color:var(--mut); white-space:nowrap; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
   .btn2.primary .t2 { color:var(--color-on-button-muted); }
+  /* An engaged kill switch (Wappen: Aus) -- same red-tinted state the Siedlungseditor gives its two toggles. */
+  .btn2.is-off { background:color-mix(in srgb, var(--bad) 16%, transparent); border-color:color-mix(in srgb, var(--bad) 45%, transparent); }
+  .btn2.is-off .t1 { color:var(--bad); }
   #statusText { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #contDD { flex:0 0 auto; align-self:center; }
   .timefilter { font-size:var(--font-size-small); color:var(--mut); display:flex; align-items:center; gap:5px; }
@@ -272,6 +275,7 @@
     <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Daten übernehmen“ schreibbar"><span class="t1">Daten übernehmen</span><span class="t2" id="stIdent">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Daten (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
     <button class="btn2" id="btnLocalizeCoats" title="Prüft zuerst die Wappen-Lizenzen neu (nur die bisher unbekannten – sichtbare Wappen bleiben dabei sichtbar), lädt dann ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
+    <button class="btn2" id="btnCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Wappen der Herrschaftsgebiete im öffentlichen Frontend durch einen leeren Schild – Kartenlabel, Infobox, Tooltip und die „Liegt in“-Treppe. Die Wappen selbst bleiben gespeichert, dieser Editor und der Edit-Modus der Karte zeigen sie weiter."><span class="t1" id="stCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="btnLinkCheck" title="Prüft NUR die Quellen-Links der Herrschaftsgebiete auf Erreichbarkeit. Abenteuer, Karten und Siedlungs-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="stLinkCheck">—</span></button>
   </div>
 </header>
@@ -524,6 +528,31 @@ function renderEditorState(s){
   $('stDiff').textContent  = (s.diff_fresh && s.last_diff_at) ? `gelöscht ${s.diff.deleted??0}, geändert ${s.diff.changed??0}, neu ${s.diff.new??0}` : 'noch nicht verglichen';
   $('stTest').textContent  = s.test_fresh ? '✓ Ergebnis da' : 'ausstehend';
   $('stApply').textContent = s.apply_fresh ? '✓ gespeichert und übernommen' : 'noch nicht übernommen';
+  if (typeof s.coats_enabled === 'boolean') setCoatsToggleState(s.coats_enabled);
+}
+
+// Global "Wappen: An/Aus" for the territory coats. Off does not delete anything: the public payloads
+// swap every coat URL for /img/wappen.png, so label, infobox, tooltip and breadcrumb keep their exact
+// geometry and show an empty shield. THIS editor and the map's edit mode keep the real coats (they ask
+// with edit_mode=1). aria-pressed=true == switch engaged == coats off, like the Siedlungseditor's.
+function setCoatsToggleState(enabled){
+  const btn = $('btnCoatsToggle'), label = $('stCoatsToggleLabel');
+  if (label) label.textContent = enabled ? 'Wappen: An' : 'Wappen: Aus';
+  if (btn) { btn.setAttribute('aria-pressed', enabled ? 'false' : 'true'); btn.classList.toggle('is-off', !enabled); }
+}
+async function toggleTerritoryCoatsEnabled(){
+  const btn = $('btnCoatsToggle');
+  if (!btn || btn.disabled) return;
+  const next = btn.getAttribute('aria-pressed') === 'true'; // engaged -> turning back ON
+  btn.disabled = true;
+  try{
+    const r = await api('set_territory_coats_enabled', { method:'POST', body:{ enabled: next } });
+    setCoatsToggleState(typeof r.coats_enabled === 'boolean' ? r.coats_enabled : next);
+    setStatus(next
+      ? 'Wappen der Herrschaftsgebiete im Frontend aktiviert.'
+      : 'Wappen der Herrschaftsgebiete im Frontend deaktiviert (Editor und Edit-Modus zeigen sie weiter).');
+  }catch(e){ setStatus('Wappen-Schalter fehlgeschlagen: '+e.message); }
+  finally{ btn.disabled = false; }
 }
 
 // Zaehlt die noch hotlinkenden gemeinfreien Wappen und spiegelt sie in den Button-Untertitel.
@@ -1231,6 +1260,8 @@ $('btnLinkCheck').onclick = async()=>{
     $('stLinkCheck').textContent = '—';
   }finally{ btn.disabled = false; }
 };
+
+$('btnCoatsToggle').onclick = toggleTerritoryCoatsEnabled;
 
 $('btnLocalizeCoats').onclick = async()=>{
   busy(true);

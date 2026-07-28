@@ -281,6 +281,7 @@
     <button class="btn2" id="seFilterMap" title="Zeigt auf der Live-Karte nur die aktuelle Auswahl"><span class="t1">Nur Auswahl anzeigen</span><span class="t2">auf der Karte</span></button>
     <button class="btn2" id="seLocalizeCoats" title="Drei Schritte in einem: prüft die Wappen-Lizenzen im Wiki neu (nur die bisher unbekannten – sichtbare Wappen bleiben sichtbar), überträgt die gemeinfreien auf die Siedlungen und lädt ihre Bilder dann auf den Avesmaps-Server (verkleinert, max. 512px). Nur gemeinfrei, nur von Wiki Aventurica. Eigene Uploads werden nie angefasst. Läuft in Schüben."><span class="t1">Wappen lokalisieren</span><span class="t2">gemeinfrei laden</span></button>
     <button class="btn2" id="seImagesToggle" aria-pressed="false" title="Globaler Schalter: blendet ALLE Siedlungsbilder im öffentlichen Frontend aus. Der Editor zeigt sie weiter."><span class="t1" id="seImagesToggleLabel">Bilder: An</span><span class="t2">im Frontend</span></button>
+    <button class="btn2" id="seCoatsToggle" aria-pressed="false" title="Globaler Schalter: ersetzt ALLE Siedlungswappen im öffentlichen Frontend. Der Kopf der Infobox zeigt dann wieder das Siedlungs-Icon. Der Editor zeigt die Wappen weiter."><span class="t1" id="seCoatsToggleLabel">Wappen: An</span><span class="t2">im Frontend</span></button>
     <button class="btn2" id="seLinkCheck" title="Prüft NUR die Quellen-Links der Siedlungen auf Erreichbarkeit. Abenteuer, Karten und Territoriums-Quellen haben ihre eigenen Schalter. Höflich: 600ms Pause je Host, ein Durchlauf dauert entsprechend."><span class="t1">🔗 Links prüfen</span><span class="t2" id="seLinkCheckInfo">Quellen der Siedlungen</span></button>
   </div>
 </header>
@@ -2449,6 +2450,38 @@ async function toggleSettlementImagesEnabled() {
 }
 $("seImagesToggle")?.addEventListener("click", toggleSettlementImagesEnabled);
 
+// Global settlement-COAT switch (ribbon), same shape as the image one right above. "Off" does not blank
+// the head: without properties.coat the infobox falls back to the settlement's own icon (popups.js), so
+// the switch takes the coat away, not the picture slot.
+function setCoatsToggleState(enabled) {
+	const btn = $("seCoatsToggle");
+	const label = $("seCoatsToggleLabel");
+	if (label) label.textContent = enabled ? "Wappen: An" : "Wappen: Aus";
+	if (btn) { btn.setAttribute("aria-pressed", enabled ? "false" : "true"); btn.classList.toggle("is-off", !enabled); }
+}
+async function toggleSettlementCoatsEnabled() {
+	const btn = $("seCoatsToggle");
+	if (!btn || btn.disabled) return;
+	const currentlyEnabled = btn.getAttribute("aria-pressed") !== "true";
+	const next = !currentlyEnabled;
+	btn.disabled = true;
+	try {
+		const response = await fetch(SETTLEMENT_EDITOR_API, {
+			method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "set_coats_enabled", enabled: next }),
+		});
+		const payload = await response.json().catch(() => null);
+		if (!response.ok || !payload || payload.ok !== true) throw new Error((payload && payload.error && payload.error.message) || `HTTP ${response.status}`);
+		setCoatsToggleState(typeof payload.coats_enabled === "boolean" ? payload.coats_enabled : next);
+		setStatusText(next ? "Siedlungswappen im Frontend aktiviert." : "Siedlungswappen im Frontend deaktiviert (Editor zeigt sie weiter).");
+	} catch (error) {
+		setStatusText("Wappen-Schalter fehlgeschlagen: " + (error && error.message ? error.message : String(error)));
+	} finally {
+		btn.disabled = false;
+	}
+}
+$("seCoatsToggle")?.addEventListener("click", toggleSettlementCoatsEnabled);
+
 // Nice-to-have (cheap): while the filter is ON, renderSettlementMid() itself re-narrows the parent
 // map's filter on every render (see its own tail call below) -- covers every list-filter change
 // (search/type/source/chip/tree) in one place, without wrapping/reassigning the function.
@@ -2670,6 +2703,7 @@ async function loadSettlementItems() {
 		}
 		settlementItems = Array.isArray(payload.items) ? payload.items : [];
 		if (typeof payload.images_enabled === "boolean") setImagesToggleState(payload.images_enabled);
+		if (typeof payload.coats_enabled === "boolean") setCoatsToggleState(payload.coats_enabled);
 		renderSettlementMid();
 	} catch (error) {
 		if (list) {
