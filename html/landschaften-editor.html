@@ -41,41 +41,41 @@
 <!-- Menüband: three tiles, all the same width. Only the sync tile carries an icon and --primary. -->
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
-    <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1">🚨 Syncen</span><span class="t2" id="ecoSyncInfo">Regionen aus dem Wiki-Dump</span></button>
-    <button type="button" class="avm-tile" id="ecoRaycast" title="Rechnet, welche Vegetations- und Topographieflächen in welcher derographischen Region liegen: Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %. Gerechnet, nie gespeichert."><span class="t1">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo">noch nicht gerechnet</span></button>
-    <button type="button" class="avm-tile" id="ecoEnabled" disabled title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo">Zustand unbekannt</span></button>
+    <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
+    <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Vegetations- und Topographieflächen in welcher derographischen Region liegen: Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %. Gerechnet, nie gespeichert."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoEnabled" disabled data-i18n-title="ecosystem.editor.enabled.title" title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1" data-i18n="ecosystem.editor.ribbon.enabled">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo" data-i18n="ecosystem.editor.enabled.unknown">Zustand unbekannt</span></button>
   </div>
 </div>
 
 <!-- Statuszeile: own row under the ribbon, full width (Spec §3.4). -->
-<div class="avm-status"><span class="avm-status__text" id="ecoStatusText">Wird geladen…</span></div>
+<div class="avm-status"><span class="avm-status__text" id="ecoStatusText" data-i18n="ecosystem.editor.loading">Wird geladen…</span></div>
 
 <div class="avm-cols">
   <div class="avm-col" id="ecoColRegions">
-    <h2 class="avm-col__title">Regionen</h2>
+    <h2 class="avm-col__title" data-i18n="ecosystem.editor.col.regions">Regionen</h2>
     <!-- Reiter = ecosystem_region.kind. Sie greifen nur auf GEZEICHNETE Regionen (Owner
          2026-07-27): eine Wiki-Region ohne Fläche hat keine Ebene, also kann sie unter keiner
          stehen. „Alle" zeigt die ganze Vereinigung. -->
     <div class="avm-tabs" id="ecoTabs">
-      <button type="button" class="avm-tab is-active" data-kind="">Alle</button>
-      <button type="button" class="avm-tab" data-kind="derographisch">Derographische Region</button>
-      <button type="button" class="avm-tab" data-kind="vegetation">Vegetation</button>
-      <button type="button" class="avm-tab" data-kind="topographie">Topographie</button>
+      <button type="button" class="avm-tab is-active" data-kind="" data-i18n="ecosystem.kind.all">Alle</button>
+      <button type="button" class="avm-tab" data-kind="derographisch" data-i18n="ecosystem.kind.derographisch">Derographische Region</button>
+      <button type="button" class="avm-tab" data-kind="vegetation" data-i18n="ecosystem.kind.vegetation">Vegetation</button>
+      <button type="button" class="avm-tab" data-kind="topographie" data-i18n="ecosystem.kind.topographie">Topographie</button>
     </div>
     <div class="avm-col__bar">
-      <input type="search" id="ecoSearch" placeholder="Region suchen …" aria-label="Regionen durchsuchen">
-      <div class="type-filter"><button type="button" id="ecoFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="ecoFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title">Wiki</div><div id="ecoFilterWiki"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Map-Darstellung</div><div id="ecoFilterDisplay"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Art</div><div id="ecoFilterArt"></div></div><div class="type-filter__section"><div class="type-filter__section-title">Kontinent</div><div id="ecoFilterContinent"></div></div></div></div>
+      <input type="search" id="ecoSearch" placeholder="Region suchen …" aria-label="Regionen durchsuchen" data-i18n-placeholder="ecosystem.editor.searchPlaceholder" data-i18n-aria-label="ecosystem.editor.searchAria">
+      <div class="type-filter"><button type="button" id="ecoFilterToggle" class="type-filter__toggle" aria-label="Filter" data-i18n-aria-label="ecosystem.editor.filter">Filter ▾</button><div id="ecoFilterMenu" class="type-filter__menu" hidden><div class="type-filter__section"><div class="type-filter__section-title" data-i18n="ecosystem.editor.facet.wiki">Wiki</div><div id="ecoFilterWiki"></div></div><div class="type-filter__section"><div class="type-filter__section-title" data-i18n="ecosystem.editor.facet.display">Map-Darstellung</div><div id="ecoFilterDisplay"></div></div><div class="type-filter__section"><div class="type-filter__section-title" data-i18n="ecosystem.editor.facet.art">Art</div><div id="ecoFilterArt"></div></div><div class="type-filter__section"><div class="type-filter__section-title" data-i18n="ecosystem.editor.facet.continent">Kontinent</div><div id="ecoFilterContinent"></div></div></div></div>
     </div>
-    <div class="avm-summary" id="ecoSummary">Keine Daten geladen</div>
-    <div class="avm-scroll" id="ecoList"><div class="avm-empty">Wird geladen…</div></div>
+    <div class="avm-summary" id="ecoSummary" data-i18n="ecosystem.editor.noData">Keine Daten geladen</div>
+    <div class="avm-scroll" id="ecoList"><div class="avm-empty" data-i18n="ecosystem.editor.loading">Wird geladen…</div></div>
   </div>
   <div class="avm-col" id="ecoColProps">
-    <h2 class="avm-col__title">Eigenschaften</h2>
-    <div class="avm-scroll avm-scroll--pad" id="ecoDetail"><div class="avm-empty">Links eine Region wählen.</div></div>
+    <h2 class="avm-col__title" data-i18n="ecosystem.editor.col.properties">Eigenschaften</h2>
+    <div class="avm-scroll avm-scroll--pad" id="ecoDetail"><div class="avm-empty" data-i18n="ecosystem.editor.pickRegion">Links eine Region wählen.</div></div>
   </div>
   <div class="avm-col" id="ecoColPreview">
-    <h2 class="avm-col__title">Vorschau &amp; Vorkommen</h2>
-    <div class="avm-scroll avm-scroll--pad" id="ecoPreview"><div class="avm-empty">Links eine Region wählen.</div></div>
+    <h2 class="avm-col__title" data-i18n="ecosystem.editor.col.preview">Vorschau &amp; Vorkommen</h2>
+    <div class="avm-scroll avm-scroll--pad" id="ecoPreview"><div class="avm-empty" data-i18n="ecosystem.editor.pickRegion">Links eine Region wählen.</div></div>
   </div>
 </div>
 
@@ -83,6 +83,12 @@
      iframe-Seiten ihn laden können; sein Kopf sagt es selbst. NICHT attachFilterMenu aus
      js/app/utils.js -- das ist die Zwillingsfassung für das Hauptfenster und hängt an dessen
      Globalen (escapeHtml, SOURCE_FILTER_OPTIONS). Eigenen bauen wäre die siebte Kopie. -->
+<!-- i18n-Overlay. Deutsch ist die Vorgabe; ?lang=en (oder der DE|EN-Schalter, der in
+     localStorage steht und same-origin auch hier gilt) blendet die englische Tabelle darueber.
+     Reihenfolge zwingend: die TABELLE zuerst -- js/app/i18n.js ruft applyI18nOverlay(document)
+     schon beim Parsen und liest window.AVESMAPS_I18N_EN dabei aus. -->
+<script src="/js/app/i18n-en.js"></script>
+<script src="/js/app/i18n.js"></script>
 <script src="/js/ui/filter-menu.js"></script>
 <!-- Die ganze Geometrie-Rechnung liegt schon da und ist unit-getestet
      (js/map-features/__tests__/ecosystem-boolean.test.js). Der Raycast benutzt genau sie:
@@ -109,6 +115,10 @@
 
 // ---- Small helpers ---------------------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
+// German is the default and stays it; ?lang=en (handed over by the host) or the DE|EN toggle in
+// localStorage swaps in the English table. Falls back to the German literal if the engine is
+// absent -- opening this page standalone must not blank every label (AGENTS.md §8).
+const t = (key, german, params) => (typeof tr === "function" ? tr(key, german, params) : german);
 function esc(s) {
 	return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -162,10 +172,11 @@ function setStatus(text, tone) {
 // Counts are the resting state; a result message shows for a while and then gives the line back.
 function statusCountsText() {
 	if (loadError) { return loadError; }
-	if (rows.length === 0) { return "Keine Regionen geladen."; }
+	if (rows.length === 0) { return t("ecosystem.editor.noRegions", "Keine Regionen geladen."); }
 	const drawn = rows.filter((row) => row.areaCount > 0).length;
 	const areas = rows.reduce((sum, row) => sum + row.areaCount, 0);
-	return rows.length + " Regionen · " + drawn + " gezeichnet · " + areas + " Flächen";
+	return t("ecosystem.editor.counts", "{regions} Regionen · {drawn} gezeichnet · {areas} Flächen",
+		{ regions: rows.length, drawn, areas });
 }
 function flashStatus(message, tone) {
 	setStatus(message, tone);
@@ -856,7 +867,7 @@ function renderDetail() {
 	const host = $("ecoDetail");
 	const row = rowByKey(selectedKey);
 	if (!row) {
-		host.innerHTML = '<div class="avm-empty">Links eine Region wählen.</div>';
+		host.innerHTML = '<div class="avm-empty">' + esc(t("ecosystem.editor.pickRegion", "Links eine Region wählen.")) + "</div>";
 		return;
 	}
 	// Spec §3.5: Wappen → Bilder → Identität → Rest → Quellen. No coat and no images on a landscape
@@ -1097,7 +1108,7 @@ function renderPreview() {
 	const host = $("ecoPreview");
 	const row = rowByKey(selectedKey);
 	if (!row) {
-		host.innerHTML = '<div class="avm-empty">Links eine Region wählen.</div>';
+		host.innerHTML = '<div class="avm-empty">' + esc(t("ecosystem.editor.pickRegion", "Links eine Region wählen.")) + "</div>";
 		return;
 	}
 	const parts = [];
@@ -1239,11 +1250,11 @@ async function runRaycast(options) {
 			flashStatus("Gerechnet: " + raycastNote + (territoryNote ? " · " + territoryNote : ""), "ok");
 		}
 
-		$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · " + ((territories || []).length) + " Territorien";
+		$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.done", "{areas} Flächen · {terr} Territorien", { areas: allAreas.length, terr: (territories || []).length });
 		renderDetail();
 		renderPreview();
 	} catch (error) {
-		$("ecoRaycastInfo").textContent = "fehlgeschlagen";
+		$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.failed", "fehlgeschlagen");
 		flashStatus("Zugehörigkeit fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
 	} finally {
 		$("ecoRaycast").disabled = false;
@@ -1255,14 +1266,18 @@ async function runRaycast(options) {
 function renderEnabledTile() {
 	const tile = $("ecoEnabled");
 	if (moduleEnabled === null) {
-		$("ecoEnabledT1").textContent = "Landschaftsmodul";
-		$("ecoEnabledInfo").textContent = "Zustand unbekannt";
+		$("ecoEnabledT1").textContent = t("ecosystem.editor.ribbon.enabled", "Landschaftsmodul");
+		$("ecoEnabledInfo").textContent = t("ecosystem.editor.enabled.unknown", "Zustand unbekannt");
 		tile.disabled = true;
 		tile.classList.remove("avm-tile--on");
 		return;
 	}
-	$("ecoEnabledT1").textContent = moduleEnabled ? "Landschaftsmodul AN" : "Landschaftsmodul AUS";
-	$("ecoEnabledInfo").textContent = moduleEnabled ? "Klick schaltet aus" : "Klick schaltet ein";
+	$("ecoEnabledT1").textContent = moduleEnabled
+		? t("ecosystem.editor.enabled.on", "Landschaftsmodul AN")
+		: t("ecosystem.editor.enabled.off", "Landschaftsmodul AUS");
+	$("ecoEnabledInfo").textContent = moduleEnabled
+		? t("ecosystem.editor.enabled.clickOff", "Klick schaltet aus")
+		: t("ecosystem.editor.enabled.clickOn", "Klick schaltet ein");
 	tile.disabled = false;
 	tile.classList.toggle("avm-tile--on", moduleEnabled);
 	tile.title = moduleEnabled
@@ -1286,7 +1301,7 @@ async function loadModuleEnabled() {
 			const cached = raycastCacheRead();
 			if (cached) {
 				raycastCacheApply(cached);
-				$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · " + ((territories || []).length) + " Territorien · gemerkt";
+				$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.remembered", "{areas} Flächen · {terr} Territorien · gemerkt", { areas: allAreas.length, terr: (territories || []).length });
 				renderDetail();
 				renderPreview();
 			}
@@ -1430,7 +1445,7 @@ async function loadData(options) {
 		territoryHits = computeTerritoryHits(allAreas, territories);
 		moduleEnabled = true;
 		renderEnabledTile();
-		$("ecoRaycastInfo").textContent = allAreas.length + " Flächen · Schwelle " + Math.round(RAYCAST_THRESHOLD * 100) + " %";
+		$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.info", "{areas} Flächen · Schwelle {pct} %", { areas: allAreas.length, pct: Math.round(RAYCAST_THRESHOLD * 100) });
 		rebuildFilterMenu();
 		renderList();
 		restoreSelection();

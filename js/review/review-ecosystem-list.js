@@ -16,7 +16,14 @@
 // already reserved "as soon as it exists").
 window.openAvesmapsEcosystemEditorOverlay = window.openAvesmapsEcosystemEditorOverlay || function openAvesmapsEcosystemEditorOverlay() {
 	const overlayId = "avesmaps-ecosystem-editor-overlay";
-	const buildSrc = () => "/html/landschaften-editor.html?v=" + Date.now();
+	// 💣 The language has to be handed over explicitly. The iframe has its OWN location.search
+	// (just ?v=…), so js/app/i18n.js inside it would never see the host's ?lang=en and would fall
+	// back to German -- an English app with a German editor window. The localStorage fallback
+	// (the DE|EN toggle) does carry across same-origin, but ?lang=en alone does not.
+	const buildSrc = () => {
+		const lang = (typeof window.avesmapsActiveLang === "string") ? window.avesmapsActiveLang : "";
+		return "/html/landschaften-editor.html?v=" + Date.now() + (lang ? "&lang=" + encodeURIComponent(lang) : "");
+	};
 	let overlay = document.getElementById(overlayId);
 	if (overlay) {
 		overlay.hidden = false;
