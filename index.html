@@ -834,6 +834,16 @@
 						</label>
 						<p id="ecosystem-properties-areas" class="ecosystem-properties-dialog__areas"></p>
 					</fieldset>
+					<!-- Gipfel innerhalb dieser Fläche (V8). Nur bei der Topographie: ein Gipfel im Wald ist
+					     ein Gipfel, kein Wald-Merkmal (oekosystem-editor-leitfaden.md §1.4). Die Zeilen
+					     entstehen zur Laufzeit; jede trägt ihren eigenen Knopf und ihre eigene Statuszeile —
+					     das Muster des Strömungsfaktors bei den Flusswegen (oekosystem-editor-verhalten.md §9). -->
+					<div id="ecosystem-properties-peaks" class="label-wiki-reference" hidden>
+						<div class="label-wiki-reference__head">
+							<span class="label-wiki-reference__title" data-i18n="ecosystem.properties.peaksTitle">Gipfel</span>
+						</div>
+						<div id="ecosystem-properties-peaks-list" class="label-wiki-reference__list"></div>
+					</div>
 					<!-- Optik aus den vorhandenen .label-wiki-reference__*-Regeln, damit der Block hier und
 					     im Label-Dialog gleich aussieht. -->
 					<div class="label-wiki-reference">

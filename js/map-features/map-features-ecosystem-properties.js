@@ -410,6 +410,9 @@
 		// verbundenen Label. Deshalb sofort, nicht erst nach list_regions.
 		syncPropertiesShowName(area);
 		syncPropertiesNodix(area);
+		// Wie die beiden Haken: sofort, nicht erst nach list_regions. Die Gipfel hängen an den geladenen
+		// Labels und an der Geometrie der Fläche -- beides liegt schon vor.
+		renderEcosystemPeakRows(area);
 		renderWikiReference();
 
 		overlayElement.hidden = false;
@@ -524,6 +527,140 @@
 		box.disabled = !entry;
 		box.checked = Boolean(entry) && Boolean(entry.label?.isNodix);
 		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
+	}
+
+	// ---- Gipfel in dieser Fläche (V8) -----------------------------------------------------------------
+	//
+	// 🔴 EIN OBJEKT, ZWEI ANSICHTEN. Der Gipfel ist eine map_features-Zeile. Diese Liste REFERENZIERT sie
+	// und speichert nichts eigenes -- es gibt keine zweite Positionsliste und deshalb nichts zu
+	// synchronisieren (oekosystem-editor-leitfaden.md §1.4). Der Label-Dialog schreibt dieselbe Zeile.
+	//
+	// 🪤 Die Höhe wohnt am LABEL, nicht an der Fläche. Wer sie an `ecosystem_area` hängen will, baut die
+	// zweite Wahrheit: derselbe Gipfel liegt beim Überlappen in zwei Flächen und hätte dann zwei Höhen.
+	function peaksInsideArea(area) {
+		const geometry = area?.geometry_geojson || area?.geometry || null;
+		if (!geometry || typeof labelData === "undefined" || !Array.isArray(labelData)
+			|| typeof pointInGeometry !== "function") {
+			return [];
+		}
+		// bbox-Vorfilter vor dem teuren Test -- die Fläche bringt ihre bbox schon mit. 💣 snake_case,
+		// wie das `bounds`-Feld der API; als {minX, …} gelesen ergäbe das lautlos NaN und damit eine
+		// Liste, die immer leer bleibt.
+		const bounds = area?.bounds || null;
+		const inBounds = (x, y) => !bounds
+			|| (x >= Number(bounds.min_x) && x <= Number(bounds.max_x)
+				&& y >= Number(bounds.min_y) && y <= Number(bounds.max_y));
+
+		return labelData.filter((label) => {
+			if (String(label.labelType || "") !== "berggipfel") {
+				return false;
+			}
+			// 💣 Labels tragen [lat, lng] = [y, x] (Leaflet L.CRS.Simple), GeoJSON will [x, y].
+			// Bewusst tauschen (AGENTS.md §5) -- ungetauscht liegt jeder Gipfel irgendwo im Nichts.
+			const y = Number(label.coordinates?.[0]);
+			const x = Number(label.coordinates?.[1]);
+
+			return Number.isFinite(x) && Number.isFinite(y) && inBounds(x, y) && pointInGeometry([x, y], geometry);
+		});
+	}
+
+	function setPeakRowStatus(row, message, isError) {
+		const status = row?.querySelector(".ecosystem-properties-dialog__status");
+		if (!status) {
+			return;
+		}
+		status.textContent = String(message || "");
+		status.hidden = String(message || "") === "";
+		status.classList.toggle("ecosystem-properties-dialog__error", Boolean(isError));
+	}
+
+	// Nur bei der Topographie. Ein Gipfel in einer Bedeckungsfläche bewirkt nichts -- ihn dort zum
+	// Bearbeiten anzubieten behauptete eine Wirkung, die es nicht gibt (Leitfaden §1.4).
+	function renderEcosystemPeakRows(area) {
+		const block = propertiesElement("peaks");
+		const list = propertiesElement("peaks-list");
+		if (!block || !list) {
+			return;
+		}
+		if (String(area?.kind || "") !== "topographie") {
+			block.hidden = true;
+			list.innerHTML = "";
+			return;
+		}
+
+		const peaks = peaksInsideArea(area);
+		block.hidden = false;
+		if (peaks.length === 0) {
+			// Ein leerer Zustand, der sagt was zu tun ist -- nicht bloss "keine Einträge".
+			list.innerHTML = '<p class="ecosystem-properties-dialog__areas">Kein Gipfel in dieser Fläche.'
+				+ ' Über „Höhenpunkt setzen" im Kartenmenü entsteht einer.</p>';
+			return;
+		}
+
+		list.innerHTML = peaks.map((label) => {
+			const height = label.heightSchritt === null || label.heightSchritt === undefined ? "" : String(label.heightSchritt);
+			// 💣 Der Name ist KEIN Schlüssel -- „Horndrachenfels" liegt im Bestand zweimal. Die Zeile
+			// hängt an public_id, angezeigt wird nur der Name.
+			return '<div class="ecosystem-properties-dialog__searchrow" data-peak-id="' + escapeAttr(label.publicId) + '">'
+				+ '<span>' + escapeText(label.text || "(ohne Namen)") + '</span>'
+				+ '<input type="number" min="0" max="20000" step="1" inputmode="numeric" placeholder="nicht erfasst"'
+				+ ' aria-label="Höhe in Schritt" value="' + escapeAttr(height) + '" />'
+				+ '<button type="button" class="ecosystem-properties-dialog__button" data-peak-save="1">Speichern</button>'
+				+ '<p class="ecosystem-properties-dialog__status" role="status" hidden></p>'
+				+ '</div>';
+		}).join("");
+	}
+
+	// 💣 `update_label` setzt Größe, Drehung, Zoom-Band und Priorität BEDINGUNGSLOS aus dem Payload
+	// (features.php:2244-2249). Nur die Höhe zu schicken warf das Label auf Standardwerte zurück --
+	// deshalb reist hier derselbe volle Darstellungssatz mit wie beim Umbenennen (:549). Der Schutz
+	// per array_key_exists gilt für die HÖHE, nicht für die Darstellung.
+	async function saveEcosystemPeakHeight(row) {
+		const labelPublicId = String(row?.dataset?.peakId || "");
+		const input = row?.querySelector("input[type=number]");
+		if (!labelPublicId || !input || typeof submitMapFeatureEdit !== "function") {
+			return;
+		}
+		const entry = typeof findLabelEntryByPublicId === "function" ? findLabelEntryByPublicId(labelPublicId) : null;
+		const label = entry?.label || null;
+		if (!label) {
+			setPeakRowStatus(row, "Dieser Gipfel ist nicht mehr geladen.", true);
+			return;
+		}
+
+		const raw = String(input.value || "").trim();
+		setPeakRowStatus(row, "Wird gespeichert …", false);
+		try {
+			const result = await submitMapFeatureEdit({
+				action: "update_label",
+				public_id: labelPublicId,
+				text: label.text || "",
+				show_name: label.showName !== false,
+				feature_subtype: "berggipfel",
+				size: Number(label.size) || 18,
+				rotation: Number(label.rotation) || 0,
+				min_zoom: Number(label.minZoom) || 0,
+				max_zoom: Number(label.maxZoom) || 7,
+				priority: Number(label.priority) || 3,
+				is_nodix: Boolean(label.isNodix),
+				lat: label.coordinates?.[0],
+				lng: label.coordinates?.[1],
+				// Leer = ausdrücklich „nicht erfasst". Der Server entfernt die Eigenschaft dann,
+				// statt eine 0 zu schreiben -- eine unerfasste Höhe ist kein Meeresspiegel.
+				height_schritt: raw === "" ? null : raw,
+			});
+			if (typeof applyLabelFeatureLocally === "function" && result?.feature) {
+				applyLabelFeatureLocally(result.feature);
+			}
+			setPeakRowStatus(row, raw === "" ? "Höhe entfernt." : "Höhe gespeichert.", false);
+			// Die Fläche muss neu gerechnet werden -- dieselbe begrenzte Nachlaufkante wie bei einer
+			// geänderten Geometrie, nur mit dem Label als Auslöser (Leitfaden §1.4).
+			if (typeof invalidateEcosystemHeightForPeak === "function") {
+				invalidateEcosystemHeightForPeak(label);
+			}
+		} catch (error) {
+			setPeakRowStatus(row, error?.message || "Die Höhe konnte nicht gespeichert werden.", true);
+		}
 	}
 
 	// 🔴 Name UND Art der Fläche schlagen auf ALLE ihre Labels durch (Owner 2026-07-28). Seit eine Fläche
@@ -865,6 +1002,16 @@
 					query.value = String(propertiesElement("name")?.value || "").trim();
 				}
 				void runWikiSearch();
+			}
+		});
+		// Delegiert, weil die Zeilen erst beim Öffnen entstehen und bei jeder Fläche andere sind.
+		// 🪤 Der Knopf sitzt in einem <form>: ohne type="button" im Markup wäre er ein Absende-Knopf
+		// und würde den GANZEN Flächendialog speichern statt einer Höhe.
+		propertiesElement("peaks-list")?.addEventListener("click", (event) => {
+			const button = event.target?.closest?.("[data-peak-save]");
+			const row = button?.closest?.("[data-peak-id]");
+			if (row) {
+				void saveEcosystemPeakHeight(row);
 			}
 		});
 		propertiesElement("wiki-sync")?.addEventListener("click", syncFromWikiRegion);

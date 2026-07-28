@@ -50,7 +50,7 @@ Der größere Teil steht. Wer das übersieht, baut ihn nach.
 | **Höhe speichern** | ✅ **Keine Migration, keine neue Aktion.** `update_label` nimmt `properties_json` entgegen (`api/_internal/map/features.php:343`) und **mischt**: es liest die vorhandenen Eigenschaften (`:2239`) und setzt Einzelschlüssel. Ein neues Feld überlebt jedes fremde Speichern. |
 | **Label schreiben** | ✅ `create_label` / `update_label` / `move_label` (`api/edit/map/features.php:50–52`) |
 | **Randabstand** | ✅ `distanceToEcosystemEdge(point, geometry)` (`js/map-features/map-features-ecosystem-geometry.js:70`) — läuft über **alle** Ringe **inklusive Löcher** (`:40–52`), mit Segment-Klemme (`:57`). Unit-getestet. **Das ist der Ersatz für `distEdge` des Prototyps.** |
-| **Punkt-in-Fläche** | ✅ `pointInGeometry` im selben Modul; `js/map-features/__tests__/point-in-polygon.test.js` |
+| **Punkt-in-Fläche** | ✅ `pointInGeometry(point, geometry)` — ⚠️ **nicht** im Geometriemodul, sondern in **`js/map-features/map-features-point-in-polygon.js:26`** (eine frühere Fassung dieses Plans behauptete „im selben Modul"; am 2026-07-28 berichtigt). Kennt Löcher, Polygon und MultiPolygon; `point` ist **`[x, y]`**. Test: `js/map-features/__tests__/point-in-polygon.test.js` |
 | **Bounds** | ✅ `ecosystemGeometryBounds(geometry)` → **snake_case** `{min_x, min_y, max_x, max_y}`, `null` bei leer |
 | **Label-Dialog (Standard-Layer)** | ✅ `js/review/review-labels.js` — `populateLabelEditForm` `:16`, `buildLabelEditPayload` `:287` (wählt `update_label`/`create_label` bei `:290`) |
 | **Landschaften-Panel** | ✅ `js/map-features/map-features-ecosystem-properties.js` — spricht bereits `update_label` (`:550`, `:656`) |
