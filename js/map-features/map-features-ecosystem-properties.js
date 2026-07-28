@@ -777,21 +777,20 @@
 				action: "update_label",
 				public_id: labelPublicId,
 				text: label.text || "",
-				show_name: label.showName !== false,
-				// 💣 SEINEN eigenen Subtyp, nicht "berggipfel" fest. `update_label` setzt den Subtyp
-				// bedingungslos aus dem Payload -- ein `vulkan`, dessen Höhe hier gespeichert wird, wäre
-				// danach ein Berggipfel gewesen. Der Dialog ändert Höhen, nicht Arten.
 				feature_subtype: String(label.labelType || "berggipfel"),
-				size: Number(label.size) || 18,
-				rotation: Number(label.rotation) || 0,
-				min_zoom: Number(label.minZoom) || 0,
-				max_zoom: Number(label.maxZoom) || 7,
-				priority: Number(label.priority) || 3,
-				is_nodix: Boolean(label.isNodix),
-				lat: label.coordinates?.[0],
-				lng: label.coordinates?.[1],
-				// Leer = ausdrücklich „nicht erfasst". Der Server entfernt die Eigenschaft dann,
-				// statt eine 0 zu schreiben -- eine unerfasste Höhe ist kein Meeresspiegel.
+				// 🔴 KEIN Darstellungssatz. Seit der Server ihn nur noch schreibt, wenn er mitkommt
+				// (features.php), ändert dieser Aufruf genau eine Eigenschaft -- die Höhe. Vorher musste
+				// er Größe, Drehung, Zoom-Band und Priorität mitschleppen, nur um sie nicht zu verlieren.
+				//
+				// 🔴 UND KEIN OPTIMISTISCHER RIEGEL. `expected_revision: null` schaltet ihn ab, und das
+				// ist hier richtig statt bequem: der Riegel schützt davor, dass zwei Editoren einander
+				// überschreiben -- dieser Aufruf schreibt aber nur ein Feld, das es vorher nirgends gab,
+				// und lässt jedes andere unangetastet. Es gibt nichts zu überschreiben.
+				//
+				// 💣 Ohne das scheiterte JEDE Höhe mit 409: der Riegel verlangt die Revision aus der
+				// ~21 MB grossen Kartennutzlast, und die ist nach der ersten fremden Labeländerung alt.
+				// Am 2026-07-28 im eingeloggten Browser gemessen -- mitgeschickt 16069, Antwort 409.
+				expected_revision: null,
 				height_schritt: raw === "" ? null : raw,
 			});
 			if (typeof applyLabelFeatureLocally === "function" && result?.feature) {

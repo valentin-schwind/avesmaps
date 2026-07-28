@@ -2285,12 +2285,28 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['text'] = $text;
         $properties['feature_type'] = 'label';
         $properties['feature_subtype'] = $subtype;
-        $properties['size'] = $size;
-        $properties['rotation'] = $rotation;
-        $properties['min_zoom'] = $minZoom;
-        $properties['max_zoom'] = $maxZoom;
-        $properties['priority'] = $priority;
-        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
+        // 💣 DER DARSTELLUNGSSATZ WIRD NUR GESCHRIEBEN, WENN ER MITKOMMT (2026-07-28). Vorher lief das
+        // unbedingt: `$payload['size'] ?? 18` machte aus einem fehlenden Schlüssel eine 18, aus einem
+        // fehlenden min_zoom eine 0. Wer also nur EINE Eigenschaft ändern wollte, musste den ganzen
+        // Satz mitschicken -- und wer ihn mitschickt, muss ihn erst kennen, also die Zeile frisch
+        // geladen haben, also eine gültige Revision besitzen.
+        //
+        // Genau daran scheiterte jede Gipfelhöhe: der Landschaften-Dialog schickte pflichtschuldig den
+        // vollen Satz samt `expected_revision` aus einer ~21 MB grossen, längst überholten
+        // Kartennutzlast, und der Server antwortete korrekt mit 409. Ein Feld, das man einzeln setzen
+        // kann, braucht diesen Umweg gar nicht erst.
+        //
+        // Dieselbe Regel wie bei show_name, wiki_region, other_source und height_schritt darunter.
+        // Ein Aufrufer, der den vollen Satz schickt, merkt keinen Unterschied.
+        foreach (['size' => $size, 'rotation' => $rotation, 'min_zoom' => $minZoom,
+            'max_zoom' => $maxZoom, 'priority' => $priority] as $schluessel => $wert) {
+            if (array_key_exists($schluessel, $payload)) {
+                $properties[$schluessel] = $wert;
+            }
+        }
+        if (array_key_exists('is_nodix', $payload)) {
+            $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix']);
+        }
         // 🪤 Nur schreiben, wenn der Aufrufer es MITSCHICKT -- anders als die Zeilen darüber. Ein
         // blosses Umbenennen (map-features-ecosystem-properties.js) sendet den Darstellungssatz, aber
         // kein show_name; mit einem `?? true` würde es eine ausgeschaltete Anzeige stillschweigend

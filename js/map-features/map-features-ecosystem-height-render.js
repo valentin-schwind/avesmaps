@@ -21,9 +21,14 @@
 (function initEcosystemHeightRender() {
 	const PANE = "avesmapsEcosystemHeightPane";
 	// Rasterschritt in Bildschirmpunkten. Der Prototyp lässt ihn einstellen (:601); hier fest, weil der
-	// Wert eine Perf-Entscheidung ist und keine Gestaltungsfrage. 3 px sieht auf HiDPI weich aus und
-	// hält die Rechnung bei rund einem Neuntel der Pixelzahl.
-	const STEP = 3;
+	// Wert eine Perf-Entscheidung ist und keine Gestaltungsfrage.
+	//
+	// 🔴 4 statt 3 (Owner-Entscheid 2026-07-28: „die auflösung etwas zu reduzieren"). Die Antwort auf ein
+	// erschöpftes Rechenbudget ist hier gröber zu rechnen, nicht das Budget zu erhöhen -- ein Höhenfeld
+	// ist ein weiches Gebilde aus überlagerten Buckeln, dem ein Pixel mehr Kantenlänge nichts nimmt.
+	// Der Aufwand fällt quadratisch: 4 px kostet rund 44 % weniger Abfragen als 3 px (1/16 statt 1/9
+	// der Pixel), und das kommt genau den Reglern zugute, die jetzt beim Ziehen live neu bauen.
+	const STEP = 4;
 	const RAMP_TOKENS = [
 		"--color-ecosystem-height-0",
 		"--color-ecosystem-height-1",
