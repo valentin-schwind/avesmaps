@@ -147,6 +147,11 @@
 	content: "🖌";
 }
 
+/* Wellenlinie für „Fläche vereinfachen": genau das, was der Regler wegnimmt. */
+.map-context-menu__item[data-ecosystem-area-action="simplify"]::before {
+	content: "∿";
+}
+
 .map-context-menu__item[data-ecosystem-area-action="eraser"]::before {
 	content: "⌫";
 }

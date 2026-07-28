@@ -16,20 +16,25 @@
 
 (() => {
 	const OVERLAY_ELEMENT_ID = "ecosystem-simplify-overlay";
-	// Der Regler ist linear 0..100 und wird auf diese Toleranz abgebildet.
+	// 🔴 DER REGLER STEUERT DIE PUNKTZAHL, NICHT DIE TOLERANZ (Owner 2026-07-28, zweite Fassung).
 	//
-	// 🔴 Der Deckel ist GEMESSEN, nicht geschätzt. An einer dichten Pinselform (400 Punkte) drückte eine
-	// Toleranz von 1,0 auf 17 Punkte -- aber schon 0,05 brachte 88 und 0,1 brachte 50. Der ganze nützliche
-	// Bereich lag damit in den ersten fünf Prozent des Reglers, der Rest war totes Ende. Mit 0,12 verteilt
-	// sich dieselbe Spanne über den ganzen Weg, und der Regler tut auf jedem Stück etwas.
+	// Erst bildete er linear auf eine Douglas-Peucker-Toleranz ab, und das ist der Fehler, den man dabei
+	// macht: die Antwort der Toleranz auf die Punktzahl ist steil und formabhängig. Mit einem hohen
+	// Deckel erledigte das erste Zwanzigstel des Weges alles, mit einem niedrigen kam der Regler nie
+	// unter ein paar Dutzend Punkte -- und genau das hat der Owner gemeldet („das Minimum weiter
+	// verringern, min. 6 oder so"). Es gab kein Deckel-Paar, das beides konnte.
 	//
-	// Die Karte ist 1024 Einheiten breit, eine Landschaft misst Dutzende: 0,12 ist eine Toleranz, die
-	// Wellen glättet und Buchten stehen lässt. Die Flächenabweichung blieb über die ganze Spanne unter
-	// einem Prozent.
-	const SIMPLIFY_MAX_TOLERANCE = 0.12;
+	// Jetzt sagt der Regler, WIE VIELE Punkte übrig bleiben sollen -- linear von „alle" bis
+	// SIMPLIFY_FLOOR_POINTS -- und die passende Toleranz wird gesucht (Bisektion; Douglas-Peucker ist in
+	// der Toleranz monoton, also findet sie sicher). Damit ist jeder Millimeter des Reglers gleich viel
+	// wert, unabhängig davon, wie die Fläche aussieht.
+	const SIMPLIFY_FLOOR_POINTS = 6;
 	// 🪤 Ein Ring MUSS drei Ecken behalten. Douglas-Peucker darf einen schmalen Zipfel auf zwei Punkte
 	// eindampfen; das wäre kein Polygon mehr, und `update_area_geometry` nähme es an.
 	const SIMPLIFY_MIN_RING_POINTS = 3;
+	// Die Suche braucht eine Obergrenze, an der sie sicher unter dem Ziel liegt. Die Karte ist 1024
+	// Einheiten breit -- mehr als das kann keine Toleranz je brauchen.
+	const SIMPLIFY_SEARCH_MAX = 1024;
 
 	let simplifyAreaPublicId = "";
 	let simplifyBaseGeometry = null;
@@ -66,43 +71,68 @@
 		);
 	}
 
-	// Ein Ring, ausgedünnt. Der Schlusspunkt wiederholt den ersten (GeoJSON) und wird vor der Rechnung
-	// abgeschnitten -- Douglas-Peucker würde ihn sonst als eigenen Punkt behandeln und könnte den
-	// Ringschluss verschieben.
-	function simplifyRing(ring, tolerance) {
+	// Ein Ring auf (höchstens) `targetCount` Ecken. Der Schlusspunkt wiederholt den ersten (GeoJSON) und
+	// wird vor der Rechnung abgeschnitten -- Douglas-Peucker würde ihn sonst als eigenen Punkt behandeln
+	// und könnte den Ringschluss verschieben.
+	//
+	// Gesucht wird die KLEINSTE Toleranz, die das Ziel erreicht: so bleibt von der Form so viel stehen,
+	// wie bei dieser Punktzahl überhaupt möglich ist.
+	function simplifyRingToCount(ring, targetCount) {
 		const open = (ring || []).slice(0, -1);
-		if (open.length <= SIMPLIFY_MIN_RING_POINTS) {
-			return ring;
+		const target = Math.max(SIMPLIFY_MIN_RING_POINTS, Math.round(targetCount));
+		if (open.length <= target) {
+			return ring;                             // schon feiner als gewünscht -- nichts zu tun
 		}
+
 		const points = open.map(([x, y]) => L.point(x, y));
-		let simplified = L.LineUtil.simplify(points, tolerance);
-		// Zu weit gegangen: dann lieber diesen Ring unangetastet lassen als eine kaputte Form abliefern.
-		if (simplified.length < SIMPLIFY_MIN_RING_POINTS) {
+		let low = 0;
+		let high = 0.01;
+		while (high < SIMPLIFY_SEARCH_MAX && L.LineUtil.simplify(points, high).length > target) {
+			high *= 2;
+		}
+		let best = L.LineUtil.simplify(points, high);
+		for (let step = 0; step < 24; step += 1) {
+			const middle = (low + high) / 2;
+			const candidate = L.LineUtil.simplify(points, middle);
+			if (candidate.length > target) {
+				low = middle;
+			} else {
+				best = candidate;
+				high = middle;
+			}
+		}
+		// Unter drei Ecken lieber gar nicht anfassen als eine kaputte Form abliefern.
+		if (!best || best.length < SIMPLIFY_MIN_RING_POINTS) {
 			return ring;
 		}
-		const out = simplified.map((point) => [point.x, point.y]);
+		const out = best.map((point) => [point.x, point.y]);
 		out.push(out[0].slice());
 
 		return out;
 	}
 
-	function simplifyGeometry(geometry, tolerance) {
-		if (!geometry || !(tolerance > 0)) {
+	// Das Ziel je Ring: linear vom Ist-Stand zum Boden. Je RING, nicht für die ganze Fläche -- sonst
+	// bekäme ein winziges Loch dasselbe Budget wie der Aussenumriss und verschwände als Erstes.
+	function targetPointsForRing(ringLength, strength)  {
+		const open = Math.max(0, ringLength - 1);
+		const fraction = Math.max(0, Math.min(100, Number(strength) || 0)) / 100;
+
+		return Math.max(SIMPLIFY_MIN_RING_POINTS, Math.round(open + (SIMPLIFY_FLOOR_POINTS - open) * fraction));
+	}
+
+	function simplifyGeometry(geometry, strength) {
+		if (!geometry || !(Number(strength) > 0)) {
 			return geometry;
 		}
 		const isMulti = geometry.type === "MultiPolygon";
 		const polygons = isMulti ? geometry.coordinates : [geometry.coordinates];
-		const next = polygons.map((polygon) => (polygon || []).map((ring) => simplifyRing(ring, tolerance)));
+		const next = polygons.map((polygon) => (polygon || []).map(
+			(ring) => simplifyRingToCount(ring, targetPointsForRing((ring || []).length, strength))
+		));
 
 		return isMulti
 			? { type: "MultiPolygon", coordinates: next }
 			: { type: "Polygon", coordinates: next[0] };
-	}
-
-	function toleranceFromSlider(value) {
-		const strength = Math.max(0, Math.min(100, Number(value) || 0));
-
-		return (strength / 100) * SIMPLIFY_MAX_TOLERANCE;
 	}
 
 	// ---- Vorschau -------------------------------------------------------------------------------------
@@ -124,14 +154,14 @@
 	// noch da ist, die er behalten wollte.
 	function renderSimplifyPreview() {
 		clearSimplifyPreview();
-		const tolerance = toleranceFromSlider(element("strength")?.value);
-		const result = simplifyGeometry(simplifyBaseGeometry, tolerance);
+		const strength = Number(element("strength")?.value) || 0;
+		const result = simplifyGeometry(simplifyBaseGeometry, strength);
 		const vorher = countGeometryPoints(simplifyBaseGeometry);
 		const nachher = countGeometryPoints(result);
 
 		const readout = element("count");
 		if (readout) {
-			readout.textContent = tolerance > 0
+			readout.textContent = strength > 0
 				? `${vorher} → ${nachher} Punkte (${Math.max(0, vorher - nachher)} weniger)`
 				: `${vorher} Punkte — der Regler steht auf 0, es ändert sich nichts.`;
 		}
@@ -178,8 +208,8 @@
 			setSimplifyError("Die Fläche ist nicht mehr geladen.");
 			return;
 		}
-		const tolerance = toleranceFromSlider(element("strength")?.value);
-		if (!(tolerance > 0)) {
+		const strength = Number(element("strength")?.value) || 0;
+		if (!(strength > 0)) {
 			closeSimplifyDialog();
 			return;
 		}
@@ -187,7 +217,7 @@
 		simplifyBusy = true;
 		setSimplifyError("");
 		try {
-			const result = simplifyGeometry(simplifyBaseGeometry, tolerance);
+			const result = simplifyGeometry(simplifyBaseGeometry, strength);
 			await postEcosystemEdit("update_area_geometry", {
 				public_id: String(area.public_id),
 				expected_revision: Number(area.geometry_revision),
@@ -270,6 +300,5 @@
 		// Für die Prüfung: die reine Rechnung, ohne Fenster und ohne Karte.
 		simplifyGeometry,
 		countGeometryPoints,
-		toleranceFromSlider,
 	};
 })();
