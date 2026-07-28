@@ -45,6 +45,11 @@
 	// features.php): V11 multipliziert Höhen in Kantengewichte und trägt dort eine dokumentierte
 	// Einheitenfalle. Der Regler im Label-Dialog läuft 0..20.000, dieser Wert liegt also drin.
 	const HEIGHT_WHITE_SCHRITT = 15000;
+	// Ab dieser Höhe ist der Schleier voll deckend. Bewusst die VORGABEHÖHE eines Gipfels
+	// (ECOSYSTEM_HEIGHT_DEFAULT): ein unbearbeiteter Gipfel soll deutlich zu sehen sein, sonst prüft
+	// niemand, was er noch eintragen muss. Darüber ändert sich nur noch die FARBE, Richtung Weiss --
+	// ein 10.000er ist damit heller als ein 5.000er, obwohl beide voll decken.
+	const HEIGHT_FULL_VEIL_SCHRITT = 5000;
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
@@ -281,11 +286,20 @@
 				const t = Math.max(0, Math.min(1, height / HEIGHT_WHITE_SCHRITT));
 				const color = rampAt(t);
 				const r = color[0], g = color[1], b = color[2];
-				// Nichtlinear: die Wurzel hebt das untere Drittel an, in dem bei einem Weisspunkt von
-				// 15.000 und Gipfeln um 5.000 der halbe Bestand liegt. Linear wäre dort fast alles
-				// unsichtbar und das Relief bliebe unlesbar -- die Kurve ist der Ausgleich dafür, dass
-				// die Skala absolut ist und der Bestand ihr unteres Ende bewohnt.
-				const alpha = Math.round(255 * Math.sqrt(t));
+				// 🔴 FARBE und DECKKRAFT haben verschiedene Bezugsgrössen, und das ist Absicht.
+				//
+				// Die Farbe trägt die absolute Skala bis HEIGHT_WHITE_SCHRITT -- ein Grauwert bedeutet
+				// überall dieselbe Höhe. Die Deckkraft trägt die LESBARKEIT und ist bei
+				// HEIGHT_FULL_VEIL_SCHRITT voll. Beides an denselben Bezug zu hängen ging schief: bei
+				// einem Weisspunkt von 15.000 erreicht ein Gipfel der Vorgabehöhe 5.000 nur ein Drittel
+				// der Skala, das Alpha blieb bei 147/255 und wurde von der CSS-Deckkraft noch einmal
+				// halbiert -- effektiv 32 %. Über flachem Braun sah das noch nach etwas aus, über den
+				// texturierten Geländekacheln war das Relief WEG (vom Owner gemeldet 2026-07-28).
+				//
+				// Wer den Schleier kräftiger oder schwächer will, greift hier; wer die Bedeutung der
+				// Graustufen ändern will, bei HEIGHT_WHITE_SCHRITT. Die zwei Fragen sind getrennt.
+				const veil = Math.min(1, Math.sqrt(t) / Math.sqrt(HEIGHT_FULL_VEIL_SCHRITT / HEIGHT_WHITE_SCHRITT));
+				const alpha = Math.round(255 * veil);
 				// Den Rasterpunkt als STEP×STEP-Block ausfüllen, in Geräte-Pixeln.
 				const px0 = Math.round(sx * dpr);
 				const py0 = Math.round(sy * dpr);

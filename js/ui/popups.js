@@ -783,7 +783,17 @@ function labelPopupMarkup(entry) {
 
 	// 🔴 Die Warnung NUR bei den alten -- Labels ohne Landschaftsflaeche. Ein Label mit Flaeche ist
 	// bereits das, was hier verlangt wird; die Warnung dort waere Laerm.
-	const warnung = regionPublicId === ""
+	//
+	// 🔴 UND NIE BEI GIPFELN (Owner 2026-07-28): „berggipfel müssen nicht durch flächen ersetzt oder von
+	// den editoren verändert werden - außer durch eine zusätzliche einstellung: ihre höhe."
+	//
+	// Ein `berggipfel` oder `vulkan` ist ein PUNKT, keine Flaeche im Wartestand. Er hat auch dann keine
+	// Landschaftsflaeche, wenn alles in Ordnung ist -- die Bedingung oben trifft ihn also IMMER, und die
+	// Aufforderung ginge an alle 62 Gipfel des Bestands, wo sie nirgends richtig ist. Die Topographie
+	// UEBERNIMMT diese Orte (oekosystem-editor-leitfaden.md §1.4, „Punkt moduliert Flaeche"); ersetzt
+	// wird an ihnen nichts, ergaenzt nur die Hoehe.
+	const istGipfel = typeof isEcosystemPeakSubtype === "function" && isEcosystemPeakSubtype(entry.label?.labelType);
+	const warnung = regionPublicId === "" && !istGipfel
 		? '<p class="location-popup__editor-warning"><strong>Nur für Editoren:</strong> Durch Fläche ersetzen</p>'
 		: "";
 
