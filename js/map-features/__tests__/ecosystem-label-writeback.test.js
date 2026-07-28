@@ -182,4 +182,15 @@ assert.strictEqual(
 const unbekanntOhneKaskade = formatEcosystemLabelDeleteConfirmation("F", { name: "F", area_count: 2 }, 0, false);
 assert.strictEqual(unbekanntOhneKaskade, "F wirklich löschen?", "ohne belastbare Zahl nur die Frage");
 
+// 💣 Unbekanntes Flag (null) warnt, statt zu beruhigen -- und AUSSERHALB der Landschaftsebene ist das
+// der Normalfall: ein Label löscht man überall, das Flag reist aber mit den Flächen.
+const letztesFlagUnbekannt = formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 3 }, 1, null);
+assert.ok(letztesFlagUnbekannt.includes("verschwinden mit"), "unbekanntes Flag warnt");
+assert.ok(!letztesFlagUnbekannt.includes("bleibt bestehen"), "und beruhigt gerade nicht");
+assert.strictEqual(
+	letztesFlagUnbekannt,
+	formatEcosystemLabelDeleteConfirmation("Farindel", { name: "Farindel", area_count: 3 }, 1, true),
+	"unbekannt liest sich wie eingeschaltet"
+);
+
 console.log("ecosystem-label-writeback tests passed");

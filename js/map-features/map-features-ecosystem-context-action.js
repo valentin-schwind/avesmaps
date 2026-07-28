@@ -150,7 +150,11 @@
 		// (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED, im Lesepfad als `cascade_enabled`). Ist die Kaskade aus,
 		// bleibt die Region als leere Hülle stehen -- das anzukündigen als „verschwindet mit" wäre
 		// genauso falsch wie die alte Entwarnung, nur in die andere Richtung.
-		if (!kaskade) {
+		//
+		// 💣 NUR ein ausdrückliches `false` beruhigt. `null` heisst „das Flag ist hier nie angekommen"
+		// (es reist mit den Flächen, und die lädt nur die Landschaftsebene) -- dann lieber zu viel
+		// ankündigen als eine Region wortlos verschwinden lassen.
+		if (kaskade === false) {
 			// 🪤 0 heisst „unbekannt", nicht „keine": die Fläche, um die es geht, zählt selbst mit. Dann
 			// gar keine Aussage über die Region treffen.
 			return areaCount <= 0

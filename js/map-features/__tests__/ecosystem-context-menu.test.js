@@ -212,6 +212,21 @@ const unbekanntOhneKaskade = formatEcosystemAreaDeleteConfirmation({ public_id: 
 assert.ok(!unbekanntOhneKaskade.includes("Region"), "ohne belastbare Zahl keine Behauptung über die Region");
 assert.ok(unbekanntOhneKaskade.includes("wirklich löschen?"), "die Frage selbst bleibt");
 
+// 💣 UNBEKANNTES FLAG (null) wird wie EIN behandelt, nicht wie AUS. Das Flag reist mit den Flächen,
+// und die lädt nur die Landschaftsebene -- ausserhalb davon ist `null` der Normalfall. Die beiden
+// Fehlrichtungen sind nicht gleich teuer: zu viel ankündigen kostet einen Schreck, zu wenig eine
+// Region, die wortlos verschwindet.
+const letzteFlagUnbekannt = formatEcosystemAreaDeleteConfirmation({
+	public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 1, region_label_count: 2,
+}, null);
+assert.ok(letzteFlagUnbekannt.includes("verschwinden mit"), "unbekanntes Flag warnt");
+assert.ok(!letzteFlagUnbekannt.includes("bleibt bestehen"), "und beruhigt gerade nicht");
+assert.strictEqual(
+	letzteFlagUnbekannt,
+	formatEcosystemAreaDeleteConfirmation({ public_id: "eca_123", region_name: "Farindel", kind: "vegetation", region_area_count: 1, region_label_count: 2 }, true),
+	"unbekannt liest sich wie eingeschaltet"
+);
+
 const namelessConfirmation = formatEcosystemAreaDeleteConfirmation({ public_id: "eca_9" }, true);
 assert.ok(namelessConfirmation.includes("Ohne Namen"), "a region without a name still produces a sentence");
 assert.ok(!namelessConfirmation.includes("()"), "and no empty bracket where the kind label would be");

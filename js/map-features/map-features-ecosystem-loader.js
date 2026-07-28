@@ -23,13 +23,20 @@ let ecosystemViewportReloadHooked = false;
 let ecosystemLayerEnabledOnServer = null;
 // Löscht das Entfernen der letzten Fläche bzw. des letzten Labels die ganze Region mit? Der Server
 // entscheidet das (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED); hier steht nur, was er zuletzt gesagt hat.
-// 🪤 Vorgabe false, nicht null: bevor die erste Antwort da ist, ist „ich weiss es nicht" die
-// vorsichtigere Auskunft -- eine Rückfrage darf lieber zu wenig ankündigen als ein Mitlöschen zu
-// versprechen, das nicht stattfindet.
-let ecosystemCascadeEnabledOnServer = false;
+//
+// 💣 DREI Zustände, nicht zwei: `null` heisst „noch nie gehört". Das ist kein Randfall -- die
+// Regionsliste kommt aus `list_regions` (Editor-Endpunkt), das Flag dagegen aus
+// `api/app/ecosystem-areas.php`, und das wird nur geladen, wenn jemand die Landschaftsebene betritt.
+// Ein Label lässt sich aber überall löschen. Genau dann weiss der Client die Region, aber nicht das
+// Flag.
+//
+// 🔴 UNBEKANNT WIRD WIE „EIN" BEHANDELT (siehe die Rückfragen). Die beiden Fehlrichtungen sind nicht
+// gleich teuer: zu viel anzukündigen kostet einen Schreck, zu wenig kostet eine Fläche, die
+// wortlos verschwindet. Nur ein ausdrückliches `false` vom Server darf beruhigen.
+let ecosystemCascadeEnabledOnServer = null;
 
 function isEcosystemCascadeEnabled() {
-	return ecosystemCascadeEnabledOnServer === true;
+	return ecosystemCascadeEnabledOnServer;
 }
 // The ecosystem_revision of the last answer. Every write bumps it, so a change is the cheap signal that
 // anything cached ALONGSIDE the areas -- the region picker's rows and their area counts -- is stale.

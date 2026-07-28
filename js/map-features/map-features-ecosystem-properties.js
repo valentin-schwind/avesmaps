@@ -899,7 +899,9 @@
 		// Gegenteil behauptete. Ob sie mitgehen, entscheidet der Server (`cascade_enabled`), und die
 		// Rückfrage sagt beides ehrlich: eine Beschriftung, die verschwindet, ohne dass jemand sie
 		// genannt hat, ist dieselbe Überraschung wie eine, die angekündigt war und stehen bleibt.
-		if (kaskade && labels > 0) {
+		// 💣 `!== false`, nicht `kaskade`: nur ein ausdrückliches Nein vom Server darf beruhigen.
+		// `null` heisst „das Flag ist nie angekommen" -- dann lieber zu viel ankündigen.
+		if (kaskade !== false && labels > 0) {
 			const was = `${areas} und ${labels === 1 ? "1 Label" : `${labels} Labels`}`;
 			return `Region „${name}" mit ${was} löschen?\n\nAlles davon verschwindet mit — auch was gerade nicht im Bild ist.`;
 		}

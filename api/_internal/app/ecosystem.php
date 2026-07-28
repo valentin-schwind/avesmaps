@@ -1302,18 +1302,22 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
 // time anybody deleted one of its areas -- and two of them exist right now (Wald-001, Wald-002, one area
 // each, no label in either direction). That is the difference between the rule and a data loss.
 //
-// 🔴 AUS, BIS DER OWNER SIE EINSCHALTET (Entscheidung 2026-07-28). Die Kaskade ist gebaut und in ihren
-// Regeln geprüft, aber sie ist NIE gegen eine Datenbank gelaufen -- es gibt in dieser Umgebung keine.
-// Sie löscht Regionen, Flächen und Beschriftungen; das ist nichts, was man ungetestet auf einen
-// laufenden Editorbetrieb loslässt, und am Live-Bestand hat jede Region genau EINE Fläche, der
-// auslösende Fall ist also der Normalfall und nicht die Ausnahme.
+// 🔴 EIN seit 2026-07-28 (Owner: „kannst du sicherstellen, dass beim Löschen des letzten Labels auch
+// die Fläche gelöscht wird" — und umgekehrt). Eine Landschaft und ihr Name sind ein Ding; eine Hälfte
+// davon ist ein Geist auf der Karte.
 //
-// Solange sie false ist, verhalten sich delete_area, delete_region und delete_feature exakt wie vorher.
-// Der Wert reist im Lesepfad mit (api/app/ecosystem-areas.php -> `cascade_enabled`), damit die
-// Rückfragen im Editor die WAHRHEIT sagen statt etwas anzukündigen, das nicht passiert.
+// 💣 SIE LÖSCHT. Am Live-Bestand hat JEDE der ~589 Regionen genau EINE Fläche, der auslösende Fall ist
+// also der Normalfall und nicht die Ausnahme: eine Fläche zu entfernen nimmt ihre Region und deren
+// Labels mit. Weich (`is_active = 0`), mit Audit-Zeile je Objekt, und die Rückfrage nennt die Zahlen
+// vorher — das ist die einzige Bremse davor.
 //
-// Einschalten: hier auf true, deployen, an ein, zwei Wegwerf-Flächen ausprobieren.
-const AVESMAPS_ECOSYSTEM_CASCADE_ENABLED = false;
+// Der Wert reist im Lesepfad mit (api/app/ecosystem-areas.php -> `cascade_enabled`), damit die drei
+// Rückfragen im Editor die WAHRHEIT sagen. Wer ihn hier umlegt, ändert damit auch, was sie ankündigen;
+// beide Wortlaute sind in den Einheitentests festgenagelt.
+//
+// Zurücknehmen: hier auf false. Schon Gelöschtes kommt dadurch NICHT zurück -- dafür ist der
+// Änderungs-Log da (`map_audit_log` für die Labels, `ecosystem_geometry_audit_log` für die Flächen).
+const AVESMAPS_ECOSYSTEM_CASCADE_ENABLED = true;
 
 // Pure so it can be tested without a database: this one predicate decides whether work gets destroyed.
 function avesmapsEcosystemCascadeTriggered(string $removed, int $areasLeft, int $labelsLeft): bool

@@ -158,7 +158,11 @@ function formatEcosystemLabelDeleteConfirmation(labelText, region, labelCount, k
 
 	// 🔴 Ab hier geht es um das LETZTE Label. Ob die Fläche dann mitgeht, entscheidet der Server
 	// (`cascade_enabled`); ist die Kaskade aus, bleibt sie unbeschriftet stehen.
-	if (!kaskade) {
+	//
+	// 💣 NUR ein ausdrückliches `false` beruhigt -- `null` heisst „nie gehört", und genau hier ist das
+	// der Normalfall: ein Label löscht man überall, das Flag reist aber mit den Flächen, und die lädt
+	// nur die Landschaftsebene.
+	if (kaskade === false) {
 		// 🪤 0 heisst „unbekannt", nicht „keines" -- das Label, um das es geht, zählt selbst mit.
 		return count <= 0
 			? kopf
