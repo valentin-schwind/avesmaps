@@ -178,8 +178,12 @@
    Das Klick-Durchreichen bleibt an der PANE: die Labels sitzen über den Flächen und würden sonst den
    Klick schlucken, der dem Polygon darunter galt -- das gilt unverändert für alle, auch für die
    eigenen, denn ein Label sitzt am Point of Inaccessibility und damit mitten auf seiner Fläche. */
+/* 50 %, nicht 25 % (Owner 2026-07-28): bei einem Viertel waren die fremden Beschriftungen beim
+   Ebenenwechsel „kaum noch sichtbar". Blass heisst „gehört gerade nicht hierher", nicht „ist weg" --
+   man muss sie weiterhin LESEN können, sonst verliert man beim Zeichnen die Orientierung darüber, wo
+   man eigentlich ist. Der Unterschied zur aktiven Ebene trägt auch bei der Hälfte noch. */
 .map-label--eco-muted {
-	opacity: 0.25;
+	opacity: 0.5;
 	transition: opacity 0.15s ease;
 }
 
