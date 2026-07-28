@@ -199,8 +199,11 @@ für **diese** Nutzlast stimmt es nicht. Trotzdem defensiv lesen: `see` ist der 
 1. 🔴 **Kein Gipfel verschwindet** (§0). Keine Sichtbarkeitsbedingung an `wiki_url`.
 2. 🔴 **Keine zweite Positionsliste** (§0). Die Höhe wohnt in `properties_json` des Labels.
 3. 🔴 **Keine politische Datei wird BESCHRIEBEN.** Lesen ist seit 2026-07-28 freigegeben.
-4. **Deutsch in der Oberfläche, Englisch in Code, Kommentaren und Commits.** Neue UI-Strings
-   zusätzlich in `js/app/i18n-en.js`.
+4. **Deutsch in der Oberfläche, Englisch in Code, Kommentaren und Commits.** Neue Strings der
+   **öffentlichen** Oberfläche zusätzlich in `js/app/i18n-en.js`.
+   ⚠️ **Editor-Oberflächen sind NICHT lokalisiert** (am 2026-07-28 nachgeprüft: der Label-Dialog
+   hat null `data-i18n`, und `i18n-en.js` kennt keinen einzigen Editor-Begriff). Dort **keinen**
+   Schlüssel anlegen — er wäre an nichts angeschlossen. Erst prüfen, dann ergänzen.
 5. **Kein `?v=` von Hand.** `js/map-features/*` und `js/review/*` hängen an `index.html`, der
    Deploy stempelt sie. `ASSET_VERSION` in `territory-editor-inline-host.js` ist **nicht**
    betroffen — V8 fasst keine dynamisch geladenen Editor-Dateien an.
@@ -369,8 +372,14 @@ gesucht) · `js/app/i18n-en.js` (ergänzen)
 	}
 ```
 
-- [ ] **Schritt 5: `js/app/i18n-en.js`** um den Schlüssel für „Höhe (Schritt)" ergänzen —
-      englische Fassung `"Height (Schritt)"` (*Schritt* bleibt stehen, Domäneneinheit).
+- [x] **Schritt 5: ~~`js/app/i18n-en.js` ergänzen~~ — ENTFÄLLT, am 2026-07-28 nachgeprüft.**
+      Der Label-Dialog trägt **null** `data-i18n`-Attribute (230 gibt es in `index.html`, keines
+      in diesem Dialog), und `i18n-en.js` enthält **keinen einzigen** Editor-Begriff — weder
+      „Priorität" noch „Nodix". Die i18n-Schicht deckt die **öffentliche** App ab; die
+      Editor-Oberflächen sind bewusst nur deutsch. Ein Schlüssel hier wäre der einzige
+      Editor-String in der Tabelle und an nichts angeschlossen.
+      **Regel 4 gilt also für öffentliche Oberflächen, nicht für Editor-Dialoge** — für
+      Aufgaben 3 und 5 ebenso zu prüfen, statt sie mechanisch zu ergänzen.
 
 - [ ] **Schritt 6: Im Browser prüfen** (`?edit=1`, ohne Login prüfbar): Dialog an einem
       `berggipfel` öffnen → Zeile da; an einem `wald`-Label → Zeile weg. Subtyp im offenen
