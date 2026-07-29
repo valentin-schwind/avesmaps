@@ -379,6 +379,8 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	wadi: { size: 14, minZoom: 5 },
 	// Dieselbe Körnung wie das Wadi -- beide sind eingeschnittene Bänder, keine Flächen über Meilen.
 	schlucht: { size: 14, minZoom: 5 },
+	// Anders als Wadi und Schlucht eine FLÄCHE, keine Linie -- also Label wie ein weites Gebiet.
+	hochebene: { size: 17, minZoom: 3 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

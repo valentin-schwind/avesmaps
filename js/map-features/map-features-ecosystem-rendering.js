@@ -124,11 +124,15 @@ function ecosystemAreaLatLngs(geometry) {
 // and are deliberately NOT passed here: they depend on the pane's state (resting / active / selected),
 // and a second set of numbers in JS would have to be kept in step with that table forever. Leaflet writes
 // its style as SVG presentation ATTRIBUTES, which CSS outranks, so the stylesheet wins cleanly.
-// The contour of an area. Derographic and topographic areas carry their own, markedly darker line
-// (Owner 2026-07-26) -- a wash at 30% opacity does not tell you where the boundary runs, and those two
-// are the layers whose edges you trace against the terrain. Vegetation has no contour token: its tone
-// already varies per region_type, so its contour follows that tone. A missing token means "use the
-// fill", which is why this is one lookup and not a second colour table.
+// The contour of an area. Every layer carries its own, markedly darker line (Owner 2026-07-26 for the
+// first two, 2026-07-29 for vegetation) -- a wash at 30% opacity does not tell you where the boundary
+// runs, and the edge is what you trace against the terrain.
+//
+// 🪤 Vegetation was the LAST one without a token, on the reasoning that its fill already varies per
+// region_type and the contour could simply follow it. That was wrong in the one place it mattered: a
+// forest edge was forest-green on forest-green and disappeared. A missing token still means "use the
+// fill", which is why this stays one lookup rather than a second colour table -- but no layer relies
+// on that fallback any more.
 function ecosystemAreaContourColor(kind, regionType) {
 	return readEcosystemColorToken(`--color-ecosystem-${kind}-contour`) || ecosystemAreaColor(kind, regionType);
 }

@@ -37,6 +37,7 @@ const AVESMAPS_REPORT_TYPES = [
     'wuestenoase' => ['type' => 'label', 'subtype' => 'wuestenoase'],
     'wadi' => ['type' => 'label', 'subtype' => 'wadi'],
     'schlucht' => ['type' => 'label', 'subtype' => 'schlucht'],
+    'hochebene' => ['type' => 'label', 'subtype' => 'hochebene'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],

@@ -180,6 +180,11 @@
 	   of the dark contour is "this is where the area ends", and that answer must not change per type. */
 	--color-ecosystem-derographisch-contour: #2e2e2e;
 	--color-ecosystem-topographie-contour: #2b3138;
+	/* Owner 2026-07-29: „die Konturen der Vegetationsflächen dunkler". Bis hierher hatte die Vegetation
+	   als EINZIGE Ebene keinen eigenen Konturton und erbte deshalb ihre Füllfarbe -- ein Waldrand war
+	   waldgrün auf waldgrün und verschwand. Ein dunkles Blattgrün statt des Grau-Blaus der Topographie:
+	   die Kante gehört zur Ebene, nicht zum Fels. */
+	--color-ecosystem-vegetation-contour: #22351c;
 	/* The fallback for a vegetation region with no type set. The per-type tones below win when the
 	   region has one; they are looked up BY RULE from the type_key
 	   (--color-ecosystem-<kind>-<type_key with _ as ->), so a newly seeded type needs a token here
@@ -210,6 +215,7 @@
 	--color-ecosystem-topographie-kueste: #3f9e9a;          /* coast, turquoise */
 	--color-ecosystem-topographie-wadi: #9b8a5c;            /* wadi, sand with an olive cast -- a bed that is dry most of the time */
 	--color-ecosystem-topographie-schlucht: #5c5148;        /* gorge, dark rock -- deliberately darker than the mountains: it reads as depth */
+	--color-ecosystem-topographie-hochebene: #9a9b82;       /* plateau, pale grey-green -- high but flat, lighter than the hills */
 
 	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
 	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,

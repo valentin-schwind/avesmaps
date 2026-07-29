@@ -93,6 +93,10 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // Schlucht ausmacht, ist die Tiefe zwischen zwei Wänden. Fürs Reisen ist sie das Gegenteil des
     // Wadi -- das ist im Trockenen ein Korridor, die Schlucht ein Hindernis mit wenigen Übergängen.
     ['topographie', 'schlucht', 'Schlucht', 70],
+    // Owner 2026-07-29. Das Gegenstück zu Wadi und Schlucht: die beiden sind eingeschnittene Bänder,
+    // die Hochebene eine FLÄCHE -- hoch gelegen, aber eben. Fürs Reisen zählt genau das: die Höhe
+    // kostet beim Hinauf, oben läuft es sich dann wie in der Ebene.
+    ['topographie', 'hochebene', 'Hochebene', 80],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],

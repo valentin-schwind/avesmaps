@@ -145,6 +145,10 @@ body.edit-mode .map-label img {
 	color: #c8bdb1; /* Schlucht: kühles Steingrau -- Fels im Schatten, kein Sand */
 }
 
+.map-label--hochebene span {
+	color: #c6d2c6; /* Hochebene: blasses Salbeigrün -- kühler als die Ebene, sie liegt höher */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
