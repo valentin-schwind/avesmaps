@@ -625,9 +625,22 @@ foreach ([[0.0, 0.0], [9000.0, 0.0], [0.0, 9000.0], [4000.0, 4000.0]] as [$up, $
 }
 
 // --- ascent and descent both act; a leg that climbs AND falls is not the same as either alone ---
-$both = avesmapsTerrainTimeFactor(1500.0, 1500.0, 1.0);
+// 🪤 The descent value matters here. The curve's downhill part is `-BONUS*d + PENALTY*d^2`, which
+// is zero at BOTH d = 0 and d = BONUS/PENALTY = 0,5 -- so a leg falling at gradient 0,5 gives
+// EXACTLY nothing back, and testing at that point would assert nothing while looking like it did.
+// 750 Schritt over one map unit is d = 0,25, the point of maximum bonus.
+$both = avesmapsTerrainTimeFactor(1500.0, 750.0, 1.0);
 $upOnly = avesmapsTerrainTimeFactor(1500.0, 0.0, 1.0);
 assert($both < $upOnly, 'the descent half of a leg must give some of the climb back');
+
+// The neutral point itself, pinned deliberately rather than stumbled into: at a downhill gradient
+// of BONUS/PENALTY the bonus and the brake cancel, and descending that steeply costs exactly what
+// level ground costs. Whoever retunes the constants in task 11 will move this point; the assertion
+// is written against the constants, not against a hard-coded 0,5, so it follows them.
+$neutralDescent = (AVESMAPS_TERRAIN_DOWN_BONUS / AVESMAPS_TERRAIN_DOWN_PENALTY)
+    * AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE;
+assert($near(avesmapsTerrainTimeFactor(0.0, $neutralDescent, 1.0), 1.0),
+    'at gradient BONUS/PENALTY downhill the bonus and the brake cancel exactly');
 
 // --- the unit conversion is the documented one --------------------------------------------------
 // 3.000 Schritt over 1 map unit is gradient 1,0; over 3 map units it is 1/3.
