@@ -449,8 +449,27 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 
 		return Number.isFinite(x) && Number.isFinite(y) && pointInGeometry([x, y], geometry);
 	});
-	if (own.length === 0) {
-		return field;                          // flach, statt ein Gebirge ohne Stützpunkt zu erfinden
+	// 🔴 ZWEI HÖHENQUELLEN, NICHT MEHR NUR EINE (2026-07-29).
+	//
+	// Bis hierher galt: keine Gipfel in der Fläche -> flach, „statt ein Gebirge ohne Stützpunkt zu
+	// erfinden". Diese Regel stammt aus der Zeit, als die Höhe AUSSCHLIESSLICH am Gipfel wohnte
+	// (Owner-Entscheid 2026-07-28) und es je Fläche gar nichts einzustellen gab. Seit die Fläche ihre
+	// eigene Maximalhöhe trägt, ist sie ein zweiter, gleichwertiger Stützpunkt -- und dann ist das
+	// Gelände nicht mehr „erfunden", sondern genauso erfasst wie eine Gipfelhöhe, nur an der Fläche.
+	// Live stand „Thasch" (Gebirge, 2.000/500 eingetragen, kein Gipfel) deshalb flach da, obwohl beide
+	// Zahlen gesetzt waren -- vom Owner gemeldet.
+	//
+	// 💣 REIN ZUSÄTZLICH. Eine Fläche MIT Gipfel erreicht diesen Zweig nie und rechnet Zahl für Zahl
+	// weiter wie vorher; der Test hält das ausdrücklich fest. Der Zweig kann nur Flächen treffen, die
+	// heute überhaupt nichts zeichnen.
+	//
+	// 🪤 `> 0` und nicht „gesetzt": eine eingetragene 0 heisst in diesem Modul überall wörtlich flach.
+	// Ohne Gipfel UND ohne Maximalhöhe bleibt es flach -- dann gäbe es wirklich nichts abzuleiten.
+	const explicitTarget = Number.isFinite(Number(options.avgHeight)) && options.avgHeight !== null
+		? Number(options.avgHeight)
+		: null;
+	if (own.length === 0 && !(explicitTarget > 0)) {
+		return field;
 	}
 
 	// Gipfelbuckel. Amplitude = die Höhe des Gipfels IN SCHRITT, direkt: damit trägt sein Buckel im
@@ -494,10 +513,19 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		}
 		field.peakBumps.push({ x, y, r: radius, a: height, i: 1 / (radius * radius) });
 	});
-	if (field.peakBumps.length === 0) {
+	// Derselbe Riegel ein zweites Mal: Gipfel können hier noch wegfallen (einer genau auf dem Rand trägt
+	// keinen Buckel). Ohne Buckel UND ohne eingetragene Maximalhöhe bleibt die Fläche flach.
+	if (field.peakBumps.length === 0 && !(explicitTarget > 0)) {
 		return field;
 	}
-	field.hmax = Math.max(...field.peakBumps.map((bump) => bump.a));
+	// 💣 `Math.max(...[])` ist -Infinity, nicht 0. Kein NaN -- nachgemessen: Warping und Slope klemmen
+	// beide mit `Math.max(1, …)`, aus -Infinity würde also stillschweigend die 1. Genau das ist die
+	// Falle: das Feld sähe heil aus und rechnete mit einem Bezug, als wäre der Berg 100 Schritt hoch.
+	// Ohne Gipfel ist die eingetragene Maximalhöhe das richtige Mass -- sie ist dann der höchste Punkt,
+	// den es gibt.
+	field.hmax = field.peakBumps.length
+		? Math.max(...field.peakBumps.map((bump) => bump.a))
+		: explicitTarget;
 
 	// Die Radien beim Fenster hinterlegen -- es kennt die Punkte, aber die Breite steht erst hier fest.
 	if (peakWindow && peakWindow.radii instanceof Map && Array.isArray(peakWindow.points)) {
@@ -598,10 +626,13 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 	// 🔴 Die eingestellte Durchschnittshöhe der Fläche gewinnt, sonst wird abgeleitet (V8, Owner
 	// 2026-07-28: die drei Regler hängen je FLÄCHE). `null`/undefined heisst „ableiten wie bisher" --
 	// eine eingetragene 0 dagegen heisst flach und wird wörtlich genommen, wie überall in diesem Modul.
-	const derivedTarget = ECOSYSTEM_HEIGHT_NOISE_SHARE * Math.min(...field.peakBumps.map((bump) => bump.a));
-	const target = Number.isFinite(Number(options.avgHeight)) && options.avgHeight !== null
-		? Number(options.avgHeight)
-		: derivedTarget;
+	// 💣 `Math.min(...[])` ist +Infinity, und `0,4 · Infinity` ebenfalls -- ohne Gipfel wäre die Ableitung
+	// also keine Zahl. Sie kann hier auch gar nicht greifen: ohne Gipfel kommt man nur mit einer
+	// eingetragenen Maximalhöhe bis hierher (siehe die beiden Riegel oben), und die gewinnt ohnehin.
+	const derivedTarget = field.peakBumps.length
+		? ECOSYSTEM_HEIGHT_NOISE_SHARE * Math.min(...field.peakBumps.map((bump) => bump.a))
+		: explicitTarget;
+	const target = explicitTarget !== null ? explicitTarget : derivedTarget;
 	// 🔴 Die eingestellte DURCHSCHNITTShöhe ist der zweite Zwang (Owner 2026-07-29). Sie sucht die Potenz;
 	// die Maximalhöhe darüber bleibt in jedem Fall getroffen, weil der Faktor danach aus ihr folgt.
 	// `null`/undefined heisst wieder „ableiten wie bisher" -- und das ist hier buchstäblich Potenz 1.

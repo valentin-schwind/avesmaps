@@ -103,10 +103,56 @@ const twoPeaks = fieldOf(area, [
 assert.ok(Math.abs(twoPeaks.at(30, 50) - 5000) < 1, `the high peak stays 5000, got ${twoPeaks.at(30, 50)}`);
 assert.ok(Math.abs(twoPeaks.at(70, 50) - 3000) < 1, `the low peak stays 3000, it is not lifted, got ${twoPeaks.at(70, 50)}`);
 
-// 8. An area with NO peak stays flat rather than inventing a mountain: the noise level is
-//    derived from the peaks of that area, and there is nothing to derive it from.
+// 8. An area with NO peak AND no recorded maximum height stays flat rather than inventing a
+//    mountain: the noise level would be derived from the peaks of that area, and there is
+//    nothing to derive it from.
 const peakless = fieldOf(area, []);
 assert.strictEqual(peakless.at(50, 50), 0, "an area without a recorded peak stays flat");
+// 🪤 Eine eingetragene 0 heisst in diesem Modul überall wörtlich „flach" -- auch hier, und sie darf
+// nicht als „nichts eingestellt" durchgehen.
+assert.strictEqual(fieldOf(area, [], { avgHeight: 0 }).at(50, 50), 0,
+	"eine ausdrückliche Maximalhöhe 0 heisst flach, nicht „ableiten“");
+
+// 8b. 🔴 ABER MIT EINGETRAGENER MAXIMALHÖHE ENTSTEHT GELÄNDE, AUCH OHNE GIPFEL (2026-07-29).
+//
+// Die Fläche trägt seit V8 ihre eigene Höhe; damit ist sie ein zweiter, gleichwertiger Stützpunkt und
+// das Gelände nicht mehr „erfunden", sondern erfasst. Live stand „Thasch" (Gebirge, 2.000/500
+// eingetragen, kein Gipfel) flach da, obwohl beide Zahlen gesetzt waren -- vom Owner gemeldet.
+//
+// 💣 Beide Invarianten müssen auch hier stehen, und die Randprobe ist der eigentliche Test: ohne
+// Gipfel gibt es kein Gipfelfenster, das irgendetwas dämpft -- was am Rand auf null geht, geht allein
+// über den kompakten Träger der Buckel auf null.
+for (const method of ["perlin", "warp", "slope", "ridged"]) {
+	const ohneGipfel = fieldOf(area, [], { method, avgHeight: 2000 });
+	let hoechster = 0;
+	for (let y = 2; y < 99; y += 2.7) {
+		for (let x = 2; x < 99; x += 2.7) {
+			const wert = ohneGipfel.at(x, y);
+			assert.ok(Number.isFinite(wert), `${method}: ohne Gipfel keine NaN bei (${x},${y})`);
+			hoechster = Math.max(hoechster, wert);
+		}
+	}
+	assert.ok(hoechster > 1000,
+		`${method}: ohne Gipfel entsteht wirklich Gelände (höchster Punkt ${hoechster.toFixed(0)})`);
+	assert.ok(hoechster <= 2000 * 1.1,
+		`${method}: und es trifft die eingetragene Maximalhöhe (${hoechster.toFixed(0)} gegen 2000)`);
+	// 💣 `hmax` fällt ohne Gipfel auf die eingetragene Maximalhöhe. Auf `Math.max(...[])` = -Infinity
+	// gelassen klemmen Warping und Slope es beide auf 1 -- kein NaN, aber ein Bezug, als wäre der Berg
+	// 100 Schritt hoch. Das sähe heil aus und wäre still falsch.
+	assert.strictEqual(ohneGipfel.built.hmax, 2000, `${method}: hmax folgt der eingetragenen Höhe`);
+	// Der ganze Rand, nicht nur vier Punkte -- ein Sockel stünde überall.
+	for (let t = 0; t <= 100; t += 2.5) {
+		for (const [x, y] of [[t, 0], [t, 100], [0, t], [100, t]]) {
+			assert.strictEqual(ohneGipfel.at(x, y), 0,
+				`${method}: ohne Gipfel bleibt der Rand exakt 0 bei (${x},${y})`);
+		}
+	}
+}
+// Und die Durchschnittshöhe wirkt dort genauso: mehr Ø hebt die Fläche, das Maximum bleibt stehen.
+const flachOhne = fieldOf(area, [], { avgHeight: 2000, meanHeight: 300 });
+const vollOhne = fieldOf(area, [], { avgHeight: 2000, meanHeight: 1100 });
+assert.ok(meanOf(vollOhne) > 1.5 * meanOf(flachOhne),
+	`ohne Gipfel wirkt der Ø-Regler (${meanOf(vollOhne).toFixed(0)} gegen ${meanOf(flachOhne).toFixed(0)})`);
 
 // 9. A peak OUTSIDE the area contributes no bump, but still windows the noise -- that split is
 //    the whole reason task 7 can hand every area the full peak list.

@@ -154,10 +154,19 @@ function buildEcosystemHeightStack(areas, peaks) {
 			// Rauschen, bis jemand entscheidet, dass sie etwas anderes braucht.
 			method: ECOSYSTEM_TERRAIN_METHOD_BY_TYPE[String(area?.region_type || "")] || "perlin",
 		});
-		// Flächen ohne eigenen Gipfel liefern kein Feld. Sie gar nicht erst aufzunehmen spart in der
-		// Malschleife eine Abfrage je Pixel je Fläche.
+		// Flache Flächen liefern kein Feld. Sie gar nicht erst aufzunehmen spart in der Malschleife eine
+		// Abfrage je Pixel je Fläche.
 		// 💣 `fields.length` ist deshalb NICHT `areas.length` -- wer über `areas` indiziert, greift daneben.
-		if (field && Array.isArray(field.peakBumps) && field.peakBumps.length > 0) {
+		//
+		// 💣 GEFRAGT WIRD NACH `bumps`, NICHT NACH `peakBumps` (2026-07-29). Bis dahin stand hier
+		// „hat die Fläche Gipfelbuckel?", und das war dasselbe wie „trägt sie Gelände?" -- solange ein
+		// Gipfel die einzige Höhenquelle war. Seit eine Fläche ihr Gelände auch aus der eingetragenen
+		// Maximalhöhe bekommt, sind das zwei verschiedene Fragen: ein Gebirge ohne Gipfel hat Rausch-,
+		// aber keine Gipfelbuckel und wäre hier lautlos herausgefallen. Der Feldbau hätte korrekt
+		// gerechnet, die Unit-Tests wären grün geblieben (sie rufen ihn direkt) und auf der KARTE hätte
+		// sich nichts getan. `bumps` ist die Vereinigung beider und damit die richtige Frage:
+		// „trägt dieses Feld irgendetwas bei?"
+		if (field && Array.isArray(field.bumps) && field.bumps.length > 0) {
 			fields.push(field);
 			areaIdsByField.push(String(area?.public_id || ""));
 		}
