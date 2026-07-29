@@ -39,11 +39,29 @@ async function loadChangeLog() {
 		// N changes" it claimed to be. The two SQL limits and this slice MUST stay in sync:
 		//   api/edit/map/audit-log.php            → LIMIT 200
 		//   api/_internal/political/territories-audit.php (change_log) → LIMIT 200
+		// Dritte Quelle seit 2026-07-29: die Landschaften. Sie protokollieren seit V2.3 in ihre EIGENE
+		// Tabelle (ecosystem_geometry_audit_log) und waren deshalb hier unsichtbar -- man konnte eine
+		// Fläche löschen und fand die Änderung nirgends wieder.
+		//
+		// ⚠️ Eigener try: Die Landschaften-Ebene ist eine Erprobung und kann serverseitig ausgeschaltet
+		// sein. Ein Fehler dort darf den Verlauf von Karte und Politik nicht mit ins Leere ziehen --
+		// dieselbe Vorsicht, die der politische Abruf oben schon nimmt.
+		let ecosystemChanges = [];
+		if (typeof postEcosystemEdit === "function") {
+			try {
+				const ecosystemChangeLog = await postEcosystemEdit("list_changes", {});
+				ecosystemChanges = Array.isArray(ecosystemChangeLog?.changes) ? ecosystemChangeLog.changes : [];
+			} catch (error) {
+				console.warn("Landschafts-Änderungsverlauf konnte nicht geladen werden:", error);
+			}
+		}
+
 		const mapChanges = Array.isArray(data.changes)
 			? data.changes.map((entry) => ({ ...entry, audit_source: "map_feature" }))
 			: [];
 		const politicalChangeEntries = politicalChanges.map((entry) => ({ ...entry, audit_source: "political_territory" }));
-		changeLogEntries = [...mapChanges, ...politicalChangeEntries]
+		const ecosystemChangeEntries = ecosystemChanges.map((entry) => ({ ...entry, audit_source: "ecosystem" }));
+		changeLogEntries = [...mapChanges, ...politicalChangeEntries, ...ecosystemChangeEntries]
 			.sort((left, right) => {
 				const leftTime = Date.parse(String(left?.created_at || ""));
 				const rightTime = Date.parse(String(right?.created_at || ""));
@@ -58,6 +76,19 @@ async function loadChangeLog() {
 		console.error("Änderungsverlauf konnte nicht geladen werden:", error);
 		setChangePanelStatus(error.message || "Änderungsverlauf konnte nicht geladen werden.", "error");
 	}
+}
+
+// Was in der Zeile steht. Die Landschaften liefern eine fertige Beschriftung mit -- sie kennen die
+// GESTE („Mit anderer vereinigen"), während die Aktion nur den letzten Schreibvorgang benennen könnte.
+// Bestand ohne `label` läuft unverändert über die Aktionstabelle.
+//
+// Bei mehr als einem Schritt sagt die Zeile das dazu: Wer „Rückgängig" drückt, soll vorher sehen, dass
+// zwei Dinge zurückgehen, nicht eines.
+function changeLogEntryLabel(entry) {
+	const label = String(entry?.label || "").trim() || formatChangeAction(entry?.action);
+	const steps = Number(entry?.steps || 0);
+
+	return steps > 1 ? `${label} (${steps} Schritte)` : label;
 }
 
 function formatChangeAction(action) {
@@ -126,7 +157,7 @@ function renderChangeLog() {
 			<span class="change-log-entry__state"></span>
 			<span class="change-log-entry__actions"></span>
 		`;
-		itemElement.querySelector(".change-log-entry__action").textContent = formatChangeAction(entry.action);
+		itemElement.querySelector(".change-log-entry__action").textContent = changeLogEntryLabel(entry);
 		itemElement.querySelector(".change-log-entry__target").textContent = entry.name || entry.feature_subtype || entry.public_id || "Unbenannt";
 		itemElement.querySelector(".change-log-entry__meta").textContent = `${entry.username || "unbekannt"} · ${entry.created_at || ""}`;
 		const stateElement = itemElement.querySelector(".change-log-entry__state");
@@ -334,6 +365,12 @@ async function undoChangeLogEntry(entry) {
 		if (auditSource === "political_territory") {
 			await undoPoliticalAuditChange(Number(entry.id));
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
+		} else if (auditSource === "ecosystem") {
+			// Der Server nimmt die ganze GESTE zurück, nicht nur diese Zeile (operation_id) -- deshalb
+			// reicht die id des Eintrags, den das Fenster zeigt.
+			await postEcosystemEdit("undo_change", { audit_id: Number(entry.id) });
+			// Über den Lesepfad zurück auf die Karte, wie jeder andere Landschafts-Schreibvorgang auch.
+			scheduleEcosystemAreaReload?.({ immediate: true });
 		} else {
 			const result = await undoMapAuditChange(Number(entry.id));
 			applyMapFeatureEditResult(result);

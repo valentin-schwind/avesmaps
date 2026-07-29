@@ -36,6 +36,49 @@ const ecosystemRegionRequestTokens = {};
 // merkt sich das Ergebnis gegen diesen Zähler statt es je Aufruf neu zu bauen.
 let ecosystemRegionCacheStamp = 0;
 
+// ---- die Klammer um eine Geste (Owner 2026-07-29) --------------------------------------------------
+//
+// 💣 Eine boolesche Operation ist NICHT ein Schreibvorgang: „Verschmelzen" ist update_area_geometry auf
+// der einen Fläche PLUS delete_area auf der gefressenen, „Zerschneiden" sind sogar drei Aufrufe. Damit
+// „Rückgängig" die Geste zurücknimmt und nicht nur ihre letzte Zeile, tragen alle Aufrufe einer Geste
+// dieselbe Kennung. Der Server stempelt sie in jede Audit-Zeile und nimmt später die ganze Klammer.
+//
+// 🔴 Der CLIENT vergibt sie, weil nur er weiß, dass zwei Anfragen dieselbe Absicht sind. Der Server
+// sieht zwei unabhängige Aufrufe.
+//
+// ⭐ Als Umschließung und nicht als Parameter: So erbt JEDER Schreibvorgang innerhalb der Geste die
+// Klammer, auch die, an die beim Bauen niemand gedacht hat -- etwa das create_region, das „Zerschneiden"
+// nebenbei auslöst. Ein vergessener Parameter wäre genau die Zeile, die ein Rückgängig stehen lässt.
+let ecosystemCurrentOperation = null;
+
+async function withEcosystemOperation(label, run) {
+	// Verschachtelt heißt: dieselbe Geste. Eine innere Klammer würde die äußere zerreißen.
+	if (ecosystemCurrentOperation) {
+		return await run();
+	}
+
+	const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "";
+	// Ohne Kennung läuft alles wie bisher weiter: jede Zeile ist dann ihre eigene Gruppe. Lieber
+	// einzeln zurücknehmbar als gar nicht geschrieben.
+	ecosystemCurrentOperation = id ? { id, label: String(label || "") } : null;
+	try {
+		return await run();
+	} finally {
+		ecosystemCurrentOperation = null;
+	}
+}
+
+// Was die laufende Geste an jede Nutzlast hängt -- leer, wenn keine läuft. Eigene Funktion und nicht
+// inline im fetch-Aufruf, damit sich genau diese Frage prüfen lässt, ohne einen erreichbaren Endpunkt
+// zu brauchen (lokal ist ECOSYSTEM_EDIT_API_URL leer, und es ist ein const).
+function ecosystemOperationPayload() {
+	if (!ecosystemCurrentOperation) {
+		return {};
+	}
+
+	return { operation_id: ecosystemCurrentOperation.id, operation_label: ecosystemCurrentOperation.label };
+}
+
 async function postEcosystemEdit(action, payload = {}) {
 	if (!ECOSYSTEM_EDIT_API_URL) {
 		throw new Error("Der Landschaften-Editor ist auf diesem Host nicht erreichbar.");
@@ -45,7 +88,13 @@ async function postEcosystemEdit(action, payload = {}) {
 		method: "POST",
 		credentials: "same-origin",
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
-		body: JSON.stringify({ action, ...payload }),
+		body: JSON.stringify({
+			action,
+			...payload,
+			// Läuft gerade eine Geste, reist ihre Klammer an JEDEM Aufruf mit -- ohne dass eine
+			// Aufrufstelle sie kennen muss.
+			...ecosystemOperationPayload(),
+		}),
 	});
 	const result = await readJsonResponse(response, null);
 

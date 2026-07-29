@@ -34,6 +34,15 @@
 		{ action: "intersection", label: "Neue von anderer ausschneiden" },
 	];
 
+	// Die Beschriftung, die im „Änderungen"-Fenster über der Geste steht. Sie kommt aus DERSELBEN Liste
+	// wie der Menüeintrag -- der Editor soll dort das Wort wiederfinden, das er angeklickt hat, und nicht
+	// „Fläche bearbeitet, 2 Schritte". Für die Gesten ohne Zielfläche steht die eigene Beschriftung dabei.
+	function booleanOperationLabel(operation) {
+		const entry = TARGET_OPERATIONS.find((candidate) => candidate.action === operation);
+
+		return entry ? entry.label : String(operation || "Geometrieoperation");
+	}
+
 	// Der laufende Zustand. null = nichts vorgemerkt.
 	// { operation, sourcePublicId, points?: [{x,y}], moveOrigin?: {x,y}, moveGeometry? }
 	let pending = null;
@@ -316,12 +325,16 @@
 
 		opsBusy = true;
 		try {
-			const geometry = ecosystemBooleanGeometry(operation, areaGeometry(source), areaGeometry(target));
-			await saveGeometry(source, geometry);
-			// Erst danach das Ziel entfernen: schlägt das Speichern fehl, ist noch nichts weg.
-			if (ecosystemBooleanConsumesTarget(operation)) {
-				await deleteArea(target);
-			}
+			// Eine Geste, eine Klammer: Vereinigen schreibt die neue Geometrie UND löscht das Ziel.
+			// „Rückgängig" nimmt später beides zusammen zurück statt nur die letzte Zeile.
+			await withEcosystemOperation(booleanOperationLabel(operation), async () => {
+				const geometry = ecosystemBooleanGeometry(operation, areaGeometry(source), areaGeometry(target));
+				await saveGeometry(source, geometry);
+				// Erst danach das Ziel entfernen: schlägt das Speichern fehl, ist noch nichts weg.
+				if (ecosystemBooleanConsumesTarget(operation)) {
+					await deleteArea(target);
+				}
+			});
 			refreshAfterWrite();
 			say("Geometrieoperation gespeichert.", "success");
 		} catch (error) {
@@ -343,11 +356,16 @@
 
 		opsBusy = true;
 		try {
-			const result = ecosystemSplitGeometry(areaGeometry(source), points[0], points[1]);
-			// Der größere Rest behält die Zeile, der Rest wird eine NEUE Fläche mit EIGENER Region (siehe
-			// createArea) -- sonst trüge das abgeschnittene Stück den Namen des Ursprungs.
-			await saveGeometry(source, result.kept);
-			await createArea(source, result.split);
+			// Drei Schreibvorgänge, eine Geste: Geometrie der Quelle, neue Region, neue Fläche. Ohne die
+			// Klammer nähme „Rückgängig" nur den letzten zurück und liesse eine halbierte Fläche neben
+			// einer leeren Region stehen.
+			await withEcosystemOperation("Zerschneiden", async () => {
+				const result = ecosystemSplitGeometry(areaGeometry(source), points[0], points[1]);
+				// Der größere Rest behält die Zeile, der Rest wird eine NEUE Fläche mit EIGENER Region (siehe
+				// createArea) -- sonst trüge das abgeschnittene Stück den Namen des Ursprungs.
+				await saveGeometry(source, result.kept);
+				await createArea(source, result.split);
+			});
 			refreshAfterWrite();
 			say("Fläche zerschnitten.", "success");
 		} catch (error) {

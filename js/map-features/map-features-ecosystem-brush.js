@@ -296,10 +296,15 @@
 
 		brushSaving = true;
 		try {
-			await postEcosystemEdit("update_area_geometry", {
-				public_id: String(area.public_id),
-				expected_revision: Number(area.geometry_revision),
-				geometry_geojson: brushWorkingGeometry,
+			// Ein Strich ist ohnehin EIN Schreibvorgang -- die Klammer trägt hier vor allem die
+			// Beschriftung, damit im „Änderungen"-Fenster „Fläche malen" steht und nicht das allgemeine
+			// „Fläche bearbeitet". Der Editor soll die Geste wiedererkennen, die er gemacht hat.
+			await withEcosystemOperation(brushMode === "eraser" ? "Fläche radieren" : "Fläche malen", async () => {
+				await postEcosystemEdit("update_area_geometry", {
+					public_id: String(area.public_id),
+					expected_revision: Number(area.geometry_revision),
+					geometry_geojson: brushWorkingGeometry,
+				});
 			});
 			brushDirty = false;
 			if (typeof loadEcosystemAreas === "function") {
