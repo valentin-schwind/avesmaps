@@ -382,6 +382,8 @@ const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	// Anders als Wadi und Schlucht eine FLÄCHE, keine Linie -- also Label wie ein weites Gebiet.
 	hochebene: { size: 17, minZoom: 3 },
 	tiefebene: { size: 17, minZoom: 3 },
+	// Begrenzt wie die Oase, aber grösser: ein Delta ist eine Mündung, keine weite Ebene.
+	flussdelta: { size: 15, minZoom: 4 },
 	see: { size: 16, minZoom: 4 },
 	wald: { size: 15, minZoom: 4 },
 	berggipfel: { size: 15, minZoom: 4 },

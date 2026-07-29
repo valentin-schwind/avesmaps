@@ -109,6 +109,12 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // Neben der Schlucht und kein Zwilling von ihr: beide sind Einschnitte, aber das Tal ist breit und
     // begehbar, die Schlucht eng und ein Hindernis. Deshalb auch der weichere, grünere Ton.
     ['topographie', 'tal', 'Tal', 100],
+    // Owner 2026-07-29. Topographie, nicht Vegetation, aus demselben Grund wie beim Wadi: was ein Delta
+    // ausmacht, ist die FORM -- ein Fluss, der sich vor der Mündung in Arme teilt und Land ablagert.
+    // Was darauf wächst, ist Folge, nicht Kennzeichen. Es grenzt an drei bestehende Arten und ist keine
+    // davon: `kueste` ist die Linie zum Meer, `flussland_flusstal` (Vegetation) die Decke am Lauf, und
+    // `suempfe_moore` ist stehendes Wasser -- ein Delta fliesst.
+    ['topographie', 'flussdelta', 'Flussdelta', 110],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],

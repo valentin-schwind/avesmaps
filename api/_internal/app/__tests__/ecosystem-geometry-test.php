@@ -194,14 +194,14 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('klima'), 'an unkno
 
 // ---- the type vocabulary -----------------------------------------------------------------------------
 // The owner's V2.1 checkpoint counted 16 rows in phpMyAdmin (4 + 5 + 7); this is the same count, checkable
-// without a database. 24 since 2026-07-29: 'flussland_flusstal', 'dschungel' and 'wuestenoase' joined the vegetation vocabulary and
-// 'wadi', 'schlucht', 'hochebene', 'tiefebene' and 'tal' the topographic one (owner).
+// without a database. 25 since 2026-07-29: 'flussland_flusstal', 'dschungel' and 'wuestenoase' joined the vegetation vocabulary and
+// 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal' and 'flussdelta' the topographic one (owner).
 //
 // 🪤 The number is meant to MOVE when a type is deliberately added -- what it guards against is a type
 // vanishing unnoticed, and a duplicate being swallowed by INSERT IGNORE (the composite check below).
 // Adjusting it alongside a seed entry is the intended workflow, not a weakening of the test.
 
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 24, 'the seed is 24 rows');
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 25, 'the seed is 25 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -210,7 +210,7 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
     $byKind[$kind][] = $typeKey;
 }
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
-assert(count($byKind['topographie']) === 10, 'topographie: 10');
+assert(count($byKind['topographie']) === 11, 'topographie: 11');
 assert(count($byKind['vegetation']) === 10, 'vegetation: 10');
 
 // The PRIMARY KEY is (kind, type_key): a duplicate would be swallowed by INSERT IGNORE and the count

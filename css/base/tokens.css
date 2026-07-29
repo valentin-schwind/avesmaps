@@ -218,6 +218,7 @@
 	--color-ecosystem-topographie-hochebene: #9a9b82;       /* plateau, pale grey-green -- high but flat, lighter than the hills */
 	--color-ecosystem-topographie-tiefebene: #6f7a55;       /* lowland, deeper warm olive -- the plateau's counterpart, low and lush */
 	--color-ecosystem-topographie-tal: #6b7266;             /* valley, shaded green-grey -- an incision like the gorge, but wide and walkable */
+	--color-ecosystem-topographie-flussdelta: #5e8f86;      /* river delta, silted teal -- water and deposited land, duller than the coast's turquoise */
 
 	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
 	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,

@@ -153,6 +153,10 @@ body.edit-mode .map-label img {
 	color: #bfcfa6; /* Tiefebene: wärmeres, sattes Wiesengrün -- tief, feucht, fruchtbar */
 }
 
+.map-label--flussdelta span {
+	color: #a8d5cc; /* Flussdelta: blasses Wassergrün -- verwandt mit der Küste, eine Spur trüber */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,

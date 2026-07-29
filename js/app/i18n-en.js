@@ -510,6 +510,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.schlucht": "Gorge",
 	"spotlight.labelType.hochebene": "Plateau",
 	"spotlight.labelType.tiefebene": "Lowland",
+	"spotlight.labelType.flussdelta": "River Delta",
 	"spotlight.labelType.see": "Lake",
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.sonstiges": "Label",
