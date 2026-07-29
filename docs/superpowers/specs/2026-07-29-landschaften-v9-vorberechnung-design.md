@@ -208,6 +208,25 @@ CREATE TABLE IF NOT EXISTS path_ecosystem (
   Graph-Distanz als Meilen liest, eine Steigung um 3× und das Signal um 23× überhöht
   (Analyse §F). V9 rechnet keine Steigung — V11 liest diese Spalten.
 
+> 🔴 **Bogenlänge, NICHT x/y — Owner-Frage 2026-07-29.** Es werden keine Koordinaten
+> gespeichert. Drei Gründe, in dieser Reihenfolge:
+>
+> 1. **Die Koordinate ist exakt ableitbar** — Stützpunkte des Wegs einmal durchgehen,
+>    Strecken aufsummieren, im richtigen Segment interpolieren. Acht Zeilen, und der
+>    Client hat die Stützpunkte ohnehin, er zeichnet den Weg ja. Eine gespeicherte
+>    Koordinate wäre eine **Zweitkopie derselben Information**.
+> 2. **Beide Abnehmer rechnen in Bogenlänge, nicht in x/y.** V10 muss ein
+>    Routen-Teilstück („von Meile 12 bis 27 dieses Wegs") mit dem Intervall schneiden;
+>    V11 muss Kantengewichte entlang des Wegs stückeln. Eine Koordinate müsste dafür
+>    erst wieder in eine Bogenlänge zurückgerechnet werden.
+> 3. **Sie altert schlechter.** Wird ein Stützpunkt verschoben, landet eine Bogenlänge
+>    weiterhin **auf** dem Weg, nur etwas anders. Eine gespeicherte Koordinate kann
+>    daneben liegen — und sieht dabei völlig richtig aus.
+>
+> Braucht eine Anzeige den Übergangspunkt („hier beginnt der Wald"), ist es dieselbe
+> Interpolation. Sie gehört dann in den Kern aus §5 als eigene reine Funktion, nicht in
+> die Tabelle.
+
 ### 4.2 `ecosystem_region_overlap` — Teil A
 
 ```sql
@@ -391,10 +410,19 @@ Zerfransung sitzt fast vollständig bei den Flusswegen, und der Grund ist geogra
 **Flüsse sind oft selbst die Grenze** zwischen zwei Regionen. Ein Weg, der an so einer
 Grenze entlangläuft, tritt nach der reinen Geometrie dutzendfach ein und aus.
 
-Gemessenes Beispiel, der Flussweg **„Tommel"** (49 Meilen, 30 Stützpunkte): **eine**
-Zeile in `map_features`, daraus **40** Zeilen in `path_ecosystem` — 13 Abschnitte im
-„Winhaller Land", 12 in „Fläche-011", 12 in „Fläche-010", 2 im „See-158", und **1**
-durchgehender über die volle Länge in den „Tommellanden".
+Gemessenes Beispiel, der Flussweg **„Tommel"** (`0166e831`, 16,36 Karteneinheiten =
+49 Meilen, 30 Stützpunkte): **eine** Zeile in `map_features`, daraus **40** Zeilen in
+`path_ecosystem` — 13 Abschnitte im „Winhaller Land", 12 in „Fläche-011", 12 in
+„Fläche-010", 2 im „See-158", und **1** durchgehender über die volle Länge in den
+„Tommellanden".
+
+> ⚠️ **„Der Tommel" ist nicht ein Weg, sondern 15.** Live gezählt: 15 aktive Wege tragen
+> den Namen „Tommel", zwischen 2 und 30 Stützpunkten, zusammen 162 Karteneinheiten. Das
+> ist die bekannte Segmentierung („eine Linie = viele Segmente"), und sie ist für V9
+> harmlos — jedes Segment bekommt seine eigenen Notizen, und die Routenetappen sind
+> ebenfalls segmentweise. Für eine Frage wie „führt **der Tommel** durchs Winhaller Land"
+> müsste V10 über die 15 Segmente aggregieren. Kein Grund, hier etwas anders zu
+> speichern; nur ein Grund, es beim Auswerten nicht zu vergessen.
 
 **Für V9 ist das richtig so und wird nicht geglättet.** Die Zeilen sind die Wahrheit über
 die Geometrie, und 401 von 4.426 Zeilen (9 %) sind kein Mengenproblem.
