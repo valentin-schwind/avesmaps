@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>V10 „Führt durch" — Verdrahtungsprüfung</title>
+<link rel="stylesheet" href="css/styles.css">
+<style>
+	body { font-family: system-ui, sans-serif; margin: 1.5rem; background: #efe6d4; }
+	h2 { margin-top: 2rem; font-size: 1rem; }
+	.case { border: 1px solid #b9a883; border-radius: 6px; padding: .8rem; margin: .5rem 0; background: #fbf7ee; }
+	#log { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
+	.ok { color: #2d6a2d; } .bad { color: #a33; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>V10 — Verdrahtung</h1>
+<p>Prüft, was ohne Datenbank prüfbar ist: dass der Beobachter einen Weg-Container füllt,
+dass die Planer-Zeilen nur Neues nennen, und dass die Routen-Zeile ohne Prozente schreibt.
+Der Abruf ist gestubbt — die SQL-Hälfte wird live abgenommen.</p>
+
+<h2>1. Weg-Infobox (Beobachter füllt den Container)</h2>
+<div class="case">
+	<div class="region-info-box region-info-box--settlement">
+		<dl class="region-info-box__data" id="wayList">
+			<div class="region-info-box__row"><dt>Lage</dt><dd>Bestehende Zeile</dd></div>
+		</dl>
+	</div>
+</div>
+
+<h2>2. Etappenliste (nur was neu ist)</h2>
+<div class="case" id="legs"></div>
+
+<h2>3. Routen-Zusammenfassung (ohne Prozente)</h2>
+<div class="case"><div class="route-plan-summary__time">Rastzeit: 32.0 Stunden<span class="route-plan-summary__landscapes"></span></div></div>
+
+<h2>Ergebnis</h2>
+<div id="log"></div>
+
+<script>
+// ---- Stub des Endpunkts. Genau die Form, die api/app/path-landscapes.php antwortet. -------------
+var STUB = {
+	ok: true,
+	stamp: { computed_at: "2026-07-29 12:00:00.000", ecosystem_revision: 3890, map_revision: 46238, stale: false },
+	landscapes: {
+		"r-herz": { name: "Herz des Kontinents", art: "Region", kind: "derographisch", wiki_key: "herz-des-kontinents" },
+		"r-forst": { name: "Reichsforst", art: "Wald", kind: "vegetation", wiki_key: "reichsforst" },
+		"r-fluss": { name: "Flusslande", art: "Flussland/Flusstal", kind: "vegetation", wiki_key: "flusslande" },
+		"r-see": { name: "See-042", art: "See", kind: "topographie", wiki_key: "" }
+	},
+	paths: {
+		"w-1": { length: 10, in: [["r-herz", 10]] },
+		"w-2": { length: 10, in: [["r-herz", 10]] },
+		"w-3": { length: 10, in: [["r-herz", 10], ["r-forst", 2]] },
+		"w-4": { length: 10, in: [] },
+		"w-5": { length: 10, in: [["r-fluss", 10]] },
+		"w-6": { length: 10, in: [["r-herz", 8], ["r-see", 3]] }
+	}
+};
+var fetchCalls = [];
+window.fetch = function (url, options) {
+	fetchCalls.push({ url: String(url), body: options && options.body });
+	var asked = JSON.parse(options.body).paths;
+	var answer = { ok: true, stamp: STUB.stamp, landscapes: STUB.landscapes, paths: {} };
+	asked.forEach(function (id) { if (STUB.paths[id]) { answer.paths[id] = STUB.paths[id]; } });
+	return Promise.resolve({ ok: true, json: function () { return Promise.resolve(answer); } });
+};
+</script>
+<script src="js/app/utils.js"></script>
+<script src="js/map-features/map-features-ecosystem-naming.js"></script>
+<script src="js/map-features/map-features-path-landscapes.js"></script>
+<script>
+var results = [];
+function check(condition, why) { results.push({ ok: !!condition, why: why }); }
+
+// ---- 2 + 3: die Planerzeilen, mit derselben Logik wie fillRoutePlanLandscapes ------------------
+var LEGS = [
+	{ name: "Gareth → Weyring", ids: ["w-1"] },
+	{ name: "Weyring → Randersburg", ids: ["w-2"] },
+	{ name: "Randersburg → Hirschfurt", ids: ["w-3"] },
+	{ name: "Hirschfurt → Bitani (nichts gezeichnet)", ids: ["w-4"] },
+	{ name: "Bitani → Leustein", ids: ["w-5"] },
+	{ name: "Leustein → Angbar", ids: ["w-6"] }
+];
+var legHost = document.getElementById("legs");
+LEGS.forEach(function (leg, index) {
+	// Mit dem Zeilenumbruch VOR dem span -- genau wie die Vorlage in route-plan.js. HTML faltet ihn
+	// zu einem Leerzeichen, und dieses Leerzeichen ist der einzige Abstand zwischen „(0.34 Tage)"
+	// und „durch:". Ohne den Umbruch prueft das Gestell etwas anderes, als ausgeliefert wird.
+	legHost.insertAdjacentHTML("beforeend",
+		'<div class="route-plan-entry">' + leg.name + "\n\t\t\t"
+		+ '<span class="route-plan-entry__landscapes" data-route-landscapes-index="' + index + '"></span>\n\t\t\t</div>');
+});
+
+var allIds = LEGS.reduce(function (all, leg) { return all.concat(leg.ids); }, []);
+avesmapsPathLandscapesEnsure(allIds).then(function () {
+	// Genau der Durchgang aus fillRoutePlanLandscapes.
+	var previous = [];
+	LEGS.forEach(function (leg, index) {
+		var line = avesmapsPathLandscapesLineFor(leg.ids);
+		if (!line.length) { return; }
+		var fresh = pickFreshLandscapes(line, previous);
+		previous = line;
+		var target = document.querySelector('[data-route-landscapes-index="' + index + '"]');
+		if (target && fresh.length) { target.textContent = "durch: " + formatLandscapesForPlanner(fresh); }
+	});
+	var summary = document.querySelector(".route-plan-summary__landscapes");
+	var routeLine = avesmapsPathLandscapesLineFor(allIds);
+	summary.textContent = "Landschaften: " + formatLandscapesForPlanner(routeLine);
+
+	var texts = LEGS.map(function (leg, index) {
+		return (document.querySelector('[data-route-landscapes-index="' + index + '"]').textContent || "").trim();
+	});
+	check(texts[0] === "durch: Herz des Kontinents", "erste Zeile nennt alles — bekam: " + texts[0]);
+	check(texts[1] === "", "zweite Zeile schweigt, gleiche Landschaft — bekam: " + texts[1]);
+	check(texts[2] === "durch: Reichsforst", "dritte nennt NUR das Neue — bekam: " + texts[2]);
+	check(texts[3] === "", "Etappe ohne Daten bleibt leer — bekam: " + texts[3]);
+	check(texts[4] === "durch: Flusslande", "fünfte: neue Landschaft — bekam: " + texts[4]);
+	check(texts[5].indexOf("Herz des Kontinents") >= 0,
+		"sechste kündigt den Wiedereintritt WIEDER an — bekam: " + texts[5]);
+	check(texts.join(" ").indexOf("%") < 0, "im Planer steht NIRGENDS ein Prozentzeichen");
+	check(texts.join(" ").indexOf("See-042") < 0 && texts[5].indexOf("See") >= 0,
+		"der namenlose See erscheint als „See\", nicht als „See-042\" — bekam: " + texts[5]);
+
+	var summaryText = summary.textContent;
+	check(summaryText.indexOf("%") < 0, "auch die Routen-Zeile ohne Prozente — bekam: " + summaryText);
+	check(summaryText === "Landschaften: Herz des Kontinents, Flusslande, See",
+		"nach Anteil sortiert (63 % / 17 % / 5 %) — bekam: " + summaryText);
+	// Der Reichsforst deckt 2 von 60 Einheiten der GANZEN Route = 3,3 % und faellt damit unter die
+	// 5-%-Schwelle -- obwohl er an Etappe 3 mit 20 % genannt wird. Das ist richtig so und der
+	// deutlichste Beleg dafuer, dass Etappe und Route dieselbe Rechnung mit anderem Nenner sind.
+	check(summaryText.indexOf("Reichsforst") < 0,
+		"eine Landschaft, die auf EINER Etappe steht, kann in der Routenzeile fehlen — bekam: " + summaryText);
+
+	check(fetchCalls.length === 1, "EINE Anfrage für die ganze Route — waren: " + fetchCalls.length);
+
+	// Owner 2026-07-29: „du brauchst vor dem durch keine neue Zeile anfangen." Die Zeile bleibt
+	// im Fliesstext -- geprüft an der Geometrie, nicht an der CSS-Regel: `display:inline` allein
+	// bewiese nicht, dass der Text auch wirklich neben statt unter der Etappe steht.
+	// Gemessen gegen den TEXT der Etappe, nicht gegen ihre Box: die Zeile hat padding, und ein
+	// Vergleich mit der Boxkante schlug bei 6 px Polsterung fehl, obwohl nichts umgebrochen war.
+	var firstRow = document.querySelector(".route-plan-entry");
+	var firstSpan = firstRow.querySelector(".route-plan-entry__landscapes");
+	var textRange = document.createRange();
+	textRange.selectNodeContents(firstRow.firstChild);   // „Gareth → Weyring"
+	var textTop = textRange.getBoundingClientRect().top;
+	var spanTop = firstSpan.getBoundingClientRect().top;
+	check(Math.abs(spanTop - textTop) < 2,
+		"„durch:" + "\" sitzt auf DERSELBEN Textzeile — Versatz zum Etappentext: "
+		+ Math.round(spanTop - textTop) + " px");
+	check(/Weyring\s+durch:/.test(firstRow.textContent),
+		"und mit einem Leerzeichen davor — bekam: " + JSON.stringify(firstRow.textContent.trim()));
+	check(getComputedStyle(summary).display === "block",
+		"die Routen-Zeile dagegen BLOCK, sonst klebt sie an der Rastzeit — ist: "
+		+ getComputedStyle(summary).display);
+
+	// ---- 1: der Beobachter füllt einen Weg-Container ----------------------------------------
+	document.getElementById("wayList").insertAdjacentHTML("beforeend",
+		'<div class="avesmaps-path-landscapes" data-path-landscapes="w-3"></div>');
+	window.setTimeout(function () {
+		var container = document.querySelector('[data-path-landscapes="w-3"]');
+		var filled = (container.textContent || "").trim();
+		check(filled.indexOf("Führt durch") >= 0, "der Beobachter hat die Zeile gesetzt — bekam: " + filled);
+		check(filled.indexOf("Reichsforst (20 %)") >= 0,
+			"in der Infobox MIT Prozent — bekam: " + filled);
+		check(container.innerHTML.indexOf('title="Wald"') >= 0,
+			"die Art steht im Tooltip — bekam: " + container.innerHTML);
+		check(fetchCalls.length === 1,
+			"w-3 lag schon im Speicher, also KEINE zweite Anfrage — waren: " + fetchCalls.length);
+		render();
+	}, 60);
+});
+
+function render() {
+	var bad = results.filter(function (r) { return !r.ok; });
+	document.getElementById("log").innerHTML = results.map(function (r) {
+		return '<span class="' + (r.ok ? "ok" : "bad") + '">' + (r.ok ? "OK  " : "FEHLER  ") + r.why + "</span>";
+	}).join("\n") + "\n\n" + (bad.length ? '<span class="bad">' + bad.length + " FEHLER</span>"
+		: '<span class="ok">alle ' + results.length + " Prüfungen bestanden</span>");
+	document.title = bad.length ? "V10: " + bad.length + " FEHLER" : "V10: alles grün";
+}
+</script>
+</body>
+</html>
