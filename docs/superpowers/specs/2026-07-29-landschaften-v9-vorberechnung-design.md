@@ -319,6 +319,21 @@ Neue Datei `js/map-features/map-features-ecosystem-path-assign.js`, reine Funkti
 kein DOM, kein `fetch` — damit unit-testbar wie
 `js/map-features/__tests__/ecosystem-geometry.test.js`.
 
+> 🔴 **Bindende Regel: der Kern kennt keine Wege, nur Koordinatenlisten.**
+> Die Signatur lautet `ecosystemLineIntervals(coordinates, area)` — **nicht**
+> `…ForPath(pathFeature, …)`. Er darf `public_id`, `feature_subtype`, `map_features`
+> oder irgendeine Datenbankvorstellung nicht kennen.
+>
+> Der Grund ist nicht Ästhetik, sondern V13 („Querfeldein: Wasser meiden"): eine
+> Querfeldein-Kante ist eine Liste aus **zwei** Punkten, und die Frage „schneidet sie ein
+> `meer`/`see`-Polygon" ist dieselbe Funktion, aufgerufen mit 2 statt 30 Punkten und
+> ausgewertet als „gibt es überhaupt ein Intervall". Bindet man den Kern an gespeicherte
+> Wege, wird V13 eine **zweite Umsetzung derselben Mathematik** — genau der Fehler, den
+> dieses Haus beim Quellensystem schon einmal bezahlt hat.
+>
+> Kosten dieser Regel heute: **null.** Sie verlangt nur, dass ein Argument eine Liste ist
+> statt eines Objekts.
+
 ### 5.1 Ablauf je Paar (Weg × Kandidatenfläche)
 
 1. **Bogenlängen** des Wegs kumulieren (`hypot` je Segment) → `cum[i]`, `total`.
@@ -384,11 +399,28 @@ durchgehender über die volle Länge in den „Tommellanden".
 **Für V9 ist das richtig so und wird nicht geglättet.** Die Zeilen sind die Wahrheit über
 die Geometrie, und 401 von 4.426 Zeilen (9 %) sind kein Mengenproblem.
 
-> 🔴 **Der Auftrag an V10 steht damit fest, bevor V10 beginnt:** eine Anzeige darf diese
-> Liste **nicht** aufzählen. „Führt durch: Winhaller Land (13×)" wäre Unsinn. Sie muss
-> **zusammenfassen** — „führt zu 62 % durch das Winhaller Land" — und die Zusammenfassung
-> rechnet aus den gespeicherten Intervallen, sie ersetzt sie nicht. Speicher hält die
-> Wahrheit, Anzeige fasst zusammen.
+> 🔴 **Warum Intervalle und nicht gleich die Antwort.** Owner 2026-07-29: „V10 darf
+> sowohl zählen, als auch %e speichern, als auch binär (Weg führt durch Farindelwald,
+> ja/nein). Genau die Levels an Abstraktion brauchen wir." Alle drei sind aus den
+> Intervallen **billig ableitbar**, keiner ist aus einem anderen rekonstruierbar:
+>
+> | Ebene | aus den Intervallen | Beispiel |
+> |---|---|---|
+> | binär | `EXISTS` | „führt durch einen Wald" |
+> | zählend | `COUNT` | „berührt 4 Regionen" |
+> | anteilig | `SUM(exit − enter) / Gesamtlänge` | „zu 62 % im Winhaller Land" |
+>
+> Das Intervall ist die **unterste** Ebene; wer es speichert, muss sich nie entscheiden.
+> Wer stattdessen nur den Prozentsatz speicherte, könnte „führt zu 62 % durch" sagen,
+> aber nie „wo genau" — und V11 braucht genau das „wo genau".
+>
+> **Für die Anzeige heißt Zerfransen trotzdem: zusammenfassen.** „Führt durch: Winhaller
+> Land (13×)" wäre Unsinn; „zu 62 % durch das Winhaller Land" ist dieselbe Wahrheit,
+> lesbar. Owner: „Nutzer werden das nicht sehen" — und sollen es auch nicht.
+>
+> Auch die **Typ-Frage** („führt der Weg durch **ein Gebirge**", nicht durch ein
+> bestimmtes) braucht keine eigene Speicherung: `path_ecosystem` → `ecosystem_area` →
+> `ecosystem_region` → `region_type` ist ein Join über vorhandene Schlüssel.
 
 ### 5.5 Was nicht gerechnet wird
 
@@ -558,6 +590,52 @@ kommt der serverseitige Stapellauf der Fahrplan-Zeile.
 | Änderungen am Graph | **V11** | V9 fasst `client-graph.php` nicht an. |
 | Querfeldein-Kanten | **V13/V14** | Keine `map_features`-Zeilen; sie entstehen zur Laufzeit aus der Transportauswahl. |
 | automatische Neuberechnung bei jeder Flächenänderung | **später, falls überhaupt** | Solange der Lauf Sekunden dauert, ist ein Knopf ehrlicher als eine unsichtbare Automatik. Der Stempel macht „veraltet" sichtbar; das genügt, bis die Messung etwas anderes sagt. |
+
+### 9.1 🔴 Was V9 ausdrücklich **nicht** freischaltet: Idee #44 und A\*
+
+Geprüft am 2026-07-29 auf die Frage des Owners, ob für A\* und Querfeldein hier schon
+etwas vorbereitet werden muss. **Antwort: eine Regel (§5, der linienagnostische Kern) —
+sonst nichts.** Die Begründung ist wichtiger als die Antwort, damit sie nicht neu
+hergeleitet werden muss:
+
+**A\* braucht von V9 gar nichts.** Es ist eine Suchstrategie mit einer Luftlinien-Heuristik
+und fragt keine Landschaftsdaten. V4 hat entschieden: clientseitig, auf Abruf, nicht
+vorberechnet (858–1.129 Querfeldein-Kanten, abhängig von der Transportauswahl des
+Nutzers und damit zur Laufzeit veränderlich).
+
+**Querfeldein kann strukturell nicht in `path_ecosystem` liegen.** Der PK ist
+`path_id` = `map_features.id`. Eine Querfeldein-Kante hat keine solche Zeile: sie entsteht
+in `connectDetachedGraphComponents` (`js/routing/route-graph-routing.js:49`) zur Laufzeit,
+und zwar heute ausschließlich, um **abgetrennte Graph-Komponenten** anzubinden — eine
+Kante je Komponente, nicht ein Querfeldein-Netz. Idee #44 („Zielort setzen" auf einen
+beliebigen Kartenpunkt) verlangt Kanten, die es vor dem Rechtsklick überhaupt nicht gibt.
+
+**Der echte Engpass für #44 und V13 liegt woanders — und V9 räumt ihn nicht weg:**
+
+> 💣 **Die öffentliche Karte lädt heute NULL Polygone.** Live nachgezählt: die
+> `map-features`-Nutzlast enthält 5.650 `LineString`-Wege, 163 Kraftlinien und 5.241
+> Punkte — **keine einzige Fläche**. Ökosystemflächen kommen aus einem eigenen Endpunkt,
+> politische Gebiete aus einem dritten. Eine clientseitige Prüfung „schneidet diese
+> Luftlinie Wasser" hat also **nichts, wogegen sie prüfen könnte**. Das ist V13s erste
+> Aufgabe, nicht V9s.
+
+Zwei Wege stehen V13 dafür offen; die Entscheidung gehört in V13s eigenen Plan:
+
+| | Weg | Preis |
+|---|---|---|
+| a | Wasserflächen an den Client ausliefern | 293 `see` + 36 `meer` sind der Löwenanteil der heutigen 0,94 MB — und sie wachsen |
+| b | **Eine Wasser-Rastermaske** | 1024×1024 Bit = 128 KB roh, als PNG ein Bruchteil. „Schneidet die Luftlinie Wasser" wird ein Bresenham-Lauf über ein Bitfeld: Mikrosekunden, keine Polygone, kein Nutzlastproblem |
+
+> ⭐ **Weg (b) ist fast geschenkt, und das ist der Fund dieser Prüfung:** die
+> Produktions-Wassermaske **existiert bereits** — `water_mask()` in
+> `tools/ecosystem/ecosystem_raster.py`, aus V5, abgeleitet aus den ausgelieferten
+> Kartenkacheln und gegen die Vorlage der Kachel-Werkzeugkette geankert (samt der einen
+> gemessenen Korrektur `WATER_BLUE_OVER_GREEN = -20`). Sie hat 124 Flächen erzeugt und ist
+> erprobt. V13 müsste sie nicht bauen, sondern nur ausgeben.
+
+**Idee #44 braucht zusätzlich etwas, das weder V9 noch V13 liefert:** einen beliebigen
+Kartenpunkt in den Graphen einhängen — nächstgelegener Punkt **auf einem Weg**, nicht nur
+nächstgelegener Knoten. Das ist Routing-Arbeit und hat mit Landschaften nichts zu tun.
 
 ---
 
