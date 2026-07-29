@@ -789,10 +789,18 @@
 }
 
 /* V10 „Führt durch": welche Landschaften eine Etappe bzw. die ganze Route durchquert.
-   Eigene Zeile und leiser als der Rest -- sie ist Beiwerk und darf den Fluss der
-   Etappenbeschreibung nicht zerreissen. :not(:empty), weil der Platzhalter im Markup steht,
-   bevor der Abruf da ist: eine leere Zeile wuerde sonst Luft unter jeder Etappe erzeugen. */
-.route-plan-entry__landscapes:not(:empty),
+   Leiser als der Rest -- es ist Beiwerk. :not(:empty), weil der Platzhalter schon im Markup
+   steht, bevor der Abruf da ist: sonst erzeugte jede Etappe Luft fuer eine Zeile, die nie kommt.
+
+   An der ETAPPE laeuft es im Fliesstext weiter (Owner 2026-07-29: „du brauchst vor dem durch
+   keine neue Zeile anfangen") -- der Satz „… in 8.24 Stunden (0.34 Tage) durch: Reichsforst"
+   gehoert zusammen, und ein Umbruch zerriss ihn. Das Leerzeichen davor kommt aus dem Markup. */
+.route-plan-entry__landscapes:not(:empty) {
+	color: var(--color-text-muted);
+}
+
+/* In der ZUSAMMENFASSUNG dagegen eine eigene Zeile: dort stehen Distanz/Reisezeit/Rastzeit
+   untereinander (per <br>), und inline klebte „Landschaften: …" an die Rastzeit. */
 .route-plan-summary__landscapes:not(:empty) {
 	display: block;
 	margin-top: 0.25em;
