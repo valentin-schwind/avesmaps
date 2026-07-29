@@ -235,8 +235,24 @@
 		return (stack?.fields || []).map((field) => Number(field.hmax) || 0);
 	}
 
+	// 🔴 NUR IN DER GRAUSTUFEN-ANSICHT ZEICHNEN (Owner 2026-07-29: „das transparente Höhenfeld bei
+	// inaktiv markierten Gebirgen raustun … die schwarzweiß-Ansicht muss natürlich bleiben").
+	//
+	// Bis hierher lag das Relief IMMER auf der Karte, halbdurchsichtig, sobald die Topographie-Ebene
+	// aktiv war -- und wurde erst deckend, wenn ein Flächendialog aufging (`setSolid`). Der Schleier war
+	// damit ein Dauerzustand, der die Grundkarte einfärbte, ohne selbst gut lesbar zu sein. Jetzt gilt:
+	// kein Dialog offen = kein Höhenfeld, Dialog offen = volle Graustufe wie bisher.
+	//
+	// 🪤 `redraw()` leert die Leinwand VOR dieser Prüfung, deshalb räumt `setSolid(false)` beim Schliessen
+	// von selbst auf -- es ruft redraw(), und das kehrt hier zurück, nachdem geleert wurde.
+	//
+	// ⚠️ Damit ist der Schleier-Pfad (CSS-Opazität `--opacity-ecosystem-height` plus das Alpha je Pixel)
+	// vorerst unerreichbar, aber absichtlich stehen geblieben: er ist die einzige Stelle, an der die
+	// Deckkraft überhaupt beschrieben ist, und der Owner kann ihn zurückwollen. Wer ihn ausbaut, baut
+	// zwei Dinge aus, nicht eins (siehe setHeightCanvasSolid).
 	function shouldDraw() {
-		return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
+		return solidMode
+			&& typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
 			&& typeof getActiveEcosystemLayerKind === "function"
 			&& getActiveEcosystemLayerKind() === "topographie";
 	}
