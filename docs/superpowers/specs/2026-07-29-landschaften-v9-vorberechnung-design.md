@@ -372,14 +372,64 @@ benutzt. Nicht nachbauen.
 > der Boolesche Verschnitt richtig. Teil C fragt nach **Bogenlängen entlang einer Linie** —
 > die liefert kein Verschnitt, und ein Umweg darüber wäre um Größenordnungen teurer.
 
-### 5.2 Die halboffene Regel
+### 5.2 💣 Gerechnet wird auf der SEHNE, nicht auf der sichtbaren Catmull-Rom-Kurve
+
+Owner-Frage 2026-07-29. Wege werden **nicht** als Streckenzug gezeichnet: sie laufen
+durch `smoothLineCoordinatesForDisplay` mit `VISUAL_LINE_CATMULL_ROM_CONFIG`
+(`js/config.js:364`, `samples: 8`, `tension: 0.5`) — in
+`map-features-path-rendering.js:236` für die Karte und in `route-render.js:19` für die
+Routenlinie selbst. Das Sichtbare ist also eine Kurve **durch** die Stützpunkte, nicht die
+Verbindung zwischen ihnen.
+
+**Nachgemessen** (die Kurvenfunktion exakt nachgebaut, beide Varianten über alle 5.650
+Wege × 609 Flächen):
+
+| | Sehne (roh) | sichtbare Kurve |
+|---|---|---|
+| Paare mit Treffer | 3.829 | 3.827 |
+| Zeilen | 4.426 | 4.407 |
+
+| | |
+|---|---|
+| Paare, die **nur** die Kurve trifft | 4 |
+| Paare, die **nur** die Sehne trifft | 6 |
+| in beiden | 3.823 |
+| Abweichung Kurve↔Sehne | Median **0,014** Karteneinheiten (42 m), p99 0,156, **max 2,12** (6,4 Meilen) |
+| Längendifferenz je Paar | Median 0,019, p99 0,77, **max 3,48** (10 Meilen) |
+
+**10 von 3.833 Paaren unterscheiden sich — 0,26 %.** Die binäre Antwort („führt durch
+einen Wald") ist praktisch identisch.
+
+> 🔴 **Der Ausschlag gibt aber nicht die Größe, sondern die Einheit.** Alles, was diese
+> Bogenlängen verbraucht, misst auf der **rohen** Linie:
+> `calculatePathCoordinateDistance` (`map-features-location-editing.js:10`) und
+> `getCoordinateDistance` (`route-graph-core.js:285`) summieren `hypot` über die
+> **gespeicherten Stützpunkte**. Daraus entsteht die Graph-Distanz, daraus die Reisezeit,
+> daraus die Etappen, die V10 mit den Intervallen schneiden muss, und daraus die
+> Kantengewichte, die V11 stückelt. Eine auf der Kurve gemessene Bogenlänge stünde in
+> einem **anderen Maßsystem** als jeder ihrer Verbraucher — die Kurve ist länger als die
+> Sehne, „3,28" bezeichnete zwei verschiedene Orte. Das ist derselbe Fallentyp wie die
+> ×3-/×23-Einheitenfalle, nur leiser.
+
+> 💣 **Und die Kurve ist abschaltbar.** `VISUAL_LINE_CATMULL_ROM_CONFIG.enabled` hängt an
+> `?smoothLines=0` bzw. `?smoothRoute=0`. Was ein URL-Parameter umlegen kann, ist eine
+> **Darstellungsentscheidung** und darf niemals definieren, was in der Datenbank steht —
+> sonst hätte derselbe Weg je nach Aufruf andere gespeicherte Abschnitte.
+
+> ⚠️ **Was das kostet, ehrlich:** in seltenen Fällen weicht die anteilige Aussage
+> spürbar ab — max. 3,48 Karteneinheiten ≈ 10 Meilen auf einem Paar. Und es gibt die 4
+> Paare, bei denen die gezeichnete Straße eine Waldecke sichtbar streift, die Sehne aber
+> nicht. Beides ist der Preis dafür, dass Speicher und Routing dasselbe Maß benutzen —
+> und er ist niedriger als der Preis zweier Maßsysteme.
+
+### 5.3 Die halboffene Regel
 
 Schnittparameter gelten als Treffer für `t ∈ [0,1)` **und** `u ∈ [0,1)`. Sonst zählt ein
 Weg, der genau durch eine Polygonecke läuft, zwei Schnitte statt einen, und das Intervall
 kippt in die falsche Richtung. Mit dieser Regel entsteht die Verteilung aus §3.1
 (3.585 × 1 Intervall, dann fallend).
 
-### 5.3 Entartungen
+### 5.4 Entartungen
 
 | Fall | Verhalten |
 |---|---|
@@ -388,7 +438,7 @@ kippt in die falsche Richtung. Mit dieser Regel entsteht die Verteilung aus §3.
 | Fläche ohne Kanten | übersprungen |
 | \>255 Intervalle für ein Paar | Paar verworfen **und im Bericht genannt** — nie stillschweigend abschneiden |
 
-### 5.4 💣 Flusswege zerfransen — gemessen, und es ist kein Fehler
+### 5.5 💣 Flusswege zerfransen — gemessen, und es ist kein Fehler
 
 Ein Weg kann dieselbe Fläche **mehrfach** durchqueren; deshalb `seq` im Schlüssel und
 mehrere Zeilen je Paar. Live nachgemessen, wie sich das über die Wegarten verteilt:
@@ -450,7 +500,7 @@ die Geometrie, und 401 von 4.426 Zeilen (9 %) sind kein Mengenproblem.
 > bestimmtes) braucht keine eigene Speicherung: `path_ecosystem` → `ecosystem_area` →
 > `ecosystem_region` → `region_type` ist ein Join über vorhandene Schlüssel.
 
-### 5.5 Was nicht gerechnet wird
+### 5.6 Was nicht gerechnet wird
 
 Kein Höhenfeld, keine Tempokurve, keine Auf-/Abstiegssummen, keine Faktoren. Das ist V11
 (§9).
