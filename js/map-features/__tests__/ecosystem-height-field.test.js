@@ -15,7 +15,7 @@ global.ecosystemGeometryBounds = ecosystemGeometryBounds;
 global.pointInGeometry = pointInGeometry;
 
 const { buildEcosystemHeightField, sampleEcosystemHeightField, buildEcosystemPeakWindow,
-	ecosystemHeightCellHash, solveEcosystemNoiseExponent,
+	ecosystemHeightCellHash, solveEcosystemNoiseExponent, ecosystemRidgedNoise,
 	ECOSYSTEM_NOISE_EXPONENT_MIN, ECOSYSTEM_NOISE_EXPONENT_MAX }
 	= require("../map-features-ecosystem-height-field.js");
 
@@ -164,7 +164,7 @@ assert.ok(Math.abs(withDistantPair.at(200, 200) - 4000) < 1,
 // Warping verschiebt die Abfragestelle, Slope Weighting multipliziert mit e^(-α·|∇h|). Beide dürfen
 // weder den Gipfel von seiner Zahl holen noch den Rand von der Null -- sonst bricht die Verschmelzung
 // zweier überlappender Flächen, und zwar unsichtbar, weil sie nur an den Nahtstellen auffällt.
-for (const method of ["perlin", "warp", "slope"]) {
+for (const method of ["perlin", "warp", "slope", "ridged"]) {
 	const w = buildEcosystemPeakWindow(peak);
 	const built = buildEcosystemHeightField(area, peak, w, { method });
 	const at = (x, y) => sampleEcosystemHeightField(built, x, y, w.sample(x, y));
@@ -175,6 +175,79 @@ for (const method of ["perlin", "warp", "slope"]) {
 		assert.strictEqual(at(x, y), 0, `${method}: der Rand bleibt flach bei (${x},${y})`);
 	}
 	assert.ok(Number.isFinite(at(31, 67)), `${method}: keine NaN im Feld`);
+}
+
+// 12b. 🔴 DAS GRATVERFAHREN IM EINZELNEN. Die zwei Invarianten oben prüft die Schleife für alle vier
+// mit; hier steht, was NUR für „ridged" gilt und was beim Bauen leicht kaputtgeht.
+//
+// 💣 Das Gratmuster allein ist ein GLOBALES Feld -- `1 − |n|` wird gerade dort groß, wo das Rauschen
+// durch null geht, und das passiert auch am Flächenrand. Dass der Rand trotzdem exakt 0 bleibt, hängt
+// einzig daran, dass es das Buckelfeld MULTIPLIZIERT. Wer die Multiplikation je in eine Addition
+// umbaut („damit die Grate auch am Rand zu sehen sind"), bricht die Verschmelzung zweier Flächen.
+{
+	const w = buildEcosystemPeakWindow(peak);
+	const gratig = buildEcosystemHeightField(area, peak, w, { method: "ridged" });
+	const at = (x, y) => sampleEcosystemHeightField(gratig, x, y, w.sample(x, y));
+
+	// Das Muster selbst liegt in 0..1 -- sonst verschöbe das Verfahren die HÖHE, statt nur zu formen.
+	let kleinstes = Infinity;
+	let groesstes = -Infinity;
+	for (let y = 0; y < 200; y += 3.1) {
+		for (let x = 0; x < 200; x += 3.1) {
+			const wert = ecosystemRidgedNoise(12345, x, y, 20);
+			kleinstes = Math.min(kleinstes, wert);
+			groesstes = Math.max(groesstes, wert);
+		}
+	}
+	assert.ok(kleinstes >= 0 && groesstes <= 1,
+		`das Gratmuster bleibt in 0..1 (${kleinstes.toFixed(3)} .. ${groesstes.toFixed(3)})`);
+	assert.ok(groesstes > 0.6, `und es nutzt seinen Bereich wirklich aus (max ${groesstes.toFixed(3)})`);
+
+	// 🔴 Und es sind wirklich GRATE, keine Buckel: entlang einer Gratlinie ist das Feld hoch und bleibt
+	// hoch, während es quer dazu abfällt. Gemessen als Anisotropie -- die Buckelsumme hat keine.
+	// Ohne diese Prüfung wäre „ridged" grün, auch wenn es bloß anderes Gewölbe erzeugte.
+	const hochpunkte = [];
+	for (let y = 5; y < 195; y += 1) {
+		for (let x = 5; x < 195; x += 1) {
+			if (ecosystemRidgedNoise(999, x, y, 25) > 0.9) {
+				hochpunkte.push([x, y]);
+			}
+		}
+	}
+	assert.ok(hochpunkte.length > 50, `es gibt genug sehr hohe Stellen zum Messen (${hochpunkte.length})`);
+	// Ein Gratpunkt hat mindestens EINEN sehr hohen Nachbarn in 1 Einheit Abstand (die Linie läuft
+	// weiter). Ein isolierter Buckelgipfel hätte keinen.
+	const menge = new Set(hochpunkte.map(([x, y]) => `${x}|${y}`));
+	const mitNachbar = hochpunkte.filter(([x, y]) =>
+		menge.has(`${x + 1}|${y}`) || menge.has(`${x - 1}|${y}`)
+		|| menge.has(`${x}|${y + 1}`) || menge.has(`${x}|${y - 1}`)).length;
+	assert.ok(mitNachbar / hochpunkte.length > 0.8,
+		`Gratpunkte liegen auf LINIEN, nicht vereinzelt (${(100 * mitNachbar / hochpunkte.length).toFixed(0)} %)`);
+
+	// Und das fertige Feld ist trotzdem ein Gebirge: der Gipfel trägt seine Zahl, der Rand ist 0,
+	// dazwischen steht Gelände (nicht alles auf null gedrückt).
+	assert.ok(Math.abs(at(50, 50) - 3000) < 1, `Gratverfahren: der Gipfel bleibt 3000 (${at(50, 50)})`);
+	let hatGelaende = false;
+	for (let y = 10; y < 95 && !hatGelaende; y += 7) {
+		for (let x = 10; x < 95 && !hatGelaende; x += 7) {
+			if (Math.hypot(x - 50, y - 50) > 25 && at(x, y) > 1) {
+				hatGelaende = true;
+			}
+		}
+	}
+	assert.ok(hatGelaende, "das Gratverfahren drückt nicht die ganze Fläche auf null");
+
+	// 💣 Und es überlebt die Durchschnittshöhe aus Aufgabe A -- die Potenz liegt auf dem PRODUKT aus
+	// Buckelfeld und Grat, nicht auf einem der beiden. Beides zusammen ist der Fall, der live auftritt.
+	const w2 = buildEcosystemPeakWindow(peak);
+	const beides = buildEcosystemHeightField(area, peak, w2,
+		{ method: "ridged", avgHeight: 2000, meanHeight: 800 });
+	const at2 = (x, y) => sampleEcosystemHeightField(beides, x, y, w2.sample(x, y));
+	assert.ok(beides.noiseExponent !== 1, `Grat + Ø: die Potenz wurde gesucht (${beides.noiseExponent})`);
+	assert.ok(Math.abs(at2(50, 50) - 3000) < 1, `Grat + Ø: der Gipfel bleibt 3000 (${at2(50, 50)})`);
+	for (const [x, y] of [[0, 50], [100, 50], [50, 0], [50, 100]]) {
+		assert.strictEqual(at2(x, y), 0, `Grat + Ø: der Rand bleibt flach bei (${x},${y})`);
+	}
 }
 
 // Und ein unbekanntes Verfahren fällt auf das additive Rauschen zurück, statt die Fläche zu verlieren.
@@ -210,7 +283,7 @@ for (let y = 1; y < 100; y += 7.3) {
 //
 // 💣 Bräche eines von beiden, wäre es an einer EINZELNEN Fläche unsichtbar -- auffallen würde es erst
 // dort, wo zwei Flächen überlappen und ihre Felder addiert werden, als Stufe an der Naht.
-for (const method of ["perlin", "warp", "slope"]) {
+for (const method of ["perlin", "warp", "slope", "ridged"]) {
 	const w = buildEcosystemPeakWindow(peak);
 	const built = buildEcosystemHeightField(area, peak, w, { method, avgHeight: 2000, meanHeight: 800 });
 	const at = (x, y) => sampleEcosystemHeightField(built, x, y, w.sample(x, y));

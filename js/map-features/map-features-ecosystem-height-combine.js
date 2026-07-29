@@ -56,6 +56,21 @@ const ECOSYSTEM_TERRAIN_METHOD_BY_TYPE = {
 	gebirge: "perlin",
 	huegelland: "warp",
 };
+// 🔧 OFFEN, wartet auf eine Owner-Entscheidung: „ridged" (2026-07-29) ist gebaut, getestet und
+// liefert das Gratbild, auf das der Owner gezeigt hat -- aber es steht hier BEWUSST noch nicht drin.
+//
+// Der Grund ist derselbe, an dem „slope" gestorben ist, und die Zahlen sind unangenehm ähnlich.
+// Im Browser gemessen, 2560×1271, 4-px-Raster, 203.360 Abfragen über 3 Felder, Median aus 7 Läufen:
+//   perlin (heute)        ~50 ms
+//   ridged, 3 Oktaven    ~130 ms   (+60 ms)
+//   slope                ~135 ms   (+62 ms)   ← genau deshalb 2026-07-28 zurückgerollt
+//
+// 💣 UND DIE NODE-ZAHLEN LÜGEN HIER. Dieselbe Messung unter Node sagt ridged 52 ms gegen slope 90 ms,
+// also „ridged ist das billigere" -- im Browser ist es umgekehrt. Wer das Verfahren zuweist, misst
+// vorher IM BROWSER und am grössten Viewport, nicht unter Node und nicht im bequemen Fenster.
+// (`verify-ridged-kosten.html` im Worktree macht genau das.)
+//
+// Eine Zuweisung ist eine Zeile hier -- aber sie verdoppelt die Malzeit für jede Gebirgsfläche.
 
 function assignEcosystemPeaksToAreas(areas, peaks) {
 	const sizes = new Map();

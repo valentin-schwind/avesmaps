@@ -50,7 +50,21 @@ function isEcosystemPeakSubtype(subtype) {
 //
 // ⚠️ V11 soll das später gegen echte Reisezeiten beurteilen und Verbesserungen vorschlagen; bis dahin
 // sind die Parameter gewählt und nicht gemessen.
-const ECOSYSTEM_TERRAIN_METHODS = ["perlin", "warp", "slope"];
+//
+// 🔴 DAS VIERTE, „ridged" (2026-07-29): scharfe helle Grate, dunkle Täler -- das Bild, auf das der Owner
+// gezeigt hat. Die drei darüber kommen dort nicht hin, und zwar grundsätzlich nicht: Warping verzieht
+// Buckel zu welligen Buckeln, Slope Weighting flacht sie ab. **Grate entstehen in der BASIS, nicht in der
+// Nachbearbeitung.** Deshalb `1 − |n|` über mehrere Oktaven statt eines vierten Nachbearbeitungsschritts.
+const ECOSYSTEM_TERRAIN_METHODS = ["perlin", "warp", "slope", "ridged"];
+// Wie viele Oktaven der Grat hat, und wie schnell sie leiser werden. Vier reichen: die fünfte liegt bei
+// dieser Körnung unter einem Rasterpunkt der Malschleife (4 px) und wäre nur noch Rechenzeit.
+const ECOSYSTEM_RIDGED_OCTAVES = 3;
+const ECOSYSTEM_RIDGED_GAIN = 0.5;
+// Wie scharf der Grat wird. `1 − |n|` allein gibt einen KNICK; die Potenz zieht die Flanken herunter und
+// macht daraus einen schmalen hellen Kamm über breiten dunklen Tälern. 1 = weich, 3 = sehr schroff.
+const ECOSYSTEM_RIDGED_SHARPNESS = 2;
+// Die gröbste Gratweite, als Anteil der groben Buckelzelle. Kleiner = mehr Grate je Massiv.
+const ECOSYSTEM_RIDGED_CELL_SHARE = 0.55;
 // Wie stark „Exponential Slope Weighting" steile Flanken abflacht (α der Quelle). Klein = sanfte
 // Hügel, gross = zerklüftet. Die Neigung wird auf 0..1 normiert, damit α unabhängig von der Höhe wirkt.
 const ECOSYSTEM_TERRAIN_SLOPE_ALPHA = 0.35;
@@ -415,6 +429,13 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		// dann in die Buckelamplituden, wo sie seit V8 sitzt. Die Abfrage prüft nur `!== 1`.
 		noiseScale: 1,
 		noiseExponent: 1,
+		// Gröbste Gratweite in KARTENkoordinaten. Steht erst fest, wenn die bbox bekannt ist (unten);
+		// bis dahin ein Wert, mit dem eine Fläche ohne Geometrie nicht durch 0 teilt.
+		ridgedCell: 1,
+		// Ab welcher Buckelsumme die Hülle des Gratverfahrens auf 1 steht -- und zugleich die Einheit, in
+		// der das Gratfeld rechnet, damit Dämpfung und Potenz danach dasselbe Maß vorfinden wie vorher.
+		ridgedEnvelope: 0,
+		ridgedUnit: 0,
 		// Welches Darstellungsverfahren diese Fläche benutzt (siehe oben). Unbekannt -> additiv.
 		method: ECOSYSTEM_TERRAIN_METHODS.includes(String(options.method || "")) ? String(options.method) : "perlin",
 	};
@@ -505,6 +526,9 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 	const spanX = bounds.max_x - bounds.min_x;
 	const spanY = bounds.max_y - bounds.min_y;
 	const coarseCell = Math.max(spanX, spanY) / grain;
+	// Die Gratweite folgt der Körnung der Fläche, nicht einer festen Zahl: sonst hätte ein 40 Einheiten
+	// breites Gebirge dieselbe Gratdichte wie ein 400 Einheiten breites und sähe daneben glatt aus.
+	field.ridgedCell = coarseCell * ECOSYSTEM_RIDGED_CELL_SHARE;
 
 	const noiseBumps = [];
 	ecosystemHeightLevel(field, 0, coarseCell, 0.85, noiseBumps);
@@ -523,6 +547,19 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		ecosystemHeightLevel(field, k, cell, 0.85 * Math.pow(0.35, k), noiseBumps);
 	}
 	noiseBumps.forEach((bump) => { bump.i = 1 / (bump.r * bump.r); });
+	// Bezugswert der GratHülle, NOCH IN RELATIVEN EINHEITEN -- die Messschleife unten läuft ebenfalls
+	// undedämpft, beide passen also zusammen. Die Hälfte des stärksten Buckels: darüber liegt praktisch
+	// das ganze Innere (die groben Buckel überlappen), sodass die Hülle nur am Rand wirklich abfällt.
+	// Höhe, in der das Gratfeld rechnet (eine AMPLITUDE -- skaliert mit der Dämpfung mit).
+	field.ridgedUnit = noiseBumps.length ? Math.max(...noiseBumps.map((bump) => bump.a)) : 0;
+	// Breite des Randauslaufs (eine LÄNGE in Kartenkoordinaten -- skaliert NICHT mit der Dämpfung).
+	// Eine halbe grobe Buckelzelle: schmal genug, dass die Grate das Innere tragen, breit genug, dass
+	// der Übergang zur Nachbarfläche nicht als Kante steht.
+	field.ridgedEnvelope = coarseCell * 0.5;
+	if (field.method === "ridged") {
+		// Nur für dieses Verfahren -- 2.304 Randabstände kosten Zeit, die die anderen drei nicht brauchen.
+		buildEcosystemEdgeDistanceGrid(field);
+	}
 
 	// Rauschmaximum über ALLE Stufen messen (ohne Gipfel, noch relativ), dann auf den Zielpegel ziehen.
 	// Abgetastet wird über die bbox der FLÄCHE, nicht über eine Leinwand fester Größe.
@@ -582,6 +619,12 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		// kostet sie in der Malschleife gar nichts. Radien und damit der Index bleiben gültig.
 		const damping = loudest > 0 ? target / loudest : 0;
 		noiseBumps.forEach((bump) => { bump.a *= damping; });
+		// 💣 Der Hüllenbezug MUSS mitskalieren. Er wird in sampleEcosystemHeightFieldRaw gegen die
+		// Buckelsumme verglichen; bliebe er ungedämpft, stünde die Hülle nach dem Dämpfen überall unter 1
+		// und das Gratfeld liefe auf einen Bruchteil seiner Höhe -- ein Gebirge, das leise verschwindet.
+		// 💣 NUR die Amplitude. `ridgedEnvelope` ist eine Länge -- sie mitzudämpfen zöge den Randauslauf
+		// auf einen Bruchteil zusammen und machte aus ihm die Kante, die er verhindern soll.
+		field.ridgedUnit *= damping;
 	} else {
 		// Mit Potenz geht das nicht: `(s·Σ)^p ≠ s·Σ^p`. Die Amplituden bleiben roh, und Faktor wie Potenz
 		// wandern ans Feld -- angewandt wird beides in sampleEcosystemHeightFieldRaw, auf die SUMME.
@@ -646,6 +689,42 @@ function sampleEcosystemHeightFieldRaw(field, x, y, noiseWindow = 1) {
 		return peaksHeight;
 	}
 
+	// 🔴 GRATE: das Gratmuster ERSETZT die Buckelsumme, es überlagert sie nicht.
+	//
+	// 💣 DAS IST DER GANZE UNTERSCHIED, und ich bin erst in die falsche Hälfte gelaufen: die Buckelsumme
+	// bloss mit dem Gratmuster zu MULTIPLIZIEREN gibt Buckel mit feiner Maserung, keine Grate. Sichtbar
+	// wird ein Grat erst, wenn er die tragende Struktur IST -- die Buckel bleiben rund, egal wie fein man
+	// sie schraffiert. Die Instruction sagt genau das („`1 − |n|` STATT der Buckelsumme"); gerendert sieht
+	// man den Unterschied sofort, im Zahlenbild überhaupt nicht.
+	//
+	// Die Buckelsumme bleibt trotzdem gebraucht -- als HÜLLE. Sie hat kompakten Träger (jeder Radius ≤ dem
+	// Randabstand seines Mittelpunkts), ist also am Rand exakt 0 und liegt schon indiziert vor. Auf 0..1
+	// normiert wird sie damit genau die Randabsenkung, die das globale Gratmuster NICHT von selbst hat:
+	//   Höhe = Hülle(Buckelsumme) · Grat
+	// Am Rand ist die Hülle 0 ⇒ das Produkt ist 0. Die Fusshöhe-0-Invariante gilt WÖRTLICH.
+	//
+	// 💣 Der naheliegende Weg wäre, stattdessen mit dem RANDABSTAND einzuhüllen -- und genau so habe ich
+	// es beim Ausprobieren gerechnet. In der Malschleife liefe das je Abfragepunkt über jede Polygonkante,
+	// 203.000-mal je Bild; dieselbe Rechnung, die sich das Warp-Verfahren aus genau diesem Grund schon
+	// verkneift (siehe dort). Das Buckelfeld ist die bereits bezahlte Hülle.
+	//
+	// 💣 VOR der Potenz. Die Messschleife misst mit Potenz 1, misst also das fertige Gratfeld; wird die
+	// Potenz danach auf dasselbe Feld gelegt, treffen Maximal- und Durchschnittshöhe genau das, was
+	// gemessen wurde. Andersherum wäre die Messung eine andere Größe als die Anwendung.
+	if (field.method === "ridged") {
+		const threshold = field.ridgedEnvelope;
+		if (!(threshold > 0)) {
+			return peaksHeight;
+		}
+		// `ridgedUnit` ist die Höhe, in der das Gratfeld rechnet -- damit Dämpfung und Potenz danach
+		// dasselbe Maß vorfinden wie bei den anderen drei Verfahren.
+		const envelope = ecosystemEdgeEnvelope(field, x, y, threshold);
+		noise = field.ridgedUnit * envelope * ecosystemRidgedNoise(field.seed, x, y, field.ridgedCell);
+		if (noise === 0) {
+			return peaksHeight;
+		}
+	}
+
 	// Die Umformung, mit der Ø und Maximum getrennt getroffen werden (siehe Kopf). Ohne eingestellte
 	// Durchschnittshöhe ist die Potenz exakt 1 und hier passiert nichts als dieser Vergleich.
 	//
@@ -661,22 +740,135 @@ function sampleEcosystemHeightFieldRaw(field, x, y, noiseWindow = 1) {
 	return peaksHeight + noiseWindow * noise;
 }
 
-// Ein glatter, seedfester Versatz für Domain Warping. Bilinear zwischen vier Zellhashes -- billig und
-// stetig; ein roher Hash je Punkt ergäbe Rauschen statt einer Verzerrung.
-function ecosystemWarpOffset(seed, x, y, salt) {
-	const cell = 40;
+// Glattes, seedfestes Wertrauschen in [-1, 1]. Bilinear zwischen vier Zellhashes, mit der üblichen
+// Glättung 3t²−2t³ -- billig und stetig; ein roher Hash je Punkt ergäbe Rauschen statt einer Struktur.
+//
+// 🪤 `level` gehört zum Hash, nicht zur Zellgröße: zwei Oktaven mit VERSCHIEDENER Zellgröße, aber
+// gleichem `level` lägen an denselben Gitterpunkten aufeinander und ergäben sichtbare Kreuze.
+function ecosystemValueNoise(seed, x, y, cell, level, salt) {
 	const gx = Math.floor(x / cell);
 	const gy = Math.floor(y / cell);
 	const fx = x / cell - gx;
 	const fy = y / cell - gy;
 	const sx = fx * fx * (3 - 2 * fx);
 	const sy = fy * fy * (3 - 2 * fy);
-	const a = ecosystemHeightCellHash(seed, 90, gx, gy, salt);
-	const b = ecosystemHeightCellHash(seed, 90, gx + 1, gy, salt);
-	const c = ecosystemHeightCellHash(seed, 90, gx, gy + 1, salt);
-	const d = ecosystemHeightCellHash(seed, 90, gx + 1, gy + 1, salt);
+	const a = ecosystemHeightCellHash(seed, level, gx, gy, salt);
+	const b = ecosystemHeightCellHash(seed, level, gx + 1, gy, salt);
+	const c = ecosystemHeightCellHash(seed, level, gx, gy + 1, salt);
+	const d = ecosystemHeightCellHash(seed, level, gx + 1, gy + 1, salt);
+	const top = a + (b - a) * sx;
+	const bottom = c + (d - c) * sx;
 
-	return ((a + (b - a) * sx) + ((c + (d - c) * sx) - (a + (b - a) * sx)) * sy) * 2 - 1;
+	return (top + (bottom - top) * sy) * 2 - 1;
+}
+
+// Ein glatter, seedfester Versatz für Domain Warping. Unverändert in der Wirkung -- die Rechnung wohnt
+// jetzt in ecosystemValueNoise, damit Warping und Grate DIESELBE Primitive benutzen statt zweier Kopien.
+function ecosystemWarpOffset(seed, x, y, salt) {
+	return ecosystemValueNoise(seed, x, y, 40, 90, salt);
+}
+
+// Randabstandskarte auf einem groben Raster, EINMAL je Feldbau.
+//
+// 🔴 WARUM VORBERECHNET. Das Gratmuster braucht eine Hülle, die zum Rand hin abfällt -- die richtige
+// Größe dafür ist der Randabstand. Je Abfragepunkt gerechnet liefe er über jede Polygonkante, in der
+// Malschleife 203.000-mal; das ist die Rechnung, die sich das Warp-Verfahren aus genau diesem Grund
+// verkneift. Auf 48×48 vorberechnet sind es 2.304 Aufrufe beim Bauen und danach vier Lesezugriffe je
+// Abfrage.
+//
+// 💣 ZWEI HÜLLEN, DIE ICH VORHER PROBIERT HABE, UND WARUM SIE NICHT GEHEN -- beide sahen in den Zahlen
+// gut aus und erst im gerenderten Bild falsch:
+//   - Buckelsumme mit hoher Schwelle: sättigt im Inneren nicht, also trägt die runde Buckelhandschrift
+//     sich ins Gratbild durch. Ergebnis waren Buckel mit Maserung statt Grate.
+//   - Buckelsumme mit niedriger Schwelle: sättigt zwar, aber dann steht die Hülle auf JEDER einzelnen
+//     Buckelscheibe sofort auf 1 -- und deren kompakter Trägerrand wird als KREIS sichtbar. Am Rand der
+//     Fläche stand eine Perlenkette aus Kreisen.
+// Der Randabstand hat beide Probleme nicht: er ist glatt und kennt nur die Fläche, nicht die Buckel.
+const ECOSYSTEM_RIDGED_EDGE_GRID = 48;
+
+function buildEcosystemEdgeDistanceGrid(field) {
+	const bounds = field.bounds;
+	const size = ECOSYSTEM_RIDGED_EDGE_GRID;
+	const stepX = (bounds.max_x - bounds.min_x) / (size - 1);
+	const stepY = (bounds.max_y - bounds.min_y) / (size - 1);
+	const grid = new Float64Array(size * size);
+	for (let j = 0; j < size; j++) {
+		const y = bounds.min_y + j * stepY;
+		for (let i = 0; i < size; i++) {
+			const x = bounds.min_x + i * stepX;
+			grid[j * size + i] = pointInGeometry([x, y], field.geometry)
+				? distanceToEcosystemEdge([x, y], field.geometry)
+				: 0;
+		}
+	}
+	field.edgeGrid = grid;
+	field.edgeGridStepX = stepX > 0 ? stepX : 1;
+	field.edgeGridStepY = stepY > 0 ? stepY : 1;
+}
+
+// Hülle 0..1 aus der vorberechneten Karte, bilinear.
+//
+// ⚠️ Sie ist NICHT die Zusicherung „am Rand exakt 0" -- ein interpoliertes Raster trifft die Kante nur
+// näherungsweise. Die Zusicherung kommt weiterhin vom kompakten Träger der Buckel: wo die Buckelsumme
+// 0 ist, kehrt sampleEcosystemHeightFieldRaw schon vorher zurück. Diese Hülle FORMT nur den Auslauf.
+function ecosystemEdgeEnvelope(field, x, y, falloff) {
+	const grid = field.edgeGrid;
+	if (!grid || !(falloff > 0)) {
+		return 1;
+	}
+	const size = ECOSYSTEM_RIDGED_EDGE_GRID;
+	const fx = (x - field.bounds.min_x) / field.edgeGridStepX;
+	const fy = (y - field.bounds.min_y) / field.edgeGridStepY;
+	let i = Math.floor(fx);
+	let j = Math.floor(fy);
+	if (i < 0) { i = 0; } else if (i > size - 2) { i = size - 2; }
+	if (j < 0) { j = 0; } else if (j > size - 2) { j = size - 2; }
+	const tx = Math.min(1, Math.max(0, fx - i));
+	const ty = Math.min(1, Math.max(0, fy - j));
+	const a = grid[j * size + i];
+	const b = grid[j * size + i + 1];
+	const c = grid[(j + 1) * size + i];
+	const d = grid[(j + 1) * size + i + 1];
+	const top = a + (b - a) * tx;
+	const bottom = c + (d - c) * tx;
+	const distance = top + (bottom - top) * ty;
+
+	return distance >= falloff ? 1 : distance / falloff;
+}
+
+// Ridged Noise: `1 − |n|` über mehrere Oktaven, Ergebnis 0..1.
+//
+// 🔴 WARUM DAS GRATE GIBT. `|n|` hat dort einen Knick, wo das Rauschen durch NULL geht -- also entlang
+// einer Linie, nicht an einem Punkt. `1 − |n|` macht daraus einen Kamm, und weil das über alle Oktaven
+// zugleich passiert, verzweigen sich die Kämme wie ein Gebirgszug. Das ist der ganze Unterschied zur
+// Buckelsumme: dort ist das Maximum ein PUNKT je Zelle, hier eine LINIE.
+//
+// ⚠️ Für sich genommen ist das ein GLOBALES Feld -- es wird gerade dort groß, wo das Rauschen durch null
+// geht, und das passiert auch am Flächenrand. Die Fusshöhe-0-Invariante kommt deshalb NICHT von hier,
+// sondern davon, dass der Aufrufer damit nur das Buckelfeld MULTIPLIZIERT (siehe
+// sampleEcosystemHeightFieldRaw). Wer diese Funktion je woanders einsetzt, muss sich die Hülle wieder
+// eigens besorgen.
+function ecosystemRidgedNoise(seed, x, y, baseCell) {
+	let sum = 0;
+	let total = 0;
+	let amplitude = 1;
+	let cell = baseCell > 0 ? baseCell : 1;
+	for (let k = 0; k < ECOSYSTEM_RIDGED_OCTAVES; k++) {
+		// 💣 Eigenes `level` JE OKTAVE (100+k), sonst fallen die Gitter aufeinander -- siehe oben.
+		const ridge = 1 - Math.abs(ecosystemValueNoise(seed, x, y, cell, 100 + k, 7));
+		let sharp = ridge;
+		for (let s = 1; s < ECOSYSTEM_RIDGED_SHARPNESS; s++) {
+			sharp *= ridge;                    // ganzzahlige Potenz ohne Math.pow -- das läuft je Pixel
+		}
+		sum += amplitude * sharp;
+		total += amplitude;
+		amplitude *= ECOSYSTEM_RIDGED_GAIN;
+		cell /= 2;
+	}
+
+	// Auf 0..1 normiert, damit das Verfahren die HÖHE nicht mitverschiebt: es formt nur, skaliert wird
+	// weiterhin allein über Maximal- und Durchschnittshöhe.
+	return total > 0 ? sum / total : 0;
 }
 
 // Die öffentliche Abfrage: rohes Feld plus das Darstellungsverfahren der Fläche.
@@ -758,6 +950,8 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_NOISE_EXPONENT_MIN,
 		ECOSYSTEM_NOISE_EXPONENT_MAX,
 		solveEcosystemNoiseExponent,
+		ecosystemValueNoise,
+		ecosystemRidgedNoise,
 		ECOSYSTEM_PEAK_SUBTYPES,
 		isEcosystemPeakSubtype,
 		ecosystemHeightSeed,
