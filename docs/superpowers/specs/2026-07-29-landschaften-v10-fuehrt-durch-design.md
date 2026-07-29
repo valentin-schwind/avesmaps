@@ -41,6 +41,8 @@ Ein-/Austrittsmarker und der Routensimulator brauchen `basis=1` und sind eine ei
 | **2c** | In der Etappen**liste** **nur nennen, was neu ist** („schön!!!"). Aus 31 gleichförmigen Zeilen werden 9 (§3.1c). |
 | **3** | 🔴 **„Wald is Wald, egal ob der 'n Namen hat."** Eine namenlose Fläche wird **nicht weggelassen**, sie zeigt ihre **Art**. Siehe §3.2 — dieser Entscheid hat einen früheren Entwurf dieser Spec korrigiert. |
 | **4** | Meer/Kontinent/Küste bleiben unsichtbar (`affects_paths = 0`, V9 §4.5). Umkehrbar per Datenzeile plus einem Druck auf „Zugehörigkeit rechnen". |
+| **5** | Von den vier Arten von Vorkommen erscheinen **Flora und Fauna** („‚Flora und Fauna‘ is richtig"). Waren wären von allein mitgekommen und werden ausgeschaltet (§6.1). |
+| **6** | Die Anteile der Routen-Zeile werden **nicht auf 100 % normiert** („4.3: alles gut") — zwei Drittel der Karte tragen noch keine Flächen, und das soll man sehen dürfen. |
 
 ---
 
@@ -414,22 +416,50 @@ beides heißt: *wir haben nichts zu sagen.*
 
 ---
 
-## 6. Flora und Fauna
+## 6. Flora und Fauna — die Vorkommen der genannten Landschaften
 
 Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht an der Route.
 
-- **Ein Abruf für alle Landschaften der Etappe zusammen.** `api/app/lore.php` nimmt
-  Kommalisten bereits entgegen (`?place=darpatien,reichsforst`, Zeile 170), und
-  `avesmapsLoreFetch` reicht sie schon durch („Mehrere Schlüssel werden kommagetrennt
-  übergeben"). **Nur `avesmapsLoreNormalizeKey` wirft sie heute weg** — die Zeichenklasse
-  `^[a-z0-9_-]{1,190}$` kennt kein Komma. Das ist die ganze Änderung: Kommas zulassen,
-  Teilschlüssel einzeln prüfen, leere verwerfen.
-- **Bestätigt gemessen:** `GET /api/app/lore.php?place=reichsforst` liefert Blautanne,
-  Blutulme, Elbenkastanie, Geronsblut … — die Landschaftsregionen tragen echte Lore.
-  **116 der 177 vom Wegenetz erreichbaren Regionen** haben einen `wiki_region_key`; die
+### 6.1 🔴 Genau zwei Zeilen: Flora und Fauna
+
+Das Lore-System führt vier Arten von Vorkommen. Was davon hier erscheint, ist ein
+Owner-Entscheid, kein Vorgabewert:
+
+| Art | an der Etappe | warum |
+|---|---|---|
+| **Flora** | ✅ | Owner 2026-07-29: „Flora und Fauna ist richtig" |
+| **Fauna** | ✅ | dieselbe Antwort |
+| **Waren** | ❌ | käme sonst **von allein mit** — `AVESMAPS_LORE_ROWS` führt sie an erster Stelle |
+| **Spezies** | ❌ | öffentlich ohnehin abgeschaltet (2026-07-21): das Feld „Regionen" der `{{Infobox Spezies}}` ist im Wiki zu schlecht gepflegt |
+
+**Gemessen** an `GET /api/app/lore.php?place=herz-des-kontinents,reichsforst` (eine
+Anfrage, beide Landschaften einer echten Etappe): 11 Flora, 6 Fauna, **12 Waren**,
+0 Spezies — Blautanne, Blutulme, Elbenkastanie, Waldwolf, Griswolf,
+Ikanariaschmetterling … und eben auch Garether Bier und Eichstätter Weizen. Alle mit
+`rank 0`, also direkt an der Landschaft hängend, nicht aus einem Obergebiet geerbt.
+
+> 💣 **`AVESMAPS_LORE_ROWS` wird NICHT angefasst.** Die Liste steht auf Modulebene
+> (`map-features-lore.js:213`) und speist **auch die Siedlungs-Infobox** — wer die Waren
+> dort herausnimmt, nimmt sie überall heraus, und niemand sieht den Zusammenhang. Die
+> Auswahl gehört an den **Container**: ein `data-lore-kinds="flora|fauna"`, das
+> `avesmapsLoreFillContainers` liest und das ohne Angabe alle Zeilen bedeutet. Vier Zeilen
+> Änderung, kein zweiter Renderer, und die Siedlung bleibt unberührt.
+
+### 6.2 Ein Abruf für alle Landschaften der Etappe
+
+`api/app/lore.php` nimmt Kommalisten bereits entgegen (`?place=darpatien,reichsforst`,
+Zeile 170), und `avesmapsLoreFetch` reicht sie schon durch („Mehrere Schlüssel werden
+kommagetrennt übergeben"). **Nur `avesmapsLoreNormalizeKey` wirft sie heute weg** — die
+Zeichenklasse `^[a-z0-9_-]{1,190}$` kennt kein Komma. Das ist die ganze Änderung: an Kommas
+teilen, jeden Teilschlüssel einzeln prüfen, leere verwerfen, wieder zusammensetzen.
+
+- **116 der 177** vom Wegenetz erreichbaren Regionen haben einen `wiki_region_key`; die
   übrigen liefern nichts, und der Abschnitt entfällt dann still (heutiges Verhalten).
 - **Über den DOM-Beobachter**, unverändert. `buildLoreMarkup` liefert sofort den leeren
-  Container; V10 füllt nur dessen `data-lore-fetch` mit der Kommaliste.
+  Container; V10 füllt nur dessen `data-lore-fetch` mit der Kommaliste und setzt
+  `data-lore-kinds`.
+- **Keine Handelswaren-Freitextliste** (`data-lore-goods`): die kommt aus dem Infobox-Feld
+  einer Siedlung, und eine Etappe hat keines. Leer lassen, nicht erfinden.
 
 ---
 
@@ -442,7 +472,7 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
 | **neu** `api/_internal/app/path-landscapes.php` | die Abfrage, offline entscheidbar getrennt |
 | `js/routing/route-plan.js` | Zeile in `buildRouteLegPopupHtml`, `durch:`-Anhang an der Etappenzeile (560), Zeile im Zusammenfassungskasten (597), Abruf beim Zeichnen |
 | `js/map-features/map-features-path-rendering.js` | Zeile in `createPathPopupMarkup` (Container + Beobachter) |
-| `js/map-features/map-features-lore.js` | `avesmapsLoreNormalizeKey` lässt Kommalisten durch |
+| `js/map-features/map-features-lore.js` | `avesmapsLoreNormalizeKey` lässt Kommalisten durch; `avesmapsLoreFillContainers` liest `data-lore-kinds` (§6.1) |
 | `index.html` | ein `<script>`, **nach** `map-features-ecosystem-naming.js` (2168) und **vor** `path-rendering` (2226) |
 
 > 🔴 **Der Zeilenbauer ist rein und kennt keine Route.** Signatur:
@@ -507,6 +537,19 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
 | Etappenliste, erste Zeile | alle Namen |
 | Etappenliste, Name kehrt nach einer Unterbrechung zurück | **wieder genannt** (Wiedereintritt) |
 
+**Der Lore-Schlüssel** (`js/map-features/__tests__/lore-key.test.js`, §6):
+
+| Fall | Erwartung |
+|---|---|
+| `"darpatien,reichsforst"` | bleibt erhalten |
+| `"darpatien, reichsforst"` (mit Leerzeichen) | getrimmt, bleibt erhalten |
+| `"darpatien,,"` | `"darpatien"` |
+| `"darpatien,<script>"` | `"darpatien"` — der schlechte Teil fällt, der gute bleibt |
+| `"<script>"` | `""` |
+| `"wiki:darpatien"` | Präfix weiter abgeschnitten (heutiges Verhalten) |
+| Container **ohne** `data-lore-kinds` | alle Zeilen — die Siedlungs-Infobox ändert sich nicht |
+| Container mit `data-lore-kinds="flora\|fauna"` | genau zwei Zeilen, **keine** Waren |
+
 ### 8.2 PHP-Tests — `api/_internal/app/__tests__/path-landscapes-test.php`
 
 (`php -d extension=mbstring -d zend.assertions=1` — **ohne `zend.assertions=1` prüft
@@ -531,11 +574,15 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
    **12** Nennungen — und keine zwei aufeinanderfolgenden Zeilen sind wortgleich (§3.1c).
    „Tommellande" steht zweimal, weil die Route sie zwischendurch verlässt.
 3. **Eine Etappe anklicken**: „Führt durch" steht als fünfte Zeile der Infobox — dort
-   **mit** Prozenten und **vollständig**, auch wenn die Listenzeile schwieg. Darunter Flora.
-4. **Netzwerk-Register**: für die ganze Route **genau eine** Anfrage an
+   **mit** Prozenten und **vollständig**, auch wenn die Listenzeile schwieg. Darunter
+   **Flora und Fauna, keine Waren** — und **eine** Anfrage an `lore.php` für beide
+   Landschaften zusammen, nicht zwei.
+4. **Eine Siedlung anklicken** (Gegenprobe): ihre Infobox zeigt weiterhin **Waren, Fauna,
+   Flora** wie bisher. Die Auswahl an der Etappe darf sie nicht mitgenommen haben (§6.1).
+5. **Netzwerk-Register**: für die ganze Route **genau eine** Anfrage an
    `path-landscapes.php`. Ein zweites geöffnetes Etappen-Popup erzeugt **keine**.
-5. **Kartenaufbau ohne Route**: **null** Anfragen an `path-landscapes.php`.
-6. **Einen Weg auf der Karte anklicken**: eine Anfrage, danach keine mehr für denselben Weg.
+6. **Kartenaufbau ohne Route**: **null** Anfragen an `path-landscapes.php`.
+7. **Einen Weg auf der Karte anklicken**: eine Anfrage, danach keine mehr für denselben Weg.
 
 > ⚠️ **Vor der Abnahme neu zählen.** Die Zahlen in §4 stehen gegen
 > `ecosystem_revision` 3890 / `map_revision` 46238. Der Bestand wächst täglich; das ist ein
