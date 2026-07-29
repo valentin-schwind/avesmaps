@@ -535,17 +535,21 @@
 		box.title = entry ? "" : `Erst „Regionname anzeigen" — ein Nodix braucht das Label als Punkt.`;
 	}
 
-	// ---- Gelände: die drei Regler DIESER Fläche (V8) --------------------------------------------------
+	// ---- Gelände: die vier Regler DIESER Fläche (V8) --------------------------------------------------
 	//
 	// 🔴 JE FLÄCHE, nicht je Region (Owner-Entscheid 2026-07-28). Eine Region kann mehrere Flächen
 	// tragen, und zwei Gebirgsstücke derselben Region dürfen verschieden fein sein.
 	//
 	// 🔴 „Auto" ist kein Zierrat, sondern die Rücknahme. Ein Regler kann nicht leer sein -- ohne einen
 	// ausdrücklichen Weg zurück wäre die abgeleitete Vorgabe nach dem ersten Anfassen für immer weg.
+	//
+	// 🔴 MAXIMUM UND DURCHSCHNITT SIND ZWEI ZAHLEN (Owner 2026-07-29). Erst beide beschreiben die FORM:
+	// ein Hochplateau (Ø 3.000 / max 3.500) ist etwas anderes als zerklüftetes Vorland (Ø 800 / max 4.000).
 	const TERRAIN_FIELDS = [
 		{ key: "terrain_grain", element: "grain", decimals: 1 },
 		{ key: "terrain_levels", element: "levels", decimals: 0 },
 		{ key: "terrain_avg_height", element: "avgheight", decimals: 0 },
+		{ key: "terrain_mean_height", element: "meanheight", decimals: 0 },
 	];
 	// Wird gesetzt, sobald der Editor einen Regler anfasst: ab dann gilt der Regler, nicht die Ableitung.
 	let terrainTouched = {};
@@ -559,11 +563,70 @@
 				: Number(label.heightSchritt)))
 			.filter((value) => Number.isFinite(value) && value > 0);
 
+		const maximum = heights.length ? Math.round(0.4 * Math.min(...heights)) : 0;
+
 		return {
 			terrain_grain: typeof ECOSYSTEM_HEIGHT_GRAIN === "number" ? ECOSYSTEM_HEIGHT_GRAIN : 3.2,
 			terrain_levels: typeof ECOSYSTEM_HEIGHT_LEVELS === "number" ? ECOSYSTEM_HEIGHT_LEVELS : 3,
-			terrain_avg_height: heights.length ? Math.round(0.4 * Math.min(...heights)) : 0,
+			terrain_avg_height: maximum,
+			// 🪤 Das ist eine ANZEIGE, keine Rechnung. Ohne eingestellten Durchschnitt sucht das Feld gar
+			// keine Potenz -- der Mittelwert fällt dort hin, wo er hinfällt. Wohin das ist, wurde einmal
+			// gemessen (ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO); der Regler zeigt es, damit „(auto)" eine Zahl
+			// hat, an der man ablesen kann, wovon man sich beim Anfassen entfernt.
+			terrain_mean_height: Math.round(
+				(typeof ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO === "number" ? ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO : 0.23)
+				* maximum),
 		};
+	}
+
+	// Der Durchschnitt kann das Maximum nicht überholen -- eine Fläche, die zum Rand hin auf null ausläuft,
+	// hat im Mittel weniger als an ihrer höchsten Stelle. Der Regler bekommt seine Obergrenze deshalb vom
+	// Regler darüber, statt sie fest im Markup zu tragen.
+	//
+	// 🪤 Es genügt NICHT, den Wert zu klemmen: `max` muss mitwandern, weil das Zahlenfeld daneben genau
+	// gegen `regler.max` klemmt (siehe die Verdrahtung unten). Ohne das liesse sich dort eine 9.000
+	// eintippen, während der Regler bei 3.000 steht -- zwei sichtbare Wahrheiten.
+	//
+	// 🔴 UND „AUTO" BLEIBT AUTO. Ein unberührter Durchschnitt FOLGT dem Maximum, statt geklemmt zu werden:
+	// er ist ja gar kein eingestellter Wert, sondern die Anzeige dessen, wo der Mittelwert von selbst
+	// landet. Bliebe er beim Ziehen am Maximum stehen, sähe „(auto)" nach einer Entscheidung aus, und wer
+	// das Maximum halbiert, bekäme eine Auto-Anzeige, die zu nichts mehr passt.
+	function syncTerrainMeanBounds() {
+		const maximum = propertiesElement("avgheight");
+		const mittel = propertiesElement("meanheight");
+		const mittelZahl = propertiesElement("meanheight-num");
+		const feld = TERRAIN_FIELDS.find((eintrag) => eintrag.key === "terrain_mean_height");
+		if (!maximum || !mittel || !feld) {
+			return;
+		}
+		const grenze = Number(maximum.value);
+		if (!Number.isFinite(grenze)) {
+			return;
+		}
+		// 💣 DEN WERT VOR DEM `max` LESEN. Ein `input[type=range]` klemmt seinen `value` SOFORT, sobald man
+		// sein `max` senkt -- die Prüfung „steht der Durchschnitt über der neuen Grenze?" wäre danach immer
+		// falsch, weil der Browser ihn längst heruntergezogen hat. Genau so ging es schief: der Regler
+		// zeigte die geklemmte Zahl, die Vorschau rechnete weiter mit der alten, und zu sehen war das
+		// nirgends -- die Oberfläche sah in jedem Zwischenschritt richtig aus. Vom Prüfaufbau gefangen.
+		const vorher = Number(mittel.value);
+		mittel.max = String(grenze);
+		if (mittelZahl) {
+			mittelZahl.max = String(grenze);
+		}
+
+		const anteil = typeof ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO === "number" ? ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO : 0.23;
+		if (!terrainTouched.terrain_mean_height) {
+			mittel.value = String(Math.round(anteil * grenze));
+		} else if (vorher > grenze) {
+			mittel.value = String(grenze);
+			// Ein Klemmen ist eine Wertänderung wie jede andere -- die Vorschau muss davon wissen, sonst
+			// zeigt sie ein Gelände, dessen Ø über seinem eigenen Maximum liegt.
+			const area = currentPropertiesArea();
+			if (area) {
+				area.terrain_mean_height = Number(mittel.value);
+			}
+		}
+		syncTerrainOutput(feld, currentPropertiesArea());
 	}
 
 	function renderTerrainControls(area) {
@@ -591,6 +654,8 @@
 			regler.value = String(terrainTouched[feld.key] ? gesetzt : vorgabe[feld.key]);
 			syncTerrainOutput(feld, area);
 		});
+		// Zum Schluss, wenn beide Höhenregler stehen: die Obergrenze des Durchschnitts hängt am Maximum.
+		syncTerrainMeanBounds();
 		setTerrainStatus("");
 	}
 
@@ -673,6 +738,9 @@
 			angewandt = true;
 		});
 		if (angewandt) {
+			// Eine Art kann eine Maximalhöhe vorgeben, ohne einen Durchschnitt zu nennen -- dann muss der
+			// Durchschnitt der neuen Obergrenze folgen, statt auf der Zahl der vorigen Art stehenzubleiben.
+			syncTerrainMeanBounds();
 			schedulePreviewRedraw();
 			setTerrainStatus("Vorgabe der Art übernommen — noch nicht gespeichert.", false);
 		}
@@ -1263,6 +1331,10 @@
 				terrainTouched[feld.key] = true;
 				const area = currentPropertiesArea();
 				syncTerrainOutput(feld, area);
+				// Danach, nicht davor: erst steht der neue Wert, dann folgt der Durchschnitt seiner
+				// Obergrenze. Am Durchschnittsregler selbst ist es ein Nullgriff, am Maximum zieht es ihn
+				// mit -- und bei „auto" führt es die angezeigte Zahl nach.
+				syncTerrainMeanBounds();
 				// 🔴 LIVE, nicht erst beim Speichern (Owner 2026-07-28). Ein Geländeregler ohne sofortiges
 				// Bild ist ein Ratespiel: man stellt eine Zahl ein, speichert, schaut, korrigiert. Der Wert
 				// wandert deshalb sofort in die Fläche IM SPEICHER und das Feld wird neu gebaut.

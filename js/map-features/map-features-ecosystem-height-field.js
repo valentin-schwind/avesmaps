@@ -82,18 +82,53 @@ const ECOSYSTEM_HEIGHT_PLACEHOLDER = ECOSYSTEM_HEIGHT_DEFAULT;
 // `avgMax = minG` im Prototyp, nur ohne Regler.
 // ⚠️ Startwert, nach Augenmaß zu prüfen, keine gemessene Größe.
 // ⚠️ ES IST DAS MAXIMUM DES RAUSCHENS, NICHT SEIN DURCHSCHNITT. Die Dämpfung unten rechnet
-// `Ziel / lautester Punkt` -- getroffen wird also die HÖCHSTE erfundene Stelle, der Mittelwert liegt
-// bei grob einem Drittel davon. Der Regler hiess bis 2026-07-29 „Durchschnittshöhe" und log damit:
-// wer 9.850 einstellte, bekam eine einzelne 9.850er Kuppe und viel niedrigeres Gelände darunter.
-//
-// 🔴 OFFEN, vom Owner beauftragt: Durchschnitt UND Maximum trennen. Zwei Zahlen beschreiben die FORM
-// des Geländes, nicht nur seine Spitze -- ein Hochplateau (Ø 3.000 / max 3.500) ist etwas anderes als
-// zerklüftetes Vorland (Ø 800 / max 4.000), und heute lassen sich die beiden nicht unterscheiden.
-// Der Weg: beim Bauen auch den MITTELWERT des Rauschens messen, dann Skalierung und eine Potenz so
-// wählen, dass Mittel → Ø und Maximum → max. Zwei Zwänge, zwei Freiheitsgrade. Läuft einmal beim
-// Bauen, nicht in der Malschleife. 💣 Beides muss MULTIPLIKATIV bleiben -- ein additiver Sockel bräche
-// die Fusshöhe-0-Invariante und damit die Verschmelzung zweier Flächen.
+// `Ziel / lautester Punkt` -- getroffen wird also die HÖCHSTE erfundene Stelle. Der Regler hiess bis
+// 2026-07-29 „Durchschnittshöhe" und log damit: wer 9.850 einstellte, bekam eine einzelne 9.850er
+// Kuppe und viel niedrigeres Gelände darunter. Seit `3344e4bc` heisst er ehrlich „Maximalhöhe".
 const ECOSYSTEM_HEIGHT_NOISE_SHARE = 0.4;
+// 🔴 DER DURCHSCHNITT IST DIE ZWEITE ZAHL (Owner-Auftrag 2026-07-29). Zwei Zahlen beschreiben die FORM
+// des Geländes, nicht nur seine Spitze -- ein Hochplateau (Ø 3.000 / max 3.500) ist etwas anderes als
+// zerklüftetes Vorland (Ø 800 / max 4.000), und mit dem Maximum allein liessen die beiden sich nicht
+// unterscheiden.
+//
+// Zwei Zwänge, zwei Freiheitsgrade: das Rauschen wird als `Faktor · Rohwert^Potenz` gelesen, und beide
+// werden EINMAL beim Bauen so bestimmt, dass der lauteste Punkt auf die Maximalhöhe und der
+// Flächenmittelwert auf die Durchschnittshöhe fällt. Potenz < 1 hebt das Mittelfeld an (Plateau),
+// Potenz > 1 drückt es weg (zerklüftet).
+//
+// 💣 MULTIPLIKATIV, KEIN SOCKEL. `Faktor · x^Potenz` ist bei x = 0 exakt 0 -- die Fusshöhe-0-Invariante
+// bleibt damit wortwörtlich stehen, und mit ihr die Verschmelzung zweier überlappender Flächen. Ein
+// additiver Sockel („überall mindestens Ø") bräche beides, und zwar unsichtbar bis auf die Nahtstellen.
+// Der Unit-Test prüft es für alle drei Verfahren.
+//
+// ⚠️ Die POTENZ wird beim Bauen gesucht, ANGEWANDT wird sie je Abfrage -- anders geht es nicht: das
+// Rauschen ist eine SUMME von Buckeln, und eine nichtlineare Umformung dieser Summe lässt sich nicht in
+// die einzelnen Amplituden zurückrechnen (eine reine Skalierung schon, und genau die wird weiter unten
+// auch dorthin gefaltet). Ohne eingestellten Durchschnitt ist die Potenz exakt 1, und dann kostet die
+// Malschleife keinen Takt mehr als vorher -- die Abfrage vergleicht nur eine Zahl.
+// 💣 DIE UNTERE KLEMME IST KEINE GESCHMACKSFRAGE, SIE SCHÜTZT DIE NAHTSTELLEN. Die Felder zweier
+// Flächen werden ADDIERT (map-features-ecosystem-height-combine.js:160) -- dass das keine Stufe gibt,
+// hängt allein daran, dass jedes Feld zum Rand hin auf 0 ausläuft. Wie BREIT dieser Auslauf ist, bestimmt
+// die Potenz: das Feld steht bei halber Höhe, wo der Rohwert 0,5^(1/p) erreicht -- bei p = 1 auf halbem
+// Weg, bei p = 0,2 schon nach 3 % des Auslaufs. Darunter wird aus dem Auslauf eine Wand, und die Naht
+// zweier überlappender Flächen ist als Kante sichtbar.
+//
+// ⚠️ FOLGE, gemessen: der Durchschnitt lässt sich höchstens auf rund 0,67 × Maximalhöhe ziehen. Wer mehr
+// einstellt, bekommt 0,67 -- ein Hochplateau, dessen Mittel NÄHER am Maximum liegt, ist keine Fläche mehr,
+// die zum Rand hin ausläuft. Der Regler nennt das in seinem Hinweistext, statt still zu sättigen.
+const ECOSYSTEM_NOISE_EXPONENT_MIN = 0.2;
+const ECOSYSTEM_NOISE_EXPONENT_MAX = 8;
+// Wie viele Eimer das Histogramm hat, mit dem die Potenz gesucht wird. 💣 NICHT über die Rohwerte
+// suchen: die Messschleife sammelt je nach Flächengröße einige zehntausend Abtastungen, und die Suche
+// wertet den Mittelwert rund 40-mal aus -- das wären Millionen `Math.pow` bei jedem Reglerruck. Über 128
+// Eimer sind es 5.120, und der Fehler bleibt unter einer halben Eimerbreite.
+const ECOSYSTEM_NOISE_HISTOGRAM_BUCKETS = 128;
+// Wo der Mittelwert von selbst landet, als Anteil des Maximums. ⚠️ GEMESSEN, nicht geschätzt: an einem
+// 100×100-Quadrat mit einem Gipfel sind es 0,205 bei 1 Stufe, 0,231 bei 3 (der Vorgabe) und 0,234 bei 4.
+// Der Modulkopf behauptete bis 2026-07-29 „grob ein Drittel" -- das war zu hoch gegriffen.
+// Rein für die „(auto)"-Anzeige im Dialog, damit dort eine plausible Zahl steht statt einer leeren
+// Zeile; gerechnet wird ohne sie (Potenz = 1).
+const ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO = 0.23;
 
 // Saat aus der Identität der Fläche, nicht aus dem Zufall. Ändert sich die Geometrie, ändert sich die
 // Revision und damit das Rauschen -- was richtig ist: eine neu gezogene Fläche ist ein anderes Gebirge.
@@ -285,6 +320,75 @@ function buildEcosystemHeightIndex(field, noise) {
 	field.gridOriginY = originY;
 }
 
+// Die Potenz suchen, mit der aus dem gemessenen Rauschen der gewünschte Mittelwert wird.
+//
+// Nach der Skalierung gilt am lautesten Punkt genau die Maximalhöhe; für das Mittel bleibt damit ein
+// einziger Zwang übrig. Mit u = Rohwert / lautester Punkt (also 0..1) ist der Mittelwert des fertigen
+// Feldes `max · Mittel(u^p)`, gesucht ist also p mit `Mittel(u^p) = Ø / max`.
+//
+// `Mittel(u^p)` fällt in p streng monoton (jedes u liegt bei höchstens 1), deshalb genügt eine
+// Intervallhalbierung -- kein Newton, keine Ableitung, keine Konvergenzsorgen. Liegt das Verhältnis
+// ausserhalb dessen, was die Klemmen hergeben, wird geklemmt statt gerechnet: eine Fläche, deren
+// Mittelwert nahe am Maximum liegen soll, ist ein Plateau, und flacher als p = 0,2 wird sie nicht.
+function solveEcosystemNoiseExponent(samples, loudest, ratio) {
+	if (!Array.isArray(samples) || samples.length === 0 || !(loudest > 0)) {
+		return 1;
+	}
+	// Histogramm über u = Wert / lautester Punkt, die Eimermitte vertritt den Eimer.
+	//
+	// 💣 ECHTE NULLEN GEHÖREN IN KEINEN EIMER. `0^p` ist 0 für jedes p, aber die Mitte des ersten Eimers
+	// ist es nicht -- bei kleiner Potenz liest sie sich als 0,78 statt 0. Mit den Nullen im ersten Eimer
+	// hielte die Suche ein Plateau für erreichbar, das die Fläche gar nicht hergibt, und der eingestellte
+	// Durchschnitt würde still verfehlt. Sie zählen deshalb nur im Nenner mit -- da gehören sie hin, es
+	// sind Stellen der Fläche.
+	const buckets = new Array(ECOSYSTEM_NOISE_HISTOGRAM_BUCKETS).fill(0);
+	for (let i = 0; i < samples.length; i++) {
+		if (!(samples[i] > 0)) {
+			continue;
+		}
+		let index = Math.floor((samples[i] / loudest) * ECOSYSTEM_NOISE_HISTOGRAM_BUCKETS);
+		if (index < 0) {
+			index = 0;
+		}
+		if (index >= ECOSYSTEM_NOISE_HISTOGRAM_BUCKETS) {
+			index = ECOSYSTEM_NOISE_HISTOGRAM_BUCKETS - 1;
+		}
+		buckets[index]++;
+	}
+	const centres = buckets.map((_, index) => (index + 0.5) / ECOSYSTEM_NOISE_HISTOGRAM_BUCKETS);
+	const meanAt = (exponent) => {
+		let sum = 0;
+		for (let index = 0; index < buckets.length; index++) {
+			if (buckets[index] > 0) {
+				sum += buckets[index] * Math.pow(centres[index], exponent);
+			}
+		}
+
+		return sum / samples.length;
+	};
+
+	let low = ECOSYSTEM_NOISE_EXPONENT_MIN;
+	let high = ECOSYSTEM_NOISE_EXPONENT_MAX;
+	if (meanAt(low) <= ratio) {
+		return low;                            // flacher geht nicht -- das Ziel liegt zu nah am Maximum
+	}
+	if (meanAt(high) >= ratio) {
+		return high;                           // zerklüfteter geht nicht -- das Ziel liegt zu tief
+	}
+	// 40 Halbierungen bringen das Intervall von rund 8 auf 1e-11; teuer ist daran nichts, weil jeder
+	// Schritt nur über die 64 Eimer läuft.
+	for (let step = 0; step < 40; step++) {
+		const middle = (low + high) / 2;
+		if (meanAt(middle) > ratio) {
+			low = middle;
+		} else {
+			high = middle;
+		}
+	}
+
+	return (low + high) / 2;
+}
+
 // Das Feld EINER Fläche.
 //
 // 💣 `peaks` ist die Liste ALLER Gipfel, nicht nur der eigenen. Zu BUCKELN werden nur die innerhalb der
@@ -306,6 +410,11 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		grid: null,
 		hmax: 0,
 		stoppedAtLevel: 0,
+		// Die Umformung des Rauschens: `noiseScale · Rohwert^noiseExponent` (siehe Kopf). 1/1 heisst
+		// „nichts tun" -- ohne eingestellte Durchschnittshöhe bleibt es dabei, und die Skalierung wandert
+		// dann in die Buckelamplituden, wo sie seit V8 sitzt. Die Abfrage prüft nur `!== 1`.
+		noiseScale: 1,
+		noiseExponent: 1,
 		// Welches Darstellungsverfahren diese Fläche benutzt (siehe oben). Unbekannt -> additiv.
 		method: ECOSYSTEM_TERRAIN_METHODS.includes(String(options.method || "")) ? String(options.method) : "perlin",
 	};
@@ -420,12 +529,32 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 	buildEcosystemHeightIndex(field, noiseBumps);
 	const measuring = { ...field, peakBumps: [] };
 	let loudest = 0;
+	// Der Mittelwert wird nur gesammelt, wenn auch einer gefordert ist. Ohne Durchschnittshöhe läuft die
+	// Messschleife wortgleich wie vor 2026-07-29 -- keine Liste, kein Polygontest, keine Suche.
+	const wantsMean = Number.isFinite(Number(options.meanHeight)) && options.meanHeight !== null;
+	const samples = wantsMean ? [] : null;
 	const step = Math.max(0.5, Math.min(spanX, spanY) / 60);
 	for (let y = bounds.min_y; y <= bounds.max_y; y += step) {
 		for (let x = bounds.min_x; x <= bounds.max_x; x += step) {
 			const value = sampleEcosystemHeightField(measuring, x, y, 1);
 			if (value > loudest) {
 				loudest = value;
+			}
+			if (wantsMean) {
+				// 🔴 GEMITTELT WIRD ÜBER DIE FLÄCHE, NICHT ÜBER DIE BBOX. Der Rand der bbox liegt bei einer
+				// schräg liegenden Fläche zur Hälfte ausserhalb; mitgezählt zöge er den Mittelwert beliebig
+				// weit nach unten, und die eingestellte Zahl wäre nie erreichbar.
+				//
+				// 💣 Der Polygontest läuft NUR auf den Nullwerten. Jeder Buckel hat kompakten Träger und
+				// einen Radius ≤ dem Randabstand seines Mittelpunkts -- seine Scheibe liegt also ganz in der
+				// Fläche, und ein Wert > 0 BEWEIST damit, dass der Punkt drin liegt. Das ist kein Näherung,
+				// sondern dieselbe Auskunft für einen Bruchteil der Kosten: der teure Test trifft nur den
+				// bbox-Rand und die wenigen toten Stellen am Innenrand.
+				if (value > 0) {
+					samples.push(value);
+				} else if (pointInGeometry([x, y], field.geometry)) {
+					samples.push(0);
+				}
 			}
 		}
 	}
@@ -436,9 +565,29 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 	const target = Number.isFinite(Number(options.avgHeight)) && options.avgHeight !== null
 		? Number(options.avgHeight)
 		: derivedTarget;
-	const damping = loudest > 0 ? target / loudest : 0;
-	// Nur die Amplituden skalieren -- Radien und damit der Index bleiben gültig, kein Neuaufbau nötig.
-	noiseBumps.forEach((bump) => { bump.a *= damping; });
+	// 🔴 Die eingestellte DURCHSCHNITTShöhe ist der zweite Zwang (Owner 2026-07-29). Sie sucht die Potenz;
+	// die Maximalhöhe darüber bleibt in jedem Fall getroffen, weil der Faktor danach aus ihr folgt.
+	// `null`/undefined heisst wieder „ableiten wie bisher" -- und das ist hier buchstäblich Potenz 1.
+	//
+	// 🪤 Geklemmt unter das Maximum, auch wenn der Dialog das schon tut: über den Schreibweg kann eine
+	// Zahl auch anders hereinkommen, und ein Verhältnis ≥ 1 wäre unerfüllbar (der Mittelwert einer
+	// Fläche kann ihren Höchstwert nicht erreichen, solange der Rand auf 0 ausläuft).
+	let exponent = 1;
+	if (wantsMean && loudest > 0 && target > 0) {
+		const ratio = Math.min(0.999, Math.max(0.001, Number(options.meanHeight) / target));
+		exponent = solveEcosystemNoiseExponent(samples, loudest, ratio);
+	}
+	if (exponent === 1) {
+		// Der alte Weg, unverändert: eine reine Skalierung lässt sich in die Amplituden falten, und dann
+		// kostet sie in der Malschleife gar nichts. Radien und damit der Index bleiben gültig.
+		const damping = loudest > 0 ? target / loudest : 0;
+		noiseBumps.forEach((bump) => { bump.a *= damping; });
+	} else {
+		// Mit Potenz geht das nicht: `(s·Σ)^p ≠ s·Σ^p`. Die Amplituden bleiben roh, und Faktor wie Potenz
+		// wandern ans Feld -- angewandt wird beides in sampleEcosystemHeightFieldRaw, auf die SUMME.
+		field.noiseExponent = exponent;
+		field.noiseScale = target / Math.pow(loudest, exponent);
+	}
 	field.bumps = noiseBumps.concat(field.peakBumps);
 
 	return field;
@@ -495,6 +644,18 @@ function sampleEcosystemHeightFieldRaw(field, x, y, noiseWindow = 1) {
 	// flache Landschaft verwandeln statt ihn zu zeigen. Genau das ist im Prototyp einmal passiert (:485).
 	if (noise === 0) {
 		return peaksHeight;
+	}
+
+	// Die Umformung, mit der Ø und Maximum getrennt getroffen werden (siehe Kopf). Ohne eingestellte
+	// Durchschnittshöhe ist die Potenz exakt 1 und hier passiert nichts als dieser Vergleich.
+	//
+	// 💣 VOR dem Fenster, nicht danach. `noiseWindow` ist am Gipfel 0; multipliziert man erst und potenziert
+	// dann, wäre der Gipfelwert `s·0^p` -- rechnerisch auch 0, aber die Steigung der Dämpfung wäre eine
+	// andere und der Hochpunkt könnte wieder wandern. So bleibt die Fensterung genau die geprüfte.
+	// 💣 Und am Rand ist die Summe 0 -- oben schon abgefangen, `0^p` käme also gar nicht vor. Die
+	// Fusshöhe-0-Invariante hängt nicht an der Potenz, sondern am kompakten Träger der Buckel.
+	if (field.noiseExponent !== 1) {
+		noise = field.noiseScale * Math.pow(noise, field.noiseExponent);
 	}
 
 	return peaksHeight + noiseWindow * noise;
@@ -593,6 +754,10 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_HEIGHT_LEVELS,
 		ECOSYSTEM_HEIGHT_DEFAULT,
 		ECOSYSTEM_HEIGHT_PLACEHOLDER,
+		ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO,
+		ECOSYSTEM_NOISE_EXPONENT_MIN,
+		ECOSYSTEM_NOISE_EXPONENT_MAX,
+		solveEcosystemNoiseExponent,
 		ECOSYSTEM_PEAK_SUBTYPES,
 		isEcosystemPeakSubtype,
 		ecosystemHeightSeed,
