@@ -3273,13 +3273,25 @@ assert(abs($riverBack['time'] - $riverBase['time'] * $riverBack['terrain_time_fa
 // something that is TRUE OF THE BUG TOO (see task 12 step 5): the pieces sum to the parent either
 // way, because the uphill part of the curve is linear. What discriminates is the FACTORS.
 //
-// An isolated place at (5, 5) with no path of its own gets anchored to the nearest land path, which
-// is split at the projected point (5, 0) -- halfway along the way's first segment.
+// 💣 AND THE FIRST VERSION OF THIS BLOCK COULD NOT DETECT A BROKEN SPLIT EITHER -- the same disease
+// as the acceptance step it was written to replace, which is why it is worth spelling out. It cut at
+// exactly t = 0,5 with all the climb in one segment, so the true split was a symmetric 3000/3000;
+// then a mutation returning `[$profile, null]` (piece A gets EVERYTHING, piece B nothing) passed
+// every assertion. Three reasons at once: the conservation check permits any reallocation of the
+// same total, the steep/gentle labels were derived FROM the values under test so they relabelled
+// themselves, and "the factors differ" was satisfied by the differing piece LENGTHS alone.
+//
+// So: cut at t = 0,3, give the two segments different climb AND fall, address the four edges by
+// their GRAPH POSITION rather than by scanning for an id, and pin ABSOLUTE numbers.
+//   way [[0,0],[10,0],[20,0]], profile [[6000,1000],[2000,0]]
+//   waypoint (3,5) projects to (3,0) = t 0,3 of segment 0
+//   -> piece a: 0,3 x [6000,1000]              = ascent 1800, descent 300, length 3
+//   -> piece b: 0,7 x [6000,1000] + [2000,0]   = ascent 6200, descent 700, length 17
 $anchorNetwork = [
     'locations' => [
         ['name' => 'Anfang', 'geometry' => ['type' => 'Point', 'coordinates' => [0.0, 0.0]]],
         ['name' => 'Ende', 'geometry' => ['type' => 'Point', 'coordinates' => [20.0, 0.0]]],
-        ['name' => 'Einsiedel', 'geometry' => ['type' => 'Point', 'coordinates' => [5.0, 5.0]]],
+        ['name' => 'Einsiedel', 'geometry' => ['type' => 'Point', 'coordinates' => [3.0, 5.0]]],
     ],
     'paths' => [[
         'id' => 'w1', 'public_id' => 'w1', 'client_path_id' => 'path-1',
@@ -3289,66 +3301,67 @@ $anchorNetwork = [
     ]],
 ];
 $anchorRequest = $plainRequest + ['from' => 'Einsiedel', 'to' => 'Ende'];
-// All the climb in the FIRST segment, the second dead level -- so the two pieces are unmistakably
-// different ground and a parent average could not possibly describe both.
-$anchorTerrain = ['w1' => ['ascent' => 6000.0, 'descent' => 0.0,
-    'profile' => [[6000.0, 0.0], [0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+$anchorTerrain = ['w1' => ['ascent' => 8000.0, 'descent' => 1000.0,
+    'profile' => [[6000.0, 1000.0], [2000.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
 
-$anchored = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest, $anchorTerrain);
-$sliceA = null;
-$sliceB = null;
-foreach ($anchored['graph'] as $edges) {
-    foreach ($edges as $connections) {
-        foreach ($connections as $candidate) {
-            $id = (string) ($candidate['id'] ?? '');
-            if (str_ends_with($id, '-a')) { $sliceA = $candidate; }
-            if (str_ends_with($id, '-b')) { $sliceB = $candidate; }
-        }
-    }
+$anchored = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest, $anchorTerrain)['graph'];
+// The anchor node is named after the waypoint's index in from/to/via -- „Einsiedel" is index 0.
+$forwardA = $anchored['Anfang']['__wp_anchor_0'][0] ?? null;
+$reverseA = $anchored['__wp_anchor_0']['Anfang'][0] ?? null;
+$forwardB = $anchored['__wp_anchor_0']['Ende'][0] ?? null;
+assert(is_array($forwardA) && is_array($reverseA) && is_array($forwardB),
+    'the waypoint anchor must have split the path and hung both directions of each piece');
+foreach (['ascent_schritt', 'descent_schritt', 'terrain_time_factor'] as $key) {
+    assert(array_key_exists($key, $forwardA) && array_key_exists($key, $forwardB),
+        'a sub-slice with terrain must carry ' . $key . ' -- a missing key would make the numeric '
+        . 'assertions below read null and silently pass');
 }
-assert(is_array($sliceA) && is_array($sliceB),
-    'the waypoint anchor must have split the path into two sub-slices');
 
+// 1. ABSOLUTE values on the NAMED pieces. This is the assertion that actually pins the proportional
+//    cut: a split that hands one piece everything, or divides at the wrong fraction, fails here and
+//    cannot hide behind a conserved total.
+assert(abs($forwardA['ascent_schritt'] - 1800.0) < 1e-6,
+    'piece a is 0,3 of segment 0: 1800 Schritt of climb, got ' . $forwardA['ascent_schritt']);
+assert(abs($forwardA['descent_schritt'] - 300.0) < 1e-6,
+    'piece a is 0,3 of segment 0: 300 Schritt of fall, got ' . $forwardA['descent_schritt']);
+assert(abs($forwardB['ascent_schritt'] - 6200.0) < 1e-6,
+    'piece b is 0,7 of segment 0 plus all of segment 1: 6200 Schritt of climb, got ' . $forwardB['ascent_schritt']);
+assert(abs($forwardB['descent_schritt'] - 700.0) < 1e-6,
+    'piece b is 0,7 of segment 0: 700 Schritt of fall, got ' . $forwardB['descent_schritt']);
+
+// 2. Conservation on top -- necessary, and on its own not sufficient (see the note above).
 $whole = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $anchorTerrain)['graph']['Anfang']['Ende'][0];
-
-// 1. The two pieces carry DIFFERENT factors. With the back-computation both would carry the
-//    parent's, and this is the assertion that says so out loud.
-assert($sliceA['terrain_time_factor'] !== $sliceB['terrain_time_factor'],
-    'the two sub-slices must not share one factor -- that is exactly the back-computation bug');
-// 2. The steep piece is slower than the undivided edge; the level piece is faster. Measured:
-//    parent 1,5 -- steep half 2,0 -- level remainder 1,3333.
-$steep = $sliceA['ascent_schritt'] >= $sliceB['ascent_schritt'] ? $sliceA : $sliceB;
-$gentle = $steep === $sliceA ? $sliceB : $sliceA;
-assert($steep['terrain_time_factor'] > $whole['terrain_time_factor'],
-    'the piece carrying the climb must be SLOWER than the parent average, got '
-    . $steep['terrain_time_factor'] . ' vs ' . $whole['terrain_time_factor']);
-assert($gentle['terrain_time_factor'] < $whole['terrain_time_factor'],
-    'the level piece must be FASTER than the parent average');
-// 3. The split is conservative in climb and fall: nothing is invented, nothing is lost.
-assert(abs(($sliceA['ascent_schritt'] + $sliceB['ascent_schritt']) - $whole['ascent_schritt']) < 1e-6,
+assert(abs(($forwardA['ascent_schritt'] + $forwardB['ascent_schritt']) - $whole['ascent_schritt']) < 1e-6,
     'the pieces must carry exactly the parent way climb between them');
-assert(abs(($sliceA['descent_schritt'] + $sliceB['descent_schritt']) - $whole['descent_schritt']) < 1e-6,
+assert(abs(($forwardA['descent_schritt'] + $forwardB['descent_schritt']) - $whole['descent_schritt']) < 1e-6,
     'the pieces must carry exactly the parent way fall between them');
+
+// 3. 💣 DIRECTION AT THE SECOND TIME SITE. The anchor used to hang ONE object in both graph
+//    directions, so the downhill traversal was billed at the uphill factor -- measured 2,0 where
+//    0,82 was right, 2,44x too slow. from/to still keep the stored orientation; only the numbers
+//    turn around.
+assert(abs($reverseA['ascent_schritt'] - 300.0) < 1e-6,
+    'travelling piece a the other way climbs what it fell: 300, got ' . $reverseA['ascent_schritt']);
+assert(abs($reverseA['descent_schritt'] - 1800.0) < 1e-6,
+    'travelling piece a the other way falls what it climbed: 1800, got ' . $reverseA['descent_schritt']);
+assert($reverseA['terrain_time_factor'] < $forwardA['terrain_time_factor'],
+    'the downhill direction of a climbing piece must be FASTER than the uphill one');
+assert((string) $reverseA['from'] === (string) $forwardA['from']
+    && (string) $reverseA['to'] === (string) $forwardA['to'],
+    'from/to keep the STORED orientation on both variants -- the chain walk depends on it');
 
 // 4. 💣 WITH NO TERRAIN THE SPLIT IS LOSSLESS AND INVISIBLE. This is the half that protects the
 //    published numbers: the anchor already existed and must keep behaving exactly as it did.
-$anchoredOff = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest);
-$offA = null;
-$offB = null;
-foreach ($anchoredOff['graph'] as $edges) {
-    foreach ($edges as $connections) {
-        foreach ($connections as $candidate) {
-            $id = (string) ($candidate['id'] ?? '');
-            if (str_ends_with($id, '-a')) { $offA = $candidate; }
-            if (str_ends_with($id, '-b')) { $offB = $candidate; }
-        }
-    }
-}
+$anchoredOff = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest)['graph'];
+$offA = $anchoredOff['Anfang']['__wp_anchor_0'][0];
+$offB = $anchoredOff['__wp_anchor_0']['Ende'][0];
 $wholeOff = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest)['graph']['Anfang']['Ende'][0];
 assert(abs(($offA['time'] + $offB['time']) - $wholeOff['time']) < 1e-9,
     'without terrain the split must be exactly lossless');
 assert(!array_key_exists('terrain_time_factor', $offA) && !array_key_exists('terrain_time_factor', $offB),
     'without terrain a sub-slice must carry no terrain key at all');
+assert($anchoredOff['__wp_anchor_0']['Anfang'][0] === $offA,
+    'without terrain both directions must still be the SAME value -- exactly today s behaviour');
 ```
 
 - [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
@@ -3658,8 +3671,66 @@ function avesmapsBuildClientRouteSubPathConnection(array $original, string $from
 }
 ```
 
-⚠️ **`$original` ist bereits eine der beiden Richtungsvarianten** — das Teilstück erbt damit auch
-deren Richtung, und `terrain_profile` steht auf ihr schon richtig herum.
+💣 **UND DAS TEILSTÜCK BRAUCHT SEINE EIGENE RÜCKRICHTUNG.** Eine frühere Fassung dieses Plans
+behauptete hier, `$original` sei bereits eine der beiden Richtungsvarianten und das Teilstück erbe
+deren Richtung. **Das ist falsch:** der Faktor wird aus dem rohen Profil **neu gerechnet**, nie
+geerbt — und der Anker hängt bis heute *ein* Objekt in **beide** Graph-Richtungen. Gemessen an der
+Prüf-Vorlage: `graph[Anfang][__wp_anchor_0]` und `graph[__wp_anchor_0][Anfang]` lasen **beide**
+`ascent = 3000, Faktor 2,0`, wo die Gegenrichtung 0,82 tragen müsste — die Bergab-Etappe wurde
+**2,44-mal zu langsam** berechnet. Genau der Fehler, den Regel 3 (§6.3) verhindern soll, an der
+Stelle, die dieser Plan selbst als riskanteste bezeichnet.
+
+Deshalb ein Zwilling, neben `avesmapsRouteApplyTerrainToConnection`:
+
+```php
+/**
+ * PURE: the reverse-direction twin of a waypoint sub-slice.
+ *
+ * Returns the connection UNTOUCHED when it carries no terrain -- and then the caller may go on
+ * sharing ONE object in both directions, exactly as before V11. That is what keeps the off state
+ * byte-identical.
+ *
+ * 💣 With terrain the forward object is NOT reusable. Its factor was computed from the STORED
+ * orientation's ascent, and travelling the piece the other way climbs what it fell. from/to still
+ * keep the stored orientation (see :218-219) -- only the numbers turn around.
+ */
+function avesmapsRouteReverseSubPathConnection(array $connection): array
+{
+    if (!array_key_exists('terrain_time_factor', $connection)) {
+        return $connection;
+    }
+    $ascent = (float) $connection['ascent_schritt'];
+    $descent = (float) $connection['descent_schritt'];
+    $forwardFactor = (float) $connection['terrain_time_factor'];
+    // Undo the forward factor to recover the slice's base time, then apply the reverse one.
+    $baseTime = $forwardFactor > 0.0 ? (float) $connection['time'] / $forwardFactor : (float) $connection['time'];
+    $reverseFactor = avesmapsTerrainTimeFactor($descent, $ascent, (float) $connection['distance']);
+    $connection['time'] = $baseTime * $reverseFactor;
+    $connection['terrain_time_factor'] = $reverseFactor;
+    $connection['ascent_schritt'] = $descent;
+    $connection['descent_schritt'] = $ascent;
+
+    return $connection;
+}
+```
+
+und die beiden Anker-Einhängungen bekommen ihn:
+
+```php
+        if (count($sliceFrom) >= 2) {
+            $connectionFrom = avesmapsBuildClientRouteSubPathConnection($original, $fromName, $anchorNodeName, $sliceFrom, 'wp-slice-' . $waypointIndex . '-a', $profileFrom);
+            avesmapsAddClientCompatibleGraphConnection($graph, $fromName, $anchorNodeName, $connectionFrom);
+            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $fromName, avesmapsRouteReverseSubPathConnection($connectionFrom));
+        }
+        if (count($sliceTo) >= 2) {
+            $connectionTo = avesmapsBuildClientRouteSubPathConnection($original, $anchorNodeName, $toName, $sliceTo, 'wp-slice-' . $waypointIndex . '-b', $profileTo);
+            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $toName, $connectionTo);
+            avesmapsAddClientCompatibleGraphConnection($graph, $toName, $anchorNodeName, avesmapsRouteReverseSubPathConnection($connectionTo));
+        }
+```
+
+⭐ Ohne Gelände gibt `avesmapsRouteReverseSubPathConnection` dasselbe Array zurück — die beiden
+Einhängungen teilen dann wieder denselben Wert, und der Ausschaltzustand bleibt bit-identisch.
 
 In `avesmapsAnchorClientWaypointToLandPath`, im `else`-Zweig, vor den beiden `slice`-Aufbauten:
 
