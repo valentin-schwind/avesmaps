@@ -314,10 +314,34 @@ müssen. **Das ist nicht nötig.** Nachgelesen:
   `properties.id` aus `pathData` — also die **ganze** `map_features`-Zeile.
 - `addRegularPathToGraph` (`js/routing/route-graph-routing.js:109`) legt je Weg **genau
   eine** Kante an, von Endpunkt zu Endpunkt. Es gibt keine Teilkante.
-- `properties.id` **ist** die `public_id` (`api/app/map-features.php:399`).
 
 Damit ist die Zuordnung ein reines Nachschlagen: Weg-`public_id` → gespeicherte Zeilen.
 Kein Zuschneiden, kein Interpolieren.
+
+> 💣 **Hier stand ein Satz, der falsch war, und die Live-Abnahme hat ihn kassiert
+> (2026-07-29).** Er lautete: *„`properties.id` **ist** die `public_id`"* — mit Beleg
+> `api/app/map-features.php:399`. Der Beleg stimmt, der Satz nicht: er gilt für die
+> **Client-Engine**, und die läuft nur unter `?clientrouting=1`. Die Live-Seite fährt
+> **server-primär** (`shouldUseServerPrimaryRouting`), und dort baut
+> `buildServerGeometryRouteSegment` die Eigenschaften **neu** auf: `properties.id` ist die
+> **Kanten-Kennung** `path-2661`, und `public_id` fehlte ganz.
+>
+> Die Folge war die schlimmste Sorte Fehler: „Führt durch" fragte nach erfundenen
+> Kennungen, der Server lehnte ab, der Client schluckte es — und die leere Zeile sah
+> **genau aus wie das richtige leere Ergebnis**. Kein Fehler in der Konsole, kein Hinweis
+> irgendwo.
+>
+> Behoben in zwei Hälften, beide durch `js/routing/__tests__/route-entry-path-ids.test.js`
+> bewacht (gegen den alten Stand gegengeprüft): das Anzeige-Segment trägt jetzt
+> `public_id`, und `routeEntryPathIds` liest **nur** sie. **Der frühere Rückfall auf
+> `properties.id` war schlimmer als gar keiner** — er machte aus „ich kenne die Kennung
+> nicht" eine Anfrage nach etwas Erfundenem.
+>
+> **Die Lehre für die nächste Spec:** „ein Segment trägt X" ist eine Behauptung über
+> **einen** von zwei Routing-Wegen. Welcher live läuft, entscheidet ein
+> Query-Parameter-Default — und der Auftakt sagte sogar richtig, dass Server-Routing
+> „noch nicht `RouteResult`-kompatibel" sei. Das stimmte für `USE_SERVER_ROUTING`, nicht
+> für `shouldUseServerPrimaryRouting`. **Zwei Schalter, ein Name im Kopf.**
 
 > ⭐ **Und die Richtungsfalle greift hier gar nicht.** Der Auftakt nennt sie als Falle 1:
 > Intervalle stehen in Zeichenrichtung, eine Route kann rückwärts fahren. Für einen
