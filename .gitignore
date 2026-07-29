@@ -22,6 +22,12 @@ tools/geo-import.sql.gz
 uploads/dumps/*
 !uploads/dumps/.htaccess
 
+# Database backups (edit/backup.php). A full dump carries password hashes and every
+# report -- it is the most sensitive artifact this project produces and must NEVER be
+# committed. Keep the deny-all .htaccess; ignore every dump.
+uploads/db-backups/*
+!uploads/db-backups/.htaccess
+
 # Manually-uploaded map export archives (large binaries; live on the server, not in the repo).
 uploads/*.zip
 uploads/map/*.zip

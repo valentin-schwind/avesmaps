@@ -173,6 +173,21 @@ api/_schema/                SQL schemas
 
 `api/_internal/`, `api/_schema/` and `api/diagnostics/` must be protected against direct web access via `.htaccess` in deployment.
 
+### `api/edit/admin/database-backup.php`
+
+Control surface for the full-database backup (`edit/backup.php`). Requires the `admin` capability — not `edit`: a full dump carries `users.password_hash`, every share link and every report.
+
+```text
+GET  ?action=status                            current + recent runs
+GET  ?action=download&run_id=<id>              stream the finished .sql.gz
+POST { "action": "start", "include_transient"?: bool }
+POST { "action": "step",   "run_id": "<id>" }  one bounded step; loop until done
+POST { "action": "cancel", "run_id": "<id>" }
+POST { "action": "delete", "run_id": "<id>" }
+```
+
+A dump is far more work than one PHP request may spend, so the client loops `step` until the response reports `done`. See `docs/database-backup.md` for the file format, the single-member gzip construction and the restore commands.
+
 ## Configuration
 
 1. Copy `../config/api.config.example.php` to `config.local.php`

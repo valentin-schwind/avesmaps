@@ -68,7 +68,7 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
     <!-- Hand-written on purpose: the deploy's asset stamper only follows index.html and
          html/*.html, so it never reaches this PHP page. Bump this whenever edit.css changes,
          or editors keep the cached stylesheet. See AGENTS.md sec.7. -->
-    <link rel="stylesheet" href="../css/pages/edit.css?v=20260720-handbuch" />
+    <link rel="stylesheet" href="../css/pages/edit.css?v=20260729-backup" />
 </head>
 
 <body class="edit-page">
@@ -105,6 +105,11 @@ $mapIframeSrc = '../index.html?' . htmlspecialchars($mapIframeQuery, ENT_QUOTES,
                          is opened. Root-relative is fine here: this page is the top-level shell,
                          not the map iframe. -->
                     <a class="edit-shell__handbook" href="/html/editor-handbuch.html" target="_blank" rel="noopener" title="Editor-Handbuch öffnen" aria-label="Handbuch">📖 Handbuch</a>
+                    <?php if (avesmapsUserCan($currentUser, 'admin')) : ?>
+                        <!-- Admin only, not editors: a full dump carries users.password_hash, every
+                             share link and every report. The endpoint enforces the same gate. -->
+                        <a class="edit-shell__toplink" href="/edit/backup.php" target="_blank" rel="noopener" title="Vollständiges Datenbank-Backup erstellen und herunterladen" aria-label="Datenbank-Backup">💾 Datenbank-Backup</a>
+                    <?php endif; ?>
                     <form method="post" action="./">
                         <input type="hidden" name="action" value="logout" />
                         <button type="submit">Abmelden</button>

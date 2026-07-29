@@ -71,8 +71,11 @@
 }
 
 /* Soft/outline: "Abmelden" is the filled action in this bar, and the handbook must not
-   compete with it. See docs/design-language.md — one filled main action, the rest soft. */
-.edit-shell__handbook {
+   compete with it. See docs/design-language.md — one filled main action, the rest soft.
+   `__toplink` is the same treatment for the bar's other links (Datenbank-Backup, and the
+   way back from a sub-page), so a second entry point costs no second set of literals. */
+.edit-shell__handbook,
+.edit-shell__toplink {
 	border: 1px solid var(--color-button-soft-border);
 	border-radius: var(--radius-md);
 	background: var(--color-button-soft);
@@ -84,7 +87,9 @@
 }
 
 .edit-shell__handbook:hover,
-.edit-shell__handbook:focus-visible {
+.edit-shell__handbook:focus-visible,
+.edit-shell__toplink:hover,
+.edit-shell__toplink:focus-visible {
 	background: var(--color-button-soft-hover);
 }
 

@@ -1,0 +1,256 @@
+/* Datenbank-Backup page (edit/backup.php).
+   Imports edit.css for the shared login panel + top bar, then adds only what this
+   page needs. Every colour, radius and divider comes from css/base/tokens.css --
+   see docs/design-language.md: a literal value written twice is divergence waiting
+   to happen. */
+@import url("edit.css");
+
+.backup-shell {
+	min-height: 100vh;
+	display: grid;
+	grid-template-rows: auto 1fr;
+	background: var(--color-page-bg);
+}
+
+.backup-panel {
+	width: min(920px, calc(100vw - 32px));
+	margin: 18px auto;
+	padding: 18px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel);
+	box-shadow: var(--shadow-panel);
+	box-sizing: border-box;
+}
+
+.backup-panel h1 {
+	margin: 0 0 6px 0;
+	font-size: 22px;
+	color: var(--color-text-strong);
+}
+
+.backup-panel h2 {
+	margin: 0 0 8px 0;
+	font-size: 16px;
+	color: var(--color-text-strong);
+}
+
+.backup-lead {
+	margin: 0 0 4px 0;
+	color: var(--color-text-muted);
+}
+
+/* Grouping is by divider + heading, never by a framed box. */
+.backup-section {
+	margin-top: 18px;
+	padding-top: 16px;
+	border-top: 1px solid var(--color-divider);
+}
+
+.backup-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-top: 14px;
+}
+
+/* The one filled action on this page. */
+.backup-start {
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button);
+	color: var(--color-button-text);
+	font: inherit;
+	font-weight: bold;
+	padding: 9px 16px;
+	cursor: pointer;
+}
+
+.backup-start:hover:not(:disabled) {
+	background: var(--color-button-hover);
+	box-shadow: var(--shadow-button-hover);
+}
+
+.backup-start:active:not(:disabled) {
+	background: var(--color-button-active);
+}
+
+.backup-start:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+/* Everything else is soft/outline so the main action stays the only filled one. */
+.backup-button {
+	border: 1px solid var(--color-button-soft-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: var(--color-button-soft-text);
+	font: inherit;
+	padding: 8px 12px;
+	text-decoration: none;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.backup-button:hover:not(:disabled),
+.backup-button:focus-visible:not(:disabled) {
+	background: var(--color-button-soft-hover);
+}
+
+.backup-button:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.backup-button--danger {
+	border-color: var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+}
+
+.backup-option {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	color: var(--color-text);
+}
+
+.backup-option input {
+	margin: 0;
+}
+
+.backup-hint {
+	margin: 6px 0 0 0;
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+
+.backup-progress {
+	margin-top: 14px;
+}
+
+.backup-progress[hidden] {
+	display: none;
+}
+
+.backup-progress__track {
+	height: 10px;
+	border-radius: var(--radius-sm);
+	background: var(--color-panel-muted);
+	overflow: hidden;
+}
+
+.backup-progress__bar {
+	height: 100%;
+	width: 0;
+	background: var(--color-button);
+	transition: width 220ms ease-out;
+}
+
+.backup-progress__label {
+	margin: 7px 0 0 0;
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+
+.backup-message {
+	margin-top: 12px;
+	padding: 9px 10px;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--color-success-soft-border);
+	background: var(--color-success-soft);
+	color: var(--color-success-soft-text);
+}
+
+.backup-message--error {
+	border-color: var(--color-danger-soft-border);
+	background: var(--color-danger-soft);
+	color: var(--color-danger-soft-text);
+}
+
+.backup-message--warning {
+	border-color: var(--color-warning-soft-border);
+	background: var(--color-warning-soft);
+	color: var(--color-warning-soft-text);
+}
+
+.backup-message[hidden] {
+	display: none;
+}
+
+.backup-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Full-bleed dividers between rows (negative side margin = the panel's padding). */
+.backup-list__row {
+	display: grid;
+	grid-template-columns: 1fr auto auto;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 18px;
+	margin: 0 -18px;
+	border-bottom: 1px solid var(--color-divider);
+}
+
+.backup-list__row:last-child {
+	border-bottom: 0;
+}
+
+.backup-list__name {
+	font-weight: bold;
+	color: var(--color-text-strong);
+	overflow-wrap: anywhere;
+}
+
+.backup-list__meta {
+	margin: 3px 0 0 0;
+	color: var(--color-text-muted);
+	font-size: 13px;
+}
+
+.backup-empty {
+	margin: 4px 0 0 0;
+	color: var(--color-text-muted);
+}
+
+.backup-restore code {
+	display: block;
+	margin: 6px 0;
+	padding: 8px 10px;
+	border-radius: var(--radius-md);
+	background: var(--color-panel-muted);
+	color: var(--color-text);
+	overflow-x: auto;
+	white-space: pre;
+}
+
+.backup-restore ol {
+	margin: 0;
+	padding-left: 20px;
+	color: var(--color-text);
+}
+
+.backup-restore li {
+	margin-bottom: 8px;
+}
+
+.backup-warnings {
+	margin: 8px 0 0 0;
+	padding-left: 20px;
+	color: var(--color-warning-soft-text);
+	font-size: 13px;
+}
+
+@media (max-width: 620px) {
+	.backup-list__row {
+		grid-template-columns: 1fr;
+	}
+}
