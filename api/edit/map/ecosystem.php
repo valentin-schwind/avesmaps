@@ -43,6 +43,13 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $userId = (int) ($user['id'] ?? 0);
 
+    // Die Klammer um eine Geste (Owner 2026-07-29). Eine boolesche Operation schreibt zwei bis drei
+    // Aufrufe -- „Verschmelzen" ist update_area_geometry PLUS delete_area --, und „Rückgängig" muss sie
+    // gemeinsam zurücknehmen. Der Client vergibt die Kennung je Geste, hier wird sie einmal abgelegt und
+    // stempelt danach jede Audit-Zeile dieses Aufrufs, ohne dass eine der zwölf Schreibstellen sie
+    // kennen muss. Fehlt sie, ist die Zeile ihre eigene Gruppe -- der Normalfall bei Einzelaktionen.
+    avesmapsEcosystemSetOperationId($payload['operation_id'] ?? null, $payload['operation_label'] ?? null);
+
     $result = match ($action) {
         // The region picker's list (V3.0b): active regions of one kind plus the region-type vocabulary
         // for that kind. It sits HERE, behind the capability check, and not on the public read path --
@@ -78,6 +85,12 @@ try {
         // leerer setzt auf NULL zurück = „ableiten wie bisher".
         'update_area_terrain' => avesmapsUpdateEcosystemAreaTerrain($pdo, $payload, $userId),
         'delete_area' => avesmapsDeleteEcosystemArea($pdo, $payload, $userId),
+        // „Änderungen rückgängig machen" (Owner 2026-07-29). Das Ökosystem protokolliert seit V2.3 mit
+        // vollem before/after -- es fehlte nur der Weg zurück und ein Fenster, in dem man ihn sieht.
+        // list_changes fasst die Zeilen zu GESTEN zusammen (operation_id), undo_change nimmt eine ganze
+        // Geste zurück. Beide hinter derselben Fähigkeitsprüfung wie alles andere hier.
+        'list_changes' => avesmapsListEcosystemChanges($pdo, avesmapsUserCan($user, 'edit')),
+        'undo_change' => avesmapsUndoEcosystemChange($pdo, $payload, $userId),
         // Not optional extra: without it app_setting['ecosystem_enabled'] stays '0' forever, the public
         // read path stays permanently empty, and V3 cannot be accepted at all. Pattern:
         // set_citymaps_enabled in api/_internal/app/citymaps.php.

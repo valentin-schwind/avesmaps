@@ -414,6 +414,55 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // ---- „Änderungen rückgängig machen" (Owner 2026-07-29) --------------------------------------
+    //
+    // Vier nachgerüstete Spalten, dieselbe Form wie bei map_audit_log (avesmapsEnsureMapAuditUndoColumns):
+    // drei für „diese Zeile wurde zurückgenommen, von wem, und welche Zeile hat es getan" -- und eine
+    // fünfte Idee, die es dort nicht braucht:
+    //
+    // 💣 `operation_id` -- DIE KLAMMER UM EINE GESTE. Eine boolesche Operation ist NICHT ein
+    // Schreibvorgang: „Verschmelzen" ist update_area_geometry auf der einen Fläche PLUS delete_area auf
+    // der gefressenen (map-features-ecosystem-geometry-ops.js:130), „Zerschneiden" ist
+    // update_area_geometry PLUS create_region PLUS create_area. Ein Rückgängig, das eine einzelne Zeile
+    // zurücknimmt, hinterlässt einen Halbzustand -- Geometrie zurück, gefressene Fläche weiter weg.
+    // Der Client vergibt die Kennung EINMAL je Geste und schickt sie an jedem beteiligten Aufruf mit;
+    // Rückgängig nimmt dann die ganze Klammer, jüngste Zeile zuerst.
+    //
+    // 🔴 Nullable und ohne Startwert. Alles, was vor heute protokolliert wurde, hat keine Klammer --
+    // das ist richtig so: eine Zeile ohne `operation_id` ist ihre eigene Gruppe. Ein Nachtragen wäre
+    // geraten, und geraten heißt hier: fremde Flächen im falschen Zustand.
+    $auditColumnExists = static function (PDO $pdo, string $column): bool {
+        $statement = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecosystem_geometry_audit_log' AND COLUMN_NAME = :c"
+        );
+        $statement->execute(['c' => $column]);
+
+        return $statement !== false && (int) $statement->fetchColumn() > 0;
+    };
+    // ⚠️ `operation_label` kommt vom Client, weil nur er die ABSICHT kennt. Aus den Aktionen einer
+    // Gruppe liesse sie sich raten -- „update_area_geometry + delete_area = verschmolzen" --, aber
+    // dieselbe Kombination entsteht auch, wenn jemand eine Fläche bearbeitet und danach eine andere
+    // löscht. Geraten hiesse hier: ein Knopf, der etwas anderes verspricht, als er tut.
+    foreach ([
+        'operation_id' => 'CHAR(36)',
+        'operation_label' => 'VARCHAR(80)',
+        'undone_at' => 'DATETIME(3)',
+        'undone_by' => 'BIGINT UNSIGNED',
+        'undo_audit_id' => 'BIGINT UNSIGNED',
+    ] as $column => $type) {
+        if ($auditColumnExists($pdo, $column)) {
+            continue;
+        }
+        $pdo->exec('ALTER TABLE ecosystem_geometry_audit_log ADD COLUMN ' . $column . ' ' . $type . ' NULL');
+        // Der Gruppen-Index gehört an das Anlegen der Spalte, nicht in eine eigene Prüfung:
+        // `CREATE INDEX IF NOT EXISTS` kennt MySQL nicht (nur MariaDB), und jeder separate Wächter wäre
+        // eine zweite Wahrheit darüber, ob dieser Block schon lief.
+        if ($column === 'operation_id') {
+            $pdo->exec('CREATE INDEX idx_ecosystem_audit_operation ON ecosystem_geometry_audit_log (operation_id)');
+        }
+    }
+
     // ---- V9: does this KIND of area take part in the way x area assignment at all? --------------
     //
     // Measured 2026-07-29 on the live stock: `Meer-001` (3.050 corners) and the continent
@@ -931,6 +980,42 @@ function avesmapsEcosystemReadRegionAreaCounts(PDO $pdo): array
 // That means avesmapsEcosystemEnsureTables() and ANY avesmapsAppSetting* call (they each ensure their own
 // table first) belong before the begin or after the commit. Never in between.
 
+// Die Klammer um eine Geste, für die Dauer EINES Aufrufs. Der Verteiler
+// (api/edit/map/ecosystem.php) legt sie aus der Nutzlast hier ab, jede Audit-Zeile dieses Aufrufs
+// trägt sie danach.
+//
+// 🔴 Warum eine Ablage statt eines Parameters: Es gibt zwölf Aufrufstellen von
+// avesmapsEcosystemWriteAuditLog, und eine davon zu vergessen hieße, dass ausgerechnet die
+// Kaskadenzeile ohne Klammer entsteht -- ein Rückgängig würde sie dann stehen lassen. So kann keine
+// Stelle sie verlieren, weil keine sie kennt.
+//
+// ⚠️ Sie gilt für einen Aufruf; eine GESTE spannt sich über mehrere (Verschmelzen = update + delete).
+// Deshalb vergibt sie der CLIENT und schickt sie an jedem beteiligten Aufruf mit -- der Server kann
+// nicht wissen, dass zwei Anfragen dieselbe Absicht sind.
+$GLOBALS['avesmapsEcosystemOperationId'] = null;
+
+$GLOBALS['avesmapsEcosystemOperationLabel'] = null;
+
+function avesmapsEcosystemSetOperationId(mixed $value, mixed $label = null): void
+{
+    $operationId = trim((string) ($value ?? ''));
+    $GLOBALS['avesmapsEcosystemOperationId'] = preg_match('/^[a-f0-9-]{36}$/i', $operationId) === 1
+        ? strtolower($operationId)
+        : null;
+    $operationLabel = avesmapsNormalizeSingleLine((string) ($label ?? ''), 80);
+    $GLOBALS['avesmapsEcosystemOperationLabel'] = $operationLabel !== '' ? $operationLabel : null;
+}
+
+function avesmapsEcosystemOperationId(): ?string
+{
+    return $GLOBALS['avesmapsEcosystemOperationId'] ?? null;
+}
+
+function avesmapsEcosystemOperationLabel(): ?string
+{
+    return $GLOBALS['avesmapsEcosystemOperationLabel'] ?? null;
+}
+
 function avesmapsEcosystemWriteAuditLog(
     PDO $pdo,
     string $action,
@@ -942,8 +1027,8 @@ function avesmapsEcosystemWriteAuditLog(
 ): void {
     $statement = $pdo->prepare(
         'INSERT INTO ecosystem_geometry_audit_log
-            (action, actor_user_id, area_public_id, region_public_id, before_json, after_json)
-         VALUES (:action, :actor_user_id, :area_public_id, :region_public_id, :before_json, :after_json)'
+            (action, actor_user_id, area_public_id, region_public_id, before_json, after_json, operation_id, operation_label)
+         VALUES (:action, :actor_user_id, :area_public_id, :region_public_id, :before_json, :after_json, :operation_id, :operation_label)'
     );
     $statement->execute([
         'action' => $action,
@@ -952,6 +1037,8 @@ function avesmapsEcosystemWriteAuditLog(
         'region_public_id' => $regionPublicId,
         'before_json' => json_encode($before, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
         'after_json' => json_encode($after, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+        'operation_id' => avesmapsEcosystemOperationId(),
+        'operation_label' => avesmapsEcosystemOperationLabel(),
     ]);
 }
 
@@ -2223,4 +2310,322 @@ function avesmapsEcosystemAreaSnapshot(array $row): array
         'is_active' => (int) $row['is_active'] === 1,
         'updated_at' => (string) $row['updated_at'],
     ];
+}
+
+// ---- „Änderungen rückgängig machen" (Owner 2026-07-29) ----------------------------------------------
+//
+// Das Ökosystem protokolliert seit V2.3 zehn Aktionen mit vollem before/after. Was fehlte, war ein Weg
+// zurück -- und ein Fenster, in dem man ihn sieht. Beides hier.
+//
+// 🔴 EINE GESTE, EIN EINTRAG. Gruppiert wird über `operation_id`; eine Zeile ohne Klammer ist ihre
+// eigene Gruppe. Das ist nicht Kosmetik: „Verschmelzen" schreibt update_area_geometry UND delete_area,
+// und wer nur eine der beiden zurücknimmt, bekommt einen Halbzustand, den niemand mehr auseinander
+// sortiert.
+
+const AVESMAPS_ECOSYSTEM_CHANGE_LOG_LIMIT = 200;
+
+// Welche Aktionen lassen sich überhaupt zurücknehmen? Alles, was einen Zustand VORHER hatte oder
+// erzeugt hat. Nicht dabei: `undo_*` (siehe unten) und alles, was gar keine Fläche anfasst.
+function avesmapsEcosystemCanUndoAction(string $action): bool
+{
+    // 🔴 Genau EINE Ebene. Ein `undo_undo_*` wäre die dritte Stufe, und der Aktionsname (VARCHAR(80))
+    // wächst mit jeder. Ein Rückgängig zurückzunehmen heißt: die Geste noch einmal ausführen.
+    if (str_starts_with($action, 'undo_')) {
+        return false;
+    }
+
+    return in_array($action, [
+        'create_area',
+        'update_area_geometry',
+        'delete_area',
+        'delete_area_with_region',
+        'discard_trial_area',
+        'create_region',
+        'update_region',
+        'delete_region',
+        'delete_region_cascade',
+        'assign_wiki_region',
+    ], true);
+}
+
+// Deutsch, weil es im „Änderungen"-Fenster steht. Die Klammer-Beschriftung des Clients gewinnt, wenn
+// sie da ist -- nur der Client kennt die ABSICHT hinter zwei Schreibvorgängen.
+function avesmapsEcosystemActionLabel(string $action): string
+{
+    return [
+        'create_area' => 'Fläche erstellt',
+        'update_area_geometry' => 'Fläche bearbeitet',
+        'delete_area' => 'Fläche gelöscht',
+        'delete_area_with_region' => 'Fläche mit Region gelöscht',
+        'discard_trial_area' => 'Erprobungsfläche verworfen',
+        'create_region' => 'Region erstellt',
+        'update_region' => 'Region geändert',
+        'delete_region' => 'Region gelöscht',
+        'delete_region_cascade' => 'Region mit Flächen gelöscht',
+        'assign_wiki_region' => 'Wiki-Landschaft zugewiesen',
+    ][$action] ?? $action;
+}
+
+// Die Liste fürs „Änderungen"-Fenster, schon zu Gesten zusammengefasst.
+function avesmapsListEcosystemChanges(PDO $pdo, bool $canUndoChanges): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $statement = $pdo->prepare(
+        'SELECT audit.id, audit.action, audit.created_at, audit.area_public_id, audit.region_public_id,
+                audit.operation_id, audit.operation_label, audit.undone_at,
+                users.username, undone_users.username AS undone_username,
+                region.name AS region_name, region.kind AS region_kind
+           FROM ecosystem_geometry_audit_log audit
+           LEFT JOIN users ON users.id = audit.actor_user_id
+           LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
+           LEFT JOIN ecosystem_region region ON region.public_id = audit.region_public_id
+          ORDER BY audit.created_at DESC, audit.id DESC
+          LIMIT ' . AVESMAPS_ECOSYSTEM_CHANGE_LOG_LIMIT
+    );
+    $statement->execute();
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $groups = [];
+    foreach ($rows as $row) {
+        // Ohne Klammer ist die Zeile ihre eigene Gruppe -- so verhalten sich alle Einzelaktionen und
+        // alles, was vor dieser Änderung protokolliert wurde.
+        $key = (string) ($row['operation_id'] ?? '') !== '' ? 'op:' . $row['operation_id'] : 'row:' . $row['id'];
+        if (!isset($groups[$key])) {
+            $groups[$key] = [
+                // Die JÜNGSTE Zeile der Gruppe führt sie an: sie wird beim Zurücknehmen zuerst
+                // angefasst, und ihre id ist deshalb das, was der Knopf schickt.
+                'id' => (int) $row['id'],
+                'action' => (string) $row['action'],
+                'created_at' => (string) $row['created_at'],
+                'username' => (string) ($row['username'] ?? ''),
+                'undone' => (string) ($row['undone_at'] ?? '') !== '',
+                'undone_username' => (string) ($row['undone_username'] ?? ''),
+                'operation_label' => (string) ($row['operation_label'] ?? ''),
+                'steps' => 0,
+                'name' => (string) ($row['region_name'] ?? ''),
+                'kind' => (string) ($row['region_kind'] ?? ''),
+                'area_public_id' => (string) ($row['area_public_id'] ?? ''),
+                'undoable_actions' => true,
+            ];
+        }
+        $groups[$key]['steps'] += 1;
+        // Eine Gruppe gilt als zurückgenommen, sobald IRGENDEINE ihrer Zeilen es ist -- ein halb
+        // zurückgenommener Vorgang darf keinen zweiten Knopf anbieten.
+        $groups[$key]['undone'] = $groups[$key]['undone'] || (string) ($row['undone_at'] ?? '') !== '';
+        $groups[$key]['undoable_actions'] = $groups[$key]['undoable_actions']
+            && avesmapsEcosystemCanUndoAction((string) $row['action']);
+        if ($groups[$key]['name'] === '' && (string) ($row['region_name'] ?? '') !== '') {
+            $groups[$key]['name'] = (string) $row['region_name'];
+        }
+    }
+
+    $changes = [];
+    foreach ($groups as $group) {
+        $label = $group['operation_label'] !== ''
+            ? $group['operation_label']
+            : avesmapsEcosystemActionLabel($group['action']);
+        $changes[] = [
+            'id' => $group['id'],
+            'action' => $group['action'],
+            'label' => $label,
+            'steps' => $group['steps'],
+            'created_at' => $group['created_at'],
+            'username' => $group['username'],
+            'undone' => $group['undone'],
+            'undone_username' => $group['undone_username'],
+            'can_undo' => $canUndoChanges && !$group['undone'] && $group['undoable_actions'],
+            'name' => $group['name'],
+            'kind' => $group['kind'],
+            'public_id' => $group['area_public_id'],
+        ];
+    }
+
+    return ['ok' => true, 'changes' => $changes];
+}
+
+// Nimmt eine ganze Geste zurück -- die Zeile, auf die der Knopf zeigt, und alle Zeilen ihrer Klammer.
+//
+// 💣 JÜNGSTE ZUERST. „Verschmelzen" schreibt erst die neue Geometrie und löscht dann die gefressene
+// Fläche. Rückwärts heißt: erst die Löschung aufheben, dann die Geometrie zurücksetzen. In der
+// Schreibreihenfolge abgearbeitet käme die Fläche zurück und würde von der alten Geometrie sofort
+// wieder überdeckt.
+//
+// 🔴 Kein DDL in der Transaktion: avesmapsEcosystemEnsureTables läuft davor. Ein ALTER committet still.
+function avesmapsUndoEcosystemChange(PDO $pdo, array $payload, int $userId): array
+{
+    avesmapsEcosystemEnsureTables($pdo);
+
+    $auditId = filter_var($payload['audit_id'] ?? null, FILTER_VALIDATE_INT);
+    if ($auditId === false || $auditId < 1) {
+        throw new InvalidArgumentException('audit_id fehlt oder ist ungueltig.');
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $statement = $pdo->prepare('SELECT * FROM ecosystem_geometry_audit_log WHERE id = :id LIMIT 1 FOR UPDATE');
+        $statement->execute(['id' => $auditId]);
+        $target = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!$target) {
+            throw new InvalidArgumentException('Diese Aenderung wurde nicht gefunden.');
+        }
+
+        // Die Klammer: alle Zeilen derselben Geste, JÜNGSTE zuerst. Ohne Klammer ist es genau diese eine.
+        $operationId = (string) ($target['operation_id'] ?? '');
+        if ($operationId !== '') {
+            $statement = $pdo->prepare(
+                'SELECT * FROM ecosystem_geometry_audit_log
+                  WHERE operation_id = :operation_id
+                  ORDER BY created_at DESC, id DESC
+                  FOR UPDATE'
+            );
+            $statement->execute(['operation_id' => $operationId]);
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } else {
+            $rows = [$target];
+        }
+
+        // Erst die ganze Gruppe prüfen, dann die ganze Gruppe schreiben: eine zur Hälfte
+        // zurückgenommene Geste wäre schlimmer als eine gar nicht zurückgenommene.
+        foreach ($rows as $row) {
+            if ((string) ($row['undone_at'] ?? '') !== '') {
+                throw new AvesmapsConflictException('Diese Aenderung wurde bereits rueckgaengig gemacht.');
+            }
+            if (!avesmapsEcosystemCanUndoAction((string) $row['action'])) {
+                throw new InvalidArgumentException('Diese Aenderung kann nicht rueckgaengig gemacht werden.');
+            }
+        }
+
+        foreach ($rows as $row) {
+            avesmapsEcosystemRestoreAuditRow($pdo, $row, $userId);
+        }
+
+        $revision = avesmapsNextEcosystemRevision($pdo);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        $pdo->rollBack();
+        throw $exception;
+    }
+
+    return ['ok' => true, 'revision' => $revision, 'steps' => count($rows)];
+}
+
+// Eine einzelne Audit-Zeile zurückschreiben. Jede Aktionsart weiß, was ihr Gegenteil ist -- mehr als
+// das darf sie nicht anfassen, sonst überschriebe ein Rückgängig Arbeit, die danach entstanden ist.
+function avesmapsEcosystemRestoreAuditRow(PDO $pdo, array $row, int $userId): void
+{
+    $action = (string) $row['action'];
+    $before = json_decode((string) ($row['before_json'] ?? '[]'), true) ?: [];
+    $areaPublicId = (string) ($row['area_public_id'] ?? '');
+    $regionPublicId = (string) ($row['region_public_id'] ?? '');
+    $actor = $userId > 0 ? $userId : null;
+
+    if ($action === 'create_area') {
+        // Das Gegenteil des Erstellens ist das Deaktivieren, nicht das Löschen. Die Zeile bleibt stehen,
+        // damit ein späterer Blick in den Verlauf sie noch findet.
+        $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, updated_by = :u WHERE public_id = :p')
+            ->execute(['u' => $actor, 'p' => $areaPublicId]);
+    } elseif ($action === 'create_region') {
+        $pdo->prepare('UPDATE ecosystem_region SET is_active = 0, updated_by = :u WHERE public_id = :p')
+            ->execute(['u' => $actor, 'p' => $regionPublicId]);
+    } elseif (in_array($action, ['delete_area', 'delete_area_with_region', 'discard_trial_area'], true)) {
+        $pdo->prepare('UPDATE ecosystem_area SET is_active = 1, updated_by = :u WHERE public_id = :p')
+            ->execute(['u' => $actor, 'p' => $areaPublicId]);
+        // 💣 delete_area_with_region hat die Region mitgenommen, weil es die letzte Fläche war. Kommt die
+        // Fläche zurück, muss die Region mit -- sonst hängt sie an einer inaktiven Region, und der
+        // INNER JOIN des Lesepfads macht sie unsichtbar. Genau die Waise, vor der V2.3 warnt.
+        if ($action === 'delete_area_with_region' && $regionPublicId !== '') {
+            $pdo->prepare('UPDATE ecosystem_region SET is_active = 1, updated_by = :u WHERE public_id = :p')
+                ->execute(['u' => $actor, 'p' => $regionPublicId]);
+            avesmapsEcosystemRestoreRegionLabel($pdo, $regionPublicId, $userId);
+        }
+    } elseif (in_array($action, ['delete_region', 'delete_region_cascade'], true)) {
+        $pdo->prepare('UPDATE ecosystem_region SET is_active = 1, updated_by = :u WHERE public_id = :p')
+            ->execute(['u' => $actor, 'p' => $regionPublicId]);
+        avesmapsEcosystemRestoreRegionLabel($pdo, $regionPublicId, $userId);
+    } elseif ($action === 'update_area_geometry') {
+        $geometry = $before['geometry'] ?? null;
+        $bounds = $before['bounds'] ?? null;
+        if (is_array($geometry) && is_array($bounds)) {
+            // 🔴 geometry_revision zählt WEITER hoch, sie fällt nicht auf den alten Wert zurück: der
+            // Wächter zählt Schreibvorgänge, nicht Zustände. Ein Client, der die alte Zahl in der Hand
+            // hält, muss auch nach einem Rückgängig eine 409 bekommen -- sonst überschriebe er es.
+            $pdo->prepare(
+                'UPDATE ecosystem_area
+                    SET geometry_geojson = :g, min_x = :x1, min_y = :y1, max_x = :x2, max_y = :y2,
+                        geometry_revision = geometry_revision + 1, updated_by = :u
+                  WHERE public_id = :p'
+            )->execute([
+                'g' => json_encode($geometry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                'x1' => $bounds['min_x'], 'y1' => $bounds['min_y'],
+                'x2' => $bounds['max_x'], 'y2' => $bounds['max_y'],
+                'u' => $actor, 'p' => $areaPublicId,
+            ]);
+        }
+    } elseif ($action === 'update_region') {
+        $pdo->prepare('UPDATE ecosystem_region SET name = :n, region_type = :t, updated_by = :u WHERE public_id = :p')
+            ->execute([
+                'n' => (string) ($before['name'] ?? ''),
+                't' => ($before['region_type'] ?? null) === null ? null : (string) $before['region_type'],
+                'u' => $actor, 'p' => $regionPublicId,
+            ]);
+    } elseif ($action === 'assign_wiki_region') {
+        $pdo->prepare('UPDATE ecosystem_region SET wiki_url = :w, wiki_region_key = :k, updated_by = :u WHERE public_id = :p')
+            ->execute([
+                'w' => ($before['wiki_url'] ?? null) === null ? null : (string) $before['wiki_url'],
+                'k' => ($before['wiki_region_key'] ?? null) === null ? null : (string) $before['wiki_region_key'],
+                'u' => $actor, 'p' => $regionPublicId,
+            ]);
+    }
+
+    // Die Rücknahme protokolliert sich selbst -- before und after getauscht, weil sie die Gegenrichtung
+    // ist -- und markiert die zurückgenommene Zeile, damit sie keinen zweiten Knopf mehr anbietet.
+    avesmapsEcosystemWriteAuditLog(
+        $pdo,
+        mb_substr('undo_' . $action, 0, 80),
+        $userId,
+        $areaPublicId !== '' ? $areaPublicId : null,
+        $regionPublicId !== '' ? $regionPublicId : null,
+        json_decode((string) ($row['after_json'] ?? '[]'), true) ?: [],
+        $before
+    );
+    $undoAuditId = (int) $pdo->lastInsertId();
+    $pdo->prepare('UPDATE ecosystem_geometry_audit_log SET undone_at = NOW(3), undone_by = :u, undo_audit_id = :a WHERE id = :id')
+        ->execute(['u' => $userId > 0 ? $userId : null, 'a' => $undoAuditId, 'id' => (int) $row['id']]);
+}
+
+// 💣 Eine gelöschte Region hat ihr LABEL mitgenommen (avesmapsEcosystemDeleteLabels). Kommt die Region
+// zurück und das Label nicht, steht sie namenlos auf der Karte -- ein halbes Rückgängig, das genau so
+// aussieht wie ein Fehler. Also kommt es mit.
+//
+// 🔴 Und deshalb fasst AUSGERECHNET dieser Weg map_revision an, als einziger im Rückgängig. Das ist
+// dieselbe dokumentierte Ausnahme wie beim Löschen (siehe avesmapsEcosystemDeleteLabels): Ein Label ist
+// eine map_features-Zeile und reitet in der grossen Nutzlast. Ohne den Zähler zeigten warme Clients per
+// 304 dauerhaft eine Karte ohne diesen Namen. Die Regel „ein Flächen-Save fasst map_revision nie an"
+// bleibt unberührt -- sie gilt dem Zeichenfeldzug, und das hier ist kein Geometrie-Save.
+//
+// Still, wenn es nichts zu tun gibt: keine Region, kein Label, oder das Label lebt noch.
+function avesmapsEcosystemRestoreRegionLabel(PDO $pdo, string $regionPublicId, int $userId): void
+{
+    if ($regionPublicId === '') {
+        return;
+    }
+
+    $read = $pdo->prepare('SELECT label_public_id FROM ecosystem_region WHERE public_id = :p LIMIT 1');
+    $read->execute(['p' => $regionPublicId]);
+    $labelPublicId = trim((string) ($read->fetchColumn() ?: ''));
+    if ($labelPublicId === '') {
+        return;
+    }
+
+    $check = $pdo->prepare('SELECT id FROM map_features WHERE public_id = :p AND is_active = 0 LIMIT 1');
+    $check->execute(['p' => $labelPublicId]);
+    $labelId = (int) ($check->fetchColumn() ?: 0);
+    if ($labelId < 1) {
+        return;
+    }
+
+    $revision = avesmapsNextMapRevision($pdo);
+    $pdo->prepare('UPDATE map_features SET is_active = 1, revision = :r, updated_by = :u WHERE id = :id')
+        ->execute(['r' => $revision, 'u' => $userId > 0 ? $userId : null, 'id' => $labelId]);
 }
