@@ -38,11 +38,12 @@
 </head>
 <body>
 
-<!-- Menüband: three tiles, all the same width. Only the sync tile carries an icon and --primary. -->
+<!-- Menüband: four tiles, all the same width. Only the sync tile carries an icon and --primary. -->
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
     <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoEnabled" disabled data-i18n-title="ecosystem.editor.enabled.title" title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1" data-i18n="ecosystem.editor.ribbon.enabled">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo" data-i18n="ecosystem.editor.enabled.unknown">Zustand unbekannt</span></button>
   </div>
 </div>
@@ -103,6 +104,15 @@
      dieselbe Funktion beantwortet spaeter „schneidet diese Luftlinie Wasser". -->
 <script src="/js/map-features/map-features-ecosystem-path-assign.js"></script>
 <script src="/js/map-features/map-features-ecosystem-geometry.js"></script>
+<!-- V11: das Höhenfeld und sein Raster. 🔴 Der Server kann dieses Feld nicht erzeugen (Spec §2) --
+     `Math.pow` mit gebrochenem Exponenten je Zelle, und `noiseScale` hängt an einem ARGMAX, sodass
+     ein anderes letztes Bit in EINER Zelle die Skalierung der ganzen Fläche verschiebt. Also
+     rechnet der Browser einmal und lädt das Ergebnis hoch.
+     Reihenfolge zwingend: -geometry.js (oben) liefert pointInGeometry / distanceToEcosystemEdge /
+     ecosystemGeometryBounds, auf denen -height-field.js steht. -->
+<script src="/js/map-features/map-features-ecosystem-height-field.js"></script>
+<script src="/js/map-features/map-features-ecosystem-height-combine.js"></script>
+<script src="/js/map-features/map-features-ecosystem-heightmap-raster.js"></script>
 <script src="/js/map-features/map-features-ecosystem-boolean.js"></script>
 <!-- Auto-Name: abgeleitet, nie gespeichert. Dieselbe unit-getestete Regel wie in den
      Karten-Dialogen -- „Wald-001" ist ein Griff, kein Anzeigename. -->
@@ -514,6 +524,20 @@ let allPaths = null;             // null = in dieser Sitzung noch nicht geholt
 let mapRevision = null;
 let pathAssignments = null;      // { rows, stats } des letzten Laufs
 let assignmentStamp = null;      // was der Server über den letzten gespeicherten Lauf sagt
+
+// ---- V11: Höhenraster ---------------------------------------------------------------------
+const PEAKS_API = "/api/edit/map/peaks-geometry.php";
+let allPeaks = null;             // null = in dieser Sitzung noch nicht geholt
+let heightmapStatus = null;      // was der Server über die gespeicherten Raster sagt
+
+async function loadPeaks() {
+	const response = await fetch(PEAKS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
+	const data = await response.json();
+	if (!response.ok || data.ok !== true) {
+		throw new Error((data.error && data.error.message) || "Gipfel konnten nicht geladen werden.");
+	}
+	return data.peaks || [];
+}
 
 function boundsOverlap(a, b) {
 	return !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
@@ -951,6 +975,109 @@ function renderAssignmentTile() {
 	const wegabschnitte = stamp.path_rows_chord + stamp.path_rows_curve;
 	info.textContent = wegabschnitte + " Wegabschnitte · "
 		+ (stamp.duration_ms / 1000).toFixed(1).replace(".", ",") + " s";
+}
+
+// 🔴 EINE ANFRAGE JE FLÄCHE (Spec §3.3). 78 Flächen wären 5,25 MB roh und 7,0 MB base64 -- über
+// dem üblichen `post_max_size` von 8 MB. Je Fläche sind es höchstens 286 KB roh. Und ein Abbruch
+// entwertet dann nicht den ganzen Bestand, sondern lässt die schon geschriebenen Flächen stehen.
+async function runHeightmaps() {
+	const tile = $("ecoHeightmap");
+	const info = $("ecoHeightmapInfo");
+	tile.disabled = true;
+	const started = Date.now();
+	try {
+		setStatus("Flächen werden geladen …");
+		if (allAreas === null) { allAreas = await loadAreas(); }
+		if (allPeaks === null) {
+			setStatus("Gipfel werden geladen …");
+			allPeaks = await loadPeaks();
+		}
+
+		// Die Gebirgsflächen -- dieselbe Weiche wie in map-features-ecosystem-height-render.js.
+		// 💣 Sie steht damit an drei Stellen (Karte, Editor, terrain-store.php). Das ist der Preis
+		// dafür, dass die Karte kein Editor-Modul lädt; wer `huegelland` aufmacht, macht es dreimal.
+		const gebirge = (allAreas || []).filter((area) =>
+			area && area.kind === "topographie" && String(area.region_type || "") === "gebirge");
+		if (gebirge.length === 0) {
+			info.textContent = "keine Gebirgsfläche vorhanden";
+			flashStatus("Es gibt keine Gebirgsfläche — nichts zu rastern.", "ok");
+			return;
+		}
+
+		// 🔴 EIN Fenster über ALLE Gipfel ALLER Flächen, und die Zuteilung je kleinster enthaltender
+		// Fläche -- genau der Stapel, den die Karte baut. Ein je Fläche gebautes Fenster wäre wertlos,
+		// weil der Nachbargipfel dann nicht mitzählte.
+		const stack = buildEcosystemHeightStack(gebirge, (allPeaks || []).map((peak) => ({
+			publicId: peak.public_id, x: peak.x, y: peak.y, height: peak.height_schritt,
+		})));
+
+		await ecoPost("heightmap_cleanup", {});
+
+		let written = 0;
+		let skipped = 0;
+		let bytes = 0;
+		for (let index = 0; index < stack.fields.length; index++) {
+			const field = stack.fields[index];
+			const areaId = stack.areaIdsByField[index];
+			const area = gebirge.find((candidate) => String(candidate.public_id) === areaId);
+			if (!area || !area.bounds) { continue; }
+			const label = (area.region_name || areaId);
+			const grid = ecosystemHeightmapGrid(area.bounds, 0.25);
+			// 💣 Der Fortschritt steht IM KNOPF, und der Haupt-Thread wird je Zeilenband freigegeben.
+			// Hochgerechnet aus der V8-Messung (203.520 Rasterpunkte = 249 ms): 529.531 Pixel bei 15
+			// Flächen, 1,4 Mio bei 40 -- ohne Freigabe sind das mehrere Sekunden eingefrorener Tab.
+			const samples = await rasterizeEcosystemHeightField(field, stack.peakWindow, grid, {
+				onRowBand: (done, total) => {
+					info.textContent = "Raster " + (index + 1) + "/" + stack.fields.length
+						+ " · " + label + " · " + done + "/" + total;
+				},
+			});
+			const result = await ecoPost("heightmap_put", {
+				area: areaId,
+				cell_size: grid.cellSize,
+				origin_x: grid.originX,
+				origin_y: grid.originY,
+				width: grid.width,
+				height: grid.height,
+				samples: ecosystemHeightmapToBase64(samples),
+			});
+			written += Number(result.written || 0);
+			skipped += Number(result.skipped || 0);
+			bytes += Number(result.stored_bytes || 0);
+		}
+
+		heightmapStatus = await ecoPost("heightmap_status", {});
+		renderHeightmapTile();
+		const seconds = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
+		flashStatus(written + " Raster gespeichert (" + Math.round(bytes / 1024) + " KB) in " + seconds + " s"
+			+ (skipped > 0 ? " · " + skipped + " Fläche(n) verschwunden" : ""), "ok");
+	} catch (error) {
+		info.textContent = "fehlgeschlagen";
+		flashStatus("Höhenraster: " + (error && error.message ? error.message : String(error)), "error");
+	} finally {
+		tile.disabled = false;
+	}
+}
+
+// Die Kachel IST die Zustandsanzeige. „veraltet" ist ein Vergleich, keine Vermutung: der Server
+// rechnet beide Fingerabdrücke neu und stellt sie dem Stempel gegenüber.
+//
+// ⚠️ Die Gipfelzahl steht mit dabei, weil sie die Aussagekraft begrenzt: heute tragen 16 von 67
+// Gipfeln eine Höhe, und ein Raster ohne Gipfelhöhen rechnet mit der Vorgabe 5.000, nicht mit
+// erfassten Daten.
+function renderHeightmapTile() {
+	const info = $("ecoHeightmapInfo");
+	if (!info || !heightmapStatus) { return; }
+	const total = Number(heightmapStatus.area_count || 0);
+	const missing = Number(heightmapStatus.missing || 0);
+	const stale = Number(heightmapStatus.stale || 0);
+	if (total === 0) { info.textContent = "keine Gebirgsfläche vorhanden"; return; }
+	if (missing === total) { info.textContent = "noch nicht gerechnet · " + total + " Flächen"; return; }
+	const parts = [(total - missing - stale) + "/" + total + " Raster"];
+	if (stale > 0) { parts.push("**" + stale + " veraltet**".replace(/\*\*/g, "")); }
+	if (missing > 0) { parts.push(missing + " fehlen"); }
+	parts.push(heightmapStatus.peaks_with_height + "/" + heightmapStatus.peaks_total + " Gipfel mit Höhe");
+	info.textContent = parts.join(" · ");
 }
 
 function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
@@ -1406,6 +1533,7 @@ function wireRibbon() {
 	// for the SAME ecosystem_revision instead (runRaycast without force), so the common case costs no
 	// clipping and no political-layer fan-out at all.
 	$("ecoRaycast").addEventListener("click", () => { void runRaycast({ force: true }); });
+	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 
 	// Der Totmannschalter. `set_enabled` existiert serverseitig seit V2.1 und hatte bis heute KEINEN
 	// Aufrufer im Client (grep set_enabled js/ -> leer) -- diese Kachel ist seine erste Oberfläche.
@@ -1736,6 +1864,8 @@ async function loadData(options) {
 async function loadAssignmentStamp() {
 	try {
 		assignmentStamp = await ecoPost("assignment_status", {});
+		heightmapStatus = await ecoPost("heightmap_status", {});
+		renderHeightmapTile();
 		renderAssignmentTile();
 	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
 }
