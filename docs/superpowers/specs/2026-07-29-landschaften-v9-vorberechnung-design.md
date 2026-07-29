@@ -366,9 +366,6 @@ CREATE TABLE IF NOT EXISTS ecosystem_assignment_stamp (
     territory_rows INT UNSIGNED NOT NULL,
     path_rows_chord INT UNSIGNED NOT NULL,
     path_rows_curve INT UNSIGNED NOT NULL,
-    curve_tension DECIMAL(4,3) NULL,
-    curve_samples TINYINT UNSIGNED NULL,
-    curve_enabled TINYINT(1) NOT NULL DEFAULT 1,
     duration_ms INT UNSIGNED NOT NULL,
     run_token CHAR(36) NULL,
     computed_by BIGINT UNSIGNED NULL,
@@ -392,12 +389,14 @@ Eine Zeile, `id` immer `1` — dasselbe Muster wie `map_revision` und
 `duration_ms` ist kein Schmuck: es ist die Antwort auf „wie lang dauert das überhaupt",
 und sie soll auch morgen noch ablesbar sein, nicht nur im Moment des Klicks.
 
-**`curve_tension` / `curve_samples` / `curve_enabled` sind das, was Owner-Punkt 1 trägt**
-(„dann kann ich mit dem Button neu berechnen"). Sie halten fest, **welche Kurvenform** die
-`basis=1`-Zeilen beschreiben. Der Knopf vergleicht sie beim Öffnen gegen
-`VISUAL_LINE_CATMULL_ROM_CONFIG` und meldet „Stand veraltet (Kurvenform geändert)".
-Ohne sie wäre eine geänderte `tension` genau der stille Fehler, gegen den das Neurechnen
-gar nicht erst gerufen würde. Siehe §5.2.
+> ⚠️ **Die Kurvenform wird NICHT mitgestempelt — Owner-Entscheid 2026-07-29:** „keine
+> Panik, die `tension` wird niemand anfassen." Ich hatte drei Spalten dafür vorgesehen
+> (`curve_tension`/`curve_samples`/`curve_enabled`), damit eine geänderte Kurvenform als
+> „veraltet" auffällt statt still falsche `basis=1`-Zeilen zu hinterlassen. Der Owner hat
+> das abgewählt; es ist bewusst weggelassen, kein Versehen. **Wer je `tension`, `samples`
+> oder die Abschaltbarkeit in `VISUAL_LINE_CATMULL_ROM_CONFIG` (`js/config.js:364`)
+> anfasst, muss den Knopf einmal drücken** — sonst beschreiben die gespeicherten
+> Kurven-Zeilen eine Linie, die so nicht mehr gezeichnet wird.
 
 ### 4.5 `ecosystem_region_type.affects_paths`
 
@@ -513,17 +512,10 @@ für den die andere falsch wäre:
 > auszuliefern.** Ohne sie bräuchte jede solche Anzeige entweder die Polygone oder eine
 > eigene Serverabfrage je Route.
 
-> 💣 **Die Kurve hängt an Anzeige-Einstellungen — und deshalb tut es der Stempel auch.**
-> `VISUAL_LINE_CATMULL_ROM_CONFIG` liefert `tension: 0.5`, `samples: 8` und ein
-> `enabled`, das an `?smoothLines=0` bzw. `?smoothRoute=0` hängt (`js/config.js:364`).
-> Wer `tension` auf 0,4 stellt, macht **jede gespeicherte `basis=1`-Zeile still falsch.**
->
-> Genau das ist der Einwand, den Owner-Punkt 1 auflöst („dann kann ich mit dem Button neu
-> berechnen") — **aber nur, wenn man es merkt.** Deshalb nimmt
-> `ecosystem_assignment_stamp` die drei Werte mit auf (§4.4), und der Knopf vergleicht
-> sie beim Öffnen gegen die aktuelle Konfiguration: „**Stand veraltet (Kurvenform
-> geändert)**". Aus einem stillen Fehler wird eine sichtbare Aufforderung. Ohne diese
-> drei Spalten wäre der Einwand nicht ausgeräumt, sondern nur unbeobachtet.
+> ⚠️ **Die Kurve hängt an `js/config.js:364`** (`tension: 0.5`, `samples: 8`, und ein
+> `enabled` an `?smoothLines=0`). Owner 2026-07-29: „die `tension` wird niemand
+> anfassen" — es wird deshalb **nicht** überwacht (§4.4). Wer sie doch anfasst, drückt
+> den Knopf einmal neu.
 
 > ⚠️ **Der Preis, gemessen: der Kurven-Durchgang kostet das 7,9-fache.** Die gezeichnete
 > Linie hat 8 Abtastpunkte je Segment — **284.269 statt 36.119 Segmente**. Im selben
@@ -700,7 +692,7 @@ drücken ergibt dasselbe Bild. Ein Abbruch mittendrin hinterlässt einen Stempel
 | läuft | „rechnet … Wege 3.100/5.650" |
 | speichert | „speichert … 3 von 11" |
 | fertig | „**4.426 + 4.407 Wegabschnitte · 15,2 s gerechnet, 1,1 s gespeichert**" |
-| Stempel veraltet | „gerechnet 12:04 · **Stand veraltet** (Flächen geändert)" bzw. „(Kurvenform geändert)" |
+| Stempel veraltet | „gerechnet 12:04 · **Stand veraltet** (Flächen geändert)" |
 | jemand anderes rechnet | „ein anderer Editor rechnet gerade" |
 
 „Veraltet" ist ein Vergleich, keine Vermutung: Stempel-`ecosystem_revision` gegen den
@@ -793,6 +785,46 @@ kommt der serverseitige Stapellauf der Fahrplan-Zeile.
 | Änderungen am Graph | **V11** | V9 fasst `client-graph.php` nicht an. |
 | Querfeldein-Kanten | **V13/V14** | Keine `map_features`-Zeilen; sie entstehen zur Laufzeit aus der Transportauswahl. |
 | automatische Neuberechnung bei jeder Flächenänderung | **später, falls überhaupt** | Solange der Lauf Sekunden dauert, ist ein Knopf ehrlicher als eine unsichtbare Automatik. Der Stempel macht „veraltet" sichtbar; das genügt, bis die Messung etwas anderes sagt. |
+
+### 9.0 Der Routensimulator — Owner-Idee, nicht beauftragt, aber richtungsweisend
+
+Owner 2026-07-29: „ein Routensimulator, wo ich Play drücke und die Route abfahre, die die
+Helden gehen; wenn der Wald kommt, kann man die Animation pausieren und sagen *ihr betretet
+nun den Farindelwald*."
+
+**Nicht Teil von V9.** Steht hier, weil es die erste Anwendung ist, für die diese Daten
+gebaut werden, und weil vier Dinge daran schon jetzt entschieden sind:
+
+1. **Er bestätigt `basis=1`.** Die Animation läuft über die **gezeichnete** Linie — das
+   Männchen fährt sichtbar über die Straße, und „jetzt betrittst du den Wald" muss genau
+   dann kommen, wenn es die gezeichnete Waldkante überquert. Mit Sehnen-Werten wäre der
+   Auslöser im p90 um 10,8 px zu früh oder zu spät.
+2. **Er arbeitet ganz in Kurvenlänge.** Position, Fortschritt und Auslöser gehören
+   zusammen ins selbe Maß. Die **Reisezeit** kommt weiterhin aus dem Graphen (Sehne) —
+   das ist kein Widerspruch, solange man sie nicht als Position missversteht: eine
+   Erzählpause interessiert die Minute nicht.
+3. 💣 **Die Richtung ist eine Falle.** Die gespeicherten Intervalle stehen in der
+   **Zeichenrichtung des Wegs**. Eine Route kann ein Wegsegment rückwärts befahren; dann
+   wird aus „Eintritt bei 3,28" ein Austritt bei `Gesamtlänge − 3,28`. Wer das vergisst,
+   lässt die Helden den Wald verlassen, bevor sie ihn betreten. Dieselbe Falle steht für
+   V11 in der Fahrplan-Zeile („`from`/`to` bleiben in gespeicherter Orientierung").
+4. ⚠️ **Wiedereintritte sind echt, nicht verschmelzbar.** Der Simulator würde am Tommel
+   dreizehnmal „ihr betretet das Winhaller Land" sagen. Naheliegend wäre, kurze Lücken zu
+   verschmelzen — **gemessen bringt das fast nichts**, weil die Lücken keine Zittern sind,
+   sondern echte Geographie:
+
+   | Lücke zwischen zwei Durchquerungen desselben Paars | |
+   |---|---|
+   | Median | **2,09 Meilen** |
+   | p75 | 4,32 Meilen |
+   | p90 | 8,60 Meilen |
+
+   Bei einer Schwelle von 0,6 Meilen verschmelzen **97 von 597** Lücken (4.426 → 4.329
+   Ereignisse); erst bei 3 Meilen sind es 375. Die Antwort ist also **keine
+   Abstandsschwelle**, sondern eine Erzählregel: je Fläche **einmal** ankündigen, oder
+   ein Wiedereintritt erst nach längerer Abwesenheit. Das entscheidet der Simulator,
+   nicht der Speicher — und der Speicher hält beides offen, weil er die Intervalle
+   einzeln hält (§5.5).
 
 ### 9.1 🔴 Was V9 ausdrücklich **nicht** freischaltet: Idee #44 und A\*
 
