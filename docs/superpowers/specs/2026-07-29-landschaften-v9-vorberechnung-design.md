@@ -1,4 +1,4 @@
-# Landschaften V9 — Vorberechnung Wege × Flächen — Design
+# Landschaften V9 — Zugehörigkeit rechnen und speichern — Design
 
 **Stand:** 2026-07-29 · **Auftraggeber:** Owner · **Vorgänger:** V8 ✅ live
 (Fortsetzung offen) · **Fahrplan-Zeile:** `docs/superpowers/plans/2026-07-24-landschaften.md`
@@ -8,78 +8,123 @@ Zeile 2131 · **Abnehmer:** V10 (Zeile 2132), V11 (Zeile 2136).
 
 ## 0. Kurzfassung
 
-Die Karte kennt heute 5.650 Wege und 647 Landschaftsflächen — aber keine Verbindung
-zwischen beiden. V9 baut sie: eine Tabelle, die für jeden Weg festhält, **von welcher
-Bogenlänge bis zu welcher er durch welche Fläche verläuft**.
+Der Landschaften-Editor hat den Knopf **„Zugehörigkeit rechnen"** (`#ecoRaycast`). Er
+rechnet heute **zwei** Zuordnungen im Browser und wirft sie weg:
 
-V9 ist **für sich unsichtbar**. Es ist die Grundlage für V10 („Führt durch: Farindelwald"
-+ Flora am Routensegment — das erste sichtbare Ergebnis) und V11 (Terrain auf
-Kantengewichte).
+| | was | heute |
+|---|---|---|
+| **A** | Fläche × Fläche — welche Vegetations-/Topographiefläche liegt in welcher derographischen Region | gerechnet, nur in `localStorage` |
+| **B** | Fläche × Territorium („Liegt in") | gerechnet, nur in `localStorage` |
 
-**Owner-Entscheid 2026-07-29:** V9 = Fahrplan-Zeile, nichts darüber hinaus.
-Die Gebirgs-Bremse (`factor_forward`/`factor_backward` aus
-`docs/oekosystem-instruction.md` §2, dort als „Stufe 3" markiert) gehört **zu V11**,
-nicht hierher. Begründung §9.
+**V9 ergänzt die dritte und speichert alle drei serverseitig:**
+
+| | was | neu |
+|---|---|---|
+| **C** | **Weg × Fläche** — von welcher Bogenlänge bis zu welcher verläuft ein Weg durch eine Fläche | gerechnet **und gespeichert** |
+
+> **Owner-Auftrag 2026-07-29, wörtlich:** „V9 soll das nicht 1× ausrechnen, sondern mir
+> im Regioneneditor beim Button *Zugehörigkeit rechnen* genau das auch ausrechnen (und
+> das andere was es ausrechnet) und speichern. Dann finden wir raus wie lang das
+> überhaupt dauert."
+
+**Die Messung ist Teil des Ergebnisses**, nicht eine Nebensache: der Knopf sagt nach dem
+Lauf, wie lange jeder der drei Teile gebraucht hat. Danach — und erst danach — wird
+entschieden, ob überhaupt Stapellauf-Maschinerie nötig ist.
 
 ---
 
-## 1. Was V9 ist — und was es nicht ist
+## 1. Was sich gegenüber der Fahrplan-Zeile ändert — und warum
 
-| | |
+Die Fahrplan-Zeile beschreibt einen **serverseitigen Stapellauf**: Sperre, 4-s-Budget,
+`set_time_limit`, Cursor ohne `OFFSET`, Idempotenz je Weg, Leasing-Falle. Das setzt
+voraus, dass **PHP** rechnet.
+
+Der Owner-Auftrag setzt die Rechnung dorthin, wo die beiden anderen Zuordnungen schon
+laufen: **in den Browser**. Damit entfällt der Stapellauf ersatzlos — es gibt keinen
+Server-Durchgang, den man unterbrechen, wiederaufnehmen oder gegen Zeitüberschreitung
+schützen müsste.
+
+| Fahrplan-Zeile verlangt | Stand in dieser Spec |
 |---|---|
-| **ist** | zwei Tabellen, ein Rechenkern (Geometrie), ein resumierbarer Stapellauf, ein Knopf, Neuberechnung bei Änderungen |
-| **ist nicht** | Höhenfeld in PHP, Tempofaktoren, Auf-/Abstieg, Änderungen am Routing, Änderungen an der Karten-Nutzlast, eine Leseschnittstelle für V10 |
+| `path_ecosystem` PK `(path_id, area_id, seq)`, BIGINT | ✅ unverändert (§4.1) |
+| `path_ecosystem_state` | ❌ **entfällt** — ersetzt durch **eine** Stempelzeile (§4.4). Ohne Fällig-Abfrage gibt es keinen Zustand je Weg. |
+| bbox-Vorfilter als SQL-Join | ❌ **entfällt** — der Vorfilter läuft im Browser, wie in `computeRaycast` schon heute (`boundsOverlap`) |
+| Sperre, Budget, `set_time_limit`, Cursor, Idempotenz | ❌ **entfällt für die Rechnung**, ✅ **bleibt sinngemäß für das Speichern** (§6.2: Lauf-Token, gestückelte Übertragung) |
+| 💣 Leasing-Falle | entfällt mit dem Lauf. Die dahinterliegende Lehre bleibt und wandert in §4.4. |
 
-Die **Leseschnittstelle gehört zu V10**: erst dort steht fest, ob die Intervalle in die
-Routenantwort, in die Karten-Nutzlast oder in einen eigenen Endpunkt gehören. V9 macht
-sein Ergebnis nur über die eigene `status`-Aktion sichtbar (§7), damit der Lauf prüfbar
-ist.
+> 🔴 **Was diese Vereinfachung zurücknehmen würde.** Genau **eine** Messung:
+> Braucht Teil C im Browser mehr als ~10 s, oder überschreitet die Übertragung des
+> Ergebnisses die gestückelten Grenzen aus §6.2 deutlich, dann ist der serverseitige
+> Stapellauf der Fahrplan-Zeile doch der richtige Bau. Deshalb steht die Messung vor der
+> nächsten Ausbaustufe und nicht danach. **Erwartung:** 0,5–2 s (Herleitung §3.3).
 
 ---
 
-## 2. Mengengerüst — live gemessen, nicht geschätzt
+## 2. Der Widerspruch, den dieser Auftrag auflöst — offen benannt
+
+Im Code steht heute wörtlich, warum nicht gespeichert wird:
+
+> „Computed here, NEVER stored — exactly like the conflict centre: a moved boundary
+> corrects the answer by itself, and a stored column would be a second truth about the
+> same thing."
+
+Diese Begründung war richtig, **solange nur der Editor die Antwort brauchte**. V10 ändert
+die Lage: die öffentliche Karte braucht sie auch, und sie kann sie nicht selbst rechnen
+(§3.4). Ein Server-Speicher ist damit kein „zweite Wahrheit aus Bequemlichkeit", sondern
+die einzige Stelle, an der die Antwort für Nicht-Editoren überhaupt existiert.
+
+**Der Preis ist real und wird bezahlt, nicht wegdiskutiert:** ein gespeichertes Ergebnis
+veraltet still. Die Gegenmaßnahme ist keine neue Erfindung — sie steht schon im Code,
+als `localStorage`-Schlüssel: **`ecosystem_revision`**. Jeder Schreibvorgang an einer
+Fläche erhöht ihn. Der Server-Speicher bekommt denselben Stempel, dazu `map_revision`
+für die Wege-Hälfte (ein Weg-Edit erhöht `ecosystem_revision` nicht). Damit ist
+„veraltet" **ablesbar**, und der Knopf sagt es (§7).
+
+> 💣 **Gespeichert heißt Schnappschuss, nicht Wahrheit.** Dieselbe Lehre wie im
+> Konfliktzentrum: was gespeichert ist, war zum Zeitpunkt X richtig. Jede Anzeige, die
+> daraus liest, muss den Stempel mitlesen können — sonst behauptet sie Aktualität, die
+> sie nicht hat.
+
+---
+
+## 3. Mengengerüst — live gemessen, nicht geschätzt
 
 Gemessen **2026-07-29** gegen den Livebestand (`ecosystem_revision` 3082): je eine
-Anfrage an `GET /api/app/ecosystem-areas.php` (981 KB) und
-`GET /api/app/map-features.php`, danach offline nachgerechnet.
+Anfrage an `GET /api/app/ecosystem-areas.php` und `GET /api/app/map-features.php`,
+danach offline nachgerechnet.
 
 | | Wert |
 |---|---|
-| Wege (`feature_type='path'`, aktiv) | **5.650** — davon laut V4 5.512 routingfähig |
-| Stützpunkte aller Wege | 41.769 → **36.119 Segmente** (Median 5 je Weg, p90 14, max 99) |
-| Flächen (aktiv) | **647** (davon 66 Erprobung) |
+| Wege (`feature_type='path'`, aktiv) | **5.650** (V4 zählte 5.512 routingfähige) |
+| Stützpunkte / Segmente | 41.769 / **36.119** |
+| Flächen (aktiv) | **647** (66 Erprobung) |
 | Ecken aller Flächen | 31.797 (Median 17, p90 72, max 3.276) |
 
-### 2.1 Zwei Flächen erzeugen 90 % der Rechenarbeit
+### 3.1 Zwei Flächen erzeugen 90 % der Rechenarbeit
 
 | | alle 647 Flächen | ohne `meer`/`kontinent`/`kueste` |
 |---|---|---|
 | bbox-Tests | 3.655.550 | 3.655.550 |
 | bbox-Paare (Treffer) | 22.688 (0,62 %) | **7.362** |
 | Kantentests danach | **183.529.247** | **17.594.000** |
-| Paare mit echtem Schnitt | 11.449 | 3.829 |
+| Paare mit ≥1 Intervall | 11.449 | 3.829 |
 | **Zeilen in `path_ecosystem`** | **12.302** | **4.426** |
-
-Die beiden Verursacher, einzeln gemessen:
 
 | Fläche | Ecken | getroffene Wege | Kantentests | Anteil |
 |---|---|---|---|---|
 | `Meer-001` (topographie/meer) | 3.050 | 5.650 | 110.162.950 | **60,0 %** |
 | `Aventurien` (derographisch/kontinent) | 1.539 | 5.501 | 54.542.160 | **29,7 %** |
 
-Sie erzeugen zusammen **7.837 Zeilen ohne Aussagewert**: „diese Route führt durch
-Aventurien" gilt für jede Route der Karte, und `Meer-001` trifft jeden Seeweg, der
-ohnehin ein Seeweg ist.
+Zusammen **7.837 Zeilen ohne Aussagewert**: „führt durch Aventurien" gilt für jede Route.
 
-> ⚠️ **Die Analyse (§E) unterschätzte das um Faktor 10.** Dort standen 8.329 Paare und
-> 18,2 Mio Kantentests — gemessen an **175** Flächen. Mit 647 sind es 22.688 Paare und
-> 183,5 Mio Tests. Der Vorfilter skaliert **nicht** unterproportional; er ist gegen ein
-> kontinentgroßes Polygon wirkungslos, weil dessen bbox alles enthält.
+> ⚠️ **Die Analyse (§E) unterschätzte das um Faktor 10** — 18,2 Mio Kantentests, gemessen
+> an **175** Flächen. Der bbox-Vorfilter ist gegen ein kontinentgroßes Polygon
+> wirkungslos, weil dessen bbox alles enthält. Er skaliert **nicht** unterproportional.
 
-### 2.2 Der Zielstand, nicht der heutige Bruchteil
+### 3.2 Der Zielstand, nicht der heutige Bruchteil
 
-Owner-Einwand 2026-07-29: „wir haben jetzt nur einen Bruchteil der Karte." Gegen die
-Label-Bestände nachgezählt (Labels = Obergrenze der noch zu zeichnenden Flächen):
+Owner-Einwand: „wir haben jetzt nur einen Bruchteil der Karte." Gegen die Label-Bestände
+gezählt (Labels = Obergrenze der noch zu zeichnenden Flächen):
 
 | Typ | Flächen heute | Labels | fehlen |
 |---|---|---|---|
@@ -88,32 +133,45 @@ Label-Bestände nachgezählt (Labels = Obergrenze der noch zu zeichnenden Fläch
 | Gebirge | 8 | 63 | 55 |
 | Tal | 0 | 26 | 26 |
 | Sümpfe/Moore | 6 | 31 | 25 |
-| Auenlandschaft | 0 | 8 | 8 |
-| übrige | — | — | 19 |
+| übrige | — | — | 27 |
 | **Summe** | **647** | | **~290 → Zielstand ~937** |
 
-*(`insel` und `see` wachsen nicht mit den Labels — V5 leitete sie aus Kacheln ab,
-254 bzw. 293 Flächen gegen 96 bzw. 53 Labels.)*
+*(`insel` 254 und `see` 293 wachsen nicht mit den Labels — V5 leitete sie aus Kacheln ab.)*
 
-Die fehlenden 290 sind **kleine, handgezeichnete** Flächen. Grob hochgerechnet landet
-`path_ecosystem` bei **~20.000 Zeilen** — im Rahmen der Analyse („~16.000 realistisch,
-Obergrenze 72.000", §8.7) und weit unterhalb dessen, was 4-Sekunden-Schritte nicht
-schaffen. **Mit** Meer und Kontinent wären es ~60.000, davon zwei Drittel Rauschen.
+Die Fehlenden sind **klein und handgezeichnet**. Hochgerechnet: **~20.000 Zeilen**
+(mit Meer und Kontinent ~60.000, davon zwei Drittel Rauschen).
 
-### 2.3 Warum nicht clientseitig
+### 3.3 Woher die Zeiterwartung kommt
 
-Ein naheliegender Einwand: der Browser hat die Flächen ohnehin, er könnte „welche Fläche
-liegt an diesem Segment" beim Routenbau selbst rechnen. **Scheidet aus:** die
-Flächengeometrie ist heute **0,94 MB** und wird beim Zielstand eher 2–3 MB. Die
-öffentliche Karte lädt sie heute gar nicht und soll es nicht anfangen — ihre eigene
-Nutzlast ist gemessen schon **17,79 MB** (2,6 MB übertragen). Der Server rechnet einmal,
-alle lesen.
+| Vergleichspunkt | gemessen |
+|---|---|
+| Teil A heute (124 Flächen × 20 Regionen, Boolesche Verschnitte) | **47 ms** |
+| Vorfilter allein, 3,66 Mio bbox-Tests, Python | 581 ms |
+| Teil C komplett, 17,6 Mio Kantentests, Python/numpy | **1,7 s** |
+| Teil C ohne Filter, 183,5 Mio Kantentests, Python/numpy | 5,0 s |
+
+JavaScript liegt bei dieser Art Schleife typisch zwischen Python und numpy. **Erwartung
+0,5–2 s** für Teil C mit Filter — deshalb die Schwelle „mehr als ~10 s" in §1.
+
+> 💣 **Diese Erwartung ist eine Erwartung, kein Ergebnis.** Nachgebaute Szenen und Node
+> kehren in diesem Projekt schon Rangfolgen um. Es zählt allein, was der Knopf **im
+> Browser am Livebestand** meldet — genau darum geht der Auftrag.
+
+### 3.4 Warum überhaupt speichern
+
+Der Editor hat die Geometrie ohnehin. Die **öffentliche Karte hat sie nicht** und soll sie
+nicht bekommen: die Flächen sind heute 0,94 MB und beim Zielstand eher 2–3 MB, und die
+Karten-Nutzlast ist gemessen schon **17,79 MB** (2,6 MB übertragen). Der Editor rechnet
+einmal, alle lesen.
 
 ---
 
-## 3. Die Tabellen
+## 4. Was gespeichert wird
 
-### 3.1 `path_ecosystem` — das Ergebnis
+Vier Tabellen, DDL in `avesmapsEcosystemEnsureTables` (`api/_internal/app/ecosystem.php`),
+wo die übrigen Ökosystem-Tabellen schon stehen.
+
+### 4.1 `path_ecosystem` — Teil C, das Neue
 
 ```sql
 CREATE TABLE IF NOT EXISTS path_ecosystem (
@@ -127,283 +185,263 @@ CREATE TABLE IF NOT EXISTS path_ecosystem (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ```
 
-**Spaltentypen — jede einzeln begründet:**
-
 - `path_id BIGINT UNSIGNED` = `map_features.id`, **nicht** `public_id VARCHAR(36)`.
-  Analyse §8.7: der PK wäre 41 statt 13 Bytes, die Zeile ~100 statt ~23, und jeder
-  Sekundärindex schleppte ihn mit. `path_ecosystem` ist **abgeleiteter Cache**, kein
-  fachlicher Link — abgeleitete Daten dürfen auf die interne `id` zeigen.
-- `area_id INT UNSIGNED` — **nicht** BIGINT. `ecosystem_area.id` ist `INT UNSIGNED`;
-  die Fahrplan-Zeile sagt pauschal „BIGINT", das gilt nur für `path_id`. Eine Spalte
-  breiter als ihr Ziel kostet Platz und verschleiert die Herkunft.
-- `seq TINYINT UNSIGNED` — der Zähler der Durchquerungen eines Paars. Gemessen:
-  3.585 Paare mit 1 Intervall, das Maximum liegt bei **13**. 255 ist reichlich; der
-  Rechenkern bricht bei >255 ab und schreibt den Weg als Anomalie fort (§5.4), damit
-  eine kaputte Geometrie nicht still abgeschnitten wird.
-  PK = 8+4+1 = **13 Bytes**, genau die Zahl aus der Analyse.
-- `enter_distance_mapunits` / `exit_distance_mapunits` — Bogenlänge ab Wegbeginn in
-  **Karteneinheiten**, derselben Einheit wie `map_features.min_x` und wie
-  `calculatePathCoordinateDistance`. **Die Einheit steht im Feldnamen**, und zwar
-  wegen der Falle, die dieses Projekt schon einmal bezahlt hat: `1 Karteneinheit =
-  3.000 Schritt`. Wer die Graph-Distanz als Meilen liest, überhöht eine Steigung um
-  3× und das Signal um 23× (Analyse §F, Instruction §5.0). V9 rechnet keine Steigung —
-  aber V11 liest diese Spalten, und dann zählt der Name.
+  Analyse §8.7: der PK wäre 41 statt 13 Bytes und jeder Sekundärindex schleppte ihn mit.
+  Abgeleiteter Cache darf auf die interne `id` zeigen. **Der Client kennt nur
+  `public_id`; die Auflösung passiert beim Speichern serverseitig** (§6.2).
+- `area_id INT UNSIGNED` — **nicht** BIGINT. `ecosystem_area.id` ist `INT UNSIGNED`; die
+  Fahrplan-Zeile sagt pauschal „BIGINT", das gilt nur für `path_id`.
+- `seq TINYINT UNSIGNED` — Durchquerungszähler. Gemessen: 3.585 Paare mit 1 Intervall,
+  Maximum **13**. PK = 8+4+1 = **13 Bytes**, genau die Zahl der Analyse.
+- `enter_/exit_distance_mapunits` — Bogenlänge ab Wegbeginn in **Karteneinheiten**,
+  dieselbe Einheit wie `map_features.min_x` und `calculatePathCoordinateDistance`.
+  **Die Einheit steht im Feldnamen**, weil `1 Karteneinheit = 3.000 Schritt` und wer die
+  Graph-Distanz als Meilen liest, eine Steigung um 3× und das Signal um 23× überhöht
+  (Analyse §F). V9 rechnet keine Steigung — V11 liest diese Spalten.
 
-**Kein Surrogat-PK.** `(path_id, area_id, seq)` ist der natürliche Schlüssel, macht die
-Neuberechnung idempotent, und InnoDB clustert danach: der Bulk-Read fürs Routing liest
-sequenziell in Wegreihenfolge.
-
-`KEY (area_id)` beantwortet „Fläche geändert → welche Wege sind stale?" (§6).
-
-### 3.2 `path_ecosystem_state` — was gerechnet wurde
+### 4.2 `ecosystem_region_overlap` — Teil A
 
 ```sql
-CREATE TABLE IF NOT EXISTS path_ecosystem_state (
-    path_id BIGINT UNSIGNED NOT NULL,
-    path_revision BIGINT UNSIGNED NOT NULL,
-    ecosystem_revision INT UNSIGNED NOT NULL,
-    interval_count SMALLINT UNSIGNED NOT NULL,
-    computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (path_id)
+CREATE TABLE IF NOT EXISTS ecosystem_region_overlap (
+    region_id INT UNSIGNED NOT NULL,
+    other_region_id INT UNSIGNED NOT NULL,
+    share DECIMAL(6,5) NOT NULL,
+    PRIMARY KEY (region_id, other_region_id),
+    KEY idx_ecosystem_overlap_other (other_region_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ```
 
-> 💣 **Diese Tabelle existiert wegen der Null.** Von 5.650 Wegen schneiden gemessen nur
+Beide Richtungen werden geschrieben — der Client führt die Paare schon symmetrisch
+(`result.get(a).push(b)` **und** umgekehrt), und ein Leser fragt immer „was liegt in
+**dieser** Region", nie „welches Paar existiert". `share` ist der Anteil an der
+**kleineren** der beiden Regionen, Schwelle 10 % — die Regel bleibt unverändert
+(Owner 2026-07-27). `DECIMAL(6,5)` hält `0.00000`–`9.99999`; Anteile liegen in `[0,1]`,
+der Spielraum fängt Rundung ab, ohne `FLOAT`-Wackeln einzuführen.
+
+### 4.3 `ecosystem_region_territory` — Teil B
+
+```sql
+CREATE TABLE IF NOT EXISTS ecosystem_region_territory (
+    region_id INT UNSIGNED NOT NULL,
+    territory_public_id CHAR(36) NOT NULL,
+    share DECIMAL(6,5) NOT NULL,
+    is_aggregate TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (region_id, territory_public_id),
+    KEY idx_ecosystem_territory (territory_public_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+```
+
+> 🔴 **Hier steht `public_id`, nicht die interne `id` — mit Absicht und im Widerspruch
+> zu §4.1.** Der Unterschied ist nicht Bequemlichkeit: die politische Schicht wird über
+> `territory_public_id` gelesen, der Zugriff läuft über
+> `api/app/political-territories.php`, und diese Zeilen sind die **einzige** Stelle, an
+> der das Landschaftsmodul auf Politik zeigt. Auf eine interne Politik-`id` zu zeigen
+> hieße, eine zweite Kopplung an ein fremdes Modul einzuziehen, deren Auflösung nirgends
+> sonst gebraucht wird. Bei `path_id` liegt es umgekehrt: Wege und Flächen sind beide
+> „unser" Bestand, es sind zehntausende Zeilen, und der PK-Umfang zählt.
+> `is_aggregate` reist mit, weil der Client-Helfer je Territorium **eine** Geometrie
+> behält und jeder Treffer schon heute sagt, welche es war.
+
+### 4.4 `ecosystem_assignment_stamp` — wann und wogegen gerechnet wurde
+
+```sql
+CREATE TABLE IF NOT EXISTS ecosystem_assignment_stamp (
+    id TINYINT UNSIGNED NOT NULL,
+    ecosystem_revision INT UNSIGNED NOT NULL,
+    map_revision BIGINT UNSIGNED NOT NULL,
+    area_count INT UNSIGNED NOT NULL,
+    path_count INT UNSIGNED NOT NULL,
+    overlap_rows INT UNSIGNED NOT NULL,
+    territory_rows INT UNSIGNED NOT NULL,
+    path_rows INT UNSIGNED NOT NULL,
+    duration_ms INT UNSIGNED NOT NULL,
+    run_token CHAR(36) NULL,
+    computed_by BIGINT UNSIGNED NULL,
+    computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+```
+
+Eine Zeile, `id` immer `1` — dasselbe Muster wie `map_revision` und
+`ecosystem_revision`.
+
+> 💣 **Der Stempel existiert wegen der Null.** Von 5.650 Wegen schneiden gemessen nur
 > **3.829** überhaupt eine Fläche — **1.821 Wege liefern null Zeilen**, und das ist ein
-> *gültiges, endgültiges* Ergebnis. Würde „fällig" aus `path_ecosystem` selbst
-> abgeleitet („hat der Weg keine Zeile, muss er gerechnet werden"), wären diese 1.821
-> **für immer fällig** und der Lauf endete nie. Genau dieselbe Lehre steht wörtlich in
-> `api/_internal/app/citymaps.php` („without a state for *tried, found nothing* the next
-> step finds the same map due again and the run never ends — the linkchecker paid for
-> that lesson"). **Jedes Ergebnis schreibt einen Zustand, auch das leere.**
+> gültiges Ergebnis. Wer „wurde gerechnet?" aus dem Vorhandensein von Zeilen ableitet,
+> hält jeden dieser 1.821 Wege für ungerechnet — und einen leeren Lauf für einen
+> misslungenen. Dieselbe Lehre steht wörtlich in `api/_internal/app/citymaps.php`
+> („without a state for *tried, found nothing* the next step finds the same map due
+> again and the run never ends — the linkchecker paid for that lesson"). Hier kostet sie
+> **eine Zeile** statt 5.650, weil es keine Fällig-Abfrage gibt.
 
-- `path_revision` = `map_features.revision` des Wegs zum Rechenzeitpunkt. Damit ist
-  „der Weg selbst wurde bearbeitet" ohne Zusatzaufwand erkennbar.
-- `ecosystem_revision` = der globale Zähler zum Rechenzeitpunkt. Diagnose und die
-  Grundlage für ein späteres „alles vor Revision N neu".
-- `interval_count` — redundant zu `COUNT(*)`, aber es macht die Statusanzeige zu einer
-  Aggregation über 5.650 kleine Zeilen statt über 20.000, und es unterscheidet
-  „gerechnet, nichts gefunden" von „nie gerechnet" ohne Join.
+`duration_ms` ist kein Schmuck: es ist die Antwort auf „wie lang dauert das überhaupt",
+und sie soll auch morgen noch ablesbar sein, nicht nur im Moment des Klicks.
 
-### 3.3 `ecosystem_region_type.affects_paths` — welche Arten mitrechnen
+### 4.5 `ecosystem_region_type.affects_paths`
 
 ```sql
 ALTER TABLE ecosystem_region_type ADD COLUMN affects_paths TINYINT(1) NOT NULL DEFAULT 1
 ```
 
-Startwerte beim Nachrüsten: `0` für `meer`, `kontinent`, `kueste` — **alles andere 1**.
-Begründung: §2.1 (90 % der Arbeit, 64 % der Zeilen, kein Aussagewert).
+Startwerte beim Nachrüsten: **`0` für `meer`, `kontinent`, `kueste`**, alles andere `1`.
+Begründung: §3.1. Das Feld reist in `GET /api/app/ecosystem-areas.php` je Fläche mit
+(Nutzlast-Version **5**), damit der Client es beim Rechnen anwenden kann.
 
-> 🔧 **DU (Owner):** Das ist eine Datenzeile, kein Code. Willst du „führt durchs
-> Perlenmeer" doch sehen, setzt du `affects_paths=1` für `meer` und lässt einmal
-> neu rechnen. Nichts daran ist einbetoniert.
+Es wirkt **nur auf Teil C**. Teil A und B bleiben unverändert — dort ist der Kontinent
+heute schon Partner, und das zu ändern wäre eine andere Entscheidung als diese.
 
 > 💣 **Der Startwert-Block wird PRO SPALTE bewacht**, nicht durch ein gemeinsames
-> „war neu"-Flag. `avesmapsEcosystemEnsureTables` trägt diese Lehre schon im Kommentar:
+> „war neu"-Flag: `avesmapsEcosystemEnsureTables` trägt diese Lehre schon im Kommentar —
 > ein globales Flag hätte beim Nachrüsten von `terrain_mean_height` jede Owner-Anpassung
 > an `terrain_grain` still auf die Werte von 2026-07-28 zurückgesetzt.
 
-**Nicht** `affects_routing`, und **nicht** `speed_factor`. Beide stehen in
-`docs/oekosystem-instruction.md` §2 und gehören zu V11. `affects_paths` beantwortet eine
-andere Frage: *nimmt diese Art an der Vorberechnung überhaupt teil*. V10 ist Anzeige,
-nicht Routing — ein gemeinsamer Name für beides wäre in einem halben Jahr eine Falle.
+> 🔧 **DU (Owner):** Das ist eine Datenzeile, kein Code. Willst du „führt durchs
+> Perlenmeer" doch sehen, setzt du `affects_paths=1` und drückst den Knopf neu.
 
-### 3.4 Wo die DDL steht
-
-In **`avesmapsEcosystemEnsureTables`** (`api/_internal/app/ecosystem.php`), zusammen mit
-den übrigen Ökosystem-Tabellen. Zwei Gründe:
-
-1. Der **Schritt-Pfad darf kein DDL ausführen** (§5.3). Liegt die DDL in der Funktion,
-   die bei jedem Flächen-Schreibvorgang und jedem `ecosystem-areas.php` ohnehin läuft,
-   existieren die Tabellen garantiert, bevor der erste Schritt startet.
-2. Der **Invalidierungs-Haken** (§6) schreibt aus dem Flächen-Save heraus in
-   `path_ecosystem_state`. Läge die DDL woanders, müsste er eine womöglich fehlende
-   Tabelle abfangen.
-
-Kosten: zwei zusätzliche `CREATE TABLE IF NOT EXISTS` (No-Ops) plus **eine** weitere
-`information_schema`-Abfrage in der Schleife, die dort schon vier macht.
+**Nicht** `affects_routing`, **nicht** `speed_factor` — beide stehen in
+`docs/oekosystem-instruction.md` §2 und gehören zu V11. `affects_paths` beantwortet:
+*nimmt diese Art an der Wege-Zuordnung teil*. V10 ist Anzeige, nicht Routing.
 
 ---
 
-## 4. Der Rechenkern — Geometrie
+## 5. Der Rechenkern für Teil C
 
-Reine Funktionen in einer neuen Datei `api/_internal/app/path-ecosystem-geometry.php`,
-ohne PDO, ohne Seiteneffekte beim Einbinden — damit sie unit-testbar sind (Muster:
-`api/_internal/app/autoget-run.php`).
+Neue Datei `js/map-features/map-features-ecosystem-path-assign.js`, reine Funktionen,
+kein DOM, kein `fetch` — damit unit-testbar wie
+`js/map-features/__tests__/ecosystem-geometry.test.js`.
 
-### 4.1 Ablauf je Paar (Weg × Kandidatenfläche)
+### 5.1 Ablauf je Paar (Weg × Kandidatenfläche)
 
 1. **Bogenlängen** des Wegs kumulieren (`hypot` je Segment) → `cum[i]`, `total`.
-2. **Schnitte** jedes Wegsegments mit jeder Polygonkante, Parameterform. Für jeden
-   Treffer die Bogenlänge `cum[i] + t · |Segment|` merken.
-3. **Startzustand** per Ray-Cast am ersten Wegpunkt: liegt er innerhalb?
-4. **Umklappen** an jedem Schnitt, sortiert nach Bogenlänge. Jedes Teilstück mit
-   Zustand „innen" wird eine Zeile.
+2. **Schnitte** jedes Wegsegments mit jeder Polygonkante, Parameterform. Je Treffer die
+   Bogenlänge `cum[i] + t · |Segment|`.
+3. **Startzustand** per Ray-Cast am ersten Wegpunkt.
+4. **Umklappen** an jedem Schnitt, nach Bogenlänge sortiert. Jedes Teilstück mit Zustand
+   „innen" wird eine Zeile.
 
 Löcher (`MultiPolygon`, innere Ringe) brauchen **keine Sonderbehandlung**: ihre Kanten
-klappen den Zustand genauso um, und der Ray-Cast zählt sie über die Parität mit.
+klappen den Zustand genauso um, der Ray-Cast zählt sie über die Parität mit.
 
-### 4.2 Die halboffene Regel
+**Vorfilter:** `boundsOverlap` — dieselbe Funktion, die `computeRaycast` heute schon
+benutzt. Nicht nachbauen.
 
-Schnittparameter gelten als Treffer für `t ∈ [0,1)` und `u ∈ [0,1)` — auf **beiden**
-Seiten halboffen. Sonst zählt ein Weg, der genau durch eine Polygonecke läuft, zwei
-Schnitte statt einen, und das Intervall kippt in die falsche Richtung. Mit dieser Regel
-gemessen ergibt sich die plausible Verteilung aus §2.1 (3.585 × 1 Intervall, dann
-schnell abfallend).
+> 🔴 **Kein `polygon-clipping` für Teil C.** Teil A und B fragen nach *Fläche*, dafür ist
+> der Boolesche Verschnitt richtig. Teil C fragt nach **Bogenlängen entlang einer Linie** —
+> die liefert kein Verschnitt, und ein Umweg darüber wäre um Größenordnungen teurer.
 
-### 4.3 Was nicht gerechnet wird
+### 5.2 Die halboffene Regel
 
-Kein Höhenfeld, keine Tempokurve, keine Gauß-Quadratur, keine Auf-/Abstiegssummen. Das
-ist V11 (§9).
+Schnittparameter gelten als Treffer für `t ∈ [0,1)` **und** `u ∈ [0,1)`. Sonst zählt ein
+Weg, der genau durch eine Polygonecke läuft, zwei Schnitte statt einen, und das Intervall
+kippt in die falsche Richtung. Mit dieser Regel entsteht die Verteilung aus §3.1
+(3.585 × 1 Intervall, dann fallend).
 
-### 4.4 Nulllängen und Entartungen
+### 5.3 Entartungen
 
-- Weg mit `total = 0` (alle Stützpunkte gleich) → 0 Intervalle, Zustand geschrieben.
-- Intervall kürzer als `1e-9` Karteneinheiten → verworfen (Tangente an einer Ecke).
-- Fläche ohne Kanten (leere Geometrie) → übersprungen.
-- \>255 Intervalle für ein Paar → Weg wird mit `interval_count = 0` und einem Eintrag
-  im Lauf-Bericht als Anomalie abgeschlossen, **nicht** stillschweigend abgeschnitten.
-
----
-
-## 5. Der Stapellauf
-
-Endpunkt **`api/edit/map/path-ecosystem-run.php`**, POST, Capability `edit`.
-Vorbild in Form und Warnung: `api/edit/map/citymap-autoget.php`.
-
-Aktionen: `status` · `run_step` · `reset`.
-
-### 5.1 Die fällige Menge und der Cursor
-
-```sql
-SELECT p.id, p.revision, p.geometry_json, p.min_x, p.min_y, p.max_x, p.max_y
-  FROM map_features p
-  LEFT JOIN path_ecosystem_state s ON s.path_id = p.id
- WHERE p.feature_type = 'path' AND p.is_active = 1
-   AND (s.path_id IS NULL OR s.path_revision <> p.revision)
- ORDER BY p.id
- LIMIT :batch
-```
-
-> 💣 **Kein `OFFSET`.** Über eine sich ändernde Menge überspringt es Zeilen. Der Cursor
-> ist die Bedingung selbst: ein fertig gerechneter Weg bekommt sofort seinen
-> Zustandssatz und fällt damit aus der Menge. `ORDER BY p.id` macht die Reihenfolge
-> stabil und den Index nutzbar.
-
-> 💣 **Kein Leasing.** Es wird nichts vorab reserviert. Der Zustand wird **je Weg direkt
-> nach dessen Berechnung** geschrieben. Wer einen Stapel least und dann ins Zeitbudget
-> läuft, dessen Fällig-Abfrage sieht nichts mehr, meldet `remaining=0` und erklärt einen
-> halb gelaufenen Durchgang für fertig — wörtlich
-> `api/_internal/app/citymaps.php:319–325`.
-
-### 5.2 Der bbox-Vorfilter als SQL-Join
-
-Einmal je Schritt, für die Wege des Stapels:
-
-```sql
-SELECT p.id AS path_id, a.id AS area_id
-  FROM map_features p
-  JOIN ecosystem_area a
-    ON a.min_x <= p.max_x AND a.max_x >= p.min_x
-   AND a.min_y <= p.max_y AND a.max_y >= p.min_y
-  JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
-  LEFT JOIN ecosystem_region_type t ON t.kind = r.kind AND t.type_key = r.region_type
- WHERE p.id IN (…) AND a.is_active = 1
-   AND COALESCE(t.affects_paths, 1) = 1
-```
-
-Nutzt `idx_ecosystem_area_bbox`. Erledigt gemessen 3,66 Mio Tests im Index und liefert
-7.362 Paare (0,20 % der Tests). Die Geometrien der **distinkten** Flächen des Schritts
-werden danach in **einer** Abfrage geholt und im Schritt im Speicher gehalten — dieselbe
-Fläche kommt im Median bei 4 Wegen vor, p90 bei 6.
-
-**Kein `ST_Intersects`.** Die Geometrie läge zweimal vor (JSON + `GEOMETRY`) und könnte
-auseinanderlaufen, und der Lauf braucht keinen Booleschen Wert, sondern die
-Bogenlängen — die liefert keine MySQL-Funktion.
-
-> ⚠️ `COALESCE(t.affects_paths, 1) = 1`: eine Fläche mit `region_type IS NULL` (live: 13
-> Stück) hat keine Typzeile und nimmt damit teil. Das ist die konservative Richtung —
-> „unbekannte Art" darf nicht heißen „stillschweigend weggelassen".
-
-### 5.3 Die vier Schutzmechanismen
-
-Alle vier über **`avesmapsAutogetGuardedStep`** (`api/_internal/app/autoget-run.php`) —
-feature-agnostisch, unit-getestet, schon zweimal im Einsatz.
-
-| | |
+| Fall | Verhalten |
 |---|---|
-| **Sperre** | `GET_LOCK`, verbindungsgebunden, nicht blockierend. **Eigener Name** `avesmaps_path_ecosystem`, nicht der geteilte `avesmaps_preview_autoget`: jener Lauf ist I/O-gebunden (wartet aufs Wiki), dieser rechnet. Sie gegeneinander zu sperren senkt kein Risiko, macht aber ein `busy` unerklärbar. Zweiter Tab / Reload / Agent bekommt `{busy:true}`. |
-| **Budget** | `AVESMAPS_AUTOGET_STEP_BUDGET_SECONDS = 4.0`, **wiederverwendet, keine zweite Zahl**. Geprüft nach **jedem Weg**. Nicht die 28 s des Dumps — die sind für I/O kalibriert; ein 28-s-CPU-Schritt ist exakt `aborted: read failed`. |
-| **Notaus** | `app_setting['path_ecosystem_run']`, per SQL umlegbar, **zuerst** geprüft, vor der Sperre. Stoppt tab-übergreifend (der Browser-Stop bricht nur einen Tab ab, PHP läuft nach einem Disconnect weiter). |
-| **Zeitlimit** | `@set_time_limit(4 + 15)` zu Beginn des Endpunkts. |
+| Weg mit `total = 0` | 0 Intervalle, kein Fehler |
+| Intervall < `1e-9` Karteneinheiten | verworfen (Tangente an einer Ecke) |
+| Fläche ohne Kanten | übersprungen |
+| \>255 Intervalle für ein Paar | Paar verworfen **und im Bericht genannt** — nie stillschweigend abschneiden |
 
-> 💣 **Kein `EnsureTables` im Schritt-Pfad.** Es macht `information_schema`-Sonden bei
-> jedem Schritt — genau die Last des Pool-Vorfalls vom 2026-07-17 — und es führt **DDL
-> auf der Tabelle aus, in die der Schritt gerade schreibt**. Ein `ALTER TABLE` mitten in
-> einer Transaktion beendet sie still (implizites Commit). `status` und `reset` rufen
-> `EnsureTables`; `run_step` nie.
+### 5.4 Was nicht gerechnet wird
 
-### 5.4 Idempotenz
-
-Je Weg, in **einer** Transaktion, ohne jedes DDL:
-
-```
-BEGIN
-  DELETE FROM path_ecosystem WHERE path_id = :id
-  INSERT INTO path_ecosystem (…) VALUES …          -- 0..n Zeilen
-  REPLACE INTO path_ecosystem_state (…) VALUES (…) -- IMMER, auch bei 0 Zeilen
-COMMIT
-```
-
-Zweimal denselben Weg zu rechnen ergibt exakt dasselbe Bild. Ein Abbruch mitten im Lauf
-hinterlässt keinen halben Weg.
+Kein Höhenfeld, keine Tempokurve, keine Auf-/Abstiegssummen, keine Faktoren. Das ist V11
+(§9).
 
 ---
 
-## 6. Neuberechnung im Betrieb
+## 6. Woher die Wege kommen und wie das Ergebnis hineinkommt
 
-**Niemals die ganze Karte, niemals pro Routenanfrage.** Zwei Auslöser:
+### 6.1 Lesen: die Weg-Geometrie für den Editor
 
-1. **Weg bearbeitet** → `map_features.revision` ändert sich → die Fällig-Bedingung
-   (§5.1) greift von allein. **Kein Haken nötig.**
-2. **Fläche gespeichert, verschoben oder gelöscht** → ein Haken in den Schreibpfaden von
-   `api/_internal/app/ecosystem.php` löscht die Zustandssätze aller Wege, deren bbox die
-   **alte oder neue** bbox der Fläche schneidet:
+Der Editor lädt heute **keine** `map_features`. Die Karten-Nutzlast dafür zu ziehen wäre
+17,79 MB für einen Bruchteil ihres Inhalts. Deshalb ein schlanker, **capability-gated**
+Endpunkt:
 
-```sql
-DELETE s FROM path_ecosystem_state s
-  JOIN map_features p ON p.id = s.path_id
- WHERE p.min_x <= :max_x AND p.max_x >= :min_x
-   AND p.min_y <= :max_y AND p.max_y >= :min_y
+```
+GET /api/edit/map/paths-geometry.php   (cap 'edit')
+  -> { ok:true, map_revision:int, paths:[ { public_id, geometry, bounds } ] }
 ```
 
-Zustandssatz weg = Weg fällig. Die alten Zeilen in `path_ecosystem` bleiben bis zur
-Neuberechnung stehen — kurzzeitig veraltet, nie widersprüchlich (V10 zeigt dann für ein
-paar Minuten eine Fläche, die sich leicht verschoben hat; das ist der richtige
-Kompromiss gegen ein Loch in der Anzeige).
+Nur `feature_type='path'`, `is_active=1`. Geschätzt ~1,5 MB bei 41.769 Stützpunkten.
 
-> 💣 **Alte *und* neue bbox.** Wird eine Fläche verkleinert, liegen die Wege, die sie
-> gerade verlassen hat, außerhalb der neuen bbox — nur die alte findet sie. Wer nur die
-> neue nimmt, lässt genau die Wege stehen, die falsch geworden sind.
+- **`api/edit/`, nicht `api/app/`:** er dient allein dem Editor-Knopf. Die öffentliche
+  Lesefläche wächst nicht (AGENTS.md §4), und `list_regions` liegt aus genau diesem Grund
+  schon hinter derselben Schranke.
+- **Keine internen `id`s im Payload** — der Client rechnet mit `public_id`, der Server
+  löst beim Speichern auf (§6.2). Interne Schlüssel bleiben intern.
+- Er wird **nur beim Klick** geholt, höchstens einmal je Sitzung — dieselbe Regel, unter
+  der der Politik-Layer-Fächer dort schon steht.
 
-Ein Volllauf bleibt über `reset` möglich (löscht alle Zustandssätze, nicht die Daten).
+### 6.2 Schreiben: gestückelt, mit Lauf-Token
+
+Neue Aktionen an `api/edit/map/ecosystem.php` (vorhandener `match($action)`-Verteiler,
+cap `edit`):
+
+| Aktion | Wirkung |
+|---|---|
+| `assignment_begin` | erzeugt ein `run_token`, leert die drei Tabellen in **einer** Transaktion, schreibt den Stempel als „in Arbeit" |
+| `assignment_chunk` | nimmt bis zu **2.000** Zeilen einer Art, verlangt das gültige `run_token`, fügt ein |
+| `assignment_commit` | schreibt Zählwerte, `duration_ms`, `ecosystem_revision`, `map_revision`, `computed_by` und macht den Stempel gültig |
+| `assignment_status` | liefert den Stempel — für den Knopf und für die Abnahme |
+
+> 💣 **Warum ein Token und keine Sperre.** `GET_LOCK` ist verbindungsgebunden und kann
+> nicht über mehrere Requests hinweg halten — genau der Grund, aus dem `dump-lock.php`
+> eine DB-Zeile benutzt und `autoget-run.php` nicht. Zwei Editoren, die gleichzeitig
+> rechnen, würden ihre Stücke sonst ineinander schieben. Mit dem Token gewinnt der
+> zweite `assignment_begin`; das nächste Stück des ersten bekommt **409** und seine
+> Oberfläche sagt, dass jemand anderes gerade rechnet.
+
+> 💣 **Kein DDL in den Schreibpfaden.** `assignment_begin` und `_chunk` rufen **kein**
+> `EnsureTables`: ein `ALTER TABLE` mitten in einer Transaktion beendet sie still
+> (implizites Commit), und die `information_schema`-Sonden sind genau die Last des
+> Pool-Vorfalls vom 2026-07-17. Die DDL läuft dort, wo sie ohnehin läuft — beim
+> Flächen-Lesen und -Schreiben.
+
+**Auflösung `public_id` → interne `id`** einmal je `assignment_begin`, für alle drei
+Bestände, die intern geschlüsselt werden: `map_features` (Wege, 5.650),
+`ecosystem_area` (647) und `ecosystem_region`. Politische Territorien werden **nicht**
+aufgelöst — sie bleiben `public_id` (§4.3). Ein `public_id`, den es nicht mehr gibt,
+wird **verworfen und gezählt**, nicht als Fehler geworfen: zwischen Rechnen und
+Speichern kann ein Weg oder eine Fläche gelöscht worden sein.
+
+**Größe:** heute ~4.426 + Teil A + Teil B ≈ 250 KB, in 2.000er-Stücken also 2–3
+Anfragen. Zielstand ~20.000 Zeilen ≈ 1,2 MB, ~11 Anfragen. Die Stückelung ist genau
+deshalb von Anfang an drin: sie hält jede einzelne Anfrage klein, ganz gleich wie der
+Bestand wächst.
+
+### 6.3 Idempotenz
+
+`assignment_begin` leert, die Stücke füllen, `assignment_commit` stempelt. Zweimal
+drücken ergibt dasselbe Bild. Ein Abbruch mittendrin hinterlässt einen Stempel ohne
+`commit` — für jeden Leser erkennbar „unvollständig", nicht „leer".
 
 ---
 
-## 7. Oberfläche
+## 7. Der Knopf
 
-Im **Landschaften-Editor** (`html/landschaften-editor.html`,
-`js/review/review-ecosystem-list.js`) ein Abschnitt „**Landschaftseinflüsse berechnen**".
-Client-Schleife nach dem Muster `js/review/review-citymap-autoget.js` (101 Zeilen):
-ruft `run_step`, bis `done`, und behandelt `busy` und `stopped`.
+`#ecoRaycast` behält Namen und Platz. Neu:
 
-**Der Knopf trägt seinen Status** (Hausregel): *„Berechnen — 1.842 von 5.650 offen"*,
-während des Laufs *„… 3.210 offen"*, danach *„Alles berechnet · 4.426 Abschnitte"*.
+- Er rechnet **A, B und C**, speichert alle drei und **misst jeden Teil einzeln**.
+- **Der Status steht im Knopf** (Hausregel), in seiner zweiten Zeile `#ecoRaycastInfo`:
 
-`status` liefert zusätzlich eine **Stichprobe**: ein gerechneter Weg mit seinen
-Intervallen und den Flächennamen. Ohne sie ist ein erfolgreicher Lauf von einem
-erfolgreich leeren nicht zu unterscheiden — und V9 hat sonst keine sichtbare Wirkung,
-an der man ihn prüfen könnte.
+| Lage | zweite Zeile |
+|---|---|
+| nie gerechnet | „noch nicht gerechnet" |
+| läuft | „rechnet … Wege 3.100/5.650" |
+| speichert | „speichert … 3 von 11" |
+| fertig | „**4.426 Wegabschnitte · 1,4 s gerechnet, 0,8 s gespeichert**" |
+| Stempel veraltet | „gerechnet 12:04 · **Stand veraltet** (Flächen geändert)" |
+| jemand anderes rechnet | „ein anderer Editor rechnet gerade" |
+
+„Veraltet" ist ein Vergleich, keine Vermutung: Stempel-`ecosystem_revision` gegen den
+aktuellen Wert, Stempel-`map_revision` gegen `GET /api/app/map-revision.php`.
+
+Der `localStorage`-Cache **bleibt** — er ist der schnelle Weg beim Öffnen des Editors.
+Neu ist, dass der Server die belastbare Kopie hält und beim Öffnen liefert, wenn der
+lokale Cache fehlt oder älter ist.
 
 ---
 
@@ -411,30 +449,32 @@ an der man ihn prüfen könnte.
 
 ### 8.1 Unit-Tests
 
-`api/_internal/app/__tests__/path-ecosystem-geometry-test.php`, ausgeführt mit
-`php -d extension=mbstring -d zend.assertions=1`:
+`js/map-features/__tests__/ecosystem-path-assign.test.js`
+(`node js/map-features/__tests__/ecosystem-path-assign.test.js`):
 
 | Fall | Erwartung |
 |---|---|
 | Weg außerhalb | 0 Intervalle |
 | Weg quer durch ein Rechteck | 1 Intervall, Bogenlängen exakt |
-| Weg startet innen, endet außen | 1 Intervall ab 0 |
+| Weg startet innen | 1 Intervall ab 0 |
 | Weg vollständig innen | 1 Intervall, `0 … total` |
 | konkave Fläche, drei Durchquerungen | 3 Intervalle, `seq` 0/1/2 |
 | MultiPolygon mit Loch | Loch erzeugt Lücke |
-| Weg genau durch eine Polygonecke | **1** Schnitt, nicht 2 (halboffene Regel) |
-| Weg mit `total = 0` | 0 Intervalle, kein Fehler |
-| Tangente (Intervall < 1e-9) | verworfen |
+| Weg genau durch eine Polygonecke | **1** Schnitt, nicht 2 |
+| `total = 0` | 0 Intervalle, kein Fehler |
+| Tangente < 1e-9 | verworfen |
+| Fläche mit `affects_paths=0` | gar nicht erst geprüft |
 
-`api/_internal/app/__tests__/path-ecosystem-run-test.php`:
+`api/_internal/app/__tests__/ecosystem-assignment-test.php`
+(`php -d extension=mbstring -d zend.assertions=1`):
 
 | Fall | Erwartung |
 |---|---|
-| gerechneter Weg | fällt aus der Fällig-Menge |
-| **Weg mit 0 Intervallen** | fällt ebenfalls heraus — die Endlosschleifen-Sperre |
-| Weg danach bearbeitet (`revision` neu) | wieder fällig |
-| Fläche in seiner bbox gespeichert | wieder fällig |
-| zweimal gerechnet | identische Zeilen |
+| Stück ohne gültiges Token | 409, keine Zeile geschrieben |
+| zweites `begin` | neues Token, altes wird ungültig |
+| unbekannte `public_id` | verworfen und gezählt, kein Abbruch |
+| `commit` ohne Stücke | gültiger Stempel mit 0 Zeilen (**der leere Lauf ist ein Ergebnis**) |
+| zweimal derselbe Lauf | identische Zeilen |
 
 ### 8.2 Abnahme am Livebestand
 
@@ -447,15 +487,19 @@ offline gemessen wurde:
 | Paare mit ≥1 Intervall | 3.829 | 11.449 |
 | **Zeilen in `path_ecosystem`** | **4.426** | 12.302 |
 
-> ⚠️ **Vor der Abnahme neu zählen.** Der Bestand wächst täglich; die Zahl ist ein
-> Abgleich gegen eine offline nachgerechnete *Nutzlast*, nicht gegen eine Konstante.
-> Das Verfahren (eine Anfrage je Endpunkt, danach offline) steht in §2.
+> ⚠️ **Vor der Abnahme neu zählen.** Der Bestand wächst täglich; das ist ein Abgleich
+> gegen eine offline nachgerechnete Nutzlast, nicht gegen eine Konstante. Verfahren: eine
+> Anfrage je Endpunkt, danach offline.
 
-### 8.3 Was **nicht** als Nachweis zählt
+### 8.3 Die Messung, um die es geht
 
-Eine im Browser oder in Node nachgebaute Szene. Beide Messorte kehren in diesem Projekt
-schon Rangfolgen um. Der Zeitbedarf des Schritts wird **am Livebestand über den
-Endpunkt** gemessen — eine einzelne Anfrage, nie in einer Schleife.
+**Im Browser, am Livebestand, über den echten Knopf** — nicht in Node, nicht an einer
+nachgebauten Szene, nicht in einer Schleife gegen den Server. Festzuhalten sind:
+Ladezeit der Weg-Geometrie, Rechenzeit je Teil, Speicherzeit, Zeilenzahlen. `duration_ms`
+im Stempel hält das Ergebnis fest.
+
+**Daraus folgt die nächste Entscheidung** (§1): unter ~10 s bleibt es so; darüber kommt
+der serverseitige Stapellauf der Fahrplan-Zeile.
 
 ---
 
@@ -463,14 +507,12 @@ Endpunkt** gemessen — eine einzelne Anfrage, nie in einer Schleife.
 
 | | wohin | warum nicht hier |
 |---|---|---|
-| `factor_forward` / `factor_backward` | **V11** | Verlangt das Höhenfeld in PHP. Das Feld wird **heute** umgebaut (`90a55aad` Grate in der Basis, `d1eedf55` Erhebungen bis 24; `2026-07-29-landschaften-v8-fortsetzung.md` offen). Eine Übersetzung veraltet während sie entsteht. Zudem sind V11s Klemme `[0,5…4,0]` und die Ausnahmenliste (`Gebirgspass` ist heute schon 2,67× langsamer, und die Tabelle ist **veröffentlicht**) noch nicht entschieden — ein daraus gerechneter Faktor müsste ohnehin neu gerechnet werden. |
-| `ascent` / `descent` | **V11** | Anzeigewerte des Höhenprofils, dasselbe Argument. |
-| Leseschnittstelle | **V10** | Dort entscheidet sich Routenantwort vs. Karten-Nutzlast vs. eigener Endpunkt. |
+| `factor_forward` / `factor_backward`, `ascent` / `descent` | **V11** | Verlangt das Höhenfeld. Es wird **heute** umgebaut (`90a55aad` Grate in der Basis, `d1eedf55` Erhebungen bis 24; `2026-07-29-landschaften-v8-fortsetzung.md` offen). V11s Klemme `[0,5…4,0]` und die Ausnahmenliste (`Gebirgspass` ist heute schon 2,67× langsamer, und die Tabelle ist **veröffentlicht**) sind zudem nicht entschieden. |
+| Anzeige im Routenplaner | **V10** | `buildRouteLegPopupHtml` (`route-plan.js:196`), Flora über `buildLoreMarkup` — und **nur** über den DOM-Observer, nie beim Markup-Bau (Pool-Vorfall 2026-07-21). |
+| öffentliche Leseschnittstelle | **V10** | Dort entscheidet sich Routenantwort vs. Karten-Nutzlast vs. eigener Endpunkt. V9 liest nur über `assignment_status` zurück. |
 | Änderungen am Graph | **V11** | V9 fasst `client-graph.php` nicht an. |
-| Querfeldein-Kanten | **V13/V14** | Sie sind keine `map_features`-Zeilen und entstehen zur Laufzeit aus der Transportauswahl. |
-
-Nachrüsten kostet **zwei Spalten und einen `reset`** — die Tabelle ist genau dafür
-gebaut. Das ist der Preis der Trennung, und er ist niedrig.
+| Querfeldein-Kanten | **V13/V14** | Keine `map_features`-Zeilen; sie entstehen zur Laufzeit aus der Transportauswahl. |
+| automatische Neuberechnung bei jeder Flächenänderung | **später, falls überhaupt** | Solange der Lauf Sekunden dauert, ist ein Knopf ehrlicher als eine unsichtbare Automatik. Der Stempel macht „veraltet" sichtbar; das genügt, bis die Messung etwas anderes sagt. |
 
 ---
 
@@ -478,9 +520,9 @@ gebaut. Das ist der Preis der Trennung, und er ist niedrig.
 
 | | Frage | Vorschlag |
 |---|---|---|
-| **1** | `affects_paths = 0` für `meer`, `kontinent`, `kueste`? | **Ja** — 90 % der Arbeit, 64 % der Zeilen, kein Aussagewert (§2.1). Jederzeit per Datenzeile umkehrbar. |
-| **2** | Sollen die **66 Erprobungsflächen** (`is_trial=1`) mitrechnen? | **Ja.** Sie sind sichtbar, solange die Erprobung läuft; sie auszunehmen erzeugte eine Anzeige, die von einem unsichtbaren Schalter abhängt. |
-| **3** | Alle 5.650 Wege oder nur die 5.512 routingfähigen? | **Alle 5.650.** V10 ist Anzeige, nicht Routing — ein Weg, der nicht im Graph steckt, führt trotzdem durch einen Wald. |
+| **1** | `affects_paths = 0` für `meer`, `kontinent`, `kueste`? | **Ja** — 90 % der Arbeit, 64 % der Zeilen, kein Aussagewert (§3.1). Per Datenzeile umkehrbar. |
+| **2** | Rechnen die **66 Erprobungsflächen** mit? | **Ja.** Sie sind sichtbar, solange die Erprobung läuft. |
+| **3** | Alle 5.650 Wege oder nur die 5.512 routingfähigen? | **Alle 5.650.** V10 ist Anzeige — ein Weg außerhalb des Graphen führt trotzdem durch einen Wald. |
 
 ---
 
@@ -488,9 +530,9 @@ gebaut. Das ist der Preis der Trennung, und er ist niedrig.
 
 | | |
 |---|---|
-| Rechenkern (rein, testbar) | ~180 Zeilen PHP |
-| Endpunkt + Lauf | ~200 Zeilen PHP |
-| DDL + Invalidierungs-Haken | ~90 Zeilen PHP |
-| Oberfläche + Client-Schleife | ~120 Zeilen JS |
+| Rechenkern Teil C (rein, testbar) | ~150 Zeilen JS |
+| Knopf: rechnen, speichern, messen, Status | ~180 Zeilen JS |
+| Weg-Geometrie-Endpunkt | ~70 Zeilen PHP |
+| DDL + vier Speicher-Aktionen | ~230 Zeilen PHP |
 | Tests | ~250 Zeilen |
-| **Risiko** | **mittel** — die Schutzmechanismen sind fertig und erprobt, die Geometrie ist offline gegen den Livebestand nachgerechnet. Der gefährlichste Punkt bleibt der Zeitbedarf je Schritt auf STRATO; er wird an einer einzelnen echten Anfrage gemessen, nicht geschätzt. |
+| **Risiko** | **gering bis mittel.** Der Rechenkern ist offline gegen den Livebestand nachgerechnet, der Vorfilter und die Knopf-Mechanik existieren. Der einzige offene Punkt ist die Laufzeit im Browser — und die zu messen ist der Auftrag, nicht ein Nebenprodukt. |
