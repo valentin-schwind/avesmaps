@@ -44,12 +44,27 @@ const ECOSYSTEM_EDIT_SUBDIVIDE_COUNT = 4;
 // would each drop a full set of four. Same guard, same reason as the template's (edge-controls.js:215).
 const ECOSYSTEM_EDIT_INSERTION_GATE_MS = 350;
 
-// 🔧 OPEN, and deliberately written down here rather than left to memory: there is NO SNAPPING in this
-// editor yet. When it arrives, Ctrl while DRAGGING a handle must detach the corner from any snap
-// (owner 2026-07-26, the territory editor's behaviour -- the runtime copy is
-// map-features-region-vertex-detach-edit.js:366, which picks findNearestRegionSnapPoint only when Ctrl
-// is NOT held). Note that Ctrl already means "subdivide" on an EDGE here, so the two must not be
-// confused: edge + Ctrl+click = four corners, handle + Ctrl+drag = ignore snapping.
+// ---- snapping (editors' request, owner 2026-07-29) --------------------------------------------------
+// Dropping a corner within this many SCREEN pixels of another area's corner or edge lands it exactly on
+// that spot. Pixels, not map units, so the reach feels the same at every zoom -- the territory editor's
+// findNearestRegionSnapPoint uses the same 10 px.
+const ECOSYSTEM_EDIT_SNAP_PIXELS = 10;
+
+// 🔴 WHAT IT SNAPS TO: the areas of the VISIBLE layers, and nothing else (owner 2026-07-29). In "Alle"
+// that is all three, otherwise only the working layer. Deliberately the same set that takes clicks, so
+// "what can I hit" and "what can I stick to" are one rule rather than two -- and the editor controls the
+// reach with the layer switch they already use.
+//
+// 💣 THIS IS SNAPPING, NOT WELDING. The plan forbids copying applySharedBoundaryVertexMove, and that
+// still holds: overlap and nesting are normal here (Schneckenkamm lies inside the Windhagberge), so
+// nothing may move a corner in somebody else's area. Only the dragged corner moves; it just lands
+// precisely. Two areas end up sharing a position, not a boundary -- and because the snap then pulls that
+// corner back every time, Ctrl is what gets them apart again, which is exactly the "separate them with
+// Ctrl" that was asked for.
+//
+// ⚠️ Ctrl already means "subdivide" on an EDGE (Ctrl+click = four corners). The two never collide:
+// handles carry bubblingMouseEvents:false plus disableClickPropagation, so a Ctrl+drag on a handle
+// cannot reach the area's edge handler. Edge + Ctrl+click = four corners; handle + Ctrl+drag = no snap.
 
 // The open session, or null. The Ctrl+Z capture listener at the bottom of this file asks exactly this
 // question -- it is what keeps the key with the audit undo whenever nothing is being edited.
@@ -209,6 +224,56 @@ function ecosystemEditNearestEdge(point, geometry) {
 	return best;
 }
 
+// Nearest snappable position among a list of geometries, or null when nothing is close enough.
+//
+// 🔴 CORNERS BEAT EDGES, and not just by distance: a corner is a decision somebody made, an edge is the
+// line between two of them. Landing on the corner joins the two outlines at a point both sides will
+// still recognise after the next drag; landing 2 px away on the edge only looks joined. The territory
+// helper is built the same way round (findNearestRegionSnapPoint asks for a vertex first and falls back
+// to an edge point), and that ordering is the whole reason snapped areas stay snapped.
+function ecosystemEditNearestSnapPoint(point, geometries, tolerance) {
+	if (!Array.isArray(point) || !Array.isArray(geometries) || !(tolerance > 0)) {
+		return null;
+	}
+
+	let nearestVertex = null;
+	let nearestEdge = null;
+
+	geometries.forEach((geometry) => {
+		const parts = typeof ecosystemGeometryParts === "function" ? ecosystemGeometryParts(geometry) : [];
+		parts.forEach((part) => {
+			(Array.isArray(part) ? part : []).forEach((ring) => {
+				if (!Array.isArray(ring) || ring.length < 2) {
+					return;
+				}
+				// The closing duplicate is the same corner as the first -- measuring it twice would only
+				// let a tie resolve to the wrong index. Stop one short.
+				for (let index = 0; index < ring.length - 1; index += 1) {
+					const start = ring[index];
+					const end = ring[index + 1];
+					const vertexDistance = Math.hypot(point[0] - start[0], point[1] - start[1]);
+					if (vertexDistance <= tolerance && (!nearestVertex || vertexDistance < nearestVertex.distance)) {
+						nearestVertex = { position: [start[0], start[1]], distance: vertexDistance, kind: "vertex" };
+					}
+
+					const dx = end[0] - start[0];
+					const dy = end[1] - start[1];
+					const lengthSquared = (dx * dx) + (dy * dy);
+					let t = lengthSquared > 0 ? (((point[0] - start[0]) * dx) + ((point[1] - start[1]) * dy)) / lengthSquared : 0;
+					t = Math.max(0, Math.min(1, t));
+					const projected = [start[0] + (t * dx), start[1] + (t * dy)];
+					const edgeDistance = Math.hypot(point[0] - projected[0], point[1] - projected[1]);
+					if (edgeDistance <= tolerance && (!nearestEdge || edgeDistance < nearestEdge.distance)) {
+						nearestEdge = { position: projected, distance: edgeDistance, kind: "edge" };
+					}
+				}
+			});
+		});
+	});
+
+	return nearestVertex || nearestEdge;
+}
+
 // Deep copy, capped at the limit. The copy is the point: a snapshot that shared arrays with the live
 // geometry would follow every later drag and undo would restore the present.
 function pushEcosystemGeometryUndoStep(stack, geometry, limit = ECOSYSTEM_GEOMETRY_UNDO_LIMIT) {
@@ -235,6 +300,109 @@ function sayEcosystemEdit(message, tone = "info") {
 	if (typeof showFeedbackToast === "function" && message) {
 		showFeedbackToast(message, tone);
 	}
+}
+
+// ---- snapping: the Leaflet side --------------------------------------------------------------------
+
+// Ctrl held right now. Tracked on the document rather than read off the drag event: Leaflet's dragend
+// does not carry the modifier reliably, which is why the territory editor keeps the same flag
+// (readRegionVertexDetachModifier, map-features-region-vertex-detach-edit.js). Pressing Ctrl mid-drag
+// therefore also works -- you can start pulling and decide to detach on the way.
+let ecosystemEditDetachKeyHeld = false;
+
+function isEcosystemEditDetachModifier(event) {
+	return Boolean(ecosystemEditDetachKeyHeld || event?.originalEvent?.ctrlKey || event?.ctrlKey);
+}
+
+// The areas that may attract a corner: everything currently VISIBLE except the one being edited.
+// An area cannot snap to itself -- its own corners are all within reach of each other and it would
+// collapse onto its neighbour vertex the moment you nudged it.
+function ecosystemEditSnapCandidates(excludePublicId) {
+	if (!(ecosystemLayers instanceof Map)) {
+		return [];
+	}
+
+	const candidates = [];
+	ecosystemLayers.forEach((layer, publicId) => {
+		const area = layer?._ecosystemArea;
+		if (!area?.geometry || publicId === excludePublicId) {
+			return;
+		}
+		if (typeof isEcosystemKindVisible === "function" && !isEcosystemKindVisible(area.kind)) {
+			return;
+		}
+		candidates.push(area.geometry);
+	});
+
+	return candidates;
+}
+
+// ECOSYSTEM_EDIT_SNAP_PIXELS expressed in map units at the CURRENT zoom, so the reach stays a constant
+// distance on screen. L.CRS.Simple is linear, so one horizontal probe is enough.
+function ecosystemEditSnapToleranceForLatLng(latLng) {
+	if (typeof map === "undefined" || !map || typeof map.latLngToContainerPoint !== "function") {
+		return 0;
+	}
+
+	const containerPoint = map.latLngToContainerPoint(latLng);
+	const here = map.containerPointToLatLng(containerPoint);
+	const shifted = map.containerPointToLatLng(L.point(containerPoint.x + ECOSYSTEM_EDIT_SNAP_PIXELS, containerPoint.y));
+	const tolerance = Math.abs(shifted.lng - here.lng);
+
+	return Number.isFinite(tolerance) && tolerance > 0 ? tolerance : 0;
+}
+
+// Where the corner would land, or null. [lat, lng] in, [lat, lng] out -- the GeoJSON swap stays inside.
+function ecosystemEditSnapTarget(latLng, excludePublicId) {
+	const tolerance = ecosystemEditSnapToleranceForLatLng(latLng);
+	if (!(tolerance > 0)) {
+		return null;
+	}
+
+	const snap = ecosystemEditNearestSnapPoint(
+		[latLng.lng, latLng.lat],
+		ecosystemEditSnapCandidates(excludePublicId),
+		tolerance
+	);
+
+	return snap ? { latLng: L.latLng(snap.position[1], snap.position[0]), kind: snap.kind } : null;
+}
+
+// A ring on the spot the corner would jump to. Without it the jump at drop is a surprise -- you let go
+// aiming at one place and land somewhere else. Non-interactive, so it can never take the drag's events.
+function clearEcosystemEditSnapPreview() {
+	const session = activeEcosystemGeometryEdit;
+	if (session?.snapPreviewLayer && typeof map !== "undefined" && map && map.hasLayer(session.snapPreviewLayer)) {
+		map.removeLayer(session.snapPreviewLayer);
+	}
+	if (session) {
+		session.snapPreviewLayer = null;
+	}
+}
+
+function renderEcosystemEditSnapPreview(target) {
+	const session = activeEcosystemGeometryEdit;
+	if (!session || typeof map === "undefined" || !map) {
+		return;
+	}
+
+	clearEcosystemEditSnapPreview();
+	if (!target) {
+		return;
+	}
+
+	const color = getComputedStyle(document.documentElement).getPropertyValue("--color-edit-handle").trim();
+	session.snapPreviewLayer = L.circleMarker(target.latLng, {
+		pane: "measurementHandlesPane",
+		// A corner reads as a firmer catch than a point on an edge, and the ring says which one it is.
+		radius: target.kind === "vertex" ? 11 : 8,
+		color,
+		weight: 3,
+		opacity: 0.95,
+		fill: false,
+		dashArray: target.kind === "vertex" ? null : "4 4",
+		interactive: false,
+	}).addTo(map);
 }
 
 // ---- handles ---------------------------------------------------------------------------------------
@@ -289,6 +457,11 @@ function refreshEcosystemEditHandles() {
 					// The snapshot is taken BEFORE the move, so one undo is one corner move -- not the
 					// dozens of mousemove states in between.
 					pushEcosystemGeometryUndoStep(session.undoStack, session.geometry);
+					// Ctrl means two different things in this editor. While a handle is on the hook it
+					// means "no snap", so the edge hover -- which would otherwise fan out its four
+					// subdivision dots under the cursor -- stands down until the drag is over.
+					session.draggingHandle = true;
+					clearEcosystemEditEdgeHover();
 				});
 
 				handle.on("drag", (event) => {
@@ -297,9 +470,34 @@ function refreshEcosystemEditHandles() {
 					if (ecosystemEditSetVertex(targetRing, vertexIndex, [latLng.lng, latLng.lat])) {
 						applyEcosystemEditGeometryToLayer(session);
 					}
+					// 🔴 The corner follows the CURSOR while dragging and only jumps on release. Pulling it
+					// onto the snap live would make a boundary you are trying to leave feel magnetic --
+					// every attempt to drag away would stick until you were past the tolerance. The ring
+					// announces where it will land instead, and Ctrl makes it disappear.
+					renderEcosystemEditSnapPreview(
+						isEcosystemEditDetachModifier(event) ? null : ecosystemEditSnapTarget(latLng, session.publicId)
+					);
 				});
 
-				handle.on("dragend", () => {
+				handle.on("dragend", (event) => {
+					const latLng = event.target.getLatLng();
+					const snap = isEcosystemEditDetachModifier(event)
+						? null
+						: ecosystemEditSnapTarget(latLng, session.publicId);
+					clearEcosystemEditSnapPreview();
+
+					if (snap) {
+						const targetRing = ecosystemEditRingAt(session.geometry, partIndex, ringIndex);
+						if (ecosystemEditSetVertex(targetRing, vertexIndex, [snap.latLng.lng, snap.latLng.lat])) {
+							applyEcosystemEditGeometryToLayer(session);
+							// The marker itself has to follow, or the handle sits where the mouse let go
+							// while the outline is already on the snap -- and the next drag would start
+							// from the wrong place.
+							event.target.setLatLng(snap.latLng);
+						}
+					}
+
+					session.draggingHandle = false;
 					// 💣 The whole point of this file: ONE write per gesture burst, not one per corner.
 					scheduleEcosystemGeometrySave();
 				});
@@ -451,7 +649,7 @@ function renderEcosystemEditEdgeHover(edge, withSubdivisionPreview) {
 }
 
 function handleEcosystemEditMouseMove(event) {
-	if (!activeEcosystemGeometryEdit) {
+	if (!activeEcosystemGeometryEdit || activeEcosystemGeometryEdit.draggingHandle) {
 		return;
 	}
 	const edge = ecosystemEditHoveredEdge(event?.latlng);
@@ -704,6 +902,7 @@ function closeEcosystemGeometryEdit({ flush = true } = {}) {
 	}
 
 	clearEcosystemEditEdgeHover();
+	clearEcosystemEditSnapPreview();
 	clearEcosystemEditHandles();
 	// Back to the white selection contour (or to none, when the deselect follows straight after).
 	applyEcosystemEditClass(session.layer, false);
@@ -841,6 +1040,19 @@ function isEcosystemEditTextTarget(target) {
 }
 
 if (typeof document !== "undefined") {
+	// Ctrl held, tracked globally. Two listeners rather than reading the drag event, because Leaflet's
+	// dragend does not carry the modifier reliably -- the territory editor keeps the same flag for the
+	// same reason. Capture phase so a handler that stops the event cannot blind it.
+	document.addEventListener("keydown", (event) => {
+		if (event.key === "Control" || event.key === "Meta") { ecosystemEditDetachKeyHeld = true; }
+	}, true);
+	document.addEventListener("keyup", (event) => {
+		if (event.key === "Control" || event.key === "Meta") { ecosystemEditDetachKeyHeld = false; }
+	}, true);
+	// 💣 Alt+Tab away while holding Ctrl and the keyup never arrives -- the flag would stay stuck and
+	// snapping would be silently dead until the next Ctrl press. The window losing focus clears it.
+	window.addEventListener("blur", () => { ecosystemEditDetachKeyHeld = false; });
+
 	document.addEventListener("keydown", (event) => {
 		const key = String(event.key || "").toLowerCase();
 		if (key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) { return; }
@@ -910,6 +1122,7 @@ if (typeof module !== "undefined" && module.exports) {
 		ecosystemEditRemoveVertex,
 		ecosystemEditNearestEdge,
 		ecosystemEditSubdivideEdge,
+		ecosystemEditNearestSnapPoint,
 		pushEcosystemGeometryUndoStep,
 		ECOSYSTEM_GEOMETRY_UNDO_LIMIT,
 	};

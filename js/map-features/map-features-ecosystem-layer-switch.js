@@ -349,6 +349,15 @@ function isEcosystemShowAllLayers() {
 	return ecosystemShowAllLayers;
 }
 
+// Ist diese Ebene gerade SICHTBAR -- also voll gezeichnet und klickbar, nicht blass und
+// durchlässig? In „Alle" sind es alle drei, sonst nur die Arbeitsebene. Eine Frage, eine Antwort:
+// syncEcosystemPaneStates verteilt daraus die Pane-Klassen, und der Vertex-Snap (V-Snap,
+// map-features-ecosystem-edit.js) nimmt genau dieselbe Menge als Schnappziele. Sonst könnte eine
+// Fläche anziehen, die man gar nicht sieht.
+function isEcosystemKindVisible(kind) {
+	return isEcosystemShowAllLayers() || kind === getActiveEcosystemLayerKind();
+}
+
 function setEcosystemShowAllLayers(on) {
 	ecosystemShowAllLayers = Boolean(on);
 	try {

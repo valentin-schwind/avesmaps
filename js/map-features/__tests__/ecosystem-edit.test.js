@@ -14,6 +14,7 @@ const {
 	ecosystemEditRemoveVertex,
 	ecosystemEditNearestEdge,
 	ecosystemEditSubdivideEdge,
+	ecosystemEditNearestSnapPoint,
 	pushEcosystemGeometryUndoStep,
 	ECOSYSTEM_GEOMETRY_UNDO_LIMIT,
 } = require("../map-features-ecosystem-edit.js");
@@ -169,6 +170,61 @@ assert.deepStrictEqual(
 	capped[capped.length - 1].coordinates[0][1],
 	[ECOSYSTEM_GEOMETRY_UNDO_LIMIT + 4, 0],
 	"the newest step is on top"
+);
+
+// ---- snapping (editors' request, owner 2026-07-29) ----------------------------------------------
+// The neighbour a corner may stick to: a square butting against `square()` along x = 100.
+const neighbour = () => ({
+	type: "Polygon",
+	coordinates: [[[100, 0], [200, 0], [200, 100], [100, 100], [100, 0]]],
+});
+
+// 💣 A CORNER BEATS AN EDGE even when the edge is nearer. Landing on the corner joins the two outlines
+// at a position both sides still recognise after the next drag; landing 2 px away on the edge only
+// looks joined. Here the point sits 4 from the corner [100, 0] and 3 from the edge x = 100.
+const cornerWins = ecosystemEditNearestSnapPoint([103, 3], [neighbour()], 10);
+assert.strictEqual(cornerWins.kind, "vertex", "a corner in reach wins over a nearer edge");
+assert.deepStrictEqual(cornerWins.position, [100, 0]);
+
+// Out of the corner's reach, the edge catches it.
+const edgeCatches = ecosystemEditNearestSnapPoint([103, 50], [neighbour()], 10);
+assert.strictEqual(edgeCatches.kind, "edge", "no corner near => the edge catches");
+assert.deepStrictEqual(edgeCatches.position, [100, 50], "and it lands on the projection, not the cursor");
+
+// Nothing in reach: no snap, and no "nearest anyway".
+assert.strictEqual(ecosystemEditNearestSnapPoint([140, 50], [neighbour()], 10), null, "too far => null");
+assert.strictEqual(ecosystemEditNearestSnapPoint([103, 50], [], 10), null, "no candidates => null");
+assert.strictEqual(ecosystemEditNearestSnapPoint([103, 50], [neighbour()], 0), null, "no tolerance => null");
+
+// The nearest of several corners wins.
+const twoNeighbours = [neighbour(), { type: "Polygon", coordinates: [[[104, 4], [150, 4], [150, 40], [104, 40], [104, 4]]] }];
+assert.deepStrictEqual(
+	ecosystemEditNearestSnapPoint([103, 3], twoNeighbours, 10).position,
+	[104, 4],
+	"the closer of two corners wins"
+);
+
+// Holes count too: an area's inner boundary is a boundary somebody can want to meet.
+const clearingSnap = ecosystemEditNearestSnapPoint([41, 41], [woodWithClearing()], 5);
+assert.strictEqual(clearingSnap.kind, "vertex", "the clearing's corner is snappable");
+assert.deepStrictEqual(clearingSnap.position, [40, 40]);
+
+// MultiPolygon: every part is a candidate.
+const islands = {
+	type: "MultiPolygon",
+	coordinates: [
+		[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+		[[[300, 300], [310, 300], [310, 310], [300, 310], [300, 300]]],
+	],
+};
+assert.deepStrictEqual(ecosystemEditNearestSnapPoint([302, 302], [islands], 5).position, [300, 300], "the far island still attracts");
+
+// 🪤 The closing duplicate must not be measured as a second corner -- it is the same one. A tie between
+// ring[0] and ring[last] would otherwise be decided by loop order rather than by distance.
+assert.deepStrictEqual(
+	ecosystemEditNearestSnapPoint([100, 1], [neighbour()], 10).position,
+	[100, 0],
+	"the first corner answers once, not twice"
 );
 
 console.log("ecosystem edit tests passed");
