@@ -620,6 +620,10 @@ function computeTerritoryHits(areas, allTerritories) {
 		const hits = [];
 		allTerritories.forEach((territory) => {
 			let shared = 0;
+			// Ein Territorium ohne Hülle kommt aus dem Zwischenspeicher-Index, der die Geometrie
+			// bewusst weglässt. Der Aufrufer lädt sie inzwischen nach; hier steht der Riegel trotzdem,
+			// weil eine halbe Liste den ganzen Lauf gekostet hat statt nur ihren eigenen Eintrag.
+			if (!territory || !territory.bounds || !territory.geometry) { return; }
 			region.areas.forEach((area) => {
 				tested++;
 				if (!boundsOverlap(area.bounds, territory.bounds)) { return; }
@@ -1418,7 +1422,16 @@ async function runRaycast(options) {
 		// The territories are a second, independent question („liegt in"), and the political layer is a
 		// known hotspot -- a failure there must not throw away the landscape half that succeeded.
 		try {
-			if (territories === null) {
+			// 💣 „schon geladen" reicht als Bedingung NICHT. Der Zwischenspeicher legt die Territorien
+			// bewusst OHNE Geometrie ab (raycastCacheWrite: „Geometrie NICHT -- die waere eine alternde
+			// Zweitkopie"), und raycastCacheApply setzt `territories` beim Öffnen genau auf diesen
+			// Index. Ein erzwungener Lauf sah dann eine nicht-leere Liste, sprang das Nachladen über
+			// und lief in `boundsOverlap(area.bounds, undefined)` -- „Cannot read properties of
+			// undefined (reading 'min_x')". Gemeldet 2026-07-29; älter als V9, aber V9 ist der erste
+			// Weg, der zuverlässig darüber stolpert.
+			const ohneGeometrie = Array.isArray(territories) && territories.length > 0
+				&& !territories.some((territory) => territory && territory.geometry);
+			if (territories === null || ohneGeometrie) {
 				setStatus("Territorien werden geladen (Zoom 0–6) …");
 				territories = await loadTerritories();
 			}
