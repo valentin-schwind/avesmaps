@@ -246,11 +246,13 @@ function buildRouteLegPopupHtml(entry) {
 	if (typeof avesmapsPathLandscapesLineFor === "function") {
 		const landscapes = avesmapsPathLandscapesLineFor(routeEntryPathIds(entry, currentRouteSegments));
 		if (landscapes.length) {
+			// formatLandscapesForInfobox liefert MARKUP (Name als Wiki-Link, wo es einen gibt) und
+			// escapt selbst -- hier wird nicht ein zweites Mal escapt, sonst stuenden die Tags als Text da.
 			const names = landscapes.map((landscape) => {
-				const text = formatLandscapesForInfobox([landscape]);
+				const markup = formatLandscapesForInfobox([landscape], escapeHtml);
 				return landscape.art
-					? `<span title="${escapeHtml(landscape.art)}">${escapeHtml(text)}</span>`
-					: escapeHtml(text);
+					? `<span title="${escapeHtml(landscape.art)}">${markup}</span>`
+					: markup;
 			}).join(" · ");
 			rows += `<div class="region-info-box__row"><dt>${escapeHtml(tr("planner.leg.through", "Führt durch"))}</dt><dd>${names}</dd></div>`;
 			// Flora und Fauna der genannten Landschaften -- EIN Abruf fuer alle zusammen, und
@@ -688,9 +690,11 @@ function fillRoutePlanLandscapes(planEntries, segments) {
 		previous = line;
 		const target = document.querySelector(`[data-route-landscapes-index="${entryIndex}"]`);
 		if (target && fresh.length) {
-			// textContent, nicht innerHTML: die Namen stammen aus Wiki Aventurica, also aus
-			// Fremdinhalt, und hier braucht keiner von ihnen Auszeichnung.
-			target.textContent = `${tr("planner.leg.through.short", "durch")}: ${formatLandscapesForPlanner(fresh)}`;
+			// innerHTML, weil der Name jetzt ein Wiki-Link sein darf. Die Namen stammen aus Wiki
+			// Aventurica, also aus FREMDINHALT -- escapt wird in formatLandscapesForPlanner, und nur
+			// eine Adresse mit dem Wiki-Präfix wird überhaupt ein href (landscapeWikiHref).
+			target.innerHTML = `${escapeHtml(tr("planner.leg.through.short", "durch"))}: `
+				+ formatLandscapesForPlanner(fresh, escapeHtml);
 		}
 	});
 
@@ -701,9 +705,8 @@ function fillRoutePlanLandscapes(planEntries, segments) {
 		planEntries.flatMap((entry) => routeEntryPathIds(entry, segments))
 	);
 	if (summaryTarget && routeLine.length) {
-		// Der Zeilenumbruch kommt aus dem CSS (display:block), nicht aus einem <br> im Text --
-		// textContent wuerde ein Tag ohnehin als Zeichen ausgeben.
-		summaryTarget.textContent = `${tr("planner.summary.landscapes", "Landschaften")}: `
-			+ formatLandscapesForPlanner(routeLine);
+		// Der Zeilenumbruch kommt aus dem CSS (display:block), nicht aus einem <br> im Text.
+		summaryTarget.innerHTML = `${escapeHtml(tr("planner.summary.landscapes", "Landschaften"))}: `
+			+ formatLandscapesForPlanner(routeLine, escapeHtml);
 	}
 }

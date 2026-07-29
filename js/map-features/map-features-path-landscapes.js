@@ -87,6 +87,7 @@ function buildLandscapeLine(pathIds, payload) {
 					art: String(region.art || ""),
 					kind: String(region.kind || ""),
 					wikiKey: String(region.wiki_key || ""),
+					wikiUrl: String(region.wiki_url || ""),
 					covered: 0,
 				};
 				order.push(name);
@@ -106,6 +107,7 @@ function buildLandscapeLine(pathIds, payload) {
 			art: bucket.art,
 			kind: bucket.kind,
 			wikiKey: bucket.wikiKey,
+			wikiUrl: bucket.wikiUrl,
 			// Capped: rounding on the server can push a full-length cover a hair past the length.
 			share: Math.min(1, bucket.covered / totalLength),
 		};
@@ -116,14 +118,46 @@ function buildLandscapeLine(pathIds, payload) {
 	});
 }
 
+// Only a Wiki-Aventurica address ever becomes an href. Same rule and same reason as
+// avesmapsLoreSafeUrl (map-features-lore.js:125): escaping is NOT a URL check -- „javascript:alert(1)"
+// carries no HTML metacharacter, sails through any escaper and fires on click. The names and urls
+// here come from the wiki, i.e. from foreign content.
+//
+// The prefix is repeated rather than imported: index.html loads this file at 2173 and lore.js at
+// 2288, so reaching into lore.js would make a three-line check depend on load order -- and this
+// module has to stay loadable in node for its test.
+var AVESMAPS_LANDSCAPE_WIKI_PREFIX = "https://de.wiki-aventurica.de/";
+
+function landscapeWikiHref(entry) {
+	var url = String((entry && entry.wikiUrl) || "").trim();
+	return url.indexOf(AVESMAPS_LANDSCAPE_WIKI_PREFIX) === 0 ? url : "";
+}
+
+// One landscape name as markup -- a wiki link where there is one, plain text otherwise. Shared by
+// both tones so a name never looks like a link in one place and not in the other.
+// The trailing ↗ marks the off-site jump (AGENTS.md §12); it is written into the markup, as
+// everywhere else in this house.
+function landscapeNameMarkup(entry, escape) {
+	var text = escape(entry.name);
+	var href = landscapeWikiHref(entry);
+	if (!href) {
+		return text;
+	}
+	return '<a class="avesmaps-landscape__link" href="' + escape(href)
+		+ '" target="_blank" rel="noopener">' + text + " ↗</a>";
+}
+
 // Infobox tone: shares, „·" as the separator. The separator is not a comma on purpose -- these
 // names are not the parts of one whole (a leg can be 100 % in Darpatien AND 68 % in the
 // Reichsforst, they are overlapping layers), and a comma would sit too close to the bracket.
-function formatLandscapesForInfobox(list) {
+// Returns MARKUP; the caller assigns it, it does not escape it again.
+function formatLandscapesForInfobox(list, escape) {
+	var esc = escape || avesmapsPathLandscapesEscape;
 	return (list || []).map(function (entry) {
+		var name = landscapeNameMarkup(entry, esc);
 		return entry.share >= AVESMAPS_LANDSCAPE_FULL_SHARE
-			? entry.name
-			: entry.name + " (" + Math.round(entry.share * 100) + " %)";
+			? name
+			: name + " (" + Math.round(entry.share * 100) + " %)";
 	}).join(" · ");
 }
 
@@ -132,8 +166,9 @@ function formatLandscapesForInfobox(list) {
 // des Kontinents, die Flusslande, der Farindelwald, and Weiden with none at all. A guessed article
 // would be visibly wrong German on about a third of the names. The caller writes „durch: " in
 // front, and a colon expects no article.
-function formatLandscapesForPlanner(list) {
-	return (list || []).map(function (entry) { return entry.name; }).join(", ");
+function formatLandscapesForPlanner(list, escape) {
+	var esc = escape || avesmapsPathLandscapesEscape;
+	return (list || []).map(function (entry) { return landscapeNameMarkup(entry, esc); }).join(", ");
 }
 
 // Only what the row above did not already say. Entering a landscape is announced, leaving it is
@@ -284,10 +319,10 @@ function avesmapsPathLandscapesEscape(value) {
 function avesmapsPathLandscapesRowMarkup(line) {
 	var escape = typeof escapeHtml === "function" ? escapeHtml : avesmapsPathLandscapesEscape;
 	var names = (line || []).map(function (entry) {
-		var text = formatLandscapesForInfobox([entry]);
-		return entry.art
-			? '<span title="' + escape(entry.art) + '">' + escape(text) + "</span>"
-			: escape(text);
+		var markup = formatLandscapesForInfobox([entry], escape);
+		// Die Art als Titel-Tooltip: „Finsterkamm" sagt beim Draufzeigen „Gebirge". Der span umschließt
+		// den fertigen Eintrag samt Link -- der Tooltip gehört zum Namen, nicht nur zum Text daneben.
+		return entry.art ? '<span title="' + escape(entry.art) + '">' + markup + "</span>" : markup;
 	}).join(" · ");
 	return '<div class="region-info-box__row"><dt>Führt durch</dt><dd>' + names + "</dd></div>";
 }

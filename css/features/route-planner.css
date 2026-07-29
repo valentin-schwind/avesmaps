@@ -794,9 +794,12 @@
 
    An der ETAPPE laeuft es im Fliesstext weiter (Owner 2026-07-29: „du brauchst vor dem durch
    keine neue Zeile anfangen") -- der Satz „… in 8.24 Stunden (0.34 Tage) durch: Reichsforst"
-   gehoert zusammen, und ein Umbruch zerriss ihn. Das Leerzeichen davor kommt aus dem Markup. */
+   gehoert zusammen, und ein Umbruch zerriss ihn. Das Leerzeichen davor kommt aus dem Markup.
+
+   Die Schriftfarbe ist die NORMALE des umgebenden Textes (Owner 2026-07-29) -- ein gedaempftes
+   Grau liess den Satz mitten drin die Farbe wechseln, obwohl er weiterlaeuft. */
 .route-plan-entry__landscapes:not(:empty) {
-	color: var(--color-text-muted);
+	color: inherit;
 }
 
 /* In der ZUSAMMENFASSUNG dagegen eine eigene Zeile: dort stehen Distanz/Reisezeit/Rastzeit
@@ -804,7 +807,20 @@
 .route-plan-summary__landscapes:not(:empty) {
 	display: block;
 	margin-top: 0.25em;
-	color: var(--color-text-muted);
+	color: inherit;
+}
+
+/* Der Landschaftsname ist ein Wiki-Link, wo es einen gibt -- goldbraun wie jeder Link im Haus,
+   NIE blau, ohne Unterstreichung, beim Hover dunkler (css/features/links.css). Das ↗ steht im
+   Markup, weil es off-site geht (AGENTS.md §12). Gleiche Regel wie .avesmaps-lore__name. */
+.avesmaps-landscape__link {
+	color: var(--color-link);
+	text-decoration: none;
+}
+
+.avesmaps-landscape__link:hover {
+	color: var(--color-link-hover);
+	text-decoration: underline;
 }
 
 /* Der V10-Container in der Weg-Infobox: keine eigene Hülle, seine Kinder greifen direkt ins

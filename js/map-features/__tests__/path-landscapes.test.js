@@ -94,6 +94,53 @@ assert.strictEqual(
 );
 assert.strictEqual(formatLandscapesForPlanner([]), "", "nothing to say, nothing printed");
 
+// ---- the wiki link ----------------------------------------------------------------------------
+// 💣 Escaping is NOT a URL check. „javascript:alert(1)" carries no HTML metacharacter, sails
+// through any escaper and fires on click. Only a Wiki-Aventurica address may become an href --
+// and every name here comes from the wiki, i.e. from foreign content.
+const linked = {
+	landscapes: {
+		"r-ok": { name: "Weiden", art: "Region", wiki_key: "weiden", wiki_url: "https://de.wiki-aventurica.de/wiki/Weiden" },
+		"r-js": { name: "Böse", art: "Region", wiki_key: "boese", wiki_url: "javascript:alert(1)" },
+		"r-ext": { name: "Fremd", art: "Region", wiki_key: "fremd", wiki_url: "https://evil.example/x" },
+		"r-none": { name: "Ohne", art: "Region", wiki_key: "ohne", wiki_url: "" },
+		"r-tag": { name: '<img src=x onerror=alert(1)>', art: "Region", wiki_key: "t", wiki_url: "https://de.wiki-aventurica.de/wiki/T" },
+	},
+	paths: {
+		"w-ok": { length: 10, in: [["r-ok", 10]] },
+		"w-js": { length: 10, in: [["r-js", 10]] },
+		"w-ext": { length: 10, in: [["r-ext", 10]] },
+		"w-none": { length: 10, in: [["r-none", 10]] },
+		"w-tag": { length: 10, in: [["r-tag", 10]] },
+	},
+};
+
+assert.strictEqual(
+	formatLandscapesForPlanner(buildLandscapeLine(["w-ok"], linked)),
+	'<a class="avesmaps-landscape__link" href="https://de.wiki-aventurica.de/wiki/Weiden" target="_blank" rel="noopener">Weiden ↗</a>',
+	"ein Wiki-Link mit ↗ -- off-site, also traegt er den Pfeil (AGENTS.md §12)"
+);
+assert.strictEqual(formatLandscapesForPlanner(buildLandscapeLine(["w-js"], linked)), "Böse",
+	"javascript: wird NIE ein href -- der Name bleibt blanker Text");
+assert.strictEqual(formatLandscapesForPlanner(buildLandscapeLine(["w-ext"], linked)), "Fremd",
+	"eine fremde Adresse auch nicht: nur das Wiki-Präfix wird verlinkt");
+assert.strictEqual(formatLandscapesForPlanner(buildLandscapeLine(["w-none"], linked)), "Ohne",
+	"ohne Adresse bleibt es Text -- 61 der 177 Regionen haben keinen Wiki-Eintrag");
+assert.ok(
+	formatLandscapesForPlanner(buildLandscapeLine(["w-tag"], linked)).indexOf("<img") < 0,
+	"ein Name mit HTML wird escapt, nicht gerendert"
+);
+assert.ok(
+	formatLandscapesForInfobox(buildLandscapeLine(["w-ok"], linked)).indexOf("avesmaps-landscape__link") >= 0,
+	"die Infobox verlinkt denselben Namen -- er darf nicht in einer Fläche Link sein und in der anderen nicht"
+);
+// Der Anteil bleibt AUSSERHALB des Links: „Weiden ↗ (68 %)", nicht „Weiden (68 %) ↗".
+const teil = buildLandscapeLine(["w-ok"], linked);
+teil[0].share = 0.68;
+const teilMarkup = formatLandscapesForInfobox(teil);
+assert.ok(teilMarkup.endsWith("</a> (68 %)"),
+	"der Prozentsatz steht hinter dem Link, nicht darin -- bekam: " + teilMarkup);
+
 // ---- only what is new -----------------------------------------------------------------------
 const weiden = [{ name: "Weiden", share: 1 }];
 const weidenAndWood = [{ name: "Weiden", share: 1 }, { name: "Reichsforst", share: 0.2 }];
