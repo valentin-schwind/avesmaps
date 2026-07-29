@@ -227,7 +227,8 @@ danach offline ausgezählt. Keine Schleife gegen die API.
 - [ ] **Schritt 5: Commit**
 
 ```bash
-git commit --only -- docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md -m "docs(landschaften): recount the V11 stock against the live map before building"
+git add docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md
+git commit -m "docs(landschaften): recount the V11 stock against the live map before building" -- docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md
 ```
 
 ---
@@ -540,7 +541,8 @@ es dort nichts zu brechen.)
 - [ ] **Schritt 8: Commit**
 
 ```bash
-git commit --only -- api/_internal/app/ecosystem.php api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php -m "feat(landschaften): schema for the V11 height rasters, way profiles and the cross-country factor"
+git add api/_internal/app/ecosystem.php api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php
+git commit -m "feat(landschaften): schema for the V11 height rasters, way profiles and the cross-country factor" -- api/_internal/app/ecosystem.php api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php
 ```
 
 ---
@@ -769,7 +771,8 @@ Erwartet: `terrain-factor-test: all asserts passed`, Exit 0.
 - [ ] **Schritt 5: Commit**
 
 ```bash
-git commit --only -- api/_internal/routing/terrain-factor.php api/_internal/routing/__tests__/terrain-factor-test.php -m "feat(routing): the V11 slope curve as one pure, retunable function"
+git add api/_internal/routing/terrain-factor.php api/_internal/routing/__tests__/terrain-factor-test.php
+git commit -m "feat(routing): the V11 slope curve as one pure, retunable function" -- api/_internal/routing/terrain-factor.php api/_internal/routing/__tests__/terrain-factor-test.php
 ```
 
 ---
@@ -888,9 +891,24 @@ assert($throws(static fn() => avesmapsHeightmapDecode([
 ])), 'an undecompressable blob must be refused, not treated as zeros');
 
 // --- 💣 CHECKED BY SEARCH, NOT AT RUNTIME (§9.1): the reader must never materialise the blob.
+//
+// 🪤 The search runs over CODE ONLY, comments stripped by the tokenizer. A plain grep over the
+// whole file also matches the comment that EXPLAINS the ban -- and then the file can only pass its
+// own test by euphemising the very thing it warns about, which is how the warning gets lost. The
+// comments are free to spell `unpack('v*')` out; the check tests what executes.
 $source = (string) file_get_contents(__DIR__ . '/../heightmap.php');
-assert(!preg_match("/unpack\\(\\s*'v\\*'/", $source),
-    "heightmap.php must not contain unpack('v*') -- that materialises the blob as a PHP array");
+$executableCode = '';
+foreach (token_get_all($source) as $token) {
+    if (is_array($token) && ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT)) {
+        continue;
+    }
+    $executableCode .= is_array($token) ? $token[1] : $token;
+}
+assert(!preg_match("/unpack\\(\\s*'v\\*'/", $executableCode),
+    "heightmap.php must not CALL unpack('v*') -- that materialises the blob as a PHP array");
+// The check must be able to fail. If this ever stops holding, the guard above is decorative.
+assert(preg_match("/unpack\\(\\s*'v\\*'/", "unpack('v*', \$s)") === 1,
+    'the ban regex must actually match a real violation');
 
 fwrite(STDOUT, "heightmap-read-test: all asserts passed\n");
 ```
@@ -1081,7 +1099,8 @@ Erwartet: `heightmap-read-test: all asserts passed`, Exit 0.
 - [ ] **Schritt 5: Commit**
 
 ```bash
-git commit --only -- api/_internal/app/heightmap.php api/_internal/app/__tests__/heightmap-read-test.php -m "feat(landschaften): read the stored height rasters punctually and by SUM over overlaps"
+git add api/_internal/app/heightmap.php api/_internal/app/__tests__/heightmap-read-test.php
+git commit -m "feat(landschaften): read the stored height rasters punctually and by SUM over overlaps" -- api/_internal/app/heightmap.php api/_internal/app/__tests__/heightmap-read-test.php
 ```
 
 ---
@@ -1373,7 +1392,8 @@ Erwartet: beide unverändert grün.
 - [ ] **Schritt 6: Commit**
 
 ```bash
-git commit --only -- js/map-features/map-features-ecosystem-heightmap-raster.js js/map-features/__tests__/ecosystem-heightmap-raster.test.js -m "feat(landschaften): rasterise one area's own height field to uint16 Schritt, yielding per row band"
+git add js/map-features/map-features-ecosystem-heightmap-raster.js js/map-features/__tests__/ecosystem-heightmap-raster.test.js
+git commit -m "feat(landschaften): rasterise one area's own height field to uint16 Schritt, yielding per row band" -- js/map-features/map-features-ecosystem-heightmap-raster.js js/map-features/__tests__/ecosystem-heightmap-raster.test.js
 ```
 
 ---
@@ -1888,7 +1908,8 @@ Erwartet: dreimal `No syntax errors detected`.
 - [ ] **Schritt 8: Commit**
 
 ```bash
-git commit --only -- api/edit/map/peaks-geometry.php api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php api/edit/map/ecosystem.php -m "feat(landschaften): store one height raster per area, stamped server-side against peaks and knobs"
+git add api/edit/map/peaks-geometry.php api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php api/edit/map/ecosystem.php
+git commit -m "feat(landschaften): store one height raster per area, stamped server-side against peaks and knobs" -- api/edit/map/peaks-geometry.php api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php api/edit/map/ecosystem.php
 ```
 
 ---
@@ -2111,7 +2132,8 @@ Zu prüfen, in dieser Reihenfolge:
 - [ ] **Schritt 7: Commit**
 
 ```bash
-git commit --only -- html/landschaften-editor.html -m "feat(landschaften): new editor tile computes and stores one height raster per mountain area"
+git add html/landschaften-editor.html
+git commit -m "feat(landschaften): new editor tile computes and stores one height raster per mountain area" -- html/landschaften-editor.html
 ```
 
 ---
@@ -2607,7 +2629,8 @@ Editor → WikiSync → Regionen → „Regionen bearbeiten" (eingeloggt).
 - [ ] **Schritt 9: Commit**
 
 ```bash
-git commit --only -- api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php api/edit/map/ecosystem.php html/landschaften-editor.html -m "feat(landschaften): derive ascent and descent per way as a chunked, owner-triggered run"
+git add api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php api/edit/map/ecosystem.php html/landschaften-editor.html
+git commit -m "feat(landschaften): derive ascent and descent per way as a chunked, owner-triggered run" -- api/_internal/app/terrain-store.php api/_internal/app/__tests__/terrain-store-test.php api/edit/map/ecosystem.php html/landschaften-editor.html
 ```
 
 ---
@@ -3014,7 +3037,8 @@ Erwartet:
 - [ ] **Schritt 10: Commit**
 
 ```bash
-git commit --only -- api/_internal/routing/map-data.php api/_internal/routing/network-data.php api/_internal/routing/terrain-read.php api/_internal/routing/request.php api/_internal/routing/response.php api/_internal/routing/__tests__/terrain-read-test.php -m "feat(routing): thread the way revision and the terrain lookup into the route payload, keyed by public_id"
+git add api/_internal/routing/map-data.php api/_internal/routing/network-data.php api/_internal/routing/terrain-read.php api/_internal/routing/request.php api/_internal/routing/response.php api/_internal/routing/__tests__/terrain-read-test.php
+git commit -m "feat(routing): thread the way revision and the terrain lookup into the route payload, keyed by public_id" -- api/_internal/routing/map-data.php api/_internal/routing/network-data.php api/_internal/routing/terrain-read.php api/_internal/routing/request.php api/_internal/routing/response.php api/_internal/routing/__tests__/terrain-read-test.php
 ```
 
 ---
@@ -3505,7 +3529,8 @@ irgendwo nicht durchgehalten — und dann ist „Schalter aus" nicht mehr bit-id
 - [ ] **Schritt 11: Commit**
 
 ```bash
-git commit --only -- api/_internal/routing/client-graph.php api/_internal/routing/response.php api/_internal/routing/__tests__/terrain-read-test.php -m "feat(routing): apply the slope factor at both time sites; a sub-slice uses its own profile, not the parent average"
+git add api/_internal/routing/client-graph.php api/_internal/routing/response.php api/_internal/routing/__tests__/terrain-read-test.php
+git commit -m "feat(routing): apply the slope factor at both time sites; a sub-slice uses its own profile, not the parent average" -- api/_internal/routing/client-graph.php api/_internal/routing/response.php api/_internal/routing/__tests__/terrain-read-test.php
 ```
 
 ---
@@ -3774,7 +3799,8 @@ php -d zend.assertions=1 -d assert.exception=1 -d extension=mbstring api/_intern
 ```
 
 ```bash
-git commit --only -- api/_internal/app/app-setting.php api/_internal/app/path-landscapes.php api/_internal/routing/terrain-read.php api/_internal/app/terrain-store.php api/edit/map/ecosystem.php html/landschaften-editor.html api/README.md -m "feat(landschaften): owner switch for terrain-dependent travel, and ONE implementation of the DDL-free setting read"
+git add api/_internal/app/app-setting.php api/_internal/app/path-landscapes.php api/_internal/routing/terrain-read.php api/_internal/app/terrain-store.php api/edit/map/ecosystem.php html/landschaften-editor.html api/README.md
+git commit -m "feat(landschaften): owner switch for terrain-dependent travel, and ONE implementation of the DDL-free setting read" -- api/_internal/app/app-setting.php api/_internal/app/path-landscapes.php api/_internal/routing/terrain-read.php api/_internal/app/terrain-store.php api/edit/map/ecosystem.php html/landschaften-editor.html api/README.md
 ```
 
 ---
@@ -3915,7 +3941,8 @@ Der Owner entscheidet nach diesem Bild, nicht die Spec.
 - [ ] **Schritt 5: Commit**
 
 ```bash
-git commit --only -- docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md api/_internal/routing/terrain-factor.php -m "docs(landschaften): the measured slope distribution and the picture the owner decides the clamp on"
+git add docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md api/_internal/routing/terrain-factor.php
+git commit -m "docs(landschaften): the measured slope distribution and the picture the owner decides the clamp on" -- docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md api/_internal/routing/terrain-factor.php
 ```
 
 ---
@@ -3989,7 +4016,8 @@ obere Klemme entschieden hast. Dieser Plan schaltet ihn nicht ein.
 Die acht Zeilen mit ihrem Ergebnis in `2026-07-29-landschaften-v11-messung.md`, Abschnitt 3.
 
 ```bash
-git commit --only -- docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md -m "docs(landschaften): V11 acceptance on the live stock -- switch stays OFF pending the owner's decision"
+git add docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md
+git commit -m "docs(landschaften): V11 acceptance on the live stock -- switch stays OFF pending the owner's decision" -- docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md
 ```
 
 ---
