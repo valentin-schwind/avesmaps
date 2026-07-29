@@ -175,17 +175,26 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 	}
 }
 
-// Bezeichnung einer Etappe OHNE Weg-Namen. Querfeldein ist kein Wegtyp, sondern eine Luftlinie -> eigenes
-// Wort. Alles andere teilt sich getUnnamedPathTitle mit der Weg-Infobox, damit ein namenloser Weg ueberall
-// gleich heisst ("Unbenannte Straße"); Seeweg faellt dort bewusst auf den blanken Typ zurueck.
+// Wegtyp einer Etappe, blank: "Straße", "Reichsstraße", "Weg". Das ist der UNTERTITEL unter einem echten
+// Weg-Namen und zugleich der Typ in der Etappenzeile -- beide sagen damit dasselbe Wort, aus einer Quelle.
+// Querfeldein ist kein Wegtyp, sondern eine Luftlinie -> eigenes Wort.
 function routeLegTypeLabel(type) {
 	if (type === SYNTHETIC_ROUTE_TYPE) {
 		return tr("planner.leg.offroad", "Unwegsames Gelände");
 	}
-	if (typeof getUnnamedPathTitle === "function") {
-		return getUnnamedPathTitle(type);
-	}
 	return typeof getPathTypeLabel === "function" ? getPathTypeLabel(type) : String(type || "");
+}
+
+// Titel einer Etappe OHNE Weg-Namen -- und NUR da gehoert die Unbenannt-Formel hin (Owner 2026-07-29):
+// als Untertitel unter einem Namen widerspricht sie sich selbst, "Sieben-Baronien-Weg / Unbenannte Straße"
+// spricht dem Weg genau den Namen ab, der darueber steht. Ohne Namen teilt sich die Etappe getUnnamedPathTitle
+// mit der Weg-Infobox, damit ein namenloser Weg ueberall gleich heisst; Seeweg faellt dort bewusst auf den
+// blanken Typ zurueck.
+function routeLegUnnamedTitle(type) {
+	if (type === SYNTHETIC_ROUTE_TYPE || typeof getUnnamedPathTitle !== "function") {
+		return routeLegTypeLabel(type);
+	}
+	return getUnnamedPathTitle(type);
 }
 
 // Infobox einer Routen-Etappe (Owner 2026-07-17): gleicher Kopf + gleiche Datentabelle wie die Weg-Infobox,
@@ -214,13 +223,12 @@ function buildRouteLegPopupHtml(entry) {
 	if (!entry || typeof locationPopupMarkup !== "function") {
 		return "";
 	}
-	const typeLabel = routeLegTypeLabel(entry.type);
 	// Titel = Weg-Name, wenn die Etappe einen traegt (Owner-Entscheid: "Name wenn da, sonst Typ") -- wie in
 	// der Weg-Infobox. Ohne Namen (Seeweg, Querfeldein, unbenannte Wege) tritt der Typ an die Titelstelle und
 	// der Untertitel entfaellt, sonst stuende zweimal dasselbe da.
 	const name = String(entry.segmentLabel || "").trim();
-	const title = name || typeLabel;
-	const subtitle = name ? typeLabel : "";
+	const title = name || routeLegUnnamedTitle(entry.type);
+	const subtitle = name ? routeLegTypeLabel(entry.type) : "";
 	const headerImg = typeof infoHeaderImageMarkup === "function" && typeof pathHeaderImageBasename === "function"
 		? infoHeaderImageMarkup(pathHeaderImageBasename(entry.type), title, subtitle)
 		: "";
@@ -615,7 +623,7 @@ function showRoutePlan(routeNames, segments) {
 
 		$overview.append(`
 			<div role="button" tabindex="0" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : getPathTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
 			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}

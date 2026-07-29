@@ -7,6 +7,11 @@
 // stubbed to expose their arguments -- what matters here is WHICH title/subtitle/basename we pass, not how
 // the shared popup shell renders them (that is covered where it lives).
 //
+// The two LABEL functions are real too, and that is not decoration (Owner 2026-07-29): while they were absent
+// from the sandbox, routeLegTypeLabel silently fell through to String(type) and this test cheerfully asserted
+// the raw join key "Reichsstrasse" as a subtitle. It therefore could not see that the live subtitle actually
+// read "Unbenannte Straße" under a way that HAD a name. A stub that swallows the rule under test is not a stub.
+//
 // Run: node tools/paths/test-route-leg-popup.mjs
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -38,6 +43,7 @@ function extractConst(source, name) {
 
 const planSource = read("js", "routing", "route-plan.js");
 const popupsSource = read("js", "ui", "popups.js");
+const domainSource = read("js", "map-features", "map-features-path-domain.js");
 
 const calls = { header: [], popup: [] };
 const sandbox = {
@@ -57,7 +63,13 @@ vm.createContext(sandbox);
 // Real: the subtype -> header-image table and its lookup.
 vm.runInContext(extractConst(popupsSource, "INFO_HEADER_IMAGE_BY_PATH"), sandbox);
 vm.runInContext(extractFunction(popupsSource, "pathHeaderImageBasename"), sandbox);
+// Real: the way-type prose and the unnamed phrase -- the very strings this file is about.
+vm.runInContext(extractConst(domainSource, "PATH_TYPE_LABEL"), sandbox);
+vm.runInContext(extractFunction(domainSource, "getPathTypeLabel"), sandbox);
+vm.runInContext(extractConst(domainSource, "UNNAMED_PATH_TITLE"), sandbox);
+vm.runInContext(extractFunction(domainSource, "getUnnamedPathTitle"), sandbox);
 vm.runInContext(extractFunction(planSource, "routeLegTypeLabel"), sandbox);
+vm.runInContext(extractFunction(planSource, "routeLegUnnamedTitle"), sandbox);
 vm.runInContext(extractFunction(planSource, "buildRouteLegPopupHtml"), sandbox);
 
 const leg = (over) => ({ type: "Reichsstrasse", segmentLabel: "", startName: "A", endName: "B", distance: 10, travelTime: 5, flowState: null, ...over });
@@ -66,13 +78,24 @@ const lastPopup = () => calls.popup[calls.popup.length - 1];
 
 // --- Title rule (Owner: "name if there, else type") --------------------------------------------------------
 
-// A named way: title is the NAME, the type drops to the subtitle -- exactly like the way infobox.
+// A named way: title is the NAME, the type drops to the subtitle -- exactly like the way infobox. The
+// subtitle is the BARE type, never the unnamed phrase (Owner 2026-07-29: "Sieben-Baronien-Weg / Unbenannte
+// Straße" denied the way the very name printed above it).
 sandbox.buildRouteLegPopupHtml(leg({ segmentLabel: "Reichsstraße 3" }));
 assert.strictEqual(lastHeader().title, "Reichsstraße 3", "named leg is titled by its way");
-assert.strictEqual(lastHeader().subtitle, "Reichsstrasse", "the type becomes the subtitle");
+assert.strictEqual(lastHeader().subtitle, "Reichsstraße", "the bare type becomes the subtitle");
 assert.strictEqual(lastPopup().showType, true, "a subtitle exists -> show it");
 
-// No name: the type takes the title slot and the subtitle goes away -- otherwise it would read twice.
+sandbox.buildRouteLegPopupHtml(leg({ type: "Strasse", segmentLabel: "Sieben-Baronien-Weg" }));
+assert.strictEqual(lastHeader().subtitle, "Straße", "the reported case: a named road reads plain 'Straße'");
+assert.ok(!/Unbenannt/.test(lastHeader().subtitle), "a way that HAS a name is never called unnamed");
+
+// No name: the type takes the title slot and the subtitle goes away -- otherwise it would read twice. There
+// the unnamed phrase is right, because it describes rather than names.
+sandbox.buildRouteLegPopupHtml(leg({ type: "Strasse", segmentLabel: "" }));
+assert.strictEqual(lastHeader().title, "Unbenannte Straße", "an unnamed road says so in the title slot");
+assert.strictEqual(lastHeader().subtitle, "", "no subtitle when the type is already the title");
+
 sandbox.buildRouteLegPopupHtml(leg({ type: "Seeweg", segmentLabel: "" }));
 assert.strictEqual(lastHeader().title, "Seeweg", "an unnamed leg is titled by its type");
 assert.strictEqual(lastHeader().subtitle, "", "no subtitle when the type is already the title");
