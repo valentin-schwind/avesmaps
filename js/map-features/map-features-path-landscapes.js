@@ -153,6 +153,194 @@ function landscapeWikiKeyList(list) {
 		.filter(Boolean).join(",");
 }
 
+// ---- the store ------------------------------------------------------------------------------
+// Kept per WAY, not per route: two routes over the same Reichsstraße fetch it once. Thrown away
+// when the stamp changes revision -- a stored answer is a SNAPSHOT of the last time the editor
+// pressed „Zugehörigkeit rechnen", and a snapshot that quietly outlives its facts is worse than
+// none. Memory only, no localStorage: the stock moves with every editor run, and 2 KB is cheaper
+// to fetch again than a day-old answer is to trust.
+var AVESMAPS_PATH_LANDSCAPES_URL = "api/app/path-landscapes.php";
+var AVESMAPS_PATH_LANDSCAPES_TIMEOUT_MS = 8000;
+var AVESMAPS_PATH_LANDSCAPES_CHUNK = 400;   // matches AVESMAPS_PATH_LANDSCAPES_MAX on the server
+
+var avesmapsPathLandscapesStore = { landscapes: {}, paths: {}, stamp: null, pending: {} };
+
+function avesmapsPathLandscapesPayload() {
+	return avesmapsPathLandscapesStore;
+}
+
+function avesmapsPathLandscapesLineFor(pathIds) {
+	return buildLandscapeLine(pathIds, avesmapsPathLandscapesStore);
+}
+
+function avesmapsPathLandscapesReset() {
+	avesmapsPathLandscapesStore = { landscapes: {}, paths: {}, stamp: null, pending: {} };
+}
+
+function avesmapsPathLandscapesMerge(data) {
+	if (!data || data.ok !== true) {
+		return;
+	}
+	var stamp = data.stamp || null;
+	var known = avesmapsPathLandscapesStore.stamp;
+	// A new computation invalidates everything held so far -- keeping half of an old answer next
+	// to half of a new one would be a line nobody could reproduce.
+	if (known && stamp && (known.ecosystem_revision !== stamp.ecosystem_revision
+		|| known.map_revision !== stamp.map_revision)) {
+		var stillPending = avesmapsPathLandscapesStore.pending;
+		avesmapsPathLandscapesReset();
+		avesmapsPathLandscapesStore.pending = stillPending;   // requests in flight keep their marks
+	}
+	avesmapsPathLandscapesStore.stamp = stamp;
+	var landscapes = data.landscapes || {};
+	Object.keys(landscapes).forEach(function (key) {
+		avesmapsPathLandscapesStore.landscapes[key] = landscapes[key];
+	});
+	var paths = data.paths || {};
+	Object.keys(paths).forEach(function (key) {
+		avesmapsPathLandscapesStore.paths[key] = paths[key];
+	});
+}
+
+function avesmapsPathLandscapesPost(pathIds) {
+	var controller = typeof AbortController === "function" ? new AbortController() : null;
+	var timer = controller
+		? window.setTimeout(function () { controller.abort(); }, AVESMAPS_PATH_LANDSCAPES_TIMEOUT_MS)
+		: null;
+	return fetch(AVESMAPS_PATH_LANDSCAPES_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json", Accept: "application/json" },
+		body: JSON.stringify({ paths: pathIds }),
+		signal: controller ? controller.signal : undefined,
+	}).then(function (response) {
+		if (timer) { window.clearTimeout(timer); }
+		return response.ok ? response.json() : null;
+	}).then(function (data) {
+		avesmapsPathLandscapesMerge(data);
+		return data;
+	}).catch(function () {
+		// A network error must not take the route plan with it: the line is a decoration on a
+		// panel whose numbers are all computed locally. Same rule as the lore section.
+		if (timer) { window.clearTimeout(timer); }
+		return null;
+	});
+}
+
+// Fetches only the ways not already held, in server-sized chunks. NEVER truncates: a shortened
+// „Führt durch" looks exactly like a complete one.
+function avesmapsPathLandscapesEnsure(pathIds) {
+	var wanted = {};
+	(pathIds || []).forEach(function (pathId) {
+		if (pathId
+			&& !avesmapsPathLandscapesStore.paths[pathId]
+			&& !avesmapsPathLandscapesStore.pending[pathId]) {
+			wanted[pathId] = true;   // the same way twice in one route is asked for once
+		}
+	});
+	var missing = Object.keys(wanted);
+	if (!missing.length) {
+		return Promise.resolve(avesmapsPathLandscapesStore);
+	}
+
+	missing.forEach(function (pathId) { avesmapsPathLandscapesStore.pending[pathId] = true; });
+	var chunks = [];
+	for (var index = 0; index < missing.length; index += AVESMAPS_PATH_LANDSCAPES_CHUNK) {
+		chunks.push(missing.slice(index, index + AVESMAPS_PATH_LANDSCAPES_CHUNK));
+	}
+	return Promise.all(chunks.map(avesmapsPathLandscapesPost)).then(function () {
+		missing.forEach(function (pathId) {
+			delete avesmapsPathLandscapesStore.pending[pathId];
+			// A way the server did not answer for gets an empty record, so it is not asked for
+			// again on every popup: „no landscapes here" is a valid answer, and 2.813 of 5.655
+			// ways give it.
+			if (!avesmapsPathLandscapesStore.paths[pathId]) {
+				avesmapsPathLandscapesStore.paths[pathId] = { length: 0, in: [] };
+			}
+		});
+		return avesmapsPathLandscapesStore;
+	});
+}
+
+// ---- the infobox row ---------------------------------------------------------------------------
+// ONE infobox row in the house format (.region-info-box__row + dt/dd), so it lines up with
+// von/bis/Distanz/Reisezeit instead of standing beside them. The kind is the title tooltip:
+// „Finsterkamm" then says „Gebirge" on hover, which answers „does this way run through a
+// mountain range" without making the line longer.
+//
+// 💣 EVERY name here comes from Wiki Aventurica, i.e. from FOREIGN CONTENT -- a region is named by
+// whoever edited its article. The fallback below therefore ESCAPES too; a fallback that merely
+// stringified would turn „escapeHtml happens to be missing" into an injection, and that is the one
+// failure mode a fallback must never introduce. Same reasoning as avesmapsLoreEscape.
+function avesmapsPathLandscapesEscape(value) {
+	return String(value === null || value === undefined ? "" : value)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
+}
+
+function avesmapsPathLandscapesRowMarkup(line) {
+	var escape = typeof escapeHtml === "function" ? escapeHtml : avesmapsPathLandscapesEscape;
+	var names = (line || []).map(function (entry) {
+		var text = formatLandscapesForInfobox([entry]);
+		return entry.art
+			? '<span title="' + escape(entry.art) + '">' + escape(text) + "</span>"
+			: escape(text);
+	}).join(" · ");
+	return '<div class="region-info-box__row"><dt>Führt durch</dt><dd>' + names + "</dd></div>";
+}
+
+// ---- the observer ---------------------------------------------------------------------------
+// 💣 THE FETCH DOES NOT START WHEN THE MARKUP IS BUILT. bindPopup gets finished HTML for every one
+// of 5.655 ways while the map is still assembling -- a fetch at that point would be 5.655
+// simultaneous requests, which is the 2026-07-21 pool incident word for word. A container is
+// filled only once it actually stands in the DOM, i.e. once a popup was really opened.
+//
+// The route planner does NOT go through here: it fetches once when a route is drawn, which is a
+// user action that happens exactly once and covers all its legs in one request.
+function avesmapsPathLandscapesFillPending() {
+	var pending = document.querySelectorAll("[data-path-landscapes]:not([data-path-landscapes-loaded])");
+	for (var index = 0; index < pending.length; index++) {
+		var element = pending[index];
+		element.setAttribute("data-path-landscapes-loaded", "1");   // mark first: no double fetch
+		(function (container) {
+			var pathId = container.getAttribute("data-path-landscapes") || "";
+			if (!pathId) {
+				return;
+			}
+			avesmapsPathLandscapesEnsure([pathId]).then(function () {
+				var line = avesmapsPathLandscapesLineFor([pathId]);
+				if (!line.length) {
+					return;   // nothing to say -- the row stays absent, no „keine Angabe"
+				}
+				container.innerHTML = avesmapsPathLandscapesRowMarkup(line);
+			});
+		})(element);
+	}
+}
+
+if (typeof document !== "undefined" && !document.__avesmapsPathLandscapesObserverBound) {
+	document.__avesmapsPathLandscapesObserverBound = true;
+	var avesmapsPathLandscapesScanQueued = false;
+	var avesmapsPathLandscapesScheduleScan = function () {
+		if (avesmapsPathLandscapesScanQueued) {
+			return;
+		}
+		avesmapsPathLandscapesScanQueued = true;
+		window.setTimeout(function () {
+			avesmapsPathLandscapesScanQueued = false;
+			avesmapsPathLandscapesFillPending();
+		}, 0);
+	};
+	if (typeof MutationObserver === "function") {
+		new MutationObserver(avesmapsPathLandscapesScheduleScan)
+			.observe(document.documentElement, { childList: true, subtree: true });
+	}
+	avesmapsPathLandscapesScheduleScan();
+}
+
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		AVESMAPS_LANDSCAPE_MIN_SHARE,

@@ -2166,6 +2166,11 @@
 		<!-- Reine Namenslogik (Auto-Name einer Flaeche). MUSS vor region-store.js und properties.js
 		     stehen -- beide rufen sie beim Aufbau ihres Dialogs. Ohne Abhaengigkeiten, deshalb ganz vorn. -->
 		<script src="js/map-features/map-features-ecosystem-naming.js"></script>
+		<!-- V10 „Fuehrt durch": welche Landschaften ein Weg, eine Etappe oder eine ganze Route
+		     durchquert. MUSS nach ecosystem-naming.js stehen (ruft ecosystemRegionDisplayName und
+		     isEcosystemRegionAutoName) und VOR path-rendering.js und route-plan.js, die beide seine
+		     Zeile einsetzen. -->
+		<script src="js/map-features/map-features-path-landscapes.js"></script>
 		<script src="js/map-features/map-features-ecosystem-geometry.js"></script>
 		<!-- Reine Geometrie-Rechnerei (vereinigen/ausschneiden/schneiden/zerschneiden/herauslösen/
 		     verschieben), ohne Karte und ohne DOM. MUSS nach ecosystem-geometry.js stehen: sie benutzt
