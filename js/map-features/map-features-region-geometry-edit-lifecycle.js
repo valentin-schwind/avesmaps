@@ -9,6 +9,9 @@ function clearRegionGeometryEdit() {
 	if (!activeRegionGeometryEdit) return;
 
 	clearRegionEditEdgeHover();
+	if (typeof clearRegionEditSnapPreview === "function") {
+		clearRegionEditSnapPreview();
+	}
 	disableRegionEditEdgeControls();
 
 	// Kanten-Stil des editierten Polygons SOFORT auf den normalen Render-Stil zurücksetzen

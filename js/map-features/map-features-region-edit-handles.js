@@ -45,10 +45,18 @@ function refreshRegionEditHandles() {
 				setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs, ringIndex);
 				updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 				clearRegionEditEdgeHover();
+				// Der Kringel vor dem Einrasten. Diese Fassung kennt kein Strg-Lösen (das bringt erst die
+				// Laufzeit-Kopie mit), also gibt es hier nichts freizuhalten.
+				if (typeof renderRegionEditSnapPreview === "function") {
+					renderRegionEditSnapPreview(event.target.getLatLng(), false);
+				}
 			});
 
 			handle.on("dragend", (event) => {
 				activeRegionGeometryEdit.editRingIndex = ringIndex;
+				if (typeof clearRegionEditSnapPreview === "function") {
+					clearRegionEditSnapPreview();
+				}
 				const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, ringIndex);
 				const targetLatLng = findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
 				latLngs[index] = targetLatLng;

@@ -285,6 +285,9 @@
 			finishManualRegionVertexDetachDrag();
 			clearRegionEditVertexDetachPreview();
 			clearRegionEditEdgeHover();
+			if (typeof clearRegionEditSnapPreview === "function") {
+				clearRegionEditSnapPreview();
+			}
 			disableRegionEditEdgeControls();
 
 			if (activeRegionGeometryEdit.regionEntry.source !== "political_territory") {
@@ -356,10 +359,21 @@
 						setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs, ringIndex);
 						updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 						clearRegionEditEdgeHover();
+						// Der Kringel: zeigt VOR dem Loslassen, worauf die Ecke springt. Hält Strg sie frei,
+						// verspricht auch kein Ring etwas (map-features-region-edit-snap-preview.js).
+						if (typeof renderRegionEditSnapPreview === "function") {
+							renderRegionEditSnapPreview(
+								event.target.getLatLng(),
+								Boolean(handle._regionDetachDrag || readRegionVertexDetachModifier(event))
+							);
+						}
 					});
 
 					handle.on("dragend", (event) => {
 						activeRegionGeometryEdit.editRingIndex = ringIndex;
+						if (typeof clearRegionEditSnapPreview === "function") {
+							clearRegionEditSnapPreview();
+						}
 						const shouldDetachVertex = Boolean(event.target._regionDetachDrag || readRegionVertexDetachModifier(event));
 						event.target._regionDetachDrag = false;
 						event.target._regionDetachMouseDownCtrl = false;
