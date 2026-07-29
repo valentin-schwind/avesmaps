@@ -171,8 +171,8 @@ function formatLandscapesForInfobox(list, escape) {
 // in no field -- das Herz des Kontinents, die Flusslande, der Farindelwald, and Weiden with none at
 // all. A guessed article would be visibly WRONG on about a third of the names, and a missing one is
 // merely clipped; that trade is deliberate. It is why the summary puts a colon after its label, where
-// no article is expected at all. The leg row („verläuft durch Weiden", Owner 2026-07-29) has no colon
-// and therefore wears the clipped form openly -- accepted, not overlooked.
+// no article is expected at all. The leg row („… in 4.98 Stunden durch Weiden", Owner 2026-07-29) dropped
+// its colon and therefore wears the clipped form openly -- accepted, not overlooked.
 function formatLandscapesForPlanner(list, escape) {
 	var esc = escape || avesmapsPathLandscapesEscape;
 	return (list || []).map(function (entry) { return landscapeNameMarkup(entry, esc); }).join(", ");

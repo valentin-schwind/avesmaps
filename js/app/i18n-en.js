@@ -63,11 +63,14 @@ window.AVESMAPS_I18N_EN = {
 	"planner.summary.totalTime": "Total time",
 	// V10 „Führt durch": the landscapes a route/leg runs through. Three surfaces, three tones -- the
 	// summary lists the whole route, the leg row repeats every leg's own list in running text, the
-	// infobox adds the shares. The two "through" strings are near-identical on purpose: one is a table
-	// label (`<dt>`), the other runs inside a sentence, so only their capitalisation differs.
+	// infobox adds the shares. The two "through" strings are deliberately NOT the same length (Owner
+	// 2026-07-29, settled at the finished screen): the infobox is a table label and gets the full phrase
+	// („Führt durch" / "Runs through"), the leg row appends to a sentence that is already long and gets the
+	// bare preposition („… in 4.98 Stunden durch Weiden" / "… through Weiden"). Keep them side by side --
+	// they name ONE fact and must not drift into two vocabularies.
 	"planner.summary.landscapes": "Landscapes along the route",
 	"planner.leg.through": "Runs through",
-	"planner.leg.through.short": "runs through",
+	"planner.leg.through.short": "through",
 	"planner.shareRoute": "Copy link for this route",
 	"planner.shareRoute.title": "Share your route plan",
 	"planner.unit.miles": "miles",

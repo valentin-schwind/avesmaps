@@ -736,7 +736,7 @@ function fillRoutePlanLandscapes(planEntries, segments) {
 			// Der Sprung geht auf UNSERE Karte (Owner 2026-07-29), nicht ins Wiki: die Etappenzeile sagt,
 			// wo man durchkommt, und ein Klick soll genau dorthin führen. Die Routen-Zusammenfassung
 			// unten behält ihre Wiki-Links -- sie schlägt nach, diese Zeile navigiert.
-			target.innerHTML = `${escapeHtml(tr("planner.leg.through.short", "verläuft durch"))} `
+			target.innerHTML = `${escapeHtml(tr("planner.leg.through.short", "durch"))} `
 				+ formatLandscapesForMapLinks(line, escapeHtml, canFocusLandscapeOnMap);
 			bindRoutePlanLandscapeLinks(target);
 		}
