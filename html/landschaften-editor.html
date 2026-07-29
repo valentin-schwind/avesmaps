@@ -863,7 +863,7 @@ function territoryRowsFromHits() {
 }
 
 async function saveAssignments(pathRows, overlapRows, territoryRows, durationMs, onProgress) {
-	const begun = await postEcosystemEdit("assignment_begin", {});
+	const begun = await ecoPost("assignment_begin", {});
 	const runToken = String(begun.run_token || "");
 	if (runToken === "") { throw new Error("Der Server hat kein Lauf-Kennzeichen geliefert."); }
 
@@ -880,7 +880,7 @@ async function saveAssignments(pathRows, overlapRows, territoryRows, durationMs,
 	let skipped = 0;
 	for (let index = 0; index < batches.length; index += 1) {
 		if (onProgress) { onProgress(index + 1, batches.length); }
-		const result = await postEcosystemEdit("assignment_chunk", {
+		const result = await ecoPost("assignment_chunk", {
 			run_token: runToken, kind: batches[index].kind, rows: batches[index].rows,
 		});
 		skipped += Number(result.skipped || 0);
@@ -889,7 +889,7 @@ async function saveAssignments(pathRows, overlapRows, territoryRows, durationMs,
 	// 💣 Der Abschluss läuft AUCH, wenn nichts zu schreiben war. Der Stempel ist das, was „gerechnet"
 	// sagt, und ein leeres Ergebnis ist ein Ergebnis -- ohne ihn meldete der nächste Aufruf „noch
 	// nicht gerechnet" und der Lauf begänne ewig von vorn.
-	const status = await postEcosystemEdit("assignment_commit", {
+	const status = await ecoPost("assignment_commit", {
 		run_token: runToken,
 		duration_ms: Math.round(durationMs),
 		area_count: (allAreas || []).length,
@@ -1692,7 +1692,7 @@ async function loadData(options) {
 // Ein Fehler bleibt still: „noch nicht gerechnet" ist die richtige Auskunft, wenn niemand antwortet.
 async function loadAssignmentStamp() {
 	try {
-		assignmentStamp = await postEcosystemEdit("assignment_status", {});
+		assignmentStamp = await ecoPost("assignment_status", {});
 		renderAssignmentTile();
 	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
 }
