@@ -284,7 +284,8 @@ function handleEditableRegionDoubleClick(regionEntry, event, editLayer = null) {
 	setRegionOuterLatLngs(regionEntry, latLngs);
 	updateRegionLabelPosition(regionEntry);
 	refreshRegionEditHandles();
-	void saveRegionGeometry(regionEntry);
+	// Eine per Doppelklick eingefuegte Ecke ist Eckenarbeit wie jede andere -- gebuendelt.
+	scheduleRegionGeometrySave(regionEntry);
 }
 
 function findNearestRegionSegmentInsertIndex(regionEntry, latlng) {

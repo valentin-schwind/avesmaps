@@ -105,7 +105,7 @@ function undoRegionGeometryStep() {
 	// here it is somebody else's territory.
 	step.forEach(({ regionEntry }) => {
 		if (regionEntry && typeof saveRegionGeometry === "function") {
-			void saveRegionGeometry(regionEntry);
+			scheduleRegionGeometrySave(regionEntry);
 		}
 	});
 

@@ -249,5 +249,5 @@ function subdivideRegionEditHoveredEdge(pointCount) {
 	refreshRegionEditHandles();
 	clearRegionEditEdgeHover();
 
-	void saveRegionGeometry(regionEntry);
+	scheduleRegionGeometrySave(regionEntry);
 }

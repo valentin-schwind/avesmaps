@@ -12,6 +12,10 @@ function clearRegionGeometryEdit() {
 	if (typeof clearRegionEditSnapPreview === "function") {
 		clearRegionEditSnapPreview();
 	}
+	// 800-ms-Buendel: Was noch aussteht, geht JETZT raus.
+	if (typeof flushRegionGeometrySaves === "function") {
+		flushRegionGeometrySaves();
+	}
 	disableRegionEditEdgeControls();
 
 	// Kanten-Stil des editierten Polygons SOFORT auf den normalen Render-Stil zurücksetzen

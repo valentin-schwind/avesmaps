@@ -64,9 +64,10 @@ function refreshRegionEditHandles() {
 				const affectedRegions = applySharedBoundaryVertexMove(activeRegionGeometryEdit.regionEntry, originalLatLng, targetLatLng);
 				updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 				refreshRegionEditHandles();
-				void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+				// Gebuendelt, wie in der Laufzeit-Kopie -- beide muessen dasselbe tun.
+				scheduleRegionGeometrySave(activeRegionGeometryEdit.regionEntry);
 				affectedRegions.forEach((region) => {
-					void saveRegionGeometry(region);
+					scheduleRegionGeometrySave(region);
 				});
 			});
 
@@ -105,5 +106,5 @@ function deleteRegionNode(index, ringIndex = null) {
 	setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs, resolvedRingIndex);
 	updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 	refreshRegionEditHandles();
-	void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+	scheduleRegionGeometrySave(activeRegionGeometryEdit.regionEntry);
 }

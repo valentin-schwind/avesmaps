@@ -236,7 +236,7 @@
 			setRegionOuterLatLngs(dragState.regionEntry, latLngs, dragState.ringIndex);
 			updateRegionLabelPosition(dragState.regionEntry);
 			refreshRegionEditHandles();
-			void saveRegionGeometry(dragState.regionEntry);
+			scheduleRegionGeometrySave(dragState.regionEntry);
 		}
 
 		function startManualRegionVertexDetachDrag(event, handle, index, ringIndex = 0) {
@@ -287,6 +287,10 @@
 			clearRegionEditEdgeHover();
 			if (typeof clearRegionEditSnapPreview === "function") {
 				clearRegionEditSnapPreview();
+			}
+			// 800-ms-Buendel: Was noch aussteht, geht JETZT raus.
+			if (typeof flushRegionGeometrySaves === "function") {
+				flushRegionGeometrySaves();
 			}
 			disableRegionEditEdgeControls();
 
@@ -389,9 +393,10 @@
 							: applySharedBoundaryVertexMove(activeRegionGeometryEdit.regionEntry, originalLatLng, targetLatLng);
 						updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 						refreshRegionEditHandles();
-						void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+						// Gebuendelt: 800 ms nach dem letzten Loslassen EIN Schreibvorgang je Gebiet.
+						scheduleRegionGeometrySave(activeRegionGeometryEdit.regionEntry);
 						affectedRegions.forEach((region) => {
-							void saveRegionGeometry(region);
+							scheduleRegionGeometrySave(region);
 						});
 					});
 
