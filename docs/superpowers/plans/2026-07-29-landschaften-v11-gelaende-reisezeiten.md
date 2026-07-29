@@ -643,11 +643,15 @@ assert($near(avesmapsTerrainTimeFactor(0.0, $neutralDescent, 1.0), 1.0),
     'at gradient BONUS/PENALTY downhill the bonus and the brake cancel exactly');
 
 // --- the unit conversion is the documented one --------------------------------------------------
-// 3.000 Schritt over 1 map unit is gradient 1,0; over 3 map units it is 1/3.
+// 💣 At ONE map unit, which is the whole point of the assertion, and at a gradient inside the
+// clamp. 3.000 Schritt over one unit would be gradient 1,0 and compute 6,0 -- above the ceiling,
+// so the clamp would swallow the very conversion being tested. And it must not reuse the
+// mountain-leg anchor's arguments above: the function is pure, so identical inputs are a second
+// look at the same call, not an independent check.
 assert($near(
-    avesmapsTerrainTimeFactor(3000.0, 0.0, 1.0),
-    1.0 + AVESMAPS_TERRAIN_UP_PENALTY
-), '3.000 Schritt over one map unit must be gradient 1,0 -- 1 map unit = 3.000 Schritt');
+    avesmapsTerrainTimeFactor(300.0, 0.0, 1.0),
+    1.0 + AVESMAPS_TERRAIN_UP_PENALTY * 0.1
+), '300 Schritt over one map unit is gradient 0,1 -- 1 map unit = 3.000 Schritt');
 
 fwrite(STDOUT, "terrain-factor-test: all asserts passed\n");
 ```
@@ -685,13 +689,23 @@ const AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE = 3000.0;
 // ratio the speed table already carries between Gebirgspass and Strasse.
 const AVESMAPS_TERRAIN_UP_PENALTY = 5.0;
 
-// Downhill, linear part: gentle descent is FASTER (owner decision 3). At a 0,1 gradient this gives
-// 0,85 -- noticeable, not dramatic.
+// Downhill, linear part: gentle descent is FASTER (owner decision 3). At a 0,1 gradient the whole
+// downhill term gives 0,88 -- noticeable, not dramatic. (0,85 would be this linear part alone; the
+// quadratic below already adds 0,03 back at that gradient.)
 const AVESMAPS_TERRAIN_DOWN_BONUS = 1.5;
 
 // Downhill, quadratic part: very steep descent brakes again. With the two above, the curve turns at
 // a downhill gradient of DOWN_BONUS / (2 * DOWN_PENALTY) = 0,25 and is back at 1,0 by 0,5.
 const AVESMAPS_TERRAIN_DOWN_PENALTY = 3.0;
+
+// ⚠️ TWO CONSEQUENCES OF THESE START VALUES, measured -- they belong in the picture of §7.2, not in
+// a surprise later:
+//   * Uphill SATURATES at gradient 0,6 (1 + 5,0 * 0,6 = 4,0). Two ways steeper than that are
+//     indistinguishable, however different they really are.
+//   * FACTOR_MIN = 0,5 is currently DEAD. The downhill curve's minimum sits at its vertex
+//     (gradient 0,25) and is 0,8125; ascent only ever adds. The lower clamp never fires.
+// Both are arguments the owner needs when deciding the ceiling -- and §10.4 wants the smallest
+// factor that ACTUALLY occurs, not the theoretical clamp, for A*'s heuristic.
 
 // 💣 NOT THE RIVER CLAMP. avesmapsRouteClientNormalizeFlow clamps to [1,0 ... 3,0] because a current
 // only ever slows you down. Inheriting that bound here would clamp every descent up to 1,0 and
@@ -3814,6 +3828,20 @@ Aus den Zahlen von Schritt 1 die Steigung je Weg berechnen (`ascent_schritt / (3
 Median, p90 und Maximum bilden, und daraus den Faktor an den vier Stellen ablesen. Das Ziel steht
 in §7.2: **ein typischer Bergweg landet nahe der 2,67×**, die die veröffentlichte Tabelle heute
 schon unterstellt.
+
+🔴 **Zwei Eigenschaften der Startwerte stehen schon fest und gehören ins Bild** (in Aufgabe 3
+gemessen, nicht geschätzt):
+
+| | |
+|---|---|
+| **Bergauf sättigt bei Steigung 0,6** | `1 + 5,0 · 0,6 = 4,0`. Zwei Wege, die steiler sind, sind nicht mehr unterscheidbar — egal wie verschieden sie wirklich sind. |
+| **Die untere Klemme 0,5 ist tot** | Das Minimum der Kurve liegt bei Gefälle 0,25 und ist **0,8125**; Anstieg addiert nur. `FACTOR_MIN` feuert bei diesen Werten nie. |
+
+Beides gehört in die Vorlage: das erste ist ein Argument **für** eine höhere Klemme (sonst
+verschwindet die Unterscheidung genau dort, wo Gebirge interessant wird), das zweite eines dafür,
+dass „bergab schneller" heute schwächer wirkt als die Klemme verspricht. Und §10.4 braucht ohnehin
+den **kleinsten tatsächlich vorkommenden** Faktor, nicht den theoretischen — die 0,8125 ist der
+obere Rand dafür, gemessen wird der echte.
 
 Wird nachjustiert, dann **nur** `AVESMAPS_TERRAIN_UP_PENALTY`, `_DOWN_BONUS`, `_DOWN_PENALTY`,
 `_FACTOR_MIN`, `_FACTOR_MAX` in `terrain-factor.php` — und danach:
