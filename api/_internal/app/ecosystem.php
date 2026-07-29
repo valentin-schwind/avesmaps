@@ -408,6 +408,111 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // ---- V9: does this KIND of area take part in the way x area assignment at all? --------------
+    //
+    // Measured 2026-07-29 on the live stock: `Meer-001` (3.050 corners) and the continent
+    // `Aventurien` (1.539) alone cause 90 % of the whole computation and 64 % of its rows -- and
+    // they say nothing. "This route runs through Aventurien" is true of every route on the map.
+    //
+    // 💣 Its own column check, deliberately NOT folded into the terrain loop above. The comment
+    // there spells out why: a shared "was anything new?" flag would re-run the terrain seed and
+    // silently reset every value the owner has adjusted since.
+    //
+    // 🔧 It is a data row, not code. Setting affects_paths = 1 for `meer` and pressing
+    // „Zugehörigkeit rechnen" again is all it takes to include the sea.
+    if (!$typeColumnExists($pdo, 'affects_paths')) {
+        $pdo->exec('ALTER TABLE ecosystem_region_type ADD COLUMN affects_paths TINYINT(1) NOT NULL DEFAULT 1');
+        $pdo->exec("UPDATE ecosystem_region_type SET affects_paths = 0
+                     WHERE type_key IN ('meer', 'kontinent', 'kueste')");
+    }
+
+    // ---- V9: the stored assignments (spec 2026-07-29) -------------------------------------------
+    // They live in THIS function rather than in one of their own for two reasons that are the same
+    // reason twice: the paths that WRITE them must run no DDL at all -- an ALTER inside a transaction
+    // commits it silently -- and every area read/write already calls this, so the tables exist long
+    // before anyone presses the button.
+    //
+    // path_id is map_features.id and area_id is ecosystem_area.id: the INTERNAL ids, not the
+    // public_ids this house otherwise joins on. This is a derived cache, not a domain link, and a
+    // CHAR(36) key would make the primary key 41 bytes instead of 14 with every secondary index
+    // carrying it along.
+    //
+    // 💣 `basis` sits in the KEY, not in two more columns of one row: the raw chord and the drawn
+    // Catmull-Rom curve produce different interval SETS, not different values of the same one.
+    // Measured: 6 pairs only the chord hits, 4 only the curve, and the crossing count per pair can
+    // differ. Paired columns would force a match that does not exist in ten cases.
+    //   0 = chord (raw vertices -- the unit the graph, the travel time and the edge weights use)
+    //   1 = curve (the drawn line -- what a marker or a coloured stretch has to follow)
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS path_ecosystem (
+            path_id BIGINT UNSIGNED NOT NULL,
+            area_id INT UNSIGNED NOT NULL,
+            basis TINYINT UNSIGNED NOT NULL,
+            seq TINYINT UNSIGNED NOT NULL,
+            enter_distance_mapunits DECIMAL(10,4) NOT NULL,
+            exit_distance_mapunits DECIMAL(10,4) NOT NULL,
+            PRIMARY KEY (path_id, area_id, basis, seq),
+            KEY idx_path_ecosystem_area (area_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // Both directions are stored. A reader always asks "what lies in THIS region", never "does this
+    // pair exist" -- and the client already carries the pairs symmetrically. share = the fraction of
+    // the SMALLER of the two regions, threshold 10 % (owner 2026-07-27).
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_region_overlap (
+            region_id INT UNSIGNED NOT NULL,
+            other_region_id INT UNSIGNED NOT NULL,
+            share DECIMAL(6,5) NOT NULL,
+            PRIMARY KEY (region_id, other_region_id),
+            KEY idx_ecosystem_overlap_other (other_region_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // 🔴 territory_public_id, NOT an internal id -- deliberately the opposite choice from
+    // path_ecosystem, and worth the inconsistency. The political layer is a foreign module read
+    // through api/app/political-territories.php, which speaks public_ids; pointing at its internal
+    // key would add a coupling nothing else in this module needs. And it is hundreds of rows here,
+    // not tens of thousands, so the key width buys nothing.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_region_territory (
+            region_id INT UNSIGNED NOT NULL,
+            territory_public_id CHAR(36) NOT NULL,
+            share DECIMAL(6,5) NOT NULL,
+            is_aggregate TINYINT(1) NOT NULL DEFAULT 0,
+            PRIMARY KEY (region_id, territory_public_id),
+            KEY idx_ecosystem_territory (territory_public_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // 💣 ONE row (id = 1), and it exists because of the ZERO. Of 5.650 ways only 3.829 cross any
+    // area at all -- 1.821 produce no rows, and that is a valid, final result. Deriving "was it
+    // computed?" from the presence of rows would call every one of those 1.821 uncomputed and an
+    // empty run failed. The same lesson is written out in api/_internal/app/citymaps.php, where the
+    // linkchecker paid for it.
+    //
+    // duration_ms is not decoration: it is the answer to "how long does this actually take", and it
+    // has to be readable tomorrow, not only in the moment of the click.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_assignment_stamp (
+            id TINYINT UNSIGNED NOT NULL,
+            ecosystem_revision INT UNSIGNED NOT NULL,
+            map_revision BIGINT UNSIGNED NOT NULL,
+            area_count INT UNSIGNED NOT NULL,
+            path_count INT UNSIGNED NOT NULL,
+            overlap_rows INT UNSIGNED NOT NULL,
+            territory_rows INT UNSIGNED NOT NULL,
+            path_rows_chord INT UNSIGNED NOT NULL,
+            path_rows_curve INT UNSIGNED NOT NULL,
+            duration_ms INT UNSIGNED NOT NULL,
+            run_token CHAR(36) NULL,
+            completed TINYINT(1) NOT NULL DEFAULT 0,
+            computed_by BIGINT UNSIGNED NULL,
+            computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     avesmapsEcosystemSeedRegionTypes($pdo);
 }
 
@@ -693,9 +798,11 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
                 r.region_type,
                 r.wiki_region_key,
                 r.wiki_url,
-                r.label_public_id
+                r.label_public_id,
+                COALESCE(t.affects_paths, 1) AS affects_paths
            FROM ecosystem_area a
            INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
+           LEFT JOIN ecosystem_region_type t ON t.kind = r.kind AND t.type_key = r.region_type
           WHERE ' . implode(' AND ', $where) . '
           ORDER BY r.kind ASC, r.name ASC, a.id ASC'
     );
@@ -723,6 +830,10 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
             // The client MUST send this back as expected_revision on the next save.
             'geometry_revision' => (int) $row['geometry_revision'],
             'is_trial' => (int) $row['is_trial'] === 1,
+            // V9: does this area take part in the way x area assignment? COALESCE, not a plain join
+            // value -- an area whose region carries no type (13 live) has no type row at all, and
+            // "unknown kind" has to mean "takes part", never "silently left out".
+            'affects_paths' => (int) ($row['affects_paths'] ?? 1) === 1,
             // 🔴 NULL reist als null, nicht als 0. „Nicht eingestellt" und „auf 0 gestellt" sind zwei
             // verschiedene Aussagen: das erste heisst „leite ab wie bisher", das zweite waere flach.
             'terrain_grain' => $row['terrain_grain'] === null ? null : (float) $row['terrain_grain'],

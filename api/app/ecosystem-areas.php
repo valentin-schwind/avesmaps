@@ -37,7 +37,11 @@ require_once __DIR__ . '/../_internal/app/ecosystem.php';
 // OLD body. Measured right after the deploy: the plain request answered `false` while a cache-busted
 // one answered `true`. A client holding that stale `false` shows the reassuring confirmation ("die
 // Region bleibt bestehen") while the server has already started deleting it.
-const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 4;
+// 5 (2026-07-29): every area row carries `affects_paths`. Same revision, new shape -- and without
+// the bump a warm client keeps the old body through a 304, reads no flag, and computes the way
+// assignment for the sea and the continent as well. Measured: that is 90 % of the whole run, for
+// rows whose only statement is "this route runs through Aventurien".
+const AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION = 5;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
