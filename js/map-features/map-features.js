@@ -149,6 +149,7 @@ function resetRoutePresentation() {
 	clearRouteDirectionMarkers();
 	currentRouteSegmentLayers = [];
 	currentRoutePlanEntries = [];
+	currentRouteSegments = [];
 	activeRoutePlanEntryIndex = null;
 
 	// Raeumt Wegpunkt-Marker UND ihre (ggf. offenen) Hover-Infoboxen ab.

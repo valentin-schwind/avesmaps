@@ -787,3 +787,20 @@
 	outline: none;
 	box-shadow: var(--focus-ring);
 }
+
+/* V10 „Führt durch": welche Landschaften eine Etappe bzw. die ganze Route durchquert.
+   Eigene Zeile und leiser als der Rest -- sie ist Beiwerk und darf den Fluss der
+   Etappenbeschreibung nicht zerreissen. :not(:empty), weil der Platzhalter im Markup steht,
+   bevor der Abruf da ist: eine leere Zeile wuerde sonst Luft unter jeder Etappe erzeugen. */
+.route-plan-entry__landscapes:not(:empty),
+.route-plan-summary__landscapes:not(:empty) {
+	display: block;
+	margin-top: 0.25em;
+	color: var(--color-text-muted);
+}
+
+/* Der V10-Container in der Weg-Infobox: keine eigene Hülle, seine Kinder greifen direkt ins
+   Zeilenraster der Feldliste -- dieselbe Lösung wie bei .avesmaps-lore-rows. */
+.avesmaps-path-landscapes {
+	display: contents;
+}

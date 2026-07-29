@@ -193,6 +193,16 @@ function routeLegTypeLabel(type) {
 // Wegtyp-Grafik (pathHeaderImageBasename) -- fuer den Seeweg ist das die EINZIGE Flaeche, auf der seine
 // Grafik je erscheint: Seewege tragen keinen Wiki-Artikel (0 von 1275 Segmenten), sind darum nie klickbar
 // und bauen nie eine Weg-Infobox. Querfeldein faellt mangels Eintrag auf "region" zurueck -- es ist kein Weg.
+// Die Weg-Kennungen einer Etappe. Eine Etappe ist immer ein GANZER Weg -- der Graph legt je Weg
+// genau eine Kante an (addRegularPathToGraph), es gibt kein Teilstueck --, aber eine Wasser-Etappe
+// fasst mehrere Wege zu EINEM Eintrag zusammen. Deshalb eine Liste und keine einzelne Kennung.
+function routeEntryPathIds(entry, segments) {
+	return (entry?.segmentIndexes || [])
+		.map((segmentIndex) => String(segments?.[segmentIndex]?.properties?.public_id
+			|| segments?.[segmentIndex]?.properties?.id || ""))
+		.filter(Boolean);
+}
+
 function buildRouteLegPopupHtml(entry) {
 	if (!entry || typeof locationPopupMarkup !== "function") {
 		return "";
@@ -220,6 +230,30 @@ function buildRouteLegPopupHtml(entry) {
 	rows += row(tr("planner.leg.to", "bis"), entry.endName);
 	rows += row(tr("planner.summary.distance", "Distanz"), `${(Number(entry.distance) || 0).toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord}`);
 	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${hours.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(hours / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})`);
+	// „Fuehrt durch" (V10). Hier SYNCHRON und ohne Container, anders als in der Weg-Infobox: die
+	// Daten liegen schon im Speicher, weil showRoutePlan sie beim Zeichnen der Route in EINEM Abruf
+	// geholt hat -- eine Etappen-Infobox kann gar nicht aufgehen, bevor es eine Route gibt.
+	// Vollstaendig und MIT Prozenten, auch wenn die Zeile im Plan geschwiegen hat: die Liste ist die
+	// Erzaehlung, die Infobox der Beleg.
+	let loreMarkup = "";
+	if (typeof avesmapsPathLandscapesLineFor === "function") {
+		const landscapes = avesmapsPathLandscapesLineFor(routeEntryPathIds(entry, currentRouteSegments));
+		if (landscapes.length) {
+			const names = landscapes.map((landscape) => {
+				const text = formatLandscapesForInfobox([landscape]);
+				return landscape.art
+					? `<span title="${escapeHtml(landscape.art)}">${escapeHtml(text)}</span>`
+					: escapeHtml(text);
+			}).join(" · ");
+			rows += `<div class="region-info-box__row"><dt>${escapeHtml(tr("planner.leg.through", "Führt durch"))}</dt><dd>${names}</dd></div>`;
+			// Flora und Fauna der genannten Landschaften -- EIN Abruf fuer alle zusammen, und
+			// ausdruecklich ohne die Waren-Zeile (Owner 2026-07-29: „Flora und Fauna is richtig").
+			const wikiKeys = landscapeWikiKeyList(landscapes);
+			if (wikiKeys && typeof buildLoreMarkup === "function") {
+				loreMarkup = buildLoreMarkup({ key: wikiKeys, name: title, kinds: "flora|fauna" });
+			}
+		}
+	}
 	return locationPopupMarkup({
 		name: title,
 		locationType: "dorf",
@@ -229,7 +263,7 @@ function buildRouteLegPopupHtml(entry) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: Boolean(subtitle),
-		actionsMarkup: `<div class="region-info-box region-info-box--settlement"><dl class="region-info-box__data">${rows}</dl></div>`,
+		actionsMarkup: `<div class="region-info-box region-info-box--settlement"><dl class="region-info-box__data">${rows}${loreMarkup}</dl></div>`,
 	});
 }
 
@@ -537,6 +571,19 @@ function showRoutePlan(routeNames, segments) {
 	const totalHours = routePlanViewModel.summary.totalHours;
 	const routeDesc = routePlanViewModel.routeDescription;
 	currentRoutePlanEntries = planEntries;
+	currentRouteSegments = segments;
+	// V10: EIN Abruf fuer die ganze Route, hier und nicht im Markup. Das Zeichnen einer Route ist
+	// eine Nutzeraktion, die genau einmal stattfindet -- 45 Etappen kosten eine Anfrage, und jede
+	// danach geoeffnete Etappen-Infobox kostet keine mehr. (Der Weg-Infobox-Container geht dagegen
+	// ueber den DOM-Beobachter, weil SEIN Markup fuer alle 5.650 Wege beim Kartenaufbau entsteht.)
+	if (typeof avesmapsPathLandscapesEnsure === "function") {
+		const routePathIds = planEntries.flatMap((entry) => routeEntryPathIds(entry, segments));
+		if (routePathIds.length) {
+			void avesmapsPathLandscapesEnsure(routePathIds).then(() => {
+				fillRoutePlanLandscapes(planEntries, segments);
+			});
+		}
+	}
 
 	planEntries.forEach((entry, entryIndex) => {
 		// Places as map links (openLocationPopupByName) instead of static <strong>, where a real
@@ -564,6 +611,7 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(entry.travelTime / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})
+			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>
 			</div>
 		`);
 	});
@@ -603,10 +651,52 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.summary.airDistance", "Drachenflug")}: ${airDistance.toFixed(1)} ${tr("planner.unit.miles", "Meilen")}<br>
 			${tr("planner.summary.travelTime", "Reisezeit")}: ${totalTravelTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalTravelTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})<br>
 			${tr("planner.summary.restTime", "Rastzeit")}: ${totalRestTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalRestTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})
+			<span class="route-plan-summary__landscapes"></span>
 			<div style="margin-top: 0.5em"><strong>${tr("planner.summary.totalTime", "Gesamtzeit")}: ${totalHours.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalHours / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})</strong></div>
 		</div>
 		<button type="button" id="share-link-button" class="share-link-button" title="${tr("planner.shareRoute.title", "Teile deine Reiseplanung")}">🔗 ${tr("planner.shareRoute", "Link für diese Route kopieren")}</button>
 		<hr>
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
+}
+
+// Fuellt die Landschaftszeilen, sobald der Abruf da ist. EIN Durchgang ueber alle Etappen IN
+// REIHENFOLGE, weil „nur nennen, was neu ist" die Vorgaengerzeile braucht.
+//
+// 💣 Eine Etappe OHNE Daten setzt das Gedaechtnis NICHT zurueck. Nur 34 % der Wegstrecke liegt
+// ueberhaupt in einer Flaeche -- „leer" heisst hier fast immer NOCH NICHT GEZEICHNET, nicht
+// „draussen". Zurueckzusetzen machte aus einer Luecke im Bestand eine Ankuendigung („du betrittst
+// das Herz des Kontinents"), die nie stattfand.
+function fillRoutePlanLandscapes(planEntries, segments) {
+	if (typeof avesmapsPathLandscapesLineFor !== "function") {
+		return;
+	}
+	let previous = [];
+	planEntries.forEach((entry, entryIndex) => {
+		const line = avesmapsPathLandscapesLineFor(routeEntryPathIds(entry, segments));
+		if (!line.length) {
+			return;   // Gedaechtnis bleibt stehen, Zeile bleibt leer
+		}
+		const fresh = pickFreshLandscapes(line, previous);
+		previous = line;
+		const target = document.querySelector(`[data-route-landscapes-index="${entryIndex}"]`);
+		if (target && fresh.length) {
+			// textContent, nicht innerHTML: die Namen stammen aus Wiki Aventurica, also aus
+			// Fremdinhalt, und hier braucht keiner von ihnen Auszeichnung.
+			target.textContent = `${tr("planner.leg.through.short", "durch")}: ${formatLandscapesForPlanner(fresh)}`;
+		}
+	});
+
+	// Die Routen-Zeile: dieselbe Rechnung ueber ALLE Wege, nach Anteil sortiert, ohne Prozente
+	// (Owner 2026-07-29: „beim routenplaner muss kein % dranstehn").
+	const summaryTarget = document.querySelector(".route-plan-summary__landscapes");
+	const routeLine = avesmapsPathLandscapesLineFor(
+		planEntries.flatMap((entry) => routeEntryPathIds(entry, segments))
+	);
+	if (summaryTarget && routeLine.length) {
+		// Der Zeilenumbruch kommt aus dem CSS (display:block), nicht aus einem <br> im Text --
+		// textContent wuerde ein Tag ohnehin als Zeichen ausgeben.
+		summaryTarget.textContent = `${tr("planner.summary.landscapes", "Landschaften")}: `
+			+ formatLandscapesForPlanner(routeLine);
+	}
 }

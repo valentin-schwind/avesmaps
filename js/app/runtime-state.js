@@ -96,6 +96,10 @@ let locationData = [],
 	currentRouteDirectionLayer = null,
 	currentRouteSegmentLayers = [],
 	currentRoutePlanEntries = [],
+	// Die Segmente der gezeigten Route. Eine Etappe kennt nur ihre segmentIndexes; wer daraus
+	// die Weg-public_ids braucht (V10 „Führt durch"), braucht die Liste dazu -- genau wie
+	// currentRoutePlanEntries selbst existiert, weil der Popup-Bauer den Plan-Zustand braucht.
+	currentRouteSegments = [],
 	activeRoutePlanEntryIndex = null,
 	graphData = null,
 	locationConnectivityIndex = null,
