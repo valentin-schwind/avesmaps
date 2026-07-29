@@ -201,6 +201,10 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 		properties: {
 			...(pathSegment.properties || {}),
 			id: getServerSegmentId(serverSegment) || String(pathSegment.properties?.id || ""),
+			// The spread already carries the local path's public_id; the server's is authoritative
+			// when both exist. Named explicitly so the two builders of a display segment agree --
+			// the other one has no local path to spread from.
+			public_id: String(serverSegment?.public_id || pathSegment.properties?.public_id || ""),
 			feature_subtype: subtype,
 			name: subtype,
 			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || pathSegment.properties?.transportOption || getTransportOption(subtype),
@@ -259,6 +263,12 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 		},
 		properties: {
 			id: getServerSegmentId(serverSegment) || "",
+			// 💣 `id` is the EDGE id ("path-2661"), not the map feature. Anything that wants to ask
+			// the server about this way -- V10's „Führt durch" does -- needs the public_id, and the
+			// route response carries it. Without this line the display segment knows which edge it
+			// walked but not which WAY it was, and a lookup by `id` silently asks for something the
+			// database has never heard of.
+			public_id: String(serverSegment?.public_id || localPath?.properties?.public_id || ""),
 			name: subtype,
 			display_name: String(localPath?.properties?.display_name || localPath?.properties?.original_name || ""),
 			feature_subtype: subtype,

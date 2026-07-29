@@ -196,10 +196,17 @@ function routeLegTypeLabel(type) {
 // Die Weg-Kennungen einer Etappe. Eine Etappe ist immer ein GANZER Weg -- der Graph legt je Weg
 // genau eine Kante an (addRegularPathToGraph), es gibt kein Teilstueck --, aber eine Wasser-Etappe
 // fasst mehrere Wege zu EINEM Eintrag zusammen. Deshalb eine Liste und keine einzelne Kennung.
+//
+// 💣 NUR public_id, KEIN Rueckfall auf properties.id. Bei der server-primaeren Route (dem Live-Weg;
+// die Client-Engine laeuft nur unter ?clientrouting=1) ist `id` die KANTEN-Kennung „path-2661" --
+// eine Zeichenkette, die keine Datenbank kennt. Der Rueckfall stand hier zuerst und war schlimmer
+// als kein Rueckfall: er machte aus „ich weiss die Kennung nicht" eine Anfrage nach etwas
+// Erfundenem, die der Server ablehnt und der Client stillschweigend schluckt -- die Zeile blieb
+// leer und sah dabei aus wie „hier gibt es keine Landschaft". Ohne Rueckfall gibt es gar keine
+// Anfrage, und der Fall ist als solcher sichtbar. Gefunden bei der Live-Abnahme am 2026-07-29.
 function routeEntryPathIds(entry, segments) {
 	return (entry?.segmentIndexes || [])
-		.map((segmentIndex) => String(segments?.[segmentIndex]?.properties?.public_id
-			|| segments?.[segmentIndex]?.properties?.id || ""))
+		.map((segmentIndex) => String(segments?.[segmentIndex]?.properties?.public_id || ""))
 		.filter(Boolean);
 }
 
