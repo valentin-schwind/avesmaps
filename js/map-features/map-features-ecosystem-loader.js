@@ -138,6 +138,10 @@ function applyEcosystemAreaPayload(payload) {
 
 	const areas = Array.isArray(payload?.areas) ? payload.areas : [];
 	const seenPublicIds = new Set();
+	// 💣 V8: Ob der HÖHENSTAPEL neu gebaut werden muss. Siehe die Begründung unten am redraw-Aufruf.
+	// Wird nur gesetzt, wenn sich an einer für das Höhenfeld erheblichen Fläche wirklich etwas ändert --
+	// ein Neubau kostet live rund 306 ms, das darf nicht bei jedem Schwenk laufen.
+	let heightStackStale = false;
 
 	areas.forEach((area) => {
 		const publicId = String(area?.public_id || "");
@@ -152,6 +156,13 @@ function applyEcosystemAreaPayload(payload) {
 			// Same geometry and same kind -> the layer on the map is still the right one. Only the
 			// descriptive fields (region name, type, trial flag) are refreshed.
 			if (previous && previous.geometry_revision === area.geometry_revision && previous.kind === area.kind) {
+				// Die Geometrie steht, aber die Geländewerte können sich geändert haben -- eine
+				// Geländespeicherung bumpt `geometry_revision` NICHT. Ohne diese Prüfung übernähme die
+				// billige Abzweigung neue Werte ins Flächenobjekt, während der Stapel mit den alten
+				// weiterrechnet: zwei Wahrheiten, und die sichtbare wäre die falsche.
+				if (ecosystemHeightRelevantChange(previous, area)) {
+					heightStackStale = true;
+				}
 				existingLayer._ecosystemArea = area;
 				if (typeof existingLayer.setTooltipContent === "function") {
 					existingLayer.setTooltipContent(formatEcosystemAreaTooltip(area));
@@ -164,6 +175,9 @@ function applyEcosystemAreaPayload(payload) {
 				}
 				return;
 			}
+			if (ecosystemAreaAffectsHeightField(previous)) {
+				heightStackStale = true;
+			}
 			removeEcosystemAreaLayer(publicId);
 		}
 
@@ -171,6 +185,10 @@ function applyEcosystemAreaPayload(payload) {
 		if (!layer) {
 			console.warn("Landschaftsflaeche konnte nicht gezeichnet werden:", publicId);
 			return;
+		}
+		// 🔴 HIER kommt die Fläche NEU dazu -- genau der Fall, an dem die Ingrakuppen hingen.
+		if (ecosystemAreaAffectsHeightField(area)) {
+			heightStackStale = true;
 		}
 		ecosystemLayers.set(publicId, layer);
 		layer.addTo(map);
@@ -190,6 +208,10 @@ function applyEcosystemAreaPayload(payload) {
 	// branch above), so an undisturbed session is never touched at all.
 	Array.from(ecosystemLayers.keys()).forEach((publicId) => {
 		if (!seenPublicIds.has(publicId)) {
+			// Vor dem Entfernen fragen -- danach ist das Flächenobjekt weg.
+			if (ecosystemAreaAffectsHeightField(ecosystemLayers.get(publicId)?._ecosystemArea)) {
+				heightStackStale = true;
+			}
 			removeEcosystemAreaLayer(publicId);
 		}
 	});
@@ -209,6 +231,22 @@ function applyEcosystemAreaPayload(payload) {
 	//
 	// Hier und nicht im Höhenmodul: DIESE Stelle weiss, wann die Flächen vollständig sind. Ein Poller
 	// dort drüben wäre die schlechtere Antwort auf dieselbe Frage.
+	//
+	// 💣 UND DAS `invalidate()` DAVOR IST DER EIGENTLICHE PUNKT (2026-07-29, Owner: „jetzt gehen die
+	// Ingrakuppen wieder nicht"). Der Kommentar oben stimmt nur für den ERSTEN Fall: ein LEERER Stapel
+	// merkt sich selbst als veraltet (`stackDirty = fields.length === 0`), deshalb genügte damals ein
+	// blankes `redraw()`. Sobald er einmal gefüllt ist, steht `stackDirty` auf false -- und bleibt es,
+	// denn gesetzt wird es sonst NUR im Eigenschaften-Dialog. Jede Fläche, die danach beim Schwenken
+	// nachlädt, wurde gegen den ALTEN Stapel gezeichnet und war unsichtbar. Genau so gemeldet: nach dem
+	// Bearbeiten einer Fläche ging es (der Dialog invalidiert), nach dem Schwenken nach Süden nicht mehr.
+	//
+	// 🪤 NICHT bedingungslos invalidieren. Der Stapelbau kostet am Livebestand rund 306 ms; bei jedem
+	// `moveend` neu zu bauen hiesse, das Schwenken für eine Fläche zu bezahlen, die sich nicht geändert
+	// hat. Das Flag oben wird nur gesetzt, wenn eine für das Höhenfeld erhebliche Fläche dazukommt,
+	// verschwindet oder ihre Geländewerte wechselt.
+	if (heightStackStale) {
+		window.AvesmapsEcosystemHeightRender?.invalidate?.();
+	}
 	window.AvesmapsEcosystemHeightRender?.redraw?.();
 
 	// 🔴 Gross unten, klein oben (Owner 2026-07-28, Punkt 9). Alle Flächen einer Ebene liegen in EINER
@@ -286,10 +324,40 @@ function scheduleEcosystemAreaReload({ immediate = false } = {}) {
 // (map-features-display-mode.js): `map` is created LAST, after every map-features file has loaded, so
 // there is no top-level moment at which map.on() could be called from here. syncEcosystemVisibility
 // runs from setSelectedMapLayerMode, which restorePlannerState calls once the map data has arrived.
+// Trägt diese Fläche überhaupt zum Höhenfeld bei? 🔴 Dieselbe Bedingung wie `topographyAreas()` in
+// map-features-ecosystem-height-render.js. Sie steht damit an zwei Stellen, und das ist der Preis dafür,
+// dass der Loader nicht ins Höhenmodul greifen muss -- wer die eine ändert, ändert die andere mit.
+function ecosystemAreaAffectsHeightField(area) {
+	return Boolean(area) && String(area.kind || "") === "topographie"
+		&& String(area.region_type || "") === "gebirge";
+}
+
+// Hat sich an einer Fläche etwas geändert, das das Höhenfeld anders rechnen lässt?
+//
+// 💣 `geometry_revision` genügt NICHT. Eine Geländespeicherung (`update_area_terrain`) bumpt sie nicht,
+// die Werte reisen aber im nächsten Ladevorgang mit -- ohne diese Prüfung übernähme der Loader sie ins
+// Flächenobjekt, während der Höhenstapel mit den alten weiterrechnet.
+function ecosystemHeightRelevantChange(previous, next) {
+	if (ecosystemAreaAffectsHeightField(previous) !== ecosystemAreaAffectsHeightField(next)) {
+		return true;                          // z. B. Art von „gebirge" weg oder hin
+	}
+	if (!ecosystemAreaAffectsHeightField(next)) {
+		return false;                         // für das Höhenfeld ohnehin bedeutungslos
+	}
+
+	return ["terrain_grain", "terrain_levels", "terrain_avg_height", "terrain_mean_height"]
+		.some((feld) => (previous?.[feld] ?? null) !== (next?.[feld] ?? null));
+}
+
 function hookEcosystemViewportReload() {
 	if (ecosystemViewportReloadHooked || typeof map === "undefined" || !map || typeof map.on !== "function") {
 		return;
 	}
 	ecosystemViewportReloadHooked = true;
 	map.on("moveend zoomend", () => scheduleEcosystemAreaReload());
+}
+
+if (typeof module !== "undefined" && module.exports) {
+	// Nur die zwei reinen Entscheidungsfunktionen -- der Rest des Moduls hängt an Leaflet und der Karte.
+	module.exports = { ecosystemAreaAffectsHeightField, ecosystemHeightRelevantChange };
 }
