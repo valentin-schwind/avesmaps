@@ -1999,7 +1999,8 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
 
     // Klemmen, nicht ablehnen: der Regler kann nichts Ungültiges liefern, ein getippter Wert schon.
     // Die Grenzen sind Arbeitsbereiche, keine Lore -- eine Körnung unter 1 ergäbe eine einzige Zelle,
-    // über 12 Millionen davon, und mehr als 5 Stufen fängt ohnehin das Zellbudget ab.
+    // und mehr als 5 Stufen fängt ohnehin das Zellbudget ab. Die Obergrenze der Körnung steht bei der
+    // Klemme selbst, mit der Messung, aus der sie stammt.
     $lesen = static function (mixed $value, float $min, float $max): ?float {
         if ($value === null || (is_string($value) && trim($value) === '')) {
             return null;
@@ -2019,7 +2020,16 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     $werte = ['public_id' => $publicId];
     if (array_key_exists('terrain_grain', $payload)) {
         $felder[] = 'terrain_grain = :terrain_grain';
-        $werte['terrain_grain'] = $lesen($payload['terrain_grain'], 1.0, 12.0);
+        // Obergrenze 24 statt 12 (Owner 2026-07-29: „manche Gebirgszüge sind schon recht groß").
+        //
+        // ⚠️ 24 IST GEMESSEN, NICHT GEGRIFFEN. An den Trollzacken (69x56, Erosion 4) steigt die Zahl der
+        // Rauschbuckel bis 24 monoton: 11.636 bei 12, 20.828 bei 16, 32.764 bei 20, 47.300 bei 24
+        // (Feldbau 113 -> 393 ms). DARÜBER greift das Zellbudget im Feldmodul und wirft die feinste
+        // Stufe weg -- bei 32 kommen nur noch 20.828 Buckel heraus, also WENIGER Detail als bei 24.
+        // Ein Regler, der ab der Mitte rückwärts läuft, wäre schlimmer als einer, der früher endet.
+        // Wer die Grenze weiter anheben will, hebt vorher ECOSYSTEM_HEIGHT_MAX_CELLS/_MAX_BUMPS an --
+        // und misst neu, denn dann steigt auch die Bauzeit beim Ziehen am Regler.
+        $werte['terrain_grain'] = $lesen($payload['terrain_grain'], 1.0, 24.0);
     }
     if (array_key_exists('terrain_levels', $payload)) {
         $felder[] = 'terrain_levels = :terrain_levels';
