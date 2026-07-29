@@ -76,12 +76,14 @@ assert($near(avesmapsTerrainTimeFactor(0.0, $neutralDescent, 1.0), 1.0),
     'at gradient BONUS/PENALTY downhill the bonus and the brake cancel exactly');
 
 // --- the unit conversion is the documented one --------------------------------------------------
-// 3.000 Schritt over 1 map unit is gradient 1,0; over 3 map units it is 1/3. Use 3 map units to stay
-// within the clamp (6,0 would exceed MAX of 4,0). The ratio proves the conversion: factor increases by 5,0
-// per unit gradient, so over 3 units (gradient 1/3) it increases by 5,0/3 ≈ 1,667, giving ≈ 2,667.
+// 💣 At ONE map unit, which is the whole point of the assertion: 300 Schritt over 1,0 units is
+// gradient 0,1, and the factor must be exactly `1 + UP_PENALTY * 0,1`. 3.000 Schritt over one
+// unit would be gradient 1,0 and compute 6,0 -- above the ceiling, so the clamp would swallow
+// the very conversion being tested. These inputs appear nowhere else in this file, so it is an
+// independent check and not a second look at the mountain-leg anchor above.
 assert($near(
-    avesmapsTerrainTimeFactor(3000.0, 0.0, 3.0),
-    1.0 + AVESMAPS_TERRAIN_UP_PENALTY / 3.0
-), '3.000 Schritt over one map unit is gradient 1,0 -- 1 map unit = 3.000 Schritt, scaled by distance');
+    avesmapsTerrainTimeFactor(300.0, 0.0, 1.0),
+    1.0 + AVESMAPS_TERRAIN_UP_PENALTY * 0.1
+), '300 Schritt over one map unit is gradient 0,1 -- 1 map unit = 3.000 Schritt');
 
 fwrite(STDOUT, "terrain-factor-test: all asserts passed\n");

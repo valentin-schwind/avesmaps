@@ -22,7 +22,7 @@ const AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE = 3000.0;
 const AVESMAPS_TERRAIN_UP_PENALTY = 5.0;
 
 // Downhill, linear part: gentle descent is FASTER (owner decision 3). At a 0,1 gradient this gives
-// 0,85 -- noticeable, not dramatic.
+// 0,88 -- noticeable, not dramatic.
 const AVESMAPS_TERRAIN_DOWN_BONUS = 1.5;
 
 // Downhill, quadratic part: very steep descent brakes again. With the two above, the curve turns at
