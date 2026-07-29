@@ -188,7 +188,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 29.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 30.07.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -219,8 +219,8 @@
 					<ul>
 						<li><a href="#kreise" data-keywords="kreis punkt icon symbol grün halb gefüllt leer abdeckung auf der karte legende">Der Kreis neben dem Namen</a></li>
 						<li><a href="#siedlungen" data-keywords="ort orte stadt dorf metropole bauwerk wappen bilder nodix ruine ortsgröße siedlungseditor zuordnen verschieben ziehen strg offene wegenden ablösen ortsname eindeutig doppelter name klammern lage innerorts außerorts filter ki generiert prompt bild hochladen gemeinfrei">Siedlungen</a></li>
-						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur">Territorien</a></li>
-						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau">Regionen</a></li>
+						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur einrasten ring ecke kante gebündelt speichern strg">Territorien</a></li>
+						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau größe rotation priorität darstellung">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen lage innerorts außerorts filter">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz produkte publikationen materialien">Abenteuer</a></li>
@@ -582,16 +582,18 @@
 
 				<h4>Grenzen bearbeiten</h4>
 				<p><strong>„Grenzen bearbeiten"</strong> zeigt jede Ecke des Gebiets als Griff. <strong>Ziehen</strong> verschiebt sie, <strong>Doppelklick auf einen Griff</strong> löscht sie.</p>
-				<p>Beim Loslassen passieren zwei Dinge, die man dem Ziehen nicht ansieht: Der Punkt <strong>rastet ein</strong>, wenn ein <em>Nachbargebiet</em> dort eine Ecke oder Kante hat — und <strong>jedes Nachbargebiet, das genau diesen Punkt teilt, wird mitgezogen und mitgespeichert</strong>. So bleiben aneinandergrenzende Gebiete lückenlos, ohne dass du jede Grenze zweimal ziehst.</p>
+				<p>Beim Loslassen passieren zwei Dinge: Der Punkt <strong>rastet ein</strong>, wenn ein <em>Nachbargebiet</em> dort eine Ecke oder Kante hat — und <strong>jedes Nachbargebiet, das genau diesen Punkt teilt, wird mitgezogen und mitgespeichert</strong>. So bleiben aneinandergrenzende Gebiete lückenlos, ohne dass du jede Grenze zweimal ziehst.</p>
+				<p><strong>Das Einrasten kündigt sich an.</strong> Während du ziehst, erscheint ein <strong>Ring</strong> genau dort, wohin der Punkt beim Loslassen springen wird: <em>durchgezogen</em> über einer Ecke, <em>gestrichelt</em> über einem Punkt auf einer Kante. Eine Ecke hat dabei Vorrang, auch wenn die Kante näher liegt. Kein Ring heißt: Hier rastet nichts ein, der Punkt bleibt, wo du loslässt. Das Mitziehen der Nachbarn sieht man dagegen erst am Ergebnis.</p>
 				<p><strong>Die Strg-Taste ist der Umschalter dafür.</strong> Gedrückt gehalten gilt beides nicht — sie regelt den Umgang mit Punkten und Linien:</p>
 				<table class="hb-table">
 					<tr><th>Strg&nbsp;+</th><th>Was passiert</th></tr>
-					<tr><td><strong>einen Punkt ziehen</strong></td><td><strong>Löst ihn heraus.</strong> Kein Einrasten, und die Nachbarn bleiben liegen — die gemeinsame Grenze trennt sich an dieser Stelle auf. Der Punkt bleibt genau dort, wo du loslässt.</td></tr>
+					<tr><td><strong>einen Punkt ziehen</strong></td><td><strong>Löst ihn heraus.</strong> Kein Einrasten — darum erscheint auch kein Ring —, und die Nachbarn bleiben liegen: die gemeinsame Grenze trennt sich an dieser Stelle auf. Der Punkt bleibt genau dort, wo du loslässt.</td></tr>
 					<tr><td><strong>über eine Linie fahren</strong></td><td>Hebt die Kante unter dem Zeiger hervor — die, die der nächste Klick trifft.</td></tr>
 					<tr><td><strong>auf die Linie klicken</strong></td><td>Setzt <strong>vier</strong> gleichmäßig verteilte Punkte hinein; aus einer Kante werden fünf Abschnitte. So bekommst du Material zum Formen, wo vorher eine gerade Strecke war.</td></tr>
 				</table>
 				<div class="hb-note hb-warn"><strong>Ohne Strg bearbeitest du unter Umständen mehrere Gebiete gleichzeitig.</strong> Das ist so gewollt — es hält Grenzen dicht —, aber es heißt auch: Ein Zug an der falschen Ecke verschiebt die Grenze des Nachbarn mit, und beide werden gespeichert. Willst du <em>nur</em> dein Gebiet bewegen, halte Strg.</div>
 				<div class="hb-note hb-tip"><strong>Strg+Z nimmt den letzten Schritt zurück</strong>, solange „Grenzen bearbeiten" offen ist — bis zu 20 Schritte weit. Zurückgenommen wird, was der Schritt <em>wirklich</em> angefasst hat: also auch jedes Nachbargebiet, das beim Ziehen mitgewandert ist. Alle betroffenen Gebiete werden dabei erneut gespeichert. Ist nichts mehr da, sagt es dir das. Die Zwischenschritte stehen <em>nicht</em> im Reiter <a href="#aenderungen">Änderungen</a> — dort landet nur das Ergebnis, genau wie bei einem gewöhnlichen Zug.</div>
+				<div class="hb-note hb-tip"><strong>Gespeichert wird gebündelt.</strong> Nicht jeder einzelne Eckzug geht als eigener Schreibvorgang hinaus: Eine knappe Sekunde nach dem <em>letzten</em> Loslassen wird <strong>je betroffenem Gebiet einmal</strong> gespeichert. Zehn Ecken an einer gemeinsamen Grenze ergeben darum <em>einen</em> Eintrag für dein Gebiet und einen für den Nachbarn im Reiter <a href="#aenderungen">Änderungen</a> — nicht zwanzig. Schließt du „Grenzen bearbeiten", geht das Ausstehende sofort hinaus; verlieren kannst du dabei nichts. <strong>Verschieben</strong>, <strong>Zerschneiden</strong> und <strong>Herauslösen</strong> speichern weiterhin unmittelbar — das sind einzelne, bewusste Gesten, an denen es nichts zu bündeln gibt.</div>
 				<div class="hb-note hb-tip"><strong>Abgeleitete Außengrenzen ziehen nie mit.</strong> Sie sind berechnet, nicht gezeichnet, und kommen über <strong>„Grenzen berechnen"</strong> nach.</div>
 
 				<h4>Die Formwerkzeuge</h4>
@@ -626,9 +628,9 @@
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf die Beschriftung → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neues Label" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Regionen</p>
 				<p>„Regionen" sind die <strong>Landschaftsnamen auf der Karte</strong> — das Svellttal, der Farindelwald, das Meer der Sieben Winde. Technisch sind es Beschriftungen, keine Flächen; der Dialog heißt darum <em>„Region bearbeiten"</em>.</p>
 				<ul class="hb-steps">
-					<li><strong>Identität</strong> — <em>Text</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Es gibt 21 Arten, nicht nur „Region" — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>.</li>
+					<li><strong>Identität</strong> — <em>Text</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Es gibt 29 Arten, nicht nur „Region" — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>.</li>
 					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
-					<li><strong>Darstellung</strong> — Größe, Rotation, „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint.</li>
+					<li><strong>Darstellung</strong> — Größe, Rotation, „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. <strong>Größe, Rotation und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst — du musst also nicht mehr speichern, hinsehen und wieder öffnen. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
 					<li><strong>Wiki-Landschaft</strong> — „Zuweisen" / „Sync" / „Entfernen".</li>
 					<li><strong>Andere Quelle</strong> — für Belege außerhalb des Wikis, mit frei wählbarem Linktext.</li>
 				</ul>
@@ -656,7 +658,7 @@
 					<li><strong>Nicht zugeordnete Artikel</strong> nennt die Statuszeile beim Namen. Meist steckt eine abweichende Schreibweise dahinter („Brücke nach" gegenüber „Brücke von Akrabaal") — das ist eine Aufgabe für dich, kein Fehler.</li>
 					<li>Nach dem Lauf die <strong>Seite neu laden</strong>, damit die neuen Zeilen in der Infobox erscheinen.</li>
 				</ul>
-				<div class="hb-note hb-tip"><strong>Nicht filtern nach „Region".</strong> Die allermeisten Landschaftsbeschriftungen tragen eine der 20 <em>anderen</em> Arten. Wer in einer Liste nur nach „Region" sucht, übersieht den größten Teil.</div>
+				<div class="hb-note hb-tip"><strong>Nicht filtern nach „Region".</strong> Die allermeisten Landschaftsbeschriftungen tragen eine der 28 <em>anderen</em> Arten. Wer in einer Liste nur nach „Region" sucht, übersieht den größten Teil.</div>
 
 				<h3 id="wege" class="hb-sub">Wege</h3>
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf den Weg → „Bearbeiten" / „Verlauf bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege</p>
@@ -1213,7 +1215,7 @@
 					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten</td></tr>
 					<tr><td><strong>Wegtyp</strong></td><td>Reichsstraße · Straße · Weg · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg</td></tr>
 					<tr><td><strong>Transportmittel</strong></td><td>Karawane · Reisegruppe zu Fuß · Zu Fuß · Kutsche · Reisegruppe beritten · Reiter · Flusssegler · Flusskahn · Lastensegler · Schnellsegler · Galeere</td></tr>
-					<tr><td><strong>Region: Art</strong></td><td>Region · Fluss · Meer · Gebirge · Berggipfel · Vulkan · Wald · Steppe · Hügelland · Tal · Tundra · Küste · Ebene · Graslandschaft · Auenlandschaft · Kontinent · Wüste · Sümpfe &amp; Moore · See · Insel · Sonstiges</td></tr>
+					<tr><td><strong>Region: Art</strong></td><td>Region · Fluss · Meer · Gebirge · Berggipfel · Vulkan · Wald · Steppe · Hügelland · Tal · Tundra · Küste · Ebene · Graslandschaft · Auenlandschaft · Kontinent · Wüste · Sümpfe &amp; Moore · Flussland/Flusstal · Dschungel · Wüstenoase · Wadi · Schlucht · Hochebene · Tiefebene · Flussdelta · See · Insel · Sonstiges</td></tr>
 					<tr><td><strong>Quellentyp</strong></td><td>Regionalspielhilfe · Abenteuer · Aventurischer Bote · Quellenband · Roman · Briefspiel · Regelbuch · Sonstiges</td></tr>
 				</table>
 
