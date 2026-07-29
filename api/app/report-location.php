@@ -38,6 +38,7 @@ const AVESMAPS_REPORT_TYPES = [
     'wadi' => ['type' => 'label', 'subtype' => 'wadi'],
     'schlucht' => ['type' => 'label', 'subtype' => 'schlucht'],
     'hochebene' => ['type' => 'label', 'subtype' => 'hochebene'],
+    'tiefebene' => ['type' => 'label', 'subtype' => 'tiefebene'],
     'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
     'weg' => ['type' => 'path', 'subtype' => 'weg'],

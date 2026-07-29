@@ -509,6 +509,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.labelType.wadi": "Wadi",
 	"spotlight.labelType.schlucht": "Gorge",
 	"spotlight.labelType.hochebene": "Plateau",
+	"spotlight.labelType.tiefebene": "Lowland",
 	"spotlight.labelType.see": "Lake",
 	"spotlight.labelType.insel": "Island",
 	"spotlight.labelType.sonstiges": "Label",

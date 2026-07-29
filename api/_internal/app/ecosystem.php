@@ -97,6 +97,10 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // die Hochebene eine FLÄCHE -- hoch gelegen, aber eben. Fürs Reisen zählt genau das: die Höhe
     // kostet beim Hinauf, oben läuft es sich dann wie in der Ebene.
     ['topographie', 'hochebene', 'Hochebene', 80],
+    // Owner 2026-07-29. Das Gegenstück zur Hochebene, und beide sind mehr als „eben": die Höhenlage ist
+    // die Aussage. Tief heisst warm, feucht und leicht zu bereisen -- hoch heisst der umgekehrte Satz.
+    // Deshalb zwei Arten und nicht eine mit einem Zusatz.
+    ['topographie', 'tiefebene', 'Tiefebene', 90],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],

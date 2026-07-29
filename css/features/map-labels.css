@@ -149,6 +149,10 @@ body.edit-mode .map-label img {
 	color: #c6d2c6; /* Hochebene: blasses Salbeigrün -- kühler als die Ebene, sie liegt höher */
 }
 
+.map-label--tiefebene span {
+	color: #bfcfa6; /* Tiefebene: wärmeres, sattes Wiesengrün -- tief, feucht, fruchtbar */
+}
+
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
