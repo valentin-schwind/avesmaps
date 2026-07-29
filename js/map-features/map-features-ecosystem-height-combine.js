@@ -56,21 +56,34 @@ const ECOSYSTEM_TERRAIN_METHOD_BY_TYPE = {
 	gebirge: "perlin",
 	huegelland: "warp",
 };
-// 🔧 OFFEN, wartet auf eine Owner-Entscheidung: „ridged" (2026-07-29) ist gebaut, getestet und
-// liefert das Gratbild, auf das der Owner gezeigt hat -- aber es steht hier BEWUSST noch nicht drin.
+// 🔧 „ridged" (2026-07-29) ist gebaut, getestet und liefert das Gratbild, auf das der Owner gezeigt
+// hat -- es steht hier nur BEWUSST noch nicht drin. Zuweisen wäre eine Zeile oben.
 //
-// Der Grund ist derselbe, an dem „slope" gestorben ist, und die Zahlen sind unangenehm ähnlich.
-// Im Browser gemessen, 2560×1271, 4-px-Raster, 203.360 Abfragen über 3 Felder, Median aus 7 Läufen:
-//   perlin (heute)        ~50 ms
-//   ridged, 3 Oktaven    ~130 ms   (+60 ms)
-//   slope                ~135 ms   (+62 ms)   ← genau deshalb 2026-07-28 zurückgerollt
+// ⚠️ NICHT AUS KOSTENGRÜNDEN. Der Owner hat die Zuweisung beauftragt und dann abgebrochen, weil ihm
+// der Bestand mit den neuen Reglern schon gefiel -- eine Geschmacksentscheidung, keine technische.
 //
-// 💣 UND DIE NODE-ZAHLEN LÜGEN HIER. Dieselbe Messung unter Node sagt ridged 52 ms gegen slope 90 ms,
-// also „ridged ist das billigere" -- im Browser ist es umgekehrt. Wer das Verfahren zuweist, misst
-// vorher IM BROWSER und am grössten Viewport, nicht unter Node und nicht im bequemen Fenster.
-// (`verify-ridged-kosten.html` im Worktree macht genau das.)
+// 💣 EINE FRÜHERE FASSUNG DIESES KOMMENTARS BEHAUPTETE „verdoppelt die Malzeit". DAS WAR FALSCH, und
+// es hätte die nächste Zuweisung grundlos verhindert. Die Zahl stammte aus einer nachgebauten Szene
+// (drei Rechtecke). Am LIVEBESTAND gemessen -- 636 Flächen, 65 Gipfel, 15 Felder mit eigenem Gipfel,
+// Browser, 2560×1271, 4-px-Raster, Median aus 7 Läufen -- kostet das Verfahren nichts:
 //
-// Eine Zuweisung ist eine Zeile hier -- aber sie verdoppelt die Malzeit für jede Gebirgsfläche.
+//                        Übersicht        hineingezoomt (ein Gebirge füllt das Fenster)
+//   perlin (heute)        191,3 ms         507,3 ms
+//   ridged, 3 Oktaven     179,3 ms         498,8 ms
+//
+// Die Malschleife wird von dem beherrscht, was ohnehin je Abfrage läuft; die Gratoktaven verschwinden
+// darin. Im Modellfall machten dieselben Oktaven +120 % aus -- ein Mikro-Benchmark misst hier sehr
+// genau etwas, das es nicht gibt.
+//
+// 💣 UND DIE NODE-ZAHLEN LÜGEN OBENDREIN. Dieselbe Messung unter Node sagt ridged 52 ms gegen slope
+// 90 ms, im Browser ist die Rangfolge umgekehrt. Wer hier etwas ändert, misst IM BROWSER und GEGEN
+// DEN LIVEBESTAND (Nutzlast einmal ziehen, lokal ablegen, dagegen messen -- `verify-ridged-live.html`
+// im Worktree `landschaften-v8-aufgabe-b` macht genau das), nicht unter Node und nicht an einer
+// nachgebauten Szene.
+//
+// ⚠️ Die 507 ms hineingezoomt sind der BESTAND, verfahrensunabhängig -- ebenso der Feldbau mit ~306 ms.
+// Wenn dort etwas zu tun ist, ist der Hebel das Malraster (8 px statt 4) oder der Feldbau, nie die Wahl
+// zwischen diesen Verfahren.
 
 function assignEcosystemPeaksToAreas(areas, peaks) {
 	const sizes = new Map();
