@@ -16,6 +16,9 @@ require __DIR__ . '/../../_internal/auth.php';
 // load it here -- same arrangement, and same reason, as api/edit/map/citymaps.php:12.
 require_once __DIR__ . '/../../_internal/map/features.php';
 require_once __DIR__ . '/../../_internal/app/ecosystem.php';
+// V9. It needs avesmapsUuidV4 from features.php above -- which is exactly why the store lives behind
+// this dispatcher and not on the public read path.
+require_once __DIR__ . '/../../_internal/app/path-ecosystem.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -82,6 +85,17 @@ try {
         // End of the trial, on the AREAS: mode=keep clears the mark, mode=discard soft-deletes them.
         // Either way app_setting['ecosystem_trial'] goes off.
         'promote_trial' => avesmapsPromoteEcosystemTrial($pdo, $payload, $userId),
+        // V9: the „Zugehörigkeit rechnen" result. The BROWSER computes it (the two existing raycasts
+        // already run there, and the geometry is in its hands); these four only take it in.
+        // begin clears and hands out a run token, chunk appends under that token, commit stamps.
+        //
+        // 💣 A second editor's begin WINS the token, and the first one's next chunk gets a 409. That
+        // is deliberate and it is why there is no GET_LOCK here: a connection-scoped lock dies with
+        // its request, and a run spans many. See avesmapsPathEcosystemTokenMatches.
+        'assignment_begin' => avesmapsPathEcosystemBegin($pdo, $userId),
+        'assignment_chunk' => avesmapsPathEcosystemChunk($pdo, $payload),
+        'assignment_commit' => avesmapsPathEcosystemCommit($pdo, $payload, $userId),
+        'assignment_status' => avesmapsPathEcosystemStatus($pdo),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unknown action.'),
     };
 
