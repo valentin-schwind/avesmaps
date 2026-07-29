@@ -40,9 +40,17 @@ function pathWikiInfoboxMarkup(path) {
 	// Kopflos (Name + Typ zeigt der Popup-Kopf schon) + gleiche Klasse wie Siedlungen -> erbt
 	// Trenner/Breite/Padding der .settlement-popup-Styles. Der "Link teilen"-Button lebt (Owner) NICHT mehr
 	// hier am Ende, sondern direkt unter dem Kopf -- createPathPopupMarkup setzt ihn via pathShareMarkup davor.
+	// V10 „Führt durch": ein LEERER, markierter Container -- hier wird NICHT geladen. Dieses Markup
+	// entsteht fuer ALLE 5.650 Wege beim Kartenaufbau (bindPopup bekommt fertiges HTML); ein fetch an
+	// dieser Stelle waeren 5.650 gleichzeitige Anfragen, und genau das hat 2026-07-21 den PHP-Pool
+	// gesaettigt. Der Beobachter in map-features-path-landscapes.js fuellt ihn, sobald er wirklich im
+	// DOM steht -- also erst, wenn jemand die Infobox geoeffnet hat.
+	// Ohne eigene Huelle (display:contents wie .avesmaps-lore-rows): er sitzt mitten in der Feldliste
+	// und seine Kinder sollen direkt ins Zeilenraster greifen, statt es zu brechen.
+	const landscapeContainer = `<div class="avesmaps-path-landscapes" data-path-landscapes="${escapeHtml(getPathPublicId(path))}"></div>`;
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
-		`<dl class="region-info-box__data">${rows}</dl>` +
+		`<dl class="region-info-box__data">${rows}${landscapeContainer}</dl>` +
 		sourceMarkup +
 		"</div>"
 	);
