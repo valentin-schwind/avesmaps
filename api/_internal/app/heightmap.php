@@ -18,9 +18,8 @@ require_once __DIR__ . '/terrain-store.php';
 /**
  * PURE: one DB row -> a usable raster, with the blob left as a BINARY STRING.
  *
- * 💣 THE BLOB IS NEVER MATERIALISED AS A PHP ARRAY. Measured: unpack() with format code "v*"
- * returns a 1-based, unpacked array at 43 bytes per element -- 5,25 MB of blob become 42 to 95 MB
- * of PHP at 78 areas.
+ * 💣 THE BLOB IS NEVER MATERIALISED AS A PHP ARRAY. Measured: unpack('v*') returns a 1-based,
+ * unpacked array at 43 bytes per element -- 5,25 MB of blob become 42 to 95 MB of PHP at 78 areas.
  * A single point is read punctually instead, at a measured 0,08 microseconds and no extra memory.
  *
  * Refuses rather than repairs (§5.1): a truncated raster looks exactly like a whole one.
@@ -59,7 +58,7 @@ function avesmapsHeightmapDecode(array $row): array
  */
 function avesmapsHeightmapSampleRaw(array $raster, int $col, int $row): float
 {
-    // 💣 unpack with an OFFSET, one element -- never unpack() with format code "v*" over the whole string.
+    // 💣 unpack with an OFFSET, one element -- never unpack('v*') over the whole string.
     $offset = 2 * ($row * $raster['width'] + $col);
 
     return (float) unpack('v', $raster['samples'], $offset)[1];

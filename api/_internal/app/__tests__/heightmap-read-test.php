@@ -92,8 +92,23 @@ assert($throws(static fn() => avesmapsHeightmapDecode([
 ])), 'an undecompressable blob must be refused, not treated as zeros');
 
 // --- 💣 CHECKED BY SEARCH, NOT AT RUNTIME (§9.1): the reader must never materialise the blob.
+//
+// 🪤 The search runs over CODE ONLY, comments stripped by the tokenizer. A plain grep over the
+// whole file also matches the comment that EXPLAINS the ban -- and then the file can only pass its
+// own test by euphemising the very thing it warns about, which is how the warning gets lost. The
+// comments are free to spell `unpack('v*')` out; the check tests what executes.
 $source = (string) file_get_contents(__DIR__ . '/../heightmap.php');
-assert(!preg_match("/unpack\\(\\s*'v\\*'/", $source),
-    "heightmap.php must not contain unpack('v*') -- that materialises the blob as a PHP array");
+$executableCode = '';
+foreach (token_get_all($source) as $token) {
+    if (is_array($token) && ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT)) {
+        continue;
+    }
+    $executableCode .= is_array($token) ? $token[1] : $token;
+}
+assert(!preg_match("/unpack\\(\\s*'v\\*'/", $executableCode),
+    "heightmap.php must not CALL unpack('v*') -- that materialises the blob as a PHP array");
+// The check must be able to fail. If this ever stops holding, the guard above is decorative.
+assert(preg_match("/unpack\\(\\s*'v\\*'/", "unpack('v*', \$s)") === 1,
+    'the ban regex must actually match a real violation');
 
 fwrite(STDOUT, "heightmap-read-test: all asserts passed\n");
