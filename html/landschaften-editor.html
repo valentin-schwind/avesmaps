@@ -506,6 +506,15 @@ let territoryHits = null;        // Map<region_public_id, [{territory, share}]>
 let territoryNote = "";
 let ecosystemRevision = null;    // the cache key: every write bumps it, so the answer self-expires
 
+// ---- V9: Wege × Flächen ------------------------------------------------------------------------
+// Das dritte Ergebnis desselben Knopfes, und das einzige, das die öffentliche Karte später lesen
+// soll. Spec: docs/superpowers/specs/2026-07-29-landschaften-v9-vorberechnung-design.md
+const PATHS_API = "/api/edit/map/paths-geometry.php";
+let allPaths = null;             // null = in dieser Sitzung noch nicht geholt
+let mapRevision = null;
+let pathAssignments = null;      // { rows, stats } des letzten Laufs
+let assignmentStamp = null;      // was der Server über den letzten gespeicherten Lauf sagt
+
 function boundsOverlap(a, b) {
 	return !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
 }
@@ -737,6 +746,88 @@ async function loadAreas() {
 	// the two can never disagree about which stock was measured.
 	ecosystemRevision = Number(data.revision || 0);
 	return Array.isArray(data.areas) ? data.areas : [];
+}
+
+// V9. Nur hinter dem ausdrücklichen Klick und höchstens einmal je Sitzung -- dieselbe Regel, unter
+// der hier schon der Sieben-Zoom-Fächer an den Politik-Layer steht. Rund 1,5 MB gegen die 17,79 MB
+// der vollen Kartennutzlast, deshalb ein eigener Endpunkt statt map-features.php.
+async function loadPaths() {
+	const response = await fetch(PATHS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
+	const data = await response.json();
+	if (!response.ok || data.ok === false) {
+		throw new Error((data.error && data.error.message) || ("HTTP " + response.status));
+	}
+	mapRevision = Number(data.map_revision || 0);
+	return Array.isArray(data.paths) ? data.paths : [];
+}
+
+// 💣 Alle ~200 Wege den Haupt-Thread freigeben. Eine ununterbrochene Schleife friert den Tab ein und
+// Chrome bietet irgendwann „Seite reagiert nicht" an -- und ohne die Pause malt der Fortschritt im
+// Knopf nie. Gemessen in Node liegt der ganze Lauf bei 0,4 s; das ist genau der Grund, warum die
+// echte Zahl im BROWSER gemessen wird und nicht dort.
+const PATH_ASSIGN_YIELD_EVERY = 200;
+
+// Beide Bezüge in einem Durchgang je Weg: die rohe Sehne (basis 0, das Maß von Graph, Reisezeit und
+// Kantengewichten) und die gezeichnete Catmull-Rom-Kurve (basis 1, das Maß von allem Gezeichneten).
+async function computePathAssignments(areas, paths, onProgress) {
+	// Jede teilnehmende Fläche EINMAL vorbereiten. Je Weg neu wären das 31.797 Kanten × 5.650 Wege.
+	const prepared = areas
+		.filter((area) => area.affects_paths !== false)
+		.map((area) => ({
+			publicId: String(area.public_id),
+			bounds: area.bounds,
+			edges: ecosystemAreaEdges(area.geometry),
+		}))
+		.filter((area) => area.edges.length > 0);
+
+	const rows = [];
+	const stats = { chordMs: 0, curveMs: 0, chordRows: 0, curveRows: 0, areas: prepared.length, paths: paths.length, skipped: 0 };
+
+	const pass = (coordinates, bounds, pathId, basis) => {
+		let written = 0;
+		for (let index = 0; index < prepared.length; index += 1) {
+			const area = prepared[index];
+			if (bounds.min_x > area.bounds.max_x || bounds.max_x < area.bounds.min_x) { continue; }
+			if (bounds.min_y > area.bounds.max_y || bounds.max_y < area.bounds.min_y) { continue; }
+			const intervals = ecosystemLineIntervals(coordinates, area.edges);
+			// 💣 Über 255 Durchquerungen sind eine kaputte Geometrie, kein Ergebnis -- der Server
+			// weist sie ab, also darf der Client sie gar nicht erst senden. Gemessenes Maximum: 17.
+			if (intervals.length > 255) { stats.skipped += 1; continue; }
+			for (let seq = 0; seq < intervals.length; seq += 1) {
+				rows.push({
+					path: pathId, area: area.publicId, basis, seq,
+					enter: intervals[seq].enter, exit: intervals[seq].exit,
+				});
+				written += 1;
+			}
+		}
+		return written;
+	};
+
+	for (let index = 0; index < paths.length; index += 1) {
+		const path = paths[index];
+		const coordinates = path.geometry && path.geometry.coordinates;
+		if (!Array.isArray(coordinates) || coordinates.length < 2) { continue; }
+
+		let started = performance.now();
+		stats.chordRows += pass(coordinates, ecosystemLineBounds(coordinates), path.public_id, 0);
+		stats.chordMs += performance.now() - started;
+
+		// 💣 Die Kurve bekommt ihre EIGENE Hülle. Sie weicht bis zu 2,12 Karteneinheiten von der
+		// Sehne ab und ragt damit aus deren Hülle heraus; mit der rohen Hülle fielen genau die Paare
+		// weg, die nur die Kurve trifft (gemessen: 4).
+		const smoothed = coordinates.length >= 3 ? getCatmullRomSplineCoordinates(coordinates) : coordinates;
+		started = performance.now();
+		stats.curveRows += pass(smoothed, ecosystemLineBounds(smoothed), path.public_id, 1);
+		stats.curveMs += performance.now() - started;
+
+		if (index % PATH_ASSIGN_YIELD_EVERY === 0) {
+			if (onProgress) { onProgress(index, paths.length); }
+			await new Promise((resolve) => setTimeout(resolve, 0));
+		}
+	}
+
+	return { rows, stats };
 }
 
 function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
@@ -1253,7 +1344,21 @@ async function runRaycast(options) {
 			raycast = computeRaycast(allAreas);
 			if ((territories || []).length > 0) { territoryHits = computeTerritoryHits(allAreas, territories); }
 			raycastCacheWrite();
-			flashStatus("Gerechnet: " + raycastNote + (territoryNote ? " · " + territoryNote : ""), "ok");
+
+			// V9: das dritte Ergebnis desselben Knopfes.
+			if (allPaths === null) {
+				setStatus("Wege werden geladen …");
+				allPaths = await loadPaths();
+			}
+			setStatus("Wege × Flächen wird gerechnet …");
+			pathAssignments = await computePathAssignments(allAreas, allPaths, (done, total) => {
+				setStatus("Wege × Flächen … " + done + "/" + total);
+			});
+
+			flashStatus("Gerechnet: " + raycastNote
+				+ (territoryNote ? " · " + territoryNote : "")
+				+ " · Wege: " + pathAssignments.stats.chordRows + " Sehne / " + pathAssignments.stats.curveRows + " Kurve"
+				+ " (" + Math.round(pathAssignments.stats.chordMs) + " ms + " + Math.round(pathAssignments.stats.curveMs) + " ms)", "ok");
 		}
 
 		$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.done", "{areas} Flächen · {terr} Territorien", { areas: allAreas.length, terr: (territories || []).length });
