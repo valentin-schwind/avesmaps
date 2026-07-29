@@ -129,18 +129,46 @@ function isEcosystemDrawEchoClick(event) {
 		&& previous.containerPoint.distanceTo(containerPoint) <= ECOSYSTEM_DRAW_DOUBLE_CLICK_PIXELS;
 }
 
+// Wohin diese Ecke einrastet, oder null. Dieselbe Regel wie im Ecken-Editor (Owner 2026-07-29): Ziele
+// sind die Flächen der SICHTBAREN Ebenen, Ecke schlägt Kante, Strg umgeht es.
+//
+// ⭐ Beim Zeichnen ist es genau derselbe Handgriff wie beim Bearbeiten -- eine neue Fläche entsteht ja
+// meistens NEBEN einer vorhandenen, und ihre gemeinsame Kante soll dieselbe sein. Nichts wird
+// ausgeschlossen: Es gibt noch keine eigene Fläche, an der man vorbeischnappen müsste.
+function ecosystemDrawSnapTarget(latLng, event) {
+	if (typeof ecosystemEditSnapTarget !== "function" || !latLng) {
+		return null;
+	}
+	if (typeof isEcosystemEditDetachModifier === "function" && isEcosystemEditDetachModifier(event)) {
+		return null;
+	}
+
+	return ecosystemEditSnapTarget(latLng, "");
+}
+
 function handleEcosystemDrawClick(event) {
 	if (!ecosystemDrawActive || isEcosystemDrawEchoClick(event)) {
 		return;
 	}
-	ecosystemDrawPoints.push(event.latlng);
-	updateEcosystemDrawPreview(event.latlng);
+	// 🔴 Die EINGERASTETE Stelle wird gesetzt, nicht die geklickte -- sonst läge die Ecke ein Pixel
+	// neben der Nachbarkante und der Ring hätte etwas versprochen, das nicht passiert.
+	const snap = ecosystemDrawSnapTarget(event.latlng, event);
+	const latLng = snap ? snap.latLng : event.latlng;
+	ecosystemDrawPoints.push(latLng);
+	clearEcosystemEditSnapPreview?.();
+	updateEcosystemDrawPreview(latLng);
 }
 
 function handleEcosystemDrawMouseMove(event) {
-	if (ecosystemDrawActive && ecosystemDrawPoints.length > 0) {
+	if (!ecosystemDrawActive) {
+		return;
+	}
+	if (ecosystemDrawPoints.length > 0) {
 		updateEcosystemDrawPreview(event.latlng);
 	}
+	// Der Ring schon ab dem ERSTEN Punkt, nicht erst ab dem zweiten: Auch der Anfang einer Fläche will
+	// auf der Ecke des Nachbarn sitzen.
+	renderEcosystemEditSnapPreview?.(ecosystemDrawSnapTarget(event.latlng, event));
 }
 
 function handleEcosystemDrawDoubleClick(event) {
@@ -214,6 +242,8 @@ function stopEcosystemAreaDrawing() {
 	ecosystemDrawPoints = [];
 	ecosystemDrawLastClick = null;
 	clearEcosystemDrawPreview();
+	// Der Schnapp-Ring hängt am Zeiger, nicht am Entwurf -- er muss mit dem Werkzeug verschwinden.
+	clearEcosystemEditSnapPreview?.();
 	if (typeof map !== "undefined" && map) {
 		// 💣 NICHT stumpf enable(). Ein abgeschlossenes Zeichnen bleibt in der Landschaften-Ebene, und
 		// dort zoomt kein Doppelklick -- sonst wäre der Zoom ausgerechnet nach der Geste wieder scharf,

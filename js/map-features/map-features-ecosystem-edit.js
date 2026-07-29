@@ -370,19 +370,21 @@ function ecosystemEditSnapTarget(latLng, excludePublicId) {
 
 // A ring on the spot the corner would jump to. Without it the jump at drop is a surprise -- you let go
 // aiming at one place and land somewhere else. Non-interactive, so it can never take the drag's events.
+// 🔴 Am MODUL, nicht an der Bearbeitungssitzung. Seit dem Zeichnen (Owner 2026-07-29) gibt es zwei
+// Benutzer: eine offene Ecken-Bearbeitung und das Klick-für-Klick-Zeichnen, bei dem es gar keine
+// Sitzung gibt. Ein Ring gehört zum Zeiger, nicht zu einer Fläche -- und es kann immer nur einer da
+// sein, weil es nur einen Zeiger gibt.
+let ecosystemSnapPreviewLayer = null;
+
 function clearEcosystemEditSnapPreview() {
-	const session = activeEcosystemGeometryEdit;
-	if (session?.snapPreviewLayer && typeof map !== "undefined" && map && map.hasLayer(session.snapPreviewLayer)) {
-		map.removeLayer(session.snapPreviewLayer);
+	if (ecosystemSnapPreviewLayer && typeof map !== "undefined" && map && map.hasLayer(ecosystemSnapPreviewLayer)) {
+		map.removeLayer(ecosystemSnapPreviewLayer);
 	}
-	if (session) {
-		session.snapPreviewLayer = null;
-	}
+	ecosystemSnapPreviewLayer = null;
 }
 
 function renderEcosystemEditSnapPreview(target) {
-	const session = activeEcosystemGeometryEdit;
-	if (!session || typeof map === "undefined" || !map) {
+	if (typeof map === "undefined" || !map) {
 		return;
 	}
 
@@ -392,7 +394,7 @@ function renderEcosystemEditSnapPreview(target) {
 	}
 
 	const color = getComputedStyle(document.documentElement).getPropertyValue("--color-edit-handle").trim();
-	session.snapPreviewLayer = L.circleMarker(target.latLng, {
+	ecosystemSnapPreviewLayer = L.circleMarker(target.latLng, {
 		pane: "measurementHandlesPane",
 		// A corner reads as a firmer catch than a point on an edge, and the ring says which one it is.
 		radius: target.kind === "vertex" ? 11 : 8,
