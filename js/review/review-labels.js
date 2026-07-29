@@ -241,7 +241,19 @@ function applyLabelTypeVocabulary(region, label) {
 	// Subtyp hätte keinen Stil und würde ungezeichnet bleiben.
 	const wanted = String(label?.labelType || "region");
 	select.innerHTML = "";
-	select.appendChild(new Option(labelEmptyTypeLabel(kind), "region"));
+	// 💣 NUR WENN DAS VOKABULAR `region` NICHT SELBST FÜHRT. Der Platzhalter trägt den Wert `region`
+	// (siehe oben) -- und die DEROGRAPHIE hat `region` als echte, benannte Art. Beide zusammen ergaben
+	// zwei Einträge mit demselben Wert, und `select.value = "region"` wählt immer den ERSTEN: der Dialog
+	// zeigte für jedes derographische Regionslabel „— keine Art —", „Region" auszuwählen änderte nichts
+	// Sichtbares, und nach jedem Neuaufbau stand wieder der Platzhalter da. Vom Owner gemeldet als
+	// „Art Region speichern geht nicht" — gespeichert wurde in Wahrheit richtig, die Liste log nur.
+	//
+	// 🪤 Vegetation und Topographie führen kein `region`, dort gab es die Kollision nie. Genau deshalb
+	// fiel es nur an EINER Ebene auf und sah nach einem Datenfehler an einem einzelnen Label aus.
+	const fuehrtRegionSelbst = types.some((type) => String(type.type_key) === "region");
+	if (!fuehrtRegionSelbst) {
+		select.appendChild(new Option(labelEmptyTypeLabel(kind), "region"));
+	}
 	types.forEach((type) => {
 		select.appendChild(new Option(type.label, type.type_key));
 	});
