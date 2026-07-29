@@ -2082,7 +2082,10 @@ async function runHeightmaps() {
 			+ (skipped > 0 ? " · " + skipped + " Fläche(n) verschwunden" : ""), "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
-		flashStatus("Höhenraster: " + (error && error.message ? error.message : String(error)), "error");
+		// 🪤 `"bad"`, nicht `"error"`. setStatus kennt genau zwei Töne, `ok` und `bad`; alles andere
+		// schaltet still auf neutral, und die Fehlmeldung verliert ihr Rot, während sie aussieht,
+		// als hätte sie eines. Jede andere Fehlerstelle dieser Datei sagt `"bad"`.
+		flashStatus("Höhenraster: " + (error && error.message ? error.message : String(error)), "bad");
 	} finally {
 		tile.disabled = false;
 	}
@@ -2118,12 +2121,25 @@ Bei den übrigen `addEventListener`-Zeilen (nach Zeile ~1408) ergänzen:
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 ```
 
-Und dort, wo `assignmentStamp = await ecoPost("assignment_status", {});` steht (Zeile ~1738),
-direkt dahinter:
+Und `loadAssignmentStamp()` bekommt einen **eigenen Riegel je Kachel**. Der bisherige Rumpf ist
+ein einziges `try`; die neue Abfrage kommt NICHT hinein:
 
 ```js
+async function loadAssignmentStamp() {
+	// 💣 ZWEI Abfragen, ZWEI Riegel. In einem gemeinsamen `try` nimmt ein Fehler der einen der
+	// anderen ihre Kachel mit -- obwohl deren eigene Abfrage geglückt ist. Genau die
+	// Unabhängigkeit, die der Kopf dieser Funktion gegenüber dem Regionen-Laden zusichert, gilt
+	// auch ZWISCHEN den Kacheln: eine neue Abfrage darf eine vorhandene Anzeige nicht stumm
+	// schalten. Jede weitere Kachel bekommt hier ihren eigenen Block, keinen gemeinsamen.
+	try {
+		assignmentStamp = await ecoPost("assignment_status", {});
+		renderAssignmentTile();
+	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
+	try {
 		heightmapStatus = await ecoPost("heightmap_status", {});
 		renderHeightmapTile();
+	} catch (error) { /* dito */ }
+}
 ```
 
 - [ ] **Schritt 5: Der Editor darf nicht mehr laden als nötig — nachsehen**
@@ -2603,7 +2619,7 @@ async function runTerrainProfiles() {
 		flashStatus(withProfile + " von " + seen + " Wegen tragen ein Profil · " + seconds + " s", "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
-		flashStatus("Wegprofile: " + (error && error.message ? error.message : String(error)), "error");
+		flashStatus("Wegprofile: " + (error && error.message ? error.message : String(error)), "bad");
 	} finally {
 		tile.disabled = false;
 	}
@@ -2629,7 +2645,17 @@ function renderProfileTile() {
 
 Bei den Modul-Variablen ergänzen: `let terrainProfileStatus = null;`
 Bei den `addEventListener`-Zeilen: `$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });`
-Beim Öffnen, neben `heightmapStatus`: `terrainProfileStatus = await ecoPost("terrain_profile_status", {}); renderProfileTile();`
+
+Und in `loadAssignmentStamp()` ein **eigener** Block — 💣 nicht in einen der vorhandenen `try`
+hinein (Aufgabe 7 hat sie genau deshalb getrennt: eine neue Abfrage darf eine vorhandene Kachel
+nicht stumm schalten):
+
+```js
+	try {
+		terrainProfileStatus = await ecoPost("terrain_profile_status", {});
+		renderProfileTile();
+	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
+```
 
 - [ ] **Schritt 7: Syntax prüfen**
 
@@ -3747,7 +3773,7 @@ async function toggleTerrainTravel() {
 		renderTerrainTravelTile();
 		flashStatus("Geländeabhängiges Reisen ist jetzt " + (terrainTravelEnabled ? "AN" : "AUS") + ".", "ok");
 	} catch (error) {
-		flashStatus("Schalter: " + (error && error.message ? error.message : String(error)), "error");
+		flashStatus("Schalter: " + (error && error.message ? error.message : String(error)), "bad");
 	} finally {
 		tile.disabled = false;
 	}
@@ -3756,11 +3782,16 @@ async function toggleTerrainTravel() {
 
 Bei den `addEventListener`-Zeilen:
 `$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });`
-Beim Öffnen, neben den anderen Statusabfragen:
+
+Und in `loadAssignmentStamp()` wieder ein **eigener** Block, aus demselben Grund wie in den
+Aufgaben 7 und 8 — 💣 nie in einen vorhandenen `try` hinein:
+
 ```js
+	try {
 		const travel = await ecoPost("terrain_travel_status", {});
 		terrainTravelEnabled = travel.terrain_travel_enabled === true;
 		renderTerrainTravelTile();
+	} catch (error) { /* „Zustand unbekannt" ist die richtige Auskunft, wenn niemand antwortet */ }
 ```
 
 ⚠️ Das Menüband hat damit **sechs** Kacheln. Nachsehen, dass sie gleich breit bleiben und nicht
