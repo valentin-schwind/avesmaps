@@ -131,7 +131,16 @@ function isEcosystemPeakActive(labelPublicId) {
 		&& isEcosystemPeakLabel(labelPublicId);
 }
 
-function isEcosystemLabelMuted(labelPublicId) {
+// 🔴 NIMMT DAS LABEL, NICHT NUR SEINE KENNUNG (Owner 2026-07-29: „wenn ich ein Label dupliziere wird
+// das neue nur halb transparent"). Vorher entschied diese Funktion allein über den Zeiger an der
+// REGION (`label_public_id`) -- und der nennt nur das PRIMÄRE Label. Ein Klon trägt seine
+// Zugehörigkeit am eigenen Zeiger (`ecosystem_region_public_id`, gesetzt beim Duplizieren) und galt
+// deshalb als fremd: blass und klickdurchlässig, mitten in seiner eigenen Ebene.
+//
+// 💣 Dieselbe Falle wie bei der Kollisionsauflösung: eine Beziehung, die auf BEIDEN Seiten gespeichert
+// ist, nur von einer Seite zu lesen. Seit eine Fläche mehrere Labels tragen darf, ist das kein
+// Randfall -- das zweite und dritte Label einer Fläche haben nie einen Regionszeiger auf sich.
+function isEcosystemLabelMuted(label) {
 	if (typeof isEcosystemLayerModeActive !== "function" || !isEcosystemLayerModeActive()) {
 		return false;
 	}
@@ -142,7 +151,10 @@ function isEcosystemLabelMuted(labelPublicId) {
 	if (activeKind === "derographisch") {
 		return false;
 	}
-	const publicId = String(labelPublicId || "");
+	// Nimmt weiterhin auch eine blosse Kennung an -- ältere Aufrufe reichen eine solche herein, und ein
+	// Gipfel trägt ohnehin keinen Regionszeiger.
+	const publicId = String((label && typeof label === "object" ? label.publicId : label) || "");
+	const eigenerZeiger = String((label && typeof label === "object" ? label.ecosystemRegionPublicId : "") || "");
 	// 🔴 V8: ein Gipfel ist in der TOPOGRAPHIE kein fremdes Label, sondern deren Arbeitspunkt. Er trägt
 	// die Höhe, aus der das Höhenfeld entsteht (oekosystem-editor-leitfaden.md §1.4), und wer ihn blass
 	// und klickdurchlässig macht, macht genau das unbedienbar, was diese Ebene bearbeitet.
@@ -158,10 +170,18 @@ function isEcosystemLabelMuted(labelPublicId) {
 	if (!publicId || typeof ecosystemLayers === "undefined" || !(ecosystemLayers instanceof Map)) {
 		return true;
 	}
+	// BEIDE Richtungen: die Fläche nennt ihr primäres Label, und jedes weitere Label nennt seine Fläche.
+	// Nur die erste zu lesen hiess, jedes zweite und dritte Label einer Fläche für fremd zu halten.
 	let eigen = false;
 	ecosystemLayers.forEach((layer) => {
 		const area = layer?._ecosystemArea;
-		if (area && area.kind === activeKind && String(area.label_public_id || "") === publicId) {
+		if (!area || area.kind !== activeKind) {
+			return;
+		}
+		if (String(area.label_public_id || "") === publicId) {
+			eigen = true;
+		}
+		if (eigenerZeiger !== "" && String(area.region_public_id || "") === eigenerZeiger) {
 			eigen = true;
 		}
 	});
@@ -173,7 +193,9 @@ function isEcosystemLabelMuted(labelPublicId) {
 // DOM-Element -- eine Klasse, die nur dort sässe, wäre nach dem ersten Zoom weg. `createLabelIcon`
 // ruft dafür `ecosystemLabelMutedClass()` auf.
 function ecosystemLabelMutedClass(label) {
-	return (isEcosystemLabelMuted(label?.publicId) ? " map-label--eco-muted" : "")
+	// 🪤 Das LABEL, nicht seine Kennung: nur so kennt isEcosystemLabelMuted den eigenen Regionszeiger,
+	// und nur der verrät die Zugehörigkeit eines duplizierten Labels.
+	return (isEcosystemLabelMuted(label) ? " map-label--eco-muted" : "")
 		+ (isEcosystemPeakActive(label?.publicId) ? " map-label--eco-peak" : "");
 }
 
@@ -213,7 +235,7 @@ function syncEcosystemLabelMuting() {
 	labelMarkers.forEach((entry) => {
 		const element = typeof entry?.marker?.getElement === "function" ? entry.marker.getElement() : null;
 		if (element) {
-			element.classList.toggle("map-label--eco-muted", isEcosystemLabelMuted(entry.label?.publicId));
+			element.classList.toggle("map-label--eco-muted", isEcosystemLabelMuted(entry.label));
 			element.classList.toggle("map-label--eco-peak", isEcosystemPeakActive(entry.label?.publicId));
 		}
 	});
