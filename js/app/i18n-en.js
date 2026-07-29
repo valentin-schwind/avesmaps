@@ -62,10 +62,12 @@ window.AVESMAPS_I18N_EN = {
 	"planner.summary.restTime": "Rest time",
 	"planner.summary.totalTime": "Total time",
 	// V10 „Führt durch": the landscapes a route/leg runs through. Three surfaces, three tones -- the
-	// summary lists the whole route, the leg row names only what is new, the infobox adds the shares.
+	// summary lists the whole route, the leg row repeats every leg's own list in running text, the
+	// infobox adds the shares. The two "through" strings are near-identical on purpose: one is a table
+	// label (`<dt>`), the other runs inside a sentence, so only their capitalisation differs.
 	"planner.summary.landscapes": "Landscapes along the route",
 	"planner.leg.through": "Runs through",
-	"planner.leg.through.short": "through",
+	"planner.leg.through.short": "runs through",
 	"planner.shareRoute": "Copy link for this route",
 	"planner.shareRoute.title": "Share your route plan",
 	"planner.unit.miles": "miles",

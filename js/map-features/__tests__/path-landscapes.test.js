@@ -4,7 +4,6 @@ const {
 	formatLandscapesForInfobox,
 	formatLandscapesForPlanner,
 	formatLandscapesForMapLinks,
-	pickFreshLandscapes,
 	landscapeWikiKeyList,
 } = require("../map-features-path-landscapes.js");
 
@@ -182,19 +181,22 @@ assert.strictEqual(
 	"mehrere Landschaften bleiben eine Komma-Liste wie im Planer-Ton"
 );
 
-// ---- only what is new -----------------------------------------------------------------------
-const weiden = [{ name: "Weiden", share: 1 }];
-const weidenAndWood = [{ name: "Weiden", share: 1 }, { name: "Reichsforst", share: 0.2 }];
-assert.deepStrictEqual(pickFreshLandscapes(weiden, []).map((e) => e.name), ["Weiden"],
-	"the first row names everything");
-assert.deepStrictEqual(pickFreshLandscapes(weiden, weiden), [],
-	"the same names as the row above -- say nothing");
-assert.deepStrictEqual(pickFreshLandscapes(weidenAndWood, weiden).map((e) => e.name), ["Reichsforst"],
-	"only the one that joined");
-assert.deepStrictEqual(pickFreshLandscapes(weiden, weidenAndWood), [],
-	"leaving a landscape is not announced -- only entering one is");
-assert.deepStrictEqual(pickFreshLandscapes(weidenAndWood, null).map((e) => e.name),
-	["Weiden", "Reichsforst"], "no predecessor at all is the same as an empty one");
+// ---- every leg names its own, in full ---------------------------------------------------------
+// pickFreshLandscapes(list, previousList) used to live here and suppressed whatever the row above had
+// already said; the owner withdrew that on 2026-07-29 (an empty row reads as „nothing known", not as
+// „unchanged"). What is left to assert is that a line does NOT depend on any predecessor: the same
+// ways must always produce the same list, so two neighbouring legs on one road both name it.
+const zweimalDieselbenWege = ["p-1", "p-2"];
+assert.deepStrictEqual(
+	buildLandscapeLine(zweimalDieselbenWege, payload).map((e) => e.name),
+	buildLandscapeLine(zweimalDieselbenWege, payload).map((e) => e.name),
+	"a leg's line is a pure function of its ways -- no memory of the leg before it"
+);
+assert.ok(
+	buildLandscapeLine(["p-1"], payload).length > 0
+	&& buildLandscapeLine(["p-1"], payload).length > 0,
+	"asking twice in a row never yields an empty second answer (that was the suppression's job)"
+);
 
 // ---- the lore key ---------------------------------------------------------------------------
 assert.strictEqual(landscapeWikiKeyList(buildLandscapeLine(["p-1"], payload)), "weiden,finsterkamm",
@@ -202,4 +204,4 @@ assert.strictEqual(landscapeWikiKeyList(buildLandscapeLine(["p-1"], payload)), "
 assert.strictEqual(landscapeWikiKeyList(buildLandscapeLine(["p-3"], payload)), "",
 	"a landscape without a wiki key contributes nothing");
 
-console.log("OK: path-landscapes builder, writers and the fresh-only rule");
+console.log("OK: path-landscapes builder, writers and the per-leg independence");

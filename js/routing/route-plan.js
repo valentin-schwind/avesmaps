@@ -707,34 +707,37 @@ function bindRoutePlanLandscapeLinks(container) {
 	});
 }
 
-// Fuellt die Landschaftszeilen, sobald der Abruf da ist. EIN Durchgang ueber alle Etappen IN
-// REIHENFOLGE, weil „nur nennen, was neu ist" die Vorgaengerzeile braucht.
+// Fuellt die Landschaftszeilen, sobald der Abruf da ist. JEDE Etappe nennt ihre EIGENEN Landschaften,
+// vollstaendig, ohne Blick auf die Zeile darueber.
 //
-// 💣 Eine Etappe OHNE Daten setzt das Gedaechtnis NICHT zurueck. Nur 34 % der Wegstrecke liegt
-// ueberhaupt in einer Flaeche -- „leer" heisst hier fast immer NOCH NICHT GEZEICHNET, nicht
-// „draussen". Zurueckzusetzen machte aus einer Luecke im Bestand eine Ankuendigung („du betrittst
-// das Herz des Kontinents"), die nie stattfand.
+// Das war bis 2026-07-29 anders: die Zeile nannte nur, was gegenueber der Vorgaengerin NEU war, damit
+// der Plan sich wie eine Reise liest statt zu stottern (gemessen Gareth->Thorwal: 16 von 31 Zeilen waren
+// wortgleich ihre Vorgaengerin). Der Owner hat das am fertigen Bild widerrufen: dort stand unter einer
+// Etappe „durch: Weiden" und unter der naechsten, gleich langen, NICHTS -- und das liest sich nicht als
+// „unveraendert", sondern als „darueber ist nichts bekannt". Eine Etappe ist eine eigene Auskunft; wer
+// auf sie klickt, will wissen, wo SIE durchgeht, nicht wo sie sich von ihrer Nachbarin unterscheidet.
+// Wiederholung ist der Preis und ausdruecklich gewollt.
+//
+// 💣 Eine Etappe ohne Daten bleibt leer -- und das heisst NICHT „draussen": nur 34 % der Wegstrecke
+// liegt ueberhaupt in einer erfassten Flaeche. „Leer" ist fast immer NOCH NICHT GEZEICHNET.
 function fillRoutePlanLandscapes(planEntries, segments) {
 	if (typeof avesmapsPathLandscapesLineFor !== "function") {
 		return;
 	}
-	let previous = [];
 	planEntries.forEach((entry, entryIndex) => {
 		const line = avesmapsPathLandscapesLineFor(routeEntryPathIds(entry, segments));
 		if (!line.length) {
-			return;   // Gedaechtnis bleibt stehen, Zeile bleibt leer
+			return;
 		}
-		const fresh = pickFreshLandscapes(line, previous);
-		previous = line;
 		const target = document.querySelector(`[data-route-landscapes-index="${entryIndex}"]`);
-		if (target && fresh.length) {
+		if (target) {
 			// innerHTML, weil der Name hier ein Knopf sein darf. Die Namen stammen aus Wiki Aventurica,
 			// also aus FREMDINHALT -- escapt wird in formatLandscapesForMapLinks.
 			// Der Sprung geht auf UNSERE Karte (Owner 2026-07-29), nicht ins Wiki: die Etappenzeile sagt,
 			// wo man durchkommt, und ein Klick soll genau dorthin führen. Die Routen-Zusammenfassung
 			// unten behält ihre Wiki-Links -- sie schlägt nach, diese Zeile navigiert.
-			target.innerHTML = `${escapeHtml(tr("planner.leg.through.short", "durch"))}: `
-				+ formatLandscapesForMapLinks(fresh, escapeHtml, canFocusLandscapeOnMap);
+			target.innerHTML = `${escapeHtml(tr("planner.leg.through.short", "verläuft durch"))} `
+				+ formatLandscapesForMapLinks(line, escapeHtml, canFocusLandscapeOnMap);
 			bindRoutePlanLandscapeLinks(target);
 		}
 	});

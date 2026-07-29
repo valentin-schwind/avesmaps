@@ -167,10 +167,12 @@ function formatLandscapesForInfobox(list, escape) {
 }
 
 // Planner tone: bare names, comma separated, never a percentage.
-// 💣 And never an article. „durch den Reichsforst" is right, but gender is in no field -- das Herz
-// des Kontinents, die Flusslande, der Farindelwald, and Weiden with none at all. A guessed article
-// would be visibly wrong German on about a third of the names. The caller writes „durch: " in
-// front, and a colon expects no article.
+// 💣 And never an article. „durch den Reichsforst" is what a German speaker would say, but gender is
+// in no field -- das Herz des Kontinents, die Flusslande, der Farindelwald, and Weiden with none at
+// all. A guessed article would be visibly WRONG on about a third of the names, and a missing one is
+// merely clipped; that trade is deliberate. It is why the summary puts a colon after its label, where
+// no article is expected at all. The leg row („verläuft durch Weiden", Owner 2026-07-29) has no colon
+// and therefore wears the clipped form openly -- accepted, not overlooked.
 function formatLandscapesForPlanner(list, escape) {
 	var esc = escape || avesmapsPathLandscapesEscape;
 	return (list || []).map(function (entry) { return landscapeNameMarkup(entry, esc); }).join(", ");
@@ -196,16 +198,12 @@ function formatLandscapesForMapLinks(list, escape, isLinkable) {
 	}).join(", ");
 }
 
-// Only what the row above did not already say. Entering a landscape is announced, leaving it is
-// not -- that is what makes the plan read like a journey instead of stuttering: measured on
-// Gareth -> Thorwal, 16 of 31 labelled rows were word for word their predecessor.
-function pickFreshLandscapes(list, previousList) {
-	var seen = {};
-	(previousList || []).forEach(function (entry) { seen[entry.name] = true; });
-	return (list || []).filter(function (entry) {
-		return !Object.prototype.hasOwnProperty.call(seen, entry.name);
-	});
-}
+// There used to be a pickFreshLandscapes(list, previousList) here, which dropped from a leg row
+// whatever the row above had already said (measured on Gareth -> Thorwal: 16 of 31 labelled rows were
+// word for word their predecessor). Withdrawn by the owner on 2026-07-29 at the finished screen: an
+// empty row under a named one does not read as „unchanged", it reads as „nothing is known about this
+// stretch". Every leg now names its own landscapes in full -- see fillRoutePlanLandscapes in
+// js/routing/route-plan.js. Do not reintroduce it without asking; the repetition is the point.
 
 // The comma list api/app/lore.php takes for „give me the flora of all these places at once".
 function landscapeWikiKeyList(list) {
@@ -409,7 +407,6 @@ if (typeof module !== "undefined" && module.exports) {
 		formatLandscapesForInfobox,
 		formatLandscapesForPlanner,
 		formatLandscapesForMapLinks,
-		pickFreshLandscapes,
 		landscapeWikiKeyList,
 	};
 }
