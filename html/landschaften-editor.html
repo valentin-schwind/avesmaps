@@ -1062,7 +1062,10 @@ async function runHeightmaps() {
 			+ (skipped > 0 ? " · " + skipped + " Fläche(n) verschwunden" : ""), "ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
-		flashStatus("Höhenraster: " + (error && error.message ? error.message : String(error)), "error");
+		// 🪤 `"bad"`, nicht `"error"`. setStatus kennt genau zwei Töne, `ok` und `bad`; alles andere
+		// schaltet still auf neutral, und die Fehlmeldung verliert ihr Rot, während sie aussieht,
+		// als hätte sie eines. Jede andere Fehlerstelle dieser Datei sagt `"bad"`.
+		flashStatus("Höhenraster: " + (error && error.message ? error.message : String(error)), "bad");
 	} finally {
 		tile.disabled = false;
 	}
@@ -1871,12 +1874,19 @@ async function loadData(options) {
 // den Listen -- die Kachel muss ihren Stand auch dann sagen, wenn das Laden der Regionen scheitert.
 // Ein Fehler bleibt still: „noch nicht gerechnet" ist die richtige Auskunft, wenn niemand antwortet.
 async function loadAssignmentStamp() {
+	// 💣 ZWEI Abfragen, ZWEI Riegel. In einem gemeinsamen `try` nimmt ein Fehler der einen der
+	// anderen ihre Kachel mit -- obwohl deren eigene Abfrage geglückt ist. Genau die
+	// Unabhängigkeit, die der Kopf dieser Funktion gegenüber dem Regionen-Laden zusichert, gilt
+	// auch ZWISCHEN den Kacheln: eine neue Abfrage darf eine vorhandene Anzeige nicht stumm
+	// schalten. Jede weitere Kachel bekommt hier ihren eigenen Block, keinen gemeinsamen.
 	try {
 		assignmentStamp = await ecoPost("assignment_status", {});
-		heightmapStatus = await ecoPost("heightmap_status", {});
-		renderHeightmapTile();
 		renderAssignmentTile();
 	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
+	try {
+		heightmapStatus = await ecoPost("heightmap_status", {});
+		renderHeightmapTile();
+	} catch (error) { /* dito */ }
 }
 
 // ---- Boot ------------------------------------------------------------------------------------
