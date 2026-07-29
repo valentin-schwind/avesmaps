@@ -88,15 +88,31 @@ function avesmapsLoreEscape(value) {
 
 // Server-wiki_key -> Ortsschlüssel der Lore-Tabellen. Territorien tragen die
 // 'wiki:'-Form (avesmapsPoliticalBuildWikiKey), lore_place führt den reinen Slug.
+// Ein Schlüssel -- oder mehrere, kommagetrennt. api/app/lore.php nimmt Listen schon
+// entgegen (es teilt selbst an Kommas) und avesmapsLoreFetch reicht sie durch; nur
+// hier fielen sie bisher durch, weil die Zeichenklasse kein Komma kannte. V10 braucht
+// das: eine Routen-Etappe hat mehrere Landschaften und soll EINEN Abruf auslösen, nicht
+// drei -- das Fan-out je Popup ist genau das, was 2026-07-21 den PHP-Pool sättigte.
+//
+// 💣 Jeder Teil wird EINZELN geprüft, und ein schlechter Teil verwirft nur sich selbst.
+// „darpatien,<script>" wird „darpatien" -- ein kaputter Name darf nicht die Flora der
+// ganzen Etappe verstummen lassen.
 function avesmapsLoreNormalizeKey(raw) {
-	var key = String(raw == null ? "" : raw).trim().toLowerCase();
-	if (key.indexOf("wiki:") === 0) {
-		key = key.slice(5);
+	var parts = String(raw == null ? "" : raw).split(",");
+	var keys = [];
+	for (var index = 0; index < parts.length; index++) {
+		var key = parts[index].trim().toLowerCase();
+		if (key.indexOf("wiki:") === 0) {
+			key = key.slice(5);
+		}
+		if (key.indexOf("name:") === 0) {
+			key = key.slice(5);
+		}
+		if (/^[a-z0-9_-]{1,190}$/.test(key) && keys.indexOf(key) < 0) {
+			keys.push(key);
+		}
 	}
-	if (key.indexOf("name:") === 0) {
-		key = key.slice(5);
-	}
-	return /^[a-z0-9_-]{1,190}$/.test(key) ? key : "";
+	return keys.join(",");
 }
 
 // 💣 Jeder Wert hier stammt aus dem Wiki, also aus FREMDINHALT: ein Artikel könnte
@@ -315,7 +331,25 @@ function avesmapsLoreFillContainers(placeKey, placeName, data) {
 				goodsLead.push({ name: name, wiki_url: hit ? hit.wiki_url : "" });
 			});
 		}
+		// Welche Zeilen dieser Container zeigen will. Ohne Angabe: alle -- jede bestehende
+		// Aufrufstelle (Siedlung, Region, Label) bleibt damit unverändert.
+		//
+		// 💣 AVESMAPS_LORE_ROWS WIRD NICHT ANGEFASST. Die Liste steht auf Modulebene und
+		// speist AUCH die Siedlungs-Infobox; wer die Waren dort herausnähme, nähme sie
+		// überall heraus, und niemand sähe den Zusammenhang. Die Auswahl gehört an den
+		// Container. (V10: eine Routen-Etappe zeigt nur Flora und Fauna, Owner 2026-07-29.)
+		var wantedKinds = null;
+		for (var kindIndex = 0; kindIndex < containers.length; kindIndex++) {
+			var declared = containers[kindIndex].getAttribute("data-lore-kinds") || "";
+			if (declared) {
+				wantedKinds = declared.split("|");
+				break;
+			}
+		}
 		AVESMAPS_LORE_ROWS.forEach(function (row) {
+			if (wantedKinds && wantedKinds.indexOf(row.kind) < 0) {
+				return;
+			}
 			markup += avesmapsLoreInfoRowMarkup(
 				row,
 				data.sections[row.kind] || [],
@@ -440,9 +474,14 @@ function buildLoreMarkup(placeRef) {
 	var goods = String((placeRef && placeRef.tradeGoods) || "").split(/\s*[,;]\s*/)
 		.map(function (part) { return part.trim(); }).filter(Boolean).join("|");
 
+	// Welche Arten dieser Container zeigen soll („flora|fauna" an einer Routen-Etappe).
+	// Leer = alle, also unverändert für jede bestehende Aufrufstelle.
+	var kinds = String((placeRef && placeRef.kinds) || "");
+
 	return '<div class="avesmaps-lore-rows" data-lore-place="' + avesmapsLoreEscape(containerKey)
 		+ '" data-lore-fetch="' + avesmapsLoreEscape(key)
 		+ '" data-lore-name="' + avesmapsLoreEscape(name)
+		+ '" data-lore-kinds="' + avesmapsLoreEscape(kinds)
 		+ '" data-lore-goods="' + avesmapsLoreEscape(goods)
 		+ '" data-lore-titles="' + avesmapsLoreEscape(titles) + '"></div>';
 }
