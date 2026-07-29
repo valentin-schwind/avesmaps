@@ -61,6 +61,11 @@ window.AVESMAPS_I18N_EN = {
 	"planner.summary.travelTime": "Travel time",
 	"planner.summary.restTime": "Rest time",
 	"planner.summary.totalTime": "Total time",
+	// V10 „Führt durch": the landscapes a route/leg runs through. Three surfaces, three tones -- the
+	// summary lists the whole route, the leg row names only what is new, the infobox adds the shares.
+	"planner.summary.landscapes": "Landscapes along the route",
+	"planner.leg.through": "Runs through",
+	"planner.leg.through.short": "through",
 	"planner.shareRoute": "Copy link for this route",
 	"planner.shareRoute.title": "Share your route plan",
 	"planner.unit.miles": "miles",

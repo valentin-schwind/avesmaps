@@ -823,6 +823,29 @@
 	text-decoration: underline;
 }
 
+/* Derselbe Name in der ETAPPENZEILE führt auf unsere eigene Karte (Owner 2026-07-29) und ist darum
+   ein <button>, kein <a>. Optisch trotzdem ein Link -- goldbraun wie .route-plan-entry__place, nur
+   ohne dessen Fettung: die Landschaften laufen im Fließtext der Zeile mit und sollen ihn nicht
+   aufbrechen. Kein ↗, es geht ja nirgendwo hin. */
+.avesmaps-landscape__maplink {
+	appearance: none;
+	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+	font: inherit;
+	color: var(--color-link);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.avesmaps-landscape__maplink:hover,
+.avesmaps-landscape__maplink:focus-visible {
+	color: var(--color-link-hover);
+	text-decoration: underline;
+	outline: none;
+}
+
 /* Der V10-Container in der Weg-Infobox: keine eigene Hülle, seine Kinder greifen direkt ins
    Zeilenraster der Feldliste -- dieselbe Lösung wie bei .avesmaps-lore-rows. */
 .avesmaps-path-landscapes {

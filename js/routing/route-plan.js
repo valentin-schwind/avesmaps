@@ -677,6 +677,36 @@ function showRoutePlan(routeNames, segments) {
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
 }
 
+// Traegt diese Landschaftsflaeche eine Beschriftung auf unserer Karte? Nur dann wird ihr Name in der
+// Etappenzeile ein Knopf -- gefragt wird BEIM ZEICHNEN, nicht erst beim Klick, damit gar nicht erst
+// ein Link entsteht, der ins Leere zeigt.
+function canFocusLandscapeOnMap(regionPublicId) {
+	return typeof findLabelEntryByEcosystemRegion === "function"
+		&& typeof focusSpotlightLabel === "function"
+		&& Boolean(findLabelEntryByEcosystemRegion(regionPublicId));
+}
+
+// Klick auf einen Landschaftsnamen in der Etappenzeile: hinfliegen und die Landschafts-Infobox zeigen
+// -- durch focusSpotlightLabel, also GENAU dasselbe, was die Spotlight-Suche und der Deep-Link tun
+// (Ebene auf Landschaften, Zoom ins Sichtbarkeitsband, Panel). Eine zweite Fassung dieses Ablaufs
+// wuerde beim ersten Regelwechsel auseinanderlaufen.
+//
+// 💣 stopPropagation: die Etappenzeile ist selbst ein Knopf (sie zoomt auf die Etappe). Ohne das
+// zoomte der Klick erst zur Landschaft und die Zeile sofort wieder zurueck auf die Etappe.
+// Direkt an den frisch eingesetzten Knoepfen, nicht delegiert an #overview: der Container ueberlebt
+// jede Neuberechnung, ein delegierter Zuhoerer wuerde sich also bei jeder Route erneut stapeln.
+function bindRoutePlanLandscapeLinks(container) {
+	container.querySelectorAll(".avesmaps-landscape__maplink").forEach((button) => {
+		button.addEventListener("click", (event) => {
+			event.stopPropagation();
+			const labelEntry = findLabelEntryByEcosystemRegion(button.dataset.landscapeRegion);
+			if (labelEntry) {
+				focusSpotlightLabel({ labelEntry });
+			}
+		});
+	});
+}
+
 // Fuellt die Landschaftszeilen, sobald der Abruf da ist. EIN Durchgang ueber alle Etappen IN
 // REIHENFOLGE, weil „nur nennen, was neu ist" die Vorgaengerzeile braucht.
 //
@@ -698,11 +728,14 @@ function fillRoutePlanLandscapes(planEntries, segments) {
 		previous = line;
 		const target = document.querySelector(`[data-route-landscapes-index="${entryIndex}"]`);
 		if (target && fresh.length) {
-			// innerHTML, weil der Name jetzt ein Wiki-Link sein darf. Die Namen stammen aus Wiki
-			// Aventurica, also aus FREMDINHALT -- escapt wird in formatLandscapesForPlanner, und nur
-			// eine Adresse mit dem Wiki-Präfix wird überhaupt ein href (landscapeWikiHref).
+			// innerHTML, weil der Name hier ein Knopf sein darf. Die Namen stammen aus Wiki Aventurica,
+			// also aus FREMDINHALT -- escapt wird in formatLandscapesForMapLinks.
+			// Der Sprung geht auf UNSERE Karte (Owner 2026-07-29), nicht ins Wiki: die Etappenzeile sagt,
+			// wo man durchkommt, und ein Klick soll genau dorthin führen. Die Routen-Zusammenfassung
+			// unten behält ihre Wiki-Links -- sie schlägt nach, diese Zeile navigiert.
 			target.innerHTML = `${escapeHtml(tr("planner.leg.through.short", "durch"))}: `
-				+ formatLandscapesForPlanner(fresh, escapeHtml);
+				+ formatLandscapesForMapLinks(fresh, escapeHtml, canFocusLandscapeOnMap);
+			bindRoutePlanLandscapeLinks(target);
 		}
 	});
 
@@ -714,7 +747,7 @@ function fillRoutePlanLandscapes(planEntries, segments) {
 	);
 	if (summaryTarget && routeLine.length) {
 		// Der Zeilenumbruch kommt aus dem CSS (display:block), nicht aus einem <br> im Text.
-		summaryTarget.innerHTML = `${escapeHtml(tr("planner.summary.landscapes", "Landschaften"))}: `
+		summaryTarget.innerHTML = `${escapeHtml(tr("planner.summary.landscapes", "Landschaften auf der Route"))}: `
 			+ formatLandscapesForPlanner(routeLine, escapeHtml);
 	}
 }

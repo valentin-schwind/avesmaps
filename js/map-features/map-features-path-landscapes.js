@@ -137,6 +137,11 @@ function landscapeWikiHref(entry) {
 // both tones so a name never looks like a link in one place and not in the other.
 // The trailing ↗ marks the off-site jump (AGENTS.md §12); it is written into the markup, as
 // everywhere else in this house.
+//
+// 💣 The space before the ↗ is a NON-BREAKING one (Owner 2026-07-29). With an ordinary space the
+// list wraps between the last word and the arrow, and a line then opens with a bare „↗," -- seen on
+// „Streitende Königreiche ↗" in the route summary. The name itself may still break across its own
+// words; only the arrow is nailed to the word it belongs to.
 function landscapeNameMarkup(entry, escape) {
 	var text = escape(entry.name);
 	var href = landscapeWikiHref(entry);
@@ -144,7 +149,7 @@ function landscapeNameMarkup(entry, escape) {
 		return text;
 	}
 	return '<a class="avesmaps-landscape__link" href="' + escape(href)
-		+ '" target="_blank" rel="noopener">' + text + " ↗</a>";
+		+ '" target="_blank" rel="noopener">' + text + "&#160;↗</a>";
 }
 
 // Infobox tone: shares, „·" as the separator. The separator is not a comma on purpose -- these
@@ -169,6 +174,26 @@ function formatLandscapesForInfobox(list, escape) {
 function formatLandscapesForPlanner(list, escape) {
 	var esc = escape || avesmapsPathLandscapesEscape;
 	return (list || []).map(function (entry) { return landscapeNameMarkup(entry, esc); }).join(", ");
+}
+
+// Leg-row tone: the same names, but the jump goes to OUR OWN map instead of the wiki (Owner
+// 2026-07-29: „bei ‚durch …' nicht der Link zum Wiki sondern auf die Region auf unserer Karte").
+// Hence NO ↗ -- the arrow announces leaving the house, and this link stays inside it. The route
+// SUMMARY keeps its wiki links: it names what you travel through, the leg row takes you there.
+//
+// 💣 A name only becomes a button when `isLinkable` finds the area on the map. 412 of 589 live
+// regions carry no label at all, and a label is what we fly to -- a button that leads nowhere is
+// worse than plain text. The caller supplies the lookup, so this file stays loadable in node.
+function formatLandscapesForMapLinks(list, escape, isLinkable) {
+	var esc = escape || avesmapsPathLandscapesEscape;
+	return (list || []).map(function (entry) {
+		var text = esc(entry.name);
+		if (typeof isLinkable !== "function" || !isLinkable(entry.key)) {
+			return text;
+		}
+		return '<button type="button" class="avesmaps-landscape__maplink" data-landscape-region="'
+			+ esc(entry.key) + '">' + text + "</button>";
+	}).join(", ");
 }
 
 // Only what the row above did not already say. Entering a landscape is announced, leaving it is
@@ -383,6 +408,7 @@ if (typeof module !== "undefined" && module.exports) {
 		buildLandscapeLine,
 		formatLandscapesForInfobox,
 		formatLandscapesForPlanner,
+		formatLandscapesForMapLinks,
 		pickFreshLandscapes,
 		landscapeWikiKeyList,
 	};

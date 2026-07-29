@@ -592,6 +592,23 @@ function findLabelEntryByPublicId(publicId) {
 	return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
 }
 
+// Die Beschriftung einer LANDSCHAFTSFLÄCHE, gesucht über den Regionsschlüssel statt über die eigene
+// Kennung. Das ist der Weg, den ein Landschaftsname im Routenplaner braucht: er kennt die Region
+// (`ecosystem_region.public_id` aus path-landscapes.php), und was auf der Karte steht und anklickbar
+// ist, ist das Label.
+//
+// 💣 Fläche↔Label ist 1:N -- der Zeiger sitzt am LABEL (`properties.ecosystem_region_public_id`, vom
+// Server auch im Lesemodus aufgelöst). Der erste Treffer genügt hier: die Beschriftungen einer Region
+// liegen auf derselben Fläche, und wir fliegen nur hin. Ohne Zeiger kein Treffer -- 412 der 589
+// Regionen tragen gar kein Label, und für die gibt es nichts anzufliegen.
+function findLabelEntryByEcosystemRegion(regionPublicId) {
+	const gesucht = String(regionPublicId || "");
+	if (gesucht === "") {
+		return null;
+	}
+	return labelMarkers.find((entry) => String(entry.label.ecosystemRegionPublicId || "") === gesucht) || null;
+}
+
 // Ein Label von der Karte UND aus beiden Beständen nehmen. Ausgelagert, weil es seit der Landschafts-
 // Kaskade zwei Anlässe gibt: das ausdrücklich gelöschte Label -- und die Geschwister, die der Server
 // mitgelöscht hat, weil mit ihnen die ganze Region ging.

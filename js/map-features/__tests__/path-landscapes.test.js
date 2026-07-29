@@ -3,6 +3,7 @@ const {
 	buildLandscapeLine,
 	formatLandscapesForInfobox,
 	formatLandscapesForPlanner,
+	formatLandscapesForMapLinks,
 	pickFreshLandscapes,
 	landscapeWikiKeyList,
 } = require("../map-features-path-landscapes.js");
@@ -117,8 +118,14 @@ const linked = {
 
 assert.strictEqual(
 	formatLandscapesForPlanner(buildLandscapeLine(["w-ok"], linked)),
-	'<a class="avesmaps-landscape__link" href="https://de.wiki-aventurica.de/wiki/Weiden" target="_blank" rel="noopener">Weiden ↗</a>',
+	'<a class="avesmaps-landscape__link" href="https://de.wiki-aventurica.de/wiki/Weiden" target="_blank" rel="noopener">Weiden&#160;↗</a>',
 	"ein Wiki-Link mit ↗ -- off-site, also traegt er den Pfeil (AGENTS.md §12)"
+);
+// 💣 Geschuetztes Leerzeichen vor dem Pfeil, kein gewoehnliches (Owner 2026-07-29): sonst bricht die
+// Liste zwischen dem letzten Wort und dem ↗ um und eine Zeile beginnt mit einem nackten „↗,".
+assert.ok(
+	formatLandscapesForPlanner(buildLandscapeLine(["w-ok"], linked)).indexOf(" ↗") < 0,
+	"der Pfeil haengt am Wort, nicht hinter einem umbruchfaehigen Leerzeichen"
 );
 assert.strictEqual(formatLandscapesForPlanner(buildLandscapeLine(["w-js"], linked)), "Böse",
 	"javascript: wird NIE ein href -- der Name bleibt blanker Text");
@@ -140,6 +147,40 @@ teil[0].share = 0.68;
 const teilMarkup = formatLandscapesForInfobox(teil);
 assert.ok(teilMarkup.endsWith("</a> (68 %)"),
 	"der Prozentsatz steht hinter dem Link, nicht darin -- bekam: " + teilMarkup);
+
+// ---- the leg row links to OUR map, not the wiki ------------------------------------------------
+// Owner 2026-07-29: „bei ‚durch …' nicht der Link zum Wiki sondern auf die Region auf unserer Karte".
+const alleVerlinkbar = () => true;
+const keineVerlinkbar = () => false;
+assert.strictEqual(
+	formatLandscapesForMapLinks(buildLandscapeLine(["w-ok"], linked), null, alleVerlinkbar),
+	'<button type="button" class="avesmaps-landscape__maplink" data-landscape-region="r-ok">Weiden</button>',
+	"ein Knopf auf die eigene Karte, kein <a> ins Wiki"
+);
+assert.ok(
+	formatLandscapesForMapLinks(buildLandscapeLine(["w-ok"], linked), null, alleVerlinkbar).indexOf("↗") < 0,
+	"KEIN Pfeil: der markiert den Absprung nach draussen, und hier bleibt man im Haus"
+);
+assert.strictEqual(
+	formatLandscapesForMapLinks(buildLandscapeLine(["w-ok"], linked), null, keineVerlinkbar),
+	"Weiden",
+	"ohne Beschriftung auf der Karte bleibt der Name Text -- kein Knopf, der nirgends hinfuehrt"
+);
+assert.strictEqual(
+	formatLandscapesForMapLinks(buildLandscapeLine(["w-ok"], linked)),
+	"Weiden",
+	"ohne Nachschlag gar keine Verlinkung (der Node-Test laedt die Karte nicht)"
+);
+// Auch hier ist der Name FREMDINHALT -- er wird escapt, nicht gerendert, im Text wie im Attribut.
+assert.ok(
+	formatLandscapesForMapLinks(buildLandscapeLine(["w-tag"], linked), null, alleVerlinkbar).indexOf("<img") < 0,
+	"ein Name mit HTML wird auch als Kartenlink escapt"
+);
+assert.strictEqual(
+	formatLandscapesForMapLinks(buildLandscapeLine(["w-ok", "w-none"], linked), null, alleVerlinkbar).indexOf(", ") > 0,
+	true,
+	"mehrere Landschaften bleiben eine Komma-Liste wie im Planer-Ton"
+);
 
 // ---- only what is new -----------------------------------------------------------------------
 const weiden = [{ name: "Weiden", share: 1 }];
