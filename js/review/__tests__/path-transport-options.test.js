@@ -19,6 +19,8 @@ const loadBrowserScript = (relativePath) => {
 	const absolutePath = path.join(__dirname, relativePath);
 	vm.runInThisContext(fs.readFileSync(absolutePath, "utf8"), { filename: absolutePath });
 };
+// V9: index.html laedt dieses Modul VOR config.js -- dort werden samples/tension hineingespreizt.
+loadBrowserScript("../../map-features/map-features-line-catmull.js");
 loadBrowserScript("../../config.js");
 loadBrowserScript("../../map-features/map-features-path-domain.js");
 loadBrowserScript("../review-paths.js");
