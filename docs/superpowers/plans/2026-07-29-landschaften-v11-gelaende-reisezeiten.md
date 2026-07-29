@@ -3201,62 +3201,83 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
         ...
 ```
 
-Und **nach** dem Aufbau von `$connection`, **vor** dem `$flow`-Block, der neue Abschnitt:
+Und **nach** dem Aufbau von `$connection`: der vorhandene `$flow`-Block wird durch diese
+Dreiteilung ersetzt. ⚠️ Der bisherige Zweig `if ($flow === null) { … return; }` bleibt **wörtlich
+erhalten** — er ist nur um eine zweite Bedingung enger geworden.
 
 ```php
-    // ---- V11: the slope --------------------------------------------------------------------
-    // 🔴 Nothing at all happens when there is no profile: no new key, the same shared object in both
-    // directions, the same number as today. That is what makes „switch off" bit-identical.
+    // ---- V11: the slope ------------------------------------------------------------------------
+    // 💣 The direction rule is the SAME as the river's (:218-219): from/to keep the STORED
+    // orientation on BOTH variants -- the verlauf flow derivation's chain walk depends on it.
+    // Ascent in drawing direction is descent against it. That is the whole rule.
+    $forwardFactor = $sliceTerrain === null ? 1.0
+        : avesmapsTerrainTimeFactor($sliceTerrain['ascent'], $sliceTerrain['descent'], $distance);
+    $reverseFactor = $sliceTerrain === null ? 1.0
+        : avesmapsTerrainTimeFactor($sliceTerrain['descent'], $sliceTerrain['ascent'], $distance);
     if ($sliceTerrain !== null) {
-        // 💣 The direction rule is the SAME as the river's (:218-219): from/to keep the STORED
-        // orientation on both variants -- the verlauf flow derivation's chain walk depends on it.
-        // Ascent in drawing direction is descent against it. That is all it takes.
-        $forwardFactor = avesmapsTerrainTimeFactor($sliceTerrain['ascent'], $sliceTerrain['descent'], $distance);
-        $reverseFactor = avesmapsTerrainTimeFactor($sliceTerrain['descent'], $sliceTerrain['ascent'], $distance);
+        // Carried so the waypoint anchor can cut it; only present when there IS a profile.
         $connection['terrain_profile'] = $sliceTerrain['profile'];
-        $connection['terrain_ascent'] = $sliceTerrain['ascent'];
-        $connection['terrain_descent'] = $sliceTerrain['descent'];
+    }
 
-        if ($flowUnknown = (avesmapsRouteClientNormalizeFlow($path, $routeType) === null)) {
-            // No flow: two objects instead of one shared, because the two directions now differ.
-            $forward = $connection;
-            $forward['time'] = $connection['time'] * $forwardFactor;
-            $forward['terrain_time_factor'] = $forwardFactor;
-            $forward['ascent_schritt'] = $sliceTerrain['ascent'];
-            $forward['descent_schritt'] = $sliceTerrain['descent'];
-            $reverse = $connection;
-            $reverse['time'] = $connection['time'] * $reverseFactor;
-            $reverse['terrain_time_factor'] = $reverseFactor;
-            $reverse['ascent_schritt'] = $sliceTerrain['descent'];
-            $reverse['descent_schritt'] = $sliceTerrain['ascent'];
-            avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $forward);
-            avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $reverse);
-            return;
-        }
-        // With flow the two factors MULTIPLY, each keeping its own clamp: the river's [1,0 ... 3,0]
-        // (a current only ever slows you) and the slope's [0,5 ... 4,0]. Inheriting the river clamp
-        // for the slope would pull every descent up to 1,0 and silently take back owner decision 3.
-        $connection['terrain_forward_factor'] = $forwardFactor;
-        $connection['terrain_reverse_factor'] = $reverseFactor;
+    $flow = avesmapsRouteClientNormalizeFlow($path, $routeType);
+
+    // 🔴 NO FLOW AND NO TERRAIN: byte for byte today's branch -- no new key, ONE shared object in
+    // both directions. This is the line that makes „switch off" bit-identical, and it is why the
+    // terrain block above adds nothing to $connection when $sliceTerrain is null.
+    if ($flow === null && $sliceTerrain === null) {
+        // No known flow direction: symmetric, EXACTLY today's behaviour (shared object).
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $connection);
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $connection);
+        return;
+    }
+
+    // Terrain but no flow: two objects instead of one shared, because the directions now differ.
+    if ($flow === null) {
+        $forwardConnection = avesmapsRouteApplyTerrainToConnection($connection, $forwardFactor, $sliceTerrain, false);
+        $reverseConnection = avesmapsRouteApplyTerrainToConnection($connection, $reverseFactor, $sliceTerrain, true);
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $forwardConnection);
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $reverseConnection);
+        return;
     }
 ```
 
-Im `$flow`-Zweig darunter die zwei Varianten ergänzen — **hinter** den vorhandenen
-`$forwardConnection`/`$reverseConnection`-Zuweisungen und **vor** den beiden
-`avesmapsAddClientCompatibleGraphConnection`-Aufrufen:
+Der vorhandene Fluss-Block darunter bleibt **unverändert** bis zu den beiden
+`avesmapsAddClientCompatibleGraphConnection`-Aufrufen; direkt **davor** kommt:
 
 ```php
-    // V11: flow and slope multiply, each with its own clamp (see above).
-    if (isset($connection['terrain_forward_factor'])) {
-        $forwardConnection['time'] *= $connection['terrain_forward_factor'];
-        $forwardConnection['terrain_time_factor'] = $connection['terrain_forward_factor'];
-        $forwardConnection['ascent_schritt'] = $connection['terrain_ascent'];
-        $forwardConnection['descent_schritt'] = $connection['terrain_descent'];
-        $reverseConnection['time'] *= $connection['terrain_reverse_factor'];
-        $reverseConnection['terrain_time_factor'] = $connection['terrain_reverse_factor'];
-        $reverseConnection['ascent_schritt'] = $connection['terrain_descent'];
-        $reverseConnection['descent_schritt'] = $connection['terrain_ascent'];
+    // V11: flow and slope MULTIPLY, each keeping its own clamp -- the river's [1,0 ... 3,0] (a
+    // current only ever slows you down) and the slope's [0,5 ... 4,0]. Inheriting the river clamp
+    // for the slope would pull every descent up to 1,0, and downhill would never be faster than
+    // level: owner decision 3 silently taken back.
+    $forwardConnection = avesmapsRouteApplyTerrainToConnection($forwardConnection, $forwardFactor, $sliceTerrain, false);
+    $reverseConnection = avesmapsRouteApplyTerrainToConnection($reverseConnection, $reverseFactor, $sliceTerrain, true);
+```
+
+Und der Helfer, neben `avesmapsRouteSliceTerrain`:
+
+```php
+/**
+ * PURE: multiply one connection's time by its slope factor and attach what the API reports.
+ *
+ * A null slice is a no-op that returns the connection UNTOUCHED -- not "times 1.0", untouched. The
+ * difference matters: an untouched object carries no `terrain_time_factor` key at all, and that is
+ * what keeps „switch off" byte-identical with today.
+ *
+ * `$reversed` swaps ascent and descent, because the reverse variant travels the stored line
+ * backwards. from/to are NOT swapped (client-graph.php:218-219).
+ */
+function avesmapsRouteApplyTerrainToConnection(array $connection, float $factor, ?array $sliceTerrain, bool $reversed): array
+{
+    if ($sliceTerrain === null) {
+        return $connection;
     }
+    $connection['time'] = (float) $connection['time'] * $factor;
+    $connection['terrain_time_factor'] = $factor;
+    $connection['ascent_schritt'] = $reversed ? $sliceTerrain['descent'] : $sliceTerrain['ascent'];
+    $connection['descent_schritt'] = $reversed ? $sliceTerrain['ascent'] : $sliceTerrain['descent'];
+
+    return $connection;
+}
 ```
 
 - [ ] **Schritt 6: Den Teilstück-Schneider schreiben**
