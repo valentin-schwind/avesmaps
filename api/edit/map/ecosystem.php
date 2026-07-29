@@ -19,6 +19,9 @@ require_once __DIR__ . '/../../_internal/app/ecosystem.php';
 // V9. It needs avesmapsUuidV4 from features.php above -- which is exactly why the store lives behind
 // this dispatcher and not on the public read path.
 require_once __DIR__ . '/../../_internal/app/path-ecosystem.php';
+// V11: the terrain store. It needs avesmapsUuidV4 from features.php above, like V9's store does.
+require_once __DIR__ . '/../../_internal/app/terrain-store.php';
+require_once __DIR__ . '/../../_internal/app/heightmap.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -109,6 +112,13 @@ try {
         'assignment_chunk' => avesmapsPathEcosystemChunk($pdo, $payload),
         'assignment_commit' => avesmapsPathEcosystemCommit($pdo, $payload, $userId),
         'assignment_status' => avesmapsPathEcosystemStatus($pdo),
+        // V11: the height rasters. The BROWSER rasterises (spec §2: PHP cannot reproduce the field
+        // -- Math.pow with a fractional exponent per cell, and an argmax that would rescale a whole
+        // area from one differing last bit); these three only take the result in, one area per
+        // request, and stamp it against THIS database.
+        'heightmap_put' => avesmapsTerrainHeightmapPut($pdo, $payload, $userId),
+        'heightmap_cleanup' => avesmapsTerrainHeightmapCleanup($pdo),
+        'heightmap_status' => avesmapsTerrainHeightmapStatus($pdo),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unknown action.'),
     };
 
