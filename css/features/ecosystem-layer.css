@@ -977,6 +977,14 @@
 	font-size: var(--font-size-small);
 	white-space: nowrap;
 }
+/* 💣 AUSGEBLENDET, NICHT GELEERT. Die letzte Rasterspalte der Geländezeile steht auf `auto` -- ohne
+   Text fiel sie auf 0 und die Reglerspalte (`1fr`) schluckte den frei gewordenen Platz: der Regler
+   sprang beim ersten Anfassen um genau die Breite von „(auto)" auf (gemessen 125,3 -> 156,7 px).
+   `visibility: hidden` behält den Platz und nimmt den Vermerk zugleich aus dem Vorlesebaum -- anders
+   als `display: none`, das denselben Sprung erzeugt hätte. */
+.ecosystem-properties-dialog__terrainauto--off {
+	visibility: hidden;
+}
 
 .ecosystem-properties-dialog__terrainrow input[type="range"] {
 	min-width: 0;

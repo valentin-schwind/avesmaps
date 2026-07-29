@@ -676,7 +676,12 @@
 			feldnummer.value = zahl;
 		}
 		if (vermerk) {
-			vermerk.textContent = terrainTouched[feld.key] ? "" : "(auto)";
+			// 💣 DER TEXT BLEIBT STEHEN, er wird nur unsichtbar. Geleert fiel die `auto`-Rasterspalte auf
+			// 0 zusammen und der Regler wuchs um genau die Breite von „(auto)" -- beim ersten Anfassen
+			// sprang die Zeile sichtbar breiter (gemessen 125,3 -> 156,7 px). Vom Owner gemeldet.
+			vermerk.textContent = "(auto)";
+			vermerk.classList.toggle("ecosystem-properties-dialog__terrainauto--off",
+				Boolean(terrainTouched[feld.key]));
 		}
 	}
 
