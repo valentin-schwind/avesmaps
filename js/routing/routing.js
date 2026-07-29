@@ -802,11 +802,28 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	event.stopPropagation();
 
 	const action = this.dataset.popupAction;
+
+	// 🔴 EIN KLICK AUF EINEN AKTIONSKNOPF SCHLIESST DAS POPUP (Owner 2026-07-29). Jeder dieser Knöpfe
+	// führt woanders hin: er öffnet einen Dialog, startet einen Modus, hebt einen Weg hervor oder holt
+	// die Info ins Panel. Das Popup hat damit seine Arbeit getan -- und blieb bisher als Kasten mitten
+	// auf der Karte stehen, meist genau über dem, was der Klick gerade zeigen wollte.
+	//
+	// 🪤 EINMAL HIER, nicht in jedem der 25 Zweige. NEUN von ihnen riefen es bisher selbst, die übrigen
+	// sechzehn nicht -- darunter alle vier Knöpfe des Label-Popups, mit dem der Owner es gemeldet hat.
+	// Genau so sieht eine Regel aus, die je Zweig gepflegt wird: sie gilt für die Hälfte. Die neun
+	// eigenen Aufrufe sind mit diesem Commit entfallen, damit niemand aus einem übriggebliebenen
+	// schliesst, es werde eben NICHT allgemein geschlossen.
+	//
+	// 💣 Sicher an dieser Stelle, weil KEIN Zweig danach das Popup-DOM anfasst: alle lesen ausschliesslich
+	// `this.dataset`, und die Attribute überleben das Aushängen des Elements. Geprüft, nicht vermutet.
+	if (typeof map !== "undefined" && map && typeof map.closePopup === "function") {
+		map.closePopup();
+	}
+
 	if (action === "add-location-to-route") {
 		const locationName = this.dataset.locationName;
 		if (locationName) {
 			fillLastEmptyWaypointOrAppend(locationName);
-			map.closePopup();
 			updateMapView();
 		}
 		return;
@@ -862,7 +879,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "remove-waypoint") {
 		const waypointId = this.dataset.waypointId;
 		if (waypointId) {
-			map.closePopup();
 			removeWaypointById(waypointId);
 		}
 		return;
@@ -928,7 +944,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		map.closePopup();
 		void convertCrossingToLocation(markerEntry);
 		return;
 	}
@@ -951,7 +966,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		map.closePopup();
 		startPathCreationFromLocation(markerEntry.location);
 		return;
 	}
@@ -963,7 +977,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		map.closePopup();
 		void extendPendingPathCreationAtLocation(markerEntry.location);
 		return;
 	}
@@ -975,7 +988,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		map.closePopup();
 		void completePendingPathCreationAtLocation(markerEntry.location);
 		return;
 	}
@@ -987,7 +999,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 				return markerEntry?.location || null;
 			})();
 		startPowerlineCreationFromEndpoint(endpoint);
-		map.closePopup();
 		return;
 	}
 
@@ -998,7 +1009,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 				return markerEntry?.location || null;
 			})();
 		void completePendingPowerlineAtEndpoint(endpoint);
-		map.closePopup();
 		return;
 	}
 
@@ -1042,7 +1052,6 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			return;
 		}
 
-		map.closePopup();
 		startPathGeometryEdit(path);
 		return;
 	}
