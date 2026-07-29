@@ -958,9 +958,13 @@
 /* Vier Spalten: Beschriftung, Regler, EINGABEFELD, Automatik-Vermerk. Das Feld war vorher ein reines
    <output> -- der Owner will die Zahl auch tippen können, weil ein Regler bei 0..20000 keine 50er
    Genauigkeit hergibt. Regler und Feld spiegeln sich gegenseitig. */
+/* Drei Spalten: Beschriftung, Regler, Zahl. Die vierte trug bis 2026-07-29 einen „(auto)"-Vermerk und
+   ist auf Owner-Wunsch entfallen -- sie stand auf `auto`, fiel ohne Text auf 0 zusammen und liess den
+   Regler beim ersten Anfassen um genau ihre Breite aufspringen. Ohne die Spalte gibt es nichts mehr,
+   das springen könnte; ob ein Wert abgeleitet ist, sagt „Auf Automatik zurück". */
 .ecosystem-properties-dialog__terrainrow {
 	display: grid;
-	grid-template-columns: 9.5em minmax(0, 1fr) 5em auto;
+	grid-template-columns: 9.5em minmax(0, 1fr) 5em;
 	align-items: center;
 	column-gap: var(--space-8);
 }
@@ -970,21 +974,6 @@
 	text-align: right;
 }
 
-/* Der „(auto)"-Vermerk steht NEBEN dem Feld, nicht darin: in einem Zahlenfeld wäre er entweder Text
-   (und damit ein ungültiger Wert) oder unsichtbar. */
-.ecosystem-properties-dialog__terrainauto {
-	color: var(--color-text-muted);
-	font-size: var(--font-size-small);
-	white-space: nowrap;
-}
-/* 💣 AUSGEBLENDET, NICHT GELEERT. Die letzte Rasterspalte der Geländezeile steht auf `auto` -- ohne
-   Text fiel sie auf 0 und die Reglerspalte (`1fr`) schluckte den frei gewordenen Platz: der Regler
-   sprang beim ersten Anfassen um genau die Breite von „(auto)" auf (gemessen 125,3 -> 156,7 px).
-   `visibility: hidden` behält den Platz und nimmt den Vermerk zugleich aus dem Vorlesebaum -- anders
-   als `display: none`, das denselben Sprung erzeugt hätte. */
-.ecosystem-properties-dialog__terrainauto--off {
-	visibility: hidden;
-}
 
 .ecosystem-properties-dialog__terrainrow input[type="range"] {
 	min-width: 0;

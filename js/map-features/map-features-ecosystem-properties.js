@@ -675,14 +675,12 @@
 		if (feldnummer && Number(feldnummer.value) !== Number(zahl)) {
 			feldnummer.value = zahl;
 		}
-		if (vermerk) {
-			// 💣 DER TEXT BLEIBT STEHEN, er wird nur unsichtbar. Geleert fiel die `auto`-Rasterspalte auf
-			// 0 zusammen und der Regler wuchs um genau die Breite von „(auto)" -- beim ersten Anfassen
-			// sprang die Zeile sichtbar breiter (gemessen 125,3 -> 156,7 px). Vom Owner gemeldet.
-			vermerk.textContent = "(auto)";
-			vermerk.classList.toggle("ecosystem-properties-dialog__terrainauto--off",
-				Boolean(terrainTouched[feld.key]));
-		}
+		// 🔴 KEIN „(auto)"-VERMERK MEHR (Owner 2026-07-29: „kannst du dieses autofeld einfach weglassen").
+		// Er sass in einer eigenen Rasterspalte, die ohne Text auf 0 zusammenfiel -- und liess damit den
+		// Regler beim ersten Anfassen um genau seine Breite aufspringen. Ihn zu reservieren statt zu
+		// löschen hätte den Sprung geheilt, der Owner wollte die Spalte aber ganz weg.
+		// Ob ein Wert abgeleitet ist, sagt weiterhin „Auf Automatik zurück"; die Unterscheidung lebt in
+		// `terrainTouched` und entscheidet beim Speichern über NULL, das hängt nicht an der Anzeige.
 	}
 
 	function setTerrainStatus(message, isError) {
