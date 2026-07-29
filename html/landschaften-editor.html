@@ -42,7 +42,7 @@
 <div class="avm-ribbon-bar">
   <div class="avm-ribbon">
     <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
-    <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Vegetations- und Topographieflächen in welcher derographischen Region liegen: Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %. Gerechnet, nie gespeichert."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoEnabled" disabled data-i18n-title="ecosystem.editor.enabled.title" title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1" data-i18n="ecosystem.editor.ribbon.enabled">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo" data-i18n="ecosystem.editor.enabled.unknown">Zustand unbekannt</span></button>
   </div>
 </div>
@@ -830,6 +830,97 @@ async function computePathAssignments(areas, paths, onProgress) {
 	return { rows, stats };
 }
 
+// ---- V9: das Ergebnis speichern -----------------------------------------------------------------
+// Gestückelt, und zwar von Anfang an: heute sind die drei Ergebnisse zusammen 1,3 MB (gemessen im
+// Browser), beim ausgezeichneten Bestand ein Vielfaches. Die Stückelung hält JEDE einzelne Anfrage
+// klein, ganz gleich wie der Bestand wächst -- und sie ist der Grund, warum es serverseitig gar
+// keinen Stapellauf braucht.
+const ASSIGNMENT_CHUNK = 2000;
+
+// Die beiden vorhandenen Zuordnungen behalten ihre Form im Speicher; das hier ist nur die
+// Übersetzung aufs Kabel. `raycast` führt jedes Paar ohnehin doppelt (a→b und b→a), und genau das
+// speichert ecosystem_region_overlap: ein Leser fragt immer „was liegt in DIESER Region".
+function overlapRowsFromRaycast() {
+	const out = [];
+	(raycast || new Map()).forEach((hits, regionId) => {
+		hits.forEach((hit) => out.push({ region: regionId, other: hit.regionId, share: hit.share }));
+	});
+	return out;
+}
+
+function territoryRowsFromHits() {
+	const out = [];
+	(territoryHits || new Map()).forEach((hits, regionId) => {
+		hits.forEach((hit) => {
+			if (!hit.territory || !hit.territory.publicId) { return; }
+			out.push({
+				region: regionId, territory: hit.territory.publicId,
+				share: hit.share, aggregate: hit.territory.isAggregate === true,
+			});
+		});
+	});
+	return out;
+}
+
+async function saveAssignments(pathRows, overlapRows, territoryRows, durationMs, onProgress) {
+	const begun = await postEcosystemEdit("assignment_begin", {});
+	const runToken = String(begun.run_token || "");
+	if (runToken === "") { throw new Error("Der Server hat kein Lauf-Kennzeichen geliefert."); }
+
+	const batches = [];
+	const slice = (kind, list) => {
+		for (let index = 0; index < list.length; index += ASSIGNMENT_CHUNK) {
+			batches.push({ kind, rows: list.slice(index, index + ASSIGNMENT_CHUNK) });
+		}
+	};
+	slice("overlap", overlapRows);
+	slice("territory", territoryRows);
+	slice("path", pathRows);
+
+	let skipped = 0;
+	for (let index = 0; index < batches.length; index += 1) {
+		if (onProgress) { onProgress(index + 1, batches.length); }
+		const result = await postEcosystemEdit("assignment_chunk", {
+			run_token: runToken, kind: batches[index].kind, rows: batches[index].rows,
+		});
+		skipped += Number(result.skipped || 0);
+	}
+
+	// 💣 Der Abschluss läuft AUCH, wenn nichts zu schreiben war. Der Stempel ist das, was „gerechnet"
+	// sagt, und ein leeres Ergebnis ist ein Ergebnis -- ohne ihn meldete der nächste Aufruf „noch
+	// nicht gerechnet" und der Lauf begänne ewig von vorn.
+	const status = await postEcosystemEdit("assignment_commit", {
+		run_token: runToken,
+		duration_ms: Math.round(durationMs),
+		area_count: (allAreas || []).length,
+		path_count: (allPaths || []).length,
+	});
+	return { status, skipped, batches: batches.length };
+}
+
+// Die Kachel IST die Zustandsanzeige (Hausregel). „veraltet" ist ein Vergleich, nie eine Vermutung:
+// der Stempel trägt die Revisionen, gegen die gerechnet wurde, und der Server liefert die aktuellen
+// gleich mit.
+function renderAssignmentTile() {
+	const info = $("ecoRaycastInfo");
+	if (!info) { return; }
+	const stamp = assignmentStamp && assignmentStamp.stamp;
+	if (!stamp || !stamp.completed) {
+		info.textContent = stamp ? "unvollständig — bitte neu rechnen" : "noch nicht gerechnet";
+		return;
+	}
+	const current = assignmentStamp.current || {};
+	const stale = stamp.ecosystem_revision !== current.ecosystem_revision
+		|| stamp.map_revision !== current.map_revision;
+	if (stale) {
+		info.textContent = "gerechnet " + String(stamp.computed_at).slice(11, 16) + " · Stand veraltet";
+		return;
+	}
+	const wegabschnitte = stamp.path_rows_chord + stamp.path_rows_curve;
+	info.textContent = wegabschnitte + " Wegabschnitte · "
+		+ (stamp.duration_ms / 1000).toFixed(1).replace(".", ",") + " s";
+}
+
 function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
 
 function percent(share) { return (share * 100).toFixed(1).replace(".", ",") + " %"; }
@@ -1355,13 +1446,26 @@ async function runRaycast(options) {
 				setStatus("Wege × Flächen … " + done + "/" + total);
 			});
 
-			flashStatus("Gerechnet: " + raycastNote
+			setStatus("Wird gespeichert …");
+			const saved = await saveAssignments(
+				pathAssignments.rows, overlapRowsFromRaycast(), territoryRowsFromHits(),
+				pathAssignments.stats.chordMs + pathAssignments.stats.curveMs,
+				(done, total) => setStatus("Speichert … " + done + "/" + total)
+			);
+			assignmentStamp = saved.status;
+
+			flashStatus("Gerechnet und gespeichert: " + raycastNote
 				+ (territoryNote ? " · " + territoryNote : "")
 				+ " · Wege: " + pathAssignments.stats.chordRows + " Sehne / " + pathAssignments.stats.curveRows + " Kurve"
-				+ " (" + Math.round(pathAssignments.stats.chordMs) + " ms + " + Math.round(pathAssignments.stats.curveMs) + " ms)", "ok");
+				+ " (" + Math.round(pathAssignments.stats.chordMs) + " ms + " + Math.round(pathAssignments.stats.curveMs) + " ms)"
+				+ (saved.skipped > 0 ? " · " + saved.skipped + " Zeilen verworfen (Ort oder Fläche gelöscht)" : ""),
+				saved.skipped > 0 ? "warn" : "ok");
 		}
 
-		$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.done", "{areas} Flächen · {terr} Territorien", { areas: allAreas.length, terr: (territories || []).length });
+		// V9: liegt ein Stempel vor, sagt die Kachel den gespeicherten Stand -- der ist die
+		// belastbare Aussage. Ohne Stempel (Antwort kam aus dem Zwischenspeicher) bleibt der alte Text.
+		if (assignmentStamp) { renderAssignmentTile(); }
+		else { $("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.done", "{areas} Flächen · {terr} Territorien", { areas: allAreas.length, terr: (territories || []).length }); }
 		renderDetail();
 		renderPreview();
 	} catch (error) {
@@ -1583,6 +1687,16 @@ async function loadData(options) {
 	}
 }
 
+// V9: was der Server über den zuletzt gespeicherten Lauf weiß. Eine kleine Abfrage, unabhängig von
+// den Listen -- die Kachel muss ihren Stand auch dann sagen, wenn das Laden der Regionen scheitert.
+// Ein Fehler bleibt still: „noch nicht gerechnet" ist die richtige Auskunft, wenn niemand antwortet.
+async function loadAssignmentStamp() {
+	try {
+		assignmentStamp = await postEcosystemEdit("assignment_status", {});
+		renderAssignmentTile();
+	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
+}
+
 // ---- Boot ------------------------------------------------------------------------------------
 function boot() {
 	wireRibbon();
@@ -1591,7 +1705,7 @@ function boot() {
 	renderEnabledTile();
 	loadData();
 	// Independent of the list: the switch must say what it is even if the lists fail to load.
-	if (!new URLSearchParams(location.search).has("demo")) { loadModuleEnabled(); }
+	if (!new URLSearchParams(location.search).has("demo")) { loadModuleEnabled(); loadAssignmentStamp(); }
 }
 if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", boot); } else { boot(); }
 
