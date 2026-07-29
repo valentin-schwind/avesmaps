@@ -955,11 +955,27 @@
 	row-gap: var(--space-6);
 }
 
+/* Vier Spalten: Beschriftung, Regler, EINGABEFELD, Automatik-Vermerk. Das Feld war vorher ein reines
+   <output> -- der Owner will die Zahl auch tippen können, weil ein Regler bei 0..20000 keine 50er
+   Genauigkeit hergibt. Regler und Feld spiegeln sich gegenseitig. */
 .ecosystem-properties-dialog__terrainrow {
 	display: grid;
-	grid-template-columns: 9.5em minmax(0, 1fr) 5.5em;
+	grid-template-columns: 9.5em minmax(0, 1fr) 5em auto;
 	align-items: center;
 	column-gap: var(--space-8);
+}
+
+.ecosystem-properties-dialog__terrainnum {
+	width: 100%;
+	text-align: right;
+}
+
+/* Der „(auto)"-Vermerk steht NEBEN dem Feld, nicht darin: in einem Zahlenfeld wäre er entweder Text
+   (und damit ein ungültiger Wert) oder unsichtbar. */
+.ecosystem-properties-dialog__terrainauto {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-small);
+	white-space: nowrap;
 }
 
 .ecosystem-properties-dialog__terrainrow input[type="range"] {

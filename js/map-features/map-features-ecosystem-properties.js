@@ -596,14 +596,23 @@
 
 	// Die Anzeige sagt AUSDRÜCKLICH, ob der Wert eingestellt oder abgeleitet ist. Ohne das sähe eine
 	// Automatik aus wie eine Entscheidung, und niemand wüsste, was ein Speichern festschreibt.
+	// 🪤 Schreibt in das Zahlenfeld NUR, wenn der Wert sich unterscheidet. Sonst würde jedes Tippen die
+	// Eingabe zurückschreiben und dabei den Cursor ans Ende reissen -- „950" liesse sich nicht zu „9500"
+	// vervollständigen, weil der Zwischenstand jedes Mal neu formatiert würde.
 	function syncTerrainOutput(feld, area) {
 		const regler = propertiesElement(feld.element);
-		const anzeige = propertiesElement(feld.element + "-out");
-		if (!regler || !anzeige) {
+		const feldnummer = propertiesElement(feld.element + "-num");
+		const vermerk = propertiesElement(feld.element + "-out");
+		if (!regler) {
 			return;
 		}
 		const zahl = Number(regler.value).toFixed(feld.decimals);
-		anzeige.textContent = terrainTouched[feld.key] ? zahl : zahl + " (auto)";
+		if (feldnummer && Number(feldnummer.value) !== Number(zahl)) {
+			feldnummer.value = zahl;
+		}
+		if (vermerk) {
+			vermerk.textContent = terrainTouched[feld.key] ? "" : "(auto)";
+		}
 	}
 
 	function setTerrainStatus(message, isError) {
@@ -1233,6 +1242,22 @@
 			}
 		});
 		TERRAIN_FIELDS.forEach((feld) => {
+			// Das Zahlenfeld ist der andere Weg zum selben Wert: es setzt den Regler und löst denselben
+			// Ablauf aus. Geklemmt wird an den Reglergrenzen -- ein getipptes 99999 wäre sonst im Feld
+			// sichtbar, aber im Regler und damit im Bild etwas anderes.
+			propertiesElement(feld.element + "-num")?.addEventListener("input", () => {
+				const feldnummer = propertiesElement(feld.element + "-num");
+				const regler = propertiesElement(feld.element);
+				if (!feldnummer || !regler || String(feldnummer.value).trim() === "") {
+					return;
+				}
+				const wert = Math.max(Number(regler.min), Math.min(Number(regler.max), Number(feldnummer.value)));
+				if (!Number.isFinite(wert)) {
+					return;
+				}
+				regler.value = String(wert);
+				regler.dispatchEvent(new Event("input", { bubbles: true }));
+			});
 			propertiesElement(feld.element)?.addEventListener("input", () => {
 				// Anfassen heisst entscheiden -- ab hier gilt der Regler und nicht mehr die Ableitung.
 				terrainTouched[feld.key] = true;
