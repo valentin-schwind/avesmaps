@@ -568,6 +568,135 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // ---- V11: the stored terrain (spec 2026-07-29) -----------------------------------------------
+    //
+    // 💣 LONGBLOB, not MEDIUMBLOB. At 0,25 units per pixel and 16 bit, `bytes = 32 * bbox area` --
+    // MEDIUMBLOB's 16 MB are exhausted at a bbox of 724 x 724 units. Unreachable today (only
+    // `gebirge` gets a height field), but `huegelland: "warp"` already stands written in
+    // map-features-ecosystem-height-combine.js and waits for the gate to open. Without
+    // sql_mode=STRICT MySQL truncates SILENTLY, and half a raster looks like a whole one.
+    //
+    // 🔴 `samples` are uint16 and mean SCHRITT, absolute, little-endian, row-major. No white point,
+    // no scale factor, no normalisation -- the display's two scales (a global 5.000er white point
+    // and, while editing, a per-area stretch) are DISPLAY and must never reach the data (§3.2).
+    // The blob is stored DEFLATE-compressed (gzdeflate); the length invariant is checked after
+    // inflating.
+    //
+    // max_x / max_y are STORED generated columns so „which rasters cover this box" is an INDEXED
+    // query that never touches the blob.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_area_heightmap (
+            area_id INT UNSIGNED NOT NULL,
+            cell_size_mapunits DECIMAL(6,4) NOT NULL,
+            origin_x DECIMAL(10,4) NOT NULL,
+            origin_y DECIMAL(10,4) NOT NULL,
+            width_px SMALLINT UNSIGNED NOT NULL,
+            height_px SMALLINT UNSIGNED NOT NULL,
+            max_x DECIMAL(10,4) AS (origin_x + width_px  * cell_size_mapunits) STORED,
+            max_y DECIMAL(10,4) AS (origin_y + height_px * cell_size_mapunits) STORED,
+            samples LONGBLOB NOT NULL,
+            sample_bytes INT UNSIGNED NOT NULL,
+            geometry_revision INT UNSIGNED NOT NULL,
+            terrain_fingerprint CHAR(40) NOT NULL,
+            peaks_fingerprint CHAR(40) NOT NULL,
+            computed_by BIGINT UNSIGNED NULL,
+            computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (area_id),
+            KEY idx_heightmap_bbox (origin_x, origin_y, max_x, max_y)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // The derived cache the ROUTER reads. It never reads a raster.
+    //
+    // 💣 `NULL` means „no height data", `0` means „measured and level". Never the same value: today
+    // 16 of 67 peaks carry a height, and without the difference every reader would take the missing
+    // 51 for measured flat ground.
+    //
+    // 🔴 `path_revision`, NOT `map_revision`. map_revision is a GLOBAL counter (features.php) bumped
+    // by settlement, label, source and sync writes too -- AND peaks are `berggipfel` LABELS in
+    // map_features, so entering one peak height, the most common V11 editorial act with 51 open
+    // peaks, would have invalidated all 5.655 rows in one go.
+    //
+    // `heightmap_stamp` is the GLOBAL raster stamp, not a per-way one. A raster run is a rare,
+    // owner-triggered act (unlike ecosystem_revision, which jumped 901 times in one working day) --
+    // so global granularity costs nothing here, and after a raster run the profiles get recomputed
+    // anyway. A stale stamp is REPORTED, not obeyed (see the reader in response.php).
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS path_terrain (
+            path_id BIGINT UNSIGNED NOT NULL,
+            ascent_schritt INT UNSIGNED NULL,
+            descent_schritt INT UNSIGNED NULL,
+            profile_json JSON NULL,
+            path_revision BIGINT UNSIGNED NOT NULL,
+            heightmap_stamp CHAR(40) NOT NULL,
+            computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (path_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // One row, id always 1 -- same pattern as ecosystem_assignment_stamp. It carries the CURSOR,
+    // because the profile derivation is a chunked owner action: the server computes here, and a
+    // single request would face 5.655 misses inside a 30 s limit while every concurrent visitor
+    // started the same fill. That is the shape of the pool incident of 2026-07-17.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS path_terrain_stamp (
+            id TINYINT UNSIGNED NOT NULL,
+            run_token CHAR(36) NULL,
+            heightmap_stamp CHAR(40) NOT NULL DEFAULT '',
+            cursor_path_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+            ways_seen INT UNSIGNED NOT NULL DEFAULT 0,
+            ways_with_profile INT UNSIGNED NOT NULL DEFAULT 0,
+            duration_ms INT UNSIGNED NOT NULL DEFAULT 0,
+            completed TINYINT(1) NOT NULL DEFAULT 0,
+            computed_by BIGINT UNSIGNED NULL,
+            computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // ---- V11 §4.5: the cross-country factor per KIND of area ------------------------------------
+    //
+    // 🔴 IT IS WRITTEN AND MAINTAINED IN V11, BUT NOT READ. It works only cross-country (§4.2): a
+    // road through the Reichsforst is a road, and the wood does not slow it -- roads exist precisely
+    // to neutralise the terrain. It stands here so the values are already set when §10 arrives.
+    //
+    // 🔴 HOW THE THREE LAYERS COMBINE, decided here so nobody invents it later (§10.3): a cell is
+    // „Kosch" AND „Wald" AND „Gebirge" at once (derographisch / vegetation / topographie lie on top
+    // of one another -- V10 measured that the shares do not add up to 100 %). The combination is the
+    // MAXIMUM of the three factors, NOT the product: multiplying „forest in a mountain range inside
+    // a derographic region" gives a number nobody can explain any more.
+    //
+    // 💣 Its own column check, deliberately NOT folded into the terrain loop above -- a shared
+    // "was anything new?" flag would re-run the terrain seed and silently reset every value the
+    // owner has adjusted since.
+    if (!$typeColumnExists($pdo, 'offroad_factor')) {
+        $pdo->exec('ALTER TABLE ecosystem_region_type ADD COLUMN offroad_factor DECIMAL(4,2) NOT NULL DEFAULT 1.00');
+        // Chosen, not measured -- owner's own example in spec §4.5 (Wald 1,4 · Gebirge 2,2 ·
+        // Sumpf 3,0), the rest filled in around it. 🔧 They are DATA ROWS: the owner changes them
+        // in the database, no code is touched.
+        foreach ([
+            ['topographie', 'gebirge', 2.20],
+            ['topographie', 'huegelland', 1.30],
+            ['topographie', 'schlucht', 2.60],
+            ['topographie', 'wadi', 1.50],
+            ['topographie', 'hochebene', 1.10],
+            ['topographie', 'flussdelta', 2.00],
+            ['vegetation', 'wald', 1.40],
+            ['vegetation', 'dschungel', 2.40],
+            ['vegetation', 'suempfe_moore', 3.00],
+            ['vegetation', 'wueste', 1.60],
+            ['vegetation', 'tundra', 1.30],
+            ['vegetation', 'auenlandschaft', 1.30],
+            ['vegetation', 'steppe', 1.10],
+            ['vegetation', 'graslandschaft', 1.05],
+        ] as [$kind, $typeKey, $factor]) {
+            $statement = $pdo->prepare(
+                'UPDATE ecosystem_region_type SET offroad_factor = :f WHERE kind = :k AND type_key = :t'
+            );
+            $statement->execute(['f' => $factor, 'k' => $kind, 't' => $typeKey]);
+        }
+    }
+
     avesmapsEcosystemSeedRegionTypes($pdo);
 }
 
