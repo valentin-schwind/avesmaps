@@ -1143,16 +1143,24 @@ const vm = require("vm");
 // they call are globals. Load them into ONE shared context so the globals resolve.
 // 💣 A stub in the sandbox would swallow the very rule under test -- these are the REAL files.
 //
-// 🪤 Only the NON-intrinsic globals are handed in. Every vm context gets its own Math, Object,
-// Array, Promise, Number, JSON and the typed arrays for free; `console`, `Buffer`, `setTimeout`
-// and `module` it does NOT. Those four are exactly the ones the modules reach for --
-// ecosystemHeightmapToBase64 falls back to Buffer because `btoa` is absent here, and the
-// rasteriser's default yield is a setTimeout. Listing the intrinsics instead (and forgetting these)
-// is how this harness fails with a bare "Buffer is not defined" halfway through.
-const context = { module: { exports: {} }, console, Buffer, setTimeout };
+// 🪤 A vm context gets its own Math, Object, Array, Promise and typed arrays for free; `console`,
+// `Buffer`, `setTimeout` and `module` it does NOT — and those are exactly what the modules reach
+// for (ecosystemHeightmapToBase64 falls back to Buffer because `btoa` is absent here, and the
+// rasteriser's default yield is a setTimeout).
+//
+// 💣 `Uint16Array` is handed in for a DIFFERENT reason, and it is the subtler one: the sandbox's
+// own intrinsic is a different object from this file's, so `samples instanceof Uint16Array` is
+// FALSE across the realm boundary no matter how correct the implementation is. Seeding the outer
+// realm's constructor makes the identity check mean what it says. Drop it and the test fails while
+// pointing at the wrong culprit.
+const context = { module: { exports: {} }, console, Buffer, setTimeout, Uint16Array };
 context.globalThis = context;
 vm.createContext(context);
-["map-features-ecosystem-geometry.js",
+// 💣 point-in-polygon FIRST: `pointInGeometry` is a global that both height modules call, and it
+// lives in its own file. Without it the load throws `ReferenceError: pointInGeometry is not
+// defined` from inside the field builder, which reads like a bug in the field builder.
+["map-features-point-in-polygon.js",
+ "map-features-ecosystem-geometry.js",
  "map-features-ecosystem-height-field.js",
  "map-features-ecosystem-height-combine.js",
  "map-features-ecosystem-heightmap-raster.js"].forEach((file) => {
