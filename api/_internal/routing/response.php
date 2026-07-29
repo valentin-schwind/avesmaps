@@ -178,7 +178,7 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$terrainMatched = avesmapsRouteCountTerrainMatches($routeNetworkData['paths'] ?? [], $terrain);
 	// Only asked when terrain is on -- with the switch off there is nothing whose currency matters.
 	$terrainStale = $terrainEnabled && avesmapsRouteTerrainStale($routePdo);
-	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request);
+	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain);
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];

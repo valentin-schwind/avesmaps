@@ -21,7 +21,9 @@ if (ini_get('zend.assertions') !== '1') {
 
 require __DIR__ . '/../request.php';
 require __DIR__ . '/../client-graph.php';
-require __DIR__ . '/../terrain-read.php';
+// require_once, not require: client-graph.php now pulls this file in itself (task 9b), and a plain
+// require here would re-include it and fatal on "Cannot redeclare function".
+require_once __DIR__ . '/../terrain-read.php';
 require __DIR__ . '/../map-data.php';
 require __DIR__ . '/../network-data.php';
 
@@ -79,5 +81,100 @@ foreach (['terrain-read.php', 'client-graph.php', 'response.php'] as $file) {
         $file . " must not key terrain by \$path['id'] -- that field IS the public_id, and the lookup "
         . 'would miss every row while looking perfectly fine');
 }
+
+// ---- the factor in the graph -------------------------------------------------------------------
+require_once __DIR__ . '/../terrain-factor.php';
+
+// One way, three vertices, no interior node: Anfang -> Ende over 20 units, climbing 3.000 Schritt
+// on the first half and falling 3.000 on the second.
+$network = [
+    'locations' => [
+        ['name' => 'Anfang', 'geometry' => ['type' => 'Point', 'coordinates' => [0.0, 0.0]]],
+        ['name' => 'Ende', 'geometry' => ['type' => 'Point', 'coordinates' => [20.0, 0.0]]],
+    ],
+    'paths' => [[
+        'id' => 'w1', 'public_id' => 'w1', 'client_path_id' => 'path-1',
+        'name' => 'Strasse', 'subtype' => 'Strasse', 'revision' => 7,
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]]],
+        'properties' => [], 'flow' => null,
+    ]],
+];
+$plainRequest = ['transports' => AVESMAPS_ROUTE_DEFAULT_REQUEST['transports'], 'enabled_transports' => ['land' => true, 'river' => true, 'sea' => true]];
+
+// --- 💣 THE EMPTY DEFAULT IS BIT-IDENTICAL WITH TODAY --------------------------------------------
+$without = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest);
+$edgeWithout = $without['graph']['Anfang']['Ende'][0];
+assert(!array_key_exists('terrain_time_factor', $edgeWithout),
+    'with no terrain the edge must be EXACTLY the object it is today -- no new keys');
+// Both directions still SHARE one object when there is no terrain (today's behaviour).
+assert($without['graph']['Anfang']['Ende'][0] === $without['graph']['Ende']['Anfang'][0],
+    'without terrain the two directions stay the same shared object');
+
+$terrainMap = ['w1' => ['ascent' => 3000.0, 'descent' => 3000.0,
+    'profile' => [[3000.0, 0.0], [0.0, 3000.0]], 'revision' => 7, 'stamp' => 'x']];
+$with = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $terrainMap);
+$forward = $with['graph']['Anfang']['Ende'][0];
+$backward = $with['graph']['Ende']['Anfang'][0];
+
+// --- the factor is applied, and the same one both ways here (equal up and down) ------------------
+assert(isset($forward['terrain_time_factor']), 'a way with a profile must carry its factor');
+assert(abs($forward['time'] - $edgeWithout['time'] * $forward['terrain_time_factor']) < 1e-9,
+    'the time must be the base time times the factor -- nothing else');
+assert($forward['ascent_schritt'] === 3000.0 && $forward['descent_schritt'] === 3000.0,
+    'ascent and descent travel with the edge');
+
+// --- 💣 DIRECTION. from/to stay the STORED orientation on both variants (the verlauf flow
+// derivation's chain walk depends on that, client-graph.php:218-219). Ascent one way is descent the
+// other -- that is the whole rule, and from/to are NOT swapped.
+assert($forward['from'] === 'Anfang' && $backward['from'] === 'Anfang',
+    'from/to must stay the stored orientation on BOTH variants');
+$asym = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0,
+    'profile' => [[1500.0, 0.0], [1500.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+$asymGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $asym);
+$up = $asymGraph['graph']['Anfang']['Ende'][0];
+$down = $asymGraph['graph']['Ende']['Anfang'][0];
+assert($up['terrain_time_factor'] > 1.0, 'going up must cost more');
+assert($down['terrain_time_factor'] < 1.0, 'the same way downhill must be faster');
+assert($up['ascent_schritt'] === 3000.0 && $down['ascent_schritt'] === 0.0,
+    'the reverse variant climbs what the forward one falls');
+
+// --- a stale path_revision falls back to today's number, silently and correctly ------------------
+$staleMap = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0]], 'revision' => 6, 'stamp' => 'x']];
+$staleGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $staleMap);
+assert(abs($staleGraph['graph']['Anfang']['Ende'][0]['time'] - $edgeWithout['time']) < 1e-12,
+    'a profile computed against another revision of this way must not change its time');
+
+// --- 💣 A SLICE USES ITS OWN SEGMENTS, NEVER THE PARENT AVERAGE ---------------------------------
+// Split the way at an interior node sitting on the middle vertex. The first half climbs, the second
+// falls -- with a parent average both halves would come out identical, and that is exactly the
+// error the back-computation makes.
+$split = $network;
+$split['locations'][] = ['name' => 'Mitte', 'geometry' => ['type' => 'Point', 'coordinates' => [10.0, 0.0]]];
+$splitGraph = avesmapsBuildClientCompatibleRouteGraph($split, $plainRequest, $terrainMap);
+$firstHalf = $splitGraph['graph']['Anfang']['Mitte'][0];
+$secondHalf = $splitGraph['graph']['Mitte']['Ende'][0];
+assert($firstHalf['ascent_schritt'] === 3000.0 && $firstHalf['descent_schritt'] === 0.0,
+    'the first half must carry ITS climb, not half the way average');
+assert($secondHalf['ascent_schritt'] === 0.0 && $secondHalf['descent_schritt'] === 3000.0,
+    'the second half must carry ITS fall');
+assert($firstHalf['terrain_time_factor'] > $secondHalf['terrain_time_factor'],
+    'climbing half and falling half must not come out equal');
+
+// --- 💣 THE RIVER CLAMP STAYS THE RIVER CLAMP ---------------------------------------------------
+// Flow and slope MULTIPLY, and the flow factor keeps its own [1,0 ... 3,0]. Inheriting that bound
+// for the slope would clamp every descent up to 1,0 and downhill would never be faster than level.
+$river = $network;
+$river['paths'][0]['subtype'] = 'Flussweg';
+$river['paths'][0]['name'] = 'Flussweg';
+$river['paths'][0]['flow'] = ['dir' => 'forward', 'factor' => 2.0];
+$riverGraph = avesmapsBuildClientCompatibleRouteGraph($river, $plainRequest, $asym);
+$riverUp = $riverGraph['graph']['Anfang']['Ende'][0];
+assert($riverUp['flow_time_factor'] === 1.0, 'travelling WITH the current stays the base flow factor');
+$riverBack = $riverGraph['graph']['Ende']['Anfang'][0];
+assert($riverBack['flow_time_factor'] === 2.0, 'against the current the flow factor applies');
+assert($riverBack['terrain_time_factor'] < 1.0, 'and the slope factor applies on top, independently');
+$riverBase = avesmapsBuildClientCompatibleRouteGraph($river, $plainRequest)['graph']['Ende']['Anfang'][0];
+assert(abs($riverBack['time'] - $riverBase['time'] * $riverBack['terrain_time_factor']) < 1e-9,
+    'flow and slope must multiply, each with its own clamp');
 
 fwrite(STDOUT, "terrain-read-test: all asserts passed\n");
