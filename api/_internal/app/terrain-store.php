@@ -13,6 +13,11 @@ declare(strict_types=1);
 // load of the pool incident of 2026-07-17, and DDL inside a transaction commits it silently. The
 // tables come into being on the area read/write paths, long before anyone presses a button.
 
+// ⚠️ avesmapsUuidV4 (features.php) and avesmapsPathEcosystemTokenMatches (path-ecosystem.php) are
+// NOT required here on purpose: the dispatcher api/edit/map/ecosystem.php loads both before this
+// file, and requiring them would drag ecosystem.php's DDL into this include tree. The routing path
+// includes heightmap.php, never this file.
+
 // The ONE resolution the whole feature integrates height at, in map units. It is NOT a per-request
 // knob, and that is a deliberate departure from owner decision 8 (spec §5.3): the ascent over
 // fractal ground is a TOTAL VARIATION and grows with sampling density -- x sqrt(2) per halving at a
@@ -325,5 +330,264 @@ function avesmapsTerrainHeightmapStatus(PDO $pdo): array
         'stale' => $stale,
         'peaks_with_height' => count(array_filter($inputs['peaks'], static fn(array $p): bool => $p['height_schritt'] !== null)),
         'peaks_total' => count($inputs['peaks']),
+    ];
+}
+
+// ---- the profile derivation --------------------------------------------------------------------
+
+// Ways per step. With a 4 s wall-clock budget on top, whichever comes first. The whole run is a
+// handful of requests, and each stays far inside a FastCGI limit.
+const AVESMAPS_TERRAIN_PROFILE_BATCH = 400;
+const AVESMAPS_TERRAIN_PROFILE_BUDGET_MS = 4000;
+
+/**
+ * PURE: walk a line over the summed rasters and add up climb and fall.
+ *
+ * 🔴 THE LINE IS THE CHORD, not the drawn Catmull-Rom curve. Everything that turns these numbers
+ * into a time measures on the raw support points -- avesmapsCalculateClientRouteCoordinateDistance
+ * sums plain hypot over the STORED vertices, and that is what the graph distance, the travel time
+ * and the legs are made of. A curve length would be a different measure system for the same name.
+ *
+ * 🔴 SAMPLED EVERY AVESMAPS_TERRAIN_CELL_SIZE ALONG THE SEGMENT, never just at its ends. The ascent
+ * is a total variation and grows with sampling density (§5.3); a fixed integration step is what
+ * makes one row comparable with the next, and with A* later.
+ *
+ * ⚠️ This is more work than spec §5.4 estimated (it counted 72.278 points = two per segment; a
+ * 0,25-step walk over 36.139 segments of mean length 1,436 is closer to 207.000). At a measured
+ * 0,08 microseconds per punctual read that is ~17 ms of sampling for the whole stock -- and almost
+ * every way skips it entirely, because its bbox touches no raster at all.
+ *
+ * Returns null when the line touches no raster anywhere: „no height data", NOT level ground.
+ *
+ * @return array{ascent:float,descent:float,profile:list<array{0:float,1:float}>,samples:int}|null
+ */
+function avesmapsTerrainProfileForLine(array $rasters, array $coordinates): ?array
+{
+    $count = count($coordinates);
+    if ($count < 2 || $rasters === []) {
+        return null;
+    }
+
+    $profile = [];
+    $totalUp = 0.0;
+    $totalDown = 0.0;
+    $sampleCount = 0;
+    $touched = false;
+
+    for ($index = 0; $index < $count - 1; $index++) {
+        $from = $coordinates[$index];
+        $to = $coordinates[$index + 1];
+        if (!is_array($from) || !is_array($to) || count($from) < 2 || count($to) < 2) {
+            $profile[] = [0.0, 0.0];
+            continue;
+        }
+        $fromX = (float) $from[0]; $fromY = (float) $from[1];
+        $toX = (float) $to[0]; $toY = (float) $to[1];
+        $length = hypot($toX - $fromX, $toY - $fromY);
+        // At least the two ends; otherwise one sample per cell along the segment.
+        $steps = max(1, (int) ceil($length / AVESMAPS_TERRAIN_CELL_SIZE));
+
+        $up = 0.0;
+        $down = 0.0;
+        $previous = null;
+        for ($step = 0; $step <= $steps; $step++) {
+            $t = $steps > 0 ? $step / $steps : 0.0;
+            // 💣 THE READER SUMS over every raster covering the point (§5.0). Each raster holds only
+            // its area's OWN field; reading „the one that contains the point" gives a height that is
+            // too low in every overlap strip, and shows nothing unusual doing it.
+            $height = avesmapsHeightmapSampleSum($rasters, $fromX + ($toX - $fromX) * $t, $fromY + ($toY - $fromY) * $t);
+            $sampleCount++;
+            if ($height === null) {
+                // A gap in coverage breaks the chain rather than inventing a step down to nothing.
+                $previous = null;
+                continue;
+            }
+            $touched = true;
+            if ($previous !== null) {
+                $delta = $height - $previous;
+                if ($delta > 0.0) { $up += $delta; } else { $down -= $delta; }
+            }
+            $previous = $height;
+        }
+        $profile[] = [round($up, 2), round($down, 2)];
+        $totalUp += $up;
+        $totalDown += $down;
+    }
+
+    if (!$touched) {
+        return null;
+    }
+
+    return [
+        'ascent' => round($totalUp, 2),
+        'descent' => round($totalDown, 2),
+        'profile' => $profile,
+        'samples' => $sampleCount,
+    ];
+}
+
+/** Start a profile run: a token, a cursor at zero, the raster stamp this run describes. */
+function avesmapsTerrainProfileBegin(PDO $pdo, int $userId): array
+{
+    $runToken = avesmapsUuidV4();
+    $stamp = avesmapsHeightmapGlobalStamp($pdo);
+
+    // Orphans first: a path_terrain row whose way is gone would otherwise be dragged along forever.
+    $pdo->exec(
+        'DELETE t FROM path_terrain t
+           LEFT JOIN map_features f ON f.id = t.path_id AND f.is_active = 1 AND f.feature_type = \'path\'
+          WHERE f.id IS NULL'
+    );
+
+    // 🔴 The rows are NOT cleared. Unlike V9's run, every row here carries its OWN validity
+    // (path_revision + heightmap_stamp), so a half-finished run leaves a usable mixture rather than
+    // a hole -- and an interrupted run can simply be continued.
+    $statement = $pdo->prepare(
+        'INSERT INTO path_terrain_stamp
+             (id, run_token, heightmap_stamp, cursor_path_id, ways_seen, ways_with_profile, duration_ms, completed, computed_by)
+         VALUES (1, :token, :stamp, 0, 0, 0, 0, 0, :user)
+         ON DUPLICATE KEY UPDATE run_token = VALUES(run_token), heightmap_stamp = VALUES(heightmap_stamp),
+             cursor_path_id = 0, ways_seen = 0, ways_with_profile = 0, duration_ms = 0, completed = 0,
+             computed_by = VALUES(computed_by), computed_at = CURRENT_TIMESTAMP(3)'
+    );
+    $statement->execute(['token' => $runToken, 'stamp' => $stamp, 'user' => $userId > 0 ? $userId : null]);
+
+    $total = (int) $pdo->query("SELECT COUNT(*) FROM map_features WHERE feature_type = 'path' AND is_active = 1")->fetchColumn();
+
+    return ['run_token' => $runToken, 'heightmap_stamp' => $stamp, 'ways_total' => $total];
+}
+
+/**
+ * One step of the run: up to AVESMAPS_TERRAIN_PROFILE_BATCH ways past the cursor, or 4 s, whichever
+ * comes first.
+ *
+ * 💣 A CURSOR, NOT AN OFFSET. `LIMIT ... OFFSET` re-reads everything before it on every step; over a
+ * whole run that is quadratic. The cursor is the last id written.
+ *
+ * 💣 The token is what a GET_LOCK cannot do here: a connection-scoped lock dies with its request and
+ * a run spans many. Two editors running at once would otherwise interleave their steps. The second
+ * `begin` wins the token and the first one's next step gets a clean 409.
+ */
+function avesmapsTerrainProfileStep(PDO $pdo, array $payload): array
+{
+    $offered = trim((string) ($payload['run_token'] ?? ''));
+    $row = $pdo->query('SELECT run_token, heightmap_stamp, cursor_path_id, ways_seen, ways_with_profile, duration_ms FROM path_terrain_stamp WHERE id = 1')
+        ->fetch(PDO::FETCH_ASSOC);
+    if ($row === false || !avesmapsPathEcosystemTokenMatches($row['run_token'] ?? null, $offered)) {
+        avesmapsErrorResponse(409, 'run_token_stale', 'Another terrain profile run has started. Start over.');
+    }
+
+    // Loaded ONCE per step, not per way. At 15 areas that is ~1 MB of blob and stays a string.
+    $rasters = avesmapsHeightmapLoadAll($pdo);
+    $stamp = (string) $row['heightmap_stamp'];
+    $cursor = (int) $row['cursor_path_id'];
+    $startedMs = (int) (microtime(true) * 1000);
+
+    $statement = $pdo->prepare(
+        "SELECT id, revision, geometry_json, min_x, min_y, max_x, max_y
+           FROM map_features
+          WHERE feature_type = 'path' AND is_active = 1 AND id > :cursor
+          ORDER BY id LIMIT " . AVESMAPS_TERRAIN_PROFILE_BATCH
+    );
+    $statement->execute(['cursor' => $cursor]);
+    $ways = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    $insert = $pdo->prepare(
+        'INSERT INTO path_terrain (path_id, ascent_schritt, descent_schritt, profile_json, path_revision, heightmap_stamp)
+         VALUES (:path, :ascent, :descent, :profile, :rev, :stamp)
+         ON DUPLICATE KEY UPDATE ascent_schritt = VALUES(ascent_schritt), descent_schritt = VALUES(descent_schritt),
+             profile_json = VALUES(profile_json), path_revision = VALUES(path_revision),
+             heightmap_stamp = VALUES(heightmap_stamp), computed_at = CURRENT_TIMESTAMP(3)'
+    );
+
+    $seen = 0;
+    $withProfile = 0;
+    foreach ($ways as $way) {
+        $cursor = (int) $way['id'];
+        $seen++;
+        // The cheap pre-filter: does this way's bbox touch ANY raster? Most ways touch none, and
+        // then there is nothing to walk.
+        $touchesRaster = false;
+        foreach ($rasters as $raster) {
+            if (!((float) $way['max_x'] < $raster['min_x'] || $raster['max_x'] < (float) $way['min_x']
+                || (float) $way['max_y'] < $raster['min_y'] || $raster['max_y'] < (float) $way['min_y'])) {
+                $touchesRaster = true;
+                break;
+            }
+        }
+        $profile = null;
+        if ($touchesRaster) {
+            $geometry = json_decode((string) $way['geometry_json'], true);
+            $coordinates = is_array($geometry) && ($geometry['type'] ?? '') === 'LineString'
+                && is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
+            $profile = avesmapsTerrainProfileForLine($rasters, $coordinates);
+        }
+        // 💣 NULL, NEVER 0. „No height data" and „measured and level" are two different statements,
+        // and with 51 of 67 peaks carrying no height the first one is the common case.
+        $insert->execute([
+            'path' => (int) $way['id'],
+            'ascent' => $profile === null ? null : (int) round($profile['ascent']),
+            'descent' => $profile === null ? null : (int) round($profile['descent']),
+            'profile' => $profile === null ? null : json_encode($profile['profile']),
+            // 🔴 The way's OWN revision, NOT map_revision. map_revision is a global counter bumped by
+            // settlement, label, source and sync writes -- and peaks are `berggipfel` LABELS in
+            // map_features, so entering one peak height would invalidate all 5.655 rows in one go.
+            'rev' => (int) $way['revision'],
+            'stamp' => $stamp,
+        ]);
+        if ($profile !== null) {
+            $withProfile++;
+        }
+        if ((int) (microtime(true) * 1000) - $startedMs > AVESMAPS_TERRAIN_PROFILE_BUDGET_MS) {
+            break;
+        }
+    }
+
+    $done = count($ways) < AVESMAPS_TERRAIN_PROFILE_BATCH && $seen === count($ways);
+    $update = $pdo->prepare(
+        'UPDATE path_terrain_stamp
+            SET cursor_path_id = :cursor, ways_seen = ways_seen + :seen,
+                ways_with_profile = ways_with_profile + :hit,
+                duration_ms = duration_ms + :ms, completed = :done,
+                computed_at = CURRENT_TIMESTAMP(3)
+          WHERE id = 1'
+    );
+    $elapsed = (int) (microtime(true) * 1000) - $startedMs;
+    $update->execute([
+        'cursor' => $cursor, 'seen' => $seen, 'hit' => $withProfile,
+        'ms' => max(0, $elapsed), 'done' => $done ? 1 : 0,
+    ]);
+
+    return [
+        'done' => $done,
+        'cursor' => $cursor,
+        'seen' => $seen,
+        'with_profile' => $withProfile,
+        'elapsed_ms' => max(0, $elapsed),
+    ];
+}
+
+/** The stamp plus the CURRENT raster stamp, so the tile can say „veraltet" without a second request. */
+function avesmapsTerrainProfileStatus(PDO $pdo): array
+{
+    $row = $pdo->query('SELECT * FROM path_terrain_stamp WHERE id = 1')->fetch(PDO::FETCH_ASSOC);
+    $rows = (int) $pdo->query('SELECT COUNT(*) FROM path_terrain')->fetchColumn();
+    // The HARD COUNTER of §9.2 step 2: how many ways actually carry a profile. Without it a green
+    // „switch off is bit-identical" says nothing -- it is also green when every lookup missed.
+    $withProfile = (int) $pdo->query('SELECT COUNT(*) FROM path_terrain WHERE ascent_schritt IS NOT NULL')->fetchColumn();
+
+    return [
+        'stamp' => $row === false ? null : [
+            'heightmap_stamp' => (string) $row['heightmap_stamp'],
+            'cursor_path_id' => (int) $row['cursor_path_id'],
+            'ways_seen' => (int) $row['ways_seen'],
+            'ways_with_profile' => (int) $row['ways_with_profile'],
+            'duration_ms' => (int) $row['duration_ms'],
+            'completed' => (int) $row['completed'] === 1,
+            'computed_at' => (string) $row['computed_at'],
+        ],
+        'rows' => $rows,
+        'rows_with_profile' => $withProfile,
+        'current_heightmap_stamp' => avesmapsHeightmapGlobalStamp($pdo),
     ];
 }

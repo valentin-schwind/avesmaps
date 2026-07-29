@@ -119,6 +119,13 @@ try {
         'heightmap_put' => avesmapsTerrainHeightmapPut($pdo, $payload, $userId),
         'heightmap_cleanup' => avesmapsTerrainHeightmapCleanup($pdo),
         'heightmap_status' => avesmapsTerrainHeightmapStatus($pdo),
+        // V11: the way profiles. 💣 The cache NEVER fills itself inside a request -- 5.655 misses
+        // after a raster run, every concurrent visitor starting the same fill, each holding a PHP
+        // worker. That is the shape of the pool incident of 2026-07-17. It is an owner-triggered,
+        // chunked run with a token, a budget and a cursor, exactly like V9's and the dump phases.
+        'terrain_profile_begin' => avesmapsTerrainProfileBegin($pdo, $userId),
+        'terrain_profile_step' => avesmapsTerrainProfileStep($pdo, $payload),
+        'terrain_profile_status' => avesmapsTerrainProfileStatus($pdo),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unknown action.'),
     };
 

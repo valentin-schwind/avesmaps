@@ -44,6 +44,7 @@
     <button type="button" class="avm-tile avm-tile--primary" id="ecoSync" data-i18n-title="ecosystem.editor.sync.title" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen). Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1" data-i18n="ecosystem.editor.ribbon.sync">🚨 Syncen</span><span class="t2" id="ecoSyncInfo" data-i18n="ecosystem.editor.ribbon.syncInfo">Regionen aus dem Wiki-Dump</span></button>
     <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoEnabled" disabled data-i18n-title="ecosystem.editor.enabled.title" title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1" data-i18n="ecosystem.editor.ribbon.enabled">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo" data-i18n="ecosystem.editor.enabled.unknown">Zustand unbekannt</span></button>
   </div>
 </div>
@@ -538,6 +539,7 @@ let assignmentStamp = null;      // was der Server über den letzten gespeichert
 const PEAKS_API = "/api/edit/map/peaks-geometry.php";
 let allPeaks = null;             // null = in dieser Sitzung noch nicht geholt
 let heightmapStatus = null;      // was der Server über die gespeicherten Raster sagt
+let terrainProfileStatus = null; // was der Server über die gespeicherten Wegprofile sagt
 
 async function loadPeaks() {
 	const response = await fetch(PEAKS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
@@ -1092,6 +1094,60 @@ function renderHeightmapTile() {
 	info.textContent = parts.join(" · ");
 }
 
+// 🔴 Gestückelt, mit Lauf-Token, Budget und Cursor. Der Browser ruft nur wiederholt auf; gerechnet
+// wird auf dem Server, und jeder Schritt bleibt weit unter jedem FastCGI-Limit.
+async function runTerrainProfiles() {
+	const tile = $("ecoProfiles");
+	const info = $("ecoProfilesInfo");
+	tile.disabled = true;
+	const started = Date.now();
+	try {
+		const begun = await ecoPost("terrain_profile_begin", {});
+		const runToken = String(begun.run_token || "");
+		if (runToken === "") { throw new Error("Der Server hat kein Lauf-Kennzeichen geliefert."); }
+		const total = Number(begun.ways_total || 0);
+
+		let seen = 0;
+		let withProfile = 0;
+		// Ein Riegel gegen eine Endlosschleife, falls der Cursor je stehen bliebe: bei 400 Wegen je
+		// Schritt sind 5.655 Wege 15 Schritte, 200 sind Faktor 13 Luft.
+		for (let step = 0; step < 200; step++) {
+			const result = await ecoPost("terrain_profile_step", { run_token: runToken });
+			seen += Number(result.seen || 0);
+			withProfile += Number(result.with_profile || 0);
+			info.textContent = "Wege " + seen + "/" + total + " · " + withProfile + " mit Profil";
+			if (result.done === true || Number(result.seen || 0) === 0) { break; }
+		}
+
+		terrainProfileStatus = await ecoPost("terrain_profile_status", {});
+		renderProfileTile();
+		const seconds = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
+		flashStatus(withProfile + " von " + seen + " Wegen tragen ein Profil · " + seconds + " s", "ok");
+	} catch (error) {
+		info.textContent = "fehlgeschlagen";
+		flashStatus("Wegprofile: " + (error && error.message ? error.message : String(error)), "bad");
+	} finally {
+		tile.disabled = false;
+	}
+}
+
+// ⚠️ „0 Wege mit Profil" ist die Zahl, auf die es ankommt (Abnahmeschritt 2). Steht sie auf 0,
+// obwohl Raster da sind, verfehlt die Suche die Wege -- und das sähe sonst aus wie ein Kurvenproblem.
+function renderProfileTile() {
+	const info = $("ecoProfilesInfo");
+	if (!info || !terrainProfileStatus) { return; }
+	const stamp = terrainProfileStatus.stamp;
+	if (!stamp || stamp.ways_seen === 0) { info.textContent = "noch nicht gerechnet"; return; }
+	if (!stamp.completed) {
+		info.textContent = "unvollständig bei Weg " + stamp.cursor_path_id + " — bitte neu rechnen";
+		return;
+	}
+	const stale = stamp.heightmap_stamp !== terrainProfileStatus.current_heightmap_stamp;
+	const base = terrainProfileStatus.rows_with_profile + " von " + terrainProfileStatus.rows + " Wegen mit Profil · "
+		+ (stamp.duration_ms / 1000).toFixed(1).replace(".", ",") + " s";
+	info.textContent = stale ? base + " · Raster seither geändert" : base;
+}
+
 function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
 
 function percent(share) { return (share * 100).toFixed(1).replace(".", ",") + " %"; }
@@ -1546,6 +1602,7 @@ function wireRibbon() {
 	// clipping and no political-layer fan-out at all.
 	$("ecoRaycast").addEventListener("click", () => { void runRaycast({ force: true }); });
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
+	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
 
 	// Der Totmannschalter. `set_enabled` existiert serverseitig seit V2.1 und hatte bis heute KEINEN
 	// Aufrufer im Client (grep set_enabled js/ -> leer) -- diese Kachel ist seine erste Oberfläche.
@@ -1887,6 +1944,10 @@ async function loadAssignmentStamp() {
 		heightmapStatus = await ecoPost("heightmap_status", {});
 		renderHeightmapTile();
 	} catch (error) { /* dito */ }
+	try {
+		terrainProfileStatus = await ecoPost("terrain_profile_status", {});
+		renderProfileTile();
+	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
 }
 
 // ---- Boot ------------------------------------------------------------------------------------

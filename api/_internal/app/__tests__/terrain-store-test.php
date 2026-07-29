@@ -109,4 +109,57 @@ assert(avesmapsTerrainPeaksFingerprint($peaks, [
 // A lake being redrawn does NOT appear here at all -- it carries no height field, so it cannot steal
 // a peak. That is the whole point of restricting the list.
 
+// ---- the profile derivation -------------------------------------------------------------------
+require_once __DIR__ . '/../heightmap.php';
+
+// A 5x1 ramp along x at origin (0,0), cell 1,0 (coarser than the stock resolution, allowed):
+//   0  1000  2000  1000  0     -- up then down, so ascent and descent are both non-zero.
+$ramp = avesmapsHeightmapDecode([
+    'origin_x' => '0.0000', 'origin_y' => '0.0000', 'cell_size_mapunits' => '1.0000',
+    'width_px' => 5, 'height_px' => 1,
+    'samples' => gzdeflate(pack('v*', 0, 1000, 2000, 1000, 0)), 'sample_bytes' => 10,
+]);
+$ramp['area_id'] = 1;
+$ramp['min_x'] = 0.0; $ramp['min_y'] = 0.0; $ramp['max_x'] = 4.0; $ramp['max_y'] = 0.0;
+
+// A way straight along the ridge: 0 -> 4 in x.
+$profile = avesmapsTerrainProfileForLine([$ramp], [[0.0, 0.0], [4.0, 0.0]]);
+assert(is_array($profile), 'a way over a raster must produce a profile');
+assert(abs($profile['ascent'] - 2000.0) < 1.0, 'climb 0 -> 2000 is 2000 Schritt, got ' . $profile['ascent']);
+assert(abs($profile['descent'] - 2000.0) < 1.0, 'fall 2000 -> 0 is 2000 Schritt, got ' . $profile['descent']);
+assert(count($profile['profile']) === 1, 'one segment gives one profile pair');
+
+// Per SEGMENT, not per way: a way with three vertices gives three pairs, and their sum is the total.
+$threeLegs = avesmapsTerrainProfileForLine([$ramp], [[0.0, 0.0], [2.0, 0.0], [3.0, 0.0], [4.0, 0.0]]);
+assert(count($threeLegs['profile']) === 3, 'three segments give three profile pairs');
+$sumUp = array_sum(array_column($threeLegs['profile'], 0));
+assert(abs($sumUp - $threeLegs['ascent']) < 1.0, 'the per-segment pairs must sum to the total ascent');
+assert(abs($threeLegs['profile'][0][0] - 2000.0) < 1.0, 'the first leg carries the whole climb');
+assert($threeLegs['profile'][0][1] < 1.0, 'the first leg falls nowhere');
+assert($threeLegs['profile'][1][0] < 1.0, 'the second leg climbs nowhere');
+assert(abs($threeLegs['profile'][1][1] - 1000.0) < 1.0, 'the second leg carries half the fall');
+
+// 💣 A WAY OUTSIDE EVERY RASTER IS null, NOT ZERO. „No height data" and „measured and level" are
+// different answers, and today 51 of 67 peaks carry no height at all.
+assert(avesmapsTerrainProfileForLine([$ramp], [[900.0, 900.0], [901.0, 900.0]]) === null,
+    'a way beyond every bbox has NO data -- it is not level ground');
+assert(avesmapsTerrainProfileForLine([], [[0.0, 0.0], [4.0, 0.0]]) === null,
+    'no raster at all is no data');
+
+// A way that only PARTLY overlaps still answers, for the part it can measure.
+$partly = avesmapsTerrainProfileForLine([$ramp], [[2.0, 0.0], [900.0, 0.0]]);
+assert(is_array($partly), 'a way that touches a raster at all must answer');
+
+// Degenerate input does not throw and does not divide.
+assert(avesmapsTerrainProfileForLine([$ramp], [[0.0, 0.0]]) === null, 'a single point is not a line');
+assert(avesmapsTerrainProfileForLine([$ramp], []) === null, 'an empty line is not a line');
+
+// 💣 THE INTEGRATION RESOLUTION IS FIXED. The ascent over fractal ground is a TOTAL VARIATION: it
+// grows with sampling density (x sqrt(2) per halving). Sampling a segment only at its endpoints
+// would measure a fraction of the climb a finer walk sees -- and A* at 0,5 cells would then prefer
+// cross-country EXACTLY in the mountains, out of a pure sampling artefact (§5.3).
+$coarse = avesmapsTerrainProfileForLine([$ramp], [[0.0, 0.0], [4.0, 0.0]]);
+assert($coarse['samples'] > 4, 'the walk must sample INSIDE a segment, not just its ends, got '
+    . $coarse['samples']);
+
 fwrite(STDOUT, "terrain-store-test: all asserts passed\n");
