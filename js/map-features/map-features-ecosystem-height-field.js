@@ -81,6 +81,18 @@ const ECOSYSTEM_HEIGHT_PLACEHOLDER = ECOSYSTEM_HEIGHT_DEFAULT;
 // 2026-07-28). Damit überragt erfundenes Gelände nie einen benannten Gipfel -- dieselbe Absicht wie
 // `avgMax = minG` im Prototyp, nur ohne Regler.
 // ⚠️ Startwert, nach Augenmaß zu prüfen, keine gemessene Größe.
+// ⚠️ ES IST DAS MAXIMUM DES RAUSCHENS, NICHT SEIN DURCHSCHNITT. Die Dämpfung unten rechnet
+// `Ziel / lautester Punkt` -- getroffen wird also die HÖCHSTE erfundene Stelle, der Mittelwert liegt
+// bei grob einem Drittel davon. Der Regler hiess bis 2026-07-29 „Durchschnittshöhe" und log damit:
+// wer 9.850 einstellte, bekam eine einzelne 9.850er Kuppe und viel niedrigeres Gelände darunter.
+//
+// 🔴 OFFEN, vom Owner beauftragt: Durchschnitt UND Maximum trennen. Zwei Zahlen beschreiben die FORM
+// des Geländes, nicht nur seine Spitze -- ein Hochplateau (Ø 3.000 / max 3.500) ist etwas anderes als
+// zerklüftetes Vorland (Ø 800 / max 4.000), und heute lassen sich die beiden nicht unterscheiden.
+// Der Weg: beim Bauen auch den MITTELWERT des Rauschens messen, dann Skalierung und eine Potenz so
+// wählen, dass Mittel → Ø und Maximum → max. Zwei Zwänge, zwei Freiheitsgrade. Läuft einmal beim
+// Bauen, nicht in der Malschleife. 💣 Beides muss MULTIPLIKATIV bleiben -- ein additiver Sockel bräche
+// die Fusshöhe-0-Invariante und damit die Verschmelzung zweier Flächen.
 const ECOSYSTEM_HEIGHT_NOISE_SHARE = 0.4;
 
 // Saat aus der Identität der Fläche, nicht aus dem Zufall. Ändert sich die Geometrie, ändert sich die
