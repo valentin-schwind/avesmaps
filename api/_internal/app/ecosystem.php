@@ -1931,7 +1931,7 @@ function avesmapsEcosystemRegionSnapshot(array $row): array
 // setzt die Spalte auf NULL zurück statt eine 0 zu schreiben.
 function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userId): array
 {
-    avesmapsEnsureEcosystemTables($pdo);
+    avesmapsEcosystemEnsureTables($pdo);
     $publicId = trim((string) ($payload['public_id'] ?? ''));
     if ($publicId === '') {
         throw new InvalidArgumentException('Die Fläche fehlt.');
