@@ -253,19 +253,57 @@ ausgenommen, die liegen ohnehin auf beiden Linien) — Abstand des abgeleiteten 
 | max | 0,4919 | 1.476 | 15,74 | 62,97 |
 
 **74 % liegen unter einem Pixel** bei voller Kachelzoomstufe, 97,5 % unter drei; genau
-**2** Punkte über zehn. Eine Markierung säße also exakt am Waldrand und typischerweise
-unter einem Pixel neben der Straße — das liest sich als richtig.
+**2** Punkte über zehn.
 
 > ⚠️ **z7 ist viermal so empfindlich.** Die Karte lässt eine Stufe über die native
 > Kachelzoomstufe hinaus zu (`bootstrap.js:41`, `maxZoom: 7`). Dort ist der Median schon
 > 2 px und das p99 16 px. Wer die Punkte als Marker zeigt, prüft sie **dort**, nicht bei z5.
 
-**Die Lösung, falls es je stört, ist eine Anzeige-Lösung und keine Speicher-Lösung:** den
-Punkt beim Zeichnen auf die geglättete Linie fallen lassen (nächster Punkt auf der
-gezeichneten Polylinie, ein Dutzend Zeilen). Die gespeicherte Bogenlänge bleibt, wo sie
-hingehört — im Maßsystem des Routings (§5.2). **Nicht** umgekehrt: die Speicherung auf die
-Kurve umzustellen, um einen Marker um einen halben Pixel zu verschieben, zerlegt die
-Einheit, an der V10 und V11 hängen.
+#### 4.1b 💣 „Auf der Straße" und „an der richtigen Stelle" sind zwei verschiedene Fragen
+
+Die Tabelle oben beantwortet nur die erste. Die zweite ist **„wo verlässt die gezeichnete
+Straße den Wald"** — und dort ist der Abstand um Größenordnungen größer, weil der
+Übergangspunkt **entlang der Waldgrenze** wandert: läuft die Straße flach zur Grenze,
+verschiebt ein winziger seitlicher Versatz den Schnittpunkt weit.
+
+Gemessen, Abstand Sehnen-Übergang ↔ nächstgelegener **Kurven**-Übergang (beide liegen
+exakt auf der Flächengrenze):
+
+| | Karteneinheiten | Meter | px bei z5 | px bei z7 |
+|---|---|---|---|---|
+| Median | 0,0405 | 122 | **1,30** | 5,19 |
+| p90 | 0,3375 | 1.013 | 10,80 | 43,20 |
+| p99 | 1,5804 | 4.741 | 50,57 | 202,29 |
+| max | 5,3354 | 16.006 | 170,73 | 682,93 |
+
+Nur 43 % liegen bei z5 unter einem Pixel, bei z7 sind es 17,6 %. Und **12 Sehnen-Übergänge
+haben überhaupt kein Kurven-Gegenstück** — dort schneidet die Sehne die Fläche, die
+gezeichnete Kurve nicht.
+
+> 🔴 **Damit ist die Frage „Kurvenparameter `u` als Notiz mitspeichern?" beantwortet —
+> Owner-Frage 2026-07-29. Technisch trivial, als Speicherung trotzdem falsch:**
+>
+> 1. **Er ist von der Darstellungs-Konfiguration abhängig.** Die Kurvenform hängt an
+>    `tension: 0.5`, ihre gezeichnete Näherung an `samples: 8`, und ob es sie überhaupt
+>    gibt an `?smoothLines=0` — alles `js/config.js`. Wer `tension` auf 0,4 stellt, macht
+>    **jedes gespeicherte `u` still falsch**. Ein gespeicherter Wert darf nicht an einer
+>    Anzeige-Konstante hängen.
+> 2. **Er ist eine zweite Wahrheit, die der ersten widersprechen kann** — bewiesen durch
+>    die 12 Übergänge ohne Gegenstück. Welcher gilt dann?
+> 3. **Er ist umsonst zu haben.** Der Client hält die geglättete Linie ohnehin schon:
+>    `getPathVisualLatLngCoordinates` (`map-features-path-rendering.js:273`) liefert sie,
+>    weil er die Straße damit zeichnet und Label darauf setzt.
+>
+> **Der richtige Weg, und er kostet nichts:** der Kern aus §5 nimmt eine
+> **Koordinatenliste** (bindende Regel dort). Wer die Übergänge auf der gezeichneten
+> Kurve braucht, ruft **dieselbe Funktion** mit der geglätteten Liste auf und bekommt
+> Kurven-Intervalle — exakt, immer zur aktuellen Konfiguration, ohne eine einzige
+> gespeicherte Zahl. Genau dafür ist die Regel da.
+
+**Zusammengefasst:** die Speicherung bleibt auf der Sehne — das ist das Maßsystem von
+V10 und V11 (§5.2). Braucht eine spätere Anzeige den sichtbaren Übergangspunkt, rechnet
+sie ihn zur Anzeigezeit auf der geglätteten Linie. **Nicht** umgekehrt: die Speicherung
+auf die Kurve umzustellen zerlegt die Einheit, an der das Routing hängt.
 
 ### 4.2 `ecosystem_region_overlap` — Teil A
 
