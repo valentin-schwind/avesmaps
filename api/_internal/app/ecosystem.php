@@ -101,6 +101,14 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // die Aussage. Tief heisst warm, feucht und leicht zu bereisen -- hoch heisst der umgekehrte Satz.
     // Deshalb zwei Arten und nicht eine mit einem Zusatz.
     ['topographie', 'tiefebene', 'Tiefebene', 90],
+    // Owner 2026-07-29. 🪤 `tal` ist der einzige Zugang, den es als Label-SUBTYP längst gab (Fall #51,
+    // damals mit einer Umschlüsselung von 25 Altlabels) -- er fehlte nur als Flächenart. Von den acht
+    // Stellen, die eine neue Art sonst braucht, waren also sechs schon versorgt; nötig waren dieser
+    // Eintrag und ein Farbton. Wer hier nachzieht: erst nachsehen, was der Schlüssel schon kennt.
+    //
+    // Neben der Schlucht und kein Zwilling von ihr: beide sind Einschnitte, aber das Tal ist breit und
+    // begehbar, die Schlucht eng und ein Hindernis. Deshalb auch der weichere, grünere Ton.
+    ['topographie', 'tal', 'Tal', 100],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],
