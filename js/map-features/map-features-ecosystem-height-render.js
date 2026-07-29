@@ -112,6 +112,8 @@
 	let stackDirty = true;
 	let rampCache = null;
 	let lastPaintMs = 0;
+	// Solange der Flächendialog offen ist: volle Deckung statt höhenabhängigem Alpha.
+	let solidMode = false;
 
 	function rampColors() {
 		if (rampCache) {
@@ -338,7 +340,9 @@
 				// Wer den Schleier kräftiger oder schwächer will, greift hier; wer die Bedeutung der
 				// Graustufen ändern will, bei HEIGHT_WHITE_SCHRITT. Die zwei Fragen sind getrennt.
 				const veil = Math.min(1, Math.sqrt(t) / Math.sqrt(HEIGHT_FULL_VEIL_SCHRITT / HEIGHT_WHITE_SCHRITT));
-				const alpha = Math.round(255 * veil);
+				// Im Vollton-Modus deckt jedes Feldpixel voll. Die FARBE folgt weiter der Höhe -- man soll
+				// beim Einstellen die Form lesen, nicht durch sie hindurch auf die Kacheln schauen.
+				const alpha = solidMode ? 255 : Math.round(255 * veil);
 				// Den Rasterpunkt als STEP×STEP-Block ausfüllen, in Geräte-Pixeln.
 				const px0 = Math.round(sx * dpr);
 				const py0 = Math.round(sy * dpr);
@@ -436,7 +440,18 @@
 	// flackerte unter der Hand. Der Zustand gehört an das OFFENE FENSTER, nicht an die einzelne
 	// Bewegung: wer den Dialog offen hat, stellt ein und will durchgehend sehen, was er einstellt.
 	function setHeightCanvasSolid(on) {
-		canvas.classList.toggle("avesmaps-ecosystem-height-canvas--solid", Boolean(on));
+		const next = Boolean(on);
+		if (next === solidMode) {
+			return;
+		}
+		solidMode = next;
+		canvas.classList.toggle("avesmaps-ecosystem-height-canvas--solid", solidMode);
+		// 💣 NEU ZEICHNEN, nicht nur umklassen. Die Deckkraft steckt an ZWEI Stellen: in der CSS-Opazität
+		// des Canvas UND im Alpha JE PIXEL, das der Höhe folgt (0 Schritt = durchsichtig). Nur die Klasse
+		// zu tauschen liess das Feld an niedrigen Stellen weiter durchscheinen -- genau die Meldung
+		// „werden immer noch nicht voll deckend". Das Pixel-Alpha entsteht in der Malschleife, also muss
+		// sie noch einmal laufen.
+		redraw();
 	}
 
 	window.AvesmapsEcosystemHeightRender = {
