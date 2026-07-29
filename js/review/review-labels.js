@@ -1,3 +1,81 @@
+// ---- Live-Vorschau der Darstellung (Owner 2026-07-29) ------------------------------------------------
+//
+// 🔴 Größe, Drehung und Priorität wirken auf der KARTE, während man am Regler zieht -- und werden
+// zurückgenommen, wenn der Dialog ohne Speichern zugeht. Vorher musste man speichern, gucken, wieder
+// öffnen, nachjustieren; bei einer Drehung um wenige Grad ist das keine Einstellung, sondern Raten.
+//
+// 🪤 „Zoom geht schon" meinte etwas ANDERES: syncLabelZoomRangeOutputs springt mit der KARTE auf die
+// eingestellte Stufe, damit man sieht, ob das Label dort erscheint. Das ist keine Vorschau der
+// Darstellung und bleibt unberührt.
+//
+// 💣 ZURÜCKSETZEN IST DIE VORGABE, nicht die Ausnahme. Die Rücknahme hängt an
+// setLabelEditDialogOpen(false) -- also an JEDEM Schliessweg: Abbrechen, ×, ESC, Meldungs-Fluss. Nur
+// das erfolgreiche Speichern entwaffnet sie vorher (dort ist die Antwort des Servers die neue
+// Wahrheit). Andersherum -- an jeden Abbruchweg einzeln eine Rücknahme zu hängen -- bliebe genau der
+// vergessene Weg übrig, der die Vorschau dauerhaft stehen lässt.
+let labelDisplayPreview = null;
+
+function beginLabelDisplayPreview(entry) {
+	// Ein NEUES Label hat noch keinen Marker, an dem sich etwas zeigen liesse.
+	labelDisplayPreview = entry?.label
+		? { entry, size: entry.label.size, rotation: entry.label.rotation, priority: entry.label.priority }
+		: null;
+}
+
+// Wird beim Speichern gerufen: ab hier gilt die Antwort des Servers, nicht der gemerkte Ausgangswert.
+function commitLabelDisplayPreview() {
+	labelDisplayPreview = null;
+}
+
+function revertLabelDisplayPreview() {
+	const vorschau = labelDisplayPreview;
+	labelDisplayPreview = null;
+	// 🪤 Nicht auf ein gelöschtes Label zurückschreiben -- deleteLabelEntry nimmt den Eintrag aus
+	// labelMarkers und schliesst danach den Dialog, läuft also auch hier durch.
+	if (!vorschau || typeof labelMarkers === "undefined" || !labelMarkers.includes(vorschau.entry)) {
+		return;
+	}
+	Object.assign(vorschau.entry.label, {
+		size: vorschau.size,
+		rotation: vorschau.rotation,
+		priority: vorschau.priority,
+	});
+	redrawPreviewedLabel(vorschau.entry);
+}
+
+// Was der Dialog gerade zeigt, sofort auf die Karte. Nur die drei Darstellungswerte -- Text, Art und
+// Wiki-Zuweisung bleiben aussen vor: die reisen beim Speichern ohnehin über die Server-Antwort, und
+// eine halbe Vorschau davon wäre ein zweiter Zustand neben dem Formular.
+function applyLabelDisplayPreview() {
+	const vorschau = labelDisplayPreview;
+	if (!vorschau) {
+		return;
+	}
+	const zahl = (id, rueckfall) => {
+		const wert = Number.parseInt(String(document.getElementById(id)?.value ?? ""), 10);
+		return Number.isFinite(wert) ? wert : rueckfall;
+	};
+	Object.assign(vorschau.entry.label, {
+		size: zahl("label-edit-size", vorschau.size),
+		rotation: ((zahl("label-edit-rotation", vorschau.rotation) % 360) + 360) % 360,
+		priority: zahl("label-edit-priority", vorschau.priority),
+	});
+	redrawPreviewedLabel(vorschau.entry);
+}
+
+function redrawPreviewedLabel(entry) {
+	if (typeof createLabelIcon !== "function" || typeof entry?.marker?.setIcon !== "function") {
+		return;
+	}
+	entry.marker.setIcon(createLabelIcon(entry.label));
+	// Größe und Drehung ändern den Kasten, die Priorität die Reihenfolge -- beides geht die
+	// Kollisionsauflösung an. Sie ist über requestAnimationFrame entprellt, ein Reglerzug kostet also
+	// einen Durchlauf je Bild und nicht einen je Rastpunkt.
+	if (typeof scheduleLabelCollisionResolution === "function") {
+		scheduleLabelCollisionResolution();
+	}
+}
+
 function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	$("#label-edit-overlay").prop("hidden", !isOpen);
 	syncModalDialogBodyState();
@@ -8,6 +86,7 @@ function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 		return;
 	}
 
+	revertLabelDisplayPreview();
 	if (resetForm) {
 		resetLabelEditForm();
 	}
@@ -61,6 +140,8 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	// (renderLabelCarrierNote lädt dafür die Regionslisten). Hier also erst der allgemeine Titel; die
 	// Verfeinerung kommt dort, sobald die Antwort da ist. Ein flackernder Titel wäre schlimmer als ein
 	// später richtiger, und ein Label OHNE Fläche bleibt dauerhaft beim allgemeinen.
+	// Ausgangswerte merken, BEVOR ein Regler sie überschreibt -- daraus besteht die Rücknahme.
+	beginLabelDisplayPreview(labelEntry);
 	setLabelEditDialogTitle("");
 	renderLabelCarrierNote(label);
 	syncLabelZoomRangeOutputs();
@@ -394,6 +475,11 @@ document.addEventListener("input", (event) => {
 	} else {
 		rangeInput.value = numberInput.value;
 	}
+	// 🔴 Und sofort auf die Karte (Owner 2026-07-29). HIER und nicht in einem eigenen Zuhörer: Größe,
+	// Drehung und Priorität sitzen alle drei in einer solchen Reihe, und an dieser Stelle ist das
+	// Zahlenfeld nachweislich schon abgeglichen. Ein zweiter Zuhörer am Dialog liefe VOR diesem (er
+	// sitzt tiefer im Baum) und läse beim Ziehen des Reglers noch den alten Zahlenwert.
+	applyLabelDisplayPreview();
 });
 
 // Zuletzt genutzte Label-DARSTELLUNG (Groesse/Rotation/Zoom-Band/Prioritaet/Nodix) merken bzw. lesen.

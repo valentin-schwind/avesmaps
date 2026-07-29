@@ -224,6 +224,12 @@ async function handleLabelEditFormSubmit(event) {
 		} else {
 			savedLabelEntry = addCreatedLabelFeature(result.feature);
 		}
+		// 🔴 Die Live-Vorschau der Darstellung entwaffnen: ab hier gilt die Antwort des Servers. Ohne
+		// das nähme das Schliessen des Dialogs gleich darauf die eben gespeicherten Werte wieder zurück
+		// -- die Rücknahme hängt bewusst an JEDEM Schliessweg (siehe review-labels.js).
+		if (typeof commitLabelDisplayPreview === "function") {
+			commitLabelDisplayPreview();
+		}
 		updateRevisionFromEditResponse(result);
 		// 🔴 Die Rückrichtung (Owner 2026-07-28): gehört dieses Label zu einer Landschaftsfläche, bekommt
 		// die Fläche Name, Art und Wiki-Zuweisung mit -- und ihre übrigen Labels gleich hinterher. Ohne
