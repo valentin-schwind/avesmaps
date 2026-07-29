@@ -53,10 +53,19 @@ schützen müsste.
 | 💣 Leasing-Falle | entfällt mit dem Lauf. Die dahinterliegende Lehre bleibt und wandert in §4.4. |
 
 > 🔴 **Was diese Vereinfachung zurücknehmen würde.** Genau **eine** Messung:
-> Braucht Teil C im Browser mehr als ~10 s, oder überschreitet die Übertragung des
-> Ergebnisses die gestückelten Grenzen aus §6.2 deutlich, dann ist der serverseitige
-> Stapellauf der Fahrplan-Zeile doch der richtige Bau. Deshalb steht die Messung vor der
-> nächsten Ausbaustufe und nicht danach. **Erwartung:** 0,5–2 s (Herleitung §3.3).
+> Braucht Teil C im Browser mehr als **30 s** (Owner 2026-07-29), oder überschreitet die
+> Übertragung des Ergebnisses die gestückelten Grenzen aus §6.2 deutlich, dann ist der
+> serverseitige Stapellauf der Fahrplan-Zeile doch der richtige Bau. Deshalb steht die
+> Messung vor der nächsten Ausbaustufe und nicht danach.
+> **Erwartung:** 0,5–2 s (Herleitung §3.3).
+>
+> ⚠️ **30 s im Browser sind erlaubt, 30 s am Stück sind es nicht.** Der Browser kennt
+> kein FastCGI-Zeitlimit — das ist der Grund, warum die Schwelle hier so hoch liegen
+> darf. Aber eine ununterbrochene Schleife von 30 s friert den Tab ein, und Chrome
+> bietet irgendwann „Seite reagiert nicht" an. Die Rechnung **muss deshalb alle ~200
+> Wege den Haupt-Thread freigeben** (`await new Promise((r) => setTimeout(r, 0))`) —
+> das ist zugleich das, was den Fortschritt im Knopf („Wege 3.100/5.650") überhaupt
+> sichtbar macht. Bei 2 s wäre das Kosmetik, bei 30 s ist es Bedingung.
 
 ---
 
@@ -345,7 +354,43 @@ kippt in die falsche Richtung. Mit dieser Regel entsteht die Verteilung aus §3.
 | Fläche ohne Kanten | übersprungen |
 | \>255 Intervalle für ein Paar | Paar verworfen **und im Bericht genannt** — nie stillschweigend abschneiden |
 
-### 5.4 Was nicht gerechnet wird
+### 5.4 💣 Flusswege zerfransen — gemessen, und es ist kein Fehler
+
+Ein Weg kann dieselbe Fläche **mehrfach** durchqueren; deshalb `seq` im Schlüssel und
+mehrere Zeilen je Paar. Live nachgemessen, wie sich das über die Wegarten verteilt:
+
+| Wegart | Paare | Zeilen | davon aus Paaren mit ≥5 Intervallen |
+|---|---|---|---|
+| **Flussweg** | 824 | **1.325** | **396** |
+| Pfad | 1.153 | 1.181 | 0 |
+| Strasse | 700 | 711 | 0 |
+| Seeweg | 359 | 386 | 0 |
+| Reichsstrasse | 304 | 322 | 0 |
+| Weg | 250 | 251 | 0 |
+| Gebirgspass | 201 | 205 | 0 |
+| Wuestenpfad | 38 | 45 | 5 |
+| **Summe** | **3.829** | **4.426** | **401** |
+
+**Alle anderen Wegarten sind praktisch 1:1** — ein Weg, eine Fläche, ein Intervall. Die
+Zerfransung sitzt fast vollständig bei den Flusswegen, und der Grund ist geographisch:
+**Flüsse sind oft selbst die Grenze** zwischen zwei Regionen. Ein Weg, der an so einer
+Grenze entlangläuft, tritt nach der reinen Geometrie dutzendfach ein und aus.
+
+Gemessenes Beispiel, der Flussweg **„Tommel"** (49 Meilen, 30 Stützpunkte): **eine**
+Zeile in `map_features`, daraus **40** Zeilen in `path_ecosystem` — 13 Abschnitte im
+„Winhaller Land", 12 in „Fläche-011", 12 in „Fläche-010", 2 im „See-158", und **1**
+durchgehender über die volle Länge in den „Tommellanden".
+
+**Für V9 ist das richtig so und wird nicht geglättet.** Die Zeilen sind die Wahrheit über
+die Geometrie, und 401 von 4.426 Zeilen (9 %) sind kein Mengenproblem.
+
+> 🔴 **Der Auftrag an V10 steht damit fest, bevor V10 beginnt:** eine Anzeige darf diese
+> Liste **nicht** aufzählen. „Führt durch: Winhaller Land (13×)" wäre Unsinn. Sie muss
+> **zusammenfassen** — „führt zu 62 % durch das Winhaller Land" — und die Zusammenfassung
+> rechnet aus den gespeicherten Intervallen, sie ersetzt sie nicht. Speicher hält die
+> Wahrheit, Anzeige fasst zusammen.
+
+### 5.5 Was nicht gerechnet wird
 
 Kein Höhenfeld, keine Tempokurve, keine Auf-/Abstiegssummen, keine Faktoren. Das ist V11
 (§9).
@@ -498,8 +543,8 @@ nachgebauten Szene, nicht in einer Schleife gegen den Server. Festzuhalten sind:
 Ladezeit der Weg-Geometrie, Rechenzeit je Teil, Speicherzeit, Zeilenzahlen. `duration_ms`
 im Stempel hält das Ergebnis fest.
 
-**Daraus folgt die nächste Entscheidung** (§1): unter ~10 s bleibt es so; darüber kommt
-der serverseitige Stapellauf der Fahrplan-Zeile.
+**Daraus folgt die nächste Entscheidung** (§1): unter **30 s** bleibt es so; darüber
+kommt der serverseitige Stapellauf der Fahrplan-Zeile.
 
 ---
 
