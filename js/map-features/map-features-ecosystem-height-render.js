@@ -228,6 +228,13 @@
 		heightStack = null;
 	}
 
+	// Der höchste Gipfel über alle gezeichneten Felder -- der Bezug der Bearbeitungsansicht.
+	// Die Untergrenze in der Aufrufstelle verhindert eine Division durch fast null, wenn eine Fläche
+	// nur Gipfel ohne erfasste Höhe trägt.
+	function stackFieldsHmax(stack) {
+		return (stack?.fields || []).map((field) => Number(field.hmax) || 0);
+	}
+
 	function shouldDraw() {
 		return typeof isEcosystemLayerModeActive === "function" && isEcosystemLayerModeActive()
 			&& typeof getActiveEcosystemLayerKind === "function"
@@ -269,6 +276,12 @@
 			return;
 		}
 
+		// 💣 EINMAL, nicht je Rasterpunkt. Ein `Math.max` über die Felder in der inneren Schleife wäre
+		// bei rund 100.000 Punkten je Bild teurer als die halbe Höhenrechnung -- und die Bezugshöhe
+		// ändert sich innerhalb eines Bildes ohnehin nicht.
+		const reference = solidMode
+			? Math.max(HEIGHT_WHITE_SCHRITT * 0.02, ...stackFieldsHmax(stack))
+			: HEIGHT_WHITE_SCHRITT;
 		const started = performance.now();
 		const image = context.createImageData(pixelWidth, pixelHeight);
 		const data = image.data;
@@ -324,8 +337,25 @@
 				// also unangetastet, die Kuppen leuchten auf. Zusätzlich beginnt die Rampe nicht mehr bei
 				// Schwarz, sondern bei der Grundfarbe der Fläche selbst (--color-ecosystem-height-min), damit
 				// auch der halbdurchsichtige Bereich dazwischen die Fläche nicht eintrübt.
-				const t = Math.max(0, Math.min(1, height / HEIGHT_WHITE_SCHRITT));
-				const color = rampAt(t);
+				// 🔴 ZWEI DARSTELLUNGEN FÜR ZWEI ZWECKE (Owner-Entscheid 2026-07-29).
+				//
+				// ANSEHEN: absolute Skala bis HEIGHT_WHITE_SCHRITT, Erdton-Rampe. Ein Grauwert bedeutet
+				// überall dieselbe Höhe, zwei Gebirge sind vergleichbar.
+				//
+				// BEARBEITEN (Dialog offen): maximaler Kontrast. Bezug ist der HÖCHSTE GIPFEL DIESER
+				// FLÄCHE, die Rampe reines Schwarz-Weiss. Ein 2.600er Bergland nutzt damit dieselbe volle
+				// Spanne wie ein 5.200er Wall -- beim Einstellen zählt die FORM, nicht der Vergleich mit
+				// dem Nachbarn.
+				//
+				// 🪤 Die flächeneigene Bezugshöhe hatten wir für die Ansicht ausdrücklich abgeschafft,
+				// weil sie Gebirge unvergleichbar macht. Genau das ist beim Bearbeiten erwünscht. Derselbe
+				// Mechanismus, zwei Urteile -- und beide richtig, solange sie getrennt bleiben.
+				//
+				// 💣 Gespeichert wird NICHTS davon. Es gibt kein Bild in der Datenbank: die Karte rechnet
+				// aus `height_schritt` und den Geländewerten neu. „Speichern" schreibt die ZAHLEN, und mit
+				// dem Schliessen des Fensters kommt die absolute Darstellung von selbst zurück.
+				const t = Math.max(0, Math.min(1, height / reference));
+				const color = solidMode ? [255 * t, 255 * t, 255 * t] : rampAt(t);
 				const r = color[0], g = color[1], b = color[2];
 				// 🔴 FARBE und DECKKRAFT haben verschiedene Bezugsgrössen, und das ist Absicht.
 				//
