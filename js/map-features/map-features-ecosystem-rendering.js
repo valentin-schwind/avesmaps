@@ -348,6 +348,17 @@ function buildEcosystemAreaLayer(area) {
 		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
 			return;
 		}
+		// 🔴 DIESELBE REGEL, ZWEITER FALL: eine Geste, die den Klick schon vergeben hat, bekommt ihn
+		// zuerst. Verschieben und Zerschneiden schliessen über KARTENklicks ab (handleAreaClick weist
+		// beide ausdrücklich zurück) -- also darf dieser Handler den Klick nicht vorher schlucken.
+		//
+		// 💣 Genau daran war „Fläche verschieben" unbenutzbar: previewGeometry zieht die ECHTE Ebene mit
+		// dem Zeiger, die Fläche liegt also immer darunter, und ihr eigenes stopPropagation fing den
+		// platzierenden Klick ab, bevor map.on("click") ihn je sah. Die Fläche klebte am Cursor, bis ESC
+		// half. Beim Zerschneiden dasselbe -- Schnittpunkte liegen zwangsläufig AUF der Fläche.
+		if (window.AvesmapsEcosystemGeometryOps?.claimsMapClick?.()) {
+			return;
+		}
 		if (event?.originalEvent && typeof L?.DomEvent?.stopPropagation === "function") {
 			L.DomEvent.stopPropagation(event);
 		}

@@ -784,11 +784,28 @@
 		buttons.forEach((button) => { button.hidden = parts < 2; });
 	}, true);
 
+	// 🔴 WELCHE GESTE HAT DEN NÄCHSTEN KLICK SCHON VERGEBEN? Genau die beiden, die handleAreaClick mit
+	// `false` zurückweist: Verschieben und Zerschneiden laufen über KARTENklicks.
+	//
+	// 💣 Ohne diese Auskunft war „Fläche verschieben" unbenutzbar (Owner 2026-07-29: „klebt am Cursor und
+	// lässt sich nicht platzieren"). Der Grund war eine Kette, die einzeln überall richtig aussieht:
+	// previewGeometry verschiebt die ECHTE Ebene, die Fläche liegt also unter dem Zeiger; ihr
+	// Klick-Handler ruft bedingungslos stopPropagation; handleAreaClick reicht `move` bewusst nicht an;
+	// und completeMove() hängt allein an map.on("click"). Der platzierende Klick wurde damit von der
+	// verschobenen Fläche selbst verschluckt -- kein Randfall, sondern jedes Mal, denn sie klebt ja am
+	// Zeiger. Gemessen: null Kartenklicks nach dem Platzieren.
+	//
+	// Dasselbe galt fürs Zerschneiden: die Schnittpunkte liegen zwangsläufig AUF der Fläche.
+	function pendingClaimsMapClick() {
+		return Boolean(pending) && (pending.operation === "move" || pending.operation === "split");
+	}
+
 	if (typeof window !== "undefined") {
 		window.AvesmapsEcosystemGeometryOps = {
 			handleAreaClick,
 			cancel: cancelPending,
 			isPending: () => Boolean(pending),
+			claimsMapClick: pendingClaimsMapClick,
 		};
 	}
 
