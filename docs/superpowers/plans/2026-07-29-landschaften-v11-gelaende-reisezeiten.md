@@ -2992,7 +2992,47 @@ function avesmapsRouteCountTerrainMatches(array $paths, array $terrain): int
 
     return $matched;
 }
+
+/**
+ * Do the stored profiles still describe the rasters as they stand NOW?
+ *
+ * 🔴 THIS IS THE OTHER HALF OF THE STALENESS RULE, and without it the rule is a claim rather than a
+ * behaviour: `heightmap_stamp` mismatch means the profile is still USED (refusing would turn one
+ * raster edit into a map-wide flattening) -- but then it MUST be visible, or „warum ist der Pass
+ * noch schnell?" has no answer. `avesmapsEcosystemEnsureTables` already promises this out loud:
+ * „A stale stamp is REPORTED, not obeyed (see the reader in response.php)."
+ *
+ * Two small reads, and only when terrain is on: the stamp the profile run was computed against, and
+ * the stamp the rasters carry today. Both are indexed columns; NEITHER touches a blob.
+ *
+ * „Nothing computed yet" is NOT stale -- it is absent, and `matched_ways = 0` already says so.
+ */
+function avesmapsRouteTerrainStale(PDO $pdo): bool
+{
+    try {
+        $stamped = $pdo->query('SELECT heightmap_stamp FROM path_terrain_stamp WHERE id = 1')->fetchColumn();
+        if ($stamped === false || $stamped === null || (string) $stamped === '') {
+            return false;
+        }
+
+        return (string) $stamped !== avesmapsHeightmapGlobalStamp($pdo);
+    } catch (PDOException) {
+        // A missing table is the normal state before the first run, not an error (see the note on
+        // avesmapsRouteLoadTerrain).
+        return false;
+    }
+}
 ```
+
+⚠️ Dafür braucht `terrain-read.php` oben zusätzlich
+
+```php
+require_once __DIR__ . '/../app/heightmap.php';
+```
+
+💣 Und das ist **billig, nicht teuer** — nachgesehen, nicht vermutet: `heightmap.php` zieht nur
+`terrain-store.php`, und beide sind reine Definitionsdateien ohne eigenes `require`, ohne DDL, ohne
+Verbindungsaufbau. Der Routing-Pfad bekommt damit **keine** neue Abhängigkeit auf `ecosystem.php`.
 
 - [ ] **Schritt 6: In `response.php` laden und in `debug` ausweisen**
 
@@ -3015,6 +3055,8 @@ In `avesmapsBuildMinimalRouteResultFromRequest`, nach
 	$terrainEnabled = $routePdo instanceof PDO && $terrainRequested && avesmapsRouteTerrainEnabled($routePdo);
 	$terrain = $terrainEnabled ? avesmapsRouteLoadTerrain($routePdo) : [];
 	$terrainMatched = avesmapsRouteCountTerrainMatches($routeNetworkData['paths'] ?? [], $terrain);
+	// Only asked when terrain is on -- with the switch off there is nothing whose currency matters.
+	$terrainStale = $terrainEnabled && avesmapsRouteTerrainStale($routePdo);
 ```
 
 Dann in `debug_context` (im `return`-Block) ergänzen:
@@ -3031,6 +3073,11 @@ Dann in `debug_context` (im `return`-Block) ergänzen:
 					'requested' => $terrainRequested,
 					'profile_rows' => count($terrain),
 					'matched_ways' => $terrainMatched,
+					// 🔴 The rasters have moved since the profiles were derived. The profiles are
+					// still USED -- refusing them would flatten the whole map over one edit -- so
+					// this flag is the only thing that makes „warum ist der Pass noch schnell?"
+					// answerable. Without it the staleness rule is a claim, not a behaviour.
+					'stale' => $terrainStale,
 				],
 ```
 
