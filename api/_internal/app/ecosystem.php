@@ -233,11 +233,16 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     // levels fall back to the module constants, and the noise level to 0.4 x the lowest peak of the
     // area. A non-null value is an editor overriding that derivation, never a default someone forgot.
     //
-    // terrain_grain      -- coarse cell = longest bbox side / grain. Higher = finer relief.
-    // terrain_levels     -- how many refinement levels ride on the coarse one.
-    // terrain_avg_height -- the noise level in SCHRITT, absolute. Named after the prototype's "avg"
-    //                       slider, which is what it is: the height the invented terrain aims for
-    //                       between the named peaks.
+    // terrain_grain       -- coarse cell = longest bbox side / grain. Higher = finer relief.
+    // terrain_levels      -- how many refinement levels ride on the coarse one.
+    // terrain_avg_height  -- the LOUDEST point of the noise in SCHRITT, absolute. Named after the
+    //                        prototype's "avg" slider; the German label says "Maximalhöhe", because that
+    //                        is what the damping `target / loudest point` actually hits.
+    // terrain_mean_height -- the AREA MEAN of the noise in SCHRITT (owner 2026-07-29). The second of two
+    //                        constraints: together with the maximum it describes the SHAPE of the terrain,
+    //                        not just its tip -- a high plateau (mean 3000 / max 3500) is a different
+    //                        thing from rugged foreland (mean 800 / max 4000). NULL keeps the old
+    //                        behaviour exactly (the field solves for exponent 1 and nothing changes).
     $areaColumnExists = static function (PDO $pdo, string $column): bool {
         $statement = $pdo->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
@@ -251,6 +256,7 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
         'terrain_grain' => 'DECIMAL(6,2)',
         'terrain_levels' => 'TINYINT UNSIGNED',
         'terrain_avg_height' => 'DECIMAL(8,2)',
+        'terrain_mean_height' => 'DECIMAL(8,2)',
     ] as $column => $type) {
         if (!$areaColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_area ADD COLUMN ' . $column . ' ' . $type . ' NULL');
@@ -286,15 +292,22 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
 
         return $statement !== false && (int) $statement->fetchColumn() > 0;
     };
-    $typeColumnsNew = false;
+    // 💣 WELCHE Spalte neu ist, nicht OB eine neu ist. Vorher stand hier ein einzelnes `$typeColumnsNew`,
+    // und mit ihm hätte das Nachrüsten von `terrain_mean_height` den Startwert-Block darunter erneut
+    // ausgelöst -- der schreibt Körnung, Stufen und Maximalhöhe BEDINGUNGSLOS und hätte damit jede
+    // Anpassung des Owners an den fünf Arten stillschweigend auf die Werte von 2026-07-28 zurückgesetzt.
+    // Genau davor warnt der Kommentar am Block ("EINMAL beim Nachrüsten und nur dort"); mit einem
+    // gemeinsamen Flag hält er nur bis zur nächsten neuen Spalte.
+    $typeColumnsAdded = [];
     foreach ([
         'terrain_grain' => 'DECIMAL(6,2)',
         'terrain_levels' => 'TINYINT UNSIGNED',
         'terrain_avg_height' => 'DECIMAL(8,2)',
+        'terrain_mean_height' => 'DECIMAL(8,2)',
     ] as $column => $type) {
         if (!$typeColumnExists($pdo, $column)) {
             $pdo->exec('ALTER TABLE ecosystem_region_type ADD COLUMN ' . $column . ' ' . $type . ' NULL');
-            $typeColumnsNew = true;
+            $typeColumnsAdded[] = $column;
         }
     }
     // Startwerte, EINMAL beim Nachrüsten und nur dort. Ein späteres Überschreiben durch den Owner darf
@@ -306,7 +319,7 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     //   wadi        flach mit Einschnitten
     //   schlucht    grob, tief liegend
     //   kueste      fast eben
-    if ($typeColumnsNew) {
+    if (in_array('terrain_grain', $typeColumnsAdded, true)) {
         foreach ([
             ['gebirge', 3.2, 3, 2000],
             ['huegelland', 4.5, 2, 600],
@@ -321,6 +334,33 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             );
             $statement->execute(['g' => $grain, 'l' => $levels, 'a' => $avg,
                 'k' => 'topographie', 't' => $typeKey]);
+        }
+    }
+    // Startwerte für die DURCHSCHNITTSHÖHE, eigener Block und eigene Bedingung -- er rührt nur seine
+    // eigene Spalte an und lässt die drei darüber in Ruhe, auch wenn sie längst vom Owner verstellt sind.
+    //
+    // Gewählt, nicht gemessen -- wie die Zeilen darüber, und hier als ANTEIL der jeweiligen Maximalhöhe
+    // gedacht, denn nur das Verhältnis der beiden formt das Gelände:
+    //   gebirge     0,25 -- zerklüftet, die Spitzen sind die Ausnahme
+    //   huegelland  0,50 -- Hügel sind rund und voll, das Mittelfeld liegt hoch
+    //   wadi        0,23 -- ebene Fläche mit Einschnitten (das ist auch der Wert ohne Einstellung)
+    //   schlucht    0,18 -- fast alles liegt tief, die Tiefe ist die Ausnahme
+    //   kueste      0,50 -- fast eben, also Mittel dicht am Maximum
+    // ⚠️ Über rund 0,67 × Maximalhöhe nimmt das Feld nichts mehr an (siehe die untere Potenzklemme in
+    // map-features-ecosystem-height-field.js); alle fünf liegen bewusst darunter.
+    if (in_array('terrain_mean_height', $typeColumnsAdded, true)) {
+        foreach ([
+            ['gebirge', 500],
+            ['huegelland', 300],
+            ['wadi', 45],
+            ['schlucht', 70],
+            ['kueste', 40],
+        ] as [$typeKey, $mean]) {
+            $statement = $pdo->prepare(
+                'UPDATE ecosystem_region_type SET terrain_mean_height = :m
+                  WHERE kind = :k AND type_key = :t'
+            );
+            $statement->execute(['m' => $mean, 'k' => 'topographie', 't' => $typeKey]);
         }
     }
 
@@ -633,6 +673,7 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
                 a.terrain_grain,
                 a.terrain_levels,
                 a.terrain_avg_height,
+                a.terrain_mean_height,
                 a.updated_at,
                 r.public_id AS region_public_id,
                 r.name AS region_name,
@@ -675,6 +716,7 @@ function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
             'terrain_grain' => $row['terrain_grain'] === null ? null : (float) $row['terrain_grain'],
             'terrain_levels' => $row['terrain_levels'] === null ? null : (int) $row['terrain_levels'],
             'terrain_avg_height' => $row['terrain_avg_height'] === null ? null : (float) $row['terrain_avg_height'],
+            'terrain_mean_height' => $row['terrain_mean_height'] === null ? null : (float) $row['terrain_mean_height'],
             'updated_at' => (string) $row['updated_at'],
         ];
     }
@@ -1141,7 +1183,8 @@ function avesmapsAssignEcosystemWikiRegion(PDO $pdo, array $payload, int $userId
 
 function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
 {
-    $sql = 'SELECT kind, type_key, label, sort_order, terrain_grain, terrain_levels, terrain_avg_height
+    $sql = 'SELECT kind, type_key, label, sort_order, terrain_grain, terrain_levels, terrain_avg_height,
+                   terrain_mean_height
               FROM ecosystem_region_type WHERE is_active = 1';
     $params = [];
     if ($kind !== null) {
@@ -1163,6 +1206,7 @@ function avesmapsEcosystemReadRegionTypes(PDO $pdo, ?string $kind): array
             'terrain_grain' => $row['terrain_grain'] === null ? null : (float) $row['terrain_grain'],
             'terrain_levels' => $row['terrain_levels'] === null ? null : (int) $row['terrain_levels'],
             'terrain_avg_height' => $row['terrain_avg_height'] === null ? null : (float) $row['terrain_avg_height'],
+            'terrain_mean_height' => $row['terrain_mean_height'] === null ? null : (float) $row['terrain_mean_height'],
         ],
         $statement->fetchAll()
     );
@@ -1974,6 +2018,15 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         $felder[] = 'terrain_avg_height = :terrain_avg_height';
         $werte['terrain_avg_height'] = $lesen($payload['terrain_avg_height'], 0.0, 20000.0);
     }
+    // 🪤 NICHT hier gegen die Maximalhöhe klemmen. Der Aufrufer darf nur eine der beiden Zahlen schicken
+    // (`array_key_exists` je Feld ist genau dafür da), das Maximum stünde dann gar nicht im Payload --
+    // und die Zeile dafür extra zu lesen hiesse, eine zweite Wahrheit über den gültigen Bereich zu
+    // pflegen. Das Feld selbst klemmt beim Bauen auf ein Verhältnis unter 1 und die Oberfläche am Regler;
+    // beide sehen dabei die tatsächlich zusammengehörenden Werte.
+    if (array_key_exists('terrain_mean_height', $payload)) {
+        $felder[] = 'terrain_mean_height = :terrain_mean_height';
+        $werte['terrain_mean_height'] = $lesen($payload['terrain_mean_height'], 0.0, 20000.0);
+    }
     if ($felder === []) {
         throw new InvalidArgumentException('Es wurde kein Geländewert mitgeschickt.');
     }
@@ -1999,7 +2052,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     $revision = avesmapsNextEcosystemRevision($pdo);
 
     $lesenZurueck = $pdo->prepare(
-        'SELECT terrain_grain, terrain_levels, terrain_avg_height
+        'SELECT terrain_grain, terrain_levels, terrain_avg_height, terrain_mean_height
            FROM ecosystem_area WHERE public_id = :p LIMIT 1'
     );
     $lesenZurueck->execute(['p' => $publicId]);
@@ -2010,6 +2063,7 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
         'terrain_grain' => ($row['terrain_grain'] ?? null) === null ? null : (float) $row['terrain_grain'],
         'terrain_levels' => ($row['terrain_levels'] ?? null) === null ? null : (int) $row['terrain_levels'],
         'terrain_avg_height' => ($row['terrain_avg_height'] ?? null) === null ? null : (float) $row['terrain_avg_height'],
+        'terrain_mean_height' => ($row['terrain_mean_height'] ?? null) === null ? null : (float) $row['terrain_mean_height'],
         'revision' => $revision,
     ];
 }

@@ -117,6 +117,8 @@ function buildEcosystemHeightStack(areas, peaks) {
 			grain: area?.terrain_grain ?? undefined,
 			levels: area?.terrain_levels ?? undefined,
 			avgHeight: area?.terrain_avg_height ?? null,
+			// V8-Fortsetzung: die zweite Zahl. `null` = Potenz 1, also genau das Feld von vorher.
+			meanHeight: area?.terrain_mean_height ?? null,
 			// 🔴 Das Darstellungsverfahren folgt der ART (Owner-Entscheid 2026-07-28): Gebirge bekommt
 			// „Exponential Slope Weighting", Hügelland „Domain Warping", alles andere das additive
 			// Rauschen. Die Zuordnung steht hier und nicht in der Datenbank, weil sie eine Aussage über

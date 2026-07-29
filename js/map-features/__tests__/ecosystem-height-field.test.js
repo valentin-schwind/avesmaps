@@ -15,7 +15,9 @@ global.ecosystemGeometryBounds = ecosystemGeometryBounds;
 global.pointInGeometry = pointInGeometry;
 
 const { buildEcosystemHeightField, sampleEcosystemHeightField, buildEcosystemPeakWindow,
-	ecosystemHeightCellHash } = require("../map-features-ecosystem-height-field.js");
+	ecosystemHeightCellHash, solveEcosystemNoiseExponent,
+	ECOSYSTEM_NOISE_EXPONENT_MIN, ECOSYSTEM_NOISE_EXPONENT_MAX }
+	= require("../map-features-ecosystem-height-field.js");
 
 const square = { type: "Polygon", coordinates: [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]] };
 const area = { public_id: "a", geometry: square, geometry_revision: 1 };
@@ -178,5 +180,113 @@ for (const method of ["perlin", "warp", "slope"]) {
 // Und ein unbekanntes Verfahren fällt auf das additive Rauschen zurück, statt die Fläche zu verlieren.
 const unbekannt = buildEcosystemHeightField(area, peak, buildEcosystemPeakWindow(peak), { method: "gibtsnicht" });
 assert.strictEqual(unbekannt.method, "perlin", "ein unbekanntes Verfahren fällt auf perlin zurück");
+
+// 13. 🔴 OHNE DURCHSCHNITTSHÖHE ÄNDERT SICH NICHTS. Das ist die Zusicherung, an der die 2 lebenden
+// Gebirgsflächen hängen: `terrain_mean_height` ist NULL, also muss das Feld Zahl für Zahl dasselbe sein
+// wie vor der Trennung von Ø und Maximum. Potenz 1 und Faktor 1 heissen genau das -- die Skalierung
+// sitzt dann wie seit V8 in den Buckelamplituden und die Malschleife rechnet keinen Takt mehr.
+const ohneMittel = buildEcosystemHeightField(area, peak, buildEcosystemPeakWindow(peak), { avgHeight: 900 });
+const mitNull = buildEcosystemHeightField(area, peak, buildEcosystemPeakWindow(peak),
+	{ avgHeight: 900, meanHeight: null });
+assert.strictEqual(ohneMittel.noiseExponent, 1, "ohne Durchschnittshöhe bleibt die Potenz exakt 1");
+assert.strictEqual(ohneMittel.noiseScale, 1, "und der Faktor sitzt in den Amplituden, nicht am Feld");
+assert.strictEqual(mitNull.noiseExponent, 1, "und ein ausdrückliches null heisst dasselbe wie gar nichts");
+const fenster13 = buildEcosystemPeakWindow(peak);
+for (let y = 1; y < 100; y += 7.3) {
+	for (let x = 1; x < 100; x += 7.3) {
+		assert.strictEqual(
+			sampleEcosystemHeightField(ohneMittel, x, y, fenster13.sample(x, y)),
+			sampleEcosystemHeightField(mitNull, x, y, fenster13.sample(x, y)),
+			`ohne Ø ist das Feld bei (${x},${y}) unverändert`);
+	}
+}
+
+// 14. 🔴 DIE ZWEI INVARIANTEN ÜBERSTEHEN AUCH DIE DURCHSCHNITTSHÖHE, und zwar für ALLE Verfahren.
+//
+// Die Potenz formt die SUMME des Rauschens um -- also genau das, was zwischen Gipfel und Rand liegt.
+// Sie darf weder den Gipfel von seiner Zahl holen (das Fenster zieht das Rauschen dort auf 0, und die
+// Potenz sitzt bewusst VOR dem Fenster) noch den Rand von der Null (`Faktor · 0^p` ist 0, und der
+// kompakte Träger der Buckel sorgt dafür, dass am Rand wirklich 0 ankommt).
+//
+// 💣 Bräche eines von beiden, wäre es an einer EINZELNEN Fläche unsichtbar -- auffallen würde es erst
+// dort, wo zwei Flächen überlappen und ihre Felder addiert werden, als Stufe an der Naht.
+for (const method of ["perlin", "warp", "slope"]) {
+	const w = buildEcosystemPeakWindow(peak);
+	const built = buildEcosystemHeightField(area, peak, w, { method, avgHeight: 2000, meanHeight: 800 });
+	const at = (x, y) => sampleEcosystemHeightField(built, x, y, w.sample(x, y));
+	assert.ok(built.noiseExponent !== 1,
+		`${method}: die Potenz wurde wirklich gesucht (${built.noiseExponent})`);
+	assert.ok(Math.abs(at(50, 50) - 3000) < 1,
+		`${method}: der Gipfel liest trotz Potenz seine eigene Höhe (${at(50, 50)})`);
+	for (const [x, y] of [[0, 50], [100, 50], [50, 0], [50, 100]]) {
+		assert.strictEqual(at(x, y), 0, `${method}: der Rand bleibt trotz Potenz flach bei (${x},${y})`);
+	}
+	assert.ok(Number.isFinite(at(31, 67)), `${method}: keine NaN durch die Potenz`);
+}
+
+// 15. 💣 KEIN ADDITIVER SOCKEL. Der billige Weg zu einem hohen Durchschnitt wäre „überall mindestens Ø
+// draufrechnen" -- und genau der bricht die Fusshöhe-0-Invariante. Deshalb wird der ganze Rand abgefahren
+// und nicht nur die vier Seitenmitten von oben: ein Sockel stünde überall, eine Potenz nirgends.
+const sockelprobe = fieldOf(area, peak, { avgHeight: 2500, meanHeight: 1600 });
+for (let t = 0; t <= 100; t += 2.5) {
+	for (const [x, y] of [[t, 0], [t, 100], [0, t], [100, t]]) {
+		assert.strictEqual(sockelprobe.at(x, y), 0,
+			`ein Sockel würde hier auffallen: (${x},${y}) muss exakt 0 sein`);
+	}
+}
+
+// 16. 🔴 UND DIE ZAHL WIRKT AUCH. Ein Hochplateau ist etwas anderes als zerklüftetes Vorland: bei
+// GLEICHER Maximalhöhe muss die höhere Durchschnittshöhe eine deutlich höhere Fläche ergeben.
+// Ohne diese Prüfung könnte die Potenz falsch herum wirken oder gar nicht, und alle Invarianten oben
+// blieben trotzdem grün.
+const hochplateau = fieldOf(area, peak, { avgHeight: 3000, meanHeight: 1800 });
+const vorland = fieldOf(area, peak, { avgHeight: 3000, meanHeight: 400 });
+assert.ok(meanOf(hochplateau) > 1.5 * meanOf(vorland),
+	`Ø 1800 muss deutlich über Ø 400 liegen (${meanOf(hochplateau).toFixed(0)} vs ${meanOf(vorland).toFixed(0)})`);
+// Und das Maximum bleibt, wo es hingehört -- die zweite Zahl verschiebt die FORM, nicht die Spitze.
+// Gemessen am Rauschen allein: der Gipfelbuckel überragt es und würde die Messung sonst dominieren.
+const noiseMaxOf = (gebaut) => {
+	const nurRauschen = { ...gebaut.built, peakBumps: [] };
+	let groesster = 0;
+	for (let y = 2; y <= 98; y += 2) {
+		for (let x = 2; x <= 98; x += 2) {
+			groesster = Math.max(groesster, sampleEcosystemHeightField(nurRauschen, x, y, 1));
+		}
+	}
+	return groesster;
+};
+for (const [name, gebaut] of [["Hochplateau", hochplateau], ["Vorland", vorland]]) {
+	const gemessen = noiseMaxOf(gebaut);
+	assert.ok(Math.abs(gemessen - 3000) < 0.1 * 3000,
+		`${name}: die Maximalhöhe bleibt bei 3000 (gemessen ${gemessen.toFixed(0)})`);
+}
+
+// 17. Die Suche selbst: sie klemmt, statt Unmögliches zu versprechen, und sie rechnet monoton.
+//
+// ⚠️ Die obere Klemme ist nicht kosmetisch (siehe Modulkopf): unter ihr wird aus dem Randauslauf eine
+// Wand, und die Naht zweier überlappender Flächen als Kante sichtbar. Ein Ø nahe am Maximum ist deshalb
+// ausdrücklich NICHT erfüllbar -- die Suche liefert die flachste erlaubte Potenz und sättigt sichtbar.
+const gleichverteilt = [];
+for (let i = 0; i <= 100; i++) {
+	gleichverteilt.push(i / 100);
+}
+assert.strictEqual(solveEcosystemNoiseExponent([], 1, 0.5), 1, "ohne Abtastungen bleibt die Potenz 1");
+assert.strictEqual(solveEcosystemNoiseExponent(gleichverteilt, 0, 0.5), 1, "und ohne lautesten Punkt auch");
+assert.strictEqual(solveEcosystemNoiseExponent(gleichverteilt, 1, 0.999), ECOSYSTEM_NOISE_EXPONENT_MIN,
+	"ein Ø fast auf dem Maximum klemmt auf die flachste erlaubte Potenz");
+assert.strictEqual(solveEcosystemNoiseExponent(gleichverteilt, 1, 0.001), ECOSYSTEM_NOISE_EXPONENT_MAX,
+	"und ein Ø fast bei null auf die zerklüftetste");
+// Dazwischen: mehr Ø heisst kleinere Potenz, ausnahmslos.
+let vorige = Infinity;
+for (const ziel of [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]) {
+	const p = solveEcosystemNoiseExponent(gleichverteilt, 1, ziel);
+	assert.ok(p < vorige, `ein höheres Ø muss die Potenz senken (bei ${ziel}: ${p} nicht unter ${vorige})`);
+	vorige = p;
+}
+// Und sie trifft: über eine bekannte Verteilung nachgerechnet, ohne Histogramm.
+const p05 = solveEcosystemNoiseExponent(gleichverteilt, 1, 0.5);
+const nachgerechnet = gleichverteilt.reduce((sum, u) => sum + Math.pow(u, p05), 0) / gleichverteilt.length;
+assert.ok(Math.abs(nachgerechnet - 0.5) < 0.01,
+	`die gefundene Potenz ${p05.toFixed(3)} trifft das Ziel 0,5 (nachgerechnet ${nachgerechnet.toFixed(3)})`);
 
 console.log("ecosystem-height-field: all assertions passed");

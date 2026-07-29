@@ -862,6 +862,14 @@
 								<input id="ecosystem-properties-avgheight" type="range" min="0" max="20000" step="50" />
 								<input id="ecosystem-properties-avgheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" /><span id="ecosystem-properties-avgheight-out" class="ecosystem-properties-dialog__terrainauto"></span>
 							</label>
+							<!-- Die zweite Zahl (V8-Fortsetzung): zusammen mit der Maximalh&ouml;he beschreibt sie die
+							     FORM statt nur der Spitze. Ihre Obergrenze folgt dem Regler dar&uuml;ber, deshalb
+							     steht hier kein festes max — das setzt clampTerrainMean() bei jeder &Auml;nderung. -->
+							<label class="ecosystem-properties-dialog__terrainrow" title="Mittlere H&ouml;he der Fl&auml;che. Zusammen mit der Maximalh&ouml;he ergibt sie die Form: dicht darunter ein Hochplateau, weit darunter zerkl&uuml;ftetes Vorland. &Uuml;ber rund zwei Dritteln der Maximalh&ouml;he nimmt das Gel&auml;nde nichts mehr an — eine Fl&auml;che, die zum Rand hin ausl&auml;uft, kann im Mittel nicht n&auml;her an ihre Spitze heran.">
+								<span>Durchschnittsh&ouml;he</span>
+								<input id="ecosystem-properties-meanheight" type="range" min="0" max="20000" step="50" />
+								<input id="ecosystem-properties-meanheight-num" class="ecosystem-properties-dialog__terrainnum" type="number" min="0" max="20000" step="50" inputmode="decimal" aria-label="Wert eingeben" /><span id="ecosystem-properties-meanheight-out" class="ecosystem-properties-dialog__terrainauto"></span>
+							</label>
 							<div class="ecosystem-properties-dialog__terrainactions">
 								<button id="ecosystem-properties-terrain-auto" type="button" class="ecosystem-properties-dialog__button">Auf Automatik zur&uuml;ck</button>
 							</div>
