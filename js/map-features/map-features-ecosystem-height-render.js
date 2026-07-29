@@ -428,18 +428,15 @@
 	// Die Flächen können nach dem ersten Zeichnen eintreffen; ein paar Nachzügler-Durchgänge holen sie.
 	[150, 500, 1200].forEach((delay) => window.setTimeout(redraw, delay));
 
-	// Von aussen: für die Dauer einer Reglerbewegung den Schleier abschalten (siehe CSS). Ein Zeitgeber
-	// holt ihn zurück, damit ein losgelassener Regler nicht dauerhaft den Vollton stehen lässt --
-	// `change` allein genügt nicht, weil ein Regler auch per Tastatur bewegt wird.
-	let solidTimer = 0;
+	// Von aussen: den Schleier abschalten, SOLANGE der Flächendialog offen ist (Owner 2026-07-28:
+	// „sie soll einfach nicht transparent sein, solange der dialog offen ist").
+	//
+	// 💣 KEIN ZEITGEBER. Eine frühere Fassung schaltete ihn je Reglerbewegung für 900 ms ab und liess
+	// ihn danach zurückkommen -- dadurch wurde die Fläche beim Regeln immer wieder durchsichtig und
+	// flackerte unter der Hand. Der Zustand gehört an das OFFENE FENSTER, nicht an die einzelne
+	// Bewegung: wer den Dialog offen hat, stellt ein und will durchgehend sehen, was er einstellt.
 	function setHeightCanvasSolid(on) {
 		canvas.classList.toggle("avesmaps-ecosystem-height-canvas--solid", Boolean(on));
-		window.clearTimeout(solidTimer);
-		if (on) {
-			solidTimer = window.setTimeout(() => {
-				canvas.classList.remove("avesmaps-ecosystem-height-canvas--solid");
-			}, 900);
-		}
 	}
 
 	window.AvesmapsEcosystemHeightRender = {

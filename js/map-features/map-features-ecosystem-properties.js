@@ -101,6 +101,8 @@
 		if (overlayElement) {
 			overlayElement.hidden = true;
 		}
+		// Fenster zu -> Schleier zurück. Er gehört zur Ansicht, nicht zur Bearbeitung.
+		window.AvesmapsEcosystemHeightRender?.setSolid?.(false);
 		propertiesSourcePublicId = "";
 		pendingWikiRegion = undefined;
 		wikiSearchResults = [];
@@ -413,6 +415,9 @@
 		// Wie die beiden Haken: sofort, nicht erst nach list_regions. Die Gipfel hängen an den geladenen
 		// Labels und an der Geometrie der Fläche -- beides liegt schon vor.
 		renderTerrainControls(area);
+		// Solange dieses Fenster offen ist, liegt das Höhenmodell ohne Schleier da -- man stellt hier
+		// ein und muss durchgehend sehen, was man einstellt (Owner 2026-07-28).
+		window.AvesmapsEcosystemHeightRender?.setSolid?.(true);
 		renderEcosystemPeakRows(area);
 		renderWikiReference();
 
@@ -1243,9 +1248,6 @@
 				// dass man beim Ziehen sieht, was man tut.
 				if (area) {
 					area[feld.key] = Number(propertiesElement(feld.element)?.value);
-					// Schleier weg, solange gezogen wird -- beim Einstellen soll das Höhenmodell allein
-					// dastehen, nicht halb durch die Flächenfarbe (Owner 2026-07-28).
-					window.AvesmapsEcosystemHeightRender?.setSolid?.(true);
 					schedulePreviewRedraw();
 				}
 			});
