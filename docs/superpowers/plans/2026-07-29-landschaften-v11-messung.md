@@ -16,6 +16,6 @@ Aufgabe 1 (Bestand), Aufgabe 11 (Verteilung und Kurve), Aufgabe 12 (Abnahme).
 | Raster roh, alle | 1,01 MB | 1,0157 MB | +0,67% |
 | größtes Raster roh | 286 KB | 285,4 KB | −0,21% |
 
-Verfahren: je eine Anfrage an `/api/app/ecosystem-areas.php` und `/api/app/map-features.json`, danach offline ausgezählt. Keine Schleife gegen die API.
+Verfahren: je eine Anfrage an `/api/app/ecosystem-areas.php` und `/api/app/map-features.php`, danach offline ausgezählt. Keine Schleife gegen die API.
 
 **Hinweis zur Messung:** Der Bestand ist stabil. Abweichungen liegen alle unter 10 % und reflektieren Wachstum der Karte seit ecosystem_revision 3983. Die Gebirgsflächen-Anzahl ist um 1 gestiegen (15 → 16), alle anderen Kennzahlen bleiben im Plan. `peaks_with_height` wurde mit korrigiertem Lesepfad (`properties.height_schritt` statt `properties.properties.height_schritt`) ermittelt.
