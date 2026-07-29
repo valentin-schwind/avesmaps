@@ -1955,8 +1955,17 @@ In `html/landschaften-editor.html`, direkt **nach**
      `Math.pow` mit gebrochenem Exponenten je Zelle, und `noiseScale` hängt an einem ARGMAX, sodass
      ein anderes letztes Bit in EINER Zelle die Skalierung der ganzen Fläche verschiebt. Also
      rechnet der Browser einmal und lädt das Ergebnis hoch.
-     Reihenfolge zwingend: -geometry.js (oben) liefert pointInGeometry / distanceToEcosystemEdge /
-     ecosystemGeometryBounds, auf denen -height-field.js steht. -->
+     Reihenfolge zwingend: -geometry.js (oben) liefert distanceToEcosystemEdge und
+     ecosystemGeometryBounds, auf denen -height-field.js steht.
+
+     💣 UND point-in-polygon.js, das diese Seite bis heute NICHT lädt. `pointInGeometry` wohnt in
+     einer eigenen Datei und wird von beiden Höhenmodulen gerufen -- zuerst in
+     `assignEcosystemPeaksToAreas`, also in der ERSTEN Zeile des Rasterlaufs. Ohne diese Zeile
+     wirft der Knopf sofort `ReferenceError: pointInGeometry is not defined`, und die Kachel sagt
+     nur „fehlgeschlagen". Es ist dieselbe Lücke, die der Aufgabe-5-Prüfer in seiner vm-Umgebung
+     gefunden hat -- dort behoben, hier zunächst vergessen: eine fehlende Abhängigkeit im
+     Testgerüst heißt, dass der Produktivlader dieselbe Lücke hat. -->
+<script src="/js/map-features/map-features-point-in-polygon.js"></script>
 <script src="/js/map-features/map-features-ecosystem-height-field.js"></script>
 <script src="/js/map-features/map-features-ecosystem-height-combine.js"></script>
 <script src="/js/map-features/map-features-ecosystem-heightmap-raster.js"></script>
