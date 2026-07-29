@@ -177,4 +177,87 @@ $riverBase = avesmapsBuildClientCompatibleRouteGraph($river, $plainRequest)['gra
 assert(abs($riverBack['time'] - $riverBase['time'] * $riverBack['terrain_time_factor']) < 1e-9,
     'flow and slope must multiply, each with its own clamp');
 
+// ---- THE SECOND TIME SITE: the waypoint anchor ------------------------------------------------
+// 💣 THIS IS THE HIGHEST-RISK PATH IN THE FEATURE AND IT HAD NO COVERAGE AT ALL. It is the one that
+// replaces the back-computation, and the acceptance step written for it originally asserted
+// something that is TRUE OF THE BUG TOO (see task 12 step 5): the pieces sum to the parent either
+// way, because the uphill part of the curve is linear. What discriminates is the FACTORS.
+//
+// An isolated place at (5, 5) with no path of its own gets anchored to the nearest land path, which
+// is split at the projected point (5, 0) -- halfway along the way's first segment.
+$anchorNetwork = [
+    'locations' => [
+        ['name' => 'Anfang', 'geometry' => ['type' => 'Point', 'coordinates' => [0.0, 0.0]]],
+        ['name' => 'Ende', 'geometry' => ['type' => 'Point', 'coordinates' => [20.0, 0.0]]],
+        ['name' => 'Einsiedel', 'geometry' => ['type' => 'Point', 'coordinates' => [5.0, 5.0]]],
+    ],
+    'paths' => [[
+        'id' => 'w1', 'public_id' => 'w1', 'client_path_id' => 'path-1',
+        'name' => 'Strasse', 'subtype' => 'Strasse', 'revision' => 7,
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]]],
+        'properties' => [], 'flow' => null,
+    ]],
+];
+$anchorRequest = $plainRequest + ['from' => 'Einsiedel', 'to' => 'Ende'];
+// All the climb in the FIRST segment, the second dead level -- so the two pieces are unmistakably
+// different ground and a parent average could not possibly describe both.
+$anchorTerrain = ['w1' => ['ascent' => 6000.0, 'descent' => 0.0,
+    'profile' => [[6000.0, 0.0], [0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+
+$anchored = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest, $anchorTerrain);
+$sliceA = null;
+$sliceB = null;
+foreach ($anchored['graph'] as $edges) {
+    foreach ($edges as $connections) {
+        foreach ($connections as $candidate) {
+            $id = (string) ($candidate['id'] ?? '');
+            if (str_ends_with($id, '-a')) { $sliceA = $candidate; }
+            if (str_ends_with($id, '-b')) { $sliceB = $candidate; }
+        }
+    }
+}
+assert(is_array($sliceA) && is_array($sliceB),
+    'the waypoint anchor must have split the path into two sub-slices');
+
+$whole = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $anchorTerrain)['graph']['Anfang']['Ende'][0];
+
+// 1. The two pieces carry DIFFERENT factors. With the back-computation both would carry the
+//    parent's, and this is the assertion that says so out loud.
+assert($sliceA['terrain_time_factor'] !== $sliceB['terrain_time_factor'],
+    'the two sub-slices must not share one factor -- that is exactly the back-computation bug');
+// 2. The steep piece is slower than the undivided edge; the level piece is faster. Measured:
+//    parent 1,5 -- steep half 2,0 -- level remainder 1,3333.
+$steep = $sliceA['ascent_schritt'] >= $sliceB['ascent_schritt'] ? $sliceA : $sliceB;
+$gentle = $steep === $sliceA ? $sliceB : $sliceA;
+assert($steep['terrain_time_factor'] > $whole['terrain_time_factor'],
+    'the piece carrying the climb must be SLOWER than the parent average, got '
+    . $steep['terrain_time_factor'] . ' vs ' . $whole['terrain_time_factor']);
+assert($gentle['terrain_time_factor'] < $whole['terrain_time_factor'],
+    'the level piece must be FASTER than the parent average');
+// 3. The split is conservative in climb and fall: nothing is invented, nothing is lost.
+assert(abs(($sliceA['ascent_schritt'] + $sliceB['ascent_schritt']) - $whole['ascent_schritt']) < 1e-6,
+    'the pieces must carry exactly the parent way climb between them');
+assert(abs(($sliceA['descent_schritt'] + $sliceB['descent_schritt']) - $whole['descent_schritt']) < 1e-6,
+    'the pieces must carry exactly the parent way fall between them');
+
+// 4. 💣 WITH NO TERRAIN THE SPLIT IS LOSSLESS AND INVISIBLE. This is the half that protects the
+//    published numbers: the anchor already existed and must keep behaving exactly as it did.
+$anchoredOff = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest);
+$offA = null;
+$offB = null;
+foreach ($anchoredOff['graph'] as $edges) {
+    foreach ($edges as $connections) {
+        foreach ($connections as $candidate) {
+            $id = (string) ($candidate['id'] ?? '');
+            if (str_ends_with($id, '-a')) { $offA = $candidate; }
+            if (str_ends_with($id, '-b')) { $offB = $candidate; }
+        }
+    }
+}
+$wholeOff = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest)['graph']['Anfang']['Ende'][0];
+assert(abs(($offA['time'] + $offB['time']) - $wholeOff['time']) < 1e-9,
+    'without terrain the split must be exactly lossless');
+assert(!array_key_exists('terrain_time_factor', $offA) && !array_key_exists('terrain_time_factor', $offB),
+    'without terrain a sub-slice must carry no terrain key at all');
+
 fwrite(STDOUT, "terrain-read-test: all asserts passed\n");
