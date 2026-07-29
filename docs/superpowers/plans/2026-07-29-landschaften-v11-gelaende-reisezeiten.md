@@ -3266,6 +3266,89 @@ assert($riverBack['terrain_time_factor'] < 1.0, 'and the slope factor applies on
 $riverBase = avesmapsBuildClientCompatibleRouteGraph($river, $plainRequest)['graph']['Ende']['Anfang'][0];
 assert(abs($riverBack['time'] - $riverBase['time'] * $riverBack['terrain_time_factor']) < 1e-9,
     'flow and slope must multiply, each with its own clamp');
+
+// ---- THE SECOND TIME SITE: the waypoint anchor ------------------------------------------------
+// 💣 THIS IS THE HIGHEST-RISK PATH IN THE FEATURE AND IT HAD NO COVERAGE AT ALL. It is the one that
+// replaces the back-computation, and the acceptance step written for it originally asserted
+// something that is TRUE OF THE BUG TOO (see task 12 step 5): the pieces sum to the parent either
+// way, because the uphill part of the curve is linear. What discriminates is the FACTORS.
+//
+// An isolated place at (5, 5) with no path of its own gets anchored to the nearest land path, which
+// is split at the projected point (5, 0) -- halfway along the way's first segment.
+$anchorNetwork = [
+    'locations' => [
+        ['name' => 'Anfang', 'geometry' => ['type' => 'Point', 'coordinates' => [0.0, 0.0]]],
+        ['name' => 'Ende', 'geometry' => ['type' => 'Point', 'coordinates' => [20.0, 0.0]]],
+        ['name' => 'Einsiedel', 'geometry' => ['type' => 'Point', 'coordinates' => [5.0, 5.0]]],
+    ],
+    'paths' => [[
+        'id' => 'w1', 'public_id' => 'w1', 'client_path_id' => 'path-1',
+        'name' => 'Strasse', 'subtype' => 'Strasse', 'revision' => 7,
+        'geometry' => ['type' => 'LineString', 'coordinates' => [[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]]],
+        'properties' => [], 'flow' => null,
+    ]],
+];
+$anchorRequest = $plainRequest + ['from' => 'Einsiedel', 'to' => 'Ende'];
+// All the climb in the FIRST segment, the second dead level -- so the two pieces are unmistakably
+// different ground and a parent average could not possibly describe both.
+$anchorTerrain = ['w1' => ['ascent' => 6000.0, 'descent' => 0.0,
+    'profile' => [[6000.0, 0.0], [0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+
+$anchored = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest, $anchorTerrain);
+$sliceA = null;
+$sliceB = null;
+foreach ($anchored['graph'] as $edges) {
+    foreach ($edges as $connections) {
+        foreach ($connections as $candidate) {
+            $id = (string) ($candidate['id'] ?? '');
+            if (str_ends_with($id, '-a')) { $sliceA = $candidate; }
+            if (str_ends_with($id, '-b')) { $sliceB = $candidate; }
+        }
+    }
+}
+assert(is_array($sliceA) && is_array($sliceB),
+    'the waypoint anchor must have split the path into two sub-slices');
+
+$whole = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $anchorTerrain)['graph']['Anfang']['Ende'][0];
+
+// 1. The two pieces carry DIFFERENT factors. With the back-computation both would carry the
+//    parent's, and this is the assertion that says so out loud.
+assert($sliceA['terrain_time_factor'] !== $sliceB['terrain_time_factor'],
+    'the two sub-slices must not share one factor -- that is exactly the back-computation bug');
+// 2. The steep piece is slower than the undivided edge; the level piece is faster. Measured:
+//    parent 1,5 -- steep half 2,0 -- level remainder 1,3333.
+$steep = $sliceA['ascent_schritt'] >= $sliceB['ascent_schritt'] ? $sliceA : $sliceB;
+$gentle = $steep === $sliceA ? $sliceB : $sliceA;
+assert($steep['terrain_time_factor'] > $whole['terrain_time_factor'],
+    'the piece carrying the climb must be SLOWER than the parent average, got '
+    . $steep['terrain_time_factor'] . ' vs ' . $whole['terrain_time_factor']);
+assert($gentle['terrain_time_factor'] < $whole['terrain_time_factor'],
+    'the level piece must be FASTER than the parent average');
+// 3. The split is conservative in climb and fall: nothing is invented, nothing is lost.
+assert(abs(($sliceA['ascent_schritt'] + $sliceB['ascent_schritt']) - $whole['ascent_schritt']) < 1e-6,
+    'the pieces must carry exactly the parent way climb between them');
+assert(abs(($sliceA['descent_schritt'] + $sliceB['descent_schritt']) - $whole['descent_schritt']) < 1e-6,
+    'the pieces must carry exactly the parent way fall between them');
+
+// 4. 💣 WITH NO TERRAIN THE SPLIT IS LOSSLESS AND INVISIBLE. This is the half that protects the
+//    published numbers: the anchor already existed and must keep behaving exactly as it did.
+$anchoredOff = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest);
+$offA = null;
+$offB = null;
+foreach ($anchoredOff['graph'] as $edges) {
+    foreach ($edges as $connections) {
+        foreach ($connections as $candidate) {
+            $id = (string) ($candidate['id'] ?? '');
+            if (str_ends_with($id, '-a')) { $offA = $candidate; }
+            if (str_ends_with($id, '-b')) { $offB = $candidate; }
+        }
+    }
+}
+$wholeOff = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest)['graph']['Anfang']['Ende'][0];
+assert(abs(($offA['time'] + $offB['time']) - $wholeOff['time']) < 1e-9,
+    'without terrain the split must be exactly lossless');
+assert(!array_key_exists('terrain_time_factor', $offA) && !array_key_exists('terrain_time_factor', $offB),
+    'without terrain a sub-slice must carry no terrain key at all');
 ```
 
 - [ ] **Schritt 2: Test laufen lassen, Fehlschlag bestätigen**
@@ -4082,11 +4165,43 @@ Ein Segment weit ab von jedem Gebirge heraussuchen: `ascent_schritt: null`,
 
 - [ ] **Schritt 5: Ein Wegpunkt mitten auf einer Bergstraße** — der Test, der die Rückrechnung erschlägt
 
-Route mit `via` an einem Punkt auf einer Bergstraße. Erwartet: die beiden Teilstücke ergeben
-zusammen **dieselbe Zeit wie die ungeteilte Kante** (±Rundung). ⚠️ `via` wirft heute
-`via_not_supported` — dann statt dessen einen abgelegenen Ort als `to` wählen, der über
-`avesmapsConnectClientRouteWaypointsToNearestLandPath` angebunden wird, und die beiden
+💣 **DIE URSPRÜNGLICHE FASSUNG DIESES SCHRITTS PRÜFTE NICHTS.** Sie verlangte, dass „die beiden
+Teilstücke zusammen dieselbe Zeit ergeben wie die ungeteilte Kante". Das tun sie — **auch mit der
+kaputten Rückrechnung.** Nachgerechnet (Weg 20 Einheiten, Strasse zu Fuß, Profil `[[6000,0],[0,0]]`,
+Schnitt bei der Hälfte des ersten Wegstücks):
+
+| | Faktor | Zeit |
+|---|---|---|
+| ungeteilte Kante | 1,5000 | 7,500000 |
+| Stück 1 (5 E, der ganze Anstieg) | **2,0000** | 1,666667 |
+| Stück 2 (15 E, eben) | **1,3333** | 5,833333 |
+| Summe der Stücke | | **7,500000** — Abweichung **0,0** |
+
+Die Summe stimmt **exakt**, weil der Anstiegsteil der Kurve linear ist: `Σ dᵢ/v · (1 + k·Aᵢ/(3000·dᵢ))`
+kürzt sich zu `D/v + k·A/(3000·v)`. Mit der Rückrechnung bekämen **beide** Stücke den Elternfaktor
+1,5 — und summierten sich zu **denselben 7,5**. Der Test hätte auf kaputtem Code bestanden.
+
+*(Mit Gefälle bricht die exakte Additivität leicht auf — der quadratische Term ist nicht linear:
+dieselbe Rechnung mit `[[2000,0],[0,1000]]` gibt 5,712500 gegen 5,713889, also 0,024 %. Das ist
+**keine Rundung**, sondern echte Nichtlinearität, und „±Rundung" war auch als Toleranzangabe falsch.)*
+
+**Was WIRKLICH unterscheidet:** das steilere Stück trägt einen **höheren** Faktor als die
+Elternkante. Erwartet also:
+
+1. `wp-slice-…-a` und `-b` tragen **verschiedene** `terrain_time_factor`.
+2. Das Stück mit dem größeren Anstieg-je-Strecke trägt den **größeren** Faktor, und dieser ist
+   **größer als der der ungeteilten Kante**. Mit Rückrechnung wären alle drei gleich.
+3. `ascent_schritt` der beiden Stücke summiert sich auf den Wert der ungeteilten Kante, ebenso
+   `descent_schritt`.
+4. **Mit Schalter AUS** ist die Teilung verlustfrei: die beiden Zeiten summieren sich exakt auf die
+   der ungeteilten Kante, und keines der drei Segmente trägt ein `terrain_time_factor`-Feld.
+
+⚠️ `via` wirft heute `via_not_supported` — statt dessen einen abgelegenen Ort als `to` wählen, der
+über `avesmapsConnectClientRouteWaypointsToNearestLandPath` angebunden wird, und die beiden
 `wp-slice-*`-Segmente gegen die ungeteilte Kante rechnen.
+
+⭐ Punkte 1–4 sind **außerdem als Unit-Test gebaut** (Aufgabe 9b) und laufen ohne Datenbank. Dieser
+Schritt bestätigt sie am Livebestand; er ist nicht mehr ihr einziger Nachweis.
 
 - [ ] **Schritt 6: Ein Weg durch einen Überlappungsstreifen zweier Gebirge**
 
