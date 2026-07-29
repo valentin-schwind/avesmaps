@@ -64,6 +64,32 @@ function avesmapsPathLandscapesNormalizeRequest(mixed $payload): array
 }
 
 /**
+ * The Landschaften kill switch, read WITHOUT the self-healing DDL.
+ *
+ * 💣 `avesmapsEcosystemEnabled()` would be the obvious call, and it is the wrong one HERE. It goes
+ * through `avesmapsAppSettingGet`, which runs `CREATE TABLE IF NOT EXISTS app_setting` on every
+ * single call. ecosystem-areas.php tolerates that deliberately and says why: it is called from the
+ * edit mode, not from the public map. This endpoint is the opposite -- it fires on every route a
+ * visitor plans, and a DDL statement in front of a public read is precisely the hotspot AGENTS.md
+ * §10 already lists for territories-endpoint.php.
+ *
+ * A missing `app_setting` table therefore means OFF, not "create it and look again": if the table
+ * does not exist, nobody has ever switched the layer on, and the stored default is '0' anyway.
+ */
+function avesmapsPathLandscapesEcosystemEnabled(PDO $pdo): bool
+{
+    try {
+        $statement = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
+        $statement->execute(['k' => AVESMAPS_ECOSYSTEM_SETTING]);
+        $value = $statement->fetchColumn();
+    } catch (PDOException) {
+        return false;
+    }
+
+    return $value !== false && (string) $value !== '0';
+}
+
+/**
  * PURE: arc length of a coordinate list, in MAP UNITS.
  *
  * ⚠️ The same measure as `calculatePathCoordinateDistance` in the browser and as basis 0 in
@@ -84,6 +110,36 @@ function avesmapsPathLandscapesLineLength(array $coordinates): float
     }
 
     return $total;
+}
+
+/**
+ * When the stored answer was computed, and whether the stock has moved since.
+ *
+ * 💣 A MISSING TABLE IS NOT AN ERROR HERE. The V9 tables are created in the editor's write path, so
+ * on a database where „Zugehörigkeit rechnen" has never run they simply do not exist -- and PDO is
+ * in ERRMODE_EXCEPTION, so the plain read would throw and this public endpoint would answer 500 for
+ * a state that is perfectly normal. „Nothing computed yet" and „this way touches no landscape" are
+ * the same answer to a visitor: no line. Neither deserves a 500, and neither may create a table on
+ * a read path.
+ */
+function avesmapsPathLandscapesStamp(PDO $pdo): ?array
+{
+    try {
+        $status = avesmapsPathEcosystemStatus($pdo);
+    } catch (PDOException) {
+        return null;
+    }
+    if (!is_array($status['stamp'] ?? null)) {
+        return null;
+    }
+
+    return [
+        'computed_at' => (string) $status['stamp']['computed_at'],
+        'ecosystem_revision' => (int) $status['stamp']['ecosystem_revision'],
+        'map_revision' => (int) $status['stamp']['map_revision'],
+        'stale' => (int) $status['stamp']['ecosystem_revision'] !== (int) ($status['current']['ecosystem_revision'] ?? 0)
+            || (int) $status['stamp']['map_revision'] !== (int) ($status['current']['map_revision'] ?? 0),
+    ];
 }
 
 /**
