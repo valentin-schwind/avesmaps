@@ -176,6 +176,8 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$terrainEnabled = $routePdo instanceof PDO && $terrainRequested && avesmapsRouteTerrainEnabled($routePdo);
 	$terrain = $terrainEnabled ? avesmapsRouteLoadTerrain($routePdo) : [];
 	$terrainMatched = avesmapsRouteCountTerrainMatches($routeNetworkData['paths'] ?? [], $terrain);
+	// Only asked when terrain is on -- with the switch off there is nothing whose currency matters.
+	$terrainStale = $terrainEnabled && avesmapsRouteTerrainStale($routePdo);
 	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request);
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
@@ -224,6 +226,11 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 					'requested' => $terrainRequested,
 					'profile_rows' => count($terrain),
 					'matched_ways' => $terrainMatched,
+					// 🔴 The rasters have moved since the profiles were derived. The profiles are
+					// still USED -- refusing them would flatten the whole map over one edit -- so
+					// this flag is the only thing that makes „warum ist der Pass noch schnell?"
+					// answerable. Without it the staleness rule is a claim, not a behaviour.
+					'stale' => $terrainStale,
 				],
 			],
 		],

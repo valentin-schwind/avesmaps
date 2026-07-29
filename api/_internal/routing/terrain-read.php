@@ -16,6 +16,8 @@ declare(strict_types=1);
 // concurrent visitor starting the same fill and holding a PHP worker -- the shape of the pool
 // incident of 2026-07-17.
 
+require_once __DIR__ . '/../app/heightmap.php';
+
 const AVESMAPS_TERRAIN_SETTING = 'terrain_travel_enabled';
 
 /**
@@ -135,4 +137,34 @@ function avesmapsRouteCountTerrainMatches(array $paths, array $terrain): int
     }
 
     return $matched;
+}
+
+/**
+ * Do the stored profiles still describe the rasters as they stand NOW?
+ *
+ * 🔴 THIS IS THE OTHER HALF OF THE STALENESS RULE, and without it the rule is a claim rather than a
+ * behaviour: `heightmap_stamp` mismatch means the profile is still USED (refusing would turn one
+ * raster edit into a map-wide flattening) -- but then it MUST be visible, or „warum ist der Pass
+ * noch schnell?" has no answer. `avesmapsEcosystemEnsureTables` already promises this out loud:
+ * „A stale stamp is REPORTED, not obeyed (see the reader in response.php)."
+ *
+ * Two small reads, and only when terrain is on: the stamp the profile run was computed against, and
+ * the stamp the rasters carry today. Both are indexed columns; NEITHER touches a blob.
+ *
+ * „Nothing computed yet" is NOT stale -- it is absent, and `matched_ways = 0` already says so.
+ */
+function avesmapsRouteTerrainStale(PDO $pdo): bool
+{
+    try {
+        $stamped = $pdo->query('SELECT heightmap_stamp FROM path_terrain_stamp WHERE id = 1')->fetchColumn();
+        if ($stamped === false || $stamped === null || (string) $stamped === '') {
+            return false;
+        }
+
+        return (string) $stamped !== avesmapsHeightmapGlobalStamp($pdo);
+    } catch (PDOException) {
+        // A missing table is the normal state before the first run, not an error (see the note on
+        // avesmapsRouteLoadTerrain).
+        return false;
+    }
 }
