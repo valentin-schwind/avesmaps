@@ -866,6 +866,24 @@
 		submenu.appendChild(button);
 	}
 
+	// 🔴 UND DASSELBE IM FLÄCHENMENÜ (Owner 2026-07-29). Über einer Fläche öffnet der Rechtsklick das
+	// Flächenmenü, nicht das Kartenmenü -- und seit die Ebene fast lückenlos gezeichnet ist, gibt es kaum
+	// noch freie Karte, auf der man das andere erwischen könnte. „Grenze aus Territorien" gehört zu
+	// denselben vier Anlege-Einträgen wie die drei Ebenen und wandert deshalb in dieselbe Gruppe.
+	//
+	// 🪤 Über den vorhandenen Erweiterungspunkt, nicht am DOM des Nachbarmoduls vorbei: `addEntry` ist
+	// genau dafür da (V3.6), und es kennt die Reihenfolge -- Anlegen oben, Zerstörendes unten.
+	function ensureImportAreaMenuEntry() {
+		window.AvesmapsEcosystemAreaMenu?.addEntry?.({
+			action: MENU_ACTION,
+			label: label("ecosystem.ctxmenu.areaMenuImportTerritory", "aus Territoriumsgrenze"),
+			group: "new-area",
+			// Die Klickposition kommt vom Menü -- dieselbe Stelle, an der auch eine gezeichnete Fläche
+			// begänne. Der Dialog nimmt sie, um die Karte auf die getroffenen Territorien zu zentrieren.
+			onClick: (publicId, latlng) => void openTerritoryImportDialog(latlng),
+		});
+	}
+
 	// Läuft bei jedem Rechtsklick in der CAPTURE-Phase, also bevor Leaflets eigener Handler das Menü
 	// aufdeckt und seine Höhe MISST (js/app/bootstrap.js:701) -- danach zu schalten hiesse, eine Höhe zu
 	// klemmen, die nicht mehr stimmt. Dasselbe Tor wie bei den drei „Neue …"-Einträgen: der Eintrag ist
@@ -941,11 +959,17 @@
 		});
 	}
 
+	// Beide Menüs zusammen, damit niemand das eine ergänzt und das andere vergisst.
+	function ensureImportMenuEntries() {
+		ensureImportMenuEntry();
+		ensureImportAreaMenuEntry();
+	}
+
 	if (typeof document !== "undefined") {
 		if (document.readyState === "loading") {
-			document.addEventListener("DOMContentLoaded", ensureImportMenuEntry, { once: true });
+			document.addEventListener("DOMContentLoaded", ensureImportMenuEntries, { once: true });
 		} else {
-			ensureImportMenuEntry();
+			ensureImportMenuEntries();
 		}
 
 		// CAPTURE, und damit vor den delegierten jQuery-Handlern der Bubble-Phase (routing.js:637);

@@ -656,10 +656,11 @@
 			return;
 		}
 
-		const entry = (action, german, onClick) => menu.addEntry({
+		const entry = (action, german, onClick, danger = false) => menu.addEntry({
 			action,
 			label: typeof tr === "function" ? tr(`ecosystem.ctxmenu.${action}`, german) : german,
 			onClick,
+			danger,
 		});
 
 		entry("move", "Verschieben", (publicId) => {
@@ -707,7 +708,11 @@
 		// Die drei Unterflächen-Einträge. Sie erscheinen nur, wenn es überhaupt mehrere gibt.
 		entry("merge-subareas", "Alle Unterflächen vereinigen", (publicId) => void runMergeSubareas(publicId));
 		entry("extract", "Unterfläche herauslösen", (publicId) => startSubareaPick(publicId, "Herauslösen", runExtract));
-		entry("delete-part", "Unterfläche löschen", (publicId) => startSubareaPick(publicId, "Löschen", runDeleteSubarea));
+		// 🔴 ROT wie „Fläche löschen" (Owner 2026-07-29). Es ist derselbe Vorgang, nur eine Ebene tiefer --
+		// und der einzige Eintrag in diesem Menü, der Geometrie vernichtet, ohne so auszusehen. Damit
+		// rutscht er zugleich ans Ende: die Einfügeregel setzt jeden NICHT-gefährlichen Eintrag vor den
+		// ersten gefährlichen, also sammeln sich die Zerstörer unten.
+		entry("delete-part", "Unterfläche löschen", (publicId) => startSubareaPick(publicId, "Löschen", runDeleteSubarea), true);
 	}
 
 	// ---- Verdrahtung --------------------------------------------------------------------------------

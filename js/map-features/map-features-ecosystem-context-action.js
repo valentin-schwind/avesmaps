@@ -55,6 +55,14 @@
 	// The area the open area-menu belongs to. Mirrors activeRegionContextEntry, and like it is read
 	// BEFORE the menu is closed -- closing clears it.
 	let activeEcosystemAreaMenuPublicId = "";
+	// 🔴 Wo rechtsgeklickt wurde. Nötig, seit das Flächenmenü „Neue Fläche" trägt: eine neue Fläche
+	// beginnt an genau diesem Punkt, und das Kartenmenü hält seine Position aus demselben Grund
+	// (`pendingContextMenuLatLng`). Wie die public_id VOR dem Schliessen zu lesen -- Schliessen räumt sie weg.
+	let activeEcosystemAreaMenuLatLng = null;
+	// Der Name der Untermenü-Gruppe im Flächenmenü. Ein data-Attribut und kein Klassenname: Klassen
+	// gehören hier der gemeinsamen Menü-Optik (map-context-menu.css), Zuordnung den data-Attributen.
+	const AREA_GROUP_ATTRIBUTE = "data-ecosystem-area-group";
+	const AREA_GROUP_NEW = "new-area";
 	let ecosystemAreaMenuMapHooked = false;
 
 	// V3.6 extension point: action -> handler, for entries a SIBLING file hangs into this menu. The menu
@@ -388,6 +396,15 @@
 		deleteButton.textContent = label("ecosystem.ctxmenu.deleteArea", "Fläche löschen");
 		menu.appendChild(deleteButton);
 
+		// 🔴 Das Kürzel steht dort, wo man es braucht. Strg+Rechtsklick öffnet das volle Kartenmenü --
+		// die einzige Art, über einer Fläche noch an „Entfernung messen", „Suchen" oder „Hier melden" zu
+		// kommen. Ein Kürzel ohne sichtbaren Hinweis wird nicht gefunden, und ein Notausgang, den niemand
+		// kennt, ist keiner. Kein <button>: es ist eine Auskunft, nichts zum Anklicken.
+		const hint = document.createElement("div");
+		hint.className = "map-context-menu__hint";
+		hint.textContent = label("ecosystem.ctxmenu.mapMenuHint", "Strg + Rechtsklick: Kartenmenü");
+		menu.appendChild(hint);
+
 		const sibling = document.getElementById("region-context-menu") || document.getElementById("map-context-menu");
 		if (sibling?.parentNode) {
 			sibling.parentNode.insertBefore(menu, sibling.nextSibling);
@@ -405,7 +422,55 @@
 	// 🪤 INSERTED BEFORE THE FIRST DANGER ENTRY, not appended. "Fläche löschen" is built first here, and
 	// an appended entry would land below it; destructive actions belong last in every menu in this house
 	// (#region-context-menu ends on `delete` too). The caller must not have to know that.
-	function addEcosystemAreaMenuEntry({ action = "", label: entryLabel = "", onClick = null } = {}) {
+	// Die Untermenü-Gruppe „Neue Fläche" im Flächenmenü, idempotent wie alles hier.
+	//
+	// 🔴 WARUM SIE ÜBERHAUPT EXISTIERT (Owner 2026-07-29). Die Ebene ist inzwischen so dicht gezeichnet,
+	// dass es kaum noch freie Karte gibt -- und das Kartenmenü mit „Hier hinzufügen" öffnet nur auf
+	// freier Karte. Wer eine neue Fläche neben einer bestehenden anlegen wollte, fand keine Stelle mehr,
+	// an der er hätte rechtsklicken können. Also führt das Flächenmenü dieselben Einträge mit.
+	//
+	// 🪤 NUR die vier Anlege-Einträge, nicht das halbe Kartenmenü. Zwei Menüs, die dasselbe behaupten,
+	// laufen auseinander, sobald jemand nur eines anfasst. Für alles Übrige -- Entfernung messen, Suchen,
+	// Hier melden -- gibt es Strg+Rechtsklick (siehe map-features-ecosystem-rendering.js).
+	//
+	// Baut dieselbe Struktur wie das Kartenmenü (`__group` > `__item--submenu` + `.map-context-submenu`),
+	// damit das vorhandene CSS greift und es kein zweites Untermenü-Aussehen im Haus gibt.
+	function ensureAreaMenuGroup(menu) {
+		const existing = menu.querySelector(`[${AREA_GROUP_ATTRIBUTE}="${AREA_GROUP_NEW}"] .map-context-submenu`);
+		if (existing) {
+			return existing;
+		}
+
+		const group = document.createElement("div");
+		group.className = "map-context-menu__group";
+		group.setAttribute(AREA_GROUP_ATTRIBUTE, AREA_GROUP_NEW);
+
+		const opener = document.createElement("button");
+		opener.type = "button";
+		opener.className = "map-context-menu__item map-context-menu__item--submenu";
+		// 💣 Die Glyphe ist Pflicht, nicht Zierde: ohne `content` entsteht das ::before gar nicht, die
+		// BESCHRIFTUNG wird zum ersten Rasterelement und beginnt bei 12 statt bei 41 px -- in V7 genau so
+		// gemessen. Deshalb dasselbe Attribut wie „Hier hinzufügen" im Kartenmenü, damit dieselbe Regel
+		// greift und derselbe Eintrag nicht zwei Glyphen im Haus hat.
+		opener.setAttribute(AREA_GROUP_ATTRIBUTE, AREA_GROUP_NEW);
+		opener.textContent = label("ecosystem.ctxmenu.areaMenuNewArea", "Neue Fläche");
+		group.appendChild(opener);
+
+		const submenu = document.createElement("div");
+		submenu.className = "map-context-submenu";
+		group.appendChild(submenu);
+
+		// Über allen anderen Einträgen: Anlegen ist die häufigste Absicht, und Zerstörendes bleibt unten.
+		menu.insertBefore(group, menu.firstChild);
+
+		return submenu;
+	}
+
+	// `group: "new-area"` hängt den Eintrag ins Untermenü statt in die flache Liste. `danger: true` färbt
+	// ihn wie „Fläche löschen" und schiebt ihn damit ans Ende -- die Einfügeregel unten setzt jeden neuen
+	// Eintrag VOR den ersten gefährlichen, also sortieren sich Zerstörer von selbst nach unten.
+	// Sonst unverändert -- die Nachbardatei für den Territorien-Import benutzt denselben Weg wie „Senden an …".
+	function addEcosystemAreaMenuEntry({ action = "", label: entryLabel = "", onClick = null, group = "", danger = false } = {}) {
 		const actionName = String(action).trim();
 		if (!actionName || typeof onClick !== "function") {
 			return null;
@@ -421,9 +486,14 @@
 
 		const button = document.createElement("button");
 		button.type = "button";
-		button.className = "map-context-menu__item";
+		button.className = danger ? "map-context-menu__item map-context-menu__item--danger" : "map-context-menu__item";
 		button.setAttribute(AREA_ACTION_ATTRIBUTE, actionName);
 		button.textContent = String(entryLabel || actionName);
+
+		if (String(group) === AREA_GROUP_NEW) {
+			ensureAreaMenuGroup(menu).appendChild(button);
+			return button;
+		}
 
 		const firstDanger = menu.querySelector(".map-context-menu__item--danger");
 		if (firstDanger) {
@@ -433,6 +503,36 @@
 		}
 
 		return button;
+	}
+
+	// Die drei Ebenen-Einträge im FLÄCHENmenü. Dieselben Aktionen wie im Kartenmenü, dieselbe Reihenfolge
+	// wie vom Owner genannt (Vegetation zuerst -- dort liegt die meiste Arbeit), nur kürzer beschriftet:
+	// im Untermenü unter „Neue Fläche" wäre „Neue Vegetation" zweimal dasselbe Wort.
+	const AREA_MENU_NEW_ENTRIES = [
+		{ kind: "vegetation", key: "ecosystem.ctxmenu.areaMenuVegetation", label: "Vegetation" },
+		{ kind: "topographie", key: "ecosystem.ctxmenu.areaMenuTopographie", label: "Topographisch" },
+		{ kind: "derographisch", key: "ecosystem.ctxmenu.areaMenuDerographisch", label: "Derographisch" },
+	];
+
+	function registerAreaMenuNewAreaEntries() {
+		AREA_MENU_NEW_ENTRIES.forEach((entry) => {
+			const button = addEcosystemAreaMenuEntry({
+				action: `new-area-${entry.kind}`,
+				label: label(entry.key, entry.label),
+				group: AREA_GROUP_NEW,
+				// 💣 Die Position wird VOR dem Schliessen gelesen -- handleAreaMenuClick schliesst das Menü,
+				// bevor es den Handler ruft, und das räumt activeEcosystemAreaMenuLatLng weg. Deshalb hier
+				// der gemerkte Wert aus dem Klick-Handler, nicht ein erneuter Zugriff auf die Variable.
+				onClick: (publicId, latlng) => startNewEcosystemArea(entry.kind, latlng),
+			});
+			// 🔴 DIESELBE GLYPHE wie im Kartenmenü, über dasselbe Attribut: ▭ ♣ △ sagen „in welche Ebene
+			// geht die neue Fläche", und diese Frage ist in beiden Menüs dieselbe. Ein zweiter Satz Zeichen
+			// für denselben Vorgang wäre das zweite Vokabular, das die Editoren dann lernen müssten.
+			// 💣 `data-ecosystem-new-kind`, NICHT `data-ecosystem-kind`: auf Letzteres greift
+			// syncEcosystemLayerSwitchControls dokumentweit zu und stempelte den Eintrag als vierte
+			// Kachel des Ebenenschalters (siehe die Anmerkung an NEW_AREA_KIND_ATTRIBUTE oben).
+			button?.setAttribute(NEW_AREA_KIND_ATTRIBUTE, entry.kind);
+		});
 	}
 
 	// Copied from positionContextMenuElement (map-features-region-context-menu.js:41-51), NOT called --
@@ -457,6 +557,7 @@
 			menuElement.hidden = true;
 		}
 		activeEcosystemAreaMenuPublicId = "";
+		activeEcosystemAreaMenuLatLng = null;
 	}
 
 	function isEcosystemAreaContextMenuOpen() {
@@ -499,6 +600,9 @@
 
 		const menuElement = ensureAreaMenuElement();
 		activeEcosystemAreaMenuPublicId = publicId;
+		// Wo geklickt wurde -- „Neue Fläche" beginnt an genau dieser Stelle. Aus dem Leaflet-Ereignis, weil
+		// nur das die Kartenkoordinate kennt; die Bildschirmposition darunter positioniert bloss das Menü.
+		activeEcosystemAreaMenuLatLng = event?.latlng ? L.latLng(event.latlng) : null;
 		hookEcosystemAreaMenuMapEvents();
 		menuElement.hidden = false;
 		positionAreaMenu(menuElement, event?.originalEvent?.clientX ?? 0, event?.originalEvent?.clientY ?? 0);
@@ -581,9 +685,10 @@
 		event.stopPropagation();
 		event.stopImmediatePropagation();
 
-		// 💣 Read BEFORE closing -- closeEcosystemAreaContextMenu() clears it, and every handler below
-		// needs to know which area the menu was opened on.
+		// 💣 Read BEFORE closing -- closeEcosystemAreaContextMenu() clears BOTH, and every handler below
+		// needs to know which area the menu was opened on and wo geklickt wurde.
 		const publicId = activeEcosystemAreaMenuPublicId;
+		const latlng = activeEcosystemAreaMenuLatLng ? L.latLng(activeEcosystemAreaMenuLatLng) : null;
 		const action = actionElement.getAttribute(AREA_ACTION_ATTRIBUTE);
 		closeEcosystemAreaContextMenu();
 		if (action === DELETE_AREA_ACTION) {
@@ -593,19 +698,28 @@
 
 		// Registered by a sibling file through addEntry. It gets the public_id and looks the row up
 		// itself (layer._ecosystemArea), the same way deleteEcosystemArea does -- a narrow contract that
-		// cannot go stale when the area shape changes.
-		areaMenuEntryHandlers.get(action)?.(publicId);
+		// cannot go stale when the area shape changes. Die Klickposition kommt als zweites Argument dazu:
+		// „Neue Fläche" beginnt dort, wo rechtsgeklickt wurde, nicht in der Mitte der getroffenen Fläche.
+		areaMenuEntryHandlers.get(action)?.(publicId, latlng);
 
 		return true;
 	}
 
 	// ---- wiring -------------------------------------------------------------------------------------
 
+	// Beide Menüs bekommen ihre Anlege-Einträge: das Kartenmenü seine drei (dort im Markup verankert),
+	// das Flächenmenü dieselben als Untermenü. Zusammen in EINER Funktion, damit niemand die eine
+	// ergänzt und die andere vergisst -- genau das wäre der Zustand, den dieser Umbau beendet.
+	function ensureBothMenusNewAreaEntries() {
+		ensureNewAreaMenuEntries();
+		registerAreaMenuNewAreaEntries();
+	}
+
 	if (typeof document !== "undefined") {
 		if (document.readyState === "loading") {
-			document.addEventListener("DOMContentLoaded", ensureNewAreaMenuEntries, { once: true });
+			document.addEventListener("DOMContentLoaded", ensureBothMenusNewAreaEntries, { once: true });
 		} else {
-			ensureNewAreaMenuEntries();
+			ensureBothMenusNewAreaEntries();
 		}
 
 		// One capture-phase click listener for both menus. Capture is what puts it ahead of the delegated

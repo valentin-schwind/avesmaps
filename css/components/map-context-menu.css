@@ -126,6 +126,22 @@
 	content: "\2227";
 }
 
+/* Das Untermenü „Neue Fläche" IM FLÄCHENMENÜ (Owner 2026-07-29). Dieselbe Glyphe wie „Hier hinzufügen"
+   im Kartenmenü, weil es derselbe Vorgang ist -- die drei Ebenen-Einträge darin tragen ohnehin
+   `data-ecosystem-new-kind` und erben damit ▭ ♣ △ von oben, Zeichen für Zeichen.
+   💣 Pflicht, nicht Zierde: ohne `content` kein ::before, und die Beschriftung beginnt bei 12 statt
+   bei 41 px. */
+.map-context-menu__item[data-ecosystem-area-group="new-area"]::before {
+	content: "\2795";
+}
+
+/* „aus Territoriumsgrenze" im Flächenmenü. Eigene Regel statt `data-ecosystem-import-action`: auf
+   dieses Attribut hört handleImportMenuClick, und ein zweiter Treffer liesse denselben Klick zweimal
+   laufen. Dieselbe Glyphe wie der Zwilling im Kartenmenü. */
+.map-context-menu__item[data-ecosystem-area-action="import-territory"]::before {
+	content: "\21E9";
+}
+
 .map-context-menu__item[data-ecosystem-area-action="send-to"]::before {
 	content: "\2192";
 }
@@ -278,6 +294,19 @@
 
 .map-context-menu__item--danger {
 	color: var(--color-danger);
+}
+
+/* Eine Auskunft am Fuss eines Menüs, kein Eintrag: das Tastenkürzel, mit dem man das Kartenmenü über
+   einer Fläche erzwingt (Landschaften-Ebene). Gedämpft und kleiner als die Einträge darüber, mit einem
+   Trenner davor -- es soll gefunden werden, wenn man danach sucht, und sonst nicht mitlesen. */
+.map-context-menu__hint {
+	margin-top: var(--space-4);
+	padding: var(--space-6) var(--space-10) var(--space-2);
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-snug);
+	white-space: nowrap;
 }
 
 .map-context-menu__item--submenu::after {

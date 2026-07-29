@@ -415,6 +415,22 @@ function buildEcosystemAreaLayer(area) {
 		if (typeof isEcosystemDrawing === "function" && isEcosystemDrawing()) {
 			return;
 		}
+		// 🔴 STRG + RECHTSKLICK ERZWINGT DAS KARTENMENÜ (Owner 2026-07-29). Die Ebene ist so dicht
+		// gezeichnet, dass es kaum noch freie Karte gibt -- und ohne freie Karte war „Entfernung messen",
+		// „Suchen", „Hier melden" und „Stelle markieren" schlicht nicht mehr erreichbar. Die vier
+		// Anlege-Einträge führt das Flächenmenü inzwischen selbst mit; für den ganzen Rest ist das hier
+		// der Notausgang.
+		//
+		// 🪤 Ohne `stop` aussteigen, nicht mit. Genau das reicht das Ereignis an map.on("contextmenu")
+		// weiter, und DORT wird preventDefault gerufen -- das Browsermenü bleibt also weg, ohne dass
+		// diese Zeile es selbst unterdrücken müsste. Ein `L.DomEvent.stop` hier täte das Gegenteil von
+		// dem, was der Griff bezweckt.
+		//
+		// 💣 Strg ist in dieser Ebene dreifach belegt -- Rad = Pinselgröße, Klick auf eine Kante = vier
+		// Ecken, Strg+Z = zurück. Alle drei sind andere Gesten; die RECHTE Maustaste war frei.
+		if (event?.originalEvent?.ctrlKey || event?.originalEvent?.metaKey) {
+			return;
+		}
 		if (!window.AvesmapsEcosystemAreaMenu) {
 			return;
 		}
