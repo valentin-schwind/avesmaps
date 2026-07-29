@@ -227,6 +227,46 @@ CREATE TABLE IF NOT EXISTS path_ecosystem (
 > Interpolation. Sie gehört dann in den Kern aus §5 als eigene reine Funktion, nicht in
 > die Tabelle.
 
+#### 4.1a Wenn diese Punkte später eigene Bedeutung bekommen — was dann gilt
+
+Owner-Idee 2026-07-29 (noch nicht beauftragt): den Ein-/Austrittspunkten selbst Bedeutung
+geben — „hier endet der Wald", „hier beginnt das Gebirge". Die Daten tragen das; **eine
+Einschränkung ist vorab gemessen und gehört hierher, bevor jemand darauf baut.**
+
+Der abgeleitete Punkt liegt **exakt** auf zwei von drei Linien:
+
+| | |
+|---|---|
+| auf der Flächengrenze | ✅ exakt — er ist per Konstruktion der Schnittpunkt mit einer Polygonkante, **und Flächen werden ungeglättet gezeichnet** (kein `smooth` in `map-features-ecosystem-rendering.js`) |
+| auf der rohen Weggeometrie | ✅ exakt |
+| **auf dem gezeichneten Weg** | ❌ **nicht exakt** — der Weg wird als Catmull-Rom-Kurve gezeichnet (§5.2) |
+
+**Gemessen an allen 2.610 echten Ein-/Austrittspunkten** (Weganfang und -ende
+ausgenommen, die liegen ohnehin auf beiden Linien) — Abstand des abgeleiteten Punkts zur
+**gezeichneten** Linie:
+
+| | Karteneinheiten | Meter | px bei z5 | px bei z7 |
+|---|---|---|---|---|
+| Median | 0,0157 | 47 | **0,50** | 2,01 |
+| p90 | 0,0529 | 159 | 1,69 | 6,77 |
+| p99 | 0,1278 | 383 | 4,09 | 16,35 |
+| max | 0,4919 | 1.476 | 15,74 | 62,97 |
+
+**74 % liegen unter einem Pixel** bei voller Kachelzoomstufe, 97,5 % unter drei; genau
+**2** Punkte über zehn. Eine Markierung säße also exakt am Waldrand und typischerweise
+unter einem Pixel neben der Straße — das liest sich als richtig.
+
+> ⚠️ **z7 ist viermal so empfindlich.** Die Karte lässt eine Stufe über die native
+> Kachelzoomstufe hinaus zu (`bootstrap.js:41`, `maxZoom: 7`). Dort ist der Median schon
+> 2 px und das p99 16 px. Wer die Punkte als Marker zeigt, prüft sie **dort**, nicht bei z5.
+
+**Die Lösung, falls es je stört, ist eine Anzeige-Lösung und keine Speicher-Lösung:** den
+Punkt beim Zeichnen auf die geglättete Linie fallen lassen (nächster Punkt auf der
+gezeichneten Polylinie, ein Dutzend Zeilen). Die gespeicherte Bogenlänge bleibt, wo sie
+hingehört — im Maßsystem des Routings (§5.2). **Nicht** umgekehrt: die Speicherung auf die
+Kurve umzustellen, um einen Marker um einen halben Pixel zu verschieben, zerlegt die
+Einheit, an der V10 und V11 hängen.
+
 ### 4.2 `ecosystem_region_overlap` — Teil A
 
 ```sql
