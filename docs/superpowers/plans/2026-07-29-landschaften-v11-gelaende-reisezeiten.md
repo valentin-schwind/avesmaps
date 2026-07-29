@@ -1142,7 +1142,14 @@ const vm = require("vm");
 // The height modules are plain <script> files with module.exports at the bottom; the geometry helpers
 // they call are globals. Load them into ONE shared context so the globals resolve.
 // 💣 A stub in the sandbox would swallow the very rule under test -- these are the REAL files.
-const context = { module: { exports: {} }, Math, Number, Array, Map, Float64Array, Uint16Array, Infinity, String, Boolean, console };
+//
+// 🪤 Only the NON-intrinsic globals are handed in. Every vm context gets its own Math, Object,
+// Array, Promise, Number, JSON and the typed arrays for free; `console`, `Buffer`, `setTimeout`
+// and `module` it does NOT. Those four are exactly the ones the modules reach for --
+// ecosystemHeightmapToBase64 falls back to Buffer because `btoa` is absent here, and the
+// rasteriser's default yield is a setTimeout. Listing the intrinsics instead (and forgetting these)
+// is how this harness fails with a bare "Buffer is not defined" halfway through.
+const context = { module: { exports: {} }, console, Buffer, setTimeout };
 context.globalThis = context;
 vm.createContext(context);
 ["map-features-ecosystem-geometry.js",
