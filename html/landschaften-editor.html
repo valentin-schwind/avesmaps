@@ -844,10 +844,34 @@ const ASSIGNMENT_CHUNK = 2000;
 // Die beiden vorhandenen Zuordnungen behalten ihre Form im Speicher; das hier ist nur die
 // Übersetzung aufs Kabel. `raycast` führt jedes Paar ohnehin doppelt (a→b und b→a), und genau das
 // speichert ecosystem_region_overlap: ein Leser fragt immer „was liegt in DIESER Region".
+// 💣 Der Anteil kann knapp über 1 liegen. Am Livebestand nachgemessen (2026-07-29): **5 Paare von
+// 647 Regionen**, das höchste bei **100,7 %** -- „Aventurien × See-133", „Orkland × See-116" und
+// drei weitere derselben Sorte. Das ist **Rundung im Verschnitt**, nicht Doppelzählung: ein See,
+// der vollständig in einer größeren Fläche liegt, liefert eine Schnittfläche, die minimal größer
+// ausfällt als der See selbst, und der Quotient kippt über 100 %.
+//
+// Die Anzeige zeigt das seit jeher so („100,7 %"); bemerkt hat es erst der Server, weil er „ein
+// Anteil ist ein Bruchteil" ernst nimmt. Genau dafür ist die Prüfung da.
+//
+// Gekappt statt durchgereicht: bei einem Rundungsrest ist 1,0 die wahre Aussage. Gezählt statt
+// verschwiegen -- der Knopf sagt hinterher, wie oft. Steigt die Zahl je deutlich über eine Handvoll,
+// ist es NICHT mehr Rundung und die Ursache gehört gesucht.
+let shareClamped = 0;
+function clampShare(value) {
+	const share = Number(value);
+	if (!Number.isFinite(share)) { return null; }
+	if (share > 1) { shareClamped += 1; return 1; }
+	return share < 0 ? 0 : share;
+}
+
 function overlapRowsFromRaycast() {
 	const out = [];
 	(raycast || new Map()).forEach((hits, regionId) => {
-		hits.forEach((hit) => out.push({ region: regionId, other: hit.regionId, share: hit.share }));
+		hits.forEach((hit) => {
+			const share = clampShare(hit.share);
+			if (share === null) { return; }
+			out.push({ region: regionId, other: hit.regionId, share });
+		});
 	});
 	return out;
 }
@@ -857,9 +881,13 @@ function territoryRowsFromHits() {
 	(territoryHits || new Map()).forEach((hits, regionId) => {
 		hits.forEach((hit) => {
 			if (!hit.territory || !hit.territory.publicId) { return; }
+			// Dieselbe Rechnung, derselbe Rundungsrest -- hier gegen die Territoriumsfläche statt gegen eine
+			// zweite Region, aber die Kappung gilt aus demselben Grund.
+			const share = clampShare(hit.share);
+			if (share === null) { return; }
 			out.push({
 				region: regionId, territory: hit.territory.publicId,
-				share: hit.share, aggregate: hit.territory.isAggregate === true,
+				share, aggregate: hit.territory.isAggregate === true,
 			});
 		});
 	});
@@ -1460,6 +1488,7 @@ async function runRaycast(options) {
 			});
 
 			setStatus("Wird gespeichert …");
+			shareClamped = 0;
 			const saved = await saveAssignments(
 				pathAssignments.rows, overlapRowsFromRaycast(), territoryRowsFromHits(),
 				pathAssignments.stats.chordMs + pathAssignments.stats.curveMs,
@@ -1471,8 +1500,9 @@ async function runRaycast(options) {
 				+ (territoryNote ? " · " + territoryNote : "")
 				+ " · Wege: " + pathAssignments.stats.chordRows + " Sehne / " + pathAssignments.stats.curveRows + " Kurve"
 				+ " (" + Math.round(pathAssignments.stats.chordMs) + " ms + " + Math.round(pathAssignments.stats.curveMs) + " ms)"
-				+ (saved.skipped > 0 ? " · " + saved.skipped + " Zeilen verworfen (Ort oder Fläche gelöscht)" : ""),
-				saved.skipped > 0 ? "warn" : "ok");
+				+ (saved.skipped > 0 ? " · " + saved.skipped + " Zeilen verworfen (Ort oder Fläche gelöscht)" : "")
+				+ (shareClamped > 0 ? " · " + shareClamped + " Anteile über 100 % auf 100 % begrenzt" : ""),
+				(saved.skipped > 0 || shareClamped > 0) ? "warn" : "ok");
 		}
 
 		// V9: liegt ein Stempel vor, sagt die Kachel den gespeicherten Stand -- der ist die
