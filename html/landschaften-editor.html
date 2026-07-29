@@ -96,6 +96,9 @@
      🔴 KEIN politisches Modul -- map-features-region-boolean-geometry.js rechnet dasselbe, schickt
      aber unter ?debugMap einen POST an den politischen Endpunkt (Hauptplan, Regel 1). -->
 <script src="/js/third-party/polygon-clipping.umd.min.js"></script>
+<!-- Die gezeichnete Kurve, wortgleich zur Karte (V9). Sie steckte frueher in
+     js/routing/route-graph-core.js, das dieses Fenster nicht laden kann. -->
+<script src="/js/map-features/map-features-line-catmull.js"></script>
 <script src="/js/map-features/map-features-ecosystem-geometry.js"></script>
 <script src="/js/map-features/map-features-ecosystem-boolean.js"></script>
 <!-- Auto-Name: abgeleitet, nie gespeichert. Dieselbe unit-getestete Regel wie in den

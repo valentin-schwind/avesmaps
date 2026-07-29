@@ -2059,6 +2059,10 @@
 
 		<script src="js/app/runtime-state.js"></script>
 		<script src="js/routing/route-priority-queue.js"></script>
+		<!-- Vor config.js: VISUAL_LINE_CATMULL_ROM_CONFIG uebernimmt samples/tension von hier, damit
+		     Karte und Landschaften-Editor dieselbe gezeichnete Kurve abtasten (V9). Keine eigenen
+		     Abhaengigkeiten, deshalb kostet die fruehe Position nichts. -->
+		<script src="js/map-features/map-features-line-catmull.js"></script>
 		<script src="js/config.js"></script>
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>

@@ -364,8 +364,11 @@ const VISUAL_LINE_SMOOTHING_CONFIG_MAX_ZOOM = {
 const VISUAL_LINE_CATMULL_ROM_CONFIG = {
 	enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
 	method: "catmullRom",
-	samples: 8,
-	tension: 0.5,
+	// samples/tension come from js/map-features/map-features-line-catmull.js, which index.html loads
+	// immediately before this file. They live there because the Landschaften editor samples the very
+	// same curve without loading config.js -- one set of numbers, so the two windows cannot draw
+	// different lines. Changing them changes what V9 stored: press "Zugehörigkeit rechnen" again.
+	...AVESMAPS_CATMULL_DEFAULTS,
 };
 const PATH_RENDER_CONFIG = {
 	simplifiedMaxZoom: 2,

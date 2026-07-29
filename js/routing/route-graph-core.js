@@ -244,43 +244,13 @@ function smoothLineCoordinatesForDisplay(coordinates, config = VISUAL_LINE_SMOOT
 	return currentCoordinates;
 }
 
-function getCatmullRomSplineCoordinates(coordinates, config = VISUAL_LINE_CATMULL_ROM_CONFIG) {
-	const sampleCount = Math.max(1, Number.parseInt(config.samples, 10) || 8);
-	const tension = Math.max(0, Math.min(1, Number(config.tension) || 0.5));
-	const smoothedCoordinates = [coordinates[0]];
-
-	for (let index = 0; index < coordinates.length - 1; index += 1) {
-		const previous = coordinates[Math.max(0, index - 1)];
-		const current = coordinates[index];
-		const next = coordinates[index + 1];
-		const following = coordinates[Math.min(coordinates.length - 1, index + 2)];
-
-		for (let sampleIndex = 1; sampleIndex <= sampleCount; sampleIndex += 1) {
-			smoothedCoordinates.push(getCatmullRomPoint(previous, current, next, following, sampleIndex / sampleCount, tension));
-		}
-	}
-
-	return smoothedCoordinates;
-}
-
-function getCatmullRomPoint(previous, current, next, following, t, tension) {
-	const t2 = t * t;
-	const t3 = t2 * t;
-	const tangentScale = tension;
-	const tangentStartX = (Number(next[0]) - Number(previous[0])) * tangentScale;
-	const tangentStartY = (Number(next[1]) - Number(previous[1])) * tangentScale;
-	const tangentEndX = (Number(following[0]) - Number(current[0])) * tangentScale;
-	const tangentEndY = (Number(following[1]) - Number(current[1])) * tangentScale;
-	const basisStart = 2 * t3 - 3 * t2 + 1;
-	const basisTangentStart = t3 - 2 * t2 + t;
-	const basisEnd = -2 * t3 + 3 * t2;
-	const basisTangentEnd = t3 - t2;
-
-	return [
-		basisStart * Number(current[0]) + basisTangentStart * tangentStartX + basisEnd * Number(next[0]) + basisTangentEnd * tangentEndX,
-		basisStart * Number(current[1]) + basisTangentStart * tangentStartY + basisEnd * Number(next[1]) + basisTangentEnd * tangentEndY,
-	];
-}
+// getCatmullRomSplineCoordinates / getCatmullRomPoint moved to
+// js/map-features/map-features-line-catmull.js in V9. The Landschaften editor needs the exact same
+// sampling -- it stores intervals along the DRAWN curve -- and it cannot load this file, which
+// belongs to the routing engine. Two copies would be two curves free to drift apart.
+//
+// The module is loaded before js/config.js in index.html, so both globals exist here. Its defaults
+// ARE VISUAL_LINE_CATMULL_ROM_CONFIG's samples/tension: the config spreads them.
 
 function getCoordinateDistance(first, second) {
 	const deltaX = Number(first?.[0]) - Number(second?.[0]);
