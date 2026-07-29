@@ -46,7 +46,7 @@ schützen müsste.
 
 | Fahrplan-Zeile verlangt | Stand in dieser Spec |
 |---|---|
-| `path_ecosystem` PK `(path_id, area_id, seq)`, BIGINT | ✅ unverändert (§4.1) |
+| `path_ecosystem` PK `(path_id, area_id, seq)`, BIGINT | ✅ **erweitert** um `basis` im Schlüssel (Owner 2026-07-29: Sehne UND gezeichnete Kurve hinterlegen, §4.1/§5.2) |
 | `path_ecosystem_state` | ❌ **entfällt** — ersetzt durch **eine** Stempelzeile (§4.4). Ohne Fällig-Abfrage gibt es keinen Zustand je Weg. |
 | bbox-Vorfilter als SQL-Join | ❌ **entfällt** — der Vorfilter läuft im Browser, wie in `computeRaycast` schon heute (`boundsOverlap`) |
 | Sperre, Budget, `set_time_limit`, Cursor, Idempotenz | ❌ **entfällt für die Rechnung**, ✅ **bleibt sinngemäß für das Speichern** (§6.2: Lauf-Token, gestückelte Übertragung) |
@@ -57,7 +57,9 @@ schützen müsste.
 > Übertragung des Ergebnisses die gestückelten Grenzen aus §6.2 deutlich, dann ist der
 > serverseitige Stapellauf der Fahrplan-Zeile doch der richtige Bau. Deshalb steht die
 > Messung vor der nächsten Ausbaustufe und nicht danach.
-> **Erwartung:** 0,5–2 s (Herleitung §3.3).
+> **Erwartung:** ~15 s für beide Bezüge zusammen, davon 1,7 s die Sehne (Herleitung §3.3).
+> Fällt die Browsermessung über 30 s, ist `basis=1` das Erste, was fällt — nicht der
+> ganze Lauf (§5.2).
 >
 > ⚠️ **30 s im Browser sind erlaubt, 30 s am Stück sind es nicht.** Der Browser kennt
 > kein FastCGI-Zeitlimit — das ist der Grund, warum die Schwelle hier so hoch liegen
@@ -147,8 +149,9 @@ gezählt (Labels = Obergrenze der noch zu zeichnenden Flächen):
 
 *(`insel` 254 und `see` 293 wachsen nicht mit den Labels — V5 leitete sie aus Kacheln ab.)*
 
-Die Fehlenden sind **klein und handgezeichnet**. Hochgerechnet: **~20.000 Zeilen**
-(mit Meer und Kontinent ~60.000, davon zwei Drittel Rauschen).
+Die Fehlenden sind **klein und handgezeichnet**. Hochgerechnet: **~20.000 Zeilen je
+Bezug, also ~40.000 mit Sehne und Kurve** (mit Meer und Kontinent ~120.000, davon zwei
+Drittel Rauschen).
 
 ### 3.3 Woher die Zeiterwartung kommt
 
@@ -156,8 +159,10 @@ Die Fehlenden sind **klein und handgezeichnet**. Hochgerechnet: **~20.000 Zeilen
 |---|---|
 | Teil A heute (124 Flächen × 20 Regionen, Boolesche Verschnitte) | **47 ms** |
 | Vorfilter allein, 3,66 Mio bbox-Tests, Python | 581 ms |
-| Teil C komplett, 17,6 Mio Kantentests, Python/numpy | **1,7 s** |
-| Teil C ohne Filter, 183,5 Mio Kantentests, Python/numpy | 5,0 s |
+| Teil C **Sehne** (36.119 Segmente), Python/numpy | **1,71 s** |
+| Teil C **Kurve** (284.269 Segmente = 7,9×), Python/numpy | **13,50 s** |
+| **Teil C beide Bezüge** | **15,22 s** |
+| Teil C Sehne ohne `affects_paths`-Filter, 183,5 Mio Kantentests | 5,0 s |
 
 JavaScript liegt bei dieser Art Schleife typisch zwischen Python und numpy. **Erwartung
 0,5–2 s** für Teil C mit Filter — deshalb die Schwelle „mehr als ~10 s" in §1.
@@ -186,13 +191,32 @@ wo die übrigen Ökosystem-Tabellen schon stehen.
 CREATE TABLE IF NOT EXISTS path_ecosystem (
     path_id BIGINT UNSIGNED NOT NULL,
     area_id INT UNSIGNED NOT NULL,
+    basis TINYINT UNSIGNED NOT NULL,          -- 0 = Sehne (roh), 1 = Kurve (gezeichnet)
     seq TINYINT UNSIGNED NOT NULL,
     enter_distance_mapunits DECIMAL(10,4) NOT NULL,
     exit_distance_mapunits  DECIMAL(10,4) NOT NULL,
-    PRIMARY KEY (path_id, area_id, seq),
+    PRIMARY KEY (path_id, area_id, basis, seq),
     KEY idx_path_ecosystem_area (area_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ```
+
+> 🔴 **`basis` — Owner-Entscheid 2026-07-29: BEIDE Linien werden hinterlegt.** Die
+> gespeicherten Bogenlängen gibt es zweimal, einmal entlang der rohen Stützpunkte
+> (`basis=0`) und einmal entlang der gezeichneten Catmull-Rom-Kurve (`basis=1`).
+> Begründung und Preis in §5.2 — die Kurzfassung: es sind **zwei Antworten auf zwei
+> Fragen**, nicht zwei Genauigkeiten derselben.
+>
+> **Warum als Unterscheidungsspalte im Schlüssel und nicht als zwei weitere Spalten in
+> derselben Zeile:** die beiden Linien liefern **verschiedene Intervallmengen**, nicht
+> verschiedene Werte derselben. Gemessen: 3.829 Paare treffen auf der Sehne, 3.827 auf
+> der Kurve, **6 nur auf der Sehne, 4 nur auf der Kurve**, und je Paar kann die Anzahl
+> der Durchquerungen abweichen. Zwei Spalten in einer Zeile erzwängen eine Paarung, die
+> es in 10 Fällen gar nicht gibt — und dort müsste `NULL` bedeuten „gibt es nicht",
+> während es überall sonst „vergessen" heißt.
+>
+> `TINYINT`, nicht `VARCHAR('chord'|'curve')`: der PK wächst damit von 13 auf **14
+> Bytes**; ein `VARCHAR(8)` in `utf8mb4` machte daraus bis zu 46. Für einen abgeleiteten
+> Cache ist das der falsche Preis für Lesbarkeit — die steht im Kommentar.
 
 - `path_id BIGINT UNSIGNED` = `map_features.id`, **nicht** `public_id VARCHAR(36)`.
   Analyse §8.7: der PK wäre 41 statt 13 Bytes und jeder Sekundärindex schleppte ihn mit.
@@ -280,30 +304,11 @@ Nur 43 % liegen bei z5 unter einem Pixel, bei z7 sind es 17,6 %. Und **12 Sehnen
 haben überhaupt kein Kurven-Gegenstück** — dort schneidet die Sehne die Fläche, die
 gezeichnete Kurve nicht.
 
-> 🔴 **Damit ist die Frage „Kurvenparameter `u` als Notiz mitspeichern?" beantwortet —
-> Owner-Frage 2026-07-29. Technisch trivial, als Speicherung trotzdem falsch:**
->
-> 1. **Er ist von der Darstellungs-Konfiguration abhängig.** Die Kurvenform hängt an
->    `tension: 0.5`, ihre gezeichnete Näherung an `samples: 8`, und ob es sie überhaupt
->    gibt an `?smoothLines=0` — alles `js/config.js`. Wer `tension` auf 0,4 stellt, macht
->    **jedes gespeicherte `u` still falsch**. Ein gespeicherter Wert darf nicht an einer
->    Anzeige-Konstante hängen.
-> 2. **Er ist eine zweite Wahrheit, die der ersten widersprechen kann** — bewiesen durch
->    die 12 Übergänge ohne Gegenstück. Welcher gilt dann?
-> 3. **Er ist umsonst zu haben.** Der Client hält die geglättete Linie ohnehin schon:
->    `getPathVisualLatLngCoordinates` (`map-features-path-rendering.js:273`) liefert sie,
->    weil er die Straße damit zeichnet und Label darauf setzt.
->
-> **Der richtige Weg, und er kostet nichts:** der Kern aus §5 nimmt eine
-> **Koordinatenliste** (bindende Regel dort). Wer die Übergänge auf der gezeichneten
-> Kurve braucht, ruft **dieselbe Funktion** mit der geglätteten Liste auf und bekommt
-> Kurven-Intervalle — exakt, immer zur aktuellen Konfiguration, ohne eine einzige
-> gespeicherte Zahl. Genau dafür ist die Regel da.
-
-**Zusammengefasst:** die Speicherung bleibt auf der Sehne — das ist das Maßsystem von
-V10 und V11 (§5.2). Braucht eine spätere Anzeige den sichtbaren Übergangspunkt, rechnet
-sie ihn zur Anzeigezeit auf der geglätteten Linie. **Nicht** umgekehrt: die Speicherung
-auf die Kurve umzustellen zerlegt die Einheit, an der das Routing hängt.
+**Genau deshalb wird die Kurve mitgespeichert** (`basis=1`, §4.1). Owner 2026-07-29:
+„ich hab den Schnittpunkt von Spline und Wald und kann an der Stelle auf dem Weg einen
+Punkt platzieren oder den Streckenabschnitt durch den Wald einfärben." Beides sind
+Aussagen über die **gezeichnete** Linie, und mit Sehnen-Bogenlängen wären sie im Median
+1,3 px und im p90 10,8 px daneben.
 
 ### 4.2 `ecosystem_region_overlap` — Teil A
 
@@ -359,7 +364,11 @@ CREATE TABLE IF NOT EXISTS ecosystem_assignment_stamp (
     path_count INT UNSIGNED NOT NULL,
     overlap_rows INT UNSIGNED NOT NULL,
     territory_rows INT UNSIGNED NOT NULL,
-    path_rows INT UNSIGNED NOT NULL,
+    path_rows_chord INT UNSIGNED NOT NULL,
+    path_rows_curve INT UNSIGNED NOT NULL,
+    curve_tension DECIMAL(4,3) NULL,
+    curve_samples TINYINT UNSIGNED NULL,
+    curve_enabled TINYINT(1) NOT NULL DEFAULT 1,
     duration_ms INT UNSIGNED NOT NULL,
     run_token CHAR(36) NULL,
     computed_by BIGINT UNSIGNED NULL,
@@ -382,6 +391,13 @@ Eine Zeile, `id` immer `1` — dasselbe Muster wie `map_revision` und
 
 `duration_ms` ist kein Schmuck: es ist die Antwort auf „wie lang dauert das überhaupt",
 und sie soll auch morgen noch ablesbar sein, nicht nur im Moment des Klicks.
+
+**`curve_tension` / `curve_samples` / `curve_enabled` sind das, was Owner-Punkt 1 trägt**
+(„dann kann ich mit dem Button neu berechnen"). Sie halten fest, **welche Kurvenform** die
+`basis=1`-Zeilen beschreiben. Der Knopf vergleicht sie beim Öffnen gegen
+`VISUAL_LINE_CATMULL_ROM_CONFIG` und meldet „Stand veraltet (Kurvenform geändert)".
+Ohne sie wäre eine geänderte `tension` genau der stille Fehler, gegen den das Neurechnen
+gar nicht erst gerufen würde. Siehe §5.2.
 
 ### 4.5 `ecosystem_region_type.affects_paths`
 
@@ -450,7 +466,7 @@ benutzt. Nicht nachbauen.
 > der Boolesche Verschnitt richtig. Teil C fragt nach **Bogenlängen entlang einer Linie** —
 > die liefert kein Verschnitt, und ein Umweg darüber wäre um Größenordnungen teurer.
 
-### 5.2 💣 Gerechnet wird auf der SEHNE, nicht auf der sichtbaren Catmull-Rom-Kurve
+### 5.2 💣 Zwei Durchgänge — Sehne UND gezeichnete Catmull-Rom-Kurve
 
 Owner-Frage 2026-07-29. Wege werden **nicht** als Streckenzug gezeichnet: sie laufen
 durch `smoothLineCoordinatesForDisplay` mit `VISUAL_LINE_CATMULL_ROM_CONFIG`
@@ -476,29 +492,47 @@ Wege × 609 Flächen):
 | Längendifferenz je Paar | Median 0,019, p99 0,77, **max 3,48** (10 Meilen) |
 
 **10 von 3.833 Paaren unterscheiden sich — 0,26 %.** Die binäre Antwort („führt durch
-einen Wald") ist praktisch identisch.
+einen Wald") ist praktisch identisch. Die **Ortsangabe** ist es nicht (§4.1b).
 
-> 🔴 **Der Ausschlag gibt aber nicht die Größe, sondern die Einheit.** Alles, was diese
-> Bogenlängen verbraucht, misst auf der **rohen** Linie:
-> `calculatePathCoordinateDistance` (`map-features-location-editing.js:10`) und
-> `getCoordinateDistance` (`route-graph-core.js:285`) summieren `hypot` über die
-> **gespeicherten Stützpunkte**. Daraus entsteht die Graph-Distanz, daraus die Reisezeit,
-> daraus die Etappen, die V10 mit den Intervallen schneiden muss, und daraus die
-> Kantengewichte, die V11 stückelt. Eine auf der Kurve gemessene Bogenlänge stünde in
-> einem **anderen Maßsystem** als jeder ihrer Verbraucher — die Kurve ist länger als die
-> Sehne, „3,28" bezeichnete zwei verschiedene Orte. Das ist derselbe Fallentyp wie die
-> ×3-/×23-Einheitenfalle, nur leiser.
+#### Warum beide gespeichert werden und nicht nur eine
 
-> 💣 **Und die Kurve ist abschaltbar.** `VISUAL_LINE_CATMULL_ROM_CONFIG.enabled` hängt an
-> `?smoothLines=0` bzw. `?smoothRoute=0`. Was ein URL-Parameter umlegen kann, ist eine
-> **Darstellungsentscheidung** und darf niemals definieren, was in der Datenbank steht —
-> sonst hätte derselbe Weg je nach Aufruf andere gespeicherte Abschnitte.
+Es sind **zwei Antworten auf zwei Fragen**, und jede Seite hat genau einen Verbraucher,
+für den die andere falsch wäre:
 
-> ⚠️ **Was das kostet, ehrlich:** in seltenen Fällen weicht die anteilige Aussage
-> spürbar ab — max. 3,48 Karteneinheiten ≈ 10 Meilen auf einem Paar. Und es gibt die 4
-> Paare, bei denen die gezeichnete Straße eine Waldecke sichtbar streift, die Sehne aber
-> nicht. Beides ist der Preis dafür, dass Speicher und Routing dasselbe Maß benutzen —
-> und er ist niedriger als der Preis zweier Maßsysteme.
+| `basis=0` **Sehne** | `basis=1` **Kurve** |
+|---|---|
+| **V10-Etappen und V11-Kantengewichte.** Alles, was diese Bogenlängen verrechnet, misst auf der rohen Linie: `calculatePathCoordinateDistance` (`map-features-location-editing.js:10`) und `getCoordinateDistance` (`route-graph-core.js:285`) summieren `hypot` über die **gespeicherten Stützpunkte**. Daraus entsteht die Graph-Distanz, daraus die Reisezeit, daraus die Etappen. Eine Kurven-Bogenlänge stünde hier im **falschen Maßsystem** — die Kurve ist länger, „3,28" bezeichnete zwei verschiedene Orte (derselbe Fallentyp wie die ×3-/×23-Einheitenfalle, nur leiser). | **Alles Gezeichnete.** Einen Punkt auf den Weg setzen, den Abschnitt durch den Wald einfärben, den Waldrand markieren. Mit Sehnen-Werten läge das im Median 1,3 px und im p90 10,8 px daneben (§4.1b). |
+
+> 🔴 **Der Grund, der die Sache entscheidet — und der nicht die Genauigkeit ist.**
+> Die Kurve ist aus den Stützpunkten **vollständig ableitbar**, also wäre „zur
+> Anzeigezeit rechnen" naheliegend. Für die öffentliche Karte geht das aber nicht:
+> um Kurven-Intervalle abzuleiten, braucht man die **Flächenpolygone** — und die
+> öffentliche Karte lädt **null Polygone** (§9.1, live nachgezählt). Der Editor könnte
+> es, der Besucher nicht. **Gespeicherte Kurven-Intervalle sind das, was die Einfärbung
+> auf der öffentlichen Karte überhaupt möglich macht, ohne 2–3 MB Polygone
+> auszuliefern.** Ohne sie bräuchte jede solche Anzeige entweder die Polygone oder eine
+> eigene Serverabfrage je Route.
+
+> 💣 **Die Kurve hängt an Anzeige-Einstellungen — und deshalb tut es der Stempel auch.**
+> `VISUAL_LINE_CATMULL_ROM_CONFIG` liefert `tension: 0.5`, `samples: 8` und ein
+> `enabled`, das an `?smoothLines=0` bzw. `?smoothRoute=0` hängt (`js/config.js:364`).
+> Wer `tension` auf 0,4 stellt, macht **jede gespeicherte `basis=1`-Zeile still falsch.**
+>
+> Genau das ist der Einwand, den Owner-Punkt 1 auflöst („dann kann ich mit dem Button neu
+> berechnen") — **aber nur, wenn man es merkt.** Deshalb nimmt
+> `ecosystem_assignment_stamp` die drei Werte mit auf (§4.4), und der Knopf vergleicht
+> sie beim Öffnen gegen die aktuelle Konfiguration: „**Stand veraltet (Kurvenform
+> geändert)**". Aus einem stillen Fehler wird eine sichtbare Aufforderung. Ohne diese
+> drei Spalten wäre der Einwand nicht ausgeräumt, sondern nur unbeobachtet.
+
+> ⚠️ **Der Preis, gemessen: der Kurven-Durchgang kostet das 7,9-fache.** Die gezeichnete
+> Linie hat 8 Abtastpunkte je Segment — **284.269 statt 36.119 Segmente**. Im selben
+> Offline-Gerüst: Sehne **1,71 s**, Kurve **13,50 s**, beide zusammen **15,22 s**.
+> Das liegt unter der 30-s-Schwelle, füllt sie aber zur Hälfte, und der Zielstand ist
+> rund 1,5-mal so groß. **Wenn die Browsermessung über 30 s geht, ist `basis=1` das
+> Erste, was fällt** — nicht der ganze Lauf: Sehne allein bleibt bei 1,71 s, und die
+> Kurve ließe sich dann für die Handvoll Wege **einer** Route zur Anzeigezeit rechnen
+> (dort ist sie Mikrosekunden; teuer ist sie nur im Massenlauf).
 
 ### 5.3 Die halboffene Regel
 
@@ -665,8 +699,8 @@ drücken ergibt dasselbe Bild. Ein Abbruch mittendrin hinterlässt einen Stempel
 | nie gerechnet | „noch nicht gerechnet" |
 | läuft | „rechnet … Wege 3.100/5.650" |
 | speichert | „speichert … 3 von 11" |
-| fertig | „**4.426 Wegabschnitte · 1,4 s gerechnet, 0,8 s gespeichert**" |
-| Stempel veraltet | „gerechnet 12:04 · **Stand veraltet** (Flächen geändert)" |
+| fertig | „**4.426 + 4.407 Wegabschnitte · 15,2 s gerechnet, 1,1 s gespeichert**" |
+| Stempel veraltet | „gerechnet 12:04 · **Stand veraltet** (Flächen geändert)" bzw. „(Kurvenform geändert)" |
 | jemand anderes rechnet | „ein anderer Editor rechnet gerade" |
 
 „Veraltet" ist ein Vergleich, keine Vermutung: Stempel-`ecosystem_revision` gegen den
@@ -714,15 +748,28 @@ lokale Cache fehlt oder älter ist.
 Der Lauf muss auf dem Stand von `ecosystem_revision` 3082 exakt reproduzieren, was
 offline gemessen wurde:
 
-| | mit `affects_paths`-Filter | ohne Filter |
+| | `basis=0` Sehne | `basis=1` Kurve |
 |---|---|---|
-| bbox-Paare geprüft | 7.362 | 22.688 |
-| Paare mit ≥1 Intervall | 3.829 | 11.449 |
-| **Zeilen in `path_ecosystem`** | **4.426** | 12.302 |
+| bbox-Paare geprüft | 7.362 | 7.362 (+ Rand) |
+| Paare mit ≥1 Intervall | 3.829 | 3.827 |
+| **Zeilen in `path_ecosystem`** | **4.426** | **4.407** |
+| | | |
+
+**Summe beider Bezüge: 8.833 Zeilen** (heute; Zielstand grob 40.000).
+
+Zur Einordnung ohne den `affects_paths`-Filter (§3.1): 22.688 bbox-Paare, 11.449 Treffer,
+12.302 Zeilen je Bezug.
 
 > ⚠️ **Vor der Abnahme neu zählen.** Der Bestand wächst täglich; das ist ein Abgleich
 > gegen eine offline nachgerechnete Nutzlast, nicht gegen eine Konstante. Verfahren: eine
 > Anfrage je Endpunkt, danach offline.
+
+> 💣 **Der Kurven-Durchgang braucht einen größeren bbox-Rand.** Die gezeichnete Kurve
+> weicht bis zu **2,12 Karteneinheiten** von der Sehne ab (§5.2) und kann damit aus der
+> bbox des rohen Wegs herausragen. Wer für `basis=1` denselben Vorfilter benutzt,
+> verliert genau die Paare, die nur die Kurve trifft — gemessen **4 Stück**. Die bbox des
+> Wegs ist deshalb für den Kurven-Durchgang aus der **geglätteten** Punktliste zu bilden,
+> nicht aus der rohen. Kostet nichts, die Liste liegt ohnehin vor.
 
 ### 8.3 Die Messung, um die es geht
 
@@ -809,7 +856,7 @@ nächstgelegener Knoten. Das ist Routing-Arbeit und hat mit Landschaften nichts 
 
 | | |
 |---|---|
-| Rechenkern Teil C (rein, testbar) | ~150 Zeilen JS |
+| Rechenkern Teil C (rein, testbar, beide Bezüge) | ~170 Zeilen JS |
 | Knopf: rechnen, speichern, messen, Status | ~180 Zeilen JS |
 | Weg-Geometrie-Endpunkt | ~70 Zeilen PHP |
 | DDL + vier Speicher-Aktionen | ~230 Zeilen PHP |
