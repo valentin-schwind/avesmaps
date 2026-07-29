@@ -11,6 +11,10 @@ function avesmapsLoadRouteMapData(array $config): array {
 		'features' => $features,
 		'revision' => $revision,
 		'feature_count' => count($features),
+		// ⚠️ V11: handed back rather than opened a second time. The terrain switch and path_terrain
+		// read naively would be two to three connections per route, on hosting with
+		// max_user_connections. Returning it is one line; a new key breaks no existing caller.
+		'pdo' => $pdo,
 	];
 }
 

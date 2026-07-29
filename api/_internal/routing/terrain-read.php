@@ -1,0 +1,138 @@
+<?php
+
+declare(strict_types=1);
+
+// V11: what the ROUTING path knows about terrain. Spec §5.5, §7.1.
+//
+// PURITY CONTRACT: side-effect-free on include. The matching rule is pure and unit-tested; the two
+// DB reads take a PDO explicitly.
+//
+// 💣 NO DDL, NO information_schema PROBE, NO RASTER. This runs on every route a visitor plans. The
+// rasters are read ONLY by the owner-triggered profile run (api/_internal/app/terrain-store.php);
+// loading them here is exactly what path_terrain exists to prevent.
+//
+// 💣 AND IT NEVER FILLS THE CACHE. A missing row answers „no data" and the leg keeps today's time.
+// Recomputing on demand would mean 5.655 misses on the first request after a raster run, with every
+// concurrent visitor starting the same fill and holding a PHP worker -- the shape of the pool
+// incident of 2026-07-17.
+
+const AVESMAPS_TERRAIN_SETTING = 'terrain_travel_enabled';
+
+/**
+ * The switch, read WITHOUT the self-healing DDL.
+ *
+ * 💣 `avesmapsAppSettingGet` would be the obvious call and it is the wrong one HERE: it runs
+ * `CREATE TABLE IF NOT EXISTS app_setting` on every single call, and a DDL statement in front of a
+ * public read is precisely the hotspot AGENTS.md §10 lists for territories-endpoint.php. The shape
+ * is copied from avesmapsPathLandscapesEcosystemEnabled (V10) -- and task 10 of this plan folds
+ * both into ONE implementation.
+ *
+ * A missing table means OFF, not „create it and look again": if it does not exist, nobody ever
+ * switched anything on.
+ */
+function avesmapsRouteTerrainEnabled(PDO $pdo): bool
+{
+    try {
+        $statement = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
+        $statement->execute(['k' => AVESMAPS_TERRAIN_SETTING]);
+        $value = $statement->fetchColumn();
+    } catch (PDOException) {
+        return false;
+    }
+
+    // 🔴 DEFAULT OFF. The ecosystem convention, not the citymaps one: an unfinished layer must not
+    // change published travel times because somebody deployed it.
+    return $value !== false && (string) $value !== '0';
+}
+
+/**
+ * Every stored way profile, keyed by public_id.
+ *
+ * 💣 PRE-JOINED. path_terrain.path_id is map_features.id, the INTERNAL key -- and the routing
+ * payload does not carry it: avesmapsFetchRouteMapFeatures selects public_id and never the id, and
+ * avesmapsBuildRoutePathData sets 'id' => public_id. Keying by that field would translate, run and
+ * miss every single row, landing on factor 1,0 -- the value that also means „switch off" and „it is
+ * flat here". THE SAME ERROR CLASS COST V10 A LIVE OUTAGE ON 2026-07-29.
+ *
+ * 💣 A MISSING TABLE IS NOT AN ERROR. On a database where the profile run has never happened the
+ * table does not exist, and PDO is in ERRMODE_EXCEPTION -- the plain read would throw and the route
+ * endpoint would answer 500 for a state that is perfectly normal.
+ */
+function avesmapsRouteLoadTerrain(PDO $pdo): array
+{
+    try {
+        $statement = $pdo->query(
+            'SELECT f.public_id, t.ascent_schritt, t.descent_schritt, t.profile_json,
+                    t.path_revision, t.heightmap_stamp
+               FROM path_terrain t
+               JOIN map_features f ON f.id = t.path_id
+              WHERE f.is_active = 1'
+        );
+    } catch (PDOException) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $terrain = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $ascent = $row['ascent_schritt'];
+        $profile = $row['profile_json'] === null ? null : json_decode((string) $row['profile_json'], true);
+        $terrain[(string) $row['public_id']] = [
+            // 💣 null stays null. „No height data" and „measured and level" are two different
+            // statements -- today 51 of 67 peaks carry no height at all, and folding them into 0
+            // would make every one of those ways read as measured flat ground.
+            'ascent' => $ascent === null ? null : (float) $ascent,
+            'descent' => $row['descent_schritt'] === null ? null : (float) $row['descent_schritt'],
+            'profile' => is_array($profile) ? $profile : null,
+            'revision' => (int) $row['path_revision'],
+            'stamp' => (string) $row['heightmap_stamp'],
+        ];
+    }
+
+    return $terrain;
+}
+
+/**
+ * PURE: the terrain entry for ONE path of the routing payload, or null.
+ *
+ * Two different kinds of staleness, answered differently and on purpose:
+ *
+ *  - `path_revision` mismatch -> DROPPED. The stored profile describes a different geometry of THIS
+ *    way. That is local, specific and self-healing: the way falls back to factor 1,0 and the next
+ *    profile run repairs it.
+ *  - `heightmap_stamp` mismatch -> STILL USED, and reported in `debug` (spec §9.1: „als veraltet
+ *    gemeldet, Antwort trotzdem geliefert"). It is GLOBAL: refusing it would turn one raster edit
+ *    into a map-wide flattening, and the stamp exists to be readable, not to be a trigger.
+ */
+function avesmapsRouteAttachTerrain(array $path, array $terrain): ?array
+{
+    // 🔴 public_id, explicitly -- NOT $path['id'].
+    $publicId = (string) ($path['public_id'] ?? '');
+    if ($publicId === '' || !isset($terrain[$publicId])) {
+        return null;
+    }
+    $entry = $terrain[$publicId];
+    if ($entry['ascent'] === null || $entry['descent'] === null) {
+        return null;
+    }
+    if ((int) $entry['revision'] !== (int) ($path['revision'] ?? -1)) {
+        return null;
+    }
+
+    return $entry;
+}
+
+/** How many of the payload's ways actually matched -- the hard counter of spec §9.2 step 2. */
+function avesmapsRouteCountTerrainMatches(array $paths, array $terrain): int
+{
+    $matched = 0;
+    foreach ($paths as $path) {
+        if (is_array($path) && avesmapsRouteAttachTerrain($path, $terrain) !== null) {
+            $matched++;
+        }
+    }
+
+    return $matched;
+}

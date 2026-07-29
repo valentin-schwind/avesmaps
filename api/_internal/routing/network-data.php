@@ -151,6 +151,13 @@ function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): 
 	return [
 		'id' => (string) ($feature['id'] ?? $properties['public_id'] ?? ''),
 		'public_id' => (string) ($properties['public_id'] ?? ''),
+		// 🔴 V11: the way's OWN revision, threaded through on purpose. map-data.php puts it in
+		// properties.revision, and this builder used to drop it -- so path_terrain.path_revision
+		// would have compared against nothing. It is the way's own counter, NOT the global
+		// map_revision: that one is bumped by settlement, label, source and sync writes too, and
+		// peaks are `berggipfel` LABELS in map_features, so one peak height would have invalidated
+		// every way at once.
+		'revision' => (int) ($properties['revision'] ?? 0),
 		'client_path_id' => $clientPathId,
 		'name' => $routeSubtype,
 		'subtype' => $routeSubtype,

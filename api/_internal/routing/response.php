@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/client-graph.php';
+require_once __DIR__ . '/terrain-read.php';
 
 const AVESMAPS_ROUTE_API_CODE_REVISION = 13;
 
@@ -166,6 +167,15 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 
 	$routeMapData = avesmapsLoadRouteMapData($config);
 	$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
+	// V11. The PDO comes back from avesmapsLoadRouteMapData rather than being opened again -- the
+	// switch and path_terrain read naively would be two to three connections per route.
+	$routePdo = $routeMapData['pdo'] ?? null;
+	// 🔴 The API switch may only turn terrain OFF, never on (§8.3): the editor switch is an
+	// emergency stop, and a stranger must not be able to switch on what the owner switched off.
+	$terrainRequested = ($request['terrain'] ?? true) !== false;
+	$terrainEnabled = $routePdo instanceof PDO && $terrainRequested && avesmapsRouteTerrainEnabled($routePdo);
+	$terrain = $terrainEnabled ? avesmapsRouteLoadTerrain($routePdo) : [];
+	$terrainMatched = avesmapsRouteCountTerrainMatches($routeNetworkData['paths'] ?? [], $terrain);
 	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request);
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
@@ -203,6 +213,18 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 				'network_statistics' => $networkStatistics,
 				'client_graph_statistics' => $graphStatistics,
 				'client_route_on_server_graph' => avesmapsAnalyzeClientRouteOnServerGraph($clientGraph, $request, $routeDijkstraResult),
+				// 🔴 THE HARD COUNTER. „cost is unchanged with the switch off" is ALSO green when the
+				// lookup missed every row -- and then a wrong picture later looks like a curve
+				// problem instead of a join problem. `matched_ways` must be > 0 once profiles exist.
+				// `1.0` otherwise means three different things at once: terrain is off, it is flat
+				// here, or nothing is known here. `enabled` separates the first, `ascent_schritt:
+				// null` per segment separates the third from the second.
+				'terrain' => [
+					'enabled' => $terrainEnabled,
+					'requested' => $terrainRequested,
+					'profile_rows' => count($terrain),
+					'matched_ways' => $terrainMatched,
+				],
 			],
 		],
 	];

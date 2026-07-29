@@ -43,6 +43,8 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 	$transports = avesmapsRouteNormalizeTransports($payload['transports'] ?? []);
 	$enabledTransports = avesmapsRouteNormalizeEnabledTransports($payload['enabled_transports'] ?? null);
 	$clientRoute = avesmapsRouteNormalizeClientRoute($payload['client_route'] ?? []);
+	// V11 §8.3: this may only switch terrain OFF. Default true means „follow the global switch".
+	$terrain = avesmapsRouteNormalizeBoolean($payload['terrain'] ?? true, 'terrain');
 
 	return [
 		'from' => $from,
@@ -58,6 +60,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 		'transports' => $transports,
 		'enabled_transports' => $enabledTransports,
 		'client_route' => $clientRoute,
+		'terrain' => $terrain,
 	];
 }
 
