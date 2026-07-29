@@ -65,6 +65,20 @@
 			   declared globally -- var() then fails silently. Only real tokens here. */
 			--hb-presence: var(--color-map-presence);
 		}
+		/* --- Scrollbars & native chrome follow the theme. This page loads tokens.css but NOT
+		       base.css, so the canonical block from css/base/base.css is repeated here rather than
+		       re-invented -- same tokens, same 7px, same radius. `color-scheme` is what makes the
+		       browser render dark native chrome (and a dark DEFAULT scrollbar) at all; without it
+		       the page stayed light-chromed in dark mode. The WebKit pseudo-elements are not
+		       inherited, so `*` is needed to reach the nested scroll areas (the wide tables). --- */
+		:root { color-scheme: light; scrollbar-width: thin;
+			scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track); }
+		:root[data-theme="dark"] { color-scheme: dark; }
+		*::-webkit-scrollbar { width: 7px; height: 7px; }
+		*::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+		*::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb);
+			border-radius: var(--radius-sm); }
+		*::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
 		* { box-sizing: border-box; }
 		body { margin: 0; background: var(--hb-bg); color: var(--hb-fg);
 			font: var(--font-size-reading)/var(--leading-normal) var(--font-ui); }
@@ -314,15 +328,16 @@
 					<li><strong>Der Knopf.</strong> Darunter steht <em>genau ein</em> Knopf, und zwar der des ausgewählten Themas. Hat das Thema einen eigenen Listeneditor (Siedlungen, Regionen, Kraftlinien, Abenteuer, Karten, Vorkommen), ist es <strong>„Bearbeiten"</strong> — der scharfe Sync liegt dann <em>im</em> Editorfenster und nicht hier. Hat es keinen (Territorien, Wege), ist es <strong>„Syncen"</strong>. Es ist immer derselbe Knopf, den es vorher schon gab: er wird an diese Stelle <em>verschoben</em>, samt Beschriftung, Fortschrittsanzeige und dem „Zuletzt gesynct" darin.</li>
 					<li><strong>Suche, Filter und die Liste</strong> des ausgewählten Themas.</li>
 				</ul>
-				<div class="hb-note"><strong>Was sich geändert hat.</strong> Früher lagen Abenteuer, Karten und Vorkommen unter einem Sammelreiter <strong>„Materialien"</strong>, und die Kraftlinien hatten gar keinen eigenen Reiter. Beides war kein Ordnungsprinzip, sondern schlicht Platzmangel in der waagerechten Reiterzeile. Jetzt stehen alle acht gleichrangig untereinander. <strong>„Vorkommen" hieß bis zum 22.07.2026 „Natur &amp; Waren"</strong> — dasselbe Thema, nur kürzer benannt.</div>
+				<div class="hb-note hb-tip"><strong>Was sich geändert hat.</strong> Früher lagen Abenteuer, Karten und Vorkommen unter einem Sammelreiter <strong>„Materialien"</strong>, und die Kraftlinien hatten gar keinen eigenen Reiter. Beides war kein Ordnungsprinzip, sondern schlicht Platzmangel in der waagerechten Reiterzeile. Jetzt stehen alle acht gleichrangig untereinander. <strong>„Vorkommen" hieß bis zum 22.07.2026 „Natur &amp; Waren"</strong> — dasselbe Thema, nur kürzer benannt.</div>
 
 				<h3 id="rollen" class="hb-sub">Rollen &amp; Rechte</h3>
 				<p>Es gibt drei Rollen. Sie bestimmen, was du darfst:</p>
 				<ul class="hb-steps">
 					<li><strong>reviewer</strong> — darf Meldungen und Bewertungen prüfen.</li>
 					<li><strong>editor</strong> — darf zusätzlich die Karte bearbeiten (Orte, Wege, Territorien, Wiki-Verknüpfung …).</li>
-					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen).</li>
+					<li><strong>admin</strong> — darf alles, inkl. Verwaltung (z.&nbsp;B. Konten anlegen) und das <strong>Datenbank-Backup</strong>.</li>
 				</ul>
+				<div class="hb-note hb-tip"><strong>Admins ziehen den Abzug direkt aus der Kopfzeile.</strong> Neben <em>„📖 Handbuch"</em> steht dort <strong>„💾 Datenbank-Backup"</strong>. Ein Klick auf <strong>„Backup erstellen"</strong> zieht einen vollständigen Abzug der Datenbank — Schema <em>und</em> Daten — als gepackte <code>.sql.gz</code>-Datei und lädt sie herunter; einspielen lässt sie sich unverändert per <code>mysql</code> oder über den Import von phpMyAdmin. Der Lauf geht in kleinen Schritten, damit er nicht an den PHP-Grenzen des Webhostings scheitert: <strong>den Tab offen lassen, bis 100&nbsp;% erreicht sind</strong>. Der Haken <em>„WikiSync-Zwischenspeicher überspringen"</em> macht die Datei kleiner. <strong>Editoren sehen den Link nicht</strong> — ein solcher Abzug enthält auch Passwort-Hashes, alle Share-Links und alle Meldungen.</div>
 				<div class="hb-diagram">
 					<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Rollen und ihre Rechte">
 						<g font-size="14" font-weight="700" text-anchor="middle" fill="var(--hb-fg)">
@@ -645,7 +660,7 @@
 					<li><strong>Wiki-Link</strong> — wird <em>ausdrücklich</em> gesetzt. Anders als bei Orten rät die Karte hier nichts: leer bleibt leer. Das ist Absicht — eine Kraftlinie, die zufällig wie eine Siedlung heißt, soll nicht deren Artikel erben.</li>
 					<li><strong>Quellen</strong> — derselbe Quellen-Block wie bei Orten und Wegen, mit Autocomplete über den gemeinsamen Quellenkatalog.</li>
 				</ul>
-				<div class="hb-note"><strong>Eine Kraftlinie besteht aus vielen Segmenten.</strong> Was auf der Karte wie <em>eine</em> Linie aussieht, sind in Wirklichkeit viele kurze Stücke von Nodix zu Nodix — die Basiliuslinie etwa aus vierzehn. Zusammengehalten werden sie <strong>allein durch den Namen</strong>. In der Infobox steht deshalb unter „Verbindet" die Spanne der <em>ganzen</em> Linie, nicht die des angeklickten Stücks; reine Kreuzungen an den Enden werden übersprungen.</div>
+				<div class="hb-note hb-tip"><strong>Eine Kraftlinie besteht aus vielen Segmenten.</strong> Was auf der Karte wie <em>eine</em> Linie aussieht, sind in Wirklichkeit viele kurze Stücke von Nodix zu Nodix — die Basiliuslinie etwa aus vierzehn. Zusammengehalten werden sie <strong>allein durch den Namen</strong>. In der Infobox steht deshalb unter „Verbindet" die Spanne der <em>ganzen</em> Linie, nicht die des angeklickten Stücks; reine Kreuzungen an den Enden werden übersprungen.</div>
 				<div class="hb-note hb-tip"><strong>Schreibweise zählt doppelt.</strong> Weil der Name das einzige Band ist, zerlegt ein Tippfehler eine Linie in zwei: „Elementare Hexagramm" neben „Elementares Hexagramm" ergibt zwei getrennte Ketten und zwei falsche Angaben — und der Wiki-Abgleich unten findet den Artikel dann nur für die richtig geschriebene Hälfte. Beim Umbenennen also alle Segmente derselben Linie gleich schreiben.</div>
 				<p>Nicht jede Kraftlinie ist ein Strang. Von 61 Namen auf der Karte sind 54 durchgehende Linien, sechs verzweigen sich (die <em>Yaquirlinie</em> hat sechs Enden) und eine ist ein geschlossener Ring. Die Infobox zeigt deshalb je nach Form <strong>„Verbindet"</strong> (die Enden), <strong>„Verläuft über"</strong> (die benannten Punkte dazwischen) und <strong>„Abschnitte"</strong>.</p>
 
@@ -861,7 +876,7 @@
 				<h3 id="materialien" class="hb-sub">Abenteuer, Karten und Vorkommen</h3>
 				<p class="hb-path"><strong>Editor → WikiSync → Abenteuer</strong> &nbsp;·&nbsp; <strong>→ Karten</strong> &nbsp;·&nbsp; <strong>→ Vorkommen</strong></p>
 				<p>Diese drei sind, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere und Handelswaren. Jedes hat einen eigenen Editor, den du über <strong>„Bearbeiten"</strong> erreichst; bei Abenteuern und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
-				<div class="hb-note"><strong>Sie standen früher unter „Materialien".</strong> Diesen Sammelreiter gibt es nicht mehr — er war nur entstanden, weil in der waagerechten Reiterzeile kein Platz für einen sechsten Reiter war. Alle acht Themen stehen jetzt gleichrangig in der Auswahl.</div>
+				<div class="hb-note hb-tip"><strong>Sie standen früher unter „Materialien".</strong> Diesen Sammelreiter gibt es nicht mehr — er war nur entstanden, weil in der waagerechten Reiterzeile kein Platz für einen sechsten Reiter war. Alle acht Themen stehen jetzt gleichrangig in der Auswahl.</div>
 
 				<h3 id="abenteuer" class="hb-sub">Abenteuer</h3>
 				<p>Ein Abenteuer ist ein veröffentlichtes DSA-Produkt mit den Orten, an denen es spielt. Auf der Karte taucht es an genau diesen Orten wieder auf.</p>
@@ -946,7 +961,7 @@
 					<tr><td><strong>Archiviert</strong></td><td>Bewusst so gelassen — der Konflikt besteht weiter.</td></tr>
 					<tr><td><strong>Erledigt</strong></td><td>Die Daten sind repariert. Der Fall bleibt als Historie stehen.</td></tr>
 				</table>
-				<div class="hb-note"><strong>„Archiviert" und „Erledigt" sind nicht dasselbe.</strong> Archiviert heißt: das Problem ist noch da, wir lassen es bewusst so. Erledigt heißt: es ist weg. Beides bleibt auffindbar, und beides lässt sich wieder öffnen.</div>
+				<div class="hb-note hb-tip"><strong>„Archiviert" und „Erledigt" sind nicht dasselbe.</strong> Archiviert heißt: das Problem ist noch da, wir lassen es bewusst so. Erledigt heißt: es ist weg. Beides bleibt auffindbar, und beides lässt sich wieder öffnen.</div>
 				<h4>Einen Fall lesen</h4>
 				<p>Die Fälle sind nach <strong>Regel</strong> gruppiert, nicht nach Objektart — man arbeitet eine Sorte Problem am Stück ab und entscheidet dadurch einheitlicher. Jede Gruppe erklärt oben, worum es geht und was jeder Knopf tut. <strong>Lies das einmal je Gruppe</strong>; manche Knöpfe tun nicht das, was ihr Name nahelegt.</p>
 				<p>Innerhalb eines Falls steht jedes beteiligte Objekt für sich, mit seinen eigenen Belegen:</p>
@@ -971,8 +986,8 @@
 				<p>Manche Objekte tragen den Hinweis <em>„aus der Wiki-Zuordnung"</em>. Bei ihnen hängt die Verknüpfung an der ganzen Infobox — Einwohner, Region, Wappen. Sie werden hier bewusst nicht angefasst; das gehört in den jeweiligen Sync-Editor.</p>
 				<h4>Wann ein Fall wiederkommt</h4>
 				<p>Konflikte werden bei jeder Prüfung <strong>neu berechnet</strong>, nicht gespeichert. Ein reparierter verschwindet also von selbst. Eine Entscheidung gilt für <em>die Lage, zu der du sie getroffen hast</em>: ändert sich daran etwas — im Wiki oder bei uns —, taucht der Fall wieder als offen auf. Das ist Absicht und kein Fehler.</p>
-				<div class="hb-note"><strong>Was verglichen wird.</strong> Auf denselben Wiki-Artikel geprüft werden <strong>Orte, Wege, Regionen, Kraftlinien, Territorien und Abenteuer</strong> — quer über alle Tabellen hinweg. So fällt auch auf, wenn eine Siedlung und eine gleichnamige Baronie denselben Artikel beanspruchen. Dazu kommen die Fälle aus dem letzten WikiSync-Lauf.</div>
-				<div class="hb-note"><strong>Bewusst nicht verglichen:</strong> die <strong>Kartensammlung</strong> — ihr Schlüssel ist kein Artikel, sondern aus Stadt, Quelle und Variante zusammengesetzt. Und <strong>Quellen</strong>: dass viele Objekte dieselbe Publikation zitieren, ist der Sinn eines gemeinsamen Quellenverzeichnisses, kein Fehler.</div>
+				<div class="hb-note hb-tip"><strong>Was verglichen wird.</strong> Auf denselben Wiki-Artikel geprüft werden <strong>Orte, Wege, Regionen, Kraftlinien, Territorien und Abenteuer</strong> — quer über alle Tabellen hinweg. So fällt auch auf, wenn eine Siedlung und eine gleichnamige Baronie denselben Artikel beanspruchen. Dazu kommen die Fälle aus dem letzten WikiSync-Lauf.</div>
+				<div class="hb-note hb-tip"><strong>Bewusst nicht verglichen:</strong> die <strong>Kartensammlung</strong> — ihr Schlüssel ist kein Artikel, sondern aus Stadt, Quelle und Variante zusammengesetzt. Und <strong>Quellen</strong>: dass viele Objekte dieselbe Publikation zitieren, ist der Sinn eines gemeinsamen Quellenverzeichnisses, kein Fehler.</div>
 				<h4>Zwei Gruppen, die sich zum Verwechseln ähnlich lesen</h4>
 				<p>Beide heißen sinngemäß „hat nichts im Wiki" — sie beantworten aber verschiedene Fragen:</p>
 				<table class="hb-table">
@@ -980,7 +995,7 @@
 					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td><strong>Am Objekt steht kein Link.</strong> Eine Zustandsangabe — es hat noch niemand verknüpft. Ob es im Wiki etwas gäbe, ist damit gar nicht gesagt. Gilt für <em>alle</em> Objektarten und wird bei jeder Prüfung neu berechnet.</td></tr>
 					<tr><td><strong>Keine Zuordnung gefunden</strong></td><td><strong>Es wurde gesucht — erfolglos.</strong> Der WikiSync-Lauf hat über Namen und ähnliche Schreibweisen geprüft und nicht einmal einen Kandidaten gefunden. Gilt nur für <em>Orte</em> (Siedlungen und Bauwerke) und ist eine Momentaufnahme des letzten Laufs.</td></tr>
 				</table>
-				<div class="hb-note"><strong>Ein Ort kann in beiden stehen</strong> — das ist kein Doppeleintrag: die eine Gruppe beschreibt seinen Zustand, die andere das Ergebnis einer Suche. Die eine ist aber <em>nicht</em> die gründlichere Fassung der anderen. Es gibt Fälle, die nur in einer der beiden stehen <em>können</em>, und die sagen jeweils etwas Eigenes:</div>
+				<div class="hb-note hb-tip"><strong>Ein Ort kann in beiden stehen</strong> — das ist kein Doppeleintrag: die eine Gruppe beschreibt seinen Zustand, die andere das Ergebnis einer Suche. Die eine ist aber <em>nicht</em> die gründlichere Fassung der anderen. Es gibt Fälle, die nur in einer der beiden stehen <em>können</em>, und die sagen jeweils etwas Eigenes:</div>
 				<table class="hb-table">
 					<tr><th>Steht nur in …</th><th>Was das bedeutet</th></tr>
 					<tr><td><strong>Kein Wiki-Schlüssel</strong></td><td>Alles, was kein Ort ist — <strong>Wege, Regionen, Kraftlinien</strong> ohne Link, denn der WikiSync-Lauf schaut die gar nicht an. Dazu Orte ohne Link, deren Name im Wiki <em>sehr wohl</em> etwas trifft: die tragen dann <em>„passender Artikel gefunden“</em> und sind der handfeste Fall — es fehlt nur die Verknüpfung.</td></tr>
