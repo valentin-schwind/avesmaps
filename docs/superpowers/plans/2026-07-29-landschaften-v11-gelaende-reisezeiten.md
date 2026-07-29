@@ -143,7 +143,11 @@ const peaks = list.filter((f) => {
 		&& ["berggipfel", "vulkan"].includes(String(p.feature_subtype || ""));
 });
 const withHeight = peaks.filter((f) => {
-	const raw = ((f.properties || {}).properties || {}).height_schritt;
+	// 🪤 FLAT here, not nested. `api/app/map-features.php` builds the label payload with
+	// height_schritt directly under properties (features.php:1008). The ROUTING payload
+	// (api/_internal/routing/map-data.php) is the one that nests properties.properties -- reading
+	// this the routing way returns 0 peaks with a height and looks like an empty stock.
+	const raw = (f.properties || {}).height_schritt;
 	return Number.isFinite(Number(raw)) && Number(raw) > 0;
 });
 const paths = list.filter((f) => (f.properties || {}).feature_type === "path");
