@@ -227,4 +227,28 @@ assert.deepStrictEqual(
 	"the first corner answers once, not twice"
 );
 
+// ---- rivers snap too (owner 2026-07-29) ---------------------------------------------------------
+// 💣 A river is a LINE, handed in as a Polygon with a single ring. That is only sound because the
+// segment walk goes 0..n-2 and never closes the ring -- otherwise there would be a phantom segment
+// straight from the mouth back to the source, and a corner near it would snap onto open water.
+// This asserts exactly that absence.
+const river = { type: "Polygon", coordinates: [[[0, 0], [100, 0], [100, 100]]] };
+
+// On the line: caught.
+assert.strictEqual(ecosystemEditNearestSnapPoint([50, 2], [river], 10).kind, "edge", "the river bed catches");
+assert.deepStrictEqual(ecosystemEditNearestSnapPoint([50, 2], [river], 10).position, [50, 0]);
+// Its corners are corners like any other.
+assert.strictEqual(ecosystemEditNearestSnapPoint([2, 2], [river], 10).kind, "vertex", "a bend is a corner");
+assert.deepStrictEqual(ecosystemEditNearestSnapPoint([2, 2], [river], 10).position, [0, 0]);
+
+// 🔴 THE ONE THAT MATTERS: the straight line from the last point [100,100] back to the first [0,0]
+// runs right past [50,50]. If the ring were closed, that point would snap. It must not.
+assert.strictEqual(
+	ecosystemEditNearestSnapPoint([50, 50], [river], 10),
+	null,
+	"no phantom segment from the end back to the start"
+);
+// And a point genuinely far from every segment stays unsnapped.
+assert.strictEqual(ecosystemEditNearestSnapPoint([50, 40], [river], 10), null, "open water is not a target");
+
 console.log("ecosystem edit tests passed");

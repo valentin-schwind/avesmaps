@@ -337,6 +337,66 @@ function ecosystemEditSnapCandidates(excludePublicId) {
 	return candidates;
 }
 
+// 🔴 FLÜSSE ALS SCHNAPPZIEL (Owner 2026-07-29). Ein Waldrand endet oft am Fluss, und dann soll er
+// wirklich AM Fluss enden und nicht zwei Pixel daneben.
+//
+// Flüsse sind keine Flächen, sondern Wege mit dem Subtyp „Flussweg" -- Linien in `pathData`. Sie werden
+// als Polygon mit EINEM Ring durchgereicht, und das ist kein Trick: ecosystemEditNearestSnapPoint läuft
+// die Punktpaare von 0 bis n-2 durch und schliesst den Ring NICHT. Eine offene Linie verhält sich darin
+// also von selbst richtig -- es entsteht keine Geistersegment zwischen Mündung und Quelle.
+//
+// ⚠️ Seewege bleiben draußen: eine Schifffahrtslinie ist kein Ufer, sondern eine Route über Wasser.
+const ECOSYSTEM_EDIT_SNAP_PATH_SUBTYPES = ["Flussweg"];
+
+// 💣 VORFILTER, sonst läuft bei JEDER Mausbewegung der gesamte Flussbestand durch die Segmentschleife.
+// Die Hüllbox je Weg wird einmal gerechnet und am Objekt behalten; danach kostet ein Fluss, der weit weg
+// liegt, einen Zahlenvergleich statt hunderter Wurzeln.
+function ecosystemEditPathSnapBounds(path) {
+	if (path._ecosystemSnapBounds) {
+		return path._ecosystemSnapBounds;
+	}
+	const coordinates = path?.geometry?.coordinates;
+	if (!Array.isArray(coordinates) || coordinates.length < 2) {
+		return null;
+	}
+
+	let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+	coordinates.forEach(([x, y]) => {
+		if (x < minX) minX = x;
+		if (x > maxX) maxX = x;
+		if (y < minY) minY = y;
+		if (y > maxY) maxY = y;
+	});
+	path._ecosystemSnapBounds = Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+
+	return path._ecosystemSnapBounds;
+}
+
+function ecosystemEditRiverSnapCandidates(point, tolerance) {
+	if (typeof pathData === "undefined" || !Array.isArray(pathData)) {
+		return [];
+	}
+
+	const candidates = [];
+	pathData.forEach((path) => {
+		const subtype = typeof normalizePathSubtype === "function"
+			? normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name)
+			: String(path?.properties?.feature_subtype || "");
+		if (!ECOSYSTEM_EDIT_SNAP_PATH_SUBTYPES.includes(subtype)) {
+			return;
+		}
+		const bounds = ecosystemEditPathSnapBounds(path);
+		if (!bounds
+			|| point[0] < bounds.minX - tolerance || point[0] > bounds.maxX + tolerance
+			|| point[1] < bounds.minY - tolerance || point[1] > bounds.maxY + tolerance) {
+			return;
+		}
+		candidates.push({ type: "Polygon", coordinates: [path.geometry.coordinates] });
+	});
+
+	return candidates;
+}
+
 // ECOSYSTEM_EDIT_SNAP_PIXELS expressed in map units at the CURRENT zoom, so the reach stays a constant
 // distance on screen. L.CRS.Simple is linear, so one horizontal probe is enough.
 function ecosystemEditSnapToleranceForLatLng(latLng) {
@@ -359,9 +419,13 @@ function ecosystemEditSnapTarget(latLng, excludePublicId) {
 		return null;
 	}
 
+	// Flächen der sichtbaren Ebenen UND Flüsse. Beide in EINEM Durchlauf, damit dieselbe Regel gilt:
+	// die nächste Ecke gewinnt, sonst der nächste Kantenpunkt -- egal ob die Kante ein Waldrand oder
+	// ein Flusslauf ist.
+	const point = [latLng.lng, latLng.lat];
 	const snap = ecosystemEditNearestSnapPoint(
-		[latLng.lng, latLng.lat],
-		ecosystemEditSnapCandidates(excludePublicId),
+		point,
+		[...ecosystemEditSnapCandidates(excludePublicId), ...ecosystemEditRiverSnapCandidates(point, tolerance)],
 		tolerance
 	);
 
