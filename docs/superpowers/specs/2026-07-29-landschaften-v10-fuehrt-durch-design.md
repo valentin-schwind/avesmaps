@@ -9,15 +9,20 @@
 ## 0. Kurzfassung
 
 V9 hat gespeichert, **von welcher Bogenlänge bis zu welcher** ein Weg durch eine Fläche
-läuft (`path_ecosystem`). V10 macht daraus eine Zeile, die ein Besucher lesen kann:
+läuft (`path_ecosystem`). V10 macht daraus eine Zeile, die ein Besucher lesen kann — an
+**vier** Stellen und in **zwei Tonlagen**:
 
 ```
-Führt durch   Herz des Kontinents · Reichsforst (20 %)
+Planer, Zusammenfassung   Landschaften   Herz des Kontinents · Seenland · Tommellande · …
+Planer, Etappenzeile      … von Hirschfurt bis Bitani        durch: Reichsforst
+Etappen-Infobox           Führt durch    Herz des Kontinents · Reichsforst (20 %)
+Weg-Infobox               Führt durch    Herz des Kontinents · Reichsforst (20 %)
 ```
 
-Sie erscheint an **drei** Stellen — an der Routen-Zusammenfassung, an der Etappen-Infobox
-und an der Weg-Infobox. Darunter, faul nachgeladen, die Flora und Fauna der genannten
-Landschaften aus dem Lore-System.
+**Der Planer erzählt, die Infobox belegt.** Im Planer stehen blanke Namen, und die
+Etappenliste nennt nur, was gegenüber der Zeile darüber **neu** ist; die Infoboxen zeigen
+immer die volle Wahrheit dieser einen Etappe, mit Anteilen. Unter den Infoboxen, faul
+nachgeladen, die Flora und Fauna der genannten Landschaften aus dem Lore-System.
 
 **Es wird nichts gezeichnet und nichts eingefärbt.** V10 ist Text. Einfärben,
 Ein-/Austrittsmarker und der Routensimulator brauchen `basis=1` und sind eine eigene Sache
@@ -31,6 +36,9 @@ Ein-/Austrittsmarker und der Routensimulator brauchen `basis=1` und sind eine ei
 |---|---|
 | **1** | Die Zeile steht an der **Etappe UND an der Route**. Wörtlich: „es geht nicht nur um Routen, sondern auch um Routensegmente." |
 | **2** | Prozent nur, wenn es **nicht** die ganze Etappe ist („ja das is natürlich schöner"). |
+| **2a** | 🔴 **Im Planer gar keine Prozente** — „einfach sagen was aufm weg liegt". Die Zahlen bleiben den Infoboxen (§2, §3.1a/b). |
+| **2b** | Einleitung **`durch:`** statt „durch den …" — der Artikel ist nicht ableitbar (§3.1b). |
+| **2c** | In der Etappen**liste** **nur nennen, was neu ist** („schön!!!"). Aus 31 gleichförmigen Zeilen werden 9 (§3.1c). |
 | **3** | 🔴 **„Wald is Wald, egal ob der 'n Namen hat."** Eine namenlose Fläche wird **nicht weggelassen**, sie zeigt ihre **Art**. Siehe §3.2 — dieser Entscheid hat einen früheren Entwurf dieser Spec korrigiert. |
 | **4** | Meer/Kontinent/Küste bleiben unsichtbar (`affects_paths = 0`, V9 §4.5). Umkehrbar per Datenzeile plus einem Druck auf „Zugehörigkeit rechnen". |
 
@@ -38,35 +46,93 @@ Ein-/Austrittsmarker und der Routensimulator brauchen `basis=1` und sind eine ei
 
 ## 2. Wo die Zeile steht
 
-| Fläche | Einbaustelle | Zeile |
-|---|---|---|
-| **Routen-Zusammenfassung** | `showRoutePlan` (`js/routing/route-plan.js:523`), der `$overview.prepend`-Kasten ab Zeile 597 mit Distanz/Drachenflug/Reisezeit/Rastzeit/Gesamtzeit | `Landschaften   Herz des Kontinents (16 %) · Seenland (14 %) · …` |
-| **Etappen-Infobox** | `buildRouteLegPopupHtml` (`js/routing/route-plan.js:196`), als fünfte Zeile nach *von / bis / Distanz / Reisezeit* | `Führt durch   Herz des Kontinents · Reichsforst (20 %)` |
-| **Weg-Infobox** | `createPathPopupMarkup` (`js/map-features/map-features-path-rendering.js:99`) | dieselbe Zeile, für dieses eine Wegsegment |
+> 🔴 **Die Trennlinie, die alles andere ordnet — Owner 2026-07-29:** *„beim routenplaner
+> muss kein % dranstehn. einfach sagen was aufm weg liegt … während bei der infosegment
+> anzeige %e dranstehen können."*
+>
+> **Der Planer ist Prosa, die Infobox ist der Beleg.** Vier Flächen, zwei Tonlagen:
 
-Die Flora hängt **nur** unter den beiden unteren — an der Routen-Zusammenfassung wären es
+| Fläche | Einbaustelle | Zeile | Prozente |
+|---|---|---|---|
+| **Routen-Zusammenfassung** | `showRoutePlan` (`js/routing/route-plan.js:523`), der `$overview.prepend`-Kasten ab Zeile 597 neben Distanz/Drachenflug/Reisezeit/Rastzeit/Gesamtzeit | `Landschaften   Herz des Kontinents · Seenland · Tommellande · …` | **nein** |
+| **Etappen-ZEILE im Planer** | `showRoutePlan`, die `.route-plan-entry`-Zeile ab 561 | `… von Bitani bis Hirschfurt in 8.24 Stunden   durch: Reichsforst` | **nein** |
+| **Etappen-Infobox** | `buildRouteLegPopupHtml` (`js/routing/route-plan.js:196`), als fünfte Zeile nach *von / bis / Distanz / Reisezeit* | `Führt durch   Herz des Kontinents · Reichsforst (20 %)` | ja |
+| **Weg-Infobox** | `createPathPopupMarkup` (`js/map-features/map-features-path-rendering.js:99`) | dieselbe Zeile, für dieses eine Wegsegment | ja |
+
+Die Flora hängt **nur** unter den beiden Infoboxen — an der Routen-Zusammenfassung wären es
 elf Landschaften auf einmal (§6).
-
-> ⚠️ **Nicht** in die Etappen**liste** des Planers. Gemessen an Gareth → Thorwal stehen dort
-> **sieben Zeilen hintereinander mit demselben Text** („Herz des Kontinents"). In der
-> Infobox stört das nicht — man sieht immer nur eine.
 
 ---
 
 ## 3. Die Regeln der Zeile
 
-### 3.1 Aufbau
+### 3.1 Aufbau — überall gleich
 
-- **Nach Anteil sortiert**, das Größte zuerst.
-- **Ab 90 % ohne Zahl.** Der Median-Anteil ist **100 %** (§4.2) — ohne diese Regel stünde
-  in der Mehrzahl aller Zeilen „(100 %)", und die Zahl trüge keine Information mehr.
+- **Nach Anteil sortiert**, das Größte zuerst. Auch dort, wo der Anteil nicht gedruckt
+  wird: er entscheidet weiter die Reihenfolge.
 - **Unter 5 % weggelassen.** Die Schwelle ist am Livebestand geeicht und die Kurve ist dort
   flach: 5 % verwirft 274 von 3.995 Treffern (6,9 %), 3 % verwürfe 167, 10 % verwürfe 426.
   Es gibt keine Kante, an der die Wahl kippt — deshalb der runde Wert.
-- **Trenner `·`**, kein Komma: die Namen sind keine Aufzählung eines Ganzen (§3.3).
 - **Die Art ist der Titel-Tooltip** jedes Namens („Finsterkamm" → *Gebirge*). Sie reist
   ohnehin mit und beantwortet die Beispielfrage des Owners („führt der Weg durch ein
   Gebirge"), ohne die Zeile zu verlängern.
+
+### 3.1a Nur in den Infoboxen: die Prozente
+
+- **Ab 90 % ohne Zahl.** Der Median-Anteil ist **100 %** (§4.2) — ohne diese Regel stünde
+  in der Mehrzahl aller Zeilen „(100 %)", und die Zahl trüge keine Information mehr.
+- **Trenner `·`**, kein Komma: die Namen sind keine Aufzählung eines Ganzen (§3.3), und
+  zwischen „Name (68 %)"-Einträgen läge ein Komma zu dicht an der Klammer.
+
+### 3.1b Nur im Planer: `durch:` und Kommas
+
+- Einleitung **`durch:`** — mit Doppelpunkt, ohne Artikel.
+- **Trenner `,`**: hier stehen blanke Namen, und die lesen sich als Aufzählung.
+
+> 💣 **Der Artikel ist nicht ableitbar, und ein geratener wäre sichtbar falsches Deutsch.**
+> Der Owner hatte „durch **den** Reichsforst" vorgeschlagen — richtig, aber der Artikel
+> hängt am Geschlecht des Namens, und das steht in keinem Feld: *das* Herz des Kontinents,
+> *die* Flusslande, *die* Koschberge, *der* Farindelwald — und **Weiden** ganz ohne. Es
+> gibt keine Regel, die das aus dem Namen holt, und rund ein Drittel der Namen bekäme den
+> falschen. Der Doppelpunkt macht aus dem Satz eine Beschriftung; dann wird keiner
+> erwartet. (Owner 2026-07-29: „äh ja artikel geht nicht, machs mit durch: …")
+>
+> Wer das je ändern will, braucht ein **Feld an der Region** („der/die/das/—"), von Hand
+> gefüllt für heute 137 und künftig mehrere hundert Namen. Das ist eine Datenaufgabe, keine
+> Anzeigeentscheidung — und es ist nicht V10.
+
+### 3.1c 🔴 Nur in der Etappen**liste**: nur nennen, was neu ist
+
+Eine Etappenzeile nennt **nur die Landschaften, die in der Zeile davor noch nicht standen**.
+Der Plan liest sich dann wie eine Reise: der Name steht da, wo man die Landschaft betritt,
+und schweigt, solange man drin bleibt.
+
+Gemessen an Gareth → Thorwal (45 Etappen, 31 mit Daten):
+
+| | Zeilen mit Text | Nennungen |
+|---|---|---|
+| jede Zeile die volle Wahrheit | 31 | 53 |
+| **nur was neu ist** | **9** | **12** |
+
+Ohne die Regel stünden **16 der 31 Zeilen wortgleich unter ihrer Vorgängerin** — die
+Reichsstraße läuft sieben Etappen am Stück durchs Herz des Kontinents.
+
+**Ein Wiedereintritt wird wieder genannt.** „Tommellande" steht auf dieser Route zweimal,
+weil die Route sie zwischendurch verlässt. Das ist richtig: V9 §9.0 hat nachgemessen, dass
+die Lücken zwischen zwei Durchquerungen im Median **2,09 Meilen** betragen — echte
+Geographie, kein Zittern, das man wegglätten dürfte.
+
+> 💣 **Eine Etappe OHNE Daten setzt das Gedächtnis NICHT zurück.** Sie wird übersprungen,
+> die nächste vergleicht sich weiter mit der letzten Zeile, die etwas wusste. Grund: nur
+> **34,3 %** der Wegstrecke liegt überhaupt in einer Fläche (§4.1) — „leer" heißt hier fast
+> immer *noch nicht gezeichnet*, nicht *draußen*. Ein Zurücksetzen machte aus einer Lücke
+> im Bestand eine Ankündigung („du betrittst das Herz des Kontinents"), die nie stattfand.
+> Auf dieser Route ergeben beide Regeln **dasselbe Ergebnis** (0 Unterschied) — die Wahl
+> ist heute folgenlos und morgen nicht, sobald mehr gezeichnet ist.
+
+**Die Infoboxen machen das NICHT mit.** Sie zeigen immer die volle Wahrheit dieser einen
+Etappe, mit Prozenten. Genau dafür sind sie da: die Liste ist die Erzählung, die Infobox
+der Beleg. Wer mitten in die Liste springt und wissen will, wo er ist, klickt die Zeile an.
 
 ### 3.2 🔴 Name, sonst Art — die Hausregel, nicht eine neue
 
@@ -134,12 +200,27 @@ anderen. Wer sie als Aufteilung liest, liest falsch — deshalb der Trenner `·`
 
 ### 3.4 Was der Besucher am Ende sieht — gemessene Beispiele, keine erfundenen
 
+**In den Infoboxen** (volle Wahrheit, mit Prozenten):
+
 ```
 Führt durch: Weiden
 Führt durch: Darpatien · Sichelhag
 Führt durch: Herz des Kontinents · Reichsforst (20 %)
 Führt durch: Weiden · Finsterkamm (84 %) · See (13 %)
 Führt durch: Trollzacken (42 %) · Darpatien (30 %) · Ochsenwasser (18 %)
+```
+
+**In der Etappenliste des Planers** (nur was neu ist, ohne Prozente) — echte Zeilen aus
+Gareth → Thorwal:
+
+```
+Reichsstraße … von Weyring bis Randersburg      durch: Herz des Kontinents
+Reichsstraße … von Hornbach bis Randersburg
+Reichsstraße … von Kreuzung-1545 bis Hirschfurt
+Reichsstraße … von Hirschfurt bis Bitani        durch: Reichsforst
+Reichsstraße … von Leustein bis Steinbrücken    durch: Flusslande
+Reichsstraße … von Kammhütten bis Trottweiher   durch: Koschberge
+Reichsstraße … von Koschwacht bis Gratenfels    durch: Gratenfelser Becken, Tommellande
 ```
 
 ---
@@ -200,18 +281,23 @@ Reichsstrasse    5.6   Führt durch: Flusslande (29 %)
 Reichsstrasse   11.0   Führt durch: Flusslande
 ```
 
-Und aggregiert, als Anteil an der **Gesamtstrecke** — das ist die Routen-Zeile:
+Und aggregiert über die **Gesamtstrecke** — das ist die Routen-Zeile. Sortiert nach Anteil,
+gedruckt ohne ihn (§3.1b):
 
 ```
-Landschaften   Herz des Kontinents (16 %) · Seenland (14 %) · Tommellande (13 %)
-               Streitende Königreiche (8 %) · Winhaller Land (8 %) · Gratenfelser Becken (6 %)
-               Flusslande (4 %) · Koschberge (3 %) · Farindelwald (2 %) · Honinger Land (2 %)
-               Reichsforst (1 %)
+Landschaften   Herz des Kontinents · Seenland · Tommellande · Streitende Königreiche ·
+               Winhaller Land · Gratenfelser Becken · Flusslande · Koschberge ·
+               Farindelwald · Honinger Land · Reichsforst
 ```
 
-Die Summe bleibt unter 100 %, weil zwei Drittel der Karte noch keine Flächen tragen
-(§4.1). **Das wird nicht kaschiert** — keine Restzeile „sonstiges", keine Normierung auf
-100 %. Eine normierte Zahl behauptete Vollständigkeit, die es nicht gibt.
+> ⭐ **Die Reihenfolge ist die ganze Information, die die Prozente sonst trügen** — und sie
+> bleibt erhalten, auch wenn die Zahl nicht dasteht. Zur Einordnung, was hinter dieser
+> Sortierung steckt: 16 % / 14 % / 13 % / 8 % / 8 % / 6 % / 4 % / 3 % / 2 % / 2 % / 1 %.
+
+Die Anteile summieren sich auf **77 %**, nicht auf 100 — zwei Drittel der Karte tragen noch
+keine Flächen (§4.1). **Das wird nicht kaschiert** (Owner 2026-07-29: „4.3: alles gut") —
+keine Restzeile „sonstiges", keine Normierung. Eine normierte Zahl behauptete
+Vollständigkeit, die es nicht gibt; eine bloße Namensliste behauptet sie gar nicht erst.
 
 ---
 
@@ -354,25 +440,31 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
 | **neu** `js/map-features/map-features-path-landscapes.js` | Abruf, Speicher, und der **reine** Zeilenbauer |
 | **neu** `api/app/path-landscapes.php` | der Lese-Endpunkt (§5.2) |
 | **neu** `api/_internal/app/path-landscapes.php` | die Abfrage, offline entscheidbar getrennt |
-| `js/routing/route-plan.js` | Zeile in `buildRouteLegPopupHtml`, Zeile im Zusammenfassungskasten, Abruf beim Zeichnen |
+| `js/routing/route-plan.js` | Zeile in `buildRouteLegPopupHtml`, `durch:`-Anhang an der Etappenzeile (560), Zeile im Zusammenfassungskasten (597), Abruf beim Zeichnen |
 | `js/map-features/map-features-path-rendering.js` | Zeile in `createPathPopupMarkup` (Container + Beobachter) |
 | `js/map-features/map-features-lore.js` | `avesmapsLoreNormalizeKey` lässt Kommalisten durch |
 | `index.html` | ein `<script>`, **nach** `map-features-ecosystem-naming.js` (2168) und **vor** `path-rendering` (2226) |
 
 > 🔴 **Der Zeilenbauer ist rein und kennt keine Route.** Signatur:
-> `buildLandscapeLine(entries, catalogue, options)` — `entries` ist eine Liste aus
-> `{ pathId, weight }`, sonst nichts. **Dieselbe Funktion baut alle drei Zeilen**: die
-> Etappe ruft sie mit einem Weg, die Route mit fünfundvierzig, die Weg-Infobox mit einem.
-> Der Unterschied ist die Gewichtung (Etappenlänge), nicht die Logik. Ein zweiter Bauer für
-> „die Route" wäre dieselbe Mathematik zum zweiten Mal — genau die Regel, die V9 §5 für
-> seinen Kern aufgestellt hat, eine Ebene höher.
+> `buildLandscapeLine(pathIds, catalogue)` → `[{ name, art, share }, …]`, sortiert und
+> gefiltert nach §3.1, **ohne jede Formatierung**. **Dieselbe Funktion speist alle vier
+> Flächen**: die Etappe ruft sie mit einem Weg, die Route mit fünfundvierzig, die
+> Weg-Infobox mit einem. Ein zweiter Bauer für „die Route" wäre dieselbe Mathematik zum
+> zweiten Mal — genau die Regel, die V9 §5 für seinen Kern aufgestellt hat, eine Ebene
+> höher.
 >
-> ⚠️ **Gewichtet wird mit der `length` aus dem Endpunkt, nicht mit `entry.distance` aus dem
-> Planer.** Beide sind proportional (`DISTANCE_SCALING_FACTOR`), die Anteile kämen gleich
-> heraus — aber nur, solange sie es sind. Eine Etappe, die der Planer als Wasser-Aggregat
-> aus mehreren Wegen zusammenfasst, hat **eine** Distanz und **mehrere** `length`-Werte;
-> wer dort mischt, verrechnet Meilen mit Karteneinheiten. Der Bauer bleibt in **einem**
-> Maß, und das ist das des Endpunkts.
+> Darüber liegen **drei dünne Schreiber**, und nur sie kennen Prozente, Trenner und
+> Doppelpunkt: `formatLandscapesForInfobox(list)` (§3.1a), `formatLandscapesForPlanner(list)`
+> (§3.1b) und `pickFreshLandscapes(list, previousList)` (§3.1c). Die Trennung ist der Grund,
+> warum „im Planer ohne Prozente" **keine** zweite Rechnung ist, sondern ein anderer Satz
+> derselben Liste.
+>
+> ⚠️ **Gewichtet wird durchgehend mit der `length` aus dem Endpunkt, nie mit
+> `entry.distance` aus dem Planer.** Beide sind proportional (`DISTANCE_SCALING_FACTOR`),
+> die Anteile kämen gleich heraus — aber nur, solange sie es sind. Eine Etappe, die der
+> Planer als Wasser-Aggregat aus mehreren Wegen zusammenfasst, hat **eine** Distanz und
+> **mehrere** `length`-Werte; wer dort mischt, verrechnet Meilen mit Karteneinheiten.
+> Deshalb nimmt der Bauer nur Weg-Kennungen entgegen und holt sich die Längen selbst.
 
 > ⚠️ **Ein neues `<script>` in `index.html` betrifft die Testgerüste.** V9 hat sechs davon
 > repariert, weil sie die Ladereihenfolge von `index.html` nachbilden (`c914234b`,
@@ -384,21 +476,36 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
 
 ### 8.1 Unit-Tests — `js/map-features/__tests__/path-landscapes.test.js`
 
+**Der Bauer** (`buildLandscapeLine`):
+
 | Fall | Erwartung |
 |---|---|
-| ein Weg, eine Fläche über die volle Länge | ein Eintrag, **ohne** Prozentangabe |
-| ein Weg, Fläche über 68 % | ein Eintrag „(68 %)" |
-| Anteil 0,93 | ohne Zahl (90-%-Regel) |
-| Anteil 0,04 | fällt weg |
+| ein Weg, eine Fläche über die volle Länge | ein Eintrag, `share = 1` |
+| Anteil 0,04 | fällt weg (5-%-Schwelle) |
 | zwei Flächen, 0,62 und 0,38 | absteigend sortiert |
 | Fläche `Wald-001`, Art „Wald" | Anzeigename **„Wald"** |
 | Fläche `Fläche-011`, keine Art | fällt weg |
-| zwei namenlose Seen, 0,3 und 0,2 | **ein** Eintrag „See (50 %)" |
-| Summe der gedeckten Länge > Gesamtlänge (Rundung) | bei 100 % gekappt |
+| zwei namenlose Seen, 0,3 und 0,2 | **ein** Eintrag „See", `share = 0,5` |
+| Summe der gedeckten Länge > Gesamtlänge (Rundung) | bei 1,0 gekappt |
 | Route: 45 Wege, Gewichtung nach Weglänge | Anteil an der **Gesamt**strecke |
 | Etappe aus **mehreren** Wegen (Wasser-Aggregat) | Anteil an der Summe ihrer Weglängen |
 | Weg ohne Zuordnung | leere Liste, **kein** Fehler |
 | leerer Katalog / fehlende `landscapes`-Zeile | Eintrag übersprungen, kein Absturz |
+
+**Die Schreiber** (§3.1a/b/c):
+
+| Fall | Erwartung |
+|---|---|
+| Infobox, `share = 1` | „Weiden", **ohne** Prozentangabe |
+| Infobox, `share = 0,68` | „Weiden (68 %)" |
+| Infobox, `share = 0,93` | ohne Zahl (90-%-Regel) |
+| Infobox, zwei Einträge | Trenner `·` |
+| Planer, zwei Einträge | `durch: A, B` — **nie** eine Prozentangabe, **nie** ein Artikel |
+| Etappenliste, Vorgängerin nannte dieselben Namen | **leer** |
+| Etappenliste, ein Name kommt hinzu | **nur** der neue |
+| Etappenliste, Vorgängerin ohne Daten | Vergleich gegen die letzte Zeile **mit** Daten |
+| Etappenliste, erste Zeile | alle Namen |
+| Etappenliste, Name kehrt nach einer Unterbrechung zurück | **wieder genannt** (Wiedereintritt) |
 
 ### 8.2 PHP-Tests — `api/_internal/app/__tests__/path-landscapes-test.php`
 
@@ -416,13 +523,19 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
 
 ### 8.3 Abnahme am Livebestand
 
-1. **Gareth → Thorwal** im Planer: die Routen-Zeile nennt Herz des Kontinents, Seenland,
-   Tommellande, Farindelwald, Koschberge — die Werte aus §4.3, ±1 % durch Rundung.
-2. **Eine Etappe anklicken**: „Führt durch" steht als fünfte Zeile, darunter Flora.
-3. **Netzwerk-Register**: für die ganze Route **genau eine** Anfrage an
+1. **Gareth → Thorwal** im Planer: die Routen-Zeile nennt in dieser Reihenfolge Herz des
+   Kontinents, Seenland, Tommellande, Streitende Königreiche, Winhaller Land, Gratenfelser
+   Becken, Flusslande, Koschberge, Farindelwald, Honinger Land, Reichsforst — **elf Namen,
+   keine Prozente** (§4.3).
+2. **Dieselbe Route, Etappenliste**: **9** der 45 Zeilen tragen ein `durch:`, mit
+   **12** Nennungen — und keine zwei aufeinanderfolgenden Zeilen sind wortgleich (§3.1c).
+   „Tommellande" steht zweimal, weil die Route sie zwischendurch verlässt.
+3. **Eine Etappe anklicken**: „Führt durch" steht als fünfte Zeile der Infobox — dort
+   **mit** Prozenten und **vollständig**, auch wenn die Listenzeile schwieg. Darunter Flora.
+4. **Netzwerk-Register**: für die ganze Route **genau eine** Anfrage an
    `path-landscapes.php`. Ein zweites geöffnetes Etappen-Popup erzeugt **keine**.
-4. **Kartenaufbau ohne Route**: **null** Anfragen an `path-landscapes.php`.
-5. **Einen Weg auf der Karte anklicken**: eine Anfrage, danach keine mehr für denselben Weg.
+5. **Kartenaufbau ohne Route**: **null** Anfragen an `path-landscapes.php`.
+6. **Einen Weg auf der Karte anklicken**: eine Anfrage, danach keine mehr für denselben Weg.
 
 > ⚠️ **Vor der Abnahme neu zählen.** Die Zahlen in §4 stehen gegen
 > `ecosystem_revision` 3890 / `map_revision` 46238. Der Bestand wächst täglich; das ist ein
@@ -448,9 +561,9 @@ Unter der „Führt durch"-Zeile der **Etappen-** und der **Weg-Infobox**, nicht
 
 | | |
 |---|---|
-| Zeilenbauer + Speicher + Abruf (JS) | ~180 Zeilen |
+| Zeilenbauer + drei Schreiber + Speicher + Abruf (JS) | ~220 Zeilen |
 | Endpunkt + Abfrage (PHP) | ~150 Zeilen |
-| Drei Einbaustellen | ~60 Zeilen |
+| Vier Einbaustellen | ~80 Zeilen |
 | Kommalisten im Lore-Schlüssel | ~8 Zeilen |
-| Tests | ~220 Zeilen |
-| **Risiko** | **gering.** Die Daten liegen, der Kern ist abgenommen, die Zuordnung ist ein Nachschlagen (§5.1). Der einzige scharfe Punkt ist die Abrufstelle: eine Zeile am falschen Ort baut den Pool-Vorfall nach. Abnahmeschritte 3–5 prüfen genau das. |
+| Tests | ~260 Zeilen |
+| **Risiko** | **gering.** Die Daten liegen, der Kern ist abgenommen, die Zuordnung ist ein Nachschlagen (§5.1). Der einzige scharfe Punkt ist die Abrufstelle: eine Zeile am falschen Ort baut den Pool-Vorfall nach. Abnahmeschritte 4–6 prüfen genau das. |
