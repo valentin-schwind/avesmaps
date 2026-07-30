@@ -379,6 +379,36 @@ function avesmapsRouteApplyTerrainToConnection(array $connection, float $factor,
     return $connection;
 }
 
+/**
+ * PURE: the reverse-direction twin of a waypoint sub-slice.
+ *
+ * Returns the connection UNTOUCHED when it carries no terrain -- and then the caller may go on
+ * sharing ONE object in both directions, exactly as before V11. That is what keeps the off state
+ * byte-identical.
+ *
+ * 💣 With terrain the forward object is NOT reusable. Its factor was computed from the STORED
+ * orientation's ascent, and travelling the piece the other way climbs what it fell. from/to still
+ * keep the stored orientation (see :218-219) -- only the numbers turn around.
+ */
+function avesmapsRouteReverseSubPathConnection(array $connection): array
+{
+    if (!array_key_exists('terrain_time_factor', $connection)) {
+        return $connection;
+    }
+    $ascent = (float) $connection['ascent_schritt'];
+    $descent = (float) $connection['descent_schritt'];
+    $forwardFactor = (float) $connection['terrain_time_factor'];
+    // Undo the forward factor to recover the slice's base time, then apply the reverse one.
+    $baseTime = $forwardFactor > 0.0 ? (float) $connection['time'] / $forwardFactor : (float) $connection['time'];
+    $reverseFactor = avesmapsTerrainTimeFactor($descent, $ascent, (float) $connection['distance']);
+    $connection['time'] = $baseTime * $reverseFactor;
+    $connection['terrain_time_factor'] = $reverseFactor;
+    $connection['ascent_schritt'] = $descent;
+    $connection['descent_schritt'] = $ascent;
+
+    return $connection;
+}
+
 function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request, array $seaBoundLocationNames): int {
     // Synthetic "Querfeldein" bridges are only legitimate when cross-country travel is enabled
     // (Querfeldein maps to the land domain). With land/synthetic disabled -- e.g. "nur ueber Fluss"
@@ -657,12 +687,12 @@ function avesmapsAnchorClientWaypointToLandPath(array &$graph, string $waypointN
         if (count($sliceFrom) >= 2) {
             $connectionFrom = avesmapsBuildClientRouteSubPathConnection($original, $fromName, $anchorNodeName, $sliceFrom, 'wp-slice-' . $waypointIndex . '-a', $profileFrom);
             avesmapsAddClientCompatibleGraphConnection($graph, $fromName, $anchorNodeName, $connectionFrom);
-            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $fromName, $connectionFrom);
+            avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $fromName, avesmapsRouteReverseSubPathConnection($connectionFrom));
         }
         if (count($sliceTo) >= 2) {
             $connectionTo = avesmapsBuildClientRouteSubPathConnection($original, $anchorNodeName, $toName, $sliceTo, 'wp-slice-' . $waypointIndex . '-b', $profileTo);
             avesmapsAddClientCompatibleGraphConnection($graph, $anchorNodeName, $toName, $connectionTo);
-            avesmapsAddClientCompatibleGraphConnection($graph, $toName, $anchorNodeName, $connectionTo);
+            avesmapsAddClientCompatibleGraphConnection($graph, $toName, $anchorNodeName, avesmapsRouteReverseSubPathConnection($connectionTo));
         }
     }
 
