@@ -849,6 +849,7 @@ function showRoutePlan(routeNames, segments) {
 			<span class="route-plan-summary__landscapes"></span>
 			${routeTerrainSummaryMarkup(planEntries, segments)}
 		</div>
+		${planEntries.length ? `<div class="route-plan-legs__title">${tr("planner.legs.heading", "Die Reiseetappen")}</div>` : ""}
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
 }

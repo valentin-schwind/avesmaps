@@ -70,6 +70,7 @@ window.AVESMAPS_I18N_EN = {
 	// bare preposition („… in 4.98 Stunden durch Weiden" / "… through Weiden"). Keep them side by side --
 	// they name ONE fact and must not drift into two vocabularies.
 	"planner.summary.landscapes": "Landscapes along the route",
+	"planner.legs.heading": "The journey leg by leg",
 	"planner.leg.through": "Runs through",
 	"planner.leg.through.short": "through",
 	"planner.leg.elevation": "Elevation change",
