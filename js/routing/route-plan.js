@@ -340,22 +340,21 @@ function routeTerrainSummaryMarkup(planEntries, segments) {
 	// sehenden Leser, was der Pfeil bedeutet.
 	const direction = (arrow, word) =>
 		`<span class="route-plan-summary__dir" title="${escapeHtml(word)}" aria-label="${escapeHtml(word)}">${arrow}</span>`;
-	// „stark" und der Erfassungsvermerk stehen in einer eigenen, leisen Zeile darunter -- sichtbar, aber
-	// ohne die Zahlenzeile zu sprengen.
-	const notes = [];
-	if (routeTerrainIsSteep(totals)) {
-		notes.push(tr("planner.summary.elevationSteepNote", "stark"));
-	}
-	if (totals.coveredEntries < totals.totalEntries) {
-		notes.push(tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen", {
+	// „stark" ist eine Auskunft über die Reise und bekommt eine eigene, leise Zeile.
+	const noteLine = routeTerrainIsSteep(totals)
+		? `<span class="route-plan-summary__elevation-note">${tr("planner.summary.elevationSteepNote", "stark")}</span>`
+		: "";
+	// Der Erfassungsvermerk dagegen NICHT (Owner 2026-07-30 zu „auf 21 von 22 Etappen": „lass das weg").
+	// Er verschwindet aber nicht, er wandert in den Tooltip -- dasselbe Muster wie die Drachenflug-
+	// Summanden: „21 von 22" ist eine Fußnote, keine Nachricht, und als zweite Zeile las sich der ganze
+	// Block wie eine Entschuldigung. Wer es wissen will, fährt drüber.
+	const coverageTitle = totals.coveredEntries < totals.totalEntries
+		? ` title="${escapeHtml(tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen", {
 			covered: totals.coveredEntries,
 			total: totals.totalEntries,
-		}));
-	}
-	const noteLine = notes.length
-		? `<span class="route-plan-summary__elevation-note">${notes.join(" · ")}</span>`
+		}))}"`
 		: "";
-	return `<span class="route-plan-summary__elevation">${tr("planner.leg.elevation", "Höhenunterschiede")}: `
+	return `<span class="route-plan-summary__elevation"${coverageTitle}>${tr("planner.leg.elevation", "Höhenunterschiede")}: `
 		+ `${schritt(totals.ascent)} ${direction("↑", tr("planner.leg.up", "bergauf"))}`
 		+ ` · ${schritt(totals.descent)} ${direction("↓", tr("planner.leg.down", "bergab"))}`
 		+ ` ${tr("planner.unit.schritt", "Schritt")}${noteLine}</span>`;

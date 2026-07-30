@@ -123,25 +123,41 @@ const entries = [
 	assert.ok(markup.includes('aria-label="bergab"'), `the arrow says what it means: ${markup}`);
 }
 
-// ---- the caveats live in their own quiet line ----------------------------------------------------
+// ---- what is worth a visible line, and what is not -----------------------------------------------
 // 1.669 Schritt over the 20 measured miles is a gradient of 0,083 -- past the 0,05 that the server's
-// uphill curve turns into a time factor of 1,25. So this route is steep, and says so.
+// uphill curve turns into a time factor of 1,25. So this route is steep, and says so in its note line.
+//
+// The COVERAGE caveat does not get a line (Owner 2026-07-30, on „auf 21 von 22 Etappen": „lass das
+// weg"). It moves into the tooltip instead of vanishing: „21 of 22" is a footnote, not news, and a
+// second line for it made the whole block look like it was apologising.
 {
 	const markup = routeTerrainSummaryMarkup(entries, segments);
 	assert.ok(markup.includes('class="route-plan-summary__elevation-note"'), `note line exists: ${markup}`);
 	const note = markup.slice(markup.indexOf("elevation-note"));
 	assert.ok(note.includes("stark"), `steep route says so, quietly: ${note}`);
-	assert.ok(note.includes("auf 2 von 3 Etappen"), `coverage sits in the note: ${note}`);
-	// And the numbers line itself stays free of them, or it would wrap.
-	const numbersLine = markup.slice(0, markup.indexOf("<span class=\"route-plan-summary__elevation-note\""));
-	assert.ok(!numbersLine.includes("stark"), `the numbers line stays clean: ${numbersLine}`);
-	assert.ok(!numbersLine.includes("von 3"), `the numbers line stays clean: ${numbersLine}`);
+	assert.ok(!note.includes("von 3"), `coverage must NOT be in the visible note: ${note}`);
+	assert.ok(markup.includes('title="auf 2 von 3 Etappen"'), `coverage sits in the tooltip: ${markup}`);
 }
 
-// Nothing to qualify -> no note line at all.
+// Partial coverage alone gets NO line at all -- the tooltip carries it.
+{
+	const gentle = routeTerrainSummaryMarkup(
+		[{ segmentIndexes: [0], distance: 80 }, { segmentIndexes: [1], distance: 120 }, { segmentIndexes: [2], distance: 40 }],
+		segments
+	);
+	assert.ok(!gentle.includes("elevation-note"), `not steep, so no visible note: ${gentle}`);
+	assert.ok(gentle.includes('title="auf 2 von 3 Etappen"'), `but the tooltip still says it: ${gentle}`);
+}
+
+// Fully measured and not steep: nothing to qualify, so neither a note line nor a tooltip.
 {
 	const covered = routeTerrainSummaryMarkup([{ segmentIndexes: [0], distance: 80 }], segments);
 	assert.ok(!covered.includes("elevation-note"), `no caveats, no note line: ${covered}`);
+	// No coverage tooltip on the OUTER span. The arrows keep theirs -- those name a direction, not a caveat.
+	assert.ok(
+		covered.startsWith('<span class="route-plan-summary__elevation">'),
+		`no caveat, so no tooltip on the line itself: ${covered}`
+	);
 }
 
 // 💣 The same climb spread over ten times the distance is not steep, and must NOT claim to be -- the

@@ -273,6 +273,15 @@
 	border-top: 1px solid var(--color-divider);
 }
 
+/* Die ERSTE Ueberschrift im Plan („Reiseübersicht") bekommt keinen eigenen Trenner: direkt darueber
+   endet .route-planner-options-panel schon mit einem border-bottom, und zwei Linien mit 9 px Luft
+   dazwischen lesen sich als Fehler, nicht als Gliederung (Owner 2026-07-30). */
+#overview .route-plan-legs__title:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
 .route-planner-options-panel__row {
 	display: flex;
 	flex-wrap: wrap;
