@@ -143,6 +143,39 @@ assert($down['terrain_time_factor'] === 1.0,
 assert($up['ascent_schritt'] === 3000.0 && $down['ascent_schritt'] === 0.0,
     'the reverse variant climbs what the forward one falls');
 
+// --- 🔴 A PRE-MODEL ROW STILL SHOWS ITS ELEVATION, IT JUST IS NOT PRICED ------------------
+// Rows written before 2026-07-30 hold pairs of TWO: ascent and descent, nothing about steepness.
+//
+// 💣 The first version of the guard threw the whole slice away, so `ascent_schritt` came back null
+// and the leg display „Auf und ab“ vanished from every route until a profile run. The owner noticed
+// within the hour. The elevation in such a row is not wrong -- it was walked over the same rasters by
+// the same code. Only the split into steep and gentle is new, and only the PRICE needs it.
+$legacy = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0,
+    'profile' => [[1500.0, 0.0], [1500.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+$legacyGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $legacy);
+$legacyEdge = $legacyGraph['graph']['Anfang']['Ende'][0];
+assert($legacyEdge['ascent_schritt'] === 3000.0 && $legacyEdge['descent_schritt'] === 0.0,
+    'a two-value row must still report its climb and fall -- the display depends on nothing else');
+assert($legacyEdge['terrain_time_factor'] === 1.0,
+    'but it must not be priced: without the steep sums the factor is exactly 1.0');
+assert(abs($legacyEdge['time'] - $edgeWithout['time']) < 1e-12,
+    'and the time must be the untouched one, to the last bit');
+// The reverse direction too: elevation swapped, still unpriced.
+$legacyBack = $legacyGraph['graph']['Ende']['Anfang'][0];
+assert($legacyBack['ascent_schritt'] === 0.0 && $legacyBack['descent_schritt'] === 3000.0,
+    'the reverse variant of a legacy row swaps its elevation like any other');
+assert($legacyBack['terrain_time_factor'] === 1.0, 'and stays unpriced in both directions');
+
+// 💣 AND THE ONE THING THAT MUST NEVER HAPPEN: reading the second value of a short row as the
+// steep-descent sum. That would bill every gentle descent as a steep one, silently. A pure-descent
+// legacy row is the case that would expose it -- 3.000 Schritt of gentle fall must cost NOTHING.
+$legacyFall = ['w1' => ['ascent' => 0.0, 'descent' => 3000.0,
+    'profile' => [[0.0, 1500.0], [0.0, 1500.0]], 'revision' => 7, 'stamp' => 'x']];
+$fallEdge = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $legacyFall)['graph']['Anfang']['Ende'][0];
+assert($fallEdge['descent_schritt'] === 3000.0, 'the fall is reported');
+assert($fallEdge['terrain_time_factor'] === 1.0,
+    'and it is NOT billed as a steep descent -- unknown steepness means unpriced, never 150-Schritt rate');
+
 // --- a stale path_revision falls back to today's number, silently and correctly ------------------
 $staleMap = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0, 0.0, 0.0]], 'revision' => 6, 'stamp' => 'x']];
 $staleGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $staleMap);

@@ -223,23 +223,38 @@ function avesmapsRouteSliceTerrain(?array $pathTerrain, int $fromVertexIndex, in
     $steepAscent = 0.0;
     $steepDescent = 0.0;
     $slice = [];
+    // 🔴 THE GUARD SEPARATES TWO QUESTIONS THAT ARE NOT THE SAME ONE:
+    //   „do I know the elevation here?"  -- a pre-2026-07-30 row of TWO values still answers this. The
+    //      ascent and descent in it were walked over the same rasters by the same code; only the split
+    //      into steep and gentle is new.
+    //   „can I PRICE it?"               -- that needs the steep halves, and a short row has none.
+    //
+    // 💣 Conflating them cost the leg display („Auf und ab") on 2026-07-30: the whole slice was thrown
+    // away, so `ascent_schritt` came back null and the line vanished from every route until a profile
+    // run. Reported by the owner within the hour. A measurement that exists must not disappear because
+    // a newer model cannot bill it yet.
+    //
+    // 💣 What must NEVER happen is reading a short row's second value as a steep-descent sum: that would
+    // bill every gentle descent as a steep one, silently. Hence `null`, not `0.0` -- unknown, not none.
+    $steepKnown = true;
     for ($index = $fromVertexIndex; $index < $toVertexIndex; $index++) {
         $piece = $profile[$index] ?? null;
-        // 💣 FOUR, NOT TWO -- AND THIS IS THE FORMAT GUARD. Rows written before the Leistungskilometer
-        // (2026-07-30) hold pairs of two: ascent and descent, nothing about steepness. Reading such a
-        // pair as if its second number were a steep-descent sum would price gentle descents as steep
-        // ones and do it silently. A short entry therefore means „no height data" -- the same answer as
-        // a missing row -- and the next profile run heals it.
-        if (!is_array($piece) || count($piece) < 4) {
-            // A gap in the profile is not a zero either: the stored geometry and the payload's
-            // disagree, and inventing level ground would hide that. The whole slice goes unknown.
+        if (!is_array($piece) || count($piece) < 2) {
+            // A gap in the profile is not a zero: the stored geometry and the payload's disagree, and
+            // inventing level ground would hide that. The whole slice goes unknown.
             return null;
         }
-        $slice[] = [(float) $piece[0], (float) $piece[1], (float) $piece[2], (float) $piece[3]];
+        $hasSteep = count($piece) >= 4;
+        $steepKnown = $steepKnown && $hasSteep;
+        $slice[] = $hasSteep
+            ? [(float) $piece[0], (float) $piece[1], (float) $piece[2], (float) $piece[3]]
+            : [(float) $piece[0], (float) $piece[1]];
         $ascent += (float) $piece[0];
         $descent += (float) $piece[1];
-        $steepAscent += (float) $piece[2];
-        $steepDescent += (float) $piece[3];
+        if ($hasSteep) {
+            $steepAscent += (float) $piece[2];
+            $steepDescent += (float) $piece[3];
+        }
     }
     if ($slice === []) {
         return null;
@@ -248,8 +263,9 @@ function avesmapsRouteSliceTerrain(?array $pathTerrain, int $fromVertexIndex, in
     return [
         'ascent' => $ascent,
         'descent' => $descent,
-        'steep_ascent' => $steepAscent,
-        'steep_descent' => $steepDescent,
+        // null = „this row cannot be priced yet", and every factor site turns that into exactly 1.0.
+        'steep_ascent' => $steepKnown ? $steepAscent : null,
+        'steep_descent' => $steepKnown ? $steepDescent : null,
         'profile' => $slice,
     ];
 }
@@ -269,14 +285,24 @@ function avesmapsRouteSumTerrainProfile(?array $profile): ?array
         return null;
     }
     $sums = ['ascent' => 0.0, 'descent' => 0.0, 'steep_ascent' => 0.0, 'steep_descent' => 0.0];
+    $steepKnown = true;
     foreach ($profile as $piece) {
-        if (!is_array($piece) || count($piece) < 4) {
+        if (!is_array($piece) || count($piece) < 2) {
             return null;
         }
         $sums['ascent'] += (float) $piece[0];
         $sums['descent'] += (float) $piece[1];
-        $sums['steep_ascent'] += (float) $piece[2];
-        $sums['steep_descent'] += (float) $piece[3];
+        if (count($piece) >= 4) {
+            $sums['steep_ascent'] += (float) $piece[2];
+            $sums['steep_descent'] += (float) $piece[3];
+        } else {
+            $steepKnown = false;
+        }
+    }
+    if (!$steepKnown) {
+        // Same split as avesmapsRouteSliceTerrain: the elevation is known, the price is not.
+        $sums['steep_ascent'] = null;
+        $sums['steep_descent'] = null;
     }
 
     return $sums;
@@ -304,8 +330,22 @@ function avesmapsRouteSplitTerrainProfile(?array $profile, int $segmentIndex, fl
     $first = [];
     $second = [];
     foreach ($profile as $index => $pair) {
-        if (!is_array($pair) || count($pair) < 4) {
+        // Two values are enough to split: a pre-model row keeps its elevation through the cut and only
+        // loses the price, exactly as in avesmapsRouteSliceTerrain. Anything shorter is a broken row.
+        if (!is_array($pair) || count($pair) < 2) {
             return [null, null];
+        }
+        if (count($pair) < 4) {
+            $share = max(0.0, min(1.0, $t));
+            if ($index < $segmentIndex) {
+                $first[] = [(float) $pair[0], (float) $pair[1]];
+            } elseif ($index > $segmentIndex) {
+                $second[] = [(float) $pair[0], (float) $pair[1]];
+            } else {
+                $first[] = [(float) $pair[0] * $share, (float) $pair[1] * $share];
+                $second[] = [(float) $pair[0] * (1.0 - $share), (float) $pair[1] * (1.0 - $share)];
+            }
+            continue;
         }
         if ($index < $segmentIndex) {
             $first[] = [(float) $pair[0], (float) $pair[1], (float) $pair[2], (float) $pair[3]];
