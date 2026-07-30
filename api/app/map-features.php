@@ -6,6 +6,9 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/wiki/sync.php';
 require_once __DIR__ . '/../_internal/coat-url.php';
 require_once __DIR__ . '/../_internal/app/coat-display.php';
+// Named explicitly for avesmapsMapFeaturesSettlementImagesEnabled below: coat-display.php happens to pull
+// it in too, but a kill switch on this path must not depend on a neighbour's include staying put.
+require_once __DIR__ . '/../_internal/app/app-setting.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 // Which label belongs to which landscape region. ONE definition of that relation, shared with
 // api/app/ecosystem-areas.php -- it is stored twice (once per direction) and neither side alone is
@@ -353,11 +356,14 @@ function avesmapsMapFeaturesRespond(array $payload): never {
 // Reads the global settlement-image kill switch (app_setting 'settlement_images_enabled', default ON).
 // Fail-open: a missing table / read error keeps images enabled (current behaviour). No DDL here -- the
 // hot map-features path must not run DDL; the editor endpoint creates the row. See settlements.php.
+//
+// The SELECT itself is avesmapsAppSettingGetWithoutDdl(); '1' is this switch's own default, so a missing
+// table and a missing row both come back ENABLED. The catch stays Throwable rather than the helper's
+// narrower PDOException: failing open on a hot public read is the whole point of this function, and an
+// unforeseen error here would otherwise take the entire map payload down with it.
 function avesmapsMapFeaturesSettlementImagesEnabled(PDO $pdo): bool {
     try {
-        $stmt = $pdo->query("SELECT setting_value FROM app_setting WHERE setting_key = 'settlement_images_enabled' LIMIT 1");
-        $value = $stmt ? $stmt->fetchColumn() : false;
-        return $value === false ? true : ((string) $value !== '0');
+        return avesmapsAppSettingGetWithoutDdl($pdo, 'settlement_images_enabled', '1') !== '0';
     } catch (Throwable) {
         return true;
     }

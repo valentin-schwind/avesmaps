@@ -24,6 +24,10 @@ const AVESMAPS_SETTLEMENT_COATS_SETTING = 'settlement_coats_enabled';
 // drawn in (the map label scales its coat with the zoom).
 const AVESMAPS_COAT_PLACEHOLDER_URL = '/img/wappen.png';
 
+// Both halves of this file read app_setting: the public one via the DDL-free reader, the editor pair via
+// the self-healing one. Same store, two entry points, one require.
+require_once __DIR__ . '/app-setting.php';
+
 /**
  * Reads one of the two switches on a PUBLIC read path.
  *
@@ -32,6 +36,12 @@ const AVESMAPS_COAT_PLACEHOLDER_URL = '/img/wappen.png';
  * avesmapsMapFeaturesSettlementImagesEnabled, which this mirrors). Fail-open: a missing table or a read
  * error keeps coats visible, i.e. current behaviour. The editor endpoints keep using the self-healing
  * app-setting helpers for their read/write.
+ *
+ * The SELECT itself is avesmapsAppSettingGetWithoutDdl(); '1' is this switch's own default, so a missing
+ * table and a missing row both come back ENABLED. Two things stay here because that helper cannot carry
+ * them: the per-key memo (a map-features request asks for the same key repeatedly, and one broken read
+ * must not be retried per call), and the Throwable catch -- the helper only catches PDOException, and
+ * narrowing the fail-open on a hot public read is exactly the robustness this function exists for.
  */
 function avesmapsCoatSwitchEnabledFast(PDO $pdo, string $settingKey): bool
 {
@@ -41,11 +51,7 @@ function avesmapsCoatSwitchEnabledFast(PDO $pdo, string $settingKey): bool
         return $resolved[$settingKey];
     }
     try {
-        $stmt = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
-        $stmt->execute(['k' => $settingKey]);
-        $value = $stmt->fetchColumn();
-
-        return $resolved[$settingKey] = ($value === false ? true : ((string) $value !== '0'));
+        return $resolved[$settingKey] = avesmapsAppSettingGetWithoutDdl($pdo, $settingKey, '1') !== '0';
     } catch (Throwable) {
         return $resolved[$settingKey] = true;
     }
@@ -56,8 +62,6 @@ function avesmapsCoatSwitchEnabledFast(PDO $pdo, string $settingKey): bool
  * table if it is missing -- which is what makes the very first toggle on a fresh deploy work). Not for
  * the public read paths; those use avesmapsCoatSwitchEnabledFast above.
  */
-require_once __DIR__ . '/app-setting.php';
-
 function avesmapsTerritoryCoatsEnabled(PDO $pdo): bool
 {
     return avesmapsAppSettingGet($pdo, AVESMAPS_TERRITORY_COATS_SETTING, '1') !== '0';
