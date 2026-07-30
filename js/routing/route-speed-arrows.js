@@ -24,13 +24,13 @@
 	"use strict";
 
 	const PANE_NAME = "avesmapsRouteSpeedArrowPane";
-	// ⚠️ Der Abstand muss GRÖSSER sein als der längste Pfeil (ARROW_UNIT_PX · 1,3 = 34), sonst laufen
+	// ⚠️ Der Abstand muss GRÖSSER sein als der längste Pfeil (ARROW_UNIT_PX · 1,3 = 42), sonst laufen
 	// zwei Pfeile ineinander und die Länge ist wieder nicht ablesbar. Der Prototyp nahm 34 bei
 	// kürzeren Pfeilen.
-	const ARROW_SPACING_PX = 44;
+	const ARROW_SPACING_PX = 52;
 	// Länge bei unverändertem Tempo (relative Geschwindigkeit 1,0). Alles andere ist ein Vielfaches
 	// davon — siehe arrowLength().
-	const ARROW_UNIT_PX = 26;
+	const ARROW_UNIT_PX = 32;
 	// 🔴 FEST, nicht mitwachsend. Eine Spitze, die mit der Länge skaliert, frisst den Unterschied auf.
 	const ARROW_HEAD_PX = 5;
 	const ARROW_HEAD_HALF_PX = 3.7;
@@ -123,7 +123,7 @@
 		function arrowLength(relative) {
 			// Geklemmt nach unten, damit ein Faktor 4,0 kein unsichtbarer Punkt wird, und nach oben,
 			// damit ein Pfeil nie in seinen Nachbarn läuft (ARROW_SPACING_PX).
-			const clamped = Math.max(0.26, Math.min(1.3, relative));
+			const clamped = Math.max(0.24, Math.min(1.3, relative));
 			return clamped * ARROW_UNIT_PX;
 		}
 
