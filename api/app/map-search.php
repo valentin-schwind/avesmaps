@@ -485,6 +485,7 @@ function avesmapsLabelSearchTypeLabel(string $subtype): string {
         'suempfe_moore' => 'Sumpf/Moor',
         'see' => 'See',
         'insel' => 'Insel',
+        'inselgruppe' => 'Inselgruppe',
         default => 'Label',
     };
 }

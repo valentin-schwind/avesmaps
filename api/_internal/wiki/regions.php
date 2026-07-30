@@ -92,7 +92,14 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // gebirge / wald
     'Gebirge' => 'gebirge', 'Wald' => 'wald',
     // insel
-    'Insel' => 'insel', 'Inselgruppe' => 'insel',
+    // 🔴 Owner 2026-07-30: the two are NOT the same thing, and folding them was throwing away a
+    // distinction the wiki already makes. A single island is a FORM (topographie/insel), an
+    // archipelago is a named CONTAINER (derographisch/inselgruppe). Until today both landed on
+    // `insel`, which is how `Bilku` and `Bilku-Archipel` ended up as two regions of one type.
+    // ⚠️ Expected and wanted consequence: every label hanging on an `Art=Inselgruppe` article now
+    // reports a type conflict until an editor adopts the category -- that list IS how the
+    // reclassification candidates are found, so no name-pattern guessing is needed.
+    'Insel' => 'insel', 'Inselgruppe' => 'inselgruppe',
     // meer
     'Meer' => 'meer', 'Meeresteil' => 'meer', 'Meerenge' => 'meer',
     'Bucht' => 'meer', 'Golf' => 'meer',

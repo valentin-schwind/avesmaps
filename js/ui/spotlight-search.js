@@ -726,6 +726,7 @@ function getSpotlightLabelTypeLabel(labelType) {
 		suempfe_moore: "Sumpf/Moor",
 		see: "See",
 		insel: "Insel",
+		inselgruppe: "Inselgruppe",
 		sonstiges: "Label",
 	};
 	return tr("spotlight.labelType." + labelType, labels[labelType] || "Label");

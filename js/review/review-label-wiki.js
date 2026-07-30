@@ -14,7 +14,7 @@ const LABEL_WIKI_ART_TO_SUBTYPE = {
 	"berg": "berggipfel", "gipfel": "berggipfel", "berggipfel": "berggipfel",
 	"vulkan": "vulkan",
 	"wald": "wald", "forst": "wald",
-	"insel": "insel", "inselgruppe": "insel",
+	"insel": "insel", "inselgruppe": "inselgruppe",
 	"meer": "meer", "meeresteil": "meer", "meerenge": "meer", "bucht": "meer", "golf": "meer",
 	"see": "see", "seenlandschaft": "see",
 	"sumpf": "suempfe_moore", "moor": "suempfe_moore", "marschland": "suempfe_moore",

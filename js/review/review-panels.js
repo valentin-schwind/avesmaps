@@ -646,6 +646,7 @@ function getReportTypeLabel(report) {
 		see: "See",
 		region: "Region",
 		insel: "Insel",
+		inselgruppe: "Inselgruppe",
 		gebirge: "Gebirge",
 		berggipfel: "Berggipfel",
 		vulkan: "Vulkan",

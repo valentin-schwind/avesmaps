@@ -194,14 +194,15 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('klima'), 'an unkno
 
 // ---- the type vocabulary -----------------------------------------------------------------------------
 // The owner's V2.1 checkpoint counted 16 rows in phpMyAdmin (4 + 5 + 7); this is the same count, checkable
-// without a database. 25 since 2026-07-29: 'flussland_flusstal', 'dschungel' and 'wuestenoase' joined the vegetation vocabulary and
+// without a database. 26 since 2026-07-30, when 'insel' moved to topographie and 'inselgruppe' joined the
+// derographic vocabulary in its place (net +1). 25 since 2026-07-29: 'flussland_flusstal', 'dschungel' and 'wuestenoase' joined the vegetation vocabulary and
 // 'wadi', 'schlucht', 'hochebene', 'tiefebene', 'tal' and 'flussdelta' the topographic one (owner).
 //
 // 🪤 The number is meant to MOVE when a type is deliberately added -- what it guards against is a type
 // vanishing unnoticed, and a duplicate being swallowed by INSERT IGNORE (the composite check below).
 // Adjusting it alongside a seed entry is the intended workflow, not a weakening of the test.
 
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 25, 'the seed is 25 rows');
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 26, 'the seed is 26 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -210,8 +211,18 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
     $byKind[$kind][] = $typeKey;
 }
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
-assert(count($byKind['topographie']) === 11, 'topographie: 11');
+assert(count($byKind['topographie']) === 12, 'topographie: 12');
 assert(count($byKind['vegetation']) === 10, 'vegetation: 10');
+
+// 🔴 2026-07-30: `insel` is a FORM (land enclosed by water) and moved to topographie; `inselgruppe`
+// is a named CONTAINER over several islands and took its place on the derographic layer. The counts
+// above cannot catch that swap -- derographisch is 4 either way -- so the pair is pinned by name.
+// The evidence for splitting them: `Bilku` and `Bilku-Archipel` sat live as two regions of the very
+// same type (measured 2026-07-30, revision 5795, 251 island areas of which 164 are auto-named).
+assert(in_array('insel', $byKind['topographie'], true), 'insel is a topographic form');
+assert(!in_array('insel', $byKind['derographisch'], true), 'and no longer a derographic container');
+assert(in_array('inselgruppe', $byKind['derographisch'], true), 'inselgruppe is the derographic container');
+assert(!in_array('inselgruppe', $byKind['topographie'], true), 'a group of islands is not a form');
 
 // The PRIMARY KEY is (kind, type_key): a duplicate would be swallowed by INSERT IGNORE and the count
 // would silently be 15.

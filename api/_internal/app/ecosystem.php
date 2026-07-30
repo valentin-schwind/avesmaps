@@ -74,7 +74,15 @@ const AVESMAPS_ECOSYSTEM_KINDS = ['derographisch', 'vegetation', 'topographie'];
 // `tundra` IS here despite 0 labels: the subtype is in the allowlist and can appear any day.
 const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['derographisch', 'region', 'Region', 10],
-    ['derographisch', 'insel', 'Insel', 20],
+    // Owner 2026-07-30. It took `insel`'s place, and it is not a rename of it: a single island is a
+    // FORM and moved to topographie below, an archipelago is a named CONTAINER and belongs here next
+    // to `region` -- the same distinction the wadi/schlucht/flussdelta entries argue for.
+    // The live evidence: `Bilku` (41 corners) and `Bilku-Archipel` (27) sat as two regions of the very
+    // same type. Measured 2026-07-30 (revision 5795): 251 island areas, 164 of them auto-named, and
+    // at most ~5 are groups -- which is why renaming would have mislabelled 246 single islands.
+    // 🪤 Starts EMPTY on purpose. Nothing is reclassified by this change; the wiki names the
+    // candidates and the editor's type-conflict list collects them (avesmapsWikiRegionTypeConflict).
+    ['derographisch', 'inselgruppe', 'Inselgruppe', 20],
     ['derographisch', 'kontinent', 'Kontinent', 30],
     ['derographisch', 'sonstiges', 'Sonstiges', 40],
 
@@ -115,6 +123,13 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // davon: `kueste` ist die Linie zum Meer, `flussland_flusstal` (Vegetation) die Decke am Lauf, und
     // `suempfe_moore` ist stehendes Wasser -- ein Delta fliesst.
     ['topographie', 'flussdelta', 'Flussdelta', 110],
+    // Owner 2026-07-30, moved here from derographisch. An island is land enclosed by water -- that is
+    // a FORM, like a mountain range or a valley, not a name for a stretch of map. It carries no
+    // offroad_factor: standing ON an island costs no travel time, the water around it does (V13).
+    // 💣 It NEEDS --color-ecosystem-topographie-insel. Without the token ecosystemAreaColor() falls
+    // back to the layer's base tone -- which is the mountain brown-grey, so all 251 islands would
+    // render as mountains.
+    ['topographie', 'insel', 'Insel', 120],
 
     ['vegetation', 'wald', 'Wald', 10],
     ['vegetation', 'suempfe_moore', 'Sümpfe und Moore', 20],
@@ -707,6 +722,62 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     }
 
     avesmapsEcosystemSeedRegionTypes($pdo);
+
+    avesmapsEcosystemMoveIslandsToTopographie($pdo);
+}
+
+// ---- 2026-07-30: `insel` moves from derographisch to topographie ------------------------------------
+//
+// A MOVE, never a copy. The same 251 rows change their layer; outlines, public_ids, geometry_revisions
+// and the linked labels stay untouched. „Senden an" (V3.6) would have been the wrong tool -- it copies,
+// so 251 transfers would leave 502 areas with the originals still sitting on the derographic layer.
+//
+// 🔴 ORDER IS LOAD-BEARING, and it is why this runs AFTER avesmapsEcosystemSeedRegionTypes():
+// avesmapsEcosystemAssertRegionType() checks the pair (kind, region_type) against an ACTIVE row. Move
+// the regions before (topographie, insel) exists and every later save on an island answers 400.
+//
+// 💣 NO DDL in here. An ALTER would commit the surrounding transaction silently -- and this function is
+// called by write paths that are mid-transaction. Everything below is DML.
+//
+// 💣 Its own guard, deliberately NOT folded into the column checks above. The comment there spells out
+// why: a shared "was anything new?" flag would re-run the terrain seed and silently reset every value
+// the owner has adjusted since.
+//
+// ⭐ The guard is the QUESTION ITSELF, not a stored flag: "is there still a derographic island?" -- so
+// the step is idempotent, switches itself off after the first run, and there is no second truth about
+// whether it already happened. It cannot regrow either: once (derographisch, insel) is inactive,
+// avesmapsEcosystemAssertRegionType rejects it, so no new one can be created.
+function avesmapsEcosystemMoveIslandsToTopographie(PDO $pdo): void
+{
+    $pending = $pdo->query(
+        "SELECT 1 FROM ecosystem_region
+          WHERE kind = 'derographisch' AND region_type = 'insel' LIMIT 1"
+    );
+    if ($pending === false || $pending->fetchColumn() === false) {
+        return;
+    }
+
+    $pdo->exec(
+        "UPDATE ecosystem_region SET kind = 'topographie'
+          WHERE kind = 'derographisch' AND region_type = 'insel'"
+    );
+
+    // Switched off rather than deleted: the row may still be referenced by history, and `is_active` is
+    // this table's own idiom for "no longer offered". Removing it from the seed alone would not do --
+    // INSERT IGNORE would recreate it, active, on a fresh install.
+    $pdo->exec(
+        "UPDATE ecosystem_region_type SET is_active = 0
+          WHERE kind = 'derographisch' AND type_key = 'insel'"
+    );
+
+    // 🔴 THE REVISION HAS TO BE BUMPED HERE, and this is the only place in EnsureTables that does it.
+    // avesmapsNextEcosystemRevision() is otherwise called only by the write ACTIONS (11 sites), so a
+    // migration would change the data without moving the counter. api/app/ecosystem-areas.php seeds its
+    // ETag from ecosystem_revision x bbox x payload version -- without this line every warm client gets
+    // a 304 and keeps painting the islands grey in the derographic pane until some unrelated edit moves
+    // the counter. That exact failure was measured on 2026-07-28 for `cascade_enabled` (payload v4).
+    // A payload-version bump is NOT the instrument here: the shape is unchanged, only values are.
+    avesmapsNextEcosystemRevision($pdo);
 }
 
 // ⚠️ INSERT IGNORE, NOT "ON DUPLICATE KEY UPDATE". The table has is_active, and the repo's most common

@@ -87,6 +87,7 @@ body.edit-mode .map-label img {
 
 .map-label--kontinent span,
 .map-label--insel span,
+.map-label--inselgruppe span,
 .map-label--region span {
 	color: #ffffff;
 }
@@ -159,6 +160,7 @@ body.edit-mode .map-label img {
 
 .map-label--gebirge span,
 .map-label--insel span,
+.map-label--inselgruppe span,
 .map-label--region span,
 .map-label--kontinent span {
 	text-transform: uppercase;

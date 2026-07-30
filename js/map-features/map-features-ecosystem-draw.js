@@ -395,6 +395,9 @@ async function saveEcosystemAreaRing(ring) {
 // Kein einziges vorhandenes Label macht das.
 const ECOSYSTEM_LABEL_STYLE_BY_TYPE = {
 	insel: { size: 20, minZoom: 2 },
+	// Wie die Insel, nicht kleiner: eine Gruppe ist mindestens so gross wie ihre groesste Insel, und
+	// diese Tabelle folgt der Groesse des Dings (Owner 2026-07-30).
+	inselgruppe: { size: 20, minZoom: 2 },
 	gebirge: { size: 20, minZoom: 2 },
 	meer: { size: 20, minZoom: 2 },
 	tal: { size: 18, minZoom: 2 },

@@ -113,6 +113,23 @@ assert(avesmapsWikiRegionTypeConflict('vulkan', 'Vulkan') === false, 'a Vulkan s
 assert(avesmapsWikiRegionArtToSubtype('Berg') === '', 'the table itself does not know Berg');
 assert(avesmapsWikiRegionArtToSubtype(artOf('Berg', 'Ehernes Schwert')) === 'berggipfel', 'but the parsed art does');
 assert(avesmapsWikiRegionArtToSubtype('Insel') === 'insel', 'the two islands in the category stay islands');
+
+// ---------------------------------------------------- INSELGRUPPE AS ITS OWN TYPE (2026-07-30) ---
+// Until today BOTH Arten folded onto 'insel', so the distinction the wiki makes was thrown away. A
+// single island is a FORM (topographie), an archipelago is a named CONTAINER (derographisch) -- the
+// same argument the seed makes for wadi, schlucht and flussdelta.
+// The live evidence: `Bilku` and `Bilku-Archipel` sat as two regions of the very same type.
+assert(avesmapsWikiRegionArtToSubtype('Inselgruppe') === 'inselgruppe', 'an archipelago is its own category');
+// 🪤 A pipe-split Art must resolve too -- same path as Vulkan|Magmafluss above.
+assert(avesmapsWikiRegionArtToSubtype('Inselgruppe|Insel') === 'inselgruppe', 'a multi-valued Inselgruppe still resolves');
+// This is the conflict that surfaces the reclassification candidates in the editor, and it is the
+// reason no name pattern is needed: the wiki names them, the conflict list collects them.
+assert(avesmapsWikiRegionTypeConflict('insel', 'Inselgruppe') === true, 'an Inselgruppe stored as insel is a conflict');
+assert(avesmapsWikiRegionTypeConflict('inselgruppe', 'Inselgruppe') === false, 'stored as inselgruppe it is fine');
+// 💣 And the plain island must NOT be dragged along -- 246 of the 251 live areas are single islands.
+assert(avesmapsWikiRegionTypeConflict('insel', 'Insel') === false, 'a plain Insel stays conflict-free');
+// `Halbinsel` keeps its own mapping: a peninsula is not an island and never was.
+assert(avesmapsWikiRegionArtToSubtype('Halbinsel') === 'region', 'a peninsula is still a region');
 assert(avesmapsWikiRegionArtToSubtype('Magmastrom') === '', 'a lava flow is not a peak -- deliberately unmapped');
 
 // --------------------------------------------------------------------------- THE CRAWL SEEDS ---
@@ -132,6 +149,8 @@ assert(in_array('Kategorie:Hydroderographie', $seeds, true), 'the other seeds ar
 require_once __DIR__ . '/../../bootstrap.php'; // avesmapsNormalizeSingleLine
 require_once __DIR__ . '/../../map/features.php';
 assert(avesmapsReadLabelSubtype('vulkan') === 'vulkan', 'the server accepts the new subtype');
+assert(avesmapsReadLabelSubtype('inselgruppe') === 'inselgruppe', 'and the 2026-07-30 one');
+assert(avesmapsReadLabelSubtype('insel') === 'insel', 'while the plain island keeps its key');
 assert(avesmapsReadLabelSubtype('berggipfel') === 'berggipfel', 'and still accepts the old one');
 $rejected = false;
 try {
