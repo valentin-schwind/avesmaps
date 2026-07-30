@@ -75,9 +75,10 @@ window.AVESMAPS_I18N_EN = {
 	"planner.leg.elevation": "Elevation change",
 	// „Schritt" is a DSA unit, not a word to translate (AGENTS.md §8).
 	"planner.unit.schritt": "Schritt",
-	"planner.leg.up": "up",
-	"planner.leg.down": "down",
-	"planner.summary.elevationCoverage": "measured on {covered} of {total} legs",
+	"planner.leg.up": "uphill",
+	"planner.leg.down": "downhill",
+	"planner.summary.elevationSteep": "Steep elevation change",
+	"planner.summary.elevationCoverage": "on {covered} of {total} legs",
 	"planner.shareRoute": "Copy link for this route",
 	"planner.shareRoute.title": "Share your route plan",
 	"planner.unit.miles": "miles",

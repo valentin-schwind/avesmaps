@@ -258,6 +258,7 @@ function routeTerrainTotals(planEntries, segments) {
 	const entries = Array.isArray(planEntries) ? planEntries : [];
 	let ascent = 0;
 	let descent = 0;
+	let coveredMiles = 0;
 	let coveredEntries = 0;
 	entries.forEach((entry) => {
 		const terrain = routeEntryTerrain(entry, segments);
@@ -265,13 +266,14 @@ function routeTerrainTotals(planEntries, segments) {
 			return;
 		}
 
+		coveredMiles += Number(entry.distance) || 0;
 		ascent += terrain.ascent;
 		descent += terrain.descent;
 		coveredEntries += 1;
 	});
 
 	return coveredEntries > 0
-		? { ascent, descent, coveredEntries, totalEntries: entries.length }
+		? { ascent, descent, coveredMiles, coveredEntries, totalEntries: entries.length }
 		: null;
 }
 
@@ -283,6 +285,46 @@ function routeTerrainTotals(planEntries, segments) {
 // ⚠️ Die Summe ist eine UNTERGRENZE: nur ein Teil des Wegenetzes traegt Hoehen. Spricht sie nicht fuer
 // alle Etappen, nennt die Zeile fuer wie viele sie spricht -- sonst liest sich eine Teilsumme als der
 // Gesamtanstieg der Reise.
+// Der Hoehenvermerk EINER Etappenzeile: „… durch Weiden, Finsterkamm (12.680 Schritt bergauf, 12.176
+// Schritt bergab)" (Owner 2026-07-30). Steht am Ende der Zeile, die schon Laenge und Dauer nennt --
+// dieselben zwei Zahlen wie in der Etappen-Infobox, nur ohne sie aufzuklappen.
+//
+// 🔴 Schweigt in genau denselben Faellen wie die Zusammenfassungszeile: ohne Hoehendaten, und gemessen
+// aber eben. Der fuehrende Abstand gehoert in die Rueckgabe, damit die Zeile ohne Vermerk nicht mit
+// einem einzelnen Leerzeichen endet.
+function routeEntryTerrainNote(entry, segments) {
+	const terrain = routeEntryTerrain(entry, segments);
+	if (!terrain || (terrain.ascent <= 0 && terrain.descent <= 0)) {
+		return "";
+	}
+
+	const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
+	const unit = tr("planner.unit.schritt", "Schritt");
+	return ` (${schritt(terrain.ascent)} ${unit} ${tr("planner.leg.up", "bergauf")},`
+		+ ` ${schritt(terrain.descent)} ${unit} ${tr("planner.leg.down", "bergab")})`;
+}
+
+// Ab wann ist es „stark"? Beim Gefaelle, nicht bei der Hoehe -- „240 Schritt auf einer Meile wiegen
+// schwer, dieselben 240 auf zehn Meilen kaum" (so sagt es der Geschwindigkeits-Dialog). 0,05 ist der
+// Punkt, an dem die Steigungskurve des Servers (AVESMAPS_TERRAIN_UP_PENALTY = 5, siehe
+// api/_internal/routing/terrain-factor.php) aus derselben Strecke einen Zeitfaktor von 1,25 macht --
+// ab dort merkt es der Reisende an seiner Ankunftszeit.
+//
+// 💣 Der Hoehenmassstab ist NICHT die Streckeneinheit: 1 Karteneinheit = 3.000 Schritt und 3 Meilen,
+// eine Meile traegt also 1.000 Schritt. Wer die Meilen direkt gegen die Schritt rechnet, uebertreibt
+// das Gefaelle um das Tausendfache und nennt jede Ebene alpin.
+const ROUTE_TERRAIN_SCHRITT_PER_MILE = 1000;
+const ROUTE_TERRAIN_STEEP_GRADIENT = 0.05;
+
+function routeTerrainIsSteep(totals) {
+	if (!totals || !(totals.coveredMiles > 0)) {
+		return false;
+	}
+
+	const gradient = totals.ascent / (totals.coveredMiles * ROUTE_TERRAIN_SCHRITT_PER_MILE);
+	return gradient >= ROUTE_TERRAIN_STEEP_GRADIENT;
+}
+
 function routeTerrainSummaryMarkup(planEntries, segments) {
 	const totals = routeTerrainTotals(planEntries, segments);
 	if (!totals || (totals.ascent <= 0 && totals.descent <= 0)) {
@@ -290,12 +332,15 @@ function routeTerrainSummaryMarkup(planEntries, segments) {
 	}
 
 	const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
+	const label = routeTerrainIsSteep(totals)
+		? tr("planner.summary.elevationSteep", "Starke Höhenunterschiede")
+		: tr("planner.leg.elevation", "Höhenunterschiede");
 	const coverage = totals.coveredEntries < totals.totalEntries
-		? ` (${tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen erfasst", { covered: totals.coveredEntries, total: totals.totalEntries })})`
+		? ` (${tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen", { covered: totals.coveredEntries, total: totals.totalEntries })})`
 		: "";
-	return `<span class="route-plan-summary__elevation">${tr("planner.leg.elevation", "Höhenunterschiede")}: `
-		+ `${schritt(totals.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "rauf")}`
-		+ ` · ${schritt(totals.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "runter")}${coverage}</span>`;
+	return `<span class="route-plan-summary__elevation">${label}: `
+		+ `${schritt(totals.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "bergauf")}`
+		+ ` · ${schritt(totals.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "bergab")}${coverage}</span>`;
 }
 
 function buildRouteLegPopupHtml(entry) {
@@ -336,8 +381,8 @@ function buildRouteLegPopupHtml(entry) {
 		const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
 		rows += row(
 			tr("planner.leg.elevation", "Höhenunterschiede"),
-			`${schritt(terrain.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "rauf")}`
-			+ ` · ${schritt(terrain.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "runter")}`
+			`${schritt(terrain.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "bergauf")}`
+			+ ` · ${schritt(terrain.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "bergab")}`
 		);
 	}
 	// „Fuehrt durch" (V10). Hier SYNCHRON und ohne Container, anders als in der Weg-Infobox: die
@@ -752,7 +797,7 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 2)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
-			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>
+			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>${routeEntryTerrainNote(entry, segments)}
 			</div>
 		`);
 	});
