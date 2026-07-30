@@ -178,8 +178,10 @@ echte Gipfelhöhen erfasst sind.
 - [x] Schalter **AN** — der Effekt ist klein (+0,89 %), richtungsrichtig, wirkt nur dort, wo
       Höhendaten liegen, ändert keine Routenwahl, und `terrain:false` liefert jederzeit die alten
       Zahlen.
-- [ ] Obere Klemme **vertagt** — nicht entscheidbar, solange nichts über 2,2 kommt. Neu bewerten,
+- [x] Obere Klemme **vertagt** — nicht entscheidbar, solange nichts über 2,2 kommt. Neu bewerten,
       wenn die Gipfelhöhen erfasst sind.
+      ⤳ **Überholt am selben Tag:** aus der Routensicht war das richtig, über den ganzen Bestand
+      gemessen ist die Frage entscheidbar. Der Owner hat sie entschieden — §2a unten.
 
 ---
 
@@ -376,10 +378,43 @@ Ein Fluss wird damit **zweimal** bepreist: über `flow_time_factor` (Strömung, 
 Flusslauf weiß. Beim Seeweg ist es heute folgenlos, beim Flussweg trifft es 293 Wegstücke, das
 steilste mit dem Faktor 2,4764 in der gespeicherten und **3,6019 in der anderen Richtung** — der
 **Vildrom** ist damit das steilste Wegstück der ganzen Karte, steiler als jeder Gebirgspass. Das
-Maximum, an dem die obere Klemme gemessen wird, hängt also an einem **Fluss**. Ob das gewollt ist, ist
-eine **Modellfrage wie die Klemme** —
-Owner-Entscheid, keine stille Korrektur. Spec §1 Entscheid 2 sagt nur, dass `Gebirgspass` **nicht**
-ausgenommen wird; über Wasser sagt sie nichts.
+Maximum, an dem die obere Klemme gemessen wird, hing also an einem **Fluss**. Spec §1 Entscheid 2 sagt
+nur, dass `Gebirgspass` **nicht** ausgenommen wird; über Wasser sagt sie nichts.
+
+### ✅ Entschieden und umgesetzt am 2026-07-30: Wasser trägt keine Steigung
+
+Owner-Entscheid: **Flusswege und Seewege raus.** Umgesetzt an drei Stellen, mit **einer** Liste
+(`AVESMAPS_TERRAIN_WATER_ROUTE_TYPES` in `terrain-store.php`, bei den übrigen Terrain-Konstanten —
+`terrain-read.php` erreicht sie über `heightmap.php`, also braucht es keine zweite Kopie):
+
+1. `avesmapsRouteAttachTerrain` weist Wasser ab, **bevor** irgendetwas gelesen wird. Das ist DAS Tor —
+   `avesmapsRouteCountTerrainMatches` ruft dieselbe Funktion, der harte Zähler stimmt damit mit dem
+   überein, was die Route wirklich anwendet.
+2. `avesmapsRouteLoadTerrain` lädt Wasserzeilen gar nicht mehr (im SQL). Das ist die billige Hälfte:
+   **150 der 583 Zeilen (26 %)** und **1.807 der 4.300 Profilpaare (42 %)** fallen bei jeder
+   Besucheranfrage weg.
+3. Der Profillauf schreibt keine Wasserzeilen mehr und löscht die bestehenden beim Laufstart — sonst
+   blieben sie liegen, würden nie erneuert und drifteten aus der Revision.
+
+💣 **Eine Verbotsliste, keine Erlaubnisliste.** Eine Erlaubnisliste nähme jedem künftigen
+**Land**-Subtyp stillschweigend das Gelände weg, und „eine neue Wegart ist heimlich flach" ist die
+Fehlerklasse, die monatelang unentdeckt bleibt. Wasser ist die Ausnahme, also wird Wasser benannt —
+per Unit-Test festgehalten (ein unbekannter Subtyp **behält** seine Steigung).
+
+💣 **Ein bestehender Test kodierte die Gegenregel** („flow and slope must multiply") und wurde rot. Er
+war nicht falsch: die Regel, die er schützte — die Steigungsklemme ist **nicht** die Flussklemme
+[1,0 … 3,0] — ist echt und lebt jetzt an einem **Landweg** weiter. Umgeschrieben, nicht gelöscht. Zwei
+Mutationen gegengeprüft: Tor aus → rot, Erlaubnisliste statt Verbotsliste → rot.
+
+**Was der Schnitt an den Klemmen-Zahlen ändert** (Land, beide Richtungen, 2.493 Wegstücke):
+
+| | mit Wasser | **nur Land** |
+|---|---|---|
+| höchster Faktor | 3,6019 (ein Fluss) | **3,4782** |
+| steilste Steigung | 52,04 % | **49,56 %** → Sättigung 21 % entfernt |
+| Klemme 4,0 trifft | 0 | **0** |
+| Klemme 3,5 trifft | 1 | **0** |
+| Klemme 3,0 trifft | 11 | **9** |
 
 ---
 
@@ -399,7 +434,7 @@ Plan war für „Schalter AUS" geschrieben; Schritt 1 ist deshalb über den Anfr
 | 5 | Wegpunkt-Anker auf einer Bergstraße | ⚠️ **teilweise, siehe unten.** |
 | 6 | Weg durch einen Überlappungsstreifen | ❌ **heute nicht prüfbar, siehe unten.** |
 | 7 | Zeit und Speicher | ✅ Gareth → Thorwal: mit Gelände **1,336 s**, mit `terrain:false` **1,285 s** (+4 %). Je eine Sonde, Netzwerk eingeschlossen — kein Server-Profil. |
-| 8 | Nach einem Rasterlauf erste Route normal schnell | 🔧 **offen, nur Owner.** Braucht den Knopf „Höhenraster rechnen" im angemeldeten Landschaften-Editor. |
+| 8 | Nach einem Rasterlauf erste Route normal schnell | ✅ **bestanden**, vom Owner am 2026-07-30 geprüft: „sie rechnet ohne Profile etwas schneller". Genau die erwartete Richtung — die Route füllt **nichts** nach, ohne Profilzeilen gibt es nur weniger zu laden. Ein Nachfüllen im Request hätte sie *langsamer* gemacht. |
 
 ### Schritt 5 — was der Anker live belegt und was nicht
 
@@ -463,19 +498,28 @@ heightmap-read-test.php    all asserts passed
 
 ### 🔧 Was jetzt beim Owner liegt
 
-- [ ] **Obere Klemme.** Empfehlung: **4,0 bleibt.** Sie greift bei keinem einzigen der 4.300
-      Wegstücke, in keiner Richtung; 3,5 träfe 1, 3,0 träfe 11 und begänne, echte Unterschiede
-      einzuebnen. Die Zahl, die neu bewertet werden muss, ist nicht die Klemme, sondern das Paar
-      `UP_PENALTY = 5,0` **mit** ihr: bis zur Sättigung fehlen nur noch **15 %** Geländeschärfe, und
-      echte Gipfelhöhen (Entscheid 5 erlaubt 15.000 Schritt gegen die heutigen ~2.000–6.000) gehen
-      weit darüber hinaus. Dann sind zwei verschieden steile Pässe nicht mehr unterscheidbar — und
-      **das** ist der Schaden, nicht die Klemme selbst.
-- [ ] **Untere Klemme 0,5.** Empfehlung: **stehen lassen.** Sie ist tot (kleinster vorkommender
+- [x] **Obere Klemme — 4,0 bleibt** (Owner, 2026-07-30). Sie greift nach dem Wasserschnitt bei keinem
+      einzigen der 2.493 Land-Wegstücke, in keiner Richtung; 3,5 träfe ebenfalls 0, 3,0 träfe 9 und
+      begänne, echte Unterschiede einzuebnen. Die Zahl, die neu bewertet werden muss, ist nicht die
+      Klemme, sondern das Paar `UP_PENALTY = 5,0` **mit** ihr: bis zur Sättigung fehlen nur noch
+      **21 %** Geländeschärfe, und echte Gipfelhöhen (Entscheid 5 erlaubt 15.000 Schritt gegen die
+      heutigen ~2.000–6.000) gehen weit darüber hinaus. Dann sind zwei verschieden steile Pässe nicht
+      mehr unterscheidbar — und **das** ist der Schaden, nicht die Klemme selbst.
+      ⭐ Mit dem Entscheid kam die Auflage, die Rechnung **im Tempo-Dialog offenzulegen**: erledigt in
+      `transport.speedInfo.slopeRule` (300 Schritt Anstieg je Meile ≈ +50 %, Deckel das Vierfache,
+      bergab am schnellsten bei ~750 Schritt Gefälle je Meile, ab ~1.500 wieder langsamer als flach,
+      Wasser ausgenommen) — deutsch und englisch, im Browser gegengeprüft.
+- [x] **Untere Klemme 0,5 — bleibt stehen** (Owner, 2026-07-30). Sie ist tot (kleinster vorkommender
       Faktor über beide Richtungen 0,8125 = das Kurvenminimum), aber harmlos — mit steilerem Gelände
       wird das Minimum nicht tiefer, sondern nur häufiger erreicht.
-- [ ] **Wasserwege.** Trägt ein Flussweg einen Steigungsfaktor? Heute 293 Wegstücke, das steilste mit
-      2,4764, zusätzlich zur Strömung. Braucht einen Entscheid, keine stille Korrektur.
-- [ ] **Abnahmeschritt 8** — Rasterlauf ohne Profillauf, dann eine Route. Nur im angemeldeten Editor.
-- [ ] **Gipfelhöhen.** Der eigentliche Hebel: 57 der 67 Gipfel tragen keine Höhe *in einer Fläche*,
-      und 15 der 16 Flächen laufen auf dem Platzhalter. Ein Eintrag im Flächendialog behebt auch
-      Windhagberge (§2).
+- [x] **Wasserwege — raus** (Owner, 2026-07-30). Siehe den Abschnitt oben; umgesetzt und getestet.
+- [x] **Abnahmeschritt 8 — bestanden** (Owner, 2026-07-30): „sie rechnet ohne Profile etwas
+      schneller". Genau das war die Erwartung — die Route füllt **nichts** nach; ohne Profilzeilen
+      gibt es nur weniger zu laden. Ein Nachfüllen im Request hätte sie *langsamer* gemacht, nicht
+      schneller. Damit sind alle acht Abnahmeschritte durch, zwei davon eingeschränkt (5, 6).
+- [ ] **Gipfelhöhen — Redaktionsarbeit, nicht Entwicklung** (Owner, 2026-07-30: „das müssen die
+      Editoren machen, die müssen auch die Gipfelhöhen ermitteln"). Der eigentliche Hebel bleibt es
+      trotzdem: 57 der 67 Gipfel tragen keine Höhe *in einer Fläche*, und 15 der 16 Flächen laufen auf
+      dem Platzhalter — deshalb bekommt ein typischer Gebirgspass heute Faktor 1,0000. Ein Eintrag im
+      Flächendialog behebt auch Windhagberge (§2). **Erst danach lohnt es, `UP_PENALTY` und die obere
+      Klemme neu anzusehen** — heute fehlen bis zur Sättigung nur 21 %.
