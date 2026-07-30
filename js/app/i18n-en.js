@@ -710,6 +710,11 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.seaNote": "On the open sea, travel continues day and night — no rest time is needed.",
 	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This only applies on land — on water, travel continues without stopping.",
 	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow (1.25–2.5&nbsp;miles/h), so the calculation itself prefers large detours over proper roads and trails.",
+	// V11. "Schritt" stays (see the note above on the DSA unit of length). The numbers are the curve
+	// itself, not a paraphrase: 300 Schritt of climb per mile is a gradient of 0,1 and the factor is
+	// 1 + 5 · gradient, so +50 %; the ceiling is the FACTOR_MAX of 4,0 at 1.800 Schritt per mile; the
+	// fastest descent is the curve's minimum 0,8125 at 750, and it is back at 1,0 by 1.500.
+	"transport.speedInfo.slopeRule": "<b>Slope.</b> What counts is the <em>steepness</em>, not the height: 240&nbsp;Schritt of climb over one mile weigh heavily, the same 240 over ten miles barely at all. As a rule of thumb uphill: <b>every 300&nbsp;Schritt of climb per mile makes the leg about half again as long</b> — 600&nbsp;Schritt twice as long, and terrain can never cost more than <b>four times</b> the time. Downhill is fastest at a drop of roughly 750&nbsp;Schritt per mile (just under a fifth off); steeper brakes again, and beyond some 1,500&nbsp;Schritt per mile it is slower than level ground. Crossing the Koschberge pass, an imperial road drops to about 2 instead of 4.5&nbsp;miles/h. On rivers and at sea terrain does not count — there the current alone decides. Where no heights are recorded only the way type counts; the leg infobox then shows no „climb and descent“ line either.",
 
 	// --- Kartensammlung (citymaps) feature cluster ---
 	// cityMaps.note is gone with the placeholder data it described ("· placeholder · external links").
