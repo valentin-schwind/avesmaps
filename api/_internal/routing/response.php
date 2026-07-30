@@ -178,7 +178,11 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$terrainMatched = avesmapsRouteCountTerrainMatches($routeNetworkData['paths'] ?? [], $terrain);
 	// Only asked when terrain is on -- with the switch off there is nothing whose currency matters.
 	$terrainStale = $terrainEnabled && avesmapsRouteTerrainStale($routePdo);
-	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain);
+	// V13: open water, so a synthetic Querfeldein bridge cannot be built across the sea. Same PDO as
+	// terrain above -- no extra connection. Without a PDO this stays empty and V13 is simply inert,
+	// which is the designed failure mode (spec §4.1), not a silent hole.
+	$water = $routePdo instanceof PDO ? avesmapsLoadRouteWater($config, $routePdo) : [];
+	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain, $water);
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];

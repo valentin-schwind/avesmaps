@@ -166,4 +166,26 @@ assert.strictEqual(intervals.length, 1, "a duplicated vertex changes nothing");
 near(intervals[0].enter, 10, "");
 near(intervals[0].exit, 110, "");
 
-console.log("ecosystem-path-assign: alle Prüfungen bestanden");
+// ---- the shared parity corpus -------------------------------------------------------------------
+// The same file is read by the PHP twin's test (api/_internal/app/__tests__/ecosystem-line-intervals-
+// test.php). Running it HERE too is what makes it trustworthy: the fixture claims to describe this
+// implementation, so if it ever describes something else, this block says so before the twin does.
+const fixture = require("./ecosystem-line-intervals-fixture.json");
+const fixtureEdges = {};
+Object.keys(fixture.areas).forEach((key) => {
+	fixtureEdges[key] = ecosystemAreaEdges(fixture.areas[key]);
+});
+fixture.cases.forEach((testCase) => {
+	const actual = ecosystemLineIntervals(testCase.line, fixtureEdges[testCase.area]);
+	assert.strictEqual(
+		actual.length, testCase.intervals.length,
+		"Fixture „" + testCase.name + "\": erwartet " + testCase.intervals.length
+			+ " Intervall(e), bekommen " + actual.length
+	);
+	testCase.intervals.forEach(([enter, exit], index) => {
+		near(actual[index].enter, enter, "Fixture „" + testCase.name + "\" Intervall " + index + " enter");
+		near(actual[index].exit, exit, "Fixture „" + testCase.name + "\" Intervall " + index + " exit");
+	});
+});
+console.log("ecosystem-path-assign: alle Prüfungen bestanden, davon "
+	+ fixture.cases.length + " aus der geteilten Fixture");

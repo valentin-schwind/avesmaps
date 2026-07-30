@@ -1,0 +1,152 @@
+{
+  "_": [
+    "Shared parity corpus for the V9 line/area core -- read by BOTH implementations:",
+    "  js/map-features/__tests__/ecosystem-path-assign.test.js   (the original, which owns the rule)",
+    "  api/_internal/app/__tests__/ecosystem-line-intervals-test.php  (the V13 twin, which must follow)",
+    "",
+    "Two runtimes unavoidably mean two implementations. This file is what keeps them one rule:",
+    "if the twin drifts, its test goes red here, not in production. Same figure as the duplicate",
+    "location-name corpus (api/_internal/map/__tests__ + js/routing/__tests__).",
+    "",
+    "Every case below was earned: the corner, the hair-inside/hair-outside pair, the way that BEGINS",
+    "on the boundary and the tangent each come from a measured failure, not from imagination. Do not",
+    "delete one because it looks redundant -- read the comment on it in the JS test first.",
+    "",
+    "`intervals` are [enter, exit] pairs in arc length from the line's start, compared with 1e-9",
+    "tolerance on both sides. An empty list means 'no passage'."
+  ],
+  "areas": {
+    "square": {
+      "type": "Polygon",
+      "coordinates": [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]]
+    },
+    "woodWithClearing": {
+      "type": "Polygon",
+      "coordinates": [
+        [[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]],
+        [[40, 40], [60, 40], [60, 60], [40, 60], [40, 40]]
+      ]
+    },
+    "twoSquares": {
+      "type": "MultiPolygon",
+      "coordinates": [
+        [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]],
+        [[[20, 0], [30, 0], [30, 10], [20, 10], [20, 0]]]
+      ]
+    },
+    "notAnArea": {
+      "type": "Point",
+      "coordinates": [1, 2]
+    }
+  },
+  "cases": [
+    {
+      "name": "misses the area entirely",
+      "area": "square",
+      "line": [[200, 50], [300, 50]],
+      "intervals": []
+    },
+    {
+      "name": "straight through",
+      "area": "square",
+      "line": [[-10, 50], [110, 50]],
+      "intervals": [[10, 110]]
+    },
+    {
+      "name": "starts inside",
+      "area": "square",
+      "line": [[50, 50], [110, 50]],
+      "intervals": [[0, 50]]
+    },
+    {
+      "name": "entirely inside -- the interval is the whole line",
+      "area": "square",
+      "line": [[10, 50], [90, 50]],
+      "intervals": [[0, 80]]
+    },
+    {
+      "name": "several vertices -- the arc length keeps accumulating across legs",
+      "area": "square",
+      "line": [[-10, 50], [50, 50], [50, 150]],
+      "intervals": [[10, 110]]
+    },
+    {
+      "name": "a hole makes a gap: wood, clearing, wood",
+      "area": "woodWithClearing",
+      "line": [[-10, 50], [110, 50]],
+      "intervals": [[10, 50], [70, 110]]
+    },
+    {
+      "name": "one area crossed twice (MultiPolygon)",
+      "area": "twoSquares",
+      "line": [[-5, 5], [35, 5]],
+      "intervals": [[5, 15], [25, 35]]
+    },
+    {
+      "name": "exactly through a corner -- counts ONCE, half-open on both sides",
+      "area": "square",
+      "line": [[50, 50], [150, 150]],
+      "intervals": [[0, 70.71067811865476]]
+    },
+    {
+      "name": "a hair inside the bottom edge is a full crossing",
+      "area": "square",
+      "line": [[-10, 0.001], [110, 0.001]],
+      "intervals": [[10, 110]]
+    },
+    {
+      "name": "a hair outside is nothing at all",
+      "area": "square",
+      "line": [[-10, -0.001], [110, -0.001]],
+      "intervals": []
+    },
+    {
+      "name": "a line that BEGINS exactly on the boundary runs INTO the area",
+      "area": "square",
+      "line": [[0, 50], [110, 50]],
+      "intervals": [[0, 100]]
+    },
+    {
+      "name": "a line that merely reaches the boundary and stops has no passage",
+      "area": "square",
+      "line": [[-10, 50], [0, 50]],
+      "intervals": []
+    },
+    {
+      "name": "a vertex sitting exactly in a corner, coming from outside",
+      "area": "square",
+      "line": [[-10, -10], [0, 0], [50, 50]],
+      "intervals": [[14.142135623730951, 84.8528137423857]]
+    },
+    {
+      "name": "KNOWN LIMIT: a tangent touch reads as an entry -- characterisation, not approval",
+      "area": "square",
+      "line": [[-10, 50], [0, 50], [-10, 60]],
+      "intervals": [[10, 24.14213562373095]]
+    },
+    {
+      "name": "a zero-length line has no interval and must not throw",
+      "area": "square",
+      "line": [[50, 50], [50, 50]],
+      "intervals": []
+    },
+    {
+      "name": "a single point is not a line",
+      "area": "square",
+      "line": [[10, 50]],
+      "intervals": []
+    },
+    {
+      "name": "a duplicated vertex changes nothing",
+      "area": "square",
+      "line": [[-10, 50], [-10, 50], [110, 50]],
+      "intervals": [[10, 110]]
+    },
+    {
+      "name": "a geometry that is not an area yields no edges, hence no passage",
+      "area": "notAnArea",
+      "line": [[-10, 50], [110, 50]],
+      "intervals": []
+    }
+  ]
+}

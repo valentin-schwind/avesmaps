@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/terrain-factor.php';
 require_once __DIR__ . '/terrain-read.php';
+require_once __DIR__ . '/water-areas.php';
 
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 // Cell width of the endpoint lookup index = the endpoint tolerance. A hit therefore lies in the
@@ -23,12 +24,15 @@ const AVESMAPS_ROUTE_CLIENT_LAND_PATH_TYPES = ['Reichsstrasse', 'Strasse', 'Weg'
 // only legitimate connection is by ship, so with sea travel disabled they stay unreachable by design.
 const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 
-// A detached component that has a sea connection (contains a node touching a Seeweg) and sits farther
-// than this airline distance (route units, before the x25 cost factor) from the mainland is an island /
-// peninsula reachable by ship: bridging it over land fabricates a cross-water Querfeldein, so it is
-// refused and land-only routing reports "no route". Below the threshold a coastal data-gap still
-// bridges; a component with no sea node at all (a genuinely landlocked/jungle area) always bridges.
-const AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE = 20.0;
+// 💣 REMOVED IN V13 (2026-07-29): AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE = 20.0, which
+// refused a bridge when the detached COMPONENT was "sea-connected". It asked a proxy, never the
+// geometry, and measured against the live stock it fired 0 times out of 896 in normal operation --
+// it cannot fire, because a component holding a Seeweg hangs off the main component through that
+// Seeweg and is therefore not detached at all. In the pure pedestrian case it spoke up 17 times and
+// was wrong twice (it refused dry land bridges).
+//
+// Open water is now asked directly: api/_internal/routing/water-areas.php. Do not reintroduce a
+// distance threshold here -- a long bridge is not the problem, a wet one is.
 
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
@@ -44,7 +48,11 @@ const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'galley' => ['Seeweg' => 9.0],
 ];
 
-function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $request, array $terrain = []): array {
+// $water (V13) is the prepared open-water structure from avesmapsLoadRouteWater(). Empty means the
+// water test is inert and the two synthetic-bridge builders below behave exactly as they did before
+// V13 -- which is also what the callers that have no business with water get (the Verlauf-Sync in
+// api/_internal/wiki/path-verlauf.php, and the diagnostics).
+function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $request, array $terrain = [], array $water = []): array {
     $graph = [];
     $locations = [];
     foreach (is_array($networkData['locations'] ?? null) ? $networkData['locations'] : [] as $location) {
@@ -89,12 +97,12 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     // land bridges below refuse a water-locked node: crossing open water on foot is never a land route.
     $seaBoundLocationNames = avesmapsCollectClientSeaBoundLocationNames($networkData, $locations, $locationCoordinateIndex, $locationCellIndex);
 
-    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request, $seaBoundLocationNames);
+    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request, $seaBoundLocationNames, $water);
     // Anchor each travel waypoint that has no land-path edge to the nearest point ON a land path (short
     // Querfeldein leg + a split of that path), so a truly landlocked isolated place reaches the road
     // network by the shortest cross-country hop instead of the far component bridge. Runs after the
     // bridges so the graph is already connected.
-    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $locations, $request, $seaBoundLocationNames);
+    avesmapsConnectClientRouteWaypointsToNearestLandPath($graph, $locations, $request, $seaBoundLocationNames, $water);
 
     return [
         'graph' => $graph,
@@ -409,7 +417,7 @@ function avesmapsRouteReverseSubPathConnection(array $connection): array
     return $connection;
 }
 
-function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request, array $seaBoundLocationNames): int {
+function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request, array $seaBoundLocationNames, array $water = []): int {
     // Synthetic "Querfeldein" bridges are only legitimate when cross-country travel is enabled
     // (Querfeldein maps to the land domain). With land/synthetic disabled -- e.g. "nur ueber Fluss"
     // -- do NOT bridge the disconnected river components: a route impossible on rivers alone must
@@ -441,21 +449,31 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
         $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($detachedNodeNames, $anchorNodeNames, $locationLookup);
         if (!is_array($nearestConnection)) continue;
 
+        // ---- V13: the bridge may not cross open water ------------------------------------------
+        // Two stages, and the order is the whole performance story. Stage one tests the ONE nearest
+        // chord -- measured, that is dry for 834 of 896 bridges, and those pay nothing beyond a
+        // single chord test. Only a wet nearest chord triggers stage two, which repeats the pair scan
+        // keeping the 25 nearest. Generalising the scan to "always keep 25" costs 103 ms; doing it
+        // twice for the few wet ones costs 66 ms. The second scan is cheaper than the bookkeeping.
+        if (avesmapsRouteChordCrossesWater(
+            (float) $nearestConnection['from_location']['route_x'],
+            (float) $nearestConnection['from_location']['route_y'],
+            (float) $nearestConnection['to_location']['route_x'],
+            (float) $nearestConnection['to_location']['route_y'],
+            $water
+        )) {
+            $nearestConnection = avesmapsFindNearestDryClientComponentConnection(
+                $detachedNodeNames, $anchorNodeNames, $locationLookup, $water
+            );
+            // 🔴 Owner decision 2026-07-29 („Wirklich weglassen."): nothing dry, no edge. The planner
+            // then reports "no route found" -- no fallback, no specially laboured edge. Half of the
+            // 24 places this strands lie overseas or in legend; walking there was the actual error.
+            if (!is_array($nearestConnection)) continue;
+        }
+
         $fromLocation = $nearestConnection['from_location'];
         $toLocation = $nearestConnection['to_location'];
-        $rawDistance = (float) $nearestConnection['distance'];
-        // A sea-connected detached component reached only by a long land bridge is an island/peninsula
-        // whose real link is the sea (e.g. Orrehjal, reached via Lysvik): refuse the bridge so land-only
-        // routing says "no route" instead of a 130u cross-water Querfeldein. It is the COMPONENT's sea
-        // connection that matters, not the bridge endpoints -- the nearest node can be inland while the
-        // component still has a port elsewhere. A short gap (coastal data-gap) or a component with no sea
-        // node at all (a genuinely landlocked/jungle area) still bridges; a bay you can drive around is
-        // one connected component, not a bridge, so it is untouched.
-        if ($rawDistance > AVESMAPS_ROUTE_CLIENT_SEA_CROSSING_MIN_DISTANCE
-            && avesmapsClientComponentIsSeaConnected($component['node_names'], $seaBoundLocationNames)) {
-            continue;
-        }
-        $distance = $rawDistance * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
+        $distance = (float) $nearestConnection['distance'] * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
         $connectionId = 'synthetic-' . $fromLocation['name'] . '->' . $toLocation['name'];
         $connection = [
             'distance' => $distance,
@@ -493,7 +511,7 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
 // truly landlocked isolated place reaches the road network by the SHORTEST cross-country hop instead of
 // the far component bridge. Water-bound nodes (any Seeweg edge) are skipped: trekking cross-country to
 // them would cross open water, so they stay reachable only by ship. No-op when Querfeldein is disabled.
-function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, array $locations, array $request, array $seaBoundLocationNames): void {
+function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, array $locations, array $request, array $seaBoundLocationNames, array $water = []): void {
     if (!avesmapsIsClientRouteDomainEnabled(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request)) {
         return;
     }
@@ -522,7 +540,9 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
         if (isset($seaBoundLocationNames[$name])) continue;
         $location = $locationLookup[$name] ?? null;
         if (!is_array($location)) continue;
-        $anchor = avesmapsFindNearestClientLandPathAnchor($graph, (float) $location['route_x'], (float) $location['route_y']);
+        // V13 §4.6: no dry anchor chord -> no anchor. The waypoint then keeps whatever the component
+        // bridge gave it, which is nothing when that was wet too -- and "no route" is the answer.
+        $anchor = avesmapsFindNearestClientLandPathAnchor($graph, (float) $location['route_x'], (float) $location['route_y'], $water);
         if ($anchor === null) continue;
         avesmapsAnchorClientWaypointToLandPath($graph, $name, (float) $location['route_x'], (float) $location['route_y'], $anchor, (string) $syntheticTransport, (float) $syntheticSpeed, (int) $waypointIndex);
     }
@@ -543,17 +563,6 @@ function avesmapsClientNodeHasLandPathEdge(array $graph, string $nodeName): bool
 // graph: it can only be reached by ship. Such nodes must never be a synthetic land-bridge endpoint.
 function avesmapsClientNodeIsWaterLocked(array $graph, array $seaBoundLocationNames, string $nodeName): bool {
     return isset($seaBoundLocationNames[$nodeName]) && !avesmapsClientNodeHasLandPathEdge($graph, $nodeName);
-}
-
-// True when any node of a component touches a sea route -- the component has a Seeanbindung and is an
-// island/peninsula rather than a landlocked inland area. Used to refuse a long land bridge to it.
-function avesmapsClientComponentIsSeaConnected(array $nodeNames, array $seaBoundLocationNames): bool {
-    foreach ($nodeNames as $nodeName) {
-        if (isset($seaBoundLocationNames[(string) $nodeName])) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // Drops water-locked nodes from a node-name list and reindexes it (empty -> no land bridge possible).
@@ -597,9 +606,33 @@ function avesmapsCollectClientSeaBoundLocationNames(array $networkData, array $l
     return $seaBound;
 }
 
-// Projects (px,py) onto every land-path edge and returns the closest hit (edge + projected point).
-function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float $py): ?array {
-    $best = null;
+/**
+ * Projects (px,py) onto every land-path edge and returns the closest hit whose anchor chord stays out
+ * of open water (edge + projected point), or null.
+ *
+ * 💣 V13, spec §4.6: this is the SECOND producer of Querfeldein edges. Without the water test here the
+ * lock would be half built -- and half built precisely at the places the user types into the planner.
+ *
+ * With empty $water the result is bit-identical to the pre-V13 behaviour: the water test returns false
+ * at once, so the nearest projection wins, as it always did. Unlike the component bridge this collects
+ * the candidates unconditionally rather than in two stages -- it runs for at most three waypoints per
+ * request, so the scan is not worth splitting.
+ */
+function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float $py, array $water = []): ?array {
+    foreach (avesmapsCollectNearestClientLandPathAnchors($graph, $px, $py, AVESMAPS_ROUTE_CLIENT_WATER_DRY_SEARCH_LIMIT) as $candidate) {
+        if (!avesmapsRouteChordCrossesWater($px, $py, (float) $candidate['proj_x'], (float) $candidate['proj_y'], $water)) {
+            return $candidate;
+        }
+    }
+    return null;
+}
+
+// The $limit nearest projections, ascending by distance. Same insertion list as
+// avesmapsCollectNearestClientComponentConnections, and for the same reason: never sort the full set.
+function avesmapsCollectNearestClientLandPathAnchors(array $graph, float $px, float $py, int $limit): array {
+    if ($limit <= 0) return [];
+    $candidates = [];
+    $worst = INF;
     foreach ($graph as $fromName => $edges) {
         if (!is_array($edges)) continue;
         foreach ($edges as $toName => $connections) {
@@ -616,28 +649,31 @@ function avesmapsFindNearestClientLandPathAnchor(array $graph, float $px, float 
                         (float) ($coordinates[$i][0] ?? 0.0), (float) ($coordinates[$i][1] ?? 0.0),
                         (float) ($coordinates[$i + 1][0] ?? 0.0), (float) ($coordinates[$i + 1][1] ?? 0.0)
                     );
-                    if ($best === null || $projection['distance'] < $best['distance']) {
-                        // Use the connection's STORED orientation (from/to match coordinates[0]/[last]),
-                        // NOT the graph iteration keys: edges are stored in both directions with the same
-                        // object, so the outer/inner keys can be the reverse of the geometry. Splitting
-                        // with the reversed name would attach the sub-edges to the wrong endpoints and the
-                        // drawn leg would jump to the far node (a gap between the anchor and the path).
-                        $best = [
-                            'from' => (string) ($connection['from'] ?? $fromName),
-                            'to' => (string) ($connection['to'] ?? $toName),
-                            'connection' => $connection,
-                            'segment_index' => $i,
-                            't' => $projection['t'],
-                            'proj_x' => $projection['x'],
-                            'proj_y' => $projection['y'],
-                            'distance' => $projection['distance'],
-                        ];
-                    }
+                    if (count($candidates) >= $limit && $projection['distance'] >= $worst) continue;
+                    // Use the connection's STORED orientation (from/to match coordinates[0]/[last]),
+                    // NOT the graph iteration keys: edges are stored in both directions with the same
+                    // object, so the outer/inner keys can be the reverse of the geometry. Splitting
+                    // with the reversed name would attach the sub-edges to the wrong endpoints and the
+                    // drawn leg would jump to the far node (a gap between the anchor and the path).
+                    $position = count($candidates);
+                    while ($position > 0 && (float) $candidates[$position - 1]['distance'] > $projection['distance']) $position--;
+                    array_splice($candidates, $position, 0, [[
+                        'from' => (string) ($connection['from'] ?? $fromName),
+                        'to' => (string) ($connection['to'] ?? $toName),
+                        'connection' => $connection,
+                        'segment_index' => $i,
+                        't' => $projection['t'],
+                        'proj_x' => $projection['x'],
+                        'proj_y' => $projection['y'],
+                        'distance' => $projection['distance'],
+                    ]]);
+                    if (count($candidates) > $limit) array_pop($candidates);
+                    $worst = (float) $candidates[count($candidates) - 1]['distance'];
                 }
             }
         }
     }
-    return $best;
+    return $candidates;
 }
 
 function avesmapsRouteProjectPointOnSegment(float $px, float $py, float $ax, float $ay, float $bx, float $by): array {
@@ -813,6 +849,72 @@ function avesmapsFindNearestClientCompatibleComponentConnection(array $component
         }
     }
     return $nearestConnection;
+}
+
+/**
+ * V13: the $limit nearest candidate pairs, ascending by distance.
+ *
+ * 💣 AN INSERTION LIST, NOT A SORT. Collecting every pair and sorting it costs +3 s per request --
+ * a detached component times the main component is tens of thousands of pairs, and there are ~1.000
+ * detached components. The list here never grows past $limit, and the `>= $worst` guard rejects the
+ * overwhelming majority of pairs with one comparison and no memory traffic at all.
+ *
+ * ⭐ Candidate 0 is the same pair avesmapsFindNearestClientCompatibleComponentConnection() returns:
+ * the insertion walks back only over STRICTLY greater distances, so equal distances keep iteration
+ * order, exactly as the single search's strict `<` does. The bridge builder relies on that to skip
+ * re-testing rank 1, and water-bridge-test.php asserts it rather than trusting it.
+ */
+function avesmapsCollectNearestClientComponentConnections(array $componentNodeNames, array $connectedNodeNames, array $locationLookup, int $limit): array {
+    if ($limit <= 0) return [];
+    $candidates = [];
+    $worst = INF;
+    foreach ($componentNodeNames as $sourceName) {
+        $sourceLocation = $locationLookup[$sourceName] ?? null;
+        if (!is_array($sourceLocation)) continue;
+        foreach ($connectedNodeNames as $targetName) {
+            $targetLocation = $locationLookup[$targetName] ?? null;
+            if (!is_array($targetLocation)) continue;
+            $distance = avesmapsGetClientCompatibleLocationDistance($sourceLocation, $targetLocation);
+            if (count($candidates) >= $limit && $distance >= $worst) continue;
+            $position = count($candidates);
+            while ($position > 0 && (float) $candidates[$position - 1]['distance'] > $distance) $position--;
+            array_splice($candidates, $position, 0, [[
+                'from_location' => $sourceLocation,
+                'to_location' => $targetLocation,
+                'distance' => $distance,
+            ]]);
+            if (count($candidates) > $limit) array_pop($candidates);
+            $worst = (float) $candidates[count($candidates) - 1]['distance'];
+        }
+    }
+    return $candidates;
+}
+
+/**
+ * V13: the nearest candidate pair whose chord stays out of open water, or null if none of the
+ * AVESMAPS_ROUTE_CLIENT_WATER_DRY_SEARCH_LIMIT nearest is dry.
+ *
+ * Candidate 0 is skipped: the caller has already tested it (that is what sent it here). Measured
+ * against the live stock, a dry alternative -- when one exists at all -- sits at median rank 3, p90
+ * rank 9, never beyond 16, so the cap of 25 loses nothing while an uncapped search costs 17-47 s.
+ */
+function avesmapsFindNearestDryClientComponentConnection(array $componentNodeNames, array $connectedNodeNames, array $locationLookup, array $water): ?array {
+    $candidates = avesmapsCollectNearestClientComponentConnections(
+        $componentNodeNames, $connectedNodeNames, $locationLookup, AVESMAPS_ROUTE_CLIENT_WATER_DRY_SEARCH_LIMIT
+    );
+    foreach ($candidates as $position => $candidate) {
+        if ($position === 0) continue;
+        if (!avesmapsRouteChordCrossesWater(
+            (float) $candidate['from_location']['route_x'],
+            (float) $candidate['from_location']['route_y'],
+            (float) $candidate['to_location']['route_x'],
+            (float) $candidate['to_location']['route_y'],
+            $water
+        )) {
+            return $candidate;
+        }
+    }
+    return null;
 }
 
 function avesmapsBuildClientCompatibleLocationLookup(array $locations): array {
