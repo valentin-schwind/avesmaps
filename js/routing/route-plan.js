@@ -332,15 +332,33 @@ function routeTerrainSummaryMarkup(planEntries, segments) {
 	}
 
 	const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
-	const label = routeTerrainIsSteep(totals)
-		? tr("planner.summary.elevationSteep", "Starke Höhenunterschiede")
-		: tr("planner.leg.elevation", "Höhenunterschiede");
-	const coverage = totals.coveredEntries < totals.totalEntries
-		? ` (${tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen", { covered: totals.coveredEntries, total: totals.totalEntries })})`
+	// 💣 Die Zahlen müssen in EINE Zeile passen (350 px Panel, gemessen): darum die Einheit nur einmal und
+	// die Richtung als Pfeil. Schon ein angehängtes „(8/45)" oder das Wort „Starke" kippt die Zeile um.
+	//
+	// 🔴 Ein Pfeil ist kein Wort: ohne Beschriftung liest ein Screenreader „2.946 Aufwärtspfeil". Jede
+	// Richtung trägt deshalb ihr `aria-label` UND ihren Tooltip -- Letzterer beantwortet auch dem
+	// sehenden Leser, was der Pfeil bedeutet.
+	const direction = (arrow, word) =>
+		`<span class="route-plan-summary__dir" title="${escapeHtml(word)}" aria-label="${escapeHtml(word)}">${arrow}</span>`;
+	// „stark" und der Erfassungsvermerk stehen in einer eigenen, leisen Zeile darunter -- sichtbar, aber
+	// ohne die Zahlenzeile zu sprengen.
+	const notes = [];
+	if (routeTerrainIsSteep(totals)) {
+		notes.push(tr("planner.summary.elevationSteepNote", "stark"));
+	}
+	if (totals.coveredEntries < totals.totalEntries) {
+		notes.push(tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen", {
+			covered: totals.coveredEntries,
+			total: totals.totalEntries,
+		}));
+	}
+	const noteLine = notes.length
+		? `<span class="route-plan-summary__elevation-note">${notes.join(" · ")}</span>`
 		: "";
-	return `<span class="route-plan-summary__elevation">${label}: `
-		+ `${schritt(totals.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "bergauf")}`
-		+ ` · ${schritt(totals.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "bergab")}${coverage}</span>`;
+	return `<span class="route-plan-summary__elevation">${tr("planner.leg.elevation", "Höhenunterschiede")}: `
+		+ `${schritt(totals.ascent)} ${direction("↑", tr("planner.leg.up", "bergauf"))}`
+		+ ` · ${schritt(totals.descent)} ${direction("↓", tr("planner.leg.down", "bergab"))}`
+		+ ` ${tr("planner.unit.schritt", "Schritt")}${noteLine}</span>`;
 }
 
 function buildRouteLegPopupHtml(entry) {
@@ -724,6 +742,28 @@ function routeAirLegsNote(airDistanceLegs) {
 	return legs.map((legDistance) => formatDecimalNumber(legDistance, 1)).join(" + ");
 }
 
+// Die Herleitungsspalte der Drachenflug-Zeile: wie viele STATIONEN die Summe überspannt (Owner
+// 2026-07-30: „Drachenflug 236,3 Meilen (2 Etappen) -- einfach die anzahl wegpunktziele"). So sagt die
+// Zeile auch bei einer Zwei-Punkt-Reise etwas, wo die Summanden nur die Gesamtzahl wiederholen würden.
+//
+// ⭐ Die Summanden gehen dabei nicht verloren, sie wandern in den Tooltip: nachrechnen kann man weiter,
+// aber es kostet keine Zeile in einem 350 px breiten Panel (dort passt „549,4 Meilen (313,1 + 236,3)"
+// nur, weil Wert und Herleitung in getrennten Spalten stehen -- ein dritter Text daneben bricht um).
+function routeAirNoteMarkup(airDistanceLegs) {
+	const legs = Array.isArray(airDistanceLegs) ? airDistanceLegs : [];
+	if (!legs.length) {
+		return "";
+	}
+
+	const stations = tr("planner.summary.airStations", "{n} Stationen", { n: legs.length + 1 });
+	const legsNote = routeAirLegsNote(legs);
+	if (!legsNote) {
+		return stations;
+	}
+
+	return `<span title="${escapeHtml(`${legsNote} ${tr("planner.unit.miles", "Meilen")}`)}">${stations}</span>`;
+}
+
 // One row of the summary grid: label, value, and the quiet derivation the value can be recalculated from.
 // EVERY figure follows the same shape (Owner 2026-07-30: „übersichtlich, aber jeder soll selber nachrechnen
 // können") -- that is what stopped the Drachenflug's bracket from reading as a special case.
@@ -791,7 +831,7 @@ function showRoutePlan(routeNames, segments) {
 			: "";
 
 		$overview.append(`
-			<div role="button" tabindex="0" class="route-plan-entry" data-route-entry-index="${entryIndex}">
+			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained" data-route-entry-index="${entryIndex}">
 			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
 			(${formatDecimalNumber(entry.distance, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
@@ -832,6 +872,7 @@ function showRoutePlan(routeNames, segments) {
 	// as an icon only (Owner 2026-07-30: „oben rechts, etwas größer, Text raus"). Two SIBLING buttons -- a
 	// button inside a button is invalid HTML, and the inner one would not reliably get its own clicks.
 	$overview.prepend(`
+		<div class="route-plan-legs__title">${tr("planner.summary.heading", "Reiseübersicht")}</div>
 		<div class="route-plan-summary__head">
 			<button type="button" class="route-plan-entry route-plan-summary">
 				${tr("planner.journey.prefix", "Die Reise")} ${routeDesc}
@@ -840,7 +881,7 @@ function showRoutePlan(routeNames, segments) {
 		</div>
 		<div class="route-plan-summary__time">
 			${routeSummaryRowMarkup(tr("planner.summary.distance", "Distanz"), `${formatDecimalNumber(totalDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, tr("planner.summary.legCount", "{n} Etappen", { n: planEntries.length }))}
-			${routeSummaryRowMarkup(tr("planner.summary.airDistance", "Drachenflug"), `${formatDecimalNumber(airDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, routeAirLegsNote(airDistanceLegs))}
+			${routeSummaryRowMarkup(tr("planner.summary.airDistance", "Drachenflug"), `${formatDecimalNumber(airDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, routeAirNoteMarkup(airDistanceLegs))}
 			${routeSummaryRowMarkup(tr("planner.summary.travelTime", "Reisezeit"), `${formatDecimalNumber(totalTravelTime, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalTravelTime / 24, 1)} ${tr("planner.unit.days", "Tage")}`)}
 			${routeSummaryRowMarkup(tr("planner.summary.restTime", "Rastzeit"), `${formatDecimalNumber(totalRestTime, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalRestTime / 24, 1)} ${tr("planner.unit.days", "Tage")}`)}
 			<div class="route-plan-summary__rule"></div>
@@ -849,7 +890,7 @@ function showRoutePlan(routeNames, segments) {
 			<span class="route-plan-summary__landscapes"></span>
 			${routeTerrainSummaryMarkup(planEntries, segments)}
 		</div>
-		${planEntries.length ? `<div class="route-plan-legs__title">${tr("planner.legs.heading", "Die Reiseetappen")}</div>` : ""}
+		${planEntries.length ? `<div class="route-plan-legs__title">${tr("planner.legs.heading", "Reiseetappen")}</div>` : ""}
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
 }

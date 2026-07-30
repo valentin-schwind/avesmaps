@@ -31,6 +31,14 @@ assert.notStrictEqual(formatterStart, -1, "formatDecimalNumber not found in util
 const formatterEnd = utilsSource.indexOf("\n}", formatterStart);
 vm.runInThisContext(`${utilsSource.slice(formatterStart, formatterEnd + 2)}\nglobal.formatDecimalNumber = formatDecimalNumber;`);
 
+// The REAL escaper too, for the same reason: a stubbed one hides exactly the escaping bugs it is there
+// to catch (the arrows' aria-label/title run through it).
+const escaperStart = utilsSource.indexOf("function escapeHtml(");
+assert.notStrictEqual(escaperStart, -1, "escapeHtml not found in utils.js");
+vm.runInThisContext(
+	`${utilsSource.slice(escaperStart, utilsSource.indexOf("\n}", escaperStart) + 2)}\nglobal.escapeHtml = escapeHtml;`
+);
+
 const load = (relativePath) => {
 	const absolutePath = path.join(__dirname, relativePath);
 	vm.runInThisContext(fs.readFileSync(absolutePath, "utf8"), { filename: absolutePath });
@@ -89,24 +97,51 @@ const entries = [
 }
 
 // ---- the line -----------------------------------------------------------------------------------
+// 💣 It has to fit ONE line in a 350px panel. Measured there: it does, as long as the unit is named once
+// and the direction is an arrow -- even „(8/45)" appended pushes it onto a second line. So the numbers
+// carry arrows, and every caveat goes into a quiet note line underneath.
 {
 	const markup = routeTerrainSummaryMarkup(entries, segments);
 	assert.ok(markup.includes("Höhenunterschiede"), "the line carries the same label as the leg infobox");
-	assert.ok(markup.includes("1.669 Schritt bergauf"), `German thousands separator: ${markup}`);
-	assert.ok(markup.includes("900 Schritt bergab"), `fall is named too: ${markup}`);
-	assert.ok(markup.includes("(auf 2 von 3 Etappen)"), `partial coverage is stated: ${markup}`);
+	assert.ok(markup.includes("1.669"), `German thousands separator: ${markup}`);
+	assert.ok(markup.includes("900"), `fall is named too: ${markup}`);
+	assert.ok(markup.includes("Schritt"), `the unit appears -- once: ${markup}`);
+	assert.strictEqual(markup.split("Schritt").length - 1, 1, `the unit must appear ONCE: ${markup}`);
 	assert.ok(
 		markup.includes('class="route-plan-summary__elevation"'),
 		"it is its own element, like the landscapes line"
 	);
 }
 
-// ---- „stark" is earned, not decoration ----------------------------------------------------------
-// 1.669 Schritt over the 20 measured miles is a gradient of 0,083 -- past the 0,05 that the server's
-// uphill curve turns into a time factor of 1,25. So this route says „Starke Höhenunterschiede".
+// 🔴 An arrow alone is not a word: a screen reader would read „2.946 up arrow". Each direction carries
+// its label, so „bergauf" and „bergab" survive for anyone who cannot see the glyph.
 {
 	const markup = routeTerrainSummaryMarkup(entries, segments);
-	assert.ok(markup.includes("Starke Höhenunterschiede"), `steep route says so: ${markup}`);
+	assert.ok(markup.includes("↑"), `climb arrow: ${markup}`);
+	assert.ok(markup.includes("↓"), `fall arrow: ${markup}`);
+	assert.ok(markup.includes('aria-label="bergauf"'), `the arrow says what it means: ${markup}`);
+	assert.ok(markup.includes('aria-label="bergab"'), `the arrow says what it means: ${markup}`);
+}
+
+// ---- the caveats live in their own quiet line ----------------------------------------------------
+// 1.669 Schritt over the 20 measured miles is a gradient of 0,083 -- past the 0,05 that the server's
+// uphill curve turns into a time factor of 1,25. So this route is steep, and says so.
+{
+	const markup = routeTerrainSummaryMarkup(entries, segments);
+	assert.ok(markup.includes('class="route-plan-summary__elevation-note"'), `note line exists: ${markup}`);
+	const note = markup.slice(markup.indexOf("elevation-note"));
+	assert.ok(note.includes("stark"), `steep route says so, quietly: ${note}`);
+	assert.ok(note.includes("auf 2 von 3 Etappen"), `coverage sits in the note: ${note}`);
+	// And the numbers line itself stays free of them, or it would wrap.
+	const numbersLine = markup.slice(0, markup.indexOf("<span class=\"route-plan-summary__elevation-note\""));
+	assert.ok(!numbersLine.includes("stark"), `the numbers line stays clean: ${numbersLine}`);
+	assert.ok(!numbersLine.includes("von 3"), `the numbers line stays clean: ${numbersLine}`);
+}
+
+// Nothing to qualify -> no note line at all.
+{
+	const covered = routeTerrainSummaryMarkup([{ segmentIndexes: [0], distance: 80 }], segments);
+	assert.ok(!covered.includes("elevation-note"), `no caveats, no note line: ${covered}`);
 }
 
 // 💣 The same climb spread over ten times the distance is not steep, and must NOT claim to be -- the
@@ -130,8 +165,8 @@ const entries = [
 // Fully covered: no coverage note, because there is nothing to qualify.
 {
 	const covered = routeTerrainSummaryMarkup([{ segmentIndexes: [0] }, { segmentIndexes: [1] }], segments);
-	assert.ok(covered.includes("1.669 Schritt bergauf"), "same sum");
-	assert.ok(!/von/.test(covered), `no coverage note when every leg is measured: ${covered}`);
+	assert.ok(covered.includes("1.669"), "same sum");
+	assert.ok(!/von \d/.test(covered), `no coverage note when every leg is measured: ${covered}`);
 }
 
 // ---- the leg row's own note ----------------------------------------------------------------------
@@ -150,11 +185,17 @@ const entries = [
 	assert.strictEqual(routeEntryTerrainNote({ segmentIndexes: [0] }, level), "", "level -> no note");
 }
 
-// One wording for one thing: the summary line says bergauf/bergab too, not „rauf/runter".
+// One wording for one thing: „bergauf/bergab", never „rauf/runter". The leg row has room to write it
+// out; the summary line is at its width limit and carries the same words on its arrows instead.
 {
+	const legNote = routeEntryTerrainNote({ segmentIndexes: [0] }, segments);
+	assert.ok(legNote.includes("Schritt bergauf"), `leg row writes it out: ${legNote}`);
+	assert.ok(legNote.includes("Schritt bergab"), `leg row writes it out: ${legNote}`);
+
 	const markup = routeTerrainSummaryMarkup(entries, segments);
-	assert.ok(markup.includes("Schritt bergauf"), `summary uses the same words: ${markup}`);
-	assert.ok(markup.includes("Schritt bergab"), `summary uses the same words: ${markup}`);
+	assert.ok(markup.includes('"bergauf"'), `summary carries the word on its arrow: ${markup}`);
+	assert.ok(markup.includes('"bergab"'), `summary carries the word on its arrow: ${markup}`);
+	assert.ok(!markup.includes("rauf ") && !markup.includes("runter"), `never rauf/runter: ${markup}`);
 }
 
 console.log("route-terrain-summary.test.js: all assertions passed");

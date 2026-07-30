@@ -876,6 +876,16 @@
 }
 /* Landschaften und Hoehenunterschiede laufen ueber die ganze Breite: die Namensliste bzw. der
    Erfassungsvermerk brauchen den Umbruch, ein Wert in Spalte 2 waere dort nur eine Klemme. */
+/* Der Erfassungsvermerk als eigene, leise Zeile. Gemessen bei 350 px Panelbreite: die Zahlen passen
+   einzeilig, sobald die Einheit nur einmal steht und die Richtung ein Pfeil ist -- aber schon ein
+   angehängtes „(8/45)" oder das Wort „Starke" kippt sie auf zwei Zeilen. Also steht der Vorbehalt
+   darunter statt mittendrin: die Zahl bleibt auf einen Blick lesbar, der Vorbehalt trotzdem sichtbar. */
+.route-plan-summary__elevation-note {
+	display: block;
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+
 .route-plan-summary__landscapes,
 .route-plan-summary__elevation {
 	grid-column: 1 / -1;
@@ -930,4 +940,56 @@
    Zeilenraster der Feldliste -- dieselbe Lösung wie bei .avesmaps-lore-rows. */
 .avesmaps-path-landscapes {
 	display: contents;
+}
+
+
+/* Perlenkette an der Etappenliste (Owner 2026-07-30). Dieselbe Sprache wie die Wegpunkt-Zeitleiste
+   oben im Planer (route-planner-waypoint-timeline.css): gepunkteter Verbinder, eine Perle je Zeile.
+
+   💣 Die Perle ist NEUTRAL (hohl, --color-text-muted) und NICHT die rote Wegpunkt-Marke. Eine Etappe
+   ist ein Wegabschnitt, kein gesetztes Ziel -- „nur die echten, vom Nutzer gesetzten Wegpunkte bekommen
+   ein Icon" (docs/route-waypoint-marker-design.md, Bug #10). Mit roten Perlen behauptete die Liste 45
+   Reiseziele.
+
+   💣 Die Linie läuft von Perlenmitte zu Perlenmitte, nicht von Zeilenrand zu Zeilenrand: sonst klafft
+   zwischen zwei Etappen eine Lücke (Owner: „ohne lücken"). Beide Maße stehen darum als Variablen da --
+   der Zeilenabstand ist `margin: 0 0 3px` aus .route-plan-entry, und wer ihn ändert, muss --leg-gap
+   mitziehen. Freigestanzt wird die Perle durch ihren eigenen opaken Grund, wie im Infopanel. */
+.route-plan-entry--chained {
+	--bead-center: 15px;
+	--bead-size: 9px;
+	--leg-gap: 3px;
+	position: relative;
+	padding-left: 24px;
+}
+.route-plan-entry--chained::before {
+	content: "";
+	position: absolute;
+	left: 8px;
+	top: calc(var(--bead-center) - var(--bead-size) / 2);
+	width: var(--bead-size);
+	height: var(--bead-size);
+	border: 1.5px solid var(--color-text-muted);
+	border-radius: 50%;
+	background: var(--color-panel);
+	box-sizing: border-box;
+	z-index: 1;
+	pointer-events: none;
+}
+.route-plan-entry--chained::after {
+	content: "";
+	position: absolute;
+	left: 11px;
+	top: var(--bead-center);
+	bottom: calc(-1 * (var(--leg-gap) + var(--bead-center)));
+	width: 3px;
+	background-image: radial-gradient(circle, var(--color-text-muted) 1.35px, transparent 1.55px);
+	background-repeat: repeat-y;
+	background-size: 3px 7px;
+	z-index: 0;
+	pointer-events: none;
+}
+/* Die letzte Etappe endet an ihrer Perle -- eine Linie ins Leere sähe aus wie eine fehlende Zeile. */
+.route-plan-entry--chained:last-child::after {
+	content: none;
 }

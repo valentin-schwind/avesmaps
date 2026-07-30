@@ -44,6 +44,7 @@ const utilsSource = read("js", "app", "utils.js");
 const configSource = read("js", "config.js");
 const resultSource = read("js", "routing", "route-result.js");
 const planSource = read("js", "routing", "route-plan.js");
+const i18nSource = read("js", "app", "i18n.js");
 
 const load = (activeLang) => new Function(
 	"windowStub",
@@ -57,8 +58,13 @@ const load = (activeLang) => new Function(
 		extractFunction(resultSource, "countTransportTransfers", "route-result.js"),
 		extractFunction(resultSource, "buildRouteSummary", "route-result.js"),
 		extractFunction(planSource, "routeAirLegsNote", "route-plan.js"),
-		'const tr = (key, germanDefault) => germanDefault;',
-		"return { buildRouteSummary, routeAirLegsNote, formatDecimalNumber, DISTANCE_SCALING_FACTOR };",
+		extractFunction(planSource, "routeAirNoteMarkup", "route-plan.js"),
+		// The REAL placeholder substitution, cut out of the i18n engine. A `(key, german) => german` stub
+		// returns the template verbatim and would have let „{n} Stationen" ship with the braces in it.
+		extractFunction(i18nSource, "formatTemplate", "i18n.js"),
+		'const tr = (key, germanDefault, params) => formatTemplate(germanDefault, params);',
+		'const escapeHtml = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");',
+		"return { buildRouteSummary, routeAirLegsNote, routeAirNoteMarkup, formatDecimalNumber, DISTANCE_SCALING_FACTOR };",
 	].join("\n")
 )({ avesmapsActiveLang: activeLang });
 
@@ -105,6 +111,20 @@ const near = (actual, expected, what) => assert.ok(
 {
 	const summary = de.buildRouteSummary([WEHRHEIM, LOWANGEN, GREIFENFURT], []);
 	assert.strictEqual(de.routeAirLegsNote(summary.air_distance_legs), "313,1 + 236,3");
+}
+
+// ---- the derivation column of the Drachenflug row ------------------------------------------------
+// Owner 2026-07-30: „Drachenflug 236,3 Meilen (2 Etappen) — einfach die anzahl wegpunktziele". The note
+// now counts the STATIONS the sum spans, so the row says something even on a two-waypoint route (where
+// the summands would only repeat the total). The summands move into the row's tooltip, so the number
+// stays checkable without costing a line in a 350px panel.
+{
+	assert.strictEqual(de.routeAirNoteMarkup([157.19]), "2 Stationen", "one leg spans two stations");
+	const twoLegs = de.routeAirNoteMarkup([313.06, 236.32]);
+	assert.ok(twoLegs.includes("3 Stationen"), `three stations: ${twoLegs}`);
+	assert.ok(twoLegs.includes('title="313,1 + 236,3 Meilen"'), `summands in the tooltip: ${twoLegs}`);
+	assert.strictEqual(de.routeAirNoteMarkup([]), "", "no legs -> nothing to note");
+	assert.strictEqual(de.routeAirNoteMarkup(null), "", "no legs at all -> nothing to note");
 }
 
 // German UI writes 549,4 -- the English overlay keeps 549.4. toFixed() could only ever do the latter.
