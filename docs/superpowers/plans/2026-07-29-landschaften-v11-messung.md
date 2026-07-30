@@ -523,3 +523,78 @@ heightmap-read-test.php    all asserts passed
       dem Platzhalter — deshalb bekommt ein typischer Gebirgspass heute Faktor 1,0000. Ein Eintrag im
       Flächendialog behebt auch Windhagberge (§2). **Erst danach lohnt es, `UP_PENALTY` und die obere
       Klemme neu anzusehen** — heute fehlen bis zur Sättigung nur 21 %.
+
+---
+
+## 4. 🔴 Das Modell ist gewechselt — alles oberhalb beschreibt die abgelöste Kurve
+
+**Owner-Entscheid 2026-07-30, nachdem ein DSA-Spieler die Zahlen öffentlich auseinandergenommen hat und
+damit recht hatte.** Die Steigung folgt jetzt dem **Leistungskilometer** (DIN 33466,
+Marschzeitberechnung der Alpenvereine):
+
+```
+Leistungsmeilen = Meilen + Aufstieg/100 + Abstieg auf Hängen über 20 % Gefälle/150
+Faktor          = Leistungsmeilen / Meilen,  gedeckelt bei 4,0
+```
+
+⚠️ **Damit sind die Verteilungen in §2 und §2a historisch.** Sie beschreiben die Kurve
+`1 + 5·auf − 1,5·ab + 3·ab²`, die es nicht mehr gibt. Was daran bleibt: die Deckung des Nachbaus gegen
+den Livebestand (8 von 8 Etappen bit-genau), die Wasser-Ausnahme, und die Feststellung, dass die
+Platzhalter-Höhen der eigentliche Engpass sind.
+
+### Der Test, der beide Vorgänger erledigt hat
+
+Jeden Faktor in eine **unterstellte Steigleistung** zurückrechnen. Am Koschberge-Pass (669 Schritt auf
+2,8 Meilen = 23,9 %):
+
+| Modell | Faktor | Tempo | Steigleistung |
+|---|---|---|---|
+| alte Kurve | 2,20 | 2,05 M/h | **490 Hm/h** |
+| Tobler | 2,31 | 1,95 M/h | **466 Hm/h** |
+| Marschzeit (SAC 400) | 2,89 | 1,56 M/h | 372 Hm/h |
+| **Leistungskilometer** | 3,39 | 1,33 M/h | **317 Hm/h** |
+
+Die Normen sagen **300 Hm/h** (DIN 33466) bis **400** (SAC). Die alte Kurve und Tobler lassen eine
+Reisegruppe schneller steigen als jede Norm für trainierte Wanderer — das ist kein
+Kalibrierungsstreit, das ist ausserhalb des Rahmens.
+
+### Und die Bergab-Probe, die ein Leser geliefert hat
+
+850 Hm Abstieg auf 10 km (8,5 %) — vom Brocken nach Bad Ilsenburg:
+
+| Modell | Faktor | |
+|---|---|---|
+| alte Kurve | 0,894 | 11 % **schneller** |
+| Tobler | 0,949 | 5 % **schneller** |
+| Marschzeit (DIN 500) | 1,340 | 34 % langsamer |
+| **Leistungskilometer** | **1,000** | **genau wie flach** |
+
+Das Urteil des Lesers war „eher nicht schneller — anstrengender in jedem Fall“. Genau das sagt der
+Leistungskilometer: gleiche Zeit, mehr Anstrengung. Gemessen über 4.080 Land-Wegstückrichtungen ist
+der **kleinste** vorkommende Faktor **exakt 1,0000** — nichts ist je schneller als die Ebene.
+
+### Was der Wechsel kostet und wegnimmt
+
+| | |
+|---|---|
+| die 8 Etappen mit Profil | 1,085 → **1,292** (+19 %) |
+| die ganze Strecke Gareth–Thorwal (1.078 Meilen) | 1,0073 → **1,0251** (+1,76 %) |
+| Maximum Land, beide Richtungen | 3,4782 → **5,9565** |
+| Klemme 4,0 trifft | 0 → **20 von 4.080** (0,49 %) |
+
+🔴 **Owner-Entscheid 3 („bergab schneller“) ist damit gefallen**, wissentlich. Der Bonus war das
+einzige, was öffentlich Feuer gefangen hat, und die Gegenrede passt in einen Satz: eine bepackte
+Gruppe ist bergab nicht schneller, nur knieschonender wäre sie es.
+
+⭐ **Die Klemme 4,0 bleibt und verdient sich hier erstmals ihr Geld.** Sie kappt genau die 20
+Artefakte des Platzhalter-Geländes (prozedurales Rauschen legt 50-%-Hänge unter Pfade, die in
+Wirklichkeit Kehren fahren) und lässt alles darunter unberührt. Unter der alten Kurve kappte sie
+nichts. ⭐ Die **Untergrenze ist entfallen**, strukturell: das Modell addiert nur nichtnegative Terme
+auf ebenen Boden, es kann nicht unter 1,0 fallen.
+
+🔧 **Die Tempotabelle bleibt unangetastet** (Owner). Der Median-Faktor eines Gebirgspasses ist
+1,097 — für die Hälfte der Fälle existiert die Doppelzählung mit dem ohnehin langsamen Grundtempo
+praktisch nicht, und die Extreme kommen aus den Platzhalter-Höhen, nicht aus dem Modell.
+
+🔧 **Offen:** ein **Profillauf**. Bis dahin halten alle Zeilen das alte Zweier-Format, der
+Formatwächter liest sie als „keine Höhendaten“, und Gelände wirkt **nirgends**.
