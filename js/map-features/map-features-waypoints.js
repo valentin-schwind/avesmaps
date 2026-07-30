@@ -32,13 +32,16 @@ function enhanceRoutePlannerOptionPanel() {
 		const shortestPath = document.getElementById("shortestPath");
 		const minimizeTransfers = document.getElementById("minimizeTransfers");
 		const travelHoursPerDay = document.getElementById("travelHoursPerDay");
-		const optionRows = [
+		// 💣 Durch ein Set, nicht nur durch filter(Boolean): seit „Umsteigen minimieren" in der Radio-Zeile
+		// sitzt (eine Zeile gespart, Owner 2026-07-30) liefern fastestPath und minimizeTransfers DASSELBE
+		// div -- ohne die Entdopplung wanderte es zweimal in den Panel-Aufbau.
+		const uniqueOptionRows = [...new Set([
 			fastestPath?.closest("div"),
 			minimizeTransfers?.closest("div"),
 			travelHoursPerDay?.closest("div"),
-		].filter(Boolean);
+		].filter(Boolean))];
 
-		if (!fastestPath || !shortestPath || !minimizeTransfers || !travelHoursPerDay || !optionRows.length) {
+		if (!fastestPath || !shortestPath || !minimizeTransfers || !travelHoursPerDay || !uniqueOptionRows.length) {
 			return;
 		}
 
@@ -46,9 +49,9 @@ function enhanceRoutePlannerOptionPanel() {
 		panel.className = "route-planner-options-panel";
 		panel.setAttribute("aria-labelledby", "route-planner-options-title");
 		panel.innerHTML = '<h2 id="route-planner-options-title" class="route-planner-options-panel__title">Routenoptionen</h2>';
-		optionRows[0].parentNode.insertBefore(panel, optionRows[0]);
+		uniqueOptionRows[0].parentNode.insertBefore(panel, uniqueOptionRows[0]);
 
-		optionRows.forEach((row) => {
+		uniqueOptionRows.forEach((row) => {
 			row.classList.add("route-planner-options-panel__row");
 			panel.appendChild(row);
 		});
