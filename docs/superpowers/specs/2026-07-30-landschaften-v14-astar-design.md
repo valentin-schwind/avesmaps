@@ -17,8 +17,10 @@ V14 gibt dem Planer einen **A\* über ein Gitter**: eine Querfeldein-Strecke, di
 biegt und Gelände nach Kosten meidet, statt gerade durchzustoßen. Zwei Auslöser, **ein** Rechner:
 automatisch bei absurdem Umweg, und auf Rechtsklick als „Hierher reisen".
 
-Gerechnet wird **im Server**. Gemessen am Livebestand: der automatische Auslöser feuert bei
-**0,53 %** der nahen Ortspaare und kostet **1,9 ms** im Median, **23 ms** im schlimmsten Fall.
+Gerechnet wird **im Server**. Gemessen am Livebestand: bei der Schwelle **3×** feuert der
+automatische Auslöser auf **9,1 %** der nahen Ortspaare und kostet **14 ms** im Median, **112 ms**
+im schlimmsten Fall — bei 4.130 Zellen gegen einen Deckel von 150.000. Die anderen 90,9 % zahlen
+**nichts**, weil der Vorfilter aus zwei Zahlen besteht, die ohnehin vorliegen.
 
 ---
 
@@ -27,6 +29,7 @@ Gerechnet wird **im Server**. Gemessen am Livebestand: der automatische Auslöse
 | | Entscheid |
 |---|---|
 | **Auslöser** | **automatisch bei absurdem Umweg** — nicht Knopf, nicht nur Rechtsklick |
+| **Schwelle** | **3×** — nachträglich von 8× korrigiert, weil 8× drei der vier gemeldeten Fälle nicht anfasst (§4.2) |
 | **„Hierher reisen"** | kommt **mit dazu** (Rechtsklick, `schuh.png`) — dasselbe Vorhaben, zweiter Auslöser |
 | **Darstellung** | die Etappe ist **erkennbar**, mit Hinweis „wegloses Gelände" |
 | **Bericht „hier fehlt ein Weg"** | 🔴 **abgewählt** — siehe §8.1, die Folge gehört benannt |
@@ -103,9 +106,30 @@ Kennzahlen aus dem regulären Antwortkörper. Siehe [[offline-graph-rebuild-vali
 | `?s=7nkaEHL8` | Fiering → Taining | 7,6 | **52,1** | **6,8×** | 7,6 | 7,6 |
 | `?s=DFtqNyn6` | Rovik → Skarsten | 6,5 | **24,8** | 3,8× | 6,4 ⚠️ | **11,2** |
 
-💣 **Der Fall Rekheim ist der einzige, in dem sich der A\* um etwas herumbiegt** (8,4 > 7,8
-Luftlinie). Bei den anderen dreien liefert er praktisch die Luftlinie zurück — dort ist **kein
-modelliertes Hindernis**. Was das bedeutet, steht in §7.3.
+### 4.1a 💣 „A\* ≈ Luftlinie" heißt NICHT „kein Hindernis"
+
+Diese Sitzung hat aus „der A\* liefert ungefähr die Luftlinie" geschlossen, es liege dort kein
+Hindernis. **Der Schluss ist falsch**, der Owner hat widersprochen, und die Geometrie gibt ihm
+recht: ein Weg kann ein Hindernis **knapp umgehen**, ohne lang zu werden.
+
+Direkt gefragt (V9-Kern auf der Sehne, ohne jede Toleranz):
+
+| Fall | Wasser auf der Sehne | Gebirge auf der Sehne | löst bei 3× aus? |
+|---|---|---|---|
+| Gulbladdirstadir → Rekheim | 2 Flächen, **88 %** der Sehne nass | — | **ja** (15,6×) |
+| Fiering → Taining | 1 Fläche, **40,7 %** nass | — | **ja** (6,8×) |
+| Rovik → Skarsten | — | 1 Fläche, **79 %** drin | **ja** (3,8×) |
+| Flammersbach → Hardorp | keins | keins | nein (1,2×) — und richtig so |
+
+⭐ **Die drei Fälle mit Hindernis lösen bei 3× alle aus, der ohne Hindernis nicht.** Das ist der
+stärkste Hinweis darauf, dass 3× die richtige Schwelle ist — sie trennt hier genau entlang der
+Geometrie, nicht entlang einer runden Zahl.
+
+Fiering → Taining ist der Beleg: **40,7 % Wasser** auf der Sehne, und der A\* kommt auf 8,16 gegen
+7,63 Luftlinie — **7 % Mehrlänge** für eine Umgehung, die man in der Zahl nicht sieht.
+
+⭐ **Die Lehre für die Umsetzung:** ob ein Hindernis vorliegt, wird an der **Geometrie** gefragt, nie
+aus der Länge geschlossen. Der Nachweis in §7.2 prüft deshalb Sehnen-Schnitte, nicht Verhältnisse.
 
 ⚠️ **Rovik → Skarsten ist der Beweis für die Geländeebene:** ohne Gebirgsdaten läuft der A\*
 **durch 70 % der Punkte im Gebirge**, also schnurgerade über den Kamm. Mit der Fläche „Gebirge im
@@ -132,18 +156,34 @@ aus 8 Einheiten 121 machen):
 🔴 **Die Verteilung hat keinen natürlichen Sprung** — dieselbe Lage wie bei V13s Küstentoleranz. Die
 Schwelle ist eine Ermessensfrage. Messbar ist nur, was sie kostet:
 
-| Schwelle | betroffene Routen |
-|---|---|
-| > 2× | 26 % — ein Umweg um einen Hügel ist normal |
-| > 3× | 9,8 % |
-| > 5× | 4,1 % |
-| **> 8×** | **0,53 %** (8 von 1.515) |
-| > 12× | 0,27 % |
-| > 20× | 0,13 % |
+| Schwelle | löst aus bei | Kiste p50 / max | Zeit p50 / max | Weg gefunden | Verkürzung p50 |
+|---|---|---|---|---|---|
+| > 2× | 26 % | — | — | — | ein Umweg um einen Hügel ist normal |
+| **> 3×** | **9,1 %** | **1.125 / 4.130** | **14 / 112 ms** | **136 / 138** | **4,2×** |
+| > 5× | 3,8 % | 902 / 3.696 | 10,5 / 101 ms | 56 / 58 | 5,9× |
+| > 8× | 0,53 % | 180 / 1.920 | 1,9 / 23 ms | 8 / 8 | 10,2× |
+| > 12× | 0,27 % | — | — | — | — |
+| > 20× | 0,13 % | — | — | — | — |
+
+**Owner-Entscheid 2026-07-30: 3×.** 💣 **Und der Grund ist eine Korrektur:** die erste Fassung dieser
+Spec schrieb **8×** — bei dem Wert löst genau **einer** der vier gemeldeten Fälle aus (Rekheim
+15,6×), während Fiering (6,8×), Rovik (3,8×) und Flammersbach (1,2×) unangetastet bleiben. Der Owner
+hatte 8× durchgewinkt, ohne das zu wissen; mit der Zahl vorgelegt entschied er 3×.
+
+Bei 3× fallen Rekheim, Fiering **und** Rovik hinein, Flammersbach bleibt draußen, wo es hingehört.
+**3× ist zugleich das p90 der Verteilung** — „schlechter als 90 % vergleichbarer Routen" ist eine
+verteidigungsfähige Definition von *unverhältnismäßig*, und damit hat die Schwelle doch eine
+Begründung, wenn auch keinen Sprung.
+
+⚠️ **Nicht tiefer.** Der Median liegt bei 1,57×; bei 2× würde der A\* auf einem Viertel aller nahen
+Routen eingreifen, wo Straßen einfach um Hügel biegen.
 
 ### 4.3 ⭐ Der Auslöser wählt sich seine Kiste selbst klein
 
-Die acht Fälle über der Schwelle 8×, mit Kiste (Zellweite 0,5, Rand 30 %):
+⚠️ **Die Liste unten ist die 8×-Teilmenge, nicht die geltende.** Bei der beschlossenen Schwelle 3×
+sind es **138** Fälle (§4.2). Die acht werden gezeigt, weil sie die Extremfälle sind — wenn schon
+die schlimmsten Umwege kleine Kisten ergeben, gilt es für die milderen erst recht. Kiste bei
+Zellweite 0,5 und Rand 30 %:
 
 ```
 Gluckenhang              -> Wasserburg         Luft  2,5  heute  55,9  A*  2,2   130 Z   1,4 ms
@@ -158,11 +198,11 @@ Donnerfall               -> Rödingen           Luft 19,0  heute 208,1  A* 20,4 
 
 | | automatischer Auslöser | Rechtsklick (V11 §10) |
 |---|---|---|
-| Kiste p50 | **180 Zellen** | 10.600 |
-| Kiste p90 | 880 | 168.900 |
-| Kiste max | **1.920** | **568.000** |
-| Zeit p50 | **1,9 ms** | 16 ms |
-| Zeit max | **23,2 ms** | 816 ms → **5–12 s auf STRATO** |
+| Kiste p50 | **1.125 Zellen** | 10.600 |
+| Kiste p90 | 3.149 | 168.900 |
+| Kiste max | **4.130** | **568.000** |
+| Zeit p50 | **14 ms** | 16 ms |
+| Zeit max | **112 ms** | 816 ms → **5–12 s auf STRATO** |
 
 ⭐ **Das ist strukturell, nicht Glück.** Eine Route sieht nur dann absurd aus, wenn die beiden Orte
 *nah* beieinander liegen — und nah heißt kleine Kiste. Die Schwelle begrenzt die Kiste, ohne dass
@@ -275,7 +315,7 @@ In `avesmapsBuildMinimalRouteResultFromRequest`, **nach** dem Dijkstra:
 5. Findet er nichts oder ist er langsamer, bleibt alles wie heute.
 
 ```php
-const AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD = 8.0;
+const AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD = 3.0;
 ```
 
 ### 5.6 Auslöser 2 — „Hierher reisen"
@@ -304,7 +344,35 @@ das Hundertfache des Bestands.
 Die Etappe bleibt vom Typ `Querfeldein` und bekommt den Zusatz **„wegloses Gelände"**
 (Owner-Entscheid §1). Damit weiß der Reisende, dass dort **kein gezeichneter Weg** existiert.
 
-💣 **Die Geometrie hat jetzt viele Punkte, nicht zwei.** Drei fertige Sachen lesen sie:
+### 5.7a 🔴 Die Linie wird VEREINFACHT — eine Handvoll Punkte, keine Gittertreppe
+
+**Owner-Vorgabe 2026-07-30:** *„warum viele punkte? das darf nicht geschehen, nur gelände soll
+hinzukommen."*
+
+Der rohe A\*-Pfad ist eine **Treppe aus Gitterschritten** — 13 bis 34 Punkte in den vier
+Referenzfällen. Die gehört nicht in eine Etappe. Sie wird mit dem **vorhandenen** Vereinfacher
+(Douglas-Peucker, den V7 beim Grenzimport schon benutzt) eingekocht, **bevor** sie die Etappe
+erreicht. Gemessen bei eps **0,10**:
+
+| Fall | roh | vereinfacht | Längenänderung |
+|---|---|---|---|
+| Gulbladdirstadir → Rekheim | 15 | **4** | **0,00 %** |
+| Fiering → Taining | 13 | **5** | 0,00 % |
+| Rovik → Skarsten | 21 | 10 | 0,00 % |
+| Flammersbach → Hardorp | 34 | 6 | 0,00 % |
+
+⭐ **eps 0,10 kostet null Länge** und lässt nur die echten Richtungswechsel stehen — bei Rekheim
+sind das die vier Punkte des Bogens um die Bucht. Größere eps verkürzen die Linie (0,25 schon um
+1,2–1,9 %), also **0,10 und nicht mehr**: die Länge ist eine Reisezeit, sie darf nicht schrumpfen,
+weil das Rendern hübscher wird.
+
+⚠️ **Zwei Punkte sind nicht möglich.** Eine gerade Linie ist genau das, was V13 verweigert — der
+Bogen ist der Sinn der Sache. Die Etappe trägt also eine kleine Punktfolge, wie jeder gezeichnete
+Weg auch, aber keine Gittertreppe.
+
+### 5.7b Was die Punktfolge bei den Verbrauchern anrichtet
+
+💣 Die Geometrie hat jetzt **eine Handvoll** Punkte statt zwei. Drei fertige Sachen lesen sie:
 
 | Verbraucher | was sich ändert |
 |---|---|
@@ -375,20 +443,39 @@ darf im Normalfall nichts anfassen.
 
 ### 8.1 🔴 Die Folge des abgewählten Berichts — bewusst getragen
 
-Drei der vier Referenzfälle haben **kein modelliertes Hindernis**: der A\* liefert dort die
-Luftlinie zurück (§4.1). Bei Gluckenhang → Wasserburg (2,5 Einheiten Luftlinie, 55,9 Wegstrecke)
-und Schwarzfall → Ungolfsroden (3,7 / 82,5) fehlt mit hoher Wahrscheinlichkeit **ein gezeichneter
-Weg** — die Orte liegen in Sichtweite.
+> 🔴 **Eine frühere Fassung dieses Abschnitts war falsch und ist berichtigt.** Sie behauptete, drei
+> der vier Referenzfälle hätten „kein modelliertes Hindernis", geschlossen aus „der A\* liefert
+> ungefähr die Luftlinie". **Der Schluss ist unzulässig** — ein Weg kann ein Hindernis knapp
+> umgehen, ohne lang zu werden: Fiering → Taining hat **40,7 % Wasser auf der Sehne** und kommt
+> trotzdem auf 8,16 gegen 7,63 Luftlinie heraus. Der Owner hat widersprochen, die Geometrie hat ihm
+> recht gegeben (§4.1a).
 
-**V14 repariert diese Routen und macht die Datenlücke damit unsichtbar.** Das ist die Kehrseite des
-Owner-Entscheids gegen den Bericht, und sie gehört ins Protokoll: es ist genau das Verhalten,
-gegen das V13 sich entschieden hat („lieber ‚keine Route' als etwas erfinden").
+Der Befund ist nach der Nachprüfung **zweigeteilt**, und beide Hälften sind wahr:
 
-Abgemildert wird es allein durch den Hinweis **„wegloses Gelände"** an der Etappe — wer ihn liest,
-sieht, dass dort kein Weg ist. Wer ihn nicht liest, hält die Karte für vollständig.
+| Grundgesamtheit | mit `meer`/`see`/`gebirge` auf der Sehne |
+|---|---|
+| die vier Fälle des Owners | **3 von 4** — und der vierte (1,2×) löst nie aus |
+| acht systematisch gefundene Auslösefälle (§4.3) | **2 von 8** |
 
-Die acht Fälle aus §4.3 liegen als Liste vor und können jederzeit ausgegeben werden, falls der
-Bericht später doch gewünscht wird.
+⭐ **Der Unterschied ist erklärbar, und er ist die eigentliche Einsicht:** der Owner hat seine Fälle
+ausgewählt, indem er **auf die Karte geschaut** hat — und die Kartengrafik zeigt Gelände, das als
+Daten nicht existiert. Genau wie bei Rovik → Skarsten, wo der Berg erst existierte, nachdem er
+gezeichnet wurde. Die systematische Stichprobe findet dagegen überwiegend **Datenlücken**, weil der
+Datenbestand dünn ist (§4.5).
+
+**Was bleibt:** bei sechs der acht Auslösefälle — Gluckenhang → Wasserburg (2,5 Luftlinie, 55,9
+Wegstrecke), Catco → Fort Südergart, Branfeld → Burg Nardesbroch, Schwarzfall → Ungolfsroden,
+Albentrutz → Clachoven, Eslamsroden → Quastenbroich — steht **nichts** in den Daten. Dort fehlt
+entweder ein gezeichneter Weg, oder das Gelände ist noch nicht gezeichnet. V14 repariert diese
+Routen und macht nicht unterscheidbar, welches von beidem es war.
+
+Abgemildert wird es durch den Hinweis **„wegloses Gelände"** an der Etappe. Die acht Fälle liegen
+als Liste vor, falls der Bericht später doch gewünscht wird.
+
+⚠️ **Ein Nebenlicht, das zusammenpasst:** bei Felshöhe → Salzsteige liegt **„Windhagberge"** auf
+91 % der Sehne — genau die Fläche, die laut `10073976` als einzige von 17 kein Höhenraster bauen
+konnte (kein Gipfel, keine gespeicherte Höhe). Die Datenlücken der Landschaftsebene und die
+Auslösefälle des A\* zeigen auf dieselben Stellen.
 
 ---
 
@@ -396,7 +483,7 @@ Bericht später doch gewünscht wird.
 
 | Konstante | Vorschlag | sichere Spanne | Wirkung |
 |---|---|---|---|
-| `AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD` | **8,0** | 5 … 20 | kleiner = mehr Routen betroffen (2× wären 26 %, 8× sind 0,53 %) |
+| `AVESMAPS_ROUTE_OFFROAD_DETOUR_THRESHOLD` | **3,0** | 3 … 8 | kleiner = mehr Routen betroffen: 3× sind 9,1 %, 5× sind 3,8 %, 8× sind 0,53 %. ⚠️ Nicht unter 3 — der Median liegt bei 1,57× |
 | Zellweite | **0,5** | 0,25 … 1,0 | größer = billiger, aber ab 1,0 werden 24 Seen zu Mauern (V11 §10.2) |
 | Zelldeckel | **150.000** | 100k … 200k | greift nur beim Rechtsklick |
 
