@@ -14,6 +14,9 @@ window.AVESMAPS_I18N_EN = {
 	"planner.route.shortest.title": "Finds the shortest route",
 	"planner.minimizeTransfers": "Minimize transfers",
 	"planner.minimizeTransfers.title": "Finds the route with the fewest changes between modes of transport",
+	// V12, edit mode only.
+	"planner.showRouteSpeed": "Speed",
+	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
 	"planner.travelHours.title": "Travel hours on land per day; the rest of the day is spent resting. 24 = travel without rest.",
 	"planner.travelHoursSuffix": "travel hours on land per day",
 	"planner.overview.default": "Waypoints and travel time are shown here.",

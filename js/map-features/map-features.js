@@ -67,6 +67,10 @@ if (IS_EDIT_MODE) {
 	// im Edit-Modus; im Frontend bestimmt weiter allein der Kartenmodus, was sichtbar ist.
 	$("#toggleMapLabelsControl").prop("hidden", false);
 	$("#toggleTerritoryBordersControl").prop("hidden", false);
+	// V12: „Geschwindigkeit" zeigt auf der geplanten Route, wo Gelände und Strömung bremsen — damit
+	// ein Editor sieht, dass sein Gebirge einen Effekt hat. Nur im Editmodus: im Frontend wäre es eine
+	// Fachanzeige ohne Anlass, und die Erklärung dazu steht im Tempo-Dialog.
+	$("#showRouteSpeedControl").prop("hidden", false);
 }
 
 

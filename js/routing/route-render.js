@@ -41,6 +41,9 @@ function drawRoute(segments) {
 	});
 	if (currentRouteLayer.getLayers().length) currentRouteLayer.addTo(map);
 	if (currentRouteNodeLayer.getLayers().length) currentRouteNodeLayer.addTo(map);
+	// V12 (Editmodus): die Geschwindigkeitspfeile lesen currentRouteSegmentLayers, also erst JETZT --
+	// nach der Zuweisung oben. Fehlt die Ebene (Frontend, Haken aus), ist der Aufruf ein No-op.
+	window.avesmapsRedrawRouteSpeedArrows?.();
 }
 
 function logRoutePoints(segments) {

@@ -223,6 +223,12 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			// ground. The whole feature rests on those two staying apart.
 			ascent_schritt: serverSegment?.ascent_schritt ?? null,
 			descent_schritt: serverSegment?.descent_schritt ?? null,
+			// V12: the slope factor the SERVER applied, carried exactly like flow_time_factor above.
+			// 🔴 CARRIED, NOT RECOMPUTED. The curve lives in terrain-factor.php and stays there --
+			// a JS copy would be a second source of truth for the one number people take out of this
+			// map. `|| 1` is safe where the ascent needs `?? null`: the factor is clamped to
+			// [0,5 … 4,0] and can never legitimately be 0.
+			terrain_time_factor: Number(serverSegment?.terrain_time_factor) || 1,
 		},
 	};
 }
@@ -291,6 +297,12 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			// null stay different things all the way to the infobox.
 			ascent_schritt: serverSegment?.ascent_schritt ?? null,
 			descent_schritt: serverSegment?.descent_schritt ?? null,
+			// V12: the slope factor the SERVER applied, carried exactly like flow_time_factor above.
+			// 🔴 CARRIED, NOT RECOMPUTED. The curve lives in terrain-factor.php and stays there --
+			// a JS copy would be a second source of truth for the one number people take out of this
+			// map. `|| 1` is safe where the ascent needs `?? null`: the factor is clamped to
+			// [0,5 … 4,0] and can never legitimately be 0.
+			terrain_time_factor: Number(serverSegment?.terrain_time_factor) || 1,
 		},
 	};
 }

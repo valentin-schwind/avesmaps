@@ -1981,6 +1981,12 @@
 				</label>
 			</div>
 			<div>
+				<label id="showRouteSpeedControl" hidden title="Pfeile entlang der geplanten Route: kurz und rotbraun, wo Gelände oder Strömung bremsen, lang und grün, wo es schneller geht. Die Länge zeigt die Abweichung von der Grundgeschwindigkeit der Wegart, nicht die absolute Geschwindigkeit." data-i18n-title="planner.showRouteSpeed.title">
+					<input type="checkbox" id="showRouteSpeed" />
+					<span data-i18n="planner.showRouteSpeed">Geschwindigkeit</span>
+				</label>
+			</div>
+			<div>
 				<label title="Reisestunden an Land pro Tag; der Rest des Tages ist Rast. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
 					<input type="number" id="travelHoursPerDay" value="12.0" min="0.5" max="24" step="0.5" style="width: 56px" /> <span data-i18n="planner.travelHoursSuffix">Reisestunden an Land pro Tag</span>
 				</label>
@@ -2279,6 +2285,7 @@
 		<script src="js/routing/route-plan.js"></script>
 		<script src="js/routing/route-engine.js"></script>
 		<script src="js/routing/route-render.js"></script>
+		<script src="js/routing/route-speed-arrows.js"></script>
 		<script src="js/routing/route-graph-routing.js"></script>
 		<script src="js/routing/routing.js"></script>
 		<script src="js/routing/transport-speed-info.js"></script>
