@@ -24,9 +24,16 @@
 	"use strict";
 
 	const PANE_NAME = "avesmapsRouteSpeedArrowPane";
-	// Dicht genug, dass eine kurze Etappe mindestens einen Pfeil bekommt; der Prototyp
-	// (html/landschaften-modell.html:705) nahm 34.
-	const ARROW_SPACING_PX = 34;
+	// ⚠️ Der Abstand muss GRÖSSER sein als der längste Pfeil (ARROW_UNIT_PX · 1,3 = 34), sonst laufen
+	// zwei Pfeile ineinander und die Länge ist wieder nicht ablesbar. Der Prototyp nahm 34 bei
+	// kürzeren Pfeilen.
+	const ARROW_SPACING_PX = 44;
+	// Länge bei unverändertem Tempo (relative Geschwindigkeit 1,0). Alles andere ist ein Vielfaches
+	// davon — siehe arrowLength().
+	const ARROW_UNIT_PX = 26;
+	// 🔴 FEST, nicht mitwachsend. Eine Spitze, die mit der Länge skaliert, frisst den Unterschied auf.
+	const ARROW_HEAD_PX = 5;
+	const ARROW_HEAD_HALF_PX = 3.7;
 	// Unter diesem Verhältnis gilt eine Etappe als gebremst bzw. beschleunigt. 2 % Totband, damit
 	// Rundungsreste nicht die halbe Route einfärben.
 	const NEUTRAL_BAND = 0.02;
@@ -103,11 +110,21 @@
 			return 1 / slowdownFactor(properties);
 		}
 
+		// 🔴 DIE LÄNGE IST PROPORTIONAL ZUR RELATIVEN GESCHWINDIGKEIT, ohne Sockel. „Halb so schnell"
+		// heißt „halb so lang", sonst ist die Länge nicht ablesbar, sondern nur vorhanden.
+		//
+		// 💣 Die erste Fassung hatte `7 + 14 · rel` und war GENAU DARAN unlesbar (Owner, 2026-07-30:
+		// „die jetzigen Dinger kann ich gar nicht interpretieren"). Zwei Fehler auf einmal: der Sockel
+		// von 7 px drückte die Spannweite über den echten Bestand auf 13…23 px zusammen, also weniger
+		// als Faktor 2 — und gezeichnet wurde ein GEFÜLLTES DREIECK, dessen Breite mit der Länge
+		// mitwuchs. Ein Dreieck, das in beide Richtungen skaliert, liest sich als „derselbe Pfeil, etwas
+		// größer", nicht als Länge. Deshalb jetzt Schaft + feste Spitze, wie im Prototyp
+		// (html/landschaften-modell.html:707: eine `line` mit `marker-end`).
 		function arrowLength(relative) {
-			// Bei 1,0 sind es 21 px. Geklemmt, damit ein Faktor 4,0 keinen unsichtbaren Punkt und ein
-			// Faktor 0,81 keinen Balken ergibt.
-			const clamped = Math.max(0.3, Math.min(1.45, relative));
-			return 7 + 14 * clamped;
+			// Geklemmt nach unten, damit ein Faktor 4,0 kein unsichtbarer Punkt wird, und nach oben,
+			// damit ein Pfeil nie in seinen Nachbarn läuft (ARROW_SPACING_PX).
+			const clamped = Math.max(0.26, Math.min(1.3, relative));
+			return clamped * ARROW_UNIT_PX;
 		}
 
 		function arrowColor(relative, palette) {
@@ -116,26 +133,60 @@
 			return palette.neutral;
 		}
 
+		// Schaft + feste Spitze. 🔴 DIE SPITZE WÄCHST NICHT MIT: nur so trägt der Schaft die Aussage.
+		// Über den echten Bestand ergibt das Pfeile von ~7 px (steilster Pass der Karte, Faktor 3,48)
+		// über 26 px (unverändertes Tempo) bis ~32 px (schnellste Abfahrt) — bei fester Spitze bleibt
+		// vom kürzesten fast nur sie übrig, und genau das ist die Aussage.
 		function drawArrow(x, y, angle, length, color, palette, viewWidth, viewHeight) {
-			if (x < -30 || y < -30 || x > viewWidth + 30 || y > viewHeight + 30) {
+			if (x < -40 || y < -40 || x > viewWidth + 40 || y > viewHeight + 40) {
 				return;
 			}
-			const half = Math.max(2.6, length * 0.24);
+			const tip = length * 0.5;
+			const tail = -tip;
+			const shaftEnd = tip - ARROW_HEAD_PX;
 			ctx.save();
 			ctx.translate(x, y);
 			ctx.rotate(angle);
-			ctx.beginPath();
-			ctx.moveTo(length * 0.5, 0);
-			ctx.lineTo(-length * 0.5, -half);
-			ctx.lineTo(-length * 0.5, half);
-			ctx.closePath();
-			ctx.fillStyle = color;
-			// Heller Saum wie bei den Flusspfeilen, damit der Pfeil auf der Routenlinie lesbar bleibt
-			// statt in ihr zu verschwinden.
+
+			// Heller Saum ZUERST und über beides, damit der Pfeil auf der 7 px breiten Routenlinie
+			// lesbar bleibt statt in ihr zu verschwinden.
+			//
+			// 💣 `butt`, NICHT `round`, und schmal: ein runder Saum von 5,4 px ragt an beiden Enden ~2,7 px
+			// über den Pfeil hinaus und hängt damit JEDEM Pfeil denselben Sockel an — gemessen drückte das
+			// das sichtbare Längenverhältnis von 4,5× auf 2,8×. Das ist genau der Fehler, den die feste
+			// Spitze oben vermeidet, nur eine Ebene tiefer.
+			ctx.lineCap = "butt";
+			ctx.lineJoin = "miter";
+			ctx.miterLimit = 2;
 			ctx.strokeStyle = palette.halo;
-			ctx.lineWidth = 1.4;
-			ctx.fill();
+			ctx.lineWidth = 3.6;
+			ctx.beginPath();
+			ctx.moveTo(tail, 0);
+			ctx.lineTo(Math.max(tail, shaftEnd), 0);
 			ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(tip, 0);
+			ctx.lineTo(shaftEnd, -ARROW_HEAD_HALF_PX);
+			ctx.lineTo(shaftEnd, ARROW_HEAD_HALF_PX);
+			ctx.closePath();
+			ctx.stroke();
+
+			// Und derselbe Pfeil in der Farbe darüber.
+			ctx.strokeStyle = color;
+			ctx.fillStyle = color;
+			ctx.lineWidth = 2.6;
+			if (shaftEnd > tail) {
+				ctx.beginPath();
+				ctx.moveTo(tail, 0);
+				ctx.lineTo(shaftEnd, 0);
+				ctx.stroke();
+			}
+			ctx.beginPath();
+			ctx.moveTo(tip, 0);
+			ctx.lineTo(shaftEnd, -ARROW_HEAD_HALF_PX);
+			ctx.lineTo(shaftEnd, ARROW_HEAD_HALF_PX);
+			ctx.closePath();
+			ctx.fill();
 			ctx.restore();
 		}
 
