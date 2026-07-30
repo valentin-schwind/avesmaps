@@ -16,7 +16,8 @@ global.pointInGeometry = pointInGeometry;
 
 const { buildEcosystemHeightField, sampleEcosystemHeightField, buildEcosystemPeakWindow,
 	ecosystemHeightCellHash, solveEcosystemNoiseExponent, ecosystemRidgedNoise,
-	ECOSYSTEM_NOISE_EXPONENT_MIN, ECOSYSTEM_NOISE_EXPONENT_MAX }
+	ECOSYSTEM_NOISE_EXPONENT_MIN, ECOSYSTEM_NOISE_EXPONENT_MAX,
+	ECOSYSTEM_HEIGHT_DEFAULT, ECOSYSTEM_HEIGHT_NOISE_SHARE }
 	= require("../map-features-ecosystem-height-field.js");
 
 const square = { type: "Polygon", coordinates: [[[0, 0], [100, 0], [100, 100], [0, 100], [0, 0]]] };
@@ -103,11 +104,48 @@ const twoPeaks = fieldOf(area, [
 assert.ok(Math.abs(twoPeaks.at(30, 50) - 5000) < 1, `the high peak stays 5000, got ${twoPeaks.at(30, 50)}`);
 assert.ok(Math.abs(twoPeaks.at(70, 50) - 3000) < 1, `the low peak stays 3000, it is not lifted, got ${twoPeaks.at(70, 50)}`);
 
-// 8. An area with NO peak AND no recorded maximum height stays flat rather than inventing a
-//    mountain: the noise level would be derived from the peaks of that area, and there is
-//    nothing to derive it from.
+// 8. 🔴 CHANGED 2026-07-30. An area with NO peak and NO STORED maximum height now derives exactly
+//    what an area with ONE HEIGHTLESS PEAK derives: ECOSYSTEM_HEIGHT_NOISE_SHARE x
+//    ECOSYSTEM_HEIGHT_DEFAULT = 0,4 x 5.000 = 2.000.
+//
+//    Until today it stayed flat, and flat meant it was dropped from the raster run entirely
+//    (buildEcosystemHeightStack keeps only fields with bumps). Live that was „Windhagberge": the tile
+//    reported „1 fehlt" and nothing told the editor that entering a maximum height was the fix.
+//    Meanwhile „Trollzacken" and „Wal-el-Khômchra" -- equally without a stored height -- rastered
+//    fine, purely because they happen to contain one peak that carries no height either. So the same
+//    absence of information produced a raster in one place and silence in the other.
+//
+//    🪤 IT COMPLETES THE DERIVATION, it is not a new default. NULL means „derive it" everywhere in
+//    this module (see saveTerrainSettings: an untouched slider stores ""), and for a peakless area
+//    nobody had ever defined what the derivation yields. The two constants are the owner's own,
+//    already in use: the dialog shows precisely this product as its „(auto)" maximum.
 const peakless = fieldOf(area, []);
-assert.strictEqual(peakless.at(50, 50), 0, "an area without a recorded peak stays flat");
+assert.strictEqual(peakless.built.hmax, ECOSYSTEM_HEIGHT_NOISE_SHARE * ECOSYSTEM_HEIGHT_DEFAULT,
+	"ohne Gipfel und ohne gespeicherte Höhe wird abgeleitet wie bei einem Gipfel ohne Höhe");
+assert.strictEqual(peakless.built.usedDefaultHeight, true,
+	"und das Feld sagt es, damit die Kachel „mit Vorgabe“ ausweisen kann");
+assert.ok(peakless.built.bumps.length > 0, "es entsteht wirklich ein Feld, nicht bloß ein hmax");
+let peaklessMax = 0;
+for (let y = 2; y < 99; y += 2.7) {
+	for (let x = 2; x < 99; x += 2.7) { peaklessMax = Math.max(peaklessMax, peakless.at(x, y)); }
+}
+assert.ok(peaklessMax > 1000 && peaklessMax <= ECOSYSTEM_HEIGHT_NOISE_SHARE * ECOSYSTEM_HEIGHT_DEFAULT * 1.1,
+	`und es trifft die abgeleitete Höhe (${peaklessMax.toFixed(0)})`);
+// 💣 Der Rand bleibt exakt 0 -- ein Sockel stünde überall, und die Fläche hört an ihrer Kante auf.
+for (let t = 0; t <= 100; t += 2.5) {
+	for (const [x, y] of [[t, 0], [t, 100], [0, t], [100, t]]) {
+		assert.strictEqual(peakless.at(x, y), 0, `abgeleitet bleibt der Rand exakt 0 bei (${x},${y})`);
+	}
+}
+// 💣 REIN ZUSÄTZLICH: eine Fläche MIT Gipfel darf die Ableitung nie sehen, auch ohne gespeicherte
+// Höhe. Sonst überschriebe die Vorgabe die erfasste Gipfelhöhe -- genau die Zahl, die zählt.
+const mitGipfelOhneHoehe = fieldOf(area, [{ publicId: "p", x: 50, y: 50, height: 3000 }]);
+assert.strictEqual(mitGipfelOhneHoehe.built.hmax, 3000, "mit Gipfel gewinnt die Gipfelhöhe");
+assert.ok(!mitGipfelOhneHoehe.built.usedDefaultHeight, "und keine Vorgabe wird gemeldet");
+// Und eine GESPEICHERTE Höhe schlägt die Ableitung ebenfalls -- sie ist eine Entscheidung.
+const gespeichert = fieldOf(area, [], { avgHeight: 900 });
+assert.strictEqual(gespeichert.built.hmax, 900, "eine gespeicherte Höhe gewinnt");
+assert.ok(!gespeichert.built.usedDefaultHeight, "und gilt nicht als Vorgabe");
 // 🪤 Eine eingetragene 0 heisst in diesem Modul überall wörtlich „flach" -- auch hier, und sie darf
 // nicht als „nichts eingestellt" durchgehen.
 assert.strictEqual(fieldOf(area, [], { avgHeight: 0 }).at(50, 50), 0,

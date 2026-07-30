@@ -423,6 +423,10 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		bumps: [],
 		grid: null,
 		hmax: 0,
+		// Gesetzt, wenn die Höhe dieser Fläche ABGELEITET wurde, weil weder ein brauchbarer Gipfel noch
+		// eine gespeicherte Maximalhöhe da war (2026-07-30, siehe den Zweig unten). Der Rasterlauf zählt
+		// sie aus, damit im Knopf steht, welche Raster geschätzt sind statt erfasst.
+		usedDefaultHeight: false,
 		stoppedAtLevel: 0,
 		// Die Umformung des Rauschens: `noiseScale · Rohwert^noiseExponent` (siehe Kopf). 1/1 heisst
 		// „nichts tun" -- ohne eingestellte Durchschnittshöhe bleibt es dabei, und die Skalierung wandert
@@ -465,9 +469,40 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 	//
 	// 🪤 `> 0` und nicht „gesetzt": eine eingetragene 0 heisst in diesem Modul überall wörtlich flach.
 	// Ohne Gipfel UND ohne Maximalhöhe bleibt es flach -- dann gäbe es wirklich nichts abzuleiten.
-	const explicitTarget = Number.isFinite(Number(options.avgHeight)) && options.avgHeight !== null
+	let explicitTarget = Number.isFinite(Number(options.avgHeight)) && options.avgHeight !== null
 		? Number(options.avgHeight)
 		: null;
+
+	// 🔴 DIE ABLEITUNG ZU ENDE FÜHREN (Owner-Entscheid 2026-07-30). NULL heisst in diesem Modul
+	// „ableiten" -- ein unberührter Regler speichert ausdrücklich "" (saveTerrainSettings) --, und für
+	// eine Fläche OHNE brauchbaren Gipfel war nie festgelegt, was dabei herauskommt. Sie blieb flach,
+	// und flach heisst: buildEcosystemHeightStack wirft sie weg und der Rasterlauf meldet „1 fehlt",
+	// ohne zu sagen, woran es liegt.
+	//
+	// Abgeleitet wird genau das, was EIN Gipfel ohne erfasste Höhe ergäbe -- 0,4 x 5.000 = 2.000, beide
+	// Konstanten schon vom Owner entschieden, und exakt die Zahl, die der Dialog als „(auto)" anzeigt.
+	// Damit verhalten sich „kein Gipfel" und „Gipfel ohne Höhe" gleich, statt dass das eine ein Raster
+	// liefert und das andere lautlos nichts. Live war das „Windhagberge" (0 Gipfel, keine Höhe) gegen
+	// „Trollzacken"/„Wal-el-Khômchra" (je 1 Gipfel ohne Höhe) -- dieselbe fehlende Auskunft, zwei
+	// verschiedene Ergebnisse.
+	//
+	// 🪤 `=== null`, NICHT `!(… > 0)`: eine eingetragene 0 heisst in diesem Modul überall wörtlich
+	// „flach" und ist eine Entscheidung. Sie darf nicht als „nichts eingestellt" durchgehen.
+	//
+	// 💣 REIN ZUSÄTZLICH -- der Zweig darf nur greifen, wenn die Fläche sonst FLACH bliebe. Eine Fläche
+	// mit Gipfel rechnet Zahl für Zahl weiter wie vorher; würde die Vorgabe dort mitlaufen, überschriebe
+	// sie über `target` (unten) die erfasste Gipfelhöhe, also genau die Zahl, die zählt.
+	const deriveDefaultTarget = () => {
+		if (explicitTarget !== null) {
+			return;
+		}
+		explicitTarget = ECOSYSTEM_HEIGHT_NOISE_SHARE * ECOSYSTEM_HEIGHT_DEFAULT;
+		field.usedDefaultHeight = true;
+	};
+
+	if (own.length === 0) {
+		deriveDefaultTarget();
+	}
 	if (own.length === 0 && !(explicitTarget > 0)) {
 		return field;
 	}
@@ -514,7 +549,13 @@ function buildEcosystemHeightField(area, peaks, peakWindow, options = {}) {
 		field.peakBumps.push({ x, y, r: radius, a: height, i: 1 / (radius * radius) });
 	});
 	// Derselbe Riegel ein zweites Mal: Gipfel können hier noch wegfallen (einer genau auf dem Rand trägt
-	// keinen Buckel). Ohne Buckel UND ohne eingetragene Maximalhöhe bleibt die Fläche flach.
+	// keinen Buckel). Und darum wird hier auch ein zweites Mal abgeleitet: eine Fläche, deren einziger
+	// Gipfel auf der Kante liegt, hat oben `own.length > 0` und käme sonst genau so lautlos flach hier
+	// heraus wie „Windhagberge" ohne jeden Gipfel -- dieselbe Lücke, nur eine Zeile später.
+	if (field.peakBumps.length === 0) {
+		deriveDefaultTarget();
+	}
+	// Nur eine ausdrückliche 0 kommt jetzt noch hier durch, und die heisst wörtlich flach.
 	if (field.peakBumps.length === 0 && !(explicitTarget > 0)) {
 		return field;
 	}
@@ -976,6 +1017,9 @@ if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		ECOSYSTEM_HEIGHT_LEVELS,
 		ECOSYSTEM_HEIGHT_DEFAULT,
+		// Exportiert seit 2026-07-30: die Ableitung für eine Fläche ohne Gipfel ist das PRODUKT der
+		// beiden Konstanten, und der Test soll gegen die Konstanten prüfen, nicht gegen eine 2000.
+		ECOSYSTEM_HEIGHT_NOISE_SHARE,
 		ECOSYSTEM_HEIGHT_PLACEHOLDER,
 		ECOSYSTEM_HEIGHT_NOISE_MEAN_RATIO,
 		ECOSYSTEM_NOISE_EXPONENT_MIN,

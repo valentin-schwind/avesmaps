@@ -82,13 +82,23 @@ for (const [px, py] of [[40, 50], [200, 50]]) {
 	}
 }
 
-// 6. Outside everything is zero, and an area without any peak stays flat rather than inventing a
-//    mountain (see the height field: the noise level is derived from the peaks of that area).
+// 6. Outside everything is zero. 🔴 CHANGED 2026-07-30: an area without any peak no longer stays flat
+//    -- it derives the height ONE HEIGHTLESS PEAK would give it, and therefore reaches the stack at all.
+//    Staying flat meant being dropped here (only fields with bumps are kept), and dropped meant the
+//    raster run reported „n fehlen" with no hint that a maximum height was the fix. See the height
+//    field's own test 8 for the rule and why an explicit 0 still means flat.
 assert.strictEqual(at(400, 400), 0, "empty ground is flat");
 const peakless = buildEcosystemHeightStack(
 	[{ public_id: "empty", geometry: box(300, 300, 400, 400), geometry_revision: 1 }], []);
-assert.strictEqual(sampleEcosystemHeightStack(peakless, 350, 350), 0,
-	"an area with no recorded peak stays flat");
+assert.strictEqual(peakless.fields.length, 1, "a peakless area now reaches the stack");
+assert.ok(peakless.fields[0].usedDefaultHeight, "and it says its height was derived");
+assert.ok(sampleEcosystemHeightStack(peakless, 350, 350) > 0,
+	"an area with no recorded peak carries terrain instead of vanishing");
+// 💣 Und die Gegenprobe, die die Regel begrenzt: eine ausdrückliche Maximalhöhe 0 heisst wörtlich flach
+// und fällt weiter heraus. Ohne diese Zusicherung wäre aus „Vorgabe" ein „immer irgendwas" geworden.
+const ausdruecklichFlach = buildEcosystemHeightStack(
+	[{ public_id: "flat", geometry: box(300, 300, 400, 400), geometry_revision: 1, terrain_avg_height: 0 }], []);
+assert.strictEqual(ausdruecklichFlach.fields.length, 0, "an explicit maximum height of 0 stays flat");
 
 // 7. Deterministic: same input, same answer.
 assert.strictEqual(at(120, 50),
@@ -130,9 +140,22 @@ for (const [x, y] of [[300, 350], [400, 350], [350, 300], [350, 400]]) {
 	assert.strictEqual(sampleEcosystemHeightStack(stapelOhne, x, y), 0,
 		`und ihr Rand bleibt exakt 0 bei (${x},${y})`);
 }
-// Ohne Maximalhöhe bleibt sie draussen -- der Stapel wird nicht mit flachen Feldern geflutet.
+// 🔴 GEÄNDERT 2026-07-30. Bis hierher blieb eine Fläche ohne Gipfel UND ohne gespeicherte Maximalhöhe
+// draussen, mit der Begründung „der Stapel wird nicht mit flachen Feldern geflutet". Der Preis dafür war
+// live sichtbar: „Windhagberge" fiel lautlos aus dem Rasterlauf, gemeldet als „1 fehlt", während
+// „Trollzacken"/„Wal-el-Khômchra" mit genauso wenig Auskunft ein Raster bekamen -- nur weil sie je einen
+// Gipfel OHNE Höhe enthalten, der mit der Vorgabe 5.000 rechnet. Jetzt leitet die gipfellose Fläche
+// dasselbe ab und ist dabei, und der Editor bekommt die Fälle NAMENTLICH gemeldet statt als Zahl.
+const abgeleitet = buildEcosystemHeightStack(
+	[{ public_id: "abgeleitet", geometry: box(300, 300, 400, 400), geometry_revision: 1 }], []);
+assert.strictEqual(abgeleitet.fields.length, 1,
+	"ohne Gipfel UND ohne Maximalhöhe wird abgeleitet, die Fläche ist im Stapel");
+assert.ok(abgeleitet.fields[0].usedDefaultHeight, "und sie ist als Vorgabe gekennzeichnet");
+// 💣 Der Riegel bleibt für die AUSDRÜCKLICHE 0 -- sonst wäre aus „Vorgabe" ein „immer irgendwas" geworden
+// und der Stapel würde tatsächlich mit Feldern geflutet, die niemand wollte.
 assert.strictEqual(buildEcosystemHeightStack(
-	[{ public_id: "flach", geometry: box(300, 300, 400, 400), geometry_revision: 1 }], []).fields.length, 0,
-	"ohne Gipfel UND ohne Maximalhöhe bleibt die Fläche aus dem Stapel");
+	[{ public_id: "flach", geometry: box(300, 300, 400, 400), geometry_revision: 1, terrain_avg_height: 0 }],
+	[]).fields.length, 0,
+	"eine ausdrückliche Maximalhöhe 0 heisst flach und bleibt draussen");
 
 console.log("ecosystem-height-combine: all assertions passed");

@@ -540,6 +540,10 @@ let assignmentStamp = null;      // was der Server über den letzten gespeichert
 const PEAKS_API = "/api/edit/map/peaks-geometry.php";
 let allPeaks = null;             // null = in dieser Sitzung noch nicht geholt
 let heightmapStatus = null;      // was der Server über die gespeicherten Raster sagt
+// Was der LETZTE Lauf in DIESER Sitzung gesehen hat: „3 mit Vorgabe · 1 flach". Der Server weiss das
+// nicht -- er kennt nur, ob ein Raster daliegt, nicht woraus es gerechnet wurde. Nach einem Neuladen
+// ist die Notiz leer, und dann behauptet die Kachel sie auch nicht.
+let heightmapRunNote = "";
 let terrainProfileStatus = null; // was der Server über die gespeicherten Wegprofile sagt
 
 async function loadPeaks() {
@@ -1058,11 +1062,37 @@ async function runHeightmaps() {
 			bytes += Number(result.stored_bytes || 0);
 		}
 
+		// 🔴 SAGEN, WORAN ES LIEGT (Owner 2026-07-30). Vorher stand im Knopf nur „n fehlen" -- eine Zahl,
+		// die nach einem Fehlschlag aussah und nicht verriet, dass eine Maximalhöhe der Ausweg ist. Beide
+		// Listen liegen hier schon: was die Vorgabe benutzt hat, sagt das Feld selbst; was gar kein Feld
+		// hat, ist die Differenz zu `areaIdsByField`.
+		const nameOf = (areaId) => {
+			const treffer = gebirge.find((kandidat) => String(kandidat.public_id) === String(areaId));
+			return treffer ? (treffer.region_name || areaId) : areaId;
+		};
+		const abgeleitet = stack.fields
+			.map((feld, i) => (feld && feld.usedDefaultHeight ? nameOf(stack.areaIdsByField[i]) : null))
+			.filter(Boolean);
+		// Nach der Ableitung bleibt hier nur noch, wer eine ausdrückliche Maximalhöhe 0 trägt -- eine
+		// Entscheidung, kein Versehen. Trotzdem benannt: sonst ist „fehlt" wieder eine stumme Zahl.
+		const flach = gebirge
+			.filter((flaeche) => !stack.areaIdsByField.includes(String(flaeche.public_id)))
+			.map((flaeche) => flaeche.region_name || flaeche.public_id);
+
 		heightmapStatus = await ecoPost("heightmap_status", {});
+		heightmapRunNote = [
+			abgeleitet.length ? abgeleitet.length + " mit Vorgabe" : "",
+			flach.length ? flach.length + " flach" : "",
+		].filter(Boolean).join(" · ");
 		renderHeightmapTile();
 		const seconds = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
 		flashStatus(written + " Raster gespeichert (" + Math.round(bytes / 1024) + " KB) in " + seconds + " s"
-			+ (skipped > 0 ? " · " + skipped + " Fläche(n) verschwunden" : ""), "ok");
+			+ (skipped > 0 ? " · " + skipped + " Fläche(n) verschwunden" : "")
+			// Namentlich, nicht als Zahl: nur so weiss der Redakteur, wo er eine Höhe nachtragen kann.
+			+ (abgeleitet.length ? " · Höhe abgeleitet bei " + abgeleitet.join(", ")
+				+ " (keine Maximalhöhe eingetragen, kein Gipfel)" : "")
+			+ (flach.length ? " · flach geblieben: " + flach.join(", ") + " (Maximalhöhe steht auf 0)" : ""),
+			"ok");
 	} catch (error) {
 		info.textContent = "fehlgeschlagen";
 		// 🪤 `"bad"`, nicht `"error"`. setStatus kennt genau zwei Töne, `ok` und `bad`; alles andere
@@ -1091,6 +1121,9 @@ function renderHeightmapTile() {
 	const parts = [(total - missing - stale) + "/" + total + " Raster"];
 	if (stale > 0) { parts.push(stale + " veraltet"); }
 	if (missing > 0) { parts.push(missing + " fehlen"); }
+	// Aus dem letzten Lauf dieser Sitzung, sonst leer. Steht VOR der Gipfelzahl, weil es eine Aussage
+	// über diese Flächen ist und nicht über den Bestand.
+	if (heightmapRunNote !== "") { parts.push(heightmapRunNote); }
 	parts.push(heightmapStatus.peaks_with_height + "/" + heightmapStatus.peaks_total + " Gipfel mit Höhe");
 	info.textContent = parts.join(" · ");
 }
