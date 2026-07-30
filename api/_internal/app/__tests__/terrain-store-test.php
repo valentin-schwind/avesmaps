@@ -143,6 +143,66 @@ assert(abs($threeLegs['profile'][1][1] - 1000.0) < 1.0, 'the second leg carries 
 // different answers, and today 51 of 67 peaks carry no height at all.
 assert(avesmapsTerrainProfileForLine([$ramp], [[900.0, 900.0], [901.0, 900.0]]) === null,
     'a way beyond every bbox has NO data -- it is not level ground');
+
+// ---- 🔴 THE STEEP SUMS: the two numbers the Leistungskilometer actually charges ----------
+//
+// Every piece stores FOUR values: ascent, descent, steep ascent, steep descent. The steep halves are
+// what the model bills a descent by (150 Schritt per Leistungsmeile, but only past 20 % gradient), and
+// a steep ascent one way IS a steep descent the other -- so both must be stored or the reverse
+// direction cannot be priced.
+//
+// 💣 UNTESTED, THIS IS THE SILENT FAILURE: hand the threshold the SEGMENT length instead of the
+// SAMPLE step and every gradient looks far gentler, every steep sum comes out zero, and every descent
+// on the map becomes free. Nothing else in the suite would notice.
+assert(count($profile['profile'][0]) === 4,
+    'a profile piece carries four values, not two -- the count doubles as the format guard in the router');
+
+// The ramp climbs 2.000 Schritt over 2 units = 33 % -- steep in BOTH directions, all of it.
+assert(abs($profile['profile'][0][2] - 2000.0) < 1.0,
+    'a 33 % climb is steep throughout, got ' . $profile['profile'][0][2]);
+assert(abs($profile['profile'][0][3] - 2000.0) < 1.0,
+    'and so is the 33 % fall, got ' . $profile['profile'][0][3]);
+
+// A gentle ramp: 100 Schritt per unit = 3,3 % -- under the threshold, so NOTHING is steep.
+$gentle = avesmapsHeightmapDecode([
+    'origin_x' => '0.0000', 'origin_y' => '0.0000', 'cell_size_mapunits' => '1.0000',
+    'width_px' => 5, 'height_px' => 1,
+    'samples' => gzdeflate(pack('v*', 0, 100, 200, 100, 0)), 'sample_bytes' => 10,
+]);
+$gentle['area_id'] = 2;
+$gentle['min_x'] = 0.0; $gentle['min_y'] = 0.0; $gentle['max_x'] = 4.0; $gentle['max_y'] = 0.0;
+$gentleProfile = avesmapsTerrainProfileForLine([$gentle], [[0.0, 0.0], [4.0, 0.0]]);
+assert(abs($gentleProfile['ascent'] - 200.0) < 1.0, 'the gentle ramp still climbs 200 Schritt');
+assert($gentleProfile['profile'][0][2] === 0.0 && $gentleProfile['profile'][0][3] === 0.0,
+    'at 3,3 % nothing is steep -- a gentle descent must cost nothing at all');
+
+// 💣 THE ONE THAT PINS THE PER-SAMPLE RULE. This segment AVERAGES 7,5 % -- gentle -- but its
+// first unit climbs 900 Schritt over one unit, which is 30 %. Decide the threshold from the average and
+// the steep sum is zero; decide it per sample and it is the whole 900. Real ground is not smooth, and
+// this is exactly the case the infobox warns about.
+$mixed = avesmapsHeightmapDecode([
+    'origin_x' => '0.0000', 'origin_y' => '0.0000', 'cell_size_mapunits' => '1.0000',
+    'width_px' => 5, 'height_px' => 1,
+    'samples' => gzdeflate(pack('v*', 0, 900, 900, 900, 900)), 'sample_bytes' => 10,
+]);
+$mixed['area_id'] = 3;
+$mixed['min_x'] = 0.0; $mixed['min_y'] = 0.0; $mixed['max_x'] = 4.0; $mixed['max_y'] = 0.0;
+$mixedProfile = avesmapsTerrainProfileForLine([$mixed], [[0.0, 0.0], [4.0, 0.0]]);
+$averageGradient = $mixedProfile['ascent'] / (4.0 * AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE);
+assert($averageGradient < AVESMAPS_TERRAIN_LKM_DESCENT_THRESHOLD,
+    'the segment average must be GENTLE for this test to mean anything, got '
+    . round(100 * $averageGradient, 1) . ' %');
+assert(abs($mixedProfile['profile'][0][2] - 900.0) < 1.0,
+    'the steep stretch inside a gentle segment must be counted -- per sample, not per average, got '
+    . $mixedProfile['profile'][0][2]);
+
+// A steep sum can never exceed the total it is a part of.
+foreach ([$profile, $gentleProfile, $mixedProfile] as $checked) {
+    foreach ($checked['profile'] as $piece) {
+        assert($piece[2] <= $piece[0] + 1e-6 && $piece[3] <= $piece[1] + 1e-6,
+            'the steep half of a climb or fall cannot be larger than the climb or fall itself');
+    }
+}
 assert(avesmapsTerrainProfileForLine([], [[0.0, 0.0], [4.0, 0.0]]) === null,
     'no raster at all is no data');
 
