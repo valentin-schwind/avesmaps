@@ -15,6 +15,7 @@ declare(strict_types=1);
 // saturated the PHP pool on 2026-07-17.
 
 require_once __DIR__ . '/path-ecosystem.php';
+require_once __DIR__ . '/app-setting.php';
 
 // Ways one request may ask about. A measured route (Gareth -> Thorwal) has 45 legs, so this is far
 // above anything real -- it exists so a single request stays small however the stock grows. Over the

@@ -583,7 +583,15 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     // inflating.
     //
     // max_x / max_y are STORED generated columns so „which rasters cover this box" is an INDEXED
-    // query that never touches the blob.
+    // query that never touches the blob. `(width_px - 1)` / `(height_px - 1)`, NOT `width_px` /
+    // `height_px`: the raster's last SAMPLE sits at `origin + (n - 1) * cell`, the same bound
+    // heightmap.php computes in PHP (avesmapsHeightmapLoadAll). This generated column is the
+    // authoritative definition; heightmap.php mirrors it.
+    //
+    // 💣 `CREATE TABLE IF NOT EXISTS` does not ALTER an existing table. On a database where this
+    // table was already created with the old (off-by-one) expression, max_x/max_y stay wrong until
+    // corrected by hand -- harmless today only because nothing reads max_x, max_y or
+    // idx_heightmap_bbox (verified by grep).
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS ecosystem_area_heightmap (
             area_id INT UNSIGNED NOT NULL,
@@ -592,8 +600,8 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             origin_y DECIMAL(10,4) NOT NULL,
             width_px SMALLINT UNSIGNED NOT NULL,
             height_px SMALLINT UNSIGNED NOT NULL,
-            max_x DECIMAL(10,4) AS (origin_x + width_px  * cell_size_mapunits) STORED,
-            max_y DECIMAL(10,4) AS (origin_y + height_px * cell_size_mapunits) STORED,
+            max_x DECIMAL(10,4) AS (origin_x + (width_px  - 1) * cell_size_mapunits) STORED,
+            max_y DECIMAL(10,4) AS (origin_y + (height_px - 1) * cell_size_mapunits) STORED,
             samples LONGBLOB NOT NULL,
             sample_bytes INT UNSIGNED NOT NULL,
             geometry_revision INT UNSIGNED NOT NULL,

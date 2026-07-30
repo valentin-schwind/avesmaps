@@ -97,9 +97,9 @@ Some technical diagnostic queries may currently still exist via `GET /api/route/
 ### Terrain (V11)
 
 The travel time of a leg is multiplied by a **slope factor** derived from the stored height
-rasters, when the owner switch `terrain_travel_enabled` is on. The **shape** of the response is
-unchanged; the **values** of `cost` and `segments[].cost_units` change. `distance_units` does not —
-distance is geometry.
+rasters, when the owner switch `terrain_travel_enabled` is on. The response **gains fields** (below);
+no existing field is removed or renamed. The **values** of `cost` and `segments[].cost_units` change
+once the switch is on. `distance_units` does not — distance is geometry.
 
 | Field | Where | Meaning |
 |---|---|---|

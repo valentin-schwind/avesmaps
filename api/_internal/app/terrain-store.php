@@ -135,6 +135,11 @@ function avesmapsTerrainPeaksFingerprint(array $peaks, array $heightAreas): stri
 function avesmapsTerrainReadStampInputs(PDO $pdo): array
 {
     $peaks = [];
+    // 💣 THE SUBTYPE LIST IS THE MODULE'S, NOT A THIRD ONE. `berggipfel` and `vulkan` are what
+    // ECOSYSTEM_PEAK_SUBTYPES in map-features-ecosystem-height-field.js reads, and what
+    // AVESMAPS_PEAK_LABEL_SUBTYPES in api/edit/map/peaks-geometry.php already repeats for the same
+    // reason -- PHP cannot read the JS constant. Repeated here WITH this note, so the next change
+    // touches all three.
     $statement = $pdo->query(
         "SELECT public_id, geometry_json, properties_json FROM map_features
           WHERE feature_type = 'label' AND is_active = 1
