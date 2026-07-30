@@ -56,10 +56,22 @@ const unknown = build({});
 assert.strictEqual(unknown.properties.ascent_schritt, null, "ohne Höhendaten ist es null, NICHT 0");
 assert.strictEqual(unknown.properties.descent_schritt, null, "beide Hälften");
 
+// 💣 Dieselbe Regel für die steilste Stelle: `|| 0` daraus machte aus „unbekannt" ein gemessenes
+// „eben", und die Etappenzeile schriebe „max. 0 % Steigung" über einen unvermessenen Gebirgspass.
+const steep = build({ ascent_schritt: 669, descent_schritt: 0, max_ascent_gradient: 0.21, max_descent_gradient: 0 });
+assert.strictEqual(steep.properties.max_ascent_gradient, 0.21, "die steilste Stelle reist mit");
+assert.strictEqual(steep.properties.max_descent_gradient, 0, "ein gemessenes 0-Gefälle bleibt 0");
+assert.strictEqual(unknown.properties.max_ascent_gradient, null, "ohne Daten null, NICHT 0");
+assert.strictEqual(unknown.properties.max_descent_gradient, null, "beide Hälften");
+
 // ---- der Leser: summiert über die Segmente DER ETAPPE -------------------------------------------
+// Die zwei gemessenen Segmente tragen zusätzlich ihre steilste Stelle (0,21 = 21 %) -- die
+// summiert sich NICHT, sie ist ein Maximum.
 const segments = [
-	{ properties: { ascent_schritt: 669, descent_schritt: 0 } },     // 0: bergauf
-	{ properties: { ascent_schritt: 52, descent_schritt: 1930 } },   // 1: bergab
+	{ properties: { ascent_schritt: 669, descent_schritt: 0,
+		max_ascent_gradient: 0.21, max_descent_gradient: 0 } },        // 0: bergauf
+	{ properties: { ascent_schritt: 52, descent_schritt: 1930,
+		max_ascent_gradient: 0.04, max_descent_gradient: 0.34 } },     // 1: bergab
 	{ properties: { ascent_schritt: null, descent_schritt: null } }, // 2: keine Daten
 	{ properties: { ascent_schritt: 0, descent_schritt: 0 } },       // 3: gemessen eben
 	{ properties: { ascent_schritt: 100 } },                         // 4: halbes Paar, kaputt
@@ -69,22 +81,38 @@ const segments = [
 // 💣 DIE ZUSICHERUNG, UM DIE ES GEHT: zwei Segmente, EIN Eintrag, BEIDE Zahlen addiert. Wer nur das
 // erste Segment liest, bekommt 669/0 und behauptet, es gehe nur bergauf.
 assert.deepStrictEqual(routeEntryTerrain({ segmentIndexes: [0, 1] }, segments),
-	{ ascent: 721, descent: 1930, known: 2 },
+	{ ascent: 721, descent: 1930, maxAscent: 0.21, maxDescent: 0.34, known: 2 },
 	"eine Etappe aus zwei Segmenten addiert Anstieg UND Gefälle");
 
+// 💣 UND DIE STEILSTE STELLE WIRD NICHT ADDIERT. 0,21 und 0,04 sind 21 % und 4 %, nicht 25 %;
+// zwei Rampen hintereinander machen keine steilere Rampe. Eine Umsetzung, die das Maximum wie die
+// Summen behandelt, besteht jede andere Zusicherung dieser Datei.
+assert.deepStrictEqual(routeEntryTerrain({ segmentIndexes: [0, 1] }, segments).maxAscent, 0.21,
+	"das Maximum ist das Maximum der Teilmaxima, keine Summe");
+
+// ⭐ Und es ist, anders als die Summen, KEINE Untergrenze: ein Segment ohne Höhendaten kann das
+// Maximum der übrigen nicht verfälschen, also gilt es voll -- die Summe daneben bleibt eine Untergrenze.
+assert.strictEqual(routeEntryTerrain({ segmentIndexes: [1, 2] }, segments).maxDescent, 0.34,
+	"die erfasste steilste Stelle gilt, auch wenn ein Segment der Etappe nichts weiss");
+
+// Fehlt das Feld ganz -- eine Zeile aus der Zeit vor dem 30.07.2026 --, ist das Maximum 0 und die
+// Anzeige lässt es weg, statt „max. 0 %" zu behaupten.
+assert.strictEqual(routeEntryTerrain({ segmentIndexes: [3] }, segments).maxAscent, 0,
+	"ohne das Feld bleibt das Maximum 0, und die Zeile schweigt darüber");
+
 assert.deepStrictEqual(routeEntryTerrain({ segmentIndexes: [0] }, segments),
-	{ ascent: 669, descent: 0, known: 1 }, "ein einzelnes Segment");
+	{ ascent: 669, descent: 0, maxAscent: 0.21, maxDescent: 0, known: 1 }, "ein einzelnes Segment");
 
 // Teilabdeckung: die unbekannten Segmente tragen NICHTS bei — keine geratene Null. Die Summe ist
 // damit eine Untergrenze, und `known` sagt, aus wie vielen Segmenten sie stammt.
 assert.deepStrictEqual(routeEntryTerrain({ segmentIndexes: [0, 2] }, segments),
-	{ ascent: 669, descent: 0, known: 1 },
+	{ ascent: 669, descent: 0, maxAscent: 0.21, maxDescent: 0, known: 1 },
 	"ein Segment ohne Höhendaten steuert nichts bei, statt als 0 zu zählen");
 
 // Gemessen eben ist ein ERGEBNIS und liefert ein Objekt — nicht null. Ob daraus eine Zeile wird,
 // entscheidet die Anzeige, nicht der Rechner.
 assert.deepStrictEqual(routeEntryTerrain({ segmentIndexes: [3] }, segments),
-	{ ascent: 0, descent: 0, known: 1 },
+	{ ascent: 0, descent: 0, maxAscent: 0, maxDescent: 0, known: 1 },
 	"gemessen eben ist ein Ergebnis, kein Fehlen");
 
 // 🪤 Ein halbes Paar ist keine halbe Messung, sondern eine kaputte Zeile — komplett verwerfen,

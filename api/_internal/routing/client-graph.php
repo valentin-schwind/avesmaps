@@ -377,6 +377,10 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
     // parent way's average. `profile_json` holds one [ascent, descent] pair per stored segment of
     // the way, so the vertex range IS the slice.
     $sliceTerrain = avesmapsRouteSliceTerrain($pathTerrain, $fromVertexIndex, $toVertexIndex);
+    if ($sliceTerrain !== null) {
+        // The steepest stretch, from the same entries plus the geometry the router already holds.
+        $sliceTerrain += avesmapsRouteMaxTerrainGradients($sliceTerrain['profile'], $coordinates, $fromVertexIndex);
+    }
     $connection = [
         'distance' => $distance,
         'time' => $distance / $speed,
@@ -476,8 +480,58 @@ function avesmapsRouteApplyTerrainToConnection(array $connection, float $factor,
     $connection['terrain_time_factor'] = $factor;
     $connection['ascent_schritt'] = $reversed ? $sliceTerrain['descent'] : $sliceTerrain['ascent'];
     $connection['descent_schritt'] = $reversed ? $sliceTerrain['ascent'] : $sliceTerrain['descent'];
+    // The steepest stretch, and it turns around with the traveller exactly like the sums do.
+    $connection['max_ascent_gradient'] = $reversed
+        ? ($sliceTerrain['max_descent_gradient'] ?? null) : ($sliceTerrain['max_ascent_gradient'] ?? null);
+    $connection['max_descent_gradient'] = $reversed
+        ? ($sliceTerrain['max_ascent_gradient'] ?? null) : ($sliceTerrain['max_descent_gradient'] ?? null);
 
     return $connection;
+}
+
+/**
+ * PURE: the steepest single stretch of a slice, up and down, as plain gradients.
+ *
+ * 🔴 THE BASELINE IS ONE STORED WEGSTUECK (a vertex pair), not one sample step. Owner decision
+ * 2026-07-30, and it is the better one: measured over 116 land ways, the per-Wegstueck maximum runs at
+ * a median of 8,3 % and a p90 of 21,5 %, while the per-sample maximum (750 Schritt) doubles that and
+ * peaks at 75,1 % -- a number that is a cliff, not a road. A mean Wegstueck is 1,4355 units ≈ 4,3
+ * Meilen, so this answers „how steep does the road get", which is what a traveller plans around.
+ *
+ * ⭐ AND IT NEEDS NOTHING NEW IN THE DATABASE. The per-Wegstueck ascent and descent are already in
+ * `profile_json` -- even in the pre-2026-07-30 rows of two values -- and the length of a vertex pair is
+ * in the geometry the router already holds. So this works before the profile run, unlike the pricing.
+ *
+ * ⚠️ It therefore UNDER-reports a short pitch: a 750-Schritt ramp of 34 % inside a 30-Meilen Wegstueck
+ * shows as 8,9 %. That is the trade the baseline buys, and the wording says „stretch", not „point".
+ *
+ * `$slice` holds the entries for the vertex range starting at `$fromVertexIndex`; entry k belongs to
+ * the pair (from + k, from + k + 1).
+ *
+ * @return array{max_ascent_gradient:?float,max_descent_gradient:?float}
+ */
+function avesmapsRouteMaxTerrainGradients(array $slice, array $coordinates, int $fromVertexIndex): array
+{
+    $maxAscent = null;
+    $maxDescent = null;
+    foreach ($slice as $offset => $piece) {
+        $fromPoint = $coordinates[$fromVertexIndex + $offset] ?? null;
+        $toPoint = $coordinates[$fromVertexIndex + $offset + 1] ?? null;
+        if (!is_array($fromPoint) || !is_array($toPoint) || count($fromPoint) < 2 || count($toPoint) < 2) {
+            continue;
+        }
+        $length = hypot((float) $toPoint[0] - (float) $fromPoint[0], (float) $toPoint[1] - (float) $fromPoint[1]);
+        if ($length <= 0.0) {
+            continue;
+        }
+        $span = $length * AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE;
+        $ascent = (float) ($piece[0] ?? 0.0) / $span;
+        $descent = (float) ($piece[1] ?? 0.0) / $span;
+        $maxAscent = $maxAscent === null ? $ascent : max($maxAscent, $ascent);
+        $maxDescent = $maxDescent === null ? $descent : max($maxDescent, $descent);
+    }
+
+    return ['max_ascent_gradient' => $maxAscent, 'max_descent_gradient' => $maxDescent];
 }
 
 /**
@@ -513,6 +567,10 @@ function avesmapsRouteReverseSubPathConnection(array $connection): array
     $connection['terrain_time_factor'] = $reverseFactor;
     $connection['ascent_schritt'] = $descent;
     $connection['descent_schritt'] = $ascent;
+    // The steepest stretch turns around with everything else.
+    $forwardMaxAscent = $connection['max_ascent_gradient'] ?? null;
+    $connection['max_ascent_gradient'] = $connection['max_descent_gradient'] ?? null;
+    $connection['max_descent_gradient'] = $forwardMaxAscent;
 
     return $connection;
 }
@@ -900,6 +958,10 @@ function avesmapsBuildClientRouteSubPathConnection(array $original, string $from
         $connection['ascent_schritt'] = $ascent;
         $connection['descent_schritt'] = $descent;
         $connection['terrain_profile'] = $terrainProfile;
+        // The steepest stretch of THIS piece. Its profile was cut proportionally, so a Wegstueck the
+        // cut passed through carries a share of its climb over a share of its length -- the gradient
+        // survives the cut, which is the one property that matters here.
+        $connection += avesmapsRouteMaxTerrainGradients((array) $terrainProfile, $coordinates, 0);
     }
 
     return $connection;
@@ -1343,6 +1405,10 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             'terrain_time_factor' => (float) ($segment['terrain_time_factor'] ?? 1.0),
             'ascent_schritt' => array_key_exists('ascent_schritt', $segment) ? (float) $segment['ascent_schritt'] : null,
             'descent_schritt' => array_key_exists('descent_schritt', $segment) ? (float) $segment['descent_schritt'] : null,
+            // The steepest single Wegstueck of this leg, as a plain gradient (0,21 = 21 %), in the
+            // direction travelled. `null` where no height data exists -- same rule as the sums.
+            'max_ascent_gradient' => isset($segment['max_ascent_gradient']) ? (float) $segment['max_ascent_gradient'] : null,
+            'max_descent_gradient' => isset($segment['max_descent_gradient']) ? (float) $segment['max_descent_gradient'] : null,
         ];
     }, $segments, array_keys($segments));
 }

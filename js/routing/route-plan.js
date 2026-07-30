@@ -234,6 +234,8 @@ function routeEntryPathIds(entry, segments) {
 function routeEntryTerrain(entry, segments) {
 	let ascent = 0;
 	let descent = 0;
+	let maxAscent = 0;
+	let maxDescent = 0;
 	let known = 0;
 	(entry?.segmentIndexes || []).forEach((segmentIndex) => {
 		const properties = segments?.[segmentIndex]?.properties || {};
@@ -245,10 +247,17 @@ function routeEntryTerrain(entry, segments) {
 		}
 		ascent += Number(properties.ascent_schritt) || 0;
 		descent += Number(properties.descent_schritt) || 0;
+		// ⭐ Ein MAXIMUM setzt sich anders zusammen als eine Summe -- es ist das Maximum der
+		// Teilmaxima, ganz gleich wie viele Etappen fehlen. Darum ist es hier, anders als die
+		// Summen, keine Untergrenze, sondern der echte Wert des Erfassten.
+		const legMaxUp = Number(properties.max_ascent_gradient);
+		const legMaxDown = Number(properties.max_descent_gradient);
+		if (Number.isFinite(legMaxUp)) { maxAscent = Math.max(maxAscent, legMaxUp); }
+		if (Number.isFinite(legMaxDown)) { maxDescent = Math.max(maxDescent, legMaxDown); }
 		known += 1;
 	});
 
-	return known > 0 ? { ascent, descent, known } : null;
+	return known > 0 ? { ascent, descent, maxAscent, maxDescent, known } : null;
 }
 
 // V11 for the WHOLE route: „Auf und ab" summed over every leg, plus how many legs carry height data
@@ -260,6 +269,8 @@ function routeTerrainTotals(planEntries, segments) {
 	let descent = 0;
 	let coveredMiles = 0;
 	let coveredEntries = 0;
+	let maxAscent = 0;
+	let maxDescent = 0;
 	entries.forEach((entry) => {
 		const terrain = routeEntryTerrain(entry, segments);
 		if (!terrain) {
@@ -269,11 +280,13 @@ function routeTerrainTotals(planEntries, segments) {
 		coveredMiles += Number(entry.distance) || 0;
 		ascent += terrain.ascent;
 		descent += terrain.descent;
+		maxAscent = Math.max(maxAscent, terrain.maxAscent || 0);
+		maxDescent = Math.max(maxDescent, terrain.maxDescent || 0);
 		coveredEntries += 1;
 	});
 
 	return coveredEntries > 0
-		? { ascent, descent, coveredMiles, coveredEntries, totalEntries: entries.length }
+		? { ascent, descent, maxAscent, maxDescent, coveredMiles, coveredEntries, totalEntries: entries.length }
 		: null;
 }
 
@@ -284,6 +297,17 @@ function routeTerrainTotals(planEntries, segments) {
 // runter") auch nicht. Dieselbe Regel wie in der Etappen-Infobox.
 // ⚠️ Die Summe ist eine UNTERGRENZE: nur ein Teil des Wegenetzes traegt Hoehen. Spricht sie nicht fuer
 // alle Etappen, nennt die Zeile fuer wie viele sie spricht -- sonst liest sich eine Teilsumme als der
+// 🔴 Ein Pfeil ist kein Wort: ohne Beschriftung liest ein Screenreader „2.946 Aufwärtspfeil". Jede
+// Richtung trägt deshalb ihr `aria-label` UND ihren Tooltip -- Letzterer beantwortet auch dem sehenden
+// Leser, was der Pfeil bedeutet.
+//
+// 💣 EIN Helfer für BEIDE Anzeigeorte. Die Etappenzeile schrieb „669 Schritt bergauf" aus, bis der
+// Owner sie am 30.07.2026 auf „669 ↑ … Schritt" kürzte, damit die Steigung davor Platz hat. Mit einer
+// eigenen, unbeschrifteten Fassung hätte genau dieser Umbau die Worte aus der Etappenzeile entfernt.
+function routeTerrainDirectionMarkup(arrow, word) {
+	return `<span class="route-plan-summary__dir" title="${escapeHtml(word)}" aria-label="${escapeHtml(word)}">${arrow}</span>`;
+}
+
 // Gesamtanstieg der Reise.
 // Der Hoehenvermerk EINER Etappenzeile: „… durch Weiden, Finsterkamm (12.680 Schritt bergauf, 12.176
 // Schritt bergab)" (Owner 2026-07-30). Steht am Ende der Zeile, die schon Laenge und Dauer nennt --
@@ -300,14 +324,21 @@ function routeEntryTerrainNote(entry, segments) {
 
 	const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
 	const unit = tr("planner.unit.schritt", "Schritt");
-	return ` (${schritt(terrain.ascent)} ${unit} ${tr("planner.leg.up", "bergauf")},`
-		+ ` ${schritt(terrain.descent)} ${unit} ${tr("planner.leg.down", "bergab")})`;
+	// Owner 2026-07-30: „(max. 21 % Steigung, 1.539 ↑, 809 ↓ Schritt)" -- Pfeile statt Worte und die
+	// Einheit nur einmal, wie in der Summenzeile. Fehlt das Maximum, bleibt es bei den zwei Summen.
+	const max = routeTerrainMaxGradient(terrain);
+	const head = max === null
+		? ""
+		: `${tr("planner.leg.maxPrefix", "max.")} ${max.percent} ${max.word}, `;
+	const up = routeTerrainDirectionMarkup("↑", tr("planner.leg.up", "bergauf"));
+	const down = routeTerrainDirectionMarkup("↓", tr("planner.leg.down", "bergab"));
+	return ` (${head}${schritt(terrain.ascent)} ${up}, ${schritt(terrain.descent)} ${down} ${unit})`;
 }
 
 // Ab wann ist es „stark"? Beim Gefaelle, nicht bei der Hoehe -- „240 Schritt auf einer Meile wiegen
 // schwer, dieselben 240 auf zehn Meilen kaum" (so sagt es der Geschwindigkeits-Dialog). 0,05 ist der
-// Punkt, an dem die Steigungskurve des Servers (AVESMAPS_TERRAIN_UP_PENALTY = 5, siehe
-// api/_internal/routing/terrain-factor.php) aus derselben Strecke einen Zeitfaktor von 1,25 macht --
+// Punkt, an dem der Leistungskilometer des Servers (DIN 33466, siehe
+// api/_internal/routing/terrain-factor.php) aus derselben Strecke einen Zeitfaktor von 1,5 macht --
 // ab dort merkt es der Reisende an seiner Ankunftszeit.
 //
 // 💣 Der Hoehenmassstab ist NICHT die Streckeneinheit: 1 Karteneinheit = 3.000 Schritt und 3 Meilen,
@@ -325,6 +356,34 @@ function routeTerrainIsSteep(totals) {
 	return gradient >= ROUTE_TERRAIN_STEEP_GRADIENT;
 }
 
+// 🔴 Ein Wort, das zur groesseren Zahl passt. Ist das steilste Stueck einer Etappe ein GEFAELLE,
+// waere „max. 21 % Steigung" das falsche Wort -- deutsche Strassenbeschilderung nennt das Gefaelle.
+//
+// ⚠️ Die Bezugslaenge ist EIN gespeichertes Wegstueck (im Mittel 4,3 Meilen), nicht ein Abtastpunkt.
+// Die Zahl heisst also „steilste Wegstrecke", nicht „steilste Stelle": ein kurzes Steilstueck von 34 %
+// mitten in einem langen Wegstueck erscheint gemittelt. Gemessen ueber 116 Landwege liegt dieses
+// Maximum im Median bei 8,3 % und im p90 bei 21,5 % -- je Abtastpunkt waere es das Doppelte mit
+// Spitzen bis 75 %, und das ist keine Strasse mehr.
+//
+// 🔴 Gibt die zwei Bausteine zurueck, keinen fertigen Satz: die beiden Anzeigeorte setzen sie
+// ANDERS zusammen. Die Zusammenfassung stellt das Wort voran („Max. Steigung: 21 %“), die
+// Etappenzeile die Zahl („max. 21 % Steigung“). Beides ist der Wortlaut des Owners vom
+// 30.07.2026, und ein gemeinsamer fertiger String koennte nur einer der beiden sein.
+function routeTerrainMaxGradient(terrain) {
+	const up = Number(terrain?.maxAscent) || 0;
+	const down = Number(terrain?.maxDescent) || 0;
+	const steepest = Math.max(up, down);
+	if (steepest <= 0) {
+		return null;
+	}
+	return {
+		percent: `${formatDecimalNumber(Math.round(steepest * 100), 0)} %`,
+		word: down > up
+			? tr("planner.leg.maxDescentGradient", "Gefälle")
+			: tr("planner.leg.maxAscentGradient", "Steigung"),
+	};
+}
+
 function routeTerrainSummaryMarkup(planEntries, segments) {
 	const totals = routeTerrainTotals(planEntries, segments);
 	if (!totals || (totals.ascent <= 0 && totals.descent <= 0)) {
@@ -334,12 +393,9 @@ function routeTerrainSummaryMarkup(planEntries, segments) {
 	const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
 	// 💣 Die Zahlen müssen in EINE Zeile passen (350 px Panel, gemessen): darum die Einheit nur einmal und
 	// die Richtung als Pfeil. Schon ein angehängtes „(8/45)" oder das Wort „Starke" kippt die Zeile um.
+	// Mit der Steigung als Kopf sind es 249 px von 305 px (30.07.2026 nachgemessen, Faculty Glyphic
+	// geladen); der schlimmste Fall 100 % plus fünfstellige Summen liegt bei 261 px.
 	//
-	// 🔴 Ein Pfeil ist kein Wort: ohne Beschriftung liest ein Screenreader „2.946 Aufwärtspfeil". Jede
-	// Richtung trägt deshalb ihr `aria-label` UND ihren Tooltip -- Letzterer beantwortet auch dem
-	// sehenden Leser, was der Pfeil bedeutet.
-	const direction = (arrow, word) =>
-		`<span class="route-plan-summary__dir" title="${escapeHtml(word)}" aria-label="${escapeHtml(word)}">${arrow}</span>`;
 	// „stark" ist eine Auskunft über die Reise und bekommt eine eigene, leise Zeile.
 	const noteLine = routeTerrainIsSteep(totals)
 		? `<span class="route-plan-summary__elevation-note">${tr("planner.summary.elevationSteepNote", "stark")}</span>`
@@ -354,10 +410,17 @@ function routeTerrainSummaryMarkup(planEntries, segments) {
 			total: totals.totalEntries,
 		}))}"`
 		: "";
-	return `<span class="route-plan-summary__elevation"${coverageTitle}>${tr("planner.leg.elevation", "Höhenunterschiede")}: `
-		+ `${schritt(totals.ascent)} ${direction("↑", tr("planner.leg.up", "bergauf"))}`
-		+ ` · ${schritt(totals.descent)} ${direction("↓", tr("planner.leg.down", "bergab"))}`
-		+ ` ${tr("planner.unit.schritt", "Schritt")}${noteLine}</span>`;
+	// Owner 2026-07-30: die steilste Stelle ist die Ueberschrift, die Summen die Fussnote dahinter --
+	// „Max. Steigung: 21 % (2.946 ↑ · 2.946 ↓ Schritt)". Ohne Hoehendaten faellt der Kopf weg und es
+	// bleibt bei den Summen, sonst stuende dort „Max. Steigung: " ohne Zahl.
+	const max = routeTerrainMaxGradient(totals);
+	const sums = `${schritt(totals.ascent)} ${routeTerrainDirectionMarkup("↑", tr("planner.leg.up", "bergauf"))}`
+		+ ` · ${schritt(totals.descent)} ${routeTerrainDirectionMarkup("↓", tr("planner.leg.down", "bergab"))}`
+		+ ` ${tr("planner.unit.schritt", "Schritt")}`;
+	const body = max === null
+		? `${tr("planner.leg.elevation", "Höhenunterschiede")}: ${sums}`
+		: `${tr("planner.summary.maxGradient", "Max.")} ${max.word}: ${max.percent} (${sums})`;
+	return `<span class="route-plan-summary__elevation"${coverageTitle}>${body}${noteLine}</span>`;
 }
 
 function buildRouteLegPopupHtml(entry) {

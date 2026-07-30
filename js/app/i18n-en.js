@@ -80,6 +80,11 @@ window.AVESMAPS_I18N_EN = {
 	"planner.leg.through.short": "through",
 	"planner.leg.elevation": "Elevation change",
 	// „Schritt" is a DSA unit, not a word to translate (AGENTS.md §8).
+	// V11: the steepest single Wegstueck of a leg. „max. 21 % gradient" / „... descent".
+	"planner.leg.maxAscentGradient": "gradient",
+	"planner.leg.maxDescentGradient": "descent",
+	"planner.leg.maxPrefix": "max.",
+	"planner.summary.maxGradient": "Max.",
 	"planner.unit.schritt": "Schritt",
 	"planner.leg.up": "uphill",
 	"planner.leg.down": "downhill",

@@ -353,4 +353,63 @@ assert(!array_key_exists('terrain_time_factor', $offA) && !array_key_exists('ter
 assert($anchoredOff['__wp_anchor_0']['Anfang'][0] === $offA,
     'without terrain both directions must still be the SAME value -- exactly today s behaviour');
 
+// --- 🔴 DIE STEILSTE STELLE, und ihre Bezugslänge ist EIN Wegstück ---------------------------
+// Owner decision 2026-07-30. It needs nothing new in the database: the per-Wegstueck ascent and
+// descent are already stored -- even in the pre-model rows of two values -- and the length of a
+// vertex pair comes from the geometry the router is holding anyway.
+//
+// The fixture network runs 0 -> 10 -> 20 on the x axis, so each Wegstueck is 10 units = 30.000 Schritt.
+$maxCoords = [[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]];
+// First piece climbs 3.000 over 30.000 = 10 %, second falls 6.000 over 30.000 = 20 %.
+$maxima = avesmapsRouteMaxTerrainGradients([[3000.0, 0.0], [0.0, 6000.0]], $maxCoords, 0);
+assert(abs($maxima['max_ascent_gradient'] - 0.10) < 1e-9,
+    'the steeper of the two climbs is 10 %, got ' . var_export($maxima['max_ascent_gradient'], true));
+assert(abs($maxima['max_descent_gradient'] - 0.20) < 1e-9,
+    'and the steeper fall is 20 %, got ' . var_export($maxima['max_descent_gradient'], true));
+
+// 💣 A MAXIMUM, NOT AN AVERAGE. Over the whole way this is 3.000 up and 6.000 down across
+// 60.000 Schritt -- 5 % and 10 %. Averaging halves both and hides the steep piece, which is the
+// entire reason the number is displayed.
+$maxWhole = avesmapsRouteMaxTerrainGradients([[3000.0, 6000.0]], [[0.0, 0.0], [20.0, 0.0]], 0);
+assert(abs($maxWhole['max_ascent_gradient'] - 0.05) < 1e-9,
+    'one long piece can only average its own gradient -- that is the floor of the resolution');
+assert($maxima['max_descent_gradient'] > $maxWhole['max_descent_gradient'],
+    'two pieces must expose a steeper stretch than one averaged piece over the same ground');
+
+// The offset matters: entry k belongs to the vertex pair (from + k, from + k + 1).
+$maxOffset = avesmapsRouteMaxTerrainGradients([[0.0, 6000.0]], $maxCoords, 1);
+assert(abs($maxOffset['max_descent_gradient'] - 0.20) < 1e-9,
+    'a slice starting at vertex 1 must measure against the SECOND pair, not the first');
+
+// Nothing usable -> null, never 0. „Unknown“ and „measured level“ stay apart.
+$maxNone = avesmapsRouteMaxTerrainGradients([], $maxCoords, 0);
+assert($maxNone['max_ascent_gradient'] === null && $maxNone['max_descent_gradient'] === null,
+    'an empty slice knows nothing -- it is not level ground');
+$maxDegenerate = avesmapsRouteMaxTerrainGradients([[500.0, 0.0]], [[3.0, 3.0], [3.0, 3.0]], 0);
+assert($maxDegenerate['max_ascent_gradient'] === null,
+    'a zero-length vertex pair is refused, not divided by');
+
+// --- and it reaches the edge, turned into the direction travelled -------------------------------
+$maxRow = ['w1' => ['ascent' => 3000.0, 'descent' => 6000.0,
+    'profile' => [[3000.0, 0.0, 0.0, 0.0], [0.0, 6000.0, 0.0, 6000.0]], 'revision' => 7, 'stamp' => 'x']];
+$maxGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $maxRow);
+$maxFwd = $maxGraph['graph']['Anfang']['Ende'][0];
+$maxRev = $maxGraph['graph']['Ende']['Anfang'][0];
+assert(abs($maxFwd['max_ascent_gradient'] - 0.10) < 1e-9, 'the edge carries the steepest climb');
+assert(abs($maxFwd['max_descent_gradient'] - 0.20) < 1e-9, 'and the steepest fall');
+// 💣 THE SWAP. The steepest climb one way IS the steepest fall the other -- the same trap that
+// pointed 11 of 45 speed arrows backwards on 2026-07-30.
+assert(abs($maxRev['max_ascent_gradient'] - 0.20) < 1e-9,
+    'traveling back, the 20 % fall becomes the 20 % climb');
+assert(abs($maxRev['max_descent_gradient'] - 0.10) < 1e-9, 'and the 10 % climb becomes the fall');
+
+// A pre-model row of TWO values still yields the maximum -- which is why the display works before
+// the owner ever runs a profile pass, while the pricing stays switched off.
+$maxLegacy = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest,
+    ['w1' => ['ascent' => 3000.0, 'descent' => 0.0,
+        'profile' => [[3000.0, 0.0], [0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']])['graph']['Anfang']['Ende'][0];
+assert(abs($maxLegacy['max_ascent_gradient'] - 0.10) < 1e-9,
+    'a two-value row carries the steepest stretch too -- no profile run needed for the display');
+assert($maxLegacy['terrain_time_factor'] === 1.0, 'while staying unpriced, exactly as before');
+
 fwrite(STDOUT, "terrain-read-test: all asserts passed\n");

@@ -202,6 +202,10 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			// ground. The whole feature rests on those two staying apart.
 			ascent_schritt: serverSegment?.ascent_schritt ?? null,
 			descent_schritt: serverSegment?.descent_schritt ?? null,
+			// V11: die steilste einzelne Wegstrecke dieser Etappe, als reine Steigung (0,21 = 21 %).
+			// 💣 `??`, nicht `|| 0`: eine 0 heisst „gemessen eben", null heisst „nichts bekannt".
+			max_ascent_gradient: serverSegment?.max_ascent_gradient ?? null,
+			max_descent_gradient: serverSegment?.max_descent_gradient ?? null,
 			// V12: the slope factor the SERVER applied, carried exactly like flow_time_factor above.
 			// 🔴 CARRIED, NOT RECOMPUTED. The curve lives in terrain-factor.php and stays there --
 			// a JS copy would be a second source of truth for the one number people take out of this
@@ -276,6 +280,10 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			// null stay different things all the way to the infobox.
 			ascent_schritt: serverSegment?.ascent_schritt ?? null,
 			descent_schritt: serverSegment?.descent_schritt ?? null,
+			// V11: die steilste einzelne Wegstrecke dieser Etappe, als reine Steigung (0,21 = 21 %).
+			// 💣 `??`, nicht `|| 0`: eine 0 heisst „gemessen eben", null heisst „nichts bekannt".
+			max_ascent_gradient: serverSegment?.max_ascent_gradient ?? null,
+			max_descent_gradient: serverSegment?.max_descent_gradient ?? null,
 			// V12: the slope factor the SERVER applied, carried exactly like flow_time_factor above.
 			// 🔴 CARRIED, NOT RECOMPUTED. The curve lives in terrain-factor.php and stays there --
 			// a JS copy would be a second source of truth for the one number people take out of this

@@ -888,7 +888,14 @@
 /* Der Erfassungsvermerk als eigene, leise Zeile. Gemessen bei 350 px Panelbreite: die Zahlen passen
    einzeilig, sobald die Einheit nur einmal steht und die Richtung ein Pfeil ist -- aber schon ein
    angehängtes „(8/45)" oder das Wort „Starke" kippt sie auf zwei Zeilen. Also steht der Vorbehalt
-   darunter statt mittendrin: die Zahl bleibt auf einen Blick lesbar, der Vorbehalt trotzdem sichtbar. */
+   darunter statt mittendrin: die Zahl bleibt auf einen Blick lesbar, der Vorbehalt trotzdem sichtbar.
+
+   Nachgemessen am 30.07.2026, als die steilste Stelle die Ueberschrift der Zeile wurde
+   („Max. Steigung: 21 % (2.946 ↑ · 2.946 ↓ Schritt)"): 249 px von 305 px verfuegbarer
+   Rasterbreite, gegen 247 px vorher -- die Ueberschrift kostet also 2 px, weil die Summen dafuer in
+   eine Klammer wandern. Der schlimmste denkbare Fall (100 % und fuenfstellige Summen) liegt bei
+   261 px, bleibt also einzeilig. Gemessen mit geladener Faculty Glyphic; mit der Arial-Ersatzschrift
+   faellt es breiter aus. */
 .route-plan-summary__elevation-note {
 	display: block;
 	color: var(--color-text-muted);

@@ -186,11 +186,52 @@ const entries = [
 }
 
 // ---- the leg row's own note ----------------------------------------------------------------------
-// „… durch Weiden, Finsterkamm (12.680 Schritt bergauf, 12.176 Schritt bergab)" (Owner 2026-07-30): the
-// same two numbers the leg infobox carries, at the end of the row that already says how long the leg is.
+// „… durch Finsterkamm, Orkland (max. 21 % Steigung, 1.539 ↑, 809 ↓ Schritt)" (Owner 2026-07-30):
+// the steepest stretch first, then the same two sums the leg infobox carries, at the end of the row that
+// already says how long the leg is.
+//
+// 💣 ARROWS, AND THEY MUST STILL CARRY THEIR WORDS. This row wrote „669 Schritt bergauf" out until the
+// gradient needed the room. Shortening it to a bare „669 ↑" would have cost a screen reader the direction
+// entirely -- so both rows go through routeTerrainDirectionMarkup and keep the aria-label.
 {
 	const note = routeEntryTerrainNote({ segmentIndexes: [0] }, segments);
-	assert.strictEqual(note, " (669 Schritt bergauf, 120 Schritt bergab)", `leg note: ${note}`);
+	assert.ok(note.startsWith(" (669 "), `sums first, unit once: ${note}`);
+	assert.ok(note.endsWith(" Schritt)"), `the unit closes the bracket: ${note}`);
+	assert.strictEqual(note.split("Schritt").length - 1, 1, `the unit appears ONCE: ${note}`);
+	assert.ok(note.includes("120 "), `the fall is named: ${note}`);
+	assert.ok(note.includes('aria-label="bergauf"') && note.includes('aria-label="bergab"'),
+		`the leg row's arrows say what they mean: ${note}`);
+}
+
+// ⭐ THE STEEPEST STRETCH, in both rows, and it picks its own word. Owner 2026-07-30. The fixtures
+// above carry no maximum, so the two rows fall back to the pre-30.07. wording -- which is exactly what a
+// route over pre-model rows shows, and it must stay readable.
+{
+	const steep = [{ properties: { public_id: "e", ascent_schritt: 1746, descent_schritt: 2546,
+		max_ascent_gradient: 0.21, max_descent_gradient: 0.09 } }];
+	const legs = [{ segmentIndexes: [0], distance: 12 }];
+	const note = routeEntryTerrainNote(legs[0], steep);
+	assert.ok(note.startsWith(" (max. 21 % Steigung, 1.746 "), `leg row leads with the gradient: ${note}`);
+	const markup = routeTerrainSummaryMarkup(legs, steep);
+	assert.ok(markup.includes("Max. Steigung: 21 % (1.746 "),
+		`the summary makes it the heading and brackets the sums: ${markup}`);
+	assert.ok(!markup.includes("Höhenunterschiede"),
+		`and then the old label is gone -- one heading, not two: ${markup}`);
+
+	// 🔴 A WORD THAT FITS THE BIGGER NUMBER. German road signs call a downhill a Gefälle, and
+	// „max. 34 % Steigung" over a pass that only ever drops is simply the wrong word.
+	const falling = [{ properties: { public_id: "f", ascent_schritt: 120, descent_schritt: 2546,
+		max_ascent_gradient: 0.05, max_descent_gradient: 0.34 } }];
+	const fallingMarkup = routeTerrainSummaryMarkup(legs, falling);
+	assert.ok(fallingMarkup.includes("Max. Gefälle: 34 %"), `downhill picks its word: ${fallingMarkup}`);
+	assert.ok(!fallingMarkup.includes("Steigung"), `and not the other one: ${fallingMarkup}`);
+
+	// 🪤 A pre-model row carries no maximum. Then the heading falls back instead of printing
+	// „Max. Steigung: 0 %" -- the sums are still a measurement and must stay visible.
+	assert.ok(routeTerrainSummaryMarkup(entries, segments).includes("Höhenunterschiede"),
+		"without a maximum the line keeps its old label");
+	assert.ok(!routeEntryTerrainNote({ segmentIndexes: [0] }, segments).includes("max."),
+		"and the leg row says nothing about a gradient it does not know");
 }
 
 // Silent in exactly the cases the other two are: no data, and measured-but-level.
@@ -201,12 +242,12 @@ const entries = [
 	assert.strictEqual(routeEntryTerrainNote({ segmentIndexes: [0] }, level), "", "level -> no note");
 }
 
-// One wording for one thing: „bergauf/bergab", never „rauf/runter". The leg row has room to write it
-// out; the summary line is at its width limit and carries the same words on its arrows instead.
+// One wording for one thing: „bergauf/bergab", never „rauf/runter". Both rows are at their width limit
+// since the gradient joined them, so both carry the words on their arrows rather than in the text.
 {
 	const legNote = routeEntryTerrainNote({ segmentIndexes: [0] }, segments);
-	assert.ok(legNote.includes("Schritt bergauf"), `leg row writes it out: ${legNote}`);
-	assert.ok(legNote.includes("Schritt bergab"), `leg row writes it out: ${legNote}`);
+	assert.ok(legNote.includes('"bergauf"'), `leg row carries the word on its arrow: ${legNote}`);
+	assert.ok(legNote.includes('"bergab"'), `leg row carries the word on its arrow: ${legNote}`);
 
 	const markup = routeTerrainSummaryMarkup(entries, segments);
 	assert.ok(markup.includes('"bergauf"'), `summary carries the word on its arrow: ${markup}`);
