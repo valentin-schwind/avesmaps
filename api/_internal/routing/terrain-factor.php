@@ -98,3 +98,86 @@ function avesmapsTerrainTimeFactor(?float $ascentSchritt, ?float $descentSchritt
 
     return max(AVESMAPS_TERRAIN_FACTOR_MIN, min(AVESMAPS_TERRAIN_FACTOR_MAX, $factor));
 }
+
+// ---- Tobler's hiking function ---------------------------------------------------------------------
+//
+// 🔴 OWNER DECISION 2026-07-30: THE SLOPE FACTOR FOLLOWS TOBLER, not the hand-picked curve above.
+// The same function for every transport for now -- caravan and coach are an open question, and the
+// owner said explicitly: take the same one until it is answered.
+//
+// Why: the curve above was measured against Tobler over the real stock and it splits in two.
+//  - UPHILL it is right, and not by luck. The best linear fit to Tobler over 2…25 % gradient is
+//    k = 4,94 against its own 5,0, and on the four real climbs of Gareth → Thorwal the two agree
+//    within 5 %. The anchor it was built on -- the published table's Gebirgspass 1,5 against
+//    Strasse 4,0 -- lands where the hiking literature lands.
+//  - DOWNHILL it is wrong in the SIGN, not the calibration. Tobler is fastest at a 5 % descent and
+//    back to level speed by 10 %; a steep descent costs as much as a climb. The old curve handed out
+//    a bonus all the way to 25 % and only started braking at 50 %. On the one real descent of that
+//    route it said 0,856 (14 % faster) where Tobler says 1,371 (37 % slower) -- a factor of 1,6 apart,
+//    on opposite sides of 1,0.
+//
+// 💣 AND IT MUST BE INTEGRATED PER SAMPLE, NOT APPLIED TO A LEG'S SUMS. The function is convex, so
+// f(mean) != mean(f): a leg that climbs 500 and falls 500 is not a level leg. The old curve pooled the
+// two (`+5·up − 1,5·down`), which let a rolling road's descents pay off part of its climbs. Tobler
+// charges for both, which is why the profile run walks the samples and stores the RESULT.
+const AVESMAPS_TERRAIN_TOBLER_BASE_KMH = 6.0;
+const AVESMAPS_TERRAIN_TOBLER_DECAY = 3.5;
+// The offset is what makes the fastest walking a gentle DESCENT rather than the level: -5 %.
+const AVESMAPS_TERRAIN_TOBLER_OFFSET = 0.05;
+
+/** PURE: Tobler's walking speed in km/h. `$slope` is dimensionless, positive uphill. */
+function avesmapsTerrainToblerSpeed(float $slope): float
+{
+    return AVESMAPS_TERRAIN_TOBLER_BASE_KMH
+        * exp(-AVESMAPS_TERRAIN_TOBLER_DECAY * abs($slope + AVESMAPS_TERRAIN_TOBLER_OFFSET));
+}
+
+/**
+ * PURE: the TIME factor for one constant slope -- W(0) / W(slope), written as the one exp() it
+ * collapses to (verified identical to the ratio form).
+ *
+ * ⚠️ NOT clamped here. The clamp belongs to the leg, after integration; clamping a single sample would
+ * change what the integral means.
+ */
+function avesmapsTerrainToblerFactor(float $slope): float
+{
+    return exp(AVESMAPS_TERRAIN_TOBLER_DECAY
+        * (abs($slope + AVESMAPS_TERRAIN_TOBLER_OFFSET) - AVESMAPS_TERRAIN_TOBLER_OFFSET));
+}
+
+/**
+ * PURE: the time factor of ONE traversal, integrated over its height samples.
+ *
+ * `$heights` are the sampled heights in Schritt along the traversal, IN THE DIRECTION TRAVELLED, and
+ * `null` where no raster covers the point. `$stepMapunits` is the distance between two samples.
+ *
+ * Returns the ratio „time under Tobler" / „time on the level over the same covered distance", so it
+ * composes exactly like the old factor: an edge spanning several pieces is
+ * `sum(factor_i * length_i) / sum(length_i)`.
+ *
+ * 💣 A GAP BREAKS THE CHAIN, it does not bridge it. Two samples with unknown ground between them would
+ * otherwise be read as one long constant slope. Same rule as avesmapsTerrainProfileForLine.
+ *
+ * Returns null when no pair of neighbouring samples is covered at all -- „no height data", never 1.0.
+ */
+function avesmapsTerrainToblerFactorForSamples(array $heights, float $stepMapunits): ?float
+{
+    if ($stepMapunits <= 0.0) {
+        return null;
+    }
+    $count = count($heights);
+    $time = 0.0;
+    $distance = 0.0;
+    for ($index = 1; $index < $count; $index++) {
+        $from = $heights[$index - 1];
+        $to = $heights[$index];
+        if ($from === null || $to === null) {
+            continue;
+        }
+        $slope = ((float) $to - (float) $from) / ($stepMapunits * AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE);
+        $time += $stepMapunits * avesmapsTerrainToblerFactor($slope);
+        $distance += $stepMapunits;
+    }
+
+    return $distance > 0.0 ? $time / $distance : null;
+}
