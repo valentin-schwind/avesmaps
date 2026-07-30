@@ -243,8 +243,12 @@ Perzentile nearest-rank, **je Größe getrennt gebildet** — die Zeile „p90" 
 gemessen ebenen Boden — das Gelände wirkt auf ein knappes Zehntel des Bestands und dort wieder nur
 auf dessen Ränder.
 
-**Kleinster tatsächlich vorkommender Faktor** (Spec §10.4): **0,8126** je Wegstück, 0,8129 je Weg.
-Das Kurvenminimum 0,8125 ist damit praktisch erreicht — die theoretische Schranke ist die echte.
+**Kleinster tatsächlich vorkommender Faktor** (Spec §10.4): **0,8126** je Wegstück, 0,8129 je Weg —
+und über beide Fahrtrichtungen **genau 0,8125**, das Kurvenminimum. Die theoretische Schranke ist die
+echte.
+
+⚠️ **Alle Tabellen dieses Abschnitts stehen in der gespeicherten Eckenrichtung**, weil `path_terrain`
+so speichert. Für die Klemmenfrage ist das nicht genug — siehe den Kasten weiter unten.
 
 ### Die zehn am stärksten verlangsamten Wege
 
@@ -262,6 +266,8 @@ Das Kurvenminimum 0,8125 ist damit praktisch erreicht — die theoretische Schra
 | Pfad-3676 | Pfad | 448 | 0 | 1,163 | 12,84 % | 1,6421 |
 
 Die Koschberge-Querung aus §2 ist hier die „Reichsstraße 3" — sie ist **Platz 7**, nicht die Spitze.
+Sie zeigt zugleich, was die Richtungsabhängigkeit anrichtet: gespeichert steigt sie um 1.930 (Faktor
+1,8246), auf der Route Gareth → Thorwal wird sie **abwärts** befahren und trägt dort 0,8561.
 
 ### Die zehn am stärksten verlangsamten Wegstücke
 
@@ -298,26 +304,43 @@ nicht „irgendwo tief drin", sondern das Steilste, dem ein Reisender überhaupt
 
 ### 🔴 Die Klemmen-Frage, jetzt mit Datengrundlage
 
-| | Vorgabe | gemessen über 4.300 Wegstücke |
-|---|---|---|
-| obere Klemme | 4,0 | **0** erreichen sie; höchster Faktor **3,1783** |
-| Sättigung bergauf | Steigung 0,60 | **0** erreichen sie; steilste Steigung **43,97 %** |
-| untere Klemme | 0,5 | **0** erreichen sie; kleinster Faktor **0,8126** |
+🔴 **Alle Zahlen bis hierher stehen in der GESPEICHERTEN Eckenrichtung des Wegs — und das ist nicht
+die Frage, die die Klemme stellt.** Ein Weg wird in beiden Richtungen befahren, Anstieg und Gefälle
+tauschen dabei (`avesmapsRouteReverseTerrain`), und die Kurve ist **nicht symmetrisch**: bergauf
+straft sie linear, bergab belohnt sie erst und bremst dann quadratisch. Weil das größte **Gefälle**
+(6.650) größer ist als der größte **Anstieg** (5.229), liegt das wahre Maximum in der Rückrichtung.
+Maßgeblich ist also `max` über beide Richtungen je Zeile:
 
-Wie viele Wegstücke eine Klemme heute treffen würde:
+| | Vorgabe | gespeicherte Richtung | **über beide Richtungen** |
+|---|---|---|---|
+| höchster Faktor je Wegstück | — | 3,1783 | **3,6019** |
+| höchster Faktor je Weg | — | 3,0388 | 3,0388 |
+| obere Klemme | 4,0 | 0 von 4.300 | **0 von 4.300** |
+| Sättigung bergauf | Steigung 0,60 | 43,97 % | **52,04 %** |
+| untere Klemme | 0,5 | 0 von 4.300 | **0**; kleinster Faktor **0,8125** |
+
+Das steilste Stück, dem ein Reisender überhaupt begegnen kann, ist der **Vildrom** — ein **Flussweg**,
+Gefälle 687,1 auf 0,440 Einheiten, aufwärts befahren also **Faktor 3,6019**. Siehe dazu den
+Wasserwege-Befund unten; das Maximum der ganzen Karte hängt an genau der Frage, die dort offen ist.
+
+Wie viele Wegstücke eine Klemme treffen würde, über beide Richtungen:
 
 | Klemme | geklemmte Wegstücke | Anteil |
 |---|---|---|
-| 2,0 | 28 | 0,651 % |
-| 2,5 | 6 | 0,140 % |
-| 3,0 | 3 | 0,070 % |
-| 3,5 | 0 | 0 % |
-| 4,0 | 0 | 0 % |
+| 2,0 | 76 | 1,767 % |
+| 2,5 | 22 | 0,512 % |
+| 3,0 | 11 | 0,256 % |
+| 3,5 | 1 | 0,023 % |
+| 4,0 | **0** | 0 % |
 
-**§2s Schätzung war für ihre Route richtig und für den Bestand zu pessimistisch.** Aus der
-Routensicht (höchster Faktor 2,195) fehlte „mehr als die Hälfte" bis zur Sättigung. Über den ganzen
-Bestand fehlt der Faktor **1,36** — also **36 %**, nicht mehr. Das ist der Unterschied zwischen
-„nicht entscheidbar" und „knapp, aber entscheidbar".
+**§2s Schätzung war für ihre Route richtig und für den Bestand deutlich zu pessimistisch — aber die
+Luft ist kleiner, als die gespeicherte Richtung vermuten lässt.** Aus der Routensicht (höchster Faktor
+2,195) fehlte „mehr als die Hälfte" bis zur Sättigung. Über beide Richtungen gemessen fehlt der Faktor
+**1,15**, also **15 %**. Das ist der Unterschied zwischen „nicht entscheidbar" und „knapp".
+
+⭐ Und die untere Klemme trifft es genau: über beide Richtungen ist der kleinste vorkommende Faktor
+**0,8125** — das Kurvenminimum, exakt. Die theoretische Schranke ist erreicht, die Klemme 0,5 bleibt
+trotzdem tot.
 
 ### ⚠️ Der 2,67×-Anker wird von den Daten nicht getragen
 
@@ -351,7 +374,10 @@ Zeile 136) — der Steigungsfaktor greift auf jeden Wegtyp, auch auf `Flussweg`.
 Ein Fluss wird damit **zweimal** bepreist: über `flow_time_factor` (Strömung, geklemmt auf
 [1,0 … 3,0]) und zusätzlich über die Steigung des prozeduralen Höhenfelds, das nichts über den
 Flusslauf weiß. Beim Seeweg ist es heute folgenlos, beim Flussweg trifft es 293 Wegstücke, das
-steilste mit dem Faktor **2,4764**. Ob das gewollt ist, ist eine **Modellfrage wie die Klemme** —
+steilste mit dem Faktor 2,4764 in der gespeicherten und **3,6019 in der anderen Richtung** — der
+**Vildrom** ist damit das steilste Wegstück der ganzen Karte, steiler als jeder Gebirgspass. Das
+Maximum, an dem die obere Klemme gemessen wird, hängt also an einem **Fluss**. Ob das gewollt ist, ist
+eine **Modellfrage wie die Klemme** —
 Owner-Entscheid, keine stille Korrektur. Spec §1 Entscheid 2 sagt nur, dass `Gebirgspass` **nicht**
 ausgenommen wird; über Wasser sagt sie nichts.
 
@@ -438,14 +464,15 @@ heightmap-read-test.php    all asserts passed
 ### 🔧 Was jetzt beim Owner liegt
 
 - [ ] **Obere Klemme.** Empfehlung: **4,0 bleibt.** Sie greift bei keinem einzigen der 4.300
-      Wegstücke; 3,0 würde genau 3 treffen und begänne, echte Unterschiede einzuebnen. Die Zahl, die
-      neu bewertet werden muss, ist nicht die Klemme, sondern das Paar `UP_PENALTY = 5,0` **mit**
-      ihr: bis zur Sättigung fehlen nur noch **36 %** Geländeschärfe, und echte Gipfelhöhen (Entscheid
-      5 erlaubt 15.000 Schritt gegen die heutigen ~2.000–6.000) gehen darüber hinaus. Dann sind zwei
-      verschieden steile Pässe nicht mehr unterscheidbar.
+      Wegstücke, in keiner Richtung; 3,5 träfe 1, 3,0 träfe 11 und begänne, echte Unterschiede
+      einzuebnen. Die Zahl, die neu bewertet werden muss, ist nicht die Klemme, sondern das Paar
+      `UP_PENALTY = 5,0` **mit** ihr: bis zur Sättigung fehlen nur noch **15 %** Geländeschärfe, und
+      echte Gipfelhöhen (Entscheid 5 erlaubt 15.000 Schritt gegen die heutigen ~2.000–6.000) gehen
+      weit darüber hinaus. Dann sind zwei verschieden steile Pässe nicht mehr unterscheidbar — und
+      **das** ist der Schaden, nicht die Klemme selbst.
 - [ ] **Untere Klemme 0,5.** Empfehlung: **stehen lassen.** Sie ist tot (kleinster vorkommender
-      Faktor 0,8126 gegen das Kurvenminimum 0,8125), aber harmlos — und mit steilerem Gelände wird
-      das Kurvenminimum nicht tiefer, sondern nur häufiger erreicht.
+      Faktor über beide Richtungen 0,8125 = das Kurvenminimum), aber harmlos — mit steilerem Gelände
+      wird das Minimum nicht tiefer, sondern nur häufiger erreicht.
 - [ ] **Wasserwege.** Trägt ein Flussweg einen Steigungsfaktor? Heute 293 Wegstücke, das steilste mit
       2,4764, zusätzlich zur Strömung. Braucht einen Entscheid, keine stille Korrektur.
 - [ ] **Abnahmeschritt 8** — Rasterlauf ohne Profillauf, dann eine Route. Nur im angemeldeten Editor.
