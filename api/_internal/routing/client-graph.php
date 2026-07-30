@@ -1037,23 +1037,62 @@ function avesmapsResolveClientRouteTransportOption(string $routeType, array $req
     return null;
 }
 
-function avesmapsIsClientTransportAllowedForPath(string $routeType, string $transportOption, array $path = []): bool {
-    if ($routeType === 'Wuestenpfad' && $transportOption === 'horseCarriage') return false;
+// Which transports a way type OFFERS, and which it PRE-SELECTS when a path records nothing -- two
+// different lists. Mirrors getTransportOptionsForPathSubtype and
+// getDefaultAllowedTransportsForPathSubtype in js/map-features/map-features-path-domain.js.
+//   Wuestenpfad -- the carriage is not offered at all, so it can never be stored either
+//                  (avesmapsReadAllowedTransports filters it out when saving).
+//   Pfad        -- the carriage IS offered but not pre-selected (Owner, 2026-07-30). A carriage does
+//                  get through a handful of paths, so an editor may still record it; "nothing
+//                  recorded" now means no carriage.
+function avesmapsClientRouteTransportOptions(string $routeType): array {
+    $options = match (avesmapsClientRouteDomain($routeType)) {
+        'river' => AVESMAPS_ROUTE_ALLOWED_RIVER_TRANSPORTS,
+        'sea' => AVESMAPS_ROUTE_ALLOWED_SEA_TRANSPORTS,
+        default => AVESMAPS_ROUTE_ALLOWED_LAND_TRANSPORTS,
+    };
+    if ($routeType === 'Wuestenpfad') {
+        return array_values(array_filter($options, static fn(string $option): bool => $option !== 'horseCarriage'));
+    }
 
-    $allowedTransports = avesmapsClientRoutePathAllowedTransports($path);
-    if ($allowedTransports === null) return true;
-
-    return in_array($transportOption, $allowedTransports, true);
+    return $options;
 }
 
-// Per-path transport restriction, the editor's "Erlaubte Transportmittel" (transport_domain +
+function avesmapsClientRouteDefaultAllowedTransports(string $routeType): array {
+    $options = avesmapsClientRouteTransportOptions($routeType);
+    if ($routeType === 'Pfad') {
+        return array_values(array_filter($options, static fn(string $option): bool => $option !== 'horseCarriage'));
+    }
+
+    return $options;
+}
+
+// The one place "a stored list beats the default" is written down on the server. No separate
+// Wuestenpfad clause: filtering a stored list down to what the subtype OFFERS drops a carriage
+// stored on a desert path by itself. Mirrors resolvePathAllowedTransports in
+// js/map-features/map-features-path-domain.js.
+function avesmapsResolveClientRoutePathAllowedTransports(string $routeType, array $path): array {
+    $stored = avesmapsClientRoutePathAllowedTransports($path);
+    if ($stored === null) {
+        return avesmapsClientRouteDefaultAllowedTransports($routeType);
+    }
+
+    $offered = avesmapsClientRouteTransportOptions($routeType);
+    return array_values(array_filter($stored, static fn(string $option): bool => in_array($option, $offered, true)));
+}
+
+function avesmapsIsClientTransportAllowedForPath(string $routeType, string $transportOption, array $path = []): bool {
+    return in_array($transportOption, avesmapsResolveClientRoutePathAllowedTransports($routeType, $path), true);
+}
+
+// What the path itself RECORDS, the editor's "Erlaubte Transportmittel" (transport_domain +
 // allowed_transports, always saved as a PAIR by avesmapsUpdatePathFeatureDetails). Null = the path
 // records no restriction; a list -- INCLUDING an empty one -- is authoritative: an empty list means
 // no transport at all may use this path (e.g. the upper Raller, where no boat gets past the source).
-// Mirrors js/routing/route-engine.js isTransportAllowedForPath; the properties_json is NESTED under
-// properties.properties in the route path shape (see avesmapsBuildRoutePathData), same as flow.
-// Legacy rows carry an empty list WITHOUT a transport_domain -- a shape the editor never wrote --
-// and are treated as unrestricted rather than impassable.
+// The properties_json is NESTED under properties.properties in the route path shape (see
+// avesmapsBuildRoutePathData), same as flow. Legacy rows carry an empty list WITHOUT a
+// transport_domain -- a shape the editor never wrote -- and fall back to the default rather than
+// being treated as impassable.
 function avesmapsClientRoutePathAllowedTransports(array $path): ?array {
     $properties = is_array($path['properties'] ?? null) ? $path['properties'] : [];
     $allowedTransports = $properties['allowed_transports'] ?? null;

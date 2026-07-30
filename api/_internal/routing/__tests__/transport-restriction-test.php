@@ -105,4 +105,19 @@ assert(avesmapsTestGraphHasPathEdge('Wuestenpfad', [], AVESMAPS_TEST_TRANSPORTS_
 assert(avesmapsTestGraphHasPathEdge('Strasse', [], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === true);
 echo "Wuestenpfad still refuses horseCarriage ok\n";
 
+// 7) The Pfad rule (Owner, 2026-07-30): a carriage no longer gets a Pfad by default. Unlike the
+// Wuestenpfad the ban is NOT hard -- a carriage does get through a handful of paths, nobody knows
+// which yet, so a list an editor recorded WITH the carriage still opens the way.
+assert(avesmapsTestGraphHasPathEdge('Pfad', [], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === false);
+assert(avesmapsTestGraphHasPathEdge('Pfad', [], AVESMAPS_TEST_TRANSPORTS_RIVER_SAILER) === true);
+assert(avesmapsTestGraphHasPathEdge('Pfad', ['transport_domain' => 'land', 'allowed_transports' => ['groupFoot', 'horseCarriage']], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === true);
+assert(avesmapsTestGraphHasPathEdge('Pfad', ['transport_domain' => 'land', 'allowed_transports' => ['groupFoot']], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === false);
+echo "Pfad drops the carriage by default but honours a recorded one ok\n";
+
+// 8) No other land subtype moves: only the Pfad was ordered.
+assert(avesmapsTestGraphHasPathEdge('Weg', [], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === true);
+assert(avesmapsTestGraphHasPathEdge('Gebirgspass', [], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === true);
+assert(avesmapsTestGraphHasPathEdge('Reichsstrasse', [], AVESMAPS_TEST_TRANSPORTS_CARRIAGE) === true);
+echo "Weg, Gebirgspass and Reichsstrasse keep the carriage ok\n";
+
 echo "ALL OK\n";

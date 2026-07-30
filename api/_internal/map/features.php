@@ -165,7 +165,17 @@ function avesmapsReadAllowedTransports(mixed $value, string $domain, ?string $su
     if ($subtype === 'Wuestenpfad') {
         $compatibleOptions = array_values(array_filter($compatibleOptions, static fn(string $option): bool => $option !== 'horseCarriage'));
     }
+    // Nothing submitted -> the way type's PRE-SELECTED list, which is not the same as what it
+    // OFFERS. On a Pfad the carriage is offered but unticked (Owner, 2026-07-30): a carriage does
+    // get through a handful of paths, so a SUBMITTED one is stored (below), but a path that records
+    // nothing must not admit one. The Wuestenpfad rule above has the opposite shape -- there the
+    // carriage is not offered at all and a submitted one is dropped. Mirrors
+    // getDefaultAllowedTransportsForPathSubtype in js/map-features/map-features-path-domain.js.
     if (!is_array($value)) {
+        if ($subtype === 'Pfad') {
+            return array_values(array_filter($compatibleOptions, static fn(string $option): bool => $option !== 'horseCarriage'));
+        }
+
         return $compatibleOptions;
     }
 

@@ -138,3 +138,83 @@ function getNextLocalPathId() {
 function getPathPublicId(path) {
 	return path?.properties?.public_id || path?.id || "";
 }
+
+// --- Wegtyp -> Transportmittel -----------------------------------------------------------------
+//
+// Two DIFFERENT lists, and the difference is the point:
+//   getTransportOptionsForPathSubtype         -- what the editor OFFERS (visible, enabled checkbox)
+//   getDefaultAllowedTransportsForPathSubtype -- what it PRE-SELECTS (checked)
+//
+// They coincide for every subtype but two, for opposite reasons:
+//   Wuestenpfad -- the carriage is not offered at all, so it can never be stored either
+//                  (avesmapsReadAllowedTransports filters it out server-side).
+//   Pfad        -- the carriage IS offered but starts unchecked (Owner, 2026-07-30). A carriage
+//                  does get through a handful of paths and nobody knows which yet, so the editors
+//                  must be able to switch it back on; a hard ban would take that away.
+//
+// The rule lives here, not in js/review/, because the client route graph needs it too and must not
+// depend on the editor cluster. Mirrored server-side in api/_internal/map/features.php (saving) and
+// api/_internal/routing/client-graph.php (the primary route graph).
+function getDefaultTransportDomainForPathSubtype(pathSubtype) {
+	if (pathSubtype === "Flussweg") return "river";
+	if (pathSubtype === "Seeweg") return "sea";
+	return "land";
+}
+
+function getTransportOptionsForPathSubtype(pathSubtype) {
+	const normalizedSubtype = normalizePathSubtype(pathSubtype);
+	const domain = getDefaultTransportDomainForPathSubtype(normalizedSubtype);
+	const options = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+	if (normalizedSubtype === "Wuestenpfad") {
+		return options.filter((option) => option !== "horseCarriage");
+	}
+
+	return options;
+}
+
+function getDefaultAllowedTransportsForPathSubtype(pathSubtype) {
+	const offered = getTransportOptionsForPathSubtype(pathSubtype);
+	if (normalizePathSubtype(pathSubtype) === "Pfad") {
+		return offered.filter((option) => option !== "horseCarriage");
+	}
+
+	return offered;
+}
+
+// What the client route graph asks per path (route-graph-routing.js). Lives next to the rule it
+// applies so both stay in step -- the graph and the editor dialog must never disagree about a way.
+function isTransportAllowedForPath(pathProperties, transportOption) {
+	if (!transportOption) {
+		return false;
+	}
+
+	// No separate Wuestenpfad clause any more: resolvePathAllowedTransports filters a stored list
+	// down to what the subtype OFFERS, which drops a carriage stored on a desert path by itself.
+	return resolvePathAllowedTransports(pathProperties).includes(transportOption);
+}
+
+// The one place "a stored list beats the default" is written down on the client, shared by the
+// editor dialog (getPathAllowedTransports) and the route graph (isTransportAllowedForPath).
+//
+// A stored list -- an empty one INCLUDED -- is what the path allows: empty means no transport at
+// all gets through, e.g. the upper Raller where no boat passes the source. An empty list WITHOUT a
+// stored transport_domain is NOT a decision: the dialog always saves the pair, and a one-off admin
+// repair (2026-05-11) wrote [] on 26 Wuestenpfade that had no list yet, where it meant "every land
+// transport but the carriage". Those fall back to the default, and saving the path heals the row.
+//
+// A stored list is filtered down to what the subtype OFFERS, never to what it pre-selects -- that
+// is what lets a Pfad keep a carriage an editor ticked while a Wuestenpfad can never keep one.
+// Mirrored server-side by avesmapsResolveClientRoutePathAllowedTransports in
+// api/_internal/routing/client-graph.php.
+function resolvePathAllowedTransports(properties) {
+	const subtype = normalizePathSubtype(properties?.feature_subtype || properties?.name);
+	const stored = Array.isArray(properties?.allowed_transports) ? properties.allowed_transports : null;
+	const hasRestriction = stored !== null
+		&& (stored.length > 0 || String(properties?.transport_domain || "").trim() !== "");
+	if (!hasRestriction) {
+		return getDefaultAllowedTransportsForPathSubtype(subtype);
+	}
+
+	const offered = getTransportOptionsForPathSubtype(subtype);
+	return stored.filter((option) => offered.includes(option));
+}

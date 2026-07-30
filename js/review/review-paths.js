@@ -166,48 +166,27 @@ function rememberPathEditSettingsFromPayload(payload, { autoname = true } = {}) 
 	};
 }
 
-function getDefaultTransportDomainForPathSubtype(pathSubtype) {
-	if (pathSubtype === "Flussweg") return "river";
-	if (pathSubtype === "Seeweg") return "sea";
-	return "land";
-}
-
 function getPathTransportDomain(path) {
 	return path?.properties?.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name));
 }
 
+// The subtype rule and the stored-list rule both live in js/map-features/map-features-path-domain.js
+// -- the client route graph applies the same ones and must not reach into the editor cluster.
 function getPathAllowedTransports(path) {
-	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
-	const subtypeOptions = getTransportOptionsForPathSubtype(subtype);
-	const configured = Array.isArray(path?.properties?.allowed_transports) ? path.properties.allowed_transports : null;
-	// A stored list -- an empty one included -- is what the path allows. An empty list WITHOUT a stored
-	// transport_domain is NOT a decision: a one-off admin repair wrote [] on 26 Wuestenpfade that had no
-	// list yet, where it meant to write "every land transport but the carriage". Falling back to the
-	// defaults there shows the truth in the dialog, and saving heals the row. Same rule as the route
-	// graph, see avesmapsClientRoutePathAllowedTransports in api/_internal/routing/client-graph.php.
-	const hasRestriction = configured !== null
-		&& (configured.length > 0 || String(path?.properties?.transport_domain || "").trim() !== "");
-
-	return hasRestriction ? configured.filter((option) => subtypeOptions.includes(option)) : subtypeOptions;
+	return resolvePathAllowedTransports(path?.properties);
 }
 
-function getTransportOptionsForPathSubtype(pathSubtype) {
-	const normalizedSubtype = normalizePathSubtype(pathSubtype);
-	const domain = getDefaultTransportDomainForPathSubtype(normalizedSubtype);
-	const options = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
-	if (normalizedSubtype === "Wuestenpfad") {
-		return options.filter((option) => option !== "horseCarriage");
-	}
-
-	return options;
-}
-
+// TWO lists, not one: getTransportOptionsForPathSubtype says which checkboxes EXIST for this way
+// type, getDefaultAllowedTransportsForPathSubtype which of them start CHECKED. On a Pfad they differ
+// -- the carriage is offered but unticked, so an editor can grant it to the few paths it fits.
 function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
 	const subtype = normalizePathSubtype(document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg");
-	const defaultOptions = getTransportOptionsForPathSubtype(subtype);
-	const selectedOptions = resetToDefault || !path ? defaultOptions : getPathAllowedTransports(path);
+	const offeredOptions = getTransportOptionsForPathSubtype(subtype);
+	const selectedOptions = resetToDefault || !path
+		? getDefaultAllowedTransportsForPathSubtype(subtype)
+		: getPathAllowedTransports(path);
 	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
-		const isCompatible = defaultOptions.includes(input.value);
+		const isCompatible = offeredOptions.includes(input.value);
 		input.closest("label").hidden = !isCompatible;
 		input.disabled = !isCompatible;
 		input.checked = isCompatible && selectedOptions.includes(input.value);
