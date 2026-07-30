@@ -47,7 +47,13 @@ Router fährt.
 
 ## 3. Datenlage (gemessen am Livebestand, ein Seitenaufruf, 2026-07-30)
 
-1503 Pfade:
+> **Korrektur 2026-07-30 nach dem SQL-Lauf:** die Zahlen unten sind am **Karten-Payload**
+> gemessen, und `api/app/map-features.php` filtert `is_active = 1`. In der Tabelle stehen
+> **910** Pfade mit gespeicherter Kutsche: 793 aktive plus **117 inaktive**, die die Karte
+> nie ausliefert. Die SQL repariert beide — eine später wieder aktivierte Zeile darf die
+> Kutsche nicht zurückschmuggeln.
+
+1503 **aktive** Pfade:
 
 | Zustand | Anzahl | Schreibvorgang nötig |
 |---|---|---|
@@ -127,12 +133,22 @@ phpMyAdmin aus.
 - `JSON_REMOVE(properties_json, JSON_UNQUOTE(JSON_SEARCH(…, 'one',
   'horseCarriage', NULL, '$.allowed_transports[*]')))` auf
   `feature_type='path' AND feature_subtype='Pfad'`
-- in einer Transaktion, mit **einem** `map_revision`-Hochzähler (nicht 793)
+- **zwei** eigenständige `UPDATE`s, mit **einem** `map_revision`-Hochzähler (nicht 910)
 - **idempotent**: der zweite Lauf trifft nichts mehr, weil die `WHERE`-Bedingung
   auf denselben `JSON_SEARCH` prüft
-- **kein** Audit-Log-Eintrag pro Zeile — 793 Einträge würden das
+- **kein** Audit-Log-Eintrag pro Zeile — 910 Einträge würden das
   Rückgängig-Machen zumüllen (`audit-undo-redo`: Strg+Z frisst die Historie
   abwärts)
+
+> **Korrektur 2026-07-30:** die erste Fassung klammerte beide Anweisungen in eine
+> Transaktion und trug die neue Revision über die Sitzungsvariable `@next_revision`
+> (übernommen aus `sql/burg-locations-to-gebaeude.sql`). In phpMyAdmin ausgeführt hat sie
+> **nichts** geändert: danach trug keine einzige `map_features`-Zeile eine erhöhte
+> Revision, und der Server ließ die Kutsche weiter über `path-4973`.
+> `map_features.revision` ist `BIGINT UNSIGNED NOT NULL` — eine leere Variable bringt das
+> `UPDATE` zum Scheitern und rollt die Transaktion zurück, was genau zum Befund passt.
+> Die Variable ist unnötig: beide Anweisungen lesen `map_revision` jetzt direkt, ohne
+> Transaktionsklammer, und werden einzeln ausgeführt.
 
 Die 645 Pfade ohne Liste bleiben unangetastet. „Nichts hinterlegt" ist die
 ehrliche Aussage, und genau das Vollschreiben von Zeilen ohne Liste ist am
