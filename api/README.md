@@ -113,9 +113,16 @@ DIFFERENT ROUTE.** The planner looks for the cheapest way; change the price of t
 the choice changes with it. With terrain the route goes around, without it over the pass. Both are
 correct — but they are two journeys, not two price tags for one.
 
-💣 `terrain_time_factor: 1.0` means three different things: terrain is off, the ground is level
-here, or nothing is known here. `debug.context.terrain.enabled` separates the first;
-`ascent_schritt: null` separates the third from the second.
+🔴 **Slope applies to LAND legs only.** A `Flussweg` or `Seeweg` leg always answers
+`terrain_time_factor: 1.0` and `ascent_schritt: null`, whatever the terrain under it looks like: a boat
+does not climb, and a river is already priced by its current through `flow_time_factor`. Owner decision
+of 2026-07-30 — before it, water carried a slope too, and the steepest single piece on the whole map
+was a river.
+
+💣 `terrain_time_factor: 1.0` therefore means **four** different things: terrain is off, this is a
+water leg, the ground is level here, or nothing is known here.
+`debug.context.terrain.enabled` separates the first, `segments[].subtype` the second, and
+`ascent_schritt: null` separates the fourth from the third.
 
 The speed table (`Gebirgspass` 1,5 km/h, `Strasse` 4,0 …) is the **base speed BEFORE terrain**.
 
