@@ -111,6 +111,12 @@
 			'<div class="tsi-rules">' +
 			'<div class="tsi-rule">' + iconImg("icons/Rast.webp") + "<div>" + tr("transport.speedInfo.restRule", "<b>Rast.</b> Standardmäßig reist du 12 Stunden am Tag und rastest 12 Stunden (im Planer einstellbar). Das gilt nur an Land — auf dem Wasser wird durchgefahren.") + "</div></div>" +
 			'<div class="tsi-rule">' + iconImg("icons/Querfeldein.webp") + "<div>" + tr("transport.speedInfo.crossCountryRule", "<b>Querfeldein.</b> Fehlt zwischen zwei Orten ein echter Weg, schlägt sich die Route per Luftlinie durchs Gelände. Das ist zäh (1,25–2,5&nbsp;Meilen/h), darum bevorzugt die Berechnung selbst große Umwege über richtige Straßen und Pfade.") + "</div></div>" +
+			// V11. Spans both columns (.tsi-rule--wide): it is the longest of the three, and letting it
+			// run full width keeps the block at two rows instead of three.
+			// ⚠️ Shown unconditionally. It describes the map while `terrain_travel_enabled` is on, and
+			// this dialog has no route response to read the switch from -- it can be opened before the
+			// first route exists. If terrain is ever switched off for good, this rule comes out.
+			'<div class="tsi-rule tsi-rule--wide">' + iconImg(pathIcon("Gebirgspass")) + "<div>" + tr("transport.speedInfo.slopeRule", "<b>Steigung.</b> Bergauf kostet dieselbe Strecke mehr Zeit, sanft bergab bringt etwas davon zurück, sehr steil bergab bremst wieder. Entscheidend ist die <em>Steilheit</em>, nicht die Höhe: 240&nbsp;Schritt Anstieg auf einer Meile wiegen schwer, dieselben 240 auf zehn Meilen kaum. Über den Koschberge-Pass wird aus einer Reichsstraße so rund 2 statt 4,5&nbsp;Meilen/h. Wo keine Höhen erfasst sind, zählt allein der Wegtyp — die Etappen-Infobox zeigt dann auch keine Zeile „Auf und ab“.") + "</div></div>" +
 			"</div></div></div>"
 		);
 	}

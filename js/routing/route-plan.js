@@ -219,6 +219,38 @@ function routeEntryPathIds(entry, segments) {
 		.filter(Boolean);
 }
 
+// V11: how much this LEG climbs and falls, in Schritt. Null when not one of its segments carries
+// height data -- and then the infobox simply has no such row.
+//
+// 💣 A LEG IS NOT AN EDGE. showRoutePlan merges consecutive segments of the same type/transport into
+// one entry (see the aggregateEntry branch), so „Saljethweg, Schattenbachpass, 38,30 Meilen" is a
+// dozen segments in one row. The numbers therefore have to be SUMMED over entry.segmentIndexes --
+// and over a pass leg that long you always go both up AND down, which is why this reports two
+// numbers and not a single „Gefälle".
+//
+// ⚠️ Where a leg is only PARTLY covered, the sums are a lower bound: the segments without data
+// contribute nothing rather than a guessed zero. That is the honest reading of „no height data
+// here", and it is the same rule the server applies one layer down.
+function routeEntryTerrain(entry, segments) {
+	let ascent = 0;
+	let descent = 0;
+	let known = 0;
+	(entry?.segmentIndexes || []).forEach((segmentIndex) => {
+		const properties = segments?.[segmentIndex]?.properties || {};
+		// 🪤 Both halves must be present. A pair with one side missing is not half a measurement,
+		// it is a broken row -- and adding only its known half would invent a slope.
+		if (properties.ascent_schritt === null || properties.ascent_schritt === undefined
+			|| properties.descent_schritt === null || properties.descent_schritt === undefined) {
+			return;
+		}
+		ascent += Number(properties.ascent_schritt) || 0;
+		descent += Number(properties.descent_schritt) || 0;
+		known += 1;
+	});
+
+	return known > 0 ? { ascent, descent, known } : null;
+}
+
 function buildRouteLegPopupHtml(entry) {
 	if (!entry || typeof locationPopupMarkup !== "function") {
 		return "";
@@ -245,6 +277,22 @@ function buildRouteLegPopupHtml(entry) {
 	rows += row(tr("planner.leg.to", "bis"), entry.endName);
 	rows += row(tr("planner.summary.distance", "Distanz"), `${(Number(entry.distance) || 0).toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord}`);
 	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${hours.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(hours / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})`);
+	// V11 „Auf und ab": climb and fall of this leg, in Schritt. It is what the travel time above was
+	// actually computed from, so it belongs directly beneath it.
+	//
+	// 🔴 The row APPEARS ONLY WHEN THERE IS SOMETHING TO SAY. No height data -> no row (37 of 45 legs
+	// on a real route today). Measured but level -> also no row: „0 Schritt rauf · 0 Schritt runter"
+	// is noise to a traveller, and the null/zero distinction that matters so much one layer down is
+	// an internal one, not something the infobox has to litigate.
+	const terrain = routeEntryTerrain(entry, currentRouteSegments);
+	if (terrain && (terrain.ascent > 0 || terrain.descent > 0)) {
+		const schritt = (value) => Math.round(value).toLocaleString("de-DE");
+		rows += row(
+			tr("planner.leg.elevation", "Auf und ab"),
+			`${schritt(terrain.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "rauf")}`
+			+ ` · ${schritt(terrain.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "runter")}`
+		);
+	}
 	// „Fuehrt durch" (V10). Hier SYNCHRON und ohne Container, anders als in der Weg-Infobox: die
 	// Daten liegen schon im Speicher, weil showRoutePlan sie beim Zeichnen der Route in EINEM Abruf
 	// geholt hat -- eine Etappen-Infobox kann gar nicht aufgehen, bevor es eine Route gibt.

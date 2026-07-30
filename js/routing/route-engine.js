@@ -216,6 +216,13 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			// flow_state (upstream/downstream) feeds the plan's leg labels: a neutral factor
 			// alone cannot distinguish downstream from unknown.
 			flow_state: String(serverSegment?.flow_state || ""),
+			// V11: climb and fall of THIS slice, in Schritt, for the leg infobox's „Auf und ab".
+			// 💣 `??`, NEVER `Number(...) || 0` like the flow factor above. `null` means „no height
+			// data here" and `0` means „measured and level" -- 37 of 45 legs on a real route carry
+			// null today, and folding them into 0 would claim every one of them as surveyed flat
+			// ground. The whole feature rests on those two staying apart.
+			ascent_schritt: serverSegment?.ascent_schritt ?? null,
+			descent_schritt: serverSegment?.descent_schritt ?? null,
 		},
 	};
 }
@@ -280,6 +287,10 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			// flow_state (upstream/downstream) feeds the plan's leg labels: a neutral factor
 			// alone cannot distinguish downstream from unknown.
 			flow_state: String(serverSegment?.flow_state || ""),
+			// V11, same rule as in the sibling builder above: `??`, so a measured 0 and an absent
+			// null stay different things all the way to the infobox.
+			ascent_schritt: serverSegment?.ascent_schritt ?? null,
+			descent_schritt: serverSegment?.descent_schritt ?? null,
 		},
 	};
 }

@@ -53,9 +53,13 @@
 	display: none;
 }
 
+/* 720 instead of 600 since V11 (owner: „du kannst in die breite gehen"): the speed matrix has seven
+   path rows across six transport columns and was already cramped, and the rules block below now
+   carries three entries. Wider costs nothing on desktop and buys back the height the third rule
+   would otherwise add. */
 .tsi-dialog {
 	width: 100%;
-	max-width: 600px;
+	max-width: 720px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-lg);
 	background: var(--color-panel);
@@ -248,16 +252,23 @@
 	line-height: var(--leading-normal);
 }
 
+/* Two columns from V11 on. The third rule (Steigung) would otherwise make this block a third
+   taller in an already packed dialog; side by side the two short rules share one row and the
+   long one spans beneath, so the section grows by one row instead of one paragraph.
+   Collapses to a single column below the breakpoint, where two columns would be unreadable. */
 .tsi-rules {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-10);
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-10) var(--space-16);
 	margin-top: var(--space-16);
 	padding-top: var(--space-12);
 	border-top: 1px solid var(--color-divider);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-small);
 	line-height: var(--leading-normal);
+}
+.tsi-rule--wide {
+	grid-column: 1 / -1;
 }
 /* Each rule = icon column + text (bold lead-in + body). */
 .tsi-rule {
@@ -268,6 +279,13 @@
 .tsi-rules b {
 	color: var(--color-text-strong);
 	font-weight: var(--font-weight-bold);
+}
+
+@media (max-width: 640px) {
+	/* One column again -- two 300px columns of small muted text are worse than a taller block. */
+	.tsi-rules {
+		grid-template-columns: 1fr;
+	}
 }
 
 @media (max-width: 520px) {
