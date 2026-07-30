@@ -207,6 +207,56 @@
 			return smoothed;
 		}
 
+		// 🔴 DIE ETAPPENGEOMETRIE LIEGT IN DER GESPEICHERTEN ECKENFOLGE DES WEGES, NICHT IN FAHRTRICHTUNG.
+		// Läuft die Route einen Weg rückwärts, tauscht der Server Anstieg und Gefälle
+		// (`avesmapsRouteReverseTerrain`), dreht die Geometrie aber NICHT — für eine gezeichnete Linie ist
+		// die Richtung gleichgültig. Für einen PFEIL ist sie alles.
+		//
+		// 💣 Genau daran zeigte die erste Fassung ein Viertel der Route verkehrt (Owner, 2026-07-30:
+		// „warum sind die umgedreht?"). Auf Gareth → Thorwal sind **11 von 45** Etappen rückwärts
+		// gespeichert, darunter die ganze Koschberge-Querung. Der Faktor war dabei richtig — nur der Pfeil
+		// zeigte bergab, wo es bergauf ging.
+		//
+		// Die Richtung steht in KEINEM Feld des Client-Segments: `buildServerRouteSegment` übernimmt die
+		// Server-Geometrie unverändert und führt from/to nicht mit. Sie folgt aber aus der VERKETTUNG —
+		// drawRoute() bekommt die Etappen in Reisefolge, also muss jede dort anfangen, wo die vorige
+		// endete. Das ist selbsttragend und braucht keine zusätzlichen Daten.
+		//
+		// ⭐ Gegen den Livebestand geprüft: die Verkettung findet genau die Etappen 13–17, dieselben fünf,
+		// die beim Offline-Vergleich getauschte Anstiegswerte hatten.
+		function orientToTravelDirection(list) {
+			if (list.length < 2) {
+				// Eine einzige Etappe hat keinen Nachbarn, an dem sie sich ausrichten könnte. Speicher-
+				// reihenfolge ist dann die einzige Auskunft — und ohne Nachbar fällt keine Unstimmigkeit auf.
+				return;
+			}
+			const squaredDistance = (a, b) => {
+				const dx = a[0] - b[0];
+				const dy = a[1] - b[1];
+				return dx * dx + dy * dy;
+			};
+			const ends = (coordinates) => [coordinates[0], coordinates[coordinates.length - 1]];
+
+			// Die erste Etappe hat keine vorige: sie richtet sich daran aus, welches ihrer Enden dem
+			// Anschluss der ZWEITEN näher liegt.
+			const [secondStart, secondEnd] = ends(list[1].stored);
+			const nearestToSecond = (point) => Math.min(squaredDistance(point, secondStart), squaredDistance(point, secondEnd));
+			const [firstStart, firstEnd] = ends(list[0].stored);
+			list[0].reversed = nearestToSecond(firstStart) < nearestToSecond(firstEnd);
+			let cursor = list[0].reversed ? firstStart : firstEnd;
+
+			for (let index = 1; index < list.length; index++) {
+				const [start, end] = ends(list[index].stored);
+				if (squaredDistance(end, cursor) < squaredDistance(start, cursor)) {
+					list[index].reversed = true;
+					cursor = start;
+				} else {
+					list[index].reversed = false;
+					cursor = end;
+				}
+			}
+		}
+
 		function routeSegments() {
 			// currentRouteSegmentLayers ist die Liste, die drawRoute() gerade auf die Karte gelegt hat —
 			// dieselben Objekte, dieselbe Reihenfolge. Damit zeigen die Pfeile nie eine andere Route als
@@ -242,15 +292,22 @@
 			}
 			const palette = tokens();
 
+			const drawables = [];
 			entries.forEach(({ segment }) => {
 				const rawCoordinates = segment.geometry?.coordinates;
 				if (!Array.isArray(rawCoordinates) || rawCoordinates.length < 2) {
 					return;
 				}
+				drawables.push({ segment, stored: displayCoordinatesFor(segment, rawCoordinates), reversed: false });
+			});
+			orientToTravelDirection(drawables);
+
+			drawables.forEach(({ segment, stored, reversed }) => {
 				const relative = relativeSpeed(segment.properties);
 				const length = arrowLength(relative);
 				const color = arrowColor(relative, palette);
-				const coordinates = displayCoordinatesFor(segment, rawCoordinates);
+				// 🔴 IN FAHRTRICHTUNG, nicht in Speicherreihenfolge — siehe orientToTravelDirection.
+				const coordinates = reversed ? [...stored].reverse() : stored;
 
 				let carried = 0;
 				let previousPoint = map.latLngToContainerPoint(L.latLng(coordinates[0][1], coordinates[0][0]));
