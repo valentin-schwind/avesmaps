@@ -220,23 +220,66 @@ function avesmapsRouteSliceTerrain(?array $pathTerrain, int $fromVertexIndex, in
     $profile = $pathTerrain['profile'];
     $ascent = 0.0;
     $descent = 0.0;
+    $steepAscent = 0.0;
+    $steepDescent = 0.0;
     $slice = [];
     for ($index = $fromVertexIndex; $index < $toVertexIndex; $index++) {
-        $pair = $profile[$index] ?? null;
-        if (!is_array($pair) || count($pair) < 2) {
-            // A gap in the profile is not a zero: the stored geometry and the payload's disagree,
-            // and inventing level ground would hide that. The whole slice goes unknown.
+        $piece = $profile[$index] ?? null;
+        // 💣 FOUR, NOT TWO -- AND THIS IS THE FORMAT GUARD. Rows written before the Leistungskilometer
+        // (2026-07-30) hold pairs of two: ascent and descent, nothing about steepness. Reading such a
+        // pair as if its second number were a steep-descent sum would price gentle descents as steep
+        // ones and do it silently. A short entry therefore means „no height data" -- the same answer as
+        // a missing row -- and the next profile run heals it.
+        if (!is_array($piece) || count($piece) < 4) {
+            // A gap in the profile is not a zero either: the stored geometry and the payload's
+            // disagree, and inventing level ground would hide that. The whole slice goes unknown.
             return null;
         }
-        $slice[] = [(float) $pair[0], (float) $pair[1]];
-        $ascent += (float) $pair[0];
-        $descent += (float) $pair[1];
+        $slice[] = [(float) $piece[0], (float) $piece[1], (float) $piece[2], (float) $piece[3]];
+        $ascent += (float) $piece[0];
+        $descent += (float) $piece[1];
+        $steepAscent += (float) $piece[2];
+        $steepDescent += (float) $piece[3];
     }
     if ($slice === []) {
         return null;
     }
 
-    return ['ascent' => $ascent, 'descent' => $descent, 'profile' => $slice];
+    return [
+        'ascent' => $ascent,
+        'descent' => $descent,
+        'steep_ascent' => $steepAscent,
+        'steep_descent' => $steepDescent,
+        'profile' => $slice,
+    ];
+}
+
+/**
+ * PURE: the four sums of a stored profile — ascent, descent, steep ascent, steep descent.
+ *
+ * 💣 Same format guard as avesmapsRouteSliceTerrain: an entry shorter than four is a pre-2026-07-30 row
+ * and means „no height data", never „no steep ground". One helper so the rule cannot drift between the
+ * three places that need it (the edge, the waypoint slice, and its reverse twin).
+ *
+ * @return array{ascent:float,descent:float,steep_ascent:float,steep_descent:float}|null
+ */
+function avesmapsRouteSumTerrainProfile(?array $profile): ?array
+{
+    if (!is_array($profile) || $profile === []) {
+        return null;
+    }
+    $sums = ['ascent' => 0.0, 'descent' => 0.0, 'steep_ascent' => 0.0, 'steep_descent' => 0.0];
+    foreach ($profile as $piece) {
+        if (!is_array($piece) || count($piece) < 4) {
+            return null;
+        }
+        $sums['ascent'] += (float) $piece[0];
+        $sums['descent'] += (float) $piece[1];
+        $sums['steep_ascent'] += (float) $piece[2];
+        $sums['steep_descent'] += (float) $piece[3];
+    }
+
+    return $sums;
 }
 
 /**
@@ -261,20 +304,27 @@ function avesmapsRouteSplitTerrainProfile(?array $profile, int $segmentIndex, fl
     $first = [];
     $second = [];
     foreach ($profile as $index => $pair) {
-        if (!is_array($pair) || count($pair) < 2) {
+        if (!is_array($pair) || count($pair) < 4) {
             return [null, null];
         }
         if ($index < $segmentIndex) {
-            $first[] = [(float) $pair[0], (float) $pair[1]];
+            $first[] = [(float) $pair[0], (float) $pair[1], (float) $pair[2], (float) $pair[3]];
         } elseif ($index > $segmentIndex) {
-            $second[] = [(float) $pair[0], (float) $pair[1]];
+            $second[] = [(float) $pair[0], (float) $pair[1], (float) $pair[2], (float) $pair[3]];
         } else {
             // Split proportionally by length. The profile stores the SUM over a segment, not its
             // shape, so a proportional share is the only honest answer -- and it is exact in the
             // one property that matters: the two halves add back up to the whole.
+            //
+            // ⚠️ The steep sums are shared out the same way. That IS an approximation -- steepness is
+            // not spread evenly along a segment -- but it is the same approximation the ascent already
+            // makes, and it keeps the invariant that the halves sum to the whole. Anything cleverer
+            // would need the samples, and those are not stored.
             $share = max(0.0, min(1.0, $t));
-            $first[] = [(float) $pair[0] * $share, (float) $pair[1] * $share];
-            $second[] = [(float) $pair[0] * (1.0 - $share), (float) $pair[1] * (1.0 - $share)];
+            $first[] = [(float) $pair[0] * $share, (float) $pair[1] * $share,
+                (float) $pair[2] * $share, (float) $pair[3] * $share];
+            $second[] = [(float) $pair[0] * (1.0 - $share), (float) $pair[1] * (1.0 - $share),
+                (float) $pair[2] * (1.0 - $share), (float) $pair[3] * (1.0 - $share)];
         }
     }
 
@@ -306,10 +356,13 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
     // 💣 The direction rule is the SAME as the river's (:218-219): from/to keep the STORED
     // orientation on BOTH variants -- the verlauf flow derivation's chain walk depends on it.
     // Ascent in drawing direction is descent against it. That is the whole rule.
+    // 🔴 Each direction pays for ITS climb and ITS steep descent. Reversing swaps BOTH pairs -- with the
+    // Leistungskilometer it is no longer enough to swap ascent and descent, because „steep" is a
+    // property of the ground and changes sides with the traveller.
     $forwardFactor = $sliceTerrain === null ? 1.0
-        : avesmapsTerrainTimeFactor($sliceTerrain['ascent'], $sliceTerrain['descent'], $distance);
+        : avesmapsTerrainLeistungsFactor($sliceTerrain['ascent'], $sliceTerrain['steep_descent'], $distance);
     $reverseFactor = $sliceTerrain === null ? 1.0
-        : avesmapsTerrainTimeFactor($sliceTerrain['descent'], $sliceTerrain['ascent'], $distance);
+        : avesmapsTerrainLeistungsFactor($sliceTerrain['descent'], $sliceTerrain['steep_ascent'], $distance);
     if ($sliceTerrain !== null) {
         // Carried so the waypoint anchor can cut it; only present when there IS a profile.
         $connection['terrain_profile'] = $sliceTerrain['profile'];
@@ -408,7 +461,14 @@ function avesmapsRouteReverseSubPathConnection(array $connection): array
     $forwardFactor = (float) $connection['terrain_time_factor'];
     // Undo the forward factor to recover the slice's base time, then apply the reverse one.
     $baseTime = $forwardFactor > 0.0 ? (float) $connection['time'] / $forwardFactor : (float) $connection['time'];
-    $reverseFactor = avesmapsTerrainTimeFactor($descent, $ascent, (float) $connection['distance']);
+    // 🔴 The reverse factor comes from the piece's OWN steep sums, not from swapping ascent and descent.
+    // The connection carries its profile for exactly this; without it the steep halves are unknown and
+    // the honest answer is the untouched object.
+    $sums = avesmapsRouteSumTerrainProfile($connection['terrain_profile'] ?? null);
+    if ($sums === null) {
+        return $connection;
+    }
+    $reverseFactor = avesmapsTerrainLeistungsFactor($sums['descent'], $sums['steep_ascent'], (float) $connection['distance']);
     $connection['time'] = $baseTime * $reverseFactor;
     $connection['terrain_time_factor'] = $reverseFactor;
     $connection['ascent_schritt'] = $descent;
@@ -773,14 +833,11 @@ function avesmapsBuildClientRouteSubPathConnection(array $original, string $from
     $ascent = null;
     $descent = null;
     $factor = 1.0;
-    if (is_array($terrainProfile) && $terrainProfile !== []) {
-        $ascent = 0.0;
-        $descent = 0.0;
-        foreach ($terrainProfile as $pair) {
-            $ascent += (float) ($pair[0] ?? 0.0);
-            $descent += (float) ($pair[1] ?? 0.0);
-        }
-        $factor = avesmapsTerrainTimeFactor($ascent, $descent, $distance);
+    $sums = avesmapsRouteSumTerrainProfile($terrainProfile);
+    if ($sums !== null) {
+        $ascent = $sums['ascent'];
+        $descent = $sums['descent'];
+        $factor = avesmapsTerrainLeistungsFactor($ascent, $sums['steep_descent'], $distance);
     }
 
     $connection = [

@@ -17,6 +17,12 @@ declare(strict_types=1);
 // NOT required here on purpose: the dispatcher api/edit/map/ecosystem.php loads both before this
 // file, and requiring them would drag ecosystem.php's DDL into this include tree. The routing path
 // includes heightmap.php, never this file.
+//
+// ⭐ terrain-factor.php IS required, across the app/routing line, and deliberately: the 20 % threshold
+// that decides a steep descent is part of the MODEL, and the profile run must apply exactly the one the
+// router prices with. A copy of the number here would be a second source of truth for the model. The
+// file is pure -- const and function definitions only, no PDO, no I/O -- so pulling it in costs nothing.
+require_once __DIR__ . '/../routing/terrain-factor.php';
 
 // The ONE resolution the whole feature integrates height at, in map units. It is NOT a per-request
 // knob, and that is a deliberate departure from owner decision 8 (spec §5.3): the ascent over
@@ -406,7 +412,7 @@ function avesmapsTerrainProfileForLine(array $rasters, array $coordinates): ?arr
         $from = $coordinates[$index];
         $to = $coordinates[$index + 1];
         if (!is_array($from) || !is_array($to) || count($from) < 2 || count($to) < 2) {
-            $profile[] = [0.0, 0.0];
+            $profile[] = [0.0, 0.0, 0.0, 0.0];
             continue;
         }
         $fromX = (float) $from[0]; $fromY = (float) $from[1];
@@ -417,6 +423,18 @@ function avesmapsTerrainProfileForLine(array $rasters, array $coordinates): ?arr
 
         $up = 0.0;
         $down = 0.0;
+        // 🔴 THE STEEP HALVES, one per direction. The Leistungskilometer charges a descent only where
+        // the ground is steeper than 20 % -- and a step that is a steep DESCENT one way is a steep
+        // ASCENT the other. Both sums must be stored, or the reverse direction cannot be priced: it is
+        // no longer enough to swap ascent and descent the way the old curve did.
+        //
+        // 💣 AND THE THRESHOLD IS DECIDED HERE, PER SAMPLE, not later from the leg's average. A leg
+        // averaging 16,6 % downhill contains stretches past 20 %, and those are exactly the ones that
+        // cost time. Deciding it from the average would silently drop them.
+        $steepUp = 0.0;
+        $steepDown = 0.0;
+        // The horizontal length of one sample step -- the denominator of every gradient below.
+        $stepLength = $steps > 0 ? $length / $steps : 0.0;
         $previous = null;
         for ($step = 0; $step <= $steps; $step++) {
             $t = $steps > 0 ? $step / $steps : 0.0;
@@ -433,11 +451,25 @@ function avesmapsTerrainProfileForLine(array $rasters, array $coordinates): ?arr
             $touched = true;
             if ($previous !== null) {
                 $delta = $height - $previous;
-                if ($delta > 0.0) { $up += $delta; } else { $down -= $delta; }
+                if ($delta > 0.0) {
+                    $up += $delta;
+                    // Steep uphill here is steep DOWNhill for the other direction.
+                    if (avesmapsTerrainDescentIsSteep($delta, $stepLength)) { $steepUp += $delta; }
+                } else {
+                    $down -= $delta;
+                    if (avesmapsTerrainDescentIsSteep(-$delta, $stepLength)) { $steepDown -= $delta; }
+                }
             }
             $previous = $height;
         }
-        $profile[] = [round($up, 2), round($down, 2)];
+        // 🔴 FOUR NUMBERS PER PIECE: ascent, descent, steep ascent, steep descent -- all in the STORED
+        // direction. Reversing a piece swaps the pairs (ascent<->descent, steepUp<->steepDown), so both
+        // directions are priced from this one row.
+        //
+        // 💣 THE LENGTH OF THIS ARRAY IS THE FORMAT GUARD. Rows written before 2026-07-30 hold pairs of
+        // two; the router refuses anything shorter than four and answers „no height data" instead, so a
+        // pre-model row can never be misread as a Leistungsmeilen sum. They heal on the next run.
+        $profile[] = [round($up, 2), round($down, 2), round($steepUp, 2), round($steepDown, 2)];
         $totalUp += $up;
         $totalDown += $down;
     }

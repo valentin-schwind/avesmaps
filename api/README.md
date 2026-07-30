@@ -97,7 +97,17 @@ Some technical diagnostic queries may currently still exist via `GET /api/route/
 ### Terrain (V11)
 
 The travel time of a leg is multiplied by a **slope factor** derived from the stored height
-rasters, when the owner switch `terrain_travel_enabled` is on. The response **gains fields** (below);
+rasters, when the owner switch `terrain_travel_enabled` is on.
+
+🔴 **The model is the Leistungskilometer** (DIN 33466, the marching-time arithmetic of the German
+and Swiss alpine clubs), owner decision of 2026-07-30: one mile of level ground is one performance
+mile, every 100 Schritt of climb adds another, and every 150 Schritt of descent does too — but only on
+stretches steeper than 20 %. `Faktor = Leistungsmeilen / Meilen`, capped at 4,0.
+
+⚠️ **Therefore `terrain_time_factor` is never below 1.0.** Nothing is ever quicker than the level. A
+previous model handed out a bonus for gentle descents; if you cached or compared against values under
+1.0, they are gone. The threshold is decided per sampled stretch, not from a leg's average, so a leg
+may cost a little more than its average gradient suggests. The response **gains fields** (below);
 no existing field is removed or renamed. The **values** of `cost` and `segments[].cost_units` change
 once the switch is on. `distance_units` does not — distance is geometry.
 

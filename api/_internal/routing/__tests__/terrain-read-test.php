@@ -52,7 +52,7 @@ assert($pathData['revision'] === 42, 'the revision must arrive unchanged, got ' 
 // --- the attachment rule -----------------------------------------------------------------------
 $terrain = [
     'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' => [
-        'ascent' => 1200.0, 'descent' => 300.0, 'profile' => [[1200.0, 300.0]], 'revision' => 42,
+        'ascent' => 1200.0, 'descent' => 300.0, 'profile' => [[1200.0, 300.0, 0.0, 0.0]], 'revision' => 42,
     ],
 ];
 $attached = avesmapsRouteAttachTerrain($pathData, $terrain);
@@ -61,7 +61,7 @@ assert($attached['ascent'] === 1200.0, 'the ascent must arrive');
 
 // A stale path_revision means the stored profile describes a DIFFERENT geometry -- local, specific,
 // and self-healing: it is dropped, and the way falls back to factor 1,0.
-$stale = ['aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' => ['ascent' => 1.0, 'descent' => 0.0, 'profile' => [[1.0, 0.0]], 'revision' => 41]];
+$stale = ['aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee' => ['ascent' => 1.0, 'descent' => 0.0, 'profile' => [[1.0, 0.0, 0.0, 0.0]], 'revision' => 41]];
 assert(avesmapsRouteAttachTerrain($pathData, $stale) === null,
     'a profile computed against another revision of THIS way must not be used');
 
@@ -111,7 +111,7 @@ assert($without['graph']['Anfang']['Ende'][0] === $without['graph']['Ende']['Anf
     'without terrain the two directions stay the same shared object');
 
 $terrainMap = ['w1' => ['ascent' => 3000.0, 'descent' => 3000.0,
-    'profile' => [[3000.0, 0.0], [0.0, 3000.0]], 'revision' => 7, 'stamp' => 'x']];
+    'profile' => [[3000.0, 0.0, 0.0, 0.0], [0.0, 3000.0, 0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
 $with = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $terrainMap);
 $forward = $with['graph']['Anfang']['Ende'][0];
 $backward = $with['graph']['Ende']['Anfang'][0];
@@ -129,17 +129,22 @@ assert($forward['ascent_schritt'] === 3000.0 && $forward['descent_schritt'] === 
 assert($forward['from'] === 'Anfang' && $backward['from'] === 'Anfang',
     'from/to must stay the stored orientation on BOTH variants');
 $asym = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0,
-    'profile' => [[1500.0, 0.0], [1500.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+    'profile' => [[1500.0, 0.0, 0.0, 0.0], [1500.0, 0.0, 0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
 $asymGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $asym);
 $up = $asymGraph['graph']['Anfang']['Ende'][0];
 $down = $asymGraph['graph']['Ende']['Anfang'][0];
 assert($up['terrain_time_factor'] > 1.0, 'going up must cost more');
-assert($down['terrain_time_factor'] < 1.0, 'the same way downhill must be faster');
+// 🔴 THE MODEL CHANGED HERE ON 2026-07-30 AND THIS LINE IS THE PROOF. It used to read
+// `< 1.0` -- „the same way downhill must be faster". Under the Leistungskilometer a GENTLE descent
+// (this one is 5 %) is free, never a bonus: nothing is ever quicker than the level. A steep descent
+// would cost, and that is what the steep sums are for.
+assert($down['terrain_time_factor'] === 1.0,
+    'a gentle descent is free under the Leistungskilometer -- neither a penalty nor a bonus');
 assert($up['ascent_schritt'] === 3000.0 && $down['ascent_schritt'] === 0.0,
     'the reverse variant climbs what the forward one falls');
 
 // --- a stale path_revision falls back to today's number, silently and correctly ------------------
-$staleMap = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0]], 'revision' => 6, 'stamp' => 'x']];
+$staleMap = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0, 0.0, 0.0]], 'revision' => 6, 'stamp' => 'x']];
 $staleGraph = avesmapsBuildClientCompatibleRouteGraph($network, $plainRequest, $staleMap);
 assert(abs($staleGraph['graph']['Anfang']['Ende'][0]['time'] - $edgeWithout['time']) < 1e-12,
     'a profile computed against another revision of this way must not change its time');
@@ -167,8 +172,9 @@ assert($firstHalf['terrain_time_factor'] > $secondHalf['terrain_time_factor'],
 //
 // 💣 THIS BLOCK USED TO ASSERT THE OPPOSITE ("flow and slope must multiply"). It was not wrong then:
 // there was no path-type gate, and the invariant it protected -- that the slope clamp is NOT the
-// river clamp [1,0 … 3,0] -- is real. That invariant now lives on a LAND path at the `$down` assert
-// above, which only holds because the slope may go below 1,0. Do not re-add a river version of it.
+// river clamp [1,0 … 3,0] -- was real while the slope could fall below 1,0. Under the
+// Leistungskilometer it cannot, so that particular clash is gone; the gate below is what remains,
+// and it is the one that matters. Do not re-add a river version of the slope.
 $river = $network;
 $river['paths'][0]['subtype'] = 'Flussweg';
 $river['paths'][0]['name'] = 'Flussweg';
@@ -206,7 +212,7 @@ assert(!avesmapsRouteTerrainAppliesTo('Flussweg') && !avesmapsRouteTerrainApplie
 assert(avesmapsRouteTerrainAppliesTo('Karrenweg') && avesmapsRouteTerrainAppliesTo(''),
     'an unknown subtype must keep its slope -- the list names water, it does not whitelist land');
 
-$oneTerrainRow = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+$oneTerrainRow = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0, 0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
 assert(avesmapsRouteAttachTerrain(['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Flussweg'], $oneTerrainRow) === null,
     'avesmapsRouteAttachTerrain must refuse water outright');
 assert(avesmapsRouteAttachTerrain(['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Pfad'], $oneTerrainRow) !== null,
@@ -253,7 +259,7 @@ $anchorNetwork = [
 ];
 $anchorRequest = $plainRequest + ['from' => 'Einsiedel', 'to' => 'Ende'];
 $anchorTerrain = ['w1' => ['ascent' => 8000.0, 'descent' => 1000.0,
-    'profile' => [[6000.0, 1000.0], [2000.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+    'profile' => [[6000.0, 1000.0, 0.0, 0.0], [2000.0, 0.0, 0.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
 
 $anchored = avesmapsBuildClientCompatibleRouteGraph($anchorNetwork, $anchorRequest, $anchorTerrain)['graph'];
 // The anchor node is named after the waypoint's index in from/to/via -- „Einsiedel" is index 0.
