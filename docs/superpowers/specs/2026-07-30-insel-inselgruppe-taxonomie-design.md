@@ -1,7 +1,21 @@
 # Insel und Inselgruppe — zwei Dinge, zwei Ebenen
 
-**Stand:** 2026-07-30 · **Status:** Entwurf, vom Owner freigegeben. **Nichts gebaut.**
-**Prüfstand:** `origin/master` `275e204f`.
+**Stand:** 2026-07-30 · **Status: GEBAUT UND LIVE** (`b3d9c306`). Der Umzug ist gelaufen.
+**Prüfstand des Entwurfs:** `origin/master` `275e204f`.
+
+> **Live gemessen nach dem Deploy** (eine Anfrage, Revision 6072): `derographisch|insel = 0`,
+> `topographie|insel = 251`, `derographisch|inselgruppe = 0` (leer, wie entworfen). Ein Vergleich
+> beider Nutzlasten zeigt **genau 251** Ebenenwechsel und **keine** unerwartete Änderung — keine
+> Typänderung, keine Geometrie, keine Löschung. Farbauflösung auf der Live-Seite geprüft:
+> `insel → #b2a273`, `gebirge → #7a6c5e`, `meer → #2d5f8a`, `inselgruppe → #575757`.
+>
+> ⭐ **Die Stapelungssorge ist ausgeräumt, und zwar gemessen statt gefolgert.** Inseln teilen jetzt
+> eine Ebene mit `meer` und `see`. **218 der 251 Inseln liegen in einem Gewässer, und keine einzige
+> ist größer als ihr Gewässer** — die Regel „groß unten, klein oben" legt damit jede obenauf.
+> Median Insel 6,8 gegen Median Meer 11 740; die größte Insel (Maraskan, 8 543) bleibt unter dem
+> Median jedes Meeres.
+>
+> 🔧 **Offen beim Owner:** einmal „Zugehörigkeit rechnen" (§4). Und der Farbton darf beurteilt werden.
 **Messung:** ein einzelner `GET /api/app/ecosystem-areas.php`, Revision **5795**, 679 Flächen,
 im Scratchpad ausgewertet.
 
