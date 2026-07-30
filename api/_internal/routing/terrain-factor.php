@@ -7,10 +7,16 @@ declare(strict_types=1);
 // PURITY CONTRACT: side-effect-free on include, no PDO, no blob, no I/O. This file is the ONE place
 // the curve lives, so the measurement of §7.2 can retune it by editing four numbers and nothing else.
 //
-// 🔴 THE NUMBERS BELOW ARE CHOSEN, NOT MEASURED. They are start values, anchored on the one number
-// the published speed table already asserts: a Gebirgspass is 1,5 km/h against a Strasse's 4,0, so a
-// typical mountain leg is ALREADY 2,67x slower. The measurement (spec §7.2, this plan's task 11)
-// lays the real distribution against them and the owner decides the ceiling BEFORE the switch goes on.
+// 🔴 THE NUMBERS BELOW WERE CHOSEN, AND THEN MEASURED AGAINST THE WHOLE STOCK ON 2026-07-30. They are
+// anchored on the one number the published speed table already asserts: a Gebirgspass is 1,5 km/h
+// against a Strasse's 4,0, so a typical mountain leg is ALREADY 2,67x slower. All four survived the
+// measurement unchanged -- see docs/superpowers/plans/2026-07-29-landschaften-v11-messung.md §2a.
+//
+// ⚠️ WHAT THE MEASUREMENT FOUND, AND WHY IT IS A DATA PROBLEM RATHER THAN A CURVE PROBLEM: the 2,67x
+// anchor is honoured by construction (1 + 5,0 · 0,3333), but the DATA reach it in 5 of 4.300 way
+// pieces. A typical Gebirgspass piece WITH a profile sits at exactly 1,0000, because 15 of the 16
+// mountain areas still run on a placeholder maximum height. Retuning these constants against that
+// would be calibrating to placeholder terrain. Revisit once real peak heights are entered.
 
 // 1 map unit = 3.000 Schritt (V9 §4.1; spec §10.2 says 0,5 units = 1.500 Schritt, same statement).
 // 💣 The unit trap is documented and expensive: reading the graph distance as miles overstates a
@@ -32,8 +38,21 @@ const AVESMAPS_TERRAIN_DOWN_PENALTY = 3.0;
 // 💣 NOT THE RIVER CLAMP. avesmapsRouteClientNormalizeFlow clamps to [1,0 ... 3,0] because a current
 // only ever slows you down. Inheriting that bound here would clamp every descent up to 1,0 and
 // downhill would never be faster than level -- owner decision 3 silently taken back.
-// ⚠️ The ceiling is NOT decided. At 4,0 a steep pass computes to 0,375 km/h -- under 10 km a day.
-// Whether it stays is the owner's call after seeing the picture of §7.2.
+// ✅ THE CEILING IS DECIDED: 4,0 STAYS (owner, 2026-07-30, after the measurement of §2a). At 4,0 a
+// steep pass would compute to 0,375 km/h -- under 10 km a day -- and nothing on the map comes close:
+// measured over BOTH travel directions on all 2.493 land way pieces, the highest factor is 3,4782 and
+// the ceiling bites 0 of them. 3,5 would also bite 0, 3,0 would bite 9.
+//
+// 💣 THE NUMBER TO WATCH IS NOT THE CEILING, IT IS THIS PAIR: uphill saturates where
+// UP_PENALTY · gradient hits the ceiling, i.e. at gradient 0,6 -- and the steepest measured land
+// gradient is 49,56 %, only 21 % short of it. Past that point two differently steep passes become
+// indistinguishable, which is the real damage. Real peak heights (owner decision 5 allows 15.000
+// Schritt against today's ~2.000-6.000) go well beyond it, so revisit UP_PENALTY *together with* the
+// ceiling then -- never one of them alone.
+//
+// ⚠️ FACTOR_MIN IS DEAD AND STAYS. The curve's own minimum is 0,8125 (at downhill gradient 0,25) and
+// that is also the smallest value measured anywhere, in either direction -- the theoretical floor is
+// the real one. Steeper terrain does not push it lower, only makes it more common.
 const AVESMAPS_TERRAIN_FACTOR_MIN = 0.5;
 const AVESMAPS_TERRAIN_FACTOR_MAX = 4.0;
 

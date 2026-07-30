@@ -779,7 +779,7 @@ kommt der serverseitige Stapellauf der Fahrplan-Zeile.
 
 | | wohin | warum nicht hier |
 |---|---|---|
-| `factor_forward` / `factor_backward`, `ascent` / `descent` | **V11** | Verlangt das Höhenfeld. Es wird **heute** umgebaut (`90a55aad` Grate in der Basis, `d1eedf55` Erhebungen bis 24; `2026-07-29-landschaften-v8-fortsetzung.md` offen). V11s Klemme `[0,5…4,0]` und die Ausnahmenliste (`Gebirgspass` ist heute schon 2,67× langsamer, und die Tabelle ist **veröffentlicht**) sind zudem nicht entschieden. |
+| `factor_forward` / `factor_backward`, `ascent` / `descent` | **V11** | Verlangt das Höhenfeld. Es wird **heute** umgebaut (`90a55aad` Grate in der Basis, `d1eedf55` Erhebungen bis 24; `2026-07-29-landschaften-v8-fortsetzung.md` offen). ✅ **Nachgetragen 2026-07-30:** V11 ist gebaut und abgenommen, die Klemme `[0,5…4,0]` ist entschieden (4,0 bleibt, trifft nichts) und die Ausnahmenliste steht — **Wasserwege tragen keine Steigung**, `Gebirgspass` wird nicht ausgenommen. Die veröffentlichte 2,67×-Tabelle bleibt der Anker, wird von den Daten aber noch nicht erreicht (Platzhalterhöhen). |
 | Anzeige im Routenplaner | **V10** | `buildRouteLegPopupHtml` (`route-plan.js:196`), Flora über `buildLoreMarkup` — und **nur** über den DOM-Observer, nie beim Markup-Bau (Pool-Vorfall 2026-07-21). |
 | öffentliche Leseschnittstelle | **V10** | Dort entscheidet sich Routenantwort vs. Karten-Nutzlast vs. eigener Endpunkt. V9 liest nur über `assignment_status` zurück. |
 | Änderungen am Graph | **V11** | V9 fasst `client-graph.php` nicht an. |
