@@ -194,6 +194,12 @@ der Code **für diese eine Anfrage** und schreibt die tatsächlich benutzte Zell
 | Flächen mit Höhenparametern | 58 — **fast alle Erprobung** |
 | Wege mit Geländeprofil | **433 von 5.676** (7,6 %) |
 
+⚠️ **Diese Tabelle ist eine Momentaufnahme und veraltet absichtsvoll.** Noch am selben Tag hat eine
+Parallel-Sitzung (`10073976`) die Rastererzeugung für Gebirge **ohne Gipfel** repariert — vorher
+schwieg sie, jetzt bauen **16 von 17** Gebirgsflächen ein Feld. Das ändert den *gespeicherten*
+Bestand erst beim nächsten Knopfdruck, hebt aber die Obergrenze dessen, was der A\* je spüren kann.
+Wer V14 baut, zählt die Zeilen neu, statt diese zu glauben.
+
 🔧 **Owner-Aktion:** Solange die Gebirgsflächen `is_trial = 1` tragen, sind sie für das Routing
 unsichtbar — V13s Filter schließt Erprobungsflächen bewusst aus („Routing darf sich nicht ändern,
 weil jemand etwas ausprobiert"). Der A\* meidet dann **nur Wasser**. Das ist kein Baufehler,
