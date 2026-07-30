@@ -169,15 +169,25 @@ function getWaypointAutocompleteSource(term = "") {
 			return left.entry.name.localeCompare(right.entry.name, "de");
 		})
 		.slice(0, WAYPOINT_AUTOCOMPLETE_MAX_RESULTS)
-		// Ein gewöhnlicher Ort bleibt ein blanker String (unverändertes Verhalten). Ein Innerorts-
-		// Objekt wird zum {label, value}-Paar: sichtbar sind beide, ins Feld geht die STADT.
+		// Jeder Eintrag ist ein {label, value}-Paar. Beim Innerorts-Objekt ist beides verschieden:
+		// sichtbar sind Objekt UND Stadt, ins Feld geht die STADT (nur sie ist ein Routenziel).
 		//
 		// „Schänke Schnapsfass (Imdal)" (Owner 2026-07-28): das GESUCHTE steht vorne, die Stadt
 		// dahinter in Klammern. Man tippt den Objektnamen -- stünde er hinten, müsste man ihn in
 		// jeder Zeile erst suchen. Die Klammer ist dabei die knappere Form von „— in Imdal“.
+		//
+		// 💣 NIEMALS EINEN BLANKEN STRING ZURÜCKGEBEN, auch nicht für einen gewöhnlichen Ort, bei dem
+		// label == value wäre. jQuery UI normalisiert die Liste anhand des ERSTEN Eintrags:
+		// `_normalize: t[0].label && t[0].value ? t : map(…zu {label, value}…)`. Stand ein Innerorts-
+		// Objekt vorn -- bei „gre" ist das „Greifax-Palast (Xorlosch)" --, ging die Liste UNVERÄNDERT
+		// durch, jeder blanke String blieb ohne `label`, `_renderItem` rief `.text(undefined)` (in
+		// jQuery ein GETTER) und liess das <li> leer. Und leerer Text ist für die Menü-Regel
+		// `_isDivider: !/[^\-—–\s]/` eine Trennlinie: der Owner sah am 2026-07-30 „ganz viele striche"
+		// statt Greifenau, Greifenberg, Greifenfurt, Greifenhorst. Gedeckt von
+		// js/map-features/__tests__/waypoint-autocomplete-items.test.js.
 		.map((match) => (match.entry.settlement
 			? { label: `${match.entry.name} (${match.entry.settlement})`, value: match.entry.settlement }
-			: match.entry.name));
+			: { label: match.entry.name, value: match.entry.name }));
 }
 
 function scrollWaypointInputIntoView($input) {
