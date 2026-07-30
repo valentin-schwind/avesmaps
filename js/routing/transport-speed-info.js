@@ -116,7 +116,20 @@
 			// ⚠️ Shown unconditionally. It describes the map while `terrain_travel_enabled` is on, and
 			// this dialog has no route response to read the switch from -- it can be opened before the
 			// first route exists. If terrain is ever switched off for good, this rule comes out.
-			'<div class="tsi-rule tsi-rule--wide">' + iconImg(pathIcon("Gebirgspass")) + "<div>" + tr("transport.speedInfo.slopeRule", "<b>Steigung.</b> Entscheidend ist die <em>Steilheit</em>, nicht die Höhe: 240&nbsp;Schritt Anstieg auf einer Meile wiegen schwer, dieselben 240 auf zehn Meilen kaum. Als Faustregel bergauf: <b>je 300&nbsp;Schritt Anstieg pro Meile dauert die Etappe etwa die Hälfte länger</b> — 600&nbsp;Schritt doppelt so lang, und mehr als das <b>Vierfache</b> kann Gelände nie kosten. Bergab ist ein Gefälle von etwa 750&nbsp;Schritt pro Meile am schnellsten (knapp ein Fünftel Zeitgewinn); noch steiler bremst wieder, ab rund 1.500&nbsp;Schritt pro Meile ist es langsamer als flaches Land. Über den Koschberge-Pass wird aus einer Reichsstraße so rund 2 statt 4,5&nbsp;Meilen/h. Auf Flüssen und Meeren zählt kein Gelände — dort entscheidet allein die Strömung. Wo keine Höhen erfasst sind, zählt allein der Wegtyp; die Etappen-Infobox zeigt dann auch keine Zeile „Auf und ab“.") + "</div></div>" +
+			//
+			// 💣 EVERY „Schritt pro Meile" NUMBER BELOW IS PER **DISPLAYED MILE**, AND A DISPLAYED MILE
+			// IS 1.000 SCHRITT — not 3.000. The trap: the server's curve divides by
+			// `distance_units * 3000` because ONE MAP UNIT is 3.000 Schritt, and a map unit is
+			// DISTANCE_SCALING_FACTOR = **3** displayed miles (config.js:11; the scale bar proves it,
+			// ui-controls.js:28 divides by it). So the curve's gradient already IS „Schritt of climb per
+			// 1.000 Schritt travelled" — a plain gradient. Reading a map unit as one mile and writing
+			// „300 Schritt pro Meile" makes every number here 3x too large, which is exactly what
+			// shipped on 2026-07-30 and what a reader called out: 1.500 Schritt of climb per mile is a
+			// 150 % slope, i.e. a cliff. The anchor to check any new number against is the sentence's
+			// own first example, verified live: the Koschberge leg climbs 668,98 Schritt over 2,799
+			// miles = 239 Schritt per mile = a 23,9 % gradient = factor 2,195 = „2 statt 4,5 Meilen/h".
+			// factor = 1 + 5 * gradient, so: 100 Schritt/mile -> 1,5 · 200 -> 2,0 · 600 -> the 4,0 cap.
+			'<div class="tsi-rule tsi-rule--wide">' + iconImg(pathIcon("Gebirgspass")) + "<div>" + tr("transport.speedInfo.slopeRule", "<b>Steigung.</b> Entscheidend ist die <em>Steilheit</em>, nicht die Höhe: 240&nbsp;Schritt Anstieg auf einer Meile wiegen schwer, dieselben 240 auf zehn Meilen kaum. Als Faustregel bergauf: <b>je 100&nbsp;Schritt Anstieg pro Meile dauert die Etappe etwa die Hälfte länger</b> — 200&nbsp;Schritt doppelt so lang, und mehr als das <b>Vierfache</b> kann Gelände nie kosten. Bergab ist ein Gefälle von etwa 250&nbsp;Schritt pro Meile am schnellsten (knapp ein Fünftel Zeitgewinn); noch steiler bremst wieder, ab rund 500&nbsp;Schritt pro Meile ist es langsamer als flaches Land. Über den Koschberge-Pass wird aus einer Reichsstraße so rund 2 statt 4,5&nbsp;Meilen/h. Auf Flüssen und Meeren zählt kein Gelände — dort entscheidet allein die Strömung. Wo keine Höhen erfasst sind, zählt allein der Wegtyp; die Etappen-Infobox zeigt dann auch keine Zeile „Auf und ab“.") + "</div></div>" +
 			"</div></div></div>"
 		);
 	}
