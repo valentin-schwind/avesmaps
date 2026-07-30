@@ -43,3 +43,31 @@ function avesmapsAppSettingSet(PDO $pdo, string $key, string $value): void
     );
     $stmt->execute(['k' => $key, 'v' => $value]);
 }
+
+/**
+ * Read a setting WITHOUT the self-healing DDL. For read paths that run on every visitor request.
+ *
+ * 💣 `avesmapsAppSettingGet` runs `CREATE TABLE IF NOT EXISTS app_setting` on EVERY call. In an
+ * editor path that is fine and deliberate; in front of a public read it is precisely the hotspot
+ * AGENTS.md §10 already lists for territories-endpoint.php, and the information_schema load of the
+ * pool incident of 2026-07-17.
+ *
+ * A missing table returns the default, it does not create one: if the table does not exist, nobody
+ * has ever switched anything on.
+ *
+ * ⚠️ This function exists BECAUSE the rule was about to be written a third time. V10 wrote it as
+ * avesmapsPathLandscapesEcosystemEnabled and V11 needed the same thing for its own key -- so it
+ * moved here and both call it. There is no fourth copy to write.
+ */
+function avesmapsAppSettingGetWithoutDdl(PDO $pdo, string $key, string $default = ''): string
+{
+    try {
+        $statement = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
+        $statement->execute(['k' => $key]);
+        $value = $statement->fetchColumn();
+    } catch (PDOException) {
+        return $default;
+    }
+
+    return $value === false ? $default : (string) $value;
+}

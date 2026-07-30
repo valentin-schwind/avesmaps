@@ -17,6 +17,7 @@ declare(strict_types=1);
 // incident of 2026-07-17.
 
 require_once __DIR__ . '/../app/heightmap.php';
+require_once __DIR__ . '/../app/app-setting.php';
 
 const AVESMAPS_TERRAIN_SETTING = 'terrain_travel_enabled';
 
@@ -34,17 +35,9 @@ const AVESMAPS_TERRAIN_SETTING = 'terrain_travel_enabled';
  */
 function avesmapsRouteTerrainEnabled(PDO $pdo): bool
 {
-    try {
-        $statement = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
-        $statement->execute(['k' => AVESMAPS_TERRAIN_SETTING]);
-        $value = $statement->fetchColumn();
-    } catch (PDOException) {
-        return false;
-    }
-
     // 🔴 DEFAULT OFF. The ecosystem convention, not the citymaps one: an unfinished layer must not
     // change published travel times because somebody deployed it.
-    return $value !== false && (string) $value !== '0';
+    return avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_TERRAIN_SETTING, '0') !== '0';
 }
 
 /**

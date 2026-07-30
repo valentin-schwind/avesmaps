@@ -78,15 +78,10 @@ function avesmapsPathLandscapesNormalizeRequest(mixed $payload): array
  */
 function avesmapsPathLandscapesEcosystemEnabled(PDO $pdo): bool
 {
-    try {
-        $statement = $pdo->prepare('SELECT setting_value FROM app_setting WHERE setting_key = :k LIMIT 1');
-        $statement->execute(['k' => AVESMAPS_ECOSYSTEM_SETTING]);
-        $value = $statement->fetchColumn();
-    } catch (PDOException) {
-        return false;
-    }
-
-    return $value !== false && (string) $value !== '0';
+    // One implementation of „read without the DDL", in app-setting.php. It used to live here; V11
+    // needed the same rule for its own key, and a second copy is how two answers to one question
+    // start drifting.
+    return avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') !== '0';
 }
 
 /**

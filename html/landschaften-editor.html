@@ -45,6 +45,7 @@
     <button type="button" class="avm-tile" id="ecoRaycast" data-i18n-title="ecosystem.editor.raycast.title" title="Rechnet, welche Flächen ineinander liegen, in welchem Territorium sie liegen und welche Wege durch sie führen — und speichert das Ergebnis. Anteil an der KLEINEREN der beiden Flächen, Schwelle 10 %."><span class="t1" data-i18n="ecosystem.editor.ribbon.raycast">Zugehörigkeit rechnen</span><span class="t2" id="ecoRaycastInfo" data-i18n="ecosystem.editor.ribbon.raycastIdle">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="ecoTerrainTravel" title="Rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher. AUS heisst Zeile für Zeile die heutigen Zahlen."><span class="t1">Geländeabhängiges Reisen</span><span class="t2" id="ecoTerrainTravelInfo">Zustand unbekannt</span></button>
     <button type="button" class="avm-tile" id="ecoEnabled" disabled data-i18n-title="ecosystem.editor.enabled.title" title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1" data-i18n="ecosystem.editor.ribbon.enabled">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo" data-i18n="ecosystem.editor.enabled.unknown">Zustand unbekannt</span></button>
   </div>
 </div>
@@ -1148,6 +1149,41 @@ function renderProfileTile() {
 	info.textContent = stale ? base + " · Raster seither geändert" : base;
 }
 
+// 🔴 Der Schalter wirkt FÜR ALLE (Owner-Entscheid 1). ⚠️ Er geht erst an, wenn der Owner das Bild
+// aus §7.2 gesehen hat: eine Zahl, die leise falsch ist, merkt niemand -- und Reisezeiten sind die
+// eine Zahl, die Leute aus dieser Karte übernehmen.
+let terrainTravelEnabled = null;
+
+function renderTerrainTravelTile() {
+	const tile = $("ecoTerrainTravel");
+	const info = $("ecoTerrainTravelInfo");
+	if (!tile || !info) { return; }
+	if (terrainTravelEnabled === null) { info.textContent = "Zustand unbekannt"; return; }
+	tile.classList.toggle("avm-tile--on", terrainTravelEnabled === true);
+	info.textContent = terrainTravelEnabled ? "AN — für alle Besucher" : "AUS — heutige Zahlen";
+}
+
+async function toggleTerrainTravel() {
+	const tile = $("ecoTerrainTravel");
+	tile.disabled = true;
+	try {
+		const next = terrainTravelEnabled !== true;
+		if (next && !window.confirm(
+			"Geländeabhängiges Reisen einschalten?\n\n"
+			+ "Das ändert die veröffentlichten Reisezeiten für ALLE Besucher, sofort.")) {
+			return;
+		}
+		const result = await ecoPost("terrain_travel_set", { enabled: next });
+		terrainTravelEnabled = result.terrain_travel_enabled === true;
+		renderTerrainTravelTile();
+		flashStatus("Geländeabhängiges Reisen ist jetzt " + (terrainTravelEnabled ? "AN" : "AUS") + ".", "ok");
+	} catch (error) {
+		flashStatus("Schalter: " + (error && error.message ? error.message : String(error)), "bad");
+	} finally {
+		tile.disabled = false;
+	}
+}
+
 function rowByKey(key) { return rows.find((row) => row.key === key) || null; }
 
 function percent(share) { return (share * 100).toFixed(1).replace(".", ",") + " %"; }
@@ -1603,6 +1639,7 @@ function wireRibbon() {
 	$("ecoRaycast").addEventListener("click", () => { void runRaycast({ force: true }); });
 	$("ecoHeightmap").addEventListener("click", () => { void runHeightmaps(); });
 	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
+	$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });
 
 	// Der Totmannschalter. `set_enabled` existiert serverseitig seit V2.1 und hatte bis heute KEINEN
 	// Aufrufer im Client (grep set_enabled js/ -> leer) -- diese Kachel ist seine erste Oberfläche.
@@ -1948,6 +1985,11 @@ async function loadAssignmentStamp() {
 		terrainProfileStatus = await ecoPost("terrain_profile_status", {});
 		renderProfileTile();
 	} catch (error) { /* die Kachel behaelt ihren Ausgangstext */ }
+	try {
+		const travel = await ecoPost("terrain_travel_status", {});
+		terrainTravelEnabled = travel.terrain_travel_enabled === true;
+		renderTerrainTravelTile();
+	} catch (error) { /* „Zustand unbekannt" ist die richtige Auskunft, wenn niemand antwortet */ }
 }
 
 // ---- Boot ------------------------------------------------------------------------------------

@@ -94,6 +94,31 @@ OPTIONS CORS/preflight
 
 Some technical diagnostic queries may currently still exist via `GET /api/route/?diagnostic=...`. They are not part of the stable external API contract.
 
+### Terrain (V11)
+
+The travel time of a leg is multiplied by a **slope factor** derived from the stored height
+rasters, when the owner switch `terrain_travel_enabled` is on. The **shape** of the response is
+unchanged; the **values** of `cost` and `segments[].cost_units` change. `distance_units` does not —
+distance is geometry.
+
+| Field | Where | Meaning |
+|---|---|---|
+| `terrain_time_factor` | per segment | the applied factor; `1.0` when it had no effect |
+| `ascent_schritt` / `descent_schritt` | per segment | climb and fall in Schritt, in the direction travelled; **`null`** where no height data exists |
+| `debug.context.terrain.enabled` | debug | was the switch on |
+| `terrain` | **request** | `false` switches terrain **off**; it can never switch it on |
+
+⚠️ **`terrain: false` does not give you the same route with different numbers — it gives you a
+DIFFERENT ROUTE.** The planner looks for the cheapest way; change the price of the mountains and
+the choice changes with it. With terrain the route goes around, without it over the pass. Both are
+correct — but they are two journeys, not two price tags for one.
+
+💣 `terrain_time_factor: 1.0` means three different things: terrain is off, the ground is level
+here, or nothing is known here. `debug.context.terrain.enabled` separates the first;
+`ascent_schritt: null` separates the third from the second.
+
+The speed table (`Gebirgspass` 1,5 km/h, `Strasse` 4,0 …) is the **base speed BEFORE terrain**.
+
 ## Locations
 
 ### `GET /api/locations/`

@@ -126,6 +126,9 @@ try {
         'terrain_profile_begin' => avesmapsTerrainProfileBegin($pdo, $userId),
         'terrain_profile_step' => avesmapsTerrainProfileStep($pdo, $payload),
         'terrain_profile_status' => avesmapsTerrainProfileStatus($pdo),
+        // V11 §7.1: „Geländeabhängiges Reisen: AN/AUS". AN = for everyone.
+        'terrain_travel_set' => avesmapsTerrainTravelSet($pdo, (bool) ($payload['enabled'] ?? false)),
+        'terrain_travel_status' => avesmapsTerrainTravelStatus($pdo),
         default => avesmapsErrorResponse(400, 'invalid_action', 'Unknown action.'),
     };
 

@@ -591,3 +591,28 @@ function avesmapsTerrainProfileStatus(PDO $pdo): array
         'current_heightmap_stamp' => avesmapsHeightmapGlobalStamp($pdo),
     ];
 }
+
+/**
+ * The owner switch „Geländeabhängiges Reisen".
+ *
+ * 🔴 AN heisst FÜR ALLE (owner decision 1: „ist es AN wird es für alle berechnet") -- no test
+ * parameter, no quiet rollout. AUS heisst line for line today's numbers.
+ *
+ * 💣 IT IS AN EMERGENCY STOP, AND THE API SWITCH IS NOT ITS EQUAL. `terrain: false` in a request
+ * may only switch OFF; global OFF always wins. Otherwise a stranger could switch on what the owner
+ * switched off, and the emergency stop would not be one.
+ *
+ * The DDL runs HERE, on the owner's deliberate action -- never on a read path.
+ */
+function avesmapsTerrainTravelSet(PDO $pdo, bool $enabled): array
+{
+    avesmapsAppSettingEnsureTable($pdo);
+    avesmapsAppSettingSet($pdo, 'terrain_travel_enabled', $enabled ? '1' : '0');
+
+    return ['terrain_travel_enabled' => $enabled];
+}
+
+function avesmapsTerrainTravelStatus(PDO $pdo): array
+{
+    return ['terrain_travel_enabled' => avesmapsAppSettingGetWithoutDdl($pdo, 'terrain_travel_enabled', '0') !== '0'];
+}
