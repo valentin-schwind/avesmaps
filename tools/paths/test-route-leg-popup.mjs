@@ -45,6 +45,8 @@ const planSource = read("js", "routing", "route-plan.js");
 const popupsSource = read("js", "ui", "popups.js");
 const domainSource = read("js", "map-features", "map-features-path-domain.js");
 
+const utilsSource = read("js", "app", "utils.js");
+
 const calls = { header: [], popup: [] };
 const sandbox = {
 	SYNTHETIC_ROUTE_TYPE: "Querfeldein",
@@ -54,6 +56,9 @@ const sandbox = {
 		calls.header.push({ basename, title, subtitle });
 		return `<header data-img="${basename}">${title}</header>`;
 	},
+	// No route on screen in a unit test -> no height data -> no „Auf und ab" row. That is the real
+	// no-data path, not a shortcut.
+	currentRouteSegments: [],
 	locationPopupMarkup: (opts) => {
 		calls.popup.push(opts);
 		return `<box>${opts.headerImageMarkup}${opts.actionsMarkup}</box>`;
@@ -70,6 +75,10 @@ vm.runInContext(extractConst(domainSource, "UNNAMED_PATH_TITLE"), sandbox);
 vm.runInContext(extractFunction(domainSource, "getUnnamedPathTitle"), sandbox);
 vm.runInContext(extractFunction(planSource, "routeLegTypeLabel"), sandbox);
 vm.runInContext(extractFunction(planSource, "routeLegUnnamedTitle"), sandbox);
+// Real: the shared number formatter and the per-leg height reader. Both are called by
+// buildRouteLegPopupHtml, and a missing global here is not a stub -- it is a crash.
+vm.runInContext(extractFunction(utilsSource, "formatDecimalNumber"), sandbox);
+vm.runInContext(extractFunction(planSource, "routeEntryTerrain"), sandbox);
 vm.runInContext(extractFunction(planSource, "buildRouteLegPopupHtml"), sandbox);
 
 const leg = (over) => ({ type: "Reichsstrasse", segmentLabel: "", startName: "A", endName: "B", distance: 10, travelTime: 5, flowState: null, ...over });
@@ -122,8 +131,8 @@ assert.strictEqual(lastHeader().basename, "reichsstrasse", "each way type brings
 const html = sandbox.buildRouteLegPopupHtml(leg({ startName: "Elenvina", endName: "Gareth", distance: 42.812, travelTime: 3.456 }));
 assert.ok(html.includes("<dt>von</dt><dd>Elenvina</dd>"), "start is shown");
 assert.ok(html.includes("<dt>bis</dt><dd>Gareth</dd>"), "end is shown");
-assert.ok(html.includes("42.81 Meilen"), "distance is rounded like the planner row");
-assert.ok(html.includes("3.46 Stunden (0.14 Tage)"), "travel time carries hours and days");
+assert.ok(html.includes("42,81 Meilen"), "distance is written the German way, like the planner row");
+assert.ok(html.includes("3,46 Stunden (0,14 Tage)"), "travel time carries hours and days, German decimals");
 
 // River flow is noted in the distance, same wording as the planner row.
 const upstream = sandbox.buildRouteLegPopupHtml(leg({ type: "Flussweg", flowState: "upstream" }));

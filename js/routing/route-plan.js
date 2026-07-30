@@ -251,6 +251,53 @@ function routeEntryTerrain(entry, segments) {
 	return known > 0 ? { ascent, descent, known } : null;
 }
 
+// V11 for the WHOLE route: „Auf und ab" summed over every leg, plus how many legs carry height data
+// at all. Built on routeEntryTerrain -- ONE calculator, two tones of voice: there a single leg, here
+// the journey.
+function routeTerrainTotals(planEntries, segments) {
+	const entries = Array.isArray(planEntries) ? planEntries : [];
+	let ascent = 0;
+	let descent = 0;
+	let coveredEntries = 0;
+	entries.forEach((entry) => {
+		const terrain = routeEntryTerrain(entry, segments);
+		if (!terrain) {
+			return;
+		}
+
+		ascent += terrain.ascent;
+		descent += terrain.descent;
+		coveredEntries += 1;
+	});
+
+	return coveredEntries > 0
+		? { ascent, descent, coveredEntries, totalEntries: entries.length }
+		: null;
+}
+
+// Die Zeile unter den Landschaften. SYNCHRON, anders als die Landschaften: die Hoehen stecken schon in
+// den Segmenten, es gibt nichts abzurufen.
+//
+// 🔴 Nur wenn es etwas zu sagen gibt -- ohne Hoehendaten keine Zeile, und gemessen-eben („0 rauf · 0
+// runter") auch nicht. Dieselbe Regel wie in der Etappen-Infobox.
+// ⚠️ Die Summe ist eine UNTERGRENZE: nur ein Teil des Wegenetzes traegt Hoehen. Spricht sie nicht fuer
+// alle Etappen, nennt die Zeile fuer wie viele sie spricht -- sonst liest sich eine Teilsumme als der
+// Gesamtanstieg der Reise.
+function routeTerrainSummaryMarkup(planEntries, segments) {
+	const totals = routeTerrainTotals(planEntries, segments);
+	if (!totals || (totals.ascent <= 0 && totals.descent <= 0)) {
+		return "";
+	}
+
+	const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
+	const coverage = totals.coveredEntries < totals.totalEntries
+		? ` (${tr("planner.summary.elevationCoverage", "auf {covered} von {total} Etappen erfasst", { covered: totals.coveredEntries, total: totals.totalEntries })})`
+		: "";
+	return `<span class="route-plan-summary__elevation">${tr("planner.leg.elevation", "Höhenunterschiede")}: `
+		+ `${schritt(totals.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "rauf")}`
+		+ ` · ${schritt(totals.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "runter")}${coverage}</span>`;
+}
+
 function buildRouteLegPopupHtml(entry) {
 	if (!entry || typeof locationPopupMarkup !== "function") {
 		return "";
@@ -275,8 +322,8 @@ function buildRouteLegPopupHtml(entry) {
 	let rows = "";
 	rows += row(tr("planner.leg.from", "von"), entry.startName);
 	rows += row(tr("planner.leg.to", "bis"), entry.endName);
-	rows += row(tr("planner.summary.distance", "Distanz"), `${(Number(entry.distance) || 0).toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord}`);
-	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${hours.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(hours / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})`);
+	rows += row(tr("planner.summary.distance", "Distanz"), `${formatDecimalNumber(Number(entry.distance) || 0, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord}`);
+	rows += row(tr("planner.summary.travelTime", "Reisezeit"), `${formatDecimalNumber(hours, 2)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(hours / 24, 2)} ${tr("planner.unit.days", "Tage")})`);
 	// V11 „Auf und ab": climb and fall of this leg, in Schritt. It is what the travel time above was
 	// actually computed from, so it belongs directly beneath it.
 	//
@@ -286,9 +333,9 @@ function buildRouteLegPopupHtml(entry) {
 	// an internal one, not something the infobox has to litigate.
 	const terrain = routeEntryTerrain(entry, currentRouteSegments);
 	if (terrain && (terrain.ascent > 0 || terrain.descent > 0)) {
-		const schritt = (value) => Math.round(value).toLocaleString("de-DE");
+		const schritt = (value) => formatDecimalNumber(Math.round(value), 0);
 		rows += row(
-			tr("planner.leg.elevation", "Auf und ab"),
+			tr("planner.leg.elevation", "Höhenunterschiede"),
 			`${schritt(terrain.ascent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.up", "rauf")}`
 			+ ` · ${schritt(terrain.descent)} ${tr("planner.unit.schritt", "Schritt")} ${tr("planner.leg.down", "runter")}`
 		);
@@ -619,6 +666,34 @@ function buildRoutePlanEntries(routeNames, segments) {
 	return cleaned;
 }
 
+// „313,1 + 236,3" -- the air legs the Drachenflug is the sum of, for the derivation column beside it. One
+// leg only (start and destination, nothing in between) has nothing to derive: the note would repeat the
+// total. Joined by "+" and not by an arrow (Owner 2026-07-30): the total IS their sum, while an arrow
+// between bare numbers reads as „from 313,1 to 236,3", a change that is not happening here.
+function routeAirLegsNote(airDistanceLegs) {
+	const legs = Array.isArray(airDistanceLegs) ? airDistanceLegs : [];
+	if (legs.length < 2) {
+		return "";
+	}
+
+	return legs.map((legDistance) => formatDecimalNumber(legDistance, 1)).join(" + ");
+}
+
+// One row of the summary grid: label, value, and the quiet derivation the value can be recalculated from.
+// EVERY figure follows the same shape (Owner 2026-07-30: „übersichtlich, aber jeder soll selber nachrechnen
+// können") -- that is what stopped the Drachenflug's bracket from reading as a special case.
+//
+// 💣 The three cells are direct grid children (`display: contents` on the row, see route-planner.css), so
+// the columns line up across ALL rows. A grid per row would give every row its own column widths.
+function routeSummaryRowMarkup(label, value, derivation, extraClass = "") {
+	const rowClass = extraClass ? ` ${extraClass}` : "";
+	return `<div class="route-plan-summary__row${rowClass}">`
+		+ `<span class="route-plan-summary__label">${label}</span>`
+		+ `<span class="route-plan-summary__value">${value}</span>`
+		+ `<span class="route-plan-summary__note">${derivation || ""}</span></div>`;
+}
+
+
 function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
 	const restPerDay = getPlannerRestHoursPerDay();
@@ -631,6 +706,7 @@ function showRoutePlan(routeNames, segments) {
 	const planEntries = routePlanViewModel.planEntries;
 	const totalDistance = routePlanViewModel.summary.distance;
 	const airDistance = routePlanViewModel.summary.airDistance;
+	const airDistanceLegs = routePlanViewModel.summary.airDistanceLegs;
 	const totalTravelTime = routePlanViewModel.summary.travelHours;
 	const totalRestTime = routePlanViewModel.summary.restHours;
 	const totalHours = routePlanViewModel.summary.totalHours;
@@ -672,10 +748,10 @@ function showRoutePlan(routeNames, segments) {
 		$overview.append(`
 			<div role="button" tabindex="0" class="route-plan-entry" data-route-entry-index="${entryIndex}">
 			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
-			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
+			(${formatDecimalNumber(entry.distance, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
-			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(entry.travelTime / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})
+			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 2)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
 			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>
 			</div>
 		`);
@@ -707,19 +783,26 @@ function showRoutePlan(routeNames, segments) {
 		selectRoutePlanEntry(Number(this.dataset.routeEntryIndex), { zoomToEntry: true });
 	});
 
+	// Header row: the journey title stays a button (it zooms to the route), and the share link sits beside it
+	// as an icon only (Owner 2026-07-30: „oben rechts, etwas größer, Text raus"). Two SIBLING buttons -- a
+	// button inside a button is invalid HTML, and the inner one would not reliably get its own clicks.
 	$overview.prepend(`
-		<button type="button" class="route-plan-entry route-plan-summary">
-			${tr("planner.journey.prefix", "Die Reise")} ${routeDesc}
-		</button>
-		<div class="route-plan-summary__time">
-			${tr("planner.summary.distance", "Distanz")}: ${totalDistance.toFixed(1)} ${tr("planner.unit.miles", "Meilen")}<br>
-			${tr("planner.summary.airDistance", "Drachenflug")}: ${airDistance.toFixed(1)} ${tr("planner.unit.miles", "Meilen")}<br>
-			${tr("planner.summary.travelTime", "Reisezeit")}: ${totalTravelTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalTravelTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})<br>
-			${tr("planner.summary.restTime", "Rastzeit")}: ${totalRestTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalRestTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})
-			<span class="route-plan-summary__landscapes"></span>
-			<div style="margin-top: 0.5em"><strong>${tr("planner.summary.totalTime", "Gesamtzeit")}: ${totalHours.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalHours / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})</strong></div>
+		<div class="route-plan-summary__head">
+			<button type="button" class="route-plan-entry route-plan-summary">
+				${tr("planner.journey.prefix", "Die Reise")} ${routeDesc}
+			</button>
+			<button type="button" id="share-link-button" class="share-link-button share-link-button--icon" title="${tr("planner.shareRoute", "Link für diese Route kopieren")}" aria-label="${tr("planner.shareRoute", "Link für diese Route kopieren")}">🔗</button>
 		</div>
-		<button type="button" id="share-link-button" class="share-link-button" title="${tr("planner.shareRoute.title", "Teile deine Reiseplanung")}">🔗 ${tr("planner.shareRoute", "Link für diese Route kopieren")}</button>
+		<div class="route-plan-summary__time">
+			${routeSummaryRowMarkup(tr("planner.summary.distance", "Distanz"), `${formatDecimalNumber(totalDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, tr("planner.summary.legCount", "{n} Etappen", { n: planEntries.length }))}
+			${routeSummaryRowMarkup(tr("planner.summary.airDistance", "Drachenflug"), `${formatDecimalNumber(airDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, routeAirLegsNote(airDistanceLegs))}
+			${routeSummaryRowMarkup(tr("planner.summary.travelTime", "Reisezeit"), `${formatDecimalNumber(totalTravelTime, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalTravelTime / 24, 1)} ${tr("planner.unit.days", "Tage")}`)}
+			${routeSummaryRowMarkup(tr("planner.summary.restTime", "Rastzeit"), `${formatDecimalNumber(totalRestTime, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalRestTime / 24, 1)} ${tr("planner.unit.days", "Tage")}`)}
+			<div class="route-plan-summary__rule"></div>
+			${routeSummaryRowMarkup(tr("planner.summary.totalTime", "Gesamte Reisezeit"), `${formatDecimalNumber(totalHours, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalHours / 24, 1)} ${tr("planner.unit.days", "Tage")}`, "route-plan-summary__row--total")}
+			<span class="route-plan-summary__landscapes"></span>
+			${routeTerrainSummaryMarkup(planEntries, segments)}
+		</div>
 		<hr>
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
@@ -799,6 +882,7 @@ function fillRoutePlanLandscapes(planEntries, segments) {
 	if (summaryTarget && routeLine.length) {
 		// Der Zeilenumbruch kommt aus dem CSS (display:block), nicht aus einem <br> im Text.
 		summaryTarget.innerHTML = `${escapeHtml(tr("planner.summary.landscapes", "Landschaften auf der Route"))}: `
-			+ formatLandscapesForPlanner(routeLine, escapeHtml);
+			+ formatLandscapesForMapLinks(routeLine, escapeHtml, canFocusLandscapeOnMap);
+		bindRoutePlanLandscapeLinks(summaryTarget);
 	}
 }

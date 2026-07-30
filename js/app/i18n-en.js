@@ -56,11 +56,12 @@ window.AVESMAPS_I18N_EN = {
 	"planner.leg.from": "from",
 	"planner.leg.to": "to",
 	"planner.leg.in": "in",
+	"planner.summary.legCount": "{n} legs",
 	"planner.summary.distance": "Distance",
 	"planner.summary.airDistance": "As the dragon flies",
 	"planner.summary.travelTime": "Travel time",
 	"planner.summary.restTime": "Rest time",
-	"planner.summary.totalTime": "Total time",
+	"planner.summary.totalTime": "Total travel time",
 	// V10 „Führt durch": the landscapes a route/leg runs through. Three surfaces, three tones -- the
 	// summary lists the whole route, the leg row repeats every leg's own list in running text, the
 	// infobox adds the shares. The two "through" strings are deliberately NOT the same length (Owner
@@ -71,6 +72,12 @@ window.AVESMAPS_I18N_EN = {
 	"planner.summary.landscapes": "Landscapes along the route",
 	"planner.leg.through": "Runs through",
 	"planner.leg.through.short": "through",
+	"planner.leg.elevation": "Elevation change",
+	// „Schritt" is a DSA unit, not a word to translate (AGENTS.md §8).
+	"planner.unit.schritt": "Schritt",
+	"planner.leg.up": "up",
+	"planner.leg.down": "down",
+	"planner.summary.elevationCoverage": "measured on {covered} of {total} legs",
 	"planner.shareRoute": "Copy link for this route",
 	"planner.shareRoute.title": "Share your route plan",
 	"planner.unit.miles": "miles",

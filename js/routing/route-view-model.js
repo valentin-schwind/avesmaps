@@ -39,6 +39,8 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 		summary: {
 			distance: Number(summary.distance_miles) || 0,
 			airDistance: Number(summary.air_distance_miles) || 0,
+			// The air legs between the stations, for the bracket behind the total.
+			airDistanceLegs: Array.isArray(summary.air_distance_legs) ? summary.air_distance_legs : [],
 			travelHours: Number(summary.travel_hours) || 0,
 			restHours: Number(summary.rest_hours) || 0,
 			totalHours: Number(summary.total_hours) || 0,

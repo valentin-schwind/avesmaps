@@ -135,6 +135,26 @@
 	font-size: 11.5px;
 	transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
 }
+/* Kopfzeile der Zusammenfassung: Reisetitel links, Teilen-Knopf oben rechts als reines Symbol
+   (Owner 2026-07-30). `align-items: flex-start`, damit der Knopf bei zwei- oder dreizeiligem Titel
+   oben stehen bleibt und nicht mittig mitwandert. */
+.route-plan-summary__head {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+.route-plan-summary__head .route-plan-summary {
+	flex: 1 1 auto;
+	margin-bottom: 4px;
+}
+.share-link-button--icon {
+	flex: 0 0 auto;
+	margin-top: 0;
+	padding: 5px 8px;
+	font-size: 15px;
+	line-height: 1.1;
+}
+
 .share-link-button:hover,
 .share-link-button:focus-visible {
 	background: var(--color-button-soft-hover);
@@ -801,6 +821,56 @@
 .route-plan-entry__landscapes:not(:empty) {
 	color: inherit;
 }
+
+/* Zusammenfassung in DREI SPALTEN: Bezeichnung, Wert, und leise die Herleitung, aus der sich der Wert
+   nachrechnen laesst (Owner 2026-07-30: „die wichtigsten Informationen uebersichtlich darstellen, aber
+   jeder soll selber sehen und nachrechnen koennen wie die Zahl zustande gekommen ist"). Damit ist die
+   Drachenflug-Klammer kein Sonderfall mehr, sondern dieselbe dritte Spalte wie ueberall.
+
+   💣 EIN Grid fuer den ganzen Block, nicht eines je Zeile -- nur so stehen die Werte aller Zeilen in
+   derselben Spalte. Die Zeilen sind darum `display: contents`, ihre drei Zellen also direkte Grid-Kinder.
+   Und `minmax(0, 1fr)` in der letzten Spalte, sonst schiebt eine lange Herleitung
+   („313,1 + 236,3 + 180,4 + 92,1") das Raster ueber die 330 px Panelbreite hinaus. */
+.route-plan-summary__time {
+	display: grid;
+	grid-template-columns: auto max-content minmax(0, 1fr);
+	gap: 1px 8px;
+	align-items: baseline;
+}
+.route-plan-summary__row {
+	display: contents;
+}
+.route-plan-summary__label {
+	color: var(--color-text-muted);
+}
+.route-plan-summary__value {
+	white-space: nowrap;
+}
+.route-plan-summary__note {
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+/* Die Gesamtzeit ist das Ergebnis der ganzen Rechnung: eigene Zeile nach den Einzelwerten und VOR den
+   Landschaften (Owner 2026-07-30), abgesetzt durch einen Trenner ueber die ganze Rasterbreite und eine
+   Spur mehr Groesse -- gruppiert per Trenner, nicht per Kasten (AGENTS.md §12). Der Trenner ist ein
+   eigenes Rasterkind, weil ein `border-top` auf den drei Zellen an den Spaltenluecken aufreissen wuerde. */
+.route-plan-summary__rule {
+	grid-column: 1 / -1;
+	margin: 5px 0 4px;
+	border-top: 1px solid var(--color-divider);
+}
+.route-plan-summary__row--total .route-plan-summary__label,
+.route-plan-summary__row--total .route-plan-summary__value {
+	font-size: 13px;
+	color: var(--color-text-strong);
+}
+/* Landschaften und Hoehenunterschiede laufen ueber die ganze Breite: die Namensliste bzw. der
+   Erfassungsvermerk brauchen den Umbruch, ein Wert in Spalte 2 waere dort nur eine Klemme. */
+.route-plan-summary__landscapes,
+.route-plan-summary__elevation {
+	grid-column: 1 / -1;
+}
+
 
 /* In der ZUSAMMENFASSUNG dagegen eine eigene Zeile: dort stehen Distanz/Reisezeit/Rastzeit
    untereinander (per <br>), und inline klebte „Landschaften: …" an die Rastzeit. */

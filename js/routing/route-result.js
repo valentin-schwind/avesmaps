@@ -75,13 +75,27 @@ function buildRouteSummary(routeLocations, routeSteps, options = {}) {
 	const totalTravelTime = safeRouteSteps.reduce((sum, step) => sum + (Number(step.travel_time) || 0), 0);
 	const totalRestTime = safeRouteSteps.reduce((sum, step) => sum + (Number(step.rest_time) || 0), 0);
 	const totalHours = totalTravelTime + totalRestTime;
-	const startLoc = safeRouteLocations[0]?.coordinates;
-	const endLoc = safeRouteLocations[safeRouteLocations.length - 1]?.coordinates;
-	const airDistance = startLoc && endLoc ? calculateScaledDistance(startLoc, endLoc) : 0;
+	// The "Drachenflug": how far a dragon flies that visits the SAME stations -- one air leg per pair of
+	// consecutive waypoints, summed. Until 2026-07-30 this was the single line from the first waypoint to
+	// the last, so Wehrheim -> Lowangen -> Greifenfurt reported 157.2 miles while its first leg alone
+	// measures 313: a total smaller than one of its own parts, and a detour comparison that meant nothing.
+	// The legs travel with the sum because the summary shows what the sum is made of.
+	const airDistanceLegs = [];
+	for (let index = 0; index + 1 < safeRouteLocations.length; index += 1) {
+		const legStart = safeRouteLocations[index]?.coordinates;
+		const legEnd = safeRouteLocations[index + 1]?.coordinates;
+		if (!legStart || !legEnd) {
+			continue;
+		}
+
+		airDistanceLegs.push(calculateScaledDistance(legStart, legEnd));
+	}
+	const airDistance = airDistanceLegs.reduce((sum, legDistance) => sum + legDistance, 0);
 
 	return {
 		distance_miles: totalDistance,
 		air_distance_miles: airDistance,
+		air_distance_legs: airDistanceLegs,
 		travel_hours: totalTravelTime,
 		rest_hours: totalRestTime,
 		total_hours: totalHours,

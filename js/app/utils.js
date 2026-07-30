@@ -261,8 +261,25 @@ function latLngToCoordinates(latlng) {
 	return [normalizedLatLng.lat, normalizedLatLng.lng];
 }
 
+// A number as the active language writes it: German 549,4 -- the English overlay 549.4. toFixed() can only
+// ever write a dot, which is how the German planner printed "157.2 Meilen" two lines above its own
+// "12,0 Reisestunden". Every mileage/hour/day figure in the planner and the measuring tool goes through here.
+function formatDecimalNumber(value, fractionDigits = 1) {
+	const numericValue = Number(value);
+	if (!Number.isFinite(numericValue)) {
+		return "";
+	}
+
+	const locale = typeof window !== "undefined" && window.avesmapsActiveLang === "en" ? "en-US" : "de-DE";
+	return numericValue.toLocaleString(locale, {
+		minimumFractionDigits: fractionDigits,
+		maximumFractionDigits: fractionDigits,
+	});
+}
+
 function formatDistanceMeasurement(distanceInMiles) {
-	return tr("units.miles", `${distanceInMiles.toFixed(1)} Meilen`, { n: distanceInMiles.toFixed(1) });
+	const formattedDistance = formatDecimalNumber(distanceInMiles, 1);
+	return tr("units.miles", `${formattedDistance} Meilen`, { n: formattedDistance });
 }
 
 // Planner-Feld zeigt "Reisestunden pro Tag" (Nutzer-Wunsch: intuitiver als Rastzeit), der Rechenkern,
