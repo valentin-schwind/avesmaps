@@ -160,9 +160,15 @@ assert($secondHalf['ascent_schritt'] === 0.0 && $secondHalf['descent_schritt'] =
 assert($firstHalf['terrain_time_factor'] > $secondHalf['terrain_time_factor'],
     'climbing half and falling half must not come out equal');
 
-// --- 💣 THE RIVER CLAMP STAYS THE RIVER CLAMP ---------------------------------------------------
-// Flow and slope MULTIPLY, and the flow factor keeps its own [1,0 ... 3,0]. Inheriting that bound
-// for the slope would clamp every descent up to 1,0 and downhill would never be faster than level.
+// --- 🔴 WATER CARRIES NO SLOPE AT ALL (owner decision 2026-07-30) -------------------------------
+// A boat does not climb. A river is already priced by its CURRENT, and the procedural height field
+// knows nothing about where a river runs -- before this rule the steepest piece of the whole map was
+// a river (the Vildrom, 3,6019 upstream), steeper than every mountain pass.
+//
+// 💣 THIS BLOCK USED TO ASSERT THE OPPOSITE ("flow and slope must multiply"). It was not wrong then:
+// there was no path-type gate, and the invariant it protected -- that the slope clamp is NOT the
+// river clamp [1,0 … 3,0] -- is real. That invariant now lives on a LAND path at the `$down` assert
+// above, which only holds because the slope may go below 1,0. Do not re-add a river version of it.
 $river = $network;
 $river['paths'][0]['subtype'] = 'Flussweg';
 $river['paths'][0]['name'] = 'Flussweg';
@@ -172,10 +178,45 @@ $riverUp = $riverGraph['graph']['Anfang']['Ende'][0];
 assert($riverUp['flow_time_factor'] === 1.0, 'travelling WITH the current stays the base flow factor');
 $riverBack = $riverGraph['graph']['Ende']['Anfang'][0];
 assert($riverBack['flow_time_factor'] === 2.0, 'against the current the flow factor applies');
-assert($riverBack['terrain_time_factor'] < 1.0, 'and the slope factor applies on top, independently');
+
+// The gate: no key at all, not a factor of 1,0 -- „untouched" and „measured flat" stay distinct.
+assert(!array_key_exists('terrain_time_factor', $riverUp) && !array_key_exists('terrain_time_factor', $riverBack),
+    'a Flussweg must carry NO terrain key, even when a profile exists for it');
+assert(!array_key_exists('ascent_schritt', $riverBack),
+    'and no ascent either -- the infobox line „Auf und ab" must stay away from rivers');
+
+// And the flow pricing is untouched by the decision: bit-identical to the same river with no terrain.
 $riverBase = avesmapsBuildClientCompatibleRouteGraph($river, $plainRequest)['graph']['Ende']['Anfang'][0];
-assert(abs($riverBack['time'] - $riverBase['time'] * $riverBack['terrain_time_factor']) < 1e-9,
-    'flow and slope must multiply, each with its own clamp');
+assert($riverBack['time'] === $riverBase['time'],
+    'excluding water must leave the flow-only time EXACTLY as it was');
+
+// The same profile map on the same geometry DOES still reach a land way -- otherwise this test would
+// pass on a gate that switched terrain off everywhere.
+$landUp = $asymGraph['graph']['Anfang']['Ende'][0];
+assert(isset($landUp['terrain_time_factor']) && $landUp['terrain_time_factor'] > 1.0,
+    'the identical profile must still apply on land -- the gate must be about water, not about everything');
+
+// --- the predicate, and the hard counter that has to agree with it -------------------------------
+assert(avesmapsRouteTerrainAppliesTo('Gebirgspass') && avesmapsRouteTerrainAppliesTo('Reichsstrasse')
+    && avesmapsRouteTerrainAppliesTo('Querfeldein'),
+    'land types and the synthetic type keep their slope');
+assert(!avesmapsRouteTerrainAppliesTo('Flussweg') && !avesmapsRouteTerrainAppliesTo('Seeweg'),
+    'water gets no slope');
+// 💣 A DENY LIST: an unknown/future subtype must KEEP terrain, not silently lose it.
+assert(avesmapsRouteTerrainAppliesTo('Karrenweg') && avesmapsRouteTerrainAppliesTo(''),
+    'an unknown subtype must keep its slope -- the list names water, it does not whitelist land');
+
+$oneTerrainRow = ['w1' => ['ascent' => 3000.0, 'descent' => 0.0, 'profile' => [[3000.0, 0.0]], 'revision' => 7, 'stamp' => 'x']];
+assert(avesmapsRouteAttachTerrain(['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Flussweg'], $oneTerrainRow) === null,
+    'avesmapsRouteAttachTerrain must refuse water outright');
+assert(avesmapsRouteAttachTerrain(['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Pfad'], $oneTerrainRow) !== null,
+    'and must still serve land');
+assert(avesmapsRouteCountTerrainMatches([
+    ['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Pfad'],
+    ['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Flussweg'],
+    ['public_id' => 'w1', 'revision' => 7, 'subtype' => 'Seeweg'],
+], $oneTerrainRow) === 1,
+    'the hard counter must count what the router APPLIES -- one land way, not three');
 
 // ---- THE SECOND TIME SITE: the waypoint anchor ------------------------------------------------
 // 💣 THIS IS THE HIGHEST-RISK PATH IN THE FEATURE AND IT HAD NO COVERAGE AT ALL. It is the one that

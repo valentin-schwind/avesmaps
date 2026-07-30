@@ -22,6 +22,19 @@ require_once __DIR__ . '/../app/app-setting.php';
 const AVESMAPS_TERRAIN_SETTING = 'terrain_travel_enabled';
 
 /**
+ * PURE: does the slope factor apply to this route type at all?
+ *
+ * 🔴 Owner decision 2026-07-30: slope is a LAND rule -- a boat does not climb. The list and the full
+ * reasoning live with the other terrain constants in api/_internal/app/terrain-store.php
+ * (`AVESMAPS_TERRAIN_WATER_ROUTE_TYPES`), which this file already pulls in through heightmap.php. One
+ * list, obeyed by both the profile run and the router.
+ */
+function avesmapsRouteTerrainAppliesTo(string $routeType): bool
+{
+    return !in_array($routeType, AVESMAPS_TERRAIN_WATER_ROUTE_TYPES, true);
+}
+
+/**
  * The switch, read WITHOUT the self-healing DDL.
  *
  * 💣 `avesmapsAppSettingGet` would be the obvious call and it is the wrong one HERE: it runs
@@ -56,13 +69,21 @@ function avesmapsRouteTerrainEnabled(PDO $pdo): bool
 function avesmapsRouteLoadTerrain(PDO $pdo): array
 {
     try {
-        $statement = $pdo->query(
+        // ⭐ Water is filtered HERE as well, not only in avesmapsRouteAttachTerrain -- and that is the
+        // cheaper half of the owner's decision. Measured on 2026-07-30: 150 of the 583 rows with a
+        // profile are Flussweg/Seeweg (26%), and they carry 1.807 of the 4.300 `profile_json` pairs
+        // (42%). Rows the router must never apply have no business being fetched and json_decode'd on
+        // every single visitor request.
+        $placeholders = implode(', ', array_fill(0, count(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES), '?'));
+        $statement = $pdo->prepare(
             'SELECT f.public_id, t.ascent_schritt, t.descent_schritt, t.profile_json,
                     t.path_revision, t.heightmap_stamp
                FROM path_terrain t
                JOIN map_features f ON f.id = t.path_id
-              WHERE f.is_active = 1'
+              WHERE f.is_active = 1
+                AND f.feature_subtype NOT IN (' . $placeholders . ')'
         );
+        $statement->execute(array_values(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES));
     } catch (PDOException) {
         return [];
     }
@@ -103,6 +124,13 @@ function avesmapsRouteLoadTerrain(PDO $pdo): array
  */
 function avesmapsRouteAttachTerrain(array $path, array $terrain): ?array
 {
+    // 🔴 Water first, before anything else is read: the slope factor is a land rule (see
+    // AVESMAPS_TERRAIN_WATER_ROUTE_TYPES). This is THE gate -- avesmapsRouteCountTerrainMatches calls
+    // this function too, so the hard counter agrees with what the route actually applies.
+    if (!avesmapsRouteTerrainAppliesTo((string) ($path['subtype'] ?? ''))) {
+        return null;
+    }
+
     // 🔴 public_id, explicitly -- NOT $path['id'].
     $publicId = (string) ($path['public_id'] ?? '');
     if ($publicId === '' || !isset($terrain[$publicId])) {

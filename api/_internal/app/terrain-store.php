@@ -38,6 +38,29 @@ const AVESMAPS_TERRAIN_MAX_PIXELS = 4000000;
 // half-stored raster looks exactly like a whole one.
 const AVESMAPS_TERRAIN_MAX_SIDE = 65535;
 
+// 🔴 OWNER DECISION 2026-07-30: SLOPE IS A LAND RULE. A boat does not climb.
+//
+// Spec §1 decision 2 only says that `Gebirgspass` gets no exemption; it says nothing about water, and
+// until this date there was no path-type gate anywhere. That was wrong twice over:
+//
+//  - A river is already priced by its CURRENT (`flow_time_factor`, clamped [1,0 … 3,0]). Adding a
+//    slope on top bills the same gradient a second time.
+//  - The gradient came from the procedural height field, which knows nothing about where a river
+//    runs. Measured over the whole stock on 2026-07-30: 293 of 1.729 Flussweg pieces carried a factor
+//    other than 1, and the STEEPEST piece of the entire map was a river -- the Vildrom, factor 3,6019
+//    travelled upstream, steeper than every mountain pass on Aventurien.
+//
+// 💣 A DENY LIST, NOT AN ALLOW LIST. An allow list would silently exempt any future LAND subtype from
+// terrain, and „a new way type is quietly flat" is the class of bug that hides for months. Water is
+// the exception, so water is what gets named.
+//
+// 🔴 IT LIVES HERE, in the store, although the ROUTER is what obeys it: terrain-read.php reaches this
+// file through heightmap.php anyway, so one list serves both the profile run (which stops writing
+// water rows) and the routing read (which stops loading and applying them). A second copy in the
+// routing layer is exactly how two sources of truth start. The predicate on top of it is
+// `avesmapsRouteTerrainAppliesTo()` in api/_internal/routing/terrain-read.php.
+const AVESMAPS_TERRAIN_WATER_ROUTE_TYPES = ['Flussweg', 'Seeweg'];
+
 /**
  * PURE: the three guards of spec §5.1, all three refusing rather than repairing.
  *
@@ -444,6 +467,18 @@ function avesmapsTerrainProfileBegin(PDO $pdo, int $userId): array
           WHERE f.id IS NULL'
     );
 
+    // And water, for the same reason: since the owner decision of 2026-07-30 the router never applies
+    // these rows (AVESMAPS_TERRAIN_WATER_ROUTE_TYPES), and the step below stops writing them. Left
+    // standing they would be worse than useless -- never refreshed, so drifting out of revision, and
+    // still costing a fetch until the read filter catches them. 150 of 583 rows on 2026-07-30.
+    $waterPlaceholders = implode(', ', array_fill(0, count(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES), '?'));
+    $deleteWater = $pdo->prepare(
+        'DELETE t FROM path_terrain t
+           JOIN map_features f ON f.id = t.path_id
+          WHERE f.feature_subtype IN (' . $waterPlaceholders . ')'
+    );
+    $deleteWater->execute(array_values(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES));
+
     // 🔴 The rows are NOT cleared. Unlike V9's run, every row here carries its OWN validity
     // (path_revision + heightmap_stamp), so a half-finished run leaves a usable mixture rather than
     // a hole -- and an interrupted run can simply be continued.
@@ -457,7 +492,15 @@ function avesmapsTerrainProfileBegin(PDO $pdo, int $userId): array
     );
     $statement->execute(['token' => $runToken, 'stamp' => $stamp, 'user' => $userId > 0 ? $userId : null]);
 
-    $total = (int) $pdo->query("SELECT COUNT(*) FROM map_features WHERE feature_type = 'path' AND is_active = 1")->fetchColumn();
+    // The same water exclusion as the step below, or the tile's „x of y" would count ways the run
+    // deliberately skips and never reach 100 %.
+    $countWays = $pdo->prepare(
+        "SELECT COUNT(*) FROM map_features
+          WHERE feature_type = 'path' AND is_active = 1
+            AND feature_subtype NOT IN (" . $waterPlaceholders . ')'
+    );
+    $countWays->execute(array_values(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES));
+    $total = (int) $countWays->fetchColumn();
 
     return ['run_token' => $runToken, 'heightmap_stamp' => $stamp, 'ways_total' => $total];
 }
@@ -488,13 +531,18 @@ function avesmapsTerrainProfileStep(PDO $pdo, array $payload): array
     $cursor = (int) $row['cursor_path_id'];
     $startedMs = (int) (microtime(true) * 1000);
 
+    // 🔴 Water is skipped, not merely ignored later: since the owner decision of 2026-07-30 the router
+    // never applies these rows, so computing them would be a raster walk over 1.807 of 4.300 pieces
+    // for nothing. `begin` has already deleted the ones that were written before that.
+    $waterPlaceholders = implode(', ', array_fill(0, count(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES), '?'));
     $statement = $pdo->prepare(
         "SELECT id, revision, geometry_json, min_x, min_y, max_x, max_y
            FROM map_features
-          WHERE feature_type = 'path' AND is_active = 1 AND id > :cursor
-          ORDER BY id LIMIT " . AVESMAPS_TERRAIN_PROFILE_BATCH
+          WHERE feature_type = 'path' AND is_active = 1 AND id > ?
+            AND feature_subtype NOT IN (" . $waterPlaceholders . ')
+          ORDER BY id LIMIT ' . AVESMAPS_TERRAIN_PROFILE_BATCH
     );
-    $statement->execute(['cursor' => $cursor]);
+    $statement->execute(array_merge([$cursor], array_values(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES)));
     $ways = $statement->fetchAll(PDO::FETCH_ASSOC);
 
     $insert = $pdo->prepare(
