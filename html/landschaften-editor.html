@@ -1089,7 +1089,7 @@ function renderHeightmapTile() {
 	if (total === 0) { info.textContent = "keine Gebirgsfläche vorhanden"; return; }
 	if (missing === total) { info.textContent = "noch nicht gerechnet · " + total + " Flächen"; return; }
 	const parts = [(total - missing - stale) + "/" + total + " Raster"];
-	if (stale > 0) { parts.push("**" + stale + " veraltet"); }
+	if (stale > 0) { parts.push(stale + " veraltet"); }
 	if (missing > 0) { parts.push(missing + " fehlen"); }
 	parts.push(heightmapStatus.peaks_with_height + "/" + heightmapStatus.peaks_total + " Gipfel mit Höhe");
 	info.textContent = parts.join(" · ");
