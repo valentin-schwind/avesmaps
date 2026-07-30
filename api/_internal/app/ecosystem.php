@@ -582,16 +582,20 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
     // The blob is stored DEFLATE-compressed (gzdeflate); the length invariant is checked after
     // inflating.
     //
-    // max_x / max_y are STORED generated columns so „which rasters cover this box" is an INDEXED
-    // query that never touches the blob. `(width_px - 1)` / `(height_px - 1)`, NOT `width_px` /
-    // `height_px`: the raster's last SAMPLE sits at `origin + (n - 1) * cell`, the same bound
-    // heightmap.php computes in PHP (avesmapsHeightmapLoadAll). This generated column is the
-    // authoritative definition; heightmap.php mirrors it.
+    // 💣 NO GENERATED COLUMNS HERE, AND THAT IS A SCAR. This table first shipped with
+    // `max_x`/`max_y` as STORED generated columns plus an index over them, meant to make „which
+    // rasters cover this box" an indexed query. On this MySQL the CREATE FAILED, and because this
+    // function runs on the ecosystem READ path, it took `GET /api/app/ecosystem-areas.php` down with
+    // a 500 within two minutes of the deploy -- the whole Landschaften editor's data source.
     //
-    // 💣 `CREATE TABLE IF NOT EXISTS` does not ALTER an existing table. On a database where this
-    // table was already created with the old (off-by-one) expression, max_x/max_y stay wrong until
-    // corrected by hand -- harmless today only because nothing reads max_x, max_y or
-    // idx_heightmap_bbox (verified by grep).
+    // They bought nothing: nothing ever queried max_x, max_y or the index (verified by grep at the
+    // time, twice). `avesmapsHeightmapLoadAll` computes the same bound in PHP from origin, width and
+    // cell size, which is where it belongs. Dead schema is not free when its DDL sits on a read path.
+    //
+    // 🪤 Whoever wants that indexed lookup back: it is a real optimisation once the raster stock
+    // grows, but it needs a MIGRATION (`CREATE TABLE IF NOT EXISTS` never alters an existing table),
+    // it needs the expression verified against the SERVER's MySQL first, and the bound is
+    // `origin + (n - 1) * cell` -- the last SAMPLE, not one cell past it.
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS ecosystem_area_heightmap (
             area_id INT UNSIGNED NOT NULL,
@@ -600,8 +604,6 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             origin_y DECIMAL(10,4) NOT NULL,
             width_px SMALLINT UNSIGNED NOT NULL,
             height_px SMALLINT UNSIGNED NOT NULL,
-            max_x DECIMAL(10,4) AS (origin_x + (width_px  - 1) * cell_size_mapunits) STORED,
-            max_y DECIMAL(10,4) AS (origin_y + (height_px - 1) * cell_size_mapunits) STORED,
             samples LONGBLOB NOT NULL,
             sample_bytes INT UNSIGNED NOT NULL,
             geometry_revision INT UNSIGNED NOT NULL,
@@ -609,8 +611,7 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             peaks_fingerprint CHAR(40) NOT NULL,
             computed_by BIGINT UNSIGNED NULL,
             computed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-            PRIMARY KEY (area_id),
-            KEY idx_heightmap_bbox (origin_x, origin_y, max_x, max_y)
+            PRIMARY KEY (area_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
