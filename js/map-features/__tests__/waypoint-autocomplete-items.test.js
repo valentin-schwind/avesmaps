@@ -56,6 +56,7 @@ const load = (locations, inSettlementPlaces) => new Function(
 		extractFunction(waypointSource, "getInSettlementWaypointEntries", "map-features-waypoints.js"),
 		extractFunction(waypointSource, "getWaypointAutocompleteEntries", "map-features-waypoints.js"),
 		extractFunction(waypointSource, "getWaypointAutocompleteScore", "map-features-waypoints.js"),
+		extractFunction(waypointSource, "waypointInSettlementLabel", "map-features-waypoints.js"),
 		extractFunction(waypointSource, "getWaypointAutocompleteSource", "map-features-waypoints.js"),
 		"return getWaypointAutocompleteSource;",
 	].join("\n")
@@ -113,6 +114,40 @@ items.forEach((item, index) => {
 		typeof items[0] === "object" && typeof items[0].label === "string",
 		`the first item decides jQuery UI's normalisation: ${JSON.stringify(items[0])}`
 	);
+}
+
+// ---- no second bracket when the name already ends in its own town ------------------------------
+// Owner 2026-07-30: „Greifenplatz (Elenvina) (Elenvina)" said the town twice, because the wiki title
+// carries its own disambiguation. 61 of 1598 in-settlement places are shaped like that (measured on the
+// live payload): „Alte Feste (Ilsur)", „Königsburg (Andergast)", „Löwenburg (Perricum)" …
+{
+	const source = load([], [
+		{ name: "Greifenplatz (Elenvina)", settlement: "Elenvina" },
+		{ name: "Greifax-Palast", settlement: "Xorlosch" },
+	]);
+	const labels = source("grei").map((item) => item.label);
+	assert.ok(labels.includes("Greifenplatz (Elenvina)"), `no doubled town: ${JSON.stringify(labels)}`);
+	assert.ok(!labels.some((label) => label.includes("(Elenvina) (Elenvina)")), `still doubled: ${labels}`);
+	assert.ok(labels.includes("Greifax-Palast (Xorlosch)"), `a name without its town keeps the bracket: ${labels}`);
+
+	// The value is the town either way -- that is what gets routed to.
+	source("grei").forEach((item) => {
+		assert.ok(["Elenvina", "Xorlosch"].includes(item.value), `value must be the town: ${JSON.stringify(item)}`);
+	});
+}
+
+// Case and stray spaces do not make it a different town.
+{
+	const source = load([], [{ name: "Alte Feste ( ilsur )", settlement: "Ilsur" }]);
+	assert.strictEqual(source("alte")[0].label, "Alte Feste ( ilsur )", "same town, written loosely");
+}
+
+// 💣 A bracket with something ELSE in it is not a repetition and must survive: 12 live places carry a
+// wiki disambiguation that is NOT their town („Löwenburg (Weiden)" stands in Trallop). Dropping the
+// town there would hide where the place actually is.
+{
+	const source = load([], [{ name: "Löwenburg (Weiden)", settlement: "Trallop" }]);
+	assert.strictEqual(source("löwen")[0].label, "Löwenburg (Weiden) (Trallop)", "different bracket, town added");
 }
 
 console.log("waypoint-autocomplete-items.test.js: all assertions passed");

@@ -149,6 +149,23 @@ function getWaypointAutocompleteScore(entry, normalizedTerm) {
 	return Infinity;
 }
 
+// „Greifenplatz (Elenvina)" steht in Elenvina -- die Stadt noch einmal anzuhängen sagte sie zweimal
+// (Owner 2026-07-30: „die zweite klammer weg (wenn dasselbe drin steht)"). 61 der 1598 Innerorts-Objekte
+// tragen ihre Stadt schon als Wiki-Unterscheidung im Namen: „Alte Feste (Ilsur)", „Königsburg (Andergast)".
+//
+// 💣 Nur bei WÖRTLICHER Gleichheit am Ende. Eine Klammer mit anderem Inhalt ist keine Wiederholung,
+// sondern eine zweite Auskunft -- „Löwenburg (Weiden)" steht in Trallop (12 solche Fälle live). Dort
+// fiele mit der Klammer die Information weg, wo der Ort überhaupt liegt.
+function waypointInSettlementLabel(name, settlement) {
+	const normalize = (value) => String(value || "").trim().toLowerCase();
+	const bracket = /\(([^()]*)\)\s*$/.exec(String(name));
+	if (bracket && normalize(bracket[1]) === normalize(settlement)) {
+		return name;
+	}
+
+	return `${name} (${settlement})`;
+}
+
 function getWaypointAutocompleteSource(term = "") {
 	const normalizedTerm = normalizeLocationSearchName(term);
 	if (normalizedTerm.length < WAYPOINT_AUTOCOMPLETE_MIN_LENGTH) {
@@ -186,7 +203,7 @@ function getWaypointAutocompleteSource(term = "") {
 		// statt Greifenau, Greifenberg, Greifenfurt, Greifenhorst. Gedeckt von
 		// js/map-features/__tests__/waypoint-autocomplete-items.test.js.
 		.map((match) => (match.entry.settlement
-			? { label: `${match.entry.name} (${match.entry.settlement})`, value: match.entry.settlement }
+			? { label: waypointInSettlementLabel(match.entry.name, match.entry.settlement), value: match.entry.settlement }
 			: { label: match.entry.name, value: match.entry.name }));
 }
 
