@@ -70,3 +70,39 @@ Landschaften-Editor sofort nach dem Deploy — laut, nicht still. Die generierte
 MySQL ≥ 5.7; dieselbe Untergrenze gilt für die `JSON`-Spalten, die dort längst stehen.
 
 **Der Schalter bleibt AUS**, bis Abschnitt 2 vorliegt und die obere Klemme entschieden ist.
+
+---
+
+## 1c. Abnahmeschritt 1 — bestanden, live, am 2026-07-30
+
+Nach dem Deploy von `bbe76741` (Schalter AUS, wie ausgeliefert):
+
+```
+cost      65.60202533378045   ← bit-identisch mit der Grundlinie
+segments  45                  ← unverändert
+terrain   {"enabled":false,"requested":true,"profile_rows":0,"matched_ways":0,"stale":false}
+api rev   14
+segment   {"terrain_time_factor":1, "ascent_schritt":null, "descent_schritt":null}
+```
+
+✅ **V11 fasst im Ruhezustand keine einzige veröffentlichte Zahl an.** `ascent_schritt: null` statt
+`0` bestätigt zugleich, dass „keine Höhendaten" und „gemessen und eben" auseinandergehalten werden.
+
+### 💣 Und ein Zwischenfall beim selben Deploy — behoben, aber die Lehre bleibt
+
+`GET /api/app/ecosystem-areas.php` antwortete unmittelbar nach dem Deploy mit **500**. Ursache: die
+Tabelle `ecosystem_area_heightmap` ging mit zwei **generierten Spalten** (`max_x`/`max_y`, `STORED`)
+plus Index darüber live; auf diesem MySQL scheitert das `CREATE`. Weil
+`avesmapsEcosystemEnsureTables` **auf dem Lesepfad** läuft, nahm das sofort die Datenquelle des
+ganzen Landschaften-Editors mit.
+
+Behoben in `cc54dd67` durch Entfernen der Spalten — sie waren **totes Schema**: nichts las `max_x`,
+`max_y` oder den Index (zweimal per grep belegt), und `avesmapsHeightmapLoadAll` rechnet dieselbe
+Grenze ohnehin in PHP. Danach wieder `200`, 687 Flächen, 16 Gebirge, und `cost` weiterhin
+bit-identisch.
+
+**Warum es niemand vorher sah:** die Entwicklungsumgebung hat PDO, aber **null Treiber** — keine DDL
+dieses Zweigs konnte je ausgeführt werden. `php -l` prüft PHP-Syntax, nicht SQL. Ausgerechnet die
+einzige exotische SQL-Anweisung des Zweigs war die einzige, die niemand ausprobieren konnte.
+Regel daraus: **DDL in einer selbstheilenden Funktion auf einem Lesepfad bleibt langweilig**, und
+totes Schema ist dort nicht gratis.
