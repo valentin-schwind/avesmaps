@@ -70,6 +70,7 @@ Landschaften-Editor sofort nach dem Deploy — laut, nicht still. Die generierte
 MySQL ≥ 5.7; dieselbe Untergrenze gilt für die `JSON`-Spalten, die dort längst stehen.
 
 **Der Schalter bleibt AUS**, bis Abschnitt 2 vorliegt und die obere Klemme entschieden ist.
+*(Erledigt am 2026-07-30 — siehe Abschnitt 2.)*
 
 ---
 
@@ -106,3 +107,76 @@ dieses Zweigs konnte je ausgeführt werden. `php -l` prüft PHP-Syntax, nicht SQ
 einzige exotische SQL-Anweisung des Zweigs war die einzige, die niemand ausprobieren konnte.
 Regel daraus: **DDL in einer selbstheilenden Funktion auf einem Lesepfad bleibt langweilig**, und
 totes Schema ist dort nicht gratis.
+
+---
+
+## 2. Das Bild, am 2026-07-30 mit eingeschaltetem Schalter gemessen
+
+Zwei Sonden, Gareth → Thorwal, einmal normal und einmal mit `terrain: false`.
+Stand: 15/16 Raster (Windhagberge fehlt, s. u.), 583 von 5.676 Wegen mit Profil, Lauf 7,3 s.
+
+| | cost | Etappen |
+|---|---|---|
+| **mit Gelände** | **66,1865** | 45 |
+| ohne Gelände (`terrain:false`) | 65,6020 | 45 |
+| Grundlinie vor dem Deploy | 65,6020 | 45 |
+
+**Aufschlag: +0,89 %.** `terrain:false` liefert die Grundlinie **bit-identisch** — der Ausstieg
+funktioniert. ⭐ **Die Route ist dieselbe** (identische Kantenfolge und Knoten): das Gelände hat hier
+nur den Preis geändert, nicht die Wahl. Dass es umrouten *kann*, bleibt wahr (§8.3) — auf dieser
+Strecke tut es das nicht.
+
+### Die betroffenen Etappen — es ist genau der Koschberge-Pass
+
+8 von 45 Etappen tragen ein Profil, 6 davon einen Faktor ≠ 1.
+
+| Wegart | Etappe | Steigung | Gefälle | Faktor | km/h (statt 4,5) |
+|---|---|---|---|---|---|
+| Reichsstrasse | Kreuzung-1977 → Paßwacht | **23,9 %** | — | **2,195** | 2,05 |
+| Reichsstrasse | Dunkelhain → Kreuzung-1977 | 23,3 % | — | 2,166 | 2,08 |
+| Reichsstrasse | Paßwacht → Kammhütten | 12,7 % | — | 1,633 | 2,76 |
+| Reichsstrasse | Kammhütten → Trottweiher | 1,4 % | — | 1,071 | 4,20 |
+| Reichsstrasse | Koschwacht → Gratenfels | — | 0,1 % | 0,998 | 4,51 |
+| Reichsstrasse | **Koschwacht → Dunkelhain** | 0,5 % | **16,6 %** | **0,856** | **5,26** |
+| Reichsstrasse | Trottweiher → Anpforten | 0,0 % | 0,0 % | 1,000 | 4,50 |
+| Reichsstrasse | Gratenfels → Kreuzung-818 | 0,0 % | 0,0 % | 1,000 | 4,50 |
+
+✅ Abnahmeschritt 3: die Koschberge-Etappen sind langsamer, und zwar genau die, die hinaufführen.
+✅ Owner-Entscheid 3 wirkt sichtbar: **bergab 5,26 km/h statt 4,5** auf dem 16,6-%-Gefälle.
+✅ Die letzten beiden Zeilen sind **gemessen eben** (`ascent_schritt: 0`, Faktor exakt 1,000) und
+damit unterscheidbar von den 37 Etappen ohne Höhendaten (`null`) — die Regel, an der die halbe Spec
+hängt, ist im Livebetrieb sichtbar.
+
+### 🔴 Die Klemmen-Frage lässt sich mit diesen Daten NICHT beantworten
+
+| | Vorgabe | höchster/tiefster gemessener Wert |
+|---|---|---|
+| obere Klemme | 4,0 | **2,195** — nie erreicht |
+| untere Klemme | 0,5 | **0,856** — nie erreicht (Kurvenminimum ist ohnehin 0,8125) |
+
+Der steilste Punkt der meistbefahrenen Gebirgsquerung der Karte liegt bei **2,195**. Bis zur
+Sättigung (Steigung 0,6 → Faktor 4,0) fehlt mehr als die Hälfte. **Die Frage „bleibt 4,0?" hat
+derzeit keine Datengrundlage** — es gibt nichts, was daran anstößt. Sie wird erst entscheidbar, wenn
+echte Gipfelhöhen erfasst sind.
+
+### ⚠️ Woran die Zahlen heute wirklich hängen
+
+- **Nur 10 der 67 Gipfel mit Höhe liegen in einer Gebirgsfläche**, davon **9 im Finsterkamm**. Sechs
+  erfasste Höhen liegen außerhalb jeder Fläche und tragen deshalb **nichts** bei (ein Gipfel wird nur
+  *innerhalb* eines Feldes zum Buckel).
+- Alle übrigen 15 Flächen laufen auf der eingetragenen **Maximalhöhe**, überwiegend dem 2000er-Wert.
+- **Die 23,9 % Steigung auf einer Reichsstraße** kommen daher: das prozedurale Rauschen weiß nicht,
+  wo die Straße verläuft, und die Straße nimmt, was darunter liegt. Für eine Passstraße über die
+  Koschberge ist 2,05 km/h vertretbar (zwischen Gebirgspass 1,5 und Pfad 3,0) — aber es ist eine
+  Zahl aus Platzhalter-Gelände, nicht aus vermessenen Bergen.
+- **Windhagberge hat kein Raster** und das ist kein Fehler: keine Gipfel darin, keine Maximalhöhe
+  eingetragen. Das Modul erfindet dort korrekt nichts. Ein Eintrag im Flächendialog behebt es.
+
+### 🔧 Entscheid des Owners
+
+- [x] Bild gesehen am **2026-07-30**.
+- [x] Schalter **AN** — der Effekt ist klein (+0,89 %), richtungsrichtig, wirkt nur dort, wo
+      Höhendaten liegen, ändert keine Routenwahl, und `terrain:false` liefert jederzeit die alten
+      Zahlen.
+- [ ] Obere Klemme **vertagt** — nicht entscheidbar, solange nichts über 2,2 kommt. Neu bewerten,
+      wenn die Gipfelhöhen erfasst sind.
