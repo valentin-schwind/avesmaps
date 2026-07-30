@@ -845,10 +845,10 @@ function showRoutePlan(routeNames, segments) {
 			${routeSummaryRowMarkup(tr("planner.summary.restTime", "Rastzeit"), `${formatDecimalNumber(totalRestTime, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalRestTime / 24, 1)} ${tr("planner.unit.days", "Tage")}`)}
 			<div class="route-plan-summary__rule"></div>
 			${routeSummaryRowMarkup(tr("planner.summary.totalTime", "Gesamte Reisezeit"), `${formatDecimalNumber(totalHours, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalHours / 24, 1)} ${tr("planner.unit.days", "Tage")}`, "route-plan-summary__row--total")}
+			<div class="route-plan-summary__rule"></div>
 			<span class="route-plan-summary__landscapes"></span>
 			${routeTerrainSummaryMarkup(planEntries, segments)}
 		</div>
-		<hr>
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
 }
