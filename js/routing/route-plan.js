@@ -556,6 +556,29 @@ function getRoutePlanWaypointNameSet() {
 	return new Set((selectedLocations || []).map((location) => normalizeLocationSearchName(location?.name || "")).filter(Boolean));
 }
 
+/**
+ * Der Name des angeklickten Kartenpunkts, wenn einer genau auf dieser Koordinate liegt.
+ *
+ * ⚠️ `coordinate` ist GeoJSON `[x, y]`, ein Wegpunkt speichert Leaflet-`[lat, lng] = [y, x]` --
+ * dieselbe Vertauschung wie in findRouteLocationAtPathEndpoint direkt darueber, und aus demselben
+ * Grund hier ausgeschrieben statt stillschweigend.
+ *
+ * Nur echte Kartenpunkte (`isMapPoint`): ein gewoehnlicher Wegpunkt IST ein Ort und wird von der
+ * Ortssuche gefunden, die vor dieser hier laeuft.
+ */
+function routePlanMapPointNameAt(coordinate) {
+	if (!Array.isArray(coordinate) || coordinate.length < 2) {
+		return "";
+	}
+	const [x, y] = coordinate;
+	const match = (selectedLocations || []).find((waypoint) => waypoint?.isMapPoint
+		&& Array.isArray(waypoint.coordinates)
+		&& Math.abs(waypoint.coordinates[0] - y) < THRESHOLD
+		&& Math.abs(waypoint.coordinates[1] - x) < THRESHOLD);
+
+	return match?.name || "";
+}
+
 function isRoutePlanExplicitWaypoint(name, waypointNameSet) {
 	const normalizedName = normalizeLocationSearchName(name);
 	return normalizedName !== "" && waypointNameSet.has(normalizedName);
@@ -809,9 +832,11 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const lastEntry = cleaned[cleaned.length - 1];
 		if (isRoutePlanMarkerName(lastEntry.endName) && lastOrientation) {
 			const endLocation = findRouteLocationAtPathEndpoint(lastOrientation.end, { allowCrossings: false });
-			if (endLocation) {
-				lastEntry.endName = endLocation.name;
-			}
+			// V14 „Hierher reisen": dort liegt kein Ort -- das IST der angeklickte Punkt. Er steht als
+			// Wegpunkt in selectedLocations und traegt seine Koordinaten im Namen, also endet die
+			// letzte Etappe „bis Kartenpunkt (657.150, 270.990)" statt „bis Markierung".
+			lastEntry.endName = endLocation ? endLocation.name
+				: (routePlanMapPointNameAt(lastOrientation.end) || lastEntry.endName);
 		}
 	}
 
