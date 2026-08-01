@@ -337,7 +337,7 @@ function routeEntryTerrainNote(entry, segments) {
 
 // Ab wann ist es „stark"? Beim Gefaelle, nicht bei der Hoehe -- „240 Schritt auf einer Meile wiegen
 // schwer, dieselben 240 auf zehn Meilen kaum" (so sagt es der Geschwindigkeits-Dialog). 0,05 ist der
-// Punkt, an dem der Leistungskilometer des Servers (DIN 33466, siehe
+// Punkt, an dem der Leistungskilometer des Servers (siehe
 // api/_internal/routing/terrain-factor.php) aus derselben Strecke einen Zeitfaktor von 1,5 macht --
 // ab dort merkt es der Reisende an seiner Ankunftszeit.
 //
@@ -740,8 +740,11 @@ function buildRoutePlanEntries(routeNames, segments) {
 		// edge cost or the shown hours would contradict the chosen route. Prefers the
 		// explicit server-shipped flow_time_factor (server-primary display segments) over
 		// the derived flow.dir + orientation factor (client-engine segments).
+		// 🔴 BEIDE Faktoren, und sie multiplizieren einander. Die Strömung war von Anfang an dabei,
+		// der Geländefaktor fehlte bis 2026-08-01 -- siehe resolveRouteSegmentTerrainFactor.
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR
-			* resolveRouteSegmentFlowFactor(segment, orientation, type);
+			* resolveRouteSegmentFlowFactor(segment, orientation, type)
+			* resolveRouteSegmentTerrainFactor(segment);
 		// Stroemungszustand der Etappe (flussabwaerts/-aufwaerts/unbekannt) fuer Label und
 		// Aggregations-Split: Abschnitte mit unterschiedlicher Stroemung duerfen nicht zu
 		// EINEM Wasser-Aggregat verschmelzen (z. B. Flusswechsel abwaerts -> aufwaerts).

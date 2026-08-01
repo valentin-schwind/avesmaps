@@ -214,6 +214,33 @@ function resolveRouteSegmentFlowFactor(segment, orientation, type) {
 	return getRouteSegmentUpstreamFactor(segment, orientation, type);
 }
 
+// V11 slope factor for the DISPLAY -- the twin of the flow resolver above, and it exists for the
+// same reason: the plan recomputes its hours from distance and base speed, so a factor the SERVER
+// charged on the graph edge has to be multiplied back in or the shown time contradicts the route
+// that was actually chosen.
+//
+// 💣 IT WAS MISSING, AND IT WAS LIVE. The flow factor got this treatment in the Flussrichtung work;
+// the slope factor was carried into the display segments (route-engine.js) for the speed arrows and
+// then never reached the clock. Measured on Lowangen->Greifenfurt, 2026-08-01: the distance-weighted
+// factor was 1,1299, so every leg line -- and the summary, which sums them in route-result.js --
+// under-reported the journey by 13 %.
+//
+// 🔴 NO DIRECTION LOGIC HERE, unlike the flow twin. The server prices each traversal separately
+// (forward and reverse have their own ascent and steep-descent sums) and ships the factor for the
+// direction this segment is travelled. Deriving it again from the orientation would be a second
+// source of truth for the one number people take out of this map.
+//
+// 🔴 AND NO CLAMP. api/_internal/routing/terrain-factor.php owns the ceiling (4,0) and has no floor
+// at all; mirroring either here would silently repair a server value instead of showing it. Only
+// unusable values fall back: a factor is a multiplier, so 0, negative and non-numeric are broken
+// rows, not measurements. (`?? null` is right for ascent_schritt, where 0 and null differ -- here
+// it is not.)
+function resolveRouteSegmentTerrainFactor(segment) {
+	const explicit = Number(segment?.properties?.terrain_time_factor);
+
+	return Number.isFinite(explicit) && explicit > 0 ? explicit : 1;
+}
+
 // Flow STATE of a displayed route segment for the plan labels and the aggregation split:
 // 'downstream' | 'upstream' | null (unknown). A factor alone cannot distinguish downstream
 // from unknown, so flow.dir + traversal orientation decides; an explicit server-shipped
