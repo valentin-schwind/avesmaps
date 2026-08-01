@@ -283,6 +283,7 @@ Authoritative docs (being translated to English in M8):
 - `docs/political-territory-global-display-and-derived-boundaries-{plan,progress}.md`,
   `docs/derived-territory-geometry-plan.md` — derived-boundary system.
 - `docs/feature-umstrittene-gebiete.md` — active contested-territory feature.
+- **„Hierher reisen“ + der Querfeldein-A\*** (Instruction `docs/superpowers/plans/2026-07-30-hierher-reisen-und-astar.md`, Entwurf `docs/superpowers/specs/2026-07-30-landschaften-v14-astar-design.md`) — **live 2026-08-01**. Rechtsklick auf einen beliebigen Kartenpunkt → Wanderschuh → Route bis genau dorthin. `POST /api/route/` nimmt `from_point`/`to_point` = `{x, y}`; der Punkt wird ein Graphknoten mit EINER Kante (dem A\*-Weg zum nächsten Graphknoten), danach laufen Dijkstra, Segmentbauer und Renderer unverändert. Kern: `api/_internal/routing/{land-areas,offroad-grid,offroad-data,offroad-leg}.php`, Client `js/routing/route-travel-here.js`. 💣 Die Landprüfung gilt **nur dem angeklickten Punkt** — Orte im Wasser werden nie geprüft (571 von 4.653 liegen geometrisch im Meer). 💣 Das Gitter ist **nie ein PHP-Array** (33,2 gegen 1 Byte je Zelle); drei Gelände-Byte-Ebenen, per **Maximum** verknüpft. ⚠️ Der **automatische Umweg-Auslöser** (Schwelle 3×) ist ausdrücklich NICHT gebaut — er teilt sich später denselben Rechner.
 - `docs/routing-featurestand.md`, `docs/stabilization-smoke-test.md`,
   `docs/routing-transport-smoke-checklist.md` — routing state & smoke checklists.
 - `api/README.md` — canonical API contract.
