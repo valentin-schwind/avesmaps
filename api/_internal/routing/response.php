@@ -4,11 +4,29 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/client-graph.php';
 require_once __DIR__ . '/terrain-read.php';
+// V14 „Hierher reisen": the land check and the cross-country A*. Both are inert unless a request
+// actually carries a map point, so an ordinary route pays for nothing here.
+require_once __DIR__ . '/land-areas.php';
+require_once __DIR__ . '/offroad-data.php';
+require_once __DIR__ . '/offroad-leg.php';
 
-const AVESMAPS_ROUTE_API_CODE_REVISION = 14;
+// 15: a route endpoint may be a map point (`from_point`/`to_point`), and a leg may be an A*-computed
+// cross-country way with a real point sequence instead of a straight line.
+const AVESMAPS_ROUTE_API_CODE_REVISION = 15;
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
+
+/**
+ * „Hierher reisen" could not use the clicked point. Carries the machine code, because the three
+ * reasons need three different sentences from the client -- and the German ones live in the client's
+ * i18n table, not in an API payload (AGENTS.md §8).
+ */
+class AvesmapsRouteOffroadPointException extends RuntimeException {
+	public function __construct(public readonly string $errorCode, string $message) {
+		parent::__construct($message);
+	}
+}
 
 function avesmapsRouteErrorResponse(int $statusCode, string $code, string $message, ?array $details = null): never {
 	$payload = [
@@ -183,6 +201,47 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	// which is the designed failure mode (spec §4.1), not a silent hole.
 	$water = $routePdo instanceof PDO ? avesmapsLoadRouteWater($config, $routePdo) : [];
 	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request, $terrain, $water);
+
+	// V14 „Hierher reisen": either endpoint may be an arbitrary map point. It becomes a NODE with one
+	// cross-country edge to the nearest graph node, and everything below this line stays untouched --
+	// the same Dijkstra, the same segments, the same renderer.
+	//
+	// ⚠️ The LABELS are kept: `from`/`to` in the answer stay what the caller sent („Kartenpunkt"),
+	// while the routing runs on the internal node names. Returning `__offroad_to` would put an
+	// internal identifier into the travel plan.
+	$fromLabel = $fromLocation;
+	$toLabel = $toLocation;
+	$offroad = [];
+	// Loaded at most once, and only when a map point is actually in play -- an ordinary route between
+	// two places must not pay for a query it has no use for.
+	$land = null;
+	foreach (['from', 'to'] as $side) {
+		$point = is_array($request[$side . '_point'] ?? null) ? $request[$side . '_point'] : null;
+		if ($point === null) { continue; }
+		$nodeName = AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX . $side;
+		$land ??= $routePdo instanceof PDO ? avesmapsLoadRouteLand($config, $routePdo) : avesmapsPrepareRouteAreas([]);
+		$report = avesmapsAttachOffroadPointToGraph(
+			$clientGraph,
+			is_array($routeNetworkData['locations'] ?? null) ? $routeNetworkData['locations'] : [],
+			$request,
+			$water,
+			$land,
+			$routePdo,
+			(float) $point['x'],
+			(float) $point['y'],
+			$nodeName
+		);
+		if (empty($report['ok'])) {
+			throw new AvesmapsRouteOffroadPointException(
+				(string) ($report['error'] ?? 'no_offroad_route'),
+				'The map point could not be reached across country.'
+			);
+		}
+		$offroad[$side] = $report;
+		// From here on the point IS the endpoint, under its internal node name.
+		if ($side === 'from') { $fromLocation = $nodeName; } else { $toLocation = $nodeName; }
+	}
+
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
@@ -200,8 +259,8 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		'ok' => true,
 		'route' => [
 			'found' => (bool) ($routeDijkstraResult['found'] ?? false),
-			'from' => $fromLocation,
-			'to' => $toLocation,
+			'from' => $fromLabel,
+			'to' => $toLabel,
 			'cost' => (float) ($routeDijkstraResult['cost'] ?? 0.0),
 			'node_count' => count($nodeIds),
 			'edge_count' => (int) ($routeDijkstraResult['edge_count'] ?? 0),
@@ -235,7 +294,17 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 					// this flag is the only thing that makes „warum ist der Pass noch schnell?"
 					// answerable. Without it the staleness rule is a claim, not a behaviour.
 					'stale' => $terrainStale,
+					// 🔴 THE NUMBER NOBODY COULD NAME. The instruction's first draft cited „3.331
+					// Profilzeilen" as evidence that rasters exist -- but those are `path_terrain`
+					// rows, the ways' cache, and say nothing about stored height rasters. One
+					// indexed COUNT, no blob, so „the A* ignores the mountains" can be told apart
+					// from „no mountain has a raster yet".
+					'height_rasters' => $routePdo instanceof PDO ? avesmapsOffroadCountHeightRasters($routePdo) : 0,
 				],
+				// V14. Present only when an endpoint was a map point. Carries the cell width the
+				// search ACTUALLY used -- over the cell cap it coarsens for this one request, and a
+				// route computed on a 1,0 grid is a different statement from one computed on 0,5.
+				'offroad' => $offroad,
 			],
 		],
 	];

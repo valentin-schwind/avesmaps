@@ -43,6 +43,10 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 	$transports = avesmapsRouteNormalizeTransports($payload['transports'] ?? []);
 	$enabledTransports = avesmapsRouteNormalizeEnabledTransports($payload['enabled_transports'] ?? null);
 	$clientRoute = avesmapsRouteNormalizeClientRoute($payload['client_route'] ?? []);
+	// „Hierher reisen": an endpoint may be an arbitrary MAP POINT instead of a place. `from`/`to` stay
+	// required -- they are then the label the answer echoes, not a lookup key.
+	$fromPoint = avesmapsRouteNormalizeOptionalPoint($payload['from_point'] ?? null, 'from_point');
+	$toPoint = avesmapsRouteNormalizeOptionalPoint($payload['to_point'] ?? null, 'to_point');
 	// V11 §8.3: this may only switch terrain OFF. Default true means „follow the global switch".
 	$terrain = avesmapsRouteNormalizeBoolean($payload['terrain'] ?? true, 'terrain');
 
@@ -61,7 +65,36 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 		'enabled_transports' => $enabledTransports,
 		'client_route' => $clientRoute,
 		'terrain' => $terrain,
+		'from_point' => $fromPoint,
+		'to_point' => $toPoint,
 	];
+}
+
+/**
+ * An optional map-point endpoint: `{"x": 123.4, "y": 567.8}`, or absent.
+ *
+ * ⚠️ GeoJSON order, `[x, y]` -- the unit of map_features.min_x and of the routing graph, NOT Leaflet's
+ * `[lat, lng] = [y, x]`. The client swaps once, at the point where it reads the click.
+ *
+ * Only finiteness is checked here. Whether the point is somewhere a traveller can stand is a question
+ * about the WORLD, not about the request, and it is answered by the land check (land-areas.php) --
+ * which gives the caller a far better sentence than „invalid_request" would.
+ */
+function avesmapsRouteNormalizeOptionalPoint(mixed $value, string $field): ?array {
+	if ($value === null) {
+		return null;
+	}
+	if (!is_array($value) || !array_key_exists('x', $value) || !array_key_exists('y', $value)) {
+		throw new InvalidArgumentException("Invalid field: {$field} must be an object with x and y.");
+	}
+
+	$x = filter_var($value['x'], FILTER_VALIDATE_FLOAT);
+	$y = filter_var($value['y'], FILTER_VALIDATE_FLOAT);
+	if ($x === false || $y === false || !is_finite((float) $x) || !is_finite((float) $y)) {
+		throw new InvalidArgumentException("Invalid field: {$field} must carry numeric x and y.");
+	}
+
+	return ['x' => (float) $x, 'y' => (float) $y];
 }
 
 // Welche Transport-Domaenen erlaubt sind (land/river/sea). Fehlt das Feld -> alle erlaubt

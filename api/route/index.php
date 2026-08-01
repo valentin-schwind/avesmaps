@@ -349,6 +349,11 @@ try {
 	avesmapsRouteErrorResponse(400, 'invalid_request', $message);
 } catch (AvesmapsRouteViaNotSupportedException $exception) {
 	avesmapsRouteErrorResponse(400, 'via_not_supported', $exception->getMessage());
+} catch (AvesmapsRouteOffroadPointException $exception) {
+	// 422, not 400: the request was well formed, the WORLD refused it. The machine code
+	// (`point_not_on_land` / `no_exit_node` / `no_offroad_route`) is what the client keys its German
+	// sentence off -- „Dorthin führt kein Landweg" is a different message from „kein Weg gefunden".
+	avesmapsRouteErrorResponse(422, $exception->errorCode, $exception->getMessage());
 } catch (AvesmapsRouteLocationNotFoundException $exception) {
 	avesmapsRouteErrorResponse(404, 'location_not_found', $exception->getMessage());
 } catch (RuntimeException $exception) {

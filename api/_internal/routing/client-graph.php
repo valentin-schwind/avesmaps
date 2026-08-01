@@ -1396,6 +1396,10 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             // actual sub-edge instead of re-resolving the whole parent path by feature_id.
             'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
             'synthetic' => !empty($segment['synthetic']),
+            // V14: this leg is an A*-computed cross-country way, not a drawn one. The flag exists so
+            // the plan can mark it „wegloses Gelände" -- the TEXT is German UI and belongs in the
+            // client's i18n table, never in an API payload (AGENTS.md §8).
+            'offroad' => !empty($segment['offroad']),
             'flow_time_factor' => (float) ($segment['flow_time_factor'] ?? 1.0),
             'flow_state' => (string) ($segment['flow_state'] ?? ''),
             // V11. 💣 `1.0` means three different things -- terrain off, flat here, nothing known
