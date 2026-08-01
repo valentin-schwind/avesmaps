@@ -1,5 +1,43 @@
 # Prüfauftrag: das Eigenwiderstandsmodell für Steigung und Transportmittel
 
+> ## 🔴 ERLEDIGT — DER VORSCHLAG IST DURCHGEFALLEN (2026-08-01)
+>
+> Vier unabhängige Prüfungen, **viermal Nein**. Das Modell unten wird **nicht gebaut**. Das Dokument
+> bleibt als Beleg stehen, weil seine Fehler lehrreicher sind als sein Inhalt — lies es nur mit
+> dieser Korrektur davor.
+>
+> **Der entscheidende Befund war keiner über den Vorschlag, sondern über den Live-Stand:** die
+> `SPEED_TABLE` **ist** die DSA-Geländetabelle (Reichsstraße 1,100 gegen 1,10 · Straße 1,000 gegen
+> 1,00 · Gebirgspass 0,388 gegen 0,40, gemessen über alle sechs Transportmittel). Der Geländefaktor
+> multipliziert also auf einen Wert, der den Berg bereits enthält — bei Faktor 4,0 ist ein
+> gewöhnlicher Gebirgspass mit 0,094 langsamer als DSAs Kategorie *Hochgebirge* (0,10). Das ist eine
+> Doppelzählung, sie ist live, und sie zu entscheiden geht diesem ganzen Dokument voraus.
+>
+> **Dieses Dokument enthielt fünf Fehletikettierungen** — geschrieben, um Fehletikettierungen zu
+> fangen. Sie sind unten korrigiert, aber der Vollständigkeit halber:
+>
+> 1. **Minetti als „gemessen".** Das Polynom liefert bei null 2,50, gemessen hat Minetti 1,64. Mit
+>    den Messwerten wäre `c ≈ 0,051` statt 0,10 — der Mensch also empfindlicher als das Pferd, und
+>    die ⭐-Aussage in §2.2 fällt. `c = 0,10` ist der richtige Wert aus dem falschen Grund: er kommt
+>    aus Naismith/DIN (0,120) und der Steigleistungsprobe, nicht aus Minetti.
+> 2. **Die „Langmuir"-Spalte in §2.4 ist nicht Langmuir.** Sein Bergab-Bonus ist stillschweigend
+>    abgeschnitten, die Spalte trägt trotzdem seinen Namen.
+> 3. **„Kein publiziertes Modell hat dort eine Unstetigkeit" ist falsch.** Langmuir springt bei 12°
+>    von 0,41 auf 1,59 — relativ mehr als die kritisierte Kante.
+> 4. **Jeffcott ist nicht Autor** von Schroter & Marlin 2002.
+> 5. **Der verlinkte Findings-Artikel war Higgins 2021**, nicht Irmischer & Clarke.
+>
+> Dazu der Kern-Gegenbefund: der Stetigkeitsbeweis in §5.1 misst **nur innerhalb der erlaubten
+> Bereiche** und blendet damit genau die Sprünge aus, die die `gmax`-Sperren neu einführen — eine
+> Unstetigkeit von 1,34 entfernt, sechs unendliche eingeführt. Und die verworfene `min()`-Klemme
+> springt gar nicht: `max(v_reiten, v_führen)` ist als Maximum stetiger Kurven stetig, womit die
+> ganze Rückrechnung von `c_ab` samt ihrem Wegtyp-Defekt unnötig war.
+>
+> **Was aus der Prüfung tatsächlich gebaut wurde** (Commit-Reihe vom 2026-08-01): der Reiseplan
+> zeigt den Geländefaktor, den der Router bezahlt (er tat es nie); die Fehletikettierung „DIN 33466"
+> ist aus Dialog, i18n und Kommentaren entfernt; die Kutsche fährt nicht mehr querfeldein — über
+> `allowed_transports`, also über die Regel, nicht über eine erfundene Prozentgrenze.
+
 > **Auftrag an eine prüfende Session. Selbsttragend — du brauchst keinen Kontext aus der
 > Vorsession.** Stand: 2026-08-01. Gegenstand: ein **Vorschlag**, der das heutige Steigungsmodell
 > von Avesmaps ersetzen soll. Er ist **noch nicht gebaut** und soll in dieser Sitzung auch **nicht
@@ -96,7 +134,7 @@ Zwei Eigenschaften des Ist-Zustands, die der Vorschlag ändern will:
    Faktor 4,0. Eine Kutsche kommt einen 30-%-Hang real nicht hinauf.
 2. **Ein Sprung bei 20 % Gefälle.** Bei 20,00 % kostet ein Gefälle nichts, bei 20,01 % kostet es das
    **2,33-fache**, weil der *ganze* Abstieg des Abtastschritts gezählt wird, nicht nur der Anteil
-   über der Schwelle. Kein publiziertes Modell hat dort eine Unstetigkeit.
+   über der Schwelle. ⚠️ FALSCH -- siehe die Korrektur oben: Langmuir selbst springt bei 12° von 0,41 auf 1,59.
 
 ---
 
@@ -107,7 +145,7 @@ ausgewiesener Parameter, der in Wahrheit geschätzt ist, ist ein schwerer Befund
 
 | Parameter | Wert | Güte | Herkunft |
 |---|---|---|---|
-| `c` zu Fuß | 0,100 | **gemessen** | Minetti 2002, siehe §2.1 |
+| `c` zu Fuß | 0,100 | ~~gemessen~~ **kalibriert** | Wert aus der Marschzeitkonvention, nicht aus Minetti -- siehe die Korrektur oben |
 | `c` beritten | 0,079 | **gemessen** | Schroter 2002, siehe §2.2 |
 | `c` Kutsche | 0,050 | **hergeleitet** | Rollreibung + Zugtiergewicht, §2.3 |
 | `c` Karawane | 0,090 | **geschätzt** | interpoliert zwischen 0,079 und 0,100 |
@@ -151,7 +189,7 @@ Daraus `f(g) = Cw(g)/Cw(0)`. Die lineare Näherung `1 + 10g` trifft das:
 
 ### 2.2 `c` beritten = 0,079 — Schroter 2002
 
-**Quelle:** Schroter, Marlin, Jeffcott (2002), *Modelling the oxygen cost of transport in competitions
+**Quelle:** Schroter & Marlin (2002), *Modelling the oxygen cost of transport in competitions
 over ground of variable slope*, Equine Veterinary Journal 34(S34):397–401.
 https://beva.onlinelibrary.wiley.com/doi/abs/10.1111/j.2042-3306.2002.tb05455.x
 
@@ -188,6 +226,7 @@ mitbestimmt**, nicht allein durch Herleitung. Das ist offenzulegen und zu prüfe
 
 ### 2.4 `g₀` = 0,20 und `c_ab` = 0,15 zu Fuß — Langmuir 1984
 
+**Quelle:** Langmuirs Korrektur (⚠️ die Tabelle unten schneidet Langmuirs Bergab-BONUS ab und heisst trotzdem nach ihm -- siehe die Korrektur oben)
 **Quelle:** Langmuirs Korrektur zu Naismiths Regel, zusammengefasst unter
 https://en.wikipedia.org/wiki/Naismith%27s_rule — Primärquelle: Eric Langmuir, *Mountaincraft and
 Leadership* (1984).
@@ -322,7 +361,7 @@ i = 0 den Wert 2,5. Kläre, ob das ein Widerspruch ist oder zwei verschiedene Gr
 ### T2 — Prüfe die Brückenannahme
 Der ganze Aufstiegsteil steht und fällt mit „Zeitfaktor = Kostenverhältnis" (§2.1). Suche
 Gegenbelege: Modelle, die Geschwindigkeit *direkt* messen (Tobler; Irmischer & Clarke 2018,
-https://findingspress.org/article/28107-hiking-with-tobler-tracking-movement-and-calibrating-a-cost-function-for-personalized-3d-accessibility)
+https://doi.org/10.1080/15230406.2017.1292150) ⚠️ der hier ursprünglich verlinkte Findings-Artikel war Higgins 2021, eine Einpersonenstudie -- nicht Irmischer \u0026 Clarke
 liefern deutlich flachere Kurven — Irmischer & Clarke nur Faktor 1,27 bei 20 % Steigung, wo Minetti
 3,15 sagt. **Das ist ein Faktor 2,5 Unterschied und der größte offene Streit im ganzen Vorschlag.**
 Arbeite heraus, welche Kurve für eine mehrtägige Reise mit Gepäck die richtige ist und warum. Ist die
