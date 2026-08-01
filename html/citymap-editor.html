@@ -672,16 +672,59 @@
     }
   }
 
+  // key -> label, built once from the same table the type picker uses, so a human can search "Übersicht"
+  // while the payload only ever carries the key 'uebersicht'.
+  const TYPE_LABELS = Object.fromEntries(TYPE_KEYS);
+
+  // The two predicates below are PURE on purpose: this page has no module system, so
+  // js/review/__tests__/citymap-editor-search.test.js pulls their source straight out of the shipped
+  // HTML and runs them. Reading the DOM inside them would make that impossible -- hence the thin
+  // citymapMatchesSearch() wrapper underneath, which is the only part that knows about the input box.
+
+  // A map is found by its own title, by the NAMES OF THE PLACES assigned to it, and by its types.
+  // Places are the reason this exists: "Das Bornland und Umgebung" names none of the towns it depicts,
+  // so before this it was reachable by no place at all -- while "Stadtplan von Angbar" was findable
+  // purely by accident, because its place happens to sit in the title.
+  function citymapMatchesQuery(c, q, typeLabels) {
+    const needle = String(q == null ? "" : q).trim().toLowerCase();
+    if (!needle) return true;
+    const hits = (value) => String(value == null ? "" : value).toLowerCase().includes(needle);
+    if (hits(c.title)) return true;
+    if ((c.places || []).some(hits)) return true;
+    const labels = typeLabels || {};
+    return (c.types || []).some((key) => hits(key) || hits(labels[key]));
+  }
+
+  // Which place produced the hit -- "" when the title already explains it, so the row hint only ever
+  // appears where it tells the editor something they cannot see.
+  function citymapPlaceHit(c, q) {
+    const needle = String(q == null ? "" : q).trim().toLowerCase();
+    if (!needle) return "";
+    if (String(c.title == null ? "" : c.title).toLowerCase().includes(needle)) return "";
+    const found = (c.places || []).find((p) => String(p == null ? "" : p).toLowerCase().includes(needle));
+    return found || "";
+  }
+
+  function ceSearchQuery() {
+    return (document.getElementById("ceSearch").value || "").trim();
+  }
+
   function citymapMatchesSearch(c) {
-    const q = (document.getElementById("ceSearch").value || "").trim().toLowerCase();
-    return !q || (c.title || "").toLowerCase().includes(q);
+    return citymapMatchesQuery(c, ceSearchQuery(), TYPE_LABELS);
   }
 
   function renderList() {
     const rows = state.citymaps.filter(citymapMatchesSearch);
+    const query = ceSearchQuery();
     document.getElementById("ceListCount").textContent = `${rows.length} von ${state.citymaps.length}`;
     document.getElementById("ceListScroll").innerHTML = rows.length ? rows.map((c) => {
       const draft = c.status !== "approved";
+      // Why this row is here, when the title does not say so. Without it a search for "Festum" returns
+      // "Das Bornland und Umgebung" and reads like a bug.
+      const placeHit = citymapPlaceHit(c, query);
+      const placeHitPill = placeHit
+        ? ` <span class="pill pill--kind" title="Diese Karte ist dem Ort „${ceEscape(placeHit)}“ zugeordnet — der Titel nennt ihn nicht.">Ort: ${ceEscape(placeHit)}</span>`
+        : "";
       // Provenance pill. 'manual' stays unlabelled -- it is the norm here, and a pill on every row
       // would be noise. Only the two origins the editor did NOT author announce themselves.
       const community = c.origin === "community"
@@ -697,7 +740,7 @@
         <span class="ce-item__thumb">${thumb}</span>
         <span class="ce-item__text">
           <span class="ce-item__title">${ceEscape(c.title)}</span>
-          <span class="ce-item__l2">${types}${c.place_count || 0} Orte${community}${draft ? ` <span class="pill pill--hidden">verborgen</span>` : ""}</span>
+          <span class="ce-item__l2">${types}${c.place_count || 0} Orte${placeHitPill}${community}${draft ? ` <span class="pill pill--hidden">verborgen</span>` : ""}</span>
         </span></button>`;
     }).join("") : `<p class="ce-empty">Keine Karten.</p>`;
   }

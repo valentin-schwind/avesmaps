@@ -1098,13 +1098,26 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
 
     $placeCounts = [];
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $countStatement = $pdo->prepare(
-        "SELECT citymap_id, COUNT(*) AS n FROM citymap_place
-          WHERE status = 'approved' AND citymap_id IN ($placeholders) GROUP BY citymap_id"
+    // The NAMES, not just how many: the editor's list search matches them, so a map like "Das Bornland
+    // und Umgebung" becomes findable through the towns it depicts instead of only through its own title.
+    // Still ONE query for all maps (same shape as the count it replaces, which the count is now derived
+    // from) -- turning this into a per-row lookup would be 450 queries for one keystroke's worth of data.
+    $placeNames = [];
+    $nameStatement = $pdo->prepare(
+        "SELECT citymap_id, raw_name FROM citymap_place
+          WHERE status = 'approved' AND citymap_id IN ($placeholders)
+          ORDER BY citymap_id ASC, sort_order ASC, id ASC"
     );
-    $countStatement->execute($ids);
-    foreach ($countStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-        $placeCounts[(int) $row['citymap_id']] = (int) $row['n'];
+    $nameStatement->execute($ids);
+    foreach ($nameStatement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $citymapId = (int) $row['citymap_id'];
+        $name = trim((string) $row['raw_name']);
+        $placeCounts[$citymapId] = ($placeCounts[$citymapId] ?? 0) + 1;
+        // An unresolved place still HAS a raw_name -- that is exactly the row a human searches for.
+        // Only a genuinely empty one is dropped, and it must not shrink the count.
+        if ($name !== '') {
+            $placeNames[$citymapId][] = $name;
+        }
     }
 
     $citymaps = [];
@@ -1148,6 +1161,10 @@ function avesmapsListCitymapsForEdit(PDO $pdo): array
                 : '',
             'thumb_auto_state' => (string) ($row['thumb_auto_state'] ?? ''),
             'place_count' => $placeCounts[$id] ?? 0,
+            // Names only, no ids: the list uses them for SEARCH and for the "Ort: X" hint, nothing else.
+            // (The rule for this SELECT is "list-row fields only" -- this earns its place because the
+            // list itself reads it. Everything about a place beyond its name stays in 'detail'.)
+            'places' => $placeNames[$id] ?? [],
         ];
     }
     return [
