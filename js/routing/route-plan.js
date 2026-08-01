@@ -636,8 +636,16 @@ function cleanRoutePlanNoiseEntries(entries) {
 		// Gemessen an Rovik -> Kartenpunkt: die Querfeldein-Etappe verschwand in einer Flussweg-Etappe,
 		// die dadurch 24,76 statt 19,66 Meilen lang war UND deren Anstieg (498 Schritt) von einem Fluss
 		// zu stammen schien.
+		//
+		// ⚠️ ... AUSSER sie ist zu kurz, um etwas zu zeigen. Klickt jemand genau auf einen Ort, ist die
+		// Querfeldein-Etappe null Meilen lang; ohne diese Bedingung stuende dann „Unwegsames Gelände
+		// (0,00 Meilen) von Markierung bis Markierung" im Reiseplan. Die Sperre schuetzt eine Etappe
+		// davor, ihre Laenge und ihren Anstieg an eine fremde zu verlieren -- wo es beides nicht gibt,
+		// gibt es nichts zu schuetzen. Die Schwelle ist die Anzeigegenauigkeit selbst: was auf 0,00
+		// gerundet wird, sagt nichts.
 		const tailSyntheticBreak = open.type === SYNTHETIC_ROUTE_TYPE
-			&& (!lastEntry || lastEntry.type !== SYNTHETIC_ROUTE_TYPE);
+			&& (!lastEntry || lastEntry.type !== SYNTHETIC_ROUTE_TYPE)
+			&& Number(open.distance) >= 0.01;
 		if (isRoutePlanMarkerName(open.endName) && result.length > 0 && !tailRiverFlowBreak && !tailSyntheticBreak) {
 			const last = result[result.length - 1];
 			last.distance += open.distance;

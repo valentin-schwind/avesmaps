@@ -62,6 +62,23 @@ const twoOffroad = cleanRoutePlanNoiseEntries([
 assert.strictEqual(twoOffroad.length, 1, "zwei Querfeldein-Etappen bleiben eine");
 assert.strictEqual(twoOffroad[0].distance, 5, "und ihre Laengen addieren sich");
 
+// ⚠️ Eine Etappe ohne Laenge hat nichts zu verlieren. Klickt jemand genau auf einen Ort, ist die
+// Querfeldein-Etappe null Meilen lang -- die wird wie frueher absorbiert, statt als „Unwegsames
+// Gelände (0,00 Meilen) von Markierung bis Markierung" im Reiseplan zu stehen. Der Fall ist echt:
+// live gegen Skarsten geklickt liefert genau ihn.
+const zeroLengthTail = cleanRoutePlanNoiseEntries([
+	entry("Flussweg", "Skarsten", 19.66, [0]),
+	entry("Querfeldein", "Markierung", 0, [1]),
+]);
+assert.strictEqual(zeroLengthTail.length, 1, "eine Etappe ohne Laenge wird absorbiert");
+
+// Aber knapp darueber bleibt sie stehen -- die Schwelle ist die Anzeigegenauigkeit, nicht ein Urteil
+// darueber, was „kurz" ist.
+assert.strictEqual(cleanRoutePlanNoiseEntries([
+	entry("Flussweg", "Skarsten", 19.66, [0]),
+	entry("Querfeldein", "Markierung", 0.01, [1]),
+]).length, 2, "0,01 Meilen sind sichtbar und bleiben eine eigene Etappe");
+
 // Eine Querfeldein-Schluss-Etappe, die an einem echten ORT endet, war nie betroffen -- sie wird
 // regulaer abgeschlossen, nicht absorbiert.
 const offroadToPlace = cleanRoutePlanNoiseEntries([
