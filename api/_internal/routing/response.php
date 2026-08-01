@@ -229,7 +229,8 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			$routePdo,
 			(float) $point['x'],
 			(float) $point['y'],
-			$nodeName
+			$nodeName,
+			$terrainEnabled
 		);
 		if (empty($report['ok'])) {
 			throw new AvesmapsRouteOffroadPointException(

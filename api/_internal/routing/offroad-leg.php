@@ -98,7 +98,8 @@ function avesmapsAttachOffroadPointToGraph(
     ?PDO $pdo,
     float $x,
     float $y,
-    string $nodeName
+    string $nodeName,
+    bool $terrainEnabled = true
 ): array {
     if (!avesmapsRoutePointIsOnLand($x, $y, $land, $water)) {
         return ['ok' => false, 'error' => 'point_not_on_land'];
@@ -129,7 +130,11 @@ function avesmapsAttachOffroadPointToGraph(
         $box = avesmapsBuildOffroadBox($candidate['x'], $candidate['y'], $x, $y);
         $blocked = avesmapsOffroadRasteriseBlocked($box, $water);
         $factors = $pdo instanceof PDO ? avesmapsOffroadLoadFactorPlane($pdo, $box) : '';
-        $rasters = $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
+        // 🔴 DER NOTSCHALTER GILT AUCH HIER. V11 §8.3: der Gelaendeschalter ist ein Not-Aus, und er
+        // muss ueberall dasselbe bedeuten. Frueher las der A* die Hoehe unabhaengig davon -- dann
+        // haette „Gelaende aus" fuer gezeichnete Wege gegolten und fuer die Querfeldein-Etappe nicht,
+        // und niemand haette erklaeren koennen, warum ein Pass langsam bleibt.
+        $rasters = $terrainEnabled && $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
         $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
 
         $path = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed, $candidate['x'], $candidate['y'], $x, $y,
