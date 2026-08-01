@@ -1254,7 +1254,10 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 	// "Anzeigen" (Sextant): oeffnet die VOLLE Info dieser Stadt im rechten Panel + aktiviert ihren
 	// Wegpunkt-Tab (avesmapsShowLocationInInfopanel setzt markerEntry.name als activeName). Nur im
 	// Panel-Modus sinnvoll (ohne Panel gibt es kein Ziel).
-	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE) {
+	// ⚠️ ... aber nicht fuer einen angeklickten Kartenpunkt: der ist kein Ort, hat keine Infopanel-Seite
+	// und der Knopf koennte nur ins Leere greifen. Ein angebotener Knopf, der nichts tut, ist schlimmer
+	// als ein fehlender.
+	if (typeof IS_INFOPANEL_MODE !== "undefined" && IS_INFOPANEL_MODE && !loc.isMapPoint) {
 		buttons.push(popupActionButtonMarkup({
 			label: tr("popup.showInPanel", "Anzeigen"),
 			iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',

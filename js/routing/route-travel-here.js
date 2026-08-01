@@ -141,9 +141,10 @@ async function travelToMapPoint(latlng) {
 		{
 			name: pointLabel,
 			coordinates: [latlng.lat, latlng.lng],
-			// Die Typ-Zeile der Infobox: „657.150, 270.990 · Ziel". Ein Kartenpunkt hat keine
-			// Ortsgroesse, also steht dort die Position statt „Dorf".
-			locationTypeLabel: coordinates,
+			// ⚠️ KEIN locationTypeLabel. Ein erster Anlauf setzte die Koordinaten hier hinein, damit die
+			// Typ-Zeile der Infobox sie zeigt -- live stand dann „Kartenpunkt (657.150, 270.990)" ueber
+			// „657.150, 270.990 · Ziel", also zweimal dieselbe Zahl. Der Name traegt sie, die Typ-Zeile
+			// sagt die Rolle. Dieselbe Doppelung wie beim „weglosen Gelände", und dieselbe Antwort.
 			isMapPoint: true,
 		},
 	];
