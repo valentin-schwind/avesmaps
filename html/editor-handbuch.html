@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 30.07.2026</span>
+		<span class="hb-topbar__meta">Stand: 02.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -238,7 +238,7 @@
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
 						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen lage innerorts außerorts filter">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz produkte publikationen materialien">Abenteuer</a></li>
-						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien">Kartensammlungen</a></li>
+						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation">Kartensammlungen</a></li>
 						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle">Vorkommen</a></li>
 					</ul>
 				</li>
@@ -272,9 +272,9 @@
 				</li>
 				<li><a href="#nachschlagen" data-keywords="referenz listen tabelle">Nachschlagen</a>
 					<ul>
-						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal">Die Auswahllisten</a></li>
+						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal insel inselgruppe">Die Auswahllisten</a></li>
 						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen">Die Prüf-Häkchen</a></li>
-						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet">Die beiden Kontextmenüs</a></li>
+						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen">Die beiden Kontextmenüs</a></li>
 						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften">Die sieben Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
 						<li><a href="#n-hilfe" data-keywords="discord kontakt support fragen">Hilfe &amp; Kontakt</a></li>
@@ -643,13 +643,13 @@
 				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf die Beschriftung → „Bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neues Label" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Regionen</p>
 				<p>„Regionen" sind die <strong>Landschaftsnamen auf der Karte</strong> — das Svellttal, der Farindelwald, das Meer der Sieben Winde. Technisch sind es Beschriftungen, keine Flächen; der Dialog heißt darum <em>„Region bearbeiten"</em>.</p>
 				<ul class="hb-steps">
-					<li><strong>Identität</strong> — <em>Text</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Es gibt 29 Arten, nicht nur „Region" — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>.</li>
+					<li><strong>Identität</strong> — <em>Text</em> und <em>Art</em>, beide mit <strong>↻</strong> zum Übernehmen aus dem Wiki. Es gibt 30 Arten, nicht nur „Region" — die vollständige Liste steht unter <a href="#n-listen">Die Auswahllisten</a>.</li>
 					<li><strong>Höhe (Schritt)</strong> — steht unten im selben Block und erscheint nur, wenn die Art <em>Berggipfel</em> oder <em>Vulkan</em> ist: ein Zahlenfeld mit Schieberegler (0–20.000). Ein leeres Feld füllt sich dabei mit <strong>5.000</strong> — der Wert, mit dem die Karte für einen Gipfel ohne erfasste Höhe ohnehin rechnet. Eine <em>bereits erfasste</em> Höhe bleibt unangetastet, auch wenn du den Dialog nur öffnest.</li>
 					<li><strong>Darstellung</strong> — Größe, Rotation, „Sichtbar ab/bis Zoom", Priorität. Damit steuerst du, wann und wie prominent die Beschriftung erscheint. <strong>Größe, Rotation und Priorität wirken sofort auf der Karte</strong>, während du am Regler ziehst — du musst also nicht mehr speichern, hinsehen und wieder öffnen. Schließt du den Dialog <em>ohne</em> zu speichern („Abbrechen", ×, ESC), geht die Beschriftung auf ihren alten Stand zurück. Bei einer <em>neuen</em> Beschriftung gibt es noch keinen Marker, an dem sich das zeigen könnte.</li>
 					<li><strong>Wiki-Landschaft</strong> — „Zuweisen" / „Sync" / „Entfernen".</li>
 					<li><strong>Andere Quelle</strong> — für Belege außerhalb des Wikis, mit frei wählbarem Linktext.</li>
 				</ul>
-				<p>Im Reiter <strong>Editor → WikiSync → Regionen</strong> steht jetzt der Knopf <strong>„Regionen bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den siebten <a href="#n-editoren">Sync-Editor</a> — mit der Regionenliste links, den <em>Eigenschaften</em> in der Mitte und <em>„Vorschau &amp; Vorkommen"</em> rechts. Das <strong>„🚨 Syncen"</strong> ist dorthin ins Menüband umgezogen, genau wie bei Siedlungen und Kraftlinien; im Reiter selbst findest du es nicht mehr. Die beiden übrigen Kacheln des Fensters — <em>„Zugehörigkeit rechnen"</em> und <em>„Landschaftsmodul"</em> — gehören zur Landschaften-Erprobung und sind für die Beschriftungsarbeit ohne Belang.</p>
+				<p>Im Reiter <strong>Editor → WikiSync → Regionen</strong> steht jetzt der Knopf <strong>„Regionen bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den siebten <a href="#n-editoren">Sync-Editor</a> — mit der Regionenliste links, den <em>Eigenschaften</em> in der Mitte und <em>„Vorschau &amp; Vorkommen"</em> rechts. Das <strong>„🚨 Syncen"</strong> ist dorthin ins Menüband umgezogen, genau wie bei Siedlungen und Kraftlinien; im Reiter selbst findest du es nicht mehr. Die vier übrigen Kacheln des Fensters — <em>„Zugehörigkeit rechnen"</em>, <em>„Höhenraster rechnen"</em>, <em>„Wegprofile rechnen"</em> und <em>„Geländeabhängiges Reisen"</em> — gehören zur Landschaften-Ebene und sind für die Beschriftungsarbeit ohne Belang.</p>
 				<p>Für viele Beschriftungen auf einmal führt der Weg weiterhin über die Liste im Reiter: dort trägt jede Zeile den Knopf <strong>„Label zuweisen"</strong>. Er stellt <em>alle</em> Beschriftungen der Karte zur Auswahl — nicht nur die namensgleichen —, hakt die bereits verknüpften vor und sagt bei einer Beschriftung, die an einer <em>anderen</em> Wiki-Landschaft hängt, dazu, dass das Zuweisen sie umhängt. Erst <strong>„Vorschau"</strong> (ein Trockenlauf, der nichts schreibt), dann <strong>„Zuweisen"</strong>; änderst du zwischendurch die Auswahl, verfällt die Vorschau. <em>Lösen</em> lässt sich eine Verknüpfung hier nicht — das bleibt Sache des Label-Dialogs oben.</p>
 				<p>Der Linksklick auf eine Beschriftung bietet außerdem <strong>„Label verschieben"</strong>, <strong>„Label duplizieren"</strong> und <strong>„Label löschen"</strong> — sowie <strong>„Neue Kraftlinie"</strong>. Kraftlinien sind ein eigener Objekttyp, unabhängig vom Wegenetz — siehe unten.</p>
 
@@ -908,7 +908,8 @@
 				<p>Ebenso dreiwertig ist <strong>„mit Maßstab"</strong>: Die Wiki-Spalte beantwortet genau diese Ja/Nein-Frage. Steht dort ein ausgeschriebener Maßstab („1:12.750.000"), gehört der zusätzlich in die Notiz — er sagt mehr als ein „ja".</p>
 
 				<h5>Vorschaubild</h5>
-				<p>Öffentlich erscheint eine Vorschau nur bei vier Lizenzen: <strong>Public Domain</strong>, <strong>CC0</strong>, <strong>Von uns KI-generiert</strong> und <strong>Genehmigung erteilt</strong>. Der Knopf <strong>„Hochladen…"</strong> erscheint überhaupt erst, wenn eine solche Lizenz <em>gespeichert</em> ist.</p>
+				<p>Öffentlich erscheint eine Vorschau nur bei fünf Lizenzen: <strong>Public Domain</strong>, <strong>CC0</strong>, <strong>Von uns KI-generiert</strong>, <strong>Genehmigung erteilt</strong> und <strong>Eigene Kreation</strong>. Der Knopf <strong>„Hochladen…"</strong> steht immer da; die Lizenz, die im Feld <em>darunter</em> steht, reist mit dem Bild mit — Lizenz wählen und hochladen ist ein Handgriff, du musst nicht vorher speichern. Ist sie keine der fünf, weist der Server das Bild ab und legt gar nichts erst an.</p>
+				<p>Zwei Bilder je Karte, mit verschiedenen Regeln: das <strong>Vorschaubild</strong> wird beim Hochladen auf 400 Pixel längste Kante verkleinert und in WebP umgewandelt (ein GIF bleibt unangetastet) — aus einem 1200×600-PNG wird also ein 400×200-WebP, das ist kein Fehler. <strong>„Karte (eigenes Bild)"</strong> daneben ist die vollständige Karte zum Hineinzoomen und wird <em>genau so</em> abgelegt, wie du sie hochlädst. Nach oben schließt beide dieselbe Grenze: 12 MB je Datei.</p>
 				<div class="hb-note hb-tip"><strong>„⤓ Autoget" holt kein veröffentlichbares Bild.</strong> Es sucht auf der verlinkten Seite eine Vorschau und legt sie <em>nur für den Editor</em> ab — fremdes Material, das nie öffentlich erscheint. Der Karten-Link selbst wird dagegen immer angezeigt; nur das Bild hängt an der Lizenz.</div>
 				<p>Aus der Community kommen zwei Sorten Beiträge: <strong>„Karte vorschlagen"</strong> (eine ganz neue Karte) und <strong>„+ Neuer Fundort"</strong> (eine weitere Stelle für eine bekannte Karte). Beide erscheinen erst nach deiner Freigabe im Reiter <a href="#meldungen">Meldungen</a> — bei einer neuen Karte heißt der Knopf dort <strong>„Anlegen"</strong>, bei Fundorten <strong>„Ergänzen"</strong>. Fremde Fundorte kannst du nicht löschen, nur <strong>„Unterdrücken"</strong>; das wirkt sofort, ohne Speichern.</p>
 
@@ -1230,7 +1231,7 @@
 					<tr><td><strong>Ortsgröße</strong></td><td>Dorf · Kleinstadt · Stadt · Großstadt · Metropole · Besondere Bauwerke/Stätten</td></tr>
 					<tr><td><strong>Wegtyp</strong></td><td>Reichsstraße · Straße · Weg · Pfad · Gebirgspass · Wüstenpfad · Flussweg · Seeweg</td></tr>
 					<tr><td><strong>Transportmittel</strong></td><td>Karawane · Reisegruppe zu Fuß · Zu Fuß · Kutsche · Reisegruppe beritten · Reiter · Flusssegler · Flusskahn · Lastensegler · Schnellsegler · Galeere</td></tr>
-					<tr><td><strong>Region: Art</strong></td><td>Region · Fluss · Meer · Gebirge · Berggipfel · Vulkan · Wald · Steppe · Hügelland · Tal · Tundra · Küste · Ebene · Graslandschaft · Auenlandschaft · Kontinent · Wüste · Sümpfe &amp; Moore · Flussland/Flusstal · Dschungel · Wüstenoase · Wadi · Schlucht · Hochebene · Tiefebene · Flussdelta · See · Insel · Sonstiges</td></tr>
+					<tr><td><strong>Region: Art</strong></td><td>Region · Fluss · Meer · Gebirge · Berggipfel · Vulkan · Wald · Steppe · Hügelland · Tal · Tundra · Küste · Ebene · Graslandschaft · Auenlandschaft · Kontinent · Wüste · Sümpfe &amp; Moore · Flussland/Flusstal · Dschungel · Wüstenoase · Wadi · Schlucht · Hochebene · Tiefebene · Flussdelta · See · Insel · Inselgruppe · Sonstiges</td></tr>
 					<tr><td><strong>Quellentyp</strong></td><td>Regionalspielhilfe · Abenteuer · Aventurischer Bote · Quellenband · Roman · Briefspiel · Regelbuch · Sonstiges</td></tr>
 				</table>
 
@@ -1256,7 +1257,7 @@
 				<p>Rechtsklick auf leere Karte, auf einen Ort, eine Kreuzung, eine Beschriftung oder einen Weg — überall <strong>dasselbe Menü</strong>.</p>
 				<ul class="hb-steps">
 					<li><strong>Hier hinzufügen</strong> (nur im Bearbeiten-Modus): Neuer Ort · Neue Kreuzung · Neuer Weg · Neues Label · Neues Herrschaftsgebiet</li>
-					<li><strong>Immer:</strong> Stelle markieren und teilen · Hier melden… · Suchen · Nächsten Ort finden · Entfernung messen</li>
+					<li><strong>Immer:</strong> Stelle markieren und teilen · Hier melden… · Suchen · Nächsten Ort finden · Hierher reisen · Entfernung messen</li>
 				</ul>
 				<p>Ein Eintrag erscheint nur situativ: <strong>„Neue Kreuzung und Weg teilen"</strong> beim Rechtsklick auf einen Zwischenknoten während „Verlauf bearbeiten".</p>
 				<div class="hb-note hb-tip"><strong>„Neuer Ort aus dem Wiki" gibt es nicht mehr</strong> — und du brauchst ihn auch nicht. Nimm <strong>„Neuer Ort"</strong> und fang an, den Namen zu tippen: Der Editor schlägt dir passende Wiki-Siedlungen vor und sagt bei jeder dazu, ob sie schon mit einem Ort auf der Karte verbunden ist. Wählst du einen Vorschlag, ist die Wiki-Verknüpfung gleich mit gesetzt — derselbe Ort, ein Schritt weniger.</div>
