@@ -30,6 +30,9 @@ const LABEL_WIKI_ART_TO_SUBTYPE = {
 	// Talformen, die das Wiki ebenfalls unter Kategorie:Tal führt (Schlucht 19, Talkessel 1,
 	// Klamm 1 von 74 Seiten). Spiegelt AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE.
 	"schlucht": "tal", "klamm": "tal", "talkessel": "tal",
+	// Wadi: das Wiki führt es als Fließgewässer ({{Infobox Fluss}}), Avesmaps zeichnet es als
+	// Landschaft. Spiegelt 'Wadi' => 'wadi' in AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE.
+	"wadi": "wadi",
 	"auenlandschaft": "auenlandschaft",
 	"fluss": "fluss", "kontinent": "kontinent",
 };

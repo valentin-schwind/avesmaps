@@ -66,6 +66,10 @@ declare(strict_types=1);
  *       used to *decide* the entity kind. (Category links ARE read, but only to
  *       feed the continent detector below -- the same signal the online crawler
  *       fetched via the API. They never gate classification.)
+ *       ONE documented exception, in avesmapsWikiDumpClassifyPage: a {{Infobox
+ *       Fluss}} page whose |Art= names a landform (Wadi) goes to the REGION
+ *       handler. It reads the Art, not a category, and can only move a page the
+ *       infobox already called a path -- see wiki/watercourse-landform.php.
  *
  *   I1  Field mapping + key derivation are NEVER re-implemented here. The path
  *       handler CALLS the real avesmapsWikiPathParsePage() (paths.php:333),
@@ -233,7 +237,20 @@ function avesmapsWikiDumpClassifyPage(array $page): string
         return ''; // a redirect page is an alias (Pass A), never an entity
     }
 
-    return avesmapsWikiDumpClassifyEntityKind(avesmapsWikiSyncMonitorInfoboxName((string) ($page['wikitext'] ?? '')));
+    $wikitext = (string) ($page['wikitext'] ?? '');
+    $kind = avesmapsWikiDumpClassifyEntityKind(avesmapsWikiSyncMonitorInfoboxName($wikitext));
+
+    // The ONE documented exception to O4 (see the invariant above). A wadi carries {{Infobox Fluss}}
+    // because it IS a riverbed, but Avesmaps draws it as a landscape, so the infobox name alone
+    // routes it to the wrong handler. The exception is narrow by construction: it can only ever move
+    // a page the infobox already classified as a path, and only for an Art on one short list
+    // (AVESMAPS_WIKI_LANDFORM_WATERCOURSE_ARTS). It reads the Art, never a category, so O4's real
+    // subject -- "no category scan decides the entity kind" -- is untouched.
+    if ($kind === AVESMAPS_WIKI_DUMP_ENTITY_PATH && avesmapsWikiIsLandformWatercourse($wikitext)) {
+        return AVESMAPS_WIKI_DUMP_ENTITY_REGION;
+    }
+
+    return $kind;
 }
 
 // ===========================================================================

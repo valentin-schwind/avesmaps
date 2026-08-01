@@ -230,4 +230,95 @@ foreach (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE as $tableArt => $tableSubtype) {
     $seenFoldedKeys[$foldedKey] = [$tableArt, $tableSubtype];
 }
 
-echo "ok: region art parsing + subtype mapping + vulkan + every table key reachable\n";
+// ------------------------------------------- WADI: A WATERCOURSE PAGE THAT IS A LANDSCAPE ---
+// The gap the owner reported 2026-08-01: Wadi/Liste "wird noch nicht aus dem Wiki gezogen". The
+// subtype had existed since 2026-07-28 -- what was missing is that all five Kategorie:Wadi pages
+// carry {{Infobox Fluss}} with |Art=[[Wadi]], so the sync classified them as RIVERS and they never
+// reached the region staging at all. Below is the LIVE wikitext of Wadi Dschenna, fetched verbatim
+// on 2026-08-01 (umlauts written as escapes to keep this file ASCII, like the rest of it).
+require __DIR__ . '/../paths.php';          // avesmapsWikiPathParsePage -- must now REJECT a wadi
+require __DIR__ . '/../dump-entity-scan.php'; // avesmapsWikiDumpClassifyPage -- the O4 exception
+
+$wadiDschenna = <<<WIKITEXT
+{{Aventurien}}
+<onlyinclude>{{Register Fluss}}</onlyinclude>
+==Kurzbeschreibung==
+{{Infobox Fluss
+|Name=Wadi Dschenna
+|Bild=
+|Art=[[Wadi]]
+|L\u{00E4}nge=45 [[Meile]]n
+|Regionen=[[Kh\u{00F4}m]]
+|Verlauf=
+{{Flussquelle|[[Unauer Berge]]}}
+{{Flussm\u{00FC}ndung|[[Cichanebi-Salzsee]]}}
+}}
+Das recht steile '''Wadi Dschenna''' verl\u{00E4}uft nahe der [[Oase]] [[Tarfui]] entlang.
+WIKITEXT;
+
+// An ordinary river from the same infobox family -- the control. Every assert about the wadi has a
+// twin here, because the whole risk of this change is dragging real rivers out of the path sync.
+$ordinaryRiver = <<<WIKITEXT
+{{Aventurien}}
+{{Infobox Fluss
+|Name=Gro\u{00DF}er Fluss
+|Art=[[Fluss]]
+|Regionen=[[Kosch]]
+}}
+Fliesstext.
+WIKITEXT;
+
+// 1. The region parser accepts it although the infobox is not a Region, and rejects the river.
+$parsedWadi = avesmapsWikiRegionParsePage('Wadi Dschenna', $wadiDschenna, 'Wadi Dschenna');
+assert($parsedWadi['is_region'] === true, 'a wadi page reaches the region staging: ' . (string) $parsedWadi['reason']);
+assert(avesmapsWikiRegionParsePage('Grosser Fluss', $ordinaryRiver)['is_region'] === false, '💣 an ordinary river must NOT become a region');
+
+// 2. The fields the editor's landscape picker shows. `Regionen=` is the watercourse infobox's
+//    spelling of `Region=`; without that alias the Khom and the continent would both be lost.
+assert($parsedWadi['record']['art'] === 'Wadi', 'the stored art is the bare Art value: ' . (string) $parsedWadi['record']['art']);
+assert($parsedWadi['record']['name'] === 'Wadi Dschenna', 'the name comes from |Name=');
+assert($parsedWadi['record']['region_parent'] === "Kh\u{00F4}m", 'the parent region rides along: ' . (string) $parsedWadi['record']['region_parent']);
+assert($parsedWadi['record']['continent'] === 'Aventurien', 'the continent is detected from {{Aventurien}}: ' . (string) $parsedWadi['record']['continent']);
+
+// 3. The art resolves to the label subtype that has been waiting for it since 2026-07-28.
+assert(avesmapsWikiRegionArtToSubtype('Wadi') === 'wadi', 'Wadi is its own label category');
+assert(avesmapsWikiRegionArtToSubtype($parsedWadi['record']['art']) === 'wadi', 'and the parsed art resolves through the same path');
+assert(avesmapsReadLabelSubtype('wadi') === 'wadi', 'the server whitelist accepts it, so a label can be saved with it');
+assert(avesmapsWikiRegionTypeConflict('region', 'Wadi') === true, 'a wadi parked in the region catch-all is a conflict');
+assert(avesmapsWikiRegionTypeConflict('wadi', 'Wadi') === false, 'stored as wadi it is fine');
+
+// 4. The other half: the path parser must let go of the same page, or one article sits in TWO
+//    staging lists and an editor is asked to draw it twice.
+$pathWadi = avesmapsWikiPathParsePage('Wadi Dschenna', $wadiDschenna, 'Wadi Dschenna');
+assert($pathWadi['is_path'] === false, 'a wadi is no longer staged as a way');
+assert(str_contains((string) $pathWadi['reason'], 'Regionen-Sync'), 'and the reason says where it went: ' . (string) $pathWadi['reason']);
+assert(avesmapsWikiPathParsePage('Grosser Fluss', $ordinaryRiver)['is_path'] === true, '💣 an ordinary river is still a way');
+
+// 5. The dump classifier -- the documented exception to O4. Same two pages, same verdict.
+$dumpPage = static fn(string $wikitext): array => ['title' => 'Probe', 'ns' => 0, 'redirect' => null, 'wikitext' => $wikitext];
+assert(avesmapsWikiDumpClassifyPage($dumpPage($wadiDschenna)) === AVESMAPS_WIKI_DUMP_ENTITY_REGION, 'the dump routes a wadi to the region handler');
+assert(avesmapsWikiDumpClassifyPage($dumpPage($ordinaryRiver)) === AVESMAPS_WIKI_DUMP_ENTITY_PATH, '💣 and every other river still goes to the path handler');
+
+// 6. The gate is the INFOBOX, not the word. Without this the rule would yank pages out of any
+//    entity kind whose Art happens to read "Wadi" -- a settlement named after one, for instance.
+assert(avesmapsWikiIsLandformWatercourse($wadiDschenna) === true, 'the rule fires on a Fluss infobox with Art=Wadi');
+assert(avesmapsWikiIsLandformWatercourse("{{Infobox Siedlung\n|Name=Probe\n|Art=Wadi\n}}") === false, '💣 a non-watercourse infobox is never reclassified');
+assert(avesmapsWikiIsLandformWatercourse("{{Infobox Fluss\n|Name=Probe\n|Art=\n}}") === false, 'a river without an Art stays a river');
+// Multi-valued and unlinked spellings must resolve too -- same pipe rule as Vulkan|Magmafluss.
+assert(avesmapsWikiIsLandformWatercourse("{{Infobox Fluss\n|Name=Probe\n|Art=Wadi|Trockental\n}}") === true, 'a multi-valued Art still resolves');
+assert(avesmapsWikiReadInfoboxArt($wadiDschenna) === 'Wadi', 'the shared reader strips the wikilink: ' . avesmapsWikiReadInfoboxArt($wadiDschenna));
+
+// 7. Every entry of the landform list has to be reachable through the same folding the art goes
+//    through -- the identical guard the subtype table carries, for the identical reason.
+foreach (AVESMAPS_WIKI_LANDFORM_WATERCOURSE_ARTS as $landformArt) {
+    assert(
+        avesmapsWikiIsLandformWatercourse("{{Infobox Fluss\n|Name=Probe\n|Art=" . $landformArt . "\n}}") === true,
+        'the landform art "' . $landformArt . '" is unreachable through the lookup'
+    );
+    assert(
+        avesmapsWikiRegionArtToSubtype((string) $landformArt) !== '',
+        'the landform art "' . $landformArt . '" reaches the region staging but has no label subtype'
+    );
+}
+
+echo "ok: region art parsing + subtype mapping + vulkan + wadi + every table key reachable\n";

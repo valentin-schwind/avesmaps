@@ -22,6 +22,10 @@ declare(strict_types=1);
 // die beiden Sandbox-Tabellen unten; ein Zuordnen/Anlegen auf der Karte ist ein spaeterer,
 // bewusster Schritt.
 
+// The shared "this watercourse is really a landform" rule (Wadi). Its own file because paths.php
+// needs the identical rule and must not depend on this one.
+require_once __DIR__ . '/watercourse-landform.php';
+
 const AVESMAPS_WIKI_REGION_STAGING_TABLE = 'wiki_region_staging';
 const AVESMAPS_WIKI_REGION_QUEUE_TABLE = 'wiki_region_queue';
 const AVESMAPS_WIKI_REGION_MAX_DEPTH = 5; // Kategorie-Rekursionstiefe (Typ-Subkats sind verschachtelt: Hochland->Gebirge).
@@ -116,6 +120,11 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // included, but kept a category of its own so an editor can classify it and the wiki Art
     // resolves. 34 of the 40 Kategorie:Vulkan pages carry Art=Vulkan.
     'Vulkan' => 'vulkan',
+    // wadi -- the label subtype has existed since 2026-07-28 (4a8cda0c) but no wiki Art reached it,
+    // because all five Kategorie:Wadi pages carry {{Infobox Fluss}} and never entered the region
+    // staging at all. AVESMAPS_WIKI_LANDFORM_WATERCOURSE_ARTS is what gets them here; this line is
+    // what gives them a category once they arrive.
+    'Wadi' => 'wadi',
 ];
 
 // The table above, re-keyed by the SAME function that normalises the incoming art. That is the
@@ -502,8 +511,12 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
     $infoboxName = avesmapsWikiSyncMonitorInfoboxName($wikitext);
     $infoboxKey = avesmapsWikiSyncMonitorFieldKey($infoboxName);
 
-    // Nur Seiten mit {{Infobox Region}} (deckt Land + Gewaesser + Inseln/Meere ab).
-    if ($infoboxKey === '' || !str_contains($infoboxKey, 'region')) {
+    // Nur Seiten mit {{Infobox Region}} (deckt Land + Gewaesser + Inseln/Meere ab) -- PLUS the
+    // watercourse pages whose Art names a landform, which the wiki files under {{Infobox Fluss}}
+    // although they are landscapes (Wadi; see watercourse-landform.php for the whole argument).
+    // Both infoboxes share the Name/Art/Regionen/Bild skeleton, so the parser below needs no
+    // special case beyond the `regionen` alias on the parent field.
+    if ($infoboxKey === '' || (!str_contains($infoboxKey, 'region') && !avesmapsWikiIsLandformWatercourse($wikitext))) {
         return ['is_region' => false, 'reason' => $infoboxName === '' ? 'kein Infobox' : ('Infobox ' . $infoboxName), 'record' => null];
     }
 
@@ -515,20 +528,18 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
     if ($name === '') {
         $name = $canonical;
     }
-    $art = $field(['art', 'typ']);
-    // "Art=Tal|Grube" is TWO parameters to MediaWiki: the named Art, plus an unused positional one.
-    // avesmapsWikiSyncMonitorParseTemplateParams is line-based and keeps the whole rest of the
-    // line, so the stored art -- which the infobox renders as its subtitle -- read "Tal|Grube"
-    // while every reader of the wiki sees "Tal" (verified 2026-07-27: the rendered page does not
-    // contain the string at all). Split on the PIPE only; a comma is content, not a separator
-    // ("Mischregion, Wald" is one Art). Do NOT push this into the shared param parser -- multi-line
-    // values such as Verlauf= or Positionskarte= legitimately carry pipes inside templates.
-    $art = trim((preg_split('/\s*\|\s*/u', $art) ?: [''])[0]);
+    // First component only -- "Art=Tal|Grube" is TWO parameters to MediaWiki. The rule and the
+    // evidence behind it live in avesmapsWikiNormalizeInfoboxArt (watercourse-landform.php); it is
+    // shared so that the landform check and the stored art can never read the same page differently.
+    $art = avesmapsWikiNormalizeInfoboxArt($field(['art', 'typ']));
     // Berge heißen bei Avesmaps „Berggipfel" (gleiche Bezeichnung wie die Karten-Labels).
     if (mb_strtolower(trim($art), 'UTF-8') === 'berg') {
         $art = 'Berggipfel';
     }
-    $regionParent = $field(['region']);
+    // `Regionen` is the watercourse infobox's spelling of the same field ({{Infobox Fluss}} on the
+    // Wadi pages writes |Regionen=[[Khôm]]). paths.php reads the two as aliases already; without it
+    // a landform watercourse would arrive with no parent region and no continent hint at all.
+    $regionParent = $field(['region', 'regionen']);
     $staat = $field(['staat']);
 
     // Kontinent: Region= + Staat= + Nav-Templates oben auf der Seite.
@@ -536,7 +547,7 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
     if (preg_match_all('/\{\{\s*(Nav\s+[^}|]+|Aventurien|Myranor|G[üu]ldenland|Gueldenland|Rakshazar|Riesland|Tharun|Uthuria|Lahmaria)\b/iu', $wikitext, $navMatches) >= 1) {
         $navHints = implode(' ', $navMatches[1]);
     }
-    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region']) . ' ' . $staat . ' ' . $navHints . ' ' . $categories);
+    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region', 'regionen']) . ' ' . $staat . ' ' . $navHints . ' ' . $categories);
 
     // Nachbarn (NORD..NORDWEST), Werte ggf. mehrere [[Links]] kommasepariert.
     $neighbors = [];

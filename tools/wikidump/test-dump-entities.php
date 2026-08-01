@@ -544,6 +544,30 @@ $check(
     'O4: infobox-presence decides the kind; the category only affects continent'
 );
 
+// O4's single documented exception (2026-08-01): a {{Infobox Fluss}} page whose |Art= names a
+// landform is a LANDSCAPE. All five Kategorie:Wadi pages are like this, which is why none of them
+// ever reached the region staging. Built inline rather than added to the fixture so the entity
+// tallies asserted above stay exactly as they are.
+$asDumpPage = static fn(string $wikitext): array => ['title' => 'Probe', 'ns' => 0, 'redirect' => null, 'wikitext' => $wikitext];
+$check(
+    '(e3) a Fluss infobox with Art=Wadi is routed to the REGION handler',
+    'region',
+    avesmapsWikiDumpClassifyPage($asDumpPage("{{Infobox Fluss\n|Name=Wadi Dschenna\n|Art=[[Wadi]]\n|Regionen=[[Khom]]\n}}")),
+    'O4 exception: the Art, never a category, and only for a page the infobox already called a path'
+);
+$check(
+    '(e4) every other Fluss page still goes to the path handler',
+    'path',
+    avesmapsWikiDumpClassifyPage($asDumpPage("{{Infobox Fluss\n|Name=Breite\n|Art=[[Fluss]]\n}}")),
+    'the exception is narrow -- a real river must not be dragged out of the path sync'
+);
+$check(
+    '(e5) the Art alone does not reclassify a non-watercourse page',
+    'settlement',
+    avesmapsWikiDumpClassifyPage($asDumpPage("{{Infobox Siedlung\n|Name=Probe\n|Art=Wadi\n}}")),
+    'the infobox gate keeps the rule from reaching into other entity kinds'
+);
+
 // ===========================================================================
 // (f) REGION handler (Task 4b): mirrors the path handler. Kept Aventurien region
 //     record via the REAL avesmapsWikiRegionParsePage() field/key mapping; the

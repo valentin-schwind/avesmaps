@@ -15,6 +15,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/path-naming.php';
 require_once __DIR__ . '/place-scope.php';
+// The shared "this watercourse is really a landform" rule (Wadi). Same reason path-naming.php is
+// its own file: regions.php needs the identical rule and neither library may depend on the other.
+require_once __DIR__ . '/watercourse-landform.php';
 
 const AVESMAPS_WIKI_PATH_STAGING_TABLE = 'wiki_path_staging';
 const AVESMAPS_WIKI_PATH_QUEUE_TABLE = 'wiki_path_queue';
@@ -451,6 +454,17 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
     $isStrasse = str_contains($infoboxKey, 'strasse');
     if (!$isFluss && !$isStrasse) {
         return ['is_path' => false, 'reason' => $infoboxName === '' ? 'kein Infobox' : ('Infobox ' . $infoboxName), 'record' => null];
+    }
+    // A watercourse whose Art names a LANDFORM is a landscape, not a way -- it belongs to the region
+    // sync (regions.php), which accepts exactly these pages. Rejecting it here is what keeps the same
+    // article out of two staging lists: a Wadi has no sensible target on the map either, since a
+    // wiki river can only be assigned to a Flussweg/Seeweg. See watercourse-landform.php.
+    if ($isFluss && avesmapsWikiIsLandformWatercourse($wikitext)) {
+        return [
+            'is_path' => false,
+            'reason' => 'Landschaft (Art ' . avesmapsWikiReadInfoboxArt($wikitext) . '), gehoert zum Regionen-Sync',
+            'record' => null,
+        ];
     }
     $kind = $isFluss ? 'fluss' : 'strasse';
 
