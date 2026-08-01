@@ -1,0 +1,107 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Unit test for the Kartensammlung's preview encoder. No DB, no HTTP -- but REAL GD.
+ * Run (from repo root):
+ *   php -d zend.assertions=1 -d assert.exception=1 -d extension=gd \
+ *       api/_internal/app/__tests__/citymap-image-encode-test.php
+ * Exit 0 = all asserts passed.
+ *
+ * GD is NOT loaded by default in this dev PHP -- without `-d extension=gd` every branch below would
+ * take the "no WebP support" fallback and the test would prove nothing. Hence the hard guard.
+ */
+if (ini_get('zend.assertions') !== '1') {
+    fwrite(STDERR, "FATAL: zend.assertions is not '1' -- assert() would be a no-op. "
+        . "Re-run with: php -d zend.assertions=1 -d assert.exception=1 -d extension=gd " . __FILE__ . "\n");
+    exit(2);
+}
+$fallbackMode = in_array('--fallback', $argv ?? [], true);
+if (!$fallbackMode && (!function_exists('imagewebp') || !function_exists('imagecreatefromstring'))) {
+    fwrite(STDERR, "FATAL: GD with WebP is required, otherwise this test only exercises the fallback. "
+        . "Re-run with: php -d extension=gd " . __FILE__ . "\n");
+    exit(2);
+}
+
+require __DIR__ . '/../citymap-image-encode.php';
+
+// ---- FALLBACK MODE: run WITHOUT `-d extension=gd` and pass --fallback ---------------------------------
+// This is the branch that runs on a server whose GD cannot write WebP -- the one thing about STRATO we
+// cannot measure in advance (api/diagnostics/ is .htaccess-denied). The promise being tested is not
+// "it converts" but "it never destroys and never throws": the caller gets usable bytes and an extension
+// that honestly describes them, so the upload still succeeds.
+if ($fallbackMode) {
+    if (function_exists('imagewebp')) {
+        fwrite(STDERR, "FATAL: --fallback needs GD absent. Re-run WITHOUT -d extension=gd.\n");
+        exit(2);
+    }
+    $fb = avesmapsCitymapEncodeThumbBytes('pretend-png-bytes', 'png');
+    assert($fb['ext'] === 'png', 'without WebP the extension must stay truthful');
+    assert($fb['bytes'] === 'pretend-png-bytes', 'without GD the original must survive untouched');
+    $fbGif = avesmapsCitymapEncodeThumbBytes('gif-bytes', 'gif');
+    assert($fbGif['ext'] === 'gif' && $fbGif['bytes'] === 'gif-bytes');
+    echo "citymap-image-encode-test [fallback]: OK\n";
+    exit(0);
+}
+
+/** Build PNG bytes of a given size, with a fully transparent left half. */
+function tstPngBytes(int $w, int $h): string
+{
+    $im = imagecreatetruecolor($w, $h);
+    imagealphablending($im, false);
+    imagesavealpha($im, true);
+    imagefilledrectangle($im, 0, 0, $w - 1, $h - 1, (int) imagecolorallocate($im, 200, 30, 30));
+    imagefilledrectangle($im, 0, 0, (int) ($w / 2), $h - 1, (int) imagecolorallocatealpha($im, 0, 0, 0, 127));
+    ob_start();
+    imagepng($im);
+    $bytes = (string) ob_get_clean();
+    imagedestroy($im);
+    return $bytes;
+}
+
+// ---- a large PNG becomes WebP, bounded at 400 on the longest edge ------------------------------------
+$big = tstPngBytes(1000, 500);
+$out = avesmapsCitymapEncodeThumbBytes($big, 'png');
+assert($out['ext'] === 'webp');
+$info = getimagesizefromstring($out['bytes']);
+assert(is_array($info));
+assert($info[0] === 400 && $info[1] === 200); // aspect ratio preserved
+assert(max($info[0], $info[1]) === 400);
+
+// ---- a SMALL picture is still converted -------------------------------------------------------------
+// "passendes WebP-Format" is the order, not "only when it pays off". Dimensions stay untouched.
+$small = tstPngBytes(120, 60);
+$outSmall = avesmapsCitymapEncodeThumbBytes($small, 'png');
+assert($outSmall['ext'] === 'webp');
+$infoSmall = getimagesizefromstring($outSmall['bytes']);
+assert(is_array($infoSmall));
+assert($infoSmall[0] === 120 && $infoSmall[1] === 60);
+
+// ---- transparency survives the conversion -----------------------------------------------------------
+$re = imagecreatefromstring($out['bytes']);
+assert($re !== false);
+$corner = imagecolorat($re, 2, 2);  // inside the transparent half
+$alpha = ($corner >> 24) & 0x7F;    // 127 = fully transparent
+imagedestroy($re);
+assert($alpha > 100);
+
+// ---- GIF is passed through UNTOUCHED ----------------------------------------------------------------
+// Converting would silently drop every frame but the first.
+$gifSrc = imagecreatetruecolor(800, 800);
+ob_start();
+imagegif($gifSrc);
+$gif = (string) ob_get_clean();
+imagedestroy($gifSrc);
+$outGif = avesmapsCitymapEncodeThumbBytes($gif, 'gif');
+assert($outGif['ext'] === 'gif');
+assert($outGif['bytes'] === $gif);
+
+// ---- garbage in -> unchanged out, never an exception ------------------------------------------------
+$outJunk = avesmapsCitymapEncodeThumbBytes('not an image', 'png');
+assert($outJunk['ext'] === 'png');
+assert($outJunk['bytes'] === 'not an image');
+$outEmpty = avesmapsCitymapEncodeThumbBytes('', 'png');
+assert($outEmpty['bytes'] === '');
+
+echo "citymap-image-encode-test: OK\n";
