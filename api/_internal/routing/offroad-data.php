@@ -84,11 +84,12 @@ function avesmapsOffroadCountHeightRasters(PDO $pdo): int
  *
  * Returns '' when nothing is known, which every reader treats as factor 1,0 throughout.
  *
- * ⚠️ `is_trial = 0`, exactly as V13 filters water. Routing must not change because somebody is trying
- * something out, and the way to promote an experiment is the `promote_trial` button. As of 2026-07-30
- * ALL 17 gebirge areas were trial areas, so on that stock this plane is empty for mountains and the
- * A* avoids water only. That is the data situation, not a build error -- it grows in with the drawing
- * work. Count the rows yourself rather than believing that sentence.
+ * 💣 `is_trial` wird NICHT gefiltert, und der Filter, der hier stand, war der Grund, warum diese Ebene
+ * fuer Gebirge leer war: am 2026-07-30 trugen ALLE 17 gebirge-Flaechen den Stempel. Die Erprobung ist
+ * am 2026-08-01 abgeschafft (promote_trial mode=keep, 133 Flaechen, Revision 6217), die Spalte steht
+ * ueberall auf 0 und wird von nichts mehr gelesen. Wer den Filter wieder einzieht, macht gezeichnete
+ * Gebirge fuer den A* unsichtbar, ohne dass irgendwo ein Fehler auftaucht -- genauso, wie es
+ * `AND a.is_trial = 0` in water-areas.php mit dem Wasser getan hat. Zeilen selbst zaehlen.
  *
  * ⚠️ Areas WITHOUT a landscape type, and types without a factor, come back as 1,00 from the column
  * default and are simply not written into the plane.
@@ -102,7 +103,6 @@ function avesmapsOffroadLoadFactorPlane(PDO $pdo, array $box): string
                INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
                INNER JOIN ecosystem_region_type t ON t.kind = r.kind AND t.type_key = r.region_type
               WHERE a.is_active = 1
-                AND a.is_trial = 0
                 AND t.offroad_factor > 1.00
                 AND a.min_x <= :max_x AND a.max_x >= :min_x
                 AND a.min_y <= :max_y AND a.max_y >= :min_y'

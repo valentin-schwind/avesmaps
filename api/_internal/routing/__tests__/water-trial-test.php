@@ -84,4 +84,58 @@ $broken = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRM
 $empty = avesmapsLoadRouteWater([], $broken);
 assert($empty['areas'] === [], 'fehlende Tabellen -> leer, nicht Ausnahme');
 
-echo "water-trial-test: all asserts passed\n";
+// ============================================================ die beiden anderen Leser
+//
+// 💣 Es waren am Ende DREI Abfragen, nicht eine. `land-areas.php` und `offroad-data.php` kamen mit dem
+// A*/„Hierher reisen"-Umbau dazu und trugen denselben Filter nach -- abgeschrieben aus water-areas.php,
+// samt Begruendung. Sie standen noch keine zwei Tage, als die Erprobung abgeschafft wurde. Deshalb
+// deckt dieser Test alle drei ab: die Falle vermehrt sich durch Abschreiben.
+
+require __DIR__ . '/../land-areas.php';
+require __DIR__ . '/../offroad-data.php';
+
+// --- Land: `kontinent` + `insel`. Ein gestempelter Kontinent muss Land bleiben.
+$landPdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$landPdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, region_type TEXT, kind TEXT, is_active INTEGER)');
+$landPdo->exec('CREATE TABLE ecosystem_area (
+    id INTEGER PRIMARY KEY, region_id INTEGER, geometry_geojson TEXT,
+    min_x REAL, min_y REAL, max_x REAL, max_y REAL, is_active INTEGER, is_trial INTEGER)');
+$landPdo->exec("INSERT INTO ecosystem_region (id, region_type, kind, is_active) VALUES
+    (1, 'kontinent', 'derographisch', 1), (2, 'insel', 'derographisch', 1), (3, 'meer', 'derographisch', 1)");
+$landInsert = $landPdo->prepare('INSERT INTO ecosystem_area
+    (region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active, is_trial)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+$landInsert->execute([1, $square(0, 0),     0, 0,  10, 10, 1, 1]);   // Kontinent MIT Stempel
+$landInsert->execute([2, $square(100, 0), 100, 0, 110, 10, 1, 1]);   // Insel MIT Stempel
+$landInsert->execute([3, $square(200, 0), 200, 0, 210, 10, 1, 0]);   // Meer -- kein Land
+
+$land = avesmapsLoadRouteLand([], $landPdo);
+// Faellt dieser Test, verweigert „Hierher reisen" den Dienst auf gezeichnetem Land: dieser Leser lehnt
+// im Zweifel ab, also sieht eine fehlende Zeile aus wie Ozean.
+assert(count($land['areas']) === 2,
+    'gestempeltes Land zaehlt mit: erwartet 2, bekommen ' . count($land['areas']));
+
+// --- Gelaende: die Offroad-Faktorebene. Ein gestempeltes Gebirge muss den A* bremsen.
+$offPdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+$offPdo->exec('CREATE TABLE ecosystem_region (id INTEGER PRIMARY KEY, region_type TEXT, kind TEXT, is_active INTEGER)');
+$offPdo->exec('CREATE TABLE ecosystem_region_type (kind TEXT, type_key TEXT, offroad_factor REAL)');
+$offPdo->exec('CREATE TABLE ecosystem_area (
+    id INTEGER PRIMARY KEY, region_id INTEGER, geometry_geojson TEXT,
+    min_x REAL, min_y REAL, max_x REAL, max_y REAL, is_active INTEGER, is_trial INTEGER)');
+$offPdo->exec("INSERT INTO ecosystem_region (id, region_type, kind, is_active) VALUES (1, 'gebirge', 'topographie', 1)");
+$offPdo->exec("INSERT INTO ecosystem_region_type (kind, type_key, offroad_factor) VALUES ('topographie', 'gebirge', 2.50)");
+$offPdo->prepare('INSERT INTO ecosystem_area
+    (region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_active, is_trial)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    ->execute([1, $square(0, 0), 0, 0, 10, 10, 1, 1]);              // Gebirge MIT Stempel
+
+// ⚠️ Die Box kommt aus avesmapsBuildOffroadBox, nicht von Hand: sie traegt `cell_count` und die
+// Rasterbreite, und ein handgestricktes Feld laesst den Rasterer ins Leere greifen.
+$offBox = avesmapsBuildOffroadBox(1.0, 1.0, 9.0, 9.0);
+$plane = avesmapsOffroadLoadFactorPlane($offPdo, $offBox);
+// '' heisst „nichts bekannt" und wird ueberall als Faktor 1,0 gelesen -- das Gebirge kostet dann
+// nichts. Am 2026-07-30 war genau das der Livezustand: ALLE 17 gebirge-Flaechen trugen den Stempel.
+assert($plane !== '', 'ein gestempeltes Gebirge liefert eine Gelaendeebene, keine leere Zeichenkette');
+
+echo "water-trial-test: all asserts passed (Wasser, Land und Gelaende)
+";

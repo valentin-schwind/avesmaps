@@ -40,6 +40,12 @@ const AVESMAPS_ROUTE_LAND_REGION_TYPES = ['kontinent', 'insel'];
  * alternative is planning a march across an ocean.
  *
  * 💣 NO DDL on this path. The ecosystem module owns these tables.
+ *
+ * 💣 `is_trial` wird NICHT gefiltert. Der Filter stand hier bis 2026-08-01 und ist mit der Erprobung
+ * gefallen (promote_trial mode=keep, 133 Flaechen, Revision 6217; die Spalte steht ueberall auf 0).
+ * Wer ihn wieder einzieht, macht gezeichnetes LAND unsichtbar -- und weil dieser Leser im Zweifel
+ * ablehnt, hiesse das: „Hierher reisen" verweigert den Dienst auf Flaechen, die laengst gezeichnet
+ * sind. Dieselbe Falle wie in water-areas.php und offroad-data.php.
  */
 function avesmapsLoadRouteLand(array $config, ?PDO $pdo = null): array
 {
@@ -51,7 +57,6 @@ function avesmapsLoadRouteLand(array $config, ?PDO $pdo = null): array
              FROM ecosystem_area a
              INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
              WHERE a.is_active = 1
-               AND a.is_trial = 0
                AND r.region_type IN (' . implode(', ', array_fill(0, count(AVESMAPS_ROUTE_LAND_REGION_TYPES), '?')) . ')'
         );
         $statement->execute(AVESMAPS_ROUTE_LAND_REGION_TYPES);

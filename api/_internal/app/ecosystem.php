@@ -22,8 +22,9 @@ declare(strict_types=1);
 // 🔴 NOTHING in this file calls political code (plan, global rule 1). The DDL shape, the audit-log shape
 // and the "INNER JOIN the active parent" read were copied from the political neighbours by READING them.
 
-// Explicit, not a function_exists guard: promote_trial writes through avesmapsAppSettingSet, and a guard
-// around a missing include swallows the write silently (the lore-sync.php trap).
+// Explicit, not a function_exists guard: a guard around a missing include swallows a write silently
+// (the lore-sync.php trap). Both ecosystem app_setting keys are gone since 2026-08-01; the include
+// stays because avesmapsAppSetting* is reached through this file's other readers.
 require_once __DIR__ . '/app-setting.php';
 
 // Which label belongs to which region, resolved from BOTH stored directions. Its own file because
@@ -157,11 +158,10 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['vegetation', 'wuestenoase', 'Wüstenoase', 100],
 ];
 
-// ---- trial flag (auf dem Weg hinaus) ----------------------------------------------------------------
-// ⚠️ Der EINZIGE verbliebene Zweck dieser Zeile ist promote_trial, und promote_trial hat nur noch einen
-// einzigen Lauf vor sich: den, der die 133 Alt-Stempel im Bestand loescht. Danach faellt beides.
-// app_setting['ecosystem_enabled'] -- der Totmannschalter -- ist am 2026-08-01 ersatzlos entfallen.
-const AVESMAPS_ECOSYSTEM_TRIAL_SETTING = 'ecosystem_trial';
+// ---- Erprobung: abgeschafft am 2026-08-01 -----------------------------------------------------------
+// app_setting['ecosystem_trial'] und app_setting['ecosystem_enabled'] sind beide weg. Der Stempel im
+// Bestand wurde mit dem letzten promote_trial-Lauf geloescht (mode=keep, 133 Flaechen, Revision 6217);
+// die Spalte `is_trial` bleibt als NOT NULL DEFAULT 0 stehen und wird von nichts mehr gelesen.
 
 // A drawn area is bounded work, not a bulk import. The cap is a guard against a runaway client, not a
 // design limit: 20.000 positions is ~40x the largest political territory ring in the house.
@@ -2263,64 +2263,14 @@ function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): arr
     ];
 }
 
-// 🔴 promote_trial acts on AREAS, not on regions (owner decision 1). `keep` clears the trial mark and the
-// areas stay; `discard` soft-deletes them. Either way app_setting['ecosystem_trial'] goes off, so the next
-// area is a normal one and a second `discard` months later cannot reach it.
-function avesmapsPromoteEcosystemTrial(PDO $pdo, array $payload, int $userId): array
-{
-    avesmapsEcosystemEnsureTables($pdo);
-
-    $mode = avesmapsNormalizeSingleLine((string) ($payload['mode'] ?? ''), 16);
-    if ($mode !== 'keep' && $mode !== 'discard') {
-        throw new InvalidArgumentException("mode must be 'keep' or 'discard'.");
-    }
-
-    $pdo->beginTransaction();
-    try {
-        $statement = $pdo->query('SELECT * FROM ecosystem_area WHERE is_trial = 1 AND is_active = 1');
-        $areas = $statement === false ? [] : $statement->fetchAll();
-
-        if ($mode === 'discard') {
-            // A discard destroys work, so every single area gets its own audit row -- "how did it look
-            // before" has to survive a bulk sweep.
-            foreach ($areas as $area) {
-                avesmapsEcosystemWriteAuditLog(
-                    $pdo,
-                    'discard_trial_area',
-                    $userId,
-                    (string) $area['public_id'],
-                    null,
-                    avesmapsEcosystemAreaSnapshot($area),
-                    []
-                );
-            }
-            $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, is_trial = 0, updated_by = :user_id WHERE is_trial = 1 AND is_active = 1')
-                ->execute(['user_id' => $userId > 0 ? $userId : null]);
-        } else {
-            // keep only flips a flag; nothing is lost, so no per-area audit row.
-            $pdo->prepare('UPDATE ecosystem_area SET is_trial = 0, updated_by = :user_id WHERE is_trial = 1 AND is_active = 1')
-                ->execute(['user_id' => $userId > 0 ? $userId : null]);
-        }
-
-        $revision = avesmapsNextEcosystemRevision($pdo);
-        $pdo->commit();
-    } catch (Throwable $exception) {
-        $pdo->rollBack();
-        throw $exception;
-    }
-
-    // 💣 AFTER the commit, not inside it. avesmapsAppSettingSet calls avesmapsAppSettingEnsureTable first
-    // (app-setting.php:39), and a CREATE TABLE is DDL -- MySQL commits the open transaction implicitly
-    // when it sees one, no-op or not. Written inside the block above, this single line would end the
-    // transaction early and take the audit rows and the soft deletes out from under the rollback.
-    //
-    // The window it buys instead is harmless and self-healing: a crash between the commit and this line
-    // leaves the areas dealt with and the trial flag still on. Running promote_trial again then finds no
-    // trial areas, does nothing, and sets the flag. Nothing is lost either way.
-    avesmapsAppSettingSet($pdo, AVESMAPS_ECOSYSTEM_TRIAL_SETTING, '0');
-
-    return ['mode' => $mode, 'areas_affected' => count($areas), 'revision' => $revision];
-}
+// promote_trial + avesmapsPromoteEcosystemTrial sind am 2026-08-01 entfallen, nachdem der eine Lauf,
+// den sie noch vor sich hatten, durch war: `mode=keep`, 133 Flaechen, Revision 6217, danach
+// `is_trial = 1` nirgends mehr im Bestand (an GET /api/app/ecosystem-areas.php nachgezaehlt).
+// Die Spalte `is_trial` BLEIBT (NOT NULL DEFAULT 0) und wird von nichts mehr gelesen -- der eine
+// Leser, der sie je hatte, war `AND a.is_trial = 0` in api/_internal/routing/water-areas.php.
+//
+// ⚠️ `discard_trial_area` steht weiterhin in avesmapsEcosystemCanUndoAction: der SCHREIBER ist weg,
+// alte Audit-Zeilen mit dieser Aktion sollen aber ruecknehmbar bleiben.
 
 // ---- row helpers -------------------------------------------------------------------------------------
 

@@ -374,6 +374,20 @@ function syncTransportControl(selectId) {
 		const isSelected = optionButton.dataset.transportValue === selectedTransport;
 		optionButton.classList.toggle("is-active", isSelected);
 		optionButton.setAttribute("aria-selected", isSelected ? "true" : "false");
+		// 💣 `disabled` MUSS hier mitlaufen und tat es bis 2026-08-01 nicht.
+		// createTransportOptionButton kopiert es EINMAL beim Bauen der Liste (:393). Wer danach ein
+		// <option> ent- oder sperrt, aendert nur das unsichtbare <select>: der sichtbare Eintrag bleibt
+		// ausgegraut, obwohl der Modus laengst erlaubt ist. Genau so ging es "Landschaften" -- die
+		// Rechteauskunft kommt ueber das Netz, also NACH dem Aufbau der Liste, und ein Aufruf von
+		// syncTransportControl allein reichte nicht.
+		// ⚠️ Die Wahrheit steht im <option>. Dieser Knopf ist nur seine Darstellung und wird hier
+		// nachgezogen, nicht umgekehrt.
+		const sourceOption = control.selectElement.querySelector(
+			`option[value="${CSS.escape(optionButton.dataset.transportValue || "")}"]`
+		);
+		if (sourceOption) {
+			optionButton.disabled = Boolean(sourceOption.disabled);
+		}
 	});
 }
 

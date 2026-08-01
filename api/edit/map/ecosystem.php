@@ -94,13 +94,8 @@ try {
         // Geste zurück. Beide hinter derselben Fähigkeitsprüfung wie alles andere hier.
         'list_changes' => avesmapsListEcosystemChanges($pdo, avesmapsUserCan($user, 'edit')),
         'undo_change' => avesmapsUndoEcosystemChange($pdo, $payload, $userId),
-        // `set_enabled` ist am 2026-08-01 mit dem Totmannschalter entfallen (Owner-Auftrag). Die Ebene
-        // haengt nicht mehr an einer app_setting-Zeile, sondern an der Rechtepruefung im Client.
-        // End of the trial, on the AREAS: mode=keep clears the mark, mode=discard soft-deletes them.
-        // Either way app_setting['ecosystem_trial'] goes off.
-        // ⚠️ Diese Aktion hat noch GENAU EINEN Lauf vor sich: den, der die Alt-Stempel im Bestand
-        // loescht. Danach faellt sie zusammen mit AVESMAPS_ECOSYSTEM_TRIAL_SETTING.
-        'promote_trial' => avesmapsPromoteEcosystemTrial($pdo, $payload, $userId),
+        // `set_enabled` (Totmannschalter) und `promote_trial` (Ende der Erprobung) sind am 2026-08-01
+        // entfallen -- promote_trial, nachdem sein letzter Lauf durch war (mode=keep, 133 Flaechen).
         // V9: the „Zugehörigkeit rechnen" result. The BROWSER computes it (the two existing raycasts
         // already run there, and the geometry is in its hands); these four only take it in.
         // begin clears and hands out a run token, chunk appends under that token, commit stamps.
