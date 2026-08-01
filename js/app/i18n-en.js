@@ -95,7 +95,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.point.mapPoint": "Map point",
 
 	// --- „Hierher reisen" (right click -> a route to an arbitrary map point) ---
-	"travelHere.error.noStart": "Please enter a starting point in the route planner first.",
+	"travelHere.hint.startSet": "Map point set as the starting point — now pick a destination.",
 	"travelHere.error.notOnLand": "No overland route leads there — please pick a spot on land.",
 	"travelHere.error.noExitNode": "There is no waypoint nearby to set out from.",
 	"travelHere.error.noOffroadRoute": "No route leads there overland.",

@@ -132,13 +132,19 @@ function travelToMapPoint(latlng) {
 	const pointLabel = `${tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt")} (${formatTravelHereCoordinates(latlng)})`;
 	fillLastEmptyWaypointOrAppend(pointLabel);
 
-	// Ein Ziel allein ist keine Reise. Der Wegpunkt bleibt trotzdem stehen -- er ist ja gewollt --, es
-	// fehlt nur noch der Start, und das sagen wir statt es stillschweigend zu verschlucken.
+	// 💣 WER DER ERSTE IST, IST DER START. War der Planer leer, ist der angeklickte Punkt eben KEIN
+	// Ziel, sondern der Ausgangspunkt -- und dann „bitte zuerst einen Startpunkt eintragen" zu sagen
+	// ist doppelt falsch: es fehlt kein Start, es fehlt ein ZIEL, und der Start steht schon da. Der
+	// Owner hat genau diesen Satz gemeldet („kommt trotzdem"), und er hatte recht: die alte Meldung
+	// beschrieb einen Zustand, den dieser Ablauf gar nicht mehr erzeugen kann, seit der Klick den
+	// Wegpunkt IMMER eintraegt.
+	//
+	// ⚠️ Kein Fehler, sondern ein Zwischenstand: Tonfall „info", nicht „warning".
 	const filledWaypointCount = typeof getWaypointInputValues === "function" ? getWaypointInputValues().length : 2;
 	if (filledWaypointCount < 2) {
 		showFeedbackToast(
-			tr("travelHere.error.noStart", "Bitte zuerst einen Startpunkt im Routenplaner eintragen."),
-			"warning"
+			tr("travelHere.hint.startSet", "Kartenpunkt als Startpunkt gesetzt — jetzt noch ein Ziel wählen."),
+			"info"
 		);
 	}
 
