@@ -56,7 +56,7 @@ sie übernimmt es und ergänzt, was §10 offenließ.
 | **Geländeart** | **Kostenfaktor**, zur Anfragezeit aus den Polygonen in die Kiste gerastert; **kein** zweites gespeichertes Raster |
 | **Höhe** | aus dem **gespeicherten** Raster (V11 §3), in dieselbe Kiste abgetastet |
 | Kosten | `Strecke / Grundtempo(Querfeldein) × Steigungsfaktor × Geländefaktor(Art)` |
-| Ausstieg beim Rechtsklick | `findNearestLocationToLatLng` — nächster **benannter** Ort per Luftlinie, Kreuzungen ausgeschlossen |
+| Ausstieg beim Rechtsklick | `findNearestLocationToLatLng` ⚠️ **nur im Client vorhanden**, und sie schliesst Kreuzungen nur nach NAMEN aus (~200 `Kreuzung-auto-<n>` rutschen durch) |
 | Symbol | `schuh.png` |
 
 ⭐ **Damit ist „Wand oder Kostenfläche" kein Entweder-oder** — die Antwort ist beides: Wasser sperrt,
@@ -282,14 +282,14 @@ sofort „kein Weg".
 
 8 Nachbarn, Kosten nach der Formel aus §2, Heuristik = Luftlinie / bestmögliches Tempo.
 
-⚠️ **Die Heuristik-Falle aus V11 §10.4.** A\* braucht eine Restschätzung, die **nie zu hoch** liegt.
-V11s Entscheid „bergab ist schneller" (Klemme bis **0,5**) zwingt ihn anzunehmen, der Rest laufe
-überall **doppelt** so schnell — die Schätzung wird halb so scharf, und A\* öffnet viel mehr Knoten
-(gemessen: **83 % der Kiste** bei schwacher Heuristik).
-
-**Der Ausweg steht in §10.4 und wird hier übernommen:** nicht die *theoretische* Klemme annehmen,
-sondern den **kleinsten tatsächlich vorkommenden** Faktor. Der wird **gemessen** und in die
-Profile geschrieben, nicht geschätzt.
+> 🔴 **BERICHTIGT 2026-07-30 nach feindlicher Pruefung — dieser Abschnitt ist entfallen.**
+> Die Heuristik-Falle aus V11 §10.4 (Bergab-Bonus, Klemme 0,5, „kleinsten vorkommenden Faktor
+> messen") ist **gegenstandslos**: das gebaute Modell hat **keine untere Klemme** mehr
+> (`api/_internal/routing/terrain-factor.php:60-63`, festgenagelt durch
+> `assert(!defined('AVESMAPS_TERRAIN_FACTOR_MIN'))`). Der kleinste vorkommende Faktor ist **exakt
+> 1,0**, die Schaetzung verliert keine Schaerfe, und die geplante Messung entfaellt ersatzlos.
+> 💣 Die Funktion heisst ausserdem nicht mehr `avesmapsTerrainTimeFactor`, sondern
+> `avesmapsTerrainLeistungsFactor` (Leistungskilometer / DIN 33466, Owner-Entscheid 2026-07-30).
 
 ### 5.4 💣 Die Linie wird an die echten Endpunkte genäht
 
@@ -498,7 +498,10 @@ Auslösefälle des A\* zeigen auf dieselben Stellen.
 | §5.2 Wassersperre | Wasserpolygone im Request | **V13 ✅ live** |
 | §5.2 Geländekosten | `offroad_factor` je Art | V11 §4.5 ✅ (Spalte angelegt) |
 | §5.2 Höhenkosten | gespeichertes Höhenraster | V11 §3 ✅ (live, 3.331 Profilzeilen) |
-| §5.3 Heuristik | kleinster vorkommender Faktor | 🔴 **muss gemessen werden** — Teil der Umsetzung |
+| §5.3 Heuristik | kleinster vorkommender Faktor | ✅ **entfaellt** — konstruktionsbedingt 1,0 (§5.3) |
+| §5.6 Ausstiegsort | PHP-Zwilling von `findNearestLocationToLatLng` | 🔴 **NEUBAU** — existiert nur im Client, und `POST /api/route/` nimmt keine Koordinate |
+| §5.7a Vereinfachung | Douglas-Peucker in PHP | 🔴 **NEUBAU** — der vorhandene ist Leaflets `L.LineUtil.simplify`, null Treffer in `api/` |
+| §5.2 Hoehe | bbox-begrenzter Rasterlader | 🔴 **NEUBAU** — `heightmap.php:12-14` verbietet dem Routing-Pfad das Rasterlesen ausdruecklich |
 | §5.5 Verhältnis | Luftlinie + echte Wegstrecke | liegt nach dem Dijkstra vor ✅ |
 | §5.6 Ausstiegsort | `findNearestLocationToLatLng` | vorhanden ✅ |
 | §5.7 Hinweistext | „wegloses Gelände" | 🔴 neu, i18n-Tabelle (AGENTS.md §8) |
