@@ -165,7 +165,12 @@ function getTransportOptionsForPathSubtype(pathSubtype) {
 	const normalizedSubtype = normalizePathSubtype(pathSubtype);
 	const domain = getDefaultTransportDomainForPathSubtype(normalizedSubtype);
 	const options = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
-	if (normalizedSubtype === "Wuestenpfad") {
+	// 🔴 Die Wegarten, die das Regelwerk der Kutsche verbietet -- kategorisch, nicht über eine
+	// Steigungsgrenze. Querfeldein kam am 2026-08-01 dazu: vier unabhängige Prüfungen haben ein
+	// physikalisches Steigungsmodell mit Prozentgrenzen verworfen, weil eine erfundene
+	// Naturkonstante schlechter ist als die Regel, die am Spieltisch ohnehin gilt.
+	// Serverseitig gespiegelt in avesmapsClientRouteTransportOptions (client-graph.php).
+	if (normalizedSubtype === "Wuestenpfad" || normalizedSubtype === SYNTHETIC_ROUTE_TYPE) {
 		return options.filter((option) => option !== "horseCarriage");
 	}
 

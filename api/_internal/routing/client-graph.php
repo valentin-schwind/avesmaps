@@ -591,6 +591,11 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
     $transportOption = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transportOption][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null;
     if ($transportOption === null || !is_numeric($speed) || (float) $speed <= 0.0) return 0;
+    // 🔴 ERZEUGER 1 VON 2. Die Wegart darf dieses Transportmittel überhaupt tragen -- eine Kutsche
+    // fährt nicht querfeldein (avesmapsClientRouteTransportOptions). 💣 Der zweite Erzeuger ist der
+    // Wegpunkt-Anker weiter unten; nur einen zu sichern lässt die Sperre genau dort offen, wo der
+    // Nutzer selbst Punkte setzt -- derselbe Fehler, den V13 beim Wasser schon einmal gemacht hat.
+    if (!avesmapsIsClientTransportAllowedForPath(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $transportOption)) return 0;
 
     $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
     // Water-locked nodes (touch a Seeweg, have no land-path edge) are never valid bridge endpoints:
@@ -676,6 +681,13 @@ function avesmapsConnectClientRouteWaypointsToNearestLandPath(array &$graph, arr
     $syntheticTransport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $syntheticSpeed = $syntheticTransport !== null ? (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$syntheticTransport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null) : null;
     if ($syntheticTransport === null || !is_numeric($syntheticSpeed) || (float) $syntheticSpeed <= 0.0) {
+        return;
+    }
+    // 🔴 ERZEUGER 2 VON 2 -- siehe die Zwillingsprüfung in
+    // avesmapsConnectClientCompatibleDetachedGraphComponents. Ein Wegpunkt mitten im Gelände ist für
+    // eine Kutsche kein Ziel, und ohne diese Zeile wäre genau der vom Nutzer gesetzte Punkt das Loch
+    // in der Sperre.
+    if (!avesmapsIsClientTransportAllowedForPath(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $syntheticTransport)) {
         return;
     }
     $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
@@ -1210,7 +1222,16 @@ function avesmapsClientRouteTransportOptions(string $routeType): array {
         'sea' => AVESMAPS_ROUTE_ALLOWED_SEA_TRANSPORTS,
         default => AVESMAPS_ROUTE_ALLOWED_LAND_TRANSPORTS,
     };
-    if ($routeType === 'Wuestenpfad') {
+    // 🔴 DIE WEGARTEN, DIE DAS REGELWERK DER KUTSCHE VERBIETET -- kategorisch, nicht über eine
+    // Steigungsgrenze. Das offizielle DSA-Landreisekapitel nennt Pfade, Querfeldein, Wüsten und
+    // Eisgebiete; Pfad ist die Ausnahme und steht eine Funktion tiefer, weil er die Kutsche ANBIETET
+    // und nur abwählt (Owner 2026-07-30: ein paar Pfade trägt sie, und niemand weiß welche).
+    //
+    // 💣 Querfeldein kam am 2026-08-01 dazu, nachdem vier unabhängige Prüfungen ein physikalisches
+    // Steigungsmodell mit Prozentgrenzen verworfen hatten. Der Grund ist wichtiger als die Zeile:
+    // eine Prozentgrenze wäre eine erfundene Naturkonstante gewesen, diese Liste ist die Regel, die
+    // am Spieltisch ohnehin gilt. Mirrored in js/map-features/map-features-path-domain.js.
+    if ($routeType === 'Wuestenpfad' || $routeType === AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE) {
         return array_values(array_filter($options, static fn(string $option): bool => $option !== 'horseCarriage'));
     }
 
