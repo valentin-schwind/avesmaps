@@ -682,9 +682,11 @@
   // citymapMatchesSearch() wrapper underneath, which is the only part that knows about the input box.
 
   // A map is found by its own title, by the NAMES OF THE PLACES assigned to it, and by its types.
-  // Places are the reason this exists: "Das Bornland und Umgebung" names none of the towns it depicts,
-  // so before this it was reachable by no place at all -- while "Stadtplan von Angbar" was findable
-  // purely by accident, because its place happens to sit in the title.
+  // Places are the reason this exists. The class of map it rescues is the one named after a BUILDING
+  // rather than a town: "Plan der Pentagramm-Akademie (Seite 1)" and "(Seite 2)" are assigned to
+  // Rashdul and were reachable by that name through nothing at all, while the three "Stadtplan von
+  // Rashdul" rows were findable only by accident -- their place happens to sit in the title.
+  // (Measured live 2026-08-01: 15 of 455 maps carry a place their own title does not name.)
   function citymapMatchesQuery(c, q, typeLabels) {
     const needle = String(q == null ? "" : q).trim().toLowerCase();
     if (!needle) return true;

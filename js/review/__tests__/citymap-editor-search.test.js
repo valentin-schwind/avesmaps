@@ -28,47 +28,48 @@ const citymapPlaceHit = extract("citymapPlaceHit");
 
 const LABELS = { stadtplan: "Stadtplan", uebersicht: "Übersicht", grundriss: "Grundriss" };
 
-// A map whose title names no place at all -- the case the whole change exists for.
-const bornland = { title: "Das Bornland und Umgebung", places: ["Festum", "Neersand"], types: ["uebersicht"] };
-const angbar = { title: "Stadtplan von Angbar (Am Großen Fluss)", places: ["Angbar"], types: ["stadtplan"] };
+// Modelled on the real rows (live 2026-08-01), not invented: a map named after a BUILDING, whose title
+// names no town -- the case the whole change exists for -- next to one the title already covers.
+const akademie = { title: "Plan der Pentagramm-Akademie (Seite 1)", places: ["Rashdul", "Neersand"], types: ["uebersicht"] };
+const rashdul = { title: "Stadtplan von Rashdul (Sphärenkräfte)", places: ["Rashdul"], types: ["stadtplan"] };
 const leer = { title: "Namenlose Skizze" };
 
 // ---- empty query matches everything (the list must not collapse when the box is empty) ---------------
-assert.strictEqual(citymapMatchesQuery(bornland, "", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(bornland, "   ", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(bornland, null, LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "   ", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, null, LABELS), true);
 
 // ---- the title still matches, exactly as before -------------------------------------------------------
-assert.strictEqual(citymapMatchesQuery(bornland, "bornland", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(bornland, "BORNLAND", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "akademie", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "PENTAGRAMM", LABELS), true);
 
 // ---- THE POINT: an assigned place makes the map findable ---------------------------------------------
-assert.strictEqual(citymapMatchesQuery(bornland, "Festum", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(bornland, "neersand", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(bornland, "Gareth", LABELS), false);
+assert.strictEqual(citymapMatchesQuery(akademie, "Rashdul", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "neersand", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "Gareth", LABELS), false);
 
 // ---- types match by KEY and by LABEL -----------------------------------------------------------------
 // The payload carries keys ('uebersicht'); a human types the label ('Übersicht'). Matching only the key
 // would quietly fail on every umlaut-bearing type.
-assert.strictEqual(citymapMatchesQuery(bornland, "uebersicht", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(bornland, "Übersicht", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(angbar, "stadtplan", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "uebersicht", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "Übersicht", LABELS), true);
+assert.strictEqual(citymapMatchesQuery(rashdul, "stadtplan", LABELS), true);
 // Without a label table it must still work on the key rather than throw.
-assert.strictEqual(citymapMatchesQuery(bornland, "uebersicht", undefined), true);
-assert.strictEqual(citymapMatchesQuery(bornland, "Übersicht", undefined), false);
+assert.strictEqual(citymapMatchesQuery(akademie, "uebersicht", undefined), true);
+assert.strictEqual(citymapMatchesQuery(akademie, "Übersicht", undefined), false);
 
 // ---- missing fields are a normal state, not a crash ---------------------------------------------------
 assert.strictEqual(citymapMatchesQuery(leer, "skizze", LABELS), true);
-assert.strictEqual(citymapMatchesQuery(leer, "Festum", LABELS), false);
+assert.strictEqual(citymapMatchesQuery(leer, "Rashdul", LABELS), false);
 assert.strictEqual(citymapMatchesQuery({}, "irgendwas", LABELS), false);
 
 // ---- the hint names the place that caused the hit -----------------------------------------------------
-assert.strictEqual(citymapPlaceHit(bornland, "Festum"), "Festum");
-assert.strictEqual(citymapPlaceHit(bornland, "neersand"), "Neersand"); // original spelling, not the query
+assert.strictEqual(citymapPlaceHit(akademie, "Rashdul"), "Rashdul");
+assert.strictEqual(citymapPlaceHit(akademie, "neersand"), "Neersand"); // original spelling, not the query
 // Silent when the title already explains the hit -- otherwise every row would carry a redundant hint.
-assert.strictEqual(citymapPlaceHit(angbar, "Angbar"), "");
-assert.strictEqual(citymapPlaceHit(bornland, ""), "");
-assert.strictEqual(citymapPlaceHit(bornland, "Gareth"), "");
-assert.strictEqual(citymapPlaceHit(leer, "Festum"), "");
+assert.strictEqual(citymapPlaceHit(rashdul, "Rashdul"), "");
+assert.strictEqual(citymapPlaceHit(akademie, ""), "");
+assert.strictEqual(citymapPlaceHit(akademie, "Gareth"), "");
+assert.strictEqual(citymapPlaceHit(leer, "Rashdul"), "");
 
 console.log("citymap-editor-search.test: OK");
