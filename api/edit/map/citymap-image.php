@@ -215,29 +215,36 @@ try {
     if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
         avesmapsErrorResponse(500, 'server_error', 'Upload-Verzeichnis nicht verfügbar.');
     }
-    // Encode BEFORE naming the file: the preview becomes WebP, so only the encoder knows the real
-    // extension. Naming first and rewriting the file in place is how a .png ends up holding WebP bytes.
-    $rawBytes = (string) @file_get_contents($tmp);
-    if ($rawBytes === '') {
-        avesmapsErrorResponse(400, 'invalid_request', 'Die Datei konnte nicht gelesen werden.');
-    }
+    // The PREVIEW is encoded BEFORE the file is named: it becomes WebP, so only the encoder knows the
+    // real extension. Naming first and rewriting the file in place is how a .png ends up holding WebP
+    // bytes -- a wrong content-type for every reader.
+    $storedBytes = null;
     if ($slot === 'thumb') {
+        $rawBytes = (string) @file_get_contents($tmp);
+        if ($rawBytes === '') {
+            avesmapsErrorResponse(400, 'invalid_request', 'Die Datei konnte nicht gelesen werden.');
+        }
         $encoded = avesmapsCitymapEncodeThumbBytes($rawBytes, $ext, AVESMAPS_CITYMAP_THUMB_MAX_EDGE);
         $storedBytes = $encoded['bytes'];
         $ext = $encoded['ext'];
-    } else {
-        // slot === 'map': stored exactly as uploaded (owner 2026-08-01). No scaling, no re-encoding --
-        // the full map is the artefact people zoom into, and re-compressing destroys its purpose.
-        $storedBytes = $rawBytes;
     }
 
     $filename = $slot . '-' . bin2hex(random_bytes(8)) . '.' . $ext;
     $target = $dir . '/' . $filename;
-    // Not move_uploaded_file: the bytes went through the encoder, so they are written rather than moved.
-    // The upload guarantee lives above, where is_uploaded_file($tmp) gated $tmp and finfo read its real
-    // MIME type off the bytes -- neither is weakened by writing the result here.
-    if (@file_put_contents($target, $storedBytes) === false) {
-        avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
+    if ($storedBytes !== null) {
+        // Written rather than moved, because the bytes went through the encoder. The upload guarantee
+        // still holds: is_uploaded_file($tmp) gated $tmp above and finfo read the real MIME off the bytes.
+        if (@file_put_contents($target, $storedBytes) === false) {
+            avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
+        }
+    } else {
+        // slot === 'map': moved, never read (owner 2026-08-01, "soll nicht veraendert werden"). Moving
+        // rather than copying is not just tidier -- it keeps a 12 MB map out of PHP's memory entirely,
+        // which matters on shared hosting. The full map is the artefact people zoom into; re-compressing
+        // or bounding it would destroy precisely its purpose.
+        if (!@move_uploaded_file($tmp, $target)) {
+            avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
+        }
     }
     @chmod($target, 0644);
 
