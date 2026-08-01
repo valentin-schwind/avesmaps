@@ -498,11 +498,19 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
         ? static fn(float $x, float $y): ?float => avesmapsHeightmapSampleSum($rasters, $x, $y)
         : static fn(float $x, float $y): ?float => avesmapsOffroadHeightAtCell($heights, avesmapsOffroadIndexOf($box, $x, $y));
 
-    $knowsHeight = $rasters !== [] || ($heights !== null && $heights !== '');
     $distance = 0.0;
     $time = 0.0;
-    $ascent = $knowsHeight ? 0.0 : null;
-    $descent = $knowsHeight ? 0.0 : null;
+    // 💣 NULL, BIS ENTLANG DIESER LINIE WIRKLICH ETWAS GEMESSEN WURDE. Die Summen mit 0,0 zu
+    // beginnen, weil ein Raster VORHANDEN ist, beantwortet die falsche Frage: „ein Raster überlappt
+    // die KISTE" ist nicht „unter dieser LINIE liegen Höhendaten". Die Kiste spannt über alle
+    // Ausstiegskandidaten und streift dabei Gebiete, die der Weg nie berührt -- dann meldete die
+    // Etappe „gemessen und eben" über Boden, von dem nichts bekannt ist.
+    //
+    // ⭐ Gefunden an einem Zufallsfall (Solfurt, 2026-08-02): die Linie blieb 2,87 Einheiten nördlich
+    // der Koschberge, deren Raster die Kiste streifte -- gemeldet wurden 0/0 über 12,7 km. Die
+    // Rechnung stimmte (kein Steigungsfaktor angesetzt), nur die Auskunft log.
+    $ascent = null;
+    $descent = null;
 
     for ($index = 1; $index < count($points); $index++) {
         [$fromX, $fromY] = $points[$index - 1];
@@ -526,7 +534,10 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
                 $drop = max(0.0, $previousHeight - $height);
                 $steepDrop = avesmapsTerrainDescentIsSteep($drop, $stepLength) ? $drop : 0.0;
                 $slopeFactor = avesmapsTerrainLeistungsFactor($climb, $steepDrop, $stepLength);
-                if ($ascent !== null) { $ascent += $climb; $descent += $drop; }
+                // Erst hier wird aus „nichts bekannt" ein Messwert -- und ab dann summiert es.
+                if ($ascent === null) { $ascent = 0.0; $descent = 0.0; }
+                $ascent += $climb;
+                $descent += $drop;
             }
 
             $groundFactor = avesmapsOffroadFactorAt($box, $factors ?? '', $x, $y);

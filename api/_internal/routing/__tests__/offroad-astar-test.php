@@ -216,6 +216,36 @@ assert($near($fine['distance'], $coarse['distance'], 1e-9), 'die Laenge bleibt d
 // Raster laden koennen (etwa ohne Datenbank).
 assert($coarse['ascent_schritt'] !== null, 'auch die grobe Fassung kennt Hoehen');
 
+// ============================================================ 5b. Raster in der Kiste ist kein Messwert
+
+// 💣 GEFUNDEN AN EINEM ZUFALLSFALL, NICHT AM SCHREIBTISCH (Solfurt, 2026-08-02). Die Suchkiste spannt
+// ueber ALLE Ausstiegskandidaten und streift dabei Gebiete, die der Weg nie berueht. Wer die
+// Hoehensummen mit 0,0 beginnt, weil ein Raster GELADEN wurde, meldet dann „gemessen und eben" ueber
+// 12,7 km Boden, von dem nichts bekannt ist. Die Rechnung stimmte dabei sogar (kein Steigungsfaktor
+// wurde angesetzt) -- gelogen hat nur die Auskunft, und das ist die Sorte Fehler, die niemandem
+// auffaellt, bis sie im Reiseplan steht.
+//
+// Der alte Test deckte nur „gar kein Raster" ab. Dieser hier deckt „Raster ja, aber nicht unter der
+// Linie" -- und faellt ohne die Reparatur.
+$abseitsBox = avesmapsBuildOffroadBox(0.5, 20.0, 9.5, 20.0, 0.5, 150000);
+$abseitsGrid = avesmapsOffroadRasteriseBlocked($abseitsBox, avesmapsPrepareRouteAreas([]));
+// Das Raster liegt am unteren Rand der Kiste, die Linie laeuft bei y = 20 -- weit darueber.
+$abseitsRaster = ['origin_x' => 0.0, 'origin_y' => 0.0, 'cell' => 0.25, 'width' => 9, 'height' => 9,
+    'samples' => pack('v*', ...array_fill(0, 81, 700))];
+$abseitsPlane = avesmapsOffroadSampleHeights($abseitsBox, [$abseitsRaster]);
+
+$abseits = avesmapsOffroadFindPath($abseitsBox, $abseitsGrid, null, $abseitsPlane, $speed, 0.5, 20.0, 9.5, 20.0,
+    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [$abseitsRaster]);
+assert($abseits !== null, 'die Strecke abseits des Rasters muss laufen');
+assert($abseits['ascent_schritt'] === null,
+    'ein Raster IN DER KISTE ist kein Messwert UNTER DER LINIE: ' . var_export($abseits['ascent_schritt'], true));
+assert($abseits['descent_schritt'] === null, 'beide Haelften');
+// ⭐ Und die Gegenprobe: dieselbe Kiste, aber die Linie laeuft DURCH das Raster -- dann sind 0,0
+// richtig, denn dort wurde wirklich gemessen (ein Plateau ist eben).
+$drueber = avesmapsOffroadFindPath($abseitsBox, $abseitsGrid, null, $abseitsPlane, $speed, 0.5, 1.0, 1.5, 1.0,
+    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [$abseitsRaster]);
+assert($drueber['ascent_schritt'] === 0.0, 'ueber dem Raster ist 0 ein Messwert: ' . var_export($drueber['ascent_schritt'], true));
+
 // ============================================================ 6. terrain: three planes, MAXIMUM
 
 // 💣 The three kinds lie ON TOP of each other -- a cell is „Kosch" AND „Wald" AND „Gebirge" at once.
