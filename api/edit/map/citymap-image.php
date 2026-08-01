@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 // Authed citymap-image endpoint (cap 'edit', Spec §3.4). Form-POST, keyed by public_id + slot:
-//   - UPLOAD (a file field `image` is present): validate per finfo-MIME + size, bound the longest edge
-//     via the SAME shared function the Wappen and the adventure covers use
-//     (avesmapsWikiSyncMonitorDownscaleCoatBytes), store under /uploads/kartensammlungen/<safeId>/, and
-//     write citymap.<slot>_local_url. SVG is deliberately rejected (XSS risk on own uploads).
+//   - UPLOAD (a file field `image` is present): validate per finfo-MIME + size, then
+//       * slot 'thumb': encode to WebP at longest edge 400 (avesmapsCitymapEncodeThumbBytes)
+//       * slot 'map':   store EXACTLY as uploaded -- the full map is what people zoom into
+//     store under /uploads/kartensammlungen/<safeId>/, and write citymap.<slot>_local_url.
+//     SVG is deliberately rejected (XSS risk on own uploads).
 //   - DELETE (mode=delete, no file): clear the slot and unlink our copy.
 //
-// TWO SLOTS with separate rules: 'thumb' (the preview, longest edge 400px) and 'map' (the full map,
-// longest edge 4000px). They also carry SEPARATE LICENCES (owner decision, §3.3) -- a source may have a
+// TWO SLOTS with separate rules: 'thumb' (the preview, re-encoded to WebP at 400px) and 'map' (the full
+// map, stored untouched). They also carry SEPARATE LICENCES (owner decision, §3.3) -- a source may have a
 // free cover and a protected map -- which is why nothing here is shared between them beyond the plumbing.
 //
 // NO server-side fetch of an external image, ever (Spec §3.4/§6). The adventure "Wiki-Cover neu ziehen"
@@ -24,7 +25,8 @@ declare(strict_types=1);
 // without adding safety -- a stored file that may not be shown simply never leaves the box.
 
 require __DIR__ . '/../../_internal/auth.php';
-require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php'; // avesmapsWikiSyncMonitorDownscaleCoatBytes
+require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php'; // the encoder's fallback downscaler, required explicitly rather than relied upon transitively
+require_once __DIR__ . '/../../_internal/app/citymap-image-encode.php';   // avesmapsCitymapEncodeThumbBytes
 require_once __DIR__ . '/../../_internal/app/citymaps.php';               // avesmapsSetCitymapImage, avesmapsCitymapAutogetOne (which brings the linkcheck guard with it)
 
 const AVESMAPS_CITYMAP_IMAGE_MAX_BYTES = 12 * 1024 * 1024; // 12 MB raw upload (Spec §3.4)
@@ -34,9 +36,10 @@ const AVESMAPS_CITYMAP_IMAGE_TYPES = [
     'image/webp' => 'webp',
     'image/gif' => 'gif',
 ];
-// Longest edge per slot (Spec §3.4). A thumb only ever fills a strip card; a map is meant to be read.
+// Longest edge for the PREVIEW only (owner 2026-08-01: thumb -> WebP at 400px). The FULL MAP has no
+// bound beyond the 12 MB upload cap: it is stored exactly as uploaded, because it is the artefact people
+// zoom into and re-compressing destroys precisely its purpose. Do not reintroduce a bound for it.
 const AVESMAPS_CITYMAP_THUMB_MAX_EDGE = 400;
-const AVESMAPS_CITYMAP_MAP_MAX_EDGE = 4000;
 const AVESMAPS_CITYMAP_UPLOAD_DIR = '/uploads/kartensammlungen';
 
 try {
@@ -181,27 +184,36 @@ try {
     if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
         avesmapsErrorResponse(500, 'server_error', 'Upload-Verzeichnis nicht verfügbar.');
     }
+    // Encode BEFORE naming the file: the preview becomes WebP, so only the encoder knows the real
+    // extension. Naming first and rewriting the file in place is how a .png ends up holding WebP bytes.
+    $rawBytes = (string) @file_get_contents($tmp);
+    if ($rawBytes === '') {
+        avesmapsErrorResponse(400, 'invalid_request', 'Die Datei konnte nicht gelesen werden.');
+    }
+    if ($slot === 'thumb') {
+        $encoded = avesmapsCitymapEncodeThumbBytes($rawBytes, $ext, AVESMAPS_CITYMAP_THUMB_MAX_EDGE);
+        $storedBytes = $encoded['bytes'];
+        $ext = $encoded['ext'];
+    } else {
+        // slot === 'map': stored exactly as uploaded (owner 2026-08-01). No scaling, no re-encoding --
+        // the full map is the artefact people zoom into, and re-compressing destroys its purpose.
+        $storedBytes = $rawBytes;
+    }
+
     $filename = $slot . '-' . bin2hex(random_bytes(8)) . '.' . $ext;
     $target = $dir . '/' . $filename;
-    if (!@move_uploaded_file($tmp, $target)) {
+    // Not move_uploaded_file: the bytes went through the encoder, so they are written rather than moved.
+    // The upload guarantee lives above, where is_uploaded_file($tmp) gated $tmp and finfo read its real
+    // MIME type off the bytes -- neither is weakened by writing the result here.
+    if (@file_put_contents($target, $storedBytes) === false) {
         avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
     }
     @chmod($target, 0644);
 
-    // Bound the longest edge via the shared downscaler (format + transparency preserved; GIF passes
-    // through; never fails -> original kept on doubt). Same call the adventure covers make.
-    $maxEdge = $slot === 'thumb' ? AVESMAPS_CITYMAP_THUMB_MAX_EDGE : AVESMAPS_CITYMAP_MAP_MAX_EDGE;
-    $originalBytes = (string) @file_get_contents($target);
-    if ($originalBytes !== '') {
-        $scaledBytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($originalBytes, $ext, $maxEdge);
-        if ($scaledBytes !== '' && $scaledBytes !== $originalBytes) {
-            @file_put_contents($target, $scaledBytes);
-        }
-    }
-
     // Spec §3.4 side effect: GD gives us the dimensions, so width_px/height_px fill themselves. Measured
-    // on the STORED file, not the original -- it describes the artifact we actually serve, which for an
-    // oversized upload is the 4000px-bounded copy rather than the raw original.
+    // on the STORED file -- it describes the artifact we actually serve. Since 2026-08-01 the full map is
+    // stored untouched, so for this slot the two are the same; measuring the stored file keeps it true
+    // regardless of what the pipeline above decides to do.
     $width = null;
     $height = null;
     if ($slot === 'map') {

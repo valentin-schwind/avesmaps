@@ -104,4 +104,20 @@ assert($outJunk['bytes'] === 'not an image');
 $outEmpty = avesmapsCitymapEncodeThumbBytes('', 'png');
 assert($outEmpty['bytes'] === '');
 
+// ---- REGRESSION GUARDS on the endpoint that consumes all this ---------------------------------------
+// The endpoint itself is HTTP + $_FILES + DB and cannot be unit-tested here. What CAN be nailed down is
+// the ORDER of its steps -- and order is exactly what breaks silently in both cases below.
+$endpoint = (string) file_get_contents(__DIR__ . '/../../../edit/map/citymap-image.php');
+
+// Match the CALL, not the name: the require line mentions the function in a comment and would satisfy
+// a looser search from the top of the file, making this guard pass no matter where the call moved.
+$posEncode = strpos($endpoint, 'avesmapsCitymapEncodeThumbBytes($rawBytes');
+$posName = strpos($endpoint, "\$filename = \$slot . '-'");
+assert($posEncode !== false, 'endpoint no longer calls the encoder');
+assert($posName !== false, 'filename assignment not found -- update this guard');
+assert($posEncode < $posName, 'the filename must be built AFTER the encoder decided the extension');
+
+// The full map must not be downscaled any more (owner 2026-08-01: "soll nicht veraendert werden").
+assert(!str_contains($endpoint, 'AVESMAPS_CITYMAP_MAP_MAX_EDGE'), 'the map slot must be stored unchanged');
+
 echo "citymap-image-encode-test: OK\n";
