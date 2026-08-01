@@ -132,7 +132,8 @@ function avesmapsAttachOffroadPointToGraph(
         $rasters = $pdo instanceof PDO ? avesmapsOffroadLoadHeightRasters($pdo, $box) : [];
         $heights = $rasters === [] ? null : avesmapsOffroadSampleHeights($box, $rasters);
 
-        $path = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed, $candidate['x'], $candidate['y'], $x, $y);
+        $path = avesmapsOffroadFindPath($box, $blocked, $factors, $heights, (float) $speed, $candidate['x'], $candidate['y'], $x, $y,
+            AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, $rasters);
         if ($path !== null) { $exit = $candidate; break; }
     }
 

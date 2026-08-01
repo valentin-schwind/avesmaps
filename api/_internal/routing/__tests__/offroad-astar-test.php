@@ -176,6 +176,46 @@ assert($hilly['distance'] > $flat['distance'] + 1e-9 || $hilly['time'] > $flat['
 // And the detour has to stay off the ridge crest where it can.
 assert($hilly['time'] <= $flat['time'] * 4.0 + 1e-9, 'the detour must not be worse than the clamp');
 
+// ============================================================ 5a. EINE Auflösung für alles
+
+// 🔴 Der Anstieg ist eine TOTALE VARIATION und waechst mit der Abtastdichte (x sqrt(2) je Halbierung,
+// terrain-store.php:27-32). Deshalb integriert das ganze Haus bei AVESMAPS_TERRAIN_CELL_SIZE = 0,25 --
+// und die Etappe muss es auch, sonst sieht dieselbe Flanke je nach Frager verschieden hoch aus, und
+// beide Zahlen stehen im selben Reiseplan untereinander.
+//
+// Der Beleg: ein Kamm, dessen Wellen FEINER sind als eine Zelle. Die Zellebene (0,5) glaettet ihn
+// weg, das Raster (0,25) sieht ihn.
+assert(AVESMAPS_TERRAIN_CELL_SIZE === 0.25, 'die Hausauflösung steht in terrain-store.php');
+
+$rippleSamples = [];
+for ($rasterRow = 0; $rasterRow < 3; $rasterRow++) {
+    for ($rasterCol = 0; $rasterCol < 41; $rasterCol++) {
+        // Saegezahn mit einer Wellenlaenge von 0,5 Einheiten -- zwei Rasterpixel auf, zwei ab.
+        $rippleSamples[] = ($rasterCol % 4) < 2 ? 0 : 600;
+    }
+}
+$ripple = ['origin_x' => 0.0, 'origin_y' => -AVESMAPS_TERRAIN_CELL_SIZE, 'cell' => AVESMAPS_TERRAIN_CELL_SIZE,
+    'width' => 41, 'height' => 3, 'samples' => pack('v*', ...$rippleSamples)];
+
+$rippleBox = avesmapsBuildOffroadBox(0.5, 0.0, 9.5, 0.0, 0.5, 150000);
+$rippleGrid = avesmapsOffroadRasteriseBlocked($rippleBox, avesmapsPrepareRouteAreas([]));
+$ripplePlane = avesmapsOffroadSampleHeights($rippleBox, [$ripple]);
+
+$coarse = avesmapsOffroadFindPath($rippleBox, $rippleGrid, null, $ripplePlane, $speed, 0.5, 0.0, 9.5, 0.0);
+$fine = avesmapsOffroadFindPath($rippleBox, $rippleGrid, null, $ripplePlane, $speed, 0.5, 0.0, 9.5, 0.0,
+    AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS, [$ripple]);
+
+assert($fine['ascent_schritt'] > $coarse['ascent_schritt'],
+    'aus dem Raster gelesen findet die Etappe mehr Anstieg als aus der Zellebene: '
+    . $fine['ascent_schritt'] . ' gegen ' . $coarse['ascent_schritt']);
+assert($fine['time'] > $coarse['time'], 'und bezahlt ihn auch');
+// ⚠️ Die LAENGE darf sich davon nicht ruehren -- gemessen wird dieselbe Linie, nur feiner abgetastet.
+assert($near($fine['distance'], $coarse['distance'], 1e-9), 'die Laenge bleibt dieselbe');
+
+// ⚠️ Ohne Raster bleibt es bei der Zellebene -- kein Verhalten aendert sich fuer Aufrufer, die keine
+// Raster laden koennen (etwa ohne Datenbank).
+assert($coarse['ascent_schritt'] !== null, 'auch die grobe Fassung kennt Hoehen');
+
 // ============================================================ 6. terrain: three planes, MAXIMUM
 
 // 💣 The three kinds lie ON TOP of each other -- a cell is „Kosch" AND „Wald" AND „Gebirge" at once.

@@ -343,7 +343,8 @@ function avesmapsOffroadFindPath(
     float $y1,
     float $x2,
     float $y2,
-    float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS
+    float $eps = AVESMAPS_ROUTE_OFFROAD_SIMPLIFY_EPS,
+    array $rasters = []
 ): ?array {
     if ($speed <= 0.0) { return null; }
 
@@ -356,7 +357,7 @@ function avesmapsOffroadFindPath(
     $goal = $goalRow * $cols + $goalCol;
 
     if ($start === $goal) {
-        return avesmapsOffroadFinishPath([[$x1, $y1], [$x2, $y2]], $speed, $factors, $heights, $box, $eps, 0);
+        return avesmapsOffroadFinishPath([[$x1, $y1], [$x2, $y2]], $speed, $factors, $heights, $box, $eps, 0, $rasters);
     }
 
     // §5.2, and it is the reason $blocked is edited by value: the freeing applies to THIS request.
@@ -459,7 +460,7 @@ function avesmapsOffroadFindPath(
     $points[0] = [$x1, $y1];
     $points[count($points) - 1] = [$x2, $y2];
 
-    return avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened);
+    return avesmapsOffroadFinishPath($points, $speed, $factors, $heights, $box, $eps, $opened, $rasters);
 }
 
 /**
@@ -478,15 +479,30 @@ function avesmapsOffroadFindPath(
  * here, matching the resolution the search itself priced at. Same rule as V11 §5.3: one resolution
  * for everything, or the same ground yields two different ascents.
  */
-function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors, ?string $heights, array $box, float $eps, int $opened): array
+function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors, ?string $heights, array $box, float $eps, int $opened, array $rasters = []): array
 {
     $points = avesmapsSimplifyLineDouglasPeucker($points, $eps);
-    $sampleStep = $box['cell'] * 0.5;
 
+    // 🔴 EINE AUFLÖSUNG FÜR ALLES, und die steht in terrain-store.php:32. Der Anstieg ist eine TOTALE
+    // VARIATION und waechst mit der Abtastdichte -- x sqrt(2) je Halbierung. Wer die Etappe im
+    // Zellraster (0,5) integriert, waehrend jeder gezeichnete Weg im Rasterraster (0,25) integriert
+    // wird, laesst dieselbe Flanke je nach Frager verschieden hoch aussehen -- und beide Zahlen
+    // stehen im selben Reiseplan untereinander.
+    //
+    // ⚠️ Deshalb wird hier direkt aus den RASTERN gelesen, nicht aus der Zellebene: die kennt je
+    // Zelle nur einen Wert und kann feiner gar nicht antworten. Die SUCHE darf gerne grob bleiben --
+    // sie muss Wege nur ordnen --, aber die Zahl unter der Linie ist eine Aussage ueber das Gelaende
+    // und gehoert in die Sprache aller anderen.
+    $sampleStep = $rasters !== [] ? AVESMAPS_TERRAIN_CELL_SIZE : $box['cell'] * 0.5;
+    $heightAt = $rasters !== []
+        ? static fn(float $x, float $y): ?float => avesmapsHeightmapSampleSum($rasters, $x, $y)
+        : static fn(float $x, float $y): ?float => avesmapsOffroadHeightAtCell($heights, avesmapsOffroadIndexOf($box, $x, $y));
+
+    $knowsHeight = $rasters !== [] || ($heights !== null && $heights !== '');
     $distance = 0.0;
     $time = 0.0;
-    $ascent = $heights === null || $heights === '' ? null : 0.0;
-    $descent = $heights === null || $heights === '' ? null : 0.0;
+    $ascent = $knowsHeight ? 0.0 : null;
+    $descent = $knowsHeight ? 0.0 : null;
 
     for ($index = 1; $index < count($points); $index++) {
         [$fromX, $fromY] = $points[$index - 1];
@@ -497,12 +513,12 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
 
         $steps = max(1, (int) ceil($length / $sampleStep));
         $stepLength = $length / $steps;
-        $previousHeight = avesmapsOffroadHeightAtCell($heights, avesmapsOffroadIndexOf($box, $fromX, $fromY));
+        $previousHeight = $heightAt($fromX, $fromY);
         for ($step = 1; $step <= $steps; $step++) {
             $t = $step / $steps;
             $x = $fromX + ($toX - $fromX) * $t;
             $y = $fromY + ($toY - $fromY) * $t;
-            $height = avesmapsOffroadHeightAtCell($heights, avesmapsOffroadIndexOf($box, $x, $y));
+            $height = $heightAt($x, $y);
 
             $slopeFactor = 1.0;
             if ($previousHeight !== null && $height !== null) {
