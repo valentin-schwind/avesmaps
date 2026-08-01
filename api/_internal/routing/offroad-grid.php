@@ -540,9 +540,14 @@ function avesmapsOffroadFinishPath(array $points, float $speed, ?string $factors
         'distance' => $distance,
         'time' => $time,
         // V11's two sums, so the leg can say what it climbed exactly like a drawn way does.
-        // 💣 `null` means „no height data along here", `0.0` means „measured level" -- never the same.
-        'ascent_schritt' => $ascent,
-        'descent_schritt' => $descent,
+        // 💣 `null` means „no height data along here", `0.0` means „measured level" -- never the same,
+        // and `round` keeps that difference because it never turns null into a number.
+        //
+        // ⚠️ GANZE SCHRITT, wie ein gezeichneter Weg: `path_terrain.ascent_schritt` ist INT UNSIGNED.
+        // 1 Schritt ist 1 Meter -- Nachkommastellen auf einer Summe bilinearer Abtastungen sind
+        // Rauschen, und daneben im selben Reiseplan stehen ganze Zahlen.
+        'ascent_schritt' => $ascent === null ? null : round($ascent),
+        'descent_schritt' => $descent === null ? null : round($descent),
         'cells_opened' => $opened,
     ];
 }
