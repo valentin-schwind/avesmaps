@@ -120,11 +120,17 @@ Sie benennt künftig den Upload-Knopf als nächsten Schritt.
 - **Gate:** `unknown_other` → Upload abgelehnt, **keine Datei auf der Platte**; `own_work` → akzeptiert;
   `own_work` ist in der öffentlichen Ausgabe frei, `unknown_other` liefert weiterhin `''`.
 
-## 6. Offen — braucht ein Owner-Wort
+## 6. Geklärt (Owner, 2026-08-01)
 
-**`ai_generated` stand nicht in der Aufzählung** („gemeinfrei, cc0, genehmigt oder von uns"), ist heute
-aber frei und öffentlich. Ich habe es **nicht** angefasst: es zu streichen würde bereits sichtbare
-Bilder rückwirkend verbergen, und „von uns erzeugt" ist eine plausible Lesart von „von uns". Wenn das
-anders gemeint war, ist es eine Zeile — plus eine bewusste Entscheidung über den Bestand.
+- **12-MB-Folge in §3.2 ausdrücklich akzeptiert.**
+- **`ai_generated` bleibt frei.** Es fehlte in der Aufzählung nur scheinbar: das sichtbare Label ist
+  `html/citymap-editor.html:584` **„Von uns KI-generiert"** (`free: true`) — also genau das „oder von
+  uns" der Vorgabe. Nichts zu ändern; hier festgehalten, damit die Frage nicht ein zweites Mal
+  aufgemacht wird.
+
+Die vier freien Werte heißen für den Editor damit: „Public Domain" · „CC0" · „Von uns KI-generiert" ·
+„Genehmigung erteilt" — plus das neue **„Eigene Kreation"** (§3.4). `LICENSES` in
+`html/citymap-editor.html:581` ist ein **bewusster Spiegel** der PHP-Konstante (Kommentar ebenda):
+beide Listen müssen im selben Commit wachsen.
 
 Siehe `citymaps-feature-task-c`, `citymaps-redesign-datenlage`, `citymaps-killswitch-silent-outage`.
