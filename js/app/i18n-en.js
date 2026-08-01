@@ -53,6 +53,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.journey.to": "to",
 	"planner.journey.via": "via",
 	"planner.leg.offroad": "Rough terrain",
+	"planner.leg.offroadTerrain": "trackless country",
 	"planner.leg.via": "via",
 	"planner.flow.downstream": "downstream",
 	"planner.flow.upstream": "upstream",
@@ -92,6 +93,15 @@ window.AVESMAPS_I18N_EN = {
 	"planner.summary.elevationCoverage": "on {covered} of {total} legs",
 	"planner.shareRoute": "Copy link for this route",
 	"planner.shareRoute.title": "Share your route plan",
+	"planner.point.mapPoint": "Map point",
+
+	// --- „Hierher reisen" (right click -> a route to an arbitrary map point) ---
+	"travelHere.error.noStart": "Please enter a starting point in the route planner first.",
+	"travelHere.error.notOnLand": "No overland route leads there — please pick a spot on land.",
+	"travelHere.error.noExitNode": "There is no waypoint nearby to set out from.",
+	"travelHere.error.noOffroadRoute": "No route leads there overland.",
+	"travelHere.error.generic": "The journey there could not be calculated.",
+
 	"planner.unit.miles": "miles",
 	"planner.unit.hours": "hours",
 	"planner.unit.days": "days",
@@ -102,6 +112,7 @@ window.AVESMAPS_I18N_EN = {
 	"ctxmenu.reportLocation": "Report here...",
 	"ctxmenu.search": "Search",
 	"ctxmenu.findNearest": "Find nearest location",
+	"ctxmenu.travelHere": "Travel here",
 	"ctxmenu.measureDistance": "Measure distance",
 	"ctxmenu.clearDistance": "Clear distance measurement",
 

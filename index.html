@@ -261,6 +261,7 @@
 			<button type="button" class="map-context-menu__item" data-context-action="report-location" data-i18n="ctxmenu.reportLocation">Hier melden...</button>
 			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search" data-i18n="ctxmenu.search">Suchen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location" data-i18n="ctxmenu.findNearest">Nächsten Ort finden</button>
+			<button type="button" class="map-context-menu__item" data-context-action="travel-here" data-i18n="ctxmenu.travelHere">Hierher reisen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement" data-i18n="ctxmenu.measureDistance">Entfernung messen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement" hidden data-i18n="ctxmenu.clearDistance">Entfernungsmessung löschen</button>
 		</div>
@@ -2292,6 +2293,8 @@
 		<script src="js/routing/route-render.js"></script>
 		<script src="js/routing/route-speed-arrows.js"></script>
 		<script src="js/routing/route-graph-routing.js"></script>
+		<!-- Vor routing.js: dort haengt der Kontextmenue-Handler, der travelToMapPoint aufruft. -->
+		<script src="js/routing/route-travel-here.js"></script>
 		<script src="js/routing/routing.js"></script>
 		<script src="js/routing/transport-speed-info.js"></script>
 		<script src="js/ui/spotlight-search.js"></script>

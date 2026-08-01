@@ -86,7 +86,14 @@ async function calculateRouteServerImpl(request) {
 	const data = await readJsonResponse(response, {});
 	if (!response.ok || data?.ok !== true) {
 		const errorMessage = data?.error?.message || data?.error || `Routing-API antwortet mit HTTP ${response.status}.`;
-		throw new Error(errorMessage);
+		const error = new Error(errorMessage);
+		// The MACHINE code, carried alongside the message. „Hierher reisen" needs it: the API message
+		// is English by policy, and the three ways a clicked point can be refused each deserve their
+		// own German sentence (route-travel-here.js). Without this the caller could only show the
+		// English text or one flat fallback.
+		error.code = String(data?.error?.code || "");
+		error.status = response.status;
+		throw error;
 	}
 
 	const route = data.route || {};
@@ -212,6 +219,9 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			// map. `|| 1` is safe where the ascent needs `?? null`: the factor is clamped to
 			// [0,5 … 4,0] and can never legitimately be 0.
 			terrain_time_factor: Number(serverSegment?.terrain_time_factor) || 1,
+			// V14: an A*-computed cross-country leg, not a drawn way. Carries the „wegloses Gelände"
+			// note in the plan (route-plan.js) -- the German text lives there, in the i18n table.
+			offroad: serverSegment?.offroad === true,
 		},
 	};
 }
@@ -290,6 +300,9 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			// map. `|| 1` is safe where the ascent needs `?? null`: the factor is clamped to
 			// [0,5 … 4,0] and can never legitimately be 0.
 			terrain_time_factor: Number(serverSegment?.terrain_time_factor) || 1,
+			// V14: an A*-computed cross-country leg, not a drawn way. Carries the „wegloses Gelände"
+			// note in the plan (route-plan.js) -- the German text lives there, in the i18n table.
+			offroad: serverSegment?.offroad === true,
 		},
 	};
 }

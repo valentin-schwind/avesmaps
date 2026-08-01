@@ -754,6 +754,9 @@ function buildRoutePlanEntries(routeNames, segments) {
 		entries.push({
 			type,
 			flowState: null,
+			// V14: this leg was computed across country by the A*, so no drawn way exists here. The
+			// note below it says so -- otherwise the plan would promise a road that is not on the map.
+			offroad: segment.properties?.offroad === true,
 			startName,
 			endName,
 			segmentLabel,
@@ -886,6 +889,11 @@ function showRoutePlan(routeNames, segments) {
 		const flowWord = entry.type === "Flussweg" && entry.flowState
 			? ` ${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")}`
 			: "";
+		// V14, Owner-Entscheid: eine querfeldein gerechnete Etappe sagt, dass dort KEIN gezeichneter
+		// Weg liegt. Steht vor dem Laengenhinweis, weil es die wichtigere Aussage ist.
+		const offroadHint = entry.offroad
+			? ` <span class="route-plan-entry__offroad-hint" style="opacity:.7;font-size:.85em;font-style:italic;">${tr("planner.leg.offroadTerrain", "wegloses Gelände")}</span>`
+			: "";
 		// Hinweis an einer langen Querfeldein-Etappe (Luftlinie über der Schwelle): rein visuell.
 		const longOffroadHint = entry.type === SYNTHETIC_ROUTE_TYPE
 			&& entry.distance > SYNTHETIC_ROUTE_LONG_LEG_WARN_DISTANCE * DISTANCE_SCALING_FACTOR
@@ -894,7 +902,7 @@ function showRoutePlan(routeNames, segments) {
 
 		$overview.append(`
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${offroadHint}${longOffroadHint}
 			(${formatDecimalNumber(entry.distance, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}

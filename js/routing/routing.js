@@ -756,6 +756,14 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		return;
 	}
 
+	// „Hierher reisen": eine Route vom Startpunkt des Planers bis GENAU hierhin -- ueber den Graphen
+	// bis zum naechsten Knoten, von dort querfeldein. Die Arbeit steht in route-travel-here.js.
+	if (action === "travel-here" && contextMenuLatLng) {
+		closeMapContextMenu();
+		void travelToMapPoint(contextMenuLatLng);
+		return;
+	}
+
 	if (action === "start-distance-measurement" && contextMenuLatLng) {
 		closeMapContextMenu();
 		startDistanceMeasurementAt(contextMenuLatLng);

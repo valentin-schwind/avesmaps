@@ -166,10 +166,16 @@ function avesmapsAttachOffroadPointToGraph(
         // The flag the leg's „wegloses Gelände" note hangs off (spec §5.7). The TEXT is German UI and
         // therefore lives in the client's i18n table, not in an API payload (AGENTS.md §8).
         'offroad' => true,
-        // V11's two sums, so this leg can state its climb like a drawn way does. `null` stays null.
-        'ascent_schritt' => $path['ascent_schritt'],
-        'descent_schritt' => $path['descent_schritt'],
     ];
+
+    // 💣 THE KEY IS ONLY SET WHEN THERE IS A MEASUREMENT. avesmapsBuildClientRouteDiagnosticSegments
+    // reads these with `array_key_exists(...) ? (float) ... : null` -- so a key present with a null
+    // value comes out as 0.0, which means „measured, and level". Along a stretch with no raster that
+    // is a lie of exactly the kind V11 built the null/0 distinction to prevent.
+    if ($path['ascent_schritt'] !== null) {
+        $connection['ascent_schritt'] = $path['ascent_schritt'];
+        $connection['descent_schritt'] = $path['descent_schritt'];
+    }
 
     $clientGraph['graph'][$nodeName] ??= [];
     avesmapsAddClientCompatibleGraphConnection($clientGraph['graph'], $exit['name'], $nodeName, $connection);
@@ -181,8 +187,10 @@ function avesmapsAttachOffroadPointToGraph(
     $reverse['geometry']['coordinates'] = array_reverse($path['points']);
     // 💣 Climb and descent SWAP when the direction does. Carrying them unchanged would report the
     // ascent of the opposite direction -- the exact class of error V11 §6.3 is about.
-    $reverse['ascent_schritt'] = $path['descent_schritt'];
-    $reverse['descent_schritt'] = $path['ascent_schritt'];
+    if ($path['ascent_schritt'] !== null) {
+        $reverse['ascent_schritt'] = $path['descent_schritt'];
+        $reverse['descent_schritt'] = $path['ascent_schritt'];
+    }
     avesmapsAddClientCompatibleGraphConnection($clientGraph['graph'], $nodeName, $exit['name'], $reverse);
 
     return [

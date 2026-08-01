@@ -89,7 +89,15 @@ assert($last['distance'] < $airLine * 2.0, 'and nowhere near a x25 surcharge: ' 
 
 // The diagnostic segment the API ships carries the flag through.
 $diagnostic = avesmapsBuildClientRouteDiagnosticSegments($segments);
-assert($diagnostic[count($diagnostic) - 1]['offroad'] === true, 'the API segment carries `offroad`');
+$shipped = $diagnostic[count($diagnostic) - 1];
+assert($shipped['offroad'] === true, 'the API segment carries `offroad`');
+
+// 💣 NO HEIGHT DATA MUST STAY `null` ALL THE WAY OUT. The diagnostic builder reads the sums with
+// `array_key_exists(...) ? (float) ... : null`, so a key that is PRESENT and null ships as 0,0 --
+// „measured, and level". Over ground with no raster that is exactly the lie V11's null/0 rule
+// exists to prevent, and the only defence is not setting the key at all.
+assert($shipped['ascent_schritt'] === null, 'unmeasured climb ships as null, not 0,0');
+assert($shipped['descent_schritt'] === null, 'unmeasured descent ships as null, not 0,0');
 
 // ============================================================ B. the reverse edge is the same line
 
@@ -151,5 +159,26 @@ assert($noExit['ok'] === false && $noExit['error'] === 'no_exit_node', 'an empty
 assert(isset($report['cell_mapunits']) && $report['cell_mapunits'] > 0.0, 'the report names the cell width used');
 assert($report['cell_mapunits'] === AVESMAPS_ROUTE_OFFROAD_CELL_MAPUNITS, 'a small box uses the configured width');
 assert($report['coarsened'] === false, 'and says it was not coarsened');
+
+// ============================================================ E. the request field
+
+require_once __DIR__ . '/../request.php';
+
+// The normaliser only -- the whole avesmapsNormalizeRouteRequest needs the bootstrap's string
+// helpers, and the point field is what this feature added.
+assert(avesmapsRouteNormalizeOptionalPoint(null, 'to_point') === null, 'an absent point is null, not an error');
+assert(avesmapsRouteNormalizeOptionalPoint(['x' => 12.5, 'y' => 34.0], 'to_point') === ['x' => 12.5, 'y' => 34.0], 'x and y survive');
+// ⚠️ GeoJSON order, and integers become floats. The swap from Leaflet's [lat, lng] happens once, in
+// the client, at the moment the click is read.
+assert(avesmapsRouteNormalizeOptionalPoint(['x' => 1, 'y' => 2], 'from_point') === ['x' => 1.0, 'y' => 2.0], 'integers become floats');
+
+// ⚠️ NAN is not in this list, and that is not an oversight: JSON has no NaN literal, so it cannot
+// arrive over the wire. `is_finite` still covers it; testing it here would only make filter_var warn
+// about an input the endpoint can never receive.
+foreach ([['x' => 1.0], 'nonsense', ['x' => 'abc', 'y' => 1.0], ['x' => INF, 'y' => 1.0]] as $bad) {
+    $refused = false;
+    try { avesmapsRouteNormalizeOptionalPoint($bad, 'to_point'); } catch (InvalidArgumentException) { $refused = true; }
+    assert($refused === true, 'a malformed point must be refused: ' . json_encode($bad));
+}
 
 echo "offroad-leg-test: OK\n";
