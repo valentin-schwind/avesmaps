@@ -7,7 +7,14 @@ declare(strict_types=1);
 // PURITY CONTRACT: side-effect-free on include, no PDO, no blob, no I/O. This file is the ONE place
 // the model lives.
 //
-// 🔴 THE MODEL IS THE LEISTUNGSKILOMETER (DIN 33466 / Marschzeitberechnung), NOT A CURVE OF OUR OWN.
+// 🔴 THE MODEL IS THE LEISTUNGSKILOMETER, NOT A CURVE OF OUR OWN -- AND NOT DIN 33466 EITHER.
+// 💣 THAT PARENTHESIS USED TO SAY „(DIN 33466 / Marschzeitberechnung)" AND IT WAS WRONG, PUBLICLY,
+// FOR TWO DAYS. Three different procedures were being named as one: the Leistungskilometer adds to
+// the DISTANCE (this file), while DIN 33466 and the alpine-club method are TIME formulas (300 resp.
+// 400 Hm/h up, a halving rule) and neither is implemented anywhere in this repo. Two players found
+// it independently on 2026-07-31. The descent threshold below is the one piece with a real
+// pedigree: it is Langmuir's addition to Naismith's rule (12°, i.e. 21,3 %).
+// Guarded by api/_internal/routing/__tests__/terrain-text-claims-test.php -- do not reintroduce.
 // Owner decision 2026-07-30, after a DSA player pulled the previous numbers apart in public and was
 // right to. The rule, and it is the whole rule:
 //
@@ -44,7 +51,8 @@ const AVESMAPS_TERRAIN_SCHRITT_PER_MAPUNIT_ROUTE = 3000.0;
 // Leistungskilometer is defined per KILOMETRE, so the factor needs miles, not map units.
 const AVESMAPS_TERRAIN_MEILEN_PER_MAPUNIT = 3.0;
 
-// Schritt of climb that cost one extra Leistungsmeile. DIN 33466: 100 m of ascent per performance-km.
+// Schritt of climb that cost one extra Leistungsmeile. 100 m of ascent per performance-km -- the
+// hiking convention, NOT a DIN figure (see the note at the top of this file).
 const AVESMAPS_TERRAIN_LKM_ASCENT_SCHRITT = 100.0;
 
 // Schritt of descent that cost one extra Leistungsmeile -- but only on stretches steeper than the

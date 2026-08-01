@@ -216,8 +216,10 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			// V12: the slope factor the SERVER applied, carried exactly like flow_time_factor above.
 			// 🔴 CARRIED, NOT RECOMPUTED. The curve lives in terrain-factor.php and stays there --
 			// a JS copy would be a second source of truth for the one number people take out of this
-			// map. `|| 1` is safe where the ascent needs `?? null`: the factor is clamped to
-			// [0,5 … 4,0] and can never legitimately be 0.
+			// map. `|| 1` is safe where the ascent needs `?? null`: a factor of 0 is a broken row,
+			// never a measurement. 💣 THERE IS NO LOWER CLAMP -- this comment claimed "[0,5 … 4,0]"
+			// until 2026-08-01, but the Leistungskilometer lost its floor when it replaced the old
+			// curve: it adds only non-negative terms, so 1,0 is its structural minimum.
 			terrain_time_factor: Number(serverSegment?.terrain_time_factor) || 1,
 			// V14: an A*-computed cross-country leg, not a drawn way. Carries the „wegloses Gelände"
 			// note in the plan (route-plan.js) -- the German text lives there, in the i18n table.
@@ -297,8 +299,10 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			// V12: the slope factor the SERVER applied, carried exactly like flow_time_factor above.
 			// 🔴 CARRIED, NOT RECOMPUTED. The curve lives in terrain-factor.php and stays there --
 			// a JS copy would be a second source of truth for the one number people take out of this
-			// map. `|| 1` is safe where the ascent needs `?? null`: the factor is clamped to
-			// [0,5 … 4,0] and can never legitimately be 0.
+			// map. `|| 1` is safe where the ascent needs `?? null`: a factor of 0 is a broken row,
+			// never a measurement. 💣 THERE IS NO LOWER CLAMP -- this comment claimed "[0,5 … 4,0]"
+			// until 2026-08-01, but the Leistungskilometer lost its floor when it replaced the old
+			// curve: it adds only non-negative terms, so 1,0 is its structural minimum.
 			terrain_time_factor: Number(serverSegment?.terrain_time_factor) || 1,
 			// V14: an A*-computed cross-country leg, not a drawn way. Carries the „wegloses Gelände"
 			// note in the plan (route-plan.js) -- the German text lives there, in the i18n table.

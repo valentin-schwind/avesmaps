@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Unit tests for the V11 slope model: the LEISTUNGSKILOMETER (DIN 33466 / Marschzeitberechnung).
+ * Unit tests for the V11 slope model: the LEISTUNGSKILOMETER. NOT DIN 33466 -- see the note atop terrain-factor.php.
  * api/_internal/routing/terrain-factor.php
  *
  * Run from the repo root:
