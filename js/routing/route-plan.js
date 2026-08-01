@@ -898,11 +898,15 @@ function showRoutePlan(routeNames, segments) {
 		const flowWord = entry.type === "Flussweg" && entry.flowState
 			? ` ${entry.flowState === "upstream" ? tr("planner.flow.upstream", "flussaufwärts") : tr("planner.flow.downstream", "flussabwärts")}`
 			: "";
-		// V14, Owner-Entscheid: eine querfeldein gerechnete Etappe sagt, dass dort KEIN gezeichneter
-		// Weg liegt. Steht vor dem Laengenhinweis, weil es die wichtigere Aussage ist.
-		const offroadHint = entry.offroad
-			? ` <span class="route-plan-entry__offroad-hint" style="opacity:.7;font-size:.85em;font-style:italic;">${tr("planner.leg.offroadTerrain", "wegloses Gelände")}</span>`
-			: "";
+		// V14, Owner-Entscheid §5.7: „die Etappe bekommt den Zusatz ‚wegloses Gelände', damit der
+		// Reisende weiss, dass dort kein gezeichneter Weg existiert."
+		//
+		// ⭐ DIESE ZEILE IST DER ZUSATZ, UND SIE IST LEER -- weil die Etappe es schon sagt. Ihr Name
+		// ist „Unwegsames Gelände" (routeLegTypeLabel, Querfeldein). Der Zusatz danebengestellt ergab
+		// live „Unwegsames Gelände wegloses Gelände": zweimal dieselbe Aussage in fünf Wörtern. Die
+		// ABSICHT des Entscheids ist erfüllt, der Wortlaut waere Stottern -- und `entry.offroad`
+		// bleibt bis hierher erhalten, damit der Unterschied zwischen einer gerechneten Querfeldein-
+		// Etappe und einer geraden Notbruecke abfragbar ist, wenn er einmal gebraucht wird.
 		// Hinweis an einer langen Querfeldein-Etappe (Luftlinie über der Schwelle): rein visuell.
 		const longOffroadHint = entry.type === SYNTHETIC_ROUTE_TYPE
 			&& entry.distance > SYNTHETIC_ROUTE_LONG_LEG_WARN_DISTANCE * DISTANCE_SCALING_FACTOR
@@ -911,7 +915,7 @@ function showRoutePlan(routeNames, segments) {
 
 		$overview.append(`
 			<div role="button" tabindex="0" class="route-plan-entry route-plan-entry--chained" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${offroadHint}${longOffroadHint}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${routeLegTypeLabel(entry.type)}${labelSuffix}${longOffroadHint}
 			(${formatDecimalNumber(entry.distance, 2)} ${tr("planner.unit.miles", "Meilen")}${flowWord})
 			${tr("planner.leg.from", "von")} ${startMarkup}
 			${tr("planner.leg.to", "bis")} ${endMarkup}
