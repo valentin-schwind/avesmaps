@@ -34,10 +34,12 @@ $place = static fn(string $name, float $x, float $y): array => [
     'name' => $name, 'geometry' => ['type' => 'Point', 'coordinates' => [$x, $y]],
 ];
 
-// A tiny world: a continent 0..100, a lake in it, and a road A -- B -- C along y = 10.
+// Eine kleine Welt: ein Kontinent 0..100, ein See darin, und eine Strasse A -- B -- B2 -- C auf
+// y = 10. B und B2 liegen dicht beieinander, damit der Kartenpunkt WIRKLICH die Wahl hat -- eine
+// Vorlage mit nur einem erreichbaren Knoten koennte die Wahl gar nicht pruefen.
 $land = avesmapsPrepareRouteAreas([$square(0.0, 0.0, 100.0, 100.0)]);
 $water = avesmapsPrepareRouteAreas([$square(40.0, 40.0, 60.0, 60.0)]);
-$locations = [$place('A', 5.0, 10.0), $place('B', 25.0, 10.0), $place('C', 45.0, 10.0)];
+$locations = [$place('A', 5.0, 10.0), $place('B', 25.0, 10.0), $place('B2', 30.0, 10.0), $place('C', 45.0, 10.0)];
 
 $road = static function (string $from, string $to, float $distance): array {
     return [
@@ -47,10 +49,10 @@ $road = static function (string $from, string $to, float $distance): array {
     ];
 };
 $buildGraph = static function () use ($road): array {
-    $graph = ['A' => [], 'B' => [], 'C' => []];
-    foreach ([['A', 'B'], ['B', 'C']] as [$from, $to]) {
-        avesmapsAddClientCompatibleGraphConnection($graph, $from, $to, $road($from, $to, 20.0));
-        avesmapsAddClientCompatibleGraphConnection($graph, $to, $from, $road($to, $from, 20.0));
+    $graph = ['A' => [], 'B' => [], 'B2' => [], 'C' => []];
+    foreach ([['A', 'B', 20.0], ['B', 'B2', 5.0], ['B2', 'C', 15.0]] as [$from, $to, $length]) {
+        avesmapsAddClientCompatibleGraphConnection($graph, $from, $to, $road($from, $to, $length));
+        avesmapsAddClientCompatibleGraphConnection($graph, $to, $from, $road($to, $from, $length));
     }
     return ['graph' => $graph, 'statistics' => []];
 };
@@ -63,7 +65,17 @@ $clientGraph = $buildGraph();
 // A point on land, 6 units north of the road near B.
 $report = avesmapsAttachOffroadPointToGraph($clientGraph, $locations, $request, $water, $land, null, 26.0, 16.0, '__offroad_to');
 assert($report['ok'] === true, 'a dry point must attach: ' . json_encode($report));
-assert($report['exit_node'] === 'B', 'the nearest GRAPH NODE is B, got ' . $report['exit_node']);
+assert($report['nearest_exit_node'] === 'B', 'der naechste GRAPHKNOTEN ist B, nicht ' . $report['nearest_exit_node']);
+
+// 🔴 MEHRERE AUSSTIEGE, NICHT EINER. Haengt der Punkt an genau einer Kante, muss jede Reise durch
+// diesen einen Knoten -- auch wenn sie gerade von dort kam. Der Owner hat genau das gemeldet: „er
+// geht immer nur zu einem bestimmten Pfadpunkt". Jetzt entscheidet der Dijkstra.
+assert($report['exit_nodes_connected'] >= 2, 'der Punkt haengt an mehreren Knoten: ' . $report['exit_nodes_connected']);
+$angebotene = array_column($report['exit_nodes'], 'node');
+assert(in_array('B', $angebotene, true) && in_array('B2', $angebotene, true), 'B und B2 sind beide Ausstiege: ' . implode(', ', $angebotene));
+// ⚠️ Aber nicht JEDER Knoten: die Entfernungsschranke haelt die gemeinsame Suchkiste klein. A liegt
+// 21,8 Einheiten weg, das 3,6-fache des naechsten -- der zoege die Kiste auf, ohne je gewaehlt zu werden.
+assert(!in_array('A', $angebotene, true), 'ein weit entfernter Knoten bleibt draussen: ' . implode(', ', $angebotene));
 assert(isset($clientGraph['graph']['__offroad_to']), 'the point is now a node');
 
 // 💣 The whole leg has to survive the ORDINARY Dijkstra, unmodified.
@@ -142,8 +154,10 @@ assert($fromDrowned['ok'] === true, 'a place inside water is never refused for b
 // 20-unit lake, so no dry way leads out of it -- the coastal tolerance frees 1 unit, not 10. The
 // search therefore walked on to A. That is the fallback working, not the land rule leaking into the
 // place lookup: B was never rejected, it was only unreachable.
-assert($fromDrowned['exit_node'] === 'A', 'the search falls back to the next node, got ' . $fromDrowned['exit_node']);
-assert($fromDrowned['exit_nodes_tried'] === 2, 'and it took exactly two tries');
+assert($fromDrowned['exit_nodes_connected'] >= 1, 'mindestens ein Ausstieg bleibt erreichbar');
+assert(!in_array('B', array_column($fromDrowned['exit_nodes'], 'node'), true),
+    'B ist als Ausstieg unerreichbar und faellt weg -- verworfen wurde die KANTE, nicht der Ort');
+assert(in_array('A', array_column($fromDrowned['exit_nodes'], 'node'), true), 'A traegt die Reise');
 
 // 💣 THE REAL CASE IS THE OTHER ONE: a harbour town drawn just inside a generously drawn coastline.
 // Belhanka and Kuslik are that, and V13 measured the slop at 1,0 map unit. Such a node must be a
@@ -154,7 +168,8 @@ avesmapsAddClientCompatibleGraphConnection($harbourGraph['graph'], 'A', 'Hafen',
 avesmapsAddClientCompatibleGraphConnection($harbourGraph['graph'], 'Hafen', 'A', $road('Hafen', 'A', 20.0));
 $fromHarbour = avesmapsAttachOffroadPointToGraph($harbourGraph, $harbour, $request, $water, $land, null, 36.0, 50.0, '__offroad_to');
 assert($fromHarbour['ok'] === true, 'a coastal node must work: ' . json_encode($fromHarbour));
-assert($fromHarbour['exit_node'] === 'Hafen' && $fromHarbour['exit_nodes_tried'] === 1, 'and on the first try');
+assert(in_array('Hafen', array_column($fromHarbour['exit_nodes'], 'node'), true), 'der Hafen ist ein Ausstieg');
+assert($fromHarbour['nearest_exit_node'] === 'Hafen', 'und der naechste dazu');
 
 // An empty graph: no exit node, and a distinct code -- „nowhere to start from" is not „no way".
 $emptyGraph = ['graph' => [], 'statistics' => []];
@@ -166,6 +181,58 @@ assert($noExit['ok'] === false && $noExit['error'] === 'no_exit_node', 'an empty
 assert(isset($report['cell_mapunits']) && $report['cell_mapunits'] > 0.0, 'the report names the cell width used');
 assert($report['cell_mapunits'] === AVESMAPS_ROUTE_OFFROAD_CELL_MAPUNITS, 'a small box uses the configured width');
 assert($report['coarsened'] === false, 'and says it was not coarsened');
+
+// ============================================================ D2. DER DIJKSTRA WAEHLT DEN AUSSTIEG
+
+// 🔴 Die Meldung des Owners: „er geht immer nur zu einem bestimmten Pfadpunkt anstatt sich andere
+// rauszusuchen ... koennte er direkt nach Gratenfels ohne den Umweg ueber den Pfad (von dem er
+// hergekommen ist)". Genau das prueft dieser Fall: die Reise kommt von C und will zum Punkt. Der
+// NAECHSTE Knoten ist B -- aber ueber B2 ist die Reise insgesamt kuerzer, weil C an B2 haengt.
+$wahlGraph = $buildGraph();
+$wahl = avesmapsAttachOffroadPointToGraph($wahlGraph, $locations, $request, $water, $land, null, 29.0, 16.0, '__offroad_to');
+assert($wahl['ok'] === true, 'der Punkt haengt: ' . json_encode($wahl));
+assert($wahl['nearest_exit_node'] === 'B2', 'naechster Knoten ist B2');
+
+$vonC = avesmapsFindClientCompatibleRoute($wahlGraph, 'C', '__offroad_to', $request);
+$vonA = avesmapsFindClientCompatibleRoute($wahlGraph, 'A', '__offroad_to', $request);
+$letzterKnoten = static function (array $route): string {
+    $ids = $route['node_ids'];
+    return (string) $ids[count($ids) - 2];
+};
+assert($vonC['found'] && $vonA['found'], 'beide Richtungen finden den Punkt');
+// ⭐ Der Beleg: derselbe Punkt, zwei Startorte, ZWEI verschiedene Ausstiege. Mit einer einzigen
+// Kante waere beides derselbe Knoten gewesen -- und eine der beiden Reisen ein Umweg.
+assert($letzterKnoten($vonC) !== $letzterKnoten($vonA),
+    'der Ausstieg haengt von der Reise ab, nicht von der Luftlinie: '
+    . $letzterKnoten($vonC) . ' / ' . $letzterKnoten($vonA));
+
+// ============================================================ D3. VON EINEM FREIEN PUNKT ZUM ANDEREN
+
+// 🔴 Owner: „ausserdem fehlt, dass er von einem freien Wegpunkt zum anderen gehen kann." Ohne die
+// direkte Kante haengt jeder Punkt nur an Strassenknoten, und die Reise liefe hinunter auf die
+// Strasse und wieder hinauf -- ein V statt einer Linie.
+$paarGraph = $buildGraph();
+avesmapsAttachOffroadPointToGraph($paarGraph, $locations, $request, $water, $land, null, 26.0, 16.0, '__offroad_from');
+avesmapsAttachOffroadPointToGraph($paarGraph, $locations, $request, $water, $land, null, 29.0, 17.0, '__offroad_to');
+
+$ohneDirekt = avesmapsFindClientCompatibleRoute($paarGraph, '__offroad_from', '__offroad_to', $request);
+assert($ohneDirekt['found'] === true, 'auch ohne direkte Kante gibt es einen Weg -- ueber die Strasse');
+$umwegKosten = $ohneDirekt['cost'];
+
+$direkt = avesmapsConnectOffroadPoints($paarGraph, $request, $water, null,
+    ['x' => 26.0, 'y' => 16.0], ['x' => 29.0, 'y' => 17.0], '__offroad_from', '__offroad_to');
+assert($direkt['ok'] === true, 'die direkte Kante entsteht: ' . json_encode($direkt));
+
+$mitDirekt = avesmapsFindClientCompatibleRoute($paarGraph, '__offroad_from', '__offroad_to', $request);
+assert($mitDirekt['found'] === true, 'und traegt');
+assert(count($mitDirekt['segments']) === 1, 'die Reise ist EINE Etappe, kein V ueber die Strasse');
+assert($mitDirekt['cost'] < $umwegKosten, 'und guenstiger als der Umweg: ' . $mitDirekt['cost'] . ' gegen ' . $umwegKosten);
+
+// Die Linie faengt am einen Punkt an und endet am anderen -- genaeht, nicht auf Zellmitten.
+$direktGeo = $mitDirekt['segments'][0]['geometry']['coordinates'];
+assert(abs($direktGeo[0][0] - 26.0) < 1e-9 && abs($direktGeo[0][1] - 16.0) < 1e-9, 'Anfang am ersten Punkt');
+$letzt = $direktGeo[count($direktGeo) - 1];
+assert(abs($letzt[0] - 29.0) < 1e-9 && abs($letzt[1] - 17.0) < 1e-9, 'Ende am zweiten Punkt');
 
 // ============================================================ E. the request field
 

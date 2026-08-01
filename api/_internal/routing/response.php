@@ -243,6 +243,24 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		if ($side === 'from') { $fromLocation = $nodeName; } else { $toLocation = $nodeName; }
 	}
 
+	// 🔴 SIND BEIDE ENDEN KARTENPUNKTE, BEKOMMEN SIE EINE DIREKTE KANTE. Ohne sie haengt jeder Punkt
+	// nur an Graphknoten, und die Reise vom einen zum anderen liefe hinunter auf einen Weg und wieder
+	// hinauf -- ein V statt einer Linie, auch wenn die Punkte nebeneinander liegen. Owner-Meldung.
+	// Die Kante ist ein Angebot: der Dijkstra nimmt sie nur, wenn sie guenstiger ist.
+	if (isset($offroad['from'], $offroad['to'])) {
+		$offroad['direct'] = avesmapsConnectOffroadPoints(
+			$clientGraph,
+			$request,
+			$water,
+			$routePdo,
+			$request['from_point'],
+			$request['to_point'],
+			AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX . 'from',
+			AVESMAPS_ROUTE_OFFROAD_NODE_PREFIX . 'to',
+			$terrainEnabled
+		);
+	}
+
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
