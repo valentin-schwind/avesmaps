@@ -629,7 +629,16 @@ function cleanRoutePlanNoiseEntries(entries) {
 		const lastEntry = result.length > 0 ? result[result.length - 1] : null;
 		const tailRiverFlowBreak = !!lastEntry && lastEntry.type === "Flussweg" && open.type === "Flussweg"
 			&& (lastEntry.flowState || null) !== (open.flowState || null);
-		if (isRoutePlanMarkerName(open.endName) && result.length > 0 && !tailRiverFlowBreak) {
+		// 💣 Eine synthetische Schluss-Etappe wird NIE absorbiert. Die Regel zwanzig Zeilen weiter oben
+		// sagt es schon fuer die Mitte der Liste ("sonst versteckt sie sich z.B. unter 'Flussweg'"),
+		// nur kannte das Ende der Liste sie noch nicht -- und bis es „Hierher reisen" gab, konnte der
+		// Fall auch nicht auftreten: eine Route endete immer an einem ORT, nie an einer Markierung.
+		// Gemessen an Rovik -> Kartenpunkt: die Querfeldein-Etappe verschwand in einer Flussweg-Etappe,
+		// die dadurch 24,76 statt 19,66 Meilen lang war UND deren Anstieg (498 Schritt) von einem Fluss
+		// zu stammen schien.
+		const tailSyntheticBreak = open.type === SYNTHETIC_ROUTE_TYPE
+			&& (!lastEntry || lastEntry.type !== SYNTHETIC_ROUTE_TYPE);
+		if (isRoutePlanMarkerName(open.endName) && result.length > 0 && !tailRiverFlowBreak && !tailSyntheticBreak) {
 			const last = result[result.length - 1];
 			last.distance += open.distance;
 			last.travelTime += open.travelTime;
