@@ -751,11 +751,19 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const flowState = resolveRouteSegmentFlowState(segment, orientation, type);
 		// Namen aus der Segment-Geometrie (orientiert) -> stimmen immer mit der gehighlighteten Linie
 		// ueberein. Fallback auf die Server-Knotenlabels nur, wenn keine Orientierung vorliegt.
+		// 💣 EIN ANGEKLICKTER KARTENPUNKT IST EIN ZIEL, KEINE „Markierung". Er liegt auf keinem Ort,
+		// also nennt ihn die Geometrie-Benennung „Markierung" -- und die Grenz-Lauf-Nachbearbeitung
+		// schliesst eine Etappe nur an einem ECHTEN Namen. Ohne diese Zeile verschmelzen drei
+		// Querfeldein-Stuecke (Ort -> Punkt 1 -> Punkt 2 -> Ort) zu EINER Etappe „von Gratenfels bis
+		// Gratenfels", und die beiden Punkte, die der Reisende ausdruecklich gesetzt hat, sind weg.
+		const namedEndpoint = (fallbackName, coordinate) => (isRoutePlanMarkerName(fallbackName)
+			? (routePlanMapPointNameAt(coordinate) || fallbackName)
+			: fallbackName);
 		const startName = orientation
-			? routeSegmentEndpointName(orientation.start, !isWaterRoute)
+			? namedEndpoint(routeSegmentEndpointName(orientation.start, !isWaterRoute), orientation.start)
 			: getRouteNodeDisplayName(String(routeNames[index] || ""), index, routeNames, segments, { allowCrossings: !isWaterRoute });
 		const endName = orientation
-			? routeSegmentEndpointName(orientation.end, !isWaterRoute)
+			? namedEndpoint(routeSegmentEndpointName(orientation.end, !isWaterRoute), orientation.end)
 			: getRouteNodeDisplayName(String(routeNames[index + 1] || ""), index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
 		// Wiki way name for ALL named paths (river, sea, road, Reichsstraße ...), no longer rivers
 		// only (owner: "Flüsse und Wege mit Name"). Synthetic air-lines never get a name.

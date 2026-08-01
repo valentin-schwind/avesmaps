@@ -22,6 +22,9 @@ global.normalizeNodeName = (value) => String(value || "").replace(/-\d+$/, "");
 // 🪤 Ohne dieses Global waere `entry.type === SYNTHETIC_ROUTE_TYPE` immer falsch und der Test
 // pruefte den Fallback statt der Regel. Der Wert stammt aus js/config.js und wird hier festgenagelt.
 global.SYNTHETIC_ROUTE_TYPE = "Querfeldein";
+// 🪤 Ebenso tragend: ohne THRESHOLD wirft routePlanMapPointNameAt, statt den Punkt zu finden. Der
+// Wert stammt aus js/config.js.
+global.THRESHOLD = 0.5;
 
 vm.runInThisContext(fs.readFileSync(path.join(__dirname, "../route-plan.js"), "utf8"), {
 	filename: path.join(__dirname, "../route-plan.js"),
@@ -92,5 +95,25 @@ const offroadToPlace = cleanRoutePlanNoiseEntries([
 	entry("Querfeldein", "Rovik", 5.1, [1]),
 ]);
 assert.strictEqual(offroadToPlace.length, 2, "an einem echten Ort war die Etappe immer schon sichtbar");
+
+// ---- der Kartenpunkt ist ein Ziel, keine „Markierung" -------------------------------------------
+// 💣 Drei Querfeldein-Stuecke Ort -> Punkt 1 -> Punkt 2 -> Ort verschmolzen zu EINER Etappe „von
+// Gratenfels bis Gratenfels", weil beide Punkte „Markierung" hiessen und der Grenz-Lauf nur an einem
+// echten Namen schneidet. Live gemessen: 88,77 Meilen in einer Zeile, die beiden vom Reisenden
+// gesetzten Punkte darin unsichtbar.
+global.selectedLocations = [
+	{ name: "Kartenpunkt (548.570, 454.301)", coordinates: [548.570, 454.301], isMapPoint: true },
+];
+assert.strictEqual(routePlanMapPointNameAt([454.301, 548.570]), "Kartenpunkt (548.570, 454.301)",
+	"⚠️ GeoJSON [x, y] gegen Wegpunkt [lat, lng] -- die Vertauschung gehoert festgenagelt");
+assert.strictEqual(routePlanMapPointNameAt([548.570, 454.301]), "", "vertauscht gelesen findet er nichts");
+assert.strictEqual(routePlanMapPointNameAt([999, 999]), "", "und anderswo auch nicht");
+
+const dreiStuecke = cleanRoutePlanNoiseEntries([
+	entry("Querfeldein", "Kartenpunkt (548.570, 454.301)", 30, [0], "Gratenfels"),
+	entry("Querfeldein", "Kartenpunkt (543.065, 454.844)", 18, [1], "Kartenpunkt (548.570, 454.301)"),
+	entry("Querfeldein", "Gratenfels", 40, [2], "Kartenpunkt (543.065, 454.844)"),
+]);
+assert.strictEqual(dreiStuecke.length, 3, "an einem gesetzten Kartenpunkt wird geschnitten, nicht verschmolzen");
 
 console.log("route-plan-offroad-tail: OK");
