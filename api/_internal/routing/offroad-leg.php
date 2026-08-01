@@ -203,7 +203,12 @@ function avesmapsAttachOffroadPointToGraph(
         // near but behind water".
         'exit_nodes_tried' => $attempts,
         'distance_units' => $path['distance'],
-        'time_hours' => $path['time'],
+        // 💣 NOT HOURS, and the name says so. The whole graph computes `time` as
+        // `Strecke[Karteneinheiten] / Tempo[km/h]` (`client-graph.php:386`) -- a consistent cost, but
+        // three times smaller than real hours, because one map unit is three Meilen. This leg uses
+        // exactly the same convention, which is what makes Dijkstra's comparison honest; calling the
+        // number „hours" would be the Faktor-3 mistake all over again, this time in a debug field.
+        'cost_units' => $path['time'],
         'point_count' => count($path['points']),
         // 🔴 THE ANSWER SAYS WHICH CELL WIDTH IT USED. Over the cap the search coarsens for this one
         // request (instruction §2), and a route computed on a 1,0 grid is a different statement from

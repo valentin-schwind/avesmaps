@@ -322,9 +322,16 @@ function avesmapsOffroadHeightAtCell(?string $plane, int $index): ?float
  * ⚠️ Start and target cells are forced passable (§5.2). 571 of 4.653 places lie geometrically INSIDE
  * water -- without this every harbour town answers „kein Weg" before the search begins.
  *
- * Returns ['points' => [[x,y],...], 'distance' => map units, 'time' => hours, 'cells_opened' => int].
+ * Returns ['points' => [[x,y],...], 'distance' => map units, 'time' => graph cost, 'cells_opened' => int].
  * The points are STITCHED to the real endpoints and simplified; distance is measured over exactly
  * those points.
+ *
+ * 💣 `time` IS THE GRAPH'S COST UNIT, NOT HOURS. The whole client graph computes
+ * `Strecke[Karteneinheiten] / Tempo[km/h]` (`client-graph.php:386`) -- consistent everywhere, and
+ * three times smaller than real hours because one map unit is three Meilen. This function uses the
+ * same convention deliberately: an edge that priced itself in hours would be three times dearer than
+ * every road it competes with, and Dijkstra would refuse to use it. Reading it AS hours is the
+ * Faktor-3 trap that already went live once.
  */
 function avesmapsOffroadFindPath(
     array $box,

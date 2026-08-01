@@ -87,6 +87,13 @@ $airLine = hypot(26.0 - 25.0, 16.0 - 10.0);
 assert($last['distance'] >= $airLine - 1e-9, 'the leg is at least the air line');
 assert($last['distance'] < $airLine * 2.0, 'and nowhere near a x25 surcharge: ' . $last['distance']);
 
+// 💣 AND ITS COST IS IN THE GRAPH'S UNIT. A road edge in this same graph carries
+// `time = distance / 4.0`; the cross-country leg carries `distance / 1.25` on level ground. Same
+// convention, so Dijkstra compares like with like -- see the note in offroad-grid.php.
+$roadLeg = $segments[0];
+assert(abs($roadLeg['time'] - $roadLeg['distance'] / 4.0) < 1e-9, 'the road edge prices Strecke/Tempo');
+assert(abs($last['time'] - $last['distance'] / 1.25) < 1e-9, 'and so does the cross-country leg');
+
 // The diagnostic segment the API ships carries the flag through.
 $diagnostic = avesmapsBuildClientRouteDiagnosticSegments($segments);
 $shipped = $diagnostic[count($diagnostic) - 1];

@@ -135,6 +135,15 @@ assert($near($straight['points'][0][0], 0.3) && $near($straight['points'][0][1],
 $last = $straight['points'][count($straight['points']) - 1];
 assert($near($last[0], 7.7) && $near($last[1], 0.3), 'the last point is the real target');
 
+// 💣 THE UNIT OF `time`, nailed down: `Strecke[Karteneinheiten] / Tempo`, exactly as every road edge
+// in the client graph computes it (`client-graph.php:386`). It is a COST, not hours -- one map unit
+// is three Meilen, so the number is three times smaller than a clock would say. Both halves of this
+// matter: pricing this edge in real hours would make it three times dearer than every road it
+// competes with, and Dijkstra would refuse to use it; reading it as hours is the Faktor-3 trap that
+// already went live once.
+assert($near($straight['time'], $straight['distance'] / $speed, 1e-9),
+    'on level ground the cost is exactly Strecke/Tempo -- the same unit as a road edge');
+
 // ============================================================ 5. height: the flat way wins
 
 // Two ways of equal length, one over a hump. The hump is a raster (§3: the pixel value IS the height
