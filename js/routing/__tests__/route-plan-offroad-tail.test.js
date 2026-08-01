@@ -28,9 +28,9 @@ vm.runInThisContext(fs.readFileSync(path.join(__dirname, "../route-plan.js"), "u
 });
 assert.strictEqual(SYNTHETIC_ROUTE_TYPE, "Querfeldein", "die Konstante muss stimmen, sonst prueft der Test nichts");
 
-const entry = (type, endName, distance, segmentIndexes) => ({
+const entry = (type, endName, distance, segmentIndexes, startName = "Anfang") => ({
 	type, endName, distance, travelTime: distance / 4, restTime: 0,
-	startName: "Anfang", segmentLabel: "", flowState: null, segmentIndexes,
+	startName, segmentLabel: "", flowState: null, segmentIndexes,
 });
 
 // ---- der Fall, der es ausloeste ----------------------------------------------------------------
@@ -66,17 +66,23 @@ assert.strictEqual(twoOffroad[0].distance, 5, "und ihre Laengen addieren sich");
 // Querfeldein-Etappe null Meilen lang -- die wird wie frueher absorbiert, statt als „Unwegsames
 // Gelände (0,00 Meilen) von Markierung bis Markierung" im Reiseplan zu stehen. Der Fall ist echt:
 // live gegen Skarsten geklickt liefert genau ihn.
+// 💣 SIE HEISST „von Skarsten bis Skarsten" -- START UND ENDE GLEICH, und nur DESHALB landet sie
+// ueberhaupt im Schluss-Block: eine Etappe mit echtem, anderem Endnamen wird schon in der Schleife
+// abgeschlossen. Ein erster Anlauf setzte hier „Markierung" ein und pruefte damit einen Fall, den es
+// live nicht gibt -- er waere auch ohne die Reparatur gruen gewesen. Der zweite haengte die
+// Laengenbedingung nur an die Sperre, die hinter der Namensbedingung steht, und aenderte nichts.
 const zeroLengthTail = cleanRoutePlanNoiseEntries([
 	entry("Flussweg", "Skarsten", 19.66, [0]),
-	entry("Querfeldein", "Markierung", 0, [1]),
+	entry("Querfeldein", "Skarsten", 0, [1], "Skarsten"),
 ]);
 assert.strictEqual(zeroLengthTail.length, 1, "eine Etappe ohne Laenge wird absorbiert");
+assert.deepStrictEqual(zeroLengthTail[0].segmentIndexes, [0, 1], "ihr Segment wandert mit, statt zu verschwinden");
 
 // Aber knapp darueber bleibt sie stehen -- die Schwelle ist die Anzeigegenauigkeit, nicht ein Urteil
 // darueber, was „kurz" ist.
 assert.strictEqual(cleanRoutePlanNoiseEntries([
 	entry("Flussweg", "Skarsten", 19.66, [0]),
-	entry("Querfeldein", "Markierung", 0.01, [1]),
+	entry("Querfeldein", "Skarsten", 0.01, [1], "Skarsten"),
 ]).length, 2, "0,01 Meilen sind sichtbar und bleiben eine eigene Etappe");
 
 // Eine Querfeldein-Schluss-Etappe, die an einem echten ORT endet, war nie betroffen -- sie wird

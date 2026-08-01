@@ -637,16 +637,23 @@ function cleanRoutePlanNoiseEntries(entries) {
 		// die dadurch 24,76 statt 19,66 Meilen lang war UND deren Anstieg (498 Schritt) von einem Fluss
 		// zu stammen schien.
 		//
-		// ⚠️ ... AUSSER sie ist zu kurz, um etwas zu zeigen. Klickt jemand genau auf einen Ort, ist die
-		// Querfeldein-Etappe null Meilen lang; ohne diese Bedingung stuende dann „Unwegsames Gelände
-		// (0,00 Meilen) von Markierung bis Markierung" im Reiseplan. Die Sperre schuetzt eine Etappe
-		// davor, ihre Laenge und ihren Anstieg an eine fremde zu verlieren -- wo es beides nicht gibt,
-		// gibt es nichts zu schuetzen. Die Schwelle ist die Anzeigegenauigkeit selbst: was auf 0,00
-		// gerundet wird, sagt nichts.
+		// ⚠️ ... AUSSER sie ist zu kurz, um etwas zu zeigen. Klickt jemand genau auf einen ORT, ist die
+		// Querfeldein-Etappe null Meilen lang, und ohne die zweite Bedingung stuende „Unwegsames
+		// Gelände (0,00 Meilen) von Skarsten bis Skarsten in 0,00 Stunden" im Reiseplan. Die Sperre
+		// schuetzt eine Etappe davor, ihre Laenge und ihren Anstieg an eine fremde zu verlieren -- wo
+		// es beides nicht gibt, gibt es nichts zu schuetzen. Die Schwelle ist die Anzeigegenauigkeit
+		// selbst: was auf 0,00 gerundet wird, sagt nichts.
+		//
+		// 💣 UND SIE HAENGT NICHT AM NAMEN. Der Nullfall endet an „Skarsten", nicht an einer
+		// „Markierung" -- die Namensbedingung daneben traf ihn deshalb nie. Ein erster Anlauf setzte
+		// die Laenge nur in die Sperre und aenderte am Ergebnis genau nichts.
+		const tailIsInvisibleOffroad = open.type === SYNTHETIC_ROUTE_TYPE && Number(open.distance) < 0.01;
 		const tailSyntheticBreak = open.type === SYNTHETIC_ROUTE_TYPE
 			&& (!lastEntry || lastEntry.type !== SYNTHETIC_ROUTE_TYPE)
-			&& Number(open.distance) >= 0.01;
-		if (isRoutePlanMarkerName(open.endName) && result.length > 0 && !tailRiverFlowBreak && !tailSyntheticBreak) {
+			&& !tailIsInvisibleOffroad;
+		const absorbTail = tailIsInvisibleOffroad
+			|| (isRoutePlanMarkerName(open.endName) && !tailRiverFlowBreak && !tailSyntheticBreak);
+		if (absorbTail && result.length > 0) {
 			const last = result[result.length - 1];
 			last.distance += open.distance;
 			last.travelTime += open.travelTime;
