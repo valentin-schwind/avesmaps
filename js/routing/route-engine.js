@@ -450,6 +450,12 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 		const end = selectedLocations[index + 1].name;
 		const clientRoute = shouldProbeServerRouting() ? calculateRouteClientLegacy(start, end, useShortest) : [];
 		const serverRouteRequest = buildServerRouteProbeRequest(start, end, useShortest, clientRoute);
+		// „Hierher reisen": ist einer der beiden Enden ein angeklickter Kartenpunkt, reist seine
+		// KOORDINATE mit. `from`/`to` bleiben die Beschriftung -- der Server kennt keinen Ort dieses
+		// Namens und wuerde sonst `location_not_found` antworten.
+		if (typeof applyMapPointRouteEndpoints === "function") {
+			applyMapPointRouteEndpoints(serverRouteRequest, selectedLocations[index], selectedLocations[index + 1]);
+		}
 		const serverRouteResult = await calculateRouteServer(serverRouteRequest);
 		logServerRouteProbeResult(start, end, clientRoute, serverRouteRequest, serverRouteResult);
 
@@ -547,7 +553,13 @@ async function updateMapViewServerPrimary() {
 				return;
 			}
 			console.error("Serverroute konnte nicht berechnet werden:", error);
-			alert(error.message || tr("routing.alert.serverRouteComputeFailed", "Serverroute konnte nicht berechnet werden."));
+			// Ein abgelehnter Kartenpunkt ist kein Serverfehler, sondern eine Auskunft ueber die Welt:
+			// „Dorthin führt kein Landweg". Die drei Codes bekommen ihren deutschen Satz, alles andere
+			// behaelt seine eigene Meldung.
+			const isMapPointRefusal = typeof isTravelHereErrorCode === "function" && isTravelHereErrorCode(error?.code);
+			alert(isMapPointRefusal
+				? travelHereErrorMessage(error.code)
+				: (error.message || tr("routing.alert.serverRouteComputeFailed", "Serverroute konnte nicht berechnet werden.")));
 			resetOverview();
 			return;
 		}

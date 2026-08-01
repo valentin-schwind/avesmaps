@@ -31,29 +31,65 @@ function formatTravelHereCoordinates(latlng) {
 	return `${normalized.lat.toFixed(3)}, ${normalized.lng.toFixed(3)}`;
 }
 
-/**
- * The route's starting point: the first filled waypoint of the planner that resolves to a place.
- *
- * ⭐ Deliberately the planner's own field rather than „the nearest place to the click". The traveller
- * has usually already said where they are, and silently starting somewhere else would be the kind of
- * helpfulness nobody asked for. With nothing entered, the feature says so instead of guessing.
- */
-function findTravelHereStartName() {
-	if (typeof getWaypointContainers !== "function" || typeof validateLocation !== "function") {
-		return "";
-	}
-	let startName = "";
-	getWaypointContainers().each(function () {
-		if (startName) {
-			return;
-		}
-		const value = String($(this).find(".waypoint-input").val() || "").trim();
-		if (value && validateLocation(value)) {
-			startName = value;
-		}
-	});
+// Ein angeklickter Kartenpunkt ist ein Wegpunkt wie jeder andere -- und ein Wegpunkt ist in diesem
+// Planer ein STÜCK TEXT in einem Eingabefeld. Also traegt der Text die Koordinaten, und dieses
+// Muster liest sie wieder heraus.
+//
+// ⭐ Damit faellt eine ganze Menge weg, die es sonst braeuchte: die Zeile laesst sich verschieben,
+// entfernen und sortieren wie jede andere, sie ueberlebt jedes Neuberechnen, und ein geteilter Link
+// stellt sie wieder her -- denn der speichert Wegpunkte als Namen.
+//
+// ⚠️ Das Muster haengt an den KLAMMERN AM ENDE, nicht am Wort „Kartenpunkt": das Wort ist uebersetzbar
+// (`?lang=en` -> „Map point"), die Zahlen sind es nicht. Ein echter Ortsname endet nie auf
+// „(Zahl, Zahl)" -- die Wiki-Klammern sind Woerter („Nostria (Stadt)").
+const MAP_POINT_WAYPOINT_PATTERN = /\(\s*(-?\d+(?:[.,]\d+)?)\s*[,;]\s*(-?\d+(?:[.,]\d+)?)\s*\)\s*$/;
 
-	return startName;
+/**
+ * Der Wegpunkt-Text eines Kartenpunkts -> ein Pseudo-Ort, oder null.
+ *
+ * Der Rueckgabewert sieht aus wie ein Ort aus `locationData` (name + `coordinates: [lat, lng]`) und
+ * traegt zusaetzlich `isMapPoint`, woran ihn alles erkennt, was ihn anders behandeln muss.
+ */
+function parseMapPointWaypoint(value) {
+	const text = String(value || "").trim();
+	const match = MAP_POINT_WAYPOINT_PATTERN.exec(text);
+	if (!match) {
+		return null;
+	}
+	const lat = Number(String(match[1]).replace(",", "."));
+	const lng = Number(String(match[2]).replace(",", "."));
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return null;
+	}
+
+	return { name: text, coordinates: [lat, lng], isMapPoint: true };
+}
+
+/**
+ * Haengt die Koordinaten-Endpunkte an eine Routenanfrage, wo ein Wegpunkt ein Kartenpunkt ist.
+ *
+ * 💣 OHNE DAS SCHICKT DER PLANER DEN TEXT ALS ORTSNAMEN, und der Server kennt keinen Ort namens
+ * „Kartenpunkt (657.150, 270.990)" -- die Route waere `location_not_found`. `from`/`to` bleiben als
+ * Beschriftung stehen, die Koordinate reist daneben.
+ */
+function applyMapPointRouteEndpoints(request, startLocation, endLocation) {
+	if (!request) {
+		return request;
+	}
+	// ⚠️ x = lng, y = lat -- GeoJSON gegen Leaflet, die eine Vertauschung dieses Features.
+	if (startLocation?.isMapPoint) {
+		request.from_point = { x: startLocation.coordinates[1], y: startLocation.coordinates[0] };
+	}
+	if (endLocation?.isMapPoint) {
+		request.to_point = { x: endLocation.coordinates[1], y: endLocation.coordinates[0] };
+	}
+
+	return request;
+}
+
+/** Ist das einer der drei Gruende, aus denen ein Kartenpunkt abgelehnt werden darf? */
+function isTravelHereErrorCode(code) {
+	return code === "point_not_on_land" || code === "no_exit_node" || code === "no_offroad_route";
 }
 
 /**
@@ -77,85 +113,38 @@ function travelHereErrorMessage(errorCode) {
 }
 
 /**
- * Plan and draw a route from the planner's start to an arbitrary map point.
+ * „Hierher reisen": den angeklickten Punkt als Wegpunkt in den Planer eintragen und routen.
+ *
+ * ⭐ MEHR IST ES NICHT, und das ist der Punkt. Frueher hat diese Funktion selbst eine Anfrage gebaut,
+ * gezeichnet, den Plan gesetzt und die Marker gemalt -- ein zweiter Routenweg neben dem des Planers.
+ * Jetzt traegt sie eine Zeile ein und ruft `updateMapView()`, genau wie „Zur Route hinzufuegen" an
+ * einem Ort. Damit erbt der Kartenpunkt alles auf einmal: die Wegpunkt-Zeile mit Ziehgriff und
+ * Entfernen-Knopf, den Ziel-Marker, den Reiseplan, den geteilten Link und jedes spaetere Neurechnen.
  */
-async function travelToMapPoint(latlng) {
-	if (!latlng || typeof calculateRouteServer !== "function") {
+function travelToMapPoint(latlng) {
+	if (!latlng || typeof fillLastEmptyWaypointOrAppend !== "function" || typeof updateMapView !== "function") {
 		return;
 	}
 
-	const startName = findTravelHereStartName();
-	if (!startName) {
+	// Die Koordinaten stecken IM NAMEN -- sie sind das, was den Wegpunkt ausmacht. So stehen sie in der
+	// Zeile, in der Reisebeschreibung, an der letzten Etappe und in der Infobox des Markers, und
+	// `parseMapPointWaypoint` liest sie ueberall dort wieder heraus, wo ein Ort erwartet wird.
+	const pointLabel = `${tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt")} (${formatTravelHereCoordinates(latlng)})`;
+	fillLastEmptyWaypointOrAppend(pointLabel);
+
+	// Ein Ziel allein ist keine Reise. Der Wegpunkt bleibt trotzdem stehen -- er ist ja gewollt --, es
+	// fehlt nur noch der Start, und das sagen wir statt es stillschweigend zu verschlucken.
+	const filledWaypointCount = typeof getWaypointInputValues === "function" ? getWaypointInputValues().length : 2;
+	if (filledWaypointCount < 2) {
 		showFeedbackToast(
 			tr("travelHere.error.noStart", "Bitte zuerst einen Startpunkt im Routenplaner eintragen."),
 			"warning"
 		);
-		return;
 	}
 
-	// Der Name traegt die Koordinaten: so stehen sie in der Reisebeschreibung („… nach Kartenpunkt
-	// (657.150, 270.990)") und in der Wegpunkt-Infobox, ohne dass der Reiseplan ein eigenes Feld
-	// dafuer braucht.
-	const coordinates = formatTravelHereCoordinates(latlng);
-	const pointLabel = `${tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt")} (${coordinates})`;
-	const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
-	const request = buildServerRouteProbeRequest(startName, pointLabel, useShortest, []);
-	// 💣 x = lng, y = lat. See the file header.
-	request.to_point = { x: latlng.lng, y: latlng.lat };
-
-	let result = null;
-	try {
-		result = await calculateRouteServer(request);
-	} catch (error) {
-		// The server answers 422 with a machine code for the three things that can legitimately go
-		// wrong with a clicked point; anything else is a real fault and keeps its own message.
-		showFeedbackToast(error?.code ? travelHereErrorMessage(error.code) : (error?.message || travelHereErrorMessage("")), "warning");
-		return;
-	}
-
-	if (!result || !result.found) {
-		showFeedbackToast(travelHereErrorMessage("no_offroad_route"), "warning");
-		return;
-	}
-
-	const display = buildRouteResultFromServerRoute(result, startName, pointLabel);
-	if (!display.segments.length) {
-		showFeedbackToast(travelHereErrorMessage(""), "warning");
-		return;
-	}
-
-	resetRoutePresentation();
-
-	// 💣 VOR showRoutePlan. Die Reisebeschreibung („Die Reise von X nach Y") und die Luftlinie der
-	// Zusammenfassung lesen `selectedLocations`, nicht die Knotennamen -- ohne diese Zeile stuenden
-	// dort noch die Wegpunkte der letzten gewoehnlichen Route.
-	//
-	// ⭐ Und es ist zugleich die Markierung: der angeklickte Punkt wird ein WEGPUNKT wie jeder andere,
-	// also zeichnet ihn renderRouteWaypointMarkers mit demselben Ziel-Marker und derselben
-	// Hover-Infobox wie ein Ort. Ein eigener Markertyp waere ein zweiter Weg, dasselbe zu sagen.
-	// `collectAndValidateSelectedLocations` baut die Liste bei der naechsten gewoehnlichen Route
-	// ohnehin aus den Eingabefeldern neu -- der Eintrag ueberlebt diese Route nicht.
-	const startLocation = validateLocation(startName);
-	selectedLocations = [
-		...(startLocation ? [startLocation] : []),
-		{
-			name: pointLabel,
-			coordinates: [latlng.lat, latlng.lng],
-			// ⚠️ KEIN locationTypeLabel. Ein erster Anlauf setzte die Koordinaten hier hinein, damit die
-			// Typ-Zeile der Infobox sie zeigt -- live stand dann „Kartenpunkt (657.150, 270.990)" ueber
-			// „657.150, 270.990 · Ziel", also zweimal dieselbe Zahl. Der Name traegt sie, die Typ-Zeile
-			// sagt die Rolle. Dieselbe Doppelung wie beim „weglosen Gelände", und dieselbe Antwort.
-			isMapPoint: true,
-		},
-	];
-
-	drawRoute(display.segments);
-	showRoutePlan(display.routeNodeNames, display.segments);
-	renderRouteWaypointMarkers();
-	zoomToCurrentRoute();
+	updateMapView();
 
 	if (typeof trackVisitorEvent === "function") {
-		trackVisitorEvent("route", `${startName} → ${pointLabel}`);
 		trackVisitorEvent("route_option", "hierher reisen");
 	}
 }

@@ -1188,7 +1188,18 @@ const validateLocation = (name) => {
 		return null;
 	}
 
-	return locationData.find((loc) => normalizeLocationSearchName(loc.name) === normalizedName) || null;
+	const location = locationData.find((loc) => normalizeLocationSearchName(loc.name) === normalizedName) || null;
+	if (location) {
+		return location;
+	}
+
+	// „Hierher reisen": ein angeklickter Kartenpunkt ist kein Ort und steht in keiner Liste -- er
+	// TRAEGT seine Koordinaten im Namen („Kartenpunkt (657.150, 270.990)"). Ohne diese Zeile faellt
+	// seine Wegpunkt-Zeile beim naechsten Neuberechnen als „Ort nicht gefunden" heraus.
+	//
+	// ⚠️ ERST NACH der Ortssuche: ein echter Ort gewinnt immer. Das Muster haengt ohnehin an den
+	// Klammern am Ende, und kein Ortsname endet auf „(Zahl, Zahl)".
+	return typeof parseMapPointWaypoint === "function" ? parseMapPointWaypoint(name) : null;
 };
 
 function findDuplicateLocationByName(name, { excludePublicId = "", allowCurrentName = "" } = {}) {
