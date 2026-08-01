@@ -35,9 +35,9 @@ require_once __DIR__ . '/../wiki/sync-monitor-identity.php';
 // upload endpoint all require THIS file for it. The settlement-image system hardcodes its own list in
 // three places (api/edit/wiki/settlement-images.php:34, api/app/map-features.php:284 and the settlement
 // editor's JS) with nothing keeping them in sync -- that is the mistake we are explicitly not inheriting.
-const AVESMAPS_CITYMAP_LICENSES = ['public_domain', 'cc0', 'ai_generated', 'permission_granted', 'unknown_other'];
+const AVESMAPS_CITYMAP_LICENSES = ['public_domain', 'cc0', 'ai_generated', 'permission_granted', 'own_work', 'unknown_other'];
 const AVESMAPS_CITYMAP_LICENSE_DEFAULT = 'unknown_other';
-const AVESMAPS_CITYMAP_LICENSES_FREE = ['public_domain', 'cc0', 'ai_generated', 'permission_granted'];
+const AVESMAPS_CITYMAP_LICENSES_FREE = ['public_domain', 'cc0', 'ai_generated', 'permission_granted', 'own_work'];
 
 // Who made the current thumb_local_url. Its own vocabulary, deliberately not the map's origin
 // (manual|wiki|community) -- 'wiki' would be an answer to a different question.

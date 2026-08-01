@@ -49,6 +49,11 @@ assert(avesmapsCitymapLicenseIsFree('cc0'));
 assert(avesmapsCitymapLicenseIsFree('ai_generated'));
 assert(!avesmapsCitymapLicenseIsFree('unknown_other'));
 assert(!avesmapsCitymapLicenseIsFree('nonsense'));
+// 'own_work' -- the fan who DREW the map. Owner 2026-08-01 ("... oder von uns"): permission_granted
+// reads wrong for "it is mine", and without a matching entry the dropdown had no honest answer at all.
+assert(in_array('own_work', AVESMAPS_CITYMAP_LICENSES, true));
+assert(avesmapsCitymapLicenseIsFree('own_work'));
+assert(avesmapsCitymapNormalizeLicense('own_work') === 'own_work');
 
 // ---- the image gate (Spec §3.3 / §8 smoke test) -----------------------------------------------------
 $freeRow = [
