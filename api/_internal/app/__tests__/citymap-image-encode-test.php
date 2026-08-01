@@ -120,4 +120,14 @@ assert($posEncode < $posName, 'the filename must be built AFTER the encoder deci
 // The full map must not be downscaled any more (owner 2026-08-01: "soll nicht veraendert werden").
 assert(!str_contains($endpoint, 'AVESMAPS_CITYMAP_MAP_MAX_EDGE'), 'the map slot must be stored unchanged');
 
+// The endpoint must refuse a non-free licence BEFORE it writes anything to disk. Owner 2026-08-01:
+// "geschuetzte bilder duerfen nicht bei uns landen". Until then the endpoint argued in a comment that
+// the read gate was enough and enforced nothing -- the editor merely hid the button, which is not
+// enforcement: any client holding capability 'edit' could POST a protected image straight past it.
+$posGate = strpos($endpoint, 'license_not_free');
+$posWrite = strpos($endpoint, 'file_put_contents($target');
+assert($posGate !== false, 'the upload licence gate is gone');
+assert($posWrite !== false, 'the file write was renamed -- update this guard');
+assert($posGate < $posWrite, 'the licence must be checked BEFORE any bytes reach the disk');
+
 echo "citymap-image-encode-test: OK\n";

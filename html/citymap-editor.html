@@ -898,10 +898,12 @@
     const preview = shownUrl
       ? `<img src="${ceEscape(shownUrl)}" alt="" onerror="this.replaceWith(document.createTextNode(''))">`
       : CE_THUMB_PH_SVG;
-    const uploadBtn = free
-      ? `<label class="btn btn--sm" for="ceFile_${slot}" style="cursor:pointer">Hochladen…</label>
-         <input type="file" id="ceFile_${slot}" accept="image/png,image/jpeg,image/webp,image/gif" hidden>`
-      : "";
+    // Always offered: the licence travels with the upload, so there is no "set licence -> save -> upload"
+    // order to learn any more. Hiding the button was never the safeguard anyway -- the server refuses a
+    // non-free licence before storing anything (api/edit/map/citymap-image.php).
+    const uploadBtn =
+      `<label class="btn btn--sm" for="ceFile_${slot}" style="cursor:pointer">Hochladen…</label>
+       <input type="file" id="ceFile_${slot}" accept="image/png,image/jpeg,image/webp,image/gif" hidden>`;
     // Autoget needs a page to crawl; without a Karten-Link there is nothing to look at.
     const autoBtn = isThumb
       ? `<button type="button" class="btn btn--sm" data-ce-autoget="1"${v.map_url ? "" : " disabled"} title="Sucht auf der Seite des Karten-Links ein Vorschaubild (og:image). Bleibt im Editor — es ist fremdes Bildmaterial und erscheint nie öffentlich.">⤓ Autoget</button>`
@@ -922,7 +924,7 @@
       <div class="ce-imgcol__props">
         ${ceSelect("Lizenz", licenseField, savedLicense, LICENSES.map((l) => [l.value, l.label]), "—")}
         ${ceField("Notiz (intern)", noteField, v[noteField])}
-        ${free ? "" : `<p class="ce-warn">Upload erst bei freier Lizenz (aktuell: ${ceEscape(savedLicenseLabel)}). Lizenz setzen und speichern.</p>`}
+        ${free ? "" : `<p class="ce-warn">Zum Hochladen zuerst oben eine freie Lizenz wählen (aktuell: ${ceEscape(savedLicenseLabel)}) — ohne sie wird nichts gespeichert.</p>`}
         <p class="ce-hint">${isThumb
           ? "Die Notiz verlässt den Editor nie. Nur eine freie Lizenz zeigt die Vorschau öffentlich."
           : "Der externe Karten-Link wird immer angezeigt — nur das eigene Bild hängt an der Lizenz."}</p>
@@ -1124,11 +1126,23 @@
     if (!state.selectedId) { imgState(slot, "Bitte zuerst die Karte speichern.", true); input.value = ""; return; }
     const file = input.files && input.files[0];
     if (!file) return;
+    // The licence as it stands in the FORM, not as it was last saved: picking "Eigene Kreation" and
+    // uploading is one gesture now. Checking it here is convenience -- the server checks it again and
+    // is the actual gate, so a stale DOM read can never let a protected picture through.
+    const licenseField = slot === "thumb" ? "thumb_license" : "map_license";
+    const licenseSelect = document.querySelector(`[data-cm-field="${licenseField}"]`);
+    const license = licenseSelect ? licenseSelect.value : "";
+    if (!licenseIsFree(license)) {
+      imgState(slot, "Bitte zuerst eine freie Lizenz wählen — ohne sie wird nichts gespeichert.", true);
+      input.value = "";
+      return;
+    }
     imgState(slot, "Wird hochgeladen …", false);
     try {
       const fd = new FormData();
       fd.append("public_id", state.selectedId);
       fd.append("slot", slot);
+      fd.append("license", license);
       fd.append("image", file);
       await imagePost(fd);
       await selectCitymap(state.selectedId);

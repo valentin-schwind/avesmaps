@@ -19,10 +19,19 @@ declare(strict_types=1);
 // fetching an arbitrary citymap URL the editor typed would be SSRF. Upload only -- hence no `refetch`
 // branch here.
 //
-// The licence is NOT enforced on upload: the editor's own rule is to show the upload button only for a
-// free licence (§3.3), but the authoritative gate is the READ (avesmapsCitymapPublicThumbUrl /
-// ...MapLocalUrl in the citymap library). Refusing here would only break the upload-then-classify order
-// without adding safety -- a stored file that may not be shown simply never leaves the box.
+// THE LICENCE IS ENFORCED HERE, before a single byte reaches the disk. Owner 2026-08-01: "geschuetzte
+// bilder duerfen nicht bei uns landen, es sei denn sie sind gemeinfrei, cc0, genehmigt oder von uns."
+//
+// This file used to argue the opposite -- that the READ gate was enough and the editor's hidden upload
+// button did the rest. That was wrong in a way worth spelling out, because it reads plausible: a hidden
+// button is not enforcement. Any client holding capability 'edit' could POST a protected image straight
+// past it, and the file would sit in /uploads for good. The read gate
+// (avesmapsCitymapPublicThumbUrl / ...MapLocalUrl) still stands; it guards what may be SHOWN, while
+// this guards what may be STORED. Both are needed -- a licence can be changed after the upload.
+//
+// The licence may travel WITH the upload (field `license`), which is what turns the editor's old
+// "set licence -> save -> upload" into a single gesture. It addresses the slot's own column:
+// thumb -> thumb_license, map -> map_license.
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor-identity.php'; // the encoder's fallback downscaler, required explicitly rather than relied upon transitively
@@ -156,7 +165,11 @@ try {
             // "9 ohne Seitenbild" stays findable in the editor list.
             $pdo->prepare('UPDATE citymap SET thumb_auto_state = :s WHERE public_id = :pid')
                 ->execute(['s' => $auto['state'], 'pid' => $publicId]);
-            avesmapsErrorResponse($status, $code, $auto['message'] . ' Bitte eins hochladen.');
+            // Point at the way out, not just at the wall: many sites (DeviantArt, Ulisses) refuse
+            // automated access by TLS fingerprint, which no crawler of ours can talk its way past.
+            avesmapsErrorResponse($status, $code, $auto['message']
+                . ' Viele Seiten sperren automatische Zugriffe grundsätzlich — das lässt sich nicht umgehen.'
+                . ' Lizenz wählen und das Bild von Hand hochladen.');
         }
         $pdo->prepare("UPDATE citymap SET thumb_auto_state = 'ok' WHERE public_id = :pid")->execute(['pid' => $publicId]);
         avesmapsJsonResponse(200, ['ok' => true, 'public_id' => $publicId, 'slot' => 'thumb', 'url' => $auto['url'], 'source' => $auto['source']]);
@@ -173,6 +186,24 @@ try {
     if ($size <= 0 || $size > AVESMAPS_CITYMAP_IMAGE_MAX_BYTES) {
         avesmapsErrorResponse(413, 'payload_too_large', 'Datei fehlt oder ist zu groß (max 12 MB).');
     }
+    // THE LICENCE GATE. The licence that will apply once this upload lands: the one sent with it, else
+    // the one already stored for this slot. Normalising FIRST means an unknown string falls to
+    // 'unknown_other' and is refused -- never the other way round.
+    $licenseColumns = ['thumb' => 'thumb_license', 'map' => 'map_license'];
+    $licenseColumn = $licenseColumns[$slot];
+    $sentLicense = trim((string) ($_POST['license'] ?? ''));
+    if ($sentLicense !== '') {
+        $effectiveLicense = avesmapsCitymapNormalizeLicense($sentLicense);
+    } else {
+        $storedLicense = $pdo->prepare('SELECT ' . $licenseColumn . ' FROM citymap WHERE public_id = :pid LIMIT 1');
+        $storedLicense->execute(['pid' => $publicId]);
+        $effectiveLicense = avesmapsCitymapNormalizeLicense($storedLicense->fetchColumn());
+    }
+    if (!avesmapsCitymapLicenseIsFree($effectiveLicense)) {
+        avesmapsErrorResponse(403, 'license_not_free',
+            'Ohne freie Lizenz wird kein Bild gespeichert. Erlaubt sind: gemeinfrei, CC0, von uns KI-generiert, Genehmigung erteilt, eigene Kreation.');
+    }
+
     $tmp = (string) $file['tmp_name'];
     // finfo sniffs the real bytes -- $_FILES['type'] is client-supplied and means nothing.
     $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->file($tmp);
@@ -209,6 +240,13 @@ try {
         avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
     }
     @chmod($target, 0644);
+
+    // The licence travels with the upload, so it is persisted in the same gesture -- otherwise the
+    // editor would have to save separately and the column would disagree with the file it guards.
+    if ($sentLicense !== '') {
+        $pdo->prepare('UPDATE citymap SET ' . $licenseColumn . ' = :lic WHERE public_id = :pid')
+            ->execute(['lic' => $effectiveLicense, 'pid' => $publicId]);
+    }
 
     // Spec §3.4 side effect: GD gives us the dimensions, so width_px/height_px fill themselves. Measured
     // on the STORED file -- it describes the artifact we actually serve. Since 2026-08-01 the full map is
