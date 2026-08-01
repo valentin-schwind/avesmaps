@@ -59,6 +59,11 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 			// Stroemungszustand der Fluss-Etappe (flussabwaerts/-aufwaerts) fuer die Anzeige;
 			// null = unbekannt/kein Fluss.
 			flow_state: entry.flowState || null,
+			// V14: querfeldein gerechnet, kein gezeichneter Weg. Muss hier DURCH -- die Etappenzeile
+			// entsteht nicht aus `buildRoutePlanEntries`, sondern aus diesen Schritten ueber das
+			// Ansichtsmodell, und beide bauen ihr Objekt aus einer Feldliste. Ein Feld, das in einer
+			// der beiden Listen fehlt, kommt lautlos nie an.
+			offroad: entry.offroad === true,
 			distance: entry.distance,
 			travel_time: entry.travelTime,
 			rest_time: restTime,

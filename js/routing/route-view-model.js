@@ -26,6 +26,8 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 		endName: step.to || "",
 		segmentLabel: step.path_name || "",
 		flowState: step.flow_state === "upstream" || step.flow_state === "downstream" ? step.flow_state : null,
+		// V14: siehe route-result.js -- die zweite der beiden Feldlisten, durch die der Schalter muss.
+		offroad: step.offroad === true,
 		distance: Number(step.distance) || 0,
 		travelTime: Number(step.travel_time) || 0,
 		restTime: Number(step.rest_time) || 0,
