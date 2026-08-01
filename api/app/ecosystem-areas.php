@@ -61,26 +61,20 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
-    // 🔴 KILL SWITCH FIRST -- before the read, before the DDL, before the ETag. The rows must not leave
-    // the box at all; a client-side flag (?landschaften=1) secures nothing. Default '0' = OFF, so the
-    // layer is invisible until the owner explicitly flips it via the editor's set_enabled.
+    // 💣 HIER STAND DER TOTMANNSCHALTER (app_setting['ecosystem_enabled']), abgeschafft am 2026-08-01.
+    // Er kostete auf JEDEM Aufruf eine Runde DDL -- avesmapsAppSettingGet legt zuerst die app_setting-
+    // Tabelle an -- und der alte Kommentar hier sagte selbst, das sei nur tolerierbar, solange der
+    // Endpunkt aus dem Edit-Modus komme und nicht von der oeffentlichen Karte. Mit dem Schalter faellt
+    // diese Ausnahme weg, statt sie einloesen zu muessen.
     //
-    // ⚠️ This check is itself one round of DDL: avesmapsAppSettingGet (app-setting.php:28-34) calls
-    // avesmapsAppSettingEnsureTable first. Tolerated DELIBERATELY, not by accident -- while the switch is
-    // off that CREATE TABLE IF NOT EXISTS is the ONLY statement this endpoint runs, and the endpoint is
-    // called from the edit mode, not from the public map. If it ever becomes genuinely public, the check
-    // belongs behind the ETag (AGENTS.md §10 lists exactly this pattern as a hotspot).
-    if (!avesmapsEcosystemEnabled($pdo)) {
-        avesmapsJsonResponse(200, [
-            'ok' => true,
-            'ecosystem_enabled' => false,
-            'revision' => 0,
-            'areas' => [],
-        ]);
-    }
+    // 🔴 Was hier NICHT verriegelt wird und nie verriegelt war: die Flaechen selbst sind oeffentlich.
+    // Verriegelt ist, ob die Karte die Ebene ANBIETET, und das entscheidet seit 2026-08-01 die Sitzung
+    // (js/app/session.js: Admin) statt des ungeprueften `?landschaften=1`.
+    //
+    // ⚠️ `ecosystem_enabled` bleibt im Umschlag und ist ab jetzt konstant true -- gleiche Payload-Form,
+    // also keine Version zu heben und kein warmer Client, der ueber ein fehlendes Feld stolpert.
 
-    // Self-healing DDL, the project idiom -- and reached only when the layer is ON, so a switched-off
-    // deployment runs no ecosystem DDL on this path at all.
+    // Self-healing DDL, the project idiom.
     avesmapsEcosystemEnsureTables($pdo);
 
     $revision = avesmapsReadEcosystemRevision($pdo);

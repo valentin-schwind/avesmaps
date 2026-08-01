@@ -46,7 +46,9 @@
     <button type="button" class="avm-tile" id="ecoHeightmap" title="Rechnet je Gebirgsfläche ihr Höhenraster im Browser und speichert es — eine Anfrage je Fläche. Der Pixelwert ist die Höhe in Schritt."><span class="t1">Höhenraster rechnen</span><span class="t2" id="ecoHeightmapInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="ecoProfilesInfo">noch nicht gerechnet</span></button>
     <button type="button" class="avm-tile" id="ecoTerrainTravel" title="Rechnet Anstieg und Gefälle in die Reisezeiten ein — für alle Besucher. AUS heisst Zeile für Zeile die heutigen Zahlen."><span class="t1">Geländeabhängiges Reisen</span><span class="t2" id="ecoTerrainTravelInfo">Zustand unbekannt</span></button>
-    <button type="button" class="avm-tile" id="ecoEnabled" disabled data-i18n-title="ecosystem.editor.enabled.title" title="Schaltet die Landschaften-Ebene serverseitig an oder aus (app_setting['ecosystem_enabled'])."><span class="t1" id="ecoEnabledT1" data-i18n="ecosystem.editor.ribbon.enabled">Landschaftsmodul</span><span class="t2" id="ecoEnabledInfo" data-i18n="ecosystem.editor.enabled.unknown">Zustand unbekannt</span></button>
+    <!-- Die Kachel „Landschaftsmodul" ist am 2026-08-01 mit dem Totmannschalter entfallen (Owner-Auftrag).
+         ⚠️ Nicht verwechseln mit „Geländeabhängiges Reisen" darüber: das ist V11s EIGENER Schalter
+         (app_setting['terrain_travel_enabled']) und der bleibt. -->
   </div>
 </div>
 
@@ -521,7 +523,6 @@ let raycast = null;              // Map<region_public_id, [{regionId, name, kind
 let raycastNote = "";
 let selectedPartnerId = null;    // the partner picked in "Gemeinsame Regionen mit" or "Liegt in"
 let selectedPartnerKind = "";    // "region" | "territory" -- the two live in different stores
-let moduleEnabled = null;        // null = not asked yet; the tile says so rather than guessing
 let territories = null;          // [{publicId, name, type, parentId, isAggregate, geometry, bounds, area}]
 let territoryHits = null;        // Map<region_public_id, [{territory, share}]>
 let territoryNote = "";
@@ -780,11 +781,6 @@ async function loadAreas() {
 	const data = await response.json();
 	if (!response.ok || data.ok === false) {
 		throw new Error((data.error && data.error.message) || ("HTTP " + response.status));
-	}
-	// 🔴 The kill switch answers first: with app_setting['ecosystem_enabled'] off this endpoint
-	// returns an EMPTY list, not an error. Saying so beats showing "no overlaps".
-	if (data.ecosystem_enabled === false) {
-		throw new Error("Das Landschaftsmodul ist ausgeschaltet — der Lesepfad liefert keine Flächen. Im Menüband einschalten.");
 	}
 	// The cache key travels with the payload the cache describes -- read here, not separately, so
 	// the two can never disagree about which stock was measured.
@@ -1674,30 +1670,8 @@ function wireRibbon() {
 	$("ecoProfiles").addEventListener("click", () => { void runTerrainProfiles(); });
 	$("ecoTerrainTravel").addEventListener("click", () => { void toggleTerrainTravel(); });
 
-	// Der Totmannschalter. `set_enabled` existiert serverseitig seit V2.1 und hatte bis heute KEINEN
-	// Aufrufer im Client (grep set_enabled js/ -> leer) -- diese Kachel ist seine erste Oberfläche.
-	// Der Zustand steht IN der Kachel, nicht daneben.
-	$("ecoEnabled").addEventListener("click", async () => {
-		if (moduleEnabled === null) { return; }          // never toggle blind
-		const next = !moduleEnabled;
-		// Switching OFF empties the public read path for everyone -- that deserves a question, and
-		// the question has to name what happens, not ask "sind Sie sicher?".
-		if (!next && !window.confirm("Landschaftsmodul ausschalten?\n\nDer öffentliche Lesepfad liefert dann keine Flächen mehr — die Landschaften verschwinden für alle von der Karte. Gezeichnet bleibt alles; Einschalten holt es zurück.")) {
-			return;
-		}
-		$("ecoEnabled").disabled = true;
-		try {
-			setStatus(next ? "Landschaftsmodul wird eingeschaltet …" : "Landschaftsmodul wird ausgeschaltet …");
-			const result = await ecoPost("set_enabled", { enabled: next });
-			moduleEnabled = result.ecosystem_enabled === true;
-			renderEnabledTile();
-			flashStatus(moduleEnabled ? "Landschaftsmodul ist an." : "Landschaftsmodul ist aus.", "ok");
-		} catch (error) {
-			flashStatus("Schalten fehlgeschlagen: " + (error && error.message ? error.message : String(error)), "bad");
-		} finally {
-			$("ecoEnabled").disabled = false;
-			renderEnabledTile();
-		}
+	// Hier hing der Totmannschalter (`set_enabled`). Abgeschafft am 2026-08-01: sein Aus-Zustand legte
+	// nicht nur die Ebene still, sondern auch V10 „Führt durch" im Reiseplaner jedes Besuchers.
 	});
 }
 
@@ -1786,39 +1760,15 @@ async function runRaycast(options) {
 	}
 }
 
-// The tile IS the state display (Owner: status belongs in the button). Three states, and "unknown"
-// is one of them -- a switch that shows "aus" while it simply has not asked yet is a lie.
-function renderEnabledTile() {
-	const tile = $("ecoEnabled");
-	if (moduleEnabled === null) {
-		$("ecoEnabledT1").textContent = t("ecosystem.editor.ribbon.enabled", "Landschaftsmodul");
-		$("ecoEnabledInfo").textContent = t("ecosystem.editor.enabled.unknown", "Zustand unbekannt");
-		tile.disabled = true;
-		tile.classList.remove("avm-tile--on");
-		return;
-	}
-	$("ecoEnabledT1").textContent = moduleEnabled
-		? t("ecosystem.editor.enabled.on", "Landschaftsmodul AN")
-		: t("ecosystem.editor.enabled.off", "Landschaftsmodul AUS");
-	$("ecoEnabledInfo").textContent = moduleEnabled
-		? t("ecosystem.editor.enabled.clickOff", "Klick schaltet aus")
-		: t("ecosystem.editor.enabled.clickOn", "Klick schaltet ein");
-	tile.disabled = false;
-	tile.classList.toggle("avm-tile--on", moduleEnabled);
-	tile.title = moduleEnabled
-		? "Die Landschaften-Ebene ist serverseitig eingeschaltet (app_setting['ecosystem_enabled']=1). Ausschalten leert den öffentlichen Lesepfad für alle."
-		: "Die Landschaften-Ebene ist serverseitig ausgeschaltet (app_setting['ecosystem_enabled']=0). Der öffentliche Lesepfad liefert keine Flächen.";
-}
-
-// The state comes from the PUBLIC read path, which answers `ecosystem_enabled` before anything else
-// -- no extra endpoint, and no write just to find out.
-async function loadModuleEnabled() {
+// 💣 Diese Funktion hiess loadModuleEnabled und sah aus, als hinge sie an der Kachel „Landschaftsmodul".
+// Die Kachel ist am 2026-08-01 entfallen, die Funktion NICHT: sie waermt nebenbei den Raycast-Zwischen-
+// speicher und setzt allAreas/ecosystemRevision, bevor die eigentliche Liste geladen ist. Wer sie mit
+// dem Schalter zusammen geloescht haette, haette dem Editor den gemerkten Raycast genommen.
+async function prefetchAreasAndWarmCache() {
 	try {
 		const response = await fetch(AREAS_API, { credentials: "same-origin", headers: { Accept: "application/json" } });
 		const data = await response.json();
-		moduleEnabled = data && data.ok === true ? data.ecosystem_enabled === true : null;
-		// The switched-off answer carries no areas, so nothing is cached from it.
-		if (moduleEnabled === true && Array.isArray(data.areas)) {
+		if (data && data.ok === true && Array.isArray(data.areas)) {
 			allAreas = data.areas;
 			ecosystemRevision = Number(data.revision || 0);
 			// This request already paid for everything the cache key needs, so a remembered answer
@@ -1832,9 +1782,9 @@ async function loadModuleEnabled() {
 			}
 		}
 	} catch (error) {
-		moduleEnabled = null;
+		// Stumm: das ist ein Vorabruf. Die Liste laedt gleich ohnehin ueber ihren eigenen Weg, und ein
+		// Fehler hier wuerde eine Meldung ueber etwas erzeugen, das der Editor gar nicht angefordert hat.
 	}
-	renderEnabledTile();
 }
 
 // ---- Load ------------------------------------------------------------------------------------
@@ -1968,8 +1918,6 @@ async function loadData(options) {
 				geometry, bounds: ecosystemGeometryBounds(geometry), area: Math.abs(ecosystemGeometryArea(geometry)) };
 		});
 		territoryHits = computeTerritoryHits(allAreas, territories);
-		moduleEnabled = true;
-		renderEnabledTile();
 		$("ecoRaycastInfo").textContent = t("ecosystem.editor.raycast.info", "{areas} Flächen · Schwelle {pct} %", { areas: allAreas.length, pct: Math.round(RAYCAST_THRESHOLD * 100) });
 		rebuildFilterMenu();
 		renderList();
@@ -2030,10 +1978,9 @@ function boot() {
 	wireRibbon();
 	wireTabs();
 	wireFilters();
-	renderEnabledTile();
 	loadData();
-	// Independent of the list: the switch must say what it is even if the lists fail to load.
-	if (!new URLSearchParams(location.search).has("demo")) { loadModuleEnabled(); loadAssignmentStamp(); }
+	// Unabhängig von der Liste, damit ein gemerkter Raycast sofort dasteht.
+	if (!new URLSearchParams(location.search).has("demo")) { prefetchAreasAndWarmCache(); loadAssignmentStamp(); }
 }
 if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", boot); } else { boot(); }
 

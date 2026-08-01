@@ -57,7 +57,9 @@ function avesmapsAppSettingSet(PDO $pdo, string $key, string $value): void
  *
  * ⚠️ This function exists BECAUSE the rule was about to be written a third time. V10 wrote it as
  * avesmapsPathLandscapesEcosystemEnabled and V11 needed the same thing for its own key -- so it
- * moved here and both call it. There is no fourth copy to write.
+ * moved here. V10's caller went away with the dead-man switch on 2026-08-01; V11's
+ * (avesmapsRouteTerrainEnabled, 'terrain_travel_enabled') stays, and it is the reason this lives here
+ * rather than next to it.
  */
 function avesmapsAppSettingGetWithoutDdl(PDO $pdo, string $key, string $default = ''): string
 {

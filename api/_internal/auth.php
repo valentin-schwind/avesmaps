@@ -91,6 +91,35 @@ function avesmapsUserCan(array $user, string $capability): bool {
     };
 }
 
+/**
+ * "Who am I, what may I" as a plain array -- the body of GET /api/app/session.php.
+ *
+ * 💣 Pure on purpose (unit-tested in __tests__/session-payload-test.php). It replaced `?landschaften=1`,
+ * an unchecked url parameter, as the gate for the landscape layer; a gate that cannot be tested without
+ * a session and a database is a gate nobody re-checks. The session read stays in the endpoint.
+ *
+ * ⚠️ Fails CLOSED: an unknown or missing role grants nothing and is not echoed back, so a stray value in
+ * the session store can never widen what the client believes it may do.
+ *
+ * ⚠️ The internal user id deliberately does NOT travel. The client needs the name it already shows the
+ * user and the three flags it branches on -- nothing else.
+ */
+function avesmapsSessionPayload(?array $user): array {
+    $role = is_array($user) ? (string) ($user['role'] ?? '') : '';
+    $isKnownRole = in_array($role, AVESMAPS_AUTH_ROLES, true);
+
+    return [
+        'authenticated' => $user !== null,
+        'username' => $user === null ? null : (string) ($user['username'] ?? ''),
+        'role' => $isKnownRole ? $role : null,
+        'capabilities' => [
+            'admin' => $isKnownRole && avesmapsUserCan($user, 'admin'),
+            'edit' => $isKnownRole && avesmapsUserCan($user, 'edit'),
+            'review' => $isKnownRole && avesmapsUserCan($user, 'review'),
+        ],
+    ];
+}
+
 function avesmapsRequireUserWithCapability(string $capability): array {
     $user = avesmapsCurrentUser();
     if ($user === null) {

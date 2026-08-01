@@ -306,6 +306,9 @@ if (IS_EDIT_MODE) {
     // 🪤 Nur mit eingeschaltetem Landschaftsmodul. Ohne es gibt es keine Regionen, und der Filter
     // wuerde jede Beschriftung der Karte verbergen -- ein Haken, der alles ausblendet, liest sich
     // wie ein Fehler, nicht wie ein Filter.
+    // 💣 Hier ist IS_ECOSYSTEM_ENABLED fast immer noch false -- die Rechteauskunft laeuft. Das ist kein
+    // Fehler: applyEcosystemAccess() (js/config.js) holt genau diese beiden Zeilen nach, sobald die
+    // Antwort da ist. Wer diese Bedingung "reparieren" will, baut den Riegel auf.
     if (IS_ECOSYSTEM_ENABLED) {
         document.getElementById("toggleLabelsWithRegionControl")?.removeAttribute("hidden");
         document.getElementById("toggleLabelsWithRegion")?.removeAttribute("disabled");

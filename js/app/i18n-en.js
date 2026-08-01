@@ -114,7 +114,7 @@ window.AVESMAPS_I18N_EN = {
 	"view.mode.powerlines": "Ley lines",
 	"view.mode.original": "Original",
 	// Keyed by the <option> value, not by the German label -- unlike "deregraphic", which is historically
-	// keyed view.mode.standard. Editor-only trial mode behind ?landschaften=1.
+	// keyed view.mode.standard. Admin-only mode (js/app/session.js).
 	"view.mode.ecosystem": "Landscapes",
 
 	// --- Landschaften (Erprobung): the layer switch above the map (V3.0). The three kind values stay
@@ -140,7 +140,7 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.region.save": "Create",
 
 	// --- Landschaften: the one-time trial notice on first entering the layer (V3.5) ---
-	"ecosystem.intro.title": "Landscapes (trial)",
+	"ecosystem.intro.title": "Landscapes",
 	"ecosystem.intro.closeAria": "Close notice",
 	"ecosystem.intro.lead": "Start with a single run-through:",
 	"ecosystem.intro.step1": "Draw one single area.",
@@ -275,7 +275,6 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.editor.ribbon.sync": "🚨 Sync",
 	"ecosystem.editor.ribbon.syncInfo": "Regions from the wiki dump",
 	"ecosystem.editor.ribbon.raycast": "Compute membership",
-	"ecosystem.editor.ribbon.enabled": "Landscape module",
 	"ecosystem.editor.col.regions": "Regions",
 	"ecosystem.editor.col.properties": "Properties",
 	"ecosystem.editor.col.preview": "Preview & occurrences",
@@ -288,12 +287,6 @@ window.AVESMAPS_I18N_EN = {
 	"ecosystem.editor.sync.title": "Takes the regions from the last dump read into the staging tables (wave 2 sync). Runs in the main window; the result appears in the status line here.",
 	"ecosystem.editor.raycast.title": "Computes which vegetation and topography areas lie in which deregraphic region: share of the SMALLER of the two areas, threshold 10 %. Computed, never stored.",
 	"ecosystem.editor.ribbon.raycastIdle": "not computed yet",
-	"ecosystem.editor.enabled.title": "Switches the landscape layer on or off server-side (app_setting['ecosystem_enabled']).",
-	"ecosystem.editor.enabled.unknown": "state unknown",
-	"ecosystem.editor.enabled.on": "Landscape module ON",
-	"ecosystem.editor.enabled.off": "Landscape module OFF",
-	"ecosystem.editor.enabled.clickOff": "click switches it off",
-	"ecosystem.editor.enabled.clickOn": "click switches it on",
 	// The facet headings. Deliberately the SAME words the panel list uses -- the same column must
 	// not be called something else in the window than in the tab (review-subjects.js).
 	"ecosystem.editor.facet.wiki": "Wiki",

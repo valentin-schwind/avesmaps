@@ -94,12 +94,12 @@ try {
         // Geste zurück. Beide hinter derselben Fähigkeitsprüfung wie alles andere hier.
         'list_changes' => avesmapsListEcosystemChanges($pdo, avesmapsUserCan($user, 'edit')),
         'undo_change' => avesmapsUndoEcosystemChange($pdo, $payload, $userId),
-        // Not optional extra: without it app_setting['ecosystem_enabled'] stays '0' forever, the public
-        // read path stays permanently empty, and V3 cannot be accepted at all. Pattern:
-        // set_citymaps_enabled in api/_internal/app/citymaps.php.
-        'set_enabled' => avesmapsSetEcosystemEnabled($pdo, (bool) ($payload['enabled'] ?? true)),
+        // `set_enabled` ist am 2026-08-01 mit dem Totmannschalter entfallen (Owner-Auftrag). Die Ebene
+        // haengt nicht mehr an einer app_setting-Zeile, sondern an der Rechtepruefung im Client.
         // End of the trial, on the AREAS: mode=keep clears the mark, mode=discard soft-deletes them.
         // Either way app_setting['ecosystem_trial'] goes off.
+        // ⚠️ Diese Aktion hat noch GENAU EINEN Lauf vor sich: den, der die Alt-Stempel im Bestand
+        // loescht. Danach faellt sie zusammen mit AVESMAPS_ECOSYSTEM_TRIAL_SETTING.
         'promote_trial' => avesmapsPromoteEcosystemTrial($pdo, $payload, $userId),
         // V9: the „Zugehörigkeit rechnen" result. The BROWSER computes it (the two existing raycasts
         // already run there, and the geometry is in its hands); these four only take it in.

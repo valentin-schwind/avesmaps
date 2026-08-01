@@ -8,10 +8,10 @@
  * persistence chain on a single area before drawing a series that might have to be thrown away.
  *
  * The other two thirds of V3.5 are already standing and are deliberately NOT rebuilt here:
- * the mode entry is permanently named "Landschaften (Erprobung)", and is_trial is decided SERVER-side
- * (api/_internal/app/ecosystem.php:960-962 via :304-307). A client that sent is_trial itself would
- * switch that protection off -- "a client that never heard of the trial cannot smuggle a permanent area
- * into a trial run or the other way round".
+ * the mode entry and the is_trial stamp. ⚠️ BEIDES ist am 2026-08-01 entfallen: die Erprobung ist
+ * abgeschafft, der Modus heisst nur noch "Landschaften", und neue Flächen tragen is_trial = 0 aus dem
+ * Spalten-Vorgabewert. Dieser Hinweisdialog BLEIBT (Owner: weder ausbauen noch entfernen) -- er erklärt
+ * den Erstkontakt mit der Ebene, und das tut er unabhängig davon, ob eine Erprobung läuft.
  *
  * ⭐ "Already seen" is NEW in this project. All existing avesmaps.* localStorage keys are PREFERENCES
  * (tab, layer, map view, theme, language); none of them records that something was shown once. This key

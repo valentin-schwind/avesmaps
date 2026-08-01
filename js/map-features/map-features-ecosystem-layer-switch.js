@@ -45,11 +45,15 @@ function getActiveEcosystemLayerKind() {
 	return activeEcosystemLayerKind;
 }
 
-// The three gates. Everything visible in this feature asks this one question.
+// The two gates. Everything visible in this feature asks this one question.
+// 💣 IS_EDIT_MODE gehörte bis 2026-08-01 dazu und ist hier bewusst WEG: „nur für Admins automatisch
+// freischalten" (Owner) heißt, ein angemeldeter Admin sieht die Ebene auf der normalen Karte, ohne
+// `?edit=1`. Der Riegel liegt jetzt in IS_ECOSYSTEM_ENABLED, das aus der Sitzung kommt (js/app/session.js)
+// -- und das ist strenger als vorher, nicht lockerer: `?edit=1` war nie geprüft.
+// ⚠️ Die ZEICHNEN-Wege (context-action, territory-import) fragen weiterhin zusätzlich IS_EDIT_MODE.
 function isEcosystemLayerModeActive() {
 	return typeof getSelectedMapLayerMode === "function"
 		&& getSelectedMapLayerMode() === "ecosystem"
-		&& typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE
 		&& typeof IS_ECOSYSTEM_ENABLED !== "undefined" && IS_ECOSYSTEM_ENABLED;
 }
 

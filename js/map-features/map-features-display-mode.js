@@ -169,8 +169,11 @@ function setSelectedMapLayerMode(mode) {
 	// disabled <option> in map-features.js -- is the lock: without it a foreign link carrying
 	// ?mapLayerMode=ecosystem walks an anonymous visitor into a mode the combobox cannot even show,
 	// via map-features-layer-state.js (restorePlannerState -> setSelectedMapLayerMode).
+	// 💣 Seit 2026-08-01 fragt die Bedingung NUR noch IS_ECOSYSTEM_ENABLED, und das ist "der Sitzung
+	// nach Admin" -- nicht mehr `?edit=1` plus `?landschaften=1`. Beide waren ungeprüfte URL-Parameter;
+	// ein anonymer Besucher mit dem richtigen Link kam damit durch dieses Tor. Jetzt nicht mehr.
 	const allowedModes = ["none", "political", "deregraphic", "powerlines", "original"];
-	if (IS_EDIT_MODE && IS_ECOSYSTEM_ENABLED) {
+	if (IS_ECOSYSTEM_ENABLED) {
 		allowedModes.push("ecosystem");
 	}
 	const normalizedMode = allowedModes.includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;

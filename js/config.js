@@ -149,9 +149,9 @@ const VISITOR_TRACK_API_URL = window.AVESMAPS_VISITOR_TRACK_ENDPOINT || (SQL_MAP
 const VISITOR_METRICS_API_URL = window.AVESMAPS_VISITOR_METRICS_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/visitor-metrics.php" : "");
 const VISITOR_HEARTBEAT_API_URL = window.AVESMAPS_VISITOR_HEARTBEAT_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/heartbeat.php" : "");
 const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/political-territories.php" : "");
-// Landschaften (Erprobung), V3.0: the public read path of the ecosystem layer. Same shape as its
-// neighbours -- empty string off the SQL hosts, so the loader simply does nothing there. The layer's
-// real lock is server-side (app_setting['ecosystem_enabled']), not this constant.
+// Landschaften, V3.0: the public read path of the ecosystem layer. Same shape as its neighbours --
+// empty string off the SQL hosts, so the loader simply does nothing there. The rows here are public;
+// what is gated is whether the map OFFERS the layer (IS_ECOSYSTEM_ENABLED, below).
 const ECOSYSTEM_AREAS_API_URL = window.AVESMAPS_ECOSYSTEM_AREAS_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/ecosystem-areas.php" : "");
 // V3.0b: the capability-gated write endpoint. The region picker reads its list from here (action
 // list_regions) rather than from the public path -- "which region does my next area go into" is an
@@ -205,12 +205,51 @@ window.avesmapsSearchParams = function () {
 };
 const INITIAL_SEARCH_PARAMS = window.avesmapsSearchParams();
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
-// Dead-man switch, client side. This is pure VISIBILITY -- it hides a mode entry, it secures nothing.
-// The read path is secured server-side by app_setting['ecosystem_enabled'] (V2.2). The flag itself is
-// German because it travels in the link the owner sends to editors; everything else here is English
-// code (AGENTS.md §8). The actual lock against a foreign ?mapLayerMode=ecosystem link is the allowlist
-// in map-features-display-mode.js, NOT the disabled <option>.
-const IS_ECOSYSTEM_ENABLED = INITIAL_SEARCH_PARAMS.get("landschaften") === "1";
+// Wer die Landschaftsebene angeboten bekommt. Seit 2026-08-01 eine echte Rechteprüfung statt des
+// URL-Schalters `?landschaften=1` (Owner: „keine landschaften=1 ... nur für Admins automatisch
+// freischalten").
+//
+// 💣 `let`, nicht `const`, und Startwert `false`. Die Antwort auf „bist du Admin" kommt über das Netz,
+// also gilt bis dahin -- und für immer, wenn sie nie kommt -- „nein". Der Riegel fällt geschlossen aus:
+// applyEcosystemAccess() schaltet nur FREI, es schaltet nie ab. Für den anonymen Besucher passiert
+// dadurch buchstäblich nichts, und genau das ist die Anforderung.
+//
+// 💣 Warum der alte Schalter kein Riegel war und `?edit=1` auch keiner ist: beide sind ungeprüfte
+// URL-Parameter, die jeder Besucher anhängen kann. Wer den einen durch den anderen ersetzt, hat den
+// Riegel nicht ersetzt, sondern nur umbenannt.
+//
+// Die Verbraucher lesen die Globale zum AUFRUFZEITPUNKT (map-features-display-mode.js:173,
+// …-ecosystem-layer-switch.js:53, …-ecosystem-context-action.js:245/266,
+// …-ecosystem-territory-import.js:629/894) und brauchen deshalb nichts weiter. Die beiden EINMALIGEN
+// Stellen -- der `<option>`-Riegel in map-features.js und der Beschriftungsfilter in bootstrap.js --
+// werden von applyEcosystemAccess() nachgezogen.
+let IS_ECOSYSTEM_ENABLED = false;
+
+// Wird von der Sitzungsantwort aufgerufen, sobald sie da ist. Idempotent und einbahnig.
+function applyEcosystemAccess(granted) {
+	if (granted !== true || IS_ECOSYSTEM_ENABLED) { return; }
+	IS_ECOSYSTEM_ENABLED = true;
+	// Der Modus-Eintrag: in map-features.js beim Aufbau gesperrt, weil die Antwort da noch nicht da war.
+	// syncTransportControl baut die Combobox aus den <option>-Elementen neu -- ohne den zweiten Aufruf
+	// bliebe der Eintrag optisch gesperrt, obwohl er es nicht mehr ist.
+	const option = document.querySelector("#mapLayerModeSelect option[value=\"ecosystem\"]");
+	if (option) { option.disabled = false; }
+	if (typeof syncTransportControl === "function") { syncTransportControl("mapLayerModeSelect"); }
+	// 🪤 Der Beschriftungsfilter „nur mit Region" ergibt ohne Landschaftsmodul keinen Sinn: er würde
+	// jede Beschriftung verbergen (siehe bootstrap.js). Nur im Edit-Modus überhaupt vorhanden.
+	if (IS_EDIT_MODE) {
+		document.getElementById("toggleLabelsWithRegionControl")?.removeAttribute("hidden");
+		document.getElementById("toggleLabelsWithRegion")?.removeAttribute("disabled");
+	}
+}
+
+// Sofort losschicken, nicht erst beim Kartenaufbau: die Antwort soll da sein, bevor jemand das
+// Ebenen-Menü aufklappt. Kostet einen Aufruf ohne Datenbank (api/app/session.php liest nur das Cookie).
+if (window.AvesmapsSession && typeof window.AvesmapsSession.load === "function") {
+	window.AvesmapsSession.load().then(function (session) {
+		applyEcosystemAccess(session && session.capabilities ? session.capabilities.admin === true : false);
+	});
+}
 // Infopanel is the ONLY experience (Owner 2026-07-17): feature info lands in the collapsible
 // right-edge panel, never in a floating map popup. The ?infopanel=false escape hatch that shipped
 // with the 2026-07-12 default switch is RETIRED -- it had done its job (A/B compare), and a stale

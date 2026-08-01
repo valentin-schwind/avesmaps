@@ -40,8 +40,9 @@ function avesmapsRouteTerrainAppliesTo(string $routeType): bool
  * 💣 `avesmapsAppSettingGet` would be the obvious call and it is the wrong one HERE: it runs
  * `CREATE TABLE IF NOT EXISTS app_setting` on every single call, and a DDL statement in front of a
  * public read is precisely the hotspot AGENTS.md §10 lists for territories-endpoint.php. The shape
- * is copied from avesmapsPathLandscapesEcosystemEnabled (V10) -- and task 10 of this plan folds
- * both into ONE implementation.
+ * was copied from avesmapsPathLandscapesEcosystemEnabled (V10), and both were folded into ONE
+ * implementation (avesmapsAppSettingGetWithoutDdl). V10's reader is gone since 2026-08-01; this one
+ * is a DIFFERENT switch ('terrain_travel_enabled') and stays.
  *
  * A missing table means OFF, not „create it and look again": if it does not exist, nobody ever
  * switched anything on.

@@ -18,9 +18,6 @@ let ecosystemAreaReloadTimeoutId = null;
 // Monotonic: a slow response for an old viewport must not overwrite a newer one during fast panning.
 let ecosystemAreaRequestToken = 0;
 let ecosystemViewportReloadHooked = false;
-// What the SERVER said about app_setting['ecosystem_enabled'] on the last answer. ?landschaften=1 is
-// a client flag and secures nothing; this is the dead-man switch talking back (global rule 4).
-let ecosystemLayerEnabledOnServer = null;
 // Löscht das Entfernen der letzten Fläche bzw. des letzten Labels die ganze Region mit? Der Server
 // entscheidet das (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED); hier steht nur, was er zuletzt gesagt hat.
 //
@@ -100,30 +97,16 @@ function clearEcosystemAreaLayers() {
 	}
 }
 
-// The dead-man switch talking back. Without this line an editor sees an empty map and cannot tell
-// "no areas drawn yet" from "app_setting['ecosystem_enabled'] is off" -- ?landschaften=1 says nothing
-// about the server side (global rule 4).
-function syncEcosystemServerStateNote() {
-	const noteElement = document.getElementById("ecosystem-controls-note");
-	if (!noteElement) {
-		return;
-	}
-
-	const isOff = ecosystemLayerEnabledOnServer === false;
-	noteElement.textContent = isOff
-		? "Die Landschaften-Ebene ist serverseitig abgeschaltet — es werden keine Flächen geladen."
-		: "";
-	noteElement.hidden = !isOff;
-}
+// syncEcosystemServerStateNote ist am 2026-08-01 mit dem Totmannschalter entfallen: sie meldete
+// ausschliesslich, dass app_setting['ecosystem_enabled'] auf '0' steht. Ohne den Schalter gibt es
+// diesen Zustand nicht mehr, und ein Hinweis, der nie erscheinen kann, ist keiner.
 
 function applyEcosystemAreaPayload(payload) {
-	ecosystemLayerEnabledOnServer = payload?.ecosystem_enabled === true;
 	// 🔴 Nimmt das Löschen der letzten Fläche die ganze Region mit? Das entscheidet der SERVER
 	// (AVESMAPS_ECOSYSTEM_CASCADE_ENABLED), und die Rückfragen im Editor müssen es wissen -- sonst
 	// kündigen sie ein Mitlöschen an, das nicht stattfindet. Eine Rückfrage, die übertreibt, wird
 	// genauso schnell weggeklickt wie eine, die untertreibt.
 	ecosystemCascadeEnabledOnServer = payload?.cascade_enabled === true;
-	syncEcosystemServerStateNote();
 
 	// A changed revision means somebody wrote -- a new area, a renamed region, a deletion. The region
 	// picker caches its rows including each region's area count, and that count is exactly what goes

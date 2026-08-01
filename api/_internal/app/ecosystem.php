@@ -22,7 +22,7 @@ declare(strict_types=1);
 // 🔴 NOTHING in this file calls political code (plan, global rule 1). The DDL shape, the audit-log shape
 // and the "INNER JOIN the active parent" read were copied from the political neighbours by READING them.
 
-// Explicit, not a function_exists guard: set_enabled writes through avesmapsAppSettingSet, and a guard
+// Explicit, not a function_exists guard: promote_trial writes through avesmapsAppSettingSet, and a guard
 // around a missing include swallows the write silently (the lore-sync.php trap).
 require_once __DIR__ . '/app-setting.php';
 
@@ -157,17 +157,10 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['vegetation', 'wuestenoase', 'Wüstenoase', 100],
 ];
 
-// ---- kill switch + trial flag ----------------------------------------------------------------------
-// 🔴 DEFAULT '0' = OFF, the INVERSE of the citymaps/adventures convention (app-setting.php:14-15 calls
-// default-on a convention, not a rule -- the default is an ARGUMENT). An unfinished, editor-only trial
-// layer must not appear on the public map because somebody deployed it. Only the owner's explicit
-// set_enabled turns it on.
-const AVESMAPS_ECOSYSTEM_SETTING = 'ecosystem_enabled';
-
-// "The trial is running" lives in exactly ONE row, not in a column default. Default '1': while nobody has
-// decided, new areas are trial areas -- otherwise promote_trial would have nothing to keep or discard and
-// V4's measurement could not be undone. promote_trial writes '0' and the state is over for good, which is
-// what keeps ecosystem_area.is_trial DEFAULT 0 safe (plan V2.1, deviation 2).
+// ---- trial flag (auf dem Weg hinaus) ----------------------------------------------------------------
+// ⚠️ Der EINZIGE verbliebene Zweck dieser Zeile ist promote_trial, und promote_trial hat nur noch einen
+// einzigen Lauf vor sich: den, der die 133 Alt-Stempel im Bestand loescht. Danach faellt beides.
+// app_setting['ecosystem_enabled'] -- der Totmannschalter -- ist am 2026-08-01 ersatzlos entfallen.
 const AVESMAPS_ECOSYSTEM_TRIAL_SETTING = 'ecosystem_trial';
 
 // A drawn area is bounded work, not a bulk import. The cap is a guard against a runaway client, not a
@@ -828,29 +821,16 @@ function avesmapsReadEcosystemRevision(PDO $pdo): int
     return $revision === false ? 1 : (int) $revision;
 }
 
-// ---- kill switch ------------------------------------------------------------------------------------
-function avesmapsEcosystemEnabled(PDO $pdo): bool
-{
-    return avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') !== '0';
-}
-
-function avesmapsSetEcosystemEnabled(PDO $pdo, bool $enabled): array
-{
-    // The schema materializes HERE, on the owner's deliberate action, not as a side effect of whichever
-    // request happens to arrive first. Without this, the tables would only appear on the first write or
-    // on the first read AFTER the switch is already on -- so "flip the switch, then look at phpMyAdmin"
-    // would show nothing and the V2.1 acceptance step could not be taken at all.
-    // No transaction is open here, so the DDL is safe (see the house rule at the write-path helpers).
-    avesmapsEcosystemEnsureTables($pdo);
-    avesmapsAppSettingSet($pdo, AVESMAPS_ECOSYSTEM_SETTING, $enabled ? '1' : '0');
-
-    return ['ecosystem_enabled' => $enabled, 'tables_ready' => true];
-}
-
-function avesmapsEcosystemTrialActive(PDO $pdo): bool
-{
-    return avesmapsAppSettingGet($pdo, AVESMAPS_ECOSYSTEM_TRIAL_SETTING, '1') !== '0';
-}
+// ---- kill switch: abgeschafft am 2026-08-01 ---------------------------------------------------------
+// avesmapsEcosystemEnabled / avesmapsSetEcosystemEnabled / app_setting['ecosystem_enabled'] sind weg
+// (Owner: „Totmannschalter ist abgeschafft"). Er hatte SECHS Leser, einer davon mit Aussenwirkung auf
+// jeden Besucher (api/app/path-landscapes.php -- V10 „Fuehrt durch" im Reiseplaner); ein Schalter, der
+// im Aus-Zustand eine oeffentliche Funktion stillegt, ist kein Sicherheitsnetz, sondern ein zweiter
+// Weg, die Karte kaputtzumachen. Was die Ebene heute verriegelt, ist die Rechtepruefung im Client
+// (js/app/session.js: Admin) -- die Flaechen selbst waren immer oeffentlich lesbar.
+//
+// avesmapsEcosystemTrialActive ist mit derselben Aenderung entfallen: die Erprobung ist vorbei, neue
+// Flaechen tragen is_trial = 0 aus dem Spalten-Vorgabewert.
 
 // ---- pure helpers (unit-tested in __tests__/ecosystem-geometry-test.php) ----------------------------
 
@@ -2131,20 +2111,17 @@ function avesmapsCreateEcosystemArea(PDO $pdo, array $payload, int $userId): arr
 
     $normalized = avesmapsEcosystemNormalizeGeometry($payload['geometry_geojson'] ?? $payload['geometry'] ?? null);
 
-    // The trial state lives in app_setting, never in a column default (plan V2.1, deviation 2). The client
-    // may state it explicitly; if it stays silent the server decides, so a client that never heard of the
-    // trial cannot smuggle a permanent area into a trial run or the other way round.
-    $isTrial = array_key_exists('is_trial', $payload)
-        ? (bool) $payload['is_trial']
-        : avesmapsEcosystemTrialActive($pdo);
-
     $publicId = avesmapsUuidV4();
     $pdo->beginTransaction();
     try {
+        // 💣 `is_trial` steht nicht mehr in der Spaltenliste. Die Erprobung ist am 2026-08-01 abgeschafft
+        // worden; die Spalte bleibt (NOT NULL DEFAULT 0) und traegt ab hier fuer JEDE neue Flaeche 0 --
+        // aus dem Vorgabewert, nicht aus einem Schalter. Wer hier wieder einen Schalter einzieht, macht
+        // frisch gezeichnetes Wasser fuer das Routing erneut unsichtbar (api/_internal/routing/water-areas.php).
         $statement = $pdo->prepare(
             'INSERT INTO ecosystem_area
-                (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, is_trial, created_by, updated_by)
-             VALUES (:public_id, :region_id, :geometry, :min_x, :min_y, :max_x, :max_y, :is_trial, :user_id, :user_id2)'
+                (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, created_by, updated_by)
+             VALUES (:public_id, :region_id, :geometry, :min_x, :min_y, :max_x, :max_y, :user_id, :user_id2)'
         );
         $statement->execute([
             'public_id' => $publicId,
@@ -2154,7 +2131,6 @@ function avesmapsCreateEcosystemArea(PDO $pdo, array $payload, int $userId): arr
             'min_y' => $normalized['bounds']['min_y'],
             'max_x' => $normalized['bounds']['max_x'],
             'max_y' => $normalized['bounds']['max_y'],
-            'is_trial' => $isTrial ? 1 : 0,
             'user_id' => $userId > 0 ? $userId : null,
             'user_id2' => $userId > 0 ? $userId : null,
         ]);

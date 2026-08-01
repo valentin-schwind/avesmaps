@@ -64,26 +64,15 @@ function avesmapsPathLandscapesNormalizeRequest(mixed $payload): array
     return array_keys($ids);
 }
 
-/**
- * The Landschaften kill switch, read WITHOUT the self-healing DDL.
- *
- * 💣 `avesmapsEcosystemEnabled()` would be the obvious call, and it is the wrong one HERE. It goes
- * through `avesmapsAppSettingGet`, which runs `CREATE TABLE IF NOT EXISTS app_setting` on every
- * single call. ecosystem-areas.php tolerates that deliberately and says why: it is called from the
- * edit mode, not from the public map. This endpoint is the opposite -- it fires on every route a
- * visitor plans, and a DDL statement in front of a public read is precisely the hotspot AGENTS.md
- * §10 already lists for territories-endpoint.php.
- *
- * A missing `app_setting` table therefore means OFF, not "create it and look again": if the table
- * does not exist, nobody has ever switched the layer on, and the stored default is '0' anyway.
- */
-function avesmapsPathLandscapesEcosystemEnabled(PDO $pdo): bool
-{
-    // One implementation of „read without the DDL", in app-setting.php. It used to live here; V11
-    // needed the same rule for its own key, and a second copy is how two answers to one question
-    // start drifting.
-    return avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_ECOSYSTEM_SETTING, '0') !== '0';
-}
+// avesmapsPathLandscapesEcosystemEnabled ist am 2026-08-01 mit dem Totmannschalter entfallen.
+//
+// 💣 Sie war der Leser mit der groessten Aussenwirkung und wurde beim ersten Anlauf uebersehen: dieser
+// Endpunkt traegt V10 „Fuehrt durch" im Reiseplaner JEDES Besuchers. Stand app_setting['ecosystem_enabled']
+// auf '0', antwortete er leer -- die Zeile verschwand fuer alle, und niemand haette den Schalter dafuer
+// verantwortlich gemacht. Genau das ist der Grund, warum der Schalter weg ist statt umgebaut.
+//
+// ⭐ Was hier BLEIBT und nicht verwechselt werden darf: V11 hat einen eigenen Schalter,
+// AVESMAPS_TERRAIN_SETTING = 'terrain_travel_enabled' (api/_internal/routing/terrain-read.php).
 
 /**
  * PURE: arc length of a coordinate list, in MAP UNITS.

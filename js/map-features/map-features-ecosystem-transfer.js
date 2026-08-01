@@ -16,9 +16,10 @@
  * measurement, and V3.6 is the single-handed version that measurement is supposed to price
  * (~15-18 s of menu per area).
  *
- * 🔴 is_trial IS NOT SENT. When the field is absent the server decides from app_setting['ecosystem_trial']
- * (:960-962 via :304-307) -- "a client that never heard of the trial cannot smuggle a permanent area into
- * a trial run or the other way round". A copy is a new area and gets whatever the run it is made in says.
+ * 🔴 is_trial IS NOT SENT, und der Server nimmt es seit dem 2026-08-01 auch nicht mehr entgegen: die
+ * Erprobung ist abgeschafft, jede neue Fläche trägt 0 aus dem Spalten-Vorgabewert. Die Zeile bleibt als
+ * Warnung stehen -- wer hier je wieder ein is_trial mitschickt, macht frisch gezeichnetes Wasser für das
+ * Routing unsichtbar (api/_internal/routing/water-areas.php).
  *
  * ONE ENTRY, ONE DIALOG. The area menu (V3.4) is flat and built in JS; the map menu's submenu is static
  * markup and not reusable. A submenu "Senden an > Topographie" would therefore be new mechanics AND still

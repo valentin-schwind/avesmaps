@@ -9,9 +9,9 @@
  * 🔴 NUR bei aktiver Landschaften-Ebene UND aktiver Topographie. In jeder anderen Lage ist das Canvas
  * leer; das Umschalten der Ebene löscht es also von selbst.
  *
- * 🔴 `is_trial`-Flächen werden MITGEZEICHNET. Beide `gebirge`-Flächen im Livebestand (Stand 2026-07-28:
- * „Finsterkamm" und „Random Berge") sind Erprobungsflächen -- sie auszulassen hiesse, dass die Abnahme
- * eine leere Karte zeigt.
+ * ⭐ `is_trial` wird hier nicht gefiltert und wurde es nie. Seit dem 2026-08-01 ist das keine Ausnahme
+ * mehr, sondern der Normalfall: die Erprobung ist abgeschafft, und die Spalte trägt für jede neue
+ * Fläche 0. Wer hier je einen Filter einzieht, blendet Gebirge aus, die es längst gibt.
  *
  * 🔴 Farben NUR aus css/base/tokens.css (AGENTS.md §12). Der Prototyp trug seine Rampe als rohe
  * RGB-Tripel im Code (:589); hier steht sie in fünf Token.
@@ -171,7 +171,7 @@
 		const areas = [];
 		ecosystemLayers.forEach((layer) => {
 			const area = layer?._ecosystemArea;
-			// `is_trial` wird NICHT gefiltert -- siehe Kopf.
+			// `is_trial` wird NICHT gefiltert -- siehe Kopf (die Erprobung ist abgeschafft).
 			if (area && area.kind === "topographie" && String(area.region_type || "") === "gebirge") {
 				areas.push(area);
 			}

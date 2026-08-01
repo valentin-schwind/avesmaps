@@ -51,22 +51,17 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
-    // 🔴 KILL SWITCH FIRST, as in ecosystem-areas.php. If the owner pulls the Landschaften layer,
-    // this line has to vanish with it -- otherwise the layer is "off" and still talking.
+    // 💣 HIER STAND DER TOTMANNSCHALTER, und er ist am 2026-08-01 abgeschafft (Owner-Auftrag).
+    // Dieser Endpunkt traegt V10 „Fuehrt durch" im Reiseplaner JEDES Besuchers: stand
+    // app_setting['ecosystem_enabled'] auf '0', antwortete er leer und die Zeile verschwand
+    // stillschweigend fuer alle. Ein Schalter, dessen Aus-Zustand eine oeffentliche Funktion
+    // abschaltet, ohne dass irgendwo etwas davon steht, ist kein Sicherheitsnetz.
     //
-    // 💣 Read through our OWN reader, not avesmapsEcosystemEnabled(): that one carries a
-    // `CREATE TABLE IF NOT EXISTS` with it, and this endpoint fires on every route a visitor plans.
-    // See the comment on the function.
-    if (!avesmapsPathLandscapesEcosystemEnabled($pdo)) {
-        avesmapsJsonResponse(200, [
-            'ok' => true,
-            'payload_version' => AVESMAPS_PATH_LANDSCAPES_PAYLOAD_VERSION,
-            'ecosystem_enabled' => false,
-            'stamp' => null,
-            'landscapes' => (object) [],
-            'paths' => (object) [],
-        ]);
-    }
+    // ⭐ Nebeneffekt, der hier zaehlt: der Lesepfad kommt damit ganz ohne die app_setting-Abfrage aus.
+    // Er lief ohnehin schon DDL-frei (avesmapsAppSettingGetWithoutDdl), jetzt ist auch die Abfrage weg.
+    //
+    // ⚠️ `ecosystem_enabled` BLEIBT im Umschlag und ist ab jetzt konstant true. Die Payload-Form
+    // aendert sich dadurch nicht -- ein warmer Client liest weiter, was er erwartet.
 
     // The stamp says WHEN the stored answer was computed and against which revisions. A visitor
     // never sees it; it exists so „why does it still say the old thing?" has an answer that does

@@ -53,7 +53,10 @@ assert(avesmapsEcosystemCanUndoAction('undo_undo_delete_area') === false, 'nor d
 // ---- actions that touch nothing restorable -------------------------------------------------------
 // Everything not on the list is refused rather than silently doing nothing. A button that appears and
 // then achieves nothing is worse than no button.
-assert(avesmapsEcosystemCanUndoAction('set_enabled') === false, 'the kill switch is not an edit');
+assert(avesmapsEcosystemCanUndoAction('set_enabled') === false,
+    'the kill switch is not an edit -- the action itself went away on 2026-08-01, and an action nobody
+'
+    . 'knows must still answer "no", never "sure, undo it"');
 assert(avesmapsEcosystemCanUndoAction('promote_trial') === false, 'ending the trial is not an edit');
 assert(avesmapsEcosystemCanUndoAction('') === false, 'an empty action is refused');
 assert(avesmapsEcosystemCanUndoAction('nonsense') === false, 'an unknown action is refused');

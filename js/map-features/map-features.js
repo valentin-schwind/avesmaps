@@ -29,12 +29,15 @@ $(".location-toggle").on("mouseleave blur", () => {
 // "Politisch" ist im Frontend freigeschaltet, sobald der politische Daten-Endpoint verfügbar ist
 // (nicht mehr auf den Edit-Modus beschraenkt).
 $("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !POLITICAL_TERRITORIES_API_URL);
-// "Landschaften (Erprobung)": editor-only trial mode. disabled, NEVER remove -- .remove() would leave
+// "Landschaften": admin-only mode. disabled, NEVER remove -- .remove() would leave
 // syncTransportControl without an option to read, so the combobox would show no selection at all. The
 // option stays in the markup on purpose (owner decision, 2026-07-25): the name in the page source is
 // fine, no JS injection. Must run BEFORE initializeTransportIconSelects(), which builds the combobox
 // out of these <option> elements.
-if (!IS_EDIT_MODE || !IS_ECOSYSTEM_ENABLED) {
+// 💣 IS_ECOSYSTEM_ENABLED ist hier IMMER noch false: die Rechteauskunft ist unterwegs. Diese Stelle
+// sperrt also unbedingt, und applyEcosystemAccess() (js/config.js) macht sie für Admins wieder auf,
+// sobald die Antwort da ist. Genau deshalb steht dort ein zweiter syncTransportControl-Aufruf.
+if (!IS_ECOSYSTEM_ENABLED) {
 	$("#mapLayerModeSelect option[value=\"ecosystem\"]").prop("disabled", true);
 }
 initializeTransportIconSelects();

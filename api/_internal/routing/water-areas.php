@@ -75,7 +75,6 @@ function avesmapsLoadRouteWater(array $config, ?PDO $pdo = null): array {
              FROM ecosystem_area a
              INNER JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
              WHERE a.is_active = 1
-               AND a.is_trial = 0
                AND r.region_type IN (' . implode(', ', array_fill(0, count(AVESMAPS_ROUTE_WATER_REGION_TYPES), '?')) . ')'
         );
         $statement->execute(AVESMAPS_ROUTE_WATER_REGION_TYPES);
@@ -99,16 +98,19 @@ function avesmapsLoadRouteWater(array $config, ?PDO $pdo = null): array {
     }
 }
 
-// 💣 Two filters in the query above are easy to get wrong, and both were:
+// 💣 One filter in the query above is easy to get wrong, and it was:
 //
 //   * `affects_paths` is NOT asked for. That is V9's compute-run filter and it stands at 0 for
 //     `meer` -- exactly the areas this feature is about. Adding it here builds a feature that does
 //     nothing.
-//   * `is_trial = 0` IS asked for. Trial areas are experiments (V3.5); routing must not change
-//     because somebody is trying something out. Side benefit: 4.100 of 13.472 edges (30 %) drop out.
 //
-// `ecosystem_enabled` is deliberately NOT read: that switch governs whether the LAYER is visible,
-// not whether the world has oceans.
+// `is_trial = 0` stood here until 2026-08-01 and is GONE with the trial itself. It was the only query
+// in the repository that read that column, which is why removing it is the whole measurable effect of
+// abolishing the trial: the drawn water areas now count for routing the moment they are drawn.
+//
+// `ecosystem_enabled` was deliberately NOT read here -- that switch governed whether the LAYER was
+// visible, not whether the world has oceans. It was abolished on 2026-08-01; the reasoning held, and
+// it is why this query never had to change when it went.
 
 // ============================================================ 2. preparation (pure)
 

@@ -182,8 +182,12 @@ function hasPlannerStateSearchParams(searchParams) {
 	// in the URL" made this gate skip the localStorage restore on every editor load since that day.
 	// Any future infrastructure-only param belongs here for the same reason: this Set answers "did the
 	// user bring their own state?", and a cache-bust token did not. `landschaften` joined on the same
-	// grounds: it switches a mode ON, it does not carry a planner state, and leaving it out would kill
+	// grounds: it switched a mode ON, it does not carry a planner state, and leaving it out would kill
 	// the editor restore for every editor who follows the trial link.
+	// ⚠️ `landschaften` BLEIBT in dieser Liste, obwohl der Parameter seit 2026-08-01 nichts mehr
+	// schaltet (die Ebene haengt jetzt an der Sitzung, js/app/session.js). Die verschickten
+	// Erprobungs-Links existieren weiter; wer den Eintrag hier streicht, laesst genau diese Links den
+	// Editor-Restore wieder abwuergen -- fuer einen Parameter, der ohnehin folgenlos ist.
 	const ignoredParams = new Set(["edit", "debugMap", "_v", "landschaften"]);
 	for (const paramName of searchParams.keys()) {
 		if (!ignoredParams.has(paramName)) {
