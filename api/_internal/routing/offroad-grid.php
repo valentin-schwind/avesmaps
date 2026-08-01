@@ -262,9 +262,24 @@ function avesmapsOffroadSampleHeights(array $box, array $rasters): string
     $plane = str_repeat("\xFF\xFF", $box['cell_count']);
     if ($rasters === []) { return $plane; }
 
-    for ($row = 0; $row < $box['rows']; $row++) {
+    // ⚠️ ONLY THE CELLS A RASTER CAN REACH. Sampling the whole box would ask every raster about
+    // every cell -- at the 150.000-cell cap that is six figures of bilinear lookups to learn „no
+    // data" for ground no raster covers. A raster is a mountain range; a box is a journey.
+    $unionMinX = INF; $unionMinY = INF; $unionMaxX = -INF; $unionMaxY = -INF;
+    foreach ($rasters as $raster) {
+        $unionMinX = min($unionMinX, $raster['origin_x']);
+        $unionMinY = min($unionMinY, $raster['origin_y']);
+        $unionMaxX = max($unionMaxX, $raster['origin_x'] + ($raster['width'] - 1) * $raster['cell']);
+        $unionMaxY = max($unionMaxY, $raster['origin_y'] + ($raster['height'] - 1) * $raster['cell']);
+    }
+    $rowFrom = max(0, (int) floor(($unionMinY - $box['min_y']) / $box['cell']) - 1);
+    $rowTo = min($box['rows'] - 1, (int) ceil(($unionMaxY - $box['min_y']) / $box['cell']) + 1);
+    $colFrom = max(0, (int) floor(($unionMinX - $box['min_x']) / $box['cell']) - 1);
+    $colTo = min($box['cols'] - 1, (int) ceil(($unionMaxX - $box['min_x']) / $box['cell']) + 1);
+
+    for ($row = $rowFrom; $row <= $rowTo; $row++) {
         $y = $box['min_y'] + ($row + 0.5) * $box['cell'];
-        for ($col = 0; $col < $box['cols']; $col++) {
+        for ($col = $colFrom; $col <= $colTo; $col++) {
             $x = $box['min_x'] + ($col + 0.5) * $box['cell'];
             $height = avesmapsHeightmapSampleSum($rasters, $x, $y);
             if ($height === null) { continue; }
