@@ -14,6 +14,24 @@
 const TRAVEL_HERE_POINT_LABEL_KEY = "planner.point.mapPoint";
 
 /**
+ * The clicked spot as text, in the ONE format this map already shows coordinates in.
+ *
+ * ⭐ Reused, not invented: `formatLocationReportCoordinates` (js/review/review-locations.js) is what
+ * the „Hier melden"-Formular puts under „Position" -- `lat, lng` to three decimals. A second format
+ * would mean the same spot reads two different ways depending on which dialog you opened.
+ *
+ * ⚠️ It is therefore `y, x`, not `x, y`: Leaflet's L.CRS.Simple order, the same one the `?pin=`
+ * deep link uses. Three decimals are ~3 m on a map where one unit is 3 km.
+ */
+function formatTravelHereCoordinates(latlng) {
+	if (typeof formatLocationReportCoordinates === "function") {
+		return formatLocationReportCoordinates(latlng);
+	}
+	const normalized = L.latLng(latlng);
+	return `${normalized.lat.toFixed(3)}, ${normalized.lng.toFixed(3)}`;
+}
+
+/**
  * The route's starting point: the first filled waypoint of the planner that resolves to a place.
  *
  * ⭐ Deliberately the planner's own field rather than „the nearest place to the click". The traveller
@@ -75,7 +93,11 @@ async function travelToMapPoint(latlng) {
 		return;
 	}
 
-	const pointLabel = tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt");
+	// Der Name traegt die Koordinaten: so stehen sie in der Reisebeschreibung („… nach Kartenpunkt
+	// (657.150, 270.990)") und in der Wegpunkt-Infobox, ohne dass der Reiseplan ein eigenes Feld
+	// dafuer braucht.
+	const coordinates = formatTravelHereCoordinates(latlng);
+	const pointLabel = `${tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt")} (${coordinates})`;
 	const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
 	const request = buildServerRouteProbeRequest(startName, pointLabel, useShortest, []);
 	// 💣 x = lng, y = lat. See the file header.
@@ -103,8 +125,32 @@ async function travelToMapPoint(latlng) {
 	}
 
 	resetRoutePresentation();
+
+	// 💣 VOR showRoutePlan. Die Reisebeschreibung („Die Reise von X nach Y") und die Luftlinie der
+	// Zusammenfassung lesen `selectedLocations`, nicht die Knotennamen -- ohne diese Zeile stuenden
+	// dort noch die Wegpunkte der letzten gewoehnlichen Route.
+	//
+	// ⭐ Und es ist zugleich die Markierung: der angeklickte Punkt wird ein WEGPUNKT wie jeder andere,
+	// also zeichnet ihn renderRouteWaypointMarkers mit demselben Ziel-Marker und derselben
+	// Hover-Infobox wie ein Ort. Ein eigener Markertyp waere ein zweiter Weg, dasselbe zu sagen.
+	// `collectAndValidateSelectedLocations` baut die Liste bei der naechsten gewoehnlichen Route
+	// ohnehin aus den Eingabefeldern neu -- der Eintrag ueberlebt diese Route nicht.
+	const startLocation = validateLocation(startName);
+	selectedLocations = [
+		...(startLocation ? [startLocation] : []),
+		{
+			name: pointLabel,
+			coordinates: [latlng.lat, latlng.lng],
+			// Die Typ-Zeile der Infobox: „657.150, 270.990 · Ziel". Ein Kartenpunkt hat keine
+			// Ortsgroesse, also steht dort die Position statt „Dorf".
+			locationTypeLabel: coordinates,
+			isMapPoint: true,
+		},
+	];
+
 	drawRoute(display.segments);
 	showRoutePlan(display.routeNodeNames, display.segments);
+	renderRouteWaypointMarkers();
 	zoomToCurrentRoute();
 
 	if (typeof trackVisitorEvent === "function") {
