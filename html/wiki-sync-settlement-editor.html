@@ -1294,9 +1294,10 @@ function renderWikiOnlySettlementDetail(item) {
 
 function settlementCoatImageSrc(coat) {
 	if (!coat || !coat.url) return "";
-	// Own uploads are local URLs already; wiki coats go through the cache proxy (host allowlist),
-	// mirroring settlementCoatImageSrc() in js/review/review-locations.js.
-	return coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
+	// The URL decides, not the origin: since "Wappen lokalisieren" fetched the wiki coats to
+	// /uploads/wappen/wiki/, source stays "wiki" while the URL is local -- and coat.php rejects a
+	// relative /uploads URL with 400. Mirrors settlementCoatImageSrc() in js/review/review-locations.js.
+	return /^https?:\/\//i.test(coat.url) ? `/api/app/coat.php?u=${encodeURIComponent(coat.url)}` : coat.url;
 }
 
 function licenseStatusLabel(status) {

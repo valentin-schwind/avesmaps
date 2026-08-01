@@ -183,12 +183,16 @@ function settlementRealisticIconMarkup(locationType, locationTypeLabel) {
 
 // Wappen-Icon (ersetzt das Siedlungs-Icon), wenn ein erlaubtes Wappen vorhanden ist. Das
 // properties.coat wird nur für gemeinfreie Wiki-Wappen oder eigene Uploads gesetzt — die
-// Lizenz-Prüfung passiert also beim Schreiben. Wiki-Wappen über den Cache-Proxy laden.
+// Lizenz-Prüfung passiert also beim Schreiben. NUR externe Wiki-URLs über den Cache-Proxy laden.
 function settlementCoatIconMarkup(coat) {
 	if (!coat || !coat.url) {
 		return "";
 	}
-	const src = coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
+	// Nach source zu unterscheiden ging kaputt, als "Wappen lokalisieren" die Wiki-Wappen nach
+	// /uploads/wappen/wiki/ geholt hat: source bleibt "wiki", die URL ist aber lokal — und coat.php
+	// lehnt eine relative /uploads-URL mit 400 ab. Es zählt die URL, nicht die Herkunft (dieselbe
+	// Regel wie in settlementTerritoryCoatThumbMarkup und avesmapsCoatSrc).
+	const src = /^https?:\/\//i.test(coat.url) ? `/api/app/coat.php?u=${encodeURIComponent(coat.url)}` : coat.url;
 	return `<img class="location-popup__icon location-popup__icon--coat" src="${escapeHtml(src)}" alt="${escapeHtml(tr("popup.coatOfArmsAlt", "Wappen"))}" />`;
 }
 

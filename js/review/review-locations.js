@@ -688,8 +688,10 @@ function settlementCoatImageSrc(coat) {
 	if (!coat || !coat.url) {
 		return "";
 	}
-	// Eigene Uploads sind lokale URLs; Wiki-Wappen über den Cache-Proxy (Host-Whitelist).
-	return coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
+	// Lokale URLs (eigener Upload ODER per "Wappen lokalisieren" geholtes Wiki-Wappen unter
+	// /uploads/wappen/wiki/) direkt; nur eine externe http(s)-URL geht über den Cache-Proxy.
+	// coat.php lehnt eine relative /uploads-URL mit 400 ab — die Herkunft (source) sagt darüber nichts.
+	return /^https?:\/\//i.test(coat.url) ? `/api/app/coat.php?u=${encodeURIComponent(coat.url)}` : coat.url;
 }
 
 async function renderSettlementCoatSection(publicId) {
