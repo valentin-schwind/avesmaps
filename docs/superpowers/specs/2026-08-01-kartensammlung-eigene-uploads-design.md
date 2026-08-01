@@ -47,6 +47,12 @@ Neue reine Funktion `avesmapsCitymapEncodeThumbBytes(string $bytes, string $ext)
   nicht „nur wenn es sich lohnt".
 - **GIF bleibt GIF.** Umwandeln würde eine Animation auf ein Standbild reduzieren; der bestehende
   Skalierer lässt GIF aus demselben Grund unangetastet.
+- **✅ LIVE BEWIESEN am 2026-08-01** (Owner-Sitzung, Karte „2010 Malkillabad", danach zurückgebaut):
+  1200×600-PNG (34.958 B) → `thumb-…​.webp`, **400×200**, **2.956 B**, `content-type: image/webp`,
+  Signatur `RIFF…WEBP`. STRATO kann WebP schreiben. Folge: der Rückfall unten ist **kein erwarteter
+  Betriebszustand mehr, sondern ein Alarmzeichen** — endet eine gespeicherte Vorschau auf `.png`,
+  stimmt etwas mit der Server-GD nicht. Er bleibt trotzdem bestehen: er kostet nichts und hält die
+  Zusage auch, wenn sich die Umgebung ändert.
 - **Harter Rückfall, der Upload darf nie an der Umwandlung scheitern:** fehlt `imagewebp` (GD ohne
   WebP-Unterstützung — auf STRATO nicht vorab messbar, `api/diagnostics/` ist `.htaccess`-gesperrt),
   schlägt `imagecreatefromstring` fehl oder liefert die Kodierung leere Bytes, bleibt es beim heutigen
