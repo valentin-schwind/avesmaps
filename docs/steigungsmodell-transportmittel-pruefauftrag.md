@@ -463,6 +463,36 @@ siehe den bekannten Defekt in §2.6.
 **Koschberge-Anker, live gemessen:** 668,98 Schritt Aufstieg auf 2,799 Meilen = 23,90 % Steigung.
 Ist-Modell: Faktor 3,3901, aus 4,5 Meilen/h werden 1,327.
 
+### 5.1 Referenzimplementierung — schreib das Modell nicht ab, führ es aus
+
+`docs/assets/steigungsmodell-referenz.php` enthält den **vollständigen Vorschlag, den Ist-Zustand und
+die drei Vergleichsmodelle** als lauffähiges PHP ohne Abhängigkeit vom Repo:
+
+```bash
+php docs/assets/steigungsmodell-referenz.php
+```
+
+Es druckt neun Blöcke A–I: die beiden Kontrolltabellen oben, den Ist-Zustand, den Aufstieg gegen
+Minetti und Schroter, den Abstieg gegen Langmuir und Minetti, den Defekt aus §2.6 über alle sieben
+Wegtypen, den gemessenen Regelverstoß bei fester Konstante, die Kutschen-Überholpunkte und einen
+Stetigkeitstest.
+
+⚠️ **Das Skript ist Teil des Prüfgegenstands, nicht Beweismittel.** Es implementiert denselben
+Vorschlag von derselben Hand — wenn die Herleitung falsch ist, ist es auch das Skript. Nutze es, um
+Abschreibfehler auszuschließen, und rechne die Herkunft trotzdem unabhängig nach.
+
+Zwei Ergebnisse daraus, die im Text oben nicht stehen:
+
+**Block I — Stetigkeit.** In 0,1-%-Schritten von −45 % bis +45 % ist der größte Sprung im Vorschlag
+**0,0286** (reine Abtastauflösung, kein Sprung), im Ist-Zustand **1,3400 bei genau −20,0 %**. Das ist
+die Kante, quantifiziert. Prüfe sie mit feinerer Schrittweite nach — der Vorschlag darf auch bei
+0,001-%-Schritten nirgends springen.
+
+**Block H — die Kutsche auf dem Pfad.** Sie fällt dort schon bei **0,00 %** hinter die Reisegruppe zu
+Fuß zurück, weil beide in der Ebene mit 3,0 Meilen/h geführt werden. Das ist keine Eigenschaft des
+Vorschlags, sondern der bestehenden `SPEED_TABLE` — beurteile, ob das ein Datenfehler ist, der
+unabhängig von diesem Vorschlag repariert gehört.
+
 ---
 
 ## 6. Abgabe
