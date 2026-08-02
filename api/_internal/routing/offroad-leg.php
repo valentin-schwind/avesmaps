@@ -282,7 +282,8 @@ function avesmapsConnectOffroadPoints(
     array $toPoint,
     string $fromNode,
     string $toNode,
-    bool $terrainEnabled = true
+    bool $terrainEnabled = true,
+    string $connectionId = 'offroad-direct'
 ): array {
     $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
     $speed = $transport === null
@@ -304,7 +305,7 @@ function avesmapsConnectOffroadPoints(
         return ['ok' => false, 'error' => 'no_offroad_route'];
     }
 
-    avesmapsAddOffroadEdge($clientGraph['graph'], $fromNode, $toNode, $path, (string) $transport, 'offroad-direct');
+    avesmapsAddOffroadEdge($clientGraph['graph'], $fromNode, $toNode, $path, (string) $transport, $connectionId);
 
     return [
         'ok' => true,

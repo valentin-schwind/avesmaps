@@ -9,6 +9,7 @@ require_once __DIR__ . '/terrain-read.php';
 require_once __DIR__ . '/land-areas.php';
 require_once __DIR__ . '/offroad-data.php';
 require_once __DIR__ . '/offroad-leg.php';
+require_once __DIR__ . '/detour.php';
 
 // 15: a route endpoint may be a map point (`from_point`/`to_point`), and a leg may be an A*-computed
 // cross-country way with a real point sequence instead of a straight line.
@@ -262,6 +263,28 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	}
 
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+
+	// V14 §5.5: der automatische Umweg-Auslöser. Fährt das gezeichnete Netz einen absurden Bogen,
+	// bekommt der Dijkstra einen A*-Querweg ANGEBOTEN und rechnet noch einmal. Der Vorfilter ist
+	// gratis -- Luftlinie und gefahrene Strecke liegen hier beide vor -- und schweigt für 90,9 % der
+	// Routen, ohne dass eine Zeile Suche läuft.
+	$detour = ['checked' => false];
+	$locations = is_array($routeNetworkData['locations'] ?? null) ? $routeNetworkData['locations'] : [];
+	$fromPoint = avesmapsRouteResolveEndpointPoint($locations, $fromLocation, $request['from_point'] ?? null);
+	$toPoint = avesmapsRouteResolveEndpointPoint($locations, $toLocation, $request['to_point'] ?? null);
+	if ($fromPoint !== null && $toPoint !== null) {
+		$detour = avesmapsMaybeOfferOffroadDetour(
+			$clientGraph, $request, $water, $routePdo,
+			is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : [],
+			$fromPoint, $toPoint, $fromLocation, $toLocation, $terrainEnabled
+		);
+		if (!empty($detour['offered'])) {
+			// 🔴 DERSELBE DIJKSTRA, NICHT EIN ZWEITER ZUSAMMENBAU. Er darf die Kante auch teilweise
+			// nehmen (ein Stück Straße, dann quer) -- das wäre dann die richtige Antwort.
+			$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+		}
+	}
+
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
 	$networkStatistics = is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [];
@@ -324,6 +347,10 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 				// search ACTUALLY used -- over the cell cap it coarsens for this one request, and a
 				// route computed on a 1,0 grid is a different statement from one computed on 0,5.
 				'offroad' => $offroad,
+				// V14 §5.5. Immer da, auch wenn nichts passiert ist: `ratio` gegen `threshold`
+				// erklaert jede Route, die querfeldein geht, UND jede, die es nicht tut. „Warum
+				// nimmt er den Bogen?" ist sonst nur zu beantworten, indem man es nachbaut.
+				'detour' => $detour,
 			],
 		],
 	];
