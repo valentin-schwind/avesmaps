@@ -44,7 +44,13 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 
 	return planEntries.map((entry) => {
 		let restTime = 0;
-		if (includeRests && !["Seeweg", "Flussweg"].includes(entry.type)) {
+		// 💣 ONLY Seeweg travels around the clock, and that is a source statement, not a convenience.
+		// S. 131 documents the 24-hour passage for sea ships (Schnellsegler 250 miles, Kurier-Dromone
+		// 200). S. 129 says the opposite for rivers: the travel day is 12 hours and only pirates or
+		// couriers run downstream at night. Flussweg sat in this list until 2026-08-02 and made every
+		// river 2,52x the source's day performance -- the speeds in SPEED_TABLE were right all along,
+		// the day they were multiplied by was not.
+		if (includeRests && entry.type !== "Seeweg") {
 			const days = entry.travelTime / travelPerDay;
 			const totalSegmentHours = days * 24;
 			restTime = totalSegmentHours - entry.travelTime;

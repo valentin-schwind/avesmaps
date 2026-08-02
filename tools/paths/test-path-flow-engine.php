@@ -26,7 +26,10 @@ check('normalize: null on non-array', avesmapsPathFlowNormalize(null), null);
 check('normalize: null without dir', avesmapsPathFlowNormalize(['factor' => 2.0]), null);
 check('normalize: null on bad dir', avesmapsPathFlowNormalize(['dir' => 'up']), null);
 check('normalize: defaults', avesmapsPathFlowNormalize(['dir' => 'forward']),
-    ['dir' => 'forward', 'factor' => 1.5, 'source' => 'editor']);
+    ['dir' => 'forward', 'factor' => AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 'source' => 'editor']);
+// The default is the source's upstream/downstream ratio (S. 129: Kahn 20/40, Segler 30/60), not a
+// free knob -- pinned here so a change has to be a decision, not a typo.
+check('normalize: default factor is 2.0', AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 2.0);
 check('normalize: clamps high factor', avesmapsPathFlowNormalize(['dir' => 'reverse', 'factor' => 9, 'source' => 'verlauf-sync']),
     ['dir' => 'reverse', 'factor' => 3.0, 'source' => 'verlauf-sync']);
 check('normalize: clamps low factor', avesmapsPathFlowNormalize(['dir' => 'forward', 'factor' => 0.5]),

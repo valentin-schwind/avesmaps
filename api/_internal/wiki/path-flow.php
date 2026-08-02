@@ -6,7 +6,14 @@ declare(strict_types=1);
 // Pure functions in this file are CLI-testable without a DB (pattern: path-verlauf.php);
 // DB-backed derive/set actions are added by later tasks IN THIS FILE. No top-level requires.
 
-const AVESMAPS_PATH_FLOW_FACTOR_DEFAULT = 1.5;
+// 💣 THE DEFAULT IS THE SOURCE'S RATIO, NOT A ROUND NUMBER. Geographia Aventurica S. 129 pairs
+// upstream against downstream throughout: Kahn 20/40 and Segler 30/60 are both exactly 2,0, the
+// Flussgaleere 35/75 is 2,14. It stood at 1,5 until 2026-08-02 with nothing behind that value. The
+// clamp [1,0 ... 3,0] is unaffected and stays -- a current only ever slows you down.
+// ⚠️ THE DEFAULT CARRIES MOST RIVERS. The verlauf-sync writes `dir` and never `factor` (see
+// avesmapsPathFlowPlanWrites), so a wiki-directed river has no stored factor and travels on this
+// value; only ways an owner set by hand carry their own.
+const AVESMAPS_PATH_FLOW_FACTOR_DEFAULT = 2.0;
 const AVESMAPS_PATH_FLOW_FACTOR_MIN = 1.0;
 const AVESMAPS_PATH_FLOW_FACTOR_MAX = 3.0;
 
@@ -18,7 +25,7 @@ function avesmapsPathFlowClampFactor(float $factor): float {
 }
 
 // Normalizes a raw properties.flow value. Null unless dir is valid (missing dir => the
-// segment is symmetric, requirement 4). factor defaults to 1.5 and is clamped; source
+// segment is symmetric, requirement 4). factor defaults to 2.0 and is clamped; source
 // defaults to 'editor'.
 function avesmapsPathFlowNormalize(mixed $flow): ?array {
     if (!is_array($flow)) {

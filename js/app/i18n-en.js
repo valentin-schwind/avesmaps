@@ -17,8 +17,8 @@ window.AVESMAPS_I18N_EN = {
 	// V12, edit mode only.
 	"planner.showRouteSpeed": "Speed",
 	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
-	"planner.travelHours.title": "Travel hours on land per day; the rest of the day is spent resting. 24 = travel without rest.",
-	"planner.travelHoursSuffix": "travel hours on land per day",
+	"planner.travelHours.title": "Travel hours per day on land and on rivers; the rest of the day is spent resting. On the open sea, travel continues around the clock. 24 = travel without rest.",
+	"planner.travelHoursSuffix": "travel hours per day",
 	// Kopfzeile der eingeklappten Einstellgruppen. Die uebrigen Bestandteile der
 	// Zusammenfassung liest sie aus dem gerenderten Markup und ist damit ohne eigene
 	// Schluessel schon uebersetzt (map-features-planner-groups.js).
@@ -732,10 +732,10 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.legend.mid": "medium",
 	"transport.speedInfo.legend.slow": "slow",
 	"transport.speedInfo.riverTravel": "River travel",
-	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — depending on the river, 1.5 times, and up to 3 times the duration in strong currents.",
+	"transport.speedInfo.riverNote": "Downstream, with the current, you travel at full speed. Upstream, against the current, the same distance takes longer — as a rule twice the duration, and up to 3 times in strong currents.",
 	"transport.speedInfo.seaTravel": "Sea travel",
 	"transport.speedInfo.seaNote": "On the open sea, travel continues day and night — no rest time is needed.",
-	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This only applies on land — on water, travel continues without stopping.",
+	"transport.speedInfo.restRule": "<b>Rest.</b> By default you travel 12 hours a day and rest 12 hours (adjustable in the planner). This applies on land and on rivers — only on the open sea does travel continue without stopping.",
 	"transport.speedInfo.crossCountryRule": "<b>Cross-country.</b> If there is no real path between two places, the route cuts straight across the terrain. This is slow (1.25–2.5&nbsp;miles/h), so the calculation itself prefers large detours over proper roads and trails.",
 	// V11. "Schritt" stays (see the note above on the DSA unit of length). The numbers are the curve
 	// itself, not a paraphrase: 300 Schritt of climb per mile is a gradient of 0,1 and the factor is

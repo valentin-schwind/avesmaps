@@ -198,7 +198,8 @@ function getRouteSegmentUpstreamFactor(segment, orientation, type) {
 		return 1;
 	}
 	const rawFactor = Number(flow.factor);
-	return Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 1.5;
+	// Default 2.0, mirroring AVESMAPS_PATH_FLOW_FACTOR_DEFAULT (S. 129: Kahn 20/40, Segler 30/60).
+	return Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 2.0;
 }
 
 // Display flow factor for a route segment: server-primary display segments carry the

@@ -152,4 +152,90 @@ foreach ($surfaces as $label => $file) {
     }
 }
 
+// ---- 3. the water and carriage sentences ---------------------------------------------------------
+//
+// 🔴 ADDED 2026-08-02. Parts 1 and 2 bound the SLOPE sentence to the model and left three others
+// unguarded, and all three were wrong at once: riverNote named „das 1,5-fache" while the routing
+// default was 1,5 for no reason anyone had written down (the source says 2,0 throughout), restRule
+// claimed „auf dem Wasser wird durchgefahren" while S. 129 puts rivers on a 12-hour day, and the
+// carriage's half speed on Karrenweg/Pass was missing from the table entirely. Same construction as
+// above: the number is recomputed from the constant, and the sentence is asserted to still say it.
+
+require_once __DIR__ . '/../../wiki/path-flow.php';
+require_once __DIR__ . '/../client-graph.php';
+
+$jsRoot = __DIR__ . '/../../../../js/';
+$readJs = static function (string $relative) use ($jsRoot): string {
+    $source = (string) file_get_contents($jsRoot . $relative);
+    assert($source !== '', $relative . ' is readable');
+
+    return terrainClaimNormalize($source);
+};
+
+// „in der Regel das 2-fache … bis zum 3-fachen der Zeit" = the routing default and its clamp ceiling.
+terrainClaimNear(2.0, AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 'upstream default = the source ratio (S. 129: Kahn 20/40, Segler 30/60)');
+terrainClaimNear(3.0, AVESMAPS_PATH_FLOW_FACTOR_MAX, 'upstream ceiling = the „bis zum 3-fachen" of the dialog');
+
+// The river speeds carry the source's day performance at the 12-hour travel day of S. 129 (Kahn 40,
+// Segler 60 downstream). TIME_SCALE_FACTOR is read from js/config.js because the SERVER never
+// applies it -- it is a display multiplier on the client (route-plan.js) and only the two together
+// produce the number a traveller sees.
+$configSource = $readJs('config.js');
+assert((bool) preg_match('/const TIME_SCALE_FACTOR = ([0-9.]+);/', $configSource, $timeScaleMatch), 'TIME_SCALE_FACTOR readable from config.js');
+$timeScale = (float) $timeScaleMatch[1];
+$riverDayPerformance = static fn(float $speed): float => $speed / $timeScale * 12.0;
+foreach ([['riverBarge', 40.0], ['riverSailer', 60.0]] as [$mode, $expectedDay]) {
+    $actualDay = $riverDayPerformance((float) AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$mode]['Flussweg']);
+    assert(
+        abs($actualDay / $expectedDay - 1.0) < 0.01,
+        $mode . ' downstream must hit the source\'s ' . $expectedDay . ' miles/day at a 12-hour travel day -- is ' . round($actualDay, 2)
+    );
+}
+
+// „auf Karrenwegen und Pässen nur halbe Geschwindigkeit" (S. 123). Measured RELATIVE to Strasse, so
+// the assertion survives a future rescaling of the whole table and still catches an un-halving:
+// the source's path-type factors are 0,8 for Weg/Karrenweg and 0,4 for the Passstrecke, halved.
+$carriage = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE['horseCarriage'];
+foreach ([['Weg', 0.8 * 0.5], ['Gebirgspass', 0.4 * 0.5]] as [$subtype, $expectedRatio]) {
+    $actualRatio = $carriage[$subtype] / $carriage['Strasse'];
+    assert(
+        abs($actualRatio - $expectedRatio) < 0.03,
+        'the carriage must travel ' . $subtype . ' at half the path-type speed (' . $expectedRatio
+        . ' of Strasse) -- is ' . round($actualRatio, 3) . '. Un-halving it drops a rule of S. 123.'
+    );
+}
+
+// restRule's „nur auf offener See wird durchgefahren" IS this one condition. Seeweg alone travels
+// around the clock; Flussweg sat beside it until 2026-08-02 and made every river 2,52x the source.
+$restSource = $readJs('routing/route-result.js');
+assert(str_contains($restSource, 'entry.type !== "Seeweg"'), 'route-result.js: the no-rest rule must name Seeweg and nothing else');
+assert(!str_contains($restSource, '"Seeweg", "Flussweg"'), 'route-result.js: Flussweg is back in the no-rest list -- rivers rest (S. 129), only the sea does not (S. 131)');
+
+$waterNeedles = [
+    'DE' => [
+        'in der Regel das 2-fache, bei starker Strömung bis zum 3-fachen',
+        'Das gilt an Land und auf Flüssen — nur auf offener See wird durchgefahren',
+        // seaNote is deliberately unchanged: per hour we are SLOWER than the source, and its
+        // 24-hour operation is documented (S. 131: Schnellsegler 250, Kurier-Dromone 200).
+        'Auf offener See wird Tag und Nacht durchgesegelt',
+    ],
+    'EN' => [
+        'as a rule twice the duration, and up to 3 times in strong currents',
+        'This applies on land and on rivers — only on the open sea',
+        'On the open sea, travel continues day and night',
+    ],
+];
+
+foreach ($surfaces as $label => $file) {
+    $source = terrainClaimNormalize((string) file_get_contents($file));
+    $lang = str_contains($label, '(EN)') ? 'EN' : 'DE';
+    foreach ($waterNeedles[$lang] as $needle) {
+        assert(
+            str_contains($source, $needle),
+            $label . ': the water/rest rule no longer says „' . $needle . '". Either the text drifted '
+            . 'from the model or the model changed -- decide which, then fix BOTH.'
+        );
+    }
+}
+
 echo "terrain-text-claims-test: all asserts passed\n";

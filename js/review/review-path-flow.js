@@ -130,7 +130,9 @@ function renderPathFlowSection() {
 	const saveButton = pathFlowElement("path-flow-factor-save");
 	if (factorInput) {
 		const rawFactor = Number(flow?.factor);
-		factorInput.value = (Number.isFinite(rawFactor) ? Math.min(3, Math.max(1, rawFactor)) : 1.5).toFixed(1);
+		// Vorbelegung 2,0 wie AVESMAPS_PATH_FLOW_FACTOR_DEFAULT -- ein Weg ohne eigenen Faktor faehrt
+		// im Routing auf diesem Wert, das Feld muss ihn also zeigen und nicht einen anderen anbieten.
+		factorInput.value = (Number.isFinite(rawFactor) ? Math.min(3, Math.max(1, rawFactor)) : 2.0).toFixed(1);
 		// Faktor editierbar, sobald ein Wiki-Weg zugewiesen ODER der Weg gerichtet ist
 		// (Owner-Anforderung 3).
 		const hasWiki = Boolean(pathEditFeature.properties?.wiki_path?.wiki_key);

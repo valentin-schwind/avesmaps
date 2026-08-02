@@ -36,7 +36,9 @@ var WP_MEILEN_PER_MAPUNIT = 3.0;
 var WP_SPEEDS = {
 	lightRider:    { label: "Reiter",               Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Wuestenpfad: 4.0, Querfeldein: 2.5 },
 	groupHorse:    { label: "Reisegruppe beritten", Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Wuestenpfad: 3.0, Querfeldein: 2.1 },
-	horseCarriage: { label: "Kutsche",              Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Wuestenpfad: 3.0, Querfeldein: 1.7 },
+	// Weg and Gebirgspass carry the source's carriage rule („auf Karrenwegen und Pässen nur halbe
+	// Geschwindigkeit", S. 123) and are therefore HALF of what the path-type factor alone would give.
+	horseCarriage: { label: "Kutsche",              Reichsstrasse: 6.0, Strasse: 5.5, Weg: 2.25, Pfad: 3.0, Gebirgspass: 1.0, Wuestenpfad: 3.0, Querfeldein: 1.7 },
 	lightWalker:   { label: "Zu Fuß",               Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Wuestenpfad: 3.5, Querfeldein: 1.7 },
 	groupFoot:     { label: "Reisegruppe zu Fuß",   Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Wuestenpfad: 2.5, Querfeldein: 1.25 },
 	caravan:       { label: "Karawane",             Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Wuestenpfad: 2.0, Querfeldein: 1.25 }

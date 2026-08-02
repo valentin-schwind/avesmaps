@@ -34,15 +34,19 @@ const AVESMAPS_ROUTE_CLIENT_SEA_ROUTE_TYPES = ['Seeweg'];
 // Open water is now asked directly: api/_internal/routing/water-areas.php. Do not reintroduce a
 // distance threshold here -- a long bridge is not the problem, a wet one is.
 
+// 💣 MIRROR OF js/config.js SPEED_TABLE (and, for the land rows, of WP_SPEEDS in
+// js/pages/wege-editor-model.js). The full derivation and the two rules encoded in the numbers --
+// the river's 12-hour travel day and the carriage's half speed on Weg/Gebirgspass -- are documented
+// there; do not change one side alone.
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
     'lightWalker' => ['Reichsstrasse' => 5.5, 'Strasse' => 5.0, 'Weg' => 4.5, 'Pfad' => 4.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.5, 'Querfeldein' => 1.7],
     'groupHorse' => ['Reichsstrasse' => 7.0, 'Strasse' => 6.5, 'Weg' => 5.5, 'Pfad' => 4.5, 'Gebirgspass' => 2.5, 'Wuestenpfad' => 3.0, 'Querfeldein' => 2.1],
     'lightRider' => ['Reichsstrasse' => 8.5, 'Strasse' => 8.0, 'Weg' => 7.0, 'Pfad' => 6.0, 'Gebirgspass' => 3.0, 'Wuestenpfad' => 4.0, 'Querfeldein' => 2.5],
     'caravan' => ['Reichsstrasse' => 4.0, 'Strasse' => 3.5, 'Weg' => 3.0, 'Pfad' => 2.5, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.0, 'Querfeldein' => 1.25],
-    'horseCarriage' => ['Reichsstrasse' => 6.0, 'Strasse' => 5.5, 'Weg' => 4.5, 'Pfad' => 3.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.0, 'Querfeldein' => 1.7],
-    'riverSailer' => ['Flussweg' => 7.5],
-    'riverBarge' => ['Flussweg' => 5.0],
+    'horseCarriage' => ['Reichsstrasse' => 6.0, 'Strasse' => 5.5, 'Weg' => 2.25, 'Pfad' => 3.0, 'Gebirgspass' => 1.0, 'Wuestenpfad' => 3.0, 'Querfeldein' => 1.7],
+    'riverSailer' => ['Flussweg' => 6.0],
+    'riverBarge' => ['Flussweg' => 4.0],
     'cargoShip' => ['Seeweg' => 10.0],
     'fastShip' => ['Seeweg' => 12.0],
     'galley' => ['Seeweg' => 9.0],
@@ -184,7 +188,8 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
 
 // Normalized river-flow object for a route path (properties.flow, Flussrichtung spec §2/§4).
 // Null unless the path is a Flussweg with a valid dir; factor clamped to [1.0, 3.0], default
-// 1.5. Self-contained mirror of the wiki lib's avesmapsPathFlowNormalize (routing must not
+// 2.0 (the source's upstream/downstream ratio -- see AVESMAPS_PATH_FLOW_FACTOR_DEFAULT for why).
+// Self-contained mirror of the wiki lib's avesmapsPathFlowNormalize (routing must not
 // depend on the wiki lib) and of js/routing/route-graph-routing.js getRiverFlowTimeFactors.
 function avesmapsRouteClientNormalizeFlow(array $path, string $routeType): ?array {
     if ($routeType !== 'Flussweg') {
@@ -198,7 +203,7 @@ function avesmapsRouteClientNormalizeFlow(array $path, string $routeType): ?arra
     if ($dir !== 'forward' && $dir !== 'reverse') {
         return null;
     }
-    $factor = is_numeric($flow['factor'] ?? null) ? (float) $flow['factor'] : 1.5;
+    $factor = is_numeric($flow['factor'] ?? null) ? (float) $flow['factor'] : 2.0;
     $factor = max(1.0, min(3.0, $factor));
     return ['dir' => $dir, 'factor' => $factor];
 }

@@ -9,6 +9,10 @@ require __DIR__ . '/../../api/_internal/bootstrap.php';
 require __DIR__ . '/../../api/_internal/routing/request.php';
 require __DIR__ . '/../../api/_internal/routing/network-data.php';
 require __DIR__ . '/../../api/_internal/routing/client-graph.php';
+// The routing mirror deliberately does not include the wiki lib (client-graph.php keeps its own
+// copy of the flow rule). The TEST may, and does: it turns the duplicated default into a checked
+// parity instead of two magic numbers that drift apart.
+require __DIR__ . '/../../api/_internal/wiki/path-flow.php';
 
 $failures = 0;
 $total = 0;
@@ -80,9 +84,10 @@ $downBA = routeCost([makePath('r1', 'Flussweg', $line, $flowReverse)], 'B', 'A',
 check('reverse: upstream x2.0', round($upAB / $noFlowAB, 6), 2.0);
 check('reverse: downstream unchanged', round($downBA / $noFlowAB, 9), 1.0);
 
-// Missing factor -> default 1.5; oversized factor -> clamped to 3.0.
+// Missing factor -> the shared default (2.0, the source's 20/40 ratio); oversized -> clamped to 3.0.
 $upDefault = routeCost([makePath('r1', 'Flussweg', $line, ['dir' => 'forward'])], 'B', 'A', $request);
-check('default factor 1.5', round($upDefault / $noFlowAB, 6), 1.5);
+check('default factor = wiki lib default', round($upDefault / $noFlowAB, 6), round(AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 6));
+check('default factor is the source ratio 2.0', AVESMAPS_PATH_FLOW_FACTOR_DEFAULT, 2.0);
 $upClamped = routeCost([makePath('r1', 'Flussweg', $line, ['dir' => 'forward', 'factor' => 9])], 'B', 'A', $request);
 check('factor clamped to 3.0', round($upClamped / $noFlowAB, 6), 3.0);
 

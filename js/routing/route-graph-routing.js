@@ -99,7 +99,9 @@ function getRiverFlowTimeFactors(properties, routeType) {
         return null;
     }
     const rawFactor = Number(flow?.factor);
-    const factor = Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 1.5;
+    // Default 2.0 = the source's upstream/downstream ratio (S. 129: Kahn 20/40, Segler 30/60).
+    // Mirrors AVESMAPS_PATH_FLOW_FACTOR_DEFAULT; the server owns the rule.
+    const factor = Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 2.0;
     return {
         forwardFactor: dir === "reverse" ? factor : 1,
         backwardFactor: dir === "forward" ? factor : 1,
