@@ -428,6 +428,12 @@ function buildPlaceBoundSpotlightEntry(result, kind) {
 		typeLabel: String(result.type_label || ""),
 		aliases: [],
 		inSettlementName: String(result.place_name || ""),
+		// "beginnt in Gareth" -- the wording carries the spoiler-free role. It is composed HERE, not on
+		// the server: every other visible German string in the result list lives in this file, and the
+		// server has no business owning one. Only shown when the place is actually reachable.
+		placeHint: placeEntry && kind === "adventure" && result.place_name
+			? tr("spotlight.adventureStartsIn", "beginnt in {place}").replace("{place}", String(result.place_name))
+			: "",
 		notOnMap: true,
 		unreachable: !placeEntry,
 		citymapTotal: Number(result.citymap_total) || 0,
@@ -472,7 +478,7 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 			entry = buildInSettlementSpotlightEntry(result);
 		}
 
-		if (!entry && kind === "citymap") {
+		if (!entry && (kind === "citymap" || kind === "adventure")) {
 			entry = buildPlaceBoundSpotlightEntry(result, kind);
 		}
 

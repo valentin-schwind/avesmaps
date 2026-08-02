@@ -58,7 +58,7 @@ function selectSpotlightSearchEntry(entry) {
 		return;
 	}
 
-	if (entry.kind === "citymap") {
+	if (entry.kind === "citymap" || entry.kind === "adventure") {
 		focusSpotlightPlaceEntry(entry);
 		return;
 	}
