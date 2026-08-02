@@ -681,6 +681,92 @@
 		});
 	}
 
+	// ── Wege syncen ───────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Das Fenster, in dem der Sync wohnt -- oder null.
+	 *
+	 * 💣 EIGENES `window` JE RAHMEN, und es sind zwei mögliche Eltern: als Overlay über index.html
+	 * ist `parent` das Hauptfenster, aus der Edit-Shell heraus ist `parent` die Shell und `top` das
+	 * Fenster mit der Funktion. Deshalb beide geprüft, statt einen zu raten -- ein Griff ins Leere
+	 * sähe aus wie „der Knopf tut nichts“.
+	 */
+	function syncHost() {
+		var frames = [];
+		try { if (window.parent && window.parent !== window) { frames.push(window.parent); } } catch (error) { /* fremder Ursprung */ }
+		try { if (window.top && window.top !== window && frames.indexOf(window.top) === -1) { frames.push(window.top); } } catch (error) { /* fremder Ursprung */ }
+		for (var i = 0; i < frames.length; i++) {
+			try {
+				if (typeof frames[i].startWikiSyncKindSync === "function") { return frames[i]; }
+			} catch (error) { /* weiter zum nächsten Rahmen */ }
+		}
+		return null;
+	}
+
+	/**
+	 * Wege syncen -- angestoßen von hier, und das Ergebnis kommt AUCH hierher zurück.
+	 *
+	 * ⭐ Der Lauf selbst lebt im Hauptfenster (startWikiSyncKindSync ist EINE Funktion für alle
+	 * Subjekte, der Reiter übergibt nur seine Art). Sie ist `async`, also sagt ihre Zusage, wann der
+	 * Lauf durch ist -- und sie erfüllt sich auch nach einem Fehlschlag, weil sie ihn intern fängt.
+	 * Deshalb wird DANACH die Liste neu geladen und die Bilanz genannt, statt sich auf das
+	 * Gelingen zu verlassen.
+	 *
+	 * 💣 Der Fortschritt steht als TEXT im Sync-Knopf des Hauptfensters (renderWikiSyncKindProgress
+	 * schreibt „Syncen … 12/340“ hinein). Dieser Knopf ist dort seit dem Umzug versteckt, wird aber
+	 * weiter beschrieben -- also wird er hier gespiegelt. Ohne das stünde dieses Fenster minutenlang
+	 * still, während im anderen etwas läuft.
+	 */
+	function runSync() {
+		var host = syncHost();
+		var tile = $("wpSync");
+		var info = $("wpSyncInfo");
+		if (!host) {
+			setStatus("Der Wege-Sync ist von hier nicht erreichbar. Im Hauptfenster: Reiter „Wege“.", "bad");
+			return;
+		}
+
+		var before = state.ways.length;
+		tile.disabled = true;
+		setStatus("Wege-Sync läuft …");
+
+		var mirror = window.setInterval(function () {
+			try {
+				var button = host.document.getElementById("wiki-sync-sync-path");
+				var text = button ? String(button.textContent || "").trim() : "";
+				if (text !== "") {
+					info.textContent = text;
+					setStatus("Wege-Sync: " + text);
+				}
+			} catch (error) { /* Rahmen weg oder fremd -- der Abschluss unten meldet trotzdem */ }
+		}, 600);
+
+		Promise.resolve()
+			.then(function () { return host.startWikiSyncKindSync("path"); })
+			.then(function () {
+				window.clearInterval(mirror);
+				info.textContent = "wird neu geladen …";
+				// 💣 Die Liste MUSS neu geladen werden -- der Sync schreibt Wege, und dieses Fenster
+				// überlebt sein Schließen. Ohne das zeigt es den Stand von vor dem Lauf.
+				return loadList();
+			})
+			.then(function () {
+				var after = state.ways.length;
+				var delta = after - before;
+				var balance = delta === 0
+					? "unverändert " + after + " Wege"
+					: after + " Wege (" + (delta > 0 ? "+" : "") + delta + ")";
+				setStatus("Wege-Sync abgeschlossen — " + balance + ".", "ok");
+				info.textContent = balance;
+			})
+			.catch(function (error) {
+				window.clearInterval(mirror);
+				info.textContent = "fehlgeschlagen";
+				setStatus("Wege-Sync: " + (error && error.message ? error.message : error), "bad");
+			})
+			.then(function () { tile.disabled = false; });
+	}
+
 	// ── „Funktionen anzeigen“ ─────────────────────────────────────────────────────────────────
 
 	function seriesLine(index) { return "wp-line wp-line--" + (index + 1); }
@@ -701,7 +787,10 @@
 			+ "allein die Grundgeschwindigkeit, also die Höhe der Kurve.<br>"
 			+ "<b>Fluss- und Seewege fehlen mit Absicht:</b> für sie gilt der Steigungsfaktor gar nicht.</p>"
 			+ "</section>"
-			+ "<section><h3>Zeitfaktor über Neigung</h3>" + factorChart()
+			// Die Faktorkurve steht im GLEICHEN Raster wie die kleinen Bilder, also in einer
+			// Rasterspur -- so ist sie genau so groß wie die anderen, ohne eine Breite von Hand.
+			+ '<section><h3>Zeitfaktor über Neigung</h3><div class="wp-small wp-small--single">'
+			+ factorChart() + "</div>"
 			+ "<p>Leistungsmeilen = Meilen + Aufstieg/100 + Abstieg über 20 % Gefälle/150; Faktor = "
 			+ "Leistungsmeilen ÷ Meilen. Deckel 4,0, kein Boden. Die senkrechte rote Linie bei −20 % ist "
 			+ "ein <b>echter Sprung</b>: die Schwelle entscheidet je Abtastschritt, und darüber zählt der "
@@ -957,29 +1046,7 @@
 			if (event.target === $("wpFnOverlay")) { $("wpFnOverlay").hidden = true; }
 		});
 
-		$("wpSync").addEventListener("click", function () {
-			// Der Sync selbst lebt im Hauptfenster; von hier aus wird er angestoßen. Die Funktion
-			// heißt startWikiSyncKindSync("path") -- EINE Funktion für alle Subjekte, der Reiter
-			// übergibt nur seine Art (js/app/bootstrap.js:382).
-			//
-			// 💣 EIGENES `window` JE RAHMEN, und es sind zwei mögliche Eltern: als Overlay über
-			// index.html ist `parent` das Hauptfenster, aus der Edit-Shell heraus ist `parent` die
-			// Shell und `top` das Fenster mit der Funktion. Deshalb beide probiert, statt einen zu
-			// raten -- ein Griff ins Leere sähe hier aus wie „der Knopf tut nichts“.
-			var frames = [];
-			try { if (window.parent && window.parent !== window) { frames.push(window.parent); } } catch (error) { /* fremder Ursprung */ }
-			try { if (window.top && window.top !== window && frames.indexOf(window.top) === -1) { frames.push(window.top); } } catch (error) { /* fremder Ursprung */ }
-			for (var i = 0; i < frames.length; i++) {
-				try {
-					if (typeof frames[i].startWikiSyncKindSync === "function") {
-						frames[i].startWikiSyncKindSync("path");
-						setStatus("Wege-Sync im Hauptfenster gestartet — das Ergebnis erscheint dort.", "ok");
-						return;
-					}
-				} catch (error) { /* weiter zum nächsten Rahmen */ }
-			}
-			setStatus("Der Wege-Sync ist von hier nicht erreichbar. Im Hauptfenster: Reiter „Wege“.", "bad");
-		});
+		$("wpSync").addEventListener("click", runSync);
 	}
 
 	function boot() {

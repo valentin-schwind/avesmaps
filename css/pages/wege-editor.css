@@ -182,16 +182,36 @@
 
 .wp-controls__note[hidden] { display: none; }
 
-/* Small multiples: one picture per way type. Grid tracks, not flex -- same reason as the three
-   columns (Spec §3.2): a border box cannot shrink below its own padding, grid tracks do not care. */
+/* Small multiples: one picture per way type, THREE per row (owner 2026-08-02). Grid tracks, not
+   flex -- same reason as the three columns (Spec §3.2): a border box cannot shrink below its own
+   padding, grid tracks do not care.
+   Fixed at three rather than `auto-fit`: the pictures are compared ACROSS rows („is the pass
+   curve the same shape as the road's?"), and a reflowing column count moves a picture to a
+   different position every time the window changes width. */
 .wp-small {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--space-8);
 	margin-top: var(--space-8);
 }
 
 .wp-small .wp-chart { margin: 0; }
+
+/* Below roughly two full tiles the three tracks would squeeze the axis labels into each other. */
+@media (max-width: 700px) {
+	.wp-small { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 460px) {
+	.wp-small { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 🔴 The factor curve wears the SAME tile size as the small multiples (owner 2026-08-02: „bisschen
+   zu groß der plot, soll so groß sein wie die anderen"). It rides in the same grid so the width
+   comes from the same track definition -- setting a max-width by hand would drift the moment the
+   column count changes. */
+.wp-small--single { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wp-small--single > * { grid-column: span 1; }
 
 /* Distribution: one 100 % row per way type. A SEQUENTIAL ramp (one hue, light to dark) because the
    classes are ordered -- never the categorical palette, never a rainbow. */
