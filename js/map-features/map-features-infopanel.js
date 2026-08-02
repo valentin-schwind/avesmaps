@@ -345,24 +345,40 @@
 		}
 	}
 
-	// Tab-Klick: den Wegpunkt (Name) als Ort aufloesen und seine Info ins Panel holen. Ist er kein
-	// geladener Ort (z. B. ein reiner Kartenpunkt), passiert nichts (kein Inhalt zum Anzeigen).
+	// Tab-Klick: den Wegpunkt (Name) als Ort aufloesen und seine Info ins Panel holen.
+	//
+	// 💣 EIN KARTENPUNKT IST KEIN ORT -- ABER ER IST AUCH NICHT NICHTS. Frueher endete diese Funktion
+	// still, wenn `findLocationMarkerByName` nichts fand: bei einer Route aus lauter Kartenpunkten war
+	// die ganze Leiste tot, obwohl der Zeiger `pointer` zeigte. Er hat keine Infoseite (es gibt keine
+	// zu zeigen), aber er hat eine KOORDINATE -- und „bring mich dorthin" ist genau das, was ein Klick
+	// auf eine Station verspricht. (Owner-Meldung 2026-08-02.)
 	function openWaypointInPanel(name) {
 		var entry = (typeof findLocationMarkerByName === "function") ? findLocationMarkerByName(name) : null;
 		if (entry && typeof window.avesmapsShowLocationInInfopanel === "function") {
 			window.avesmapsShowLocationInInfopanel(entry);
-			focusWaypointOnMap(entry);
-		}
-	}
-
-	// Tab-Klick zentriert die Karte auf die Stadt (hartes setView statt flyTo, Owner-Regel). Zoom-Regel:
-	// gibt es bereits eine Route (>= 2 Wegpunkte), bleibt die aktuelle Zoomstufe erhalten (die
-	// Route-Ansicht nicht stoeren); sonst immer Zoomstufe 5.
-	function focusWaypointOnMap(entry) {
-		if (typeof map === "undefined" || !map || typeof map.setView !== "function" || !entry || !entry.marker) {
+			focusWaypointOnMap(entry.marker && typeof entry.marker.getLatLng === "function" ? entry.marker.getLatLng() : null);
 			return;
 		}
-		var latlng = (typeof entry.marker.getLatLng === "function") ? entry.marker.getLatLng() : null;
+
+		var mapPoint = (typeof parseMapPointWaypoint === "function") ? parseMapPointWaypoint(name) : null;
+		if (!mapPoint) {
+			return;
+		}
+		// ⚠️ Wegpunkt-Koordinaten sind [lat, lng] -- L.latLng nimmt sie in dieser Reihenfolge.
+		focusWaypointOnMap(typeof L !== "undefined" ? L.latLng(mapPoint.coordinates[0], mapPoint.coordinates[1]) : null);
+		// Die angeklickte Station wird aktiv: sonst faende der Klick zwar statt, saehe aber aus wie
+		// nichts -- und die Leiste bliebe ausgegraut, weil keine Station als aktiv gilt.
+		currentTabActive = name;
+		renderTabs();
+	}
+
+	// Tab-Klick zentriert die Karte auf die Station (hartes setView statt flyTo, Owner-Regel). Zoom-Regel:
+	// gibt es bereits eine Route (>= 2 Wegpunkte), bleibt die aktuelle Zoomstufe erhalten (die
+	// Route-Ansicht nicht stoeren); sonst immer Zoomstufe 5.
+	function focusWaypointOnMap(latlng) {
+		if (typeof map === "undefined" || !map || typeof map.setView !== "function") {
+			return;
+		}
 		// Guard NON-FINITE coords too: a NaN latlng passes the truthy check, but setView(NaN) leaves the
 		// map centre undefined so the NEXT moveend crashes in Leaflet's _panInsideMaxBounds (owner's bug).
 		if (!latlng || !Number.isFinite(latlng.lat) || !Number.isFinite(latlng.lng)) {

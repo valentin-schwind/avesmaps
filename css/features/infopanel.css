@@ -219,6 +219,19 @@
 	outline-offset: 2px;
 	border-radius: 5px;
 }
+/* 💣 DIE STATION HATTE KEINE HOVER-REGEL -- nur `:focus-visible` fuer die Tastatur. Die einzige
+   Reaktion auf die Maus kam von `.avesmaps-infopanel__tabs.is-dimmed:hover`, und die gilt der GANZEN
+   Leiste: alle Stationen hellten gemeinsam auf, keine einzelne zeigte sich als Ziel. Der Zeiger stand
+   auf `pointer`, es sah also klickbar aus und fuehlte sich tot an. (Owner-Meldung 2026-08-02.) */
+.avesmaps-infopanel__station:hover .avesmaps-infopanel__station-label {
+	color: var(--color-text-strong);
+}
+.avesmaps-infopanel__station:hover .avesmaps-infopanel__station-dot {
+	transform: scale(1.15);
+}
+.avesmaps-infopanel__station-dot {
+	transition: transform 0.12s ease;
+}
 /* Waypoint mark — the SAME language as the map marker and the route planner
    (docs/route-waypoint-marker-design.md): a red disc with a dark eye, the destination a teardrop, the
    selected one gold. It used to be a grey ring here, which said nothing and matched neither of the other
