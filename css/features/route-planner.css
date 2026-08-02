@@ -240,22 +240,21 @@
    die Schalterzeile darf nicht in die 90-px-Spalte der Filter rutschen. */
 #transport-options > .planner-group__body {
 	display: grid;
-	gap: 5px;
-	padding: 0 8px 6px;
+	gap: 4px;
+	padding: 0 8px 5px;
 	/* Second column is flexible so col1 + gap + col2 = content width exactly; a
 	   fixed 210px overflowed the gap and pushed the dropdown 5px past the right
 	   inset (asymmetric with the left). The dropdown fills this column (below). */
 	grid-template-columns: 90px minmax(0, 1fr);
 }
 
-/* ⚠️ Innen bleiben von 350 px Panelbreite 297 px fuer die Zeilen. Die Radiozeile braucht
-   einzeilig 316 px und bricht deshalb auf zwei Zeilen um -- das kostet 20 px und ist der Preis
-   dafuer, dass der Rahmen den Inhalt umschliesst. Wer das zurueckdrehen will, muss den Rahmen
-   full-bleed setzen (margin: 0 -12px), nicht das Polster hier auf 0 druecken. */
+/* Die Routenoptionen bekommen bewusst mehr Luft als die Transportzeilen (Owner 2026-08-02):
+   ausgeschriebene Beschriftungen („Schnellste Route“) und weitere Abstaende. Sie brechen
+   dadurch auf zwei Zeilen um -- gewollt, gedraengt in einer Zeile war der Ausgangspunkt. */
 .route-planner-options-panel > .planner-group__body {
 	display: grid;
-	gap: 6px;
-	padding: 0 8px 6px;
+	gap: 8px;
+	padding: 0 8px 8px;
 }
 
 /* 💣 Ohne diese Zeile bleibt der Koerper sichtbar: `display: grid` daruber schlaegt die
@@ -331,7 +330,7 @@
 	   nicht unter sein eigenes Polster (26 px) plus Abstand (6). Sobald Oberflaeche + 32 ueber die
 	   Panelhoehe geht, bekommt das GANZE Panel einen Scrollbalken -- und der liegt dann ueber
 	   allem. Mit 26 liegen wir 10 px unter dem alten Wert, also mit Reserve. */
-	min-height: 26px;
+	min-height: 24px;
 	margin: 0;
 	padding: 0 2px;
 	border: 0;
@@ -532,7 +531,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 5px 8px;
+	gap: 5px 16px;
 	color: var(--color-text);
 	font-size: 12px;
 	line-height: 1.25;
