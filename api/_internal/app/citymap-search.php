@@ -127,3 +127,18 @@ function avesmapsBuildCitymapSearchEntries(array $rows, array $typeLabels): arra
 
     return $entries;
 }
+
+/**
+ * Tie-break comparator for the Kartensammlung search section, passed to avesmapsCollectSearchSection
+ * (api/_internal/app/search-section.php) as the $tieBreak callable.
+ *
+ * Maps with a resolved place first: a hit that does nothing when clicked belongs at the bottom.
+ */
+function avesmapsCitymapSearchCompare(array $left, array $right): int {
+    $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
+    if ($resolvedDiff !== 0) {
+        return $resolvedDiff;
+    }
+    $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+    return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
+}

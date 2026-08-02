@@ -33,7 +33,8 @@ const AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS = [
 ];
 
 /**
- * One row per approved adventure, with its FIRST approved role='start' place.
+ * One row per approved adventure, with its FIRST RESOLVED approved role='start' place (design §4.1)
+ * -- a resolved row always outranks an unresolved one, regardless of sort_order.
  *
  * The correlated subquery picks exactly one place per adventure, so no GROUP BY and no N+1 -- this
  * runs on a public, per-keystroke path.
@@ -61,7 +62,7 @@ function avesmapsFetchAdventureSearchRows(PDO $pdo): array {
              LEFT JOIN adventure_place p ON p.id = (
                  SELECT p2.id FROM adventure_place p2
                  WHERE p2.adventure_id = a.id AND p2.status = 'approved' AND p2.role = 'start'
-                 ORDER BY p2.sort_order ASC, p2.id ASC LIMIT 1
+                 ORDER BY (p2.target_public_id IS NULL OR p2.target_kind = 'unresolved') ASC, p2.sort_order ASC, p2.id ASC LIMIT 1
              )
              WHERE a.status = 'approved'"
         );
@@ -160,4 +161,25 @@ function avesmapsAdventureSearchEditionSortKey(string $edition): float {
     }
 
     return 1000.0;
+}
+
+/**
+ * Tie-break comparator for the adventure search section, passed to avesmapsCollectSearchSection
+ * (api/_internal/app/search-section.php) as the $tieBreak callable: resolved start place before
+ * unresolved, then score, then edition, then name.
+ */
+function avesmapsAdventureSearchCompare(array $left, array $right): int {
+    $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
+    if ($resolvedDiff !== 0) {
+        return $resolvedDiff;
+    }
+    $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+    if ($scoreDiff !== 0) {
+        return $scoreDiff;
+    }
+    // Newest edition first -- the same order the adventure dialog uses. With 1040 equally
+    // scored hits behind a word like "abenteuer", this tie-break alone decides which five a
+    // reader ever sees; without it they would be five arbitrary rows.
+    $editionDiff = ((float) $left['edition_sort_key']) <=> ((float) $right['edition_sort_key']);
+    return $editionDiff !== 0 ? $editionDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
 }

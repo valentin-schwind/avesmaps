@@ -73,3 +73,46 @@ function avesmapsAppSettingGetWithoutDdl(PDO $pdo, string $key, string $default 
 
     return $value === false ? $default : (string) $value;
 }
+
+/**
+ * Read MANY settings in ONE query, WITHOUT the self-healing DDL. Same motivation as
+ * avesmapsAppSettingGetWithoutDdl, extended to a caller that needs several keys at once: map-search.php
+ * used to read citymaps_enabled, adventures_enabled and four lore_kind_*_enabled keys as SIX separate
+ * round trips on the hottest public path -- each already DDL-free on its own, but six queries where one
+ * would do.
+ *
+ * Returns key => value only for the rows that EXIST -- a key nobody ever wrote is simply absent from
+ * the result, not present with an empty string. Callers apply their own per-key default exactly as they
+ * would for a single avesmapsAppSettingGetWithoutDdl call.
+ *
+ * Same degradation as avesmapsAppSettingGetWithoutDdl: a missing table (nobody has ever switched
+ * anything) or any other PDOException yields [], not a 500.
+ *
+ * @param list<string> $keys
+ * @return array<string, string>
+ */
+function avesmapsAppSettingGetManyWithoutDdl(PDO $pdo, array $keys): array
+{
+    $keys = array_values(array_unique(array_map('strval', $keys)));
+    if ($keys === []) {
+        return [];
+    }
+
+    try {
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $statement = $pdo->prepare(
+            'SELECT setting_key, setting_value FROM app_setting WHERE setting_key IN (' . $placeholders . ')'
+        );
+        $statement->execute($keys);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException) {
+        return [];
+    }
+
+    $result = [];
+    foreach ($rows as $row) {
+        $result[(string) $row['setting_key']] = (string) $row['setting_value'];
+    }
+
+    return $result;
+}

@@ -101,4 +101,14 @@ assert(avesmapsLoreSearchKindIsEnabled('spezies', '1') === true);
 assert(avesmapsLoreSearchKindIsEnabled('flora', '') === true);
 assert(avesmapsLoreSearchKindIsEnabled('flora', '0') === false);
 
+// avesmapsLoreSearchEnabledKindsFromSettings is the PURE core avesmapsLoreSearchEnabledKinds(PDO) now
+// wraps -- fed from avesmapsAppSettingGetManyWithoutDdl's batch read (api/_internal/app/app-setting.php)
+// instead of running its own query, so map-search.php can fold this into ONE call with the other
+// switches. No stored rows at all -> every kind falls back to its own default.
+assert(avesmapsLoreSearchEnabledKindsFromSettings([]) === ['flora', 'fauna', 'ware']);
+// A key simply ABSENT from $stored (never written) must read exactly like the '' case above -- not
+// like an accidental off.
+assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_spezies_enabled' => '1']) === ['flora', 'fauna', 'spezies', 'ware']);
+assert(avesmapsLoreSearchEnabledKindsFromSettings(['lore_kind_flora_enabled' => '0']) === ['fauna', 'ware']);
+
 echo "lore-search: OK\n";

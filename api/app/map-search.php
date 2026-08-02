@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/text/ascii-fold.php';
 require_once __DIR__ . '/../_internal/app/map-search-scoring.php';
+require_once __DIR__ . '/../_internal/app/search-section.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 require_once __DIR__ . '/../_internal/app/citymaps.php';
 require_once __DIR__ . '/../_internal/app/app-setting.php';
@@ -52,6 +53,21 @@ try {
         ]);
     }
 
+    // A query that normalizes to nothing ("---", "???") must skip all six fetches, not just the last
+    // step: without this check, map_features, the territories, the in-settlement objects, the maps, the
+    // adventures and the occurrences were all already loaded by the time
+    // avesmapsBuildMapSearchResults's OWN normalized-empty guard (below) ran and threw the result away.
+    // That guard stays regardless -- it is what makes avesmapsBuildMapSearchResults safe to call on its
+    // own -- this is the same check, just moved early enough to actually save the work.
+    if (avesmapsNormalizeSearchText($query) === '') {
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'query' => $query,
+            'limit' => $limit,
+            'results' => [],
+        ]);
+    }
+
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $rows = avesmapsFetchMapSearchRows($pdo);
     $politicalRows = avesmapsFetchPoliticalTerritorySearchRows($pdo);
@@ -59,24 +75,31 @@ try {
     // Kartenposition haben (Villen, Plaetze, Stadttempel, Gassen). Der Ortsindex wird aus
     // $rows abgeleitet -- keine zusaetzliche Ortsabfrage.
     $inSettlementRows = avesmapsFetchInSettlementSearchRows($pdo);
+    // Fourth/fifth/sixth source switches, in ONE query: citymaps_enabled, adventures_enabled and the
+    // four lore_kind_*_enabled keys. This endpoint is the site's hottest public path (a
+    // keystroke-debounced search) -- three separate round trips for six flags was three too many.
+    //
+    // Deliberately NOT avesmapsCitymapsEnabled()/avesmapsAdventuresEnabled()/avesmapsLoreKindEnabled():
+    // all three read via avesmapsAppSettingGet, which runs `CREATE TABLE IF NOT EXISTS app_setting` on
+    // EVERY call. That DDL firing on every keystroke is the same per-request DDL/information_schema
+    // load AGENTS.md §10 blames for the 2026-07-17 PHP-worker-pool exhaustion. Read all six flags
+    // through the DDL-free batch path instead (precedent: avesmapsRouteTerrainEnabled in
+    // terrain-read.php); a missing table just means every default.
+    $loreSearchSettingKeys = array_map('avesmapsLoreSearchSettingKey', AVESMAPS_LORE_SEARCH_KINDS);
+    $storedSearchSettings = avesmapsAppSettingGetManyWithoutDdl(
+        $pdo,
+        array_merge([AVESMAPS_CITYMAPS_SETTING, AVESMAPS_ADVENTURE_SEARCH_SETTING], $loreSearchSettingKeys)
+    );
     // Fourth source: the Kartensammlung. The kill switch counts here too -- a collection switched off must
     // not become visible again through the search. Default is ON; only a stored '0' disables.
-    //
-    // Deliberately NOT avesmapsCitymapsEnabled(): it reads via avesmapsAppSettingGet, which runs
-    // `CREATE TABLE IF NOT EXISTS app_setting` on EVERY call. This endpoint is the site's hottest public
-    // path (a keystroke-debounced search), so that DDL would fire on every keystroke -- the same
-    // per-request DDL/information_schema load AGENTS.md §10 blames for the 2026-07-17 PHP-worker-pool
-    // exhaustion. Read the same flag through the DDL-free path instead (precedent:
-    // avesmapsRouteTerrainEnabled in terrain-read.php); a missing table just means the default.
-    $citymapsEnabled = avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_CITYMAPS_SETTING, '1') !== '0';
+    $citymapsEnabled = ($storedSearchSettings[AVESMAPS_CITYMAPS_SETTING] ?? '1') !== '0';
     $citymapRows = $citymapsEnabled ? avesmapsFetchCitymapSearchRows($pdo) : [];
-    // Fifth source: adventures. Same DDL-free read of the kill switch as the Kartensammlung above --
-    // avesmapsAdventuresEnabled() would run CREATE TABLE IF NOT EXISTS app_setting per keystroke.
-    $adventuresEnabled = avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_ADVENTURE_SEARCH_SETTING, '1') !== '0';
+    // Fifth source: adventures. Same default-on/'0'-disables polarity as the Kartensammlung above.
+    $adventuresEnabled = ($storedSearchSettings[AVESMAPS_ADVENTURE_SEARCH_SETTING] ?? '1') !== '0';
     $adventureRows = $adventuresEnabled ? avesmapsFetchAdventureSearchRows($pdo) : [];
     // Sixth source: occurrences. 💣 The switch here is PER KIND, not global -- 'spezies' is off by
     // default and off live (187 entries the search must not show).
-    $loreRows = avesmapsFetchLoreSearchRows($pdo, avesmapsLoreSearchEnabledKinds($pdo));
+    $loreRows = avesmapsFetchLoreSearchRows($pdo, avesmapsLoreSearchEnabledKindsFromSettings($storedSearchSettings));
     $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $adventureRows, $loreRows);
 
     avesmapsJsonResponse(200, [
@@ -274,36 +297,14 @@ function avesmapsBuildMapSearchResults(
     [$citymapResults, $citymapTotal] = avesmapsCollectSearchSection(
         avesmapsBuildCitymapSearchEntries($citymapRows, AVESMAPS_CITYMAP_SEARCH_TYPE_LABELS),
         $normalizedQuery,
-        static function (array $left, array $right): int {
-            // Maps with a resolved place first: a hit that does nothing when clicked belongs at the bottom.
-            $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
-            if ($resolvedDiff !== 0) {
-                return $resolvedDiff;
-            }
-            $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
-            return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
-        },
+        'avesmapsCitymapSearchCompare',
         AVESMAPS_CITYMAP_SEARCH_LIMIT
     );
 
     [$adventureResults, $adventureTotal] = avesmapsCollectSearchSection(
         avesmapsBuildAdventureSearchEntries($adventureRows, AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS),
         $normalizedQuery,
-        static function (array $left, array $right): int {
-            $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
-            if ($resolvedDiff !== 0) {
-                return $resolvedDiff;
-            }
-            $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
-            if ($scoreDiff !== 0) {
-                return $scoreDiff;
-            }
-            // Newest edition first -- the same order the adventure dialog uses. With 1040 equally
-            // scored hits behind a word like "abenteuer", this tie-break alone decides which five a
-            // reader ever sees; without it they would be five arbitrary rows.
-            $editionDiff = ((float) $left['edition_sort_key']) <=> ((float) $right['edition_sort_key']);
-            return $editionDiff !== 0 ? $editionDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
-        },
+        'avesmapsAdventureSearchCompare',
         AVESMAPS_ADVENTURE_SEARCH_LIMIT
     );
 
@@ -314,16 +315,7 @@ function avesmapsBuildMapSearchResults(
             AVESMAPS_LORE_SEARCH_KIND_LABELS
         ),
         $normalizedQuery,
-        static function (array $left, array $right): int {
-            // 31 % of occurrences carry no place at all (design §1.4). They stay findable -- being told
-            // the thing exists beats hiding it -- but they never take a slot from one that can be shown.
-            $placedDiff = ((int) (((int) $left['place_count']) === 0)) <=> ((int) (((int) $right['place_count']) === 0));
-            if ($placedDiff !== 0) {
-                return $placedDiff;
-            }
-            $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
-            return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
-        },
+        'avesmapsLoreSearchCompare',
         AVESMAPS_LORE_SEARCH_LIMIT
     );
 
@@ -368,32 +360,6 @@ function avesmapsBuildMapSearchResults(
     }
 
     return $mapped;
-}
-
-/**
- * Score, sort and cap ONE section source.
- *
- * Exists so the cap lives in exactly one place: three copies of "score, usort, count, array_slice" is
- * three chances to forget the cap on the source that needs it most.
- *
- * @param list<array<string, mixed>> $entries already-built search entries
- * @param callable(array<string, mixed>, array<string, mixed>): int $tieBreak full comparator, score included
- * @return array{0: list<array<string, mixed>>, 1: int} the capped list and the total BEFORE capping
- */
-function avesmapsCollectSearchSection(array $entries, string $normalizedQuery, callable $tieBreak, int $limit): array {
-    $matches = [];
-    foreach ($entries as $entry) {
-        $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
-        if ($score === null) {
-            continue;
-        }
-        $entry['score'] = $score;
-        $matches[] = $entry;
-    }
-
-    usort($matches, $tieBreak);
-
-    return [array_slice($matches, 0, $limit), count($matches)];
 }
 
 function avesmapsBuildSearchEntry(array $row): ?array {

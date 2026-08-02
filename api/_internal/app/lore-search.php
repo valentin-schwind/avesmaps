@@ -20,6 +20,8 @@ declare(strict_types=1);
 //
 // The building function is PURE (rows in, entries out) so it is testable without a database.
 
+require_once __DIR__ . '/app-setting.php';
+
 // Mirrors AVESMAPS_LORE_KINDS in api/_internal/app/lore.php.
 const AVESMAPS_LORE_SEARCH_KINDS = ['flora', 'fauna', 'spezies', 'ware'];
 
@@ -50,42 +52,44 @@ function avesmapsLoreSearchKindIsEnabled(string $kind, string $storedValue): boo
 }
 
 /**
+ * PURE. Maps a settingKey => value array (the shape avesmapsAppSettingGetManyWithoutDdl returns) to
+ * the list of enabled kinds. A kind whose setting key is simply ABSENT from $stored (never written,
+ * or the whole read degraded to []) falls back to its own default
+ * (avesmapsLoreSearchKindDefaultEnabled) via avesmapsLoreSearchKindIsEnabled -- same rule as before,
+ * just fed from a batch read instead of a query this function runs itself.
+ *
+ * @param array<string, string> $stored settingKey => stored value; a missing key means never written
+ * @return list<string>
+ */
+function avesmapsLoreSearchEnabledKindsFromSettings(array $stored): array {
+    $enabled = [];
+    foreach (AVESMAPS_LORE_SEARCH_KINDS as $kind) {
+        if (avesmapsLoreSearchKindIsEnabled($kind, $stored[avesmapsLoreSearchSettingKey($kind)] ?? '')) {
+            $enabled[] = $kind;
+        }
+    }
+
+    return $enabled;
+}
+
+/**
  * The kinds the search may show, read WITHOUT the self-healing DDL and in ONE query.
  *
  * 💣 Not avesmapsLoreEnabledKinds(): it calls avesmapsLoreKindEnabled four times, each of which runs
  * `CREATE TABLE IF NOT EXISTS app_setting` through avesmapsAppSettingGet. Four DDL statements per
  * keystroke. A missing app_setting table means nobody ever switched anything -> all defaults.
  *
+ * Thin wrapper: avesmapsAppSettingGetManyWithoutDdl (api/_internal/app/app-setting.php) does the one
+ * query, avesmapsLoreSearchEnabledKindsFromSettings (PURE, above) does the kind-by-kind default logic.
+ * Kept separate so a caller that already read OTHER settings too (map-search.php: citymaps_enabled,
+ * adventures_enabled) can fold all six keys into a SINGLE query instead of running this one on its own.
+ *
  * @return list<string>
  */
 function avesmapsLoreSearchEnabledKinds(PDO $pdo): array {
-    $settingKeys = [];
-    foreach (AVESMAPS_LORE_SEARCH_KINDS as $kind) {
-        $settingKeys[avesmapsLoreSearchSettingKey($kind)] = $kind;
-    }
+    $settingKeys = array_map('avesmapsLoreSearchSettingKey', AVESMAPS_LORE_SEARCH_KINDS);
 
-    $stored = [];
-    try {
-        $placeholders = implode(',', array_fill(0, count($settingKeys), '?'));
-        $statement = $pdo->prepare(
-            'SELECT setting_key, setting_value FROM app_setting WHERE setting_key IN (' . $placeholders . ')'
-        );
-        $statement->execute(array_keys($settingKeys));
-        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-            $stored[(string) $row['setting_key']] = (string) $row['setting_value'];
-        }
-    } catch (PDOException) {
-        $stored = [];
-    }
-
-    $enabled = [];
-    foreach ($settingKeys as $settingKey => $kind) {
-        if (avesmapsLoreSearchKindIsEnabled($kind, $stored[$settingKey] ?? '')) {
-            $enabled[] = $kind;
-        }
-    }
-
-    return $enabled;
+    return avesmapsLoreSearchEnabledKindsFromSettings(avesmapsAppSettingGetManyWithoutDdl($pdo, $settingKeys));
 }
 
 /**
@@ -208,4 +212,20 @@ function avesmapsBuildLoreSearchEntries(array $entryRows, array $placesByEntry, 
     }
 
     return $entries;
+}
+
+/**
+ * Tie-break comparator for the occurrence (Vorkommen) search section, passed to
+ * avesmapsCollectSearchSection (api/_internal/app/search-section.php) as the $tieBreak callable:
+ * placed before unplaced, then score, then name.
+ */
+function avesmapsLoreSearchCompare(array $left, array $right): int {
+    // 31 % of occurrences carry no place at all (design §1.4). They stay findable -- being told
+    // the thing exists beats hiding it -- but they never take a slot from one that can be shown.
+    $placedDiff = ((int) (((int) $left['place_count']) === 0)) <=> ((int) (((int) $right['place_count']) === 0));
+    if ($placedDiff !== 0) {
+        return $placedDiff;
+    }
+    $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+    return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
 }
