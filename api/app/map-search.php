@@ -9,10 +9,21 @@ require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 require_once __DIR__ . '/../_internal/app/citymaps.php';
 require_once __DIR__ . '/../_internal/app/app-setting.php';
 require_once __DIR__ . '/../_internal/app/citymap-search.php';
+require_once __DIR__ . '/../_internal/app/adventure-search.php';
+require_once __DIR__ . '/../_internal/app/lore-search.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
 // The map section is capped independently of the 20-result limit, so maps never displace map objects.
 const AVESMAPS_CITYMAP_SEARCH_LIMIT = 5;
+// Same cap, same reason: "abenteuer" is inside 1040 of 1352 adventure entries and would fill the whole
+// list on its own. Occurrences get the same treatment for symmetry -- and because 5104 entries dwarf
+// everything else in the payload.
+const AVESMAPS_ADVENTURE_SEARCH_LIMIT = 5;
+const AVESMAPS_LORE_SEARCH_LIMIT = 5;
+// Mirrors AVESMAPS_ADVENTURES_SETTING in api/_internal/app/adventures.php. Duplicated rather than
+// required: that file carries the whole adventure catalogue, cover engine and DDL, and this endpoint
+// needs one string.
+const AVESMAPS_ADVENTURE_SEARCH_SETTING = 'adventures_enabled';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -59,7 +70,14 @@ try {
     // avesmapsRouteTerrainEnabled in terrain-read.php); a missing table just means the default.
     $citymapsEnabled = avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_CITYMAPS_SETTING, '1') !== '0';
     $citymapRows = $citymapsEnabled ? avesmapsFetchCitymapSearchRows($pdo) : [];
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows);
+    // Fifth source: adventures. Same DDL-free read of the kill switch as the Kartensammlung above --
+    // avesmapsAdventuresEnabled() would run CREATE TABLE IF NOT EXISTS app_setting per keystroke.
+    $adventuresEnabled = avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_ADVENTURE_SEARCH_SETTING, '1') !== '0';
+    $adventureRows = $adventuresEnabled ? avesmapsFetchAdventureSearchRows($pdo) : [];
+    // Sixth source: occurrences. 💣 The switch here is PER KIND, not global -- 'spezies' is off by
+    // default and off live (187 entries the search must not show).
+    $loreRows = avesmapsFetchLoreSearchRows($pdo, avesmapsLoreSearchEnabledKinds($pdo));
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows, $adventureRows, $loreRows);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -155,7 +173,9 @@ function avesmapsBuildMapSearchResults(
     int $limit,
     array $inSettlementRows = [],
     ?PDO $pdo = null,
-    array $citymapRows = []
+    array $citymapRows = [],
+    array $adventureRows = [],
+    array $loreRows = ['entries' => [], 'places_by_entry' => []]
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
@@ -247,30 +267,65 @@ function avesmapsBuildMapSearchResults(
         }
     }
 
-    // Maps are collected SEPARATELY and capped, then appended. 331 of 455 titles start with "Stadtplan
-    // von" -- inside the shared limit a single generic word like "stadtplan" would fill all 20 slots and
-    // push out the actual map objects. The cap is what makes the feature safe to ship.
-    $citymapResults = [];
-    foreach (avesmapsBuildCitymapSearchEntries($citymapRows, AVESMAPS_CITYMAP_SEARCH_TYPE_LABELS) as $entry) {
-        $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
-        if ($score === null) {
-            continue;
-        }
-        $entry['score'] = $score;
-        $citymapResults[] = $entry;
-    }
+    // Section sources are collected SEPARATELY from the map objects and capped, then appended. A single
+    // generic word would otherwise fill all 20 slots and push out the actual map objects: "stadtplan"
+    // is in 331 of 455 map titles, "abenteuer" in 1040 of 1352 adventures. The cap is what makes these
+    // sources safe to ship at all.
+    [$citymapResults, $citymapTotal] = avesmapsCollectSearchSection(
+        avesmapsBuildCitymapSearchEntries($citymapRows, AVESMAPS_CITYMAP_SEARCH_TYPE_LABELS),
+        $normalizedQuery,
+        static function (array $left, array $right): int {
+            // Maps with a resolved place first: a hit that does nothing when clicked belongs at the bottom.
+            $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
+            if ($resolvedDiff !== 0) {
+                return $resolvedDiff;
+            }
+            $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+            return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
+        },
+        AVESMAPS_CITYMAP_SEARCH_LIMIT
+    );
 
-    usort($citymapResults, static function (array $left, array $right): int {
-        // Maps with a resolved place first: a hit that does nothing when clicked belongs at the bottom.
-        $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
-        if ($resolvedDiff !== 0) {
-            return $resolvedDiff;
-        }
-        $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
-        return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
-    });
-    $citymapTotal = count($citymapResults);
-    $citymapResults = array_slice($citymapResults, 0, AVESMAPS_CITYMAP_SEARCH_LIMIT);
+    [$adventureResults, $adventureTotal] = avesmapsCollectSearchSection(
+        avesmapsBuildAdventureSearchEntries($adventureRows, AVESMAPS_ADVENTURE_SEARCH_TYPE_LABELS),
+        $normalizedQuery,
+        static function (array $left, array $right): int {
+            $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
+            if ($resolvedDiff !== 0) {
+                return $resolvedDiff;
+            }
+            $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+            if ($scoreDiff !== 0) {
+                return $scoreDiff;
+            }
+            // Newest edition first -- the same order the adventure dialog uses. With 1040 equally
+            // scored hits behind a word like "abenteuer", this tie-break alone decides which five a
+            // reader ever sees; without it they would be five arbitrary rows.
+            $editionDiff = ((float) $left['edition_sort_key']) <=> ((float) $right['edition_sort_key']);
+            return $editionDiff !== 0 ? $editionDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
+        },
+        AVESMAPS_ADVENTURE_SEARCH_LIMIT
+    );
+
+    [$loreResults, $loreTotal] = avesmapsCollectSearchSection(
+        avesmapsBuildLoreSearchEntries(
+            $loreRows['entries'] ?? [],
+            $loreRows['places_by_entry'] ?? [],
+            AVESMAPS_LORE_SEARCH_KIND_LABELS
+        ),
+        $normalizedQuery,
+        static function (array $left, array $right): int {
+            // 31 % of occurrences carry no place at all (design §1.4). They stay findable -- being told
+            // the thing exists beats hiding it -- but they never take a slot from one that can be shown.
+            $placedDiff = ((int) (((int) $left['place_count']) === 0)) <=> ((int) (((int) $right['place_count']) === 0));
+            if ($placedDiff !== 0) {
+                return $placedDiff;
+            }
+            $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+            return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
+        },
+        AVESMAPS_LORE_SEARCH_LIMIT
+    );
 
     $results = array_merge($results, array_values($pathGroups));
     usort($results, static function (array $left, array $right): int {
@@ -296,13 +351,49 @@ function avesmapsBuildMapSearchResults(
         array_slice($results, 0, $limit)
     );
 
-    foreach ($citymapResults as $entry) {
-        unset($entry['score'], $entry['search_texts']);
-        $entry['citymap_total'] = $citymapTotal;
-        $mapped[] = $entry;
+    // Order here IS the order of the sections in the result list; the client renders them in the same
+    // sequence (SPOTLIGHT_SEARCH_SECTIONS in js/ui/spotlight-search.js).
+    $sections = [
+        [$citymapResults, 'citymap_total', $citymapTotal],
+        [$adventureResults, 'adventure_total', $adventureTotal],
+        [$loreResults, 'lore_total', $loreTotal],
+    ];
+    foreach ($sections as [$sectionResults, $totalField, $sectionTotal]) {
+        foreach ($sectionResults as $entry) {
+            // edition_sort_key is a sorting aid, not payload -- it would be dead weight on every row.
+            unset($entry['score'], $entry['search_texts'], $entry['edition_sort_key']);
+            $entry[$totalField] = $sectionTotal;
+            $mapped[] = $entry;
+        }
     }
 
     return $mapped;
+}
+
+/**
+ * Score, sort and cap ONE section source.
+ *
+ * Exists so the cap lives in exactly one place: three copies of "score, usort, count, array_slice" is
+ * three chances to forget the cap on the source that needs it most.
+ *
+ * @param list<array<string, mixed>> $entries already-built search entries
+ * @param callable(array<string, mixed>, array<string, mixed>): int $tieBreak full comparator, score included
+ * @return array{0: list<array<string, mixed>>, 1: int} the capped list and the total BEFORE capping
+ */
+function avesmapsCollectSearchSection(array $entries, string $normalizedQuery, callable $tieBreak, int $limit): array {
+    $matches = [];
+    foreach ($entries as $entry) {
+        $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
+        if ($score === null) {
+            continue;
+        }
+        $entry['score'] = $score;
+        $matches[] = $entry;
+    }
+
+    usort($matches, $tieBreak);
+
+    return [array_slice($matches, 0, $limit), count($matches)];
 }
 
 function avesmapsBuildSearchEntry(array $row): ?array {
