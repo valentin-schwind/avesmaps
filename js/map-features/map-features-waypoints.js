@@ -6,22 +6,11 @@ let waypointAutocompleteSourceCache = null;
 let waypointAutocompleteSourceCacheLength = -1;
 
 enhanceRoutePlannerOptionPanel();
-enhanceRoutePlannerTypography();
 
-function enhanceRoutePlannerTypography() {
-	const enhance = () => {
-		const transportTitle = document.querySelector("#transport-options > label:first-child");
-		transportTitle?.classList.add("transport-options__title");
-	};
-
-	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", enhance, { once: true });
-		return;
-	}
-
-	enhance();
-}
-
+// enhanceRoutePlannerTypography() ist entfallen: es hing die Titelklasse an
+// `#transport-options > label:first-child`, und diesen Knoten gibt es nicht mehr -- seit die
+// Ueberschrift ein Ein-/Ausklapp-Schalter ist, traegt der Titel-<span> die Klasse direkt im
+// Markup (index.html).
 function enhanceRoutePlannerOptionPanel() {
 	const enhance = () => {
 		if (document.querySelector(".route-planner-options-panel")) {
@@ -45,15 +34,32 @@ function enhanceRoutePlannerOptionPanel() {
 			return;
 		}
 
+		// Dieselbe Form wie #transport-options in index.html -- Kopfzeile mit dem Schalter, darunter
+		// der Koerper mit den Zeilen. map-features-planner-groups.js verdrahtet beide Gruppen gleich.
+		// Der Titel ist ein <span>, kein <h2>: der Knopf-Inhalt darf nur Phrasing Content sein. Den
+		// Namen des Bereichs traegt weiterhin aria-labelledby.
 		const panel = document.createElement("section");
-		panel.className = "route-planner-options-panel";
+		panel.className = "route-planner-options-panel planner-group";
 		panel.setAttribute("aria-labelledby", "route-planner-options-title");
-		panel.innerHTML = '<h2 id="route-planner-options-title" class="route-planner-options-panel__title">Routenoptionen</h2>';
+		panel.innerHTML = '<div class="planner-group__head">'
+			+ '<button type="button" class="planner-group__toggle" aria-expanded="true" aria-controls="route-planner-options-body">'
+			+ '<span id="route-planner-options-title" class="planner-group__title route-planner-options-panel__title" data-i18n="planner.options.heading">Routenoptionen</span>'
+			+ '<span class="planner-group__summary" aria-hidden="true"></span>'
+			+ '<span class="planner-group__caret" aria-hidden="true"></span>'
+			+ "</button></div>"
+			+ '<div class="planner-group__body" id="route-planner-options-body"></div>';
 		uniqueOptionRows[0].parentNode.insertBefore(panel, uniqueOptionRows[0]);
+		// 💣 Die Ueberlagerung ist zu diesem Zeitpunkt schon durch: i18n.js meldet seinen
+		// DOMContentLoaded-Zuhoerer frueher an als diese Datei. Ein frisch erzeugter Knoten
+		// bliebe darum unter ?lang=en deutsch -- also fuer diesen Teilbaum nachziehen.
+		if (typeof window.applyI18nOverlay === "function") {
+			window.applyI18nOverlay(panel);
+		}
 
+		const body = panel.querySelector(".planner-group__body");
 		uniqueOptionRows.forEach((row) => {
 			row.classList.add("route-planner-options-panel__row");
-			panel.appendChild(row);
+			body.appendChild(row);
 		});
 	};
 

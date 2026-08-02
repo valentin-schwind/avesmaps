@@ -19,6 +19,14 @@ window.AVESMAPS_I18N_EN = {
 	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
 	"planner.travelHours.title": "Travel hours on land per day; the rest of the day is spent resting. 24 = travel without rest.",
 	"planner.travelHoursSuffix": "travel hours on land per day",
+	// Kopfzeile der eingeklappten Einstellgruppen. Die uebrigen Bestandteile der
+	// Zusammenfassung liest sie aus dem gerenderten Markup und ist damit ohne eigene
+	// Schluessel schon uebersetzt (map-features-planner-groups.js).
+	"planner.transport.summary.none": "no mode of transport allowed",
+	"planner.options.summary.hoursPerDay": "{n} h/day",
+	// Die Ueberschrift entsteht erst zur Laufzeit (enhanceRoutePlannerOptionPanel) und blieb
+	// deshalb bisher deutsch; sie beschriftet jetzt die eingeklappte Zeile.
+	"planner.options.heading": "Route options",
 	"planner.overview.default": "Waypoints and travel time are shown here.",
 
 	// --- planner: transport section (data-i18n; the custom combobox mirrors the

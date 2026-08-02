@@ -235,19 +235,226 @@
 	box-sizing: border-box;
 }
 
-#transport-options {
+/* Das Zweispalten-Raster sitzt am KOERPER der Gruppe, nicht an der Gruppe selbst: seit die
+   Ueberschrift ein Ein-/Ausklapp-Schalter ist, hat die Gruppe zwei Zeilen (Kopf, Koerper), und
+   die Schalterzeile darf nicht in die 90-px-Spalte der Filter rutschen. */
+#transport-options > .planner-group__body {
+	display: grid;
+	gap: 6px;
 	/* Second column is flexible so col1 + gap + col2 = content width exactly; a
 	   fixed 210px overflowed the gap and pushed the dropdown 5px past the right
 	   inset (asymmetric with the left). The dropdown fills this column (below). */
 	grid-template-columns: 90px minmax(0, 1fr);
 }
 
-/* Content groups are separated by dividers (that's what they're for). The display
-   group and the route-options group each close with a divider below them: between
-   the display group and the waypoints, and between the route options and the
-   computed route. Full-bleed via the shared negative side-margin. */
-.display-options,
+.route-planner-options-panel > .planner-group__body {
+	display: grid;
+	gap: 8px;
+}
+
+/* 💣 Ohne diese Zeile bleibt der Koerper sichtbar: `display: grid` daruber schlaegt die
+   UA-Regel `[hidden] { display: none }`, und die Gruppe klappt nie zu. */
+.planner-group__body[hidden] {
+	display: none;
+}
+
+/* --- Einklappbare Einstellgruppen (Transportmittel, Routenoptionen) -------------------
+   Owner 2026-08-02: „mehr Platz fuer die Etappen". Gemessen bei 1280x800 mit fuenf Wegpunkten:
+   die Oberflaeche ueber dem Reiseplan ist 754 px von 760 px Panelhoehe -- dem Plan bleiben 6 px,
+   er lebt komplett im Scrollbalken. Beide Gruppen eingeklappt geben rund 190 px zurueck.
+
+   Die Ueberschrift IST der Schalter, und er traegt seinen Rahmen in beiden Zustaenden: sonst
+   springt die Zeile beim Klappen zwischen „nackte Ueberschrift" und „Knopf" hin und her.
+   Weil der Rahmen die Gruppe schon zusammenhaelt, tragen diese beiden Gruppen KEINEN Trenner
+   mehr -- eine Linie darum waere eine zweite Klammer um dieselbe Sache. `.display-options`
+   daneben klappt nicht und behaelt ihre Linien. */
+.planner-group__head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* 💣 Der ⓘ-Knopf haengt per `position: absolute` in der Ecke von #transport-options
+   (transport-speed-info.css, top/right). Seit die Ueberschrift ein Schalter ueber die volle
+   Breite ist, landet er DARAUF -- er verdeckte den Pfeil und ragte 4 px ueber den Inhaltsrand
+   hinaus. In der Kopfzeile ist er ein gewoehnliches Flex-Kind neben dem Schalter. */
+.planner-group__head .tsi-info-btn {
+	position: static;
+	flex: 0 0 auto;
+}
+
+/* Der Schalter traegt seinen Rahmen in BEIDEN Zustaenden (Owner 2026-08-02): sonst
+   springt die Zeile beim Auf- und Zuklappen zwischen „nackte Ueberschrift" und „Knopf"
+   hin und her, und die Ueberblendung haette nichts, woran sie sich festhaelt. Weiche
+   Flaeche + Umriss + Radius wie bei jedem Nebenknopf im Haus. */
+.planner-group__toggle {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	min-height: 32px;
+	margin: 0;
+	padding: 0 10px;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
+	color: inherit;
+	font: inherit;
+	line-height: 1.15;
+	text-align: left;
+	cursor: pointer;
+}
+
+.planner-group__toggle:hover {
+	background: var(--color-button-soft-hover);
+}
+
+.planner-group__toggle:hover .planner-group__title,
+.planner-group__toggle:focus-visible .planner-group__title {
+	color: var(--color-text-strong);
+}
+
+.planner-group__toggle:focus-visible {
+	box-shadow: var(--focus-ring);
+	outline: none;
+}
+
+/* Der Titel steht ausgeschrieben, nicht in Versalien (Owner 2026-08-02). Die Versal-Regel
+   oben gilt Abschnitts-UEBERSCHRIFTEN; hier ist der Titel die Beschriftung eines Schalters,
+   und die liest sich normal gesetzt besser. `.route-plan-legs__title` im Reiseplan bleibt
+   davon unberuehrt -- das ist weiterhin eine Ueberschrift.
+   Der Selektor ist zweiklassig (0,2,0), damit er die Ueberschriften-Regel (0,1,0) schlaegt. */
+.planner-group__toggle .planner-group__title {
+	flex: 0 0 auto;
+	margin: 0;
+	color: var(--color-text);
+	font-size: 12.5px;
+	font-weight: 600;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+/* Nur eingeklappt sichtbar: was gerade eingestellt ist. Laeuft es zu lang, schneidet die
+   Ellipse ab -- der volle Wortlaut steht im `title` des Schalters.
+   💣 Ein BLOCK, kein Flex-Container: in einem Flex-Container wird jeder Textabschnitt ein
+   eigenes Element, `text-overflow` greift dort nicht, und mit `white-space: nowrap` schrumpft
+   nichts mehr. Ergebnis war ein harter Schnitt mitten im Wort („· Flus") und ein aus der Zeile
+   gedraengter Pfeil. Als Block fliesst alles in EINER Zeile und die Ellipse funktioniert. */
+.planner-group__summary {
+	display: block;
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	color: var(--color-text-strong);
+	font-size: 12px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	transition: max-width 0.24s ease, opacity 0.18s ease;
+}
+
+/* Aufgeklappt blendet die Zusammenfassung aus -- sie stuende sonst doppelt da, einmal
+   in der Zeile und einmal in den Bedienelementen darunter. Ueber max-width statt
+   `display`, damit sie sich weg- und wieder heranblenden kann; auf 0 belegt sie keine
+   Breite mehr und der Pfeil rueckt an den Titel heran. */
+.planner-group--open .planner-group__summary {
+	max-width: 0;
+	opacity: 0;
+}
+
+.planner-group__summary-icon {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	margin-right: 2px;
+	object-fit: contain;
+	vertical-align: -3px;
+}
+
+.planner-group__caret {
+	flex: 0 0 auto;
+	margin-left: auto;
+	color: var(--color-text-muted);
+	font-size: 13px;
+	line-height: 1;
+	transition: transform 0.14s ease;
+}
+
+.planner-group__caret::before {
+	content: "\203a"; /* › */
+}
+
+.planner-group--open .planner-group__caret {
+	transform: rotate(90deg);
+}
+
+/* Eingeklappt schrumpft die Gruppe auf ihre Kopfzeile. Polster UND Trenner fallen weg --
+   der Schalter ist dann selbst die sichtbare Einheit, und ein Trenner um eine einzelne
+   Knopfzeile herum liest sich als Fehler. Uebrig bleiben die 28 px des Schalters plus der
+   5-px-Abstand, den #search ohnehin zwischen alle Kinder legt.
+   💣 Die Kennung MUSS mit in den Selektor: die Polster-Regel oben spricht `#transport-options`
+   an (1,0,0) und schlaegt jede reine Klasse. Ohne sie bleibt die Gruppe eingeklappt 55 px hoch
+   statt 28 -- die halbe Ersparnis. */
+#transport-options.planner-group--collapsed,
+.route-planner-options-panel.planner-group--collapsed {
+	gap: 0;
+	padding-bottom: 0;
+}
+
+/* Die beiden einklappbaren Gruppen tragen KEINE Trenner mehr (Owner 2026-08-02): der Rahmen
+   des Schalters gruppiert sie schon, eine Linie obendrauf waere eine zweite Klammer um
+   dieselbe Sache. Mit dem Trenner faellt auch das Polster weg -- es war nur sein Abstand.
+   `.display-options` bleibt unberuehrt: die Gruppe klappt nicht und braucht ihre Linie. */
+#transport-options,
 .route-planner-options-panel {
+	/* Aufgeklappt etwas mehr Luft zwischen Schalter und Inhalt und unter der Gruppe
+	   (Owner 2026-08-02); eingeklappt faellt beides wieder weg, siehe Regel darueber. */
+	gap: 8px;
+	padding-top: 0;
+	padding-bottom: var(--space-4);
+	border-top: 0;
+	border-bottom: 0;
+}
+
+/* Ueberblendung. Die Hoehe des Koerpers laeuft ueber max-height, weil `height: auto` nicht
+   animierbar ist; den Pixelwert misst das Skript beim Umschalten
+   (map-features-planner-groups.js) -- es steht also keine geratene Zahl im Stylesheet.
+   Polster, Trenner und Abstand der Gruppe laufen mit, sonst ruckt die Zeile zum Schluss. */
+#transport-options,
+.route-planner-options-panel {
+	transition: gap 0.24s ease, padding-bottom 0.24s ease;
+}
+
+.planner-group__body {
+	overflow: hidden;
+	transition: max-height 0.24s ease, opacity 0.18s ease;
+}
+
+.planner-group--collapsed .planner-group__body {
+	opacity: 0;
+}
+
+/* Wer Bewegung abbestellt hat, bekommt den Zustandswechsel ohne Animation. */
+@media (prefers-reduced-motion: reduce) {
+	#transport-options,
+	.route-planner-options-panel,
+	.planner-group__body,
+	.planner-group__summary,
+	.planner-group__caret {
+		transition: none;
+	}
+}
+
+/* Content groups are separated by dividers (that's what they're for). Die Anzeige-Gruppe
+   schliesst mit einer Linie zu den Wegpunkten hin ab; full-bleed ueber den geteilten
+   negativen Seitenrand.
+   `.route-planner-options-panel` stand hier frueher mit drin -- seit die Gruppe einklappbar
+   ist, gruppiert sie der Rahmen ihres Schalters, und die Linie ist raus (Owner 2026-08-02).
+   Sie hier stehen zu lassen haette nichts gebracht: diese Regel steht SPAETER im Stylesheet
+   als die Ausnahme weiter oben und haette sie ueberstimmt. */
+.display-options {
 	padding-bottom: var(--space-10);
 	border-bottom: 1px solid var(--color-divider);
 }
@@ -273,9 +480,11 @@
 	border-top: 1px solid var(--color-divider);
 }
 
-/* Die ERSTE Ueberschrift im Plan („Reiseübersicht") bekommt keinen eigenen Trenner: direkt darueber
-   endet .route-planner-options-panel schon mit einem border-bottom, und zwei Linien mit 9 px Luft
-   dazwischen lesen sich als Fehler, nicht als Gliederung (Owner 2026-07-30). */
+/* Die ERSTE Ueberschrift im Plan („Reiseübersicht") bekommt keinen eigenen Trenner. Bis 2026-08-02
+   war die Begruendung der border-bottom von .route-planner-options-panel direkt darueber; den gibt
+   es nicht mehr, seit die Gruppe einklappbar ist. Die Regel bleibt trotzdem richtig: #overview ist
+   selbst ein gerahmtes Feld, und eine Linie gleich hinter seinem Rahmen liest sich als Fehler,
+   nicht als Gliederung (Owner 2026-07-30). */
 #overview .route-plan-legs__title:first-child {
 	margin-top: 0;
 	padding-top: 0;

@@ -1931,9 +1931,16 @@
 			<div class="input-options">
 				<button id="inputLocation" title="Reiseziel hinzufügen" data-i18n-title="planner.addDestination.title" data-i18n="planner.addDestination">Ziel hinzufügen</button>
 			</div>
-			<div id="transport-options">
-				<label><span data-i18n="planner.transport.heading">Transportmittel</span><button type="button" id="transport-info-btn" class="tsi-info-btn" aria-label="Reisegeschwindigkeiten und Wegtypen anzeigen" title="Reisegeschwindigkeiten und Wegtypen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button></label>
-				<div></div>
+			<!-- Einklappbare Gruppe: die Ueberschrift IST der Schalter, und eingeklappt zeigt sie in
+			     derselben Zeile, was gerade eingestellt ist (js/map-features/map-features-planner-groups.js).
+			     Der ⓘ-Knopf steht daneben, NICHT im Schalter -- ein Knopf im Knopf ist ungueltiges HTML und
+			     bekaeme seine Klicks nicht zuverlaessig. -->
+			<div id="transport-options" class="planner-group">
+				<div class="planner-group__head">
+					<button type="button" class="planner-group__toggle" aria-expanded="true" aria-controls="transport-options-body"><span class="planner-group__title transport-options__title" data-i18n="planner.transport.heading">Transportmittel</span><span class="planner-group__summary" aria-hidden="true"></span><span class="planner-group__caret" aria-hidden="true"></span></button>
+					<button type="button" id="transport-info-btn" class="tsi-info-btn" aria-label="Reisegeschwindigkeiten und Wegtypen anzeigen" title="Reisegeschwindigkeiten und Wegtypen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button>
+				</div>
+				<div class="planner-group__body" id="transport-options-body">
 				<label class="transport-filter-label" title="Landreisen erlauben" data-i18n-title="planner.transport.filter.land.title"
 					><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.webp" data-source-src="icons/landweg.webp" alt="" /> <span data-i18n="planner.transport.filter.land">Land</span></label
 				>
@@ -1980,6 +1987,7 @@
 						<span id="seaTransportLabel" class="transport-combobox__label">Lastensegler</span>
 					</button>
 					<div id="seaTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Meer-Transportmittel" hidden></div>
+				</div>
 				</div>
 			</div>
 			<button id="toggle-button" data-i18n="planner.toggle">Routenplaner</button>
@@ -2246,6 +2254,9 @@
 		<script src="js/map-features/map-features-feature-state.js"></script>
 		<script src="js/map-features/map-features-share-pin.js"></script>
 		<script src="js/map-features/map-features-waypoints.js"></script>
+		<!-- NACH map-features-waypoints.js: dort entsteht die Gruppe „Routenoptionen" erst, und
+		     der spaeter angemeldete DOMContentLoaded-Zuhoerer laeuft auch spaeter. -->
+		<script src="js/map-features/map-features-planner-groups.js"></script>
 		<script src="js/map-features/map-features-location-name-labels.js"></script>
 		<script src="js/map-features/map-features-label-collisions.js"></script>
 		<script src="js/map-features/map-features-path-domain.js"></script>
