@@ -471,6 +471,16 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 .route-waypoint-marker--active {
 	--color-marker-waypoint: var(--color-marker-active);
 }
+/* Ein freier Kartenpunkt laesst sich an seinen Platz ziehen -- die Greifhand ist das Einzige, was das
+   im Ruhezustand verraet (waehrend der Geste faerbt Leaflet selbst auf `grabbing` um).
+
+   💣 Die Klasse steht ZWEIMAL da, und das ist kein Versehen: eine einfache `--movable`-Regel verliert,
+   weil weiter unten in dieser Datei ein `.leaflet-interactive { cursor: pointer }` steht -- gleiche
+   Spezifitaet, spaetere Zeile. Verdoppeln hebt sie darueber, ohne ein `!important` zu setzen und ohne
+   sich an eine Leaflet-eigene Klasse zu haengen, die uns nicht gehoert. */
+.route-waypoint-marker.route-waypoint-marker--movable {
+	cursor: grab;
+}
 
 .location-popup__description {
 	margin-top: 6px;
@@ -554,6 +564,12 @@ body.edit-mode .floating-location-popup .location-popup > .location-popup__actio
 	font-size: 16px;
 	font-weight: var(--font-weight-bold);
 	line-height: 1;
+}
+
+/* Pfeilkreuz im "Verschieben"-Button (freier Kartenpunkt). Als SVG gezeichnet, nicht als Glyph -- es
+   erbt seine Farbe per currentColor aus dem Icon-Slot und braucht deshalb keine eigene Farbregel. */
+.location-popup__action-icon--move > svg {
+	display: block;
 }
 
 /* ✕-Icon im "Aus Route entfernen"-Button: gedaempftes Rot, passend zum --danger-Button. */

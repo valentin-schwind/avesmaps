@@ -13,7 +13,10 @@ const vm = require("vm");
 global.window = { location: { search: "" }, addEventListener() {} };
 global.document = { getElementById: () => null, querySelectorAll: () => [], addEventListener() {} };
 global.tr = (key, fallback) => fallback;
-global.L = { latLng: (lat, lng) => ({ lat, lng }) };
+// L.latLng nimmt BEIDE Formen -- (lat, lng) und ein fertiges {lat, lng}. Ein Stub, der nur die erste
+// kann, macht aus einem durchgereichten Punkt {lat: {…}, lng: undefined} und laesst den Rundlauf unten
+// an `.toFixed` scheitern, statt die Regel zu pruefen.
+global.L = { latLng: (lat, lng) => (lng === undefined ? { lat: lat.lat, lng: lat.lng } : { lat, lng }) };
 
 const file = path.join(__dirname, "../route-travel-here.js");
 vm.runInThisContext(fs.readFileSync(file, "utf8"), { filename: file });
@@ -62,6 +65,23 @@ assert.deepStrictEqual(applyMapPointRouteEndpoints({}, punkt, punkt),
 // Ein gewoehnlicher Ort ruehrt die Anfrage nicht an.
 assert.deepStrictEqual(applyMapPointRouteEndpoints({ from: "Gareth" }, { name: "Gareth", coordinates: [1, 2] }, null),
 	{ from: "Gareth" }, "ein Ort bleibt ein Name");
+
+// ---- verschieben: die Beschriftung IST der Speicher ---------------------------------------------
+// 💣 DER RUNDLAUF IST DAS GANZE FEATURE. Ein Kartenpunkt wird verschoben, indem eine NEUE Beschriftung
+// in dasselbe Eingabefeld geschrieben wird -- schreiben und wieder lesen muessen sich also exakt
+// treffen. Faellt eine der beiden Seiten aus dem Format, ist die Zeile beim naechsten Neuberechnen
+// „Ort nicht gefunden", und der Wegpunkt ist weg statt verschoben.
+const verschoben = mapPointWaypointLabel({ lat: 548.4771, lng: 450.8293 });
+assert.strictEqual(verschoben, "Kartenpunkt (548.477, 450.829)", "dieselbe Schreibweise wie beim Anlegen");
+assert.deepStrictEqual(parseMapPointWaypoint(verschoben).coordinates, [548.477, 450.829],
+	"und sie laesst sich wieder als Koordinate lesen");
+
+// Auch an den Raendern der Karte (0..1024) und bei ganzen Zahlen bleibt der Rundlauf heil.
+for (const punktLatLng of [{ lat: 0, lng: 0 }, { lat: 1024, lng: 1024 }, { lat: 7, lng: 512.5 }]) {
+	const gelesen = parseMapPointWaypoint(mapPointWaypointLabel(punktLatLng));
+	assert.ok(gelesen, `„${mapPointWaypointLabel(punktLatLng)}" bleibt ein Kartenpunkt`);
+	assert.deepStrictEqual(gelesen.coordinates, [punktLatLng.lat, punktLatLng.lng], "und behaelt seine Stelle");
+}
 
 // ---- die drei Ablehnungsgruende -----------------------------------------------------------------
 // Nur diese drei bekommen einen deutschen Satz; alles andere ist ein echter Fehler und behaelt seine

@@ -892,6 +892,16 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	// „Verschieben" am freien Kartenpunkt: der naechste Klick auf die Karte setzt ihn um. Die zweite,
+	// unsichtbare Art ist der Marker selbst -- er laesst sich direkt ziehen (route-render.js).
+	if (action === "move-map-point") {
+		const waypointId = this.dataset.waypointId;
+		if (waypointId && typeof beginMapPointRelocation === "function") {
+			beginMapPointRelocation(waypointId);
+		}
+		return;
+	}
+
 	if (action === "remove-share-pin") {
 		clearSharePin();
 		return;
@@ -1273,6 +1283,22 @@ function buildRoutePopupHtml(loc, { showRemoveAction = false, role = "" } = {}) 
 			label: tr("popup.showInPanel", "Anzeigen"),
 			iconMarkup: '<img class="location-popup__action-img" src="icons/sextant.webp" alt="" width="20" height="20" />',
 			attributes: { "data-popup-action": "show-in-panel", "data-place-name": loc.name },
+		}));
+	}
+	// „Verschieben" -- nur am freien Kartenpunkt, und VOR dem Entfernen: wer einen Punkt danebengesetzt
+	// hat, will ihn ruecken, nicht wegwerfen und neu anlegen. Am Marker allein waere das nicht zu sehen
+	// (er laesst sich zwar ziehen, sagt es aber nicht), und auf Touch zieht ein Finger die Karte.
+	if (showRemoveAction && loc.isMapPoint && loc.waypointId) {
+		buttons.push(popupActionButtonMarkup({
+			label: tr("popup.moveMapPoint", "Verschieben"),
+			// Als Inline-SVG statt als Glyph: fuer das Vier-Wege-Kreuz gibt es kein Zeichen, das in jeder
+			// Schrift sitzt, und ein fehlendes Icon waere ein leeres Kaestchen. `currentColor` erbt die
+			// Farbe des Kachel-Slots, wie das ✕ nebenan.
+			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--move" aria-hidden="true">'
+				+ '<svg viewBox="0 0 16 16" width="15" height="15" xmlns="http://www.w3.org/2000/svg">'
+				+ '<path fill="currentColor" d="M8 0.5 10.6 3.4H9.1v3.5h3.5V5.4L15.5 8l-2.9 2.6V9.1H9.1v3.5h1.5L8 15.5l-2.6-2.9h1.5V9.1H3.4v1.5L0.5 8l2.9-2.6v1.5h3.5V3.4H5.4z"/>'
+				+ "</svg></span>",
+			attributes: { "data-popup-action": "move-map-point", "data-waypoint-id": loc.waypointId },
 		}));
 	}
 	if (showRemoveAction && loc.waypointId) {

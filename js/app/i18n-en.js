@@ -96,6 +96,7 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- „Hierher reisen" (right click -> a route to an arbitrary map point) ---
 	"travelHere.hint.startSet": "Map point set as the starting point — now pick a destination.",
+	"travelHere.hint.pickNewSpot": "Click the new spot — Esc cancels.",
 	"travelHere.error.notOnLand": "No overland route leads there — please pick a spot on land.",
 	"travelHere.error.noExitNode": "There is no waypoint nearby to set out from.",
 	"travelHere.error.noOffroadRoute": "No route leads there overland.",
@@ -355,6 +356,8 @@ window.AVESMAPS_I18N_EN = {
 	"popup.addToRoute": "➕ Add destination",
 	"popup.addToRoutePlain": "Add destination",
 	"popup.removeFromRoute": "Remove destination",
+	// Only ever offered on a free map point -- a settlement is where it is.
+	"popup.moveMapPoint": "Move",
 	"popup.removeFromRouteX": "✕ Remove destination",
 	// --- route waypoint roles (shown in the waypoint infobox: "Village · Starting point") ---
 	"route.role.start": "Starting point",

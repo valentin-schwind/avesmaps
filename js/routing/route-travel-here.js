@@ -87,6 +87,133 @@ function applyMapPointRouteEndpoints(request, startLocation, endLocation) {
 	return request;
 }
 
+/**
+ * Die Beschriftung, die einen Kartenpunkt zu einem Wegpunkt macht.
+ *
+ * 💣 SIE IST DER SPEICHER. Der Planer haelt zu einem angeklickten Punkt kein Objekt, keine ID und
+ * keine Koordinate -- er haelt DIESE ZEICHENKETTE in einem Eingabefeld, und `parseMapPointWaypoint`
+ * liest die Zahlen dort wieder heraus. Beide Richtungen muessen sich deshalb exakt treffen; der
+ * Rundlauf ist unit-getestet (`__tests__/map-point-waypoint.test.js`).
+ *
+ * ⭐ Und genau daraus faellt das Verschieben heraus: eine neue Beschriftung ins SELBE Feld, fertig.
+ * Der Wegpunkt behaelt seine Zeile, seinen Platz in der Reihenfolge und seinen geteilten Link.
+ */
+function mapPointWaypointLabel(latlng) {
+	return `${tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt")} (${formatTravelHereCoordinates(latlng)})`;
+}
+
+/**
+ * Einen Kartenpunkt-Wegpunkt an eine neue Stelle setzen und die Route neu rechnen.
+ *
+ * ⚠️ Prueft, dass in der Zeile WIRKLICH ein Kartenpunkt steht. Der Aufrufer weiss es zwar (nur
+ * Kartenpunkt-Marker sind ziehbar), aber zwischen dem Griff und dem Loslassen kann die Zeile ein
+ * anderer Vorgang ueberschrieben haben -- und eine Siedlung liegt, wo sie liegt.
+ */
+function moveMapPointWaypointTo(waypointId, latlng) {
+	if (!waypointId || !latlng || typeof getWaypointElementById !== "function") {
+		return false;
+	}
+	const $waypoint = getWaypointElementById(waypointId);
+	const $input = $waypoint && $waypoint.length ? $waypoint.find(".waypoint-input").first() : null;
+	if (!$input || !$input.length || !parseMapPointWaypoint($input.val())) {
+		return false;
+	}
+
+	$input.val(mapPointWaypointLabel(latlng));
+	if (typeof updateMapView === "function") {
+		updateMapView();
+	}
+
+	return true;
+}
+
+// ---- Verschieben per Klick ------------------------------------------------------------------------
+// Die zweite Art zu verschieben, neben dem Ziehen des Markers: „Verschieben" in der Infobox, dann der
+// naechste Klick auf die Karte. Sie ist nicht bloss Beiwerk -- am Marker SIEHT man nicht, dass er
+// ziehbar ist, und auf einem Touchgeraet zieht ein Finger auf der Karte zuerst die Karte.
+let pendingMapPointRelocationWaypointId = "";
+
+function isAwaitingMapPointRelocation() {
+	return Boolean(pendingMapPointRelocationWaypointId);
+}
+
+// Fadenkreuz statt Hand, solange die Karte auf den Klick wartet. `leaflet-crosshair` ist Leaflets
+// eigene Klasse (css/third-party/leaflet.css) -- sie deckt die Karte UND alles Anklickbare darauf ab.
+function setMapPointRelocationCursor(isActive) {
+	const container = typeof map !== "undefined" && map && typeof map.getContainer === "function" ? map.getContainer() : null;
+	if (container) {
+		container.classList.toggle("leaflet-crosshair", isActive);
+	}
+}
+
+function handleMapPointRelocationKeydown(event) {
+	if (event.key === "Escape") {
+		cancelMapPointRelocation();
+	}
+}
+
+function cancelMapPointRelocation() {
+	if (!pendingMapPointRelocationWaypointId) {
+		return;
+	}
+	pendingMapPointRelocationWaypointId = "";
+	setMapPointRelocationCursor(false);
+	document.removeEventListener("keydown", handleMapPointRelocationKeydown);
+}
+
+function beginMapPointRelocation(waypointId) {
+	if (!waypointId) {
+		return;
+	}
+	// Ein zweites „Verschieben" loest das erste ab, statt sich mit ihm zu ueberlagern.
+	cancelMapPointRelocation();
+	pendingMapPointRelocationWaypointId = String(waypointId);
+	setMapPointRelocationCursor(true);
+	document.addEventListener("keydown", handleMapPointRelocationKeydown);
+	// Die Infobox haengt am ALTEN Ort -- sie stehen zu lassen hiesse, ueber die Stelle zu reden, die
+	// gerade verlassen wird, und sie verdeckt ausserdem ein Stueck der Karte, auf die zu klicken ist.
+	if (typeof map !== "undefined" && map && typeof map.closePopup === "function") {
+		map.closePopup();
+	}
+	showFeedbackToast(
+		tr("travelHere.hint.pickNewSpot", "Neue Stelle anklicken — Esc bricht ab."),
+		"info"
+	);
+}
+
+function completeMapPointRelocationAt(latlng) {
+	const waypointId = pendingMapPointRelocationWaypointId;
+	if (!waypointId) {
+		return false;
+	}
+	cancelMapPointRelocation();
+
+	return moveMapPointWaypointTo(waypointId, latlng);
+}
+
+/**
+ * Der wartende Klick auf die Karte.
+ *
+ * ⭐ Gebaut wie der Abschluss der Entfernungsmessung (bootstrap.js): ein Listener auf dem
+ * KARTENCONTAINER in der Capture-Phase, mit derselben Ausnahmeliste. Das ist noetig, weil Leaflets
+ * `map.on("click")` nie feuert, wenn der Klick eine Ebene trifft -- ein Ort, ein Weg oder ein
+ * Territorium haelt ihn vorher an, und ausgerechnet dort will man einen Punkt oft hinsetzen.
+ */
+function handleMapPointRelocationContainerClick(event) {
+	if (!isAwaitingMapPointRelocation() || event.button !== 0) {
+		return;
+	}
+	if (typeof shouldIgnoreDistanceMeasurementClickTarget === "function"
+		&& shouldIgnoreDistanceMeasurementClickTarget(event.target)) {
+		return;
+	}
+
+	event.preventDefault();
+	event.stopPropagation();
+	event.stopImmediatePropagation();
+	completeMapPointRelocationAt(map.mouseEventToLatLng(event));
+}
+
 /** Ist das einer der drei Gruende, aus denen ein Kartenpunkt abgelehnt werden darf? */
 function isTravelHereErrorCode(code) {
 	return code === "point_not_on_land" || code === "no_exit_node" || code === "no_offroad_route";
@@ -129,8 +256,7 @@ function travelToMapPoint(latlng) {
 	// Die Koordinaten stecken IM NAMEN -- sie sind das, was den Wegpunkt ausmacht. So stehen sie in der
 	// Zeile, in der Reisebeschreibung, an der letzten Etappe und in der Infobox des Markers, und
 	// `parseMapPointWaypoint` liest sie ueberall dort wieder heraus, wo ein Ort erwartet wird.
-	const pointLabel = `${tr(TRAVEL_HERE_POINT_LABEL_KEY, "Kartenpunkt")} (${formatTravelHereCoordinates(latlng)})`;
-	fillLastEmptyWaypointOrAppend(pointLabel);
+	fillLastEmptyWaypointOrAppend(mapPointWaypointLabel(latlng));
 
 	// 💣 WER DER ERSTE IST, IST DER START. War der Planer leer, ist der angeklickte Punkt eben KEIN
 	// Ziel, sondern der Ausgangspunkt -- und dann „bitte zuerst einen Startpunkt eintragen" zu sagen

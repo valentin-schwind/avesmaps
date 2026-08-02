@@ -131,12 +131,14 @@ function routeWaypointImageSrc(role, isActive) {
 // ueberschreiben und den Marker vom Ort wegspringen lassen. Mit divIcon liegt die Grafik als KIND im
 // Container -- das laesst sich gefahrlos skalieren. (L.divIcons Default-Klasse "leaflet-div-icon" mit
 // weissem Kasten + Rahmen ist durch das eigene className ersetzt.)
-function routeWaypointIcon(role, geometry, isActive = false) {
+function routeWaypointIcon(role, geometry, isActive = false, isMovable = false) {
 	const html = ROUTE_WAYPOINT_MARKER_MODE === "vector"
 		? routeWaypointVectorSvg(role, geometry.width, geometry.height)
 		: `<img src="${routeWaypointImageSrc(role, isActive)}" width="${geometry.width}" height="${geometry.height}" alt="" />`;
 	return L.divIcon({
-		className: `route-waypoint-marker route-waypoint-marker--${role}${isActive ? " route-waypoint-marker--active" : ""}`,
+		// --movable traegt nur den Greifhand-Zeiger: ein freier Kartenpunkt laesst sich verschieben, eine
+		// Siedlung nicht. Die Grafik bleibt dieselbe -- der Punkt ist derselbe Wegpunkt wie jeder andere.
+		className: `route-waypoint-marker route-waypoint-marker--${role}${isActive ? " route-waypoint-marker--active" : ""}${isMovable ? " route-waypoint-marker--movable" : ""}`,
 		html,
 		iconSize: [geometry.width, geometry.height],
 		iconAnchor: geometry.anchor,
@@ -159,7 +161,7 @@ function applyActiveRouteWaypointMarkers() {
 			return;
 		}
 		marker._waypointActive = isActive;
-		marker.setIcon(routeWaypointIcon(marker._waypointRole, marker._waypointGeometry, isActive));
+		marker.setIcon(routeWaypointIcon(marker._waypointRole, marker._waypointGeometry, isActive, marker._waypointMovable));
 	});
 }
 
@@ -266,6 +268,37 @@ function bindRouteWaypointHoverPopup(marker, loc, role, geometry) {
 	});
 }
 
+/**
+ * Einen freien Kartenpunkt an seinem Marker verschiebbar machen.
+ *
+ * Nur er: eine Siedlung liegt, wo sie liegt, und ein ziehbarer Ort-Marker wuerde im Betrachter genau
+ * die Erwartung wecken, die der Editor erfuellt (dort verschiebt derselbe Griff die Siedlung selbst).
+ *
+ * 💣 Die Infobox MUSS beim Anfassen zugehen. Sie ist per Hover offen, wenn die Hand am Marker liegt,
+ * und ihre Position ist beim Oeffnen einmalig gesetzt -- sie wandert also nicht mit, sondern bliebe
+ * ueber der alten Stelle stehen und zeigte dort weiter die alten Koordinaten an.
+ */
+function bindRouteWaypointDragging(marker, waypoint) {
+	marker.on("dragstart", () => {
+		marker._routePopupPinned = false;
+		if (marker._routePopup) {
+			map.closePopup(marker._routePopup);
+		}
+	});
+	// Erst beim LOSLASSEN. Waehrend des Ziehens zu rechnen hiesse, je Mausbewegung eine Route beim
+	// Server zu bestellen -- der Punkt bewegt sich fluessig, weil ihn Leaflet zeichnet, nicht wir.
+	//
+	// 💣 Und einen Wimpernschlag NACH dem Loslassen, nicht darin. `moveMapPointWaypointTo` rechnet die
+	// Route neu, und das wirft ALLE Wegpunkt-Marker weg und baut sie neu -- auch den, an dem die Hand
+	// gerade noch hing. Zieht man ihn dem noch laufenden Drag-Abschluss unter den Fuessen weg, raeumt
+	// Leaflet auf einem Element auf, das es nicht mehr gibt (TypeError in `finishDrag`).
+	// ⚠️ setTimeout, nicht requestAnimationFrame: rAF ruht in einem Tab, der nicht im Vordergrund ist.
+	marker.on("dragend", () => {
+		const droppedAt = marker.getLatLng();
+		setTimeout(() => moveMapPointWaypointTo(waypoint.waypointId, droppedAt), 0);
+	});
+}
+
 // Massgeblich ist selectedLocations -- an allen Aufrufstellen direkt zuvor via
 // collectAndValidateSelectedLocations gefuellt. Die Knotenliste der berechneten Route taugt NICHT als
 // Quelle (sie enthaelt Kreuzungen + Duplikate -> Bug #10). Deshalb laeuft dieser Renderer frueh, direkt
@@ -280,11 +313,16 @@ function renderRouteWaypointMarkers() {
 		}
 		const role = routeWaypointRole(index, waypoints.length);
 		const geometry = routeWaypointGeometry(role);
+		// Ein angeklickter Kartenpunkt ist der einzige Wegpunkt, der irgendwo liegen KANN statt irgendwo
+		// zu sein -- also der einzige, den man verschieben darf. Ohne waypointId gaebe es keine Zeile,
+		// in die das Verschieben zurueckschreiben koennte.
+		const isMovable = Boolean(waypoint.isMapPoint && waypoint.waypointId);
 		const marker = L.marker(waypoint.coordinates, {
-			icon: routeWaypointIcon(role, geometry),
+			icon: routeWaypointIcon(role, geometry, false, isMovable),
 			pane: "locationsPane",
 			riseOnHover: true,
 			keyboard: false,
+			draggable: isMovable,
 		}).addTo(map);
 		// Identitaet + Bauplan am Marker: applyActiveRouteWaypointMarkers braucht beides, um sein Icon
 		// gegen die goldene Fassung zu tauschen. publicId ist der Schluessel, an dem auch die Siedlungs-
@@ -293,7 +331,11 @@ function renderRouteWaypointMarkers() {
 		marker._waypointRole = role;
 		marker._waypointGeometry = geometry;
 		marker._waypointActive = false;
+		marker._waypointMovable = isMovable;
 		bindRouteWaypointHoverPopup(marker, waypoint, role, geometry);
+		if (isMovable) {
+			bindRouteWaypointDragging(marker, waypoint);
+		}
 		highlightedRouteNodes.push(marker);
 	});
 	// Der Neuaufbau wirft alle Marker weg -> die Auswahl erneut anwenden, sonst verliert der gerade im

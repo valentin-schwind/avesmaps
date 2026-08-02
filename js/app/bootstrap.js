@@ -725,6 +725,9 @@ map.on("click", clearChangeLogFocusMarker);
 map.on("movestart", closeMapContextMenu);
 window.addEventListener("resize", closeMapContextMenu);
 map.getContainer().addEventListener("click", handleDistanceMeasurementContainerClick, true);
+// „Verschieben" an einem freien Kartenpunkt wartet auf denselben Klick und auf demselben Weg
+// (Capture auf dem Container, weil eine getroffene Ebene das Karten-click sonst anhaelt).
+map.getContainer().addEventListener("click", handleMapPointRelocationContainerClick, true);
 initializeSpotlightSearch();
 syncDistanceMeasurementContextMenuAction();
 updateLocationReportDialogAvailability();
