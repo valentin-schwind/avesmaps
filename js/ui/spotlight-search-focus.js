@@ -274,12 +274,17 @@ function getSpotlightPathZoom(entry) {
 
 // A citymap entry (buildCitymapSpotlightEntry in spotlight-search.js) has no geometry of its own --
 // design §4.4: the hit jumps to its ASSIGNED PLACE and opens that place's infobox, where the
-// Kartensammlung already renders as a section. So there is no new focus logic to write: the entry's
-// `...base` spread already carries whatever field the place's own focus helper reads
-// (locationEntry/labelEntry/regionEntry+polygons+bounds/paths+bounds), because buildCitymapSpotlightEntry
-// built it from that exact placeEntry. placeEntryKind (saved before `kind` was overwritten to "citymap")
-// says which helper that is -- every one of the four already flies to its target AND opens its infobox,
-// so delegating satisfies "jump + open infobox" for free.
+// Kartensammlung already renders as a section. The entry's `...base` spread already carries whatever
+// field the place's own focus helper reads (locationEntry/labelEntry/regionEntry+polygons+bounds/
+// paths+bounds), because buildCitymapSpotlightEntry built it from that exact placeEntry. placeEntryKind
+// (saved before `kind` was overwritten to "citymap") says which helper that is -- every one of the four
+// already flies to its target AND opens its infobox, so delegating satisfies "jump + open infobox" for
+// free.
+//
+// On top of that (Owner, right after using the feature): also open the Kartensammlung DIALOG, not just
+// the infobox section -- see openSpotlightCitymapsDialog below. Without it the user still has to spot
+// the section in the freshly opened infobox and press its own "Alle anzeigen" tile, even though a
+// citymap search hit already says that is exactly what they came here for.
 //
 // unreachable (§4.4: 85 of 469 place assignments are `unresolved`, or the place is simply not loaded
 // right now) means placeEntryKind is "" and none of the branches below match -- silent no-op. Do NOT
@@ -294,22 +299,84 @@ function focusSpotlightCitymapPlace(entry) {
 
 	if (entry.placeEntryKind === "location") {
 		focusSpotlightLocation(entry);
+		openSpotlightCitymapsDialog(entry);
 		return;
 	}
 
 	if (entry.placeEntryKind === "label") {
 		focusSpotlightLabel(entry);
+		openSpotlightCitymapsDialog(entry);
 		return;
 	}
 
 	if (entry.placeEntryKind === "region") {
 		focusSpotlightRegion(entry);
+		openSpotlightCitymapsDialog(entry);
 		return;
 	}
 
 	if (entry.placeEntryKind === "path") {
 		focusSpotlightPath(entry);
+		openSpotlightCitymapsDialog(entry);
 	}
+}
+
+// Opens the Kartensammlung dialog (map-features-citymaps-dialog.js) for the place focusSpotlightCitymapPlace
+// just jumped to, once its infobox has actually rendered a Kartensammlung section.
+//
+// openDialogForSection -- the function that builds and shows the dialog -- lives inside that file's own
+// IIFE and is never assigned to `window`, so it cannot be called from here directly. The only public door
+// in is the "Alle anzeigen" button the rendered section itself carries (buildCityMapsSectionMarkup in
+// map-features-place-extras.js): a real click on it runs the exact same document-delegated handler a
+// manual user click would. That button exists only once the infobox has actually rendered its
+// Kartensammlung section -- for a POLITICAL territory that section stays empty until territory-detail.php
+// resolves the wiki_key (avesmapsShowRegionInInfopanel renders once immediately, then again after that
+// fetch -- map-features-infopanel.js), so this cannot be done synchronously. Poll like
+// openSpotlightRegionInfobox above: same interval, a hard timeout, and a silent give-up -- the map stays
+// flown to the place (today's behaviour), never a spinner, never a half-open dialog.
+//
+// No identity check against the section that is found: the infopanel is a single body whose innerHTML is
+// fully replaced by whichever "show" call ran last (map-features-infopanel.js), and the settlement
+// floating box deliberately drops its OWN Kartensammlung section (map-features-location-marker-entry.js,
+// the `!floating` gate) -- so there is never more than one .avesmaps-citymaps section on the page to find.
+// The one guard that IS cheap -- spotlightActiveSelectionId still pointing at this same entry -- catches
+// "the user searched something else meanwhile"; it does not catch a plain, non-search marker click during
+// the poll window, an accepted, narrower gap.
+let spotlightCitymapDialogPollTimer = null;
+
+function openSpotlightCitymapsDialog(entry) {
+	if (spotlightCitymapDialogPollTimer) {
+		window.clearInterval(spotlightCitymapDialogPollTimer);
+		spotlightCitymapDialogPollTimer = null;
+	}
+	const targetId = entry.id;
+	const startedAt = Date.now();
+	const stop = () => {
+		if (spotlightCitymapDialogPollTimer) {
+			window.clearInterval(spotlightCitymapDialogPollTimer);
+			spotlightCitymapDialogPollTimer = null;
+		}
+	};
+	const tick = () => {
+		if (Date.now() - startedAt > 4500) { // Safety net: never poll forever (~30 tries).
+			stop();
+			return;
+		}
+		// A different search selection landed in the meantime -- give up rather than pop this dialog
+		// over whatever the user is looking at now.
+		if (spotlightActiveSelectionId && spotlightActiveSelectionId !== targetId) {
+			stop();
+			return;
+		}
+		const panelBody = typeof window.avesmapsInfopanelBody === "function" ? window.avesmapsInfopanelBody() : null;
+		const openAllButton = panelBody ? panelBody.querySelector(".avesmaps-citymaps .avesmaps-citymaps__all") : null;
+		if (openAllButton) {
+			stop();
+			openAllButton.click();
+		}
+	};
+	spotlightCitymapDialogPollTimer = window.setInterval(tick, 150);
+	tick();
 }
 
 function focusSpotlightPowerline(entry) {
