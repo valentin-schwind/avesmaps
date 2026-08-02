@@ -183,13 +183,31 @@ assert(avesmapsCalculateSearchScore($byId['adv-3'], avesmapsNormalizeSearchText(
 assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText('phileasson')) !== null);
 assert(avesmapsCalculateSearchScore($byId['adv-3'], avesmapsNormalizeSearchText('abenteuer in gareth')) !== null);
 
-// 💣 THE SPOILER RULE. adv-1 plays in Havena (role='play'), and that must appear NOWHERE: not in the
-// search texts, not in the place, not in the type line. The fetch never selects a play row, so the
-// builder never sees one -- this asserts the builder does not invent one either.
+// The start place IS a search text -- that is how "stadtabenteuer gareth" finds an adventure whose
+// title says neither word.
 $haystack = implode(' | ', $byId['adv-1']['search_texts']);
-assert(!str_contains(mb_strtolower($haystack), 'havena'));
 assert(str_contains($haystack, 'Gareth'));
 assert(str_contains($haystack, 'Die Verschwoerung von Gareth'));
+
+// 💣 THE SPOILER RULE lives in the SQL, and SQL is not unit-testable without a database -- so it is
+// pinned statically. Dropping `role = 'start'` from the join would silently turn every play location
+// into a searchable, jumpable, printable fact, and nothing else in this file would notice.
+$librarySource = file_get_contents(__DIR__ . '/../adventure-search.php');
+assert(is_string($librarySource));
+assert(str_contains($librarySource, "p2.role = 'start'"));
+
+// The builder must not invent fields either: anything the fetch did not select stays out of the entry.
+$leaky = avesmapsBuildAdventureSearchEntries([[
+    'public_id' => 'adv-9',
+    'title' => 'Leck',
+    'product_type' => 'szenario',
+    'edition' => 'DSA5',
+    'place_name' => 'Gareth',
+    'place_kind' => 'settlement',
+    'place_public_id' => 'loc-gareth',
+    'play_place_name' => 'Havena',
+]], $labels)[0];
+assert(!str_contains(mb_strtolower(implode(' | ', $leaky['search_texts'])), 'havena'));
 
 // Edition sort key: DSA5 before DSA4.1 before DSA4 before DSA1, then non-DSA, then empty. Mirrors
 // avesmapsAdventureEditionSortKey in js/map-features/map-features-adventures.js.
