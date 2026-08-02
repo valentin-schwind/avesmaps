@@ -370,12 +370,23 @@ function spotlightCitymapPlaceLookupKeys(placeKind, publicId) {
 }
 
 // A map from the Kartensammlung. It has no position of its own -- it rides on the place it is assigned
-// to, exactly like an in-settlement object. Modelled on buildInSettlementSpotlightEntry deliberately:
-// same shape, same notOnMap flag, so selection and focus need no special case.
+// to, exactly like an in-settlement object. Modelled on buildInSettlementSpotlightEntry for the shared
+// notOnMap-style presentation, but NOT for `kind`: that function deliberately KEEPS the inherited
+// kind ("location") -- see ITS comment above -- specifically so the plain kind-dispatch in
+// selectSpotlightSearchEntry just works unmodified. This entry instead OVERWRITES kind to "citymap" -- Task 7's
+// result-list rendering needs a map hit to read as its own thing (a distinct row/section), not fold
+// invisibly into whatever place it points to. That overwrite is exactly why selection/focus DOES need
+// a special case here, unlike the in-settlement entry: placeEntryKind below preserves the placeEntry's
+// original kind (location/region/label/path) so selectSpotlightSearchEntry's "citymap" branch
+// (spotlight-search-focus.js: focusSpotlightCitymapPlace) knows which existing focus helper to
+// delegate to -- the spread (`...base`) already carried that helper's expected fields
+// (locationEntry/labelEntry/regionEntry+polygons+bounds/paths+bounds) along with it.
 //
 // A map with nothing to jump to is still LISTED -- being told the map exists is worth more than hiding
 // it -- but it says so. Two independent reasons: the database never resolved the place (the server
-// says so via `unresolved`, live 85 of 469), or the object is simply not loaded right now.
+// says so via `unresolved`, live 85 of 469), or the object is simply not loaded right now. Either way
+// placeEntry stays null, unreachable is true, placeEntryKind is "" -- focusSpotlightCitymapPlace reads
+// unreachable and no-ops rather than guessing a target.
 function buildCitymapSpotlightEntry(result) {
 	const name = String(result.name || "");
 	if (!name) {
@@ -399,6 +410,9 @@ function buildCitymapSpotlightEntry(result) {
 		...base,
 		id: `citymap:${String(result.public_id || name)}`,
 		kind: "citymap",
+		// The placeEntry's own kind, saved off before the `kind: "citymap"` override above shadows it.
+		// "" when placeEntry is null (unreachable) -- no place was resolved to have a kind at all.
+		placeEntryKind: base.kind || "",
 		name,
 		typeLabel: String(result.type_label || ""),
 		aliases: [],

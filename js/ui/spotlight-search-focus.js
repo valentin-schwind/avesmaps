@@ -58,6 +58,11 @@ function selectSpotlightSearchEntry(entry) {
 		return;
 	}
 
+	if (entry.kind === "citymap") {
+		focusSpotlightCitymapPlace(entry);
+		return;
+	}
+
 	if (entry.kind === "powerline") {
 		focusSpotlightPowerline(entry);
 	}
@@ -265,6 +270,46 @@ function getSpotlightPathZoom(entry) {
 		? 3
 		: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 	return Math.max(minZoom, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
+}
+
+// A citymap entry (buildCitymapSpotlightEntry in spotlight-search.js) has no geometry of its own --
+// design §4.4: the hit jumps to its ASSIGNED PLACE and opens that place's infobox, where the
+// Kartensammlung already renders as a section. So there is no new focus logic to write: the entry's
+// `...base` spread already carries whatever field the place's own focus helper reads
+// (locationEntry/labelEntry/regionEntry+polygons+bounds/paths+bounds), because buildCitymapSpotlightEntry
+// built it from that exact placeEntry. placeEntryKind (saved before `kind` was overwritten to "citymap")
+// says which helper that is -- every one of the four already flies to its target AND opens its infobox,
+// so delegating satisfies "jump + open infobox" for free.
+//
+// unreachable (§4.4: 85 of 469 place assignments are `unresolved`, or the place is simply not loaded
+// right now) means placeEntryKind is "" and none of the branches below match -- silent no-op. Do NOT
+// guess a target: selectSpotlightSearchEntry already ran closeSpotlightSearch()/clearSpotlightSelection()
+// before calling us, so a no-op here leaves the map exactly where the user already was with the
+// selection cleared, not a half-moved state. The result list marks unreachable hits so this is expected,
+// not silently swallowed (see spotlightResultMarkup's notOnMap styling / a future "nicht anspringbar" tag).
+function focusSpotlightCitymapPlace(entry) {
+	if (entry.unreachable) {
+		return;
+	}
+
+	if (entry.placeEntryKind === "location") {
+		focusSpotlightLocation(entry);
+		return;
+	}
+
+	if (entry.placeEntryKind === "label") {
+		focusSpotlightLabel(entry);
+		return;
+	}
+
+	if (entry.placeEntryKind === "region") {
+		focusSpotlightRegion(entry);
+		return;
+	}
+
+	if (entry.placeEntryKind === "path") {
+		focusSpotlightPath(entry);
+	}
 }
 
 function focusSpotlightPowerline(entry) {
