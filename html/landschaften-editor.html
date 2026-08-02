@@ -36,7 +36,11 @@
 <link rel="stylesheet" href="/css/components/editor-page.css">
 <link rel="stylesheet" href="/css/pages/landschaften-editor.css">
 </head>
-<body>
+<!-- ⚠️ `avm-editor-body` is not decoration: the shared body/button/input rules live in
+     css/components/editor-page.css and are scoped to this class, because that file is loaded by
+     six editor pages and a bare `body {}` would reach all of them. Without the class this editor
+     loses its ground colour, its font and every button style. -->
+<body class="avm-editor-body">
 
 <!-- Menüband: six tiles, all the same width. Only the sync tile carries an icon and --primary. -->
 <div class="avm-ribbon-bar">
