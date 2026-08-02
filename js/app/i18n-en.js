@@ -529,6 +529,14 @@ window.AVESMAPS_I18N_EN = {
 	// keeps that from reading as "the object is marked there". Same word the editor's Lage
 	// filter uses, so both surfaces name the thing identically.
 	"spotlight.inSettlement": "In town",
+	"spotlight.noPlaceOnMap": "no place on the map",
+	"spotlight.citymaps": "Map collection",
+	"spotlight.citymapsMore": "… and {n} more maps",
+	"spotlight.adventures": "Adventures",
+	"spotlight.adventuresMore": "… and {n} more adventures",
+	"spotlight.adventureStartsIn": "starts in {place}",
+	"spotlight.lore": "Occurrences",
+	"spotlight.loreMore": "… and {n} more occurrences",
 	"spotlight.labelType.region": "Region",
 	"spotlight.labelType.fluss": "River",
 	"spotlight.labelType.meer": "Sea",
