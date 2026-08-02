@@ -439,31 +439,53 @@ function searchSpotlightEntries(query) {
 		.map((match) => match.entry);
 }
 
+// Mirrors avesmapsCalculateSearchScore in api/_internal/app/map-search-scoring.php: every word of the
+// query must hit at least one search text, the words may hit DIFFERENT ones, and the entry scores as
+// badly as its weakest word. Both sides must agree -- a result list that mixes local and backend hits
+// would otherwise rank the same object twice over by two different rules.
+//
+// NOTE: the two sides still NORMALISE differently (ue vs u for umlauts). That divergence is older than
+// this function and is deliberately not touched here -- see the design doc, §7.
 function getSpotlightSearchScore(entry, normalizedQuery) {
 	const candidates = entry.normalizedSearchTexts || [entry.name, entry.typeLabel, ...(entry.aliases || [])]
 		.map(normalizeSpotlightSearchText)
 		.filter(Boolean);
-	let bestScore = Infinity;
+	const words = String(normalizedQuery || "").split(" ").filter(Boolean);
+	if (!words.length || !candidates.length) {
+		return Infinity;
+	}
 
-	candidates.forEach((candidate) => {
-		if (candidate === normalizedQuery) {
-			bestScore = Math.min(bestScore, 0);
-			return;
+	let worstWordScore = 0;
+	for (const word of words) {
+		let bestForWord = Infinity;
+		candidates.forEach((candidate) => {
+			bestForWord = Math.min(bestForWord, scoreSpotlightWord(candidate, word));
+		});
+		if (!Number.isFinite(bestForWord)) {
+			return Infinity;
 		}
-		if (candidate.startsWith(normalizedQuery)) {
-			bestScore = Math.min(bestScore, 1);
-			return;
-		}
-		if (candidate.split(" ").some((part) => part.startsWith(normalizedQuery))) {
-			bestScore = Math.min(bestScore, 2);
-			return;
-		}
-		if (candidate.includes(normalizedQuery)) {
-			bestScore = Math.min(bestScore, 3);
-		}
-	});
+		worstWordScore = Math.max(worstWordScore, bestForWord);
+	}
 
-	return bestScore;
+	return worstWordScore;
+}
+
+// The four tiers, unchanged: equal / prefix / word-prefix / contained.
+function scoreSpotlightWord(candidate, word) {
+	if (candidate === word) {
+		return 0;
+	}
+	if (candidate.startsWith(word)) {
+		return 1;
+	}
+	if (candidate.split(" ").some((part) => part.startsWith(word))) {
+		return 2;
+	}
+	if (candidate.includes(word)) {
+		return 3;
+	}
+
+	return Infinity;
 }
 
 function renderSpotlightSearchResults(entries) {
