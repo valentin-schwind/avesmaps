@@ -6,8 +6,13 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/text/ascii-fold.php';
 require_once __DIR__ . '/../_internal/app/map-search-scoring.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
+require_once __DIR__ . '/../_internal/app/citymaps.php';
+require_once __DIR__ . '/../_internal/app/app-setting.php';
+require_once __DIR__ . '/../_internal/app/citymap-search.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
+// The map section is capped independently of the 20-result limit, so maps never displace map objects.
+const AVESMAPS_CITYMAP_SEARCH_LIMIT = 5;
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
@@ -43,7 +48,10 @@ try {
     // Kartenposition haben (Villen, Plaetze, Stadttempel, Gassen). Der Ortsindex wird aus
     // $rows abgeleitet -- keine zusaetzliche Ortsabfrage.
     $inSettlementRows = avesmapsFetchInSettlementSearchRows($pdo);
-    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo);
+    // Fourth source: the Kartensammlung. The kill switch counts here too -- a collection switched off must
+    // not become visible again through the search. Default is ON; only a stored '0' disables.
+    $citymapRows = avesmapsCitymapsEnabled($pdo) ? avesmapsFetchCitymapSearchRows($pdo) : [];
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -138,7 +146,8 @@ function avesmapsBuildMapSearchResults(
     string $query,
     int $limit,
     array $inSettlementRows = [],
-    ?PDO $pdo = null
+    ?PDO $pdo = null,
+    array $citymapRows = []
 ): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
@@ -230,6 +239,31 @@ function avesmapsBuildMapSearchResults(
         }
     }
 
+    // Maps are collected SEPARATELY and capped, then appended. 331 of 455 titles start with "Stadtplan
+    // von" -- inside the shared limit a single generic word like "stadtplan" would fill all 20 slots and
+    // push out the actual map objects. The cap is what makes the feature safe to ship.
+    $citymapResults = [];
+    foreach (avesmapsBuildCitymapSearchEntries($citymapRows, AVESMAPS_CITYMAP_SEARCH_TYPE_LABELS) as $entry) {
+        $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
+        if ($score === null) {
+            continue;
+        }
+        $entry['score'] = $score;
+        $citymapResults[] = $entry;
+    }
+
+    usort($citymapResults, static function (array $left, array $right): int {
+        // Maps with a resolved place first: a hit that does nothing when clicked belongs at the bottom.
+        $resolvedDiff = ((int) $left['unresolved']) <=> ((int) $right['unresolved']);
+        if ($resolvedDiff !== 0) {
+            return $resolvedDiff;
+        }
+        $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
+        return $scoreDiff !== 0 ? $scoreDiff : strnatcasecmp((string) $left['name'], (string) $right['name']);
+    });
+    $citymapTotal = count($citymapResults);
+    $citymapResults = array_slice($citymapResults, 0, AVESMAPS_CITYMAP_SEARCH_LIMIT);
+
     $results = array_merge($results, array_values($pathGroups));
     usort($results, static function (array $left, array $right): int {
         $scoreDiff = (int) $left['score'] <=> (int) $right['score'];
@@ -245,7 +279,7 @@ function avesmapsBuildMapSearchResults(
         return strnatcasecmp((string) $left['name'], (string) $right['name']);
     });
 
-    return array_map(
+    $mapped = array_map(
         static function (array $entry): array {
             unset($entry['score'], $entry['search_texts'], $entry['group_key']);
             $entry['public_ids'] = array_values(array_unique($entry['public_ids'] ?? []));
@@ -253,6 +287,14 @@ function avesmapsBuildMapSearchResults(
         },
         array_slice($results, 0, $limit)
     );
+
+    foreach ($citymapResults as $entry) {
+        unset($entry['score'], $entry['search_texts']);
+        $entry['citymap_total'] = $citymapTotal;
+        $mapped[] = $entry;
+    }
+
+    return $mapped;
 }
 
 function avesmapsBuildSearchEntry(array $row): ?array {
