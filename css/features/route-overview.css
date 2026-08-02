@@ -3,7 +3,10 @@
 #overview {
 	max-height: min(80vh, calc(100dvh - 320px));
 	overflow-y: auto;
-	margin-top: var(--space-4);
+	/* Kein eigener margin-top mehr: #search ist eine Flex-Spalte mit 5 px Abstand zwischen ALLEN
+	   Kindern, der Rand kam obendrauf und machte aus 5 px hier 11. Die 6 px gehen an die
+	   Routenoptionen darueber, die mehr Luft zwischen ihren Zeilen brauchen (Owner 2026-08-02) --
+	   und der Abstand zum Plan liegt jetzt auf demselben Mass wie ueberall sonst im Panel. */
 	padding: var(--space-10);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
