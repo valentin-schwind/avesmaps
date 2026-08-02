@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Wege-Editor – Mockup (Abstimmung, 2026-08-02)</title>
+<script>
+  /* Wie jede Editorseite: gespeicherte Wahl schlaegt OS-Schema, vor dem ersten Anstrich.
+     Wortgleich aus html/landschaften-editor.html -- das Mockup soll auch die Themafrage zeigen. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 RELATIVE Pfade, und das ist Absicht: dies ist eine docs/-Datei, die per file:// geoeffnet
+     wird. Die spaetere echte Seite html/wege-editor.html traegt absolute /css/... wie ihre sieben
+     Geschwister. Geladen werden die ECHTEN Stylesheets des siebten Editors -- das Mockup zeigt
+     damit die tatsaechliche Designsprache und nicht meine Auslegung davon. -->
+<link rel="stylesheet" href="../css/base/fonts.css">
+<link rel="stylesheet" href="../css/base/tokens.css">
+<link rel="stylesheet" href="../css/components/editor-page.css">
+<link rel="stylesheet" href="../css/pages/landschaften-editor.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   NUR das Neue. Alles darueber kommt unveraendert aus dem siebten Editor; was hier steht, ist
+   der Vorschlag fuer css/pages/wege-editor.css. Kein hartkodierter Farbwert (AGENTS.md §12).
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ---- Mockup-Rahmen (faellt beim Bau weg) -------------------------------------------------- */
+body.mock { height: auto; padding: var(--space-12); gap: var(--space-12); }
+
+.mock-note {
+	max-width: 1400px;
+	margin: 0 auto;
+	padding: var(--space-8) var(--space-12);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+}
+
+.mock-note b { color: inherit; font-weight: var(--font-weight-bold); }
+.mock-note code { font-family: ui-monospace, "Consolas", monospace; }
+.mock-note + .mock-note { margin-top: var(--space-6); }
+
+.mock-caption {
+	max-width: 1400px;
+	margin: var(--space-12) auto var(--space-4);
+	color: var(--color-accent-strong);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+}
+
+/* Die Huelle, die der Overlay-Host per Inline-Style setzt (Auftrag §6, viermal wortgleich
+   kopiert). Hier nachgestellt, damit die Spaltenbreiten ECHT sind. */
+.mock-hull {
+	max-width: 1400px;
+	width: min(1400px, calc(100vw - 24px));
+	height: min(880px, calc(100vh - 24px));
+	margin: 0 auto;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: var(--color-page-bg);
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md);
+}
+
+.mock-hull__title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--space-6) var(--space-10);
+	background: var(--color-panel-soft);
+	border-bottom: 1px solid var(--color-border);
+	color: var(--color-text-strong);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+}
+
+.mock-hull__x { color: var(--color-text-muted); }
+
+/* ---- NEU 1: Zugehoerigkeit (Spalte 2) -----------------------------------------------------
+ * NUR ANZEIGE (Owner 2026-08-02). Gerechnet wird sie im Landschaften-Editor; hier steht das
+ * Ergebnis und ein Verweis dorthin. Deshalb ohne Eingabe und ohne Kachel im Menueband.
+ */
+.wp-share {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-4);
+	padding: var(--avm-row-pad);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-panel-soft);
+}
+
+.wp-share + .wp-share { margin-top: var(--space-2); }
+.wp-share__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wp-share__kind { flex: 0 0 auto; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+
+.wp-share__value {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-accent-strong);
+	font-weight: var(--font-weight-bold);
+}
+
+/* ---- NEU 2: die Farbleiter fuer Datenreihen -----------------------------------------------
+ * 💣 GERECHNET, NICHT GEWAEHLT -- und das Ergebnis ist unbequem.
+ *
+ * Geprueft mit dem Paletten-Validator (OKLab-ΔE, Simulation fuer Protanopie/Deuteranopie/
+ * Tritanopie) gegen die echten Flaechen #faf6ee (hell) und #37342b (dunkel):
+ *
+ *   Helligkeitsband  PASS      Chroma-Untergrenze  PASS
+ *   Normalsicht      PASS      (hell ΔE 18,1 · dunkel ΔE 15,7 -- beide ueber der 15er-Grenze)
+ *   Kontrast         PASS      (alle >= 3:1 gegen die Flaeche)
+ *   CVD-Trennung     FAIL      Gruen<->Rot ΔE 4,8 (hell) bzw. 1,0 (dunkel), Ziel ist 8
+ *
+ * 🔴 DIESES FAIL IST NICHT WEGZUSTIMMEN. Rot und Gruen SIND die Rotgruen-Verwechslungsachse,
+ *    und die einzige Farbe, die dort sauber trennt, ist Blau -- das AGENTS.md §12 verbietet.
+ *    Sieben warme Erdtoene wurden zuerst versucht: schlechter (ΔE 1,3), teils sogar fuer
+ *    normale Farbsicht ununterscheidbar. Es gibt hier keine Palette, die es allein richtet.
+ *
+ * ⭐ ALSO TRAEGT FARBE DIE IDENTITAET NIE ALLEIN. Zwei Dinge kommen dazu, beide verbindlich:
+ *    1. STRICHART je Reihe (durchgezogen / gestrichelt / gepunktet / Strichpunkt),
+ *    2. KLEINE EINZELBILDER statt einer Kurvenwolke -- ein Bild je Wegtyp, damit selten mehr
+ *       als vier Reihen gleichzeitig in EINEM Bild stehen.
+ *    Damit ist die Leiter regelkonform benutzbar; ohne sie waere sie es nicht.
+ *
+ * Wenn der Owner sie nimmt, wandern die acht Zeilen als --color-chart-1..4 nach tokens.css
+ * (hell + dunkel) und diese Datei aliast sie nur noch. Erst der Token, dann der Gebrauch.
+ */
+:root {
+	--wp-grid: var(--color-border);
+	--wp-axis: var(--color-text-muted);
+	--wp-serie-1: #c9821c;   /* Gold-Orange */
+	--wp-serie-2: #a02a24;   /* Ziegelrot   */
+	--wp-serie-3: #2f7d3a;   /* Laubgruen   */
+	--wp-serie-4: #6b4a8f;   /* Pflaume     */
+}
+
+:root[data-theme="dark"] {
+	--wp-serie-1: #b58c10;
+	--wp-serie-2: #c74a55;
+	--wp-serie-3: #2f9647;
+	--wp-serie-4: #8f5fc4;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--wp-serie-1: #b58c10;
+		--wp-serie-2: #c74a55;
+		--wp-serie-3: #2f9647;
+		--wp-serie-4: #8f5fc4;
+	}
+}
+
+/* ---- NEU 3: Hoehenprofil (Spalte 3) ------------------------------------------------------- */
+.wp-scale { display: flex; gap: var(--space-4); margin-bottom: var(--space-6); }
+.wp-scale button { flex: 1 1 0; min-height: var(--avm-control-h); font-size: var(--font-size-caption); }
+
+.wp-scale button.is-active {
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.wp-chart {
+	margin: 0 0 var(--space-8);
+	padding: var(--space-4);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+}
+
+.wp-chart svg { display: block; width: 100%; height: auto; }
+.wp-chart__title { margin-bottom: var(--space-2); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.wp-chart__title b { color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
+
+/* Recessive Gitter, duenne Marken -- die Kurve ist das Lauteste im Bild. */
+.wp-grid { stroke: var(--wp-grid); stroke-width: 1; }
+.wp-axis { stroke: var(--wp-axis); stroke-width: 1; }
+.wp-tick { fill: var(--wp-axis); font-size: 9px; }
+.wp-axis-label { fill: var(--color-text-muted); font-size: 9px; font-style: italic; }
+.wp-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+
+/* 🔴 Farbe UND Strichart. Die zweite Kodierung ist Pflicht, siehe die Rechnung oben. */
+.wp-line--1 { stroke: var(--wp-serie-1); }
+.wp-line--2 { stroke: var(--wp-serie-2); stroke-dasharray: 6 3; }
+.wp-line--3 { stroke: var(--wp-serie-3); stroke-dasharray: 2 3; }
+.wp-line--4 { stroke: var(--wp-serie-4); stroke-dasharray: 9 3 2 3; }
+
+.wp-edge { stroke: var(--color-danger); stroke-width: 2; stroke-dasharray: 3 3; fill: none; }
+.wp-cap { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 2 4; }
+.wp-fill { fill: var(--color-active-wash); stroke: none; }
+.wp-dot { fill: var(--color-accent-strong); }
+.wp-note { fill: var(--color-text-muted); font-size: 9px; }
+
+/* Eine gemeinsame Legende ueber ALLEN kleinen Bildern -- sie traegt Farbe und Strichart, also
+   genau das, was die Bilder unterscheidet. In sieben winzigen Bildern zu beschriften waere
+   Kollisionschaos; hier steht es einmal und gilt fuer alle. */
+.wp-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-4) var(--space-12);
+	font-size: var(--font-size-caption);
+	color: var(--color-text-muted);
+}
+
+.wp-legend span { display: inline-flex; align-items: center; gap: var(--space-4); }
+.wp-legend svg { flex: 0 0 auto; width: 22px; height: 8px; }
+
+/* Kennzahlen unter der Kurve. */
+.wp-facts { display: grid; grid-template-columns: 1fr auto; gap: 1px var(--space-8); font-size: var(--font-size-body); }
+.wp-facts dt { color: var(--color-text-muted); }
+.wp-facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.wp-facts dd b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+
+/* ---- NEU 4: das Fenster „Funktionen anzeigen" --------------------------------------------- */
+.wp-fn { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--avm-col-pad); }
+
+.wp-fn h3 {
+	margin: 0 0 var(--space-4);
+	font-size: var(--font-size-subhead);
+	font-weight: var(--font-weight-bold);
+	color: var(--color-accent-strong);
+}
+
+.wp-fn > section + section { margin-top: var(--space-16, 20px); padding-top: var(--space-12); border-top: 1px solid var(--color-border); }
+.wp-fn p { margin: var(--space-6) 0 0; font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: var(--leading-normal); }
+
+/* Die Auswahlzeile steht in EINER Reihe UEBER den Bildern, nie zwischen ihnen. */
+.wp-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-4) var(--space-10);
+	margin-bottom: var(--space-8);
+	padding: var(--space-6) var(--space-8);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+}
+
+.wp-controls__label { font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); color: var(--color-text-muted); }
+
+/* Auf --color-panel-soft trägt der Warnton seine -soft-text-Stufe, nicht --color-warning. */
+.wp-controls__note {
+	margin: calc(-1 * var(--space-4)) 0 var(--space-8);
+	padding: var(--space-4) var(--space-8);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-caption);
+}
+
+.wp-controls__note[hidden] { display: none; }
+.wp-controls label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-body); cursor: pointer; }
+.wp-controls input { cursor: pointer; }
+
+/* Kleine Einzelbilder: ein Bild je Wegtyp. Gitterspuren, nicht flex -- aus demselben Grund
+   wie die drei Spalten (Spec §3.2). */
+.wp-small {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+	gap: var(--space-8);
+	margin-top: var(--space-8);
+}
+
+.wp-small .wp-chart { margin: 0; }
+
+/* Verteilung: eine 100-%-Zeile je Wegart. Eine SEQUENZIELLE Leiter (ein Farbton, hell nach
+   dunkel), denn die Klassen sind geordnet -- kein Regenbogen, keine kategoriale Palette. */
+.wp-dist { display: grid; grid-template-columns: var(--avm-field-label-w) minmax(0, 1fr); gap: var(--space-2) var(--space-6); align-items: center; }
+.wp-dist__label { font-size: var(--font-size-caption); color: var(--color-text-muted); white-space: nowrap; }
+.wp-dist__bar { display: flex; gap: 2px; height: 16px; }
+.wp-dist__seg { min-width: 0; border-radius: 2px; }
+.wp-dist__seg--0 { background: var(--color-panel-muted); }
+.wp-dist__seg--1 { background: var(--color-hover-wash); }
+.wp-dist__seg--2 { background: var(--color-active-wash); }
+.wp-dist__seg--3 { background: var(--color-accent); }
+.wp-dist__seg--4 { background: var(--color-accent-strong); }
+.wp-dist__seg--5 { background: var(--color-accent-brown); }
+
+.wp-dist-key { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-8); margin-top: var(--space-6); font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.wp-dist-key span { display: inline-flex; align-items: center; gap: var(--space-2); }
+.wp-dist-key i { width: 12px; height: 12px; border: 1px solid var(--color-border); border-radius: 2px; }
+
+/* Die Kalibrierungstabelle. */
+.wp-tab { width: 100%; border-collapse: collapse; font-size: var(--font-size-body); }
+.wp-tab th, .wp-tab td { padding: var(--space-2) var(--space-4); text-align: right; border-bottom: 1px solid var(--color-border); }
+.wp-tab th:first-child, .wp-tab td:first-child { text-align: left; }
+.wp-tab th { color: var(--color-text-muted); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); white-space: nowrap; }
+.wp-tab td { font-variant-numeric: tabular-nums; }
+.wp-tab tr.is-reference td { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+.wp-tab td.wp-delta--up { color: var(--color-success); }
+.wp-tab td.wp-delta--down { color: var(--color-danger); }
+
+/* c, gross und mit seinem Vorgaenger daneben -- Falle 5 des Auftrags ist eine Anzeigepflicht. */
+.wp-c {
+	display: flex;
+	align-items: baseline;
+	gap: var(--space-8);
+	margin-bottom: var(--space-8);
+	padding: var(--space-8) var(--space-10);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+}
+
+.wp-c__value { font-size: 30px; line-height: 1; color: var(--color-accent-strong); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+.wp-c__meta { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: var(--leading-normal); }
+
+.wp-inert {
+	margin-top: var(--space-8);
+	padding: var(--space-6) var(--space-8);
+	background: var(--color-warning-soft);
+	border: 1px solid var(--color-warning-soft-border);
+	border-radius: var(--radius-md);
+	color: var(--color-warning-soft-text);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+}
+
+.wp-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-12); }
+.wp-two > div { min-width: 0; }
+
+/* Speicherleiste unter Spalte 2 (Spec §3.1a). */
+.wp-savebar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	padding: var(--space-6) var(--space-10);
+	margin: var(--space-6) calc(-1 * var(--space-10)) calc(-1 * var(--space-6));
+	background: var(--color-panel-soft);
+	border-top: 1px solid var(--color-border);
+}
+
+.wp-savebar__msg { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); }
+.wp-savebar button { min-height: var(--avm-control-h); }
+.wp-savebar button.is-primary { background: var(--color-button); border-color: var(--color-button-border); color: var(--color-button-text); }
+</style>
+</head>
+<body class="mock">
+
+<div class="mock-note">
+  <b>Mockup — Wege-Editor (der achte Sync-Editor), Stand 2026-08-02, zweite Fassung.</b>
+  Fenster 1 ist statisch; Fenster 2 ist <b>bedienbar</b>, weil sich sonst nicht beurteilen lässt,
+  was „interaktive Kombination“ heißt — die Ankreuzfelder zeichnen die Bilder wirklich neu.
+  Optik und Maße kommen aus den <b>echten</b> Stylesheets des siebten Editors.
+  <br>
+  💣 <b>Alle Bestandszahlen sind erfunden</b> (c, Mittelwerte, Verteilung, Listeneinträge) — der
+  Rechner dafür existiert noch nicht. <b>Die Kurven sind es nicht:</b> sie laufen durch dieselbe
+  Formel wie <code>api/_internal/routing/terrain-factor.php</code>, und die Grundgeschwindigkeiten
+  stammen Zeile für Zeile aus <code>AVESMAPS_ROUTE_CLIENT_SPEED_TABLE</code>.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════
+     FENSTER 1 — der Editor
+     ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<div class="mock-caption">Fenster 1 — „Wege bearbeiten“</div>
+<div class="mock-hull">
+
+  <div class="mock-hull__title"><span>Avesmaps – Wege bearbeiten</span><span class="mock-hull__x">✕</span></div>
+
+  <!-- Menüband: VIER Kacheln (Owner 2026-08-02: „Zugehörigkeit rechnen“ bleibt im
+       Landschaften-Editor). Nur die Sync-Kachel trägt Icon und --primary. -->
+  <div class="avm-ribbon-bar">
+    <div class="avm-ribbon">
+      <button type="button" class="avm-tile avm-tile--primary" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen. Zieht aus dem Reiter „Wege“ hierher um.">
+        <span class="t1">🚨 Wege syncen</span><span class="t2">zuletzt 01.08.2026, 23:14</span></button>
+      <button type="button" class="avm-tile" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server. Aus dem Landschaften-Editor hierher umgezogen.">
+        <span class="t1">Wegprofile rechnen</span><span class="t2">583 von 2.493 · Raster aktuell</span></button>
+      <button type="button" class="avm-tile" title="Bestimmt den globalen Skalierungsfaktor c über alle Straßen und berichtet ihn. Ändert keine Reisezeit.">
+        <span class="t1">Wegprofile kalibrieren</span><span class="t2">c = 33,7 · 01.08., Rev. 4128</span></button>
+      <button type="button" class="avm-tile" title="Zeigt das Reisemodell als Kurven: Zeitfaktor, Meilen pro Stunde je Wegtyp und Transportmittel, die gemessene Datenlage und die letzte Kalibrierung.">
+        <span class="t1">Funktionen anzeigen</span><span class="t2">Modell als Kurven</span></button>
+    </div>
+  </div>
+
+  <div class="avm-status"><span class="avm-status__text">Bereit. 3.721 Wege geladen, davon 2.493 an Land.</span></div>
+
+  <div class="avm-cols">
+
+    <!-- ── Spalte 1 ─────────────────────────────────────────────────────────────────────────
+         ⚠️ Die Reiter sind WIKI_SYNC_PATH_VIEWS, genau diese fünf. Die Werteliste wird NICHT
+         ergänzt (Auftrag §1: die Reiter-Kaskade ist hier schon einmal gebrochen worden). -->
+    <div class="avm-col">
+      <h2 class="avm-col__title">Wege</h2>
+      <div class="avm-tabs">
+        <button type="button" class="avm-tab is-active">Alle</button>
+        <button type="button" class="avm-tab">Platziert</button>
+        <button type="button" class="avm-tab">Fehlt</button>
+        <button type="button" class="avm-tab">Konflikte</button>
+        <button type="button" class="avm-tab">Flussrichtung unbekannt</button>
+      </div>
+      <div class="avm-col__bar">
+        <input type="search" placeholder="Weg suchen …" aria-label="Wege durchsuchen">
+        <div class="type-filter"><button type="button" class="type-filter__toggle is-active">Filter ▾</button></div>
+      </div>
+      <div class="avm-summary">412 von 3.721 · Wegtyp: Straße · Kontinent: Aventurien · Lage: außerorts</div>
+      <div class="avm-scroll">
+        <div class="avm-row is-selected"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Reichsstraße Gareth–Ferdok</span><span class="avm-row__kind">Reichsstraße</span></div>
+          <div class="avm-row__l2 ok">Wiki verknüpft · 11,4 Meilen · Profil vorhanden</div>
+        </div></div>
+        <div class="avm-row"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Koschberge-Pass</span><span class="avm-row__kind">Gebirgspass</span></div>
+          <div class="avm-row__l2 warn">Profil vorhanden · F 2,64 ↑ / 1,52 ↓</div>
+        </div></div>
+        <div class="avm-row"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Straße Angbar–Auersbrücke</span><span class="avm-row__kind">Straße</span></div>
+          <div class="avm-row__l2">Wiki verknüpft · 6,2 Meilen · Profil vorhanden</div>
+        </div></div>
+        <div class="avm-row"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Pfad-0148</span><span class="avm-row__kind">Pfad</span><span class="avm-pill">Auto-Name</span></div>
+          <div class="avm-row__l2">3,0 Meilen · <span class="avm-pill avm-pill--unresolved">kein Profil</span></div>
+        </div></div>
+        <div class="avm-row"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Großer Fluss (Abschnitt Ferdok)</span><span class="avm-row__kind">Flussweg</span></div>
+          <div class="avm-row__l2 warn">Strömungsrichtung unbekannt</div>
+        </div></div>
+        <div class="avm-row"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Wüstenpfad Khunchom–Rashdul</span><span class="avm-row__kind">Wüstenpfad</span></div>
+          <div class="avm-row__l2">18,7 Meilen · Profil vorhanden</div>
+        </div></div>
+        <div class="avm-row"><div class="avm-row__text">
+          <div class="avm-row__l1"><span class="avm-row__name">Weg Nadoret–Brochenzwerch</span><span class="avm-row__kind">Weg</span></div>
+          <div class="avm-row__l2 warn"><span class="avm-pill avm-pill--unresolved">kein Wiki-Weg</span></div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ── Spalte 2 ─────────────────────────────────────────────────────────────────────────
+         Der Inhalt ist das, was heute „Bearbeiten“ am Weg öffnet (openPathEditDialog,
+         js/review/review-paths.js:80 → #path-edit-overlay), NICHT „Verlauf bearbeiten“.
+         Reihenfolge nach Spec §3.5: Identität → Rest → Quellen. Wappen und Bilder entfallen. -->
+    <div class="avm-col">
+      <h2 class="avm-col__title">Eigenschaften</h2>
+      <div class="avm-scroll avm-scroll--pad">
+
+        <div class="dt-grp">Identität</div>
+        <!-- 💣 R1: ein zugewiesener Wiki-Weg BESITZT den Namen. Das Feld ist dann readonly, das
+             Ankreuzfeld „Auto-Name“ disabled (nicht bloß leer — die Sperre soll sichtbar sein),
+             und „Weg anzeigen“ ist ganz verborgen, weil Way-Labels zugewiesene Wege ohnehin
+             beschriften. Genau so verhält sich syncPathAutoNameControls heute. -->
+        <div class="dt-grid">
+          <div class="k">Wegname</div><div><input type="text" value="Reichsstraße 1" readonly></div>
+        </div>
+        <div class="dt-check"><input type="checkbox" disabled> <span>Auto-Name <span class="avm-pill">vom Wiki-Weg gesetzt</span></span></div>
+        <div class="pl-hint">„Weg anzeigen“ ist bei zugewiesenem Wiki-Weg <b>nicht sichtbar</b> — die Beschriftung übernimmt das Way-Label.</div>
+        <div class="dt-grid">
+          <div class="k">Wegtyp</div><div><select>
+            <option>Reichsstraße</option><option>Straße</option><option>Weg</option><option>Pfad</option>
+            <option>Gebirgspass</option><option>Wüstenpfad</option><option>Flussweg</option><option>Seeweg</option>
+          </select></div>
+        </div>
+
+        <!-- 💣 Die Liste zeigt nur die zum Wegtyp PASSENDEN Mittel — die übrigen sind hidden,
+             nicht nur disabled (syncPathTransportOptions). Bei einer Reichsstraße heißt das:
+             die fünf Wasser-Optionen stehen gar nicht da. -->
+        <div class="dt-grp">Erlaubte Transportmittel</div>
+        <div class="dt-check"><input type="checkbox" checked> <span>Karawane</span></div>
+        <div class="dt-check"><input type="checkbox" checked> <span>Reisegruppe zu Fuß</span></div>
+        <div class="dt-check"><input type="checkbox" checked> <span>Zu Fuß</span></div>
+        <div class="dt-check"><input type="checkbox" checked> <span>Kutsche</span></div>
+        <div class="dt-check"><input type="checkbox" checked> <span>Reisegruppe beritten</span></div>
+        <div class="dt-check"><input type="checkbox" checked> <span>Reiter</span></div>
+        <div class="pl-hint">Flusssegler, Flusskahn, Lastensegler, Schnellsegler und Galeere erscheinen nur bei Fluss- und Seewegen.</div>
+
+        <!-- NUR ANZEIGE (Owner 2026-08-02). Gerechnet im Landschaften-Editor. -->
+        <div class="dt-grp">Zugehörigkeit — führt durch</div>
+        <div class="wp-share"><span class="wp-share__name">Kosch</span><span class="wp-share__kind">Derographische Region</span><span class="wp-share__value">100 %</span></div>
+        <div class="wp-share"><span class="wp-share__name">Koschberge</span><span class="wp-share__kind">Topographie</span><span class="wp-share__value">41 %</span></div>
+        <div class="wp-share"><span class="wp-share__name">Wald</span><span class="wp-share__kind">Vegetation</span><span class="wp-share__value">17 %</span></div>
+        <div class="pl-hint">
+          Gerechnet am 01.08.2026, 22:40 · Anteile unter 5 % werden nicht genannt ·
+          <b>gelesen, nicht gesetzt</b> — neu gerechnet wird sie mit „Zugehörigkeit rechnen“ im
+          <a class="dt-link" href="#">Landschaften-Editor</a>.
+        </div>
+
+        <div class="dt-grp">Strömung</div>
+        <div class="avm-empty">Nur für Flusswege. Dieser Weg ist eine Reichsstraße.</div>
+
+        <div class="dt-grp">Wiki-Weg</div>
+        <div class="dt-grid">
+          <div class="k">Verknüpft</div><div><a class="dt-link" href="#">Reichsstraße 1 ↗</a></div>
+        </div>
+        <div class="dt-actions">
+          <button type="button">Zuweisen</button><button type="button">Entfernen</button>
+        </div>
+
+        <div class="dt-grp">Andere Quelle</div>
+        <div class="dt-grid">
+          <div class="k">Adresse</div><div><input type="url" placeholder="https://…"></div>
+          <div class="k">Linktext</div><div><input type="text" placeholder="Quelle"></div>
+        </div>
+
+        <div class="wp-savebar">
+          <span class="wp-savebar__msg">Keine ungespeicherten Änderungen.</span>
+          <button type="button">Verwerfen</button>
+          <button type="button" class="is-primary">Speichern</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Spalte 3 ─────────────────────────────────────────────────────────────────────────
+         „je Wegstück“, nicht „je Segment“ (Owner 2026-08-02): in diesem Projekt IST ein Weg
+         schon das Segment eines Straßenzugs. Gemeint ist der Eintrag in profile_json. -->
+    <div class="avm-col">
+      <h2 class="avm-col__title">Höhenprofil</h2>
+      <div class="avm-scroll avm-scroll--pad">
+
+        <div class="wp-scale">
+          <button type="button" class="is-active">Gesamtweg</button>
+          <button type="button">je Wegstück</button>
+        </div>
+
+        <div class="wp-chart">
+          <div class="wp-chart__title">Relative Höhe über die Länge · 24 Wegstücke</div>
+          <svg viewBox="0 0 320 150" role="img" aria-label="Höhenkurve des Weges, relative Höhe über die Länge">
+            <line class="wp-grid" x1="34" y1="18"  x2="312" y2="18"></line>
+            <line class="wp-grid" x1="34" y1="48"  x2="312" y2="48"></line>
+            <line class="wp-grid" x1="34" y1="78"  x2="312" y2="78"></line>
+            <line class="wp-grid" x1="34" y1="108" x2="312" y2="108"></line>
+            <!-- Startpunkt 0 ist frei gewählt: profile_json enthält nur Differenzen, keine
+                 absoluten Höhen. Die Achse heißt deshalb „relativ“. -->
+            <path class="wp-fill" d="M34,120 L46,116 L58,104 L70,96 L82,74 L94,62 L106,66 L118,52 L130,40 L142,34 L154,42 L166,58 L178,54 L190,68 L202,84 L214,80 L226,92 L238,88 L250,102 L262,110 L274,106 L286,114 L298,118 L312,120 L312,138 L34,138 Z"></path>
+            <polyline class="wp-line wp-line--1" points="34,120 46,116 58,104 70,96 82,74 94,62 106,66 118,52 130,40 142,34 154,42 166,58 178,54 190,68 202,84 214,80 226,92 238,88 250,102 262,110 274,106 286,114 298,118 312,120"></polyline>
+            <line class="wp-axis" x1="34" y1="138" x2="312" y2="138"></line>
+            <line class="wp-axis" x1="34" y1="18"  x2="34"  y2="138"></line>
+            <text class="wp-tick" x="4"  y="21">+900</text>
+            <text class="wp-tick" x="4"  y="51">+600</text>
+            <text class="wp-tick" x="4"  y="81">+300</text>
+            <text class="wp-tick" x="14" y="111">0</text>
+            <text class="wp-tick" x="30" y="148">0</text>
+            <text class="wp-tick" x="160" y="148">5,7</text>
+            <text class="wp-tick" x="288" y="148">11,4</text>
+            <text class="wp-axis-label" x="34" y="12">Schritt über Start (relativ)</text>
+            <text class="wp-axis-label" x="238" y="148">Meilen</text>
+          </svg>
+        </div>
+
+        <dl class="wp-facts">
+          <dt>Länge (aus <code>geometry_json</code>)</dt><dd>11,40 Meilen</dd>
+          <dt>Anstieg gesamt</dt><dd>1.284 Schritt</dd>
+          <dt>Abstieg gesamt</dt><dd>1.116 Schritt</dd>
+          <dt>davon steiler Abstieg (&gt; 20 %)</dt><dd>142 Schritt</dd>
+          <dt>Netto über den Start</dt><dd>+168 Schritt</dd>
+          <dt>Zeitfaktor hinwärts</dt><dd><b>2,21</b></dd>
+          <dt>Zeitfaktor rückwärts</dt><dd><b>2,04</b></dd>
+          <dt>Höhenraster-Stempel</dt><dd>aktuell</dd>
+        </dl>
+
+        <div class="pl-hint">
+          💣 Die Kurve ist eine <b>Vereinfachung</b>: <code>profile_json</code> speichert je Wegstück
+          nur Summen (Anstieg, Abstieg, steiler Anstieg, steiler Abstieg), also entsteht die Kurve
+          aus <b>Anstieg − Abstieg</b> je Stück. Was <i>innerhalb</i> eines Stücks auf und ab geht,
+          zeigt sie nicht — die Summen kennen es, die Linie nicht.
+        </div>
+
+        <div class="dt-grp">Ohne Profil</div>
+        <div class="avm-empty">Für diesen Weg liegt noch kein Höhenprofil vor — Kachel „Wegprofile rechnen“ im Menüband. Wege, deren Umgebungsrechteck kein Höhenraster berührt, bekommen bewusst keins: das heißt „unbekannt“, nicht „eben“.</div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════
+     FENSTER 2 — „Funktionen anzeigen“ (eigenes Overlay, Owner 2026-08-02)
+     ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<div class="mock-caption">Fenster 2 — „Funktionen anzeigen“ · <b>bedienbar</b>, die Ankreuzfelder zeichnen neu</div>
+<div class="mock-hull">
+  <div class="mock-hull__title"><span>Avesmaps – Das Reisemodell, wie es gerade rechnet</span><span class="mock-hull__x">✕</span></div>
+
+  <div class="wp-fn">
+
+    <!-- ── A: Meilen/h je Wegtyp × Transportmittel ─────────────────────────────────────── -->
+    <section>
+      <h3>Meilen pro Stunde über Neigung — je Wegtyp und Transportmittel</h3>
+
+      <div class="wp-controls" id="wpControls">
+        <span class="wp-controls__label">Transportmittel</span>
+      </div>
+      <div class="wp-controls__note" id="wpControlsNote" role="status" aria-live="polite" hidden></div>
+
+      <div class="wp-legend" id="wpLegend"></div>
+      <div class="wp-small" id="wpSmall"></div>
+
+      <p>
+        ⚠️ <b>Alle Bilder haben dieselbe Form</b> — das ist keine Zeichnung, sondern die Aussage:
+        der Zeitfaktor kennt heute <b>kein Transportmittel</b>, nur Land gegen Wasser
+        (<code>avesmapsRouteTerrainAppliesTo</code>). Eine Kutsche und ein Fußgänger bekommen bei
+        30 % Steigung beide den Faktor 4,0; unterschiedlich ist allein die Grundgeschwindigkeit,
+        also die Höhe der Kurve. Ob das so bleibt, ist eine der offenen Fragen.
+        <br>
+        <b>Fluss- und Seewege fehlen hier mit Absicht:</b> für sie gilt der Steigungsfaktor gar
+        nicht — sie stehen auf der Deny-Liste, und der Profillauf schreibt ihnen erst gar keine
+        Zeile. Ein Bild für sie wäre eine waagerechte Linie, die etwas behauptet, was nicht
+        gerechnet wird.
+      </p>
+    </section>
+
+    <!-- ── B: der Zeitfaktor selbst ────────────────────────────────────────────────────── -->
+    <section>
+      <div class="wp-two">
+        <div>
+          <h3>Zeitfaktor über Neigung</h3>
+          <div class="wp-chart">
+            <svg viewBox="0 0 400 220" role="img" aria-label="Zeitfaktor über der Neigung, minus 45 bis plus 45 Prozent">
+              <line class="wp-grid" x1="44" y1="16"     x2="388" y2="16"></line>
+              <line class="wp-grid" x1="44" y1="73.33"  x2="388" y2="73.33"></line>
+              <line class="wp-grid" x1="44" y1="130.67" x2="388" y2="130.67"></line>
+              <line class="wp-grid" x1="44" y1="188"    x2="388" y2="188"></line>
+              <line class="wp-cap" x1="216" y1="16" x2="216" y2="188"></line>
+              <text class="wp-note" x="300" y="13">Deckel 4,0</text>
+
+              <!-- Gefälle: Gerade von (−45 %, 4,0) bis (−20 %, 2,333) -->
+              <polyline class="wp-line wp-line--1" points="44,16 139.6,111.6"></polyline>
+              <!-- Die Kante bei 20 % Gefälle -->
+              <line class="wp-edge" x1="139.6" y1="111.6" x2="139.6" y2="188"></line>
+              <polyline class="wp-line wp-line--1" points="139.6,188 216,188"></polyline>
+              <polyline class="wp-line wp-line--1" points="216,188 330.7,16 388,16"></polyline>
+
+              <circle class="wp-dot" cx="235.1" cy="159.33" r="2.6"></circle>
+              <circle class="wp-dot" cx="254.2" cy="130.67" r="2.6"></circle>
+              <circle class="wp-dot" cx="292.4" cy="73.33"  r="2.6"></circle>
+              <circle class="wp-dot" cx="330.7" cy="16"     r="2.6"></circle>
+              <text class="wp-note" x="228" y="174">5 %→1,5</text>
+              <text class="wp-note" x="258" y="126">10 %→2,0</text>
+              <text class="wp-note" x="296" y="69">20 %→3,0</text>
+              <text class="wp-note" x="112" y="105">Kante 20 %</text>
+
+              <line class="wp-axis" x1="44" y1="188" x2="388" y2="188"></line>
+              <line class="wp-axis" x1="44" y1="16"  x2="44"  y2="188"></line>
+              <text class="wp-tick" x="22" y="19">4,0</text>
+              <text class="wp-tick" x="22" y="76">3,0</text>
+              <text class="wp-tick" x="22" y="134">2,0</text>
+              <text class="wp-tick" x="22" y="191">1,0</text>
+              <text class="wp-tick" x="32"  y="202">−45</text>
+              <text class="wp-tick" x="128" y="202">−20</text>
+              <text class="wp-tick" x="211" y="202">0</text>
+              <text class="wp-tick" x="282" y="202">+20</text>
+              <text class="wp-tick" x="320" y="202">+30</text>
+              <text class="wp-tick" x="376" y="202">+45</text>
+              <text class="wp-axis-label" x="44" y="212">Neigung in %  (links Gefälle, rechts Steigung)</text>
+              <text class="wp-axis-label" x="4" y="10">Faktor</text>
+            </svg>
+          </div>
+          <p>
+            Leistungsmeilen = Meilen + Aufstieg/100 + Abstieg über 20 % Gefälle/150; Faktor =
+            Leistungsmeilen ÷ Meilen. Deckel 4,0, kein Boden. Die senkrechte rote Linie bei −20 %
+            ist der Sprung, über den im Discord zwei Spieler gestolpert sind: er ist echt, weil
+            die Schwelle je Abtastschritt entscheidet und darüber der <i>ganze</i> Abstieg des
+            Schritts zählt.
+          </p>
+        </div>
+
+        <div>
+          <h3>Verteilung der gemessenen Neigungen</h3>
+          <div class="wp-chart">
+            <div class="wp-chart__title">Anteil der vermessenen Länge je Neigungsklasse</div>
+            <div class="wp-dist">
+              <div class="wp-dist__label">Reichsstraße</div>
+              <div class="wp-dist__bar"><i class="wp-dist__seg wp-dist__seg--0" style="flex:71"></i><i class="wp-dist__seg wp-dist__seg--1" style="flex:18"></i><i class="wp-dist__seg wp-dist__seg--2" style="flex:8"></i><i class="wp-dist__seg wp-dist__seg--3" style="flex:2"></i><i class="wp-dist__seg wp-dist__seg--4" style="flex:1"></i></div>
+              <div class="wp-dist__label">Straße <b>(Referenz G)</b></div>
+              <div class="wp-dist__bar"><i class="wp-dist__seg wp-dist__seg--0" style="flex:64"></i><i class="wp-dist__seg wp-dist__seg--1" style="flex:20"></i><i class="wp-dist__seg wp-dist__seg--2" style="flex:11"></i><i class="wp-dist__seg wp-dist__seg--3" style="flex:4"></i><i class="wp-dist__seg wp-dist__seg--4" style="flex:1"></i></div>
+              <div class="wp-dist__label">Weg</div>
+              <div class="wp-dist__bar"><i class="wp-dist__seg wp-dist__seg--0" style="flex:55"></i><i class="wp-dist__seg wp-dist__seg--1" style="flex:22"></i><i class="wp-dist__seg wp-dist__seg--2" style="flex:14"></i><i class="wp-dist__seg wp-dist__seg--3" style="flex:7"></i><i class="wp-dist__seg wp-dist__seg--4" style="flex:2"></i></div>
+              <div class="wp-dist__label">Pfad</div>
+              <div class="wp-dist__bar"><i class="wp-dist__seg wp-dist__seg--0" style="flex:41"></i><i class="wp-dist__seg wp-dist__seg--1" style="flex:21"></i><i class="wp-dist__seg wp-dist__seg--2" style="flex:19"></i><i class="wp-dist__seg wp-dist__seg--3" style="flex:13"></i><i class="wp-dist__seg wp-dist__seg--4" style="flex:5"></i><i class="wp-dist__seg wp-dist__seg--5" style="flex:1"></i></div>
+              <div class="wp-dist__label">Gebirgspass</div>
+              <div class="wp-dist__bar"><i class="wp-dist__seg wp-dist__seg--0" style="flex:12"></i><i class="wp-dist__seg wp-dist__seg--1" style="flex:14"></i><i class="wp-dist__seg wp-dist__seg--2" style="flex:21"></i><i class="wp-dist__seg wp-dist__seg--3" style="flex:29"></i><i class="wp-dist__seg wp-dist__seg--4" style="flex:18"></i><i class="wp-dist__seg wp-dist__seg--5" style="flex:6"></i></div>
+              <div class="wp-dist__label">Wüstenpfad</div>
+              <div class="wp-dist__bar"><i class="wp-dist__seg wp-dist__seg--0" style="flex:78"></i><i class="wp-dist__seg wp-dist__seg--1" style="flex:14"></i><i class="wp-dist__seg wp-dist__seg--2" style="flex:6"></i><i class="wp-dist__seg wp-dist__seg--3" style="flex:2"></i></div>
+            </div>
+            <div class="wp-dist-key">
+              <span><i class="wp-dist__seg--0"></i> 0–2 %</span>
+              <span><i class="wp-dist__seg--1"></i> 2–5 %</span>
+              <span><i class="wp-dist__seg--2"></i> 5–10 %</span>
+              <span><i class="wp-dist__seg--3"></i> 10–20 %</span>
+              <span><i class="wp-dist__seg--4"></i> 20–30 %</span>
+              <span><i class="wp-dist__seg--5"></i> &gt; 30 %</span>
+            </div>
+          </div>
+          <p>
+            Geordnete Klassen, also <b>ein</b> Farbton von hell nach dunkel — keine kategoriale
+            Palette, kein Regenbogen. Das ist die Datenlage, aus der <code>c</code> entsteht, und
+            zugleich das Bild der <b>Doppelzählung</b>: der Gebirgspass hat die steilen Klassen und
+            zahlt sie heute zweimal — einmal über seinen Kategorieabschlag (×0,4) und einmal über
+            den Steigungsfaktor.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── C: Ergebnis der letzten Kalibrierung ────────────────────────────────────────── -->
+    <section>
+      <h3>Letzte Kalibrierung</h3>
+
+      <div class="wp-c">
+        <span class="wp-c__value">33,7</span>
+        <span class="wp-c__meta">
+          <b>c</b> — Tagesleistung auf ebener Straße, damit im Mittel über das <i>echte</i> Gelände
+          wieder 30 Meilen herauskommen.<br>
+          vorher <b>32,9</b> · +2,4 % · gelaufen 01.08.2026, 23:41 · <code>map_revision</code> 4128
+        </span>
+      </div>
+
+      <div class="wp-two">
+        <div>
+          <table class="wp-tab">
+            <thead><tr><th>Wegart</th><th>mean(F)</th><th>μ heute</th><th>m neu</th><th>Δ</th></tr></thead>
+            <tbody>
+              <tr><td>Reichsstraße</td><td>1,081</td><td>1,10</td><td>1,058</td><td class="wp-delta--down">−3,8 %</td></tr>
+              <tr class="is-reference"><td>Straße (G)</td><td>1,124</td><td>1,00</td><td>1,000</td><td>—</td></tr>
+              <tr><td>Weg</td><td>1,167</td><td>0,90</td><td>0,934</td><td class="wp-delta--up">+3,8 %</td></tr>
+              <tr><td>Pfad</td><td>1,342</td><td>0,80</td><td>0,955</td><td class="wp-delta--up">+19,4 %</td></tr>
+              <tr><td>Gebirgspass</td><td>2,318</td><td>0,40</td><td>0,825</td><td class="wp-delta--up">+106,2 %</td></tr>
+              <tr><td>Wüstenpfad</td><td>1,038</td><td>0,70</td><td>0,646</td><td class="wp-delta--down">−7,7 %</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <p style="margin-top:0">
+            <code>c = 30 · Σ(lᵢ·Fᵢ) / Σlᵢ</code> über alle Straßen; <code>mⱼ = μⱼ · mean_j(F) ÷
+            mean_G(F)</code>. Längengewichtet und <b>ungedeckelt</b> gerechnet — der Deckel 4,0
+            bricht die Additivität, und der Profillauf kennt die Kantengrenzen nicht.
+            Beide Richtungen zählen gleich: hinwärts Anstieg + steiler Abstieg, rückwärts Abstieg
+            + steiler Anstieg, aus denselben gespeicherten Summen.
+          </p>
+          <p>
+            <b>Gemessen über 1.904 von 2.493 Landwegen (76,4 %).</b> Die übrigen 589 berühren kein
+            Höhenraster und haben deshalb keine Zeile — dort heißt <code>F = 1</code> „unbekannt“,
+            nicht „eben“. Sie sind bewusst nicht mitgemittelt.
+          </p>
+          <div class="wp-inert">
+            ⚠️ <b>Diese Zahlen wirken nicht.</b> Die Kalibrierung rechnet, speichert und berichtet —
+            sie ändert keine einzige Reisezeit, solange über Kurve und mⱼ nicht entschieden ist.
+            Was heute rechnet, steht oben in den Kurven.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="mock-note" style="margin-top:var(--space-12)">
+  <b>Was sich gegenüber der ersten Fassung geändert hat:</b> Menüband auf vier Kacheln
+  („Zugehörigkeit rechnen“ bleibt im Landschaften-Editor, die Spalte verlinkt nur dorthin) ·
+  Spalte 2 folgt jetzt dem <i>echten</i> Verhalten von „Bearbeiten“ (Wiki-Weg sperrt Namen und
+  Auto-Name, „Weg anzeigen“ verschwindet dabei ganz, unpassende Transportmittel werden
+  ausgeblendet statt ausgegraut) · Fenster 2 ist ein eigenes Overlay mit einem Bild je Wegtyp
+  und frei kombinierbaren Transportmitteln · die Diagrammfarben sind jetzt <b>validiert</b>.
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   Nur für das Mockup: zeichnet die kleinen Bilder, damit die Kombination bedienbar ist.
+   Der Rechenkern ist WORTGLEICH zu api/_internal/routing/terrain-factor.php -- er ist hier
+   nachgebaut, damit die Kurven kein Handentwurf sind.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+(function () {
+	"use strict";
+
+	// Aus AVESMAPS_ROUTE_CLIENT_SPEED_TABLE (api/_internal/routing/client-graph.php:37).
+	// Nur die LANDmittel und die LANDwegtypen -- Wasser kennt keinen Steigungsfaktor.
+	var SPEEDS = {
+		lightRider:    { label: "Reiter",              Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Wuestenpfad: 4.0, Querfeldein: 2.5 },
+		horseCarriage: { label: "Kutsche",             Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Wuestenpfad: 3.0, Querfeldein: 1.7 },
+		groupHorse:    { label: "Reisegruppe beritten", Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Wuestenpfad: 3.0, Querfeldein: 2.1 },
+		lightWalker:   { label: "Zu Fuß",              Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Wuestenpfad: 3.5, Querfeldein: 1.7 },
+		groupFoot:     { label: "Reisegruppe zu Fuß",  Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Wuestenpfad: 2.5, Querfeldein: 1.25 },
+		caravan:       { label: "Karawane",            Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Wuestenpfad: 2.0, Querfeldein: 1.25 }
+	};
+
+	var TYPES = [
+		{ key: "Reichsstrasse", label: "Reichsstraße" },
+		{ key: "Strasse",       label: "Straße" },
+		{ key: "Weg",           label: "Weg" },
+		{ key: "Pfad",          label: "Pfad" },
+		{ key: "Gebirgspass",   label: "Gebirgspass" },
+		{ key: "Wuestenpfad",   label: "Wüstenpfad" },
+		{ key: "Querfeldein",   label: "Querfeldein" }
+	];
+
+	// 🔴 Vier Plätze, feste Reihenfolge. Ein fünftes gewähltes Mittel bekommt KEINE erfundene
+	// fünfte Farbe -- es wird abgewiesen. (Die Regel: eine 9. Reihe ist nie ein erzeugter Farbton.)
+	var MAX_SERIES = 4;
+
+	// terrain-factor.php: Faktor = 1 + Aufstieg/100 + steiler Abstieg/150, je Meile, Deckel 4,0.
+	// Über 1 Meile (= 1.000 Schritt waagerecht) ist der Höhenunterschied 1.000·|s| Schritt.
+	function faktor(neigungProzent) {
+		var s = neigungProzent / 100;
+		if (s >= 0) { return Math.min(4.0, 1 + 10 * s); }
+		var gefaelle = -s;
+		if (gefaelle <= 0.20) { return 1.0; }   // sanftes Gefälle ist frei -- weder Strafe noch Bonus
+		return Math.min(4.0, 1 + (1000 * gefaelle) / 150 / 1);
+	}
+
+	var X0 = 32, X1 = 228, Y0 = 12, Y1 = 100, VMAX = 9;
+	function px(s) { return X0 + ((s + 45) / 90) * (X1 - X0); }
+	function py(v) { return Y1 - (v / VMAX) * (Y1 - Y0); }
+
+	// Die Stützstellen. −20 kommt ZWEIMAL vor: der Sprung an der Kante ist echt und darf nicht
+	// weggeglättet werden.
+	function stuetzstellen() {
+		var xs = [-45, -35, -25, -20.001, -20, -10, 0, 5, 10, 15, 20, 25, 30, 37, 45];
+		return xs;
+	}
+
+	function kurve(v0) {
+		return stuetzstellen().map(function (s) {
+			return px(s).toFixed(1) + "," + py(v0 / faktor(s)).toFixed(1);
+		}).join(" ");
+	}
+
+	function gewaehlte() {
+		return Array.prototype.slice.call(document.querySelectorAll('#wpControls input:checked'))
+			.map(function (i) { return i.value; });
+	}
+
+	function zeichne() {
+		var keys = gewaehlte();
+		var legende = document.getElementById("wpLegend");
+		var host = document.getElementById("wpSmall");
+
+		legende.innerHTML = keys.map(function (k, i) {
+			var cls = "wp-line wp-line--" + (i + 1);
+			return '<span><svg viewBox="0 0 22 8" aria-hidden="true"><line class="' + cls
+				+ '" x1="1" y1="4" x2="21" y2="4"></line></svg>' + SPEEDS[k].label + "</span>";
+		}).join("");
+
+		host.innerHTML = TYPES.map(function (type) {
+			var linien = keys.map(function (k, i) {
+				return '<polyline class="wp-line wp-line--' + (i + 1) + '" points="' + kurve(SPEEDS[k][type.key]) + '"></polyline>';
+			}).join("");
+			var eben = keys.map(function (k) { return SPEEDS[k][type.key].toFixed(1).replace(".", ","); }).join(" · ");
+			return '<div class="wp-chart">'
+				+ '<div class="wp-chart__title"><b>' + type.label + '</b> · eben ' + eben + ' Meilen/h</div>'
+				+ '<svg viewBox="0 0 240 118" role="img" aria-label="Meilen pro Stunde über der Neigung, ' + type.label + '">'
+				+ '<line class="wp-grid" x1="' + X0 + '" y1="' + py(8) + '" x2="' + X1 + '" y2="' + py(8) + '"></line>'
+				+ '<line class="wp-grid" x1="' + X0 + '" y1="' + py(6) + '" x2="' + X1 + '" y2="' + py(6) + '"></line>'
+				+ '<line class="wp-grid" x1="' + X0 + '" y1="' + py(4) + '" x2="' + X1 + '" y2="' + py(4) + '"></line>'
+				+ '<line class="wp-grid" x1="' + X0 + '" y1="' + py(2) + '" x2="' + X1 + '" y2="' + py(2) + '"></line>'
+				+ '<line class="wp-cap" x1="' + px(0).toFixed(1) + '" y1="' + Y0 + '" x2="' + px(0).toFixed(1) + '" y2="' + Y1 + '"></line>'
+				+ linien
+				+ '<line class="wp-axis" x1="' + X0 + '" y1="' + Y1 + '" x2="' + X1 + '" y2="' + Y1 + '"></line>'
+				+ '<line class="wp-axis" x1="' + X0 + '" y1="' + Y0 + '" x2="' + X0 + '" y2="' + Y1 + '"></line>'
+				+ '<text class="wp-tick" x="16" y="' + (py(8) + 3) + '">8</text>'
+				+ '<text class="wp-tick" x="16" y="' + (py(4) + 3) + '">4</text>'
+				+ '<text class="wp-tick" x="16" y="' + (Y1 + 3) + '">0</text>'
+				+ '<text class="wp-tick" x="20" y="112">−45</text>'
+				+ '<text class="wp-tick" x="' + (px(0) - 4).toFixed(1) + '" y="112">0</text>'
+				+ '<text class="wp-tick" x="212" y="112">+45</text>'
+				+ '<text class="wp-axis-label" x="' + X0 + '" y="9">Meilen/h</text>'
+				+ "</svg></div>";
+		}).join("");
+	}
+
+	var controls = document.getElementById("wpControls");
+
+	function meldung(text) {
+		var box = document.getElementById("wpControlsNote");
+		box.textContent = text;
+		box.hidden = text === "";
+	}
+
+	Object.keys(SPEEDS).forEach(function (key, index) {
+		var label = document.createElement("label");
+		var input = document.createElement("input");
+		input.type = "checkbox";
+		input.value = key;
+		input.checked = index < 3;   // Reiter, Kutsche, Reisegruppe beritten als Startbild
+		// Kein window.alert: ein Riegel, der die Seite anhält, ist ein schlechtes Vorbild für den
+		// echten Editor. Die Grenze sagt sich selbst, an Ort und Stelle.
+		input.addEventListener("change", function () {
+			if (gewaehlte().length > MAX_SERIES) {
+				input.checked = false;
+				meldung("Vier Reihen sind das Maximum — eine fünfte bekäme keinen eigenen Farbton, "
+					+ "sondern einen erfundenen. Erst eine abwählen.");
+				return;
+			}
+			meldung("");
+			zeichne();
+		});
+		label.appendChild(input);
+		label.appendChild(document.createTextNode(" " + SPEEDS[key].label));
+		controls.appendChild(label);
+	});
+
+	zeichne();
+})();
+</script>
+
+</body>
+</html>

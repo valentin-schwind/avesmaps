@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Avesmaps – Wege bearbeiten</title>
+<script>
+  /* Resolve light/dark exactly like the parent app (js/app/theme-toggle.js): an explicit saved
+     choice wins, otherwise follow the OS scheme. Runs before the stylesheet paints so this overlay
+     iframe never flashes the wrong theme. Same guard as html/landschaften-editor.html. */
+  (function () {
+    function isDark() {
+      var s = null; try { s = localStorage.getItem("avesmaps-theme"); } catch (e) {}
+      if (s === "dark") { return true; }
+      if (s === "light") { return false; }
+      return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    }
+    function apply() {
+      if (isDark()) { document.documentElement.setAttribute("data-theme", "dark"); }
+      else { document.documentElement.removeAttribute("data-theme"); }
+    }
+    apply();
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq.addEventListener) { mq.addEventListener("change", apply); }
+      else if (mq.addListener) { mq.addListener(apply); }
+    }
+  })();
+</script>
+<!-- 🔴 Never a hand-written ?v= here (AGENTS.md §7): the deploy's stamping pass walks index.html
+     AND html/*.html, so it reaches and verifies every link below. The DOCUMENT itself is
+     cache-busted by its host with ?v=Date.now() (js/review/review-path-editor-list.js). -->
+<link rel="stylesheet" href="/css/base/fonts.css">
+<link rel="stylesheet" href="/css/base/tokens.css">
+<link rel="stylesheet" href="/css/components/editor-page.css">
+<link rel="stylesheet" href="/css/pages/wege-editor.css">
+</head>
+<!-- ⚠️ `avm-editor-body` is not decoration: the shared body/button/input rules live in
+     css/components/editor-page.css and are scoped to this class, because that file is loaded by
+     seven editor pages and a bare `body {}` would reach all of them. -->
+<body class="avm-editor-body">
+
+<!-- Menüband: FOUR tiles, all the same width. „Zugehörigkeit rechnen" is deliberately NOT here --
+     it stays in the landscape editor (owner 2026-08-02); column 2 links across instead.
+     Only the sync tile carries an icon and --primary (owner decision, ribbon session 2026-07-17). -->
+<div class="avm-ribbon-bar">
+  <div class="avm-ribbon">
+    <button type="button" class="avm-tile avm-tile--primary" id="wpSync" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen. Läuft im Hauptfenster; das Ergebnis erscheint hier in der Statuszeile."><span class="t1">🚨 Wege syncen</span><span class="t2" id="wpSyncInfo">Wege aus dem Wiki-Dump</span></button>
+    <button type="button" class="avm-tile" id="wpProfiles" title="Leitet aus den gespeicherten Höhenrastern je Weg Anstieg und Gefälle ab. Läuft in Stücken auf dem Server; nichts davon wird beim Routen nachgerechnet."><span class="t1">Wegprofile rechnen</span><span class="t2" id="wpProfilesInfo">noch nicht gerechnet</span></button>
+    <button type="button" class="avm-tile" id="wpCalibrate" title="Bestimmt den globalen Skalierungsfaktor c über alle Straßen und berichtet ihn. Ändert keine einzige Reisezeit."><span class="t1">Wegprofile kalibrieren</span><span class="t2" id="wpCalibrateInfo">noch nicht geeicht</span></button>
+    <button type="button" class="avm-tile" id="wpFunctions" title="Zeigt das Reisemodell als Kurven: Zeitfaktor über Neigung, Meilen pro Stunde je Wegtyp und Transportmittel, die gemessene Datenlage und das Ergebnis der letzten Eichung."><span class="t1">Funktionen anzeigen</span><span class="t2">Modell als Kurven</span></button>
+  </div>
+</div>
+
+<!-- Statuszeile: own row under the ribbon, full width (Spec §3.4). -->
+<div class="avm-status"><span class="avm-status__text" id="wpStatusText">Wird geladen…</span></div>
+
+<div class="avm-cols">
+
+  <!-- ── Column 1 ─────────────────────────────────────────────────────────────────────────────
+       ⚠️ The tabs are WIKI_SYNC_PATH_VIEWS, exactly these five. The value list is NOT extended
+       (Auftrag §1: the tab cascade has been broken here once already). -->
+  <div class="avm-col">
+    <h2 class="avm-col__title">Wege</h2>
+    <div class="avm-tabs" id="wpTabs">
+      <button type="button" class="avm-tab is-active" data-view="all">Alle</button>
+      <button type="button" class="avm-tab" data-view="placed">Platziert</button>
+      <button type="button" class="avm-tab" data-view="missing">Fehlt</button>
+      <button type="button" class="avm-tab" data-view="cases">Konflikte</button>
+      <button type="button" class="avm-tab" data-view="flow">Flussrichtung unbekannt</button>
+    </div>
+    <div class="avm-col__bar">
+      <input type="search" id="wpSearch" placeholder="Weg suchen …" aria-label="Wege durchsuchen">
+      <!-- The ONE funnel (js/ui/filter-menu.js). Deliberately dependency-free so iframe pages like
+           this one can load it; its own header says so. NOT attachFilterMenu from js/app/utils.js
+           -- that is the twin for the main window and hangs off its globals. -->
+      <div class="type-filter"><button type="button" id="wpFilterToggle" class="type-filter__toggle" aria-label="Filter">Filter ▾</button><div id="wpFilterMenu" class="type-filter__menu" hidden></div></div>
+    </div>
+    <div class="avm-summary" id="wpSummary">Keine Daten geladen</div>
+    <div class="avm-scroll" id="wpList"><div class="avm-empty">Wird geladen…</div></div>
+  </div>
+
+  <!-- ── Column 2 ───────────────────────────────────────────────────────────────────────────── -->
+  <div class="avm-col">
+    <h2 class="avm-col__title">Eigenschaften</h2>
+    <div class="avm-scroll avm-scroll--pad" id="wpDetail"><div class="avm-empty">Links einen Weg wählen.</div></div>
+  </div>
+
+  <!-- ── Column 3 ─────────────────────────────────────────────────────────────────────────────
+       „je Wegstück", not „je Segment" (owner 2026-08-02): in this project a way IS already the
+       segment of a road. What is meant is one entry of profile_json, i.e. the stretch between two
+       vertices of the geometry. -->
+  <div class="avm-col">
+    <h2 class="avm-col__title">Höhenprofil</h2>
+    <div class="avm-scroll avm-scroll--pad" id="wpProfile"><div class="avm-empty">Links einen Weg wählen.</div></div>
+  </div>
+
+</div>
+
+<!-- „Funktionen anzeigen" — its own window, INSIDE this document. It belongs to the editor, so it
+     lives with it; a second overlay in the host would need its own opener and its own lifecycle. -->
+<div class="wp-modal" id="wpFnOverlay" hidden>
+  <div class="wp-modal__box" role="dialog" aria-modal="true" aria-labelledby="wpFnTitle">
+    <div class="wp-modal__head">
+      <h2 id="wpFnTitle">Das Reisemodell, wie es gerade rechnet</h2>
+      <button type="button" class="wp-modal__close" id="wpFnClose" aria-label="Schließen">✕</button>
+    </div>
+    <div class="wp-fn" id="wpFnBody"></div>
+  </div>
+</div>
+
+<script src="/js/app/i18n-en.js"></script>
+<script src="/js/app/i18n.js"></script>
+<script src="/js/ui/filter-menu.js"></script>
+<!-- The model itself, shared with the charts: one implementation of the Leistungskilometer for the
+     browser side, mirroring api/_internal/routing/terrain-factor.php line for line. Unit-tested
+     (js/pages/__tests__/wege-editor-model.test.js), which is why it is its own file and not inline. -->
+<script src="/js/pages/wege-editor-model.js"></script>
+<script src="/js/pages/wege-editor.js"></script>
+
+</body>
+</html>

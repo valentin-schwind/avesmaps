@@ -329,6 +329,32 @@
 	--focus-ring: 0 0 0 3px var(--color-focus);   /* compose with the element's shadow, don't replace it */
 	--color-hover-wash: rgba(191, 160, 58, 0.14); /* row / option hover */
 	--color-active-wash: rgba(191, 160, 58, 0.24);/* selected row */
+
+	/* ---- Chart series (categorical) -----------------------------------------------------------
+	 * FOUR slots, assigned in fixed order, never cycled. Introduced 2026-08-02 for the way editor's
+	 * „Funktionen anzeigen" window -- the first surface in this project that draws several data
+	 * series at once.
+	 *
+	 * 💣 FOUR IS THE CEILING, AND IT IS A MEASURED ONE. These were not picked by eye: the palette
+	 *    was run through an OKLab/ΔE validator with protanopia, deuteranopia and tritanopia
+	 *    simulation against the real chart surfaces (--color-panel-soft, light and dark). Lightness
+	 *    band, chroma floor, normal-vision separation (ΔE 18,1 light / 15,7 dark) and contrast all
+	 *    pass. The red-green pair does NOT: ΔE 4,8 light and 1,0 dark against a target of 8.
+	 *
+	 * 🔴 That failure cannot be fixed with better hues, and it is the price of AGENTS.md §12's „no
+	 *    blue". Red and green ARE the red-green confusion axis, and the one hue that separates
+	 *    cleanly there is the forbidden one. Seven warm earth tones were tried first and scored
+	 *    worse (ΔE 1,3) -- two of them indistinguishable even with full colour vision.
+	 *
+	 * ⭐ THEREFORE COLOUR NEVER CARRIES IDENTITY ALONE on these charts. Whoever uses these tokens
+	 *    also ships a second encoding -- stroke pattern per series, plus small multiples so that
+	 *    rarely more than four series share one picture. A fifth series is refused, never given an
+	 *    invented fifth hue.
+	 */
+	--color-chart-1: #c9821c;  /* gold-orange */
+	--color-chart-2: #a02a24;  /* brick red   */
+	--color-chart-3: #2f7d3a;  /* leaf green  */
+	--color-chart-4: #6b4a8f;  /* plum        */
 	--color-check-accent: var(--color-accent-strong); /* checkbox/radio checked mark + border */
 	--color-check-fill: var(--color-active-wash);      /* checkbox/radio checked fill */
 	--color-disabled-bg: #ece7dd;
@@ -484,6 +510,15 @@
 	--color-focus: rgba(207, 183, 103, 0.5);
 	--color-hover-wash: rgba(207, 183, 103, 0.18);
 	--color-active-wash: rgba(207, 183, 103, 0.30);
+
+	/* Chart series, dark. NOT an automatic lightening of the light steps -- these were re-validated
+	   against the dark chart surface (#37342b) as their own palette. The dark lightness band is
+	   narrower (L 0,48-0,67 vs 0,43-0,77), and the first attempts sat above it. Same ceiling of
+	   four, same obligation to a second encoding. */
+	--color-chart-1: #b58c10;
+	--color-chart-2: #c74a55;
+	--color-chart-3: #2f9647;
+	--color-chart-4: #8f5fc4;
 	/* Checkbox/radio checked, dark: the gold read as muddy + too yellow (owner). Use a
 	   markedly desaturated gold and a solid subtle fill instead of the translucent wash. */
 	--color-check-accent: #aaa598;

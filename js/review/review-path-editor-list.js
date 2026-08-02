@@ -1,0 +1,84 @@
+// Wege-Editor overlay -- the EIGHTH list editor, and the last slot js/review/review-subjects.js was
+// still holding open: the `paths` row carried `editorButtonId: null` with a comment naming exactly
+// this gap. Auftrag: docs/wege-editor-instruction.md.
+//
+// Built like the SEVENTH (openAvesmapsEcosystemEditorOverlay in review-ecosystem-list.js):
+//   * the shared shell css/components/editor-shell.css with the avm-editor-* classes -- NOT the
+//     political-territory-editor-* classes that four older editors still wear.
+//   * its own self-contained iframe page html/wege-editor.html, loaded with ?v=Date.now(): the host
+//     invalidates the DOCUMENT, the deploy stamps the CSS/JS it links. Never ASSET_VERSION -- that
+//     governs the dynamically loaded TERRITORY editor assets (AGENTS.md §7).
+//
+// ⭐ NO ENTRY IN dialog-overlays.css. The three ID lists there are for the older, ID-keyed dialogs;
+// `.avm-editor-overlay` carries position, inset, z-index and scrim itself, and editor-shell.css:15
+// says so in as many words („Die ID-Liste in dialog-overlays.css ist deshalb überflüssig -- nicht
+// erweitern"). Verified against the file rather than taken from the Auftrag, which still names the
+// three lists as a general rule.
+//
+// Button and window title read the same words, „Wege bearbeiten".
+window.openAvesmapsPathEditorOverlay = window.openAvesmapsPathEditorOverlay || function openAvesmapsPathEditorOverlay() {
+	const overlayId = "avesmaps-path-editor-overlay";
+	// 💣 The language has to be handed over explicitly. The iframe has its OWN location.search (just
+	// ?v=…), so js/app/i18n.js inside it would never see the host's ?lang=en and would fall back to
+	// German -- an English app with a German editor window.
+	const buildSrc = () => {
+		const lang = (typeof window.avesmapsActiveLang === "string") ? window.avesmapsActiveLang : "";
+		return "/html/wege-editor.html?v=" + Date.now() + (lang ? "&lang=" + encodeURIComponent(lang) : "");
+	};
+
+	let overlay = document.getElementById(overlayId);
+	if (overlay) {
+		// 💣 RELOAD ON REOPEN, and this is the one place this editor deviates from its predecessor.
+		// The older openers only set `overlay.hidden = false`, so the `?v=Date.now()` looks like a
+		// cache bust but is one only on the very first open -- everything the iframe holds in memory
+		// (list, selection, an edited-but-unsaved draft) survives closing, and a way renamed
+		// elsewhere still shows its old name until F5. Reported exactly that way on 2026-07-19 for
+		// the adventure editor. Reloading costs one fetch of a page the browser already has.
+		const existingFrame = overlay.querySelector("iframe");
+		if (existingFrame) { existingFrame.src = buildSrc(); }
+		overlay.hidden = false;
+		document.body.style.overflow = "hidden";
+		return;
+	}
+
+	overlay = document.createElement("div");
+	overlay.id = overlayId;
+	overlay.className = "avm-editor-overlay";
+
+	const dialog = document.createElement("div");
+	dialog.className = "avm-editor-dialog";
+	// role + a `__head` child is the SHAPE js/ui/dialog-drag.js looks for (it matches by form, not
+	// by a list of class names) -- so this window is draggable by its title bar like the others.
+	dialog.setAttribute("role", "dialog");
+	dialog.setAttribute("aria-modal", "true");
+	dialog.setAttribute("aria-labelledby", "avesmaps-path-editor-title");
+
+	const header = document.createElement("div");
+	header.className = "avm-editor-dialog__header";
+	// tr() only in the HOST document: js/app/i18n.js is loaded here, not in the editor iframe.
+	const t = (key, german) => (typeof tr === "function" ? tr(key, german) : german);
+	const headingEl = document.createElement("h2");
+	headingEl.id = "avesmaps-path-editor-title";
+	headingEl.textContent = t("paths.editor.title", "Wege bearbeiten");
+	const closeButton = document.createElement("button");
+	closeButton.type = "button";
+	closeButton.className = "avm-editor-dialog__close";
+	closeButton.setAttribute("aria-label", t("paths.editor.closeAria", "Schließen"));
+	closeButton.textContent = "✕";
+	const closeOverlay = () => { overlay.hidden = true; document.body.style.overflow = ""; };
+	closeButton.addEventListener("click", closeOverlay);
+	header.appendChild(headingEl);
+	header.appendChild(closeButton);
+
+	const frame = document.createElement("iframe");
+	frame.className = "avm-editor-dialog__frame";
+	frame.src = buildSrc();
+	frame.title = t("paths.editor.frameTitle", "Wege-Editor");
+
+	dialog.appendChild(header);
+	dialog.appendChild(frame);
+	overlay.appendChild(dialog);
+	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+	document.body.appendChild(overlay);
+	document.body.style.overflow = "hidden";
+};

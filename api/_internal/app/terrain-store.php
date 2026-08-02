@@ -23,6 +23,10 @@ declare(strict_types=1);
 // router prices with. A copy of the number here would be a second source of truth for the model. The
 // file is pure -- const and function definitions only, no PDO, no I/O -- so pulling it in costs nothing.
 require_once __DIR__ . '/../routing/terrain-factor.php';
+// „Wegprofile kalibrieren" (Auftrag §4). It rides along in the profile step because that loop is
+// the only place with BOTH the profile and the geometry -- and the length lives only in the
+// geometry. Everything it computes is pure and unit-tested next to the factor itself.
+require_once __DIR__ . '/../routing/terrain-calibration.php';
 
 // The ONE resolution the whole feature integrates height at, in map units. It is NOT a per-request
 // knob, and that is a deliberate departure from owner decision 8 (spec §5.3): the ascent over
@@ -524,6 +528,11 @@ function avesmapsTerrainProfileBegin(PDO $pdo, int $userId): array
     );
     $statement->execute(['token' => $runToken, 'stamp' => $stamp, 'user' => $userId > 0 ? $userId : null]);
 
+    // A fresh run starts from an empty accumulator. `calibration_json` -- the RESULT -- is left
+    // alone on purpose: the previous eichung stays valid until this run reaches its own $done.
+    avesmapsTerrainCalibrationEnsureColumns($pdo);
+    $pdo->exec('UPDATE path_terrain_stamp SET calibration_run_json = NULL WHERE id = 1');
+
     // The same water exclusion as the step below, or the tile's „x of y" would count ways the run
     // deliberately skips and never reach 100 %.
     $countWays = $pdo->prepare(
@@ -568,7 +577,9 @@ function avesmapsTerrainProfileStep(PDO $pdo, array $payload): array
     // for nothing. `begin` has already deleted the ones that were written before that.
     $waterPlaceholders = implode(', ', array_fill(0, count(AVESMAPS_TERRAIN_WATER_ROUTE_TYPES), '?'));
     $statement = $pdo->prepare(
-        "SELECT id, revision, geometry_json, min_x, min_y, max_x, max_y
+        // feature_subtype rides along for the calibration: `c` is measured over G = „Strasse" and
+        // reports a mean per way type, so the accumulator needs to know which bucket a way is in.
+        "SELECT id, revision, feature_subtype, geometry_json, min_x, min_y, max_x, max_y
            FROM map_features
           WHERE feature_type = 'path' AND is_active = 1 AND id > ?
             AND feature_subtype NOT IN (" . $waterPlaceholders . ')
@@ -584,6 +595,12 @@ function avesmapsTerrainProfileStep(PDO $pdo, array $payload): array
              profile_json = VALUES(profile_json), path_revision = VALUES(path_revision),
              heightmap_stamp = VALUES(heightmap_stamp), computed_at = CURRENT_TIMESTAMP(3)'
     );
+
+    // „Wegprofile kalibrieren" rides along HERE and nowhere else (Auftrag §4): this loop already
+    // walks every land way exactly once AND holds the geometry, and the geometry is the only place
+    // the LENGTH exists -- path_terrain does not store it, so no SQL query over that table could
+    // ever compute `c`. Accumulated per step, resolved only on $done (trap 1).
+    $calibration = avesmapsTerrainCalibrationReadRun($pdo);
 
     $seen = 0;
     $withProfile = 0;
@@ -601,12 +618,22 @@ function avesmapsTerrainProfileStep(PDO $pdo, array $payload): array
             }
         }
         $profile = null;
+        $coordinates = [];
         if ($touchesRaster) {
             $geometry = json_decode((string) $way['geometry_json'], true);
             $coordinates = is_array($geometry) && ($geometry['type'] ?? '') === 'LineString'
                 && is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
             $profile = avesmapsTerrainProfileForLine($rasters, $coordinates);
         }
+
+        // Fold this way into the calibration. A way without raster contact lands in `skipped_ways`
+        // (trap 2) -- there F = 1 means „unknown", not „level", so it must not average in.
+        $calibration = avesmapsTerrainCalibrationAdd(
+            $calibration,
+            $profile === null ? null : $profile['profile'],
+            avesmapsTerrainCalibrationPieceLengths($coordinates),
+            (string) $way['feature_subtype']
+        );
         // 💣 NULL, NEVER 0. „No height data" and „measured and level" are two different statements,
         // and with 51 of 67 peaks carrying no height the first one is the common case.
         $insert->execute([
@@ -643,12 +670,21 @@ function avesmapsTerrainProfileStep(PDO $pdo, array $payload): array
         'ms' => max(0, $elapsed), 'done' => $done ? 1 : 0,
     ]);
 
+    // 💣 TRAP 1: the RESULT is written only when `$done`. Until then the running sums are kept but
+    // the previous calibration stands -- a run that is interrupted (and this one is resumable by
+    // design) must never leave half an eichung behind, because `c` would move the speed of the
+    // whole map without anyone deciding it.
+    $mapRevision = (int) ($pdo->query('SELECT revision FROM map_revision WHERE id = 1')->fetchColumn() ?: 0);
+    $calibrationResult = avesmapsTerrainCalibrationWrite($pdo, $calibration, $done, $mapRevision);
+
     return [
         'done' => $done,
         'cursor' => $cursor,
         'seen' => $seen,
         'with_profile' => $withProfile,
         'elapsed_ms' => max(0, $elapsed),
+        // Null on every step but the last -- the client shows it when it arrives.
+        'calibration' => $calibrationResult,
     ];
 }
 
@@ -674,6 +710,9 @@ function avesmapsTerrainProfileStatus(PDO $pdo): array
         'rows' => $rows,
         'rows_with_profile' => $withProfile,
         'current_heightmap_stamp' => avesmapsHeightmapGlobalStamp($pdo),
+        // The last completed calibration, or null. Read-only and DDL-free -- a missing column just
+        // means nothing has ever been calibrated.
+        'calibration' => avesmapsTerrainCalibrationRead($pdo),
     ];
 }
 
