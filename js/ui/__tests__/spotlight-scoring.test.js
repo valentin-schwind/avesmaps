@@ -21,7 +21,7 @@ const extract = (name) => {
 // caller would blow up with "scoreSpotlightWord is not defined" inside the sandbox.
 const context = { Infinity, Math, String, Number, Boolean, Array };
 vm.runInNewContext(
-	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore"),
+	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightCitymapPlaceLookupKeys"),
 	context
 );
 const { getSpotlightSearchScore, normalizeSpotlightSearchText } = context;
@@ -54,5 +54,22 @@ assert.strictEqual(score(gareth, "gareth tadtplan"), 3);
 // ---- whitespace must not create an empty word that matches everything ----------------------------
 assert.ok(Number.isFinite(score(gareth, "  stadtplan   gareth ")));
 assert.strictEqual(score(gareth, "   "), Infinity);
+
+// ---- place kinds map onto the lookup keys this file actually uses --------------------------------
+// A settlement is looked up as "location", a territory as "region". Getting this wrong would mark all
+// 59 regional maps as "not on the map" while looking perfectly correct in review.
+//
+// The Array.from() wrapper re-materializes the vm sandbox's return value in THIS realm: the sandboxed
+// function builds its array with the sandbox's own Array intrinsic, so deepStrictEqual against a
+// literal written here fails on prototype identity alone ("same structure but not reference-equal")
+// even when every element matches. Array.from() copies the elements into an outer-realm array; it does
+// not change what is being asserted.
+const keys = (placeKind, publicId) => Array.from(context.spotlightCitymapPlaceLookupKeys(placeKind, publicId));
+assert.deepStrictEqual(keys("settlement", "abc"), ["location:abc"]);
+assert.deepStrictEqual(keys("territory", "abc"), ["region:abc"]);
+assert.deepStrictEqual(keys("region", "abc"), ["region:abc", "label:abc"]);
+assert.deepStrictEqual(keys("path", "abc"), ["path:abc"]);
+assert.deepStrictEqual(keys("unresolved", "abc"), []);
+assert.deepStrictEqual(keys("", "abc"), []);
 
 console.log("spotlight-scoring: OK");

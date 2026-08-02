@@ -7,6 +7,8 @@ const SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER = {
 	region: 2,
 	path: 3,
 	powerline: 4,
+	// Maps are not map objects -- they are a pointer to one. Last, like the in-settlement objects.
+	citymap: 6,
 };
 const SPOTLIGHT_PATH_HIGHLIGHT_STYLE = {
 	pane: "routePane",
@@ -353,6 +355,60 @@ function buildInSettlementSpotlightEntry(result) {
 	};
 }
 
+// The place kinds the Kartensammlung stores (settlement|territory|region|path) are NOT the kinds this
+// file looks entries up by (location|region|label|path). Territories and landscape regions can both
+// arrive as "region", and a landscape is a label here -- so each kind gets its candidate keys and the
+// first one that exists wins. Getting this wrong would mark all 59 regional maps "not on the map".
+function spotlightCitymapPlaceLookupKeys(placeKind, publicId) {
+	const prefixes = {
+		settlement: ["location"],
+		territory: ["region"],
+		region: ["region", "label"],
+		path: ["path"],
+	}[String(placeKind || "")] || [];
+	return prefixes.map((prefix) => `${prefix}:${publicId}`);
+}
+
+// A map from the Kartensammlung. It has no position of its own -- it rides on the place it is assigned
+// to, exactly like an in-settlement object. Modelled on buildInSettlementSpotlightEntry deliberately:
+// same shape, same notOnMap flag, so selection and focus need no special case.
+//
+// A map with nothing to jump to is still LISTED -- being told the map exists is worth more than hiding
+// it -- but it says so. Two independent reasons: the database never resolved the place (the server
+// says so via `unresolved`, live 85 of 469), or the object is simply not loaded right now.
+function buildCitymapSpotlightEntry(result) {
+	const name = String(result.name || "");
+	if (!name) {
+		return null;
+	}
+
+	const publicId = String(result.place_public_id || "");
+	const { byPublicId } = getSpotlightSearchLookup();
+	let placeEntry = null;
+	if (publicId && !result.unresolved) {
+		for (const key of spotlightCitymapPlaceLookupKeys(result.place_kind, publicId)) {
+			placeEntry = byPublicId.get(key);
+			if (placeEntry) {
+				break;
+			}
+		}
+	}
+
+	const base = placeEntry || { bounds: null, publicIds: [], polygons: [] };
+	return {
+		...base,
+		id: `citymap:${String(result.public_id || name)}`,
+		kind: "citymap",
+		name,
+		typeLabel: String(result.type_label || ""),
+		aliases: [],
+		inSettlementName: String(result.place_name || ""),
+		notOnMap: true,
+		unreachable: !placeEntry,
+		citymapTotal: Number(result.citymap_total) || 0,
+	};
+}
+
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
@@ -390,6 +446,10 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 			entry = buildInSettlementSpotlightEntry(result);
 		}
 
+		if (!entry && kind === "citymap") {
+			entry = buildCitymapSpotlightEntry(result);
+		}
+
 		if (entry && entry.kind === "region") {
 			if (Number.isFinite(Number(result.min_zoom))) entry.minZoom = Number(result.min_zoom);
 			if (Number.isFinite(Number(result.max_zoom))) entry.maxZoom = Number(result.max_zoom);
@@ -404,7 +464,12 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	});
 
 	if (resolvedEntries.length) {
-		return resolvedEntries.slice(0, SPOTLIGHT_SEARCH_MAX_RESULTS);
+		// Maps sit outside the 20-result limit on purpose: the server already capped them at 5, and
+		// counting them against the shared limit would let them displace exactly the map objects the
+		// cap exists to protect.
+		const mapObjects = resolvedEntries.filter((entry) => entry.kind !== "citymap");
+		const citymaps = resolvedEntries.filter((entry) => entry.kind === "citymap");
+		return [...mapObjects.slice(0, SPOTLIGHT_SEARCH_MAX_RESULTS), ...citymaps];
 	}
 
 	return localEntries;
