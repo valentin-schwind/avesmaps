@@ -615,10 +615,16 @@ function spotlightResultMarkup(entry, index) {
 	// stehen, sonst sucht man nach dem Sprung einen Marker, den es nicht gibt. Der Zusatz hängt
 	// unter der Typzeile („Palast in Mengbilla" / „Innerorts") und benutzt dasselbe Wort wie
 	// der Lage-Filter im Editor, statt ein zweites für dieselbe Sache einzuführen.
-	const hintText = entry.unreachable
-		? tr("spotlight.citymapNoTarget", "kein Ort auf der Karte")
-		: tr("spotlight.inSettlement", "Innerorts");
-	const notOnMap = entry.notOnMap
+	//
+	// Kartensammlung-Treffer sind ein ANDERER Fall, kein Innerorts-Objekt: eine erreichbare Karte
+	// bekommt HIER GAR KEINEN Hinweis -- ihre typeLabel nennt Art und Ort schon ("Grundriss ·
+	// Gareth"). Nur die unerreichbare Karte braucht eine Zeile. (Fix Runde 1: die Vorversion zeigte
+	// "Innerorts" unter JEDER erreichbaren Karte, auch wenn sie auf einem Territorium oder Weg liegt
+	// -- "Territorium != Siedlung" ist in diesem Projekt keine Nuance, sondern Domänenvokabular.)
+	const hintText = entry.kind === "citymap"
+		? (entry.unreachable ? tr("spotlight.citymapNoTarget", "kein Ort auf der Karte") : "")
+		: (entry.notOnMap ? tr("spotlight.inSettlement", "Innerorts") : "");
+	const notOnMap = hintText
 		? `<span class="spotlight-search__result-hint">${escapeHtml(hintText)}</span>`
 		: "";
 	const resultClass = "spotlight-search__result" + (entry.notOnMap ? " spotlight-search__result--not-on-map" : "");
