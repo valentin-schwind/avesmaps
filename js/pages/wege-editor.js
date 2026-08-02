@@ -1094,44 +1094,30 @@
 	 */
 	function calibrationExplainer() {
 		return '<div class="wp-explain">'
-			+ "<p><b>Was der Knopf tut:</b> Er startet den <b>vollständigen Profillauf</b> über alle "
-			+ "Landwege — denselben, den die Kachel „Wegprofile rechnen“ im Menüband auslöst. Die "
-			+ "Eichung fährt darin mit, und zwar nicht aus Bequemlichkeit:</p>"
+			+ "<p><b>Was der Knopf tut.</b> Er startet den <b>vollständigen Profillauf</b> über alle "
+			+ "Landwege — denselben, den die Kachel „Wegprofile rechnen“ im Menüband auslöst. Das "
+			+ "dauert <b>einige Minuten</b>, nicht Sekunden. Der Fortschritt steht im Knopf.</p>"
 
-			+ "<p><b>Warum sie nicht für sich laufen kann.</b> <code>c</code> braucht je Straße "
-			+ "<b>zwei</b> Größen: den Zeitfaktor <b>F</b> und die <b>Länge l</b>. Der Faktor steht "
-			+ "in der Datenbank — er lässt sich aus <code>profile_json</code> ausrechnen. Die Länge "
-			+ "steht dort <b>nirgends</b>: <code>path_terrain</code> hat keine Längenspalte. Die "
-			+ "Länge eines Weges lebt allein in seiner <b>Geometrie</b> und entsteht erst, wenn man "
-			+ "die Strecken zwischen seinen Stützpunkten aufsummiert. Eine Abfrage über die "
-			+ "Profiltabelle könnte <code>c</code> also gar nicht berechnen, egal wie sie geschrieben "
-			+ "wäre.</p>"
+			+ "<p><b>Warum die Eichung im Profillauf mitfährt.</b> Sie braucht von jedem Weg zwei "
+			+ "Dinge: <b>wie stark ihn sein Gelände bremst</b> und <b>wie lang er ist</b>. Das Erste "
+			+ "steht in der Datenbank. Das Zweite steht dort nirgends — die Länge eines Weges ergibt "
+			+ "sich erst, wenn man seine Linie Stück für Stück abmisst. Genau das tut der Profillauf "
+			+ "ohnehin, denn er muss die Linie abschreiten, um die Höhen darunter abzutasten. Die "
+			+ "Eichung rechnet also dort mit, wo beide Zahlen sowieso zusammen vorliegen.</p>"
 
-			+ "<p><b>Warum nicht einfach ein zweiter Lauf?</b> Weil er dieselbe Arbeit noch einmal "
-			+ "täte: jeden Weg lesen, jede Geometrie auspacken. Genau das tut der Profillauf ohnehin "
-			+ "— er muss die Linie abschreiten, um das Höhenraster darunter abzutasten. Der "
-			+ "schwerere Grund ist aber nicht die doppelte Arbeit, sondern die <b>doppelte "
-			+ "Datenlage</b>: zwischen zwei Läufen kann jemand einen Weg verändern. Dann käme der "
-			+ "Faktor aus dem einen Stand und die Länge aus dem anderen — beide Zahlen gehörten zu "
-			+ "<i>verschiedenen Fassungen desselben Weges</i>, und das Ergebnis sähe völlig normal "
-			+ "aus. Im gemeinsamen Lauf ist das <b>bauartbedingt unmöglich</b>: Profil und Länge "
-			+ "stammen aus derselben Zeile, im selben Augenblick gelesen.</p>"
+			+ "<p>Ein eigener zweiter Lauf wäre nicht nur doppelte Arbeit. Zwischen zwei Läufen kann "
+			+ "jemand einen Weg umzeichnen — dann käme die Bremswirkung aus dem einen Stand und die "
+			+ "Länge aus dem anderen. Zwei Zahlen von <i>zwei verschiedenen Fassungen desselben "
+			+ "Weges</i>, und das Ergebnis sähe völlig unauffällig aus. Im gemeinsamen Lauf kann das "
+			+ "nicht passieren.</p>"
 
-			+ "<p><b>Und warum die Länge nicht einfach mitspeichern?</b> Dann wäre sie eine "
-			+ "<b>alternde Zweitkopie</b> der Geometrie. Jede Verlaufsänderung müsste sie nachziehen, "
-			+ "und täte sie es einmal nicht, würde auf eine Länge geeicht, die es nicht mehr gibt — "
-			+ "still, denn eine falsche Länge sieht aus wie eine richtige. Die Geometrie ist die "
-			+ "einzige Quelle, und der Lauf, der sie ohnehin in der Hand hält, ist der richtige Ort.</p>"
+			+ "<p>Die Länge einfach mitzuspeichern hilft auch nicht: sie wäre eine zweite Kopie, die "
+			+ "bei jeder Verlaufsänderung veralten kann. Und eine falsche Länge sieht aus wie eine "
+			+ "richtige.</p>"
 
-			+ "<p><b>Wie lange:</b> Der Lauf geht in Stücken über den Server und dauert je nach "
-			+ "Bestand einige Minuten. Der Fortschritt steht im Knopf. Bricht er ab, bleibt die "
-			+ "<b>bisherige</b> Eichung stehen — geschrieben wird erst, wenn der Lauf durch ist. Eine "
-			+ "halbe Eichung würde das Tempo der ganzen Karte verstellen.</p>"
-
-			+ "<p><b>Was sich dadurch ändert:</b> Die Zahlen unten, und sonst nichts. "
-			+ "<code>c</code> und die Verhältnisse werden gemessen, gespeichert und angezeigt — "
-			+ "<b>keine einzige Reisezeit</b> hängt daran. Das bleibt so, bis über Kurve und mⱼ "
-			+ "entschieden ist.</p>"
+			+ "<p><b>Wenn der Lauf abbricht,</b> bleibt die <b>bisherige</b> Eichung stehen. "
+			+ "Geschrieben wird erst, wenn der Lauf ganz durch ist — eine halbe Eichung würde das "
+			+ "Tempo der ganzen Karte verstellen.</p>"
 			+ "</div>";
 	}
 
@@ -1147,7 +1133,7 @@
 			var entry = calibration.by_subtype[key];
 			var isReference = key === calibration.reference_subtype;
 			return '<tr' + (isReference ? ' class="is-reference"' : "") + "><td>"
-				+ escapeHtml(subtypeLabel(key)) + (isReference ? " (G)" : "") + "</td><td>"
+				+ escapeHtml(subtypeLabel(key)) + (isReference ? " (Bezug)" : "") + "</td><td>"
 				+ num(entry.mean_factor, 3) + "</td><td>" + entry.ways + "</td><td>"
 				+ num(entry.relative_to_reference, 3) + "</td></tr>";
 		}).join("");
@@ -1156,22 +1142,36 @@
 			? "erste Eichung"
 			: "vorher <b>" + num(calibration.previous_c, 1) + "</b>";
 
+		// 💣 KEINE ZAHL IN DEN TEXT SCHREIBEN. Auch die Zielvorgabe nicht: sie kommt als
+		// `target_miles` aus der Eichung mit, weil sie zum LAUF gehört und nicht zum heutigen Stand
+		// des Rechenkerns. Eine hier eingetippte 30 wäre eine stille Zweitkopie von
+		// AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES.
+		var target = num(calibration.target_miles, 0);
+		var referenceLabel = escapeHtml(subtypeLabel(calibration.reference_subtype));
+
 		return '<div class="wp-c"><span class="wp-c__value">' + num(calibration.c, 1) + "</span>"
-			+ '<span class="wp-c__meta"><b>c</b> — Tagesleistung auf ebener Straße, damit im Mittel über '
-			+ "das <i>echte</i> Gelände wieder 30 Meilen herauskommen.<br>" + previous
-			+ " · <code>map_revision</code> " + escapeHtml(String(calibration.map_revision)) + "</span></div>"
-			+ '<table class="wp-tab-num"><thead><tr><th>Wegart</th><th>mean(F)</th><th>Wege</th>'
-			+ "<th>Verhältnis zu G</th></tr></thead><tbody>" + rows + "</tbody></table>"
-			+ "<p><code>c = 30 · Σ(lᵢ·Fᵢ) / Σlᵢ</code> über alle Straßen, längengewichtet und "
-			+ "<b>ungedeckelt</b> — der Deckel 4,0 bricht die Additivität. Beide Richtungen zählen "
-			+ "gleich: hinwärts Anstieg + steiler Abstieg, rückwärts Abstieg + steiler Anstieg.</p>"
-			+ "<p><b>Gemessen über " + calibration.measured_ways + " Wege.</b> "
-			+ calibration.skipped_ways + " weitere berühren kein Höhenraster und haben deshalb keine "
-			+ "Zeile — dort heißt <code>F = 1</code> „unbekannt“, nicht „eben“. Sie sind bewusst nicht "
-			+ "mitgemittelt.</p>"
-			+ '<div class="wp-inert">⚠️ <b>Diese Zahlen wirken nicht.</b> Die Kalibrierung rechnet, '
-			+ "speichert und berichtet — sie ändert keine einzige Reisezeit, solange über Kurve und mⱼ "
-			+ "nicht entschieden ist.</div>";
+			+ '<span class="wp-c__meta"><b>c</b> — so schnell müsste eine Reisegruppe <b>auf ebener '
+			+ "Straße</b> unterwegs sein, damit über das echte, hügelige Gelände am Ende wieder die "
+			+ target + " Meilen am Tag herauskommen, die das Regelwerk nennt.<br>" + previous
+			+ " · Kartenstand " + escapeHtml(String(calibration.map_revision)) + "</span></div>"
+			+ '<table class="wp-tab-num"><thead><tr><th>Wegart</th><th>mittlere Bremswirkung</th>'
+			+ "<th>Wege</th><th>im Vergleich zu " + referenceLabel + "</th></tr></thead><tbody>"
+			+ rows + "</tbody></table>"
+			+ "<p>Gerechnet wird über alle Straßen, <b>längengewichtet</b>: ein langer Weg zählt mehr "
+			+ "als ein kurzer. Hin- und Rückrichtung zählen gleich, denn was hinwärts Anstieg ist, "
+			+ "ist rückwärts Abstieg. Der Deckel von 4,0, der beim Reisen gilt, bleibt hier bewusst "
+			+ "weg — mit ihm ließen sich die Einzelwerte nicht mehr sauber mitteln.</p>"
+			+ "<p><b>" + calibration.measured_ways + " Wege konnten gemessen werden.</b> Für "
+			+ calibration.skipped_ways + " weitere gibt es keine Höhendaten. Dort ist die "
+			+ "Bremswirkung <b>unbekannt</b>, nicht etwa „eben“ — sie bleiben deshalb absichtlich "
+			+ "außen vor. Rechnete man sie als eben mit, sähe die Karte flacher aus, als sie ist.</p>"
+			+ '<div class="wp-inert">⚠️ <b>Diese Zahlen wirken noch nicht.</b> Die Eichung misst, '
+			+ "speichert und zeigt an — sie ändert <b>keine einzige Reisezeit</b>. Dafür fehlen zwei "
+			+ "Entscheidungen: <b>welche Steigungskurve</b> gelten soll, und <b>wie stark ein "
+			+ "Gebirgspass gegengerechnet wird</b> (die Spalte „im Vergleich zu " + referenceLabel
+			+ "“). Auf einem Pass steckt die Steigung schon im Wegtyp — ohne diese Gegenrechnung "
+			+ "würde sie ein zweites Mal bremsen. Solange beides offen ist, bleibt die Eichung eine "
+			+ "reine Messung.</div>";
 	}
 
 	// ── Verdrahtung ───────────────────────────────────────────────────────────────────────────

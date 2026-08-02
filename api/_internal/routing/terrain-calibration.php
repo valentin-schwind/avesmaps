@@ -197,6 +197,11 @@ function avesmapsTerrainCalibrationFinish(array $accumulator, ?float $previousC,
 
     return [
         'c' => AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES * $meanG,
+        // The target `c` was calibrated AGAINST, carried so the editor can name it without keeping
+        // its own copy of the 30. It travels with the RUN, not with the current constant: an old
+        // `c` was computed against the target of its own day, and showing today's next to it would
+        // silently misdescribe it.
+        'target_miles' => AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES,
         'previous_c' => $previousC,
         'mean_reference_factor' => $meanG,
         'reference_subtype' => AVESMAPS_TERRAIN_CALIBRATION_REFERENCE_SUBTYPE,
@@ -253,8 +258,15 @@ function avesmapsTerrainCalibrationRead(PDO $pdo): ?array
         return null;
     }
     $decoded = json_decode((string) $value, true);
+    if (!is_array($decoded)) {
+        return null;
+    }
+    // Runs written before `target_miles` existed carry the value it was computed with anyway --
+    // the constant has never changed. Filled in here rather than in the editor, so the 30 stays in
+    // exactly one place and the reader never has to know whether the row is old.
+    $decoded['target_miles'] ??= AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES;
 
-    return is_array($decoded) ? $decoded : null;
+    return $decoded;
 }
 
 /** The running accumulator of the current run, or a fresh one. */
