@@ -693,15 +693,28 @@
 			+ (calibration.map_revision ? " · Rev. " + calibration.map_revision : "");
 	}
 
-	function runProfiles() {
+	/**
+	 * Der Profillauf -- und mit ihm die Eichung (Auftrag §4: „Der Ort ist der Profillauf“).
+	 *
+	 * `onProgress` bekommt jeden Zwischenstand als Text. Damit kann der Knopf im Funktionen-Fenster
+	 * seinen eigenen Zustand tragen, ohne dass es einen zweiten Lauf gäbe: EIN Rechner, zwei
+	 * Auslöser, und beide sehen dasselbe.
+	 */
+	function runProfiles(onProgress) {
 		var tile = $("wpProfiles");
 		var info = $("wpProfilesInfo");
+		var report = function (text) {
+			info.textContent = text;
+			if (typeof onProgress === "function") { onProgress(text); }
+		};
 		tile.disabled = true;
 		var started = Date.now();
 		// 🔴 Gestückelt mit Lauf-Token, Cursor und Budget -- der Browser ruft nur wiederholt auf,
 		// gerechnet wird auf dem Server. Wortgleich zum Landschaften-Editor, aus dem diese Kachel
 		// hierher umgezogen ist.
-		ecoPost("terrain_profile_begin", {}).then(function (begun) {
+		// ⚠️ Die Zusage wird ZURÜCKGEGEBEN, nicht nur ausgelöst: der Knopf im Funktionen-Fenster
+		// hängt sich daran, um sich danach wieder freizugeben.
+		return ecoPost("terrain_profile_begin", {}).then(function (begun) {
 			var runToken = String(begun.run_token || "");
 			if (runToken === "") { throw new Error("Der Server hat kein Lauf-Kennzeichen geliefert."); }
 			var total = Number(begun.ways_total || 0);
@@ -714,7 +727,7 @@
 				return ecoPost("terrain_profile_step", { run_token: runToken }).then(function (result) {
 					seen += Number(result.seen || 0);
 					withProfile += Number(result.with_profile || 0);
-					info.textContent = "Wege " + seen + "/" + total + " · " + withProfile + " mit Profil";
+					report("Wege " + seen + "/" + total + " · " + withProfile + " mit Profil");
 					if (result.calibration) { calibration = result.calibration; }
 					if (result.done === true || Number(result.seen || 0) === 0) { return null; }
 					return step(index + 1);
@@ -728,11 +741,14 @@
 					var seconds = ((Date.now() - started) / 1000).toFixed(1).replace(".", ",");
 					setStatus(withProfile + " von " + seen + " Wegen tragen ein Profil · " + seconds + " s"
 						+ (calibration ? " · geeicht: c = " + num(calibration.c, 2) : ""), "ok");
+					// Steht das Funktionen-Fenster offen, zeigt es sofort die frischen Zahlen --
+					// sonst behauptet es weiter den Stand von vor dem Lauf.
+					if (!$("wpFnOverlay").hidden) { renderFunctions(); }
 					return loadList();
 				});
 			});
 		}).catch(function (error) {
-			info.textContent = "fehlgeschlagen";
+			report("fehlgeschlagen");
 			setStatus("Wegprofile: " + (error && error.message ? error.message : error), "bad");
 		}).then(function () {
 			tile.disabled = false;
@@ -911,7 +927,9 @@
 			+ "<b>echter Sprung</b>: die Schwelle entscheidet je Abtastschritt, und darüber zählt der "
 			+ "ganze Abstieg des Schritts.</p>"
 			+ "</section>"
-			+ "<section><h3>Letzte Kalibrierung</h3>" + calibrationBlock() + "</section>";
+			+ '<section><div class="wp-fn__head"><h3>Letzte Kalibrierung</h3>'
+			+ '<button type="button" id="wpFnCalibrate" title="Startet den vollständigen Profillauf über alle Landwege. Die Eichung fährt darin mit — allein kann sie nicht laufen.">Jetzt kalibrieren</button>'
+			+ "</div>" + calibrationExplainer() + calibrationBlock() + "</section>";
 
 		var controls = $("wpFnControls");
 		Object.keys(WP_SPEEDS).forEach(function (key) {
@@ -938,6 +956,27 @@
 			label.appendChild(document.createTextNode(" " + WP_SPEEDS[key].label));
 			controls.appendChild(label);
 		});
+
+		// EIN Rechner, zwei Auslöser: dieser Knopf ruft denselben Lauf wie die Menüband-Kachel und
+		// zeigt dessen Fortschritt in sich selbst (Hausregel: der Status steht IM Knopf).
+		var calibrate = $("wpFnCalibrate");
+		if (calibrate) {
+			calibrate.addEventListener("click", function () {
+				if (calibrate.disabled) { return; }
+				calibrate.disabled = true;
+				calibrate.textContent = "Lauf startet …";
+				runProfiles(function (text) { calibrate.textContent = text; })
+					.then(function () {
+						// renderFunctions() hat den Abschnitt inzwischen neu gezeichnet, samt
+						// frischem Knopf -- dieser hier ist dann schon aus dem Dokument.
+						if (calibrate.isConnected) {
+							calibrate.textContent = "Jetzt kalibrieren";
+							calibrate.disabled = false;
+						}
+					});
+			});
+		}
+
 		drawSmallMultiples();
 	}
 
@@ -1043,6 +1082,32 @@
 			+ '<text class="wp-note" x="' + (edge + 3).toFixed(1) + '" y="' + (py(1) - 4).toFixed(1) + '">Kante 20 %</text>'
 			+ '<text class="wp-axis-label" x="' + SMALL_X0 + '" y="' + SMALL_LABEL_Y + '">Faktor</text>'
 			+ "</svg></div>";
+	}
+
+	/**
+	 * Was „Jetzt kalibrieren“ genau tut -- ausgeschrieben, direkt neben dem Knopf.
+	 *
+	 * 🔴 Der Knopf tut MEHR, als sein Name sagt: er startet den vollständigen Profillauf. Wer das
+	 * nicht weiß, drückt ihn für eine schnelle Neuberechnung und wartet dann Minuten. Und er tut
+	 * zugleich WENIGER, als man erwarten würde: keine Reisezeit ändert sich davon. Beides gehört
+	 * an die Fläche, auf der der Knopf sitzt, nicht ins Handbuch.
+	 */
+	function calibrationExplainer() {
+		return '<div class="wp-explain">'
+			+ "<p><b>Was der Knopf tut:</b> Er startet den <b>vollständigen Profillauf</b> über alle "
+			+ "Landwege — denselben, den die Kachel „Wegprofile rechnen“ im Menüband auslöst. Die "
+			+ "Eichung fährt darin mit und <b>kann gar nicht für sich laufen</b>: nur in diesem Lauf "
+			+ "liegen Höhenprofil und Geometrie zugleich vor, und die Länge eines Weges steht allein "
+			+ "in der Geometrie. Eine reine Abfrage könnte <code>c</code> deshalb nicht berechnen.</p>"
+			+ "<p><b>Wie lange:</b> Der Lauf geht in Stücken über den Server und dauert je nach "
+			+ "Bestand einige Minuten. Der Fortschritt steht im Knopf. Bricht er ab, bleibt die "
+			+ "<b>bisherige</b> Eichung stehen — geschrieben wird erst, wenn der Lauf durch ist. Eine "
+			+ "halbe Eichung würde das Tempo der ganzen Karte verstellen.</p>"
+			+ "<p><b>Was sich dadurch ändert:</b> Die Zahlen unten, und sonst nichts. "
+			+ "<code>c</code> und die Verhältnisse werden gemessen, gespeichert und angezeigt — "
+			+ "<b>keine einzige Reisezeit</b> hängt daran. Das bleibt so, bis über Kurve und mⱼ "
+			+ "entschieden ist.</p>"
+			+ "</div>";
 	}
 
 	function calibrationBlock() {

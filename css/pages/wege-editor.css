@@ -168,6 +168,32 @@
 	color: var(--color-accent-strong);
 }
 
+/* Überschrift links, ihr Auslöser rechts -- die Aktion steht bei dem, worauf sie wirkt, statt im
+   Menüband eine Fensterlänge entfernt. */
+.wp-fn__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-8);
+	margin-bottom: var(--space-4);
+}
+
+.wp-fn__head h3 { margin: 0; }
+
+/* Der Knopf trägt seinen eigenen Zustand (Hausregel: „der Status steht IM Knopf"), also darf er
+   nicht springen, wenn aus „Jetzt kalibrieren" ein „Kalibriert … 400/2.493" wird. */
+.wp-fn__head button {
+	flex: 0 0 auto;
+	min-width: 190px;
+	min-height: var(--avm-control-h);
+	background: var(--color-button);
+	border-color: var(--color-button-border);
+	color: var(--color-button-text);
+}
+
+.wp-fn__head button:hover { background: var(--color-button-hover); }
+.wp-fn__head button:disabled { opacity: .6; }
+
 .wp-fn > section + section {
 	margin-top: var(--space-12);
 	padding-top: var(--space-12);
@@ -278,6 +304,22 @@
 
 .wp-c__value { font-size: 30px; line-height: 1; color: var(--color-accent-strong); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
 .wp-c__meta { flex: 1 1 auto; min-width: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: var(--leading-normal); }
+
+/* Die Erklärung zum Kalibrieren-Knopf. Sie steht auf der Fläche, auf der der Knopf sitzt, nicht im
+   Handbuch: er startet einen minutenlangen Lauf und ändert trotzdem keine Reisezeit -- beides muss
+   man wissen, BEVOR man drückt. */
+.wp-explain {
+	margin-bottom: var(--space-8);
+	padding: var(--space-6) var(--space-10);
+	background: var(--color-panel-soft);
+	border: 1px solid var(--color-border);
+	border-left: 3px solid var(--color-accent);
+	border-radius: var(--radius-md);
+}
+
+.wp-explain p { margin: 0; font-size: var(--font-size-caption); color: var(--color-text-muted); line-height: var(--leading-normal); }
+.wp-explain p + p { margin-top: var(--space-4); }
+.wp-explain b { color: var(--color-text-strong); font-weight: var(--font-weight-bold); }
 
 .wp-inert {
 	margin-top: var(--space-8);
