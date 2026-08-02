@@ -7,9 +7,22 @@ const SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER = {
 	region: 2,
 	path: 3,
 	powerline: 4,
-	// Maps are not map objects -- they are a pointer to one. Last, like the in-settlement objects.
+	// None of these are map objects -- each is a pointer to one. Last, like the in-settlement objects.
 	citymap: 6,
+	adventure: 7,
+	lore: 8,
 };
+// Sources that live NEXT to the map rather than on it. Each gets its own heading with a total, its own
+// cap of 5 (enforced server-side) and sits OUTSIDE the 20-result limit -- counting them against the
+// shared limit would let them displace exactly the map objects the cap exists to protect.
+// The order of this array IS the order of the sections in the result list, and it matches the order
+// api/app/map-search.php appends them in.
+const SPOTLIGHT_SEARCH_SECTIONS = [
+	{ kind: "citymap", totalField: "citymapTotal", labelKey: "spotlight.citymaps", label: "Kartensammlung", moreKey: "spotlight.citymapsMore", more: "… und {n} weitere Karten" },
+	{ kind: "adventure", totalField: "adventureTotal", labelKey: "spotlight.adventures", label: "Abenteuer", moreKey: "spotlight.adventuresMore", more: "… und {n} weitere Abenteuer" },
+	{ kind: "lore", totalField: "loreTotal", labelKey: "spotlight.lore", label: "Vorkommen", moreKey: "spotlight.loreMore", more: "… und {n} weitere Vorkommen" },
+];
+const SPOTLIGHT_SECTION_KINDS = new Set(SPOTLIGHT_SEARCH_SECTIONS.map((section) => section.kind));
 const SPOTLIGHT_PATH_HIGHLIGHT_STYLE = {
 	pane: "routePane",
 	color: "#ffd72e",
@@ -355,11 +368,12 @@ function buildInSettlementSpotlightEntry(result) {
 	};
 }
 
-// The place kinds the Kartensammlung stores (settlement|territory|region|path) are NOT the kinds this
-// file looks entries up by (location|region|label|path). Territories and landscape regions can both
-// arrive as "region", and a landscape is a label here -- so each kind gets its candidate keys and the
-// first one that exists wins. Getting this wrong would mark all 59 regional maps "not on the map".
-function spotlightCitymapPlaceLookupKeys(placeKind, publicId) {
+// The place kinds these sources store (settlement|territory|region|path) are NOT the kinds this file
+// looks entries up by (location|region|label|path). Territories and landscape regions can both arrive
+// as "region", and a landscape is a label here -- so each kind gets its candidate keys and the first
+// one that exists wins. Getting this wrong would mark all 59 regional maps and all 311 region-starting
+// adventures "not on the map".
+function spotlightPlaceLookupKeys(placeKind, publicId) {
 	const prefixes = {
 		settlement: ["location"],
 		territory: ["region"],
@@ -369,25 +383,22 @@ function spotlightCitymapPlaceLookupKeys(placeKind, publicId) {
 	return prefixes.map((prefix) => `${prefix}:${publicId}`);
 }
 
-// A map from the Kartensammlung. It has no position of its own -- it rides on the place it is assigned
-// to, exactly like an in-settlement object. Modelled on buildInSettlementSpotlightEntry for the shared
-// notOnMap-style presentation, but NOT for `kind`: that function deliberately KEEPS the inherited
-// kind ("location") -- see ITS comment above -- specifically so the plain kind-dispatch in
-// selectSpotlightSearchEntry just works unmodified. This entry instead OVERWRITES kind to "citymap" -- Task 7's
-// result-list rendering needs a map hit to read as its own thing (a distinct row/section), not fold
-// invisibly into whatever place it points to. That overwrite is exactly why selection/focus DOES need
-// a special case here, unlike the in-settlement entry: placeEntryKind below preserves the placeEntry's
-// original kind (location/region/label/path) so selectSpotlightSearchEntry's "citymap" branch
-// (spotlight-search-focus.js: focusSpotlightCitymapPlace) knows which existing focus helper to
+// A hit that has NO position of its own and rides on a place: a map from the Kartensammlung, an
+// adventure at the place it begins. Modelled on buildInSettlementSpotlightEntry for the shared notOnMap
+// presentation, but NOT for `kind`: that function deliberately KEEPS the inherited kind ("location") so
+// the plain kind-dispatch in selectSpotlightSearchEntry just works. This entry OVERWRITES kind, because
+// the result list needs it to read as its own thing in its own section. That overwrite is exactly why
+// selection/focus DOES need a case here: placeEntryKind preserves the placeEntry's original kind
+// (location/region/label/path) so focusSpotlightPlaceEntry knows which existing focus helper to
 // delegate to -- the spread (`...base`) already carried that helper's expected fields
 // (locationEntry/labelEntry/regionEntry+polygons+bounds/paths+bounds) along with it.
 //
-// A map with nothing to jump to is still LISTED -- being told the map exists is worth more than hiding
-// it -- but it says so. Two independent reasons: the database never resolved the place (the server
-// says so via `unresolved`, live 85 of 469), or the object is simply not loaded right now. Either way
-// placeEntry stays null, unreachable is true, placeEntryKind is "" -- focusSpotlightCitymapPlace reads
-// unreachable and no-ops rather than guessing a target.
-function buildCitymapSpotlightEntry(result) {
+// A hit with nothing to jump to is still LISTED -- being told the thing exists is worth more than
+// hiding it -- but it says so. Two independent reasons: the database never resolved the place (the
+// server says so via `unresolved`; live 85 of 469 map places, 376 of 1352 adventures), or the object is
+// simply not loaded right now. Either way placeEntry stays null, unreachable is true, placeEntryKind is
+// "" -- focusSpotlightPlaceEntry reads unreachable and no-ops rather than guessing a target.
+function buildPlaceBoundSpotlightEntry(result, kind) {
 	const name = String(result.name || "");
 	if (!name) {
 		return null;
@@ -397,7 +408,7 @@ function buildCitymapSpotlightEntry(result) {
 	const { byPublicId } = getSpotlightSearchLookup();
 	let placeEntry = null;
 	if (publicId && !result.unresolved) {
-		for (const key of spotlightCitymapPlaceLookupKeys(result.place_kind, publicId)) {
+		for (const key of spotlightPlaceLookupKeys(result.place_kind, publicId)) {
 			placeEntry = byPublicId.get(key);
 			if (placeEntry) {
 				break;
@@ -408,9 +419,9 @@ function buildCitymapSpotlightEntry(result) {
 	const base = placeEntry || { bounds: null, publicIds: [], polygons: [] };
 	return {
 		...base,
-		id: `citymap:${String(result.public_id || name)}`,
-		kind: "citymap",
-		// The placeEntry's own kind, saved off before the `kind: "citymap"` override above shadows it.
+		id: `${kind}:${String(result.public_id || name)}`,
+		kind,
+		// The placeEntry's own kind, saved off before the `kind` override above shadows it.
 		// "" when placeEntry is null (unreachable) -- no place was resolved to have a kind at all.
 		placeEntryKind: base.kind || "",
 		name,
@@ -420,6 +431,7 @@ function buildCitymapSpotlightEntry(result) {
 		notOnMap: true,
 		unreachable: !placeEntry,
 		citymapTotal: Number(result.citymap_total) || 0,
+		adventureTotal: Number(result.adventure_total) || 0,
 	};
 }
 
@@ -461,7 +473,7 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 		}
 
 		if (!entry && kind === "citymap") {
-			entry = buildCitymapSpotlightEntry(result);
+			entry = buildPlaceBoundSpotlightEntry(result, kind);
 		}
 
 		if (entry && entry.kind === "region") {
@@ -478,12 +490,16 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	});
 
 	if (resolvedEntries.length) {
-		// Maps sit outside the 20-result limit on purpose: the server already capped them at 5, and
-		// counting them against the shared limit would let them displace exactly the map objects the
-		// cap exists to protect.
-		const mapObjects = resolvedEntries.filter((entry) => entry.kind !== "citymap");
-		const citymaps = resolvedEntries.filter((entry) => entry.kind === "citymap");
-		return [...mapObjects.slice(0, SPOTLIGHT_SEARCH_MAX_RESULTS), ...citymaps];
+		// Section hits sit outside the 20-result limit on purpose: the server already capped each
+		// section at 5, and counting them against the shared limit would let them displace exactly the
+		// map objects the cap exists to protect.
+		const sectionOrder = SPOTLIGHT_SEARCH_SECTIONS.map((section) => section.kind);
+		const mapObjects = resolvedEntries.filter((entry) => !SPOTLIGHT_SECTION_KINDS.has(entry.kind));
+		// Array.prototype.sort is stable, so within one section the server's own ranking survives.
+		const sectionEntries = resolvedEntries
+			.filter((entry) => SPOTLIGHT_SECTION_KINDS.has(entry.kind))
+			.sort((left, right) => sectionOrder.indexOf(left.kind) - sectionOrder.indexOf(right.kind));
+		return [...mapObjects.slice(0, SPOTLIGHT_SEARCH_MAX_RESULTS), ...sectionEntries];
 	}
 
 	return localEntries;
@@ -575,29 +591,40 @@ function renderSpotlightSearchResults(entries) {
 
 	spotlightRenderedEntries = entries;
 
-	// The map section is set apart with a heading rather than folded into the flat list: without it a
-	// hit whose title does not contain the search word reads like a bug, and the count is the only
-	// place the user learns that more maps exist than the cap shows.
-	const firstCitymapIndex = entries.findIndex((entry) => entry.kind === "citymap");
-	const citymapTotal = firstCitymapIndex >= 0 ? Number(entries[firstCitymapIndex].citymapTotal) || 0 : 0;
-	const shownCitymaps = entries.filter((entry) => entry.kind === "citymap").length;
+	// Each section is set apart with a heading rather than folded into the flat list: without it a hit
+	// whose title does not contain the search word reads like a bug, and the count is the only place the
+	// user learns that more exist than the cap shows.
+	//
+	// ⚠️ Heading and overflow line carry NO data-spotlight-result-index -- otherwise the arrow-key
+	// navigation counts them as hits.
+	const headingAt = new Map();
+	const overflowAt = new Map();
+	SPOTLIGHT_SEARCH_SECTIONS.forEach((section) => {
+		const indices = [];
+		entries.forEach((entry, index) => {
+			if (entry.kind === section.kind) {
+				indices.push(index);
+			}
+		});
+		if (!indices.length) {
+			return;
+		}
+
+		const total = Number(entries[indices[0]][section.totalField]) || 0;
+		headingAt.set(indices[0], `<div class="spotlight-search__section" role="presentation">
+				<span>${escapeHtml(tr(section.labelKey, section.label))}</span>
+				<span>${total}</span>
+			</div>`);
+		if (total > indices.length) {
+			overflowAt.set(indices[indices.length - 1], `<div class="spotlight-search__section-more" role="presentation">${escapeHtml(
+				tr(section.moreKey, section.more).replace("{n}", String(total - indices.length))
+			)}</div>`);
+		}
+	});
 
 	results.innerHTML = entries
-		.map((entry, index) => {
-			const heading = index === firstCitymapIndex
-				? `<div class="spotlight-search__section" role="presentation">
-					<span>${escapeHtml(tr("spotlight.citymaps", "Kartensammlung"))}</span>
-					<span>${citymapTotal}</span>
-				</div>`
-				: "";
-			return heading + spotlightResultMarkup(entry, index);
-		})
-		.join("")
-		+ (citymapTotal > shownCitymaps
-			? `<div class="spotlight-search__section-more" role="presentation">${escapeHtml(
-				tr("spotlight.citymapsMore", "… und {n} weitere Karten").replace("{n}", String(citymapTotal - shownCitymaps))
-			)}</div>`
-			: "");
+		.map((entry, index) => (headingAt.get(index) || "") + spotlightResultMarkup(entry, index) + (overflowAt.get(index) || ""))
+		.join("");
 
 	results.hidden = entries.length === 0;
 	status.textContent = "";
@@ -611,19 +638,18 @@ function renderSpotlightSearchResults(entries) {
 
 function spotlightResultMarkup(entry, index) {
 	const resultId = `spotlight-result-${index}`;
-	// Innerorts-Objekte springen auf ihre STADT, nicht auf sich selbst -- das muss am Treffer
-	// stehen, sonst sucht man nach dem Sprung einen Marker, den es nicht gibt. Der Zusatz hängt
-	// unter der Typzeile („Palast in Mengbilla" / „Innerorts") und benutzt dasselbe Wort wie
-	// der Lage-Filter im Editor, statt ein zweites für dieselbe Sache einzuführen.
-	//
-	// Kartensammlung-Treffer sind ein ANDERER Fall, kein Innerorts-Objekt: eine erreichbare Karte
-	// bekommt HIER GAR KEINEN Hinweis -- ihre typeLabel nennt Art und Ort schon ("Grundriss ·
-	// Gareth"). Nur die unerreichbare Karte braucht eine Zeile. (Fix Runde 1: die Vorversion zeigte
-	// "Innerorts" unter JEDER erreichbaren Karte, auch wenn sie auf einem Territorium oder Weg liegt
-	// -- "Territorium != Siedlung" ist in diesem Projekt keine Nuance, sondern Domänenvokabular.)
-	const hintText = entry.kind === "citymap"
-		? (entry.unreachable ? tr("spotlight.citymapNoTarget", "kein Ort auf der Karte") : "")
-		: (entry.notOnMap ? tr("spotlight.inSettlement", "Innerorts") : "");
+	// A hit that points somewhere else needs a line saying so. Three cases, three wordings:
+	//   in-settlement object   -> "Innerorts" (it sits inside the town the hit jumps to)
+	//   unreachable pointer    -> "kein Ort auf der Karte" (map, adventure or occurrence with no target)
+	//   reachable adventure /
+	//   occurrence             -> its own hint (where it begins / where it occurs), set by its builder
+	// A REACHABLE map deliberately gets NO hint: its typeLabel already names type and place
+	// ("Grundriss · Gareth"). "Innerorts" must never appear under a section hit -- a territory or a way
+	// is not a settlement, and in this project that is domain vocabulary, not a nuance.
+	const hintText = entry.unreachable
+		? tr("spotlight.noPlaceOnMap", "kein Ort auf der Karte")
+		: (String(entry.placeHint || "")
+			|| (entry.notOnMap && !SPOTLIGHT_SECTION_KINDS.has(entry.kind) ? tr("spotlight.inSettlement", "Innerorts") : ""));
 	const notOnMap = hintText
 		? `<span class="spotlight-search__result-hint">${escapeHtml(hintText)}</span>`
 		: "";

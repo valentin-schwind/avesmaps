@@ -21,7 +21,7 @@ const extract = (name) => {
 // caller would blow up with "scoreSpotlightWord is not defined" inside the sandbox.
 const context = { Infinity, Math, String, Number, Boolean, Array };
 vm.runInNewContext(
-	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightCitymapPlaceLookupKeys"),
+	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightPlaceLookupKeys"),
 	context
 );
 const { getSpotlightSearchScore, normalizeSpotlightSearchText } = context;
@@ -64,7 +64,7 @@ assert.strictEqual(score(gareth, "   "), Infinity);
 // literal written here fails on prototype identity alone ("same structure but not reference-equal")
 // even when every element matches. Array.from() copies the elements into an outer-realm array; it does
 // not change what is being asserted.
-const keys = (placeKind, publicId) => Array.from(context.spotlightCitymapPlaceLookupKeys(placeKind, publicId));
+const keys = (placeKind, publicId) => Array.from(context.spotlightPlaceLookupKeys(placeKind, publicId));
 assert.deepStrictEqual(keys("settlement", "abc"), ["location:abc"]);
 assert.deepStrictEqual(keys("territory", "abc"), ["region:abc"]);
 assert.deepStrictEqual(keys("region", "abc"), ["region:abc", "label:abc"]);

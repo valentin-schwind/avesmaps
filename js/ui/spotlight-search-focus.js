@@ -59,7 +59,7 @@ function selectSpotlightSearchEntry(entry) {
 	}
 
 	if (entry.kind === "citymap") {
-		focusSpotlightCitymapPlace(entry);
+		focusSpotlightPlaceEntry(entry);
 		return;
 	}
 
@@ -272,7 +272,7 @@ function getSpotlightPathZoom(entry) {
 	return Math.max(minZoom, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
 }
 
-// A citymap entry (buildCitymapSpotlightEntry in spotlight-search.js) has no geometry of its own --
+// A place-bound entry (buildPlaceBoundSpotlightEntry in spotlight-search.js) has no geometry of its own --
 // design §4.4: the hit jumps to its ASSIGNED PLACE and opens that place's infobox, where the
 // Kartensammlung already renders as a section. The entry's `...base` spread already carries whatever
 // field the place's own focus helper reads (locationEntry/labelEntry/regionEntry+polygons+bounds/
@@ -292,7 +292,7 @@ function getSpotlightPathZoom(entry) {
 // before calling us, so a no-op here leaves the map exactly where the user already was with the
 // selection cleared, not a half-moved state. The result list marks unreachable hits so this is expected,
 // not silently swallowed (see spotlightResultMarkup's notOnMap styling / a future "nicht anspringbar" tag).
-function focusSpotlightCitymapPlace(entry) {
+function focusSpotlightPlaceEntry(entry) {
 	if (entry.unreachable) {
 		return;
 	}
