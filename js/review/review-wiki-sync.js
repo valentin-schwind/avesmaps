@@ -788,10 +788,17 @@ async function refreshWikiSyncKindSyncedStatus() {
 			syncedElement.textContent = wikiSyncKindSyncedLabel(synced, kind);
 			syncedElement.hidden = false;
 		});
-		// Die Editor-Buttons (Siedlungen/Territorien) tragen ihr "Zuletzt gesynct"-Datum rechts daneben --
-		// wie Wege/Regionen, aber aus derselben last_synced-Antwort, ohne die Buttons in Kind-Syncs zu
-		// verdrahten (der Territorien-Sync laeuft im Iframe-Editor, nicht ueber startWikiSyncKindSync).
-		[["settlement-editor-synced", "settlement"], ["wiki-sync-territory-synced", "territory"], ["wiki-sync-sync-adventure-synced", "adventure"], ["adventure-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"]].forEach(([id, kind]) => {
+		// Die Editor-Buttons OHNE Eintrag in WIKI_SYNC_KIND_ELEMENTS tragen ihr "Zuletzt gesynct"-Datum
+		// aus derselben last_synced-Antwort: Territorien, Abenteuer und Karten syncen im Iframe-Editor,
+		// nicht ueber startWikiSyncKindSync, haben dort also keine Kind-Zeile.
+		// ⚠️ Siedlungen/Wege/Regionen stehen hier NICHT mehr -- die Schleife darueber erledigt sie,
+		// seit deren `synced`-Verweise auf die echten Spans zeigen. Zwei Stellen fuer dasselbe Feld
+		// waren genau der Grund, warum das Fehlen bei Wegen und Regionen so lange unbemerkt blieb.
+		// ⚠️ `wiki-sync-sync-adventure-synced` stand hier und existiert in keiner Zeile Markup --
+		// gefunden von js/review/__tests__/sync-synced-ids.test.js. Folgenlos, weil Abenteuer
+		// daneben `adventure-editor-synced` haben, aber genau diese Art Verweis war das eigentliche
+		// Problem: er schreibt still nirgendwohin.
+		[["wiki-sync-territory-synced", "territory"], ["adventure-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"]].forEach(([id, kind]) => {
 			const el = document.getElementById(id);
 			if (!el) {
 				return;
@@ -1352,10 +1359,19 @@ if (typeof window !== "undefined") {
 // actively running, alongside `progress`); `synced` is the PERSISTENT "Zuletzt gesynct:
 // <date>" label next to the button (mirrors the central block's #wiki-sync-dump-fetched-status,
 // stays visible once known instead of hiding with the transient run status).
+// 💣 `synced` ZEIGTE FÜR ALLE DREI AUF ELEMENTE, DIE ES NICHT GIBT (`wiki-sync-sync-<kind>-synced`
+// stand in keiner Zeile von index.html). Beide Schreiber prüfen auf null und taten deshalb still
+// gar nichts: das „Zuletzt gesynct" fehlte an „Regionen bearbeiten" seit dem siebten Editor und an
+// „Wege bearbeiten" seit dem achten. Siedlungen fiel es nicht auf, weil dort ein ZWEITER,
+// expliziter Eintrag in refreshWikiSyncKindSyncedStatus dasselbe noch einmal erledigte.
+//
+// Jetzt zeigen sie auf die Spans, die wirklich im Knopf stehen. Das repariert beide Wege auf
+// einmal -- das Datum beim Laden (refreshWikiSyncKindSyncedStatus) UND das frische Datum nach
+// einem Lauf (renderWikiSyncKindProgress, `done`-Zweig), der vorher ebenfalls ins Leere schrieb.
 const WIKI_SYNC_KIND_ELEMENTS = {
-	settlement: { button: "wiki-sync-sync-settlement", progress: "wiki-sync-sync-settlement-progress", status: "wiki-sync-sync-settlement-status", synced: "wiki-sync-sync-settlement-synced" },
-	path: { button: "wiki-sync-sync-path", progress: "wiki-sync-sync-path-progress", status: "wiki-sync-sync-path-status", synced: "wiki-sync-sync-path-synced" },
-	region: { button: "wiki-sync-sync-region", progress: "wiki-sync-sync-region-progress", status: "wiki-sync-sync-region-status", synced: "wiki-sync-sync-region-synced" },
+	settlement: { button: "wiki-sync-sync-settlement", progress: "wiki-sync-sync-settlement-progress", status: "wiki-sync-sync-settlement-status", synced: "settlement-editor-synced" },
+	path: { button: "wiki-sync-sync-path", progress: "wiki-sync-sync-path-progress", status: "wiki-sync-sync-path-status", synced: "path-editor-synced" },
+	region: { button: "wiki-sync-sync-region", progress: "wiki-sync-sync-region-progress", status: "wiki-sync-sync-region-status", synced: "ecosystem-editor-synced" },
 };
 
 // Only one kind syncs at a time (they share the single-flight dump pipeline lock

@@ -742,23 +742,62 @@
 	// ── Wege syncen ───────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Das Fenster, in dem der Sync wohnt -- oder null.
+	 * Die möglichen Elternfenster.
 	 *
-	 * 💣 EIGENES `window` JE RAHMEN, und es sind zwei mögliche Eltern: als Overlay über index.html
-	 * ist `parent` das Hauptfenster, aus der Edit-Shell heraus ist `parent` die Shell und `top` das
-	 * Fenster mit der Funktion. Deshalb beide geprüft, statt einen zu raten -- ein Griff ins Leere
-	 * sähe aus wie „der Knopf tut nichts“.
+	 * 💣 EIGENES `window` JE RAHMEN, und es sind zwei Kandidaten: als Overlay über index.html ist
+	 * `parent` das Hauptfenster, aus der Edit-Shell heraus ist `parent` die Shell und `top` das
+	 * Fenster darüber. Beide werden geprüft, statt einen zu raten.
 	 */
-	function syncHost() {
+	function parentFrames() {
 		var frames = [];
 		try { if (window.parent && window.parent !== window) { frames.push(window.parent); } } catch (error) { /* fremder Ursprung */ }
 		try { if (window.top && window.top !== window && frames.indexOf(window.top) === -1) { frames.push(window.top); } } catch (error) { /* fremder Ursprung */ }
+		return frames;
+	}
+
+	/**
+	 * Das Fenster, in dem der Sync wohnt -- oder null.
+	 *
+	 * ⚠️ Sucht nach der FUNKTION, nicht nach irgendeinem Elternfenster: nur wer sie hat, kann den
+	 * Lauf starten. Wer bloß ein Element lesen will, nimmt parentElement() -- die beiden waren
+	 * einmal dieselbe Funktion, und dadurch verlor die Kachel ihr Datum in jedem Rahmen, der den
+	 * Sync-Starter nicht trägt. Zwei Fragen, zwei Suchen.
+	 */
+	function syncHost() {
+		var frames = parentFrames();
 		for (var i = 0; i < frames.length; i++) {
 			try {
 				if (typeof frames[i].startWikiSyncKindSync === "function") { return frames[i]; }
 			} catch (error) { /* weiter zum nächsten Rahmen */ }
 		}
 		return null;
+	}
+
+	/** Ein Element aus dem ersten Elternfenster, das es hat -- oder null. */
+	function parentElement(id) {
+		var frames = parentFrames();
+		for (var i = 0; i < frames.length; i++) {
+			try {
+				var element = frames[i].document.getElementById(id);
+				if (element) { return element; }
+			} catch (error) { /* fremder Ursprung -- nächster Rahmen */ }
+		}
+		return null;
+	}
+
+	/**
+	 * Das „Zuletzt gesynct“ in die Sync-Kachel schreiben (Auftrag §3: „`t2` trägt das letzte
+	 * Sync-Datum wie bei den anderen“).
+	 *
+	 * ⭐ Geholt wird es aus dem Panel-Knopf des Hauptfensters, nicht über eine eigene Anfrage: dort
+	 * steht es ohnehin (refreshWikiSyncKindSyncedStatus füllt `path-editor-synced` aus der
+	 * last_synced-Antwort), und eine zweite Quelle für dieselbe Angabe wäre eine zweite Wahrheit.
+	 * Kommt keine -- etwa alleinstehend geöffnet --, bleibt der Ausgangstext stehen.
+	 */
+	function refreshSyncedLabel() {
+		var span = parentElement("path-editor-synced");
+		var text = span ? String(span.textContent || "").trim() : "";
+		if (text !== "") { $("wpSyncInfo").textContent = text; }
 	}
 
 	/**
@@ -789,14 +828,12 @@
 		setStatus("Wege-Sync läuft …");
 
 		var mirror = window.setInterval(function () {
-			try {
-				var button = host.document.getElementById("wiki-sync-sync-path");
-				var text = button ? String(button.textContent || "").trim() : "";
-				if (text !== "") {
-					info.textContent = text;
-					setStatus("Wege-Sync: " + text);
-				}
-			} catch (error) { /* Rahmen weg oder fremd -- der Abschluss unten meldet trotzdem */ }
+			var button = parentElement("wiki-sync-sync-path");
+			var text = button ? String(button.textContent || "").trim() : "";
+			if (text !== "") {
+				info.textContent = text;
+				setStatus("Wege-Sync: " + text);
+			}
 		}, 600);
 
 		Promise.resolve()
@@ -814,8 +851,12 @@
 				var balance = delta === 0
 					? "unverändert " + after + " Wege"
 					: after + " Wege (" + (delta > 0 ? "+" : "") + delta + ")";
+				// Die Bilanz in die Statuszeile, das DATUM zurück in die Kachel: die Bilanz gilt
+				// diesem Lauf, das Datum ist der dauerhafte Stand -- und genau der gehört in die
+				// Kachel, damit sie nach dem nächsten Öffnen dasselbe sagt wie das Panel.
 				setStatus("Wege-Sync abgeschlossen — " + balance + ".", "ok");
 				info.textContent = balance;
+				window.setTimeout(refreshSyncedLabel, 1200);
 			})
 			.catch(function (error) {
 				window.clearInterval(mirror);
@@ -1116,6 +1157,7 @@
 
 	function boot() {
 		wire();
+		refreshSyncedLabel();
 		loadList();
 		ecoPost("terrain_profile_status", {}).then(function (status) {
 			renderProfileTile(status);
