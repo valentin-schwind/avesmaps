@@ -87,6 +87,20 @@ assert.strictEqual(wikiKey(village), "belhanka");
 assert.strictEqual(wikiKey({ kind: "path", name: "x" }), "");
 assert.strictEqual(wikiKey({ kind: "label", name: "x" }), "");
 
+// Territory wiki keys carry a prefix (avesmapsPoliticalBuildWikiKey: 'wiki:' or 'name:' + slug) that
+// lore_place.place_wiki_key does not -- without stripping it, the lore-place index would store
+// "wk:wiki f rstentum kosch" while the lookup asks for "wk:f rstentum kosch", a permanent miss.
+const territoryWiki = { kind: "region", regionEntry: { wiki_key: "wiki:f-rstentum-kosch" } };
+const territoryName = { kind: "region", regionEntry: { wiki_key: "name:xyz" } };
+assert.strictEqual(wikiKey(territoryWiki), "f-rstentum-kosch");
+assert.strictEqual(wikiKey(territoryName), "xyz");
+
+// The strip is scoped to the region branch and to a prefix at the START of the string only. A label
+// key that happens to contain one of the two prefix words is NOT touched -- proving this is not a
+// blanket strip applied to every kind regardless of branch.
+const labelWithPrefixLookingKey = { kind: "label", name: "x", labelEntry: { label: { wikiRegion: { wiki_key: "wiki:kh-m" } } } };
+assert.strictEqual(wikiKey(labelWithPrefixLookingKey), "wiki:kh-m");
+
 const byLorePlace = new Map([
 	["wk:kh m", labelEntry],
 	["nm:khom", labelEntry],

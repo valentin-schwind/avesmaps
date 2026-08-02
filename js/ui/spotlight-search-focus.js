@@ -296,8 +296,9 @@ function getSpotlightPathZoom(entry) {
 // adventure hits on 2026-08-02, and an adventure that begins in Gareth has no business throwing
 // Gareth's map collection over the infobox the reader actually asked for.
 //
-// unreachable (§4.4: 85 of 469 place assignments are `unresolved`, or the place is simply not loaded
-// right now) means placeEntryKind is "" and none of the branches below match -- silent no-op. Do NOT
+// unreachable (docs/superpowers/specs/2026-08-02-spotlight-kartensammlungen-design.md §4.4: 85 of 469
+// place assignments are `unresolved`, or the place is simply not loaded right now) means
+// placeEntryKind is "" and none of the branches below match -- silent no-op. Do NOT
 // guess a target: selectSpotlightSearchEntry already ran closeSpotlightSearch()/clearSpotlightSelection()
 // before calling us, so a no-op here leaves the map exactly where the user already was with the
 // selection cleared, not a half-moved state. The result list marks unreachable hits so this is expected,
@@ -383,10 +384,12 @@ function openSpotlightCitymapsDialog(entry) {
 	spotlightCitymapDialogPollTimer = window.setInterval(tick, 150);
 	tick();
 }
-// An occurrence has MANY targets, not one (design §4.3) -- so it does not fly to "the" place, it flies
-// to the extent of ALL of them and marks each one. The mechanism is not new: a way hit already
-// highlights every one of its segments (highlightSpotlightPaths). Only the geometry kind is -- points
-// and polygons instead of lines.
+
+// An occurrence has MANY targets, not one
+// (docs/superpowers/specs/2026-08-02-spotlight-abenteuer-vorkommen-design.md §4.3) -- so it does not
+// fly to "the" place, it flies to the extent of ALL of them and marks each one. The mechanism is not
+// new: a way hit already highlights every one of its segments (highlightSpotlightPaths). Only the
+// geometry kind is -- points and polygons instead of lines.
 //
 // unreachable (no place resolved) means there is nothing to show: no-op, exactly like an unreachable
 // map. selectSpotlightSearchEntry already closed the search and cleared the selection, so the map stays

@@ -441,9 +441,10 @@ function buildPlaceBoundSpotlightEntry(result, kind) {
 	};
 }
 
-// Three tries, in this order (design §4.3): the stored wiki key, the title, the title without its
-// parenthetical qualifier. The third exists because the wiki writes "Bornland (Region)" and the map
-// says "Bornland" -- live, that single rule is what turns a miss into a hit.
+// Three tries, in this order (docs/superpowers/specs/2026-08-02-spotlight-abenteuer-vorkommen-design.md
+// §4.3): the stored wiki key, the title, the title without its parenthetical qualifier. The third
+// exists because the wiki writes "Bornland (Region)" and the map says "Bornland" -- live, that single
+// rule is what turns a miss into a hit.
 //
 // 💣 An empty wiki key is skipped, never looked up: "wk:" would otherwise be a real key that every
 // keyless place matches, and whichever entry got inserted first would answer for all of them.
@@ -503,8 +504,9 @@ function buildLoreSpotlightEntry(result) {
 		placeHint: shown.join(" · ") + (rest > 0 ? ` +${rest}` : ""),
 		notOnMap: true,
 		// 31 % of occurrences carry no place at all and another 15 % name places the map does not have
-		// (design §1.4). They stay listed, hindmost and labelled -- "it exists, whereabouts unknown"
-		// beats no answer -- but a click must not pretend to go somewhere.
+		// (docs/superpowers/specs/2026-08-02-spotlight-abenteuer-vorkommen-design.md §1.4). They stay
+		// listed, hindmost and labelled -- "it exists, whereabouts unknown" beats no answer -- but a
+		// click must not pretend to go somewhere.
 		unreachable: resolved.length === 0,
 		loreTotal: Number(result.lore_total) || 0,
 	};
@@ -619,7 +621,8 @@ function searchSpotlightEntries(query) {
 // would otherwise rank the same object twice over by two different rules.
 //
 // NOTE: the two sides still NORMALISE differently (ue vs u for umlauts). That divergence is older than
-// this function and is deliberately not touched here -- see the design doc, §7.
+// this function and is deliberately not touched here -- see
+// docs/superpowers/specs/2026-08-02-spotlight-kartensammlungen-design.md §7.
 function getSpotlightSearchScore(entry, normalizedQuery) {
 	const candidates = entry.normalizedSearchTexts || [entry.name, entry.typeLabel, ...(entry.aliases || [])]
 		.map(normalizeSpotlightSearchText)
@@ -811,8 +814,9 @@ function getSpotlightSearchLookup() {
 		}
 	});
 
-	// Occurrence places arrive as a wiki key plus a title and NEVER as a resolved target (design §1.6),
-	// so they need a key/name index rather than the public-id one.
+	// Occurrence places arrive as a wiki key plus a title and NEVER as a resolved target
+	// (docs/superpowers/specs/2026-08-02-spotlight-abenteuer-vorkommen-design.md §1.6), so they need a
+	// key/name index rather than the public-id one.
 	// Insert order IS the precedence -- label before region before location, first writer wins. 403 of
 	// 465 resolvable occurrence places are labels, so a name that is both a landscape and a village
 	// means the landscape: "Thorwal" the region, not the hamlet.
@@ -844,8 +848,12 @@ function getSpotlightSearchLookup() {
 
 // The wiki key a spotlight entry carries -- the join key lore_place stores on its side. Every kind
 // keeps it somewhere else: a label under label.wikiRegion, a settlement under location.wikiSettlement,
-// a territory on the region entry (same chain avesmapsLorePlaceRefFromRegion walks in
-// js/map-features/map-features-lore.js). "" when the object has no wiki page.
+// a territory on the region entry (the same FIELDS avesmapsLorePlaceRefFromRegion reads in
+// js/map-features/map-features-lore.js). Territory wiki keys carry a 'wiki:'/'name:' prefix
+// (avesmapsPoliticalBuildWikiKey), but lore_place.place_wiki_key stores the BARE slug -- so the region
+// branch strips it, the same two prefixes avesmapsLoreNormalizeKey strips, inlined here rather than
+// calling that function: this file's load order relative to map-features-lore.js is not guaranteed.
+// Label and settlement keys are already bare and need no stripping. "" when the object has no wiki page.
 function getSpotlightEntryWikiKey(entry) {
 	if (entry.kind === "label") {
 		return String(entry.labelEntry?.label?.wikiRegion?.wiki_key || "");
@@ -855,7 +863,8 @@ function getSpotlightEntryWikiKey(entry) {
 	}
 	if (entry.kind === "region") {
 		const regionEntry = entry.regionEntry || {};
-		return String(regionEntry.detail?.wiki_key || regionEntry.wikiRegion?.wiki_key || regionEntry.wikiKey || regionEntry.wiki_key || "");
+		const rawWikiKey = String(regionEntry.detail?.wiki_key || regionEntry.wikiRegion?.wiki_key || regionEntry.wikiKey || regionEntry.wiki_key || "");
+		return rawWikiKey.replace(/^(?:wiki|name):/, "");
 	}
 
 	return "";
