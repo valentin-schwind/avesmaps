@@ -54,12 +54,20 @@ function avesmapsRouteMeasureTravelledDistance(array $segments): float
  * `minimize_transfers` zusätzlich mit Umsteigezuschlägen versetzt. Der Vergleich unten muss aber in
  * beiden Modi derselbe sein -- eine Abkürzung, die länger DAUERT, ist auch dann keine, wenn der
  * Reisende „Kürzeste" angehakt hat.
+ *
+ * 💣 UND DER x25 MUSS AUCH HIER HERAUS. `time` ist `distance / Tempo`, erbt den Aufschlag der
+ * Notbrücken also mit -- live gemessen trug Gulbladdirstadir -> Rekheim dadurch 405,09 statt der
+ * echten 32,9. Das ist dieselbe Verwechslung wie in §1, nur eine Division später: eine Route mit
+ * einer kurzen Notbrücke sähe zeitlich so teuer aus, dass ein tatsächlich LANGSAMERER Querweg
+ * gewönne. Der Aufschlag ist eine Abschreckung für den Dijkstra, keine Reisezeit.
  */
 function avesmapsRouteMeasureTravelledTime(array $segments): float
 {
     $time = 0.0;
     foreach ($segments as $segment) {
-        $time += (float) ($segment['time'] ?? 0.0);
+        $factor = (float) ($segment['cost_factor'] ?? 1.0);
+        if ($factor <= 0.0) { $factor = 1.0; }
+        $time += (float) ($segment['time'] ?? 0.0) / $factor;
     }
 
     return $time;

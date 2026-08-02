@@ -64,6 +64,17 @@ $segments = [
 assert(abs(avesmapsRouteMeasureTravelledDistance($segments) - 15.0) < 1e-9, 'gefahren = 5 + 10');
 assert(abs(avesmapsRouteMeasureTravelledTime($segments) - 100.0) < 1e-9, 'die Zeit ist die Summe der Etappenzeiten');
 
+// 💣 UND DER x25 MUSS AUCH AUS DER ZEIT HERAUS. `time` ist `distance / Tempo` und erbt den
+// Aufschlag der Notbruecken mit. Live gemessen trug Gulbladdirstadir -> Rekheim dadurch 405,09
+// statt der echten 32,9 -- eine Route mit EINER kurzen Notbruecke saehe so teuer aus, dass ein
+// tatsaechlich langsamerer Querweg gewaenne.
+$mitBruecke = [
+    ['geometry' => ['coordinates' => [[0.0, 0.0], [100.0, 0.0]]], 'time' => 25.0],
+    ['geometry' => ['coordinates' => [[100.0, 0.0], [101.0, 0.0]]], 'time' => 20.0, 'cost_factor' => 25.0],
+];
+assert(abs(avesmapsRouteMeasureTravelledTime($mitBruecke) - 25.8) < 1e-9,
+    'die Notbruecke zaehlt mit ihrer echten Zeit: ' . avesmapsRouteMeasureTravelledTime($mitBruecke));
+
 // ============================================================ B. der Vorfilter schweigt unter 3x
 
 // A -- B ueber einen leichten Bogen: 18,87 gefahren zu 10,0 Luftlinie.
