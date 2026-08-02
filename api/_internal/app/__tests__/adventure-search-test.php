@@ -90,6 +90,17 @@ assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText(
 assert(avesmapsCalculateSearchScore($byId['adv-2'], avesmapsNormalizeSearchText('Kampagnenband')) !== null);
 assert(isset($labels['metaband']));
 
+// metaband gets the SAME proof as kampagnenband above, not just the label-table isset() check: a real
+// entry, built with the real row shape, must match on the raw key AND on the beautified label.
+$metabandEntry = avesmapsBuildAdventureSearchEntries([[
+    'public_id' => 'adv-4',
+    'title' => 'Der Splitterfall-Kompendium',
+    'product_type' => 'metaband',
+    'edition' => 'DSA5',
+]], $labels)[0];
+assert(avesmapsCalculateSearchScore($metabandEntry, avesmapsNormalizeSearchText('metaband')) !== null);
+assert(avesmapsCalculateSearchScore($metabandEntry, avesmapsNormalizeSearchText('Metaband')) !== null);
+
 // THE MULTI-WORD CASE this feature exists for: the genre says "Stadtabenteuer", the start place says
 // "Gareth", and no single search text contains both.
 assert(avesmapsCalculateSearchScore($byId['adv-3'], avesmapsNormalizeSearchText('stadtabenteuer garetien')) !== null);

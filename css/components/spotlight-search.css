@@ -129,11 +129,12 @@
 	filter: drop-shadow(0 0 4px rgba(255, 230, 74, 0.92));
 }
 
-/* Abschnittskopf der Kartensammlung. Farbe wird bewusst NICHT neu gesetzt: `inherit` zieht die
-   Grundfarbe von .spotlight-search (dem Dialog-Element) -- .spotlight-search__section liegt in der
-   Trefferliste auf derselben Ebene wie ein Ergebnis-Button, die Typzeile ist ein Enkel DIESES
-   Buttons und damit kein Vorfahre, vererbt hier also nichts. `opacity` dimmt sie auf denselben
-   Wert wie der Innerorts-Hinweis -- kein weiteres Farbliteral (AGENTS.md §12). */
+/* Abschnittskopf der gedeckelten Trefferabschnitte (Kartensammlung, Abenteuer, Vorkommen). Farbe wird
+   bewusst NICHT neu gesetzt: `inherit` zieht die Grundfarbe von .spotlight-search (dem Dialog-Element)
+   -- .spotlight-search__section liegt in der Trefferliste auf derselben Ebene wie ein Ergebnis-Button,
+   die Typzeile ist ein Enkel DIESES Buttons und damit kein Vorfahre, vererbt hier also nichts.
+   `opacity` dimmt sie auf denselben Wert wie der Innerorts-Hinweis -- kein weiteres Farbliteral
+   (AGENTS.md §12). */
 .spotlight-search__section {
 	display: flex;
 	justify-content: space-between;
