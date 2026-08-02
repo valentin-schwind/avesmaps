@@ -574,7 +574,31 @@ function renderSpotlightSearchResults(entries) {
 	}
 
 	spotlightRenderedEntries = entries;
-	results.innerHTML = entries.map((entry, index) => spotlightResultMarkup(entry, index)).join("");
+
+	// The map section is set apart with a heading rather than folded into the flat list: without it a
+	// hit whose title does not contain the search word reads like a bug, and the count is the only
+	// place the user learns that more maps exist than the cap shows.
+	const firstCitymapIndex = entries.findIndex((entry) => entry.kind === "citymap");
+	const citymapTotal = firstCitymapIndex >= 0 ? Number(entries[firstCitymapIndex].citymapTotal) || 0 : 0;
+	const shownCitymaps = entries.filter((entry) => entry.kind === "citymap").length;
+
+	results.innerHTML = entries
+		.map((entry, index) => {
+			const heading = index === firstCitymapIndex
+				? `<div class="spotlight-search__section" role="presentation">
+					<span>${escapeHtml(tr("spotlight.citymaps", "Kartensammlung"))}</span>
+					<span>${citymapTotal}</span>
+				</div>`
+				: "";
+			return heading + spotlightResultMarkup(entry, index);
+		})
+		.join("")
+		+ (citymapTotal > shownCitymaps
+			? `<div class="spotlight-search__section-more" role="presentation">${escapeHtml(
+				tr("spotlight.citymapsMore", "… und {n} weitere Karten").replace("{n}", String(citymapTotal - shownCitymaps))
+			)}</div>`
+			: "");
+
 	results.hidden = entries.length === 0;
 	status.textContent = "";
 	status.hidden = true;
@@ -591,8 +615,11 @@ function spotlightResultMarkup(entry, index) {
 	// stehen, sonst sucht man nach dem Sprung einen Marker, den es nicht gibt. Der Zusatz hängt
 	// unter der Typzeile („Palast in Mengbilla" / „Innerorts") und benutzt dasselbe Wort wie
 	// der Lage-Filter im Editor, statt ein zweites für dieselbe Sache einzuführen.
+	const hintText = entry.unreachable
+		? tr("spotlight.citymapNoTarget", "kein Ort auf der Karte")
+		: tr("spotlight.inSettlement", "Innerorts");
 	const notOnMap = entry.notOnMap
-		? `<span class="spotlight-search__result-hint">${escapeHtml(tr("spotlight.inSettlement", "Innerorts"))}</span>`
+		? `<span class="spotlight-search__result-hint">${escapeHtml(hintText)}</span>`
 		: "";
 	const resultClass = "spotlight-search__result" + (entry.notOnMap ? " spotlight-search__result--not-on-map" : "");
 	return `

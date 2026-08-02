@@ -128,3 +128,24 @@
 .spotlight-path-highlight {
 	filter: drop-shadow(0 0 4px rgba(255, 230, 74, 0.92));
 }
+
+/* Abschnittskopf der Kartensammlung. Farben werden bewusst NICHT neu gesetzt: die Zeile erbt die
+   Typzeilen-Farbe dieser Datei, damit kein weiteres Literal entsteht (AGENTS.md §12). */
+.spotlight-search__section {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px 4px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: inherit;
+	opacity: 0.68;
+}
+
+.spotlight-search__section-more {
+	padding: 4px 12px 8px;
+	font-size: 11px;
+	opacity: 0.68;
+}
