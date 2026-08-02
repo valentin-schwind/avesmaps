@@ -38,9 +38,11 @@ assert(avesmapsNormalizeSearchText('Weiße Straße') === 'weisse strasse');
 
 // ---- multi-word: every word must hit, and they may sit in DIFFERENT texts -------------------------
 // This is the whole point: "stadtplan" is the type, "gareth" is the place -- no single search_text
-// contains both, which is why the old one-string comparison returned null here.
-assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('stadtplan gareth')) !== null);
-assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('gareth stadtplan')) !== null);
+// contains both, which is why the old one-string comparison returned null here. Exact value pinned
+// (both words are exact matches against 'Stadtplan' / 'Gareth', so worst-of-words is 0) rather than
+// just !== null, so a min/max mixup in the per-word aggregation would be caught here too.
+assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('stadtplan gareth')) === 0);
+assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('gareth stadtplan')) === 0);
 
 // A word that hits nothing kills the entry, however good the others are.
 assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('stadtplan bornland')) === null);
@@ -52,8 +54,25 @@ assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('gareth
 assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('gareth')) === 0);
 assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('bornland')) === null);
 
-// Repeated whitespace must not produce an empty word that matches everything.
+// End-to-end: messy raw input still works when normalised first, as every real caller does.
+// avesmapsNormalizeSearchText() already collapses the repeated/leading/trailing whitespace here
+// (preg_replace('/[^a-z0-9]+/', ' ', ...) + trim()), so by the time this reaches
+// avesmapsCalculateSearchScore the string is already clean ('stadtplan gareth') -- this does NOT
+// exercise the internal array_filter(...) empty-word guard; it would pass identically even if
+// that guard were deleted. See the next assertion for a test that actually reaches the guard.
 assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('  stadtplan   gareth ')) !== null);
+
+// Direct call, bypassing avesmapsNormalizeSearchText, so the raw degenerate spacing survives into
+// preg_split('/\s+/', ...) inside avesmapsCalculateSearchScore: '  gareth  ' splits to
+// ['', 'gareth', ''], i.e. an empty word at each end. Without the array_filter(...) guard, an empty
+// word trivially scores tier 1 against EVERY candidate (str_starts_with($x, '') is always true),
+// which would corrupt this exact match from 0 down to 1 -- confirmed by hand-simulating the
+// unguarded version (see task-2-report.md, fix round 1).
+assert(avesmapsCalculateSearchScore($gareth, '  gareth  ') === 0);
+
+// The empty-query branch (if ($words === []) { return null; }) -- must reject, not match everything.
+assert(avesmapsCalculateSearchScore($gareth, '') === null);
+assert(avesmapsCalculateSearchScore($gareth, avesmapsNormalizeSearchText('   ')) === null);
 
 $winde = ['search_texts' => ['Meer der Sieben Winde']];
 assert(avesmapsCalculateSearchScore($winde, avesmapsNormalizeSearchText('meer winde')) !== null);
