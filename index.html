@@ -563,12 +563,17 @@
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
 					<div class="wiki-sync-panel__actions">
-						<!-- Labelled "Syncen" because that is the task it starts (owner 2026-07-22). What it
-						     opens is the territory SYNC EDITOR -- startWikiSyncTerritoryRun() calls
-						     openAvesmapsSyncEditorOverlay() and returns; the old one-click sync_territories
-						     path below it is dead code behind no-unreachable. The title therefore says
-						     "opens", not "transfers": the run itself is a deliberate step inside that window. -->
-						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button" title="Öffnet den Territorien-Sync-Editor: Crawl → Staging → Modell, mit Unterschieden und Lückenliste. Der scharfe Übernahmeschritt wird dort bewusst ausgelöst, nicht schon von diesem Knopf."><span class="t1">Syncen</span><span id="wiki-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span></button>
+						<!-- Labelled "Territorien bearbeiten" (owner 2026-07-22): the button does NOT start a
+						     run -- startWikiSyncTerritoryRun() calls openAvesmapsSyncEditorOverlay() and
+						     returns; the old one-click sync_territories path below it is dead code behind
+						     no-unreachable. Territories carry editorButtonId: null
+						     (js/review/review-subjects.js:66), so this sync button IS the subject's one
+						     button and therefore has to name the editor. JS writes the idle label back over
+						     it, so keep this in step with WIKI_SYNC_TERRITORIES_IDLE_LABEL
+						     (js/review/review-wiki-sync.js:92) -- otherwise the button reads "Syncen" until
+						     the first render and then flips. The title says "opens", not "transfers": the
+						     run itself is a deliberate step inside that window. -->
+						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button" title="Öffnet den Territorien-Sync-Editor: Crawl → Staging → Modell, mit Unterschieden und Lückenliste. Der scharfe Übernahmeschritt wird dort bewusst ausgelöst, nicht schon von diesem Knopf."><span class="t1">Territorien bearbeiten</span><span id="wiki-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span></button>
 					</div>
 					<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 
