@@ -144,7 +144,14 @@ function avesmapsMaybeOfferOffroadDetour(
     //
     // Liegt schon diese Bestzeit über der Graph-Route, KANN die Suche nicht gewinnen. Sie zu
     // starten hieße, eine Kiste zu rastern und zwei Rasterabfragen zu stellen, um am Ende `slower`
-    // zu sagen -- gemessen 0,15 s je Anfrage.
+    // zu sagen.
+    //
+    // ⚠️ WIE VIEL DAS SPART, IST IN DER ANTWORTZEIT NICHT ZU SEHEN, und wer danach sucht, hält die
+    // Schranke für wirkungslos. Gemessen an Rovik -> Skarsten, drei Sonden vorher und nachher:
+    // 1,54/1,45/1,41 gegen 1,51/1,53/1,44 s -- unverändert. Die Antwort wird vom Laden der
+    // Feature-Tabelle bestimmt (~1,5 s, §5.8 der Instruction), und die gesparte Suche liegt nach der
+    // V14-Messung bei p50 14 ms. Der Gewinn ist Serverarbeit unter Last, nicht Wartezeit für den
+    // einzelnen Fragenden -- und auf einem Shared Host ist genau das die knappe Ressource.
     //
     // ⚠️ Praktisch trifft das Wasserwege, ohne ein Sonderfall für sie zu sein: bei Tempo 4 auf der
     // Straße greift die Schranke nur zwischen dem 3,0- und dem 3,2-fachen Bogen, bei einem Seeweg
