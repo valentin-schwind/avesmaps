@@ -164,4 +164,78 @@ checks += 3;
 	});
 }
 
+// ---- 9. Gruppierung: ein Wegname steht für viele Segmente -----------------------------------
+// 💣 Der Fall, der die Liste unbrauchbar machte: „Reichsstraße 1" hat 26 Segmente (gemessen,
+// docs/konfliktmanagement-design.md §6a). Ungruppiert waren das 26 gleich aussehende Zeilen.
+{
+	const r1 = [];
+	for (let i = 0; i < 26; i++) {
+		r1.push({
+			public_id: "r1-" + i, name: "Reichsstraße 1", feature_subtype: "Reichsstrasse",
+			// Absichtlich RÜCKWÄRTS eingespeist: die Sortierung muss sie ordnen, nicht die Eingabe.
+			wiki_path: { wiki_key: "wiki:reichsstrasse-1" }, bbox: [100 - i, 50, 104 - i, 55]
+		});
+	}
+	const rest = [
+		{ public_id: "pf-1", name: "Pfad-0148", feature_subtype: "Pfad", wiki_path: null, bbox: [10, 10, 13, 14] },
+		{ public_id: "gp-1", name: "Koschberge-Pass", feature_subtype: "Gebirgspass", wiki_path: null, bbox: [200, 80, 203, 84] },
+		{ public_id: "gp-2", name: "Koschberge-Pass", feature_subtype: "Gebirgspass", wiki_path: null, bbox: [198, 80, 201, 84] }
+	];
+
+	const groups = M.wpGroupWays(r1.concat(rest));
+	assert.strictEqual(groups.length, 3, "26+1+2 Segmente ergeben DREI Wege");
+	checks++;
+
+	const strasse = groups.find(g => g.name === "Reichsstraße 1");
+	assert.strictEqual(strasse.segments.length, 26, "alle 26 Segmente unter EINEM Eintrag");
+	assert.strictEqual(strasse.key, "wiki:wiki:reichsstrasse-1", "mit Wiki-Weg wird danach gruppiert");
+	checks += 2;
+
+	// ⭐ Geografisch geordnet, nicht in Eingabereihenfolge -- sonst bedeutet „Abschnitt 3" nichts.
+	const xs = strasse.segments.map(s => s.bbox[0]);
+	assert.deepStrictEqual(xs, [...xs].sort((a, b) => a - b), "Segmente laufen von West nach Ost");
+	assert.strictEqual(strasse.segments[0].public_id, "r1-25", "das westlichste zuerst");
+	checks += 2;
+
+	// Ohne Wiki-Weg trägt Name+Typ die Gruppe.
+	const pass = groups.find(g => g.name === "Koschberge-Pass");
+	assert.strictEqual(pass.segments.length, 2, "gleichnamige Wege ohne Wiki-Bezug bilden auch eine Gruppe");
+	assert.strictEqual(pass.key, "name:Gebirgspass:Koschberge-Pass", "Schlüssel aus Typ UND Name");
+	assert.strictEqual(pass.segments[0].public_id, "gp-2", "auch hier geografisch sortiert");
+	checks += 3;
+
+	// 💣 Gleicher Name, ANDERER Typ = NICHT derselbe Weg.
+	const gemischt = M.wpGroupWays([
+		{ public_id: "a", name: "Alte Straße", feature_subtype: "Strasse", wiki_path: null, bbox: [0,0,1,1] },
+		{ public_id: "b", name: "Alte Straße", feature_subtype: "Pfad", wiki_path: null, bbox: [0,0,1,1] }
+	]);
+	assert.strictEqual(gemischt.length, 2, "gleicher Name bei verschiedenem Typ bleibt getrennt");
+	checks++;
+
+	// Ein einzelner Weg ist eine Gruppe mit einem Segment -- die Anzeige macht daraus eine Zeile.
+	assert.strictEqual(groups.find(g => g.name === "Pfad-0148").segments.length, 1, "Einzelweg");
+	assert.deepStrictEqual(M.wpGroupWays([]), [], "kein Bestand, keine Gruppen");
+	assert.deepStrictEqual(M.wpGroupWays(null), [], "und null ist auch kein Bestand");
+	checks += 3;
+}
+
+// ---- 10. Die grobe Ausdehnung ist eine SCHRANKE, keine Länge --------------------------------
+{
+	// 3-4-5-Dreieck als Umgebungsrechteck, × 3 Meilen je Karteneinheit.
+	ok("Diagonale × 3", M.wpRoughMiles({ bbox: [0, 0, 3, 4] }), 15);
+	assert.strictEqual(M.wpRoughMiles({ bbox: [5, 5, 5, 5] }), 0, "ein Punkt hat keine Ausdehnung");
+	assert.strictEqual(M.wpRoughMiles({}), null, "ohne Rechteck keine Zahl");
+	assert.strictEqual(M.wpRoughMiles(null), null, "und ohne Weg erst recht nicht");
+	assert.strictEqual(M.wpRoughMiles({ bbox: [0, 0] }), null, "ein halbes Rechteck ist keins");
+	checks += 4;
+
+	// 💣 Die eigentliche Aussage: sie darf die echte Länge NIE überschätzen. Ein Weg, der im
+	// Rechteck schwingt, ist länger als dessen Diagonale.
+	const geschwungen = [[0, 0], [3, 4], [0, 8]];
+	const echt = M.wpPieceLengths(geschwungen).reduce((s, l) => s + l, 0) * M.WP_MEILEN_PER_MAPUNIT;
+	const grob = M.wpRoughMiles({ bbox: [0, 0, 3, 8] });
+	assert.ok(grob < echt, `die Schranke (${grob}) muss unter der echten Länge (${echt}) liegen`);
+	checks++;
+}
+
 console.log(`wege-editor-model: ${checks} Prüfungen bestanden.`);

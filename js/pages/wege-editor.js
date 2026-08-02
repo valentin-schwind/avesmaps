@@ -59,6 +59,7 @@
 		detail: null,        // Antwort von ?action=detail
 		draft: null,         // die bearbeitete Fassung des gewählten Weges
 		profileScale: "total",
+		openGroups: {},      // key -> true, welche Weg-Gruppen aufgeklappt sind
 		typeFilter: new Set(),
 		sourceFilter: new Set(),
 		profileFilter: new Set(),
@@ -146,6 +147,12 @@
 		return state.ways.filter(function (way) { return matchesView(way) && matchesFilters(way); });
 	}
 
+	// Gruppierung und die grobe Ausdehnung stehen in js/pages/wege-editor-model.js, weil sie
+	// RECHNEN und dort unit-getestet sind (wpGroupWays, wpRoughMiles). Hier nur der Aufruf auf dem
+	// gerade sichtbaren Ausschnitt.
+	function groupedWays() { return wpGroupWays(visibleWays()); }
+	function roughMiles(way) { return wpRoughMiles(way); }
+
 	function renderList() {
 		var host = $("wpList");
 		if (!host) { return; }
@@ -162,41 +169,92 @@
 			return;
 		}
 
-		var rows = visibleWays();
-		$("wpSummary").textContent = rows.length + " von " + state.ways.length + " Wegen";
+		var groups = groupedWays();
+		var segmentCount = groups.reduce(function (sum, group) { return sum + group.segments.length; }, 0);
+		// Beide Zahlen, weil beide gemeint sein können: die Liste zeigt WEGE, bearbeitet werden
+		// ABSCHNITTE. „412 von 3.721“ allein hätte gelogen, sobald man aufklappt.
+		$("wpSummary").textContent = groups.length + " Wege · " + segmentCount + " Abschnitte"
+			+ (segmentCount === state.ways.length ? "" : " von " + state.ways.length);
 
-		if (rows.length === 0) {
+		if (groups.length === 0) {
 			host.innerHTML = '<div class="avm-empty">Kein Weg passt zu Reiter, Suche und Filter. '
 				+ 'Filter zurücksetzen oder einen anderen Reiter wählen.</div>';
 			return;
 		}
 
-		// Bei mehreren tausend Wegen ist ein einziger innerHTML-Aufbau schneller als Knoten einzeln
+		// Bei mehreren tausend Zeilen ist ein einziger innerHTML-Aufbau schneller als Knoten einzeln
 		// zu setzen -- und die Liste wird bei jedem Tastendruck im Suchfeld neu gezeichnet.
-		var html = rows.map(function (way) {
-			var second;
-			if (way.wiki_path && way.wiki_path.wiki_key) {
-				second = '<div class="avm-row__l2 ok">Wiki verknüpft'
-					+ (way.has_profile ? " · Profil vorhanden" : "") + "</div>";
-			} else if (isWater(way.feature_subtype) && String(way.flow_direction || "") === "") {
-				second = '<div class="avm-row__l2 warn">Strömungsrichtung unbekannt</div>';
-			} else {
-				second = '<div class="avm-row__l2">'
-					+ (way.has_profile ? "Profil vorhanden" : "kein Profil")
-					+ "</div>";
+		var html = groups.map(function (group) {
+			var single = group.segments.length === 1;
+			var withProfile = group.segments.filter(function (s) { return s.has_profile; }).length;
+			var isOpen = state.openGroups[group.key] === true
+				|| group.segments.some(function (s) { return s.public_id === state.selected; });
+
+			// EIN Abschnitt: keine Gruppe, keine Aufklapp-Geste -- die Zeile IST der Weg.
+			if (single) {
+				return segmentRow(group.segments[0], null, group);
 			}
-			var pill = way.has_profile || isWater(way.feature_subtype)
-				? ""
-				: '<span class="avm-pill avm-pill--unresolved">kein Profil</span>';
-			return '<div class="avm-row' + (way.public_id === state.selected ? " is-selected" : "")
-				+ '" data-id="' + escapeHtml(way.public_id) + '" role="button" tabindex="0">'
+
+			var second = '<div class="avm-row__l2">' + group.segments.length + " Abschnitte · "
+				+ (withProfile === group.segments.length
+					? "alle mit Profil"
+					: withProfile + " mit Profil")
+				+ "</div>";
+			var head = '<div class="avm-row wp-group" data-group="' + escapeHtml(group.key) + '"'
+				+ ' role="button" tabindex="0" aria-expanded="' + (isOpen ? "true" : "false") + '">'
+				+ '<span class="wp-group__twist">' + (isOpen ? "▾" : "▸") + "</span>"
 				+ '<div class="avm-row__text">'
-				+ '<div class="avm-row__l1"><span class="avm-row__name">' + escapeHtml(way.name)
-				+ "</span>" + pill
-				+ '<span class="avm-row__kind">' + escapeHtml(subtypeLabel(way.feature_subtype)) + "</span></div>"
+				+ '<div class="avm-row__l1"><span class="avm-row__name">' + escapeHtml(group.name)
+				+ "</span>"
+				+ '<span class="avm-row__kind">' + escapeHtml(subtypeLabel(group.feature_subtype)) + "</span></div>"
 				+ second + "</div></div>";
+
+			if (!isOpen) { return head; }
+			return head + group.segments.map(function (segment, index) {
+				return segmentRow(segment, index + 1, group);
+			}).join("");
 		}).join("");
 		host.innerHTML = html;
+	}
+
+	/**
+	 * Eine Zeile für EIN Wegstück. `index` ist null, wenn der Weg nur aus diesem einen besteht.
+	 *
+	 * ⭐ JEDE ANGABE GENAU EINMAL. Der erste Entwurf nannte die Abschnittsnummer im Titel UND in der
+	 * Zeile darunter („Abschnitt 1 · Abschnitt 1 · ≈ 19,2 Meilen"), und „kein Profil" stand als
+	 * Pille neben dem Namen und noch einmal im Text. Gemessen an der gerenderten Zeile aufgefallen,
+	 * nicht beim Lesen des Codes.
+	 */
+	function segmentRow(way, index, group) {
+		var miles = roughMiles(way);
+		var flowUnknown = isWater(way.feature_subtype) && String(way.flow_direction || "") === "";
+
+		var parts = [];
+		if (miles !== null) { parts.push("≈ " + num(miles, 1) + " Meilen"); }
+		// Bei Wasserwegen ist „kein Profil" der Normalfall und keine Meldung wert -- der
+		// Steigungsfaktor gilt dort gar nicht.
+		if (!isWater(way.feature_subtype)) {
+			parts.push(way.has_profile ? "Profil vorhanden" : "kein Profil");
+		}
+		if (flowUnknown) { parts.push("Strömung unbekannt"); }
+
+		var tone = "";
+		if (flowUnknown || (!way.has_profile && !isWater(way.feature_subtype))) { tone = " warn"; }
+		else if (way.wiki_path && way.wiki_path.wiki_key) { tone = " ok"; }
+
+		// Ein Abschnitt trägt den Namen NICHT noch einmal -- er steht in der Gruppenzeile darüber.
+		var title = index === null
+			? '<span class="avm-row__name">' + escapeHtml(way.name) + "</span>"
+				+ '<span class="avm-row__kind">' + escapeHtml(subtypeLabel(way.feature_subtype)) + "</span>"
+			: '<span class="avm-row__name">Abschnitt ' + index + "</span>";
+
+		return '<div class="avm-row' + (index === null ? "" : " wp-segment")
+			+ (way.public_id === state.selected ? " is-selected" : "")
+			+ '" data-id="' + escapeHtml(way.public_id) + '" role="button" tabindex="0">'
+			+ '<div class="avm-row__text">'
+			+ '<div class="avm-row__l1">' + title + "</div>"
+			+ '<div class="avm-row__l2' + tone + '">' + escapeHtml(parts.join(" · ")) + "</div>"
+			+ "</div></div>";
 	}
 
 	// ── Spalte 2: Eigenschaften ───────────────────────────────────────────────────────────────
@@ -960,7 +1018,14 @@
 	function wire() {
 		$("wpList").addEventListener("click", function (event) {
 			var row = event.target.closest(".avm-row");
-			if (row) { void selectWay(row.getAttribute("data-id")); }
+			if (!row) { return; }
+			var groupKey = row.getAttribute("data-group");
+			if (groupKey) {
+				state.openGroups[groupKey] = state.openGroups[groupKey] !== true;
+				renderList();
+				return;
+			}
+			void selectWay(row.getAttribute("data-id"));
 		});
 
 		$("wpTabs").addEventListener("click", function (event) {

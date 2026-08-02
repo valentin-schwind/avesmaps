@@ -91,8 +91,14 @@ function avesmapsPathEditorList(PDO $pdo): array
         $withProfile = [];
     }
 
+    // 💣 DIE UMGEBUNGSRECHTECK-SPALTEN REITEN MIT, und sie sind der Grund, dass die Liste ohne
+    // Geometrie auskommt. Ein Weg-NAME steht fuer viele Segmente ("Reichsstrasse 1" hat 26,
+    // docs/konfliktmanagement-design.md §6a), und ohne etwas, das sie unterscheidet, waeren das 26
+    // gleich aussehende Zeilen. min_x/min_y ordnen sie geografisch, die Diagonale gibt eine grobe
+    // Ausdehnung -- alles vier sind echte SPALTEN, kein json_decode ueber 3.721 Zeilen.
     $statement = $pdo->query(
-        "SELECT id, public_id, name, feature_subtype, properties_json, revision
+        "SELECT id, public_id, name, feature_subtype, properties_json, revision,
+                min_x, min_y, max_x, max_y
            FROM map_features
           WHERE feature_type = 'path' AND is_active = 1
           ORDER BY name"
@@ -130,6 +136,14 @@ function avesmapsPathEditorList(PDO $pdo): array
             'continent' => (string) ($properties['continent'] ?? ''),
             'has_profile' => isset($withProfile[(int) $row['id']]),
             'flow_direction' => (string) ($properties['flow_direction'] ?? ''),
+            // Nur zum ORDNEN und UNTERSCHEIDEN der Segmente eines Namens -- nie als Laenge
+            // ausgegeben. Die Diagonale eines Umgebungsrechtecks ist eine Schranke, keine Strecke:
+            // ein geschwungener Weg ist laenger als seine Diagonale, nie kuerzer. Die echte Laenge
+            // liefert `detail` aus der Geometrie.
+            'bbox' => [
+                (float) $row['min_x'], (float) $row['min_y'],
+                (float) $row['max_x'], (float) $row['max_y'],
+            ],
         ];
     }
 

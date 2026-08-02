@@ -175,6 +175,69 @@ function wpProfileCurve(profile, pieceLengths) {
 	return points;
 }
 
+/**
+ * PURE: group way SEGMENTS into WAYS.
+ *
+ * 💣 ONE WAY NAME STANDS FOR MANY SEGMENTS. „Reichsstraße 1" has 26 of them (measured,
+ * docs/konfliktmanagement-design.md §6a: 215 groups holding 1547 objects between them). Listed
+ * ungrouped they were 26 rows with the same name, the same type and the same second line -- there
+ * was no way to tell which one you were editing. That is what this function exists to prevent.
+ *
+ * Grouped by the WIKI WAY where there is one, otherwise by name+subtype: two segments of the same
+ * wiki way are certainly the same road, two same-named ways without a wiki link are not necessarily.
+ *
+ * ⭐ Segments are ordered GEOGRAPHICALLY (min_x, then min_y), not by whatever order the database
+ * returned -- so „Abschnitt 3" lies between 2 and 4 and the number means something.
+ */
+function wpGroupWays(ways) {
+	var groups = [];
+	var byKey = {};
+	(ways || []).forEach(function (way) {
+		if (!way) { return; }
+		var key = way.wiki_path && way.wiki_path.wiki_key
+			? "wiki:" + way.wiki_path.wiki_key
+			: "name:" + way.feature_subtype + ":" + way.name;
+		if (!byKey[key]) {
+			byKey[key] = {
+				key: key,
+				name: way.name,
+				feature_subtype: way.feature_subtype,
+				wiki_path: way.wiki_path || null,
+				segments: []
+			};
+			groups.push(byKey[key]);
+		}
+		byKey[key].segments.push(way);
+	});
+	groups.forEach(function (group) {
+		group.segments.sort(function (a, b) {
+			var ax = a.bbox ? a.bbox[0] : 0;
+			var bx = b.bbox ? b.bbox[0] : 0;
+			if (ax !== bx) { return ax - bx; }
+			var ay = a.bbox ? a.bbox[1] : 0;
+			var by = b.bbox ? b.bbox[1] : 0;
+			return ay - by;
+		});
+	});
+	return groups;
+}
+
+/**
+ * PURE: the rough extent of a segment in miles, from its bounding box.
+ *
+ * 💣 THIS IS NOT A LENGTH, it is a LOWER BOUND -- the diagonal of the box the way lies in. A
+ * winding way is longer than its diagonal, never shorter. It exists to tell two sections APART in
+ * the list and is therefore always shown with a „≈". The real length comes from the geometry
+ * (wpPieceLengths), and column 3 uses that one.
+ */
+function wpRoughMiles(way) {
+	if (!way || !way.bbox || way.bbox.length < 4) { return null; }
+	var dx = Number(way.bbox[2]) - Number(way.bbox[0]);
+	var dy = Number(way.bbox[3]) - Number(way.bbox[1]);
+	if (!isFinite(dx) || !isFinite(dy)) { return null; }
+	return Math.sqrt(dx * dx + dy * dy) * WP_MEILEN_PER_MAPUNIT;
+}
+
 /** PURE: chord lengths of a LineString's pieces, in map units. */
 function wpPieceLengths(coordinates) {
 	var lengths = [];
@@ -204,6 +267,8 @@ if (typeof module !== "undefined" && module.exports) {
 		wpProfileSums: wpProfileSums,
 		wpBothDirectionFactors: wpBothDirectionFactors,
 		wpProfileCurve: wpProfileCurve,
-		wpPieceLengths: wpPieceLengths
+		wpPieceLengths: wpPieceLengths,
+		wpGroupWays: wpGroupWays,
+		wpRoughMiles: wpRoughMiles
 	};
 }

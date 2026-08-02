@@ -16,6 +16,29 @@
  *    optional decoration.
  */
 
+/* ---- Column 1: way groups and their segments -------------------------------------------------
+ * 💣 A way NAME stands for many segments -- „Reichsstraße 1" has 26 (docs/konfliktmanagement-
+ *    design.md §6a: 215 groups, 1547 objects). Ungrouped they were 26 identical-looking rows.
+ *    The group row carries the name and the count; the segment rows are indented under it.
+ */
+.wp-group__twist {
+	flex: 0 0 auto;
+	width: 12px;
+	text-align: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+}
+
+/* The indent is what says „belongs to the row above". A left rule rather than pure padding: with
+   several groups open, padding alone stops telling you where one group ends. */
+.wp-segment {
+	margin-left: var(--space-10);
+	padding-left: var(--space-6);
+	border-left: 2px solid var(--color-border);
+}
+
+.wp-segment.is-selected { border-left-color: var(--color-accent); }
+
 /* ---- Column 2: Zugehörigkeit (read-only) -----------------------------------------------------
  * 🔴 DISPLAY ONLY (owner 2026-08-02). The assignment is computed by „Zugehörigkeit rechnen" in the
  *    LANDSCAPE editor and stays there; this column shows the result and links across. No input, no
