@@ -410,11 +410,16 @@ function focusSpotlightLorePlaces(entry) {
 		syncLabelVisibility();
 	}
 
-	// Draw and frame what is already known, right now. The landscape outlines below come over the
-	// network, and a request in flight must never be the reason the map sits still.
+	// Draw what is already known, right now: the landscape outlines below come over the network, and a
+	// request in flight must never be the reason the map sits still.
 	highlightSpotlightPlaces(places);
-	focusSpotlightLoreBounds(places, null);
+	// The request goes out BEFORE the first flight, and not because it is faster: focusSpotlightBounds
+	// hands raw numbers to Leaflet's flyToBounds, which throws on a degenerate viewport (seen for real
+	// on a 0x0 container: getBoundsZoom returns NaN). Behind the flight, one such throw would take the
+	// outlines with it and leave a hit that silently never upgrades. In front of it, the fetch is
+	// already in flight and lands regardless.
 	void upgradeSpotlightLoreHighlightToAreas(entry, places);
+	focusSpotlightLoreBounds(places, null);
 }
 
 // A landscape covering more than this share of the whole map gets its OUTLINE but no fill, and is left
