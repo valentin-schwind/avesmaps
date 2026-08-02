@@ -2,13 +2,22 @@
  * Einklappbare Einstellgruppen im Routenplaner: „Transportmittel" und „Routenoptionen".
  *
  * Warum es das gibt (Owner 2026-08-02, „mehr Platz fuer die Etappen"): am 1280x800-Fenster
- * misst die Oberflaeche ueber dem Reiseplan 754 px von 760 px Panelhoehe -- dem Reiseplan
- * bleiben 6 px, er lebt komplett im Scrollbalken. Beide Gruppen eingeklappt sparen 187 px
- * (Transport 152 -> 28, Routenoptionen 92 -> 28).
+ * mass die Oberflaeche ueber dem Reiseplan 754 px von 760 px Panelhoehe -- dem Reiseplan
+ * blieben 6 px, er lebte komplett im Scrollbalken. Beide Gruppen eingeklappt geben rund
+ * 190 px zurueck; jede schrumpft dabei auf ihre Kopfzeile.
  *
  * ⭐ Eingeklappt verschwindet NICHTS: die Kopfzeile zeigt dann, was gerade eingestellt ist.
- * Und es klappt nichts von allein -- der Zustand haengt nur am Klick und wird gemerkt. Genau
- * das war der Einwand gegen „bei fertiger Route automatisch ausblenden".
+ *
+ * Der Zustand haengt an der ROUTE (Owner 2026-08-02): steht eine, klappen beide Gruppen zu und
+ * machen dem Reiseplan Platz; steht keine, sind sie offen und man kann einstellen. Dazwischen
+ * gilt immer der Klick -- wer aufklappt, bleibt aufgeklappt.
+ *
+ * 💣 Nur der WECHSEL zaehlt, nicht der Zustand. Sonst waere genau der Einwand des Owners gegen
+ * „bei fertiger Route ausblenden" wieder da: jede Aenderung an einer bestehenden Route laesst den
+ * Reiseplan neu rechnen, und die Gruppe waere dem Nutzer unter den Fingern zugeklappt. Und weil
+ * die Engine waehrend des Rechnens „Route wird berechnet..." in dieselbe Flaeche schreibt, sieht
+ * es fuer einen Wimpernschlag nach „keine Route" aus -- das Aufklappen wartet deshalb ab
+ * (ROUTE_SETTLE_MS), das Zuklappen nicht.
  *
  * 💣 Die Zusammenfassung wird aus dem GERENDERTEN Markup gelesen (Combobox-Beschriftung,
  * Radio-Label, Zahlenfeld), nicht aus einer eigenen Textliste. Damit stimmt sie unter ?lang=en
@@ -17,32 +26,14 @@
 (function () {
 	"use strict";
 
-	var STORAGE_KEY = "avesmaps-planner-groups";
+	// So lange muss „keine Route" anhalten, bevor die Gruppen wieder aufgehen. Deckt die Luecke
+	// zwischen „Route wird berechnet..." und dem fertigen Plan ab.
+	var ROUTE_SETTLE_MS = 700;
 
-	// Eingeklappt ist der Auslieferungszustand: der Reiseplan ist das Ergebnis, die Einstellungen
-	// sind der Weg dorthin, und die Kopfzeile sagt ja, was eingestellt ist. Wer aufklappt, bleibt
-	// aufgeklappt (gemerkt pro Browser).
-	var DEFAULT_COLLAPSED = true;
+	var groups = [];
 
 	function translate(key, germanDefault, params) {
 		return typeof window.tr === "function" ? window.tr(key, germanDefault, params) : germanDefault;
-	}
-
-	function readState() {
-		try {
-			var raw = window.localStorage.getItem(STORAGE_KEY);
-			return raw ? JSON.parse(raw) : {};
-		} catch (error) {
-			return {};
-		}
-	}
-
-	function writeState(state) {
-		try {
-			window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-		} catch (error) {
-			/* Privater Modus o. ae. -- der Schalter funktioniert weiter, er merkt sich nur nichts. */
-		}
 	}
 
 	// „Reisegruppe zu Fuss (4 Meilen/h)" -> „Reisegruppe zu Fuss". In der Kopfzeile ist die
@@ -131,7 +122,7 @@
 	}
 
 	// --- Verdrahtung ----------------------------------------------------------------------
-	function setupGroup(group, key, buildSummary) {
+	function setupGroup(group, buildSummary) {
 		var toggle = group.querySelector(".planner-group__toggle");
 		var body = group.querySelector(".planner-group__body");
 		var summary = group.querySelector(".planner-group__summary");
@@ -139,8 +130,9 @@
 			return;
 		}
 
-		var state = readState();
-		var collapsed = typeof state[key] === "boolean" ? state[key] : DEFAULT_COLLAPSED;
+		// Ohne Route offen -- der Routenzustand meldet sich gleich und korrigiert das, falls beim
+		// Laden schon eine Route steht (geteilter Link).
+		var collapsed = false;
 
 		function refreshSummary() {
 			var plain = renderSummary(summary, buildSummary());
@@ -223,10 +215,17 @@
 
 		toggle.addEventListener("click", function () {
 			collapsed = !collapsed;
-			var next = readState();
-			next[key] = collapsed;
-			writeState(next);
 			apply(true);
+		});
+
+		// Der Routenzustand darf die Gruppe umschalten -- aber nur, wenn sie nicht ohnehin schon
+		// so steht. Sonst liefe die Ueberblendung ohne Anlass noch einmal los.
+		groups.push(function (nextCollapsed, animate) {
+			if (nextCollapsed === collapsed) {
+				return;
+			}
+			collapsed = nextCollapsed;
+			apply(animate);
 		});
 
 		// Live nachziehen, solange die Gruppe offen ist -- sonst zeigt die Kopfzeile beim
@@ -239,16 +238,19 @@
 		// ein `change` des nativen <select> allein ist kein verlaesslicher Ausloeser dafuer.
 		// Deshalb zusaetzlich am Markup horchen, gebuendelt auf den naechsten Frame.
 		if (typeof window.MutationObserver === "function") {
+			// 💣 Buendeln per Timer, NICHT per requestAnimationFrame: rAF steht still, solange der
+			// Reiter nicht sichtbar ist. Im Hintergrund gerechnete Routen wuerden sonst erst beim
+			// Zurueckschalten ankommen.
 			var pending = false;
 			var observer = new MutationObserver(function () {
 				if (pending) {
 					return;
 				}
 				pending = true;
-				window.requestAnimationFrame(function () {
+				window.setTimeout(function () {
 					pending = false;
 					refreshSummary();
-				});
+				}, 0);
 			});
 			observer.observe(body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["src"] });
 		}
@@ -256,18 +258,81 @@
 		apply(false);
 	}
 
+	// --- Routenzustand -----------------------------------------------------------------------
+	// Eine Route steht, sobald der Plan Etappen zeigt. Die Zwischentexte der Engine („Route wird
+	// berechnet...", „Keine Route gefunden") sind blanker Text in derselben Flaeche und zaehlen
+	// damit von selbst als „keine Route" -- ohne dass hier ein Satz mitgepflegt werden muesste.
+	function routeIsShown(overview) {
+		return !!overview.querySelector(".route-plan-entry--chained");
+	}
+
+	function watchRoute() {
+		var overview = document.getElementById("overview");
+		if (!overview) {
+			return;
+		}
+
+		var applied = routeIsShown(overview);
+		groups.forEach(function (setGroup) {
+			setGroup(applied, false);
+		});
+
+		if (typeof window.MutationObserver !== "function") {
+			return;
+		}
+
+		var settleTimer = null;
+		var pending = false;
+
+		function commit(next) {
+			if (next === applied) {
+				return;
+			}
+			applied = next;
+			groups.forEach(function (setGroup) {
+				setGroup(next, true);
+			});
+		}
+
+		// 💣 Auch hier ein Timer statt requestAnimationFrame -- im unsichtbaren Reiter feuert rAF
+		// nicht, und dann bliebe die Automatik bei einer im Hintergrund fertig gerechneten Route aus.
+		new MutationObserver(function () {
+			if (pending) {
+				return;
+			}
+			pending = true;
+			window.setTimeout(function () {
+				pending = false;
+				var next = routeIsShown(overview);
+				window.clearTimeout(settleTimer);
+				if (next) {
+					// Route da: sofort zuklappen, der Plan will den Platz jetzt.
+					commit(true);
+					return;
+				}
+				// 💣 Nicht sofort aufklappen: waehrend einer Neuberechnung steht hier kurz nur
+				// „Route wird berechnet...", und ein Aufklappen mit anschliessendem Zuklappen
+				// waere ein Zucken unter den Fingern des Nutzers.
+				settleTimer = window.setTimeout(function () {
+					commit(routeIsShown(overview));
+				}, ROUTE_SETTLE_MS);
+			}, 0);
+		}).observe(overview, { childList: true, subtree: true });
+	}
+
 	function setup() {
 		var transport = document.getElementById("transport-options");
 		if (transport) {
-			setupGroup(transport, "transport", transportSummary);
+			setupGroup(transport, transportSummary);
 		}
 		// Die Gruppe „Routenoptionen" baut enhanceRoutePlannerOptionPanel() erst zur Laufzeit
 		// (map-features-waypoints.js) -- diese Datei wird danach geladen, ihr DOMContentLoaded
 		// laeuft also spaeter. Fehlt sie trotzdem, bleibt der Rest unberuehrt.
 		var options = document.querySelector(".route-planner-options-panel");
 		if (options) {
-			setupGroup(options, "options", routeOptionsSummary);
+			setupGroup(options, routeOptionsSummary);
 		}
+		watchRoute();
 	}
 
 	if (document.readyState === "loading") {
