@@ -641,6 +641,9 @@ function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, a
         $connection = [
             'distance' => $distance,
             'time' => $distance / (float) $speed,
+            // The surcharge, carried as data so the API can report the real span next to the price
+            // it was charged (§1). It is NOT read back by any pricing code.
+            'cost_factor' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR,
             'route_type' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
             'transport_option' => $transportOption,
             'id' => $connectionId,
@@ -910,6 +913,8 @@ function avesmapsAnchorClientWaypointToLandPath(array &$graph, string $waypointN
     $syntheticConnection = [
         'distance' => $cost,
         'time' => $cost / $syntheticSpeed,
+        // See the component bridge: the factor travels with the edge so the report can undo it.
+        'cost_factor' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR,
         'route_type' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
         'transport_option' => $syntheticTransport,
         'id' => $connectionId,
@@ -1399,6 +1404,18 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
     return array_map(static function (array $segment, int $index): array {
         $geometry = is_array($segment['geometry'] ?? null) ? $segment['geometry'] : [];
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
+        // 💣 THE x25 IS A WEIGHT, NOT A DISTANCE. Only the two synthetic producers set this key
+        // (component bridge, waypoint anchor); every drawn way and every split slice leaves it at 1,0.
+        $costFactor = (float) ($segment['cost_factor'] ?? 1.0);
+        if ($costFactor <= 0.0) { $costFactor = 1.0; }
+        // Measured from the segment's own coordinates. For a drawn way that is its stored length
+        // (verified live 2026-08-02: factor 1,00 on eight of nine legs of a real route); for a
+        // synthetic chord it is the line instead of the deterrent. A segment too short to measure --
+        // there is no such case in the graph today -- divides the known factor out instead of
+        // shipping a zero.
+        $distanceUnits = count($coordinates) >= 2
+            ? avesmapsCalculateClientRouteCoordinateDistance($coordinates)
+            : (float) ($segment['distance'] ?? 0.0) / $costFactor;
         return [
             'index' => $index,
             'edge_id' => (string) ($segment['id'] ?? ''),
@@ -1410,8 +1427,15 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             'to_node' => (string) ($segment['to'] ?? ''),
             'subtype' => (string) ($segment['route_type'] ?? ''),
             'transport_type' => (string) ($segment['transport_option'] ?? ''),
-            'distance_units' => (float) ($segment['distance'] ?? 0.0),
+            'distance_units' => $distanceUnits,
+            // The price Dijkstra actually paid, deliberately NOT repaired: it is what keeps a repair
+            // bridge from beating a road, in both „Schnellste" and „Kürzeste". With the two fields
+            // beside it, `distance_units * cost_factor / Tempo` reproduces it -- a number nobody can
+            // derive is the next one somebody reports as broken.
             'cost_units' => (float) ($segment['time'] ?? 0.0),
+            // 1,0 for every drawn way. Anything above is a synthetic emergency link priced to be
+            // avoided, and this is where that shows.
+            'cost_factor' => $costFactor,
             'coordinate_count' => count($coordinates),
             // Send the segment's own geometry (a slice for split sub-edges) so the client renders the
             // actual sub-edge instead of re-resolving the whole parent path by feature_id.
