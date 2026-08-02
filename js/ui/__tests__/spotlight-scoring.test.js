@@ -10,18 +10,32 @@ const vm = require("vm");
 // Run (from repo root):  node js/ui/__tests__/spotlight-scoring.test.js
 
 const source = fs.readFileSync(path.join(__dirname, "..", "spotlight-search.js"), "utf8");
+const focusSource = fs.readFileSync(path.join(__dirname, "..", "spotlight-search-focus.js"), "utf8");
 
-const extract = (name) => {
-	const match = source.match(new RegExp("\\nfunction " + name + "\\([\\s\\S]*?\\n\\}"));
-	assert.ok(match, `${name}() not found in js/ui/spotlight-search.js -- renamed?`);
+const extract = (name, from = source, fromName = "spotlight-search.js") => {
+	const match = from.match(new RegExp("\\nfunction " + name + "\\([\\s\\S]*?\\n\\}"));
+	assert.ok(match, `${name}() not found in js/ui/${fromName} -- renamed?`);
+	return match[0];
+};
+
+// A top-level `const NAME = …;` pulled out by name, so a test pins the SHIPPED number rather than a
+// copy of it that can drift.
+const extractConst = (name, from, fromName) => {
+	const match = from.match(new RegExp("\\nconst " + name + " = [^\\n]*;"));
+	assert.ok(match, `const ${name} not found in js/ui/${fromName} -- renamed?`);
 	return match[0];
 };
 
 // scoreSpotlightWord comes along because getSpotlightSearchScore calls it -- extracting only the
 // caller would blow up with "scoreSpotlightWord is not defined" inside the sandbox.
-const context = { Infinity, Math, String, Number, Boolean, Array };
+// IMG_WIDTH/IMG_HEIGHT come from js/config.js at runtime; here they are the sandbox's own so the size
+// rule is measured against the real 1024x1024 map without dragging the whole config in.
+const context = { Infinity, Math, String, Number, Boolean, Array, IMG_WIDTH: 1024, IMG_HEIGHT: 1024 };
 vm.runInNewContext(
-	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightPlaceLookupKeys") + extract("getSpotlightEntryWikiKey") + extract("resolveSpotlightLorePlace"),
+	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightPlaceLookupKeys") + extract("getSpotlightEntryWikiKey") + extract("resolveSpotlightLorePlace")
+		+ extractConst("SPOTLIGHT_LORE_AREA_FILL_MAX_MAP_SHARE", focusSource, "spotlight-search-focus.js")
+		+ extract("isSpotlightLoreAreaOversized", focusSource, "spotlight-search-focus.js")
+		+ extract("spotlightPlaceAreas", focusSource, "spotlight-search-focus.js"),
 	context
 );
 const { getSpotlightSearchScore, normalizeSpotlightSearchText } = context;
@@ -119,5 +133,34 @@ assert.strictEqual(place("", ""), null);
 // An empty wiki key must never become a wildcard: without the guard, "wk:" would be a real key that
 // every place without a key looks up -- and the first entry inserted would answer for all of them.
 assert.strictEqual(context.resolveSpotlightLorePlace(new Map([["wk:", labelEntry]]), { title: "Myranor", wiki_key: "" }), null);
+
+// ---- the size rule that keeps a continent from covering the map ----------------------------------
+// Real bounding boxes, read off the live layer on 2026-08-02. "Aventurien" is the ONLY one of 681 areas
+// above the threshold (70 % of the map); the next largest is "Meer der Sieben Winde" at 15.9 %. Both
+// neighbours are pinned here, so nudging the constant toward either one fails loudly.
+const oversized = context.isSpotlightLoreAreaOversized;
+const bbox = (minX, minY, maxX, maxY) => ({ bounds: { min_x: minX, min_y: minY, max_x: maxX, max_y: maxY } });
+
+assert.strictEqual(oversized(bbox(258.8, 62.1, 1023.9, 1023.9)), true, "Aventurien, 70 % of the map");
+assert.strictEqual(oversized(bbox(0, 0, 314, 532)), false, "Meer der Sieben Winde, 15.9 %");
+assert.strictEqual(oversized(bbox(546.2, 665.9, 574.4, 693.8)), false, "Nebelmoor, 0.07 %");
+assert.strictEqual(oversized(bbox(444.1, 281.9, 603.3, 410.8)), false, "Khôm, 1.9 %");
+// A row without usable bounds must not be treated as a continent -- it is drawn, just not measured.
+assert.strictEqual(oversized({}), false);
+assert.strictEqual(oversized({ bounds: { min_x: "x", min_y: 0, max_x: 1, max_y: 1 } }), false);
+
+// ---- areas belong to LABELS, never to anything else ----------------------------------------------
+// An area hangs off ecosystem_region.label_public_id, which is a map-features LABEL id. Handing a
+// settlement or a territory into this must yield nothing, or a same-id collision across two different
+// kinds of object would paint the wrong outline.
+const areas = context.spotlightPlaceAreas;
+const byLabel = new Map([["lbl-1", [{ public_id: "a1" }]]]);
+const labelPlace = { kind: "label", labelEntry: { label: { publicId: "lbl-1" } } };
+
+assert.deepStrictEqual(Array.from(areas(labelPlace, byLabel)), [{ public_id: "a1" }]);
+assert.deepStrictEqual(Array.from(areas(labelPlace, null)), [], "no areas loaded yet");
+assert.deepStrictEqual(Array.from(areas({ kind: "location", locationEntry: {} }, byLabel)), []);
+assert.deepStrictEqual(Array.from(areas({ kind: "region", regionEntry: {} }, byLabel)), []);
+assert.deepStrictEqual(Array.from(areas({ kind: "label", labelEntry: { label: {} } }, byLabel)), [], "label without an id");
 
 console.log("spotlight-scoring: OK");

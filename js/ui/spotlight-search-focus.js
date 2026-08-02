@@ -410,17 +410,134 @@ function focusSpotlightLorePlaces(entry) {
 		syncLabelVisibility();
 	}
 
+	// Draw and frame what is already known, right now. The landscape outlines below come over the
+	// network, and a request in flight must never be the reason the map sits still.
 	highlightSpotlightPlaces(places);
+	focusSpotlightLoreBounds(places, null);
+	void upgradeSpotlightLoreHighlightToAreas(entry, places);
+}
 
+// A landscape covering more than this share of the whole map gets its OUTLINE but no fill, and is left
+// out of the framing (Owner 2026-08-02: "sofern sie erwähnt ist, dass man sieht, auch in ganz Aventurien
+// kann was vorkommen, aber soweit es geht die Fläche sonst ignorieren").
+//
+// Measured over all 681 live areas: exactly ONE exceeds this -- "Aventurien" at 70 % -- and the next
+// largest, "Meer der Sieben Winde", is 15.9 %. So the rule separates the continent from everything else
+// with room on both sides. It is a SIZE rule and deliberately not a name list: "Aventurien" is 106 of
+// 718 occurrence places today, and the next continent-scale entry needs no code change to behave.
+const SPOTLIGHT_LORE_AREA_FILL_MAX_MAP_SHARE = 0.25;
+
+function isSpotlightLoreAreaOversized(area) {
+	const bounds = area?.bounds;
+	if (!bounds) {
+		return false;
+	}
+
+	const share = ((Number(bounds.max_x) - Number(bounds.min_x)) * (Number(bounds.max_y) - Number(bounds.min_y)))
+		/ (IMG_WIDTH * IMG_HEIGHT);
+	return Number.isFinite(share) && share > SPOTLIGHT_LORE_AREA_FILL_MAX_MAP_SHARE;
+}
+
+// The landscape areas belonging to ONE place, or [] when there are none (yet). Only a label can have
+// them: an area hangs off `ecosystem_region.label_public_id`, and that is a map-features label id.
+function spotlightPlaceAreas(place, areasByLabel) {
+	if (!areasByLabel || place.kind !== "label") {
+		return [];
+	}
+
+	return areasByLabel.get(String(place.labelEntry?.label?.publicId || "")) || [];
+}
+
+// Frames an occurrence. An area that is drawn beats the label point it belongs to -- the whole point of
+// the upgrade is to show the Nebelmoor, not the word "Nebelmoor". An OVERSIZED area is skipped here even
+// though it is still drawn: letting the continent into the bbox would zoom out until the two landscapes
+// that actually answer the question are specks.
+function focusSpotlightLoreBounds(places, areasByLabel) {
 	let bounds = null;
 	places.forEach((place) => {
+		const framingAreas = spotlightPlaceAreas(place, areasByLabel).filter((area) => !isSpotlightLoreAreaOversized(area));
+		if (framingAreas.length) {
+			framingAreas.forEach((area) => {
+				bounds = extendSpotlightBounds(bounds, L.latLngBounds(
+					[Number(area.bounds.min_y), Number(area.bounds.min_x)],
+					[Number(area.bounds.max_y), Number(area.bounds.max_x)]
+				));
+			});
+			return;
+		}
 		bounds = extendSpotlightBounds(bounds, getSpotlightPlaceBounds(place));
 	});
+
 	if (bounds?.isValid?.()) {
 		// Capped low on purpose: this view answers "where does it occur?", which needs the whole spread
 		// in frame, not a close-up of the first hit.
 		focusSpotlightBounds(bounds, Math.min(4, map.getMaxZoom()));
 	}
+}
+
+// Replaces an occurrence's point markers with the OUTLINES of the landscapes it names, once the server
+// has handed them over (Owner 2026-08-02: "kannst du nicht einfach auch das gebiet selbst gelb
+// highlighten … alraune im nebelmoor -> nebelmoor gelb").
+//
+// The areas are NOT in the map payload: they live behind api/app/ecosystem-areas.php and are normally
+// loaded only by the Landschaften layer, viewport by viewport. Asking for the whole layer here would be
+// ~1.5 MB for two or three outlines, so the endpoint learned a `labels=` filter and this asks for
+// exactly the labels this hit resolved to. Live: 285 of 638 labels have an area, so roughly a third of
+// all occurrences gain one -- the rest keep their circle, which is why the first draw already happened.
+//
+// A failure of any kind returns silently: the circles are already on the map, and an occurrence whose
+// outlines did not arrive is still a perfectly good hit.
+async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
+	if (typeof ECOSYSTEM_AREAS_API_URL !== "string" || !ECOSYSTEM_AREAS_API_URL
+		|| typeof ecosystemAreaLatLngs !== "function") {
+		return;
+	}
+
+	const labelPublicIds = places
+		.filter((place) => place.kind === "label")
+		.map((place) => String(place.labelEntry?.label?.publicId || ""))
+		.filter(Boolean);
+	if (!labelPublicIds.length) {
+		return;
+	}
+
+	let payload = null;
+	try {
+		const response = await fetch(
+			`${ECOSYSTEM_AREAS_API_URL}?labels=${encodeURIComponent(labelPublicIds.join(","))}`,
+			{ headers: { Accept: "application/json" } }
+		);
+		payload = response.ok ? await response.json() : null;
+	} catch (error) {
+		return;
+	}
+	if (payload?.ok !== true || !Array.isArray(payload.areas) || !payload.areas.length) {
+		return;
+	}
+
+	// The user picked something else while this was in flight -- do not redraw over what they are looking
+	// at now. Same guard, same reason as openSpotlightCitymapsDialog above.
+	if (spotlightActiveSelectionId !== entry.id) {
+		return;
+	}
+
+	const areasByLabel = new Map();
+	payload.areas.forEach((area) => {
+		const labelPublicId = String(area?.label_public_id || "");
+		if (!labelPublicId) {
+			return;
+		}
+		if (!areasByLabel.has(labelPublicId)) {
+			areasByLabel.set(labelPublicId, []);
+		}
+		areasByLabel.get(labelPublicId).push(area);
+	});
+	if (!areasByLabel.size) {
+		return;
+	}
+
+	highlightSpotlightPlaces(places, areasByLabel);
+	focusSpotlightLoreBounds(places, areasByLabel);
 }
 
 // The bbox of a place entry, whatever shape it has: a territory brings its own bounds, a label or a
@@ -440,7 +557,7 @@ function getSpotlightPlaceBounds(place) {
 //
 // The polygons are COPIES, not the rendered ones -- so a layer reload (which clears and rebuilds
 // regionPolygons) cannot take the highlight with it.
-function highlightSpotlightPlaces(places) {
+function highlightSpotlightPlaces(places, areasByLabel = null) {
 	// Drop the previous highlight BEFORE reassigning: the assignment overwrites the only handle on it,
 	// and an orphaned layer group hangs on the map until a reload. Same reason as in highlightSpotlightPaths.
 	if (spotlightHighlightLayer) {
@@ -449,6 +566,27 @@ function highlightSpotlightPlaces(places) {
 
 	spotlightHighlightLayer = L.layerGroup();
 	places.forEach((place) => {
+		// A landscape outline beats every other shape for this place: it IS the answer to "where does it
+		// occur?", where the label point only names it. An oversized one is drawn as a bare frame -- you
+		// can see that the occurrence spans the whole continent, without the continent covering the map.
+		const areas = spotlightPlaceAreas(place, areasByLabel);
+		if (areas.length) {
+			areas.forEach((area) => {
+				const latlngs = ecosystemAreaLatLngs(area.geometry);
+				if (!latlngs) {
+					return;
+				}
+				const oversized = isSpotlightLoreAreaOversized(area);
+				L.polygon(latlngs, {
+					...SPOTLIGHT_PATH_HIGHLIGHT_STYLE,
+					weight: oversized ? 3 : 4,
+					fill: !oversized,
+					fillOpacity: 0.18,
+				}).addTo(spotlightHighlightLayer);
+			});
+			return;
+		}
+
 		const polygons = place.polygons || [];
 		if (polygons.length) {
 			polygons.forEach((polygon) => {
