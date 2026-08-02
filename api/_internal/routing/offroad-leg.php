@@ -208,16 +208,24 @@ function avesmapsAttachOffroadPointToGraph(
 /**
  * Eine Querfeldein-Kante in beide Richtungen in den Graphen haengen.
  *
- * ⚠️ NO x25 SURCHARGE. AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR exists to make REPAIR
- * bridges unattractive -- a synthetic edge that merely patches a hole in the drawn network should
- * lose against any real road. This leg is not a patch: the traveller asked to go exactly there, and
- * inflating it would only make the reported travel time wrong by a factor of 25.
+ * ⚠️ NO x25 SURCHARGE BY DEFAULT. AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR exists to
+ * make REPAIR bridges unattractive -- a synthetic edge that merely patches a hole in the drawn
+ * network should lose against any real road. A „Hierher reisen" leg is not a patch: the traveller
+ * asked to go exactly there, and inflating it would only make the reported travel time wrong by a
+ * factor of 25.
+ *
+ * $costFactor is for the ONE case where it IS a patch: Instruction C §3 rebuilds the straight chords
+ * of the component bridge and the waypoint anchor with this same A*. Those stay repair bridges --
+ * only their geometry becomes honest, not their standing against a real road.
  */
-function avesmapsAddOffroadEdge(array &$graph, string $fromName, string $toName, array $path, string $transport, string $connectionId): void
+function avesmapsAddOffroadEdge(array &$graph, string $fromName, string $toName, array $path, string $transport, string $connectionId, float $costFactor = 1.0): void
 {
+    if ($costFactor <= 0.0) { $costFactor = 1.0; }
     $connection = [
-        'distance' => $path['distance'],
-        'time' => $path['time'],
+        'distance' => $path['distance'] * $costFactor,
+        // ⚠️ Der Faktor gilt auf die ZEIT genauso, sonst waere die Kante ueber `time` guenstiger als
+        // ueber `distance` und „Schnellste" und „Kuerzeste" widersprächen sich an derselben Kante.
+        'time' => $path['time'] * $costFactor,
         'route_type' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
         'transport_option' => $transport,
         'id' => $connectionId,
@@ -241,6 +249,10 @@ function avesmapsAddOffroadEdge(array &$graph, string $fromName, string $toName,
         $connection['ascent_schritt'] = $path['ascent_schritt'];
         $connection['descent_schritt'] = $path['descent_schritt'];
     }
+
+    // Nur gesetzt, wo es etwas herauszurechnen gibt. Der Diagnosebauer liest mit Vorgabe 1,0, und
+    // ein Feld, das ueberall steht, ist eine Behauptung mehr, die ueberall stimmen muss.
+    if ($costFactor !== 1.0) { $connection['cost_factor'] = $costFactor; }
 
     $graph[$fromName] ??= [];
     $graph[$toName] ??= [];

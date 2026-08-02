@@ -10,6 +10,7 @@ require_once __DIR__ . '/land-areas.php';
 require_once __DIR__ . '/offroad-data.php';
 require_once __DIR__ . '/offroad-leg.php';
 require_once __DIR__ . '/detour.php';
+require_once __DIR__ . '/synthetic-refine.php';
 
 // 15: a route endpoint may be a map point (`from_point`/`to_point`), and a leg may be an A*-computed
 // cross-country way with a real point sequence instead of a straight line.
@@ -285,6 +286,20 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		}
 	}
 
+	// Instruction C §3: die geraden Sehnen der GEFUNDENEN Route bekommen denselben A*. Nachträglich
+	// und nicht beim Graphbau -- dort entstehen 876 synthetische Kanten, von denen eine Route null
+	// bis eine benutzt (gemessen 2026-08-02). Nach §2, weil §2 die ursprüngliche Strecke misst.
+	$refine = avesmapsRefineSyntheticRouteLegs(
+		$clientGraph, $request, $water, $routePdo,
+		is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : [],
+		$terrainEnabled
+	);
+	if (($refine['refined'] ?? 0) > 0) {
+		// Der gebogene Weg ist länger als die Sehne -- also kann eine andere Route jetzt die
+		// günstigere sein. Ohne diesen Lauf wäre die Antwort nur noch fast die beste.
+		$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+	}
+
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
 	$networkStatistics = is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [];
@@ -351,6 +366,10 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 				// erklaert jede Route, die querfeldein geht, UND jede, die es nicht tut. „Warum
 				// nimmt er den Bogen?" ist sonst nur zu beantworten, indem man es nachbaut.
 				'detour' => $detour,
+				// §3. `examined` sagt, wie viele Sehnen die Route ueberhaupt betreten hat -- das ist
+				// die Zahl, an der sich die Kostenfrage entscheidet, und sie gehoert deshalb in die
+				// Antwort und nicht in eine einmalige Messung.
+				'refine' => $refine,
 			],
 		],
 	];
