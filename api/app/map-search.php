@@ -50,7 +50,15 @@ try {
     $inSettlementRows = avesmapsFetchInSettlementSearchRows($pdo);
     // Fourth source: the Kartensammlung. The kill switch counts here too -- a collection switched off must
     // not become visible again through the search. Default is ON; only a stored '0' disables.
-    $citymapRows = avesmapsCitymapsEnabled($pdo) ? avesmapsFetchCitymapSearchRows($pdo) : [];
+    //
+    // Deliberately NOT avesmapsCitymapsEnabled(): it reads via avesmapsAppSettingGet, which runs
+    // `CREATE TABLE IF NOT EXISTS app_setting` on EVERY call. This endpoint is the site's hottest public
+    // path (a keystroke-debounced search), so that DDL would fire on every keystroke -- the same
+    // per-request DDL/information_schema load AGENTS.md §10 blames for the 2026-07-17 PHP-worker-pool
+    // exhaustion. Read the same flag through the DDL-free path instead (precedent:
+    // avesmapsRouteTerrainEnabled in terrain-read.php); a missing table just means the default.
+    $citymapsEnabled = avesmapsAppSettingGetWithoutDdl($pdo, AVESMAPS_CITYMAPS_SETTING, '1') !== '0';
+    $citymapRows = $citymapsEnabled ? avesmapsFetchCitymapSearchRows($pdo) : [];
     $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit, $inSettlementRows, $pdo, $citymapRows);
 
     avesmapsJsonResponse(200, [
