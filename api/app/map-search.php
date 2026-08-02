@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/text/ascii-fold.php';
+require_once __DIR__ . '/../_internal/app/map-search-scoring.php';
 require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
@@ -374,59 +375,6 @@ function avesmapsExtendSearchResultBounds(array $target, array $source): array {
     $target['max_x'] = max((float) $target['max_x'], (float) $source['max_x']);
     $target['max_y'] = max((float) $target['max_y'], (float) $source['max_y']);
     return $target;
-}
-
-function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?int {
-    $bestScore = null;
-    foreach ($entry['search_texts'] ?? [] as $searchText) {
-        $candidate = avesmapsNormalizeSearchText((string) $searchText);
-        if ($candidate === '') {
-            continue;
-        }
-
-        $score = null;
-        if ($candidate === $normalizedQuery) {
-            $score = 0;
-        } elseif (str_starts_with($candidate, $normalizedQuery)) {
-            $score = 1;
-        } elseif (avesmapsAnySearchWordStartsWith($candidate, $normalizedQuery)) {
-            $score = 2;
-        } elseif (str_contains($candidate, $normalizedQuery)) {
-            $score = 3;
-        }
-
-        if ($score !== null) {
-            $bestScore = $bestScore === null ? $score : min($bestScore, $score);
-        }
-    }
-
-    return $bestScore;
-}
-
-function avesmapsAnySearchWordStartsWith(string $candidate, string $query): bool {
-    foreach (preg_split('/\s+/', $candidate) ?: [] as $word) {
-        if ($word !== '' && str_starts_with($word, $query)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function avesmapsNormalizeSearchText(string $value): string {
-    $normalizedValue = mb_strtolower(trim($value));
-    $normalizedValue = str_replace(
-        ['ß', 'ä', 'ö', 'ü', 'à', 'á', 'â', 'è', 'é', 'ê', 'ì', 'í', 'î', 'ò', 'ó', 'ô', 'ù', 'ú', 'û'],
-        ['ss', 'ae', 'oe', 'ue', 'a', 'a', 'a', 'e', 'e', 'e', 'i', 'i', 'i', 'o', 'o', 'o', 'u', 'u', 'u'],
-        $normalizedValue
-    );
-    // Deterministic table, NOT iconv//TRANSLIT. The German umlauts and the
-    // common accents are already mapped above, so the fold only catches the
-    // leftovers -- and turns them into a word separator, exactly as the
-    // server's iconv did. Query and haystack run through the same function.
-    $normalizedValue = avesmapsFoldToAscii($normalizedValue);
-
-    return trim(preg_replace('/[^a-z0-9]+/', ' ', $normalizedValue) ?? '');
 }
 
 function avesmapsNormalizePathSearchGroupKey(string $displayName, string $subtype): string {
