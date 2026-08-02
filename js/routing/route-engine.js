@@ -556,11 +556,20 @@ async function updateMapViewServerPrimary() {
 			if (requestId !== updateMapViewServerPrimary.requestId) {
 				return;
 			}
-			console.error("Serverroute konnte nicht berechnet werden:", error);
 			// Ein abgelehnter Kartenpunkt ist kein Serverfehler, sondern eine Auskunft ueber die Welt:
 			// „Dorthin führt kein Landweg". Die drei Codes bekommen ihren deutschen Satz, alles andere
 			// behaelt seine eigene Meldung.
 			const isMapPointRefusal = typeof isTravelHereErrorCode === "function" && isTravelHereErrorCode(error?.code);
+			// 💣 ... UND DESHALB AUCH KEINE ROTE ZEILE. Ein `console.error` mit Ablaufverfolgung sagt
+			// „hier ist etwas kaputt", wo nur „da ist Wasser" gemeint ist -- ein Klick aufs Meer ist ein
+			// voellig normaler Klick. Echte Fehler behalten ihre laute Zeile.
+			// ⚠️ Die `POST /api/route/ 422`-Zeile darueber kommt vom BROWSER und ist aus JS nicht
+			// abstellbar; dafuer muesste der stabile Vertrag eine Absage mit HTTP 200 beantworten.
+			if (isMapPointRefusal) {
+				console.info("Kartenpunkt abgelehnt:", error.code);
+			} else {
+				console.error("Serverroute konnte nicht berechnet werden:", error);
+			}
 			alert(isMapPointRefusal
 				? travelHereErrorMessage(error.code)
 				: (error.message || tr("routing.alert.serverRouteComputeFailed", "Serverroute konnte nicht berechnet werden.")));
