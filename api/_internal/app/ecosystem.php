@@ -869,6 +869,51 @@ function avesmapsEcosystemParseBoundingBox(string $rawBoundingBox): ?array
     return ['min_x' => $minX, 'min_y' => $minY, 'max_x' => $maxX, 'max_y' => $maxY];
 }
 
+/** How many label ids one request may ask for. A Spotlight occurrence names at most a couple of dozen. */
+const AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT = 25;
+
+/**
+ * Parse `?labels=<public_id>[,<public_id>…]` into a list of label public ids, or null for "no filter".
+ *
+ * Exists for the Spotlight occurrence highlight: a hit like "Alraune" needs the outlines of two or
+ * three named landscapes, and the only other way to get them is the whole layer (~1.5 MB, 681 areas).
+ * The filter asks by LABEL id because that is the join the areas already carry
+ * (`ecosystem_region.label_public_id`), and it is the same key the client builds its label entries from.
+ *
+ * 💣 An id outside the alphabet is REJECTED, not dropped. A filter that silently ignores what it cannot
+ * read falls back to "no filter" and answers with the entire layer -- precisely the payload this exists
+ * to avoid, and the caller never learns its request was misread.
+ *
+ * @return list<string>|null
+ */
+function avesmapsEcosystemParseLabelFilter(string $rawLabels): ?array
+{
+    $normalized = trim($rawLabels);
+    if ($normalized === '') {
+        return null;
+    }
+
+    $labelPublicIds = [];
+    foreach (explode(',', $normalized) as $rawPublicId) {
+        $publicId = trim($rawPublicId);
+        if ($publicId === '') {
+            continue; // a trailing or doubled comma is sloppiness, not a bad request
+        }
+        if (preg_match('/^[A-Za-z0-9_-]{1,64}$/', $publicId) !== 1) {
+            throw new InvalidArgumentException('The labels parameter contains an invalid public id.');
+        }
+        if (!in_array($publicId, $labelPublicIds, true)) {
+            $labelPublicIds[] = $publicId;
+        }
+    }
+
+    if ($labelPublicIds === []) {
+        return null;
+    }
+
+    return array_slice($labelPublicIds, 0, AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT);
+}
+
 // Validates a GeoJSON Polygon OR MultiPolygon (owner decision 1: a single area may itself be a
 // MultiPolygon) and returns the normalized geometry plus the bbox over ALL its parts.
 //
@@ -1006,10 +1051,21 @@ function avesmapsEcosystemReadExpectedRevision(mixed $value): int
 // soft-deleted region has to be invisible; the join answers that in the same breath as fetching the kind
 // (which lives on the region -- owner decision 1). House pattern:
 // api/_internal/political/territories-claims.php:199.
-function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null): array
+function avesmapsEcosystemReadAreas(PDO $pdo, ?array $bbox = null, ?array $labelPublicIds = null): array
 {
     $where = ['a.is_active = 1'];
     $params = [];
+    // Asking by label id instead of by viewport: the Spotlight occurrence highlight knows exactly WHICH
+    // landscapes it wants to outline and nothing about where the map is looking. A bbox around them
+    // would drag in every neighbouring area as well -- and around "Aventurien" that is the whole layer.
+    if ($labelPublicIds !== null && $labelPublicIds !== []) {
+        $placeholders = [];
+        foreach (array_values($labelPublicIds) as $index => $labelPublicId) {
+            $placeholders[] = ':label_' . $index;
+            $params['label_' . $index] = $labelPublicId;
+        }
+        $where[] = 'r.label_public_id IN (' . implode(', ', $placeholders) . ')';
+    }
     if ($bbox !== null) {
         // Overlap, not containment -- same four comparisons as api/app/map-features.php:134-137, so an
         // area reaching into the viewport is returned even when its centre is far outside.

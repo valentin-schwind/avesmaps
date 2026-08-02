@@ -168,6 +168,29 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemParseBoundingBox('a,b,c,d'),
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseBoundingBox('30,20,10,40'), 'min_x above max_x');
 ecosystemTestThrows(static fn() => avesmapsEcosystemParseBoundingBox('10,40,30,20'), 'min_y above max_y');
 
+// ---- the ?labels= filter -------------------------------------------------------------------------
+// Added for the Spotlight occurrence highlight (2026-08-02): a hit like "Alraune" needs the OUTLINE of
+// two or three landscapes, and without this filter the only way to get them is the whole 1.5 MB layer.
+// The filter asks by LABEL public id because that is the join the areas already carry
+// (ecosystem_region.label_public_id) -- the same key the client's label entries are built from.
+assert(avesmapsEcosystemParseLabelFilter('') === null, 'no labels = no filter');
+assert(avesmapsEcosystemParseLabelFilter('   ') === null);
+assert(avesmapsEcosystemParseLabelFilter('81d9c3be-4ffe-4b47-ad96-0a5cc92c61ea')
+    === ['81d9c3be-4ffe-4b47-ad96-0a5cc92c61ea']);
+assert(avesmapsEcosystemParseLabelFilter(' a-1 , b-2 ,c-3 ') === ['a-1', 'b-2', 'c-3'], 'trimmed');
+assert(avesmapsEcosystemParseLabelFilter('a-1,,a-1,b-2') === ['a-1', 'b-2'], 'empty parts dropped, deduped');
+// A cap, because this is a public endpoint and the IN() list goes straight into a prepared statement.
+assert(count(avesmapsEcosystemParseLabelFilter(implode(',', array_map(
+    static fn(int $i): string => 'id-' . $i,
+    range(1, AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT + 20)
+)))) === AVESMAPS_ECOSYSTEM_LABEL_FILTER_LIMIT, 'capped, not rejected');
+// 💣 Anything outside the id alphabet is REJECTED, not silently dropped: a filter that quietly ignores
+// what it does not understand answers with the WHOLE layer, which is exactly the 1.5 MB this exists to
+// avoid -- and the caller would never learn its request was misread.
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter("a-1,b'2"), 'quote in an id');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter('a-1,b 2'), 'space inside an id');
+ecosystemTestThrows(static fn() => avesmapsEcosystemParseLabelFilter('a-1,' . str_repeat('x', 65)), 'over-long id');
+
 // ---- the optimistic guard's reader -------------------------------------------------------------------
 // REQUIRED, not optional: an optional guard is exactly how it silently fails to apply, and the second of
 // two concurrent saves would win in silence.

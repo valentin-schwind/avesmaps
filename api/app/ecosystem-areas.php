@@ -5,7 +5,7 @@ declare(strict_types=1);
 // Public read path for the Landschaften layer (plan V2.2). GET returns the active areas, optionally
 // clipped to a bbox, each carrying its region's kind/name/type through an INNER JOIN.
 //
-// GET /api/app/ecosystem-areas.php[?bbox=min_x,min_y,max_x,max_y]
+// GET /api/app/ecosystem-areas.php[?bbox=min_x,min_y,max_x,max_y][&labels=<label_public_id>,…]
 //   -> { ok:true, ecosystem_enabled:bool, revision:int, areas:[ { public_id, region_*, kind, geometry,
 //        bounds, geometry_revision, is_trial, updated_at } ] }
 //
@@ -89,6 +89,10 @@ try {
     }
 
     $bbox = avesmapsEcosystemParseBoundingBox((string) ($_GET['bbox'] ?? ''));
+    // Ask for named landscapes instead of a viewport: the Spotlight occurrence highlight wants the
+    // outlines of the two or three areas a Vorkommen names, and nothing else. Both filters may be
+    // combined; both are optional, and neither one alone is the normal case for the layer itself.
+    $labelPublicIds = avesmapsEcosystemParseLabelFilter((string) ($_GET['labels'] ?? ''));
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -98,7 +102,7 @@ try {
         // eine Rückfrage, die übertreibt, wird genauso schnell weggeklickt wie eine, die untertreibt.
         'cascade_enabled' => AVESMAPS_ECOSYSTEM_CASCADE_ENABLED,
         'revision' => $revision,
-        'areas' => avesmapsEcosystemReadAreas($pdo, $bbox),
+        'areas' => avesmapsEcosystemReadAreas($pdo, $bbox, $labelPublicIds),
     ]);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
@@ -108,12 +112,17 @@ try {
     avesmapsErrorResponse(500, 'server_error', 'Ecosystem areas could not be loaded.');
 }
 
-// Weak ETag from the revision plus every query parameter that shapes the payload -- today that is bbox
-// alone. Weak (W/) because a gzipped and an identity response are semantically the same resource.
+// Weak ETag from the revision plus every query parameter that shapes the payload -- today bbox AND
+// labels. Weak (W/) because a gzipped and an identity response are semantically the same resource.
 // Copied in shape from avesmapsMapFeaturesETag (api/app/map-features.php:225-228).
+//
+// 💣 EVERY shaping parameter belongs in the seed, and `labels` is one. The comment at the top of this
+// file already spells out why for bbox: an ETag that ignores a filter hands a client the wrong subset
+// out of its own cache. With `labels` the failure is louder, not quieter -- the layer's own unfiltered
+// request and a three-area highlight would share one ETag, so whichever ran first would answer both.
 function avesmapsEcosystemAreasETag(int $revision, array $queryParams): string
 {
-    $seed = (string) ($queryParams['bbox'] ?? '');
+    $seed = (string) ($queryParams['bbox'] ?? '') . '|' . (string) ($queryParams['labels'] ?? '');
 
     return 'W/"eco-' . AVESMAPS_ECOSYSTEM_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
