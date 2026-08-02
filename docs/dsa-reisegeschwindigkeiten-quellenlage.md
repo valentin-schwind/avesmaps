@@ -1,5 +1,30 @@
 # Reisegeschwindigkeiten und Wegtypen — die Quellenlage
 
+> ## 🔴 KORREKTUR 2026-08-02 — §7.2 war bei den Wasserwegen falsch
+>
+> Dieses Dokument behauptete, wir seien auf Flüssen **und Meeren** 1,7- bis 2,5-fach zu schnell.
+> Das trifft nur auf Flüsse zu. Die Rechnung verglich unsere 24-Stunden-Fahrt mit den
+> 12-Stunden-Tagesleistungen der Quelle und maß damit die Tageslänge, nicht das Tempo.
+>
+> **Sauber getrennt, pro Stunde:**
+>
+> | | Quelle | Avesmaps | |
+> |---|---|---|---|
+> | Lastensegler | 10,0 M/h (120 ÷ 12 h) | **8,4** | wir sind 16 % **langsamer** |
+> | Flusskahn stromab | 3,33 M/h (40 ÷ 12 h) | **4,2** | wir sind 26 % **schneller** |
+>
+> **See: kein Fehler.** Die Quelle nennt zwar 12 Stunden als Grundlage der 120/140 Meilen, schreibt
+> das nächtliche Ankern aber ausdrücklich der *Küstennähe* zu und nennt für durchgefahrene
+> Schnellsegler 250 Meilen. Ein generelles Nachtfahrverbot für Seeschiffe steht dort **nicht**.
+> Unsere höhere Tagesleistung kommt allein vom Durchfahren, und das ist gedeckt.
+>
+> **Fluss: Fehler bestätigt, doppelt.** Pro Stunde 26 % zu schnell, und wir fahren nachts, was die
+> Quelle wörtlich ausschließt (S. 129: der 12-Stunden-Reisetag, und nur Piraten oder Kurierboote
+> ziehen nachts stromab).
+>
+> Damit ist auch die Aussage über `seaNote` zurückzunehmen: der Dialogsatz widerspricht der Quelle
+> nicht. Für Flüsse gilt der Einwand unverändert.
+
 > **Stand:** 2026-08-02. **Quelle:** *Geographia Aventurica*, Fanpro/Fantasy Productions 2003,
 > ISBN 3-89064-291-8, Kapitel „Weg und Steg in Aventurien", **S. 113–132**. Alle Seitenangaben
 > beziehen sich auf diese Ausgabe.

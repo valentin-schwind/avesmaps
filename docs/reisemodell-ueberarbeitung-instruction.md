@@ -1,5 +1,49 @@
 # Reisemodell: Überarbeitung nach der Quellenlage — Bauauftrag
 
+> ## 🔴 STANDSKORREKTUR 2026-08-02 — vor dem Bauen lesen
+>
+> **P1 war zur Hälfte falsch.** Auf **See** liegt kein Fehler vor: pro Stunde sind wir sogar 16 %
+> langsamer als die Quelle, und das Durchfahren bei Nacht ist für Seeschiffe gedeckt — das
+> nächtliche Ankern schreibt die Quelle der Küstennähe zu, nicht einer Regel. Nur der **Fluss** ist
+> zu korrigieren: dort sind wir pro Stunde 26 % zu schnell *und* fahren nachts, was S. 129
+> ausschließt. **P1 schrumpft damit auf die Flusswege. `seaNote` bleibt, wie es ist.**
+>
+> **Modellentscheidung des Owners, 2026-08-02 — der Reisetag.** Ein Reisetag umfasst 24 Stunden und
+> wird modelliert als **12 h Reise + 8 h Schlaf + 4 h Rast/Lager**. Das ist eine Setzung: DSA nennt
+> für Landreisen nur Tagesleistungen, keine Zeitaufteilung. Die Rastzeit bleibt einstellbar,
+> Standard 12 Stunden. Für **Flüsse** ist der 12-Stunden-Reisetag durch die Quelle gedeckt, für
+> **See** nicht — dort darf durchgefahren werden.
+>
+> **Gemessen am 02.08., `map_revision` 49317 — nicht mehr schätzen:**
+>
+> | | |
+> |---|---|
+> | `c` (Tagesleistung ebene Straße) | **31,0** |
+> | `mean_G(F)` (Straße) | **1,032** |
+> | `mean_pass(F)` (Gebirgspass) | **1,323** |
+> | Verhältnis Pass zu G | **1,281** |
+> | vermessene Wege | **595 von 3.361** (17,7 %), Referenzmenge G = **124** Straßen |
+>
+> 💣 **Der Passnormierer hängt an der Straßeneichung** und ist nicht frei wählbar. Mittelwerteichung
+> (`c` = 31,0, wie gemessen) paart mit **÷ 1,281**. Punkteichung (ebene Straße = 30) paart mit
+> **÷ 1,323**. Die Kreuzung beider — Mittelwerteichung mit ÷ 1,323 — ergibt 3,3 % zu schnelle Pässe.
+> `docs/steigung-gebirgspass-entscheidung.md` §4 nennt nur die zweite Variante und ist insoweit
+> unvollständig.
+>
+> ⚠️ **Auswahlverzerrung:** Höhenraster gibt es nur für Gebirgsflächen, eine Straße hat also genau
+> dann ein Profil, wenn sie gebirgsnah verläuft. `mean_G(F)` ist dadurch nach oben verzerrt — aber
+> gedeckelt bei 3,2 %, denn mehr Effekt ist gar nicht da.
+>
+> **Spreizung, korrigiert:** ein vermessen ebener Gebirgspass reist **32 %** schneller als der
+> durchschnittliche Gebirgspass (nicht 28 %, wie zwischenzeitlich gesagt) — der Wert ist
+> `mean_pass(F)` selbst und vom Normierer unabhängig.
+>
+> **Benchmark gegen die Entfernungstabelle (S. 254): zurückgestellt.** Die Seite ist die einzige
+> ohne OCR-Textlayer; Tesseract erreicht 30 % Trefferquote und verliert das Dezimalkomma
+> (aus 34,5 wird 345). Gesichert ist bislang **ein** Wert — Gareth–Festum = **29 Reisetage** — sowie
+> die Lesart der Matrix: der Wert an der Beschriftung ist Al'Anfa, dann alphabetisch nach links.
+> Alle 39 Städte der Tabelle existieren in Avesmaps.
+
 > **Auftrag an eine neue Session.** Stand: 2026-08-02. Selbsttragend, aber die beiden
 > Quellendokumente sind Pflichtlektüre:
 >
