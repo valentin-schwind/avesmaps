@@ -11,31 +11,72 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../text/ascii-fold.php';
 
+/**
+ * Score an entry against a normalised query. NULL = no match.
+ *
+ * The query is split into WORDS, and every word must hit at least one of the entry's search texts --
+ * but they may hit DIFFERENT ones. That is the whole difference to the previous version, which
+ * compared the query as one string against each text on its own and therefore could not match
+ * "stadtplan gareth" (type in one text, place in another).
+ *
+ * The entry scores as badly as its WEAKEST word: a query is only satisfied to the degree its worst
+ * part is. A single-word query walks the identical path as before -- one word, its own score -- which
+ * is what keeps the common case bit-for-bit unchanged.
+ */
 function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?int {
-    $bestScore = null;
-    foreach ($entry['search_texts'] ?? [] as $searchText) {
-        $candidate = avesmapsNormalizeSearchText((string) $searchText);
-        if ($candidate === '') {
-            continue;
-        }
-
-        $score = null;
-        if ($candidate === $normalizedQuery) {
-            $score = 0;
-        } elseif (str_starts_with($candidate, $normalizedQuery)) {
-            $score = 1;
-        } elseif (avesmapsAnySearchWordStartsWith($candidate, $normalizedQuery)) {
-            $score = 2;
-        } elseif (str_contains($candidate, $normalizedQuery)) {
-            $score = 3;
-        }
-
-        if ($score !== null) {
-            $bestScore = $bestScore === null ? $score : min($bestScore, $score);
-        }
+    $words = array_values(array_filter(preg_split('/\s+/', $normalizedQuery) ?: [], static fn (string $w): bool => $w !== ''));
+    if ($words === []) {
+        return null;
     }
 
-    return $bestScore;
+    $candidates = [];
+    foreach ($entry['search_texts'] ?? [] as $searchText) {
+        $candidate = avesmapsNormalizeSearchText((string) $searchText);
+        if ($candidate !== '') {
+            $candidates[] = $candidate;
+        }
+    }
+    if ($candidates === []) {
+        return null;
+    }
+
+    $worstWordScore = 0;
+    foreach ($words as $word) {
+        $bestForWord = null;
+        foreach ($candidates as $candidate) {
+            $score = avesmapsScoreSearchWord($candidate, $word);
+            if ($score !== null) {
+                $bestForWord = $bestForWord === null ? $score : min($bestForWord, $score);
+            }
+        }
+
+        if ($bestForWord === null) {
+            return null; // one unmatched word is enough to reject the entry
+        }
+        $worstWordScore = max($worstWordScore, $bestForWord);
+    }
+
+    return $worstWordScore;
+}
+
+/**
+ * The four tiers, unchanged from the original: equal / prefix / word-prefix / contained.
+ */
+function avesmapsScoreSearchWord(string $candidate, string $word): ?int {
+    if ($candidate === $word) {
+        return 0;
+    }
+    if (str_starts_with($candidate, $word)) {
+        return 1;
+    }
+    if (avesmapsAnySearchWordStartsWith($candidate, $word)) {
+        return 2;
+    }
+    if (str_contains($candidate, $word)) {
+        return 3;
+    }
+
+    return null;
 }
 
 function avesmapsAnySearchWordStartsWith(string $candidate, string $query): bool {
