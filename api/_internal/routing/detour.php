@@ -135,6 +135,42 @@ function avesmapsMaybeOfferOffroadDetour(
 
     $report['triggered'] = true;
 
+    // ⭐ WAS DER QUERWEG BESTENFALLS SCHAFFT -- und das weiß man vor der Suche. Der A*-Weg ist nie
+    // kürzer als die Luftlinie, und sein kleinster möglicher Faktor ist EXAKT 1,0: das
+    // Leistungskilometer-Modell hat keinen Boden (`terrain-factor.php:60-63`) und Landschaftsfaktoren
+    // werden nur mit `offroad_factor > 1.00` geladen (`offroad-data.php:106`). Das ist dieselbe
+    // Ungleichung, mit der `offroad-grid.php:315` die A*-Heuristik als zulässig begründet -- hier
+    // einmal auf die ganze Strecke angewandt statt je Zelle.
+    //
+    // Liegt schon diese Bestzeit über der Graph-Route, KANN die Suche nicht gewinnen. Sie zu
+    // starten hieße, eine Kiste zu rastern und zwei Rasterabfragen zu stellen, um am Ende `slower`
+    // zu sagen -- gemessen 0,15 s je Anfrage.
+    //
+    // ⚠️ Praktisch trifft das Wasserwege, ohne ein Sonderfall für sie zu sein: bei Tempo 4 auf der
+    // Straße greift die Schranke nur zwischen dem 3,0- und dem 3,2-fachen Bogen, bei einem Seeweg
+    // mit Tempo 10 bis zum ACHTFACHEN. Genau dort läuft der A* heute leer -- Flüsse mäandern,
+    // Küsten sind gebogen, die Schwelle wird dauernd überschritten. Ein Filter „Route ist
+    // überwiegend Wasser" wäre dagegen falsch: ein Flussweg um einen kleinen See, an dem ein kurzer
+    // Landweg wirklich schneller ist, fiele mit heraus.
+    $transport = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
+    $speed = $transport === null
+        ? null
+        : (AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transport][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null);
+    if ($speed === null || $speed <= 0.0) {
+        // Querfeldein ist für dieses Verkehrsmittel gar nicht vorgesehen. Dann gibt es nichts
+        // anzubieten -- und der A* würde unten ohnehin an derselben Stelle aussteigen.
+        $report['reason'] = 'no_offroad_route';
+        return $report;
+    }
+    // 💣 DASSELBE TEMPO WIE DIE SUCHE, aus derselben Tabelle. Ein anderes -- etwa das der Straße --
+    // machte die Schranke unscharf, und unscharf heißt hier: sie schnitte einen Querweg ab, der
+    // gewonnen hätte.
+    $report['best_possible_cost_units'] = $air / (float) $speed;
+    if ($report['best_possible_cost_units'] >= $graphTime) {
+        $report['reason'] = 'cannot_win';
+        return $report;
+    }
+
     // Ab hier kostet es. Ein eigener Kantenname, damit der Querweg zweier Kartenpunkte
     // (`offroad-direct`) nicht überschrieben wird, wenn beides in derselben Anfrage zusammentrifft.
     $offroad = avesmapsConnectOffroadPoints(

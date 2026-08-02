@@ -138,11 +138,103 @@ $report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, $rou
     ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 0.0], 'A', 'B', false);
 assert($report['triggered'] === true, 'die Schwelle ist ueberschritten: ' . $report['ratio']);
 assert($report['offered'] === false, 'aber die Strasse bleibt die schnellere Reise');
-assert($report['reason'] === 'slower', 'und der Grund steht in der Antwort: ' . $report['reason']);
+// ⭐ Und zwar OHNE Suche: 10/1,25 = 8,0 Bestzeit gegen 7,75 Fahrzeit -- das steht fest, bevor eine
+// Zelle gerastert ist. Genau dieses schmale Band zwischen 3,0x und 3,2x faengt die Schranke bei
+// einer Strasse ab (bei Tempo 10 auf dem Seeweg reicht sie bis zum Achtfachen).
+assert($report['reason'] === 'cannot_win', 'und der Grund steht in der Antwort: ' . $report['reason']);
+assert(!isset($report['offroad']), 'keine Suche gelaufen');
 
 $after = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
 assert(count($after['segments']) === count($route['segments']), 'die Route ist unveraendert');
 assert(abs($after['cost'] - $route['cost']) < 1e-12, 'und kostet dasselbe');
+
+// ============================================================ D2. gar nicht erst rechnen
+
+// 💣 EIN SCHNELLER WEG KANN QUERFELDEIN NICHT VERLIEREN, UND DAS WEISS MAN VORHER. Der A*-Weg ist
+// nie kürzer als die Luftlinie, und sein kleinster Faktor ist EXAKT 1,0 (offroad-grid.php:315 --
+// dieselbe Ungleichung, mit der dort die A*-Heuristik als zulässig begründet wird). Also ist
+// `Luftlinie / Tempo` die Bestzeit, die er überhaupt erreichen könnte. Liegt schon die über der
+// Graph-Route, ist die Suche verlorene Arbeit -- eine Division statt einer Rasterung.
+//
+// ⭐ Praktisch trifft das Wasserwege: bei Tempo 4 auf der Strasse greift die Schranke nur zwischen
+// 3,0x und 3,2x, bei einem Seeweg mit Tempo 10 bis zum ACHTFACHEN Bogen. Genau dort läuft der A*
+// heute leer -- Flüsse mäandern, Küsten sind gebogen.
+$graph = ['A' => [], 'B' => []];
+$fluss = static function (array &$graph, string $from, string $to, array $points): void {
+    $length = 0.0;
+    for ($i = 1; $i < count($points); $i++) {
+        $length += hypot($points[$i][0] - $points[$i - 1][0], $points[$i][1] - $points[$i - 1][1]);
+    }
+    $connection = [
+        'distance' => $length, 'time' => $length / 10.0, 'route_type' => 'Seeweg',
+        'transport_option' => 'cargoShip', 'id' => 'sea-' . $from . $to, 'from' => $from, 'to' => $to,
+        'geometry' => ['type' => 'LineString', 'coordinates' => $points],
+    ];
+    avesmapsAddClientCompatibleGraphConnection($graph, $from, $to, $connection);
+    $reverse = $connection;
+    $reverse['from'] = $to; $reverse['to'] = $from;
+    $reverse['geometry']['coordinates'] = array_reverse($points);
+    avesmapsAddClientCompatibleGraphConnection($graph, $to, $from, $reverse);
+};
+// 50 Einheiten Seeweg fuer 10 Luftlinie: Verhaeltnis 5,0 -- weit ueber der Schwelle. Aber mit Tempo
+// 10 dauert die Fahrt 5,0, waehrend der Querweg bestenfalls 10/1,25 = 8,0 braucht.
+$fluss($graph, 'A', 'B', [[0.0, 0.0], [0.0, 20.0], [10.0, 20.0], [10.0, 0.0]]);
+$clientGraph = ['graph' => $graph, 'statistics' => []];
+$route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
+
+$report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, $route['segments'],
+    ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 0.0], 'A', 'B', false);
+assert($report['triggered'] === true, 'die Schwelle ist ueberschritten: ' . $report['ratio']);
+assert($report['offered'] === false, 'angeboten wird nichts');
+assert($report['reason'] === 'cannot_win', 'und zwar ohne zu rechnen: ' . $report['reason']);
+assert(abs($report['best_possible_cost_units'] - 8.0) < 1e-9,
+    'die Bestzeit steht in der Antwort: ' . $report['best_possible_cost_units']);
+
+// 🔴 DER BEWEIS, DASS WIRKLICH NICHTS GERECHNET WURDE. Bei `slower` traegt der Bericht den
+// `offroad`-Block der Suche; hier darf es ihn nicht geben.
+assert(!isset($report['offroad']), 'kein A*-Lauf, also auch kein Suchergebnis');
+
+$after = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
+assert(count($after['segments']) === count($route['segments']), 'die Route ist unveraendert');
+assert(abs($after['cost'] - $route['cost']) < 1e-12, 'und kostet dasselbe');
+
+// ⚠️ Und die Gegenprobe: ein Bogen, den sie NICHT abfaengt, wird weiterhin gerechnet. Sonst waere
+// die Schranke zu scharf und schnitte gewinnende Querwege ab.
+$graph = ['A' => [], 'U' => [], 'B' => []];
+$roadAlong($graph, 'A', 'U', [[0.0, 0.0], [50.0, 50.0]]);
+$roadAlong($graph, 'U', 'B', [[50.0, 50.0], [10.0, 0.0]]);
+$clientGraph = ['graph' => $graph, 'statistics' => []];
+$route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
+$report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, [], null, $route['segments'],
+    ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 0.0], 'A', 'B', false);
+assert($report['reason'] === 'offered', 'der absurde Bogen wird weiterhin gerechnet: ' . $report['reason']);
+assert($report['best_possible_cost_units'] < $report['graph_cost_units'],
+    'weil seine Bestzeit unter der Graph-Zeit liegt');
+
+// ============================================================ D3. gerechnet -- und doch verloren
+
+// ⚠️ DIE SCHRANKE IST EINE UNTERE, KEINE VORHERSAGE. Sie sagt nur, was der Querweg BESTENFALLS
+// schafft. Zwingt ihn ein Hindernis zum Bogen, verliert er trotzdem -- und das merkt man erst nach
+// der Suche. Dieser Fall bleibt teuer, und das ist der Preis dafuer, keinen gewinnenden Querweg
+// abzuschneiden.
+$graph = ['A' => [], 'B' => []];
+$roadAlong($graph, 'A', 'B', [[0.0, 0.0], [0.0, 12.0], [10.0, 12.0], [10.0, 0.0]]);   // 34 -> Zeit 8,5
+$clientGraph = ['graph' => $graph, 'statistics' => []];
+$route = avesmapsFindClientCompatibleRoute($clientGraph, 'A', 'B', $request);
+
+// Ein See quer zwischen beiden, der die direkte Linie sperrt, aber noerdlich einen Korridor laesst.
+$sperre = avesmapsPrepareRouteAreas([[
+    'geometry' => ['type' => 'Polygon', 'coordinates' => [[[2.0, -10.0], [8.0, -10.0], [8.0, 1.0], [2.0, 1.0], [2.0, -10.0]]]],
+    'min_x' => 2.0, 'min_y' => -10.0, 'max_x' => 8.0, 'max_y' => 1.0,
+]]);
+$report = avesmapsMaybeOfferOffroadDetour($clientGraph, $request, $sperre, null, $route['segments'],
+    ['x' => 0.0, 'y' => 0.0], ['x' => 10.0, 'y' => 0.0], 'A', 'B', false);
+assert($report['triggered'] === true, 'die Schwelle loest aus: ' . $report['ratio']);
+assert($report['best_possible_cost_units'] < $report['graph_cost_units'],
+    'die Bestzeit liegt unter der Fahrzeit, also wird gerechnet');
+assert(isset($report['offroad']), 'und es wurde tatsaechlich gesucht');
+assert($report['offered'] === false, 'der gefundene Weg ist dann aber doch langsamer');
+assert($report['reason'] === 'slower', 'das ist der Unterschied zu cannot_win: ' . $report['reason']);
 
 // ============================================================ E. kein trockener Weg, keine Kante
 
