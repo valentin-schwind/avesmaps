@@ -63,6 +63,11 @@ function selectSpotlightSearchEntry(entry) {
 		return;
 	}
 
+	if (entry.kind === "lore") {
+		focusSpotlightLorePlaces(entry);
+		return;
+	}
+
 	if (entry.kind === "powerline") {
 		focusSpotlightPowerline(entry);
 	}
@@ -377,6 +382,97 @@ function openSpotlightCitymapsDialog(entry) {
 	};
 	spotlightCitymapDialogPollTimer = window.setInterval(tick, 150);
 	tick();
+}
+// An occurrence has MANY targets, not one (design §4.3) -- so it does not fly to "the" place, it flies
+// to the extent of ALL of them and marks each one. The mechanism is not new: a way hit already
+// highlights every one of its segments (highlightSpotlightPaths). Only the geometry kind is -- points
+// and polygons instead of lines.
+//
+// unreachable (no place resolved) means there is nothing to show: no-op, exactly like an unreachable
+// map. selectSpotlightSearchEntry already closed the search and cleared the selection, so the map stays
+// where the user was instead of half-moving somewhere.
+function focusSpotlightLorePlaces(entry) {
+	const places = entry.lorePlaceEntries || [];
+	if (!places.length) {
+		return;
+	}
+
+	// The layer follows the FIRST place, exactly as each single-kind focus helper does for itself: a
+	// landscape label is only drawn in "deregraphic", a territory only in "political". Without this the
+	// highlight would sit on top of an empty map.
+	if (places[0].kind === "region") {
+		setSelectedMapLayerMode("political");
+	} else if (places[0].kind === "label") {
+		setSelectedMapLayerMode("deregraphic");
+		syncLabelVisibility();
+	}
+
+	highlightSpotlightPlaces(places);
+
+	let bounds = null;
+	places.forEach((place) => {
+		bounds = extendSpotlightBounds(bounds, getSpotlightPlaceBounds(place));
+	});
+	if (bounds?.isValid?.()) {
+		// Capped low on purpose: this view answers "where does it occur?", which needs the whole spread
+		// in frame, not a close-up of the first hit.
+		focusSpotlightBounds(bounds, Math.min(4, map.getMaxZoom()));
+	}
+}
+
+// The bbox of a place entry, whatever shape it has: a territory brings its own bounds, a label or a
+// location is a single marker -- a point bbox, which flyToBounds reads as "centre here".
+function getSpotlightPlaceBounds(place) {
+	if (place.bounds?.isValid?.()) {
+		return place.bounds;
+	}
+
+	const marker = place.labelEntry?.marker || place.locationEntry?.marker || null;
+	return marker ? L.latLngBounds(marker.getLatLng(), marker.getLatLng()) : null;
+}
+
+// Marks each place of an occurrence in the same gold as a highlighted way, in the same pane. The style
+// constant is REUSED deliberately: a second colour literal is exactly what AGENTS.md §12 bans, and the
+// two highlights mean the same thing to the reader.
+//
+// The polygons are COPIES, not the rendered ones -- so a layer reload (which clears and rebuilds
+// regionPolygons) cannot take the highlight with it.
+function highlightSpotlightPlaces(places) {
+	// Drop the previous highlight BEFORE reassigning: the assignment overwrites the only handle on it,
+	// and an orphaned layer group hangs on the map until a reload. Same reason as in highlightSpotlightPaths.
+	if (spotlightHighlightLayer) {
+		map.removeLayer(spotlightHighlightLayer);
+	}
+
+	spotlightHighlightLayer = L.layerGroup();
+	places.forEach((place) => {
+		const polygons = place.polygons || [];
+		if (polygons.length) {
+			polygons.forEach((polygon) => {
+				L.polygon(polygon.getLatLngs(), {
+					...SPOTLIGHT_PATH_HIGHLIGHT_STYLE,
+					weight: 5,
+					fill: false,
+				}).addTo(spotlightHighlightLayer);
+			});
+			return;
+		}
+
+		const marker = place.labelEntry?.marker || place.locationEntry?.marker || null;
+		if (marker) {
+			L.circleMarker(marker.getLatLng(), {
+				...SPOTLIGHT_PATH_HIGHLIGHT_STYLE,
+				radius: 13,
+				weight: 4,
+				fill: false,
+			}).addTo(spotlightHighlightLayer);
+		}
+	});
+
+	if (spotlightHighlightLayer.getLayers().length) {
+		spotlightHighlightLayer.addTo(map);
+		spotlightHighlightLayer.eachLayer((layer) => layer.bringToFront?.());
+	}
 }
 
 function focusSpotlightPowerline(entry) {

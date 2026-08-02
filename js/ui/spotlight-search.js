@@ -441,6 +441,75 @@ function buildPlaceBoundSpotlightEntry(result, kind) {
 	};
 }
 
+// Three tries, in this order (design §4.3): the stored wiki key, the title, the title without its
+// parenthetical qualifier. The third exists because the wiki writes "Bornland (Region)" and the map
+// says "Bornland" -- live, that single rule is what turns a miss into a hit.
+//
+// 💣 An empty wiki key is skipped, never looked up: "wk:" would otherwise be a real key that every
+// keyless place matches, and whichever entry got inserted first would answer for all of them.
+function resolveSpotlightLorePlace(byLorePlace, place) {
+	const wikiKey = normalizeSpotlightSearchText(String((place && place.wiki_key) || ""));
+	const title = String((place && place.title) || "");
+	const titleKey = normalizeSpotlightSearchText(title);
+	const bareKey = normalizeSpotlightSearchText(title.replace(/\s*\([^)]*\)\s*$/, ""));
+
+	const candidates = [wikiKey ? `wk:${wikiKey}` : "", titleKey ? `nm:${titleKey}` : "", bareKey ? `nm:${bareKey}` : ""];
+	for (const candidate of candidates) {
+		const hit = candidate ? byLorePlace.get(candidate) : null;
+		if (hit) {
+			return hit;
+		}
+	}
+
+	return null;
+}
+
+// An occurrence (Flora/Fauna/Ware) points at MANY places, not one -- so it cannot ride
+// buildPlaceBoundSpotlightEntry, which inherits exactly one place's entry. And unlike a map or an
+// adventure it has no resolved target at all: the server ships title + wiki key, this side does the
+// join, because only this side knows what is loaded right now.
+//
+// The resolved place NAMES go into the row, up to three. They are the answer to the question the user
+// actually asked -- "wo gibt es das?" -- and putting them there means the reader often need not click.
+function buildLoreSpotlightEntry(result) {
+	const name = String(result.name || "");
+	if (!name) {
+		return null;
+	}
+
+	const { byLorePlace } = getSpotlightSearchLookup();
+	const places = Array.isArray(result.lore_places) ? result.lore_places : [];
+	const resolved = [];
+	const seen = new Set();
+	places.forEach((place) => {
+		const placeEntry = resolveSpotlightLorePlace(byLorePlace, place);
+		if (placeEntry && !seen.has(placeEntry.id)) {
+			seen.add(placeEntry.id);
+			resolved.push(placeEntry);
+		}
+	});
+
+	const shown = resolved.slice(0, 3).map((placeEntry) => placeEntry.name);
+	const rest = resolved.length - shown.length;
+	return {
+		id: `lore:${String(result.public_id || name)}`,
+		kind: "lore",
+		name,
+		typeLabel: String(result.type_label || ""),
+		aliases: [],
+		publicIds: [],
+		bounds: null,
+		lorePlaceEntries: resolved,
+		placeHint: shown.join(" · ") + (rest > 0 ? ` +${rest}` : ""),
+		notOnMap: true,
+		// 31 % of occurrences carry no place at all and another 15 % name places the map does not have
+		// (design §1.4). They stay listed, hindmost and labelled -- "it exists, whereabouts unknown"
+		// beats no answer -- but a click must not pretend to go somewhere.
+		unreachable: resolved.length === 0,
+		loreTotal: Number(result.lore_total) || 0,
+	};
+}
+
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
@@ -480,6 +549,10 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 
 		if (!entry && (kind === "citymap" || kind === "adventure")) {
 			entry = buildPlaceBoundSpotlightEntry(result, kind);
+		}
+
+		if (!entry && kind === "lore") {
+			entry = buildLoreSpotlightEntry(result);
 		}
 
 		if (entry && entry.kind === "region") {
@@ -738,8 +811,54 @@ function getSpotlightSearchLookup() {
 		}
 	});
 
-	spotlightSearchLookupCache = { byPublicId, byPathGroup };
+	// Occurrence places arrive as a wiki key plus a title and NEVER as a resolved target (design §1.6),
+	// so they need a key/name index rather than the public-id one.
+	// Insert order IS the precedence -- label before region before location, first writer wins. 403 of
+	// 465 resolvable occurrence places are labels, so a name that is both a landscape and a village
+	// means the landscape: "Thorwal" the region, not the hamlet.
+	const byLorePlace = new Map();
+	const addLorePlaceKey = (key, entry) => {
+		if (key && !byLorePlace.has(key)) {
+			byLorePlace.set(key, entry);
+		}
+	};
+	["label", "region", "location"].forEach((placeKind) => {
+		getSpotlightSearchEntries().forEach((entry) => {
+			if (entry.kind !== placeKind) {
+				return;
+			}
+			const wikiKey = normalizeSpotlightSearchText(getSpotlightEntryWikiKey(entry));
+			if (wikiKey) {
+				addLorePlaceKey(`wk:${wikiKey}`, entry);
+			}
+			const nameKey = normalizeSpotlightSearchText(entry.name);
+			if (nameKey) {
+				addLorePlaceKey(`nm:${nameKey}`, entry);
+			}
+		});
+	});
+
+	spotlightSearchLookupCache = { byPublicId, byPathGroup, byLorePlace };
 	return spotlightSearchLookupCache;
+}
+
+// The wiki key a spotlight entry carries -- the join key lore_place stores on its side. Every kind
+// keeps it somewhere else: a label under label.wikiRegion, a settlement under location.wikiSettlement,
+// a territory on the region entry (same chain avesmapsLorePlaceRefFromRegion walks in
+// js/map-features/map-features-lore.js). "" when the object has no wiki page.
+function getSpotlightEntryWikiKey(entry) {
+	if (entry.kind === "label") {
+		return String(entry.labelEntry?.label?.wikiRegion?.wiki_key || "");
+	}
+	if (entry.kind === "location") {
+		return String(entry.locationEntry?.location?.wikiSettlement?.wiki_key || "");
+	}
+	if (entry.kind === "region") {
+		const regionEntry = entry.regionEntry || {};
+		return String(regionEntry.detail?.wiki_key || regionEntry.wikiRegion?.wiki_key || regionEntry.wikiKey || regionEntry.wiki_key || "");
+	}
+
+	return "";
 }
 
 function buildSpotlightSearchEntries() {

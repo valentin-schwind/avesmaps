@@ -21,7 +21,7 @@ const extract = (name) => {
 // caller would blow up with "scoreSpotlightWord is not defined" inside the sandbox.
 const context = { Infinity, Math, String, Number, Boolean, Array };
 vm.runInNewContext(
-	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightPlaceLookupKeys"),
+	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightPlaceLookupKeys") + extract("getSpotlightEntryWikiKey") + extract("resolveSpotlightLorePlace"),
 	context
 );
 const { getSpotlightSearchScore, normalizeSpotlightSearchText } = context;
@@ -71,5 +71,39 @@ assert.deepStrictEqual(keys("region", "abc"), ["region:abc", "label:abc"]);
 assert.deepStrictEqual(keys("path", "abc"), ["path:abc"]);
 assert.deepStrictEqual(keys("unresolved", "abc"), []);
 assert.deepStrictEqual(keys("", "abc"), []);
+
+// ---- occurrence places resolve by wiki key, by title, and by title without qualifier -------------
+// lore_place stores NO resolved target (design §1.6), only a wiki key and a title -- so this three-step
+// fallback is the entire join between an occurrence and the map. "Bornland (Region)" is the case that
+// makes step 3 necessary: live, that is exactly how the wiki writes it and "Bornland" is what the map
+// calls it.
+const wikiKey = context.getSpotlightEntryWikiKey;
+const labelEntry = { kind: "label", name: "Khôm", labelEntry: { label: { wikiRegion: { wiki_key: "kh-m" } } } };
+const bornland = { kind: "label", name: "Bornland", labelEntry: { label: { wikiRegion: { wiki_key: "bornland" } } } };
+const village = { kind: "location", name: "Belhanka", locationEntry: { location: { wikiSettlement: { wiki_key: "belhanka" } } } };
+
+assert.strictEqual(wikiKey(labelEntry), "kh-m");
+assert.strictEqual(wikiKey(village), "belhanka");
+assert.strictEqual(wikiKey({ kind: "path", name: "x" }), "");
+assert.strictEqual(wikiKey({ kind: "label", name: "x" }), "");
+
+const byLorePlace = new Map([
+	["wk:kh m", labelEntry],
+	["nm:khom", labelEntry],
+	["nm:bornland", bornland],
+	["nm:belhanka", village],
+]);
+const place = (title, key) => context.resolveSpotlightLorePlace(byLorePlace, { title, wiki_key: key });
+
+assert.strictEqual(place("Khôm", "kh-m"), labelEntry);
+assert.strictEqual(place("Khôm", ""), labelEntry);
+assert.strictEqual(place("Belhanka", ""), village);
+assert.strictEqual(place("Bornland (Region)", ""), bornland);
+assert.strictEqual(place("Myranor", ""), null);
+assert.strictEqual(place("", ""), null);
+
+// An empty wiki key must never become a wildcard: without the guard, "wk:" would be a real key that
+// every place without a key looks up -- and the first entry inserted would answer for all of them.
+assert.strictEqual(context.resolveSpotlightLorePlace(new Map([["wk:", labelEntry]]), { title: "Myranor", wiki_key: "" }), null);
 
 console.log("spotlight-scoring: OK");
