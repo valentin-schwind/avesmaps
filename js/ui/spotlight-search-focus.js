@@ -273,18 +273,23 @@ function getSpotlightPathZoom(entry) {
 }
 
 // A place-bound entry (buildPlaceBoundSpotlightEntry in spotlight-search.js) has no geometry of its own --
-// design §4.4: the hit jumps to its ASSIGNED PLACE and opens that place's infobox, where the
-// Kartensammlung already renders as a section. The entry's `...base` spread already carries whatever
-// field the place's own focus helper reads (locationEntry/labelEntry/regionEntry+polygons+bounds/
-// paths+bounds), because buildCitymapSpotlightEntry built it from that exact placeEntry. placeEntryKind
-// (saved before `kind` was overwritten to "citymap") says which helper that is -- every one of the four
-// already flies to its target AND opens its infobox, so delegating satisfies "jump + open infobox" for
-// free.
+// design §4.4 of docs/superpowers/specs/2026-08-02-spotlight-kartensammlungen-design.md: the hit jumps
+// to its ASSIGNED PLACE and opens that place's infobox, where the Kartensammlung already renders as a
+// section. So there is no new focus logic to write: the entry's `...base` spread already carries
+// whatever field the place's own focus helper reads (locationEntry/labelEntry/regionEntry+polygons+
+// bounds/paths+bounds), because buildPlaceBoundSpotlightEntry built it from that exact placeEntry.
+// placeEntryKind (saved before the `kind` parameter shadows the base's own kind) says which helper that
+// is -- every one of the four already flies to its target AND opens its infobox, so delegating
+// satisfies "jump + open infobox" for free.
 //
-// On top of that (Owner, right after using the feature): also open the Kartensammlung DIALOG, not just
-// the infobox section -- see openSpotlightCitymapsDialog below. Without it the user still has to spot
-// the section in the freshly opened infobox and press its own "Alle anzeigen" tile, even though a
-// citymap search hit already says that is exactly what they came here for.
+// On top of that (Owner, right after using the feature): a MAP hit also opens the Kartensammlung
+// DIALOG, not just the infobox section -- see openSpotlightCitymapsDialog below. Without it the user
+// still has to spot the section in the freshly opened infobox and press its own "Alle anzeigen" tile,
+// even though a citymap search hit already says that is exactly what they came here for.
+//
+// 💣 That dialog is gated on kind === "citymap" and must stay gated. This helper became SHARED with
+// adventure hits on 2026-08-02, and an adventure that begins in Gareth has no business throwing
+// Gareth's map collection over the infobox the reader actually asked for.
 //
 // unreachable (§4.4: 85 of 469 place assignments are `unresolved`, or the place is simply not loaded
 // right now) means placeEntryKind is "" and none of the branches below match -- silent no-op. Do NOT
@@ -299,29 +304,24 @@ function focusSpotlightPlaceEntry(entry) {
 
 	if (entry.placeEntryKind === "location") {
 		focusSpotlightLocation(entry);
-		openSpotlightCitymapsDialog(entry);
-		return;
-	}
-
-	if (entry.placeEntryKind === "label") {
+	} else if (entry.placeEntryKind === "label") {
 		focusSpotlightLabel(entry);
-		openSpotlightCitymapsDialog(entry);
-		return;
-	}
-
-	if (entry.placeEntryKind === "region") {
+	} else if (entry.placeEntryKind === "region") {
 		focusSpotlightRegion(entry);
-		openSpotlightCitymapsDialog(entry);
-		return;
+	} else if (entry.placeEntryKind === "path") {
+		focusSpotlightPath(entry);
+	} else {
+		return; // no known place kind -- nothing was focused, so nothing to follow up on
 	}
 
-	if (entry.placeEntryKind === "path") {
-		focusSpotlightPath(entry);
+	// One gated call instead of one per branch: the gate is the whole point, and repeating it four
+	// times is four chances for the next place-bound source to inherit a dialog that is not its own.
+	if (entry.kind === "citymap") {
 		openSpotlightCitymapsDialog(entry);
 	}
 }
 
-// Opens the Kartensammlung dialog (map-features-citymaps-dialog.js) for the place focusSpotlightCitymapPlace
+// Opens the Kartensammlung dialog (map-features-citymaps-dialog.js) for the place focusSpotlightPlaceEntry
 // just jumped to, once its infobox has actually rendered a Kartensammlung section.
 //
 // openDialogForSection -- the function that builds and shows the dialog -- lives inside that file's own
