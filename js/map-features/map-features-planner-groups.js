@@ -174,15 +174,26 @@
 		// 💣 Ueber max-height, nicht height: `auto` ist nicht animierbar. Der Zielwert wird
 		// GEMESSEN, nie geraten -- und danach wieder freigegeben, sonst deckelte er den Koerper,
 		// sobald dort spaeter eine Zeile dazukommt.
+		//
+		// 💣 `overflow: hidden` gilt NUR waehrend der Bewegung und wird danach abgeraeumt. Steht es
+		// dauerhaft im Stylesheet, beschneidet es das Menue der Transport-Combobox -- das haengt
+		// `position: absolute` im Koerper und ragt bewusst darueber hinaus.
+		function releaseBody() {
+			body.style.maxHeight = "";
+			body.style.overflow = "";
+		}
+
 		function setBodyState(animate) {
 			animationToken += 1;
 			var token = animationToken;
 
 			if (!animate || reducedMotion) {
 				body.hidden = collapsed;
-				body.style.maxHeight = "";
+				releaseBody();
 				return;
 			}
+
+			body.style.overflow = "hidden";
 
 			if (collapsed) {
 				body.style.maxHeight = body.scrollHeight + "px";
@@ -190,7 +201,7 @@
 				body.style.maxHeight = "0px";
 				afterTransition(token, function () {
 					body.hidden = true;
-					body.style.maxHeight = "";
+					releaseBody();
 				});
 				return;
 			}
@@ -199,9 +210,7 @@
 			body.style.maxHeight = "0px";
 			void body.offsetHeight;
 			body.style.maxHeight = body.scrollHeight + "px";
-			afterTransition(token, function () {
-				body.style.maxHeight = "";
-			});
+			afterTransition(token, releaseBody);
 		}
 
 		function apply(animate) {

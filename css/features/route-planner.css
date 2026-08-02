@@ -240,16 +240,22 @@
    die Schalterzeile darf nicht in die 90-px-Spalte der Filter rutschen. */
 #transport-options > .planner-group__body {
 	display: grid;
-	gap: 6px;
+	gap: 5px;
+	padding: 0 8px 6px;
 	/* Second column is flexible so col1 + gap + col2 = content width exactly; a
 	   fixed 210px overflowed the gap and pushed the dropdown 5px past the right
 	   inset (asymmetric with the left). The dropdown fills this column (below). */
 	grid-template-columns: 90px minmax(0, 1fr);
 }
 
+/* ⚠️ Innen bleiben von 350 px Panelbreite 297 px fuer die Zeilen. Die Radiozeile braucht
+   einzeilig 316 px und bricht deshalb auf zwei Zeilen um -- das kostet 20 px und ist der Preis
+   dafuer, dass der Rahmen den Inhalt umschliesst. Wer das zurueckdrehen will, muss den Rahmen
+   full-bleed setzen (margin: 0 -12px), nicht das Polster hier auf 0 druecken. */
 .route-planner-options-panel > .planner-group__body {
 	display: grid;
-	gap: 8px;
+	gap: 6px;
+	padding: 0 8px 6px;
 }
 
 /* 💣 Ohne diese Zeile bleibt der Koerper sichtbar: `display: grid` daruber schlaegt die
@@ -273,6 +279,29 @@
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
+	padding: 0 8px;
+	/* Einen Tick kleiner als der Rahmen (minus dessen 1 px), damit die Hover-Flaeche innen
+	   sauber an der Rundung anliegt statt sie zu ueberstehen. */
+	border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
+	transition: background 0.12s ease;
+}
+
+.planner-group--collapsed .planner-group__head {
+	border-radius: calc(var(--radius-md) - 1px);
+}
+
+/* Die HELLUNG liegt auf der ganzen Kopfzeile, nicht nur auf dem Schalter: der teilt sich die
+   Zeile mit dem ⓘ-Knopf und hoerte deshalb vor dem rechten Rand auf -- ein Streifen, der nicht
+   durchlaeuft (Owner 2026-08-02). Der Schalter behaelt seine eigene Hellung als Rueckfall fuer
+   Browser ohne `:has()`; wo es das gibt, uebernimmt der Kopf und der Schalter tritt zurueck. */
+.planner-group__head:has(.planner-group__toggle:hover),
+.planner-group__head:has(.planner-group__toggle:focus-visible) {
+	background: var(--color-hover-wash);
+}
+
+.planner-group__head:has(.planner-group__toggle:hover) .planner-group__toggle,
+.planner-group__head:has(.planner-group__toggle:focus-visible) .planner-group__toggle {
+	background: transparent;
 }
 
 /* 💣 Der ⓘ-Knopf haengt per `position: absolute` in der Ecke von #transport-options
@@ -284,22 +313,30 @@
 	flex: 0 0 auto;
 }
 
-/* Der Schalter traegt seinen Rahmen in BEIDEN Zustaenden (Owner 2026-08-02): sonst
-   springt die Zeile beim Auf- und Zuklappen zwischen „nackte Ueberschrift" und „Knopf"
-   hin und her, und die Ueberblendung haette nichts, woran sie sich festhaelt. Weiche
-   Flaeche + Umriss + Radius wie bei jedem Nebenknopf im Haus. */
+/* Der Schalter selbst ist randlos -- den Rahmen traegt die Gruppe um ihn herum. Er bleibt
+   trotzdem die ganze Kopfzeile: fasst man ihn an, faerbt sich die Zeile.
+   Der Rahmen sass zwischendurch am Schalter (Owner-Wunsch: er soll in BEIDEN Zustaenden da
+   sein, sonst springt die Zeile beim Klappen zwischen „nackte Ueberschrift" und „Knopf").
+   Am Schalter war er falsch platziert: der Schalter teilt sich die Zeile mit dem Info-Knopf,
+   der Koerper darunter lief ueber die volle Breite -- der Inhalt stand also breiter als seine
+   Titelzeile. An der Gruppe erfuellt derselbe Rahmen beides. */
 .planner-group__toggle {
 	display: flex;
 	flex: 1 1 auto;
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
-	min-height: 32px;
+	/* 26, nicht 32. 💣 Aufgeklappt muessen beide Gruppen zusammen unter die 754 px bleiben,
+	   die die Oberflaeche vor dem Umbau hatte: der Reiseplan darunter kann zwar schrumpfen, aber
+	   nicht unter sein eigenes Polster (26 px) plus Abstand (6). Sobald Oberflaeche + 32 ueber die
+	   Panelhoehe geht, bekommt das GANZE Panel einen Scrollbalken -- und der liegt dann ueber
+	   allem. Mit 26 liegen wir 10 px unter dem alten Wert, also mit Reserve. */
+	min-height: 26px;
 	margin: 0;
-	padding: 0 10px;
-	border: 1px solid var(--color-button-border);
-	border-radius: var(--radius-md);
-	background: var(--color-button-soft);
+	padding: 0 2px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
 	color: inherit;
 	font: inherit;
 	line-height: 1.15;
@@ -308,7 +345,7 @@
 }
 
 .planner-group__toggle:hover {
-	background: var(--color-button-soft-hover);
+	background: var(--color-hover-wash);
 }
 
 .planner-group__toggle:hover .planner-group__title,
@@ -397,25 +434,22 @@
    💣 Die Kennung MUSS mit in den Selektor: die Polster-Regel oben spricht `#transport-options`
    an (1,0,0) und schlaegt jede reine Klasse. Ohne sie bleibt die Gruppe eingeklappt 55 px hoch
    statt 28 -- die halbe Ersparnis. */
-#transport-options.planner-group--collapsed,
-.route-planner-options-panel.planner-group--collapsed {
-	gap: 0;
-	padding-bottom: 0;
-}
-
-/* Die beiden einklappbaren Gruppen tragen KEINE Trenner mehr (Owner 2026-08-02): der Rahmen
-   des Schalters gruppiert sie schon, eine Linie obendrauf waere eine zweite Klammer um
-   dieselbe Sache. Mit dem Trenner faellt auch das Polster weg -- es war nur sein Abstand.
-   `.display-options` bleibt unberuehrt: die Gruppe klappt nicht und braucht ihre Linie. */
+/* Der Rahmen umgibt die GANZE Gruppe, Kopfzeile UND Inhalt (Owner 2026-08-02). Zwei Dinge
+   loest das auf einmal: der Inhalt kann nicht mehr breiter werden als die Titelzeile -- vorher
+   war er das, weil der Schalter sich seine Zeile mit dem Info-Knopf teilt, der Koerper aber
+   ueber die volle Breite lief -- und die Gruppe braucht keinen Trenner mehr, der Rahmen
+   gruppiert sie schon. Deshalb auch nicht mehr full-bleed: sie steht buendig mit den
+   Wegpunkten darueber. `.display-options` bleibt unberuehrt, die klappt nicht.
+   ⚠️ KEIN `overflow: hidden` auf der Gruppe, so verlockend der Radius das macht: das Menue
+   der Transport-Combobox haengt `position: absolute` darin und wuerde abgeschnitten. */
 #transport-options,
 .route-planner-options-panel {
-	/* Aufgeklappt etwas mehr Luft zwischen Schalter und Inhalt und unter der Gruppe
-	   (Owner 2026-08-02); eingeklappt faellt beides wieder weg, siehe Regel darueber. */
-	gap: 8px;
-	padding-top: 0;
-	padding-bottom: var(--space-4);
-	border-top: 0;
-	border-bottom: 0;
+	gap: 0;
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--color-button-border);
+	border-radius: var(--radius-md);
+	background: var(--color-button-soft);
 }
 
 /* Ueberblendung. Die Hoehe des Koerpers laeuft ueber max-height, weil `height: auto` nicht
@@ -424,11 +458,14 @@
    Polster, Trenner und Abstand der Gruppe laufen mit, sonst ruckt die Zeile zum Schluss. */
 #transport-options,
 .route-planner-options-panel {
-	transition: gap 0.24s ease, padding-bottom 0.24s ease;
+	transition: background 0.12s ease;
 }
 
+/* 💣 KEIN dauerhaftes `overflow: hidden` hier. Die Ueberblendung braucht es, aber im Ruhezustand
+   beschneidet es das Menue der Transport-Combobox -- das haengt `position: absolute` im Koerper und
+   ragt bewusst darueber hinaus. Das Skript setzt `overflow` deshalb nur fuer die Dauer der Bewegung
+   und raeumt es danach wieder ab (map-features-planner-groups.js). */
 .planner-group__body {
-	overflow: hidden;
 	transition: max-height 0.24s ease, opacity 0.18s ease;
 }
 
