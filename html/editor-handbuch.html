@@ -202,7 +202,7 @@
 <body>
 	<div class="hb-topbar">
 		<span class="hb-topbar__title">Avesmaps · Editor-Handbuch</span>
-		<span class="hb-topbar__meta">Stand: 02.08.2026</span>
+		<span class="hb-topbar__meta">Stand: 03.08.2026</span>
 		<div class="hb-topbar__actions">
 			<button type="button" class="theme-toggle-btn" aria-label="Auf dunkles Design umschalten" title="Design umschalten (hell/dunkel)">
 				<svg class="theme-toggle-ico theme-toggle-ico--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><g stroke-width="1.9" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="4.4" /><line x1="12" y1="19.6" x2="12" y2="22" /><line x1="2" y1="12" x2="4.4" y2="12" /><line x1="19.6" y1="12" x2="22" y2="12" /><line x1="4.9" y1="4.9" x2="6.6" y2="6.6" /><line x1="17.4" y1="17.4" x2="19.1" y2="19.1" /><line x1="4.9" y1="19.1" x2="6.6" y2="17.4" /><line x1="17.4" y1="6.6" x2="19.1" y2="4.9" /></g></svg>
@@ -236,7 +236,7 @@
 						<li><a href="#territorien" data-keywords="gebiet herrschaftsgebiet reich grafschaft baronie grenzen hauptstadt zoom gültigkeit schraffur einrasten ring ecke kante gebündelt speichern strg">Territorien</a></li>
 						<li><a href="#regionen" data-keywords="label beschriftung landschaft kategorie art höhe schritt berggipfel kraftlinie wald gebirge meer vulkan tal label zuweisen regionen bearbeiten vorschau größe rotation priorität darstellung">Regionen</a></li>
 						<li><a href="#kraftlinien" data-keywords="kraftlinie nodix madas haar ader sumus segment verbindet quellen wiki-link">Kraftlinien</a></li>
-						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen lage innerorts außerorts filter">Wege</a></li>
+						<li><a href="#wege" data-keywords="straße strasse pfad fluss seeweg kreuzung verlauf geometrie strömung transportmittel routing teilen lage innerorts außerorts filter wege-editor wege bearbeiten höhenprofil wegprofile abschnitte">Wege</a></li>
 						<li><a href="#abenteuer" data-keywords="cover spoiler shop edition schauplatz produkte publikationen materialien">Abenteuer</a></li>
 						<li><a href="#kartensammlungen" data-keywords="stadtplan karte vorschau fundort maßstab verlag kostenpflichtig produkte publikationen materialien lizenz hochladen upload webp eigene kreation">Kartensammlungen</a></li>
 						<li><a href="#natur-waren" data-keywords="vorkommen natur waren flora fauna spezies handelswaren lore pflanzen tiere lebensraum gruppe verbreitung materialien filter trichter kontinent aventurien myranor herkunft ortsangabe quelle">Vorkommen</a></li>
@@ -275,7 +275,7 @@
 						<li><a href="#n-listen" data-keywords="wegtyp ortsgröße transportmittel kategorie quellentyp auswahl vulkan tal insel inselgruppe">Die Auswahllisten</a></li>
 						<li><a href="#n-haekchen" data-keywords="unverbunden kreuzungen mapstil prüfen ring nodices labels beschriftungen grenzen ausblenden kartenoptionen">Die Prüf-Häkchen</a></li>
 						<li><a href="#n-menues" data-keywords="rechtsklick kontextmenü hinzufügen anlegen gebiet hierher reisen route messen">Die beiden Kontextmenüs</a></li>
-						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften">Die sieben Sync-Editoren</a></li>
+						<li><a href="#n-editoren" data-keywords="menüband kachel syncen links prüfen vorschauen overlay regionen landschaften wege">Die acht Sync-Editoren</a></li>
 						<li><a href="#n-glossar" data-keywords="bf dump nodix schraffur staging namensgruppe begriffe kreuzung querfeldein">Glossar</a></li>
 						<li><a href="#n-hilfe" data-keywords="discord kontakt support fragen">Hilfe &amp; Kontakt</a></li>
 					</ul>
@@ -306,7 +306,7 @@
 				<ul class="hb-steps">
 					<li><strong>Die Karte.</strong> Hier klickst und ziehst du. <em>Linksklick</em> auf ein Objekt öffnet seine Infobox, <em>Rechtsklick</em> öffnet das Kontextmenü zum Anlegen.</li>
 					<li><strong>Das Infopanel</strong> rechts. Ein Linksklick auf Ort, Weg, Region oder Gebiet zeigt hier alles, was zu diesem Objekt bekannt ist — und im Bearbeiten-Modus den Knopf <strong>„Bearbeiten"</strong>. <strong>Von hier aus startest du fast jede Änderung.</strong></li>
-					<li><strong>Das „Editor"-Panel.</strong> Öffnet sich über den Button <strong>„Editor"</strong> und hat vier Reiter: <strong>Meldungen</strong>, <strong>Änderungen</strong>, <strong>WikiSync</strong> und <strong>Status</strong>. Hier liegt die Arbeit, die zu dir kommt (siehe <a href="#aufgaben">Aufgaben</a>), und der Einstieg in die <a href="#n-editoren">sieben Sync-Editoren</a>.</li>
+					<li><strong>Das „Editor"-Panel.</strong> Öffnet sich über den Button <strong>„Editor"</strong> und hat vier Reiter: <strong>Meldungen</strong>, <strong>Änderungen</strong>, <strong>WikiSync</strong> und <strong>Status</strong>. Hier liegt die Arbeit, die zu dir kommt (siehe <a href="#aufgaben">Aufgaben</a>), und der Einstieg in die <a href="#n-editoren">acht Sync-Editoren</a>.</li>
 				</ul>
 				<figure class="hb-shot">
 					<img src="screenshots/10-infopanel-bearbeiten.png" width="400" alt="Das Infopanel der Metropole Gareth mit Wappen, Ortsname, den Knoepfen Aenderungen vorschlagen und Bearbeiten sowie der Zeile Liegt in" />
@@ -325,7 +325,7 @@
 				<ul class="hb-steps">
 					<li><strong>Übergreifende Knöpfe.</strong> <strong>„📥 Dump holen"</strong> und <strong>„⚖️ Konflikte"</strong> — sie gehören zu keinem einzelnen Thema, sondern zu allen.</li>
 					<li><strong>Die Auswahl.</strong> Acht Themen in zwei Spalten: <strong>Siedlungen · Territorien · Regionen · Wege · Kraftlinien · Abenteuer · Karten · Vorkommen</strong>. Jede Zeile zeigt neben dem Namen das <strong>Datum des letzten Syncs</strong> in Kurzform („22.07.") — du siehst also alle acht Stände auf einen Blick, ohne zu klicken. <strong>„nie"</strong> heißt: dieses Thema wurde noch nie gesynct. Bleibt die Stelle <em>leer</em>, kam dazu bloß keine Antwort — das ist etwas anderes als „nie". Zeig mit der Maus auf die Zeile, dann steht der volle Satz da. Eine <em>Anzahl</em> steht dort bewusst nicht: sie ist erst bekannt, wenn die Liste eines Themas einmal geladen wurde.</li>
-					<li><strong>Der Knopf.</strong> Darunter steht <em>genau ein</em> Knopf, und zwar der des ausgewählten Themas. Hat das Thema einen eigenen Listeneditor (Siedlungen, Regionen, Kraftlinien, Abenteuer, Karten, Vorkommen), ist es <strong>„Bearbeiten"</strong> — der scharfe Sync liegt dann <em>im</em> Editorfenster und nicht hier. Hat es keinen (Territorien, Wege), ist es <strong>„Syncen"</strong>. Es ist immer derselbe Knopf, den es vorher schon gab: er wird an diese Stelle <em>verschoben</em>, samt Beschriftung, Fortschrittsanzeige und dem „Zuletzt gesynct" darin.</li>
+					<li><strong>Der Knopf.</strong> Darunter steht <em>genau ein</em> Knopf, und zwar der des ausgewählten Themas. Er heißt seit dem achten Editor bei allen acht Themen <strong>„&lt;Thema&gt; bearbeiten"</strong> — „Siedlungen bearbeiten", „Wege bearbeiten", „Karten bearbeiten" — und öffnet nur das Fenster: <strong>er startet nichts</strong>. Der scharfe Sync liegt überall <em>im</em> Editorfenster, oben im Menüband. Die Angabe, wann zuletzt gesynct wurde, steht weiterhin am Knopf selbst.</li>
 					<li><strong>Suche, Filter und die Liste</strong> des ausgewählten Themas.</li>
 				</ul>
 				<div class="hb-note hb-tip"><strong>Was sich geändert hat.</strong> Früher lagen Abenteuer, Karten und Vorkommen unter einem Sammelreiter <strong>„Materialien"</strong>, und die Kraftlinien hatten gar keinen eigenen Reiter. Beides war kein Ordnungsprinzip, sondern schlicht Platzmangel in der waagerechten Reiterzeile. Jetzt stehen alle acht gleichrangig untereinander. <strong>„Vorkommen" hieß bis zum 22.07.2026 „Natur &amp; Waren"</strong> — dasselbe Thema, nur kürzer benannt.</div>
@@ -676,7 +676,7 @@
 				<div class="hb-note hb-tip"><strong>Nicht filtern nach „Region".</strong> Die allermeisten Landschaftsbeschriftungen tragen eine der 28 <em>anderen</em> Arten. Wer in einer Liste nur nach „Region" sucht, übersieht den größten Teil.</div>
 
 				<h3 id="wege" class="hb-sub">Wege</h3>
-				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf den Weg → „Bearbeiten" / „Verlauf bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege</p>
+				<p class="hb-path"><strong>Auf der Karte:</strong> Linksklick auf den Weg → „Bearbeiten" / „Verlauf bearbeiten" &nbsp;·&nbsp; <strong>Anlegen:</strong> Rechtsklick → „Hier hinzufügen" → „Neuer Weg" &nbsp;·&nbsp; <strong>Liste:</strong> Editor → WikiSync → Wege &nbsp;·&nbsp; <strong>Editor:</strong> ebendort → „Wege bearbeiten"</p>
 				<p>Straßen, Pfade, Flüsse und Seewege. Sie tragen die Reiseplanung — deshalb ist hier Sorgfalt wichtiger als anderswo.</p>
 
 				<h4>Der Dialog „Weg bearbeiten"</h4>
@@ -866,6 +866,13 @@
 
 				<div class="hb-note hb-tip"><strong>Im Filter der Wege-Liste steht „Lage" schon auf „außerorts" und „unklar".</strong> Stadtgassen und Wege <em>innerhalb</em> eines Ortes sind damit von Anfang an ausgeblendet — sie sind für die Reiseplanung ohne Belang und würden die Liste vollschütten. Willst du an einem davon arbeiten, hak <strong>„innerorts"</strong> dazu. Der Knopf weist die Vorbelegung als gesetzten Filter aus, sie versteckt sich also nicht.</div>
 
+				<h4>Der Wege-Editor</h4>
+				<p>Im Reiter <strong>Editor → WikiSync → Wege</strong> steht der Knopf <strong>„Wege bearbeiten"</strong>. Er öffnet ein eigenes Fenster — den achten <a href="#n-editoren">Sync-Editor</a> — mit der Wegeliste links, den <em>Eigenschaften</em> in der Mitte und dem <em>Höhenprofil</em> rechts. Die Eigenschaften sind dieselben, die auch der Dialog „Weg bearbeiten" auf der Karte zeigt: Name, „Auto-Name", „Weg anzeigen", Wegtyp, erlaubte Transportmittel und die andere Quelle. Du kannst also der Reihe nach durcharbeiten, statt jeden Weg einzeln auf der Karte zu suchen.</p>
+				<p>Das <strong>„🚨 Wege syncen"</strong> ist dorthin ins Menüband umgezogen, genau wie bei Siedlungen, Kraftlinien und Regionen; im Reiter selbst findest du es nicht mehr. Daneben stehen <em>„Wegprofile rechnen"</em>, <em>„Wegprofile kalibrieren"</em> und <em>„Funktionen anzeigen"</em> — das letzte zeigt das Reisemodell als Kurven.</p>
+				<div class="hb-note hb-tip"><strong>Die Liste zeigt Wege, bearbeitet werden Abschnitte.</strong> Eine Zeile ist ein <em>ganzer</em> Weg und klappt auf seine Abschnitte auf — die „Reichsstraße 1" besteht aus 26 davon. Deshalb nennt die Zusammenfassung beide Zahlen („3 Wege · 28 Abschnitte"), und deshalb wählst du zum Bearbeiten immer einen einzelnen Abschnitt.</div>
+				<div class="hb-note hb-tip"><strong>Zwei Wege-Listen mit zwei Aufgaben.</strong> Die Liste im Reiter ordnet <strong>Wiki-Artikel</strong> zu — dorthin gehören „Konflikte", „Ausreißer" und „Flussrichtung unbekannt". Der Editor arbeitet an den <strong>Kartenabschnitten</strong>. Sein Reiter „Konflikte" bleibt darum leer und sagt dir das auch: Verlauf-Fälle hängen am Wiki-Weg, nicht am einzelnen Abschnitt.</div>
+				<p>Die <strong>Zugehörigkeit</strong> („führt durch") steht im Editor nur zum <em>Lesen</em>. Gerechnet wird sie weiterhin mit <em>„Zugehörigkeit rechnen"</em> im <a href="#regionen">Regionen</a>-Editor; der Wege-Editor verlinkt hinüber.</p>
+
 				<h4>Kleinigkeiten, die Zeit sparen</h4>
 				<ul class="hb-steps">
 					<li><strong>Beschriftungen sind im Bearbeiten-Modus klickdurchlässig.</strong> Wo ein Weg- oder Flussname über der Linie liegt, kam man früher nicht an die Linie darunter. Heute geht der Doppelklick durch und setzt den Stützpunkt, wo du hinzeigst.</li>
@@ -875,7 +882,7 @@
 
 				<h3 id="materialien" class="hb-sub">Abenteuer, Karten und Vorkommen</h3>
 				<p class="hb-path"><strong>Editor → WikiSync → Abenteuer</strong> &nbsp;·&nbsp; <strong>→ Karten</strong> &nbsp;·&nbsp; <strong>→ Vorkommen</strong></p>
-				<p>Diese drei sind, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere und Handelswaren. Jedes hat einen eigenen Editor, den du über <strong>„Bearbeiten"</strong> erreichst; bei Abenteuern und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
+				<p>Diese drei sind, was <em>über</em> die Karte gelegt wird statt auf ihr zu liegen: veröffentlichte Abenteuer, veröffentlichte Karten und das Weltwissen aus dem Wiki — Pflanzen, Tiere und Handelswaren. Jedes hat einen eigenen Editor, den du über den Knopf <strong>„… bearbeiten"</strong> unter der Auswahl erreichst; bei Abenteuern und Karten zusätzlich per <strong>Doppelklick</strong> auf einen Eintrag der Liste.</p>
 				<div class="hb-note hb-tip"><strong>Sie standen früher unter „Materialien".</strong> Diesen Sammelreiter gibt es nicht mehr — er war nur entstanden, weil in der waagerechten Reiterzeile kein Platz für einen sechsten Reiter war. Alle acht Themen stehen jetzt gleichrangig in der Auswahl.</div>
 
 				<h3 id="abenteuer" class="hb-sub">Abenteuer</h3>
@@ -915,7 +922,7 @@
 
 				<h3 id="natur-waren" class="hb-sub">Vorkommen</h3>
 				<p>Pflanzen, Tiere und Handelswaren aus dem Wiki — was wo wächst, lebt und gehandelt wird. Anders als Abenteuer und Karten ist das kein Produkt, sondern Weltwissen: Es bekommt keinen eigenen Punkt auf der Karte, sondern erscheint in der Infobox der Orte, Regionen und Gebiete, zu denen es gehört.</p>
-				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
+				<p>Unter der Auswahl steht <em>ein</em> Knopf: <strong>„Vorkommen bearbeiten"</strong>. Er öffnet das Fenster und startet nichts. Das Datum des letzten Syncs steht in der Auswahlzeile selbst — oder „nie", solange der Bestand leer ist.</p>
 				<div class="hb-note hb-tip"><strong>Der scharfe Sync steht nicht im Reiter, sondern im Fenster.</strong> Das ist Absicht: Der Abgleich liest den kompletten Wiki-Dump, braucht mehrere Minuten und soll nicht von einem ersten, neugierigen Klick ausgelöst werden. Du findest ihn als 🚨-Kachel <strong>„Vorkommen syncen"</strong> im Menüband des Fensters (siehe <a href="#n-editoren">Die sechs Sync-Editoren</a>). Manuelle und unterdrückte Einträge bleiben dabei unangetastet, und ein zweiter Klick bringt nichts — es läuft immer nur ein Lauf.</div>
 				<p>Über der Liste stehen die Arten als Reiter: <strong>Alle · Fauna · Flora · Waren · Spezies</strong>. <strong>Spezies ist ausgegraut</strong>, aber anklickbar: die öffentliche Anzeige ist aus, weil das Wiki-Feld „Regionen" der <em>Infobox Spezies</em> zu schlecht gepflegt ist — die Daten sind vollständig da und bleiben bearbeitbar. Die Begründung steht im Tooltip des Reiters.</p>
 
@@ -1268,8 +1275,8 @@
 				<h4>Das Gebiets-Menü</h4>
 				<p>Rechtsklick auf ein Herrschaftsgebiet, nur im Bearbeiten-Modus: Grenzen bearbeiten · Territoriumseditor öffnen · Grenzen berechnen · Siedlungen hier zuordnen · Infobox anzeigen · Verschieben · Gebiet zerschneiden · Mit anderem vereinigen · Von anderem ausschneiden (drei Varianten) · Neues Gebiet herauslösen · Löschen.</p>
 
-				<h3 id="n-editoren" class="hb-sub">Die sieben Sync-Editoren</h3>
-				<p>Alle sieben öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert (beim Kraftlinien-Editor mit <strong>⚡</strong>).</p>
+				<h3 id="n-editoren" class="hb-sub">Die acht Sync-Editoren</h3>
+				<p>Alle acht öffnen sich aus dem Reiter <strong>WikiSync</strong> und sehen gleich aus: oben ein Menüband aus Kacheln, darunter Liste und Details. Die erste Kachel ist immer die scharfe Aktion und mit <strong>🚨</strong> markiert (beim Kraftlinien-Editor mit <strong>⚡</strong>).</p>
 				<figure class="hb-shot">
 					<img src="screenshots/16-menueband.png" alt="Das Menueband eines Sync-Editors mit Kacheln, jede mit Titel und Unterzeile, darunter die Syncen-Kachel und ein AN-AUS-Schalter" />
 					<figcaption>Ein <strong>Menüband</strong>: Kacheln mit Titel und erklärender Unterzeile. Links die <strong>🚨-Kachel</strong> (Betreiber-Aktion), rechts davon Werkzeuge und AN/AUS-Schalter.</figcaption>
@@ -1277,10 +1284,10 @@
 				<table class="hb-table">
 					<tr><th>Editor</th><th>Erreichbar über</th></tr>
 					<tr><td><strong>Siedlungen</strong></td><td>WikiSync → Siedlungen → „Siedlungen bearbeiten"</td></tr>
-					<tr><td><strong>Territorien</strong></td><td>WikiSync → Territorien → „Syncen" (öffnet den Sync-Editor)</td></tr><tr><td><strong>Regionen</strong></td><td>WikiSync → Regionen → „Regionen bearbeiten"</td></tr><tr><td><strong>Kraftlinien</strong></td><td>WikiSync → Kraftlinien → „Bearbeiten"</td></tr>
-					<tr><td><strong>Abenteuer</strong></td><td>WikiSync → Abenteuer → „Bearbeiten" oder Doppelklick</td></tr>
-					<tr><td><strong>Kartensammlung</strong></td><td>WikiSync → Karten → „Bearbeiten" oder Doppelklick</td></tr>
-					<tr><td><strong>Vorkommen</strong></td><td>WikiSync → Vorkommen → „Bearbeiten" oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
+					<tr><td><strong>Territorien</strong></td><td>WikiSync → Territorien → „Territorien bearbeiten"</td></tr><tr><td><strong>Regionen</strong></td><td>WikiSync → Regionen → „Regionen bearbeiten"</td></tr><tr><td><strong>Wege</strong></td><td>WikiSync → Wege → „Wege bearbeiten"</td></tr><tr><td><strong>Kraftlinien</strong></td><td>WikiSync → Kraftlinien → „Kraftlinien bearbeiten"</td></tr>
+					<tr><td><strong>Abenteuer</strong></td><td>WikiSync → Abenteuer → „Abenteuer bearbeiten" oder Doppelklick</td></tr>
+					<tr><td><strong>Kartensammlung</strong></td><td>WikiSync → Karten → „Karten bearbeiten" oder Doppelklick</td></tr>
+					<tr><td><strong>Vorkommen</strong></td><td>WikiSync → Vorkommen → „Vorkommen bearbeiten" oder <em>einfacher</em> Klick auf eine Zeile</td></tr>
 				</table>
 				<p>Wiederkehrende Kacheln: <strong>🔗 Links prüfen</strong> (prüft die Quellen-Links des jeweiligen Reiters), <strong>Vorschauen holen</strong> (holt Bilder nach, läuft in Etappen), <strong>Wappen lokalisieren</strong> und die <strong>AN/AUS</strong>-Schalter fürs Frontend.</p>
 				<div class="hb-note hb-warn"><strong>Massenläufe nicht in Schleife anstoßen.</strong> „Vorschauen holen" und die Sync-Läufe arbeiten in Etappen und lassen jeweils nur <em>einen</em> Lauf gleichzeitig zu. Ein zweiter Klick bringt nichts außer Last auf dem Server — und der ist geteilt.</div>
