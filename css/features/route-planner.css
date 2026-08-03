@@ -591,9 +591,20 @@
 	width: 40px;
 }
 
+/* Nimmt sich den Rest der Zeile, statt auf eine feste Breite gedeckelt zu sein: „Unbekannt (keine
+   Jahreszeiten)" ist der laengste Eintrag und wurde bei 172 px abgeschnitten. */
 .planner-travel-start__month {
-	max-width: 172px;
+	flex: 1 1 auto;
 	min-width: 0;
+}
+
+/* 💣 Ohne Monat hat der Tag keine Bedeutung, und das MUSS man sehen. `disabled` allein reicht im
+   dunklen Thema nicht -- der Browser graut ein helles Feld sichtbar aus, ein dunkles kaum. */
+.route-planner-options-panel input[type="number"]:disabled {
+	background: var(--color-panel-muted);
+	border-color: var(--color-divider);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
 }
 
 .display-options__label {
