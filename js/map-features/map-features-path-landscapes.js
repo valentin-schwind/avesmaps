@@ -75,6 +75,14 @@ function buildLandscapeLine(pathIds, payload) {
 			if (!region) {
 				return;   // catalogue and assignment disagree -- skip, never guess a name
 			}
+			// 💣 Klimazonen sind KEINE Landschaft, durch die man reist. Seit sie gewoehnliche
+			// ecosystem_area-Zeilen sind (2026-08-03), faellt jeder Weg beim Zugehoerigkeitslauf in
+			// genau eine von ihnen -- und „fuehrt durch Darpatien, Sichelhag, Gemaessigte Zone" nennt
+			// dann eine Rechengroesse neben zwei Orten. Die Zuordnung BLEIBT gespeichert und traegt
+			// den Bodenabzug des Reisebeginns; sie gehoert nur nicht in diese Aufzaehlung.
+			if (String(region.kind || "") === "klima") {
+				return;
+			}
 			var name = avesmapsLandscapeDisplayName(region);
 			if (name === "") {
 				return;

@@ -205,3 +205,26 @@ assert.strictEqual(landscapeWikiKeyList(buildLandscapeLine(["p-3"], payload)), "
 	"a landscape without a wiki key contributes nothing");
 
 console.log("OK: path-landscapes builder, writers and the per-leg independence");
+
+// ---- Klimazonen gehoeren nicht in „fuehrt durch" (2026-08-03) -------------------------------------
+// Seit die sieben Klimabaender gewoehnliche ecosystem_area-Zeilen sind, faellt JEDER Weg beim
+// Zugehoerigkeitslauf in genau eines. Ohne den Filter naehme die Aufzaehlung eine Rechengroesse
+// zwischen zwei Orte auf: „durch Darpatien, Sichelhag, Gemaessigte Zone".
+(function klimaBleibtDraussen() {
+	const payload = {
+		landscapes: {
+			"a": { name: "Darpatien", kind: "derographisch", art: "Provinz" },
+			"b": { name: "Gemäßigte Zone", kind: "klima", art: "Gemäßigte Zone" },
+			"c": { name: "Sichelhag", kind: "vegetation", art: "Wald" },
+		},
+		paths: { "p1": { length: 10, in: [["a", 10], ["b", 10], ["c", 4]] } },
+	};
+	const line = buildLandscapeLine(["p1"], payload);
+	const names = line.map((entry) => entry.name);
+	assert(names.includes("Darpatien"), "die Provinz bleibt");
+	assert(names.includes("Sichelhag"), "der Wald bleibt");
+	assert(!names.includes("Gemäßigte Zone"), "💣 die Klimazone nicht -- sie ist keine Landschaft, durch die man reist");
+	assert(line.length === 2, "genau zwei Eintraege, nicht drei");
+})();
+
+console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen");
