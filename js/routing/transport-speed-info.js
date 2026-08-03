@@ -1,4 +1,5 @@
-// Info-Dialog "Reisegeschwindigkeiten und Wegtypen": ein i-Button neben der Transportmittel-Ueberschrift
+// Info-Dialog "Transportmittel" (hiess bis 2026-08-03 "Reisegeschwindigkeiten und Wegtypen"):
+// ein i-Button neben der Transportmittel-Ueberschrift
 // im Routenplaner oeffnet eine Tabelle aller Geschwindigkeiten je Transportmittel x Wegtyp. Reines
 // Frontend (kein Editmodus, oeffentlich). Alle Zahlen + Icons kommen LIVE aus config.js (SPEED_TABLE,
 // TRANSPORT_ICON_PATHS, ROUTE_ICON_PATHS) -> der Dialog bleibt automatisch synchron mit dem Routing.
@@ -93,7 +94,10 @@
 		return (
 			'<div class="tsi-dialog" role="dialog" aria-modal="true" aria-labelledby="tsi-title">' +
 			'<div class="tsi-head"><span class="tsi-i" aria-hidden="true">ⓘ</span>' +
-			'<h2 id="tsi-title">' + esc(tr("transport.speedInfo.title", "Reisegeschwindigkeiten und Wegtypen")) + "</h2>" +
+			// Heisst seit 2026-08-03 wie die Gruppe, an der der ⓘ haengt (Owner). „Reisegeschwindigkeiten
+			// und Wegtypen" beschrieb den Inhalt, nannte aber nicht den Ort -- und daneben steht jetzt ein
+			// zweiter Dialog, der „Reiseoptionen" heisst wie SEINE Gruppe.
+			'<h2 id="tsi-title">' + esc(tr("transport.speedInfo.title", "Transportmittel")) + "</h2>" +
 			'<button type="button" class="tsi-close" aria-label="' + esc(tr("transport.speedInfo.closeAria", "Schließen")) + '">✕</button></div>' +
 			'<div class="tsi-body">' +
 			'<p class="tsi-intro">' + tr("transport.speedInfo.intro", "Wie schnell du vorankommst, hängt vom gewählten Transportmittel <em>und</em> vom Wegtyp ab. Eine gute Reichsstraße trägt dich doppelt so schnell wie ein Gebirgspfad. Alle Werte in Meilen pro Stunde (1 Meile = 1&nbsp;km).") + "</p>" +
@@ -130,8 +134,26 @@
 			// miles = 239 Schritt per mile = a 23,9 % gradient = factor 2,195 = „2 statt 4,5 Meilen/h".
 			// factor = 1 + 5 * gradient, so: 100 Schritt/mile -> 1,5 · 200 -> 2,0 · 600 -> the 4,0 cap.
 			'<div class="tsi-rule tsi-rule--wide">' + iconImg(pathIcon("Gebirgspass")) + "<div>" + tr("transport.speedInfo.slopeRule", "<b>Steigung.</b> Es zählt die <em>Steilheit in Prozent</em>, nicht der Höhenunterschied. Gerechnet wird in <b>Leistungskilometern</b>, wie es Wanderer für Bergtouren tun: je 100 Schritt Aufstieg kostet eine Meile zusätzlich, je 150 Schritt Abstieg ebenso — Gefälle unter 20 % aber gar nichts (diese Schwelle folgt Langmuirs Zusatz zu Naismiths Wanderregel), und <b>schneller als die Ebene wird es nie</b>. So dauert eine Etappe bei <b>5 % Steigung die Hälfte länger, bei 10 % doppelt so lang, bei 20 % dreifach, ab 30 % vierfach</b> — mehr nicht. Über den Koschberge-Pass (24 %) wird aus einer Reichsstraße rund 1,3 statt 4,5 Meilen/h. Auf Flüssen und Meeren zählt kein Gelände, dort entscheidet die Strömung; wo keine Höhen erfasst sind, allein der Wegtyp. ⚠️ Die 20-%-Schwelle gilt je Teilstück, nicht im Etappenmittel — echtes Gelände ist nicht glatt, eine Etappe kann darum etwas langsamer sein als die Faustregel vermuten lässt.") + "</div></div>" +
-			"</div></div></div>"
+			"</div>" +
+			sourcesLine() +
+			"</div></div>"
 		);
+	}
+
+	/* Woher die Zahlen kommen. Schwester der Quellenzeile im Reiseoptionen-Dialog, gleiche Klassen.
+	 *
+	 * 💣 DIE STEIGUNGSREGEL IST KEIN DSA-KANON, und das steht ausdruecklich da. Die Geographia sagt
+	 * selbst (§9, §27), dass sie weder Grenzsteigung noch eine stetige Kurve hergibt; gerechnet wird
+	 * darum nach Naismith/Langmuir, einer Wanderregel fuer Bergtouren. Ohne den Satz liest sich eine
+	 * Rechenweise wie eine Regelwerksangabe -- derselbe Fehler, den das Etikett „DIN 33466" hier
+	 * schon einmal gemacht hat. */
+	function sourcesLine() {
+		return '<div class="tsi-sources">'
+			+ "<b>" + tr("transport.speedInfo.sources.lead", "Grundlage") + "</b> "
+			+ "Geographia Aventurica S. 113–141"
+			+ '<div class="tsi-sourcenote">' + tr("transport.speedInfo.sources.note",
+				"Tempi, Geländearten, Fluss- und Seereise stehen dort; die Steigungsregel nicht — sie folgt Naismiths Wanderregel mit Langmuirs Zusatz, einer Rechenweise für Bergtouren, weil die Geographia dazu ausdrücklich keine Werte führt.")
+			+ "</div></div>";
 	}
 
 	let overlay = null;

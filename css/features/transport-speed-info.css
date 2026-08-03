@@ -1,6 +1,7 @@
-/* Travel-speeds & path-types info dialog ("Reisegeschwindigkeiten und Wegtypen"),
-   opened by the ⓘ next to the Transportmittel heading in the route planner.
-   Public, read-only.
+/* The "Transportmittel" info dialog (titled "Reisegeschwindigkeiten und Wegtypen" until
+   2026-08-03), opened by the ⓘ next to the Transportmittel heading in the route planner.
+   Public, read-only. The file name kept its old spelling — renaming it would break the
+   @import chain the deploy stamper walks, for nothing.
 
    Moved OUT of transport-speed-info.js — styles belong in CSS, not injected by a
    script (JS-injected <style> causes a design flash and drifts from the tokens).
@@ -58,13 +59,14 @@
 	display: none;
 }
 
-/* 720 instead of 600 since V11 (owner: „du kannst in die breite gehen"): the speed matrix has seven
-   path rows across six transport columns and was already cramped, and the rules block below now
-   carries three entries. Wider costs nothing on desktop and buys back the height the third rule
-   would otherwise add. */
+/* 940 since 2026-08-03 (owner: „kann genauso breit werden wie Reiseoptionen") — the two dialogs
+   are siblings and sat at different widths, which reads as an accident. Before that 720 instead of
+   600 since V11 („du kannst in die breite gehen"): the speed matrix has seven path rows across six
+   transport columns and was already cramped. Every widening buys back height, and this one lets
+   the seven-column matrix breathe. */
 .tsi-dialog {
 	width: 100%;
-	max-width: 720px;
+	max-width: 940px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-lg);
 	background: var(--color-panel);
@@ -284,6 +286,32 @@
 .tsi-rules b {
 	color: var(--color-text-strong);
 	font-weight: var(--font-weight-bold);
+}
+
+/* The source line at the foot of BOTH dialogs — which DSA books the numbers come from. Shared
+   here with the rest of the shell (.tsi-dialog, .tsi-wcard, …) rather than copied into each
+   dialog's own stylesheet. Work titles in the text colour, the note beneath them muted.
+   In the travel-options dialog it sits at the foot of the shorter column, not under the grid:
+   there it fills space the layout has anyway (see route-options-info.js). */
+.tsi-sources {
+	margin-top: var(--space-12);
+	padding-top: var(--space-8);
+	border-top: 1px solid var(--color-divider);
+	color: var(--color-text);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+}
+.tsi-sources b {
+	color: var(--color-accent-strong);
+	font-weight: var(--font-weight-bold);
+}
+.tsi-sourcedot {
+	padding: 0 var(--space-2);
+	color: var(--color-text-muted);
+}
+.tsi-sourcenote {
+	margin-top: var(--space-2);
+	color: var(--color-text-muted);
 }
 
 @media (max-width: 640px) {

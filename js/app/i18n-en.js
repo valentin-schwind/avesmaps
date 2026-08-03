@@ -89,7 +89,16 @@ window.AVESMAPS_I18N_EN = {
 	"planner.optionsInfo.lodging.river": "River<br>/100 mi.",
 	"planner.optionsInfo.lodging.perWeek": "{money}/wk.",
 	"planner.optionsInfo.lodging.note": "The toll collector assesses you by your appearance, and upstream the passage costs {factor} times as much. <b>Only the way type provides a roof</b> — imperial road and road; on trail, pass, desert trail and cross-country you always sleep in the open.",
+	"planner.optionsInfo.start.canon": "The ground conditions and their penalties are from the Geographia Aventurica. <b>Which zone gets which one in which season is a setting made by Avesmaps</b> — the book carries no table for it.",
 	"planner.optionsInfo.foot": "How fast a way type is with which vehicle is in the ⓘ next to “Transport”.",
+	// Die vier Werktitel sind Werktitel und bleiben deutsch (AGENTS §2/§8) -- nur die Stichworte
+	// dahinter sind uebersetzbar.
+	"planner.optionsInfo.sources.lead": "Based on",
+	"planner.optionsInfo.sources.ga": "way types, ground, tolls, river and sea passage",
+	"planner.optionsInfo.sources.core": "bed and board",
+	"planner.optionsInfo.sources.codex": "fodder and farriery",
+	"planner.optionsInfo.sources.explorer": "daily provisions",
+	"planner.optionsInfo.sources.note": "No single work covers a whole journey: the Geographia describes inns at length but explicitly gives no prices for lodging or fodder.",
 
 	// Jahreszeit und Bodenzustand: bis hierher nur deutsch vorhanden, obwohl der Reiseplan sie
 	// schon zeigt (route-plan-calendar.js). Der Optionsdialog druckt die ganze Bodentabelle.
@@ -849,7 +858,13 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.mode.fastShip": "Fast sailer",
 	"transport.speedInfo.mode.galley": "Galley",
 	"transport.speedInfo.pathTypeHeader": "Path type",
-	"transport.speedInfo.title": "Travel speeds and path types",
+	// Heisst wie die Gruppe, an der der ⓘ haengt -- so wie der Reiseoptionen-Dialog wie seine.
+	"transport.speedInfo.title": "Transport",
+	"transport.speedInfo.buttonAria": "Explain the modes of transport",
+	"transport.speedInfo.buttonTitle": "How fast which mode of transport is on which way type",
+	// Werktitel bleibt deutsch (AGENTS §2/§8).
+	"transport.speedInfo.sources.lead": "Based on",
+	"transport.speedInfo.sources.note": "Speeds, terrain types, river and sea travel are in it; the slope rule is not — it follows Naismith's rule with Langmuir's correction, a way of reckoning mountain walks, because the Geographia explicitly carries no figures for it.",
 	"transport.speedInfo.closeAria": "Close",
 	"transport.speedInfo.intro": "How fast you travel depends on the chosen mode of transport <em>and</em> the path type. A good imperial road carries you twice as fast as a mountain trail. All values in miles per hour (1 mile = 1&nbsp;km).",
 	"transport.speedInfo.landTravel": "Overland travel",

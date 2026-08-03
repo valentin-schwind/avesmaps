@@ -19,6 +19,13 @@
 .roi-dialog {
 	max-width: 940px;
 }
+/* Weniger Luft ueber und unter dem Fenster als beim Tempo-Dialog: dieser ist der hoehere von
+   beiden, und die 24 px des Overlays entscheiden mit darueber, ob er auf einen 800-px-Schirm
+   passt. Seitlich bleibt es, wie es ist. */
+.tsi-overlay:has(> .roi-dialog) {
+	padding-top: var(--space-12);
+	padding-bottom: var(--space-12);
+}
 .roi-dialog .tsi-body {
 	padding: var(--space-12) var(--space-16) var(--space-16);
 }
@@ -122,14 +129,8 @@
 	overflow-x: auto;
 }
 
-.roi-foot {
-	display: flex;
-	align-items: center;
-	gap: var(--space-6);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-caption);
-	line-height: var(--leading-normal);
-}
+/* Die Quellenzeile (.tsi-sources) steht in transport-speed-info.css: BEIDE Dialoge tragen eine,
+   und zwei Kopien derselben Regeln sind genau die Divergenz, vor der AGENTS.md §12 warnt. */
 
 /* One column below this width — two ~350 px columns of caption-sized text read worse than a
    taller dialog, and here the dialog may scroll. */

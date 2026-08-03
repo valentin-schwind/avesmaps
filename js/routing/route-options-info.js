@@ -354,7 +354,38 @@ function avesmapsRouteOptionsZoneFallbackLabel(zoneKey) {
 			+ climateTable()
 			+ groundPenaltySentence()
 			+ '<p class="roi-text">' + tx("planner.optionsInfo.start.note",
-				"<b>Die Wegsuche kennt die Jahreszeit nicht:</b> Schnee bremst die Etappe, schickt dich aber nicht außen herum.") + "</p>");
+				"<b>Die Wegsuche kennt die Jahreszeit nicht:</b> Schnee bremst die Etappe, schickt dich aber nicht außen herum.") + "</p>"
+			// ⚠️ Muss dabeistehen, darum in derselben Zeile wie der Hinweis darueber statt in einer
+			// eigenen. Die Bodenzustaende und ihre Abzuege sind Kanon, die Tabelle ist es NICHT --
+			// season-ground.js sagt es selbst: „Eine Setzung, kein Kanon -- die Quelle nennt die
+			// Bodenzustaende, aber keine Monat-x-Region-Tabelle." Ohne den Satz liest sich eine
+			// Hausregel wie eine Regelwerksangabe.
+			+ " " + tx("planner.optionsInfo.start.canon",
+				"Die Zustände und Abzüge stehen in der Geographia, <b>die Zuordnung Zone × Jahreszeit ist eine Setzung von Avesmaps</b>.") + "</p>");
+	}
+
+	/* Die Buecher, aus denen die Zahlen dieses Dialogs stammen (Owner 2026-08-03).
+	 *
+	 * 💣 VIER WERKE, WEIL KEINES ALLEIN REICHT -- und das steht auch so da. Die Geographia
+	 * beschreibt Herbergen ausfuehrlich, nennt aber keinen einzigen Uebernachtungspreis („besitzen
+	 * keine allgemeinen Preise"); die Preise kommen darum aus dem Regelwerk, Futter und Hufpflege
+	 * aus dem Kodex, der Proviant aus einem DSA4.1-Band. Wer den Satz streicht, laesst vier
+	 * Quellenangaben wie Willkuer aussehen. Deckungspruefung Posten fuer Posten:
+	 * docs/reisekosten-quellenlage.md §8.4.
+	 *
+	 * Die Titel sind Werktitel und bleiben unuebersetzt (AGENTS §2/§8) -- nur die Stichworte
+	 * dahinter gehen durch tr(). */
+	function sourcesLine() {
+		var dot = ' <span class="tsi-sourcedot">·</span> ';
+		return '<div class="tsi-sources">'
+			+ '<b>' + tx("planner.optionsInfo.sources.lead", "Grundlage") + "</b> "
+			+ "Geographia Aventurica S. 113–141" + dot
+			+ "DSA5-Regelwerk S. 382" + dot
+			+ "Kodex der Helden S. 475" + dot
+			+ "Wege des Entdeckers S. 72"
+			+ '<div class="tsi-sourcenote">' + tx("planner.optionsInfo.sources.note",
+				"Vier Werke, weil keines allein eine ganze Reise abdeckt — die Geographia beschreibt Herbergen, nennt für sie aber ausdrücklich keine Preise. Wegart mal Fahrzeug steht im ⓘ neben „Transportmittel“.")
+			+ "</div></div>";
 	}
 
 	function dialogHtml() {
@@ -364,13 +395,14 @@ function avesmapsRouteOptionsZoneFallbackLabel(zoneKey) {
 			+ '<button type="button" class="tsi-close" aria-label="' + esc(tx("planner.optionsInfo.closeAria", "Schließen")) + '">✕</button></div>'
 			+ '<div class="tsi-body">'
 			+ '<p class="tsi-intro">' + tx("planner.optionsInfo.intro",
-				"Was <b>sucht neu</b> trägt, ändert den Weg selbst. Alles Übrige ändert nur, wie die gefundene Route gerechnet und gezeichnet wird.") + "</p>"
+				"Was <b>sucht neu</b> trägt, ändert den Weg selbst — alles Übrige nur die Zahlen zur gefundenen Route.") + "</p>"
 			+ '<div class="roi-grid">'
-			+ '<div class="roi-col">' + optimizeCard() + transfersCard() + lodgingCard() + "</div>"
-			+ '<div class="roi-col">' + restCard() + startCard()
-			+ '<div class="roi-foot">' + icon(pathIcon("Reichsstrasse")) + "<div>"
-			+ tx("planner.optionsInfo.foot", "Wie schnell eine Wegart mit welchem Fahrzeug ist, steht im ⓘ neben „Transportmittel“.")
-			+ "</div></div></div>"
+			// ⭐ Die Quellen stehen am Fuss der LINKEN Spalte, nicht unter dem Raster. Die rechte
+			// Spalte ist durch die Bodentabelle rund 110 px laenger; unter das Raster gesetzt kaeme
+			// die Zeile zu dieser Differenz noch hinzu und der Dialog braeuchte einen Rollbalken.
+			// So fuellt sie den Leerraum, den die kuerzere Spalte ohnehin hat, und kostet nichts.
+			+ '<div class="roi-col">' + optimizeCard() + transfersCard() + lodgingCard() + sourcesLine() + "</div>"
+			+ '<div class="roi-col">' + restCard() + startCard() + "</div>"
 			+ "</div></div></div>";
 	}
 
