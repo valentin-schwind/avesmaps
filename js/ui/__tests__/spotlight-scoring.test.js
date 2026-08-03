@@ -35,7 +35,8 @@ vm.runInNewContext(
 	extract("normalizeSpotlightSearchText") + extract("scoreSpotlightWord") + extract("getSpotlightSearchScore") + extract("spotlightPlaceLookupKeys") + extract("getSpotlightEntryWikiKey") + extract("resolveSpotlightLorePlace")
 		+ extractConst("SPOTLIGHT_LORE_AREA_FILL_MAX_MAP_SHARE", focusSource, "spotlight-search-focus.js")
 		+ extract("isSpotlightLoreAreaOversized", focusSource, "spotlight-search-focus.js")
-		+ extract("spotlightPlaceAreas", focusSource, "spotlight-search-focus.js"),
+		+ extract("spotlightPlaceAreas", focusSource, "spotlight-search-focus.js")
+		+ extract("spotlightEntryLookupPublicIds"),
 	context
 );
 const { getSpotlightSearchScore, normalizeSpotlightSearchText } = context;
@@ -162,5 +163,28 @@ assert.deepStrictEqual(Array.from(areas(labelPlace, null)), [], "no areas loaded
 assert.deepStrictEqual(Array.from(areas({ kind: "location", locationEntry: {} }, byLabel)), []);
 assert.deepStrictEqual(Array.from(areas({ kind: "region", regionEntry: {} }, byLabel)), []);
 assert.deepStrictEqual(Array.from(areas({ kind: "label", labelEntry: { label: {} } }, byLabel)), [], "label without an id");
+
+// ---- a territory is reachable under BOTH of its ids ----------------------------------------------
+// The regression this pins, measured live 2026-08-02: "Königreich Garetien" renders as a region entry
+// whose own publicId is 25623a55-… while the political territory it stands for is 99dacb52-…. Adventures,
+// Kartensammlung entries and the backend's own region hits all point at the SECOND one, so with only the
+// first in the index all 134 territory-starting adventures said "kein Ort auf der Karte" and their click
+// did nothing -- with the political layer fully rendered right underneath.
+const lookupIds = context.spotlightEntryLookupPublicIds;
+
+assert.deepStrictEqual(
+	Array.from(lookupIds({ publicIds: ["25623a55"], regionEntry: { publicId: "25623a55", territoryPublicId: "99dacb52" } })),
+	["25623a55", "99dacb52"],
+	"both ids, the entry's own one first"
+);
+// A region without a territory behind it (or any other kind) is unchanged -- no phantom key.
+assert.deepStrictEqual(Array.from(lookupIds({ publicIds: ["a"], regionEntry: {} })), ["a"]);
+assert.deepStrictEqual(Array.from(lookupIds({ publicIds: ["a"] })), ["a"]);
+assert.deepStrictEqual(Array.from(lookupIds({ publicIds: [] })), []);
+assert.deepStrictEqual(Array.from(lookupIds({})), []);
+// An empty or duplicated territory id must not add anything: "" would be a key every id-less pointer
+// matches, and a duplicate would make the same entry answer twice for nothing.
+assert.deepStrictEqual(Array.from(lookupIds({ publicIds: ["a"], regionEntry: { territoryPublicId: "" } })), ["a"]);
+assert.deepStrictEqual(Array.from(lookupIds({ publicIds: ["a"], regionEntry: { territoryPublicId: "a" } })), ["a"]);
 
 console.log("spotlight-scoring: OK");

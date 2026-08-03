@@ -806,8 +806,12 @@ function getSpotlightSearchLookup() {
 	const byPublicId = new Map();
 	const byPathGroup = new Map();
 	getSpotlightSearchEntries().forEach((entry) => {
-		(entry.publicIds || []).forEach((publicId) => {
-			byPublicId.set(`${entry.kind}:${publicId}`, entry);
+		spotlightEntryLookupPublicIds(entry).forEach((publicId) => {
+			// First writer wins: a territory drawn as several region entries would otherwise have its
+			// territory key point at whichever happened to come last.
+			if (!byPublicId.has(`${entry.kind}:${publicId}`)) {
+				byPublicId.set(`${entry.kind}:${publicId}`, entry);
+			}
 		});
 		if (entry.kind === "path") {
 			byPathGroup.set(getSpotlightPathGroupKey(entry.name, entry.subtype), entry);
@@ -844,6 +848,25 @@ function getSpotlightSearchLookup() {
 
 	spotlightSearchLookupCache = { byPublicId, byPathGroup, byLorePlace };
 	return spotlightSearchLookupCache;
+}
+
+// Every public id an entry may be looked up by.
+//
+// 💣 A political territory carries TWO, and they are different strings: `regionEntry.publicId` is the
+// rendered region's own id, `regionEntry.territoryPublicId` is the territory's. The index used to know
+// only the first, while everything that POINTS at a territory -- an adventure's start place, a
+// Kartensammlung entry, the backend's own region hits -- stores the second. Measured live 2026-08-02 on
+// "Königreich Garetien": entry 25623a55-…, territory 99dacb52-…, and all 134 adventures beginning in a
+// territory were listed as "kein Ort auf der Karte" while the political layer sat there fully rendered
+// with 1356 areas. The click did nothing, and nothing anywhere said why.
+function spotlightEntryLookupPublicIds(entry) {
+	const publicIds = (entry.publicIds || []).filter(Boolean).map(String);
+	const territoryPublicId = String(entry.regionEntry?.territoryPublicId || "");
+	if (territoryPublicId && !publicIds.includes(territoryPublicId)) {
+		publicIds.push(territoryPublicId);
+	}
+
+	return publicIds;
 }
 
 // The wiki key a spotlight entry carries -- the join key lore_place stores on its side. Every kind
