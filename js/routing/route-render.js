@@ -60,7 +60,9 @@ function logRoutePoints(segments) {
 // die Markierung ruhig wirkt; sie darf nicht aufgeweicht werden.
 //
 // Die Rolle bestimmt die Grafik: erster = Start (rote Scheibe), letzter = Ziel (roter Tropfen),
-// dazwischen = Zwischenziel (gelbe Scheibe). Bei nur EINEM Wegpunkt gibt es kein Ziel -- er ist Start.
+// dazwischen = Zwischenziel (gelbe Scheibe). Bei nur EINEM Wegpunkt gibt es kein Ziel -- er heisst
+// weiter „Startpunkt", wird aber als TROPFEN gezeichnet: allein steht keine Reise da, sondern eine
+// Markierung (routeWaypointShapeRole).
 //
 // Der erste Icon-Versuch (fbb5565b) scheiterte NICHT an den Grafiken, sondern am Anker: pin.webp war
 // 80x80 quadratisch (Tropfen mit Leerraum), bekam aber iconSize [30,37] aufgezwungen -> verzerrt, und
@@ -72,6 +74,23 @@ function routeWaypointRole(index, total) {
 	if (index === 0) return "start";
 	if (total > 1 && index === total - 1) return "end";
 	return "between";
+}
+
+/**
+ * Welche GRAFIK ein Wegpunkt bekommt -- Scheibe oder Tropfen.
+ *
+ * Folgt der Rolle, mit genau einer Ausnahme: ein Wegpunkt, der ALLEIN steht, ist noch keine Reise. Er
+ * ist eine Markierung auf der Karte, und eine Markierung ist hier ein Tropfen. Die Wegpunkt-Zeile im
+ * Planer zeigt ihn ohnehin schon so (`:last-child::before`, route-planner-waypoint-timeline.css) --
+ * bis hierher war die Karte das einzige, was an derselben Stelle eine Scheibe malte.
+ *
+ * ⚠️ Getrennt von `routeWaypointRole`, weil die Rolle die BESCHRIFTUNG traegt: der einzelne Punkt
+ * heisst weiter „Startpunkt". „Ziel" waere er erst, wenn es etwas gaebe, von dem aus man ihn erreicht.
+ * An der Form haengen dagegen Anker (Tropfenspitze statt Scheibenmitte), Popup-Versatz und die
+ * CSS-Klasse mit dem Hover-`transform-origin` -- die muessen alle der GRAFIK folgen, nicht der Rolle.
+ */
+function routeWaypointShapeRole(role, total) {
+	return total <= 1 ? "end" : role;
 }
 
 // Groesse + Anker einer Rolle. Die Scheibe sitzt MITTIG auf dem Ort (Anker = Mitte), der Tropfen mit
@@ -161,7 +180,7 @@ function applyActiveRouteWaypointMarkers() {
 			return;
 		}
 		marker._waypointActive = isActive;
-		marker.setIcon(routeWaypointIcon(marker._waypointRole, marker._waypointGeometry, isActive, marker._waypointMovable));
+		marker.setIcon(routeWaypointIcon(marker._waypointShapeRole, marker._waypointGeometry, isActive, marker._waypointMovable));
 	});
 }
 
@@ -311,14 +330,17 @@ function renderRouteWaypointMarkers() {
 		if (!waypoint || !waypoint.coordinates) {
 			return;
 		}
+		// Rolle = was er in der Reise IST (Beschriftung), Form = wie er gezeichnet wird. Sie fallen nur
+		// beim allein stehenden Wegpunkt auseinander: „Startpunkt", aber als Tropfen.
 		const role = routeWaypointRole(index, waypoints.length);
-		const geometry = routeWaypointGeometry(role);
+		const shapeRole = routeWaypointShapeRole(role, waypoints.length);
+		const geometry = routeWaypointGeometry(shapeRole);
 		// Ein angeklickter Kartenpunkt ist der einzige Wegpunkt, der irgendwo liegen KANN statt irgendwo
 		// zu sein -- also der einzige, den man verschieben darf. Ohne waypointId gaebe es keine Zeile,
 		// in die das Verschieben zurueckschreiben koennte.
 		const isMovable = Boolean(waypoint.isMapPoint && waypoint.waypointId);
 		const marker = L.marker(waypoint.coordinates, {
-			icon: routeWaypointIcon(role, geometry, false, isMovable),
+			icon: routeWaypointIcon(shapeRole, geometry, false, isMovable),
 			pane: "locationsPane",
 			riseOnHover: true,
 			keyboard: false,
@@ -328,7 +350,9 @@ function renderRouteWaypointMarkers() {
 		// gegen die goldene Fassung zu tauschen. publicId ist der Schluessel, an dem auch die Siedlungs-
 		// Marker und das Infopanel ihre Auswahl fuehren (activeLocationPublicId).
 		marker._waypointPublicId = waypoint.publicId || "";
-		marker._waypointRole = role;
+		// Die FORM, nicht die Rolle: applyActiveRouteWaypointMarkers zeichnet damit dasselbe Icon in Gold
+		// neu -- mit der Rolle wuerde der allein stehende Tropfen beim Auswaehlen zur Scheibe zurueckspringen.
+		marker._waypointShapeRole = shapeRole;
 		marker._waypointGeometry = geometry;
 		marker._waypointActive = false;
 		marker._waypointMovable = isMovable;
