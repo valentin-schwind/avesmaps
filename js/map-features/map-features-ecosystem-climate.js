@@ -26,53 +26,97 @@ const CLIMATE_NAME_MIN_HEIGHT = 8;
 
 // ---- reine Rechnerei (unit-getestet, js/map-features/__tests__/ecosystem-climate.test.js) ----------
 
-function climateYAtX(coordinates, x) {
-	if (!Array.isArray(coordinates) || coordinates.length === 0) {
-		return 0;
+function climateClampToMap(value) {
+	return Math.max(CLIMATE_MIN_XY, Math.min(CLIMATE_MAX_XY, value));
+}
+
+// Schneiden sich die Strecken a1-a2 und b1-b2? Wortgleich zu avesmapsClimateSegmentsCross in
+// api/_internal/app/climate-zones.php -- der Client soll dasselbe verbieten wie der Server, sonst zieht
+// man eine Linie, die beim Loslassen abgelehnt wird.
+function climateSegmentsCross(a1, a2, b1, b2) {
+	const orient = (p, q, r) => {
+		const value = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1]);
+		return Math.abs(value) < 1e-9 ? 0 : (value > 0 ? 1 : 2);
+	};
+	const onSegment = (p, q, r) =>
+		q[0] <= Math.max(p[0], r[0]) + 1e-9 && q[0] >= Math.min(p[0], r[0]) - 1e-9
+		&& q[1] <= Math.max(p[1], r[1]) + 1e-9 && q[1] >= Math.min(p[1], r[1]) - 1e-9;
+
+	const o1 = orient(a1, a2, b1), o2 = orient(a1, a2, b2);
+	const o3 = orient(b1, b2, a1), o4 = orient(b1, b2, a2);
+	if (o1 !== o2 && o3 !== o4) {
+		return true;
 	}
-	if (x <= coordinates[0][0]) {
-		return coordinates[0][1];
-	}
-	for (let index = 0; index < coordinates.length - 1; index += 1) {
-		const [ax, ay] = coordinates[index];
-		const [bx, by] = coordinates[index + 1];
-		if (x >= ax && x <= bx) {
-			const span = bx - ax;
-			return span <= 0 ? ay : ay + ((x - ax) / span) * (by - ay);
+	return (o1 === 0 && onSegment(a1, b1, a2)) || (o2 === 0 && onSegment(a1, b2, a2))
+		|| (o3 === 0 && onSegment(b1, a1, b2)) || (o4 === 0 && onSegment(b1, a2, b2));
+}
+
+// Würde dieser Punkt an dieser Stelle etwas kaputt machen?
+//
+// 🔴 SEIT DEN ÜBERHÄNGEN IST DAS DIE GANZE REGEL (Owner 2026-08-03). Vorher klemmten zwei Schranken:
+// y zwischen den Nachbarlinien, x zwischen den Nachbarpunkten. Beide setzten voraus, dass jede Linie
+// eine Funktion y(x) ist -- und genau das verbot die Blase um die Wüste Khôm.
+//
+// An ihre Stelle tritt der Test, um den es wirklich geht: die beiden Strecken AN DIESEM PUNKT dürfen
+// weder eine andere Strecke derselben Linie noch eine der Nachbarlinien schneiden. Alles andere ist
+// erlaubt -- auch zurücklaufen, auch senkrecht.
+//
+// Geprüft werden nur die beiden betroffenen Strecken, nicht die ganze Linie: alles andere hat sich
+// nicht bewegt und war vorher gültig.
+function climateVertexWouldCross(coordinates, pointIndex, candidate, neighbours) {
+	const probe = coordinates.slice();
+	probe[pointIndex] = candidate;
+
+	const betroffen = [];
+	if (pointIndex > 0) { betroffen.push([pointIndex - 1, pointIndex]); }
+	if (pointIndex < probe.length - 1) { betroffen.push([pointIndex, pointIndex + 1]); }
+
+	for (const [from, to] of betroffen) {
+		// gegen die eigene Linie, ohne die anstossenden Strecken (die teilen naturgemäss einen Punkt)
+		for (let index = 0; index < probe.length - 1; index += 1) {
+			if (index >= from - 1 && index <= to) { continue; }
+			if (climateSegmentsCross(probe[from], probe[to], probe[index], probe[index + 1])) {
+				return true;
+			}
+		}
+		// gegen die Nachbarlinien
+		for (const nachbar of (neighbours || [])) {
+			if (!Array.isArray(nachbar)) { continue; }
+			for (let index = 0; index < nachbar.length - 1; index += 1) {
+				if (climateSegmentsCross(probe[from], probe[to], nachbar[index], nachbar[index + 1])) {
+					return true;
+				}
+			}
 		}
 	}
-	return coordinates[coordinates.length - 1][1];
+
+	return false;
 }
 
-// Wohin darf dieser Griff senkrecht? `north`/`south` sind die Nachbarlinien als Koordinatenlisten oder
-// null (dann gilt der Kartenrand).
+// An welcher Stelle der Punktliste landet ein Klick?
 //
-// 🔴 Der Korridor wird an der Stelle x GEMESSEN, nicht an einem festen Punkt: bei einer schrägen
-// Nachbarlinie wäre ein Griff am rechten Rand sonst von deren Höhe am linken Rand geklemmt.
-function climateClampVertexY(y, x, north, south) {
-	const upper = north ? climateYAtX(north, x) - CLIMATE_MIN_GAP : CLIMATE_MAX_XY;
-	const lower = south ? climateYAtX(south, x) + CLIMATE_MIN_GAP : CLIMATE_MIN_XY;
-	return Math.max(lower, Math.min(upper, y));
-}
-
-// Und waagerecht? Ein Griff darf seine Nachbarn nicht überholen -- sonst wäre x nicht mehr streng
-// steigend, und genau daran hängt die ganze Konstruktion (api/_internal/app/climate-zones.php).
-function climateClampVertexX(x, previousX, nextX) {
-	return Math.max(previousX + CLIMATE_MIN_GAP, Math.min(nextX - CLIMATE_MIN_GAP, x));
-}
-
-// An welcher Stelle der Punktliste landet ein Klick bei x?
+// 🔴 Über den ABSTAND zur Strecke, nicht mehr über den x-Bereich: mit einem Überhang deckt derselbe x
+// mehrere Strecken ab, und „die erste, deren Bereich passt" wäre dann geraten.
 //
 // 🔴 Immer mindestens 1 und höchstens length - 1: die beiden Randpunkte sind Pflicht, und ein Einfügen
 // ausserhalb von ihnen schöbe einen aus seiner Ecke -- das Band darunter hörte dann vor dem Kartenrand
 // auf und hinterliesse einen Streifen, der zu keiner Zone gehört.
-function climateInsertionIndex(coordinates, x) {
+function climateInsertionIndex(coordinates, x, y) {
+	let beste = 1;
+	let bester = Infinity;
 	for (let index = 0; index < coordinates.length - 1; index += 1) {
-		if (x > coordinates[index][0] && x < coordinates[index + 1][0]) {
-			return index + 1;
+		const [ax, ay] = coordinates[index];
+		const [bx, by] = coordinates[index + 1];
+		const dx = bx - ax, dy = by - ay;
+		const laenge = dx * dx + dy * dy;
+		const t = laenge === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / laenge));
+		const abstand = Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+		if (abstand < bester) {
+			bester = abstand;
+			beste = index + 1;
 		}
 	}
-	return x <= coordinates[0][0] ? 1 : coordinates.length - 1;
+	return beste;
 }
 
 // ---- Zustand ---------------------------------------------------------------------------------------
@@ -302,20 +346,39 @@ function drawClimateOverlay() {
 
 // ---- Gesten ----------------------------------------------------------------------------------------
 
+// Die Nachbarlinien dieser Trennlinie, als Koordinatenlisten -- gegen die wird geprüft.
+function climateNeighbourList(dividerIndex) {
+	return [climateNeighbourCoordinates(dividerIndex, -1), climateNeighbourCoordinates(dividerIndex, 1)]
+		.filter(Boolean);
+}
+
+// Wohin darf dieser Griff?
+//
+// 🔴 „Es stoppt" bleibt das Verhalten, nur die Bedingung ist eine andere: würde der neue Punkt eine
+// Linie schneiden lassen, folgt der Griff einfach nicht und bleibt an seiner letzten gültigen Stelle.
+// Der Editor merkt das als Widerstand -- genau wie vorher an der Nachbarlinie, nur ohne die Regel,
+// dass x steigen muss.
 function climateVertexTarget(dividerIndex, pointIndex, isEdge, latlng) {
 	const coordinates = climateDividers[dividerIndex].geometry.coordinates;
-	// Ein Randgriff behält sein x -- er ist am Kartenrand festgenagelt. Deshalb wird auch der Korridor
-	// an seinem ALTEN x gemessen und nicht dort, wo die Maus gerade steht.
-	const x = isEdge
-		? coordinates[pointIndex][0]
-		: climateClampVertexX(latlng.lng, coordinates[pointIndex - 1][0], coordinates[pointIndex + 1][0]);
-	const y = climateClampVertexY(
-		latlng.lat,
-		x,
-		climateNeighbourCoordinates(dividerIndex, -1),
-		climateNeighbourCoordinates(dividerIndex, 1)
-	);
-	return [x, y];
+	// Ein Randgriff behält sein x -- er ist am Kartenrand festgenagelt und darf nur senkrecht.
+	const x = isEdge ? coordinates[pointIndex][0] : climateClampToMap(latlng.lng);
+	const y = climateClampToMap(latlng.lat);
+	const kandidat = [x, y];
+
+	// 🪤 Der Mindestabstand am WESTRAND wird weiter eingehalten -- dort entscheidet sich, welche Linie
+	// über welcher liegt (avesmapsClimateAssertOrder), und ein Randgriff, der die Nachbarin überholt,
+	// kehrte die Reihenfolge um.
+	if (pointIndex === 0) {
+		const north = climateNeighbourCoordinates(dividerIndex, -1);
+		const south = climateNeighbourCoordinates(dividerIndex, 1);
+		const oben = north ? north[0][1] - CLIMATE_MIN_GAP : CLIMATE_MAX_XY;
+		const unten = south ? south[0][1] + CLIMATE_MIN_GAP : CLIMATE_MIN_XY;
+		kandidat[1] = Math.max(unten, Math.min(oben, kandidat[1]));
+	}
+
+	return climateVertexWouldCross(coordinates, pointIndex, kandidat, climateNeighbourList(dividerIndex))
+		? coordinates[pointIndex]
+		: kandidat;
 }
 
 function insertClimateVertex(dividerIndex, latlng) {
@@ -324,15 +387,10 @@ function insertClimateVertex(dividerIndex, latlng) {
 		return;
 	}
 	const coordinates = divider.geometry.coordinates;
-	const index = climateInsertionIndex(coordinates, latlng.lng);
-	const x = climateClampVertexX(latlng.lng, coordinates[index - 1][0], coordinates[index][0]);
-	const y = climateClampVertexY(
-		latlng.lat,
-		x,
-		climateNeighbourCoordinates(dividerIndex, -1),
-		climateNeighbourCoordinates(dividerIndex, 1)
-	);
-	coordinates.splice(index, 0, [x, y]);
+	// Die nächstliegende Strecke, nicht der x-Bereich: mit einem Überhang deckt derselbe x mehrere
+	// Strecken ab.
+	const index = climateInsertionIndex(coordinates, latlng.lng, latlng.lat);
+	coordinates.splice(index, 0, [climateClampToMap(latlng.lng), climateClampToMap(latlng.lat)]);
 	void saveClimateDivider(dividerIndex);
 }
 
@@ -432,7 +490,7 @@ window.AvesmapsEcosystemClimate = { sync: syncEcosystemClimateEditor };
 // existiert `module` nicht, dort bleiben die Funktionen schlicht global.
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
-		climateYAtX, climateClampVertexY, climateClampVertexX, climateInsertionIndex,
-		climateAreaWestEdgeSpan,
+		climateSegmentsCross, climateVertexWouldCross, climateInsertionIndex,
+		climateClampToMap, climateAreaWestEdgeSpan,
 	};
 }

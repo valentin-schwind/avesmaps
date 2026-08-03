@@ -73,30 +73,53 @@ Regeln, alle serverseitig geprüft:
 |---|---|
 | **erster Punkt** | `x = 0` (linker Kartenrand) |
 | **letzter Punkt** | `x = 1024` (rechter Kartenrand) |
-| **x streng steigend** | jeder Punkt liegt rechts vom vorigen |
+| **kein Selbstschnitt** | die Linie kreuzt sich nirgends selbst |
 | **y im Bereich** | `0 … 1024` |
-| **Anzahl Punkte** | ≥ 2, ≤ 500 |
-| **Abstand zum Nachbarn** | ≥ `AVESMAPS_CLIMATE_MIN_GAP` (1,0 Karteneinheiten) an **jeder** Stelle |
+| **Anzahl Punkte** | ≥ 2, ≤ 500, keine Wiederholung des Vorgängers |
+| **Abstand zum Nachbarn** | ≥ `AVESMAPS_CLIMATE_MIN_GAP` (1,0) **am Westrand**, und nirgends ein Schnitt |
 
-> 💣 **„x streng steigend" ist keine Bequemlichkeit, sondern das, was die ganze
-> Konstruktion trägt.** Nur so ist jede Linie eine Funktion `y(x)`, nur so lässt sich
-> „liegt Linie 3 überall unter Linie 2" exakt prüfen, und nur so entsteht aus zwei
-> Linien ein Polygon ohne Selbstüberschneidung. Wer freie Punktreihenfolge zulässt,
-> muss stattdessen Linien-Schnitttests bauen und bekommt Bänder, die sich zu
-> Achterschleifen falten.
+> ⚠️ **Nachgezogen 2026-08-03: `x` muss NICHT mehr steigen.** Hier stand ursprünglich
+> „x streng steigend" als tragende Bedingung — und das war eine **Vereinfachung, keine
+> Eigenschaft der Sache**. Sie machte jede Linie zu einer Funktion `y(x)` und die
+> Reihenfolgeprüfung damit zu einer Abtastung an den Knickstellen. Der Preis war, dass
+> eine Grenze nie zurücklaufen darf: die **Blase um die Wüste Khôm** war damit
+> unmöglich, und der Owner ist beim Zeichnen genau dagegen gelaufen.
+>
+> 💣 **Was an ihre Stelle tritt: KEIN SELBSTSCHNITT** (`avesmapsClimatePolylineSelfIntersects`).
+> Vorher war der durch die Monotonie ausgeschlossen und brauchte keine Prüfung. Jetzt
+> ist er der Fall, der das Band zur Acht macht — und ein Verschnitt auf einer Acht
+> liefert Unsinn statt eines Fehlers.
+>
+> **Was BLEIBT und weiter tragend ist:** erster Punkt am linken, letzter am rechten
+> Kartenrand. Daran hängt, dass zwei Linien das Rechteck überhaupt in zwei Teile
+> schneiden — und dass die Bänder lückenlos aneinanderstoßen.
 
 **Norden ist oben, also hohes `y`.** `MAP_BOUNDS = [[0,0],[1024,1024]]` in
 `[lat, lng] = [y, x]`, und `L.CRS.Simple` lässt `lat` nach oben wachsen (bestätigt
 über `wiki-positionskarte-to-map-coords`: „Y läuft im Wiki nach UNTEN, y bei uns nach
 OBEN"). Trennlinie 1 hat damit das **höchste** `y`, Trennlinie 6 das niedrigste.
 
-### 4.2 Wie die Prüfung „überall darunter" exakt läuft
+### 4.2 Wie die Prüfung „überall darunter" läuft (Fassung ab 2026-08-03)
 
-Beide Linien sind stückweise linear und x-monoton. Zwei solche Funktionen können sich
-nur zwischen zwei aufeinanderfolgenden Knickstellen kreuzen — und wenn sie es tun,
-ist an mindestens einer der beteiligten Knickstellen der Abstand kleiner als am
-anderen Ende. Es genügt also, **an der Vereinigung der x-Werte beider Linien** zu
-prüfen. Kein Sampling-Raster, keine Toleranzfrage: das Ergebnis ist exakt.
+**Topologisch statt rechnerisch.** Mit einem Überhang gibt es zu einem `x` mehrere
+`y` — „Abstand an jeder Knickstelle" ergibt keinen Sinn mehr. Die Antwort ist
+stattdessen die, um die es immer ging, in zwei Teilen:
+
+1. **Die beiden Linien schneiden sich nirgends** (`avesmapsClimatePolylinesCross`).
+   Zwei überschneidungsfreie Kurven, die **beide** von Rand zu Rand laufen, teilen das
+   Rechteck in genau zwei Teile — dazwischen liegt das Band.
+2. **Damit steht ihre Reihenfolge global fest**, und ein einziger Punkt genügt, um sie
+   zu benennen: der am **Westrand**, wo jede Linie genau einen Punkt hat (dort ist sie
+   festgenagelt). Dort gilt auch der Mindestabstand.
+
+> 💣 Bedingung 1 ist die, die eine **Blase abfängt, die nach oben durchstößt**. An den
+> Randpunkten wäre dort alles in Ordnung — nur mittendrin nicht. Genau dieser Fall
+> steht als Test in `climate-zones-test.php`, in beide Richtungen.
+
+Die **Ableitung der Bänder (§4.3) ist davon unberührt**: sie läuft die obere Kante
+vorwärts und die untere rückwärts, und beide beginnen und enden weiterhin auf dem
+Kartenrand. Der Test „sieben Bänder decken 1024² exakt" läuft deshalb auch mit
+Überhang — und tut es.
 
 ### 4.3 Wie aus n Linien n+1 Flächen werden
 

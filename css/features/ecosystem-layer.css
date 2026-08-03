@@ -1324,6 +1324,30 @@
 	cursor: default;
 }
 
+/* ---- Klima ist NIE das Ziel einer booleschen Operation (Owner 2026-08-03) -------------------------
+   💣 DIE ZIELWAHL HOLT DIE RUHENDEN EBENEN ABSICHTLICH ZURÜCK -- sichtbar UND anklickbar, sonst liesse
+   sich ein See nie aus einem Wald ausschneiden (`--picking`, weiter unten). Das Flag geht auf ALLE
+   Panes, also auch auf die Klima-Ebene: die wurde damit mitten in einer Vereinigung anklickbar, liegt
+   kartenbreit über allem und fing jeden Zielklick ab. Gemeldet als „ich kann nur die Klimazone
+   anklicken".
+
+   Ein Klimaband KANN kein Ziel sein: es ist abgeleitet, und der Server lehnt jede Flächenoperation
+   darauf ab (avesmapsClimateAssertNotDerived). Es aus der Zielwahl herauszuhalten nimmt also nichts
+   weg -- es entfernt nur einen Deckel.
+
+   🪤 Fünf Klassen, weil die `--picking`-Regel vier hat und sonst gewinnt. Und die Füllung geht im
+   selben Zug auf 0 zurück: eine Ebene, die nicht Ziel sein kann, soll die Zielwahl auch nicht
+   einfärben. */
+.ecosystem-pane--klima.ecosystem-pane--resting.ecosystem-pane--picking {
+	--eco-fill: 0;
+	--eco-contour: 0;
+}
+
+.leaflet-pane.ecosystem-pane--klima.ecosystem-pane--resting.ecosystem-pane--picking > svg path.leaflet-interactive {
+	pointer-events: none;
+	cursor: default;
+}
+
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
    Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
    einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse

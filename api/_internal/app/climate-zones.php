@@ -32,13 +32,96 @@ const AVESMAPS_CLIMATE_MIN_GAP = 1.0;
 const AVESMAPS_CLIMATE_MAX_POINTS = 500;
 
 /**
+ * Schneiden sich die Strecken a1-a2 und b1-b2?
+ *
+ * Standard-Orientierungstest. Beruehrungen zaehlen als Schnitt: fuer eine Zonengrenze ist „die beiden
+ * kuessen sich" genauso unbrauchbar wie ein echtes Kreuz -- das Band waere dort auf Breite null.
+ */
+function avesmapsClimateSegmentsCross(array $a1, array $a2, array $b1, array $b2): bool
+{
+    $orient = static function (array $p, array $q, array $r): int {
+        $value = ($q[1] - $p[1]) * ($r[0] - $q[0]) - ($q[0] - $p[0]) * ($r[1] - $q[1]);
+        if (abs($value) < 1e-9) {
+            return 0;
+        }
+
+        return $value > 0 ? 1 : 2;
+    };
+    $onSegment = static fn(array $p, array $q, array $r): bool =>
+        $q[0] <= max($p[0], $r[0]) + 1e-9 && $q[0] >= min($p[0], $r[0]) - 1e-9
+        && $q[1] <= max($p[1], $r[1]) + 1e-9 && $q[1] >= min($p[1], $r[1]) - 1e-9;
+
+    $o1 = $orient($a1, $a2, $b1);
+    $o2 = $orient($a1, $a2, $b2);
+    $o3 = $orient($b1, $b2, $a1);
+    $o4 = $orient($b1, $b2, $a2);
+
+    if ($o1 !== $o2 && $o3 !== $o4) {
+        return true;
+    }
+    // Kollinear und ueberlappend.
+    return ($o1 === 0 && $onSegment($a1, $b1, $a2))
+        || ($o2 === 0 && $onSegment($a1, $b2, $a2))
+        || ($o3 === 0 && $onSegment($b1, $a1, $b2))
+        || ($o4 === 0 && $onSegment($b1, $a2, $b2));
+}
+
+/**
+ * Schneidet sich diese Linie selbst? Benachbarte Strecken sind ausgenommen -- die teilen sich
+ * naturgemaess einen Punkt.
+ *
+ * @param list<array{0: float, 1: float}> $coordinates
+ */
+function avesmapsClimatePolylineSelfIntersects(array $coordinates): bool
+{
+    $count = count($coordinates) - 1;
+    for ($i = 0; $i < $count; $i++) {
+        for ($j = $i + 2; $j < $count; $j++) {
+            if (avesmapsClimateSegmentsCross(
+                $coordinates[$i], $coordinates[$i + 1],
+                $coordinates[$j], $coordinates[$j + 1]
+            )) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Schneiden sich zwei Linien irgendwo?
+ *
+ * @param list<array{0: float, 1: float}> $a
+ * @param list<array{0: float, 1: float}> $b
+ */
+function avesmapsClimatePolylinesCross(array $a, array $b): bool
+{
+    for ($i = 0; $i < count($a) - 1; $i++) {
+        for ($j = 0; $j < count($b) - 1; $j++) {
+            if (avesmapsClimateSegmentsCross($a[$i], $a[$i + 1], $b[$j], $b[$j + 1])) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
  * Eine Trennlinie pruefen und in Gestalt bringen.
  *
- * 💣 „x streng steigend" ist die Bedingung, an der alles Weitere haengt. Nur so ist die Linie eine
- * Funktion y(x); nur dann laesst sich „liegt B ueberall unter A" exakt beantworten (siehe
- * avesmapsClimateAssertOrder), und nur dann ergeben zwei Linien ein Polygon ohne Selbstschnitt. Wer
- * freie Punktreihenfolge zulaesst, braucht stattdessen echte Linien-Schnitttests und bekommt Baender,
- * die sich zu Achterschleifen falten.
+ * 🔴 SEIT 2026-08-03 DARF x ZURUECKLAUFEN (Owner: „um die Wueste Khôm richtig zu machen, will ich eine
+ * Blase"). Bis dahin galt „x streng steigend". Das war eine VEREINFACHUNG, keine Eigenschaft der Sache:
+ * sie machte jede Linie zu einer Funktion y(x) und die Reihenfolgepruefung damit zu einer Abtastung an
+ * den Knickstellen -- verbot aber genau den Ueberhang, den eine Klimagrenze um eine Wueste braucht.
+ *
+ * 💣 An ihre Stelle tritt die Bedingung, um die es wirklich geht: KEIN SELBSTSCHNITT. Vorher war der
+ * durch die Monotonie ausgeschlossen und brauchte keine Pruefung; jetzt ist er der Fall, der das Band
+ * zur Acht macht -- und ein Verschnitt auf einer Acht liefert Unsinn statt eines Fehlers.
+ *
+ * Was BLEIBT: erster Punkt am linken, letzter am rechten Kartenrand. Daran haengt, dass zwei Linien das
+ * Rechteck ueberhaupt in zwei Teile schneiden, und dass die Baender lueckenlos aneinanderstossen.
  *
  * @return array{type: string, coordinates: list<array{0: float, 1: float}>}
  */
@@ -61,7 +144,7 @@ function avesmapsClimateNormalizeDivider(mixed $geometry): array
     }
 
     $coordinates = [];
-    $previousX = null;
+    $previous = null;
     foreach (array_values($positions) as $index => $position) {
         if (!is_array($position) || count($position) < 2) {
             throw new InvalidArgumentException("divider position {$index} is invalid.");
@@ -70,10 +153,12 @@ function avesmapsClimateNormalizeDivider(mixed $geometry): array
         // the same treatment every drawn corner in this house gets.
         $x = avesmapsParseMapCoordinate($position[0] ?? null, "divider[{$index}].x");
         $y = avesmapsParseMapCoordinate($position[1] ?? null, "divider[{$index}].y");
-        if ($previousX !== null && $x <= $previousX) {
-            throw new InvalidArgumentException('divider positions must have strictly increasing x.');
+        // Eine Strecke der Laenge null ist kein Ueberhang, sondern ein Doppelklick. Sie waere fuer die
+        // Orientierungstests unten ausserdem entartet.
+        if ($previous !== null && abs($x - $previous[0]) < 1e-9 && abs($y - $previous[1]) < 1e-9) {
+            throw new InvalidArgumentException("divider position {$index} repeats its predecessor.");
         }
-        $previousX = $x;
+        $previous = [$x, $y];
         $coordinates[] = [$x, $y];
     }
 
@@ -82,6 +167,9 @@ function avesmapsClimateNormalizeDivider(mixed $geometry): array
     }
     if (abs($coordinates[count($coordinates) - 1][0] - AVESMAPS_CLIMATE_MAX_XY) > 1e-9) {
         throw new InvalidArgumentException('the last divider position must sit on the right map edge.');
+    }
+    if (avesmapsClimatePolylineSelfIntersects($coordinates)) {
+        throw new InvalidArgumentException('a divider may not cross itself.');
     }
 
     return ['type' => 'LineString', 'coordinates' => $coordinates];
@@ -112,13 +200,20 @@ function avesmapsClimateYAt(array $coordinates, float $x): float
 }
 
 /**
- * Liegt jede Trennlinie ueberall unter ihrer noerdlichen Nachbarin, mit Mindestabstand?
+ * Liegt jede Trennlinie unter ihrer noerdlichen Nachbarin, ohne sie zu beruehren?
  *
- * 🔴 EXAKT, KEIN SAMPLING-RASTER. Beide Linien sind stueckweise linear und x-monoton. Zwischen zwei
- * benachbarten Knickstellen ist die Differenz beider Funktionen selbst linear -- ihr Minimum liegt also
- * immer AN einer Knickstelle. Es genuegt deshalb, an der VEREINIGUNG der x-Werte beider Linien zu
- * pruefen; ein feineres Raster faende nichts dazu, ein groeberes uebersaehe eine Kreuzung zwischen zwei
- * Stuetzstellen.
+ * 🔴 TOPOLOGISCH STATT RECHNERISCH (2026-08-03, mit den Ueberhaengen). Vorher waren beide Linien
+ * x-monoton, also Funktionen y(x), und die Frage liess sich als „Abstand an jeder Knickstelle"
+ * beantworten. Mit einem Ueberhang gibt es zu einem x mehrere y -- die Frage ergibt so keinen Sinn mehr.
+ *
+ * Die Antwort ist stattdessen die, um die es immer ging:
+ *   1. Die beiden Linien schneiden sich NIRGENDS. Zwei ueberschneidungsfreie Kurven, die BEIDE von
+ *      Rand zu Rand laufen, teilen das Rechteck in genau zwei Teile -- dazwischen liegt das Band.
+ *   2. Damit steht ihre Reihenfolge global fest, und EIN Punkt genuegt, um sie zu benennen: der am
+ *      Westrand, wo jede Linie genau einen Punkt hat (er ist dort festgenagelt).
+ *
+ * 💣 Bedingung 1 ist die, die eine Blase abfaengt, die nach oben durchstoesst. An den Randpunkten waere
+ * dort alles in Ordnung -- nur mittendrin nicht.
  *
  * @param list<array{type: string, coordinates: list<array{0: float, 1: float}>}> $dividers Index 0 = noerdlichste
  */
@@ -129,21 +224,22 @@ function avesmapsClimateAssertOrder(array $dividers): void
         $north = $dividers[$index]['coordinates'];
         $south = $dividers[$index + 1]['coordinates'];
 
-        $samples = [];
-        foreach ([...$north, ...$south] as $position) {
-            $samples[(string) $position[0]] = (float) $position[0];
+        $gap = $north[0][1] - $south[0][1];
+        if ($gap < AVESMAPS_CLIMATE_MIN_GAP) {
+            throw new InvalidArgumentException(sprintf(
+                'divider %d must stay at least %.1f below divider %d at the west edge (gap is %.4f).',
+                $index + 2,
+                AVESMAPS_CLIMATE_MIN_GAP,
+                $index + 1,
+                $gap
+            ));
         }
-        foreach ($samples as $x) {
-            $gap = avesmapsClimateYAt($north, $x) - avesmapsClimateYAt($south, $x);
-            if ($gap < AVESMAPS_CLIMATE_MIN_GAP) {
-                throw new InvalidArgumentException(sprintf(
-                    'divider %d comes closer than %.1f to divider %d at x = %.4f.',
-                    $index + 2,
-                    AVESMAPS_CLIMATE_MIN_GAP,
-                    $index + 1,
-                    $x
-                ));
-            }
+        if (avesmapsClimatePolylinesCross($north, $south)) {
+            throw new InvalidArgumentException(sprintf(
+                'divider %d crosses divider %d.',
+                $index + 2,
+                $index + 1
+            ));
         }
     }
 }
