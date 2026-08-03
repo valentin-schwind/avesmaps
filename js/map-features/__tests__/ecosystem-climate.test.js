@@ -28,53 +28,68 @@ function assert(condition, message) {
 	}
 }
 
-// ---- y at x ----------------------------------------------------------------------------------------
+// ---- Strecken-Schnitt ------------------------------------------------------------------------------
+// Muss dasselbe verbieten wie avesmapsClimateSegmentsCross im PHP, sonst zieht man eine Linie, die beim
+// Loslassen abgelehnt wird.
 
-const straight = [[0, 800], [1024, 800]];
-assert(context.climateYAtX(straight, 512) === 800, "y is constant on a straight divider");
+assert(context.climateSegmentsCross([0, 0], [10, 10], [0, 10], [10, 0]), "a clean X crosses");
+assert(!context.climateSegmentsCross([0, 0], [10, 0], [0, 5], [10, 5]), "parallel segments do not");
+assert(context.climateSegmentsCross([0, 0], [10, 0], [5, 0], [5, 10]), "a T counts as a crossing too");
+assert(!context.climateSegmentsCross([0, 0], [10, 0], [20, 0], [30, 0]), "collinear but apart does not");
 
-const ramp = [[0, 100], [1024, 200]];
-assert(Math.abs(context.climateYAtX(ramp, 512) - 150) < 1e-9, "y interpolates linearly");
-assert(context.climateYAtX(ramp, -50) === 100, "left of the line: the first y");
-assert(context.climateYAtX(ramp, 2000) === 200, "right of the line: the last y");
-assert(context.climateYAtX([], 10) === 0, "an empty line answers 0 instead of throwing");
+// ---- darf dieser Griff dorthin? --------------------------------------------------------------------
+// 🔴 Seit den Überhängen ist DAS die Regel -- nicht mehr „y zwischen den Nachbarn, x zwischen den
+// Nachbarpunkten". Erlaubt ist alles, was nichts schneidet.
 
-// ---- clamping a dragged handle vertically ----------------------------------------------------------
+const linie = [[0, 500], [300, 500], [600, 500], [1024, 500]];
+const nachbarNord = [[0, 900], [1024, 900]];
+const nachbarSued = [[0, 100], [1024, 100]];
 
-const north = [[0, 900], [1024, 900]];
-const south = [[0, 500], [1024, 500]];
+assert(!context.climateVertexWouldCross(linie, 1, [300, 700], [nachbarNord, nachbarSued]),
+	"moving a vertex inside the corridor is fine");
 
-assert(context.climateClampVertexY(700, 512, north, south) === 700, "inside the corridor: unchanged");
-assert(context.climateClampVertexY(950, 512, north, south) === 899, "clamped one unit below the northern neighbour");
-assert(context.climateClampVertexY(400, 512, north, south) === 501, "clamped one unit above the southern neighbour");
-assert(context.climateClampVertexY(2000, 512, null, south) === 1024, "no northern neighbour: the map edge");
-assert(context.climateClampVertexY(-40, 512, north, null) === 0, "no southern neighbour: the map edge");
+// 🔴 DER FALL DES OWNERS: der Punkt läuft nach LINKS an seinem Vorgänger vorbei -- ein Überhang.
+// Genau das war bis heute verboten, und ohne diesen Test käme die Klemme still zurück.
+assert(!context.climateVertexWouldCross(linie, 2, [150, 400], [nachbarNord, nachbarSued]),
+	"a vertex may run back past its predecessor -- that is the bubble");
 
-// A SLANTED neighbour is measured at the handle's own x, not at some fixed point -- otherwise a handle
-// near the right edge would be clamped by the neighbour's height on the left.
-const slanted = [[0, 900], [1024, 300]];
-assert(context.climateClampVertexY(880, 1024, slanted, null) === 299,
-	"the corridor is measured at the handle's x, not at the line's start");
+// Was weiterhin nicht geht: die Nachbarlinie durchstossen.
+assert(context.climateVertexWouldCross(linie, 1, [300, 950], [nachbarNord, nachbarSued]),
+	"pushing through the northern neighbour is refused");
+assert(context.climateVertexWouldCross(linie, 1, [300, 50], [nachbarNord, nachbarSued]),
+	"and through the southern one as well");
 
-// ---- clamping horizontally -------------------------------------------------------------------------
+// Und die eigene Linie darf sich nicht selbst schneiden.
+const zickzack = [[0, 500], [200, 300], [400, 700], [600, 300], [1024, 500]];
+assert(context.climateVertexWouldCross(zickzack, 1, [500, 500], [ ]),
+	"a vertex dragged across its own line is refused");
 
-assert(context.climateClampVertexX(400, 300, 600) === 400, "inside: unchanged");
-assert(context.climateClampVertexX(290, 300, 600) === 301, "cannot pass the previous point");
-assert(context.climateClampVertexX(700, 300, 600) === 599, "cannot pass the next point");
-
-// ---- where a new point goes ------------------------------------------------------------------------
+// ---- wo ein neuer Punkt landet ---------------------------------------------------------------------
+// Über den ABSTAND zur Strecke, nicht über den x-Bereich: mit einem Überhang deckt derselbe x mehrere
+// Strecken ab.
 
 const bent = [[0, 900], [400, 880], [1024, 910]];
-assert(context.climateInsertionIndex(bent, 200) === 1, "a click in the first segment inserts at 1");
-assert(context.climateInsertionIndex(bent, 700) === 2, "a click in the second segment inserts at 2");
-assert(context.climateInsertionIndex(bent, 0) === 1, "exactly on the left end still lands inside");
-assert(context.climateInsertionIndex(bent, 1024) === 2, "exactly on the right end lands in the last segment");
+assert(context.climateInsertionIndex(bent, 200, 890) === 1, "a click near the first segment inserts at 1");
+assert(context.climateInsertionIndex(bent, 700, 895) === 2, "a click near the second segment inserts at 2");
+
+// 🔴 Beim Überhang entscheidet der Abstand, nicht x: bei x = 500 liegen ZWEI Strecken, und der Klick
+// gehört zu der, die näher ist.
+const ueberhang = [[0, 500], [600, 500], [400, 300], [1024, 300]];
+assert(context.climateInsertionIndex(ueberhang, 500, 495) === 1, "a click just under the upper run picks it");
+assert(context.climateInsertionIndex(ueberhang, 500, 305) === 3, "a click near the lower run picks that one");
+
 // 🔴 Never 0 and never length: the two edge points are mandatory, and an insertion outside them would
 // push one of them out of its corner -- the band below would then stop short of the map edge.
-[-100, 0, 512, 1024, 5000].forEach((x) => {
-	const index = context.climateInsertionIndex(bent, x);
+[[-100, 0], [0, 900], [512, 880], [1024, 910], [5000, 900]].forEach(([x, y]) => {
+	const index = context.climateInsertionIndex(bent, x, y);
 	assert(index >= 1 && index <= bent.length - 1, `insertion index for x=${x} stays inside the edges`);
 });
+
+// ---- Kartengrenzen ---------------------------------------------------------------------------------
+
+assert(context.climateClampToMap(-40) === 0, "below the map clamps to 0");
+assert(context.climateClampToMap(2000) === 1024, "above the map clamps to 1024");
+assert(context.climateClampToMap(512) === 512, "inside stays put");
 
 // ---- wo der Zonenname sitzt (2026-08-03) -----------------------------------------------------------
 // 🔴 Aus der FLÄCHE gerechnet, nicht aus den Trennlinien: die Namen stehen auch im Frontend, und dort

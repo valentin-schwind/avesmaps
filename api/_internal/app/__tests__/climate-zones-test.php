@@ -61,12 +61,39 @@ climateTestThrows(static fn() => climateTestLine([[10, 900], [1024, 900]]),
     'the first point must sit on the left map edge');
 climateTestThrows(static fn() => climateTestLine([[0, 900], [1000, 900]]),
     'the last point must sit on the right map edge');
-climateTestThrows(static fn() => climateTestLine([[0, 900], [500, 880], [400, 890], [1024, 900]]),
-    'x must strictly increase -- a backwards step folds the band');
-climateTestThrows(static fn() => climateTestLine([[0, 900], [500, 880], [500, 870], [1024, 900]]),
-    'two points at the same x are not strictly increasing either');
 climateTestThrows(static fn() => climateTestLine([[0, 900]]),
     'a divider needs at least two points');
+
+// ---- ÜBERHÄNGE (Owner 2026-08-03) ------------------------------------------------------------------
+// 🔴 Bis heute galt „x muss streng steigen". Das war eine VEREINFACHUNG, keine Eigenschaft der Sache:
+// sie machte jede Linie zu einer Funktion y(x) und die Reihenfolgeprüfung damit trivial -- verbot aber
+// genau das, was eine Klimagrenze um die Wüste Khôm braucht: eine Blase, bei der die Linie ein Stück
+// nach links zurückläuft. Der Owner ist beim Zeichnen genau dagegen gelaufen.
+//
+// An ihre Stelle tritt die Bedingung, um die es wirklich geht: die Linie darf sich nicht selbst
+// schneiden, und zwei benachbarte Linien dürfen sich nicht schneiden. Das lässt Überhänge zu und hält
+// die Bänder trotzdem überschneidungsfrei.
+
+$ueberhang = climateTestLine([[0, 500], [600, 500], [400, 400], [1024, 400]]);
+assert(count($ueberhang['coordinates']) === 4, 'a divider may run backwards in x -- that is an overhang');
+
+// Eine echte Blase: rechts hinaus, hinunter, ein Stück zurück nach links, dann weiter nach rechts.
+$blase = climateTestLine([[0, 600], [300, 600], [500, 420], [380, 360], [640, 340], [760, 520], [1024, 560]]);
+assert(count($blase['coordinates']) === 7, 'a bubble is a valid divider');
+
+// 💣 Was NICHT mehr geht: sich selbst schneiden. Vorher war das durch die Monotonie ausgeschlossen,
+// jetzt braucht es eine eigene Prüfung -- ohne sie wäre das Band eine Acht, und jeder Verschnitt
+// darauf liefert Unsinn.
+climateTestThrows(static fn() => climateTestLine([[0, 500], [600, 300], [400, 600], [500, 200], [1024, 400]]),
+    'a divider that crosses itself is refused');
+
+// Zwei Punkte übereinander sind erlaubt (eine senkrechte Kante), solange nichts sich schneidet.
+$senkrecht = climateTestLine([[0, 500], [500, 500], [500, 300], [1024, 300]]);
+assert(count($senkrecht['coordinates']) === 4, 'two points at the same x are fine now -- that is a vertical edge');
+
+// Ein Punkt genau auf dem Vorgänger ist trotzdem sinnlos und fliegt raus.
+climateTestThrows(static fn() => climateTestLine([[0, 500], [500, 500], [500, 500], [1024, 300]]),
+    'a repeated position is refused');
 climateTestThrows(static fn() => climateTestLine([[0, 1100], [1024, 900]]),
     'y stays inside the map');
 climateTestThrows(static fn() => avesmapsClimateNormalizeDivider(['type' => 'Polygon', 'coordinates' => []]),
@@ -82,7 +109,10 @@ assert(abs(avesmapsClimateYAt($ramp['coordinates'], 1024.0) - 200.0) < 1e-9, 'y 
 assert(abs(avesmapsClimateYAt($ramp['coordinates'], 512.0) - 150.0) < 1e-9, 'y interpolates linearly');
 
 // ---- the order guard -------------------------------------------------------------------------------
-// 🔴 This is what makes "no overlap" a property of the construction rather than a rule someone checks.
+// 🔴 Hier lebt „keine Überlappung", seit x nicht mehr steigen muss. Die Aussage ist topologisch statt
+// rechnerisch: zwei Linien, die BEIDE von Rand zu Rand laufen, sich nicht selbst und einander nicht
+// schneiden, teilen das Rechteck in genau zwei Teile -- und welche oben liegt, entscheidet dann EIN
+// Punkt, nämlich der am Westrand. Ein Überhang ändert daran nichts.
 
 $ok = [
     climateTestLine([[0, 900], [1024, 880]]),
@@ -90,6 +120,12 @@ $ok = [
     climateTestLine([[0, 500], [1024, 500]]),
 ];
 avesmapsClimateAssertOrder($ok);   // must not throw
+
+// Und mit Überhang genauso, solange sich nichts schneidet.
+avesmapsClimateAssertOrder([
+    climateTestLine([[0, 900], [1024, 880]]),
+    climateTestLine([[0, 600], [700, 600], [500, 500], [1024, 520]]),
+]);
 
 // Crossing INSIDE a segment: both lines are fine at their own vertices taken alone, and they still
 // cross. This is the case a naive per-vertex check on one line misses.
@@ -106,14 +142,21 @@ climateTestThrows(static fn() => avesmapsClimateAssertOrder([
 climateTestThrows(static fn() => avesmapsClimateAssertOrder([
     climateTestLine([[0, 700], [1024, 700]]),
     climateTestLine([[0, 699.5], [1024, 699.5]]),
-]), 'closer than the minimum gap is refused');
+]), 'closer than the minimum gap at the west edge is refused');
 
-// The union of BOTH x sets is what gets sampled: line B's kink sits at an x that line A has no vertex
-// at, and that kink is where they touch.
+// 💣 Der Fall, der die Umstellung gefährlich macht: eine BLASE der südlichen Linie, die nach oben durch
+// die nördliche stösst. An den Randpunkten ist die Reihenfolge völlig in Ordnung -- nur mittendrin
+// nicht. Ohne den Schnitttest liefe genau das durch.
 climateTestThrows(static fn() => avesmapsClimateAssertOrder([
     climateTestLine([[0, 800], [1024, 800]]),
-    climateTestLine([[0, 400], [512, 799.9], [1024, 400]]),
-]), 'a kink of the southern line reaching up to the northern one is refused');
+    climateTestLine([[0, 400], [500, 900], [600, 900], [1024, 400]]),
+]), 'a bubble of the southern line poking through the northern one is refused');
+
+// Und dasselbe, wenn die NÖRDLICHE Linie nach unten durchstösst.
+climateTestThrows(static fn() => avesmapsClimateAssertOrder([
+    climateTestLine([[0, 800], [500, 300], [600, 300], [1024, 800]]),
+    climateTestLine([[0, 400], [1024, 400]]),
+]), 'and the same when the northern line dips through the southern one');
 
 // ---- band geometry ---------------------------------------------------------------------------------
 
@@ -140,6 +183,25 @@ for ($index = 0; $index <= count($dividers); $index++) {
     $total += climateTestRingArea($band['coordinates'][0]);
 }
 assert(abs($total - 1024.0 * 1024.0) < 1e-6, 'the seven bands tile the whole map: ' . $total);
+
+// 🔴 UND MIT ÜBERHANG GENAUSO. Das ist der eigentliche Beweis der Umstellung: die Bänder decken die
+// Karte weiterhin lückenlos und doppelungsfrei, auch wenn eine Grenze eine Blase schlägt. Die
+// Ringkonstruktion ist davon unberührt -- sie läuft die obere Kante vorwärts und die untere rückwärts,
+// und beide beginnen und enden weiterhin auf dem Kartenrand.
+$mitBlase = [
+    climateTestLine([[0, 700], [1024, 700]]),
+    climateTestLine([[0, 400], [300, 400], [500, 250], [380, 190], [640, 170], [1024, 300]]),
+];
+avesmapsClimateAssertOrder($mitBlase);
+$summe = 0.0;
+for ($index = 0; $index <= count($mitBlase); $index++) {
+    $band = avesmapsClimateBandGeometry(
+        $index === 0 ? null : $mitBlase[$index - 1],
+        $index === count($mitBlase) ? null : $mitBlase[$index]
+    );
+    $summe += climateTestRingArea($band['coordinates'][0]);
+}
+assert(abs($summe - 1024.0 * 1024.0) < 1e-6, 'bands with an overhang still tile the map exactly: ' . $summe);
 
 // ---- the default split -----------------------------------------------------------------------------
 
