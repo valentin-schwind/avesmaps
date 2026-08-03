@@ -151,8 +151,13 @@
 		return '<div class="tsi-sources">'
 			+ "<b>" + tr("transport.speedInfo.sources.lead", "Grundlage") + "</b> "
 			+ "Geographia Aventurica S. 113–141"
+			// 💣 Verlinkt wird der ENGLISCHE Artikel, obwohl die Oberflaeche deutsch ist: einen
+			// deutschen „Naismith-Regel" gibt es nicht (404, geprueft 2026-08-03). Der naheliegende
+			// Ersatz waere „Marschzeitberechnung" -- und der ist eine FALLE: er rechnet nach
+			// DIN 33466, also genau nach dem Etikett, das hier schon einmal faelschlich an dieser
+			// Regel klebte. Wir rechnen nicht danach; der Link bliebe eine Verwechslung mit Ansage.
 			+ '<div class="tsi-sourcenote">' + tr("transport.speedInfo.sources.note",
-				"Tempi, Geländearten, Fluss- und Seereise stehen dort; die Steigungsregel nicht — sie folgt Naismiths Wanderregel mit Langmuirs Zusatz, einer Rechenweise für Bergtouren, weil die Geographia dazu ausdrücklich keine Werte führt.")
+				'Tempi, Geländearten, Fluss- und Seereise stehen dort; die Steigungsregel nicht — sie folgt <a href="https://en.wikipedia.org/wiki/Naismith%27s_rule" target="_blank" rel="noopener noreferrer">Naismiths Wanderregel ↗</a> mit <a href="https://en.wikipedia.org/wiki/Naismith%27s_rule#Langmuir_corrections" target="_blank" rel="noopener noreferrer">Langmuirs Zusatz ↗</a>, einer Rechenweise für Bergtouren, weil die Geographia dazu ausdrücklich keine Werte führt.')
 			+ "</div></div>";
 	}
 

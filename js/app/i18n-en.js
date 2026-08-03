@@ -864,7 +864,7 @@ window.AVESMAPS_I18N_EN = {
 	"transport.speedInfo.buttonTitle": "How fast which mode of transport is on which way type",
 	// Werktitel bleibt deutsch (AGENTS §2/§8).
 	"transport.speedInfo.sources.lead": "Based on",
-	"transport.speedInfo.sources.note": "Speeds, terrain types, river and sea travel are in it; the slope rule is not — it follows Naismith's rule with Langmuir's correction, a way of reckoning mountain walks, because the Geographia explicitly carries no figures for it.",
+	"transport.speedInfo.sources.note": "Speeds, terrain types, river and sea travel are in it; the slope rule is not — it follows <a href=\"https://en.wikipedia.org/wiki/Naismith%27s_rule\" target=\"_blank\" rel=\"noopener noreferrer\">Naismith's rule ↗</a> with <a href=\"https://en.wikipedia.org/wiki/Naismith%27s_rule#Langmuir_corrections\" target=\"_blank\" rel=\"noopener noreferrer\">Langmuir's corrections ↗</a>, a way of reckoning mountain walks, because the Geographia explicitly carries no figures for it.",
 	"transport.speedInfo.closeAria": "Close",
 	"transport.speedInfo.intro": "How fast you travel depends on the chosen mode of transport <em>and</em> the path type. A good imperial road carries you twice as fast as a mountain trail. All values in miles per hour (1 mile = 1&nbsp;km).",
 	"transport.speedInfo.landTravel": "Overland travel",
