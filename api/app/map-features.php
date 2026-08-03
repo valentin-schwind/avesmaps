@@ -15,6 +15,10 @@ require_once __DIR__ . '/../_internal/app/in-settlement-search.php';
 // complete, so a second copy of the rule here would be the second truth. Pure functions + one reader;
 // nothing runs on include, and it returns the empty relation when the ecosystem tables are absent.
 require_once __DIR__ . '/../_internal/app/ecosystem-label-link.php';
+// "In welcher Klimazone liegt das?" for the two shapes that travel in this payload: a place (a point,
+// so exactly one zone) and a landscape label (an area, so shares). A way answers the same question
+// through api/app/path-landscapes.php -- 5.765 ways x their stretches do not belong in here.
+require_once __DIR__ . '/../_internal/app/climate-membership.php';
 
 // Bump when the SHAPE of the map-features payload changes (a property added/renamed/removed) WITHOUT a
 // map_revision change. The ETag is revision-based, so cached clients would otherwise keep a stale body
@@ -34,7 +38,10 @@ require_once __DIR__ . '/../_internal/app/ecosystem-label-link.php';
 //    read mode depends on it -- a landscape label must not be hidden by the collision resolver, and only
 //    this field says which labels those are. Without a bump, a warm client keeps the old body and its
 //    landscape labels keep vanishing.
-const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 9;
+// 10: places carry properties.climate_zone and landscape labels properties.climate_zones, plus the
+//    payload-level `climate_zones` vocabulary the client renders the names from. New fields on features
+//    that had none -- a warm client would otherwise keep the old body and never show the row.
+const AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION = 10;
 
 // Coat-of-arms staging + model tables for the settlement "Liegt in" breadcrumb. These MIRROR the constants
 // of api/app/territory-detail.php EXACTLY. The public-domain GATE itself now lives once in the shared
@@ -110,7 +117,7 @@ try {
     // Bei unveraenderten Daten antwortet der Server mit 304 -> der Client nutzt seine Kopie; die teure
     // Query UND der 14-MB-Transfer entfallen komplett. Cache-Control: no-cache = jedes Mal revalidieren,
     // aber 304 statt Vollantwort, solange die Revision gleich bleibt.
-    $etag = avesmapsMapFeaturesETag($revision, $_GET);
+    $etag = avesmapsMapFeaturesETag($revision, $_GET, avesmapsClimateReadStamp($pdo));
     header('ETag: ' . $etag);
     header('Cache-Control: no-cache, must-revalidate');
     header('Vary: Accept-Encoding', false);
@@ -168,6 +175,11 @@ try {
     // because it needs a relation the builder has no business knowing about -- same shape as the
     // legacy-other-source merge above.
     avesmapsEcosystemApplyLabelRegionsToFeatures($features, avesmapsEcosystemReadLabelRegionMap($pdo)['by_label']);
+    // Climate zone, one infobox row down the line. 🔴 STRICTLY AFTER the line above: a landscape label
+    // finds its shares through properties.ecosystem_region_public_id, and for ~137 of them that pointer
+    // is what the line above just resolved. Swap the two and those labels silently lose the row.
+    $climateBands = avesmapsClimateReadBands($pdo);
+    avesmapsClimateApplyToFeatures($features, $climateBands, avesmapsClimateReadRegionZones($pdo));
 
     // Kompression (#1): diese Antwort wird vom Server nicht komprimiert (gemessen: content-encoding none)
     // -> hier explizit gzip, wenn der Client es akzeptiert. ~14 MB JSON -> ~1,5-2,5 MB.
@@ -186,6 +198,10 @@ try {
         // Reist EINMAL mit den Kartendaten statt je Tastendruck abgefragt zu werden -- genau das
         // haelt das Tippen so schnell wie bisher.
         'in_settlement_places' => avesmapsMapFeaturesInSettlementPlaces($pdo),
+        // The seven zone names, north to south, ONCE. A feature carries only the key -- shipping
+        // "Winterfeuchte Subtropen" on each of 4.650 places would repeat seven strings 4.650 times.
+        // Empty while the layer is unseeded, and then no feature carries a key either.
+        'climate_zones' => avesmapsClimateVocabulary($climateBands),
     ]);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
@@ -305,12 +321,18 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 // request carries the real ones. Without it, a browser that cached one would be handed a 304 for the
 // other. The switch STATE needs no seed of its own -- flipping it bumps map_revision (see
 // api/edit/wiki/sync-monitor.php), exactly like the settlement-image switch.
-function avesmapsMapFeaturesETag(int $revision, array $queryParams): string {
+// 💣 $climateStamp IS NOT DECORATION. Places carry their climate zone since payload version 10, and that
+// zone changes when a divider is dragged or "Zugehörigkeit rechnen" runs again -- NEITHER of which touches
+// map_revision. Without this seed a warm client keeps its 304 and goes on showing the previous zone, with
+// nothing in the payload to say why. Same trap the klima layer already paid for once (its seed had to move
+// out of EnsureTables because DDL does not raise a revision either). See avesmapsClimateReadStamp.
+function avesmapsMapFeaturesETag(int $revision, array $queryParams, string $climateStamp = ''): string {
     // Appended ONLY in edit mode, so the public seed stays byte-identical to what it was before this
     // switch existed -- otherwise every visitor would re-download the whole payload once after the deploy
     // for a marker that changes nothing for them.
     $seed = (string) ($queryParams['since_revision'] ?? '') . '|' . (string) ($queryParams['bbox'] ?? '')
-        . (trim((string) ($queryParams['edit_mode'] ?? '')) === '1' ? '|e=1' : '');
+        . (trim((string) ($queryParams['edit_mode'] ?? '')) === '1' ? '|e=1' : '')
+        . '|c=' . $climateStamp;
     return 'W/"mf-' . AVESMAPS_MAP_FEATURES_PAYLOAD_VERSION . '-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
 }
 
