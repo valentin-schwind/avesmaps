@@ -2049,9 +2049,16 @@
 			     ihre Zusammenfassung aus dem gerenderten Markup, nicht aus einer eigenen Textliste.
 			     Die fuenf Namenlosen Tage sind bewusst NICHT waehlbar: sie sind kein Monat, und als
 			     Aufbruchstag waeren sie ein Sonderfall im Tagesfeld (1..5 statt 1..30). Der mitlaufende
-			     Kalender kennt sie trotzdem und laeuft durch sie hindurch. -->
+			     Kalender kennt sie trotzdem und laeuft durch sie hindurch.
+			     💣 Der Tooltip nennt bewusst KEINE saisonal gesperrten Wege -- er tat es bis 2026-08-03, ohne dass
+			     es stimmte. Der BODENabzug wirkt seit 4325082f auf die Etappenzeit (route-season-ground.js); die
+			     SPERRUNG wirkt nicht: seasonClosureFor und seasonWindowsFromProperties (js/routing/transport-season.js
+			     samt PHP-Zwilling) sind gebaut und getestet, haben aber ausserhalb ihrer Tests keinen Aufrufer. Und
+			     weil route-request.js weder Monat noch Tag an POST /api/route/ schickt, kennt die WEGWAHL die
+			     Jahreszeit ueberhaupt nicht -- daher der Satz zur Route. Wer beides anschliesst, erweitert diesen
+			     Text wieder. -->
 			<div>
-				<label title="Aufbruchstag und aventurischer Monat. Die Jahreszeit wirkt auf die Reisezeit und auf saisonal gesperrte Wege; der Kalender laeuft entlang der Route mit. Ohne Monat rechnet der Planer wie bisher." data-i18n-title="planner.travelStart.title">
+				<label title="Aufbruchstag und aventurischer Monat. Der Kalender läuft entlang der Route mit, und die Jahreszeit verlängert jede Etappe, deren Boden sie aufweicht oder vereist. Die Route selbst wird ohne diesen Abzug gesucht. Ohne Monat rechnet der Planer wie bisher." data-i18n-title="planner.travelStart.title">
 					<span data-i18n="planner.travelStartLabel">Reisebeginn:</span> <input type="number" id="travelStartDay" class="planner-travel-start__day" value="1" min="1" max="30" step="1" /> <select id="travelStartMonth" class="planner-travel-start__month">
 						<option value="" data-i18n="planner.travelStart.none">Unbekannt (keine Jahreszeiten)</option>
 						<option value="praios" data-i18n="planner.travelStart.month.praios">Praios (Sommer)</option>
