@@ -34,6 +34,7 @@ und mehr werden es nicht.)
 | **inaktive** Ebene | blass, ohne Griffe | **nein** |
 | Gipfel | nur bei aktiver Topographie | ja, ziehbar |
 | Landschafts-Labels | Häkchen, standardmäßig **aus** | nein |
+| **Klimazonen** | sieben Bänder, sehr blass (18 %); darauf die sechs Trennlinien mit Griffen | nur die **Trennlinien** |
 
 > 🔴 **Die inaktive Ebene wird nicht ausgeblendet, sondern nur stummgeschaltet.**
 > Man zeichnet das Gebirge und sieht dabei, wo der Wald liegt. Das ist der
@@ -65,7 +66,7 @@ Territorien und Siedlungen.
 Danach wird **Punkt für Punkt gezeichnet** (Doppelklick oder Enter schließt ab,
 Escape bricht ab). Beim Schließen des Umrisses entsteht eine **eigene Region** mit
 Auto-Namen, und der Eigenschaften-Dialog geht auf — als *„Vegetation bearbeiten"*,
-*„Topographie bearbeiten"* oder *„Derographische Region bearbeiten"*. Was dort
+*„Topographie-Fläche bearbeiten"* oder *„Derographie-Fläche bearbeiten"*. Was dort
 eingestellt wird, gilt: freier Name, Auto-Name, oder Name samt Wiki-Eintrag.
 
 > ⚠️ **Berichtigt 2026-07-27 — hier stand ein Weg, den es nicht mehr gibt.** Früher
@@ -87,6 +88,43 @@ abgetrennte Stück den Namen seines Ursprungs, und ein späteres Umbenennen trä
 Wer zerschneidet, will zwei Dinge; wollte er eines, hätte er die Fläche mehrteilig
 gelassen.
 
+## 3a. Die Klimazonen — die einzige Ebene, die man nicht zeichnet (2026-08-03)
+
+Der vierte Eintrag im Umschalter heißt **„Klimazonen"** und verhält sich anders als
+die drei daneben: **hier wird nichts gezeichnet.** Es gibt sieben Zonen von Nord
+(Polare Zone) nach Süd (Tropische Zone), und ihre Flächen entstehen aus **sechs
+Trennlinien**, die man auf der Karte zieht.
+
+> 🔴 **Die Linien sind die Wahrheit, die Bänder sind abgeleitet.** Nach jedem
+> Speichern rechnet der Server die sieben Bänder neu. Deshalb kann es zwischen zwei
+> Zonen weder eine Lücke noch eine Überlappung geben — nicht weil das jemand prüft,
+> sondern weil ein Band *der Raum zwischen zwei Linien ist*.
+
+| Geste | Wirkung |
+|---|---|
+| **Griff ziehen (Mitte)** | frei — geklemmt zwischen den Nachbarlinien und den Nachbarpunkten |
+| **Griff ziehen (Rand)** | **nur senkrecht.** Er sitzt am Kartenrand fest und ist deshalb eckig statt rund |
+| **Klick auf die Linie** | setzt dort einen neuen Punkt |
+| **Doppelklick auf einen mittleren Griff** | löscht ihn |
+| **Doppelklick auf einen Randgriff** | nichts — die beiden Randpunkte sind Pflicht |
+| **Loslassen** | speichert diese eine Linie; der Server leitet ab, die Bänder werden neu geladen |
+
+Ein Griff **stoppt am Nachbarn**, statt ihn zu kreuzen. Wer eine Zone verschwinden
+lassen will, schiebt ihre beiden Linien zusammen — sie bleibt dann als hauchdünner
+Streifen bestehen, statt ungültig zu werden.
+
+**Was auf einem Band nicht geht:** Ecken ziehen, zerschneiden, vereinigen,
+vereinfachen, „Senden an …", löschen. Das Flächenmenü geht dort gar nicht erst auf.
+Die Auswahl bleibt aber bestehen, damit erkennbar ist, welche Zone getroffen wurde.
+
+Die Zonen laufen **über die ganze Karte, auch über das Meer** (Owner-Entscheid
+2026-08-03): das Meer hat ein Klima, und an Land abzuschneiden wäre genau der Moment,
+in dem die Bänder wieder Lücken bekommen könnten.
+
+Im Listen-Editor (§7f) stehen die sieben Zonen unter dem Reiter **„Klimazonen"**, mit
+den Zonennamen im Filter *„Art"*. Name und Wiki-Artikel lassen sich dort ändern; die
+**Art** nicht — sie sagt, *welche* der sieben Zonen das ist.
+
 ## 4a. Eine Fläche aus Territoriengrenzen (V7)
 
 **Rechtsklick auf die Karte → „Grenze aus Territorien …"** — vierter Eintrag im selben Untermenü
@@ -105,7 +143,7 @@ Der Dialog fragt vier Dinge, in dieser Reihenfolge:
 
 | | |
 |---|---|
-| **Ebene der neuen Fläche** | Derographische Region · Vegetation · Topographie. Vorausgewählt ist **derographisch** — politische Grenzen folgen am ehesten der Landgliederung (Owner-Entscheid 2026-07-28). |
+| **Ebene der neuen Fläche** | Derographie · Vegetation · Topographie. Vorausgewählt ist **derographisch** — politische Grenzen folgen am ehesten der Landgliederung (Owner-Entscheid 2026-07-28). |
 | **Gebiet suchen** | Filter über den Baum. Ein Treffer zieht seine **Vorfahren** mit, sonst stünde er in einer Einrückung, die nichts bedeutet. |
 | **Der Baum** | Hierarchie aus `parent_public_id`, ein Häkchen je Gebiet. Ein Häkchen **nimmt seinen Teilbaum mit**; das Elternteil zeigt danach einen Teilzustand. |
 | **Die Zahlen** | Gewählte Gebiete, Teile, Ecken und die Nutzlast in KB — vor dem Schreiben, nicht danach. |
@@ -422,7 +460,7 @@ keine" überhaupt etwas zu zeigen — und das ist die Lücke, die man sucht. Gel
 **zwei** vorhandenen Pfaden, `list_regions` (Flächen) und `regions.php?action=match`
 (Wiki + Labels); ein neuer Endpunkt war nicht nötig.
 
-> 🔴 **Die Art-Reiter (Derographische Region · Vegetation · Topographie) greifen nur auf
+> 🔴 **Die Art-Reiter (Derographie · Vegetation · Topographie · Klimazonen) greifen nur auf
 > gezeichnete Regionen.** Eine Wiki-Region ohne Fläche hat keine Ebene, also kann sie unter
 > keiner stehen — sie erscheint unter „Alle". Dasselbe Verhalten wie „Platziert/Fehlt" anderswo.
 >
