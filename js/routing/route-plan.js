@@ -940,6 +940,11 @@ function showRoutePlan(routeNames, segments) {
 		}
 	}
 
+	// Der mitlaufende Kalender EINMAL fuer den ganzen Plan, nicht je Zeile: er laeuft selbst ueber
+	// alle Etappen, und in der Schleife aufgerufen waere er das Quadrat. Null ohne Reisebeginn.
+	// Derselbe Faktor wie in der Zusammenfassung weiter unten -- Kalenderzeit, nicht Reisezeit.
+	const routeCalendar = routePlanCalendar(planEntries, totalTravelTime > 0 ? totalHours / totalTravelTime : 1);
+
 	planEntries.forEach((entry, entryIndex) => {
 		// Places as map links (openLocationPopupByName) instead of static <strong>, where a real
 		// location is findable. The named way/river becomes a link too -> zooms to the leg.
@@ -976,6 +981,7 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.leg.to", "bis")} ${endMarkup}
 			${tr("planner.leg.in", "in")} ${formatDecimalNumber(entry.travelTime, 1)} ${tr("planner.unit.hours", "Stunden")} (${formatDecimalNumber(entry.travelTime / 24, 2)} ${tr("planner.unit.days", "Tage")})
 			<span class="route-plan-entry__landscapes" data-route-landscapes-index="${entryIndex}"></span>${routeEntryTerrainNote(entry, segments)}
+			${routePlanCalendarLegMarkup(routeCalendar, entryIndex)}
 			</div>
 		`);
 	});

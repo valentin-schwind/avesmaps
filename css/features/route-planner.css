@@ -1136,6 +1136,23 @@
 	color: inherit;
 }
 
+/* Das Datum der Etappe („25.–27. Firun"), sobald im Panel ein Reisebeginn gewaehlt ist. Entwurf
+   §4.3 nennt es einen „leisen Vermerk": es beschreibt nicht die Etappe, sondern verortet sie in
+   der Zeit -- gedaempft und in eigener Zeile, wie der Erfassungsvermerk der Zusammenfassung
+   (.route-plan-summary__elevation-note, gleiche zwei Eigenschaften).
+
+   💣 Es steht am ENDE der Zeile, nicht zwischen Stunden und „durch:". Der Satz „… in 8,24 Stunden
+   (0,34 Tage) durch: Reichsforst" gehoert zusammen (Owner 2026-07-29, siehe darueber), und ein
+   Block mittendrin zerrisse ihn -- deshalb ist auch die Daempfung hier erlaubt, wo sie zwei Regeln
+   weiter oben verboten ist: dort laeuft der Satz weiter, hier faengt ein neuer an.
+
+   Ohne Reisebeginn erzeugt das Markup den <span> gar nicht erst, es gibt also keine leere Zeile. */
+.route-plan-entry__date {
+	display: block;
+	color: var(--color-text-muted);
+	font-size: 11px;
+}
+
 /* Zusammenfassung in DREI SPALTEN: Bezeichnung, Wert, und leise die Herleitung, aus der sich der Wert
    nachrechnen laesst (Owner 2026-07-30: „die wichtigsten Informationen uebersichtlich darstellen, aber
    jeder soll selber sehen und nachrechnen koennen wie die Zahl zustande gekommen ist"). Damit ist die

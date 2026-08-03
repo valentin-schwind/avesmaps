@@ -24,7 +24,19 @@ function routePlanDepartureFromPanel() {
 	return { monthKey: monthKey, day: Number.isFinite(day) ? day : 1 };
 }
 
-/** „25. Firun" -- der Monatsname kommt aus dem Markup, damit es nur eine Liste der zwoelf gibt. */
+/** „Firun" -- der Monatsname kommt aus dem Markup, damit es nur eine Liste der zwoelf gibt. */
+function routePlanMonthLabel(monthKey) {
+	const select = document.getElementById("travelStartMonth");
+	if (select) {
+		const option = Array.prototype.find.call(select.options, (entry) => entry.value === monthKey);
+		if (option) {
+			return String(option.textContent || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+		}
+	}
+	return monthKey.charAt(0).toUpperCase() + monthKey.slice(1);
+}
+
+/** „25. Firun". */
 function routePlanFormatDate(date) {
 	if (!date) {
 		return "";
@@ -32,15 +44,32 @@ function routePlanFormatDate(date) {
 	if (date.nameless) {
 		return `${date.day}. ${tr("planner.calendar.nameless", "Namenloser Tag")}`;
 	}
-	const select = document.getElementById("travelStartMonth");
-	let label = date.monthKey.charAt(0).toUpperCase() + date.monthKey.slice(1);
-	if (select) {
-		const option = Array.prototype.find.call(select.options, (entry) => entry.value === date.monthKey);
-		if (option) {
-			label = String(option.textContent || "").replace(/\s*\([^)]*\)\s*$/, "").trim();
-		}
+	return `${date.day}. ${routePlanMonthLabel(date.monthKey)}`;
+}
+
+/**
+ * Die Spanne einer Etappe: „25. Firun" an einem Tag, „25.–27. Firun" im selben Monat, sonst
+ * ausgeschrieben („30. Firun – 2. Tsa").
+ *
+ * 💣 Zusammengezogen wird NUR im selben Monat DESSELBEN Jahres. Ueber eine Monatsgrenze waere
+ * „30.–2. Firun" schlicht falsch, und ueber den Jahreswechsel („25.–25. Firun" bei 365 Tagen
+ * Fahrt) verschwiege die Kurzform ein ganzes Jahr. Die Namenlosen Tage tragen keinen Monat und
+ * bleiben ebenfalls ausgeschrieben.
+ */
+function routePlanFormatDateRange(start, end) {
+	if (!start || !end) {
+		return "";
 	}
-	return `${date.day}. ${label}`;
+	if (start.dayOfYear === end.dayOfYear && start.yearsPassed === end.yearsPassed) {
+		return routePlanFormatDate(start);
+	}
+	const sameMonth = !start.nameless && !end.nameless
+		&& start.monthKey === end.monthKey
+		&& start.yearsPassed === end.yearsPassed;
+	if (sameMonth) {
+		return `${start.day}.–${end.day}. ${routePlanMonthLabel(start.monthKey)}`;
+	}
+	return `${routePlanFormatDate(start)} – ${routePlanFormatDate(end)}`;
 }
 
 /**
@@ -71,7 +100,7 @@ function routePlanCalendar(steps, calendarFactor) {
 			start: start,
 			end: end,
 			sameDay: sameDay,
-			label: sameDay ? routePlanFormatDate(start) : `${routePlanFormatDate(start)} – ${routePlanFormatDate(end)}`,
+			label: routePlanFormatDateRange(start, end),
 		};
 	});
 	const arrival = travelCalendarAdvance(departure.monthKey, departure.day, elapsedHours);
@@ -107,6 +136,32 @@ function routePlanCalendarSummaryMarkup(entries, calendarFactor) {
 		+ routeSummaryRowMarkup(tr("planner.summary.arrival", "Ankunft"), calendar.arrivalLabel, note);
 }
 
+/**
+ * Der leise Vermerk am Fuss einer Etappenzeile: ihr Datum (Entwurf §4.3, „je Etappe ein leiser
+ * Vermerk mit IHREM Datum"). Leer ohne Reisebeginn -- die Zeile sieht dann aus wie bisher.
+ *
+ * 💣 Nimmt den FERTIGEN Kalender entgegen, statt ihn selbst zu rechnen. `routePlanCalendar` laeuft
+ * ueber alle Etappen; je Zeile aufgerufen waere das Quadrat, und eine Route hat bis zu 45 Etappen.
+ *
+ * @param {object|null} calendar Rueckgabe von routePlanCalendar(), einmal je Plan gerechnet
+ * @param {number} index Index der Etappe in derselben Liste
+ */
+function routePlanCalendarLegMarkup(calendar, index) {
+	const leg = calendar && Array.isArray(calendar.legs) ? calendar.legs[index] : null;
+	if (!leg || !leg.label) {
+		return "";
+	}
+	return `<span class="route-plan-entry__date">${leg.label}</span>`;
+}
+
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { routePlanCalendar, routePlanFormatDate, routePlanDepartureFromPanel, routePlanCalendarSummaryMarkup };
+	module.exports = {
+		routePlanCalendar,
+		routePlanFormatDate,
+		routePlanFormatDateRange,
+		routePlanMonthLabel,
+		routePlanDepartureFromPanel,
+		routePlanCalendarSummaryMarkup,
+		routePlanCalendarLegMarkup,
+	};
 }
