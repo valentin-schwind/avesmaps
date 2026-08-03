@@ -75,10 +75,20 @@ map.getPane("ecosystemPane").style.zIndex = 250;
 map.getPane("ecosystemPaneDerographisch").style.zIndex = 250;
 map.getPane("ecosystemPaneVegetation").style.zIndex = 251;
 map.getPane("ecosystemPaneTopographie").style.zIndex = 252;
+// V-Klima (2026-08-03): die Baender liegen UEBER den drei gezeichneten Ebenen -- sie decken die Karte
+// in voller Breite, unter Vegetation und Topographie waeren sie nicht zu sehen. Ihre Fuellung ist dafuer
+// sehr leicht (css/features/ecosystem-layer.css).
+map.getPane("ecosystemPaneKlima").style.zIndex = 253;
+// Die Trennlinien und die Zonennamen. EIGENE Pane, und zwar aus zwei Gruenden: sie duerfen die
+// Zustandsklassen der ecosystem-panes (blass/ruhend) NICHT tragen -- sie sind Bedienelemente, keine
+// Daten --, und sie muessen ueber den Wegen liegen (400) und der Route (450), sonst zieht man eine
+// Linie, die unter einer Reichsstrasse verschwindet.
+map.getPane("ecosystemPaneKlimaLines").style.zIndex = 455;
 // Beide Klassen sind tragend: `ecosystem-pane` traegt den gemeinsamen Zustand, der `--<kind>`-Modifier
 // die Deckkraft-Matrix (Owner 2026-07-26 -- derographische Flaechen fuellen anders als Vegetation und
 // Topographie). Siehe css/features/ecosystem-layer.css.
-[["ecosystemPaneDerographisch", "derographisch"], ["ecosystemPaneVegetation", "vegetation"], ["ecosystemPaneTopographie", "topographie"]]
+[["ecosystemPaneDerographisch", "derographisch"], ["ecosystemPaneVegetation", "vegetation"],
+    ["ecosystemPaneTopographie", "topographie"], ["ecosystemPaneKlima", "klima"]]
     .forEach(([paneName, kind]) => {
         map.getPane(paneName).classList.add("ecosystem-pane", `ecosystem-pane--${kind}`);
     });

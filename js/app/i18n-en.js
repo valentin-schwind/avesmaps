@@ -140,7 +140,8 @@ window.AVESMAPS_I18N_EN = {
 	//     German in the DATA (domain vocabulary, AGENTS.md §2) -- only their LABELS are translated. ---
 	"ecosystem.layerSwitch.aria": "Landscape layer",
 	"ecosystem.kind.all": "All",
-	"ecosystem.kind.derographisch": "Deregraphic region",
+	"ecosystem.kind.derographisch": "Derography",
+	"ecosystem.kind.klima": "Climate zones",
 	"ecosystem.kind.vegetation": "Vegetation",
 	"ecosystem.kind.topographie": "Topography",
 

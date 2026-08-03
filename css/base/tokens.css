@@ -225,6 +225,29 @@
 	   see (#4a86b8) and meer (#2d5f8a), and stays apart from gebirge (#7a6c5e) and hochebene (#9a9b82). */
 	--color-ecosystem-topographie-insel: #b2a273;           /* island, sandy beige-olive -- dry land ringed by water */
 
+	/* Klimazonen (Owner 2026-08-03). Sieben Bänder von Nord nach Süd, abgeleitet aus sechs
+	   Trennlinien. Bewusst KEINE Grün-Skala: Grün gehört der Vegetation, und die beiden Ebenen müssen
+	   nebeneinander unterscheidbar bleiben. Dies ist eine reine TEMPERATURSKALA -- Eis, blass, neutral,
+	   gold, warm --, die von selbst „oben kalt, unten heiss" liest.
+	   💣 Die Namensregel ist bindend: --color-ecosystem-klima-<type_key mit - statt _>. Fehlt ein Ton,
+	   fällt ecosystemAreaColor() auf --color-ecosystem-klima zurück und alle sieben Bänder sehen gleich
+	   aus -- dieselbe Falle, die bei `insel` 251 Flächen zu Gebirgen gemacht hätte.
+	   Die kühlen Töne sind dieselbe bewusste Ausnahme von „kein Blau" wie See und Meer darüber:
+	   gemalte KARTENDATEN, nicht UI-Chrom (§12). Gepinnt, sie liegen auf den immer hellen Kacheln. */
+	--color-ecosystem-klima: #c9cf9b;                       /* fallback -- the middle of the ramp */
+	--color-ecosystem-klima-polar: #e6eef3;                 /* polar, near-white ice */
+	--color-ecosystem-klima-subpolar: #bcd3dc;              /* subpolar, pale ice blue */
+	--color-ecosystem-klima-boreal: #8fb6b4;                /* boreal, cold teal */
+	--color-ecosystem-klima-gemaessigt: #c9cf9b;            /* temperate, neutral pale olive */
+	--color-ecosystem-klima-subtropen-winterfeucht: #e0c274; /* winter-wet subtropics, warm gold */
+	--color-ecosystem-klima-subtropisch: #dd9c55;           /* subtropical, orange ochre */
+	--color-ecosystem-klima-tropisch: #cc6f45;              /* tropical, warm terracotta */
+	/* Die Trennlinie selbst und der Zonenname. Ein neutrales Dunkel, das auf allen sieben Tönen sitzt --
+	   dieselbe Begründung wie beim topographischen Konturton: wo eine Zone aufhört, ist genau die
+	   Auskunft dieser Ebene, und die darf ihre Farbe nicht je Zone wechseln. */
+	--color-ecosystem-klima-divider: #2b3138;
+	--color-ecosystem-klima-label: #33302b;
+
 	/* Höhenrampe (V8). Fünf Stufen vom Gebirgsfuss bis zum Firn, aus dem Prototyp
 	   (html/landschaften-modell.html:589) übernommen -- dort standen sie als rohe RGB-Tripel im Code,
 	   was AGENTS.md §12 verbietet. Warme Erdtöne, kein Blau: das Relief ist gemalte Karte, nicht

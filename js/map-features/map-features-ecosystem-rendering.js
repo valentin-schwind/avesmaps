@@ -14,12 +14,25 @@
 // Display order of the segment switch AND the pane stack, low to high: the derographic containers
 // (continents, islands) sit at the bottom, topography on top. German values on purpose -- they are
 // domain vocabulary like PATH_SUBTYPE_KEYS, not translatable words (AGENTS.md §2, plan "Namensgebung").
-const ECOSYSTEM_KINDS = ["derographisch", "vegetation", "topographie"];
+//
+// `klima` (2026-08-03) ist die vierte und liegt ganz OBEN: ein Klimaband deckt die Karte in seiner
+// vollen Breite, unter Vegetation und Topographie waere es nicht zu sehen. Seine Fuellung ist dafuer
+// sehr leicht (css/features/ecosystem-layer.css).
+//
+// 🔴 Die Klima-Ebene wird NICHT GEZEICHNET, sondern ABGELEITET -- aus sechs Trennlinien
+// (map-features-ecosystem-climate.js, api/_internal/app/climate-zones.php). Fuer alles Lesende ist sie
+// trotzdem eine Ebene wie jede andere; nur die Bearbeitungsverben sind fuer sie gesperrt
+// (isDerivedEcosystemKind unten).
+const ECOSYSTEM_KINDS = ["derographisch", "vegetation", "topographie", "klima"];
 
 const ECOSYSTEM_KIND_LABELS = {
-	derographisch: "Derographische Region",
+	// Owner 2026-08-03: „Derographie" statt „Derographische Region" -- kuerzer, und es sagt dasselbe
+	// wie der Fenstertitel-Praefix darunter, der es seit je so nennt. Der SCHLUESSEL bleibt
+	// `derographisch`; er steht in zehn Tabellen und in jedem Test.
+	derographisch: "Derographie",
 	vegetation: "Vegetation",
 	topographie: "Topographie",
+	klima: "Klimazonen",
 };
 
 // Die Ebene als BESTIMMUNGSWORT, für zusammengesetzte Titel: „Vegetations-Fläche bearbeiten",
@@ -30,6 +43,7 @@ const ECOSYSTEM_KIND_PREFIX = {
 	derographisch: "Derographie",
 	vegetation: "Vegetations",
 	topographie: "Topographie",
+	klima: "Klimazonen",
 };
 
 // Der Titel eines Bearbeitungsfensters. `subject` ist "flaeche" oder "label".
@@ -49,12 +63,14 @@ const ECOSYSTEM_KIND_PANES = {
 	derographisch: "ecosystemPaneDerographisch",
 	vegetation: "ecosystemPaneVegetation",
 	topographie: "ecosystemPaneTopographie",
+	klima: "ecosystemPaneKlima",
 };
 
 const ECOSYSTEM_KIND_COLOR_TOKENS = {
 	derographisch: "--color-ecosystem-derographisch",
 	vegetation: "--color-ecosystem-vegetation",
 	topographie: "--color-ecosystem-topographie",
+	klima: "--color-ecosystem-klima",
 };
 
 // The public_id of the area the editor last clicked, or "" for none. Only an area in the ACTIVE pane
@@ -63,6 +79,17 @@ let selectedEcosystemAreaPublicId = "";
 
 function isKnownEcosystemKind(kind) {
 	return ECOSYSTEM_KINDS.includes(String(kind || ""));
+}
+
+// Wird diese Ebene ABGELEITET statt gezeichnet? Heute genau eine: die Klimazonen entstehen aus ihren
+// sechs Trennlinien (map-features-ecosystem-climate.js). Eine Funktion statt eines verstreuten
+// Vergleichs gegen "klima", weil fuenf Aufrufstellen dieselbe Frage stellen -- und die fuenfte sonst
+// vergessen wird.
+//
+// 🔴 Der Riegel, der zaehlt, steht auf dem SERVER (avesmapsClimateAssertNotDerived). Dieser hier
+// verhindert nur, dass ein Verb angeboten wird, das gleich darauf abgelehnt wuerde.
+function isDerivedEcosystemKind(kind) {
+	return String(kind || "") === "klima";
 }
 
 function readEcosystemColorToken(token) {
@@ -468,6 +495,8 @@ if (typeof module !== "undefined" && module.exports) {
 		ECOSYSTEM_KINDS,
 		ECOSYSTEM_KIND_LABELS,
 		ECOSYSTEM_KIND_PREFIX,
+		isKnownEcosystemKind,
+		isDerivedEcosystemKind,
 		ecosystemDialogTitle,
 		formatEcosystemAreaTooltip,
 		ecosystemStackingOrder,

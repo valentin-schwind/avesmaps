@@ -1,4 +1,4 @@
-// Landschaften (Erprobung) -- the segment switch "Derographische Region · Vegetation · Topographie"
+// Landschaften -- the segment switch "Derographie · Vegetation · Topographie · Klimazonen"
 // (plan V3.0, steps 1 and 5). It owns exactly two things: which kind is ACTIVE, and how the three
 // panes look because of it. It never loads and never re-renders a layer.
 //

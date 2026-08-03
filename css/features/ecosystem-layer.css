@@ -1255,6 +1255,26 @@
 	fill-opacity: 0.1;
 }
 
+/* 🔴 DIE KLIMA-EBENE NIMMT SICH NOCH STÄRKER ZURÜCK ALS DIE DEROGRAPHISCHE (Owner 2026-08-03). Ein Band
+   deckt die GANZE Karte in seiner Höhe -- bei voller Füllung sieht man weder die Kacheln noch irgendeine
+   andere Ebene. 0,18 lässt das Gelände durch und macht die Zone trotzdem auf einen Blick lesbar.
+
+   🪤 KEINE KONTUR. Die Kante eines Bandes IST die Trennlinie, und die wird in ihrer eigenen Pane
+   gezeichnet (map-features-ecosystem-climate.js). Eine zweite Linie an derselben Stelle wäre dieselbe
+   Aussage doppelt -- und weil das Band erst nach dem Speichern vom Server zurückkommt, hinkte sie
+   beim Ziehen der Griffe sichtbar hinterher.
+
+   Die Bedingung ist `--active`, was BEIDE Fälle deckt: in „Alle" trägt jede Pane zusätzlich `--active`
+   (syncEcosystemPaneStates). Dieselbe Bauart wie bei der derographischen Regel darüber.
+
+   Die ANGEKLICKTE Fläche ist NICHT ausgenommen -- anders als oben. Ein Klimaband lässt sich zwar
+   anklicken (die Infobox sagt, welche Zone das ist), aber es lässt sich nicht bearbeiten; es aus der
+   Menge hervorzuheben hätte also nichts, worauf es hinweisen könnte. */
+.ecosystem-pane--klima.ecosystem-pane--active > svg path.leaflet-interactive {
+	fill-opacity: 0.18;
+	stroke-opacity: 0;
+}
+
 /* ---- Unterflächen-Auswahl (Owner 2026-07-27) -------------------------------------------------------
    Eine mehrteilige Fläche ist EIN Leaflet-Pfad; ihre Unterflächen lassen sich deshalb nicht einzeln
    einfärben. Für die Auswahl werden sie darum kurzzeitig als eigene, NICHT anklickbare Umrisse

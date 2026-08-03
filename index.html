@@ -634,15 +634,20 @@
 			<div id="ecosystem-layer-switch" class="ecosystem-layer-switch" role="tablist" aria-label="Landschafts-Ebene" data-i18n-aria-label="ecosystem.layerSwitch.aria">
 				<!-- 💣 „Alle" trägt BEWUSST KEIN data-ecosystem-kind. Dieses Attribut ist der Schlüssel des
 				     Ebenen-Zustands: er reist zum Server (list_regions, create_region), und
-				     AVESMAPS_ECOSYSTEM_KINDS kennt genau drei Werte -- ein vierter gäbe 400, und
+				     AVESMAPS_ECOSYSTEM_KINDS kennt genau VIER Werte (seit 2026-08-03 auch `klima`) -- und
 				     isKnownEcosystemKind("alle") ist falsch, also fiele der gemerkte Wert still auf die
 				     Vorgabe zurück. „Alle" ist deshalb ein ANZEIGE-Flag neben dem Ebenen-Zustand, kein
-				     vierter Wert davon. Ausserdem stempelt syncEcosystemLayerSwitchControls jedes
+				     weiterer Wert davon. Ausserdem stempelt syncEcosystemLayerSwitchControls jedes
 				     [data-ecosystem-kind] im ganzen Dokument -- die Kachel bekäme sonst fremde Zustände. -->
 				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-show-all="1" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.all">Alle</button>
-				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="derographisch" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.derographisch">Derographische Region</button>
+				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="derographisch" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.derographisch">Derographie</button>
 				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="vegetation" aria-selected="true" tabindex="0" data-i18n="ecosystem.kind.vegetation">Vegetation</button>
 				<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="topographie" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.topographie">Topographie</button>
+					<!-- Die vierte Ebene wird nicht GEZEICHNET, sondern ABGELEITET: aus sechs Trennlinien, die
+					     man auf der Karte zieht (map-features-ecosystem-climate.js). Die Kachel sieht deshalb
+					     aus wie die anderen -- was dahinter anders ist, merkt man erst daran, dass es hier
+					     kein Zeichenwerkzeug und keine Flächenverben gibt. -->
+					<button class="ecosystem-layer-switch__tab" type="button" role="tab" data-ecosystem-kind="klima" aria-selected="false" tabindex="-1" data-i18n="ecosystem.kind.klima">Klimazonen</button>
 			</div>
 			<!-- Untergrund-Regler (Owner 2026-07-26): blendet die Basiskacheln gegen Weiss aus, damit sich
 			     die gezeichneten Flaechen vom gemalten Gelaende abheben. 0 % sieht aus wie gar keine
