@@ -927,7 +927,7 @@
 			+ "<b>echter Sprung</b>: die Schwelle entscheidet je Abtastschritt, und darüber zählt der "
 			+ "ganze Abstieg des Schritts.</p>"
 			+ "</section>"
-			+ '<section><div class="wp-fn__head"><h3>Letzte Kalibrierung</h3>'
+			+ '<section><div class="wp-fn__head"><h3>Hinweis zur Kalibrierung</h3>'
 			+ '<button type="button" id="wpFnCalibrate" title="Startet den vollständigen Profillauf über alle Landwege. Die Eichung fährt darin mit — allein kann sie nicht laufen.">Jetzt kalibrieren</button>'
 			+ "</div>" + calibrationExplainer() + calibrationBlock() + "</section>";
 
@@ -1085,39 +1085,35 @@
 	}
 
 	/**
-	 * Was „Jetzt kalibrieren“ genau tut -- ausgeschrieben, direkt neben dem Knopf.
+	 * Wozu die Kalibrierung da ist und was der Knopf tut -- direkt neben dem Knopf.
 	 *
 	 * 🔴 Der Knopf tut MEHR, als sein Name sagt: er startet den vollständigen Profillauf. Wer das
 	 * nicht weiß, drückt ihn für eine schnelle Neuberechnung und wartet dann Minuten. Und er tut
 	 * zugleich WENIGER, als man erwarten würde: keine Reisezeit ändert sich davon. Beides gehört
 	 * an die Fläche, auf der der Knopf sitzt, nicht ins Handbuch.
+	 *
+	 * 💣 Die Zielvorgabe steht NICHT im Text. Sie kommt als `target_miles` aus der Eichung; ohne
+	 * Eichung nennt der Satz sie gar nicht, statt eine 30 zu behaupten, die niemand gemessen hat.
 	 */
 	function calibrationExplainer() {
+		// Ohne Eichung fehlt die Zielzahl -- dann nennt der Satz sie nicht, statt sie zu behaupten.
+		// Der ganze Satzschwanz hängt daran, sonst stolpert die Fassung ohne Zahl über sich selbst.
+		var target = state.calibration && state.calibration.target_miles !== undefined
+			? " nennt: <b>" + num(state.calibration.target_miles, 0) + " Meilen am Tag</b> auf einer <i>ebenen</i> Straße."
+			: " auf einer <i>ebenen</i> Straße nennt.";
+
 		return '<div class="wp-explain">'
-			+ "<p><b>Was der Knopf tut.</b> Er startet den <b>vollständigen Profillauf</b> über alle "
-			+ "Landwege — denselben, den die Kachel „Wegprofile rechnen“ im Menüband auslöst. Das "
-			+ "dauert <b>einige Minuten</b>, nicht Sekunden. Der Fortschritt steht im Knopf.</p>"
+			+ "<p><b>Die Kalibrierung</b> sorgt dafür, dass am Ende die Tagesleistung herauskommt, die "
+			+ "das Regelwerk für eine Reisegruppe zu Fuß" + target
+			+ " Aventuriens Straßen sind aber nicht eben, und jede Steigung kostet Zeit. Damit "
+			+ "im Mittel über alle Wege trotzdem dieser Wert erreicht wird, muss das Grundtempo auf "
+			+ "ebener Straße etwas höher liegen. Genau das ist <b>c</b>: die Tagesleistung, mit der "
+			+ "gerechnet werden muss, damit das echte Gelände sie wieder auf den Sollwert herunterbremst.</p>"
 
-			+ "<p><b>Warum die Eichung im Profillauf mitfährt.</b> Sie braucht von jedem Weg zwei "
-			+ "Dinge: <b>wie stark ihn sein Gelände bremst</b> und <b>wie lang er ist</b>. Das Erste "
-			+ "steht in der Datenbank. Das Zweite steht dort nirgends — die Länge eines Weges ergibt "
-			+ "sich erst, wenn man seine Linie Stück für Stück abmisst. Genau das tut der Profillauf "
-			+ "ohnehin, denn er muss die Linie abschreiten, um die Höhen darunter abzutasten. Die "
-			+ "Eichung rechnet also dort mit, wo beide Zahlen sowieso zusammen vorliegen.</p>"
-
-			+ "<p>Ein eigener zweiter Lauf wäre nicht nur doppelte Arbeit. Zwischen zwei Läufen kann "
-			+ "jemand einen Weg umzeichnen — dann käme die Bremswirkung aus dem einen Stand und die "
-			+ "Länge aus dem anderen. Zwei Zahlen von <i>zwei verschiedenen Fassungen desselben "
-			+ "Weges</i>, und das Ergebnis sähe völlig unauffällig aus. Im gemeinsamen Lauf kann das "
-			+ "nicht passieren.</p>"
-
-			+ "<p>Die Länge einfach mitzuspeichern hilft auch nicht: sie wäre eine zweite Kopie, die "
-			+ "bei jeder Verlaufsänderung veralten kann. Und eine falsche Länge sieht aus wie eine "
-			+ "richtige.</p>"
-
-			+ "<p><b>Wenn der Lauf abbricht,</b> bleibt die <b>bisherige</b> Eichung stehen. "
-			+ "Geschrieben wird erst, wenn der Lauf ganz durch ist — eine halbe Eichung würde das "
-			+ "Tempo der ganzen Karte verstellen.</p>"
+			+ "<p><b>Der Knopf</b> startet dafür den <b>vollständigen Profillauf</b> über alle Landwege — "
+			+ "die Eichung braucht von jedem Weg seine Länge, und die entsteht erst beim Abschreiten "
+			+ "seiner Linie. Das dauert <b>einige Minuten</b>; der Fortschritt steht im Knopf. Bricht "
+			+ "der Lauf ab, bleibt die bisherige Eichung stehen.</p>"
 			+ "</div>";
 	}
 
@@ -1145,14 +1141,11 @@
 		// 💣 KEINE ZAHL IN DEN TEXT SCHREIBEN. Auch die Zielvorgabe nicht: sie kommt als
 		// `target_miles` aus der Eichung mit, weil sie zum LAUF gehört und nicht zum heutigen Stand
 		// des Rechenkerns. Eine hier eingetippte 30 wäre eine stille Zweitkopie von
-		// AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES.
-		var target = num(calibration.target_miles, 0);
+		// AVESMAPS_TERRAIN_CALIBRATION_TARGET_MILES. Ausgeschrieben wird sie im Erklärtext darüber.
 		var referenceLabel = escapeHtml(subtypeLabel(calibration.reference_subtype));
 
 		return '<div class="wp-c"><span class="wp-c__value">' + num(calibration.c, 1) + "</span>"
-			+ '<span class="wp-c__meta"><b>c</b> — so schnell müsste eine Reisegruppe <b>auf ebener '
-			+ "Straße</b> unterwegs sein, damit über das echte, hügelige Gelände am Ende wieder die "
-			+ target + " Meilen am Tag herauskommen, die das Regelwerk nennt.<br>" + previous
+			+ '<span class="wp-c__meta"><b>c</b> — Meilen am Tag auf ebener Straße.<br>' + previous
 			+ " · Kartenstand " + escapeHtml(String(calibration.map_revision)) + "</span></div>"
 			+ '<table class="wp-tab-num"><thead><tr><th>Wegart</th><th>mittlere Bremswirkung</th>'
 			+ "<th>Wege</th><th>im Vergleich zu " + referenceLabel + "</th></tr></thead><tbody>"
