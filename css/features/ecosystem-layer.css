@@ -1452,3 +1452,21 @@
 	font-weight: var(--font-weight-bold);
 	color: var(--color-ecosystem-klima-label);
 }
+
+/* Dieselbe Beschriftung an der OSTkante (Owner 2026-08-03). Der Marker sitzt auf x = 1024, der Text
+   muss also nach links laufen -- sonst stünde er ausserhalb der Karte.
+   `translateX(-100%)` statt einer Breitenangabe: die Namen sind unterschiedlich lang, und eine feste
+   Breite wäre bei „Winterfeuchte Subtropen" zu schmal und bei „Polare Zone" zu breit.
+
+   💣 DIE VERSCHIEBUNG GEHÖRT AUF DEN TEXT, NICHT AUF DIE HÜLLE. Leaflet positioniert jeden Marker über
+   `transform: translate3d(...)` auf genau diesem Element -- ein eigenes `transform` daneben ersetzt es,
+   und die Beschriftung säße in der linken oberen Ecke der Karte statt an ihrem Band. Deshalb der
+   `> span`, den das Icon-Markup ohnehin mitbringt. */
+.ecosystem-climate-name--east {
+	padding-left: 0;
+}
+
+.ecosystem-climate-name--east > span {
+	display: inline-block;
+	transform: translateX(calc(-100% - var(--space-12)));
+}

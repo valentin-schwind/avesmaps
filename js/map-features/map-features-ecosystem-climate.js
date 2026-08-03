@@ -254,13 +254,13 @@ function drawClimateHandle(divider, dividerIndex, pointIndex) {
 // Die Rechnung ist exakt statt geschätzt: ein Band beginnt und endet auf dem Kartenrand, sein Ring hat
 // bei x = 0 deshalb GENAU zwei Ecken (oben links und unten links). Deren Mitte ist die Bandmitte an der
 // Westkante. Ein `bounds`-Mittelwert wäre bei einer schrägen Grenze daneben.
-function climateAreaWestEdgeSpan(geometry) {
+function climateAreaEdgeSpan(geometry, edgeX) {
 	const parts = geometry?.type === "MultiPolygon" ? geometry.coordinates : [geometry?.coordinates];
 	let min = null;
 	let max = null;
 	(parts || []).forEach((polygon) => {
 		(polygon?.[0] || []).forEach((position) => {
-			if (Math.abs(Number(position?.[0]) - CLIMATE_MIN_XY) > 0.5) {
+			if (Math.abs(Number(position?.[0]) - edgeX) > 0.5) {
 				return;
 			}
 			const y = Number(position[1]);
@@ -272,6 +272,11 @@ function climateAreaWestEdgeSpan(geometry) {
 		});
 	});
 	return min === null ? null : { min, max };
+}
+
+// Rückwärtskompatibler Name für die Westkante -- der Test und ältere Aufrufe kennen ihn.
+function climateAreaWestEdgeSpan(geometry) {
+	return climateAreaEdgeSpan(geometry, CLIMATE_MIN_XY);
 }
 
 // Der Zonenname am Westrand seines Bandes.
@@ -289,27 +294,36 @@ function drawClimateZoneNames() {
 		if (!area || area.kind !== "klima") {
 			return;
 		}
-		const span = climateAreaWestEdgeSpan(area.geometry);
-		// Kein Rand getroffen (kann nur ein Fremdkörper in dieser Ebene sein) oder das Band ist zu
-		// dünn: dann lieber kein Name als einer, der in die Nachbarzone ragt und sie mitbeschriftet.
-		if (!span || span.max - span.min < CLIMATE_NAME_MIN_HEIGHT) {
-			return;
-		}
 		const name = String(area.region_name || "").trim();
 		if (name === "") {
 			return;
 		}
-		const marker = L.marker([(span.min + span.max) / 2, CLIMATE_MIN_XY], {
-			pane: "ecosystemPaneKlimaLines",
-			interactive: false,
-			keyboard: false,
-			icon: L.divIcon({
-				className: "ecosystem-climate-name",
-				html: `<span>${escape(name)}</span>`,
-				iconSize: null,
-			}),
-		}).addTo(map);
-		climateNameLayers.push(marker);
+		// 🔴 BEIDE Kanten (Owner 2026-08-03). Die Karte ist 1024 breit; wer rechts arbeitet, hatte die
+		// Beschriftung ausserhalb des Bildschirms. Jede Kante wird für sich gemessen -- bei einer
+		// schrägen Grenze liegt die Bandmitte links woanders als rechts, und ein gespiegelter Wert
+		// wäre dort daneben.
+		[
+			{ x: CLIMATE_MIN_XY, klasse: "ecosystem-climate-name" },
+			{ x: CLIMATE_MAX_XY, klasse: "ecosystem-climate-name ecosystem-climate-name--east" },
+		].forEach(({ x, klasse }) => {
+			const span = climateAreaEdgeSpan(area.geometry, x);
+			// Kein Rand getroffen (kann nur ein Fremdkörper in dieser Ebene sein) oder das Band ist zu
+			// dünn: dann lieber kein Name als einer, der in die Nachbarzone ragt und sie mitbeschriftet.
+			if (!span || span.max - span.min < CLIMATE_NAME_MIN_HEIGHT) {
+				return;
+			}
+			const marker = L.marker([(span.min + span.max) / 2, x], {
+				pane: "ecosystemPaneKlimaLines",
+				interactive: false,
+				keyboard: false,
+				icon: L.divIcon({
+					className: klasse,
+					html: `<span>${escape(name)}</span>`,
+					iconSize: null,
+				}),
+			}).addTo(map);
+			climateNameLayers.push(marker);
+		});
 	});
 }
 
@@ -491,6 +505,6 @@ window.AvesmapsEcosystemClimate = { sync: syncEcosystemClimateEditor };
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
 		climateSegmentsCross, climateVertexWouldCross, climateInsertionIndex,
-		climateClampToMap, climateAreaWestEdgeSpan,
+		climateClampToMap, climateAreaWestEdgeSpan, climateAreaEdgeSpan,
 	};
 }

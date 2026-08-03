@@ -188,6 +188,14 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     ['klima', 'boreal', 'Boreale Zone', 30],
     ['klima', 'gemaessigt', 'Gemäßigte Zone', 40],
     ['klima', 'subtropen_winterfeucht', 'Winterfeuchte Subtropen', 50],
+    // Owner 2026-08-03, nachtraeglich eingeschoben. 🔴 sort_order 55, damit sie GENAU zwischen die
+    // beiden bestehenden faellt, ohne dass eine andere Zahl sich aendert -- die Luecken von 10 sind
+    // dafuer da. Die Unterscheidung zur Nachbarin darueber ist die FEUCHTE, nicht die Temperatur:
+    // winterfeucht gegen ganzjaehrig trocken.
+    // ⚠️ Ihre Grenze wird beim ersten Abgleich als KOPIE der Wuesten-Oberkante angelegt, um genau
+    // diesen Betrag angehoben (avesmapsClimateInsertedDividerAbove). Die Wueste bewegt sich dabei
+    // nicht -- das neue Band nimmt seinen Platz von den winterfeuchten Subtropen darueber.
+    ['klima', 'trockene_subtropen', 'Trockene Subtropen', 55],
     ['klima', 'subtropisch', 'Subtropische Zone', 60],
     ['klima', 'tropisch', 'Tropische Zone', 70],
 ];
@@ -361,6 +369,57 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             PRIMARY KEY (seq)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    // ---- 2026-08-03: WELCHE Zone gehoert zu dieser Linie? -----------------------------------------
+    //
+    // 🔴 `seq` allein ist eine REIHENFOLGE, keine Identitaet. Solange die Zonenliste feststand, war das
+    // egal. Sobald eine Zone dazwischen kommt, ist es der ganze Unterschied: ohne Identitaet kann der
+    // Abgleich nur die Anzahl vergleichen -- und genau das tat er, indem er ALLE Linien loeschte und
+    // gleichmaessig neu verteilte. Eine einzige neue Saatzeile haette damit jede von Hand gezogene
+    // Grenze vernichtet.
+    //
+    // 🔴 Die Identitaet ist die Zone DARUNTER, nicht die darueber. Eine Trennlinie ist die NORDKUESTE
+    // ihrer suedlichen Zone -- und das ist genau das, was beim Einschieben stehenbleiben soll: wer
+    // „Trockene Subtropen" ueber die Wueste legt, will die Oberkante der Wueste NICHT bewegen. Mit der
+    // noerdlichen Zone als Schluessel waere dieselbe Linie zur Oberkante des neuen Bandes geworden und
+    // die Wueste haette sich vergroessert.
+    $dividerColumnExists = static function (PDO $pdo, string $column): bool {
+        $statement = $pdo->prepare(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ecosystem_climate_divider' AND COLUMN_NAME = :c"
+        );
+        $statement->execute(['c' => $column]);
+
+        return $statement !== false && (int) $statement->fetchColumn() > 0;
+    };
+    if (!$dividerColumnExists($pdo, 'south_type_key')) {
+        $pdo->exec('ALTER TABLE ecosystem_climate_divider ADD COLUMN south_type_key VARCHAR(40) NULL');
+
+        // 💣 DAS NACHTRAGEN MUSS HIER STEHEN -- VOR avesmapsEcosystemSeedRegionTypes() am Ende dieser
+        // Funktion. Danach kennt die Vokabeltabelle bereits die NEUE Zone, und die Zuordnung
+        // „Linie k gehoert zu Zone k+1" waere um eine Stelle verschoben: jede Linie unterhalb der
+        // Einschubstelle bekaeme den falschen Schluessel und der Abgleich zoege die falsche Grenze.
+        //
+        // 🪤 Und nur bei stimmigem Bestand. Passen Anzahl Linien und Zonen nicht zusammen, ist die
+        // Zuordnung geraten -- dann lieber NULL lassen und den Abgleich vorsichtig sein lassen.
+        $zoneKeys = [];
+        foreach ($pdo->query(
+            "SELECT type_key FROM ecosystem_region_type
+              WHERE kind = 'klima' AND is_active = 1 ORDER BY sort_order ASC, type_key ASC"
+        )->fetchAll() as $row) {
+            $zoneKeys[] = (string) $row['type_key'];
+        }
+        $seqs = [];
+        foreach ($pdo->query('SELECT seq FROM ecosystem_climate_divider ORDER BY seq ASC')->fetchAll() as $row) {
+            $seqs[] = (int) $row['seq'];
+        }
+        if ($zoneKeys !== [] && count($seqs) === count($zoneKeys) - 1) {
+            $update = $pdo->prepare('UPDATE ecosystem_climate_divider SET south_type_key = :k WHERE seq = :s');
+            foreach ($seqs as $index => $seq) {
+                $update->execute(['k' => $zoneKeys[$index + 1], 's' => $seq]);
+            }
+        }
+    }
 
     // V8: Geländevorgaben JE ART (Owner 2026-07-28: „einstellungen die bei den dropdown options gewählt
     // werden"). Wer „Gebirge" wählt, bekommt Werte, die für ein Gebirge passen, statt bei null anzufangen.
@@ -3055,29 +3114,148 @@ function avesmapsEcosystemClimateEnsure(PDO $pdo, int $userId): bool
         $changed = true;
     }
 
-    // 2. Trennlinien auf die richtige Anzahl bringen: eine weniger als Zonen.
-    $wanted = max(0, count($zones) - 1);
-    if (count(avesmapsEcosystemClimateReadDividers($pdo)) !== $wanted) {
-        // Neu aufteilen statt einzelne Zeilen anzustueckeln: eine Linie, die zwischen zwei fremde
-        // eingefuegt wird, hat keine sinnvolle Hoehe, und "irgendwo in die Mitte" waere geraten. Der
-        // Fall tritt nur auf, wenn jemand die Zonenliste aendert -- dann ist eine saubere
-        // Gleichverteilung die ehrlichere Antwort als sechs alte Linien plus eine geratene.
-        $pdo->exec('DELETE FROM ecosystem_climate_divider');
-        $insertDivider = $pdo->prepare(
-            'INSERT INTO ecosystem_climate_divider (seq, geometry_geojson, updated_by)
-             VALUES (:seq, :geometry, :user_id)'
-        );
-        foreach (avesmapsClimateDefaultDividers($wanted) as $index => $divider) {
-            $insertDivider->execute([
-                'seq' => $index + 1,
-                'geometry' => json_encode($divider, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
-                'user_id' => $userId > 0 ? $userId : null,
-            ]);
-        }
-        $changed = true;
-    }
+    // 2. Trennlinien abgleichen -- OHNE eine einzige vorhandene Geometrie anzufassen.
+    $changed = avesmapsEcosystemClimateReconcileDividers($pdo, $zones, $userId) || $changed;
 
     return avesmapsEcosystemClimateRebuildBands($pdo, $userId) || $changed;
+}
+
+/**
+ * Fuer jedes benachbarte Zonenpaar genau eine Trennlinie -- vorhandene bleiben, wie sie sind.
+ *
+ * 🔴 HIER STAND BIS 2026-08-03 EIN `DELETE FROM ecosystem_climate_divider`. Passte die Anzahl nicht,
+ * wurden ALLE Linien geloescht und gleichmaessig neu verteilt. Das war vertretbar, solange die
+ * Zonenliste feststand -- und es haette jede von Hand gezogene Grenze vernichtet, sobald jemand eine
+ * Zone ergaenzt. Genau das stand beim Einschub der „Trockenen Subtropen" an.
+ *
+ * Der Abgleich laeuft jetzt ueber die IDENTITAET jeder Linie (`south_type_key`, die Zone darunter):
+ *   - Paar hat schon eine Linie  -> unveraendert uebernehmen, nur die Reihenfolge nachziehen
+ *   - Paar hat keine             -> NEU anlegen, als angehobene Kopie der Linie darunter
+ *   - Linie ohne Paar            -> entfaellt (ihre Zone gibt es nicht mehr)
+ *
+ * 💣 Von SUEDEN nach NORDEN eingefuegt: die neue Linie kopiert die Form ihrer suedlichen Nachbarin, und
+ * die muss dafuer schon aufgeloest sein.
+ *
+ * @param list<array{type_key: string, label: string, sort_order: int, region_public_id: string}> $zones
+ * @return bool ob etwas geschrieben wurde
+ */
+function avesmapsEcosystemClimateReconcileDividers(PDO $pdo, array $zones, int $userId): bool
+{
+    if (count($zones) < 2) {
+        return false;
+    }
+
+    // Das Soll: je benachbartem Zonenpaar ein Eintrag, benannt nach der SUEDLICHEN Zone.
+    $soll = [];
+    for ($index = 0; $index < count($zones) - 1; $index++) {
+        $soll[] = $zones[$index + 1]['type_key'];
+    }
+
+    $vorhanden = [];
+    $ohneSchluessel = 0;
+    foreach ($pdo->query(
+        'SELECT seq, geometry_geojson, south_type_key FROM ecosystem_climate_divider ORDER BY seq ASC'
+    )->fetchAll() as $row) {
+        $key = $row['south_type_key'] === null ? '' : (string) $row['south_type_key'];
+        if ($key === '') {
+            $ohneSchluessel++;
+            continue;
+        }
+        $vorhanden[$key] = [
+            'seq' => (int) $row['seq'],
+            'geometry' => avesmapsClimateNormalizeDivider(
+                json_decode((string) $row['geometry_geojson'], true, 512, JSON_THROW_ON_ERROR)
+            ),
+        ];
+    }
+
+    // 🪤 Ein Bestand ohne Schluessel (Nachtragen war nicht eindeutig, siehe EnsureTables) wird NICHT
+    // stillschweigend neu verteilt. Passt die Anzahl, ist alles gut und es gibt nichts zu tun; passt sie
+    // nicht, ist Zurueckhaltung die richtige Antwort -- „Zurücksetzen" ist eine eigene, ausdrueckliche
+    // Aktion.
+    if ($ohneSchluessel > 0) {
+        return false;
+    }
+
+    $fehlend = array_values(array_filter($soll, static fn(string $key): bool => !isset($vorhanden[$key])));
+    $ueberzaehlig = array_values(array_filter(
+        array_keys($vorhanden),
+        static fn(string $key): bool => !in_array($key, $soll, true)
+    ));
+    if ($fehlend === [] && $ueberzaehlig === [] && avesmapsEcosystemClimateSeqInOrder($vorhanden, $soll)) {
+        return false;
+    }
+
+    // Fehlende von SUEDEN nach NORDEN anlegen.
+    for ($index = count($soll) - 1; $index >= 0; $index--) {
+        $key = $soll[$index];
+        if (isset($vorhanden[$key])) {
+            continue;
+        }
+        $darunter = $index + 1 < count($soll) ? ($vorhanden[$soll[$index + 1]]['geometry'] ?? null) : null;
+        $darueber = $index - 1 >= 0 ? ($vorhanden[$soll[$index - 1]]['geometry'] ?? null) : null;
+
+        if ($darunter === null) {
+            // Keine Linie darunter (die neue Zone ist die suedlichste): dann gibt es nichts zu kopieren.
+            // Der Kartenrand ist die Untergrenze, also eine gerade Linie knapp darueber.
+            $basis = avesmapsClimateNormalizeDivider(['type' => 'LineString', 'coordinates' => [
+                [AVESMAPS_CLIMATE_MIN_XY, AVESMAPS_CLIMATE_MIN_XY], [AVESMAPS_CLIMATE_MAX_XY, AVESMAPS_CLIMATE_MIN_XY],
+            ]]);
+            $neu = avesmapsClimateInsertedDividerAbove($basis, $darueber, AVESMAPS_CLIMATE_INSERT_OFFSET);
+        } else {
+            $neu = avesmapsClimateInsertedDividerAbove($darunter, $darueber, AVESMAPS_CLIMATE_INSERT_OFFSET);
+        }
+        if ($neu === null) {
+            throw new InvalidArgumentException(
+                "There is no room for a new climate band above '{$key}'. "
+                . 'Move the neighbouring dividers apart first -- nothing was changed.'
+            );
+        }
+        $vorhanden[$key] = ['seq' => null, 'geometry' => $neu];
+    }
+
+    // Reihenfolge nachziehen. Zweistufig, weil `seq` der Primaerschluessel ist und ein direktes
+    // Umnummerieren mit sich selbst kollidierte.
+    $pdo->exec('UPDATE ecosystem_climate_divider SET seq = seq + 100');
+    $setSeq = $pdo->prepare('UPDATE ecosystem_climate_divider SET seq = :neu WHERE south_type_key = :key');
+    $insert = $pdo->prepare(
+        'INSERT INTO ecosystem_climate_divider (seq, geometry_geojson, south_type_key, updated_by)
+         VALUES (:seq, :geometry, :key, :user_id)'
+    );
+    foreach ($soll as $index => $key) {
+        if ($vorhanden[$key]['seq'] === null) {
+            $insert->execute([
+                'seq' => $index + 1,
+                'geometry' => json_encode($vorhanden[$key]['geometry'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                'key' => $key,
+                'user_id' => $userId > 0 ? $userId : null,
+            ]);
+            continue;
+        }
+        $setSeq->execute(['neu' => $index + 1, 'key' => $key]);
+    }
+    // Was jetzt noch ueber 100 steht, gehoert zu keiner Zone mehr.
+    $pdo->exec('DELETE FROM ecosystem_climate_divider WHERE seq > 100');
+
+    return true;
+}
+
+/**
+ * Stehen die vorhandenen Linien schon in der richtigen Reihenfolge? Dann ist nichts zu tun -- und ohne
+ * diese Frage schriebe jeder Aufruf von climate_get die Reihenfolge neu und hoebe die Revision.
+ *
+ * @param array<string, array{seq: int|null, geometry: array}> $vorhanden
+ * @param list<string> $soll
+ */
+function avesmapsEcosystemClimateSeqInOrder(array $vorhanden, array $soll): bool
+{
+    foreach ($soll as $index => $key) {
+        if (($vorhanden[$key]['seq'] ?? null) !== $index + 1) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -3277,19 +3455,23 @@ function avesmapsEcosystemClimateReset(PDO $pdo, int $userId): array
 {
     avesmapsEcosystemEnsureTables($pdo);
 
-    $count = max(0, count(avesmapsEcosystemClimateZones($pdo)) - 1);
+    $zones = avesmapsEcosystemClimateZones($pdo);
+    $count = max(0, count($zones) - 1);
     $pdo->beginTransaction();
     try {
         $before = ['dividers' => avesmapsEcosystemClimateReadDividers($pdo)];
         $pdo->exec('DELETE FROM ecosystem_climate_divider');
         $insert = $pdo->prepare(
-            'INSERT INTO ecosystem_climate_divider (seq, geometry_geojson, updated_by)
-             VALUES (:seq, :geometry, :user_id)'
+            'INSERT INTO ecosystem_climate_divider (seq, geometry_geojson, south_type_key, updated_by)
+             VALUES (:seq, :geometry, :key, :user_id)'
         );
         foreach (avesmapsClimateDefaultDividers($count) as $index => $divider) {
             $insert->execute([
                 'seq' => $index + 1,
                 'geometry' => json_encode($divider, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                // 🔴 Auch hier der Schluessel: ohne ihn stuende der Bestand nach einem „Zurücksetzen"
+                // wieder ohne Identitaet da, und der naechste Abgleich haette nichts zum Wiedererkennen.
+                'key' => $zones[$index + 1]['type_key'],
                 'user_id' => $userId > 0 ? $userId : null,
             ]);
         }

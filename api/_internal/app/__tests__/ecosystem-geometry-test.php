@@ -231,7 +231,8 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unkn
 // 33 since 2026-08-03: the seven climate zones joined as the fourth kind (`klima`). They are the first
 // types that are NOT drawn but DERIVED -- from the dividers in ecosystem_climate_divider -- which is
 // also why they are the first ones exempt from the label-subtype rule below.
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 33, 'the seed is 33 rows');
+// 34 seit 2026-08-03: „Trockene Subtropen" wurde zwischen zwei bestehende Klimazonen geschoben.
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 34, 'the seed is 34 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -242,13 +243,13 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
 assert(count($byKind['topographie']) === 12, 'topographie: 12');
 assert(count($byKind['vegetation']) === 10, 'vegetation: 10');
-assert(count($byKind['klima']) === 7, 'klima: 7 -- and seven is the number the six dividers imply');
+assert(count($byKind['klima']) === 8, 'klima: 8 -- and the dividers are always one fewer');
 
 // 🔴 Die REIHENFOLGE der Klimazonen ist tragend, nicht kosmetisch: sie sagt, welche Zone noerdlich
 // welcher liegt, und daraus folgt, welche Trennlinie welches Band begrenzt (climate-zones.php).
 // Deshalb wird sie hier festgenagelt und nicht nur gezaehlt.
-assert($byKind['klima'] === ['polar', 'subpolar', 'boreal', 'gemaessigt',
-    'subtropen_winterfeucht', 'subtropisch', 'tropisch'], 'the climate zones are seeded north to south');
+assert($byKind['klima'] === ['polar', 'subpolar', 'boreal', 'gemaessigt', 'subtropen_winterfeucht',
+    'trockene_subtropen', 'subtropisch', 'tropisch'], 'the climate zones are seeded north to south');
 
 // 🔴 2026-07-30: `insel` is a FORM (land enclosed by water) and moved to topographie; `inselgruppe`
 // is a named CONTAINER over several islands and took its place on the derographic layer. The counts

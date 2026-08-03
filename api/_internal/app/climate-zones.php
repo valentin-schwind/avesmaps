@@ -31,6 +31,13 @@ const AVESMAPS_CLIMATE_MIN_GAP = 1.0;
 // bereits weit jenseits dessen, was ein Mensch von Hand zieht.
 const AVESMAPS_CLIMATE_MAX_POINTS = 500;
 
+// Wie hoch ein NEU eingeschobenes Band anfaengt, in Karteneinheiten. „Schmal" (Owner 2026-08-03) und
+// ein Startwert, kein Gesetz: die Linie laesst sich danach ziehen wie jede andere. 45 von 1024 sind
+// gut vier Prozent der Kartenhoehe -- schmal genug, um als Uebergangszone zu lesen, breit genug, um
+// die Beschriftung zu tragen. Ist oben weniger Platz, wird der Versatz kleiner statt die Nachbarn zu
+// schieben (avesmapsClimateInsertedDividerAbove).
+const AVESMAPS_CLIMATE_INSERT_OFFSET = 45.0;
+
 /**
  * Schneiden sich die Strecken a1-a2 und b1-b2?
  *
@@ -323,6 +330,101 @@ function avesmapsClimateDefaultDividers(int $count): array
     }
 
     return $dividers;
+}
+
+/**
+ * Eine Trennlinie senkrecht verschieben. Die Randpunkte bleiben dabei am Kartenrand (x aendert sich
+ * nicht), y wird auf die Karte geklemmt.
+ *
+ * @param array{type: string, coordinates: list<array{0: float, 1: float}>} $divider
+ * @return array{type: string, coordinates: list<array{0: float, 1: float}>}
+ */
+function avesmapsClimateShiftDivider(array $divider, float $dy): array
+{
+    $coordinates = [];
+    foreach ($divider['coordinates'] as [$x, $y]) {
+        $coordinates[] = [$x, max(AVESMAPS_CLIMATE_MIN_XY, min(AVESMAPS_CLIMATE_MAX_XY, $y + $dy))];
+    }
+
+    return ['type' => 'LineString', 'coordinates' => $coordinates];
+}
+
+/**
+ * Die KOPIE einer vorhandenen Trennlinie, um `$wanted` nach oben versetzt -- so weit, wie es geht, ohne
+ * die Nachbarn zu beruehren.
+ *
+ * 🔴 DAS IST DER MINIMALINVASIVE EINSCHUB. Eine neue Zone zwischen zwei bestehende zu legen, ohne eine
+ * einzige vorhandene Linie zu bewegen, geht nur so: die neue Linie ist die Form ihrer suedlichen
+ * Nachbarin, angehoben. Das neue Band ist damit ein Streifen gleichbleibender Hoehe, der der
+ * bestehenden Grenze exakt folgt -- und den Platz nimmt es sich von der Zone DARUEBER, nicht von der
+ * darunter.
+ *
+ * 💣 Ein senkrechter Versatz kann eine Linie mit starkem Ueberhang mit sich selbst oder mit der Linie
+ * darueber verschneiden. Deshalb wird der Versatz halbiert, bis er passt -- und wenn selbst der
+ * kleinste nicht passt, kommt `null` zurueck. Der Aufrufer bricht dann ab, statt etwas zu verschieben.
+ *
+ * @param array $below   die Linie, deren Form kopiert wird (die suedliche Nachbarin der neuen Zone)
+ * @param array|null $above die naechste Linie darueber, oder null fuer den Kartenrand
+ * @return array{type: string, coordinates: list<array{0: float, 1: float}>}|null
+ */
+function avesmapsClimateInsertedDividerAbove(array $below, ?array $above, float $wanted): ?array
+{
+    $obergrenze = $above === null ? null : $above['coordinates'];
+    for ($versuch = $wanted; $versuch >= AVESMAPS_CLIMATE_MIN_GAP * 2; $versuch /= 2.0) {
+        $kandidat = avesmapsClimateShiftDivider($below, $versuch);
+
+        // Der Versatz darf die Kopie nicht in sich selbst falten ...
+        if (avesmapsClimatePolylineSelfIntersects($kandidat['coordinates'])) {
+            continue;
+        }
+        // ... sie nicht durch ihr Original stossen ...
+        if (avesmapsClimatePolylinesCross($kandidat['coordinates'], $below['coordinates'])) {
+            continue;
+        }
+        // ... und nicht durch die Linie darueber.
+        if ($obergrenze !== null && avesmapsClimatePolylinesCross($kandidat['coordinates'], $obergrenze)) {
+            continue;
+        }
+        // Am Westrand entscheidet sich die Reihenfolge -- dort muss der Abstand nach BEIDEN Seiten reichen.
+        if ($kandidat['coordinates'][0][1] - $below['coordinates'][0][1] < AVESMAPS_CLIMATE_MIN_GAP) {
+            continue;
+        }
+        if ($obergrenze !== null && $obergrenze[0][1] - $kandidat['coordinates'][0][1] < AVESMAPS_CLIMATE_MIN_GAP) {
+            continue;
+        }
+
+        return $kandidat;
+    }
+
+    // 💣 ZWEITER WEG, und er ist nicht selten: eine Linie mit BLASE kreuzt ihre eigene angehobene Kopie.
+    // Am Testbestand nachgerechnet -- die Blase um die Wueste Khôm laeuft nach links zurueck, und die
+    // Kopie schneidet dabei den steilen Abstieg des Originals. Kein Versatz der Welt behebt das, weil
+    // der Schnitt mit dem Versatz nur wandert.
+    //
+    // Dann eine GERADE im freien Streifen zwischen beiden Nachbarn. Sie kann per Bauart keine der
+    // beiden schneiden: die untere liegt vollstaendig darunter, die obere vollstaendig darueber. Das
+    // Band ist damit ueber der Blase dicker als an den Raendern -- was richtig ist, denn seine
+    // UNTERKANTE ist und bleibt die vorhandene Grenze, und genau die soll der Auftrag erhalten.
+    $untenMax = AVESMAPS_CLIMATE_MIN_XY;
+    foreach ($below['coordinates'] as [$unusedX, $y]) {
+        $untenMax = max($untenMax, $y);
+    }
+    $obenMin = AVESMAPS_CLIMATE_MAX_XY;
+    if ($above !== null) {
+        $obenMin = AVESMAPS_CLIMATE_MAX_XY;
+        foreach ($above['coordinates'] as [$unusedX, $y]) {
+            $obenMin = min($obenMin, $y);
+        }
+    }
+    if ($obenMin - $untenMax < AVESMAPS_CLIMATE_MIN_GAP * 2) {
+        return null;
+    }
+    $hoehe = min($untenMax + $wanted, $obenMin - AVESMAPS_CLIMATE_MIN_GAP);
+    $hoehe = max($hoehe, $untenMax + AVESMAPS_CLIMATE_MIN_GAP);
+
+    return avesmapsClimateNormalizeDivider(['type' => 'LineString', 'coordinates' => [
+        [AVESMAPS_CLIMATE_MIN_XY, $hoehe], [AVESMAPS_CLIMATE_MAX_XY, $hoehe],
+    ]]);
 }
 
 /**

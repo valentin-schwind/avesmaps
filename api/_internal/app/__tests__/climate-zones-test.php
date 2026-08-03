@@ -225,7 +225,9 @@ $climateSeed = array_values(array_filter(
     AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED,
     static fn(array $row): bool => $row[0] === 'klima'
 ));
-assert(count($climateSeed) === 7, 'seven climate zones are seeded');
+// 8 seit 2026-08-03: „Trockene Subtropen" wurde zwischen die winterfeuchten Subtropen und die
+// Subtropische Zone geschoben (sort_order 55, in die Lücke der Zehnerschritte).
+assert(count($climateSeed) === 8, 'eight climate zones are seeded');
 
 // 🔴 sort_order is LOAD-BEARING: it says which zone lies north of which, and from that follows which
 // divider bounds which band. A duplicate or a shuffled order re-sorts the map.
@@ -233,11 +235,12 @@ $sortOrders = array_column($climateSeed, 3);
 $sorted = $sortOrders;
 sort($sorted);
 assert($sortOrders === $sorted, 'the seed is written in north-to-south order');
-assert(count(array_unique($sortOrders)) === 7, 'no two zones share a sort_order');
+assert(count(array_unique($sortOrders)) === 8, 'no two zones share a sort_order');
 
 $keys = array_column($climateSeed, 1);
-assert($keys === ['polar', 'subpolar', 'boreal', 'gemaessigt', 'subtropen_winterfeucht', 'subtropisch', 'tropisch'],
-    'the zone keys are the agreed ones, ASCII-folded');
+assert($keys === ['polar', 'subpolar', 'boreal', 'gemaessigt', 'subtropen_winterfeucht',
+    'trockene_subtropen', 'subtropisch', 'tropisch'],
+    'the zone keys are the agreed ones, ASCII-folded, north to south');
 foreach ($keys as $key) {
     assert(preg_match('/^[a-z_]+$/', $key) === 1, "zone key {$key} is ASCII-folded (AGENTS.md §5)");
 }
@@ -288,5 +291,57 @@ assert(avesmapsClimateZoneIndexAt($sixDividers, 400.0, $onTheLine) === 1, 'genau
 $bent = [['type' => 'LineString', 'coordinates' => [[0.0, 900.0], [512.0, 900.0], [512.0, 300.0], [1024.0, 300.0]]]];
 assert(avesmapsClimateZoneIndexAt($bent, 100.0, 600.0) === 1, 'im Westen liegt die Grenze hoch -- der Punkt ist suedlich');
 assert(avesmapsClimateZoneIndexAt($bent, 900.0, 600.0) === 0, 'im Osten liegt sie tief -- derselbe y-Wert ist noerdlich');
+
+// ---- eine Zone einschieben, ohne eine einzige vorhandene Linie zu bewegen (Owner 2026-08-03) -------
+// 🔴 Der Auftrag war ausdruecklich minimalinvasiv: „Die vorhandenen Klimazonen und ihre Grenzlinien
+// sind bereits korrekt und duerfen nicht veraendert, verschoben oder neu berechnet werden."
+// Die neue Linie ist deshalb die FORM ihrer suedlichen Nachbarin, angehoben -- das neue Band folgt der
+// bestehenden Grenze exakt und nimmt seinen Platz von der Zone DARUEBER.
+
+$unten = climateTestLine([[0, 400], [300, 380], [700, 420], [1024, 400]]);
+$oben = climateTestLine([[0, 700], [1024, 700]]);
+
+$neu = avesmapsClimateInsertedDividerAbove($unten, $oben, 60.0);
+assert($neu !== null, 'there is room for the inserted band');
+assert(count($neu['coordinates']) === count($unten['coordinates']), 'the inserted line copies the shape below it');
+foreach ($neu['coordinates'] as $index => [$x, $y]) {
+    assert(abs($x - $unten['coordinates'][$index][0]) < 1e-9, 'x is untouched -- the shape is only lifted');
+    assert(abs(($y - $unten['coordinates'][$index][1]) - 60.0) < 1e-9, 'and lifted by exactly the offset');
+}
+// Die Randpunkte bleiben am Kartenrand -- sonst haetten die Baender eine Luecke.
+assert($neu['coordinates'][0][0] === 0.0 && $neu['coordinates'][count($neu['coordinates']) - 1][0] === 1024.0,
+    'the inserted line still spans edge to edge');
+avesmapsClimateAssertOrder([$oben, $neu, $unten]);   // drei Linien, saubere Reihenfolge
+
+// Ist oben wenig Platz, wird der Versatz kleiner statt die Nachbarn zu schieben.
+$eng = climateTestLine([[0, 430], [1024, 430]]);
+$gequetscht = avesmapsClimateInsertedDividerAbove($unten, $eng, 60.0);
+assert($gequetscht !== null, 'a narrow gap still takes a band');
+assert($gequetscht['coordinates'][0][1] < $eng['coordinates'][0][1], 'the inserted line stays below its upper neighbour');
+avesmapsClimateAssertOrder([$eng, $gequetscht, $unten]);
+
+// 💣 Und wenn gar kein Platz ist, kommt null -- der Aufrufer bricht dann ab, statt etwas zu verschieben.
+$dichtDrauf = climateTestLine([[0, 401], [1024, 401]]);
+assert(avesmapsClimateInsertedDividerAbove($unten, $dichtDrauf, 60.0) === null,
+    'no room at all: null, so the caller refuses instead of moving something');
+
+// 💣 DER FALL, DER DEN ZWEITEN WEG BRAUCHT: eine Linie mit BLASE. Ihre parallel angehobene Kopie
+// schneidet ihr eigenes Original -- der Ueberhang laeuft nach links zurueck und kreuzt dabei den
+// steilen Abstieg. Kein Versatz behebt das, der Schnitt wandert nur mit. Dann muss eine GERADE in den
+// freien Streifen, und die kann per Bauart nichts schneiden.
+$mitBlase = climateTestLine([[0, 380], [300, 375], [520, 330], [430, 300], [660, 295], [1024, 360]]);
+$darueber = climateTestLine([[0, 505], [1024, 495]]);
+$eingeschoben = avesmapsClimateInsertedDividerAbove($mitBlase, $darueber, 45.0);
+assert($eingeschoben !== null, 'a bubble still gets a band above it');
+assert(count($eingeschoben['coordinates']) === 2, 'and it is a straight line, because the parallel copy would self-cross');
+$hoechsteBlase = max(array_column($mitBlase['coordinates'], 1));
+assert($eingeschoben['coordinates'][0][1] > $hoechsteBlase, 'the straight line clears the whole bubble');
+assert(!avesmapsClimatePolylinesCross($eingeschoben['coordinates'], $mitBlase['coordinates']),
+    'and crosses it nowhere');
+avesmapsClimateAssertOrder([$darueber, $eingeschoben, $mitBlase]);
+
+// Ohne obere Nachbarin gilt der Kartenrand.
+$obenFrei = avesmapsClimateInsertedDividerAbove($unten, null, 60.0);
+assert($obenFrei !== null && abs($obenFrei['coordinates'][0][1] - 460.0) < 1e-9, 'without an upper neighbour the full offset applies');
 
 fwrite(STDOUT, "climate-zones-test: OK\n");

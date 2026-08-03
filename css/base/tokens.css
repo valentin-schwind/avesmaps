@@ -244,6 +244,12 @@
 	--color-ecosystem-klima-boreal: #7aada9;                /* boreal, cold teal */
 	--color-ecosystem-klima-gemaessigt: #bfc888;            /* temperate, neutral olive */
 	--color-ecosystem-klima-subtropen-winterfeucht: #dcb857; /* winter-wet subtropics, warm gold */
+	/* Owner 2026-08-03, nachtraeglich zwischen die beiden geschoben. Der Unterschied zur Nachbarin
+	   darueber ist die FEUCHTE, nicht die Temperatur -- deshalb ein entsaettigter Sandton statt einer
+	   weiteren Stufe auf der Warm-Rampe. Er liegt zwischen Gold (#dcb857) und Ocker (#d98f3c) und
+	   unterscheidet sich von beiden durch die Blässe, nicht durch den Farbton: zwischen zwei so nahen
+	   Nachbarn ist das der einzige Platz, der noch frei war. */
+	--color-ecosystem-klima-trockene-subtropen: #cdb083;    /* dry subtropics, dusty sand */
 	--color-ecosystem-klima-subtropisch: #d98f3c;           /* subtropical, orange ochre */
 	--color-ecosystem-klima-tropisch: #c65e2e;              /* tropical, warm terracotta */
 	/* Die Trennlinie selbst und der Zonenname. Ein neutrales Dunkel, das auf allen sieben Tönen sitzt --

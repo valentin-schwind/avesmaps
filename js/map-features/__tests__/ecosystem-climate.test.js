@@ -106,6 +106,13 @@ const schraeg = { type: "Polygon", coordinates: [[[0, 900], [1024, 880], [1024, 
 assert(JSON.stringify(context.climateAreaWestEdgeSpan(schraeg)) === JSON.stringify({ min: 700, max: 900 }),
 	"a slanted southern boundary does not move the label");
 
+// 🔴 BEIDE Kanten werden für sich gemessen (Owner 2026-08-03: Beschriftung links UND rechts). Bei einer
+// schrägen Grenze liegt die Bandmitte rechts woanders als links -- ein gespiegelter Wert wäre daneben.
+assert(JSON.stringify(context.climateAreaEdgeSpan(schraeg, 1024)) === JSON.stringify({ min: 600, max: 880 }),
+	"the east edge span is measured on its own, not mirrored from the west");
+assert(context.climateAreaEdgeSpan(schraeg, 0).min !== context.climateAreaEdgeSpan(schraeg, 1024).min,
+	"and on a slanted band the two really do differ");
+
 const multi = { type: "MultiPolygon", coordinates: [[[[0, 500], [1024, 500], [1024, 400], [0, 400], [0, 500]]]] };
 assert(JSON.stringify(context.climateAreaWestEdgeSpan(multi)) === JSON.stringify({ min: 400, max: 500 }),
 	"a MultiPolygon works the same way");
