@@ -1,4 +1,5 @@
-/* Landschaften (Erprobung) -- the segment switch above the map and the three area panes (plan V3.0).
+/* Landschaften -- the segment switch above the map and the four area panes (plan V3.0; `klima` joined
+   as the fourth on 2026-08-03).
 
    💣 DELIBERATELY NOT COPIED FROM political-timeline.css, although this box sits in exactly the same
    spot. That file hardcodes #b79d7d, rgba(250,243,236,0.96), #3f3428, border-radius: 8px and
@@ -29,11 +30,12 @@
 
 /* Segmented control, not the panel sub-tab underline (.region-sync__viewtabs): this one floats over
    the map, where an underline row has no panel edge to sit on. Equal columns so the three landscape
-   layers read as three peers -- minmax(0, 1fr), because a fixed 1fr would let the longest label
-   ("Derographische Region") push its column wider than the other two. */
-/* 🪤 `grid-auto-columns` statt `repeat(3, …)`: seit „Alle" (Owner 2026-07-27) sind es VIER Kacheln,
-   und eine feste Drei hätte die vierte in eine zweite Zeile geschoben. Dasselbe Muster wie das
-   Menüband der Editoren -- es passt sich der Anzahl an, ohne dass jemand die Zahl nachziehen muss. */
+   layers read as peers -- minmax(0, 1fr), because a fixed 1fr would let the longest label push its
+   column wider than the others. */
+/* 🪤 `grid-auto-columns` statt `repeat(3, …)`: seit „Alle" (Owner 2026-07-27) sind es mehr als drei
+   Kacheln, und seit „Klimazonen" (2026-08-03) fünf. Eine feste Zahl hätte die überzählige jedes Mal in
+   eine zweite Zeile geschoben. Dasselbe Muster wie das Menüband der Editoren -- es passt sich der
+   Anzahl an, ohne dass jemand die Zahl nachziehen muss. */
 .ecosystem-layer-switch {
 	display: grid;
 	grid-auto-flow: column;
@@ -1351,4 +1353,26 @@
 
 .avesmaps-ecosystem-height-canvas {
 	opacity: var(--opacity-ecosystem-height);
+}
+
+/* ---- Klimazonen: Trennlinien und Zonennamen (Owner 2026-08-03) -------------------------------------
+   Ein Randgriff ist ECKIG statt rund. Das ist keine Verzierung: er laesst sich nur senkrecht bewegen,
+   und die Form ist die einzige Stelle, an der das VOR dem ersten Ziehversuch zu sehen ist. Er behaelt
+   dieselbe Farbe wie jeder andere Bearbeitungsgriff im Haus -- gleiche Bedeutung, gleicher Ton; nur
+   die Ecke sagt „dieser hier ist festgenagelt".
+
+   🪤 Der Selektor greift den PUNKT im Griff, nicht den Griff selbst: das runde Aussehen sitzt an
+   .path-edit-handle-marker__dot (css/features/path-editor.css), und die Klasse am Icon davor. */
+.ecosystem-climate-handle--pinned .path-edit-handle-marker__dot {
+	border-radius: var(--radius-sm);
+}
+
+/* Der Zonenname am Westrand seines Bandes. Kein Karten-Label: er gehoert zur Ebene und verschwindet
+   mit ihr, laeuft also auch nicht durch die Kollisionsaufloesung und konkurriert mit nichts.
+   Klickdurchlaessig, damit er den Klick auf die Linie darunter nicht schluckt. */
+.ecosystem-climate-name {
+	pointer-events: none;
+	white-space: nowrap;
+	font-size: var(--font-size-small);
+	color: var(--color-ecosystem-klima-label);
 }

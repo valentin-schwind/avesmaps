@@ -2234,6 +2234,11 @@
 			<script src="js/map-features/map-features-ecosystem-region-store.js"></script>
 		<script src="js/map-features/map-features-ecosystem-draw.js"></script>
 		<script src="js/map-features/map-features-ecosystem-edit.js"></script>
+		<!-- V-Klima (2026-08-03): der Trennlinien-Editor. MUSS nach ecosystem-region-store.js stehen
+		     (ruft postEcosystemEdit) und nach ecosystem-layer-switch.js, dessen syncEcosystemPaneStates
+		     ihn anstösst. Er bearbeitet LINIEN -- die sieben Bänder sind abgeleitet und kommen über den
+		     gewöhnlichen Flächenweg des Loaders zurück. -->
+		<script src="js/map-features/map-features-ecosystem-climate.js"></script>
 		<script src="js/map-features/map-features-ecosystem-visibility.js"></script>
 		<script src="js/map-features/map-features-ecosystem-context-action.js"></script>
 		<script src="js/map-features/map-features-ecosystem-intro.js"></script>

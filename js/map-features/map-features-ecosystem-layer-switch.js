@@ -100,6 +100,10 @@ function syncEcosystemPaneStates() {
 	// V8: das Relief hängt an derselben Frage wie die Panes -- welche Ebene liegt vorn. Es zeichnet sich
 	// bei jeder anderen Lage leer, das Umschalten löscht es also von selbst.
 	window.AvesmapsEcosystemHeightRender?.redraw?.();
+	// V-Klima: die Trennlinien hängen an derselben Frage wie das Relief -- welche Ebene liegt vorn. Sie
+	// räumen sich bei jeder anderen Lage selbst ab, das Umschalten löscht sie also von allein, und es
+	// braucht keinen zweiten Aufräumweg neben diesem.
+	window.AvesmapsEcosystemClimate?.sync?.();
 }
 
 // 🔴 Welche Labels sind in der gerade bearbeiteten Ebene FREMD? Nur die werden blass. Seit jede Region
