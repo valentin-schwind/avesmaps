@@ -213,7 +213,10 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadPublicId('not-a-uuid', '
 
 assert(avesmapsEcosystemReadKind('vegetation') === 'vegetation');
 ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('Vegetation'), 'kind is case sensitive');
-ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('klima'), 'an unknown kind');
+// 🪤 Hier stand bis 2026-08-03 `klima` als Beispiel fuer eine unbekannte Ebene -- seit die Klimazonen
+// die vierte Ebene sind, ist das eine bekannte. Der Fall bleibt derselbe, er braucht nur ein Wort, das
+// wirklich keine Ebene ist.
+ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('wetter'), 'an unknown kind');
 
 // ---- the type vocabulary -----------------------------------------------------------------------------
 // The owner's V2.1 checkpoint counted 16 rows in phpMyAdmin (4 + 5 + 7); this is the same count, checkable
@@ -225,7 +228,10 @@ ecosystemTestThrows(static fn() => avesmapsEcosystemReadKind('klima'), 'an unkno
 // vanishing unnoticed, and a duplicate being swallowed by INSERT IGNORE (the composite check below).
 // Adjusting it alongside a seed entry is the intended workflow, not a weakening of the test.
 
-assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 26, 'the seed is 26 rows');
+// 33 since 2026-08-03: the seven climate zones joined as the fourth kind (`klima`). They are the first
+// types that are NOT drawn but DERIVED -- from the dividers in ecosystem_climate_divider -- which is
+// also why they are the first ones exempt from the label-subtype rule below.
+assert(count(AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED) === 33, 'the seed is 33 rows');
 
 $byKind = [];
 foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortOrder]) {
@@ -236,6 +242,13 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey, $label, $sortO
 assert(count($byKind['derographisch']) === 4, 'derographisch: 4');
 assert(count($byKind['topographie']) === 12, 'topographie: 12');
 assert(count($byKind['vegetation']) === 10, 'vegetation: 10');
+assert(count($byKind['klima']) === 7, 'klima: 7 -- and seven is the number the six dividers imply');
+
+// 🔴 Die REIHENFOLGE der Klimazonen ist tragend, nicht kosmetisch: sie sagt, welche Zone noerdlich
+// welcher liegt, und daraus folgt, welche Trennlinie welches Band begrenzt (climate-zones.php).
+// Deshalb wird sie hier festgenagelt und nicht nur gezaehlt.
+assert($byKind['klima'] === ['polar', 'subpolar', 'boreal', 'gemaessigt',
+    'subtropen_winterfeucht', 'subtropisch', 'tropisch'], 'the climate zones are seeded north to south');
 
 // 🔴 2026-07-30: `insel` is a FORM (land enclosed by water) and moved to topographie; `inselgruppe`
 // is a named CONTAINER over several islands and took its place on the derographic layer. The counts
@@ -256,7 +269,16 @@ foreach (AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED as [$kind, $typeKey]) {
     $seen[$composite] = true;
     // Every type_key must also be a real map_features label subtype -- that is what lets a later task
     // bridge the 540 existing landscape labels to a region. Checked against the LIVE allowlist.
-    assert(avesmapsReadLabelSubtype($typeKey) === $typeKey, "{$typeKey} is a map_features label subtype");
+    //
+    // 🔴 EXCEPT `klima` (2026-08-03), and deliberately so. The rule exists because a drawn area gets
+    // its name from a map label, and that label needs a subtype. A climate zone has no map label: its
+    // name is drawn by the layer itself and disappears with it (spec §8.2). Adding the seven zones to
+    // the label allowlist would do the opposite of what the design decided -- it would let someone
+    // place a "Tropische Zone" label on the public map, where it would run through the collision
+    // resolver and compete with real geography.
+    if ($kind !== 'klima') {
+        assert(avesmapsReadLabelSubtype($typeKey) === $typeKey, "{$typeKey} is a map_features label subtype");
+    }
 }
 
 // Deliberately absent, and each for its own reason (see the seed's comment): `ebene` has no travel factor

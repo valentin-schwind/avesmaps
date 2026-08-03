@@ -42,6 +42,12 @@ require_once __DIR__ . '/ecosystem-label-link.php';
 // on the dev machine and on STRATO).
 require_once __DIR__ . '/../text/ascii-fold.php';
 
+// Klimazonen: die reine Geometrie (Trennlinie normalisieren, Reihenfolge pruefen, Band ableiten) und
+// der Riegel gegen das Bearbeiten einer abgeleiteten Flaeche. Eigene Datei, weil sie ohne Datenbank
+// auskommt und genau deshalb lokal beweisbar ist -- dort liegt nichts, was ein PDO braucht
+// (api/_internal/app/__tests__/climate-zones-test.php).
+require_once __DIR__ . '/climate-zones.php';
+
 // avesmapsUuidV4() (new public_ids) lives in api/_internal/map/features.php and is loaded by the EDIT
 // dispatcher, not here -- exactly like api/_internal/app/citymaps.php. Pulling a 2.700-line library into
 // this file would drag it onto the public read path for the sake of one 15-line helper.
@@ -58,7 +64,12 @@ if (!class_exists('AvesmapsConflictException')) {
 // ---- vocabulary ------------------------------------------------------------------------------------
 // The kind values stay GERMAN: they are domain vocabulary like PATH_SUBTYPE_KEYS (AGENTS.md §2).
 // "Derographisch" is a Wiki-Aventurica category, not a translatable word.
-const AVESMAPS_ECOSYSTEM_KINDS = ['derographisch', 'vegetation', 'topographie'];
+//
+// 2026-08-03: `klima` ist der VIERTE Wert. Anders als die drei anderen wird er nicht gezeichnet,
+// sondern ABGELEITET -- aus den Trennlinien in ecosystem_climate_divider (climate-zones.php). Fuer
+// alles Lesende ist er trotzdem eine Ebene wie jede andere, und genau darum erben Regionen-Editor,
+// „Zugehoerigkeit rechnen" und die Wege-Zuordnung ihn ohne eine Zeile eigenen Code.
+const AVESMAPS_ECOSYSTEM_KINDS = ['derographisch', 'vegetation', 'topographie', 'klima'];
 
 // Seeded into ecosystem_region_type: [kind, type_key, label, sort_order]. Every type_key is also a
 // map_features label subtype (allowlist api/_internal/map/features.php:767) so a later task can bridge
@@ -156,6 +167,29 @@ const AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED = [
     // behauptet eine Ausdehnung, die sie nicht hat.
     // 🪤 Schlüssel ASCII-gefaltet wie `wueste` (AGENTS.md §5): `wuestenoase`, nie `wüstenoase`.
     ['vegetation', 'wuestenoase', 'Wüstenoase', 100],
+
+    // ---- Klimazonen (Owner 2026-08-03) --------------------------------------------------------------
+    // Sieben Zonen von Nord nach Sued, abgeleitet aus sechs Trennlinien. Die Namen sind die des Owners;
+    // der fachliche Zusatz („Eiswuestenklima") ist Untertitel im Editor und steht bewusst nicht im
+    // `label` -- das ist der Name, der auf der Karte steht.
+    //
+    // 🔴 `sort_order` IST TRAGEND, nicht Kosmetik. Die Reihenfolge sagt, welche Zone noerdlich welcher
+    // liegt, und daraus folgt, welche Trennlinie welches Band begrenzt. Wer sie umsortiert, sortiert
+    // die Karte um -- dieselbe Falle wie beim Ortsart-Katalog (api/_internal/wiki/place-kinds.php).
+    //
+    // 🔴 `affects_paths` bleibt auf dem Vorgabewert 1. Anders als bei `meer` und `kontinent` sagt
+    // „dieser Weg verlaeuft in der Tropischen Zone" etwas, und die Rechnung ist billig: ein Band hat
+    // Dutzende Ecken, `Meer-001` hat 3.050.
+    //
+    // 💣 Jede Art braucht ihr Farbtoken --color-ecosystem-klima-<key mit - statt _>, sonst faellt
+    // ecosystemAreaColor() auf den Ebenenton zurueck und alle sieben Baender sehen gleich aus.
+    ['klima', 'polar', 'Polare Zone', 10],
+    ['klima', 'subpolar', 'Subpolare Zone', 20],
+    ['klima', 'boreal', 'Boreale Zone', 30],
+    ['klima', 'gemaessigt', 'Gemäßigte Zone', 40],
+    ['klima', 'subtropen_winterfeucht', 'Winterfeuchte Subtropen', 50],
+    ['klima', 'subtropisch', 'Subtropische Zone', 60],
+    ['klima', 'tropisch', 'Tropische Zone', 70],
 ];
 
 // ---- Erprobung: abgeschafft am 2026-08-01 -----------------------------------------------------------
@@ -297,6 +331,34 @@ function avesmapsEcosystemEnsureTables(PDO $pdo): void
             sort_order INT NOT NULL DEFAULT 0,
             is_active TINYINT(1) NOT NULL DEFAULT 1,
             PRIMARY KEY (kind, type_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    // ---- Klimazonen: die Trennlinien (Owner 2026-08-03) -----------------------------------------
+    // Sechs Zeilen. `seq = k` trennt Zone k (noerdlich) von Zone k+1 (suedlich); die Zonen sind nach
+    // ecosystem_region_type.sort_order geordnet, und DIESE Reihenfolge ist es, die den Zusammenhang
+    // herstellt.
+    //
+    // 🔴 EIGENE TABELLE, und das ist kein zweites Flaechensystem. Eine Trennlinie ist ein anderes Ding
+    // als eine Flaeche: eine LINIE mit eigenen Regeln (Rand zu Rand, x streng steigend). Die BAENDER
+    // dagegen sind ganz gewoehnliche ecosystem_area-Zeilen -- dafuer wird hier nichts Neues gebaut,
+    // und genau deshalb erben Regionen-Editor und „Zugehoerigkeit rechnen" sie kostenlos.
+    //
+    // 💣 UND NICHT in map_features. Dort waere eine Klimagrenze ein WEG: routbar, suchbar, im
+    // Kartenpayload, mit Label und Infobox. Eine Klimagrenze ist keine Strasse.
+    //
+    // `revision` ist der optimistische Waechter, gleiche Bauart wie ecosystem_area.geometry_revision:
+    // der Client schickt beim Speichern die Fassung zurueck, die er gelesen hat, und bekommt sonst 409
+    // statt eines stillen Ueberschreibens.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS ecosystem_climate_divider (
+            seq TINYINT UNSIGNED NOT NULL,
+            geometry_geojson JSON NOT NULL,
+            revision INT UNSIGNED NOT NULL DEFAULT 1,
+            updated_by BIGINT UNSIGNED NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (seq)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
@@ -1683,6 +1745,10 @@ function avesmapsCreateEcosystemRegion(PDO $pdo, array $payload, int $userId): a
     if (!isset($fields['kind'])) {
         throw new InvalidArgumentException('kind is required.');
     }
+    // 🔴 Eine Klimazone entsteht aus der Saat (avesmapsEcosystemClimateEnsure), nie aus einem Aufruf.
+    // Es gibt genau sieben, und welche das sind, sagt das Vokabular -- eine achte von Hand angelegte
+    // haette keine Trennlinie, die sie begrenzt.
+    avesmapsClimateAssertNotDerived($fields['kind'], 'create_region');
     if (($fields['region_type'] ?? null) !== null) {
         avesmapsEcosystemAssertRegionType($pdo, $fields['kind'], $fields['region_type']);
     }
@@ -1835,6 +1901,9 @@ function avesmapsDeleteEcosystemRegion(PDO $pdo, array $payload, int $userId): a
 
     $publicId = avesmapsEcosystemReadPublicId($payload['public_id'] ?? '', 'public_id');
     $before = avesmapsEcosystemRegionRow($pdo, $publicId);
+    // Eine der sieben Zonen zu loeschen hiesse, ein Band ohne Region zurueckzulassen -- die Ableitung
+    // legte es beim naechsten Lauf wieder an, nur ohne Namen und ohne Vorkommen.
+    avesmapsClimateAssertNotDerived((string) ($before['kind'] ?? ''), 'delete_region');
     $regionId = (int) $before['id'];
 
     $pdo->beginTransaction();
@@ -2164,6 +2233,9 @@ function avesmapsCreateEcosystemArea(PDO $pdo, array $payload, int $userId): arr
         'region_public_id'
     );
     $region = avesmapsEcosystemRegionRow($pdo, $regionPublicId);
+    // 🪤 Die Ableitung selbst geht an dieser Funktion vorbei (avesmapsEcosystemClimateRebuildBands
+    // schreibt direkt in ecosystem_area) -- genau damit dieser Riegel keine Ausnahme braucht.
+    avesmapsClimateAssertNotDerived((string) ($region['kind'] ?? ''), 'create_area');
 
     $normalized = avesmapsEcosystemNormalizeGeometry($payload['geometry_geojson'] ?? $payload['geometry'] ?? null);
 
@@ -2220,6 +2292,12 @@ function avesmapsUpdateEcosystemAreaGeometry(PDO $pdo, array $payload, int $user
         // saving the same area in the same second get a real 409, not a coin flip.
         $before = avesmapsEcosystemAreaRow($pdo, $publicId, true, true);
         avesmapsEcosystemAssertRevision($before, $expectedRevision);
+        // 🔴 Die Kante eines Klimabandes IST seine Trennlinie. Ein Eckzug hier waere die zweite
+        // Wahrheit ueber dieselbe Grenze -- und beim naechsten Ableiten stillschweigend wieder weg.
+        avesmapsClimateAssertNotDerived(
+            avesmapsEcosystemKindOfRegionId($pdo, (int) $before['region_id']),
+            'update_area_geometry'
+        );
 
         $statement = $pdo->prepare(
             'UPDATE ecosystem_area
@@ -2270,6 +2348,12 @@ function avesmapsDeleteEcosystemArea(PDO $pdo, array $payload, int $userId): arr
     try {
         $before = avesmapsEcosystemAreaRow($pdo, $publicId, true, true);
         avesmapsEcosystemAssertRevision($before, $expectedRevision);
+        // Ein Band laesst sich nicht loeschen: es entsteht bei der naechsten Ableitung ohnehin wieder,
+        // und bis dahin haette die Karte ein Loch, das zu keiner Zone gehoert.
+        avesmapsClimateAssertNotDerived(
+            avesmapsEcosystemKindOfRegionId($pdo, (int) $before['region_id']),
+            'delete_area'
+        );
 
         $pdo->prepare('UPDATE ecosystem_area SET is_active = 0, updated_by = :user_id WHERE id = :id')
             ->execute(['user_id' => $userId > 0 ? $userId : null, 'id' => (int) $before['id']]);
@@ -2391,6 +2475,12 @@ function avesmapsUpdateEcosystemAreaTerrain(PDO $pdo, array $payload, int $userI
     if ($publicId === '') {
         throw new InvalidArgumentException('Die Fläche fehlt.');
     }
+    // Ein Klimaband traegt kein Gelaende: es ist eine Zonengrenze, kein Stueck Landschaft. Die drei
+    // Regler wuerden ein Hoehenfeld ueber die halbe Karte legen.
+    avesmapsClimateAssertNotDerived(
+        avesmapsEcosystemKindOfRegionId($pdo, (int) avesmapsEcosystemAreaRow($pdo, $publicId)['region_id']),
+        'update_area_terrain'
+    );
 
     // Klemmen, nicht ablehnen: der Regler kann nichts Ungültiges liefern, ein getippter Wert schon.
     // Die Grenzen sind Arbeitsbereiche, keine Lore -- eine Körnung unter 1 ergäbe eine einzige Zelle,
@@ -2819,4 +2909,247 @@ function avesmapsEcosystemRestoreRegionLabel(PDO $pdo, string $regionPublicId, i
     $revision = avesmapsNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET is_active = 1, revision = :r, updated_by = :u WHERE id = :id')
         ->execute(['r' => $revision, 'u' => $userId > 0 ? $userId : null, 'id' => $labelId]);
+}
+
+// ---- Klimazonen: Saat und Ableitung (Owner 2026-08-03) ---------------------------------------------
+//
+// 💣 KEINE DIESER FUNKTIONEN LAEUFT IN avesmapsEcosystemEnsureTables(). Die DDL-Selbstheilung hebt die
+// Revision NICHT -- ein dort angelegter Bestand kaeme bei jedem warmen Client als 304 an und waere
+// unsichtbar. Genau diese Falle hat die Insel/Inselgruppe-Umstellung gekostet. Die Saat laeuft im
+// SCHREIB-Dispatcher, hinter der Faehigkeitspruefung, und hebt die Revision, wenn sie etwas getan hat.
+//
+// 🔴 Die Trennlinien sind die Wahrheit, die Baender sind abgeleitet. Dieser Abschnitt ist der EINZIGE,
+// der eine klima-Flaeche schreiben darf; jeder andere Weg (create_area, update_area_geometry,
+// delete_area) ist mit avesmapsClimateAssertNotDerived verriegelt.
+
+/**
+ * Die Klimazonen mit ihrer Region, nach sort_order -- also Nord nach Sued.
+ *
+ * Zwei Abfragen statt eines LEFT JOIN: gaebe es je zwei aktive Regionen derselben Art, verdoppelte ein
+ * Join die Zeile und die Zonenliste haette ploetzlich acht Eintraege. So gewinnt die aelteste, und die
+ * Liste ist immer so lang wie das Vokabular.
+ *
+ * @return list<array{type_key: string, label: string, sort_order: int, region_public_id: string}>
+ */
+function avesmapsEcosystemClimateZones(PDO $pdo): array
+{
+    $regions = [];
+    $statement = $pdo->query(
+        "SELECT region_type, public_id FROM ecosystem_region
+          WHERE kind = 'klima' AND is_active = 1 AND region_type IS NOT NULL
+          ORDER BY id ASC"
+    );
+    foreach ($statement->fetchAll() as $row) {
+        $key = (string) $row['region_type'];
+        if (!isset($regions[$key])) {
+            $regions[$key] = (string) $row['public_id'];
+        }
+    }
+
+    $zones = [];
+    $types = $pdo->query(
+        "SELECT type_key, label, sort_order FROM ecosystem_region_type
+          WHERE kind = 'klima' AND is_active = 1
+          ORDER BY sort_order ASC, type_key ASC"
+    );
+    foreach ($types->fetchAll() as $row) {
+        $typeKey = (string) $row['type_key'];
+        $zones[] = [
+            'type_key' => $typeKey,
+            'label' => (string) $row['label'],
+            'sort_order' => (int) $row['sort_order'],
+            'region_public_id' => $regions[$typeKey] ?? '',
+        ];
+    }
+
+    return $zones;
+}
+
+/**
+ * Die Trennlinien, nach seq.
+ *
+ * Eine unlesbare Zeile ist ein Fehler, kein stiller Ausfall: fiele sie heraus, haette der Bestand
+ * ploetzlich ein Band weniger, und die Zuordnung aller Flaechen darunter verschoebe sich um eine Zone.
+ *
+ * @return list<array{seq: int, geometry: array, revision: int}>
+ */
+function avesmapsEcosystemClimateReadDividers(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        'SELECT seq, geometry_geojson, revision FROM ecosystem_climate_divider ORDER BY seq ASC'
+    );
+
+    $dividers = [];
+    foreach ($statement->fetchAll() as $row) {
+        $dividers[] = [
+            'seq' => (int) $row['seq'],
+            'geometry' => avesmapsClimateNormalizeDivider(
+                json_decode((string) $row['geometry_geojson'], true, 512, JSON_THROW_ON_ERROR)
+            ),
+            'revision' => (int) $row['revision'],
+        ];
+    }
+
+    return $dividers;
+}
+
+/**
+ * Die Ebene einer Flaeche -- ueber ihre Region. avesmapsEcosystemAreaRow liefert `SELECT *` aus
+ * ecosystem_area und kennt deshalb nur die INTERNE region_id; die Riegel brauchen aber den `kind`.
+ */
+function avesmapsEcosystemKindOfRegionId(PDO $pdo, int $regionId): string
+{
+    $statement = $pdo->prepare('SELECT kind FROM ecosystem_region WHERE id = :id LIMIT 1');
+    $statement->execute(['id' => $regionId]);
+
+    return (string) ($statement->fetchColumn() ?: '');
+}
+
+/**
+ * Regionen und Trennlinien anlegen, falls sie fehlen, und danach die Baender ableiten. Idempotent:
+ * ein zweiter Lauf direkt danach schreibt nichts mehr.
+ *
+ * @return bool ob etwas geschrieben wurde (dann hat der Aufrufer die Revision zu heben)
+ */
+function avesmapsEcosystemClimateEnsure(PDO $pdo, int $userId): bool
+{
+    avesmapsEcosystemEnsureTables($pdo);
+    avesmapsEcosystemSeedRegionTypes($pdo);
+
+    $changed = false;
+    $zones = avesmapsEcosystemClimateZones($pdo);
+
+    // 1. Fehlende Regionen. Eine je Zone, Name = das Label der Art. Der Name darf danach im
+    //    Regionen-Editor geaendert werden -- die ART bleibt die Wahrheit ueber die Zugehoerigkeit.
+    $insertRegion = $pdo->prepare(
+        "INSERT INTO ecosystem_region (public_id, name, kind, region_type, created_by, updated_by)
+         VALUES (:public_id, :name, 'klima', :region_type, :user_id, :user_id2)"
+    );
+    foreach ($zones as $zone) {
+        if ($zone['region_public_id'] !== '') {
+            continue;
+        }
+        $insertRegion->execute([
+            'public_id' => avesmapsUuidV4(),
+            'name' => $zone['label'],
+            'region_type' => $zone['type_key'],
+            'user_id' => $userId > 0 ? $userId : null,
+            'user_id2' => $userId > 0 ? $userId : null,
+        ]);
+        $changed = true;
+    }
+
+    // 2. Trennlinien auf die richtige Anzahl bringen: eine weniger als Zonen.
+    $wanted = max(0, count($zones) - 1);
+    if (count(avesmapsEcosystemClimateReadDividers($pdo)) !== $wanted) {
+        // Neu aufteilen statt einzelne Zeilen anzustueckeln: eine Linie, die zwischen zwei fremde
+        // eingefuegt wird, hat keine sinnvolle Hoehe, und "irgendwo in die Mitte" waere geraten. Der
+        // Fall tritt nur auf, wenn jemand die Zonenliste aendert -- dann ist eine saubere
+        // Gleichverteilung die ehrlichere Antwort als sechs alte Linien plus eine geratene.
+        $pdo->exec('DELETE FROM ecosystem_climate_divider');
+        $insertDivider = $pdo->prepare(
+            'INSERT INTO ecosystem_climate_divider (seq, geometry_geojson, updated_by)
+             VALUES (:seq, :geometry, :user_id)'
+        );
+        foreach (avesmapsClimateDefaultDividers($wanted) as $index => $divider) {
+            $insertDivider->execute([
+                'seq' => $index + 1,
+                'geometry' => json_encode($divider, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                'user_id' => $userId > 0 ? $userId : null,
+            ]);
+        }
+        $changed = true;
+    }
+
+    return avesmapsEcosystemClimateRebuildBands($pdo, $userId) || $changed;
+}
+
+/**
+ * Die Baender aus den Trennlinien neu rechnen: je Zone genau EINE Flaeche.
+ *
+ * 🔴 Geschrieben wird nur, wo sich die Geometrie unterscheidet. Sonst haette jeder Aufruf von
+ * climate_get die Revision gehoben und damit jedem Besucher den Flaechen-Cache entwertet.
+ *
+ * 💣 Keine DDL hier drin -- diese Funktion laeuft in einer Transaktion (climate_save_divider), und ein
+ * ALTER darin committet sie still. avesmapsEcosystemEnsureTables gehoert vor das beginTransaction.
+ *
+ * @return bool ob etwas geschrieben wurde
+ */
+function avesmapsEcosystemClimateRebuildBands(PDO $pdo, int $userId): bool
+{
+    $zones = avesmapsEcosystemClimateZones($pdo);
+    if ($zones === []) {
+        return false;
+    }
+    $dividers = avesmapsEcosystemClimateReadDividers($pdo);
+    avesmapsClimateAssertOrder(array_column($dividers, 'geometry'));
+
+    $changed = false;
+    $findArea = $pdo->prepare(
+        'SELECT a.id, a.geometry_geojson
+           FROM ecosystem_area a
+           INNER JOIN ecosystem_region r ON r.id = a.region_id
+          WHERE r.public_id = :region AND a.is_active = 1
+          ORDER BY a.id ASC LIMIT 1'
+    );
+
+    foreach ($zones as $index => $zone) {
+        if ($zone['region_public_id'] === '') {
+            continue;
+        }
+        $band = avesmapsClimateBandGeometry(
+            $index === 0 ? null : ($dividers[$index - 1]['geometry'] ?? null),
+            $index >= count($dividers) ? null : ($dividers[$index]['geometry'] ?? null)
+        );
+        $normalized = avesmapsEcosystemNormalizeGeometry($band);
+        $encoded = json_encode($normalized['geometry'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+
+        $findArea->execute(['region' => $zone['region_public_id']]);
+        $row = $findArea->fetch();
+
+        if ($row === false) {
+            $region = avesmapsEcosystemRegionRow($pdo, $zone['region_public_id']);
+            $insert = $pdo->prepare(
+                'INSERT INTO ecosystem_area
+                    (public_id, region_id, geometry_geojson, min_x, min_y, max_x, max_y, created_by, updated_by)
+                 VALUES (:public_id, :region_id, :geometry, :min_x, :min_y, :max_x, :max_y, :user_id, :user_id2)'
+            );
+            $insert->execute([
+                'public_id' => avesmapsUuidV4(),
+                'region_id' => (int) $region['id'],
+                'geometry' => $encoded,
+                'min_x' => $normalized['bounds']['min_x'],
+                'min_y' => $normalized['bounds']['min_y'],
+                'max_x' => $normalized['bounds']['max_x'],
+                'max_y' => $normalized['bounds']['max_y'],
+                'user_id' => $userId > 0 ? $userId : null,
+                'user_id2' => $userId > 0 ? $userId : null,
+            ]);
+            $changed = true;
+            continue;
+        }
+
+        if ((string) $row['geometry_geojson'] === $encoded) {
+            continue;
+        }
+        $update = $pdo->prepare(
+            'UPDATE ecosystem_area
+                SET geometry_geojson = :geometry, min_x = :min_x, min_y = :min_y,
+                    max_x = :max_x, max_y = :max_y,
+                    geometry_revision = geometry_revision + 1, updated_by = :user_id
+              WHERE id = :id'
+        );
+        $update->execute([
+            'geometry' => $encoded,
+            'min_x' => $normalized['bounds']['min_x'],
+            'min_y' => $normalized['bounds']['min_y'],
+            'max_x' => $normalized['bounds']['max_x'],
+            'max_y' => $normalized['bounds']['max_y'],
+            'user_id' => $userId > 0 ? $userId : null,
+            'id' => (int) $row['id'],
+        ]);
+        $changed = true;
+    }
+
+    return $changed;
 }

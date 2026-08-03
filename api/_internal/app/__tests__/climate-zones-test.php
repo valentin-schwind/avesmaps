@@ -151,4 +151,45 @@ assert($dividers[0]['coordinates'][0][1] === round(1024.0 * 6 / 7, 3), 'the firs
 assert($dividers[5]['coordinates'][0][1] === round(1024.0 * 1 / 7, 3), 'the last one at 1/7');
 assert(avesmapsClimateDefaultDividers(0) === [], 'zero dividers is a valid degenerate answer');
 
+// ---- vocabulary and the guards (Task 2) ------------------------------------------------------------
+// Only the vocabulary half: everything with a PDO is not provable locally (no local MySQL).
+
+require __DIR__ . '/../ecosystem.php';
+
+assert(in_array('klima', AVESMAPS_ECOSYSTEM_KINDS, true), 'klima is a known kind');
+assert(count(AVESMAPS_ECOSYSTEM_KINDS) === 4, 'and it is the fourth');
+
+$climateSeed = array_values(array_filter(
+    AVESMAPS_ECOSYSTEM_REGION_TYPE_SEED,
+    static fn(array $row): bool => $row[0] === 'klima'
+));
+assert(count($climateSeed) === 7, 'seven climate zones are seeded');
+
+// 🔴 sort_order is LOAD-BEARING: it says which zone lies north of which, and from that follows which
+// divider bounds which band. A duplicate or a shuffled order re-sorts the map.
+$sortOrders = array_column($climateSeed, 3);
+$sorted = $sortOrders;
+sort($sorted);
+assert($sortOrders === $sorted, 'the seed is written in north-to-south order');
+assert(count(array_unique($sortOrders)) === 7, 'no two zones share a sort_order');
+
+$keys = array_column($climateSeed, 1);
+assert($keys === ['polar', 'subpolar', 'boreal', 'gemaessigt', 'subtropen_winterfeucht', 'subtropisch', 'tropisch'],
+    'the zone keys are the agreed ones, ASCII-folded');
+foreach ($keys as $key) {
+    assert(preg_match('/^[a-z_]+$/', $key) === 1, "zone key {$key} is ASCII-folded (AGENTS.md §5)");
+}
+
+assert(avesmapsClimateIsDerivedKind('klima') === true, 'klima areas are derived');
+assert(avesmapsClimateIsDerivedKind('vegetation') === false, 'the other three are drawn');
+
+// The guards. They are the real protection -- a UI guard protects against a misclick, not against a
+// tab that has been open since yesterday and still knows the old action.
+climateTestThrows(static fn() => avesmapsClimateAssertNotDerived('klima', 'create_area'),
+    'creating a klima area by hand is refused');
+avesmapsClimateAssertNotDerived('vegetation', 'create_area');   // must not throw
+
+// A klima kind survives the ecosystem kind reader, so the layer switch can send it.
+assert(avesmapsEcosystemReadKind('klima') === 'klima', 'klima passes the kind reader');
+
 fwrite(STDOUT, "climate-zones-test: OK\n");
