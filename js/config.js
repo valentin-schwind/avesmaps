@@ -592,6 +592,11 @@ const DEFAULT_PLANNER_STATE = {
 	pathType: "fastest",
 	minimizeTransfers: false,
 	restHours: 12,
+	// Reisebeginn. Leerer Monat = „Ohne Jahreszeit — kein Einfluss", und das ist die Vorgabe, nicht
+	// nur Bequemlichkeit: POST /api/route/ ist der stabile oeffentliche Vertrag, und ein geteilter
+	// Link muss beim Empfaenger dieselbe Zahl zeigen wie beim Absender.
+	startMonth: "",
+	startDay: 1,
 	allowLand: true,
 	landTransport: "groupFoot",
 	allowRiver: true,

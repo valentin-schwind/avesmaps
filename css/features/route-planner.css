@@ -331,7 +331,20 @@
 	   die die Oberflaeche vor dem Umbau hatte: der Reiseplan darunter kann zwar schrumpfen, aber
 	   nicht unter sein eigenes Polster (26 px) plus Abstand. Sobald Oberflaeche + 26 ueber die
 	   Panelhoehe geht, bekommt das GANZE Panel einen Scrollbalken -- und der liegt dann ueber
-	   allem. */
+	   allem.
+
+	   💣 NACHGEMESSEN am 2026-08-03, als der Reisebeginn als dritte Optionszeile dazukam
+	   (1280x800, beide Gruppen offen, leerer Reiseplan). Eine Zeile kostet 36 px: 25 px Feldhoehe
+	   plus die 11 px Zeilenluecke der Gruppe -- nicht 25, wie man beim Blick auf das Feld schaetzt.
+	   Der Balken faellt damit einen Wegpunkt frueher als vorher:
+
+	     Wegpunkte   3        4                  5
+	     vorher      686 px   723 px  frei       760 px  Balken
+	     heute       722 px   759 px  BALKEN     796 px  Balken
+
+	   Zugeklappt -- also sobald eine Route steht und die Automatik greift -- sind es auch bei fuenf
+	   Wegpunkten nur 559 px. Der Engpass ist deshalb der Zwischenzustand „mehrere Ziele getippt,
+	   noch keine Route". Wer hier eine VIERTE Optionszeile plant, misst vorher nach. */
 	min-height: 24px;
 	margin: 0;
 	padding: 0;
@@ -552,7 +565,12 @@
 	white-space: nowrap;
 }
 
-.route-planner-options-panel input[type="number"] {
+/* Das Monatsfeld teilt sich diese Regel mit dem Zahlenfeld, statt eine zweite Optik danebenzustellen.
+   💣 Die Hoehe steht hier nicht aus Geschmack: beide Gruppen aufgeklappt muessen unter der Panelhoehe
+   bleiben, sonst bekommt das GANZE Panel einen Scrollbalken (siehe .planner-group__toggle). Ein
+   ungebremstes <select> ist je nach Plattform 2-4 px hoeher als das Zahlenfeld daneben. */
+.route-planner-options-panel input[type="number"],
+.route-planner-options-panel select {
 	height: 25px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
@@ -561,7 +579,21 @@
 	font: inherit;
 	padding: 0 4px;
 	box-sizing: border-box;
+}
+
+.route-planner-options-panel input[type="number"] {
 	text-align: center;
+}
+
+/* Reisebeginn: 1 bis 30 braucht keine 56 px, und die Monatswahl nimmt sich den Rest der Zeile --
+   gedeckelt, damit „Ohne Jahreszeit — kein Einfluss" die Zeile nicht auf zwei Zeilen umbricht. */
+.planner-travel-start__day {
+	width: 40px;
+}
+
+.planner-travel-start__month {
+	max-width: 172px;
+	min-width: 0;
 }
 
 .display-options__label {

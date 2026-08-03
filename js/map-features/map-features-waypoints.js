@@ -21,6 +21,7 @@ function enhanceRoutePlannerOptionPanel() {
 		const shortestPath = document.getElementById("shortestPath");
 		const minimizeTransfers = document.getElementById("minimizeTransfers");
 		const travelHoursPerDay = document.getElementById("travelHoursPerDay");
+		const travelStartMonth = document.getElementById("travelStartMonth");
 		// 💣 Durch ein Set, nicht nur durch filter(Boolean): seit „Umsteigen minimieren" in der Radio-Zeile
 		// sitzt (eine Zeile gespart, Owner 2026-07-30) liefern fastestPath und minimizeTransfers DASSELBE
 		// div -- ohne die Entdopplung wanderte es zweimal in den Panel-Aufbau.
@@ -28,6 +29,9 @@ function enhanceRoutePlannerOptionPanel() {
 			fastestPath?.closest("div"),
 			minimizeTransfers?.closest("div"),
 			travelHoursPerDay?.closest("div"),
+			// Nicht in der Pflichtpruefung unten: fehlt die Zeile, soll der Rest der Gruppe trotzdem
+			// entstehen -- sie ist eine Einstellung, keine Voraussetzung.
+			travelStartMonth?.closest("div"),
 		].filter(Boolean))];
 
 		if (!fastestPath || !shortestPath || !minimizeTransfers || !travelHoursPerDay || !uniqueOptionRows.length) {

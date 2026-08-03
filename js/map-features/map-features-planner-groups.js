@@ -96,6 +96,24 @@
 				parts.push(summaryPart("", minimizeLabel.textContent.trim()));
 			}
 		}
+		// Reisebeginn -- nur wenn einer gesetzt ist; „Ohne Jahreszeit" ist der leere Wert und hat in
+		// der Kopfzeile nichts verloren.
+		// 💣 Der Monatsname kommt aus der GEWAEHLTEN OPTION, nicht aus einer Liste hier drin: sonst
+		// haette die Kopfzeile eine zweite Wahrheit ueber die zwoelf Namen. `withoutParenthetical`
+		// wirft die Jahreszeit ab -- „Firun (Winter)" ist im Aufklapper hilfreich, in der Zeile Ballast.
+		var startMonth = document.getElementById("travelStartMonth");
+		var startDay = document.getElementById("travelStartDay");
+		if (startMonth && startMonth.value) {
+			var monthOption = startMonth.options[startMonth.selectedIndex];
+			var monthText = withoutParenthetical(monthOption ? monthOption.textContent : "");
+			var dayNumber = parseInt(startDay ? startDay.value : "", 10);
+			if (monthText) {
+				parts.push(summaryPart("", translate("planner.options.summary.travelStart", "ab {day}. {month}", {
+					day: Number.isFinite(dayNumber) ? dayNumber : 1,
+					month: monthText,
+				})));
+			}
+		}
 		return parts;
 	}
 
@@ -233,6 +251,12 @@
 		// `input` zusaetzlich das Tippen im Zahlenfeld.
 		body.addEventListener("change", refreshSummary);
 		body.addEventListener("input", refreshSummary);
+
+		// 💣 Ein geteilter Link setzt die Felder per .val() -- ohne `change`, und ohne dass sich am
+		// Markup etwas aendert, das der Beobachter unten sehen koennte. applyPlannerStateFromUrl()
+		// sagt deshalb ausdruecklich Bescheid, wenn es fertig ist. Ohne diese Zeile zeigt die
+		// Kopfzeile beim Empfaenger eines Links die Voreinstellungen statt dessen, was im Link steht.
+		document.addEventListener("avesmaps:planner-state-applied", refreshSummary);
 
 		// 💣 Die eigene Transport-Combobox schreibt Beschriftung und Bild direkt in die Spans --
 		// ein `change` des nativen <select> allein ist kein verlaesslicher Ausloeser dafuer.

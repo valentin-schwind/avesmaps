@@ -18,12 +18,35 @@ window.AVESMAPS_I18N_EN = {
 	"planner.showRouteSpeed": "Speed",
 	"planner.showRouteSpeed.title": "Arrows along the planned route: short and red-brown where terrain or current slow you down, long and green where you gain. The length shows the deviation from the way type's base speed, not the absolute speed.",
 	"planner.travelHours.title": "Travel hours per day; the rest of the day is spent resting. Applies to every mode except the fast sailer, which runs around the clock. 24 = travel without rest.",
-	"planner.travelHoursSuffix": "travel hours per day",
+	// Umbenannt von "planner.travelHoursSuffix" (2026-08-03): die Beschriftung steht jetzt VOR dem
+	// Feld, damit sie dieselbe Grammatik spricht wie die Reisebeginn-Zeile darunter. Ein Schluessel
+	// namens "Suffix" waere danach schlicht falsch.
+	"planner.travelHoursLabel": "Travel hours per day:",
+	// Reisebeginn. 💣 Die Monatsnamen sind Domaeneninhalt und bleiben in JEDER Sprache stehen
+	// (AGENTS §2) -- uebersetzt wird nur die Jahreszeit in der Klammer.
+	"planner.travelStartLabel": "Departure:",
+	"planner.travelStart.title": "Day of departure and Aventurian month. The season affects travel time and seasonally closed ways; the calendar runs along with the route. Without a month the planner calculates as before.",
+	"planner.travelStart.none": "No season — no effect",
+	"planner.travelStart.month.praios": "Praios (summer)",
+	"planner.travelStart.month.rondra": "Rondra (summer)",
+	"planner.travelStart.month.efferd": "Efferd (summer)",
+	"planner.travelStart.month.travia": "Travia (autumn)",
+	"planner.travelStart.month.boron": "Boron (autumn)",
+	"planner.travelStart.month.hesinde": "Hesinde (autumn)",
+	"planner.travelStart.month.firun": "Firun (winter)",
+	"planner.travelStart.month.tsa": "Tsa (winter)",
+	"planner.travelStart.month.phex": "Phex (winter)",
+	"planner.travelStart.month.peraine": "Peraine (spring)",
+	"planner.travelStart.month.ingerimm": "Ingerimm (spring)",
+	"planner.travelStart.month.rahja": "Rahja (spring)",
 	// Kopfzeile der eingeklappten Einstellgruppen. Die uebrigen Bestandteile der
 	// Zusammenfassung liest sie aus dem gerenderten Markup und ist damit ohne eigene
 	// Schluessel schon uebersetzt (map-features-planner-groups.js).
 	"planner.transport.summary.none": "no mode of transport allowed",
 	"planner.options.summary.hoursPerDay": "{n} h/day",
+	// Der Monatsname reist als Platzhalter mit -- er kommt aus der gewaehlten Option und bleibt
+	// darum auch hier unuebersetzt. Nur die Wortstellung ist englisch.
+	"planner.options.summary.travelStart": "from {month} {day}",
 	// Die Ueberschrift entsteht erst zur Laufzeit (enhanceRoutePlannerOptionPanel) und blieb
 	// deshalb bisher deutsch; sie beschriftet jetzt die eingeklappte Zeile.
 	"planner.options.heading": "Route options",

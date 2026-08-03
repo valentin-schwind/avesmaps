@@ -126,6 +126,20 @@ function applyPlannerStateFromUrl() {
 	const restHoursFromParams = parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0, 23.5);
 	$("#travelHoursPerDay").val(legacyIncludeRests ? (24 - restHoursFromParams).toFixed(1) : "24.0");
 
+	// Reisebeginn (Tag + aventurischer Monat), Vorgabe „Ohne Jahreszeit".
+	// 💣 Die gueltigen Monatsschluessel kommen aus dem <select> SELBST, nicht aus einer Liste hier:
+	// das Markup ist die einzige Wahrheit ueber die zwoelf Namen. Und der Vergleich laeuft ueber die
+	// Optionen statt ueber einen zusammengebauten jQuery-Selektor -- der Wert kommt aus der Adress-
+	// zeile, ein Anfuehrungszeichen darin wuerde den Selektor sprengen.
+	// Ein unbekannter Monat faellt still auf „Ohne Jahreszeit" zurueck: lieber rechnet ein getippter
+	// Link wie frueher, als dass er eine erfundene Jahreszeit ansetzt.
+	const startMonthFromParams = String(searchParams.get("startMonth") || "").trim().toLowerCase();
+	const monthSelect = document.getElementById("travelStartMonth");
+	const startMonthIsKnown = startMonthFromParams !== "" && !!monthSelect
+		&& Array.prototype.some.call(monthSelect.options, (option) => option.value === startMonthFromParams);
+	$("#travelStartMonth").val(startMonthIsKnown ? startMonthFromParams : DEFAULT_PLANNER_STATE.startMonth);
+	$("#travelStartDay").val(String(parseNumberQueryParam(searchParams.get("startDay"), DEFAULT_PLANNER_STATE.startDay, 1, 30)));
+
 	if (landTransport && VALID_TRANSPORT_OPTIONS.land.has(landTransport)) {
 		$("#landTransport").val(landTransport);
 	}
@@ -149,6 +163,15 @@ function applyPlannerStateFromUrl() {
 	} else {
 		clearSharePin({ syncUrl: false });
 	}
+
+	// 💣 Die Felder oben wurden per .val() gesetzt, und das loest KEIN change-Event aus. Alles, was
+	// den Panelzustand nur beobachtet -- allen voran die eingeklappte Kopfzeile der Einstellgruppen
+	// (map-features-planner-groups.js) -- haette sonst weiter den Stand von vor dem Link gezeigt.
+	// Das faellt genau dort auf, wo es am meisten schadet: ein geteilter Link BRINGT eine Route mit,
+	// die Gruppen klappen deshalb automatisch zu, und die Kopfzeile ist dann das Einzige, was der
+	// Empfaenger sieht. Sie sagte „Schnellste Route · 12,0 h/Tag", waehrend der Link „Kuerzeste
+	// Route · 18,0 h/Tag" gesetzt hatte.
+	document.dispatchEvent(new CustomEvent("avesmaps:planner-state-applied"));
 
 	return waypointNames.length > 0;
 }
@@ -296,6 +319,17 @@ function buildPlannerSearchParams() {
 
 	if (restHours !== DEFAULT_PLANNER_STATE.restHours) {
 		searchParams.set("restHours", String(restHours));
+	}
+
+	// Der Tag reist NUR mit, wenn auch ein Monat gesetzt ist -- ohne Monat rechnet der Planer wie
+	// bisher, und ein einsames `startDay=25` im Link wuerde nur eine Wirkung vortaeuschen.
+	const startMonth = String($("#travelStartMonth").val() || "");
+	if (startMonth !== DEFAULT_PLANNER_STATE.startMonth) {
+		searchParams.set("startMonth", startMonth);
+		const startDay = parseInt($("#travelStartDay").val(), 10);
+		if (Number.isFinite(startDay) && startDay !== DEFAULT_PLANNER_STATE.startDay) {
+			searchParams.set("startDay", String(startDay));
+		}
 	}
 
 	if ($("#allowLand").is(":checked") !== DEFAULT_PLANNER_STATE.allowLand) {

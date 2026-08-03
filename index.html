@@ -2024,7 +2024,32 @@
 			</div>
 			<div>
 				<label title="Reisestunden pro Tag; der Rest des Tages ist Rast. Gilt für alle Reisearten außer dem Schnellsegler, der rund um die Uhr fährt. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
-					<input type="number" id="travelHoursPerDay" value="12.0" min="0.5" max="24" step="0.5" style="width: 56px" /> <span data-i18n="planner.travelHoursSuffix">Reisestunden pro Tag</span>
+					<span data-i18n="planner.travelHoursLabel">Reisestunden pro Tag:</span> <input type="number" id="travelHoursPerDay" value="12.0" min="0.5" max="24" step="0.5" style="width: 56px" />
+				</label>
+			</div>
+			<!-- Reisebeginn: Tag + aventurischer Monat. Die zwoelf Monatsnamen sind Domaeneninhalt und
+			     stehen deshalb als <option> IM Markup (AGENTS §2/§8) -- die Klappzeile der Gruppe liest
+			     ihre Zusammenfassung aus dem gerenderten Markup, nicht aus einer eigenen Textliste.
+			     Die fuenf Namenlosen Tage sind bewusst NICHT waehlbar: sie sind kein Monat, und als
+			     Aufbruchstag waeren sie ein Sonderfall im Tagesfeld (1..5 statt 1..30). Der mitlaufende
+			     Kalender kennt sie trotzdem und laeuft durch sie hindurch. -->
+			<div>
+				<label title="Aufbruchstag und aventurischer Monat. Die Jahreszeit wirkt auf die Reisezeit und auf saisonal gesperrte Wege; der Kalender laeuft entlang der Route mit. Ohne Monat rechnet der Planer wie bisher." data-i18n-title="planner.travelStart.title">
+					<span data-i18n="planner.travelStartLabel">Reisebeginn:</span> <input type="number" id="travelStartDay" class="planner-travel-start__day" value="1" min="1" max="30" step="1" /> <select id="travelStartMonth" class="planner-travel-start__month">
+						<option value="" data-i18n="planner.travelStart.none">Ohne Jahreszeit — kein Einfluss</option>
+						<option value="praios" data-i18n="planner.travelStart.month.praios">Praios (Sommer)</option>
+						<option value="rondra" data-i18n="planner.travelStart.month.rondra">Rondra (Sommer)</option>
+						<option value="efferd" data-i18n="planner.travelStart.month.efferd">Efferd (Sommer)</option>
+						<option value="travia" data-i18n="planner.travelStart.month.travia">Travia (Herbst)</option>
+						<option value="boron" data-i18n="planner.travelStart.month.boron">Boron (Herbst)</option>
+						<option value="hesinde" data-i18n="planner.travelStart.month.hesinde">Hesinde (Herbst)</option>
+						<option value="firun" data-i18n="planner.travelStart.month.firun">Firun (Winter)</option>
+						<option value="tsa" data-i18n="planner.travelStart.month.tsa">Tsa (Winter)</option>
+						<option value="phex" data-i18n="planner.travelStart.month.phex">Phex (Winter)</option>
+						<option value="peraine" data-i18n="planner.travelStart.month.peraine">Peraine (Frühling)</option>
+						<option value="ingerimm" data-i18n="planner.travelStart.month.ingerimm">Ingerimm (Frühling)</option>
+						<option value="rahja" data-i18n="planner.travelStart.month.rahja">Rahja (Frühling)</option>
+					</select>
 				</label>
 			</div>
 			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
