@@ -103,7 +103,7 @@ function renderSettlementAutocompleteHtml(state, opts) {
     })
     .join("");
 
-  const heading = '<div class="sac-head">' + escape(tr("settlement.ac.heading", "Siedlungen aus dem Wiki")) + "</div>";
+  const heading = '<div class="sac-head">' + escape(tr("settlement.ac.heading", "Orte aus dem Wiki")) + "</div>";
   return heading + '<ul class="sac-list" role="listbox">' + rows + "</ul>";
 }
 

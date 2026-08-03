@@ -163,7 +163,7 @@ function renderSettlementWikiPickerList() {
 		return;
 	}
 	if (settlementWikiPickerResults.length === 0) {
-		list.innerHTML = '<p class="label-wiki-picker-list__empty">Keine Treffer in der Registry. Ggf. erst die Siedlungs-Sync laufen lassen.</p>';
+		list.innerHTML = '<p class="label-wiki-picker-list__empty">Keine Treffer in der Registry. Ggf. erst die Orte-Sync laufen lassen.</p>';
 		return;
 	}
 	list.innerHTML = settlementWikiPickerResults
@@ -191,7 +191,7 @@ async function selectSettlementWikiResultWhileCreating(title) {
 		const data = await settlementWikiGet(`?action=preview&title=${encodeURIComponent(title)}`);
 		const settlement = data && data.ok === true ? data.settlement : null;
 		if (!settlement) {
-			throw new Error(apiErrorMessage(data, "Siedlung konnte nicht gelesen werden"));
+			throw new Error(apiErrorMessage(data, "Ort konnte nicht gelesen werden"));
 		}
 		locationEditPendingWikiSettlement = {
 			title: String(settlement.title || title),
@@ -368,7 +368,7 @@ async function removeSettlementWiki() {
 function syncLocationNameFromWiki() {
 	const wiki = settlementWikiCurrentAssignment();
 	if (!wiki) {
-		showFeedbackToast?.("Erst eine Wiki-Siedlung verbinden.", "info");
+		showFeedbackToast?.("Erst einen Wiki-Ort verbinden.", "info");
 		return;
 	}
 	const nameInput = document.getElementById("location-edit-name");
@@ -382,14 +382,14 @@ function syncLocationNameFromWiki() {
 function syncLocationSizeFromWiki() {
 	const wiki = settlementWikiCurrentAssignment();
 	if (!wiki) {
-		showFeedbackToast?.("Erst eine Wiki-Siedlung verbinden.", "info");
+		showFeedbackToast?.("Erst einen Wiki-Ort verbinden.", "info");
 		return;
 	}
 	const typeSelect = document.getElementById("location-edit-type");
 	if (typeSelect && String(wiki.settlement_class || "").trim() !== "") {
 		const cls = typeof normalizeLocationType === "function" ? normalizeLocationType(wiki.settlement_class) : wiki.settlement_class;
 		if (Array.from(typeSelect.options).some((option) => option.value === cls)) {
-			typeSelect.value = cls;
+			setLocationEditSize(cls);
 			showFeedbackToast?.("Ortsgröße aus Wiki übernommen.", "success");
 		} else {
 			showFeedbackToast?.("Wiki-Größe passt zu keiner Auswahl.", "warning");

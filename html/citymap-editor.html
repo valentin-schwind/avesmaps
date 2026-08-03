@@ -593,7 +593,7 @@
     ["katakomben", "Katakomben"], ["schatzkarte", "Schatzkarte"], ["region", "Region"], ["sonstige", "Sonstige"],
   ];
   const ARTS = [["politisch", "Politisch"], ["derographisch", "Derographisch"], ["topologisch", "Topologisch"], ["skizze", "Skizze"]];
-  const KIND_LABEL = { settlement: "Siedlung", territory: "Territorium", region: "Region", path: "Weg/Fluss", unresolved: "—" };
+  const KIND_LABEL = { settlement: "Ort", territory: "Territorium", region: "Region", path: "Weg/Fluss", unresolved: "—" };
   const CE_THUMB_PH_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>';
 
   function licenseIsFree(value) {
@@ -1288,7 +1288,7 @@
         <input class="ce-input" id="ceAddName" autocomplete="off" placeholder="Ort suchen oder Namen eingeben …">
         <button class="btn btn--primary" data-act="add">+ Ort</button>
         <div class="ce-ac" id="ceAc" hidden></div></div>
-      <p class="ce-hint" style="margin-top:var(--space-8)">Eine Karte kann an Siedlung, Territorium, Region und Weg hängen. Territorien wirken auf den ganzen Unterbaum.</p>`;
+      <p class="ce-hint" style="margin-top:var(--space-8)">Eine Karte kann an Ort, Territorium, Region und Weg hängen. Territorien wirken auf den ganzen Unterbaum.</p>`;
   }
 
   async function reloadDetail() {

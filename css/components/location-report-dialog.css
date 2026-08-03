@@ -244,6 +244,17 @@
 	resize: vertical;
 }
 
+/* Gesperrtes Feld (heute: „Art", solange die Ortsgröße nicht „Besondere Bauwerke/Stätten" ist).
+   Ohne eigene Regel sähe ein disabled input fast aus wie ein leeres, aktives — der Nutzer hält
+   es dann für kaputt statt für gesperrt. Nur Token, keine festen Farben (AGENTS.md §12). */
+.location-report-form__field input:disabled,
+.location-report-form__field select:disabled,
+.location-report-form__field textarea:disabled {
+	background: var(--color-panel-soft);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
+}
+
 .location-report-form__field input:focus,
 .location-report-form__field select:focus,
 .location-report-form__field textarea:focus {

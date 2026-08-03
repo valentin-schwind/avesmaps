@@ -33,7 +33,7 @@
 		button.type = "button";
 		button.className = "map-context-menu__item";
 		button.dataset.regionContextAction = ACTION;
-		button.textContent = "Siedlungen hier zuordnen";
+		button.textContent = "Orte hier zuordnen";
 		if (propertiesButton) {
 			propertiesButton.insertAdjacentElement("afterend", button);
 			return;
@@ -51,7 +51,7 @@
 	function formatDryRunSummary(summary) {
 		const total = summary.pairs.length;
 		return [
-			`${total} Siedlung(en) würden zugeordnet.`,
+			`${total} Ort(e) würden zugeordnet.`,
 			`Neu zugeordnet: ${summary.assigned}`,
 			`Geändert: ${summary.changed}`,
 			`Nicht zuordenbar: ${summary.unassigned}`,
@@ -86,7 +86,7 @@
 		}
 
 		try {
-			showFeedbackToast("Siedlungen werden geprüft...", "info");
+			showFeedbackToast("Orte werden geprüft...", "info");
 			const summary = await window.AvesmapsSettlementAssign.computeDryRun({ scope: { territoryPublicId } });
 
 			if (!summary.pairs.length) {
@@ -99,10 +99,10 @@
 			}
 
 			await window.AvesmapsSettlementAssign.apply(summary.pairs, { confirm: "apply" });
-			showFeedbackToast(`${summary.pairs.length} Siedlungen zugeordnet.`, "success");
+			showFeedbackToast(`${summary.pairs.length} Orte zugeordnet.`, "success");
 		} catch (error) {
-			console.error("Siedlungen konnten nicht zugeordnet werden:", error);
-			showFeedbackToast(error.message || "Siedlungen konnten nicht zugeordnet werden.", "warning");
+			console.error("Orte konnten nicht zugeordnet werden:", error);
+			showFeedbackToast(error.message || "Orte konnten nicht zugeordnet werden.", "warning");
 		}
 	}
 

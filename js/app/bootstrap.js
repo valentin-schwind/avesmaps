@@ -369,6 +369,10 @@ $("#legal-overlay").on("click", function (event) {
 });
 $("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
+// Ortsgroesse geaendert -> das Feld „Art" auf-/zusperren. Deckt den NUTZERweg ab; die drei
+// programmatischen Schreiber gehen ueber setLocationEditSize(), weil `select.value = x` kein
+// change-Ereignis feuert.
+$("#location-edit-type").on("change", () => syncLocationEditPlaceKindAvailability());
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 $("#settlement-editor-open").on("click", () => openAvesmapsSettlementEditorOverlay());
 $("#adventure-editor-open").on("click", () => openAvesmapsAdventureEditorOverlay());

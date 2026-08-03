@@ -3488,7 +3488,7 @@ function formatWikiSyncSettlementSummaryText() {
 	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
 
 	if (openCount < 1 && deferredCount < 1 && archivedCount < 1) {
-		return "Keine Siedlungsdaten geladen";
+		return "Keine Ortsdaten geladen";
 	}
 
 	return `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert`;

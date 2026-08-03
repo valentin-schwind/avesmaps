@@ -509,7 +509,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	void acquireFeatureSoftLock(markerEntry?.publicId || "");
 	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
 	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
-	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf");
+	setLocationEditSize(normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf"));
 	document.getElementById("location-edit-description").value = presetDescription || "";
 	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
 	// Shared multi-source editor (multi-source #2): replaces the old "Andere Quelle" single
@@ -524,6 +524,8 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	// Ortsart -- leer ist ein gueltiger Zustand; das Feld bleibt dann einfach leer.
 	document.getElementById("location-edit-place-kind").value = String(location.placeKind || "");
 	mountLocationEditPlaceKindAutocomplete();
+	// NACH dem Setzen der Ortsgroesse: die Sperre haengt an ihr.
+	syncLocationEditPlaceKindAvailability();
 	if (typeof renderSettlementWikiReference === "function") {
 		renderSettlementWikiReference();
 	}
@@ -594,6 +596,44 @@ function mountLocationEditNameAutocomplete() {
 			}
 		},
 	});
+}
+
+// Die Ortsart gehört zur Ortsgröße „Besondere Bauwerke/Stätten" (Owner 2026-08-03). Bei jeder
+// anderen Größe ist das Feld gesperrt.
+const LOCATION_EDIT_PLACE_KIND_SIZE = "gebaeude";
+
+// EINE Stelle, die die Ortsgröße im Dialog setzt. Es gibt drei Schreiber (Dialog füllen,
+// Meldung übernehmen, Größe aus dem Wiki holen), und `select.value = x` feuert KEIN
+// change-Ereignis — ohne diesen Setter hinge die Sperre nur am Nutzerklick und wäre nach jedem
+// programmatischen Setzen falsch.
+function setLocationEditSize(value) {
+	const select = document.getElementById("location-edit-type");
+	if (!select) {
+		return;
+	}
+	select.value = value;
+	syncLocationEditPlaceKindAvailability();
+}
+
+// Sperrt/entsperrt das Feld „Art" nach der gewählten Ortsgröße.
+function syncLocationEditPlaceKindAvailability() {
+	const select = document.getElementById("location-edit-type");
+	const input = document.getElementById("location-edit-place-kind");
+	if (!select || !input) {
+		return;
+	}
+	const allowed = String(select.value || "") === LOCATION_EDIT_PLACE_KIND_SIZE;
+	input.disabled = !allowed;
+	if (allowed) {
+		input.placeholder = "z. B. Brücke – leer lassen, wenn unbekannt";
+		return;
+	}
+	// Leeren, nicht nur sperren. Ein gesperrtes Feld schickt ohnehin NICHTS mit (FormData lässt
+	// disabled aus, buildLocationEditPayload macht daraus "", der Server löscht place_kind).
+	// Bliebe der alte Text sichtbar, behauptete die Oberfläche etwas, das nicht gespeichert wird.
+	input.value = "";
+	// Der Platzhalter sagt WARUM. Ein title-Attribut täte das nur für Mauszeiger.
+	input.placeholder = "nur bei „Besondere Bauwerke/Stätten“";
 }
 
 // Ortsart-Typeahead ans Feld „Art" hängen (js/ui/place-kind-autocomplete.js). Anders als der

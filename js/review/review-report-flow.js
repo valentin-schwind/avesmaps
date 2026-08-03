@@ -3,7 +3,7 @@ function openLocationEditDialogFromReport(report, latlng) {
 	activeReviewReportId = Number(report.id) || null;
 	activeReviewReportSource = report.report_source || "location_reports";
 	document.getElementById("location-edit-name").value = report.name || "";
-	document.getElementById("location-edit-type").value = normalizeLocationType(report.report_subtype || report.size || "dorf");
+	setLocationEditSize(normalizeLocationType(report.report_subtype || report.size || "dorf"));
 	// report.sources is the full reported list (server-decoded). Sources WITH a link become real
 	// feature_sources on "Anlegen" (multi-source #3, QUELLEN section, like the manual add flow); link-less
 	// sources fall back to "Quelle: X, S. Y" description lines so nothing the reporter typed is lost.
@@ -49,7 +49,7 @@ function openLocationEditDialogFromChangeReport(report) {
 		? findLocationMarkerByPublicId(report.entity_public_id)
 		: null;
 	if (!markerEntry) {
-		showFeedbackToast("Die gemeldete Siedlung wurde nicht gefunden.", "warning");
+		showFeedbackToast("Der gemeldete Ort wurde nicht gefunden.", "warning");
 		return false;
 	}
 	void editLocationDetails(markerEntry);

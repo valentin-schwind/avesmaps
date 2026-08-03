@@ -419,7 +419,7 @@ function renderSettlementRow(item) {
 		? ` draggable="true" data-settlement-title="${settlementListEscape(item.name)}" data-settlement-class="${settlementListEscape(item.settlement_class)}"`
 		: "";
 	const classes = "tree-item settlement-list__item" + (draggable ? " is-draggable" : "");
-	const title = draggable ? "Auf die Karte ziehen, um die Siedlung anzulegen" : "";
+	const title = draggable ? "Auf die Karte ziehen, um den Ort anzulegen" : "";
 
 	const metaParts = [];
 	if (item.settlement_label) {
@@ -566,7 +566,7 @@ function settlementRenderNextBatch(list) {
 
 function settlementListOpen(publicId) {
 	if (!publicId) {
-		showFeedbackToast?.("Diese Siedlung ist im Wiki, aber (noch) nicht auf der Karte — über den Wiki-Link ↗ öffnen.", "info");
+		showFeedbackToast?.("Dieser Ort ist im Wiki, aber (noch) nicht auf der Karte — über den Wiki-Link ↗ öffnen.", "info");
 		return;
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
@@ -664,8 +664,8 @@ async function createAndAssignDraggedSettlement(latlng, presetName, presetType) 
 		});
 		feature = createResult?.feature;
 	} catch (error) {
-		console.error("Siedlung konnte nicht angelegt werden:", error);
-		showFeedbackToast?.("Siedlung konnte nicht angelegt werden: " + (error.message || error), "warning");
+		console.error("Ort konnte nicht angelegt werden:", error);
+		showFeedbackToast?.("Ort konnte nicht angelegt werden: " + (error.message || error), "warning");
 		fallbackToPresetDialog();
 		return;
 	}
@@ -804,7 +804,7 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	const header = document.createElement("div");
 	header.className = "avm-editor-dialog__header";
 	const headingEl = document.createElement("h2");
-	headingEl.textContent = "Siedlungen bearbeiten";
+	headingEl.textContent = "Orte bearbeiten";
 	const closeButton = document.createElement("button");
 	closeButton.type = "button";
 	closeButton.className = "avm-editor-dialog__close";
@@ -820,7 +820,7 @@ window.openAvesmapsSettlementEditorOverlay = window.openAvesmapsSettlementEditor
 	const frame = document.createElement("iframe");
 	frame.className = "avm-editor-dialog__frame";
 	frame.src = buildSettlementEditorSrc();
-	frame.title = "Siedlungseditor";
+	frame.title = "Ortseditor";
 	dialog.appendChild(header);
 	dialog.appendChild(frame);
 	overlay.appendChild(dialog);

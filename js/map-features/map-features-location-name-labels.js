@@ -246,8 +246,8 @@ function removeLocationNameLabel(markerEntry) {
 	// Stil-Revision hochzählen, sonst überspringt der setIcon-Guard im Sync das Neu-Rendern der Labels.
 	const refreshSettlements = () => { try { bumpLocationNameLabelStyleRevision(); if (typeof syncLocationNameLabelVisibility === "function") syncLocationNameLabelVisibility(); } catch (e) { /* noop */ } };
 	const refreshRegions = () => { try { if (typeof syncLabelIcons === "function") syncLabelIcons(); } catch (e) { /* noop */ } };
-	addSlider("Siedlungen Stärke", () => LOCATION_LABEL_HALO_STRENGTH, (v) => { LOCATION_LABEL_HALO_STRENGTH = v; refreshSettlements(); });
-	addSlider("Siedlungen Schärfe", () => LOCATION_LABEL_HALO_SHARPNESS, (v) => { LOCATION_LABEL_HALO_SHARPNESS = v; refreshSettlements(); }, 0, 1, 0.05);
+	addSlider("Orte Stärke", () => LOCATION_LABEL_HALO_STRENGTH, (v) => { LOCATION_LABEL_HALO_STRENGTH = v; refreshSettlements(); });
+	addSlider("Orte Schärfe", () => LOCATION_LABEL_HALO_SHARPNESS, (v) => { LOCATION_LABEL_HALO_SHARPNESS = v; refreshSettlements(); }, 0, 1, 0.05);
 	addSlider("Regionen Stärke", () => (typeof REGION_LABEL_HALO_STRENGTH !== "undefined" ? REGION_LABEL_HALO_STRENGTH : 0), (v) => {
 		if (typeof REGION_LABEL_HALO_STRENGTH !== "undefined") { REGION_LABEL_HALO_STRENGTH = v; }
 		refreshRegions();
