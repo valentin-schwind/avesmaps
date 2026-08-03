@@ -180,6 +180,36 @@ function avesmapsClimateBandGeometry(?array $upper, ?array $lower): array
 }
 
 /**
+ * In welchem Band liegt ein Punkt? 0 = noerdlichste Zone, `count($dividers)` = suedlichste.
+ *
+ * ⭐ DAS IST DER GRUND, WARUM DIE LINIEN DIE WAHRHEIT SIND. Weil jede Trennlinie eine Funktion y(x)
+ * ist, braucht die Frage „welche Zone liegt hier" keinen Punkt-in-Polygon-Test und keinen Verschnitt
+ * gegen sieben kartenbreite Flaechen -- sie ist ein Vergleich je Linie, sechsmal. Genau deshalb kann
+ * eine Route sie fuer JEDE Etappe stellen, ohne dass es etwas kostet.
+ *
+ * Norden ist oben (hohes y): Trennlinie 0 liegt am hoechsten. Der Index ist damit schlicht die Zahl
+ * der Linien, die ueber dem Punkt liegen. Ein Punkt GENAU auf einer Linie faellt in die suedliche
+ * Zone -- irgendwohin muss er, und so gehoert jeder Punkt zu genau einer.
+ *
+ * @param list<array{type: string, coordinates: list<array{0: float, 1: float}>}> $dividers Index 0 = noerdlichste
+ */
+function avesmapsClimateZoneIndexAt(array $dividers, float $x, float $y): int
+{
+    $index = 0;
+    foreach (array_values($dividers) as $divider) {
+        $coordinates = $divider['coordinates'] ?? [];
+        if (!is_array($coordinates) || $coordinates === []) {
+            continue;
+        }
+        if (avesmapsClimateYAt($coordinates, $x) >= $y) {
+            $index++;
+        }
+    }
+
+    return $index;
+}
+
+/**
  * Die gleichmaessige Startaufteilung: `$count` gerade Linien, die die Karte in `$count + 1` gleich hohe
  * Baender teilen. Index 0 ist die noerdlichste und liegt am hoechsten.
  *

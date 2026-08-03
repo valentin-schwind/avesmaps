@@ -192,4 +192,39 @@ avesmapsClimateAssertNotDerived('vegetation', 'create_area');   // must not thro
 // A klima kind survives the ecosystem kind reader, so the layer switch can send it.
 assert(avesmapsEcosystemReadKind('klima') === 'klima', 'klima passes the kind reader');
 
+// ---- Which zone does a point sit in? (added 2026-08-03 for the departure date) -----------------
+// The travel-time feature asks this per LEG, so it has to be cheap: six comparisons, no polygon test.
+$sixDividers = avesmapsClimateDefaultDividers(6);   // even bands at y = 878, 731, 585, 439, 293, 146
+
+assert(avesmapsClimateZoneIndexAt($sixDividers, 500.0, 1000.0) === 0, 'the far north is zone 0');
+assert(avesmapsClimateZoneIndexAt($sixDividers, 500.0, 0.0) === 6, 'the far south is the last zone');
+assert(avesmapsClimateZoneIndexAt($sixDividers, 500.0, 800.0) === 1, 'just below the first divider is zone 1');
+assert(avesmapsClimateZoneIndexAt($sixDividers, 500.0, 512.0) === 3, 'the middle of the map is the middle zone');
+
+// Every point belongs to exactly one zone, and the index never leaves 0..n. That is the promise the
+// derived bands make ("no gap, no double coverage") -- asked here of the lines themselves.
+for ($y = 0; $y <= 1024; $y += 8) {
+    $zone = avesmapsClimateZoneIndexAt($sixDividers, 300.0, (float) $y);
+    assert($zone >= 0 && $zone <= 6, "y={$y} lands in a real zone");
+}
+
+// Moving south never moves north in the list -- the index is monotone in y, which is what makes it a
+// band at all.
+$previous = -1;
+for ($y = 1024; $y >= 0; $y -= 4) {
+    $zone = avesmapsClimateZoneIndexAt($sixDividers, 700.0, (float) $y);
+    assert($zone >= $previous, "y={$y}: der Index waechst nach Sueden, er springt nicht zurueck");
+    $previous = $zone;
+}
+
+// A point exactly ON a divider falls into the southern zone -- it has to go somewhere, and this way
+// every point belongs to exactly one.
+$onTheLine = avesmapsClimateYAt($sixDividers[0]['coordinates'], 400.0);
+assert(avesmapsClimateZoneIndexAt($sixDividers, 400.0, $onTheLine) === 1, 'genau auf der Linie zaehlt suedlich');
+
+// A bent divider is followed, not averaged: same y, different x, different zone.
+$bent = [['type' => 'LineString', 'coordinates' => [[0.0, 900.0], [512.0, 900.0], [512.0, 300.0], [1024.0, 300.0]]]];
+assert(avesmapsClimateZoneIndexAt($bent, 100.0, 600.0) === 1, 'im Westen liegt die Grenze hoch -- der Punkt ist suedlich');
+assert(avesmapsClimateZoneIndexAt($bent, 900.0, 600.0) === 0, 'im Osten liegt sie tief -- derselbe y-Wert ist noerdlich');
+
 fwrite(STDOUT, "climate-zones-test: OK\n");
