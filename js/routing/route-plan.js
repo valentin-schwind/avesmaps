@@ -1018,6 +1018,7 @@ function showRoutePlan(routeNames, segments) {
 			<button type="button" id="share-link-button" class="share-link-button share-link-button--icon" title="${tr("planner.shareRoute", "Link für diese Route kopieren")}" aria-label="${tr("planner.shareRoute", "Link für diese Route kopieren")}">🔗</button>
 		</div>
 		<div class="route-plan-summary__time">
+			${routePlanCalendarSummaryMarkup(planEntries, totalTravelTime > 0 ? totalHours / totalTravelTime : 1)}
 			${routeSummaryRowMarkup(tr("planner.summary.distance", "Distanz"), `${formatDecimalNumber(totalDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, tr("planner.summary.legCount", "{n} Etappen", { n: planEntries.length }))}
 			${routeSummaryRowMarkup(tr("planner.summary.airDistance", "Drachenflug"), `${formatDecimalNumber(airDistance, 1)} ${tr("planner.unit.miles", "Meilen")}`, routeAirNoteMarkup(airDistanceLegs))}
 			${routeSummaryRowMarkup(tr("planner.summary.travelTime", "Reisezeit"), `${formatDecimalNumber(totalTravelTime, 1)} ${tr("planner.unit.hours", "Stunden")}`, `${formatDecimalNumber(totalTravelTime / 24, 1)} ${tr("planner.unit.days", "Tage")}`)}
