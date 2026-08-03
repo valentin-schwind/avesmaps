@@ -662,27 +662,83 @@ body.avm-editor-body {
 
 .pl-hint b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
 
-/* Saisonale Gangbarkeit im Wege-Editor: „von [Monat] [Tag] / bis [Monat] [Tag]". Eine Flex-Zeile
-   mit fester Beschriftungsspalte, damit „von" und „bis" untereinander auf einer Kante stehen. Der
-   Monatswaehler nimmt sich den Rest -- „ganzjährig" und „Ingerimm" sind verschieden lang. */
-.dt-season {
+/* Wer darf hier reisen -- und WANN. Eine Zeile je Fahrtyp: links der Haken (OB), rechts die vier
+   Zeitfelder (WANN). Sie stehen in EINER Zeile, weil sie EINE Frage sind -- bis 2026-08-03 stand die
+   Zeit in einem eigenen Block darunter und galt dadurch pauschal fuer alle angehakten Mittel.
+   Die dritte Editorspalte ist schmal, deshalb umbricht der Zeitteil unter den Namen (`flex-wrap`),
+   statt sich zu quetschen.
+   💣 Ein Feld ist grau und TOT, wenn es nichts bedeuten kann: ohne Haken alle vier, bei „ganzjährig"
+   die hinteren drei. `disabled` allein reicht im dunklen Thema nicht -- der Browser graut ein helles
+   Feld sichtbar aus, ein dunkles kaum (derselbe Grund wie beim Reisebeginn im Routenplaner). */
+.dt-grp__when {
+	margin-left: auto;
+	font-weight: var(--font-weight-regular);
+	color: var(--mut);
+}
+
+.dt-tt {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	margin-top: 5px;
+	justify-content: space-between;
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	padding: var(--space-2) 0;
+	font-size: var(--font-size-body);
+	color: var(--mut);
 }
 
-.dt-season > span:first-child {
-	flex: 0 0 30px;
-	color: var(--color-text-muted);
-	font-size: 12px;
+/* 💣 FESTER Startwert, nicht `auto`. Mit inhaltsbreiten Namen umbrachen nur die zwei langen Zeilen
+   („Reisegruppe zu Fuss/beritten") und die Liste stand krumm -- 32 px neben 57 px. Mit gleicher
+   Basis entscheidet die Spaltenbreite fuer ALLE Zeilen gleich, und weil alle gleich wachsen, stehen
+   die Zeitfelder sauber untereinander. Umbruchschwelle gemessen: 418 px Zeilenbreite. */
+.dt-tt__name {
+	display: flex;
+	align-items: center;
+	gap: var(--space-4);
+	flex: 1 1 150px;
+	min-width: 0;
+	cursor: pointer;
 }
 
-.dt-season select {
-	flex: 1 1 auto;
+.dt-tt__name input { cursor: pointer; }
+.dt-tt__name input:disabled { cursor: default; }
+
+.dt-tt__when {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+}
+
+/* 💣 FESTE Breiten, keine Mindestbreiten. Die dritte Spalte ist ~430–630 px breit, und ein
+   inhaltsbreiter Waehler („ganzjährig" ist der laengste Eintrag) machte den Zeitteil 322 px breit --
+   damit umbrachen genau die zwei Zeilen mit langem Namen („Reisegruppe zu Fuss/beritten") und die
+   Liste stand krumm, 32 px neben 57 px. Gemessen bei 430 px Spaltenbreite. */
+.dt-tt__when select,
+.dt-tt__when input[type="number"] {
+	padding: 3px 5px;
+	font-size: var(--font-size-caption);
+	/* 💣 Ohne das gilt `min-width: auto` und ein Flex-Kind wird so breit wie sein Inhalt -- die
+	   festen Breiten darunter waeren wirkungslos (gemessen: 49 statt 38 px je Tagesfeld). */
 	min-width: 0;
 }
 
-.dt-season input[type="number"] {
-	flex: 0 0 56px;
+.dt-tt__when input[type="number"] { flex: 0 0 38px; }
+.dt-tt__when .wp-season-from-month { flex: 0 0 82px; }
+.dt-tt__when .wp-season-to-month { flex: 0 0 74px; }
+
+.dt-tt__when select:disabled,
+.dt-tt__when input:disabled {
+	background: var(--color-panel-muted);
+	border-color: var(--color-divider);
+	color: var(--color-text-muted);
+	cursor: not-allowed;
 }
+
+/* „bis" ist kein Formularfeld und graut deshalb nicht von selbst mit. */
+.dt-tt__bis {
+	color: var(--mut);
+	font-size: var(--font-size-caption);
+}
+
+.dt-tt__when:not(.dt-tt__when--open) .dt-tt__bis { opacity: 0.45; }

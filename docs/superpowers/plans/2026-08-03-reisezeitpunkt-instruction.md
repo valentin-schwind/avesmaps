@@ -157,8 +157,23 @@ vorher. 💣 Server- und Client-Engine gegeneinander prüfen, nicht nur eine
 > - **Der Arvepass bekommt gar keinen Eintrag.** „Kaum passierbar" erledigt der Bodenabzug schon:
 >   0,4 − 0,2 sind +100 % Reisezeit. Gerechnet statt behauptet, und der Router darf selbst wählen.
 >
-> **Offen:** der Schreibweg (`api/edit/map/paths-editor.php`, Aggregation über `wiki_path.wiki_key`)
-> und die Zeitspalte in beiden Editoren.
+> **Fertig, 2026-08-03:** der Schreibweg (`api/edit/map/paths-editor.php`, Aggregation über
+> `wiki_path.wiki_key`) **und** die Zeitspalte in beiden Editoren.
+>
+> 💣 **Die Zeit steht JE FAHRTYP in seiner eigenen Zeile — es gibt keine Kopfzeile.** Ein früherer
+> Entwurf sah eine gemeinsame Zeile „Alle gangbar" vor, die alle angehakten Mittel setzt und sich aus
+> ihnen zurückliest; weicht eine Zeile ab, sollte sie das melden („— zwei Zeilen weichen ab"). Diese
+> Kette entstand nur, weil die **Oberfläche** ein Fenster auf alle Mittel schrieb — der Server konnte
+> je Mittel von Anfang an. Owner 2026-08-03: *„ich will keine sonderfälle, sondern ein generelles
+> modell der befahrbarkeit von strecken."* Gebaut ist deshalb: eine Zeile je Fahrtyp, kein Haken =
+> nie · Haken + „ganzjährig" = immer · Haken + Monat = Fenster, und **ein Feld ist grau, wenn es
+> nichts bedeuten kann**. Wer die Kopfzeile nachbaut, baut den Sonderfall zurück.
+>
+> 💣 **Die Sichtbarkeitsweiche ist ebenfalls weg:** die Zeitspalte steht an **jedem** Weg, nicht nur
+> an Wiki-Art „Pass" und Wasserwegen. Eine Reichsstraße sagt eben sechsmal „ganzjährig" — gespeichert
+> wird dadurch nichts, denn ganzjährig IST die Abwesenheit eines Fensters.
+>
+> Entwurf: `docs/superpowers/specs/2026-08-03-gangbarkeit-je-fahrtyp-design.md`.
 
 
 1. Felder in den `properties` des Wegs, analog `allowed_transports`: von-Monat/-Tag,

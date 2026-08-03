@@ -191,13 +191,16 @@ function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) 
 		: getPathAllowedTransports(path);
 	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
 		const isCompatible = offeredOptions.includes(input.value);
-		input.closest("label").hidden = !isCompatible;
+		// Die ganze ZEILE verschwindet, nicht nur der Haken -- an ihr haengen die Zeitfelder.
+		input.closest(".path-transport-row").hidden = !isCompatible;
 		input.disabled = !isCompatible;
 		input.checked = isCompatible && selectedOptions.includes(input.value);
 	});
-	// Die saisonale Gangbarkeit haengt an denselben Haken -- sie sagt nur, WANN sie gelten.
-	if (typeof renderPathSeasonSection === "function") {
-		renderPathSeasonSection(path || pathEditFeature, subtype);
+	// Die Gangbarkeit steht in denselben Zeilen: der Haken sagt OB, die Felder dahinter WANN.
+	// 💣 Nach dem programmatischen Setzen der Haken -- ein `checked` aus Code loest kein `change`
+	// aus, die Ausgrauregel muss hier von Hand nachgezogen werden.
+	if (typeof renderPathTransportSeasons === "function") {
+		renderPathTransportSeasons(path || pathEditFeature);
 	}
 }
 

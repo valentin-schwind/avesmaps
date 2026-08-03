@@ -1,10 +1,85 @@
+/* Wer darf hier reisen -- und WANN. Eine Zeile je Fahrtyp: links der Haken (OB), rechts die vier
+   Zeitfelder (WANN). Sie stehen in EINER Zeile, weil sie EINE Frage sind -- bis 2026-08-03 stand die
+   Zeit in einem eigenen Block darunter und galt dadurch pauschal fuer alle angehakten Mittel.
+   💣 Ein Feld ist grau und TOT, wenn es nichts bedeuten kann: ohne Haken alle vier, bei „ganzjährig"
+   die hinteren drei. `disabled` allein reicht im dunklen Thema nicht -- der Browser graut ein helles
+   Feld sichtbar aus, ein dunkles kaum (derselbe Grund wie beim Reisebeginn im Routenplaner). */
+.path-transport-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-8);
+}
+
+.path-transport-head__when {
+	color: var(--color-text-muted);
+	font-size: 11px;
+	font-style: normal;
+	font-weight: normal;
+}
+
+.path-transport-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-6);
+	flex-wrap: wrap;
+}
+
+/* 💣 FESTER Startwert, nicht `auto`: mit inhaltsbreiten Namen entscheidet jede Zeile fuer sich, ob
+   sie umbricht -- dann steht „Reiter" einzeilig neben einem zweizeiligen „Reisegruppe beritten".
+   Gleiche Basis heisst: alle Zeilen entscheiden gleich, und weil alle gleich wachsen, stehen die
+   Zeitfelder sauber untereinander. Das ist die Tabellenform. */
 #path-edit-transport-options label {
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1 1 170px;
+	min-width: 0;
 	font-size: 13px;
 }
 
-#path-edit-transport-options input {
+#path-edit-transport-options input[type="checkbox"] {
 	width: auto;
+	flex: 0 0 auto;
+}
+
+.path-season {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+}
+
+#path-edit-transport-options .path-season__field {
+	padding: 4px 6px;
+	font-size: 12px;
+}
+
+#path-edit-transport-options .path-season__day {
+	width: 44px;
+}
+
+#path-edit-transport-options .path-season__from-month {
+	min-width: 104px;
+}
+
+#path-edit-transport-options .path-season__to-month {
+	min-width: 92px;
+}
+
+#path-edit-transport-options .path-season__field:disabled {
+	border-color: var(--color-divider);
+}
+
+/* „bis" ist kein Formularfeld und graut deshalb nicht von selbst mit. */
+.path-season__bis {
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+.path-season:not(.path-season--open) .path-season__bis {
+	opacity: 0.45;
 }
 
 .region-edit-edge-highlight {

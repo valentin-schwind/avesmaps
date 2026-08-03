@@ -102,8 +102,11 @@
 	// travel-calendar.js, der einen Wahrheit ueber das aventurische Jahr.
 	var SEASON_MONTHS = typeof TRAVEL_CALENDAR_MONTHS !== "undefined" ? TRAVEL_CALENDAR_MONTHS : [];
 
-	function monthSelectMarkup(id, selected, includeAllYear) {
-		var html = '<select id="' + id + '" class="wp-season">';
+	// 💣 Ueber KLASSEN adressiert, nicht ueber ids: jede Zeile traegt ihre eigenen vier Felder, und
+	// eine id gibt es nun einmal nur einmal je Seite.
+	function monthSelectMarkup(className, selected, includeAllYear, disabled, ariaLabel) {
+		var html = '<select class="wp-season ' + className + '" aria-label="' + escapeHtml(ariaLabel) + '"'
+			+ (disabled ? " disabled" : "") + ">";
 		if (includeAllYear) {
 			html += '<option value=""' + (selected ? "" : " selected") + ">ganzjährig</option>";
 		}
@@ -114,12 +117,9 @@
 		return html + "</select>";
 	}
 
-	// Die Fenster stehen je Reisemittel, sind aber fuer alle gleich gesetzt -- eines genuegt.
-	function seasonWindowOf(way) {
-		var seasons = way && way.transport_seasons;
-		if (!seasons || typeof seasons !== "object") { return null; }
-		var first = Object.keys(seasons)[0];
-		return first ? seasons[first] : null;
+	function dayInputMarkup(className, value, disabled, ariaLabel) {
+		return '<input type="number" class="wp-season ' + className + '" min="1" max="30" step="1" value="'
+			+ value + '" aria-label="' + escapeHtml(ariaLabel) + '"' + (disabled ? " disabled" : "") + ">";
 	}
 
 	function getJson(url) {
@@ -327,33 +327,35 @@
 		var domain = isWater(way.feature_subtype)
 			? (way.feature_subtype === "Flussweg" ? "river" : "sea")
 			: "land";
-		html += '<div class="dt-grp">Erlaubte Transportmittel</div>';
+		// Wer darf hier reisen -- und WANN. EINE ZEILE JE FAHRTYP: der Haken sagt OB, die vier
+		// Zeitfelder dahinter sagen WANN. Kein Haken = nie · Haken + „ganzjährig" = immer · Haken +
+		// Monat = Fenster.
+		// 💣 An JEDEM Weg, nicht mehr nur an Wiki-Art „Pass" und Wasserweg (Owner 2026-08-03): die
+		// Befahrbarkeit ist ein allgemeines Modell, und eine Reichsstraße sagt eben sechsmal
+		// „ganzjährig". Gespeichert wird dadurch nichts -- ganzjährig IST die Abwesenheit eines
+		// Fensters. Entwurf: docs/superpowers/specs/2026-08-03-gangbarkeit-je-fahrtyp-design.md
+		var seasons = way.transport_seasons && typeof way.transport_seasons === "object" ? way.transport_seasons : {};
+		html += '<div class="dt-grp">Erlaubte Transportmittel<span class="dt-grp__when">gangbar</span></div>';
 		TRANSPORTS.forEach(function (transport) {
 			if (transport.domain !== domain) { return; }
-			html += '<div class="dt-check"><input type="checkbox" class="wp-transport" value="'
-				+ transport.key + '"'
-				+ (way.allowed_transports.indexOf(transport.key) !== -1 ? " checked" : "")
-				+ "> <span>" + escapeHtml(transport.label) + "</span></div>";
+			var on = way.allowed_transports.indexOf(transport.key) !== -1;
+			// Ein Fenster auf einem nicht angehakten Mittel ist tote Angabe -- der Server wirft sie
+			// weg, also zeigt sie hier gar nicht erst jemand an.
+			var win = on ? (seasons[transport.key] || null) : null;
+			html += '<div class="dt-tt" data-transport="' + transport.key + '">'
+				+ '<label class="dt-tt__name"><input type="checkbox" class="wp-transport" value="'
+				+ transport.key + '"' + (on ? " checked" : "") + "> <span>"
+				+ escapeHtml(transport.label) + "</span></label>"
+				+ '<span class="dt-tt__when' + (win ? " dt-tt__when--open" : "") + '">'
+				+ monthSelectMarkup("wp-season-from-month", win ? win.from_month : "", true, !on, transport.label + ": gangbar ab Monat")
+				+ dayInputMarkup("wp-season-from-day", win ? win.from_day : 1, !win, transport.label + ": gangbar ab Tag")
+				+ '<span class="dt-tt__bis">bis</span>'
+				+ monthSelectMarkup("wp-season-to-month", win ? win.to_month : "praios", false, !win, transport.label + ": gangbar bis Monat")
+				+ dayInputMarkup("wp-season-to-day", win ? win.to_day : 30, !win, transport.label + ": gangbar bis Tag")
+				+ "</span></div>";
 		});
-
-		// Saisonale Gangbarkeit -- dieselbe Frage wie die Haken darueber, nur in der Zeit.
-		// 💣 Sichtbar an der WIKI-ART „Pass", nicht am Wegtyp „Gebirgspass": Raschtulsweg (Strasse +
-		// Weg) und Arvepass (Strasse) haben kein einziges Gebirgspass-Segment, obwohl die Geographia
-		// beide namentlich mit einem Fenster nennt. Wasserwege kommen ueber ihren Subtyp dazu.
-		var wikiArt = way.wiki_path ? String(way.wiki_path.art || "").trim().toLowerCase() : "";
-		if (wikiArt === "pass" || isWater(way.feature_subtype)) {
-			var window = seasonWindowOf(way);
-			html += '<div class="dt-grp">Gangbar (saisonal)</div>';
-			html += '<div class="dt-season"><span>von</span>' + monthSelectMarkup("wpSeasonFromMonth", window ? window.from_month : "", true)
-				+ '<input type="number" id="wpSeasonFromDay" class="wp-season" min="1" max="30" step="1" value="'
-				+ (window ? window.from_day : 1) + '"></div>';
-			html += '<div class="dt-season"><span>bis</span>' + monthSelectMarkup("wpSeasonToMonth", window ? window.to_month : "praios", false)
-				+ '<input type="number" id="wpSeasonToDay" class="wp-season" min="1" max="30" step="1" value="'
-				+ (window ? window.to_day : 30) + '"></div>';
-			html += '<div class="avm-empty">Ohne Monat ist der Weg ganzjährig gangbar. Das Fenster gilt für '
-				+ 'jedes angehakte Mittel und wird beim Speichern auf <b>alle Segmente desselben '
-				+ 'Wiki-Weges</b> übertragen.</div>';
-		}
+		html += '<div class="avm-empty">Ohne Monat ist der Fahrtyp ganzjährig gangbar. Ein Fenster wird '
+			+ 'beim Speichern auf <b>alle Segmente desselben Wiki-Weges</b> übertragen.</div>';
 
 		// Zugehörigkeit: NUR ANZEIGE (Owner 2026-08-02).
 		html += '<div class="dt-grp">Zugehörigkeit — führt durch</div>';
@@ -444,30 +446,54 @@
 				var list = state.draft.allowed_transports.filter(function (key) { return key !== input.value; });
 				if (input.checked) { list.push(input.value); }
 				state.draft.allowed_transports = list;
-				readSeasonWindow();
+				applySeasonRowState(input.closest(".dt-tt"));
+				readSeasons();
 				markDirty();
 			});
 		});
 
-		// Das eine Fenster, auf jedes angehakte Mittel geschrieben. Ohne Monat bleibt es leer, und der
-		// Server entfernt das Feld dann ganz -- „ganzjaehrig" ist die Abwesenheit eines Fensters.
-		function readSeasonWindow() {
-			var fromMonth = $("wpSeasonFromMonth");
-			if (!fromMonth) { return; }
+		// Je angehakter Zeile ihr EIGENES Fenster. Eine Zeile ohne Monat liefert nichts, und der
+		// Server entfernt das Feld dann ganz -- „ganzjaehrig" ist die Abwesenheit eines Fensters,
+		// nicht ein Fenster ueber zwoelf Monate.
+		function readSeasons() {
 			var seasons = {};
-			if (fromMonth.value) {
-				var window = {
-					from_month: fromMonth.value,
-					from_day: Number($("wpSeasonFromDay").value) || 1,
-					to_month: $("wpSeasonToMonth").value || "praios",
-					to_day: Number($("wpSeasonToDay").value) || 30
+			Array.prototype.forEach.call(document.querySelectorAll(".dt-tt"), function (row) {
+				var box = row.querySelector(".wp-transport");
+				var from = row.querySelector(".wp-season-from-month");
+				if (!box || !box.checked || !from || !from.value) { return; }
+				seasons[box.value] = {
+					from_month: from.value,
+					from_day: Number(row.querySelector(".wp-season-from-day").value) || 1,
+					to_month: row.querySelector(".wp-season-to-month").value || "praios",
+					to_day: Number(row.querySelector(".wp-season-to-day").value) || 30
 				};
-				(state.draft.allowed_transports || []).forEach(function (key) { seasons[key] = window; });
-			}
+			});
 			state.draft.transport_seasons = seasons;
 		}
+
+		// Die eine Ausgrauregel: ein Feld ist tot, wenn es nichts bedeuten kann. Ohne Haken alle
+		// vier, bei „ganzjaehrig" die hinteren drei. Die WERTE bleiben stehen -- wer einen Haken
+		// versehentlich entfernt und wieder setzt, findet sein Fenster vor.
+		function applySeasonRowState(row) {
+			if (!row) { return; }
+			var box = row.querySelector(".wp-transport");
+			var from = row.querySelector(".wp-season-from-month");
+			if (!box || !from) { return; }
+			var open = box.checked && from.value !== "";
+			from.disabled = !box.checked;
+			["wp-season-from-day", "wp-season-to-month", "wp-season-to-day"].forEach(function (name) {
+				var field = row.querySelector("." + name);
+				if (field) { field.disabled = !open; }
+			});
+			var when = row.querySelector(".dt-tt__when");
+			if (when) { when.classList.toggle("dt-tt__when--open", open); }
+		}
 		Array.prototype.forEach.call(document.querySelectorAll(".wp-season"), function (input) {
-			input.addEventListener("change", function () { readSeasonWindow(); markDirty(); });
+			input.addEventListener("change", function () {
+				applySeasonRowState(input.closest(".dt-tt"));
+				readSeasons();
+				markDirty();
+			});
 		});
 		var url = $("wpSourceUrl");
 		var label = $("wpSourceLabel");
