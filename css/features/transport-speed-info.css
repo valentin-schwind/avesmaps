@@ -13,6 +13,11 @@
    Section lines use --color-divider (not --color-border); the speed cells use the
    functional --color-tier-* tokens. */
 
+/* ⚠️ This anchor no longer positions the ⓘ: inside a planner group head the button is a plain
+   flex child (`.planner-group__head .tsi-info-btn` in route-planner.css sets `position: static`),
+   and that applies to BOTH groups — „Transportmittel" here and „Reiseoptionen" from
+   enhanceRoutePlannerOptionPanel(). Left as is because the rule is older than that override and
+   nothing was verified to depend on it either way. */
 #transport-options {
 	position: relative;
 }

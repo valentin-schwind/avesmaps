@@ -1,0 +1,140 @@
+/* Travel-options info dialog ("Reiseoptionen"), opened by the ⓘ next to the Reiseoptionen
+   heading in the route planner. Public, read-only — the sibling of transport-speed-info.css.
+
+   This file holds ONLY what the speed dialog does not already have. Overlay, dialog frame,
+   head, body, intro, the soft card (.tsi-wcard), the card title (.tsi-wtitle) and the icon
+   (.tsi-ic) are reused verbatim from transport-speed-info.css; duplicating them here is how
+   two dialogs drift apart (AGENTS.md §12).
+
+   Same one text-colour scheme as the speed dialog:
+     · reading prose     → --color-text-muted
+     · table axis labels → --color-text-muted, first column --color-accent-strong
+     · card titles       → --color-accent-strong (gold)
+     · emphasis          → --color-text-strong */
+
+/* 940 instead of the speed dialog's 720: six options only fit on ONE screen height in two
+   columns, and fitting on one screen is the point of this layout (owner: „schön wärs wenn
+   man nicht scrollen müsste"). Measured 940 x 648 — with the overlay's own padding that
+   clears a 800 px window without a scrollbar. */
+.roi-dialog {
+	max-width: 940px;
+}
+.roi-dialog .tsi-body {
+	padding: var(--space-12) var(--space-16) var(--space-16);
+}
+.roi-dialog .tsi-intro {
+	margin-bottom: var(--space-10);
+	font-size: var(--font-size-small);
+}
+
+.roi-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-8) var(--space-12);
+	align-items: start;
+}
+.roi-col {
+	display: grid;
+	gap: var(--space-8);
+	align-content: start;
+}
+
+/* Denser than the speed dialog's cards: this one carries five of them instead of three. */
+.roi-grid .tsi-wcard {
+	flex: none;
+	min-width: 0;
+	padding: var(--space-6) var(--space-10) var(--space-8);
+}
+.roi-grid .tsi-wtitle {
+	margin-bottom: var(--space-4);
+	gap: var(--space-4);
+}
+
+/* The tag says WHAT an option acts on, and sits inside the title row so it costs no height.
+   It replaces the section headings an earlier draft had: without headings the cards may be
+   distributed by height instead of by chapter, which is what brings the dialog onto one
+   screen. Gold for "sucht neu" — that is the only group that changes the route itself. */
+.roi-tag {
+	margin-left: auto;
+	padding: 1px var(--space-6);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	font-weight: var(--font-weight-regular);
+	letter-spacing: 0;
+	white-space: nowrap;
+}
+.roi-tag--search {
+	border-color: var(--color-accent-strong);
+	color: var(--color-accent-strong);
+}
+
+.roi-text {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+}
+.roi-text + .roi-text {
+	margin-top: var(--space-4);
+}
+.roi-text b {
+	color: var(--color-text-strong);
+	font-weight: var(--font-weight-bold);
+}
+
+.roi-table {
+	width: 100%;
+	margin: var(--space-6) 0 var(--space-4);
+	border-collapse: collapse;
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-tight);
+}
+.roi-table th {
+	padding: 0 var(--space-4) var(--space-2);
+	color: var(--color-text-muted);
+	font-weight: var(--font-weight-regular);
+	text-align: center;
+}
+.roi-table th:first-child {
+	color: var(--color-accent-strong);
+	text-align: left;
+}
+.roi-table td {
+	padding: var(--space-2) var(--space-4);
+	border-top: 1px solid var(--color-border);
+	color: var(--color-text);
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+.roi-table td:first-child {
+	color: var(--color-text-muted);
+	text-align: left;
+}
+.roi-none {
+	color: var(--color-disabled-text);
+}
+
+/* Both tables are wider than a 470 px column on a narrow window; they scroll inside their
+   own box rather than widening the dialog. */
+.roi-scroll {
+	overflow-x: auto;
+}
+
+.roi-foot {
+	display: flex;
+	align-items: center;
+	gap: var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-caption);
+	line-height: var(--leading-normal);
+}
+
+/* One column below this width — two ~350 px columns of caption-sized text read worse than a
+   taller dialog, and here the dialog may scroll. */
+@media (max-width: 760px) {
+	.roi-grid {
+		grid-template-columns: 1fr;
+	}
+}

@@ -57,7 +57,17 @@ function enhanceRoutePlannerOptionPanel() {
 			+ '<span id="route-planner-options-title" class="planner-group__title route-planner-options-panel__title" data-i18n="planner.options.heading">Reiseoptionen</span>'
 			+ '<span class="planner-group__summary" aria-hidden="true"></span>'
 			+ '<span class="planner-group__caret" aria-hidden="true"></span>'
-			+ "</button></div>"
+			+ "</button>"
+			// Der ⓘ steht NEBEN dem Schalter, nicht darin -- ein Knopf im Knopf ist ungueltiges
+			// HTML und bekaeme seine Klicks nicht zuverlaessig (dieselbe Bauart wie bei
+			// #transport-options in index.html, samt derselben .tsi-info-btn-Regel).
+			+ '<button type="button" id="route-options-info-btn" class="tsi-info-btn"'
+			+ ' aria-label="Reiseoptionen erklären" data-i18n-aria-label="planner.optionsInfo.buttonAria"'
+			+ ' title="Was die Reiseoptionen bewirken" data-i18n-title="planner.optionsInfo.buttonTitle">'
+			+ '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
+			+ '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/>'
+			+ '<circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button>'
+			+ "</div>"
 			+ '<div class="planner-group__body" id="route-planner-options-body"></div>';
 		uniqueOptionRows[0].parentNode.insertBefore(panel, uniqueOptionRows[0]);
 		// 💣 Die Ueberlagerung ist zu diesem Zeitpunkt schon durch: i18n.js meldet seinen
@@ -65,6 +75,17 @@ function enhanceRoutePlannerOptionPanel() {
 		// bliebe darum unter ?lang=en deutsch -- also fuer diesen Teilbaum nachziehen.
 		if (typeof window.applyI18nOverlay === "function") {
 			window.applyI18nOverlay(panel);
+		}
+
+		// 💣 Der Dialog wird ZUR KLICKZEIT nachgeschlagen, nicht jetzt: route-options-info.js laedt
+		// spaeter als diese Datei, und eine Bindung auf die Funktion selbst waere hier `undefined`.
+		const optionsInfoButton = panel.querySelector("#route-options-info-btn");
+		if (optionsInfoButton) {
+			optionsInfoButton.addEventListener("click", () => {
+				if (typeof window.avesmapsOpenRouteOptionsInfo === "function") {
+					window.avesmapsOpenRouteOptionsInfo();
+				}
+			});
 		}
 
 		const body = panel.querySelector(".planner-group__body");

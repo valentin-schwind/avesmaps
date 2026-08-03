@@ -52,6 +52,57 @@ window.AVESMAPS_I18N_EN = {
 	"planner.options.heading": "Travel options",
 	"planner.overview.default": "Waypoints and travel time are shown here.",
 
+	// --- planner: the ⓘ dialog behind the "Reiseoptionen" heading (route-options-info.js) ---
+	// Every number in it is read from the computation tables at open time, so only the prose
+	// lives here. Placeholders carry the numbers through.
+	"planner.optionsInfo.buttonAria": "Explain the travel options",
+	"planner.optionsInfo.buttonTitle": "What the travel options do",
+	"planner.optionsInfo.title": "Travel options",
+	"planner.optionsInfo.closeAria": "Close",
+	"planner.optionsInfo.intro": "Whatever is marked <b>re-searches</b> changes the route itself. Everything else only changes how the route that was found is computed and drawn.",
+	"planner.optionsInfo.tag.search": "re-searches",
+	"planner.optionsInfo.tag.computes": "computes",
+	"planner.optionsInfo.tag.costs": "costs",
+	"planner.optionsInfo.optimize.title": "Fastest · Shortest",
+	"planner.optionsInfo.optimize.body": "Same graph, same algorithm — a different edge weight: <b>hours</b> against <b>miles</b>.",
+	"planner.optionsInfo.optimize.example": " Shorter therefore often means slower: mountain pass {passMin}–{passMax} miles/h, imperial road up to {roadMax}.",
+	"planner.optionsInfo.transfers.title": "Minimize transfers",
+	"planner.optionsInfo.transfers.body": "Every change of transport costs <b>+{penalty}</b> in search weight — {penalty} hours under “Fastest”, {penalty} miles under “Shortest”.",
+	"planner.optionsInfo.transfers.note": "<b>A search weight, not a waiting time:</b> it steers the search and appears in none of the numbers shown.",
+	"planner.optionsInfo.rest.title": "Travel hours per day",
+	"planner.optionsInfo.rest.body": "The rest of the day is rest, and rest grows with the distance: <b>days = travel time ÷ travel hours</b>, <b>duration = days × 24 h</b>. The preset {hours} h therefore stretch the pure travel time to {factor} times, 24 means travelling around the clock.",
+	"planner.optionsInfo.rest.note": "<b>Only the fast sailer keeps going</b> — cargo sailer and galley anchor at night and rest as on land.",
+	"planner.optionsInfo.start.title": "Departure date",
+	"planner.optionsInfo.start.body": "The calendar runs along the route — leg dates and day of arrival. And the season takes hold of the ground:",
+	"planner.optionsInfo.start.zone": "Climate zone",
+	"planner.optionsInfo.start.penalty": "Deducted from the way type's terrain value: <b>−{soft}</b> wet, <b>−{hard}</b> snow and ice.",
+	"planner.optionsInfo.start.example": " A path ({wayFactor}) loses {wayLoss} % of its pace in deep snow, a mountain pass ({passFactor}) {passLoss} %.",
+	"planner.optionsInfo.start.exempt": "Roads are exempt from wetness only, water always.",
+	"planner.optionsInfo.start.note": "<b>The route search does not know the season:</b> snow slows the leg down, but it does not send you around.",
+	"planner.optionsInfo.lodging.title": "Lodging",
+	"planner.optionsInfo.lodging.body": "Costs no yard of road, but money — per person:",
+	"planner.optionsInfo.lodging.level": "Level",
+	"planner.optionsInfo.lodging.bed": "Bed",
+	"planner.optionsInfo.lodging.food": "Food",
+	"planner.optionsInfo.lodging.stable": "Stable",
+	"planner.optionsInfo.lodging.toll": "Toll",
+	"planner.optionsInfo.lodging.river": "River<br>/100 mi.",
+	"planner.optionsInfo.lodging.perWeek": "{money}/wk.",
+	"planner.optionsInfo.lodging.note": "The toll collector assesses you by your appearance, and upstream the passage costs {factor} times as much. <b>Only the way type provides a roof</b> — imperial road and road; on trail, pass, desert trail and cross-country you always sleep in the open.",
+	"planner.optionsInfo.foot": "How fast a way type is with which vehicle is in the ⓘ next to “Transport”.",
+
+	// Jahreszeit und Bodenzustand: bis hierher nur deutsch vorhanden, obwohl der Reiseplan sie
+	// schon zeigt (route-plan-calendar.js). Der Optionsdialog druckt die ganze Bodentabelle.
+	"planner.season.winter": "winter",
+	"planner.season.spring": "spring",
+	"planner.season.summer": "summer",
+	"planner.season.autumn": "autumn",
+	"planner.ground.soft": "soft ground",
+	"planner.ground.thaw": "thawing ground",
+	"planner.ground.snowLight": "light snow",
+	"planner.ground.snowDeep": "deep snow",
+	"planner.ground.ice": "ice",
+
 	// --- planner: transport section (data-i18n; the custom combobox mirrors the
 	//     native <option> text, so translating the options covers it too) ---
 	"planner.transport.heading": "Transport",

@@ -32,6 +32,14 @@ function avesmapsClimateSetVocabulary(list) {
 	});
 }
 
+// Alle Zonenschlüssel in der Reihenfolge des Payloads (Nord nach Süd, `sort_order`). Leer, solange
+// die Karte nicht geladen ist. Wer die ZONEN AUFZÄHLEN will, fragt hier -- eine eigene Liste danebenzu-
+// stellen hieße, sie beim nächsten Einschub zu vergessen (der Infodialog „Reiseoptionen" tut genau das
+// nicht: seine Bodentabelle bekommt ihre Zeilen von hier und ihre Werte aus SEASON_GROUND_TABLE).
+function avesmapsClimateZoneKeys() {
+	return Object.keys(avesmapsClimateZoneLabels);
+}
+
 // "" wenn der Schlüssel unbekannt ist. Das ist kein Fehler, sondern der Zustand zwischen zwei Deploys:
 // ein Client mit altem Payload kennt eine neu benannte Zone noch nicht, und eine leere Zeile ist besser
 // als ein roher Schlüssel („subtropen_winterfeucht") in der Infobox.
