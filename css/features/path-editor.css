@@ -67,9 +67,23 @@
 	box-sizing: border-box;
 }
 
+/* 💣 Der Zaehl-Pfeil frisst den Platz, den „30" braucht. Chrome legt fuer `input[type=number]` immer
+   eine Spin-Box an -- sichtbar erst beim Darueberfahren, belegt aber dauerhaft rund 13 px. Von 40 px
+   abzueglich Polsterung und Rahmen blieben 26, davon 13 fuer den Pfeil, und die zweite Ziffer war
+   abgeschnitten. Der Pfeil geht weg (getippt wird hier eine Zahl von 1 bis 30, `min`/`max` pruefen
+   weiter), das Feld wird breiter. */
 #path-edit-transport-options .path-season__day {
-	flex: 0 0 40px;
+	flex: 0 0 46px;
 	width: auto;
+	appearance: textfield;
+	-webkit-appearance: textfield;
+	text-align: center;
+}
+
+#path-edit-transport-options .path-season__day::-webkit-inner-spin-button,
+#path-edit-transport-options .path-season__day::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
 }
 
 #path-edit-transport-options .path-season__from-month {

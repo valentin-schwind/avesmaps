@@ -723,7 +723,20 @@ body.avm-editor-body {
 	min-width: 0;
 }
 
-.dt-tt__when input[type="number"] { flex: 0 0 38px; }
+/* Gleiche Falle wie im Karten-Dialog: der Zaehl-Pfeil belegt dauerhaft ~13 px und schnitt die
+   zweite Ziffer von „30" ab. Pfeil weg, Feld breiter -- `min`/`max` pruefen weiter. */
+.dt-tt__when input[type="number"] {
+	flex: 0 0 44px;
+	appearance: textfield;
+	-webkit-appearance: textfield;
+	text-align: center;
+}
+
+.dt-tt__when input[type="number"]::-webkit-inner-spin-button,
+.dt-tt__when input[type="number"]::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
 .dt-tt__when .wp-season-from-month { flex: 0 0 82px; }
 .dt-tt__when .wp-season-to-month { flex: 0 0 74px; }
 
