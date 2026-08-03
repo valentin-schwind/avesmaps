@@ -9,7 +9,8 @@ declare(strict_types=1);
 // POST /api/app/path-landscapes.php   { "paths": ["<public_id>", …] }
 //   -> { ok:true, payload_version:1,
 //        stamp:{ computed_at, ecosystem_revision, map_revision, stale:bool } | null,
-//        landscapes:{ "<region_public_id>": { name, art, kind, wiki_key, wiki_url } },
+//        landscapes:{ "<region_public_id>": { name, art, art_key, kind, wiki_key, wiki_url } },
+//                     `art` ist das Label fuer die Anzeige, `art_key` der Schluessel zum Rechnen.
 //        paths:{ "<path_public_id>": { length: 12.3456, in: [ ["<region_public_id>", 4.21], … ] } } }
 //
 // 🔴 POST on a READ. Deliberate, and there is a precedent in the same house: POST /api/route/. A

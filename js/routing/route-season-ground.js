@@ -51,7 +51,11 @@ function routeEntryClimateZone(entry, segments) {
 			if (!region || String(region.kind || "") !== "klima") {
 				return;
 			}
-			const zoneKey = String(region.art || "").trim().toLowerCase();
+			// 💣 `art_key`, NICHT `art`. Letzteres ist das Label („Gemäßigte Zone"), das die Anzeige
+			// zeichnet; die Bodentabelle kennt nur den Schluessel („gemaessigt"). Ein Vergleich gegen
+			// das Label findet nie eine Zone -- und faellt nicht auf, weil „keine Zone" ein
+			// legitimer Zustand ist und stillschweigend Faktor 1,0 bedeutet.
+			const zoneKey = String(region.art_key || "").trim().toLowerCase();
 			if (!zoneKey) {
 				return;
 			}

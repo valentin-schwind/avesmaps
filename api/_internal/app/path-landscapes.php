@@ -190,13 +190,14 @@ function avesmapsPathLandscapesRead(PDO $pdo, array $publicIds): array
                 r.wiki_region_key,
                 r.wiki_url,
                 COALESCE(rt.label, '') AS region_type_label,
+                COALESCE(r.region_type, '') AS region_type,
                 SUM(pe.exit_distance_mapunits - pe.enter_distance_mapunits) AS covered
          FROM path_ecosystem pe
          JOIN ecosystem_area a ON a.id = pe.area_id AND a.is_active = 1
          JOIN ecosystem_region r ON r.id = a.region_id AND r.is_active = 1
          LEFT JOIN ecosystem_region_type rt ON rt.kind = r.kind AND rt.type_key = r.region_type
          WHERE pe.basis = 0 AND pe.path_id IN ({$idPlaceholders})
-         GROUP BY pe.path_id, r.public_id, r.name, r.kind, r.wiki_region_key, r.wiki_url, rt.label"
+         GROUP BY pe.path_id, r.public_id, r.name, r.kind, r.wiki_region_key, r.wiki_url, rt.label, r.region_type"
     );
     $intervalStatement->execute($internalIds);
 
@@ -210,6 +211,11 @@ function avesmapsPathLandscapesRead(PDO $pdo, array $publicIds): array
         $landscapes[$regionId] ??= [
             'name' => (string) $row['region_name'],
             'art' => (string) $row['region_type_label'],
+            // 💣 Der SCHLUESSEL neben dem Label. `art` ist „Gemäßigte Zone" und gehoert der Anzeige;
+            // wer damit rechnen will, braucht `gemaessigt` -- so heisst die Zone in jeder Tabelle
+            // (season-ground.php/.js). Ohne dieses Feld verglich der Bodenabzug ein Label gegen einen
+            // Schluessel, fand nie eine Zone und wirkte auf keiner einzigen Etappe.
+            'art_key' => (string) $row['region_type'],
             'kind' => (string) $row['region_kind'],
             'wiki_key' => (string) ($row['wiki_region_key'] ?? ''),
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),

@@ -68,11 +68,26 @@ const makeSegments = (subtype) => [0, 1, 2, 3].map((index) => ({
 	properties: { feature_subtype: subtype, public_id: `p${index}` },
 }));
 
+// 🔴 DIE FELDNAMEN KOMMEN AUS DEM SERVER, NICHT AUS DEM KOPF. Genau hier ging es einmal schief: der
+// Test stellte `art: "gemaessigt"`, die Wirklichkeit liefert dort das LABEL („Gemäßigte Zone") -- der
+// Test war gruen und live wirkte der Abzug auf keiner einzigen Etappe. Der SCHLUESSEL reist seither
+// als eigenes Feld mit, und dass es das gibt, prueft dieser Abgleich gegen die PHP-Quelle.
+const landscapesLib = fs.readFileSync(path.join(__dirname, "../../../api/_internal/app/path-landscapes.php"), "utf8");
+assert.ok(
+	/'art_key'\s*=>\s*\(string\)\s*\$row\['region_type'\]/.test(landscapesLib),
+	"api/_internal/app/path-landscapes.php muss den Zonen-SCHLUESSEL als art_key ausliefern"
+);
+assert.ok(
+	/'art'\s*=>\s*\(string\)\s*\$row\['region_type_label'\]/.test(landscapesLib),
+	"... und `art` bleibt das Label, an dem die Anzeige haengt"
+);
+
 // Die Klimazone einer Etappe kommt aus der Wege-Landschaftsablage -- hier gestellt, wie sie der
 // Zugehoerigkeitslauf schreibt: `in` sind Paare [regionKey, gedeckte Laenge].
 const setZone = (zoneArt) => {
 	global.avesmapsPathLandscapesStore = {
-		landscapes: { z1: { kind: "klima", art: zoneArt, name: zoneArt } },
+		// So sieht ein echter Katalogeintrag aus: `art` das Label, `art_key` der Schluessel.
+		landscapes: { z1: { kind: "klima", art_key: zoneArt, art: `Label fuer ${zoneArt}`, name: `Label fuer ${zoneArt}` } },
 		paths: {},
 		pending: {},
 	};
