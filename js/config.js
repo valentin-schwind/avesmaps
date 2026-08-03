@@ -126,6 +126,52 @@ const SPEED_TABLE = {
 	horseCarriage: { Reichsstrasse: 5.59, Strasse: 5.12, Weg: 2.09, Pfad: 2.79, Gebirgspass: 0.93, Wuestenpfad: 2.79, Querfeldein: 1.58 },
 };
 
+// ===== Reisekosten =====================================================================
+// Alle Preise in HELLER. 1 Dukat = 10 Silbertaler = 100 Heller = 1.000 Kreuzer.
+//
+// 💣 KEINE EINZELNE QUELLE DECKT DIESES MODELL AB. Die Geographia Aventurica beziffert Zoelle
+// (S. 115) und Passagen (S. 129/131) und schweigt zu Unterkunft, Verpflegung und Futter --
+// wortwoertlich: die besitzen "keine allgemeinen Preise". Bett und Essen kommen deshalb aus dem
+// DSA5-Regelwerk S. 382, Futter und Hufbeschlag aus dem Kodex der Helden S. 475, der
+// Tagesproviant aus Wege des Entdeckers S. 72 (das ist DSA4.1, also eine andere Regeledition).
+// Die vollstaendige Deckungspruefung Posten fuer Posten steht in
+// docs/reisekosten-quellenlage.md §8.4 -- wer hier eine Zahl aendert, gehoert dort hinein.
+const TRAVEL_COST_LODGING_KEYS = ["frei", "strohsack", "bett", "zimmer"];
+const TRAVEL_COST_LODGING = {
+	// bed/food/stableNight je Nacht bzw. Tag und Person; feedPerWeek nur, wo kein Stall gezahlt wird.
+	// tollPerson ist die Veranlagung an EINER Landesgrenze (Geographia S. 115: der Zoellner schaetzt
+	// nach dem Auftreten -- 1 H Tageloehner, 5 H Schustergeselle, 1 D Soeldner, bis 5 D gutverdienend).
+	// riverPer100 ist die Flusspassage je 100 Meilen und Person (S. 129: 1 D mit Mitarbeit, bis 10 D
+	// in der Kabine).
+	frei:      { bed: 0,  food: 4,  stableNight: null, feedPerWeek: 5,    tollPerson: 1,   riverPer100: 100 },
+	strohsack: { bed: 2,  food: 4,  stableNight: 6,    feedPerWeek: null, tollPerson: 5,   riverPer100: 100 },
+	bett:      { bed: 6,  food: 8,  stableNight: 6,    feedPerWeek: null, tollPerson: 100, riverPer100: 100 },
+	zimmer:    { bed: 30, food: 17, stableNight: 6,    feedPerWeek: null, tollPerson: 500, riverPer100: 1000 },
+};
+const TRAVEL_COST_SHOE_PER_HOOF = 5;              // 0,5 Silbertaler je Huf, Kodex S. 475
+const TRAVEL_COST_HOOVES_PER_MOUNT = 4;
+const TRAVEL_COST_RIVER_UPSTREAM_FACTOR = 3;      // 3 D stromauf gegen 1 D stromab, Geographia S. 129
+
+// Welche Wegart unterwegs ein Dach anbietet. Geographia S. 113: an der Reichsstrasse alle 15 Meilen
+// ein Landgasthaus; S. 114: an der Strasse alle 20 Meilen eine Herberge. Ein Reisetag ist laenger als
+// beide Abstaende -- deshalb reicht die WEGART am Tagesende, es braucht keine verorteten Herbergen.
+// 💣 Fuer alles Uebrige nennt die Quelle KEINEN Abstand ("bisweilen ein Gasthaus" ist keine Zahl),
+// darum steht dort auch keiner: Pfad, Gebirgspass, Wuestenpfad und Querfeldein schlafen im Freien.
+const TRAVEL_COST_SHELTER_BY_SUBTYPE = {
+	Reichsstrasse: "inn",
+	Strasse: "inn",
+	Weg: "maybe",
+	Flussweg: "aboard",
+	Seeweg: "aboard",
+};
+
+// Reittiere je Reisendem, nach Landtransportmittel. Keine Eingabe -- wer "Reisegruppe zu Pferd"
+// waehlt, hat ein Pferd; wer laeuft, hat keines. Die Karawane fuehrt ihr Kamel.
+const TRAVEL_COST_MOUNTS_PER_TRAVELLER = {
+	groupHorse: 1, lightRider: 1, caravan: 1, horseCarriage: 0,
+	groupFoot: 0, lightWalker: 0,
+};
+
 const ROUTE_ICON_PATHS = {
 	Reichsstrasse: "icons/Reichsstrasse.webp",
 	Strasse: "icons/Strasse.webp",
@@ -592,6 +638,9 @@ const DEFAULT_PLANNER_STATE = {
 	pathType: "fastest",
 	minimizeTransfers: false,
 	restHours: 12,
+	// Reisekosten-Optionen. „bett" ist die Mitte der vier Stufen, 4 Reisende die uebliche Gruppe.
+	lodging: "bett",
+	travellers: 4,
 	// Reisebeginn. Leerer Monat = „Ohne Jahreszeit — kein Einfluss", und das ist die Vorgabe, nicht
 	// nur Bequemlichkeit: POST /api/route/ ist der stabile oeffentliche Vertrag, und ein geteilter
 	// Link muss beim Empfaenger dieselbe Zahl zeigen wie beim Absender.

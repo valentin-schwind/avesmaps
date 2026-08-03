@@ -1056,6 +1056,85 @@ function showRoutePlan(routeNames, segments) {
 		${planEntries.length ? `<div class="route-plan-legs__title">${tr("planner.legs.heading", "Reiseetappen")}</div>` : ""}
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
+
+	// Die Reisekosten stehen GANZ UNTEN, nach den Etappen (Owner 2026-08-03). Sie sind ein Ergebnis
+	// der Reise, keine Option -- die beiden Eingaben dazu liegen oben in den Routenoptionen.
+	currentRouteCostSummary = routePlanViewModel.summary;
+	// 💣 Die Grenzzahl gehoert der GEZEICHNETEN Route. Ohne dieses Zuruecksetzen erbt die naechste
+	// Route die Grenzen der vorigen -- sie wuerden nie neu ermittelt, weil der Abruf nur bei `null` laeuft.
+	currentRouteStateBorders = null;
+	renderRoutePlanTravelCosts();
+}
+
+// Die zuletzt gezeichnete Reise, damit ein Wechsel von Unterbringung oder Reisendenzahl nur die
+// Kostenzeilen neu setzt und nicht die ganze Route neu rechnet (sie aendert sich davon nicht).
+let currentRouteCostSummary = null;
+let currentRouteStateBorders = null;
+let currentRouteBorderToken = 0;
+
+function routePlanTravelCostRowMarkup(row) {
+	const value = row.heller === null
+		? `<span class="route-plan-cost__pending">…</span>`
+		: escapeHtml(formatAventurianMoney(row.heller));
+	return `<div class="route-plan-summary__row" data-route-cost-row="${escapeHtml(row.key)}">`
+		+ `<span class="route-plan-summary__label">${escapeHtml(row.label)}</span>`
+		+ `<span class="route-plan-summary__value">${value}</span>`
+		+ `<span class="route-plan-summary__note">${escapeHtml(row.note)}</span></div>`;
+}
+
+function renderRoutePlanTravelCosts() {
+	const $overview = $("#overview");
+	if (!currentRouteCostSummary || !currentRoutePlanEntries?.length || !$overview.length) {
+		return;
+	}
+
+	const result = buildTravelCostRows(currentRoutePlanEntries, currentRouteCostSummary, {
+		stateBorders: currentRouteStateBorders,
+	});
+	const known = result.rows.filter((row) => row.heller !== null);
+	const sum = known.reduce((total, row) => total + row.heller, 0);
+	// Solange die Grenzen noch LAUFEN, steht auch in der Summe ein Platzhalter -- eine Zahl, die
+	// sich gleich aendert, ist schlimmer als keine. Sind sie gar nicht abrufbar, zeigen wir die
+	// Teilsumme und sagen im Vermerk dazu, was fehlt.
+	const bordersPending = currentRouteStateBorders === null;
+	const complete = known.length === result.rows.length;
+	const partyNote = result.mounts > 0
+		? tr("planner.cost.party.mounted", "{p} Reisende, {m} Reittiere", { p: formatDecimalNumber(result.travellers, 0), m: formatDecimalNumber(result.mounts, 0) })
+		: tr("planner.cost.party", "{p} Reisende", { p: formatDecimalNumber(result.travellers, 0) });
+
+	$overview.find(".route-plan-costs").remove();
+	$overview.append(`
+		<div class="route-plan-costs">
+			<div class="route-plan-legs__title">${tr("planner.cost.heading", "Reisekosten")}</div>
+			<div class="route-plan-summary__time">
+				${result.rows.map(routePlanTravelCostRowMarkup).join("")}
+				<div class="route-plan-summary__rule"></div>
+				<div class="route-plan-summary__row route-plan-summary__row--total" data-route-cost-total>
+					<span class="route-plan-summary__label">${tr("planner.cost.total", "Summe")}</span>
+					<span class="route-plan-summary__value">${bordersPending ? `<span class="route-plan-cost__pending">…</span>` : escapeHtml(formatAventurianMoney(sum))}</span>
+					<span class="route-plan-summary__note">${escapeHtml(complete || bordersPending ? partyNote : tr("planner.cost.total.withoutTolls", "{party} — ohne Zölle", { party: partyNote }))}</span>
+				</div>
+			</div>
+			<div class="route-plan-costs__source">${tr("planner.cost.source", "Zölle und Passage nach der Geographia Aventurica; Bett, Verpflegung und Futter aus dem DSA5-Regelwerk und dem Kodex der Helden. 1 Dukat = 10 Silbertaler = 100 Heller.")}</div>
+		</div>
+	`);
+
+	// Die Grenzen kommen aus den Herrschaftsgebieten -- ein Abruf je Sitzung, wie bei den
+	// Landschaften. Das Marken-Zaehlwerk verhindert, dass eine alte Antwort eine neuere Route ueberschreibt.
+	if (currentRouteStateBorders === null && typeof avesmapsTravelCostEnsureSovereignTerritories === "function") {
+		const token = ++currentRouteBorderToken;
+		const segments = currentRouteSegments;
+		void avesmapsTravelCostEnsureSovereignTerritories().then((territories) => {
+			if (token !== currentRouteBorderToken) {
+				return;
+			}
+			// Kein Ergebnis heisst NICHT „null Grenzen" -- siehe die Drei-Zustaende-Notiz in
+			// buildTravelCostRows. `false` laesst die Zeile als „nicht ermittelbar" stehen.
+			const borders = avesmapsCountRouteStateBorders(segments, territories);
+			currentRouteStateBorders = Number.isFinite(borders) ? borders : false;
+			renderRoutePlanTravelCosts();
+		});
+	}
 }
 
 /**

@@ -298,6 +298,44 @@ function getPlannerRestHoursPerDay() {
 	return 24 - getPlannerTravelHoursPerDay();
 }
 
+// --- Reisekosten-Optionen -------------------------------------------------------------------
+// Beide lesen aus dem Optionsfeld und fallen auf DEFAULT_PLANNER_STATE zurueck, damit die
+// Kostenrechnung auch laeuft, bevor das Markup da ist (Testseiten, frueher Aufruf).
+function getPlannerLodging() {
+	const value = String($("#travelLodging").val() || "").trim();
+	return TRAVEL_COST_LODGING_KEYS.includes(value) ? value : DEFAULT_PLANNER_STATE.lodging;
+}
+
+function getPlannerTravellerCount() {
+	const parsed = Number.parseInt($("#travelTravellers").val(), 10);
+	if (!Number.isFinite(parsed)) {
+		return DEFAULT_PLANNER_STATE.travellers;
+	}
+	return Math.min(99, Math.max(1, parsed));
+}
+
+// Geld in aventurischer Muenzschreibweise: „3 D 4 S 8 H".
+//
+// 💣 NIE als Dezimalzahl. Die Quelle laesst die Preise ausdruecklich „in der Muenzart, in der
+// ueblicherweise bezahlt wird" (Regelwerk S. 382) -- 4 Heller sind 4 Heller, nicht 0,04 Dukaten.
+// Und der Rundungsschritt ist der HELLER, nicht der Kreuzer: alle Preise, die wir fuehren, sind
+// ganze Heller, und ein gerundeter Kreuzer waere eine Genauigkeit, die keine Quelle hergibt.
+function formatAventurianMoney(hellerValue) {
+	const total = Math.round(Number(hellerValue) || 0);
+	if (total <= 0) {
+		return tr("planner.cost.free", "—");
+	}
+
+	const ducats = Math.floor(total / 100);
+	const silver = Math.floor((total % 100) / 10);
+	const heller = total % 10;
+	const parts = [];
+	if (ducats) parts.push(`${formatDecimalNumber(ducats, 0)} ${tr("planner.cost.unit.ducat", "D")}`);
+	if (silver) parts.push(`${silver} ${tr("planner.cost.unit.silver", "S")}`);
+	if (heller || !parts.length) parts.push(`${heller} ${tr("planner.cost.unit.heller", "H")}`);
+	return parts.join(" ");
+}
+
 function withAssetVersion(sourcePath) {
 	if (!sourcePath) {
 		return sourcePath;

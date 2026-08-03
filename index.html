@@ -2070,6 +2070,25 @@
 					</select>
 				</label>
 			</div>
+			<!-- Reisekosten: die beiden EINZIGEN Eingaben. Die Reittiere sind keine dritte -- sie folgen
+			     aus dem Landtransportmittel (TRAVEL_COST_MOUNTS_PER_TRAVELLER). Die Stufen sind die
+			     Zeilen der Preistabelle im DSA5-Regelwerk S. 382, gebuendelt; „im Freien" kostet nichts
+			     und ist ausdruecklich eine WAHL, nicht nur der Notfall ohne Herberge. -->
+			<div>
+				<label title="Wie die Gruppe übernachtet, wo eine Unterkunft erreichbar ist. Auf Pfaden, Pässen, Wüstenpfaden und querfeldein wird immer im Freien geschlafen. Die Wahl bestimmt auch, wie ein Zöllner die Reisenden veranschlagt." data-i18n-title="planner.lodging.title">
+					<span data-i18n="planner.lodgingLabel">Unterbringung:</span> <select id="travelLodging" class="planner-lodging__select">
+						<option value="frei" data-i18n="planner.lodging.frei">im Freien</option>
+						<option value="strohsack" data-i18n="planner.lodging.strohsack">Strohsack im Schlafsaal</option>
+						<option value="bett" selected data-i18n="planner.lodging.bett">Bett im Gemeinschaftszimmer</option>
+						<option value="zimmer" data-i18n="planner.lodging.zimmer">Einzelzimmer</option>
+					</select>
+				</label>
+			</div>
+			<div>
+				<label title="Zahl der Reisenden. Reittiere ergeben sich aus dem Transportmittel und werden nicht eigens eingegeben." data-i18n-title="planner.travellers.title">
+					<span data-i18n="planner.travellersLabel">Reisende:</span> <input type="number" id="travelTravellers" value="4" min="1" max="99" step="1" style="width: 56px" />
+				</label>
+			</div>
 			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 		</div>
 		<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false" data-i18n="legal.button">Hinweise</button>
@@ -2388,6 +2407,8 @@
 		<script src="js/routing/route-view-model.js"></script>
 		<script src="js/routing/route-node.js"></script>
 		<script src="js/routing/route-plan-calendar.js"></script>
+		<!-- Vor route-plan.js: der Reiseplan ruft buildTravelCostRows beim Zeichnen auf. -->
+		<script src="js/routing/route-costs.js"></script>
 		<script src="js/routing/route-plan.js"></script>
 		<script src="js/routing/route-engine.js"></script>
 		<script src="js/routing/route-render.js"></script>

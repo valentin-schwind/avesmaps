@@ -500,6 +500,19 @@ $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, 
 });
 $("#search").on("input", "#travelHoursPerDay, .waypoint-input", () => syncPlannerStateToUrl());
 
+// Unterbringung und Reisendenzahl aendern die ROUTE nicht, nur ihren Preis -- deshalb NICHT in
+// ROUTE_RECOMPUTE_CONTROL_SELECTOR, sondern hier: nur die Kostenzeilen neu setzen.
+//
+// 💣 Diese Bindung stand zuerst am Ende von route-plan.js und brach dort SECHS Tests: die
+// Test-Harness laedt die Datei ohne jQuery, und ein `$(...)` auf oberster Ebene wirft beim Laden.
+// route-plan.js enthaelt sonst nur Deklarationen -- genau darum ist sie ladbar. Verdrahtung
+// gehoert hierher.
+$("#search").on("change input", "#travelLodging, #travelTravellers", () => {
+	if (typeof renderRoutePlanTravelCosts === "function") {
+		renderRoutePlanTravelCosts();
+	}
+});
+
 // Reisestunden-Feld: gueltiger Bereich 0,5-24 Stunden/Tag (24 = durchreisen ohne Rast); leer -> Standard.
 // Anzeige immer mit einer Nachkommastelle (11 -> "11.0").
 $("#search").on("change", "#travelHoursPerDay", function () {
