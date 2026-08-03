@@ -349,9 +349,8 @@
 		if (transport) {
 			setupGroup(transport, transportSummary);
 		}
-		// Die Gruppe „Routenoptionen" baut enhanceRoutePlannerOptionPanel() erst zur Laufzeit
-		// (map-features-waypoints.js) -- diese Datei wird danach geladen, ihr DOMContentLoaded
-		// laeuft also spaeter. Fehlt sie trotzdem, bleibt der Rest unberuehrt.
+		// Beide Gruppen stehen im Markup (index.html); seit 2026-08-03 auch „Reiseoptionen", die
+		// vorher erst zur Laufzeit entstand. Fehlt eine trotzdem, bleibt der Rest unberuehrt.
 		var options = document.querySelector(".route-planner-options-panel");
 		if (options) {
 			setupGroup(options, routeOptionsSummary);

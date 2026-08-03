@@ -11,75 +11,24 @@ enhanceRoutePlannerOptionPanel();
 // `#transport-options > label:first-child`, und diesen Knoten gibt es nicht mehr -- seit die
 // Ueberschrift ein Ein-/Ausklapp-Schalter ist, traegt der Titel-<span> die Klasse direkt im
 // Markup (index.html).
+/*
+ * Verdrahtet die Optionsgruppe des Routenplaners. Sie BAUT nichts mehr: Gruppe, Kopfzeile,
+ * ⓘ-Knopf und alle Optionszeilen stehen seit 2026-08-03 fertig in index.html.
+ *
+ * ⭐ Warum der Umbau: vorher entstand der Kasten hier, und bis dieses Skript lief, standen die
+ * Optionen nackt untereinander -- ohne Rahmen, ohne Ueberschrift, ohne ⓘ. Bei ~117 Skripten ist
+ * das sichtbar (Owner 2026-08-03: „beim laden sehen die reiseoptionen kaputt aus").
+ *
+ * ⭐ Damit ist auch die alte Falle weg: eine neue Optionszeile musste frueher in einer Liste hier
+ * nachgetragen werden, sonst stand sie live UNTER dem Kasten statt darin (genau so passiert mit
+ * der Unterbringung). Wer heute eine Zeile ergaenzt, schreibt sie in den Koerper der Gruppe --
+ * mehr ist nicht zu tun.
+ */
 function enhanceRoutePlannerOptionPanel() {
 	const enhance = () => {
-		if (document.querySelector(".route-planner-options-panel")) {
-			return;
-		}
-
-		const fastestPath = document.getElementById("fastestPath");
-		const shortestPath = document.getElementById("shortestPath");
-		const minimizeTransfers = document.getElementById("minimizeTransfers");
-		const travelHoursPerDay = document.getElementById("travelHoursPerDay");
-		const travelStartMonth = document.getElementById("travelStartMonth");
-		// 💣 EINE NEUE OPTIONSZEILE IM MARKUP LANDET NICHT VON SELBST IN DER GRUPPE. Der Kasten
-		// „Reiseoptionen" entsteht erst hier, aus DIESER Liste -- wer eine Zeile in index.html
-		// ergaenzt und sie hier vergisst, sieht sie live unter dem Kasten stehen statt darin.
-		// (Genau so passiert mit der Unterbringung, live gesehen am 2026-08-03.)
-		const travelLodging = document.getElementById("travelLodging");
-		// 💣 Durch ein Set, nicht nur durch filter(Boolean): seit „Umsteigen minimieren" in der Radio-Zeile
-		// sitzt (eine Zeile gespart, Owner 2026-07-30) liefern fastestPath und minimizeTransfers DASSELBE
-		// div -- ohne die Entdopplung wanderte es zweimal in den Panel-Aufbau.
-		const uniqueOptionRows = [...new Set([
-			fastestPath?.closest("div"),
-			minimizeTransfers?.closest("div"),
-			travelHoursPerDay?.closest("div"),
-			// Nicht in der Pflichtpruefung unten: fehlt die Zeile, soll der Rest der Gruppe trotzdem
-			// entstehen -- sie ist eine Einstellung, keine Voraussetzung. Gilt auch fuer die
-			// Unterbringung darunter.
-			travelStartMonth?.closest("div"),
-			travelLodging?.closest("div"),
-		].filter(Boolean))];
-
-		if (!fastestPath || !shortestPath || !minimizeTransfers || !travelHoursPerDay || !uniqueOptionRows.length) {
-			return;
-		}
-
-		// Dieselbe Form wie #transport-options in index.html -- Kopfzeile mit dem Schalter, darunter
-		// der Koerper mit den Zeilen. map-features-planner-groups.js verdrahtet beide Gruppen gleich.
-		// Der Titel ist ein <span>, kein <h2>: der Knopf-Inhalt darf nur Phrasing Content sein. Den
-		// Namen des Bereichs traegt weiterhin aria-labelledby.
-		const panel = document.createElement("section");
-		panel.className = "route-planner-options-panel planner-group";
-		panel.setAttribute("aria-labelledby", "route-planner-options-title");
-		panel.innerHTML = '<div class="planner-group__head">'
-			+ '<button type="button" class="planner-group__toggle" aria-expanded="true" aria-controls="route-planner-options-body">'
-			+ '<span id="route-planner-options-title" class="planner-group__title route-planner-options-panel__title" data-i18n="planner.options.heading">Reiseoptionen</span>'
-			+ '<span class="planner-group__summary" aria-hidden="true"></span>'
-			+ '<span class="planner-group__caret" aria-hidden="true"></span>'
-			+ "</button>"
-			// Der ⓘ steht NEBEN dem Schalter, nicht darin -- ein Knopf im Knopf ist ungueltiges
-			// HTML und bekaeme seine Klicks nicht zuverlaessig (dieselbe Bauart wie bei
-			// #transport-options in index.html, samt derselben .tsi-info-btn-Regel).
-			+ '<button type="button" id="route-options-info-btn" class="tsi-info-btn"'
-			+ ' aria-label="Reiseoptionen erklären" data-i18n-aria-label="planner.optionsInfo.buttonAria"'
-			+ ' title="Was die Reiseoptionen bewirken" data-i18n-title="planner.optionsInfo.buttonTitle">'
-			+ '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">'
-			+ '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/>'
-			+ '<circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button>'
-			+ "</div>"
-			+ '<div class="planner-group__body" id="route-planner-options-body"></div>';
-		uniqueOptionRows[0].parentNode.insertBefore(panel, uniqueOptionRows[0]);
-		// 💣 Die Ueberlagerung ist zu diesem Zeitpunkt schon durch: i18n.js meldet seinen
-		// DOMContentLoaded-Zuhoerer frueher an als diese Datei. Ein frisch erzeugter Knoten
-		// bliebe darum unter ?lang=en deutsch -- also fuer diesen Teilbaum nachziehen.
-		if (typeof window.applyI18nOverlay === "function") {
-			window.applyI18nOverlay(panel);
-		}
-
-		// 💣 Der Dialog wird ZUR KLICKZEIT nachgeschlagen, nicht jetzt: route-options-info.js laedt
+		// 💣 Der ⓘ wird ZUR KLICKZEIT nachgeschlagen, nicht jetzt: route-options-info.js laedt
 		// spaeter als diese Datei, und eine Bindung auf die Funktion selbst waere hier `undefined`.
-		const optionsInfoButton = panel.querySelector("#route-options-info-btn");
+		const optionsInfoButton = document.getElementById("route-options-info-btn");
 		if (optionsInfoButton) {
 			optionsInfoButton.addEventListener("click", () => {
 				if (typeof window.avesmapsOpenRouteOptionsInfo === "function") {
@@ -87,12 +36,6 @@ function enhanceRoutePlannerOptionPanel() {
 				}
 			});
 		}
-
-		const body = panel.querySelector(".planner-group__body");
-		uniqueOptionRows.forEach((row) => {
-			row.classList.add("route-planner-options-panel__row");
-			body.appendChild(row);
-		});
 
 		// Ohne Monat hat der Tag keine Bedeutung -- dann steht er ausgegraut da, statt eine Wirkung
 		// vorzutaeuschen, die er nicht hat.

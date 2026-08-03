@@ -1959,7 +1959,11 @@
 			     derselben Zeile, was gerade eingestellt ist (js/map-features/map-features-planner-groups.js).
 			     Der ⓘ-Knopf steht daneben, NICHT im Schalter -- ein Knopf im Knopf ist ungueltiges HTML und
 			     bekaeme seine Klicks nicht zuverlaessig. -->
-			<div id="transport-options" class="planner-group">
+			<!-- `planner-group--open` steht schon hier, obwohl map-features-planner-groups.js sie
+			     ohnehin setzt: bis das Skript laeuft, zeigte der Pfeil sonst nach rechts (zugeklappt),
+			     waehrend der Koerper offen darunter steht. Beide Gruppen starten offen -- das Skript
+			     klappt erst zu, wenn eine Route steht. -->
+			<div id="transport-options" class="planner-group planner-group--open">
 				<div class="planner-group__head">
 					<button type="button" class="planner-group__toggle" aria-expanded="true" aria-controls="transport-options-body"><span class="planner-group__title transport-options__title" data-i18n="planner.transport.heading">Transportmittel</span><span class="planner-group__summary" aria-hidden="true"></span><span class="planner-group__caret" aria-hidden="true"></span></button>
 					<button type="button" id="transport-info-btn" class="tsi-info-btn" aria-label="Reisegeschwindigkeiten und Wegtypen anzeigen" title="Reisegeschwindigkeiten und Wegtypen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button>
@@ -2015,7 +2019,25 @@
 				</div>
 			</div>
 			<button id="toggle-button" data-i18n="planner.toggle">Routenplaner</button>
-			<div>
+			<!-- Die Gruppe steht im MARKUP, nicht im Skript. Bis 2026-08-03 baute
+			     enhanceRoutePlannerOptionPanel() sie zur Laufzeit und schob die Zeilen hinein --
+			     bis dahin standen sie nackt untereinander, ohne Rahmen, Kopfzeile und ⓘ. Auf einer
+			     Seite mit ~117 Skripten ist dieser Moment lang genug, um ihn zu sehen (Owner
+			     2026-08-03: „beim laden sehen die reiseoptionen kaputt aus"). Das Skript verdrahtet
+			     jetzt nur noch, was hier steht.
+			     ⚠️ Form und Klassen muessen zu #transport-options passen: map-features-planner-groups.js
+			     verdrahtet BEIDE Gruppen ueber dieselben Klassen (Kopf, Schalter, Zusammenfassung,
+			     Koerper). Der Titel ist ein <span>, kein <h2> -- im Knopf ist nur Phrasing Content
+			     erlaubt; den Namen des Bereichs traegt aria-labelledby. -->
+			<section class="route-planner-options-panel planner-group planner-group--open" aria-labelledby="route-planner-options-title">
+				<div class="planner-group__head">
+					<button type="button" class="planner-group__toggle" aria-expanded="true" aria-controls="route-planner-options-body"><span id="route-planner-options-title" class="planner-group__title route-planner-options-panel__title" data-i18n="planner.options.heading">Reiseoptionen</span><span class="planner-group__summary" aria-hidden="true"></span><span class="planner-group__caret" aria-hidden="true"></span></button>
+					<button type="button" id="route-options-info-btn" class="tsi-info-btn" aria-label="Reiseoptionen erklären" data-i18n-aria-label="planner.optionsInfo.buttonAria" title="Was die Reiseoptionen bewirken" data-i18n-title="planner.optionsInfo.buttonTitle"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></button>
+				</div>
+				<div class="planner-group__body" id="route-planner-options-body">
+			<!-- Was gesucht wird: die einzige Zeile, die die Route selbst aendert. Darum steht sie
+			     oben und ein Trenner haelt sie von den Rechenwerten darunter getrennt. -->
+			<div class="route-planner-options-panel__row route-planner-options-panel__row--search">
 				<label title="Ermittelt die schnellste Reiseroute" data-i18n-title="planner.route.fastest.title">
 					<input type="radio" name="pathType" value="fastest" id="fastestPath" checked />
 					<span data-i18n="planner.route.fastest">Schnellste Route</span>
@@ -2033,7 +2055,7 @@
 					<span data-i18n="planner.showRouteSpeed">Geschwindigkeit</span>
 				</label>
 			</div>
-			<div>
+			<div class="route-planner-options-panel__row route-planner-options-panel__row--field">
 				<label title="Reisestunden pro Tag; der Rest des Tages ist Rast. Gilt für alle Reisearten außer dem Schnellsegler, der rund um die Uhr fährt. 24 = ohne Rast durchreisen." data-i18n-title="planner.travelHours.title">
 					<span data-i18n="planner.travelHoursLabel">Reisestunden pro Tag:</span> <input type="number" id="travelHoursPerDay" value="12.0" min="0.5" max="24" step="0.5" style="width: 56px" />
 				</label>
@@ -2051,7 +2073,7 @@
 			     weil route-request.js weder Monat noch Tag an POST /api/route/ schickt, kennt die WEGWAHL die
 			     Jahreszeit ueberhaupt nicht -- daher der Satz zur Route. Wer beides anschliesst, erweitert diesen
 			     Text wieder. -->
-			<div>
+			<div class="route-planner-options-panel__row route-planner-options-panel__row--field">
 				<label title="Aufbruchstag und aventurischer Monat. Der Kalender läuft entlang der Route mit, und die Jahreszeit verlängert jede Etappe, deren Boden sie aufweicht oder vereist. Die Route selbst wird ohne diesen Abzug gesucht. Ohne Monat rechnet der Planer wie bisher." data-i18n-title="planner.travelStart.title">
 					<span data-i18n="planner.travelStartLabel">Reisebeginn:</span> <input type="number" id="travelStartDay" class="planner-travel-start__day" value="1" min="1" max="30" step="1" /> <select id="travelStartMonth" class="planner-travel-start__month">
 						<option value="" data-i18n="planner.travelStart.none">Unbekannt (keine Jahreszeiten)</option>
@@ -2076,7 +2098,7 @@
 			     (TRAVEL_COST_MOUNTS_PER_TRAVELLER), ist also auch keine Eingabe. Die Stufen sind die
 			     Zeilen der Preistabelle im DSA5-Regelwerk S. 382, gebuendelt; „im Freien" kostet nichts
 			     und ist ausdruecklich eine WAHL, nicht nur der Notfall ohne Herberge. -->
-			<div>
+			<div class="route-planner-options-panel__row route-planner-options-panel__row--field">
 				<label title="Wie die Gruppe übernachtet, wo eine Unterkunft erreichbar ist. Auf Pfaden, Pässen, Wüstenpfaden und querfeldein wird immer im Freien geschlafen. Die Wahl bestimmt auch, wie ein Zöllner die Reisenden veranschlagt." data-i18n-title="planner.lodging.title">
 					<span data-i18n="planner.lodgingLabel">Unterbringung:</span> <select id="travelLodging" class="planner-lodging__select">
 						<option value="frei" data-i18n="planner.lodging.frei">im Freien</option>
@@ -2086,6 +2108,8 @@
 					</select>
 				</label>
 			</div>
+				</div>
+			</section>
 			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 		</div>
 		<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false" data-i18n="legal.button">Hinweise</button>

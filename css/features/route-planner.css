@@ -578,6 +578,30 @@
 	white-space: nowrap;
 }
 
+/* --- Struktur in der Gruppe (Owner 2026-08-03: „etwas struktur in die reiseoptionen") ------
+   Zwei Sorten Zeile, getrennt durch einen Strich statt durch einen zweiten Kasten
+   (AGENTS.md §12): oben, was die ROUTE aendert, darunter, was nur ihre Zahlen aendert --
+   dieselbe Zweiteilung, die der ⓘ-Dialog mit „sucht neu" gegen „rechnet/kostet" ausschreibt.
+   Der Strich haengt an der Feldzeile, nicht an der Suchzeile: „Geschwindigkeit" steht nur im
+   Editmodus in der Suchzeile, und ein Strich UNTER ihr saesse dort mal hier, mal da.
+   ⚠️ Nicht `--field:first-of-type` -- `:first-of-type` zaehlt ELEMENTTYPEN, nicht Klassen, und
+   das erste <div> im Koerper ist die Suchzeile. Der Selektor traf nichts und der Strich fehlte
+   lautlos. Der Geschwisterselektor sagt genau, was gemeint ist: die Feldzeile NACH der Suchzeile. */
+.route-planner-options-panel__row--search + .route-planner-options-panel__row--field {
+	margin-top: 2px;
+	padding-top: 8px;
+	border-top: 1px solid var(--color-divider);
+}
+
+/* 💣 HIER STAND EIN GEMEINSAMES RASTER FUER DIE BESCHRIFTUNGEN, UND ES GEHT NICHT AUF. Gemessen
+   2026-08-03 bei 313 px Innenraum: „Reisestunden pro Tag:" misst 122 px, das Auswahlfeld der
+   Unterbringung 209 -- zusammen 331. Eine Spalte, die beiden genuegt, gibt es nicht. Mit 118 px
+   brach die Unterbringung in eine zweite Zeile um und die Gruppe wuchs von 188 auf 236 px, in
+   einem Panel, das ohnehin um jede Zeile ringt.
+   Wer es doch will, braucht ein kuerzeres Label (bei ~96 px fluchten alle drei) -- das ist eine
+   Textentscheidung, keine CSS-Frage. Der Monat bliebe davon unberuehrt: er misst 311 px und
+   nimmt die zweite Zeile in jedem Fall. */
+
 /* Das Monatsfeld teilt sich diese Regel mit dem Zahlenfeld, statt eine zweite Optik danebenzustellen.
    💣 Die Hoehe steht hier nicht aus Geschmack: beide Gruppen aufgeklappt muessen unter der Panelhoehe
    bleiben, sonst bekommt das GANZE Panel einen Scrollbalken (siehe .planner-group__toggle). Ein
