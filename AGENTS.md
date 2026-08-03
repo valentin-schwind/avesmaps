@@ -310,6 +310,11 @@ hex values across 38 CSS files).
   *soft/outline* (`--color-button-soft`); radius `--radius-md`; no pill shapes.
 - **Group by divider** (`--color-divider` line + heading), **not** by framed
   boxes; popup/infobox dividers run full-bleed (negative side-margin = padding).
+- **Eine Kontur gehört dem BEARBEITEN, nicht dem Ansehen** (Owner 2026-08-03, gilt für alle
+  Landschaften-Ebenen). Die Fläche füllt immer, ihre Kante zeichnet sie nur, wenn **eine** Ebene im
+  Editiermodus offen ist — nicht in „Alle" und nicht für den, der die Karte bloß ansieht. Getragen von
+  `ecosystem-pane--editable` an der Pane (`--eco-contour` in `css/features/ecosystem-layer.css`).
+  ⚠️ „Im Frontend fehlen die Ränder" ist damit **kein Fehler**, sondern die Regel.
 - **Links** use `--color-link` (gold-brown), never blue; **external links**
   (off-site) always get a trailing `↗`.
 - **New components:** reuse the nearest existing one as a template plus the
