@@ -1,6 +1,7 @@
 const assert = require("assert");
 const {
 	buildLandscapeLine,
+	buildClimateLine,
 	formatLandscapesForInfobox,
 	formatLandscapesForPlanner,
 	formatLandscapesForMapLinks,
@@ -225,6 +226,32 @@ console.log("OK: path-landscapes builder, writers and the per-leg independence")
 	assert(names.includes("Sichelhag"), "der Wald bleibt");
 	assert(!names.includes("Gemäßigte Zone"), "💣 die Klimazone nicht -- sie ist keine Landschaft, durch die man reist");
 	assert(line.length === 2, "genau zwei Eintraege, nicht drei");
+
+	// ...und die ANDERE Haelfte desselben Laufs: seit die Infobox eine Zeile „Klimazone" hat, wird die
+	// Zone nicht mehr weggeworfen, sondern getrennt ausgegeben. Derselbe Verschnitt, zwei Leser.
+	const klima = buildClimateLine(["p1"], payload);
+	assert(klima.length === 1, "genau die Klimazone, nichts sonst");
+	assert(klima[0].name === "Gemäßigte Zone", "und zwar mit ihrem Namen");
+	assert(Math.abs(klima[0].share - 1) < 1e-9, "der Anteil misst gegen die GANZE Weglaenge");
 })();
 
-console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen");
+// Zwei Zonen an einem Weg -- 193 der 5.765 sehen so aus. Der groessere Anteil fuehrt, und ein
+// Splitter unter der Schwelle faellt heraus wie bei jeder anderen Flaeche auch.
+(function zweiZonenAnEinemWeg() {
+	const payload = {
+		landscapes: {
+			"k1": { name: "Winterfeuchte Subtropen", kind: "klima", art: "Winterfeuchte Subtropen" },
+			"k2": { name: "Gemäßigte Zone", kind: "klima", art: "Gemäßigte Zone" },
+			"k3": { name: "Boreale Zone", kind: "klima", art: "Boreale Zone" },
+		},
+		paths: { "p2": { length: 10, in: [["k1", 6], ["k2", 4], ["k3", 0.3]] } },
+	};
+	const klima = buildClimateLine(["p2"], payload);
+	assert(klima.length === 2, "der 3-%-Splitter faellt unter die Schwelle: " + klima.length);
+	assert(klima[0].name === "Winterfeuchte Subtropen", "der groessere Anteil fuehrt");
+	assert(Math.abs(klima[0].share - 0.6) < 1e-9, "sechs Zehntel");
+	assert(Math.abs(klima[1].share - 0.4) < 1e-9, "vier Zehntel");
+	assert(buildLandscapeLine(["p2"], payload).length === 0, "und die Landschaftszeile bleibt hier leer");
+})();
+
+console.log("OK: Klimazonen bleiben aus der Landschaftszeile draussen -- und kommen als eigene Zeile heraus");

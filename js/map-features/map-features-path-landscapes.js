@@ -54,7 +54,10 @@ function avesmapsLandscapeDisplayName(entry) {
 
 // The one calculation. `pathIds` is a list of way public ids -- one for a leg or a way infobox,
 // forty-five for a route. `payload` is exactly what api/app/path-landscapes.php answers.
-function buildLandscapeLine(pathIds, payload) {
+//
+// `wantClimate` picks WHICH HALF comes back -- see the note at the kind check below. Callers use the
+// two wrappers underneath and never this one directly.
+function avesmapsPathLandscapeCollect(pathIds, payload, wantClimate) {
 	var paths = (payload && payload.paths) || null;
 	var landscapes = (payload && payload.landscapes) || null;
 	if (!paths || !landscapes || !pathIds || !pathIds.length) {
@@ -80,7 +83,12 @@ function buildLandscapeLine(pathIds, payload) {
 			// genau eine von ihnen -- und „fuehrt durch Darpatien, Sichelhag, Gemaessigte Zone" nennt
 			// dann eine Rechengroesse neben zwei Orten. Die Zuordnung BLEIBT gespeichert und traegt
 			// den Bodenabzug des Reisebeginns; sie gehoert nur nicht in diese Aufzaehlung.
-			if (String(region.kind || "") === "klima") {
+			//
+			// Seit die Infobox eine eigene Zeile „Klimazone" hat, gibt es ZWEI Leser desselben Laufs:
+			// „Fuehrt durch" will alles AUSSER klima, die Klimazeile will genau klima. Deshalb ist aus
+			// dem Ueberspringen ein Schalter geworden -- eine Rechnung, zwei Haelften. Die Anteile
+			// beziehen sich in beiden auf die GANZE Weglaenge, denn totalLength zaehlt davor.
+			if ((String(region.kind || "") === "klima") !== Boolean(wantClimate)) {
 				return;
 			}
 			var name = avesmapsLandscapeDisplayName(region);
@@ -124,6 +132,17 @@ function buildLandscapeLine(pathIds, payload) {
 	}).sort(function (left, right) {
 		return right.share - left.share || left.name.localeCompare(right.name, "de");
 	});
+}
+
+// „Fuehrt durch": alles ausser den Klimazonen.
+function buildLandscapeLine(pathIds, payload) {
+	return avesmapsPathLandscapeCollect(pathIds, payload, false);
+}
+
+// Die Zeile „Klimazone" am Weg: genau die Klimazonen, groesster Anteil zuerst. Ein Weg quert meist
+// genau eine; 193 der 5.765 tragen mehr als eine, und die bekommen ihre Anteile.
+function buildClimateLine(pathIds, payload) {
+	return avesmapsPathLandscapeCollect(pathIds, payload, true);
 }
 
 // Only a Wiki-Aventurica address ever becomes an href. Same rule and same reason as
@@ -237,6 +256,10 @@ function avesmapsPathLandscapesPayload() {
 
 function avesmapsPathLandscapesLineFor(pathIds) {
 	return buildLandscapeLine(pathIds, avesmapsPathLandscapesStore);
+}
+
+function avesmapsPathLandscapesClimateLineFor(pathIds) {
+	return buildClimateLine(pathIds, avesmapsPathLandscapesStore);
 }
 
 function avesmapsPathLandscapesReset() {
@@ -378,10 +401,17 @@ function avesmapsPathLandscapesFillPending() {
 			}
 			avesmapsPathLandscapesEnsure([pathId]).then(function () {
 				var line = avesmapsPathLandscapesLineFor([pathId]);
-				if (!line.length) {
-					return;   // nothing to say -- the row stays absent, no „keine Angabe"
+				// Die Klimazone kommt aus DEMSELBEN Abruf und bekommt ihre eigene Zeile darunter --
+				// gerendert vom gemeinsamen Zeilenbauer, damit sie an Weg, Ort und Region gleich
+				// aussieht (map-features-climate-row.js).
+				var climate = avesmapsPathLandscapesClimateLineFor([pathId]);
+				var climateMarkup = (climate.length && typeof avesmapsClimateRowForLandscapeEntries === "function")
+					? avesmapsClimateRowForLandscapeEntries(climate)
+					: "";
+				if (!line.length && climateMarkup === "") {
+					return;   // nothing to say -- the rows stay absent, no „keine Angabe"
 				}
-				container.innerHTML = avesmapsPathLandscapesRowMarkup(line);
+				container.innerHTML = (line.length ? avesmapsPathLandscapesRowMarkup(line) : "") + climateMarkup;
 			});
 		})(element);
 	}
@@ -412,6 +442,7 @@ if (typeof module !== "undefined" && module.exports) {
 		AVESMAPS_LANDSCAPE_MIN_SHARE,
 		AVESMAPS_LANDSCAPE_FULL_SHARE,
 		buildLandscapeLine,
+		buildClimateLine,
 		formatLandscapesForInfobox,
 		formatLandscapesForPlanner,
 		formatLandscapesForMapLinks,
