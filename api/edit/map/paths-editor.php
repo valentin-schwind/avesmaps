@@ -122,6 +122,11 @@ function avesmapsPathEditorList(PDO $pdo): array
             'allowed_transports' => is_array($properties['allowed_transports'] ?? null)
                 ? array_values($properties['allowed_transports'])
                 : [],
+            // Wann darf, was darf: je Reisemittel ein optionales Fenster. Fehlt es, gilt ganzjaehrig
+            // -- deshalb ist ein leeres Objekt hier der Normalfall und keine fehlende Angabe.
+            'transport_seasons' => is_array($properties['transport_seasons'] ?? null)
+                ? $properties['transport_seasons']
+                : new stdClass(),
             // The wiki way OWNS the name when it is set (R1) -- the client needs to know, because
             // that is what locks the name field and hides „Weg anzeigen".
             'wiki_path' => $wikiPath === null ? null : [

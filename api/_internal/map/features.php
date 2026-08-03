@@ -13,6 +13,8 @@ require_once __DIR__ . '/../wiki/path-naming.php';
 // Ortsarten-Katalog (properties.place_kind). Bewusst die kleine Konstantendatei, NICHT
 // wiki/settlements.php -- die ist gross, zieht place-scope + coat-display nach und macht DDL.
 require_once __DIR__ . '/../wiki/place-kinds.php';
+// Die Zeitfenster je Reisemittel: rein rechnende Datei, ohne Bootstrap und ohne DB.
+require_once __DIR__ . '/../routing/transport-season.php';
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
@@ -2054,6 +2056,104 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
     }
 }
 
+/**
+ * Traegt die Zeitfenster eines Weges auf ALLE Segmente seines Wiki-Weges.
+ *
+ * 💣 EIN PASS IST BEI UNS EINE KETTE, KEINE STRECKE. Gemessen am Bestand (2026-08-03): Schattenpass
+ * 12 Segmente, Kabashpforte 11, Raschtulsweg 9, Roterzpass 4 -- und die Segmente eines Passes tragen
+ * verschiedene Wegarten (Zufahrt als Strasse, das Passstueck als Gebirgspass). Wer das Fenster nur
+ * an das eine Segment schreibt, das er gerade offen hat, laesst elf Loecher, durch die der Router
+ * faehrt. Der Wiki-Weg ist dabei der belastbare Schluessel: alle Passsegmente tragen einen, aber
+ * 113 der 187 haben nur einen Auto-Namen (`Gebirgspass-42`).
+ *
+ * ⭐ Das Fenster wird je Segment gegen dessen EIGENE `allowed_transports` gefiltert. Ein
+ * Strassenstueck laesst die Kutsche zu, das Passstueck daneben nicht -- ein stumpf kopiertes
+ * Kutschenfenster waere dort tote Angabe, die an dem Tag aufwacht, an dem jemand den Haken setzt.
+ *
+ * @return int Zahl der zusaetzlich geschriebenen Segmente
+ */
+function avesmapsApplyTransportSeasonsToWikiSiblings(
+    PDO $pdo,
+    array $ownProperties,
+    array $seasons,
+    int $ownFeatureId,
+    int $revision,
+    int $userId
+): int {
+    $wikiKey = '';
+    if (is_array($ownProperties['wiki_path'] ?? null)) {
+        $wikiKey = trim((string) ($ownProperties['wiki_path']['wiki_key'] ?? ''));
+    }
+    if ($wikiKey === '') {
+        return 0;
+    }
+
+    $statement = $pdo->prepare(
+        "SELECT id, public_id, name, feature_subtype, properties_json
+           FROM map_features
+          WHERE feature_type = 'path' AND is_active = 1 AND id <> :own
+            AND JSON_UNQUOTE(JSON_EXTRACT(properties_json, '$.wiki_path.wiki_key')) = :key"
+    );
+    $statement->execute(['own' => $ownFeatureId, 'key' => $wikiKey]);
+    $siblings = $statement->fetchAll(PDO::FETCH_ASSOC);
+    if ($siblings === []) {
+        return 0;
+    }
+
+    $update = $pdo->prepare(
+        'UPDATE map_features SET properties_json = :properties_json, revision = :revision,
+                updated_by = :updated_by
+          WHERE id = :id'
+    );
+
+    $written = 0;
+    foreach ($siblings as $sibling) {
+        $properties = avesmapsDecodeJsonColumnForEdit($sibling['properties_json'] ?? null);
+        $subtype = (string) $sibling['feature_subtype'];
+        $allowed = is_array($properties['allowed_transports'] ?? null)
+            ? array_values($properties['allowed_transports'])
+            : avesmapsReadAllowedTransports(null, avesmapsDefaultTransportDomainForPathSubtype($subtype), $subtype);
+        $forSibling = avesmapsReadTransportSeasons($seasons, $allowed);
+
+        $before = $properties['transport_seasons'] ?? null;
+        if ($forSibling === []) {
+            unset($properties['transport_seasons']);
+        } else {
+            $properties['transport_seasons'] = $forSibling;
+        }
+        // Nichts anfassen, was sich nicht aendert -- sonst hebt ein Speichern ohne Aenderung die
+        // Revision jedes Segments und schickt jedem warmen Client die halbe Karte neu.
+        if (($before ?? []) == ($forSibling ?: [])) {
+            continue;
+        }
+
+        $update->execute([
+            'id' => (int) $sibling['id'],
+            'properties_json' => avesmapsEncodeJson($properties),
+            'revision' => $revision,
+            'updated_by' => $userId,
+        ]);
+        // 💣 Je Segment ein eigener Eintrag, nicht einer fuer den ganzen Pass: das Rueckgaengig
+        // arbeitet auf Feature-Ebene, und ein Sammelvermerk liesse elf der zwoelf Aenderungen
+        // ausserhalb der Historie stehen.
+        avesmapsWriteMapAuditLog($pdo, (int) $sibling['id'], 'update_path_details', $userId,
+            avesmapsEncodeAuditJson($sibling),
+            avesmapsEncodeAuditJson([
+                'public_id' => (string) $sibling['public_id'],
+                'feature_type' => 'path',
+                'name' => (string) $sibling['name'],
+                'feature_subtype' => $subtype,
+                'transport_seasons' => $forSibling,
+                'properties_json' => $properties,
+                'revision' => $revision,
+                'via_wiki_key' => $wikiKey,
+            ]));
+        $written++;
+    }
+
+    return $written;
+}
+
 function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
@@ -2077,6 +2177,14 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $properties['show_label'] = $showLabel;
         $properties['transport_domain'] = $transportDomain;
         $properties['allowed_transports'] = $allowedTransports;
+        // Wann darf, was darf. Ein leeres Ergebnis heisst „ganzjaehrig" und wird deshalb ENTFERNT
+        // statt als leeres Objekt gespeichert -- „das ganze Jahr" ist die Abwesenheit eines Fensters.
+        $transportSeasons = avesmapsReadTransportSeasons($payload['transport_seasons'] ?? null, $allowedTransports);
+        if ($transportSeasons === []) {
+            unset($properties['transport_seasons']);
+        } else {
+            $properties['transport_seasons'] = $transportSeasons;
+        }
         $otherSource = avesmapsReadOptionalOtherSource($payload['other_source'] ?? null);
         if ($otherSource === null) {
             unset($properties['other_source']);
@@ -2114,9 +2222,14 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
             'show_label' => $showLabel,
             'transport_domain' => $transportDomain,
             'allowed_transports' => $allowedTransports,
+            'transport_seasons' => $transportSeasons,
             'properties_json' => $properties,
             'revision' => $revision,
         ]));
+        // Die Zeitfenster gehoeren dem WIKI-WEG, nicht dem Segment (siehe Funktionskopf oben).
+        avesmapsApplyTransportSeasonsToWikiSiblings(
+            $pdo, $properties, $transportSeasons, (int) $feature['id'], $revision, (int) $user['id']
+        );
         $pdo->commit();
 
         return avesmapsBuildLineStringFeatureResponse($publicId, $name, $subtype, $geometry, $properties, $revision);

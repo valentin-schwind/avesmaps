@@ -65,6 +65,24 @@ function enhanceRoutePlannerOptionPanel() {
 			row.classList.add("route-planner-options-panel__row");
 			body.appendChild(row);
 		});
+
+		// Ohne Monat hat der Tag keine Bedeutung -- dann steht er ausgegraut da, statt eine Wirkung
+		// vorzutaeuschen, die er nicht hat.
+		// 💣 `disabled` ist hier unbedenklich, obwohl ein deaktiviertes Feld in einem FORMULAR nichts
+		// senden wuerde: der Teilen-Link liest den Wert per .val(), nicht ueber FormData -- und ohne
+		// Monat schreibt er ihn ohnehin nicht mit.
+		const startDay = document.getElementById("travelStartDay");
+		const startMonth = document.getElementById("travelStartMonth");
+		if (startDay && startMonth) {
+			const syncStartDayState = () => {
+				startDay.disabled = !startMonth.value;
+			};
+			startMonth.addEventListener("change", syncStartDayState);
+			// Ein geteilter Link setzt den Monat per .val(), also ohne `change`. Dasselbe Signal, das
+			// schon die eingeklappte Kopfzeile nachzieht (map-features-layer-state.js).
+			document.addEventListener("avesmaps:planner-state-applied", syncStartDayState);
+			syncStartDayState();
+		}
 	};
 
 	if (document.readyState === "loading") {

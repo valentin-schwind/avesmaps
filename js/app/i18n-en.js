@@ -26,7 +26,7 @@ window.AVESMAPS_I18N_EN = {
 	// (AGENTS §2) -- uebersetzt wird nur die Jahreszeit in der Klammer.
 	"planner.travelStartLabel": "Departure:",
 	"planner.travelStart.title": "Day of departure and Aventurian month. The season affects travel time and seasonally closed ways; the calendar runs along with the route. Without a month the planner calculates as before.",
-	"planner.travelStart.none": "No season — no effect",
+	"planner.travelStart.none": "Unknown (no seasons)",
 	"planner.travelStart.month.praios": "Praios (summer)",
 	"planner.travelStart.month.rondra": "Rondra (summer)",
 	"planner.travelStart.month.efferd": "Efferd (summer)",

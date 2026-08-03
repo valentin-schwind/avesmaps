@@ -121,6 +121,49 @@ function avesmapsTransportOpenOn(array $allowedTransports, array $windows, strin
 }
 
 /**
+ * The WRITE side: what an editor submitted, reduced to what may be stored.
+ *
+ * Two rules, both deliberate:
+ *   - a window is only kept for a transport the way actually admits. A window on an unticked mode is
+ *     dead data that would come back to life the day someone ticks it,
+ *   - a window that covers the whole year is dropped rather than stored. "All year" is the absence
+ *     of a window, and storing it twice would give two answers to one question.
+ *
+ * @param list<string> $allowedTransports
+ * @return array<string, array{from_month: string, from_day: int, to_month: string, to_day: int}>
+ */
+function avesmapsReadTransportSeasons(mixed $value, array $allowedTransports): array
+{
+    if (!is_array($value)) {
+        return [];
+    }
+    $stored = [];
+    foreach ($value as $transport => $window) {
+        $key = trim((string) $transport);
+        if ($key === '' || !in_array($key, $allowedTransports, true)) {
+            continue;
+        }
+        $normalized = avesmapsSeasonWindowNormalize($window);
+        if ($normalized === null) {
+            continue;
+        }
+        $spansWholeYear = $normalized['from_day_of_year'] === 1
+            && $normalized['to_day_of_year'] === AVESMAPS_TRAVEL_CALENDAR_DAYS_PER_YEAR;
+        if ($spansWholeYear) {
+            continue;
+        }
+        $stored[$key] = [
+            'from_month' => $normalized['from_month'],
+            'from_day' => $normalized['from_day'],
+            'to_month' => $normalized['to_month'],
+            'to_day' => $normalized['to_day'],
+        ];
+    }
+
+    return $stored;
+}
+
+/**
  * For the plan's explanation: the window that closed this way, or null if nothing did. A caller can
  * then say WHICH pass turned it around instead of silently routing elsewhere -- without that line
  * nobody notices the season acted at all.

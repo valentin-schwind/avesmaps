@@ -145,6 +145,7 @@ function buildPathEditPayload(formElement) {
 		: (isAutoNameEnabled
 			? String(formData.get("name") || "").trim()
 			: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }));
+	const allowedTransports = Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value);
 	return {
 		action: "update_path_details",
 		public_id: String(formData.get("public_id") || "").trim(),
@@ -152,7 +153,10 @@ function buildPathEditPayload(formElement) {
 		feature_subtype: featureSubtype,
 		show_label: formData.get("show_label") === "on",
 		transport_domain: getDefaultTransportDomainForPathSubtype(featureSubtype),
-		allowed_transports: Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value),
+		allowed_transports: allowedTransports,
+		// Wann darf, was darf. Leer heisst ganzjaehrig; der Server entfernt das Feld dann ganz und
+		// traegt das Ergebnis auf alle Segmente desselben Wiki-Weges.
+		transport_seasons: typeof readPathSeasonsFromForm === "function" ? readPathSeasonsFromForm(allowedTransports) : {},
 		other_source: typeof readOtherSourceFromForm === "function" ? readOtherSourceFromForm("path-edit") : { url: "", label: "" },
 	};
 }
@@ -191,6 +195,10 @@ function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) 
 		input.disabled = !isCompatible;
 		input.checked = isCompatible && selectedOptions.includes(input.value);
 	});
+	// Die saisonale Gangbarkeit haengt an denselben Haken -- sie sagt nur, WANN sie gelten.
+	if (typeof renderPathSeasonSection === "function") {
+		renderPathSeasonSection(path || pathEditFeature, subtype);
+	}
 }
 
 function syncPathAutoNameControls({ forceName = false } = {}) {
