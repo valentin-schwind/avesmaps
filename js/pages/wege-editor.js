@@ -97,6 +97,31 @@
 
 	function isWater(subtype) { return WATER_SUBTYPES.indexOf(subtype) !== -1; }
 
+	// ⭐ KEINE zweite Monatsliste. Die Schluessel sind per Konstruktion die ASCII-Form der Namen
+	// (`praios` -> „Praios"), also genuegt ein Grossbuchstabe -- und die Reihenfolge kommt aus
+	// travel-calendar.js, der einen Wahrheit ueber das aventurische Jahr.
+	var SEASON_MONTHS = typeof TRAVEL_CALENDAR_MONTHS !== "undefined" ? TRAVEL_CALENDAR_MONTHS : [];
+
+	function monthSelectMarkup(id, selected, includeAllYear) {
+		var html = '<select id="' + id + '" class="wp-season">';
+		if (includeAllYear) {
+			html += '<option value=""' + (selected ? "" : " selected") + ">ganzjährig</option>";
+		}
+		SEASON_MONTHS.forEach(function (key) {
+			html += '<option value="' + key + '"' + (key === selected ? " selected" : "") + ">"
+				+ escapeHtml(key.charAt(0).toUpperCase() + key.slice(1)) + "</option>";
+		});
+		return html + "</select>";
+	}
+
+	// Die Fenster stehen je Reisemittel, sind aber fuer alle gleich gesetzt -- eines genuegt.
+	function seasonWindowOf(way) {
+		var seasons = way && way.transport_seasons;
+		if (!seasons || typeof seasons !== "object") { return null; }
+		var first = Object.keys(seasons)[0];
+		return first ? seasons[first] : null;
+	}
+
 	function getJson(url) {
 		return fetch(url, { credentials: "same-origin" }).then(function (response) {
 			return response.json();
@@ -311,6 +336,25 @@
 				+ "> <span>" + escapeHtml(transport.label) + "</span></div>";
 		});
 
+		// Saisonale Gangbarkeit -- dieselbe Frage wie die Haken darueber, nur in der Zeit.
+		// 💣 Sichtbar an der WIKI-ART „Pass", nicht am Wegtyp „Gebirgspass": Raschtulsweg (Strasse +
+		// Weg) und Arvepass (Strasse) haben kein einziges Gebirgspass-Segment, obwohl die Geographia
+		// beide namentlich mit einem Fenster nennt. Wasserwege kommen ueber ihren Subtyp dazu.
+		var wikiArt = way.wiki_path ? String(way.wiki_path.art || "").trim().toLowerCase() : "";
+		if (wikiArt === "pass" || isWater(way.feature_subtype)) {
+			var window = seasonWindowOf(way);
+			html += '<div class="dt-grp">Gangbar (saisonal)</div>';
+			html += '<div class="dt-season"><span>von</span>' + monthSelectMarkup("wpSeasonFromMonth", window ? window.from_month : "", true)
+				+ '<input type="number" id="wpSeasonFromDay" class="wp-season" min="1" max="30" step="1" value="'
+				+ (window ? window.from_day : 1) + '"></div>';
+			html += '<div class="dt-season"><span>bis</span>' + monthSelectMarkup("wpSeasonToMonth", window ? window.to_month : "praios", false)
+				+ '<input type="number" id="wpSeasonToDay" class="wp-season" min="1" max="30" step="1" value="'
+				+ (window ? window.to_day : 30) + '"></div>';
+			html += '<div class="avm-empty">Ohne Monat ist der Weg ganzjährig gangbar. Das Fenster gilt für '
+				+ 'jedes angehakte Mittel und wird beim Speichern auf <b>alle Segmente desselben '
+				+ 'Wiki-Weges</b> übertragen.</div>';
+		}
+
 		// Zugehörigkeit: NUR ANZEIGE (Owner 2026-08-02).
 		html += '<div class="dt-grp">Zugehörigkeit — führt durch</div>';
 		var landscapes = (state.detail && state.detail.landscapes) || [];
@@ -400,8 +444,30 @@
 				var list = state.draft.allowed_transports.filter(function (key) { return key !== input.value; });
 				if (input.checked) { list.push(input.value); }
 				state.draft.allowed_transports = list;
+				readSeasonWindow();
 				markDirty();
 			});
+		});
+
+		// Das eine Fenster, auf jedes angehakte Mittel geschrieben. Ohne Monat bleibt es leer, und der
+		// Server entfernt das Feld dann ganz -- „ganzjaehrig" ist die Abwesenheit eines Fensters.
+		function readSeasonWindow() {
+			var fromMonth = $("wpSeasonFromMonth");
+			if (!fromMonth) { return; }
+			var seasons = {};
+			if (fromMonth.value) {
+				var window = {
+					from_month: fromMonth.value,
+					from_day: Number($("wpSeasonFromDay").value) || 1,
+					to_month: $("wpSeasonToMonth").value || "praios",
+					to_day: Number($("wpSeasonToDay").value) || 30
+				};
+				(state.draft.allowed_transports || []).forEach(function (key) { seasons[key] = window; });
+			}
+			state.draft.transport_seasons = seasons;
+		}
+		Array.prototype.forEach.call(document.querySelectorAll(".wp-season"), function (input) {
+			input.addEventListener("change", function () { readSeasonWindow(); markDirty(); });
 		});
 		var url = $("wpSourceUrl");
 		var label = $("wpSourceLabel");
@@ -435,6 +501,7 @@
 			feature_subtype: state.draft.feature_subtype,
 			show_label: state.draft.show_label === true,
 			allowed_transports: state.draft.allowed_transports,
+			transport_seasons: state.draft.transport_seasons || {},
 			other_source: state.draft.other_source
 		}).then(function (response) {
 			if (!response || response.ok !== true) {
@@ -608,6 +675,7 @@
 			show_label: source.show_label,
 			autoname: false,
 			allowed_transports: (source.allowed_transports || []).slice(),
+			transport_seasons: source.transport_seasons && typeof source.transport_seasons === "object" ? source.transport_seasons : {},
 			wiki_path: source.wiki_path,
 			other_source: source.other_source ? { url: source.other_source.url, label: source.other_source.label } : null,
 			flow_direction: source.flow_direction,

@@ -661,3 +661,28 @@ body.avm-editor-body {
 }
 
 .pl-hint b { color: var(--color-accent-strong); font-weight: var(--font-weight-bold); }
+
+/* Saisonale Gangbarkeit im Wege-Editor: „von [Monat] [Tag] / bis [Monat] [Tag]". Eine Flex-Zeile
+   mit fester Beschriftungsspalte, damit „von" und „bis" untereinander auf einer Kante stehen. Der
+   Monatswaehler nimmt sich den Rest -- „ganzjährig" und „Ingerimm" sind verschieden lang. */
+.dt-season {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 5px;
+}
+
+.dt-season > span:first-child {
+	flex: 0 0 30px;
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+.dt-season select {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.dt-season input[type="number"] {
+	flex: 0 0 56px;
+}

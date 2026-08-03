@@ -133,6 +133,9 @@ function avesmapsPathEditorList(PDO $pdo): array
                 'wiki_key' => (string) ($wikiPath['wiki_key'] ?? ''),
                 'wiki_url' => (string) ($wikiPath['wiki_url'] ?? ''),
                 'name' => (string) ($wikiPath['name'] ?? ''),
+                // „Pass" entscheidet, ob der Editor die saisonale Gangbarkeit anbietet -- der Wegtyp
+                // taugt dafuer nicht (Raschtulsweg ist Strasse + Weg, Arvepass Strasse).
+                'art' => (string) ($wikiPath['art'] ?? ''),
             ],
             'other_source' => $otherSource === null ? null : [
                 'url' => (string) ($otherSource['url'] ?? ''),
