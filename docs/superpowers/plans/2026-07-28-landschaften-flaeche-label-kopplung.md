@@ -102,6 +102,11 @@ Test `api/_internal/app/__tests__/ecosystem-cascade-test.php`
 **Dateien:** `js/map-features/map-features-ecosystem-rendering.js`,
 Test `js/map-features/__tests__/ecosystem-tooltip.test.js`
 
+> 🔴 **Zurückgenommen am 2026-08-03** (Owner): „Eisenwald (Gebirge)" reicht. Die Ebene und die
+> Zählung sind aus dem Zettel raus, die Form ist jetzt `Name (Art)` — ohne Art tritt die Ebene
+> an ihre Stelle, ohne beides bleibt nur der Name. Der Rest dieses Abschnitts beschreibt den
+> Stand vom 2026-07-28.
+
 **Produziert:** `formatEcosystemAreaTooltip(area)` →
 `Mein Wald 1 (Wald, Vegetation) · Flächen (3) und Labels (2)`
 Artbezeichnung aus `region_type_label`, Rückfall auf `region_type`; ohne Art entfällt der

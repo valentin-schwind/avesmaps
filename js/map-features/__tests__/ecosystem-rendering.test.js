@@ -34,40 +34,44 @@ assert.strictEqual(ecosystemDialogTitle("unbekannt", "label"), "Label bearbeiten
 assert.strictEqual(ecosystemDialogTitle("vegetation", undefined), "Vegetations-Fläche bearbeiten");
 
 // ---------------------------------------------------------------------------- TOOLTIP ---
+// 🔴 NAME UND ART, sonst nichts (Owner 2026-08-03: „Eisenwald (Gebirge)" reicht). Die Ebene und die
+// Zählung „· Flächen (3) und Labels (2)" sind aus dem Zettel raus -- wer zeichnet, weiss in welcher
+// Ebene er arbeitet, und wie viele Teile eine Region hat, sagt ihr Dialog.
 // 🔴 Die Art mit ihrer BEZEICHNUNG, nicht mit ihrem Schlüssel. `region_type` ist `wald` -- ein
 // Verbindungsschlüssel, kleingeschrieben, weil Schlüssel so aussehen; im Zettel las sich das wie ein
 // Tippfehler (Owner-Screenshot 2026-07-28: „Mein Wald 1 (wald, Vegetation)").
 assert.strictEqual(
 	formatEcosystemAreaTooltip({
-		region_name: "Mein Wald 1", kind: "vegetation",
-		region_type: "wald", region_type_label: "Wald",
+		region_name: "Eisenwald", kind: "topographie",
+		region_type: "gebirge", region_type_label: "Gebirge",
 		region_area_count: 3, region_label_count: 2,
 	}),
-	"Mein Wald 1 (Wald, Vegetation) · Flächen (3) und Labels (2)"
+	"Eisenwald (Gebirge)"
 );
 
 // Fehlt die Bezeichnung (alter Zwischenspeicher, frisch gesäte Art), bleibt der Schlüssel stehen --
 // ein Schlüssel ist schlechter als die Bezeichnung, aber besser als eine Lücke.
 assert.strictEqual(
 	formatEcosystemAreaTooltip({ region_name: "Mein Wald 1", kind: "vegetation", region_type: "wald" }),
-	"Mein Wald 1 (wald, Vegetation) · Flächen (0) und Labels (0)"
+	"Mein Wald 1 (wald)"
 );
 
-// Ohne Art entfällt der Artteil ganz, statt ein einsames Komma zu hinterlassen. „Keine Art" ist ein
-// gültiger Zustand -- der Flächendialog bietet ihn als „— keine Vegetation —" an.
+// ⚠️ Ohne Art tritt die EBENE an ihre Stelle. „Keine Art" ist ein gültiger Zustand -- der
+// Flächendialog bietet ihn als „— keine Vegetation —" an -- und „Namenlos ()" wäre schlechter als
+// gar keine Klammer.
 assert.strictEqual(
 	formatEcosystemAreaTooltip({ region_name: "Namenlos", kind: "topographie", region_type: "", region_area_count: 1, region_label_count: 1 }),
-	"Namenlos (Topographie) · Flächen (1) und Labels (1)"
+	"Namenlos (Topographie)"
 );
 
 // Eine Fläche ohne Namen ist ein gültiger Zustand und braucht trotzdem einen Zettel.
 assert.strictEqual(
 	formatEcosystemAreaTooltip({ kind: "derographisch", region_area_count: 2, region_label_count: 0 }),
-	"Ohne Namen (Derographische Region) · Flächen (2) und Labels (0)"
+	"Ohne Namen (Derographische Region)"
 );
 
-// 0 ist eine Aussage, kein Fehler: eine Region ohne Label gibt es wirklich (Wald-001, Wald-002).
-assert.ok(formatEcosystemAreaTooltip({ region_name: "Wald-001", kind: "vegetation" }).endsWith("Labels (0)"));
+// Weder Art noch Ebene: nur der Name, ohne leere Klammer.
+assert.strictEqual(formatEcosystemAreaTooltip({ region_name: "Wald-001" }), "Wald-001");
 
 // -------------------------------------------------------------------- STAPELREIHENFOLGE ---
 // Ein Quadrat der Kantenlänge n hat den Flächeninhalt n².

@@ -191,12 +191,16 @@ function applyEcosystemSelectionClass(layer) {
 // `is_trial` bleibt vorerst in der Datenbank; sie wird hier nur nicht mehr angezeigt.
 function formatEcosystemAreaTooltip(area) {
 	const regionName = String(area?.region_name || "").trim() || "Ohne Namen";
-	const kindLabel = ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "");
-	const typeLabel = String(area?.region_type_label || area?.region_type || "").trim();
-	const areaCount = Number(area?.region_area_count) || 0;
-	const labelCount = Number(area?.region_label_count) || 0;
+	// Die ART, und sonst die Ebene. Owner 2026-08-03: „Eisenwald (Gebirge)" reicht -- die Ebene und
+	// die Zählung „· Flächen (3) und Labels (2)" sind aus dem Zettel raus. Wer zeichnet, weiss in
+	// welcher Ebene er arbeitet, und wie viele Teile eine Region hat, sagt ihr Dialog.
+	// ⚠️ Die Ebene bleibt der Rückfall: eine Fläche ohne Art ist ein gültiger Zustand (der Dialog
+	// bietet ihn als „— keine Vegetation —" an), und „Namenlos ()" wäre schlechter als gar keine
+	// Klammer.
+	const typeLabel = String(area?.region_type_label || area?.region_type || "").trim()
+		|| ECOSYSTEM_KIND_LABELS[area?.kind] || String(area?.kind || "").trim();
 
-	return `${regionName} (${typeLabel ? `${typeLabel}, ` : ""}${kindLabel}) · Flächen (${areaCount}) und Labels (${labelCount})`;
+	return typeLabel ? `${regionName} (${typeLabel})` : regionName;
 }
 
 // ---- Stapelreihenfolge (Owner 2026-07-28, Punkt 9) --------------------------------------------------
