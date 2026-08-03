@@ -49,7 +49,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.options.summary.travelStart": "from {month} {day}",
 	// Die Ueberschrift entsteht erst zur Laufzeit (enhanceRoutePlannerOptionPanel) und blieb
 	// deshalb bisher deutsch; sie beschriftet jetzt die eingeklappte Zeile.
-	"planner.options.heading": "Route options",
+	"planner.options.heading": "Travel options",
 	"planner.overview.default": "Waypoints and travel time are shown here.",
 
 	// --- planner: transport section (data-i18n; the custom combobox mirrors the
