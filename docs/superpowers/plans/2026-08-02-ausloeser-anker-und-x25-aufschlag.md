@@ -2,6 +2,36 @@
 
 **Auftrag Owner 2026-08-02.** Drei Stücke, **in dieser Reihenfolge**, ein Rechner.
 
+> ## ✅ ABGEARBEITET — 2026-08-02, alle drei Stücke live und am Livebestand nachgewiesen
+>
+> | § | Commit | Nachweis am Livebestand |
+> |---|---|---|
+> | §1 Aufschlag | `6eda0e6f` | Gulbladdirstadir → Rekheim meldet **19,39 statt 484,65**; `route.cost` mit 405,0932 unverändert; Gareth → Kuslik bit-gleich (44 Etappen, gleiche Kanten-Kennung). An 53 Etappen zweier Routen weicht die gemeldete Strecke um höchstens **2,4e-14** von der Geometrie ab. |
+> | §2 Auslöser | `08dcb25a`, `a759878d` | Verhältnisse **18,01 / 6,83 / 3,84 / 1,13** gegen die 18,0 / 6,8 / 3,8 / 1,2 der Spec. Rekheim und Fiering → Taining von 9 Etappen auf **eine**; Flammersbach und Gareth unberührt. |
+> | §3 Anker | `d241d97b` | `synthetic-Flammersbach->__wp_anchor_0` von **2 auf 5 Punkte**, Sehne 5,938 → gebogen 6,167; Etappenzahl unverändert, kein Ort verliert seine Anbindung. |
+> | Nachtrag | `817d58a8`, `87516901` | Untere Schranke `Luftlinie / Tempo`: kann der Querweg rechnerisch nicht gewinnen, läuft der A\* gar nicht erst (`reason: 'cannot_win'`). Ändert **kein** Routenergebnis. |
+>
+> **Die Reihenfolge war tragend, und zweimal aus einem Grund, der im Text nicht stand:**
+> Der ×25 saß nicht nur in `distance`, sondern über `time = distance/Tempo` **auch in der
+> Zeit** — Rekheim meldete 405,09 statt der echten 32,88. §2 hätte sich darauf gestützt und
+> einer *langsameren* Querung den Vorzug gegeben, sobald eine Route auch nur EINE kurze
+> Notbrücke enthält (`a759878d`).
+>
+> **Die Kostenfrage aus §3 ist beantwortet, nicht geschätzt:** **876** synthetische Kanten je
+> Graph, aber **0–1 je Route** (fünf Referenzrouten). Deshalb läuft der A\* über die Sehnen der
+> *gefundenen* Route, nie beim Graphbau.
+>
+> ⚠️ **Rovik → Skarsten ändert sich nicht** und das ist kein Rest: die Schwelle löst aus
+> (3,84×), aber die Route ist reiner Fluss und See mit Tempo 5–10; querfeldein bräuchte 9,58
+> gegen 3,17. §2.4 schreibt genau das vor. Die Instruction nennt den Fall unter §6 als „löst
+> aus" — er löst aus, das Angebot verliert.
+>
+> Die berichtigten Papiere aus §0: die V14-Zeile des Landschaften-Fahrplans ist mit
+> Owner-Freigabe nachgezogen (`3824c170`), `AGENTS.md` §11 ebenfalls (`7ba81995`).
+>
+> 14 PHP-Unit-Tests grün: `synthetic-distance-report-test.php`, `detour-trigger-test.php`,
+> `synthetic-refine-test.php` und die elf vorhandenen.
+
 > ⭐ **Der Rechner steht.** „Hierher reisen" ist live (Instruction B,
 > `docs/superpowers/plans/2026-07-30-hierher-reisen-und-astar.md`). Was hier folgt, baut **nichts
 > Neues an Mathematik** — es holt die zwei anderen Aufrufer an denselben Rechner und repariert eine

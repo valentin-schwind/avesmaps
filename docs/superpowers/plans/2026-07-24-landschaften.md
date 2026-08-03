@@ -7,6 +7,24 @@
 
 **Stand:** 2026-07-25, zweite Überarbeitung nach der Rollen-Prüfung gegen HEAD `b9e4bf1c`.
 
+> ## ✅ ABGEARBEITET — 2026-08-03: der Landschaftseditor ist für die Editoren freigeschaltet
+>
+> **V1 bis V14 sind gebaut und live**; die letzte offene Zeile war V14 (der Querfeldein-A\*),
+> geschlossen am 2026-08-02 durch `docs/superpowers/plans/2026-08-02-ausloeser-anker-und-x25-aufschlag.md`.
+> Die Einzelheiten stehen in der jeweiligen V-Zeile unten — jede nennt ihre Instruction, ihre
+> Messwerte und die Stellen, an denen die ursprüngliche Zeile falsch lag.
+>
+> **Offen bleibt allein V15** (Spotlight-Schnittmenge, **vertagt** — braucht gezeichnete
+> Vegetationsflächen und `relation='vorkommen'` im Sync) sowie die in den Zeilen benannte
+> **Redaktionsarbeit**: die ~66 fehlenden `gebirge`-Flächen (V8) und der 2,67×-Anker der
+> Tempotabelle, den die Daten noch nicht tragen (V11). Beides ist Pflege am Bestand, kein Bau.
+>
+> ⚠️ **Ein detailliertes Flächentooltip ist gestrichen** (Owner 2026-08-03): „Eisenwald
+> (Gebirge)" reicht. Die Ebene und die Zählung „· Flächen (3) und Labels (2)" sind aus dem
+> Zettel raus — wer zeichnet, weiß in welcher Ebene er arbeitet, und wie viele Teile eine
+> Region hat, sagt ihr Dialog. Betrifft `formatEcosystemAreaTooltip`; die alte Form steht noch
+> in T4 von `2026-07-28-landschaften-flaeche-label-kopplung.md`.
+
 **Grundlage** (das jeweils neuere Dokument gewinnt bei jedem Widerspruch):
 - `docs/superpowers/specs/2026-07-25-landschaften-planpruefung-2.md` — **der zweite
   Prüfbericht** (Datenbank / Editor / öffentlicher Betrieb). **Er ist der neueste und
