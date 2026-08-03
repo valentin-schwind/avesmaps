@@ -320,6 +320,12 @@ function focusSpotlightPlaceEntry(entry) {
 		return; // no known place kind -- nothing was focused, so nothing to follow up on
 	}
 
+	// Outline the place, when it HAS an outline (Owner 2026-08-03, "kannst du das gleiche auch für
+	// abenteuer machen"). Only a territory and a landscape label have one -- a settlement is a point
+	// that already got its marker and popup, and a way was highlighted by focusSpotlightPath itself.
+	// Measured: 134 of 1352 adventures begin in a territory, 28 more at a label with a landscape area.
+	void highlightSpotlightPlaceExtent(entry);
+
 	// One gated call instead of one per branch: the gate is the whole point, and repeating it four
 	// times is four chances for the next place-bound source to inherit a dialog that is not its own.
 	if (entry.kind === "citymap") {
@@ -480,30 +486,20 @@ function focusSpotlightLoreBounds(places, areasByLabel) {
 	}
 }
 
-// Replaces an occurrence's point markers with the OUTLINES of the landscapes it names, once the server
-// has handed them over (Owner 2026-08-02: "kannst du nicht einfach auch das gebiet selbst gelb
-// highlighten … alraune im nebelmoor -> nebelmoor gelb").
+// The landscape areas of the given labels, grouped by label id -- or null when there are none, when the
+// layer is unreachable, or when anything at all went wrong. One request, no retry.
 //
 // The areas are NOT in the map payload: they live behind api/app/ecosystem-areas.php and are normally
 // loaded only by the Landschaften layer, viewport by viewport. Asking for the whole layer here would be
 // ~1.5 MB for two or three outlines, so the endpoint learned a `labels=` filter and this asks for
-// exactly the labels this hit resolved to. Live: 285 of 638 labels have an area, so roughly a third of
-// all occurrences gain one -- the rest keep their circle, which is why the first draw already happened.
+// exactly the labels a hit resolved to (measured: 61 KB for three).
 //
-// A failure of any kind returns silently: the circles are already on the map, and an occurrence whose
-// outlines did not arrive is still a perfectly good hit.
-async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
+// Returning null rather than throwing is deliberate: every caller has ALREADY drawn something usable,
+// and a hit whose outlines did not arrive is still a perfectly good hit.
+async function fetchSpotlightLandscapeAreas(labelPublicIds) {
 	if (typeof ECOSYSTEM_AREAS_API_URL !== "string" || !ECOSYSTEM_AREAS_API_URL
-		|| typeof ecosystemAreaLatLngs !== "function") {
-		return;
-	}
-
-	const labelPublicIds = places
-		.filter((place) => place.kind === "label")
-		.map((place) => String(place.labelEntry?.label?.publicId || ""))
-		.filter(Boolean);
-	if (!labelPublicIds.length) {
-		return;
+		|| typeof ecosystemAreaLatLngs !== "function" || !labelPublicIds.length) {
+		return null;
 	}
 
 	let payload = null;
@@ -514,16 +510,10 @@ async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
 		);
 		payload = response.ok ? await response.json() : null;
 	} catch (error) {
-		return;
+		return null;
 	}
 	if (payload?.ok !== true || !Array.isArray(payload.areas) || !payload.areas.length) {
-		return;
-	}
-
-	// The user picked something else while this was in flight -- do not redraw over what they are looking
-	// at now. Same guard, same reason as openSpotlightCitymapsDialog above.
-	if (spotlightActiveSelectionId !== entry.id) {
-		return;
+		return null;
 	}
 
 	const areasByLabel = new Map();
@@ -537,7 +527,60 @@ async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
 		}
 		areasByLabel.get(labelPublicId).push(area);
 	});
-	if (!areasByLabel.size) {
+
+	return areasByLabel.size ? areasByLabel : null;
+}
+
+// Outlines the ONE place a map or an adventure hangs on, after the flight has already happened. Unlike
+// an occurrence this never touches the framing -- focusSpotlightRegion/-Label just flew there, and a
+// second opinion on the viewport would only fight it.
+//
+// Only two of the four place kinds have an outline at all: a territory brings rendered polygons with it,
+// and a landscape label has an area behind the Landschaften endpoint. A settlement is a point that
+// already got its marker and its popup, and a way was highlighted by focusSpotlightPath itself -- adding
+// a ring to either would be noise on a hit that already says where it is.
+async function highlightSpotlightPlaceExtent(entry) {
+	if (entry.placeEntryKind === "region") {
+		highlightSpotlightPlaces([entry], null, { pointFallback: false });
+		return;
+	}
+	if (entry.placeEntryKind !== "label") {
+		return;
+	}
+
+	const labelPublicId = String(entry.labelEntry?.label?.publicId || "");
+	const areasByLabel = await fetchSpotlightLandscapeAreas(labelPublicId ? [labelPublicId] : []);
+	if (!areasByLabel || spotlightActiveSelectionId !== entry.id) {
+		return;
+	}
+
+	// `entry` is the place entry with its kind overwritten (buildPlaceBoundSpotlightEntry), so it cannot
+	// be matched by kind -- hand spotlightPlaceAreas the shape it expects instead.
+	highlightSpotlightPlaces([{ ...entry, kind: "label" }], areasByLabel, { pointFallback: false });
+}
+
+// Replaces an occurrence's point markers with the OUTLINES of the landscapes it names, once the server
+// has handed them over (Owner 2026-08-02: "kannst du nicht einfach auch das gebiet selbst gelb
+// highlighten … alraune im nebelmoor -> nebelmoor gelb").
+//
+// The areas are NOT in the map payload: they live behind api/app/ecosystem-areas.php and are normally
+// loaded only by the Landschaften layer, viewport by viewport. Asking for the whole layer here would be
+// ~1.5 MB for two or three outlines, so the endpoint learned a `labels=` filter and this asks for
+// exactly the labels this hit resolved to. Live: 285 of 638 labels have an area, so roughly a third of
+// all occurrences gain one -- the rest keep their circle, which is why the first draw already happened.
+//
+// A failure of any kind returns silently: the circles are already on the map, and an occurrence whose
+// outlines did not arrive is still a perfectly good hit.
+async function upgradeSpotlightLoreHighlightToAreas(entry, places) {
+	const labelPublicIds = places
+		.filter((place) => place.kind === "label")
+		.map((place) => String(place.labelEntry?.label?.publicId || ""))
+		.filter(Boolean);
+
+	const areasByLabel = await fetchSpotlightLandscapeAreas(labelPublicIds);
+	// The user picked something else while this was in flight -- do not redraw over what they are looking
+	// at now. Same guard, same reason as openSpotlightCitymapsDialog above.
+	if (!areasByLabel || spotlightActiveSelectionId !== entry.id) {
 		return;
 	}
 
@@ -562,7 +605,10 @@ function getSpotlightPlaceBounds(place) {
 //
 // The polygons are COPIES, not the rendered ones -- so a layer reload (which clears and rebuilds
 // regionPolygons) cannot take the highlight with it.
-function highlightSpotlightPlaces(places, areasByLabel = null) {
+// `pointFallback: false` means "outline or nothing": a place-bound hit (map, adventure) only ever wants
+// the SHAPE of its place. An occurrence keeps the fallback, because there the ring at a point is the
+// answer whenever no area exists -- and that is the majority of them.
+function highlightSpotlightPlaces(places, areasByLabel = null, { pointFallback = true } = {}) {
 	// Drop the previous highlight BEFORE reassigning: the assignment overwrites the only handle on it,
 	// and an orphaned layer group hangs on the map until a reload. Same reason as in highlightSpotlightPaths.
 	if (spotlightHighlightLayer) {
@@ -601,6 +647,10 @@ function highlightSpotlightPlaces(places, areasByLabel = null) {
 					fill: false,
 				}).addTo(spotlightHighlightLayer);
 			});
+			return;
+		}
+
+		if (!pointFallback) {
 			return;
 		}
 
