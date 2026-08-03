@@ -789,8 +789,10 @@ async function refreshWikiSyncKindSyncedStatus() {
 			syncedElement.hidden = false;
 		});
 		// Die Editor-Buttons OHNE Eintrag in WIKI_SYNC_KIND_ELEMENTS tragen ihr "Zuletzt gesynct"-Datum
-		// aus derselben last_synced-Antwort: Territorien, Abenteuer und Karten syncen im Iframe-Editor,
-		// nicht ueber startWikiSyncKindSync, haben dort also keine Kind-Zeile.
+		// aus derselben last_synced-Antwort: Territorien, Abenteuer, Karten und Kraftlinien syncen im
+		// Iframe-Editor, nicht ueber startWikiSyncKindSync, haben dort also keine Kind-Zeile.
+		// Kraftlinien kam am 2026-08-03 dazu: der Knopf war der einzige ohne Datums-Span, obwohl
+		// dump-sync-kind.php `powerline` seit dem sechsten Editor mitliefert (Owner-Meldung).
 		// ⚠️ Siedlungen/Wege/Regionen stehen hier NICHT mehr -- die Schleife darueber erledigt sie,
 		// seit deren `synced`-Verweise auf die echten Spans zeigen. Zwei Stellen fuer dasselbe Feld
 		// waren genau der Grund, warum das Fehlen bei Wegen und Regionen so lange unbemerkt blieb.
@@ -798,7 +800,7 @@ async function refreshWikiSyncKindSyncedStatus() {
 		// gefunden von js/review/__tests__/sync-synced-ids.test.js. Folgenlos, weil Abenteuer
 		// daneben `adventure-editor-synced` haben, aber genau diese Art Verweis war das eigentliche
 		// Problem: er schreibt still nirgendwohin.
-		[["wiki-sync-territory-synced", "territory"], ["adventure-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"]].forEach(([id, kind]) => {
+		[["wiki-sync-territory-synced", "territory"], ["adventure-editor-synced", "adventure"], ["citymaps-editor-synced", "citymap"], ["powerline-editor-synced", "powerline"]].forEach(([id, kind]) => {
 			const el = document.getElementById(id);
 			if (!el) {
 				return;

@@ -82,4 +82,31 @@ for (const id of ["settlement-editor-synced", "path-editor-synced", "ecosystem-e
 	checks += 2;
 }
 
-console.log(`sync-synced-ids: ${checks} Prüfungen bestanden.`);
+// ---- 5. DIE GEGENRICHTUNG: jeder Editor-Knopf muss seinen Datums-Span HABEN -------------------
+// 🔴 DIESER TEIL EXISTIERT WEGEN DES NÄCHSTEN FEHLERS DERSELBEN FAMILIE. Teile 1–4 prüfen nur
+// eine Richtung: "jede ID, auf die der Code zeigt, gibt es im Markup". Ein Knopf, auf den GAR
+// NIEMAND zeigt, ist damit unauffällig — es fehlt ja kein Ziel, es fehlt der Zeiger. Genau so
+// stand "Kraftlinien bearbeiten" seit dem sechsten Editor ohne zweite Zeile da, während
+// dump-sync-kind.php sein `powerline`-Datum die ganze Zeit mitlieferte (Owner-Meldung 2026-08-03).
+//
+// Regel: ein Knopf `<subjekt>-editor-open` braucht den Span `<subjekt>-editor-synced`, und dieser
+// Span muss von einem der beiden Schreiber bedient werden. Wer einen siebten Editor baut, fällt
+// hier auf, statt es erst zu merken, wenn jemand auf den leeren Knopf zeigt.
+const editorButtons = [...markup.matchAll(/id=["']([a-z0-9-]+)-editor-open["']/g)].map(([, subjekt]) => subjekt);
+assert.ok(editorButtons.length >= 6, `mindestens sechs Editor-Knöpfe erwartet, gefunden ${editorButtons.length}`);
+checks++;
+
+const bedient = new Set([...registrySet, ...expliziteIds]);
+for (const subjekt of editorButtons) {
+	const spanId = `${subjekt}-editor-synced`;
+	assert.ok(idExistiert(spanId),
+		`Der Knopf "${subjekt}-editor-open" hat keinen Datums-Span "${spanId}". `
+		+ 'Er zeigt dann als einziger keine zweite Zeile — und niemand merkt es, weil kein Zeiger ins Leere geht.');
+	assert.ok(bedient.has(spanId),
+		`"${spanId}" steht im Markup, wird aber von KEINEM Schreiber befüllt. `
+		+ 'Entweder in WIKI_SYNC_KIND_ELEMENTS (synct über startWikiSyncKindSync) oder in die explizite '
+		+ 'Liste in refreshWikiSyncKindSyncedStatus (synct im Iframe-Editor).');
+	checks += 2;
+}
+
+console.log(`sync-synced-ids: ${checks} Prüfungen bestanden (${editorButtons.length} Editor-Knöpfe).`);

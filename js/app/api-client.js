@@ -498,7 +498,8 @@ async function fetchWikiSyncDumpStatus() {
 	return data.status || {};
 }
 
-// GET ?action=last_synced on the same endpoint: { settlement, path, region, territory },
+// GET ?action=last_synced on the same endpoint: { settlement, path, region, territory,
+// adventure, citymap, powerline } -- one key per sync kind that dump-sync-kind.php knows,
 // each a MySQL DATETIME string or null. Read-only (no lock), used to fill the per-tab
 // "Zuletzt gesynct: <date>" labels on panel load/reload (the fresh-sync path only ever
 // set them from that request's own response, so a reload left them blank).
